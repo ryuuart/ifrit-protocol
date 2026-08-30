@@ -1,6 +1,6 @@
-# The mesh currency and its procedural generators. earcut.hpp is private
-# plumbing (cap triangulation); the public headers expose only Skia and
-# glm types.
+# The mesh currency and its procedural generators — the 3D tier's root.
+# earcut.hpp is private plumbing (cap triangulation); the public headers
+# expose only Skia and glm types.
 add_library(SigilGeometryMesh STATIC
   Generators.cpp
   Mesh.cpp
@@ -23,3 +23,10 @@ add_executable(geometry_mesh_bench bench/MeshBench.cpp)
 target_link_libraries(geometry_mesh_bench PRIVATE SigilGeometryMesh
   benchmark::benchmark)
 add_dependencies(benches geometry_mesh_bench)
+
+# The tier's features, in dependency order.
+add_subdirectory(camera)
+add_subdirectory(render)
+add_subdirectory(curve)
+add_subdirectory(pop)
+add_subdirectory(codec)

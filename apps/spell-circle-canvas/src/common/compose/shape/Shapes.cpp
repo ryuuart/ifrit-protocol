@@ -116,8 +116,9 @@ SkPath Blob::path(SkSize s) const {
   std::vector<SkPoint> pts((size_t)n);
   for (int i = 0; i < n; ++i) {
     const float a = -SK_FloatPI / 2 + i * (2 * SK_FloatPI / n);
-    const float r = 1.0f - amplitude * (0.5f + 0.5f * geometry::noise::hash(
-                                                          seed, (uint32_t)i));
+    const float r =
+        1.0f - amplitude * (0.5f + 0.5f * geometry::path::noise::hash(
+                                              seed, (uint32_t)i));
     pts[(size_t)i] = {cx + cx * r * std::cos(a), cy + cy * r * std::sin(a)};
   }
   // Catmull-Rom → cubic Béziers around the loop.
@@ -356,7 +357,7 @@ SkPath edges(const SkPath& outline, Edge mask, float step) {
         // The boundary lies between the previous sample and this one;
         // narrow the bracket rather than taking either sample, or every
         // run boundary sits up to one step away from the real corner.
-        const float at = geometry::bisect(
+        const float at = geometry::path::bisect(
             length * (float)(i - 1) / (float)samples, d, [&](float mid) {
               SkPoint mp;
               return contour->getPosTan(mid, &mp, nullptr) &&

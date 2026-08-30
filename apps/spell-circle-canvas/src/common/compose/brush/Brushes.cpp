@@ -424,10 +424,12 @@ void Scatter::paint(SkCanvas& c, const PaintContext& ctx) const {
     if (mod) m = mod(samples[i], i, samples.size());
     if (seed != 0) {
       const uint32_t k = (uint32_t)i;
-      m.dAlong += geometry::noise::hash(seed, 4 * k) * jitterAlong;
-      m.dNormal += geometry::noise::hash(seed, 4 * k + 1) * jitterNormal;
-      m.scale *= 1.0f + geometry::noise::hash(seed, 4 * k + 2) * jitterScale;
-      m.rotateDeg += geometry::noise::hash(seed, 4 * k + 3) * jitterRotateDeg;
+      m.dAlong += geometry::path::noise::hash(seed, 4 * k) * jitterAlong;
+      m.dNormal += geometry::path::noise::hash(seed, 4 * k + 1) * jitterNormal;
+      m.scale *=
+          1.0f + geometry::path::noise::hash(seed, 4 * k + 2) * jitterScale;
+      m.rotateDeg +=
+          geometry::path::noise::hash(seed, 4 * k + 3) * jitterRotateDeg;
     }
     drawStamp(c, *pic, samples[i], alignToPath, 0, 1, 1, m);
   }
@@ -477,7 +479,8 @@ void Pattern::paint(SkCanvas& c, const PaintContext& ctx) const {
   std::vector<std::pair<PathSample, float>> sideSlots;  // sample + scaleX
   std::vector<std::pair<PathSample, const SkPicture*>> caps;
 
-  for (const geometry::Contour& contour : geometry::Contour::of(ctx.outline)) {
+  for (const geometry::path::Contour& contour :
+       geometry::path::Contour::of(ctx.outline)) {
     const float len = contour.length();
     const bool closed = contour.closed();
 
@@ -492,7 +495,7 @@ void Pattern::paint(SkCanvas& c, const PaintContext& ctx) const {
     // on the same leg whenever it is shorter than the probe, aiming the
     // tile at the outgoing tangent regardless of the alignment asked
     // for.
-    std::vector<geometry::Contour::Corner> corners;
+    std::vector<geometry::path::Contour::Corner> corners;
     if (cache->corner)
       corners = sigil::compose::detail::cornersOrWarn(
           contour, cornerAngleDeg, tileLen * 0.5f,
@@ -514,7 +517,7 @@ void Pattern::paint(SkCanvas& c, const PaintContext& ctx) const {
                       : 0.0f;
     const float halfCorner = cornerRoom * 0.5f;
     std::vector<float> bounds{head};
-    for (const geometry::Contour::Corner& hit : corners)
+    for (const geometry::path::Contour::Corner& hit : corners)
       if (hit.distance > head && hit.distance < len - tail) {
         bounds.push_back(hit.distance - halfCorner);  // run ends before
         bounds.push_back(hit.distance + halfCorner);  // next run starts after
@@ -534,8 +537,8 @@ void Pattern::paint(SkCanvas& c, const PaintContext& ctx) const {
         const float d = a + slot * ((float)i + 0.5f);
         if (const auto at = contour.at(d))
           sideSlots.push_back(
-              {{geometry::toSk(at->position), geometry::toSk(at->tangent), d,
-                len > 0 ? d / len : 0},
+              {{geometry::path::toSk(at->position),
+                geometry::path::toSk(at->tangent), d, len > 0 ? d / len : 0},
                sx});
       }
     }
@@ -546,28 +549,28 @@ void Pattern::paint(SkCanvas& c, const PaintContext& ctx) const {
     // required constructor argument of CornerArt, so corner art with no
     // stated alignment cannot be described in the first place.
     if (cache->corner)
-      for (const geometry::Contour::Corner& hit : corners) {
+      for (const geometry::path::Contour::Corner& hit : corners) {
         const auto at = contour.at(hit.distance);
         if (!at) continue;
         SkVector dir{hit.in.x + hit.out.x, hit.in.y + hit.out.y};
         // A hairpin's legs cancel: in + out ≈ 0 and atan2(0,0) is a
         // silent zero rotation. Fall back to the outgoing leg.
         if (dir.length() < 1e-3f || corner->align == CornerAlign::Outgoing)
-          dir = geometry::toSk(hit.out);
-        caps.push_back({{geometry::toSk(at->position), dir, hit.distance,
+          dir = geometry::path::toSk(hit.out);
+        caps.push_back({{geometry::path::toSk(at->position), dir, hit.distance,
                          len > 0 ? hit.distance / len : 0},
                         cache->corner.get()});
       }
     if (!closed && cache->start) {
       if (const auto at = contour.at(head * 0.5f))
-        caps.push_back(
-            {{geometry::toSk(at->position), geometry::toSk(at->tangent), 0, 0},
-             cache->start.get()});
+        caps.push_back({{geometry::path::toSk(at->position),
+                         geometry::path::toSk(at->tangent), 0, 0},
+                        cache->start.get()});
     }
     if (!closed && cache->end) {
       if (const auto at = contour.at(len - tail * 0.5f))
-        caps.push_back({{geometry::toSk(at->position),
-                         geometry::toSk(at->tangent), len, 1},
+        caps.push_back({{geometry::path::toSk(at->position),
+                         geometry::path::toSk(at->tangent), len, 1},
                         cache->end.get()});
     }
   }

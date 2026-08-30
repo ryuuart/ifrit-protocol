@@ -17,7 +17,7 @@
 #include <cstdint>
 #include <glm/vec3.hpp>
 
-namespace sigil::geometry::noise {
+namespace sigil::geometry::path::noise {
 
 /** Hash of (seed, i) to [-1, 1]: a splitmix64 finalizer over the pair.
  *  Successive `i` for one seed read as an uncorrelated sequence, which is
@@ -66,4 +66,4 @@ inline float pcgUnit(uint32_t x) {
 /** Trilinear value noise over the integer lattice, in [-1, 1], seeded. */
 float value3(glm::vec3 p, uint32_t seed);
 
-}  // namespace sigil::geometry::noise
+}  // namespace sigil::geometry::path::noise

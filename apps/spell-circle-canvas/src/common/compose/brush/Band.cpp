@@ -133,7 +133,7 @@ SkPath bandRegion(const SkPath& spine, const Across& width,
   // chord, so two concentric ring spines came out as a filled disc.
   //
   // BOTH RAILS GO THROUGH profileOffset, which is the other half: a
-  // constant width then rides geometry::parallel's corner repair (real
+  // constant width then rides geometry::path::parallel's corner repair (real
   // vertices, arc outside a turn, miter inside) instead of a naive
   // sample-and-displace that leaves a spur on the inside of every
   // rectangle.
@@ -142,7 +142,7 @@ SkPath bandRegion(const SkPath& spine, const Across& width,
   // `across` is LEFT of travel, which with y pointing down is OUTSIDE a
   // clockwise path — and clockwise is SkPath's own direction for rects and
   // circles, so `.outward()` exits the shape. bandPointAt and
-  // geometry::parallel mean the same side; a helper that flipped it would
+  // geometry::path::parallel mean the same side; a helper that flipped it would
   // turn every band inside out on one code path only.
   SkPathBuilder out;
   float consumed = 0;
@@ -159,8 +159,8 @@ SkPath bandRegion(const SkPath& spine, const Across& width,
                                                 sliceStart, sliceSpan, total}));
     if (outerRail.isEmpty() || innerRail.isEmpty()) continue;
 
-    // Zip by arc length rather than by index: geometry::parallel inserts join
-    // geometry, so the two rails do not share a point count.
+    // Zip by arc length rather than by index: geometry::path::parallel inserts
+    // join geometry, so the two rails do not share a point count.
     const int steps = std::max(16, (int)std::ceil(len / 2.0f));
     const std::vector<SkPoint> outerPts = sampleRail(outerRail, steps);
     const std::vector<SkPoint> innerPts = sampleRail(innerRail, steps);
@@ -211,15 +211,15 @@ SkPath profileOffset(const SkPath& spine, const Profile& profile) {
   float total = 0;
   measureContours(spine, &total);
   if (total <= 0) return SkPath();
-  // A CONSTANT profile is a parallel, and geometry::parallel already does
+  // A CONSTANT profile is a parallel, and geometry::path::parallel already does
   // parallels exactly — it finds the real vertices and joins them (arc
   // outside a turn, miter inside) instead of chording across. The naive
   // sample-and-displace walk below cannot: at a hard corner it offsets one
   // sampled point along ONE edge's normal, which leaves a spur on the
   // inside of every rectangle. Delegating rather than growing a second
   // corner repair here is deliberate — two repairs would drift apart.
-  // No sign conversion is needed: geometry::parallel is LEFT of travel, which
-  // is this file's frame exactly (see bandPointAt).
+  // No sign conversion is needed: geometry::path::parallel is LEFT of travel,
+  // which is this file's frame exactly (see bandPointAt).
   //
   // Constancy is detected by SAMPLING, and that is a real limitation, not
   // a rounding detail: a stepped profile whose period divides the sample
@@ -236,7 +236,7 @@ SkPath profileOffset(const SkPath& spine, const Profile& profile) {
     for (int k = 1; k < 97 && constant; ++k)
       constant = profile.acrossAt(((float)k + 0.5f) / 97.0f, total) == first;
     if (constant)
-      return first == 0.0f ? spine : geometry::parallel(spine, first);
+      return first == 0.0f ? spine : geometry::path::parallel(spine, first);
   }
   SkPathBuilder out;
   SkContourMeasureIter iter(spine, false);

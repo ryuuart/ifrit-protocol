@@ -86,12 +86,12 @@ SkPath insetOutline(const SkPath& outline, float px) {
 
 SkPath cornerBrackets(const SkPath& src, float arm, float angleDeg) {
   sigil::compose::detail::warnIfNoCorners(src, angleDeg);
-  return geometry::cornerWindows(src, arm, true, angleDeg);
+  return geometry::path::cornerWindows(src, arm, true, angleDeg);
 }
 
 SkPath cornerGaps(const SkPath& src, float gap, float angleDeg) {
   sigil::compose::detail::warnIfNoCorners(src, angleDeg);
-  return geometry::cornerWindows(src, gap, false, angleDeg);
+  return geometry::path::cornerWindows(src, gap, false, angleDeg);
 }
 
 float Line::bleed() const {
@@ -107,9 +107,9 @@ void Line::paint(SkCanvas& canvas, const PaintContext& ctx) const {
   //    back from under Arrow and Bar heads, which also stops dashes
   //    cleanly instead of letting them show through the head.
   SkPath body =
-      across != 0 ? geometry::parallel(ctx.outline, across) : ctx.outline;
+      across != 0 ? geometry::path::parallel(ctx.outline, across) : ctx.outline;
   if (waveAmplitude > 0)
-    body = geometry::displace(body, waveAmplitude, waveLength, zigzag);
+    body = geometry::path::displace(body, waveAmplitude, waveLength, zigzag);
   // Caps ride the FINAL geometry (offset + wave applied), not the raw
   // outline — a head must sit on the line it terminates.
   const SkPath capPath = body;
@@ -184,7 +184,7 @@ void Line::paint(SkCanvas& canvas, const PaintContext& ctx) const {
     //    which gives exact parallel curves on bends; round joins plus
     //    Simplify() remove the miter spikes and the self-intersection
     //    knots a tight bend produces. Dashed rails are built per line
-    //    through `geometry::parallel` instead, so every rail's pattern is
+    //    through `geometry::path::parallel` instead, so every rail's pattern is
     //    measured on one arc parameterization and the dashes stay in phase.
     if (parallels <= 1) {
       stroke.setStrokeWidth(width);
@@ -206,8 +206,9 @@ void Line::paint(SkCanvas& canvas, const PaintContext& ctx) const {
         p.setStrokeWidth(parallels % 2 && i == n / 2
                              ? width * std::max(coreWidthFactor, 0.1f)
                              : width);
-        canvas.drawPath(
-            o == 0 ? dashedBody : geometry::parallel(dashedBody, -o, 2.0f), p);
+        canvas.drawPath(o == 0 ? dashedBody
+                               : geometry::path::parallel(dashedBody, -o, 2.0f),
+                        p);
       }
     } else {
       const int pairs = parallels / 2;
@@ -428,10 +429,10 @@ float Rails::span() const {
 
 void Rails::paint(SkCanvas& canvas, const PaintContext& ctx) const {
   if (ctx.outline.isEmpty() || rails.empty()) return;
-  const SkPath body =
-      waveAmplitude > 0
-          ? geometry::displace(ctx.outline, waveAmplitude, waveLength, zigzag)
-          : ctx.outline;
+  const SkPath body = waveAmplitude > 0
+                          ? geometry::path::displace(ctx.outline, waveAmplitude,
+                                                     waveLength, zigzag)
+                          : ctx.outline;
   const float base = phase();
   const float stride =
       std::isfinite(offsetStep) ? std::max(offsetStep, 0.5f) : 2.0f;
@@ -445,7 +446,8 @@ void Rails::paint(SkCanvas& canvas, const PaintContext& ctx) const {
             ? body
             : dashGeometry(body, SkSpan(rail.dash.data(), rail.dash.size()),
                            base + rail.dashPhase);
-    if (rail.across != 0) run = geometry::parallel(run, rail.across, stride);
+    if (rail.across != 0)
+      run = geometry::path::parallel(run, rail.across, stride);
     SkPaint p;
     p.setAntiAlias(true);
     p.setStyle(SkPaint::kStroke_Style);

@@ -610,8 +610,8 @@ TEST(GlyphBatches, ClearKeepsBucketsButReleasesGlyphs) {
 
 namespace {
 /// One line whose whole measure is one contour.
-LineSetFlow ringFlow(const sigil::geometry::Contour& contour, float length,
-                     float start = 0, float advanceScale = 1.0f) {
+LineSetFlow ringFlow(const sigil::geometry::path::Contour& contour,
+                     float length, float start = 0, float advanceScale = 1.0f) {
   LineInterval interval;
   interval.contour = contour;
   interval.length = length;

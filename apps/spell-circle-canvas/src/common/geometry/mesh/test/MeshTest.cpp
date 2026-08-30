@@ -15,6 +15,7 @@
 #include "support/GeometrySupport.h"
 
 using namespace sigil::geometry;
+using namespace sigil::geometry::mesh;
 
 using sigil::geometry::test::splitQuad;
 

@@ -51,8 +51,8 @@ class LoopScene final : public Scene {
       pathBuilder.close();
       Rail built;
       built.eight = pathBuilder.detach();
-      std::vector<sigil::geometry::Contour> contours =
-          sigil::geometry::Contour::of(built.eight);
+      std::vector<sigil::geometry::path::Contour> contours =
+          sigil::geometry::path::Contour::of(built.eight);
       if (!contours.empty()) built.contour = std::move(contours.front());
       return built;
     });
@@ -89,7 +89,7 @@ class LoopScene final : public Scene {
   /// from the canvas size.
   struct Rail {
     SkPath eight;
-    sigil::geometry::Contour contour;
+    sigil::geometry::path::Contour contour;
   };
   BodyCache m_body;
   sk_sp<SkTypeface> m_serif;

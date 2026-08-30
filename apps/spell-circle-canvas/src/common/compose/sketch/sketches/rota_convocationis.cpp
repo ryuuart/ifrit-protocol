@@ -659,7 +659,7 @@ SkPath nodeRing(int count, float rNorm, float px, float fromDeg) {
  *  "brighter". The seed is the line's own index, so two neighbouring
  *  rules wobble differently and no two share a wave. */
 SkPath chalked(const SkPath& line, uint32_t seed, float amplitude = 1.15f) {
-  return sigil::geometry::ops::Roughen{
+  return sigil::geometry::path::ops::Roughen{
       .amplitude = amplitude, .segmentPx = 34.0f, .seed = seed, .smooth = true}(
       line);
 }

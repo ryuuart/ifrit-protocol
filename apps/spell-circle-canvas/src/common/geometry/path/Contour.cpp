@@ -19,7 +19,7 @@
 #include "sigilgeometry/path/Numeric.h"
 #include "sigilgeometry/path/Skia.h"
 
-namespace sigil::geometry {
+namespace sigil::geometry::path {
 
 namespace {
 
@@ -331,4 +331,4 @@ SkPath cornerWindows(const SkPath& path, float radius, bool keepNearCorners,
   return out.detach();
 }
 
-}  // namespace sigil::geometry
+}  // namespace sigil::geometry::path

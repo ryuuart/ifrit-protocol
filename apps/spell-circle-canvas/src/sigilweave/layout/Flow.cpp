@@ -173,20 +173,20 @@ bool LineInterval::placeAt(float pen, float phase, int rotationSteps,
     // (shift the phase for an infinite marquee). `wrapContour` wraps a
     // contour the geometry would clamp, so the wrap is spelled here rather
     // than left to `around`.
-    contourPosition = geometry::wrap(contourPosition, contourLength);
+    contourPosition = geometry::path::wrap(contourPosition, contourLength);
   } else {
     inside = contourPosition >= 0 && contourPosition <= contourLength;
     contourPosition = std::clamp(contourPosition, 0.0f, contourLength);
   }
-  const std::optional<geometry::Contour::Sample> sample =
+  const std::optional<geometry::path::Contour::Sample> sample =
       contour.at(contourPosition);
   if (!sample) {
     *position = {0, 0};
     *tangent = {1, 0};
     return false;
   }
-  *position = geometry::toSk(sample->position);
-  *tangent = geometry::toSk(sample->tangent);
+  *position = geometry::path::toSk(sample->position);
+  *tangent = geometry::path::toSk(sample->tangent);
   // Walking backwards faces the other way — turned before the snap, so the
   // reversed direction lands on a ladder step rather than beside one.
   if (advanceScale < 0) *tangent = {-tangent->fX, -tangent->fY};
@@ -234,8 +234,8 @@ const ExclusionFlow::FlatPath& ExclusionFlow::flattenedPathFor(
   // an exclusion is filled as if its ends were joined, exactly as the fill
   // rule fills it.
   constexpr float kFlattenTolerance = 0.5f;
-  for (geometry::Polyline& polyline :
-       geometry::flatten(path, kFlattenTolerance)) {
+  for (geometry::path::Polyline& polyline :
+       geometry::path::flatten(path, kFlattenTolerance)) {
     if (polyline.points.size() >= 3)
       flattenedPath->contours.push_back(std::move(polyline.points));
   }
@@ -351,7 +351,7 @@ bool LineSetFlow::lineIntervals(int index, float /*lineHeight*/,
 PathFlow::PathFlow(const SkPath& path) { addPath(path); }
 
 void PathFlow::addPath(const SkPath& path) {
-  for (geometry::Contour& contour : geometry::Contour::of(path))
+  for (geometry::path::Contour& contour : geometry::path::Contour::of(path))
     m_contours.push_back(std::move(contour));
 }
 

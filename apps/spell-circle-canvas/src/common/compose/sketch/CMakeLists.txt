@@ -145,9 +145,10 @@ if(APPLE)
                               SigilComposeKit SigilImageAsset
                               SigilImageDecode SigilLoaderHub SigilMotionClock
                               SigilMotionBind SigilGeometryPath
-                              SigilGeometryBlend SigilGeometryMesh
-                              SigilGeometrySpace SigilGeometryCurves
-                              SigilGeometryPop SigilGeometryCodec
+                              SigilGeometryPathBlend SigilGeometryMesh
+                              SigilGeometryMeshCamera SigilGeometryMeshRender
+                              SigilGeometryMeshCurve
+                              SigilGeometryMeshPop SigilGeometryMeshCodec
                               SigilMaterialCore SigilMaterialTexture
                               SigilMaterialColor SigilMaterialSdf
                               SigilMaterialPattern SigilMaterialField

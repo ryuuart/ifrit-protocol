@@ -2,7 +2,7 @@
 # Knuth-Plass breakers over one flattened interval sequence, placement as
 # shared or baked blobs, the ellipsis, and the per-line and per-column
 # metrics derived from the placed runs. SigilGeometryPath is public — a
-# contour interval carries a geometry::Contour.
+# contour interval carries a geometry::path::Contour.
 add_library(SigilWeaveLayout STATIC
   Flow.cpp
   LineBreak.cpp

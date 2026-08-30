@@ -17,11 +17,12 @@
 
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkSurface.h>
-#include <sigilgeometry/blend/Blend.h>
-#include <sigilgeometry/curves/Curves.h>
+#include <sigilgeometry/mesh/camera/Camera.h>
+#include <sigilgeometry/mesh/curve/Curve.h>
+#include <sigilgeometry/mesh/pop/Points.h>
+#include <sigilgeometry/mesh/render/Painter.h>
 #include <sigilgeometry/path/Ops.h>
-#include <sigilgeometry/pop/Points.h>
-#include <sigilgeometry/space/Space.h>
+#include <sigilgeometry/path/blend/Blend.h>
 #include <sigilmaterial/kit/Surfaces.h>
 #include <sigilmaterial/skia/Draw.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
@@ -71,8 +72,8 @@ SkPath star(int points, float radius, float innerRatio = 0.45f,
 
 /** A closed loop of eight points orbiting the origin, bobbing with the
  *  clock — the wire everything on the right hangs from. */
-geometry::Spline3 loopAt(float t, float radius, float bob) {
-  geometry::Spline3 spline;
+geometry::mesh::curve::Spline3 loopAt(float t, float radius, float bob) {
+  geometry::mesh::curve::Spline3 spline;
   for (int i = 0; i < 8; ++i) {
     const float a = (float)i / 8.0f * 2.0f * (float)M_PI + t * 0.25f;
     spline.points.emplace_back(std::cos(a) * radius,
@@ -131,11 +132,12 @@ struct EaselPlayground : sigil::compose::sketch::Sketch {
         custom([this](SkCanvas& canvas, const PaintContext& paint) {
           const float wobble =
               2.0f + 1.5f * std::sin((float)paint.elapsedSeconds * 0.8f);
-          const geometry::ops::PathOp recipe = geometry::ops::chain({
-              geometry::ops::PuckerBloat{0.25f},
-              geometry::ops::Roughen{wobble, 8, 3},
-              geometry::ops::offsetBy(6),
-          });
+          const geometry::path::ops::PathOp recipe =
+              geometry::path::ops::chain({
+                  geometry::path::ops::PuckerBloat{0.25f},
+                  geometry::path::ops::Roughen{wobble, 8, 3},
+                  geometry::path::ops::offsetBy(6),
+              });
           const SkPath outline = recipe(star(7, 110, 0.55f));
           material::kit::GoldParams gold;
           canvas.save();
@@ -161,8 +163,8 @@ struct EaselPlayground : sigil::compose::sketch::Sketch {
           for (int i = 0; i < 5; ++i) {
             const float phase = t * 0.7f - (float)i * 0.55f;
             const float grow = 20.0f * (float)i + 14.0f * std::sin(phase);
-            const SkPath ring = geometry::ops::offset(
-                geometry::ops::Zigzag{4, 18, true}(ngon(6, 36)), grow);
+            const SkPath ring = geometry::path::ops::offset(
+                geometry::path::ops::Zigzag{4, 18, true}(ngon(6, 36)), grow);
             SkPaint stroke;
             stroke.setAntiAlias(true);
             stroke.setStyle(SkPaint::kStroke_Style);
@@ -185,18 +187,18 @@ struct EaselPlayground : sigil::compose::sketch::Sketch {
           const SkPoint top = {paint.size.width() * 0.5f + sway, 90};
           const SkPoint bottom = {paint.size.width() * 0.5f - sway,
                                   paint.size.height() - 90};
-          geometry::blend::Key from{
+          geometry::path::blend::Key from{
               star(5, 66, 0.45f)
                   .makeTransform(SkMatrix::Translate(top.fX, top.fY)),
               {1.0f, 0.42f, 0.30f, 1}};
-          geometry::blend::Key to{
+          geometry::path::blend::Key to{
               dot(56).makeTransform(SkMatrix::Translate(bottom.fX, bottom.fY)),
               {0.30f, 0.62f, 1.0f, 1}};
-          geometry::blend::Options options;
+          geometry::path::blend::Options options;
           options.steps = 10;
           options.smoothOutlines = true;
-          geometry::blend::draw(canvas,
-                                geometry::blend::make(from, to, options));
+          geometry::path::blend::draw(
+              canvas, geometry::path::blend::make(from, to, options));
         })
             .inset(390, 60, 420, 40)
             .cache(Cache::None);
@@ -205,40 +207,40 @@ struct EaselPlayground : sigil::compose::sketch::Sketch {
     // tube, particles, and the TILED UNTILEABLE MARQUEE — a
     // Fibonacci-word band scrolling around a second, wider loop.
     // Nothing marquee-shaped exists in the library: it is
-    // curves::ribbon (the (across, along) uv chart) + tileTexture +
+    // curve::ribbon (the (across, along) uv chart) + tileTexture +
     // uvTransform, the same verbs any conveyor or ticker uses.
     Element flight =
         custom([this](SkCanvas& canvas, const PaintContext& paint) {
           const SkSize viewport = paint.size;
-          geometry::space::Camera camera;
+          geometry::mesh::camera::Camera camera;
           camera.eye = {0, 170, 620};
           camera.target = {0, 0, 0};
           camera.fovYDeg = 40;
 
           const float t = (float)paint.elapsedSeconds;
-          const geometry::Spline3 loop = loopAt(t, 210, 80);
+          const geometry::mesh::curve::Spline3 loop = loopAt(t, 210, 80);
 
-          geometry::space::MeshStyle steel;
+          geometry::mesh::render::MeshStyle steel;
           steel.baseColor = {0.62f, 0.7f, 0.85f, 1};
           steel.specular = 0.9f;
-          geometry::space::drawMesh(
+          geometry::mesh::render::drawMesh(
               canvas,
-              geometry::curves::tube(loop, {.radius = 7, .segments = 180}),
+              geometry::curve::tube(loop, {.radius = 7, .segments = 180}),
               glm::mat4(1.0f), camera, viewport, steel);
           SkPaint wire;
           wire.setAntiAlias(true);
           wire.setStyle(SkPaint::kStroke_Style);
           wire.setStrokeWidth(1);
           wire.setColor4f({1, 1, 1, 0.25f});
-          canvas.drawPath(
-              geometry::curves::project(loop, camera, viewport, 256), wire);
+          canvas.drawPath(geometry::curve::project(loop, camera, viewport, 256),
+                          wire);
 
           // The marquee: a wider sibling loop wearing the Fibonacci
           // band. ribbon() charts (across, along) into uv; the strip
           // tiles (one aperiodic period wraps the loop) and the
           // uvTransform's translate IS the scroll.
-          const geometry::Spline3 orbit = loopAt(t, 265, 96);
-          geometry::space::MeshStyle band;
+          const geometry::mesh::curve::Spline3 orbit = loopAt(t, 265, 96);
+          geometry::mesh::render::MeshStyle band;
           band.texture = marqueeStrip;
           band.tileTexture = true;
           band.baseColor = {1, 1, 1, 0.92f};
@@ -246,16 +248,17 @@ struct EaselPlayground : sigil::compose::sketch::Sketch {
           band.lights = {};
           band.specular = 0;
           band.uvTransform = SkMatrix::Translate(0, t * 0.11f);
-          geometry::space::drawMesh(
+          geometry::mesh::render::drawMesh(
               canvas,
-              geometry::curves::ribbon(orbit, {.width = 30, .segments = 220}),
+              geometry::curve::ribbon(orbit, {.width = 30, .segments = 220}),
               glm::mat4(1.0f), camera, viewport, band);
 
           // Particles: points on the wire, drifted by noise, tinted
           // along the "t" lane the spline scatter writes, sized by a
           // lane of our own.
-          geometry::Cloud sparks = geometry::points::onSpline(loop, 220);
-          geometry::points::displaceNoise(sparks, 26, 0.012f, 9);
+          geometry::mesh::Cloud sparks =
+              geometry::mesh::points::onSpline(loop, 220);
+          geometry::mesh::points::displaceNoise(sparks, 26, 0.012f, 9);
           const std::vector<float>* along = sparks.scalarIf("t");
           std::vector<glm::vec4>& tint = sparks.color("tint");
           std::vector<float>& size = sparks.scalar("size", 1);
@@ -267,12 +270,12 @@ struct EaselPlayground : sigil::compose::sketch::Sketch {
             tint[i] = cool + (warm - cool) * f;
             size[i] = 1.0f + 0.6f * std::sin(f * 37.0f);
           }
-          geometry::points::BillboardStyle glow;
+          geometry::mesh::points::BillboardStyle glow;
           glow.size = 11;
           glow.sizeLane = "size";
           glow.tintLane = "tint";
-          geometry::points::drawBillboards(canvas, sparks, camera, viewport,
-                                           glow);
+          geometry::mesh::points::drawBillboards(canvas, sparks, camera,
+                                                 viewport, glow);
         })
             .inset(840, 60, 30, 40)
             .clip()

@@ -20,7 +20,7 @@
 #include "sigilgeometry/path/Polyline.h"
 #include "sigilgeometry/path/Skia.h"
 
-using namespace sigil::geometry;
+using namespace sigil::geometry::path;
 
 namespace {
 

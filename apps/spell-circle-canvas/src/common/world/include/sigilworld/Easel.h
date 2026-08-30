@@ -35,8 +35,8 @@
  */
 
 #include <sigilgeometry/mesh/Mesh.h>
-#include <sigilgeometry/pop/Points.h>
-#include <sigilgeometry/pop/Pop.h>
+#include <sigilgeometry/mesh/pop/Points.h>
+#include <sigilgeometry/mesh/pop/Pop.h>
 
 #include <algorithm>
 #include <cstdint>
@@ -65,7 +65,7 @@ inline uint64_t hashBytes(uint64_t h, const void* data, size_t size) {
 
 /** Content identity for a by-value mesh — equal content means equal
  *  identity, so re-declared meshes reconcile as kept, not re-added. */
-inline uint64_t fingerprint(const geometry::Mesh& mesh) {
+inline uint64_t fingerprint(const geometry::mesh::Mesh& mesh) {
   uint64_t h = 1469598103934665603ull;
   h = hashBytes(h, mesh.positions.data(),
                 mesh.positions.size() * sizeof(glm::vec3));
@@ -79,7 +79,7 @@ inline uint64_t fingerprint(const geometry::Mesh& mesh) {
 
 /** Content identity for a stamps prop's points AS SEEN through its lanes —
  *  an unchanged cloud skips the instance re-upload entirely. */
-inline uint64_t fingerprint(const geometry::Cloud& cloud,
+inline uint64_t fingerprint(const geometry::mesh::Cloud& cloud,
                             const StampLanes& lanes) {
   uint64_t h = 1469598103934665603ull;
   h = hashBytes(h, cloud.positions.data(),
@@ -163,7 +163,8 @@ class Stage {
 
   /** A prop with stable pointer identity — share the shared_ptr across
    *  commits and only transforms are ever touched. */
-  Stage& place(std::shared_ptr<const geometry::Mesh> mesh, Material material) {
+  Stage& place(std::shared_ptr<const geometry::mesh::Mesh> mesh,
+               Material material) {
     Placement p;
     p.kind = Placement::Kind::Prop;
     p.mesh = std::move(mesh);
@@ -173,7 +174,7 @@ class Stage {
   }
   /** A prop by value — content-hashed, so re-declaring the same mesh
    *  keeps its prop; a changed mesh re-uploads. */
-  Stage& place(geometry::Mesh mesh, Material material) {
+  Stage& place(geometry::mesh::Mesh mesh, Material material) {
     Placement p;
     p.kind = Placement::Kind::Prop;
     p.fingerprint = detail::fingerprint(mesh);
@@ -195,7 +196,7 @@ class Stage {
   /** @p stamp instanced at every point of @p cloud in ONE draw
    *  (World::placeStamps). An unchanged cloud is a keep; a changed
    *  one refreshes instances in place (setStamps). */
-  Stage& placeStamps(geometry::Cloud cloud, geometry::Mesh stamp,
+  Stage& placeStamps(geometry::mesh::Cloud cloud, geometry::mesh::Mesh stamp,
                      Material material, StampLanes lanes = {}) {
     Placement p;
     p.kind = Placement::Kind::Stamps;
@@ -213,8 +214,8 @@ class Stage {
    *  commit: unchanged is a keep, changed goes to setChain — the
    *  window slide, the deformer amount, the mask, whatever moved. A
    *  chain the GPU executor declines is not placed at all. */
-  Stage& placeChain(geometry::pop::Chain chain, geometry::Mesh stamp,
-                    Material material) {
+  Stage& placeChain(geometry::mesh::pop::Chain chain,
+                    geometry::mesh::Mesh stamp, Material material) {
     Placement p;
     p.kind = Placement::Kind::Chain;
     p.chain = std::move(chain);
@@ -324,19 +325,19 @@ class Stage {
     glm::vec3 position = {0, 0, 0};
     float yawDeg = 0, pitchDeg = 0, rollDeg = 0;
     float scale = 1;
-    std::shared_ptr<const geometry::Mesh> mesh;  // Prop, shared identity
-    geometry::Mesh value;                        // Prop by value / stamp
+    std::shared_ptr<const geometry::mesh::Mesh> mesh;  // Prop, shared identity
+    geometry::mesh::Mesh value;                        // Prop by value / stamp
     uint64_t fingerprint = 0;
     Material material;
     sk_sp<SkImage> image;  // Panel
     float width = 0, height = 0;
-    geometry::Cloud cloud;       // Stamps
-    StampLanes lanes;            // Stamps
-    geometry::pop::Chain chain;  // Points
+    geometry::mesh::Cloud cloud;       // Stamps
+    StampLanes lanes;                  // Stamps
+    geometry::mesh::pop::Chain chain;  // Points
   };
   struct CachedMesh {
     uint64_t fingerprint = 0;
-    std::shared_ptr<const geometry::Mesh> mesh;
+    std::shared_ptr<const geometry::mesh::Mesh> mesh;
   };
   struct StampsEntry {
     uint32_t id = 0;
@@ -349,7 +350,7 @@ class Stage {
   struct PointsEntry {
     uint32_t id = 0;
     uint64_t stampFingerprint = 0;
-    geometry::pop::Chain chain;
+    geometry::mesh::pop::Chain chain;
     Material material;
     glm::mat4 world{1.0f};
     bool visited = false;
@@ -358,13 +359,14 @@ class Stage {
   /** By-value meshes reconcile by content hash under the placement's
    *  key (or child index): same content, same shared_ptr, so the Scene
    *  sees stable pointer identity. */
-  std::shared_ptr<const geometry::Mesh> resolveMesh(Placement& p,
-                                                    int childIndex) {
+  std::shared_ptr<const geometry::mesh::Mesh> resolveMesh(Placement& p,
+                                                          int childIndex) {
     if (p.mesh) return p.mesh;
     CachedMesh& cached =
         m_meshes[p.key.empty() ? "#" + std::to_string(childIndex) : p.key];
     if (!cached.mesh || cached.fingerprint != p.fingerprint) {
-      cached.mesh = std::make_shared<const geometry::Mesh>(std::move(p.value));
+      cached.mesh =
+          std::make_shared<const geometry::mesh::Mesh>(std::move(p.value));
       cached.fingerprint = p.fingerprint;
     }
     return cached.mesh;
@@ -533,7 +535,7 @@ class Stage {
   World& m_world;
   scene::Scene m_scene;
   Lighting m_lighting;
-  geometry::space::Camera m_camera;
+  geometry::mesh::camera::Camera m_camera;
   bool m_lightingDirty = false;
   bool m_cameraDirty = false;
   std::vector<Placement> m_pending;

@@ -45,7 +45,7 @@ gold.roughness = 0.25f;
 const uint32_t ring =
     w->place(geometry::mesh::torus(140, 40), glm::mat4(1.0f), gold);
 
-geometry::space::Camera camera;
+geometry::mesh::camera::Camera camera;
 camera.eye = {0, 220, 620};
 camera.target = {0, 0, 0};
 w->setCamera(camera);
@@ -96,9 +96,9 @@ for (const world::textures::TextureSet& set :
 ## The mental model
 
 **Four things cross the boundary, and nothing else does.** Geometry
-comes in as a `geometry::Mesh`. Panel content comes in as any `SkImage` —
+comes in as a `geometry::mesh::Mesh`. Panel content comes in as any `SkImage` —
 whatever produced it. The camera comes in as a
-`geometry::space::Camera`, the same value type SigilGeometry's software
+`geometry::mesh::camera::Camera`, the same value type SigilGeometry's software
 renderer uses, so a Skia-composited image and a SigilWorld render agree
 about where things sit. Frames leave as raster `SkImage`s. There is no
 window, no swapchain, and no scene file format.
@@ -152,20 +152,20 @@ is consumed during initialization, so a valid prop id is never 0 and
 
 **Four ways to get geometry onto the GPU, increasingly device-resident.**
 
-1. `place()` uploads a CPU-built `geometry::Mesh`.
+1. `place()` uploads a CPU-built `geometry::mesh::Mesh`.
    `setMesh()` replaces it in place — matching vertex and index
    counts update the existing buffers, a different shape recreates them.
 2. `placeStamps()` uploads one stamp mesh plus a per-instance stream
-   built from a `geometry::Cloud`, drawing every point in one call.
+   built from a `geometry::mesh::Cloud`, drawing every point in one call.
    `setStamps()` refreshes the points.
 3. `placeSweep()` builds its geometry with a compute kernel: control
    points live in a device buffer, and the vertex stream is written on
    the GPU. The points never exist on the CPU at all.
-4. `placeChain()` cooks a whole `geometry::pop::Chain` — a generator plus a
+4. `placeChain()` cooks a whole `geometry::mesh::pop::Chain` — a generator plus a
    list of filter operators — as one compute dispatch per operator over
    GPU-resident attribute lanes. `placeChainOn()` feeds one cooked chain
    into another without a CPU round trip. `readChain()` copies the
-   cooked lanes back as a `geometry::Cloud` when you want them. A scattered,
+   cooked lanes back as a `geometry::mesh::Cloud` when you want them. A scattered,
    drifting, tinted flock is a chain (`pop::on(loop).spread().noise().fade()`),
    not a door of its own.
 
@@ -221,7 +221,7 @@ what makes a headless frame sequence reproducible.
 | `sigilworld/Scene.h` | The declarative reconciler: `scene::Node`, `scene::group/place/panel`, `scene::Stack`, `scene::Scene` with `render`, `find` and `clear`. |
 | `sigilworld/Animation.h` | Declared motion: the six `Animated*` components, `CameraPath`, `AnimationStats`, `resolveValue`, both `resolveAnimation` overloads, and the SigilMotion value vocabulary re-exported into `sigil::world`. |
 | `sigilworld/Easel.h` | Header-only fluent stage: `easel::stage()`, `easel::Stage`. |
-| `sigilworld/TextureSet.h` | The tools' texture sets read back into a world `Material`: `material()` from a set, from usage-keyed images, or from an imported `geometry::decode::Part` (glTF's material, factors and all). The vocabulary it reads — `textures::Role`, `classify()` a file name, `roleForUsage()` a channel word, `discover()` a folder into `TextureSet`s — is SigilMaterial's, spelled here under the same names. |
+| `sigilworld/TextureSet.h` | The tools' texture sets read back into a world `Material`: `material()` from a set, from usage-keyed images, or from an imported `geometry::mesh::codec::decode::Part` (glTF's material, factors and all). The vocabulary it reads — `textures::Role`, `classify()` a file name, `roleForUsage()` a channel word, `discover()` a folder into `TextureSet`s — is SigilMaterial's, spelled here under the same names. |
 
 ## Conventions that will bite you
 

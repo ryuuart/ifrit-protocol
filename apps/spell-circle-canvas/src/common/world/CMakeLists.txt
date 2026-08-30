@@ -1,6 +1,6 @@
 # SigilWorld — diegetic surfaces in real 3D over Diligent Engine
 # (Vulkan/MoltenVK on macOS; the Diligent layer keeps D3D/GL open for
-# the Windows/Linux ports). Geometry arrives as sigil::geometry::Mesh,
+# the Windows/Linux ports). Geometry arrives as sigil::geometry::mesh::Mesh,
 # panel content as SkImage textures, frames leave as raster SkImages —
 # the Skia world and the GPU world meet at those three seams.
 #

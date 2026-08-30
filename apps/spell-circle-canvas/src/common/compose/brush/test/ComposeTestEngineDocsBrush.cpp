@@ -204,7 +204,7 @@ TEST(ComposeLines, OffsetAlongClampsNonPositiveStep) {
   const SkPath route = builder.detach();
 
   for (float step : {0.0f, -4.0f}) {
-    const SkPath shifted = sigil::geometry::parallel(route, -10.0f, step);
+    const SkPath shifted = sigil::geometry::path::parallel(route, -10.0f, step);
     ASSERT_FALSE(shifted.isEmpty()) << "step=" << step;
     EXPECT_NEAR(shifted.getBounds().top(), 60.0f, 0.01f);
     EXPECT_NEAR(shifted.getBounds().bottom(), 60.0f, 0.01f);

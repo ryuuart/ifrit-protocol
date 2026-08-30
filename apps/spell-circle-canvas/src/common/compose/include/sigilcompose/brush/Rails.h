@@ -39,7 +39,7 @@ namespace sigil::compose::lines {
 
 /** One rail of a `Rails` stroke: its own displacement from the route, its
  *  own width, fill, dash pattern and phase. `across` is px **LEFT of
- *  travel** — the one convention (see `geometry::parallel`), shared with
+ *  travel** — the one convention (see `geometry::path::parallel`), shared with
  *  `Line::across`, `strand::offset` and `Profile::across` — so a
  *  symmetric pair is {-gap/2, +gap/2}. */
 struct Rail {

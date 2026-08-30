@@ -16,7 +16,7 @@
  *   - PathFlow           each SkPath contour becomes a line; glyphs ride the
  *                        tangent via RSXform runs.
  *
- * A contour is the geometry library's `geometry::Contour` — one sub-path
+ * A contour is the geometry library's `geometry::path::Contour` — one sub-path
  * addressed by arc length — so "distance along" and "closed wraps around"
  * mean the same thing here as anywhere else a path is walked.
  *
@@ -49,9 +49,9 @@ struct LineInterval {
   /// contour's arc length starting at `contourStart`; glyphs are rotated to
   /// the local tangent (rendered with RSXform runs). `origin`/`direction`
   /// are ignored. The contour is the geometry library's: build one with
-  /// `geometry::Contour::of(path)`; a default-constructed one is "no
+  /// `geometry::path::Contour::of(path)`; a default-constructed one is "no
   /// contour" and leaves the interval straight.
-  geometry::Contour contour;
+  geometry::path::Contour contour;
   float contourStart = 0;  ///< arc length where the pen enters the contour
 
   /// Contour intervals only: WRAP at the contour's ends rather than stop at
@@ -277,7 +277,7 @@ class PathFlow : public FlowGeometry {
                      std::vector<LineInterval>& intervals) override;
 
  private:
-  std::vector<geometry::Contour> m_contours;
+  std::vector<geometry::path::Contour> m_contours;
 };
 
 }  // namespace sigil::weave

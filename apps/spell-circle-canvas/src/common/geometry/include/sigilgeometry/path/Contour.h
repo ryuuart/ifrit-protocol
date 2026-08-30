@@ -18,9 +18,11 @@
 #include <optional>
 #include <vector>
 
+#include "sigilgeometry/path/Untiered.h"
+
 class SkPathBuilder;
 
-namespace sigil::geometry {
+namespace sigil::geometry::path {
 
 class Contour {
  public:
@@ -101,4 +103,4 @@ SkPath displace(const SkPath& path, float amplitude, float wavelength,
 SkPath cornerWindows(const SkPath& path, float radius, bool keepNearCorners,
                      float angleDeg);
 
-}  // namespace sigil::geometry
+}  // namespace sigil::geometry::path

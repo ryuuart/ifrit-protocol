@@ -45,10 +45,10 @@ TEST(PathText, AGeometricallyClosedContourWrapsWhenItSaysSo) {
   // closed. Without the opt-in it clamps; with it, it wraps.
   SkPathBuilder arcBuilder;
   arcBuilder.addArc(SkRect::MakeLTRB(-100, -100, 100, 100), 0, 359.9f);
-  const std::vector<sigil::geometry::Contour> contours =
-      sigil::geometry::Contour::of(arcBuilder.detach());
+  const std::vector<sigil::geometry::path::Contour> contours =
+      sigil::geometry::path::Contour::of(arcBuilder.detach());
   ASSERT_EQ(contours.size(), 1u);
-  const sigil::geometry::Contour& contour = contours.front();
+  const sigil::geometry::path::Contour& contour = contours.front();
   ASSERT_FALSE(contour.closed());
 
   LineInterval clamping;

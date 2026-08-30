@@ -18,7 +18,7 @@
 #include "sigilgeometry/path/Numeric.h"
 #include "sigilgeometry/path/Polyline.h"
 
-namespace sigil::geometry::ops {
+namespace sigil::geometry::path::ops {
 
 namespace {
 
@@ -169,4 +169,4 @@ PathOp chain(std::vector<PathOp> steps) {
   };
 }
 
-}  // namespace sigil::geometry::ops
+}  // namespace sigil::geometry::path::ops

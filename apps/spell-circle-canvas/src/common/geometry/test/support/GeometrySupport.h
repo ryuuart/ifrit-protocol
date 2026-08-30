@@ -46,8 +46,8 @@ Kd 1 0 0
  *  above it; in the rendered image, with y increasing DOWNWARD on the
  *  canvas, those are the lower-right and upper-left halves respectively.
  *  Tests that sample a pixel per triangle depend on that mapping. */
-inline Mesh splitQuad() {
-  Mesh m;
+inline mesh::Mesh splitQuad() {
+  mesh::Mesh m;
   m.positions = {{-50, -50, 0}, {50, -50, 0}, {50, 50, 0}, {-50, 50, 0}};
   m.indices = {0, 1, 2, 0, 2, 3};
   return m;

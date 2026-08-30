@@ -150,29 +150,30 @@ void detail::ensurePathLayout(Composer::Impl& impl, Instance& inst,
         runWidth = std::max(runWidth, placed.rest.x() + placed.advance);
       });
 
-  static thread_local std::vector<geometry::Contour> contours;
-  contours = geometry::Contour::of(baseline);
+  static thread_local std::vector<geometry::path::Contour> contours;
+  contours = geometry::path::Contour::of(baseline);
   if (contours.empty()) return;
   float length = 0;
-  for (const geometry::Contour& contour : contours) length += contour.length();
+  for (const geometry::path::Contour& contour : contours)
+    length += contour.length();
   textStateOf(inst).pathTotalLength = length;
 
   // One arc-length coordinate over the whole chain, for the two questions
   // that are about the BASELINE rather than about one glyph: is it closed,
   // and which way does the run read along it.
   const auto posTan = [](float distance, SkPoint* position, SkVector* tangent) {
-    const auto read = [&](const geometry::Contour& contour, float d) {
+    const auto read = [&](const geometry::path::Contour& contour, float d) {
       const auto sample = contour.at(d);
       if (!sample) return false;
-      if (position) *position = geometry::toSk(sample->position);
-      if (tangent) *tangent = geometry::toSk(sample->tangent);
+      if (position) *position = geometry::path::toSk(sample->position);
+      if (tangent) *tangent = geometry::path::toSk(sample->tangent);
       return true;
     };
-    for (const geometry::Contour& contour : contours) {
+    for (const geometry::path::Contour& contour : contours) {
       if (distance <= contour.length()) return read(contour, distance);
       distance -= contour.length();
     }
-    const geometry::Contour& last = contours.back();
+    const geometry::path::Contour& last = contours.back();
     return read(last, last.length());
   };
 

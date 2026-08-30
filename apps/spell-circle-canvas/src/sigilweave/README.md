@@ -87,7 +87,7 @@ breakers, justification, hyphenation, placement — applies to your shape:
 ```cpp
 class SingleContourFlow : public FlowGeometry {
 public:
-  SingleContourFlow(geometry::Contour contour, float start)
+  SingleContourFlow(geometry::path::Contour contour, float start)
       : m_contour(std::move(contour)), m_start(start) {}
 
   bool lineIntervals(int index, float lineHeight, float ascent,
@@ -103,13 +103,13 @@ public:
   }
 
 private:
-  geometry::Contour m_contour;   // geometry::Contour::of(path).front()
+  geometry::path::Contour m_contour;   // geometry::path::Contour::of(path).front()
   float m_start;
 };
 ```
 
-A contour interval carries a `geometry::Contour` from SigilGeometryPath —
-one sub-path addressed by arc length, built with `geometry::Contour::of(path)`.
+A contour interval carries a `geometry::path::Contour` from SigilGeometryPath —
+one sub-path addressed by arc length, built with `geometry::path::Contour::of(path)`.
 The layout reads position and tangent through it, so "distance along" and
 "closed wraps around" mean the same thing for text as for every other thing
 that walks a path.
@@ -214,7 +214,7 @@ text, on ICU alone (its own section below).
   `ParagraphBuilder` for the push/pop idiom.
 
 **`layout`** — `SigilWeaveLayout`, with `SigilGeometryPath` public because
-a contour interval carries a `geometry::Contour`:
+a contour interval carries a `geometry::path::Contour`:
 
 - **`layout/Flow.h`** — `LineInterval`, the `FlowGeometry` interface, and
   the ready-made geometries.
@@ -305,7 +305,7 @@ thread-local, so every function is safe from any thread.
 | `SigilWeaveStyle` | the style vocabulary, header-only | — |
 | `SigilWeaveFonts` | the font service and the shaper | HarfBuzz, abseil — private |
 | `SigilWeaveParagraph` | the document model | SigilWeaveUnicode, HarfBuzz, abseil — private |
-| `SigilWeaveLayout` | flows, breakers, placement, metrics | SigilGeometryPath (public: `LineInterval::contour` is a `geometry::Contour`); ICU, abseil — private |
+| `SigilWeaveLayout` | flows, breakers, placement, metrics | SigilGeometryPath (public: `LineInterval::contour` is a `geometry::path::Contour`); ICU, abseil — private |
 | `SigilWeaveDecoration` | decoration bands | — |
 | `SigilWeavePaint` | `draw()` and `drawBatched()`, `paint/Paint.h` | — |
 | `SigilWeaveChoreograph` | per-glyph choreography | — |

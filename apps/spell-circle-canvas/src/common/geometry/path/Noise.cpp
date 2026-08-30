@@ -7,7 +7,7 @@
 
 #include <cmath>
 
-namespace sigil::geometry::noise {
+namespace sigil::geometry::path::noise {
 
 float value3(glm::vec3 p, uint32_t seed) {
   auto hash = [seed](int x, int y, int z) {
@@ -32,4 +32,4 @@ float value3(glm::vec3 p, uint32_t seed) {
   return accum * 2.0f - 1.0f;
 }
 
-}  // namespace sigil::geometry::noise
+}  // namespace sigil::geometry::path::noise

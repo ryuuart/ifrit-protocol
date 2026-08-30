@@ -23,9 +23,9 @@
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
-#include <sigilgeometry/pop/Points.h>
-#include <sigilgeometry/pop/Pop.h>
-#include <sigilgeometry/space/Space.h>
+#include <sigilgeometry/mesh/camera/Camera.h>
+#include <sigilgeometry/mesh/pop/Points.h>
+#include <sigilgeometry/mesh/pop/Pop.h>
 #include <sigilsketch/Sketch.h>
 
 #include <cmath>
@@ -66,8 +66,8 @@ std::vector<glm::vec3> column() {
           {0, -kHeight / 2, 1}};
 }
 
-geometry::space::Camera lookAtColumn() {
-  geometry::space::Camera camera;
+geometry::mesh::camera::Camera lookAtColumn() {
+  geometry::mesh::camera::Camera camera;
   camera.eye = {260, 120, 720};
   camera.target = {0, 0, 0};
   camera.fovYDeg = 30;
@@ -88,18 +88,18 @@ const sk_sp<SkImage>& disc() {
   return img;
 }
 
-Element splat(geometry::Cloud cloud) {
+Element splat(geometry::mesh::Cloud cloud) {
   return custom([cloud = std::move(cloud)](SkCanvas& canvas,
                                            const PaintContext& paint) {
-           geometry::points::BillboardStyle style;
+           geometry::mesh::points::BillboardStyle style;
            style.sprite = disc();
            style.size = 7;
            style.sizeLane = "size";
            style.tintLane = "tint";
            style.additive = false;
            style.depthSort = true;
-           geometry::points::drawBillboards(canvas, cloud, lookAtColumn(),
-                                            paint.size, style);
+           geometry::mesh::points::drawBillboards(canvas, cloud, lookAtColumn(),
+                                                  paint.size, style);
          })
       .inset(0)
       .cache(Cache::None);
@@ -124,17 +124,17 @@ Element panel(const char* title, const char* note, Element inner) {
  *  band across its middle selected into "band" — feathered so the ramp
  *  shows a gradient at the edges. Colour then reads the mask: cool
  *  outside, hot inside. */
-geometry::pop::Builder base() {
+geometry::mesh::pop::Builder base() {
   const std::vector<glm::vec4> stops = {{0.16f, 0.22f, 0.45f, 1},
                                         {0.85f, 0.35f, 0.30f, 1},
                                         {1.00f, 0.85f, 0.35f, 1}};
-  return geometry::pop::on(column())
+  return geometry::mesh::pop::on(column())
       .count(kCount)
       .window(0.5f, 0.5f)
       .spread(28)
       .seed(3)
       .vary(0.5f)
-      .select("band", geometry::pop::Select::Shape::Box, {0, 20, 0},
+      .select("band", geometry::mesh::pop::Select::Shape::Box, {0, 20, 0},
               {80, 55, 80}, kFeather)
       .rampBy("band", 0, stops);
 }
@@ -142,14 +142,14 @@ geometry::pop::Builder base() {
 }  // namespace
 
 struct PopDeform : sigil::compose::sketch::Sketch {
-  geometry::Cloud selected, masked, twisted, tapered, bent, peaked;
+  geometry::mesh::Cloud selected, masked, twisted, tapered, bent, peaked;
 
   void setup(sketch::SketchContext& ctx) override {
     ctx.canvas(1240, 420);
     ctx.background({0.055f, 0.06f, 0.085f, 1});
 
     const char* mask = kMaskDeformers ? "band" : "";
-    const auto maskIf = [&](geometry::pop::Builder b) {
+    const auto maskIf = [&](geometry::mesh::pop::Builder b) {
       return kMaskDeformers ? b.masked(mask) : b;
     };
 
@@ -170,7 +170,7 @@ struct PopDeform : sigil::compose::sketch::Sketch {
     // column — masked to the band, after orient() has tipped Dir over
     // by 60 degrees so the band leans out.
     peaked = base()
-                 .orient(geometry::space::place({}, 0, 0, 60))
+                 .orient(geometry::mesh::camera::place({}, 0, 0, 60))
                  .peak(70)
                  .masked("band")
                  .cloud();

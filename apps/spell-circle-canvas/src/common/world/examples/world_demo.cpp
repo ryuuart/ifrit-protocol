@@ -21,11 +21,11 @@
 #include <include/core/SkRRect.h>
 #include <include/core/SkSurface.h>
 #include <sigilcompose/Compose.h>
-#include <sigilgeometry/codec/Decode.h>
-#include <sigilgeometry/codec/Encode.h>
-#include <sigilgeometry/curves/Curves.h>
 #include <sigilgeometry/mesh/Mesh.h>
-#include <sigilgeometry/pop/Points.h>
+#include <sigilgeometry/mesh/codec/Decode.h>
+#include <sigilgeometry/mesh/codec/Encode.h>
+#include <sigilgeometry/mesh/curve/Curve.h>
+#include <sigilgeometry/mesh/pop/Points.h>
 #include <sigilimage/asset/ImageAsset.h>
 #include <sigilimage/decode/Decode.h>
 #include <sigilloader/Loader.h>
@@ -58,7 +58,7 @@
 #include <sigilsubstance/Substance.h>
 #endif
 #ifdef SIGIL_WORLD_DEMO_USD
-#include <sigilusd/Usd.h>
+#include <sigilusd/write/Writer.h>
 #endif
 
 using namespace sigil;
@@ -332,7 +332,8 @@ float wrap01(float t) { return t - std::floor(t); }
 /** Place the dart at @p head on the loop, with the revolved mesh's +y
  *  nose aimed down the flight tangent and its up axis matching the
  *  ribbon's. */
-glm::mat4 dartTransform(const sigil::geometry::Spline3& loop, float head) {
+glm::mat4 dartTransform(const sigil::geometry::mesh::curve::Spline3& loop,
+                        float head) {
   const glm::vec3 p = loop.position(wrap01(head));
   const glm::vec3 ahead = loop.position(wrap01(head + 0.004f));
   const glm::vec3 behind = loop.position(wrap01(head - 0.004f));
@@ -399,19 +400,20 @@ void renderPopLab(const std::filesystem::path& outDir,
   // The seed: an imported model's vertices as a cloud, fitted to the
   // stage — every lane it carries rides into the chain — or, without
   // the asset, points scattered on a torus.
-  geometry::Cloud seed;
+  geometry::mesh::Cloud seed;
   std::string seedName = "torus scatter";
-  if (std::optional<geometry::decode::Model> avocado =
-          geometry::decode::model(assetDir / "models/Avocado.glb")) {
+  if (std::optional<geometry::mesh::codec::decode::Model> avocado =
+          geometry::mesh::codec::decode::model(assetDir /
+                                               "models/Avocado.glb")) {
     const glm::mat4 fit = avocado->fitTransform(520);
-    geometry::Mesh merged = avocado->merged();
+    geometry::mesh::Mesh merged = avocado->merged();
     merged.transform(fit);
     // Densify: scatter on the fitted surface, keeping its normals.
-    seed = geometry::points::onMesh(merged, 14000, 3);
+    seed = geometry::mesh::points::onMesh(merged, 14000, 3);
     seedName = "Avocado.glb, scattered";
   } else {
-    seed = geometry::points::onMesh(geometry::mesh::torus(180, 70, 96, 48),
-                                    14000, 3);
+    seed = geometry::mesh::points::onMesh(
+        geometry::mesh::torus(180, 70, 96, 48), 14000, 3);
   }
   const std::vector<glm::vec4> heightStops = {
       {0.05f, 0.15f, 0.7f, 1}, {0.95f, 0.25f, 0.1f, 1}, {1.0f, 0.85f, 0.2f, 1}};
@@ -421,19 +423,19 @@ void renderPopLab(const std::filesystem::path& outDir,
     lo = glm::min(lo, p);
     hi = glm::max(hi, p);
   }
-  const geometry::pop::Chain chain =
-      geometry::pop::on(seed)
-          .select("band", geometry::pop::Select::Shape::Box,
+  const geometry::mesh::pop::Chain chain =
+      geometry::mesh::pop::on(seed)
+          .select("band", geometry::mesh::pop::Select::Shape::Box,
                   {0, (lo.y + hi.y) * 0.5f, 0},
                   {2000, (hi.y - lo.y) * 0.18f, 2000}, 0.4f)
-          .rampBy(geometry::pop::Lane::P, 1, heightStops, lo.y, hi.y)
+          .rampBy(geometry::mesh::pop::Lane::P, 1, heightStops, lo.y, hi.y)
           .peak(14)
-          .select("band", geometry::pop::Select::Shape::Box,
+          .select("band", geometry::mesh::pop::Select::Shape::Box,
                   {0, (lo.y + hi.y) * 0.5f, 0},
                   {2000, (hi.y - lo.y) * 0.18f, 2000}, 0.4f,
-                  geometry::pop::Select::Combine::Replace, true)
+                  geometry::mesh::pop::Select::Combine::Replace, true)
           .masked("band")  // the peak: everyone OUTSIDE the band
-          .select("band", geometry::pop::Select::Shape::Box,
+          .select("band", geometry::mesh::pop::Select::Shape::Box,
                   {0, (lo.y + hi.y) * 0.5f, 0},
                   {2000, (hi.y - lo.y) * 0.18f, 2000}, 0.4f)
           .twist(90, {0, 1, 0}, lo.y, hi.y, {60, 0, 0})
@@ -471,7 +473,7 @@ void renderPopLab(const std::filesystem::path& outDir,
     lighting.environmentRotationDeg = 200;
   }
   w->setLighting(lighting);
-  geometry::space::Camera camera;
+  geometry::mesh::camera::Camera camera;
   camera.eye = {120, 260, 900};
   camera.target = {0, (lo.y + hi.y) * 0.5f, 0};
   camera.fovYDeg = 44;
@@ -500,13 +502,13 @@ void renderMaterialLab(const std::filesystem::path& outDir,
   // of, so the lit lab can be written out as USD after the shot.
   struct Placed {
     std::string name;
-    geometry::Mesh mesh;
+    geometry::mesh::Mesh mesh;
     glm::mat4 model;
     std::vector<world::Material> slots;
   };
   std::vector<Placed> placed;
   int propIndex = 0;
-  const auto add = [&](const geometry::Mesh& mesh, const glm::mat4& model,
+  const auto add = [&](const geometry::mesh::Mesh& mesh, const glm::mat4& model,
                        auto materialOrSlots) {
     std::vector<world::Material> slots;
     if constexpr (std::is_same_v<std::decay_t<decltype(materialOrSlots)>,
@@ -546,9 +548,9 @@ void renderMaterialLab(const std::filesystem::path& outDir,
     sky.uvOffset = {1, 0};
     sky.tile = true;
     // Inside the camera's far plane all round.
-    geometry::Mesh dome =
+    geometry::mesh::Mesh dome =
         geometry::mesh::superellipsoid({2400, 2400, 2400}, 2, 96, 48);
-    add(dome, geometry::space::place({0, 0, 0}, 200 + 180), sky);
+    add(dome, geometry::mesh::camera::place({0, 0, 0}, 200 + 180), sky);
     std::printf("environment: %dx%d\n", hdri->width(), hdri->height());
   }
   w->setLighting(lighting);
@@ -609,7 +611,7 @@ void renderMaterialLab(const std::filesystem::path& outDir,
                   .fit(0.35f, 0.75f));
   weathered = weathered.over(moss, world::Mask::slope({0, 1, 0}, 0.55f, 0.9f));
   add(geometry::mesh::superellipsoid({150, 150, 150}, 2, 96, 64),
-      geometry::space::place({-470, -10, 200}, 20), weathered);
+      geometry::mesh::camera::place({-470, -10, 200}, 20), weathered);
   // The torus wears TWO material slots: its "Material" prim lane
   // alternates around the ring, so every other segment is the plate and
   // the rest a plain dark rubber — one prop, one transform, per-face
@@ -619,11 +621,11 @@ void renderMaterialLab(const std::filesystem::path& outDir,
   world::Material rubber2;
   rubber2.baseColor = {0.09f, 0.09f, 0.1f, 1};
   rubber2.roughness = 0.85f;
-  geometry::Mesh torus = geometry::mesh::torus(150, 60, 96, 48);
+  geometry::mesh::Mesh torus = geometry::mesh::torus(150, 60, 96, 48);
   std::vector<glm::vec4>& slotLane = torus.prim("Material", {0, 0, 0, 0});
   for (size_t t = 0; t < slotLane.size(); ++t)
     slotLane[t] = {(float)((t / (48 * 2 * 8)) % 2), 0, 0, 0};
-  add(torus, geometry::space::place({420, 20, 0}, 0, -20),
+  add(torus, geometry::mesh::camera::place({420, 20, 0}, 0, -20),
       std::vector<world::Material>{band, rubber2});
 
 #ifdef SIGIL_WORLD_DEMO_SUBSTANCE_ASSETS
@@ -651,7 +653,7 @@ void renderMaterialLab(const std::filesystem::path& outDir,
       return m;
     };
     add(geometry::mesh::superellipsoid({150, 150, 150}, 2, 96, 64),
-        geometry::space::place({0, 20, 0}), leaves(0.5f, 0.7f));
+        geometry::mesh::camera::place({0, 20, 0}), leaves(0.5f, 0.7f));
     // ...and a leaning panel wearing the late-season cook, tiled twice.
     world::Material late = leaves(1.0f, 1.0f);
     late.uvScale = {2, 2};
@@ -663,7 +665,7 @@ void renderMaterialLab(const std::filesystem::path& outDir,
       late.emissiveStrength = 1.4f;
     }
     add(geometry::mesh::quad(560, 340),
-        geometry::space::place({0, -30, 330}, 0, -62), late);
+        geometry::mesh::camera::place({0, -30, 330}, 0, -62), late);
     std::printf("substance: %s rendered (%s)\n", graph.label().c_str(),
                 substance::Package::engineVersion().c_str());
   } else {
@@ -710,7 +712,7 @@ void renderMaterialLab(const std::filesystem::path& outDir,
     circuit.uvScale = {4, 2};
     circuit.tile = true;
     add(geometry::mesh::superellipsoid({110, 110, 110}, 2, 96, 64),
-        geometry::space::place({-460, 250, -320}, 20), circuit);
+        geometry::mesh::camera::place({-460, 250, -320}, 20), circuit);
     if (dark) {
       // Emission does not light its neighbours by itself; in the dark a
       // dim point light of the same hue sits inside the sphere so the
@@ -736,7 +738,7 @@ void renderMaterialLab(const std::filesystem::path& outDir,
     clear.ior = 1.5f;
     clear.thickness = 140;
     add(geometry::mesh::superellipsoid({120, 120, 120}, 2, 96, 64),
-        geometry::space::place({-150, 40, 260}), clear);
+        geometry::mesh::camera::place({-150, 40, 260}), clear);
     world::Material frosted;
     frosted.baseColor = {0.85f, 0.93f, 1.0f, 1};
     frosted.roughness = 0.45f;
@@ -744,7 +746,7 @@ void renderMaterialLab(const std::filesystem::path& outDir,
     frosted.ior = 1.45f;
     frosted.thickness = 12;
     add(geometry::mesh::quad(300, 210),
-        geometry::space::place({120, 300, -260}, -12), frosted);
+        geometry::mesh::camera::place({120, 300, -260}, -12), frosted);
 
     // Fluted (reeded) glass: refraction goes through the shaded normal,
     // so a normal map of vertical half-cylinders ribbons whatever is
@@ -782,14 +784,15 @@ void renderMaterialLab(const std::filesystem::path& outDir,
     fluted.emissive = {1.0f, 0.75f, 0.45f, 1};
     fluted.emissiveStrength = 0.12f;
     add(geometry::mesh::quad(300, 230),
-        geometry::space::place({-380, 190, -40}, 26), fluted);
+        geometry::mesh::camera::place({-380, 190, -40}, 26), fluted);
   }
 
   // 3. An imported model wearing the material its file carries: base
   // colour, normal, packed metallicRoughness and occlusion, decoded from
   // the bytes the importer kept.
-  if (std::optional<geometry::decode::Model> avocado =
-          geometry::decode::model(assetDir / "models/Avocado.glb")) {
+  if (std::optional<geometry::mesh::codec::decode::Model> avocado =
+          geometry::mesh::codec::decode::model(assetDir /
+                                               "models/Avocado.glb")) {
     const auto decodeBytes = [](const std::vector<std::byte>& bytes,
                                 std::string_view hint) -> sk_sp<SkImage> {
       std::optional<image::ImageAsset> asset = image::decodeImage(
@@ -801,8 +804,8 @@ void renderMaterialLab(const std::filesystem::path& outDir,
     const glm::mat4 fit = avocado->fitTransform(260);
     const std::vector<world::Material> slots =
         world::textures::materials(*avocado, decodeBytes);
-    add(avocado->merged(), geometry::space::place({420, -60, 320}, 30) * fit,
-        slots);
+    add(avocado->merged(),
+        geometry::mesh::camera::place({420, -60, 320}, 30) * fit, slots);
     std::printf("avocado: %zu parts, %zu material slots\n",
                 avocado->parts.size(), slots.size());
   }
@@ -812,15 +815,15 @@ void renderMaterialLab(const std::filesystem::path& outDir,
   rubber.baseColor = {0.85f, 0.2f, 0.15f, 1};
   rubber.roughness = 0.9f;
   add(geometry::mesh::superellipsoid({90, 90, 90}, 2, 64, 48),
-      geometry::space::place({-200, 260, -300}), rubber);
+      geometry::mesh::camera::place({-200, 260, -300}), rubber);
   world::Material chrome;
   chrome.baseColor = {0.95f, 0.97f, 1.0f, 1};
   chrome.metallic = 1;
   chrome.roughness = 0.08f;
   add(geometry::mesh::superellipsoid({90, 90, 90}, 2, 64, 48),
-      geometry::space::place({200, 260, -300}), chrome);
+      geometry::mesh::camera::place({200, 260, -300}), chrome);
 
-  geometry::space::Camera camera;
+  geometry::mesh::camera::Camera camera;
   camera.eye = {60, 330, 1150};
   camera.target = {0, 0, 0};
   camera.fovYDeg = 44;
@@ -881,7 +884,7 @@ int main(int argc, char** argv) {
     floor.baseColor = {0.16f, 0.17f, 0.2f, 1};
     floor.metallic = 0.85f;
     floor.roughness = 0.4f;
-    geometry::Mesh slab =
+    geometry::mesh::Mesh slab =
         geometry::mesh::superellipsoid({900, 24, 620}, 8, 64, 24);
     w->place(slab, glm::translate(glm::mat4(1.0f), {0, -190, 0}), floor);
   }
@@ -892,13 +895,13 @@ int main(int argc, char** argv) {
     screen.unlit = true;
     screen.texture = uiCard(512, 340, {0.25f, 0.85f, 1.0f, 1}, 0.72f);
     w->place(geometry::mesh::quad(380, 252),
-             geometry::space::place({-420, 60, -40}, 30), screen);
+             geometry::mesh::camera::place({-420, 60, -40}, 30), screen);
     screen.texture = uiCard(512, 340, {1.0f, 0.62f, 0.22f, 1}, 0.45f);
     w->place(geometry::mesh::quad(380, 252),
-             geometry::space::place({0, 70, 30}, 0, -4), screen);
+             geometry::mesh::camera::place({0, 70, 30}, 0, -4), screen);
     screen.texture = uiCard(512, 340, {0.72f, 0.5f, 1.0f, 1}, 0.9f);
     w->place(geometry::mesh::quad(380, 252),
-             geometry::space::place({420, 55, -40}, -30), screen);
+             geometry::mesh::camera::place({420, 55, -40}, -30), screen);
   }
 
   // Curved ticker panel below the cards.
@@ -907,7 +910,7 @@ int main(int argc, char** argv) {
     screen.unlit = true;
     screen.texture = uiCard(1024, 220, {0.3f, 1.0f, 0.6f, 1}, 0.6f);
     w->place(geometry::mesh::cylinderPanel(880, 170, 560, 64, 12),
-             geometry::space::place({0, -96, 90}, 0, 8), screen);
+             geometry::mesh::camera::place({0, -96, 90}, 0, 8), screen);
   }
 
   // Props: gold star (extruded), chrome blob, glass pane.
@@ -916,23 +919,25 @@ int main(int argc, char** argv) {
     gold.baseColor = {1.0f, 0.78f, 0.34f, 1};
     gold.metallic = 1;
     gold.roughness = 0.3f;
-    geometry::Mesh star =
+    geometry::mesh::Mesh star =
         geometry::mesh::extrude(starPath(5, 95, 44), {.depth = 34});
-    w->place(star, geometry::space::place({-560, 280, -220}, 36, -10), gold);
+    w->place(star, geometry::mesh::camera::place({-560, 280, -220}, 36, -10),
+             gold);
 
     world::Material chrome;
     chrome.baseColor = {0.95f, 0.97f, 1.0f, 1};
     chrome.metallic = 1;
     chrome.roughness = 0.08f;
     w->place(geometry::mesh::superellipsoid({110, 95, 80}, 2.4f, 64, 48),
-             geometry::space::place({590, 300, -200}, 15, 0, -6), chrome);
+             geometry::mesh::camera::place({590, 300, -200}, 15, 0, -6),
+             chrome);
 
     world::Material glass;
     glass.baseColor = {0.75f, 0.9f, 0.95f, 0.32f};
     glass.metallic = 0;
     glass.roughness = 0.05f;
     w->place(geometry::mesh::quad(360, 240),
-             geometry::space::place({210, 40, 150}, -12, -3), glass);
+             geometry::mesh::camera::place({210, 40, 150}, -12, -3), glass);
   }
 
   // An optional poster, decoded from SVG at panel resolution through
@@ -949,7 +954,7 @@ int main(int argc, char** argv) {
       poster.unlit = true;
       poster.texture = tiger->frameAt(0).image;
       w->place(geometry::mesh::quad(300, 300),
-               geometry::space::place({-780, 60, 120}, 42), poster);
+               geometry::mesh::camera::place({-780, 60, 120}, 42), poster);
       std::printf("tiger poster: %dx%d\n", poster.texture->width(),
                   poster.texture->height());
     }
@@ -961,18 +966,19 @@ int main(int argc, char** argv) {
   // than through imperative place calls.
   //
   // The cards are live billboards: every shot re-describes them through
-  // space::faceCamera() against that shot's actual camera eye, so the
+  // camera::faceCamera() against that shot's actual camera eye, so the
   // reconciler sees transform-only changes and each card costs a
   // setTransform rather than a re-upload. Baking the facing into one
   // merged mesh instead would freeze the billboards toward whichever eye
   // was used when the mesh was built.
   world::scene::Scene stream(*w);
   std::function<world::scene::Scene::Stats(glm::vec3)> faceStream;
-  geometry::Spline3 arc;
+  geometry::mesh::curve::Spline3 arc;
   arc.points = {
       {-820, 260, -320}, {-300, 420, 60}, {260, 300, 220}, {820, 430, -260}};
   {
-    const geometry::Cloud stations = geometry::points::onSpline(arc, 9);
+    const geometry::mesh::Cloud stations =
+        geometry::mesh::points::onSpline(arc, 9);
 
     world::Material wireMat;
     wireMat.baseColor = {0.9f, 0.93f, 1.0f, 1};
@@ -982,8 +988,8 @@ int main(int argc, char** argv) {
     // The wire carries a baked colour lane, cool at the start and warm
     // by the end. A tube's rings are generated in order along the curve,
     // so ramping by vertex index ramps along the curve.
-    geometry::Mesh wire = geometry::curves::tube(
-        arc, {.radius = 7, .segments = 180, .sides = 10});
+    geometry::mesh::Mesh wire =
+        geometry::curve::tube(arc, {.radius = 7, .segments = 180, .sides = 10});
     wire.colors.resize(wire.positions.size());
     for (size_t i = 0; i < wire.positions.size(); ++i) {
       const float f = wire.positions.size() > 1
@@ -1002,17 +1008,18 @@ int main(int argc, char** argv) {
     // identity-stable through the Scene's per-size quad cache. Together
     // that makes re-facing the stream cost one setTransform per card and
     // nothing else.
-    auto wireMesh = std::make_shared<const geometry::Mesh>(std::move(wire));
+    auto wireMesh =
+        std::make_shared<const geometry::mesh::Mesh>(std::move(wire));
     faceStream = [&stream, wireMesh, wireMat, cardMat,
                   positions = stations.positions](glm::vec3 eye) {
       world::scene::Node root = world::scene::group().key("stream");
       root.child(world::scene::place(wireMesh, wireMat).key("wire"));
       for (size_t i = 0; i < positions.size(); ++i)
-        root.child(
-            world::scene::panel(cardMat.texture, 170, 112)
-                .material(cardMat)
-                .key("card" + std::to_string(i))
-                .transform(geometry::space::faceCamera(eye, positions[i])));
+        root.child(world::scene::panel(cardMat.texture, 170, 112)
+                       .material(cardMat)
+                       .key("card" + std::to_string(i))
+                       .transform(geometry::mesh::camera::faceCamera(
+                           eye, positions[i])));
       return stream.render(root);
     };
     // A first describe, so the surfaces exist before any shot runs; the
@@ -1026,9 +1033,9 @@ int main(int argc, char** argv) {
   // tint ramping along the "t" lane and size varying through the scale
   // lane.
   {
-    geometry::Cloud sparks = geometry::points::onSpline(arc, 3000);
-    geometry::points::jitter(sparks, 30, 11);
-    geometry::points::displaceNoise(sparks, 70, 0.006f, 12);
+    geometry::mesh::Cloud sparks = geometry::mesh::points::onSpline(arc, 3000);
+    geometry::mesh::points::jitter(sparks, 30, 11);
+    geometry::mesh::points::displaceNoise(sparks, 70, 0.006f, 12);
     const std::vector<float>& t = sparks.scalar("t");
     std::vector<glm::vec4>& tint = sparks.color("tint");
     std::vector<float>& size = sparks.scalar("size", 1);
@@ -1063,7 +1070,7 @@ int main(int argc, char** argv) {
   uint32_t dartId = 0, cometId = 0, guideId = 0;
   const float kCometSpan = 0.34f;
   world::World::pop::Chain guideChain;
-  geometry::Spline3 flightLoop;
+  geometry::mesh::curve::Spline3 flightLoop;
   float bandWidth = 300;             // recomputed from the strip's density
   const int kTiles = 10;             // GPU tiles the vector strip slices to
   const int kSectionsPerTile = 200;  // ribbon cross-sections per arc
@@ -1091,7 +1098,8 @@ int main(int argc, char** argv) {
     }
     float loopLen = 0;
     {
-      geometry::Cloud rail = geometry::points::onSpline(flightLoop, 1024);
+      geometry::mesh::Cloud rail =
+          geometry::mesh::points::onSpline(flightLoop, 1024);
       for (size_t i = 1; i < rail.size(); ++i)
         loopLen += glm::length(rail.positions[i] - rail.positions[i - 1]);
     }
@@ -1137,7 +1145,7 @@ int main(int argc, char** argv) {
     // generator reads the guide's cooked lanes directly. Animating the
     // guide costs two floats and cascades through the comet in compute;
     // the CPU never touches a point of either.
-    guideChain = geometry::pop::on(flightLoop.points)
+    guideChain = geometry::mesh::pop::on(flightLoop.points)
                      .count(64)
                      .window(kFlagHome, kCometSpan)
                      .noise(26, 0.003f)
@@ -1147,7 +1155,7 @@ int main(int argc, char** argv) {
     guideMat.baseColor = {0.5f, 0.9f, 0.8f, 0.25f};  // faint beads
     guideId = w->placeChain(geometry::mesh::quad(4, 4), guideChain, guideMat);
     const world::World::pop::Chain cometChain =
-        geometry::pop::on(
+        geometry::mesh::pop::on(
             std::vector<glm::vec3>{})  // loop comes from the guide
             .count(300000)
             // Just short of the whole guide, to skip the segment that
@@ -1166,8 +1174,8 @@ int main(int argc, char** argv) {
     std::printf(
         "comet: %d GPU particles riding a %d-point guide "
         "chain, composed on device\n",
-        std::get<geometry::pop::SplineScatter>(cometChain[0]).count,
-        std::get<geometry::pop::SplineScatter>(guideChain[0]).count);
+        std::get<geometry::mesh::pop::SplineScatter>(cometChain[0]).count,
+        std::get<geometry::mesh::pop::SplineScatter>(guideChain[0]).count);
 
     std::printf(
         "yarn: %.0f wu wound, band %.0f wu wide, %d tiles of "
@@ -1185,7 +1193,7 @@ int main(int argc, char** argv) {
 
   struct Shot {
     const char* name;
-    geometry::space::Camera camera;
+    geometry::mesh::camera::Camera camera;
   };
   Shot shots[6];
   shots[5].name = "world_marquee.png";
@@ -1242,9 +1250,9 @@ int main(int argc, char** argv) {
   // opens directly — positions plus the scalar, vector and colour lanes
   // the chain named, all riding along.
   if (cometId) {
-    const geometry::Cloud comet = w->readChain(cometId);
+    const geometry::mesh::Cloud comet = w->readChain(cometId);
     const auto file = outDir / "comet_points.ply";
-    if (geometry::encode::ply(file, comet, {.binary = true}))
+    if (geometry::mesh::codec::encode::ply(file, comet, {.binary = true}))
       std::printf(
           "comet_points.ply: %zu GPU-cooked points exported "
           "(binary_little_endian, %.1f MB), "
@@ -1357,7 +1365,7 @@ int main(int argc, char** argv) {
     // A closed loop threaded THROUGH the set: dive past the panels,
     // sweep the poster wall, climb out over the ribbon ball. Aiming down
     // the tangent only frames anything if the curve goes somewhere.
-    geometry::Spline3 flight;
+    geometry::mesh::curve::Spline3 flight;
     flight.closed = true;
     flight.points = {{1650, 520, 1450},   {320, 150, 780},   {-1080, 360, 340},
                      {-1500, 880, -1050}, {180, 1020, -760}, {1700, 700, -260}};
@@ -1386,7 +1394,7 @@ int main(int argc, char** argv) {
     world::resolveAnimation(*w);
     faceStream(registry.get<world::CameraComponent>(cam).camera.eye);
     if (w->render() && w->savePng(outDir / "world_camera_flight.png")) {
-      const geometry::space::Camera& c =
+      const geometry::mesh::camera::Camera& c =
           registry.get<world::CameraComponent>(cam).camera;
       std::printf(
           "camera flight: t=%.3f -> eye (%.0f %.0f %.0f) aimed down "

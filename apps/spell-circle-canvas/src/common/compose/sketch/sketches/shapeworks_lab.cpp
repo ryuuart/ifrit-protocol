@@ -10,7 +10,7 @@
 //           (arc-length resampling + cyclic alignment) re-solves every
 //           frame. OKLab keeps the red-to-blue run out of the mud.
 //   TOP R   Skia-3D. An extruded star and a torus spin through
-//           space::drawMesh — per-vertex Blinn, painter sort, all CPU,
+//           render::drawMesh — per-vertex Blinn, painter sort, all CPU,
 //           all inside this one custom() leaf.
 //   BOT R   the literal surfaces. Gold foil / brushed chrome / glass
 //           badges as MATERIALS built ONCE in setup() — a bevel normal
@@ -29,9 +29,10 @@
 
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkSurface.h>
-#include <sigilgeometry/blend/Blend.h>
 #include <sigilgeometry/mesh/Mesh.h>
-#include <sigilgeometry/space/Space.h>
+#include <sigilgeometry/mesh/camera/Camera.h>
+#include <sigilgeometry/mesh/render/Painter.h>
+#include <sigilgeometry/path/blend/Blend.h>
 #include <sigilmaterial/kit/Surfaces.h>
 #include <sigilmaterial/skia/Draw.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
@@ -90,8 +91,8 @@ struct ShapeworksLab : sigil::compose::sketch::Sketch {
   std::optional<material::Material> gold, chrome, glass;
   SkPath goldPath, chromePath, glassPath;
   sk_sp<SkImage> backdrop;
-  geometry::Mesh starMesh;
-  geometry::Mesh ringMesh;
+  geometry::mesh::Mesh starMesh;
+  geometry::mesh::Mesh ringMesh;
 
   Element describe(sketch::SketchContext& ctx) {
     // LEFT — the blend tool, re-keyed every frame.
@@ -99,15 +100,16 @@ struct ShapeworksLab : sigil::compose::sketch::Sketch {
         custom([this](SkCanvas& canvas, const PaintContext& paint) {
           const float w = paint.size.width(), h = paint.size.height();
           const float spin = (float)paint.elapsedSeconds * 24.0f;
-          geometry::blend::Key from{star(5, 64, 26, {w * 0.5f, 80}, -90 + spin),
-                                    {1.0f, 0.42f, 0.30f, 1}};
-          geometry::blend::Key to{SkPath::Circle(w * 0.5f, h - 90, 58),
-                                  {0.30f, 0.62f, 1.0f, 1}};
-          geometry::blend::Options options;
+          geometry::path::blend::Key from{
+              star(5, 64, 26, {w * 0.5f, 80}, -90 + spin),
+              {1.0f, 0.42f, 0.30f, 1}};
+          geometry::path::blend::Key to{SkPath::Circle(w * 0.5f, h - 90, 58),
+                                        {0.30f, 0.62f, 1.0f, 1}};
+          geometry::path::blend::Options options;
           options.steps = 9;
           options.smoothOutlines = true;
-          geometry::blend::draw(canvas,
-                                geometry::blend::make(from, to, options));
+          geometry::path::blend::draw(
+              canvas, geometry::path::blend::make(from, to, options));
         })
             .inset(40, 60, 660, 60)
             .cache(Cache::None);
@@ -116,24 +118,24 @@ struct ShapeworksLab : sigil::compose::sketch::Sketch {
     Element meshLab =
         custom([this](SkCanvas& canvas, const PaintContext& paint) {
           const SkSize viewport = paint.size;
-          geometry::space::Camera camera;
+          geometry::mesh::camera::Camera camera;
           camera.eye = {0, 90, 560};
           camera.target = {0, 0, 0};
           camera.fovYDeg = 38;
           const float t = (float)paint.elapsedSeconds;
-          geometry::space::MeshStyle steel;
+          geometry::mesh::render::MeshStyle steel;
           steel.baseColor = {0.75f, 0.78f, 0.86f, 1};
           steel.specular = 0.8f;
-          geometry::space::drawMesh(
+          geometry::mesh::render::drawMesh(
               canvas, starMesh,
-              geometry::space::place({-130, 0, 0}, t * 40.0f, -16), camera,
-              viewport, steel);
-          geometry::space::MeshStyle bronze = steel;
+              geometry::mesh::camera::place({-130, 0, 0}, t * 40.0f, -16),
+              camera, viewport, steel);
+          geometry::mesh::render::MeshStyle bronze = steel;
           bronze.baseColor = {0.85f, 0.55f, 0.3f, 1};
-          geometry::space::drawMesh(
+          geometry::mesh::render::drawMesh(
               canvas, ringMesh,
-              geometry::space::place({150, 0, -40}, 0, t * 31.0f, 14), camera,
-              viewport, bronze);
+              geometry::mesh::camera::place({150, 0, -40}, 0, t * 31.0f, 14),
+              camera, viewport, bronze);
         })
             .inset(620, 60, 40, 420)
             .cache(Cache::None);

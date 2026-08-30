@@ -164,8 +164,9 @@ template <typename F>
 inline SkPath samplePolyline(const F& f, float t0, float t1, int samples,
                              bool close, SkSize s) {
   const float cx = s.width() * 0.5f, cy = s.height() * 0.5f;
-  const geometry::Polyline unit = geometry::sample(
-      [&](float t) { return geometry::fromSk(f(t)); }, t0, t1, samples, close);
+  const geometry::path::Polyline unit = geometry::path::sample(
+      [&](float t) { return geometry::path::fromSk(f(t)); }, t0, t1, samples,
+      close);
   SkPathBuilder b;
   bool first = true;
   for (const glm::vec2& u : unit.points) {

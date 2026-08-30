@@ -721,9 +721,9 @@ struct InstanceAttribs {
 // the CPU-side instancing uses, shared rather than reimplemented, so a
 // Cloud renders identically whether its stamps were merged into one mesh
 // or drawn as GPU instances.
-using geometry::basisFor;
+using geometry::mesh::basisFor;
 
-std::vector<InstanceAttribs> buildInstances(const geometry::Cloud& cloud,
+std::vector<InstanceAttribs> buildInstances(const geometry::mesh::Cloud& cloud,
                                             const StampLanes& lanes) {
   const std::vector<float>* scaleLane =
       lanes.scaleLane.empty() ? nullptr : cloud.scalarIf(lanes.scaleLane);
@@ -856,7 +856,8 @@ struct GpuGeometry {
  *  clamped into [0, slotCount); without that lane, or with one slot,
  *  everything is slot 0. */
 std::vector<std::pair<uint32_t, uint32_t>> groupBySlot(
-    const geometry::Mesh& mesh, int slotCount, std::vector<uint32_t>& order) {
+    const geometry::mesh::Mesh& mesh, int slotCount,
+    std::vector<uint32_t>& order) {
   const std::vector<glm::vec4>* lane = mesh.primIf("Material");
   const size_t tris = mesh.triangleCount();
   slotCount = std::max(slotCount, 1);
@@ -986,7 +987,7 @@ std::vector<std::string> popCustomNames(const World::pop::Chain& chain) {
           }
           if constexpr (std::is_same_v<T, World::pop::PointSet>)
             for (const std::string& name :
-                 geometry::pop::seedCustomNames(o.cloud))
+                 geometry::mesh::pop::seedCustomNames(o.cloud))
               note(World::pop::AttrRef{name});
           // The mask is a lane read like any other; an unnamed mask
           // (empty) is "everyone" and owns no slot.
@@ -1001,7 +1002,7 @@ using PopParams = shaderparams::PopParamsData;
 
 struct World::Impl {
   WorldConfig config;
-  geometry::space::Camera camera;
+  geometry::mesh::camera::Camera camera;
   Lighting lighting;
 
   dg::RefCntAutoPtr<dg::IRenderDevice> device;
@@ -1072,7 +1073,7 @@ struct World::Impl {
   dg::RefCntAutoPtr<dg::ITexture> uploadTexture(const sk_sp<SkImage>& image,
                                                 bool srgb, bool tile);
   void writeDrawConstants(const glm::mat4& model, const Material& material);
-  bool createMeshBuffers(const geometry::Mesh& mesh,
+  bool createMeshBuffers(const geometry::mesh::Mesh& mesh,
                          dg::RefCntAutoPtr<dg::IBuffer>& vertexBuffer,
                          dg::RefCntAutoPtr<dg::IBuffer>& indexBuffer);
   dg::RefCntAutoPtr<dg::IBuffer> createInstanceBuffer(
@@ -1610,7 +1611,7 @@ void World::Impl::writeDrawConstants(const glm::mat4& model,
 
 namespace {
 
-std::vector<Vertex> packVertices(const geometry::Mesh& mesh) {
+std::vector<Vertex> packVertices(const geometry::mesh::Mesh& mesh) {
   std::vector<Vertex> vertices(mesh.positions.size());
   for (size_t i = 0; i < mesh.positions.size(); ++i) {
     Vertex& v = vertices[i];
@@ -1638,7 +1639,8 @@ std::vector<Vertex> packVertices(const geometry::Mesh& mesh) {
 }  // namespace
 
 bool World::Impl::createMeshBuffers(
-    const geometry::Mesh& mesh, dg::RefCntAutoPtr<dg::IBuffer>& vertexBuffer,
+    const geometry::mesh::Mesh& mesh,
+    dg::RefCntAutoPtr<dg::IBuffer>& vertexBuffer,
     dg::RefCntAutoPtr<dg::IBuffer>& indexBuffer) {
   using namespace dg;
   const std::vector<Vertex> vertices = packVertices(mesh);
@@ -1961,12 +1963,12 @@ std::unique_ptr<World> World::create(const WorldConfig& config,
   return world;
 }
 
-uint32_t World::place(const geometry::Mesh& mesh, const glm::mat4& model,
+uint32_t World::place(const geometry::mesh::Mesh& mesh, const glm::mat4& model,
                       const Material& material) {
   return place(mesh, model, std::vector<Material>{material});
 }
 
-uint32_t World::place(const geometry::Mesh& mesh, const glm::mat4& model,
+uint32_t World::place(const geometry::mesh::Mesh& mesh, const glm::mat4& model,
                       const std::vector<Material>& slots) {
   using namespace dg;
   Impl& impl = *m_impl;
@@ -1977,7 +1979,7 @@ uint32_t World::place(const geometry::Mesh& mesh, const glm::mat4& model,
   std::vector<uint32_t> order;
   const std::vector<std::pair<uint32_t, uint32_t>> ranges =
       groupBySlot(mesh, (int)slots.size(), order);
-  geometry::Mesh grouped = mesh;
+  geometry::mesh::Mesh grouped = mesh;
   grouped.indices = std::move(order);
 
   GpuGeometry geometry;
@@ -2004,8 +2006,8 @@ uint32_t World::place(const geometry::Mesh& mesh, const glm::mat4& model,
   return (uint32_t)id;
 }
 
-uint32_t World::placeStamps(const geometry::Mesh& stamp,
-                            const geometry::Cloud& cloud,
+uint32_t World::placeStamps(const geometry::mesh::Mesh& stamp,
+                            const geometry::mesh::Cloud& cloud,
                             const Material& material, const StampLanes& lanes) {
   using namespace dg;
   Impl& impl = *m_impl;
@@ -2036,7 +2038,7 @@ uint32_t World::placeStamps(const geometry::Mesh& stamp,
   return (uint32_t)id;
 }
 
-void World::setStamps(uint32_t id, const geometry::Cloud& cloud,
+void World::setStamps(uint32_t id, const geometry::mesh::Cloud& cloud,
                       const StampLanes& lanes) {
   using namespace dg;
   Impl& impl = *m_impl;
@@ -2064,7 +2066,7 @@ void World::setTransform(uint32_t id, const glm::mat4& model) {
     registry.get<TransformComponent>(e).model = model;
 }
 
-void World::setMesh(uint32_t id, const geometry::Mesh& mesh) {
+void World::setMesh(uint32_t id, const geometry::mesh::Mesh& mesh) {
   using namespace dg;
   Impl& impl = *m_impl;
   const entt::entity e = entity(id);
@@ -2095,7 +2097,7 @@ void World::setMesh(uint32_t id, const geometry::Mesh& mesh) {
                                RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
     return;
   }
-  geometry::Mesh grouped = mesh;
+  geometry::mesh::Mesh grouped = mesh;
   grouped.indices = std::move(order);
   geometry.indexCount = (uint32_t)grouped.indices.size();
   geometry.vertexBuffer.Release();
@@ -2202,12 +2204,12 @@ int popChainCount(const World::pop::Chain& chain) {
 }
 
 /** The arena's initial contents for a chain led by a PointSet: the
- *  cloud laid out by geometry::pop::seedAttrs into the builtin slots and
+ *  cloud laid out by geometry::mesh::pop::seedAttrs into the builtin slots and
  *  the chain's custom slots, in the same slot order slotFor() reads. */
-std::vector<float> seededLanes(const geometry::Cloud& cloud, int count,
+std::vector<float> seededLanes(const geometry::mesh::Cloud& cloud, int count,
                                const std::vector<std::string>& customNames) {
   std::map<std::string, std::vector<glm::vec4>, std::less<>> lanes;
-  geometry::pop::seedAttrs(cloud, lanes);
+  geometry::mesh::pop::seedAttrs(cloud, lanes);
   const int slots = World::pop::kBuiltinSlots + (int)customNames.size();
   std::vector<float> data((size_t)count * (size_t)slots * 4, 0.0f);
   const auto pour = [&](int slot, const std::vector<glm::vec4>& lane) {
@@ -2284,8 +2286,8 @@ dg::RefCntAutoPtr<dg::IBuffer> createTableBuffer(
 
 }  // namespace
 
-uint32_t World::placeChain(const geometry::Mesh& stamp, const pop::Chain& chain,
-                           const Material& material) {
+uint32_t World::placeChain(const geometry::mesh::Mesh& stamp,
+                           const pop::Chain& chain, const Material& material) {
   using namespace dg;
   Impl& impl = *m_impl;
   const int count = popChainCount(chain);
@@ -2347,7 +2349,8 @@ uint32_t World::placeChain(const geometry::Mesh& stamp, const pop::Chain& chain,
   return (uint32_t)id;
 }
 
-uint32_t World::placeChainOn(uint32_t upstream, const geometry::Mesh& stamp,
+uint32_t World::placeChainOn(uint32_t upstream,
+                             const geometry::mesh::Mesh& stamp,
                              const pop::Chain& chain,
                              const Material& material) {
   using namespace dg;
@@ -2507,10 +2510,10 @@ void World::setChain(uint32_t id, const pop::Chain& chain) {
   points.dirty = true;
 }
 
-geometry::Cloud World::readChain(uint32_t id) {
+geometry::mesh::Cloud World::readChain(uint32_t id) {
   using namespace dg;
   Impl& impl = *m_impl;
-  geometry::Cloud out;
+  geometry::mesh::Cloud out;
   const entt::entity e = entity(id);
   if (!impl.registry.valid(e) || !impl.registry.all_of<PopComponent>(e))
     return out;
@@ -2591,7 +2594,7 @@ entt::registry& World::registry() { return m_impl->registry; }
 
 const entt::registry& World::registry() const { return m_impl->registry; }
 
-void World::setCamera(const geometry::space::Camera& camera) {
+void World::setCamera(const geometry::mesh::camera::Camera& camera) {
   m_impl->camera = camera;
 }
 
@@ -2829,7 +2832,7 @@ bool World::render() {
                 params.m[1] = (float)points.slotFor(op.along);
               } else if constexpr (std::is_same_v<T, pop::Deform>) {
                 glm::vec3 axis, dir, side;
-                geometry::pop::deformFrame(op, &axis, &dir, &side);
+                geometry::mesh::pop::deformFrame(op, &axis, &dir, &side);
                 params.a[0] = (float)op.kind;
                 params.a[1] = op.amount;
                 params.a[2] = op.low;
@@ -2894,7 +2897,7 @@ bool World::render() {
   // outranks setCamera(), whenever either was set. With none active the
   // fallback camera drives the frame; with several, the first the
   // registry iterates wins.
-  geometry::space::Camera cam = impl.camera;
+  geometry::mesh::camera::Camera cam = impl.camera;
   for (auto [e, camComponent] : impl.registry.view<CameraComponent>().each()) {
     if (camComponent.active) {
       cam = camComponent.camera;

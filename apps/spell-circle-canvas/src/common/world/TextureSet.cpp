@@ -81,7 +81,7 @@ Material material(const std::map<std::string, sk_sp<SkImage>>& byUsage,
                   material::textures::fromUsageMap(byUsage, normalDirectX));
 }
 
-Material material(const geometry::decode::Part& part,
+Material material(const geometry::mesh::codec::decode::Part& part,
                   const BytesDecoder& decode, Material base) {
   Material m = std::move(base);
   m.baseColor = part.baseColor;
@@ -113,11 +113,12 @@ Material material(const geometry::decode::Part& part,
   return out;
 }
 
-std::vector<Material> materials(const geometry::decode::Model& model,
-                                const BytesDecoder& decode, Material base) {
+std::vector<Material> materials(
+    const geometry::mesh::codec::decode::Model& model,
+    const BytesDecoder& decode, Material base) {
   std::vector<Material> slots((size_t)model.materialSlotCount(), base);
   std::vector<bool> filled(slots.size(), false);
-  for (const geometry::decode::Part& part : model.parts) {
+  for (const geometry::mesh::codec::decode::Part& part : model.parts) {
     if (part.materialIndex < 0 || (size_t)part.materialIndex >= slots.size() ||
         filled[(size_t)part.materialIndex])
       continue;

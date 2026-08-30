@@ -9,22 +9,22 @@ float centeredBaselineOffset(const SkFontMetrics& metrics) {
   return -(metrics.fAscent + metrics.fDescent) * 0.5f;
 }
 
-const sigil::geometry::Contour& RingLabelGeometryCache::ringForRadius(
+const sigil::geometry::path::Contour& RingLabelGeometryCache::ringForRadius(
     float radius) {
   const int quantizedRadius = static_cast<int>(radius * 4.0f);
   auto measuredRing = m_rings.find(quantizedRadius);
   if (measuredRing == m_rings.end()) {
-    std::vector<sigil::geometry::Contour> rings =
-        sigil::geometry::Contour::of(SkPath::Circle(0, 0, radius));
+    std::vector<sigil::geometry::path::Contour> rings =
+        sigil::geometry::path::Contour::of(SkPath::Circle(0, 0, radius));
     // A radius that yields no contour produces nothing worth keeping: storing
     // the invalid contour would pin a permanently useless entry in its
     // bucket, so degenerate requests are answered without touching the cache
     // — they neither occupy a slot nor trigger the overflow flush below.
     if (rings.empty()) {
-      static const sigil::geometry::Contour kNoRing;
+      static const sigil::geometry::path::Contour kNoRing;
       return kNoRing;
     }
-    sigil::geometry::Contour ring = std::move(rings.front());
+    sigil::geometry::path::Contour ring = std::move(rings.front());
     // Overflow drops every measurement at once rather than evicting a least
     // recently used entry: no use order is tracked, and re-measuring is a
     // contour walk over four conics. Rings already handed out survive, because

@@ -24,10 +24,10 @@
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
-#include <sigilgeometry/codec/Decode.h>
-#include <sigilgeometry/pop/Points.h>
-#include <sigilgeometry/pop/Pop.h>
-#include <sigilgeometry/space/Space.h>
+#include <sigilgeometry/mesh/camera/Camera.h>
+#include <sigilgeometry/mesh/codec/Decode.h>
+#include <sigilgeometry/mesh/pop/Points.h>
+#include <sigilgeometry/mesh/pop/Pop.h>
 #include <sigilsketch/Sketch.h>
 
 #include <cmath>
@@ -121,8 +121,8 @@ std::string houdiniGeo() {
          rle + "]]]]]]]";
 }
 
-geometry::space::Camera lookDown() {
-  geometry::space::Camera camera;
+geometry::mesh::camera::Camera lookDown() {
+  geometry::mesh::camera::Camera camera;
   camera.eye = {0, 520, 620};
   camera.target = {0, 0, 0};
   camera.fovYDeg = 40;
@@ -143,18 +143,18 @@ const sk_sp<SkImage>& disc() {
   return img;
 }
 
-Element splat(geometry::Cloud cloud) {
+Element splat(geometry::mesh::Cloud cloud) {
   return custom([cloud = std::move(cloud)](SkCanvas& canvas,
                                            const PaintContext& paint) {
-           geometry::points::BillboardStyle style;
+           geometry::mesh::points::BillboardStyle style;
            style.sprite = disc();
            style.size = 6;
            style.sizeLane = "size";
            style.tintLane = "tint";
            style.additive = false;
            style.depthSort = true;
-           geometry::points::drawBillboards(canvas, cloud, lookDown(),
-                                            paint.size, style);
+           geometry::mesh::points::drawBillboards(canvas, cloud, lookDown(),
+                                                  paint.size, style);
          })
       .inset(0)
       .cache(Cache::None);
@@ -177,13 +177,13 @@ Element panel(const char* title, const char* note, Element inner) {
 
 // a literal table; only allocation could throw
 // NOLINTNEXTLINE(bugprone-throwing-static-initialization)
-const geometry::pop::Math kRingLarger{
+const geometry::mesh::pop::Math kRingLarger{
     "Scale", {2.2f, 2.2f, 2.2f, 2.2f}, {}, "ring"};
 
 }  // namespace
 
 struct GeoGroups : sigil::compose::sketch::Sketch {
-  geometry::Cloud saved, peaked, twisted;
+  geometry::mesh::Cloud saved, peaked, twisted;
   std::string caption;
 
   void setup(sketch::SketchContext& ctx) override {
@@ -191,8 +191,9 @@ struct GeoGroups : sigil::compose::sketch::Sketch {
     ctx.background({0.055f, 0.06f, 0.085f, 1});
 
     const std::string geo = houdiniGeo();
-    const std::optional<geometry::decode::Model> model =
-        geometry::decode::model(geo.data(), geo.size(), "grid.geo");
+    const std::optional<geometry::mesh::codec::decode::Model> model =
+        geometry::mesh::codec::decode::model(geo.data(), geo.size(),
+                                             "grid.geo");
     if (!model || model->parts.empty()) {
       caption = "the .geo did not parse";
       ctx.composer.render(text(toU8(caption), type(15, kInk)).left(30).top(16));
@@ -200,7 +201,7 @@ struct GeoGroups : sigil::compose::sketch::Sketch {
     }
     // asCloud(): positions, "normal" from N, "tint" from Cd, and every
     // group as a 0/1 scalar lane under its own name.
-    const geometry::Cloud seed = model->parts.front().asCloud();
+    const geometry::mesh::Cloud seed = model->parts.front().asCloud();
     int inRing = 0;
     if (const std::vector<float>* ring = seed.scalarIf("ring"))
       for (float f : *ring) inRing += f > 0.5f;
@@ -209,19 +210,19 @@ struct GeoGroups : sigil::compose::sketch::Sketch {
               " of them";
 
     // 1. As saved, the ring drawn larger: a Math on Scale, masked.
-    saved = geometry::pop::on(seed).op(kRingLarger).cloud();
+    saved = geometry::mesh::pop::on(seed).op(kRingLarger).cloud();
     // 2. Peak everyone OUTSIDE the ring: the group inverted into a
     // second lane by a Math, and the peak masked by that.
-    peaked =
-        geometry::pop::on(seed)
-            .copy("ring", "outside")
-            .op(geometry::pop::Math{"outside", {-1, 0, 0, 0}, {1, 0, 0, 0}})
-            .peak(60)
-            .masked("outside")
-            .op(kRingLarger)
-            .cloud();
+    peaked = geometry::mesh::pop::on(seed)
+                 .copy("ring", "outside")
+                 .op(geometry::mesh::pop::Math{
+                     "outside", {-1, 0, 0, 0}, {1, 0, 0, 0}})
+                 .peak(60)
+                 .masked("outside")
+                 .op(kRingLarger)
+                 .cloud();
     // 3. Only the ring turns.
-    twisted = geometry::pop::on(seed)
+    twisted = geometry::mesh::pop::on(seed)
                   .twist(kTwistDeg, {0, 1, 0}, -1, 1)
                   .masked("ring")
                   .peak(30)

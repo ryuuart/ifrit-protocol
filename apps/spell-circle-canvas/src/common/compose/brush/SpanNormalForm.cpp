@@ -87,9 +87,10 @@ std::vector<Span> cornerSpans(const SkPath& outline, float arm,
   const std::vector<ContourRun> runs = measureContours(outline, &total);
   if (total <= 0) return out;
   size_t i = 0;
-  for (const geometry::Contour& contour : geometry::Contour::of(outline)) {
+  for (const geometry::path::Contour& contour :
+       geometry::path::Contour::of(outline)) {
     if (i >= runs.size()) break;
-    for (const geometry::Contour::Corner& hit :
+    for (const geometry::path::Contour::Corner& hit :
          detail::cornersOrWarn(contour, angleDeg))
       pushCornerWindow(out, runs[i], hit.distance, arm, total);
     ++i;

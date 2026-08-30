@@ -49,3 +49,5 @@ add_executable(geometry_path_bench bench/PathBench.cpp)
 target_link_libraries(geometry_path_bench PRIVATE SigilGeometryPath
   benchmark::benchmark)
 add_dependencies(benches geometry_path_bench)
+
+add_subdirectory(blend)

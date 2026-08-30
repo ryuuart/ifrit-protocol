@@ -1,33 +1,43 @@
-# SigilGeometry — 2D and 3D geometry over Skia, as one feature library per
-# directory. Each feature is its own static archive with its own tests and
-# benchmarks, and links only the features beneath it, so a consumer that
-# needs one tier links that tier alone. `SigilGeometry` is the umbrella:
-# an interface over every feature, for a consumer of the whole library.
-# Skia-only by contract: no compose kernel, no motion, no Qt.
+# SigilGeometry — 2D and 3D geometry over Skia, tiered by currency. The
+# `path` tier is the 2D one: outlines resampled, addressed and operated
+# on. The `mesh` tier is the 3D one: a triangle mesh, the camera that
+# looks at it, the runtimes that draw it, splines, point clouds and
+# model interchange. Each feature is its own static archive with its own
+# tests and benchmarks, and links only the features beneath it, so a
+# consumer that needs one tier links that tier alone. `SigilGeometry` is
+# the umbrella: an interface over every feature, for a consumer of the
+# whole library. Skia-only by contract: no compose kernel, no motion,
+# no Qt.
 #
-# Every public header lives under one include root, include/sigilgeometry/
-# <feature>/, so a feature adds the root and spells its own directory.
+# Every public header lives under one include root,
+# include/sigilgeometry/, and the directories under it nest the way the
+# targets do, so a feature adds the root and spells its own directory.
 
 set(SIGIL_GEOMETRY_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/include)
 
 add_subdirectory(path)
-add_subdirectory(blend)
 add_subdirectory(mesh)
-add_subdirectory(space)
-add_subdirectory(curves)
-add_subdirectory(pop)
-add_subdirectory(codec)
 
 add_library(SigilGeometry INTERFACE)
 target_link_libraries(SigilGeometry INTERFACE
   SigilGeometryPath
-  SigilGeometryBlend
+  SigilGeometryPathBlend
   SigilGeometryMesh
-  SigilGeometrySpace
-  SigilGeometryCurves
-  SigilGeometryPop
-  SigilGeometryCodec
+  SigilGeometryMeshCamera
+  SigilGeometryMeshRender
+  SigilGeometryMeshCurve
+  SigilGeometryMeshPop
+  SigilGeometryMeshCodec
 )
+
+# TRANSITIONAL. The names the features carried before the tiering, so a
+# consumer that has not been moved yet still links. Delete each alias
+# once nothing names it.
+add_library(SigilGeometryBlend ALIAS SigilGeometryPathBlend)
+add_library(SigilGeometrySpace ALIAS SigilGeometryMeshRender)
+add_library(SigilGeometryCurves ALIAS SigilGeometryMeshCurve)
+add_library(SigilGeometryPop ALIAS SigilGeometryMeshPop)
+add_library(SigilGeometryCodec ALIAS SigilGeometryMeshCodec)
 
 # The header tree installs as one unit beside the exported path leaf.
 install(DIRECTORY include/sigilgeometry DESTINATION include)

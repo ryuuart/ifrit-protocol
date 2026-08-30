@@ -280,10 +280,11 @@ struct Scatter {
     const float ch = in.container.height() / (float)rows;
     for (size_t i = 0; i < n; ++i) {
       const int cx = (int)i % cols, cy = (int)i / cols;
-      const float jx =
-          geometry::noise::hash(seed, (uint32_t)(i * 2)) * jitter * cw / 2;
+      const float jx = geometry::path::noise::hash(seed, (uint32_t)(i * 2)) *
+                       jitter * cw / 2;
       const float jy =
-          geometry::noise::hash(seed, (uint32_t)(i * 2 + 1)) * jitter * ch / 2;
+          geometry::path::noise::hash(seed, (uint32_t)(i * 2 + 1)) * jitter *
+          ch / 2;
       SkPoint center{cw * ((float)cx + 0.5f) + jx,
                      ch * ((float)cy + 0.5f) + jy};
       SkRect r = detail::centeredAt(center, in.childSizes[i]);

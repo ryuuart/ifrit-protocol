@@ -101,10 +101,12 @@ Tile speckle(float tileSize, int count, float rMin, float rMax,
     p.setAntiAlias(true);
     for (int i = 0; i < count; ++i) {
       const uint32_t k = (uint32_t)i;
-      const float x = (0.5f + 0.5f * geometry::noise::hash(seed, 3 * k)) * s;
+      const float x =
+          (0.5f + 0.5f * geometry::path::noise::hash(seed, 3 * k)) * s;
       const float y =
-          (0.5f + 0.5f * geometry::noise::hash(seed, 3 * k + 1)) * s;
-      const float t = 0.5f + 0.5f * geometry::noise::hash(seed, 3 * k + 2);
+          (0.5f + 0.5f * geometry::path::noise::hash(seed, 3 * k + 1)) * s;
+      const float t =
+          0.5f + 0.5f * geometry::path::noise::hash(seed, 3 * k + 2);
       const float r = rMin + (rMax - rMin) * t;
       if (!palette.empty())
         p.setColor4f(sk(palette[k % palette.size()]), nullptr);

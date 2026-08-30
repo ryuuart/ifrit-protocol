@@ -44,14 +44,14 @@ class RingLabelGeometryCache {
    *  reference is invalidated by clear() and by any later call that
    *  overflows the cache; copy the contour to keep a measurement alive
    *  across calls. */
-  const sigil::geometry::Contour& ringForRadius(float radius);
+  const sigil::geometry::path::Contour& ringForRadius(float radius);
 
   /** Drops every measured ring. References previously returned by
    *  ringForRadius() dangle afterwards; contour copies stay valid. */
   void clear() { m_rings.clear(); }
 
  private:
-  absl::flat_hash_map<int, sigil::geometry::Contour> m_rings;
+  absl::flat_hash_map<int, sigil::geometry::path::Contour> m_rings;
   size_t m_maximumEntries;
 };
 

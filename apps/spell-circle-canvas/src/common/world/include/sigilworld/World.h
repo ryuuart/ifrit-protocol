@@ -7,12 +7,13 @@
  * shading pass.
  *
  * Three bridge contracts, and nothing else crosses:
- *  - geometry in is a sigil::geometry::Mesh, uploaded as it stands;
+ *  - geometry in is a sigil::geometry::mesh::Mesh, uploaded as it stands;
  *  - panel content in is any SkImage, uploaded as the prop's
  *    baseColor texture (mark the material unlit for a self-lit screen,
  *    leave it lit for a decal that should take the scene's light);
- *  - the camera is a sigil::geometry::space::Camera, so a Skia-composited
- *    scene and a World render agree about where things sit.
+ *  - the camera is a sigil::geometry::mesh::camera::Camera, so a
+ *    Skia-composited scene and a World render agree about where things
+ *    sit.
  *
  * Headless by design: create() needs no window, render() draws into an
  * offscreen target, and readback() returns the frame as a raster SkImage
@@ -28,9 +29,9 @@
 #include <include/core/SkImage.h>
 #include <include/core/SkRefCnt.h>
 #include <sigilgeometry/mesh/Mesh.h>
-#include <sigilgeometry/pop/Points.h>
-#include <sigilgeometry/pop/Pop.h>
-#include <sigilgeometry/space/Space.h>
+#include <sigilgeometry/mesh/camera/Camera.h>
+#include <sigilgeometry/mesh/pop/Points.h>
+#include <sigilgeometry/mesh/pop/Pop.h>
 
 #include <cstdint>
 #include <entt/entity/fwd.hpp>
@@ -402,7 +403,7 @@ class World {
    *  entt entity in registry() (see Components.h); 0 means failure. Every
    *  place* door below returns the same kind of id: a prop is a prop
    *  whether its geometry was uploaded, stamped or cooked. */
-  uint32_t place(const geometry::Mesh& mesh, const glm::mat4& model,
+  uint32_t place(const geometry::mesh::Mesh& mesh, const glm::mat4& model,
                  const Material& material);
   /** Place a prop with SEVERAL materials — Blender's material slots: the
    *  mesh's "Material" prim lane (its .x, per triangle) picks which of
@@ -410,7 +411,7 @@ class World {
    *  the lane wears slot 0 throughout. One entity, one transform, one
    *  draw per slot. Slot 0 lands on MaterialComponent::material, the
    *  rest on MaterialComponent::slots. 0 on failure or empty slots. */
-  uint32_t place(const geometry::Mesh& mesh, const glm::mat4& model,
+  uint32_t place(const geometry::mesh::Mesh& mesh, const glm::mat4& model,
                  const std::vector<Material>& slots);
   void setTransform(uint32_t id, const glm::mat4& model);
   /** Replace a prop's geometry in place. Matching vertex and index
@@ -419,15 +420,15 @@ class World {
    *  different shape recreates the buffers. The material, texture and
    *  entity survive either path. No-op on unknown ids; on a stamps or
    *  chain prop this swaps the stamp. */
-  void setMesh(uint32_t id, const geometry::Mesh& mesh);
+  void setMesh(uint32_t id, const geometry::mesh::Mesh& mesh);
 
   /** A GPU-computed ribbon sweep: the loop's control points live in a
    *  device buffer and a compute pass rewrites the prop's vertices IN
    *  PLACE at render time, so no CPU mesh for the ribbon exists at all.
    *
-   *  The kernel matches geometry::Spline3's closed Catmull-Rom parameter for
-   *  parameter, so a CPU query of position(t) on the same loop lands on
-   *  the band. Width hangs world-vertical off the tangent.
+   *  The kernel matches geometry::mesh::curve::Spline3's closed Catmull-Rom
+   * parameter for parameter, so a CPU query of position(t) on the same loop
+   * lands on the band. Width hangs world-vertical off the tangent.
    *
    *  Topology is fixed at creation; the animation is the two-float
    *  window. */
@@ -461,8 +462,8 @@ class World {
   /** Cook @p chain (its first op must be a generator) and draw @p stamp
    *  at every cooked point. An ordinary stamps prop otherwise.
    *  0 on failure, including a chain the GPU executor declines. */
-  uint32_t placeChain(const geometry::Mesh& stamp, const pop::Chain& chain,
-                      const Material& material);
+  uint32_t placeChain(const geometry::mesh::Mesh& stamp,
+                      const pop::Chain& chain, const Material& material);
   /** Replace the chain and re-cook at the next render(). A changed point
    *  count, operator list, custom attribute set or lookup table rebuilds
    *  the lanes and bindings; anything else is a parameter edit. No-op on
@@ -485,7 +486,7 @@ class World {
    *  dependency order. Semantically identical to composing the two
    *  chains on the CPU. 0 on failure — it needs a valid upstream point
    *  chain prop with at least 3 points. */
-  uint32_t placeChainOn(uint32_t upstream, const geometry::Mesh& stamp,
+  uint32_t placeChainOn(uint32_t upstream, const geometry::mesh::Mesh& stamp,
                         const pop::Chain& chain, const Material& material);
 
   /** THE QUERY DOOR: read a chain prop's cooked attribute lanes back
@@ -496,7 +497,7 @@ class World {
    *  Synchronous: it copies and waits for the device. Fine as a query,
    *  wrong as a per-frame path. Valid only after a render() has cooked
    *  the chain; empty on other ids. */
-  geometry::Cloud readChain(uint32_t id);
+  geometry::mesh::Cloud readChain(uint32_t id);
   void remove(uint32_t id);
   size_t propCount() const;
 
@@ -509,13 +510,13 @@ class World {
    *  all of it opaque or blended. Instances are therefore not depth
    *  sorted against each other. 0 on failure; an empty cloud is a valid
    *  but invisible prop awaiting setStamps(). */
-  uint32_t placeStamps(const geometry::Mesh& stamp,
-                       const geometry::Cloud& cloud, const Material& material,
-                       const StampLanes& lanes = {});
+  uint32_t placeStamps(const geometry::mesh::Mesh& stamp,
+                       const geometry::mesh::Cloud& cloud,
+                       const Material& material, const StampLanes& lanes = {});
   /** Re-upload a stamps prop's points (UpdateBuffer when the
    *  count is unchanged, recreate otherwise). No-op on plain
    *  props. */
-  void setStamps(uint32_t id, const geometry::Cloud& cloud,
+  void setStamps(uint32_t id, const geometry::mesh::Cloud& cloud,
                  const StampLanes& lanes = {});
 
   /** The world's entity registry — props live here as entities with
@@ -536,7 +537,7 @@ class World {
    *  (Components.h) outranks this one while it exists — including one
    *  activated before a later call to this setter. With several active,
    *  the first the registry iterates wins. */
-  void setCamera(const geometry::space::Camera& camera);
+  void setCamera(const geometry::mesh::camera::Camera& camera);
   void setLighting(const Lighting& lighting);
 
   /** Render the scene into the offscreen target.

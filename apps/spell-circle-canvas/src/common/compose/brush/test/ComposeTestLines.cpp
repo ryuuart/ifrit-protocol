@@ -772,8 +772,9 @@ TEST(ComposeLines, RailsDashGeometryIsAngleExact) {
     }
     return out;
   };
-  const auto inner = spans(sigil::geometry::parallel(dashed, 8.0f, 2.0f));
-  const auto outer = spans(sigil::geometry::parallel(dashed, -8.0f, 2.0f));
+  const auto inner = spans(sigil::geometry::path::parallel(dashed, 8.0f, 2.0f));
+  const auto outer =
+      spans(sigil::geometry::path::parallel(dashed, -8.0f, 2.0f));
   ASSERT_GE(inner.size(), 30u) << "the centreline never dashed";
   ASSERT_EQ(inner.size(), outer.size())
       << "rails carry different dash COUNTS — they were dashed per-rail";

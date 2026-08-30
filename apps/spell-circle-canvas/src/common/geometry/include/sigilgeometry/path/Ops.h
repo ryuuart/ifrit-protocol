@@ -25,7 +25,7 @@
 #include <functional>
 #include <vector>
 
-namespace sigil::geometry::ops {
+namespace sigil::geometry::path::ops {
 
 /** The Pathfinder four (binary, `a` is the back object, `b` the front —
  *  subtract() is Minus Front). Empty result on pathops failure. */
@@ -104,4 +104,4 @@ inline PathOp offsetBy(float delta) {
   return [delta](const SkPath& p) { return offset(p, delta); };
 }
 
-}  // namespace sigil::geometry::ops
+}  // namespace sigil::geometry::path::ops

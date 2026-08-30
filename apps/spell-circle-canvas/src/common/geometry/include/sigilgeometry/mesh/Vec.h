@@ -12,7 +12,7 @@
 
 #include <glm/glm.hpp>
 
-namespace sigil::geometry {
+namespace sigil::geometry::mesh {
 
 inline glm::vec3 normalized(glm::vec3 v, glm::vec3 fallback = {0, 0, 1}) {
   const float len = glm::length(v);
@@ -32,4 +32,4 @@ inline void basisFor(glm::vec3 dir, glm::vec3 up, glm::vec3* x, glm::vec3* y,
   *y = glm::cross(*z, *x);
 }
 
-}  // namespace sigil::geometry
+}  // namespace sigil::geometry::mesh

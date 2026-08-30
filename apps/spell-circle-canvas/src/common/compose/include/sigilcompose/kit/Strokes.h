@@ -93,7 +93,7 @@ struct Wave {
   }
   /** As a SHAPER: displace the path itself. */
   SkPath shape(const SkPath& p) const {
-    return geometry::displace(p, amplitude, wavelength, false);
+    return geometry::path::displace(p, amplitude, wavelength, false);
   }
 
  private:
@@ -143,7 +143,7 @@ struct Offset {
   bool operator==(const Offset&) const = default;
   float bleed() const { return std::abs(px); }
   SkPath shape(const SkPath& p) const {
-    return geometry::parallel(p, px, step);
+    return geometry::path::parallel(p, px, step);
   }
 };
 
@@ -203,7 +203,7 @@ struct Zigzag {
   bool operator==(const Zigzag&) const = default;
   float bleed() const { return std::abs(amplitude); }
   SkPath shape(const SkPath& p) const {
-    return geometry::displace(p, amplitude, wavelength, true);
+    return geometry::path::displace(p, amplitude, wavelength, true);
   }
 };
 

@@ -311,8 +311,8 @@ TEST(SceneLabels, CircleContoursStartAtThreeOClock) {
   // Pins the assumption Circle.text_start is built on: a Skia circle path's
   // contour begins at 3 o'clock and winds clockwise in y-down screen space,
   // which is why an anchor fraction of 0.75 centers a label at the top.
-  const std::vector<sigil::geometry::Contour> rings =
-      sigil::geometry::Contour::of(SkPath::Circle(0.0f, 0.0f, 100.0f));
+  const std::vector<sigil::geometry::path::Contour> rings =
+      sigil::geometry::path::Contour::of(SkPath::Circle(0.0f, 0.0f, 100.0f));
   ASSERT_EQ(rings.size(), 1u);
 
   const auto start = rings[0].at(0.0f);
@@ -333,7 +333,7 @@ TEST(RingLabelGeometryCache, DegenerateRadiusReturnsNullEveryTime) {
 
 TEST(RingLabelGeometryCache, ValidRadiiShareOneMeasurement) {
   spellcircle::RingLabelGeometryCache cache;
-  const sigil::geometry::Contour first = cache.ringForRadius(200.0f);
+  const sigil::geometry::path::Contour first = cache.ringForRadius(200.0f);
   ASSERT_TRUE(first.valid());
   EXPECT_EQ(cache.ringForRadius(200.0f), first);
 }
@@ -343,7 +343,7 @@ TEST(RingLabelGeometryCache, DegenerateRequestsDoNotOccupySlots) {
   EXPECT_FALSE(cache.ringForRadius(0.0f).valid());
 
   const float radii[] = {10.0f, 20.0f, 30.0f, 40.0f};
-  sigil::geometry::Contour held[4];
+  sigil::geometry::path::Contour held[4];
   for (int i = 0; i < 4; ++i) {
     held[i] = cache.ringForRadius(radii[i]);
     ASSERT_TRUE(held[i].valid());

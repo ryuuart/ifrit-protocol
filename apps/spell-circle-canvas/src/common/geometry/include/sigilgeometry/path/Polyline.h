@@ -14,7 +14,7 @@
 #include <glm/vec2.hpp>
 #include <vector>
 
-namespace sigil::geometry {
+namespace sigil::geometry::path {
 
 /** One flattened contour: points in order, optionally closed. */
 struct Polyline {
@@ -71,4 +71,4 @@ SkPath toPath(const Polyline& line);
 
 Sampled lerp(const Sampled& a, const Sampled& b, float t);
 
-}  // namespace sigil::geometry
+}  // namespace sigil::geometry::path

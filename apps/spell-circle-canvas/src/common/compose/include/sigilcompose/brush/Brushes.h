@@ -600,7 +600,7 @@ struct Ribbon {
    *
    *  GEOMETRY: a profiled ribbon is `bandRegion()`, so its rails go
    *  through `profileOffset` — a CONSTANT profile picks up
-   *  `geometry::parallel`'s real-vertex corner repair (arc outside a
+   *  `geometry::path::parallel`'s real-vertex corner repair (arc outside a
    *  turn, miter inside) instead of the spur the sample-and-displace walk
    *  below leaves on the inside of every rectangle corner; a VARYING one
    *  is sampled per rail at a uniform 2 px and zipped by arc length.

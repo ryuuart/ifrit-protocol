@@ -25,12 +25,13 @@ inline float runEnd(const Paragraph& paragraph, const PositionedRun& run) {
 }
 
 /// A closed circle as one contour, plus its length.
-inline std::pair<sigil::geometry::Contour, float> circleContour(float radius) {
+inline std::pair<sigil::geometry::path::Contour, float> circleContour(
+    float radius) {
   SkPathBuilder builder;
   builder.addCircle(0, 0, radius);
-  std::vector<sigil::geometry::Contour> contours =
-      sigil::geometry::Contour::of(builder.detach());
-  if (contours.empty()) return {sigil::geometry::Contour{}, 0.0f};
+  std::vector<sigil::geometry::path::Contour> contours =
+      sigil::geometry::path::Contour::of(builder.detach());
+  if (contours.empty()) return {sigil::geometry::path::Contour{}, 0.0f};
   return {contours.front(), contours.front().length()};
 }
 

@@ -18,8 +18,14 @@
 
 namespace sigil::geometry::mesh {
 
+// The outline resampling the extrusion and the lathe stand on lives in
+// the path tier; a parameter here is called `path`, so the names are
+// pulled in rather than spelled through it.
+using path::flatten;
+using path::Polyline;
+
 using glm::cross;
-using sigil::geometry::normalized;
+using sigil::geometry::mesh::normalized;
 
 namespace {
 

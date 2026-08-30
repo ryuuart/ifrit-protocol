@@ -21,7 +21,7 @@
 #include <numbers>
 #include <vector>
 
-using namespace sigil::geometry;
+using namespace sigil::geometry::path;
 
 namespace {
 

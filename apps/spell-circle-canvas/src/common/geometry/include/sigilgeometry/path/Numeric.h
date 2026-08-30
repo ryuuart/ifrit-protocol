@@ -7,7 +7,7 @@
 #include <glm/vec2.hpp>
 #include <numbers>
 
-namespace sigil::geometry {
+namespace sigil::geometry::path {
 
 inline constexpr float kPi = std::numbers::pi_v<float>;
 inline constexpr float kTau = 2.0f * kPi;
@@ -49,4 +49,4 @@ inline float wrap(float t, float period) {
   return r < 0 ? r + period : r;
 }
 
-}  // namespace sigil::geometry
+}  // namespace sigil::geometry::path

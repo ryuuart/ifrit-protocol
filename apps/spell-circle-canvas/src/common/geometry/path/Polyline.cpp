@@ -17,7 +17,7 @@
 #include "sigilgeometry/path/Numeric.h"
 #include "sigilgeometry/path/Skia.h"
 
-namespace sigil::geometry {
+namespace sigil::geometry::path {
 
 namespace {
 
@@ -306,4 +306,4 @@ Sampled lerp(const Sampled& a, const Sampled& b, float t) {
   return out;
 }
 
-}  // namespace sigil::geometry
+}  // namespace sigil::geometry::path

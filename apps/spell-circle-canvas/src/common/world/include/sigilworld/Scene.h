@@ -85,7 +85,7 @@ class Node {
 
  private:
   friend Node group();
-  friend Node place(std::shared_ptr<const geometry::Mesh>, Material);
+  friend Node place(std::shared_ptr<const geometry::mesh::Mesh>, Material);
   friend Node panel(sk_sp<SkImage>, float, float);
   friend class Scene;
 
@@ -96,9 +96,9 @@ class Node {
   float m_scale = 1;
   glm::mat4 m_extra{1.0f};
   bool m_hasExtra = false;
-  std::shared_ptr<const geometry::Mesh> m_mesh;  // Prop
-  Material m_material;                           // Prop + Panel
-  float m_panelWidth = 0, m_panelHeight = 0;     // Panel
+  std::shared_ptr<const geometry::mesh::Mesh> m_mesh;  // Prop
+  Material m_material;                                 // Prop + Panel
+  float m_panelWidth = 0, m_panelHeight = 0;           // Panel
   std::vector<Node> m_children;
 };
 
@@ -108,9 +108,9 @@ inline Node group() { return Node(); }
  *  its contents, so share one shared_ptr across renders; the overload
  *  below allocates a fresh mesh and therefore a fresh identity every
  *  call. */
-Node place(std::shared_ptr<const geometry::Mesh> mesh, Material material);
-inline Node place(geometry::Mesh mesh, Material material) {
-  return place(std::make_shared<const geometry::Mesh>(std::move(mesh)),
+Node place(std::shared_ptr<const geometry::mesh::Mesh> mesh, Material material);
+inline Node place(geometry::mesh::Mesh mesh, Material material) {
+  return place(std::make_shared<const geometry::mesh::Mesh>(std::move(mesh)),
                std::move(material));
 }
 
@@ -203,7 +203,7 @@ class Scene {
  private:
   struct Entry {
     uint32_t id = 0;
-    const geometry::Mesh* mesh = nullptr;
+    const geometry::mesh::Mesh* mesh = nullptr;
     Material material;
     glm::mat4 world{1.0f};
     bool visited = false;
@@ -219,7 +219,7 @@ class Scene {
 
   World& m_world;
   std::map<std::string, Entry> m_entries;
-  std::map<std::pair<float, float>, std::shared_ptr<const geometry::Mesh>>
+  std::map<std::pair<float, float>, std::shared_ptr<const geometry::mesh::Mesh>>
       m_quads;
   std::set<std::string> m_warnedOutranked;
 };

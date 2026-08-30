@@ -1,14 +1,14 @@
 #pragma once
 
 /** @file
- * SigilGeometry procedural geometry — one Mesh currency for two renderers.
- * The same vertex/index buffers draw through Skia (Space.h: the painter
- * bridge) and upload to SigilWorld (Diligent vertex buffers) —
- * positions, normals, uvs, indices, nothing renderer-shaped.
+ * The 3D tier's currency — one Mesh whichever runtime draws it. The same
+ * vertex and index buffers feed the draw in mesh/render and upload to a
+ * GPU renderer downstream: positions, normals, uvs, indices, nothing
+ * renderer-shaped.
  *
  * 3D data speaks glm (vec3/vec4/mat4); Skia types appear only where
  * geometry genuinely comes from or goes to Skia (extrude's SkPath
- * outline here, the Space.h canvas downstream).
+ * outline here, the canvas downstream).
  *
  * Generators cover the diegetic-surface needs: extrude() lifts any
  * SkPath into a solid (caps earcut-triangulated with holes intact,
@@ -27,10 +27,12 @@
 #include <string>
 #include <vector>
 
-namespace sigil::geometry {
+#include "sigilgeometry/mesh/Untiered.h"
+
+namespace sigil::geometry::mesh {
 
 /** Renderer-neutral triangle mesh. Indices are 32-bit; Skia's 16-bit
- *  SkVertices limit is handled by the Space.h drawer (chunking), not by
+ *  SkVertices limit is handled by the draw (chunking), not by
  *  the data. */
 struct Mesh {
   std::vector<glm::vec3> positions;
@@ -48,7 +50,7 @@ struct Mesh {
    *  pop's AttrRef: no second identity system, just a second class.
    *
    *  Conventional names (nothing enforces them): "Color" (flat
-   *  per-primitive tint — space::MeshStyle::primColorLane reads it and
+   *  per-primitive tint — render::MeshStyle::primColorLane reads it and
    *  mesh::bakePrimColor bakes it for vertex-only renderers) and "Id"
    *  (.x = the piece the triangle belongs to; instancing writes the
    *  owning point's index, so "a stamp instance" is expressible as a
@@ -75,7 +77,7 @@ struct Mesh {
    *  and uvs to positions.size(), prims to triangleCount(). That holds
    *  whether a side lacks the lane entirely or carries a SHORT one —
    *  consumers read "lane sized to positions" as the presence bit for
-   *  the whole mesh (space::drawMesh's hasNormals is exactly that), so
+   *  the whole mesh (render::drawMesh's hasNormals is exactly that), so
    *  an undersized merge would turn lighting, texturing or tinting off
    *  for BOTH halves. Pads: colors white, normals +Z, uvs (0, 0). */
   void append(const Mesh& other);
@@ -89,8 +91,6 @@ struct Mesh {
   /** Content equality, lane for lane. */
   bool operator==(const Mesh&) const = default;
 };
-
-namespace mesh {
 
 /** How `extrude()` thickens a path: the total depth and which of the
  *  three surfaces — front cap, back cap, swept walls — to emit.
@@ -154,6 +154,4 @@ Mesh quad(float width, float height);
  *  lanes survive on the result (triangle order is preserved). */
 Mesh bakePrimColor(const Mesh& mesh, std::string_view lane = "Color");
 
-}  // namespace mesh
-
-}  // namespace sigil::geometry
+}  // namespace sigil::geometry::mesh

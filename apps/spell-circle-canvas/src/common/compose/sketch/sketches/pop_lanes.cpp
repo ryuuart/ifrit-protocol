@@ -30,9 +30,9 @@
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
-#include <sigilgeometry/pop/Points.h>
-#include <sigilgeometry/pop/Pop.h>
-#include <sigilgeometry/space/Space.h>
+#include <sigilgeometry/mesh/camera/Camera.h>
+#include <sigilgeometry/mesh/pop/Points.h>
+#include <sigilgeometry/mesh/pop/Pop.h>
 #include <sigilsketch/Sketch.h>
 
 #include <cmath>
@@ -77,8 +77,8 @@ std::vector<glm::vec3> crown(float radius, float rise, int knots) {
   return loop;
 }
 
-geometry::space::Camera lookAtCrown() {
-  geometry::space::Camera camera;
+geometry::mesh::camera::Camera lookAtCrown() {
+  geometry::mesh::camera::Camera camera;
   camera.eye = {0, 150, 980};
   camera.target = {0, 0, 0};
   camera.fovYDeg = 34;
@@ -110,18 +110,18 @@ const sk_sp<SkImage>& disc() {
 /** The sink: NO depth sort and NO additive blending, because both of those
  *  hide what `order()` does. kSrcOver means the last sprite drawn wins, and
  *  chain order decides who is last. */
-Element splat(geometry::Cloud cloud, float spriteSize) {
+Element splat(geometry::mesh::Cloud cloud, float spriteSize) {
   return custom([cloud = std::move(cloud), spriteSize](
                     SkCanvas& canvas, const PaintContext& paint) {
-           geometry::points::BillboardStyle style;
+           geometry::mesh::points::BillboardStyle style;
            style.sprite = disc();
            style.size = spriteSize;
            style.sizeLane = "size";
            style.tintLane = "tint";
            style.additive = false;   // kSrcOver: order decides the picture
            style.depthSort = false;  // the sink's own sort would mask it
-           geometry::points::drawBillboards(canvas, cloud, lookAtCrown(),
-                                            paint.size, style);
+           geometry::mesh::points::drawBillboards(canvas, cloud, lookAtCrown(),
+                                                  paint.size, style);
          })
       .inset(0)
       .cache(Cache::None);
@@ -145,7 +145,7 @@ Element panel(const char* title, const char* note, Element inner) {
 }  // namespace
 
 struct PopLanes : sigil::compose::sketch::Sketch {
-  geometry::Cloud downT, byHeight, unsorted, sorted;
+  geometry::mesh::Cloud downT, byHeight, unsorted, sorted;
 
   void setup(sketch::SketchContext& ctx) override {
     ctx.canvas(1200, 400);
@@ -161,7 +161,7 @@ struct PopLanes : sigil::compose::sketch::Sketch {
                                           {0.85f, 1.00f, 0.95f, 1}};
 
     // 1 — the loud default: `rampBy(stops)` == rampBy(Lane::T, 0, stops).
-    downT = geometry::pop::on(loop)
+    downT = geometry::mesh::pop::on(loop)
                 .count(kCount)
                 .spread(62)
                 .seed(5)
@@ -171,24 +171,25 @@ struct PopLanes : sigil::compose::sketch::Sketch {
 
     // 2 — the full form: ANY lane, ANY component, ANY range. Component 1
     // of P is y, so this is "colour by height" over [-kRange, kRange].
-    byHeight = geometry::pop::on(loop)
-                   .count(kCount)
-                   .spread(62)
-                   .seed(5)
-                   .vary(0.45f)
-                   .rampBy(geometry::pop::Lane::P, 1, stops, -kRange, kRange)
-                   .cloud();
+    byHeight =
+        geometry::mesh::pop::on(loop)
+            .count(kCount)
+            .spread(62)
+            .seed(5)
+            .vary(0.45f)
+            .rampBy(geometry::mesh::pop::Lane::P, 1, stops, -kRange, kRange)
+            .cloud();
 
     // 3 and 4 — identical but for `.order()`. Colour is driven from P.z,
     // so colour IS depth and a mis-ordered sprite is visible as a dark dot
     // sitting on top of a bright one.
     const auto depthChain = [&](const std::vector<glm::vec4>& table) {
-      return geometry::pop::on(loop)
+      return geometry::mesh::pop::on(loop)
           .count(kOrderCount)
           .spread(62)
           .seed(5)
           .vary(0.45f)
-          .rampBy(geometry::pop::Lane::P, 2, table, -230.0f, 230.0f);
+          .rampBy(geometry::mesh::pop::Lane::P, 2, table, -230.0f, 230.0f);
     };
     const std::vector<glm::vec4> depthStops = {{0.06f, 0.08f, 0.16f, 1},
                                                {0.20f, 0.38f, 0.55f, 1},

@@ -18,6 +18,7 @@
 #include <vector>
 
 using namespace sigil::geometry;
+using namespace sigil::geometry::mesh;
 
 namespace {
 
