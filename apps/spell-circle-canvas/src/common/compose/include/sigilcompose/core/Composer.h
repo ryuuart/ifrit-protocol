@@ -74,10 +74,13 @@ class Composer {
   /** Output view transform (color management): applied to the composer's
    *  whole output as the final stage — one saveLayer while set, zero cost
    *  when cleared (a default Effect{}). The intended source is an OCIO
-   *  display/view baked to a 3D LUT (<sigilcompose/Ocio.h>), but any Effect
-   *  works. Per-node caches are unaffected (this is post-cache, at
-   *  composite). */
+   *  display/view baked to a 3D LUT (SigilMaterial's colour transforms),
+   *  but any Effect works. Per-node caches are unaffected (this is
+   *  post-cache, at composite). */
   void setView(Effect view);
+  /** The view as a SigilMaterial recipe whose `content` slot is the
+   *  output — `Effect::recipe(view)`. */
+  void setView(const sigil::material::Material& view);
 
   /** THE DECLARED INPUT SPACE — a declaration, NOT a conversion.
    *

@@ -19,8 +19,8 @@
 //  - The carved depth is a layer-style stack (inner shadow plus inner glow),
 //    not a shader.
 
-#include <sigilcompose/paint/LayerStyles.h>
-#include <sigilcompose/paint/Patterns.h>
+#include <sigilcompose/brush/LayerStyles.h>
+#include <sigilcompose/core/Patterns.h>
 
 #include <cstdio>
 #include <string>

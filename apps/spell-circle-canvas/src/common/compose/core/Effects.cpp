@@ -14,6 +14,7 @@
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <include/pathops/SkPathOps.h>
+#include <sigilmaterial/skia/SkiaCompiler.h>
 
 #include <algorithm>
 #include <cmath>   // std::isfinite — the profileOffset non-finite guard
@@ -55,6 +56,20 @@ Effect Effect::filter(sk_sp<SkImageFilter> f) {
   Effect e;
   e.m_filter = std::move(f);
   return e;
+}
+
+Effect Effect::recipe(const sigil::material::Material& material) {
+  sigil::material::skia::install();
+  static constexpr std::string_view kContent[] = {"content"};
+  std::unique_ptr<SkRuntimeShaderBuilder> builder =
+      sigil::material::skia::builder(material, {}, {}, kContent);
+  if (!builder) return {};
+  return filter(SkImageFilters::RuntimeShader(*builder, "content", nullptr));
+}
+
+Effect Effect::glow(SkColor4f color, float sigma) {
+  return filter(SkImageFilters::DropShadow(0, 0, sigma, sigma,
+                                           color.toSkColor(), nullptr));
 }
 
 namespace {

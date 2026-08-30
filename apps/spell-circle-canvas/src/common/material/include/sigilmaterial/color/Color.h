@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <cmath>
 #include <compare>
+#include <cstdint>
 
 namespace sigil::material {
 
@@ -20,6 +21,10 @@ struct Color {
 
   constexpr auto operator<=>(const Color&) const = default;
 };
+
+/** A colour from a packed 0xRRGGBB, with @p a as its alpha — the spelling
+ *  a palette is authored in. */
+Color rgb(uint32_t hex, float a = 1.0f);
 
 /** A colour in OKLab, the space every perceptual interpolation runs in:
  *  lightness, the green–red axis, the blue–yellow axis, and straight alpha

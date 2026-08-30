@@ -4,9 +4,13 @@
  * SigilCompose layer styles — rich surfaces the way an image editor makes
  * them: fake bevels, metallic sheens, inner shadows, glows and overlays,
  * built from gradients, blurs and blend modes and never from shaders. This
- * is the compositional peer to the SkSL route (Sdf.h, Material::sksl). It
- * models no lighting: a chrome button is a gradient ramp, a bevel is two
- * opposed inner shadows, glass is a highlight lens over a body ramp.
+ * is the compositional peer to the SkSL route (core/Sdf.h,
+ * Material::sksl). It models no lighting: a chrome button is a gradient
+ * ramp, a bevel is two opposed inner shadows, glass is a highlight lens
+ * over a body ramp. The MECHANISMS — inner shadow, outer glow, bevel,
+ * overlay, gloss contour — are decorations of this tier; the LOOKS they
+ * are bundled into — the gel, the chromes, the chrome type — take their
+ * colour tables and options from SigilMaterial's kit.
  *
  * Every style here is a VALUE decoration with defaulted equality, so styled
  * chrome prunes and caches like any other static decoration — which is the
@@ -25,6 +29,7 @@
 #include <include/core/SkCanvas.h>
 #include <sigilcompose/brush/Decorations.h>  // PathFormat keylines in the presets
 #include <sigilcompose/core/Material.h>
+#include <sigilmaterial/kit/LayerStyles.h>
 
 #include <array>
 
@@ -37,6 +42,12 @@ namespace detail {
 inline SkColor4f rgb(uint32_t hex, float a = 1.0f) {
   return {(float)((hex >> 16) & 0xff) / 255.0f,
           (float)((hex >> 8) & 0xff) / 255.0f, (float)(hex & 0xff) / 255.0f, a};
+}
+/** A SigilMaterial colour as Skia spells it. */
+inline SkColor4f sk(sigil::material::Color c) { return {c.r, c.g, c.b, c.a}; }
+/** A Skia colour as SigilMaterial spells it. */
+inline sigil::material::Color mat(SkColor4f c) {
+  return {c.fR, c.fG, c.fB, c.fA};
 }
 }  // namespace detail
 
@@ -137,8 +148,11 @@ inline Overlay gradientOverlay(Material gradient,
 /** Text (or any layer) glow: the node's rendered layer re-emitted blurred
  *  beneath itself — a drop shadow at zero offset, which keeps the content
  *  on top. Attach with `.effect()`, and chain with `.then()` for a tighter
- *  core over a wider halo: `text(...).effect(styles::textGlow(cyan, 6))`. */
-Effect textGlow(SkColor4f color, float sigma);
+ *  core over a wider halo: `text(...).effect(styles::textGlow(cyan, 6))`.
+ *  The kernel's `Effect::glow`, under the name this family gives it. */
+inline Effect textGlow(SkColor4f color, float sigma) {
+  return Effect::glow(color, sigma);
+}
 
 /** The water/heat warp: the node's rendered layer resampled through a sine
  *  displacement field — y shifted by a sine of x, or with `vertical`, x by
@@ -157,20 +171,12 @@ Effect ripple(float amplitudePx, float wavelengthPx, float phase = 0.0f,
 // ---------------------------------------------------------------------------
 // Preset bundles — LayerStyle values for Element::style()
 
-/** Knobs the gel bundle exposes; the defaults dress a pill. */
-struct AquaGelOptions {
-  float lensAlphaTop = 0.72f;    ///< lens ramp: white at the top, clear below
-  float lensBottomFrac = 0.52f;  ///< lens ends this far down the box
-  float lensInsetXFrac = 0.05f;  ///< lens inset each side; ~0.16 on spheres
-  float bottomGlow = 0.85f;      ///< strength of the light from below
-  bool halo = true;              ///< luminous tint drop beneath the shape
-  /** `bleed()` runs before the node has a layout size, so the halo's cull
-   *  reserve has to be declared here: set this to the tallest the gel will
-   *  be. The halo reaches about 0.65 of that height beyond the box, and
-   *  under-declaring it truncates the halo at the cached picture's edge. */
-  float expectedHeight = 64.0f;
-  bool operator==(const AquaGelOptions&) const = default;
-};
+/** Knobs the gel bundle exposes; the defaults dress a pill. `bleed()`
+ *  runs before the node has a layout size, so the halo's cull reserve is
+ *  declared by `expectedHeight`: the halo reaches about 0.65 of that
+ *  height beyond the box, and under-declaring it truncates the halo at
+ *  the cached picture's edge. */
+using AquaGelOptions = sigil::material::kit::AquaGelOptions;
 
 /** The gel pill body, everything sized as a FRACTION of the node's height:
  *  a deep→light vertical ramp, a dark band recessed from the top, a
@@ -214,24 +220,15 @@ LayerStyle aquaGel(SkColor4f tint = detail::rgb(0x1E8FFF),
 LayerStyle aquaOrb(SkColor4f tint = detail::rgb(0x1E8FFF),
                    float expectedDiameter = 128.0f);
 
-/** Which chrome the bundle wears. */
-struct ChromeOptions {
-  enum class Palette : uint8_t {
-    Steel,  ///< the dark ramp — heavy contrast, for plates and wordmarks
-    Silver  ///< the light ramp — window and control chrome
-  };
-  Palette palette = Palette::Steel;
-  bool horizonSliver = true;  ///< white specular sliver straddling 50%
-  float keylineWidth = 2.0f;
-  SkColor4f keyline = detail::rgb(0x10141A);
-  float bevelDepth = 3.0f, bevelSize = 5.0f;
-  bool operator==(const ChromeOptions&) const = default;
-};
+/** Which chrome the bundle wears — the kit's options: `palette`,
+ *  `horizonSliver`, `keylineWidth`, `keyline`, `bevelDepth`, `bevelSize`. */
+using ChromeOptions = sigil::material::kit::ChromeOptions;
 
 /** Where the chrome ramp's hard stop sits, as a fraction of the node's
  *  height. Position hand-added glints against `kChromeHorizonFrac * H` so
  *  they stay on the horizon at any size. */
-inline constexpr float kChromeHorizonFrac = 0.50f;
+inline constexpr float kChromeHorizonFrac =
+    sigil::material::kit::kChromeHorizonFrac;
 
 /** The chrome body: the palette's vertical ramp, with its hard stop at the
  *  horizon, drawn through the shape's outline. */
@@ -270,7 +267,8 @@ LayerStyle y2kChrome(ChromeOptions opts = {});
 /** The sunset-chrome ramp in UNIT space: hand it straight to textFill()
  *  and the hard horizon crosses the capitals at half cap height, whatever
  *  the size —
- *  `text(u8"CHROME", display).textFill(styles::sunsetChromeText())`. */
+ *  `text(u8"CHROME", display).textFill(styles::sunsetChromeText())`.
+ *  The kit's stops as a linear gradient. */
 Material sunsetChromeText();
 
 /** The silver-chrome ramp in unit space, for textFill(). */

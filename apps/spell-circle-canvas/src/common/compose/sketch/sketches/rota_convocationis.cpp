@@ -196,12 +196,12 @@
 #include <include/core/SkPathUtils.h>
 #include <include/core/SkString.h>
 #include <include/effects/SkRuntimeEffect.h>
+#include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/core/Material.h>
+#include <sigilcompose/core/Sdf.h>
 #include <sigilcompose/instances/Instances.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Kit.h>
-#include <sigilcompose/paint/LayerStyles.h>
-#include <sigilcompose/paint/Sdf.h>
 #include <sigilcompose/shape/Shapes.h>
 #include <sigilcompose/typography/TextFx.h>
 #include <sigilcompose/typography/Typography.h>

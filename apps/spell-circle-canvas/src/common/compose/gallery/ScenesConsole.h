@@ -42,14 +42,14 @@
 
 #include <sigilcompose/core/Feed.h>
 #include <sigilcompose/core/Material.h>
-#include <sigilcompose/paint/Sdf.h>
+#include <sigilcompose/core/Sdf.h>
 #include <sigilcompose/typography/TextFx.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilweave/style/Features.h>
 
 #include "GalleryCore.h"
-#if defined(SIGILCOMPOSE_ENABLE_OCIO)
-#include <sigilcompose/paint/Ocio.h>
+#if defined(SIGILMATERIAL_ENABLE_OCIO)
+#include <sigilmaterial/color/Ocio.h>
 #endif
 
 #include <include/core/SkString.h>
@@ -299,8 +299,8 @@ struct DaemonConsoleScene final : Scene {
     faceChrome = pickFace({"Helvetica Neue", "Arial"}, 400);
     faceChromeMed = pickFace({"Helvetica Neue", "Arial"}, 600);
 
-#if defined(SIGILCOMPOSE_ENABLE_OCIO)
-    composer.setView(ocio::exponent(1.08f));
+#if defined(SIGILMATERIAL_ENABLE_OCIO)
+    composer.setView(sigil::material::color::exponent(1.08f));
 #endif
 
     for (int i = 0; i < 9; ++i)  // history at boot, timestamped in the past

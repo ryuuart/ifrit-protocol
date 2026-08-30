@@ -15,7 +15,7 @@
  * fresnel-weighted reflection on top.
  */
 
-#include <sigilmaterial/core/Color.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/core/Recipe.h>
 #include <sigilmaterial/texture/Surface.h>

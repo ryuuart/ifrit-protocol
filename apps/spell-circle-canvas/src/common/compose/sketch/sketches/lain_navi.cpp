@@ -258,7 +258,7 @@
 #include <sigilcompose/brush/Brushes.h>
 #include <sigilcompose/brush/Lines.h>
 #include <sigilcompose/core/Material.h>
-#include <sigilcompose/paint/Patterns.h>
+#include <sigilcompose/core/Patterns.h>
 #include <sigilcompose/shape/Shapes.h>
 #include <sigilsketch/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>

@@ -1038,13 +1038,17 @@ strokes where every rail is its own line; and `brush/Hatches.h`, the
 parallel, radial and concentric hatches. `kit/Strokes.h` and
 `kit/Plate.h` ship with this tier because they are spelled in its types.
 
-**Fills — `paint/`.** `paint/LayerStyles.h` is the Photoshop route to
-rich surfaces: bevels, sheens, inner shadows built from gradients and
-blurs rather than shaders. `paint/Sdf.h` gets shape, border, glow and
-soft shadow out of a single shader pass. `paint/Pattern.h` and
-`paint/Patterns.h` bake tile recipes once into repeating materials, plus
-stock generators. `paint/Ocio.h` is an output-stage view transform for
-`Composer::setView`, compiled only when the build finds OpenColorIO.
+**Fills.** The paint vocabulary is SigilMaterial's, spelled as compose
+values. `brush/LayerStyles.h` is the Photoshop route to rich surfaces:
+bevels, sheens, inner shadows built from gradients and blurs rather than
+shaders, and the gel and chrome bundles over the kit's colour tables.
+`core/Sdf.h` gets shape, border, glow and soft shadow out of a single
+shader pass. `core/Pattern.h` and `core/Patterns.h` bake tile recipes
+once into repeating materials, plus stock generators. A material recipe
+is a `Material` through `Material::recipe`, an effect through
+`Effect::recipe`, and an output-stage view transform for
+`Composer::setView` is SigilMaterial's colour transform, compiled only
+when the build finds OpenColorIO.
 
 **Type — `typography/`.** `typography/TextFx.h` supplies the stock preset
 effects (`fx::rise`, `fx::slide`, `fx::pop`, `fx::spinIn`, `fx::typeOn`,

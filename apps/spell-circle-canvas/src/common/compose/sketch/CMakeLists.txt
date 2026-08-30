@@ -29,7 +29,7 @@ target_compile_definitions(SigilSketchKit PUBLIC
 # sketch that reports its checks reads <sigilcompose/testing/Checks.h>. It
 # is header-only, so it adds nothing to the force_load list below.
 target_link_libraries(SigilSketchKit PUBLIC
-  SigilComposeCore SigilComposeShape SigilComposeBrush SigilComposePaint
+  SigilComposeCore SigilComposeShape SigilComposeBrush
   SigilComposeTypography SigilComposeInstances SigilComposeKit
   SigilComposeTesting SigilLoader SigilGeometry SigilMaterial
   SigilWeavePorts EnTT::EnTT)
@@ -141,7 +141,7 @@ if(APPLE)
   # archive.
   foreach(sketch_dep IN ITEMS SigilSketchKit SigilComposeCore
                               SigilComposeShape SigilComposeBrush
-                              SigilComposePaint SigilComposeInstances
+                              SigilComposeInstances
                               SigilComposeKit SigilImageAsset
                               SigilImageDecode SigilLoaderHub SigilMotionClock
                               SigilMotionBind SigilGeometryPath
@@ -149,6 +149,8 @@ if(APPLE)
                               SigilGeometrySpace SigilGeometryCurves
                               SigilGeometryPop SigilGeometryCodec
                               SigilMaterialCore SigilMaterialTexture
+                              SigilMaterialColor SigilMaterialSdf
+                              SigilMaterialPattern SigilMaterialField
                               SigilMaterialSkia SigilMaterialKit
                               SigilWeaveUnicode SigilWeaveFonts
                               SigilWeaveParagraph SigilWeaveLayout

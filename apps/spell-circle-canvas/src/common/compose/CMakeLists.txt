@@ -12,9 +12,8 @@
 #   SigilComposeShape       shape/       silhouettes, layouts and routers
 #   SigilComposeTypography  typography/  type styles and the text-fx presets
 #                                        (headers)
-#   SigilComposeBrush       brush/       decorations, lines and brushes
-#   SigilComposePaint       paint/       patterns, SDF materials, layer
-#                                        styles and OCIO
+#   SigilComposeBrush       brush/       decorations, lines, brushes and
+#                                        layer styles
 #   SigilComposeTesting     testing/     the read-back checks (headers)
 #   SigilComposeInstances   instances/   the instanced sprite leaf, with the
 #                                        kit's placers
@@ -23,10 +22,10 @@
 #   SigilComposeKit         kit/         the kit tier over Shape and
 #                                        Typography
 #   SigilCompose                         the whole-library convenience for
-#                                        an OUTSIDE consumer: Paint (which
-#                                        reaches Brush, Shape and Core)
-#                                        plus Typography; nothing in this
-#                                        tree links it
+#                                        an OUTSIDE consumer: Brush (which
+#                                        reaches Shape and Core) plus
+#                                        Typography; nothing in this tree
+#                                        links it
 #
 # Every public header lives under one include root, include/sigilcompose/
 # <feature>/, so a feature adds the root and spells its own directory;
@@ -109,7 +108,6 @@ add_subdirectory(testing)
 add_subdirectory(shape)
 add_subdirectory(typography)
 add_subdirectory(brush)
-add_subdirectory(paint)
 add_subdirectory(instances)
 add_subdirectory(web)
 add_subdirectory(kit)
@@ -118,8 +116,7 @@ add_subdirectory(kit)
 # SigilCompose — the whole-library name, kept as a convenience for a
 # consumer OUTSIDE this tree, the way SigilWeave, SigilMotion and
 # SigilGeometry each keep one. It carries no code of its own; linking it is
-# exactly linking Paint (which reaches Brush, Shape and Core) plus
-# Typography. Nothing in this repository links it: every consumer here —
+# exactly linking Brush (which reaches Shape and Core) plus Typography. Nothing in this repository links it: every consumer here —
 # the gallery, the sketch kit, the benches, the demos, the tests — names
 # the feature targets it draws with, which is what keeps a dependency on a
 # tier a stated fact rather than an accident of the umbrella. The instanced
@@ -127,7 +124,7 @@ add_subdirectory(kit)
 # consumers that stamp or browse with it.
 add_library(SigilCompose INTERFACE)
 target_link_libraries(SigilCompose INTERFACE
-  SigilComposePaint SigilComposeTypography)
+  SigilComposeBrush SigilComposeTypography)
 
 # ---------------------------------------------------------------------------
 # The cross-feature tests, which are the library's rather than one tier's.
@@ -175,8 +172,7 @@ add_test(NAME compose_api_doc_probes_self_test
 
 _compose_test_binary(compose_docs_test
   LIBRARIES SigilComposeCore SigilComposeShape SigilComposeBrush
-            SigilComposePaint SigilComposeTypography SigilComposeKit
-            SigilComposeInstances
+            SigilComposeTypography SigilComposeKit SigilComposeInstances
   SOURCES
     ${COMPOSE_API_DOC_PROBES}
     test/ComposeTestEngineDocs.cpp

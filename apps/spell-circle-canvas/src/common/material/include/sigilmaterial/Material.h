@@ -5,7 +5,7 @@
  * the values between them. Backends are included by their own headers.
  */
 
-#include <sigilmaterial/core/Color.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/core/FrameData.h>
 #include <sigilmaterial/core/Leaf.h>
 #include <sigilmaterial/core/Material.h>

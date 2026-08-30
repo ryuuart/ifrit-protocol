@@ -28,9 +28,16 @@
  * graph format would use, but nothing of the sort is linked: the backend
  * here is SkSL and SkShader and nothing else.
  *
+ * A RECIPE-BACKED material (`recipe()`) is one over a SigilMaterial
+ * instance: the recipe's params are its uniforms, its bindings and child
+ * slots are SigilMaterial's, and it resolves through that library's
+ * program cache with the frame built from the PaintContext. It sits in
+ * the same three tiers by the same rules, and uniform()/child() on it are
+ * the SigilMaterial doors spelled in this class's words.
+ *
  * Colour management is not part of a Material. A view transform belongs to
- * the Composer's output stage (`Composer::setView`, with the factories in
- * <sigilcompose/Ocio.h>) and applies to the whole composite.
+ * the Composer's output stage (`Composer::setView`, with SigilMaterial's
+ * colour transforms) and applies to the whole composite.
  */
 
 #include <include/core/SkBlendMode.h>
@@ -44,6 +51,7 @@
 #include <include/core/SkTileMode.h>
 #include <include/effects/SkGradient.h>       // the gradient Fills
 #include <include/effects/SkRuntimeEffect.h>  // the unit-space ramps
+#include <sigilmaterial/core/Material.h>
 
 #include <array>
 #include <memory>
@@ -266,6 +274,15 @@ class Material {
       std::vector<std::pair<std::string, float>> constants = {});
   /** Wrap a raw shader (interop / escape). */
   static Material shader(sk_sp<SkShader> shader);
+  /** A SigilMaterial instance as the paint. The recipe's declared frame
+   *  inputs set the tier exactly as an sksl() effect's uniforms do —
+   *  time or content scale is LIVE, the resolution is GEOMETRY — and its
+   *  bindings make it live. uniform() and child() below reach the
+   *  instance's fields and slots; equality is SigilMaterial's, so two
+   *  materials built from equal instances prune. */
+  static Material recipe(sigil::material::Material material);
+  /** The SigilMaterial instance behind a recipe() material, or null. */
+  const sigil::material::Material* recipeMaterial() const;
 
   // ---- combinator ----------------------------------------------------------
   /** Layer materials into ONE flattened shader: layers paint bottom-to-top,
@@ -560,7 +577,9 @@ class Material {
    *  its layers (the flatten defers to resolve time). */
   bool geometryDependent() const;
 
-  bool isNone() const { return !m_isSolid && !m_shader && !m_live; }
+  bool isNone() const {
+    return !m_isSolid && !m_shader && !m_live && !m_backed;
+  }
   bool isSolid() const { return m_isSolid; }
   SkColor4f solidColor() const { return m_solid; }
   /** Always produces a shader (a solid becomes SkShaders::Color) — what
@@ -614,6 +633,7 @@ class Material {
  private:
   struct Live;    // sksl recipe (effect + constants + Output bindings)
   struct Recipe;  // comparable build recipe (gradients/image/blend)
+  struct Backed;  // a SigilMaterial instance and its resolve memo
   /** @p worldSpace routes root anchoring through this ONE build. Three
    *  things follow from it: the digest of varying inputs gains W's six
    *  floats, because a digest cannot detect a change in an input it was
@@ -640,7 +660,12 @@ class Material {
    *  resolve() and asShader(), so a bound-offset material cannot look
    *  different depending on which asked. */
   sk_sp<SkShader> pannedImageShader() const;
-  void detachLive();  // copy-on-write before any recipe mutation
+  void detachLive();    // copy-on-write before any recipe mutation
+  void detachBacked();  // the same, for the SigilMaterial instance
+  /** The recipe-backed resolve: the frame from @p ctx (null is the
+   *  static snapshot), the tree's resolved bytes as the memo key, the
+   *  world-space wrap inside the memo. */
+  sk_sp<SkShader> buildBacked(const PaintContext* ctx) const;
 
   bool m_isSolid = false;
   bool m_worldSpace = false;  // root-frame anchoring (see worldSpace())
@@ -656,6 +681,7 @@ class Material {
   std::shared_ptr<const Recipe> m_recipe;  // comparable recipe (null for
                                            // solid/none/raw-shader/sksl —
                                            // those compare by their own state)
+  std::shared_ptr<Backed> m_backed;  // the SigilMaterial instance (recipe())
 
   /** FIELD PIN. `operator==` is hand-written, in another translation unit,
    *  and a material that compares equal when it is not lets its node prune
@@ -666,11 +692,11 @@ class Material {
    *  because the state is private. */
   static void fieldPin(Material& v) {
     auto& [isSolid, worldSpace, amount, bleed, boundOffset, solid, shader, live,
-           recipe] = v;
+           recipe, backed] = v;
     static_assert(
         std::tuple_size_v<decltype(std::tie(isSolid, worldSpace, amount, bleed,
                                             boundOffset, solid, shader, live,
-                                            recipe))> == 9,
+                                            recipe, backed))> == 10,
         "Material gained or lost a member — rule on it in Material::operator== "
         "(Material.cpp: is it RECIPE, or is it derived from the recipe?), "
         "then bump this count.");

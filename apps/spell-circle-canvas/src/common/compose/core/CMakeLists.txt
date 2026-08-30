@@ -68,6 +68,9 @@ add_library(SigilComposeCore STATIC
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/core/Measure.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/core/Motion.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/core/Paint.h
+  ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/core/Pattern.h
+  ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/core/Patterns.h
+  ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/core/Sdf.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/core/Shape.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/core/Stroke.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/core/Text.h
@@ -82,7 +85,7 @@ target_link_libraries(SigilComposeCore
   PUBLIC
     SigilGeometryPath
     SigilImage
-    SigilMaterialCore
+    SigilMaterial
     SigilMeasure
     SigilMotion
     SigilWeave

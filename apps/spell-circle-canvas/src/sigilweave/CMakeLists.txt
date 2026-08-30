@@ -74,11 +74,14 @@ add_subdirectory(examples/gallery)
 if(TEXTFLOW_ENABLE_INSTALL)
   include(CMakePackageConfigHelpers)
 
+  # SigilWeaveShaders is not exported: its paints are SigilMaterial's kit
+  # recipes shaded through that library's Skia backend, and a package of
+  # this engine alone cannot carry that dependency.
   install(TARGETS
       SigilWeaveUnicode SigilWeaveStyle SigilWeaveFonts SigilWeaveParagraph
       SigilWeaveLayout SigilWeaveDecoration SigilWeavePaint
       SigilWeaveChoreograph SigilWeaveQuery SigilWeaveCache SigilWeave
-      SigilWeaveShaders SigilWeavePorts SigilWeaveKit SigilWeaveQt
+      SigilWeavePorts SigilWeaveKit SigilWeaveQt
     EXPORT SigilWeaveTargets
     ARCHIVE DESTINATION lib
     LIBRARY DESTINATION lib

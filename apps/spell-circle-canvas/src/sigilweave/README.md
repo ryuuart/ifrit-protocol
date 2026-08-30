@@ -254,7 +254,8 @@ edits, DOM-Range style.
 typeface, and quantized size, for high-frequency labels.
 
 Separate from the engine: **`shaders`** (`shaders/PaintShaders.h`,
-animated SkSL presets), **`ports`** (`ports/SystemFontManager.h`, the OS
+animated paint presets — SigilMaterial's text paint recipes shaded for a
+run's bounds and the clock), **`ports`** (`ports/SystemFontManager.h`, the OS
 font manager), **`kit`** (`kit/`, the companion utilities, with its own
 README) and **`qt`** (`qt/SigilWeaveQt.h`, the Qt bridge).
 
@@ -297,7 +298,7 @@ thread-local, so every function is safe from any thread.
 | `SigilWeaveQuery` | range search and markers | ICU, private |
 | `SigilWeaveCache` | the label cache | abseil, ICU — private |
 | `SigilWeave` | interface over every target above | — |
-| `SigilWeaveShaders` | `shaders/PaintShaders.h` — water, mesh gradient, sparkle, star nest, clouds, tunnel | `SkRuntimeEffect` |
+| `SigilWeaveShaders` | `shaders/PaintShaders.h` — water, mesh gradient, sparkle, star nest, clouds, tunnel | SigilMaterialKit, SigilMaterialSkia — private; not in the export set |
 | `SigilWeavePorts` | `ports::systemFontManager()` — CoreText today; DirectWrite/Fontconfig slot into the same call | Skia platform ports |
 | `SigilWeaveKit` | consumer-side discipline: rebuild/layout guards, glyph bucketing, label shorthand, sample content (see `kit/README.md`) | — |
 | `SigilWeaveQt` | interface target: `QFont` → `SkTypeface`, `QString` ↔ `Paragraph` with no transcoding | Qt6::Gui |

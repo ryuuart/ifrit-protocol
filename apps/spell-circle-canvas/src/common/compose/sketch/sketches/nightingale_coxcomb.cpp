@@ -63,12 +63,12 @@
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkTextBlob.h>
 #include <include/core/SkTypeface.h>
+#include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/core/Material.h>
+#include <sigilcompose/core/Patterns.h>
 #include <sigilcompose/kit/Divisions.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Legibility.h>
-#include <sigilcompose/paint/LayerStyles.h>
-#include <sigilcompose/paint/Patterns.h>
 #include <sigilcompose/shape/Shapes.h>
 #include <sigilcompose/typography/TextFx.h>
 #include <sigilsketch/Sketch.h>

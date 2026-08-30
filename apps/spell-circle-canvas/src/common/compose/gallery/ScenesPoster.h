@@ -36,8 +36,8 @@
 #include <sigilcompose/shape/Shapes.h>
 
 #include "GalleryCore.h"
-#if defined(SIGILCOMPOSE_ENABLE_OCIO)
-#include <sigilcompose/paint/Ocio.h>
+#if defined(SIGILMATERIAL_ENABLE_OCIO)
+#include <sigilmaterial/color/Ocio.h>
 #endif
 
 #include <include/core/SkString.h>
@@ -169,11 +169,11 @@ struct MotionPosterScene final : Scene {
       return true;
     });
 
-#if defined(SIGILCOMPOSE_ENABLE_OCIO)
+#if defined(SIGILMATERIAL_ENABLE_OCIO)
     // Gentle exponent contrast grade (display-referred, matches how this
     // palette is authored). The sketch's real ACES 2.0 SDR view works but
     // expects scene-linear input — flip after re-authoring the palette.
-    composer.setView(ocio::exponent(1.12f));
+    composer.setView(sigil::material::color::exponent(1.12f));
 #endif
 
     composer.render(describe());

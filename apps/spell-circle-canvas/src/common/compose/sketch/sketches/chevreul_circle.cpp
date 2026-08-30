@@ -110,15 +110,15 @@
 #include <include/core/SkTypeface.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/brush/Hatches.h>
+#include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/brush/Lines.h>
 #include <sigilcompose/core/Material.h>
+#include <sigilcompose/core/Patterns.h>
 #include <sigilcompose/instances/Instances.h>
 #include <sigilcompose/kit/Frame.h>
-#include <sigilcompose/paint/LayerStyles.h>
-#include <sigilcompose/paint/Ocio.h>
-#include <sigilcompose/paint/Patterns.h>
 #include <sigilcompose/shape/Shapes.h>
 #include <sigilcompose/testing/Checks.h>
+#include <sigilmaterial/color/Ocio.h>
 #include <sigilsketch/Sketch.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/paragraph/Paragraph.h>
@@ -871,17 +871,18 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
     //     §164 gamme (#C0C0C0) through ocio::exponent(2.2) and read it back
     //     off a raster surface, exactly the way check 10 reads the
     //     staircase — so "the seam works" is a number on the plate.
-    v.ocioAvailable = ocio::available();
+    v.ocioAvailable = sigil::material::color::available();
     if (v.ocioAvailable && ctx.fonts) {
       // snapshot() sizes by the ROOT'S CHILDREN, not the root's own dims,
       // so the probe needs a shell — the same rule Instances.h's atlas bake
       // states and nothing else does. Without it the effect lands on an
       // empty root and reads back a value that is not what gets drawn.
-      Element probe = box().child(box()
-                                      .width(Dim(32))
-                                      .height(Dim(32))
-                                      .fill(Fill::color(gamme[9]))
-                                      .effect(ocio::exponent(2.2f)));
+      Element probe = box().child(
+          box()
+              .width(Dim(32))
+              .height(Dim(32))
+              .fill(Fill::color(gamme[9]))
+              .effect(Effect::recipe(sigil::material::color::exponent(2.2f))));
       sk_sp<SkPicture> pic = snapshot(std::move(probe), *ctx.fonts);
       sk_sp<SkSurface> surf =
           SkSurfaces::Raster(SkImageInfo::MakeN32Premul(32, 32));
@@ -1531,7 +1532,7 @@ struct ChevreulCircle : sigil::compose::sketch::Sketch {
     // the OCIO strip
     if (v.ocioAvailable) {
       Element third = aStaircase(gamme, kStairYC, 28.0f, "sc", false);
-      third.effect(ocio::exponent(2.2f));
+      third.effect(Effect::recipe(sigil::material::color::exponent(2.2f)));
       g.child(std::move(third));
       g.child(label(fmt("§164 ramp under ocio::exponent(2.2) — an OCIO-baked "
                         "LUT Effect: tone 10 %s measures %s through it",

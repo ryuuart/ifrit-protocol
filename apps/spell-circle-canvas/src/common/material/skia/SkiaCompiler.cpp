@@ -2,13 +2,13 @@
  * SkSL compilation through SkRuntimeEffect::MakeForShader, uniform upload
  * from layout bytes, and the recursive child binding that makes one
  * shader from a material tree — a material child resolves and binds its
- * own shader, a texture leaf binds its image shader.
+ * own shader, a shader leaf binds the shader it yields.
  */
 
 #include "sigilmaterial/skia/SkiaCompiler.h"
 
 #include <include/core/SkString.h>
-#include <sigilmaterial/texture/Texture.h>
+#include <sigilmaterial/texture/ShaderLeaf.h>
 
 #include <cstring>
 #include <mutex>
@@ -52,26 +52,36 @@ void install() {
   std::call_once(once, [] { registerCompiler(Target::SkSL, compile); });
 }
 
-sk_sp<SkShader> shader(const Material& material, const FrameData& frame,
-                       Variant variant) {
+std::unique_ptr<SkRuntimeShaderBuilder> builder(
+    const Material& material, const FrameData& frame, Variant variant,
+    std::span<const std::string_view> leave) {
   const Material::Resolved resolved =
       material.resolve(Target::SkSL, frame, variant);
   if (!resolved.program) return nullptr;
   const auto* program = resolved.program->as<SkiaProgram>();
   if (!program) return nullptr;
-  SkRuntimeShaderBuilder builder(program->effect());
-  program->upload(builder, resolved.bytes);
+  auto b = std::make_unique<SkRuntimeShaderBuilder>(program->effect());
+  program->upload(*b, resolved.bytes);
   for (const auto& [slot, child] : material.children()) {
-    SkRuntimeShaderBuilder::BuilderChild c = builder.child(slot.c_str());
+    bool skip = false;
+    for (std::string_view name : leave) skip |= name == slot;
+    if (skip) continue;
+    SkRuntimeShaderBuilder::BuilderChild c = b->child(slot.c_str());
     if (!c.fChild) continue;
     if (child.material) {
       c = shader(*child.material, frame, variant);
-    } else if (const auto* texture =
-                   dynamic_cast<const Texture*>(child.leaf.get())) {
-      c = texture->shader();
+    } else if (const auto* leaf =
+                   dynamic_cast<const ShaderLeaf*>(child.leaf.get())) {
+      c = leaf->shader();
     }
   }
-  return builder.makeShader();
+  return b;
+}
+
+sk_sp<SkShader> shader(const Material& material, const FrameData& frame,
+                       Variant variant) {
+  std::unique_ptr<SkRuntimeShaderBuilder> b = builder(material, frame, variant);
+  return b ? b->makeShader() : nullptr;
 }
 
 }  // namespace sigil::material::skia

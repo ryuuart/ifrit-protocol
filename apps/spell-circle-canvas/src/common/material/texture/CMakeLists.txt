@@ -12,6 +12,7 @@ add_library(SigilMaterialTexture STATIC
   Texture.cpp
   TextureSet.cpp
   ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/texture/Atlas.h
+  ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/texture/ShaderLeaf.h
   ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/texture/Surface.h
   ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/texture/Texture.h
   ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/texture/TextureSet.h

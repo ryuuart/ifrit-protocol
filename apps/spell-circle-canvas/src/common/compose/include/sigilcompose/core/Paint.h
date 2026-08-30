@@ -19,6 +19,7 @@
 #include <include/core/SkSize.h>
 #include <include/core/SkTypes.h>
 #include <sigilcompose/core/Motion.h>
+#include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/core/UniformBlock.h>
 
 #include <array>
@@ -257,6 +258,17 @@ using UniformBlock = sigil::material::UniformBlock;
 class Effect {
  public:
   static Effect filter(sk_sp<SkImageFilter> f);
+  /** A SigilMaterial recipe as the effect: its program runs over the
+   *  layer, which arrives in the child slot named `content`; every other
+   *  slot and every uniform is bound from the material as it stands now.
+   *  Built once, like filter(): the material's bindings are read at
+   *  construction and the effect compares by its built filter's identity,
+   *  so animate by re-describing. */
+  static Effect recipe(const sigil::material::Material& material);
+  /** The layer re-emitted blurred beneath itself in @p color — a drop
+   *  shadow at zero offset, which keeps the content on top. Chain with
+   *  `then()` for a tighter core over a wider halo. */
+  static Effect glow(SkColor4f color, float sigma);
   /** @p uniforms are float uniforms set by name on the SkSL effect;
    *  the layer arrives as the child shader named "content".
    *

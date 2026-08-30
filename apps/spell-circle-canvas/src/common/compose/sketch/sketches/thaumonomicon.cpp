@@ -149,8 +149,8 @@
 #include <sigilcompose/brush/Hatches.h>
 #include <sigilcompose/brush/Lines.h>
 #include <sigilcompose/core/Material.h>
+#include <sigilcompose/core/Patterns.h>
 #include <sigilcompose/kit/Strokes.h>
-#include <sigilcompose/paint/Patterns.h>
 #include <sigilcompose/shape/Routers.h>
 #include <sigilcompose/shape/Shapes.h>
 #include <sigilsketch/Sketch.h>

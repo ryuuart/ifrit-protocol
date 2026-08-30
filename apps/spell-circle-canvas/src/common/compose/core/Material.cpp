@@ -5,7 +5,10 @@
  * fill path. A LIVE material (sksl with a ch::Output-bound uniform) keeps its
  * runtime-effect recipe and rebuilds its shader every frame from the current
  * uniform values (resolve()); Element::fill routes it to the live path and the
- * painter re-resolves it while its node stays volatile. See Material.h.
+ * painter re-resolves it while its node stays volatile. A RECIPE-BACKED
+ * material holds a SigilMaterial instance and resolves it through that
+ * library's program cache with the frame built from the PaintContext,
+ * memoised on the tree's resolved bytes. See Material.h.
  */
 
 #include <include/core/SkBitmap.h>
@@ -16,10 +19,13 @@
 #include <include/effects/SkGradient.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilcompose/core/Material.h>
+#include <sigilmaterial/skia/SkiaCompiler.h>
+#include <sigilmaterial/texture/ShaderLeaf.h>
 
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstring>
 
 #include "ComposeInternal.h"  // ElementNode, for Element::fill(Material)
 
@@ -73,6 +79,53 @@ struct Material::Live {
   mutable std::vector<float> lastInputs;
   mutable sk_sp<SkShader> lastShader;
 };
+
+/** The SigilMaterial instance behind a recipe() material, with the memo
+ *  that keeps a settled tree's shader pointer stable: when every resolved
+ *  byte of the tree (and W, when anchored) is the previous resolve's, the
+ *  previous shader comes back, and the paint layer turns that into a
+ *  replayed recording. */
+struct Material::Backed {
+  sigil::material::Material material;
+  mutable std::vector<std::byte> lastKey;
+  mutable sk_sp<SkShader> lastShader;
+};
+
+namespace {
+
+/** A compose Material filling a slot of a recipe-backed one: the static
+ *  snapshot of a native source (a gradient, an image), compared by
+ *  compose's own equality so two equal descriptions prune. A child that
+ *  needs a paint context to resolve is sampled once here, as its own
+ *  documentation says a recipe slot does. */
+class MaterialLeaf final : public sigil::material::ShaderLeaf {
+ public:
+  explicit MaterialLeaf(Material source) : m_source(std::move(source)) {}
+  sk_sp<SkShader> shader() const override { return m_source.asShader(); }
+  bool animated() const override { return m_source.isAnimated(); }
+
+ protected:
+  bool equals(const sigil::material::Leaf& other) const override {
+    return m_source == static_cast<const MaterialLeaf&>(other).m_source;
+  }
+
+ private:
+  Material m_source;
+};
+
+/** Every resolved byte of @p m and its descendants at @p frame, appended
+ *  to @p key — the memo's whole input. */
+void digest(const sigil::material::Material& m,
+            const sigil::material::FrameData& frame,
+            std::vector<std::byte>& key) {
+  const sigil::material::Material::Resolved r =
+      m.resolve(sigil::material::Target::SkSL, frame);
+  key.insert(key.end(), r.bytes.begin(), r.bytes.end());
+  for (const auto& [slot, child] : m.children())
+    if (child.material) digest(*child.material, frame, key);
+}
+
+}  // namespace
 
 /** The comparable build recipe behind gradient/image/blend materials: the
  *  structural signature that lets two independently built materials compare
@@ -494,6 +547,78 @@ Material Material::shader(sk_sp<SkShader> shader) {
   return m;
 }
 
+Material Material::recipe(sigil::material::Material material) {
+  sigil::material::skia::install();
+  Material m;
+  m.m_backed = std::make_shared<Backed>(Backed{std::move(material), {}, {}});
+  m.m_shader = m.buildBacked(nullptr);  // static snapshot
+  return m;
+}
+
+const sigil::material::Material* Material::recipeMaterial() const {
+  return m_backed ? &m_backed->material : nullptr;
+}
+
+void Material::detachBacked() {
+  if (m_backed && m_backed.use_count() > 1)
+    m_backed = std::make_shared<Backed>(*m_backed);
+}
+
+sk_sp<SkShader> Material::buildBacked(const PaintContext* ctx) const {
+  const Backed& backed = *m_backed;
+  sigil::material::FrameData frame;
+  std::vector<std::byte> key;
+  if (ctx) {
+    frame.seconds = ctx->elapsedSeconds;
+    frame.contentScale = ctx->contentScale;
+    // A world-space material's uResolution is the ROOT canvas size, as on
+    // the sksl path: the shader samples in root coordinates.
+    const SkSize resSize =
+        m_worldSpace && !ctx->rootSize.isEmpty() ? ctx->rootSize : ctx->size;
+    frame.resolution = {resSize.width(), resSize.height()};
+    // An sdf style reserves its glow, shadow and border padding INSIDE the
+    // box, so a generous glow on a modest box leaves almost no interior and
+    // the shape all but disappears — with no error anywhere. The two
+    // numbers that decide it only meet here, once per process.
+    const sigil::material::Recipe& r = backed.material.recipe();
+    if (r.reads(sigil::material::FrameInput::Resolution) &&
+        r.name().rfind("sdf.", 0) == 0 && ctx->size.width() > 0 &&
+        ctx->size.height() > 0) {
+      static bool warnedPad = false;
+      const float pad = backed.material.get<float>("uPad");
+      const float halfMin =
+          0.5f * std::min(ctx->size.width(), ctx->size.height());
+      if (!warnedPad && pad >= halfMin) {
+        warnedPad = true;
+        SkDebugf(
+            "[compose] sdf material: pad %.1f px >= half of the "
+            "%.0fx%.0f box — the style's reserve (glow/shadow/border) "
+            "eats the whole interior and the visible shape is ~%.1f px "
+            "across. Size the node with sdf::minBoxFor(style, "
+            "contentPx) = content + 2*sdf::pad(style). (warned once)\n",
+            pad, ctx->size.width(), ctx->size.height(),
+            std::max(1.0f, std::min(ctx->size.width(), ctx->size.height()) -
+                               2 * pad));
+      }
+    }
+    digest(backed.material, frame, key);
+    if (m_worldSpace) {
+      std::vector<float> w;
+      digestToRoot(w, ctx->toRoot);
+      const auto* bytes = reinterpret_cast<const std::byte*>(w.data());
+      key.insert(key.end(), bytes, bytes + w.size() * sizeof(float));
+    }
+    if (backed.lastShader && key == backed.lastKey) return backed.lastShader;
+  }
+  sk_sp<SkShader> built = sigil::material::skia::shader(backed.material, frame);
+  if (m_worldSpace && ctx) built = anchorToRoot(std::move(built), *ctx);
+  if (ctx) {
+    backed.lastKey = std::move(key);
+    backed.lastShader = built;
+  }
+  return built;
+}
+
 Material Material::linear(SkPoint a, SkPoint b, std::vector<Stop> stops,
                           SkTileMode tile) {
   RampArrays r = split(stops);
@@ -757,6 +882,10 @@ bool Material::operator==(const Material& o) const {
                    // here; it is invalidated the way uResolution is
   if (m_isSolid != o.m_isSolid) return false;
   if (m_isSolid) return m_solid == o.m_solid;
+  // Recipe-backed: SigilMaterial's own equality — recipe identity, bytes,
+  // bindings by identity, children by value.
+  if ((m_backed != nullptr) != (o.m_backed != nullptr)) return false;
+  if (m_backed) return m_backed->material == o.m_backed->material;
   // sksl-backed: static recipes compare structurally (effect pointer +
   // constant values); live ones by identity — conservative, they never prune.
   if ((m_live != nullptr) != (o.m_live != nullptr)) return false;
@@ -791,6 +920,12 @@ void Material::detachLive() {
 }
 
 Material& Material::uniform(std::string name, float value) {
+  if (m_backed) {
+    detachBacked();
+    m_backed->material.set(name, value);
+    m_shader = buildBacked(nullptr);
+    return *this;
+  }
   if (!m_live) {
     SkDebugf(
         "Material::uniform(\"%s\", const): ignored — this material has no "
@@ -816,6 +951,15 @@ Material& Material::uniform(std::string name, float value) {
 }
 
 Material& Material::child(std::string name, Material source) {
+  if (m_backed) {
+    detachBacked();
+    if (source.m_backed)
+      m_backed->material.child(name, source.m_backed->material);
+    else
+      m_backed->material.child(name, MaterialLeaf(std::move(source)));
+    m_shader = buildBacked(nullptr);
+    return *this;
+  }
   if (!m_live) {
     SkDebugf(
         "Material::child(\"%s\"): ignored — this material has no shader "
@@ -847,6 +991,11 @@ Material& Material::child(std::string name, Material source) {
 
 Material& Material::uniform(std::string name,
                             const choreograph::Output<float>* output) {
+  if (m_backed) {
+    detachBacked();
+    m_backed->material.bind(name, output);
+    return *this;  // now LIVE
+  }
   if (!m_live) {
     SkDebugf(
         "Material::uniform(\"%s\", &output): ignored — this material has "
@@ -939,6 +1088,11 @@ Material& Material::bleed(float px) {
 }
 
 Material& Material::quantizeTime(float hz) {
+  if (m_backed) {
+    detachBacked();
+    m_backed->material.quantizeTime(hz);
+    return *this;
+  }
   if (!m_live) {
     SkDebugf(
         "Material::quantizeTime: ignored — only sksl() materials carry "
@@ -970,6 +1124,7 @@ bool Material::isAnimated() const {
 }
 
 bool Material::animatedBeyondBoundOffset() const {
+  if (m_backed && m_backed->material.isAnimated()) return true;
   // A bound UniformBlock is a bind whose value is a table: the material
   // re-resolves per frame (the resolve memo reads the revision), and its
   // node is declared volatile so a cache cannot freeze the array.
@@ -1001,6 +1156,7 @@ bool Material::geometryDependent() const {
   // context-carrying paths: Element::fill's live slot, the coverage gate's
   // resolve, childShader's per-frame form, and build()'s memo skip.
   if (m_worldSpace) return true;
+  if (m_backed && m_backed->material.geometryDependent()) return true;
   if (m_live && m_live->usesGeometry) return true;
   if (m_live)
     for (const auto& [name, child] : m_live->children)
@@ -1012,6 +1168,12 @@ bool Material::geometryDependent() const {
 }
 
 Material& Material::uniform(std::string name, std::array<float, 2> value) {
+  if (m_backed) {
+    detachBacked();
+    m_backed->material.set(name, glm::vec2(value[0], value[1]));
+    m_shader = buildBacked(nullptr);
+    return *this;
+  }
   if (!m_live) {
     SkDebugf(
         "Material::uniform(\"%s\", float2): ignored — this material has "
@@ -1030,6 +1192,13 @@ Material& Material::uniform(std::string name, std::array<float, 2> value) {
 }
 
 Material& Material::uniform(std::string name, SkColor4f value) {
+  if (m_backed) {
+    detachBacked();
+    m_backed->material.set(
+        name, sigil::material::Color{value.fR, value.fG, value.fB, value.fA});
+    m_shader = buildBacked(nullptr);
+    return *this;
+  }
   if (!m_live) {
     SkDebugf(
         "Material::uniform(\"%s\", color): ignored — this material has "
@@ -1050,6 +1219,13 @@ Material& Material::uniform(std::string name, SkColor4f value) {
 }
 
 Material& Material::uniform(std::string name, std::array<float, 4> value) {
+  if (m_backed) {
+    detachBacked();
+    m_backed->material.set(name,
+                           glm::vec4(value[0], value[1], value[2], value[3]));
+    m_shader = buildBacked(nullptr);
+    return *this;
+  }
   if (!m_live) {
     SkDebugf(
         "Material::uniform(\"%s\", float4): ignored — this material has "
@@ -1068,6 +1244,12 @@ Material& Material::uniform(std::string name, std::array<float, 4> value) {
 }
 
 Material& Material::uniform(std::string name, std::vector<float> values) {
+  if (m_backed) {
+    detachBacked();
+    m_backed->material.set(name, std::span<const float>(values));
+    m_shader = buildBacked(nullptr);
+    return *this;
+  }
   if (!m_live) {
     SkDebugf(
         "Material::uniform(\"%s\", array): ignored — this material has "
@@ -1090,6 +1272,11 @@ Material& Material::uniform(std::string name, std::vector<float> values) {
 
 Material& Material::uniform(std::string name,
                             std::shared_ptr<const UniformBlock> block) {
+  if (m_backed) {
+    detachBacked();
+    m_backed->material.bind(name, std::move(block));
+    return *this;  // now LIVE
+  }
   if (!m_live) {
     SkDebugf(
         "Material::uniform(\"%s\", block): ignored — this material has "
@@ -1175,6 +1362,7 @@ sk_sp<SkShader> Material::asShader() const {
   // explicit rather than implied by isAnimated(): a bound pan (handled just
   // above) reports animated with no sksl recipe behind it.
   if (m_live && isAnimated()) return build(*m_live, nullptr);
+  if (m_backed && isAnimated()) return buildBacked(nullptr);
   if (m_shader) return m_shader;
   if (m_isSolid) return SkShaders::Color(m_solid, nullptr);
   return nullptr;  // none
@@ -1206,6 +1394,9 @@ Fill Material::resolve(const PaintContext& ctx) const {
   // sksl recipe; they take the final branch below instead.
   if (m_live && (isAnimated() || geometryDependent()))
     return Fill::shader(build(*m_live, &ctx, m_worldSpace));
+  // The recipe-backed path — the same rule, through SigilMaterial's cache.
+  if (m_backed && (isAnimated() || geometryDependent()))
+    return Fill::shader(buildBacked(&ctx));
   // The bound pan: the recipe matrix translated by the bindings' current
   // values, per resolve. It has to sit above toFill() because the static
   // snapshot baked the UNpanned matrix. The paint layer's scalar memo,

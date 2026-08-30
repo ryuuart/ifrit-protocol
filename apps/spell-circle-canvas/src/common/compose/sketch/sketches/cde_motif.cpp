@@ -165,8 +165,8 @@
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Material.h>
-#include <sigilcompose/paint/Pattern.h>
-#include <sigilcompose/paint/Patterns.h>
+#include <sigilcompose/core/Pattern.h>
+#include <sigilcompose/core/Patterns.h>
 #include <sigilcompose/shape/Shapes.h>
 #include <sigilsketch/Sketch.h>
 #include <sigilweave/paragraph/Paragraph.h>

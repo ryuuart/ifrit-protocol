@@ -2,7 +2,7 @@
  "config": "Release",
  "host": "MacBookPro.control",
  "machine": "arm64",
- "taken": "2026-08-30T08:06:18+00:00",
+ "taken": "2026-08-30T08:49:35+00:00",
  "benches": {
   "compose_brush_bench": {
    "BM_Draw_ArtWarp_Live": {
@@ -1670,6 +1670,26 @@
     "unit": "ns"
    }
   },
+  "material_color_bench": {
+   "OklabRoundTrip": {
+    "real_ns": 101.29553405102868,
+    "cpu_ns": 101.26898058607372,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "ExponentLutBake/17": {
+    "real_ns": 116591.70910905639,
+    "cpu_ns": 116553.85920271408,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "ExponentLutBake/33": {
+    "real_ns": 386662.630661473,
+    "cpu_ns": 386320.5128205127,
+    "unit": "ns",
+    "repetitions": 4
+   }
+  },
   "material_core_bench": {
    "BM_Resolve_Live/0": {
     "real_ns": 40.6736280685685,
@@ -1720,6 +1740,38 @@
     "repetitions": 4
    }
   },
+  "material_field_bench": {
+   "GrainPaint/1": {
+    "real_ns": 963574.9738663435,
+    "cpu_ns": 960965.986394557,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "GrainPaint/4": {
+    "real_ns": 3529594.2798256874,
+    "cpu_ns": 3527487.5000000037,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "GrainPaint/8": {
+    "real_ns": 7071124.99512732,
+    "cpu_ns": 7066799.999999995,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "HalftoneRampPaint/64": {
+    "real_ns": 148280.237478462,
+    "cpu_ns": 148251.58562367898,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "HalftoneRampPaint/256": {
+    "real_ns": 2348759.5273023946,
+    "cpu_ns": 2347186.4406779744,
+    "unit": "ns",
+    "repetitions": 4
+   }
+  },
   "material_kit_bench": {
    "SurfaceBuild/0": {
     "real_ns": 257.85280552910206,
@@ -1748,6 +1800,76 @@
    "BadgeFill/128": {
     "real_ns": 3899282.989247392,
     "cpu_ns": 3887583.333333339,
+    "unit": "ns",
+    "repetitions": 4
+   }
+  },
+  "material_pattern_bench": {
+   "TileBakeHalftone/4": {
+    "real_ns": 4241.554734816931,
+    "cpu_ns": 4240.945070760371,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "TileBakeHalftone/16": {
+    "real_ns": 4381.302580217134,
+    "cpu_ns": 4380.077847456056,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "TileBakeHalftone/64": {
+    "real_ns": 9874.158681803707,
+    "cpu_ns": 9869.908062234794,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "TileBakeSpeckle/50": {
+    "real_ns": 40373.54852032539,
+    "cpu_ns": 40322.28830359681,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "TileBakeSpeckle/500": {
+    "real_ns": 415285.41649527405,
+    "cpu_ns": 414892.64705882483,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "TileTexture": {
+    "real_ns": 84.43284949665158,
+    "cpu_ns": 84.34248518754974,
+    "unit": "ns",
+    "repetitions": 4
+   }
+  },
+  "material_sdf_bench": {
+   "SdfShader/0": {
+    "real_ns": 435.53190582647187,
+    "cpu_ns": 434.5500801604446,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "SdfShader/1": {
+    "real_ns": 435.9349521142131,
+    "cpu_ns": 435.85908316531606,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "SdfShader/2": {
+    "real_ns": 436.07267511051333,
+    "cpu_ns": 435.7596973454937,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "SdfPaint/64": {
+    "real_ns": 349713.26369195036,
+    "cpu_ns": 349302.79898218816,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "SdfPaint/256": {
+    "real_ns": 5478341.3473230135,
+    "cpu_ns": 5476942.307692304,
     "unit": "ns",
     "repetitions": 4
    }

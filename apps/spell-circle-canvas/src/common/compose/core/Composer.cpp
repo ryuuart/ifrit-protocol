@@ -239,6 +239,10 @@ void Composer::setView(Effect view) {
   m_impl->contentDirty = true;  // the composite changes even if no node did
 }
 
+void Composer::setView(const sigil::material::Material& view) {
+  setView(Effect::recipe(view));
+}
+
 void Composer::declareInputSpace(InputSpace space) {
   m_impl->inputSpace = space;
   if (space == InputSpace::EncodedSRGB)

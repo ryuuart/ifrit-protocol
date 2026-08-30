@@ -18,6 +18,7 @@
 #include <include/core/SkTileMode.h>
 #include <sigilimage/asset/ImageAsset.h>
 #include <sigilmaterial/core/Leaf.h>
+#include <sigilmaterial/texture/ShaderLeaf.h>
 
 #include <concepts>
 #include <functional>
@@ -145,7 +146,7 @@ class ProducerSource {
 /** An image and its sampling. A value: copy it, change a dial on the
  *  copy, keep both. As a Leaf it fills a material's child slot, and the
  *  Skia backend binds it as the image shader `shader()` builds. */
-class Texture : public Leaf {
+class Texture : public ShaderLeaf {
  public:
   Texture() = default;
   explicit Texture(TextureSource source) : m_source(std::move(source)) {}
@@ -208,7 +209,7 @@ class Texture : public Leaf {
   SkISize size() const;
   /** The Skia shader: `image()` tiled, filtered and placed by `uv()`.
    *  Null when there is no image. */
-  sk_sp<SkShader> shader() const;
+  sk_sp<SkShader> shader() const override;
 
   bool animated() const override { return m_source.animated(); }
   bool operator==(const Texture& other) const;

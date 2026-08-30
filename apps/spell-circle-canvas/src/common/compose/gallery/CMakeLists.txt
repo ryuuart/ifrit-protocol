@@ -42,7 +42,7 @@ target_compile_definitions(ComposeGallery PRIVATE
 # The gallery draws with every tier, and says so by name: nothing here
 # links the whole-library umbrella.
 target_link_libraries(ComposeGallery PRIVATE
-  SigilComposeCore SigilComposeShape SigilComposeBrush SigilComposePaint
+  SigilComposeCore SigilComposeShape SigilComposeBrush
   SigilComposeTypography SigilComposeInstances SigilComposeKit
   SigilMeasure SigilWeavePorts SigilSketchStudies Qt6::Gui Qt6::GuiPrivate
   Qt6::Quick Qt6::QuickControls2 EnTT::EnTT)
@@ -69,7 +69,7 @@ add_executable(compose_gallery_test
 )
 target_include_directories(compose_gallery_test PRIVATE ${CMAKE_CURRENT_LIST_DIR})
 target_link_libraries(compose_gallery_test PRIVATE
-  SigilComposeCore SigilComposeShape SigilComposeBrush SigilComposePaint
+  SigilComposeCore SigilComposeShape SigilComposeBrush
   SigilComposeTypography SigilComposeInstances SigilComposeKit
   SigilMeasure SigilWeavePorts SigilSketchStudies GTest::gtest_main EnTT::EnTT)
 add_test(NAME compose_gallery_test COMMAND compose_gallery_test)

@@ -32,8 +32,8 @@
 #include <sigilcompose/brush/Hatches.h>
 #include <sigilcompose/brush/Lines.h>
 #include <sigilcompose/core/Material.h>
+#include <sigilcompose/core/Sdf.h>
 #include <sigilcompose/kit/Strokes.h>
-#include <sigilcompose/paint/Sdf.h>
 #include <sigilcompose/shape/Routers.h>
 #include <sigilcompose/shape/Shapes.h>
 

@@ -1,21 +1,17 @@
 /** @file
- * OCIO → LUT Effect baking. Compiled only when OpenColorIO was found
- * (SIGILCOMPOSE_ENABLE_OCIO). See Ocio.h for the pattern rationale.
+ * OCIO to LUT baking: the slices laid side by side in one image, the
+ * trilinear body, and the three transform factories.
  */
+
+#include "sigilmaterial/color/Ocio.h"
 
 #include <OpenColorIO/OpenColorIO.h>
 #include <include/core/SkBitmap.h>
-#include <include/core/SkData.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkImageInfo.h>
 #include <include/core/SkPixmap.h>
-#include <include/core/SkSamplingOptions.h>
-#include <include/core/SkShader.h>
-#include <include/core/SkString.h>
 #include <include/core/SkTypes.h>
-#include <include/effects/SkImageFilters.h>
-#include <include/effects/SkRuntimeEffect.h>
-#include <sigilcompose/paint/Ocio.h>
+#include <sigilmaterial/texture/Texture.h>
 
 #include <algorithm>
 #include <string>
@@ -23,14 +19,14 @@
 
 namespace OCIO = OCIO_NAMESPACE;
 
-namespace sigil::compose::ocio {
+namespace sigil::material::color {
 
 namespace {
 
 /** The 3D LUT lives in a 2D image: N slices of N×N laid side by side
- *  (width N·N, height N). x = slice·N + r-index, y = g-index; the SkSL
- *  sampler does hardware bilinear in-slice and lerps across two slices for
- *  the blue axis. Texel centers bound the in-slice sampling, so slices never
+ *  (width N·N, height N). x = slice·N + r-index, y = g-index; the body
+ *  does hardware bilinear in-slice and lerps across two slices for the
+ *  blue axis. Texel centres bound the in-slice sampling, so slices never
  *  bleed into each other. */
 sk_sp<SkImage> bakeLut(const OCIO::ConstCPUProcessorRcPtr& cpu, int n) {
   const int w = n * n, h = n;
@@ -52,10 +48,6 @@ sk_sp<SkImage> bakeLut(const OCIO::ConstCPUProcessorRcPtr& cpu, int n) {
     rgba[i + 1] = std::clamp(rgba[i + 1], 0.0f, 1.0f);
     rgba[i + 2] = std::clamp(rgba[i + 2], 0.0f, 1.0f);
   }
-  // Bake to F16, not F32: 32-bit-float textures are not linearly
-  // filterable on Apple GPUs, so a Graphite host cannot promote an F32
-  // LUT to a texture and the whole graded composite would be dropped.
-  // Half precision is ample for a display LUT in [0,1].
   const SkImageInfo f32Info =
       SkImageInfo::Make(w, h, kRGBA_F32_SkColorType, kUnpremul_SkAlphaType);
   const SkPixmap f32Pixels(f32Info, rgba.data(), (size_t)w * 4 * sizeof(float));
@@ -68,12 +60,36 @@ sk_sp<SkImage> bakeLut(const OCIO::ConstCPUProcessorRcPtr& cpu, int n) {
   return f16.asImage();
 }
 
-/** Trilinear 3D-LUT application; unpremul→map→repremul so straight colors go
- *  through the transform (exact for the opaque case). */
-constexpr const char* kLutSkSL = R"(
-uniform shader content;
-uniform shader lut;
-uniform float lutSize;
+Material lutMaterial(sk_sp<SkImage> lutImage, int n) {
+  if (!lutImage) return Material(lutRecipe());
+  Material m(lutRecipe(), LutParams{(float)n});
+  m.child("lut", Texture::of(std::move(lutImage)));
+  return m;
+}
+
+OCIO::ConstConfigRcPtr loadConfig(std::string_view config) {
+  const std::string s(config);
+  if (s.rfind("ocio://", 0) == 0)
+    return OCIO::Config::CreateFromBuiltinConfig(s.c_str());
+  return OCIO::Config::CreateFromFile(s.c_str());
+}
+
+Material bake(const OCIO::ConstConfigRcPtr& config,
+              const OCIO::ConstTransformRcPtr& transform, int lutSize) {
+  const int n = std::clamp(lutSize, 8, 129);
+  OCIO::ConstProcessorRcPtr proc = config->getProcessor(transform);
+  OCIO::ConstCPUProcessorRcPtr cpu = proc->getDefaultCPUProcessor();
+  return lutMaterial(bakeLut(cpu, n), n);
+}
+
+}  // namespace
+
+const std::shared_ptr<const Recipe>& lutRecipe() {
+  static const auto recipe =
+      std::make_shared<const Recipe>(Recipe::of<LutParams>("color.lut3d")
+                                         .child("content")
+                                         .child("lut")
+                                         .body(Target::SkSL, R"(
 half4 main(float2 xy) {
   half4 c = content.eval(xy);
   float a = max(float(c.a), 0.0001);
@@ -88,41 +104,9 @@ half4 main(float2 xy) {
   float3 m = mix(float3(lut.eval(uv0).rgb), float3(lut.eval(uv1).rgb), t);
   return half4(half3(m * a), c.a);
 }
-)";
-
-Effect lutEffect(sk_sp<SkImage> lutImage, int n) {
-  if (!lutImage) return {};
-  auto [effect, err] = SkRuntimeEffect::MakeForShader(SkString(kLutSkSL));
-  if (!effect) {
-    SkDebugf("sigilcompose ocio: LUT shader failed to compile: %s\n",
-             err.c_str());
-    return {};
-  }
-  SkRuntimeShaderBuilder builder(std::move(effect));
-  builder.uniform("lutSize") = (float)n;
-  builder.child("lut") =
-      lutImage->makeShader(SkTileMode::kClamp, SkTileMode::kClamp,
-                           SkSamplingOptions(SkFilterMode::kLinear));
-  return Effect::filter(
-      SkImageFilters::RuntimeShader(builder, "content", nullptr));
+)"));
+  return recipe;
 }
-
-OCIO::ConstConfigRcPtr loadConfig(std::string_view config) {
-  const std::string s(config);
-  if (s.rfind("ocio://", 0) == 0)
-    return OCIO::Config::CreateFromBuiltinConfig(s.c_str());
-  return OCIO::Config::CreateFromFile(s.c_str());
-}
-
-Effect bake(const OCIO::ConstConfigRcPtr& config,
-            const OCIO::ConstTransformRcPtr& transform, int lutSize) {
-  const int n = std::clamp(lutSize, 8, 129);
-  OCIO::ConstProcessorRcPtr proc = config->getProcessor(transform);
-  OCIO::ConstCPUProcessorRcPtr cpu = proc->getDefaultCPUProcessor();
-  return lutEffect(bakeLut(cpu, n), n);
-}
-
-}  // namespace
 
 bool available() {
   try {
@@ -132,8 +116,8 @@ bool available() {
   }
 }
 
-Effect display(std::string_view config, std::string_view displayName,
-               std::string_view viewName, int lutSize) {
+Material viewTransform(std::string_view config, std::string_view displayName,
+                       std::string_view viewName, int lutSize) {
   try {
     OCIO::ConstConfigRcPtr cfg = loadConfig(config);
     OCIO::DisplayViewTransformRcPtr t = OCIO::DisplayViewTransform::Create();
@@ -142,10 +126,11 @@ Effect display(std::string_view config, std::string_view displayName,
     t->setView(std::string(viewName).c_str());
     return bake(cfg, t, lutSize);
   } catch (const OCIO::Exception& e) {
-    SkDebugf("sigilcompose ocio::display(\"%.*s\", \"%.*s\", \"%.*s\"): %s\n",
-             (int)config.size(), config.data(), (int)displayName.size(),
-             displayName.data(), (int)viewName.size(), viewName.data(),
-             e.what());
+    SkDebugf(
+        "sigilmaterial color::viewTransform(\"%.*s\", \"%.*s\", \"%.*s\"): "
+        "%s\n",
+        (int)config.size(), config.data(), (int)displayName.size(),
+        displayName.data(), (int)viewName.size(), viewName.data(), e.what());
     // Fail soft AND helpfully: list what the config actually offers.
     try {
       OCIO::ConstConfigRcPtr cfg = loadConfig(config);
@@ -158,12 +143,12 @@ Effect display(std::string_view config, std::string_view displayName,
       }
     } catch (...) {
     }
-    return {};
+    return Material(lutRecipe());
   }
 }
 
-Effect convert(std::string_view config, std::string_view src,
-               std::string_view dst, int lutSize) {
+Material convert(std::string_view config, std::string_view src,
+                 std::string_view dst, int lutSize) {
   try {
     OCIO::ConstConfigRcPtr cfg = loadConfig(config);
     OCIO::ColorSpaceTransformRcPtr t = OCIO::ColorSpaceTransform::Create();
@@ -171,14 +156,14 @@ Effect convert(std::string_view config, std::string_view src,
     t->setDst(std::string(dst).c_str());
     return bake(cfg, t, lutSize);
   } catch (const OCIO::Exception& e) {
-    SkDebugf("sigilcompose ocio::convert(\"%.*s\" -> \"%.*s\"): %s\n",
+    SkDebugf("sigilmaterial color::convert(\"%.*s\" -> \"%.*s\"): %s\n",
              (int)src.size(), src.data(), (int)dst.size(), dst.data(),
              e.what());
-    return {};
+    return Material(lutRecipe());
   }
 }
 
-Effect exponent(float gamma, int lutSize) {
+Material exponent(float gamma, int lutSize) {
   try {
     OCIO::ConstConfigRcPtr cfg = OCIO::Config::CreateRaw();
     OCIO::ExponentTransformRcPtr t = OCIO::ExponentTransform::Create();
@@ -186,9 +171,9 @@ Effect exponent(float gamma, int lutSize) {
     t->setValue(v);
     return bake(cfg, t, lutSize);
   } catch (const OCIO::Exception& e) {
-    SkDebugf("sigilcompose ocio::exponent(%f): %s\n", gamma, e.what());
-    return {};
+    SkDebugf("sigilmaterial color::exponent(%f): %s\n", gamma, e.what());
+    return Material(lutRecipe());
   }
 }
 
-}  // namespace sigil::compose::ocio
+}  // namespace sigil::material::color

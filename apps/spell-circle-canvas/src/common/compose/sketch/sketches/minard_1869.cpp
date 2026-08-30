@@ -139,9 +139,9 @@
 #include <sigilcompose/brush/Lines.h>
 #include <sigilcompose/core/Feed.h>
 #include <sigilcompose/core/Material.h>
+#include <sigilcompose/core/Patterns.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Plate.h>
-#include <sigilcompose/paint/Patterns.h>
 #include <sigilcompose/shape/Shapes.h>
 #include <sigilcompose/testing/Checks.h>
 #include <sigilcompose/typography/Typography.h>

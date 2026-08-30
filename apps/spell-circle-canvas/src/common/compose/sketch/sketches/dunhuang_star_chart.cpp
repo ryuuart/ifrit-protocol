@@ -183,15 +183,15 @@
 #include <sigilcompose/brush/Brushes.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/brush/Hatches.h>
+#include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/brush/Lines.h>
 #include <sigilcompose/brush/Rails.h>
 #include <sigilcompose/core/Feed.h>
 #include <sigilcompose/core/Material.h>
+#include <sigilcompose/core/Patterns.h>
 #include <sigilcompose/instances/Instances.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Strokes.h>
-#include <sigilcompose/paint/LayerStyles.h>
-#include <sigilcompose/paint/Patterns.h>
 #include <sigilcompose/shape/Shapes.h>
 #include <sigilgeometry/path/Noise.h>
 #include <sigilsketch/Sketch.h>

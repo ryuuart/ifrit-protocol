@@ -11,16 +11,16 @@
 
 #include "support/PaintTestSupport.h"
 
-#ifdef SIGILCOMPOSE_ENABLE_OCIO
-#include <sigilcompose/paint/Ocio.h>
+#ifdef SIGILMATERIAL_ENABLE_OCIO
+#include <sigilmaterial/color/Ocio.h>
 
 TEST(ComposeColor, OcioViewTransformsOutputAndClears) {
   // The OCIO output stage end-to-end: an exponent transform baked to a LUT
   // darkens mid-gray (0.5^2.2 ≈ 0.218); clearing the view restores
   // pass-through. Exercises bake → SkImage LUT → SkSL trilinear → saveLayer.
-  ASSERT_TRUE(sigil::compose::ocio::available());
+  ASSERT_TRUE(sigil::material::color::available());
   Host host;
-  host.composer.setView(sigil::compose::ocio::exponent(2.2f));
+  host.composer.setView(sigil::material::color::exponent(2.2f));
   host.composer.render(box().child(
       box().width(60).height(60).fill(Fill::color({0.5f, 0.5f, 0.5f, 1}))));
   host.frame();
@@ -34,4 +34,4 @@ TEST(ComposeColor, OcioViewTransformsOutputAndClears) {
   EXPECT_LT(plain, 138u);
 }
 
-#endif  // SIGILCOMPOSE_ENABLE_OCIO
+#endif  // SIGILMATERIAL_ENABLE_OCIO

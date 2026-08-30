@@ -88,9 +88,9 @@
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkString.h>
 #include <include/effects/SkRuntimeEffect.h>
+#include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/core/Material.h>
-#include <sigilcompose/paint/LayerStyles.h>
-#include <sigilcompose/paint/Patterns.h>
+#include <sigilcompose/core/Patterns.h>
 #include <sigilsketch/Sketch.h>
 
 #include <algorithm>

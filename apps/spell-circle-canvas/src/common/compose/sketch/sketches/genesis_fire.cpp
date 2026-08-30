@@ -129,9 +129,9 @@
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkVertices.h>
 #include <sigilcompose/core/Material.h>
+#include <sigilcompose/core/Patterns.h>
 #include <sigilcompose/instances/Instances.h>
 #include <sigilcompose/kit/Frame.h>
-#include <sigilcompose/paint/Patterns.h>
 #include <sigilcompose/shape/Shapes.h>
 #include <sigilcompose/typography/TextFx.h>
 #include <sigilsketch/Sketch.h>

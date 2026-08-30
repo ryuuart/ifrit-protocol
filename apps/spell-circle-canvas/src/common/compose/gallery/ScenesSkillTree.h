@@ -48,10 +48,10 @@
 
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/brush/Brushes.h>
+#include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/core/Material.h>
+#include <sigilcompose/core/Sdf.h>
 #include <sigilcompose/kit/Strokes.h>
-#include <sigilcompose/paint/LayerStyles.h>
-#include <sigilcompose/paint/Sdf.h>
 #include <sigilcompose/shape/Routers.h>
 #include <sigilcompose/shape/Shapes.h>
 

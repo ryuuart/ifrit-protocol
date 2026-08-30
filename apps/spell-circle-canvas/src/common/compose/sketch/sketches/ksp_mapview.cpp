@@ -86,10 +86,10 @@
 #include <sigilcompose/brush/Hatches.h>
 #include <sigilcompose/brush/Lines.h>
 #include <sigilcompose/core/Material.h>
+#include <sigilcompose/core/Patterns.h>
+#include <sigilcompose/core/Sdf.h>
 #include <sigilcompose/instances/Instances.h>
 #include <sigilcompose/kit/Strokes.h>
-#include <sigilcompose/paint/Patterns.h>
-#include <sigilcompose/paint/Sdf.h>
 #include <sigilcompose/shape/Shapes.h>
 #include <sigilsketch/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>

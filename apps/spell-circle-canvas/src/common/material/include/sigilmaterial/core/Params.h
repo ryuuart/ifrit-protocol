@@ -7,7 +7,7 @@
  * its uniform declarations are emitted per target from the same walk.
  */
 
-#include <sigilmaterial/core/Color.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/core/Target.h>
 
 #include <array>

@@ -14,4 +14,7 @@ target_include_directories(SigilWeaveShaders PUBLIC
 target_link_libraries(SigilWeaveShaders
   PUBLIC
     unofficial::skia::skia
+  PRIVATE
+    SigilMaterialKit
+    SigilMaterialSkia
 )

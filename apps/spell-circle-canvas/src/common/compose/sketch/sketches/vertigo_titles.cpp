@@ -125,9 +125,9 @@
 #include <include/core/SkTypeface.h>
 #include <sigilcompose/brush/Brushes.h>
 #include <sigilcompose/core/Material.h>
+#include <sigilcompose/core/Patterns.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Strokes.h>
-#include <sigilcompose/paint/Patterns.h>
 #include <sigilcompose/shape/Shapes.h>
 #include <sigilcompose/typography/TextFx.h>
 #include <sigilgeometry/path/Noise.h>

@@ -24,8 +24,8 @@
 // within minutes of each other.)
 
 #include <sigilcompose/core/Material.h>
-#include <sigilcompose/paint/Patterns.h>
-#include <sigilcompose/paint/Sdf.h>
+#include <sigilcompose/core/Patterns.h>
+#include <sigilcompose/core/Sdf.h>
 #include <sigilsketch/Sketch.h>
 
 using namespace sigil::compose;

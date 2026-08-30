@@ -68,6 +68,13 @@ class Material {
     write(name, UniformTraits<T>::kind, &value, UniformTraits<T>::floats);
     return *this;
   }
+  /** Sets the field @p name from @p floats, whose count must be the
+   *  field's — the door for an array whose length is known only at run
+   *  time. A count that is not the field's is reported once and ignored. */
+  Material& set(std::string_view name, std::span<const float> floats) {
+    write(name, Kind::FloatArray, floats.data(), floats.size());
+    return *this;
+  }
   /** Rewrites every field from @p params. */
   template <class P>
   Material& set(const P& params) {

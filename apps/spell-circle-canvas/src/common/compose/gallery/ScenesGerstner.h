@@ -29,9 +29,9 @@
 // the non-printing blue a grid was drawn in.
 
 #include <include/core/SkPathBuilder.h>
+#include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/core/Material.h>
-#include <sigilcompose/paint/LayerStyles.h>
-#include <sigilcompose/paint/Patterns.h>
+#include <sigilcompose/core/Patterns.h>
 #include <sigilcompose/shape/Shapes.h>
 
 #include <array>

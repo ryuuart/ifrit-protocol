@@ -1,6 +1,6 @@
 /** @file
  * Layer styles: bevels, sheens and inner shadows built from gradients and
- * blurs, as presets over keylines and shadows.
+ * blurs, and the gel and chrome bundles over the kit's colour tables.
  */
 
 #include <include/core/SkColorFilter.h>
@@ -11,7 +11,10 @@
 #include <include/effects/SkGradient.h>
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
-#include <sigilcompose/paint/LayerStyles.h>
+#include <sigilcompose/brush/LayerStyles.h>
+#include <sigilmaterial/field/Field.h>
+#include <sigilmaterial/kit/TextPaint.h>
+#include <sigilmaterial/skia/SkiaCompiler.h>
 
 #include <algorithm>
 #include <cmath>
@@ -21,13 +24,6 @@ namespace sigil::compose::styles {
 
 namespace detail {
 namespace {
-SkColor4f scale(SkColor4f c, float k, float a) {
-  return {c.fR * k, c.fG * k, c.fB * k, a};
-}
-SkColor4f toward(SkColor4f c, SkColor4f target, float t, float a) {
-  return {c.fR + (target.fR - c.fR) * t, c.fG + (target.fG - c.fG) * t,
-          c.fB + (target.fB - c.fB) * t, a};
-}
 sk_sp<SkShader> vRamp(float y0, float y1, std::vector<SkColor4f> colors,
                       std::vector<float> stops) {
   SkPoint pts[2] = {{0, y0}, {0, y1}};
@@ -37,8 +33,27 @@ sk_sp<SkShader> vRamp(float y0, float y1, std::vector<SkColor4f> colors,
                                                SkTileMode::kClamp},
                                               {}));
 }
+/** The kit's ramp over [y0, y1]. */
+sk_sp<SkShader> vRamp(float y0, float y1,
+                      const std::vector<sigil::material::kit::RampStop>& ramp) {
+  std::vector<SkColor4f> colors;
+  std::vector<float> stops;
+  for (const auto& s : ramp) {
+    colors.push_back(sk(s.color));
+    stops.push_back(s.pos);
+  }
+  return vRamp(y0, y1, std::move(colors), std::move(stops));
+}
+/** The kit's unit-space ramp as a compose gradient. */
+Material unitRamp(const std::vector<sigil::material::kit::RampStop>& ramp) {
+  std::vector<Stop> stops;
+  for (const auto& s : ramp) stops.push_back({s.pos, sk(s.color)});
+  return Material::linear({0, 0}, {0, 1}, std::move(stops));
+}
 }  // namespace
 }  // namespace detail
+
+namespace kit = sigil::material::kit;
 
 void InnerShadow::paint(SkCanvas& c, const PaintContext& ctx) const {
   c.save();
@@ -96,67 +111,47 @@ void Overlay::paint(SkCanvas& c, const PaintContext& ctx) const {
   c.drawPath(ctx.outline, p);
 }
 
-Effect textGlow(SkColor4f color, float sigma) {
-  return Effect::filter(SkImageFilters::DropShadow(0, 0, sigma, sigma,
-                                                   color.toSkColor(), nullptr));
-}
-
 Effect ripple(float amplitudePx, float wavelengthPx, float phase,
               bool vertical) {
-  static const sk_sp<SkRuntimeEffect> fx = [] {
-    auto [effect, err] = SkRuntimeEffect::MakeForShader(SkString(R"(
-      uniform shader content;
-      uniform float uAmp;
-      uniform float uFreq;   // radians per px
-      uniform float uPhase;
-      uniform float uVertical;
-      half4 main(float2 p) {
-        float2 q = p;
-        if (uVertical > 0.5)
-          q.x += sin(p.y * uFreq + uPhase) * uAmp;
-        else
-          q.y += sin(p.x * uFreq + uPhase) * uAmp;
-        return content.eval(q);
-      }
-    )"));
-    if (!effect) SkDebugf("sigilcompose ripple shader: %s\n", err.c_str());
-    return effect;
-  }();
-  if (!fx) return {};
-  return Effect::shader(fx,
-                        {{"uAmp", amplitudePx},
-                         {"uFreq", 6.2831853f / std::max(wavelengthPx, 1.0f)},
-                         {"uPhase", phase},
-                         {"uVertical", vertical ? 1.0f : 0.0f}});
+  // The field's recipe compiled through SigilMaterial's cache, spelled
+  // as a shader effect so the recipe's float uniforms stay comparable and
+  // a re-described equal ripple prunes.
+  const sigil::material::Material m = sigil::material::field::ripple(
+      amplitudePx, wavelengthPx, phase, vertical);
+  sigil::material::skia::install();
+  const sigil::material::Material::Resolved resolved =
+      m.resolve(sigil::material::Target::SkSL, {});
+  const auto* program =
+      resolved.program
+          ? resolved.program->as<sigil::material::skia::SkiaProgram>()
+          : nullptr;
+  if (!program) return {};
+  return Effect::shader(program->effect(),
+                        {{"uAmp", m.get<float>("uAmp")},
+                         {"uFreq", m.get<float>("uFreq")},
+                         {"uPhase", m.get<float>("uPhase")},
+                         {"uVertical", m.get<float>("uVertical")}});
 }
 
 void AquaBody::paint(SkCanvas& c, const PaintContext& ctx) const {
   const float H = ctx.size.height();
+  const sigil::material::Color t = detail::mat(tint);
   if (opts.halo) {  // a lightened, half-transparent cast of the tint
-    Shadow{detail::toward(tint, {1, 1, 1, 1}, 0.30f, 0.5f),
-           {0, H * 0.25f},
-           H * 0.40f}
-        .paint(c, ctx);
+    Shadow{detail::sk(kit::aquaHalo(t)), {0, H * 0.25f}, H * 0.40f}.paint(c,
+                                                                          ctx);
   }
   SkPaint body;  // deep at the top, saturated in the middle, light below
   body.setAntiAlias(true);
-  body.setShader(
-      detail::vRamp(0, H,
-                    {detail::scale(tint, 0.55f, 0.9f), tint,
-                     detail::toward(tint, {1, 1, 1, 1}, 0.35f, 0.95f)},
-                    {0.0f, 0.55f, 1.0f}));
+  body.setShader(detail::vRamp(0, H, kit::aquaBodyRamp(t)));
   c.drawPath(ctx.outline, body);
-  InnerShadow{detail::scale(tint, 0.30f, 0.45f), {0, H * 0.08f}, H * 0.25f}
-      .paint(c, ctx);
+  InnerShadow{detail::sk(kit::aquaTopBand(t)), {0, H * 0.08f}, H * 0.25f}.paint(
+      c, ctx);
   if (opts.bottomGlow > 0) {  // screen-blended, fading out by mid-height
     SkPaint glow;
     glow.setAntiAlias(true);
     glow.setBlendMode(SkBlendMode::kScreen);
-    glow.setShader(detail::vRamp(
-        H * 0.55f, H,
-        {{1, 1, 1, 0},
-         detail::toward(tint, {1, 1, 1, 1}, 0.80f, opts.bottomGlow)},
-        {0.0f, 1.0f}));
+    glow.setShader(
+        detail::vRamp(H * 0.55f, H, kit::aquaGlowRamp(t, opts.bottomGlow)));
     c.save();
     c.clipPath(ctx.outline, true);
     c.drawRect(SkRect::MakeLTRB(0, H * 0.5f, ctx.size.width(), H), glow);
@@ -183,7 +178,8 @@ void AquaGloss::paint(SkCanvas& c, const PaintContext& ctx) const {
 LayerStyle aquaGel(SkColor4f tint, AquaGelOptions opts) {
   PathFormat hairline;
   hairline.width = 1.0f;
-  hairline.strokeFill = Fill::color(detail::scale(tint, 0.45f, 0.6f));
+  hairline.strokeFill =
+      Fill::color(detail::sk(kit::aquaHairline(detail::mat(tint))));
   hairline.align = PathFormat::Align::Inner;
   return LayerStyle{
       {Decoration(AquaBody{tint, opts})},
@@ -204,20 +200,7 @@ LayerStyle aquaOrb(SkColor4f tint, float expectedDiameter) {
 void ChromeBody::paint(SkCanvas& c, const PaintContext& ctx) const {
   SkPaint p;
   p.setAntiAlias(true);
-  if (palette == ChromeOptions::Palette::Silver) {
-    p.setShader(detail::vRamp(
-        0, ctx.size.height(),
-        {detail::rgb(0xFDFDFD), detail::rgb(0xD2D8DD), detail::rgb(0xA5ADB5),
-         detail::rgb(0x6F7880), detail::rgb(0xE9ECEF), detail::rgb(0xC6CDD3),
-         detail::rgb(0x9BA3AC)},
-        {0.0f, 0.2f, 0.48f, 0.5f, 0.52f, 0.8f, 1.0f}));
-  } else {
-    p.setShader(detail::vRamp(
-        0, ctx.size.height(),
-        {detail::rgb(0xF4F7FA), detail::rgb(0x97A1AC), detail::rgb(0x3A4654),
-         detail::rgb(0x1E2833), detail::rgb(0x5C6B7C), detail::rgb(0xDCE4EA)},
-        {0.0f, 0.35f, 0.49f, 0.51f, 0.62f, 1.0f}));
-  }
+  p.setShader(detail::vRamp(0, ctx.size.height(), kit::chromeRamp(palette)));
   c.drawPath(ctx.outline, p);
 }
 
@@ -256,7 +239,7 @@ void ChromeSliver::paint(SkCanvas& c, const PaintContext& ctx) const {
 LayerStyle y2kChrome(ChromeOptions opts) {
   PathFormat keyline;
   keyline.width = opts.keylineWidth;
-  keyline.strokeFill = Fill::color(opts.keyline);
+  keyline.strokeFill = Fill::color(detail::sk(opts.keyline));
   keyline.align = PathFormat::Align::Outer;
   LayerStyle bundle;
   bundle.under = {Decoration(Shadow{{0, 0, 0, 0.45f}, {0, 6}, 10}),
@@ -266,8 +249,8 @@ LayerStyle y2kChrome(ChromeOptions opts) {
   // height reads as a strikethrough instead of as a sheen on the plate.
   if (opts.horizonSliver) bundle.under.push_back(Decoration(ChromeSliver{}));
   if (opts.palette == ChromeOptions::Palette::Steel)
-    bundle.over.push_back(
-        Decoration(InnerShadow{detail::rgb(0x001020, 0.30f), {0, 3}, 4}));
+    bundle.over.push_back(Decoration(
+        InnerShadow{detail::sk(kit::chromeSteelTopBand()), {0, 3}, 4}));
   bundle.over.push_back(Decoration(BevelEmboss{opts.bevelDepth,
                                                opts.bevelSize,
                                                120,
@@ -278,26 +261,11 @@ LayerStyle y2kChrome(ChromeOptions opts) {
 }
 
 Material sunsetChromeText() {
-  return Material::linear({0, 0}, {0, 1},
-                          {{0.0f, detail::rgb(0xEAF6FF)},
-                           {0.12f, detail::rgb(0x9CCFF3)},
-                           {0.35f, detail::rgb(0x3C7FC0)},
-                           {0.495f, detail::rgb(0x0B2A52)},
-                           {0.505f, detail::rgb(0x7A4A1A)},
-                           {0.62f, detail::rgb(0xB98A46)},
-                           {0.82f, detail::rgb(0xE8CE9A)},
-                           {1.0f, detail::rgb(0xFDF6E3)}});
+  return detail::unitRamp(kit::sunsetChromeText());
 }
 
 Material silverChromeText() {
-  return Material::linear({0, 0}, {0, 1},
-                          {{0.0f, detail::rgb(0xFDFDFD)},
-                           {0.2f, detail::rgb(0xD2D8DD)},
-                           {0.48f, detail::rgb(0xA5ADB5)},
-                           {0.5f, detail::rgb(0x6F7880)},
-                           {0.52f, detail::rgb(0xE9ECEF)},
-                           {0.8f, detail::rgb(0xC6CDD3)},
-                           {1.0f, detail::rgb(0x9BA3AC)}});
+  return detail::unitRamp(kit::silverChromeText());
 }
 
 void GlossContour::paint(SkCanvas& c, const PaintContext& ctx) const {

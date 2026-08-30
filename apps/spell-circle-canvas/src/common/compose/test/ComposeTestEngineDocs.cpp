@@ -566,8 +566,8 @@ TEST(ComposeEdgeStore, IndexClearsWhenRoutesUnmount) {
 // The brush-arc tail: art warp (SkVertices), hatch (Sk2D), gloss (table)
 
 #include <sigilcompose/brush/Brushes.h>
+#include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/brush/Lines.h>
-#include <sigilcompose/paint/LayerStyles.h>
 
 namespace {
 

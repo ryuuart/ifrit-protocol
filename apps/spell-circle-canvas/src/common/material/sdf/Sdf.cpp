@@ -1,17 +1,15 @@
 /** @file
- * SDF materials: the signed-distance silhouettes and the one-pass shape,
- * border, glow and soft-shadow shader built over them.
+ * The distance functions and the one-pass shape, border, glow and soft
+ * shadow body, one recipe per silhouette kind.
  */
 
-#include <include/core/SkString.h>
-#include <include/effects/SkRuntimeEffect.h>
-#include <sigilcompose/paint/Sdf.h>
+#include "sigilmaterial/sdf/Sdf.h"
 
 #include <algorithm>
 #include <cmath>
 #include <string>
 
-namespace sigil::compose::sdf {
+namespace sigil::material::sdf {
 
 Shape star(int points, float pointiness) {
   const float n = (float)std::max(points, 3);
@@ -23,23 +21,6 @@ Shape star(int points, float pointiness) {
 }
 
 namespace {
-
-constexpr char kPrelude[] = R"(
-uniform float2 uResolution;
-uniform float  uPad;
-uniform float4 uFill;
-uniform float  uBorderW;
-uniform float4 uBorder;
-uniform float  uGlowR;
-uniform float4 uGlow;
-uniform float  uShadowOffX;
-uniform float  uShadowOffY;
-uniform float  uShadowBlur;
-uniform float4 uShadow;
-uniform float  uP0;
-uniform float  uP1;
-uniform float  uP2;
-)";
 
 constexpr char kSdRoundBox[] = R"(
 float sd(float2 p, float2 b) {
@@ -53,8 +34,7 @@ constexpr char kSdCircle[] = R"(
 float sd(float2 p, float2 b) { return length(p) - min(b.x, b.y); }
 )";
 
-// IQ's exact-distance N-star
-// (https://iquilezles.org/articles/distfunctions2d/).
+// The exact-distance N-star.
 constexpr char kSdStar[] = R"(
 float sd(float2 p, float2 b) {
   float r = min(b.x, b.y);
@@ -90,7 +70,7 @@ half4 main(float2 xy) {
   }
   if (uGlowR > 0.0) {
     // Exponential falloff, forced to EXACT zero by the pad edge so the
-    // node's box never crops a visible square (the poe-study fix).
+    // box never crops a visible square.
     float g = exp(-max(d, 0.0) / uGlowR) *
               max(0.0, 1.0 - max(d, 0.0) / max(uPad - 1.0, 1.0));
     acc = overOp(acc, uGlow, g);
@@ -104,61 +84,50 @@ half4 main(float2 xy) {
 }
 )";
 
-sk_sp<SkRuntimeEffect> makeEffect(const char* sdFn) {
-  const std::string src = std::string(kPrelude) + sdFn + kMain;
-  auto [fx, err] = SkRuntimeEffect::MakeForShader(SkString(src.c_str()));
-  if (!fx) SkDebugf("sigilcompose sdf shader: %s\n", err.c_str());
-  return fx;
-}
-
-/** One compiled effect per kind, shared by every instance/style. */
-const sk_sp<SkRuntimeEffect>& effectFor(Kind kind) {
-  switch (kind) {
-    case Kind::RoundBox: {
-      static const sk_sp<SkRuntimeEffect> fx = makeEffect(kSdRoundBox);
-      return fx;
-    }
-    case Kind::Circle: {
-      static const sk_sp<SkRuntimeEffect> fx = makeEffect(kSdCircle);
-      return fx;
-    }
-    case Kind::Star:
-    default: {
-      static const sk_sp<SkRuntimeEffect> fx = makeEffect(kSdStar);
-      return fx;
-    }
-  }
+std::shared_ptr<const Recipe> make(const char* name, const char* sdFn) {
+  return std::make_shared<const Recipe>(
+      Recipe::of<SdfParams>(name)
+          .frame(FrameInput::Resolution)
+          .body(Target::SkSL, std::string(sdFn) + kMain));
 }
 
 }  // namespace
 
+const std::shared_ptr<const Recipe>& recipe(Kind kind) {
+  switch (kind) {
+    case Kind::RoundBox: {
+      static const auto r = make("sdf.roundBox", kSdRoundBox);
+      return r;
+    }
+    case Kind::Circle: {
+      static const auto r = make("sdf.circle", kSdCircle);
+      return r;
+    }
+    case Kind::Star:
+    default: {
+      static const auto r = make("sdf.star", kSdStar);
+      return r;
+    }
+  }
+}
+
 float pad(const Style& style) {
   const float glowPad = style.glowRadius > 0 ? style.glowRadius * 3.2f : 0.0f;
-  const float shadowPad = style.shadowColor.fA > 0
-                              ? std::max(std::abs(style.shadowOffset.fX),
-                                         std::abs(style.shadowOffset.fY)) +
+  const float shadowPad = style.shadowColor.a > 0
+                              ? std::max(std::abs(style.shadowOffset.x),
+                                         std::abs(style.shadowOffset.y)) +
                                     style.shadowBlur * 1.5f
                               : 0.0f;
   return style.borderWidth * 0.5f + std::max(glowPad, shadowPad) + 1.0f;
 }
 
 Material material(const Shape& shape, const Style& style) {
-  const sk_sp<SkRuntimeEffect>& fx = effectFor(shape.kind);
-  if (!fx) return {};
-  const float padPx = pad(style);
-  return Material::sksl(fx, {{"uPad", padPx},
-                             {"uBorderW", style.borderWidth},
-                             {"uGlowR", style.glowRadius},
-                             {"uShadowOffX", style.shadowOffset.fX},
-                             {"uShadowOffY", style.shadowOffset.fY},
-                             {"uShadowBlur", style.shadowBlur},
-                             {"uP0", shape.p0},
-                             {"uP1", shape.p1},
-                             {"uP2", shape.p2}})
-      .uniform("uFill", style.fill)
-      .uniform("uBorder", style.borderColor)
-      .uniform("uGlow", style.glowColor)
-      .uniform("uShadow", style.shadowColor);
+  return Material(
+      recipe(shape.kind),
+      SdfParams{pad(style), style.fill, style.borderWidth, style.borderColor,
+                style.glowRadius, style.glowColor, style.shadowOffset.x,
+                style.shadowOffset.y, style.shadowBlur, style.shadowColor,
+                shape.p0, shape.p1, shape.p2});
 }
 
-}  // namespace sigil::compose::sdf
+}  // namespace sigil::material::sdf

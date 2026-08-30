@@ -17,7 +17,7 @@
 
 #include "sigilgeometry/path/Numeric.h"
 #include "sigilgeometry/path/Skia.h"
-#include "sigilmaterial/core/Color.h"
+#include "sigilmaterial/color/Color.h"
 
 namespace sigil::geometry::blend {
 

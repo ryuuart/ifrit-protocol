@@ -63,13 +63,13 @@
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilcompose/brush/Decorations.h>
+#include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/core/Material.h>
+#include <sigilcompose/core/Pattern.h>
+#include <sigilcompose/core/Patterns.h>
+#include <sigilcompose/core/Sdf.h>
 #include <sigilcompose/instances/Instances.h>
 #include <sigilcompose/kit/Placers.h>
-#include <sigilcompose/paint/LayerStyles.h>
-#include <sigilcompose/paint/Pattern.h>
-#include <sigilcompose/paint/Patterns.h>
-#include <sigilcompose/paint/Sdf.h>
 #include <sigilcompose/shape/Shapes.h>
 #include <sigilcompose/typography/TextFx.h>
 #include <sigilsketch/Sketch.h>

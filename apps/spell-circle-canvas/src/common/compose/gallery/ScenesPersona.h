@@ -41,9 +41,9 @@
 #include <include/core/SkString.h>
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
+#include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/core/Material.h>
-#include <sigilcompose/paint/LayerStyles.h>
-#include <sigilcompose/paint/Patterns.h>
+#include <sigilcompose/core/Patterns.h>
 #include <sigilcompose/shape/Shapes.h>
 #include <sigilweave/ports/SystemFontManager.h>
 

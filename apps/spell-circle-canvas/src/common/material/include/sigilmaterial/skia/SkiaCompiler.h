@@ -14,7 +14,9 @@
 #include <sigilmaterial/core/Program.h>
 
 #include <cstddef>
+#include <memory>
 #include <span>
+#include <string_view>
 
 namespace sigil::material::skia {
 
@@ -42,9 +44,20 @@ class SkiaProgram : public Program {
  *  call it once before the first resolve for Target::SkSL. */
 void install();
 
+/** The builder for @p material at @p frame: its program's effect with
+ *  every uniform set from the resolved bytes and every child slot bound —
+ *  a material child resolved and bound recursively, a ShaderLeaf as the
+ *  shader it yields — except any slot named in @p leave, which the caller
+ *  fills itself (an image filter's input, say). Null when the material has
+ *  no Skia program. */
+std::unique_ptr<SkRuntimeShaderBuilder> builder(
+    const Material& material, const FrameData& frame, Variant variant = {},
+    std::span<const std::string_view> leave = {});
+
 /** The shader for @p material at @p frame: resolves it, builds from its
  *  program, binds each child slot — a material child resolved and bound
- *  recursively, a Texture leaf as its image shader — and makes the
+ *  recursively, a ShaderLeaf (a Texture, say) as the shader it yields —
+ *  and makes the
  *  shader. Null when the material's recipe has no Skia program, which the
  *  cache has already reported. */
 sk_sp<SkShader> shader(const Material& material, const FrameData& frame,

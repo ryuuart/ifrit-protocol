@@ -183,11 +183,11 @@
 #include <include/core/SkSurface.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Material.h>
+#include <sigilcompose/core/Pattern.h>
+#include <sigilcompose/core/Patterns.h>
 #include <sigilcompose/instances/Instances.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/PixelType.h>
-#include <sigilcompose/paint/Pattern.h>
-#include <sigilcompose/paint/Patterns.h>
 #include <sigilcompose/shape/Shapes.h>
 #include <sigilsketch/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>

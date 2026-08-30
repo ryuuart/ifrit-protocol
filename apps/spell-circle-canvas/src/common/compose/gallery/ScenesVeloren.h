@@ -31,10 +31,10 @@
 
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/brush/Brushes.h>
+#include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/core/Material.h>
+#include <sigilcompose/core/Patterns.h>
 #include <sigilcompose/instances/Instances.h>
-#include <sigilcompose/paint/LayerStyles.h>
-#include <sigilcompose/paint/Patterns.h>
 #include <sigilcompose/shape/Shapes.h>
 
 #include <cmath>

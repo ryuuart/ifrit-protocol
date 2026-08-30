@@ -66,8 +66,8 @@
 #include <sigilcompose/brush/Lines.h>
 #include <sigilcompose/brush/Rails.h>
 #include <sigilcompose/core/Material.h>
+#include <sigilcompose/core/Patterns.h>
 #include <sigilcompose/kit/Strokes.h>
-#include <sigilcompose/paint/Patterns.h>
 #include <sigilcompose/shape/Layouts.h>
 #include <sigilcompose/shape/Shapes.h>
 #include <sigilsketch/Sketch.h>

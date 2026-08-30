@@ -17,8 +17,19 @@ slot as a **leaf** — bound by the backend rather than compiled. The
 texture feature also knows the folders material tools export (a texture
 set by role), bakes the two textures a reflective surface is shaded from
 (an environment and a bevel normal map), and cuts an atlas into regions
-and frame sequences. The **kit** holds the stock recipes: gold, chrome and
-glass over a normal map and an environment.
+and frame sequences.
+
+Above those sit the PRIMITIVES — fully parameterised generators, one
+feature each: **colour** (the colour value, the OKLab round trip, and
+OpenColorIO view transforms baked to LUT materials), **sdf** (shape,
+border, glow and shadow in one pass over a signed distance), **pattern**
+(a tile baked once with a mapping and an explicit reseed, and the stock
+tiles over it), and **field** (the halftone ramp, Perlin noise, luminance
+grain, the ripple). The **kit** holds PRESETS — functions that fix
+colours, proportions or a named style over the primitives: gold, chrome
+and glass over a normal map and an environment; the girih panel and its
+palettes; the gel and chrome colour tables; the six text paints and the
+chrome-type ramps.
 
 The core links glm (for the vector types a struct may hold), choreograph
 (for the animation output a field may bind to) and Boost.PFR (for the
@@ -26,17 +37,21 @@ reflection that reads a struct's field names off the type). The core has
 no renderer in it: compilers arrive from backend features, and there is
 one, for Skia's SkSL.
 
-Namespace `sigil::material`. Four feature libraries, one per directory,
+Namespace `sigil::material`. Eight feature libraries, one per directory,
 each a static archive that links only what sits beneath it:
 
 | target | holds | links |
 |--------|-------|-------|
-| `SigilMaterialCore` | the value model: `Target`, `Params`, `Recipe`, `Program` and the cache, `Material`, `Leaf`, `UniformBlock`, `FrameData`, `Color` | SigilGeometryPath, SigilMotionBind, Boost::pfr |
-| `SigilMaterialTexture` | `Texture` and its sources, `textures::` (the tools' sets by role), `Environment` and `bevelNormals`, `Atlas` | SigilMaterialCore, SigilImageAsset, Skia; simdjson and stb privately |
-| `SigilMaterialSkia` | the SkSL compiler and `SkiaProgram`, whose builder uploads resolved bytes; `skia::shader` binding textures into slots; `skia::fill` | SigilMaterialTexture |
-| `SigilMaterialKit` | the stock recipes: `kit::gold`, `kit::chrome`, `kit::glass` and their params | SigilMaterialTexture |
+| `SigilMaterialCore` | the value model: `Target`, `Params`, `Recipe`, `Program` and the cache, `Material`, `Leaf`, `UniformBlock`, `FrameData` | SigilGeometryPath, SigilMotionBind, Boost::pfr |
+| `SigilMaterialTexture` | `Texture` and its sources, `ShaderLeaf`, `textures::` (the tools' sets by role), `Environment` and `bevelNormals`, `Atlas` | SigilMaterialCore, SigilImageAsset, Skia; simdjson and stb privately |
+| `SigilMaterialColor` | `Color` (header-only, which the core's `Params.h` includes) and `color::` — the OCIO `viewTransform`, `convert`, `exponent` as LUT materials | SigilMaterialTexture; OpenColorIO privately, when found |
+| `SigilMaterialSdf` | `sdf::` — `Shape`, `Style`, `pad`, `material` | SigilMaterialCore |
+| `SigilMaterialPattern` | `pattern::Tile` and the stock tiles | SigilMaterialTexture |
+| `SigilMaterialField` | `field::` — `halftoneRamp`, `noise`, `grain`, `ripple` | SigilMaterialTexture |
+| `SigilMaterialSkia` | the SkSL compiler and `SkiaProgram`, whose builder uploads resolved bytes; `skia::builder` and `skia::shader` binding leaves into slots; `skia::fill` | SigilMaterialTexture |
+| `SigilMaterialKit` | the presets: `kit::gold`, `kit::chrome`, `kit::glass`; `kit::girih8` and its palettes; the gel and chrome tables; the text paints and chrome-type ramps | SigilMaterialPattern, SigilMaterialColor |
 
-`SigilMaterial` is the umbrella, an interface over all four. Headers live
+`SigilMaterial` is the umbrella, an interface over all eight. Headers live
 under `include/sigilmaterial/<feature>/` and are spelled that way —
 `<sigilmaterial/core/Recipe.h>`, `<sigilmaterial/texture/Texture.h>`,
 `<sigilmaterial/kit/Surfaces.h>` — and `<sigilmaterial/Material.h>`
@@ -175,11 +190,13 @@ changed.
 **A leaf is a child no recipe computes.** `Leaf` is the core's seam for
 an image with its sampling, a rendered frame, anything a backend binds
 into a slot directly: it compares by value (same dynamic type, then the
-type's own equality) and says whether it moves between frames. `Texture`
-is the one leaf type; the Skia backend recognises it and binds its image
-shader. A slot holds a material or a leaf, never both, and
-`Material::child(name)` and `Material::leaf(name)` each answer null for
-the other kind.
+type's own equality) and says whether it moves between frames.
+`ShaderLeaf` is the Skia-facing refinement — a leaf that yields the
+`SkShader` to bind — and `Texture` is one such leaf; a renderer's own
+native sources (a gradient it built, a Perlin generator) are others. The
+Skia backend binds any `ShaderLeaf`. A slot holds a material or a leaf,
+never both, and `Material::child(name)` and `Material::leaf(name)` each
+answer null for the other kind.
 
 ## Textures
 
@@ -232,6 +249,17 @@ index)` wraps past the end.
 
 ## The kit
 
+The kit is presets: functions that fix a colour, a proportion or a named
+style over the primitives. `kit::girih8` is the 8-fold star-and-cross
+panel as a `Tile`, with `fezPalette()` and `nasridPalette()`. The gel and
+chrome tables — `aquaBodyRamp`, `aquaGlowRamp`, `chromeRamp`, the
+`AquaGelOptions` and `ChromeOptions` a renderer's bundles read — are
+`RampStop` lists a renderer turns into its own gradient. The text paints
+— `water`, `meshGradient`, `sparkle`, `starNest`, `clouds`, `tunnel` —
+share the `TextPaintParams` ABI of a run's origin and extent, the clock
+and a slow motion vector; `sunsetChromeText()` and `silverChromeText()`
+are the chrome-type ramps in unit space.
+
 `kit::gold`, `kit::chrome` and `kit::glass` are recipes over two slots,
 `normals` and `env` (glass adds `backdrop`, an image of what sits behind
 the shape in the same device coordinates). Each params struct's fields
@@ -250,9 +278,48 @@ previous program and bytes come back with no cache lookup.
 ## Colour
 
 `Color` is four straight (not premultiplied) sRGB floats, uploaded as one
-float4. `Color.h` also holds the sRGB transfer function both ways and the
-OKLab round trip — `toOklab`, `fromOklab`, `lerpOklab` — which every
-perceptual interpolation in the codebase runs through.
+float4; `rgb(0xRRGGBB)` is its packed spelling. `Color.h` also holds the
+sRGB transfer function both ways and the OKLab round trip — `toOklab`,
+`fromOklab`, `lerpOklab` — which every perceptual interpolation in the
+codebase runs through.
+
+**A view transform is a LUT material with one open slot.** OpenColorIO's
+GPU codegen never emits SkSL, so `color::viewTransform(config, display,
+view)`, `color::convert(config, src, dst)` and `color::exponent(gamma)`
+each build a CPU processor, bake it into a 3D LUT once (F16, because F32
+textures are not linearly filterable on Apple GPUs), hold the LUT as a
+texture in the `lut` slot, and apply it through the trilinear
+`lutRecipe()`. The `content` slot is the layer being transformed and is
+left to the renderer. A bad config fails soft to a material with an empty
+LUT slot and the error reported. Compiled only under
+`SIGILMATERIAL_ENABLE_OCIO`.
+
+## The primitives
+
+**sdf.** `sdf::material(shape, style)` is shape, border, glow and soft
+shadow in ONE pass over a signed distance — `roundBox`, `circle` or
+`star` — with every style parameter a uniform, so a pulsing border is a
+bound `uBorderW` and however many styles there are, three programs
+compile. Distances are in pixel space over the resolution the frame
+supplies, never uv, so borders stay even on a stretched box. The style's
+outer treatments reserve `pad(style)` inside the box; size a box with
+`minBoxFor(style, contentPx)` or the reserve eats the interior.
+
+**pattern.** A `Tile` is one bake plus a mapping. The program draws one
+seamless tile at a seed; the bake is memoised on shared state, `seed(n)`
+and `program()` copy-on-write that state and drop it, and `scale`,
+`rotate`, `offset` and `filter` act on the sampling matrix alone, so a
+rotated repeat stays seamless with no rebake. The bake is the identity:
+hold a Tile where assets are held. `texture()` is the bake repeating on
+both axes through the mapping. The stock tiles — `halftone`, `stripes`,
+`sequence`, `checker`, `gridLines`, `speckle` — are programs over it.
+
+**field.** `halftoneRamp` swells a staggered dot grid down the box and
+reads the resolution; `noise` is Skia's Perlin generator behind a
+pass-through recipe, so it fills a slot and compares by its parameters;
+`grain` is value-noise fBm collapsed to one channel, one recipe per
+octave count because the count is a constant in the body; `ripple`
+resamples its `content` child through a sine displacement.
 
 ## Boundaries
 
@@ -267,12 +334,14 @@ its own slot rules; SigilCompose places what a material paints.
 
 ## Building and testing
 
-Four tests and four benchmarks, one pair per feature:
+Eight tests and eight benchmarks, one pair per feature:
 
 ```sh
 ctest --test-dir build -C Debug -R material
 python3 scripts/bench_ledger.py --benches material_core_bench \
-    material_texture_bench material_skia_bench material_kit_bench
+    material_texture_bench material_color_bench material_sdf_bench \
+    material_pattern_bench material_field_bench material_skia_bench \
+    material_kit_bench
 ```
 
 `material_core_test` links the core alone, so a link edge that pulled a
@@ -281,8 +350,13 @@ the sources, the sampling dials, the tools' names, the environment and
 bevel producers and the atlas readers and packer. `material_skia_test`
 compiles a two-uniform recipe through the cache and checks the raster it
 shades is byte-identical to the same SkSL compiled and filled by hand.
-`material_kit_test` compiles every stock surface and checks a fill stays
-inside its path. Three programs are the acceptance pieces: the
-`shapeworks_lab` and `easel_playground` sketches under
-`compose/sketch/sketches/`, and `geometry_demo`, whose surface panels are
-shaded here.
+`material_sdf_test`, `material_pattern_test`, `material_field_test` and
+`material_color_test` cover the primitives; `material_kit_test` compiles
+every preset and checks a fill stays inside its path. Three programs are
+the acceptance pieces: the `shapeworks_lab` and `easel_playground`
+sketches under `compose/sketch/sketches/`, and `geometry_demo`, whose
+surface panels are shaded here. SigilCompose is the largest consumer: its
+`Material::recipe` resolves a material through this library's cache with
+the frame built from its paint context, and its patterns, SDF fills,
+layer styles and view transforms are the primitives and presets here
+spelled as compose values.

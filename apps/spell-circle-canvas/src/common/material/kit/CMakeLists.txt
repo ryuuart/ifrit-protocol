@@ -1,13 +1,21 @@
-# The kit: stock recipes — the reflective surfaces over a normal map and
-# an environment. Bodies are SkSL text; the kit links the texture feature
-# for the slots it fills and no renderer.
+# The kit: presets — the reflective surfaces over a normal map and an
+# environment, the girih panel, the gel and chrome colour tables, the text
+# paints. Bodies are SkSL text; the kit links the pattern feature for the
+# tile the panel bakes into and no renderer.
 add_library(SigilMaterialKit STATIC
+  LayerStyles.cpp
+  Patterns.cpp
   Surfaces.cpp
+  TextPaint.cpp
+  ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/kit/LayerStyles.h
+  ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/kit/Patterns.h
   ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/kit/Surfaces.h
+  ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/kit/TextPaint.h
 )
 target_compile_features(SigilMaterialKit PUBLIC cxx_std_20)
 target_include_directories(SigilMaterialKit PUBLIC ${SIGIL_MATERIAL_INCLUDE_DIR})
-target_link_libraries(SigilMaterialKit PUBLIC SigilMaterialTexture)
+target_link_libraries(SigilMaterialKit PUBLIC SigilMaterialPattern
+  SigilMaterialColor)
 
 # The test draws, so it links the Skia backend beside the kit.
 add_executable(material_kit_test test/KitTest.cpp)
