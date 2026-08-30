@@ -17,6 +17,7 @@
 
 #include <array>
 #include <chrono>
+#include <cstdint>
 #include <limits>
 #include <optional>
 #include <string>
@@ -283,4 +284,205 @@ TEST(WorldScene, RetiringANodeHandsBackItsEntityAndItsArtefact) {
   EXPECT_EQ(scene.handleOf("body"), 0u);
   EXPECT_EQ(scene.stats().resources, 0);
   EXPECT_EQ(scene.stats().reconcile.retired, 1);
+}
+
+// ---- frames: passes, ordering, readbacks -----------------------------------
+
+namespace {
+
+constexpr SkISize kFrameExtent{96, 96};
+
+/** A set with one plain body on the left and one tagged "glow" on the
+ *  right, so a selection is visible as which half is painted. */
+Element pair() {
+  return Element()
+      .key("root")
+      .child(
+          Element().key("left").at({-46, 0, 0}).mesh(triangle(34)).tag("plain"))
+      .child(
+          Element().key("right").at({46, 0, 0}).mesh(triangle(34)).tag("glow"));
+}
+
+Frame framed(Element scene) {
+  Frame frame(std::move(scene));
+  frame.extent(kFrameExtent).camera(frontCamera());
+  return frame;
+}
+
+/** How much ink stands in one half of what a frame presented. */
+int paintedIn(Scene& scene, bool leftHalf) {
+  SkBitmap bitmap;
+  bitmap.allocPixels(
+      SkImageInfo::MakeN32Premul(kFrameExtent.width(), kFrameExtent.height()));
+  bitmap.eraseColor(SK_ColorTRANSPARENT);
+  SkCanvas canvas(bitmap);
+  scene.draw(canvas);
+  int count = 0;
+  const int mid = bitmap.width() / 2;
+  for (int y = 0; y < bitmap.height(); ++y)
+    for (int x = 0; x < bitmap.width(); ++x) {
+      if (leftHalf != (x < mid)) continue;
+      if (SkColorGetA(bitmap.getColor(x, y)) > 0) ++count;
+    }
+  return count;
+}
+
+}  // namespace
+
+TEST(WorldScene, AFrameWithNoPassesDrawsTheSceneItIs) {
+  motion::Ticker ticker;
+  Scene scene(ticker);
+  scene.render(framed(pair()));
+  EXPECT_EQ(scene.stats().passes, 0);
+  EXPECT_TRUE(scene.plan().steps().empty());
+  EXPECT_TRUE(scene.error().empty());
+}
+
+TEST(WorldScene, APassSeesWhatExtractWroteAndNotTheTree) {
+  motion::Ticker ticker;
+  Scene scene(ticker);
+  std::vector<std::string> keys;
+  std::vector<std::string> ancestors;
+  std::vector<std::string> tags;
+  Frame frame = framed(pair());
+  frame.pass(geometryPass("hand").writes("colour").body(
+      [&](const View& view, Targets&) {
+        for (const Draw& draw : view.draws) {
+          keys.emplace_back(draw.key);
+          for (const std::string& word : draw.tags) tags.push_back(word);
+          for (const std::string& up : draw.ancestors) ancestors.push_back(up);
+        }
+      }));
+  scene.render(frame);
+
+  ASSERT_EQ(keys.size(), 2u);
+  EXPECT_EQ(scene.stats().passes, 1);
+  EXPECT_EQ(tags.size(), 2u);
+  // Every body stands under the root, and under nothing else.
+  ASSERT_EQ(ancestors.size(), 2u);
+  EXPECT_EQ(ancestors.front(), "root");
+}
+
+TEST(WorldScene, ACulledGeometryPassDrawsOnlyItsSelection) {
+  motion::Ticker ticker;
+  Scene scene(ticker);
+  Frame frame = framed(pair());
+  frame.pass(geometryPass("glow").only(sel::tag("glow")).writes("colour"));
+  scene.render(frame);
+
+  ASSERT_TRUE(scene.error().empty());
+  ASSERT_EQ(scene.plan().steps().size(), 1u);
+  EXPECT_EQ(scene.plan().steps().front().realisation, Selection::Cull);
+  EXPECT_EQ(paintedIn(scene, /*leftHalf=*/true), 0);
+  EXPECT_GT(paintedIn(scene, /*leftHalf=*/false), 0);
+}
+
+TEST(WorldScene, ANarrowedPostPassReachesOnlyItsCoverage) {
+  motion::Ticker ticker;
+  Scene plain(ticker);
+  Scene masked(ticker);
+  Frame flat = framed(pair());
+  flat.pass(geometryPass("main").writes("colour"));
+  plain.render(flat);
+
+  Frame graded = framed(pair());
+  graded.pass(geometryPass("main").writes("colour"))
+      .pass(postPass("dim")
+                .reads("colour")
+                .writes("dim")
+                .only(sel::tag("glow"))
+                .levels(0.2f, 0.0f));
+  masked.render(graded);
+  ASSERT_TRUE(masked.error().empty());
+
+  // The unselected half is byte for byte what it was; the selected half
+  // is not.
+  EXPECT_EQ(paintedIn(plain, true), paintedIn(masked, true));
+  SkBitmap before;
+  SkBitmap after;
+  before.allocPixels(
+      SkImageInfo::MakeN32Premul(kFrameExtent.width(), kFrameExtent.height()));
+  after.allocPixels(
+      SkImageInfo::MakeN32Premul(kFrameExtent.width(), kFrameExtent.height()));
+  before.eraseColor(SK_ColorTRANSPARENT);
+  after.eraseColor(SK_ColorTRANSPARENT);
+  SkCanvas one(before);
+  SkCanvas two(after);
+  plain.draw(one);
+  masked.draw(two);
+  const int y = kFrameExtent.height() / 2;
+  EXPECT_EQ(before.getColor(kFrameExtent.width() / 4, y),
+            after.getColor(kFrameExtent.width() / 4, y));
+  EXPECT_NE(before.getColor(kFrameExtent.width() * 3 / 4, y),
+            after.getColor(kFrameExtent.width() * 3 / 4, y));
+}
+
+TEST(WorldScene, AReadbackIsHandedOverTheFrameAfter) {
+  motion::Ticker ticker;
+  Scene scene(ticker);
+  int calls = 0;
+  uint64_t at = 0;
+  bool hadImage = false;
+  const auto describe = [&] {
+    Frame frame = framed(pair());
+    frame.pass(geometryPass("main").writes("colour"))
+        .readback(readback("colour").then([&](const Readback::Result& result) {
+          ++calls;
+          at = result.frame;
+          hadImage = (bool)result.image;
+        }));
+    return frame;
+  };
+
+  scene.render(describe());
+  EXPECT_EQ(calls, 0);  // taken, not yet handed over
+  scene.render(describe());
+  EXPECT_EQ(calls, 1);
+  EXPECT_EQ(at, 0u);  // what the FIRST frame wrote
+  EXPECT_TRUE(hadImage);
+  scene.render(describe());
+  EXPECT_EQ(calls, 2);
+  EXPECT_EQ(at, 1u);
+}
+
+TEST(WorldScene, ACycleInThePassesIsAnErrorAndNothingRuns) {
+  motion::Ticker ticker;
+  Scene scene(ticker);
+  Frame frame = framed(pair());
+  frame.pass(postPass("a").reads("second").writes("first"))
+      .pass(postPass("b").reads("first").writes("second"));
+  scene.render(frame);
+
+  EXPECT_FALSE(scene.error().empty());
+  EXPECT_EQ(scene.stats().passes, 0);
+}
+
+TEST(WorldScene, AFrameThatDeclaresPassesAndNoExtentSaysSo) {
+  motion::Ticker ticker;
+  Scene scene(ticker);
+  Frame frame(pair());
+  frame.pass(geometryPass("main").writes("colour"));
+  scene.render(frame);
+  EXPECT_FALSE(scene.error().empty());
+  EXPECT_EQ(scene.stats().passes, 0);
+}
+
+TEST(WorldScene, TheOrderingsCountsAreOnTheFramesTally) {
+  motion::Ticker ticker;
+  Scene scene(ticker);
+  Frame frame = framed(pair());
+  frame.pass(geometryPass("main").writes("colour"))
+      .pass(postPass("half").reads("colour").writes("half"))
+      .pass(postPass("quarter").reads("half").writes("quarter"))
+      .pass(postPass("eighth").reads("quarter").writes("eighth"));
+  scene.render(frame);
+
+  ASSERT_TRUE(scene.error().empty());
+  EXPECT_EQ(scene.stats().passes, 4);
+  EXPECT_EQ(scene.stats().surfaces, scene.plan().surfaces());
+  EXPECT_EQ(scene.stats().aliased, 2);
+  EXPECT_GT(scene.stats().barriers, 0);
+  // …and the surfaces the ordering asked for are the surfaces that were
+  // made.
+  EXPECT_EQ(scene.targets().surfaces(), scene.plan().surfaces());
 }

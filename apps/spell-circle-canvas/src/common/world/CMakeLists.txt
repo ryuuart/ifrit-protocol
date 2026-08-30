@@ -20,9 +20,20 @@ add_subdirectory(light)
 # this and the light feature above.
 add_subdirectory(element)
 
+# A frame as three declared things — the scene, an ordered list of
+# passes and the readbacks — the resources those passes write, and the
+# seam a pass is performed through. No device: the executor that ships
+# here is the CPU one.
+add_subdirectory(frame)
+
+# The ordering: what runs when, which resources share a surface, the
+# barriers between them, and how a pass's selection reaches the pixels.
+# It reads declarations and draws nothing.
+add_subdirectory(graph)
+
 # The retained side: the reconcile host, the entity store, the resource
 # store and the declared phases, drawing through SigilGeometry's mesh
-# runtime.
+# runtime and executing a frame's passes on the runtime it carries.
 add_subdirectory(scene)
 
 # The study harness: a scene stepped to a declared moment and

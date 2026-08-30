@@ -34,9 +34,13 @@ SkBitmap render(const Study& study) {
   Scene scene(ticker);
   const int frames =
       std::max(1, (int)std::lround((double)study.captureSeconds / kStep));
-  for (int frame = 1; frame <= frames; ++frame) {
+  for (int step = 1; step <= frames; ++step) {
     ticker.tick(kStep);
-    scene.render(study.describe((float)(frame * kStep)));
+    // The plate's size and its viewpoint are the harness's to state: a
+    // study says what it is of, not where it lands.
+    Frame frame = study.describe((float)(step * kStep));
+    frame.extent(study.canvas).camera(study.camera);
+    scene.render(frame);
   }
 
   canvas.clear(study.background.toSkColor());

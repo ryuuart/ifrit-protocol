@@ -65,8 +65,7 @@ bool Selector::matches(const Subject& subject) const {
       return subject.key == m_term->word;
     case Op::Under:
       return std::find(subject.ancestorKeys.begin(), subject.ancestorKeys.end(),
-                       std::string_view(m_term->word)) !=
-             subject.ancestorKeys.end();
+                       m_term->word) != subject.ancestorKeys.end();
     case Op::Material:
       return subject.material && m_term->material &&
              *subject.material == *m_term->material;

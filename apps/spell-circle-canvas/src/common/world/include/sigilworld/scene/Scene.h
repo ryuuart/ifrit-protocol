@@ -9,12 +9,16 @@
 
 #include <sigilgeometry/mesh/render/Runtime.h>
 #include <sigilworld/element/Element.h>
+#include <sigilworld/frame/Frame.h>
+#include <sigilworld/frame/Targets.h>
+#include <sigilworld/graph/Plan.h>
 #include <sigilworld/scene/Stats.h>
 
 #include <cstdint>
 #include <glm/mat4x4.hpp>
 #include <memory>
 #include <optional>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -60,17 +64,26 @@ class Scene {
   Scene& operator=(Scene&&) noexcept;
   ~Scene();
 
-  /** ONE FRAME: describe, sample the lanes, derive the placements, and
-   *  extract. Nothing is drawn here. */
-  void render(const Element& root);
+  /** ONE FRAME: describe, sample the lanes, derive the placements,
+   *  extract, order the passes and execute them.
+   *
+   *  A frame with no passes is its scene — nothing is executed and the
+   *  draw below paints the bodies extract left. A frame WITH passes has
+   *  already been performed when this returns, into the resources the
+   *  ordering gave it, and the draw presents what they wrote. Execution
+   *  reads the extracted state and never the Element tree. */
+  void render(const Frame& frame);
 
-  /** Draw what the last `render()` extracted, from @p camera, on
-   *  @p runtime. Execution reads the extracted state and never the
-   *  Element tree. */
+  /** Draw what the last `render()` produced, from @p camera, on
+   *  @p runtime. A frame that declared passes has already run them, and
+   *  this presents the resource they wrote — the camera and the runtime
+   *  are the ones the passes already used, and these arguments do not
+   *  enter into it. */
   void draw(SkCanvas& canvas, const Camera& camera,
             const render::Runtime& runtime = render::Runtime::cpu());
   /** …and from the viewpoint the tree declared, if it declared one. A
-   *  tree with no `camera()` in it draws from the default Camera. */
+   *  tree with no `camera()` in it draws from the frame's, and a frame
+   *  that named none from the default Camera. */
   void draw(SkCanvas& canvas,
             const render::Runtime& runtime = render::Runtime::cpu());
 
@@ -93,6 +106,17 @@ class Scene {
    *  addressed by @p key resolved — 0 when it resolved none. Two nodes
    *  describing one geometry share one artefact and answer 2. */
   [[nodiscard]] int referencesOf(std::string_view key) const;
+
+  /** The ordering the last `render()` derived from the frame's passes:
+   *  the steps, the barriers, the resources and their surfaces. A frame
+   *  with no passes leaves it empty. */
+  [[nodiscard]] const graph::Plan& plan() const;
+  /** The resources the last frame's passes wrote, so a caller can read
+   *  one without declaring a readback. */
+  [[nodiscard]] Targets& targets();
+  /** What stopped the last frame's passes from running, naming what was
+   *  wrong. Empty when nothing did. */
+  [[nodiscard]] const std::string& error() const;
 
   /** What the last frame did. */
   [[nodiscard]] const SceneStats& stats() const;

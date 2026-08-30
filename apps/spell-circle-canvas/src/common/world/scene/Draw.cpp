@@ -1,14 +1,17 @@
 /** @file
- * The draw: what the last extract left in the registry, sorted back to
- * front and handed to the mesh runtime. It reads components and nothing
- * else — the Element tree is not reachable from here.
+ * The draw: what the last render left, put on a canvas. A frame that
+ * declared passes has already run them and the picture is one of its
+ * resources, so the draw is a blit; a frame with no passes is its scene,
+ * and the draw paints the bodies extract left. Either way it reads
+ * components and images — the Element tree is not reachable from here.
  */
 
 #include <include/core/SkCanvas.h>
+#include <include/core/SkImage.h>
+#include <include/core/SkSamplingOptions.h>
 #include <sigilgeometry/mesh/render/Painter.h>
 
-#include <algorithm>
-#include <utility>
+#include <optional>
 #include <vector>
 
 #include "SceneImpl.h"
@@ -42,6 +45,16 @@ render::Light directional(const Light& light) {
 void Scene::draw(SkCanvas& canvas, const Camera& camera,
                  const render::Runtime& runtime) {
   Impl& impl = *m_impl;
+  // A frame with passes has already been performed, from the viewpoint
+  // the tree or the frame declared; presenting it is the whole of the
+  // draw, and the arguments here do not enter into it.
+  if (!impl.frame.passes().empty()) {
+    if (impl.plan.present().empty()) return;
+    const sk_sp<SkImage> picture = impl.targets.image(impl.plan.present());
+    if (picture) canvas.drawImage(picture, 0, 0);
+    return;
+  }
+
   const SkISize layer = canvas.getBaseLayerSize();
   const SkSize viewport =
       SkSize::Make((float)layer.width(), (float)layer.height());
@@ -54,40 +67,18 @@ void Scene::draw(SkCanvas& canvas, const Camera& camera,
       style.lights.push_back(directional(light));
   }
 
-  // Back to front by view depth, so a nearer body covers a farther one
-  // without a depth buffer. Stable, because two bodies at one depth must
-  // land in tree order rather than in whichever order a sort happened to
-  // leave them — a byte-identity gate reads the difference.
-  const glm::mat4 view = camera.view();
-  std::vector<std::pair<float, entt::entity>> sorted;
-  sorted.reserve(impl.order.size());
-  for (entt::entity entity : impl.order) {
-    const glm::mat4& world =
-        impl.registry.get<component::Placement>(entity).world;
-    const glm::vec4 centre = view * world * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
-    sorted.emplace_back(centre.z, entity);
-  }
-  std::stable_sort(sorted.begin(), sorted.end(),
-                   [](const std::pair<float, entt::entity>& a,
-                      const std::pair<float, entt::entity>& b) {
-                     return a.first < b.first;
-                   });
-
-  for (const auto& [depth, entity] : sorted) {
-    const component::Body& body = impl.registry.get<component::Body>(entity);
-    if (!body.mesh) continue;
-    const glm::vec4& colour =
-        impl.registry.get<component::Surface>(entity).baseColor;
-    style.baseColor = SkColor4f{colour.r, colour.g, colour.b, colour.a};
-    render::drawMesh(canvas, *body.mesh,
-                     impl.registry.get<component::Placement>(entity).world,
-                     camera, viewport, style);
+  std::vector<Draw> bodies;
+  impl.collectBodies(camera, bodies);
+  for (const Draw& body : bodies) {
+    style.baseColor = SkColor4f{body.baseColor.r, body.baseColor.g,
+                                body.baseColor.b, body.baseColor.a};
+    render::drawMesh(canvas, *body.mesh, body.world, camera, viewport, style);
   }
 }
 
 void Scene::draw(SkCanvas& canvas, const render::Runtime& runtime) {
   const std::optional<Camera> declared = camera();
-  draw(canvas, declared ? *declared : Camera{}, runtime);
+  draw(canvas, declared ? *declared : m_impl->frame.camera(), runtime);
 }
 
 }  // namespace sigil::world

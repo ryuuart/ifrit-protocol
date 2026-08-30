@@ -1,6 +1,7 @@
 /** @file
  * What a frame costs: describing and reconciling a tree at several node
- * counts, the steady frame that follows, and the draw.
+ * counts, the steady frame that follows, the draw, and a whole frame of
+ * passes ordered and executed.
  */
 
 #include <benchmark/benchmark.h>
@@ -92,6 +93,40 @@ void PrunedFrame(benchmark::State& state) {
   state.SetItemsProcessed(state.iterations() * nodes);
 }
 BENCHMARK(PrunedFrame)->Arg(64)->Arg(512)->Arg(2048);
+
+/** A whole frame: describe, extract, order the passes and execute them.
+ *  The chain is deliberately one every pass depends on, so the ordering
+ *  has work to do and the transients take turns on their surfaces. */
+void FramePasses(benchmark::State& state) {
+  const int nodes = (int)state.range(0);
+  const Mesh body = triangle();
+  motion::Ticker ticker;
+  Scene scene(ticker);
+  float phase = 0.0f;
+  Camera lens;
+  lens.eye = {0, 0, 620};
+  const auto describe = [&](float at) {
+    Frame frame(describeTree(nodes, body, at));
+    frame.extent({256, 256}).camera(lens);
+    frame.pass(geometryPass("main").writes("colour"))
+        .pass(postPass("half").reads("colour").writes("half").blur(4.0f))
+        .pass(postPass("hot").reads("half").writes("hot").levels(
+            1.4f, 0.02f, {1.0f, 0.9f, 0.8f, 1.0f}))
+        .pass(postPass("picture")
+                  .reads("colour", "hot")
+                  .writes("picture")
+                  .composite(SkBlendMode::kPlus, 0.7f));
+    return frame;
+  };
+  for ([[maybe_unused]] auto iteration : state) {
+    phase += 1.0f;
+    scene.render(describe(phase));
+    int64_t passes = scene.stats().passes;
+    benchmark::DoNotOptimize(passes);
+  }
+  state.SetItemsProcessed(state.iterations() * nodes);
+}
+BENCHMARK(FramePasses)->Arg(64)->Arg(512);
 
 void DrawFrame(benchmark::State& state) {
   const int nodes = (int)state.range(0);

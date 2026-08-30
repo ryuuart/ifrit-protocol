@@ -19,6 +19,7 @@ target_link_libraries(SigilWorldTesting PUBLIC SigilWorldScene)
 add_executable(world_studies
   studies/Registry.cpp
   studies/first_light.cpp
+  studies/glow_trail.cpp
   studies/world_studies_main.cpp
   studies/Studies.h
 )

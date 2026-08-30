@@ -2,7 +2,7 @@
  "config": "Release",
  "host": "MacBookPro.lan",
  "machine": "arm64",
- "taken": "2026-08-30T20:41:24+00:00",
+ "taken": "2026-08-30T21:40:13+00:00",
  "benches": {
   "compose_brush_bench": {
    "BM_Draw_ArtWarp_Live": {
@@ -3542,6 +3542,106 @@
     "repetitions": 4
    }
   },
+  "world_frame_bench": {
+   "GeometryPass/64": {
+    "real_ns": 111027.68379493637,
+    "cpu_ns": 111027.79984114369,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "GeometryPass/512": {
+    "real_ns": 769051.9675264483,
+    "cpu_ns": 769038.461538461,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "GeometryPass/2048": {
+    "real_ns": 2112340.277314863,
+    "cpu_ns": 2112272.7272727275,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "CulledPass/64": {
+    "real_ns": 27809.980969163647,
+    "cpu_ns": 27809.362549800917,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "CulledPass/512": {
+    "real_ns": 95794.695673513,
+    "cpu_ns": 95792.86694101515,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "CulledPass/2048": {
+    "real_ns": 235730.47543052307,
+    "cpu_ns": 235724.79338843044,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "PostBlur": {
+    "real_ns": 5655984.999611974,
+    "cpu_ns": 5653579.999999998,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "PostComposite": {
+    "real_ns": 285142.670227177,
+    "cpu_ns": 285094.1295546537,
+    "unit": "ns",
+    "repetitions": 4
+   }
+  },
+  "world_graph_bench": {
+   "OrderChain/4": {
+    "real_ns": 2128.3476684170437,
+    "cpu_ns": 2128.0672166765435,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "OrderChain/16": {
+    "real_ns": 9197.6694901634,
+    "cpu_ns": 9196.375016299375,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "OrderChain/64": {
+    "real_ns": 53777.67487983528,
+    "cpu_ns": 53776.65369649808,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "OrderChain/256": {
+    "real_ns": 288016.82689849305,
+    "cpu_ns": 288008.09716599155,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "OrderFan/4": {
+    "real_ns": 2002.5907658861684,
+    "cpu_ns": 2001.8381027895891,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "OrderFan/16": {
+    "real_ns": 7722.355788825887,
+    "cpu_ns": 7722.1945826423225,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "OrderFan/64": {
+    "real_ns": 38369.22267622522,
+    "cpu_ns": 38363.962472406216,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "OrderFan/256": {
+    "real_ns": 222139.1291713066,
+    "cpu_ns": 222100.15772870503,
+    "unit": "ns",
+    "repetitions": 4
+   }
+  },
   "world_light_bench": {
    "BM_Attenuation/0": {
     "real_ns": 3690.384461477947,
@@ -3564,68 +3664,80 @@
   },
   "world_scene_bench": {
    "MountTree/64": {
-    "real_ns": 48173.795945146456,
-    "cpu_ns": 48046.05954465842,
+    "real_ns": 50974.2338384309,
+    "cpu_ns": 50973.73221452026,
     "unit": "ns",
     "repetitions": 4
    },
    "MountTree/512": {
-    "real_ns": 363346.5572052823,
-    "cpu_ns": 363286.269430052,
+    "real_ns": 382743.4739323108,
+    "cpu_ns": 382504.1208791208,
     "unit": "ns",
     "repetitions": 4
    },
    "MountTree/2048": {
-    "real_ns": 1447492.623507666,
-    "cpu_ns": 1446885.416666666,
+    "real_ns": 1542332.8738536807,
+    "cpu_ns": 1542346.153846154,
     "unit": "ns",
     "repetitions": 4
    },
    "SteadyFrame/64": {
-    "real_ns": 36990.44932705427,
-    "cpu_ns": 36980.86566376355,
+    "real_ns": 39019.78057410333,
+    "cpu_ns": 39015.07537688445,
     "unit": "ns",
     "repetitions": 4
    },
    "SteadyFrame/512": {
-    "real_ns": 301410.7198802187,
-    "cpu_ns": 301351.9313304727,
+    "real_ns": 319021.36501538503,
+    "cpu_ns": 319009.2807424596,
     "unit": "ns",
     "repetitions": 4
    },
    "SteadyFrame/2048": {
-    "real_ns": 1321535.5131597747,
-    "cpu_ns": 1321361.9047619116,
+    "real_ns": 1327016.0759843532,
+    "cpu_ns": 1326480.952380956,
     "unit": "ns",
     "repetitions": 4
    },
    "PrunedFrame/64": {
-    "real_ns": 9605.711988113233,
-    "cpu_ns": 9604.342787019366,
+    "real_ns": 9526.012945447115,
+    "cpu_ns": 9525.570309839986,
     "unit": "ns",
     "repetitions": 4
    },
    "PrunedFrame/512": {
-    "real_ns": 79701.32985826238,
-    "cpu_ns": 79688.38127467557,
+    "real_ns": 79219.3191320917,
+    "cpu_ns": 79198.25581395449,
     "unit": "ns",
     "repetitions": 4
    },
    "PrunedFrame/2048": {
-    "real_ns": 315248.8280882996,
-    "cpu_ns": 315191.0112359582,
+    "real_ns": 313935.25148794224,
+    "cpu_ns": 313934.83146067336,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "FramePasses/64": {
+    "real_ns": 1855860.9267898104,
+    "cpu_ns": 1855743.243243239,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "FramePasses/512": {
+    "real_ns": 2521215.9083986823,
+    "cpu_ns": 2520545.454545455,
     "unit": "ns",
     "repetitions": 4
    },
    "DrawFrame/64": {
-    "real_ns": 89366.69587196619,
-    "cpu_ns": 89337.76932826423,
+    "real_ns": 84218.01530260361,
+    "cpu_ns": 84204.3399638345,
     "unit": "ns",
     "repetitions": 4
    },
    "DrawFrame/512": {
-    "real_ns": 520071.52785167645,
-    "cpu_ns": 519964.81481482007,
+    "real_ns": 486678.6132563293,
+    "cpu_ns": 486654.1218638008,
     "unit": "ns",
     "repetitions": 4
    }

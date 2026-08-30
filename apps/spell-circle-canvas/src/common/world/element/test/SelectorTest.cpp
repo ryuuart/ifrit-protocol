@@ -30,7 +30,7 @@ material::Material paint(glm::vec4 colour) {
 struct Node {
   std::string key;
   std::vector<std::string> tags;
-  std::vector<std::string_view> ancestors;
+  std::vector<std::string> ancestors;
   const material::Material* material = nullptr;
 
   Subject subject() const { return {key, tags, ancestors, material}; }

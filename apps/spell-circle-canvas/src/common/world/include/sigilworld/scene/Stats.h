@@ -27,15 +27,21 @@ struct SceneStats {
   int64_t replayed = 0;   ///< subtrees whose draw order was replayed
   int64_t drawn = 0;      ///< entities in the extracted draw order
   int64_t rounds = 0;     ///< converging rounds the phase runner ran
+  int64_t passes = 0;     ///< passes executed
+  int64_t barriers = 0;   ///< hazards the ordering stated
+  int64_t aliased = 0;    ///< resources handed a surface another one uses
+  int64_t surfaces = 0;   ///< surfaces the frame's image resources needed
 
   void reset() {
     reconcile.reset();
     nodes = extracted = cooked = baked = replayed = drawn = rounds = 0;
+    passes = barriers = aliased = surfaces = 0;
   }
 
   /** Adds every count under its name (`world.nodes`, `world.extracted`,
    *  `world.cooked`, `world.resources`, `world.baked`,
-   *  `world.replayed`, `world.drawn`, `world.rounds`), and the
+   *  `world.replayed`, `world.drawn`, `world.rounds`, `world.passes`,
+   *  `world.barriers`, `world.aliased`, `world.surfaces`), and the
    *  reconciler's under theirs. */
   void report(measure::Counters& counters) const {
     reconcile.report(counters);
@@ -47,6 +53,10 @@ struct SceneStats {
     counters.add("world.replayed", replayed);
     counters.add("world.drawn", drawn);
     counters.add("world.rounds", rounds);
+    counters.add("world.passes", passes);
+    counters.add("world.barriers", barriers);
+    counters.add("world.aliased", aliased);
+    counters.add("world.surfaces", surfaces);
   }
 };
 

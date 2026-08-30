@@ -1,0 +1,54 @@
+#pragma once
+
+/** @file
+ * What a pass is allowed to see: the bodies a frame extracted, the
+ * emitters, the viewpoint and the extent. It is read-only and it is the
+ * ONLY door onto the scene an execution has — the description tree is
+ * not reachable from a pass.
+ */
+
+#include <include/core/SkSize.h>
+#include <sigilworld/element/Element.h>
+#include <sigilworld/element/Selector.h>
+
+#include <glm/mat4x4.hpp>
+#include <glm/vec4.hpp>
+#include <span>
+#include <string>
+#include <string_view>
+
+namespace sigil::world {
+
+/** ONE BODY, as an execution reads it: where it stands, what triangles
+ *  it is, what it is painted with, and the words a selector asks about.
+ *  Every pointer and span here addresses state the frame retains, and
+ *  stands for as long as the view does. */
+struct Draw {
+  glm::mat4 world{1.0f};
+  const Mesh* mesh = nullptr;
+  glm::vec4 baseColor{0.8f, 0.8f, 0.85f, 1.0f};
+  std::string_view key;
+  std::span<const std::string> tags;
+  /** The keys from the root down to this body's parent. */
+  std::span<const std::string> ancestors;
+  const ::sigil::material::Material* material = nullptr;
+};
+
+/** WHAT ONE FRAME EXTRACTED, handed to every pass that runs over it.
+ *
+ *  The bodies arrive sorted back to front by view depth — stably, so
+ *  two at one depth stand in tree order — because that is the order a
+ *  rasteriser with no depth buffer must draw them in, and sorting once
+ *  per frame rather than once per pass is what keeps two passes over
+ *  one view drawing the same picture. */
+struct View {
+  std::span<const Draw> draws;
+  std::span<const Light> lights;
+  Camera camera;
+  SkISize extent{0, 0};
+};
+
+/** @p draw as a Selector reads it. */
+Subject subjectOf(const Draw& draw);
+
+}  // namespace sigil::world

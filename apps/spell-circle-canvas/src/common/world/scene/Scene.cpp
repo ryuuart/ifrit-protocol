@@ -6,6 +6,7 @@
 #include <sigilcore/reconcile/Phases.h>
 
 #include <span>
+#include <string>
 #include <utility>
 
 #include "SceneImpl.h"
@@ -18,12 +19,17 @@ namespace {
  *  handed over; `lanes` samples every binding once; `derive` resolves
  *  placements, and converges because a node's placement is read by
  *  everything under it; `extract` is the one crossing from the value
- *  tree into the retained state a draw reads. */
+ *  tree into the retained state a draw reads; `graph` turns the frame's
+ *  declarations into an order and gives its resources surfaces; and
+ *  `execute` performs that order. The last two do nothing for a frame
+ *  that declared no passes. */
 constexpr core::Phase<Scene::Impl> kPhases[] = {
     {"describe", &Scene::Impl::phaseDescribe, false},
     {"lanes", &Scene::Impl::phaseLanes, false},
     {"derive", &Scene::Impl::phaseDerive, true},
     {"extract", &Scene::Impl::phaseExtract, false},
+    {"graph", &Scene::Impl::phaseGraph, false},
+    {"execute", &Scene::Impl::phaseExecute, false},
 };
 
 }  // namespace
@@ -33,10 +39,12 @@ Scene::Scene(Scene&&) noexcept = default;
 Scene& Scene::operator=(Scene&&) noexcept = default;
 Scene::~Scene() = default;
 
-void Scene::render(const Element& root) {
+void Scene::render(const Frame& frame) {
   Impl& impl = *m_impl;
   impl.stats.reset();
-  impl.pending = root;
+  impl.error.clear();
+  impl.frame = frame;
+  impl.pending = frame.scene();
   impl.stats.rounds = core::runPhases(
       impl, std::span<const core::Phase<Impl>>(kPhases), kConvergeRounds,
       // Nothing settles between rounds: derive is the only converging
@@ -44,6 +52,7 @@ void Scene::render(const Element& root) {
       // parent's.
       [] {});
   impl.stats.resources = (int64_t)impl.store.size();
+  ++impl.frameIndex;
 }
 
 std::optional<Camera> Scene::camera() const { return m_impl->camera; }
@@ -69,6 +78,12 @@ int Scene::referencesOf(std::string_view key) const {
   if (it == m_impl->byKey.end() || !it->second->resource) return 0;
   return it->second->resource->references;
 }
+
+const graph::Plan& Scene::plan() const { return m_impl->plan; }
+
+Targets& Scene::targets() { return m_impl->targets; }
+
+const std::string& Scene::error() const { return m_impl->error; }
 
 const SceneStats& Scene::stats() const { return m_impl->stats; }
 

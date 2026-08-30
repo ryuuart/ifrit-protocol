@@ -14,15 +14,18 @@
 #include <sigilcore/reconcile/Reconcile.h>
 #include <sigilworld/element/Lanes.h>
 #include <sigilworld/element/Node.h>
+#include <sigilworld/frame/Runtime.h>
 #include <sigilworld/scene/Scene.h>
 
 #include <array>
 #include <entt/entity/registry.hpp>
+#include <functional>
 #include <glm/vec4.hpp>
 #include <memory>
 #include <optional>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "Resources.h"
@@ -49,14 +52,25 @@ struct Body {
   const Mesh* mesh = nullptr;
 };
 
-/** What the surface is, in the terms the CPU tier shades in. */
+/** What the surface is: the colour a tier with no compiler to run a
+ *  recipe's body can read, and the material itself, for a selector
+ *  asking which surface a body wears. */
 struct Surface {
   glm::vec4 baseColor{0.8f, 0.8f, 0.85f, 1.0f};
+  std::optional<::sigil::material::Material> material;
 };
 
 /** The words this node answers to. */
 struct Tagged {
   std::vector<std::string> words;
+};
+
+/** What a selector addresses this node by: its own key, and the keys
+ *  from the root down to its parent. Extract writes them, so a pass
+ *  narrowing on a key never reaches for the description. */
+struct Named {
+  std::string key;
+  std::vector<std::string> ancestors;
 };
 
 }  // namespace component
@@ -150,6 +164,25 @@ struct Scene::Impl {
 
   std::vector<Lane> laneScratch;
   std::vector<Lane> prevLaneScratch;
+  /** The keys standing above the node extract is writing, held across
+   *  the walk so a node's ancestry costs a push and a pop. */
+  std::vector<std::string> ancestry;
+
+  // ---- the frame the last render was handed ----
+  Frame frame;
+  graph::Plan plan;
+  Targets targets;
+  /** The bodies the last extract left, sorted back to front, and what a
+   *  pass sees of them. */
+  std::vector<Draw> draws;
+  View view;
+  /** The readbacks taken at the end of the last frame, handed over at
+   *  the start of the next one. */
+  std::vector<
+      std::pair<Readback::Result, std::function<void(const Readback::Result&)>>>
+      captured;
+  uint64_t frameIndex = 0;
+  std::string error;
 
   /** The bake seam's one tier: the decision is SigilCore's, and these
    *  are the operations that carry it out. */
@@ -192,6 +225,8 @@ struct Scene::Impl {
   bool phaseLanes();
   bool phaseDerive();
   bool phaseExtract();
+  bool phaseGraph();
+  bool phaseExecute();
 
   /** Resolves @p inst's geometry slot against the store, dropping
    *  whatever it held. @p geometry is the slot with this frame's window
@@ -214,6 +249,16 @@ struct Scene::Impl {
   void extractInto(Instance& inst, std::vector<entt::entity>& into,
                    bool recording = false);
   void writeComponents(Instance& inst);
+
+  /** The viewpoint the passes execute from: the tree's, or the frame's
+   *  where the tree declared none. */
+  [[nodiscard]] Camera viewpoint() const;
+  /** The extracted bodies, sorted back to front by view depth from
+   *  @p camera — stably, so two at one depth stand in tree order. It is
+   *  the one place components become the values a draw reads. */
+  void collectBodies(const Camera& camera, std::vector<Draw>& into) const;
+  /** Hands over what the frame before read back. */
+  void deliverReadbacks();
 };
 
 }  // namespace sigil::world

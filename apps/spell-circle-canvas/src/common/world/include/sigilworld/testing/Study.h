@@ -9,7 +9,7 @@
 #include <include/core/SkBitmap.h>
 #include <include/core/SkColor.h>
 #include <include/core/SkSize.h>
-#include <sigilworld/element/Element.h>
+#include <sigilworld/frame/Frame.h>
 
 #include <functional>
 #include <span>
@@ -18,13 +18,18 @@
 namespace sigil::world::testing {
 
 /** ONE STUDY: what it is called, the plate it renders into, the moment
- *  it is photographed at, and the tree it describes at a given scene
+ *  it is photographed at, and the frame it describes at a given scene
  *  time.
  *
  *  `describe` is a pure function of the scene time and nothing else,
  *  which is what makes a plate reproducible: the harness steps from zero
  *  at a fixed 1/60 and photographs the declared moment, so the image
- *  depends on the declaration and never on how fast the machine ran. */
+ *  depends on the declaration and never on how fast the machine ran.
+ *
+ *  A study about the scene returns an Element and a Frame is made of it;
+ *  a study about the passes returns the Frame itself. The harness writes
+ *  the plate's size and this viewpoint into whichever it was handed, so
+ *  a study states its subject and nothing about where it lands. */
 struct Study {
   std::string name;
   SkISize canvas{900, 640};
@@ -32,7 +37,7 @@ struct Study {
   SkColor4f background{0.04f, 0.045f, 0.06f, 1.0f};
   /** The viewpoint, unless the tree declares one of its own. */
   Camera camera;
-  std::function<Element(float seconds)> describe;
+  std::function<Frame(float seconds)> describe;
 };
 
 /** Steps @p study to its declared moment and draws the last frame

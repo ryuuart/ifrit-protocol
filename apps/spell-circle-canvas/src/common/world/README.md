@@ -1,11 +1,11 @@
 # SigilWorld
 
-SigilWorld describes a 3D scene as comparable values, reconciles those
-values onto a tree it retains, and draws what that reconcile extracted.
-It owns three things and nothing else: the 3D scene description, the
-retained side that turns it into drawable state, and — as the features
-below it arrive — the frame graph that orders passes and the execution of
-that graph. It holds no window, no swapchain, no clock, and no second
+SigilWorld describes a 3D scene as comparable values, turns those values
+into a frame — a scene, an ordered list of passes and the readbacks the
+caller asked for — and executes that frame. It owns three things and
+nothing else: the 3D scene description, the frame graph that orders
+passes from their declared inputs and outputs, and the execution of that
+graph. It holds no window, no swapchain, no clock, and no second
 copy of anything a library beneath it already defines: meshes, point
 operators, splines, cameras and the CPU mesh executor are SigilGeometry's;
 materials, recipes and programs are SigilMaterial's; the reconciler, its
@@ -24,9 +24,11 @@ here.
 | directory | target | namespace | holds |
 |---|---|---|---|
 | `element/` | `SigilWorldElement` | `sigil::world` | `Element` and its verbs, the transform lanes, the geometry slot, tags, `Selector` and the `Generator` seam. No device, no retained state. |
-| `scene/` | `SigilWorldScene` | `sigil::world` | the retained side: the reconcile host, the entity store, the content-keyed resource store, the declared phases, and the draw. |
+| `frame/` | `SigilWorldFrame` | `sigil::world` | `Frame`, `Pass`, `Readback`, the `Targets` a frame's passes write, the `View` they read, and the `Runtime`/`Executor` seam with its CPU executor. No device, no retained state. |
+| `graph/` | `SigilWorldGraph` | `sigil::world::graph` | the `Plan`: the order the passes run in, the surfaces they share, the barriers between them, and how each selection is realised. It reads declarations and draws nothing. |
+| `scene/` | `SigilWorldScene` | `sigil::world` | the retained side: the reconcile host, the entity store, the content-keyed resource store, the declared phases, the execution of a frame's passes, and the draw. |
 | `light/` | `SigilWorldLight` | `sigil::world::light` | emitters as plain comparable values over glm: a sun, a point light, a spot, their falloffs and the per-frame budget. |
-| `testing/` | `SigilWorldTesting` | `sigil::world::testing` | the study harness — a scene stepped to a declared moment on the CPU and photographed — and the `world_studies` binary the plate ledger's 3D tier drives. |
+| `testing/` | `SigilWorldTesting` | `sigil::world::testing` | the study harness — a frame stepped to a declared moment on the CPU and photographed — and the `world_studies` binary the plate ledger's 3D tier drives. |
 | `diligent/` | `SigilWorldDiligent` | `sigil::world::diligent` | the one GPU device 2D and 3D share. |
 
 ## Writing a scene
@@ -64,6 +66,31 @@ scene.render(
                    .tag("glow")));
 
 scene.draw(canvas);   // from the viewpoint the tree declared
+```
+
+A tree handed to `render()` is a `Frame` with no passes, which is why the
+call above compiles. A frame that has something to say about HOW the
+picture is made says it in passes:
+
+```cpp
+Frame frame(model);
+frame.extent({1280, 720})
+     .camera(lens)
+     .pass(geometryPass("main").writes("colour"))
+     .pass(postPass("bloom")
+               .reads("colour")
+               .writes("lit")
+               .only(sel::tag("glow"))
+               .blur(9.0f))
+     .pass(postPass("trail")
+               .reads("lit")
+               .previous("trail")
+               .writes("trail")
+               .composite(SkBlendMode::kPlus, 0.88f))
+     .readback(readback("trail").then(observe));
+
+scene.render(frame);
+scene.draw(canvas);   // what the passes wrote
 ```
 
 Where a concept exists in two dimensions this spells it the way
@@ -113,7 +140,101 @@ internal to `scene/` the way Yoga is internal to SigilCompose.
 
 **Execution never reads the Element tree.** Extract is the one crossing:
 it writes an entity's components — its placement, the mesh to draw, the
-surface, its tags — and the draw reads those and nothing else.
+surface, its key and ancestry, its tags — and the draw and every pass
+read those and nothing else. What a pass is handed is a `View`: a span
+of `Draw` values, the lights, the viewpoint and the extent.
+
+**A pass is never a scene child.** It is a stage of making the frame, not
+a thing standing in the world, so it is declared on the `Frame` and never
+under an `Element`.
+
+**Nothing states an order.** A pass declares what it `reads` and what it
+`writes`, and the graph derives the sequence, the barriers and the shared
+surfaces from those declarations alone.
+
+## Frames, passes and the ordering
+
+A `Frame` is three declared things: the scene, an ordered list of passes,
+and the readbacks — plus the two dials that say where the picture lands.
+`extent(size)` is what its targets are made at, and a frame declaring
+passes needs one; `camera(c)` is the viewpoint for a tree that declares
+none of its own; `present(name)` names the resource the finished picture
+is in, and an unset one means the last image any pass wrote.
+
+`geometryPass(name)`, `computePass(name)` and `postPass(name)` each open
+a pass, and each is a comparable value — a frame prunes on a pass the way
+a tree prunes on a node.
+
+| verb | what it declares |
+|---|---|
+| `reads(names…)` / `writes(names…)` | the resources this pass touches, by name. The first name it writes is what its stage paints into |
+| `previous(name)` | that resource AS IT STOOD at the end of the frame before. It orders nothing, which is how a feedback loop is declared without a cycle |
+| `only(Selector)` | which bodies the pass addresses — `sel::tag`, `sel::key`, `sel::under`, `sel::material`, composed with `\|`, `&` and `!` |
+| `variant(Material)` | …drawn again in that surface |
+| `realise(Selection)` | override how the selection reaches the pixels |
+| `clear(SkColor4f)` | what a geometry pass clears its target to |
+| `chain(Chain, PopRuntime)` | the points a compute pass cooks, into the point set it writes |
+| `stamp(Mesh)` | the body a geometry pass stands at every point of every point set it reads |
+| `blur(sigma)` / `levels(gain, lift, tint)` / `composite(mode, opacity)` | what a post pass does to what it reads |
+| `body(…)` | THE ESCAPE: a callable handed the extracted `View` and the frame's `Targets`, which runs instead of the stage's own work and keeps its declarations |
+
+**The order comes off the declarations.** Every resource has versions —
+one per pass that writes it, in declaration order — and three edges
+follow: a read runs after the write it sees, a write runs after the write
+before it, and a write runs after every read of the version it replaces.
+Among the passes whose dependencies are all met, the one declared first
+runs first, so an order is a function of the declarations and never of
+the machine — and a pass written down before its producer still runs
+after it. A cycle is an error naming the passes on it, and no plan is
+produced.
+
+**Two resources whose lives do not overlap share a surface.** A resource
+lives from the step that first writes it to the last step that touches
+it; the transients are given the lowest-numbered free surface, so a frame
+pays for the most resources alive at once rather than for the number of
+names. A resource that outlives the frame — read back, read as a
+`previous`, or the one the picture is presented from — is never aliased.
+
+**The barriers are a plan, not an API call.** One between each pair of
+consecutive touches of a resource where either of them writes, and one
+where a surface passes from one resource to the next. The CPU executor
+performs the steps in order and needs none of them; the plan is built and
+checked all the same, because an ordering that only states its hazards
+where a device is present states them where they cannot be tested.
+
+**How a selection is realised is inferred, and can be overridden.**
+
+| the pass declared | what happens | why |
+|---|---|---|
+| nothing narrowed | `Selection::None` — every body | there is no selection |
+| a geometry pass with `only` | `Cull` — only the selected bodies are drawn | a pass that paints bodies can simply paint fewer |
+| a post pass with `only` | `Mask` — the picture stands everywhere and the op reaches it through coverage, which the graph makes the last geometry pass before it also write | a post pass has no bodies; it has pixels, and the selection has to arrive as pixels too |
+| `variant(surface)` | `Variant` — the selection is drawn again in that surface | it is a re-draw by definition |
+| `realise(…)` | exactly that | a pass that knows better says so |
+
+A narrowed post pass with nothing painting bodies ahead of it is an error
+naming the pass, because the coverage it needs cannot be taken.
+
+`Scene::plan()` is the whole reading — the steps, the barriers, the
+resources and their surfaces — and `Scene::error()` is what stopped it.
+
+## What the CPU executor performs
+
+`Runtime::cpu()` is the built-in `Executor`, and it paints into raster
+surfaces:
+
+- a **geometry pass** clears its target and paints the bodies its
+  realisation leaves it, from the view's camera and under the view's
+  lights, plus the stamps of every point set it reads;
+- a **compute pass** cooks its chain on the `pop::Runtime` it carries
+  into the point set it writes;
+- a **post pass** takes its layers — the images it reads, then the
+  images it named through `previous()` — softens, grades or lays them
+  one over another, and writes the result. Masked, the first layer
+  stands everywhere and the op reaches it only through the coverage.
+
+A pass carrying a body runs that body instead, and the declarations
+around it are unchanged.
 
 ## The host contract
 
@@ -135,11 +256,14 @@ itself. Operation by operation:
 | `destroy` | destroys the subtree's entities and releases its resource references |
 
 **Phases** are declared through `core::Phase` and run by `core::runPhases`:
-`describe` → `lanes` → `derive` (converging) → `extract`. Describe
-reconciles the tree the author handed over; lanes sample every binding
-once; derive resolves placements top-down and converges because a node's
-placement is read by everything under it; extract is the one crossing
-into the state a draw reads.
+`describe` → `lanes` → `derive` (converging) → `extract` → `graph` →
+`execute`. Describe reconciles the tree the author handed over; lanes
+sample every binding once; derive resolves placements top-down and
+converges because a node's placement is read by everything under it;
+extract is the one crossing into the state a draw reads; graph turns the
+frame's declarations into an order and gives its resources surfaces; and
+execute performs that order. The last two do nothing for a frame that
+declared no passes.
 
 **The caching proof** rides extract. Each node declares what moves —
 a bound or ramping placement lane is composite motion, a bound window
@@ -180,7 +304,7 @@ for a device.
 
 ## Studies
 
-A study is one 3D scene, stepped from zero at a fixed 1/60 to its
+A study is one 3D frame, stepped from zero at a fixed 1/60 to its
 declared moment and photographed — so a plate is a function of the
 declaration alone and never of how fast the machine ran.
 
@@ -196,6 +320,19 @@ visual iteration. A study joins the registry by being named in
 `first_light` is the first of them: a tube swept along a closed loop, a
 comet of stamps riding a moving window of that same loop, a plate under
 both, a sun and a lamp, and a camera on a rail of its own.
+
+`glow_trail` is the first about the passes. Its set is drawn once, and
+what is tagged "glow" is then reached three ways, one per realisation:
+a narrowed post pass lifts the beads in place through the coverage the
+geometry pass before it was made to write; a narrowed geometry pass draws
+the same beads alone into a target of their own, which is softened and
+dimmed; and that is laid over its own output from the frame before, so
+the comet drags a tail no single frame contains. Six passes, no stated
+order, and three of its surfaces are taken in turns.
+
+A study returns a `Frame`, and an `Element` is one with no passes, so a
+study about the scene says nothing about passes at all. The harness
+writes the plate's size and its viewpoint into whichever it was handed.
 
 ## The plate ledger's 3D tier
 
@@ -218,8 +355,6 @@ tree buildable:
 
 | directory | target | holds |
 |---|---|---|
-| `frame/` | `SigilWorldFrame` | `Frame`, `Pass`, `Readback`, the pass selectors, the `Runtime`/`Executor` seam and `Runtime::cpu()` |
-| `graph/` | `SigilWorldGraph` | ordering from declared reads and writes, transient aliasing, a backend-free barrier plan |
 | `kit/` | `SigilWorldKit` | presets that compose elements: a three-point rig, a turntable, a lit set |
 
 `diligent/` grows the rest of the execution side beside its device:
@@ -296,6 +431,17 @@ function of the description alone. `world_light_test` runs anywhere.
 vulkan-loader`) and *skips* rather than fails without one, so a machine
 with no GPU stays green.
 
-`world_element_bench`, `world_scene_bench`, `world_light_bench` and
-`world_diligent_bench` build through the `benches` target and run through
-`scripts/bench_ledger.py`; use a Release build.
+`world_frame_test` covers the declarations and the CPU executor without
+anything retained: a pass compares field by field, each realisation
+lands the pixels it promises, a post pass reads what stands and what
+stood last frame, a compute pass cooks, two names on one slot share the
+surface, and a declared body is handed the extracted view.
+`world_graph_test` covers the ordering: the order from the declarations
+and its independence from the order they were written in, a cycle named,
+`previous()` breaking one, the surfaces counted, the hazards stated, and
+each selection realisation ruled on.
+
+`world_element_bench`, `world_frame_bench`, `world_graph_bench`,
+`world_scene_bench`, `world_light_bench` and `world_diligent_bench` build
+through the `benches` target and run through `scripts/bench_ledger.py`;
+use a Release build.

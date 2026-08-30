@@ -23,7 +23,7 @@ namespace sigil::world {
 struct Subject {
   std::string_view key;
   std::span<const std::string> tags;
-  std::span<const std::string_view> ancestorKeys;
+  std::span<const std::string> ancestorKeys;
   const ::sigil::material::Material* material = nullptr;
 };
 

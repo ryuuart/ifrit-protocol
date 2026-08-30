@@ -11,6 +11,7 @@
 
 #include <cstring>
 #include <glm/gtc/matrix_inverse.hpp>
+#include <optional>
 #include <utility>
 #include <variant>
 
@@ -299,12 +300,19 @@ void Scene::Impl::writeComponents(Instance& inst) {
     registry.emplace_or_replace<component::Body>(inst.entity, mesh);
   else
     registry.remove<component::Body>(inst.entity);
-  registry.emplace_or_replace<component::Surface>(inst.entity,
-                                                  baseColorOf(node));
+  registry.emplace_or_replace<component::Surface>(
+      inst.entity, baseColorOf(node),
+      node.material
+          ? node.material
+          : (node.slots.empty()
+                 ? std::optional<material::Material>()
+                 : std::optional<material::Material>(node.slots.front())));
   if (node.tags.empty())
     registry.remove<component::Tagged>(inst.entity);
   else
     registry.emplace_or_replace<component::Tagged>(inst.entity, node.tags);
+  registry.emplace_or_replace<component::Named>(inst.entity, node.key,
+                                                ancestry);
 }
 
 void Scene::Impl::extractInto(Instance& inst, std::vector<entt::entity>& into,
@@ -315,6 +323,9 @@ void Scene::Impl::extractInto(Instance& inst, std::vector<entt::entity>& into,
   if (registry.all_of<component::Body>(inst.entity))
     into.push_back(inst.entity);
 
+  // The ancestry a selector reads is the keys standing above the node,
+  // which is exactly this walk's own stack.
+  ancestry.push_back(inst.desc->key);
   for (std::unique_ptr<Instance>& child : inst.children) {
     if (recording) {
       // A bake is one order for the whole settled subtree. Asking a
@@ -345,12 +356,14 @@ void Scene::Impl::extractInto(Instance& inst, std::vector<entt::entity>& into,
         break;
     }
   }
+  ancestry.pop_back();
 }
 
 bool Scene::Impl::phaseExtract() {
   order.clear();
   lights.clear();
   camera.reset();
+  ancestry.clear();
   if (!root) return false;
   foldVolatility(*root);
   BakeTarget target{this, root.get(), &order};
