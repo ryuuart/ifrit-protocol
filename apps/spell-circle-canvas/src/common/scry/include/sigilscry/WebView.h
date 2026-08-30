@@ -4,6 +4,7 @@
 #include <include/core/SkRect.h>
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkSamplingOptions.h>
+#include <sigilskia/device/Handle.h>
 
 #include <cstdint>
 #include <functional>
@@ -56,15 +57,17 @@ class WebView {
    */
   struct Frame {
     sk_sp<SkImage> image;
-    void* nativeTexture = nullptr;
+    /** GPU engines: the published texture, named on the engine's
+     *  GpuDevice; `exportNative` there hands the native object out.
+     *  Stale once the view republishes at a new size — the wrap in
+     *  `image` is what keeps a frame's texture alive. */
+    sigil::skia::TextureHandle texture;
     int width = 0;
     int height = 0;
     SkIRect dirtyBounds = SkIRect::MakeEmpty();
     uint64_t version = 0;
 
-    explicit operator bool() const {
-      return image != nullptr || nativeTexture != nullptr;
-    }
+    explicit operator bool() const { return image != nullptr || bool(texture); }
   };
 
   enum class MouseButton { None, Left, Middle, Right };
@@ -104,11 +107,12 @@ class WebView {
   /**
    * Acquires the latest published frame. Falsy until the first repaint.
    *
-   * On GPU engines pass the Graphite recorder you will draw with (it
-   * must share the engine's device/queue) to get `image` populated with
-   * a zero-copy, per-version-cached wrap of the frame texture; without
-   * a recorder you still get `nativeTexture` + metadata. On CPU engines
-   * the recorder is ignored and `image` is the raster frame.
+   * On GPU engines pass the Graphite recorder you will draw with (over
+   * the engine's device, on its shared context or another over the same
+   * queue) to get `image` populated with a zero-copy, per-version-cached
+   * wrap of the frame texture; without a recorder you still get
+   * `texture` + metadata. On CPU engines the recorder is ignored and
+   * `image` is the raster frame.
    *
    * Call from the thread that owns @p recorder.
    */

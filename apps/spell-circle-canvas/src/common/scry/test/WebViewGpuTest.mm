@@ -12,7 +12,8 @@
 #include <sigilscry/WebImage.h>
 #include <sigilscry/WebView.h>
 
-#include "SkiaGraphiteContext.h"
+#include <sigilskia/device/GpuDevice.h>
+#include <sigilskia/graphite/GraphiteContext.h>
 
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
@@ -31,37 +32,56 @@
 #include <gtest/gtest.h>
 
 #include <chrono>
+#include <mutex>
 #include <thread>
 
 using namespace sigil::scry;
 
 namespace {
 
-id<MTLDevice> sharedDevice() {
-  static id<MTLDevice> device = MTLCreateSystemDefaultDevice();
-  return device;
+/** The device this process owns, shared by the engine and every test. */
+sigil::skia::GpuDevice *sharedDevice() {
+  static std::unique_ptr<sigil::skia::GpuDevice> device =
+      sigil::skia::GpuDevice::createOwned(sigil::skia::Backend::Metal);
+  return device.get();
 }
 
-id<MTLCommandQueue> sharedQueue() {
-  static id<MTLCommandQueue> queue = [sharedDevice() newCommandQueue];
-  return queue;
+/** The Graphite context the tests draw with and the engine shares: the
+ *  web thread records on its own recorder over it, so every context call
+ *  here holds lockContext(). */
+sigil::skia::GraphiteContext *sharedGraphite() {
+  static std::unique_ptr<sigil::skia::GraphiteContext> graphite =
+      sharedDevice() ? sigil::skia::GraphiteContext::create(*sharedDevice()) : nullptr;
+  return graphite.get();
 }
 
 WebEngine &sharedEngine() {
   static std::shared_ptr<WebEngine> engine = [] {
     WebEngineConfig config;
-    config.metalDevice = (void *)sharedDevice();
-    config.metalCommandQueue = (void *)sharedQueue();
+    config.gpuDevice = sharedDevice();
+    config.graphite = sharedGraphite();
     return WebEngine::create(config);
   }();
   EXPECT_NE(engine, nullptr);
   return *engine;
 }
 
+/** Snap the test recorder and insert + submit under the context's lock. */
+void submit(sigil::skia::GraphiteContext &graphite) {
+  auto recording = graphite.recorder()->snap();
+  ASSERT_NE(recording, nullptr);
+  const std::unique_lock<std::mutex> lock = graphite.lockContext();
+  skgpu::graphite::InsertRecordingInfo info;
+  info.fRecording = recording.get();
+  graphite.context()->insertRecording(info);
+  graphite.context()->submit();
+}
+
 /** Renders the Graphite surface's pending work and reads back the pixel
  *  at (x, y) as an unpremultiplied SkColor. */
-SkColor readbackPixel(SkiaGraphiteContext &graphite, SkSurface *surface, int x, int y) {
+SkColor readbackPixel(sigil::skia::GraphiteContext &graphite, SkSurface *surface, int x, int y) {
   std::unique_ptr<skgpu::graphite::Recording> recording = graphite.recorder()->snap();
+  const std::unique_lock<std::mutex> lock = graphite.lockContext();
   if (recording) {
     skgpu::graphite::InsertRecordingInfo info;
     info.fRecording = recording.get();
@@ -103,14 +123,14 @@ SkColor readbackPixel(SkiaGraphiteContext &graphite, SkSurface *surface, int x, 
 }  // namespace
 
 TEST(WebViewGpuTest, RendersThroughMetalAndGraphite) {
-  ASSERT_NE(sharedDevice(), nil);
+  ASSERT_NE(sharedDevice(), nullptr);
 
   auto view = sharedEngine().createView(64, 64, {.transparent = false});
   ASSERT_NE(view, nullptr);
   view->loadHTML("<html><body style='background:#ff0000;margin:0'>"
                  "</body></html>");
 
-  auto graphite = SkiaGraphiteContext::createMetal((void *)sharedDevice(), (void *)sharedQueue());
+  sigil::skia::GraphiteContext *graphite = sharedGraphite();
   ASSERT_NE(graphite, nullptr);
 
   sk_sp<SkSurface> surface =
@@ -129,7 +149,8 @@ TEST(WebViewGpuTest, RendersThroughMetalAndGraphite) {
     }
 
     WebView::Frame gpuFrame = view->frame();
-    ASSERT_NE(gpuFrame.nativeTexture, nullptr);
+    ASSERT_TRUE(gpuFrame.texture);
+    ASSERT_TRUE(sharedDevice()->exportNative(gpuFrame.texture));
     ASSERT_EQ(gpuFrame.width, 64);
     ASSERT_EQ(gpuFrame.height, 64);
     EXPECT_EQ(gpuFrame.image, nullptr);  // no recorder given, no wrap
@@ -153,26 +174,22 @@ TEST(WebViewGpuTest, RendersThroughMetalAndGraphite) {
 TEST(WebViewGpuTest, CompositesGraphiteContentIntoPage) {
   auto image = sharedEngine().createImage("gpu_swatch", 64, 64);
   ASSERT_NE(image, nullptr);
-  ASSERT_NE(image->nativeTexture(), nullptr);
+  ASSERT_TRUE(image->texture());
+  const sigil::skia::NativeTexture slot = sharedDevice()->exportNative(image->texture());
+  ASSERT_TRUE(slot);
 
-  auto graphite = SkiaGraphiteContext::createMetal((void *)sharedDevice(), (void *)sharedQueue());
+  sigil::skia::GraphiteContext *graphite = sharedGraphite();
   ASSERT_NE(graphite, nullptr);
 
-  // Render into the page-visible texture with Graphite.
+  // Render into the page-visible texture with Graphite, on the test's own
+  // recorder — the handle named it, the device handed the object out.
   skgpu::graphite::BackendTexture backendTexture = skgpu::graphite::BackendTextures::MakeMetal(
-      SkISize::Make(64, 64), (CFTypeRef)image->nativeTexture());
+      SkISize::Make(64, 64), (CFTypeRef)slot.mtlTexture);
   sk_sp<SkSurface> imageSurface = SkSurfaces::WrapBackendTexture(
       graphite->recorder(), backendTexture, SkColorSpace::MakeSRGB(), nullptr);
   ASSERT_NE(imageSurface, nullptr);
   imageSurface->getCanvas()->clear(SK_ColorMAGENTA);
-  {
-    auto recording = graphite->recorder()->snap();
-    ASSERT_NE(recording, nullptr);
-    skgpu::graphite::InsertRecordingInfo info;
-    info.fRecording = recording.get();
-    graphite->context()->insertRecording(info);
-    graphite->context()->submit();
-  }
+  submit(*graphite);
   image->invalidate();
 
   auto view = sharedEngine().createView(64, 64, {.transparent = false});
@@ -221,7 +238,7 @@ TEST(WebViewGpuTest, CompositesRasterUpdateIntoPage) {
                  "style='display:block;width:64px;height:64px'>"
                  "</body></html>");
 
-  auto graphite = SkiaGraphiteContext::createMetal((void *)sharedDevice(), (void *)sharedQueue());
+  sigil::skia::GraphiteContext *graphite = sharedGraphite();
   ASSERT_NE(graphite, nullptr);
   sk_sp<SkSurface> surface =
       SkSurfaces::RenderTarget(graphite->recorder(), SkImageInfo::MakeN32Premul(64, 64));
@@ -258,7 +275,7 @@ TEST(WebViewGpuTest, PaintsSlotWithCallback) {
                  "style='display:block;width:64px;height:64px'>"
                  "</body></html>");
 
-  auto graphite = SkiaGraphiteContext::createMetal((void *)sharedDevice(), (void *)sharedQueue());
+  sigil::skia::GraphiteContext *graphite = sharedGraphite();
   ASSERT_NE(graphite, nullptr);
   sk_sp<SkSurface> surface =
       SkSurfaces::RenderTarget(graphite->recorder(), SkImageInfo::MakeN32Premul(64, 64));
@@ -292,14 +309,25 @@ TEST(WebViewGpuTest, UpdatesSlotFromNativeTexture) {
                                                         height:16
                                                      mipmapped:NO];
   desc.storageMode = MTLStorageModeShared;
-  id<MTLTexture> external = [sharedDevice() newTextureWithDescriptor:desc];
+  id<MTLDevice> mtl = (__bridge id<MTLDevice>)sharedDevice()->native().mtlDevice;
+  id<MTLTexture> external = [mtl newTextureWithDescriptor:desc];
   std::vector<uint32_t> pixels(static_cast<size_t>(16 * 16), 0xffff0000);  // opaque red, BGRA
   [external replaceRegion:MTLRegionMake2D(0, 0, 16, 16)
               mipmapLevel:0
                 withBytes:pixels.data()
               bytesPerRow:static_cast<NSUInteger>(16 * 4)];
 
-  ASSERT_TRUE(image->updateTexture((void *)external));
+  // The external texture enters the engine by being named on the shared
+  // device — borrowed, so the test keeps it alive.
+  sigil::skia::NativeTexture native;
+  native.backend = sigil::skia::Backend::Metal;
+  native.mtlTexture = (__bridge void *)external;
+  native.width = 16;
+  native.height = 16;
+  const sigil::skia::TextureHandle externalHandle = sharedDevice()->importNative(native);
+  ASSERT_TRUE(externalHandle);
+  ASSERT_TRUE(image->updateTexture(externalHandle));
+  EXPECT_FALSE(image->updateTexture(sigil::skia::TextureHandle{})) << "a null handle";
 
   auto view = sharedEngine().createView(64, 64, {.transparent = false});
   ASSERT_NE(view, nullptr);
@@ -308,7 +336,7 @@ TEST(WebViewGpuTest, UpdatesSlotFromNativeTexture) {
                  "style='display:block;width:64px;height:64px'>"
                  "</body></html>");
 
-  auto graphite = SkiaGraphiteContext::createMetal((void *)sharedDevice(), (void *)sharedQueue());
+  sigil::skia::GraphiteContext *graphite = sharedGraphite();
   ASSERT_NE(graphite, nullptr);
   sk_sp<SkSurface> surface =
       SkSurfaces::RenderTarget(graphite->recorder(), SkImageInfo::MakeN32Premul(64, 64));
@@ -340,7 +368,7 @@ TEST(WebViewGpuTest, FrameImageWrapsTexture) {
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
   ASSERT_GT(view->frameVersion(), 0u);
 
-  auto graphite = SkiaGraphiteContext::createMetal((void *)sharedDevice(), (void *)sharedQueue());
+  sigil::skia::GraphiteContext *graphite = sharedGraphite();
   ASSERT_NE(graphite, nullptr);
 
   sk_sp<SkImage> image = view->frame(graphite->recorder()).image;
@@ -357,6 +385,7 @@ TEST(WebViewGpuTest, FrameImageWrapsTexture) {
   // Without a recorder there is no wrap, but the metadata still flows.
   WebView::Frame bare = view->frame();
   EXPECT_EQ(bare.image, nullptr);
-  EXPECT_NE(bare.nativeTexture, nullptr);
+  EXPECT_TRUE(bare.texture);
+  EXPECT_TRUE(sharedDevice()->isValid(bare.texture));
   EXPECT_TRUE(static_cast<bool>(bare));
 }

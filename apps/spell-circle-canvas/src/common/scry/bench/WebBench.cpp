@@ -31,14 +31,15 @@
 #include <include/gpu/graphite/Recorder.h>
 #include <include/gpu/graphite/Recording.h>
 #include <include/gpu/graphite/Surface.h>
-
-#include "SkiaGraphiteContext.h"
+#include <sigilskia/device/GpuDevice.h>
+#include <sigilskia/graphite/GraphiteContext.h>
 #endif
 
 #include <benchmark/benchmark.h>
 
 #include <chrono>
 #include <cstdio>
+#include <mutex>
 #include <string>
 #include <thread>
 #include <vector>
@@ -52,12 +53,16 @@ bool g_useGpu = false;
 constexpr int kViewWidth = 1280;
 constexpr int kViewHeight = 720;
 
+#ifdef __APPLE__
+sigil::skia::GraphiteContext& graphite();
+#endif
+
 WebEngine& engine() {
   static std::shared_ptr<WebEngine> instance = [] {
     WebEngineConfig config;
     if (g_useGpu) {
-      config.metalDevice = bench::gpuDevice();
-      config.metalCommandQueue = bench::gpuQueue();
+      config.gpuDevice = bench::gpuDevice();
+      config.graphite = &graphite();
     }
     return WebEngine::create(config);
   }();
@@ -92,14 +97,18 @@ WebView& benchView() {
 }
 
 #ifdef __APPLE__
-SkiaGraphiteContext& graphite() {
-  static std::unique_ptr<SkiaGraphiteContext> context =
-      SkiaGraphiteContext::createMetal(bench::gpuDevice(), bench::gpuQueue());
+/** The Graphite context the bench draws with and the engine shares; the
+ *  web thread records on its own recorder over it, so every context call
+ *  here holds lockContext(). */
+sigil::skia::GraphiteContext& graphite() {
+  static std::unique_ptr<sigil::skia::GraphiteContext> context =
+      sigil::skia::GraphiteContext::create(*bench::gpuDevice());
   return *context;
 }
 
 void submitGraphite() {
   auto recording = graphite().recorder()->snap();
+  const std::unique_lock<std::mutex> lock = graphite().lockContext();
   if (!recording) return;
   skgpu::graphite::InsertRecordingInfo info;
   info.fRecording = recording.get();
@@ -158,8 +167,8 @@ static void BM_Frame_WrapMiss(benchmark::State& state) {
     return;
   }
   WebView& view = benchView();
-  static std::unique_ptr<SkiaGraphiteContext> other =
-      SkiaGraphiteContext::createMetal(bench::gpuDevice(), bench::gpuQueue());
+  static std::unique_ptr<sigil::skia::GraphiteContext> other =
+      sigil::skia::GraphiteContext::create(*bench::gpuDevice());
   unsigned toggle = 0;
   for ([[maybe_unused]] auto _ : state)
     benchmark::DoNotOptimize(view.frame(
@@ -175,12 +184,11 @@ static void BM_Draw_GraphiteRecord(benchmark::State& state) {
     return;
   }
   WebView& view = benchView();
-  // Built through makeRecorderOptions() like every other recorder here,
-  // and that is not optional: those options install the caching image
-  // provider, and Graphite silently DROPS any draw that samples a raster
-  // (non-Graphite) image when the recorder has no provider to promote it.
-  // A bare makeRecorder() would leave this arm timing draws that never
-  // happen.
+  // Taken from the context, which builds every recorder with the caching
+  // image provider — not optional: Graphite silently DROPS any draw that
+  // samples a raster (non-Graphite) image when the recorder has no
+  // provider to promote it, and a recorder made bare from the Skia
+  // context would leave this arm timing draws that never happen.
   //
   // A recorder of its own, deliberately, and a FRESH one per invocation.
   // This arm times recording alone and never submits — actually executing
@@ -203,8 +211,7 @@ static void BM_Draw_GraphiteRecord(benchmark::State& state) {
   // life of the process, and the handful of invocations the framework
   // makes keeps the list small.
   static std::vector<std::unique_ptr<skgpu::graphite::Recorder>> retired;
-  retired.push_back(graphite().context()->makeRecorder(
-      SkiaGraphiteContext::makeRecorderOptions()));
+  retired.push_back(graphite().makeRecorder());
   skgpu::graphite::Recorder* recorder = retired.back().get();
   sk_sp<SkSurface> surface = SkSurfaces::RenderTarget(
       recorder, SkImageInfo::MakeN32Premul(kViewWidth, kViewHeight));
@@ -241,7 +248,8 @@ static void BM_Slot_UpdateTexture(benchmark::State& state) {
   }
   const int size = (int)state.range(0);
   static auto image = engine().createImage("bench_ext", 1024, 1024);
-  void* texture = bench::makeSolidTexture(size, size);
+  const sigil::skia::TextureHandle texture =
+      bench::makeSolidTexture(size, size);
   for ([[maybe_unused]] auto _ : state) image->updateTexture(texture);
   state.SetBytesProcessed(state.iterations() * (int64_t)size * size * 4);
 }

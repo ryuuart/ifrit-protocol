@@ -82,18 +82,33 @@ when they must return a value — and run inline when you are already on that
 thread. In unthreaded mode there is no marshalling at all: the caller's
 thread *is* the web thread, which is why every call has to come from it.
 
-**Two backends behind one API.** Leave `WebEngineConfig::metalDevice` and
-`metalCommandQueue` null and the CPU renderer paints straight into an
-`SkBitmap` through a custom Ultralight surface factory; each publish is an
-immutable raster `SkImage`. Set them to the host's device and queue — the
-same pair your Graphite context is built on — and Ultralight renders through
-its GPU pipeline instead: a Metal driver executes its command lists, blits
-each repaint into ping-pong publish textures, and `frame(recorder)` wraps
-the published texture zero-copy as a Graphite-backed `SkImage`. The
-public API is identical either way. `WebGpuDriver.h` is the
-graphics-API-neutral seam the driver implements, and the backend is chosen
-in exactly one place, `setupPlatform`, which is where a Vulkan or D3D driver
-would be added.
+**Two backends behind one API.** Leave `WebEngineConfig::gpuDevice` null
+and the CPU renderer paints straight into an `SkBitmap`-backed surface per
+view. Set it to the `sigil::skia::GpuDevice` your renderer draws with —
+owned or adopted, it is the one queue every draw rides — and Ultralight
+renders through its GPU pipeline instead: a Metal driver executes its
+command lists, blits each repaint into ping-pong publish textures named
+on that device, and `frame(recorder)` wraps the published texture
+zero-copy as a Graphite-backed `SkImage`. Every texture the engine hands
+out — a frame's, a `WebImage`'s — is a `TextureHandle` on that device,
+never a native object; `exportNative` there hands the object out when
+some other API needs it, and a handle kept past the texture's life is
+stale rather than dangling. The public API is identical either way.
+`WebGpuDriver.h` is the seam a Vulkan driver implements.
+
+**One Graphite context, one recorder per thread.** The engine's own
+drawing (`WebImage::paint`) happens on the web thread, on a recorder of
+its own taken from the Graphite context in `WebEngineConfig::graphite`
+through `makeRecorder()`, so it carries the context's image provider and
+ordered replay — raster images drawn in a paint callback upload and land
+like anywhere else. A recorder belongs to one thread, but the context is
+shared, and Graphite's context tolerates several threads only one at a
+time: the web thread inserts and submits under `lockContext()`, and a
+host that shares the context makes its own context calls — inserts,
+submits, readbacks, `checkAsyncWorkCompletion` — under that lock too
+(`OffscreenSurface::submit()` already does). Leave `graphite` null and
+the engine makes a context of its own over the device; the one queue
+still orders everything, at the price of a second context's caches.
 
 **Frames are snapshots, not accessors.** `WebView::frame()` returns
 everything about the latest repaint in one value — image, native texture,
@@ -126,18 +141,17 @@ image call, `update()` and `renderFrame()` must all happen on one thread.
 wait. Calling another engine API that also posts-and-waits from inside the
 painter deadlocks.
 
-**In GPU mode, raster images drawn inside a paint callback vanish.**
-`WebImage::paint` draws through the Metal driver's own Graphite recorder,
-which is created bare. Graphite performs no implicit uploads: any draw
-sampling a non-Graphite (raster) `SkImage` needs a client image provider,
-and this recorder has none, so those draws are silently dropped. Draw with
-paints, paths and text there; feed pixels in with `update()` or
-`updateTexture()` instead.
+**In GPU mode, a paint callback's recorder replays in order.** The web
+thread's recorder carries the shared context's ordered-replay setting, so
+a paint whose recording cannot be inserted kills that recorder for the
+rest of the process: every later `WebImage::paint` returns false and warns
+once. The insert status is checked on every paint for exactly that reason.
 
 **`frame()` needs a recorder on a GPU engine.** Without one you still get
-`nativeTexture` and the metadata, but `image` is null. `draw()` reads the
+`texture` and the metadata, but `image` is null. `draw()` reads the
 recorder off the canvas, so a GPU engine needs a Graphite-backed canvas —
-and that recorder must share the engine's device and queue.
+and that recorder must be over the engine's device, on the shared context
+or another over the same queue.
 
 **`Frame::dirtyBounds` is only meaningful on the CPU backend.** There it is
 the page region that changed. GPU frames always report the full frame
@@ -164,18 +178,19 @@ resources and image slots resolve. GPU bring-up failure is not fatal — the
 engine falls back to CPU and logs a warning. A page naming a slot with no
 registered `WebImage` still gets its indirection file, plus a warning naming
 the slot. `update(const sk_sp<SkImage>&)` refuses texture-backed images
-(they are recorder-bound); pass the native texture to `updateTexture()` or
-use `paint()`.
+(they are recorder-bound); name the texture on the engine's device and pass
+the handle to `updateTexture()`, or use `paint()`.
 
 ## Boundary
 
-Public dependency: Skia. Private: `Ultralight::Ultralight`,
-`Ultralight::AppCore`, and Metal on Apple.
+Public dependencies: Skia and SigilSkia — every texture the engine hands
+out is a `sigil::skia::TextureHandle` on the host's `GpuDevice`, and the
+GPU driver draws over the host's `GraphiteContext`. Private:
+`Ultralight::Ultralight`, `Ultralight::AppCore`, and Metal on Apple.
 
-SigilScry does not link the shared Graphite plumbing under `common/skia`;
-the Metal driver builds its own Graphite context from the device and queue
-the host passes in. It has no window, no event loop of its own beyond the
-web thread, and no knowledge of scene or product content.
+SigilScry brings up no device and no context of its own unless the host
+shares none. It has no window, no event loop of its own beyond the web
+thread, and no knowledge of scene or product content.
 
 Sharing an `SkCanvas` with Ultralight directly is not possible — it records
 its own render passes — so a texture- or bitmap-backed `SkImage` is the
@@ -185,13 +200,13 @@ compositing model, in both directions.
 
 The library is gated on `SPELLCIRCLE_ENABLE_ULTRALIGHT`, which turns itself
 off with a warning when the SDK is not found (see
-`cmake/FindUltralight.cmake`).
+`cmake/FindUltralight.cmake`), and needs the `SigilSkia` target — that is,
+`SPELLCIRCLE_ENABLE_SKIA_CANVAS` on — or it is skipped with a message.
 
 Targets: `SigilScry`, `scry_test` (ctest), `scry_demo` (headless PNG
-compositing demo), and `scry_bench`. On Apple, `scry_bench` and the GPU
-targets `scry_gpu_test` (ctest) and `scry_gpu_demo` are added only when the
-`SpellCircleSkia` target exists — that is, when `SPELLCIRCLE_ENABLE_SKIA_CANVAS`
-is on.
+compositing demo), and `scry_bench` (`--gpu` for the GPU engine where a
+driver exists). On Apple the GPU targets `scry_gpu_test` (ctest) and
+`scry_gpu_demo` are added too.
 
 New executables that link `SigilScry` must also call
 `ultralight_copy_resources(<target>)` in their `CMakeLists.txt`.

@@ -1,3 +1,5 @@
+#include <sigilskia/device/GpuDevice.h>
+
 #include "WebInternal.h"
 
 #ifdef __APPLE__
@@ -43,10 +45,15 @@ bool WebEngine::Impl::setupPlatform() {
 
   // The only backend-specific seam: pick the WebGpuDriver implementation
   // for this platform. Everything downstream sees the neutral interface.
-  if (config.metalDevice && config.metalCommandQueue) {
+  if (config.gpuDevice) {
+    sigil::skia::GraphiteContext* graphite = config.graphite;
+    if (!graphite) {
+      m_ownedGraphite = sigil::skia::GraphiteContext::create(*config.gpuDevice);
+      graphite = m_ownedGraphite.get();
+    }
 #ifdef __APPLE__
-    m_gpuDriver = UltralightMetalDriver::create(config.metalDevice,
-                                                config.metalCommandQueue);
+    if (graphite && config.gpuDevice->backend() == sigil::skia::Backend::Metal)
+      m_gpuDriver = UltralightMetalDriver::create(*config.gpuDevice, *graphite);
 #endif
     if (m_gpuDriver)
       platform.set_gpu_driver(m_gpuDriver.get());

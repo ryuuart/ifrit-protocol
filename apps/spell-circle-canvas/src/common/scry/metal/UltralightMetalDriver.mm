@@ -11,18 +11,17 @@
 #include <include/core/SkSurface.h>
 #include <include/gpu/graphite/BackendTexture.h>
 #include <include/gpu/graphite/Context.h>
-#include <include/gpu/graphite/ContextOptions.h>
 #include <include/gpu/graphite/Image.h>
 #include <include/gpu/graphite/Recorder.h>
 #include <include/gpu/graphite/Recording.h>
 #include <include/gpu/graphite/Surface.h>
-#include <include/gpu/graphite/mtl/MtlBackendContext.h>
 #include <include/gpu/graphite/mtl/MtlGraphiteTypes_cpp.h>
 
 #include <simd/simd.h>
 
 #include <cstdio>
 #include <cstring>
+#include <mutex>
 #include <unordered_map>
 #include <vector>
 
@@ -85,30 +84,49 @@ struct UltralightMetalDriver::State {
   std::vector<ultralight::Command> commands;
   std::unordered_set<uint32_t> pendingClear;
 
-  // A Graphite context of the driver's own, built on the same MTLDevice and
-  // MTLCommandQueue the driver draws with, so paintTexture() can hand a
-  // caller an SkCanvas without any context being plumbed in from outside.
-  // Sharing the queue is what orders this Skia work against the driver's own
-  // render passes.
-  //
-  // The recorder is made with default options and therefore has no image
-  // provider. Graphite silently DROPS any draw that samples a raster
-  // (non-Graphite) image when the recorder cannot promote it, so a paint
-  // callback that draws a CPU-decoded SkImage produces nothing and reports
-  // no error. Only Graphite-backed images and drawn geometry land.
-  std::unique_ptr<skgpu::graphite::Context> skiaContext;
-  std::unique_ptr<skgpu::graphite::Recorder> skiaRecorder;
+  // The host's device and the Graphite context shared with it. The
+  // recorder is the web thread's own over that context — a recorder
+  // belongs to one thread, and paintTexture() runs here — carrying the
+  // context's image provider (raster draws in a paint callback upload and
+  // land) and ordered replay (every recording it snaps is inserted, in
+  // order, or the recorder is dead). Inserting and submitting touch the
+  // context, which the host uses from its own thread, so both happen under
+  // the context's lock; the one queue underneath orders this work against
+  // the driver's own render passes and the host's frames alike.
+  sigil::skia::GpuDevice *gpuDevice = nullptr;
+  sigil::skia::GraphiteContext *graphite = nullptr;
+  std::unique_ptr<skgpu::graphite::Recorder> webRecorder;
+
+  /** The MTLTexture behind a live handle, or nil for a stale one. */
+  id<MTLTexture> texture(sigil::skia::TextureHandle handle) const {
+    return (__bridge id<MTLTexture>)gpuDevice->exportNative(handle).mtlTexture;
+  }
+
+  /** Imports a driver-created (+1) texture borrowed: the driver keeps the
+   *  reference and drops it in releaseTexture(). */
+  sigil::skia::TextureHandle import(id<MTLTexture> mtlTexture, int width, int height) {
+    if (!mtlTexture) return {};
+    sigil::skia::NativeTexture native;
+    native.backend = sigil::skia::Backend::Metal;
+    native.mtlTexture = (__bridge_retained void *)mtlTexture;
+    native.width = width;
+    native.height = height;
+    return gpuDevice->importNative(native, /*takeOwnership=*/false);
+  }
 
   uint32_t nextTextureId = 1;
   uint32_t nextRenderBufferId = 1;
   uint32_t nextGeometryId = 1;
 };
 
-std::unique_ptr<UltralightMetalDriver> UltralightMetalDriver::create(void *mtlDevice,
-                                                                     void *mtlCommandQueue) {
+std::unique_ptr<UltralightMetalDriver> UltralightMetalDriver::create(
+    sigil::skia::GpuDevice &device, sigil::skia::GraphiteContext &graphite) {
   auto state = std::make_unique<State>();
-  state->device = (__bridge id<MTLDevice>)mtlDevice;
-  state->queue = (__bridge id<MTLCommandQueue>)mtlCommandQueue;
+  state->gpuDevice = &device;
+  state->graphite = &graphite;
+  state->device = (__bridge id<MTLDevice>)device.native().mtlDevice;
+  state->queue = (__bridge id<MTLCommandQueue>)device.native().mtlCommandQueue;
+  if (!state->device || !state->queue) return nullptr;
 
   NSError *error = nil;
   NSString *shaderSource = [NSString stringWithUTF8String:kUltralightShaderSource];
@@ -161,14 +179,10 @@ std::unique_ptr<UltralightMetalDriver> UltralightMetalDriver::create(void *mtlDe
     }
   }
 
-  skgpu::graphite::MtlBackendContext backendContext;
-  backendContext.fDevice.reset(CFRetain((__bridge CFTypeRef)state->device));
-  backendContext.fQueue.reset(CFRetain((__bridge CFTypeRef)state->queue));
-  state->skiaContext = skgpu::graphite::ContextFactory::MakeMetal(backendContext, {});
-  if (state->skiaContext) state->skiaRecorder = state->skiaContext->makeRecorder();
-  if (!state->skiaRecorder)
-    std::fprintf(stderr, "[SigilScry:warning] Graphite bring-up for "
-                         "WebImage::paint() failed; paint() will no-op\n");
+  state->webRecorder = graphite.makeRecorder();
+  if (!state->webRecorder)
+    std::fprintf(stderr, "[SigilScry:warning] no Graphite recorder for the web "
+                         "thread; WebImage::paint() will no-op\n");
 
   return std::unique_ptr<UltralightMetalDriver>(new UltralightMetalDriver(std::move(state)));
 }
@@ -378,7 +392,7 @@ std::unordered_set<uint32_t> UltralightMetalDriver::flush() {
   return dirtyRenderBuffers;
 }
 
-void *UltralightMetalDriver::createPublishTexture(int width, int height) {
+sigil::skia::TextureHandle UltralightMetalDriver::createPublishTexture(int width, int height) {
   MTLTextureDescriptor *desc =
       [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatBGRA8Unorm
                                                          width:width
@@ -386,15 +400,21 @@ void *UltralightMetalDriver::createPublishTexture(int width, int height) {
                                                      mipmapped:NO];
   desc.usage = MTLTextureUsageShaderRead;
   desc.storageMode = MTLStorageModePrivate;
-  id<MTLTexture> texture = [m_state->device newTextureWithDescriptor:desc];
-  return (__bridge_retained void *)texture;
+  return m_state->import([m_state->device newTextureWithDescriptor:desc], width, height);
 }
 
-void UltralightMetalDriver::releaseNativeTexture(void *texture) {
-  if (texture) CFRelease(texture);
+void UltralightMetalDriver::releaseTexture(sigil::skia::TextureHandle handle) {
+  // The device forgets the borrowed handle at once; the driver's own +1
+  // from import() goes with it. Command buffers in flight and wraps hold
+  // their own references, so the texture lives as long as anything draws
+  // it.
+  const sigil::skia::NativeTexture native = m_state->gpuDevice->exportNative(handle);
+  if (!native) return;
+  m_state->gpuDevice->destroy(handle);
+  CFRelease(native.mtlTexture);
 }
 
-void *UltralightMetalDriver::createImageTexture(int width, int height) {
+sigil::skia::TextureHandle UltralightMetalDriver::createImageTexture(int width, int height) {
   MTLTextureDescriptor *desc =
       [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatBGRA8Unorm
                                                          width:width
@@ -404,13 +424,12 @@ void *UltralightMetalDriver::createImageTexture(int width, int height) {
   // Shared storage: render-target capable on Apple GPUs while still
   // accepting replaceRegion uploads from the CPU.
   desc.storageMode = MTLStorageModeShared;
-  id<MTLTexture> texture = [m_state->device newTextureWithDescriptor:desc];
-  return (__bridge_retained void *)texture;
+  return m_state->import([m_state->device newTextureWithDescriptor:desc], width, height);
 }
 
-uint32_t UltralightMetalDriver::registerExternalTexture(void *mtlTexture) {
+uint32_t UltralightMetalDriver::registerExternalTexture(sigil::skia::TextureHandle handle) {
   uint32_t textureId = m_state->nextTextureId++;
-  m_state->textures[textureId] = (__bridge id<MTLTexture>)mtlTexture;
+  m_state->textures[textureId] = m_state->texture(handle);
   return textureId;
 }
 
@@ -418,55 +437,60 @@ void UltralightMetalDriver::unregisterExternalTexture(uint32_t textureId) {
   m_state->textures.erase(textureId);
 }
 
-bool UltralightMetalDriver::paintTexture(void *mtlTexture, int width, int height,
+bool UltralightMetalDriver::paintTexture(sigil::skia::TextureHandle handle, int width, int height,
                                          const std::function<void(SkCanvas &)> &painter) {
-  if (!mtlTexture || !m_state->skiaRecorder) return false;
+  id<MTLTexture> mtlTexture = m_state->texture(handle);
+  skgpu::graphite::Recorder *recorder = m_state->webRecorder.get();
+  if (!mtlTexture || !recorder) return false;
 
   skgpu::graphite::BackendTexture backendTexture = skgpu::graphite::BackendTextures::MakeMetal(
-      SkISize::Make(width, height), (__bridge CFTypeRef)((__bridge id<MTLTexture>)mtlTexture));
-  sk_sp<SkSurface> surface = SkSurfaces::WrapBackendTexture(
-      m_state->skiaRecorder.get(), backendTexture, SkColorSpace::MakeSRGB(), nullptr);
+      SkISize::Make(width, height), (__bridge CFTypeRef)mtlTexture);
+  sk_sp<SkSurface> surface =
+      SkSurfaces::WrapBackendTexture(recorder, backendTexture, SkColorSpace::MakeSRGB(), nullptr);
   if (!surface) return false;
 
   painter(*surface->getCanvas());
   surface.reset();
 
-  std::unique_ptr<skgpu::graphite::Recording> recording = m_state->skiaRecorder->snap();
-  if (!recording) return false;
+  // Snapped on this thread, inserted and submitted under the context's
+  // lock: the host may be using the same context from its own thread.
+  std::unique_ptr<skgpu::graphite::Recording> recording = recorder->snap();
+  skgpu::graphite::Context *context = m_state->graphite->context();
+  const std::unique_lock<std::mutex> lock = m_state->graphite->lockContext();
   skgpu::graphite::InsertRecordingInfo info;
   info.fRecording = recording.get();
-  const skgpu::graphite::InsertStatus status = m_state->skiaContext->insertRecording(info);
-  if (!status) {
-    // The status is checked, never assumed. A snapped Recording that is not
-    // inserted consumes an ID out of the recorder's sequence, and a recorder
-    // configured for ordered replay is dead from that point on: every later
-    // insert fails and nothing it records is ever drawn again. This recorder
-    // is created with default options and so imposes no ordering, which
-    // confines a failure to the one frame being painted — but the failure is
-    // otherwise invisible (the painted image simply never updates), so it is
-    // reported rather than swallowed.
-    //
-    // Warned once per process: the cause is a property of the context, so
-    // repeating it every frame would only flood the log.
+  const skgpu::graphite::InsertStatus status =
+      recording ? context->insertRecording(info) : skgpu::graphite::InsertStatus();
+  if (!recording || !status) {
+    // The status is checked, never assumed. This recorder replays in
+    // order, so a Recording snapped and not inserted — a null snap
+    // included — skips an ID and kills the recorder: every later insert
+    // fails and nothing it records is ever drawn again. The failure is
+    // otherwise invisible (the painted image simply never updates), so it
+    // is reported rather than swallowed, once per process because the
+    // cause is a property of the context and repeating it every paint
+    // would only flood the log.
     static bool warned = false;
     if (!warned) {
       warned = true;
-      std::fprintf(stderr,
-                   "[SigilScry:warning] Graphite insertRecording failed "
-                   "(status %d%s%s); WebImage frames will not render\n",
-                   static_cast<int>(static_cast<skgpu::graphite::InsertStatus::V>(status)),
-                   status.message().empty() ? "" : ": ", status.message().c_str());
+      std::fprintf(
+          stderr,
+          "[SigilScry:warning] Graphite paint failed (%s%d%s%s); WebImage "
+          "frames will not render\n",
+          recording ? "insert status " : "empty snap",
+          recording ? static_cast<int>(static_cast<skgpu::graphite::InsertStatus::V>(status)) : 0,
+          status.message().empty() ? "" : ": ", status.message().c_str());
     }
     return false;
   }
-  m_state->skiaContext->submit();
+  context->submit();
   return true;
 }
 
-void UltralightMetalDriver::uploadToTexture(void *mtlTexture, const void *pixels, int width,
-                                            int height, size_t rowBytes) {
-  if (!mtlTexture) return;
-  id<MTLTexture> texture = (__bridge id<MTLTexture>)mtlTexture;
+void UltralightMetalDriver::uploadToTexture(sigil::skia::TextureHandle handle, const void *pixels,
+                                            int width, int height, size_t rowBytes) {
+  id<MTLTexture> texture = m_state->texture(handle);
+  if (!texture) return;
   [texture replaceRegion:MTLRegionMake2D(0, 0, width, height)
              mipmapLevel:0
                withBytes:pixels
@@ -501,27 +525,32 @@ void copyMetalTextures(id<MTLCommandQueue> queue, id<MTLTexture> src, id<MTLText
 
 }  // namespace
 
-void UltralightMetalDriver::copyNativeTexture(void *srcTexture, void *dstTexture, int width,
+bool UltralightMetalDriver::copyDeviceTexture(sigil::skia::TextureHandle src,
+                                              sigil::skia::TextureHandle dst, int width,
                                               int height) {
-  if (!srcTexture || !dstTexture) return;
-  copyMetalTextures(m_state->queue, (__bridge id<MTLTexture>)srcTexture,
-                    (__bridge id<MTLTexture>)dstTexture, width, height);
+  id<MTLTexture> srcTexture = m_state->texture(src);
+  id<MTLTexture> dstTexture = m_state->texture(dst);
+  if (!srcTexture || !dstTexture) return false;
+  copyMetalTextures(m_state->queue, srcTexture, dstTexture, width, height);
+  return true;
 }
 
-void UltralightMetalDriver::copyTexture(uint32_t srcTextureId, void *dstMtlTexture, int width,
-                                        int height) {
+void UltralightMetalDriver::copyTexture(uint32_t srcTextureId, sigil::skia::TextureHandle dst,
+                                        int width, int height) {
   auto it = m_state->textures.find(srcTextureId);
-  if (it == m_state->textures.end() || !dstMtlTexture) return;
-  copyMetalTextures(m_state->queue, it->second, (__bridge id<MTLTexture>)dstMtlTexture, width,
-                    height);
+  id<MTLTexture> dstTexture = m_state->texture(dst);
+  if (it == m_state->textures.end() || !dstTexture) return;
+  copyMetalTextures(m_state->queue, it->second, dstTexture, width, height);
 }
 
 sk_sp<SkImage> UltralightMetalDriver::wrapTexture(skgpu::graphite::Recorder *recorder,
-                                                  void *texture, int width, int height) {
+                                                  sigil::skia::TextureHandle handle, int width,
+                                                  int height) {
+  id<MTLTexture> texture = m_state->texture(handle);
   if (!recorder || !texture) return nullptr;
   // The wrapped image retains the MTLTexture so it stays valid even if
   // the owning view/image resizes or is destroyed while the image lives.
-  CFTypeRef retained = CFRetain((__bridge CFTypeRef)((__bridge id<MTLTexture>)texture));
+  CFTypeRef retained = CFRetain((__bridge CFTypeRef)texture);
   skgpu::graphite::BackendTexture backendTexture =
       skgpu::graphite::BackendTextures::MakeMetal(SkISize::Make(width, height), retained);
   return SkImages::WrapTexture(

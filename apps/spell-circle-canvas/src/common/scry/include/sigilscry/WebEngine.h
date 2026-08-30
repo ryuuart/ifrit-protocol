@@ -4,6 +4,11 @@
 #include <memory>
 #include <string>
 
+namespace sigil::skia {
+class GpuDevice;
+class GraphiteContext;
+}  // namespace sigil::skia
+
 namespace sigil::scry {
 
 class WebImage;
@@ -57,23 +62,30 @@ struct WebEngineConfig {
   std::function<void(LogLevel, const std::string&)> logCallback;
 
   /**
-   * GPU rendering: native device and command-queue handles for this
-   * platform's graphics API — pass the same pair the host's Graphite
-   * context is built on so every draw rides one command queue. On Apple
-   * these are an id<MTLDevice> / id<MTLCommandQueue> bridged to void*.
-   * When both are set, views render through Ultralight's GPU pipeline
-   * into native textures and publish texture-backed frames
+   * GPU rendering: the device the host draws with, adopted or owned, and
+   * kept alive by the host for the engine's lifetime. When set, views
+   * render through Ultralight's GPU pipeline into textures named by this
+   * device's handles and publish texture-backed frames
    * (WebView::frame(recorder) wraps them zero-copy for a Graphite
    * recorder); when null, the CPU renderer publishes raster SkImages
    * instead. Falls back to CPU with a logged warning if driver bring-up
-   * fails.
+   * fails or this platform has no driver yet.
    *
-   * The engine internals are backend-neutral (see WebGpuDriver): the
-   * Windows/Linux ports add a Vulkan/D3D driver implementation and their
-   * own handle fields here without touching the rest of the library.
+   * The engine internals are backend-neutral (see WebGpuDriver): a
+   * Vulkan driver joins here without touching the rest of the library.
    */
-  void* metalDevice = nullptr;
-  void* metalCommandQueue = nullptr;
+  sigil::skia::GpuDevice* gpuDevice = nullptr;
+
+  /**
+   * The Graphite context the engine's own drawing shares with the host —
+   * WebImage::paint records on the web thread's own recorder over it
+   * and submits under its lock, so a host that shares the context and
+   * uses it from its own thread makes every context call under
+   * lockContext() too. Null makes the engine create one of its own over
+   * `gpuDevice`, which stays correct (one queue orders both) and costs
+   * nothing but a second context. Ignored without `gpuDevice`.
+   */
+  sigil::skia::GraphiteContext* graphite = nullptr;
 };
 
 /** Per-view options for WebEngine::createView(). */

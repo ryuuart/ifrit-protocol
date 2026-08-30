@@ -72,8 +72,12 @@ bool WebView::Impl::publishIfDirty() {
   surface->ClearDirtyBounds();
 
   if (frameCallback)
-    frameCallback({std::move(image), nullptr, src.width(), src.height(),
-                   dirtyBounds, newVersion});
+    frameCallback({std::move(image),
+                   {},
+                   src.width(),
+                   src.height(),
+                   dirtyBounds,
+                   newVersion});
   return true;
 }
 
@@ -113,11 +117,11 @@ bool WebView::Impl::publishGpuIfDirty(
 void WebView::Impl::releaseGpuTextures() {
   std::lock_guard<std::mutex> lock(frameMutex);
   if (WebGpuDriver* driver = engine->gpuDriver()) {
-    driver->releaseNativeTexture(publishedGpuTexture);
-    driver->releaseNativeTexture(spareGpuTexture);
+    driver->releaseTexture(publishedGpuTexture);
+    driver->releaseTexture(spareGpuTexture);
   }
-  publishedGpuTexture = nullptr;
-  spareGpuTexture = nullptr;
+  publishedGpuTexture = {};
+  spareGpuTexture = {};
   gpuTextureWidth = 0;
   gpuTextureHeight = 0;
   cachedWrap = nullptr;  // the wrap itself keeps its texture alive
@@ -228,7 +232,7 @@ WebView::Frame WebView::frame(skgpu::graphite::Recorder* recorder) const {
   result.dirtyBounds = m_impl->lastDirtyBounds;
 
   if (m_impl->publishedGpuTexture) {
-    result.nativeTexture = m_impl->publishedGpuTexture;
+    result.texture = m_impl->publishedGpuTexture;
     result.width = m_impl->gpuTextureWidth;
     result.height = m_impl->gpuTextureHeight;
     if (recorder) {

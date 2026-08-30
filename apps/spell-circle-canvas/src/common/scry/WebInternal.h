@@ -5,6 +5,7 @@
 #include <Ultralight/Ultralight.h>
 #include <include/core/SkBitmap.h>
 #include <include/core/SkData.h>
+#include <sigilskia/graphite/GraphiteContext.h>
 
 #include <atomic>
 #include <condition_variable>
@@ -159,6 +160,9 @@ class WebEngine::Impl {
   std::unique_ptr<PrefixFileSystem> m_fileSystem;
   std::unique_ptr<CallbackLogger> m_logger;
   std::unique_ptr<SkiaSurfaceFactory> m_surfaceFactory;
+  // The engine's own Graphite context when the host shared none; declared
+  // before the driver, whose web-thread recorder it must outlive.
+  std::unique_ptr<sigil::skia::GraphiteContext> m_ownedGraphite;
   std::unique_ptr<WebGpuDriver> m_gpuDriver;
 };
 
@@ -174,7 +178,7 @@ class WebImage::Impl {
   ultralight::RefPtr<ultralight::Bitmap> bitmap;  // CPU engines
 
   // GPU engines: immutable after creation, readable from any thread.
-  void* gpuTexture = nullptr;  // retained id<MTLTexture>
+  sigil::skia::TextureHandle gpuTexture;  // driver-owned, on the device
   uint32_t gpuTextureId = 0;
 };
 
@@ -189,12 +193,12 @@ class WebView::Impl final : public ultralight::LoadListener,
   std::atomic<int> height{0};
 
   // Latest published frame, readable from any thread. CPU engines fill
-  // latestImage; GPU engines ping-pong the two retained native textures
-  // and expose publishedGpuTexture.
+  // latestImage; GPU engines ping-pong two driver-owned textures and
+  // expose publishedGpuTexture.
   mutable std::mutex frameMutex;
   sk_sp<SkImage> latestImage;
-  void* publishedGpuTexture = nullptr;
-  void* spareGpuTexture = nullptr;
+  sigil::skia::TextureHandle publishedGpuTexture;
+  sigil::skia::TextureHandle spareGpuTexture;
   int gpuTextureWidth = 0;
   int gpuTextureHeight = 0;
   SkIRect lastDirtyBounds = SkIRect::MakeEmpty();

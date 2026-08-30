@@ -5,7 +5,14 @@
 # can draw like an SigilImage frame; an unthreaded mode lets a host drive
 # rendering in lockstep with its own loop instead. Only added when
 # SPELLCIRCLE_ENABLE_ULTRALIGHT is ON (auto-off when the SDK is missing;
-# see cmake/FindUltralight.cmake).
+# see cmake/FindUltralight.cmake). Textures are named on a SigilSkia
+# GpuDevice and the GPU driver draws over a shared SigilSkia Graphite
+# context, so the library needs SigilSkia (SPELLCIRCLE_ENABLE_SKIA_CANVAS).
+if(NOT TARGET SigilSkia)
+  message(STATUS "SigilScry skipped: needs SPELLCIRCLE_ENABLE_SKIA_CANVAS (SigilSkia)")
+  return()
+endif()
+
 if(APPLE)
   # Embed the SDK's stock Metal shader source (vendored as
   # metal/UltralightShaders.metal) so the driver can compile it at runtime
@@ -55,6 +62,7 @@ target_include_directories(SigilScry PUBLIC
 target_link_libraries(SigilScry
   PUBLIC
     unofficial::skia::skia
+    SigilSkia
   PRIVATE
     Ultralight::Ultralight
     Ultralight::AppCore
@@ -88,12 +96,12 @@ ultralight_copy_resources(scry_demo)
 # Integration-path benchmarks; run `scry_bench` for the CPU engine and
 # `scry_bench --gpu` for the GPU engine (one Ultralight renderer per
 # process, so the two modes are separate runs).
-if(NOT APPLE OR TARGET SpellCircleSkia)
-  if(APPLE)
-    set(IFRIT_WEB_BENCH_GPU_SOURCES bench/BenchGpuMetal.mm)
-  else()
-    set(IFRIT_WEB_BENCH_GPU_SOURCES bench/BenchGpuStub.cpp)
-  endif()
+if(APPLE)
+  set(IFRIT_WEB_BENCH_GPU_SOURCES bench/BenchGpuMetal.mm)
+else()
+  set(IFRIT_WEB_BENCH_GPU_SOURCES bench/BenchGpuStub.cpp)
+endif()
+if(TRUE)
   add_executable(scry_bench
     bench/WebBench.cpp
     bench/BenchGpu.h
@@ -103,21 +111,21 @@ if(NOT APPLE OR TARGET SpellCircleSkia)
   if(APPLE)
     set_source_files_properties(bench/BenchGpuMetal.mm PROPERTIES
       COMPILE_OPTIONS -fobjc-arc)
-    target_link_libraries(scry_bench PRIVATE SpellCircleSkia ${METAL_FRAMEWORK})
+    target_link_libraries(scry_bench PRIVATE ${METAL_FRAMEWORK})
   endif()
   ultralight_copy_resources(scry_bench)
 endif()
 
 # GPU-mode targets: Ultralight's Metal GPUDriver feeding texture-backed
-# SkImages into a Graphite context (SpellCircleSkia provides the Qt-free
-# Metal bring-up). Separate test binary because Ultralight allows one
-# Renderer per process and scry_test owns the CPU-mode engine.
-if(APPLE AND TARGET SpellCircleSkia)
+# SkImages into the Graphite context the test shares with the engine.
+# Separate test binary because Ultralight allows one Renderer per process
+# and scry_test owns the CPU-mode engine.
+if(APPLE)
   add_executable(scry_gpu_test
     test/WebViewGpuTest.mm
   )
   target_link_libraries(scry_gpu_test PRIVATE
-    SigilScry SpellCircleSkia GTest::gtest_main ${METAL_FRAMEWORK})
+    SigilScry GTest::gtest_main ${METAL_FRAMEWORK})
   ultralight_copy_resources(scry_gpu_test)
   add_test(NAME scry_gpu_test COMMAND scry_gpu_test)
 
@@ -125,7 +133,7 @@ if(APPLE AND TARGET SpellCircleSkia)
     examples/scry_gpu_demo.mm
   )
   target_link_libraries(scry_gpu_demo PRIVATE
-    SigilScry SpellCircleSkia ${METAL_FRAMEWORK})
+    SigilScry ${METAL_FRAMEWORK})
   ultralight_copy_resources(scry_gpu_demo)
 endif()
 

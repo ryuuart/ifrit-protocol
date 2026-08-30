@@ -2,6 +2,7 @@
 
 #include <include/core/SkImage.h>
 #include <include/core/SkRefCnt.h>
+#include <sigilskia/device/Handle.h>
 
 #include <functional>
 #include <memory>
@@ -29,15 +30,18 @@ class WebEngine;
  *
  * Ways to supply pixels, safest first:
  *  - paint(painter): hands you an SkCanvas already targeting the image's
- *    pixels — a Graphite surface on the engine's own recorder (GPU) or
+ *    pixels — a Graphite surface on the web thread's recorder (GPU) or
  *    the shared bitmap (CPU) — and handles the GPU flush and the
  *    invalidate in the same step. Mode-agnostic; nothing to forget.
+ *    Raster images drawn there upload through the recorder's image
+ *    provider like anywhere else.
  *  - update(pixmap) / update(rasterImage): copies raster pixels in and
  *    invalidates. Works on CPU and GPU engines alike.
- *  - updateTexture(texture): GPU engines — blit-copies a native texture
- *    (e.g. one another renderer produced) into the slot and invalidates.
- *  - GPU engines, expert path: render straight into nativeTexture() with
- *    your own Graphite recorder (must share the engine's device/queue),
+ *  - updateTexture(texture): GPU engines — blit-copies a texture named on
+ *    the engine's device (e.g. one another renderer produced) into the
+ *    slot and invalidates.
+ *  - GPU engines, expert path: render straight into the texture behind
+ *    texture() with your own Graphite recorder over the engine's device,
  *    submit that work, then call invalidate() — in that order.
  *
  * Holding a WebImage keeps its WebEngine alive; destroying it
@@ -77,19 +81,19 @@ class WebImage {
   bool update(const sk_sp<SkImage>& image);
 
   /**
-   * GPU engines: blit-copies @p texture (a native texture handle on the
-   * engine's device — id<MTLTexture> bridged to void* on Metal) into the
-   * slot and invalidates it, on the web thread. The copy is clamped to
-   * the smaller of the two sizes. Safe from any thread; the texture must
-   * stay alive until this returns. False on CPU engines.
+   * GPU engines: blit-copies @p texture, named on the engine's GpuDevice,
+   * into the slot and invalidates it, on the web thread. The copy is
+   * clamped to the smaller of the two sizes. Safe from any thread; the
+   * texture must stay alive until this returns. False on CPU engines or
+   * for a stale handle.
    */
-  bool updateTexture(void* texture);
+  bool updateTexture(sigil::skia::TextureHandle texture);
 
-  /** GPU engines: the retained native texture backing this image
-   *  (id<MTLTexture> bridged to void* on Metal), valid for the
-   *  WebImage's lifetime. Null on CPU engines. After rendering into it,
-   *  call invalidate(). */
-  void* nativeTexture() const;
+  /** GPU engines: the texture backing this image, named on the engine's
+   *  GpuDevice and valid for the WebImage's lifetime; `exportNative`
+   *  there hands the native object out. Null on CPU engines. After
+   *  rendering into it, call invalidate(). */
+  sigil::skia::TextureHandle texture() const;
 
   /** Notifies pages displaying this image that it changed and should be
    *  redrawn (update() does this automatically). */

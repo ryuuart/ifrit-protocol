@@ -11,7 +11,8 @@
 #include <sigilscry/WebImage.h>
 #include <sigilscry/WebView.h>
 
-#include "SkiaGraphiteContext.h"
+#include <sigilskia/device/GpuDevice.h>
+#include <sigilskia/graphite/GraphiteContext.h>
 
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
@@ -32,6 +33,7 @@
 #include <chrono>
 #include <cstdio>
 #include <filesystem>
+#include <mutex>
 #include <thread>
 
 using namespace sigil::scry;
@@ -133,26 +135,26 @@ int main(int argc, char **argv) {
   std::filesystem::path outDir = argc > 1 ? argv[1] : "scry_demo_out";
   std::filesystem::create_directories(outDir);
 
-  id<MTLDevice> device = MTLCreateSystemDefaultDevice();
-  id<MTLCommandQueue> queue = [device newCommandQueue];
-  if (!device || !queue) {
-    // NOLINTNEXTLINE(clang-analyzer-osx.cocoa.RetainCount): the process exits with it
+  // One device the demo owns, one Graphite context shared with the engine:
+  // the web thread records on its own recorder over it, so every context
+  // call below holds the context's lock.
+  auto device = sigil::skia::GpuDevice::createOwned(sigil::skia::Backend::Metal);
+  if (!device) {
     std::fprintf(stderr, "no Metal device\n");
+    return 1;
+  }
+  auto graphite = sigil::skia::GraphiteContext::create(*device);
+  if (!graphite) {
+    std::fprintf(stderr, "Graphite bring-up failed\n");
     return 1;
   }
 
   WebEngineConfig config;
-  config.metalDevice = (void *)device;
-  config.metalCommandQueue = (void *)queue;
+  config.gpuDevice = device.get();
+  config.graphite = graphite.get();
   auto engine = WebEngine::create(config);
   if (!engine) {
     std::fprintf(stderr, "engine bring-up failed\n");
-    return 1;
-  }
-
-  auto graphite = SkiaGraphiteContext::createMetal((void *)device, (void *)queue);
-  if (!graphite) {
-    std::fprintf(stderr, "Graphite bring-up failed\n");
     return 1;
   }
 
@@ -209,6 +211,7 @@ int main(int argc, char **argv) {
   // Flush the Graphite work, then read the composited surface back for
   // the PNG (the one CPU copy in this pipeline).
   auto recording = graphite->recorder()->snap();
+  const std::unique_lock<std::mutex> lock = graphite->lockContext();
   if (recording) {
     skgpu::graphite::InsertRecordingInfo info;
     info.fRecording = recording.get();

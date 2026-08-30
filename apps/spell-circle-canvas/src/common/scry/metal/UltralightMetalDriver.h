@@ -1,6 +1,9 @@
 #pragma once
 // Internal to SigilScry — the Metal implementation of WebGpuDriver.
 
+#include <sigilskia/device/GpuDevice.h>
+#include <sigilskia/graphite/GraphiteContext.h>
+
 #include <memory>
 
 #include "../WebGpuDriver.h"
@@ -8,20 +11,20 @@
 namespace sigil::scry {
 
 /**
- * Executes Ultralight's GPU command lists on an existing Metal device and
- * command queue (the same pair the host's Graphite context is built on,
- * so all GPU work rides one queue and is implicitly ordered), using the
- * SDK's stock Metal shaders. Views render into driver-owned MTLTextures;
- * publish/slot textures and the Skia interop follow the WebGpuDriver
- * contract, with native handles being id<MTLTexture> bridged to void*.
+ * Executes Ultralight's GPU command lists on the Metal device and queue
+ * behind a GpuDevice (the host's own, so all GPU work rides one queue
+ * and is implicitly ordered), using the SDK's stock Metal shaders. Views
+ * render into driver-owned MTLTextures; publish/slot textures are
+ * imported into the device borrowed and handed out as handles, and the
+ * Skia interop records on the web thread's own recorder over the
+ * shared Graphite context.
  */
 class UltralightMetalDriver final : public WebGpuDriver {
  public:
-  /** @p mtlDevice / @p mtlCommandQueue are id<MTLDevice> /
-   *  id<MTLCommandQueue> bridged to void*; both are retained. Null when
-   *  pipeline-state creation fails (broken shader compile). */
-  static std::unique_ptr<UltralightMetalDriver> create(void* mtlDevice,
-                                                       void* mtlCommandQueue);
+  /** @p device must be Metal and, with @p graphite, outlive the driver.
+   *  Null when pipeline-state creation fails (broken shader compile). */
+  static std::unique_ptr<UltralightMetalDriver> create(
+      sigil::skia::GpuDevice& device, sigil::skia::GraphiteContext& graphite);
 
   // Defined where State is complete.
   // NOLINTNEXTLINE(performance-trivially-destructible)
@@ -52,21 +55,24 @@ class UltralightMetalDriver final : public WebGpuDriver {
 
   // WebGpuDriver
   std::unordered_set<uint32_t> flush() override;
-  void* createPublishTexture(int width, int height) override;
-  void* createImageTexture(int width, int height) override;
-  void releaseNativeTexture(void* texture) override;
-  void copyTexture(uint32_t srcTextureId, void* dstTexture, int width,
-                   int height) override;
-  void copyNativeTexture(void* srcTexture, void* dstTexture, int width,
+  sigil::skia::TextureHandle createPublishTexture(int width,
+                                                  int height) override;
+  sigil::skia::TextureHandle createImageTexture(int width, int height) override;
+  void releaseTexture(sigil::skia::TextureHandle texture) override;
+  void copyTexture(uint32_t srcTextureId, sigil::skia::TextureHandle dst,
+                   int width, int height) override;
+  bool copyDeviceTexture(sigil::skia::TextureHandle src,
+                         sigil::skia::TextureHandle dst, int width,
                          int height) override;
-  uint32_t registerExternalTexture(void* texture) override;
+  uint32_t registerExternalTexture(sigil::skia::TextureHandle texture) override;
   void unregisterExternalTexture(uint32_t textureId) override;
-  void uploadToTexture(void* texture, const void* pixels, int width, int height,
-                       size_t rowBytes) override;
-  bool paintTexture(void* texture, int width, int height,
+  void uploadToTexture(sigil::skia::TextureHandle texture, const void* pixels,
+                       int width, int height, size_t rowBytes) override;
+  bool paintTexture(sigil::skia::TextureHandle texture, int width, int height,
                     const std::function<void(SkCanvas&)>& painter) override;
-  sk_sp<SkImage> wrapTexture(skgpu::graphite::Recorder* recorder, void* texture,
-                             int width, int height) override;
+  sk_sp<SkImage> wrapTexture(skgpu::graphite::Recorder* recorder,
+                             sigil::skia::TextureHandle texture, int width,
+                             int height) override;
 
  private:
   struct State;

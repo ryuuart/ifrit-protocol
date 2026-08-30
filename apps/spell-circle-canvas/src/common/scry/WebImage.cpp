@@ -26,8 +26,8 @@ WebImage::~WebImage() {
     if (impl->gpuTexture) {
       WebGpuDriver* driver = impl->engine->gpuDriver();
       driver->unregisterExternalTexture(impl->gpuTextureId);
-      driver->releaseNativeTexture(impl->gpuTexture);
-      impl->gpuTexture = nullptr;
+      driver->releaseTexture(impl->gpuTexture);
+      impl->gpuTexture = {};
     }
   });
 }
@@ -123,21 +123,24 @@ bool WebImage::update(const sk_sp<SkImage>& image) {
   return update(bitmap.pixmap());
 }
 
-bool WebImage::updateTexture(void* texture) {
+bool WebImage::updateTexture(sigil::skia::TextureHandle texture) {
   if (!texture || !m_impl->gpuTexture) return false;
   auto impl = m_impl;
   bool ok = false;
   m_impl->engine->postAndWait([impl, texture, &ok] {
     if (!impl->gpuTexture) return;
-    impl->engine->gpuDriver()->copyNativeTexture(texture, impl->gpuTexture,
-                                                 impl->width, impl->height);
+    if (!impl->engine->gpuDriver()->copyDeviceTexture(
+            texture, impl->gpuTexture, impl->width, impl->height))
+      return;
     if (impl->source) impl->source->Invalidate();
     ok = true;
   });
   return ok;
 }
 
-void* WebImage::nativeTexture() const { return m_impl->gpuTexture; }
+sigil::skia::TextureHandle WebImage::texture() const {
+  return m_impl->gpuTexture;
+}
 
 void WebImage::invalidate() {
   auto impl = m_impl;

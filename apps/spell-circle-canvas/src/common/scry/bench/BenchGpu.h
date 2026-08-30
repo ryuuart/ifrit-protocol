@@ -1,18 +1,21 @@
 #pragma once
-// Bench-only helpers for the platform GPU handles (Metal on Apple, null
-// elsewhere until the Vulkan/D3D drivers land).
+// Bench-only helpers for the platform GPU device (Metal on Apple, null
+// elsewhere until the Vulkan driver lands).
 
-#include <cstddef>
+#include <sigilskia/device/Handle.h>
+
+namespace sigil::skia {
+class GpuDevice;
+}
 
 namespace sigil::scry::bench {
 
-/** System default GPU device / a fresh command queue on it, retained for
- *  process lifetime. Null when this platform has no GPU backend yet. */
-void* gpuDevice();
-void* gpuQueue();
+/** A device this process owns — the system default and a fresh queue —
+ *  for process lifetime. Null when this platform has no GPU backend yet. */
+sigil::skia::GpuDevice* gpuDevice();
 
-/** Creates a shared-storage BGRA8 texture filled with a solid color, for
- *  updateTexture() benchmarking. Retained for process lifetime. */
-void* makeSolidTexture(int width, int height);
+/** A CPU-accessible BGRA8 texture on gpuDevice() filled with a solid
+ *  colour, for updateTexture() benchmarking. Lives for the process. */
+sigil::skia::TextureHandle makeSolidTexture(int width, int height);
 
 }  // namespace sigil::scry::bench
