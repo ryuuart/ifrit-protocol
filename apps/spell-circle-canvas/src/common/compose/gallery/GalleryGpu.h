@@ -7,8 +7,10 @@
 
 #include <memory>
 
-class SkiaGraphiteContext;
+namespace sigil::skia {
+class GraphiteContext;
+}
 
 namespace compose_gallery {
-std::unique_ptr<SkiaGraphiteContext> makeHeadlessGraphite();
+std::unique_ptr<sigil::skia::GraphiteContext> makeHeadlessGraphite();
 }

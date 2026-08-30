@@ -2,6 +2,10 @@
 // surface over a texture it owns, a clear, and the pixels read back —
 // once through Skia's own readback and once through the Metal queue the
 // context shares, which is the ordering the asynchronous submit relies on.
+// Then the same wrap without naming an API: a GpuDevice over those very
+// objects, a texture it created, the surface built from the handle, and a
+// fence signalled by the submit. The Vulkan arms take that second path on
+// a device of their own and skip when the machine has no Vulkan runtime.
 
 #import <Metal/Metal.h>
 
@@ -13,16 +17,28 @@
 #include <include/gpu/graphite/Recorder.h>
 #include <include/gpu/graphite/Recording.h>
 #include <include/gpu/graphite/Surface.h>
+#include <sigilskia/device/GpuDevice.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 #include <sigilskia/graphite/OffscreenSurface.h>
 
 #include <cstring>
+#include <string>
 #include <vector>
 
 #include <gtest/gtest.h>
 
+using sigil::skia::Backend;
+using sigil::skia::FenceHandle;
+using sigil::skia::FenceValue;
+using sigil::skia::FenceWait;
+using sigil::skia::GpuDevice;
 using sigil::skia::GraphiteContext;
+using sigil::skia::kFenceInitialValue;
+using sigil::skia::NativeDevice;
 using sigil::skia::OffscreenSurface;
+using sigil::skia::TextureDesc;
+using sigil::skia::TextureFormat;
+using sigil::skia::TextureHandle;
 
 namespace {
 
@@ -40,6 +56,67 @@ GraphiteContext *graphite() {
   static std::unique_ptr<GraphiteContext> ctx =
       GraphiteContext::createMetal((__bridge void *)device(), (__bridge void *)queue());
   return ctx.get();
+}
+
+/** A GpuDevice over the very device and queue the context above was
+ *  stood up on, so a texture it names is drawn into by that context and
+ *  ordered by that one queue. Adopted, so it frees neither. */
+GpuDevice *adoptedDevice() {
+  static std::unique_ptr<GpuDevice> d = [] {
+    NativeDevice native;
+    native.backend = Backend::Metal;
+    native.mtlDevice = (__bridge void *)device();
+    native.mtlCommandQueue = (__bridge void *)queue();
+    return GpuDevice::adopt(native);
+  }();
+  return d.get();
+}
+
+/** A device of this library's own on the Vulkan backend, or null with the
+ *  reason — every Vulkan arm skips on that. */
+GpuDevice *vulkanDevice(std::string *why) {
+  static std::string error;
+  static std::unique_ptr<GpuDevice> d = GpuDevice::createOwned(Backend::Vulkan, &error);
+  if (why) *why = error;
+  return d.get();
+}
+
+/** Graphite on that Vulkan device; null when this Skia carries no Vulkan
+ *  backend. */
+GraphiteContext *vulkanGraphite() {
+  static std::unique_ptr<GraphiteContext> ctx = [] {
+    GpuDevice *dev = vulkanDevice(nullptr);
+    return dev ? GraphiteContext::create(*dev) : nullptr;
+  }();
+  return ctx.get();
+}
+
+/** An 8x8 BGRA render target the device owns, readable by the CPU so the
+ *  Metal arms can check the bytes without a copy. */
+TextureDesc smallTarget() {
+  TextureDesc desc;
+  desc.width = 8;
+  desc.height = 8;
+  desc.format = TextureFormat::BGRA8Unorm;
+  desc.cpuAccessible = true;
+  return desc;
+}
+
+/** The bytes of a Metal texture the device names, after a command buffer
+ *  committed behind Graphite's own work has completed — the queue
+ *  ordering an asynchronous submit relies on, and nothing more. */
+std::vector<uint8_t> readMetalBytes(GpuDevice &dev, TextureHandle handle, int size) {
+  id<MTLCommandBuffer> barrier = [queue() commandBuffer];
+  [barrier commit];
+  [barrier waitUntilCompleted];
+  std::vector<uint8_t> bytes(size_t(size) * size * 4);
+  id<MTLTexture> texture = (__bridge id<MTLTexture>)dev.exportNative(handle).mtlTexture;
+  if (!texture) return bytes;
+  [texture getBytes:bytes.data()
+        bytesPerRow:size_t(size) * 4
+         fromRegion:MTLRegionMake2D(0, 0, size, size)
+        mipmapLevel:0];
+  return bytes;
 }
 
 /** Reads a Graphite surface back to CPU pixels: snap, insert, async read,
@@ -152,4 +229,115 @@ TEST(SigilSkiaGraphite, NullTextureWrapsNothing) {
   OffscreenSurface surface(*ctx, nullptr, 8, 8);
   EXPECT_EQ(surface.canvas(), nullptr);
   EXPECT_EQ(surface.surface(), nullptr);
+}
+
+TEST(SigilSkiaGraphite, WrapsATextureNamedByHandle) {
+  GraphiteContext *ctx = graphite();
+  ASSERT_NE(ctx, nullptr) << "no Metal device";
+  GpuDevice *dev = adoptedDevice();
+  ASSERT_NE(dev, nullptr);
+
+  const TextureHandle handle = dev->createTexture(smallTarget());
+  ASSERT_TRUE(dev->isValid(handle));
+  OffscreenSurface surface(*ctx, *dev, handle);
+  ASSERT_NE(surface.canvas(), nullptr);
+  surface.canvas()->clear(SkColorSetARGB(255, 255, 0, 0));
+  surface.submit();
+
+  // BGRA, opaque red, in the texture the handle names.
+  const std::vector<uint8_t> bytes = readMetalBytes(*dev, handle, 8);
+  EXPECT_EQ(bytes[0], 0);
+  EXPECT_EQ(bytes[1], 0);
+  EXPECT_EQ(bytes[2], 255);
+  EXPECT_EQ(bytes[3], 255);
+  EXPECT_EQ(bytes[bytes.size() - 2], 255);
+  dev->destroy(handle);
+}
+
+TEST(SigilSkiaGraphite, SubmitSignalsAFence) {
+  GraphiteContext *ctx = graphite();
+  ASSERT_NE(ctx, nullptr) << "no Metal device";
+  GpuDevice *dev = adoptedDevice();
+  ASSERT_NE(dev, nullptr);
+
+  const TextureHandle handle = dev->createTexture(smallTarget());
+  const FenceHandle fence = dev->createFence();
+  OffscreenSurface surface(*ctx, *dev, handle);
+  ASSERT_NE(surface.canvas(), nullptr);
+  surface.canvas()->clear(SkColorSetARGB(255, 0, 255, 0));
+
+  const FenceValue value = surface.submit(*dev, fence);
+  EXPECT_GT(value, kFenceInitialValue);
+  // The signal is queued behind the drawing on the one shared queue, so
+  // reaching the value is proof the clear has landed.
+  EXPECT_EQ(dev->waitCpu(fence, value), FenceWait::Reached);
+  EXPECT_GE(dev->completedValue(fence), value);
+  const std::vector<uint8_t> bytes = readMetalBytes(*dev, handle, 8);
+  EXPECT_EQ(bytes[1], 255);
+  EXPECT_EQ(bytes[2], 0);
+
+  dev->destroyFence(fence);
+  dev->destroy(handle);
+}
+
+TEST(SigilSkiaGraphite, StaleHandleWrapsNothing) {
+  GraphiteContext *ctx = graphite();
+  ASSERT_NE(ctx, nullptr) << "no Metal device";
+  GpuDevice *dev = adoptedDevice();
+  ASSERT_NE(dev, nullptr);
+
+  const TextureHandle handle = dev->createTexture(smallTarget());
+  dev->destroy(handle);
+  OffscreenSurface surface(*ctx, *dev, handle);
+  EXPECT_EQ(surface.canvas(), nullptr);
+  EXPECT_EQ(surface.surface(), nullptr);
+  // A fence handle that names nothing signals nothing, and says so.
+  EXPECT_EQ(surface.submit(*dev, FenceHandle{}), kFenceInitialValue);
+}
+
+TEST(SigilSkiaGraphiteVulkan, WrapsATextureNamedByHandle) {
+  std::string why;
+  GpuDevice *dev = vulkanDevice(&why);
+  if (!dev) GTEST_SKIP() << "no Vulkan device: " << why;
+  GraphiteContext *ctx = vulkanGraphite();
+  if (!ctx) GTEST_SKIP() << "this Skia carries no Vulkan backend";
+
+  TextureDesc desc = smallTarget();
+  // Host-visible memory is not what a render target wants on this path;
+  // the pixels come back through Skia rather than a map.
+  desc.cpuAccessible = false;
+  const TextureHandle handle = dev->createTexture(desc);
+  ASSERT_TRUE(dev->isValid(handle));
+  OffscreenSurface surface(*ctx, *dev, handle);
+  ASSERT_NE(surface.canvas(), nullptr);
+  surface.canvas()->clear(SkColorSetARGB(255, 0, 255, 0));
+
+  const SkBitmap pixels = readback(*ctx, surface.surface());
+  ASSERT_FALSE(pixels.empty());
+  EXPECT_EQ(pixels.getColor(0, 0), SkColorSetARGB(255, 0, 255, 0));
+  EXPECT_EQ(pixels.getColor(7, 7), SkColorSetARGB(255, 0, 255, 0));
+  dev->destroy(handle);
+}
+
+TEST(SigilSkiaGraphiteVulkan, SubmitSignalsAFence) {
+  std::string why;
+  GpuDevice *dev = vulkanDevice(&why);
+  if (!dev) GTEST_SKIP() << "no Vulkan device: " << why;
+  GraphiteContext *ctx = vulkanGraphite();
+  if (!ctx) GTEST_SKIP() << "this Skia carries no Vulkan backend";
+
+  TextureDesc desc = smallTarget();
+  desc.cpuAccessible = false;
+  const TextureHandle handle = dev->createTexture(desc);
+  const FenceHandle fence = dev->createFence();
+  OffscreenSurface surface(*ctx, *dev, handle);
+  ASSERT_NE(surface.canvas(), nullptr);
+  surface.canvas()->clear(SkColorSetARGB(255, 0, 0, 255));
+
+  const FenceValue value = surface.submit(*dev, fence);
+  EXPECT_GT(value, kFenceInitialValue);
+  EXPECT_EQ(dev->waitCpu(fence, value), FenceWait::Reached);
+
+  dev->destroyFence(fence);
+  dev->destroy(handle);
 }

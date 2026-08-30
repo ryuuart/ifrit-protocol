@@ -128,16 +128,13 @@ class GraphiteContext {
    *  texture budget; unset leaves Skia's own default in place. */
   static skgpu::graphite::ContextOptions makeContextOptions();
 
- protected:
+ private:
   /** Wraps a context and the one recorder made from it; the backend
-   *  factories build the pair and hand it here. */
+   *  factories build the pair and hand it here. A context is reached
+   *  only through a factory, and only ever by pointer. */
   GraphiteContext(std::unique_ptr<skgpu::graphite::Context> context,
                   std::unique_ptr<skgpu::graphite::Recorder> recorder);
-  /** Move is for a subclass that takes over a factory-made context; the
-   *  moved-from object is empty and must not be drawn with. */
-  GraphiteContext(GraphiteContext&& other) noexcept;
 
- private:
   std::unique_ptr<skgpu::graphite::Context> m_context;
   std::unique_ptr<skgpu::graphite::Recorder> m_recorder;
   mutable std::mutex m_contextMutex;

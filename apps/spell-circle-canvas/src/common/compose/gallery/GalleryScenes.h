@@ -46,9 +46,9 @@
 #include <include/gpu/graphite/Recorder.h>
 #include <include/gpu/graphite/Recording.h>
 #include <include/gpu/graphite/Surface.h>
+#include <sigilskia/graphite/GraphiteContext.h>
 
 #include "GalleryGpu.h"
-#include "SkiaGraphiteContext.h"
 #endif
 
 #include <cctype>
@@ -267,7 +267,7 @@ inline int runHeadless(const std::string& outDir, bool gpu = false,
     }
   }
 #ifdef SIGILCOMPOSE_GALLERY_HEADLESS_GPU
-  std::unique_ptr<SkiaGraphiteContext> graphite;
+  std::unique_ptr<sigil::skia::GraphiteContext> graphite;
   if (gpu) {
     graphite = makeHeadlessGraphite();
     if (!graphite) {

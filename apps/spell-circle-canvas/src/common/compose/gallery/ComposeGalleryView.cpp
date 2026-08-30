@@ -3,8 +3,7 @@
 #include "GalleryScenes.h"
 
 #ifdef SIGILCOMPOSE_GALLERY_GPU
-#include "SkiaGraphiteContext.h"
-#include "SkiaOffscreenSurface.h"
+#include <sigilskia/qt/QtInterop.h>
 #endif
 
 #include <include/core/SkCanvas.h>
@@ -37,7 +36,7 @@ class ComposeGalleryRenderer final : public QQuickRhiItemRenderer {
 #ifdef SIGILCOMPOSE_GALLERY_GPU
   // Declared before the stage so reverse destruction releases every
   // Graphite-backed SkImage in Composer caches before tearing down context.
-  std::unique_ptr<SkiaGraphiteContext> m_graphiteContext;
+  std::unique_ptr<sigil::skia::GraphiteContext> m_graphiteContext;
 #endif
   std::unique_ptr<GalleryStage> m_stage;
   QRhi* m_rhi = nullptr;
@@ -69,7 +68,7 @@ void ComposeGalleryRenderer::initialize(QRhiCommandBuffer* /*commandBuffer*/) {
     // Graphite uses Qt's native device and command queue. Its asynchronous
     // submission therefore completes before Qt samples this texture later on
     // the same queue, without a CPU wait or an intermediate copy.
-    m_graphiteContext = SkiaGraphiteContext::create(currentRhi);
+    m_graphiteContext = sigil::skia::createGraphiteContext(currentRhi);
   }
 #endif
   m_rhi = currentRhi;
@@ -215,7 +214,8 @@ void ComposeGalleryRenderer::render(QRhiCommandBuffer* commandBuffer) {
 #ifdef SIGILCOMPOSE_GALLERY_GPU
   if (m_graphiteContext) {
     {
-      SkiaOffscreenSurface surface(*m_graphiteContext, texture, pixelSize);
+      sigil::skia::OffscreenSurface surface =
+          sigil::skia::wrapTexture(*m_graphiteContext, texture, pixelSize);
       if (SkCanvas* canvas = surface.canvas()) {
         renderScene(*canvas, pixelSize);
         const auto submitStart = Clock::now();

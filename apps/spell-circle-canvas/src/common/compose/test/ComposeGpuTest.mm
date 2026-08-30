@@ -6,8 +6,6 @@
 // multi-pass glyph compositing (a blurred underlay beneath a stroked
 // foreground) that must land identically on both backends.
 
-#import <Metal/Metal.h>
-
 #include <sigilcompose/Compose.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/instances/Instances.h>
@@ -18,6 +16,7 @@
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
+#include <sigilskia/device/GpuDevice.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 
 #include <include/core/SkBitmap.h>
@@ -41,12 +40,10 @@ sigil::weave::FontContext &fonts() {
 }
 
 sigil::skia::GraphiteContext *graphite() {
-  static std::unique_ptr<sigil::skia::GraphiteContext> ctx = [] {
-    id<MTLDevice> device = MTLCreateSystemDefaultDevice();
-    id<MTLCommandQueue> queue = [device newCommandQueue];
-    return sigil::skia::GraphiteContext::createMetal((__bridge void *)device,
-                                                     (__bridge void *)queue);
-  }();
+  static std::unique_ptr<sigil::skia::GpuDevice> device =
+      sigil::skia::GpuDevice::createOwned(sigil::skia::Backend::Metal);
+  static std::unique_ptr<sigil::skia::GraphiteContext> ctx =
+      device ? sigil::skia::GraphiteContext::create(*device) : nullptr;
   return ctx.get();
 }
 
@@ -139,9 +136,9 @@ std::shared_ptr<const sigil::image::ImageAsset> whiteTile(int size) {
 
 }  // namespace
 
-#define REQUIRE_GPU()                  \
-  if (!graphite()) {                   \
-    GTEST_SKIP() << "no Metal device"; \
+#define REQUIRE_GPU()                \
+  if (!graphite()) {                 \
+    GTEST_SKIP() << "no GPU device"; \
   }
 
 TEST(ComposeGpu, ImageRectDrawsOnGraphite) {

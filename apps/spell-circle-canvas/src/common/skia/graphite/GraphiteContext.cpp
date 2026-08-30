@@ -109,10 +109,6 @@ std::unique_ptr<skgpu::graphite::Recorder> GraphiteContext::makeRecorder()
   return m_context ? m_context->makeRecorder(makeRecorderOptions()) : nullptr;
 }
 
-GraphiteContext::GraphiteContext(GraphiteContext&& other) noexcept
-    : m_context(std::move(other.m_context)),
-      m_recorder(std::move(other.m_recorder)) {}
-
 GraphiteContext::~GraphiteContext() = default;
 
 }  // namespace sigil::skia

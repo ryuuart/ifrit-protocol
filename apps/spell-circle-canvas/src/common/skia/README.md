@@ -2,12 +2,14 @@
 
 SigilSkia brings Skia's Graphite GPU backend up on a device someone else
 already owns. Given a native device and command queue — Metal or Vulkan —
-it builds a Graphite `Context` and `Recorder`, and given a native texture
-it wraps that texture as an `SkSurface`, so ordinary `SkCanvas` draw calls
-land directly in the texture with no copy. It also offers the device
-itself as an object: created or adopted, with textures and fences named
-by handles that go stale rather than dangle, and destruction that waits
-out the frames still in flight. A Qt host reaches the same bring-up
+it builds a Graphite `Context` and `Recorder`, and given a texture — the
+API's own object, or the name a device gave one — it wraps that texture
+as an `SkSurface`, so ordinary `SkCanvas` draw calls land directly in the
+texture with no copy. It also offers the device itself as an object:
+created or adopted, with textures and fences named by handles that go
+stale rather than dangle, and destruction that waits out the frames still
+in flight. A host that holds one of those devices never spells a graphics
+API: it hands over handles and reads back fences. A Qt host reaches the same bring-up
 through an adapter over its `QRhi`. There is no scene, product, or
 drawing logic here: nothing in this library knows what is being drawn.
 
@@ -21,14 +23,18 @@ directory, and links only what it needs.
 
 | Feature | Target | Headers | What it holds |
 |---|---|---|---|
-| graphite | `SigilSkiaGraphite` | `<sigilskia/graphite/GraphiteContext.h>`, `<sigilskia/graphite/OffscreenSurface.h>` | the context over a native device and queue, the surface over a native texture; Metal and Vulkan as parallel paths |
-| device | `SigilSkiaDevice` | `<sigilskia/device/GpuDevice.h>`, `<sigilskia/device/Handle.h>`, `<sigilskia/device/Fence.h>` | the device and its queue, owned or adopted; textures and fences by generation-checked handle; deferred destruction; `GraphiteContext::create(GpuDevice&)` |
+| graphite | `SigilSkiaGraphite` | `<sigilskia/graphite/GraphiteContext.h>`, `<sigilskia/graphite/OffscreenSurface.h>` | the context over a native device and queue, the surface over a texture; Metal and Vulkan as parallel paths |
+| device | `SigilSkiaDevice` | `<sigilskia/device/GpuDevice.h>`, `<sigilskia/device/Handle.h>`, `<sigilskia/device/Fence.h>` | the device and its queue, owned or adopted; textures and fences by generation-checked handle; deferred destruction; and the entry points the graphite headers declare over a device — `GraphiteContext::create(GpuDevice&)`, the `OffscreenSurface` wrap over a `TextureHandle`, the submit that signals a `FenceHandle` |
 | qt | `SigilSkiaQt` | `<sigilskia/qt/QtInterop.h>` | the adapters that unwrap a `QRhi`'s native handles and forward to graphite |
 
 `SigilSkia` is the umbrella over the Qt-free features — graphite and
 device. Dependencies point one way: device links graphite, never the
-reverse, which is why `GraphiteContext::create(GpuDevice&)` is declared
-in the graphite header but defined by the device feature. A Qt host links `SigilSkiaQt`, which carries the umbrella with it. A
+reverse, which is why every entry point that reads a `GpuDevice` is
+declared in a graphite header and defined by the device feature. The
+graphite headers do include `<sigilskia/device/Handle.h>` and
+`<sigilskia/device/Fence.h>` to spell those declarations, but those two
+headers are names and values with no device code behind them; a caller of
+the entry points links `SigilSkiaDevice`. A Qt host links `SigilSkiaQt`, which carries the umbrella with it. A
 consumer that owns its own Metal device (the native macOS app, the
 headless gallery, the GPU tests and benchmarks) links `SigilSkia` and
 never sees Qt.
@@ -79,7 +85,9 @@ surface.submit();
 The Vulkan constructor takes a `VulkanImage` — the `VkImage`, its
 current layout and format, and its size — and the Qt adapter is
 `sigil::skia::wrapTexture(*graphite, qrhiTexture, pixelSize)`, which
-returns the same `OffscreenSurface` by value.
+returns the same `OffscreenSurface` by value. These are the wraps for a
+host that holds the API's own object; a host whose textures are named by
+a `GpuDevice` hands the handle over instead and names no API at all.
 
 `OffscreenSurface` is a thin wrapper around a texture someone else owns —
 construct it fresh each time rather than caching it. If you need the
@@ -107,20 +115,22 @@ desc.width = 1920;
 desc.height = 1080;
 desc.format = TextureFormat::BGRA8Unorm;
 TextureHandle target = device->createTexture(desc);
-NativeTexture native = device->exportNative(target);   // for the wrap, or the host
 
 FenceHandle fence = device->createFence();
 for (;;) {
   device->beginFrame();                     // retires destroys three frames old
-  OffscreenSurface surface(*graphite, native.mtlTexture, native.width, native.height);
+  OffscreenSurface surface(*graphite, *device, target);
   drawMyScene(*surface.canvas());
-  surface.submit();
-  FenceValue done = device->signal(fence);  // after everything queued so far
+  FenceValue done = surface.submit(*device, fence);   // signal behind the draw
   // …later: device->waitCpu(fence, done) blocks; device->waitGpu(fence, done)
   // holds later queue work instead.
 }
 device->destroy(target);                    // stale at once, released at frame + 3
 ```
+
+`device->exportNative(target)` still hands the API's own object out, for
+a host that draws with the API directly or publishes the texture
+onwards.
 
 A texture the host made enters the same table through
 `importNative(nativeTexture)` — borrowed, so destroy only forgets it —
@@ -255,7 +265,16 @@ vulkan-loader`, and the tests and benchmarks on that backend skip with
 the same message.
 
 **A null canvas means the wrap failed.** `OffscreenSurface::canvas()`
-returns null in that case — check it before drawing.
+returns null in that case — check it before drawing. A wrap by handle
+fails that way for a stale handle too, so a texture destroyed under a
+host's feet stops it drawing rather than reaching whatever now holds
+the slot.
+
+**A wrapped Vulkan image is wrapped in the layout the device last knew.**
+A device-created image starts undefined, and wrapping an undefined image
+does not preserve what is in it — the first thing drawn into one must be
+what fills it. Nothing hands Skia's final layout back to the device, so a
+host that needs a particular layout afterwards transitions it itself.
 
 **`SIGILSKIA_GLYPH_ATLAS_BYTES`** caps the Graphite glyph-atlas texture
 budget from the environment. Unset leaves Skia's default in place; it
@@ -269,21 +288,23 @@ Foundation and `SigilSkiaDevice` links Metal, both privately. The graphite
 and device features never link Qt, and nothing here links a renderer, a
 text engine, or a scene.
 
-The two headers at the include root, `SkiaGraphiteContext.h` and
-`SkiaOffscreenSurface.h`, are the global-namespace spellings of the same
-two classes for a consumer that has not yet moved to `<sigilskia/...>`.
-Nothing new includes them.
-
 ## Building
 
 Added only when `SPELLCIRCLE_ENABLE_SKIA_CANVAS` is on. Targets:
 `SigilSkiaGraphite`, `SigilSkiaDevice`, `SigilSkiaQt`, the `SigilSkia`
 umbrella, and on Apple `sigilskia_graphite_test` and
-`sigilskia_device_test` (ctest) plus `sigilskia_device_bench` (Google
-Benchmark, through the `benches` target and `scripts/bench_ledger.py`).
-The graphite test takes the Metal path end to end on the system device: a
-context, a wrapped texture, a clear, and the pixels read back through the
-queue the context shares. The device test proves the handles go stale,
+`sigilskia_device_test` (ctest) plus `sigilskia_graphite_bench` and
+`sigilskia_device_bench` (Google Benchmark, through the `benches` target
+and `scripts/bench_ledger.py`). The graphite test takes the Metal path
+end to end on the system device: a context, a wrapped texture, a clear,
+and the pixels read back through the queue the context shares. It then
+takes the same wrap through a device — a texture the device made, the
+surface built from its handle, a stale handle that wraps nothing, and a
+fence the submit signals — on Metal, and again on Vulkan where a runtime
+is installed; both it and the benchmark link the device feature, since
+that is where those entry points are defined. The benchmark weighs the
+handle wrap against the native one on the same texture. The device test
+proves the handles go stale,
 destruction retires at frame + 3, a texture round-trips through import and
 export, a fence signals and holds, and Graphite stands up on an adopted
 device. The Qt adapters and the products are exercised through

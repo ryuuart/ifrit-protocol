@@ -35,14 +35,26 @@ if(APPLE)
   target_link_libraries(SigilSkiaGraphite PRIVATE ${FOUNDATION_FRAMEWORK})
 endif()
 
-# The Metal path end to end on the system device: needs a GPU, so it
-# exists only where one is guaranteed.
+# The Metal path end to end on the system device, and the same wrap
+# reached through a device's handles: needs a GPU, so both exist only
+# where one is guaranteed. Both link the device feature, since the entry
+# points these headers declare over a GpuDevice are defined there.
 if(APPLE)
   find_library(METAL_FRAMEWORK Metal REQUIRED)
   add_executable(sigilskia_graphite_test test/GraphiteTest.mm)
   set_source_files_properties(test/GraphiteTest.mm PROPERTIES
     COMPILE_OPTIONS -fobjc-arc)
-  target_link_libraries(sigilskia_graphite_test PRIVATE SigilSkiaGraphite
+  target_link_libraries(sigilskia_graphite_test PRIVATE SigilSkiaDevice
     GTest::gtest_main ${METAL_FRAMEWORK})
   add_test(NAME sigilskia_graphite_test COMMAND sigilskia_graphite_test)
+
+  # Google Benchmark (use a Release build), linking only what it measures.
+  # Not a test: it builds through the `benches` target and runs through
+  # scripts/bench_ledger.py.
+  add_executable(sigilskia_graphite_bench bench/GraphiteBench.mm)
+  set_source_files_properties(bench/GraphiteBench.mm PROPERTIES
+    COMPILE_OPTIONS -fobjc-arc)
+  target_link_libraries(sigilskia_graphite_bench PRIVATE SigilSkiaDevice
+    benchmark::benchmark ${METAL_FRAMEWORK})
+  add_dependencies(benches sigilskia_graphite_bench)
 endif()

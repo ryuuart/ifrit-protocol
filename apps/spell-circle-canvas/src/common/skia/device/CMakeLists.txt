@@ -5,8 +5,10 @@
 # backend implements the private interface in DeviceBackend.h — Metal on
 # Apple, Vulkan everywhere, resolving its entry points from the loader at
 # run time so nothing links Vulkan and a machine without a driver only
-# reports that. Links the graphite feature so
-# GraphiteContext::create(GpuDevice&) can reach both.
+# reports that. Links the graphite feature so the entry points the
+# graphite headers declare over a device — GraphiteContext::create, the
+# OffscreenSurface wrap over a TextureHandle and the submit that signals
+# a fence — can reach both sides.
 if(APPLE)
   set(SIGIL_SKIA_DEVICE_NATIVE_SOURCES GpuDeviceMetal.mm)
 else()
@@ -18,6 +20,7 @@ add_library(SigilSkiaDevice STATIC
   GpuDevice.cpp
   GpuDeviceVulkan.cpp
   GraphiteOnDevice.cpp
+  OffscreenSurfaceOnDevice.cpp
   ${SIGIL_SKIA_DEVICE_NATIVE_SOURCES}
   ${SIGIL_SKIA_INCLUDE_DIR}/sigilskia/device/Fence.h
   ${SIGIL_SKIA_INCLUDE_DIR}/sigilskia/device/GpuDevice.h

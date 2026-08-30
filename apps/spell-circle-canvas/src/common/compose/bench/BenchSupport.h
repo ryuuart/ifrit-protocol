@@ -3,8 +3,9 @@
 /** @file
  * What every compose benchmark binary shares: the font context, a composer
  * over a raster surface, the node-count ladder the scaling arms walk, and —
- * when the binary is built with COMPOSE_BENCH_GRAPHITE — one Graphite Metal
- * context with a render target acquired per arm.
+ * when the binary is built with COMPOSE_BENCH_GRAPHITE — one Graphite
+ * context over a GPU device of the process's own, with a render target
+ * acquired per arm.
  *
  * Every binary is built in Release before its numbers mean anything; a Debug
  * timing says nothing about the library.
@@ -27,9 +28,8 @@
 #include <include/gpu/graphite/Recorder.h>
 #include <include/gpu/graphite/Recording.h>
 #include <include/gpu/graphite/Surface.h>
+#include <sigilskia/device/GpuDevice.h>
 #include <sigilskia/graphite/GraphiteContext.h>
-
-#include "ComposeBenchGpu.h"
 #endif
 
 namespace sigil::compose::bench {
@@ -82,11 +82,22 @@ inline Fill cellFill(int id, int changed = -1, int phase = 0) {
 
 #ifdef COMPOSE_BENCH_GRAPHITE
 
-/** The process's Graphite Metal context, created on first use. Null when
- *  the device is unavailable, which every GPU arm turns into a skip. */
+/** The process's GPU device, created on first use; null where there is
+ *  none. */
+inline sigil::skia::GpuDevice* gpuDevice() {
+  static std::unique_ptr<sigil::skia::GpuDevice> device =
+      sigil::skia::GpuDevice::createOwned(sigil::skia::Backend::Metal);
+  return device.get();
+}
+
+/** The process's Graphite context over that device, created on first use.
+ *  Null when the device is unavailable, which every GPU arm turns into a
+ *  skip. */
 inline sigil::skia::GraphiteContext* graphite() {
-  static std::unique_ptr<sigil::skia::GraphiteContext> ctx =
-      sigil::skia::GraphiteContext::createMetal(gpuDevice(), gpuQueue());
+  static std::unique_ptr<sigil::skia::GraphiteContext> ctx = [] {
+    sigil::skia::GpuDevice* device = gpuDevice();
+    return device ? sigil::skia::GraphiteContext::create(*device) : nullptr;
+  }();
   return ctx.get();
 }
 

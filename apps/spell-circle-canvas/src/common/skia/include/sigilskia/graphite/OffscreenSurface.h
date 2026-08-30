@@ -1,5 +1,11 @@
 #pragma once
 #include <include/core/SkRefCnt.h>
+// The names a device gives its resources. Handles and fence values are
+// plain values with no device code behind them; the entry points here
+// that read one are defined by the device feature, so a caller of those
+// links it.
+#include <sigilskia/device/Fence.h>
+#include <sigilskia/device/Handle.h>
 
 #include <cstdint>
 
@@ -8,6 +14,7 @@ class SkSurface;
 
 namespace sigil::skia {
 
+class GpuDevice;
 class GraphiteContext;
 
 /**
@@ -34,8 +41,11 @@ struct VulkanImage {
  * Construct fresh per use — it is a thin, cheap wrapper around a texture
  * someone else owns — and drive it with the context it was made on.
  *
- * The wrap is per graphics API, one constructor each, both Qt-free. A
- * QRhiTexture is wrapped through <sigilskia/qt/QtInterop.h>.
+ * The wrap is per graphics API, one constructor each, both Qt-free —
+ * those are the escape hatch for a host that holds the API's own object.
+ * A host whose textures are named by a GpuDevice hands the handle
+ * instead and never spells an API. A QRhiTexture is wrapped through
+ * <sigilskia/qt/QtInterop.h>.
  */
 class OffscreenSurface {
  public:
@@ -50,6 +60,17 @@ class OffscreenSurface {
    *  built from. Leaves `canvas()` null when the build's Skia carries no
    *  Vulkan backend. */
   OffscreenSurface(GraphiteContext& context, const VulkanImage& image);
+
+  /** The texture @p texture names on @p device, whichever API that
+   *  device is: the wrap a host holding a GpuDevice reaches for, in
+   *  place of the native handle its API spells. `canvas()` is null when
+   *  the handle is stale or the wrap failed. A Vulkan image is wrapped
+   *  in the layout the device last knew it to be in — undefined for one
+   *  the device made and nothing has drawn into, which is to say its
+   *  contents before the first draw are not preserved. Defined by the
+   *  device feature, which every holder of a GpuDevice already links. */
+  OffscreenSurface(GraphiteContext& context, GpuDevice& device,
+                   TextureHandle texture);
 
   OffscreenSurface(OffscreenSurface&& other) noexcept;
   OffscreenSurface& operator=(OffscreenSurface&&) = delete;
@@ -68,6 +89,15 @@ class OffscreenSurface {
    *  Safe because Graphite shares the host's command queue: the host's
    *  later GPU work is ordered after this submission on the same queue. */
   void submit();
+
+  /** Submits as `submit()` does, then queues a signal of @p fence on
+   *  @p device behind it and returns the value the fence will reach
+   *  (kFenceInitialValue for a stale handle). Graphite shares the
+   *  device's one queue, so the value is reached only once this frame's
+   *  drawing has landed. The wait for it belongs on another queue or on
+   *  the CPU: a wait queued on this same queue ahead of the signal sits
+   *  behind it and never passes. Defined by the device feature. */
+  FenceValue submit(GpuDevice& device, FenceHandle fence);
 
  private:
   GraphiteContext* m_context;

@@ -11,7 +11,7 @@ namespace sigil::skia {
  * or on the CPU, blocking — passes once the value has reached the one
  * asked for. Values are issued by the device, one per signal, so the
  * value a signal returns is the one to wait for. On Metal this is an
- * MTLSharedEvent; on Vulkan it will be a timeline semaphore.
+ * MTLSharedEvent; on Vulkan a timeline semaphore.
  */
 using FenceValue = uint64_t;
 

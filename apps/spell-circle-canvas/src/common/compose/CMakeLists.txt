@@ -70,20 +70,8 @@ endfunction()
 # measures. None is a test: they build through the `benches` target and run
 # through scripts/bench_ledger.py, which compares them against a baseline.
 #
-# The Graphite arms (COMPOSE_BENCH_GRAPHITE) exist only where the Metal
-# context can be made; the binaries that carry them take the bench-only
-# Metal handles as an extra source.
-if(APPLE AND TARGET SigilSkia)
-  set(COMPOSE_BENCH_GPU_SOURCES
-      ${SIGIL_COMPOSE_BENCH_SUPPORT_DIR}/ComposeBenchGpuMetal.mm
-      ${SIGIL_COMPOSE_BENCH_SUPPORT_DIR}/ComposeBenchGpu.h)
-  set_source_files_properties(
-    ${SIGIL_COMPOSE_BENCH_SUPPORT_DIR}/ComposeBenchGpuMetal.mm PROPERTIES
-    COMPILE_OPTIONS -fobjc-arc)
-  find_library(METAL_FRAMEWORK Metal REQUIRED)
-else()
-  set(COMPOSE_BENCH_GPU_SOURCES)
-endif()
+# The Graphite arms (COMPOSE_BENCH_GRAPHITE) exist only where a GPU device
+# can be made; they reach it through SigilSkia and name no graphics API.
 
 # `_compose_bench(<name> LIBRARIES <targets>... [GPU] SOURCES <files>...)`
 # registers one benchmark binary over bench/BenchSupport.h. GPU adds the
@@ -96,9 +84,8 @@ function(_compose_bench name)
   target_link_libraries(${name} PRIVATE
     ${ARG_LIBRARIES} SigilWeavePorts benchmark::benchmark)
   if(ARG_GPU AND APPLE AND TARGET SigilSkia)
-    target_sources(${name} PRIVATE ${COMPOSE_BENCH_GPU_SOURCES})
     target_compile_definitions(${name} PRIVATE COMPOSE_BENCH_GRAPHITE)
-    target_link_libraries(${name} PRIVATE SigilSkia ${METAL_FRAMEWORK})
+    target_link_libraries(${name} PRIVATE SigilSkia)
   endif()
   add_dependencies(benches ${name})
 endfunction()
@@ -183,7 +170,7 @@ _compose_test_binary(compose_docs_test
 target_compile_definitions(compose_docs_test PRIVATE
   SIGILCOMPOSE_TEST_ASSET_DIR="${SIGIL_COMPOSE_TEST_ASSET_DIR}")
 
-# GPU-backend behavior tests (Graphite Metal): the raster suites prove
+# GPU-backend behavior tests (Graphite on a GPU device): the raster suites prove
 # semantics, this one proves the same pixels arrive on the GPU — it
 # exists for the direct-image draw gaps (lattice/atlas) the raster suites
 # cannot see.
@@ -196,7 +183,7 @@ if(APPLE AND TARGET SigilSkia)
   target_link_libraries(compose_gpu_test PRIVATE
     SigilComposeShape SigilComposeBrush SigilComposeTypography
     SigilComposeInstances SigilWeavePorts SigilSkia
-    GTest::gtest_main "-framework Metal")
+    GTest::gtest_main)
   add_test(NAME compose_gpu_test COMMAND compose_gpu_test)
 endif()
 

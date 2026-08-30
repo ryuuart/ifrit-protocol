@@ -5,9 +5,7 @@
 #include <include/gpu/graphite/Recorder.h>
 #include <include/gpu/graphite/Recording.h>
 #include <include/gpu/graphite/Surface.h>
-
-#include "SkiaGraphiteContext.h"
-#include "SkiaOffscreenSurface.h"
+#include <sigilskia/qt/QtInterop.h>
 #endif
 
 #include <include/core/SkBitmap.h>
@@ -63,7 +61,7 @@ class ComposeSketchRenderer final : public QQuickRhiItemRenderer {
   bool readbackGraphite(SkSurface& surface, const SkPixmap& out);
   // Declared before everything Skia so reverse destruction releases any
   // Graphite-backed images before tearing down the context.
-  std::unique_ptr<SkiaGraphiteContext> m_graphiteContext;
+  std::unique_ptr<sigil::skia::GraphiteContext> m_graphiteContext;
 #endif
   ComposeSketchView* m_view = nullptr;
   QRhi* m_rhi = nullptr;
@@ -89,7 +87,7 @@ void ComposeSketchRenderer::initialize(QRhiCommandBuffer* /*commandBuffer*/) {
   // Metal only, like ComposeGallery: the Vulkan adapter does not yet hand
   // the image's final layout back to QRhi's state tracker.
   if (currentRhi && currentRhi->backend() == QRhi::Metal)
-    m_graphiteContext = SkiaGraphiteContext::create(currentRhi);
+    m_graphiteContext = sigil::skia::createGraphiteContext(currentRhi);
   if (m_graphiteContext && host) {
     host->setCaptureBackend(
         {[this](const SkImageInfo& info) -> sk_sp<SkSurface> {
@@ -219,7 +217,8 @@ void ComposeSketchRenderer::render(QRhiCommandBuffer* commandBuffer) {
   if (m_graphiteContext) {
     bool rendered = false;
     {
-      SkiaOffscreenSurface surface(*m_graphiteContext, texture, pixelSize);
+      sigil::skia::OffscreenSurface surface =
+          sigil::skia::wrapTexture(*m_graphiteContext, texture, pixelSize);
       if (SkCanvas* canvas = surface.canvas()) {
         QMutexLocker lock(&ComposeSketchView::hostMutex);
         renderScene(*canvas, pixelSize);
