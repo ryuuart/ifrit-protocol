@@ -778,19 +778,18 @@ struct ThunderFulu : sigil::compose::sketch::Sketch {
 
     const SkRect f = s.frame;
     const SkPath local = s.path.makeOffset(-f.left(), -f.top());
-    Element e =
-        box()
-            .left(f.left())
-            .top(f.top())
-            .width(Dim(f.width()))
-            .height(Dim(f.height()))
-            // the callable is invoked on every layout, so its capture must
-            // survive each return
-            // NOLINTNEXTLINE(performance-no-automatic-move)
-            .shape([local](SkSize) { return local; })
-            .fill(Fill::none())
-            .stroke(std::move(brush))
-            .key(s.key);
+    Element e = box()
+                    .left(f.left())
+                    .top(f.top())
+                    .width(Dim(f.width()))
+                    .height(Dim(f.height()))
+                    // the callable is invoked on every layout, so its capture
+                    // must survive each return
+                    // NOLINTNEXTLINE(performance-no-automatic-move)
+                    .shape([local](SkSize) { return local; })
+                    .fill(Fill::none())
+                    .stroke(std::move(brush))
+                    .key(s.key);
     // The wet 頓 pool riding the head of the self-drawing line. A decoration
     // receives the ALREADY-trimmed outline, so its own window is a fraction
     // of the revealed part — this needs no second node.
