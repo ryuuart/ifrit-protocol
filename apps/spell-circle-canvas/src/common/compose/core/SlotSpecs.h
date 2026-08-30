@@ -17,8 +17,9 @@ namespace sigil::compose::detail {
 //
 // THE FAILURE THIS CLOSES IS THE SAME ONE ComposeInternal.h's FIELD PINS
 // CLOSE, ONE LEVEL UP. Four functions consume `Instance::Slot` —
-// `collectGroupScalars` and `computeVolatile` (Volatility.cpp),
-// `applyMountTransitions` and `applyTransitions` (Transitions.cpp). Were
+// `collectGroupScalars` and `computeVolatile` (Volatility.cpp), and
+// `applyMountTransitions` and `applyTransitions` (Transitions.cpp), which
+// reach it through the lane list `lanes` builds from this table. Were
 // each of them to enumerate the slots by hand, a slot appended to the enum
 // would compile perfectly while being absent from any of them, and every
 // one of those absences is silent:

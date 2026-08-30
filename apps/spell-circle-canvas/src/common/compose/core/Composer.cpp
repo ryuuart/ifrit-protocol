@@ -285,7 +285,7 @@ void Composer::render(const Element& root) {
   impl.stats.patchedNodes = 0;
 
   if (!impl.root)
-    impl.root = impl.mount(root.node(), nullptr);
+    impl.root = impl.create(root.node(), nullptr, 0, 1);
   else
     impl.patch(*impl.root, root.node());
 
@@ -330,11 +330,8 @@ void Composer::renderSlot(std::string_view name, const Element& content) {
     impl.patch(*slotInst.children.front(), content.node());
   } else {
     slotInst.children.clear();
-    slotInst.children.push_back(impl.mount(content.node(), &slotInst));
-    YGNodeRemoveAllChildren(slotInst.yoga);
-    YGNodeInsertChild(slotInst.yoga, slotInst.children.front()->yoga, 0);
-    slotInst.paintOrder = {0};
-    impl.needsLayout = true;
+    slotInst.children.push_back(impl.create(content.node(), &slotInst, 0, 1));
+    impl.reorder(slotInst, /*structureChanged=*/true);
   }
   slotInst.markPaintDirtyUp();
   impl.contentDirty = true;

@@ -8,6 +8,8 @@
 
 #include "AxisGate.h"
 #include "Instance.h"
+#include "Lanes.h"
+#include "Phases.h"
 #include "SlotSpecs.h"
 #include "Transforms.h"
 
@@ -141,13 +143,44 @@ struct Composer::Impl {
   double elapsed() const { return clock ? clock->elapsed() : 0.0; }
 
   // ---- reconcile (Reconcile.cpp) ----
-  std::unique_ptr<detail::Instance> mount(
-      const std::shared_ptr<detail::ElementNode>& node,
-      detail::Instance* parent);
+  /** Reconciles @p node onto @p inst: resolves a memo, swaps the description
+   *  in, prunes on structural equality, and calls onPatched() when the
+   *  description changed before reconciling the children. */
   void patch(detail::Instance& inst,
              const std::shared_ptr<detail::ElementNode>& node);
+  /** Matches @p newChildren against the instance's children by key, then by
+   *  position among the unkeyed, patching survivors and creating the rest,
+   *  then reorder()s the result. */
   void patchChildren(detail::Instance& inst,
                      const std::vector<Element>& newChildren);
+  std::shared_ptr<detail::ElementNode> resolveMemo(
+      detail::Instance* existing,
+      const std::shared_ptr<detail::ElementNode>& node, bool& described);
+  void rebuildKeyIndex();
+  void indexKeys(detail::Instance& inst);
+
+  // ---- the reconciler's host (ReconcileHost.cpp) ----
+  /** A fresh instance for @p node under @p parent, patched once. @p ordinal
+   *  is its order among the children created in the same patch and @p count
+   *  the parent's child count, which is what staggerChildren() cascades
+   *  over; the carry that cascade accumulates is host state. */
+  std::unique_ptr<detail::Instance> create(
+      const std::shared_ptr<detail::ElementNode>& node,
+      detail::Instance* parent, size_t ordinal, size_t count);
+  /** Everything the composer does to an instance whose description changed:
+   *  @p prev is null on the first patch. */
+  void onPatched(detail::Instance& inst, const detail::ElementNode* prev,
+                 const detail::ElementNode& next);
+  /** Sorts the paint order, reattaches every child to the parent's Yoga node
+   *  in `children` order, and dirties the parent when @p structureChanged —
+   *  a child mounted, unmounted or moved. */
+  void reorder(detail::Instance& parent, bool structureChanged);
+  /** Whether a surviving @p match must be unmounted and created afresh under
+   *  @p parent rather than patched in place. */
+  bool remountRequired(const detail::Instance& match,
+                       const detail::Instance& parent);
+  /** Marks the instance's paint dirty up to the root and the content dirty. */
+  void invalidate(detail::Instance& inst);
   void applyLayoutProps(detail::Instance& inst);
   /** Builds the instance's Paragraph from whichever content form its
    *  description carries — plain utf8, `rich()` runs, or a copy of a
@@ -175,15 +208,17 @@ struct Composer::Impl {
    *  named written over it. */
   sigil::weave::ParagraphLayoutOptions textLayoutOptions(
       const detail::Instance& inst) const;
+
+  // ---- transitions (Transitions.cpp) ----
+  /** Every lane of @p node, Slot lanes first in kSlotSpecs order, then the
+   *  Span, Gate and Track families in declaration order. The overload
+   *  writing into @p out refills a caller-owned vector. */
+  std::vector<detail::Lane> lanes(const detail::ElementNode& node);
+  void lanes(const detail::ElementNode& node, std::vector<detail::Lane>& out);
   void applyTransitions(detail::Instance& inst, const detail::ElementNode& prev,
                         const detail::ElementNode& next);
   void applyMountTransitions(detail::Instance& inst,
                              const detail::ElementNode& node);
-  std::shared_ptr<detail::ElementNode> resolveMemo(
-      detail::Instance* existing,
-      const std::shared_ptr<detail::ElementNode>& node, bool& described);
-  void rebuildKeyIndex();
-  void indexKeys(detail::Instance& inst);
 
   // ---- volatility & caching (Volatility.cpp) ----
   /** @p movingAbove: a bound or transitioning transform is connected on
@@ -211,6 +246,30 @@ struct Composer::Impl {
   // ---- layout (Layout.cpp) ----
   bool applyCustomLayouts(detail::Instance& inst);
   bool applyCenterPins(detail::Instance& inst);
+  /** The passes, as the runner sees them. Each returns whether it changed
+   *  geometry; the non-converging ones answer false. */
+  bool phaseYoga();           ///< Yoga's calculate pass over the root
+  bool phaseCustomLayouts();  ///< custom layout() containers, when any
+  bool phaseCenterPins();     ///< centerAt() pins, when any
+  bool phaseDerive();         ///< flow exclusions and routes, when any
+  bool phasePathMarks();      ///< mark() on path-laid runs
+  bool phaseSyncRects();      ///< invalidate recordings whose rect moved
+  /** The runner's list: Yoga, the converging group, then the post-layout
+   *  passes. */
+  static constexpr detail::LayoutPhase phases[] = {
+      {"yoga", &Impl::phaseYoga, false},
+      {"customLayouts", &Impl::phaseCustomLayouts, true},
+      {"centerPins", &Impl::phaseCenterPins, true},
+      {"derive", &Impl::phaseDerive, true},
+      {"pathMarks", &Impl::phasePathMarks, false},
+      {"syncRects", &Impl::phaseSyncRects, false},
+  };
+  /** Rounds the converging group may run before the runner gives up: what
+   *  guarantees termination if two writers ever disagree permanently. */
+  static constexpr int kConvergeRounds = 3;
+  /** Runs the phase list when the tree needs layout: the converging group
+   *  repeats until a round changes nothing, relaying out and settling the
+   *  routes between rounds. */
   void ensureLayout();
   /** @p movedAbove: some ancestor's layout rect changed this pass. A node
    *  carrying a world-space material below any moved rect marks its OWN

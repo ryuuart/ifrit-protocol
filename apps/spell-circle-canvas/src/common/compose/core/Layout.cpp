@@ -11,6 +11,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <iterator>
 #include <limits>
 #include <optional>
 #include <ranges>
@@ -213,6 +214,43 @@ void Composer::Impl::layoutText(Instance& inst, float constraint,
 // ---------------------------------------------------------------------------
 // Layout passes
 
+bool Composer::Impl::phaseYoga() {
+  YGNodeCalculateLayout(root->yoga, YGUndefined, YGUndefined, YGDirectionLTR);
+  return false;
+}
+
+bool Composer::Impl::phaseCustomLayouts() {
+  return hasCustomLayout && applyCustomLayouts(*root);
+}
+
+bool Composer::Impl::phaseCenterPins() {
+  return hasCenterPins && applyCenterPins(*root);
+}
+
+bool Composer::Impl::phaseDerive() { return hasDerived && resolveDerived(); }
+
+bool Composer::Impl::phasePathMarks() {
+  // mark() on a path-laid run resolves HERE, not in measure with the flow
+  // runs: the curve resolves against the node's final box, and only the
+  // finished layout knows that box. The path layout underneath is memoized
+  // against the box and the content; the mark walk itself is one pass over
+  // the run's glyphs per layout. Runs before syncLayoutRects so a
+  // mark-anchored child whose rect moved is seen by the same invalidation
+  // walk as everything else.
+  for (detail::Instance* marked : pathMarkInstances) resolveTextMarks(*marked);
+  return false;
+}
+
+bool Composer::Impl::phaseSyncRects() {
+  // Post-layout invalidation: recordings bake geometry (child offsets, text
+  // lines, geometry-material uResolution), so any rect that moved or resized
+  // must stale the recordings that captured it — even when NO prop changed
+  // (setSize, sibling growth, measured-text reflow). Runs only when layout
+  // ran; a stable layout is a no-op walk.
+  syncLayoutRects(*root);
+  return false;
+}
+
 void Composer::Impl::ensureLayout() {
   if (!root || (!needsLayout && !YGNodeIsDirty(root->yoga))) return;
   // The root fills the viewport (the CSS-root rule) — except under an empty
@@ -222,8 +260,9 @@ void Composer::Impl::ensureLayout() {
     YGNodeStyleSetWidth(root->yoga, size.width());
     YGNodeStyleSetHeight(root->yoga, size.height());
   }
-  YGNodeCalculateLayout(root->yoga, YGUndefined, YGUndefined, YGDirectionLTR);
-  // A bounded convergence loop, not a single second pass. Custom layout()
+  // The runner walks `phases` in order. A non-converging phase runs once.
+  // The converging phases form one contiguous group, and that group is a
+  // bounded convergence loop, not a single second pass. Custom layout()
   // placement, auto-sizing, centerAt pins and the derive phase all read
   // RESOLVED geometry and then write back into Yoga out of band, so each
   // can move what another already read: an auto-sized container changes the
@@ -233,30 +272,28 @@ void Composer::Impl::ensureLayout() {
   // a settling one converges within the round cap. The cap is what
   // guarantees termination if two writers ever disagree permanently — the
   // result is a slightly-off frame instead of a hang.
-  for (int round = 0; round < 3; ++round) {
-    bool changed = false;
-    if (hasCustomLayout) changed |= applyCustomLayouts(*root);
-    if (hasCenterPins) changed |= applyCenterPins(*root);
-    if (hasDerived) changed |= resolveDerived();
-    if (!changed) break;
-    YGNodeCalculateLayout(root->yoga, YGUndefined, YGUndefined, YGDirectionLTR);
-    if (hasDerived)
-      resolveDerived();  // refresh routes against the moved geometry
+  constexpr size_t kPhases = std::size(phases);
+  for (size_t i = 0; i < kPhases;) {
+    if (!phases[i].converging) {
+      (this->*phases[i].run)();
+      ++i;
+      continue;
+    }
+    size_t groupEnd = i;
+    while (groupEnd < kPhases && phases[groupEnd].converging) ++groupEnd;
+    for (int round = 0; round < kConvergeRounds; ++round) {
+      bool changed = false;
+      for (size_t p = i; p < groupEnd; ++p) changed |= (this->*phases[p].run)();
+      if (!changed) break;
+      phaseYoga();
+      // The settle step: refresh routes against the moved geometry. A route
+      // read before the relayout is a route on stale anchors, so the derive
+      // pass runs once more here rather than waiting for a round that may
+      // never come.
+      phaseDerive();
+    }
+    i = groupEnd;
   }
-  // mark() on a path-laid run resolves HERE, not in measure with the flow
-  // runs: the curve resolves against the node's final box, and only the
-  // finished layout knows that box. The path layout underneath is memoized
-  // against the box and the content; the mark walk itself is one pass over
-  // the run's glyphs per layout. Runs before syncLayoutRects so a
-  // mark-anchored child whose rect moved is seen by the same invalidation
-  // walk as everything else.
-  for (detail::Instance* marked : pathMarkInstances) resolveTextMarks(*marked);
-  // Post-layout invalidation: recordings bake geometry (child offsets, text
-  // lines, geometry-material uResolution), so any rect that moved or resized
-  // must stale the recordings that captured it — even when NO prop changed
-  // (setSize, sibling growth, measured-text reflow). Runs only when layout
-  // ran; a stable layout is a no-op walk.
-  syncLayoutRects(*root);
   needsLayout = false;
 }
 

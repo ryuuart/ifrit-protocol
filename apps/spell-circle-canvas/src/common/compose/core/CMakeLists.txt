@@ -25,6 +25,7 @@ add_library(SigilComposeCore STATIC
   # the composer and its phases
   Composer.cpp
   Reconcile.cpp
+  ReconcileHost.cpp
   Layout.cpp
   Derive.cpp
   Transitions.cpp
@@ -47,6 +48,8 @@ add_library(SigilComposeCore STATIC
   ComposeRuntime.h
   Instance.h
   SlotSpecs.h
+  Lanes.h
+  Phases.h
   Transforms.h
   AxisGate.h
   ComposerImpl.h

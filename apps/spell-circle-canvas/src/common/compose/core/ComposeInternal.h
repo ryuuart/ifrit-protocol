@@ -685,6 +685,10 @@ ResolvedProp<T> resolveProp(const Animatable<T>& v,
  *  inspected. One body, because a second spelling of this rule would let
  *  two comparators disagree about whether a node may prune. */
 bool easeEqual(const choreograph::EaseFn& a, const choreograph::EaseFn& b);
+/** Did the DESCRIBED transform change between two descriptions? The lanes
+ *  mirror propsEqual's transform block plus travel(). Defined in
+ *  Reconcile.cpp beside the comparators it is built from. */
+bool describedTransformEqual(const ElementNode& a, const ElementNode& b);
 
 /** ONE WALK'S GLYPHS, and which unit of each granularity they fall in.
  *
