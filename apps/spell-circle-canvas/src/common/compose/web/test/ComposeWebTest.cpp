@@ -9,8 +9,8 @@
 #include <include/core/SkSurface.h>
 #include <sigilcompose/Compose.h>
 #include <sigilcompose/web/Web.h>
-#include <sigilscry/WebEngine.h>
-#include <sigilscry/WebView.h>
+#include <sigilscry/engine/WebEngine.h>
+#include <sigilscry/engine/WebView.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
 

@@ -21,26 +21,6 @@ others, or say once that the order mattered.
 (the paint stays), or declaring it after `spanPaint` on the same
 selection produces one warning naming both verbs and the element key.
 
-## `scry_gpu_test` binds a reference to Ultralight's packed `Matrix4x4` (UBSan)
-
-**What the code does.** `projectedTransform` in
-`src/common/scry/metal/UltralightMetalDriver.mm` passes
-`state.transform` by const reference to `ultralight::Matrix::Set`.
-`ultralight::GPUState` is declared packed by the vendor header, so its
-`transform` member sits at a 1-byte-aligned address and the reference
-binding is undefined behaviour for a type that requires 4-byte
-alignment. UBSan aborts the ASan+UBSan lane on
-`WebViewGpuTest.RendersThroughMetalAndGraphite` with `runtime error:
-reference binding to misaligned address ... for type 'const Matrix4x4',
-which requires 4 byte alignment`.
-
-**What it was evidently intended to do.** Read the sixteen floats of
-the transform, which is well-defined only through an aligned copy
-(`memcpy` into a local `Matrix4x4`, then `Set` on that).
-
-**What a test should assert once intent is restored.** The ASan+UBSan
-lane runs `scry_gpu_test` clean.
-
 ## OpenImageIO's thread pool races on its own worker map (TSan)
 
 **What the code does.** `sigil::image::decodeImage` constructs

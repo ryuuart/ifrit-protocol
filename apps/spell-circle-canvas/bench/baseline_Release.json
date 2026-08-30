@@ -2,7 +2,7 @@
  "config": "Release",
  "host": "MacBookPro.control",
  "machine": "arm64",
- "taken": "2026-08-30T14:48:20+00:00",
+ "taken": "2026-08-30T15:58:14+00:00",
  "benches": {
   "compose_brush_bench": {
    "BM_Draw_ArtWarp_Live": {
@@ -1016,80 +1016,6 @@
     "unit": "ns"
    }
   },
-  "geometry_codec_bench": {
-   "BM_ImportGeo_Points/10000": {
-    "cpu_ns": 995365.2482269483,
-    "real_ns": 995516.1033158607,
-    "repetitions": 4,
-    "unit": "us"
-   },
-   "BM_ImportGeo_Points/100000": {
-    "cpu_ns": 10380038.461538455,
-    "real_ns": 10386011.22295054,
-    "repetitions": 4,
-    "unit": "us"
-   },
-   "BM_ImportGlb/16": {
-    "cpu_ns": 7940.639269406434,
-    "real_ns": 7943.499043094136,
-    "repetitions": 4,
-    "unit": "us"
-   },
-   "BM_ImportGlb/256": {
-    "cpu_ns": 1562311.1111111143,
-    "real_ns": 1562668.9781331355,
-    "repetitions": 4,
-    "unit": "us"
-   },
-   "BM_ImportGlb/512": {
-    "cpu_ns": 6417761.904761865,
-    "real_ns": 6420308.524476631,
-    "repetitions": 4,
-    "unit": "us"
-   },
-   "BM_ImportGlb/64": {
-    "cpu_ns": 98586.6058906038,
-    "real_ns": 98625.00028018572,
-    "repetitions": 4,
-    "unit": "us"
-   },
-   "BM_ImportGlb/8": {
-    "cpu_ns": 3659.642069770443,
-    "real_ns": 3659.719337493417,
-    "repetitions": 4,
-    "unit": "us"
-   },
-   "BM_ImportObj/16": {
-    "cpu_ns": 191019.9449793673,
-    "real_ns": 191127.54929580173,
-    "repetitions": 4,
-    "unit": "us"
-   },
-   "BM_ImportObj/256": {
-    "cpu_ns": 67809249.99999982,
-    "real_ns": 67991698.04435223,
-    "repetitions": 4,
-    "unit": "us"
-   },
-   "BM_ImportObj/512": {
-    "cpu_ns": 287520999.99999994,
-    "real_ns": 287786395.5218345,
-    "repetitions": 4,
-    "unit": "us"
-   },
-   "BM_ImportObj/64": {
-    "cpu_ns": 3692723.684210516,
-    "real_ns": 3695908.9890220445,
-    "repetitions": 4,
-    "unit": "us"
-   },
-   "BM_ImportObj/8": {
-    "cpu_ns": 42686.33828996281,
-    "real_ns": 42758.30624431205,
-    "repetitions": 4,
-    "unit": "us"
-   }
-  },
   "geometry_mesh_bench": {
    "BM_Extrude/16": {
     "cpu_ns": 146352.81615302895,
@@ -1210,6 +1136,478 @@
     "real_ns": 89057.61478159309,
     "repetitions": 4,
     "unit": "us"
+   }
+  },
+  "geometry_mesh_camera_bench": {
+   "BM_ViewProjection": {
+    "real_ns": 83.10700628970699,
+    "cpu_ns": 83.08642230496886,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_View": {
+    "real_ns": 50.56116704857572,
+    "cpu_ns": 50.557360485168914,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_ToSkM44": {
+    "real_ns": 0.6470065955900542,
+    "cpu_ns": 0.6469594888247625,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_Place": {
+    "real_ns": 43.07305654693975,
+    "cpu_ns": 43.05637323650616,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_FaceCamera": {
+    "real_ns": 5.578494319123838,
+    "cpu_ns": 5.578348237029374,
+    "unit": "ns",
+    "repetitions": 4
+   }
+  },
+  "geometry_mesh_codec_bench": {
+   "BM_ImportObj/8": {
+    "real_ns": 42250.44825229365,
+    "cpu_ns": 42245.85125998775,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_ImportObj/16": {
+    "real_ns": 188082.80552426976,
+    "cpu_ns": 188059.99999999983,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_ImportObj/64": {
+    "real_ns": 3625488.2609519437,
+    "cpu_ns": 3623192.307692306,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_ImportObj/256": {
+    "real_ns": 66760354.209691286,
+    "cpu_ns": 66757999.99999987,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_ImportObj/512": {
+    "real_ns": 283520187.7169311,
+    "cpu_ns": 283427500.0000002,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_ImportGlb/8": {
+    "real_ns": 3622.8496794545176,
+    "cpu_ns": 3622.178212695458,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_ImportGlb/16": {
+    "real_ns": 7879.102838999177,
+    "cpu_ns": 7878.379900856247,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_ImportGlb/64": {
+    "real_ns": 98041.63758991567,
+    "cpu_ns": 98015.01396647946,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_ImportGlb/256": {
+    "real_ns": 1555073.6156809663,
+    "cpu_ns": 1554883.3333333395,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_ImportGlb/512": {
+    "real_ns": 6336226.44185696,
+    "cpu_ns": 6336217.391304382,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_ImportGeo_Points/10000": {
+    "real_ns": 1003051.4803593573,
+    "cpu_ns": 1002681.1594202842,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_ImportGeo_Points/100000": {
+    "real_ns": 10343424.635581098,
+    "cpu_ns": 10339653.846153934,
+    "unit": "us",
+    "repetitions": 4
+   }
+  },
+  "geometry_mesh_curve_bench": {
+   "BM_SampleArcLength/16": {
+    "real_ns": 2818.1456916278803,
+    "cpu_ns": 2817.257204697587,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_SampleArcLength/64": {
+    "real_ns": 5923.813520704781,
+    "cpu_ns": 5922.570957235314,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_SampleArcLength/256": {
+    "real_ns": 23756.786045086355,
+    "cpu_ns": 23711.013139695788,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_SampleArcLength/1024": {
+    "real_ns": 94548.62551255195,
+    "cpu_ns": 94548.69684499351,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_SampleArcLength/4096": {
+    "real_ns": 369647.4095655454,
+    "cpu_ns": 369617.56756756763,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Frames/16": {
+    "real_ns": 3785.090797352845,
+    "cpu_ns": 3785.09701614218,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Frames/64": {
+    "real_ns": 9888.163162016772,
+    "cpu_ns": 9880.747126436756,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Frames/256": {
+    "real_ns": 38829.91206762336,
+    "cpu_ns": 38827.194682913294,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Frames/1024": {
+    "real_ns": 158680.37482375535,
+    "cpu_ns": 158647.225368064,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Frames/4096": {
+    "real_ns": 634916.6668100989,
+    "cpu_ns": 634828.7671232921,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Tube/segments:32/sides:6": {
+    "real_ns": 7746.427210079231,
+    "cpu_ns": 7746.15824050272,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Tube/segments:256/sides:6": {
+    "real_ns": 55650.494058842785,
+    "cpu_ns": 55637.65261914124,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Tube/segments:1024/sides:6": {
+    "real_ns": 219591.21389559997,
+    "cpu_ns": 219541.08527131792,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Tube/segments:32/sides:24": {
+    "real_ns": 13058.644013993824,
+    "cpu_ns": 13053.328429569723,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Tube/segments:256/sides:24": {
+    "real_ns": 96116.3433992744,
+    "cpu_ns": 96098.55769230798,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Tube/segments:1024/sides:24": {
+    "real_ns": 377044.3674906221,
+    "cpu_ns": 376944.4444444438,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Ribbon/32": {
+    "real_ns": 6174.104231467745,
+    "cpu_ns": 6171.781289672954,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Ribbon/64": {
+    "real_ns": 11614.74266793564,
+    "cpu_ns": 11608.834773936273,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Ribbon/256": {
+    "real_ns": 43708.026170183715,
+    "cpu_ns": 43697.92973651217,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Ribbon/1024": {
+    "real_ns": 173688.7955380168,
+    "cpu_ns": 173689.05472636697,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Ribbon/2048": {
+    "real_ns": 347294.805019542,
+    "cpu_ns": 347272.8395061722,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Banner/32": {
+    "real_ns": 2234.6857312828374,
+    "cpu_ns": 2234.4687455002204,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Banner/64": {
+    "real_ns": 3933.4729705648706,
+    "cpu_ns": 3932.92056528858,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Banner/256": {
+    "real_ns": 13334.693833332372,
+    "cpu_ns": 13331.298504637536,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Banner/1024": {
+    "real_ns": 50886.305515896864,
+    "cpu_ns": 50875.40511343152,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Banner/2048": {
+    "real_ns": 102278.09539071529,
+    "cpu_ns": 102025.41757443757,
+    "unit": "us",
+    "repetitions": 4
+   }
+  },
+  "geometry_mesh_pop_bench": {
+   "BM_PopOperator/0": {
+    "real_ns": 91900.36684875845,
+    "cpu_ns": 91866.40211640202,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_PopOperator/1": {
+    "real_ns": 110455.27885634586,
+    "cpu_ns": 110444.22310756988,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_PopOperator/2": {
+    "real_ns": 112789.77845410825,
+    "cpu_ns": 112766.639935846,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_PopOperator/3": {
+    "real_ns": 152356.07644910758,
+    "cpu_ns": 152053.39805825165,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_PopOperator/4": {
+    "real_ns": 118537.18836267292,
+    "cpu_ns": 118500.85984522825,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_PopOperator/5": {
+    "real_ns": 132410.77101937216,
+    "cpu_ns": 132394.35946462728,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_PopOperator/6": {
+    "real_ns": 142021.36234356667,
+    "cpu_ns": 141997.96954314708,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_PopOperator/7": {
+    "real_ns": 121757.87991437166,
+    "cpu_ns": 121740.50086355797,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_PopOperator/8": {
+    "real_ns": 119522.09138298774,
+    "cpu_ns": 119478.74149659896,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_PopOperator/9": {
+    "real_ns": 130862.9942676305,
+    "cpu_ns": 130823.19925163708,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_PopOperator/10": {
+    "real_ns": 165356.37212504796,
+    "cpu_ns": 165344.2822384433,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_PopOperator/11": {
+    "real_ns": 212359.60392968246,
+    "cpu_ns": 212323.9757207888,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_PopCook_Plain/1000": {
+    "real_ns": 281996.4997470379,
+    "cpu_ns": 281971.0000000004,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_PopCook_Plain/10000": {
+    "real_ns": 2848713.4401743514,
+    "cpu_ns": 2847479.5918367277,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_PopCook_Plain/100000": {
+    "real_ns": 28801587.36370504,
+    "cpu_ns": 28796499.999999985,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_PopCook_MaskedAndDeformed/1000": {
+    "real_ns": 602335.47723984,
+    "cpu_ns": 602236.0515021427,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_PopCook_MaskedAndDeformed/10000": {
+    "real_ns": 5986010.868345266,
+    "cpu_ns": 5985543.478260833,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_PopCook_MaskedAndDeformed/100000": {
+    "real_ns": 59577989.50839788,
+    "cpu_ns": 59569750.00000054,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_PopCook_Relax/1000": {
+    "real_ns": 406165.97924325557,
+    "cpu_ns": 406007.50750751235,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_PopCook_Relax/10000": {
+    "real_ns": 4129025.7358923554,
+    "cpu_ns": 4127588.235294165,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_PopCook_Relax/100000": {
+    "real_ns": 41430854.16095953,
+    "cpu_ns": 41381499.99999937,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_PopCook_PointSetSeed/1000": {
+    "real_ns": 188329.96903767015,
+    "cpu_ns": 188314.93943472614,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_PopCook_PointSetSeed/10000": {
+    "real_ns": 1848436.3860140243,
+    "cpu_ns": 1847793.3333333377,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_PopCook_PointSetSeed/100000": {
+    "real_ns": 18539015.611167997,
+    "cpu_ns": 18535250.000000004,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_PopSink_Stamps/1000": {
+    "real_ns": 380537.433544714,
+    "cpu_ns": 380460.7046070509,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_PopSink_Stamps/10000": {
+    "real_ns": 3888436.34734965,
+    "cpu_ns": 3886916.666666678,
+    "unit": "us",
+    "repetitions": 4
+   }
+  },
+  "geometry_mesh_render_bench": {
+   "BM_DrawMesh/16": {
+    "real_ns": 153787.66364532235,
+    "cpu_ns": 153709.0119435396,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_DrawMesh/64": {
+    "real_ns": 606085.2199503832,
+    "cpu_ns": 605885.7758620695,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_DrawMesh/256": {
+    "real_ns": 6126734.600199953,
+    "cpu_ns": 6126739.130434787,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_DrawMeshMode/mode:0": {
+    "real_ns": 1112162.03760474,
+    "cpu_ns": 1111706.3492063456,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_DrawMeshMode/mode:1": {
+    "real_ns": 982471.2224733487,
+    "cpu_ns": 982183.4532374103,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_DrawMeshMode/mode:2": {
+    "real_ns": 957249.8567325815,
+    "cpu_ns": 956931.506849314,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_DrawMeshUnsorted": {
+    "real_ns": 1983732.395005268,
+    "cpu_ns": 1983345.0704225325,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_DrawPanel": {
+    "real_ns": 5531.237753660087,
+    "cpu_ns": 5530.659452677775,
+    "unit": "us",
+    "repetitions": 4
    }
   },
   "geometry_path_bench": {
@@ -1388,162 +1786,84 @@
     "unit": "us"
    }
   },
-  "geometry_pop_bench": {
-   "BM_PopCook_MaskedAndDeformed/1000": {
-    "cpu_ns": 597629.3103448246,
-    "real_ns": 597686.5138328667,
-    "repetitions": 4,
-    "unit": "us"
+  "geometry_path_blend_bench": {
+   "BM_BlendSteps/4": {
+    "real_ns": 28937.684416927368,
+    "cpu_ns": 28932.68834911486,
+    "unit": "us",
+    "repetitions": 4
    },
-   "BM_PopCook_MaskedAndDeformed/10000": {
-    "cpu_ns": 6018717.391304353,
-    "real_ns": 6019420.284049019,
-    "repetitions": 4,
-    "unit": "us"
+   "BM_BlendSteps/16": {
+    "real_ns": 58143.87135959261,
+    "cpu_ns": 58112.39012138974,
+    "unit": "us",
+    "repetitions": 4
    },
-   "BM_PopCook_MaskedAndDeformed/100000": {
-    "cpu_ns": 60417499.99999979,
-    "real_ns": 60431655.96202016,
-    "repetitions": 4,
-    "unit": "us"
+   "BM_BlendSteps/64": {
+    "real_ns": 175933.17214519746,
+    "cpu_ns": 175892.9032258062,
+    "unit": "us",
+    "repetitions": 4
    },
-   "BM_PopCook_Plain/1000": {
-    "cpu_ns": 284906.3136456215,
-    "real_ns": 285767.31090026087,
-    "repetitions": 4,
-    "unit": "us"
+   "BM_BlendSteps/256": {
+    "real_ns": 650358.5688857266,
+    "cpu_ns": 650288.7323943679,
+    "unit": "us",
+    "repetitions": 4
    },
-   "BM_PopCook_Plain/10000": {
-    "cpu_ns": 2858968.7500000056,
-    "real_ns": 2859753.042381878,
-    "repetitions": 4,
-    "unit": "us"
+   "BM_BlendSamples/32": {
+    "real_ns": 21653.121960788703,
+    "cpu_ns": 21648.278011531824,
+    "unit": "us",
+    "repetitions": 4
    },
-   "BM_PopCook_Plain/100000": {
-    "cpu_ns": 28675400.000000022,
-    "real_ns": 28702716.71563387,
-    "repetitions": 4,
-    "unit": "us"
+   "BM_BlendSamples/64": {
+    "real_ns": 42039.87081416745,
+    "cpu_ns": 42028.0641466208,
+    "unit": "us",
+    "repetitions": 4
    },
-   "BM_PopCook_PointSetSeed/1000": {
-    "cpu_ns": 182872.07792207773,
-    "real_ns": 182877.218217722,
-    "repetitions": 4,
-    "unit": "us"
+   "BM_BlendSamples/256": {
+    "real_ns": 168757.15745962638,
+    "cpu_ns": 168704.84061393145,
+    "unit": "us",
+    "repetitions": 4
    },
-   "BM_PopCook_PointSetSeed/10000": {
-    "cpu_ns": 1823733.7662337597,
-    "real_ns": 1824683.981475892,
-    "repetitions": 4,
-    "unit": "us"
+   "BM_BlendSamples/1024": {
+    "real_ns": 1120286.6695821285,
+    "cpu_ns": 1120159.9999999914,
+    "unit": "us",
+    "repetitions": 4
    },
-   "BM_PopCook_PointSetSeed/100000": {
-    "cpu_ns": 18556250.000000052,
-    "real_ns": 18571114.545920864,
-    "repetitions": 4,
-    "unit": "us"
+   "BM_BlendSamples/2048": {
+    "real_ns": 3577022.962510968,
+    "cpu_ns": 3576692.307692297,
+    "unit": "us",
+    "repetitions": 4
    },
-   "BM_PopCook_Relax/1000": {
-    "cpu_ns": 411766.3690476218,
-    "real_ns": 411809.0277881406,
-    "repetitions": 4,
-    "unit": "us"
+   "BM_BlendAlongSpine/4": {
+    "real_ns": 32017.39482442689,
+    "cpu_ns": 32001.15101289141,
+    "unit": "us",
+    "repetitions": 4
    },
-   "BM_PopCook_Relax/10000": {
-    "cpu_ns": 4083867.6470587556,
-    "real_ns": 4085768.9934508763,
-    "repetitions": 4,
-    "unit": "us"
+   "BM_BlendAlongSpine/16": {
+    "real_ns": 64639.5920515336,
+    "cpu_ns": 64627.831715210195,
+    "unit": "us",
+    "repetitions": 4
    },
-   "BM_PopCook_Relax/100000": {
-    "cpu_ns": 40401666.66666659,
-    "real_ns": 40411347.36811121,
-    "repetitions": 4,
-    "unit": "us"
+   "BM_BlendAlongSpine/64": {
+    "real_ns": 198571.0749832078,
+    "cpu_ns": 198524.7524752473,
+    "unit": "us",
+    "repetitions": 4
    },
-   "BM_PopOperator/0": {
-    "cpu_ns": 93452.13849287175,
-    "real_ns": 93521.30039600757,
-    "repetitions": 4,
-    "unit": "us"
-   },
-   "BM_PopOperator/1": {
-    "cpu_ns": 111566.47634584011,
-    "real_ns": 111580.0535950512,
-    "repetitions": 4,
-    "unit": "us"
-   },
-   "BM_PopOperator/10": {
-    "cpu_ns": 169910.47503045166,
-    "real_ns": 169974.5986297563,
-    "repetitions": 4,
-    "unit": "us"
-   },
-   "BM_PopOperator/11": {
-    "cpu_ns": 218323.52941176452,
-    "real_ns": 218475.9745455056,
-    "repetitions": 4,
-    "unit": "us"
-   },
-   "BM_PopOperator/2": {
-    "cpu_ns": 112607.69230769257,
-    "real_ns": 112675.05024337335,
-    "repetitions": 4,
-    "unit": "us"
-   },
-   "BM_PopOperator/3": {
-    "cpu_ns": 151297.19525350534,
-    "real_ns": 151347.33429473967,
-    "repetitions": 4,
-    "unit": "us"
-   },
-   "BM_PopOperator/4": {
-    "cpu_ns": 119047.9394449115,
-    "real_ns": 119092.18219910178,
-    "repetitions": 4,
-    "unit": "us"
-   },
-   "BM_PopOperator/5": {
-    "cpu_ns": 132642.44741873845,
-    "real_ns": 132666.96552808324,
-    "repetitions": 4,
-    "unit": "us"
-   },
-   "BM_PopOperator/6": {
-    "cpu_ns": 143379.59183673485,
-    "real_ns": 143427.1689504385,
-    "repetitions": 4,
-    "unit": "us"
-   },
-   "BM_PopOperator/7": {
-    "cpu_ns": 121028.39931153151,
-    "real_ns": 121075.05026255795,
-    "repetitions": 4,
-    "unit": "us"
-   },
-   "BM_PopOperator/8": {
-    "cpu_ns": 118864.74036850997,
-    "real_ns": 118882.6776878718,
-    "repetitions": 4,
-    "unit": "us"
-   },
-   "BM_PopOperator/9": {
-    "cpu_ns": 131194.2070275417,
-    "real_ns": 131218.42395192312,
-    "repetitions": 4,
-    "unit": "us"
-   },
-   "BM_PopSink_Stamps/1000": {
-    "cpu_ns": 378732.33695652545,
-    "real_ns": 378856.1500740521,
-    "repetitions": 4,
-    "unit": "us"
-   },
-   "BM_PopSink_Stamps/10000": {
-    "cpu_ns": 3821216.216216255,
-    "real_ns": 3822473.532243355,
-    "repetitions": 4,
-    "unit": "us"
+   "BM_BlendAlongSpine/256": {
+    "real_ns": 748418.2279636675,
+    "cpu_ns": 748312.8342245934,
+    "unit": "us",
+    "repetitions": 4
    }
   },
   "image_decode_bench": {
@@ -2202,6 +2522,138 @@
     "unit": "us"
    }
   },
+  "scry_engine_bench": {
+   "BM_Frame_Acquire": {
+    "real_ns": 14.024491262581115,
+    "cpu_ns": 14.010235354354423,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_Draw_RasterCanvas": {
+    "real_ns": 561260.1158962705,
+    "cpu_ns": 560500.0000000007,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_Slot_UpdateRaster/256": {
+    "real_ns": 13701.572001232533,
+    "cpu_ns": 13440.158820192824,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_Slot_UpdateRaster/1024": {
+    "real_ns": 156432.03271538648,
+    "cpu_ns": 156277.7777777778,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_Slot_Paint/256": {
+    "real_ns": 59457.227028906345,
+    "cpu_ns": 6915.749999999975,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_Slot_Paint/1024": {
+    "real_ns": 192766.064661555,
+    "cpu_ns": 6831.699999999997,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_Page_ChangeLatency/manual_time": {
+    "real_ns": 20348476.14285714,
+    "cpu_ns": 584642.857142865,
+    "unit": "ms",
+    "repetitions": 4
+   }
+  },
+  "scry_gpu_bench": {
+   "BM_Upload/256": {
+    "real_ns": 10010.05590481295,
+    "cpu_ns": 9990.379133409335,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_Upload/1024": {
+    "real_ns": 181426.32355496363,
+    "cpu_ns": 180211.58854166663,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_Copy/256": {
+    "real_ns": 20579.654510614637,
+    "cpu_ns": 6937.684156112696,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_Copy/1024": {
+    "real_ns": 29408.263219495875,
+    "cpu_ns": 9423.746701846987,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_Paint/256": {
+    "real_ns": 37161.88783860298,
+    "cpu_ns": 14138.410291752789,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_Paint/1024": {
+    "real_ns": 38543.913719600714,
+    "cpu_ns": 14880.572346052131,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_Wrap": {
+    "real_ns": 246.01369121387097,
+    "cpu_ns": 245.26706263421397,
+    "unit": "ns",
+    "repetitions": 4
+   }
+  },
+  "scry_platform_bench": {
+   "BM_Resolve": {
+    "real_ns": 67.60165618822407,
+    "cpu_ns": 67.54099706999875,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_MimeType": {
+    "real_ns": 95.7607704702861,
+    "cpu_ns": 95.4037074807598,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_OpenFile/4": {
+    "real_ns": 15943.481693539268,
+    "cpu_ns": 15896.333182435494,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_OpenFile/1024": {
+    "real_ns": 199985.2336832026,
+    "cpu_ns": 199820.31250000017,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_ImageSlotFile": {
+    "real_ns": 204.14321494485074,
+    "cpu_ns": 203.89694414642287,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_SurfaceResize/256": {
+    "real_ns": 7495.13377620438,
+    "cpu_ns": 7487.992955867424,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_SurfaceResize/1280": {
+    "real_ns": 199376.83477445244,
+    "cpu_ns": 199377.17265353422,
+    "unit": "ns",
+    "repetitions": 4
+   }
+  },
   "sigilcore_reconcile_bench": {
    "ColdMount/100": {
     "real_ns": 16226.158939325145,
@@ -2323,6 +2775,112 @@
     "real_ns": 86064.81661554426,
     "cpu_ns": 7791.2999999999665,
     "unit": "ns",
+    "repetitions": 4
+   }
+  },
+  "sigilskia_graphite_bench": {
+   "BM_Wrap_Native": {
+    "real_ns": 10587.801770232923,
+    "cpu_ns": 10562.919278798221,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_Wrap_Handle": {
+    "real_ns": 10081.03146991228,
+    "cpu_ns": 10058.838818383874,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_Vulkan_Wrap_Handle": {
+    "real_ns": 10293.181237712255,
+    "cpu_ns": 10256.07581214812,
+    "unit": "ns",
+    "repetitions": 4
+   }
+  },
+  "substance_bench": {
+   "BM_Load": {
+    "real_ns": 2843604.5928780613,
+    "cpu_ns": 2841270.833333335,
+    "unit": "ms",
+    "repetitions": 4
+   },
+   "BM_Parameters": {
+    "real_ns": 2980.929281163414,
+    "cpu_ns": 2973.0147485026155,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_Render/6": {
+    "real_ns": 724523.5627051443,
+    "cpu_ns": 9120.999999999935,
+    "unit": "ms",
+    "repetitions": 4
+   },
+   "BM_Render/8": {
+    "real_ns": 3101906.4164720476,
+    "cpu_ns": 36100.49999999987,
+    "unit": "ms",
+    "repetitions": 4
+   }
+  },
+  "usd_read_bench": {
+   "BM_ReadModel/128": {
+    "real_ns": 193037.15283361572,
+    "cpu_ns": 190895.13888888885,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_ReadModel/2048": {
+    "real_ns": 292748.06930233946,
+    "cpu_ns": 289574.3534482757,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_ReadModel/32768": {
+    "real_ns": 1786492.961495147,
+    "cpu_ns": 1775474.0259740332,
+    "unit": "ns",
+    "repetitions": 4
+   }
+  },
+  "usd_runtime_bench": {
+   "BM_Available": {
+    "real_ns": 18412.181817523327,
+    "cpu_ns": 18241.701953285075,
+    "unit": "ns",
+    "repetitions": 4
+   }
+  },
+  "usd_write_bench": {
+   "BM_Mesh/128": {
+    "real_ns": 153563.4090915589,
+    "cpu_ns": 152472.5950782998,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_Mesh/2048": {
+    "real_ns": 177272.4522076025,
+    "cpu_ns": 176105.7324840763,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_Mesh/32768": {
+    "real_ns": 522638.7061122665,
+    "cpu_ns": 519904.13533834665,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_Save/0": {
+    "real_ns": 866500.701326249,
+    "cpu_ns": 834957.8651685399,
+    "unit": "ms",
+    "repetitions": 4
+   },
+   "BM_Save/1": {
+    "real_ns": 2159590.377499733,
+    "cpu_ns": 2062992.6470588269,
+    "unit": "ms",
     "repetitions": 4
    }
   },

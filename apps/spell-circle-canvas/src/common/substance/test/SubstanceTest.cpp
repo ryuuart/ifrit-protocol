@@ -1,18 +1,32 @@
+/** @file
+ * substance_test — the SDK's sample archives loaded, described,
+ * rendered, re-rendered after parameter changes, composed through
+ * image inputs, and garbage refused. Skips, rather than fails, when the
+ * samples are not where the SDK was configured from.
+ */
+
 #include <gtest/gtest.h>
 #include <include/core/SkBitmap.h>
+#include <sigilsubstance/Substance.h>
 
 #include <filesystem>
-
-#include "sigilsubstance/Substance.h"
 
 using namespace sigil;
 
 namespace {
 
-std::filesystem::path sampleArchive() {
-  return std::filesystem::path(SIGIL_SUBSTANCE_SDK_DIR) / "assets" /
-         "Autumn_Leaves.sbsar";
+std::filesystem::path sampleArchive(const char* name) {
+  return std::filesystem::path(SIGIL_SUBSTANCE_SDK_DIR) / "assets" / name;
 }
+
+/** The samples ship with the SDK; without them there is nothing to
+ *  render and the test reports why instead of failing. */
+#define SKIP_WITHOUT_SAMPLE(name)                                    \
+  do {                                                               \
+    if (!std::filesystem::exists(sampleArchive(name)))               \
+      GTEST_SKIP() << "Substance SDK sample " << sampleArchive(name) \
+                   << " not found";                                  \
+  } while (0)
 
 SkColor pixel(const sk_sp<SkImage>& image, int x, int y) {
   SkBitmap bm;
@@ -24,13 +38,16 @@ SkColor pixel(const sk_sp<SkImage>& image, int x, int y) {
 }  // namespace
 
 TEST(Substance, LoadsAPackageAndDescribesIt) {
+  SKIP_WITHOUT_SAMPLE("Autumn_Leaves.sbsar");
   std::string error;
   std::unique_ptr<substance::Package> package =
-      substance::Package::load(sampleArchive(), &error);
+      substance::Package::load(sampleArchive("Autumn_Leaves.sbsar"), &error);
   ASSERT_TRUE(package) << error;
   ASSERT_GE(package->graphCount(), 1u);
   substance::Graph& graph = package->graph(0);
   EXPECT_FALSE(graph.url().empty());
+  EXPECT_EQ(package->find(graph.url()), &graph);
+  EXPECT_EQ(package->find("no such graph"), nullptr);
   const std::vector<substance::Parameter> params = graph.parameters();
   EXPECT_FALSE(params.empty());
   bool hasSize = false;
@@ -55,9 +72,10 @@ TEST(Substance, LoadsAPackageAndDescribesIt) {
 }
 
 TEST(Substance, RendersOutputsAndParametersChangeThem) {
+  SKIP_WITHOUT_SAMPLE("Autumn_Leaves.sbsar");
   std::string error;
   std::unique_ptr<substance::Package> package =
-      substance::Package::load(sampleArchive(), &error);
+      substance::Package::load(sampleArchive("Autumn_Leaves.sbsar"), &error);
   ASSERT_TRUE(package) << error;
   substance::Graph& graph = package->graph(0);
   ASSERT_TRUE(graph.setResolution(7, 7));  // 128 x 128: fast
@@ -127,9 +145,11 @@ TEST(Substance, GraphsComposeThroughImageInputs) {
   // height image and returns a lit diffuse. Feed it the leaves graph's
   // own outputs — one package's render is another's input — and the
   // result differs from the filter run on nothing.
+  SKIP_WITHOUT_SAMPLE("Autumn_Leaves.sbsar");
+  SKIP_WITHOUT_SAMPLE("Post_Illumination.sbsar");
   std::string error;
   std::unique_ptr<substance::Package> leaves =
-      substance::Package::load(sampleArchive(), &error);
+      substance::Package::load(sampleArchive("Autumn_Leaves.sbsar"), &error);
   ASSERT_TRUE(leaves) << error;
   substance::Graph& source = leaves->graph(0);
   ASSERT_TRUE(source.setResolution(7, 7));
@@ -138,11 +158,8 @@ TEST(Substance, GraphsComposeThroughImageInputs) {
   sk_sp<SkImage> height = source.output("height");
   ASSERT_TRUE(diffuse && height);
 
-  const std::filesystem::path filterArchive =
-      std::filesystem::path(SIGIL_SUBSTANCE_SDK_DIR) / "assets" /
-      "Post_Illumination.sbsar";
-  std::unique_ptr<substance::Package> filter =
-      substance::Package::load(filterArchive, &error);
+  std::unique_ptr<substance::Package> filter = substance::Package::load(
+      sampleArchive("Post_Illumination.sbsar"), &error);
   ASSERT_TRUE(filter) << error;
   substance::Graph& post = filter->graph(0);
   std::vector<std::string> imageInputs;

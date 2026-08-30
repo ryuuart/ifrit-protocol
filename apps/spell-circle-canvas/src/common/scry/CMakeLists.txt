@@ -1,139 +1,58 @@
 # SigilScry — HTML/CSS/JS layout for the scene canvases, rendered by the
-# Ultralight SDK (WebKit-derived, CPU renderer) into premultiplied-BGRA
-# SkImage frames. A dedicated web thread drives ultralight::Renderer and
-# publishes immutable snapshots that any SkCanvas — raster or Graphite —
-# can draw like an SigilImage frame; an unthreaded mode lets a host drive
-# rendering in lockstep with its own loop instead. Only added when
-# SPELLCIRCLE_ENABLE_ULTRALIGHT is ON (auto-off when the SDK is missing;
-# see cmake/FindUltralight.cmake). Textures are named on a SigilSkia
-# GpuDevice and the GPU driver draws over a shared SigilSkia Graphite
-# context, so the library needs SigilSkia (SPELLCIRCLE_ENABLE_SKIA_CANVAS).
+# Ultralight SDK (WebKit-derived) into SkImage frames, as one feature
+# library per directory. The platform feature is what Ultralight's
+# Platform singleton is handed: an SkBitmap-backed surface, the two-root
+# file system, the logger bridge and the resource directory. The gpu
+# feature executes Ultralight's GPU command lists on a SigilSkia
+# GpuDevice and gives the engine its texture interop — Metal today, the
+# seam a Vulkan driver implements. The engine feature is the web thread,
+# the views that publish frames and the image slots pages display.
+# `SigilScry` is the umbrella over all three.
+#
+# Every public header lives under one include root, include/sigilscry/
+# <feature>/, so a feature adds the root and spells its own directory.
+# <sigilscry/Scry.h> is the umbrella header. The platform and gpu
+# features also carry headers that name Ultralight types; Ultralight is
+# private to the library, so those stay beside their sources and the
+# engine feature reaches them by directory rather than the include root.
+#
+# Only added when SPELLCIRCLE_ENABLE_ULTRALIGHT is ON (auto-off when the
+# SDK is missing; see cmake/FindUltralight.cmake). Textures are named on
+# a SigilSkia GpuDevice and the GPU driver draws over a shared SigilSkia
+# Graphite context, so the library needs SigilSkia
+# (SPELLCIRCLE_ENABLE_SKIA_CANVAS).
 if(NOT TARGET SigilSkia)
   message(STATUS "SigilScry skipped: needs SPELLCIRCLE_ENABLE_SKIA_CANVAS (SigilSkia)")
   return()
 endif()
 
-if(APPLE)
-  # Embed the SDK's stock Metal shader source (vendored as
-  # metal/UltralightShaders.metal) so the driver can compile it at runtime
-  # on whatever device the host passes in.
-  file(READ "${CMAKE_CURRENT_LIST_DIR}/metal/UltralightShaders.metal"
-       IFRIT_WEB_ULTRALIGHT_SHADER_SOURCE)
-  configure_file(metal/UltralightShaderSource.h.in
-                 "${CMAKE_CURRENT_BINARY_DIR}/generated/UltralightShaderSource.h"
-                 @ONLY)
-  set(IFRIT_WEB_METAL_SOURCES
-      metal/UltralightMetalDriver.mm
-      metal/UltralightMetalDriver.h)
-else()
-  set(IFRIT_WEB_METAL_SOURCES)
-endif()
-
-add_library(SigilScry STATIC
-  WebEngine.cpp
-  WebView.cpp
-  WebImage.cpp
-  UltralightPlatform.cpp
-  WebInternal.h
-  WebGpuDriver.h
-  include/sigilscry/WebEngine.h
-  include/sigilscry/WebView.h
-  include/sigilscry/WebImage.h
-  ${IFRIT_WEB_METAL_SOURCES}
-)
+set(SIGIL_SCRY_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/include)
 
 if(APPLE)
-  set_source_files_properties(metal/UltralightMetalDriver.mm PROPERTIES
-    COMPILE_OPTIONS -fobjc-arc)
-  target_include_directories(SigilScry PRIVATE
-    "${CMAKE_CURRENT_BINARY_DIR}/generated"
-    ${CMAKE_CURRENT_LIST_DIR}/metal
-  )
   find_library(METAL_FRAMEWORK Metal REQUIRED)
-  target_link_libraries(SigilScry PRIVATE ${METAL_FRAMEWORK})
 endif()
 
-target_compile_features(SigilScry PUBLIC cxx_std_20)
+# Dependencies point up this list.
+add_subdirectory(platform)
+add_subdirectory(gpu)
+add_subdirectory(engine)
 
-target_include_directories(SigilScry PUBLIC
-  ${CMAKE_CURRENT_LIST_DIR}/include
-)
-
-target_link_libraries(SigilScry
-  PUBLIC
-    unofficial::skia::skia
-    SigilSkia
-  PRIVATE
-    Ultralight::Ultralight
-    Ultralight::AppCore
-)
-
-# Fallback resource location (icudt67l.dat, cacert.pem) compiled into the
-# engine; WebEngineConfig::resourceDir overrides it at runtime.
-target_compile_definitions(SigilScry PRIVATE
-  IFRIT_WEB_DEFAULT_RESOURCE_DIR="${Ultralight_RESOURCE_DIR}"
-)
-
-add_executable(scry_test
-  test/WebViewTest.cpp
-)
-
-target_link_libraries(scry_test PRIVATE SigilScry GTest::gtest_main)
-ultralight_copy_resources(scry_test)
-
-add_test(NAME scry_test COMMAND scry_test)
+add_library(SigilScry INTERFACE)
+target_link_libraries(SigilScry INTERFACE
+  SigilScryPlatform SigilScryGpu SigilScryEngine)
 
 # Headless demo: renders HTML layouts through SigilScry and composites them
 # with direct SkCanvas drawing into PNGs (out dir: first argument,
 # default ./scry_demo_out).
-add_executable(scry_demo
-  examples/scry_demo.cpp
-)
-
+add_executable(scry_demo examples/scry_demo.cpp)
 target_link_libraries(scry_demo PRIVATE SigilScry)
 ultralight_copy_resources(scry_demo)
 
-# Integration-path benchmarks; run `scry_bench` for the CPU engine and
-# `scry_bench --gpu` for the GPU engine (one Ultralight renderer per
-# process, so the two modes are separate runs).
+# The all-hardware demo: Ultralight's Metal driver feeding texture-backed
+# SkImages into a Graphite surface on the same device and queue.
 if(APPLE)
-  set(IFRIT_WEB_BENCH_GPU_SOURCES bench/BenchGpuMetal.mm)
-else()
-  set(IFRIT_WEB_BENCH_GPU_SOURCES bench/BenchGpuStub.cpp)
-endif()
-if(TRUE)
-  add_executable(scry_bench
-    bench/WebBench.cpp
-    bench/BenchGpu.h
-    ${IFRIT_WEB_BENCH_GPU_SOURCES}
-  )
-  target_link_libraries(scry_bench PRIVATE SigilScry benchmark::benchmark)
-  if(APPLE)
-    set_source_files_properties(bench/BenchGpuMetal.mm PROPERTIES
-      COMPILE_OPTIONS -fobjc-arc)
-    target_link_libraries(scry_bench PRIVATE ${METAL_FRAMEWORK})
-  endif()
-  ultralight_copy_resources(scry_bench)
-endif()
-
-# GPU-mode targets: Ultralight's Metal GPUDriver feeding texture-backed
-# SkImages into the Graphite context the test shares with the engine.
-# Separate test binary because Ultralight allows one Renderer per process
-# and scry_test owns the CPU-mode engine.
-if(APPLE)
-  add_executable(scry_gpu_test
-    test/WebViewGpuTest.mm
-  )
-  target_link_libraries(scry_gpu_test PRIVATE
-    SigilScry GTest::gtest_main ${METAL_FRAMEWORK})
-  ultralight_copy_resources(scry_gpu_test)
-  add_test(NAME scry_gpu_test COMMAND scry_gpu_test)
-
-  add_executable(scry_gpu_demo
-    examples/scry_gpu_demo.mm
-  )
-  target_link_libraries(scry_gpu_demo PRIVATE
-    SigilScry ${METAL_FRAMEWORK})
+  add_executable(scry_gpu_demo examples/scry_gpu_demo.mm)
+  target_link_libraries(scry_gpu_demo PRIVATE SigilScry ${METAL_FRAMEWORK})
   ultralight_copy_resources(scry_gpu_demo)
 endif()
 

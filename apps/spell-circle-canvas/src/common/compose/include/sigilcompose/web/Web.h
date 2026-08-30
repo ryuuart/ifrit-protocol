@@ -20,7 +20,7 @@
  */
 
 #include <include/core/SkCanvas.h>
-#include <sigilscry/WebView.h>
+#include <sigilscry/engine/WebView.h>
 
 #include <memory>
 

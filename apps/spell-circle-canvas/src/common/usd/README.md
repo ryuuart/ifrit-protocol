@@ -12,12 +12,25 @@ Materials travel as `UsdPreviewSurface` with `UsdUVTexture` inputs — the
 shading model this renderer shades with, slot for slot — and their images
 are written as PNG files beside the stage.
 
-Namespace `sigil::usd`, target `SigilUsd`, header `sigilusd/Usd.h`.
+Namespace `sigil::usd`. One feature library per directory, linked by what
+a consumer uses; every public header lives under
+`include/sigilusd/<feature>/` and is spelled `<sigilusd/<feature>/X.h>`:
+
+| target | headers | holds |
+|--------|---------|-------|
+| `SigilUsdRuntime` | `runtime/Runtime.h` | `runtime::available()` — whether the USD file-format plugins are present in this process |
+| `SigilUsdWrite`   | `write/Writer.h`    | `WriteOptions` and `Writer` — a stage built from values and saved |
+| `SigilUsdRead`    | `read/Reader.h`     | `ReadInfo` and `readModel()` — a stage read into a `Model` |
+
+`SigilUsd` is the umbrella target over all three, and
+`<sigilusd/Usd.h>` the umbrella header. Write and read are independent
+of each other; neither links the other.
 
 ## Using it
 
 ```cpp
-#include <sigilusd/Usd.h>
+#include <sigilusd/write/Writer.h>
+#include <sigilusd/read/Reader.h>
 
 usd::Writer writer("shots/lab.usdc");
 writer.mesh("floor", floorMesh, glm::mat4(1.0f), plate);
@@ -63,8 +76,17 @@ face-varying `st` and normals survive), faces fan-triangulate, xforms are
 baked into positions, `st`'s v is flipped back, subsets become the
 `"Material"` lane with `materialIndex` set from the mesh's whole binding,
 and a bound `UsdPreviewSurface` fills the part's factors and texture
-references (bytes read from the stage's neighbours). Point instancers
-come back as faceless parts with `size` from scales.
+references (bytes read from the stage's neighbours). When the mesh as a
+whole binds nothing, the first subset's material fills the factors.
+Point instancers come back as faceless parts with `size` from scales.
+
+**The runtime is a plugin registry.** USD's file formats are discovered
+on disk when the process first touches USD; a build whose libraries are
+present but whose `plugInfo.json` registry beside them is not will link,
+start, and open nothing. `runtime::available()` asks for the crate,
+ASCII and package formats by extension and creates one in-memory stage,
+and names what is missing. Every test and benchmark in this library
+skips through it rather than failing.
 
 ## Conventions that will bite you
 
@@ -74,35 +96,61 @@ come back as faceless parts with `size` from scales.
 explicit transpose call in either direction.
 
 **Identifiers are sanitized and made unique.** A name with spaces or
-punctuation becomes underscores; a second prop with the same name gets
-`_2`. Read the returned path back rather than assuming.
+punctuation becomes underscores, one that is empty or starts with a
+digit gains a leading underscore, and a second prop with the same name
+gets `_2`. Read the returned path back rather than assuming.
 
 **Same material, one prim.** Materials compare by value (images by
 pointer), so the same `Material` placed on ten props binds one
-`/World/Materials/...` prim.
+`/World/Materials/...` prim, and the same image is written once however
+many materials share it.
 
 **Metres per unit is metadata, not a scale.** Meshes are written in the
 units they were authored in; `WriteOptions::metersPerUnit` (0.01 by
 default — centimetres, the DCC default) tells a consumer how to read
 them.
 
+**`sigil:` custom data nests.** USD reads a colon in a custom-data key
+as a path into nested dictionaries, so `sigil:transmission` is the
+`transmission` entry of a `sigil` dictionary — which is how a stage
+authored by hand must spell it.
+
 ## Boundary
 
-Public: SigilWorld, SigilGeometry, Skia. Private: OpenUSD core (`usd`,
-`usdGeom`, `usdShade`, `usdLux`, `sdf`, `tf`, `gf`, `vt`) — no imaging,
-no MaterialX. Neither SigilWorld nor SigilGeometry links or includes this
-library; it is a leaf. It does not bake materials or generate maps of any
-kind: what it writes are the images and values it was handed.
+Public: SigilWorld and the geometry features each door takes values from
+(mesh, pop and space for the writer; codec and mesh for the reader),
+and Skia. Private: OpenUSD core (`usd`, `usdGeom`, `usdShade`, `usdLux`,
+`sdf`, `tf`, `gf`, `vt`) — no imaging, no MaterialX, and no public
+header names a `pxr` type; USD is included only by the sources and the
+internal headers beside them. Neither SigilWorld nor SigilGeometry links
+or includes this library; it is a leaf. It does not bake materials or
+generate maps of any kind: what it writes are the images and values it
+was handed.
 
 ## Build and test
 
 OpenUSD comes from vcpkg (`usd`, default features off: `tbb` and `zlib`
 only). When the package is not found the top-level configure warns and
-leaves `SigilUsd`, `usd_test` and `world_demo`'s USD export out.
+leaves every target here and `world_demo`'s USD export out.
+
+Targets: `SigilUsdRuntime`, `SigilUsdWrite`, `SigilUsdRead`, the
+`SigilUsd` umbrella; `usd_runtime_test`, `usd_write_test` and
+`usd_read_test` (ctest); `usd_runtime_bench`, `usd_write_bench` and
+`usd_read_bench` (Google Benchmark, through the `benches` target and
+`scripts/bench_ledger.py`).
 
 ```sh
-ctest --test-dir build -C Debug -R usd_test --output-on-failure
+ctest --test-dir build -C Debug -R usd_ --output-on-failure
 ```
 
-The test writes a crate and an ASCII stage to a temporary directory,
-checks the crate's magic bytes, and reads both back.
+The write test authors stages into a temporary directory and inspects
+them through USD's own API — prim paths and their uniqueness, the mesh's
+attributes and subsets, shared material prims and the single texture
+file behind them, the instancer, the file formats an extension selects.
+The read test reads the hand-authored stages committed under
+`read/test/assets/` (an ASCII stage with a parent xform, a mixed
+triangle-and-quad mesh with per-vertex `st` and `displayColor`, two
+subsets bound to two materials, a texture file beside it, and a point
+instancer) and round-trips a stage the writer produced. Every test skips,
+with the reason, when the runtime probe says the plugins are absent, and
+every benchmark then registers nothing.

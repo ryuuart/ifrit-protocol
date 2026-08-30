@@ -1,15 +1,17 @@
-// GPU SigilScry demo — the all-hardware pipeline: Ultralight renders an
-// HTML/CSS layout through the Metal GPUDriver, the published MTLTexture is
-// wrapped zero-copy as a Graphite SkImage, and everything is composited on
-// a Graphite surface sharing the same device/queue. The only CPU copy is
-// the final readback for the PNG (out dir: first argument, default
-// ./scry_demo_out).
+/** @file
+ * scry_gpu_demo — the all-hardware pipeline: Ultralight renders an
+ * HTML/CSS layout through the Metal driver, the published texture is
+ * wrapped zero-copy as a Graphite SkImage, and everything is composited
+ * on a Graphite surface sharing the same device and queue. The only CPU
+ * copy is the final readback for the PNG (out dir: first argument,
+ * default ./scry_demo_out).
+ */
 
 #import <Metal/Metal.h>
 
-#include <sigilscry/WebEngine.h>
-#include <sigilscry/WebImage.h>
-#include <sigilscry/WebView.h>
+#include <sigilscry/engine/WebEngine.h>
+#include <sigilscry/engine/WebImage.h>
+#include <sigilscry/engine/WebView.h>
 
 #include <sigilskia/device/GpuDevice.h>
 #include <sigilskia/graphite/GraphiteContext.h>

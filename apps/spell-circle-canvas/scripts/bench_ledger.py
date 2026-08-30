@@ -80,6 +80,10 @@ TOLERANCES = {
     # Raster painting through Skia's CPU backend has thread-pool warm-up
     # inside it that the warm-up period does not fully settle.
     r"^weave_paint_bench:": 0.15,
+    # A latency, not a cost: the arm waits for the web thread's own
+    # repaint, which is paced at a fixed cadence, so the figure moves by a
+    # whole frame interval from one run to the next.
+    r"^scry_engine_bench:BM_Page_ChangeLatency": 0.75,
 }
 
 TIME_UNITS = {"ns": 1.0, "us": 1e3, "ms": 1e6, "s": 1e9}

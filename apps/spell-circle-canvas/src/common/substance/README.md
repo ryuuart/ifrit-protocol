@@ -11,8 +11,20 @@ by identifier and by usage. Nothing here knows about surfaces or the GPU:
 SigilWorld's texture-set door takes the by-usage map and makes a
 `Material` of it.
 
-Namespace `sigil::substance`, target `SigilSubstance`, header
-`sigilsubstance/Substance.h`.
+Namespace `sigil::substance`, target `SigilSubstance`. One static target
+over two subjects; every public header lives under
+`include/sigilsubstance/<subject>/` and is spelled
+`<sigilsubstance/<subject>/X.h>`:
+
+| subject | headers | holds |
+|---------|---------|-------|
+| `graph`   | `graph/Parameter.h`, `graph/Output.h`, `graph/Graph.h` | `Parameter` and `Output`, the described inputs and outputs; `Graph`, one graph described, changed, cooked and read |
+| `package` | `package/Package.h` | `Package`, the loaded archive that owns its graphs and the engine renderer they share |
+
+`<sigilsubstance/Substance.h>` is the umbrella header over both. The two
+subjects are one target because neither exists without the other: a
+`Graph` is only ever constructed by its `Package`, and a `Package` is
+nothing but its graphs, so a test of one is a test of both.
 
 ## Using it
 
@@ -99,10 +111,12 @@ switch.
 ## Boundary
 
 Public dependency: Skia (`SkImage` out). Private: the Substance 3D SDK's
-framework library and one engine dylib. Deliberately absent: any GPU
-device, any material or surface type (SigilWorld's), any file-set
-discovery (that is `sigilworld/TextureSet.h`), and the SDK's own
-sources — nothing from the SDK is vendored into this repository.
+framework library and one engine dylib — no public header names an SDK
+type; the SDK is included only by the sources and the internal headers
+beside them. Deliberately absent: any GPU device, any material or
+surface type (SigilWorld's), any file-set discovery (that is
+`sigilworld/TextureSet.h`), and the SDK's own sources — nothing from the
+SDK is vendored into this repository.
 
 ## The SDK
 
@@ -112,20 +126,28 @@ versioned directory in one of the roots `scripts/setup.py` searches —
 use — or point `SUBSTANCE_SDK_DIR` at the directory holding
 `substance-config.cmake`. `setup.py` writes the location into
 `CMakeUserPresets.json`; without an SDK the top-level configure warns and
-leaves this library, `substance_test` and `substance_demo` out of the
-build, and `world_demo`'s material lab renders without its Substance
-props. Executables that link SigilSubstance carry the SDK's
-`bin/release` in their runtime search path, which is where the engine
-dylib lives.
+leaves this library, `substance_test`, `substance_bench` and
+`substance_demo` out of the build, and `world_demo`'s material lab
+renders without its Substance props. Executables that link SigilSubstance
+carry the SDK's `bin/release` in their runtime search path, which is
+where the engine dylib lives.
 
 ## Build and test
 
-Targets: `SigilSubstance`, `substance_test` (ctest), `substance_demo`.
+Targets: `SigilSubstance`, `substance_test` (ctest), `substance_bench`
+(Google Benchmark, through the `benches` target and
+`scripts/bench_ledger.py`), and `substance_demo`.
 
 ```sh
 ctest --test-dir build -C Debug -R substance_test --output-on-failure
 ./build/bin/Debug/substance_demo ~/.local/opt/substance/9.4.6/assets/Autumn_Leaves.sbsar out 9
 ```
 
-The test renders one of the SDK's sample archives, so it needs the SDK
-and nothing else.
+The test and the benchmark render the SDK's own sample archives
+(`assets/Autumn_Leaves.sbsar`, and `assets/Post_Illumination.sbsar` for
+the composition test), found through the SDK directory the build was
+configured from. When a sample is not there, the test skips with a
+message naming the file and the benchmark registers nothing, so an SDK
+installed without its samples reports the fact rather than failing. The
+engine dylib itself is a link-time dependency: a binary built against
+the SDK does not start without it.

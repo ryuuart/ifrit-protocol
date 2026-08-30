@@ -11,6 +11,7 @@
 #include <include/core/SkData.h>
 #include <include/core/SkStream.h>
 #include <include/encode/SkPngEncoder.h>
+#include <sigilsubstance/Substance.h>
 
 #include <cstdio>
 #include <cstdlib>
@@ -19,8 +20,6 @@
 #include <sstream>
 #include <string>
 #include <vector>
-
-#include "sigilsubstance/Substance.h"
 
 using namespace sigil;
 

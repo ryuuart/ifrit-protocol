@@ -1,0 +1,120 @@
+#usda 1.0
+(
+    defaultPrim = "World"
+    metersPerUnit = 0.01
+    upAxis = "Y"
+)
+
+def Xform "World"
+{
+    def Scope "Materials"
+    {
+        def Material "red" (
+            customData = {
+                dictionary sigil = {
+                    float transmission = 0.5
+                }
+            }
+        )
+        {
+            token outputs:surface.connect = </World/Materials/red/PreviewSurface.outputs:surface>
+
+            def Shader "PreviewSurface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (1, 0, 0)
+                float inputs:metallic = 0.75
+                float inputs:roughness = 0.25
+                token outputs:surface
+            }
+        }
+
+        def Material "checker"
+        {
+            token outputs:surface.connect = </World/Materials/checker/PreviewSurface.outputs:surface>
+
+            def Shader "PreviewSurface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor.connect = </World/Materials/checker/baseColorTexture.outputs:rgb>
+                float inputs:roughness.connect = </World/Materials/checker/roughnessTexture.outputs:r>
+                token outputs:surface
+            }
+
+            def Shader "stReader"
+            {
+                uniform token info:id = "UsdPrimvarReader_float2"
+                token inputs:varname = "st"
+                float2 outputs:result
+            }
+
+            def Shader "baseColorTexture"
+            {
+                uniform token info:id = "UsdUVTexture"
+                asset inputs:file = @checker.png@
+                float2 inputs:st.connect = </World/Materials/checker/stReader.outputs:result>
+                float3 outputs:rgb
+            }
+
+            def Shader "roughnessTexture"
+            {
+                uniform token info:id = "UsdUVTexture"
+                asset inputs:file = @checker.png@
+                token inputs:sourceColorSpace = "raw"
+                float2 inputs:st.connect = </World/Materials/checker/stReader.outputs:result>
+                float outputs:r
+            }
+        }
+    }
+
+    def Xform "props"
+    {
+        double3 xformOp:translate = (100, 0, 50)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+
+        def Mesh "plate"
+        {
+            int[] faceVertexCounts = [3, 4]
+            int[] faceVertexIndices = [0, 1, 2, 1, 3, 4, 2]
+            point3f[] points = [(0, 0, 0), (2, 0, 0), (0, 0, 2), (2, 0, 2), (1, 0, 3)]
+            color3f[] primvars:displayColor = [(1, 0, 0), (0, 1, 0), (0, 0, 1), (1, 1, 0), (0, 1, 1)] (
+                interpolation = "vertex"
+            )
+            texCoord2f[] primvars:st = [(0, 0), (1, 0), (0, 1), (1, 1), (0.5, 1)] (
+                interpolation = "vertex"
+            )
+            uniform token subdivisionScheme = "none"
+
+            def GeomSubset "slot0" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                uniform token elementType = "face"
+                uniform token familyName = "materialBind"
+                int[] indices = [0]
+                rel material:binding = </World/Materials/red>
+            }
+
+            def GeomSubset "slot1" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                uniform token elementType = "face"
+                uniform token familyName = "materialBind"
+                int[] indices = [1]
+                rel material:binding = </World/Materials/checker>
+            }
+        }
+
+        def Mesh "ball" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            rel material:binding = </World/Materials/checker>
+            int[] faceVertexCounts = [3]
+            int[] faceVertexIndices = [0, 1, 2]
+            point3f[] points = [(0, 5, 0), (1, 5, 0), (0, 6, 0)]
+            uniform token subdivisionScheme = "none"
+        }
+    }
+}
