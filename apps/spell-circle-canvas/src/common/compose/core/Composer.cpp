@@ -575,7 +575,9 @@ std::vector<Beat> Composer::beatsOf(std::string_view key,
   // Logically const: resolving a schedule fills the same per-instance
   // scratch the painter does and changes nothing the next draw can see.
   Impl& impl = const_cast<Impl&>(*m_impl);
-  std::vector<Beat> beats = impl.beatsOfTrack(*it->second, trackIndex);
+  const TextPainterOps* painter = Impl::textPainterOf(*it->second);
+  if (!painter) return {};  // text at rest runs no schedule
+  std::vector<Beat> beats = painter->beats(*it->second, trackIndex);
   if (beats.empty()) return beats;
   // Rects come out in the node's own space. Lift them into the composer's,
   // by the same walk up the tree the bounds query takes — a beat is a place
@@ -597,7 +599,8 @@ float Composer::cascadeSpanMs(std::string_view key, size_t trackIndex) const {
   // Logically const: resolving a schedule fills the same per-instance
   // scratch the painter does and changes nothing the next draw can see.
   Impl& impl = const_cast<Impl&>(*m_impl);
-  return impl.cascadeSpanOfTrack(*it->second, trackIndex);
+  const TextPainterOps* painter = Impl::textPainterOf(*it->second);
+  return painter ? painter->cascadeSpanMs(*it->second, trackIndex) : 0.0f;
 }
 
 std::optional<std::string> Composer::hitTest(SkPoint canvasPoint) const {

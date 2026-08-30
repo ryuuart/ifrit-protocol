@@ -6,13 +6,26 @@
 # (`styles::` — inner shadows, glows, bevels and the gel and chrome
 # bundles over SigilMaterial's kit tables), with the kit's stroke grammar
 # (`kit/Strokes.h`) and the bordered feed plate (`kit/Plate.h`) that are
-# spelled in this tier's types. Links Shape publicly: a brush is applied
-# to a silhouette.
+# spelled in this tier's types. And the engine behind the kernel's stroke
+# grammar and mask gates — span claims, the span normal form, bands, the
+# `by::` gates — reached by the kernel through the StrokeResolver and
+# MaskResolver values the verbs install, which is why `stroke(spans, …)`,
+# `background(spans, …)`, `across()` and every `by::` constructor are
+# defined here though the kernel declares them. Links Shape publicly: a
+# brush is applied to a silhouette.
 add_library(SigilComposeBrush STATIC
   Decorations.cpp
   LayerStyles.cpp
   Lines.cpp
   Brushes.cpp
+  # the stroke grammar's engine and the mask gates, behind the kernel's
+  # StrokeResolver and MaskResolver seams
+  StrokePainting.cpp
+  SpanNormalForm.cpp
+  Band.cpp
+  Masks.cpp
+  SpanArithmetic.h
+  SpanContours.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/brush/Brush.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/brush/Brushes.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/brush/Decorations.h
@@ -26,8 +39,13 @@ add_library(SigilComposeBrush STATIC
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/kit/Strokes.h
 )
 target_compile_features(SigilComposeBrush PUBLIC cxx_std_20)
-target_link_libraries(SigilComposeBrush PUBLIC SigilComposeShape
-                                              SigilComposeTypography)
+# Sees the kernel's source directory PRIVATELY, as the typography engine
+# does: resolving a span claim reads the retained Instance.
+target_include_directories(SigilComposeBrush
+  PRIVATE ${CMAKE_CURRENT_LIST_DIR} ${CMAKE_CURRENT_LIST_DIR}/../core)
+target_link_libraries(SigilComposeBrush
+  PUBLIC SigilComposeShape SigilComposeTypography
+  PRIVATE yoga::yogacore)
 
 # Decorations, lines, rails, hatches, brushes, the stroke grammar (which is
 # what the authoring-grammar file exercises), the kit's stroke presets, the

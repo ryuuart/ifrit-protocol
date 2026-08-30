@@ -34,8 +34,11 @@
 #include <unordered_set>
 #include <utility>
 
+#include "AxisGate.h"
 #include "ComposeRuntime.h"
 #include "PaintInternal.h"
+#include "TextEngine.h"
+#include "TextPose.h"
 #include "sigilgeometry/path/Contour.h"
 #include "sigilgeometry/path/Skia.h"
 
@@ -110,29 +113,32 @@ int tangentLadderSteps(float pixelSize) {
  *  Cached against everything that decides it — the content, the box the
  *  baseline resolves against, and the baseline value. The `at` phase is not
  *  among them: it re-places glyphs the layout already placed, at paint. */
-void Composer::Impl::ensurePathLayout(Instance& inst, const TextPath& spec,
-                                      SkSize size) {
-  if (inst.pathValid && inst.pathRev == inst.contentRev &&
-      inst.pathSize.width() == size.width() &&
-      inst.pathSize.height() == size.height() && inst.pathSpec &&
-      samePathLayout(*inst.pathSpec, spec))
+void detail::ensurePathLayout(Composer::Impl& impl, Instance& inst,
+                              const TextPath& spec, SkSize size) {
+  if (textStateOf(inst).pathValid &&
+      textStateOf(inst).pathRev == inst.contentRev &&
+      textStateOf(inst).pathSize.width() == size.width() &&
+      textStateOf(inst).pathSize.height() == size.height() &&
+      textStateOf(inst).pathSpec &&
+      samePathLayout(*textStateOf(inst).pathSpec, spec))
     return;
 
   if (!inst.paragraph) return;  // no content materialized: nothing to place
-  inst.pathValid = false;
-  inst.pathIntervals.clear();
-  inst.pathLayout = {};
-  inst.pathRev = inst.contentRev;
-  inst.pathSize = size;
-  inst.pathSpec = spec;
-  inst.pathTotalLength = 0;
+  textStateOf(inst).pathValid = false;
+  textStateOf(inst).pathIntervals.clear();
+  textStateOf(inst).pathLayout = {};
+  textStateOf(inst).pathRev = inst.contentRev;
+  textStateOf(inst).pathSize = size;
+  textStateOf(inst).pathSpec = spec;
+  textStateOf(inst).pathTotalLength = 0;
   if (!spec.path) return;
 
   const SkPath baseline = spec.path(size);
   // The centre Orient::Radial radiates from: the bounds of the resolved
   // baseline, which for every dial-shaped path is its centre.
   const SkRect baselineBounds = baseline.getBounds();
-  inst.pathCentroid = {baselineBounds.centerX(), baselineBounds.centerY()};
+  textStateOf(inst).pathCentroid = {baselineBounds.centerX(),
+                                    baselineBounds.centerY()};
 
   // The run's own width, from the shaped advances. This is what Align
   // measures against, and it is why the run has to be shaped first — it
@@ -149,7 +155,7 @@ void Composer::Impl::ensurePathLayout(Instance& inst, const TextPath& spec,
   if (contours.empty()) return;
   float length = 0;
   for (const geometry::Contour& contour : contours) length += contour.length();
-  inst.pathTotalLength = length;
+  textStateOf(inst).pathTotalLength = length;
 
   // One arc-length coordinate over the whole chain, for the two questions
   // that are about the BASELINE rather than about one glyph: is it closed,
@@ -184,7 +190,7 @@ void Composer::Impl::ensurePathLayout(Instance& inst, const TextPath& spec,
   }
 
   const float restAt = spec.at.plain() ? *spec.at.plain() : 0.0f;
-  inst.pathRestAt = restAt;
+  textStateOf(inst).pathRestAt = restAt;
   float start = restAt * length;
   if (spec.align == TextPath::Align::Center)
     start -= runWidth * 0.5f;
@@ -249,7 +255,7 @@ void Composer::Impl::ensurePathLayout(Instance& inst, const TextPath& spec,
     entryLocal -= contours[entryContour].length();
     ++entryContour;
   }
-  inst.pathIntervals.reserve(contours.size());
+  textStateOf(inst).pathIntervals.reserve(contours.size());
   const auto pushInterval = [&](size_t index, float localStart) {
     sigil::weave::LineInterval interval;
     interval.contour = contours[index];
@@ -264,7 +270,7 @@ void Composer::Impl::ensurePathLayout(Instance& inst, const TextPath& spec,
         closed
             ? contourLength
             : std::max(flipRun ? localStart : contourLength - localStart, 0.0f);
-    inst.pathIntervals.push_back(std::move(interval));
+    textStateOf(inst).pathIntervals.push_back(std::move(interval));
   };
   if (flipRun) {
     pushInterval(entryContour, entryLocal);
@@ -276,16 +282,16 @@ void Composer::Impl::ensurePathLayout(Instance& inst, const TextPath& spec,
       pushInterval(index, 0.0f);
   }
 
-  sigil::weave::LineSetFlow flow({inst.pathIntervals});
-  sigil::weave::ParagraphLayoutOptions options = textLayoutOptions(inst);
+  sigil::weave::LineSetFlow flow({textStateOf(inst).pathIntervals});
+  sigil::weave::ParagraphLayoutOptions options = impl.textLayoutOptions(inst);
   // The baseline places the run; an interval-relative alignment on top of
   // that would fight `at` and Align for the same authority.
   options.alignment = sigil::weave::TextAlignment::kStart;
   options.pathText.tangentRotationSteps =
       spec.exactTangent ? 0 : kPathTangentSteps;
-  inst.pathLayout =
-      sigil::weave::layoutParagraph(fonts, *inst.paragraph, flow, options);
-  inst.pathValid = true;
+  textStateOf(inst).pathLayout =
+      sigil::weave::layoutParagraph(impl.fonts, *inst.paragraph, flow, options);
+  textStateOf(inst).pathValid = true;
 }
 
 // ---------------------------------------------------------------------------
@@ -354,10 +360,10 @@ bool restPoseOf(const PoseContext& ctx, const sigil::weave::PlacedGlyph& placed,
     return true;
   }
   if (placed.intervalIndex < 0 ||
-      (size_t)placed.intervalIndex >= ctx.inst->pathIntervals.size())
+      (size_t)placed.intervalIndex >= ctx.inst->textState->pathIntervals.size())
     return false;
   const sigil::weave::LineInterval& interval =
-      ctx.inst->pathIntervals[(size_t)placed.intervalIndex];
+      ctx.inst->textState->pathIntervals[(size_t)placed.intervalIndex];
   SkPoint position;
   SkVector tangent;
   // EXACT, not snapped: the snapping is a rasterization concession and
@@ -382,15 +388,15 @@ bool restPoseOf(const PoseContext& ctx, const sigil::weave::PlacedGlyph& placed,
   //
   // Note this is genuinely a different thing from what Tangent already
   // does. On a circle, "up points outward" IS the tangent orientation (a
-  // clock face's 6 is upside down for exactly that reason), so the only
+  // impl.clock face's 6 is upside down for exactly that reason), so the only
   // orientation a path baseline was missing is the one where the type
   // radiates.
   if (ctx.onPath->orient == TextPath::Orient::Upright) {
     dirX = 1.0f;
     dirY = 0.0f;
   } else if (ctx.onPath->orient == TextPath::Orient::Radial) {
-    const float ox = position.x() - ctx.inst->pathCentroid.x();
-    const float oy = position.y() - ctx.inst->pathCentroid.y();
+    const float ox = position.x() - ctx.inst->textState->pathCentroid.x();
+    const float oy = position.y() - ctx.inst->textState->pathCentroid.y();
     const float radius = std::hypot(ox, oy);
     if (radius <= 1e-6f) return false;
     dirX = ox / radius;

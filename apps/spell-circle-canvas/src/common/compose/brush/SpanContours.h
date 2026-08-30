@@ -1,7 +1,7 @@
 #pragma once
 
 /** @file
- * Internal to the kernel — the contour measure the span normal form and the
+ * Internal to the brush tier — the contour measure the span normal form and the
  * band region share: where each contour of a path starts and ends in the
  * path's global arc length.
  */

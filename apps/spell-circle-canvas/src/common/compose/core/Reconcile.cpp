@@ -210,14 +210,16 @@ bool textPathEqual(const TextPath& a, const TextPath& b) {
          a.orient == b.orient && a.exactTangent == b.exactTangent;
 }
 
-static_assert(kFieldCount<TextData> == 14 && kFieldCount<TextOptions> == 9 &&
+static_assert(kFieldCount<TextData> == 15 && kFieldCount<TextOptions> == 9 &&
                   kFieldCount<SpanRestyle> == 3,
               "TextData gained or lost a field — rule on it in textEqual() "
               "below, then bump this count. (`layoutOptions` is the one "
               "field NOT compared, and only because the full-control "
               "overload that sets it also sets paragraphOverride, which is "
               "unconditionally conservative. The fluent setters are "
-              "comparable in full and live in `options`.)");
+              "comparable in full and live in `options`. `painter` is "
+              "EXCLUDED on purpose: it is the same engine on every text "
+              "that carries one, so it says nothing about the picture.)");
 bool textEqual(const ElementNode& a, const ElementNode& b) {
   if ((bool)a.textData != (bool)b.textData) return false;
   if (!a.textData) return true;
@@ -305,9 +307,11 @@ bool deriveEqual(const Box<DeriveData>& a, const Box<DeriveData>& b) {
          a->borrowedPathKeys == b->borrowedPathKeys;
 }
 
-static_assert(kFieldCount<StrokeData> == 1 && kFieldCount<StrokePass> == 4,
+static_assert(kFieldCount<StrokeData> == 2 && kFieldCount<StrokePass> == 4,
               "StrokeData/StrokePass gained or lost a field — rule on it in "
-              "strokeEqual() below, then bump this count.");
+              "strokeEqual() below, then bump this count. `resolver` is "
+              "EXCLUDED on purpose: the same engine rides every stroked "
+              "node.");
 bool strokeEqual(const Box<StrokeData>& a, const Box<StrokeData>& b) {
   if ((bool)a != (bool)b) return false;
   if (!a) return true;
@@ -394,6 +398,36 @@ bool materialEqual(const Box<MaterialData>& a, const Box<MaterialData>& b) {
  *  (Spans::resolve consults `values[3i..3i+2]` under Range and Wrap and
  *  nowhere else); every other field is unconditional. */
 // ---- the fx() seam's hand-written comparators ------------------------------
+
+/** Two effects are the same effect when their identity — the preset name
+ *  or the author's key, the parameters, the operands, the pass material
+ *  and the named curves — is; a lambda-valued curve compares unequal,
+ *  conservatively, through easeEqual. */
+bool TextEffect::operator==(const TextEffect& other) const {
+  if (m_state == other.m_state) return true;  // copies of one value
+  if (!m_state || !other.m_state) return false;
+  if (m_state->name != other.m_state->name ||
+      m_state->params != other.m_state->params ||
+      m_state->operands != other.m_state->operands)
+    return false;
+  // A pass compares by its MATERIAL, by value — Material's own recipe
+  // equality, so two passes over one source with equal constants prune,
+  // and a live pass material never compares equal, conservatively.
+  if ((m_state->pass != nullptr) != (other.m_state->pass != nullptr))
+    return false;
+  if (m_state->pass && !(*m_state->pass == *other.m_state->pass)) return false;
+  if (m_state->curves.size() != other.m_state->curves.size()) return false;
+  for (size_t i = 0; i < m_state->curves.size(); ++i)
+    if (!detail::easeEqual(m_state->curves[i], other.m_state->curves[i]))
+      return false;
+  return true;
+}
+
+bool Selector::operator==(const Selector& other) const {
+  if (m_state == other.m_state) return true;
+  if (!m_state || !other.m_state) return false;  // one is "everything"
+  return *m_state == *other.m_state;
+}
 
 static_assert(kFieldCount<Stagger> == 11,
               "Stagger gained or lost a field — rule on it in "
@@ -491,9 +525,11 @@ bool Spans::operator==(const Spans& other) const {
  *  and of a coverage source — and leaving it out of either would make a
  *  matte compare equal to its own inverse, so a pruned node would keep
  *  showing the wrong half forever. */
-static_assert(kFieldCount<Gate> == 8,
+static_assert(kFieldCount<Gate> == 9,
               "Gate gained or lost a field — rule on it below (in the arm "
-              "of the Kind that reads it), then bump this count.");
+              "of the Kind that reads it), then bump this count. `resolver` "
+              "is EXCLUDED on purpose: every `by::` gate carries the same "
+              "engine.");
 bool Gate::operator==(const Gate& other) const {
   if (kind != other.kind) return false;
   switch (kind) {
@@ -856,11 +892,15 @@ void Composer::Impl::materializeText(
   const size_t restyleCount = text.spanRestyles.size();
   std::vector<std::vector<sigil::weave::CharRange>> resolvedRanges(
       restyleCount);
+  // The ranges are the painter's answer: text that carries none — a
+  // description built without a text verb — is restyled by nothing.
+  const TextPainterOps* painter = textPainterOf(inst);
   for (size_t i = 0; i < restyleCount; ++i)
-    resolvedRanges[i] =
-        resolveTextRanges(text.spanRestyles[i].where, *inst.paragraph, fonts,
+    if (painter)
+      resolvedRanges[i] =
+          painter->ranges(text.spanRestyles[i].where, *inst.paragraph, fonts,
                           lines, columns, inst.textNamedRuns);
-  inst.spanAxisTracks.clear();
+  if (inst.textState) inst.textState->spanAxisTracks.clear();
   for (size_t i = 0; i < restyleCount; ++i) {
     const SpanRestyle& restyle = text.spanRestyles[i];
     const std::vector<sigil::weave::CharRange>& ranges = resolvedRanges[i];
@@ -882,7 +922,8 @@ void Composer::Impl::materializeText(
     // reshaping restyle covers the same text: a track deviates whatever
     // the paragraph shaped, and a later style must be the one that stands.
     std::vector<std::pair<std::string, float>> folded;
-    if (foldableAsAxes(restyle, ranges, *inst.paragraph, folded)) {
+    if (painter->foldable(inst, restyle.style, ranges, *inst.paragraph,
+                          folded)) {
       bool coveredLater = false;
       for (size_t j = i + 1; j < restyleCount && !coveredLater; ++j) {
         if (text.spanRestyles[j].paintOnly) continue;
@@ -896,7 +937,7 @@ void Composer::Impl::materializeText(
           Track track;
           track.where = restyle.where;
           track.effect = TextEffect::variableAxis(axis, value);
-          inst.spanAxisTracks.push_back(std::move(track));
+          textStateOf(inst).spanAxisTracks.push_back(std::move(track));
         }
         continue;
       }
@@ -904,56 +945,6 @@ void Composer::Impl::materializeText(
     for (const sigil::weave::CharRange& range : ranges)
       inst.paragraph->setStyle(range.start, range.end, restyle.style);
   }
-}
-
-bool Composer::Impl::foldableAsAxes(
-    const SpanRestyle& restyle, std::span<const sigil::weave::CharRange> ranges,
-    const sigil::weave::Paragraph& paragraph,
-    std::vector<std::pair<std::string, float>>& axes) {
-  axes.clear();
-  const auto sameTag = [](const sigil::weave::FontVariation& a,
-                          const sigil::weave::FontVariation& b) {
-    return std::memcmp(a.tag, b.tag, sizeof a.tag) == 0;
-  };
-  const std::vector<sigil::weave::FontVariation>& wanted =
-      restyle.style.shaping.variations;
-  for (const sigil::weave::StyleSpan& span : paragraph.spans()) {
-    bool covered = false;
-    for (const sigil::weave::CharRange& range : ranges)
-      covered |= range.start < span.end && span.start < range.end;
-    if (!covered) continue;
-    // The covered text's own style, with the wanted axes written over it,
-    // must BE the wanted style: any other difference is a reshape.
-    sigil::weave::TextStyle probe = span.style;
-    probe.shaping.variations = wanted;
-    if (!(probe == restyle.style)) return false;
-    // An axis the text was shaped with and the restyle leaves out is a
-    // reset to the face's default, which is a reshape.
-    for (const sigil::weave::FontVariation& have :
-         span.style.shaping.variations)
-      if (std::ranges::none_of(wanted,
-                               [&](const auto& w) { return sameTag(w, have); }))
-        return false;
-    const sk_sp<SkTypeface> face = span.style.shaping.typeface
-                                       ? span.style.shaping.typeface
-                                       : fonts.defaultTypeface();
-    for (const sigil::weave::FontVariation& want : wanted) {
-      const auto have =
-          std::ranges::find_if(span.style.shaping.variations,
-                               [&](const auto& h) { return sameTag(h, want); });
-      if (have != span.style.shaping.variations.end() &&
-          have->value == want.value)
-        continue;  // already shaped there: nothing to hold
-      const char tag[5] = {want.tag[0], want.tag[1], want.tag[2], want.tag[3],
-                           '\0'};
-      if (!axisGateProbe(fonts, face, tag).allowed) return false;
-      const std::string name(tag, 4);
-      if (std::ranges::none_of(axes,
-                               [&](const auto& a) { return a.first == name; }))
-        axes.emplace_back(name, want.value);
-    }
-  }
-  return true;
 }
 
 sigil::weave::ParagraphLayoutOptions Composer::Impl::textLayoutOptions(

@@ -385,56 +385,6 @@ TEST(ComposeShapeValues, KeyedParametricIsAValueUnkeyedIsNot) {
   EXPECT_FALSE(Shape(shapes::spiral(3.0f)) == Shape(shapes::spiral(4.0f)));
 }
 
-TEST(ComposeShapeValues, TextOnAComparableBaselinePrunes) {
-  // A TextPath's baseline is a Shape, so TextPath compares and a curved run
-  // prunes. Without this every radial label in a figure re-records on every
-  // render(), and a ring of labels is exactly where a figure has the most of
-  // them.
-  Host host(240, 240);
-  auto ring = [](float at) {
-    return text(u8"HHHHHHHHHH", whiteStyle(22))
-        .width(240)
-        .height(240)
-        .absolute()
-        .left(0)
-        .top(0)
-        .onPath({.path = shapes::arc(180.0f, 359.9f),
-                 .at = at,
-                 .align = TextPath::Align::Center});
-  };
-  host.composer.render(box().child(ring(0.25f)));
-  host.frame();
-  host.composer.render(box().child(ring(0.25f)));
-  EXPECT_EQ(host.composer.stats().patchedNodes, 0u)
-      << "an identical curved run re-patched";
-  host.frame();
-  EXPECT_EQ(host.composer.stats().picturesRecorded, 0u);
-
-  // …and the equality is honest: moving `at` IS a change. Omit `at` from
-  // textEqual and a run that slides along its baseline compares equal to
-  // where it was, prunes, and keeps the OLD placement forever with no
-  // diagnostic — so this half of the case is the load-bearing one.
-  host.composer.render(box().child(ring(0.75f)));
-  EXPECT_GE(host.composer.stats().patchedNodes, 1u);
-}
-
-TEST(ComposeShapeValues, ABandWithAComparableSpinePrunes) {
-  // A band's authored spine is a Shape too, so deriveEqual must compare it
-  // rather than refusing any authored spine outright.
-  Host host;
-  auto tree = [] {
-    return box().child(band(shapes::circle(), across(8.0f))
-                           .width(100)
-                           .height(100)
-                           .fill(red()));
-  };
-  host.composer.render(tree());
-  host.frame();
-  host.composer.render(tree());
-  EXPECT_EQ(host.composer.stats().patchedNodes, 0u)
-      << "an identical authored band spine re-patched";
-}
-
 TEST(ComposeShapeValues, TheChevreulScenarioKeepsItsBake) {
   // The steady state the prune exists for: a texture-cached node whose shape
   // is a generator, re-described every frame. If the shape does not compare,

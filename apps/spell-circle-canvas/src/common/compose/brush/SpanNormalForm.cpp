@@ -22,6 +22,7 @@
 #include <set>
 
 #include "ComposeInternal.h"
+#include "SpanArithmetic.h"
 #include "SpanContours.h"
 #include "sigilgeometry/path/Contour.h"
 

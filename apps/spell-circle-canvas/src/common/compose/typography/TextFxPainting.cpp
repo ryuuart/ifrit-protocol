@@ -34,8 +34,11 @@
 #include <unordered_set>
 #include <utility>
 
+#include "AxisGate.h"
 #include "ComposeRuntime.h"
 #include "PaintInternal.h"
+#include "TextEngine.h"
+#include "TextPose.h"
 #include "sigilgeometry/path/Contour.h"
 #include "sigilgeometry/path/Skia.h"
 
@@ -184,110 +187,6 @@ SkGlyphID substituteGlyph(sigil::weave::FontContext& fonts,
 
 }  // namespace
 
-std::optional<sigil::weave::PaintStyle> Composer::Impl::metricTextStyle(
-    Instance& inst, const PaintContext& paintCtx) {
-  const ElementNode& node = *inst.desc;
-  const Material* metricMat = metricFillOf(node);
-  const bool stroked = node.textData && node.textData->hasTextStroke;
-  if (!metricMat && !stroked) return std::nullopt;
-  if (!inst.paragraph.has_value()) return std::nullopt;
-  const sigil::weave::Paragraph& paragraph = inst.paragraph.value();
-
-  // Chrome type: the material's unit square mapped to the text's metric
-  // band — x across the widest line, y from the first line's cap top (real
-  // cap height when the face reports one) to the last line's baseline.
-  //
-  // The override replaces the whole PaintStyle for every run, so it starts
-  // as a COPY of the paragraph's own style and swaps only the foreground —
-  // textFill supersedes the fill, not the underlays, overlays and
-  // decorations around it (a chrome wordmark keeps its cast shadow and dark
-  // keyline).
-  sigil::weave::PaintStyle metric = paragraph.spans().empty()
-                                        ? sigil::weave::PaintStyle{}
-                                        : paragraph.spans().front().style.paint;
-  metric.foreground.setShader(nullptr);
-  bool havePaint = false;
-  // textStroke(): a stroke pass on the glyphs, UNDER the fill. It joins the
-  // style's own underlays rather than replacing them, so an engraved face
-  // keeps its cast shadow.
-  if (stroked) {
-    sigil::weave::PaintLayer outline;
-    outline.paint.setAntiAlias(true);
-    outline.paint.setStyle(SkPaint::kStroke_Style);
-    outline.paint.setStrokeWidth(node.textData->textStrokeWidth);
-    outline.paint.setStrokeJoin(SkPaint::kRound_Join);
-    const Fill& sf = node.textData->textStrokeFill;
-    if (sf.kind == Fill::Kind::Shader && sf.shaderValue)
-      outline.paint.setShader(sf.shaderValue);
-    else
-      outline.paint.setColor4f(
-          sf.kind == Fill::Kind::Color ? sf.colorValue : SkColor4f{0, 0, 0, 1},
-          nullptr);
-    metric.addUnderlay(outline);
-    havePaint = true;
-  }
-  if (!metricMat) return havePaint ? std::optional(metric) : std::nullopt;
-
-  // Geometry-dependent materials resolve against a UNIT box here, not the
-  // node's. The local matrix below already maps the shader's [0,1]² onto
-  // the metric band, so uResolution baked from the node's layout size would
-  // divide a second time: a `linearUnit` ramp came out at t ≈ 0.003 and
-  // every glyph painted the first stop, flat and silently. Material.h
-  // advertises textFill and the Unit ramps as the same trick, and this is
-  // what makes that true.
-  PaintContext metricCtx = paintCtx;
-  metricCtx.size = {1.0f, 1.0f};
-  const Fill f = (metricMat->isAnimated() || metricMat->geometryDependent())
-                     ? metricMat->resolve(metricCtx)
-                     : metricMat->toFill();
-  if (f.kind == Fill::Kind::Shader && f.shaderValue && !inst.columns.empty()) {
-    // A VERTICAL passage has no cap band to hang the ramp on: a column's
-    // glyphs centre across its axis rather than standing on a baseline. The
-    // unit square maps onto the COLUMN BLOCK instead — x across the columns,
-    // y down them — so a ramp authored in [0,1]² still crosses the type,
-    // reading down the page rather than across it.
-    SkRect block = SkRect::MakeEmpty();
-    for (const sigil::weave::ColumnMetrics& column : inst.columns)
-      block.join(column.rect());
-    SkMatrix map = SkMatrix::Translate(block.left(), block.top());
-    map.preScale(std::max(block.width(), 1.0f), std::max(block.height(), 1.0f));
-    metric.foreground.setShader(f.shaderValue->makeWithLocalMatrix(map));
-    havePaint = true;
-  } else if (f.kind == Fill::Kind::Shader && f.shaderValue &&
-             !inst.lines.empty()) {
-    const sigil::weave::ShapedWord* firstFont = nullptr;
-    sigil::weave::forEachPlacedGlyph(
-        inst.textLayout, paragraph,
-        [&](const sigil::weave::PlacedGlyph& placed) {
-          if (!firstFont) firstFont = placed.shaped;
-        });
-    float capH = 0;
-    if (firstFont && firstFont->typeface) {
-      SkFontMetrics fm;
-      sigil::weave::makeFont(firstFont->typeface, firstFont->fontSize)
-          .getMetrics(&fm);
-      capH = fm.fCapHeight;
-    }
-    const sigil::weave::LineMetrics& first = inst.lines.front();
-    if (capH <= 0) capH = first.ascent;  // face reports none — the ascent band
-    float left = first.left, right = first.right;
-    for (const sigil::weave::LineMetrics& line : inst.lines) {
-      left = std::min(left, line.left);
-      right = std::max(right, line.right);
-    }
-    const float top = first.baseline - capH;
-    const float bottom = inst.lines.back().baseline;
-    SkMatrix map = SkMatrix::Translate(left, top);
-    map.preScale(std::max(right - left, 1.0f), std::max(bottom - top, 1.0f));
-    metric.foreground.setShader(f.shaderValue->makeWithLocalMatrix(map));
-    havePaint = true;
-  } else if (f.kind == Fill::Kind::Color) {
-    metric.foreground.setColor4f(f.colorValue, nullptr);
-    havePaint = true;
-  }
-  return havePaint ? std::optional(metric) : std::nullopt;
-}
-
 GlyphBand bandOf(const sigil::weave::ShapedWord* shaped,
                  std::vector<std::pair<BandKey, GlyphBand>>& memo) {
   if (!shaped || !shaped->typeface) return {};
@@ -356,10 +255,10 @@ float passUnitSeed(uint32_t outer, uint32_t inner) {
   return 1.0f + rng.unit() * 255.0f;
 }
 
-void Composer::Impl::paintTextFx(Instance& inst, SkCanvas& canvas,
-                                 const sigil::weave::PaintStyle* override,
-                                 const TextPath* onPath, SkSize size,
-                                 const PaintContext& ctx) {
+void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
+                         const sigil::weave::PaintStyle* override,
+                         const TextPath* onPath, SkSize size,
+                         const PaintContext& ctx) {
   if (!inst.paragraph) return;  // no content materialized: nothing to draw
   static thread_local std::vector<Track> joinedTracks;
   const std::span<const Track> tracks = paintedTracksOf(inst, joinedTracks);
@@ -371,11 +270,11 @@ void Composer::Impl::paintTextFx(Instance& inst, SkCanvas& canvas,
   // perpendicular rather than straight up the canvas, and a track's
   // rotation adds to the tangent it was already turned to. The two are not
   // alternatives and neither wins: `fx()` and `onPath()` compose.
-  if (onPath) ensurePathLayout(inst, *onPath, size);
-  const bool ridesPath = onPath && inst.pathValid;
+  if (onPath) ensurePathLayout(impl, inst, *onPath, size);
+  const bool ridesPath = onPath && textStateOf(inst).pathValid;
   if (onPath && !ridesPath) return;  // no measurable baseline: nothing rides
   const sigil::weave::ParagraphLayout& layout =
-      ridesPath ? inst.pathLayout : inst.textLayout;
+      ridesPath ? textStateOf(inst).pathLayout : inst.textLayout;
 
   // ONE walk builds the structure every track selects and staggers over —
   // the glyph list with its word/line/cluster/sentence numbering. Held
@@ -393,38 +292,40 @@ void Composer::Impl::paintTextFx(Instance& inst, SkCanvas& canvas,
   // which is the same shift whichever way the run reads.
   float phaseArc = 0;
   if (ridesPath)
-    phaseArc = (inst.resolvePathAt() - inst.pathRestAt) * inst.pathTotalLength;
+    phaseArc = (inst.resolvePathAt() - textStateOf(inst).pathRestAt) *
+               textStateOf(inst).pathTotalLength;
 
   // Selections, resolved once per (content, layout width, selector list).
   // A regular expression over the paragraph is a per-EDIT cost this way,
   // not a per-frame one.
-  bool selectionsStale = inst.selectionRev != inst.contentRev ||
-                         inst.selectionWidth != inst.measuredForWidth ||
-                         inst.selectionKeys.size() != tracks.size();
+  bool selectionsStale =
+      textStateOf(inst).selectionRev != inst.contentRev ||
+      textStateOf(inst).selectionWidth != inst.measuredForWidth ||
+      textStateOf(inst).selectionKeys.size() != tracks.size();
   if (!selectionsStale)
     for (size_t i = 0; i < tracks.size(); ++i)
-      if (!(inst.selectionKeys[i] == tracks[i].where)) {
+      if (!(textStateOf(inst).selectionKeys[i] == tracks[i].where)) {
         selectionsStale = true;
         break;
       }
   if (!selectionsStale)
-    for (const std::vector<uint8_t>& mask : inst.selectionMasks)
+    for (const std::vector<uint8_t>& mask : textStateOf(inst).selectionMasks)
       if (mask.size() != count) {
         selectionsStale = true;
         break;
       }
   if (selectionsStale) {
-    inst.selectionKeys.clear();
-    inst.selectionMasks.clear();
-    inst.selectionKeys.reserve(tracks.size());
-    inst.selectionMasks.reserve(tracks.size());
+    textStateOf(inst).selectionKeys.clear();
+    textStateOf(inst).selectionMasks.clear();
+    textStateOf(inst).selectionKeys.reserve(tracks.size());
+    textStateOf(inst).selectionMasks.reserve(tracks.size());
     for (const Track& track : tracks) {
-      inst.selectionKeys.push_back(track.where);
-      inst.selectionMasks.push_back(detail::resolveSelection(
+      textStateOf(inst).selectionKeys.push_back(track.where);
+      textStateOf(inst).selectionMasks.push_back(detail::resolveSelection(
           track.where, structure, *inst.paragraph, inst.textNamedRuns));
     }
-    inst.selectionRev = inst.contentRev;
-    inst.selectionWidth = inst.measuredForWidth;
+    textStateOf(inst).selectionRev = inst.contentRev;
+    textStateOf(inst).selectionWidth = inst.measuredForWidth;
   }
 
   // Each track's cascade, numbered against whichever list its stagger names
@@ -446,7 +347,7 @@ void Composer::Impl::paintTextFx(Instance& inst, SkCanvas& canvas,
     if (used == resolved.size()) resolved.emplace_back();
     Resolved& r = resolved[used++];
     r.track = &track;
-    r.selected = &inst.selectionMasks[i];
+    r.selected = &textStateOf(inst).selectionMasks[i];
     const AnimatedFloat* anim =
         i < inst.trackAnims.size() ? inst.trackAnims[i].get() : nullptr;
     r.master =
@@ -627,13 +528,13 @@ void Composer::Impl::paintTextFx(Instance& inst, SkCanvas& canvas,
         if (pose.centreOffset) dress.centreOffset = &*pose.centreOffset;
         if (mod.axis && placed.shaped)
           dress.face =
-              drivenFace(fonts, placed.shaped->typeface,
+              drivenFace(impl.fonts, placed.shaped->typeface,
                          placed.shaped->fontSize, *mod.axis, continuous);
         SkGlyphID glyph = placed.glyph;
         if (mod.codepoint && placed.shaped)
-          if (const SkGlyphID substitute =
-                  substituteGlyph(fonts, placed.shaped->typeface, placed.glyph,
-                                  mod.codepoint, placed.shaped->vertical))
+          if (const SkGlyphID substitute = substituteGlyph(
+                  impl.fonts, placed.shaped->typeface, placed.glyph,
+                  mod.codepoint, placed.shaped->vertical))
             glyph = substitute;
 
         // ROUTING, per glyph and not per node: an RSXform carries a

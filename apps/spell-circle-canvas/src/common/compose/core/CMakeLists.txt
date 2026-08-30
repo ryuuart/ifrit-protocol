@@ -3,23 +3,22 @@
 # Holds the element value and its authoring grammar, the keyed reconciler,
 # Yoga layout with SigilWeave-measured text, stacking paint with automatic
 # picture caching of provably-static subtrees, transitions and bindings, the
-# per-glyph text seam, the composer's queries, the material value and the
-# streaming feed. Links SigilGeometryPath, SigilImage, SigilMotion,
+# composer's queries, the material value and the streaming feed. Dressed
+# type, the stroke grammar and the mask gates reach the kernel through the
+# seam values a description carries (TextPainter, StrokeResolver,
+# MaskResolver); their engines are the typography and brush tiers'. Links SigilGeometryPath, SigilImage, SigilMotion,
 # SigilWeave and Skia publicly, because those types appear in its headers;
 # Yoga is private, because no header spells it.
 #
-# This is the ONLY target whose translation units see this directory —
-# ComposeInternal.h, ComposeRuntime.h and the paint-phase internals — and
-# that include path is PRIVATE. Every other target in this tree, including
-# the tiers above, compiles against the public headers alone.
+# The translation units that see this directory — ComposeInternal.h,
+# ComposeRuntime.h and the paint-phase internals — are this target's and
+# the two engines' that implement its seams (typography/ and brush/); the
+# include path is PRIVATE to each. Every other target in this tree compiles
+# against the public headers alone.
 add_library(SigilComposeCore STATIC
   # the element value and its builders
   Element.cpp
-  RichText.cpp
-  Masks.cpp
   Effects.cpp
-  SpanNormalForm.cpp
-  Band.cpp
   Diagnostics.cpp
   Env.cpp
   # the composer and its phases
@@ -32,14 +31,9 @@ add_library(SigilComposeCore STATIC
   Query.cpp
   # the paint phase
   Volatility.cpp
-  StrokePainting.cpp
-  PathText.cpp
-  TextFxPainting.cpp
-  TextMarks.cpp
   Bounds.cpp
   StackingPainter.cpp
   # text
-  TextFx.cpp
   TextAtRest.cpp
   # paint values
   Material.cpp
@@ -51,10 +45,8 @@ add_library(SigilComposeCore STATIC
   Lanes.h
   Phases.h
   Transforms.h
-  AxisGate.h
   ComposerImpl.h
   PaintInternal.h
-  SpanContours.h
   # public headers
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/Compose.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/core/Composer.h
@@ -62,6 +54,7 @@ add_library(SigilComposeCore STATIC
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/core/Derive.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/core/Element.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/core/Env.h
+  ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/core/Erased.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/core/Factories.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/core/Feed.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/core/GpuImage.h

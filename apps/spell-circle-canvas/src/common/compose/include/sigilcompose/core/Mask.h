@@ -9,7 +9,9 @@
 #include <include/core/SkPath.h>
 #include <include/core/SkRect.h>
 #include <include/core/SkSize.h>
+#include <sigilcompose/core/Erased.h>
 #include <sigilcompose/core/Motion.h>
+#include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/Shape.h>
 #include <sigilcompose/core/Stroke.h>
 
@@ -107,7 +109,7 @@ class Region {
     static_assert(
         std::tuple_size_v<decltype(std::tie(kind, rect, path))> == 3,
         "Region gained or lost a member — rule on it in Region::operator== "
-        "(Masks.cpp, in the arm of the Kind that reads it), then bump this "
+        "(Element.cpp, in the arm of the Kind that reads it), then bump this "
         "count.");
   }
 };
@@ -172,20 +174,25 @@ inline Parts operator|(Parts a, const Parts& b) {
 namespace parts {
 /** Every output, children included. The one-argument `mask(by::…)` means
  *  this, and it is what the docs lead with. */
-Parts all();
+inline Parts all() { return Parts{Parts::kAll, {}}; }
 /** Every decoration in every slot and every span pass, BOTH z-halves —
  *  backgrounds, overlays, foregrounds, background passes, stroke passes. */
-Parts marks();
+inline Parts marks() { return Parts{Parts::kMarks, {}}; }
 /** The fill surface (and its echo re-stamps). */
-Parts surface();
+inline Parts surface() { return Parts{Parts::kSurface, {}}; }
 /** The text / image / custom leaf. */
-Parts content();
-Parts children();
+inline Parts content() { return Parts{Parts::kContent, {}}; }
+inline Parts children() { return Parts{Parts::kChildren, {}}; }
 /** ONE mark, by the local name its slot call gave it. */
-Parts named(std::string_view name);
+inline Parts named(std::string_view name) {
+  Parts p;
+  p.names.emplace_back(name);
+  return p;
+}
 }  // namespace parts
 
 class Gate;
+class MaskResolverOps;
 
 /** The gate factories — the HOW half of `mask(what, with)`. Named `by::`
  *  because the call site reads as English: mask by edge, mask by spans,
@@ -284,7 +291,25 @@ class Gate {
    *  `Instance::maskAnims` indexes them: three per Spans term (begin, end,
    *  offset), one for an Edge fraction, none for Shape or Coverage (a
    *  Region is static and a Material animates itself). */
-  size_t valueCount() const;
+  /** The brush engine that reads this gate — installed by every `by::`
+   *  constructor, excluded from equality. */
+  Erased<MaskResolverOps> resolver;
+
+  /** How many animatable floats this gate carries, in the order the
+   *  instance's mask slots index them: three per Spans term, one per Edge
+   *  fraction, none for Shape or Coverage. */
+  size_t valueCount() const {
+    switch (kind) {
+      case Kind::Spans:
+        return where.valueCount();
+      case Kind::Edge:
+        return 1;
+      case Kind::Shape:
+      case Kind::Coverage:
+        return 0;
+    }
+    return 0;
+  }
 };
 
 /** One mask: a selection and a gate. */
@@ -295,5 +320,31 @@ struct Mask {
     return what == other.what && with == other.with;
   }
 };
+
+// ---------------------------------------------------------------------------
+// THE MASK RESOLVER — the seam the kernel reads gates through
+
+/** WHAT THE KERNEL ASKS OF A GATE: for a Spans gate, the show set it
+ *  reveals this frame; for an Edge or Shape gate, the clip region; for a
+ *  Coverage gate, the coverage fill. The kernel keeps the gate mechanics —
+ *  entering and leaving the clips and coverage layers around each paint
+ *  group — and asks the value for what those mechanics apply. Installed by
+ *  every `by::` constructor; a Gate built without one gates nothing. */
+class MaskResolverOps : public SpanArithmeticOps {
+ public:
+  /** A Spans gate's show set this frame, normalized: the runs of the
+   *  boundary the gate reveals, resolved against @p in. */
+  virtual std::vector<Span> plan(const Gate& gate,
+                                 const SpanInput& in) const = 0;
+  /** A Shape gate's clip region in local space, resolved against the
+   *  node's own outline. */
+  virtual SkPath clipRegion(const Gate& gate, const SkPath& ownShape) const = 0;
+  /** A Coverage gate's coverage this frame, resolved against the node's
+   *  paint context. */
+  virtual Fill coverage(const Gate& gate, const PaintContext& ctx) const = 0;
+};
+
+/** The resolver as a gate carries it, excluded from structural equality. */
+using MaskResolver = Erased<MaskResolverOps>;
 
 }  // namespace sigil::compose

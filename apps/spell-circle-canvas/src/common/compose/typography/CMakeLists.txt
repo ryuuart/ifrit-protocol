@@ -1,21 +1,44 @@
-# SigilComposeTypography — type styles and text-fx presets.
+# SigilComposeTypography — the text engine and the type vocabulary.
 #
-# Header-only: `type()` and `pickFace()` (Type.h), the stock text effects
-# and the marquee (TextFx.h), and the kit's legibility helpers
-# (kit/Legibility.h). Everything here is a value built from Core's public
-# types, so the target carries no archive and links Core as an interface.
-add_library(SigilComposeTypography INTERFACE
+# The engine behind dressed type: fx() tracks resolved and drawn per glyph,
+# a run laid along a path, mark() anchors, span restyles folded into axis
+# tracks, and the schedule read back — reached by the kernel through the
+# TextPainter value the text verbs install on a description, which is why
+# those verbs (`fx`, `onPath`, `mark`, `spanStyle`, `spanPaint`,
+# `variationDrive`) are defined here though the kernel declares them.
+# With it the header-only vocabulary: `type()` and `pickFace()` (Type.h),
+# the stock text effects and the marquee (TextFx.h), and the kit's
+# legibility helpers (kit/Legibility.h).
+#
+# Sees the kernel's source directory PRIVATELY: the engine reads the
+# retained Instance and Composer::Impl the way a kernel phase does, because
+# it is one — the one that moved out. Nothing above this target inherits
+# that path.
+add_library(SigilComposeTypography STATIC
+  TextFx.cpp
+  TextFxPainting.cpp
+  TextMarks.cpp
+  PathText.cpp
+  TextPainter.cpp
+  AxisGate.h
+  TextEngine.h
+  TextPose.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/typography/TextFx.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/typography/Type.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/typography/Typography.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/kit/Legibility.h
 )
-target_link_libraries(SigilComposeTypography INTERFACE SigilComposeCore)
+target_compile_features(SigilComposeTypography PUBLIC cxx_std_20)
+target_include_directories(SigilComposeTypography
+  PRIVATE ${CMAKE_CURRENT_LIST_DIR} ${CMAKE_CURRENT_LIST_DIR}/../core)
+target_link_libraries(SigilComposeTypography
+  PUBLIC SigilComposeCore
+  PRIVATE yoga::yogacore)
 
 # Text data, the text pass, vertical writing, motion along paths, the
-# text-fx presets, rich spans and the variation drive. Typography is
-# header-only over Core; Shape is here because a path baseline and an
-# upright column are exercised on `shapes::` silhouettes.
+# text-fx presets, rich spans and the variation drive. Shape is here
+# because a path baseline and an upright column are exercised on `shapes::`
+# silhouettes.
 _compose_test_binary(compose_text_test
   LIBRARIES SigilComposeTypography SigilComposeShape
   SOURCES

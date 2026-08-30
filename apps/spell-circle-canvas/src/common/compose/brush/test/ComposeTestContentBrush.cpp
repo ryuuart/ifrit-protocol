@@ -526,3 +526,20 @@ TEST(ComposeMask, WrapOffsetBindingMarchesTheWindow) {
   // The window moved to the far side: (almost) none of the old pixels stay.
   EXPECT_LT((float)still, 0.2f * (float)lit0.size());
 }
+
+TEST(ComposeShapeValues, ABandWithAComparableSpinePrunes) {
+  // A band's authored spine is a Shape too, so deriveEqual must compare it
+  // rather than refusing any authored spine outright.
+  Host host;
+  auto tree = [] {
+    return box().child(band(shapes::circle(), across(8.0f))
+                           .width(100)
+                           .height(100)
+                           .fill(red()));
+  };
+  host.composer.render(tree());
+  host.frame();
+  host.composer.render(tree());
+  EXPECT_EQ(host.composer.stats().patchedNodes, 0u)
+      << "an identical authored band spine re-patched";
+}

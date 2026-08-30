@@ -83,6 +83,53 @@ struct Exclusion {
   }
 };
 
+/** THE TEXT ENGINE'S STATE ON A NODE — what dressed type keeps between
+ *  frames beyond the paragraph and the flow layout the kernel measures by.
+ *  Held by the instance through one pointer and created the first time an
+ *  engine operation touches the node, so text drawn at rest costs none of
+ *  it. Written and read by the text painter a description carries; the
+ *  kernel itself reads one field, the folded axis tracks, because they are
+ *  tracks the painter draws and volatility counts. */
+struct TextState {
+  // onPath(): the run broken across the baseline's contours, and the
+  // geometry it was broken across. A SECOND layout beside `textLayout`
+  // rather than a replacement for it — `textLayout` is still the node's
+  // MEASURE, the run laid straight, and the box it measures is what the
+  // baseline is resolved against. Rebuilt when the content, the box or the
+  // baseline value changes; the `at` phase is applied at PAINT and never
+  // touches it.
+  sigil::weave::ParagraphLayout pathLayout;
+  std::vector<sigil::weave::LineInterval> pathIntervals;
+  float pathTotalLength = 0;   // every contour's arc length together
+  float pathRestAt = 0;        // the `at` the layout's entry point baked in
+  SkPoint pathCentroid{0, 0};  // Orient::Radial's centre
+  bool pathValid = false;
+  uint32_t pathRev = ~0u;            // contentRev the path layout belongs to
+  SkSize pathSize = {-1, -1};        // the box the baseline resolved against
+  std::optional<TextPath> pathSpec;  // the value it was built from
+
+  // ---- fx() selection, resolved once per (content, layout, selector) -------
+  //
+  // A selector answers one byte per glyph, and answering it can mean an ICU
+  // regular expression over the whole paragraph. That is a per-EDIT cost,
+  // not a per-frame one: the masks below are rebuilt when the text changes,
+  // when the layout reflows (a line selector moves with the break), or when
+  // the description's selectors themselves change.
+  std::vector<Selector> selectionKeys;
+  std::vector<std::vector<uint8_t>> selectionMasks;
+  uint32_t selectionRev = ~0u;
+  float selectionWidth = -1.0f;
+  // spanStyle() restyles that differ from the text they cover ONLY in
+  // advance-invariant variable-font axes, carried as tracks instead of
+  // re-shaping: the paragraph keeps the glyphs and pen positions it shaped,
+  // and the coordinate reaches the glyphs at draw time exactly as a driven
+  // axis does. Decided against the materialized paragraph, which is why the
+  // list lives here and not on the description, and rebuilt with it. Drawn
+  // AFTER the description's own tracks, so the painter's selection and
+  // track lists are the description's tracks followed by these.
+  std::vector<Track> spanAxisTracks;
+};
+
 // fields are grouped by what they belong to, not by size
 // NOLINTNEXTLINE(clang-analyzer-optin.performance.Padding)
 struct Instance {
@@ -124,22 +171,9 @@ struct Instance {
   // rebuilt with the paragraph, so the names a node answers for are exactly
   // the ones its current content declares.
   std::vector<detail::NamedRun> textNamedRuns;
-  // onPath(): the run broken across the baseline's contours, and the
-  // geometry it was broken across. A SECOND layout beside `textLayout`
-  // rather than a replacement for it — `textLayout` is still the node's
-  // MEASURE, the run laid straight, and the box it measures is what the
-  // baseline is resolved against. Rebuilt when the content, the box or the
-  // baseline value changes; the `at` phase is applied at PAINT and never
-  // touches it.
-  sigil::weave::ParagraphLayout pathLayout;
-  std::vector<sigil::weave::LineInterval> pathIntervals;
-  float pathTotalLength = 0;   // every contour's arc length together
-  float pathRestAt = 0;        // the `at` the layout's entry point baked in
-  SkPoint pathCentroid{0, 0};  // Orient::Radial's centre
-  bool pathValid = false;
-  uint32_t pathRev = ~0u;            // contentRev the path layout belongs to
-  SkSize pathSize = {-1, -1};        // the box the baseline resolved against
-  std::optional<TextPath> pathSpec;  // the value it was built from
+  // The engine's state (TextState) — null until dressed type first asks
+  // for it. Read through textStateOf().
+  std::unique_ptr<TextState> textState;
 
   // Transition state, keyed by property slot
   // The FIXED property slots — one per property every node can carry, so the
@@ -204,27 +238,6 @@ struct Instance {
   // NUMBER of tracks drops the running motions rather than carrying them
   // onto a progress that now drives a different effect.
   std::vector<std::unique_ptr<AnimatedFloat>> trackAnims;
-
-  // ---- fx() selection, resolved once per (content, layout, selector) -------
-  //
-  // A selector answers one byte per glyph, and answering it can mean an ICU
-  // regular expression over the whole paragraph. That is a per-EDIT cost,
-  // not a per-frame one: the masks below are rebuilt when the text changes,
-  // when the layout reflows (a line selector moves with the break), or when
-  // the description's selectors themselves change.
-  std::vector<Selector> selectionKeys;
-  std::vector<std::vector<uint8_t>> selectionMasks;
-  uint32_t selectionRev = ~0u;
-  float selectionWidth = -1.0f;
-  // spanStyle() restyles that differ from the text they cover ONLY in
-  // advance-invariant variable-font axes, carried as tracks instead of
-  // re-shaping: the paragraph keeps the glyphs and pen positions it shaped,
-  // and the coordinate reaches the glyphs at draw time exactly as a driven
-  // axis does. Decided against the materialized paragraph, which is why the
-  // list lives here and not on the description, and rebuilt with it. Drawn
-  // AFTER the description's own tracks, so the painter's selection and
-  // track lists are the description's tracks followed by these.
-  std::vector<Track> spanAxisTracks;
 
   // Caching
   sk_sp<SkPicture> picture;
@@ -527,9 +540,6 @@ struct Instance {
    *  Output wins, then a running ramp, then the plain value. */
   float resolveFloatAt(const AnimatedFloat* anim,
                        const Animatable<float>& v) const;
-  /** Resolve every stroke pass's claimed runs for this frame, with
-   *  rest() complements applied. Empty when the node has no passes. */
-  std::vector<std::vector<Span>> resolveSpans(const SkPath& outline) const;
   /** Resolve every mask gate's animatable floats for this frame, in the
    *  order maskAnims indexes them (and ContentScalars::gates stores
    *  them) — every value, live or settled, because the memo compares what
@@ -585,6 +595,12 @@ struct Instance {
     }
   }
 };
+
+/** The node's text-engine state, created on first use. */
+inline TextState& textStateOf(Instance& inst) {
+  if (!inst.textState) inst.textState = std::make_unique<TextState>();
+  return *inst.textState;
+}
 
 inline bool childrenCarryYoga(const Instance& inst) {
   return inst.yoga != nullptr && inst.desc && !inst.desc->layout.positioned &&

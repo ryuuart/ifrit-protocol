@@ -211,6 +211,16 @@ void Composer::Impl::layoutText(Instance& inst, float constraint,
   inst.measuredRev = inst.contentRev;
 }
 
+bool detail::selectorNeedsLayout(const Selector& selector) {
+  const Selector::State* s = selector.state();
+  if (!s) return false;
+  if (s->kind == Selector::Kind::Line) return true;
+  if (s->kind == Selector::Kind::Each && s->each == Unit::Line) return true;
+  for (const Selector& operand : s->operands)
+    if (selectorNeedsLayout(operand)) return true;
+  return false;
+}
+
 // ---------------------------------------------------------------------------
 // Layout passes
 

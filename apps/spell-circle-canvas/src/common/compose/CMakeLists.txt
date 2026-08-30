@@ -8,12 +8,14 @@
 #
 #   SigilComposeCore        core/        the kernel — element values, the
 #                                        reconciler, layout, paint,
-#                                        transitions, text
+#                                        transitions, text at rest
 #   SigilComposeShape       shape/       silhouettes, layouts and routers
-#   SigilComposeTypography  typography/  type styles and the text-fx presets
-#                                        (headers)
-#   SigilComposeBrush       brush/       decorations, lines, brushes and
-#                                        layer styles
+#   SigilComposeTypography  typography/  the text engine (fx tracks, path
+#                                        text, marks), type styles and the
+#                                        text-fx presets
+#   SigilComposeBrush       brush/       decorations, lines, brushes, layer
+#                                        styles, the stroke grammar's engine
+#                                        and the mask gates
 #   SigilComposeTesting     testing/     the read-back checks (headers)
 #   SigilComposeInstances   instances/   the instanced sprite leaf, with the
 #                                        kit's placers

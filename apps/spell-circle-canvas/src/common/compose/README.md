@@ -1278,9 +1278,10 @@ The library is one feature target per directory, and a consumer links the
 tier it draws with: `SigilComposeCore` (`core/` — the kernel: elements,
 the reconciler, layout, paint, transitions, text and the feed),
 `SigilComposeShape` (`shape/` — silhouettes, layouts, routers),
-`SigilComposeTypography` (`typography/` — header-only: type styles and the
-text-fx presets), `SigilComposeBrush` (`brush/` — decorations, lines,
-brushes, with `kit/Strokes.h` and `kit/Plate.h`), `SigilComposePaint`
+`SigilComposeTypography` (`typography/` — the text engine behind dressed
+type, with the type styles and the text-fx presets), `SigilComposeBrush`
+(`brush/` — decorations, lines, brushes, the stroke grammar's engine and
+the mask gates, with `kit/Strokes.h` and `kit/Plate.h`), `SigilComposePaint`
 (`paint/` — patterns, SDF materials, layer styles, OCIO),
 `SigilComposeInstances` (`instances/` — the instanced sprite leaf and the
 kit's placers, over Core), `SigilComposeWeb` (`web/` — header-only,

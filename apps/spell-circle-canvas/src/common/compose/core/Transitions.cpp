@@ -2,13 +2,18 @@
  * Transitions: resolving an animatable float to its current value (binding,
  * running ramp, or plain), and starting/retargeting Choreograph ramps when a
  * reconciled plain-constant change occurs (the SwiftUI implicit-transition
- * lesson: one motion per (instance, property), retarget-from-current).
+ * lesson: one motion per (instance, property), retarget-from-current); the
+ * per-frame reads of every animated lane a recording bakes; and the
+ * cascade order a stagger deals its units in.
  */
 
+#include <algorithm>
 #include <chrono>
+#include <numeric>
 #include <span>
 
 #include "ComposeRuntime.h"
+#include "PaintInternal.h"
 
 namespace sigil::compose {
 
@@ -431,6 +436,131 @@ void Composer::Impl::applyTransitions(Instance& inst, const ElementNode& prev,
           1.0f,
           std::chrono::duration<float>(nextFill.transition->duration).count(),
           nextFill.transition->easing());
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// The lane reads: every animated number a recording can be baked with,
+// resolved for this frame by ONE body per lane. The volatility walk, the
+// released scan and the paint-side probe all call these, so the three
+// compares cannot drift apart.
+
+std::vector<float> detail::Instance::resolveGateValues() const {
+  std::vector<float> values;
+  const ElementNode& node = *desc;
+  if (!node.hasMasks()) return values;
+  size_t slot = 0;
+  const auto push = [&](const Animatable<float>& v) {
+    const AnimatedFloat* a =
+        slot < maskAnims.size() ? maskAnims[slot].get() : nullptr;
+    values.push_back(resolveFloatAt(a, v));
+    ++slot;
+  };
+  for (const Mask& m : node.fxData->masks) {
+    if (m.with.kind == Gate::Kind::Spans)
+      for (const Spans::Term& t : m.with.where.terms) {
+        push(t.begin);
+        push(t.end);
+        push(t.offset);
+      }
+    else if (m.with.kind == Gate::Kind::Edge)
+      push(m.with.fraction);
+  }
+  return values;
+}
+
+float detail::Instance::resolvePathAt() const {
+  if (!desc || !desc->textData) return 0.0f;
+  const std::optional<TextPath>& baseline = desc->textData->onPath;
+  if (!baseline) return 0.0f;
+  return resolveFloat(kTextPathAt, baseline->at);
+}
+
+std::vector<float> detail::Instance::resolveTrackValues() const {
+  std::vector<float> values;
+  const std::span<const Track> tracks =
+      desc->textData ? std::span<const Track>(desc->textData->tracks)
+                     : std::span<const Track>();
+  values.reserve(tracks.size());
+  for (size_t i = 0; i < tracks.size(); ++i) {
+    const AnimatedFloat* a =
+        i < trackAnims.size() ? trackAnims[i].get() : nullptr;
+    values.push_back(resolveFloatAt(a, tracks[i].progress));
+  }
+  return values;
+}
+
+Fill detail::Instance::resolveBoundFill() const {
+  const ElementNode& node = *desc;
+  if (node.paint.fill)
+    if (const choreograph::Output<Fill>* binding = node.paint.fill->binding())
+      return binding->value();
+  return {};
+}
+
+std::array<float, 2> detail::Instance::resolvePatternOffset() const {
+  // Only the TOP-LEVEL bound offset of the node's fill material is a
+  // scalar-lane input. A nested one (in a blend layer, in a child slot)
+  // keeps the material on the opaque live path — see
+  // animatedBeyondBoundOffset — and never reaches this lane. All-zero when
+  // unbound, matching the ContentScalars guard, so a node without the
+  // channel compares equal to itself forever.
+  const Material* m = liveMaterialOf(*desc);
+  if (!m || !m->hasBoundOffset()) return {};
+  const SkPoint pan = m->boundOffsetValue();
+  return {pan.x(), pan.y()};
+}
+
+// ---------------------------------------------------------------------------
+// The cascade
+
+uint64_t detail::mix64Value(uint64_t z) {
+  z += 0x9e3779b97f4a7c15ull;
+  z = (z ^ (z >> 30u)) * 0xbf58476d1ce4e5b9ull;
+  z = (z ^ (z >> 27u)) * 0x94d049bb133111ebull;
+  return z ^ (z >> 31u);
+}
+
+void detail::cascadeOrder(Stagger::From from, uint32_t count, uint32_t seed,
+                          std::vector<float>& order) {
+  order.assign(count, 0.0f);
+  // A cascade of ONE is a cascade with no spread, whichever end it claims
+  // to start from: every shape below must put that single member at 0.
+  const float last = count > 1 ? (float)(count - 1) : 0.0f;
+  switch (from) {
+    case Stagger::From::Start:
+      for (uint32_t i = 0; i < count; ++i) order[i] = (float)i;
+      break;
+    case Stagger::From::End:
+      for (uint32_t i = 0; i < count; ++i) order[i] = (float)(count - 1 - i);
+      break;
+    case Stagger::From::Center:
+      for (uint32_t i = 0; i < count; ++i)
+        order[i] = std::abs((float)i - last * 0.5f) * 2.0f;
+      break;
+    case Stagger::From::Edges:
+      for (uint32_t i = 0; i < count; ++i)
+        order[i] = last - std::abs((float)i - last * 0.5f) * 2.0f;
+      break;
+    case Stagger::From::Random: {
+      // Rank each unit by a hash of its index: deterministic, so the same
+      // text scatters the same way on every frame and after a relayout.
+      // The seed salts that key AFTER a mix of its own, so seeds 1 and 2
+      // deal permutations as independent as any two; seed 0 contributes
+      // NOTHING to the key, which is what keeps the default scatter the
+      // count-keyed one, bit for bit.
+      const uint64_t salt = seed ? mix64Value(seed) : 0ull;
+      std::vector<uint32_t> indices(count);
+      std::iota(indices.begin(), indices.end(), 0u);
+      std::stable_sort(indices.begin(), indices.end(),
+                       [count, salt](uint32_t a, uint32_t b) {
+                         return mix64Value(a * 2654435761ull + count + salt) <
+                                mix64Value(b * 2654435761ull + count + salt);
+                       });
+      for (uint32_t rank = 0; rank < count; ++rank)
+        order[indices[rank]] = (float)rank;
+      break;
     }
   }
 }

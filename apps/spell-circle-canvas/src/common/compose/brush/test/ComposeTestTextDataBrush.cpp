@@ -330,3 +330,82 @@ TEST(ComposeDecorations, AStrokeCanTakeAMaterial) {
   EXPECT_GT(SkColorGetB(host.pixel(180, 100)), 150);
   EXPECT_LT(SkColorGetR(host.pixel(180, 100)), 110);
 }
+
+TEST(ComposeFx, WipeRevealsAlongAnAxisWithoutSquashing) {
+  // A wipe needs its own gate because neither neighbour can do it. A span
+  // window walks the PERIMETER, so on a filled shape it sweeps a wedge round
+  // the outline rather than extending the surface; scaleX/scaleY SQUASH,
+  // which any striped fill shows immediately. The alternative is leaving the
+  // retained tree altogether — snapshot() plus a hand-written clipRect in a
+  // Cache::None custom() leaf — which forfeits decorations, hit testing and
+  // pruning for the whole subtree.
+  auto lit = [](Host& host, int x0, int x1) {
+    int n = 0;
+    for (int x = x0; x < x1; ++x) n += host.pixel(x, 100) != SK_ColorBLACK;
+    return n;
+  };
+  auto build = [](float angle, float t) {
+    return box().child(box()
+                           .absolute()
+                           .left(20)
+                           .top(20)
+                           .width(160)
+                           .height(160)
+                           .fill(Fill::color({1, 0, 0, 1}))
+                           .mask(by::edge(angle, t)));
+  };
+
+  Host half(200, 200);
+  half.composer.render(build(0.0f, 0.5f));  // left to right, half revealed
+  half.frame();
+  EXPECT_GT(lit(half, 25, 95), 60);   // the left half is there…
+  EXPECT_EQ(lit(half, 110, 178), 0);  // …and the right half is not
+
+  // It REVEALS rather than squashes: the revealed part keeps its own
+  // scale, so the edge lands at the box's midpoint, not at 0.5 × width
+  // from a shrunken origin.
+  int edge = 0;
+  for (int x = 20; x < 180; ++x)
+    if (half.pixel(x, 100) != SK_ColorBLACK) edge = x;
+  EXPECT_NEAR(edge, 100, 3);
+
+  // Any angle: 90 degrees wipes top to bottom.
+  Host down(200, 200);
+  down.composer.render(build(90.0f, 0.5f));
+  down.frame();
+  int topInk = 0, bottomInk = 0;
+  for (int y = 25; y < 95; ++y) topInk += down.pixel(100, y) != SK_ColorBLACK;
+  for (int y = 110; y < 175; ++y)
+    bottomInk += down.pixel(100, y) != SK_ColorBLACK;
+  EXPECT_GT(topInk, 60);
+  EXPECT_EQ(bottomInk, 0);
+
+  // Fully open and fully closed are the obvious things.
+  Host all(200, 200), none(200, 200);
+  all.composer.render(build(0.0f, 1.0f));
+  all.frame();
+  none.composer.render(build(0.0f, 0.0f));
+  none.frame();
+  EXPECT_GT(lit(all, 25, 175), 140);
+  EXPECT_EQ(lit(none, 20, 180), 0);
+}
+
+TEST(ComposeFx, EdgeGateIsBindableWithoutARedescribe) {
+  // An edge gate binds like a transform: a bound fraction repaints with no
+  // render() call at all. Note the limit of the claim — this says nothing
+  // about the gate being paint-only, since nothing here checks that bounds()
+  // held still.
+  Host host(200, 200);
+  choreograph::Output<float> reveal{0.0f};
+  host.composer.render(box().child(box()
+                                       .absolute()
+                                       .inset(20)
+                                       .fill(Fill::color({1, 0, 0, 1}))
+                                       .mask(by::edge(0.0f, &reveal))));
+  host.frame();
+  EXPECT_EQ(host.pixel(100, 100), SK_ColorBLACK);
+
+  reveal = 1.0f;  // no render(), no re-describe
+  host.frame();
+  EXPECT_GT(SkColorGetR(host.pixel(100, 100)), 180);
+}

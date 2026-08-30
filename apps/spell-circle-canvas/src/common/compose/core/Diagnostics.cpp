@@ -86,6 +86,26 @@ void warnIfNoCorners(const SkPath& src, float angleDeg) {
     (void)cornersOrWarn(contour, angleDeg);
 }
 
+void warnWritingModeOnPath() {
+  static thread_local bool warned = false;
+  if (warned) return;
+  warned = true;
+  std::fprintf(stderr,
+               "SigilCompose: onPath() and writingMode() on one text leaf — "
+               "a path run's baseline IS its geometry and has no columns to "
+               "advance, so the path stands and the writing mode is dropped\n");
+}
+
+void warnFlowAroundVertical() {
+  static thread_local bool warned = false;
+  if (warned) return;
+  warned = true;
+  std::fprintf(stderr,
+               "SigilCompose: flowAround() on vertical text — exclusions are "
+               "cut out of horizontal line bands, so the columns run without "
+               "them\n");
+}
+
 }  // namespace detail
 
 }  // namespace sigil::compose

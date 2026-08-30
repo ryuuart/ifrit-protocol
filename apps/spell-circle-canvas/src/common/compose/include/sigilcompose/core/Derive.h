@@ -7,6 +7,13 @@
  * out by an authored or borrowed spine; bandPointAt, the one statement of
  * the band's across sign; and the `derive::` namespace that gathers the
  * family under one name.
+ *
+ * The derive phase itself — resolving text exclusions and routes over the
+ * flat edge lists once layout has produced geometry — is a pass in the
+ * composer's layout phase list, inside the converging group, so a routed
+ * plate settles against the geometry the other converging passes move.
+ * That registration is the whole of how the family reaches the kernel's
+ * schedule; nothing else in the kernel knows a route from a box.
  */
 
 #include <include/core/SkPath.h>

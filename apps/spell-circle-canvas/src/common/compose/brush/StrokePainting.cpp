@@ -1,7 +1,9 @@
 /** @file
- * Stroke passes at paint: each pass's claim on the outline resolved to spans,
- * the collision warning, and the per-instance resolution of gate values,
- * the path phase, the track progresses and a bound fill.
+ * The stroke grammar's engine: each span-qualified pass's claim on the
+ * outline resolved to spans with the rest() complements and the collision
+ * warning, the StrokeResolver value that carries this into the kernel, and
+ * the span-qualified verbs (`stroke(spans, …)`, `background(spans, …)`)
+ * that install it on a description.
  */
 
 #include <include/core/SkCanvas.h>
@@ -34,7 +36,7 @@
 #include <utility>
 
 #include "ComposeRuntime.h"
-#include "PaintInternal.h"
+#include "SpanArithmetic.h"
 #include "sigilgeometry/path/Contour.h"
 #include "sigilgeometry/path/Skia.h"
 
@@ -79,10 +81,14 @@ void warnOverlappingClaims(const std::string& a, const std::string& b,
 
 }  // namespace
 
-std::vector<std::vector<Span>> detail::Instance::resolveSpans(
-    const SkPath& outline) const {
+namespace {
+
+/** Every stroke pass's claimed runs for this frame, in pass order, with
+ *  rest() complements applied — the body behind StrokeResolverOps::claims. */
+std::vector<std::vector<Span>> resolveSpans(const Instance& inst,
+                                            const SkPath& outline) {
   std::vector<std::vector<Span>> out;
-  const ElementNode& node = *desc;
+  const ElementNode& node = *inst.desc;
   if (!node.hasStrokePasses()) return out;
   const std::vector<StrokePass>& passes = node.strokeData->passes;
   out.resize(passes.size());
@@ -90,12 +96,12 @@ std::vector<std::vector<Span>> detail::Instance::resolveSpans(
   // Every animatable endpoint, resolved for this frame, in the order the
   // description declared them — the order spanAnims is indexed by.
   std::vector<float> values;
-  values.reserve(spanAnims.size());
+  values.reserve(inst.spanAnims.size());
   size_t slot = 0;
   auto push = [&](const Animatable<float>& v) {
     const AnimatedFloat* a =
-        slot < spanAnims.size() ? spanAnims[slot].get() : nullptr;
-    values.push_back(resolveFloatAt(a, v));
+        slot < inst.spanAnims.size() ? inst.spanAnims[slot].get() : nullptr;
+    values.push_back(inst.resolveFloatAt(a, v));
     ++slot;
   };
   for (const StrokePass& pass : passes)
@@ -107,7 +113,7 @@ std::vector<std::vector<Span>> detail::Instance::resolveSpans(
 
   SpanInput in;
   in.outline = &outline;
-  in.fitRects = &spanFitRects;
+  in.fitRects = &inst.spanFitRects;
 
   size_t valueBase = 0;
   for (size_t i = 0; i < passes.size(); ++i) {
@@ -158,70 +164,76 @@ std::vector<std::vector<Span>> detail::Instance::resolveSpans(
   return out;
 }
 
-std::vector<float> detail::Instance::resolveGateValues() const {
-  std::vector<float> values;
-  const ElementNode& node = *desc;
-  if (!node.hasMasks()) return values;
-  size_t slot = 0;
-  const auto push = [&](const Animatable<float>& v) {
-    const AnimatedFloat* a =
-        slot < maskAnims.size() ? maskAnims[slot].get() : nullptr;
-    values.push_back(resolveFloatAt(a, v));
-    ++slot;
-  };
-  for (const Mask& m : node.fxData->masks) {
-    if (m.with.kind == Gate::Kind::Spans)
-      for (const Spans::Term& t : m.with.where.terms) {
-        push(t.begin);
-        push(t.end);
-        push(t.offset);
-      }
-    else if (m.with.kind == Gate::Kind::Edge)
-      push(m.with.fraction);
+/** The engine as a StrokeResolverOps: every operation forwards to the
+ *  span arithmetic and the claim resolution above. One value for every
+ *  stroked node. */
+struct StrokeEngine final : StrokeResolverOps {
+  bool operator==(const StrokeEngine&) const { return true; }
+  std::vector<Span> normalize(const std::vector<Span>& spans) const override {
+    return normalizeSpans(spans);
   }
-  return values;
-}
-
-float detail::Instance::resolvePathAt() const {
-  if (!desc || !desc->textData) return 0.0f;
-  const std::optional<TextPath>& baseline = desc->textData->onPath;
-  if (!baseline) return 0.0f;
-  return resolveFloat(kTextPathAt, baseline->at);
-}
-
-std::vector<float> detail::Instance::resolveTrackValues() const {
-  std::vector<float> values;
-  const std::span<const Track> tracks =
-      desc->textData ? std::span<const Track>(desc->textData->tracks)
-                     : std::span<const Track>();
-  values.reserve(tracks.size());
-  for (size_t i = 0; i < tracks.size(); ++i) {
-    const AnimatedFloat* a =
-        i < trackAnims.size() ? trackAnims[i].get() : nullptr;
-    values.push_back(resolveFloatAt(a, tracks[i].progress));
+  std::vector<Span> intersect(const std::vector<Span>& a,
+                              const std::vector<Span>& b) const override {
+    return intersectSpans(a, b);
   }
-  return values;
+  std::vector<Span> complement(const std::vector<Span>& spans) const override {
+    return complementSpans(spans);
+  }
+  SkPath spanPath(const SkPath& src,
+                  const std::vector<Span>& spans) const override {
+    return detail::spanPath(src, spans);
+  }
+  std::vector<std::vector<Span>> claims(const Instance& inst,
+                                        const SkPath& outline) const override {
+    return resolveSpans(inst, outline);
+  }
+  SkPath bandRegion(const SkPath& spine, const Across& width,
+                    Formation formation) const override {
+    return detail::bandRegion(spine, width, formation);
+  }
+};
+
+}  // namespace
+
+const StrokeResolver& detail::strokeResolver() {
+  static const StrokeResolver kResolver{StrokeEngine{}};
+  return kResolver;
 }
 
-Fill detail::Instance::resolveBoundFill() const {
-  const ElementNode& node = *desc;
-  if (node.paint.fill)
-    if (const choreograph::Output<Fill>* binding = node.paint.fill->binding())
-      return binding->value();
-  return {};
+// ---------------------------------------------------------------------------
+// The span-qualified verbs: declared on Element by the kernel, defined here
+// so a description that claims runs of its boundary carries the engine
+// that resolves them.
+
+Element& Element::stroke(Spans where, Decoration what, std::string name) {
+  return addSpanPass(std::move(where), std::move(what), std::move(name),
+                     (int)detail::StrokePass::Half::Foreground);
 }
 
-std::array<float, 2> detail::Instance::resolvePatternOffset() const {
-  // Only the TOP-LEVEL bound offset of the node's fill material is a
-  // scalar-lane input. A nested one (in a blend layer, in a child slot)
-  // keeps the material on the opaque live path — see
-  // animatedBeyondBoundOffset — and never reaches this lane. All-zero when
-  // unbound, matching the ContentScalars guard, so a node without the
-  // channel compares equal to itself forever.
-  const Material* m = liveMaterialOf(*desc);
-  if (!m || !m->hasBoundOffset()) return {};
-  const SkPoint pan = m->boundOffsetValue();
-  return {pan.x(), pan.y()};
+Element& Element::background(Spans where, Decoration what, std::string name) {
+  return addSpanPass(std::move(where), std::move(what), std::move(name),
+                     (int)detail::StrokePass::Half::Background);
+}
+
+/** The one body both span-qualified slots share — see StrokePass: the two
+ *  halves differ only in where the mark lands, so everything upstream of
+ *  the paint (the fit() borrows, the claim ledger, the pass list) is one
+ *  thing and must stay one thing. */
+Element& Element::addSpanPass(Spans where, Decoration what, std::string name,
+                              int half) {
+  // A fit() term borrows another element's resolved box, so the keys ride
+  // into DeriveData where the ONE derive-registration walk finds them —
+  // the flowAround pattern, not a second phase.
+  for (const Spans::Term& t : where.terms)
+    if (t.rule == Spans::Rule::Fit && !t.key.empty())
+      m_node->deriveData.ensure().spanFitKeys.push_back(t.key);
+  claimBorrows(what);
+  detail::StrokeData& strokes = m_node->strokeData.ensure();
+  if (!strokes.resolver) strokes.resolver = detail::strokeResolver();
+  strokes.passes.push_back(detail::StrokePass{std::move(where), std::move(what),
+                                              std::move(name),
+                                              (detail::StrokePass::Half)half});
+  return *this;
 }
 
 }  // namespace sigil::compose

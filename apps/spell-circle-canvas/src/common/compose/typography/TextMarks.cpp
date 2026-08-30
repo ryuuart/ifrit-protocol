@@ -33,8 +33,11 @@
 #include <unordered_set>
 #include <utility>
 
+#include "AxisGate.h"
 #include "ComposeRuntime.h"
 #include "PaintInternal.h"
+#include "TextEngine.h"
+#include "TextPose.h"
 #include "sigilgeometry/path/Contour.h"
 #include "sigilgeometry/path/Skia.h"
 
@@ -72,7 +75,7 @@ void warnMarkSelectsNothing(const std::string& key) {
 
 }  // namespace
 
-void Composer::Impl::resolveTextMarks(Instance& inst) {
+void detail::resolveTextMarks(Composer::Impl& impl, Instance& inst) {
   inst.textMarkRects.clear();
   if (!inst.desc || !inst.desc->textData || !inst.paragraph) return;
   const detail::TextData& textData = *inst.desc->textData;
@@ -87,16 +90,17 @@ void Composer::Impl::resolveTextMarks(Instance& inst) {
   // a layout rect that chased it would be stale by the next frame.
   const TextPath* onPath = textData.onPath ? &*textData.onPath : nullptr;
   if (onPath) {
-    const SkRect rect = instanceRect(inst);
-    ensurePathLayout(inst, *onPath, {rect.width(), rect.height()});
-    if (!inst.pathValid) return;  // no measurable baseline: nothing lands
+    const SkRect rect = impl.instanceRect(inst);
+    ensurePathLayout(impl, inst, *onPath, {rect.width(), rect.height()});
+    if (!textStateOf(inst).pathValid)
+      return;  // no measurable baseline: nothing lands
   }
 
   // The layout the letters are drawn from — the path one where the run
   // rides a curve, otherwise the flow one this node measures by, the same
   // placement `paragraphLayout()` reports.
   const sigil::weave::ParagraphLayout& layout =
-      onPath ? inst.pathLayout : inst.textLayout;
+      onPath ? textStateOf(inst).pathLayout : inst.textLayout;
   static thread_local detail::GlyphStructure structure;
   structure.build(layout, *inst.paragraph);
   if (structure.glyphs.empty()) return;
@@ -155,8 +159,8 @@ struct TrackSchedule {
   detail::TrackCascade resolved;
 };
 
-bool resolveTrackSchedule(Instance& inst, size_t trackIndex,
-                          TrackSchedule& out) {
+bool resolveTrackSchedule(Composer::Impl& impl, Instance& inst,
+                          size_t trackIndex, TrackSchedule& out) {
   if (!inst.desc || !inst.paragraph) return false;
   const std::span<const Track> tracks = tracksOf(*inst.desc);
   if (trackIndex >= tracks.size()) return false;
@@ -169,9 +173,9 @@ bool resolveTrackSchedule(Instance& inst, size_t trackIndex,
     const std::optional<TextPath>& path = inst.desc->textData->onPath;
     if (path.has_value()) out.onPath = &path.value();
   }
-  out.ridesPath = out.onPath && inst.pathValid;
+  out.ridesPath = out.onPath && textStateOf(inst).pathValid;
   if (out.onPath && !out.ridesPath) return false;
-  out.layout = out.ridesPath ? &inst.pathLayout : &inst.textLayout;
+  out.layout = out.ridesPath ? &textStateOf(inst).pathLayout : &inst.textLayout;
 
   static thread_local detail::GlyphStructure structure;
   structure.build(*out.layout, *inst.paragraph);
@@ -185,16 +189,17 @@ bool resolveTrackSchedule(Instance& inst, size_t trackIndex,
 }
 }  // namespace
 
-float Composer::Impl::cascadeSpanOfTrack(Instance& inst, size_t trackIndex) {
+float detail::cascadeSpanOfTrack(Composer::Impl& impl, Instance& inst,
+                                 size_t trackIndex) {
   TrackSchedule schedule;
-  if (!resolveTrackSchedule(inst, trackIndex, schedule)) return 0.0f;
+  if (!resolveTrackSchedule(impl, inst, trackIndex, schedule)) return 0.0f;
   return schedule.resolved.cascade.totalMs;
 }
 
-std::vector<Beat> Composer::Impl::beatsOfTrack(Instance& inst,
-                                               size_t trackIndex) {
+std::vector<Beat> detail::beatsOfTrack(Composer::Impl& impl, Instance& inst,
+                                       size_t trackIndex) {
   TrackSchedule schedule;
-  if (!resolveTrackSchedule(inst, trackIndex, schedule)) return {};
+  if (!resolveTrackSchedule(impl, inst, trackIndex, schedule)) return {};
   if (!inst.paragraph.has_value()) return {};
   const sigil::weave::Paragraph& paragraph = inst.paragraph.value();
   const Track& track = *schedule.track;
@@ -211,7 +216,8 @@ std::vector<Beat> Composer::Impl::beatsOfTrack(Instance& inst,
 
   float phaseArc = 0;
   if (schedule.ridesPath)
-    phaseArc = (inst.resolvePathAt() - inst.pathRestAt) * inst.pathTotalLength;
+    phaseArc = (inst.resolvePathAt() - textStateOf(inst).pathRestAt) *
+               textStateOf(inst).pathTotalLength;
   const PoseContext poseCtx{&inst, &layout, schedule.onPath, schedule.ridesPath,
                             phaseArc};
 

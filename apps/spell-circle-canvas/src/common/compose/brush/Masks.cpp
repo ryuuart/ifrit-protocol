@@ -1,6 +1,9 @@
 /** @file
- * The masking family as values: a Region, the `parts::` selections, the
- * `by::` gates and how many scalars a gate carries.
+ * The masking family's engine: the `by::` gate constructors, each carrying
+ * the MaskResolver the kernel reads its gate through — a spans gate's show
+ * set, a shape gate's clip region resolved from its Region, a coverage
+ * gate's fill — and the span arithmetic those reads intersect with. The
+ * Region value and the `parts::` selections are the kernel's.
  */
 
 #include <include/core/SkContourMeasure.h>
@@ -20,6 +23,7 @@
 #include <set>
 
 #include "ComposeInternal.h"
+#include "SpanArithmetic.h"
 #include "sigilgeometry/path/Contour.h"
 
 namespace sigil::compose {
@@ -29,38 +33,6 @@ using detail::Kind;
 
 // ---- the masking family ---------------------------------------------------
 
-Region Region::own() { return Region{}; }
-Region Region::rect(const SkRect& r) {
-  Region out;
-  out.m_kind = Kind::Rect;
-  out.m_rect = r;
-  return out;
-}
-Region Region::oval(const SkRect& bounds) {
-  Region out;
-  out.m_kind = Kind::Oval;
-  out.m_rect = bounds;
-  return out;
-}
-Region Region::path(SkPath p) {
-  Region out;
-  out.m_kind = Kind::Path;
-  out.m_path = std::move(p);
-  return out;
-}
-bool Region::operator==(const Region& other) const {
-  if (m_kind != other.m_kind) return false;
-  switch (m_kind) {
-    case Kind::Own:
-      return true;
-    case Kind::Rect:
-    case Kind::Oval:
-      return m_rect == other.m_rect;
-    case Kind::Path:
-      return m_path == other.m_path;
-  }
-  return false;
-}
 SkPath Region::resolve(const SkPath& ownShape) const {
   switch (m_kind) {
     case Kind::Own:
@@ -81,28 +53,17 @@ SkPath Region::resolve(const SkPath& ownShape) const {
   return ownShape;
 }
 
-namespace parts {
-Parts all() { return Parts{Parts::kAll, {}}; }
-Parts marks() { return Parts{Parts::kMarks, {}}; }
-Parts surface() { return Parts{Parts::kSurface, {}}; }
-Parts content() { return Parts{Parts::kContent, {}}; }
-Parts children() { return Parts{Parts::kChildren, {}}; }
-Parts named(std::string_view name) {
-  Parts p;
-  p.names.emplace_back(name);
-  return p;
-}
-}  // namespace parts
-
 namespace by {
 Gate spans(Spans where) {
   Gate g;
+  g.resolver = detail::maskResolver();
   g.kind = Gate::Kind::Spans;
   g.where = std::move(where);
   return g;
 }
 Gate edge(float angleDeg, Animatable<float> fraction) {
   Gate g;
+  g.resolver = detail::maskResolver();
   g.kind = Gate::Kind::Edge;
   g.angleDeg = angleDeg;
   g.fraction = std::move(fraction);
@@ -110,6 +71,7 @@ Gate edge(float angleDeg, Animatable<float> fraction) {
 }
 Gate shape(Region r) {
   Gate g;
+  g.resolver = detail::maskResolver();
   g.kind = Gate::Kind::Shape;
   g.region = std::move(r);
   return g;
@@ -121,6 +83,7 @@ Gate outside(Region r) {
 }
 Gate alpha(Material coverage) {
   Gate g;
+  g.resolver = detail::maskResolver();
   g.kind = Gate::Kind::Coverage;
   g.coverage = std::make_shared<const Material>(std::move(coverage));
   return g;
@@ -142,17 +105,47 @@ Gate lumaOut(Material coverage) {
 }
 }  // namespace by
 
-size_t Gate::valueCount() const {
-  switch (kind) {
-    case Kind::Spans:
-      return where.valueCount();
-    case Kind::Edge:
-      return 1;
-    case Kind::Shape:
-    case Kind::Coverage:
-      return 0;
+namespace {
+
+/** The engine as a MaskResolverOps: a spans gate resolves its terms and
+ *  normalizes, a shape gate resolves its region against the node's
+ *  outline, a coverage gate resolves its material. One value for every
+ *  gate. */
+struct MaskEngine final : MaskResolverOps {
+  bool operator==(const MaskEngine&) const { return true; }
+  std::vector<Span> normalize(const std::vector<Span>& spans) const override {
+    return detail::normalizeSpans(spans);
   }
-  return 0;
+  std::vector<Span> intersect(const std::vector<Span>& a,
+                              const std::vector<Span>& b) const override {
+    return detail::intersectSpans(a, b);
+  }
+  std::vector<Span> complement(const std::vector<Span>& spans) const override {
+    return detail::complementSpans(spans);
+  }
+  SkPath spanPath(const SkPath& src,
+                  const std::vector<Span>& spans) const override {
+    return detail::spanPath(src, spans);
+  }
+  std::vector<Span> plan(const Gate& gate, const SpanInput& in) const override {
+    return detail::normalizeSpans(gate.where.resolve(in));
+  }
+  SkPath clipRegion(const Gate& gate, const SkPath& ownShape) const override {
+    return gate.region.resolve(ownShape);
+  }
+  Fill coverage(const Gate& gate, const PaintContext& ctx) const override {
+    if (!gate.coverage) return {};
+    const Material& mat = *gate.coverage;
+    return (mat.isAnimated() || mat.geometryDependent()) ? mat.resolve(ctx)
+                                                         : mat.toFill();
+  }
+};
+
+}  // namespace
+
+const MaskResolver& detail::maskResolver() {
+  static const MaskResolver kResolver{MaskEngine{}};
+  return kResolver;
 }
 
 }  // namespace sigil::compose

@@ -14,6 +14,7 @@
 #include <include/core/SkPath.h>
 #include <include/core/SkPoint.h>
 #include <include/core/SkRect.h>
+#include <sigilcompose/core/Erased.h>
 #include <sigilcompose/core/Motion.h>
 #include <sigilgeometry/path/Contour.h>
 
@@ -25,10 +26,16 @@
 #include <functional>
 #include <string>
 #include <string_view>
+#include <tuple>
 #include <utility>
 #include <vector>
 
 namespace sigil::compose {
+
+namespace detail {
+struct Instance;
+}  // namespace detail
+class StrokeResolverOps;
 
 // ---------------------------------------------------------------------------
 // The stroke grammar — WHERE a stroke goes
@@ -378,17 +385,80 @@ inline Profile offset(float px) { return Profile(Offset{px}); }
  *  Takes a constant or any Profile (a taper, a kit oscillation). */
 struct Across {
   Profile profile;
-  bool operator==(const Across&) const = default;
+  /** The brush engine that sweeps the profile into a region — installed by
+   *  `across()`, excluded from equality. */
+  Erased<StrokeResolverOps> resolver;
+  bool operator==(const Across& o) const { return profile == o.profile; }
+  /** FIELD PIN: a member added here must be ruled on in operator== above,
+   *  then this count bumped. `resolver` is excluded on purpose. */
+  static void fieldPin(Across& v) {
+    auto& [profile, resolver] = v;
+    static_assert(
+        std::tuple_size_v<decltype(std::tie(profile, resolver))> == 2,
+        "Across gained or lost a member — rule on it in Across::operator== "
+        "(the resolver is excluded), then bump this count.");
+  }
 };
 // the profile copies its scheme into owned storage; nothing on the stack
 // outlives the call
 // NOLINTNEXTLINE(clang-analyzer-core.StackAddressEscape)
-inline Across across(float px) { return Across{strand::offset(px)}; }
-inline Across across(Profile p) { return Across{std::move(p)}; }
+/** Defined by the brush tier, which installs the engine that sweeps the
+ *  profile: `across()` is a brush verb, and a band drawn through it links
+ *  SigilComposeBrush. */
+Across across(float px);
+Across across(Profile p);
 
 /** Which side of the spine the band occupies. Explicit because the
  *  offset-path lineage has no defensible default beyond "both". */
 enum class Formation : uint8_t { Centered, Outward, Inward };
+
+// ---------------------------------------------------------------------------
+// THE STROKE RESOLVER — the seam the kernel resolves span claims through
+
+/** The interval arithmetic every span answer is read with. One body for
+ *  the stroke passes and the mask gates, because a pass under a gate
+ *  claims `where ∩ gate` and two spellings of the intersection would let
+ *  the two disagree. */
+class SpanArithmeticOps {
+ public:
+  virtual ~SpanArithmeticOps() = default;
+  /** Clamp to [0,1], drop empties, sort and merge — the one normal form
+   *  every span answer is in. */
+  virtual std::vector<Span> normalize(const std::vector<Span>& spans) const = 0;
+  /** The runs BOTH normalized sets cover; the answer is normalized too. */
+  virtual std::vector<Span> intersect(const std::vector<Span>& a,
+                                      const std::vector<Span>& b) const = 0;
+  /** Everything in [0,1] a normalized set does not cover. */
+  virtual std::vector<Span> complement(
+      const std::vector<Span>& spans) const = 0;
+  /** The sub-geometry of @p src covered by @p spans — fractions of the
+   *  path's TOTAL arc length, SkTrimPathEffect's coordinate. */
+  virtual SkPath spanPath(const SkPath& src,
+                          const std::vector<Span>& spans) const = 0;
+};
+
+/** WHAT THE KERNEL ASKS OF A BOUNDARY'S STROKE GRAMMAR: which runs each
+ *  span-qualified pass claims this frame, and the region a band's spine
+ *  sweeps. Installed on the description by `stroke(spans, …)`,
+ *  `background(spans, …)` and `across()`; a description built without
+ *  those verbs carries none, and the kernel then paints no span pass and
+ *  no band region. */
+class StrokeResolverOps : public SpanArithmeticOps {
+ public:
+  /** Every stroke pass's claimed runs for this frame, in pass order, with
+   *  rest() complements applied — resolved against @p outline, the node's
+   *  UNMASKED boundary. Empty when the node has no passes. */
+  virtual std::vector<std::vector<Span>> claims(
+      const detail::Instance& inst, const SkPath& outline) const = 0;
+  /** The region @p spine sweeps at @p width across it, on @p formation's
+   *  side. Empty when the profile is zero everywhere. */
+  virtual SkPath bandRegion(const SkPath& spine, const Across& width,
+                            Formation formation) const = 0;
+};
+
+/** The resolver as a description carries it — on its stroke passes and on
+ *  a band's width — excluded from structural equality. */
+using StrokeResolver = Erased<StrokeResolverOps>;
 
 /** A band spine borrowed from another element's resolved shape, through
  *  the derive phase: `band(around("dial"), across(14))`. */

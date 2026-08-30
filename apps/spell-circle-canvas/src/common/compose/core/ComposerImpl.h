@@ -6,7 +6,6 @@
  * of.
  */
 
-#include "AxisGate.h"
 #include "Instance.h"
 #include "Lanes.h"
 #include "Phases.h"
@@ -193,16 +192,6 @@ struct Composer::Impl {
       detail::Instance& inst,
       std::span<const sigil::weave::LineMetrics> lines = {},
       std::span<const sigil::weave::ColumnMetrics> columns = {});
-  /** Whether one spanStyle restyle can be carried as draw-time axis tracks
-   *  instead of re-shaping the text it covers: its style must differ from
-   *  every covered span's only in variable-font axes, drop none the text
-   *  was shaped with, and every axis it moves must be advance-invariant on
-   *  that span's face. On success @p axes holds one (tag, coordinate) per
-   *  axis that actually changes. */
-  bool foldableAsAxes(const detail::SpanRestyle& restyle,
-                      std::span<const sigil::weave::CharRange> ranges,
-                      const sigil::weave::Paragraph& paragraph,
-                      std::vector<std::pair<std::string, float>>& axes);
   /** The options a text node actually lays out under: the full-control
    *  overload's value where it has one, with every field a fluent setter
    *  named written over it. */
@@ -255,7 +244,11 @@ struct Composer::Impl {
   bool phasePathMarks();      ///< mark() on path-laid runs
   bool phaseSyncRects();      ///< invalidate recordings whose rect moved
   /** The runner's list: Yoga, the converging group, then the post-layout
-   *  passes. */
+   *  passes. The derive family (connector, rail, band, flowAround) reaches
+   *  the schedule ONLY as the `derive` entry of the converging group — the
+   *  registration IS its seam — and the runner's settle step re-runs it
+   *  after every relayout so a routed plate is drawn against settled
+   *  geometry. */
   static constexpr detail::LayoutPhase phases[] = {
       {"yoga", &Impl::phaseYoga, false},
       {"customLayouts", &Impl::phaseCustomLayouts, true},
@@ -387,43 +380,25 @@ struct Composer::Impl {
   std::optional<std::pair<SkPoint, float>> motionPathSample(
       detail::Instance& inst, const SkSize& frame);
 
+  // ---- the text painter, as the kernel reaches it ----
+  /** The engine a text description installed, or null for text the kernel
+   *  draws at rest by itself. */
+  static const TextPainterOps* textPainterOf(const detail::Instance& inst) {
+    const detail::ElementNode* node = inst.desc.get();
+    return node && node->textData ? node->textData->painter.get() : nullptr;
+  }
+  /** Resolves the node's mark() rects through its painter; a node with no
+   *  painter anchors nothing. */
+  void resolveTextMarks(detail::Instance& inst) {
+    if (const TextPainterOps* painter = textPainterOf(inst))
+      painter->marks(inst);
+    else
+      inst.textMarkRects.clear();
+  }
+
   // ---- paint (StackingPainter.cpp and the paint-phase files beside it) ----
   float hostScale = 1.0f;  // device px per layout px at draw() entry
   void paint(detail::Instance& inst, SkCanvas& canvas);
-  /** Breaks the run across the baseline's contours through SigilWeave's
-   *  contour-interval geometry, and caches the result on the instance. */
-  void ensurePathLayout(detail::Instance& inst, const TextPath& spec,
-                        SkSize size);
-  /** THE ONE GLYPH DRAW for text that is not simply resting on its own
-   *  straight baseline. The rest pose comes from the baseline — level on a
-   *  plain run, on the curve and turned to it on a path run — and every
-   *  fx() track's deviation applies ON TOP OF IT, in that pose's own frame.
-   *  `onPath` is null for text with no baseline path. A track whose effect
-   *  is a PASS (fx::pass) renders its addressed glyphs — deviations
-   *  applied — into a layer instead of the canvas and runs its material
-   *  once over that layer; `ctx` is the node's paint context, which that
-   *  resolve reads for its clock, box and injected uniforms. */
-  void paintTextFx(detail::Instance& inst, SkCanvas& canvas,
-                   const sigil::weave::PaintStyle* override,
-                   const TextPath* onPath, SkSize size,
-                   const PaintContext& ctx);
-  /** THE SCHEDULE ONE TRACK IS RUNNING, resolved against the layout the
-   *  last draw() produced — the read-back behind Composer::beatsOf. Rects
-   *  come out in the NODE's own space; the caller offsets them into the
-   *  composer's, as the bounds query does. */
-  std::vector<Beat> beatsOfTrack(detail::Instance& inst, size_t trackIndex);
-  /** THE SAME SCHEDULE'S WHOLE VIRTUAL SPAN in ms — the read-back behind
-   *  Composer::cascadeSpanMs, resolved by the same body as beatsOfTrack.
-   *  0 wherever beatsOfTrack answers empty. */
-  float cascadeSpanOfTrack(detail::Instance& inst, size_t trackIndex);
-  /** WHERE EACH mark() ANCHORS, refilling `textMarkRects` from the layout
-   *  the letters are drawn from: one rect per anchor, the union of the
-   *  advance boxes of the glyphs its selector addressed. A flow run's
-   *  marks resolve during measure; a PATH run's resolve in ensureLayout's
-   *  post-layout pass, because the curve resolves against the node's
-   *  final box and the marks then stand on it — at the run's resting
-   *  placement, since a layout rect cannot chase a paint-time `at`. */
-  void resolveTextMarks(detail::Instance& inst);
   /** The glyph-paint override textFill()/textStroke() ask for, or nullopt
    *  when the node asks for neither. ONE body, called by the resting draw
    *  and by the fx() draw — a letter in flight is painted exactly as a

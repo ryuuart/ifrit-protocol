@@ -294,32 +294,6 @@ Element& Element::foreground(Decoration d, std::string name) {
 Element& Element::stroke(Decoration brush, std::string name) {
   return foreground(std::move(brush), std::move(name));
 }
-Element& Element::stroke(Spans where, Decoration what, std::string name) {
-  return addSpanPass(std::move(where), std::move(what), std::move(name),
-                     (int)detail::StrokePass::Half::Foreground);
-}
-Element& Element::background(Spans where, Decoration what, std::string name) {
-  return addSpanPass(std::move(where), std::move(what), std::move(name),
-                     (int)detail::StrokePass::Half::Background);
-}
-/** The one body both span-qualified slots share — see StrokePass: the two
- *  halves differ only in where the mark lands, so everything upstream of
- *  the paint (the fit() borrows, the claim ledger, the pass list) is one
- *  thing and must stay one thing. */
-Element& Element::addSpanPass(Spans where, Decoration what, std::string name,
-                              int half) {
-  // A fit() term borrows another element's resolved box, so the keys ride
-  // into DeriveData where the ONE derive-registration walk finds them —
-  // the flowAround pattern, not a second phase.
-  for (const Spans::Term& t : where.terms)
-    if (t.rule == Spans::Rule::Fit && !t.key.empty())
-      m_node->deriveData.ensure().spanFitKeys.push_back(t.key);
-  claimBorrows(what);
-  m_node->strokeData.ensure().passes.push_back(
-      detail::StrokePass{std::move(where), std::move(what), std::move(name),
-                         (detail::StrokePass::Half)half});
-  return *this;
-}
 Element& Element::echo(SkVector offset, SkColor4f color) {
   m_node->fxData.ensure().echoes.push_back(Echo{offset, color});
   return *this;
@@ -379,10 +353,6 @@ Element& Element::textStroke(float width, Fill fill) {
   return *this;
 }
 
-Element& Element::onPath(TextPath spec) {
-  m_node->textData.ensure().onPath = std::move(spec);
-  return *this;
-}
 Element& Element::scaleX(Animatable<float> v) {
   m_node->paint.scaleX = std::move(v);
   return *this;
@@ -546,66 +516,6 @@ Element custom(std::string_view key, PaintProgram program) {
   return e;
 }
 
-Element& Element::fx(Track track) {
-  m_node->textData.ensure().tracks.push_back(std::move(track));
-  return *this;
-}
-
-Element& Element::mark(Selector where, Element what) {
-  detail::TextData& text = m_node->textData.ensure();
-  // A KEY IS THE ANCHOR'S HANDLE, so a mark that carries none is given one
-  // from its declaration order: the layout looks its rect up by key, and
-  // the reconciler matches children by key. The generated name is namespaced
-  // with a character no author writes, so it cannot collide with a key
-  // somebody chose.
-  if (what.node()->key.empty())
-    what.key("mark#" + std::to_string(text.marks.size()));
-  text.marks.push_back({std::move(where), what.node()->key});
-  return child(std::move(what));
-}
-
-Element& Element::variationDrive(const char (&tag)[5],
-                                 const choreograph::Output<float>* value) {
-  // SUGAR over fx(): an axis coordinate is a per-glyph deviation like a
-  // shove or a fade, so the drive is a whole-text track and composes with
-  // whatever other tracks the element carries. A second, parallel text path
-  // is what it used to be, and a track drawn over it hid it completely.
-  //
-  // The effect reads the Output DIRECTLY rather than through the track's
-  // progress, because an axis coordinate is a design-space number (GRAD
-  // runs to ±100 on the faces that have it) and a progress is a 0→1 ramp
-  // the cascade clamps. The progress is bound to the same Output for the
-  // one thing it is good for here: declaring the paint volatility, so the
-  // node repaints while the drive moves and settles when it stops.
-  const sigil::weave::FontVariation coordinate(tag, 0.0f);
-  // The effect's key IS its identity, and a drive is identified by its axis
-  // and by WHICH Output feeds it — the binding identity every bound value
-  // in the tree is compared by. Two drives of one axis from two Outputs
-  // must not prune onto each other.
-  char key[64];
-  std::snprintf(key, sizeof(key), "variationDrive:%.4s@%p", tag,
-                (const void*)value);
-  Track track;
-  track.effect = TextEffect(
-      key, {},
-      [coordinate, value](const GlyphInfo&, float, Rng&) {
-        GlyphMod mod;
-        if (!value) return mod;
-        sigil::weave::FontVariation driven = coordinate;
-        driven.value = value->value();
-        mod.axis = driven;
-        return mod;
-      },
-      // Only an ADVANCE-INVARIANT axis is honoured, which is precisely the
-      // condition that the glyphs keep the pen positions shaping gave them:
-      // a drive re-cuts outlines where they already stand, so a run under a
-      // sweeping grade is type at rest and keeps its whole-pixel origins.
-      /*reach=*/0.0f, /*curves=*/{}, /*displaces=*/false);
-  track.progress = value;
-  m_node->textData.ensure().tracks.push_back(std::move(track));
-  return *this;
-}
-
 Element& Element::textAlign(sigil::weave::TextAlignment a) {
   detail::TextOptions& options = m_node->textData.ensure().options;
   options.alignment = a;
@@ -657,23 +567,6 @@ Element& Element::lastLine(sigil::weave::TextAlignment alignment,
   return *this;
 }
 
-Element& Element::spanPaint(Selector where, sigil::weave::PaintStyle paint) {
-  detail::SpanRestyle restyle;
-  restyle.where = std::move(where);
-  restyle.style.paint = std::move(paint);
-  restyle.paintOnly = true;
-  m_node->textData.ensure().spanRestyles.push_back(std::move(restyle));
-  return *this;
-}
-
-Element& Element::spanStyle(Selector where, sigil::weave::TextStyle style) {
-  detail::SpanRestyle restyle;
-  restyle.where = std::move(where);
-  restyle.style = std::move(style);
-  m_node->textData.ensure().spanRestyles.push_back(std::move(restyle));
-  return *this;
-}
-
 Element& Element::flowAround(std::string_view key, float margin) {
   detail::DeriveData& derive = m_node->deriveData.ensure();
   derive.flowAroundKeys.emplace_back(key);
@@ -707,6 +600,460 @@ Element slot(std::string_view name) {
   e.node()->kind = Kind::Slot;
   e.node()->key = std::string(name);
   return e;
+}
+
+// ---------------------------------------------------------------------------
+// rich() — mixed text as a value
+
+RichText rich(sigil::weave::TextStyle base) {
+  return RichText(std::move(base));
+}
+
+RichText& RichText::add(std::u8string_view utf8) {
+  m_runs.push_back(Run{std::u8string(utf8), m_base, {}});
+  return *this;
+}
+
+RichText& RichText::add(std::u8string_view utf8,
+                        sigil::weave::TextStyle style) {
+  m_runs.push_back(Run{std::u8string(utf8), std::move(style), {}});
+  return *this;
+}
+
+RichText& RichText::add(std::u8string_view utf8, std::string_view styleName) {
+  // The inherited set is captured on the FIRST named run rather than at
+  // rich(), so an unnamed value costs nothing and the capture still happens
+  // inside the author's describe scope. styles() overrides it whichever way
+  // round the two are written.
+  if (!m_hasStyles && !m_stylesExplicit) {
+    if (const sigil::weave::StyleSet* ambient =
+            env::inherited<sigil::weave::StyleSet>()) {
+      m_styles = *ambient;
+      m_hasStyles = true;
+    }
+  }
+  Run run{std::u8string(utf8), m_base, std::string(styleName)};
+  if (m_hasStyles) {
+    // find(), not operator[]: an unregistered name resolves to the base
+    // handed to rich(), which is this text's one default.
+    if (const sigil::weave::TextStyle* named = m_styles.find(run.styleName))
+      run.style = *named;
+  }
+  m_runs.push_back(std::move(run));
+  return *this;
+}
+
+RichText& RichText::slot(std::string key, SkSize size, float baselineDrop) {
+  Run run;
+  // U+FFFC OBJECT REPLACEMENT CHARACTER. The slot is CONTENT: it occupies
+  // one code point, so it counts as a cluster, falls inside the ranges a
+  // selector names, and takes its beat in a cascade exactly as a letter
+  // does. The engine matches its reserved box to this occurrence by order.
+  run.utf8 = u8"￼";
+  run.style = m_base;
+  run.slotKey = std::move(key);
+  run.slotSize = size;
+  run.slotBaselineDrop = baselineDrop;
+  m_runs.push_back(std::move(run));
+  return *this;
+}
+
+RichText& RichText::styles(sigil::weave::StyleSet set) {
+  m_styles = std::move(set);
+  m_hasStyles = true;
+  m_stylesExplicit = true;
+  for (Run& run : m_runs) {
+    if (run.styleName.empty()) continue;
+    const sigil::weave::TextStyle* named = m_styles.find(run.styleName);
+    run.style = named ? *named : m_base;
+  }
+  return *this;
+}
+
+// ---------------------------------------------------------------------------
+// TextEffect — the comparable effect value (its comparator sits with the
+// others in Reconcile.cpp)
+
+TextEffect::TextEffect(std::string name, std::vector<float> params,
+                       GlyphModFn fn, float reach,
+                       std::vector<choreograph::EaseFn> curves,
+                       bool displaces) {
+  auto state = std::make_shared<State>();
+  state->name = std::move(name);
+  state->params = std::move(params);
+  state->curves = std::move(curves);
+  state->fn = std::move(fn);
+  state->reach = reach;
+  state->displaces = displaces;
+  m_state = std::move(state);
+}
+
+TextEffect TextEffect::composite(std::string name, std::vector<float> params,
+                                 std::vector<TextEffect> operands,
+                                 GlyphModFn fn, float reach, bool displaces) {
+  auto state = std::make_shared<State>();
+  state->name = std::move(name);
+  state->params = std::move(params);
+  state->operands = std::move(operands);
+  state->fn = std::move(fn);
+  state->reach = reach;
+  state->displaces = displaces;
+  TextEffect out;
+  out.m_state = std::move(state);
+  return out;
+}
+
+const std::string& TextEffect::name() const {
+  static const std::string kEmpty;
+  return m_state ? m_state->name : kEmpty;
+}
+
+std::span<const float> TextEffect::params() const {
+  return m_state ? std::span<const float>(m_state->params)
+                 : std::span<const float>();
+}
+
+std::span<const TextEffect> TextEffect::operands() const {
+  return m_state ? std::span<const TextEffect>(m_state->operands)
+                 : std::span<const TextEffect>();
+}
+
+TextEffect TextEffect::pass(Material material) {
+  if (material.skslSource().empty()) {
+    // Once per process: the door takes only the source-carrying form,
+    // because the runtime must specialize the source per unit count.
+    static bool warned = false;
+    if (!warned) {
+      warned = true;
+      SkDebugf(
+          "[compose] fx::pass: the material carries no SkSL source — a "
+          "pass is compiled per unit count, which needs "
+          "Material::sksl(std::string, ...). The effect is empty and the "
+          "track draws its glyphs at rest.\n");
+    }
+    return {};
+  }
+  auto state = std::make_shared<State>();
+  state->name = "pass";
+  // The identity body keeps the value truthy (a track with an empty effect
+  // is skipped) and keeps a pass harmless as a seq/mix/hold operand, where
+  // only the deviation is consulted.
+  state->fn = [](const GlyphInfo&, float, Rng&) { return GlyphMod{}; };
+  // A pass paints where its material says it does; the material's declared
+  // reserve is the effect's reach, and Track::reach overrides as ever.
+  state->reach = material.bleed();
+  // A PASS IS NOT A PLACEMENT. Its shader reads a layer whose glyphs were
+  // rasterized at their RESTING origins — the pass moves pixels, not pen
+  // positions — so putting those origins on the subpixel grid refines masks
+  // the shader's own output does not follow, and pays the multiplied atlas
+  // population for letters that are provably standing still. Whatever the
+  // pass does with them, the layer is re-rendered every frame it runs.
+  state->displaces = false;
+  state->pass = std::make_shared<const Material>(std::move(material));
+  TextEffect out;
+  out.m_state = std::move(state);
+  return out;
+}
+
+const Material* TextEffect::passMaterial() const {
+  return m_state ? m_state->pass.get() : nullptr;
+}
+
+TextEffect TextEffect::withRests(std::initializer_list<float> phases) const {
+  if (!m_state || !m_state->pass) {
+    // Once per process: the declaration is about a pass's SkSL, and a
+    // per-glyph effect has no shader to promise anything about.
+    static bool warned = false;
+    if (!warned) {
+      warned = true;
+      SkDebugf(
+          "[compose] restsAt() declares where a PASS's shader is an exact "
+          "pass-through; this effect carries no pass material, so the "
+          "declaration says nothing and is dropped.\n");
+    }
+    return *this;
+  }
+  auto state = std::make_shared<State>(*m_state);
+  state->params.insert(state->params.end(), phases.begin(), phases.end());
+  TextEffect out;
+  out.m_state = std::move(state);
+  return out;
+}
+
+TextEffect TextEffect::restsAt(float phase) const { return withRests({phase}); }
+TextEffect TextEffect::restsAt(float a, float b) const {
+  return withRests({a, b});
+}
+
+std::span<const float> TextEffect::restPhases() const {
+  return m_state && m_state->pass ? std::span<const float>(m_state->params)
+                                  : std::span<const float>();
+}
+
+bool TextEffect::displaces() const { return m_state && m_state->displaces; }
+
+TextEffect TextEffect::displacing(bool moves) const {
+  if (!m_state) return *this;
+  if (m_state->pass) {
+    // Once per process: a pass runs over already-rasterized pixels, so it
+    // has no pen position to move and the declaration says nothing. Its
+    // params slot is the rest declaration, which this must not write into.
+    static bool warned = false;
+    if (!warned) {
+      warned = true;
+      SkDebugf(
+          "[compose] displacing() declares whether a body moves glyphs off "
+          "their pen positions; a pass runs over pixels already rasterized "
+          "at the resting origins, so the declaration is dropped.\n");
+    }
+    return *this;
+  }
+  auto state = std::make_shared<State>(*m_state);
+  state->displaces = moves;
+  // The declaration JOINS THE PARAMS, which is where an effect's identity
+  // already lives — no second equality lane, and two bodies under one key
+  // that disagree about placement compare unequal and re-patch. Every
+  // library-built effect answers at construction and never comes through
+  // here, so nothing appends twice.
+  state->params.push_back(moves ? 1.0f : 0.0f);
+  TextEffect out;
+  out.m_state = std::move(state);
+  return out;
+}
+
+Phase TextEffect::until(float t) const { return Phase(*this, t); }
+
+// ---------------------------------------------------------------------------
+// Selector
+
+Selector Selector::of(State s) {
+  Selector out;
+  out.m_state = std::make_shared<const State>(std::move(s));
+  return out;
+}
+
+Selector Selector::take(int n) const {
+  State s = m_state ? *m_state : State{};
+  s.take = n;
+  return of(std::move(s));
+}
+
+Selector Selector::drop(int n) const {
+  State s = m_state ? *m_state : State{};
+  s.drop = n;
+  return of(std::move(s));
+}
+
+namespace {
+Selector combine(Selector::Kind kind, const Selector& a, const Selector& b) {
+  Selector::State s;
+  s.kind = kind;
+  s.operands = {a, b};
+  return Selector::of(std::move(s));
+}
+}  // namespace
+
+Selector Selector::operator|(const Selector& other) const {
+  return combine(Kind::Union, *this, other);
+}
+Selector Selector::operator&(const Selector& other) const {
+  return combine(Kind::Intersect, *this, other);
+}
+Selector Selector::operator!() const {
+  State s;
+  s.kind = Kind::Complement;
+  s.operands = {*this};
+  return of(std::move(s));
+}
+
+namespace sel {
+namespace {
+Selector indexed(Selector::Kind kind, uint32_t lo, uint32_t hi) {
+  Selector::State s;
+  s.kind = kind;
+  s.lo = lo;
+  s.hi = hi;
+  return Selector::of(std::move(s));
+}
+Selector needle(Selector::Kind kind, std::u8string_view pattern) {
+  Selector::State s;
+  s.kind = kind;
+  s.pattern = std::u8string(pattern);
+  return Selector::of(std::move(s));
+}
+}  // namespace
+
+Selector word(uint32_t index) {
+  return indexed(Selector::Kind::Word, index, index + 1);
+}
+Selector words(uint32_t lo, uint32_t hi) {
+  return indexed(Selector::Kind::Words, lo, hi);
+}
+Selector line(uint32_t index) {
+  return indexed(Selector::Kind::Line, index, index + 1);
+}
+Selector sentence(uint32_t index) {
+  return indexed(Selector::Kind::Sentence, index, index + 1);
+}
+Selector range(sigil::weave::CharRange chars) {
+  return indexed(Selector::Kind::Range, chars.start, chars.end);
+}
+Selector regex(std::u8string_view utf8Pattern) {
+  return needle(Selector::Kind::Regex, utf8Pattern);
+}
+Selector text(std::u8string_view utf8Substring) {
+  return needle(Selector::Kind::Text, utf8Substring);
+}
+Selector style(std::string_view name) {
+  // A style name is ASCII-or-whatever the author typed, and the needle slot
+  // holds UTF-8 bytes; both resolvers compare it against the same bytes a
+  // run's name was written with, so no transcoding is involved either way.
+  return needle(Selector::Kind::Style,
+                std::u8string_view((const char8_t*)name.data(), name.size()));
+}
+Selector each(Unit granularity) {
+  Selector::State s;
+  s.kind = Selector::Kind::Each;
+  s.each = granularity;
+  return Selector::of(std::move(s));
+}
+}  // namespace sel
+
+// ---------------------------------------------------------------------------
+// Stagger
+
+Stagger& Stagger::then(Unit granularity, Stagger nested) {
+  nested.over = granularity;
+  inner = std::make_shared<const Stagger>(std::move(nested));
+  return *this;
+}
+
+Stagger stagger(Unit granularity, Stagger spec) {
+  spec.over = granularity;
+  return spec;
+}
+
+Stagger cues(std::vector<float> startMs, Stagger spec) {
+  spec.cueMs = std::move(startMs);
+  return spec;
+}
+
+void detail::TextOptions::applyTo(
+    sigil::weave::ParagraphLayoutOptions& options) const {
+  if (set & kAlignment) options.alignment = alignment;
+  if (set & kLineBreak) options.lineBreakStrategy = lineBreak;
+  if (set & kHyphenation) options.hyphenation = hyphenation;
+  if (set & kEllipsis) options.overflow.ellipsis = ellipsis;
+  if (set & kMaxLines) options.overflow.maxLines = maxLines;
+  if (set & kLastLine) {
+    options.justification.lastLineAlignment = lastLineAlignment;
+    options.justification.justifyLastLine = justifyLastLine;
+  }
+}
+
+std::u16string detail::toUtf16(std::u8string_view utf8) {
+  // Hand-rolled rather than borrowed from the weave layer: compose speaks
+  // UTF-8 at its surface and UTF-16 at exactly this boundary, and a full
+  // Unicode library for that is a dependency the kernel does not otherwise
+  // need. Ill-formed input yields U+FFFD, never a silent truncation.
+  std::u16string out;
+  out.reserve(utf8.size());
+  for (size_t i = 0; i < utf8.size();) {
+    const auto byte = (unsigned char)utf8[i];
+    char32_t code = 0xFFFD;
+    size_t length = 1;
+    if (byte < 0x80) {
+      code = byte;
+    } else if ((byte & 0xE0u) == 0xC0) {
+      length = 2;
+      code = byte & 0x1Fu;
+    } else if ((byte & 0xF0u) == 0xE0) {
+      length = 3;
+      code = byte & 0x0Fu;
+    } else if ((byte & 0xF8u) == 0xF0) {
+      length = 4;
+      code = byte & 0x07u;
+    }
+    if (length > 1) {
+      if (i + length > utf8.size()) {
+        code = 0xFFFD;
+        length = utf8.size() - i;
+      } else {
+        for (size_t k = 1; k < length; ++k) {
+          const auto continuation = (unsigned char)utf8[i + k];
+          if ((continuation & 0xC0u) != 0x80) {
+            code = 0xFFFD;
+            length = k;
+            break;
+          }
+          code = (code << 6u) | (continuation & 0x3Fu);
+        }
+      }
+    }
+    if (code > 0x10FFFF || (code >= 0xD800 && code <= 0xDFFF)) code = 0xFFFD;
+    if (code >= 0x10000) {
+      const char32_t rest = code - 0x10000;
+      out.push_back((char16_t)(0xD800 + (rest >> 10u)));
+      out.push_back((char16_t)(0xDC00 + (rest & 0x3FFu)));
+    } else {
+      out.push_back((char16_t)code);
+    }
+    i += length;
+  }
+  return out;
+}
+
+TextEffect TextEffect::variableAxis(const char (&tag)[5], float value) {
+  const sigil::weave::FontVariation coordinate(tag, value);
+  return TextEffect(
+      "variableAxis",
+      {(float)(unsigned char)tag[0], (float)(unsigned char)tag[1],
+       (float)(unsigned char)tag[2], (float)(unsigned char)tag[3], value},
+      [coordinate](const GlyphInfo&, float, Rng&) {
+        GlyphMod m;
+        m.axis = coordinate;
+        return m;
+      },
+      // An advance-invariant axis leaves every pen position where the
+      // layout put it, so the effect does not displace.
+      0.0f, {}, /*displaces=*/false);
+}
+
+// ---------------------------------------------------------------------------
+// Region — the masking family's comparable region value (its resolution
+// against a node's outline is the brush tier's)
+
+Region Region::own() { return Region{}; }
+Region Region::rect(const SkRect& r) {
+  Region out;
+  out.m_kind = Kind::Rect;
+  out.m_rect = r;
+  return out;
+}
+Region Region::oval(const SkRect& bounds) {
+  Region out;
+  out.m_kind = Kind::Oval;
+  out.m_rect = bounds;
+  return out;
+}
+Region Region::path(SkPath p) {
+  Region out;
+  out.m_kind = Kind::Path;
+  out.m_path = std::move(p);
+  return out;
+}
+bool Region::operator==(const Region& other) const {
+  if (m_kind != other.m_kind) return false;
+  switch (m_kind) {
+    case Kind::Own:
+      return true;
+    case Kind::Rect:
+    case Kind::Oval:
+      return m_rect == other.m_rect;
+    case Kind::Path:
+      return m_path == other.m_path;
+  }
+  return false;
 }
 
 namespace detail {

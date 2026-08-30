@@ -82,12 +82,12 @@ bool claimsEverything(const std::vector<Span>& show) {
  *  the geometry actually changed — which only the SURFACE needs, because
  *  only the surface has a cheap rrect to fall out of. Decorations always
  *  draw a path. */
-SkPath gateOutline(const SkPath& src, const std::vector<Span>& show,
-                   bool* cut = nullptr) {
+SkPath gateOutline(const SpanArithmeticOps* arith, const SkPath& src,
+                   const std::vector<Span>& show, bool* cut = nullptr) {
   if (claimsEverything(show)) return src;
   if (cut) *cut = true;
   if (show.empty()) return SkPath();
-  return detail::spanPath(src, show);
+  return arith ? arith->spanPath(src, show) : src;
 }
 
 // ---- the coverage law, in one place ---------------------------------------
@@ -152,6 +152,113 @@ const SkPath& Composer::Impl::resolveOutline(Instance& inst,
 }
 
 // ---------------------------------------------------------------------------
+// textFill()/textStroke(): the one glyph-paint override
+
+std::optional<sigil::weave::PaintStyle> Composer::Impl::metricTextStyle(
+    Instance& inst, const PaintContext& paintCtx) {
+  const ElementNode& node = *inst.desc;
+  const Material* metricMat = metricFillOf(node);
+  const bool stroked = node.textData && node.textData->hasTextStroke;
+  if (!metricMat && !stroked) return std::nullopt;
+  if (!inst.paragraph.has_value()) return std::nullopt;
+  const sigil::weave::Paragraph& paragraph = inst.paragraph.value();
+
+  // Chrome type: the material's unit square mapped to the text's metric
+  // band — x across the widest line, y from the first line's cap top (real
+  // cap height when the face reports one) to the last line's baseline.
+  //
+  // The override replaces the whole PaintStyle for every run, so it starts
+  // as a COPY of the paragraph's own style and swaps only the foreground —
+  // textFill supersedes the fill, not the underlays, overlays and
+  // decorations around it (a chrome wordmark keeps its cast shadow and dark
+  // keyline).
+  sigil::weave::PaintStyle metric = paragraph.spans().empty()
+                                        ? sigil::weave::PaintStyle{}
+                                        : paragraph.spans().front().style.paint;
+  metric.foreground.setShader(nullptr);
+  bool havePaint = false;
+  // textStroke(): a stroke pass on the glyphs, UNDER the fill. It joins the
+  // style's own underlays rather than replacing them, so an engraved face
+  // keeps its cast shadow.
+  if (stroked) {
+    sigil::weave::PaintLayer outline;
+    outline.paint.setAntiAlias(true);
+    outline.paint.setStyle(SkPaint::kStroke_Style);
+    outline.paint.setStrokeWidth(node.textData->textStrokeWidth);
+    outline.paint.setStrokeJoin(SkPaint::kRound_Join);
+    const Fill& sf = node.textData->textStrokeFill;
+    if (sf.kind == Fill::Kind::Shader && sf.shaderValue)
+      outline.paint.setShader(sf.shaderValue);
+    else
+      outline.paint.setColor4f(
+          sf.kind == Fill::Kind::Color ? sf.colorValue : SkColor4f{0, 0, 0, 1},
+          nullptr);
+    metric.addUnderlay(outline);
+    havePaint = true;
+  }
+  if (!metricMat) return havePaint ? std::optional(metric) : std::nullopt;
+
+  // Geometry-dependent materials resolve against a UNIT box here, not the
+  // node's. The local matrix below already maps the shader's [0,1]² onto
+  // the metric band, so uResolution baked from the node's layout size would
+  // divide a second time: a `linearUnit` ramp came out at t ≈ 0.003 and
+  // every glyph painted the first stop, flat and silently. Material.h
+  // advertises textFill and the Unit ramps as the same trick, and this is
+  // what makes that true.
+  PaintContext metricCtx = paintCtx;
+  metricCtx.size = {1.0f, 1.0f};
+  const Fill f = (metricMat->isAnimated() || metricMat->geometryDependent())
+                     ? metricMat->resolve(metricCtx)
+                     : metricMat->toFill();
+  if (f.kind == Fill::Kind::Shader && f.shaderValue && !inst.columns.empty()) {
+    // A VERTICAL passage has no cap band to hang the ramp on: a column's
+    // glyphs centre across its axis rather than standing on a baseline. The
+    // unit square maps onto the COLUMN BLOCK instead — x across the columns,
+    // y down them — so a ramp authored in [0,1]² still crosses the type,
+    // reading down the page rather than across it.
+    SkRect block = SkRect::MakeEmpty();
+    for (const sigil::weave::ColumnMetrics& column : inst.columns)
+      block.join(column.rect());
+    SkMatrix map = SkMatrix::Translate(block.left(), block.top());
+    map.preScale(std::max(block.width(), 1.0f), std::max(block.height(), 1.0f));
+    metric.foreground.setShader(f.shaderValue->makeWithLocalMatrix(map));
+    havePaint = true;
+  } else if (f.kind == Fill::Kind::Shader && f.shaderValue &&
+             !inst.lines.empty()) {
+    const sigil::weave::ShapedWord* firstFont = nullptr;
+    sigil::weave::forEachPlacedGlyph(
+        inst.textLayout, paragraph,
+        [&](const sigil::weave::PlacedGlyph& placed) {
+          if (!firstFont) firstFont = placed.shaped;
+        });
+    float capH = 0;
+    if (firstFont && firstFont->typeface) {
+      SkFontMetrics fm;
+      sigil::weave::makeFont(firstFont->typeface, firstFont->fontSize)
+          .getMetrics(&fm);
+      capH = fm.fCapHeight;
+    }
+    const sigil::weave::LineMetrics& first = inst.lines.front();
+    if (capH <= 0) capH = first.ascent;  // face reports none — the ascent band
+    float left = first.left, right = first.right;
+    for (const sigil::weave::LineMetrics& line : inst.lines) {
+      left = std::min(left, line.left);
+      right = std::max(right, line.right);
+    }
+    const float top = first.baseline - capH;
+    const float bottom = inst.lines.back().baseline;
+    SkMatrix map = SkMatrix::Translate(left, top);
+    map.preScale(std::max(right - left, 1.0f), std::max(bottom - top, 1.0f));
+    metric.foreground.setShader(f.shaderValue->makeWithLocalMatrix(map));
+    havePaint = true;
+  } else if (f.kind == Fill::Kind::Color) {
+    metric.foreground.setColor4f(f.colorValue, nullptr);
+    havePaint = true;
+  }
+  return havePaint ? std::optional(metric) : std::nullopt;
+}
+
+// ---------------------------------------------------------------------------
 // The stacking painter
 
 void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
@@ -189,8 +296,10 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
         node.deriveData->bandSpine
             ? node.deriveData->bandSpine({bounds.width(), bounds.height()})
             : inst.bandSpine;
-    outlinePath =
-        detail::bandRegion(spine, *bandWidth, node.deriveData->bandFormation);
+    outlinePath = bandWidth->resolver
+                      ? bandWidth->resolver->bandRegion(
+                            spine, *bandWidth, node.deriveData->bandFormation)
+                      : SkPath();
   } else if (customShape) {
     outlinePath = resolveOutline(inst, {bounds.width(), bounds.height()});
   } else {
@@ -221,6 +330,23 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
       node.hasMasks() ? &node.fxData->masks : nullptr;
   const std::vector<float> gateValues =
       masks ? inst.resolveGateValues() : std::vector<float>{};
+  // THE SPAN ARITHMETIC the boundary is cut and intersected with — the
+  // brush engine the node's stroke passes carry, or failing that the one
+  // its first spans gate carries. Absent only on a node that has neither,
+  // which then has nothing to cut.
+  const SpanArithmeticOps* arith = nullptr;
+  if (node.strokeData && node.strokeData->resolver)
+    arith = node.strokeData->resolver.get();
+  if (!arith && masks)
+    for (const Mask& m : *masks)
+      if (m.with.kind == Gate::Kind::Spans && m.with.resolver) {
+        arith = m.with.resolver.get();
+        break;
+      }
+  const auto intersect = [&](const std::vector<Span>& a,
+                             const std::vector<Span>& b) {
+    return arith ? arith->intersect(a, b) : a;
+  };
   // The SHOW set each of surface / marks is left with, as fractions of the
   // whole boundary — absent when no spans gate selects it.
   std::optional<std::vector<Span>> surfaceShow, marksShow;
@@ -243,12 +369,13 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
               (long)std::min(valueBase + count, gateValues.size()));
       valueBase += count;
       gateIn.values = &mine;
-      const std::vector<Span> show =
-          normalizeSpans(m.with.where.resolve(gateIn));
+      const std::vector<Span> show = m.with.resolver
+                                         ? m.with.resolver->plan(m.with, gateIn)
+                                         : std::vector<Span>{};
       // THE INTERSECTION LAW: stacked masks both have to pass, so a second
       // gate over the same target narrows the first, never widens it.
       const auto narrow = [&](std::optional<std::vector<Span>>& slot) {
-        slot = slot ? intersectSpans(*slot, show) : show;
+        slot = slot ? intersect(*slot, show) : show;
       };
       if (m.what.selects(Parts::kSurface)) narrow(surfaceShow);
       if (m.what.selects(Parts::kMarks)) narrow(marksShow);
@@ -258,7 +385,7 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
         if (it == namedShow.end())
           namedShow.emplace_back(label, show);
         else
-          it->second = intersectSpans(it->second, show);
+          it->second = intersect(it->second, show);
       }
     }
   }
@@ -266,15 +393,16 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
   // which is what decides whether the fill draws a path or the cheap rrect.
   bool cut = false;
   const SkPath fullOutline = outlinePath;
-  SkPath surfacePath =
-      surfaceShow ? gateOutline(fullOutline, *surfaceShow, &cut) : fullOutline;
+  SkPath surfacePath = surfaceShow
+                           ? gateOutline(arith, fullOutline, *surfaceShow, &cut)
+                           : fullOutline;
   // …and the marks' boundary, which is the SAME OBJECT whenever one mask
   // gates both — the overwhelmingly common case, and the reason a whole-node
   // spans gate walks the boundary once rather than twice.
   SkPath marksPath = !marksShow ? fullOutline
                      : (surfaceShow && *marksShow == *surfaceShow)
                          ? surfacePath
-                         : gateOutline(fullOutline, *marksShow);
+                         : gateOutline(arith, fullOutline, *marksShow);
   const bool trimmed = cut;
 
   // The MARKS' boundary is what a decoration receives: every decoration
@@ -401,7 +529,8 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
       } else {  // Shape — and its complement, the missing clipOut()
         canvas.save();
         canvas.clipPath(
-            m.with.region.resolve(fullOutline),
+            m.with.resolver ? m.with.resolver->clipRegion(m.with, fullOutline)
+                            : fullOutline,
             m.with.outside ? SkClipOp::kDifference : SkClipOp::kIntersect,
             true);
       }
@@ -419,10 +548,9 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
       cover.setBlendMode(m.with.outside ? SkBlendMode::kDstOut
                                         : SkBlendMode::kDstIn);
       if (m.with.coverage) {
-        const Material& mat = *m.with.coverage;
-        const Fill f = (mat.isAnimated() || mat.geometryDependent())
-                           ? mat.resolve(paintCtx)
-                           : mat.toFill();
+        const Fill f = m.with.resolver
+                           ? m.with.resolver->coverage(m.with, paintCtx)
+                           : Fill{};
         const bool luma = m.with.channel == Gate::Channel::Luma;
         if (f.kind == Fill::Kind::Shader && f.shaderValue)
           cover.setShader(luma ? lumaCoverageShader(f.shaderValue)
@@ -463,7 +591,10 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
   std::optional<std::vector<std::vector<Span>>> spanClaims;
   auto paintSpanHalf = [&](detail::StrokePass::Half half) {
     if (!node.hasStrokePasses()) return;
-    if (!spanClaims) spanClaims = inst.resolveSpans(fullOutline);
+    if (!spanClaims)
+      spanClaims = node.strokeData->resolver
+                       ? node.strokeData->resolver->claims(inst, fullOutline)
+                       : std::vector<std::vector<Span>>{};
     const std::vector<detail::StrokePass>& passes = node.strokeData->passes;
     for (size_t i = 0; i < passes.size() && i < spanClaims->size(); ++i) {
       if (passes[i].half != half || (*spanClaims)[i].empty()) continue;
@@ -471,17 +602,17 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
       // `.stroke(spans::corners(18), brk).mask(parts::marks(), upTo(t))`:
       // reticle brackets that light up as a sweep reaches them.
       std::vector<Span> run = (*spanClaims)[i];
-      if (marksShow) run = intersectSpans(run, *marksShow);
+      if (marksShow) run = intersect(run, *marksShow);
       if (!passes[i].name.empty())
         for (const auto& [label, show] : namedShow)
-          if (label == passes[i].name) run = intersectSpans(run, show);
+          if (label == passes[i].name) run = intersect(run, show);
       if (run.empty()) continue;
       const size_t cover = coverStack.size();
       const int saves =
           granularPlane ? enterGates(false, Parts::kMarks, passes[i].name) : -1;
       const PaintContext passCtx{
           paintCtx.size,
-          detail::spanPath(fullOutline, run),
+          arith ? arith->spanPath(fullOutline, run) : fullOutline,
           paintCtx.elapsedSeconds,
           paintCtx.contentScale,
           paintCtx.animating,
@@ -519,9 +650,9 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
         granularPlane ? enterGates(false, Parts::kMarks, label) : -1;
     if (refine) {
       std::vector<Span> run = *refine;
-      if (marksShow) run = intersectSpans(run, *marksShow);
+      if (marksShow) run = intersect(run, *marksShow);
       const PaintContext markCtx{paintCtx.size,
-                                 gateOutline(fullOutline, run),
+                                 gateOutline(arith, fullOutline, run),
                                  paintCtx.elapsedSeconds,
                                  paintCtx.contentScale,
                                  paintCtx.animating,
@@ -704,9 +835,13 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
               metric ? &*metric : nullptr;
           // One draw for both: the baseline places the glyph and the tracks
           // deviate from that placement. Neither wins over the other.
-          if (hasTextFx(inst) || onPath) {
-            paintTextFx(inst, canvas, glyphPaint, onPath,
-                        {bounds.width(), bounds.height()}, paintCtx);
+          // Dressed type draws through the painter its description carries;
+          // a description that dresses its text without one (built from the
+          // data blocks directly, never through a text verb) draws at rest.
+          const TextPainterOps* painter = textPainterOf(inst);
+          if ((hasTextFx(inst) || onPath) && painter) {
+            painter->paint(inst, canvas, glyphPaint, onPath,
+                           {bounds.width(), bounds.height()}, paintCtx);
           } else {
             inst.textLayout.drawBatched(&canvas, *inst.paragraph, glyphPaint);
           }

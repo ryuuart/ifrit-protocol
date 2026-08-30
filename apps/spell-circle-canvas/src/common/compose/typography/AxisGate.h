@@ -1,7 +1,7 @@
 #pragma once
 
 /** @file
- * Internal to the kernel — the variable-axis substitution gate: one verdict
+ * Internal to the typography tier — the variable-axis substitution gate: one verdict
  * per (face, axis), probed once, read silently by the span fold and with a
  * single warning by the draw-time verbs.
  */

@@ -216,6 +216,13 @@ struct TextData {
   // resolves to, in declaration order. The rects themselves live on the
   // Instance (textMarkRects) because they are an answer of the layout.
   std::vector<MarkAnchor> marks;
+  // THE TEXT ENGINE, as the description carries it: installed by the verbs
+  // that dress type (fx, onPath, mark, spanStyle, spanPaint,
+  // variationDrive), read by the kernel wherever it needs more than the
+  // paragraph drawn at rest. Excluded from structural equality — it is the
+  // same engine on every text that has one — so a field pin names it and
+  // the comparator skips it.
+  TextPainter painter;
 
   /** The alignment this leaf actually lays out under: `textAlign()`'s value
    *  where it was written, otherwise whatever the full-control overload's
@@ -301,6 +308,9 @@ struct StrokePass {
 
 struct StrokeData {
   std::vector<StrokePass> passes;
+  // The stroke grammar's engine, installed with the first span-qualified
+  // pass; excluded from structural equality.
+  StrokeResolver resolver;
 };
 
 /** Which unqualified mark slot a local label belongs to. Span passes carry
@@ -480,10 +490,10 @@ inline auto fields(PaintProps& v) {
 inline auto fields(TextData& v) {
   auto& [hasTextStroke, textStrokeWidth, textStrokeFill, utf8, style, rich,
          paragraphOverride, layoutOptions, options, spanRestyles, tracks,
-         metricFill, onPath, marks] = v;
+         metricFill, onPath, marks, painter] = v;
   return std::tie(hasTextStroke, textStrokeWidth, textStrokeFill, utf8, style,
                   rich, paragraphOverride, layoutOptions, options, spanRestyles,
-                  tracks, metricFill, onPath, marks);
+                  tracks, metricFill, onPath, marks, painter);
 }
 inline auto fields(SpanRestyle& v) {
   auto& [where, style, paintOnly] = v;
@@ -517,8 +527,8 @@ inline auto fields(StrokePass& v) {
   return std::tie(where, what, name, half);
 }
 inline auto fields(StrokeData& v) {
-  auto& [passes] = v;
-  return std::tie(passes);
+  auto& [passes, resolver] = v;
+  return std::tie(passes, resolver);
 }
 inline auto fields(FxData& v) {
   auto& [layerEffect, backdropEffect, echoes, staggerChildrenMs, staggerFrom,
@@ -588,10 +598,10 @@ inline auto fields(Spans::Term& v) {
                   index, key);
 }
 inline auto fields(Gate& v) {
-  auto& [kind, where, angleDeg, fraction, region, outside, channel, coverage] =
-      v;
+  auto& [kind, where, angleDeg, fraction, region, outside, channel, coverage,
+         resolver] = v;
   return std::tie(kind, where, angleDeg, fraction, region, outside, channel,
-                  coverage);
+                  coverage, resolver);
 }
 inline auto fields(Mask& v) {
   auto& [what, with] = v;
@@ -625,32 +635,6 @@ inline constexpr std::size_t kFieldCount =
 bool propsEqual(const ElementNode& a, const ElementNode& b);
 /** The shaped-binding half of the same comparator (see its doc comment). */
 bool boundMapEqual(const BoundFloat& a, const BoundFloat& b);
-
-/** Clamp to [0,1], drop empties, sort and merge — the one normal form
- *  every span answer is in, so overlap tests and complements are honest
- *  interval arithmetic and not a pile of special cases. */
-std::vector<Span> normalizeSpans(const std::vector<Span>& spans);
-/** Everything in [0,1] the input does not cover (already normalized). */
-std::vector<Span> complementSpans(const std::vector<Span>& spans);
-/** THE INTERSECTION LAW, as arithmetic: the runs BOTH sets cover. Two
- *  masks on one target must both pass, and a span-qualified pass under a
- *  span-gated mask claims `where ∩ gate` — so the sweep that lights up a
- *  set of reticle brackets is one line and no re-authoring. Both inputs
- *  are normalized; the answer is too. */
-std::vector<Span> intersectSpans(const std::vector<Span>& a,
-                                 const std::vector<Span>& b);
-/** Do these two normalized sets share more than float noise? Returns the
- *  first shared run, or nullopt. */
-std::optional<Span> spansOverlap(const std::vector<Span>& a,
-                                 const std::vector<Span>& b);
-/** The sub-geometry of `src` covered by `spans` (fractions of the path's
- *  TOTAL arc length — SkTrimPathEffect's coordinate, so a span reveal and
- *  a trim of the same numbers describe the same run). */
-SkPath spanPath(const SkPath& src, const std::vector<Span>& spans);
-/** The region a spine sweeps at `width` across it, on `formation`'s side.
- *  Empty when the profile is zero everywhere. */
-SkPath bandRegion(const SkPath& spine, const Across& width,
-                  Formation formation);
 
 /** Constant, binding, or transitioned — flattened for the reconciler. */
 template <typename T>
@@ -690,93 +674,6 @@ bool easeEqual(const choreograph::EaseFn& a, const choreograph::EaseFn& b);
  *  Reconcile.cpp beside the comparators it is built from. */
 bool describedTransformEqual(const ElementNode& a, const ElementNode& b);
 
-/** ONE WALK'S GLYPHS, and which unit of each granularity they fall in.
- *
- *  Built once per paint from the finished layout and shared by every track
- *  on the element, because the expensive parts — walking the placed glyphs,
- *  numbering the words and lines — do not depend on which track is asking.
- *  Reused across frames: build() keeps the allocations. */
-struct GlyphStructure {
-  static constexpr size_t kUnits = 5;  ///< one lane per Unit enumerator
-
-  std::vector<GlyphInfo> glyphs;  ///< in draw order, structure filled in
-  /** Per Unit: glyph index → the unit it belongs to, numbered from 0 in
-   *  draw order. */
-  std::array<std::vector<uint32_t>, kUnits> unitOf;
-  std::array<uint32_t, kUnits> unitCounts{};
-
-  void build(const sigil::weave::ParagraphLayout& layout,
-             const sigil::weave::Paragraph& paragraph);
-};
-
-/** ONE `rich()` RUN THAT WAS WRITTEN UNDER A STYLE NAME, and the text it
- *  occupies — what `sel::style` resolves against.
- *
- *  The name is tied to the run's TEXT rather than to the style span it
- *  produced, and that is the whole reason the answer holds up. Spans are
- *  cut and merged by every `spanPaint` and `spanStyle` the leaf declares,
- *  so a span index is a number about the paragraph's current normal form;
- *  a run's extent is a fact about the content that only new content
- *  changes. Re-registering the name against a different style, or a restyle
- *  slicing across the run, leaves this untouched.
- *
- *  Built by materializeText as the runs are appended, in declaration order.
- *  Empty for every content form that carries no names. */
-struct NamedRun {
-  std::string name;
-  sigil::weave::CharRange chars;
-};
-
-/** Which glyphs a selector addresses: one byte per glyph, in walk order.
- *  A pattern that does not compile answers all-zero and warns once, and so
- *  does an `sel::style` name @p named does not carry. */
-std::vector<uint8_t> resolveSelection(const Selector& selector,
-                                      const GlyphStructure& structure,
-                                      const sigil::weave::Paragraph& paragraph,
-                                      std::span<const NamedRun> named);
-/** The once-per-pattern diagnostic behind an unresolvable selector. */
-void warnBadSelectorPattern(const std::u8string& pattern);
-/** The once-per-name diagnostic behind an `sel::style` no run answers to. */
-void warnNoSuchStyleName(const std::u8string& name);
-/** The once-per-shape diagnostic behind a cue table that does not have one
- *  entry per unit: the tail either piles on the last cue or goes unread,
- *  and both are a table cut against the wrong text. */
-void warnCueTableMismatch(size_t cueCount, size_t unitCount);
-/** The once-per-process diagnostic behind `onPath` plus a vertical
- *  `writingMode`: a path run's baseline is its own geometry, so there are
- *  no columns to advance and the path wins. */
-void warnWritingModeOnPath();
-/** The once-per-process diagnostic behind `flowAround` on vertical text:
- *  exclusions are cut out of horizontal line bands, so the columns run
- *  without them. */
-void warnFlowAroundVertical();
-
-/** WHICH TEXT A SELECTOR ADDRESSES, as UTF-16 ranges rather than glyphs —
- *  the form span restyling needs, because a restyle happens on the
- *  Paragraph, before there are glyphs to point at.
- *
- *  Sorted, merged and non-overlapping. `|`, `&` and `!` are interval
- *  arithmetic over the text; the complement is taken against the whole
- *  text. `sel::line` reads @p lines, or @p columns where the passage is
- *  vertical and a line IS a column — the geometry a previous layout
- *  produced, passed as plain values rather than as a layout because the
- *  paragraph that layout belongs to is the one being replaced — and
- *  addresses nothing when both are empty. `Selector::take`/`drop` slice
- *  glyphs inside a unit, which no text range can express: an `sel::each`
- *  selector answers with its whole units and the slice warns once.
- *  `sel::style` reads @p named, which is why the table is built before the
- *  restyles that consume it run. */
-std::vector<sigil::weave::CharRange> resolveTextRanges(
-    const Selector& selector, sigil::weave::Paragraph& paragraph,
-    sigil::weave::FontContext& fonts,
-    std::span<const sigil::weave::LineMetrics> lines,
-    std::span<const sigil::weave::ColumnMetrics> columns,
-    std::span<const NamedRun> named);
-
-/** Does this selector reach for a LINE, and therefore need a layout to
- *  resolve against? The question the second layout pass is gated on. */
-bool selectorNeedsLayout(const Selector& selector);
-
 /** UTF-8 to the UTF-16 the weave layer speaks. */
 std::u16string toUtf16(std::u8string_view utf8);
 
@@ -790,79 +687,23 @@ std::u16string toUtf16(std::u8string_view utf8);
  *  ONE BODY for two callers: an fx() track's units and a container's
  *  staggered children. A second spelling would let `Stagger::From` mean
  *  two different orders depending on what it was attached to. */
+/** SplitMix64's finalizer over one key — the same mixer Rng steps, used
+ *  to order units rather than to shape a glyph. */
+uint64_t mix64Value(uint64_t z);
 void cascadeOrder(Stagger::From from, uint32_t count, uint32_t seed,
                   std::vector<float>& out);
 
-/** ONE TRACK'S CASCADE, resolved for a frame's unit counts: the delay
- *  ladder, the beat length, and the virtual span the master progress maps
- *  onto. Built per track per paint; localTime() is then a few adds per
- *  glyph. */
-struct Cascade {
-  std::vector<float> outerOrder;  ///< outer unit → its place in the cascade
-  std::vector<float> innerOrder;  ///< inner unit → the same, within a beat
-  /** The author's start-time table at each level, in ms, or empty for the
-   *  even ladder above. A table names delays outright, so the order, the
-   *  spacing and the distribution curve have nothing left to say. */
-  std::vector<float> outerCue, innerCue;
-  choreograph::EaseFn outerDistribution, innerDistribution;
-  float outerEach = 0;  ///< ms between outer starts
-  float innerEach = 0;  ///< ms between inner starts
-  float duration = 1;   ///< ms one unit's own motion lasts
-  float beatMs = 1;     ///< ms one outer beat occupies
-  /** Ms the master progress spans: the one-shot closing span, or the loop
-   *  PERIOD when the cascade loops — either way, `master · totalMs` is the
-   *  virtual time every local clock reads. */
-  float totalMs = 1;
-  /** The wrapping period (`Stagger::loopMs`), or 0 for a one-shot cascade.
-   *  When set, `totalMs` IS this period and localTime() folds each unit's
-   *  elapsed time mod it, so every beat re-opens once per cycle. */
-  float loopMs = 0;
+/** The once-per-process diagnostic behind `onPath` plus a vertical
+ *  `writingMode`: a path run's baseline is its own geometry, so there are
+ *  no columns to advance and the path wins. */
+void warnWritingModeOnPath();
+/** The once-per-process diagnostic behind `flowAround` on vertical text:
+ *  exclusions are cut out of horizontal line bands, so the columns run
+ *  without them. */
+void warnFlowAroundVertical();
 
-  void build(const Stagger& spec, uint32_t outerCount, uint32_t innerCount);
-  /** When this unit's beat opens, in ms from the start of the master
-   *  progress — the outer delay plus, under a nested cascade, the inner
-   *  one. THE one place the schedule is arithmetic; everything that reports
-   *  a start time reads it here. */
-  [[nodiscard]] float startMs(uint32_t outerUnit, uint32_t innerUnit) const;
-  /** The local 0→1 this unit sees at master progress `master`. Clamped at
-   *  both ends for a one-shot cascade; a looping one folds the unit's
-   *  elapsed time mod `loopMs` first, so the answer re-opens at 0 once per
-   *  cycle and rests at 1 between its beat's close and its next opening. */
-  [[nodiscard]] float localTime(float master, uint32_t outerUnit,
-                                uint32_t innerUnit) const;
-};
-
-/** ONE TRACK'S CASCADE RESOLVED AGAINST A LAID-OUT PARAGRAPH: which beat
- *  every glyph falls in at each level, and the ladder those beats run on.
- *
- *  ONE BODY for the painter and for the `beatsOf` query. A second spelling
- *  would let a mark travelling beside a cascade be told a different
- *  schedule from the glyphs it is marking, which is the whole defect the
- *  query exists to close. Reused in place across frames: build() assigns
- *  into the per-glyph lanes rather than clearing them, so a page of
- *  animated type does not mint a pair of vectors per track per frame. */
-struct TrackCascade {
-  Cascade cascade;
-  std::vector<uint32_t> outerUnit;  ///< glyph → its beat
-  std::vector<uint32_t> innerUnit;  ///< glyph → its beat inside that beat;
-                                    ///< empty without a nested cascade
-
-  void build(const Stagger& spec, const GlyphStructure& structure,
-             const std::vector<uint8_t>& selected);
-};
-
-/** The composition algebra, in one place: offsets, rotations and shears ADD,
- *  scale, alpha and the colour multiplier MULTIPLY, the additive colour term
- *  ADDS and the screen term SCREENS. Stacked tracks, fx::mix, a seq
- *  crossfade and a keys segment all go through these two, so they cannot
- *  drift apart. */
-void compose(GlyphMod& into, const GlyphMod& next);
-GlyphMod lerpMod(const GlyphMod& a, const GlyphMod& b, float w);
-/** FIELD PIN for GlyphMod (see the FIELD PINS block above) — defined beside
- *  the two functions it guards, never called. */
-void glyphModFieldPin(GlyphMod& v);
-/** The seed an effect's Rng is constructed from — the glyph's identity plus
- *  the operand lane inside a composite. */
-uint64_t glyphSeed(const GlyphInfo& g, uint32_t lane = 0);
+/** Does this selector reach for a LINE, and therefore need a layout to
+ *  resolve against? The question the second layout pass is gated on. */
+bool selectorNeedsLayout(const Selector& selector);
 
 }  // namespace sigil::compose::detail

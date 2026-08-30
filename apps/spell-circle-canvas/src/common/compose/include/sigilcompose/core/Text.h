@@ -11,8 +11,11 @@
 #include <include/core/SkPoint.h>
 #include <include/core/SkRect.h>
 #include <include/core/SkSize.h>
+#include <sigilcompose/core/Erased.h>
 #include <sigilcompose/core/Motion.h>
+#include <sigilweave/layout/PositionedRun.h>
 #include <sigilweave/paragraph/Paragraph.h>
+#include <sigilweave/style/PaintStyle.h>
 #include <sigilweave/style/Style.h>
 
 #include <cstdint>
@@ -25,9 +28,20 @@
 #include <string_view>
 #include <vector>
 
+namespace sigil::weave {
+class FontContext;
+}  // namespace sigil::weave
+
+class SkCanvas;
+
 namespace sigil::compose {
 
 class Material;
+struct PaintContext;
+struct TextPath;
+namespace detail {
+struct Instance;
+}  // namespace detail
 
 // ---------------------------------------------------------------------------
 // TEXT FX — the multi-track per-glyph seam (presets in
@@ -1177,5 +1191,93 @@ class RichText {
 inline std::u8string toU8(std::string_view s) {
   return std::u8string(s.begin(), s.end());
 }
+
+// ---------------------------------------------------------------------------
+// THE TEXT PAINTER — the seam the kernel draws dressed type through
+
+namespace detail {
+/** ONE `rich()` RUN THAT WAS WRITTEN UNDER A STYLE NAME, and the text it
+ *  occupies — what `sel::style` resolves against.
+ *
+ *  The name is tied to the run's TEXT rather than to the style span it
+ *  produced, and that is the whole reason the answer holds up. Spans are
+ *  cut and merged by every `spanPaint` and `spanStyle` the leaf declares,
+ *  so a span index is a number about the paragraph's current normal form;
+ *  a run's extent is a fact about the content that only new content
+ *  changes. Re-registering the name against a different style, or a restyle
+ *  slicing across the run, leaves this untouched.
+ *
+ *  Built as the runs are appended, in declaration order. Empty for every
+ *  content form that carries no names. */
+struct NamedRun {
+  std::string name;
+  sigil::weave::CharRange chars;
+};
+}  // namespace detail
+
+/** WHAT THE KERNEL ASKS OF DRESSED TYPE — every operation the composer
+ *  needs from text that is not simply resting on its own straight baseline:
+ *  a run carrying fx() tracks, riding a path, anchoring marks, or restyled
+ *  by selector. The kernel holds the paragraph, lays it out and draws it at
+ *  rest by itself; everything below is answered by the value a text verb
+ *  installs on the description (`fx()`, `onPath()`, `mark()`, `spanStyle()`,
+ *  `spanPaint()`, `variationDrive()`). A text node carrying none of those
+ *  has no painter, and the kernel then draws its paragraph at rest, resolves
+ *  no marks and restyles nothing — the same picture a painter would draw for
+ *  a description with nothing to dress.
+ *
+ *  The instance handed in is the kernel's retained node for the text; the
+ *  painter reads its paragraph and layout and keeps its own engine state on
+ *  it. */
+class TextPainterOps {
+ public:
+  virtual ~TextPainterOps() = default;
+  /** THE GLYPH DRAW for dressed text: the rest pose comes from the baseline
+   *  — level on a plain run, on the curve and turned to it on a path run —
+   *  and every fx() track's deviation applies on top of it. @p override is
+   *  the glyph-paint override textFill()/textStroke() ask for, or null;
+   *  @p onPath is null for text with no baseline path; @p size is the
+   *  node's box; @p ctx is the node's paint context. */
+  virtual void paint(detail::Instance& inst, SkCanvas& canvas,
+                     const sigil::weave::PaintStyle* override,
+                     const TextPath* onPath, SkSize size,
+                     const PaintContext& ctx) const = 0;
+  /** WHERE EACH mark() ANCHORS: refills the instance's mark rects from the
+   *  layout the letters are drawn from, one rect per anchor. */
+  virtual void marks(detail::Instance& inst) const = 0;
+  /** WHICH TEXT A SELECTOR ADDRESSES, as UTF-16 ranges — sorted, merged,
+   *  non-overlapping. `sel::line` reads @p lines, or @p columns where the
+   *  passage is vertical; `sel::style` reads @p named. */
+  virtual std::vector<sigil::weave::CharRange> ranges(
+      const Selector& selector, sigil::weave::Paragraph& paragraph,
+      sigil::weave::FontContext& fonts,
+      std::span<const sigil::weave::LineMetrics> lines,
+      std::span<const sigil::weave::ColumnMetrics> columns,
+      std::span<const detail::NamedRun> named) const = 0;
+  /** Whether a restyle to @p style over @p ranges can be carried as
+   *  draw-time axis tracks instead of re-shaping the text it covers: the
+   *  style must differ from every covered span's only in variable-font
+   *  axes, drop none the text was shaped with, and every axis it moves must
+   *  be advance-invariant on that span's face. On success @p axes holds one
+   *  (tag, coordinate) per axis that actually changes. */
+  virtual bool foldable(
+      detail::Instance& inst, const sigil::weave::TextStyle& style,
+      std::span<const sigil::weave::CharRange> ranges,
+      const sigil::weave::Paragraph& paragraph,
+      std::vector<std::pair<std::string, float>>& axes) const = 0;
+  /** THE SCHEDULE ONE TRACK IS RUNNING, resolved against the layout the
+   *  last draw produced; rects in the node's own space. */
+  virtual std::vector<Beat> beats(detail::Instance& inst,
+                                  size_t trackIndex) const = 0;
+  /** THE SAME SCHEDULE'S WHOLE VIRTUAL SPAN in ms; 0 wherever beats()
+   *  answers empty. */
+  virtual float cascadeSpanMs(detail::Instance& inst,
+                              size_t trackIndex) const = 0;
+};
+
+/** The painter as a description carries it: a comparable value, excluded
+ *  from structural equality because it is the same engine on every text
+ *  that has one. */
+using TextPainter = Erased<TextPainterOps>;
 
 }  // namespace sigil::compose

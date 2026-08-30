@@ -1,7 +1,8 @@
 /** @file
  * band() — the strand region cut either side of a spine: the rails, their
  * arc-length sampling, the region between them, the point on a rail, the
- * profile offset and the two band factories.
+ * profile offset, the two band factories, and `across()`, which installs the
+ * engine that sweeps a width profile on the value it returns.
  */
 
 #include <include/core/SkContourMeasure.h>
@@ -21,6 +22,7 @@
 #include <set>
 
 #include "ComposeInternal.h"
+#include "SpanArithmetic.h"
 #include "SpanContours.h"
 #include "sigilgeometry/path/Contour.h"
 
@@ -273,6 +275,17 @@ SkPath profileOffset(const SkPath& spine, const Profile& profile) {
     if (started && contour->isClosed()) out.close();
   }
   return out.detach();
+}
+
+Across across(float px) {
+  Across out{strand::offset(px)};
+  out.resolver = detail::strokeResolver();
+  return out;
+}
+Across across(Profile p) {
+  Across out{std::move(p)};
+  out.resolver = detail::strokeResolver();
+  return out;
 }
 
 Element band(Shape spine, Across width) {
