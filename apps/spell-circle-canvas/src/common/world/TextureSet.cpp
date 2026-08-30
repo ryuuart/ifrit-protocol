@@ -268,8 +268,8 @@ Material material(const std::map<std::string, sk_sp<SkImage>>& byUsage,
       normalDirectX);
 }
 
-Material material(const geometry::import::Part& part, const BytesDecoder& decode,
-                  Material base) {
+Material material(const geometry::import::Part& part,
+                  const BytesDecoder& decode, Material base) {
   Material m = std::move(base);
   m.baseColor = part.baseColor;
   m.metallic = part.metallic;

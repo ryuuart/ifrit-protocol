@@ -29,9 +29,9 @@
  */
 
 #include <sigilcompose/core/Element.h>
+#include <sigilcompose/core/Env.h>
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/core/Measure.h>
-#include <sigilcompose/core/Env.h>
 
 #include <chrono>
 #include <cmath>

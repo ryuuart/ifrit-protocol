@@ -569,13 +569,18 @@ struct ShippingForecast : sigil::compose::sketch::Sketch {
    *  would re-break the passage and the cascade would follow it.
    *
    *  THE PRESSURES ARE PICKED OUT TWICE, and neither pick moves a letter: a
-   *  colour by `spanPaint` and a grade by a `spanStyle` that changes nothing
-   *  but the grade. A millibar reading is
-   *  the one quantity in a synopsis a reader looks for rather than reads,
-   *  and it wants the weight a colour alone cannot carry. GRAD is
-   *  advance-invariant, so the whole numeral thickens where the paragraph
-   *  already set it — a heavier FACE would be a `spanStyle`, and would
-   *  re-break the passage the line cascade is beating over. */
+   *  grade by a `spanStyle` that changes nothing but the grade, then a
+   *  colour by `spanPaint`. The order is the point: a restyle is measured
+   *  against the text as the earlier declarations left it, so the grade is
+   *  declared first, while the numerals still wear the base paint and differ
+   *  from `graded` in the axis alone; declared after the colour it would
+   *  differ in paint as well, re-shape, and — later winning — put the base
+   *  paint back over the amber. A millibar reading is the one quantity in a
+   *  synopsis a reader looks for rather than reads, and it wants the weight
+   *  a colour alone cannot carry. GRAD is advance-invariant, so the whole
+   *  numeral thickens where the paragraph already set it — a heavier FACE
+   *  would be a `spanStyle`, and would re-break the passage the line cascade
+   *  is beating over. */
   [[nodiscard]] Element synopsis() {
     const sigil::weave::StyleSet set = forecastStyles();
     sigil::weave::TextStyle graded = set.base();
@@ -602,9 +607,9 @@ struct ShippingForecast : sigil::compose::sketch::Sketch {
                    .key("synopsis")
                    .width(pct(100))
                    .lineBreak(sigil::weave::LineBreakStrategy::kKnuthPlass)
+                   .spanStyle(sel::regex(u8"[0-9]+"), graded)
                    .spanPaint(sel::regex(u8"[0-9]+"),
                               sigil::weave::PaintStyle(kAmber.toSkColor()))
-                   .spanStyle(sel::regex(u8"[0-9]+"), graded)
                    .fx({.effect = fx::slide(-22.0f),
                         .stagger = stagger(unit::Line,
                                            {.eachMs = 150, .durationMs = 620}),

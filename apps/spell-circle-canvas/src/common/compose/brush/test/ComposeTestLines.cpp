@@ -433,7 +433,9 @@ TEST(ComposeMotion, StaggerChildrenCascadesEntrances) {
   EXPECT_EQ(host.pixel(30, 55), SK_ColorRED);
 }
 
+#include <sigilcompose/brush/Hatches.h>
 #include <sigilcompose/brush/Lines.h>
+#include <sigilcompose/brush/Rails.h>
 
 // ---------------------------------------------------------------------------
 // Line patterns (Lines.h) — the beyond-dashes stroke vocabulary.

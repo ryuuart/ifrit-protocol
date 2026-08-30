@@ -1,3 +1,6 @@
+#include <sigilcompose/brush/Hatches.h>
+#include <sigilcompose/brush/Rails.h>
+
 #include "support/DocsTestSupport.h"
 
 // Value semantics and cache invalidation around Element itself.

@@ -97,8 +97,8 @@ class Node {
   glm::mat4 m_extra{1.0f};
   bool m_hasExtra = false;
   std::shared_ptr<const geometry::Mesh> m_mesh;  // Prop
-  Material m_material;                        // Prop + Panel
-  float m_panelWidth = 0, m_panelHeight = 0;  // Panel
+  Material m_material;                           // Prop + Panel
+  float m_panelWidth = 0, m_panelHeight = 0;     // Panel
   std::vector<Node> m_children;
 };
 
@@ -219,7 +219,8 @@ class Scene {
 
   World& m_world;
   std::map<std::string, Entry> m_entries;
-  std::map<std::pair<float, float>, std::shared_ptr<const geometry::Mesh>> m_quads;
+  std::map<std::pair<float, float>, std::shared_ptr<const geometry::Mesh>>
+      m_quads;
   std::set<std::string> m_warnedOutranked;
 };
 

@@ -2,6 +2,8 @@
 // subjects are brush-tier values, cut from that file so each test binary links
 // only the target it exercises.
 
+#include <sigilcompose/brush/Hatches.h>
+
 #include "support/BrushTestSupport.h"
 
 TEST(ComposeDecorations, RadialHatchFansOutOfAPointAndRingsRoundIt) {

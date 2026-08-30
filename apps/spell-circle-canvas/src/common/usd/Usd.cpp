@@ -684,14 +684,13 @@ void readMaterial(const UsdShadeMaterial& material,
 
 }  // namespace
 
-std::optional<geometry::import::Model> readModel(const std::filesystem::path& file,
-                                              std::string* error) {
+std::optional<geometry::import::Model> readModel(
+    const std::filesystem::path& file, std::string* error) {
   return readModel(file, nullptr, error);
 }
 
-std::optional<geometry::import::Model> readModel(const std::filesystem::path& file,
-                                              ReadInfo* info,
-                                              std::string* error) {
+std::optional<geometry::import::Model> readModel(
+    const std::filesystem::path& file, ReadInfo* info, std::string* error) {
   UsdStageRefPtr stage = UsdStage::Open(file.string());
   if (!stage) {
     if (error) *error = "cannot open " + file.string();

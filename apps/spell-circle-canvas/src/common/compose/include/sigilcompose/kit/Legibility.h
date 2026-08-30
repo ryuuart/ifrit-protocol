@@ -32,6 +32,7 @@
 #include <include/core/SkPaint.h>
 #include <include/core/SkTextBlob.h>
 #include <sigilcompose/core/Element.h>
+#include <sigilcompose/core/Factories.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/Shape.h>
 

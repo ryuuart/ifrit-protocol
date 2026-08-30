@@ -146,6 +146,7 @@
 #include <include/core/SkSurface.h>
 #include <sigilcompose/brush/Brushes.h>
 #include <sigilcompose/brush/Decorations.h>
+#include <sigilcompose/brush/Hatches.h>
 #include <sigilcompose/brush/Lines.h>
 #include <sigilcompose/core/Material.h>
 #include <sigilcompose/kit/Strokes.h>

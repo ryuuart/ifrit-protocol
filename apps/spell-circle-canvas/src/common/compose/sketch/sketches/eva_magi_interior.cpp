@@ -239,7 +239,9 @@
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilcompose/brush/Brushes.h>
 #include <sigilcompose/brush/Decorations.h>
+#include <sigilcompose/brush/Hatches.h>
 #include <sigilcompose/brush/Lines.h>
+#include <sigilcompose/brush/Rails.h>
 #include <sigilcompose/core/Material.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/shape/Routers.h>

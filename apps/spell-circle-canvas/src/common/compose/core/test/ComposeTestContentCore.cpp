@@ -761,7 +761,8 @@ TEST(ComposeCullRect, PictureCullDoesNotCullWithoutABbh) {
   EXPECT_EQ(replayPixel(pic, 170, 20), SK_ColorRED);
 
   // (3) an EMPTY cull rect does not reject either — the zero-size-node
-  // guard in StackingPainter.cpp is justified by promotion, not by op rejection.
+  // guard in StackingPainter.cpp is justified by promotion, not by op
+  // rejection.
   sk_sp<SkPicture> empty = escapingPicture(SkRect::MakeWH(0, 0), nullptr);
   EXPECT_EQ(empty->approximateOpCount(true), 1);
   EXPECT_EQ(replayPixel(empty, 170, 20), SK_ColorRED);

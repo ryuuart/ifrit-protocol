@@ -48,11 +48,19 @@ TEST(Stress, KnuthPlassFullyPlacedIsLinear) {
       kIterationCount;
   // A loose ceiling: it is here to catch a super-linear active list, not to
   // police small regressions. Debug builds do the same work with unelided
-  // container and iterator overhead, so they get their own bound.
+  // container and iterator overhead, so they get their own bound, and a
+  // sanitizer instruments every memory access on top of that, so an
+  // instrumented build gets the Debug bound widened by a constant factor.
+  // A super-linear active list exceeds any of these by orders of magnitude.
 #ifdef NDEBUG
-  const double maximumMicroseconds = 8000.0;
+  double maximumMicroseconds = 8000.0;
 #else
-  const double maximumMicroseconds = 80000.0;
+  double maximumMicroseconds = 80000.0;
+#endif
+#if defined(__has_feature)
+#if __has_feature(thread_sanitizer) || __has_feature(address_sanitizer)
+  maximumMicroseconds *= 4.0;
+#endif
 #endif
   EXPECT_LT(averageMicroseconds, maximumMicroseconds)
       << "KP active list grows with the paragraph";
