@@ -403,3 +403,33 @@ TEST(UniformBlock, RevisionAdvancesOnCommitOnly) {
   EXPECT_EQ(ro.values()[1], 2.0f);
   EXPECT_EQ(ro.values()[0], 0.0f);
 }
+
+TEST(Combine, StacksMaterialsThroughAMask) {
+  const std::shared_ptr<const Recipe> r = twoRecipe();
+  const Material base(r, TwoParams{1, {1, 0, 0, 1}});
+  const Material top(r, TwoParams{1, {0, 0, 1, 1}});
+  const Material mask(r, TwoParams{0.5f, {1, 1, 1, 1}});
+  const Material stack = over(base, top, mask);
+  // The operands are the result's children, so every query answers over
+  // the whole stack.
+  EXPECT_EQ(stack.children().size(), 3u);
+  ASSERT_NE(stack.child("base"), nullptr);
+  EXPECT_EQ(*stack.child("base"), base);
+  EXPECT_EQ(*stack.child("top"), top);
+  EXPECT_EQ(*stack.child("mask"), mask);
+  EXPECT_EQ(stack, over(base, top, mask));
+  // A different blend is a different recipe, so a different material.
+  EXPECT_FALSE(stack == over(base, top, mask, Blend::Add));
+  EXPECT_NE(overRecipe(Blend::Mix), overRecipe(Blend::Multiply));
+  EXPECT_EQ(name(Blend::Multiply), "multiply");
+
+  EXPECT_EQ(stackDepth(base), 0);
+  EXPECT_EQ(*under(base), base);
+  EXPECT_EQ(stackDepth(stack), 1);
+  EXPECT_EQ(*under(stack), base);
+  const Material deeper = over(stack, top, mask, Blend::Add);
+  EXPECT_EQ(stackDepth(deeper), 2);
+  // One step down, so walking it repeatedly reaches the bottom.
+  EXPECT_EQ(*under(deeper), stack);
+  EXPECT_EQ(*under(*under(deeper)), base);
+}

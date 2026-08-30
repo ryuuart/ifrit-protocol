@@ -18,8 +18,6 @@
 #include <optional>
 #include <vector>
 
-#include "sigilgeometry/path/Untiered.h"
-
 class SkPathBuilder;
 
 namespace sigil::geometry::path {

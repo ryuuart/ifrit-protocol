@@ -2,7 +2,7 @@
  "config": "Release",
  "host": "MacBookPro.lan",
  "machine": "arm64",
- "taken": "2026-08-30T18:09:23+00:00",
+ "taken": "2026-08-30T18:32:23+00:00",
  "benches": {
   "compose_brush_bench": {
    "BM_Draw_ArtWarp_Live": {
@@ -2012,50 +2012,74 @@
   },
   "material_core_bench": {
    "BM_Resolve_Live/0": {
-    "real_ns": 40.6736280685685,
-    "cpu_ns": 38.831255131952844,
+    "real_ns": 36.474499257632985,
+    "cpu_ns": 36.461924116880155,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Resolve_Live/4": {
-    "real_ns": 59.12699938774059,
-    "cpu_ns": 53.882351376326085,
+    "real_ns": 49.461209626349756,
+    "cpu_ns": 49.45228671578218,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Resolve_Live/16": {
-    "real_ns": 99.94119754723238,
-    "cpu_ns": 95.87236915594788,
+    "real_ns": 86.98935564445335,
+    "cpu_ns": 86.97112155809255,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Resolve_Memo/0": {
-    "real_ns": 15.763613581057609,
-    "cpu_ns": 15.117997353877039,
+    "real_ns": 13.769571911575362,
+    "cpu_ns": 13.750649607516825,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Resolve_Memo/4": {
-    "real_ns": 17.40569749686287,
-    "cpu_ns": 16.48500094942797,
+    "real_ns": 14.706543382665128,
+    "cpu_ns": 14.703168588112941,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Resolve_Memo/16": {
-    "real_ns": 30.977805629063226,
-    "cpu_ns": 30.784698067828685,
+    "real_ns": 29.250067142125047,
+    "cpu_ns": 29.246751049683333,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Declare/4": {
-    "real_ns": 188.5015875966472,
-    "cpu_ns": 178.54492192299892,
+    "real_ns": 172.11157185769258,
+    "cpu_ns": 172.06715459729497,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Declare/16": {
-    "real_ns": 687.8854201427621,
-    "cpu_ns": 662.630768534026,
+    "real_ns": 633.7354020928576,
+    "cpu_ns": 633.600071727972,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_Over_Build/1": {
+    "real_ns": 390.61229251190684,
+    "cpu_ns": 390.5693578027717,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_Over_Build/4": {
+    "real_ns": 1447.5548770458468,
+    "cpu_ns": 1447.3107331719416,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_Over_Under/1": {
+    "real_ns": 17.325390680366795,
+    "cpu_ns": 17.32075281070823,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_Over_Under/4": {
+    "real_ns": 51.905517540615286,
+    "cpu_ns": 51.85579569886514,
     "unit": "ns",
     "repetitions": 4
    }
@@ -2094,32 +2118,62 @@
   },
   "material_kit_bench": {
    "SurfaceBuild/0": {
-    "real_ns": 257.85280552910206,
-    "cpu_ns": 256.39297673236297,
+    "real_ns": 254.0935860328433,
+    "cpu_ns": 253.87430856870282,
     "unit": "ns",
     "repetitions": 4
    },
    "SurfaceBuild/1": {
-    "real_ns": 255.7358087932792,
-    "cpu_ns": 254.8219112035324,
+    "real_ns": 251.98356657173545,
+    "cpu_ns": 251.34905391373604,
     "unit": "ns",
     "repetitions": 4
    },
    "SurfaceShader": {
-    "real_ns": 420.399793254892,
-    "cpu_ns": 411.87748490649454,
+    "real_ns": 434.1423867206046,
+    "cpu_ns": 432.6784086619464,
     "unit": "ns",
     "repetitions": 4
    },
    "BadgeFill/32": {
-    "real_ns": 310354.3983473043,
-    "cpu_ns": 309158.4821428562,
+    "real_ns": 301559.9458888974,
+    "cpu_ns": 301441.93548387184,
     "unit": "ns",
     "repetitions": 4
    },
    "BadgeFill/128": {
-    "real_ns": 3899282.989247392,
-    "cpu_ns": 3887583.333333339,
+    "real_ns": 3802346.8396450216,
+    "cpu_ns": 3800986.486486494,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "PbrBuild/0": {
+    "real_ns": 1128.1446920680387,
+    "cpu_ns": 1127.9974622958234,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "PbrBuild/1": {
+    "real_ns": 1110.0589048533345,
+    "cpu_ns": 1108.6790069858341,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "MaskBuild": {
+    "real_ns": 70.80914364633813,
+    "cpu_ns": 70.79375233276119,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "StackShader/0": {
+    "real_ns": 1021.4337695840009,
+    "cpu_ns": 1019.8850058655817,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "StackShader/2": {
+    "real_ns": 3900.515613818172,
+    "cpu_ns": 3898.1904231625654,
     "unit": "ns",
     "repetitions": 4
    }
@@ -3374,6 +3428,26 @@
     "real_ns": 23940.895599397743,
     "repetitions": 4,
     "unit": "us"
+   }
+  },
+  "world_light_bench": {
+   "BM_Attenuation/0": {
+    "real_ns": 3690.384461477947,
+    "cpu_ns": 3689.4001210813076,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_Attenuation/1": {
+    "real_ns": 3688.6952024263724,
+    "cpu_ns": 3681.901953556946,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_Attenuation/2": {
+    "real_ns": 10532.8802576081,
+    "cpu_ns": 10529.588465004508,
+    "unit": "ns",
+    "repetitions": 4
    }
   }
  }

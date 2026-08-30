@@ -12,7 +12,11 @@ point-operator chain execute as compute dispatches whose
 results never travel back through the CPU.
 
 Namespace `sigil::world`, target `SigilWorld`, headers under
-`include/sigilworld/`. The backend is
+`include/sigilworld/`. One feature stands apart: `SigilWorldLight`
+(`sigil::world::light`, `include/sigilworld/light/`) is emitters as plain
+comparable values over glm alone — no device, no registry — so a consumer
+that only needs to say where the lights are links it without the
+renderer. The backend is
 [Diligent Engine](https://github.com/DiligentGraphics/DiligentEngine) on
 Vulkan — through MoltenVK on macOS.
 
@@ -222,6 +226,8 @@ what makes a headless frame sequence reproducible.
 | `sigilworld/Animation.h` | Declared motion: the six `Animated*` components, `CameraPath`, `AnimationStats`, `resolveValue`, both `resolveAnimation` overloads, and the SigilMotion value vocabulary re-exported into `sigil::world`. |
 | `sigilworld/Easel.h` | Header-only fluent stage: `easel::stage()`, `easel::Stage`. |
 | `sigilworld/TextureSet.h` | The tools' texture sets read back into a world `Material`: `material()` from a set, from usage-keyed images, or from an imported `geometry::mesh::codec::decode::Part` (glTF's material, factors and all). The vocabulary it reads — `textures::Role`, `classify()` a file name, `roleForUsage()` a channel word, `discover()` a folder into `TextureSet`s — is SigilMaterial's, spelled here under the same names. |
+| `sigilworld/light/Light.h` | Emitters as values: `light::Light`, its `Kind`, the `sun`/`point`/`spot` factories, `attenuation()` and `radiance()`, and the `kBudget` count. Nothing else in this library is needed to use them. |
+| `sigilworld/Adapt.h` | Transitional. `surfaceOf(Material)`, `maskOf(Mask)`, `lightOf(LightComponent)` and `sunOf(Lighting)` — this library's own structs handed over as the values that own those subjects, for a consumer that takes those (`SigilUsd`'s writer does). |
 
 ## Conventions that will bite you
 
@@ -449,10 +455,23 @@ live `Animated*` component, `render()` warns once per node.
 
 Public dependencies: `SigilGeometry` (the mesh, cloud, chain, spline and
 camera types), Skia (`SkImage` in and out), `EnTT` (the registry is
-public API), and `SigilMotion` — public because `Animatable` appears in
-the component surface, and safe to expose because SigilMotion links a
-timeline library and nothing else. Private: Diligent Engine's core and
-the Vulkan headers.
+public API), `SigilMotion` — public because `Animatable` appears in the
+component surface, and safe to expose because SigilMotion links a
+timeline library and nothing else — `SigilMaterialKit`, whose texture-set
+vocabulary `TextureSet.h` spells and whose surface recipe `Adapt.h` hands
+values over as, and `SigilWorldLight`. Private: Diligent Engine's core
+and the Vulkan headers.
+
+**The shading model is not defined here.** The metallic-roughness
+surface, its masks and the stacking combinator belong to SigilMaterial:
+`material::kit::surface` / `unlit` carry the params and the map slots,
+`material::kit::maskConstant` and its siblings say where, and
+`material::over` stacks them. What this library holds is a struct of the
+same fields that the device pipeline reads directly, and `Adapt.h`
+converts one to the other. The two follow the same rules — the packed
+occlusion-roughness-metallic channels, the scalars a present map starts
+at one, the normal convention — and the kit's copy is the canon; this
+one goes away with the struct it serves.
 
 The Vulkan loader is vendored (`thirdparty/volk`) and compiled through
 `VolkShim.c`, which replaces the stock initializer with one that also
@@ -488,15 +507,18 @@ count-changing operators.
 
 ## Build and test
 
-Targets are `SigilWorld`, `world_test` (registered with ctest),
-`world_demo`, and `world_bench` (Google Benchmark: GPU cooks per frame by
-count and operator mix, `readChain`, and a point-set re-upload; skips
-without a Vulkan runtime — run it from a Release build). From `apps/spell-circle-canvas`:
+Targets are `SigilWorld`, `SigilWorldLight`, `world_test` and
+`world_light_test` (both registered with ctest), `world_demo`,
+`world_bench` (Google Benchmark: GPU cooks per frame by count and
+operator mix, `readChain`, and a point-set re-upload; skips without a
+Vulkan runtime — run it from a Release build) and `world_light_bench`
+(the falloff per light per shaded point, by kind; no device needed).
+From `apps/spell-circle-canvas`:
 
 ```sh
 python3 scripts/setup.py --config Debug
 cmake --build build --config Debug
-ctest --test-dir build -C Debug -R world_test --output-on-failure
+ctest --test-dir build -C Debug -R world_ --output-on-failure
 ```
 
 Running anything device-backed needs a Vulkan runtime. On macOS:

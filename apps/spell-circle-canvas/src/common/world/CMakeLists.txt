@@ -10,11 +10,22 @@
 # DYLD environment surgery.
 enable_language(C)
 
+# Every public header lives under one include root, include/sigilworld/,
+# and a feature spells its own directory under it.
+set(SIGIL_WORLD_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/include)
+
+# The light feature stands alone: emitter VALUES over glm, with no
+# device and no registry, so a consumer that only needs to say where the
+# lights are links it without the renderer.
+add_subdirectory(light)
+
 add_library(SigilWorld STATIC
+  Adapt.cpp
   Scene.cpp
   TextureSet.cpp
   VolkShim.c
   World.cpp
+  include/sigilworld/Adapt.h
   include/sigilworld/Animation.h
   include/sigilworld/Components.h
   include/sigilworld/Easel.h
@@ -44,15 +55,15 @@ endif()
 
 # SigilMotion is PUBLIC because Animation.h puts motion::Animatable in
 # the public component surface. It links choreograph and nothing else —
-# no Skia, no Yoga, no kernel — which is exactly why the animation
-# VALUES could move out of SigilCompose (2026-07-29) and land here.
-# SigilWorld stays compose-free; world_test links SigilComposeCore
-# TEST-ONLY, below.
-# SigilMaterialTexture is PUBLIC because TextureSet.h spells the texture
-# set vocabulary — roles, classification, discovery — that lives there.
+# no Skia, no Yoga, no kernel. SigilWorld stays compose-free; world_test
+# links SigilComposeCore TEST-ONLY, below.
+# SigilMaterialKit is PUBLIC because TextureSet.h spells the texture set
+# vocabulary — roles, classification, discovery — that lives in the
+# texture feature beneath it, and Adapt.h hands World's values over as
+# the kit's surface materials and the light feature's emitters.
 target_link_libraries(SigilWorld
-  PUBLIC SigilGeometry SigilMaterialTexture unofficial::skia::skia
-         EnTT::EnTT SigilMotion
+  PUBLIC SigilGeometry SigilMaterialKit SigilWorldLight
+         unofficial::skia::skia EnTT::EnTT SigilMotion
   PRIVATE unofficial::diligent-engine::DiligentCore Vulkan::Headers
 )
 

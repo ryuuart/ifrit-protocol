@@ -10,6 +10,7 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
 #include <sigilgeometry/mesh/Mesh.h>
+#include <sigilmaterial/kit/Surface.h>
 #include <sigilusd/read/Reader.h>
 #include <sigilusd/runtime/Runtime.h>
 #include <sigilusd/write/Writer.h>
@@ -39,9 +40,9 @@ sk_sp<SkImage> solid(SkColor color) {
   return surface->makeImageSnapshot();
 }
 
-const geometry::decode::Part* named(const geometry::decode::Model& model,
-                                    const char* name) {
-  for (const geometry::decode::Part& part : model.parts)
+const geometry::mesh::codec::decode::Part* named(
+    const geometry::mesh::codec::decode::Model& model, const char* name) {
+  for (const geometry::mesh::codec::decode::Part& part : model.parts)
     if (part.name == name) return &part;
   return nullptr;
 }
@@ -59,14 +60,14 @@ TEST(UsdRead, ReadsAHandAuthoredStage) {
   SKIP_WITHOUT_USD();
   usd::ReadInfo info;
   std::string error;
-  const std::optional<geometry::decode::Model> model =
+  const std::optional<geometry::mesh::codec::decode::Model> model =
       usd::readModel(asset("fixture.usda"), &info, &error);
   ASSERT_TRUE(model) << error;
   ASSERT_EQ(model->parts.size(), 2u);
 
   // The quad: two faces (a triangle and a quad) fan to three triangles,
   // unwelded to one vertex per face-vertex.
-  const geometry::decode::Part* plate = named(*model, "plate");
+  const geometry::mesh::codec::decode::Part* plate = named(*model, "plate");
   ASSERT_TRUE(plate);
   EXPECT_EQ(plate->mesh.triangleCount(), 3u);
   EXPECT_EQ(plate->mesh.vertexCount(), 7u);
@@ -103,7 +104,7 @@ TEST(UsdRead, ReadsAHandAuthoredStage) {
 
   // The textured sphere binds one material over the whole mesh: the
   // PNG beside the stage is read into the part.
-  const geometry::decode::Part* ball = named(*model, "ball");
+  const geometry::mesh::codec::decode::Part* ball = named(*model, "ball");
   ASSERT_TRUE(ball);
   EXPECT_EQ(ball->materialIndex, 1);
   EXPECT_EQ(ball->textureUri, "checker.png");
@@ -115,10 +116,10 @@ TEST(UsdRead, ReadsAHandAuthoredStage) {
 
 TEST(UsdRead, ReadsAnInstancerAsAFacelessPart) {
   SKIP_WITHOUT_USD();
-  const std::optional<geometry::decode::Model> model =
+  const std::optional<geometry::mesh::codec::decode::Model> model =
       usd::readModel(asset("instancer.usda"));
   ASSERT_TRUE(model);
-  const geometry::decode::Part* sparks = named(*model, "sparks");
+  const geometry::mesh::codec::decode::Part* sparks = named(*model, "sparks");
   ASSERT_TRUE(sparks);
   EXPECT_EQ(sparks->mesh.vertexCount(), 3u);
   EXPECT_EQ(sparks->mesh.triangleCount(), 0u);
@@ -133,15 +134,17 @@ TEST(UsdRead, ReadsAnInstancerAsAFacelessPart) {
 TEST(UsdRead, RoundTripsWhatTheWriterAuthors) {
   SKIP_WITHOUT_USD();
   const std::filesystem::path file = scratch("slots.usdc");
-  geometry::Mesh torus = geometry::mesh::torus(100, 40, 24, 12);
+  geometry::mesh::Mesh torus = geometry::mesh::torus(100, 40, 24, 12);
   std::vector<glm::vec4>& lane = torus.prim("Material", {0, 0, 0, 0});
   for (size_t t = 0; t < lane.size(); ++t) lane[t] = {(float)(t % 2), 0, 0, 0};
-  world::Material red;
-  red.baseColor = {1, 0, 0, 1};
-  red.roughness = 0.3f;
-  red.metallic = 0.75f;
-  world::Material tex;
-  tex.texture = solid(SK_ColorBLUE);
+  material::kit::SurfaceParams redParams;
+  redParams.baseColor = {1, 0, 0, 1};
+  redParams.roughness = 0.3f;
+  redParams.metallic = 0.75f;
+  const material::Material red = material::kit::surface(redParams);
+  material::Material tex = material::kit::surface();
+  tex.child(material::kit::kBaseColorSlot,
+            material::Texture::of(solid(SK_ColorBLUE)));
   {
     usd::Writer writer(file);
     writer.mesh("ring", torus, glm::translate(glm::mat4(1.0f), {10, 20, 30}),
@@ -151,11 +154,11 @@ TEST(UsdRead, RoundTripsWhatTheWriterAuthors) {
   }
   usd::ReadInfo info;
   std::string error;
-  const std::optional<geometry::decode::Model> back =
+  const std::optional<geometry::mesh::codec::decode::Model> back =
       usd::readModel(file, &info, &error);
   ASSERT_TRUE(back) << error;
   ASSERT_EQ(back->parts.size(), 1u);
-  const geometry::decode::Part& part = back->parts.front();
+  const geometry::mesh::codec::decode::Part& part = back->parts.front();
   EXPECT_EQ(part.mesh.triangleCount(), torus.triangleCount());
   EXPECT_EQ(part.mesh.vertexCount(), torus.triangleCount() * 3);  // unwelded
   const std::vector<glm::vec4>* slots = part.mesh.primIf("Material");

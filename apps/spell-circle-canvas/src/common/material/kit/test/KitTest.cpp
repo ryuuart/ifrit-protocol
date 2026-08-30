@@ -10,8 +10,11 @@
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
+#include <sigilmaterial/core/Combine.h>
 #include <sigilmaterial/kit/LayerStyles.h>
+#include <sigilmaterial/kit/Mask.h>
 #include <sigilmaterial/kit/Patterns.h>
+#include <sigilmaterial/kit/Surface.h>
 #include <sigilmaterial/kit/Surfaces.h>
 #include <sigilmaterial/kit/TextPaint.h>
 #include <sigilmaterial/skia/Draw.h>
@@ -134,4 +137,97 @@ TEST(TextPaint, EveryPaintCompilesAndMovesWithTheClock) {
   EXPECT_EQ(p.origin, glm::vec2(10, 20));
   EXPECT_EQ(p.extent, glm::vec2(100, 40));
   EXPECT_FLOAT_EQ(p.motion.x, std::sin(2.0f * 0.83f));
+}
+
+TEST(Surface, BothRecipesCompileAndShade) {
+  skia::install();
+  kit::SurfaceParams params;
+  params.baseColor = {0.2f, 0.6f, 0.9f, 1};
+  params.emissive = {1, 0.5f, 0, 1};
+  params.emissiveStrength = 0.5f;
+  for (const Material& m : {kit::surface(params), kit::unlit(params)}) {
+    EXPECT_TRUE(skia::shader(m, {}));
+    // Every declared slot is dressed, so no body evaluates an unbound
+    // child.
+    EXPECT_EQ(m.children().size(), m.recipe().children().size());
+  }
+  EXPECT_TRUE(kit::isSurface(kit::surface(params)));
+  EXPECT_FALSE(kit::isUnlit(kit::surface(params)));
+  EXPECT_TRUE(kit::isUnlit(kit::unlit(params)));
+  EXPECT_EQ(kit::surface(params), kit::surface(params));
+  EXPECT_FALSE(kit::surface(params) == kit::unlit(params));
+}
+
+TEST(Surface, DressesADecodedSet) {
+  const sk_sp<SkImage> image = [] {
+    sk_sp<SkSurface> s = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(2, 2));
+    s->getCanvas()->clear(SK_ColorGRAY);
+    return s->makeImageSnapshot();
+  }();
+  textures::TextureMaps maps;
+  maps.normalDirectX = true;
+  maps.maps[textures::Role::BaseColor] = Texture::of(image);
+  maps.maps[textures::Role::Packed] = Texture::of(image);
+  maps.maps[textures::Role::Emissive] = Texture::of(image);
+  const Material m = kit::surface(maps);
+  // The packed image stands in for all three channel maps, at glTF's
+  // order, and the scalars a map multiplies come up off zero.
+  EXPECT_FLOAT_EQ(m.get<float>("occlusionChannel"), 0.0f);
+  EXPECT_FLOAT_EQ(m.get<float>("roughnessChannel"), 1.0f);
+  EXPECT_FLOAT_EQ(m.get<float>("metallicChannel"), 2.0f);
+  EXPECT_FLOAT_EQ(m.get<float>("metallic"), 1.0f);
+  EXPECT_FLOAT_EQ(m.get<float>("normalDirectX"), 1.0f);
+  EXPECT_FLOAT_EQ(m.get<float>("emissiveStrength"), 1.0f);
+  const auto* base = dynamic_cast<const Texture*>(m.leaf(kit::kBaseColorSlot));
+  ASSERT_NE(base, nullptr);
+  EXPECT_EQ(base->image().get(), image.get());
+  // A set with no normal map still leaves the slot dressed flat.
+  EXPECT_NE(m.leaf(kit::kNormalSlot), nullptr);
+}
+
+TEST(Mask, ShapesWhatItReads) {
+  skia::install();
+  const Material half = kit::maskConstant(0.5f);
+  EXPECT_TRUE(skia::shader(half, {}));
+  EXPECT_FLOAT_EQ(kit::invert(half).get<float>("inverted"), 1.0f);
+  EXPECT_FLOAT_EQ(kit::invert(kit::invert(half)).get<float>("inverted"), 0.0f);
+  const Material fitted = kit::fit(half, 0.25f, 0.75f);
+  EXPECT_FLOAT_EQ(fitted.get<float>("low"), 0.25f);
+  EXPECT_FLOAT_EQ(fitted.get<float>("high"), 0.75f);
+
+  sk_sp<SkSurface> s = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(2, 2));
+  s->getCanvas()->clear(SK_ColorWHITE);
+  const Texture map = Texture::of(s->makeImageSnapshot());
+  for (const Material& m :
+       {kit::maskMap(map), kit::maskVertexColor(map, 1),
+        kit::maskSlope(map, {0, 1, 0}), kit::maskHeight(map, 0, 1)})
+    EXPECT_TRUE(skia::shader(m, {}));
+}
+
+TEST(Over, StacksTopOverBaseWhereTheMaskSays) {
+  skia::install();
+  kit::SurfaceParams red;
+  red.baseColor = {1, 0, 0, 1};
+  kit::SurfaceParams blue;
+  blue.baseColor = {0, 0, 1, 1};
+  const auto shade = [&](float coverage) {
+    const Material m =
+        over(kit::unlit(red), kit::unlit(blue), kit::maskConstant(coverage));
+    sk_sp<SkSurface> s = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(1, 1));
+    skia::fill(*s->getCanvas(), SkPath::Rect(SkRect::MakeWH(1, 1)), m);
+    SkBitmap bm;
+    bm.allocPixels(SkImageInfo::MakeN32Premul(1, 1));
+    s->makeImageSnapshot()->readPixels(nullptr, bm.pixmap(), 0, 0);
+    return bm.getColor(0, 0);
+  };
+  EXPECT_EQ(SkColorGetR(shade(0.0f)), 255u);
+  EXPECT_EQ(SkColorGetB(shade(1.0f)), 255u);
+  // The stack is one material: the operands are its children.
+  const Material stack = over(kit::unlit(red), kit::unlit(blue),
+                              kit::maskConstant(1.0f), Blend::Multiply);
+  EXPECT_EQ(stackDepth(stack), 1);
+  EXPECT_EQ(stackDepth(over(stack, kit::unlit(red), kit::maskConstant(1.0f))),
+            2);
+  EXPECT_EQ(*under(stack), kit::unlit(red));
+  EXPECT_TRUE(skia::shader(stack, {}));
 }

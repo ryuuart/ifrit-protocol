@@ -5,12 +5,12 @@ a stage from the values a scene is made of — meshes with their placements
 and material slots, stamps as point instancers, lights, a camera — and
 saves it as binary crate (`.usdc`, the default), ASCII (`.usda`), or a
 `.usdz` package. In: `readModel()` pours a USD stage's meshes, point
-instancers and materials into `geometry::decode::Model`, the same currency
-every other format lands in.
+instancers and materials into `geometry::mesh::codec::decode::Model`,
+the same currency every other format lands in.
 
 Materials travel as `UsdPreviewSurface` with `UsdUVTexture` inputs — the
-shading model this renderer shades with, slot for slot — and their images
-are written as PNG files beside the stage.
+metallic-roughness surface SigilMaterial's kit defines, slot for slot —
+and their images are written as PNG files beside the stage.
 
 Namespace `sigil::usd`. One feature library per directory, linked by what
 a consumer uses; every public header lives under
@@ -36,22 +36,23 @@ usd::Writer writer("shots/lab.usdc");
 writer.mesh("floor", floorMesh, glm::mat4(1.0f), plate);
 writer.mesh("torus", torus, place({420, 20, 0}), {plate, rubber});  // slots
 writer.stamps("sparks", cloud, geometry::mesh::quad(4, 4), glm::mat4(1.0f), glow);
-writer.sun("sun", lighting);
+writer.light("sun", world::light::sun({-0.45f, -0.75f, -0.5f}));
 writer.camera("camera", camera);
 std::string error;
 if (!writer.save(&error)) std::fprintf(stderr, "%s\n", error.c_str());
 
-std::optional<geometry::decode::Model> back = usd::readModel("shots/lab.usdc");
+auto back = usd::readModel("shots/lab.usdc");  // decode::Model
 ```
 
 ## The mental model
 
-**Values in, a stage out.** The writer never looks inside a `World` — the
+**Values in, a stage out.** The writer never looks inside a renderer — the
 GPU has the meshes, not the CPU — it takes the same values you placed:
-`geometry::Mesh`, `glm::mat4`, `world::Material` (or a slot list),
-`geometry::Cloud`, `world::LightComponent`, `world::Lighting`,
-`geometry::space::Camera`. Keep those around (as `world_demo`'s material lab
-does) and writing the scene is one call per prop.
+`geometry::mesh::Mesh`, `glm::mat4`, `material::Material` (or a slot
+list), `geometry::mesh::Cloud`, `world::light::Light`,
+`geometry::mesh::camera::Camera`. Keep those around (as `world_demo`'s
+material lab does, handing its own values over through
+`sigilworld/Adapt.h`) and writing the scene is one call per prop.
 
 **What goes where.**
 
@@ -60,15 +61,15 @@ does) and writing the scene is one call per prop.
 | a mesh's positions / normals / uvs / colours | `UsdGeomMesh` points, normals (vertex), `st` primvar (v flipped: USD's runs up the image), `displayColor` + `displayOpacity` |
 | a mesh's prim lanes | uniform `float4[]` primvars under the lane's name |
 | the `"Material"` lane + slots | `UsdGeomSubset`s (family `materialBind`) bound to one material each; one slot binds the whole mesh |
-| a `Material` | `UsdPreviewSurface` under `/World/Materials`, textures as `UsdUVTexture` reading `st`, wrap by `tile`, sRGB/raw by role, normal maps remapped through the node's `scale`/`bias` (the DirectX flag flips green); channels of packed maps select the output; `alphaCutoff` → `opacityThreshold`; `ior` |
-| what UsdPreviewSurface has no word for | custom data on the prim: `sigil:transmission`, `sigil:layers` (count), `sigil:unlit`, `sigil:baseColorFactor` |
+| a `Material` | `UsdPreviewSurface` under `/World/Materials`, the surface recipe's params read by name and its map slots as `UsdUVTexture` nodes reading `st`, wrap by each texture's own tiling, sRGB/raw by role, normal maps remapped through the node's `scale`/`bias` (the DirectX param flips green); the channel params select the output of a packed map; `alphaCutoff` → `opacityThreshold`; `ior` |
+| what UsdPreviewSurface has no word for | custom data on the prim: `sigil:transmission`, `sigil:layers` (the stack depth), `sigil:unlit`, `sigil:baseColorFactor` |
 | stamps | `UsdGeomPointInstancer` with the stamp as its one prototype: positions, `size` → scales, `dir`/`normal` → orientations (the stamp's +z along it), `tint` → `displayColor`/`displayOpacity` |
-| a point light / the sun | `UsdLuxSphereLight` (translated, `sigil:range`) / `UsdLuxDistantLight` (oriented, -Z along the direction) |
+| a point light or a spot / a sun | `UsdLuxSphereLight` (translated, `sigil:range`, and a spot's `sigil:direction` / `sigil:coneInner` / `sigil:coneOuter`) / `UsdLuxDistantLight` (oriented, -Z along the direction) |
 | the camera | `UsdGeomCamera`, camera-to-world from the view's inverse, a 24 mm vertical aperture and the focal length that gives the vertical fov |
 
-**A layered material exports its base.** Layers are this renderer's live
-composition; `UsdPreviewSurface` cannot hold them, and this library does
-not bake. The layer count rides as `sigil:layers` so a consumer knows
+**A stacked material exports the material at the bottom.** Stacking is a
+live composition; `UsdPreviewSurface` cannot hold it, and this library
+does not bake. The depth rides as `sigil:layers` so a consumer knows
 something is missing.
 
 **Reading unwelds.** Every face-vertex becomes a mesh vertex (so
@@ -117,13 +118,14 @@ authored by hand must spell it.
 
 ## Boundary
 
-Public: SigilWorld and the geometry features each door takes values from
-(mesh, pop and space for the writer; codec and mesh for the reader),
-and Skia. Private: OpenUSD core (`usd`, `usdGeom`, `usdShade`, `usdLux`,
+Public: SigilMaterialKit for the surface a preview surface is written
+from, SigilWorldLight for the emitters, and the geometry features each
+door takes values from (mesh, pop and camera for the writer; codec and
+mesh for the reader), plus Skia. Private: OpenUSD core (`usd`, `usdGeom`, `usdShade`, `usdLux`,
 `sdf`, `tf`, `gf`, `vt`) — no imaging, no MaterialX, and no public
 header names a `pxr` type; USD is included only by the sources and the
-internal headers beside them. Neither SigilWorld nor SigilGeometry links
-or includes this library; it is a leaf. It does not bake materials or
+internal headers beside them. Nothing beneath it links or includes this
+library; it is a leaf. It does not bake materials or
 generate maps of any kind: what it writes are the images and values it
 was handed.
 

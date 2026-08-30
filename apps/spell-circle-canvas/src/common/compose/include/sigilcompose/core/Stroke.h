@@ -174,9 +174,9 @@ namespace detail {
  *  noise a smooth curve produces at this step (4°) says so once, because
  *  a threshold that is simply too high for the shape is the common
  *  authoring mistake and draws nothing without it. */
-std::vector<geometry::Contour::Corner> cornersOrWarn(
-    const geometry::Contour& contour, float angleDeg, float minSpacing = 3.0f,
-    float step = 2.0f);
+std::vector<geometry::path::Contour::Corner> cornersOrWarn(
+    const geometry::path::Contour& contour, float angleDeg,
+    float minSpacing = 3.0f, float step = 2.0f);
 /** The same diagnostic for a whole path, ahead of a corner construction
  *  that reports nothing itself. */
 void warnIfNoCorners(const SkPath& path, float angleDeg);
@@ -368,7 +368,7 @@ struct Self {
 /** across ≡ px: a parallel. Parallels are rails — they never cross.
  *
  *  **Positive is LEFT of travel**, which is outside a clockwise path.
- *  `kit::brush::shapers::offset`, `geometry::parallel`,
+ *  `kit::brush::shapers::offset`, `geometry::path::parallel`,
  *  `lines::Rail::across`, `Profile::across` and `TextPath::offset` all
  *  mean this same side; see bandPointAt. */
 struct Offset {
@@ -602,12 +602,12 @@ inline StrandPath path(SkPath p) { return StrandPath::authored(std::move(p)); }
  *  behind a relative strand, and exactly the band's frame: `along` is a
  *  fraction of total arc length, positive `across` is LEFT of travel
  *  (outside a clockwise path). A constant profile delegates to
- *  `geometry::parallel`, which means the same side. */
+ *  `geometry::path::parallel`, which means the same side. */
 SkPath profileOffset(const SkPath& spine, const Profile& profile);
 
 /** THE REGION a band occupies: the spine walked at both profile rails,
  *  per contour, through `profileOffset` — so corners get
- *  `geometry::parallel`'s real-vertex repair (arc outside a turn, miter
+ *  `geometry::path::parallel`'s real-vertex repair (arc outside a turn, miter
  *  inside) instead of the sample-and-displace spur a naive walk leaves on
  *  the inside of every rectangle.
  *

@@ -1,7 +1,7 @@
 /** @file
- * Lights: a point light as UsdLuxSphereLight (translated, its range as
- * custom data) and a directional light — the sun — as
- * UsdLuxDistantLight, oriented so its -Z runs along the direction.
+ * Emitters: a point light or a spot as UsdLuxSphereLight (translated,
+ * its range and any cone as custom data) and a sun as UsdLuxDistantLight,
+ * oriented so its -Z runs along the direction.
  */
 
 #include <pxr/base/gf/quatf.h>
@@ -21,12 +21,12 @@ PXR_NAMESPACE_USING_DIRECTIVE
 namespace sigil::usd {
 
 std::string Writer::light(std::string_view name,
-                          const world::LightComponent& light,
+                          const world::light::Light& light,
                           std::string_view parent) {
   Impl& impl = *m_impl;
   if (!impl.stage) return {};
   const std::string path = impl.uniquePath(parent, name);
-  if (light.type == world::LightComponent::Type::Point) {
+  if (light.kind != world::light::Kind::Sun) {
     UsdLuxSphereLight sphere =
         UsdLuxSphereLight::Define(impl.stage, SdfPath(path));
     sphere.AddTranslateOp().Set(
@@ -37,6 +37,17 @@ std::string Writer::light(std::string_view name,
         GfVec3f(light.color.x, light.color.y, light.color.z));
     sphere.GetPrim().SetCustomDataByKey(TfToken("sigil:range"),
                                         VtValue(light.range));
+    if (light.kind == world::light::Kind::Spot) {
+      // A cone on a sphere light has no UsdLux shape here, so the
+      // direction and the two angles ride beside it.
+      const glm::vec3 d = glm::normalize(light.direction);
+      sphere.GetPrim().SetCustomDataByKey(TfToken("sigil:direction"),
+                                          VtValue(GfVec3f(d.x, d.y, d.z)));
+      sphere.GetPrim().SetCustomDataByKey(TfToken("sigil:coneInner"),
+                                          VtValue(light.innerDeg));
+      sphere.GetPrim().SetCustomDataByKey(TfToken("sigil:coneOuter"),
+                                          VtValue(light.outerDeg));
+    }
     return path;
   }
   UsdLuxDistantLight distant =
@@ -49,16 +60,6 @@ std::string Writer::light(std::string_view name,
   distant.CreateColorAttr().Set(
       GfVec3f(light.color.x, light.color.y, light.color.z));
   return path;
-}
-
-std::string Writer::sun(std::string_view name, const world::Lighting& lighting,
-                        std::string_view parent) {
-  world::LightComponent sun;
-  sun.type = world::LightComponent::Type::Directional;
-  sun.direction = lighting.sunDirection;
-  sun.color = lighting.sunColor;
-  sun.intensity = lighting.sunIntensity;
-  return light(name, sun, parent);
 }
 
 }  // namespace sigil::usd

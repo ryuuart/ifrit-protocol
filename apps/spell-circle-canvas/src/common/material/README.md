@@ -19,6 +19,13 @@ set by role), bakes the two textures a reflective surface is shaded from
 (an environment and a bevel normal map), and cuts an atlas into regions
 and frame sequences.
 
+The shading model the authoring tools export for — metallic-roughness,
+with a map per role — is a preset like any other: one params struct is
+its ABI, one child slot per map, and the choice between the lit and the
+unlit recipe is what the surface IS. Local variation on top of it is not
+a bespoke recipe per pair but a composition: `over(base, top, mask)`
+stacks two materials where a mask says.
+
 Above those sit the PRIMITIVES — fully parameterised generators, one
 feature each: **colour** (the colour value, the OKLab round trip, and
 OpenColorIO view transforms baked to LUT materials), **sdf** (shape,
@@ -26,7 +33,8 @@ border, glow and shadow in one pass over a signed distance), **pattern**
 (a tile baked once with a mapping and an explicit reseed, and the stock
 tiles over it), and **field** (the halftone ramp, Perlin noise, luminance
 grain, the ripple). The **kit** holds PRESETS — functions that fix
-colours, proportions or a named style over the primitives: gold, chrome
+colours, proportions or a named style over the primitives: the
+metallic-roughness surface and the masks that stack it; gold, chrome
 and glass over a normal map and an environment; the girih panel and its
 palettes; the gel and chrome colour tables; the six text paints and the
 chrome-type ramps.
@@ -42,14 +50,14 @@ each a static archive that links only what sits beneath it:
 
 | target | holds | links |
 |--------|-------|-------|
-| `SigilMaterialCore` | the value model: `Target`, `Params`, `Recipe`, `Program` and the cache, `Material`, `Leaf`, `UniformBlock`, `FrameData` | SigilGeometryPath, SigilMotionBind, Boost::pfr |
+| `SigilMaterialCore` | the value model: `Target`, `Params`, `Recipe`, `Program` and the cache, `Material`, `Leaf`, `UniformBlock`, `FrameData`; and `over()`, the combinator that stacks one material on another through a mask | SigilGeometryPath, SigilMotionBind, Boost::pfr |
 | `SigilMaterialTexture` | `Texture` and its sources, `ShaderLeaf`, `textures::` (the tools' sets by role), `Environment` and `bevelNormals`, `Atlas` | SigilMaterialCore, SigilImageAsset, Skia; simdjson and stb privately |
 | `SigilMaterialColor` | `Color` (header-only, which the core's `Params.h` includes) and `color::` — the OCIO `viewTransform`, `convert`, `exponent` as LUT materials | SigilMaterialTexture; OpenColorIO privately, when found |
 | `SigilMaterialSdf` | `sdf::` — `Shape`, `Style`, `pad`, `material` | SigilMaterialCore |
 | `SigilMaterialPattern` | `pattern::Tile` and the stock tiles | SigilMaterialTexture |
 | `SigilMaterialField` | `field::` — `halftoneRamp`, `noise`, `grain`, `ripple` | SigilMaterialTexture |
 | `SigilMaterialSkia` | the SkSL compiler and `SkiaProgram`, whose builder uploads resolved bytes; `skia::builder` and `skia::shader` binding leaves into slots; `skia::fill` | SigilMaterialTexture |
-| `SigilMaterialKit` | the presets: `kit::gold`, `kit::chrome`, `kit::glass`; `kit::girih8` and its palettes; the gel and chrome tables; the text paints and chrome-type ramps | SigilMaterialPattern, SigilMaterialColor |
+| `SigilMaterialKit` | the presets: the metallic-roughness `kit::surface` and `kit::unlit` and the masks that stack them; `kit::gold`, `kit::chrome`, `kit::glass`; `kit::girih8` and its palettes; the gel and chrome tables; the text paints and chrome-type ramps | SigilMaterialPattern, SigilMaterialColor |
 
 `SigilMaterial` is the umbrella, an interface over all eight. Headers live
 under `include/sigilmaterial/<feature>/` and are spelled that way —
@@ -247,6 +255,18 @@ size and offset), deriving a sequence per name stem for TexturePacker
 `region(name)` is the sheet texture cut to that region; `frame(sequence,
 index)` wraps past the end.
 
+## Stacking
+
+**`over(base, top, mask, blend)` is a material.** The three operands
+become its children, so the stack compares, animates and resolves as one
+value, and applying `over` again builds a taller one. The MASK is any
+material whose red channel is read as a scalar; `blend` is `Mix`, `Add`
+or `Multiply`, one recipe each so a body carries no branch. `under(m)`
+is the material a stack stands on — one step down, so walking it reaches
+the bottom — and `stackDepth(m)` counts the steps. A consumer that can
+only express one material (`UsdPreviewSurface`, say) writes the bottom
+and records the depth.
+
 ## The kit
 
 The kit is presets: functions that fix a colour, a proportion or a named
@@ -259,6 +279,39 @@ chrome tables — `aquaBodyRamp`, `aquaGlowRamp`, `chromeRamp`, the
 share the `TextPaintParams` ABI of a run's origin and extent, the clock
 and a slow motion vector; `sunsetChromeText()` and `silverChromeText()`
 are the chrome-type ramps in unit space.
+
+**The metallic-roughness surface** is `kit::SurfaceParams` — base
+colour, metallic, roughness, emission, the normal convention, the channel
+each packed map is read from, the cutout threshold and the glass terms —
+under two recipes over the same ABI: `kit::surface()` takes light,
+`kit::unlit()` is its own light. Seven child slots, one per role
+(`kBaseColorSlot`, `kNormalSlot`, `kRoughnessSlot`, `kMetallicSlot`,
+`kOcclusionSlot`, `kEmissiveSlot`, `kOpacitySlot`), each dressed with a
+neutral one-pixel fill when it is built so no body ever evaluates an
+unbound child; `kit::map(m, slot)` answers the texture a caller placed
+there and null for a fill. `kit::surface(TextureMaps)` dresses one from a
+decoded set: a packed occlusion-roughness-metallic image wired to
+whichever of the three channel slots no separate map fills, at channels
+0, 1 and 2, the set's normal convention flagged, and the scalar a present
+map multiplies started at one — left at its stock value a metallic map
+would multiply zero and never be seen.
+
+The SkSL bodies are what a device-space shader can answer honestly: there
+is no surface normal, no view vector and no light in a 2D paint, so
+metallic, roughness, the normal map and the glass terms have no effect
+there. `surface()` shades the albedo attenuated by occlusion plus its
+emission — the ambient-only evaluation of the model — and `unlit()`
+shades the albedo alone. A renderer that HAS the surface attributes reads
+the same params and slots and shades the full model.
+
+**Masks say where.** `kit::maskConstant` is a number; `kit::maskMap`
+reads a channel of a texture; `kit::maskVertexColor`, `kit::maskSlope`
+and `kit::maskHeight` read a channel, a tangent normal dotted with an
+axis, or a value dotted with an axis, from whatever texture the renderer
+supplies as the source. All of them then fit — `low` and `high` remap the
+raw value onto 0..1 and clamp, and `kit::invert` flips it — which is why
+the slope and height factories take the range: without one those masks
+mean nothing. `kit::fit` moves the range on an existing mask.
 
 `kit::gold`, `kit::chrome` and `kit::glass` are recipes over two slots,
 `normals` and `env` (glass adds `backdrop`, an image of what sits behind
@@ -329,8 +382,9 @@ asset is a source. SigilLoader owns resource access and SigilImage owns
 image meaning, so this library decodes nothing and opens no file — every
 door that needs pixels takes them or takes a decoder. SigilGeometry draws
 the normals passes and outlines a surface is shaded over and links
-nothing here; SigilWorld consumes the texture-set vocabulary and keeps
-its own slot rules; SigilCompose places what a material paints.
+nothing here; SigilWorld's renderer is one executor of the surface the
+kit defines and adds no shading model of its own; SigilCompose places
+what a material paints.
 
 ## Building and testing
 
@@ -352,9 +406,13 @@ compiles a two-uniform recipe through the cache and checks the raster it
 shades is byte-identical to the same SkSL compiled and filled by hand.
 `material_sdf_test`, `material_pattern_test`, `material_field_test` and
 `material_color_test` cover the primitives; `material_kit_test` compiles
-every preset and checks a fill stays inside its path. Three programs are
-the acceptance pieces: the `shapeworks_lab` and `easel_playground`
-sketches under `compose/sketch/sketches/`, and `geometry_demo`, whose
+every preset and checks a fill stays inside its path, dresses a surface
+from a decoded set and pins the packed channels it wires, and shades a
+stack at both ends of its mask. `material_core_test` pins what `over()`
+builds: the operands as children, a blend per recipe, and the walk down
+to the bottom of a stack. Three programs are the acceptance pieces: the
+`shapeworks_lab` and `easel_playground` sketches under
+`compose/sketch/sketches/`, and `geometry_demo`, whose
 surface panels are shaded here. SigilCompose is the largest consumer: its
 `Material::recipe` resolves a material through this library's cache with
 the frame built from its paint context, and its patterns, SDF fills,

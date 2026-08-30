@@ -27,8 +27,6 @@
 #include <string>
 #include <vector>
 
-#include "sigilgeometry/mesh/Untiered.h"
-
 namespace sigil::geometry::mesh {
 
 /** Renderer-neutral triangle mesh. Indices are 32-bit; Skia's 16-bit

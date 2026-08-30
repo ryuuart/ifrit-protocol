@@ -680,7 +680,7 @@ SkPath expand(const SkPath& line, float halfWidth) {
 
 /** The group's lines widened four times and unioned at each width. */
 Glow bakeGlow(const std::vector<SkPath>& lines, float coreHalf) {
-  namespace ops = sigil::geometry::ops;
+  namespace ops = sigil::geometry::path::ops;
   auto at = [&](float k) {
     std::vector<SkPath> regions;
     regions.reserve(lines.size());
@@ -2010,8 +2010,8 @@ struct RotaConvocationis : sigil::compose::sketch::Sketch {
    *  entitles the nodes that wear it to record once and replay under
    *  bound transforms and bound gains for the rest of the loop. */
   void bakeGeometry() {
-    namespace ops = sigil::geometry::ops;
-    namespace geom = sigil::geometry;
+    namespace ops = sigil::geometry::path::ops;
+    namespace geom = sigil::geometry::path;
 
     chalk.assign((size_t)kChalkCount, SkPath());
     auto chalkRing = [&](int slot, float rNorm, uint32_t seed) {

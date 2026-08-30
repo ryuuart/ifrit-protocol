@@ -225,16 +225,18 @@ struct EaselPlayground : sigil::compose::sketch::Sketch {
           steel.specular = 0.9f;
           geometry::mesh::render::drawMesh(
               canvas,
-              geometry::curve::sweep(loop, geometry::curve::profile::circle(),
-                                     {.segments = 180, .scale = 7}),
+              geometry::mesh::curve::sweep(
+                  loop, geometry::mesh::curve::profile::circle(),
+                  {.segments = 180, .scale = 7}),
               glm::mat4(1.0f), camera, viewport, steel);
           SkPaint wire;
           wire.setAntiAlias(true);
           wire.setStyle(SkPaint::kStroke_Style);
           wire.setStrokeWidth(1);
           wire.setColor4f({1, 1, 1, 0.25f});
-          canvas.drawPath(geometry::curve::project(loop, camera, viewport, 256),
-                          wire);
+          canvas.drawPath(
+              geometry::mesh::curve::project(loop, camera, viewport, 256),
+              wire);
 
           // The marquee: a wider sibling loop wearing the Fibonacci
           // band. A swept line charts (across, along) into uv; the strip
@@ -251,11 +253,12 @@ struct EaselPlayground : sigil::compose::sketch::Sketch {
           band.uvTransform = SkMatrix::Translate(0, t * 0.11f);
           geometry::mesh::render::drawMesh(
               canvas,
-              geometry::curve::sweep(
-                  orbit, geometry::curve::profile::line(),
+              geometry::mesh::curve::sweep(
+                  orbit, geometry::mesh::curve::profile::line(),
                   {.segments = 220,
                    .scale = 30,
-                   .normals = geometry::curve::SweepOptions::Normals::Frame}),
+                   .normals =
+                       geometry::mesh::curve::SweepOptions::Normals::Frame}),
               glm::mat4(1.0f), camera, viewport, band);
 
           // Particles: points on the wire, drifted by noise, tinted

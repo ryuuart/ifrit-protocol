@@ -1,7 +1,8 @@
 /** @file
- * A Material as UsdPreviewSurface: one prim per distinct material under
- * /World/Materials, textures as UsdUVTexture nodes reading `st`, and the
- * images themselves written as PNG files beside the stage.
+ * A material as UsdPreviewSurface: one prim per distinct material under
+ * /World/Materials, the surface recipe's params read by name and its map
+ * slots as UsdUVTexture nodes reading `st`, and the images themselves
+ * written as PNG files beside the stage.
  */
 
 #include <include/core/SkBitmap.h>
@@ -18,6 +19,10 @@
 #include <pxr/usd/usdShade/material.h>
 #include <pxr/usd/usdShade/output.h>
 #include <pxr/usd/usdShade/shader.h>
+#include <sigilmaterial/core/Combine.h>
+#include <sigilmaterial/kit/Surface.h>
+
+#include <cmath>
 
 #include "WriterImpl.h"
 
@@ -61,10 +66,44 @@ std::optional<std::string> Writer::Impl::textureAsset(
   return asset;
 }
 
-SdfPath Writer::Impl::material(const world::Material& m,
+namespace {
+
+/** A params field's value when the recipe declares it, else @p fallback
+ *  — so a material built from some other recipe still writes a valid
+ *  preview surface rather than a surface of zeros. */
+float scalar(const material::Material& m, std::string_view name,
+             float fallback) {
+  const material::Field* field = m.recipe().params().find(name);
+  return field && field->kind == material::Kind::Float ? m.get<float>(name)
+                                                       : fallback;
+}
+
+material::Color tint(const material::Material& m, std::string_view name,
+                     material::Color fallback) {
+  const material::Field* field = m.recipe().params().find(name);
+  return field && field->kind == material::Kind::Color
+             ? m.get<material::Color>(name)
+             : fallback;
+}
+
+/** The material at the bottom of a stack: what UsdPreviewSurface can
+ *  express. */
+const material::Material& bottom(const material::Material& m) {
+  const material::Material* p = &m;
+  while (material::under(*p) != p) p = material::under(*p);
+  return *p;
+}
+
+}  // namespace
+
+SdfPath Writer::Impl::material(const material::Material& top,
                                std::string_view hint) {
   for (const auto& [known, path] : materials)
-    if (known == m) return path;
+    if (known == top) return path;
+  // Stacking is a live composition UsdPreviewSurface cannot hold: the
+  // material at the bottom is written and the depth rides as custom data.
+  const material::Material& m = bottom(top);
+  const int depth = material::stackDepth(top);
   const std::string path = uniquePath("/World/Materials", hint);
   UsdShadeMaterial material = UsdShadeMaterial::Define(stage, SdfPath(path));
   UsdShadeShader surface =
@@ -85,12 +124,16 @@ SdfPath Writer::Impl::material(const world::Material& m,
     }
     return stReader;
   };
-  // A texture node reading `role` bound to `input` of the surface.
-  const auto texture = [&](const sk_sp<SkImage>& image, const char* role,
+  // A texture node reading the map in `slot`, bound to `input` of the
+  // surface. The map's own tiling decides the wrap mode.
+  const auto texture = [&](std::string_view slot, const char* role,
                            const char* input, const SdfValueTypeName& type,
                            const char* channel, bool srgb) -> bool {
-    const std::optional<std::string> asset = textureAsset(image, role);
+    const material::Texture* map = material::kit::map(m, slot);
+    if (!map) return false;
+    const std::optional<std::string> asset = textureAsset(map->image(), role);
     if (!asset) return false;
+    const bool repeat = map->tileX() == SkTileMode::kRepeat;
     UsdShadeShader node = UsdShadeShader::Define(
         stage, SdfPath(path + "/" + std::string(role) + "Texture"));
     node.CreateIdAttr(VtValue(TfToken("UsdUVTexture")));
@@ -99,9 +142,9 @@ SdfPath Writer::Impl::material(const world::Material& m,
     node.CreateInput(TfToken("st"), SdfValueTypeNames->Float2)
         .ConnectToSource(reader().ConnectableAPI(), TfToken("result"));
     node.CreateInput(TfToken("wrapS"), SdfValueTypeNames->Token)
-        .Set(TfToken(m.tile ? "repeat" : "clamp"));
+        .Set(TfToken(repeat ? "repeat" : "clamp"));
     node.CreateInput(TfToken("wrapT"), SdfValueTypeNames->Token)
-        .Set(TfToken(m.tile ? "repeat" : "clamp"));
+        .Set(TfToken(map->tileY() == SkTileMode::kRepeat ? "repeat" : "clamp"));
     node.CreateInput(TfToken("sourceColorSpace"), SdfValueTypeNames->Token)
         .Set(TfToken(srgb ? "sRGB" : "raw"));
     node.CreateOutput(TfToken(channel), type);
@@ -109,37 +152,45 @@ SdfPath Writer::Impl::material(const world::Material& m,
         .ConnectToSource(node.ConnectableAPI(), TfToken(channel));
     return true;
   };
-  const auto channelName = [](int c) {
-    return c == 1 ? "g" : c == 2 ? "b" : c == 3 ? "a" : "r";
+  const auto channelName = [](float c) {
+    const int i = (int)std::lround(c);
+    return i == 1 ? "g" : i == 2 ? "b" : i == 3 ? "a" : "r";
   };
 
-  if (!texture(m.texture, "baseColor", "diffuseColor",
+  const material::Color baseColor =
+      tint(m, "baseColor", material::Color{0.8f, 0.8f, 0.8f, 1});
+  if (!texture(material::kit::kBaseColorSlot, "baseColor", "diffuseColor",
                SdfValueTypeNames->Color3f, "rgb", true))
     surface.CreateInput(TfToken("diffuseColor"), SdfValueTypeNames->Color3f)
-        .Set(GfVec3f(m.baseColor.x, m.baseColor.y, m.baseColor.z));
-  if (m.texture) {
+        .Set(GfVec3f(baseColor.r, baseColor.g, baseColor.b));
+  else
     // The base colour factor still multiplies in the shader here; USD
     // has no multiplier input, so it rides as custom data.
     surface.GetPrim().SetCustomDataByKey(
         TfToken("sigil:baseColorFactor"),
-        VtValue(GfVec3f(m.baseColor.x, m.baseColor.y, m.baseColor.z)));
-  }
-  if (!texture(m.roughnessMap, "roughness", "roughness",
-               SdfValueTypeNames->Float, channelName(m.roughnessChannel),
-               false))
+        VtValue(GfVec3f(baseColor.r, baseColor.g, baseColor.b)));
+
+  if (!texture(material::kit::kRoughnessSlot, "roughness", "roughness",
+               SdfValueTypeNames->Float,
+               channelName(scalar(m, "roughnessChannel", 0)), false))
     surface.CreateInput(TfToken("roughness"), SdfValueTypeNames->Float)
-        .Set(m.roughness);
-  if (!texture(m.metallicMap, "metallic", "metallic", SdfValueTypeNames->Float,
-               channelName(m.metallicChannel), false))
+        .Set(scalar(m, "roughness", 0.5f));
+  if (!texture(material::kit::kMetallicSlot, "metallic", "metallic",
+               SdfValueTypeNames->Float,
+               channelName(scalar(m, "metallicChannel", 0)), false))
     surface.CreateInput(TfToken("metallic"), SdfValueTypeNames->Float)
-        .Set(m.metallic);
-  texture(m.occlusionMap, "occlusion", "occlusion", SdfValueTypeNames->Float,
-          channelName(m.occlusionChannel), false);
-  if (m.normalMap) {
+        .Set(scalar(m, "metallic", 0.0f));
+  texture(material::kit::kOcclusionSlot, "occlusion", "occlusion",
+          SdfValueTypeNames->Float,
+          channelName(scalar(m, "occlusionChannel", 0)), false);
+
+  if (const material::Texture* normal =
+          material::kit::map(m, material::kit::kNormalSlot)) {
     // UsdUVTexture can remap [0,1] to [-1,1] itself.
     const std::optional<std::string> asset =
-        textureAsset(m.normalMap, "normal");
+        textureAsset(normal->image(), "normal");
     if (asset) {
+      const bool directX = scalar(m, "normalDirectX", 0) > 0.5f;
       UsdShadeShader node =
           UsdShadeShader::Define(stage, SdfPath(path + "/normalTexture"));
       node.CreateIdAttr(VtValue(TfToken("UsdUVTexture")));
@@ -150,42 +201,49 @@ SdfPath Writer::Impl::material(const world::Material& m,
       node.CreateInput(TfToken("sourceColorSpace"), SdfValueTypeNames->Token)
           .Set(TfToken("raw"));
       node.CreateInput(TfToken("scale"), SdfValueTypeNames->Float4)
-          .Set(GfVec4f(2, m.normalMapDirectX ? -2.0f : 2.0f, 2, 1));
+          .Set(GfVec4f(2, directX ? -2.0f : 2.0f, 2, 1));
       node.CreateInput(TfToken("bias"), SdfValueTypeNames->Float4)
-          .Set(GfVec4f(-1, m.normalMapDirectX ? 1.0f : -1.0f, -1, 0));
+          .Set(GfVec4f(-1, directX ? 1.0f : -1.0f, -1, 0));
       node.CreateOutput(TfToken("rgb"), SdfValueTypeNames->Normal3f);
       surface.CreateInput(TfToken("normal"), SdfValueTypeNames->Normal3f)
           .ConnectToSource(node.ConnectableAPI(), TfToken("rgb"));
     }
   }
-  if (m.emissiveStrength > 0) {
-    const glm::vec3 e = glm::vec3(m.emissive) * m.emissiveStrength;
-    if (!texture(m.emissiveMap, "emissive", "emissiveColor",
+
+  const float emissiveStrength = scalar(m, "emissiveStrength", 0);
+  if (emissiveStrength > 0) {
+    const material::Color e = tint(m, "emissive", material::Color{0, 0, 0, 1});
+    if (!texture(material::kit::kEmissiveSlot, "emissive", "emissiveColor",
                  SdfValueTypeNames->Color3f, "rgb", true))
       surface.CreateInput(TfToken("emissiveColor"), SdfValueTypeNames->Color3f)
-          .Set(GfVec3f(e.x, e.y, e.z));
+          .Set(GfVec3f(e.r * emissiveStrength, e.g * emissiveStrength,
+                       e.b * emissiveStrength));
   }
-  if (!texture(m.opacityMap, "opacity", "opacity", SdfValueTypeNames->Float,
-               channelName(m.opacityChannel), false))
-    if (m.baseColor.w < 1.0f)
+  if (!texture(material::kit::kOpacitySlot, "opacity", "opacity",
+               SdfValueTypeNames->Float,
+               channelName(scalar(m, "opacityChannel", 0)), false))
+    if (baseColor.a < 1.0f)
       surface.CreateInput(TfToken("opacity"), SdfValueTypeNames->Float)
-          .Set(m.baseColor.w);
-  if (m.alphaCutoff > 0)
+          .Set(baseColor.a);
+  const float alphaCutoff = scalar(m, "alphaCutoff", 0);
+  if (alphaCutoff > 0)
     surface.CreateInput(TfToken("opacityThreshold"), SdfValueTypeNames->Float)
-        .Set(m.alphaCutoff);
-  surface.CreateInput(TfToken("ior"), SdfValueTypeNames->Float).Set(m.ior);
+        .Set(alphaCutoff);
+  surface.CreateInput(TfToken("ior"), SdfValueTypeNames->Float)
+      .Set(scalar(m, "ior", 1.5f));
   surface.CreateInput(TfToken("useSpecularWorkflow"), SdfValueTypeNames->Int)
       .Set(0);
-  if (m.transmission > 0)
+  const float transmission = scalar(m, "transmission", 0);
+  if (transmission > 0)
     material.GetPrim().SetCustomDataByKey(TfToken("sigil:transmission"),
-                                          VtValue(m.transmission));
-  if (!m.layers.empty())
+                                          VtValue(transmission));
+  if (depth > 0)
     material.GetPrim().SetCustomDataByKey(TfToken("sigil:layers"),
-                                          VtValue((int)m.layers.size()));
-  if (m.unlit)
+                                          VtValue(depth));
+  if (material::kit::isUnlit(m))
     material.GetPrim().SetCustomDataByKey(TfToken("sigil:unlit"),
                                           VtValue(true));
-  materials.emplace_back(m, SdfPath(path));
+  materials.emplace_back(top, SdfPath(path));
   return SdfPath(path);
 }
 

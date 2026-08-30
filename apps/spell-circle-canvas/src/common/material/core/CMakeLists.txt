@@ -6,12 +6,14 @@
 # the backend features through registerCompiler().
 find_package(boost_pfr CONFIG REQUIRED)
 add_library(SigilMaterialCore STATIC
+  Combine.cpp
   Material.cpp
   Params.cpp
   Program.cpp
   Recipe.cpp
   ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/Material.h
   ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/color/Color.h
+  ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/core/Combine.h
   ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/core/FrameData.h
   ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/core/Leaf.h
   ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/core/Material.h

@@ -18,7 +18,7 @@ PXR_NAMESPACE_USING_DIRECTIVE
 namespace sigil::usd {
 
 std::string Writer::camera(std::string_view name,
-                           const geometry::space::Camera& camera,
+                           const geometry::mesh::camera::Camera& camera,
                            std::string_view parent) {
   Impl& impl = *m_impl;
   if (!impl.stage) return {};

@@ -24,9 +24,11 @@ PXR_NAMESPACE_USING_DIRECTIVE
 
 namespace sigil::usd {
 
-std::string Writer::stamps(std::string_view name, const geometry::Cloud& cloud,
-                           const geometry::Mesh& stamp, const glm::mat4& model,
-                           const world::Material& material,
+std::string Writer::stamps(std::string_view name,
+                           const geometry::mesh::Cloud& cloud,
+                           const geometry::mesh::Mesh& stamp,
+                           const glm::mat4& model,
+                           const material::Material& material,
                            std::string_view parent) {
   Impl& impl = *m_impl;
   if (!impl.stage) return {};

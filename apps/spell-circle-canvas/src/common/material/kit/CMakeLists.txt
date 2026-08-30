@@ -4,11 +4,15 @@
 # tile the panel bakes into and no renderer.
 add_library(SigilMaterialKit STATIC
   LayerStyles.cpp
+  Mask.cpp
   Patterns.cpp
+  Surface.cpp
   Surfaces.cpp
   TextPaint.cpp
   ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/kit/LayerStyles.h
+  ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/kit/Mask.h
   ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/kit/Patterns.h
+  ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/kit/Surface.h
   ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/kit/Surfaces.h
   ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/kit/TextPaint.h
 )

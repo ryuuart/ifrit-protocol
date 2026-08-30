@@ -59,6 +59,7 @@
 #endif
 #ifdef SIGIL_WORLD_DEMO_USD
 #include <sigilusd/write/Writer.h>
+#include <sigilworld/Adapt.h>
 #endif
 
 using namespace sigil;
@@ -835,9 +836,14 @@ void renderMaterialLab(const std::filesystem::path& outDir,
   // (images written beside it), the sun and a light, the camera.
   if (!dark) {
     usd::Writer writer(outDir / "world_materials.usdc");
-    for (const Placed& p : placed)
-      writer.mesh(p.name, p.mesh, p.model, p.slots);
-    writer.sun("sun", lighting);
+    for (const Placed& p : placed) {
+      std::vector<material::Material> slots;
+      slots.reserve(p.slots.size());
+      for (const world::Material& m : p.slots)
+        slots.push_back(world::surfaceOf(m));
+      writer.mesh(p.name, p.mesh, p.model, slots);
+    }
+    writer.light("sun", world::sunOf(lighting));
     writer.camera("camera", camera);
     std::string usdError;
     if (writer.save(&usdError))
@@ -988,9 +994,9 @@ int main(int argc, char** argv) {
     // The wire carries a baked colour lane, cool at the start and warm
     // by the end. A sweep's rings are generated in order along the curve,
     // so ramping by vertex index ramps along the curve.
-    geometry::mesh::Mesh wire =
-        geometry::curve::sweep(arc, geometry::curve::profile::circle(10),
-                               {.segments = 180, .scale = 7, .caps = true});
+    geometry::mesh::Mesh wire = geometry::mesh::curve::sweep(
+        arc, geometry::mesh::curve::profile::circle(10),
+        {.segments = 180, .scale = 7, .caps = true});
     wire.colors.resize(wire.positions.size());
     for (size_t i = 0; i < wire.positions.size(); ++i) {
       const float f = wire.positions.size() > 1

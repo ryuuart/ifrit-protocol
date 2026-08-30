@@ -64,15 +64,15 @@ void warnNoCornersFound(float sharpestDeg, float angleDeg) {
 }
 
 /** The corner scan every decoration shares, with the diagnostic above
- *  attached: `geometry::Contour::corners` reports the sharpest turn it
+ *  attached: `geometry::path::Contour::corners` reports the sharpest turn it
  *  saw, and a scan that found nothing on a contour whose sharpest turn
  *  is above the noise a smooth curve produces at this step (4°) says so
  *  once. */
-std::vector<geometry::Contour::Corner> cornersOrWarn(
-    const geometry::Contour& contour, float angleDeg, float minSpacing,
+std::vector<geometry::path::Contour::Corner> cornersOrWarn(
+    const geometry::path::Contour& contour, float angleDeg, float minSpacing,
     float step) {
   float sharpestDeg = 0.0f;
-  std::vector<geometry::Contour::Corner> corners =
+  std::vector<geometry::path::Contour::Corner> corners =
       contour.corners(angleDeg, minSpacing, step, &sharpestDeg);
   if (corners.empty() && sharpestDeg >= 4.0f)
     warnNoCornersFound(sharpestDeg, angleDeg);
@@ -82,7 +82,8 @@ std::vector<geometry::Contour::Corner> cornersOrWarn(
 /** The same diagnostic for a whole path, ahead of a corner window
  *  construction that reports nothing itself. */
 void warnIfNoCorners(const SkPath& src, float angleDeg) {
-  for (const geometry::Contour& contour : geometry::Contour::of(src))
+  for (const geometry::path::Contour& contour :
+       geometry::path::Contour::of(src))
     (void)cornersOrWarn(contour, angleDeg);
 }
 

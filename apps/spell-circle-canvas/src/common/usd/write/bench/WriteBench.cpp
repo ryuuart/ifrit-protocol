@@ -8,6 +8,7 @@
 
 #include <benchmark/benchmark.h>
 #include <sigilgeometry/mesh/Mesh.h>
+#include <sigilmaterial/kit/Surface.h>
 #include <sigilusd/runtime/Runtime.h>
 #include <sigilusd/write/Writer.h>
 
@@ -26,30 +27,30 @@ std::filesystem::path scratch(const char* name) {
 }
 
 /** A torus of at least `triangles` triangles. */
-geometry::Mesh torusOf(int triangles) {
+geometry::mesh::Mesh torusOf(int triangles) {
   int segments = 8;
   while (segments * segments * 2 < triangles) ++segments;
   return geometry::mesh::torus(100, 40, segments, segments);
 }
 
 void BM_Mesh(benchmark::State& state) {
-  const geometry::Mesh mesh = torusOf((int)state.range(0));
-  const world::Material material;
+  const geometry::mesh::Mesh mesh = torusOf((int)state.range(0));
+  const material::Material surface = material::kit::surface();
   for ([[maybe_unused]] auto _ : state) {
     usd::Writer writer(scratch("mesh.usdc"));
     benchmark::DoNotOptimize(
-        writer.mesh("prop", mesh, glm::mat4(1.0f), material));
+        writer.mesh("prop", mesh, glm::mat4(1.0f), surface));
   }
   state.SetItemsProcessed(state.iterations() * (int64_t)mesh.triangleCount());
 }
 
 void BM_Save(benchmark::State& state) {
-  const geometry::Mesh mesh = torusOf(2048);
+  const geometry::mesh::Mesh mesh = torusOf(2048);
   const bool ascii = state.range(0) != 0;
   const std::filesystem::path file = scratch(ascii ? "save.usda" : "save.usdc");
   for ([[maybe_unused]] auto _ : state) {
     usd::Writer writer(file);
-    writer.mesh("prop", mesh, glm::mat4(1.0f), world::Material{});
+    writer.mesh("prop", mesh, glm::mat4(1.0f), material::kit::surface());
     benchmark::DoNotOptimize(writer.save());
   }
 }

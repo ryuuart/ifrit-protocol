@@ -38,7 +38,7 @@ struct Writer::Impl {
   /** Materials already authored, by pointer identity of their images and
    *  value of their scalars — the same material placed twice binds one
    *  prim. */
-  std::vector<std::pair<world::Material, pxr::SdfPath>> materials;
+  std::vector<std::pair<material::Material, pxr::SdfPath>> materials;
   int textureCounter = 0;
   bool texturesDirReady = false;
   /** One file per image, however many materials share it. */
@@ -58,18 +58,19 @@ struct Writer::Impl {
                                           const char* role);
 
   /** The material as UsdPreviewSurface, authored once per distinct
-   *  material under /World/Materials. Only the base of a layered
-   *  material is expressible; the layer count rides as custom data. */
-  pxr::SdfPath material(const world::Material& m, std::string_view hint);
+   *  material under /World/Materials. Only the material at the bottom of
+   *  a stack is expressible; the depth rides as custom data. */
+  pxr::SdfPath material(const material::Material& m, std::string_view hint);
 
   /** The mesh's lanes onto a UsdGeomMesh (positions, normals, st,
    *  displayColor, prim lanes as uniform primvars). */
-  void fillMesh(pxr::UsdGeomMesh& usdMesh, const geometry::Mesh& mesh);
+  void fillMesh(pxr::UsdGeomMesh& usdMesh, const geometry::mesh::Mesh& mesh);
 
   /** Bind @p slots: one material over the whole mesh, or GeomSubsets by
    *  the "Material" lane. */
-  void bind(pxr::UsdGeomMesh& usdMesh, const geometry::Mesh& mesh,
-            const std::vector<world::Material>& slots, std::string_view hint);
+  void bind(pxr::UsdGeomMesh& usdMesh, const geometry::mesh::Mesh& mesh,
+            const std::vector<material::Material>& slots,
+            std::string_view hint);
 };
 
 }  // namespace sigil::usd

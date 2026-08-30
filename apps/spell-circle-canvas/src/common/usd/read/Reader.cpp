@@ -26,12 +26,12 @@ int ReadContext::slot(const UsdShadeMaterial& material) {
   return (int)materialNames.size() - 1;
 }
 
-std::optional<geometry::decode::Model> readModel(
+std::optional<geometry::mesh::codec::decode::Model> readModel(
     const std::filesystem::path& file, std::string* error) {
   return readModel(file, nullptr, error);
 }
 
-std::optional<geometry::decode::Model> readModel(
+std::optional<geometry::mesh::codec::decode::Model> readModel(
     const std::filesystem::path& file, ReadInfo* info, std::string* error) {
   UsdStageRefPtr stage = UsdStage::Open(file.string());
   if (!stage) {
@@ -40,7 +40,7 @@ std::optional<geometry::decode::Model> readModel(
   }
   ReadContext context;
   context.stageDir = file.parent_path();
-  geometry::decode::Model model;
+  geometry::mesh::codec::decode::Model model;
   for (const UsdPrim& prim : stage->Traverse()) {
     if (prim.IsA<UsdGeomMesh>())
       readMesh(prim, context, model);

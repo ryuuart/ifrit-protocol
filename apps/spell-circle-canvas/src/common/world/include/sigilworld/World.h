@@ -457,7 +457,7 @@ class World {
    *  DECLINES a chain containing one — returning 0, or doing nothing —
    *  rather than dropping the operator and cooking something subtly
    *  wrong. Cook such a chain on the CPU instead. */
-  using pop = geometry::pop;
+  using pop = geometry::mesh::pop;
 
   /** Cook @p chain (its first op must be a generator) and draw @p stamp
    *  at every cooked point. An ordinary stamps prop otherwise.

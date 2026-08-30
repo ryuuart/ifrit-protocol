@@ -15,12 +15,12 @@ PXR_NAMESPACE_USING_DIRECTIVE
 namespace sigil::usd {
 
 void readInstancer(const UsdPrim& prim, ReadContext& context,
-                   geometry::decode::Model& model) {
+                   geometry::mesh::codec::decode::Model& model) {
   UsdGeomPointInstancer instancer(prim);
   VtVec3fArray positions;
   instancer.GetPositionsAttr().Get(&positions);
   if (positions.empty()) return;
-  geometry::decode::Part part;
+  geometry::mesh::codec::decode::Part part;
   part.name = prim.GetName().GetString();
   for (const GfVec3f& p : positions)
     part.mesh.positions.emplace_back(p[0], p[1], p[2]);

@@ -13,7 +13,7 @@ add_library(SigilUsdRead STATIC
 target_compile_features(SigilUsdRead PUBLIC cxx_std_20)
 target_include_directories(SigilUsdRead PUBLIC ${SIGIL_USD_INCLUDE_DIR})
 target_link_libraries(SigilUsdRead
-  PUBLIC SigilGeometryCodec SigilGeometryMesh
+  PUBLIC SigilGeometryMeshCodec SigilGeometryMesh
   PRIVATE usd usdGeom usdShade sdf tf gf vt)
 
 # Links the library it exercises, the runtime probe it skips on, and the

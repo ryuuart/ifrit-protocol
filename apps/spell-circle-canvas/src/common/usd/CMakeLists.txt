@@ -3,8 +3,8 @@
 # USD plugins are present; write builds a stage from the values a scene is
 # made of and saves it; read pours a stage into geometry's decode::Model.
 # `SigilUsd` is the umbrella over all three. A leaf of the tree: it links
-# SigilWorld and SigilGeometry; nothing links it but its tests, its demo
-# hooks and whoever wants a stage.
+# SigilGeometry, SigilMaterial and the world's light values; nothing links
+# it but its tests, its demo hooks and whoever wants a stage.
 #
 # Every public header lives under one include root, include/sigilusd/
 # <feature>/, so a feature adds the root and spells its own directory.

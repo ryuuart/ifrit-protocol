@@ -24,7 +24,8 @@ PXR_NAMESPACE_USING_DIRECTIVE
 
 namespace sigil::usd {
 
-void Writer::Impl::fillMesh(UsdGeomMesh& usdMesh, const geometry::Mesh& mesh) {
+void Writer::Impl::fillMesh(UsdGeomMesh& usdMesh,
+                            const geometry::mesh::Mesh& mesh) {
   VtVec3fArray points;
   points.reserve(mesh.positions.size());
   for (const glm::vec3& p : mesh.positions) points.push_back({p.x, p.y, p.z});
@@ -73,8 +74,8 @@ void Writer::Impl::fillMesh(UsdGeomMesh& usdMesh, const geometry::Mesh& mesh) {
   }
 }
 
-void Writer::Impl::bind(UsdGeomMesh& usdMesh, const geometry::Mesh& mesh,
-                        const std::vector<world::Material>& slots,
+void Writer::Impl::bind(UsdGeomMesh& usdMesh, const geometry::mesh::Mesh& mesh,
+                        const std::vector<material::Material>& slots,
                         std::string_view hint) {
   if (slots.empty()) return;
   const std::vector<glm::vec4>* lane = mesh.primIf("Material");
@@ -101,9 +102,10 @@ void Writer::Impl::bind(UsdGeomMesh& usdMesh, const geometry::Mesh& mesh,
   }
 }
 
-std::string Writer::mesh(std::string_view name, const geometry::Mesh& mesh,
+std::string Writer::mesh(std::string_view name,
+                         const geometry::mesh::Mesh& mesh,
                          const glm::mat4& model,
-                         const std::vector<world::Material>& slots,
+                         const std::vector<material::Material>& slots,
                          std::string_view parent) {
   Impl& impl = *m_impl;
   if (!impl.stage) return {};

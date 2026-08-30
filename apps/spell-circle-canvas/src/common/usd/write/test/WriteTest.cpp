@@ -21,7 +21,8 @@
 #include <pxr/usd/usdShade/materialBindingAPI.h>
 #include <pxr/usd/usdShade/tokens.h>
 #include <sigilgeometry/mesh/Mesh.h>
-#include <sigilgeometry/pop/Points.h>
+#include <sigilgeometry/mesh/pop/Points.h>
+#include <sigilmaterial/kit/Surface.h>
 #include <sigilusd/runtime/Runtime.h>
 #include <sigilusd/write/Writer.h>
 
@@ -61,15 +62,17 @@ sk_sp<SkImage> solid(SkColor color) {
 TEST(UsdWrite, AuthorsAMeshWithSubsetsAndMaterials) {
   SKIP_WITHOUT_USD();
   const std::filesystem::path file = scratch("slots.usdc");
-  geometry::Mesh torus = geometry::mesh::torus(100, 40, 24, 12);
+  geometry::mesh::Mesh torus = geometry::mesh::torus(100, 40, 24, 12);
   std::vector<glm::vec4>& lane = torus.prim("Material", {0, 0, 0, 0});
   for (size_t t = 0; t < lane.size(); ++t) lane[t] = {(float)(t % 2), 0, 0, 0};
-  world::Material red;
-  red.baseColor = {1, 0, 0, 1};
-  red.roughness = 0.3f;
-  world::Material tex;
-  tex.texture = solid(SK_ColorBLUE);
-  tex.tile = true;
+  material::kit::SurfaceParams redParams;
+  redParams.baseColor = {1, 0, 0, 1};
+  redParams.roughness = 0.3f;
+  const material::Material red = material::kit::surface(redParams);
+  material::Material tex = material::kit::surface();
+  tex.child(
+      material::kit::kBaseColorSlot,
+      material::Texture::of(solid(SK_ColorBLUE)).tile(SkTileMode::kRepeat));
   {
     usd::Writer writer(file);
     const std::string path =
@@ -142,30 +145,29 @@ TEST(UsdWrite, AuthorsAMeshWithSubsetsAndMaterials) {
 TEST(UsdWrite, AuthorsStampsLightsAndCameraAsAscii) {
   SKIP_WITHOUT_USD();
   const std::filesystem::path file = scratch("scene.usda");
-  geometry::Cloud cloud;
+  geometry::mesh::Cloud cloud;
   for (int i = 0; i < 50; ++i) cloud.positions.emplace_back((float)i, 0, 0);
   cloud.scalar("size", 2);
   cloud.vector("normal", {0, 1, 0});
   {
     usd::Writer writer(file);
-    world::Material glow;
-    glow.emissive = {1, 0.5f, 0, 1};
-    glow.emissiveStrength = 2;
+    material::kit::SurfaceParams glowParams;
+    glowParams.emissive = {1, 0.5f, 0, 1};
+    glowParams.emissiveStrength = 2;
+    const material::Material glow = material::kit::surface(glowParams);
     EXPECT_EQ(writer.stamps("sparks", cloud, geometry::mesh::quad(4, 4),
                             glm::mat4(1.0f), glow),
               "/World/sparks");
-    world::LightComponent point;
-    point.type = world::LightComponent::Type::Point;
-    point.position = {0, 100, 0};
-    EXPECT_EQ(writer.light("lamp", point), "/World/lamp");
-    world::Lighting lighting;
-    EXPECT_EQ(writer.sun("sun", lighting), "/World/sun");
-    geometry::space::Camera camera;
+    EXPECT_EQ(writer.light("lamp", world::light::point({0, 100, 0})),
+              "/World/lamp");
+    EXPECT_EQ(writer.light("sun", world::light::sun({-0.45f, -0.75f, -0.5f})),
+              "/World/sun");
+    geometry::mesh::camera::Camera camera;
     camera.eye = {0, 0, 300};
     EXPECT_EQ(writer.camera("eye", camera), "/World/eye");
     // Names are sanitized: punctuation and spaces become underscores.
     EXPECT_EQ(writer.mesh("2nd prop!", geometry::mesh::quad(1, 1),
-                          glm::mat4(1.0f), world::Material{}),
+                          glm::mat4(1.0f), material::kit::surface()),
               "/World/_2nd_prop_");
     ASSERT_TRUE(writer.save());
   }

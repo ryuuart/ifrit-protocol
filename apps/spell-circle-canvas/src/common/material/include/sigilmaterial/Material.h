@@ -6,6 +6,7 @@
  */
 
 #include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/core/Combine.h>
 #include <sigilmaterial/core/FrameData.h>
 #include <sigilmaterial/core/Leaf.h>
 #include <sigilmaterial/core/Material.h>

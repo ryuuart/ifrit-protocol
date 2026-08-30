@@ -30,15 +30,6 @@ target_link_libraries(SigilGeometry INTERFACE
   SigilGeometryMeshCodec
 )
 
-# TRANSITIONAL. The names the features carried before the tiering, so a
-# consumer that has not been moved yet still links. Delete each alias
-# once nothing names it.
-add_library(SigilGeometryBlend ALIAS SigilGeometryPathBlend)
-add_library(SigilGeometrySpace ALIAS SigilGeometryMeshRender)
-add_library(SigilGeometryCurves ALIAS SigilGeometryMeshCurve)
-add_library(SigilGeometryPop ALIAS SigilGeometryMeshPop)
-add_library(SigilGeometryCodec ALIAS SigilGeometryMeshCodec)
-
 # The header tree installs as one unit beside the exported path leaf.
 install(DIRECTORY include/sigilgeometry DESTINATION include)
 

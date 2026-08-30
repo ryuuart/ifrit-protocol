@@ -358,13 +358,6 @@ declares; `PlyEncode.cpp` is the writer.
 header, for a consumer that takes the whole library rather than a tier
 of it.
 
-Beside it sit the transitional stubs, each carrying its own notice:
-`path/Untiered.h` and `mesh/Untiered.h` make a tier's names reachable
-without naming the tier, and `pop/Points.h`, `space/Space.h` and
-`codec/Model.h` forward from the paths those headers had before the
-tiering. They exist for consumers that have not moved yet, and go away
-with the last of them.
-
 ### The operators
 
 `pop::Op` is a variant over twenty operator values, and `pop::Chain` is

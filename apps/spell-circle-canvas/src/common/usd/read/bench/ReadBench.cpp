@@ -9,6 +9,7 @@
 
 #include <benchmark/benchmark.h>
 #include <sigilgeometry/mesh/Mesh.h>
+#include <sigilmaterial/kit/Surface.h>
 #include <sigilusd/read/Reader.h>
 #include <sigilusd/runtime/Runtime.h>
 #include <sigilusd/write/Writer.h>
@@ -32,12 +33,12 @@ std::filesystem::path scratch(const char* name) {
 std::pair<std::filesystem::path, size_t> stageOf(int triangles) {
   int segments = 8;
   while (segments * segments * 2 < triangles) ++segments;
-  const geometry::Mesh mesh =
+  const geometry::mesh::Mesh mesh =
       geometry::mesh::torus(100, 40, segments, segments);
   const std::filesystem::path file =
       scratch(("torus_" + std::to_string(triangles) + ".usdc").c_str());
   usd::Writer writer(file);
-  writer.mesh("prop", mesh, glm::mat4(1.0f), world::Material{});
+  writer.mesh("prop", mesh, glm::mat4(1.0f), material::kit::surface());
   writer.save();
   return {file, mesh.triangleCount()};
 }

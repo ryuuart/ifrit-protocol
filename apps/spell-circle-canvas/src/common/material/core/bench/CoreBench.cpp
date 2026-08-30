@@ -9,6 +9,7 @@
 
 #include <array>
 #include <memory>
+#include <utility>
 
 using namespace sigil::material;
 
@@ -76,6 +77,31 @@ void BM_Declare(benchmark::State& state) {
   }
 }
 
+/** Stacking: what it costs to build a stack of @p depth and to walk back
+ *  down to the material it stands on. */
+void BM_Over_Build(benchmark::State& state) {
+  const Material leaf(std::make_shared<const Recipe>(
+                          Recipe::of<P4>("bench").body(Target::Slang, "x")),
+                      P4{1, 2, 3, 4});
+  for ([[maybe_unused]] auto iteration : state) {
+    Material m = leaf;
+    for (int i = 0; i < (int)state.range(0); ++i)
+      m = over(std::move(m), leaf, leaf);
+    benchmark::DoNotOptimize(m);
+  }
+}
+
+void BM_Over_Under(benchmark::State& state) {
+  const Material leaf(std::make_shared<const Recipe>(
+                          Recipe::of<P4>("bench").body(Target::Slang, "x")),
+                      P4{1, 2, 3, 4});
+  Material m = leaf;
+  for (int i = 0; i < (int)state.range(0); ++i)
+    m = over(std::move(m), leaf, leaf);
+  for ([[maybe_unused]] auto iteration : state)
+    benchmark::DoNotOptimize(stackDepth(m));
+}
+
 }  // namespace
 
 BENCHMARK(BM_Resolve_Live<P0>)->Name("BM_Resolve_Live/0");
@@ -86,5 +112,7 @@ BENCHMARK(BM_Resolve_Memo<P4>)->Name("BM_Resolve_Memo/4");
 BENCHMARK(BM_Resolve_Memo<P16>)->Name("BM_Resolve_Memo/16");
 BENCHMARK(BM_Declare<P4>)->Name("BM_Declare/4");
 BENCHMARK(BM_Declare<P16>)->Name("BM_Declare/16");
+BENCHMARK(BM_Over_Build)->Arg(1)->Arg(4);
+BENCHMARK(BM_Over_Under)->Arg(1)->Arg(4);
 
 BENCHMARK_MAIN();

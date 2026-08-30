@@ -2,11 +2,11 @@
 
 /** @file
  * The reader: a USD stage's meshes, point instancers and materials
- * poured into geometry::decode::Model, the same currency every other
- * format lands in.
+ * poured into geometry::mesh::codec::decode::Model, the same currency every
+ * other format lands in.
  */
 
-#include <sigilgeometry/codec/Model.h>
+#include <sigilgeometry/mesh/codec/Model.h>
 
 #include <filesystem>
 #include <optional>
@@ -28,9 +28,9 @@ struct ReadInfo {
  *  positions a faceless Part; a bound UsdPreviewSurface fills the
  *  Part's factors and texture references (bytes read from the file's
  *  neighbours). nullopt when the stage cannot be opened. */
-std::optional<geometry::decode::Model> readModel(
+std::optional<geometry::mesh::codec::decode::Model> readModel(
     const std::filesystem::path& file, std::string* error = nullptr);
-std::optional<geometry::decode::Model> readModel(
+std::optional<geometry::mesh::codec::decode::Model> readModel(
     const std::filesystem::path& file, ReadInfo* info,
     std::string* error = nullptr);
 
