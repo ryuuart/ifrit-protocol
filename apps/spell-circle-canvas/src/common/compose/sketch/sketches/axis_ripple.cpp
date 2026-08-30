@@ -74,9 +74,9 @@
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkTypeface.h>
-#include <sigilcompose/Material.h>
-#include <sigilcompose/TextFx.h>
-#include <sigilcompose/Typography.h>
+#include <sigilcompose/core/Material.h>
+#include <sigilcompose/typography/TextFx.h>
+#include <sigilcompose/typography/Typography.h>
 #include <sigilsketch/Sketch.h>
 
 #include <cmath>

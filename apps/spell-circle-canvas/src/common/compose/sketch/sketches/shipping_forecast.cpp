@@ -127,11 +127,11 @@
 //
 //   The whole bulletin:  --at 0.2 --frames 30 --fps 4
 
-#include <sigilcompose/Material.h>
-#include <sigilcompose/Shapes.h>
-#include <sigilcompose/TextFx.h>
-#include <sigilcompose/Typography.h>
+#include <sigilcompose/core/Material.h>
 #include <sigilcompose/kit/Frame.h>
+#include <sigilcompose/shape/Shapes.h>
+#include <sigilcompose/typography/TextFx.h>
+#include <sigilcompose/typography/Typography.h>
 #include <sigilsketch/Sketch.h>
 #include <sigilweave/style/Style.h>
 

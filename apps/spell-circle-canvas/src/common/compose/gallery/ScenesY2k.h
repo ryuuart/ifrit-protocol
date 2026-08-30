@@ -22,11 +22,11 @@
 //                     measured and the wrapping phase comes from the ticker
 
 #include <include/core/SkMaskFilter.h>
-#include <sigilcompose/LayerStyles.h>
-#include <sigilcompose/Material.h>
-#include <sigilcompose/Patterns.h>
-#include <sigilcompose/Shapes.h>
-#include <sigilcompose/TextFx.h>
+#include <sigilcompose/core/Material.h>
+#include <sigilcompose/paint/LayerStyles.h>
+#include <sigilcompose/paint/Patterns.h>
+#include <sigilcompose/shape/Shapes.h>
+#include <sigilcompose/typography/TextFx.h>
 
 #include <cmath>
 #include <string>

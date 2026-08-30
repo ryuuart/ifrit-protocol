@@ -23,9 +23,9 @@
 // sketch that touched it. Two agents in the overnight program found it
 // within minutes of each other.)
 
-#include <sigilcompose/Material.h>
-#include <sigilcompose/Patterns.h>
-#include <sigilcompose/Sdf.h>
+#include <sigilcompose/core/Material.h>
+#include <sigilcompose/paint/Patterns.h>
+#include <sigilcompose/paint/Sdf.h>
 #include <sigilsketch/Sketch.h>
 
 using namespace sigil::compose;

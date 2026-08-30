@@ -15,8 +15,8 @@
 #include <include/effects/SkTrimPathEffect.h>
 #include <include/encode/SkPngEncoder.h>
 #include <sigilcompose/Compose.h>
-#include <sigilcompose/Feed.h>
-#include <sigilcompose/Material.h>
+#include <sigilcompose/core/Feed.h>
+#include <sigilcompose/core/Material.h>
 #include <sigilcompose/testing/Checks.h>
 #include <sigilimage/asset/ImageAsset.h>
 #include <sigilweave/choreograph/Choreograph.h>

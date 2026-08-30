@@ -114,12 +114,12 @@
 #include <include/core/SkPicture.h>
 #include <include/core/SkString.h>
 #include <include/effects/SkRuntimeEffect.h>
-#include <sigilcompose/Decorations.h>
-#include <sigilcompose/Material.h>
-#include <sigilcompose/Pattern.h>
-#include <sigilcompose/Patterns.h>
-#include <sigilcompose/Shapes.h>
+#include <sigilcompose/brush/Decorations.h>
+#include <sigilcompose/core/Material.h>
 #include <sigilcompose/kit/Frame.h>
+#include <sigilcompose/paint/Pattern.h>
+#include <sigilcompose/paint/Patterns.h>
+#include <sigilcompose/shape/Shapes.h>
 #include <sigilsketch/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>
 

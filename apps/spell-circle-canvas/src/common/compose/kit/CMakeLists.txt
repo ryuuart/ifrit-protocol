@@ -8,17 +8,17 @@
 # negative control for exactly that (built on demand, expected to fail; see
 # the file).
 #
-# Two kit headers live with the Brush tier instead, because their values
-# are spelled in its types: `kit/Strokes.h` (the stroke grammar) and
-# `kit/Plate.h` (the bordered feed plate). Include them directly.
+# Four kit headers live with other tiers instead, because their values are
+# spelled in those tiers' types: `kit/Strokes.h` (the stroke grammar) and
+# `kit/Plate.h` (the bordered feed plate) with Brush, `kit/Legibility.h`
+# with Typography and `kit/Placers.h` with Instances. Include them directly.
 add_library(SigilComposeKit STATIC
   Kit.cpp
-  ${CMAKE_CURRENT_LIST_DIR}/../include/sigilcompose/kit/Divisions.h
-  ${CMAKE_CURRENT_LIST_DIR}/../include/sigilcompose/kit/Frame.h
-  ${CMAKE_CURRENT_LIST_DIR}/../include/sigilcompose/kit/Instruments.h
-  ${CMAKE_CURRENT_LIST_DIR}/../include/sigilcompose/kit/Kit.h
-  ${CMAKE_CURRENT_LIST_DIR}/../include/sigilcompose/kit/Legibility.h
-  ${CMAKE_CURRENT_LIST_DIR}/../include/sigilcompose/kit/PixelType.h
+  ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/kit/Divisions.h
+  ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/kit/Frame.h
+  ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/kit/Instruments.h
+  ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/kit/Kit.h
+  ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/kit/PixelType.h
 )
 
 target_compile_features(SigilComposeKit PUBLIC cxx_std_20)
@@ -35,3 +35,27 @@ target_link_libraries(SigilComposeKit PUBLIC
 # question — it must fail with "'ComposeInternal.h' file not found".
 add_executable(compose_kit_boundary_probe EXCLUDE_FROM_ALL BoundaryProbe.cpp)
 target_link_libraries(compose_kit_boundary_probe PRIVATE SigilComposeKit)
+
+# The kit tier's tests. Separate binary rather than more cases in the
+# kernel binaries: the kit changes nothing in the kernel, so a kit failure
+# must never look like a kernel failure on the dashboard. Links the kit
+# ALONE — the stroke-grammar cases, which need the Brush tier, are the
+# brush binary's.
+add_executable(compose_kit_test
+  test/ComposeKitTest.cpp
+)
+target_include_directories(compose_kit_test PRIVATE
+  ${SIGIL_COMPOSE_TEST_SUPPORT_DIR})
+target_link_libraries(compose_kit_test PRIVATE
+  SigilComposeKit SigilComposeTesting SigilWeavePorts GTest::gtest_main)
+add_test(NAME compose_kit_test COMMAND compose_kit_test)
+
+# Composer queries, the studio, the feed plate and the instruments that
+# read a cascade back — the kit's instruments over the kernel's queries,
+# with Brush for the plate.
+_compose_test_binary(compose_studio_test
+  LIBRARIES SigilComposeCore SigilComposeKit SigilComposeBrush
+  SOURCES
+    test/ComposeTestQueriesStudio.cpp
+    test/ComposeTestContentStudio.cpp
+)

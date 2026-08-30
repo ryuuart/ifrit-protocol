@@ -18,10 +18,10 @@
 // setup(), because a scene can be activated more than once.
 
 #include <include/core/SkPathBuilder.h>
-#include <sigilcompose/LayerStyles.h>
-#include <sigilcompose/Material.h>
-#include <sigilcompose/Shapes.h>
-#include <sigilcompose/TextFx.h>
+#include <sigilcompose/core/Material.h>
+#include <sigilcompose/paint/LayerStyles.h>
+#include <sigilcompose/shape/Shapes.h>
+#include <sigilcompose/typography/TextFx.h>
 
 #include <cmath>
 

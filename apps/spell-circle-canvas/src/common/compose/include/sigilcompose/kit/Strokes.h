@@ -26,16 +26,16 @@
 #include <include/core/SkStrokeRec.h>
 #include <include/effects/SkCornerPathEffect.h>
 #include <include/effects/SkDiscretePathEffect.h>
+#include <sigilcompose/brush/Brushes.h>
+#include <sigilcompose/brush/Lines.h>
+#include <sigilcompose/core/Derive.h>
+#include <sigilcompose/core/Stroke.h>
+#include <sigilcompose/shape/Routers.h>
+#include <sigilcompose/shape/Shapes.h>
 
 #include <cmath>
 #include <vector>
 
-#include "sigilcompose/Brushes.h"
-#include "sigilcompose/Derive.h"
-#include "sigilcompose/Lines.h"
-#include "sigilcompose/Routers.h"
-#include "sigilcompose/Shapes.h"
-#include "sigilcompose/Stroke.h"
 #include "sigilgeometry/path/Contour.h"
 
 namespace sigil::compose::kit {

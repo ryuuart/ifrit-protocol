@@ -7,7 +7,7 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
 #include <sigilcompose/Compose.h>
-#include <sigilcompose/Decorations.h>
+#include <sigilcompose/brush/Decorations.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
 

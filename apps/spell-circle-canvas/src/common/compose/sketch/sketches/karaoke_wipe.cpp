@@ -75,9 +75,9 @@
 //
 //   The hop, frame by frame:  --at 1.20 --frames 10 --fps 12
 
-#include <sigilcompose/Material.h>
-#include <sigilcompose/TextFx.h>
-#include <sigilcompose/Typography.h>
+#include <sigilcompose/core/Material.h>
+#include <sigilcompose/typography/TextFx.h>
+#include <sigilcompose/typography/Typography.h>
 #include <sigilsketch/Sketch.h>
 
 #include <algorithm>

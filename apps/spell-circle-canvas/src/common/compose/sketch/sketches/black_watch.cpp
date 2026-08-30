@@ -77,12 +77,12 @@
 #include <include/core/SkImage.h>
 #include <include/core/SkPath.h>
 #include <include/core/SkTypeface.h>
-#include <sigilcompose/LayerStyles.h>
-#include <sigilcompose/Material.h>
-#include <sigilcompose/Pattern.h>
-#include <sigilcompose/Patterns.h>
-#include <sigilcompose/Shapes.h>
+#include <sigilcompose/core/Material.h>
 #include <sigilcompose/kit/Frame.h>
+#include <sigilcompose/paint/LayerStyles.h>
+#include <sigilcompose/paint/Pattern.h>
+#include <sigilcompose/paint/Patterns.h>
+#include <sigilcompose/shape/Shapes.h>
 #include <sigilcompose/testing/Checks.h>
 #include <sigilimage/asset/ImageAsset.h>
 #include <sigilsketch/Sketch.h>

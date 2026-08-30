@@ -31,8 +31,8 @@ the argument.
 
 ```cpp
 #include <sigilcompose/Compose.h>
-#include <sigilcompose/Decorations.h>
-#include <sigilcompose/Typography.h>
+#include <sigilcompose/brush/Decorations.h>
+#include <sigilcompose/typography/Typography.h>
 
 #include <ranges>
 #include <vector>
@@ -937,110 +937,134 @@ them. The SigilWeave gallery's vertical scene shows both.
 ## The header map
 
 Everything lives in `namespace sigil::compose` under
-`include/sigilcompose/`. The public include root is `include/` and nothing
-else — the two internal headers beside the sources are not reachable from
-outside the library.
+`include/sigilcompose/<feature>/`, one directory per feature target, and
+the include spelling is the feature's: `<sigilcompose/core/Element.h>`,
+`<sigilcompose/shape/Shapes.h>`. The public include root is `include/`
+and nothing else — the internal headers beside each feature's sources are
+not reachable from outside it. Each feature has an umbrella named after
+it (`core/Core.h`, `shape/Shape.h`, `brush/Brush.h`, `paint/Paint.h`,
+`typography/Typography.h`) over its public headers, and
+`<sigilcompose/Compose.h>` at the root is the transitional umbrella over
+the kernel — exactly `core/Core.h`. Each header stands on its own; include
+the one a translation unit needs.
 
-**Kernel — `Compose.h`** is an umbrella: it includes the eleven feature
-headers below, in dependency order, and declares nothing itself. Include
-it for the whole kernel, or the one header a translation unit needs; each
-stands on its own. A user who reads these headers has a complete and sound
-model; nothing below them changes kernel semantics.
+**Kernel — `core/`.** A user who reads these headers has a complete and
+sound model; nothing below them changes kernel semantics.
 
-- `Motion.h` — the re-exports of SigilMotion's animation vocabulary
+- `core/Motion.h` — the re-exports of SigilMotion's animation vocabulary
   (`Animatable`, `Transition`, `animate`, `bind`, `ease::`,
   `quantizeTime`), so authoring never has to name a second library.
-- `Paint.h` — the paint values: `Fill`, `Corners`, `PaintContext`,
+- `core/Paint.h` — the paint values: `Fill`, `Corners`, `PaintContext`,
   `StampCache`, `UniformBlock`, `Effect`, and the colour spellings `hex`,
   `alpha`, `mul`, `mix`.
-- `Text.h` — the text model: `Unit`, `Selector` and `sel::`, `TextEffect`,
-  `Stagger`, `Track`, `Beat`, the mixed-text value `rich` / `RichText`, and
-  `toU8`.
-- `Shape.h` — the comparable seam values `Shape` (with `ShapeScheme`),
-  `MotionPath`, `TextPath`, `Decoration` and its declared-volatility
-  concepts, and `LayerStyle`.
-- `Stroke.h` — the stroke grammar: `Spans` and `spans::`, `Profile` and
-  `strand::`, `Across`, `Around`, `Formation`, `Shaper`, `StrandPath`,
+- `core/Text.h` — the text model: `Unit`, `Selector` and `sel::`,
+  `TextEffect`, `Stagger`, `Track`, `Beat`, the mixed-text value `rich` /
+  `RichText`, and `toU8`.
+- `core/Shape.h` — the comparable seam values `Shape` (with
+  `ShapeScheme`), `MotionPath`, `TextPath`, `Decoration` and its
+  declared-volatility concepts, and `LayerStyle`.
+- `core/Stroke.h` — the stroke grammar: `Spans` and `spans::`, `Profile`
+  and `strand::`, `Across`, `Around`, `Formation`, `Shaper`, `StrandPath`,
   `Crossing`, `CrossingRule` and `crossing::`.
-- `Mask.h` — the masking family: `Region`, `parts::`, `by::`, `Gate`,
+- `core/Mask.h` — the masking family: `Region`, `parts::`, `by::`, `Gate`,
   `Mask`.
-- `Layout.h` — `Dim` and its literals, `Align`, `Justify`, `Echo`, `Cache`,
-  `LayoutInput` / `LayoutScheme`, and the `ComponentProps` / `ComponentFn`
-  concepts.
-- `Element.h` — `Element` and its builders; the factories `box`, `stack`,
-  `positioned`, `text`, `image`, `custom`, `slot`, `layout`, `memo`; and
-  the one-shot verbs `snapshot`, `tiles::`, `measure`, `metrics`,
-  `measureRun`, `runPens`.
-- `Derive.h` — `connector`, `rail`, `Anchor`, `band`, `bandPointAt`, and the
-  `derive::` namespace that gathers the family.
-- `Env.h` — the `env::` inherited-value channel.
-- `Composer.h` — `Composer`.
+- `core/Layout.h` — `Dim` and its literals, `Align`, `Justify`, `Echo`,
+  `Cache`, `LayoutInput` / `LayoutScheme`, and the `ComponentProps` /
+  `ComponentFn` concepts.
+- `core/Element.h` — `Element` and its builders, the class alone.
+- `core/Factories.h` — the functions that start one: `box`, `stack`,
+  `positioned`, `text`, `image`, `custom`, `slot`, `layout`, `memo`.
+- `core/Measure.h` — the one-shot verbs that take a tree without a live
+  composer: `snapshot`, `measure`, `metrics`, `measureRun`, `runPens`.
+- `core/Tiles.h` — `tiles::`, the slicing of one baked picture into a run
+  of tile-sized rasters.
+- `core/Derive.h` — `connector`, `rail`, `Anchor`, `band`, `bandPointAt`,
+  and the `derive::` namespace that gathers the family.
+- `core/Env.h` — the `env::` inherited-value channel.
+- `core/Composer.h` — `Composer`.
+- `core/Material.h` — the polymorphic paint value that supersedes a flat
+  `Fill` — gradients, images, raw SkSL with live uniforms (float, float2,
+  float4 and whole arrays, constant or live: a scalar binds an `Output`,
+  an array binds a caller-owned `UniformBlock` whose `commit()` publishes
+  an edit), SkSL as source compiled and cached by the library, blend
+  stacks that compile to one shader, world-space anchoring — and the
+  one-line gradient `Fill`s, `linearGradient` and `radialGradient`.
+  `Effect::uniform` takes the same shapes on the post-processing seam.
+- `core/Feed.h` — the streaming collection: a `feed::Ring` of rows,
+  windowed to the newest `feed::Options::visible` and keyed by sequence
+  id, so an append costs one mount and every surviving row keeps its
+  cached picture; rows of text name their style in a
+  `sigil::weave::StyleSet` (`feed::TextRow`, `feed::TextOptions`). Built
+  purely by composing the kernel; the bordered strip several feeds sit on
+  is the kit's `kit::plate` (`kit/Plate.h`), with `kit::tinted` building
+  the one-face style set its rows name.
+- `core/GpuImage.h` — `gpuimg::drawLattice` and `gpuimg::drawSpriteAtlas`,
+  which are mandatory rather than convenient (see the traps).
 
-**Paint values.** `Material.h` is the polymorphic paint value that
-supersedes a flat `Fill` — gradients, images, raw SkSL with live uniforms
-(float, float2, float4 and whole arrays, constant or live: a scalar binds
-an `Output`, an array binds a caller-owned `UniformBlock` whose
-`commit()` publishes an edit), SkSL as source compiled and cached by the
-library, blend stacks that compile to one shader, world-space anchoring —
-and the one-line gradient `Fill`s, `linearGradient` and `radialGradient`.
-`Effect::uniform` takes the same shapes on the post-processing seam. `Sdf.h`
-gets shape, border, glow and soft shadow out of a single shader pass.
-`Pattern.h` and `Patterns.h` bake tile recipes once into repeating
-materials, plus stock generators. `Ocio.h` is an output-stage view
-transform for `Composer::setView`, compiled only when the build finds
-OpenColorIO.
-
-**Geometry.** `Shapes.h` is the silhouette and curve library — every
-generator is a comparable value, so a shaped node prunes like an unshaped
-one. `Layouts.h` holds the placement schemes for the `layout()` seam
-(`layouts::Radial`, `AlongPath`, `ModularGrid`, `Diagonal`, `BaselineGrid`,
-`Scatter`). `Routers.h` holds the stock connector and rail routers
-(`routers::straight`, `orthogonal`, `polyline`, `octilinear`, `orbit`).
-
-**Marks.** `Decorations.h` has the concrete primitives that plug the
-`Decoration` seam — `PathFormat` (stroke formatting) and `stroke`, its
-one-line spelling; `Shadow` / `shadow`, the soft drop shadow; `Slice`
-(lattice image mapping); `ContourWalk` (walk the outline and run a program
-at each sample); `Wash`; `Border`. `Brushes.h` is the brush engine over
-them: `brush::solid`, the composites `brush::layers` and `brush::weave`,
-and the archetypes `brush::Scatter`, `brush::Pattern`, `brush::Ribbon`,
-`brush::Art`. `Lines.h` is the cartography and diagram stroke vocabulary —
-parallel casings, terminal caps, ties, waves. `LayerStyles.h` is the
-Photoshop route to rich surfaces: bevels, sheens, inner shadows built from
-gradients and blurs rather than shaders.
-
-**Components.** `TextFx.h` supplies the stock preset effects (`fx::rise`,
-`fx::slide`, `fx::pop`, `fx::spinIn`, `fx::typeOn`, `fx::waveLoop`,
-`fx::scatter`, `fx::variableAxisSweep`, `fx::tint`) for the kernel's
-`Element::fx` seam — and `marquee`, the seamless ticker built from a
-clipped strip and a wrapping phase. The effects the runtime evaluates by
-structure are declared with the kernel in `Text.h`: `fx::scramble`, the
-`fx::keys` keyframe table, the `fx::pass` shader pass, the `fx::seq`,
-`fx::mix` and `fx::hold` combinators, and the `fx::effect` door. `Typography.h` is the compose-side spelling of a text
-style: `type` builds a `sigil::weave::TextStyle` from a designated-init
-`Type`, and `pickFace` resolves the first installed family of a fallback
-chain. `Feed.h` is the streaming collection — a `feed::Ring` of rows,
-windowed to the newest `feed::Options::visible` and keyed by sequence id,
-so an append costs one mount and every surviving row keeps its cached
-picture; rows of text name their style in a `sigil::weave::StyleSet`
-(`feed::TextRow`, `feed::TextOptions`). Built purely by composing the
-kernel; the bordered strip several feeds sit on is the kit's `kit::plate`
-(`kit/Plate.h`), with `kit::tinted` building the one-face style set its
-rows name.
-`instances/Instances.h` renders thousands of sprites as one leaf, with the
-pool on your side of the seam; it is its own target, `SigilComposeInstances`,
-linked only by what stamps with it, and the kit's `kit/Placers.h` (the
-`place::grid`, `place::ring` and `place::repeat` pool fillers) ships with
-it. `Web.h` makes a live Ultralight page a leaf; it is a
-header-only adapter and the library does not link SigilScry, so include it
-only in targets that do.
-
-**Tooling.** `GpuImage.h` holds `gpuimg::drawLattice` and
-`gpuimg::drawSpriteAtlas`, which are mandatory rather than convenient (see
-the traps). The two time helpers a scene reaches for — `motion::ramp`, a
-delayed eased `Transition` in float milliseconds, and `motion::phase`, a
-wrapping `[0, 1)` over a period — are SigilMotion's, in
+The two time helpers a scene reaches for — `motion::ramp`, a delayed
+eased `Transition` in float milliseconds, and `motion::phase`, a wrapping
+`[0, 1)` over a period — are SigilMotion's, in
 `<sigilmotion/Animation.h>`.
+
+**Geometry — `shape/`.** `shape/Shapes.h` is the silhouette and curve
+library, one include over four catalogs — every generator is a comparable
+value, so a shaped node prunes like an unshaped one: `shape/Generators.h`
+(the closed silhouettes: an SVG path, polygon, star, circle, annulus,
+squircle, blob, arc, sector, parallelogram), `shape/Curves.h` (the
+parametric curves in the unit frame: `parametric`, Lissajous,
+harmonograph, rose, spiral, trochoid), `shape/Corners.h` (`rounded` over
+any shape, `chamfered`, `notched`) and `shape/Edges.h` (`edges`,
+`onEdges`, `inset`, `arrow`). `shape/Layouts.h` holds the placement
+schemes for the `layout()` seam (`layouts::Radial`, `AlongPath`,
+`ModularGrid`, `Diagonal`, `BaselineGrid`, `Scatter`). `shape/Routers.h`
+holds the stock connector and rail routers (`routers::straight`,
+`orthogonal`, `polyline`, `octilinear`, `orbit`).
+
+**Marks — `brush/`.** `brush/Decorations.h` has the concrete primitives
+that plug the `Decoration` seam — `PathFormat` (stroke formatting) and
+`stroke`, its one-line spelling; `Shadow` / `shadow`, the soft drop
+shadow; `Slice` (lattice image mapping); `ContourWalk` (walk the outline
+and run a program at each sample); `Wash`; `Border`. The brush engine is
+three headers: `brush/Layered.h`, the stroke stack (`StrokeLayer`,
+`LayeredBrush`); `brush/GeometryOps.h`, the one mechanism door for
+deviating an outline (`ops::`, `GeometryOp`); and `brush/Brushes.h`, the
+brush kinds over them — `brush::solid`, the composites `brush::layers`
+and `brush::weave`, and the archetypes `brush::Scatter`, `brush::Pattern`,
+`brush::Ribbon`, `brush::Art`. The line vocabulary is three more:
+`brush/Lines.h`, the cartography and diagram stroke (`lines::Line` —
+parallel casings, terminal caps, ties, waves); `brush/Rails.h`, N-rail
+strokes where every rail is its own line; and `brush/Hatches.h`, the
+parallel, radial and concentric hatches. `kit/Strokes.h` and
+`kit/Plate.h` ship with this tier because they are spelled in its types.
+
+**Fills — `paint/`.** `paint/LayerStyles.h` is the Photoshop route to
+rich surfaces: bevels, sheens, inner shadows built from gradients and
+blurs rather than shaders. `paint/Sdf.h` gets shape, border, glow and
+soft shadow out of a single shader pass. `paint/Pattern.h` and
+`paint/Patterns.h` bake tile recipes once into repeating materials, plus
+stock generators. `paint/Ocio.h` is an output-stage view transform for
+`Composer::setView`, compiled only when the build finds OpenColorIO.
+
+**Type — `typography/`.** `typography/TextFx.h` supplies the stock preset
+effects (`fx::rise`, `fx::slide`, `fx::pop`, `fx::spinIn`, `fx::typeOn`,
+`fx::waveLoop`, `fx::scatter`, `fx::variableAxisSweep`, `fx::tint`) for
+the kernel's `Element::fx` seam — and `marquee`, the seamless ticker
+built from a clipped strip and a wrapping phase. The effects the runtime
+evaluates by structure are declared with the kernel in `core/Text.h`:
+`fx::scramble`, the `fx::keys` keyframe table, the `fx::pass` shader pass,
+the `fx::seq`, `fx::mix` and `fx::hold` combinators, and the `fx::effect`
+door. `typography/Type.h` is the compose-side spelling of a text style:
+`type` builds a `sigil::weave::TextStyle` from a designated-init `Type`,
+and `pickFace` resolves the first installed family of a fallback chain.
+`kit/Legibility.h` ships with this tier.
+
+**Leaves with their own targets.** `instances/Instances.h` renders
+thousands of sprites as one leaf, with the pool on your side of the seam;
+it is its own target, `SigilComposeInstances`, linked only by what stamps
+with it, and the kit's `kit/Placers.h` (the `place::grid`, `place::ring`
+and `place::repeat` pool fillers) ships with it. `web/Web.h` makes a live
+Ultralight page a leaf; it is a header-only adapter and the library does
+not link SigilScry, so include it only in targets that do.
 
 **Testing — `testing/Checks.h`.** A separate target, `SigilComposeTesting`,
 whose one header verifies generated geometry and reads back what was
@@ -1058,13 +1082,14 @@ centre), `kit::ticks` and `kit::chords` (division ladders as one path),
 halo/shade legibility helpers, the two instruments for text in motion —
 `kit::trackMeter` (a cascade's schedule drawn, one cell per beat at its
 rect, filled by its local time) and `kit::restGhost` (the same word
-undeformed under the moving one) — and, shipped with the Brush tier
-because they are spelled in its types, `kit/Strokes.h`'s shapers,
-profiles and span compositions and `kit/Plate.h`'s bordered feed plate.
-The kit is a **separate CMake library** (`SigilComposeKit`) whose only
-include path is compose's public headers, which is how the public/internal
-boundary is proven rather than asserted. Note that the umbrella header
-does not pull in `kit/Strokes.h` or `kit/Plate.h`; include them directly.
+undeformed under the moving one) — and, shipped with the tiers whose
+types they are spelled in, `kit/Strokes.h`'s shapers, profiles and span
+compositions and `kit/Plate.h`'s bordered feed plate (Brush),
+`kit/Legibility.h` (Typography) and `kit/Placers.h` (Instances). The kit
+is a **separate CMake library** (`SigilComposeKit`) whose only include
+path is compose's public headers, which is how the public/internal
+boundary is proven rather than asserted. Note that `kit/Kit.h` does not
+pull in the four headers shipped with other tiers; include them directly.
 
 ---
 
@@ -1199,7 +1224,7 @@ the left edge, not the top one.
 
 The library links `SigilGeometryPath`, `SigilImage`, `SigilMotion`,
 `SigilWeave` and Skia publicly, and Yoga privately. OpenColorIO is
-optional and gates `Ocio.h` alone. `SigilGeometryPath` supplies the
+optional and gates `paint/Ocio.h` alone. `SigilGeometryPath` supplies the
 contours, polylines and seeded noise that every outline walker here
 reads through, and compose adds no path geometry of its own.
 
@@ -1241,18 +1266,22 @@ What it refuses to be:
 
 ## Build and test
 
-The library is a set of feature targets over one kernel, and a consumer
-links the tier it draws with: `SigilComposeCore` (the kernel — elements,
+The library is one feature target per directory, and a consumer links the
+tier it draws with: `SigilComposeCore` (`core/` — the kernel: elements,
 the reconciler, layout, paint, transitions, text and the feed),
-`SigilComposeShape` (silhouettes, layouts, routers),
-`SigilComposeBrush` (decorations, lines, brushes, with `kit/Strokes.h` and
-`kit/Plate.h`), `SigilComposePaint` (patterns, SDF materials, layer
-styles, OCIO), `SigilComposeTypography` (header-only: type styles and the
-text-fx presets), `SigilComposeInstances` (the instanced sprite leaf and
-the kit's placers, over Core) and `SigilComposeWeb` (header-only, present
-only with SigilScry). `SigilCompose` is the umbrella over every tier but
-the instanced leaf and the web leaf, which are linked by name; the kit is
-`SigilComposeKit`. From `apps/spell-circle-canvas`:
+`SigilComposeShape` (`shape/` — silhouettes, layouts, routers),
+`SigilComposeTypography` (`typography/` — header-only: type styles and the
+text-fx presets), `SigilComposeBrush` (`brush/` — decorations, lines,
+brushes, with `kit/Strokes.h` and `kit/Plate.h`), `SigilComposePaint`
+(`paint/` — patterns, SDF materials, layer styles, OCIO),
+`SigilComposeInstances` (`instances/` — the instanced sprite leaf and the
+kit's placers, over Core), `SigilComposeWeb` (`web/` — header-only,
+present only with SigilScry), `SigilComposeTesting` (`testing/`) and
+`SigilComposeKit` (`kit/`). Each directory holds the target's sources,
+its internal headers, its `test/` and its `bench/`; the public headers
+sit under `include/sigilcompose/<feature>/`. `SigilCompose` is the
+transitional umbrella over every tier but the instanced leaf and the web
+leaf, which are linked by name. From `apps/spell-circle-canvas`:
 
 ```sh
 python3 scripts/setup.py --config Debug
@@ -1260,32 +1289,35 @@ cmake --build build --config Debug
 ctest --test-dir build -C Debug --output-on-failure
 ```
 
-Registered tests, one binary per library target so that each links only
+Registered tests, one binary per feature target so that each links only
 the target it exercises and a test reaching past its tier fails to link:
 `compose_core_test` (the kernel — elements, the reconciler, layout, paint,
 transitions, text, the feed, masks and the field walks; links
-`SigilComposeCore` alone), `compose_instances_test` (the pool, the atlas,
-the stamp, the pick and the placers; links `SigilComposeInstances` alone), `compose_shape_test` (silhouettes,
-layouts, routers, rails, travel), `compose_brush_test` (decorations,
-lines, brushes, the stroke grammar, the kit's stroke presets),
-`compose_paint_test` (patterns, SDF materials, layer styles, colour
-management), `compose_text_test` (text data, the text pass, vertical
-writing, motion along paths, the text-fx presets, rich spans),
-`compose_studio_test` (queries, the studio, the instruments),
+`SigilComposeCore` alone), `compose_shape_test` (silhouettes, layouts,
+routers, rails, travel), `compose_text_test` (text data, the text pass,
+vertical writing, motion along paths, the text-fx presets, rich spans),
+`compose_brush_test` (decorations, lines, brushes, the stroke grammar,
+the kit's stroke presets), `compose_paint_test` (patterns, SDF materials,
+layer styles, colour management), `compose_instances_test` (the pool,
+the atlas, the stamp, the pick and the placers), `compose_kit_test` and
+`compose_studio_test` (the kit, and the queries, the studio and the
+instruments over it), `compose_spike_test` (the Yoga+SigilWeave
+measurement contract, with `core/`), and the library's own:
 `compose_docs_test` (the engine walkthroughs and the generated README
-probes), `compose_api_doc_probes_self_test`, `compose_kit_test`,
-`compose_spike_test`, `compose_gallery_test`, `compose_sketch_smoke`,
-`compose_sketch_stock`, `compose_sketch_shape`, plus `compose_gpu_test`
-(Apple only, needs the Graphite plumbing) and `compose_web_test` (needs
-the Ultralight SDK). Each binary's translation units share
-`test/support/Host.h` — the composer-in-a-raster-surface harness — through
-a support header of their own that includes only what they use.
-The benchmarks and `compose_demo` are executables, not tests. There is one
-benchmark binary per tier — `compose_core_bench`, `compose_shape_bench`,
-`compose_brush_bench`, `compose_paint_bench`, `compose_text_bench` — each
-linking only the library it measures, all built by the `benches` target
-and run by `scripts/bench_ledger.py`; anything resembling a performance
-claim belongs to them and to the plate ledger, never to prose.
+probes), `compose_api_doc_probes_self_test`, `compose_gallery_test`,
+`compose_sketch_smoke`, `compose_sketch_stock`, `compose_sketch_shape`,
+plus `compose_gpu_test` (Apple only, needs the Graphite plumbing) and
+`compose_web_test` (needs the Ultralight SDK). Each binary's translation
+units share `test/support/Host.h` — the composer-in-a-raster-surface
+harness — through a support header of their own that includes only what
+they use. The benchmarks and `compose_demo` are executables, not tests.
+There is one benchmark binary per tier — `compose_core_bench`,
+`compose_shape_bench`, `compose_brush_bench`, `compose_paint_bench`,
+`compose_text_bench` — each in its feature's `bench/` over the shared
+`bench/BenchSupport.h`, linking only the library it measures, all built
+by the `benches` target and run by `scripts/bench_ledger.py`; anything
+resembling a performance claim belongs to them and to the plate ledger,
+never to prose.
 
 **The gallery** is a macOS app bundle, so headless runs go through the
 binary inside it:

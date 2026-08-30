@@ -43,12 +43,11 @@
 #include <include/core/SkPoint.h>
 #include <include/core/SkRect.h>
 #include <include/core/SkSize.h>
+#include <sigilcompose/core/Element.h>
+#include <sigilcompose/core/Layout.h>
 
 #include <cmath>
 #include <vector>
-
-#include "sigilcompose/Element.h"
-#include "sigilcompose/Layout.h"
 
 namespace sigil::compose::kit {
 

@@ -59,15 +59,14 @@
 #include <include/core/SkImageInfo.h>
 #include <include/core/SkSamplingOptions.h>
 #include <include/core/SkSurface.h>
+#include <sigilcompose/core/Element.h>
+#include <sigilcompose/typography/Typography.h>
 
 #include <algorithm>
 #include <array>
 #include <cmath>
 #include <string>
 #include <string_view>
-
-#include "sigilcompose/Element.h"
-#include "sigilcompose/Typography.h"
 
 namespace sigil::compose::kit {
 

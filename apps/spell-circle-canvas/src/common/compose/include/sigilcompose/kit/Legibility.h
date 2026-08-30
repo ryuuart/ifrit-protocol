@@ -31,13 +31,12 @@
 #include <include/core/SkFont.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkTextBlob.h>
+#include <sigilcompose/core/Element.h>
+#include <sigilcompose/core/Paint.h>
+#include <sigilcompose/core/Shape.h>
 
 #include <initializer_list>
 #include <string_view>
-
-#include "sigilcompose/Element.h"
-#include "sigilcompose/Paint.h"
-#include "sigilcompose/Shape.h"
 
 namespace sigil::compose::kit {
 

@@ -198,15 +198,15 @@
 #include <include/core/SkSurface.h>
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
-#include <sigilcompose/Decorations.h>
-#include <sigilcompose/Lines.h>
-#include <sigilcompose/Material.h>
-#include <sigilcompose/Pattern.h>
-#include <sigilcompose/Patterns.h>
-#include <sigilcompose/Shapes.h>
-#include <sigilcompose/TextFx.h>
+#include <sigilcompose/brush/Decorations.h>
+#include <sigilcompose/brush/Lines.h>
+#include <sigilcompose/core/Material.h>
 #include <sigilcompose/instances/Instances.h>
 #include <sigilcompose/kit/Legibility.h>
+#include <sigilcompose/paint/Pattern.h>
+#include <sigilcompose/paint/Patterns.h>
+#include <sigilcompose/shape/Shapes.h>
+#include <sigilcompose/typography/TextFx.h>
 #include <sigilsketch/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>
 

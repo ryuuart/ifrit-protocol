@@ -13,7 +13,7 @@
 #include <include/core/SkPathBuilder.h>
 #include <include/effects/SkDashPathEffect.h>
 #include <include/effects/SkPerlinNoiseShader.h>
-#include <sigilcompose/Decorations.h>
+#include <sigilcompose/brush/Decorations.h>
 
 #include <cmath>
 #include <vector>

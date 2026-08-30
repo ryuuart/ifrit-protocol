@@ -4,13 +4,13 @@
 // shape support. The Brush tier carries the typography headers with it, so
 // text-fx presets are in reach here too.
 
-#include <sigilcompose/Brushes.h>
-#include <sigilcompose/Decorations.h>
-#include <sigilcompose/Lines.h>
-#include <sigilcompose/TextFx.h>
-#include <sigilcompose/Typography.h>
+#include <sigilcompose/brush/Brushes.h>
+#include <sigilcompose/brush/Decorations.h>
+#include <sigilcompose/brush/Lines.h>
 #include <sigilcompose/kit/Plate.h>
 #include <sigilcompose/kit/Strokes.h>
+#include <sigilcompose/typography/TextFx.h>
+#include <sigilcompose/typography/Typography.h>
 
 #include "ShapeTestSupport.h"
 

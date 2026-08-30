@@ -21,7 +21,7 @@
 //    version below only guards against stale sketch binaries
 
 #include <sigilcompose/Compose.h>
-#include <sigilcompose/Decorations.h>
+#include <sigilcompose/brush/Decorations.h>
 #include <sigilsketch/Assets.h>
 
 #include <string_view>

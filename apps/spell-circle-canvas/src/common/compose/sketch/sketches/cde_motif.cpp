@@ -163,11 +163,11 @@
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>
-#include <sigilcompose/Decorations.h>
-#include <sigilcompose/Material.h>
-#include <sigilcompose/Pattern.h>
-#include <sigilcompose/Patterns.h>
-#include <sigilcompose/Shapes.h>
+#include <sigilcompose/brush/Decorations.h>
+#include <sigilcompose/core/Material.h>
+#include <sigilcompose/paint/Pattern.h>
+#include <sigilcompose/paint/Patterns.h>
+#include <sigilcompose/shape/Shapes.h>
 #include <sigilsketch/Sketch.h>
 #include <sigilweave/paragraph/Paragraph.h>
 #include <sigilweave/ports/SystemFontManager.h>

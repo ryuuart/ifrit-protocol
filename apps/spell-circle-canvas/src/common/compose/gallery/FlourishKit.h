@@ -9,7 +9,7 @@
 // stay in ScenesFlourish.h; those are the live scene's job, not a card's.
 
 #include <include/core/SkPathBuilder.h>
-#include <sigilcompose/Shapes.h>
+#include <sigilcompose/shape/Shapes.h>
 
 #include <string>
 #include <vector>

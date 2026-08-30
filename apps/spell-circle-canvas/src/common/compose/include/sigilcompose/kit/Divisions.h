@@ -32,11 +32,11 @@
 
 #include <include/core/SkPath.h>
 #include <include/core/SkPathBuilder.h>
+#include <sigilcompose/shape/Shapes.h>
 
 #include <algorithm>
 #include <functional>
 
-#include "sigilcompose/Shapes.h"
 #include "sigilcompose/kit/Frame.h"
 
 namespace sigil::compose::kit {

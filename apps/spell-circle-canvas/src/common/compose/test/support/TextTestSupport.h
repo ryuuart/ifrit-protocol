@@ -5,8 +5,8 @@
 // an upright column are exercised on `shapes::` silhouettes — and nothing
 // that strokes or fills.
 
-#include <sigilcompose/TextFx.h>
-#include <sigilcompose/Typography.h>
 #include <sigilcompose/kit/Legibility.h>
+#include <sigilcompose/typography/TextFx.h>
+#include <sigilcompose/typography/Typography.h>
 
 #include "ShapeTestSupport.h"

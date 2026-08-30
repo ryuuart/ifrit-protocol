@@ -38,9 +38,9 @@
 #include <include/core/SkImage.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkSamplingOptions.h>
-#include <sigilcompose/Feed.h>
-#include <sigilcompose/Material.h>
-#include <sigilcompose/TextFx.h>
+#include <sigilcompose/core/Feed.h>
+#include <sigilcompose/core/Material.h>
+#include <sigilcompose/typography/TextFx.h>
 #include <sigilsketch/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>
 

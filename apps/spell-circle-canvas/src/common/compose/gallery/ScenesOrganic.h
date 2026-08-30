@@ -8,9 +8,9 @@
 // (Routers.h), and a wandering hit probe reading
 // Composer::hitTest() live. Catalog: #5 #9 #10 #12 + the shape kit.
 
-#include <sigilcompose/Layouts.h>
-#include <sigilcompose/Routers.h>
-#include <sigilcompose/Shapes.h>
+#include <sigilcompose/shape/Layouts.h>
+#include <sigilcompose/shape/Routers.h>
+#include <sigilcompose/shape/Shapes.h>
 
 #include "GalleryCore.h"
 

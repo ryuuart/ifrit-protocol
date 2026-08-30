@@ -144,14 +144,14 @@
 #include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkSurface.h>
-#include <sigilcompose/Brushes.h>
-#include <sigilcompose/Decorations.h>
-#include <sigilcompose/Lines.h>
-#include <sigilcompose/Material.h>
-#include <sigilcompose/Patterns.h>
-#include <sigilcompose/Routers.h>
-#include <sigilcompose/Shapes.h>
+#include <sigilcompose/brush/Brushes.h>
+#include <sigilcompose/brush/Decorations.h>
+#include <sigilcompose/brush/Lines.h>
+#include <sigilcompose/core/Material.h>
 #include <sigilcompose/kit/Strokes.h>
+#include <sigilcompose/paint/Patterns.h>
+#include <sigilcompose/shape/Routers.h>
+#include <sigilcompose/shape/Shapes.h>
 #include <sigilsketch/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>
 

@@ -9,10 +9,10 @@
 #import <Metal/Metal.h>
 
 #include <sigilcompose/Compose.h>
-#include <sigilcompose/Decorations.h>
-#include <sigilcompose/Shapes.h>
-#include <sigilcompose/TextFx.h>
+#include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/instances/Instances.h>
+#include <sigilcompose/shape/Shapes.h>
+#include <sigilcompose/typography/TextFx.h>
 
 #include <sigilweave/SigilWeave.h>
 #include <sigilweave/fonts/FontContext.h>

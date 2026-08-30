@@ -110,10 +110,10 @@
 //       src/common/compose/sketch/sketches/matrix_rain.cpp \
 //       --frame /tmp/matrix_rain.png --at 7.0
 
-#include <sigilcompose/Material.h>
-#include <sigilcompose/TextFx.h>
-#include <sigilcompose/Typography.h>
+#include <sigilcompose/core/Material.h>
 #include <sigilcompose/kit/Instruments.h>
+#include <sigilcompose/typography/TextFx.h>
+#include <sigilcompose/typography/Typography.h>
 #include <sigilsketch/Sketch.h>
 #include <sigilweave/style/Style.h>
 

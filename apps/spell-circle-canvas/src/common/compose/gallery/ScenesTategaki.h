@@ -18,8 +18,8 @@
 // shapes they take differ enough per passage that a verb would fit none of
 // them.
 
-#include <sigilcompose/Shapes.h>
-#include <sigilcompose/TextFx.h>
+#include <sigilcompose/shape/Shapes.h>
+#include <sigilcompose/typography/TextFx.h>
 
 #include "GalleryCore.h"
 

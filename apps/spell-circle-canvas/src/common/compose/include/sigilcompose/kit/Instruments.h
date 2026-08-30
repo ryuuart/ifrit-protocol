@@ -10,17 +10,16 @@
 
 #include <include/core/SkColor.h>
 #include <include/core/SkRect.h>
+#include <sigilcompose/core/Composer.h>
+#include <sigilcompose/core/Element.h>
+#include <sigilcompose/core/Paint.h>
+#include <sigilcompose/core/Text.h>
 
 #include <algorithm>
 #include <cstddef>
 #include <string>
 #include <string_view>
 #include <vector>
-
-#include "sigilcompose/Composer.h"
-#include "sigilcompose/Element.h"
-#include "sigilcompose/Paint.h"
-#include "sigilcompose/Text.h"
 
 namespace sigil::compose::kit {
 

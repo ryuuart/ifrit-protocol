@@ -34,7 +34,7 @@
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
-#include <sigilcompose/Material.h>
+#include <sigilcompose/core/Material.h>
 #include <sigilsketch/Sketch.h>
 
 #include <array>

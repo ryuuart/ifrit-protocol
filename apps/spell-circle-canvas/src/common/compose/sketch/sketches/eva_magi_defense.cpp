@@ -151,9 +151,9 @@
 #include <include/core/SkPathUtils.h>
 #include <include/core/SkTypeface.h>
 #include <include/effects/SkRuntimeEffect.h>
-#include <sigilcompose/Brushes.h>
-#include <sigilcompose/Feed.h>
-#include <sigilcompose/Material.h>
+#include <sigilcompose/brush/Brushes.h>
+#include <sigilcompose/core/Feed.h>
+#include <sigilcompose/core/Material.h>
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilsketch/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>

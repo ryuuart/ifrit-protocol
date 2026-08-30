@@ -30,12 +30,12 @@
 // patterns::noise thresholded into bands, the item glyphs are paths.
 
 #include <include/core/SkPathBuilder.h>
-#include <sigilcompose/Brushes.h>
-#include <sigilcompose/LayerStyles.h>
-#include <sigilcompose/Material.h>
-#include <sigilcompose/Patterns.h>
-#include <sigilcompose/Shapes.h>
+#include <sigilcompose/brush/Brushes.h>
+#include <sigilcompose/core/Material.h>
 #include <sigilcompose/instances/Instances.h>
+#include <sigilcompose/paint/LayerStyles.h>
+#include <sigilcompose/paint/Patterns.h>
+#include <sigilcompose/shape/Shapes.h>
 
 #include <cmath>
 #include <cstdio>

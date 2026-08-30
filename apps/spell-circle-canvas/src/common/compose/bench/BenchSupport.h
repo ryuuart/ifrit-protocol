@@ -14,8 +14,8 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkImageInfo.h>
 #include <include/core/SkSurface.h>
-#include <sigilcompose/Composer.h>
-#include <sigilcompose/Element.h>
+#include <sigilcompose/core/Composer.h>
+#include <sigilcompose/core/Element.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
 

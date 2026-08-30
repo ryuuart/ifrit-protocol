@@ -1,14 +1,16 @@
-// The KIT tier's translation unit.
-//
-// The kit is header-only VALUES over compose's public seams, and this file
-// exists to make that a structural fact rather than a promise: it is
-// compiled as its own library (SigilComposeKit) whose ONLY include path is
-// compose's `include/` tree. ComposeInternal.h and ComposeRuntime.h live in
-// the source root, which is on no target's include path, so a kit header
-// that reached for the kernel's internals would fail to compile here.
-//
-// See kit/BoundaryProbe.cpp for the negative control, and CMakeLists.txt
-// for how to run it.
+/** @file
+ * The KIT tier's translation unit.
+ *
+ * The kit is header-only VALUES over compose's public seams, and this file
+ * exists to make that a structural fact rather than a promise: it is
+ * compiled as its own library (SigilComposeKit) whose ONLY include path is
+ * compose's `include/` tree. ComposeInternal.h and ComposeRuntime.h live in
+ * core/, which is on no other target's include path, so a kit header
+ * that reached for the kernel's internals would fail to compile here.
+ *
+ * See kit/BoundaryProbe.cpp for the negative control, and CMakeLists.txt
+ * for how to run it.
+ */
 
 #include <sigilcompose/kit/Divisions.h>
 #include <sigilcompose/kit/Frame.h>

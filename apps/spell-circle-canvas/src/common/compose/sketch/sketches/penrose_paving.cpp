@@ -103,12 +103,12 @@
 #include <include/core/SkMatrix.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkString.h>
-#include <sigilcompose/Brushes.h>
-#include <sigilcompose/LayerStyles.h>
-#include <sigilcompose/Lines.h>
-#include <sigilcompose/Material.h>
-#include <sigilcompose/Patterns.h>
-#include <sigilcompose/Shapes.h>
+#include <sigilcompose/brush/Brushes.h>
+#include <sigilcompose/brush/Lines.h>
+#include <sigilcompose/core/Material.h>
+#include <sigilcompose/paint/LayerStyles.h>
+#include <sigilcompose/paint/Patterns.h>
+#include <sigilcompose/shape/Shapes.h>
 #include <sigilsketch/Sketch.h>
 
 #include <algorithm>

@@ -47,13 +47,13 @@
 //                         lines, italic flavour, on a framed scrim
 
 #include <include/core/SkPathBuilder.h>
-#include <sigilcompose/Brushes.h>
-#include <sigilcompose/LayerStyles.h>
-#include <sigilcompose/Material.h>
-#include <sigilcompose/Routers.h>
-#include <sigilcompose/Sdf.h>
-#include <sigilcompose/Shapes.h>
+#include <sigilcompose/brush/Brushes.h>
+#include <sigilcompose/core/Material.h>
 #include <sigilcompose/kit/Strokes.h>
+#include <sigilcompose/paint/LayerStyles.h>
+#include <sigilcompose/paint/Sdf.h>
+#include <sigilcompose/shape/Routers.h>
+#include <sigilcompose/shape/Shapes.h>
 
 #include <algorithm>
 #include <array>

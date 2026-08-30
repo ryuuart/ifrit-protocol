@@ -32,7 +32,7 @@
 // The accent's colour is driven by an animation output, and deliberately
 // parked. Parked is the whole point.
 
-#include <sigilcompose/Brushes.h>
+#include <sigilcompose/brush/Brushes.h>
 #include <sigilsketch/Sketch.h>
 
 #include <cmath>

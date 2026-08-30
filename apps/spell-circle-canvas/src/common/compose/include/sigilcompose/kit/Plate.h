@@ -11,15 +11,14 @@
 #include <include/core/SkColor.h>
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkTypeface.h>
+#include <sigilcompose/brush/Decorations.h>
+#include <sigilcompose/core/Element.h>
+#include <sigilcompose/typography/Typography.h>
 #include <sigilweave/style/Style.h>
 
 #include <string>
 #include <utility>
 #include <vector>
-
-#include "sigilcompose/Decorations.h"
-#include "sigilcompose/Element.h"
-#include "sigilcompose/Typography.h"
 
 namespace sigil::compose::kit {
 

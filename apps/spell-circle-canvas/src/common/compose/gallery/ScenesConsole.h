@@ -40,16 +40,16 @@
 // row's mount plus the few chrome leaves whose text actually changed. The
 // retained instance tree is what makes that work; there is no virtualizer.
 
-#include <sigilcompose/Feed.h>
-#include <sigilcompose/Material.h>
-#include <sigilcompose/Sdf.h>
-#include <sigilcompose/TextFx.h>
-#include <sigilcompose/Typography.h>
+#include <sigilcompose/core/Feed.h>
+#include <sigilcompose/core/Material.h>
+#include <sigilcompose/paint/Sdf.h>
+#include <sigilcompose/typography/TextFx.h>
+#include <sigilcompose/typography/Typography.h>
 #include <sigilweave/style/Features.h>
 
 #include "GalleryCore.h"
 #if defined(SIGILCOMPOSE_ENABLE_OCIO)
-#include <sigilcompose/Ocio.h>
+#include <sigilcompose/paint/Ocio.h>
 #endif
 
 #include <include/core/SkString.h>

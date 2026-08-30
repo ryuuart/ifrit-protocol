@@ -17,10 +17,10 @@
 #include <include/effects/SkImageFilters.h>
 #include <include/encode/SkPngEncoder.h>
 #include <sigilcompose/Compose.h>
-#include <sigilcompose/Decorations.h>
-#include <sigilcompose/Layouts.h>
-#include <sigilcompose/Routers.h>
-#include <sigilcompose/Shapes.h>
+#include <sigilcompose/brush/Decorations.h>
+#include <sigilcompose/shape/Layouts.h>
+#include <sigilcompose/shape/Routers.h>
+#include <sigilcompose/shape/Shapes.h>
 #include <sigilimage/asset/ImageAsset.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>

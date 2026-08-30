@@ -18,7 +18,7 @@
 // runtime re-resolves the five `t` lanes every frame. Nothing re-describes,
 // and travel() is paint-only — no track ever relayouts.
 
-#include <sigilcompose/Shapes.h>
+#include <sigilcompose/shape/Shapes.h>
 #include <sigilsketch/Sketch.h>
 
 #include <cmath>

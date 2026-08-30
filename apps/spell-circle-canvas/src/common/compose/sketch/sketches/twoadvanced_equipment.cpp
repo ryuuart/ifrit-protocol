@@ -39,10 +39,10 @@
 // page: 1580×1160.
 
 #include <include/core/SkFontMgr.h>
-#include <sigilcompose/Decorations.h>
-#include <sigilcompose/Material.h>
-#include <sigilcompose/Shapes.h>
-#include <sigilcompose/TextFx.h>
+#include <sigilcompose/brush/Decorations.h>
+#include <sigilcompose/core/Material.h>
+#include <sigilcompose/shape/Shapes.h>
+#include <sigilcompose/typography/TextFx.h>
 #include <sigilsketch/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>
 

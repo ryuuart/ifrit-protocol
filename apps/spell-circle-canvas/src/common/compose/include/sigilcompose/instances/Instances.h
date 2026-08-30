@@ -43,7 +43,7 @@
 #include <include/core/SkColor.h>
 #include <include/core/SkImage.h>
 #include <sigilcompose/Compose.h>
-#include <sigilcompose/GpuImage.h>
+#include <sigilcompose/core/GpuImage.h>
 
 #include <algorithm>
 #include <cstdint>

@@ -62,9 +62,9 @@
 //       src/common/compose/sketch/sketches/ember_decode.cpp \
 //       --frame /tmp/ember_decode.png --at 2.4
 
-#include <sigilcompose/Material.h>
-#include <sigilcompose/TextFx.h>
-#include <sigilcompose/Typography.h>
+#include <sigilcompose/core/Material.h>
+#include <sigilcompose/typography/TextFx.h>
+#include <sigilcompose/typography/Typography.h>
 #include <sigilsketch/Sketch.h>
 #include <sigilweave/choreograph/Choreograph.h>
 

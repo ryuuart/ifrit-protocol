@@ -21,7 +21,7 @@ target_link_libraries(SigilComposeInstances PUBLIC SigilComposeCore)
 # library's test/support directory.
 add_executable(compose_instances_test test/InstancesTest.cpp)
 target_include_directories(compose_instances_test PRIVATE
-  ${CMAKE_CURRENT_LIST_DIR}/../test/support)
+  ${SIGIL_COMPOSE_TEST_SUPPORT_DIR}/support)
 target_link_libraries(compose_instances_test PRIVATE
   SigilComposeInstances SigilComposeTesting SigilWeavePorts GTest::gtest_main)
 add_test(NAME compose_instances_test COMMAND compose_instances_test)

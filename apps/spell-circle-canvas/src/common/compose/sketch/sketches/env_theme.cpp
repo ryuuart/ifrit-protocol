@@ -27,7 +27,7 @@
 // patches the nodes whose props moved. Bind the one property that scrubs
 // at 60 Hz, never the theme.
 
-#include <sigilcompose/Feed.h>
+#include <sigilcompose/core/Feed.h>
 #include <sigilsketch/Sketch.h>
 
 #include <string>

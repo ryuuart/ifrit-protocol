@@ -32,12 +32,12 @@
 // resolution, so its noise stays pixel-sized instead of being magnified with
 // everything else.
 
-#include <sigilcompose/Material.h>
-#include <sigilcompose/Shapes.h>
+#include <sigilcompose/core/Material.h>
+#include <sigilcompose/shape/Shapes.h>
 
 #include "GalleryCore.h"
 #if defined(SIGILCOMPOSE_ENABLE_OCIO)
-#include <sigilcompose/Ocio.h>
+#include <sigilcompose/paint/Ocio.h>
 #endif
 
 #include <include/core/SkString.h>

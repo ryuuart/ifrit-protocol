@@ -19,9 +19,9 @@
 #include <include/core/SkSurface.h>
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
-#include <sigilcompose/Layouts.h>
-#include <sigilcompose/Routers.h>
-#include <sigilcompose/Shapes.h>
+#include <sigilcompose/shape/Layouts.h>
+#include <sigilcompose/shape/Routers.h>
+#include <sigilcompose/shape/Shapes.h>
 
 #include <algorithm>
 #include <cmath>

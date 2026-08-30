@@ -33,8 +33,8 @@
 #include <include/core/SkPoint.h>
 #include <include/core/SkRect.h>
 #include <include/core/SkSurface.h>
-#include <sigilcompose/Element.h>
-#include <sigilcompose/Feed.h>
+#include <sigilcompose/core/Element.h>
+#include <sigilcompose/core/Feed.h>
 
 #include <algorithm>
 #include <cmath>

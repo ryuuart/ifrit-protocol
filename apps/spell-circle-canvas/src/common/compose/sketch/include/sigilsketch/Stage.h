@@ -7,8 +7,8 @@
  */
 
 #include <include/core/SkSize.h>
-#include <sigilcompose/Composer.h>
-#include <sigilcompose/Element.h>
+#include <sigilcompose/core/Composer.h>
+#include <sigilcompose/core/Element.h>
 #include <sigilmotion/clock/FrameClock.h>
 #include <sigilmotion/clock/Ticker.h>
 

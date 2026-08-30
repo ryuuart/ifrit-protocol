@@ -61,13 +61,13 @@
 
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkPathBuilder.h>
-#include <sigilcompose/Brushes.h>
-#include <sigilcompose/Layouts.h>
-#include <sigilcompose/Lines.h>
-#include <sigilcompose/Material.h>
-#include <sigilcompose/Patterns.h>
-#include <sigilcompose/Shapes.h>
+#include <sigilcompose/brush/Brushes.h>
+#include <sigilcompose/brush/Lines.h>
+#include <sigilcompose/core/Material.h>
 #include <sigilcompose/kit/Strokes.h>
+#include <sigilcompose/paint/Patterns.h>
+#include <sigilcompose/shape/Layouts.h>
+#include <sigilcompose/shape/Shapes.h>
 #include <sigilsketch/Sketch.h>
 #include <sigilweave/fonts/FontContext.h>
 

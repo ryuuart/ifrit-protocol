@@ -175,18 +175,18 @@
 #include <include/core/SkFontStyle.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkTypeface.h>
-#include <sigilcompose/Brushes.h>
-#include <sigilcompose/Feed.h>
-#include <sigilcompose/LayerStyles.h>
-#include <sigilcompose/Lines.h>
-#include <sigilcompose/Material.h>
-#include <sigilcompose/Patterns.h>
-#include <sigilcompose/Shapes.h>
-#include <sigilcompose/Typography.h>
+#include <sigilcompose/brush/Brushes.h>
+#include <sigilcompose/brush/Lines.h>
+#include <sigilcompose/core/Feed.h>
+#include <sigilcompose/core/Material.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Plate.h>
 #include <sigilcompose/kit/Strokes.h>
+#include <sigilcompose/paint/LayerStyles.h>
+#include <sigilcompose/paint/Patterns.h>
+#include <sigilcompose/shape/Shapes.h>
 #include <sigilcompose/testing/Checks.h>
+#include <sigilcompose/typography/Typography.h>
 #include <sigilsketch/Sketch.h>
 #include <sigilweave/fonts/FontContext.h>
 
