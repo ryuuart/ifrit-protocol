@@ -7,6 +7,7 @@
  * float a slot transitions through.
  */
 
+#include <sigilcore/cache/Settle.h>
 #include <sigilcore/reconcile/Lanes.h>
 #include <sigilcore/reconcile/Node.h>
 #include <yoga/Yoga.h>
@@ -378,8 +379,11 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // The frame any value moves, the compare below fails, volatility
   // re-declares, and the ancestor's recording is refused before anything
   // stale replays.
-  ContentScalars settledScalars;
-  int settleFrames = 0;
+  // The three sides of that release — the count kept where paint() runs,
+  // the release the volatility walk performs, and the per-draw scan over
+  // what it released — are SigilCoreCache's protocol, held here over this
+  // library's own scalars.
+  core::Settle<ContentScalars> settle;
   /** Consecutive stable paints before the release. Long enough that a value
    *  pausing between two keyframes does not count as settled. */
   static constexpr int kScalarSettleFrames = 8;

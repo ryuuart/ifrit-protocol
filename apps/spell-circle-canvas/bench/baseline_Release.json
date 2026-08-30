@@ -2,7 +2,7 @@
  "config": "Release",
  "host": "MacBookPro.lan",
  "machine": "arm64",
- "taken": "2026-08-30T17:44:58+00:00",
+ "taken": "2026-08-30T18:09:23+00:00",
  "benches": {
   "compose_brush_bench": {
    "BM_Draw_ArtWarp_Live": {
@@ -2650,6 +2650,80 @@
    "BM_SurfaceResize/1280": {
     "real_ns": 199376.83477445244,
     "cpu_ns": 199377.17265353422,
+    "unit": "ns",
+    "repetitions": 4
+   }
+  },
+  "sigilcore_cache_bench": {
+   "StillTree/64": {
+    "real_ns": 301.08343973364913,
+    "cpu_ns": 300.23169729417515,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "StillTree/512": {
+    "real_ns": 2591.3868121417745,
+    "cpu_ns": 2579.8327765302984,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "StillTree/4096": {
+    "real_ns": 24873.183147374686,
+    "cpu_ns": 24768.93676164004,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "OneDrivenLeaf/64": {
+    "real_ns": 307.6661611611181,
+    "cpu_ns": 306.22602640107857,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "OneDrivenLeaf/512": {
+    "real_ns": 2498.800350481977,
+    "cpu_ns": 2491.775133036095,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "OneDrivenLeaf/4096": {
+    "real_ns": 24971.220824617325,
+    "cpu_ns": 24872.28873850427,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "EveryNodeDriven/64": {
+    "real_ns": 383.11862085531413,
+    "cpu_ns": 381.95115955093047,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "EveryNodeDriven/512": {
+    "real_ns": 3151.011575848982,
+    "cpu_ns": 3141.3300874183833,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "EveryNodeDriven/4096": {
+    "real_ns": 29310.35988842567,
+    "cpu_ns": 29246.870653685706,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "SettledRelease/64": {
+    "real_ns": 1721.859766761199,
+    "cpu_ns": 1715.5768306657158,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "SettledRelease/512": {
+    "real_ns": 14297.16316782442,
+    "cpu_ns": 14250.075581981257,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "SettledRelease/4096": {
+    "real_ns": 113647.31274671474,
+    "cpu_ns": 113243.74495560882,
     "unit": "ns",
     "repetitions": 4
    }

@@ -1231,15 +1231,25 @@ the left edge, not the top one.
 
 ## Boundaries
 
-The library links `SigilCoreReconcile`, `SigilGeometryPath`, `SigilImage`,
-`SigilMotion`, `SigilWeave` and Skia publicly, and Yoga privately.
-`SigilCoreReconcile` is the reconciler: the keyed and positional match,
-the memo, the identity prune, the `env::` channel and the animation lane
-operations are its, and `Composer` is its host — the description
-comparators, Yoga, text, paint and every cache stay here. OpenColorIO is
-optional and gates `paint/Ocio.h` alone. `SigilGeometryPath` supplies the
-contours, polylines and seeded noise that every outline walker here
-reads through, and compose adds no path geometry of its own.
+The library links `SigilCoreReconcile`, `SigilCoreCache`,
+`SigilGeometryPath`, `SigilImage`, `SigilMotion`, `SigilWeave` and Skia
+publicly, and Yoga privately. `SigilCoreReconcile` is the reconciler: the
+keyed and positional match, the memo, the identity prune, the `env::`
+channel and the animation lane operations are its, and `Composer` is its
+host — the description comparators, Yoga, text and paint stay here.
+`SigilCoreCache` is the caching kernel, and `Composer` is its host too:
+the three-valued cache policy (`cachePolicy` maps this library's
+five-valued `Cache` onto it, keeping the TIER — picture, texture,
+group — on this side), the fold that turns one node's declarations and
+its children's verdicts into what a subtree promises, the stability
+release that proves a node declaring volatility is holding still, and the
+three-way bake decision are its. What every term MEANS is compose's: which
+Skia paint moves pixels off the describe clock, which of its lanes a value
+memo can compare, what a recording is and when it may be replayed.
+OpenColorIO is optional and gates `paint/Ocio.h` alone.
+`SigilGeometryPath` supplies the contours, polylines and seeded noise that
+every outline walker here reads through, and compose adds no path
+geometry of its own.
 
 Deliberately *not* linked: SigilScry (the web leaf is a header-only
 adapter, exercised by its own test target), EnTT (the instancing header

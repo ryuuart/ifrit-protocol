@@ -6,6 +6,9 @@
  * of.
  */
 
+#include <include/core/SkBlendMode.h>
+#include <sigilcore/cache/Bake.h>
+#include <sigilcore/cache/Volatility.h>
 #include <sigilcore/reconcile/Phases.h>
 #include <sigilcore/reconcile/Reconciler.h>
 
@@ -15,6 +18,39 @@
 #include "Transforms.h"
 
 namespace sigil::compose {
+
+/** WHAT THE PICTURE TIER BAKES: the node, the canvas its recording is
+ *  replayed onto, and the paint context the recording freezes in — the
+ *  leaf blend and opacity a recording bakes rather than applies, and the
+ *  content scalars it was recorded from. */
+struct PictureBakeTarget {
+  Composer::Impl* painter = nullptr;
+  detail::Instance* inst = nullptr;
+  SkCanvas* canvas = nullptr;
+  float hostScale = 1;
+  SkBlendMode leafBlend = SkBlendMode::kSrcOver;
+  float leafOpacity = 1;
+  detail::Instance::ContentScalars* scalars = nullptr;
+};
+
+/** THE RECORDED-COMMAND-LIST TIER, behind the kernel's bake seam. Taking
+ *  it, replaying it and dropping it are this library's — an SkPicture is a
+ *  Skia value and its cull rect, its recording depth and the leaf paint it
+ *  freezes are all compose's rules. Whether to take one THIS FRAME is not:
+ *  that is the kernel's three-way answer over what the proof said and what
+ *  the node is holding, and the pixel tiers beside this one ask it in
+ *  exactly the same words.
+ *
+ *  Stateless, so every instance of it is the same value. */
+struct PictureBake : core::BakeOps<PictureBakeTarget> {
+  void take(PictureBakeTarget& t) const override;
+  void replay(PictureBakeTarget& t) const override;
+  void drop(PictureBakeTarget& t) const override;
+  [[nodiscard]] bool held(const PictureBakeTarget& t) const override;
+  // Stateless: every instance of it is the same value. (A defaulted
+  // comparison would compare the abstract base subobject, which has none.)
+  bool operator==(const PictureBake&) const { return true; }
+};
 
 // fields are grouped by what they belong to, not by size
 // NOLINTNEXTLINE(clang-analyzer-optin.performance.Padding)
@@ -237,7 +273,8 @@ struct Composer::Impl {
    *  because that matrix is six floats, so the recording survives between
    *  ticks and the flag releases when the motion settles. Threaded down the
    *  existing recursion; everything else ignores it. */
-  bool computeVolatile(detail::Instance& inst, bool movingAbove = false);
+  core::SubtreeVerdict computeVolatile(detail::Instance& inst,
+                                       bool movingAbove = false);
   /** The node→root matrix, recomputed OUTSIDE paint by walking the ancestor
    *  chain root-down through the same ops paint() accumulates —
    *  translate(rect), then NodeTransform::matrix. The result must be
@@ -251,6 +288,15 @@ struct Composer::Impl {
   // Scratch for the subtree value memo, swapped with the group root's
   // `groupPrev` each frame so a settled group allocates nothing at all.
   std::vector<float> groupScratch;
+  /** The picture tier's seam value: the kernel decides bake, replay or
+   *  live, and these are the operations that carry the decision out. */
+  core::Bake<PictureBakeTarget> pictureBake{PictureBake{}};
+  /** Record the node's own paint into a replayable picture, freezing the
+   *  leaf blend and opacity into it and stamping the values it was
+   *  recorded from. The bake half of the picture tier. */
+  void recordPicture(detail::Instance& inst, float hostScale,
+                     SkBlendMode leafBlend, float leafOpacity,
+                     detail::Instance::ContentScalars&& scalars);
 
   // ---- layout (Layout.cpp) ----
   bool applyCustomLayouts(detail::Instance& inst);

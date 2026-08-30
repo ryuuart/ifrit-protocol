@@ -46,6 +46,49 @@ namespace sigil::compose {
 using namespace detail;
 
 // ---------------------------------------------------------------------------
+// The picture tier, behind the bake seam
+
+void PictureBake::take(PictureBakeTarget& t) const {
+  t.painter->recordPicture(*t.inst, t.hostScale, t.leafBlend, t.leafOpacity,
+                           std::move(*t.scalars));
+}
+void PictureBake::replay(PictureBakeTarget& t) const {
+  t.canvas->drawPicture(t.inst->picture);
+}
+void PictureBake::drop(PictureBakeTarget& t) const { t.inst->picture.reset(); }
+bool PictureBake::held(const PictureBakeTarget& t) const {
+  return (bool)t.inst->picture;
+}
+
+void Composer::Impl::recordPicture(Instance& inst, float hostScale,
+                                   SkBlendMode leafBlend, float leafOpacity,
+                                   Instance::ContentScalars&& scalars) {
+  // The same rect the layers and bakes use. Its job HERE is only to be an
+  // honest bounds advertisement (SkPicture::cullRect) — this path attaches
+  // no BBH, so nothing is culled against it either at record or at
+  // playback; see the note on ownPaintBounds for the measurement.
+  const SkRect cull = recordBounds(inst);
+  SkPictureRecorder recorder;
+  SkCanvas* rec = recorder.beginRecording(cull);
+  // A picture can be replayed under a DIFFERENT matrix than it was recorded
+  // at (an ancestor with a live transform keeps its picture and replays it
+  // under the motion). Anything inside must therefore be
+  // matrix-independent — which a device-space bake, snapped to one
+  // particular device rect, is not.
+  ++recordingDepth;
+  paintContent(inst, *rec, hostScale, leafBlend, leafOpacity);
+  --recordingDepth;
+  inst.picture = recorder.finishRecordingAsPicture();
+  inst.bakedLeafOpacity = leafOpacity;  // a settled transition re-bakes
+  inst.bakedLeafBlend = leafBlend;      // (the recording froze them in)
+  inst.bakedLiveShader =
+      inst.hasPendingLiveFill ? inst.pendingLiveFill.shaderValue : nullptr;
+  inst.bakedScalars = std::move(scalars);
+  inst.paintDirty = false;
+  stats.picturesRecorded++;
+}
+
+// ---------------------------------------------------------------------------
 // The masking family, at paint
 //
 // A mask is (selection, gate). The gates fall into two mechanical classes
@@ -1140,18 +1183,9 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
   // the actual release and registers the node for the per-draw movement
   // scan. Any instability resets the warmup, so a binding that is genuinely
   // moving pays nothing for this machinery beyond the compare.
-  if (inst.scalarMemo) {
-    if (scalarsStable) {
-      inst.settledScalars = scalarsNow;
-      if (inst.settleFrames < Instance::kScalarSettleFrames) {
-        ++inst.settleFrames;
-        if (inst.settleFrames == Instance::kScalarSettleFrames)
-          volatileDirty = true;
-      }
-    } else {
-      inst.settleFrames = 0;
-    }
-  }
+  if (inst.scalarMemo && inst.settle.observe(scalarsStable, scalarsNow,
+                                             Instance::kScalarSettleFrames))
+    volatileDirty = true;
   // "May this node keep its cached pixels?" — either nothing about it is
   // volatile, or every input it reads is memoized and provably unchanged.
   const bool memoized = inst.liveMatOnly || inst.scalarMemo;
@@ -1973,40 +2007,30 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
     // (Childless Image leaves deliberately absent: one drawImageRect is
     // cheaper than a nested picture indirection — tile maps stay flat inside
     // their chunk's recording. Cache::Picture opts back in.)
-    if (!inst.picture || inst.paintDirty || memoStale ||
-        inst.bakedLeafOpacity != leafOpacity ||
-        inst.bakedLeafBlend != leafBlend) {
-      // The same rect the layers and bakes use. Its job HERE is only to be
-      // an honest bounds advertisement (SkPicture::cullRect) — this path
-      // attaches no BBH, so nothing is culled against it either at record
-      // or at playback; see the note on ownPaintBounds for the measurement.
-      const SkRect cull = recordBounds(inst);
-      SkPictureRecorder recorder;
-      SkCanvas* rec = recorder.beginRecording(cull);
-      // A picture can be replayed under a DIFFERENT matrix than it was
-      // recorded at (an ancestor with a live transform keeps its picture
-      // and replays it under the motion). Anything inside must therefore
-      // be matrix-independent — which a device-space bake, snapped to one
-      // particular device rect, is not.
-      ++recordingDepth;
-      paintContent(inst, *rec, hostScale, leafBlend, leafOpacity);
-      --recordingDepth;
-      inst.picture = recorder.finishRecordingAsPicture();
-      inst.bakedLeafOpacity = leafOpacity;  // a settled transition re-bakes
-      inst.bakedLeafBlend = leafBlend;      // (the recording froze them in)
-      inst.bakedLiveShader =
-          inst.hasPendingLiveFill ? inst.pendingLiveFill.shaderValue : nullptr;
-      inst.bakedScalars = std::move(scalarsNow);
-      inst.paintDirty = false;
-      stats.picturesRecorded++;
-    }
+    // The kernel's three-way answer, over this tier's own staleness rule:
+    // the node is dirty, a memo's inputs moved, or the leaf paint the
+    // recording FROZE IN is not the leaf paint this frame wants.
+    PictureBakeTarget target{.painter = this,
+                             .inst = &inst,
+                             .canvas = &canvas,
+                             .hostScale = hostScale,
+                             .leafBlend = leafBlend,
+                             .leafOpacity = leafOpacity,
+                             .scalars = &scalarsNow};
+    if (core::decideBake({.cacheable = true,
+                          .held = pictureBake->held(target),
+                          .stale = inst.paintDirty || memoStale ||
+                                   inst.bakedLeafOpacity != leafOpacity ||
+                                   inst.bakedLeafBlend != leafBlend}) ==
+        core::BakeAction::Take)
+      pictureBake->take(target);
     if (profileScope.row != SIZE_MAX)
       profileRows[profileScope.row].cacheState = Composer::CacheState::Picture;
     // The measurement that drives promotion. Two clock reads per candidate
     // node per frame, against a full rasterisation — the overhead is not
     // close to material.
     const auto replayStart = std::chrono::steady_clock::now();
-    profDraw("replay", [&] { canvas.drawPicture(inst.picture); });
+    profDraw("replay", [&] { pictureBake->replay(target); });
     accrue(std::chrono::duration<double, std::milli>(
                std::chrono::steady_clock::now() - replayStart)
                .count());

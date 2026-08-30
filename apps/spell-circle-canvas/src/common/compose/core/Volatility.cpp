@@ -195,16 +195,17 @@ void Composer::Impl::scanReleasedScalars() {
     // …and onPath()'s phase: a released marquee whose output is driven
     // again must re-declare before its parked frame replays.
     now.pathAt = inst->resolvePathAt();
-    if (!(now == inst->settledScalars)) {
-      inst->settleFrames = 0;  // the hold is over: warm up from scratch
-      inst->settledScalars = std::move(now);
+    // The hold's rescan side: it restarts the warmup from the new reading
+    // and answers whether the node must re-declare.
+    if (inst->settle.moved(std::move(now))) {
       inst->markPaintDirtyUp();
       volatileDirty = true;  // re-walk this frame, before anything paints
     }
   }
 }
 
-bool Composer::Impl::computeVolatile(Instance& inst, bool movingAbove) {
+core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
+                                                     bool movingAbove) {
   const ElementNode& node = *inst.desc;
 
   auto boundOrRunning = [&](Instance::Slot slot, const Animatable<float>& v) {
@@ -453,21 +454,18 @@ bool Composer::Impl::computeVolatile(Instance& inst, bool movingAbove) {
   // FRAME an externally-driven binding moves again. The node's own
   // recording was already kept by the scalar memo; what this frees is the
   // FLAG, so ancestors can cache across a settled reveal as well.
-  if (scalarContent && inst.settleFrames >= Instance::kScalarSettleFrames) {
-    Instance::ContentScalars now;
-    now.gates = inst.resolveGateValues();
-    now.tracks = inst.resolveTrackValues();
-    now.world = worldScalarsOf(inst);    // a held world matrix releases too
-    now.fill = inst.resolveBoundFill();  // …and a held bound fill
-    now.pattern = inst.resolvePatternOffset();  // …and a held bound pan
-    now.pathAt = inst.resolvePathAt();          // …and a held marquee phase
-    if (now == inst.settledScalars) {
-      scalarContent = false;  // released — provably holding still
-      releasedScalars.push_back(&inst);
-    } else {
-      inst.settleFrames = 0;  // moved between walks: warm up again
-      inst.settledScalars = std::move(now);
-    }
+  if (scalarContent && inst.settle.release(Instance::kScalarSettleFrames, [&] {
+        Instance::ContentScalars now;
+        now.gates = inst.resolveGateValues();
+        now.tracks = inst.resolveTrackValues();
+        now.world = worldScalarsOf(inst);    // a held world matrix releases too
+        now.fill = inst.resolveBoundFill();  // …and a held bound fill
+        now.pattern = inst.resolvePatternOffset();  // …and a held bound pan
+        now.pathAt = inst.resolvePathAt();          // …and a held marquee phase
+        return now;
+      })) {
+    scalarContent = false;  // released — provably holding still
+    releasedScalars.push_back(&inst);
   }
   // What a SUBTREE VALUE MEMO can and cannot see. A group bake is held by
   // comparing floats, so every source of volatility inside it must either
@@ -512,15 +510,11 @@ bool Composer::Impl::computeVolatile(Instance& inst, bool movingAbove) {
   const bool otherThanLiveMat = sharedOpaque || fillLerp || scalarDeclared;
   const bool ownContent = otherThanScalar || scalarContent;
 
-  bool childrenVolatile = false;
-  bool childReadsBackdrop = false;
-  bool childrenGroupSafe = true;
-  for (auto& child : inst.children) {
+  core::ChildVolatility kids;
+  for (auto& child : inst.children)
     // A connected transform HERE moves every descendant's world matrix.
-    childrenVolatile |= computeVolatile(*child, movingAbove || moving);
-    childReadsBackdrop |= child->subtreeReadsBackdrop;
-    childrenGroupSafe &= child->groupSafe;
-  }
+    kids.add(computeVolatile(*child, movingAbove || moving));
+  const bool childrenVolatile = kids.anyVolatile;
   // Does anything here composite against what is ALREADY on the canvas? If
   // so the subtree can never be baked into a transparent layer and blitted
   // back — a kMultiply child would resolve against transparent black. This
@@ -534,29 +528,41 @@ bool Composer::Impl::computeVolatile(Instance& inst, bool movingAbove) {
   // as they would against freshly rasterized pixels.
   inst.ownReadsBackdrop = backdropEffectOf(node) != nullptr ||
                           node.paint.blendMode != SkBlendMode::kSrcOver;
-  inst.subtreeReadsBackdrop = inst.ownReadsBackdrop || childReadsBackdrop;
 
-  // The two halves of the group question. `groupSafe` is what a PARENT asks
-  // of this subtree — and it includes this node's own backdrop read,
-  // because inside a group bake a kMultiply child resolves against
-  // transparent black exactly as it would under whole-subtree promotion.
-  // `groupRootOK` is what this node asks of ITSELF, and deliberately does
-  // not include its own blend and opacity: those are applied by paint()'s
-  // saveLayer, outside the bake, exactly as they would be applied outside
-  // the live paint. A backdrop FILTER on the root is still fatal — it
-  // samples the destination, which the bake is not.
+  // THE PROOF ITSELF is SigilCoreCache's: everything above resolves this
+  // library's own lanes, materials, gates and text into the six
+  // declarations the kernel folds, and the kernel decides what the subtree
+  // promises. The terms are compose's because they are about Skia paint and
+  // shaped glyphs; the fold is not, because it is about trees.
   //
-  // A MOVING world-space field also refuses the group memo. The node→root
-  // matrix is not among the floats collectGroupScalars gathers (only
-  // transforms INSIDE the group are), so a bake held across an ancestor's
-  // motion would blit stale anchoring. A fully static chain — no connected
-  // transform anywhere above — keeps its group: description changes reach
-  // it through markPaintDirtyUp and layout moves through syncLayoutRects.
-  inst.groupSafe = !opaqueToTheMemo && !inst.ownReadsBackdrop &&
-                   !worldUnderMotion && childrenGroupSafe;
-  inst.groupRootOK = node.cacheMode == Cache::Group && !opaqueToTheMemo &&
-                     !worldUnderMotion && childrenGroupSafe &&
-                     backdropEffectOf(node) == nullptr;
+  // A MOVING world-space field joins `memoOpaque` rather than getting a
+  // term of its own. The node→root matrix is not among the floats
+  // collectGroupScalars gathers (only transforms INSIDE the group are), so
+  // a bake held across an ancestor's motion would blit stale anchoring — it
+  // is opaque to the group's value memo in exactly the sense the kernel
+  // means, even though it is a number the NODE-level lane compares. A fully
+  // static chain — no connected transform anywhere above — keeps its group:
+  // description changes reach it through markPaintDirtyUp and layout moves
+  // through syncLayoutRects.
+  const core::SubtreeVerdict verdict = core::foldSubtree(
+      {
+          .policy = cachePolicy(node.cacheMode),
+          .holdSubtree = node.cacheMode == Cache::Group,
+          .ownPaint = ownPaint,
+          .ownContent = ownContent,
+          .memoOpaque = opaqueToTheMemo || worldUnderMotion,
+          .readsBackdrop = inst.ownReadsBackdrop,
+          // The node's own blend rides `readsBackdrop` alone: a group
+          // root's blend and opacity are applied by paint()'s saveLayer,
+          // OUTSIDE the bake, exactly as they would be applied outside the
+          // live paint. A backdrop FILTER is applied inside it, so it is
+          // the one that refuses the root as well as the inside.
+          .samplesDestination = backdropEffectOf(node) != nullptr,
+      },
+      kids);
+  inst.subtreeReadsBackdrop = verdict.subtreeReadsBackdrop;
+  inst.groupSafe = verdict.memoSafe;
+  inst.groupRootOK = verdict.holdRootOK;
   if (node.cacheMode == Cache::Group && !inst.groupRootOK &&
       !inst.groupWarned) {
     inst.groupWarned = true;
@@ -570,21 +576,21 @@ bool Composer::Impl::computeVolatile(Instance& inst, bool movingAbove) {
         "variable-font drives, Cache::None leaves and non-srcOver "
         "blends below the root all refuse it.\n",
         node.key.empty() ? "(anon)" : node.key.c_str(),
-        opaqueToTheMemo      ? "the group node itself carries volatility "
-                               "the memo cannot see"
-        : !childrenGroupSafe ? "something in its subtree carries "
-                               "volatility the memo cannot see"
-                             : "it carries a backdrop filter");
+        opaqueToTheMemo     ? "the group node itself carries volatility "
+                              "the memo cannot see"
+        : !kids.allMemoSafe ? "something in its subtree carries "
+                              "volatility the memo cannot see"
+                            : "it carries a backdrop filter");
   }
 
   // subtreeVolatile gates the node's own caches: blocked by content volatility
   // here or ANY volatility below (children paint inside the recording,
   // transforms included) — but not by own paint volatility.
-  const bool blocked = ownContent || childrenVolatile;
+  const bool blocked = verdict.subtreeVolatile;
   // …and WHICH of the two it was. `subtreeVolatile && !ownContentVolatile`
   // is the split bake's whole population: the node's own paint is provably
   // static and only its children move.
-  inst.ownContentVolatile = ownContent;
+  inst.ownContentVolatile = verdict.ownContentVolatile;
   if (ownContent)
     inst.ownImage.reset();  // a volatile own paint can never hold a bake
   // The resolve-memo carve-out: volatility caused SOLELY by a live
@@ -617,7 +623,7 @@ bool Composer::Impl::computeVolatile(Instance& inst, bool movingAbove) {
     // on the frame the memo just said not to.
     if (!inst.groupRootOK) inst.textureImage.reset();
   }
-  return ownPaint || blocked;
+  return verdict;
 }
 
 }  // namespace sigil::compose

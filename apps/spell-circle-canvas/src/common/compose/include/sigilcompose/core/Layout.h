@@ -10,6 +10,7 @@
 #include <include/core/SkColor.h>
 #include <include/core/SkRect.h>
 #include <include/core/SkSize.h>
+#include <sigilcore/cache/Policy.h>
 
 #include <concepts>
 #include <cstdint>
@@ -116,6 +117,28 @@ struct Echo {
  *  than the paint it replaces. A Group node that never reports itself as
  *  held has one of the above in it. */
 enum class Cache : uint8_t { Auto, Picture, Texture, Group, None };
+
+/** The POLICY half of a cache mode — what the settled-subtree proof reads,
+ *  with the tier left behind.
+ *
+ *  Three of the five names above say the same thing to the proof: they ask
+ *  for a bake, and they differ only in which artefact the painter makes.
+ *  `Auto` leaves the decision to the proof, and `None` states volatility no
+ *  declaration can see. The proof answers in those three terms and never
+ *  learns what a picture, a texture or a group is. */
+constexpr core::Cache cachePolicy(Cache c) {
+  switch (c) {
+    case Cache::Auto:
+      return core::Cache::Auto;
+    case Cache::None:
+      return core::Cache::Never;
+    case Cache::Picture:
+    case Cache::Texture:
+    case Cache::Group:
+      break;
+  }
+  return core::Cache::Always;
+}
 
 // ---------------------------------------------------------------------------
 // Custom layout (the SwiftUI Layout-protocol shape, C++20-ified)

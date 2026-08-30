@@ -1,21 +1,36 @@
 # SigilCore
 
-The kernels a retained runtime is built on. Today that is one: the
-reconciler — descriptions built fresh every frame, reconciled onto a tree
-the host retains, so that only what changed is touched. The reconciler
-owns the shape of that tree: which retained node answers to which
-description (matched by key, then by position), the memo that skips a
-describe whose inputs did not change, the identity prune that leaves an
-unchanged node alone, and the counts of what a pass did. Everything a
-node retains beyond its place in the tree — layout state, paint caches,
-running motions — is the host's, reached through a set of named
-operations the host implements on itself.
+The kernels a retained runtime is built on. Two of them.
 
-Namespace `sigil::core`. One static target, `SigilCoreReconcile`, under
-`reconcile/`; every public header lives under
-`include/sigilcore/reconcile/` and is spelled
-`<sigilcore/reconcile/X.h>`, and `<sigilcore/reconcile/Reconcile.h>`
-includes them all.
+**The reconciler** — descriptions built fresh every frame, reconciled onto
+a tree the host retains, so that only what changed is touched. It owns the
+shape of that tree: which retained node answers to which description
+(matched by key, then by position), the memo that skips a describe whose
+inputs did not change, the identity prune that leaves an unchanged node
+alone, and the counts of what a pass did.
+
+**The caching proof** — what a host may keep between frames. Given what a
+host declares about one node and what its children answered, it decides
+whether a subtree is provably static for the frame, whether a value memo
+may hold it, and whether the artefact in hand should be baked, replayed or
+thrown away.
+
+Everything a node retains beyond its place in the tree — layout state,
+paint caches, running motions — is the host's, reached through named
+operations the host implements on itself. That is the line both kernels
+draw: they own the DECISION, the host owns the THING.
+
+Namespace `sigil::core`. One static target per directory:
+
+| target | directory | holds |
+|--------|-----------|-------|
+| `SigilCoreReconcile` | `reconcile/` | the reconciler, its memo, the inherited-value channel, the animation lanes, the phase runner |
+| `SigilCoreCache` | `cache/` | the cache policy, the settled-subtree proof, the stability release, the bake seam |
+
+Every public header lives under `include/sigilcore/<feature>/` and is
+spelled `<sigilcore/reconcile/X.h>` or `<sigilcore/cache/X.h>`;
+`<sigilcore/reconcile/Reconcile.h>` and `<sigilcore/cache/Cache.h>`
+include their own directory's headers.
 
 | header | holds |
 |--------|-------|
@@ -29,6 +44,10 @@ includes them all.
 | `reconcile/Lanes.h` | `AnimatedFloat`, `AnimatedFloats`, `LaneSlot<Family>`, `Lane<Family>`, `familyLanes`, `ResolvedProp`, `resolveProp`, `resolveFloatAt`, `transitionFloatAt`, `retargetSlots`, `retargetFamily`, `mountEntrance` |
 | `reconcile/Phases.h` | `Phase<Impl>` and `runPhases` — a host's declared pass list with its converging group |
 | `reconcile/Stats.h` | `ReconcileStats` — the pass counts, and `report()` into `sigil::measure::Counters` |
+| `cache/Policy.h` | `Cache` — the three-valued cache policy: `Auto`, `Always`, `Never` |
+| `cache/Volatility.h` | `NodeVolatility`, `SubtreeVerdict`, `ChildVolatility` and `foldSubtree` — the settled-subtree proof |
+| `cache/Settle.h` | `Settle<Values>` — the stability release: `observe`, `release`, `moved`, `frames`, `held`, `restart` |
+| `cache/Bake.h` | `BakeOps<Target>`, `Bake<Target>`, `BakeState`, `BakeAction`, `decideBake`, `runBake` — the bake seam |
 
 ## Using it
 
@@ -161,16 +180,69 @@ nothing or `maxRounds` is reached, calling `settle` after every round
 that changed something. The cap is what guarantees termination if two
 writers ever disagree permanently.
 
+## The caching proof
+
+**What a host reports is a DECLARATION, never a difference.** `foldSubtree`
+takes one `NodeVolatility` — the `Cache` policy the author stated
+(`Auto`, `Always`, `Never`), whether they asked for the subtree to be
+held by a value memo, and five facts about what this node does off the
+describe clock — and the `ChildVolatility` its children folded into. It
+answers a `SubtreeVerdict`.
+A host that reports a term one frame late has already replayed an artefact
+of a frame that has changed; a host that reports one early pays a re-bake
+and nothing else. When in doubt, declare.
+
+**The five facts are five different questions.** `ownPaint` is
+motion that changes how the node COMPOSITES without changing what it
+draws — the node's own artefact still replays, because it is drawn through
+the motion, while an ancestor's would contain it. `ownContent` rebuilds
+what the node draws, and blocks the node's artefact and every ancestor's.
+`memoOpaque` is volatility no value comparison can SEE, which is the one
+term a value memo turns on. `readsBackdrop` is not volatility at all: the
+node composites against what is already on the canvas, so it cannot be
+inside a bake, whose ground is transparent black. `samplesDestination` is
+the half of that which refuses to be the bake's ROOT too — a root's blend
+and opacity are applied outside its bake, a destination-sampling filter
+inside it.
+
+**The promise is one-sided.** A subtree the proof calls settled cannot
+change its pixels without the host being told first. A subtree it calls
+volatile may well be standing perfectly still — proving THAT is the value
+memo's job, and `Settle` is what makes it sound.
+
+**A binding cannot say that it stopped.** It stays connected for the life
+of the node it drives, so an entrance that played once declares exactly
+what a loop declares. `Settle<Values>` separates them by observation:
+`observe` counts consecutive frames on which the values a node draws from
+resolved identically, `release` converts a warmed-up count into the
+verdict, and `moved` — run once per draw over what was released —
+re-declares the frame a value assigned from OUTSIDE moves again. All three
+sides are required. Skipping one does not fail loudly; it replays a frame
+that has already changed.
+
+**The decision is the kernel's, the artefact is the host's.** `BakeOps`
+names four operations over a `Target` the kernel never looks inside: take
+the bake, replay it, drop it, and say whether one is held. `decideBake`
+answers `Live`, `Take` or `Replay` from three facts. A host with several
+tiers — a recorded command list, a rasterized image, a whole subtree
+composited into one layer — writes one model per tier and asks the same
+question of all of them, which is what stops each tier from growing its
+own copy of the rule.
+
 ## Boundary
 
 SigilCoreReconcile links SigilMotion (the animatable values and the
 ticker the lanes ramp on) and SigilMeasure (the published counts), and
-nothing that draws, lays out or shapes text. What stays with a host: what
-a node retains, what a patch does to it, how children are ordered for
-drawing, which descriptions compare equal, and every cache. SigilCompose
-is one host — its `Composer` holds a `Reconciler` over its `Instance` and
-`ElementNode`, implements the operations on its own state, and keeps
-Yoga, text, paint and volatility on its side of the seam.
+nothing that draws, lays out or shapes text. SigilCoreCache links
+SigilCoreReconcile alone, for the comparable type erasure a seam value
+takes. What stays with a host: what a node retains, what a patch does to
+it, how children are ordered for drawing, which descriptions compare
+equal, which of its own values are volatile, and every artefact.
+SigilCompose is one host — its `Composer` holds a `Reconciler` over its
+`Instance` and `ElementNode`, folds its Skia lanes, materials, gates and
+text into the proof's declarations, holds a `Settle` over its own content
+scalars, and implements `BakeOps` over its picture recordings. Yoga,
+text, paint and the meaning of every term stay on its side of the seam.
 
 ## Build and test
 
@@ -191,3 +263,12 @@ benchmark, `sigilcore_reconcile_bench` (`reconcile/bench/`), times the
 reconciler over the same fake host at several node counts; it builds
 through the `benches` target and runs through `scripts/bench_ledger.py`,
 which is where any number about it belongs.
+
+`sigilcore_cache_test` (`cache/test/`) does the same for the caching
+kernel over `FakeCacheHost.h` — nodes that declare volatility, hold a
+numbered artefact instead of pixels and count every operation asked of
+them: a still tree, one driven lane deep in a subtree unsettling every
+ancestor, a declared opt-out, the three sides of the release, and the
+counts that say a settled tree bakes once and replays after. It links
+`SigilCoreCache` alone. `sigilcore_cache_bench` (`cache/bench/`) times
+the proof over the same fake host at several node counts.

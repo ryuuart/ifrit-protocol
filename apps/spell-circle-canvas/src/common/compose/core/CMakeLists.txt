@@ -7,11 +7,12 @@
 # type, the stroke grammar and the mask gates reach the kernel through the
 # seam values a description carries (TextPainter, StrokeResolver,
 # MaskResolver); their engines are the typography and brush tiers'. The
-# reconciler that drives the retained tree is SigilCoreReconcile's, with
-# this target as its host. Links SigilCoreReconcile, SigilGeometryPath,
-# SigilImage, SigilMotion, SigilWeave and Skia publicly, because those
-# types appear in its headers; Yoga is private, because no header spells
-# it.
+# reconciler that drives the retained tree is SigilCoreReconcile's, and the
+# settled-subtree proof its caches turn on is SigilCoreCache's, with this
+# target as the host of both. Links SigilCoreCache, SigilCoreReconcile,
+# SigilGeometryPath, SigilImage, SigilMotion, SigilWeave and Skia publicly,
+# because those types appear in its headers; Yoga is private, because no
+# header spells it.
 #
 # The translation units that see this directory — ComposeInternal.h,
 # ComposeRuntime.h and the paint-phase internals — are this target's and
@@ -80,6 +81,7 @@ target_include_directories(SigilComposeCore
 )
 target_link_libraries(SigilComposeCore
   PUBLIC
+    SigilCoreCache
     SigilCoreReconcile
     SigilGeometryPath
     SigilImage
