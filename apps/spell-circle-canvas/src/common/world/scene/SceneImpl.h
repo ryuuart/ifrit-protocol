@@ -1,0 +1,219 @@
+#pragma once
+
+/** @file
+ * The retained side, from the inside: the components an entity carries,
+ * the node the reconciler drives, and the host that owns both.
+ *
+ * EnTT appears here and nowhere in a public header. There is no registry
+ * accessor and no write path through one: components are written by the
+ * extract phase and read by the draw, and everything else goes through
+ * the reconciler or a bound value.
+ */
+
+#include <sigilcore/cache/Cache.h>
+#include <sigilcore/reconcile/Reconcile.h>
+#include <sigilworld/element/Lanes.h>
+#include <sigilworld/element/Node.h>
+#include <sigilworld/scene/Scene.h>
+
+#include <array>
+#include <entt/entity/registry.hpp>
+#include <glm/vec4.hpp>
+#include <memory>
+#include <optional>
+#include <string>
+#include <unordered_map>
+#include <vector>
+
+#include "Resources.h"
+
+namespace sigil::motion {
+class Ticker;
+}
+
+namespace sigil::world {
+
+/** WHAT AN ENTITY CARRIES. Written by extract, read by the draw, and by
+ *  nothing else — which is what makes "execution never reads the Element
+ *  tree" a property of the code rather than a promise. */
+namespace component {
+
+/** Where the node stands, in world space. */
+struct Placement {
+  glm::mat4 world{1.0f};
+};
+
+/** The triangles to draw. The mesh belongs to the resource store, whose
+ *  entries hold their address for their whole life. */
+struct Body {
+  const Mesh* mesh = nullptr;
+};
+
+/** What the surface is, in the terms the CPU tier shades in. */
+struct Surface {
+  glm::vec4 baseColor{0.8f, 0.8f, 0.85f, 1.0f};
+};
+
+/** The words this node answers to. */
+struct Tagged {
+  std::vector<std::string> words;
+};
+
+}  // namespace component
+
+/** ONE RETAINED NODE. The key, the lanes and their motions, the entity
+ *  and the resource reference — the three lifetimes, met in one place
+ *  and each free of the others. */
+struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
+  entt::entity entity = entt::null;
+  /** One motion slot per fixed lane row, so a lane keeps its meaning
+   *  across a patch that changed what the node holds. */
+  std::array<std::unique_ptr<core::AnimatedFloat>, kLaneCount> anims;
+
+  /** What the lanes resolved to this frame. */
+  TransformValues values;
+  float alongDistance = 0.0f;
+  float windowHead = 1.0f;
+  float windowSpan = 1.0f;
+
+  /** The artefact this node's geometry slot resolved, and the window
+   *  values it was resolved at — a moving window is moving geometry, so
+   *  it resolves again whenever those change. */
+  Resource* resource = nullptr;
+  float resolvedHead = 0.0f;
+  float resolvedSpan = 0.0f;
+  /** The description's slot changed and the artefact has not caught up
+   *  yet — resolution is extract's, so that a window sampled this frame
+   *  is already in hand when the slot is cooked. */
+  bool geometryDirty = true;
+
+  glm::mat4 world{1.0f};
+
+  core::NodeVolatility declaration;
+  core::SubtreeVerdict verdict;
+  /** The proof that a node DECLARING motion is nevertheless holding
+   *  still: sixteen floats of placement, observed once per frame. */
+  core::Settle<std::array<float, 16>> settle;
+  bool released = false;
+  /** The previous frame's placement, which is what makes "this node's
+   *  reading stayed exact" answerable at all: a Settle only remembers
+   *  the readings it was told were stable. */
+  std::array<float, 16> lastScalars{};
+  bool haveLastScalars = false;
+
+  /** THE BAKE: this subtree's draw order, recorded once while it is
+   *  provably standing still. */
+  std::vector<entt::entity> baked;
+  bool bakeHeld = false;
+  bool bakeStale = true;
+};
+
+/** How long a node's placement must resolve identically before the
+ *  settle releases the volatility its bindings declare. */
+inline constexpr int kSettleHold = 3;
+/** The cap on the converging phase group. */
+inline constexpr int kConvergeRounds = 8;
+
+/** THE HOST. It implements the ReconcileHost operations on itself and
+ *  holds the reconciler over its own node and description types. */
+struct Scene::Impl {
+  using Desc = std::shared_ptr<ElementNode>;
+
+  /** What one bake decision acts on: the node whose subtree is being
+   *  decided, the host that walks it, and the order the result lands
+   *  in. */
+  struct BakeTarget {
+    Impl* impl = nullptr;
+    Instance* node = nullptr;
+    std::vector<entt::entity>* into = nullptr;
+  };
+
+  explicit Impl(motion::Ticker& t);
+
+  motion::Ticker& ticker;
+  core::Reconciler<Impl, Instance, Desc> reconciler;
+  std::unique_ptr<Instance> root;
+  entt::registry registry;
+  ResourceStore store;
+  SceneStats stats;
+
+  /** What `render()` was handed, held for the describe phase — the
+   *  phase list is declared over member functions, and this is the one
+   *  argument describe needs. */
+  Element pending;
+
+  std::unordered_map<std::string, Instance*> byKey;
+  /** The extracted draw order, in tree order. */
+  std::vector<entt::entity> order;
+  std::vector<Light> lights;
+  std::optional<Camera> camera;
+
+  std::vector<Lane> laneScratch;
+  std::vector<Lane> prevLaneScratch;
+
+  /** The bake seam's one tier: the decision is SigilCore's, and these
+   *  are the operations that carry it out. */
+  core::Bake<BakeTarget> bake;
+
+  // ---- the reconciler's host (Host.cpp) ----
+  static const std::string& keyOf(const Desc& desc) { return desc->key; }
+  static bool equal(const Desc& a, const Desc& b) { return propsEqual(*a, *b); }
+  static bool reconcilesChildren(const Desc&) { return true; }
+  static const std::vector<Element>& children(const Desc& desc) {
+    return desc->children;
+  }
+  static const Desc& descOf(const Element& child) { return child.node(); }
+  static const Memo* memoOf(const Desc& desc) {
+    return desc->memo ? &*desc->memo : nullptr;
+  }
+  static Desc produce(const Memo& memo) {
+    return memo.invoke(memo.props).node();
+  }
+
+  std::unique_ptr<Instance> create(const Desc& desc, Instance* parent,
+                                   size_t ordinal, size_t count);
+  void onPatched(Instance& inst, const ElementNode* prev,
+                 const ElementNode& next);
+  void reorder(Instance& parent, bool structureChanged);
+  /** False, always: nothing a node retains is welded to what its slots
+   *  hold. A geometry slot that changes its value type resolves new
+   *  resources in place, and the entity and the lanes survive. */
+  static bool remountRequired(const Instance&, const Instance&) {
+    return false;
+  }
+  void invalidate(Instance& inst);
+  void destroy(std::unique_ptr<Instance> inst, uint64_t frame);
+  /** Hands back everything @p inst and its subtree hold — the entities
+   *  and the resource references — before the node itself goes. */
+  void retire(Instance& inst);
+
+  // ---- the declared phases (Phases.cpp) ----
+  bool phaseDescribe();
+  bool phaseLanes();
+  bool phaseDerive();
+  bool phaseExtract();
+
+  /** Resolves @p inst's geometry slot against the store, dropping
+   *  whatever it held. @p geometry is the slot with this frame's window
+   *  applied. */
+  void ensureResource(Instance& inst);
+  void resolveResource(Instance& inst, Geometry geometry);
+  /** The node's geometry slot with its window values written into it. */
+  Geometry effectiveGeometry(const Instance& inst) const;
+  /** Every bake from @p inst up to the root goes stale. */
+  void staleBakesUp(Instance* inst);
+  void rebuildKeyIndex();
+
+  void sampleLanes(Instance& inst);
+  void deriveInto(Instance& inst, const glm::mat4& parentWorld, bool* changed);
+  core::SubtreeVerdict foldVolatility(Instance& inst);
+  /** Writes @p inst's subtree into @p into. @p recording is true while
+   *  a bake is being taken: the artefact is ONE order for the whole
+   *  settled subtree, so nothing inside it takes an artefact of its
+   *  own. */
+  void extractInto(Instance& inst, std::vector<entt::entity>& into,
+                   bool recording = false);
+  void writeComponents(Instance& inst);
+};
+
+}  // namespace sigil::world

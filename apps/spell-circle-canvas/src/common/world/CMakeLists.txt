@@ -14,6 +14,21 @@ set(SIGIL_WORLD_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/include)
 # lights are links it without anything that draws.
 add_subdirectory(light)
 
+# The description: one node of a 3D scene as a comparable value. It
+# stands on the vocabularies beneath it and on the reconciler's kernels,
+# and holds nothing retained, so a consumer that only authors trees links
+# this and the light feature above.
+add_subdirectory(element)
+
+# The retained side: the reconcile host, the entity store, the resource
+# store and the declared phases, drawing through SigilGeometry's mesh
+# runtime.
+add_subdirectory(scene)
+
+# The study harness: a scene stepped to a declared moment and
+# photographed on the CPU, and the studies that ride it.
+add_subdirectory(testing)
+
 # The device feature needs SigilSkia's, since the whole point of it is
 # that both APIs draw on one device. The light feature above stands
 # without it.

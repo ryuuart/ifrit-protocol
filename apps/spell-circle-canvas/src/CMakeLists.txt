@@ -4,7 +4,8 @@
 #                Graphite bring-up), ui/ (Ifrit.Ui Qt Quick controls), image/
 #                (SigilImage), loader/ (SigilLoader), scry/ (SigilScry),
 #                measure/ (SigilMeasure), motion/ (SigilMotion), core/ (SigilCore),
-#                geometry/ (SigilGeometry), world/ (SigilWorldLight,
+#                geometry/ (SigilGeometry), world/ (SigilWorldElement,
+#                SigilWorldScene, SigilWorldLight, SigilWorldTesting,
 #                SigilWorldDiligent), material/ (SigilMaterial), compose/
 #                (SigilCompose)
 #   sigilweave/  the Qt-free SigilWeave text layout engine, its companion

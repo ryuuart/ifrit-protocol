@@ -12,11 +12,12 @@ Usage (from apps/spell-circle-canvas):
   scripts/plate_ledger.py --rebase          # bake the baseline manifest
   scripts/plate_ledger.py                   # sweep + compare + verdict
   scripts/plate_ledger.py --tier quick      # the iteration loop (see below)
+  scripts/plate_ledger.py --tier world      # the 3D studies, on the CPU
   scripts/plate_ledger.py --stability 3     # re-render movers 3x to
                                             # separate flappers from code
   scripts/plate_ledger.py --jobs 6 --config Release
 
-TWO VERIFICATION TIERS (--tier):
+THREE VERIFICATION TIERS (--tier):
 
   full (default) — CPU renders, every scene stepped from t=0 to its
   DECLARED capture moment. What it hashes is exactly what the registry
@@ -38,6 +39,16 @@ TWO VERIFICATION TIERS (--tier):
   the GPU raster path rather than the full tier's CPU path — so quick
   answers "did I move any bytes I didn't mean to?" during iteration,
   and the full tier answers it authoritatively at the end.
+
+  world — the 3D studies, rendered by `world_studies` rather than by
+  ComposeGallery. Each study is stepped from zero to its declared moment
+  and drawn through SigilGeometry's CPU mesh executor, so a plate is a
+  function of the declaration alone and the tier is judged on byte
+  identity exactly as the full tier is. It is a separate REGISTRY, not a
+  separate question: the same sweep, the same hashes, the same verdict
+  table, against its own baseline
+  (build/plate_baseline_world_<config>.sha256). It needs no device — a
+  machine with no GPU runs it green.
 
   A rejected quick-tier design, and why: stepping every pre-capture
   frame without painting and painting only the capture frame. Several
@@ -105,6 +116,43 @@ import argparse, concurrent.futures, hashlib, json, os, subprocess, sys, tempfil
 
 FLAPPERS = {"genesis_fire", "hitman_verlet", "slitscan_2001"}
 
+# WHAT EACH TIER RENDERS WITH. A tier names its own binary, the flags that
+# define its capture, how it lists its registry, how it selects one entry
+# and what its plates are called. The 2D tiers drive ComposeGallery; the
+# world tier drives world_studies over the 3D study registry. They ask one
+# question — did any byte move that I did not mean to move — of different
+# registries, which is why they share this sweep instead of forking a
+# second script.
+TIERS = {
+    "full": {
+        "binary": "ComposeGallery.app/Contents/MacOS/ComposeGallery",
+        "base_args": ("--no-promotion", "--ledger"),
+        "list_flag": "--list-scenes",
+        "select_flag": "--scene",
+        "plate_prefix": "gallery_",
+        "honor_overrides": True,
+    },
+    "quick": {
+        "binary": "ComposeGallery.app/Contents/MacOS/ComposeGallery",
+        "base_args": ("--no-promotion", "--ledger"),
+        "list_flag": "--list-scenes",
+        "select_flag": "--scene",
+        "plate_prefix": "gallery_",
+        # The capture cap removes exactly the cost the per-scene overrides
+        # budget for, so a quick render still running at the default
+        # ceiling is a defect rather than an expensive scene.
+        "honor_overrides": False,
+    },
+    "world": {
+        "binary": "world_studies",
+        "base_args": (),
+        "list_flag": "--list-studies",
+        "select_flag": "--study",
+        "plate_prefix": "study_",
+        "honor_overrides": False,
+    },
+}
+
 # Scenes whose honest render exceeds the default ceiling. chaucer_astrolabe
 # declares its capture moment at 23 s into an animation whose every frame
 # rasterizes a full-canvas noise shader on the CPU (the ledger's own
@@ -126,12 +174,10 @@ def sha256(path):
     return h.hexdigest()
 
 
-def render_scene(binary, scene, outdir, timeout, extra_args=(), honor_overrides=True):
+def render_scene(profile, binary, scene, outdir, timeout, extra_args=()):
     # The per-scene timeout overrides budget the FULL tier's declared-moment
-    # renders. The quick tier's capture cap removes exactly that cost, so a
-    # quick render still running at the default ceiling is a defect, not an
-    # expensive scene — quick passes honor_overrides=False.
-    if honor_overrides:
+    # renders; the tiers that do not pay that cost say so in their profile.
+    if profile["honor_overrides"]:
         timeout = timeout_for(scene, timeout)
     try:
         r = subprocess.run(
@@ -139,10 +185,9 @@ def render_scene(binary, scene, outdir, timeout, extra_args=(), honor_overrides=
                 binary,
                 "--headless",
                 outdir,
-                "--no-promotion",
-                "--ledger",
+                *profile["base_args"],
                 *extra_args,
-                "--scene",
+                profile["select_flag"],
                 scene,
             ],
             capture_output=True,
@@ -163,7 +208,7 @@ def render_scene(binary, scene, outdir, timeout, extra_args=(), honor_overrides=
                 f"slow)"
             ),
         )
-    plate = os.path.join(outdir, f"gallery_{scene}.png")
+    plate = os.path.join(outdir, f"{profile['plate_prefix']}{scene}.png")
     if r.returncode != 0 or not os.path.exists(plate):
         return scene, None, (r.stderr or r.stdout).strip()[-300:]
     return scene, sha256(plate), None
@@ -281,14 +326,17 @@ def main():
     ap.add_argument("--jobs", type=int, default=max(2, (os.cpu_count() or 8) // 2))
     ap.add_argument(
         "--tier",
-        choices=("quick", "full"),
+        choices=tuple(TIERS),
         default="full",
         help="verification tier. full (default): CPU renders to "
         "each scene's declared capture moment — the final "
         "confirmation gate. quick: GPU renders with a "
         "uniform capture-time cap, compared against the "
-        "separate quick baseline — the iteration loop. See "
-        "the module docstring for the tiers' blind spots",
+        "separate quick baseline — the iteration loop. world: "
+        "the 3D studies, stepped to their declared moments on "
+        "the CPU mesh executor, against their own baseline. "
+        "Each tier has its own baseline and they are never "
+        "comparable. See the module docstring",
     )
     ap.add_argument(
         "--capture-cap",
@@ -360,12 +408,8 @@ def main():
     args = ap.parse_args()
 
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    binary = os.path.join(
-        root,
-        "build/bin",
-        args.config,
-        "ComposeGallery.app/Contents/MacOS/ComposeGallery",
-    )
+    profile = TIERS[args.tier]
+    binary = os.path.join(root, "build/bin", args.config, profile["binary"])
     # Each tier compares against its own baseline: quick plates are rendered
     # on a different backend at a different scene time, so their hashes can
     # never match the full manifest and must never be written into it.
@@ -374,7 +418,7 @@ def main():
         root, "build", f"plate_baseline{tier_tag}_{args.config}.sha256"
     )
     if not os.path.exists(binary):
-        sys.exit(f"no gallery binary at {binary} — build ComposeGallery first")
+        sys.exit(f"no binary at {binary} — build the {args.tier} tier's renderer first")
 
     # The render arguments that define the tier. GPU stability was validated
     # empirically on this machine: representative scenes hash identically
@@ -386,7 +430,7 @@ def main():
     scenes = args.scenes or [
         s
         for s in subprocess.run(
-            [binary, "--headless", "/tmp", "--list-scenes"],
+            [binary, "--headless", "/tmp", profile["list_flag"]],
             capture_output=True,
             text=True,
             check=True,
@@ -394,6 +438,11 @@ def main():
         if s.strip()
     ]
 
+    if args.fps_gate and args.tier == "world":
+        sys.exit(
+            "--fps-gate is a ComposeGallery lane: it reads a --timing-json "
+            "line the study harness does not write"
+        )
     if args.fps_gate:
         floor_fps = (
             args.headroom_fps
@@ -421,12 +470,7 @@ def main():
     with concurrent.futures.ThreadPoolExecutor(args.jobs) as pool:
         for scene, digest, err in pool.map(
             lambda s: render_scene(
-                binary,
-                s,
-                outdir,
-                args.timeout_seconds,
-                tier_args,
-                honor_overrides=not quick,
+                profile, binary, s, outdir, args.timeout_seconds, tier_args
             ),
             scenes,
         ):
@@ -493,12 +537,12 @@ def main():
             rerenders = {results[scene]}
             for _ in range(args.stability):
                 _, digest, err = render_scene(
+                    profile,
                     binary,
                     scene,
                     tempfile.mkdtemp(prefix="plate_stab_"),
                     args.timeout_seconds,
                     tier_args,
-                    honor_overrides=not quick,
                 )
                 if digest:
                     rerenders.add(digest)

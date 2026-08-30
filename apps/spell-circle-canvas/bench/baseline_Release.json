@@ -2,7 +2,7 @@
  "config": "Release",
  "host": "MacBookPro.lan",
  "machine": "arm64",
- "taken": "2026-08-30T19:56:32+00:00",
+ "taken": "2026-08-30T20:41:24+00:00",
  "benches": {
   "compose_brush_bench": {
    "BM_Draw_ArtWarp_Live": {
@@ -3510,6 +3510,38 @@
     "repetitions": 4
    }
   },
+  "world_element_bench": {
+   "DescribeTree/64": {
+    "real_ns": 8033.8430527237015,
+    "cpu_ns": 8032.374509692461,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "DescribeTree/512": {
+    "real_ns": 67779.29385090814,
+    "cpu_ns": 67778.55759922543,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "DescribeTree/4096": {
+    "real_ns": 567210.0289702052,
+    "cpu_ns": 567042.6829268293,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "PropsEqual": {
+    "real_ns": 27.191687017067338,
+    "cpu_ns": 27.16468054115973,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "LanesOf": {
+    "real_ns": 14.770959055422194,
+    "cpu_ns": 14.755075510402708,
+    "unit": "ns",
+    "repetitions": 4
+   }
+  },
   "world_light_bench": {
    "BM_Attenuation/0": {
     "real_ns": 3690.384461477947,
@@ -3526,6 +3558,74 @@
    "BM_Attenuation/2": {
     "real_ns": 10532.8802576081,
     "cpu_ns": 10529.588465004508,
+    "unit": "ns",
+    "repetitions": 4
+   }
+  },
+  "world_scene_bench": {
+   "MountTree/64": {
+    "real_ns": 48173.795945146456,
+    "cpu_ns": 48046.05954465842,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "MountTree/512": {
+    "real_ns": 363346.5572052823,
+    "cpu_ns": 363286.269430052,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "MountTree/2048": {
+    "real_ns": 1447492.623507666,
+    "cpu_ns": 1446885.416666666,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "SteadyFrame/64": {
+    "real_ns": 36990.44932705427,
+    "cpu_ns": 36980.86566376355,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "SteadyFrame/512": {
+    "real_ns": 301410.7198802187,
+    "cpu_ns": 301351.9313304727,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "SteadyFrame/2048": {
+    "real_ns": 1321535.5131597747,
+    "cpu_ns": 1321361.9047619116,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "PrunedFrame/64": {
+    "real_ns": 9605.711988113233,
+    "cpu_ns": 9604.342787019366,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "PrunedFrame/512": {
+    "real_ns": 79701.32985826238,
+    "cpu_ns": 79688.38127467557,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "PrunedFrame/2048": {
+    "real_ns": 315248.8280882996,
+    "cpu_ns": 315191.0112359582,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "DrawFrame/64": {
+    "real_ns": 89366.69587196619,
+    "cpu_ns": 89337.76932826423,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "DrawFrame/512": {
+    "real_ns": 520071.52785167645,
+    "cpu_ns": 519964.81481482007,
     "unit": "ns",
     "repetitions": 4
    }
