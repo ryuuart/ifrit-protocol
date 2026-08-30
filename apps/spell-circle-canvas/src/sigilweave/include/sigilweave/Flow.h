@@ -31,7 +31,7 @@
 #include <memory>
 #include <vector>
 
-#include "sigilgeometry/Contour.h"
+#include "sigilgeometry/path/Contour.h"
 
 namespace sigil::weave {
 

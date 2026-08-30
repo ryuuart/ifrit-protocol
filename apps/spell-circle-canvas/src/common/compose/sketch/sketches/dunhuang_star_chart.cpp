@@ -191,7 +191,7 @@
 #include <sigilcompose/Shapes.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Strokes.h>
-#include <sigilgeometry/Noise.h>
+#include <sigilgeometry/path/Noise.h>
 #include <sigilsketch/Sketch.h>
 #include <sigilweave/FontContext.h>
 

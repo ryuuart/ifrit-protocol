@@ -133,13 +133,18 @@ if(APPLE)
   # `symbol not found in flat namespace ..._ZN5sigil5shape...`. Anything
   # added to SigilSketchKit's PUBLIC libraries belongs here too — as the
   # ARCHIVES it resolves to: SigilCompose is an interface over the four
-  # compose archives, and an interface target has no file to force-load.
+  # compose archives and SigilGeometry one over its feature archives, and
+  # an interface target has no file to force-load.
   foreach(sketch_dep IN ITEMS SigilSketchKit SigilComposeCore
                               SigilComposeShape SigilComposeBrush
                               SigilComposePaint SigilImageAsset
                               SigilImageDecode SigilLoader SigilMotionClock
-                              SigilMotionBind SigilGeometry SigilWeave
-                              SigilWeavePorts
+                              SigilMotionBind SigilGeometryPath
+                              SigilGeometryBlend SigilGeometryMesh
+                              SigilGeometrySpace SigilGeometryCurves
+                              SigilGeometryPoints SigilGeometryPop
+                              SigilGeometryCodec SigilGeometryMaterial
+                              SigilWeave SigilWeavePorts
                               unofficial::skia::skia)
     target_link_options(ComposeSketch PRIVATE
       "LINKER:-force_load,$<TARGET_FILE:${sketch_dep}>")

@@ -19,7 +19,7 @@
 #include <set>
 
 #include "ComposeInternal.h"
-#include "sigilgeometry/Contour.h"
+#include "sigilgeometry/path/Contour.h"
 // and a hand-written track both name
 
 namespace sigil::compose {

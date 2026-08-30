@@ -12,9 +12,9 @@
 #include <cmath>
 #include <vector>
 
-#include "sigilgeometry/Contour.h"  // the contour walkers: corners,
-                                    // parallels, displacement, windows
-#include "sigilgeometry/Skia.h"
+#include "sigilgeometry/path/Contour.h"  // the contour walkers: corners,
+                                         // parallels, displacement, windows
+#include "sigilgeometry/path/Skia.h"
 
 namespace sigil::compose::lines {
 

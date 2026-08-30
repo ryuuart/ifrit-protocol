@@ -11,7 +11,7 @@
 #include <cmath>
 #include <string>
 
-#include "sigilgeometry/Noise.h"  // noise::hash (the seeded noise)
+#include "sigilgeometry/path/Noise.h"  // noise::hash (the seeded noise)
 
 namespace sigil::compose::patterns {
 

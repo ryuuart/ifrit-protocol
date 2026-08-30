@@ -9,9 +9,9 @@
 #include <numbers>
 #include <utility>
 
-#include "sigilgeometry/Numeric.h"
-#include "sigilgeometry/Polyline.h"
-#include "sigilgeometry/Skia.h"
+#include "sigilgeometry/path/Numeric.h"
+#include "sigilgeometry/path/Polyline.h"
+#include "sigilgeometry/path/Skia.h"
 
 namespace sigil::weave {
 

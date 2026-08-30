@@ -1,3 +1,9 @@
+/** @file
+ * Headless PNG panels of the SigilGeometry catalog: blend studies,
+ * material swatches, procedural meshes in perspective, pop models and
+ * imported files.
+ */
+
 // Headless SigilGeometry catalog: every panel is one PNG, written to the
 // out dir (argv[1], default geometry_demo_out). Mirrors compose_demo's
 // writePanel loop; no fonts, no GPU — raster Skia end to end.
@@ -27,16 +33,16 @@
 #include <filesystem>
 #include <functional>
 
-#include "sigilgeometry/Blend.h"
-#include "sigilgeometry/Curves.h"
-#include "sigilgeometry/Polyline.h"
-#include "sigilgeometry/Import.h"
-#include "sigilgeometry/Materials.h"
-#include "sigilgeometry/Mesh.h"
-#include "sigilgeometry/Ops.h"
-#include "sigilgeometry/Points.h"
-#include "sigilgeometry/Pop.h"
-#include "sigilgeometry/Space.h"
+#include "sigilgeometry/blend/Blend.h"
+#include "sigilgeometry/codec/Decode.h"
+#include "sigilgeometry/curves/Curves.h"
+#include "sigilgeometry/material/Materials.h"
+#include "sigilgeometry/mesh/Mesh.h"
+#include "sigilgeometry/path/Ops.h"
+#include "sigilgeometry/path/Polyline.h"
+#include "sigilgeometry/points/Points.h"
+#include "sigilgeometry/pop/Pop.h"
+#include "sigilgeometry/space/Space.h"
 
 using namespace sigil::geometry;
 

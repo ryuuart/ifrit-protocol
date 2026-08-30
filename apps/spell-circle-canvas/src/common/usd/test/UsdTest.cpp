@@ -1,8 +1,8 @@
 #include <gtest/gtest.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
-#include <sigilgeometry/Mesh.h>
-#include <sigilgeometry/Points.h>
+#include <sigilgeometry/mesh/Mesh.h>
+#include <sigilgeometry/points/Points.h>
 
 #include <filesystem>
 #include <fstream>

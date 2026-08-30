@@ -5,9 +5,9 @@
 #include <include/core/SkPictureRecorder.h>
 #include <include/core/SkSurface.h>
 #include <sigilcompose/Compose.h>
+#include <sigilgeometry/mesh/Mesh.h>
+#include <sigilgeometry/points/Points.h>
 #include <sigilmotion/Ticker.h>
-#include <sigilgeometry/Mesh.h>
-#include <sigilgeometry/Points.h>
 
 #include <chrono>
 #include <cstdio>
@@ -248,7 +248,8 @@ TEST(World, SwappingATextureIsLive) {
   inst.unlit = true;
   inst.texture = solidImage(SK_ColorGREEN);
   w->remove(id);
-  const uint32_t flock = w->placeStamps(geometry::mesh::quad(400, 400), one, inst);
+  const uint32_t flock =
+      w->placeStamps(geometry::mesh::quad(400, 400), one, inst);
   ASSERT_NE(flock, 0u);
   ASSERT_TRUE(w->render());
   c = readFrame(*w).getColor(32, 32);
@@ -372,7 +373,8 @@ TEST(World, EmissiveMapGlowsWhereItIsLit) {
   m.emissiveMap = solidImage(SK_ColorGREEN, 8, 8, SK_ColorBLACK);
   // The quad just fills the frame, so x = 16 and 48 read u = 0.25 and
   // 0.75 — well inside each column, clear of the bilinear seam.
-  const uint32_t id = w->place(geometry::mesh::quad(240, 240), glm::mat4(1.0f), m);
+  const uint32_t id =
+      w->place(geometry::mesh::quad(240, 240), glm::mat4(1.0f), m);
   ASSERT_NE(id, 0u);
   ASSERT_TRUE(w->render());
   SkBitmap bm = readFrame(*w);
@@ -475,7 +477,8 @@ TEST(World, OpacityMapAndCutoutRouteAndDiscard) {
   m.baseColor = {1, 1, 1, 1};
   m.opacityMap = solidImage(SK_ColorBLACK, 8, 8, SK_ColorWHITE);
   EXPECT_TRUE(m.blended());
-  const uint32_t id = w->place(geometry::mesh::quad(240, 240), glm::mat4(1.0f), m);
+  const uint32_t id =
+      w->place(geometry::mesh::quad(240, 240), glm::mat4(1.0f), m);
   ASSERT_NE(id, 0u);
   ASSERT_TRUE(w->render());
   SkBitmap bm = readFrame(*w);
@@ -593,7 +596,8 @@ TEST(World, SlopeHeightAndVertexColorMasksReadTheGeometry) {
   green.unlit = true;
   green.baseColor = {0, 1, 0, 1};
 
-  geometry::Mesh ball = geometry::mesh::superellipsoid({120, 120, 120}, 2, 64, 48);
+  geometry::Mesh ball =
+      geometry::mesh::superellipsoid({120, 120, 120}, 2, 64, 48);
   const uint32_t id =
       w->place(ball, glm::mat4(1.0f),
                red.over(green, world::Mask::slope({0, 1, 0}, 0.2f, 0.4f)));
@@ -727,8 +731,8 @@ TEST(World, PackedMapChannelsReachTheirSlots) {
   world::Material metal = dielectric;
   metal.metallicChannel = 2;  // reads blue = 1 -> metallic 1
   const auto lumaOf = [&](const world::Material& m) {
-    const uint32_t id = w->place(geometry::mesh::superellipsoid({90, 90, 90}, 1),
-                                 glm::mat4(1.0f), m);
+    const uint32_t id = w->place(
+        geometry::mesh::superellipsoid({90, 90, 90}, 1), glm::mat4(1.0f), m);
     EXPECT_NE(id, 0u);
     EXPECT_TRUE(w->render());
     // Off-centre, away from the specular highlight.
@@ -1073,7 +1077,8 @@ TEST(Scene, ReconcilesInsteadOfRebuilding) {
   config.height = 64;
   MAKE_WORLD_OR_SKIP(w, config);
 
-  auto mesh = std::make_shared<const geometry::Mesh>(geometry::mesh::quad(50, 50));
+  auto mesh =
+      std::make_shared<const geometry::Mesh>(geometry::mesh::quad(50, 50));
   world::Material red;
   red.baseColor = {1, 0, 0, 1};
 
@@ -1476,8 +1481,8 @@ TEST(Easel, StampsCloudEditsRefreshInPlace) {
   glow.unlit = true;
 
   auto describe = [&](float originX) {
-    geometry::Cloud cloud = geometry::points::grid({originX - 40, -20, 0}, {80, 0, 0},
-                                             {0, 40, 0}, 6, 4);
+    geometry::Cloud cloud = geometry::points::grid(
+        {originX - 40, -20, 0}, {80, 0, 0}, {0, 40, 0}, 6, 4);
     stage.placeStamps(cloud, geometry::mesh::quad(5, 5), glow).key("sparks");
     return stage.commit();
   };
@@ -1513,8 +1518,9 @@ TEST(Easel, ChainsReconcileByValue) {
   const geometry::Mesh stamp = geometry::mesh::quad(6, 6);
   const auto declare = [&](float head, const geometry::Mesh& withStamp) {
     return stage
-        .placeChain(geometry::pop::on(loop).count(300).window(head, 0.5f).noise(9),
-                    withStamp, world::Material{})
+        .placeChain(
+            geometry::pop::on(loop).count(300).window(head, 0.5f).noise(9),
+            withStamp, world::Material{})
         .key("comet")
         .commit();
   };
@@ -1792,7 +1798,8 @@ TEST(World, PopChainCooksAndRedescribes) {
   world::Material material;
   material.unlit = true;
   material.baseColor = {1, 1, 1, 1};  // tint carries the green
-  const uint32_t id = w->placeChain(geometry::mesh::quad(10, 10), chain, material);
+  const uint32_t id =
+      w->placeChain(geometry::mesh::quad(10, 10), chain, material);
   ASSERT_NE(id, 0u);
 
   const auto greenHalves = [&](int* left, int* right) {
@@ -1846,13 +1853,13 @@ TEST(World, PopCpuAndGpuExecutorsAgree) {
     loop.push_back({160.0f * std::cos(a), 160.0f * std::sin(a), 0});
   }
   const geometry::pop::Chain chain = geometry::pop::on(loop)
-                                      .count(200)
-                                      .window(0.125f, 0.6f)
-                                      .spread(8)
-                                      .seed(9)
-                                      .vary(0.35f)
-                                      .smooth(0.5f, 2)
-                                      .lookAt({0, 0, 500});
+                                         .count(200)
+                                         .window(0.125f, 0.6f)
+                                         .spread(8)
+                                         .seed(9)
+                                         .vary(0.35f)
+                                         .smooth(0.5f, 2)
+                                         .lookAt({0, 0, 500});
   const geometry::Mesh stamp = geometry::mesh::quad(9, 9);
   world::Material material;
   material.unlit = true;
@@ -1911,14 +1918,14 @@ TEST(World, ReadPointsQueriesGpuLanesNumerically) {
         {160.0f * std::cos(a), 30.0f * std::sin(3 * a), 160.0f * std::sin(a)});
   }
   const geometry::pop::Chain chain = geometry::pop::on(loop)
-                                      .count(500)
-                                      .window(0.8f, 0.6f)
-                                      .spread(14)
-                                      .seed(4)
-                                      .vary(0.35f)
-                                      .smooth(0.5f, 2)
-                                      .atlas(2, 2)
-                                      .fade({1, 0, 0, 1}, {0, 0, 1, 1});
+                                         .count(500)
+                                         .window(0.8f, 0.6f)
+                                         .spread(14)
+                                         .seed(4)
+                                         .vary(0.35f)
+                                         .smooth(0.5f, 2)
+                                         .atlas(2, 2)
+                                         .fade({1, 0, 0, 1}, {0, 0, 1, 1});
   const uint32_t id =
       w->placeChain(geometry::mesh::quad(4, 4), chain, world::Material{});
   ASSERT_NE(id, 0u);
@@ -2385,12 +2392,12 @@ TEST(World, PermutationClassChainsAreDeclinedNotDropped) {
   ASSERT_EQ(cooked.size(), 64u);
 
   EXPECT_EQ(w->placeChain(stamp, describe(true), world::Material{}), 0u);
-  EXPECT_EQ(w->placeChainOn(
-                plain, stamp,
-                (geometry::pop::Chain)geometry::pop::on(std::vector<glm::vec3>{})
-                    .count(32)
-                    .order({0, 1, 0}),
-                world::Material{}),
+  EXPECT_EQ(w->placeChainOn(plain, stamp,
+                            (geometry::pop::Chain)geometry::pop::on(
+                                std::vector<glm::vec3>{})
+                                .count(32)
+                                .order({0, 1, 0}),
+                            world::Material{}),
             0u)
       << "the composing entry declines too";
 
@@ -2474,11 +2481,14 @@ TEST(World, SetPointsWithEditedLoopMatchesAFreshDescribe) {
       const float a = (float)i / 10.0f * 2.0f * (float)M_PI;
       loop.push_back({radius * std::cos(a), 0, radius * std::sin(a)});
     }
-    return (geometry::pop::Chain)geometry::pop::on(loop).count(128).spread(5).seed(3);
+    return (geometry::pop::Chain)geometry::pop::on(loop)
+        .count(128)
+        .spread(5)
+        .seed(3);
   };
 
-  const uint32_t id =
-      w->placeChain(geometry::mesh::quad(3, 3), chainOn(150), world::Material{});
+  const uint32_t id = w->placeChain(geometry::mesh::quad(3, 3), chainOn(150),
+                                    world::Material{});
   ASSERT_NE(id, 0u);
   ASSERT_TRUE(w->render());
 
@@ -2571,8 +2581,8 @@ TEST(World, UpstreamWindowSlideRecooksDependentsSameFrame) {
           .seed(9)
           .vary(0.3f);
 
-  const uint32_t a = w->placeChain(geometry::mesh::quad(4, 4), chainAt(1.0f, 0.4f),
-                                   world::Material{});
+  const uint32_t a = w->placeChain(geometry::mesh::quad(4, 4),
+                                   chainAt(1.0f, 0.4f), world::Material{});
   ASSERT_NE(a, 0u);
   const uint32_t b =
       w->placeChainOn(a, geometry::mesh::quad(4, 4), chainB, world::Material{});
@@ -2726,9 +2736,9 @@ TEST(World, AnimatedChainDrivesAnOperatorDialAndRecooksOnlyOnChange) {
   std::vector<glm::vec3> loop = {
       {40, -100, 0}, {40, 100, 0}, {40, 100, 1}, {40, -100, 1}};
   const geometry::pop::Chain chain = geometry::pop::on(loop)
-                                      .count(200)
-                                      .window(0.5f, 0.5f)
-                                      .twist(0, {0, 1, 0}, -100, 100);
+                                         .count(200)
+                                         .window(0.5f, 0.5f)
+                                         .twist(0, {0, 1, 0}, -100, 100);
   const uint32_t id =
       w->placeChain(geometry::mesh::quad(4, 4), chain, world::Material{});
   ASSERT_NE(id, 0u);
@@ -3042,8 +3052,8 @@ TEST(WorldAnimation, RenderResolvesTheLanesItself) {
   config.height = 32;
   MAKE_WORLD_OR_SKIP(w, config);
 
-  const uint32_t id =
-      w->place(geometry::mesh::quad(40, 40), glm::mat4(1.0f), world::Material{});
+  const uint32_t id = w->place(geometry::mesh::quad(40, 40), glm::mat4(1.0f),
+                               world::Material{});
   ASSERT_NE(id, 0u);
   choreograph::Output<float> fade{0.25f};
   w->registry().emplace<world::AnimatedMaterial>(world::entity(id)).opacity =
@@ -3072,8 +3082,8 @@ TEST(WorldAnimation, AnimatedFrameRendersIdenticallyAcrossRuns) {
     camera.eye = {0, 0, 260};
     camera.target = {0, 0, 0};
     w->setCamera(camera);
-    const uint32_t id =
-        w->place(geometry::mesh::quad(90, 90), glm::mat4(1.0f), world::Material{});
+    const uint32_t id = w->place(geometry::mesh::quad(90, 90), glm::mat4(1.0f),
+                                 world::Material{});
     ASSERT_NE(id, 0u);
 
     motion::Ticker ticker;
@@ -3468,7 +3478,8 @@ geometry::Spline3 diamondLoop() {
 }
 
 /** The camera of the registry's sole camera entity. */
-const geometry::space::Camera& cameraOf(entt::registry& registry, entt::entity e) {
+const geometry::space::Camera& cameraOf(entt::registry& registry,
+                                        entt::entity e) {
   return registry.get<world::CameraComponent>(e).camera;
 }
 
@@ -3870,7 +3881,8 @@ TEST(WorldSceneAnimation, KeptLeavesRideTheirEntityAndTheirLanesOutrankIt) {
   config.height = 32;
   MAKE_WORLD_OR_SKIP(w, config);
 
-  auto mesh = std::make_shared<const geometry::Mesh>(geometry::mesh::quad(40, 40));
+  auto mesh =
+      std::make_shared<const geometry::Mesh>(geometry::mesh::quad(40, 40));
   const auto describe = [&] {
     return world::scene::group().key("set").child(
         world::scene::place(mesh, world::Material{})
@@ -3914,7 +3926,8 @@ TEST(WorldSceneAnimation, AChangedLeafRecreatesTheEntityAndDropsItsLanes) {
   config.height = 32;
   MAKE_WORLD_OR_SKIP(w, config);
 
-  auto mesh = std::make_shared<const geometry::Mesh>(geometry::mesh::quad(40, 40));
+  auto mesh =
+      std::make_shared<const geometry::Mesh>(geometry::mesh::quad(40, 40));
   const auto describe = [&](const world::Material& material) {
     return world::scene::group().key("set").child(
         world::scene::place(mesh, material).key("card"));
@@ -3965,7 +3978,8 @@ TEST(WorldSceneAnimation, CameraLanesAreUntouchedByReconciliation) {
   animated.eyeZ = world::bind(&dolly).target(800.0f, 200.0f);
   animated.targetZ = 0.0f;
 
-  auto mesh = std::make_shared<const geometry::Mesh>(geometry::mesh::quad(40, 40));
+  auto mesh =
+      std::make_shared<const geometry::Mesh>(geometry::mesh::quad(40, 40));
   world::scene::Scene scene(*w);
   const auto describe = [&](const world::Material& material) {
     return world::scene::group().key("set").child(
@@ -4009,7 +4023,8 @@ TEST(WorldSceneAnimation, FindResolvesANestedPathAcrossAKeep) {
   config.height = 32;
   MAKE_WORLD_OR_SKIP(w, config);
 
-  auto mesh = std::make_shared<const geometry::Mesh>(geometry::mesh::quad(40, 40));
+  auto mesh =
+      std::make_shared<const geometry::Mesh>(geometry::mesh::quad(40, 40));
   const auto describe = [&] {
     return world::scene::group().key("comp").child(
         world::scene::group()
@@ -4051,8 +4066,10 @@ TEST(WorldSceneAnimation, FindReturnsTheNewEntityAfterARecreate) {
   config.height = 32;
   MAKE_WORLD_OR_SKIP(w, config);
 
-  auto meshA = std::make_shared<const geometry::Mesh>(geometry::mesh::quad(40, 40));
-  auto meshB = std::make_shared<const geometry::Mesh>(geometry::mesh::quad(60, 20));
+  auto meshA =
+      std::make_shared<const geometry::Mesh>(geometry::mesh::quad(40, 40));
+  auto meshB =
+      std::make_shared<const geometry::Mesh>(geometry::mesh::quad(60, 20));
   const auto describe = [&](std::shared_ptr<const geometry::Mesh> mesh) {
     return world::scene::group().key("set").child(
         world::scene::place(std::move(mesh), world::Material{}).key("card"));
@@ -4093,7 +4110,8 @@ TEST(WorldSceneAnimation, ALaneAttachedThroughFindAnimates) {
   config.height = 32;
   MAKE_WORLD_OR_SKIP(w, config);
 
-  auto mesh = std::make_shared<const geometry::Mesh>(geometry::mesh::quad(40, 40));
+  auto mesh =
+      std::make_shared<const geometry::Mesh>(geometry::mesh::quad(40, 40));
   world::scene::Scene scene(*w);
   ASSERT_EQ(scene
                 .render(world::scene::group().key("set").child(
@@ -4123,7 +4141,8 @@ TEST(WorldSceneAnimation, AKeptOutrankedLeafWarnsOnceAndACleanKeepIsSilent) {
   config.height = 32;
   MAKE_WORLD_OR_SKIP(w, config);
 
-  auto mesh = std::make_shared<const geometry::Mesh>(geometry::mesh::quad(40, 40));
+  auto mesh =
+      std::make_shared<const geometry::Mesh>(geometry::mesh::quad(40, 40));
   const auto describe = [&] {
     return world::scene::group()
         .key("set")

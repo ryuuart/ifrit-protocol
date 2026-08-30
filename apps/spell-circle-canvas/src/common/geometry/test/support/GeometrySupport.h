@@ -1,8 +1,13 @@
 #pragma once
 
+/** @file
+ * Helpers shared by more than one geometry test binary: an OBJ cube with
+ * its material, and a two-triangle quad with a known winding.
+ */
+
 #include <vector>
 
-#include "sigilgeometry/Mesh.h"
+#include "sigilgeometry/mesh/Mesh.h"
 
 // Helpers shared by more than one geometry test binary. Each binary is one
 // translation unit over one subsystem, so anything two of them read lives

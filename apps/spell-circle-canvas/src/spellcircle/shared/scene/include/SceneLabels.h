@@ -11,7 +11,7 @@
 
 #include <absl/container/flat_hash_map.h>
 #include <include/core/SkFontMetrics.h>
-#include <sigilgeometry/Contour.h>
+#include <sigilgeometry/path/Contour.h>
 #include <sigilweave/Flow.h>
 
 #include <cstddef>

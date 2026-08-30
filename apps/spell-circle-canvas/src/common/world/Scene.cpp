@@ -1,7 +1,7 @@
 #include "sigilworld/Scene.h"
 
 #include <include/core/SkTypes.h>  // SkDebugf — the outrank diagnostic
-#include <sigilgeometry/Mesh.h>
+#include <sigilgeometry/mesh/Mesh.h>
 
 #include <cmath>
 #include <glm/gtc/matrix_transform.hpp>

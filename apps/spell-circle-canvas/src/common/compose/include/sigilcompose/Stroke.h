@@ -14,7 +14,7 @@
 #include <include/core/SkPath.h>
 #include <include/core/SkPoint.h>
 #include <include/core/SkRect.h>
-#include <sigilgeometry/Contour.h>
+#include <sigilgeometry/path/Contour.h>
 
 #include <any>
 #include <cmath>

@@ -20,7 +20,7 @@
  * SkImage for a path), exactly as SigilGeometry's importer takes a Resolver.
  */
 
-#include <sigilgeometry/Import.h>
+#include <sigilgeometry/codec/Decode.h>
 #include <sigilworld/World.h>
 
 #include <filesystem>
@@ -130,8 +130,8 @@ using BytesDecoder = std::function<sk_sp<SkImage>(
  *  plus its transmission, ior and alpha cutoff. glTF normals are
  *  OpenGL-convention; the sampler tiles. The part's factors are kept as
  *  the scalars the maps multiply. */
-Material material(const geometry::import::Part& part, const BytesDecoder& decode,
-                  Material base = {});
+Material material(const geometry::import::Part& part,
+                  const BytesDecoder& decode, Material base = {});
 
 /** The model's material SLOTS: one Material per index the parts name
  *  (`Part::materialIndex`), built from the first part wearing each, a

@@ -3,7 +3,7 @@
 #include <Graphics/GraphicsEngine/interface/DeviceContext.h>
 #include <Graphics/GraphicsEngine/interface/RenderDevice.h>
 #include <Graphics/GraphicsEngineVulkan/interface/EngineFactoryVk.h>
-#include <sigilgeometry/detail/VecMath.h>
+#include <sigilgeometry/mesh/Vec.h>
 
 #include <Common/interface/RefCntAutoPtr.hpp>
 #include <Graphics/GraphicsTools/interface/MapHelper.hpp>
@@ -2004,7 +2004,8 @@ uint32_t World::place(const geometry::Mesh& mesh, const glm::mat4& model,
   return (uint32_t)id;
 }
 
-uint32_t World::placeStamps(const geometry::Mesh& stamp, const geometry::Cloud& cloud,
+uint32_t World::placeStamps(const geometry::Mesh& stamp,
+                            const geometry::Cloud& cloud,
                             const Material& material, const StampLanes& lanes) {
   using namespace dg;
   Impl& impl = *m_impl;

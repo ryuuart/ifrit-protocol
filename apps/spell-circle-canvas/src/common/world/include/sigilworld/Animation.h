@@ -66,9 +66,9 @@
  * composes freely, because a camera is not a scene node.
  */
 
+#include <sigilgeometry/curves/Curves.h>
+#include <sigilgeometry/pop/Pop.h>
 #include <sigilmotion/Animation.h>
-#include <sigilgeometry/Curves.h>
-#include <sigilgeometry/Pop.h>
 
 #include <algorithm>
 #include <cmath>
@@ -605,7 +605,8 @@ inline AnimationStats resolveAnimation(World& world) {
       const float value = resolveValue(lane.value);
       if (lane.wasApplied && value == lane.applied) continue;
       if (lane.op < animated.chain.size() &&
-          geometry::popops::setField(animated.chain[lane.op], lane.field, value))
+          geometry::popops::setField(animated.chain[lane.op], lane.field,
+                                     value))
         moved = true;
       lane.applied = value;
       lane.wasApplied = true;

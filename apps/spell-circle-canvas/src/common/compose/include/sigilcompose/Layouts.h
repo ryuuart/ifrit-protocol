@@ -31,7 +31,7 @@
 
 #include "sigilcompose/Compose.h"
 #include "sigilcompose/Shapes.h"
-#include "sigilgeometry/Noise.h"
+#include "sigilgeometry/path/Noise.h"
 
 namespace sigil::compose::layouts {
 

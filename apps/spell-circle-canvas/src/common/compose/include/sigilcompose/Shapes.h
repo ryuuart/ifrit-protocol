@@ -36,8 +36,8 @@
 #include <cstdint>
 
 #include "sigilcompose/Compose.h"
-#include "sigilgeometry/Polyline.h"
-#include "sigilgeometry/Skia.h"
+#include "sigilgeometry/path/Polyline.h"
+#include "sigilgeometry/path/Skia.h"
 
 namespace sigil::compose::shapes {
 

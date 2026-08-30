@@ -33,8 +33,8 @@
 #include <utility>
 
 #include "ComposeRuntime.h"
-#include "sigilgeometry/Contour.h"
-#include "sigilgeometry/Skia.h"
+#include "sigilgeometry/path/Contour.h"
+#include "sigilgeometry/path/Skia.h"
 
 namespace sigil::compose {
 

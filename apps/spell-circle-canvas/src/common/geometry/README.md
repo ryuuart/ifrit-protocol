@@ -13,26 +13,29 @@ It links only Skia and [glm](https://github.com/g-truc/glm) publicly. There
 is no windowing, no GPU device, no UI framework and no scene graph — you
 hand it values, it hands you paths, meshes, clouds and pixels.
 
-It is two targets. **`SigilGeometryPath`** is the leaf: polylines, contours
-addressed by arc length, seeded noise, the numeric routines under them, and
-the path operators — Skia and glm only, so a text engine or a drawable
-component library can walk an outline without linking meshes, importers or
-materials. **`SigilGeometry`** is everything else and links the leaf, so a
-consumer of the whole library names only `SigilGeometry`.
+It is ten feature libraries, one per directory, each a static archive
+that links only the features beneath it — so a text engine or a drawable
+component library can walk an outline through **`SigilGeometryPath`**
+without linking meshes, importers or materials, and a renderer can take
+**`SigilGeometryPop`** without the codec. **`SigilGeometry`** is the
+umbrella, an interface over all ten, so a consumer of the whole library
+names only that.
 
-Namespace `sigil::geometry`. Headers under `include/sigilgeometry/`. Every
+Namespace `sigil::geometry`. Headers under `include/sigilgeometry/<feature>/`
+and spelled that way — `<sigilgeometry/path/Contour.h>`,
+`<sigilgeometry/pop/Pop.h>`. Every
 signature in the library speaks glm — `glm::vec2` for a point on a path as
 much as `glm::vec3` for a vertex — and Skia types appear only where the
-object *is* a Skia path, image, canvas or paint. `Skia.h` holds the two
+object *is* a Skia path, image, canvas or paint. `path/Skia.h` holds the two
 conversions, `toSk()` and `fromSk()`, so a caller drawing a result never
 spells the swizzle itself.
 
 ## Using it
 
 ```cpp
-#include <sigilgeometry/Easel.h>
-#include <sigilgeometry/Pop.h>
-#include <sigilgeometry/Space.h>
+#include <sigilgeometry/easel/Easel.h>
+#include <sigilgeometry/pop/Pop.h>
+#include <sigilgeometry/space/Space.h>
 
 using namespace sigil::geometry;
 
@@ -80,13 +83,13 @@ objects are values you can copy, tweak and re-cook.
 matrix — mesh vertices, spline knots, camera vectors, cloud positions,
 flattened path points, transforms — is glm (`vec2`, `vec3`, `vec4`,
 `mat4`). What is drawn or drawn from speaks Skia: `SkPath` outlines,
-`SkColor4f` paint, `SkImage` textures, `SkCanvas`. `Skia.h` converts a
-point (`toSk()`, `fromSk()`); `Space.h` is the declared bridge for
+`SkColor4f` paint, `SkImage` textures, `SkCanvas`. `path/Skia.h` converts a
+point (`toSk()`, `fromSk()`); `space/Space.h` is the declared bridge for
 matrices, and `space::toSkM44()` is the seam. Because glm's `mat4` and
 Skia's `SkM44` are both column-major, that conversion is a straight memory
 pour with no transpose.
 
-**Resampling is the substrate.** `Polyline.h` reduces any path to one of
+**Resampling is the substrate.** `path/Polyline.h` reduces any path to one of
 two forms: a `Polyline` (adaptive curve flattening that keeps corner
 anchors exact) or a `Sampled` (exactly N points spaced uniformly by arc
 length). Everything above stands on those two. Blending interpolates
@@ -127,7 +130,7 @@ belongs to). `points::promoteToPrims()` and the `pop::Promote` operator
 move values from the point class to the primitive class.
 
 **`Mesh` is the shared currency.** The same `positions`/`normals`/`uvs`/
-`colors`/`indices` buffers feed the CPU painter in `Space.h` and upload
+`colors`/`indices` buffers feed the CPU painter in `space/Space.h` and upload
 directly to a GPU renderer downstream. Nothing renderer-shaped lives in the
 struct.
 
@@ -148,7 +151,7 @@ or an animation lane can drive a chain without knowing the operator's
 type. Strings, lane names, meshes, clouds and matrices are descriptions,
 not dials, and stay out of it.
 
-**`Easel.h` is the artist façade.** Stock outlines (`dot`, `ngon`, `star`,
+**`easel/Easel.h` is the artist façade.** Stock outlines (`dot`, `ngon`, `star`,
 `pill`, `ring`) and four fluent value types over everything underneath:
 `Shape` (`offset`, `roughen`, `zigzag`, `bloat`, `pucker`, `twirl`,
 `unite`, `cut`, `clip`, `step`, plus one look — `fill`, `stroke`, `gold`,
@@ -160,20 +163,24 @@ not dials, and stay out of it.
 `glow`). It adds no capability; it picks defaults and reads like a
 sentence.
 
-## The headers
+## The features and their headers
 
-They form a dependency chain — each header includes those it needs, so
-including a later one pulls the earlier ones in.
+Each feature is a directory holding its sources, its `CMakeLists.txt`,
+its `test/` and (where it has one) its `bench/`; its public headers sit
+under `include/sigilgeometry/<feature>/`. Internal headers never leave the
+feature directory. The features form a dependency chain — each links those
+it needs, and each header includes those it needs, so including a later
+one pulls the earlier ones in.
 
-The leaf, `SigilGeometryPath`, is six headers that depend on nothing else
-in the library:
+**`path`** — `SigilGeometryPath`, the leaf. Six headers that depend on
+nothing else in the library, Skia and glm only:
 
-- **`Polyline.h`** — the resampling core. `Polyline` and `flatten()`,
+- **`path/Polyline.h`** — the resampling core. `Polyline` and `flatten()`,
   `sample()` to walk a parametric curve evenly by arc length, `Sampled`
   and `resample()`, `bestAlignment()`/`applyAlignment()` for matching two
   closed contours, `toPath()` to rebuild (optionally through Catmull-Rom
   cubics), and `lerp()`.
-- **`Contour.h`** — a path's sub-paths by arc length. `Contour::of()`
+- **`path/Contour.h`** — a path's sub-paths by arc length. `Contour::of()`
   splits a path (skipping zero-length contours); `length()`, `closed()`,
   `at()`, `around()`, `segment()`/`appendSegment()`, and `corners()`, which
   walks the contour in strides and bisects to each turn sharper than a
@@ -183,71 +190,123 @@ in the library:
   sideways wave, fitted to a whole number of cycles so both ends stay on
   the source curve) and `cornerWindows()` (the pieces within a radius of
   each corner, or everything but them).
-- **`Noise.h`** — namespace `noise`. `hash(seed, i)` to [-1, 1] for
+- **`path/Noise.h`** — namespace `noise`. `hash(seed, i)` to [-1, 1] for
   per-index jitter; the PCG family `pcgAdvance`, `pcgMix`, `pcgHash`,
   `pcgNext` (a stream over a carried state) and `pcgUnit` (either squeezed
   to [0, 1)); and `value3()`, trilinear value noise over the integer
   lattice.
-- **`Numeric.h`** — `kPi`, `kTau`, the degree/radian factors, `bisect()`
-  over a predicate and `wrap()` into a period.
-- **`Skia.h`** — `toSk()` and `fromSk()` between `glm::vec2` and
+- **`path/Numeric.h`** — `kPi`, `kTau`, the degree/radian factors,
+  `bisect()` over a predicate and `wrap()` into a period.
+- **`path/Skia.h`** — `toSk()` and `fromSk()` between `glm::vec2` and
   `SkPoint`, and `centre()` of an `SkRect`.
-- **`Ops.h`** — path operators. Booleans over Skia's pathops (`unite`,
+- **`path/Ops.h`** — path operators. Booleans over Skia's pathops (`unite`,
   `subtract`, `intersect`, `exclude`, `simplify`, and a stroke-expansion
   `offset`), and four distortions as parameter structs you apply on demand:
   `Roughen`, `Zigzag`, `PuckerBloat`, `Twirl`. `PathOp` and `chain()`
   compose them, `offsetBy()` adapts `offset` into a step.
 
-Two more headers in `SigilGeometry` stand alone above the leaf:
+**`blend`** — `SigilGeometryBlend`, needs `path`.
 
-- **`Materials.h`** — reflective materials as `SkRuntimeEffect` shaders.
-  `bevelNormals()` derives a normal map from a path's coverage;
+- **`blend/Blend.h`** — shape interpolation modelled on Illustrator's
+  blend tool: `Key`s expand into drawable `Step`s under `Options`
+  controlling spacing (`Steps`, `Distance`, `SmoothColor`), an optional
+  spine path, orientation, sample density and outline smoothing.
+
+**`mesh`** — `SigilGeometryMesh`, needs `path`.
+
+- **`mesh/Mesh.h`** — the mesh currency and its generators. The `Mesh`
+  struct (positions, normals, uvs, colors, indices, and the `prims` lane
+  map), `append()`/`transform()`/`computeNormals()`/`bounds()`, and the
+  generators `extrude()`, `revolve()`, `grid()`, `torus()`,
+  `superellipsoid()`, `cylinderPanel()`, `quad()`, plus
+  `mesh::bakePrimColor()`. The struct's own methods are `Mesh.cpp`; the
+  generators are `Generators.cpp`.
+- **`mesh/Vec.h`** — the two glm policies the library and its GPU twin
+  share: `normalized()` with a fallback for a degenerate vector, and
+  `basisFor()`, the orientation basis every stamp is placed with, so a
+  cloud renders identically merged, instanced or GPU-drawn.
+
+**`space`** — `SigilGeometrySpace`, needs `mesh`.
+
+- **`space/Space.h`** — Skia's 3D put to work: a `Camera`, `drawMesh()` (a
+  painter-order software rasterizer with per-vertex lighting and
+  `SkVertices` batching), `drawPanel()`/`drawImagePanel()`
+  (perspective-correct 2D content on a plane), and the transform helpers
+  `place()` and `faceCamera()`. `toSkM44()` is the glm-to-Skia seam.
+
+**`curves`** — `SigilGeometryCurves`, needs `mesh` and `space`.
+
+- **`curves/Curves.h`** — `Spline3` (linear, Catmull-Rom or Bezier, open
+  or closed) with `position()`, `tangent()`, `length()`, `sample()` and
+  `sampleArcLength()`; `curves::frames()` for parallel-transport `Frame3`s
+  that do not flip at inflections; the swept generators `tube()`,
+  `ribbon()` and `banner()`; and `project()` to draw the curve as a 2D
+  path under a camera.
+
+**`points`** — `SigilGeometryPoints`, needs `curves` (and through it
+`mesh` and `space`); its generators draw from `path`'s noise.
+
+- **`points/Points.h`** — `Cloud` and its lane accessors (`Cloud.cpp`);
+  the generators `onSpline()`, `grid()`, `ring()`, `scatterBox()` and
+  `onMesh()` (`Generators.cpp`); the modifiers `jitter()` and
+  `displaceNoise()`, the consumers `instance()` and `quads()` (stamp a
+  mesh at every point into one merged mesh) and `promoteToPrims()`
+  (`Modifiers.cpp`); and `drawBillboards()`, camera-facing sprites
+  (`Billboards.cpp`).
+
+**`pop`** — `SigilGeometryPop`, needs `curves` and `points`.
+
+- **`pop/Pop.h`** — the operator chain language and its CPU executor.
+  The field table behind `popops::setField()`/`getField()` is
+  `Fields.cpp`; `popops::cook()` with the attribute store it runs over is
+  `Cook.cpp`; the mesh-forming sinks `cookMesh()`, `cookTube()`,
+  `cookRibbon()` and `cookSweep()` are `Sinks.cpp`.
+
+**`codec`** — `SigilGeometryCodec`, needs `mesh` and `points`. Its parsers
+are private to the feature: tinyobjloader, cgltf and Alembic, with STL,
+PLY and `.geo` parsed by hand. One reader per translation unit —
+`Obj.cpp`, `Gltf.cpp`, `Stl.cpp`, `Ply.cpp`, `Geo.cpp`, `Alembic.cpp` —
+behind the dispatcher in `Model.cpp`, sharing only what `Internal.h`
+declares; `PlyWriter.cpp` is the writer.
+
+- **`codec/Model.h`** — what every reader produces: `Part` (one draw
+  unit: a mesh in model space, its material factors and texture
+  references, its custom attributes as named lanes, `asCloud()`), `Model`
+  (the parts, and `merged()`, `mergedCloud()`, `bounds()`,
+  `fitTransform()`, `materialSlotCount()` across them) and the `Resolver`
+  a reader consults for external references.
+- **`codec/Decode.h`** — the doors in: `import::model()` from bytes with
+  a path hint, or from a file with its siblings resolved; and
+  `import::alembic()` with `AlembicOptions` choosing the time. OBJ (with
+  MTL), glTF 2.0 as `.gltf` or `.glb`, ascii and binary STL, ascii and
+  binary-little-endian PLY, Ogawa Alembic, and Houdini's JSON `.geo`.
+- **`codec/Encode.h`** — the door out: `save::ply()` over a `Cloud` or a
+  `Mesh`, ascii by default or binary via `PlyOptions`.
+
+**`material`** — `SigilGeometryMaterial`, Skia alone; nothing else in the
+library. The SkSL sources are `Sksl.h`, compiled and bound in
+`Shaders.cpp`; the environment bakes and their roughness blurs are
+`Environment.cpp`; the normal-map derivation is `Bevel.cpp`.
+
+- **`material/Materials.h`** — reflective materials as `SkRuntimeEffect`
+  shaders. `bevelNormals()` derives a normal map from a path's coverage;
   `Environment` supplies what the surface reflects, either as a procedural
   bake (`studio()`, `sunset()`) or a loaded equirectangular panorama
   (`fromEquirect()`), with cached roughness blurs. `gold()`, `chrome()` and
   `glass()` return shaders; `drawGold()`, `drawChrome()` and `drawGlass()`
   run the whole pipeline for one path.
-- **`Mesh.h`** — the mesh currency and its generators. The `Mesh` struct
-  (positions, normals, uvs, colors, indices, and the `prims` lane map),
-  `append()`/`transform()`/`computeNormals()`/`bounds()`, and the
-  generators `extrude()`, `revolve()`, `grid()`, `torus()`,
-  `superellipsoid()`, `cylinderPanel()`, `quad()`, plus
-  `mesh::bakePrimColor()`.
 
-The rest build on those:
+**`easel`** — `SigilGeometryEasel`, header-only, an interface over
+`blend`, `curves`, `material`, `mesh`, `path`, `points` and `space`. It
+does not pull in `pop` or `codec`.
 
-- **`Blend.h`** needs `Polyline`. Shape interpolation modelled on
-  Illustrator's blend tool: `Key`s expand into drawable `Step`s under
-  `Options` controlling spacing (`Steps`, `Distance`, `SmoothColor`), an
-  optional spine path, orientation, sample density and outline smoothing.
-- **`Space.h`** needs `Mesh`. Skia's 3D put to work: a `Camera`,
-  `drawMesh()` (a painter-order software rasterizer with per-vertex
-  lighting and `SkVertices` batching), `drawPanel()`/`drawImagePanel()`
-  (perspective-correct 2D content on a plane), and the transform helpers
-  `place()` and `faceCamera()`. `toSkM44()` is the glm-to-Skia seam.
-- **`Curves.h`** needs `Mesh` and `Space`. `Spline3` (linear, Catmull-Rom
-  or Bezier, open or closed) with `position()`, `tangent()`, `length()`,
-  `sample()` and `sampleArcLength()`; `curves::frames()` for
-  parallel-transport `Frame3`s that do not flip at inflections; the swept
-  generators `tube()`, `ribbon()` and `banner()`; and `project()` to draw
-  the curve as a 2D path under a camera.
-- **`Points.h`** needs `Curves`, `Mesh` and `Space`. `Cloud` and its lane
-  accessors; the generators `onSpline()`, `grid()`, `ring()`,
-  `scatterBox()` and `onMesh()`; the modifiers `jitter()` and
-  `displaceNoise()`; the consumers `instance()` and `quads()` (stamp a
-  mesh at every point into one merged mesh) and `drawBillboards()`
-  (camera-facing sprites); and `promoteToPrims()`.
-- **`Pop.h`** needs `Curves` and `Points`. The operator chain language and
-  its CPU executor.
-- **`Import.h`** and **`Save.h`** need `Mesh` and `Points`. Import reads
-  OBJ (with MTL), glTF 2.0 as `.gltf` or `.glb`, ascii and binary STL,
-  ascii and binary-little-endian PLY, Ogawa Alembic, and Houdini's JSON
-  `.geo`, producing a `Model` of `Part`s; external references resolve
-  through a caller-supplied `Resolver`. Save writes PLY back out —
-  `save::ply()` over a `Cloud` or a `Mesh`, ascii by default or binary via
-  `PlyOptions`.
-- **`Easel.h`** needs `Blend`, `Curves`, `Materials`, `Mesh`, `Ops`,
-  `Points` and `Space`. It does not pull in `Pop`, `Import` or `Save`.
+- **`easel/Easel.h`** — the artist façade described above.
+
+**`Geometry.h`** at the root of the include tree includes every public
+header. It is transitional: a consumer that spelled the headers by bare
+name before they moved under their features includes this one and keeps
+compiling, then narrows to the feature headers it uses. There are no
+per-header forwarding stubs at the old paths.
 
 ### The operators
 
@@ -350,7 +409,7 @@ is silently, plausibly wrong rather than obviously broken.
   while other colours pad white, and vectors pad `{0, 0, 1}`. Call
   `computeNormals()` on the merge when you want the geometric truth instead
   of the pad.
-- **The PCG helpers in `Noise.h` are ABI.** `noise::pcgAdvance`,
+- **The PCG helpers in `path/Noise.h` are ABI.** `noise::pcgAdvance`,
   `noise::pcgMix` and `noise::pcgHash` are bit-matched to the GPU compute
   kernels that execute the same operator chains. The constants and the shift schedule are not tuning
   knobs — changing either desynchronizes the CPU reference from the GPU
@@ -419,11 +478,12 @@ is silently, plausibly wrong rather than obviously broken.
 
 ## Boundaries
 
-Publicly the library links Skia and glm and nothing else, and the
-`SigilGeometryPath` leaf links nothing beyond those two. Privately
-`SigilGeometry` uses
-tinyobjloader for OBJ, Alembic for `.abc`, and the header-only earcut (cap
-triangulation) and cgltf (glTF); STL and PLY are parsed by hand.
+Publicly the library links Skia and glm and nothing else, and every
+feature links only the features beneath it. Privately `mesh` uses the
+header-only earcut for cap triangulation, and `codec` uses tinyobjloader
+for OBJ, Alembic for `.abc` and the header-only cgltf for glTF; STL, PLY
+and `.geo` are parsed by hand. Those private dependencies reach no other
+feature.
 
 It deliberately does not own a GPU device, a window, a Qt dependency, a
 component or scene kernel, an animation timeline, an image decoder, a
@@ -450,7 +510,11 @@ python3 scripts/setup.py --config Debug
 cmake --build build --config Debug
 ```
 
-Targets: `SigilGeometryPath` and `SigilGeometry` (static libraries), the
+Targets: one static library per feature — `SigilGeometryPath`,
+`SigilGeometryBlend`, `SigilGeometryMesh`, `SigilGeometrySpace`,
+`SigilGeometryCurves`, `SigilGeometryPoints`, `SigilGeometryPop`,
+`SigilGeometryCodec`, `SigilGeometryMaterial` — the header-only
+`SigilGeometryEasel`, the `SigilGeometry` umbrella over all of them, the
 tests, `geometry_demo`, and four Google Benchmark binaries built by the
 `benches` target and run from a Release build through
 `scripts/bench_ledger.py`: `geometry_path_bench` (flattening and
@@ -459,26 +523,32 @@ constructions by contour length, the noise hashes per call),
 `geometry_mesh_bench` (extrude, revolve and the grid presets by vertex
 count), `geometry_pop_bench` (the pop cook per operator over a thousand
 points, and whole chains by count and operator mix) and
-`geometry_import_bench` (OBJ, GLB and `.geo` decoded from bytes in memory,
+`geometry_codec_bench` (OBJ, GLB and `.geo` decoded from bytes in memory,
 per triangle or point).
 
-The tests are one binary per subsystem, each a single translation unit
-under `test/`, so an edit to one subsystem recompiles one small file. All
-are registered with ctest and answer to `-R geometry`:
+The tests are one binary per feature, `geometry_<feature>_test`, each
+linking only that feature's library (and the features beneath it), so a
+test cannot reach above the code it exercises and an edit to one feature
+recompiles one small file. All are registered with ctest and answer to
+`-R geometry`:
 
 | Binary | Source | Covers |
 | --- | --- | --- |
-| `geometry_path_test` | `PathTest.cpp` | the leaf alone: polylines, contours, noise, numerics |
-| `geometry_blend_test` | `BlendTest.cpp` | shape interpolation |
-| `geometry_mesh_test` | `MeshTest.cpp` | meshes, the Space painter, materials |
-| `geometry_curves_test` | `CurvesTest.cpp` | splines, tubes, ribbons, banners |
-| `geometry_points_test` | `PointsTest.cpp` | point clouds and instancing |
-| `geometry_pop_test` | `PopTest.cpp` | pop chains and their operators |
-| `geometry_easel_test` | `EaselTest.cpp` | the fluent authoring surface |
-| `geometry_import_test` | `ImportTest.cpp` | every import format and PLY save; the only one linking Alembic |
+| `geometry_path_test` | `path/test/PathTest.cpp` | the leaf alone: polylines, contours, the path operators, noise, numerics |
+| `geometry_blend_test` | `blend/test/BlendTest.cpp` | shape interpolation |
+| `geometry_mesh_test` | `mesh/test/MeshTest.cpp` | the mesh currency and its generators |
+| `geometry_space_test` | `space/test/SpaceTest.cpp` | the Skia painter |
+| `geometry_curves_test` | `curves/test/CurvesTest.cpp` | splines, tubes, ribbons, banners |
+| `geometry_points_test` | `points/test/PointsTest.cpp` | point clouds, instancing, and the agreement between an instanced facing lane and `faceCamera()` |
+| `geometry_pop_test` | `pop/test/PopTest.cpp` | pop chains and their operators; links the codec to seed chains from an imported model |
+| `geometry_codec_test` | `codec/test/DecodeTest.cpp`, `codec/test/EncodeTest.cpp` | every reader, and the PLY writer's round trips; the only one linking Alembic |
+| `geometry_material_test` | `material/test/MaterialTest.cpp` | the material shaders |
+| `geometry_easel_test` | `easel/test/EaselTest.cpp` | the fluent authoring surface |
 
 Helpers that more than one binary reads (`kCubeObj`, `splitQuad`) live in
-`test/support/GeometrySupport.h`; a helper one binary uses stays in that
+`test/support/GeometrySupport.h` at the library root — the one shared
+test location, beside `examples/geometry_demo.cpp`, which is the one
+program over the whole library; a helper one binary uses stays in that
 binary's file.
 
 ```sh

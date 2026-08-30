@@ -12,8 +12,8 @@
 #include <algorithm>
 #include <cmath>
 
-#include "sigilgeometry/Noise.h"
-#include "sigilgeometry/Numeric.h"
+#include "sigilgeometry/path/Noise.h"
+#include "sigilgeometry/path/Numeric.h"
 
 namespace sigil::compose::shapes {
 

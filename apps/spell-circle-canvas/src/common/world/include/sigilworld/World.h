@@ -27,10 +27,10 @@
 #include <include/core/SkColor.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkRefCnt.h>
-#include <sigilgeometry/Mesh.h>
-#include <sigilgeometry/Points.h>
-#include <sigilgeometry/Pop.h>
-#include <sigilgeometry/Space.h>
+#include <sigilgeometry/mesh/Mesh.h>
+#include <sigilgeometry/points/Points.h>
+#include <sigilgeometry/pop/Pop.h>
+#include <sigilgeometry/space/Space.h>
 
 #include <cstdint>
 #include <entt/entity/fwd.hpp>
@@ -509,8 +509,9 @@ class World {
    *  all of it opaque or blended. Instances are therefore not depth
    *  sorted against each other. 0 on failure; an empty cloud is a valid
    *  but invisible prop awaiting setStamps(). */
-  uint32_t placeStamps(const geometry::Mesh& stamp, const geometry::Cloud& cloud,
-                       const Material& material, const StampLanes& lanes = {});
+  uint32_t placeStamps(const geometry::Mesh& stamp,
+                       const geometry::Cloud& cloud, const Material& material,
+                       const StampLanes& lanes = {});
   /** Re-upload a stamps prop's points (UpdateBuffer when the
    *  count is unchanged, recreate otherwise). No-op on plain
    *  props. */

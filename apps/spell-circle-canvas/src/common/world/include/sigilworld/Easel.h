@@ -2,7 +2,7 @@
 
 /** @file
  * SigilWorld easel — the artist's stage for PLACING things in a World.
- * SigilGeometry's easel (sigilgeometry/Easel.h) covers 2D marks; this one
+ * SigilGeometry's easel (sigilgeometry/easel/Easel.h) covers 2D marks; this one
  * covers the stage: a sun, an eye, registry lights, props, panels,
  * stamps, chains — every call reads like a sentence, defaults are loud, and
  * the whole description reconciles through the Scene layer on
@@ -35,9 +35,9 @@
  * called them.
  */
 
-#include <sigilgeometry/Mesh.h>
-#include <sigilgeometry/Points.h>
-#include <sigilgeometry/Pop.h>
+#include <sigilgeometry/mesh/Mesh.h>
+#include <sigilgeometry/points/Points.h>
+#include <sigilgeometry/pop/Pop.h>
 
 #include <algorithm>
 #include <cstdint>
@@ -196,8 +196,8 @@ class Stage {
   /** @p stamp instanced at every point of @p cloud in ONE draw
    *  (World::placeStamps). An unchanged cloud is a keep; a changed
    *  one refreshes instances in place (setStamps). */
-  Stage& placeStamps(geometry::Cloud cloud, geometry::Mesh stamp, Material material,
-                     StampLanes lanes = {}) {
+  Stage& placeStamps(geometry::Cloud cloud, geometry::Mesh stamp,
+                     Material material, StampLanes lanes = {}) {
     Placement p;
     p.kind = Placement::Kind::Stamps;
     p.cloud = std::move(cloud);
@@ -332,7 +332,7 @@ class Stage {
     sk_sp<SkImage> image;  // Panel
     float width = 0, height = 0;
     geometry::Cloud cloud;       // Stamps
-    StampLanes lanes;         // Stamps
+    StampLanes lanes;            // Stamps
     geometry::pop::Chain chain;  // Points
   };
   struct CachedMesh {
@@ -359,7 +359,8 @@ class Stage {
   /** By-value meshes reconcile by content hash under the placement's
    *  key (or child index): same content, same shared_ptr, so the Scene
    *  sees stable pointer identity. */
-  std::shared_ptr<const geometry::Mesh> resolveMesh(Placement& p, int childIndex) {
+  std::shared_ptr<const geometry::Mesh> resolveMesh(Placement& p,
+                                                    int childIndex) {
     if (p.mesh) return p.mesh;
     CachedMesh& cached =
         m_meshes[p.key.empty() ? "#" + std::to_string(childIndex) : p.key];

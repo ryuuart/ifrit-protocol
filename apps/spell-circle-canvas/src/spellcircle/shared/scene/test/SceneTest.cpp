@@ -13,7 +13,7 @@
 #include <include/core/SkPoint.h>
 #include <include/core/SkRect.h>
 #include <include/core/SkRefCnt.h>
-#include <sigilgeometry/Contour.h>
+#include <sigilgeometry/path/Contour.h>
 
 #include <algorithm>
 #include <cstdint>

@@ -16,9 +16,9 @@
 #include <cmath>
 #include <limits>
 
-#include "sigilgeometry/Contour.h"
-#include "sigilgeometry/Noise.h"
-#include "sigilgeometry/Skia.h"
+#include "sigilgeometry/path/Contour.h"
+#include "sigilgeometry/path/Noise.h"
+#include "sigilgeometry/path/Skia.h"
 
 namespace sigil::compose {
 

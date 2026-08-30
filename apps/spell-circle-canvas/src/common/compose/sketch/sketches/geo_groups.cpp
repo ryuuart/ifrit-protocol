@@ -24,10 +24,10 @@
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
-#include <sigilgeometry/Import.h>
-#include <sigilgeometry/Points.h>
-#include <sigilgeometry/Pop.h>
-#include <sigilgeometry/Space.h>
+#include <sigilgeometry/codec/Decode.h>
+#include <sigilgeometry/points/Points.h>
+#include <sigilgeometry/pop/Pop.h>
+#include <sigilgeometry/space/Space.h>
 #include <sigilsketch/Sketch.h>
 
 #include <cmath>

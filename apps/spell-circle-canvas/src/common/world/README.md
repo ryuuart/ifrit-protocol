@@ -22,7 +22,7 @@ Vulkan — through MoltenVK on macOS.
 #include <sigilworld/Components.h>
 #include <sigilworld/World.h>
 
-#include <sigilgeometry/Mesh.h>
+#include <sigilgeometry/mesh/Mesh.h>
 
 #include <glm/gtc/matrix_transform.hpp>
 

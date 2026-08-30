@@ -36,7 +36,7 @@
 #include "sigilcompose/Routers.h"
 #include "sigilcompose/Shapes.h"
 #include "sigilcompose/Stroke.h"
-#include "sigilgeometry/Contour.h"
+#include "sigilgeometry/path/Contour.h"
 
 namespace sigil::compose::kit {
 

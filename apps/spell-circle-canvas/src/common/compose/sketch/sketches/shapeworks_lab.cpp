@@ -27,10 +27,10 @@
 
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkSurface.h>
-#include <sigilgeometry/Blend.h>
-#include <sigilgeometry/Materials.h>
-#include <sigilgeometry/Mesh.h>
-#include <sigilgeometry/Space.h>
+#include <sigilgeometry/blend/Blend.h>
+#include <sigilgeometry/material/Materials.h>
+#include <sigilgeometry/mesh/Mesh.h>
+#include <sigilgeometry/space/Space.h>
 #include <sigilsketch/Sketch.h>
 
 #include <cmath>
@@ -94,13 +94,14 @@ struct ShapeworksLab : sigil::compose::sketch::Sketch {
           const float w = paint.size.width(), h = paint.size.height();
           const float spin = (float)paint.elapsedSeconds * 24.0f;
           geometry::blend::Key from{star(5, 64, 26, {w * 0.5f, 80}, -90 + spin),
-                                 {1.0f, 0.42f, 0.30f, 1}};
+                                    {1.0f, 0.42f, 0.30f, 1}};
           geometry::blend::Key to{SkPath::Circle(w * 0.5f, h - 90, 58),
-                               {0.30f, 0.62f, 1.0f, 1}};
+                                  {0.30f, 0.62f, 1.0f, 1}};
           geometry::blend::Options options;
           options.steps = 9;
           options.smoothOutlines = true;
-          geometry::blend::draw(canvas, geometry::blend::make(from, to, options));
+          geometry::blend::draw(canvas,
+                                geometry::blend::make(from, to, options));
         })
             .inset(40, 60, 660, 60)
             .cache(Cache::None);
@@ -200,9 +201,9 @@ struct ShapeworksLab : sigil::compose::sketch::Sketch {
     }
     {
       auto [normals, bounds] = normalsFor(glassPath, 14);
-      glass =
-          geometry::materials::glass(normals, studio, backdrop,
-                                  {(float)bounds.left(), (float)bounds.top()});
+      glass = geometry::materials::glass(
+          normals, studio, backdrop,
+          {(float)bounds.left(), (float)bounds.top()});
     }
 
     starMesh =

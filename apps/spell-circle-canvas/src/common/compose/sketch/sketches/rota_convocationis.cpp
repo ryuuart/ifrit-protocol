@@ -205,8 +205,8 @@
 #include <sigilcompose/Typography.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Kit.h>
-#include <sigilgeometry/Ops.h>
-#include <sigilgeometry/Polyline.h>
+#include <sigilgeometry/path/Ops.h>
+#include <sigilgeometry/path/Polyline.h>
 #include <sigilsketch/Sketch.h>
 #include <sigilweave/Style.h>
 

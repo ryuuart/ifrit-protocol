@@ -24,9 +24,9 @@
  * OpenUSD privately; SigilWorld and SigilGeometry do not know it exists.
  */
 
-#include <sigilgeometry/Import.h>
-#include <sigilgeometry/Mesh.h>
-#include <sigilgeometry/Points.h>
+#include <sigilgeometry/codec/Decode.h>
+#include <sigilgeometry/mesh/Mesh.h>
+#include <sigilgeometry/points/Points.h>
 #include <sigilworld/Components.h>
 #include <sigilworld/World.h>
 
@@ -89,7 +89,8 @@ class Writer {
   std::string sun(std::string_view name, const world::Lighting& lighting,
                   std::string_view parent = "/World");
   /** The camera, as UsdGeomCamera. */
-  std::string camera(std::string_view name, const geometry::space::Camera& camera,
+  std::string camera(std::string_view name,
+                     const geometry::space::Camera& camera,
                      std::string_view parent = "/World");
 
   /** Write the stage; false (with @p error) when USD refuses. */
@@ -107,16 +108,16 @@ class Writer {
  *  positions a faceless Part; a bound UsdPreviewSurface fills the
  *  Part's factors and texture references (bytes read from the file's
  *  neighbours). nullopt when the stage cannot be opened. */
-std::optional<geometry::import::Model> readModel(const std::filesystem::path& file,
-                                              std::string* error = nullptr);
+std::optional<geometry::import::Model> readModel(
+    const std::filesystem::path& file, std::string* error = nullptr);
 
 /** The bound UsdPreviewSurface material names, in slot order, that
  *  readModel() found — parallel to Part::materialIndex. */
 struct ReadInfo {
   std::vector<std::string> materialNames;
 };
-std::optional<geometry::import::Model> readModel(const std::filesystem::path& file,
-                                              ReadInfo* info,
-                                              std::string* error = nullptr);
+std::optional<geometry::import::Model> readModel(
+    const std::filesystem::path& file, ReadInfo* info,
+    std::string* error = nullptr);
 
 }  // namespace sigil::usd

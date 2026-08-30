@@ -21,15 +21,15 @@
 #include <include/core/SkRRect.h>
 #include <include/core/SkSurface.h>
 #include <sigilcompose/Compose.h>
+#include <sigilgeometry/codec/Decode.h>
+#include <sigilgeometry/codec/Encode.h>
+#include <sigilgeometry/curves/Curves.h>
+#include <sigilgeometry/mesh/Mesh.h>
+#include <sigilgeometry/points/Points.h>
 #include <sigilimage/Decode.h>
 #include <sigilimage/ImageAsset.h>
 #include <sigilloader/Loader.h>
 #include <sigilmotion/Ticker.h>
-#include <sigilgeometry/Curves.h>
-#include <sigilgeometry/Import.h>
-#include <sigilgeometry/Mesh.h>
-#include <sigilgeometry/Points.h>
-#include <sigilgeometry/Save.h>
 #include <sigilweave/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweavekit/SigilWeaveKit.h>
@@ -410,7 +410,8 @@ void renderPopLab(const std::filesystem::path& outDir,
     seed = geometry::points::onMesh(merged, 14000, 3);
     seedName = "Avocado.glb, scattered";
   } else {
-    seed = geometry::points::onMesh(geometry::mesh::torus(180, 70, 96, 48), 14000, 3);
+    seed = geometry::points::onMesh(geometry::mesh::torus(180, 70, 96, 48),
+                                    14000, 3);
   }
   const std::vector<glm::vec4> heightStops = {
       {0.05f, 0.15f, 0.7f, 1}, {0.95f, 0.25f, 0.1f, 1}, {1.0f, 0.85f, 0.2f, 1}};
@@ -455,10 +456,10 @@ void renderPopLab(const std::filesystem::path& outDir,
   floor.roughness = 0.5f;
   floor.metallic = 0.3f;
   w->place(geometry::mesh::grid(2, 2,
-                             [&](float u, float v) -> glm::vec3 {
-                               return {(u - 0.5f) * 1800, lo.y - 40,
-                                       (v - 0.5f) * 1200};
-                             }),
+                                [&](float u, float v) -> glm::vec3 {
+                                  return {(u - 0.5f) * 1800, lo.y - 40,
+                                          (v - 0.5f) * 1200};
+                                }),
            glm::mat4(1.0f), floor);
   world::Lighting lighting;
   lighting.sunDirection = {-0.35f, -0.75f, -0.55f};
@@ -580,9 +581,10 @@ void renderMaterialLab(const std::filesystem::path& outDir,
   world::Material floor = plate;
   floor.uvScale = {4, 4};
   add(geometry::mesh::grid(2, 2,
-                        [](float u, float v) -> glm::vec3 {
-                          return {(u - 0.5f) * 1800, -150, (v - 0.5f) * 1200};
-                        }),
+                           [](float u, float v) -> glm::vec3 {
+                             return {(u - 0.5f) * 1800, -150,
+                                     (v - 0.5f) * 1200};
+                           }),
       glm::mat4(1.0f), floor);
   // A sphere wearing it once around — LAYERED: rust where the plate's
   // own occlusion runs deep (the AO map, inverted and fitted, as the
@@ -660,8 +662,8 @@ void renderMaterialLab(const std::filesystem::path& outDir,
       late.emissive = {0.9f, 0.55f, 0.3f, 1};
       late.emissiveStrength = 1.4f;
     }
-    add(geometry::mesh::quad(560, 340), geometry::space::place({0, -30, 330}, 0, -62),
-        late);
+    add(geometry::mesh::quad(560, 340),
+        geometry::space::place({0, -30, 330}, 0, -62), late);
     std::printf("substance: %s rendered (%s)\n", graph.label().c_str(),
                 substance::Package::engineVersion().c_str());
   } else {
@@ -741,8 +743,8 @@ void renderMaterialLab(const std::filesystem::path& outDir,
     frosted.transmission = 1;
     frosted.ior = 1.45f;
     frosted.thickness = 12;
-    add(geometry::mesh::quad(300, 210), geometry::space::place({120, 300, -260}, -12),
-        frosted);
+    add(geometry::mesh::quad(300, 210),
+        geometry::space::place({120, 300, -260}, -12), frosted);
 
     // Fluted (reeded) glass: refraction goes through the shaded normal,
     // so a normal map of vertical half-cylinders ribbons whatever is
@@ -779,8 +781,8 @@ void renderMaterialLab(const std::filesystem::path& outDir,
     fluted.tile = true;
     fluted.emissive = {1.0f, 0.75f, 0.45f, 1};
     fluted.emissiveStrength = 0.12f;
-    add(geometry::mesh::quad(300, 230), geometry::space::place({-380, 190, -40}, 26),
-        fluted);
+    add(geometry::mesh::quad(300, 230),
+        geometry::space::place({-380, 190, -40}, 26), fluted);
   }
 
   // 3. An imported model wearing the material its file carries: base
@@ -879,7 +881,8 @@ int main(int argc, char** argv) {
     floor.baseColor = {0.16f, 0.17f, 0.2f, 1};
     floor.metallic = 0.85f;
     floor.roughness = 0.4f;
-    geometry::Mesh slab = geometry::mesh::superellipsoid({900, 24, 620}, 8, 64, 24);
+    geometry::Mesh slab =
+        geometry::mesh::superellipsoid({900, 24, 620}, 8, 64, 24);
     w->place(slab, glm::translate(glm::mat4(1.0f), {0, -190, 0}), floor);
   }
 
@@ -913,7 +916,8 @@ int main(int argc, char** argv) {
     gold.baseColor = {1.0f, 0.78f, 0.34f, 1};
     gold.metallic = 1;
     gold.roughness = 0.3f;
-    geometry::Mesh star = geometry::mesh::extrude(starPath(5, 95, 44), {.depth = 34});
+    geometry::Mesh star =
+        geometry::mesh::extrude(starPath(5, 95, 44), {.depth = 34});
     w->place(star, geometry::space::place({-560, 280, -220}, 36, -10), gold);
 
     world::Material chrome;
@@ -978,8 +982,8 @@ int main(int argc, char** argv) {
     // The wire carries a baked colour lane, cool at the start and warm
     // by the end. A tube's rings are generated in order along the curve,
     // so ramping by vertex index ramps along the curve.
-    geometry::Mesh wire =
-        geometry::curves::tube(arc, {.radius = 7, .segments = 180, .sides = 10});
+    geometry::Mesh wire = geometry::curves::tube(
+        arc, {.radius = 7, .segments = 180, .sides = 10});
     wire.colors.resize(wire.positions.size());
     for (size_t i = 0; i < wire.positions.size(); ++i) {
       const float f = wire.positions.size() > 1
@@ -1004,10 +1008,11 @@ int main(int argc, char** argv) {
       world::scene::Node root = world::scene::group().key("stream");
       root.child(world::scene::place(wireMesh, wireMat).key("wire"));
       for (size_t i = 0; i < positions.size(); ++i)
-        root.child(world::scene::panel(cardMat.texture, 170, 112)
-                       .material(cardMat)
-                       .key("card" + std::to_string(i))
-                       .transform(geometry::space::faceCamera(eye, positions[i])));
+        root.child(
+            world::scene::panel(cardMat.texture, 170, 112)
+                .material(cardMat)
+                .key("card" + std::to_string(i))
+                .transform(geometry::space::faceCamera(eye, positions[i])));
       return stream.render(root);
     };
     // A first describe, so the surfaces exist before any shot runs; the
@@ -1142,7 +1147,8 @@ int main(int argc, char** argv) {
     guideMat.baseColor = {0.5f, 0.9f, 0.8f, 0.25f};  // faint beads
     guideId = w->placeChain(geometry::mesh::quad(4, 4), guideChain, guideMat);
     const world::World::pop::Chain cometChain =
-        geometry::pop::on(std::vector<glm::vec3>{})  // loop comes from the guide
+        geometry::pop::on(
+            std::vector<glm::vec3>{})  // loop comes from the guide
             .count(300000)
             // Just short of the whole guide, to skip the segment that
             // closes the loop back on itself.

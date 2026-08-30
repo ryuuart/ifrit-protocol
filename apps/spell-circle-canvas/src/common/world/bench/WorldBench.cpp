@@ -6,8 +6,8 @@
 // Release build; Debug numbers say nothing.
 
 #include <benchmark/benchmark.h>
-#include <sigilgeometry/Mesh.h>
-#include <sigilgeometry/Pop.h>
+#include <sigilgeometry/mesh/Mesh.h>
+#include <sigilgeometry/pop/Pop.h>
 
 #include <cmath>
 #include <memory>
@@ -101,8 +101,9 @@ void BM_GpuReadPoints(benchmark::State& state) {
     state.SkipWithMessage("no 3D backend");
     return;
   }
-  const uint32_t id = w->placeChain(
-      geometry::mesh::quad(4, 4), plain((int)state.range(0)), world::Material{});
+  const uint32_t id =
+      w->placeChain(geometry::mesh::quad(4, 4), plain((int)state.range(0)),
+                    world::Material{});
   if (id == 0) {
     state.SkipWithMessage("chain declined");
     return;
