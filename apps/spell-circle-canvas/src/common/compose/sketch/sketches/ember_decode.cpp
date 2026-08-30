@@ -66,7 +66,7 @@
 #include <sigilcompose/TextFx.h>
 #include <sigilcompose/Typography.h>
 #include <sigilsketch/Sketch.h>
-#include <sigilweave/Choreograph.h>
+#include <sigilweave/choreograph/Choreograph.h>
 
 #include <algorithm>
 #include <cmath>

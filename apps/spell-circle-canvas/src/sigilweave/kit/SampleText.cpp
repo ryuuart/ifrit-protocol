@@ -1,9 +1,14 @@
-#include "sigilweavekit/SampleText.h"
+/** @file
+ * Deterministic mixed-script filler: a fixed word list drawn by a seeded
+ * generator into alternating color chunks.
+ */
+
+#include "sigilweave/kit/SampleText.h"
 
 #include <random>
 #include <string>
 
-#include "sigilweavekit/Labels.h"
+#include "sigilweave/kit/Labels.h"
 
 namespace sigil::weave::kit {
 

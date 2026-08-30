@@ -5,8 +5,8 @@
  * convenience layer under test.
  */
 
-#include <sigilweave/ParagraphLayout.h>
-#include <sigilweavekit/SigilWeaveKit.h>
+#include <sigilweave/kit/SigilWeaveKit.h>
+#include <sigilweave/layout/ParagraphLayout.h>
 
 #include "Fonts.h"
 #include "Paragraphs.h"

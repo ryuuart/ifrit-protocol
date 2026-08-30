@@ -1850,6 +1850,32 @@
         "unit": "us"
       }
     },
+    "weave_fonts_bench": {
+      "BM_ShapeWord_Cold/0": {
+        "cpu_ns": 15235.851098365081,
+        "real_ns": 15249.823029294646,
+        "repetitions": 4,
+        "unit": "us"
+      },
+      "BM_ShapeWord_Cold/1": {
+        "cpu_ns": 9323.47646352891,
+        "real_ns": 9324.942306374604,
+        "repetitions": 4,
+        "unit": "us"
+      },
+      "BM_ShapeWord_Warm/0": {
+        "cpu_ns": 1015.6477673220065,
+        "real_ns": 1015.8647472218543,
+        "repetitions": 4,
+        "unit": "us"
+      },
+      "BM_ShapeWord_Warm/1": {
+        "cpu_ns": 736.2161298057727,
+        "real_ns": 736.3894248977127,
+        "repetitions": 4,
+        "unit": "us"
+      }
+    },
     "weave_layout_bench": {
       "BM_Confetti_Babel_2000": {
         "cpu_ns": 586717.0212766081,
@@ -2028,7 +2054,7 @@
         "unit": "us"
       }
     },
-    "weave_shaping_bench": {
+    "weave_paragraph_bench": {
       "BM_ShapeParagraph_Cold/words:100/mixed:0": {
         "cpu_ns": 35904.086845466605,
         "real_ns": 35892.04004650524,
@@ -2074,30 +2100,6 @@
       "BM_ShapeParagraph_Warm/words:1000/mixed:1": {
         "cpu_ns": 252043.01075268874,
         "real_ns": 252250.7830986947,
-        "repetitions": 4,
-        "unit": "us"
-      },
-      "BM_ShapeWord_Cold/0": {
-        "cpu_ns": 15235.851098365081,
-        "real_ns": 15249.823029294646,
-        "repetitions": 4,
-        "unit": "us"
-      },
-      "BM_ShapeWord_Cold/1": {
-        "cpu_ns": 9323.47646352891,
-        "real_ns": 9324.942306374604,
-        "repetitions": 4,
-        "unit": "us"
-      },
-      "BM_ShapeWord_Warm/0": {
-        "cpu_ns": 1015.6477673220065,
-        "real_ns": 1015.8647472218543,
-        "repetitions": 4,
-        "unit": "us"
-      },
-      "BM_ShapeWord_Warm/1": {
-        "cpu_ns": 736.2161298057727,
-        "real_ns": 736.3894248977127,
         "repetitions": 4,
         "unit": "us"
       }

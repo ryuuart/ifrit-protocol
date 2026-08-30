@@ -159,6 +159,7 @@
 
 #include <include/core/SkBitmap.h>
 #include <include/core/SkColorFilter.h>
+#include <include/core/SkFontMetrics.h>
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>
@@ -168,7 +169,7 @@
 #include <sigilcompose/Patterns.h>
 #include <sigilcompose/Shapes.h>
 #include <sigilsketch/Sketch.h>
-#include <sigilweave/Paragraph.h>
+#include <sigilweave/paragraph/Paragraph.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
 #include <algorithm>

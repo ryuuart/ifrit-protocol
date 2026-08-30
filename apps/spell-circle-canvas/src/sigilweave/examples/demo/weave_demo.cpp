@@ -11,7 +11,7 @@
 //
 //   ./build/bin/Release/weave_demo
 
-#include <sigilweave/FontContext.h>
+#include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
 #include <algorithm>

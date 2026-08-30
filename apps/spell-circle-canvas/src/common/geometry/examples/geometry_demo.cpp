@@ -22,9 +22,9 @@
 #include <sigilimage/Decode.h>
 #include <sigilimage/ImageAsset.h>
 #include <sigilloader/Loader.h>
-#include <sigilweave/FontContext.h>
+#include <sigilweave/fonts/FontContext.h>
+#include <sigilweave/kit/SigilWeaveKit.h>
 #include <sigilweave/ports/SystemFontManager.h>
-#include <sigilweavekit/SigilWeaveKit.h>
 
 #include <algorithm>
 #include <cmath>

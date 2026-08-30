@@ -72,7 +72,7 @@
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Legibility.h>
 #include <sigilsketch/Sketch.h>
-#include <sigilweave/FontContext.h>
+#include <sigilweave/fonts/FontContext.h>
 
 #include <algorithm>
 #include <array>

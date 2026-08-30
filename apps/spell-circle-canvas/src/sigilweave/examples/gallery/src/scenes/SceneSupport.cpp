@@ -2,7 +2,7 @@
 
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkPathBuilder.h>
-#include <sigilweaveqt/SigilWeaveQt.h>
+#include <sigilweave/qt/SigilWeaveQt.h>
 
 #include <numbers>
 

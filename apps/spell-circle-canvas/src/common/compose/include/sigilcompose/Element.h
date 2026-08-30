@@ -15,8 +15,8 @@
 #include <include/core/SkPicture.h>
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkSize.h>
-#include <sigilweave/ParagraphLayout.h>
-#include <sigilweave/Style.h>
+#include <sigilweave/layout/ParagraphLayout.h>
+#include <sigilweave/style/Style.h>
 
 #include <any>
 #include <chrono>

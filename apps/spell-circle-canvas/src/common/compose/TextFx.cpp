@@ -12,8 +12,8 @@
 
 #include "sigilcompose/TextFx.h"
 
-#include <sigilweave/Choreograph.h>
-#include <sigilweave/Query.h>
+#include <sigilweave/choreograph/Choreograph.h>
+#include <sigilweave/query/Query.h>
 
 #include <algorithm>
 #include <cmath>

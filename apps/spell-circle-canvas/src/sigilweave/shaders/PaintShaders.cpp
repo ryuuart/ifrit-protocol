@@ -1,4 +1,10 @@
-#include "sigilweave/PaintShaders.h"
+/** @file
+ * The preset SkSL shaders: each program compiled once per process and
+ * instantiated per call with a small uniform block, so a caller can swap a
+ * paint's shader every frame without touching text, shaping or layout.
+ */
+
+#include "sigilweave/shaders/PaintShaders.h"
 
 #include <include/core/SkM44.h>
 #include <include/core/SkPaint.h>

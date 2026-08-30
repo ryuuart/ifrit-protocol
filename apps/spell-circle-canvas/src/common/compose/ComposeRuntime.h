@@ -20,7 +20,7 @@
 #include <include/core/SkRRect.h>
 #include <include/core/SkRect.h>
 #include <include/core/SkTypeface.h>
-#include <sigilweave/FontContext.h>
+#include <sigilweave/fonts/FontContext.h>
 
 #include <algorithm>
 #include <cmath>

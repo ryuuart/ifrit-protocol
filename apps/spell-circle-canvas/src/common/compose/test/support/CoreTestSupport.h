@@ -20,7 +20,7 @@
 #include <sigilcompose/Material.h>
 #include <sigilcompose/testing/Checks.h>
 #include <sigilimage/ImageAsset.h>
-#include <sigilweave/Choreograph.h>
+#include <sigilweave/choreograph/Choreograph.h>
 
 #include <algorithm>
 #include <cmath>

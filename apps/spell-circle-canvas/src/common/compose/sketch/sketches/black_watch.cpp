@@ -86,9 +86,9 @@
 #include <sigilcompose/testing/Checks.h>
 #include <sigilimage/ImageAsset.h>
 #include <sigilsketch/Sketch.h>
-#include <sigilweave/FontContext.h>
-#include <sigilweave/Paragraph.h>
-#include <sigilweave/ParagraphLayout.h>
+#include <sigilweave/fonts/FontContext.h>
+#include <sigilweave/layout/ParagraphLayout.h>
+#include <sigilweave/paragraph/Paragraph.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
 #include <algorithm>

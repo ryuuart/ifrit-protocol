@@ -6,9 +6,9 @@
  * the word lists are fixed so a run is comparable with the last.
  */
 
-#include <sigilweave/ParagraphLayout.h>
-#include <sigilweave/SigilWeave.h>
+#include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
+#include <sigilweave/style/Style.h>
 
 #include <random>
 #include <string>
@@ -61,14 +61,6 @@ inline TextStyle style16() {
   TextStyle style;
   style.shaping.fontSize = 16.0f;
   return style;
-}
-
-/** Glyphs a layout draws: the sum over its runs, placeholders excluded. */
-inline int64_t glyphCount(const ParagraphLayout& layout) {
-  int64_t glyphs = 0;
-  for (const PositionedRun& run : layout.runs)
-    if (run.shaped) glyphs += (int64_t)run.shaped->glyphs.size();
-  return glyphs;
 }
 
 }  // namespace sigil::weave::bench

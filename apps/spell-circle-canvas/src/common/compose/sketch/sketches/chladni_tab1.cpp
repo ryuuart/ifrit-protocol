@@ -110,7 +110,7 @@
 #include <sigilcompose/TextFx.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilsketch/Sketch.h>
-#include <sigilweave/FontContext.h>
+#include <sigilweave/fonts/FontContext.h>
 
 #include <algorithm>
 #include <array>

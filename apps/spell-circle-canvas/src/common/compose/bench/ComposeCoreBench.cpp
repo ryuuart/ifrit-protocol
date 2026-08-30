@@ -11,7 +11,7 @@
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilcompose/Compose.h>
 #include <sigilcompose/Material.h>
-#include <sigilweave/Paragraph.h>
+#include <sigilweave/paragraph/Paragraph.h>
 
 #include <cmath>
 #include <cstdint>

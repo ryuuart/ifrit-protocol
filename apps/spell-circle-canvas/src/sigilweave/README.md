@@ -25,7 +25,9 @@ breaker.
 ## Getting started
 
 ```cpp
-#include <sigilweave/SigilWeave.h>
+#include <sigilweave/fonts/FontContext.h>
+#include <sigilweave/layout/ParagraphLayout.h>
+#include <sigilweave/paragraph/Paragraph.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
 using namespace sigil::weave;
@@ -160,26 +162,101 @@ path becomes a line).
     horizontal runs into one `drawGlyphs` call per (font, paint) bucket.
     Both resolve paint per span at draw time.
 
-## Headers
+## The features and their headers
 
-Include `<sigilweave/SigilWeave.h>` for everything, or the pieces:
+Each feature is a directory holding its sources, its `CMakeLists.txt`, its
+`test/` and (where it has one) its `bench/`; its public headers sit under
+`include/sigilweave/<feature>/`. Internal headers never leave the feature
+directory. The features form a dependency chain — each links those it
+needs, and each header includes those it needs, so including a later one
+pulls the earlier ones in. `<sigilweave/SigilWeave.h>` is a transitional
+umbrella over every engine feature, for code written against the flat
+header tree; new code includes the feature headers it uses.
 
-| Header | What it is |
-|---|---|
-| `Style.h` | `TextStyle` = `ShapingStyle` (the shape-cache key) + `PaintStyle` (draw-time), plus `PaintLayer` and `Decoration`. The vocabulary every other header speaks. `StyleSet` is a small ordered registry of named styles, comparable by value, whose lookup always answers — an unregistered name resolves to the set's base entry. |
-| `FontContext.h` | The per-thread service object: HarfBuzz faces, fallback memos, varied-typeface clones (retained, or transient for a continuously varying coordinate), the shape cache, observable `Stats`. |
-| `Paragraph.h` | The document — UTF-16 text, normalized style spans, inline placeholders, writing mode, the edit log, sentence boundaries, and the analysis entry points. |
-| `Flow.h` | `LineInterval`, the `FlowGeometry` interface, and the ready-made geometries. |
-| `ParagraphLayout.h` | `layoutParagraph()`, `layoutSingleLine()`, all the options structs, `PositionedRun`, `LineMetrics`. |
-| `Shaper.h` | `ShapedWord`, `shapeWord()`, `wordBlob()`, `makeFont()`. Reach for it to inspect or reuse individual glyph runs. |
-| `Query.h` | Optional: find ranges by substring, word, or ICU regex; `MarkerSet` tracks named ranges across edits, DOM-Range style. |
-| `Choreograph.h` | Optional: `forEachPlacedGlyph()` walks a layout's glyphs as `PlacedGlyph`s — rest pose, span paint, and where each sits in the text — and `GlyphRSXformBatches` collapses thousands of animated letters into a few `drawGlyphsRSXform` calls, each glyph dressed by a `GlyphDress` (placement, fade, tint, face, matrix). |
-| `SingleLineParagraphCache.h` | Optional: caches single-style paragraphs by text, typeface, and quantized size, for high-frequency labels. |
-| `Features.h` | Named OpenType presets (`Features::tabularNumbers`, `smallCaps`, `stylisticSet(n)`, …) so styles need not hand-spell four-cc tags. |
+**`unicode`** — `SigilWeaveUnicode`, the leaf: `unicode/Unicode.h`, every
+Unicode question the engine asks answered as plain values over UTF-16
+text, on ICU alone (its own section below).
 
-Separate targets add `unicode/Unicode.h` (the text analysis leaf, below),
-`PaintShaders.h` (animated SkSL presets), `ports/SystemFontManager.h` (the
-OS font manager), the companion utilities in `kit/`, and a Qt bridge.
+**`style`** — `SigilWeaveStyle`, header-only over Skia's paint types:
+
+- **`style/Style.h`** — `TextStyle` = `ShapingStyle` (the shape-cache key)
+  + `PaintStyle` (draw-time), plus `PaintLayer` and `Decoration`. The
+  vocabulary every other header speaks. `StyleSet` is a small ordered
+  registry of named styles, comparable by value, whose lookup always
+  answers — an unregistered name resolves to the set's base entry.
+- **`style/Features.h`** — named OpenType presets
+  (`Features::tabularNumbers`, `smallCaps`, `stylisticSet(n)`, …) so
+  styles need not hand-spell four-cc tags.
+
+**`fonts`** — `SigilWeaveFonts`, HarfBuzz and abseil private:
+
+- **`fonts/FontContext.h`** — the per-thread service object: HarfBuzz
+  faces, fallback memos, varied-typeface clones (retained, or transient for
+  a continuously varying coordinate), the shape cache, observable `Stats`.
+- **`fonts/Shaper.h`** — `ShapedWord`, `shapeWord()`, `wordBlob()`,
+  `makeFont()`. Reach for it to inspect or reuse individual glyph runs.
+
+**`paragraph`** — `SigilWeaveParagraph`, the Unicode leaf private:
+
+- **`paragraph/Word.h`** — the atomic layout unit: `Word`, its
+  `WordSegment`s in a `WordSegmentList`, and the `SegmentForm` a vertical
+  column places a segment in.
+- **`paragraph/Paragraph.h`** — the document: UTF-16 text, normalized
+  `StyleSpan`s, `CharRange`, inline `Placeholder`s, writing mode, the edit
+  log, sentence boundaries, and the analysis entry points;
+  `ParagraphBuilder` for the push/pop idiom.
+
+**`layout`** — `SigilWeaveLayout`, with `SigilGeometryPath` public because
+a contour interval carries a `geometry::Contour`:
+
+- **`layout/Flow.h`** — `LineInterval`, the `FlowGeometry` interface, and
+  the ready-made geometries.
+- **`layout/LayoutOptions.h`** — `ParagraphLayoutOptions` and every
+  options struct it groups: alignment, break strategy, line metrics,
+  hyphenation, justification, Knuth-Plass, overflow, tab stops, path text.
+- **`layout/PositionedRun.h`** — `PositionedRun`, one draw call, and the
+  `LineMetrics` and `ColumnMetrics` bands derived from placed runs.
+- **`layout/ParagraphLayout.h`** — `ParagraphLayout`, `layoutParagraph()`
+  and `layoutSingleLine()`. Includes the three above.
+
+**`decoration`** — `SigilWeaveDecoration`:
+
+- **`decoration/Decoration.h`** — a decoration resolved against a run's
+  metrics: `detail::resolveDecorationBand()`, `decorationBandPaint()`,
+  `decorationSegments()`.
+- **`decoration/DecorationRects.h`** — the walk that turns a layout's
+  decorations into rectangles with their paint, `detail::forEachDecorationRect()`,
+  run by both draws.
+
+**`paint`** — `SigilWeavePaint`: `ParagraphLayout::draw()` and
+`drawBatched()`. They are declared on `ParagraphLayout` in
+`layout/ParagraphLayout.h` and defined here, so a program that draws links
+this archive; the feature has no header of its own.
+
+**`choreograph`** — `SigilWeaveChoreograph`, optional:
+
+- **`choreograph/PlacedGlyph.h`** — `PlacedGlyph` and
+  `forEachPlacedGlyph()`, which walks a layout's glyphs as rest pose, span
+  paint, and where each sits in the text.
+- **`choreograph/GlyphDress.h`** — `GlyphDress` (placement, fade, tint,
+  face, matrix), `quantizeAngle()` and the memoized `tintFilter()`.
+- **`choreograph/GlyphBatches.h`** — `GlyphRSXformBatches`, which
+  collapses thousands of animated letters into a few `drawGlyphsRSXform`
+  calls.
+- **`choreograph/Choreograph.h`** — the three above.
+
+**`query`** — `SigilWeaveQuery`, optional: `query/Query.h` finds ranges by
+substring, word, or ICU regex; `MarkerSet` tracks named ranges across
+edits, DOM-Range style.
+
+**`cache`** — `SigilWeaveCache`, optional:
+`cache/SingleLineParagraphCache.h` caches single-style paragraphs by text,
+typeface, and quantized size, for high-frequency labels.
+
+Separate from the engine: **`shaders`** (`shaders/PaintShaders.h`,
+animated SkSL presets), **`ports`** (`ports/SystemFontManager.h`, the OS
+font manager), **`kit`** (`kit/`, the companion utilities, with its own
+README) and **`qt`** (`qt/SigilWeaveQt.h`, the Qt bridge).
 
 ### The Unicode leaf
 
@@ -209,27 +286,39 @@ thread-local, so every function is safe from any thread.
 
 | Target | Contents | Beyond Skia |
 |---|---|---|
-| `SigilWeaveUnicode` | the Unicode leaf: `unicode/Unicode.h` | ICU, private; no Skia |
-| `SigilWeave` | the engine | SigilGeometryPath (public: `LineInterval::contour` is a `geometry::Contour`); SigilWeaveUnicode, HarfBuzz, ICU, abseil — all private |
-| `SigilWeaveShaders` | `PaintShaders.h` — water, mesh gradient, sparkle, star nest, clouds, tunnel | `SkRuntimeEffect` |
+| `SigilWeaveUnicode` | the Unicode leaf | ICU, private; no Skia |
+| `SigilWeaveStyle` | the style vocabulary, header-only | — |
+| `SigilWeaveFonts` | the font service and the shaper | HarfBuzz, abseil — private |
+| `SigilWeaveParagraph` | the document model | SigilWeaveUnicode, HarfBuzz, abseil — private |
+| `SigilWeaveLayout` | flows, breakers, placement, metrics | SigilGeometryPath (public: `LineInterval::contour` is a `geometry::Contour`); ICU, abseil — private |
+| `SigilWeaveDecoration` | decoration bands | — |
+| `SigilWeavePaint` | `draw()` and `drawBatched()` | — |
+| `SigilWeaveChoreograph` | per-glyph choreography | — |
+| `SigilWeaveQuery` | range search and markers | ICU, private |
+| `SigilWeaveCache` | the label cache | abseil, ICU — private |
+| `SigilWeave` | interface over every target above | — |
+| `SigilWeaveShaders` | `shaders/PaintShaders.h` — water, mesh gradient, sparkle, star nest, clouds, tunnel | `SkRuntimeEffect` |
 | `SigilWeavePorts` | `ports::systemFontManager()` — CoreText today; DirectWrite/Fontconfig slot into the same call | Skia platform ports |
 | `SigilWeaveKit` | consumer-side discipline: rebuild/layout guards, glyph bucketing, label shorthand, sample content (see `kit/README.md`) | — |
 | `SigilWeaveQt` | interface target: `QFont` → `SkTypeface`, `QString` ↔ `Paragraph` with no transcoding | Qt6::Gui |
 
-Skia and SigilGeometryPath are PUBLIC dependencies — the path a line of text
-follows is a geometry contour, and `ExclusionFlow` flattens its shapes through
-the same library; the Unicode leaf, HarfBuzz, ICU and abseil are PRIVATE and
-appear in no public header. Pimpls hide the hash maps, and `Word::segments()`
-hands out a `std::span` over storage whose container type only the engine
-sees, so the one abseil container inside a value type never reaches a
-consumer.
-The core is Qt-free and carries no SkSL: shader presets are content, not
-engine.
+Each feature links only the features beneath it — style, then fonts, then
+paragraph, then layout, with decoration, paint, choreograph, query and
+cache each resting on the one they need — so a consumer of one tier links
+that tier alone; `SigilWeave` is for a consumer of the whole engine. Skia
+and SigilGeometryPath are PUBLIC dependencies — the path a line of text
+follows is a geometry contour, and `ExclusionFlow` flattens its shapes
+through the same library; the Unicode leaf, HarfBuzz, ICU and abseil are
+PRIVATE and appear in no public header. Pimpls hide the hash maps, and
+`Word::segments()` hands out a `std::span` over storage whose container
+type only the paragraph feature sees, so the one abseil container inside
+a value type never reaches a consumer. The engine is Qt-free and carries
+no SkSL: shader presets are content, not engine.
 
 Install and export rules are generated, so an installed tree works with:
 
 ```cmake
-find_package(SigilWeave CONFIG REQUIRED)                # core, Qt-free
+find_package(SigilWeave CONFIG REQUIRED)                # engine, Qt-free
 find_package(SigilWeave CONFIG REQUIRED COMPONENTS Kit) # + SigilWeaveKit
 find_package(SigilWeave CONFIG REQUIRED COMPONENTS Qt)  # + SigilWeaveQt
 target_link_libraries(app PRIVATE
@@ -282,7 +371,7 @@ state.
 - **Inline placeholders** — pills, icons, and images woven into the flow. The
   breakers treat each as an unbreakable word; `placeholderRects()` reports
   where they landed.
-- **Per-glyph choreography** — `forEachPlacedGlyph()` (`Choreograph.h`) hands
+- **Per-glyph choreography** — `forEachPlacedGlyph()` (`choreograph/PlacedGlyph.h`) hands
   every glyph of a finished layout to a visitor as one `PlacedGlyph`: the
   shaped run it came from, its glyph ID and advance, the absolute rest
   position the layout placed it at, its span's whole `PaintStyle`, and the
@@ -594,37 +683,54 @@ cmake --build build --config Debug
 ctest --test-dir build -C Debug -R weave_ --output-on-failure
 ```
 
-The tests are one binary per feature, following the library's layering so
-each compiles and links only what its feature needs:
+The tests are one binary per feature, each under its feature's `test/`
+and linking that feature and what it rests on, so a test binary is also a
+statement of what its feature reaches:
 
 - `weave_unicode_test` — the Unicode leaf, with no fonts at all.
-- `weave_shaping_test` — the shaper, the paragraph model, and typographic
-  correctness: cluster coverage across scripts, ZWNJ joining control,
-  combining-mark attachment (NFC and NFD must measure alike), kinsoku
-  prohibitions, NBSP no-break, justification shrink limits, UAX#9 visual
-  reordering, strut metrics, and edit safety at surrogate boundaries.
-- `weave_layout_test` — line breaking (greedy and Knuth-Plass), flows and
-  exclusions, overflow and clamp, vertical writing, and the large-paragraph
-  stress cases.
+- `weave_style_test` — styles as plain values: fluent sugar, paint-layer
+  presets, feature preset tags, the `StyleSet` registry. No fonts either.
+- `weave_fonts_test` — the font service on its own: the fallback memo and
+  the transient varied clone.
+- `weave_paragraph_test` — shaping as the paragraph drives it (the shape
+  cache under edits and restyles, itemization, complex scripts), the
+  document model, and typographic correctness: cluster coverage across
+  scripts, ZWNJ joining control, combining-mark attachment (NFC and NFD
+  must measure alike), kinsoku prohibitions, NBSP no-break, strut metrics,
+  and the options that reach shaping.
+- `weave_layout_test` — both breakers, flows and exclusions, overflow and
+  clamp, vertical writing, placeholders, relayout locality, the options
+  the breakers read, text on a path, justification shrink limits, UAX#9
+  visual reordering, edit safety at surrogate boundaries, line metrics,
+  and the large-paragraph stress cases.
+- `weave_decoration_test` — bands resolved as geometry, without drawing.
+- `weave_paint_test` — everything that puts pixels on a surface: paint
+  layers and shaders without a relayout, decorations as drawn, selection
+  bands, and a large paragraph through the runtime shaders.
+- `weave_choreograph_test` — the walk, the batches, and a glyph on a
+  contour re-placed from its pen.
 - `weave_query_test` — the optional Query layer.
-- `weave_choreograph_test` — per-glyph choreography and its rendering.
 - `weave_kit_test` — the SigilWeaveKit convenience layer.
 
 Fixtures live in `test/support/`: `Fonts.h` holds the one process-wide
-`FontContext` every binary shapes with, and each binary has a support header
-that includes exactly the headers its translation units use.
+`FontContext` every binary shapes with, `Paragraphs.h` and `Layouts.h` the
+paragraph and layout fixtures, and each binary that needs more has a
+support header that includes exactly the headers its translation units
+use.
 
 The benchmarks own every performance claim about this library — one
-binary per layer, so each links only what it measures: `weave_unicode_bench`
-(itemize, line breaks and bidi per code point, on the Unicode leaf alone),
-`weave_shaping_bench` (`shapeWord` per word cold and warm, and whole
-paragraphs shaped cold against warm), `weave_layout_bench`
-(`layoutParagraph` per word, greedy and Knuth-Plass by length, and each
-kind of per-frame update against the same warm relayout) and
-`weave_paint_bench` (`draw` and `drawBatched` per glyph on a raster
-surface, with arms that differ in one paint feature). Build them Release
-through the `benches` target and run them through `scripts/bench_ledger.py`
-rather than trusting a number written down anywhere:
+binary per feature, under its feature's `bench/`, so each links only what
+it measures: `weave_unicode_bench` (itemize, line breaks and bidi per code
+point, on the Unicode leaf alone), `weave_fonts_bench` (`shapeWord` per
+word cold and warm), `weave_paragraph_bench` (whole paragraphs shaped cold
+against warm), `weave_layout_bench` (`layoutParagraph` per word, greedy
+and Knuth-Plass by length, and each kind of per-frame update against the
+same warm relayout) and `weave_paint_bench` (`draw` and `drawBatched` per
+glyph on a raster surface, with arms that differ in one paint feature).
+The corpus and font context they share sit in `bench/support/`. Build
+them Release through the `benches` target and run them through
+`scripts/bench_ledger.py` rather than trusting a number written down
+anywhere:
 
 ```sh
 cmake --build build --config Release --target benches weave_demo

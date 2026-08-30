@@ -30,9 +30,9 @@
 #include <sigilimage/ImageAsset.h>
 #include <sigilloader/Loader.h>
 #include <sigilmotion/Ticker.h>
-#include <sigilweave/FontContext.h>
+#include <sigilweave/fonts/FontContext.h>
+#include <sigilweave/kit/SigilWeaveKit.h>
 #include <sigilweave/ports/SystemFontManager.h>
-#include <sigilweavekit/SigilWeaveKit.h>
 
 #include <algorithm>
 #include <chrono>

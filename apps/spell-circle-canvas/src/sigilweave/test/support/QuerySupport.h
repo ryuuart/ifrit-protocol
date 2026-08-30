@@ -5,8 +5,8 @@
  * Query layer and the layout API the query tests place through.
  */
 
-#include <sigilweave/ParagraphLayout.h>
-#include <sigilweave/Query.h>
+#include <sigilweave/layout/ParagraphLayout.h>
+#include <sigilweave/query/Query.h>
 
 #include "Fonts.h"
 #include "Paragraphs.h"

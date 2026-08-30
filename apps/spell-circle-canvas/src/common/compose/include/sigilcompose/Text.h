@@ -11,8 +11,8 @@
 #include <include/core/SkPoint.h>
 #include <include/core/SkRect.h>
 #include <include/core/SkSize.h>
-#include <sigilweave/Paragraph.h>
-#include <sigilweave/Style.h>
+#include <sigilweave/paragraph/Paragraph.h>
+#include <sigilweave/style/Style.h>
 
 #include <cstdint>
 #include <functional>

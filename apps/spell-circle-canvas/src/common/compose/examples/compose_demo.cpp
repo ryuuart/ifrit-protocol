@@ -22,7 +22,7 @@
 #include <sigilcompose/Routers.h>
 #include <sigilcompose/Shapes.h>
 #include <sigilimage/ImageAsset.h>
-#include <sigilweave/FontContext.h>
+#include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
 #include <cstdio>

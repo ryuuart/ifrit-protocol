@@ -4,8 +4,8 @@
 // against the geometry Yoga produced, and resolved-rect reads. The derive
 // pass the loop drives lives in Derive.cpp.
 
-#include <sigilweave/Flow.h>
-#include <sigilweave/FontContext.h>
+#include <sigilweave/fonts/FontContext.h>
+#include <sigilweave/layout/Flow.h>
 
 #include <algorithm>
 #include <cmath>

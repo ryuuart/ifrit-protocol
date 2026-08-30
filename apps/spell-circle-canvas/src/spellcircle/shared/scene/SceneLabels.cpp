@@ -1,5 +1,6 @@
 #include "SceneLabels.h"
 
+#include <include/core/SkFontMetrics.h>
 #include <include/core/SkPath.h>
 
 namespace spellcircle {

@@ -10,7 +10,7 @@
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkSurface.h>
 #include <sigilcompose/kit/Kit.h>
-#include <sigilweave/FontContext.h>
+#include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
 #include <cmath>

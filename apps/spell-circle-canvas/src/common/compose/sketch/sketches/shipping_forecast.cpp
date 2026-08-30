@@ -133,7 +133,7 @@
 #include <sigilcompose/Typography.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilsketch/Sketch.h>
-#include <sigilweave/Style.h>
+#include <sigilweave/style/Style.h>
 
 #include <cmath>
 #include <string>

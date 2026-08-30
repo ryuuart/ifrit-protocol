@@ -119,8 +119,8 @@
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/testing/Checks.h>
 #include <sigilsketch/Sketch.h>
-#include <sigilweave/FontContext.h>
-#include <sigilweave/Paragraph.h>
+#include <sigilweave/fonts/FontContext.h>
+#include <sigilweave/paragraph/Paragraph.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
 #include <algorithm>

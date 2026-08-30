@@ -1,11 +1,16 @@
 #pragma once
 
 /** @file
- * The layout entry point and a run's exact end position, for every test
- * binary that places paragraphs and checks where their runs land.
+ * The layout entry point, a run's exact end position, and a circle as one
+ * contour, for every test binary that places paragraphs and checks where
+ * their runs land.
  */
 
-#include <sigilweave/ParagraphLayout.h>
+#include <include/core/SkPathBuilder.h>
+#include <sigilweave/layout/ParagraphLayout.h>
+
+#include <utility>
+#include <vector>
 
 namespace sigil::weave::test {
 
@@ -17,6 +22,16 @@ namespace sigil::weave::test {
 inline float runEnd(const Paragraph& paragraph, const PositionedRun& run) {
   if (run.shaped) return run.origin.x() + run.shaped->advance;
   return run.origin.x() + paragraph.words()[run.wordIndex].width;
+}
+
+/// A closed circle as one contour, plus its length.
+inline std::pair<sigil::geometry::Contour, float> circleContour(float radius) {
+  SkPathBuilder builder;
+  builder.addCircle(0, 0, radius);
+  std::vector<sigil::geometry::Contour> contours =
+      sigil::geometry::Contour::of(builder.detach());
+  if (contours.empty()) return {sigil::geometry::Contour{}, 0.0f};
+  return {contours.front(), contours.front().length()};
 }
 
 }  // namespace sigil::weave::test

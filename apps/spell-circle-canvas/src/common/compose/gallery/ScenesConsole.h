@@ -45,7 +45,7 @@
 #include <sigilcompose/Sdf.h>
 #include <sigilcompose/TextFx.h>
 #include <sigilcompose/Typography.h>
-#include <sigilweave/Features.h>
+#include <sigilweave/style/Features.h>
 
 #include "GalleryCore.h"
 #if defined(SIGILCOMPOSE_ENABLE_OCIO)

@@ -115,7 +115,7 @@
 #include <sigilcompose/Typography.h>
 #include <sigilcompose/kit/Instruments.h>
 #include <sigilsketch/Sketch.h>
-#include <sigilweave/Style.h>
+#include <sigilweave/style/Style.h>
 
 #include <algorithm>
 #include <cmath>

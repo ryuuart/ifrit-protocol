@@ -167,8 +167,8 @@
 #include <sigilcompose/Shapes.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilsketch/Sketch.h>
-#include <sigilweave/Paragraph.h>
-#include <sigilweave/ParagraphLayout.h>
+#include <sigilweave/layout/ParagraphLayout.h>
+#include <sigilweave/paragraph/Paragraph.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
 #include <algorithm>

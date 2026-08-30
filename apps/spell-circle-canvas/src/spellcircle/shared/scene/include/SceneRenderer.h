@@ -12,8 +12,8 @@
 #include <include/core/SkColor.h>
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkTypeface.h>
-#include <sigilweave/FontContext.h>
-#include <sigilweave/SingleLineParagraphCache.h>
+#include <sigilweave/cache/SingleLineParagraphCache.h>
+#include <sigilweave/fonts/FontContext.h>
 
 #include <memory>
 

@@ -208,7 +208,7 @@
 #include <sigilgeometry/path/Ops.h>
 #include <sigilgeometry/path/Polyline.h>
 #include <sigilsketch/Sketch.h>
-#include <sigilweave/Style.h>
+#include <sigilweave/style/Style.h>
 
 #include <algorithm>
 #include <cmath>

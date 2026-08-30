@@ -6,6 +6,7 @@
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkContourMeasure.h>
+#include <include/core/SkFontMetrics.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>
@@ -19,9 +20,9 @@
 #include <include/effects/SkRuntimeEffect.h>
 #include <include/effects/SkTrimPathEffect.h>
 #include <sigilimage/ImageAsset.h>
-#include <sigilweave/Choreograph.h>
-#include <sigilweave/FontContext.h>
-#include <sigilweave/Shaper.h>  // makeFont — textFill's cap-height metrics
+#include <sigilweave/choreograph/Choreograph.h>
+#include <sigilweave/fonts/FontContext.h>
+#include <sigilweave/fonts/Shaper.h>  // makeFont — textFill's cap-height metrics
 
 #include <algorithm>
 #include <chrono>

@@ -2,7 +2,7 @@
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkColor.h>
-#include <sigilweaveqt/SigilWeaveQt.h>
+#include <sigilweave/qt/SigilWeaveQt.h>
 #include <spdlog/spdlog.h>
 
 #include <chrono>

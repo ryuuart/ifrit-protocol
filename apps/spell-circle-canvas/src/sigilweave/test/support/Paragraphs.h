@@ -2,11 +2,13 @@
 
 /** @file
  * Paragraph construction helpers shared by every test binary that builds a
- * Paragraph: a default style at a size, and a single-span paragraph over it.
+ * Paragraph: a default style at a size, a single-span paragraph over it, a
+ * three-sentence two-span fixture, and an offset lookup into the text.
  */
 
-#include <sigilweave/Paragraph.h>
+#include <sigilweave/paragraph/Paragraph.h>
 
+#include <string>
 #include <string_view>
 
 namespace sigil::weave::test {
@@ -34,6 +36,29 @@ inline bool allGlyphsResolved(const Paragraph& paragraph) {
       for (uint16_t glyph : seg.shaped->glyphs)
         if (glyph == 0) return false;
   return true;
+}
+
+/// Three sentences over two style spans, long enough to wrap: the fixture
+/// every index assertion reads against.
+inline Paragraph mixedStyleParagraph() {
+  TextStyle base = basicStyle(18.0f);
+  TextStyle accent = base;
+  accent.paint.foreground.setColor(SK_ColorRED);
+  ParagraphBuilder builder(base);
+  builder.addText(u8"Letters leave their lines. ")
+      .pushStyle(accent)
+      .addText(u8"Some of them come back!")
+      .popStyle()
+      .addText(u8" The rest keep falling.");
+  return builder.build();
+}
+
+/// UTF-16 offset of `needle` in the paragraph's text.
+inline uint32_t offsetOf(const Paragraph& paragraph,
+                         std::u16string_view needle) {
+  const size_t position = paragraph.text().find(needle);
+  return position == std::u16string::npos ? ~0u
+                                          : static_cast<uint32_t>(position);
 }
 
 }  // namespace sigil::weave::test

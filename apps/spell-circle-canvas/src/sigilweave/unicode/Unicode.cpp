@@ -1,3 +1,10 @@
+/** @file
+ * Every Unicode question the engine asks, answered through ICU: transcoding,
+ * character properties, script itemization, case mapping, the line, word
+ * and sentence segmenters, and bidirectional levels, over thread-local
+ * scratch objects reused across calls.
+ */
+
 #include "sigilweave/unicode/Unicode.h"
 
 #include <unicode/ubidi.h>

@@ -16,7 +16,7 @@
 #include <include/core/SkSurface.h>
 #include <sigilcompose/Composer.h>
 #include <sigilcompose/Element.h>
-#include <sigilweave/FontContext.h>
+#include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
 #include <cstdint>

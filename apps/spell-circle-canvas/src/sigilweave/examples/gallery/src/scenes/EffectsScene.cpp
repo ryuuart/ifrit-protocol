@@ -2,8 +2,8 @@
 #include <include/core/SkBlendMode.h>
 #include <include/core/SkTileMode.h>
 #include <include/effects/SkGradient.h>
-#include <sigilweave/PaintShaders.h>
-#include <sigilweaveqt/SigilWeaveQt.h>
+#include <sigilweave/qt/SigilWeaveQt.h>
+#include <sigilweave/shaders/PaintShaders.h>
 
 #include <algorithm>
 #include <array>

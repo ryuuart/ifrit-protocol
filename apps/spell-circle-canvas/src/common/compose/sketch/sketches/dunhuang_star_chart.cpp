@@ -193,7 +193,7 @@
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilgeometry/path/Noise.h>
 #include <sigilsketch/Sketch.h>
-#include <sigilweave/FontContext.h>
+#include <sigilweave/fonts/FontContext.h>
 
 #include <algorithm>
 #include <array>

@@ -11,7 +11,7 @@
 #include <include/core/SkColor.h>
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkTypeface.h>
-#include <sigilweave/Style.h>
+#include <sigilweave/style/Style.h>
 
 #include <string>
 #include <utility>

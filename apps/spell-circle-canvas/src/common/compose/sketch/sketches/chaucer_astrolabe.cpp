@@ -139,7 +139,7 @@
 #include <sigilcompose/kit/Plate.h>
 #include <sigilcompose/testing/Checks.h>
 #include <sigilsketch/Sketch.h>
-#include <sigilweave/FontContext.h>
+#include <sigilweave/fonts/FontContext.h>
 
 #include <algorithm>
 #include <array>

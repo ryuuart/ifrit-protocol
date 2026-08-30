@@ -3,8 +3,8 @@
 Companion utilities for SigilWeave consumers, distilled from the patterns the
 gallery, demo, and SpellCircle app kept hand-rolling. Core SigilWeave stays a
 layout engine; this layer packages the *usage discipline* that keeps animated
-text cheap. It is Qt-free, depends only on SigilWeave and Skia, and ships as
-its own target (`sigil::weave::SigilWeaveKit`, the future vcpkg `Kit` component).
+text cheap. It is Qt-free, rests on the paint feature (a label draws) and Skia, and
+ships as its own target (`sigil::weave::SigilWeaveKit`, the future vcpkg `Kit` component).
 
 ## Why this library exists
 
@@ -26,18 +26,22 @@ is deliberately a callable you pass in, not a policy the library imposes.
 
 ## Inventory
 
-| Utility | The trap it prevents |
-| --- | --- |
-| `RebuildGuard<Keys...>` | Rebuild-on-input-change caches whose key is smeared across members and an if-condition; the key becomes one declared tuple. |
-| `CachedValue<Value, Keys...>` | Expensive derived objects (paths, shaders) rebuilt per frame because caching them was boilerplate. |
-| `LayoutGuard<Keys...>` | Re-laying text out every frame — or forgetting `revision()`/`needsShaping()` in a hand-rolled guard and freezing edits. Both are baked in; you declare only the inputs the library can't see. |
-| `quantize()` | Animated layout inputs (a breathing measure) that change sub-pixel per frame and defeat the guard above. |
-| `GlyphBuckets<Key, Placement>` | Per-glyph choreography turning into per-glyph draw calls; generalizes `sigil::weave::GlyphRSXformBatches` to arbitrary bucket keys and draw passes. |
-| `makeStyle()` / `drawLabel()` | Ten-line single-span style and caption rituals, reinvented per tool. |
-| `mixedScriptFiller()` | Every showcase growing subtly different stress content; timings stay comparable on a shared deterministic corpus. |
-| `Stopwatch` / `toMicroseconds()` | Frame-timing brackets duplicated across targets. |
+One header per utility under `include/sigilweave/kit/`, and
+`kit/SigilWeaveKit.h` for all of them:
 
-`sigil::weave::SingleLineParagraphCache` (in core) is the companion for
+| Header | Utility | The trap it prevents |
+| --- | --- | --- |
+| `RebuildGuard.h` | `RebuildGuard<Keys...>` | Rebuild-on-input-change caches whose key is smeared across members and an if-condition; the key becomes one declared tuple. |
+| `CachedValue.h` | `CachedValue<Value, Keys...>` | Expensive derived objects (paths, shaders) rebuilt per frame because caching them was boilerplate. |
+| `LayoutGuard.h` | `LayoutGuard<Keys...>` | Re-laying text out every frame — or forgetting `revision()`/`needsShaping()` in a hand-rolled guard and freezing edits. Both are baked in; you declare only the inputs the library can't see. |
+| `Quantize.h` | `quantize()` | Animated layout inputs (a breathing measure) that change sub-pixel per frame and defeat the guard above. |
+| `GlyphBuckets.h` | `GlyphBuckets<Key, Placement>` | Per-glyph choreography turning into per-glyph draw calls; generalizes `sigil::weave::GlyphRSXformBatches` to arbitrary bucket keys and draw passes. |
+| `Labels.h` | `makeStyle()` / `drawLabel()` | Ten-line single-span style and caption rituals, reinvented per tool. |
+| `SampleText.h` | `mixedScriptFiller()` | Every showcase growing subtly different stress content; timings stay comparable on a shared deterministic corpus. |
+| `Palette.h` | `palette::kInk`, `kPaper`, … | Every showcase picking its own near-black and off-white. |
+| `Timing.h` | `Stopwatch` / `toMicroseconds()` | Frame-timing brackets duplicated across targets. |
+
+`sigil::weave::SingleLineParagraphCache` (the engine's `cache` feature) is the companion for
 high-frequency short labels; `drawLabel()` documents when to graduate to it.
 
 ## The shape of a well-behaved scene

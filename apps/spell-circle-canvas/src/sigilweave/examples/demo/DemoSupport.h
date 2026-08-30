@@ -8,7 +8,7 @@
 
 #include <include/core/SkSurface.h>
 #include <sigilweave/SigilWeave.h>
-#include <sigilweavekit/SigilWeaveKit.h>
+#include <sigilweave/kit/SigilWeaveKit.h>
 
 #include <chrono>
 #include <filesystem>

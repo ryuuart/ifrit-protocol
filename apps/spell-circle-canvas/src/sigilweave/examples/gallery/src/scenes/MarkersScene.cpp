@@ -1,6 +1,6 @@
 // Scene: query layer — regex markers that follow live edits.
 #include <include/core/SkPaint.h>
-#include <sigilweave/Query.h>
+#include <sigilweave/query/Query.h>
 
 #include <cmath>
 

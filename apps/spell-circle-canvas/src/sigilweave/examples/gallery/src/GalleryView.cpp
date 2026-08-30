@@ -1,6 +1,6 @@
 #include "GalleryView.h"
 
-#include <sigilweaveqt/SigilWeaveQt.h>
+#include <sigilweave/qt/SigilWeaveQt.h>
 
 #include "SceneRegistry.h"
 

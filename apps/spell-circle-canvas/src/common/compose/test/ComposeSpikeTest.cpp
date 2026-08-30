@@ -7,12 +7,12 @@
 // itself broke or only compose's use of it did.
 
 #include <gtest/gtest.h>
-#include <sigilweave/Flow.h>
-#include <sigilweave/FontContext.h>
-#include <sigilweave/Paragraph.h>
-#include <sigilweave/ParagraphLayout.h>
-#include <sigilweave/Style.h>
+#include <sigilweave/fonts/FontContext.h>
+#include <sigilweave/layout/Flow.h>
+#include <sigilweave/layout/ParagraphLayout.h>
+#include <sigilweave/paragraph/Paragraph.h>
 #include <sigilweave/ports/SystemFontManager.h>
+#include <sigilweave/style/Style.h>
 #include <yoga/Yoga.h>
 
 #include <cmath>

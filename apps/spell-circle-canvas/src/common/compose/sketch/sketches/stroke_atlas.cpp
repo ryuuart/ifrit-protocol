@@ -69,7 +69,7 @@
 #include <sigilcompose/Shapes.h>
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilsketch/Sketch.h>
-#include <sigilweave/FontContext.h>
+#include <sigilweave/fonts/FontContext.h>
 
 #include <cmath>
 #include <optional>

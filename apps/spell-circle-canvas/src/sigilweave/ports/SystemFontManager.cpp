@@ -1,3 +1,9 @@
+/** @file
+ * The platform font manager: CoreText on macOS, DirectWrite on Windows,
+ * constructed once per process because enumerating the installed fonts is
+ * what it costs.
+ */
+
 #include <include/core/SkFontMgr.h>
 #include <sigilweave/ports/SystemFontManager.h>
 

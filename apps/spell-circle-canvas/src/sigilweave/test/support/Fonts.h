@@ -6,7 +6,7 @@
  * constructs it exactly once and every test shares the result.
  */
 
-#include <sigilweave/FontContext.h>
+#include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
 namespace sigil::weave::test {

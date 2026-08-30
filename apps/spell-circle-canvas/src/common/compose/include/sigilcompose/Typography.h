@@ -17,8 +17,8 @@
 #include <include/core/SkFontStyle.h>
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkTypeface.h>
-#include <sigilweave/Style.h>
 #include <sigilweave/ports/SystemFontManager.h>
+#include <sigilweave/style/Style.h>
 
 #include <initializer_list>
 #include <vector>

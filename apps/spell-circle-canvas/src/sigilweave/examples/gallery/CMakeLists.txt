@@ -68,7 +68,8 @@ target_link_libraries(WeaveGallery
     Qt6::Quick
     Qt6::QuickControls2
     Qt6::GuiPrivate # QRhi API (rhi/qrhi.h) used by the QQuickRhiItem renderer
-    SigilWeaveQt # carries SigilWeave transitively
+    SigilWeave   # the whole engine: layout, choreography, the label cache
+    SigilWeaveQt # QFont/QString bridging
     SigilWeaveKit # rebuild/layout guards, glyph buckets, labels (kit/README.md)
     SigilWeaveShaders # PaintShaders presets used by the effect scenes
     SigilWeavePorts # systemFontManager()

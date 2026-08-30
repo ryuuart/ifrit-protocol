@@ -12,11 +12,11 @@
 #include <include/core/SkMatrix.h>
 #include <include/core/SkPicture.h>
 #include <include/core/SkPictureRecorder.h>
-#include <include/core/SkTypes.h>    // SkDebugf — the renderSlot diagnostic
-#include <sigilweave/Choreograph.h>  // forEachPlacedGlyph — measureRun()
-#include <sigilweave/Flow.h>
-#include <sigilweave/FontContext.h>
-#include <sigilweave/ParagraphLayout.h>
+#include <include/core/SkTypes.h>  // SkDebugf — the renderSlot diagnostic
+#include <sigilweave/choreograph/Choreograph.h>  // forEachPlacedGlyph — measureRun()
+#include <sigilweave/fonts/FontContext.h>
+#include <sigilweave/layout/Flow.h>
+#include <sigilweave/layout/ParagraphLayout.h>
 
 #include <algorithm>
 #include <chrono>

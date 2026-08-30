@@ -2,7 +2,7 @@
 // Internal to SigilCompose — the element description payload shared by
 // the builders (Compose.cpp) and the reconciler (Composer.cpp).
 
-#include <sigilweave/Paragraph.h>
+#include <sigilweave/paragraph/Paragraph.h>
 
 #include <array>
 #include <tuple>
