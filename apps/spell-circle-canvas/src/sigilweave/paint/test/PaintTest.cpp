@@ -1,7 +1,9 @@
 /** @file
  * Drawing a finished layout: paint layers and shaders take effect without a
- * relayout, and placeholder rects and selection bands draw where the layout
- * says they landed.
+ * relayout, a pass carrying a material shades through the installed
+ * resolver and draws with its paint alone without one, the free draws are
+ * the members, and placeholder rects and selection bands draw where the
+ * layout says they landed.
  */
 
 #include <gtest/gtest.h>
@@ -11,7 +13,11 @@
 #include <include/core/SkSurface.h>
 #include <include/core/SkTileMode.h>
 #include <include/effects/SkGradient.h>
+#include <sigilmaterial/kit/TextPaint.h>
+#include <sigilweave/paint/Paint.h>
+#include <sigilweave/shaders/PaintShaders.h>
 
+#include <memory>
 #include <vector>
 
 #include "support/Fonts.h"
@@ -90,4 +96,61 @@ TEST(LineMetricsQuery, PlaceholdersAndSelectionBands) {
   const int probeY = static_cast<int>(lines[0].baseline - 2);
   EXPECT_NE(pixmap.getColor(probeX, probeY), SK_ColorWHITE)
       << "selection band must cover the line interior";
+}
+
+TEST(Typography, MaterialPassShadesThroughTheInstalledResolver) {
+  FontContext& fontContext = sharedContext();
+  Paragraph paragraph = makeParagraph(u8"material pass");
+  BlockFlow flow(SkRect::MakeWH(300, 80));
+  ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
+
+  // A white pass: on its own it inks pure white; with a material and a
+  // resolver its shader replaces the colour and the ink is the material's.
+  PaintLayer pass(SK_ColorWHITE);
+  pass.material = std::make_shared<const sigil::material::Material>(
+      sigil::material::kit::meshGradient(SkRect::MakeWH(300, 80), 0.0f));
+  PaintStyle style(SK_ColorTRANSPARENT);
+  style.addOverlay(pass);
+  paragraph.setPaint(0, 13, style);
+
+  // Inked pixels, and how many of them are not pure white.
+  const auto render = [&](bool batched) {
+    sk_sp<SkSurface> surface =
+        SkSurfaces::Raster(SkImageInfo::MakeN32Premul(300, 80));
+    surface->getCanvas()->clear(SK_ColorTRANSPARENT);
+    if (batched)
+      paint::drawBatched(surface->getCanvas(), layout, paragraph);
+    else
+      paint::draw(surface->getCanvas(), layout, paragraph);
+    SkPixmap pixmap;
+    EXPECT_TRUE(surface->peekPixels(&pixmap));
+    std::pair<int, int> counts{0, 0};
+    for (int y = 0; y < pixmap.height(); ++y)
+      for (int x = 0; x < pixmap.width(); ++x) {
+        const SkColor c = pixmap.getColor(x, y);
+        if (SkColorGetA(c) == 0) continue;
+        ++counts.first;
+        if (SkColorGetR(c) != SkColorGetG(c) ||
+            SkColorGetG(c) != SkColorGetB(c))
+          ++counts.second;
+      }
+    return counts;
+  };
+
+  paint::setMaterialResolver({});
+  EXPECT_FALSE(paint::hasMaterialResolver());
+  for (bool batched : {false, true}) {
+    const auto [inked, coloured] = render(batched);
+    EXPECT_GT(inked, 0);
+    EXPECT_EQ(coloured, 0) << "without a resolver the pass draws its paint";
+  }
+
+  PaintShaders::installMaterialResolver();
+  EXPECT_TRUE(paint::hasMaterialResolver());
+  for (bool batched : {false, true}) {
+    const auto [inked, coloured] = render(batched);
+    EXPECT_GT(inked, 0);
+    EXPECT_GT(coloured, 0) << "with a resolver the pass shades its material";
+  }
+  paint::setMaterialResolver({});
 }

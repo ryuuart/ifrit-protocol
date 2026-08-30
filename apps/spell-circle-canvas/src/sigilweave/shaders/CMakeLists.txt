@@ -17,4 +17,5 @@ target_link_libraries(SigilWeaveShaders
   PRIVATE
     SigilMaterialKit
     SigilMaterialSkia
+    SigilWeavePaint
 )

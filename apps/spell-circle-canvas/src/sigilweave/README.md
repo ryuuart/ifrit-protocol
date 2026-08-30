@@ -179,11 +179,18 @@ text, on ICU alone (its own section below).
 
 **`style`** — `SigilWeaveStyle`, header-only over Skia's paint types:
 
-- **`style/Style.h`** — `TextStyle` = `ShapingStyle` (the shape-cache key)
-  + `PaintStyle` (draw-time), plus `PaintLayer` and `Decoration`. The
-  vocabulary every other header speaks. `StyleSet` is a small ordered
-  registry of named styles, comparable by value, whose lookup always
-  answers — an unregistered name resolves to the set's base entry.
+- **`style/Style.h`** — the umbrella over the vocabulary every other
+  header speaks, one header per subject beneath it: `style/ShapingStyle.h`
+  (`ShapingStyle`, the shape-cache key, with `FontFeature`,
+  `FontVariation`, `TextTransform`, `VerticalForm`), `style/PaintLayer.h`
+  (`PaintLayer` — a pass's `SkPaint`, its offset, and optionally a
+  SigilMaterial instance it shades with, held by pointer and resolved at
+  draw time through `paint/Paint.h`'s resolver), `style/Decoration.h`
+  (`Decoration`), `style/PaintStyle.h` (`PaintStyle`, draw-time),
+  `style/TextStyle.h` (`TextStyle` = the two halves) and
+  `style/StyleSet.h` (`StyleSet`, a small ordered registry of named
+  styles, comparable by value, whose lookup always answers — an
+  unregistered name resolves to the set's base entry).
 - **`style/Features.h`** — named OpenType presets
   (`Features::tabularNumbers`, `smallCaps`, `stylisticSet(n)`, …) so
   styles need not hand-spell four-cc tags.
@@ -231,7 +238,14 @@ a contour interval carries a `geometry::Contour`:
 **`paint`** — `SigilWeavePaint`: `ParagraphLayout::draw()` and
 `drawBatched()`. They are declared on `ParagraphLayout` in
 `layout/ParagraphLayout.h` and defined here, so a program that draws links
-this archive; the feature has no header of its own.
+this archive.
+
+- **`paint/Paint.h`** — the feature's face: `paint::draw()` and
+  `paint::drawBatched()`, the same draws as free functions over a layout,
+  and `paint::setMaterialResolver()`, the seam a pass carrying a
+  SigilMaterial instance is shaded through. The archive links no renderer;
+  the shaders feature's `PaintShaders::installMaterialResolver()` installs
+  SigilMaterial's Skia backend there.
 
 **`choreograph`** — `SigilWeaveChoreograph`, optional:
 
@@ -293,7 +307,7 @@ thread-local, so every function is safe from any thread.
 | `SigilWeaveParagraph` | the document model | SigilWeaveUnicode, HarfBuzz, abseil — private |
 | `SigilWeaveLayout` | flows, breakers, placement, metrics | SigilGeometryPath (public: `LineInterval::contour` is a `geometry::Contour`); ICU, abseil — private |
 | `SigilWeaveDecoration` | decoration bands | — |
-| `SigilWeavePaint` | `draw()` and `drawBatched()` | — |
+| `SigilWeavePaint` | `draw()` and `drawBatched()`, `paint/Paint.h` | — |
 | `SigilWeaveChoreograph` | per-glyph choreography | — |
 | `SigilWeaveQuery` | range search and markers | ICU, private |
 | `SigilWeaveCache` | the label cache | abseil, ICU — private |

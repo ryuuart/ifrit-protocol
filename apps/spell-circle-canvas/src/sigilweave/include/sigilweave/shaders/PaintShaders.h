@@ -16,6 +16,11 @@
 
 namespace sigil::weave::PaintShaders {
 
+/** Registers SigilMaterial's Skia backend as the resolver every
+ *  PaintLayer::material is shaded through (paint/Paint.h): the material
+ *  resolves with the pass's bounds as its resolution. Idempotent. */
+void installMaterialResolver();
+
 /** Animated, rippling blue water with fine caustic highlights. */
 [[nodiscard]] sk_sp<SkShader> water(const SkRect& bounds, float timeSeconds);
 

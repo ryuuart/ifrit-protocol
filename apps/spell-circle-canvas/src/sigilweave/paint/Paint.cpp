@@ -3,10 +3,14 @@
  * paint pass on the canvas, and drawBatched() merges horizontal runs into
  * one drawGlyphs call per (font, paint) bucket and pass, with the
  * decoration bands emitted beneath and above the glyphs in the order the
- * decoration walk defines.
+ * decoration walk defines. A pass carrying a material is shaded through
+ * the registered resolver over the bounds of what it covers.
  */
 
+#include "sigilweave/paint/Paint.h"
+
 #include <include/core/SkCanvas.h>
+#include <include/core/SkFontMetrics.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkTextBlob.h>
 
@@ -20,20 +24,66 @@
 
 namespace sigil::weave {
 
+namespace paint {
+namespace {
+MaterialResolver& resolverSlot() {
+  static MaterialResolver resolver;
+  return resolver;
+}
+}  // namespace
+
+void setMaterialResolver(MaterialResolver resolver) {
+  resolverSlot() = std::move(resolver);
+}
+
+bool hasMaterialResolver() { return (bool)resolverSlot(); }
+}  // namespace paint
+
 namespace {
 
 using detail::DecorationPhase;
 using detail::forEachDecorationRect;
 using detail::resolvePaint;
 
+/** The paint a layer draws with: its own, or — when it carries a material
+ *  and a resolver is registered — a copy shading with the material over
+ *  @p bounds. */
 template <typename DrawPass>
-void drawPaintLayers(const PaintStyle& style, DrawPass&& drawPass) {
+void drawLayer(const PaintLayer& layer, const SkRect& bounds,
+               DrawPass&& drawPass) {
+  if (layer.material && paint::hasMaterialResolver()) {
+    SkPaint shaded = layer.paint;
+    shaded.setShader(paint::resolverSlot()(*layer.material, bounds));
+    if (!shaded.nothingToDraw()) drawPass(shaded, layer.offset);
+    return;
+  }
+  if (!layer.paint.nothingToDraw()) drawPass(layer.paint, layer.offset);
+}
+
+template <typename DrawPass>
+void drawPaintLayers(const PaintStyle& style, const SkRect& bounds,
+                     DrawPass&& drawPass) {
   for (const PaintLayer& layer : style.underlays)
-    if (!layer.paint.nothingToDraw()) drawPass(layer.paint, layer.offset);
+    drawLayer(layer, bounds, drawPass);
   if (!style.foreground.nothingToDraw())
     drawPass(style.foreground, SkVector{0, 0});
   for (const PaintLayer& layer : style.overlays)
-    if (!layer.paint.nothingToDraw()) drawPass(layer.paint, layer.offset);
+    drawLayer(layer, bounds, drawPass);
+}
+
+/** Where a run's glyphs land on the canvas: the blob's bounds at its
+ *  origin. Computed only for a pass that asks, since every other pass
+ *  never reads it. */
+SkRect runBounds(const PositionedRun& run) {
+  return run.blob->bounds().makeOffset(run.origin.x(), run.origin.y());
+}
+
+bool anyMaterial(const PaintStyle& style) {
+  for (const PaintLayer& layer : style.underlays)
+    if (layer.material) return true;
+  for (const PaintLayer& layer : style.overlays)
+    if (layer.material) return true;
+  return false;
 }
 
 }  // namespace
@@ -52,7 +102,9 @@ void ParagraphLayout::draw(SkCanvas* canvas, const Paragraph& paragraph,
     const PaintStyle& style =
         resolvePaint(spans, run.styleIndex, overridePaint);
 
-    drawPaintLayers(style, [&](const SkPaint& paint, SkVector offset) {
+    const SkRect bounds =
+        anyMaterial(style) ? runBounds(run) : SkRect::MakeEmpty();
+    drawPaintLayers(style, bounds, [&](const SkPaint& paint, SkVector offset) {
       canvas->drawTextBlob(run.blob.get(), run.origin.x() + offset.x(),
                            run.origin.y() + offset.y(), paint);
     });
@@ -117,10 +169,13 @@ void ParagraphLayout::drawBatched(SkCanvas* canvas, const Paragraph& paragraph,
     if (run.transformed || !run.shaped) {
       // Positions are baked into the blob; draw every configured pass
       // directly. Arbitrary SkPaint effects remain available on this path.
-      drawPaintLayers(style, [&](const SkPaint& paint, SkVector offset) {
-        canvas->drawTextBlob(run.blob.get(), run.origin.x() + offset.x(),
-                             run.origin.y() + offset.y(), paint);
-      });
+      const SkRect bounds =
+          anyMaterial(style) ? runBounds(run) : SkRect::MakeEmpty();
+      drawPaintLayers(
+          style, bounds, [&](const SkPaint& paint, SkVector offset) {
+            canvas->drawTextBlob(run.blob.get(), run.origin.x() + offset.x(),
+                                 run.origin.y() + offset.y(), paint);
+          });
       continue;
     }
 
@@ -168,10 +223,21 @@ void ParagraphLayout::drawBatched(SkCanvas* canvas, const Paragraph& paragraph,
                                          bucket.glyphs.size());
     const SkSpan<const SkPoint> positions(bucket.positions.data(),
                                           bucket.positions.size());
-    drawPaintLayers(bucket.style, [&](const SkPaint& paint, SkVector offset) {
-      canvas->drawGlyphs(glyphs, positions, {offset.x(), offset.y()}, font,
-                         paint);
-    });
+    // A material pass shades over the bucket's glyph extent: the bounds of
+    // its positions grown by the font's ascent and descent.
+    SkRect bounds = SkRect::MakeEmpty();
+    if (anyMaterial(bucket.style)) {
+      bounds.setBounds({bucket.positions.data(), bucket.positions.size()});
+      SkFontMetrics metrics;
+      font.getMetrics(&metrics);
+      bounds.fTop += metrics.fAscent;
+      bounds.fBottom += metrics.fDescent;
+    }
+    drawPaintLayers(bucket.style, bounds,
+                    [&](const SkPaint& paint, SkVector offset) {
+                      canvas->drawGlyphs(glyphs, positions,
+                                         {offset.x(), offset.y()}, font, paint);
+                    });
   }
 
   for (const DecorationRect& decorationRect : decorationRects)

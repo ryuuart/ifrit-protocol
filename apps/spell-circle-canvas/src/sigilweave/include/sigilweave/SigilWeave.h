@@ -74,6 +74,7 @@
 #include "sigilweave/fonts/Shaper.h"
 #include "sigilweave/layout/Flow.h"
 #include "sigilweave/layout/ParagraphLayout.h"
+#include "sigilweave/paint/Paint.h"
 #include "sigilweave/paragraph/Paragraph.h"
 #include "sigilweave/query/Query.h"
 #include "sigilweave/style/Features.h"

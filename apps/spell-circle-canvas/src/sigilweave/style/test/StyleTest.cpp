@@ -10,6 +10,9 @@
 #include <sigilweave/style/Features.h>
 #include <sigilweave/style/Style.h>
 
+#include <memory>
+#include <type_traits>
+
 using namespace sigil::weave;
 
 TEST(ShaperVariations, TextStyleFluentSugarStaysOrderStable) {
@@ -135,4 +138,21 @@ TEST(StyleSetTest, SetReplacesInPlaceAndEqualityIsExactAndOrdered) {
   StyleSet extra = a;
   extra.set("note", small);
   EXPECT_FALSE(a == extra);
+}
+
+// A pass names its material by pointer: two passes sharing one instance are
+// one pass, and a pass with a material is not the pass without it, so a
+// restyle that attaches a material is seen by the draw-time comparison.
+TEST(Typography, PaintLayerMaterialComparesByIdentity) {
+  const auto shared = std::shared_ptr<const sigil::material::Material>();
+  PaintLayer plain(SK_ColorRED);
+  PaintLayer withMaterial(SK_ColorRED);
+  EXPECT_EQ(plain, withMaterial);
+  withMaterial.material = std::shared_ptr<const sigil::material::Material>(
+      shared, reinterpret_cast<const sigil::material::Material*>(&plain));
+  EXPECT_NE(plain, withMaterial);
+  PaintLayer same = withMaterial;
+  EXPECT_EQ(same, withMaterial);
+  // The umbrella still spells every subject.
+  static_assert(std::is_same_v<StyleSet::Entry::second_type, TextStyle>);
 }

@@ -10,7 +10,18 @@
 #include <sigilmaterial/kit/TextPaint.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
 
+#include "sigilweave/paint/Paint.h"
+
 namespace sigil::weave::PaintShaders {
+
+void installMaterialResolver() {
+  material::skia::install();
+  paint::setMaterialResolver(
+      [](const material::Material& m, const SkRect& bounds) {
+        return material::skia::shader(
+            m, {.resolution = {bounds.width(), bounds.height()}});
+      });
+}
 
 namespace {
 sk_sp<SkShader> shade(const material::Material& m) {
