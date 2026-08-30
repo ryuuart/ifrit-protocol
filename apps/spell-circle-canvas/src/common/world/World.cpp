@@ -4,10 +4,13 @@
 #include <Graphics/GraphicsEngine/interface/RenderDevice.h>
 #include <Graphics/GraphicsEngineVulkan/interface/EngineFactoryVk.h>
 #include <sigilgeometry/mesh/Vec.h>
+#include <sigilskia/device/GpuDevice.h>
+#include <sigilskia/graphite/GraphiteContext.h>
 
 #include <Common/interface/RefCntAutoPtr.hpp>
 #include <Graphics/GraphicsTools/interface/MapHelper.hpp>
 
+#include "AdoptDevice.h"
 #include "sigilworld/Animation.h"
 #include "sigilworld/Components.h"
 
@@ -55,6 +58,7 @@ void warnComputeKernelsUnavailable() {
 #include <include/core/SkImageInfo.h>
 #include <include/core/SkPixmap.h>
 #include <include/core/SkStream.h>
+#include <include/core/SkTypes.h>  // SkDebugf
 #include <include/encode/SkPngEncoder.h>
 
 #include <algorithm>
@@ -1078,6 +1082,13 @@ struct World::Impl {
                          dg::RefCntAutoPtr<dg::IBuffer>& indexBuffer);
   dg::RefCntAutoPtr<dg::IBuffer> createInstanceBuffer(
       const std::vector<InstanceAttribs>& instances);
+
+  /** The device above, adopted, and Graphite standing on it. Declared
+   *  last so they are torn down before the Diligent objects that own the
+   *  Vulkan device and queue they borrow. Both are null when the
+   *  adoption failed, which leaves everything else here working. */
+  std::unique_ptr<skia::GpuDevice> gpuDevice;
+  std::unique_ptr<skia::GraphiteContext> graphite;
 };
 
 bool World::Impl::init(std::string* error) {
@@ -1089,6 +1100,11 @@ bool World::Impl::init(std::string* error) {
   }
   EngineVkCreateInfo engineCI;
   if (config.validation) engineCI.SetValidationLevel(VALIDATION_LEVEL_1);
+  // Timeline semaphores: what a SigilSkia fence is, and the one thing the
+  // adopted device needs beyond what this renderer asks for. OPTIONAL
+  // rather than ENABLED, so a driver without them still brings the
+  // renderer up — it costs the shared 2D path, not the 3D one.
+  engineCI.Features.NativeFence = DEVICE_FEATURE_STATE_OPTIONAL;
   IRenderDevice* rawDevice = nullptr;
   IDeviceContext* rawContext = nullptr;
   factory->CreateDeviceAndContextsVk(engineCI, &rawDevice, &rawContext);
@@ -1101,6 +1117,26 @@ bool World::Impl::init(std::string* error) {
   }
   device.Attach(rawDevice);
   context.Attach(rawContext);
+
+  // One device for 2D and 3D: the Vulkan device and queue Diligent just
+  // made, adopted by SigilSkia, with Graphite recording onto that same
+  // queue. A failure here is reported and left behind — nothing below
+  // this line needs it, and the renderer is whole without it.
+  std::string adoptError;
+  gpuDevice = adoptVulkanDevice(device, context, &adoptError);
+  if (gpuDevice) graphite = skia::GraphiteContext::create(*gpuDevice);
+  if (!graphite) {
+    gpuDevice.reset();
+    // The reason is a property of the machine, not of this World, so one
+    // line covers every World a process brings up.
+    static bool warned = false;
+    if (!warned) {
+      warned = true;
+      SkDebugf("[world] 2D on the 3D device is unavailable: %s\n",
+               adoptError.empty() ? "Graphite declined the adopted device"
+                                  : adoptError.c_str());
+    }
+  }
   // Burn entity 0 so no real surface can ever have id 0, which every
   // caller reads as failure.
   (void)registry.create();
@@ -1949,10 +1985,31 @@ bool World::Impl::bindPopSrbs(PopComponent& points,
 
 World::World() : m_impl(std::make_unique<Impl>()) {}
 World::~World() {
+  if (!m_impl) return;
+  // Graphite's teardown and the adopted device's both touch the shared
+  // queue, so they go under the queue lock and ahead of the Diligent
+  // objects that own it.
+  if (m_impl->gpuDevice) {
+    QueueLock lock(*this);
+    m_impl->graphite.reset();
+    m_impl->gpuDevice.reset();
+  }
   // Anything recorded but not submitted (an add with no render after it)
   // is flushed before the context goes, so teardown never leaves
   // commands behind.
-  if (m_impl && m_impl->context) m_impl->context->Flush();
+  if (m_impl->context) m_impl->context->Flush();
+}
+
+skia::GpuDevice* World::device() const { return m_impl->gpuDevice.get(); }
+skia::GraphiteContext* World::graphite() const {
+  return m_impl->graphite.get();
+}
+
+World::QueueLock::QueueLock(World& world) : m_world(&world) {
+  m_world->m_impl->context->LockCommandQueue();
+}
+World::QueueLock::~QueueLock() {
+  m_world->m_impl->context->UnlockCommandQueue();
 }
 
 std::unique_ptr<World> World::create(const WorldConfig& config,

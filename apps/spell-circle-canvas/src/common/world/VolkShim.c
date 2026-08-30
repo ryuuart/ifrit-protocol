@@ -1,13 +1,21 @@
-/* SigilWorld's Vulkan bootstrap. DiligentCore (from the
- * sigil-vcpkg-registry port) is built against volk but does not archive
- * volk's objects, so this TU supplies them — with one change: stock
- * volk only dlopens leaf names plus /usr/local/lib, which misses the
- * Homebrew MoltenVK/loader install at /opt/homebrew on Apple Silicon
- * (and macOS dlopen does not match leaf names against already-loaded
- * images, so pre-loading cannot fix it from outside). volkInitialize is
- * therefore renamed away during the include and re-implemented below
- * with an absolute-path candidate list; everything else is verbatim
- * vendored volk (thirdparty/volk, MIT, pinned vulkan-sdk-1.4.321.0).
+/* SigilWorld's Vulkan bootstrap, for Diligent alone.
+ *
+ * DiligentCore resolves every Vulkan entry point through volk. Stock
+ * volk dlopens leaf names plus /usr/local/lib, which misses the Homebrew
+ * MoltenVK and loader install at /opt/homebrew on Apple Silicon — and
+ * macOS dlopen matches neither that directory nor an already-loaded
+ * image by leaf name, so nothing outside the process can correct it.
+ * This translation unit therefore compiles vendored volk
+ * (thirdparty/volk, MIT, pinned vulkan-sdk-1.4.321.0) with
+ * volkInitialize renamed away and re-implemented below over an
+ * absolute-path candidate list. Defining every volk symbol here is also
+ * what keeps the copy DiligentCore archives from being pulled in beside
+ * it: the linker has nothing left to resolve from that member.
+ *
+ * SigilSkia needs none of this. It resolves its own entry points and
+ * links no Vulkan; AdoptDevice.cpp hands it the vkGetInstanceProcAddr
+ * resolved here, so both APIs dispatch through the one loader this
+ * process opened.
  */
 
 #define volkInitialize volkInitializeStockDisabled

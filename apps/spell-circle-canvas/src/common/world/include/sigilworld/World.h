@@ -41,6 +41,15 @@
 #include <variant>
 #include <vector>
 
+namespace sigil::skia {
+// The GPU device this library brings up and the Graphite context on it.
+// Named here, spelled by <sigilskia/device/GpuDevice.h> and
+// <sigilskia/graphite/GraphiteContext.h>; neither this header nor those
+// two names a graphics API.
+class GpuDevice;
+class GraphiteContext;
+}  // namespace sigil::skia
+
 namespace sigil::world {
 
 struct LightComponent;  // Components.h
@@ -554,6 +563,40 @@ class World {
   bool savePng(const std::filesystem::path& path);
 
   const char* backendName() const;
+
+  /** THE device — there is only one, and both APIs draw on it. Diligent
+   *  creates the Vulkan device and its queue (it cannot attach to one
+   *  that already exists), and SigilSkia adopts them, so a texture named
+   *  on this device is a VkImage the 3D scene can sample and 2D drawing
+   *  through `graphite()` lands in it with no copy in either direction.
+   *  Null when the adoption failed — the reason is reported once on
+   *  standard error, and 3D rendering is unaffected. */
+  skia::GpuDevice* device() const;
+
+  /** Skia's Graphite context on `device()`, for painting 2D into a
+   *  texture the 3D scene reads. Null exactly when `device()` is. */
+  skia::GraphiteContext* graphite() const;
+
+  /** Holds the one command queue for as long as it lives.
+   *
+   *  Graphite's submissions and this library's passes go into that one
+   *  queue, so later work observes finished textures with no CPU
+   *  synchronization — but only while nothing interleaves the two
+   *  streams. Every Graphite submit on `graphite()`, and every fence
+   *  signal or wait taken on `device()`, is therefore made while one of
+   *  these is held. The renderer's own submissions take the same lock
+   *  from inside, which is why the lock does not nest: no `render()`,
+   *  `readback()` or `savePng()` while one is alive. */
+  class QueueLock {
+   public:
+    explicit QueueLock(World& world);
+    ~QueueLock();
+    QueueLock(const QueueLock&) = delete;
+    QueueLock& operator=(const QueueLock&) = delete;
+
+   private:
+    World* m_world;
+  };
 
  private:
   World();

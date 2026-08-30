@@ -7,7 +7,10 @@
 # VolkShim.c supplies the volk loader the diligent-engine port expects
 # (vendored under thirdparty/volk, MIT), with a Homebrew-aware
 # volkInitialize so /opt/homebrew MoltenVK installs work without
-# DYLD environment surgery.
+# DYLD environment surgery. It is the loader for Diligent alone:
+# SigilSkia resolves its own entry points and links nothing, and
+# AdoptDevice.cpp passes volk's vkGetInstanceProcAddr on to it so both
+# APIs dispatch through the one loader this process opened.
 enable_language(C)
 
 # Every public header lives under one include root, include/sigilworld/,
@@ -19,8 +22,19 @@ set(SIGIL_WORLD_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/include)
 # lights are links it without the renderer.
 add_subdirectory(light)
 
+# The renderer proper needs the device library: Diligent creates the
+# Vulkan device and SigilSkia adopts it, so there is one device and one
+# queue rather than two. The light feature above stands without it.
+if(NOT TARGET SigilSkiaDevice)
+  message(STATUS
+    "SigilWorld skipped: needs SPELLCIRCLE_ENABLE_SKIA_CANVAS (SigilSkiaDevice)")
+  return()
+endif()
+
 add_library(SigilWorld STATIC
   Adapt.cpp
+  AdoptDevice.cpp
+  AdoptDevice.h
   Scene.cpp
   TextureSet.cpp
   VolkShim.c
@@ -61,9 +75,12 @@ endif()
 # vocabulary — roles, classification, discovery — that lives in the
 # texture feature beneath it, and Adapt.h hands World's values over as
 # the kit's surface materials and the light feature's emitters.
+# SigilSkiaDevice is PUBLIC because World.h hands out the GpuDevice and
+# the Graphite context on it, and a caller that uses either needs their
+# headers.
 target_link_libraries(SigilWorld
   PUBLIC SigilGeometry SigilMaterialKit SigilWorldLight
-         unofficial::skia::skia EnTT::EnTT SigilMotion
+         unofficial::skia::skia EnTT::EnTT SigilMotion SigilSkiaDevice
   PRIVATE unofficial::diligent-engine::DiligentCore Vulkan::Headers
 )
 

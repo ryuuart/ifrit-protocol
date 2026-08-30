@@ -1,3 +1,5 @@
+#include <gpu/graphite/Context.h>
+#include <gpu/graphite/Recorder.h>
 #include <gtest/gtest.h>
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
@@ -8,6 +10,9 @@
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/pop/Points.h>
 #include <sigilmotion/clock/Ticker.h>
+#include <sigilskia/device/GpuDevice.h>
+#include <sigilskia/graphite/GraphiteContext.h>
+#include <sigilskia/graphite/OffscreenSurface.h>
 
 #include <chrono>
 #include <cstdio>
@@ -41,7 +46,107 @@ namespace {
     if (!w) GTEST_SKIP() << "no 3D backend: " << worldError; \
   }
 
+/** The pixels of a Graphite surface, read back through the context that
+ *  drew it: snap and insert whatever the recorder still holds, ask for
+ *  the read, submit synchronously, then spin until the callback lands.
+ *  Empty when the read never completed. */
+SkBitmap readGraphiteSurface(skia::GraphiteContext& ctx, SkSurface* surface) {
+  SkBitmap bitmap;
+  const SkImageInfo info = surface->imageInfo();
+  if (auto recording = ctx.recorder()->snap()) {
+    skgpu::graphite::InsertRecordingInfo insert;
+    insert.fRecording = recording.get();
+    ctx.context()->insertRecording(insert);
+  }
+  struct Read {
+    std::unique_ptr<const SkImage::AsyncReadResult> result;
+    bool called = false;
+  } read;
+  ctx.context()->asyncRescaleAndReadPixels(
+      surface, info, SkIRect::MakeWH(info.width(), info.height()),
+      SkImage::RescaleGamma::kSrc, SkImage::RescaleMode::kNearest,
+      [](SkImage::ReadPixelsContext c,
+         std::unique_ptr<const SkImage::AsyncReadResult> r) {
+        auto* out = static_cast<Read*>(c);
+        out->result = std::move(r);
+        out->called = true;
+      },
+      &read);
+  skgpu::graphite::SubmitInfo submitInfo;
+  submitInfo.fSync = skgpu::graphite::SyncToCpu::kYes;
+  ctx.context()->submit(submitInfo);
+  for (int spin = 0; spin < 5000 && !read.called; ++spin)
+    ctx.context()->checkAsyncWorkCompletion();
+  if (!read.result) return bitmap;
+  bitmap.allocPixels(info);
+  const auto* src = static_cast<const uint8_t*>(read.result->data(0));
+  const size_t rowBytes = read.result->rowBytes(0);
+  for (int y = 0; y < info.height(); ++y)
+    std::memcpy(bitmap.pixmap().writable_addr(0, y), src + (size_t)y * rowBytes,
+                (size_t)info.width() * 4);
+  return bitmap;
+}
+
 }  // namespace
+
+// ONE DEVICE, end to end. Diligent creates the Vulkan device and queue —
+// it cannot attach to one that already exists — and SigilSkia adopts
+// them, so there is a single device, a single queue and a single handle
+// table under both APIs.
+//
+// The proof is the fence. It is a timeline semaphore signalled by an
+// empty submission on the queue Diligent submits its own passes through,
+// queued behind Graphite's drawing: reaching that value means Graphite's
+// work landed on that queue. A second queue would leave the wait to time
+// out, and the render at the end shows Diligent still driving the same
+// device after Graphite has submitted on it.
+TEST(World, GraphiteDrawsOnTheDeviceDiligentMade) {
+  world::WorldConfig config;
+  config.width = 64;
+  config.height = 64;
+  MAKE_WORLD_OR_SKIP(w, config);
+
+  skia::GpuDevice* device = w->device();
+  ASSERT_NE(device, nullptr) << "the Diligent device was not adopted";
+  ASSERT_NE(w->graphite(), nullptr);
+  EXPECT_EQ(device->backend(), skia::Backend::Vulkan);
+  EXPECT_NE(device->native().vulkan.device, nullptr);
+  EXPECT_NE(device->native().vulkan.queue, nullptr);
+
+  skia::TextureDesc desc;
+  desc.width = 8;
+  desc.height = 8;
+  desc.format = skia::TextureFormat::RGBA8Unorm;
+  const skia::TextureHandle texture = device->createTexture(desc);
+  ASSERT_TRUE(device->isValid(texture));
+  const skia::FenceHandle fence = device->createFence();
+  ASSERT_TRUE(device->isValid(fence));
+
+  const SkColor painted = SkColorSetARGB(255, 0, 0, 255);
+  SkBitmap pixels;
+  {
+    // Everything that submits on the shared queue happens under the lock.
+    world::World::QueueLock lock(*w);
+    skia::OffscreenSurface surface(*w->graphite(), *device, texture);
+    ASSERT_NE(surface.canvas(), nullptr);
+    surface.canvas()->clear(painted);
+    const skia::FenceValue done = surface.submit(*device, fence);
+    EXPECT_GT(done, skia::kFenceInitialValue);
+    EXPECT_EQ(device->waitCpu(fence, done), skia::FenceWait::Reached);
+    EXPECT_EQ(device->completedValue(fence), done);
+    pixels = readGraphiteSurface(*w->graphite(), surface.surface());
+  }
+  ASSERT_FALSE(pixels.empty());
+  EXPECT_EQ(pixels.getColor(0, 0), painted);
+  EXPECT_EQ(pixels.getColor(7, 7), painted);
+
+  // And Diligent still drives the same device and queue afterwards.
+  EXPECT_TRUE(w->render());
+  EXPECT_TRUE(w->readback());
+
+  device->destroyFence(fence);
+  device->destroy(texture);
+}
 
 TEST(World, CreatesHeadlessDevice) {
   world::WorldConfig config;

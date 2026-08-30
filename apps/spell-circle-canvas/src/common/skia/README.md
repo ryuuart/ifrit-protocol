@@ -137,6 +137,56 @@ A texture the host made enters the same table through
 or `importNative(nativeTexture, /*takeOwnership=*/true)`, after which the
 device releases it like one of its own.
 
+### Adopting a device an engine created
+
+Some 3D engines create the Vulkan device themselves and cannot attach to
+one that already exists — Diligent Engine is one of them. There the
+device is theirs and Graphite joins it, rather than the other way round.
+What `adopt` wants is exactly what such an engine exposes:
+
+```cpp
+NativeDevice native;
+native.backend = Backend::Vulkan;
+// Off Diligent's IRenderDeviceVk:
+native.vulkan.instance       = deviceVk->GetVkInstance();
+native.vulkan.physicalDevice = deviceVk->GetVkPhysicalDevice();
+native.vulkan.device         = deviceVk->GetVkDevice();
+native.vulkan.apiVersion     = deviceVk->GetVkVersion();
+// The queue sits behind the engine's own lock: take the handle, drop the
+// lock. (Diligent: context->LockCommandQueue(), narrowed to
+// ICommandQueueVk, then UnlockCommandQueue().)
+native.vulkan.queue            = queueVk->GetVkQueue();
+native.vulkan.queueFamilyIndex = queueVk->GetQueueFamilyIndex();
+// The engine already opened a loader; hand over its vkGetInstanceProcAddr
+// rather than letting this library open a second one.
+native.vulkan.getInstanceProcAddr = engineGetInstanceProcAddr;
+
+std::unique_ptr<GpuDevice> device = GpuDevice::adopt(native, &error);
+std::unique_ptr<GraphiteContext> graphite = GraphiteContext::create(*device);
+```
+
+Three conditions come with it:
+
+- **Timeline semaphores must be enabled on that device.** A fence here is
+  one, and a device created without them cannot make one. Ask the engine
+  for the feature before it creates the device — Diligent spells it
+  `NativeFence` — because it cannot be turned on afterwards.
+- **The loader should be the engine's.** Leaving `getInstanceProcAddr`
+  null is legal and this library finds a loader itself, but then the two
+  APIs dispatch through separately opened copies of it.
+- **The queue is now shared, and sharing has a rule.** Graphite's
+  submissions and the engine's passes go into the one queue in submission
+  order — that is what makes `submit()` asynchronous and still correct —
+  but only while the two streams never interleave. Hold whatever lock the
+  engine guards its queue with around every Graphite submit and around
+  every `signal`, `waitGpu` and `waitCpu` on this device. Diligent's is
+  `LockCommandQueue()` / `UnlockCommandQueue()` on the immediate context,
+  and it does not nest, so no engine call may be made while it is held.
+
+Nothing here is freed by the device: an adopted instance, device and
+queue stay the engine's, and keeping them alive for as long as the
+`GpuDevice` and its Graphite context live is the caller's business.
+
 ## The mental model
 
 **Two paths, one shape.** Metal and Vulkan are parallel bring-up paths:

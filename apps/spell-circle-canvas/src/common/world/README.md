@@ -216,11 +216,50 @@ Rendering is a pure function of what the bound outputs currently hold.
 The caller steps a `motion::Ticker` with the delta it chooses, which is
 what makes a headless frame sequence reproducible.
 
+**One device, one queue, one handle table.** Diligent creates the Vulkan
+device and its command queue — this build of it cannot attach to a device
+that already exists, and has no Metal backend — and SigilSkia adopts
+them. `World::device()` is a `skia::GpuDevice` over Diligent's own
+instance, physical device, device, queue and queue family;
+`World::graphite()` is Skia's Graphite context standing on that device.
+There is no second device and no second queue, so a texture named on
+`device()` is an image the 3D scene can sample and 2D drawing lands in it
+with no copy in either direction. The adoption hands SigilSkia the
+`vkGetInstanceProcAddr` this process already resolved, so both APIs
+dispatch through one loader as well.
+
+Ordering is queue order first: Graphite's submissions and this library's
+passes go into that one queue in submission order, so later work observes
+finished textures with no CPU synchronization. What it needs in return is
+that the two streams never interleave, and `World::QueueLock` is how —
+hold one for the whole of any Graphite submit, and for any fence signal
+or wait taken on `device()`:
+
+```cpp
+world::World::QueueLock lock(*world);
+skia::OffscreenSurface surface(*world->graphite(), *world->device(), texture);
+surface.canvas()->clear(SK_ColorBLUE);
+const skia::FenceValue done = surface.submit(*world->device(), fence);
+world->device()->waitCpu(fence, done);
+```
+
+`render()`, `readback()` and `savePng()` take the same lock from inside
+and it does not nest, so none of them may be called while a `QueueLock`
+is alive.
+
+A fence here is a timeline semaphore, which is why the device is created
+asking for Diligent's `NativeFence` feature. On a driver that has none
+the adoption is declined, the reason is printed once, `device()` and
+`graphite()` are both null, and everything else in this library works
+unchanged. Panel content still arrives as a finished `SkImage` and is
+uploaded: nothing here paints 2D through `graphite()` on your behalf —
+the shared device is the door, not a policy.
+
 ## The headers
 
 | Header | What it is for |
 | --- | --- |
-| `sigilworld/World.h` | `World`, `WorldConfig`, `Material`, `Lighting`, `StampLanes`. Device bring-up, every `place*` door, camera and lighting setters, `render`/`readback`/`savePng`. |
+| `sigilworld/World.h` | `World`, `WorldConfig`, `Material`, `Lighting`, `StampLanes`. Device bring-up, every `place*` door, camera and lighting setters, `render`/`readback`/`savePng`, and the shared device: `device()`, `graphite()` and `World::QueueLock`. |
 | `sigilworld/Components.h` | The registry face: `TransformComponent`, `MaterialComponent` (`material` and further `slots`), `LightComponent`, `CameraComponent`, the `kLightBudget` constant, and `entity(id)`. |
 | `sigilworld/Scene.h` | The declarative reconciler: `scene::Node`, `scene::group/place/panel`, `scene::Stack`, `scene::Scene` with `render`, `find` and `clear`. |
 | `sigilworld/Animation.h` | Declared motion: the six `Animated*` components, `CameraPath`, `AnimationStats`, `resolveValue`, both `resolveAnimation` overloads, and the SigilMotion value vocabulary re-exported into `sigil::world`. |
@@ -459,8 +498,11 @@ public API), `SigilMotion` — public because `Animatable` appears in the
 component surface, and safe to expose because SigilMotion links a
 timeline library and nothing else — `SigilMaterialKit`, whose texture-set
 vocabulary `TextureSet.h` spells and whose surface recipe `Adapt.h` hands
-values over as, and `SigilWorldLight`. Private: Diligent Engine's core
-and the Vulkan headers.
+values over as, `SigilWorldLight`, and `SigilSkiaDevice`, because
+`World.h` hands out the device and the Graphite context on it. Private:
+Diligent Engine's core and the Vulkan headers. Without `SigilSkiaDevice`
+— that is, with `SPELLCIRCLE_ENABLE_SKIA_CANVAS` off — this library is
+skipped with a message; `SigilWorldLight` still builds.
 
 **The shading model is not defined here.** The metallic-roughness
 surface, its masks and the stacking combinator belong to SigilMaterial:
@@ -480,6 +522,14 @@ manifest. This exists because macOS `dlopen` searches neither
 `/opt/homebrew/lib` nor already-loaded leaf names, so an unmodified
 loader cannot find a Homebrew MoltenVK install without environment
 surgery. `SIGILWORLD_VULKAN_LIBRARY` overrides the candidate list.
+
+That loader is **for Diligent only**. DiligentCore calls every Vulkan
+entry point through volk's function-pointer table, so something in this
+build has to supply one; SigilSkia supplies its own, resolving what it
+needs at run time and linking nothing. There is no second resolver here
+and no shim over SigilSkia's — `AdoptDevice.cpp` simply passes volk's
+`vkGetInstanceProcAddr` along when it adopts the device, which is what
+makes one loader serve both.
 
 The graphics vertex and pixel shaders are one HLSL source compiled at
 runtime by the compiler Diligent ships. The compute kernels are separate:
@@ -534,6 +584,14 @@ tests still runs there — everything resolved by
 `resolveAnimation(entt::registry&)`, plus the camera, path and layer
 geometry pins — which is why the animation semantics stay pinned without
 a GPU.
+
+One device-backed test is the whole shared-device path in one place:
+`World.GraphiteDrawsOnTheDeviceDiligentMade` makes a texture on
+`device()`, clears it through `graphite()`, and waits on a fence
+signalled behind that drawing. The fence is what proves it — it is
+signalled by a submission on the queue Diligent submits its own passes
+through, so reaching its value means Graphite's work landed on that
+queue and not on some second one.
 
 The demo renders a diegetic-panel scene headlessly:
 
