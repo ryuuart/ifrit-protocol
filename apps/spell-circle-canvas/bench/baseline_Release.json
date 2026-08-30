@@ -1,8 +1,8 @@
 {
  "config": "Release",
- "host": "MacBookPro.control",
+ "host": "MacBookPro.lan",
  "machine": "arm64",
- "taken": "2026-08-30T15:58:14+00:00",
+ "taken": "2026-08-30T17:44:58+00:00",
  "benches": {
   "compose_brush_bench": {
    "BM_Draw_ArtWarp_Live": {
@@ -1305,99 +1305,99 @@
     "unit": "us",
     "repetitions": 4
    },
-   "BM_Tube/segments:32/sides:6": {
-    "real_ns": 7746.427210079231,
-    "cpu_ns": 7746.15824050272,
+   "BM_Sweep_Circle/segments:32/sides:6": {
+    "real_ns": 7871.486073870882,
+    "cpu_ns": 7839.021104625062,
     "unit": "us",
     "repetitions": 4
    },
-   "BM_Tube/segments:256/sides:6": {
-    "real_ns": 55650.494058842785,
-    "cpu_ns": 55637.65261914124,
+   "BM_Sweep_Circle/segments:256/sides:6": {
+    "real_ns": 56484.90158700367,
+    "cpu_ns": 55981.22253296034,
     "unit": "us",
     "repetitions": 4
    },
-   "BM_Tube/segments:1024/sides:6": {
-    "real_ns": 219591.21389559997,
-    "cpu_ns": 219541.08527131792,
+   "BM_Sweep_Circle/segments:1024/sides:6": {
+    "real_ns": 221978.02218582982,
+    "cpu_ns": 221113.0856219708,
     "unit": "us",
     "repetitions": 4
    },
-   "BM_Tube/segments:32/sides:24": {
-    "real_ns": 13058.644013993824,
-    "cpu_ns": 13053.328429569723,
+   "BM_Sweep_Circle/segments:32/sides:24": {
+    "real_ns": 13056.179569009182,
+    "cpu_ns": 12495.840950639897,
     "unit": "us",
     "repetitions": 4
    },
-   "BM_Tube/segments:256/sides:24": {
-    "real_ns": 96116.3433992744,
-    "cpu_ns": 96098.55769230798,
+   "BM_Sweep_Circle/segments:256/sides:24": {
+    "real_ns": 91028.26447609025,
+    "cpu_ns": 90990.92088197095,
     "unit": "us",
     "repetitions": 4
    },
-   "BM_Tube/segments:1024/sides:24": {
-    "real_ns": 377044.3674906221,
-    "cpu_ns": 376944.4444444438,
+   "BM_Sweep_Circle/segments:1024/sides:24": {
+    "real_ns": 353212.8976259183,
+    "cpu_ns": 351648.61460956704,
     "unit": "us",
     "repetitions": 4
    },
-   "BM_Ribbon/32": {
-    "real_ns": 6174.104231467745,
-    "cpu_ns": 6171.781289672954,
+   "BM_Sweep_Line/32": {
+    "real_ns": 6458.856206980308,
+    "cpu_ns": 6432.839899795023,
     "unit": "us",
     "repetitions": 4
    },
-   "BM_Ribbon/64": {
-    "real_ns": 11614.74266793564,
-    "cpu_ns": 11608.834773936273,
+   "BM_Sweep_Line/64": {
+    "real_ns": 12160.719908953568,
+    "cpu_ns": 12099.623738669296,
     "unit": "us",
     "repetitions": 4
    },
-   "BM_Ribbon/256": {
-    "real_ns": 43708.026170183715,
-    "cpu_ns": 43697.92973651217,
+   "BM_Sweep_Line/256": {
+    "real_ns": 45186.12515622137,
+    "cpu_ns": 45065.832249675004,
     "unit": "us",
     "repetitions": 4
    },
-   "BM_Ribbon/1024": {
-    "real_ns": 173688.7955380168,
-    "cpu_ns": 173689.05472636697,
+   "BM_Sweep_Line/1024": {
+    "real_ns": 179734.93839101688,
+    "cpu_ns": 178668.36086403948,
     "unit": "us",
     "repetitions": 4
    },
-   "BM_Ribbon/2048": {
-    "real_ns": 347294.805019542,
-    "cpu_ns": 347272.8395061722,
+   "BM_Sweep_Line/2048": {
+    "real_ns": 360943.11342473316,
+    "cpu_ns": 359268.1347150259,
     "unit": "us",
     "repetitions": 4
    },
-   "BM_Banner/32": {
-    "real_ns": 2234.6857312828374,
-    "cpu_ns": 2234.4687455002204,
+   "BM_Sweep_Hang/32": {
+    "real_ns": 2302.01340420364,
+    "cpu_ns": 2293.5945385356836,
     "unit": "us",
     "repetitions": 4
    },
-   "BM_Banner/64": {
-    "real_ns": 3933.4729705648706,
-    "cpu_ns": 3932.92056528858,
+   "BM_Sweep_Hang/64": {
+    "real_ns": 4104.660886142562,
+    "cpu_ns": 4076.327238520773,
     "unit": "us",
     "repetitions": 4
    },
-   "BM_Banner/256": {
-    "real_ns": 13334.693833332372,
-    "cpu_ns": 13331.298504637536,
+   "BM_Sweep_Hang/256": {
+    "real_ns": 13934.338649540547,
+    "cpu_ns": 13876.503648195612,
     "unit": "us",
     "repetitions": 4
    },
-   "BM_Banner/1024": {
-    "real_ns": 50886.305515896864,
-    "cpu_ns": 50875.40511343152,
+   "BM_Sweep_Hang/1024": {
+    "real_ns": 53686.44060598832,
+    "cpu_ns": 53406.072106261774,
     "unit": "us",
     "repetitions": 4
    },
-   "BM_Banner/2048": {
-    "real_ns": 102278.09539071529,
-    "cpu_ns": 102025.41757443757,
+   "BM_Sweep_Hang/2048": {
+    "real_ns": 106114.83367165556,
+    "cpu_ns": 105499.24924924942,
     "unit": "us",
     "repetitions": 4
    }

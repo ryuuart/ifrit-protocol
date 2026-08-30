@@ -73,7 +73,7 @@ void paint(SkCanvas &canvas, SkSize viewport, const SkPath &star) {
 
   // 3D: scatter points along a window of a closed loop, drift them with
   // noise, smooth the kinks out, colour them along the loop, then sweep
-  // a tube through the result.
+  // a round profile through the result.
   const Mesh comet =
       pop::on(std::vector<glm::vec3>{{-300, 0, -100},
                                      {0, 140, 120},
@@ -83,7 +83,8 @@ void paint(SkCanvas &canvas, SkSize viewport, const SkPath &star) {
           .noise(18)
           .smooth()
           .fade({1.0f, 0.3f, 0.6f, 1.0f}, {0.2f, 0.9f, 1.0f, 1.0f})
-          .tube(9);
+          .sweep(curve::profile::circle(), false,
+                 {.segments = 160, .scale = 9});
 
   camera::Camera cam;
   cam.eye = {0, 180, 640};
@@ -136,7 +137,7 @@ drifted cloud re-rolls identically on every platform and every run.
 **Values, not baked results.** Options structs, distortion structs,
 operator values, splines, clouds and chains are all plain data you edit and
 re-cook. `ops::PathOp` plus `ops::chain()` compose a non-destructive
-recipe; `blend::Options`, `curve::TubeOptions` and `pop::Chain` behave the
+recipe; `blend::Options`, `curve::SweepOptions` and `pop::Chain` behave the
 same way. Nothing is committed until a draw call or an explicit cook asks
 for it, so changing one dial and re-running is always available.
 
@@ -279,10 +280,37 @@ own repertoire here rather than inside whatever draws through it.
 
 - **`mesh/curve/Curve.h`** — `Spline3` (linear, Catmull-Rom or Bezier, open
   or closed) with `position()`, `tangent()`, `length()`, `sample()` and
-  `sampleArcLength()`; `curve::frames()` for parallel-transport `Frame3`s
-  that do not flip at inflections; the swept generators `tube()`,
-  `ribbon()` and `banner()`; and `project()` to draw the curve as a 2D
-  path under a camera.
+  `sampleArcLength()`; the two rails — `curve::frames()`, parallel-transport
+  `Frame3`s that do not flip at inflections, and `curve::hangFrames()`, a
+  window of a closed loop whose across-vector is held world-vertical; the
+  cross-sections `curve::profile::circle()`, `curve::profile::line()` and
+  `curve::profile::fromPath()`; the one swept former `curve::sweep()` with
+  `SweepOptions`; and `project()` to draw the curve as a 2D path under a
+  camera.
+
+  **There is one sweep, and the shape is a parameter.** `sweep()` carries
+  a 2D `path::Polyline` along a rail: every ring is that contour placed on
+  one `Frame3` — x along the binormal, y against the normal, Skia's y-down
+  convention, the one `mesh::extrude()` uses — sized by `scale` times
+  `taper` at the frame's `t`, with u across the profile and v the frame's
+  `t`. A circle profile forms a tube, the two-point line profile forms a
+  flat band (on a hung rail, a gravity-rigged banner), and anything
+  `fromPath()` flattens forms an extrusion that follows the curve. The two
+  built-in profiles are UNIT shapes, which is why neither takes a radius
+  or a width: `SweepOptions::scale` is the size, and a profile that
+  carries its own — a flattened outline — leaves it at 1.
+  `SweepOptions::normals` picks where a vertex normal comes from:
+  `Radial` (the profile's offset itself, what a round profile wants),
+  `Frame` (the rail's normal, what a flat band wants) or `Geometric`
+  (averaged from the formed triangles, which any profile can take).
+  `caps` closes an open rail's two ends with a fan to the ring's centre
+  and assumes a convex profile; the spline overload drops it for a closed
+  spline, which has no ends. A CLOSED profile wraps back onto its first
+  point, so only an OPEN one lets u reach 1 — which is why
+  `profile::circle()` duplicates its seam point and comes back open.
+  There are two overloads: one over a rail you built, which is the seam a
+  GPU executor forming the same rings would replace, and one over a
+  `Spline3`, which builds a transported rail of `segments` frames first.
 
 **`mesh/pop`** — `SigilGeometryMeshPop`, needs `mesh/curve` (and through
 it `mesh` and `mesh/camera`); its generators draw from `path`'s noise.
@@ -301,8 +329,8 @@ language.
   both in the `pop` scope: `pop::on()` opens a chain, `pop::cook()`
   evaluates one. The field table behind `pop::setField()`/`getField()` is
   `Fields.cpp`; `pop::cook()` with the attribute store it runs over is
-  `Cook.cpp`; the mesh-forming sinks `pop::cookMesh()`, `cookTube()`,
-  `cookRibbon()` and `cookSweep()` are `Sinks.cpp`.
+  `Cook.cpp`; the mesh-forming sinks `pop::cookMesh()` and `cookSweep()`
+  are `Sinks.cpp`.
 
 **`mesh/codec`** — `SigilGeometryMeshCodec`, needs `mesh` and
 `mesh/pop`. Its parsers
@@ -376,8 +404,8 @@ with the same expression.
 the mask on the filter just added — and the builder converts to a
 `Chain`, so you can reach into any operator afterwards and re-cook. Sinks
 turn a chain into geometry: `cook()` to a `Cloud`, `cookMesh()` to one
-mesh of stamps, and `cookTube()`/`cookRibbon()`/`cookSweep()` treating the
-cooked points as a path to sweep along.
+mesh of stamps, and `cookSweep()` reading the cooked points as the path
+`curve::sweep()` carries a profile along.
 
 ## Conventions that will bite you
 
@@ -558,7 +586,7 @@ a Release build through `scripts/bench_ledger.py`:
 | `geometry_mesh_bench` | extrude, revolve and the grid presets by vertex count |
 | `geometry_mesh_camera_bench` | the per-frame transform builds: view, view-projection, the matrix seam, and the two placement helpers |
 | `geometry_mesh_render_bench` | the built-in runtime by triangle count and by shading mode, the cost of the cull and the sort, and the panel concat |
-| `geometry_mesh_curve_bench` | arc-length sampling and parallel-transport frames by count, and tube, ribbon and banner by tessellation |
+| `geometry_mesh_curve_bench` | arc-length sampling and parallel-transport frames by count, and the sweep by tessellation for a circle profile, a line profile and a line on a hung rail |
 | `geometry_mesh_pop_bench` | the pop cook per operator over a thousand points, and whole chains by count and operator mix |
 | `geometry_mesh_codec_bench` | OBJ, GLB and `.geo` decoded from bytes in memory, per triangle or point |
 
@@ -575,7 +603,7 @@ recompiles one small file. All are registered with ctest and answer to
 | `geometry_mesh_test` | `mesh/test/MeshTest.cpp` | the mesh currency and its generators |
 | `geometry_mesh_camera_test` | `mesh/camera/test/CameraTest.cpp` | the view-projection carried through to viewport pixels, and the two placement transforms |
 | `geometry_mesh_render_test` | `mesh/render/test/PainterTest.cpp`, `mesh/render/test/RuntimeTest.cpp` | the mesh draw's pixels, the normals G-buffer's encoding and the primitive tint; and the runtime seam — the built-in value, comparison by model, and a substituted executor receiving the draw |
-| `geometry_mesh_curve_test` | `mesh/curve/test/CurveTest.cpp` | splines, tubes, ribbons, banners |
+| `geometry_mesh_curve_test` | `mesh/curve/test/CurveTest.cpp` | splines, the two rails, the profiles, and the sweep held vertex for vertex against independent reference bodies for a tube, a ribbon and a banner |
 | `geometry_mesh_pop_test` | `mesh/pop/test/PointsTest.cpp`, `mesh/pop/test/PopTest.cpp` | point clouds, instancing, the agreement between an instanced facing lane and `faceCamera()`, and pop chains with their operators; links the codec to seed chains from an imported model |
 | `geometry_mesh_codec_test` | `mesh/codec/test/DecodeTest.cpp`, `mesh/codec/test/EncodeTest.cpp` | every reader, and the PLY writer's round trips; the only one linking Alembic |
 

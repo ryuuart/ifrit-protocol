@@ -668,9 +668,10 @@ void panelSplines(SkCanvas& canvas) {
   steel.baseColor = {0.6f, 0.68f, 0.8f, 1};
   steel.specular = 0.9f;
   steel.shininess = 48;
-  render::drawMesh(
-      canvas, curve::tube(knot, {.radius = 9, .segments = 220, .sides = 12}),
-      glm::mat4(1.0f), camera, viewport, steel);
+  render::drawMesh(canvas,
+                   curve::sweep(knot, curve::profile::circle(12),
+                                {.segments = 220, .scale = 9}),
+                   glm::mat4(1.0f), camera, viewport, steel);
 
   // Instanced panels standing on the curve's frames, tilted like
   // solar panels (a cooked lane: binormal leaned toward the normal).
@@ -875,9 +876,14 @@ void panelPop(SkCanvas& canvas) {
   steel.shininess = 48;
 
   // A noised ring becomes a wobbly tube: three verbs and a sink.
-  render::drawMesh(
-      canvas, pop::on(ring).count(220).noise(26, 0.004f).tube(11, 14, true),
-      camera::place({-330, 40, 0}, 24, -10), camera, viewport, steel);
+  render::drawMesh(canvas,
+                   pop::on(ring)
+                       .count(220)
+                       .noise(26, 0.004f)
+                       .sweep(curve::profile::circle(14), true,
+                              {.segments = 160, .scale = 11}),
+                   camera::place({-330, 40, 0}, 24, -10), camera, viewport,
+                   steel);
 
   // The same loop, stamped: scattered plates facing the camera,
   // scale varied, tint faded around the ring.
@@ -903,11 +909,14 @@ void panelPop(SkCanvas& canvas) {
   // smoothed noised ring — extrusion, the artist way.
   render::MeshStyle gold = steel;
   gold.baseColor = {0.95f, 0.72f, 0.3f, 1};
-  const Mesh crown = pop::on(ring)
-                         .count(140)
-                         .noise(20, 0.004f)
-                         .smooth(0.5f, 2)
-                         .sweep(star(5, 30, 14, {0, 0}), true);
+  const Mesh crown =
+      pop::on(ring)
+          .count(140)
+          .noise(20, 0.004f)
+          .smooth(0.5f, 2)
+          .sweep(curve::profile::fromPath(star(5, 30, 14, {0, 0})), true,
+                 {.segments = 160,
+                  .normals = curve::SweepOptions::Normals::Geometric});
   const glm::mat4 crownPlace = camera::place({0, 255, -140}, 14, -10, 0, 0.85f);
   render::drawMesh(canvas, crown, crownPlace, camera, viewport, gold);
   // ...and pops seed from FORMED models: glints scattered on the
@@ -928,8 +937,13 @@ void panelPop(SkCanvas& canvas) {
   render::MeshStyle jade = steel;
   jade.baseColor = {0.4f, 0.85f, 0.6f, 1};
   jade.backfaceCull = false;  // a band twists; show both faces
-  render::drawMesh(canvas, pop::cookRibbon(wave, 42, {.segments = 120}),
-                   camera::place({0, -60, 140}, 0, 14), camera, viewport, jade);
+  render::drawMesh(
+      canvas,
+      pop::cookSweep(wave, curve::profile::line(), false,
+                     {.segments = 120,
+                      .scale = 42,
+                      .normals = curve::SweepOptions::Normals::Frame}),
+      camera::place({0, -60, 140}, 0, 14), camera, viewport, jade);
 }
 
 // The PRIMITIVE class: attributes that live on TRIANGLES, the sibling
@@ -1016,7 +1030,7 @@ void panelPopPrims(SkCanvas& canvas) {
 
 // The Skia yarn marquee: the SAME idea as SigilWorld's — a ball
 // winding painted end to end with one compose column, perpendicular
-// text — but formed by curve::banner and drawn by the PAINTER
+// text — but formed on a hung rail and drawn by the PAINTER
 // (render::drawMesh), no GPU device anywhere. Arcs draw back-to-front
 // by centroid depth; interpenetrating wraps accept painter honesty.
 void panelYarnMarquee(SkCanvas& canvas) {
@@ -1068,7 +1082,7 @@ void panelYarnMarquee(SkCanvas& canvas) {
               sc::Fill::color({0.455f, 0.878f, 0.745f, 0.5f})));
   const char8_t* pool[6] = {
       u8"the same winding, no GPU anywhere",
-      u8"curve::banner forms the band",
+      u8"a line profile on a hung rail forms the band",
       u8"render::drawMesh paints the cloth",
       u8"text reads across, the column climbs",
       u8"one compose column, sliced to tiles",
@@ -1114,10 +1128,11 @@ void panelYarnMarquee(SkCanvas& canvas) {
   std::vector<Arc> arcs;
   for (int k = 0; k < kTiles; ++k) {
     Arc arc;
-    arc.mesh = curve::banner(yarn, {.width = kWidth,
-                                    .head = (float)(k + 1) / (float)kTiles,
-                                    .span = 1.0f / (float)kTiles,
-                                    .sections = 160});
+    arc.mesh = curve::sweep(
+        curve::hangFrames(yarn, 160, (float)(k + 1) / (float)kTiles,
+                          1.0f / (float)kTiles),
+        curve::profile::line(),
+        {.scale = kWidth, .normals = curve::SweepOptions::Normals::Frame});
     glm::vec3 lo, hi;
     arc.mesh.bounds(&lo, &hi);
     const glm::vec3 mid = (lo + hi) * 0.5f;

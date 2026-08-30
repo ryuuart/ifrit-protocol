@@ -207,7 +207,7 @@ struct EaselPlayground : sigil::compose::sketch::Sketch {
     // tube, particles, and the TILED UNTILEABLE MARQUEE — a
     // Fibonacci-word band scrolling around a second, wider loop.
     // Nothing marquee-shaped exists in the library: it is
-    // curve::ribbon (the (across, along) uv chart) + tileTexture +
+    // a line profile swept (the (across, along) uv chart) + tileTexture +
     // uvTransform, the same verbs any conveyor or ticker uses.
     Element flight =
         custom([this](SkCanvas& canvas, const PaintContext& paint) {
@@ -225,7 +225,8 @@ struct EaselPlayground : sigil::compose::sketch::Sketch {
           steel.specular = 0.9f;
           geometry::mesh::render::drawMesh(
               canvas,
-              geometry::curve::tube(loop, {.radius = 7, .segments = 180}),
+              geometry::curve::sweep(loop, geometry::curve::profile::circle(),
+                                     {.segments = 180, .scale = 7}),
               glm::mat4(1.0f), camera, viewport, steel);
           SkPaint wire;
           wire.setAntiAlias(true);
@@ -236,7 +237,7 @@ struct EaselPlayground : sigil::compose::sketch::Sketch {
                           wire);
 
           // The marquee: a wider sibling loop wearing the Fibonacci
-          // band. ribbon() charts (across, along) into uv; the strip
+          // band. A swept line charts (across, along) into uv; the strip
           // tiles (one aperiodic period wraps the loop) and the
           // uvTransform's translate IS the scroll.
           const geometry::mesh::curve::Spline3 orbit = loopAt(t, 265, 96);
@@ -250,7 +251,11 @@ struct EaselPlayground : sigil::compose::sketch::Sketch {
           band.uvTransform = SkMatrix::Translate(0, t * 0.11f);
           geometry::mesh::render::drawMesh(
               canvas,
-              geometry::curve::ribbon(orbit, {.width = 30, .segments = 220}),
+              geometry::curve::sweep(
+                  orbit, geometry::curve::profile::line(),
+                  {.segments = 220,
+                   .scale = 30,
+                   .normals = geometry::curve::SweepOptions::Normals::Frame}),
               glm::mat4(1.0f), camera, viewport, band);
 
           // Particles: points on the wire, drifted by noise, tinted

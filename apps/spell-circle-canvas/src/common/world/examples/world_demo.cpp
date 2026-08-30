@@ -986,10 +986,11 @@ int main(int argc, char** argv) {
     wireMat.roughness = 0.15f;
 
     // The wire carries a baked colour lane, cool at the start and warm
-    // by the end. A tube's rings are generated in order along the curve,
+    // by the end. A sweep's rings are generated in order along the curve,
     // so ramping by vertex index ramps along the curve.
     geometry::mesh::Mesh wire =
-        geometry::curve::tube(arc, {.radius = 7, .segments = 180, .sides = 10});
+        geometry::curve::sweep(arc, geometry::curve::profile::circle(10),
+                               {.segments = 180, .scale = 7, .caps = true});
     wire.colors.resize(wire.positions.size());
     for (size_t i = 0; i < wire.positions.size(); ++i) {
       const float f = wire.positions.size() > 1

@@ -1,7 +1,8 @@
 /** @file
  * Splines and what is swept along them: evaluation, arc-length sampling,
- * parallel-transport frames, the tube, ribbon and banner generators, and
- * projection to a 2D path under a camera.
+ * the two rails (parallel-transport frames and the world-vertical hang),
+ * the profiles a sweep carries, the sweep itself, and projection to a 2D
+ * path under a camera.
  */
 
 #include "sigilgeometry/mesh/curve/Curve.h"
@@ -230,91 +231,18 @@ std::vector<Frame3> frames(const Spline3& spline, int count, glm::vec3 up) {
   return out;
 }
 
-Mesh tube(const Spline3& spline, const TubeOptions& options) {
-  Mesh out;
-  const int segments = std::max(options.segments, 2);
-  const int sides = std::max(options.sides, 3);
-  const std::vector<Frame3> rail = frames(spline, segments, options.up);
-
-  for (int i = 0; i < segments; ++i) {
-    const Frame3& f = rail[(size_t)i];
-    const float r =
-        options.radius *
-        (options.profile ? std::max(options.profile(f.t), 0.0f) : 1.0f);
-    for (int s = 0; s <= sides; ++s) {  // seam duplicated for clean UVs
-      const float a = (float)s / (float)sides * 2.0f * (float)M_PI;
-      const glm::vec3 dir = f.normal * std::cos(a) + f.binormal * std::sin(a);
-      out.positions.push_back(f.position + dir * r);
-      out.normals.push_back(dir);
-      out.uvs.emplace_back((float)s / (float)sides, f.t);
-    }
-  }
-  const int ring = sides + 1;
-  for (int i = 0; i + 1 < segments; ++i)
-    for (int s = 0; s < sides; ++s) {
-      const uint32_t a = (uint32_t)(i * ring + s);
-      const uint32_t b = a + 1;
-      const uint32_t c = a + (uint32_t)ring;
-      const uint32_t d = c + 1;
-      out.indices.insert(out.indices.end(), {a, b, d, a, d, c});
-    }
-
-  if (options.caps && !spline.closed) {
-    for (int end = 0; end < 2; ++end) {
-      const Frame3& f = rail[end == 0 ? 0 : rail.size() - 1];
-      const glm::vec3 n = end == 0 ? f.tangent * -1.0f : f.tangent;
-      const uint32_t center = (uint32_t)out.positions.size();
-      out.positions.push_back(f.position);
-      out.normals.push_back(n);
-      out.uvs.emplace_back(0.5f, end == 0 ? 0.0f : 1.0f);
-      const uint32_t ringStart =
-          (uint32_t)((end == 0 ? 0 : segments - 1) * ring);
-      for (int s = 0; s < sides; ++s) {
-        const uint32_t a = ringStart + (uint32_t)s;
-        const uint32_t b = ringStart + (uint32_t)s + 1;
-        if (end == 0)
-          out.indices.insert(out.indices.end(), {center, b, a});
-        else
-          out.indices.insert(out.indices.end(), {center, a, b});
-      }
-    }
-  }
-  return out;
-}
-
-Mesh ribbon(const Spline3& spline, const RibbonOptions& options) {
-  Mesh out;
-  const int segments = std::max(options.segments, 2);
-  const std::vector<Frame3> rail = frames(spline, segments, options.up);
-  for (int i = 0; i < segments; ++i) {
-    const Frame3& f = rail[(size_t)i];
-    const float half =
-        options.width * 0.5f *
-        (options.profile ? std::max(options.profile(f.t), 0.0f) : 1.0f);
-    out.positions.push_back(f.position - f.binormal * half);
-    out.positions.push_back(f.position + f.binormal * half);
-    out.normals.push_back(f.normal);
-    out.normals.push_back(f.normal);
-    out.uvs.emplace_back(0, f.t);
-    out.uvs.emplace_back(1, f.t);
-  }
-  for (int i = 0; i + 1 < segments; ++i) {
-    const uint32_t a = (uint32_t)(i * 2);
-    out.indices.insert(out.indices.end(), {a, a + 1, a + 3, a, a + 3, a + 2});
-  }
-  return out;
-}
-
-Mesh banner(const Spline3& spline, const BannerOptions& options) {
-  Mesh out;
-  const int sections = std::max(options.sections, 2);
-  const float half = options.width * 0.5f;
+std::vector<Frame3> hangFrames(const Spline3& spline, int sections, float head,
+                               float span) {
+  std::vector<Frame3> out;
+  sections = std::max(sections, 2);
+  out.reserve((size_t)sections);
   const auto wrap01 = [](float t) { return t - std::floor(t); };
   glm::vec3 hang = {0, -1, 0};  // carried through vertical stretches
   for (int i = 0; i < sections; ++i) {
     const float f = (float)i / (float)(sections - 1);
-    const float t = wrap01(options.head - options.span + options.span * f);
-    const glm::vec3 p = spline.position(t);
+    const float t = wrap01(head - span + span * f);
+    Frame3 frame;
+    frame.position = spline.position(t);
     glm::vec3 tangent = spline.position(wrap01(t + 0.002f)) -
                         spline.position(wrap01(t - 0.002f));
     const float len = glm::length(tangent);
@@ -323,19 +251,110 @@ Mesh banner(const Spline3& spline, const BannerOptions& options) {
         glm::vec3{0, -1, 0} - tangent * dot(tangent, glm::vec3{0, -1, 0});
     const float downLen = glm::length(down);
     if (downLen > 0.15f) hang = down * (1.0f / downLen);
-    const glm::vec3 normal = cross(hang, tangent);
-    out.positions.push_back(p - hang * half);  // u = 0: top edge
-    out.positions.push_back(p + hang * half);
-    out.normals.push_back(normal);
-    out.normals.push_back(normal);
-    out.uvs.emplace_back(0, f);
-    out.uvs.emplace_back(1, f);
-  }
-  for (int i = 0; i + 1 < sections; ++i) {
-    const uint32_t a = (uint32_t)(i * 2);
-    out.indices.insert(out.indices.end(), {a, a + 1, a + 3, a, a + 3, a + 2});
+    frame.tangent = tangent;
+    frame.binormal = hang;
+    frame.normal = cross(hang, tangent);
+    frame.t = f;
+    out.push_back(frame);
   }
   return out;
+}
+
+namespace profile {
+
+path::Polyline circle(int sides) {
+  path::Polyline out;
+  sides = std::max(sides, 3);
+  out.points.reserve((size_t)sides + 1);
+  // The seam point is emitted twice, at 0 and at a full turn, so the
+  // swept ring's u reaches 1 rather than folding back to vertex zero.
+  for (int s = 0; s <= sides; ++s) {
+    const float a = (float)s / (float)sides * 2.0f * (float)M_PI;
+    // y-down: -cos puts the first point on the frame's normal.
+    out.points.emplace_back(std::sin(a), -std::cos(a));
+  }
+  return out;
+}
+
+path::Polyline line() {
+  path::Polyline out;
+  out.points = {{-0.5f, 0.0f}, {0.5f, 0.0f}};
+  return out;
+}
+
+path::Polyline fromPath(const SkPath& outline, float tolerance) {
+  const std::vector<path::Polyline> contours =
+      path::flatten(outline, tolerance);
+  if (contours.empty()) return {};
+  return contours.front();
+}
+
+}  // namespace profile
+
+Mesh sweep(const std::vector<Frame3>& rail, const path::Polyline& profile,
+           const SweepOptions& options) {
+  Mesh out;
+  const uint32_t ring = (uint32_t)profile.points.size();
+  if (rail.size() < 2 || ring < 2) return out;
+  // A closed profile wraps back onto its first point; an open one ends,
+  // so it spans one quad fewer and its u reaches 1.
+  const uint32_t span = profile.closed ? ring : ring - 1;
+  const auto next = [&](uint32_t k) {
+    return profile.closed ? (k + 1) % ring : k + 1;
+  };
+  const bool geometric = options.normals == SweepOptions::Normals::Geometric;
+  const bool radial = options.normals == SweepOptions::Normals::Radial;
+
+  for (const Frame3& f : rail) {
+    const float size =
+        options.scale *
+        (options.taper ? std::max(options.taper(f.t), 0.0f) : 1.0f);
+    for (uint32_t k = 0; k < ring; ++k) {
+      const glm::vec2 p = profile.points[k];
+      const glm::vec3 offset = f.binormal * p.x - f.normal * p.y;
+      out.positions.push_back(f.position + offset * size);
+      if (!geometric) out.normals.push_back(radial ? offset : f.normal);
+      out.uvs.emplace_back((float)k / (float)span, f.t);
+    }
+  }
+  const uint32_t rings = (uint32_t)rail.size();
+  for (uint32_t i = 0; i + 1 < rings; ++i)
+    for (uint32_t k = 0; k < span; ++k) {
+      const uint32_t a = i * ring + k;
+      const uint32_t b = i * ring + next(k);
+      const uint32_t c = a + ring;
+      const uint32_t d = b + ring;
+      out.indices.insert(out.indices.end(), {a, b, d, a, d, c});
+    }
+
+  if (options.caps) {
+    for (int end = 0; end < 2; ++end) {
+      const Frame3& f = rail[end == 0 ? 0 : rail.size() - 1];
+      const glm::vec3 n = end == 0 ? f.tangent * -1.0f : f.tangent;
+      const uint32_t center = (uint32_t)out.positions.size();
+      out.positions.push_back(f.position);
+      if (!geometric) out.normals.push_back(n);
+      out.uvs.emplace_back(0.5f, end == 0 ? 0.0f : 1.0f);
+      const uint32_t ringStart = (end == 0 ? 0 : rings - 1) * ring;
+      for (uint32_t k = 0; k < span; ++k) {
+        const uint32_t a = ringStart + k;
+        const uint32_t b = ringStart + next(k);
+        if (end == 0)
+          out.indices.insert(out.indices.end(), {center, b, a});
+        else
+          out.indices.insert(out.indices.end(), {center, a, b});
+      }
+    }
+  }
+  if (geometric) out.computeNormals();
+  return out;
+}
+
+Mesh sweep(const Spline3& spline, const path::Polyline& profile,
+           const SweepOptions& options) {
+  SweepOptions railed = options;
+  if (spline.closed) railed.caps = false;  // a loop has no ends to close
+  return sweep(frames(spline, options.segments, options.up), profile, railed);
 }
 
 SkPath project(const Spline3& spline, const camera::Camera& camera,

@@ -1,12 +1,12 @@
 /** @file
  * Benchmarks of the spline features: arc-length sampling and
- * parallel-transport frames by count, and the swept generators — tube,
- * ribbon and banner — by tessellation.
+ * parallel-transport frames by count, and the sweep by profile and
+ * tessellation.
  */
 
 // geometry_mesh_curve_bench — what evaluating a spline evenly costs, what
-// carrying a frame along it adds, and how the three sweeps grow with the
-// rings and sides they emit. Run a Release build; Debug numbers say
+// carrying a frame along it adds, and how a sweep grows with the rings
+// and the profile points it emits. Run a Release build; Debug numbers say
 // nothing.
 
 #include <benchmark/benchmark.h>
@@ -16,6 +16,7 @@
 #include <numbers>
 #include <vector>
 
+using namespace sigil::geometry;
 using namespace sigil::geometry::mesh;
 
 namespace {
@@ -71,54 +72,62 @@ BENCHMARK(BM_Frames)
     ->Unit(benchmark::kMicrosecond)
     ->Complexity(benchmark::oN);
 
-void BM_Tube(benchmark::State& state) {
+void BM_Sweep_Circle(benchmark::State& state) {
   const curve::Spline3 spline = knot(9);
-  curve::TubeOptions options;
-  options.segments = (int)state.range(0);
-  options.sides = (int)state.range(1);
+  const path::Polyline profile = curve::profile::circle((int)state.range(1));
+  const curve::SweepOptions options{.segments = (int)state.range(0),
+                                    .scale = 6};
   Mesh last;
   for ([[maybe_unused]] auto iteration : state) {
-    last = curve::tube(spline, options);
+    last = curve::sweep(spline, profile, options);
     benchmark::DoNotOptimize(last.positions.data());
   }
   countVertices(state, last);
 }
-BENCHMARK(BM_Tube)
+BENCHMARK(BM_Sweep_Circle)
     ->ArgsProduct({{32, 256, 1024}, {6, 24}})
     ->ArgNames({"segments", "sides"})
     ->Unit(benchmark::kMicrosecond)
     ->Complexity(benchmark::oN);
 
-void BM_Ribbon(benchmark::State& state) {
+void BM_Sweep_Line(benchmark::State& state) {
   const curve::Spline3 spline = knot(9);
-  curve::RibbonOptions options;
-  options.segments = (int)state.range(0);
+  const path::Polyline profile = curve::profile::line();
+  const curve::SweepOptions options{
+      .segments = (int)state.range(0),
+      .scale = 24,
+      .normals = curve::SweepOptions::Normals::Frame};
   Mesh last;
   for ([[maybe_unused]] auto iteration : state) {
-    last = curve::ribbon(spline, options);
+    last = curve::sweep(spline, profile, options);
     benchmark::DoNotOptimize(last.positions.data());
   }
   countVertices(state, last);
 }
-BENCHMARK(BM_Ribbon)
+BENCHMARK(BM_Sweep_Line)
     ->RangeMultiplier(4)
     ->Range(32, 2048)
     ->Unit(benchmark::kMicrosecond)
     ->Complexity(benchmark::oN);
 
-void BM_Banner(benchmark::State& state) {
+// The hung rail, which walks the loop in parameter rather than by arc
+// length and re-derives its own tangents: a different cost per section
+// from the transported rail above.
+void BM_Sweep_Hang(benchmark::State& state) {
   const curve::Spline3 spline = knot(9);
-  curve::BannerOptions options;
-  options.sections = (int)state.range(0);
-  options.span = 0.4f;
+  const path::Polyline profile = curve::profile::line();
+  const curve::SweepOptions options{
+      .scale = 24, .normals = curve::SweepOptions::Normals::Frame};
+  const int sections = (int)state.range(0);
   Mesh last;
   for ([[maybe_unused]] auto iteration : state) {
-    last = curve::banner(spline, options);
+    last = curve::sweep(curve::hangFrames(spline, sections, 1, 0.4f), profile,
+                        options);
     benchmark::DoNotOptimize(last.positions.data());
   }
   countVertices(state, last);
 }
-BENCHMARK(BM_Banner)
+BENCHMARK(BM_Sweep_Hang)
     ->RangeMultiplier(4)
     ->Range(32, 2048)
     ->Unit(benchmark::kMicrosecond)

@@ -57,7 +57,7 @@ TEST(Pop, CookMeshFormsAModelFromAChain) {
 TEST(Pop, SweptSinksBendWithTheChain) {
   // The chain's cooked POINTS are the path a sweep follows, so any operator
   // that moves points also bends every swept surface built from the chain.
-  // The same description feeds a tube and a ribbon unchanged.
+  // The same description feeds a round profile and a flat one unchanged.
   pop::SplineScatter scatter;
   for (int i = 0; i < 10; ++i) {
     const float a = (float)i / 10.0f * 2.0f * (float)M_PI;
@@ -68,8 +68,8 @@ TEST(Pop, SweptSinksBendWithTheChain) {
   scatter.span = 1;
   pop::Chain chain = {scatter, pop::Noise{pop::Lane::P, 40, 0.01f, 5}};
 
-  const Mesh tube =
-      pop::cookTube(chain, 12, 10, {.closed = true, .segments = 200});
+  const Mesh tube = pop::cookSweep(chain, curve::profile::circle(10), true,
+                                   {.segments = 200, .scale = 12});
   EXPECT_GT(tube.triangleCount(), 1000u);
   glm::vec3 lo, hi;
   tube.bounds(&lo, &hi);
@@ -79,11 +79,15 @@ TEST(Pop, SweptSinksBendWithTheChain) {
   EXPECT_NEAR(hi.x - lo.x, 624, 130);
 
   const Mesh ribbon =
-      pop::cookRibbon(chain, 60, {.closed = true, .segments = 160});
+      pop::cookSweep(chain, curve::profile::line(), true,
+                     {.segments = 160,
+                      .scale = 60,
+                      .normals = curve::SweepOptions::Normals::Frame});
   EXPECT_GT(ribbon.triangleCount(), 200u);
 
   chain.emplace_back(pop::Math{pop::Lane::P, {1, 1, 1, 1}, {0, 900, 0, 0}});
-  const Mesh lifted = pop::cookTube(chain, 12, 10, {.closed = true});
+  const Mesh lifted = pop::cookSweep(chain, curve::profile::circle(10), true,
+                                     {.segments = 160, .scale = 12});
   glm::vec3 lo2, hi2;
   lifted.bounds(&lo2, &hi2);
   EXPECT_GT(lo2.y, hi.y + 400.0f) << "value edit re-forms the model high";
@@ -98,7 +102,8 @@ TEST(Pop, ArtistSpellingReadsLikeTouchDesigner) {
   // The builder spelling is one expression: an entry verb, the operators,
   // and a terminal verb that cooks. Every parameter has a default, so a
   // chain can be written without naming any of them.
-  const Mesh wobble = pop::on(loop).count(64).noise(30).tube(10, 8, true);
+  const Mesh wobble = pop::on(loop).count(64).noise(30).sweep(
+      curve::profile::circle(8), true, {.segments = 160, .scale = 10});
   EXPECT_GT(wobble.triangleCount(), 500u);
 
   // The builder holds nothing the chain does not: it converts to a
@@ -154,7 +159,8 @@ TEST(Pop, SweepCarriesAnyProfileAlongTheChain) {
   }
   starProfile.close();
   const Mesh swept = pop::on(loop).count(60).smooth(0.4f).sweep(
-      starProfile.detach(), true, 120);
+      curve::profile::fromPath(starProfile.detach()), true,
+      {.segments = 120, .normals = curve::SweepOptions::Normals::Geometric});
   EXPECT_GT(swept.triangleCount(), 1500u);
   glm::vec3 lo, hi;
   swept.bounds(&lo, &hi);
@@ -185,7 +191,12 @@ TEST(Pop, ChainsComposeIntoEachOther) {
   }
   EXPECT_GT(yMax - yMin, 12.0f);
   // And any sink still applies to the composition.
-  EXPECT_GT(pop::on(spine).count(80).tube(6, 8, true).triangleCount(), 500u);
+  EXPECT_GT(
+      pop::on(spine)
+          .count(80)
+          .sweep(curve::profile::circle(8), true, {.segments = 160, .scale = 6})
+          .triangleCount(),
+      500u);
 }
 
 TEST(Pop, ChainsSeedFromFormedModels) {
@@ -197,7 +208,8 @@ TEST(Pop, ChainsSeedFromFormedModels) {
     const float a = (float)i / 8.0f * 2.0f * (float)M_PI;
     loop.emplace_back(200.0f * std::cos(a), 0, 200.0f * std::sin(a));
   }
-  const Mesh cable = pop::on(loop).count(64).noise(20).tube(9, 8, true);
+  const Mesh cable = pop::on(loop).count(64).noise(20).sweep(
+      curve::profile::circle(8), true, {.segments = 160, .scale = 9});
   const Cloud dust = pop::on(cable, 500).cloud();
   EXPECT_EQ(dust.size(), 500u);
   glm::vec3 mLo, mHi, dLo, dHi;
@@ -395,10 +407,14 @@ TEST(Pop, OrderPutsTheWholePointInDrawOrder) {
     EXPECT_EQ(falling.positions[i], rising.positions[rising.size() - 1 - i]);
 
   // 4. Point order IS the swept path, so sorting the same points forms a
-  // genuinely different tube. Sorting is therefore an authoring operation
+  // genuinely different cable. Sorting is therefore an authoring operation
   // with geometric consequences, not just a draw-order adjustment.
-  const Mesh unsorted = pop::cookTube(describe(false, false), 4);
-  const Mesh threaded = pop::cookTube(describe(true, false), 4);
+  const Mesh unsorted =
+      pop::cookSweep(describe(false, false), curve::profile::circle(), false,
+                     {.segments = 160, .scale = 4, .caps = true});
+  const Mesh threaded =
+      pop::cookSweep(describe(true, false), curve::profile::circle(), false,
+                     {.segments = 160, .scale = 4, .caps = true});
   ASSERT_EQ(unsorted.positions.size(), threaded.positions.size());
   float drift = 0;
   for (size_t i = 0; i < unsorted.positions.size(); ++i)
@@ -536,7 +552,9 @@ TEST(Pop, PromoteCarriesPointLanesOntoPrimitives) {
   // above are not comparing a constant against itself.
   EXPECT_GT((*color)[model.triangleCount() - 1].b, (*color)[0].b + 0.5f);
 
-  EXPECT_TRUE(pop::cookTube(chain, 4).prims.empty());
+  EXPECT_TRUE(pop::cookSweep(chain, curve::profile::circle(), false,
+                             {.segments = 160, .scale = 4, .caps = true})
+                  .prims.empty());
 }
 
 namespace {
@@ -854,4 +872,103 @@ TEST(Pop, FieldsAreAddressableByName) {
   EXPECT_FALSE(pop::setField(promote, "to", 1.0f));
   pop::Op given = pop::PointSet{};
   EXPECT_FALSE(pop::getField(given, "count"));
+}
+
+// The swept sink cooks the chain's points into a Catmull-Rom path and
+// hands that, with the profile, to curve::sweep. Below it is written
+// longhand — the profile flattened off an SkPath, wrapped back onto its
+// first point, rings formed in place and normals averaged from the
+// triangles — so the forwarding can be held against it. The topology
+// and every uv agree exactly. The positions agree to within one
+// rounding step, and the direction of that step is deliberate: the
+// primitive assembles the profile's offset before adding the frame's
+// position, where the longhand adds the position first and so spends a
+// bit of the offset's precision on a spine far from the origin.
+namespace {
+
+Mesh referenceSweep(const pop::Chain& chain, const SkPath& profile, bool closed,
+                    int segments) {
+  curve::Spline3 spine;
+  spine.points = pop::cook(chain).positions;
+  spine.closed = closed;
+  if (spine.points.size() < 2) return {};
+  const std::vector<path::Polyline> contours = path::flatten(profile, 0.4f);
+  if (contours.empty() || contours[0].points.size() < 3) return {};
+  const std::vector<glm::vec2>& ring = contours[0].points;
+  const std::vector<curve::Frame3> rail =
+      curve::frames(spine, std::max(segments, 2), {0, 1, 0});
+
+  Mesh out;
+  const uint32_t n = (uint32_t)ring.size();
+  for (const curve::Frame3& f : rail)
+    for (uint32_t i = 0; i < n; ++i) {
+      const glm::vec2 p = ring[i];
+      out.positions.push_back(f.position + f.binormal * p.x - f.normal * p.y);
+      out.uvs.emplace_back((float)i / (float)n, f.t);
+    }
+  for (uint32_t s = 0; s + 1 < (uint32_t)rail.size(); ++s)
+    for (uint32_t i = 0; i < n; ++i) {
+      const uint32_t j = (i + 1) % n;
+      const uint32_t a = s * n + i, b = s * n + j;
+      const uint32_t c = (s + 1) * n + i, d = (s + 1) * n + j;
+      out.indices.insert(out.indices.end(), {a, b, d, a, d, c});
+    }
+  out.computeNormals();
+  return out;
+}
+
+SkPath starProfile() {
+  SkPathBuilder b;
+  for (int i = 0; i < 10; ++i) {
+    const float a = (float)i / 10.0f * 2.0f * (float)M_PI;
+    const float r = (i % 2 == 0) ? 24.0f : 10.0f;
+    const SkPoint p = {std::cos(a) * r, std::sin(a) * r};
+    if (i == 0)
+      b.moveTo(p);
+    else
+      b.lineTo(p);
+  }
+  b.close();
+  return b.detach();
+}
+
+}  // namespace
+
+TEST(Pop, SweptSinkForwardsToTheSweptPrimitive) {
+  std::vector<glm::vec3> loop;
+  for (int i = 0; i < 8; ++i) {
+    const float a = (float)i / 8.0f * 2.0f * (float)M_PI;
+    loop.emplace_back(220.0f * std::cos(a), 0, 220.0f * std::sin(a));
+  }
+  const pop::Chain chain = pop::on(loop).count(60).noise(18).smooth(0.4f);
+
+  for (const bool closed : {false, true}) {
+    const Mesh made = pop::cookSweep(
+        chain, curve::profile::fromPath(starProfile()), closed,
+        {.segments = 120, .normals = curve::SweepOptions::Normals::Geometric});
+    const Mesh want = referenceSweep(chain, starProfile(), closed, 120);
+    ASSERT_EQ(made.positions.size(), want.positions.size());
+    ASSERT_EQ(made.indices, want.indices);
+    for (size_t i = 0; i < want.positions.size(); ++i) {
+      // A float carrying a coordinate of a few hundred steps by about
+      // 3e-5; the bound is two of those, and the normals are unit.
+      EXPECT_LT(glm::length(made.positions[i] - want.positions[i]), 1e-4f)
+          << "position " << i;
+      EXPECT_LT(glm::length(made.normals[i] - want.normals[i]), 1e-4f)
+          << "normal " << i;
+      EXPECT_EQ(made.uvs[i], want.uvs[i]) << "uv " << i;
+    }
+  }
+
+  // The sink is the chain's only geometric commitment: the same chain,
+  // a different profile, and the model changes without the description
+  // being touched.
+  const Mesh cable = pop::cookSweep(chain, curve::profile::circle(10), true,
+                                    {.segments = 120, .scale = 9});
+  EXPECT_EQ(cable.vertexCount(), 120u * 11u);
+  EXPECT_EQ(cable.normals.size(), cable.vertexCount());
+  // A chain too short to be a path forms nothing rather than a
+  // degenerate mesh.
+  EXPECT_TRUE(pop::cookSweep(pop::Chain{}, curve::profile::circle(), false)
+                  .positions.empty());
 }

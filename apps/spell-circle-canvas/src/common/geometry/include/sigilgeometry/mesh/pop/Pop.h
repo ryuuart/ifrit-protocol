@@ -24,13 +24,6 @@
 
 namespace sigil::geometry::mesh {
 
-/** The dials of pop's swept sinks (tube, ribbon, sweep); spelled
- *  pop::SweepSinkOptions at the call site. */
-struct PopSweepSinkOptions {
-  bool closed = false;  ///< join the last cooked point to the first
-  int segments = 160;   ///< resampled cross-sections along the path
-};
-
 /** The point-operator language: a scope holding the vocabulary rather
  *  than a type anyone instantiates. Inside it are the attribute
  *  references operators address, the operator descriptions themselves,
@@ -131,10 +124,10 @@ struct pop {
     bool operator==(const Math&) const = default;
   };
   /** Filter: neighborhood smoothing — each point eases toward its
-   *  chain-order neighbors' midpoint (ends clamp). The op the ribbon
-   *  example demanded: it heals Noise kinks before a swept sink so
-   *  parallel-transport frames stop tearing. Double-buffered on both
-   *  executors, so order can't leak. */
+   *  chain-order neighbors' midpoint (ends clamp). It heals Noise
+   *  kinks before a swept sink so parallel-transport frames stop
+   *  tearing. Double-buffered on both executors, so order can't
+   *  leak. */
   struct Relax {
     AttrRef lane = Lane::P;
     float strength = 0.5f;  ///< 0 = off, 1 = full midpoint
@@ -143,7 +136,7 @@ struct pop {
     bool operator==(const Relax&) const = default;
   };
   /** Generator: scatter count points ON a formed model's surface.
-   *  Seeds a chain from a Mesh — sweep a tube, scatter on it, form
+   *  Seeds a chain from a Mesh — sweep a cable, scatter on it, form
    *  again: pops build on pops' results. CPU-cooked today (the GPU
    *  executor declines mesh-led chains). */
   struct MeshScatter {
@@ -364,8 +357,9 @@ struct pop {
    *  op afterwards and re-cook. Sinks form directly:
    *
    *    Mesh comet = pop::on(loop).count(9000).window(0.9f, 0.3f)
-   *                     .spread(40).noise(18)
-   *                     .fade(pink, cyan).tube(9);
+   *                     .spread(40).noise(18).fade(pink, cyan)
+   *                     .sweep(curve::profile::circle(), false,
+   *                            {.segments = 160, .scale = 9});
    */
   class Builder {
    public:
@@ -488,7 +482,7 @@ struct pop {
       m_chain.emplace_back(Promote{std::move(from), std::move(to)});
       return *this;
     }
-    /** Heal kinks: neighborhood smoothing on P (the ribbon-saver). */
+    /** Heal kinks: neighborhood smoothing on P (the sweep-saver). */
     Builder& smooth(float strength = 0.5f, int iterations = 2) {
       m_chain.emplace_back(Relax{Lane::P, strength, iterations});
       return *this;
@@ -619,11 +613,8 @@ struct pop {
     // The sinks (the executor below runs them): pick the former.
     Cloud cloud() const;
     Mesh stamps(const Mesh& stamp) const;
-    Mesh tube(float radius, int sides = 12, bool closed = false,
-              int segments = 160) const;
-    Mesh ribbon(float width, bool closed = false, int segments = 160) const;
-    Mesh sweep(const SkPath& profile, bool closed = false,
-               int segments = 160) const;
+    Mesh sweep(const path::Polyline& profile, bool closed = false,
+               const curve::SweepOptions& options = {.segments = 160}) const;
 
    private:
     static glm::vec4 componentWeight(int component) {
@@ -698,43 +689,27 @@ struct pop {
    *  painter and place in SigilWorld alike. */
   static Mesh cookMesh(const Chain& chain, const Mesh& stamp);
 
-  /** Swept sinks: the chain's cooked points become the PATH — a
-   *  Catmull-Rom through P in chain order, so Jitter/Noise/Math edits
-   *  BEND the sweep — and the curve generators form the model. The
-   *  same nondestructive description, a different former. */
-  using SweepSinkOptions = PopSweepSinkOptions;
-  static Mesh cookTube(const Chain& chain, float radius, int sides = 12,
-                       const SweepSinkOptions& options = {});
-  static Mesh cookRibbon(const Chain& chain, float width,
-                         const SweepSinkOptions& options = {});
-  /** The general former: ANY closed 2D outline (a star, a squircle, an
-   *  Ops.h recipe's result) becomes the cross-section, swept along the
-   *  chain's cooked path — tube generalized to the whole shape
-   *  vocabulary. */
-  static Mesh cookSweep(const Chain& chain, const SkPath& profile,
-                        const SweepSinkOptions& options = {});
+  /** The swept sink: the chain's cooked points become the PATH — a
+   *  Catmull-Rom through P in chain order, closed by @p closed, so
+   *  Jitter/Noise/Math edits BEND the sweep — and curve::sweep carries
+   *  @p profile along it. Any 2D cross-section works, from
+   *  curve::profile::circle() to a star flattened out of an Ops.h
+   *  recipe. The same nondestructive description, a different former. */
+  static Mesh cookSweep(const Chain& chain, const path::Polyline& profile,
+                        bool closed = false,
+                        const curve::SweepOptions& options = {.segments = 160});
 };
 
 inline Cloud pop::Builder::cloud() const { return pop::cook(m_chain); }
 inline Mesh pop::Builder::stamps(const Mesh& stamp) const {
   return pop::cookMesh(m_chain, stamp);
 }
-inline Mesh pop::Builder::tube(float radius, int sides, bool closed,
-                               int segments) const {
-  return pop::cookTube(m_chain, radius, sides,
-                       {.closed = closed, .segments = segments});
-}
-inline Mesh pop::Builder::ribbon(float width, bool closed, int segments) const {
-  return pop::cookRibbon(m_chain, width,
-                         {.closed = closed, .segments = segments});
-}
 inline pop::Builder::Builder(const Chain& upstream)
     : Builder(pop::cook(upstream).positions) {}
 
-inline Mesh pop::Builder::sweep(const SkPath& profile, bool closed,
-                                int segments) const {
-  return pop::cookSweep(m_chain, profile,
-                        {.closed = closed, .segments = segments});
+inline Mesh pop::Builder::sweep(const path::Polyline& profile, bool closed,
+                                const curve::SweepOptions& options) const {
+  return pop::cookSweep(m_chain, profile, closed, options);
 }
 
 }  // namespace sigil::geometry::mesh

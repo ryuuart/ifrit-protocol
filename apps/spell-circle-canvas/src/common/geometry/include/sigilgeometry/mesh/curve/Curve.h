@@ -6,11 +6,11 @@
  * re-evaluate; nothing downstream is baked until asked. Three
  * consumers, all regenerable from the same spline:
  *
- *  - sample()/frames(): positions and parallel-transport frames
- *    (tangent/normal/binormal that never flip on the way around a
- *    knot) — the spine for placement, cameras, and point clouds;
- *  - tube()/ribbon(): swept Mesh geometry, radius optionally a
- *    profile function of t — 3D strokes for Space and SigilWorld;
+ *  - sample()/frames()/hangFrames(): positions and moving frames —
+ *    the RAIL, and the spine for placement, cameras and point clouds;
+ *  - sweep(): one 2D profile carried along that rail into a Mesh —
+ *    a circle makes a tube, a two-point line makes a ribbon, any
+ *    flattened outline makes an extrusion;
  *  - project(): the curve as a 2D SkPath under a Camera — draw the
  *    SAME spline as a glowing overlay over the scene that swept it.
  *
@@ -27,6 +27,7 @@
 
 #include "sigilgeometry/mesh/Mesh.h"
 #include "sigilgeometry/mesh/camera/Camera.h"
+#include "sigilgeometry/path/Polyline.h"
 
 namespace sigil::geometry::mesh::curve {
 
@@ -72,51 +73,83 @@ struct Frame3 {
 std::vector<Frame3> frames(const Spline3& spline, int count,
                            glm::vec3 up = {0, 1, 0});
 
-/** How `tube()` sweeps its circle: the cross-section radius and its
- *  profile over the curve, the tessellation along and around, and
- *  whether open ends are closed off. */
-struct TubeOptions {
-  float radius = 6;
-  /** Radius profile over t (multiplies `radius`); null = constant. */
-  std::function<float(float t)> profile;
-  int segments = 96;  ///< rings along the curve
-  int sides = 12;     ///< vertices around each ring
-  bool caps = true;   ///< close open tube ends with fans
-  glm::vec3 up = {0, 1, 0};
+/** @p count frames over a window of a CLOSED spline, walked evenly in
+ *  the loop PARAMETER: the towed-banner rail. `head` is the leading
+ *  edge and `span` the length trailing it, so advancing `head` alone
+ *  tows the window around the curve. Each frame's binormal is the
+ *  world-vertical hang direction — the component of straight down
+ *  perpendicular to the tangent, carried unchanged through stretches
+ *  where the curve is too near vertical to define one — so a profile
+ *  swept on this rail never rolls upside-down the way one on
+ *  parallel-transport frames does. `t` is the position in the window,
+ *  0 at the tail and 1 at the head, not the curve parameter. */
+std::vector<Frame3> hangFrames(const Spline3& spline, int sections,
+                               float head = 1, float span = 1);
+
+/** The cross-sections `sweep()` carries. A profile is a plain
+ *  `path::Polyline` in Skia's y-down 2D space — x runs along the
+ *  frame's binormal, y against its normal, the convention
+ *  `mesh::extrude()` uses — so any outline reaches a sweep by being
+ *  flattened. The two below are UNIT shapes: `SweepOptions::scale`
+ *  sizes them, which is why a radius or a width is not a parameter
+ *  here. */
+namespace profile {
+
+/** The unit circle, one point per @p sides step around it plus the
+ *  seam point DUPLICATED — the contour is open and its first and last
+ *  points coincide — because the swept surface's u must run 0 to 1
+ *  across the seam instead of wrapping back onto vertex zero. */
+path::Polyline circle(int sides = 12);
+
+/** The unit-width segment across the frame's binormal: two points,
+ *  open. Swept, it is a flat band — pair it with
+ *  `SweepOptions::Normals::Frame` so the band faces its rail. */
+path::Polyline line();
+
+/** The first contour of @p outline, flattened. The door from the 2D
+ *  shape vocabulary: a star, a squircle, an `ops::PathOp` recipe's
+ *  result. A closed outline sweeps as a wrapped ring; an open one
+ *  sweeps as a strip. */
+path::Polyline fromPath(const SkPath& outline, float tolerance = 0.4f);
+
+}  // namespace profile
+
+/** How a profile rides a rail. */
+struct SweepOptions {
+  /** Where each swept vertex's normal comes from. */
+  enum class Normals : uint8_t {
+    Radial,     ///< the profile offset itself — a round profile's outward
+    Frame,      ///< the rail's normal — a flat profile's facing
+    Geometric,  ///< averaged from the formed triangles — any profile
+  };
+
+  int segments = 96;  ///< rings along the spline, when a spline is given
+  float scale = 1;    ///< the profile's size
+  /** Size over t (multiplies `scale`); null = constant. */
+  std::function<float(float t)> taper;
+  glm::vec3 up = {0, 1, 0};  ///< seeds the rail's first normal
+  Normals normals = Normals::Radial;
+  /** Close the rail's two ends with a fan to the ring's centre. The
+   *  fan assumes a convex profile, and a closed spline has no ends,
+   *  so the spline overload drops it for one. */
+  bool caps = false;
 };
 
-/** Sweep a circle along the spline. UVs: u around, v = t. */
-Mesh tube(const Spline3& spline, const TubeOptions& options = {});
+/** Carry @p profile along @p rail into one Mesh. THE swept primitive:
+ *  a circle profile forms a tube, a two-point line forms a ribbon or
+ *  a banner, a flattened outline forms an extrusion along the curve.
+ *  Each ring is the profile placed on one frame — x along the
+ *  binormal, y against the normal — scaled by `scale` times `taper`
+ *  at that frame's t. u runs across the profile and v is the frame's
+ *  t. A GPU executor forming the same geometry writes exactly these
+ *  vertices from the same rail. */
+Mesh sweep(const std::vector<Frame3>& rail, const path::Polyline& profile,
+           const SweepOptions& options = {});
 
-/** How `ribbon()` sweeps its band. Unlike a tube the band has a
- *  facing, so `up` seeds the frames that decide which way it turns. */
-struct RibbonOptions {
-  float width = 24;
-  std::function<float(float t)> profile;
-  int segments = 96;
-  glm::vec3 up = {0, 1, 0};  ///< the ribbon faces its frames' normal
-};
-
-/** Sweep a flat band along the spline (a 3D brush stroke). */
-Mesh ribbon(const Spline3& spline, const RibbonOptions& options = {});
-
-/** How `banner()` cuts its cloth. The band covers only a window of the
- *  closed spline: `head` is the leading edge in loop parameter and
- *  `span` the length trailing it, so advancing `head` alone tows the
- *  banner around the curve. */
-struct BannerOptions {
-  float width = 24;
-  float head = 1;  ///< window end, in loop parameter
-  float span = 1;  ///< window length back from head
-  int sections = 160;
-};
-/** A gravity-rigged band over a window of a CLOSED spline — the
- *  towed-banner rig: the cloth's width hangs world-vertical off the
- *  tangent (hysteresis through vertical stretches), so it never rolls
- *  upside-down on a ball winding the way parallel-transport frames
- *  do. u = 0 is the TOP edge, v runs tail -> head over the window.
- *  The CPU twin of SigilWorld's GPU sweep kernel. */
-Mesh banner(const Spline3& spline, const BannerOptions& options = {});
+/** The same sweep over a spline, whose parallel-transport frames are
+ *  the rail (`segments` of them, seeded by `up`). */
+Mesh sweep(const Spline3& spline, const path::Polyline& profile,
+           const SweepOptions& options = {});
 
 /** The spline as a 2D path under @p camera — points behind the near
  *  plane split the path into separate contours. */
