@@ -1,4 +1,4 @@
-#include "support/CoreTestSupport.h"
+#include "support/BrushTestSupport.h"
 
 namespace {
 
@@ -425,9 +425,6 @@ TEST(ComposeBand, StrokePassesDressABandLikeAnyShape) {
 
 #include <type_traits>
 
-// ---------------------------------------------------------------------------
-// Stage two: brush kinds, composites, strands, crossings, the shaper seam.
-
 namespace {
 
 /** Two straight strands that cross once, as raw geometry. */
@@ -524,6 +521,7 @@ TEST(ComposeCrossings, TheRuleLadderClimbs) {
 }
 
 namespace {
+
 /** Strand 0 over strand 1 at every crossing — used where the point is that
  *  the REPAIR works, not which rule chose it. */
 struct EveryCrossingRedOnTop {
@@ -540,6 +538,7 @@ struct EverySecondStrandWins {
     return c.a == winner ? Order::Over : Order::Under;
   }
 };
+
 }  // namespace
 
 TEST(ComposeCrossings, CustomRulesAreComparableValues) {
@@ -1043,9 +1042,6 @@ TEST(ComposeR1Animate, ToAloneHasNoEntranceAndFromToDoes) {
   EXPECT_LT(mountedOpacity(true), 60) << "from().to() is a mount entrance";
 }
 
-// ---- 2. isAnimated()
-// ---------------------------------------------------------
-
 namespace {
 
 /** A scheme that declares its volatility with the one recognised word.
@@ -1060,6 +1056,7 @@ struct SaysAnimated {
   }
   bool operator==(const SaysAnimated&) const = default;
 };
+
 /** The same scheme spelling a NEAR-MISS of that word. It must not satisfy
  *  the concept: duck typing means a scheme spelling it wrongly is read as
  *  static, its node is cached, and it stops animating with no diagnostic —
@@ -1163,19 +1160,8 @@ TEST(ComposeR1Ribbon, ProfileRibbonPaintsItsBand) {
   EXPECT_EQ(host.pixel(90, 70), SK_ColorBLACK) << "20px off it, outside";
 }
 
-// ---- varying ribbon width as a Profile value -------------------------------
-//
-// A ribbon's width can come from `widthStart`/`widthEnd`, which sample the
-// contour and zip two point lists, or from a Profile law, which builds rails
-// through `profileOffset` and takes real corner joins. The two are different
-// constructions, so they are not expected to be byte identical at corners.
-//
-// What is checked here is everything an eye reading two plates cannot: that
-// away from corners the two agree to the pixel, that a px-keyed law holds
-// its position under a reveal, and that a Profile-carrying ribbon is
-// genuinely comparable.
-
 namespace {
+
 /** The linear taper, spelled as a law on the profile seam. It is exactly
  *  what `widthStart`/`widthEnd` mean, which is what lets the two
  *  constructions be compared on the same picture. */
@@ -1244,6 +1230,7 @@ float centreAt(Host& host, int x) {
     }
   return lo < 0 ? -1.0f : 0.5f * (float)(lo + hi);
 }
+
 }  // namespace
 
 TEST(ComposeWidthProfile, StraightRunsAgreeWithTheLaneTheyReplaced) {
@@ -1404,6 +1391,7 @@ TEST(ComposeWidthProfile, TheLastNeverPruneRibbonsCanPruneNow) {
 }
 
 namespace {
+
 /** A law that is NaN over one short window — astral_tome's
  *  `0.40 + 0.60·sqrt(sin(π·along))` in miniature, where float rounding
  *  made sin(π·1.0f) dip to −8.7e-08 and sqrt of it NaN. */
@@ -1414,6 +1402,7 @@ struct NanAtMidLaw {
   float max() const { return 20.0f; }
   bool operator==(const NanAtMidLaw&) const = default;
 };
+
 }  // namespace
 
 TEST(ComposeWidthProfile, ANonFiniteSamplePinchesInsteadOfDeletingTheBand) {
@@ -1452,23 +1441,6 @@ TEST(ComposeWidthProfile, ANonFiniteSamplePinchesInsteadOfDeletingTheBand) {
   EXPECT_LT(nan[2], finite[2])
       << "the NaN sample did not pinch — is the guard resolving it to a "
          "full-width value?";
-}
-
-// ---- one namespace, one name per brush kind -------------------------------
-
-TEST(ComposeR3Brush, TheFoldIsOneNamespaceAndOneNamePerKind) {
-  // Every brush kind answers to exactly one name, under `brush::`, with no
-  // suffix and no second namespace.
-  const brush::Ribbon taught = brush::taper(10, 2, red());
-  EXPECT_FLOAT_EQ(taught.widthStart, 10.0f);
-  // The taught constructor is the PROFILE one.
-  const brush::Ribbon profiled = brush::ribbon(strand::offset(9.0f), red());
-  EXPECT_TRUE(profiled.hasProfile());
-  EXPECT_FLOAT_EQ(profiled.bleed(), 9.0f);
-  // The kinds are values under the taught spelling, nothing else.
-  static_assert(std::is_default_constructible_v<brush::Pattern>);
-  static_assert(std::is_default_constructible_v<brush::Scatter>);
-  static_assert(std::is_default_constructible_v<brush::Art>);
 }
 
 // ---- 6. the derive family --------------------------------------------------
@@ -1672,30 +1644,6 @@ TEST(ComposeR1Wrap, WrapWindowsParticipateInReconcilerEquality) {
   EXPECT_TRUE(spans::wrap(0.1f, 0.4f) == spans::wrap(0.1f, 0.4f));
   EXPECT_FALSE(spans::wrap(0.1f, 0.4f) == spans::wrap(0.1f, 0.5f));
   EXPECT_FALSE(spans::wrap(0.1f, 0.4f) == spans::range(0.1f, 0.4f));
-}
-
-// ---- 8. cornerAlign is a required argument --------------------------------
-
-TEST(ComposeR1Corner, AlignmentCannotBeOmitted) {
-  // Corner alignment has no defensible default — bisector and outgoing are
-  // both right for different marks — so it is required by the type system
-  // rather than defaulted and warned about. There is no way to describe
-  // corner art without stating it.
-  static_assert(!std::is_default_constructible_v<brush::CornerArt>);
-  static_assert(!std::is_constructible_v<brush::CornerArt, Element>);
-  static_assert(
-      std::is_constructible_v<brush::CornerArt, Element, brush::CornerAlign>);
-  // And the alignment participates in equality, so two brushes that differ
-  // only in how their corners face do not prune into each other.
-  const Element art = box().width(10).height(10).fill(red());
-  brush::Pattern a, b;
-  a.side = box().width(10).height(2).fill(red());
-  b.side = a.side;
-  a.corner = brush::CornerArt{art, brush::CornerAlign::Bisector};
-  b.corner = brush::CornerArt{art, brush::CornerAlign::Outgoing};
-  EXPECT_FALSE(a == b);
-  b.corner = brush::CornerArt{art, brush::CornerAlign::Bisector};
-  EXPECT_TRUE(a == b);
 }
 
 // ---- the span/gate parity table --------------------------------------------

@@ -191,61 +191,112 @@ add_library(SigilCompose INTERFACE)
 target_link_libraries(SigilCompose INTERFACE
   SigilComposePaint SigilComposeTypography)
 
-# The kernel tests are one binary per feature area, each with a support
-# header under test/support that includes only the headers its translation
-# units use, over the shared harness in test/support/Host.h. Editing an
-# extension header therefore rebuilds the binaries that exercise it and no
-# other. Suites interleave across the files rather than each file holding
-# one suite, so search for a test by name rather than guessing which file
-# owns it.
+# The tests are one binary per library target, each with a support header
+# under test/support that includes only the headers its target exposes,
+# over the shared harness in test/support/Host.h. Editing a catalog header
+# therefore rebuilds the binaries that exercise it and no other. Suites
+# interleave across the files rather than each file holding one suite, and
+# a file named `<Source><Tier>` holds the tier's share of a source file
+# whose suites straddle tiers — so search for a test by name rather than
+# guessing which file owns it.
 #
-# `_compose_test_binary(<name> <sources>...)` registers one such binary.
+# `_compose_test_binary(<name> LIBRARIES <targets>... SOURCES <files>...)`
+# registers one binary over exactly the targets it names — nothing links
+# the umbrella but the docs probes, so a test reaching past its tier fails
+# to link rather than passing on a dependency it was not meant to have.
 function(_compose_test_binary name)
-  add_executable(${name} ${ARGN})
+  cmake_parse_arguments(ARG "" "" "LIBRARIES;SOURCES" ${ARGN})
+  add_executable(${name} ${ARG_SOURCES})
   target_link_libraries(${name} PRIVATE
-    SigilCompose SigilComposeTesting SigilWeavePorts GTest::gtest_main)
+    ${ARG_LIBRARIES} SigilComposeTesting SigilWeavePorts GTest::gtest_main)
   add_test(NAME ${name} COMMAND ${name})
 endfunction()
 
-# The kernel, the authoring grammar, masks and the field walks. The field
+# The kernel: elements, the reconciler, layout, paint, transitions, text,
+# the feed, the instanced leaf, masks and the field walks. Links Core ALONE,
+# which is the proof that the kernel stands without its catalogs. The field
 # walks include ComposeInternal.h AND ComposeRuntime.h (the only test TU
 # that does either) so the equality comparators and the kSlotSpecs table
 # can be reached DIRECTLY — see the file header — which is why this binary
-# alone sees the library's source root. yoga::yogacore is PRIVATE to
-# SigilCompose, so its headers are not on this target's path by
-# inheritance — and ComposeRuntime.h includes <yoga/Yoga.h>. Listed for
-# the INCLUDE PATH; the archive itself was already in the link closure.
+# alone sees the library's source root. yoga::yogacore is PRIVATE to Core,
+# so its headers are not on this target's path by inheritance — and
+# ComposeRuntime.h includes <yoga/Yoga.h>. Listed for the INCLUDE PATH; the
+# archive itself was already in the link closure.
 _compose_test_binary(compose_core_test
-  test/ComposeTestKernel.cpp
-  test/ComposeTestGrammar.cpp
-  test/ComposeTestMask.cpp
-  test/ComposeTestFieldPins.cpp
+  LIBRARIES SigilComposeCore
+  SOURCES
+    test/ComposeTestKernel.cpp
+    test/ComposeTestMask.cpp
+    test/ComposeTestFieldPins.cpp
+    test/ComposeTestContentCore.cpp
+    test/ComposeTestEngineDocsCore.cpp
 )
 target_include_directories(compose_core_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(compose_core_test PRIVATE yoga::yogacore)
 
-# Leaves, feed, routers, layouts, text effects and colour management.
-_compose_test_binary(compose_content_test
-  test/ComposeTestContent.cpp
+# Silhouettes, layouts, routers, rails and travel along a path.
+_compose_test_binary(compose_shape_test
+  LIBRARIES SigilComposeShape
+  SOURCES
+    test/ComposeTestContentShape.cpp
+    test/ComposeTestKernelShape.cpp
+    test/ComposeTestLinesShape.cpp
 )
 
-# Lines, rails, hatches and brushes.
+# Decorations, lines, rails, hatches, brushes, the stroke grammar (which is
+# what the authoring-grammar file exercises), the kit's stroke presets, the
+# brushed masks and the stamped and stroked slices of the other catalogs.
 _compose_test_binary(compose_brush_test
-  test/ComposeTestLines.cpp
-  test/ComposeTestBrushes.cpp
+  LIBRARIES SigilComposeBrush
+  SOURCES
+    test/ComposeTestLines.cpp
+    test/ComposeTestBrushes.cpp
+    test/ComposeTestGrammar.cpp
+    test/ComposeTestContentBrush.cpp
+    test/ComposeTestEngineDocsBrush.cpp
+    test/ComposeTestKernelBrush.cpp
+    test/ComposeTestMaskBrush.cpp
+    test/ComposeTestTextDataBrush.cpp
+    test/ComposeTestKitBrush.cpp
 )
 
-# Text data, the text pass, vertical writing and motion along paths.
+# Patterns, SDF materials, layer styles, the pattern pan and colour
+# management.
+_compose_test_binary(compose_paint_test
+  LIBRARIES SigilComposePaint
+  SOURCES
+    test/ComposeTestBrushesPaint.cpp
+    test/ComposeTestContentPaint.cpp
+    test/ComposeTestEngineDocsPaint.cpp
+    test/ComposeTestGrammarPaint.cpp
+    test/ComposeTestKernelPaint.cpp
+    test/ComposeTestLinesPaint.cpp
+    test/ComposeTestMaskPaint.cpp
+    test/ComposeTestTextDataPaint.cpp
+)
+
+# Text data, the text pass, vertical writing, motion along paths, the
+# text-fx presets, rich spans and the variation drive. Typography is
+# header-only over Core; Shape is here because a path baseline and an
+# upright column are exercised on `shapes::` silhouettes.
 _compose_test_binary(compose_text_test
-  test/ComposeTestTextData.cpp
-  test/ComposeTestTextPass.cpp
-  test/ComposeTestVertical.cpp
-  test/ComposeTestPathMotion.cpp
+  LIBRARIES SigilComposeTypography SigilComposeShape
+  SOURCES
+    test/ComposeTestTextData.cpp
+    test/ComposeTestTextPass.cpp
+    test/ComposeTestVertical.cpp
+    test/ComposeTestPathMotion.cpp
+    test/ComposeTestContentText.cpp
+    test/ComposeTestEngineDocsText.cpp
 )
 
-# Composer queries and the studio.
+# Composer queries, the studio, the feed plate and the instruments that
+# read a cascade back.
 _compose_test_binary(compose_studio_test
-  test/ComposeTestQueriesStudio.cpp
+  LIBRARIES SigilComposeCore SigilComposeKit SigilComposeBrush
+  SOURCES
+    test/ComposeTestQueriesStudio.cpp
+    test/ComposeTestContentStudio.cpp
 )
 
 # The engine walkthroughs and the README's compile check.
@@ -290,8 +341,10 @@ add_test(NAME compose_api_doc_probes_self_test
           --self-test)
 
 _compose_test_binary(compose_docs_test
-  ${COMPOSE_API_DOC_PROBES}
-  test/ComposeTestEngineDocs.cpp
+  LIBRARIES SigilCompose SigilComposeKit
+  SOURCES
+    ${COMPOSE_API_DOC_PROBES}
+    test/ComposeTestEngineDocs.cpp
 )
 # The generated probe TU lives in the binary dir and includes its support
 # header by the same path the hand-written slices use.
@@ -301,7 +354,7 @@ target_include_directories(compose_docs_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}
 # generated variable font, an advance-variant wght instrument. Not
 # fetch_assets — a TEST must never depend on an opt-in target. Defined for
 # the binaries whose tests open it.
-foreach(_t compose_content_test compose_text_test compose_docs_test)
+foreach(_t compose_text_test compose_docs_test)
   target_compile_definitions(${_t} PRIVATE
     SIGILCOMPOSE_TEST_ASSET_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/assets")
 endforeach()
@@ -309,14 +362,13 @@ endforeach()
 # The kit tier (include/sigilcompose/kit/*.h). Separate binary rather than
 # more cases in the kernel binaries: the kit changes nothing in the kernel,
 # so a kit failure must never look like a kernel failure on the dashboard.
+# Links the kit ALONE — the stroke-grammar cases, which need the Brush
+# tier, are the brush binary's.
 add_executable(compose_kit_test
   test/ComposeKitTest.cpp
 )
-# SigilComposeBrush as well: the stroke-grammar cases exercise
-# kit/Strokes.h, which ships with the Brush tier rather than the kit.
 target_link_libraries(compose_kit_test PRIVATE
-  SigilComposeKit SigilComposeBrush SigilComposeTesting SigilWeavePorts
-  GTest::gtest_main)
+  SigilComposeKit SigilComposeTesting SigilWeavePorts GTest::gtest_main)
 add_test(NAME compose_kit_test COMMAND compose_kit_test)
 
 # GPU-backend behavior tests (Graphite Metal): the raster suite proves
@@ -341,7 +393,7 @@ if(TARGET SigilScry)
     test/ComposeWebTest.cpp
   )
   target_link_libraries(compose_web_test PRIVATE
-    SigilCompose SigilScry SigilWeavePorts GTest::gtest_main)
+    SigilComposeWeb SigilWeavePorts GTest::gtest_main)
   ultralight_copy_resources(compose_web_test)
   add_test(NAME compose_web_test COMMAND compose_web_test)
 endif()

@@ -1,25 +1,12 @@
 #pragma once
 // Support for compose_text_test: text data, the text pass, vertical
-// writing and motion along paths.
+// writing, motion along paths and the text-fx presets. The binary links
+// the typography headers and the shape catalog — motion along a path and
+// an upright column are exercised on `shapes::` silhouettes — and nothing
+// that strokes or fills.
 
-#include <include/core/SkPathBuilder.h>
-#include <include/core/SkString.h>
-#include <include/effects/SkImageFilters.h>
-#include <include/effects/SkRuntimeEffect.h>
-#include <sigilcompose/Decorations.h>
-#include <sigilcompose/Instances.h>
-#include <sigilcompose/Lines.h>
-#include <sigilcompose/Material.h>
-#include <sigilcompose/Patterns.h>
-#include <sigilcompose/Shapes.h>
 #include <sigilcompose/TextFx.h>
-#include <sigilcompose/testing/Checks.h>
-#include <sigilweave/Choreograph.h>
+#include <sigilcompose/Typography.h>
+#include <sigilcompose/kit/Legibility.h>
 
-#include <algorithm>
-#include <cmath>
-
-#include "Atlas.h"
-#include "Effects.h"
-#include "Host.h"
-#include "Profile.h"
+#include "ShapeTestSupport.h"

@@ -1,34 +1,47 @@
 #pragma once
-// Support for compose_brush_test: lines, rails, hatches and brushes.
+// Support for compose_brush_test: decorations, lines, rails, hatches and
+// brushes, the kit's stroke grammar and the bordered feed plate, over the
+// shape support. The Brush tier carries the typography headers with it, so
+// text-fx presets are in reach here too.
 
-#include <include/core/SkColorFilter.h>
-#include <include/core/SkPathBuilder.h>
-#include <include/core/SkString.h>
-#include <include/effects/SkImageFilters.h>
-#include <include/effects/SkRuntimeEffect.h>
 #include <sigilcompose/Brushes.h>
 #include <sigilcompose/Decorations.h>
-#include <sigilcompose/LayerStyles.h>
-#include <sigilcompose/Layouts.h>
 #include <sigilcompose/Lines.h>
-#include <sigilcompose/Material.h>
-#include <sigilcompose/Patterns.h>
-#include <sigilcompose/Routers.h>
-#include <sigilcompose/Shapes.h>
 #include <sigilcompose/TextFx.h>
+#include <sigilcompose/Typography.h>
+#include <sigilcompose/kit/Plate.h>
 #include <sigilcompose/kit/Strokes.h>
 
-#include <algorithm>
-#include <cmath>
-
-#include "Effects.h"
-#include "Host.h"
-#include "Profile.h"
-#include "Strokes.h"
+#include "ShapeTestSupport.h"
 
 namespace {
 
-/** Counts distinct painted runs in a vertical scan column. */
+/** A subtree the promoter will actually promote.
+ *
+ *  "Expensive" has to mean over the promotion time threshold. Child count
+ *  alone does not get there — hundreds of thin hairline-stroked boxes are
+ *  still far under the bar — so the panel carries a per-pixel shader across
+ *  its whole area as well as its children. Drop the shader and every
+ *  assertion about this node being promoted quietly becomes an assertion
+ *  about a node that never could be. */
+Element expensivePanel() {
+  Element panel =
+      box().width(180).height(180).fill(Material::sksl(heavyEffect(false)));
+  for (int i = 0; i < 220; ++i) {
+    const float t = (float)i / 220.0f;
+    panel.child(box()
+                    .absolute()
+                    .left(4 + t * 170)
+                    .top(2)
+                    .width(2)
+                    .height(176)
+                    .fill(i % 2 ? green() : red())
+                    .foreground(stroke(0.7f, Fill::color({1, 1, 1, 0.5f}))));
+  }
+  return panel;
+}
+
+/** How many separate runs of `color` a vertical scan crosses. */
 int verticalRuns(Host& host, int x, int y0, int y1, SkColor color) {
   int runs = 0;
   bool in = false;

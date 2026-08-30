@@ -1,10 +1,10 @@
 #pragma once
-// The cache and profile fixtures: a subtree expensive enough to be
-// promoted, a wrapper that keeps its subject painted every frame so it is
-// profiled at all, the row lookup that proves it was, and a whole-surface
-// pixel grab for frame-to-frame comparisons.
+// The profile fixtures: a wrapper that keeps its subject painted every
+// frame so it is profiled at all, the row lookup that proves it was, and a
+// whole-surface pixel grab for frame-to-frame comparisons. The expensive
+// panel those are usually pointed at is stroked, so it lives with the brush
+// support (BrushTestSupport.h).
 
-#include <sigilcompose/Decorations.h>
 #include <sigilcompose/Material.h>
 
 #include <vector>
@@ -13,31 +13,6 @@
 #include "Host.h"
 
 namespace {
-
-/** A subtree the promoter will actually promote.
- *
- *  "Expensive" has to mean over the promotion time threshold. Child count
- *  alone does not get there — hundreds of thin hairline-stroked boxes are
- *  still far under the bar — so the panel carries a per-pixel shader across
- *  its whole area as well as its children. Drop the shader and every
- *  assertion about this node being promoted quietly becomes an assertion
- *  about a node that never could be. */
-Element expensivePanel() {
-  Element panel =
-      box().width(180).height(180).fill(Material::sksl(heavyEffect(false)));
-  for (int i = 0; i < 220; ++i) {
-    const float t = (float)i / 220.0f;
-    panel.child(box()
-                    .absolute()
-                    .left(4 + t * 170)
-                    .top(2)
-                    .width(2)
-                    .height(176)
-                    .fill(i % 2 ? green() : red())
-                    .foreground(stroke(0.7f, Fill::color({1, 1, 1, 0.5f}))));
-  }
-  return panel;
-}
 
 /** THE CACHE-TEST FIXTURE. Use it for anything that asserts on how a node
  *  was cached.

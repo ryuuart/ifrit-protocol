@@ -60,9 +60,11 @@ MotionStats motionOf(const std::vector<SkPoint>& track) {
 }
 
 constexpr int kField = 400;
+
 // Slow enough that a whole pixel cannot hide inside one frame's travel:
 // about half a pixel of arc per frame at this radius.
 constexpr float kPhaseStep = 1.0f / 2400.0f;
+
 constexpr int kFrames = 90;
 
 Element ringAt(Animatable<float> at, float pixelSize) {

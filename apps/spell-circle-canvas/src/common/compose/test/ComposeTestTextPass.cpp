@@ -399,10 +399,8 @@ TEST(TextPass, RidesAVerticalColumn) {
   EXPECT_FALSE(host.composer.beatsOf("col", 0).empty());
 }
 
-// ---------------------------------------------------------------------------
-// The uniform doors the pass leans on, exercised as plain fills.
-
 namespace {
+
 sk_sp<SkRuntimeEffect> wideUniformEffect() {
   // ONE effect for the TU: a compiled-effect material compares by effect
   // pointer, so the equality assertions below need every material built
@@ -420,6 +418,7 @@ sk_sp<SkRuntimeEffect> wideUniformEffect() {
   }();
   return effect;
 }
+
 }  // namespace
 
 TEST(TextPass, WideAndArrayUniformsBindByDeclaredSize) {

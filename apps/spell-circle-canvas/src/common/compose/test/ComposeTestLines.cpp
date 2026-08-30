@@ -78,72 +78,6 @@ TEST(ComposeText, TextAlignCentersWithinWideBox) {
   EXPECT_GT(centerX, startX + 60);  // centered glyphs sit near mid-box
 }
 
-TEST(ComposeRouters, OrbitFollowsTheRing) {
-  const SkPoint center{100, 100};
-  RailRouter router = routers::orbit(center);
-  const SkPoint pts[2] = {{200, 100}, {100, 200}};
-  const SkPath path = router(std::span<const SkPoint>(pts, 2));
-  SkContourMeasureIter iter(path, false);
-  sk_sp<SkContourMeasure> contour = iter.next();
-  ASSERT_TRUE(contour);
-  // Quarter circle r=100: length ~157 (a chord would be ~141), and the
-  // midpoint sits ON the ring.
-  EXPECT_NEAR(contour->length(), 157.1f, 3.0f);
-  SkPoint mid;
-  ASSERT_TRUE(contour->getPosTan(contour->length() / 2, &mid, nullptr));
-  EXPECT_NEAR(SkPoint::Distance(mid, center), 100.0f, 1.5f);
-}
-
-TEST(ComposeStyles, PresetBundlesRenderAndPrune) {
-  Host host(300, 120);
-  auto tree = [] {
-    return box()
-        .row()
-        .gap(20)
-        .padding(20)
-        .child(
-            box().width(120).height(44).corners({22}).style(styles::aquaGel()))
-        .child(box().width(120).height(44).corners({8}).style(
-            styles::y2kChrome()));
-  };
-  host.composer.render(tree());
-  host.frame();
-  // Aqua pill — the gloss reads as: bright lens at the top, the
-  // saturated dark band just under it, and the LIGHT-FROM-BELOW glow at
-  // the bottom (both ends beat the midband).
-  const SkColor aquaTop = host.pixel(80, 28);
-  const SkColor aquaMid = host.pixel(80, 47);
-  const SkColor aquaBottom = host.pixel(80, 60);
-  EXPECT_NE(aquaTop, SK_ColorBLACK);
-  EXPECT_NE(aquaMid, SK_ColorBLACK);
-  auto lum = [](SkColor c) {
-    return SkColorGetR(c) + SkColorGetG(c) + SkColorGetB(c);
-  };
-  EXPECT_GT(lum(aquaTop), lum(aquaMid));
-  EXPECT_GT(lum(aquaBottom), lum(aquaMid));
-  // Chrome bar: the ramp has a hard horizon, brighter above than below.
-  const SkColor chromeTop = host.pixel(220, 28);
-  const SkColor chromeMid = host.pixel(220, 42);
-  EXPECT_GT(lum(chromeTop), lum(chromeMid) + 100);
-  // Both bundles are value decorations: identical re-describe prunes.
-  host.composer.render(tree());
-  EXPECT_EQ(host.composer.stats().patchedNodes, 0u);
-}
-
-TEST(ComposePatterns, HalftoneRampSwellsDownward) {
-  Host host(100, 100);
-  host.composer.render(box().child(box().width(100).height(100).fill(
-      patterns::halftoneRamp(10, 1.0f, 4.0f, {1, 1, 1, 1}))));
-  host.frame();
-  int top = 0, bottom = 0;
-  for (int y = 0; y < 20; ++y)
-    for (int x = 0; x < 100; x += 1) top += host.pixel(x, y) != SK_ColorBLACK;
-  for (int y = 80; y < 100; ++y)
-    for (int x = 0; x < 100; x += 1)
-      bottom += host.pixel(x, y) != SK_ColorBLACK;
-  EXPECT_GT(bottom, top * 2);  // dots swell toward the bottom
-}
-
 TEST(ComposeUtil, MarqueeSlidesTwoCopies) {
   Host host(200, 60);
   choreograph::Output<float> phase{0.0f};
@@ -447,28 +381,6 @@ TEST(ComposeLayout, CenterAtPinsMeasuredBoxOnPoint) {
   EXPECT_EQ(host.pixel(120, 80), SK_ColorRED);
 }
 
-TEST(ComposeLayouts, AbsoluteDiagonalAutoSizes) {
-  // A Diagonal container sizes itself from the extent of what it placed, so
-  // an author does not have to compute the skewed bounding box by hand.
-  Host host;
-  host.composer.render(
-      box().child(Element(layout(layouts::Diagonal{.skewDeg = -20, .gap = 10}))
-                      .key("battery")
-                      .absolute()
-                      .left(Dim(30.0f))
-                      .top(Dim(20.0f))
-                      .child(box().width(80).height(24).fill(red()))
-                      .child(box().width(80).height(24).fill(blue()))
-                      .child(box().width(80).height(24).fill(green()))));
-  host.frame();
-  auto b = host.composer.bounds("battery");
-  ASSERT_TRUE(b.has_value());
-  // Three rows: height 3*24 + 2*10 = 92; x-drift = tan(20°)*68 ≈ 24.7 +
-  // 80 wide rows → width ≈ 104.7.
-  EXPECT_NEAR(b->height(), 92, 1.0f);
-  EXPECT_NEAR(b->width(), 104.7f, 2.0f);
-}
-
 TEST(ComposeDecorations, StrokeTrimWindowMarchesPerDecoration) {
   // One node: full static band + a bound marching sliver — no overlay box.
   Host host;
@@ -500,33 +412,6 @@ TEST(ComposeDecorations, StrokeTrimWindowMarchesPerDecoration) {
   for (const SkIPoint& p : redNow)
     still += host.pixel(p.x(), p.y()) == SK_ColorRED;
   EXPECT_LT((float)still, 0.25f * (float)redNow.size());
-}
-
-// A note for anyone tempted to check the closed-contour wrap seam by
-// stitching the window with SkContourMeasure and asserting on the result:
-// that tests Skia's getSegment, not the renderer. A total failure of
-// spans::wrap would leave such a test green. Read pixels instead — see
-// ComposeMask.ClosedContourWrapSeamIsOnePiece.
-
-TEST(ComposePatterns, HalftoneRampBandRemaps) {
-  // rampFrom/rampTo confine the swell: with the band pushed to the bottom
-  // half, the top half stays at rMin everywhere.
-  Host host(100, 100);
-  host.composer.render(box().child(box().width(100).height(100).fill(
-      patterns::halftoneRamp(10, 0.8f, 4.0f, {1, 1, 1, 1}, 0.0f, 0.5f, 1.0f))));
-  host.frame();
-  int band20 = 0, band45 = 0;
-  for (int y = 10; y < 20; ++y)
-    for (int x = 0; x < 100; ++x) band20 += host.pixel(x, y) != SK_ColorBLACK;
-  for (int y = 38; y < 48; ++y)
-    for (int x = 0; x < 100; ++x) band45 += host.pixel(x, y) != SK_ColorBLACK;
-  // Both bands sit above the ramp start → same tiny dots, no swell yet.
-  EXPECT_NEAR(band20, band45, band20 / 2 + 12);
-  int bandBottom = 0;
-  for (int y = 88; y < 98; ++y)
-    for (int x = 0; x < 100; ++x)
-      bandBottom += host.pixel(x, y) != SK_ColorBLACK;
-  EXPECT_GT(bandBottom, band20 * 2);  // full swell at the bottom
 }
 
 TEST(ComposeMotion, StaggerChildrenCascadesEntrances) {
@@ -611,6 +496,7 @@ TEST(ComposeLines, WavyRunLeavesTheAxis) {
 }
 
 namespace {
+
 /** An L-shaped run: right along the bottom, then up — one hard 90° corner
  *  at local (120, 120), absolute (140, 140). */
 Element corneredRun(lines::Line style) {
@@ -626,6 +512,7 @@ Element corneredRun(lines::Line style) {
                          })
                          .stroke(std::move(style)));
 }
+
 }  // namespace
 
 TEST(ComposeLines, ParallelJoinControlKeepsACornerSharp) {
@@ -752,6 +639,7 @@ TEST(ComposeLines, RailsSpanAndBleedReportTheSetsReach) {
 }
 
 namespace {
+
 /** Fraction of angles round a circle where BOTH the inner and the outer
  *  rail paint, or NEITHER does — i.e. how well their dashes stay in
  *  register. 1.0 is perfect registration. */
@@ -761,6 +649,7 @@ struct RailScan {
   int outerOn = 0;
   int samples = 0;
 };
+
 /** Samples both rails at 720 angles. The predicate is COVERAGE-BASED, not
  *  exact colour: sampling a 3 px arc at integer pixel coordinates lands on
  *  anti-aliased pixels constantly, and an exact-colour test then scores
@@ -787,6 +676,7 @@ RailScan scanRails(Host& host, float cx, float cy, float rInner, float rOuter) {
   scan.agreement = scan.samples ? (double)agree / scan.samples : 0.0;
   return scan;
 }
+
 Element circleRun(Decoration style, float radius) {
   return box().child(box()
                          .absolute()
@@ -798,6 +688,7 @@ Element circleRun(Decoration style, float radius) {
                          })
                          .stroke(std::move(style)));
 }
+
 }  // namespace
 
 TEST(ComposeLines, RailsDashesStayRegisteredThroughCurvature) {
@@ -1083,13 +974,8 @@ TEST(ComposeCache, CachePictureOptsOutOfPromotion) {
          "is not what kept it from being promoted";
 }
 
-// ---------------------------------------------------------------------------
-// The quarter turn. getScaleX()/getScaleY() are the matrix DIAGONAL, and a
-// ±90° rotation moves the entire scale into the skew terms — Skia snaps
-// cos(90°) to exactly zero, so the bake read "scale 0", clamped to its 0.25
-// floor, rasterized at QUARTER resolution and linear-upscaled 4×.
-
 namespace {
+
 /** 196×33 of 1 px hairlines: content that a bake at the wrong resolution
  *  cannot fake. This library's entire output is hairlines at 1×. */
 Element hairlinePill() {
@@ -1105,6 +991,7 @@ Element hairlinePill() {
                 .fill(Fill::color({0.05f, 0.06f, 0.08f, 1})));
   return p;
 }
+
 /** Cache::None on the wrapper, and NOT as a convenience: a device-space
  *  bake is pinned to one device rect, so it must never be recorded into a
  *  picture — a picture can be replayed under a different matrix than it
@@ -1118,12 +1005,14 @@ Element rotatedPill(float degrees, bool cached) {
   if (cached) p.cache(Cache::Texture);
   return box().cache(Cache::None).child(std::move(p));
 }
+
 /** Pixels that differ at all, and the mean |Δ| over ink — the count is the
  *  claim, the mean is what makes a failure legible. */
 struct BakeError {
   size_t differing = 0;
   double meanInk = 0;
 };
+
 BakeError bakeErrorAt(float degrees) {
   Host plain(300, 300), baked(300, 300);
   plain.composer.render(rotatedPill(degrees, false));
@@ -1157,6 +1046,7 @@ BakeError bakeErrorAt(float degrees) {
   out.meanInk = ink ? total / (double)ink : 0.0;
   return out;
 }
+
 }  // namespace
 
 TEST(ComposeCache, TextureBakeSurvivesAQuarterTurn) {
@@ -1223,16 +1113,8 @@ TEST(ComposeCache, ATextureBakeCompositesThroughItsOwnLayer) {
   }
 }
 
-// ---------------------------------------------------------------------------
-// The !hasPerspective() boundary. The three device-space bakes
-// (automatic promotion's `upright` gate, the Cache::Group device bake, the
-// Cache::Texture device bake) all refuse a perspective CTM, because a
-// device bake pins pixels to ONE device rect and a projected quad is not
-// one. The refusal is asserted through the observable promotion state and
-// through pixels tracking a moving camera; the no-perspective arms are the
-// controls.
-
 namespace {
+
 /** A host camera that is PURE perspective: the keystone `[1,0,0; 0,1,0;
  *  0,p,1]` — a plate tipped away from the viewer, anchored at the top
  *  edge. Deliberately NOT a perspective·rotateY SkM44: that matrix's 2D
@@ -1245,6 +1127,7 @@ SkMatrix hostCamera(float p) {
   m.setPerspY(p);
   return m;
 }
+
 /** Host::frame, under a host concat — the camera compose never sees. */
 void frameUnder(Host& h, const SkMatrix& camera) {
   SkCanvas* canvas = h.surface->getCanvas();
@@ -1254,6 +1137,7 @@ void frameUnder(Host& h, const SkMatrix& camera) {
   h.composer.draw(*canvas);
   canvas->restore();
 }
+
 /** Mean |Δ| over ink between two hosts — bakeErrorAt's meter, reusable
  *  for frames drawn under a camera. */
 double meanInkDiff(Host& a, Host& b, int w, int h) {
@@ -1276,6 +1160,7 @@ double meanInkDiff(Host& a, Host& b, int w, int h) {
     }
   return ink ? total / (double)ink : 0.0;
 }
+
 }  // namespace
 
 TEST(ComposeCache, PromotionRefusesAHostPerspectiveCtm) {
@@ -1307,6 +1192,7 @@ TEST(ComposeCache, PromotionRefusesAHostPerspectiveCtm) {
 }
 
 namespace {
+
 /** Smooth content for the projected-bake meter: a ramp panel with thick
  *  bars, not hairlines — the LOCAL bake legitimately resamples through
  *  the projection, so the pin bounds the error rather than demanding
@@ -1328,6 +1214,7 @@ Element rampPanel(bool cached) {
   if (cached) p.cache(Cache::Texture);
   return box().cache(Cache::None).child(std::move(p));
 }
+
 }  // namespace
 
 TEST(ComposeCache, ATextureBakeUnderPerspectiveTracksTheCamera) {
@@ -1381,17 +1268,8 @@ TEST(ComposeCache, ATextureBakeUnderPerspectiveTracksTheCamera) {
          "holding one local bake";
 }
 
-// ---------------------------------------------------------------------------
-// subtreeReadsBackdrop — the one thing promotion may never do.
-//
-// A bake is taken into a TRANSPARENT layer and blitted back. Anything in
-// the subtree that composites against what is ALREADY on the canvas would
-// therefore resolve against transparent black instead of the real
-// backdrop, and come out wrong. computeVolatile works this out for the
-// whole subtree; until now nothing tested it, and it is invisible in the
-// common case — a still frame of an unpromoted node looks identical.
-
 namespace {
+
 /** An expensive panel with one MULTIPLY child, over an opaque ground. The
  *  ground matters: multiply against mid-grey and multiply against
  *  transparent black differ enormously, so a wrongly-baked subtree is
@@ -1410,6 +1288,7 @@ Element blendingScene(SkBlendMode mode) {
                                    .fill(Fill::color({0.9f, 0.5f, 0.2f, 1}))
                                    .blend(mode))));
 }
+
 }  // namespace
 
 TEST(ComposeCache, PromotionRefusesASubtreeThatBlendsWithTheCanvas) {
@@ -1532,20 +1411,13 @@ TEST(ComposeCache, PromotionRefusesEveryRotation) {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Promotion, part two: the nodes it could not previously SEE.
-//
-// A leaf never records a picture — a single drawRect beats a nested
-// recording — so a promoter that watches only the picture-replay path
-// cannot see one at all. That is exactly backwards for the most expensive
-// object a scene can hold: a full-canvas box carrying one shader, which is
-// all leaf and no structure.
-
 namespace {
+
 Element heavyLeaf(const char* key) {
   return profiledUnder(box().width(400).height(400).key(key).fill(
       Material::sksl(heavyEffect(false))));
 }
+
 }  // namespace
 
 TEST(ComposeCache, PromotesAnExpensiveLeafAndKeepsEveryPixel) {
@@ -1598,11 +1470,8 @@ TEST(ComposeCache, ARefusalSaysWhy) {
   EXPECT_STRNE(Composer::promotionReason(row->promotion), "");
 }
 
-// ---------------------------------------------------------------------------
-// Temporal promotion: "static" is the wrong eligibility test. The right one
-// is STABLE SINCE THE LAST BAKE.
-
 namespace {
+
 /** Host with a real FrameClock, so a material's injected uTime advances.
  *  (The shared Host deliberately has none — most tests want elapsed 0.) */
 struct ClockedHost {
@@ -1631,12 +1500,14 @@ struct ClockedHost {
     return bm;
   }
 };
+
 Element timedLeaf(float quantizeHz) {
   Material m = Material::sksl(heavyEffect(true));
   if (quantizeHz > 0) m.quantizeTime(quantizeHz);
   return box().child(
       box().width(400).height(400).key("plasma").fill(std::move(m)));
 }
+
 }  // namespace
 
 TEST(ComposeCache, AQuantizedMaterialIsCacheableBetweenItsTicks) {
@@ -1692,12 +1563,8 @@ TEST(ComposeCache, TemporalPromotionIsPixelIdenticalAcrossATick) {
   }
 }
 
-// ---------------------------------------------------------------------------
-// The same argument for animated SCALARS. Volatility asks whether a motion
-// is CONNECTED; it never asked whether the value MOVED — so a keyframe
-// path's hold segment repainted every frame while provably constant.
-
 namespace {
+
 /** A stroked ring whose trim end follows a keyframe path with a HOLD:
  *  0 -> 0.6 over 200 ms, then flat until 600 ms, then on to 1. The flat
  *  stretch is the whole point — it is a running motion whose value is not
@@ -1719,6 +1586,7 @@ Element gatedRing(Cache mode) {
                                       {std::chrono::milliseconds(800), 1.0f}}),
                              &choreograph::easeNone)))));
 }
+
 }  // namespace
 
 TEST(ComposeCache, AHeldKeyframeSegmentDoesNotRepaint) {
@@ -1771,20 +1639,8 @@ TEST(ComposeCache, ScalarMemoIsPixelIdenticalAcrossEveryWaypoint) {
   }
 }
 
-// ---------------------------------------------------------------------------
-// The Cache::Group bake rect. A group bake is taken in DEVICE space at the
-// node's device bounds intersected with the device clip — on all FOUR
-// sides. The blit draws at the rect's own origin, so the rect's size never
-// shows in pixels: a rect wrongly grown toward the canvas origin renders
-// correctly forever while a node in the far corner of a large canvas
-// quietly allocates many times its own area and charges it against the
-// shared bake budget, evicting other bakes. The budget is therefore the
-// measuring instrument here — enough identical settled groups that
-// per-node overcharge exhausts it and the surplus nodes visibly fail to
-// hold a bake — and the pixel assertions are the guard rail that says the
-// rect is bookkeeping only.
-
 namespace {
+
 /** @p count identical 100x100 Cache::Group leaves at (@p x, @p y), under a
  *  Cache::None wrapper so every one is painted — and its value memo run —
  *  each frame. */
@@ -1796,11 +1652,13 @@ Element groupField(int count, float x, float y, Cache mode = Cache::Group) {
             Fill::color({0.2f, 0.5f, 0.8f, 1})));
   return root;
 }
+
 /** Frame past the settle: a group's first frame seeds its value memo, its
  *  second takes the bake, the rest prove the bake holds. */
 void settleGroups(Host& host) {
   for (int i = 0; i < 8; ++i) host.frame();
 }
+
 }  // namespace
 
 TEST(ComposeCache, AGroupBakeChargesOnlyTheNodesOwnArea) {
@@ -1886,17 +1744,15 @@ TEST(ComposeCache, AGroupBakeAwayFromTheOriginChangesNoPixels) {
   }
 }
 
-// ---------------------------------------------------------------------------
-// The manhattan router family: rail-compatible orthogonal routing,
-// collinear collapse, bend policies, chamfer corners.
-
 namespace {
+
 /** The path's line-verb skeleton: every on-curve point in order, with the
  *  verb census alongside — the geometry assertions below read this. */
 struct PathDump {
   std::vector<SkPoint> pts;
   int moves = 0, lines = 0, curves = 0, closes = 0;
 };
+
 PathDump dumpPath(const SkPath& p) {
   PathDump d;
   SkPath::Iter it(p, false);
@@ -1929,71 +1785,8 @@ PathDump dumpPath(const SkPath& p) {
   }
   return d;
 }
+
 }  // namespace
-
-TEST(ComposeRouters, ManhattanIsARailRouterAndCollapsesCollinearRuns) {
-  // rail() takes a RailRouter, and orthogonal() is a pairwise Router — so
-  // orthogonal routing was unreachable from a rail at all. This line
-  // compiling is half of what is being checked.
-  RailRouter router = routers::manhattan();
-
-  // An axis-aligned pair: ONE segment, no zero-length verbs.
-  const SkPoint aligned[2] = {{20, 100}, {180, 100}};
-  PathDump collapsed = dumpPath(router(std::span(aligned, 2)));
-  EXPECT_EQ(collapsed.moves, 1);
-  EXPECT_EQ(collapsed.lines, 1);
-  ASSERT_EQ(collapsed.pts.size(), 2u);
-  EXPECT_EQ(collapsed.pts[0], SkPoint::Make(20, 100));
-  EXPECT_EQ(collapsed.pts[1], SkPoint::Make(180, 100));
-
-  // Three collinear anchors thread as ONE straight run.
-  const SkPoint three[3] = {{20, 100}, {100, 100}, {180, 100}};
-  PathDump merged = dumpPath(router(std::span(three, 3)));
-  EXPECT_EQ(merged.lines, 1);
-  ASSERT_EQ(merged.pts.size(), 2u);
-  EXPECT_EQ(merged.pts[1], SkPoint::Make(180, 100));
-
-  // The contrast, frozen deliberately: the zero-argument orthogonal() keeps
-  // its degenerate verbs — a move, then THREE lines, two of them
-  // zero-length. Those verbs are harmless in practice (Skia's stroker skips
-  // exactly-degenerate segments, and the render is byte-identical to clean
-  // geometry), so its output is pinned as-is and only manhattan() collapses.
-  // Changing it would move pixels for no benefit.
-  Router old = routers::orthogonal();
-  PathDump frozen = dumpPath(
-      old(SkRect::MakeXYWH(10, 90, 20, 20), SkRect::MakeXYWH(170, 90, 20, 20)));
-  EXPECT_EQ(frozen.lines, 3);
-  ASSERT_EQ(frozen.pts.size(), 4u);
-  EXPECT_EQ(frozen.pts[1], SkPoint::Make(100, 100));  // midX
-  EXPECT_EQ(frozen.pts[2], SkPoint::Make(100, 100));  // zero-length V leg
-}
-
-TEST(ComposeRouters, BendPoliciesTakeTheNamedColumns) {
-  const SkPoint run[2] = {{20, 20}, {180, 160}};
-  // HFirst: horizontal out of the source, with the L bending AT the target
-  // column — the shape a circuit-style graph wants and the midpoint router
-  // cannot produce.
-  PathDump h =
-      dumpPath(routers::manhattan(routers::Bend::HFirst)(std::span(run, 2)));
-  ASSERT_EQ(h.pts.size(), 3u);
-  EXPECT_EQ(h.pts[1], SkPoint::Make(180, 20));
-  // VFirst: the other L, down the source column first.
-  PathDump v =
-      dumpPath(routers::manhattan(routers::Bend::VFirst)(std::span(run, 2)));
-  ASSERT_EQ(v.pts.size(), 3u);
-  EXPECT_EQ(v.pts[1], SkPoint::Make(20, 160));
-  // MidX stays the stock Z, bending half way over.
-  PathDump z =
-      dumpPath(routers::manhattan(routers::Bend::MidX)(std::span(run, 2)));
-  ASSERT_EQ(z.pts.size(), 4u);
-  EXPECT_EQ(z.pts[1], SkPoint::Make(100, 20));
-  EXPECT_EQ(z.pts[2], SkPoint::Make(100, 160));
-  // The pairwise spelling routes the same shape from rects.
-  PathDump hr = dumpPath(routers::orthogonal(routers::Bend::HFirst)(
-      SkRect::MakeXYWH(15, 15, 10, 10), SkRect::MakeXYWH(175, 155, 10, 10)));
-  ASSERT_EQ(hr.pts.size(), 3u);
-  EXPECT_EQ(hr.pts[1], SkPoint::Make(180, 20));
-}
 
 TEST(ComposeRouters, ChamferCutsTheCornerRoundingCannot) {
   const SkPoint run[2] = {{20, 20}, {180, 160}};
@@ -2026,30 +1819,6 @@ TEST(ComposeRouters, ChamferCutsTheCornerRoundingCannot) {
   EXPECT_EQ(o.pts.size() - (o.pts.front() == o.pts.back() ? 1 : 0), 8u);
   EXPECT_FALSE(oct.contains(2, 2));  // corner cut away
   EXPECT_TRUE(oct.contains(50, 50));
-}
-
-TEST(ComposeRouters, FromPairwiseStitchesOneContourAndKeepsCurves) {
-  // The adapter: any pairwise Router rides rail(). Three stations, the
-  // legs stitch into ONE contour (terminal caps fire once, junction
-  // moves dropped) and the old router's zero-length verbs collapse.
-  const SkPoint stops[3] = {{20, 100}, {100, 100}, {100, 180}};
-  RailRouter rr = routers::fromPairwise(routers::orthogonal());
-  const SkPath path = rr(std::span(stops, 3));
-  PathDump d = dumpPath(path);
-  EXPECT_EQ(d.moves, 1);  // ONE contour, not one per pair
-  ASSERT_GE(d.pts.size(), 2u);
-  EXPECT_EQ(d.pts.front(), SkPoint::Make(20, 100));
-  EXPECT_EQ(d.pts.back(), SkPoint::Make(100, 180));
-  for (size_t i = 1; i < d.pts.size(); ++i)  // every segment has length
-    EXPECT_NE(d.pts[i], d.pts[i - 1]);
-  // Collinear merge across the stitch: both legs of the first pair run
-  // y=100, so the horizontal approach is one segment.
-  EXPECT_EQ(d.lines, 2);
-  // A curved router survives the adapter with its curves intact.
-  PathDump arc =
-      dumpPath(routers::fromPairwise(routers::arc(0.3f))(std::span(stops, 3)));
-  EXPECT_EQ(arc.moves, 1);
-  EXPECT_GT(arc.curves, 0);
 }
 
 TEST(ComposeRouters, ManhattanCasedRailMatchesCleanGeometry) {
@@ -2096,10 +1865,8 @@ TEST(ComposeRouters, ManhattanCasedRailMatchesCleanGeometry) {
       << "the manhattan rail's cased brush differs from clean geometry";
 }
 
-// ---------------------------------------------------------------------------
-// TEXT ON A PATH — the animated phase, and the tracks that compose with it
-
 namespace {
+
 /** Ink of a ring of type, described in polar terms about `centre`: how much
  *  of it there is, how far off the ring it strays, and where round the ring
  *  it sits. */
@@ -2134,6 +1901,7 @@ float angleGap(float a, float b) {
       std::fmod(b - a + 3.0f * (float)M_PI, 2.0f * (float)M_PI) - (float)M_PI;
   return std::abs(d);
 }
+
 }  // namespace
 
 TEST(ComposeTextPath, ABoundPhaseWalksTheRunRoundAClosedBaseline) {

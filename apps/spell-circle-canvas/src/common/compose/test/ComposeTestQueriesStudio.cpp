@@ -1,6 +1,7 @@
 #include "support/StudioTestSupport.h"
 
 namespace {
+
 /** A flow band's width law: wide at the start, narrow at the end, with the
  *  wide end far larger than any ribbon's default widths. That gap is the
  *  point — it is what makes an under-declared reach visible. */
@@ -10,6 +11,7 @@ struct FlowLaw {
   float max() const { return std::max(start, end); }
   bool operator==(const FlowLaw&) const = default;
 };
+
 }  // namespace
 
 TEST(ComposeBrushes, ARibbonsReachIsDERIVEDFromItsProfile) {

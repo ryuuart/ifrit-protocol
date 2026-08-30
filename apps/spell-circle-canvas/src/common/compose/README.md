@@ -1253,13 +1253,17 @@ cmake --build build --config Debug
 ctest --test-dir build -C Debug --output-on-failure
 ```
 
-Registered tests, one binary per feature area so that editing an
-extension header rebuilds only the tests that exercise it:
-`compose_core_test` (the kernel, the authoring grammar, masks, the field
-walks), `compose_content_test` (leaves, feed, routers, layouts, text
-effects, colour management), `compose_brush_test` (lines and brushes),
-`compose_text_test` (text data, the text pass, vertical writing, motion
-along paths), `compose_studio_test` (queries and the studio),
+Registered tests, one binary per library target so that each links only
+the target it exercises and a test reaching past its tier fails to link:
+`compose_core_test` (the kernel — elements, the reconciler, layout, paint,
+transitions, text, the feed, the instanced leaf, masks and the field walks;
+links `SigilComposeCore` alone), `compose_shape_test` (silhouettes,
+layouts, routers, rails, travel), `compose_brush_test` (decorations,
+lines, brushes, the stroke grammar, the kit's stroke presets),
+`compose_paint_test` (patterns, SDF materials, layer styles, colour
+management), `compose_text_test` (text data, the text pass, vertical
+writing, motion along paths, the text-fx presets, rich spans),
+`compose_studio_test` (queries, the studio, the instruments),
 `compose_docs_test` (the engine walkthroughs and the generated README
 probes), `compose_api_doc_probes_self_test`, `compose_kit_test`,
 `compose_spike_test`, `compose_gallery_test`, `compose_sketch_smoke`,

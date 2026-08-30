@@ -1,14 +1,7 @@
 #pragma once
-// Support for compose_studio_test: composer queries and the studio.
+// Support for compose_studio_test: composer queries, the studio and the
+// instruments that read a cascade back — the kit over the brush support.
 
-#include <include/effects/SkRuntimeEffect.h>
-#include <sigilcompose/Brushes.h>
-#include <sigilcompose/Feed.h>
-#include <sigilcompose/Instances.h>
-#include <sigilcompose/Shapes.h>
-#include <sigilcompose/testing/Checks.h>
+#include <sigilcompose/kit/Kit.h>
 
-#include <algorithm>
-#include <cmath>
-
-#include "Host.h"
+#include "BrushTestSupport.h"

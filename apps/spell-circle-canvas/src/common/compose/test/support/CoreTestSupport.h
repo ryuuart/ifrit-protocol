@@ -1,6 +1,8 @@
 #pragma once
-// Support for compose_core_test: the kernel, the authoring grammar, masks
-// and the field walks.
+// Support for compose_core_test: the kernel — elements, the reconciler,
+// layout, paint, transitions, text, the feed and the instanced leaf — and
+// the field walks. Only kernel headers: the binary links SigilComposeCore
+// alone, which is what proves the kernel stands without its catalogs.
 
 #include <include/core/SkColorFilter.h>
 #include <include/core/SkPathBuilder.h>
@@ -12,24 +14,20 @@
 #include <include/effects/SkRuntimeEffect.h>
 #include <include/effects/SkTrimPathEffect.h>
 #include <include/encode/SkPngEncoder.h>
-#include <sigilcompose/Brushes.h>
-#include <sigilcompose/Decorations.h>
+#include <sigilcompose/Compose.h>
 #include <sigilcompose/Feed.h>
 #include <sigilcompose/Instances.h>
-#include <sigilcompose/LayerStyles.h>
 #include <sigilcompose/Material.h>
-#include <sigilcompose/Patterns.h>
-#include <sigilcompose/Routers.h>
-#include <sigilcompose/Sdf.h>
-#include <sigilcompose/Shapes.h>
-#include <sigilcompose/kit/Strokes.h>
+#include <sigilcompose/testing/Checks.h>
 #include <sigilimage/ImageAsset.h>
+#include <sigilweave/Choreograph.h>
 
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <type_traits>
 
+#include "Atlas.h"
 #include "Effects.h"
 #include "Host.h"
 #include "Profile.h"

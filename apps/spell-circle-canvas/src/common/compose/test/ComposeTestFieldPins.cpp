@@ -23,6 +23,7 @@
 
 #include "../ComposeInternal.h"
 #include "support/CoreTestSupport.h"
+
 // …and the RUNTIME header, for the kSlotSpecs walk at the bottom of the file.
 // It is the reason this target links yoga::yogacore (see CMakeLists.txt).
 #include "../ComposeRuntime.h"
@@ -48,45 +49,70 @@ void perturb(T&) {
 }
 
 void perturb(bool& v) { v = !v; }
+
 void perturb(int& v) { v += 1; }
+
 void perturb(uint32_t& v) { v += 1u; }
+
 void perturb(float& v) { v += 1.0f; }
+
 void perturb(std::string& v) { v += "moved"; }
+
 void perturb(cd::Kind& v) { v = cd::Kind::Stack; }
+
 void perturb(Cache& v) { v = Cache::None; }
+
 void perturb(SkBlendMode& v) { v = SkBlendMode::kMultiply; }
+
 void perturb(Corners& v) { v.topLeft += 1.0f; }
+
 void perturb(cd::LayoutProps& v) { v.gap += 1.0f; }
+
 void perturb(Shape& v) {
   v = Shape([](SkSize) { return SkPath(); });  // the raw-callable escape hatch
 }
+
 void perturb(std::optional<Transition>& v) { v = Transition{}; }
+
 void perturb(choreograph::EaseFn& v) { v = &choreograph::easeInQuad; }
+
 void perturb(sigil::motion::Envelope& v) {
   v = sigil::motion::Envelope::kCosine;
 }
+
 void perturb(const choreograph::Output<float>*& v) {
   static choreograph::Output<float> other;
   v = &other;
 }
+
 void perturb(Animatable<float>& v) {
   v = (v.plain() ? *v.plain() : 0.0f) + 1.0f;
 }
+
 void perturb(std::optional<Animatable<Fill>>& v) {
   v = Animatable<Fill>(Fill::color(SkColor4f{1, 0, 0, 1}));
 }
+
 void perturb(std::vector<Decoration>& v) {
   v.push_back(Decoration(PaintProgram{[](SkCanvas&, const PaintContext&) {}}));
 }
+
 void perturb(std::vector<Element>& v) { v.push_back(box()); }
+
 void perturb(cd::PaintProps& v) { perturb(v.opacity); }
+
 void perturb(Unit& v) { v = Unit::Line; }
+
 void perturb(Beats& v) { v = Beats::Text; }
+
 void perturb(Stagger::From& v) { v = Stagger::From::End; }
+
 void perturb(std::vector<float>& v) { v.push_back(1.0f); }
+
 void perturb(std::shared_ptr<const Stagger>& v) {
   v = std::make_shared<const Stagger>();
 }
+
 template <class T>
 void perturb(cd::Box<T>& v) {
   v.ensure();
