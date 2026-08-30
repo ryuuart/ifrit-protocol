@@ -1,9 +1,9 @@
-// shapeworks_lab.cpp — SIGILSHAPE, LIVE: three of the library's moves
+// shapeworks_lab.cpp — SIGILGEOMETRY AND SIGILMATERIAL, LIVE
 // =============================================================================
 // A lab, not a study: there is no external artwork behind this one. What it
-// exercises is src/common/geometry itself, and everything here is
-// hot-editable — change a blend key, a material parameter, a camera angle,
-// save, and the canvas follows.
+// exercises is src/common/geometry and src/common/material themselves, and
+// everything here is hot-editable — change a blend key, a surface
+// parameter, a camera angle, save, and the canvas follows.
 //
 //   LEFT    the Illustrator blend tool. One star morphs into a circle
 //           whose target rotates with the clock; the correspondence
@@ -12,31 +12,38 @@
 //   TOP R   Skia-3D. An extruded star and a torus spin through
 //           space::drawMesh — per-vertex Blinn, painter sort, all CPU,
 //           all inside this one custom() leaf.
-//   BOT R   the literal materials. Gold foil / brushed chrome / glass
-//           badges, shaders built ONCE in setup() (bevel normal maps +
-//           the procedural studio/sunset environments) and repainted
-//           per frame for free. Glass refracts a checker baked at
-//           setup — backdrop and badge share this leaf's local space.
+//   BOT R   the literal surfaces. Gold foil / brushed chrome / glass
+//           badges as MATERIALS built ONCE in setup() — a bevel normal
+//           map and the procedural studio environment filling each
+//           recipe's slots — and repainted per frame for free: a
+//           material resolves once and its program is cached. Glass
+//           refracts a checker baked at setup — backdrop and badge
+//           share this leaf's local space.
 //
 // Every panel is a custom() leaf with Cache::None: drawing straight to the
 // canvas, re-recorded each frame, because everything here moves. A real
-// scene would cache the materials row, whose shaders never change once
-// setup() has built them. geometry:: draws through Skia and knows nothing
-// about compose, so the custom() leaves are the entire adapter between
-// them.
+// scene would cache the surfaces row, whose materials never change once
+// setup() has built them. geometry:: and material:: draw through Skia and
+// know nothing about compose, so the custom() leaves are the entire
+// adapter between them.
 
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkSurface.h>
 #include <sigilgeometry/blend/Blend.h>
-#include <sigilgeometry/material/Materials.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/space/Space.h>
+#include <sigilmaterial/kit/Surfaces.h>
+#include <sigilmaterial/skia/Draw.h>
+#include <sigilmaterial/skia/SkiaCompiler.h>
+#include <sigilmaterial/texture/Surface.h>
 #include <sigilsketch/Sketch.h>
 
 #include <cmath>
+#include <optional>
 
 using namespace sigil::compose;
 namespace geometry = sigil::geometry;
+namespace material = sigil::material;
 
 namespace {
 
@@ -78,10 +85,9 @@ sk_sp<SkImage> bakeChecker(int w, int h) {
 }  // namespace
 
 struct ShapeworksLab : sigil::compose::sketch::Sketch {
-  // Built once per (re)load; repainting a shader-filled path is cheap.
-  geometry::materials::Environment studio;
-  geometry::materials::Environment sunset;
-  sk_sp<SkShader> gold, chrome, glass;
+  // Built once per (re)load; repainting a material-filled path is cheap.
+  material::Environment studio;
+  std::optional<material::Material> gold, chrome, glass;
   SkPath goldPath, chromePath, glassPath;
   sk_sp<SkImage> backdrop;
   geometry::Mesh starMesh;
@@ -132,24 +138,14 @@ struct ShapeworksLab : sigil::compose::sketch::Sketch {
             .inset(620, 60, 40, 420)
             .cache(Cache::None);
 
-    // BOTTOM RIGHT — the literal materials (shaders prebuilt in setup).
+    // BOTTOM RIGHT — the literal surfaces (materials prebuilt in setup).
     Element materialLab =
         custom([this](SkCanvas& canvas, const PaintContext& paint) {
           (void)paint;
           if (backdrop) canvas.drawImage(backdrop, 0, 0);
-          auto badge = [&](const SkPath& path, const sk_sp<SkShader>& m) {
-            if (!m) return;
-            SkPaint fill;
-            fill.setAntiAlias(true);
-            fill.setShader(m);
-            canvas.save();
-            canvas.clipPath(path, true);
-            canvas.drawPaint(fill);
-            canvas.restore();
-          };
-          badge(goldPath, gold);
-          badge(chromePath, chrome);
-          badge(glassPath, glass);
+          if (gold) material::skia::fill(canvas, goldPath, *gold);
+          if (chrome) material::skia::fill(canvas, chromePath, *chrome);
+          if (glass) material::skia::fill(canvas, glassPath, *glass);
         })
             .inset(620, 400, 40, 60)
             .cache(Cache::None);
@@ -165,46 +161,34 @@ struct ShapeworksLab : sigil::compose::sketch::Sketch {
     ctx.background({0.055f, 0.05f, 0.09f, 1});
     ctx.captureAt(3.4);
 
-    studio = geometry::materials::Environment::studio();
-    sunset = geometry::materials::Environment::sunset();
+    material::skia::install();
+    studio = material::Environment::studio();
 
-    // Badge geometry lives in the material leaf's LOCAL space (540 x 300).
+    // Badge geometry lives in the surfaces leaf's LOCAL space (540 x 300);
+    // bevelNormals() places each normal map at its outline's bounds, so
+    // the recipe reads the normal under the pixel it shades.
     goldPath = star(8, 72, 50, {95, 150}, -90);
     chromePath = SkPath::Circle(270, 150, 74);
     glassPath = SkPath::Circle(445, 150, 78);
     backdrop = bakeChecker(540, 300);
-
-    auto normalsFor = [](const SkPath& path, float bevel) {
-      SkRect b = path.computeTightBounds();
-      b.outset(bevel + 2, bevel + 2);
-      return std::pair(
-          geometry::materials::bevelNormals(path, b.roundOut(), bevel),
-          b.roundOut());
-    };
     {
-      auto [normals, bounds] = normalsFor(goldPath, 9);
-      geometry::materials::GoldParams params;
+      material::kit::GoldParams params;
       params.crinkle = 0.4f;
       params.sparkle = 0.7f;
-      gold = geometry::materials::gold(
-          normals, studio, {(float)bounds.left(), (float)bounds.top()}, params);
+      gold = material::kit::gold(material::bevelNormals(goldPath, 9), studio,
+                                 params);
     }
     {
-      auto [normals, bounds] = normalsFor(chromePath, 12);
-      geometry::materials::ChromeParams params;
+      material::kit::ChromeParams params;
       params.brushed = 0.6f;
       params.roughness = 0.2f;
       // studio, not sunset: a flat face reflects whatever sits dead
       // ahead on the equirect, and the sunset parks its sun there.
-      chrome = geometry::materials::chrome(
-          normals, studio, {(float)bounds.left(), (float)bounds.top()}, params);
+      chrome = material::kit::chrome(material::bevelNormals(chromePath, 12),
+                                     studio, params);
     }
-    {
-      auto [normals, bounds] = normalsFor(glassPath, 14);
-      glass = geometry::materials::glass(
-          normals, studio, backdrop,
-          {(float)bounds.left(), (float)bounds.top()});
-    }
+    glass = material::kit::glass(material::bevelNormals(glassPath, 14), studio,
+                                 material::Texture::of(backdrop));
 
     starMesh =
         geometry::mesh::extrude(star(5, 92, 42, {0, 0}, -90), {.depth = 36});

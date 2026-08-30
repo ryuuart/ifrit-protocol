@@ -43,7 +43,8 @@ class SkiaProgram : public Program {
 void install();
 
 /** The shader for @p material at @p frame: resolves it, builds from its
- *  program, resolves and binds each child slot recursively, and makes the
+ *  program, binds each child slot — a material child resolved and bound
+ *  recursively, a Texture leaf as its image shader — and makes the
  *  shader. Null when the material's recipe has no Skia program, which the
  *  cache has already reported. */
 sk_sp<SkShader> shader(const Material& material, const FrameData& frame,

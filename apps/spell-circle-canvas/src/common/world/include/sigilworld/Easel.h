@@ -1,9 +1,8 @@
 #pragma once
 
 /** @file
- * SigilWorld easel — the artist's stage for PLACING things in a World.
- * SigilGeometry's easel (sigilgeometry/easel/Easel.h) covers 2D marks; this one
- * covers the stage: a sun, an eye, registry lights, props, panels,
+ * SigilWorld easel — the artist's stage for PLACING things in a World:
+ * a sun, an eye, registry lights, props, panels,
  * stamps, chains — every call reads like a sentence, defaults are loud, and
  * the whole description reconciles through the Scene layer on
  * commit().

@@ -1,7 +1,7 @@
 /** @file
  * Material instances: byte mirroring of the params struct, per-field
- * writes and bindings, child slots, the tier queries, value equality and
- * the memoised resolve.
+ * writes and bindings, child slots holding materials or leaves, the tier
+ * queries, value equality and the memoised resolve.
  */
 
 #include "sigilmaterial/core/Material.h"
@@ -112,22 +112,21 @@ Material& Material::bind(std::string_view name,
   return *this;
 }
 
-Material& Material::child(std::string_view name, Material material) {
+void Material::place(std::string_view name, Slot slot) {
   const auto slots = m_recipe->children();
   if (std::find(slots.begin(), slots.end(), name) == slots.end()) {
     reportOnce("child:" + m_recipe->name() + ":" + std::string(name),
                "recipe \"" + m_recipe->name() + "\" declares no child slot \"" +
-                   std::string(name) + "\"; the material is ignored");
-    return *this;
+                   std::string(name) + "\"; the child is ignored");
+    return;
   }
-  auto value = std::make_shared<const Material>(std::move(material));
-  for (auto& [slot, m] : m_children) {
-    if (slot == name) {
-      m = std::move(value);
-      return *this;
+  for (auto& [existing, s] : m_children) {
+    if (existing == name) {
+      s = std::move(slot);
+      return;
     }
   }
-  m_children.emplace_back(std::string(name), std::move(value));
+  m_children.emplace_back(std::string(name), std::move(slot));
   // Recipe order, so two materials filling the same slots in different
   // orders compare equal.
   std::sort(m_children.begin(), m_children.end(),
@@ -135,12 +134,28 @@ Material& Material::child(std::string_view name, Material material) {
               return std::find(slots.begin(), slots.end(), a.first) <
                      std::find(slots.begin(), slots.end(), b.first);
             });
+}
+
+Material& Material::child(std::string_view name, Material material) {
+  place(name, {std::make_shared<const Material>(std::move(material)), nullptr});
+  return *this;
+}
+
+Material& Material::child(std::string_view name,
+                          std::shared_ptr<const Leaf> leaf) {
+  place(name, {nullptr, std::move(leaf)});
   return *this;
 }
 
 const Material* Material::child(std::string_view name) const {
-  for (const auto& [slot, m] : m_children)
-    if (slot == name) return m.get();
+  for (const auto& [slot, s] : m_children)
+    if (slot == name) return s.material.get();
+  return nullptr;
+}
+
+const Leaf* Material::leaf(std::string_view name) const {
+  for (const auto& [slot, s] : m_children)
+    if (slot == name) return s.leaf.get();
   return nullptr;
 }
 
@@ -164,8 +179,10 @@ bool Material::isAnimated() const {
   if (m_recipe->reads(FrameInput::Time) ||
       m_recipe->reads(FrameInput::ContentScale))
     return true;
-  for (const auto& [slot, m] : m_children)
-    if (m->isAnimated()) return true;
+  for (const auto& [slot, s] : m_children) {
+    if (s.material && s.material->isAnimated()) return true;
+    if (s.leaf && s.leaf->animated()) return true;
+  }
   return false;
 }
 
@@ -173,8 +190,8 @@ bool Material::geometryDependent() const {
   if (m_recipe->reads(FrameInput::Resolution) ||
       m_recipe->reads(FrameInput::WorldTransform))
     return true;
-  for (const auto& [slot, m] : m_children)
-    if (m->geometryDependent()) return true;
+  for (const auto& [slot, s] : m_children)
+    if (s.material && s.material->geometryDependent()) return true;
   return false;
 }
 
@@ -192,9 +209,12 @@ bool Material::operator==(const Material& other) const {
     if (!b || a.output != b->output || a.block != b->block) return false;
   }
   for (size_t i = 0; i < m_children.size(); ++i) {
-    const auto& [slot, m] = m_children[i];
-    const auto& [otherSlot, otherM] = other.m_children[i];
-    if (slot != otherSlot || !(*m == *otherM)) return false;
+    const auto& [slot, s] = m_children[i];
+    const auto& [otherSlot, o] = other.m_children[i];
+    if (slot != otherSlot) return false;
+    if ((s.material != nullptr) != (o.material != nullptr)) return false;
+    if (s.material && !(*s.material == *o.material)) return false;
+    if (s.leaf && !(*s.leaf == *o.leaf)) return false;
   }
   return true;
 }

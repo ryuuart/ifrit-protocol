@@ -2,10 +2,13 @@
 # directory. The core feature is the value model: a recipe (a reflected
 # params struct plus one body per shading language), the material that
 # instantiates it, and the one program cache that compiles through the
-# compilers backends register. Each backend is its own feature that links
-# the core and its renderer, so a consumer of the model alone links no
-# renderer. `SigilMaterial` is the umbrella: an interface over every
-# feature, for a consumer of the whole library.
+# compilers backends register. The texture feature is the image side: a
+# texture as a comparable leaf, the tools' texture sets, the environment
+# and bevel producers, the atlas. Each backend is its own feature that
+# links the core and its renderer, so a consumer of the model alone links
+# no renderer. The kit holds the stock recipes. `SigilMaterial` is the
+# umbrella: an interface over every feature, for a consumer of the whole
+# library.
 #
 # Every public header lives under one include root, include/sigilmaterial/
 # <feature>/, so a feature adds the root and spells its own directory.
@@ -15,11 +18,13 @@ set(SIGIL_MATERIAL_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/include)
 
 # Dependencies point up this list.
 add_subdirectory(core)
+add_subdirectory(texture)
 add_subdirectory(skia)
+add_subdirectory(kit)
 
 add_library(SigilMaterial INTERFACE)
 target_link_libraries(SigilMaterial INTERFACE
-  SigilMaterialCore SigilMaterialSkia)
+  SigilMaterialCore SigilMaterialTexture SigilMaterialSkia SigilMaterialKit)
 
 # Registers this library with the `docs` target (see cmake/Docs.cmake).
 # The README is the site's front page, so the generated pages open on the

@@ -1,19 +1,14 @@
 #pragma once
 
 /** @file
- * SigilWorld texture sets — the folder a material authoring tool
- * exports, read back into a Material.
- *
- * Substance Painter and Designer, Poly Haven, ambientCG, Quixel and
- * glTF-style pipelines all ship a PBR material the same way: one image
- * per map, named `<set>_<role>[_<size>].<ext>`. The role words differ
- * per tool (`BaseColor` / `diff` / `Color` / `albedo`; `Normal` /
- * `nor_gl` / `NormalGL`; `OcclusionRoughnessMetallic` / `arm` / `orm`)
- * but the shape is one convention. This header knows the words: it
- * classifies a file name into a Role, groups a directory's files into
- * sets by their shared stem, and builds a Material from a set — with a
- * packed occlusion-roughness-metallic image wired to all three channel
- * slots and a DirectX-convention normal map flagged as such.
+ * SigilWorld texture sets — a material authoring tool's export, read
+ * back into a world Material. The vocabulary — the roles a map plays,
+ * the classifier over the tools' file names, the directory walk into
+ * sets and the decode into textures by role — is SigilMaterial's, spelled
+ * here under the same names; this header adds the world's own slot rules:
+ * a packed occlusion-roughness-metallic image wired to all three channel
+ * slots, a DirectX-convention normal flagged as such, and the scalar a
+ * map multiplies started at one so the map's values come through.
  *
  * Decoding is not done here. SigilWorld owns no image decoder; the
  * caller supplies one (SigilImage's decode, or anything returning an
@@ -21,6 +16,7 @@
  */
 
 #include <sigilgeometry/codec/Decode.h>
+#include <sigilmaterial/texture/TextureSet.h>
 #include <sigilworld/World.h>
 
 #include <filesystem>
@@ -32,70 +28,13 @@
 
 namespace sigil::world::textures {
 
-/** What a map is FOR. Packed is a three-channel occlusion (R),
- *  roughness (G), metallic (B) image — glTF's layout, and what
- *  Substance's glTF template, Poly Haven's `_arm` and the common
- *  `_orm` write. Height, Opacity and Specular are recognized so a set's
- *  files all classify, but Material has no slot for them yet. */
-enum class Role {
-  Unknown,
-  BaseColor,
-  Normal,
-  Roughness,
-  Metallic,
-  Occlusion,
-  Emissive,
-  Packed,
-  Height,
-  Opacity,
-  Specular,
-};
-
-/** What one texture file was read to be: the channel it feeds, the set
- *  of sibling files it belongs to, and any convention its name
- *  declares. Produced by inspecting the filename, so a directory of
- *  maps from any of the usual sources can be sorted into materials
- *  without being told the naming scheme up front. */
-struct Classified {
-  Role role = Role::Unknown;
-  /** The set this file belongs to: the file stem with the role word and
-   *  any trailing size token (`1k`, `2K`, `4096`) removed. */
-  std::string set;
-  /** For Role::Normal: the map's green channel points DOWN the image
-   *  (DirectX). Set from `_NormalDX`, `_nor_dx`, `_Normal_DirectX` and
-   *  the like; plain `_Normal` / `_nor` read as OpenGL. */
-  bool directX = false;
-};
-
-/** Classify one file name (path or bare name; the extension is
- *  ignored). Matching is case-insensitive on the last one or two
- *  underscore- or hyphen-separated tokens before an optional size
- *  token. */
-Classified classify(std::string_view filename);
-
-/** The role a channel USAGE word names — the vocabulary a Substance
- *  graph tags its outputs with ("baseColor", "diffuse", "normal",
- *  "roughness", "metallic", "ambientOcclusion", "emissive", "height",
- *  "opacity", "specular") and glTF's material slots share. Unknown for
- *  anything else. */
-Role roleForUsage(std::string_view usage);
-
-/** One material's worth of files, keyed by role. When a set carries
- *  both a Packed image and separate roughness/metallic/occlusion
- *  images, the separate ones win. */
-struct TextureSet {
-  std::string name;
-  std::map<Role, std::filesystem::path> files;
-  bool normalDirectX = false;
-};
-
-/** Every set under @p directory (not recursive): image files grouped by
- *  the stem their role word leaves behind. Files with no recognized
- *  role are ignored. Sorted by name. */
-std::vector<TextureSet> discover(const std::filesystem::path& directory);
-
-/** Decodes a path into an image; null when it cannot. */
-using Decoder = std::function<sk_sp<SkImage>(const std::filesystem::path&)>;
+using material::textures::Classified;
+using material::textures::classify;
+using material::textures::Decoder;
+using material::textures::discover;
+using material::textures::Role;
+using material::textures::roleForUsage;
+using material::textures::TextureSet;
 
 /** Build a Material from a set: every recognized map decoded through
  *  @p decode and placed in its slot, a Packed image wired to the

@@ -1,12 +1,14 @@
 /** @file
  * SkSL compilation through SkRuntimeEffect::MakeForShader, uniform upload
  * from layout bytes, and the recursive child binding that makes one
- * shader from a material tree.
+ * shader from a material tree — a material child resolves and binds its
+ * own shader, a texture leaf binds its image shader.
  */
 
 #include "sigilmaterial/skia/SkiaCompiler.h"
 
 #include <include/core/SkString.h>
+#include <sigilmaterial/texture/Texture.h>
 
 #include <cstring>
 #include <mutex>
@@ -62,7 +64,12 @@ sk_sp<SkShader> shader(const Material& material, const FrameData& frame,
   for (const auto& [slot, child] : material.children()) {
     SkRuntimeShaderBuilder::BuilderChild c = builder.child(slot.c_str());
     if (!c.fChild) continue;
-    c = shader(*child, frame, variant);
+    if (child.material) {
+      c = shader(*child.material, frame, variant);
+    } else if (const auto* texture =
+                   dynamic_cast<const Texture*>(child.leaf.get())) {
+      c = texture->shader();
+    }
   }
   return builder.makeShader();
 }

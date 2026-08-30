@@ -5,20 +5,19 @@ It gives you path resampling, boolean and distortion operators over
 `SkPath`, shape interpolation, a renderer-neutral triangle mesh with
 procedural generators plus model import and export, splines with swept
 geometry, point clouds carrying named attribute lanes and a point-operator
-chain language, a software rasterizer that draws meshes and perspective
-panels onto an ordinary `SkCanvas`, and material shaders written as Skia
-runtime effects.
+chain language, and a software rasterizer that draws meshes and
+perspective panels onto an ordinary `SkCanvas`.
 
 It links only Skia and [glm](https://github.com/g-truc/glm) publicly. There
 is no windowing, no GPU device, no UI framework and no scene graph — you
 hand it values, it hands you paths, meshes, clouds and pixels.
 
-It is nine feature libraries, one per directory, each a static archive
+It is seven feature libraries, one per directory, each a static archive
 that links only the features beneath it — so a text engine or a drawable
 component library can walk an outline through **`SigilGeometryPath`**
-without linking meshes, importers or materials, and a renderer can take
+without linking meshes or importers, and a renderer can take
 **`SigilGeometryPop`** without the codec. **`SigilGeometry`** is the
-umbrella, an interface over all nine, so a consumer of the whole library
+umbrella, an interface over all seven, so a consumer of the whole library
 names only that.
 
 Namespace `sigil::geometry`. Headers under `include/sigilgeometry/<feature>/`
@@ -33,20 +32,24 @@ spells the swizzle itself.
 ## Using it
 
 ```cpp
-#include <sigilgeometry/easel/Easel.h>
+#include <sigilgeometry/path/Ops.h>
 #include <sigilgeometry/pop/Pop.h>
 #include <sigilgeometry/space/Space.h>
 
 using namespace sigil::geometry;
 
-void paint(SkCanvas &canvas, SkSize viewport) {
-  // 2D: a six-pointed star, bloated, roughened and filled. Every dial
-  // stays editable — the recipe is not applied until draw().
-  easel::shape(easel::star(6, 90))
-      .bloat(0.3f)
-      .roughen(3)
-      .fill({1.0f, 0.6f, 0.2f, 1.0f})
-      .draw(canvas, {320, 240});
+void paint(SkCanvas &canvas, SkSize viewport, const SkPath &star) {
+  // 2D: an outline bloated, roughened and offset. A recipe is a chain of
+  // operators, a value: hold it, apply it to any path, apply it again.
+  const ops::PathOp recipe = ops::chain({
+      ops::PuckerBloat{0.3f},
+      ops::Roughen{3},
+      ops::offsetBy(4),
+  });
+  SkPaint fill;
+  fill.setAntiAlias(true);
+  fill.setColor4f({1.0f, 0.6f, 0.2f, 1.0f});
+  canvas.drawPath(recipe(star), fill);
 
   // 3D: scatter points along a window of a closed loop, drift them with
   // noise, smooth the kinks out, colour them along the loop, then sweep
@@ -74,8 +77,8 @@ void paint(SkCanvas &canvas, SkSize viewport) {
 ```
 
 Nothing above holds a device, a context or a frame. `Mesh` is a plain
-struct of vectors; `pop::Chain` is a `std::vector` of variants; the easel
-objects are values you can copy, tweak and re-cook.
+struct of vectors; `pop::Chain` is a `std::vector` of variants; a
+`PathOp` is a callable you can copy, compose and re-apply.
 
 ## The mental model
 
@@ -150,18 +153,6 @@ bools as numbers, ints truncated — so a control surface, a preset file
 or an animation lane can drive a chain without knowing the operator's
 type. Strings, lane names, meshes, clouds and matrices are descriptions,
 not dials, and stay out of it.
-
-**`easel/Easel.h` is the artist façade.** Stock outlines (`dot`, `ngon`, `star`,
-`pill`, `ring`) and four fluent value types over everything underneath:
-`Shape` (`offset`, `roughen`, `zigzag`, `bloat`, `pucker`, `twirl`,
-`unite`, `cut`, `clip`, `step`, plus one look — `fill`, `stroke`, `gold`,
-`chrome`, `glass` — and `path()`/`draw()`), `Blend` (`colors`, `steps`,
-`every`, `smoothColor`, `along`, `turning`, `smooth`, `between`, `cook`,
-`draw`), `Wire` (`through`, `closed`, `straight`, `spline`, `tube`,
-`ribbon`, `beads`, `draw`) and `Particles` (`on`, `inBox`, `onSurface`,
-`count`, `seed`, `drift`, `jitter`, `size`, `ramp`, `sprite`, `cook`,
-`glow`). It adds no capability; it picks defaults and reads like a
-sentence.
 
 ## The features and their headers
 
@@ -283,26 +274,6 @@ declares; `PlyEncode.cpp` is the writer.
 - **`codec/Encode.h`** — the door out: `encode::ply()` over a `Cloud` or a
   `Mesh`, ascii by default or binary via `PlyOptions`.
 
-**`material`** — `SigilGeometryMaterial`, Skia alone; nothing else in the
-library. The SkSL sources are `Sksl.h`, compiled and bound in
-`Shaders.cpp`; the environment bakes and their roughness blurs are
-`Environment.cpp`; the normal-map derivation is `Bevel.cpp`.
-
-- **`material/Materials.h`** — reflective materials as `SkRuntimeEffect`
-  shaders. `bevelNormals()` derives a normal map from a path's coverage;
-  `Environment` supplies what the surface reflects, either as a procedural
-  bake (`studio()`, `sunset()`) or a loaded equirectangular panorama
-  (`fromEquirect()`), with cached roughness blurs. `gold()`, `chrome()` and
-  `glass()` return shaders; `drawGold()`, `drawChrome()` and `drawGlass()`
-  run the whole pipeline for one path.
-
-**`easel`** — `SigilGeometryEasel`, header-only, an interface over
-`blend`, `curves`, `material`, `mesh`, `path`, `pop` and `space`. It
-does not pull in `codec`, and of `pop` only the cloud vocabulary, not the
-chain language.
-
-- **`easel/Easel.h`** — the artist façade described above.
-
 **`Geometry.h`** at the root of the include tree includes every public
 header. It is transitional: a consumer that spelled the headers by bare
 name before they moved under their features includes this one and keeps
@@ -385,9 +356,9 @@ is silently, plausibly wrong rather than obviously broken.
   pitch about +X, roll about +Z.
 - **`MeshStyle::Mode::Normals` writes device-space normals with +y down**,
   encoded as `rgb = n * 0.5 + 0.5` with the y component negated before
-  encoding. This is deliberate: it matches the normal maps
-  `materials::bevelNormals()` produces, so a G-buffer surface can be fed
-  straight into a material shader.
+  encoding. This is deliberate: it is the encoding SigilMaterial's bevel
+  normal maps use, so a normals pass can be fed straight into one of its
+  surface recipes as the normal map.
 - **`SkColor4f` values here are display-encoded sRGB, not linear.** Colour
   interpolation runs through OKLab, with an explicit sRGB decode on the way
   in and encode on the way out (`blend::detail::lerpOklab`). Interpolating
@@ -493,6 +464,10 @@ decoding a texture an importer handed you, or fetching an asset over the
 network — that is the caller's job, and the library is designed so the
 caller can supply it (`decode::Resolver` is the hook).
 
+Surface shading is **SigilMaterial**'s: its bevel normal maps and its
+gold, chrome and glass recipes take a normals pass this library draws,
+and it links `SigilGeometryPath`, never the reverse.
+
 The relationship with **SigilWorld**, the GPU renderer that sits beside it,
 is one-directional: SigilWorld links SigilGeometry and consumes its `Mesh`,
 `Cloud`, `pop::Chain`, `Spline3` and `space::Camera` types. SigilGeometry does
@@ -513,10 +488,9 @@ cmake --build build --config Debug
 
 Targets: one static library per feature — `SigilGeometryPath`,
 `SigilGeometryBlend`, `SigilGeometryMesh`, `SigilGeometrySpace`,
-`SigilGeometryCurves`, `SigilGeometryPop`,
-`SigilGeometryCodec`, `SigilGeometryMaterial` — the header-only
-`SigilGeometryEasel`, the `SigilGeometry` umbrella over all of them, the
-tests, `geometry_demo`, and four Google Benchmark binaries built by the
+`SigilGeometryCurves`, `SigilGeometryPop`, `SigilGeometryCodec` — the
+`SigilGeometry` umbrella over all of them, the tests, `geometry_demo`, and
+four Google Benchmark binaries built by the
 `benches` target and run from a Release build through
 `scripts/bench_ledger.py`: `geometry_path_bench` (flattening and
 resampling by point count, corner detection and the parallel and displaced
@@ -542,8 +516,6 @@ recompiles one small file. All are registered with ctest and answer to
 | `geometry_curves_test` | `curves/test/CurvesTest.cpp` | splines, tubes, ribbons, banners |
 | `geometry_pop_test` | `pop/test/PointsTest.cpp`, `pop/test/PopTest.cpp` | point clouds, instancing, the agreement between an instanced facing lane and `faceCamera()`, and pop chains with their operators; links the codec to seed chains from an imported model |
 | `geometry_codec_test` | `codec/test/DecodeTest.cpp`, `codec/test/EncodeTest.cpp` | every reader, and the PLY writer's round trips; the only one linking Alembic |
-| `geometry_material_test` | `material/test/MaterialTest.cpp` | the material shaders |
-| `geometry_easel_test` | `easel/test/EaselTest.cpp` | the fluent authoring surface |
 
 Helpers that more than one binary reads (`kCubeObj`, `splitQuad`) live in
 `test/support/GeometrySupport.h` at the library root — the one shared
@@ -565,6 +537,6 @@ anywhere.
 `splines_particles`, `pop_models`, `pop_prims` and `yarn_marquee`. Two more
 appear when `assetdir` (default `assets`) has been populated by the
 optional `fetch_assets` build target: `materials_hdri`, which lights the
-material swatches with a loaded HDRI panorama, and `imported_models`, which
+surface swatches with a loaded HDRI panorama, and `imported_models`, which
 renders whatever model files sit in `<assetdir>/models` through the import
 path.

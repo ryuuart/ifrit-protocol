@@ -12,8 +12,6 @@
 #include "sigilgeometry/codec/Encode.h"
 #include "sigilgeometry/codec/Model.h"
 #include "sigilgeometry/curves/Curves.h"
-#include "sigilgeometry/easel/Easel.h"
-#include "sigilgeometry/material/Materials.h"
 #include "sigilgeometry/mesh/Mesh.h"
 #include "sigilgeometry/mesh/Vec.h"
 #include "sigilgeometry/path/Contour.h"

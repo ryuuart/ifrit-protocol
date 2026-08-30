@@ -790,50 +790,6 @@ TEST(World, EnvironmentPanoramaLightsFromItsBrightSide) {
   EXPECT_LT(luma(bm.getColor(24, 32)), 8) << "no panorama, no light";
 }
 
-TEST(WorldTextureSet, ClassifiesTheToolsNames) {
-  using world::textures::classify;
-  using world::textures::Role;
-  // Substance Painter / Designer.
-  EXPECT_EQ(classify("Rock_BaseColor.png").role, Role::BaseColor);
-  EXPECT_EQ(classify("Rock_BaseColor.png").set, "Rock");
-  EXPECT_EQ(classify("Rock_Normal.png").role, Role::Normal);
-  EXPECT_FALSE(classify("Rock_Normal.png").directX);
-  EXPECT_TRUE(classify("Rock_NormalDX.png").directX);
-  EXPECT_TRUE(classify("Rock_Normal_DirectX.png").directX);
-  EXPECT_EQ(classify("Rock_Roughness.png").role, Role::Roughness);
-  EXPECT_EQ(classify("Rock_Metallic.png").role, Role::Metallic);
-  EXPECT_EQ(classify("Rock_Height.png").role, Role::Height);
-  EXPECT_EQ(classify("Rock_Emissive.png").role, Role::Emissive);
-  EXPECT_EQ(classify("Rock_OcclusionRoughnessMetallic.png").role, Role::Packed);
-  // Poly Haven.
-  EXPECT_EQ(classify("metal_plate_diff_1k.png").role, Role::BaseColor);
-  EXPECT_EQ(classify("metal_plate_diff_1k.png").set, "metal_plate");
-  EXPECT_EQ(classify("metal_plate_nor_gl_1k.png").role, Role::Normal);
-  EXPECT_FALSE(classify("metal_plate_nor_gl_1k.png").directX);
-  EXPECT_EQ(classify("metal_plate_nor_gl_1k.png").set, "metal_plate");
-  EXPECT_TRUE(classify("metal_plate_nor_dx_2k.png").directX);
-  EXPECT_EQ(classify("metal_plate_rough_1k.png").role, Role::Roughness);
-  EXPECT_EQ(classify("metal_plate_metal_1k.png").role, Role::Metallic);
-  EXPECT_EQ(classify("metal_plate_ao_1k.png").role, Role::Occlusion);
-  EXPECT_EQ(classify("metal_plate_arm_1k.png").role, Role::Packed);
-  EXPECT_EQ(classify("metal_plate_disp_1k.png").role, Role::Height);
-  // ambientCG.
-  EXPECT_EQ(classify("Metal049A_1K-PNG_Color.png").role, Role::BaseColor);
-  EXPECT_EQ(classify("Metal049A_1K-PNG_NormalGL.png").role, Role::Normal);
-  EXPECT_TRUE(classify("Metal049A_1K-PNG_NormalDX.png").directX);
-  EXPECT_EQ(classify("Metal049A_1K-PNG_Metalness.png").role, Role::Metallic);
-  EXPECT_EQ(classify("Metal049A_1K-PNG_AmbientOcclusion.png").role,
-            Role::Occlusion);
-  EXPECT_EQ(classify("Metal049A_1K-PNG_Displacement.png").role, Role::Height);
-  EXPECT_EQ(classify("Metal049A_1K-PNG_Color.png").set, "Metal049A_1K_PNG");
-  // glTF-ish.
-  EXPECT_EQ(classify("thing_orm.png").role, Role::Packed);
-  EXPECT_EQ(classify("thing_albedo.jpg").role, Role::BaseColor);
-  // Nothing recognizable.
-  EXPECT_EQ(classify("photo.png").role, Role::Unknown);
-  EXPECT_EQ(classify("IMG_2048.png").role, Role::Unknown);
-}
-
 TEST(WorldTextureSet, BuildsAMaterialAndWiresThePack) {
   // A set discovered from a scratch directory: a base colour, a DirectX
   // normal, a packed ARM, and a separate roughness that outranks the
@@ -898,12 +854,6 @@ TEST(WorldTextureSet, BuildsAMaterialAndWiresThePack) {
   EXPECT_EQ(u.metallicChannel, 2);
   EXPECT_EQ(u.occlusionMap.get(), c.get());
   EXPECT_EQ(u.occlusionChannel, 0);
-  EXPECT_EQ(world::textures::roleForUsage("ambientOcclusion"),
-            world::textures::Role::Occlusion);
-  EXPECT_EQ(world::textures::roleForUsage("baseColor"),
-            world::textures::Role::BaseColor);
-  EXPECT_EQ(world::textures::roleForUsage("wibble"),
-            world::textures::Role::Unknown);
 
   // The imported-part door: factors become the scalars, the pack and a
   // separate occlusion naming the same bytes share one decode, glTF

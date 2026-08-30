@@ -31,7 +31,8 @@ target_compile_definitions(SigilSketchKit PUBLIC
 target_link_libraries(SigilSketchKit PUBLIC
   SigilComposeCore SigilComposeShape SigilComposeBrush SigilComposePaint
   SigilComposeTypography SigilComposeInstances SigilComposeKit
-  SigilComposeTesting SigilLoader SigilGeometry SigilWeavePorts EnTT::EnTT)
+  SigilComposeTesting SigilLoader SigilGeometry SigilMaterial
+  SigilWeavePorts EnTT::EnTT)
 set_target_properties(SigilSketchKit PROPERTIES
   POSITION_INDEPENDENT_CODE ON)
 
@@ -134,9 +135,10 @@ if(APPLE)
   # all ran as compiled-in gallery scenes, and all failed to dlopen —
   # `symbol not found in flat namespace ..._ZN5sigil5shape...`. Anything
   # added to SigilSketchKit's PUBLIC libraries belongs here too — as the
-  # ARCHIVES it resolves to: SigilGeometry and SigilWeave are each an
-  # interface over their feature archives, and an interface target has no
-  # file to force-load; the compose tiers are named archive by archive.
+  # ARCHIVES it resolves to: SigilGeometry, SigilMaterial and SigilWeave are
+  # each an interface over their feature archives, and an interface target
+  # has no file to force-load; the compose tiers are named archive by
+  # archive.
   foreach(sketch_dep IN ITEMS SigilSketchKit SigilComposeCore
                               SigilComposeShape SigilComposeBrush
                               SigilComposePaint SigilComposeInstances
@@ -145,8 +147,9 @@ if(APPLE)
                               SigilMotionBind SigilGeometryPath
                               SigilGeometryBlend SigilGeometryMesh
                               SigilGeometrySpace SigilGeometryCurves
-                              SigilGeometryPop
-                              SigilGeometryCodec SigilGeometryMaterial
+                              SigilGeometryPop SigilGeometryCodec
+                              SigilMaterialCore SigilMaterialTexture
+                              SigilMaterialSkia SigilMaterialKit
                               SigilWeaveUnicode SigilWeaveFonts
                               SigilWeaveParagraph SigilWeaveLayout
                               SigilWeaveDecoration SigilWeavePaint

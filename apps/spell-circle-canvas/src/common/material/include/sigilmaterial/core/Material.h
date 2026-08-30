@@ -11,11 +11,13 @@
 
 #include <choreograph/Choreograph.h>
 #include <sigilmaterial/core/FrameData.h>
+#include <sigilmaterial/core/Leaf.h>
 #include <sigilmaterial/core/Params.h>
 #include <sigilmaterial/core/Program.h>
 #include <sigilmaterial/core/Recipe.h>
 #include <sigilmaterial/core/UniformBlock.h>
 
+#include <concepts>
 #include <cstddef>
 #include <cstring>
 #include <memory>
@@ -37,8 +39,9 @@ namespace sigil::material {
  *  field is live — `isAnimated()` — and the resolve memo keys on the
  *  sampled values, so a frame that changed nothing reuses the last
  *  resolve. CHILDREN fill the recipe's declared slots with other materials
- *  and ride every query: a live child makes the parent live, a different
- *  child makes the parent unequal.
+ *  or with leaves (a `Leaf`: an image and its sampling, bound by the
+ *  backend rather than compiled) and ride every query: a live child makes
+ *  the parent live, a different child makes the parent unequal.
  *
  *  EQUALITY is by value: recipe identity, bytes, bindings by identity (an
  *  `Output*` or a block pointer, never the values behind them), children
@@ -94,11 +97,30 @@ class Material {
   /** Fills the child slot @p name. A slot the recipe does not declare is
    *  reported once and ignored. */
   Material& child(std::string_view name, Material material);
-  /** The material in slot @p name, or null. */
+  /** Fills the child slot @p name with a leaf the backend binds directly.
+   *  A slot the recipe does not declare is reported once and ignored. */
+  Material& child(std::string_view name, std::shared_ptr<const Leaf> leaf);
+  /** `child(name, shared_ptr<const Leaf>)` over a leaf value. */
+  template <class L>
+    requires std::derived_from<L, Leaf>
+  Material& child(std::string_view name, L leaf) {
+    return child(name, std::shared_ptr<const Leaf>(
+                           std::make_shared<const L>(std::move(leaf))));
+  }
+  /** The material in slot @p name, or null — including when the slot
+   *  holds a leaf. */
   const Material* child(std::string_view name) const;
+  /** The leaf in slot @p name, or null — including when the slot holds a
+   *  material. */
+  const Leaf* leaf(std::string_view name) const;
+
+  /** What fills a slot: exactly one of the two. */
+  struct Slot {
+    std::shared_ptr<const Material> material;
+    std::shared_ptr<const Leaf> leaf;
+  };
   /** The filled slots in recipe order. */
-  std::span<const std::pair<std::string, std::shared_ptr<const Material>>>
-  children() const {
+  std::span<const std::pair<std::string, Slot>> children() const {
     return m_children;
   }
 
@@ -155,12 +177,12 @@ class Material {
   void write(std::string_view name, Kind kind, const void* floats,
              size_t count);
   Binding* binding(std::string_view name);
+  void place(std::string_view name, Slot slot);
 
   std::shared_ptr<const Recipe> m_recipe;
   std::vector<std::byte> m_bytes;
   std::vector<Binding> m_bindings;
-  std::vector<std::pair<std::string, std::shared_ptr<const Material>>>
-      m_children;
+  std::vector<std::pair<std::string, Slot>> m_children;
   float m_amount = 1.0f;
   float m_quantizeHz = 0.0f;
   bool m_worldSpace = false;

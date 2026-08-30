@@ -2,7 +2,7 @@
  "config": "Release",
  "host": "MacBookPro.control",
  "machine": "arm64",
- "taken": "2026-08-30T07:21:30+00:00",
+ "taken": "2026-08-30T08:06:18+00:00",
  "benches": {
   "compose_brush_bench": {
    "BM_Draw_ArtWarp_Live": {
@@ -1720,6 +1720,38 @@
     "repetitions": 4
    }
   },
+  "material_kit_bench": {
+   "SurfaceBuild/0": {
+    "real_ns": 257.85280552910206,
+    "cpu_ns": 256.39297673236297,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "SurfaceBuild/1": {
+    "real_ns": 255.7358087932792,
+    "cpu_ns": 254.8219112035324,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "SurfaceShader": {
+    "real_ns": 420.399793254892,
+    "cpu_ns": 411.87748490649454,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BadgeFill/32": {
+    "real_ns": 310354.3983473043,
+    "cpu_ns": 309158.4821428562,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BadgeFill/128": {
+    "real_ns": 3899282.989247392,
+    "cpu_ns": 3887583.333333339,
+    "unit": "ns",
+    "repetitions": 4
+   }
+  },
   "material_skia_bench": {
    "BM_Shader_Live/2": {
     "real_ns": 187.69519926340504,
@@ -1736,6 +1768,74 @@
    "BM_Shader_ByHand2": {
     "real_ns": 82.42243252208011,
     "cpu_ns": 81.09387196925763,
+    "unit": "ns",
+    "repetitions": 4
+   }
+  },
+  "material_texture_bench": {
+   "AtlasGrid/4": {
+    "real_ns": 378.5162484509634,
+    "cpu_ns": 370.4773654844983,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "AtlasGrid/16": {
+    "real_ns": 3916.8263004279415,
+    "cpu_ns": 3766.147744442043,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "AtlasGrid/64": {
+    "real_ns": 59298.44809437733,
+    "cpu_ns": 56771.5325515568,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "AtlasPack/16": {
+    "real_ns": 9055.156386145067,
+    "cpu_ns": 8802.962622347768,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "AtlasPack/64": {
+    "real_ns": 33696.40830193752,
+    "cpu_ns": 32834.11433926888,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "AtlasPack/256": {
+    "real_ns": 135699.83170205686,
+    "cpu_ns": 133712.38938053127,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "AtlasRegionCut": {
+    "real_ns": 321.6422850764891,
+    "cpu_ns": 306.2544328607496,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "ClassifyName/0": {
+    "real_ns": 231.41421705086202,
+    "cpu_ns": 215.53496258822992,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "ClassifyName/1": {
+    "real_ns": 352.06772665798076,
+    "cpu_ns": 325.11201345708594,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "ClassifyName/2": {
+    "real_ns": 616.2852542733605,
+    "cpu_ns": 599.2059312930511,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "ClassifyName/3": {
+    "real_ns": 78.63725962841272,
+    "cpu_ns": 76.47999478726862,
     "unit": "ns",
     "repetitions": 4
    }

@@ -190,11 +190,13 @@ inline constexpr StudyInfo kStudies[] = {
      "One of every stock SkSL material \xe2\x80\x94 also the split-Skia ctest "
      "guard"},
     {"shapeworks_lab", "shapeworks lab", "Kit",
-     "SigilGeometry live \xe2\x80\x94 the Illustrator blend, spinning meshes, "
-     "and the gold/chrome/glass materials, all hot-editable"},
+     "SigilGeometry and SigilMaterial live \xe2\x80\x94 the Illustrator "
+     "blend, spinning meshes, and gold/chrome/glass surfaces built once as "
+     "materials, all hot-editable"},
     {"easel_playground", "easel playground", "Kit",
-     "The artist surface \xe2\x80\x94 easel:: chains that read like "
-     "sentences: shape recipes, blends, wires, particles"},
+     "Geometry operators, materials and compose elements read straight: "
+     "a gold badge from path ops and a bevel, a blend, a wire with a "
+     "marquee and particles"},
 
     // ---- One sketch per API ----
     // Not finished artwork and not trying to be: each of these is a place

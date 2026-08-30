@@ -54,6 +54,7 @@
     },
     "simdjson",
     "spdlog",
+    "stb",
     {
       "name": "spout2",
       "features": [

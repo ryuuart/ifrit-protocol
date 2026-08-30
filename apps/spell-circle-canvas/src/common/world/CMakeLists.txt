@@ -48,8 +48,11 @@ endif()
 # VALUES could move out of SigilCompose (2026-07-29) and land here.
 # SigilWorld stays compose-free; world_test links SigilComposeCore
 # TEST-ONLY, below.
+# SigilMaterialTexture is PUBLIC because TextureSet.h spells the texture
+# set vocabulary — roles, classification, discovery — that lives there.
 target_link_libraries(SigilWorld
-  PUBLIC SigilGeometry unofficial::skia::skia EnTT::EnTT SigilMotion
+  PUBLIC SigilGeometry SigilMaterialTexture unofficial::skia::skia
+         EnTT::EnTT SigilMotion
   PRIVATE unofficial::diligent-engine::DiligentCore Vulkan::Headers
 )
 

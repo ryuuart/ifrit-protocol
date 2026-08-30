@@ -1,30 +1,87 @@
-// easel_playground.cpp — THE ARTIST SURFACE, LIVE
+// easel_playground.cpp — THREE LIBRARIES, ONE SENTENCE EACH
 // =============================================================================
-// SigilGeometry's easel:: is the layer that reads like sentences: stock
-// shapes, fluent dials, one draw() at the end. This playground is its
-// prototype in the hot-reload loop — every chain below is meant to be
-// EDITED. Change a number, save, watch. Nothing here needs an options
-// struct, a lane name, or a matrix.
+// SigilGeometry makes outlines and moves them (path ops, blends, splines,
+// point clouds); SigilMaterial makes surfaces (a bevel normal map, an
+// environment, a recipe over both); SigilCompose places what they draw.
+// This playground is the seam between the three in the hot-reload loop —
+// every chain below is meant to be EDITED. Change a number, save, watch.
 //
-//   left    a shape recipe: star -> bloat -> roughen -> offset, gold
+//   left    a badge: star -> bloat -> roughen -> offset, filled with gold
 //   middle  the blend tool: spiky coral thing melting into a sky dot
-//   right   a wire crossing space: tube + beads + glow + particles
+//   right   a wire crossing space: tube + marquee + glow + particles
 //
-// The exact layer stays underneath (Ops/Blend/Curves/Points/Materials)
-// whenever a sentence runs out of words — easel objects hand over
-// their cooked values (path()/cook()/spline()) at any point.
+// Nothing here goes through a façade. The outline is a chain of path
+// operators; the gold is kit::gold over bevelNormals(); the draw is
+// skia::fill. When a sentence runs out of words the exact layer is what
+// you were already holding.
 
+#include <include/core/SkPathBuilder.h>
 #include <include/core/SkSurface.h>
-#include <sigilgeometry/easel/Easel.h>
+#include <sigilgeometry/blend/Blend.h>
+#include <sigilgeometry/curves/Curves.h>
+#include <sigilgeometry/path/Ops.h>
+#include <sigilgeometry/pop/Points.h>
+#include <sigilgeometry/space/Space.h>
+#include <sigilmaterial/kit/Surfaces.h>
+#include <sigilmaterial/skia/Draw.h>
+#include <sigilmaterial/skia/SkiaCompiler.h>
+#include <sigilmaterial/texture/Surface.h>
 #include <sigilsketch/Sketch.h>
 
 #include <cmath>
 
 using namespace sigil::compose;
-namespace easel = sigil::geometry::easel;
 namespace geometry = sigil::geometry;
+namespace material = sigil::material;
 
 namespace {
+
+// ---------------------------------------------------------------------------
+// Stock outlines, centred on the origin — placed by translating the canvas.
+
+SkPath dot(float radius) { return SkPath::Circle(0, 0, radius); }
+
+SkPath ngon(int sides, float radius, float rotationDeg = -90) {
+  SkPathBuilder b;
+  sides = std::max(sides, 3);
+  const float rot = rotationDeg * (float)M_PI / 180.0f;
+  for (int i = 0; i < sides; ++i) {
+    const float a = rot + (float)i / (float)sides * 2.0f * (float)M_PI;
+    const SkPoint p = {radius * std::cos(a), radius * std::sin(a)};
+    i == 0 ? (void)b.moveTo(p) : (void)b.lineTo(p);
+  }
+  b.close();
+  return b.detach();
+}
+
+SkPath star(int points, float radius, float innerRatio = 0.45f,
+            float rotationDeg = -90) {
+  SkPathBuilder b;
+  points = std::max(points, 3);
+  const float rot = rotationDeg * (float)M_PI / 180.0f;
+  for (int i = 0; i < points * 2; ++i) {
+    const float r = i % 2 == 0 ? radius : radius * innerRatio;
+    const float a = rot + (float)i / (float)(points * 2) * 2.0f * (float)M_PI;
+    const SkPoint p = {r * std::cos(a), r * std::sin(a)};
+    i == 0 ? (void)b.moveTo(p) : (void)b.lineTo(p);
+  }
+  b.close();
+  return b.detach();
+}
+
+/** A closed loop of eight points orbiting the origin, bobbing with the
+ *  clock — the wire everything on the right hangs from. */
+geometry::Spline3 loopAt(float t, float radius, float bob) {
+  geometry::Spline3 spline;
+  for (int i = 0; i < 8; ++i) {
+    const float a = (float)i / 8.0f * 2.0f * (float)M_PI + t * 0.25f;
+    spline.points.push_back({std::cos(a) * radius,
+                             std::sin(a * 2.0f + t * 0.4f) * bob,
+                             std::sin(a) * radius});
+  }
+  spline.closed = true;
+  return spline;
+}
 
 // The tiled untileable strip: a Fibonacci word (A→AB, B→A — the golden
 // substitution) rendered as long/short cells. Aperiodic within its
@@ -63,62 +120,83 @@ sk_sp<SkImage> fibonacciStrip(int width, int height) {
 }  // namespace
 
 struct EaselPlayground : sigil::compose::sketch::Sketch {
-  geometry::materials::Environment studio;
+  material::Environment studio;
   sk_sp<SkImage> marqueeStrip;
 
   Element describe(sketch::SketchContext& ctx) {
-    // LEFT — a shape recipe wearing gold. Try: .twirl(40), a bigger
-    // bloat, .chrome(studio), .fill({1,0.4f,0.6f,1}).
+    // LEFT — an outline recipe wearing gold. The recipe is a chain of
+    // path operators; the gold is a material over the bevel the cooked
+    // outline casts. Try: ops::Twirl{40}, a bigger bloat, kit::chrome.
     Element badge =
         custom([this](SkCanvas& canvas, const PaintContext& paint) {
           const float wobble =
               2.0f + 1.5f * std::sin((float)paint.elapsedSeconds * 0.8f);
-          easel::shape(easel::star(7, 110, 0.55f))
-              .bloat(0.25f)
-              .roughen(wobble, 3)
-              .offset(6)
-              .gold(studio, 9)
-              .draw(canvas,
-                    {paint.size.width() * 0.5f, paint.size.height() * 0.5f});
+          const geometry::ops::PathOp recipe = geometry::ops::chain({
+              geometry::ops::PuckerBloat{0.25f},
+              geometry::ops::Roughen{wobble, 8, 3},
+              geometry::ops::offsetBy(6),
+          });
+          const SkPath outline = recipe(star(7, 110, 0.55f));
+          material::kit::GoldParams gold;
+          canvas.save();
+          canvas.translate(paint.size.width() * 0.5f,
+                           paint.size.height() * 0.5f);
+          material::skia::fill(
+              canvas, outline,
+              material::kit::gold(material::bevelNormals(outline, 9), studio,
+                                  gold));
+          canvas.restore();
         })
             .inset(30, 60, 830, 380)
             .cache(Cache::None);
 
-    // LEFT LOW — the same recipe language, plain paint: a pond of
+    // LEFT LOW — the same operator language, plain paint: a pond of
     // offset rings breathing.
     Element pond =
         custom([](SkCanvas& canvas, const PaintContext& paint) {
           const float t = (float)paint.elapsedSeconds;
+          canvas.save();
+          canvas.translate(paint.size.width() * 0.5f,
+                           paint.size.height() * 0.5f);
           for (int i = 0; i < 5; ++i) {
             const float phase = t * 0.7f - (float)i * 0.55f;
             const float grow = 20.0f * (float)i + 14.0f * std::sin(phase);
-            easel::shape(easel::ngon(6, 36))
-                .zigzag(4, 18, true)
-                .offset(grow)
-                .stroke({0.4f + 0.12f * (float)i, 0.8f, 1.0f,
-                         0.85f - 0.15f * (float)i},
-                        2.5f)
-                .draw(canvas,
-                      {paint.size.width() * 0.5f, paint.size.height() * 0.5f});
+            const SkPath ring = geometry::ops::offset(
+                geometry::ops::Zigzag{4, 18, true}(ngon(6, 36)), grow);
+            SkPaint stroke;
+            stroke.setAntiAlias(true);
+            stroke.setStyle(SkPaint::kStroke_Style);
+            stroke.setStrokeWidth(2.5f);
+            stroke.setColor4f({0.4f + 0.12f * (float)i, 0.8f, 1.0f,
+                               0.85f - 0.15f * (float)i});
+            canvas.drawPath(ring, stroke);
           }
+          canvas.restore();
         })
             .inset(30, 440, 830, 40)
             .cache(Cache::None);
 
-    // MIDDLE — the blend tool. Try: .smoothColor(), .every(24),
-    // .along(a path).turning().
+    // MIDDLE — the blend tool. Try: Spacing::SmoothColor, a spine with
+    // Orientation::AlignToPath.
     Element melt =
         custom([](SkCanvas& canvas, const PaintContext& paint) {
           const float sway =
               40.0f * std::sin((float)paint.elapsedSeconds * 0.6f);
-          easel::blend(easel::star(5, 66, 0.45f), easel::dot(56))
-              .colors({1.0f, 0.42f, 0.30f, 1}, {0.30f, 0.62f, 1.0f, 1})
-              .steps(10)
-              .smooth()
-              .between(
-                  {paint.size.width() * 0.5f + sway, 90},
-                  {paint.size.width() * 0.5f - sway, paint.size.height() - 90})
-              .draw(canvas);
+          const SkPoint top = {paint.size.width() * 0.5f + sway, 90};
+          const SkPoint bottom = {paint.size.width() * 0.5f - sway,
+                                  paint.size.height() - 90};
+          geometry::blend::Key from{
+              star(5, 66, 0.45f)
+                  .makeTransform(SkMatrix::Translate(top.fX, top.fY)),
+              {1.0f, 0.42f, 0.30f, 1}};
+          geometry::blend::Key to{
+              dot(56).makeTransform(SkMatrix::Translate(bottom.fX, bottom.fY)),
+              {0.30f, 0.62f, 1.0f, 1}};
+          geometry::blend::Options options;
+          options.steps = 10;
+          options.smoothOutlines = true;
+          geometry::blend::draw(canvas,
+                                geometry::blend::make(from, to, options));
         })
             .inset(390, 60, 420, 40)
             .cache(Cache::None);
@@ -138,33 +216,28 @@ struct EaselPlayground : sigil::compose::sketch::Sketch {
           camera.fovYDeg = 40;
 
           const float t = (float)paint.elapsedSeconds;
-          easel::Wire loop = easel::wire({});
-          for (int i = 0; i < 8; ++i) {
-            const float a = (float)i / 8.0f * 2.0f * (float)M_PI + t * 0.25f;
-            loop.through({std::cos(a) * 210, std::sin(a * 2.0f + t * 0.4f) * 80,
-                          std::sin(a) * 210});
-          }
-          loop.closed();
+          const geometry::Spline3 loop = loopAt(t, 210, 80);
 
           geometry::space::MeshStyle steel;
           steel.baseColor = {0.62f, 0.7f, 0.85f, 1};
           steel.specular = 0.9f;
-          geometry::space::drawMesh(canvas, loop.tube(7, 180), glm::mat4(1.0f),
-                                    camera, viewport, steel);
-          loop.draw(canvas, camera, viewport, {1, 1, 1, 0.25f}, 1);
+          geometry::space::drawMesh(
+              canvas,
+              geometry::curves::tube(loop, {.radius = 7, .segments = 180}),
+              glm::mat4(1.0f), camera, viewport, steel);
+          SkPaint wire;
+          wire.setAntiAlias(true);
+          wire.setStyle(SkPaint::kStroke_Style);
+          wire.setStrokeWidth(1);
+          wire.setColor4f({1, 1, 1, 0.25f});
+          canvas.drawPath(
+              geometry::curves::project(loop, camera, viewport, 256), wire);
 
           // The marquee: a wider sibling loop wearing the Fibonacci
           // band. ribbon() charts (across, along) into uv; the strip
           // tiles (one aperiodic period wraps the loop) and the
           // uvTransform's translate IS the scroll.
-          easel::Wire orbit = easel::wire({});
-          for (int i = 0; i < 8; ++i) {
-            const float a = (float)i / 8.0f * 2.0f * (float)M_PI + t * 0.25f;
-            orbit.through({std::cos(a) * 265,
-                           std::sin(a * 2.0f + t * 0.4f) * 96,
-                           std::sin(a) * 265});
-          }
-          orbit.closed();
+          const geometry::Spline3 orbit = loopAt(t, 265, 96);
           geometry::space::MeshStyle band;
           band.texture = marqueeStrip;
           band.tileTexture = true;
@@ -173,16 +246,33 @@ struct EaselPlayground : sigil::compose::sketch::Sketch {
           band.lights = {};
           band.specular = 0;
           band.uvTransform = SkMatrix::Translate(0, t * 0.11f);
-          geometry::space::drawMesh(canvas, orbit.ribbon(30, 220),
-                                    glm::mat4(1.0f), camera, viewport, band);
+          geometry::space::drawMesh(
+              canvas,
+              geometry::curves::ribbon(orbit, {.width = 30, .segments = 220}),
+              glm::mat4(1.0f), camera, viewport, band);
 
-          easel::particles()
-              .on(loop)
-              .count(220)
-              .drift(26)
-              .size(11, 0.6f)
-              .ramp({0.4f, 0.85f, 1.0f, 0.4f}, {1.0f, 0.5f, 0.9f, 0.4f})
-              .glow(canvas, camera, viewport);
+          // Particles: points on the wire, drifted by noise, tinted
+          // along the "t" lane the spline scatter writes, sized by a
+          // lane of our own.
+          geometry::Cloud sparks = geometry::points::onSpline(loop, 220);
+          geometry::points::displaceNoise(sparks, 26, 0.012f, 9);
+          const std::vector<float>* along = sparks.scalarIf("t");
+          std::vector<glm::vec4>& tint = sparks.color("tint");
+          std::vector<float>& size = sparks.scalar("size", 1);
+          const glm::vec4 cool = {0.4f, 0.85f, 1.0f, 0.4f};
+          const glm::vec4 warm = {1.0f, 0.5f, 0.9f, 0.4f};
+          for (size_t i = 0; i < sparks.size(); ++i) {
+            const float f =
+                along ? (*along)[i] : (float)i / (float)(sparks.size() - 1);
+            tint[i] = cool + (warm - cool) * f;
+            size[i] = 1.0f + 0.6f * std::sin(f * 37.0f);
+          }
+          geometry::points::BillboardStyle glow;
+          glow.size = 11;
+          glow.sizeLane = "size";
+          glow.tintLane = "tint";
+          geometry::points::drawBillboards(canvas, sparks, camera, viewport,
+                                           glow);
         })
             .inset(840, 60, 30, 40)
             .clip()
@@ -199,7 +289,8 @@ struct EaselPlayground : sigil::compose::sketch::Sketch {
     ctx.canvas(1240, 760);
     ctx.background({0.045f, 0.045f, 0.085f, 1});
     ctx.captureAt(2.6);
-    studio = geometry::materials::Environment::studio();
+    material::skia::install();
+    studio = material::Environment::studio();
     marqueeStrip = fibonacciStrip(96, 1024);
     ctx.composer.render(describe(ctx));
   }

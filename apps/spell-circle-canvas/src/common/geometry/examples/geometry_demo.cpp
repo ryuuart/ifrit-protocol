@@ -1,14 +1,14 @@
 /** @file
  * Headless PNG panels of the SigilGeometry catalog: blend studies,
- * material swatches, procedural meshes in perspective, pop models and
- * imported files.
+ * surface swatches shaded by SigilMaterial, procedural meshes in
+ * perspective, pop models and imported files.
  */
 
 // Headless SigilGeometry catalog: every panel is one PNG, written to the
 // out dir (argv[1], default geometry_demo_out). Mirrors compose_demo's
 // writePanel loop; no fonts, no GPU — raster Skia end to end.
 // argv[2] names the fetched-asset dir (default "assets"): when the
-// Poly Haven studio HDRI is present there, an extra materials panel
+// Poly Haven studio HDRI is present there, an extra surfaces panel
 // renders under the REAL environment instead of the procedural bakes.
 
 #include <include/core/SkBitmap.h>
@@ -22,6 +22,10 @@
 #include <sigilimage/asset/ImageAsset.h>
 #include <sigilimage/decode/Decode.h>
 #include <sigilloader/Loader.h>
+#include <sigilmaterial/kit/Surfaces.h>
+#include <sigilmaterial/skia/Draw.h>
+#include <sigilmaterial/skia/SkiaCompiler.h>
+#include <sigilmaterial/texture/Surface.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/kit/SigilWeaveKit.h>
 #include <sigilweave/ports/SystemFontManager.h>
@@ -36,7 +40,6 @@
 #include "sigilgeometry/blend/Blend.h"
 #include "sigilgeometry/codec/Decode.h"
 #include "sigilgeometry/curves/Curves.h"
-#include "sigilgeometry/material/Materials.h"
 #include "sigilgeometry/mesh/Mesh.h"
 #include "sigilgeometry/path/Ops.h"
 #include "sigilgeometry/path/Polyline.h"
@@ -45,8 +48,36 @@
 #include "sigilgeometry/space/Space.h"
 
 using namespace sigil::geometry;
+namespace material = sigil::material;
+namespace kit = sigil::material::kit;
 
 namespace {
+
+// The surface pipeline for one outline: a bevel normal map over the path,
+// the recipe over that map and the environment, the fill clipped to the
+// path.
+void drawGold(SkCanvas& canvas, const SkPath& path,
+              const material::Environment& env, float bevelPx,
+              const kit::GoldParams& params = {}) {
+  material::skia::fill(
+      canvas, path,
+      kit::gold(material::bevelNormals(path, bevelPx), env, params));
+}
+void drawChrome(SkCanvas& canvas, const SkPath& path,
+                const material::Environment& env, float bevelPx,
+                const kit::ChromeParams& params = {}) {
+  material::skia::fill(
+      canvas, path,
+      kit::chrome(material::bevelNormals(path, bevelPx), env, params));
+}
+void drawGlass(SkCanvas& canvas, const SkPath& path,
+               const material::Environment& env, sk_sp<SkImage> backdrop,
+               float bevelPx, const kit::GlassParams& params = {}) {
+  material::skia::fill(
+      canvas, path,
+      kit::glass(material::bevelNormals(path, bevelPx), env,
+                 material::Texture::of(std::move(backdrop)), params));
+}
 
 bool writePanel(SkSize size, const std::filesystem::path& path,
                 const std::function<void(SkCanvas&)>& draw,
@@ -284,8 +315,8 @@ void panelBlendSpine(SkCanvas& canvas) {
 }
 
 void panelMaterials(SkCanvas& canvas) {
-  const materials::Environment studio = materials::Environment::studio();
-  const materials::Environment sunset = materials::Environment::sunset();
+  const material::Environment studio = material::Environment::studio();
+  const material::Environment sunset = material::Environment::sunset();
 
   // Backdrop: checker everywhere, with a bright zone and colored blobs
   // directly behind the glass column so refraction has something to
@@ -321,47 +352,46 @@ void panelMaterials(SkCanvas& canvas) {
   }
 
   // Column 1: gold — polished badge, foil star, rough coin.
-  materials::GoldParams polished;
+  kit::GoldParams polished;
   polished.crinkle = 0.08f;
   polished.roughness = 0.1f;
-  materials::drawGold(canvas, star(8, 90, 62, {180, 150}), studio, 10,
-                      polished);
-  materials::GoldParams foil;
+  drawGold(canvas, star(8, 90, 62, {180, 150}), studio, 10, polished);
+  kit::GoldParams foil;
   foil.crinkle = 0.55f;
   foil.sparkle = 0.8f;
   foil.roughness = 0.35f;
-  materials::drawGold(canvas, star(5, 100, 46, {180, 390}), studio, 8, foil);
-  materials::GoldParams rough;
+  drawGold(canvas, star(5, 100, 46, {180, 390}), studio, 8, foil);
+  kit::GoldParams rough;
   rough.roughness = 0.7f;
   rough.crinkle = 0.2f;
-  materials::drawGold(canvas, circle(84, {180, 600}), studio, 16, rough);
+  drawGold(canvas, circle(84, {180, 600}), studio, 16, rough);
 
   // Column 2: chrome — studio steel, brushed steel, sunset chrome.
-  materials::drawChrome(canvas, squircle(92, {480, 150}, 3.4f), studio, 12);
-  materials::ChromeParams brushed;
+  drawChrome(canvas, squircle(92, {480, 150}, 3.4f), studio, 12);
+  kit::ChromeParams brushed;
   brushed.brushed = 0.85f;
   brushed.roughness = 0.25f;
   brushed.contrast = 1.2f;
-  materials::drawChrome(canvas, circle(88, {480, 390}), studio, 14, brushed);
-  materials::ChromeParams y2k;
+  drawChrome(canvas, circle(88, {480, 390}), studio, 14, brushed);
+  kit::ChromeParams y2k;
   y2k.contrast = 1.35f;
   y2k.roughness = 0.08f;
-  materials::drawChrome(canvas, star(9, 98, 64, {480, 600}), sunset, 10, y2k);
+  drawChrome(canvas, star(9, 98, 64, {480, 600}), sunset, 10, y2k);
 
   // Column 3: glass over the backdrop.
   if (backdrop) {
-    materials::drawGlass(canvas, circle(92, {780, 170}), studio, backdrop, 16);
-    materials::GlassParams deep;
+    drawGlass(canvas, circle(92, {780, 170}), studio, backdrop, 16);
+    kit::GlassParams deep;
     deep.tint = {0.75f, 0.9f, 0.8f, 1};
     deep.refractPx = 30;
     deep.edgeGlow = 0.5f;
-    materials::drawGlass(canvas, squircle(90, {780, 410}, 3.0f), studio,
-                         backdrop, 22, deep);
-    materials::GlassParams shard;
+    drawGlass(canvas, squircle(90, {780, 410}, 3.0f), studio, backdrop, 22,
+              deep);
+    kit::GlassParams shard;
     shard.tint = {0.9f, 0.85f, 1.0f, 1};
-    shard.reflect = 0.75f;
-    materials::drawGlass(canvas, star(6, 100, 52, {780, 630}), sunset, backdrop,
-                         12, shard);
+    shard.reflection = 0.75f;
+    drawGlass(canvas, star(6, 100, 52, {780, 630}), sunset, backdrop, 12,
+              shard);
   }
 }
 
@@ -414,7 +444,7 @@ void panelMeshPerspective(SkCanvas& canvas) {
 }
 
 void panelMeshChrome(SkCanvas& canvas) {
-  // The deferred bridge: 3D normal G-buffer -> per-pixel materials.
+  // The deferred bridge: 3D normal G-buffer -> per-pixel surfaces.
   const SkSize viewport = {1240, 720};
   space::Camera camera;
   camera.eye = {0, 90, 820};
@@ -432,8 +462,8 @@ void panelMeshChrome(SkCanvas& canvas) {
     return surface->makeImageSnapshot();
   };
 
-  const materials::Environment sunset = materials::Environment::sunset();
-  const materials::Environment studio = materials::Environment::studio();
+  const material::Environment sunset = material::Environment::sunset();
+  const material::Environment studio = material::Environment::studio();
 
   // Sunset-chrome blob — curvature everywhere, so the env sweeps
   // across the surface (a flat extruded cap would read as one sample).
@@ -441,9 +471,10 @@ void panelMeshChrome(SkCanvas& canvas) {
     Mesh m = mesh::superellipsoid({170, 150, 90}, 2.6f, 64, 48);
     const glm::mat4 model = space::place({-280, 0, 0}, 24, -10, -8);
     sk_sp<SkImage> g = renderNormals(m, model);
-    materials::ChromeParams params;
+    kit::ChromeParams params;
     params.contrast = 1.35f;
-    sk_sp<SkShader> shader = materials::chrome(g, sunset, {0, 0}, params);
+    sk_sp<SkShader> shader = material::skia::shader(
+        kit::chrome(material::Texture::of(g), sunset, params), {});
     // Coverage mask: rasterize the mesh once more (any opaque mode),
     // then shade its pixels through kSrcIn.
     canvas.saveLayer(nullptr, nullptr);
@@ -462,9 +493,10 @@ void panelMeshChrome(SkCanvas& canvas) {
     Mesh m = mesh::torus(130, 46);
     const glm::mat4 model = space::place({280, 0, -40}, 0, -30, 18);
     sk_sp<SkImage> g = renderNormals(m, model);
-    materials::GoldParams params;
+    kit::GoldParams params;
     params.crinkle = 0.12f;
-    sk_sp<SkShader> shader = materials::gold(g, studio, {0, 0}, params);
+    sk_sp<SkShader> shader = material::skia::shader(
+        kit::gold(material::Texture::of(g), studio, params), {});
     canvas.saveLayer(nullptr, nullptr);
     space::MeshStyle mask;
     mask.mode = space::MeshStyle::Mode::Uv;
@@ -689,10 +721,10 @@ void panelSplines(SkCanvas& canvas) {
   canvas.drawPath(curves::project(knot, camera, viewport, 400), wire);
 }
 
-// Materials under a fetched HDRI: SigilLoader -> OIIO -> F32 equirect
+// Surfaces under a fetched HDRI: SigilLoader -> OIIO -> F32 equirect
 // SkImage -> Environment::fromEquirect. Gold/chrome/glass badges lit by
 // a real studio.
-void panelMaterialsHdri(SkCanvas& canvas, const materials::Environment& env) {
+void panelMaterialsHdri(SkCanvas& canvas, const material::Environment& env) {
   checker(canvas, SkRect::MakeXYWH(0, 0, 1240, 720), 40, 0xff191920,
           0xff232330);
   SkPaint blob;
@@ -710,31 +742,29 @@ void panelMaterialsHdri(SkCanvas& canvas, const materials::Environment& env) {
       backdrop = bm.asImage();
     }
   }
-  materials::GoldParams gold;
+  kit::GoldParams gold;
   gold.crinkle = 0.3f;
   gold.roughness = 0.2f;
-  materials::drawGold(canvas, star(6, 110, 60, {210, 200}), env, 12, gold);
-  materials::GoldParams coin;
+  drawGold(canvas, star(6, 110, 60, {210, 200}), env, 12, gold);
+  kit::GoldParams coin;
   coin.roughness = 0.55f;
   coin.crinkle = 0.1f;
-  materials::drawGold(canvas, circle(92, {210, 520}), env, 18, coin);
-  materials::ChromeParams mirror;
+  drawGold(canvas, circle(92, {210, 520}), env, 18, coin);
+  kit::ChromeParams mirror;
   mirror.exposure = 2.8f;
   mirror.contrast = 1.25f;
-  materials::drawChrome(canvas, squircle(104, {560, 200}, 3.2f), env, 14,
-                        mirror);
-  materials::ChromeParams brushed;
+  drawChrome(canvas, squircle(104, {560, 200}, 3.2f), env, 14, mirror);
+  kit::ChromeParams brushed;
   brushed.brushed = 0.8f;
   brushed.roughness = 0.3f;
   brushed.contrast = 1.1f;
   brushed.exposure = 2.8f;
-  materials::drawChrome(canvas, circle(98, {560, 520}), env, 16, brushed);
+  drawChrome(canvas, circle(98, {560, 520}), env, 16, brushed);
   if (backdrop) {
-    materials::drawGlass(canvas, circle(102, {920, 240}), env, backdrop, 18);
-    materials::GlassParams deep;
+    drawGlass(canvas, circle(102, {920, 240}), env, backdrop, 18);
+    kit::GlassParams deep;
     deep.refractPx = 26;
-    materials::drawGlass(canvas, squircle(98, {940, 520}, 2.8f), env, backdrop,
-                         20, deep);
+    drawGlass(canvas, squircle(98, {940, 520}, 2.8f), env, backdrop, 20, deep);
   }
 }
 
@@ -1111,6 +1141,7 @@ int main(int argc, char** argv) {
     return help ? 0 : 1;
   }
   const std::filesystem::path outDir = argc > 1 ? argv[1] : "geometry_demo_out";
+  material::skia::install();
   const std::filesystem::path assetDir = argc > 2 ? argv[2] : "assets";
   std::error_code ec;
   std::filesystem::create_directories(outDir, ec);
@@ -1154,8 +1185,8 @@ int main(int argc, char** argv) {
     hub.mount("res://", assetDir);
     if (std::shared_ptr<const sigil::image::ImageAsset> equirect =
             hub.image("res://" + hdri.string())) {
-      const materials::Environment env =
-          materials::Environment::fromEquirect(equirect->frameAt(0).image);
+      const material::Environment env =
+          material::Environment::fromEquirect(equirect->frameAt(0).image);
       ++total;
       if (writePanel(
               {1240, 720}, outDir / "materials_hdri.png",

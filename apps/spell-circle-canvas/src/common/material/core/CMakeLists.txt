@@ -13,6 +13,7 @@ add_library(SigilMaterialCore STATIC
   ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/Material.h
   ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/core/Color.h
   ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/core/FrameData.h
+  ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/core/Leaf.h
   ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/core/Material.h
   ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/core/Params.h
   ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/core/Program.h
