@@ -10,9 +10,9 @@
 
 #include <sigilcompose/Compose.h>
 #include <sigilcompose/Decorations.h>
-#include <sigilcompose/Instances.h>
 #include <sigilcompose/Shapes.h>
 #include <sigilcompose/TextFx.h>
+#include <sigilcompose/instances/Instances.h>
 
 #include <sigilweave/SigilWeave.h>
 #include <sigilweave/fonts/FontContext.h>

@@ -40,7 +40,7 @@ target_compile_definitions(ComposeGallery PRIVATE
 # instead of exporting dylib entry points. Linking it is the whole
 # integration — GalleryStudies.h adds only folder and blurb.
 target_link_libraries(ComposeGallery PRIVATE
-  SigilCompose SigilWeavePorts SigilSketchStudies Qt6::Gui Qt6::GuiPrivate
+  SigilCompose SigilComposeInstances SigilWeavePorts SigilSketchStudies Qt6::Gui Qt6::GuiPrivate
   Qt6::Quick Qt6::QuickControls2 EnTT::EnTT)
 
 # Draw directly into QQuickRhiItem's texture with the shared Skia Graphite
@@ -65,6 +65,6 @@ add_executable(compose_gallery_test
 )
 target_include_directories(compose_gallery_test PRIVATE ${CMAKE_CURRENT_LIST_DIR})
 target_link_libraries(compose_gallery_test PRIVATE
-  SigilCompose SigilWeavePorts SigilSketchStudies GTest::gtest_main
+  SigilCompose SigilComposeInstances SigilWeavePorts SigilSketchStudies GTest::gtest_main
   EnTT::EnTT)
 add_test(NAME compose_gallery_test COMMAND compose_gallery_test)

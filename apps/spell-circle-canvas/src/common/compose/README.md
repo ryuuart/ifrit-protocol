@@ -1027,8 +1027,11 @@ picture; rows of text name their style in a `sigil::weave::StyleSet`
 kernel; the bordered strip several feeds sit on is the kit's `kit::plate`
 (`kit/Plate.h`), with `kit::tinted` building the one-face style set its
 rows name.
-`Instances.h` renders thousands of sprites as one leaf, with the pool on
-your side of the seam. `Web.h` makes a live Ultralight page a leaf; it is a
+`instances/Instances.h` renders thousands of sprites as one leaf, with the
+pool on your side of the seam; it is its own target, `SigilComposeInstances`,
+linked only by what stamps with it, and the kit's `kit/Placers.h` (the
+`place::grid`, `place::ring` and `place::repeat` pool fillers) ships with
+it. `Web.h` makes a live Ultralight page a leaf; it is a
 header-only adapter and the library does not link SigilScry, so include it
 only in targets that do.
 
@@ -1240,14 +1243,16 @@ What it refuses to be:
 
 The library is a set of feature targets over one kernel, and a consumer
 links the tier it draws with: `SigilComposeCore` (the kernel — elements,
-the reconciler, layout, paint, transitions, text, the feed and the
-instanced leaf), `SigilComposeShape` (silhouettes, layouts, routers),
+the reconciler, layout, paint, transitions, text and the feed),
+`SigilComposeShape` (silhouettes, layouts, routers),
 `SigilComposeBrush` (decorations, lines, brushes, with `kit/Strokes.h` and
 `kit/Plate.h`), `SigilComposePaint` (patterns, SDF materials, layer
 styles, OCIO), `SigilComposeTypography` (header-only: type styles and the
-text-fx presets) and `SigilComposeWeb` (header-only, present only with
-SigilScry). `SigilCompose` is the umbrella over every tier but the web
-leaf; the kit is `SigilComposeKit`. From `apps/spell-circle-canvas`:
+text-fx presets), `SigilComposeInstances` (the instanced sprite leaf and
+the kit's placers, over Core) and `SigilComposeWeb` (header-only, present
+only with SigilScry). `SigilCompose` is the umbrella over every tier but
+the instanced leaf and the web leaf, which are linked by name; the kit is
+`SigilComposeKit`. From `apps/spell-circle-canvas`:
 
 ```sh
 python3 scripts/setup.py --config Debug
@@ -1258,8 +1263,9 @@ ctest --test-dir build -C Debug --output-on-failure
 Registered tests, one binary per library target so that each links only
 the target it exercises and a test reaching past its tier fails to link:
 `compose_core_test` (the kernel — elements, the reconciler, layout, paint,
-transitions, text, the feed, the instanced leaf, masks and the field walks;
-links `SigilComposeCore` alone), `compose_shape_test` (silhouettes,
+transitions, text, the feed, masks and the field walks; links
+`SigilComposeCore` alone), `compose_instances_test` (the pool, the atlas,
+the stamp, the pick and the placers; links `SigilComposeInstances` alone), `compose_shape_test` (silhouettes,
 layouts, routers, rails, travel), `compose_brush_test` (decorations,
 lines, brushes, the stroke grammar, the kit's stroke presets),
 `compose_paint_test` (patterns, SDF materials, layer styles, colour

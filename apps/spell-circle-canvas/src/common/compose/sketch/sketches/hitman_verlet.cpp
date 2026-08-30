@@ -185,12 +185,12 @@
 #include <include/core/SkFontTypes.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>
-#include <sigilcompose/Instances.h>
 #include <sigilcompose/Lines.h>
 #include <sigilcompose/Material.h>
 #include <sigilcompose/Patterns.h>
 #include <sigilcompose/Shapes.h>
 #include <sigilcompose/TextFx.h>
+#include <sigilcompose/instances/Instances.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilsketch/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>

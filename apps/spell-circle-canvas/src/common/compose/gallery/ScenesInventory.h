@@ -36,11 +36,11 @@
 
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/Brushes.h>
-#include <sigilcompose/Instances.h>
 #include <sigilcompose/LayerStyles.h>
 #include <sigilcompose/Material.h>
 #include <sigilcompose/Patterns.h>
 #include <sigilcompose/Shapes.h>
+#include <sigilcompose/instances/Instances.h>
 
 #include <array>
 #include <cmath>

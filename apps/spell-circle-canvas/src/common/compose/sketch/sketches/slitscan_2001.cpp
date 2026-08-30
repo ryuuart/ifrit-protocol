@@ -199,13 +199,13 @@
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilcompose/Decorations.h>
-#include <sigilcompose/Instances.h>
 #include <sigilcompose/Lines.h>
 #include <sigilcompose/Material.h>
 #include <sigilcompose/Pattern.h>
 #include <sigilcompose/Patterns.h>
 #include <sigilcompose/Shapes.h>
 #include <sigilcompose/TextFx.h>
+#include <sigilcompose/instances/Instances.h>
 #include <sigilcompose/kit/Legibility.h>
 #include <sigilsketch/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>

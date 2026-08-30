@@ -70,13 +70,13 @@
 #include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/Decorations.h>
-#include <sigilcompose/Instances.h>
 #include <sigilcompose/LayerStyles.h>
 #include <sigilcompose/Material.h>
 #include <sigilcompose/Pattern.h>
 #include <sigilcompose/Patterns.h>
 #include <sigilcompose/Shapes.h>
 #include <sigilcompose/TextFx.h>
+#include <sigilcompose/instances/Instances.h>
 #include <sigilsketch/Sketch.h>
 #include <sigilweave/layout/ParagraphLayout.h>
 #include <sigilweave/paragraph/Paragraph.h>

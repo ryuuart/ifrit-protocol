@@ -14,8 +14,8 @@
 #include <include/effects/SkRuntimeEffect.h>
 #include <include/encode/SkPngEncoder.h>
 #include <sigilcompose/Compose.h>
-#include <sigilcompose/Instances.h>
 #include <sigilcompose/Material.h>
+#include <sigilcompose/instances/Instances.h>
 #include <sigilimage/asset/ImageAsset.h>
 
 #include <cmath>

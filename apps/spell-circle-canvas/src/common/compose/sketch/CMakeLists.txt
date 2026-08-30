@@ -28,8 +28,8 @@ target_compile_definitions(SigilSketchKit PUBLIC
 # include is exactly this target's PUBLIC dependencies. It is header-only,
 # so it adds nothing to the force_load list below.
 target_link_libraries(SigilSketchKit PUBLIC
-  SigilCompose SigilComposeTesting SigilLoader SigilGeometry SigilWeavePorts
-  EnTT::EnTT)
+  SigilCompose SigilComposeInstances SigilComposeTesting SigilLoader
+  SigilGeometry SigilWeavePorts EnTT::EnTT)
 set_target_properties(SigilSketchKit PROPERTIES
   POSITION_INDEPENDENT_CODE ON)
 
@@ -137,7 +137,8 @@ if(APPLE)
   # feature archives, and an interface target has no file to force-load.
   foreach(sketch_dep IN ITEMS SigilSketchKit SigilComposeCore
                               SigilComposeShape SigilComposeBrush
-                              SigilComposePaint SigilImageAsset
+                              SigilComposePaint SigilComposeInstances
+                              SigilImageAsset
                               SigilImageDecode SigilLoaderHub SigilMotionClock
                               SigilMotionBind SigilGeometryPath
                               SigilGeometryBlend SigilGeometryMesh

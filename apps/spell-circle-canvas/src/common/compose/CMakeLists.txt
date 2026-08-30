@@ -11,6 +11,8 @@
 #   SigilComposePaint       patterns, SDF materials, layer styles and OCIO
 #                           over Brush
 #   SigilComposeTypography  type styles and the text-fx presets (headers)
+#   SigilComposeInstances   the instanced sprite leaf over Core, with the
+#                           kit's placers (instances/CMakeLists.txt)
 #   SigilComposeWeb         the Ultralight leaf (header; only with SigilScry)
 #   SigilCompose            the umbrella: every tier above at once
 #
@@ -23,8 +25,8 @@
 # Holds the element value and its authoring grammar, the keyed reconciler,
 # Yoga layout with SigilWeave-measured text, stacking paint with automatic
 # picture caching of provably-static subtrees, transitions and bindings, the
-# per-glyph text seam, the composer's queries, the material value, the
-# streaming feed and the instanced leaf. Links SigilGeometryPath, SigilImage,
+# per-glyph text seam, the composer's queries, the material value and the
+# streaming feed. Links SigilGeometryPath, SigilImage,
 # SigilMotion, SigilWeave and Skia publicly, because those types appear in
 # its headers; Yoga is private, because no header spells it.
 #
@@ -44,7 +46,6 @@ add_library(SigilComposeCore STATIC
   TextAtRest.cpp
   Query.cpp
   Material.cpp
-  Instances.cpp
   ComposeInternal.h
   ComposeRuntime.h
   include/sigilcompose/Compose.h
@@ -54,7 +55,6 @@ add_library(SigilComposeCore STATIC
   include/sigilcompose/Env.h
   include/sigilcompose/Feed.h
   include/sigilcompose/GpuImage.h
-  include/sigilcompose/Instances.h
   include/sigilcompose/Layout.h
   include/sigilcompose/Mask.h
   include/sigilcompose/Material.h
@@ -64,9 +64,10 @@ add_library(SigilComposeCore STATIC
   include/sigilcompose/Stroke.h
   include/sigilcompose/Text.h
 )
+set(SIGIL_COMPOSE_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/include)
 target_compile_features(SigilComposeCore PUBLIC cxx_std_20)
 target_include_directories(SigilComposeCore
-  PUBLIC ${CMAKE_CURRENT_LIST_DIR}/include
+  PUBLIC ${SIGIL_COMPOSE_INCLUDE_DIR}
   PRIVATE ${CMAKE_CURRENT_LIST_DIR}
 )
 target_link_libraries(SigilComposeCore
@@ -213,7 +214,7 @@ function(_compose_test_binary name)
 endfunction()
 
 # The kernel: elements, the reconciler, layout, paint, transitions, text,
-# the feed, the instanced leaf, masks and the field walks. Links Core ALONE,
+# the feed, masks and the field walks. Links Core ALONE,
 # which is the proof that the kernel stands without its catalogs. The field
 # walks include ComposeInternal.h AND ComposeRuntime.h (the only test TU
 # that does either) so the equality comparators and the kSlotSpecs table
@@ -229,7 +230,6 @@ _compose_test_binary(compose_core_test
     test/ComposeTestMask.cpp
     test/ComposeTestFieldPins.cpp
     test/ComposeTestContentCore.cpp
-    test/ComposeTestEngineDocsCore.cpp
 )
 target_include_directories(compose_core_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(compose_core_test PRIVATE yoga::yogacore)
@@ -341,7 +341,7 @@ add_test(NAME compose_api_doc_probes_self_test
           --self-test)
 
 _compose_test_binary(compose_docs_test
-  LIBRARIES SigilCompose SigilComposeKit
+  LIBRARIES SigilCompose SigilComposeKit SigilComposeInstances
   SOURCES
     ${COMPOSE_API_DOC_PROBES}
     test/ComposeTestEngineDocs.cpp
@@ -380,7 +380,8 @@ if(APPLE AND TARGET SpellCircleSkia)
     test/ComposeGpuTest.mm
   )
   target_link_libraries(compose_gpu_test PRIVATE
-    SigilCompose SigilWeavePorts SpellCircleSkia GTest::gtest_main
+    SigilCompose SigilComposeInstances SigilWeavePorts SpellCircleSkia
+    GTest::gtest_main
     "-framework Metal")
   add_test(NAME compose_gpu_test COMMAND compose_gpu_test)
 endif()
@@ -445,7 +446,7 @@ endfunction()
 # The kernel: describe, reconcile, layout, query, caching, and the
 # whole-scene scoreboard, blur, instances and particle arms.
 _compose_bench(compose_core_bench GPU
-  LIBRARIES SigilComposeCore EnTT::EnTT
+  LIBRARIES SigilComposeCore SigilComposeInstances EnTT::EnTT
   SOURCES bench/ComposeCoreBench.cpp bench/ComposeCoreSceneBench.cpp)
 # Comparable silhouettes, hit testing and blended shaped leaves.
 _compose_bench(compose_shape_bench
@@ -474,11 +475,13 @@ add_executable(compose_demo
 target_link_libraries(compose_demo PRIVATE SigilCompose SigilWeavePorts)
 
 # Each tree-structured product owns its CMakeLists (repo convention —
-# see sigilweave/examples/*). testing/ and kit/ first (they are libraries
-# the rest may link), then sketch/, which defines SigilSketchStudies (every
-# study sketch compiled in place) and which the gallery links.
+# see sigilweave/examples/*). testing/, kit/ and instances/ first (they are
+# libraries the rest may link; the instances test links testing), then
+# sketch/, which defines SigilSketchStudies (every study sketch compiled in
+# place) and which the gallery links.
 add_subdirectory(testing)
 add_subdirectory(kit)
+add_subdirectory(instances)
 add_subdirectory(sketch)
 add_subdirectory(gallery)
 

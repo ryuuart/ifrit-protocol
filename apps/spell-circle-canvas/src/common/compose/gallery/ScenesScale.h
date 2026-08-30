@@ -17,7 +17,7 @@
 // through their spans, and the first-class layer does the baking (2x
 // oversample built in) and the drawAtlas stamping.
 
-#include <sigilcompose/Instances.h>
+#include <sigilcompose/instances/Instances.h>
 
 #include <cmath>
 #include <entt/entt.hpp>

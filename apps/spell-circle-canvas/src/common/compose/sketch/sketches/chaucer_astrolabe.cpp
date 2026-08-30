@@ -127,15 +127,16 @@
 #include <include/pathops/SkPathOps.h>
 #include <sigilcompose/Brushes.h>
 #include <sigilcompose/Feed.h>
-#include <sigilcompose/Instances.h>
 #include <sigilcompose/LayerStyles.h>
 #include <sigilcompose/Lines.h>
 #include <sigilcompose/Material.h>
 #include <sigilcompose/Patterns.h>
 #include <sigilcompose/Shapes.h>
 #include <sigilcompose/Typography.h>
+#include <sigilcompose/instances/Instances.h>
 #include <sigilcompose/kit/Divisions.h>
 #include <sigilcompose/kit/Frame.h>
+#include <sigilcompose/kit/Placers.h>
 #include <sigilcompose/kit/Plate.h>
 #include <sigilcompose/testing/Checks.h>
 #include <sigilsketch/Sketch.h>

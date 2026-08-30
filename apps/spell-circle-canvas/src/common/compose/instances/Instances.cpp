@@ -1,9 +1,14 @@
-#include "sigilcompose/Instances.h"
+/** @file
+ * The instanced leaf: the pool's lanes, the atlas bake, the one-draw stamp
+ * with its arithmetic cull, the pick that inverts it, and the element that
+ * carries a pool in either mode.
+ */
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPicture.h>
 #include <include/core/SkRSXform.h>
 #include <include/core/SkSurface.h>
+#include <sigilcompose/instances/Instances.h>
 
 #include <cmath>
 
@@ -287,65 +292,5 @@ Element instances(std::shared_ptr<Atlas> atlas,
         .inset(0);
   });
 }
-
-namespace place {
-
-void grid(Pool& pool, size_t count, int columns, SkSize cell, SkPoint origin,
-          SkSize gap) {
-  pool.resize(count);
-  auto positions = pool.positions();
-  const int cols = std::max(1, columns);
-  for (size_t i = 0; i < count; ++i) {
-    const int col = (int)(i % (size_t)cols), row = (int)(i / (size_t)cols);
-    positions[i] = {origin.fX + cell.width() * 0.5f +
-                        (float)col * (cell.width() + gap.width()),
-                    origin.fY + cell.height() * 0.5f +
-                        (float)row * (cell.height() + gap.height())};
-  }
-  pool.commit();
-}
-
-void ring(Pool& pool, size_t count, SkPoint center, float radius,
-          float startRadians, bool faceOut) {
-  pool.resize(count);
-  auto positions = pool.positions();
-  auto rotations = pool.rotations();
-  for (size_t i = 0; i < count; ++i) {
-    const float a = startRadians + (float)i * 2.0f * (float)M_PI / (float)count;
-    positions[i] = {center.fX + std::cos(a) * radius,
-                    center.fY + std::sin(a) * radius};
-    if (faceOut) rotations[i] = a + (float)M_PI / 2.0f;
-  }
-  pool.commit();
-}
-
-void repeat(Pool& pool, size_t count, SkPoint start, SkPoint translate,
-            float rotateStepRadians, float scaleStep, float opacityFrom,
-            float opacityTo, int frame) {
-  pool.resize(count);
-  auto positions = pool.positions();
-  auto rotations = pool.rotations();
-  auto scales = pool.scales();
-  for (size_t i = 0; i < count; ++i) {
-    positions[i] = {start.fX + translate.fX * (float)i,
-                    start.fY + translate.fY * (float)i};
-    rotations[i] = rotateStepRadians * (float)i;
-    scales[i] = std::pow(scaleStep, (float)i);
-  }
-  if (opacityFrom != 1.0f || opacityTo != 1.0f) {
-    auto alphas = pool.alphas();
-    for (size_t i = 0; i < count; ++i) {
-      const float t = count > 1 ? (float)i / (float)(count - 1) : 0.0f;
-      alphas[i] = opacityFrom + (opacityTo - opacityFrom) * t;
-    }
-  }
-  if (frame >= 0) {
-    auto frames = pool.frames();
-    for (size_t i = 0; i < count; ++i) frames[i] = frame;
-  }
-  pool.commit();
-}
-
-}  // namespace place
 
 }  // namespace sigil::compose::instancing

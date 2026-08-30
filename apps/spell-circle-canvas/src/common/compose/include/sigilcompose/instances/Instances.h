@@ -33,21 +33,23 @@
  * local clip arithmetically before building the draw arrays. The
  * bookkeeping costs more than it saves on small pools, which is why it is
  * gated rather than always on.
+ *
+ * The arithmetic placers that fill a pool — a grid, a ring, a repeat
+ * chain — are the kit's, in <sigilcompose/kit/Placers.h>.
  */
 
 #include <include/core/SkBlendMode.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkColor.h>
 #include <include/core/SkImage.h>
+#include <sigilcompose/Compose.h>
+#include <sigilcompose/GpuImage.h>
 
 #include <algorithm>
 #include <cstdint>
 #include <memory>
 #include <span>
 #include <vector>
-
-#include "sigilcompose/Compose.h"
-#include "sigilcompose/GpuImage.h"
 
 namespace sigil::compose::instancing {
 
@@ -296,34 +298,5 @@ std::optional<size_t> pick(const Pool& pool, const Atlas& atlas, SkPoint point);
 Element instances(std::shared_ptr<Atlas> atlas,
                   std::shared_ptr<const Pool> pool, Mode mode = Mode::Data,
                   SkBlendMode blend = SkBlendMode::kSrcOver);
-
-// ---------------------------------------------------------------------------
-// Placement generators — data-level, O(count) arithmetic, no Yoga
-
-namespace place {
-
-/** Row-major grid of cell-sized slots from @p origin. */
-void grid(Pool& pool, size_t count, int columns, SkSize cell,
-          SkPoint origin = {0, 0}, SkSize gap = {0, 0});
-
-/** Evenly spaced ring; @p faceOut rotates each instance along its spoke. */
-void ring(Pool& pool, size_t count, SkPoint center, float radius,
-          float startRadians = 0.0f, bool faceOut = false);
-
-/** A repeated copy chain: per-copy LINEAR translate and rotate, and
- *  EXPONENTIAL scale (pow(scaleStep, i)), with an optional start→end
- *  opacity ramp.
- *
- *  Every generator here writes only the lanes its parameters speak to, and
- *  no others. The opacity ramp touches the `alphas()` lane — composing with
- *  an authored tint rather than overwriting it — and only when the two
- *  opacity arguments actually say something; `frame` is written only when
- *  it is non-negative. So a pool filled by hand and then arranged by this
- *  keeps its tints and frames. */
-void repeat(Pool& pool, size_t count, SkPoint start, SkPoint translate,
-            float rotateStepRadians = 0.0f, float scaleStep = 1.0f,
-            float opacityFrom = 1.0f, float opacityTo = 1.0f, int frame = -1);
-
-}  // namespace place
 
 }  // namespace sigil::compose::instancing

@@ -514,11 +514,6 @@ TEST(ComposeMaterials, StableLiveResolveBlitsTheTexture) {
 }
 
 // ---------------------------------------------------------------------------
-// instances() — the flyweight repeat layer (<sigilcompose/Instances.h>)
-
-#include <sigilcompose/Instances.h>
-
-// ---------------------------------------------------------------------------
 // The edge store: node→routes back-index + flat derive lists
 
 TEST(ComposeEdgeStore, RoutesAtReturnsAnchoredRoutesInTreeOrder) {

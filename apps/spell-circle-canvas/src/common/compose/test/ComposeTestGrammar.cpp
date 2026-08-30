@@ -989,8 +989,6 @@ TEST(ComposeComposites, CompositesNest) {
 // explicit stages — because the words are close enough that a wrong one
 // produces a plausible picture rather than an error.
 
-#include <sigilcompose/Instances.h>
-
 // ---- 1. animate(to(v), spec) ----------------------------------------------
 
 TEST(ComposeR1Animate, AnimateToIsTheChangeRamp) {
@@ -1119,22 +1117,6 @@ TEST(ComposeR1Bound, WindowIsStillSourceThatClamps) {
   EXPECT_FLOAT_EQ(w.apply(0.3f), s.apply(0.3f));
   EXPECT_FLOAT_EQ(w.apply(0.9f), 1.0f) << "window clamps";
   EXPECT_GT(s.apply(0.9f), 1.0f) << "source does not";
-}
-
-// ---- 4. Pool::commit() -----------------------------------------------------
-
-TEST(ComposeR1Pool, CommitPublishesABulkEdit) {
-  instancing::Pool pool;
-  pool.add({10, 10});
-  pool.add({20, 20});
-  const uint64_t after = pool.revision();
-  for (SkPoint& p : pool.positions()) p.fY += 5;
-  EXPECT_EQ(pool.revision(), after) << "a span write is staging, not publish";
-  pool.commit();
-  const uint64_t committed = pool.revision();
-  EXPECT_NE(committed, after);
-  pool.commit();
-  EXPECT_NE(pool.revision(), committed) << "each publish is its own revision";
 }
 
 // ---- 5. Ribbon on the profile seam ----------------------------------------

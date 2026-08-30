@@ -109,13 +109,13 @@
 #include <include/core/SkSurface.h>
 #include <include/core/SkTypeface.h>
 #include <sigilcompose/Decorations.h>
-#include <sigilcompose/Instances.h>
 #include <sigilcompose/LayerStyles.h>
 #include <sigilcompose/Lines.h>
 #include <sigilcompose/Material.h>
 #include <sigilcompose/Ocio.h>
 #include <sigilcompose/Patterns.h>
 #include <sigilcompose/Shapes.h>
+#include <sigilcompose/instances/Instances.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/testing/Checks.h>
 #include <sigilsketch/Sketch.h>

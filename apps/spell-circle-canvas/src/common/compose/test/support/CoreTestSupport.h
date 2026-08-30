@@ -16,7 +16,6 @@
 #include <include/encode/SkPngEncoder.h>
 #include <sigilcompose/Compose.h>
 #include <sigilcompose/Feed.h>
-#include <sigilcompose/Instances.h>
 #include <sigilcompose/Material.h>
 #include <sigilcompose/testing/Checks.h>
 #include <sigilimage/asset/ImageAsset.h>
