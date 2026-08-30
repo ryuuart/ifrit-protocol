@@ -103,6 +103,7 @@ target_link_libraries(SpellCircleCanvas
       Qt6::CanvasPainter
     PRIVATE
       spdlog::spdlog
+      SigilMeasure # the record/submit frame timer in SkiaSceneBackend.cpp
       SpellCircleModels # SpellCircleModel/GraphicsConfig (carries network)
       SpellCircleScene # shared resolve/draw core (also used by ../mac)
       EnTT::EnTT

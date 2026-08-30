@@ -1071,7 +1071,10 @@ not link SigilScry, so include it only in targets that do.
 whose one header verifies generated geometry and reads back what was
 drawn, in `namespace test` (GoogleTest owns `::testing`): `test::coverage`, `test::endpointDegrees`,
 `test::rasterize`, `test::check`, `test::report`,
-`test::failures`. Test binaries link it, and so does the sketch host's
+`test::failures`. The checks themselves — `test::check` and
+`test::failures` — are SigilMeasure's, brought into `test`; only the
+geometry readers and the feed `test::report` are this library's. Test
+binaries link it, and so does the sketch host's
 kit for a sketch's `--verify` pass; nothing that ships does, which is what
 keeps a point-sampled coverage scan out of a paint loop.
 

@@ -82,6 +82,7 @@ target_link_libraries(SigilComposeCore
   PUBLIC
     SigilGeometryPath
     SigilImage
+    SigilMeasure
     SigilMotion
     SigilWeave
     unofficial::skia::skia

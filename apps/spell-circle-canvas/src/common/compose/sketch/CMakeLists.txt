@@ -107,7 +107,7 @@ set_source_files_properties(qml/Main.qml
   PROPERTIES QT_RESOURCE_ALIAS Main.qml)
 target_include_directories(ComposeSketch PRIVATE ${CMAKE_CURRENT_LIST_DIR})
 target_link_libraries(ComposeSketch PRIVATE
-  SigilSketchKit Qt6::Gui Qt6::GuiPrivate Qt6::Quick)
+  SigilSketchKit SigilMeasure Qt6::Gui Qt6::GuiPrivate Qt6::Quick)
 
 # Frames render through the shared Skia Graphite context straight into the
 # QQuickRhiItem texture when the QRhi backend is supported (same pattern as
@@ -145,7 +145,7 @@ if(APPLE)
                               SigilMotionBind SigilGeometryPath
                               SigilGeometryBlend SigilGeometryMesh
                               SigilGeometrySpace SigilGeometryCurves
-                              SigilGeometryPoints SigilGeometryPop
+                              SigilGeometryPop
                               SigilGeometryCodec SigilGeometryMaterial
                               SigilWeaveUnicode SigilWeaveFonts
                               SigilWeaveParagraph SigilWeaveLayout

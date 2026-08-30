@@ -222,7 +222,7 @@ inline constexpr StudyInfo kStudies[] = {
      "geometry::pop select() and masked(), then twist / taper / bend / peak "
      "\xe2\x80\x94 one column, six chains, every one GPU-executable"},
     {"geo_groups", "geo groups", "Kit \xc2\xb7 API",
-     "geometry::import of a Houdini .geo \xe2\x80\x94 its point group is a "
+     "geometry::decode of a Houdini .geo \xe2\x80\x94 its point group is a "
      "pop mask on arrival, and pop::on(cloud) seeds the chain from it"},
     {"blur_falloff", "blur falloff", "Kit \xc2\xb7 API",
      "Effect::blur(Material, maxSigma) \xe2\x80\x94 one effect, four "

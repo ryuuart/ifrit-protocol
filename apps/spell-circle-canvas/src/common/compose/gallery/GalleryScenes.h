@@ -407,7 +407,7 @@ inline int runHeadless(const std::string& outDir, bool gpu = false,
     // The steady-state sample numbers, snapshotted the moment the sample
     // window closes — see the timingJsonPath doc above for why the JSON
     // line cannot read stage.stats at table-print time.
-    double sampleFrameMs = 0, sampleWorkMs = 0, sampleP99Ms = 0, sampleFps = 0;
+    sigil::measure::FrameSample sample;
     if (!ledger) {
       for (int f = 0; f < kProbeFrames; ++f) {
         surface->getCanvas()->clear(clearColor);
@@ -435,10 +435,7 @@ inline int runHeadless(const std::string& outDir, bool gpu = false,
         volatileMs += cs.volatileMs;
         paintMs += cs.paintMs;
       }
-      sampleFrameMs = stage.stats.average();
-      sampleWorkMs = stage.stats.workAverage();
-      sampleP99Ms = stage.stats.percentile(0.99);
-      sampleFps = stage.stats.fps();
+      sample = stage.stats.sample();
     }
     // ---- capture determinism -------------------------------------------
     // Everything above is a TIME budget, so `warmFrames` and `sampleFrames`
@@ -525,9 +522,9 @@ inline int runHeadless(const std::string& outDir, bool gpu = false,
                      "\"p99_ms\":%.3f,\"headroom_fps\":%.1f,\"shortened\":%s,"
                      "\"backend\":\"%s\"}\n",
                      registryName(i), (int)sceneSize.width(),
-                     (int)sceneSize.height(), sampleFrameMs, sampleWorkMs,
-                     sampleP99Ms, sampleFps, shortened ? "true" : "false",
-                     gpu ? "gpu" : "raster");
+                     (int)sceneSize.height(), sample.frameMs, sample.workMs,
+                     sample.p99Ms, sample.headroomFps,
+                     shortened ? "true" : "false", gpu ? "gpu" : "raster");
         // Flush per line: a scene that crashes later must not take the lines
         // already written down with it.
         std::fflush(timingJson);

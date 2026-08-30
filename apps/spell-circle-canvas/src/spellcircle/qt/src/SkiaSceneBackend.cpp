@@ -2,10 +2,10 @@
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkColor.h>
+#include <sigilmeasure/time/FrameTimer.h>
 #include <sigilweave/qt/SigilWeaveQt.h>
 #include <spdlog/spdlog.h>
 
-#include <chrono>
 #include <memory>
 
 #include "SceneRenderer.h"
@@ -39,7 +39,7 @@ class SkiaSceneBackendImpl final : public CanvasSceneBackend {
     // pixelSize always matches that scene size (see
     // SpellCircleRenderer::prePaint), so the resolved geometry in
     // renderer.m_resolved can be drawn directly with no extra scaling here.
-    const auto frameStart = std::chrono::steady_clock::now();
+    m_frames.begin();
     SkiaOffscreenSurface surface(*m_context, canvas.texture(), pixelSize);
     SkCanvas* skCanvas = surface.canvas();
     if (!skCanvas) return {};
@@ -66,30 +66,22 @@ class SkiaSceneBackendImpl final : public CanvasSceneBackend {
 
     m_sceneRenderer.draw(skCanvas, renderer.m_resolved, style);
 
-    const auto recordEnd = std::chrono::steady_clock::now();
+    // Record and submit are the frame's two lanes: the work lane closes
+    // when every command is recorded, the frame lane when the GPU has been
+    // handed the frame.
+    m_frames.composed();
     surface.submit();
-    const auto submitEnd = std::chrono::steady_clock::now();
+    m_frames.finished();
 
-    const double recordMicroseconds =
-        std::chrono::duration<double, std::micro>(recordEnd - frameStart)
-            .count();
-    const double submitMicroseconds =
-        std::chrono::duration<double, std::micro>(submitEnd - recordEnd)
-            .count();
-    m_recordMicrosecondsAverage =
-        m_recordMicrosecondsAverage == 0
-            ? recordMicroseconds
-            : m_recordMicrosecondsAverage * 0.98 + recordMicroseconds * 0.02;
-    m_submitMicrosecondsAverage =
-        m_submitMicrosecondsAverage == 0
-            ? submitMicroseconds
-            : m_submitMicrosecondsAverage * 0.98 + submitMicroseconds * 0.02;
-    if (m_sceneFrame++ % 600 == 0)
+    if (m_sceneFrame++ % 600 == 0) {
+      const double recordMs = m_frames.work().last();
+      const double submitMs = m_frames.frame().last() - recordMs;
       spdlog::info(
-          "drawScene: record {:.0f} us (ema {:.0f}), submit {:.0f} "
-          "us (ema {:.0f})",
-          recordMicroseconds, m_recordMicrosecondsAverage, submitMicroseconds,
-          m_submitMicrosecondsAverage);
+          "drawScene: record {:.0f} us (mean {:.0f}), submit {:.0f} "
+          "us (mean {:.0f})",
+          recordMs * 1000.0, m_frames.work().mean() * 1000.0, submitMs * 1000.0,
+          (m_frames.frame().mean() - m_frames.work().mean()) * 1000.0);
+    }
 
     // The offscreen canvas's blended output is premultiplied-alpha; without
     // this flag drawImage() re-applies alpha on top of already alpha-baked-in
@@ -107,8 +99,7 @@ class SkiaSceneBackendImpl final : public CanvasSceneBackend {
   // threading rule.
   spellcircle::SceneRenderer m_sceneRenderer;
   uint64_t m_sceneFrame = 0;
-  double m_recordMicrosecondsAverage = 0;
-  double m_submitMicrosecondsAverage = 0;
+  sigil::measure::FrameTimer m_frames;  // record = work lane, submit = the rest
 };
 
 std::unique_ptr<CanvasSceneBackend> createSkiaSceneBackend(QRhi* rhi) {

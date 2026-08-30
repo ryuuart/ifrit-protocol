@@ -278,8 +278,14 @@ def check_clang_tidy(files: list[Path], tidy_all: bool) -> bool:
         return True
     database = {entry["file"] for entry in json.loads(database_path.read_text())}
     if tidy_all:
+        # Generated translation units (moc compilations under *_autogen,
+        # anything else the build wrote) are not this repository's sources:
+        # they are tidied nowhere, and one from an unbuilt configuration
+        # cannot even be parsed.
         candidates = sorted(
-            Path(f).relative_to(REPO_DIR) for f in database if included(Path(f))
+            Path(f).relative_to(REPO_DIR)
+            for f in database
+            if included(Path(f)) and not Path(f).is_relative_to(BUILD_DIR)
         )
     else:
         # Only translation units the compile database knows; a changed

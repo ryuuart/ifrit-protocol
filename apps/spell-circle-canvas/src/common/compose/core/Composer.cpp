@@ -15,13 +15,14 @@
 #include <include/core/SkPicture.h>
 #include <include/core/SkPictureRecorder.h>
 #include <include/core/SkTypes.h>  // SkDebugf — the renderSlot diagnostic
+#include <sigilmeasure/time/Laps.h>
+#include <sigilmeasure/time/Stopwatch.h>
 #include <sigilweave/choreograph/Choreograph.h>  // forEachPlacedGlyph — measureRun()
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/layout/Flow.h>
 #include <sigilweave/layout/ParagraphLayout.h>
 
 #include <algorithm>
-#include <chrono>
 #include <cmath>
 #include <functional>
 #include <set>
@@ -273,7 +274,7 @@ Composer::InputSpace Composer::declaredInputSpace() const {
 
 void Composer::render(Element root) {
   Impl& impl = *m_impl;
-  const auto start = std::chrono::steady_clock::now();
+  const sigil::measure::Stopwatch reconcile;
   impl.stats.describedNodes = 0;
   impl.stats.memoHits = 0;
   impl.stats.patchedNodes = 0;
@@ -285,14 +286,12 @@ void Composer::render(Element root) {
 
   impl.volatileDirty = true;  // transitions may have started
   impl.rebuildKeyIndex();
-  impl.reconcileAccumMs += std::chrono::duration<double, std::milli>(
-                               std::chrono::steady_clock::now() - start)
-                               .count();
+  impl.reconcileAccumMs += reconcile.elapsedMs();
 }
 
 void Composer::renderSlot(std::string_view name, Element content) {
   Impl& impl = *m_impl;
-  const auto start = std::chrono::steady_clock::now();
+  const sigil::measure::Stopwatch reconcile;
   auto it = impl.bySlot.find(std::string(name));
   if (it == impl.bySlot.end()) {
     // A miss must be loud, because the SYMPTOM points somewhere else: an
@@ -336,9 +335,7 @@ void Composer::renderSlot(std::string_view name, Element content) {
   impl.contentDirty = true;
   impl.volatileDirty = true;
   impl.rebuildKeyIndex();
-  impl.reconcileAccumMs += std::chrono::duration<double, std::milli>(
-                               std::chrono::steady_clock::now() - start)
-                               .count();
+  impl.reconcileAccumMs += reconcile.elapsedMs();
 }
 
 bool Composer::dirty() const {
@@ -408,17 +405,10 @@ void Composer::draw(SkCanvas& canvas) {
     impl.profDepth = 0;
   }
 
-  auto mark = std::chrono::steady_clock::now();
-  const auto lap = [&mark] {
-    const auto now = std::chrono::steady_clock::now();
-    const double ms =
-        std::chrono::duration<double, std::milli>(now - mark).count();
-    mark = now;
-    return ms;
-  };
+  sigil::measure::Laps laps;
 
   impl.ensureLayout();
-  impl.stats.layoutMs = lap();
+  impl.stats.layoutMs = laps.mark("layout");
 
   // Volatility changes only on reconcile or while animations run (and once
   // more on the frame they settle) — skip the walk otherwise. Bindings the
@@ -433,7 +423,7 @@ void Composer::draw(SkCanvas& canvas) {
     impl.volatileDirty = false;
   }
   impl.tickerWasActive = active;
-  impl.stats.volatileMs = lap();
+  impl.stats.volatileMs = laps.mark("volatile");
 
   // Output view transform: the composer's whole output renders into one
   // layer and composites through the view filter (an OCIO display/view baked
@@ -446,7 +436,7 @@ void Composer::draw(SkCanvas& canvas) {
   }
   impl.paint(*impl.root, canvas);
   if (hasView) canvas.restore();
-  impl.stats.paintMs = lap();
+  impl.stats.paintMs = laps.mark("paint");
   impl.contentDirty = false;
   if (impl.profileEnabled)
     std::sort(impl.profileRows.begin(), impl.profileRows.end(),

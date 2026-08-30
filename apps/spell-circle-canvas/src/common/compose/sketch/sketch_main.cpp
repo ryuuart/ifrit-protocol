@@ -30,6 +30,7 @@
 #include <include/core/SkStream.h>
 #include <include/core/SkSurface.h>
 #include <include/encode/SkPngEncoder.h>
+#include <sigilmeasure/stats/Samples.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
@@ -118,12 +119,6 @@ bool awaitFirstBuild(sigil::compose::sketch::SketchHost& host) {
     return false;
   }
   return true;
-}
-
-double percentile(std::vector<double> sorted, double q) {
-  if (sorted.empty()) return 0.0;
-  const size_t i = (size_t)std::llround(q * (double)(sorted.size() - 1));
-  return sorted[std::min(i, sorted.size() - 1)];
 }
 
 /** --bench: the 60 FPS gate, measured on the sketch's REAL canvas.
@@ -246,9 +241,9 @@ int runBench(sigil::compose::sketch::SketchHost& host,
   };
   std::vector<double> sorted = frames;
   std::sort(sorted.begin(), sorted.end());
-  const double p50 = percentile(sorted, 0.50);
-  const double p95 = percentile(sorted, 0.95);
-  const double p99 = percentile(sorted, 0.99);
+  const double p50 = sigil::measure::quantile(sorted, 0.50);
+  const double p95 = sigil::measure::quantile(sorted, 0.95);
+  const double p99 = sigil::measure::quantile(sorted, 0.99);
   const double avg = mean(frames);
   const double worst = sorted.empty() ? 0.0 : sorted.back();
   const bool pass = p99 < kFrameBudgetMs;

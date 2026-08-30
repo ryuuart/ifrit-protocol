@@ -77,3 +77,19 @@ own lock evidently provides in practice but not in a form TSan can see.
 **What a test should assert once intent is restored.** With a TSan
 suppression naming `pxrInternal_*::Tf_Remnant` (or an upstream fix),
 the TSan lane runs `usd_test` clean.
+
+## Every target carries Qt automoc, including libraries with no Qt in them
+
+**What the code does.** The root `qt_standard_project_setup()` turns
+`AUTOMOC` on for every target that follows, so plain static libraries
+such as `SigilComposeBrush` gain a `*_autogen` directory and a generated
+`mocs_compilation` translation unit per configuration; two targets
+already opt out by hand.
+
+**What it was evidently intended to do.** Moc only the targets that
+declare Qt objects — the Qt Quick apps, `Ifrit.Ui` and the Qt interop
+libraries.
+
+**What a test should assert once intent is restored.** The compile
+database lists no `*_autogen` translation unit for a target that does
+not link Qt.

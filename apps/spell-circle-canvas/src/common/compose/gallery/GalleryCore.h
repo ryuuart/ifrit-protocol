@@ -8,15 +8,15 @@
 #include <include/core/SkSurface.h>
 #include <sigilcompose/Compose.h>
 #include <sigilcompose/brush/Decorations.h>
+#include <sigilmeasure/stats/FrameSample.h>
+#include <sigilmeasure/stats/Samples.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
 #include <algorithm>
 #include <chrono>
-#include <deque>
 #include <functional>
 #include <memory>
-#include <numeric>
 #include <string>
 #include <vector>
 
@@ -45,10 +45,14 @@ constexpr SkSize kSceneSize = {900, 640};
 // ---------------------------------------------------------------------------
 // Frame statistics (the FPS measurement)
 
+/** The three rolling lanes a stage is judged by, each a `measure::Samples`
+ *  over the last `kWindow` frames, read through the names the HUD and
+ *  the headless table print. */
 struct FrameStats {
+  static constexpr size_t kWindow = 120;
   /// End-to-end: everything between the top of the frame and the point the
   /// backend has finished with it, the backend flush included.
-  std::deque<double> frameMs;
+  sigil::measure::Samples frameMs{kWindow};
   /// The frame's OWN work — the same window with the backend flush taken
   /// out. On a backend with no flush the two lanes are the same numbers.
   ///
@@ -59,31 +63,15 @@ struct FrameStats {
   /// allow" would understate the headroom of every GPU scene, and leaving it
   /// out of the end-to-end number would understate what the machine actually
   /// spent. So neither number is derived from the other.
-  std::deque<double> workMs;
-  std::deque<double> presentMs;  // wall deltas between presented frames
-  static constexpr size_t kWindow = 120;
+  sigil::measure::Samples workMs{kWindow};
+  sigil::measure::Samples presentMs{
+      kWindow};  // wall deltas between presented frames
 
-  void add(double ms) {
-    frameMs.push_back(ms);
-    if (frameMs.size() > kWindow) frameMs.pop_front();
-  }
-  void addWork(double ms) {
-    workMs.push_back(ms);
-    if (workMs.size() > kWindow) workMs.pop_front();
-  }
-  void addPresent(double ms) {
-    presentMs.push_back(ms);
-    if (presentMs.size() > kWindow) presentMs.pop_front();
-  }
-  static double quantile(const std::deque<double>& window, double p) {
-    if (window.empty()) return 0;
-    std::vector<double> sorted(window.begin(), window.end());
-    std::sort(sorted.begin(), sorted.end());
-    return sorted[std::min(sorted.size() - 1,
-                           (size_t)((double)sorted.size() * p))];
-  }
+  void add(double ms) { frameMs.add(ms); }
+  void addWork(double ms) { workMs.add(ms); }
+  void addPresent(double ms) { presentMs.add(ms); }
   double presentedFps() const {
-    const double avg = mean(presentMs);
+    const double avg = presentMs.mean();
     return avg > 0 ? 1000.0 / avg : 0;
   }
   /** The tail of the PRESENTED interval, which is the only lane that can see
@@ -93,23 +81,14 @@ struct FrameStats {
    *  the number a viewer would call "smooth" are the same number. What
    *  separates them is the worst interval, so it is reported beside the mean
    *  rather than folded into it. */
-  double presentPercentile(double p) const { return quantile(presentMs, p); }
-  double presentWorstMs() const {
-    return presentMs.empty()
-               ? 0
-               : *std::max_element(presentMs.begin(), presentMs.end());
-  }
-  static double mean(const std::deque<double>& window) {
-    if (window.empty()) return 0;
-    return std::accumulate(window.begin(), window.end(), 0.0) /
-           (double)window.size();
-  }
+  double presentPercentile(double p) const { return presentMs.percentile(p); }
+  double presentWorstMs() const { return presentMs.max(); }
   /** Mean END-TO-END frame time, backend flush included. */
-  double average() const { return mean(frameMs); }
-  double percentile(double p) const { return quantile(frameMs, p); }
+  double average() const { return frameMs.mean(); }
+  double percentile(double p) const { return frameMs.percentile(p); }
   /** Mean of the frame's own work, without the backend flush. */
-  double workAverage() const { return mean(workMs); }
-  double workPercentile(double p) const { return quantile(workMs, p); }
+  double workAverage() const { return workMs.mean(); }
+  double workPercentile(double p) const { return workMs.percentile(p); }
   /** NOT a frame rate: 1000 / mean(work ms) is the rate the frame's work
    *  alone would allow, with nothing said about presenting it, and nothing
    *  said about the backend flush either. It is a ceiling, and it stays high
@@ -119,6 +98,14 @@ struct FrameStats {
   double fps() const {
     const double avg = workAverage();
     return avg > 0 ? 1000.0 / avg : 0;
+  }
+  /** The steady-state numbers as plain values, for a snapshot taken the
+   *  moment a sample window closes. */
+  sigil::measure::FrameSample sample() const {
+    return {.frameMs = average(),
+            .workMs = workAverage(),
+            .p99Ms = percentile(0.99),
+            .headroomFps = fps()};
   }
 };
 
