@@ -74,7 +74,12 @@ bool WebView::Impl::publishIfDirty() {
 bool WebView::Impl::publishGpuIfDirty(
     GpuDriver& driver, const std::unordered_set<uint32_t>& dirtyRenderBuffers) {
   ultralight::RenderTarget target = view->render_target();
-  if (target.is_empty || !dirtyRenderBuffers.count(target.render_buffer_id))
+  // RenderTarget is a packed struct, so its render buffer id sits at a
+  // 1-byte-aligned offset; the set's lookup takes its key by reference, and
+  // binding a reference to an under-aligned member is undefined. Read it
+  // through an aligned copy.
+  const uint32_t renderBufferId = target.render_buffer_id;
+  if (target.is_empty || !dirtyRenderBuffers.count(renderBufferId))
     return false;
 
   const int frameWidth = static_cast<int>(target.width);

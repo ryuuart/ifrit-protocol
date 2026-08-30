@@ -150,6 +150,9 @@ class Reconciler {
       if (match && m_host.remountRequired(*match, inst)) {
         // Unmounts; the fresh mount below picks the right mode.
         m_host.destroy(std::move(match), m_frame);
+        // The destroyed child is gone, and the mount below is what replaces
+        // it: say so rather than leaning on the moved-from pointer's value.
+        match = nullptr;
         m_stats.retired++;
       }
 

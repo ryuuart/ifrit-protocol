@@ -40,23 +40,25 @@ single worker (or suppresses the report by a TSan suppression file
 naming `OpenImageIO::v3_1::thread_pool`), and the TSan lane runs
 `loader_hub_test` clean.
 
-## OpenUSD's plugin registry races its remnant refcount (TSan)
+## OpenUSD's plugin registry races its own name table (TSan)
 
-**What the code does.** `sigil::usd::Writer::Writer` opens an in-memory
-stage; USD's plugin registry registers plugins on a TBB worker thread,
-which constructs a `Tf_Remnant` (a `TfRefBase` whose atomic counter is
-default-initialised non-atomically) that the main thread then `AddRef`s.
-TSan reports the write-vs-atomic-fetch_add pair in `Usd.RoundTripsAMeshWithSlotsAndMaterials`
-in `usd_test`. All frames are in `pxr` headers and `libusd_plug`; the
-repository's code only holds a `TfWeakPtr`.
+**What the code does.** Opening a stage instantiates USD's
+`TfSingleton<PlugRegistry>`, which registers plugins on TBB worker
+threads. Those workers rehash the registry's `__hash_table` of plugin
+names while another thread reads the same buckets, and TSan reports the
+pair with every frame inside `libusd_plug` and `pxr` headers. It fires
+in `UsdWrite.AuthorsAMeshWithSubsetsAndMaterials` in `usd_write_test`
+and in `UsdRead.ReadsAHandAuthoredStage` in `usd_read_test`. Nothing in
+this repository touches that table; the repository's code only holds a
+`TfWeakPtr`.
 
-**What it was evidently intended to do.** Register plugins with the
-publication of each remnant ordered before its first use, which USD's
-own lock evidently provides in practice but not in a form TSan can see.
+**What it was evidently intended to do.** Register plugins with each
+insertion ordered before any other thread's read, which USD's own lock
+evidently provides in practice but not in a form TSan can see.
 
 **What a test should assert once intent is restored.** With a TSan
-suppression naming `pxrInternal_*::Tf_Remnant` (or an upstream fix),
-the TSan lane runs `usd_test` clean.
+suppression naming `pxrInternal_*::PlugRegistry` (or an upstream fix),
+the TSan lane runs `usd_write_test` and `usd_read_test` clean.
 
 ## Every target carries Qt automoc, including libraries with no Qt in them
 
@@ -73,3 +75,45 @@ libraries.
 **What a test should assert once intent is restored.** The compile
 database lists no `*_autogen` translation unit for a target that does
 not link Qt.
+
+## The static analysis queue is open for the targets the split created
+
+**What the code does.** `scripts/check.py --all --tidy-all` reports 149
+distinct findings in this repository's own sources. They cluster in the
+code the library split introduced rather than in code it moved: the
+device and Graphite features of SigilSkia, the reconciler kernel and its
+tests and benches, the check table's header, the text engine's style
+headers, and the per-feature test binaries. By check, the bulk is
+`performance-unnecessary-value-param` (a description or a style copied
+into a function that only reads it), `bugprone-signed-bitwise` (Vulkan
+and Substance flag words ORed as the signed ints their C headers declare),
+`modernize-use-emplace`, `modernize-use-equals-default` and
+`clang-analyzer-deadcode.DeadStores` (a benchmark result assigned and
+never consumed, where `benchmark::DoNotOptimize` is the verb meant).
+
+**What it was evidently intended to do.** Keep the queue closed: a
+finding is either fixed or answered in place with the reason it stands,
+which is how the rest of the tree reads.
+
+**What a test should assert once intent is restored.**
+`scripts/check.py --all --tidy-all` reports no findings in this
+repository's sources.
+
+## Two benchmarks stand outside their band with no change to attribute
+
+**What the code does.** On a quiet machine
+`scripts/bench_ledger.py` reports
+`compose_shape_bench:BM_Reconcile_Shapes_RawCallable/100` about 14 %
+above its baseline and `motion_bind_bench:BM_Apply_Envelope/4` about
+11 % above, and both reproduce across repeated scoped runs while every
+other slower row of a loaded run does not. Both measure work whose
+bodies moved from headers into one translation unit apiece — the
+reconciler's matching loop and the binding chain's evaluator — so the
+inlining a caller used to get across the header boundary is gone.
+
+**What it was evidently intended to do.** Compile each body once
+without paying for it at every call site that used to inline it.
+
+**What a test should assert once intent is restored.** Either the two
+benchmarks return inside their band, or the baseline records the cost
+with the boundary that causes it named beside it.

@@ -3,8 +3,8 @@
 // The gallery's canvas item: a QQuickRhiItem whose renderer draws the
 // active SigilWeave scene with Skia — Graphite on Qt's own Metal device/queue
 // when available (the same GPU path as the SpellCircle app, via
-// sigil::skia::GraphiteContext and OffscreenSurface), falling back to Skia's CPU
-// raster backend uploaded into the item's texture otherwise.
+// sigil::skia::GraphiteContext and OffscreenSurface), falling back to Skia's
+// CPU raster backend uploaded into the item's texture otherwise.
 //
 // Threading: the renderer (scenes, FontContext, Graphite) lives on the Qt
 // Quick render thread. The GUI-side item reads only SceneDescriptors from

@@ -133,7 +133,7 @@ std::vector<glm::vec3> Spline3::sampleArcLength(int count) const {
   size_t cursor = 0;
   for (int i = 0; i < count; ++i) {
     const float target = total * (float)i / (float)(count - 1);
-    while (cursor + 1 < arc.size() && arc[cursor + 1] < target) ++cursor;
+    while (cursor + 2 < arc.size() && arc[cursor + 1] < target) ++cursor;
     const float span = arc[cursor + 1] - arc[cursor];
     const float local = span < 1e-9f ? 0 : (target - arc[cursor]) / span;
     const float t = ((float)cursor + local) / (float)dense;
@@ -162,7 +162,7 @@ std::vector<Frame3> frames(const Spline3& spline, int count, glm::vec3 up) {
   stops.reserve((size_t)count);
   for (int i = 0; i < count; ++i) {
     const float target = total * (float)i / (float)(count - 1);
-    while (cursor + 1 < arc.size() && arc[cursor + 1] < target) ++cursor;
+    while (cursor + 2 < arc.size() && arc[cursor + 1] < target) ++cursor;
     const float span = arc[cursor + 1] - arc[cursor];
     const float local = span < 1e-9f ? 0 : (target - arc[cursor]) / span;
     stops.push_back(((float)cursor + local) / (float)dense);

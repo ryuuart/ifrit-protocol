@@ -212,11 +212,13 @@ VkFormat toVulkan(TextureFormat format) {
  *  set a Graphite wrap promises — with storage added for ShaderWrite. */
 VkImageUsageFlags toVulkan(TextureUsage usage) {
   VkImageUsageFlags flags =
-      VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |
-      VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT |
-      VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+      static_cast<VkImageUsageFlags>(VK_IMAGE_USAGE_SAMPLED_BIT) |
+      static_cast<VkImageUsageFlags>(VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT) |
+      static_cast<VkImageUsageFlags>(VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT) |
+      static_cast<VkImageUsageFlags>(VK_IMAGE_USAGE_TRANSFER_SRC_BIT) |
+      static_cast<VkImageUsageFlags>(VK_IMAGE_USAGE_TRANSFER_DST_BIT);
   if (has(usage, TextureUsage::ShaderWrite))
-    flags |= VK_IMAGE_USAGE_STORAGE_BIT;
+    flags |= static_cast<VkImageUsageFlags>(VK_IMAGE_USAGE_STORAGE_BIT);
   return flags;
 }
 

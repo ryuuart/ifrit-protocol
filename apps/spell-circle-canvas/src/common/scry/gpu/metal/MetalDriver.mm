@@ -242,8 +242,12 @@ std::unordered_set<uint32_t> MetalDriver::flush() {
         continue;
       }
 
+      // Read through an aligned copy: Command is packed (see
+      // projectedTransform), so its geometry id sits at a 1-byte-aligned
+      // offset and the map's lookup takes its key by reference.
+      const uint32_t geometryId = command.geometry_id;
       auto textureIt = m_state->textures.find(renderBufferIt->second.textureId);
-      auto geometryIt = m_state->geometry.find(command.geometry_id);
+      auto geometryIt = m_state->geometry.find(geometryId);
       if (textureIt == m_state->textures.end() || geometryIt == m_state->geometry.end()) continue;
       id<MTLTexture> target = textureIt->second;
 
