@@ -170,11 +170,31 @@ value, so a reconciler can ask whether a description's runtime changed.
 **`pop::Chain` is a backend-neutral description.** It is a vector of
 operator variants, not a program — and a value: every operator, `Mesh`
 and `Cloud` compares by content with `==`, so a reconciler can ask
-whether a chain changed. The CPU executor in `pop::cook()` is
+whether a chain changed. The CPU executor behind `pop::Runtime::cpu()` is
 the reference implementation; a GPU consumer can execute the identical
 chain as compute dispatches, and the two are required to agree bit for bit
 — which is what makes the hash helpers and the variant order load-bearing
 (see below).
+
+**A cook runs on a `Runtime` too, and it is the same kind of value.**
+`pop::cook()`, `cookMesh()` and `cookSweep()` take one, defaulting to
+`pop::Runtime::cpu()`. The executor's whole contract is cooking a chain
+into a `Cloud`: the two mesh-forming sinks stand on the cooked cloud and
+hand back a `Mesh`, so a device-side former would have to read its own
+result back to answer them — the place a device replaces ring forming is
+`curve::sweep()` over a rail, not the sink. An executor also declares,
+per operator, whether it runs it, and `cook()` asks before it dispatches:
+an operator a runtime lacks stops the cook with a message naming the
+operator and the runtime, because a chain quietly missing an operator
+cooks a plausible cloud that is not the described one.
+
+**A pose is how anything rides a curve.** `path::poseAlong()` answers
+where a 2D contour is at a distance, which way it heads and which way is
+sideways; `curve::poseAlong()` answers the `Frame3` at a distance along a
+spline. One `path::Wrap` policy governs both — a closed curve comes
+round, an open one parks — so a mark travelling a 2D outline and a camera
+flying a 3D spline agree about what "past the end" means without either
+of them spelling it.
 
 **Operator dials are addressable by name.** `pop::setField(op,
 "amount", v)` and `getField` reach every numeric field of every operator
@@ -193,7 +213,7 @@ feature directory. Features nest by dependency — a feature links only
 what sits above it in the tree — and each header includes what it needs,
 so including a deeper one pulls the shallower ones in.
 
-**`path`** — `SigilGeometryPath`, the leaf. Six headers that depend on
+**`path`** — `SigilGeometryPath`, the leaf. Seven headers that depend on
 nothing else in the library, Skia and glm only:
 
 - **`path/Polyline.h`** — the resampling core. `Polyline` and `flatten()`,
@@ -211,6 +231,13 @@ nothing else in the library, Skia and glm only:
   sideways wave, fitted to a whole number of cycles so both ends stay on
   the source curve) and `cornerWindows()` (the pieces within a radius of
   each corner, or everything but them).
+- **`path/Pose.h`** — a contour addressed by distance, with the sideways
+  direction and the end policy written down. `Pose` (position, unit
+  tangent, the normal that tangent turned toward +y, and the distance the
+  policy resolved to), `Wrap` (`Clamp` parks at the nearer end, `Around`
+  comes round closed geometry), `poseAlong()` over one contour or over a
+  list of them walked as ONE arc-length coordinate, and `totalLength()`
+  and `closedThroughout()` over such a list.
 - **`path/Noise.h`** — namespace `noise`. `hash(seed, i)` to [-1, 1] for
   per-index jitter; the PCG family `pcgAdvance`, `pcgMix`, `pcgHash`,
   `pcgNext` (a stream over a carried state) and `pcgUnit` (either squeezed
@@ -312,6 +339,13 @@ own repertoire here rather than inside whatever draws through it.
   GPU executor forming the same rings would replace, and one over a
   `Spline3`, which builds a transported rail of `segments` frames first.
 
+- **`mesh/curve/Pose.h`** — the rail addressed by DISTANCE rather than by
+  index: `curve::poseAlong()` answers the `Frame3` at an arc length, over
+  a rail you hold or over a spline that builds one, under the same
+  `path::Wrap` policy the 2D side uses. A pose IS a rail frame — the same
+  type, measured a different way — so a camera flying a curve and a ring
+  of a sweep speak one vocabulary.
+
 **`mesh/pop`** — `SigilGeometryMeshPop`, needs `mesh/curve` (and through
 it `mesh` and `mesh/camera`); its generators draw from `path`'s noise.
 Point operators are the subject; the point cloud is what they operate
@@ -325,12 +359,19 @@ language.
   mesh at every point into one merged mesh) and `promoteToPrims()`
   (`Modifiers.cpp`); and `drawBillboards()`, camera-facing sprites
   (`Billboards.cpp`).
-- **`mesh/pop/Pop.h`** — the operator chain language and its CPU executor,
-  both in the `pop` scope: `pop::on()` opens a chain, `pop::cook()`
-  evaluates one. The field table behind `pop::setField()`/`getField()` is
-  `Fields.cpp`; `pop::cook()` with the attribute store it runs over is
-  `Cook.cpp`; the mesh-forming sinks `pop::cookMesh()` and `cookSweep()`
-  are `Sinks.cpp`.
+- **`mesh/pop/Pop.h`** — the operator chain language and the runtime seam
+  it executes through, both in the `pop` scope: `pop::on()` opens a chain,
+  `pop::cook()` evaluates one on the `pop::Runtime` it is given,
+  `pop::Executor` is what a runtime supplies and `pop::opName()` names an
+  operator. The field table behind `pop::setField()`/`getField()` is
+  `Fields.cpp`; the built-in executor, the `Runtime::cpu()` value and the
+  `cook()` door that checks an executor's capability before dispatching
+  are `Cook.cpp`; the mesh-forming sinks `pop::cookMesh()` and
+  `cookSweep()` are `Sinks.cpp`.
+- **`mesh/pop/Runtime.h`** — the machinery a seam value is made of
+  (`detail::Erased`), standard library only. The seam itself is declared
+  in Pop.h beside the chain, because the chain and its operators are
+  members of `pop` and no header can name them before it.
 
 **`mesh/codec`** — `SigilGeometryMeshCodec`, needs `mesh` and
 `mesh/pop`. Its parsers
@@ -574,13 +615,13 @@ a Release build through `scripts/bench_ledger.py`:
 
 | Binary | Measures |
 | --- | --- |
-| `geometry_path_bench` | flattening and resampling by point count, corner detection and the parallel and displaced constructions by contour length, the noise hashes per call |
+| `geometry_path_bench` | flattening and resampling by point count, corner detection and the parallel and displaced constructions by contour length, the noise hashes per call, and the pose read over one contour and over many |
 | `geometry_path_blend_bench` | a two-key blend by step count and by sample density, and the same blend threaded onto a spine |
 | `geometry_mesh_bench` | extrude, revolve and the grid presets by vertex count |
 | `geometry_mesh_camera_bench` | the per-frame transform builds: view, view-projection, the matrix seam, and the two placement helpers |
 | `geometry_mesh_render_bench` | the built-in runtime by triangle count and by shading mode, the cost of the cull and the sort, and the panel concat |
-| `geometry_mesh_curve_bench` | arc-length sampling and parallel-transport frames by count, and the sweep by tessellation for a circle profile, a line profile and a line on a hung rail |
-| `geometry_mesh_pop_bench` | the pop cook per operator over a thousand points, and whole chains by count and operator mix |
+| `geometry_mesh_curve_bench` | arc-length sampling and parallel-transport frames by count, the pose read over a held rail and over the spline that builds one, and the sweep by tessellation for a circle profile, a line profile and a line on a hung rail |
+| `geometry_mesh_pop_bench` | the pop cook per operator over a thousand points, whole chains by count and operator mix, and the runtime seam's dispatch against the same cook reached directly |
 | `geometry_mesh_codec_bench` | OBJ, GLB and `.geo` decoded from bytes in memory, per triangle or point |
 
 The tests are one binary per feature, named for the feature's path, each
@@ -591,13 +632,13 @@ recompiles one small file. All are registered with ctest and answer to
 
 | Binary | Source | Covers |
 | --- | --- | --- |
-| `geometry_path_test` | `path/test/PathTest.cpp` | the leaf alone: polylines, contours, the path operators, noise, numerics |
+| `geometry_path_test` | `path/test/PathTest.cpp` | the leaf alone: polylines, contours, poses along them (held against an independent walk of the same contours), the path operators, noise, numerics |
 | `geometry_path_blend_test` | `path/blend/test/BlendTest.cpp` | shape interpolation |
 | `geometry_mesh_test` | `mesh/test/MeshTest.cpp` | the mesh currency and its generators |
 | `geometry_mesh_camera_test` | `mesh/camera/test/CameraTest.cpp` | the view-projection carried through to viewport pixels, and the two placement transforms |
 | `geometry_mesh_render_test` | `mesh/render/test/PainterTest.cpp`, `mesh/render/test/RuntimeTest.cpp` | the mesh draw's pixels, the normals G-buffer's encoding and the primitive tint; and the runtime seam — the built-in value, comparison by model, and a substituted executor receiving the draw |
-| `geometry_mesh_curve_test` | `mesh/curve/test/CurveTest.cpp` | splines, the two rails, the profiles, and the sweep held vertex for vertex against independent reference bodies for a tube, a ribbon and a banner |
-| `geometry_mesh_pop_test` | `mesh/pop/test/PointsTest.cpp`, `mesh/pop/test/PopTest.cpp` | point clouds, instancing, the agreement between an instanced facing lane and `faceCamera()`, and pop chains with their operators; links the codec to seed chains from an imported model |
+| `geometry_mesh_curve_test` | `mesh/curve/test/CurveTest.cpp` | splines, the two rails, the pose along them, and the sweep held vertex for vertex against independent reference bodies for a tube, a ribbon and a banner |
+| `geometry_mesh_pop_test` | `mesh/pop/test/PointsTest.cpp`, `mesh/pop/test/PopTest.cpp`, `mesh/pop/test/RuntimeTest.cpp` | point clouds, instancing, the agreement between an instanced facing lane and `faceCamera()`, and pop chains with their operators; and the cook's runtime seam — the built-in value, comparison by model, a substituted executor receiving the cook, and the message an unsupported operator produces. Links the codec to seed chains from an imported model |
 | `geometry_mesh_codec_test` | `mesh/codec/test/DecodeTest.cpp`, `mesh/codec/test/EncodeTest.cpp` | every reader, and the PLY writer's round trips; the only one linking Alembic |
 
 Helpers that more than one binary reads (`kCubeObj`, `splitQuad`) live in

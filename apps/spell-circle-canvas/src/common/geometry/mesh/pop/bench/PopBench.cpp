@@ -179,6 +179,33 @@ BENCHMARK(BM_PopSink_Stamps)
     ->Unit(benchmark::kMicrosecond)
     ->Complexity(benchmark::oN);
 
+/** WHAT THE SEAM COSTS. A cook through the runtime value — a capability
+ *  question per operator, then a virtual call — against the same work
+ *  reached with no indirection at all. The chain is deliberately tiny,
+ *  so what is measured is the dispatch rather than the cook. */
+void BM_PopRuntime_Dispatch(benchmark::State& state) {
+  const pop::Chain chain = plain((int)state.range(0));
+  const pop::Runtime runtime = pop::Runtime::cpu();
+  for ([[maybe_unused]] auto iteration : state)
+    benchmark::DoNotOptimize(pop::cook(chain, runtime));
+  countPoints(state, state.range(0));
+}
+BENCHMARK(BM_PopRuntime_Dispatch)
+    ->Arg(1)
+    ->Arg(1000)
+    ->Unit(benchmark::kMicrosecond);
+
+void BM_PopRuntime_Direct(benchmark::State& state) {
+  const pop::Chain chain = plain((int)state.range(0));
+  for ([[maybe_unused]] auto iteration : state)
+    benchmark::DoNotOptimize(pop::Runtime::cpu()->cook(chain));
+  countPoints(state, state.range(0));
+}
+BENCHMARK(BM_PopRuntime_Direct)
+    ->Arg(1)
+    ->Arg(1000)
+    ->Unit(benchmark::kMicrosecond);
+
 }  // namespace
 
 BENCHMARK_MAIN();

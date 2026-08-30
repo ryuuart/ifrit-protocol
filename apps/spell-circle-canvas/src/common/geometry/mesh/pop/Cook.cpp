@@ -1,15 +1,17 @@
 /** @file
- * The CPU reference executor: a point set laid out as named float4
- * lanes, every operator evaluated over them in chain order, and the
- * result poured into a Cloud under the conventional lane names. Its
- * formulas are the definition a GPU executor of the same chain must
- * reproduce bit for bit.
+ * The built-in executor and the Runtime value that carries it: a point
+ * set laid out as named float4 lanes, every operator evaluated over
+ * them in chain order, and the result poured into a Cloud under the
+ * conventional lane names. Its formulas are the definition every other
+ * executor of the same chain reproduces bit for bit.
  */
 
 #include <algorithm>
 #include <cmath>
 #include <map>
 #include <numeric>
+#include <stdexcept>
+#include <string>
 
 #include "sigilgeometry/mesh/pop/Pop.h"
 #include "sigilgeometry/path/Noise.h"
@@ -153,7 +155,10 @@ void pop::deformFrame(const pop::Deform& op, glm::vec3* axis,
   *side = glm::cross(a, d);
 }
 
-Cloud pop::cook(const pop::Chain& chain) {
+namespace {
+
+/** The built-in executor's body. */
+Cloud cookOnCpu(const pop::Chain& chain) {
   Cloud out;
   if (chain.empty()) return out;
   const auto* scatter = std::get_if<pop::SplineScatter>(&chain.front());
@@ -432,7 +437,7 @@ Cloud pop::cook(const pop::Chain& chain) {
             // axis, a direction parallel to the axis) fall back the
             // same way on both executors.
             glm::vec3 axis, dir, side;
-            deformFrame(op, &axis, &dir, &side);
+            pop::deformFrame(op, &axis, &dir, &side);
             const float span = op.high - op.low;
             const float rad = op.amount * 3.14159265f / 180.0f;
             for (size_t i = 0; i < count; ++i) {
@@ -567,6 +572,44 @@ Cloud pop::cook(const pop::Chain& chain) {
     for (size_t i = 0; i < count; ++i) exported[i] = lane[i];
   }
   return out;
+}
+
+/** The built-in executor: every operator on the CPU, and the cloud
+ *  every other executor is measured against. */
+struct CpuExecutor : pop::Executor {
+  // Stateless: every instance is the same value, which is what makes
+  // two default cooks compare equal. (A defaulted comparison cannot say
+  // so — the abstract base it derives from has none.)
+  bool operator==(const CpuExecutor&) const { return true; }
+
+  std::string name() const override { return "cpu"; }
+  // The reference runs the whole vocabulary; there is no operator for
+  // it to decline, because it is what "supported" is defined against.
+  bool supports(const pop::Op&) const override { return true; }
+  Cloud cook(const pop::Chain& chain) const override {
+    return cookOnCpu(chain);
+  }
+};
+
+}  // namespace
+
+pop::Runtime pop::Runtime::cpu() {
+  static const pop::Runtime kCpu{CpuExecutor{}};
+  return kCpu;
+}
+
+Cloud pop::cook(const pop::Chain& chain, const pop::Runtime& runtime) {
+  if (!runtime) return {};
+  // Asked HERE rather than left to the executor, so every runtime gets
+  // the same guarantee and the same message. A chain short one operator
+  // cooks a cloud that looks right and is not the described one, which
+  // is the one failure a caller cannot see.
+  for (const pop::Op& op : chain)
+    if (!runtime->supports(op))
+      throw std::runtime_error("the \"" + runtime->name() +
+                               "\" pop runtime cannot run the \"" +
+                               std::string(pop::opName(op)) + "\" operator");
+  return runtime->cook(chain);
 }
 
 }  // namespace sigil::geometry::mesh

@@ -148,4 +148,55 @@ std::optional<float> pop::getField(const pop::Op& op, std::string_view field) {
   });
   return out;
 }
+
+std::string_view pop::opName(const pop::Op& op) {
+  // One arm per alternative, spelled as the operator's own type name, so
+  // a chain printed on a control surface and a runtime's complaint about
+  // an operator it cannot run say the same word.
+  return std::visit(
+      [](const auto& o) -> std::string_view {
+        using T = std::decay_t<decltype(o)>;
+        if constexpr (std::is_same_v<T, pop::SplineScatter>)
+          return "SplineScatter";
+        else if constexpr (std::is_same_v<T, pop::Jitter>)
+          return "Jitter";
+        else if constexpr (std::is_same_v<T, pop::Noise>)
+          return "Noise";
+        else if constexpr (std::is_same_v<T, pop::Ramp>)
+          return "Ramp";
+        else if constexpr (std::is_same_v<T, pop::Vary>)
+          return "Vary";
+        else if constexpr (std::is_same_v<T, pop::LookAt>)
+          return "LookAt";
+        else if constexpr (std::is_same_v<T, pop::Math>)
+          return "Math";
+        else if constexpr (std::is_same_v<T, pop::Relax>)
+          return "Relax";
+        else if constexpr (std::is_same_v<T, pop::MeshScatter>)
+          return "MeshScatter";
+        else if constexpr (std::is_same_v<T, pop::Fill>)
+          return "Fill";
+        else if constexpr (std::is_same_v<T, pop::Atlas>)
+          return "Atlas";
+        else if constexpr (std::is_same_v<T, pop::Promote>)
+          return "Promote";
+        else if constexpr (std::is_same_v<T, pop::Lookup>)
+          return "Lookup";
+        else if constexpr (std::is_same_v<T, pop::Sort>)
+          return "Sort";
+        else if constexpr (std::is_same_v<T, pop::Select>)
+          return "Select";
+        else if constexpr (std::is_same_v<T, pop::Affine>)
+          return "Affine";
+        else if constexpr (std::is_same_v<T, pop::Peak>)
+          return "Peak";
+        else if constexpr (std::is_same_v<T, pop::Deform>)
+          return "Deform";
+        else if constexpr (std::is_same_v<T, pop::Mix>)
+          return "Mix";
+        else
+          return "PointSet";
+      },
+      op);
+}
 }  // namespace sigil::geometry::mesh

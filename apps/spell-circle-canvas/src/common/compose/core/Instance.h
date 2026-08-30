@@ -17,13 +17,13 @@
 // markPaintDirtyUp() calls sk_sp::reset() inline, so the ref-counted payload
 // types must be complete here (not merely forward-declared).
 #include <include/core/SkCanvas.h>  // NodeTransform::concatTo's elementary ops
-#include <include/core/SkContourMeasure.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkMatrix.h>
 #include <include/core/SkPicture.h>
 #include <include/core/SkRRect.h>
 #include <include/core/SkRect.h>
 #include <include/core/SkTypeface.h>
+#include <sigilgeometry/path/Pose.h>
 #include <sigilweave/fonts/FontContext.h>
 
 #include <algorithm>
@@ -527,9 +527,8 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   struct MotionCache {
     Shape shape;                // the value this table was built from
     SkSize size{-1.0f, -1.0f};  // …at this parent size
-    std::vector<sk_sp<SkContourMeasure>> contours;
-    std::vector<float> starts;  // cumulative length before each contour
-    float total = 0;
+    std::vector<geometry::path::Contour> contours;
+    float total = 0;      // the arc length across all of them
     bool closed = false;  // every contour closed → t WRAPS
   };
   std::unique_ptr<MotionCache> motion;

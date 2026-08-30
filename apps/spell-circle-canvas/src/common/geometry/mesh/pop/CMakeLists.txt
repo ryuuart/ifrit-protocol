@@ -12,6 +12,7 @@ add_library(SigilGeometryMeshPop STATIC
   Sinks.cpp
   ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/mesh/pop/Points.h
   ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/mesh/pop/Pop.h
+  ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/mesh/pop/Runtime.h
 )
 target_compile_features(SigilGeometryMeshPop PUBLIC cxx_std_20)
 target_include_directories(SigilGeometryMeshPop PUBLIC ${SIGIL_GEOMETRY_INCLUDE_DIR})
@@ -22,6 +23,7 @@ target_link_libraries(SigilGeometryMeshPop PUBLIC SigilGeometryMeshCurve)
 add_executable(geometry_mesh_pop_test
   test/PointsTest.cpp
   test/PopTest.cpp
+  test/RuntimeTest.cpp
 )
 target_include_directories(geometry_mesh_pop_test PRIVATE ${CMAKE_CURRENT_LIST_DIR}/../../test)
 target_link_libraries(geometry_mesh_pop_test PRIVATE SigilGeometryMeshPop

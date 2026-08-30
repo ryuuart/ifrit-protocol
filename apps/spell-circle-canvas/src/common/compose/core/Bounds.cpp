@@ -4,7 +4,6 @@
  */
 
 #include <include/core/SkCanvas.h>
-#include <include/core/SkContourMeasure.h>
 #include <include/core/SkFontMetrics.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkPaint.h>
@@ -35,6 +34,7 @@
 #include "ComposeRuntime.h"
 #include "PaintInternal.h"
 #include "sigilgeometry/path/Contour.h"
+#include "sigilgeometry/path/Pose.h"
 #include "sigilgeometry/path/Skia.h"
 
 namespace sigil::compose {
@@ -171,42 +171,22 @@ std::optional<std::pair<SkPoint, float>> Composer::Impl::motionPathSample(
       cache.size.height() != frame.height()) {
     cache.shape = spec.path;
     cache.size = frame;
-    cache.contours.clear();
-    cache.starts.clear();
-    cache.total = 0;
-    cache.closed = true;
-    const SkPath resolved = spec.path(frame);
-    SkContourMeasureIter iter(resolved, false);
-    while (sk_sp<SkContourMeasure> contour = iter.next()) {
-      const float len = contour->length();
-      if (!(len > 0)) continue;
-      cache.closed = cache.closed && contour->isClosed();
-      cache.starts.push_back(cache.total);
-      cache.total += len;
-      cache.contours.push_back(std::move(contour));
-    }
-    if (cache.contours.empty()) cache.closed = false;
+    cache.contours = geometry::path::Contour::of(spec.path(frame));
+    cache.total = geometry::path::totalLength(cache.contours);
+    cache.closed = geometry::path::closedThroughout(cache.contours);
   }
   if (!(cache.total > 0))
     return std::nullopt;  // no measurable length ⇒ not engaged
 
-  // WRAP on a closed curve, CLAMP on an open one.
+  // WRAP on a closed curve, CLAMP on an open one. The FRACTION is what
+  // wraps, so `t` past 1 is another lap of the whole curve rather than
+  // another lap of whichever contour it landed in; the pose read below
+  // then walks every contour as one arc-length coordinate.
   const auto walk = [&](float u) {
     float w = cache.closed ? std::fmod(u, 1.0f) : std::clamp(u, 0.0f, 1.0f);
     if (cache.closed && w < 0.0f) w += 1.0f;
-    const float want = w * cache.total;
-    size_t i = cache.contours.size() - 1;
-    for (size_t c = 0; c + 1 < cache.contours.size(); ++c)
-      if (want < cache.starts[c + 1]) {
-        i = c;
-        break;
-      }
-    SkPoint pos{0, 0};
-    SkVector tan{0, 0};
-    const float len = cache.contours[i]->length();
-    (void)cache.contours[i]->getPosTan(
-        std::clamp(want - cache.starts[i], 0.0f, len), &pos, &tan);
-    return pos;
+    return geometry::path::toSk(
+        geometry::path::poseAlong(cache.contours, w * cache.total).position);
   };
 
   const float t = inst.resolveFloat(Instance::kMotionT, spec.t);

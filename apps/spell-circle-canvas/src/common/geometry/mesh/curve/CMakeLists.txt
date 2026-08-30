@@ -2,7 +2,9 @@
 # them; projection to a 2D path needs the camera.
 add_library(SigilGeometryMeshCurve STATIC
   Curve.cpp
+  Pose.cpp
   ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/mesh/curve/Curve.h
+  ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/mesh/curve/Pose.h
 )
 target_compile_features(SigilGeometryMeshCurve PUBLIC cxx_std_20)
 target_include_directories(SigilGeometryMeshCurve PUBLIC ${SIGIL_GEOMETRY_INCLUDE_DIR})

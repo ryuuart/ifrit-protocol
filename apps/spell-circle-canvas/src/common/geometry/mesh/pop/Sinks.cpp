@@ -1,6 +1,8 @@
 /** @file
  * The mesh-forming sinks: a cooked chain stamped into one mesh with its
- * promoted lanes, or treated as a path and swept with a profile.
+ * promoted lanes, or treated as a path and swept with a profile. Both
+ * stand on the cloud the runtime cooked; the forming itself is CPU code
+ * over that cloud, because a Mesh is what they hand back.
  */
 
 #include <string>
@@ -31,8 +33,9 @@ std::string cloudLaneFor(const std::string& attr) {
 
 }  // namespace
 
-Mesh pop::cookMesh(const pop::Chain& chain, const Mesh& stamp) {
-  const Cloud cloud = cook(chain);
+Mesh pop::cookMesh(const pop::Chain& chain, const Mesh& stamp,
+                   const pop::Runtime& runtime) {
+  const Cloud cloud = cook(chain, runtime);
   points::InstanceOptions options;
   options.orientLane = "dir";
   options.scaleLane = "size";
@@ -69,9 +72,10 @@ Mesh pop::cookMesh(const pop::Chain& chain, const Mesh& stamp) {
 
 namespace {
 
-Spline3 pathThrough(const pop::Chain& chain, bool closed) {
+Spline3 pathThrough(const pop::Chain& chain, bool closed,
+                    const pop::Runtime& runtime) {
   Spline3 path;
-  path.points = pop::cook(chain).positions;
+  path.points = pop::cook(chain, runtime).positions;
   path.closed = closed;
   return path;
 }
@@ -79,8 +83,9 @@ Spline3 pathThrough(const pop::Chain& chain, bool closed) {
 }  // namespace
 
 Mesh pop::cookSweep(const pop::Chain& chain, const Polyline& profile,
-                    bool closed, const curve::SweepOptions& options) {
-  const Spline3 path = pathThrough(chain, closed);
+                    bool closed, const curve::SweepOptions& options,
+                    const pop::Runtime& runtime) {
+  const Spline3 path = pathThrough(chain, closed, runtime);
   if (path.points.size() < 2) return {};
   return curve::sweep(path, profile, options);
 }

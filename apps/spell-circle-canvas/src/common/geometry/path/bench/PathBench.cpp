@@ -16,6 +16,7 @@
 #include <sigilgeometry/path/Contour.h>
 #include <sigilgeometry/path/Noise.h>
 #include <sigilgeometry/path/Polyline.h>
+#include <sigilgeometry/path/Pose.h>
 
 #include <cmath>
 #include <numbers>
@@ -200,6 +201,41 @@ void BM_NoiseValue3(benchmark::State& state) {
       benchmark::Counter(1, benchmark::Counter::kIsIterationInvariantRate);
 }
 BENCHMARK(BM_NoiseValue3);
+
+/** The read a motion path makes every frame: one pose at a fraction of
+ *  the total arc length, over a path already measured into contours. */
+void BM_PoseAlong(benchmark::State& state) {
+  const std::vector<Contour> contours = Contour::of(rippledRing(64));
+  const float total = totalLength(contours);
+  float u = 0;
+  for ([[maybe_unused]] auto iteration : state) {
+    u += 0.013f;
+    if (u > 1.0f) u -= 1.0f;
+    benchmark::DoNotOptimize(poseAlong(contours, u * total).position);
+  }
+  state.counters["poses/s"] =
+      benchmark::Counter(1, benchmark::Counter::kIsIterationInvariantRate);
+}
+BENCHMARK(BM_PoseAlong);
+
+/** The same read over a path cut into several contours, which is what
+ *  the walk across them costs. */
+void BM_PoseAlongManyContours(benchmark::State& state) {
+  SkPathBuilder builder;
+  for (int i = 0; i < 8; ++i)
+    builder.addPath(rippledRing(16, 40.0f + 20.0f * (float)i));
+  const std::vector<Contour> contours = Contour::of(builder.detach());
+  const float total = totalLength(contours);
+  float u = 0;
+  for ([[maybe_unused]] auto iteration : state) {
+    u += 0.013f;
+    if (u > 1.0f) u -= 1.0f;
+    benchmark::DoNotOptimize(poseAlong(contours, u * total).position);
+  }
+  state.counters["poses/s"] =
+      benchmark::Counter(1, benchmark::Counter::kIsIterationInvariantRate);
+}
+BENCHMARK(BM_PoseAlongManyContours);
 
 }  // namespace
 

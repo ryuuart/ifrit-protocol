@@ -1,6 +1,6 @@
 /** @file
- * The path leaf alone: polylines, contours, the path operators, noise
- * and the numeric routines.
+ * The path leaf alone: polylines, contours, the pose along one, the path
+ * operators, noise and the numeric routines.
  */
 
 // SigilGeometryPath — polylines, contours, noise and the numeric routines
@@ -10,14 +10,19 @@
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkRect.h>
 
+#include <algorithm>
 #include <cmath>
 #include <glm/geometric.hpp>
+#include <optional>
+#include <utility>
+#include <vector>
 
 #include "sigilgeometry/path/Contour.h"
 #include "sigilgeometry/path/Noise.h"
 #include "sigilgeometry/path/Numeric.h"
 #include "sigilgeometry/path/Ops.h"
 #include "sigilgeometry/path/Polyline.h"
+#include "sigilgeometry/path/Pose.h"
 #include "sigilgeometry/path/Skia.h"
 
 using namespace sigil::geometry::path;
@@ -28,6 +33,132 @@ SkPath square(float size) { return SkPath::Rect(SkRect::MakeWH(size, size)); }
 
 SkPath rect(float x, float y, float w, float h) {
   return SkPath::Rect(SkRect::MakeXYWH(x, y, w, h));
+}
+
+// ---------------------------------------------------------------------------
+// Pose
+
+// An independent walk of the same contours, written out longhand: a
+// fraction of the total arc length, wrapped or clamped, then measured
+// contour by contour with Skia's own measure. It is what poseAlong must
+// reproduce to the bit, because a pose that lands anywhere else moves
+// every node travelling a curve.
+SkPoint referenceWalk(const SkPath& path, float u) {
+  std::vector<sk_sp<SkContourMeasure>> contours;
+  std::vector<float> starts;
+  float total = 0;
+  bool closed = true;
+  SkContourMeasureIter iter(path, false);
+  while (sk_sp<SkContourMeasure> contour = iter.next()) {
+    const float len = contour->length();
+    if (!(len > 0)) continue;
+    closed = closed && contour->isClosed();
+    starts.push_back(total);
+    total += len;
+    contours.push_back(std::move(contour));
+  }
+  if (contours.empty()) closed = false;
+  if (!(total > 0)) return {0, 0};
+
+  float w = closed ? std::fmod(u, 1.0f) : std::clamp(u, 0.0f, 1.0f);
+  if (closed && w < 0.0f) w += 1.0f;
+  const float want = w * total;
+  size_t i = contours.size() - 1;
+  for (size_t c = 0; c + 1 < contours.size(); ++c)
+    if (want < starts[c + 1]) {
+      i = c;
+      break;
+    }
+  SkPoint pos{0, 0};
+  SkVector tan{0, 0};
+  const float len = contours[i]->length();
+  (void)contours[i]->getPosTan(std::clamp(want - starts[i], 0.0f, len), &pos,
+                               &tan);
+  return pos;
+}
+
+SkPath twoContours() {
+  SkPathBuilder b;
+  b.addOval(SkRect::MakeXYWH(0, 0, 200, 120));
+  b.addRect(SkRect::MakeXYWH(300, 40, 90, 60));
+  return b.detach();
+}
+
+TEST(Pose, MatchesTheContourItIsTakenFrom) {
+  const std::vector<Contour> contours = Contour::of(square(100));
+  ASSERT_EQ(contours.size(), 1u);
+  const Pose pose = poseAlong(contours[0], 150.0f);
+  const std::optional<Contour::Sample> sample = contours[0].at(150.0f);
+  ASSERT_TRUE(sample.has_value());
+  EXPECT_EQ(pose.position, sample->position);
+  EXPECT_EQ(pose.tangent, sample->tangent);
+  EXPECT_EQ(pose.distance, 150.0f);
+}
+
+TEST(Pose, NormalIsTheTangentTurnedTowardPositiveY) {
+  const std::vector<Contour> contours = Contour::of(square(100));
+  const Pose pose = poseAlong(contours[0], 10.0f);
+  EXPECT_NEAR(glm::dot(pose.tangent, pose.normal), 0.0f, 1e-6f);
+  EXPECT_NEAR(pose.normal.x, -pose.tangent.y, 1e-6f);
+  EXPECT_NEAR(pose.normal.y, pose.tangent.x, 1e-6f);
+}
+
+TEST(Pose, ClampParksAndAroundComesRoundOnAClosedContour) {
+  const std::vector<Contour> contours = Contour::of(square(100));
+  const float len = contours[0].length();
+  ASSERT_TRUE(contours[0].closed());
+  EXPECT_EQ(poseAlong(contours[0], len + 30, Wrap::Clamp).distance, len);
+  EXPECT_NEAR(poseAlong(contours[0], len + 30, Wrap::Around).distance, 30.0f,
+              1e-3f);
+  EXPECT_NEAR(poseAlong(contours[0], -10, Wrap::Around).distance, len - 10,
+              1e-3f);
+
+  // An open contour has no seam to come round through: it parks either
+  // way.
+  SkPathBuilder open;
+  open.moveTo(0, 0).lineTo(60, 0);
+  const std::vector<Contour> line = Contour::of(open.detach());
+  ASSERT_EQ(line.size(), 1u);
+  EXPECT_EQ(poseAlong(line[0], 90, Wrap::Around).distance, 60.0f);
+}
+
+TEST(Pose, EveryContourIsOneCoordinate) {
+  const SkPath path = twoContours();
+  const std::vector<Contour> contours = Contour::of(path);
+  ASSERT_EQ(contours.size(), 2u);
+  const float total = totalLength(contours);
+  EXPECT_FLOAT_EQ(total, contours[0].length() + contours[1].length());
+  EXPECT_TRUE(closedThroughout(contours));
+  EXPECT_FALSE(closedThroughout({}));
+
+  // Just past the first contour's end is the second contour's start.
+  const Pose second = poseAlong(contours, contours[0].length() + 5.0f);
+  const Pose direct = poseAlong(contours[1], 5.0f);
+  EXPECT_EQ(second.position, direct.position);
+}
+
+TEST(Pose, ReproducesTheMotionPathWalkExactly) {
+  for (const SkPath& path : {square(100), twoContours()}) {
+    const std::vector<Contour> contours = Contour::of(path);
+    const float total = totalLength(contours);
+    const bool closed = closedThroughout(contours);
+    for (int step = -40; step <= 240; ++step) {
+      const float u = (float)step / 100.0f;
+      float w = closed ? std::fmod(u, 1.0f) : std::clamp(u, 0.0f, 1.0f);
+      if (closed && w < 0.0f) w += 1.0f;
+      const SkPoint want = referenceWalk(path, u);
+      const Pose got = poseAlong(contours, w * total);
+      EXPECT_EQ(got.position.x, want.fX) << "u = " << u;
+      EXPECT_EQ(got.position.y, want.fY) << "u = " << u;
+    }
+  }
+}
+
+TEST(Pose, AnUnmeasurablePathHasNoPose) {
+  const Pose none = poseAlong(Contour{}, 5.0f);
+  EXPECT_EQ(none.position, (glm::vec2{0, 0}));
+  EXPECT_EQ(poseAlong(std::vector<Contour>{}, 5.0f).position,
+            (glm::vec2{0, 0}));
 }
 
 // ---------------------------------------------------------------------------

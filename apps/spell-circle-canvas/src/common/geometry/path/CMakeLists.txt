@@ -8,11 +8,13 @@ add_library(SigilGeometryPath STATIC
   Noise.cpp
   Ops.cpp
   Polyline.cpp
+  Pose.cpp
   ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/path/Contour.h
   ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/path/Noise.h
   ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/path/Numeric.h
   ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/path/Ops.h
   ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/path/Polyline.h
+  ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/path/Pose.h
   ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/path/Skia.h
 )
 target_compile_features(SigilGeometryPath PUBLIC cxx_std_20)

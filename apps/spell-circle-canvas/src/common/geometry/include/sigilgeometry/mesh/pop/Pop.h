@@ -21,6 +21,7 @@
 
 #include "sigilgeometry/mesh/curve/Curve.h"
 #include "sigilgeometry/mesh/pop/Points.h"
+#include "sigilgeometry/mesh/pop/Runtime.h"
 
 namespace sigil::geometry::mesh {
 
@@ -350,6 +351,60 @@ struct pop {
                    Select, Affine, Peak, Deform, Mix, PointSet>;
   using Chain = std::vector<Op>;
 
+  /** The operator's own name — "Jitter", "Select", "PointSet" — for a
+   *  chain listed on a control surface and for the message a runtime
+   *  that cannot run one produces. */
+  static std::string_view opName(const Op& op);
+
+  /** WHAT A RUNTIME DOES: it cooks a chain into a Cloud.
+   *
+   *  One operation, because one is the whole of the seam. The
+   *  mesh-forming sinks below stand on the cooked cloud and hand back a
+   *  `Mesh` — CPU buffers either way — so a device-side former would
+   *  have to read its own result back to answer them; the place a
+   *  device replaces ring forming is `curve::sweep` over a rail, not
+   *  here. Cooking the points is the step that is genuinely a thousand
+   *  parallel lanes, and it is the step this seam moves.
+   *
+   *  An executor also declares, per operator, whether it can run it.
+   *  `pop::cook` asks before it dispatches, so an operator a runtime
+   *  lacks stops the cook with a message naming both rather than
+   *  quietly leaving the chain short. */
+  class Executor {
+   public:
+    virtual ~Executor() = default;
+
+    /** What this runtime is called, in the message an unsupported
+     *  operator produces. */
+    virtual std::string name() const = 0;
+
+    /** Can this runtime run @p op? A runtime that runs everything
+     *  answers true to every operator. */
+    virtual bool supports(const Op& op) const = 0;
+
+    /** Evaluate @p chain into a Cloud with the conventional lanes.
+     *  Every executor is required to produce the same cloud from the
+     *  same chain, bit for bit. */
+    virtual Cloud cook(const Chain& chain) const = 0;
+  };
+
+  /** The executor a cook runs on, carried as a comparable value. Two
+   *  runtimes are equal when they hold the same model with the same
+   *  value, so a reconciler can ask whether a description's runtime
+   *  changed. */
+  class Runtime : public detail::Erased<Executor> {
+   public:
+    using detail::Erased<Executor>::Erased;
+    Runtime() = default;
+    Runtime(detail::Erased<Executor> erased)  // NOLINT: a Runtime IS its value
+        : detail::Erased<Executor>(std::move(erased)) {}
+
+    /** The built-in executor: every operator evaluated on the CPU, and
+     *  the definition every other executor reproduces. Every call
+     *  returns the same value, so two default cooks compare equal. */
+    static Runtime cpu();
+  };
+
   /** The artist's spelling — TouchDesigner ergonomics over the same
    *  values: one entry verb, chained INTENT verbs with loud defaults
    *  (seeds auto-vary; every parameter is optional), and the result
@@ -610,11 +665,13 @@ struct pop {
     operator Chain() const { return m_chain; }
     const Chain& chain() const { return m_chain; }
 
-    // The sinks (the executor below runs them): pick the former.
-    Cloud cloud() const;
-    Mesh stamps(const Mesh& stamp) const;
+    // The sinks (the runtime below cooks for them): pick the former.
+    Cloud cloud(const Runtime& runtime = Runtime::cpu()) const;
+    Mesh stamps(const Mesh& stamp,
+                const Runtime& runtime = Runtime::cpu()) const;
     Mesh sweep(const path::Polyline& profile, bool closed = false,
-               const curve::SweepOptions& options = {.segments = 160}) const;
+               const curve::SweepOptions& options = {.segments = 160},
+               const Runtime& runtime = Runtime::cpu()) const;
 
    private:
     static glm::vec4 componentWeight(int component) {
@@ -678,16 +735,26 @@ struct pop {
   static void deformFrame(const Deform& op, glm::vec3* axis,
                           glm::vec3* direction, glm::vec3* side);
 
-  /** The CPU reference cook: evaluates @p chain into a Cloud with the
-   *  conventional lanes — "t" (scalar), "dir" (vector), "tint" (color),
-   *  "size" (scalar) — bit-faithful to the GPU executor's formulas. */
-  static Cloud cook(const Chain& chain);
+  /** THE COOK: evaluates @p chain into a Cloud with the conventional
+   *  lanes — "t" (scalar), "dir" (vector), "tint" (color), "size"
+   *  (scalar).
+   *
+   *  The work runs on @p runtime, the built-in CPU executor by default,
+   *  and every executor is required to agree with it bit for bit. An
+   *  operator the runtime does not support stops the cook with a message
+   *  naming the operator and the runtime — a chain that cannot run must
+   *  say so, because a chain quietly missing an operator cooks a
+   *  plausible cloud that is not the described one. */
+  static Cloud cook(const Chain& chain,
+                    const Runtime& runtime = Runtime::cpu());
 
   /** The mesh-forming sink: cook @p chain and stamp @p stamp at every
    *  point into ONE Mesh (dir orients, size scales, tint colors) — a
    *  pop-DESCRIBED 3D model, drawable by render::drawMesh on the Skia
-   *  painter and place in SigilWorld alike. */
-  static Mesh cookMesh(const Chain& chain, const Mesh& stamp);
+   *  painter and place in SigilWorld alike. The cook runs on @p runtime;
+   *  the stamping stands on its cloud. */
+  static Mesh cookMesh(const Chain& chain, const Mesh& stamp,
+                       const Runtime& runtime = Runtime::cpu());
 
   /** The swept sink: the chain's cooked points become the PATH — a
    *  Catmull-Rom through P in chain order, closed by @p closed, so
@@ -697,19 +764,24 @@ struct pop {
    *  recipe. The same nondestructive description, a different former. */
   static Mesh cookSweep(const Chain& chain, const path::Polyline& profile,
                         bool closed = false,
-                        const curve::SweepOptions& options = {.segments = 160});
+                        const curve::SweepOptions& options = {.segments = 160},
+                        const Runtime& runtime = Runtime::cpu());
 };
 
-inline Cloud pop::Builder::cloud() const { return pop::cook(m_chain); }
-inline Mesh pop::Builder::stamps(const Mesh& stamp) const {
-  return pop::cookMesh(m_chain, stamp);
+inline Cloud pop::Builder::cloud(const Runtime& runtime) const {
+  return pop::cook(m_chain, runtime);
+}
+inline Mesh pop::Builder::stamps(const Mesh& stamp,
+                                 const Runtime& runtime) const {
+  return pop::cookMesh(m_chain, stamp, runtime);
 }
 inline pop::Builder::Builder(const Chain& upstream)
     : Builder(pop::cook(upstream).positions) {}
 
 inline Mesh pop::Builder::sweep(const path::Polyline& profile, bool closed,
-                                const curve::SweepOptions& options) const {
-  return pop::cookSweep(m_chain, profile, closed, options);
+                                const curve::SweepOptions& options,
+                                const Runtime& runtime) const {
+  return pop::cookSweep(m_chain, profile, closed, options, runtime);
 }
 
 }  // namespace sigil::geometry::mesh

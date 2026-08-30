@@ -2,7 +2,7 @@
  "config": "Release",
  "host": "MacBookPro.lan",
  "machine": "arm64",
- "taken": "2026-08-30T18:32:23+00:00",
+ "taken": "2026-08-30T19:28:23+00:00",
  "benches": {
   "compose_brush_bench": {
    "BM_Draw_ArtWarp_Live": {
@@ -1246,316 +1246,376 @@
   },
   "geometry_mesh_curve_bench": {
    "BM_SampleArcLength/16": {
-    "real_ns": 2818.1456916278803,
-    "cpu_ns": 2817.257204697587,
+    "real_ns": 2817.421051307314,
+    "cpu_ns": 2816.7230750634576,
     "unit": "us",
     "repetitions": 4
    },
    "BM_SampleArcLength/64": {
-    "real_ns": 5923.813520704781,
-    "cpu_ns": 5922.570957235314,
+    "real_ns": 5914.417521294872,
+    "cpu_ns": 5911.3059607115665,
     "unit": "us",
     "repetitions": 4
    },
    "BM_SampleArcLength/256": {
-    "real_ns": 23756.786045086355,
-    "cpu_ns": 23711.013139695788,
+    "real_ns": 23301.77877512243,
+    "cpu_ns": 23293.65079365082,
     "unit": "us",
     "repetitions": 4
    },
    "BM_SampleArcLength/1024": {
-    "real_ns": 94548.62551255195,
-    "cpu_ns": 94548.69684499351,
+    "real_ns": 94662.5989814431,
+    "cpu_ns": 94576.94915254242,
     "unit": "us",
     "repetitions": 4
    },
    "BM_SampleArcLength/4096": {
-    "real_ns": 369647.4095655454,
-    "cpu_ns": 369617.56756756763,
+    "real_ns": 376922.02911799616,
+    "cpu_ns": 376761.3941018752,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Frames/16": {
-    "real_ns": 3785.090797352845,
-    "cpu_ns": 3785.09701614218,
+    "real_ns": 3880.3464274604894,
+    "cpu_ns": 3879.639858594779,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Frames/64": {
-    "real_ns": 9888.163162016772,
-    "cpu_ns": 9880.747126436756,
+    "real_ns": 10150.939884696836,
+    "cpu_ns": 10145.721731576676,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Frames/256": {
-    "real_ns": 38829.91206762336,
-    "cpu_ns": 38827.194682913294,
+    "real_ns": 40078.01810514971,
+    "cpu_ns": 40065.20501138958,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Frames/1024": {
-    "real_ns": 158680.37482375535,
-    "cpu_ns": 158647.225368064,
+    "real_ns": 160810.45482815272,
+    "cpu_ns": 160706.6974595836,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Frames/4096": {
-    "real_ns": 634916.6668100989,
-    "cpu_ns": 634828.7671232921,
+    "real_ns": 638884.4156714336,
+    "cpu_ns": 638710.0456620998,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Sweep_Circle/segments:32/sides:6": {
-    "real_ns": 7871.486073870882,
-    "cpu_ns": 7839.021104625062,
+    "real_ns": 7414.027704330891,
+    "cpu_ns": 7411.479321314981,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Sweep_Circle/segments:256/sides:6": {
-    "real_ns": 56484.90158700367,
-    "cpu_ns": 55981.22253296034,
+    "real_ns": 53708.968932003714,
+    "cpu_ns": 53698.8939740652,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Sweep_Circle/segments:1024/sides:6": {
-    "real_ns": 221978.02218582982,
-    "cpu_ns": 221113.0856219708,
+    "real_ns": 211188.04205790022,
+    "cpu_ns": 211097.85932721852,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Sweep_Circle/segments:32/sides:24": {
-    "real_ns": 13056.179569009182,
-    "cpu_ns": 12495.840950639897,
+    "real_ns": 11344.080211374283,
+    "cpu_ns": 11343.302990897388,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Sweep_Circle/segments:256/sides:24": {
-    "real_ns": 91028.26447609025,
-    "cpu_ns": 90990.92088197095,
+    "real_ns": 84433.07100764445,
+    "cpu_ns": 84429.42942942897,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Sweep_Circle/segments:1024/sides:24": {
-    "real_ns": 353212.8976259183,
-    "cpu_ns": 351648.61460956704,
+    "real_ns": 323336.8299773027,
+    "cpu_ns": 323316.0919540235,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Sweep_Line/32": {
-    "real_ns": 6458.856206980308,
-    "cpu_ns": 6432.839899795023,
+    "real_ns": 5974.239434774973,
+    "cpu_ns": 5973.87995156547,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Sweep_Line/64": {
-    "real_ns": 12160.719908953568,
-    "cpu_ns": 12099.623738669296,
+    "real_ns": 11324.264910629146,
+    "cpu_ns": 11322.234025167638,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Sweep_Line/256": {
-    "real_ns": 45186.12515622137,
-    "cpu_ns": 45065.832249675004,
+    "real_ns": 43398.875277489424,
+    "cpu_ns": 43379.29447852708,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Sweep_Line/1024": {
-    "real_ns": 179734.93839101688,
-    "cpu_ns": 178668.36086403948,
+    "real_ns": 172372.61140951025,
+    "cpu_ns": 172288.53267571068,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Sweep_Line/2048": {
-    "real_ns": 360943.11342473316,
-    "cpu_ns": 359268.1347150259,
+    "real_ns": 343453.49372070836,
+    "cpu_ns": 343135.6968215138,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Sweep_Hang/32": {
-    "real_ns": 2302.01340420364,
-    "cpu_ns": 2293.5945385356836,
+    "real_ns": 2187.154630936738,
+    "cpu_ns": 2186.1113707892937,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Sweep_Hang/64": {
-    "real_ns": 4104.660886142562,
-    "cpu_ns": 4076.327238520773,
+    "real_ns": 3843.1830574467867,
+    "cpu_ns": 3842.033276931784,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Sweep_Hang/256": {
-    "real_ns": 13934.338649540547,
-    "cpu_ns": 13876.503648195612,
+    "real_ns": 13152.198038728502,
+    "cpu_ns": 13148.873515939296,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Sweep_Hang/1024": {
-    "real_ns": 53686.44060598832,
-    "cpu_ns": 53406.072106261774,
+    "real_ns": 50903.081638679665,
+    "cpu_ns": 50883.17413666396,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Sweep_Hang/2048": {
-    "real_ns": 106114.83367165556,
-    "cpu_ns": 105499.24924924942,
+    "real_ns": 101272.231253186,
+    "cpu_ns": 101248.72355944675,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_PoseAlong_Rail/64": {
+    "real_ns": 133.15307546341847,
+    "cpu_ns": 133.11579865694216,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_PoseAlong_Rail/256": {
+    "real_ns": 362.2838189375451,
+    "cpu_ns": 361.70824232670816,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_PoseAlong_Rail/1024": {
+    "real_ns": 1151.8862079531268,
+    "cpu_ns": 1151.4682195514888,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_PoseAlong_Spline/64": {
+    "real_ns": 10164.952767059185,
+    "cpu_ns": 10160.174440091487,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_PoseAlong_Spline/256": {
+    "real_ns": 40375.78051181685,
+    "cpu_ns": 40361.309694023475,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_PoseAlong_Spline/1024": {
+    "real_ns": 162254.59771337867,
+    "cpu_ns": 161604.59770114988,
     "unit": "us",
     "repetitions": 4
    }
   },
   "geometry_mesh_pop_bench": {
    "BM_PopOperator/0": {
-    "real_ns": 91900.36684875845,
-    "cpu_ns": 91866.40211640202,
+    "real_ns": 94754.25345469153,
+    "cpu_ns": 94729.34855607788,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopOperator/1": {
-    "real_ns": 110455.27885634586,
-    "cpu_ns": 110444.22310756988,
+    "real_ns": 113882.83122469753,
+    "cpu_ns": 113825.93180015852,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopOperator/2": {
-    "real_ns": 112789.77845410825,
-    "cpu_ns": 112766.639935846,
+    "real_ns": 115555.16706373231,
+    "cpu_ns": 115512.97648012952,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopOperator/3": {
-    "real_ns": 152356.07644910758,
-    "cpu_ns": 152053.39805825165,
+    "real_ns": 154893.86060787414,
+    "cpu_ns": 154806.24327233635,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopOperator/4": {
-    "real_ns": 118537.18836267292,
-    "cpu_ns": 118500.85984522825,
+    "real_ns": 120445.62586932043,
+    "cpu_ns": 120333.76288659865,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopOperator/5": {
-    "real_ns": 132410.77101937216,
-    "cpu_ns": 132394.35946462728,
+    "real_ns": 136222.48081912645,
+    "cpu_ns": 135969.08734052978,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopOperator/6": {
-    "real_ns": 142021.36234356667,
-    "cpu_ns": 141997.96954314708,
+    "real_ns": 146004.24161464258,
+    "cpu_ns": 145847.32423924457,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopOperator/7": {
-    "real_ns": 121757.87991437166,
-    "cpu_ns": 121740.50086355797,
+    "real_ns": 124194.24849970879,
+    "cpu_ns": 123625.33097970011,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopOperator/8": {
-    "real_ns": 119522.09138298774,
-    "cpu_ns": 119478.74149659896,
+    "real_ns": 122582.93570793926,
+    "cpu_ns": 122220.29488291446,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopOperator/9": {
-    "real_ns": 130862.9942676305,
-    "cpu_ns": 130823.19925163708,
+    "real_ns": 135523.17697664915,
+    "cpu_ns": 135342.707340324,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopOperator/10": {
-    "real_ns": 165356.37212504796,
-    "cpu_ns": 165344.2822384433,
+    "real_ns": 174191.84552379913,
+    "cpu_ns": 174053.37423312757,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopOperator/11": {
-    "real_ns": 212359.60392968246,
-    "cpu_ns": 212323.9757207888,
+    "real_ns": 225426.0945375319,
+    "cpu_ns": 224877.6167471811,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopCook_Plain/1000": {
-    "real_ns": 281996.4997470379,
-    "cpu_ns": 281971.0000000004,
+    "real_ns": 289449.8687237501,
+    "cpu_ns": 289368.421052634,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopCook_Plain/10000": {
-    "real_ns": 2848713.4401743514,
-    "cpu_ns": 2847479.5918367277,
+    "real_ns": 2910144.9714895957,
+    "cpu_ns": 2908854.166666697,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopCook_Plain/100000": {
-    "real_ns": 28801587.36370504,
-    "cpu_ns": 28796499.999999985,
+    "real_ns": 29337075.02670586,
+    "cpu_ns": 29319900.00000013,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopCook_MaskedAndDeformed/1000": {
-    "real_ns": 602335.47723984,
-    "cpu_ns": 602236.0515021427,
+    "real_ns": 602430.9819654485,
+    "cpu_ns": 602242.2907488977,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopCook_MaskedAndDeformed/10000": {
-    "real_ns": 5986010.868345266,
-    "cpu_ns": 5985543.478260833,
+    "real_ns": 6092702.008216925,
+    "cpu_ns": 6089173.913043505,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopCook_MaskedAndDeformed/100000": {
-    "real_ns": 59577989.50839788,
-    "cpu_ns": 59569750.00000054,
+    "real_ns": 61009124.969132245,
+    "cpu_ns": 60988999.9999993,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopCook_Relax/1000": {
-    "real_ns": 406165.97924325557,
-    "cpu_ns": 406007.50750751235,
+    "real_ns": 410387.69616927265,
+    "cpu_ns": 409428.9940828397,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopCook_Relax/10000": {
-    "real_ns": 4129025.7358923554,
-    "cpu_ns": 4127588.235294165,
+    "real_ns": 4128865.8086320055,
+    "cpu_ns": 4119602.94117646,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopCook_Relax/100000": {
-    "real_ns": 41430854.16095953,
-    "cpu_ns": 41381499.99999937,
+    "real_ns": 41681909.54563518,
+    "cpu_ns": 41673166.66666624,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopCook_PointSetSeed/1000": {
-    "real_ns": 188329.96903767015,
-    "cpu_ns": 188314.93943472614,
+    "real_ns": 190494.10365064326,
+    "cpu_ns": 190371.82910547697,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopCook_PointSetSeed/10000": {
-    "real_ns": 1848436.3860140243,
-    "cpu_ns": 1847793.3333333377,
+    "real_ns": 1885069.2541565043,
+    "cpu_ns": 1883824.3243243445,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopCook_PointSetSeed/100000": {
-    "real_ns": 18539015.611167997,
-    "cpu_ns": 18535250.000000004,
+    "real_ns": 18933660.650093637,
+    "cpu_ns": 18927857.142856956,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopSink_Stamps/1000": {
-    "real_ns": 380537.433544714,
-    "cpu_ns": 380460.7046070509,
+    "real_ns": 378413.755516772,
+    "cpu_ns": 378336.02150537213,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopSink_Stamps/10000": {
-    "real_ns": 3888436.34734965,
-    "cpu_ns": 3886916.666666678,
+    "real_ns": 3792244.380944081,
+    "cpu_ns": 3791162.162162129,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_PopRuntime_Dispatch/1": {
+    "real_ns": 751.1364692216307,
+    "cpu_ns": 750.6460985280148,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_PopRuntime_Dispatch/1000": {
+    "real_ns": 284124.3272527091,
+    "cpu_ns": 284076.61290321976,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_PopRuntime_Direct/1": {
+    "real_ns": 742.8568322412016,
+    "cpu_ns": 742.6572608725876,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_PopRuntime_Direct/1000": {
+    "real_ns": 282875.84759007266,
+    "cpu_ns": 282837.39837397984,
     "unit": "us",
     "repetitions": 4
    }
@@ -1611,179 +1671,191 @@
    }
   },
   "geometry_path_bench": {
-   "BM_ContourCorners/16": {
-    "cpu_ns": 9368.878094224074,
-    "real_ns": 9372.31335444894,
-    "repetitions": 4,
-    "unit": "us"
-   },
-   "BM_ContourCorners/256": {
-    "cpu_ns": 685295.121951222,
-    "real_ns": 685967.2778263325,
-    "repetitions": 4,
-    "unit": "us"
-   },
-   "BM_ContourCorners/512": {
-    "cpu_ns": 2754735.2941176556,
-    "real_ns": 2756802.703016529,
-    "repetitions": 4,
-    "unit": "us"
-   },
-   "BM_ContourCorners/64": {
-    "cpu_ns": 62594.6184384657,
-    "real_ns": 62612.6396291888,
-    "repetitions": 4,
-    "unit": "us"
-   },
-   "BM_ContourCorners/8": {
-    "cpu_ns": 2452.7713830352377,
-    "real_ns": 2453.2137355533496,
-    "repetitions": 4,
-    "unit": "us"
-   },
-   "BM_Displace/radius:3200/zigzag:0": {
-    "cpu_ns": 745268.6170212603,
-    "real_ns": 745461.326082574,
-    "repetitions": 4,
-    "unit": "us"
-   },
-   "BM_Displace/radius:3200/zigzag:1": {
-    "cpu_ns": 199078.50070721225,
-    "real_ns": 199150.34181716334,
-    "repetitions": 4,
-    "unit": "us"
-   },
-   "BM_Displace/radius:50/zigzag:0": {
-    "cpu_ns": 16231.666083712535,
-    "real_ns": 16236.494883714238,
-    "repetitions": 4,
-    "unit": "us"
-   },
-   "BM_Displace/radius:50/zigzag:1": {
-    "cpu_ns": 6332.929837383568,
-    "real_ns": 6338.004928549165,
-    "repetitions": 4,
-    "unit": "us"
-   },
-   "BM_Displace/radius:800/zigzag:0": {
-    "cpu_ns": 193587.34525447138,
-    "real_ns": 193591.38590556552,
-    "repetitions": 4,
-    "unit": "us"
-   },
-   "BM_Displace/radius:800/zigzag:1": {
-    "cpu_ns": 58340.909090908586,
-    "real_ns": 58405.12062092812,
-    "repetitions": 4,
-    "unit": "us"
-   },
-   "BM_Flatten/1024": {
-    "cpu_ns": 18367.325288423268,
-    "real_ns": 18381.92886623143,
-    "repetitions": 4,
-    "unit": "us"
-   },
    "BM_Flatten/16": {
-    "cpu_ns": 1865.9891044835174,
-    "real_ns": 1866.1737722503035,
-    "repetitions": 4,
-    "unit": "us"
-   },
-   "BM_Flatten/256": {
-    "cpu_ns": 11341.081169095487,
-    "real_ns": 11345.260410889503,
-    "repetitions": 4,
-    "unit": "us"
-   },
-   "BM_Flatten/4096": {
-    "cpu_ns": 42050.91499409698,
-    "real_ns": 42074.93364591032,
-    "repetitions": 4,
-    "unit": "us"
+    "real_ns": 1895.8484415716725,
+    "cpu_ns": 1893.9212269083312,
+    "unit": "us",
+    "repetitions": 4
    },
    "BM_Flatten/64": {
-    "cpu_ns": 4491.050882127336,
-    "real_ns": 4492.2001406381805,
-    "repetitions": 4,
-    "unit": "us"
+    "real_ns": 4578.134014990601,
+    "cpu_ns": 4577.616857487701,
+    "unit": "us",
+    "repetitions": 4
    },
-   "BM_NoiseHash": {
-    "cpu_ns": 3.5242726067826986,
-    "real_ns": 3.5255693537746033,
-    "repetitions": 4,
-    "unit": "ns"
+   "BM_Flatten/256": {
+    "real_ns": 11567.346456702246,
+    "cpu_ns": 11563.249548217493,
+    "unit": "us",
+    "repetitions": 4
    },
-   "BM_NoisePcgHash": {
-    "cpu_ns": 1.0270110995124564,
-    "real_ns": 1.0278351790779399,
-    "repetitions": 4,
-    "unit": "ns"
+   "BM_Flatten/1024": {
+    "real_ns": 19052.43510485234,
+    "cpu_ns": 19047.949965253694,
+    "unit": "us",
+    "repetitions": 4
    },
-   "BM_NoiseValue3": {
-    "cpu_ns": 6.307497089482906,
-    "real_ns": 6.3119313475592325,
-    "repetitions": 4,
-    "unit": "ns"
-   },
-   "BM_Parallel/radius:1024": {
-    "cpu_ns": 179112.8826530634,
-    "real_ns": 179179.12859678725,
-    "repetitions": 4,
-    "unit": "us"
-   },
-   "BM_Parallel/radius:256": {
-    "cpu_ns": 107346.26978146093,
-    "real_ns": 107395.72359545167,
-    "repetitions": 4,
-    "unit": "us"
-   },
-   "BM_Parallel/radius:3200": {
-    "cpu_ns": 498182.795698922,
-    "real_ns": 498339.0088937509,
-    "repetitions": 4,
-    "unit": "us"
-   },
-   "BM_Parallel/radius:50": {
-    "cpu_ns": 41212.82582938361,
-    "real_ns": 41221.44047731436,
-    "repetitions": 4,
-    "unit": "us"
-   },
-   "BM_Parallel/radius:64": {
-    "cpu_ns": 55329.01037510096,
-    "real_ns": 55351.56466438474,
-    "repetitions": 4,
-    "unit": "us"
-   },
-   "BM_Resample/1024": {
-    "cpu_ns": 7475.075729393693,
-    "real_ns": 7475.12552740502,
-    "repetitions": 4,
-    "unit": "us"
-   },
-   "BM_Resample/16384": {
-    "cpu_ns": 45295.12431385227,
-    "real_ns": 45405.4730843595,
-    "repetitions": 4,
-    "unit": "us"
-   },
-   "BM_Resample/256": {
-    "cpu_ns": 6076.2781629115725,
-    "real_ns": 6076.275428314814,
-    "repetitions": 4,
-    "unit": "us"
-   },
-   "BM_Resample/4096": {
-    "cpu_ns": 13730.874450415191,
-    "real_ns": 13734.642156906168,
-    "repetitions": 4,
-    "unit": "us"
+   "BM_Flatten/4096": {
+    "real_ns": 43414.15307432073,
+    "cpu_ns": 43294.965167827686,
+    "unit": "us",
+    "repetitions": 4
    },
    "BM_Resample/64": {
-    "cpu_ns": 5875.221912249562,
-    "real_ns": 5875.294106924349,
-    "repetitions": 4,
-    "unit": "us"
+    "real_ns": 6471.397653641376,
+    "cpu_ns": 6463.815636482019,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Resample/256": {
+    "real_ns": 6821.90185350284,
+    "cpu_ns": 6820.175012153619,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Resample/1024": {
+    "real_ns": 8420.737472498884,
+    "cpu_ns": 8416.582013743659,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Resample/4096": {
+    "real_ns": 14501.224318893972,
+    "cpu_ns": 14452.033036848836,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Resample/16384": {
+    "real_ns": 46294.95978475176,
+    "cpu_ns": 46270.261219022264,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_ContourCorners/8": {
+    "real_ns": 2531.5907166441775,
+    "cpu_ns": 2530.809151377806,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_ContourCorners/16": {
+    "real_ns": 9446.648841033839,
+    "cpu_ns": 9445.52238805976,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_ContourCorners/64": {
+    "real_ns": 63026.13739909534,
+    "cpu_ns": 62987.202514593635,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_ContourCorners/256": {
+    "real_ns": 692167.0818933059,
+    "cpu_ns": 691776.1194029879,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_ContourCorners/512": {
+    "real_ns": 2778044.929180075,
+    "cpu_ns": 2777598.0392157035,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Parallel/radius:50": {
+    "real_ns": 42695.984306129685,
+    "cpu_ns": 42668.304668304656,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Parallel/radius:64": {
+    "real_ns": 57873.41068162746,
+    "cpu_ns": 57805.567010308994,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Parallel/radius:256": {
+    "real_ns": 108281.35662949554,
+    "cpu_ns": 108126.66666666778,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Parallel/radius:1024": {
+    "real_ns": 182805.51053933782,
+    "cpu_ns": 182586.81462141033,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Parallel/radius:3200": {
+    "real_ns": 516194.64916441706,
+    "cpu_ns": 516027.67527675116,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Displace/radius:50/zigzag:0": {
+    "real_ns": 16691.739089134855,
+    "cpu_ns": 16657.973621103047,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Displace/radius:800/zigzag:0": {
+    "real_ns": 200087.39953415398,
+    "cpu_ns": 199956.859971706,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Displace/radius:3200/zigzag:0": {
+    "real_ns": 756677.8672738902,
+    "cpu_ns": 756045.6989247284,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Displace/radius:50/zigzag:1": {
+    "real_ns": 6558.539597402669,
+    "cpu_ns": 6546.405929517159,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Displace/radius:800/zigzag:1": {
+    "real_ns": 59865.63099016606,
+    "cpu_ns": 59847.24005134791,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Displace/radius:3200/zigzag:1": {
+    "real_ns": 204585.9069125179,
+    "cpu_ns": 204274.99999999953,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_NoiseHash": {
+    "real_ns": 3.614939225137375,
+    "cpu_ns": 3.6141812909238618,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_NoisePcgHash": {
+    "real_ns": 1.048317806560669,
+    "cpu_ns": 1.0443261102304096,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_NoiseValue3": {
+    "real_ns": 6.442492675088413,
+    "cpu_ns": 6.425473455454347,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_PoseAlong": {
+    "real_ns": 54.853893891795956,
+    "cpu_ns": 54.850272469262485,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_PoseAlongManyContours": {
+    "real_ns": 60.752913890827884,
+    "cpu_ns": 60.733706139254224,
+    "unit": "ns",
+    "repetitions": 4
    }
   },
   "geometry_path_blend_bench": {

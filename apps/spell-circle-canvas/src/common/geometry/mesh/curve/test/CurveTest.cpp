@@ -1,23 +1,119 @@
 /** @file
- * Splines, the two rails, the profiles and the sweep that carries them:
- * a round profile forms a tube, a flat one a ribbon or a hung banner.
- * Each of those three shapes is also written out longhand at the foot of
- * this file, and the sweep is held against the longhand vertex for
- * vertex.
+ * Splines, the two rails, the pose along them, the profiles and the
+ * sweep that carries them: a round profile forms a tube, a flat one a
+ * ribbon or a hung banner. Each of those three shapes is also written
+ * out longhand at the foot of this file, and the sweep is held against
+ * the longhand vertex for vertex.
  */
 
 #include <gtest/gtest.h>
 #include <include/core/SkPathBuilder.h>
 
+#include <algorithm>
 #include <cmath>
 #include <functional>
+#include <vector>
 
 #include "sigilgeometry/mesh/Mesh.h"
 #include "sigilgeometry/mesh/camera/Camera.h"
 #include "sigilgeometry/mesh/curve/Curve.h"
+#include "sigilgeometry/mesh/curve/Pose.h"
 
 using namespace sigil::geometry;
 using namespace sigil::geometry::mesh;
+
+// ---------------------------------------------------------------------------
+// Pose
+
+namespace {
+
+curve::Spline3 closedLoop() {
+  curve::Spline3 loop;
+  loop.points = {{-140, 0, 0},
+                 {-40, 90, 70},
+                 {90, 40, -30},
+                 {130, -60, 40},
+                 {0, -110, 10}};
+  loop.closed = true;
+  return loop;
+}
+
+}  // namespace
+
+TEST(Pose, WalksTheSplineByArcLength) {
+  curve::Spline3 line;
+  line.type = curve::Spline3::Type::Linear;
+  line.points = {{0, 0, 0}, {100, 0, 0}};
+
+  const curve::Frame3 quarter = curve::poseAlong(line, 25.0f);
+  EXPECT_NEAR(quarter.position.x, 25.0f, 0.5f);
+  EXPECT_NEAR(quarter.tangent.x, 1.0f, 1e-3f);
+  // The frame is orthonormal wherever it is read.
+  EXPECT_NEAR(glm::dot(quarter.tangent, quarter.normal), 0.0f, 1e-4f);
+  EXPECT_NEAR(glm::length(quarter.binormal), 1.0f, 1e-4f);
+}
+
+TEST(Pose, AnOpenSplineParksAtItsEnds) {
+  curve::Spline3 line;
+  line.type = curve::Spline3::Type::Linear;
+  line.points = {{0, 0, 0}, {100, 0, 0}};
+  // Asking to come round on an open curve still parks: there are two
+  // ends and no seam between them.
+  const curve::Frame3 past = curve::poseAlong(line, 400.0f);
+  EXPECT_NEAR(past.position.x, 100.0f, 0.5f);
+  const curve::Frame3 before = curve::poseAlong(line, -400.0f);
+  EXPECT_NEAR(before.position.x, 0.0f, 0.5f);
+}
+
+TEST(Pose, AClosedSplineComesRound) {
+  const curve::Spline3 loop = closedLoop();
+  const float total = loop.length();
+  const curve::Frame3 start = curve::poseAlong(loop, 0.0f);
+  const curve::Frame3 lap = curve::poseAlong(loop, total);
+  EXPECT_NEAR(glm::length(lap.position - start.position), 0.0f, 1.0f);
+  const curve::Frame3 third = curve::poseAlong(loop, total / 3.0f);
+  const curve::Frame3 nextLap = curve::poseAlong(loop, total + total / 3.0f);
+  EXPECT_NEAR(glm::length(nextLap.position - third.position), 0.0f, 1.0f);
+}
+
+// The whole point of a parallel-transport frame: walking the loop, the
+// normal turns a little at a time and never inverts — not at an
+// inflection, and not at the seam where the walk closes.
+TEST(Pose, FramesDoNotFlipAroundAClosedLoop) {
+  const curve::Spline3 loop = closedLoop();
+  const float total = loop.length();
+  const int steps = 400;
+  curve::Frame3 prev = curve::poseAlong(loop, 0.0f);
+  float worst = 1.0f;
+  for (int i = 1; i <= steps; ++i) {
+    const curve::Frame3 here =
+        curve::poseAlong(loop, total * (float)i / (float)steps);
+    const float agree = glm::dot(prev.normal, here.normal);
+    worst = std::min(worst, agree);
+    // A flip is a normal that reverses between neighbouring reads.
+    EXPECT_GT(agree, 0.9f) << "step " << i;
+    EXPECT_NEAR(glm::dot(here.tangent, here.normal), 0.0f, 1e-3f);
+    prev = here;
+  }
+  EXPECT_GT(worst, 0.9f);
+  // Coming back round meets the frame the walk started with.
+  const curve::Frame3 seam = curve::poseAlong(loop, total);
+  const curve::Frame3 start = curve::poseAlong(loop, 0.0f);
+  EXPECT_GT(glm::dot(seam.normal, start.normal), 0.99f);
+}
+
+TEST(Pose, ARailReadsTheSamePlacesTheSplineDoes) {
+  const curve::Spline3 loop = closedLoop();
+  const std::vector<curve::Frame3> rail = curve::frames(loop, 256);
+  const float total = loop.length();
+  for (int i = 0; i <= 8; ++i) {
+    const float d = total * (float)i / 8.0f;
+    const curve::Frame3 viaRail = curve::poseAlong(rail, d, path::Wrap::Around);
+    const curve::Frame3 viaSpline = curve::poseAlong(loop, d);
+    EXPECT_NEAR(glm::length(viaRail.position - viaSpline.position), 0.0f, 1e-3f)
+        << "d = " << d;
+  }
+}
 
 TEST(Curves, SplineInterpolatesEndpointsAndLength) {
   curve::Spline3 line;

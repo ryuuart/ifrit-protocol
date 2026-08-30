@@ -1247,9 +1247,15 @@ three-way bake decision are its. What every term MEANS is compose's: which
 Skia paint moves pixels off the describe clock, which of its lanes a value
 memo can compare, what a recording is and when it may be replayed.
 OpenColorIO is optional and gates `paint/Ocio.h` alone.
-`SigilGeometryPath` supplies the contours, polylines and seeded noise that
-every outline walker here reads through, and compose adds no path
-geometry of its own.
+`SigilGeometryPath` supplies the contours, polylines, poses and seeded
+noise that every outline walker here reads through, and compose adds no
+path geometry of its own. `travel()`'s motion path is the worked example:
+the curve is measured into that library's contours once per shape and
+size, and each frame's position is one pose read along them, walked as a
+single arc-length coordinate. What stays here is the
+POLICY the verb states — the fraction wraps on a closed curve and clamps
+on an open one, the tangent angle comes from a look-ahead chord, and the
+path outranks the translate lanes.
 
 Deliberately *not* linked: SigilScry (the web leaf is a header-only
 adapter, exercised by its own test target), EnTT (the instancing header
