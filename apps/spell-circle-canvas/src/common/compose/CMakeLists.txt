@@ -22,9 +22,11 @@
 #                                        with SigilScry)
 #   SigilComposeKit         kit/         the kit tier over Shape and
 #                                        Typography
-#   SigilCompose                         the transitional umbrella: Paint
-#                                        (which reaches Brush, Shape and
-#                                        Core) plus Typography
+#   SigilCompose                         the whole-library convenience for
+#                                        an OUTSIDE consumer: Paint (which
+#                                        reaches Brush, Shape and Core)
+#                                        plus Typography; nothing in this
+#                                        tree links it
 #
 # Every public header lives under one include root, include/sigilcompose/
 # <feature>/, so a feature adds the root and spells its own directory;
@@ -51,8 +53,8 @@ set(SIGIL_COMPOSE_TEST_ASSET_DIR ${CMAKE_CURRENT_LIST_DIR}/test/assets)
 #
 # `_compose_test_binary(<name> LIBRARIES <targets>... SOURCES <files>...)`
 # registers one binary over exactly the targets it names — nothing links
-# the umbrella but the docs probes, so a test reaching past its tier fails
-# to link rather than passing on a dependency it was not meant to have.
+# the umbrella, so a test reaching past its tier fails to link rather than
+# passing on a dependency it was not meant to have.
 function(_compose_test_binary name)
   cmake_parse_arguments(ARG "" "" "LIBRARIES;SOURCES" ${ARGN})
   add_executable(${name} ${ARG_SOURCES})
@@ -113,13 +115,16 @@ add_subdirectory(web)
 add_subdirectory(kit)
 
 # ---------------------------------------------------------------------------
-# SigilCompose — the transitional umbrella.
-#
-# Every tier at once, for a consumer that draws with all of it — the gallery,
-# the sketch host, the products. It carries no code of its own; linking it
-# is exactly linking Paint (which reaches Brush, Shape and Core) plus
-# Typography. The instanced leaf and the web leaf are deliberately NOT here:
-# each is linked by the consumers that stamp or browse with it.
+# SigilCompose — the whole-library name, kept as a convenience for a
+# consumer OUTSIDE this tree, the way SigilWeave, SigilMotion and
+# SigilGeometry each keep one. It carries no code of its own; linking it is
+# exactly linking Paint (which reaches Brush, Shape and Core) plus
+# Typography. Nothing in this repository links it: every consumer here —
+# the gallery, the sketch kit, the benches, the demos, the tests — names
+# the feature targets it draws with, which is what keeps a dependency on a
+# tier a stated fact rather than an accident of the umbrella. The instanced
+# leaf and the web leaf are deliberately NOT here: each is linked by the
+# consumers that stamp or browse with it.
 add_library(SigilCompose INTERFACE)
 target_link_libraries(SigilCompose INTERFACE
   SigilComposePaint SigilComposeTypography)
@@ -169,7 +174,9 @@ add_test(NAME compose_api_doc_probes_self_test
           --self-test)
 
 _compose_test_binary(compose_docs_test
-  LIBRARIES SigilCompose SigilComposeKit SigilComposeInstances
+  LIBRARIES SigilComposeCore SigilComposeShape SigilComposeBrush
+            SigilComposePaint SigilComposeTypography SigilComposeKit
+            SigilComposeInstances
   SOURCES
     ${COMPOSE_API_DOC_PROBES}
     test/ComposeTestEngineDocs.cpp
@@ -188,7 +195,8 @@ if(APPLE AND TARGET SpellCircleSkia)
   target_include_directories(compose_gpu_test PRIVATE
     ${SIGIL_COMPOSE_TEST_SUPPORT_DIR})
   target_link_libraries(compose_gpu_test PRIVATE
-    SigilCompose SigilComposeInstances SigilWeavePorts SpellCircleSkia
+    SigilComposeShape SigilComposeBrush SigilComposeTypography
+    SigilComposeInstances SigilWeavePorts SpellCircleSkia
     GTest::gtest_main "-framework Metal")
   add_test(NAME compose_gpu_test COMMAND compose_gpu_test)
 endif()
@@ -198,7 +206,8 @@ endif()
 add_executable(compose_demo
   examples/compose_demo.cpp
 )
-target_link_libraries(compose_demo PRIVATE SigilCompose SigilWeavePorts)
+target_link_libraries(compose_demo PRIVATE
+  SigilComposeShape SigilComposeBrush SigilWeavePorts)
 
 # The tree-structured products own their CMakeLists: sketch/ defines
 # SigilSketchStudies (every study sketch compiled in place), which the

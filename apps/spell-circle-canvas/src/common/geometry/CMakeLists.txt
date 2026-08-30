@@ -46,10 +46,10 @@ add_executable(geometry_demo
 )
 
 # SigilLoader feeds the optional HDRI-environment panel (fetch_assets).
-# SigilCompose + SigilWeave author the yarn-marquee panel's canvas —
+# SigilComposeCore + SigilWeave author the yarn-marquee panel's canvas —
 # demo-only deps; the library itself stays Skia-only.
 target_link_libraries(geometry_demo PRIVATE SigilGeometry SigilLoader
-  SigilCompose SigilWeave SigilWeaveShaders SigilWeavePorts
+  SigilComposeCore SigilWeave SigilWeaveShaders SigilWeavePorts
   SigilWeaveKit)
 
 # Registers this library with the `docs` target (see cmake/Docs.cmake).

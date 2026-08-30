@@ -23,13 +23,15 @@ target_include_directories(SigilSketchKit PUBLIC ${CMAKE_CURRENT_LIST_DIR}/inclu
 # host also accepts `--assets <dir>` to point at it directly.
 target_compile_definitions(SigilSketchKit PUBLIC
   SIGIL_ASSET_DIR="${SIGIL_ASSET_DIR}")
-# SigilComposeTesting is here for the --verify path: a sketch that reports
-# its checks reads <sigilcompose/testing/Checks.h>, and what a sketch may
-# include is exactly this target's PUBLIC dependencies. It is header-only,
-# so it adds nothing to the force_load list below.
+# A sketch may draw with any tier, so every feature target is named here
+# — what a sketch may #include is exactly this target's PUBLIC
+# dependencies. SigilComposeTesting is here for the --verify path: a
+# sketch that reports its checks reads <sigilcompose/testing/Checks.h>. It
+# is header-only, so it adds nothing to the force_load list below.
 target_link_libraries(SigilSketchKit PUBLIC
-  SigilCompose SigilComposeInstances SigilComposeTesting SigilLoader
-  SigilGeometry SigilWeavePorts EnTT::EnTT)
+  SigilComposeCore SigilComposeShape SigilComposeBrush SigilComposePaint
+  SigilComposeTypography SigilComposeInstances SigilComposeKit
+  SigilComposeTesting SigilLoader SigilGeometry SigilWeavePorts EnTT::EnTT)
 set_target_properties(SigilSketchKit PROPERTIES
   POSITION_INDEPENDENT_CODE ON)
 
@@ -132,13 +134,13 @@ if(APPLE)
   # all ran as compiled-in gallery scenes, and all failed to dlopen —
   # `symbol not found in flat namespace ..._ZN5sigil5shape...`. Anything
   # added to SigilSketchKit's PUBLIC libraries belongs here too — as the
-  # ARCHIVES it resolves to: SigilCompose is an interface over the four
-  # compose archives, SigilGeometry and SigilWeave each one over their
-  # feature archives, and an interface target has no file to force-load.
+  # ARCHIVES it resolves to: SigilGeometry and SigilWeave are each an
+  # interface over their feature archives, and an interface target has no
+  # file to force-load; the compose tiers are named archive by archive.
   foreach(sketch_dep IN ITEMS SigilSketchKit SigilComposeCore
                               SigilComposeShape SigilComposeBrush
                               SigilComposePaint SigilComposeInstances
-                              SigilImageAsset
+                              SigilComposeKit SigilImageAsset
                               SigilImageDecode SigilLoaderHub SigilMotionClock
                               SigilMotionBind SigilGeometryPath
                               SigilGeometryBlend SigilGeometryMesh

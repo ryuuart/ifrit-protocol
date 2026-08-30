@@ -946,7 +946,8 @@ it (`core/Core.h`, `shape/Shape.h`, `brush/Brush.h`, `paint/Paint.h`,
 `typography/Typography.h`) over its public headers, and
 `<sigilcompose/Compose.h>` at the root is the transitional umbrella over
 the kernel — exactly `core/Core.h`. Each header stands on its own; include
-the one a translation unit needs.
+the one a translation unit needs, from the feature whose target the
+translation unit links.
 
 **Kernel — `core/`.** A user who reads these headers has a complete and
 sound model; nothing below them changes kernel semantics.
@@ -1279,9 +1280,15 @@ kit's placers, over Core), `SigilComposeWeb` (`web/` — header-only,
 present only with SigilScry), `SigilComposeTesting` (`testing/`) and
 `SigilComposeKit` (`kit/`). Each directory holds the target's sources,
 its internal headers, its `test/` and its `bench/`; the public headers
-sit under `include/sigilcompose/<feature>/`. `SigilCompose` is the
-transitional umbrella over every tier but the instanced leaf and the web
-leaf, which are linked by name. From `apps/spell-circle-canvas`:
+sit under `include/sigilcompose/<feature>/`. Every consumer in this
+repository — the gallery, the sketch kit, the benches, the demos, the
+tests, `world_test`, `world_demo` and `geometry_demo` — links the feature
+targets it draws with by name, so a dependency on a tier is a stated fact.
+`SigilCompose` remains as the whole-library name for a consumer outside
+this tree, the way `SigilWeave`, `SigilMotion` and `SigilGeometry` each
+keep one: it is Paint (which reaches Brush, Shape and Core) plus
+Typography, never the instanced leaf or the web leaf, and nothing here
+links it. From `apps/spell-circle-canvas`:
 
 ```sh
 python3 scripts/setup.py --config Debug

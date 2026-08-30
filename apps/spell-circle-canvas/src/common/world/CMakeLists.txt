@@ -46,7 +46,7 @@ endif()
 # the public component surface. It links choreograph and nothing else —
 # no Skia, no Yoga, no kernel — which is exactly why the animation
 # VALUES could move out of SigilCompose (2026-07-29) and land here.
-# SigilWorld stays compose-free; world_test links SigilCompose
+# SigilWorld stays compose-free; world_test links SigilComposeCore
 # TEST-ONLY, below.
 target_link_libraries(SigilWorld
   PUBLIC SigilGeometry unofficial::skia::skia EnTT::EnTT SigilMotion
@@ -57,11 +57,12 @@ add_executable(world_test
   test/WorldTest.cpp
 )
 
-# SigilCompose is a TEST-ONLY dependency here (the library above stays
+# SigilComposeCore is a TEST-ONLY dependency here (the library above stays
 # compose-free): world_demo's marquee slices its strip through compose's
 # tiles:: door, and WorldMarqueeSlice pins the transforms that slice
-# depends on so a change over there cannot silently move the band.
-target_link_libraries(world_test PRIVATE SigilWorld SigilCompose
+# depends on so a change over there cannot silently move the band. The
+# kernel alone: nothing here draws with a catalog.
+target_link_libraries(world_test PRIVATE SigilWorld SigilComposeCore
   GTest::gtest_main)
 
 add_test(NAME world_test COMMAND world_test)
@@ -73,11 +74,11 @@ add_executable(world_demo
 )
 
 # SigilLoader feeds the demo's fetched-asset poster (SVG -> texture).
-# SigilCompose authors the marquee textures (element trees baked via
+# SigilComposeCore authors the marquee textures (element trees baked via
 # snapshot()); the weave ports/kit supply fonts and styles. SigilWorld
 # itself stays text- and compose-free.
 target_link_libraries(world_demo PRIVATE SigilWorld SigilLoader
-  SigilCompose SigilWeave SigilWeaveShaders SigilWeavePorts
+  SigilComposeCore SigilWeave SigilWeaveShaders SigilWeavePorts
   SigilWeaveKit)
 
 # The material lab shot dresses its props with a fetched texture set and,
