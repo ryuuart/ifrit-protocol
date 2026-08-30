@@ -796,42 +796,44 @@ and reads as changed content every time — which is why it stays the escape
 hatch for the passage too custom for either verb, not the way to set two
 colours in a sentence.
 
-**Selector styling.** `Element::spanPaint`, `Element::spanAxis` and
-`Element::spanStyle` restyle whatever the SAME `sel::` selectors the tracks
-use address, on every content form alike — plain text, `rich()` spans and
-the paragraph overload. They are ordered by **what they are allowed to
-disturb**:
+**Selector styling.** `Element::spanPaint` and `Element::spanStyle`
+restyle whatever the SAME `sel::` selectors the tracks use address, on
+every content form alike — plain text, `rich()` spans and the paragraph
+overload. They are ordered by **what they are allowed to disturb**:
 
 | verb | changes | re-shapes |
 | --- | --- | --- |
 | `spanPaint` | paint alone — a colour, a shader, an underline, a glow pass | never |
-| `spanAxis` | one advance-invariant variable-font axis | never |
-| `spanStyle` | anything a `sigil::weave::TextStyle` holds | the words its range covers |
+| `spanStyle` | anything a `sigil::weave::TextStyle` holds | the words its range covers — unless the only change is advance-invariant axes |
 
-All three are ordered lists — a LATER DECLARATION WINS on overlap, so a
-broad rule followed by a narrow exception reads in the order it is written
-— and all three are comparable values, so a re-described list prunes and
-only a changed one re-resolves.
+Both are ordered lists — a LATER DECLARATION WINS on overlap, so a broad
+rule followed by a narrow exception reads in the order it is written — and
+both are comparable values, so a re-described list prunes and only a
+changed one re-resolves.
 
-`spanAxis` is the advance-invariant middle the other two leave out.
-`spanPaint` cannot carry a face or an axis at all; `spanStyle` can and
-re-shapes to do it. A grade is advance-invariant *by construction* — it
-thickens a letter without moving the letter after it — so it is exactly the
-restyle that can keep the layout the paragraph already has:
+The middle ground is `spanStyle`'s own. A style that differs from the text
+it covers only in variable-font axes the face carries advance-invariantly
+does not re-shape: a grade is advance-invariant *by construction* — it
+thickens a letter without moving the letter after it — so it is exactly
+the restyle that can keep the layout the paragraph already has, and the
+restyle keeps it:
 
 ```cpp
-text(copy).spanAxis(sel::regex(u8"[0-9]+"), "GRAD", 780);
+sigil::weave::TextStyle graded = base;
+graded.variation("GRAD", 780);
+text(copy, base).spanStyle(sel::regex(u8"[0-9]+"), graded);
 ```
 
-It is sugar over `fx()` and inherits what that means. The coordinate is a
-`GlyphMod::axis` on a track, so it goes through the same gate and the same
-size-scaled ladder a driven axis does, an advance-variant axis is refused
-with the same one-per-face warning, and it composes with entrances and
-loops instead of being hidden by them. Being a track it runs on the GLYPHS,
-which is why it takes the selector vocabulary whole where the two
-paragraph-side verbs cannot; and the leaf then draws through the batched
-glyph path, which paints glyphs and not a span style's underline or
-strikethrough.
+Such a restyle is carried as a track holding `TextEffect::variableAxis`,
+and inherits what that means. The coordinate is a `GlyphMod::axis`, so it
+goes through the same size-scaled ladder a driven axis does and composes
+with entrances and loops instead of being hidden by them; and the leaf
+then draws through the batched glyph path, which paints glyphs and not a
+span style's underline or strikethrough. Anything else the style changes —
+another face or size, an axis the face moves advances on, an axis the text
+was shaped with and the restyle drops — is a reshape; and an earlier
+axis-only restyle under a later reshaping one over the same text re-shapes
+too, so the later declaration is the one that stands.
 
 `spanPaint` and `spanStyle` resolve their selection as TEXT RANGES rather
 than glyphs, because a restyle runs on the paragraph before there are

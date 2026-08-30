@@ -2491,6 +2491,14 @@ sigil::weave::TextStyle coloredStyle(float size, SkColor color) {
   return s;
 }
 
+/** @p base with one variable-font axis set — the restyle that differs from
+ *  the text it covers in that axis alone. */
+sigil::weave::TextStyle withAxis(sigil::weave::TextStyle base,
+                                 const char (&tag)[5], float value) {
+  base.variation(tag, value);
+  return base;
+}
+
 }  // namespace
 
 TEST(TextRich, MixedRunsPaintTheirOwnStyles) {
@@ -2969,69 +2977,60 @@ TEST(TextSpanAxis, AnInvariantAxisRedrawsWithoutReshaping) {
   const SkBitmap plain = grab(host, 400, 120);
 
   host.composer.render(box().padding(10).child(
-      text(body, base).spanAxis(sel::regex(u8"[0-9]+"), "GRAD", hi).key("t")));
+      text(body, base)
+          .spanStyle(sel::regex(u8"[0-9]+"), withAxis(base, "GRAD", hi))
+          .key("t")));
   host.frame();
   EXPECT_EQ(runShapes(host, "t"), shapesBefore)
-      << "spanAxis re-shaped a word — the axis went into the shaping style";
-  EXPECT_EQ(runOrigins(host, "t"), originsBefore) << "spanAxis moved a glyph";
+      << "an axis-only spanStyle re-shaped a word — the axis went into the "
+         "shaping style instead of onto the glyphs";
+  EXPECT_EQ(runOrigins(host, "t"), originsBefore)
+      << "an axis-only spanStyle moved a glyph";
   EXPECT_GT(pixelsDiffering(plain, grab(host, 400, 120), 400, 120), 20)
       << "the graded numerals are drawing exactly as the ungraded ones did";
 }
 
-TEST(TextSpanAxis, AnAdvanceVariantAxisIsRefusedAndSaysSoOnce) {
+TEST(TextSpanAxis, AnAdvanceVariantAxisReshapesInstead) {
   // The instrument face whose wght genuinely interpolates advances, so the
-  // gate has something to refuse. Loaded here rather than shared, so this
+  // fold has something to decline. Loaded here rather than shared, so this
   // face's verdict is this test's own to observe.
-  const SkFourByteTag wght = SkSetFourByteTag('w', 'g', 'h', 't');
   const sk_sp<SkTypeface> face = fonts().fontManager()->makeFromFile(
       SIGILCOMPOSE_TEST_ASSET_DIR "/AdvanceVariant.ttf");
   ASSERT_TRUE(face) << "test asset AdvanceVariant.ttf failed to load";
   ASSERT_GT(face->getVariationDesignParameters({}), 0);
   ASSERT_FALSE(fonts().axisIsAdvanceInvariant(face, "wght"))
       << "the instrument face's wght must move advances";
-  (void)wght;
 
   Host host(400, 120);
   sigil::weave::TextStyle base = coloredStyle(44, SK_ColorWHITE);
   base.shaping.typeface = face;
   const std::u8string body = u8"WEIGHT";
-  // EVERY FRAME CARRIES A spanAxis, and they differ only in the coordinate.
-  // A leaf carrying a track draws through the batched glyph path and one
-  // without it draws through the paragraph's own, and the two round subpixel
-  // coverage differently — so a bare paragraph as the baseline would measure
-  // the path change and call it a weight.
+  // An axis the face moves advances on cannot be held on the glyphs, so the
+  // restyle takes the other road: it re-shapes the words it covers, which is
+  // what the verb promises anyway — and a routing decision the author never
+  // asked about is nothing to warn about.
   ::testing::internal::CaptureStderr();
   const auto at = [&](float weight) {
     host.composer.render(box().padding(10).child(
-        text(body, base).spanAxis(Selector{}, "wght", weight).key("t")));
+        text(body, base)
+            .spanStyle(Selector{}, withAxis(base, "wght", weight))
+            .key("t")));
     host.frame();
     return grab(host, 400, 120);
   };
   const SkBitmap light = at(400.0f);
   const SkBitmap heavy = at(900.0f);
-  const SkBitmap heavier = at(950.0f);
   const std::string log = ::testing::internal::GetCapturedStderr();
-
   int inked = 0;
   for (int y = 0; y < 120; y += 2)
     for (int x = 0; x < 400; x += 2)
       inked += light.getColor(x, y) != SK_ColorBLACK;
   ASSERT_GT(inked, 20) << "the text never drew";
-
-  EXPECT_EQ(pixelsDiffering(light, heavy, 400, 120), 0)
-      << "an advance-variant axis reached the draw — the glyphs kept the pen "
-         "positions shaping gave them and wore an outline that does not fit "
-         "them";
-  EXPECT_EQ(pixelsDiffering(light, heavier, 400, 120), 0);
-  // The warning is also the liveness proof: it can only have been written by
-  // the gate this verb's coordinate reached. And the verdict is a property
-  // of the face, probed once and remembered, so the two refusals after the
-  // first must be silent.
-  size_t said = 0;
-  for (size_t found = log.find("moves advances"); found != std::string::npos;
-       found = log.find("moves advances", found + 1))
-    ++said;
-  EXPECT_EQ(said, 1u) << log;
+  EXPECT_GT(pixelsDiffering(light, heavy, 400, 120), 20)
+      << "an advance-variant axis did not re-shape — the glyphs kept the "
+         "outline and pen positions the lighter weight gave them";
+  EXPECT_EQ(log.find("moves advances"), std::string::npos)
+      << "a restyle that re-shapes warned as if it had been refused: " << log;
 }
 
 TEST(TextSpanAxis, TheCoordinateTakesTheSizeScaledLadder) {
@@ -3062,7 +3061,9 @@ TEST(TextSpanAxis, TheCoordinateTakesTheSizeScaledLadder) {
           lo + (hi - lo) * 0.5f + window * (float)i / (float)(kSamples - 1);
       composer.render(box().padding(4).child(
           // A default-constructed selector addresses every glyph.
-          text(u8"888", style).key("t").spanAxis(Selector{}, "GRAD", value)));
+          text(u8"888", style)
+              .key("t")
+              .spanStyle(Selector{}, withAxis(style, "GRAD", value))));
       ticker.tick(1.0 / 60.0);
       surface->getCanvas()->clear(SK_ColorBLACK);
       composer.draw(*surface->getCanvas());
@@ -3096,15 +3097,18 @@ TEST(TextSpanAxis, ALaterDeclarationWinsOnOverlap) {
     host.frame();
     return grab(host, 400, 120);
   };
-  const SkBitmap light =
-      drawn([&](Element t) { return t.spanAxis(Selector{}, "GRAD", lo); });
-  const SkBitmap heavy =
-      drawn([&](Element t) { return t.spanAxis(Selector{}, "GRAD", hi); });
+  const SkBitmap light = drawn([&](Element t) {
+    return t.spanStyle(Selector{}, withAxis(base, "GRAD", lo));
+  });
+  const SkBitmap heavy = drawn([&](Element t) {
+    return t.spanStyle(Selector{}, withAxis(base, "GRAD", hi));
+  });
   ASSERT_GT(pixelsDiffering(light, heavy, 400, 120), 20)
       << "the two ends of the axis draw the same, so nothing below is a test";
 
   const SkBitmap both = drawn([&](Element t) {
-    return t.spanAxis(Selector{}, "GRAD", lo).spanAxis(Selector{}, "GRAD", hi);
+    return t.spanStyle(Selector{}, withAxis(base, "GRAD", lo))
+        .spanStyle(Selector{}, withAxis(base, "GRAD", hi));
   });
   EXPECT_EQ(pixelsDiffering(both, heavy, 400, 120), 0)
       << "the earlier declaration survived the later one — an axis is a "

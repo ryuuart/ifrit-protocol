@@ -629,13 +629,14 @@ class Element {
   // `rich()` spans, and the `shared_ptr<Paragraph>` overload, because all
   // three are one materialized paragraph by the time a restyle runs.
   //
-  // The three are ordered by WHAT THEY ARE ALLOWED TO DISTURB. `spanPaint`
-  // repaints and nothing else. `spanAxis` also changes the outline, but
-  // only along an advance-invariant axis, so the pen positions stand.
-  // `spanStyle` may change anything and re-shapes to do it.
+  // The two are ordered by WHAT THEY ARE ALLOWED TO DISTURB. `spanPaint`
+  // repaints and nothing else. `spanStyle` may change anything, and
+  // re-shapes to do it — except a change of advance-invariant axes alone,
+  // which it carries to the glyphs at draw time with the pen positions
+  // standing.
   //
-  // The two that run on the PARAGRAPH — `spanPaint` and `spanStyle` —
-  // resolve their selection as TEXT RANGES, not glyphs: `sel::text` and
+  // Both run on the PARAGRAPH and resolve their selection as TEXT RANGES,
+  // not glyphs: `sel::text` and
   // `sel::regex` go through weave's query layer, `sel::word`, `sel::words`,
   // `sel::sentence` and `sel::range` through the paragraph's own structure,
   // and `sel::line` through the layout. `Selector::take` and
@@ -647,10 +648,6 @@ class Element {
   // RESTYLE, and costs a second layout pass. It does not chase its own
   // result: a `spanStyle` on a line that moves the line breaks leaves the
   // selection where the first breaking put it.
-  //
-  // `spanAxis` runs on the GLYPHS instead, being a track, so it takes the
-  // selector vocabulary whole: a slice addresses the glyphs it names rather
-  // than widening to their units.
 
   /** Text leaves only: repaint the range this selector finds — a colour, a
    *  shader, an underline, an added glow pass. PAINT ONLY, so it NEVER
@@ -661,32 +658,22 @@ class Element {
    *  complete TextStyle — a different face, size, weight or tracking as
    *  well as paint. Re-shapes, and only the words the range covers: the
    *  shaping cache is content-addressed, so the rest of the paragraph is
-   *  reused as it stands. */
+   *  reused as it stands.
+   *
+   *  A style that differs from the text it covers ONLY IN VARIABLE-FONT
+   *  AXES the face carries advance-invariantly — a grade (GRAD) thickens a
+   *  letter without moving the letter after it — does not re-shape at all:
+   *  the coordinate is held on the glyphs at draw time, so the layout the
+   *  paragraph already has stands to the pen position. It is then a track
+   *  carrying `TextEffect::variableAxis`, and it inherits what that means:
+   *  the same size-scaled snapping ladder a driven axis takes, composition
+   *  with entrances and loops rather than being hidden by them, and the
+   *  batched glyph draw, which paints glyphs and not a span style's
+   *  underline or strikethrough. An axis the face moves advances on, an
+   *  axis the restyle drops, or any other difference is a reshape, and a
+   *  later reshaping restyle over the same text keeps the earlier one a
+   *  reshape too, so the later one is the one that stands. */
   Element& spanStyle(Selector where, sigil::weave::TextStyle style);
-  /** Text leaves only: hold a VARIABLE-FONT AXIS at one coordinate over the
-   *  range this selector finds, WITHOUT reshaping it.
-   *
-   *  The advance-invariant middle the other two verbs leave out. `spanPaint`
-   *  cannot carry a face or an axis at all; `spanStyle` can, and re-shapes
-   *  the words it touches to do it. A grade (GRAD) is advance-invariant BY
-   *  CONSTRUCTION — it thickens a letter without moving the letter after it
-   *  — so it is exactly the restyle that can keep the layout the paragraph
-   *  already has, and this is the verb that says so.
-   *
-   *  GATED like every draw-time axis: the runtime probes the range's faces
-   *  once per axis and REFUSES one that moves advances, drawing at the
-   *  shaped coordinates and warning once. An axis that moves advances is a
-   *  reshape, which is what `spanStyle` is for.
-   *
-   *  SUGAR over `fx()`, and it inherits what that means. The coordinate is a
-   *  `GlyphMod::axis` on a track addressing @p where, so it goes through the
-   *  same size-scaled snapping ladder a driven axis does; it composes with
-   *  entrances and loops rather than being hidden by them; two declarations
-   *  overlapping resolve LATER-WINS, as the other two span verbs do, because
-   *  an axis coordinate is a substitution and substitutions are
-   *  last-one-wins; and the leaf draws through the batched glyph path, which
-   *  paints glyphs and not a span style's underline or strikethrough. */
-  Element& spanAxis(Selector where, const char (&tag)[5], float value);
 
   // ---- layout options, fluently ----------------------------------------
   //

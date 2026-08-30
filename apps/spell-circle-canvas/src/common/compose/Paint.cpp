@@ -61,11 +61,29 @@ inline std::span<const Track> tracksOf(const ElementNode& n) {
 }
 /** Does this node draw its text through the fx() path? A track list whose
  *  every effect is empty is not fx text — the same test the volatility
- *  walk, the paint dispatch and the echo exclusion all read. */
+ *  walk, the paint dispatch and the echo exclusion all read. The instance's
+ *  folded span axes count too: they are tracks, only decided against the
+ *  materialized paragraph rather than declared. */
 inline bool hasTextFx(const ElementNode& n) {
   for (const Track& t : tracksOf(n))
     if (t.effect) return true;
   return false;
+}
+inline bool hasTextFx(const Instance& inst) {
+  return hasTextFx(*inst.desc) || !inst.spanAxisTracks.empty();
+}
+/** The tracks a node's text draws with: the description's fx() tracks,
+ *  then the axis tracks its span restyles folded into. Indexed as one
+ *  list by the painter's selection cache; a folded track sits past the
+ *  end of trackAnims and so reads its progress at rest. */
+inline std::span<const Track> paintedTracksOf(const Instance& inst,
+                                              std::vector<Track>& joined) {
+  const std::span<const Track> declared = tracksOf(*inst.desc);
+  if (inst.spanAxisTracks.empty()) return declared;
+  joined.assign(declared.begin(), declared.end());
+  joined.insert(joined.end(), inst.spanAxisTracks.begin(),
+                inst.spanAxisTracks.end());
+  return joined;
 }
 inline const sigil::image::ImageAsset* imageAssetOf(const ElementNode& n) {
   return n.imageData ? n.imageData->asset.get() : nullptr;
@@ -1678,7 +1696,8 @@ void Composer::Impl::paintTextFx(Instance& inst, SkCanvas& canvas,
                                  const TextPath* onPath, SkSize size,
                                  const PaintContext& ctx) {
   if (!inst.paragraph) return;  // no content materialized: nothing to draw
-  const std::span<const Track> tracks = tracksOf(*inst.desc);
+  static thread_local std::vector<Track> joinedTracks;
+  const std::span<const Track> tracks = paintedTracksOf(inst, joinedTracks);
 
   // ONE COMPOSITION ORDER, stated here because everything below assumes it:
   // THE BASELINE PLACES THE GLYPH, THEN THE TRACKS DEVIATE FROM THAT
@@ -3111,7 +3130,7 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
                        verticalRun ? bounds.height() : 1.0e6f);
           // Misprint echoes of the TEXT, under the real pass (fx() text
           // draws its own buckets — echoes skip it by contract).
-          if (!echoesOf(node).empty() && !hasTextFx(node)) {
+          if (!echoesOf(node).empty() && !hasTextFx(inst)) {
             for (const Echo& e : echoesOf(node)) {
               sigil::weave::PaintStyle stamp;
               stamp.foreground.setColor4f(e.color, nullptr);
@@ -3133,7 +3152,7 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
               metric ? &*metric : nullptr;
           // One draw for both: the baseline places the glyph and the tracks
           // deviate from that placement. Neither wins over the other.
-          if (hasTextFx(node) || onPath) {
+          if (hasTextFx(inst) || onPath) {
             paintTextFx(inst, canvas, glyphPaint, onPath,
                         {bounds.width(), bounds.height()}, paintCtx);
           } else {

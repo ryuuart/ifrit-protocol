@@ -1094,20 +1094,112 @@ void Composer::Impl::materializeText(
   // later one simply overwrites the spans an earlier one wrote wherever the
   // two overlap — which is the "later wins" rule, spelled as span surgery
   // rather than as a merge nobody could predict.
-  for (const SpanRestyle& restyle : text.spanRestyles) {
-    const std::vector<sigil::weave::CharRange> ranges =
-        resolveTextRanges(restyle.where, *inst.paragraph, fonts, lines, columns,
-                          inst.textNamedRuns);
+  //
+  // Every selection is resolved up front, against the text as written:
+  // a restyle never edits the text, so the ranges hold, and the fold below
+  // needs to know what the LATER restyles cover before it decides about an
+  // earlier one.
+  const size_t restyleCount = text.spanRestyles.size();
+  std::vector<std::vector<sigil::weave::CharRange>> resolvedRanges(
+      restyleCount);
+  for (size_t i = 0; i < restyleCount; ++i)
+    resolvedRanges[i] =
+        resolveTextRanges(text.spanRestyles[i].where, *inst.paragraph, fonts,
+                          lines, columns, inst.textNamedRuns);
+  inst.spanAxisTracks.clear();
+  for (size_t i = 0; i < restyleCount; ++i) {
+    const SpanRestyle& restyle = text.spanRestyles[i];
+    const std::vector<sigil::weave::CharRange>& ranges = resolvedRanges[i];
     if (ranges.empty()) continue;
     if (restyle.paintOnly) {
       // The batch form: N ranges cost one span-list rebuild, and shaping
       // keys are untouched, so nothing re-shapes and nothing relayouts.
       inst.paragraph->setPaint(ranges, restyle.style.paint);
-    } else {
-      for (const sigil::weave::CharRange& range : ranges)
-        inst.paragraph->setStyle(range.start, range.end, restyle.style);
+      continue;
+    }
+    // THE FOLD. A style that differs from the text it covers only in
+    // advance-invariant variable-font axes — a grade over the numerals, an
+    // optical size over a heading — does not need the words re-shaped to be
+    // honoured: the glyphs keep the pen positions shaping gave them and the
+    // coordinate reaches them at draw time, as a track. Anything else the
+    // style changes is a reshape, and so is an axis the face moves advances
+    // on, so the restyle falls through to the span surgery below. The
+    // fold keeps the "later wins" rule by declining wherever a LATER
+    // reshaping restyle covers the same text: a track deviates whatever
+    // the paragraph shaped, and a later style must be the one that stands.
+    std::vector<std::pair<std::string, float>> folded;
+    if (foldableAsAxes(restyle, ranges, *inst.paragraph, folded)) {
+      bool coveredLater = false;
+      for (size_t j = i + 1; j < restyleCount && !coveredLater; ++j) {
+        if (text.spanRestyles[j].paintOnly) continue;
+        for (const sigil::weave::CharRange& a : ranges)
+          for (const sigil::weave::CharRange& b : resolvedRanges[j])
+            if (a.start < b.end && b.start < a.end) coveredLater = true;
+      }
+      if (!coveredLater) {
+        for (const auto& [tag, value] : folded) {
+          const char axis[5] = {tag[0], tag[1], tag[2], tag[3], '\0'};
+          Track track;
+          track.where = restyle.where;
+          track.effect = TextEffect::variableAxis(axis, value);
+          inst.spanAxisTracks.push_back(std::move(track));
+        }
+        continue;
+      }
+    }
+    for (const sigil::weave::CharRange& range : ranges)
+      inst.paragraph->setStyle(range.start, range.end, restyle.style);
+  }
+}
+
+bool Composer::Impl::foldableAsAxes(
+    const SpanRestyle& restyle, std::span<const sigil::weave::CharRange> ranges,
+    const sigil::weave::Paragraph& paragraph,
+    std::vector<std::pair<std::string, float>>& axes) {
+  axes.clear();
+  const auto sameTag = [](const sigil::weave::FontVariation& a,
+                          const sigil::weave::FontVariation& b) {
+    return std::memcmp(a.tag, b.tag, sizeof a.tag) == 0;
+  };
+  const std::vector<sigil::weave::FontVariation>& wanted =
+      restyle.style.shaping.variations;
+  for (const sigil::weave::StyleSpan& span : paragraph.spans()) {
+    bool covered = false;
+    for (const sigil::weave::CharRange& range : ranges)
+      covered |= range.start < span.end && span.start < range.end;
+    if (!covered) continue;
+    // The covered text's own style, with the wanted axes written over it,
+    // must BE the wanted style: any other difference is a reshape.
+    sigil::weave::TextStyle probe = span.style;
+    probe.shaping.variations = wanted;
+    if (!(probe == restyle.style)) return false;
+    // An axis the text was shaped with and the restyle leaves out is a
+    // reset to the face's default, which is a reshape.
+    for (const sigil::weave::FontVariation& have :
+         span.style.shaping.variations)
+      if (std::ranges::none_of(wanted,
+                               [&](const auto& w) { return sameTag(w, have); }))
+        return false;
+    const sk_sp<SkTypeface> face = span.style.shaping.typeface
+                                       ? span.style.shaping.typeface
+                                       : fonts.defaultTypeface();
+    for (const sigil::weave::FontVariation& want : wanted) {
+      const auto have =
+          std::ranges::find_if(span.style.shaping.variations,
+                               [&](const auto& h) { return sameTag(h, want); });
+      if (have != span.style.shaping.variations.end() &&
+          have->value == want.value)
+        continue;  // already shaped there: nothing to hold
+      const char tag[5] = {want.tag[0], want.tag[1], want.tag[2], want.tag[3],
+                           '\0'};
+      if (!axisGateProbe(fonts, face, tag).allowed) return false;
+      const std::string name(tag, 4);
+      if (std::ranges::none_of(axes,
+                               [&](const auto& a) { return a.first == name; }))
+        axes.emplace_back(name, want.value);
     }
   }
+  return true;
 }
 
 sigil::weave::ParagraphLayoutOptions Composer::Impl::textLayoutOptions(

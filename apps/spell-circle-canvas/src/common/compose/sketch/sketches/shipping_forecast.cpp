@@ -113,11 +113,11 @@
 //     twice is the name itself: once in `forecastStyles` and once in the
 //     selector, which is what naming anything costs.
 //  2. A number picked out by pattern can now be picked out in weight as
-//     well as in colour: `spanAxis` sets an advance-invariant axis over a
-//     range without re-shaping it, which is what the synopsis's millibar
-//     readings take. The forecast paragraph does NOT, and the reason is
-//     composition rather than a missing verb — every initial there is
-//     already inside a grade sweep, and a static span axis over the
+//     well as in colour: a `spanStyle` that changes only an advance-invariant
+//     axis holds it on the glyphs without re-shaping them, which is what the
+//     synopsis's millibar readings take. The forecast paragraph does NOT, and
+//     the reason is composition rather than a missing verb — every initial
+//     there is already inside a grade sweep, and a static span axis over the
 //     numerals would replace a moving coordinate with a still one.
 //
 // Run:
@@ -569,7 +569,8 @@ struct ShippingForecast : sigil::compose::sketch::Sketch {
    *  would re-break the passage and the cascade would follow it.
    *
    *  THE PRESSURES ARE PICKED OUT TWICE, and neither pick moves a letter: a
-   *  colour by `spanPaint` and a grade by `spanAxis`. A millibar reading is
+   *  colour by `spanPaint` and a grade by a `spanStyle` that changes nothing
+   *  but the grade. A millibar reading is
    *  the one quantity in a synopsis a reader looks for rather than reads,
    *  and it wants the weight a colour alone cannot carry. GRAD is
    *  advance-invariant, so the whole numeral thickens where the paragraph
@@ -577,6 +578,8 @@ struct ShippingForecast : sigil::compose::sketch::Sketch {
    *  re-break the passage the line cascade is beating over. */
   [[nodiscard]] Element synopsis() {
     const sigil::weave::StyleSet set = forecastStyles();
+    sigil::weave::TextStyle graded = set.base();
+    graded.variation("GRAD", 800.0f);
     RichText copy = rich(set.base());
     copy.styles(set)
         .add(u8"Low", "dir")
@@ -601,7 +604,7 @@ struct ShippingForecast : sigil::compose::sketch::Sketch {
                    .lineBreak(sigil::weave::LineBreakStrategy::kKnuthPlass)
                    .spanPaint(sel::regex(u8"[0-9]+"),
                               sigil::weave::PaintStyle(kAmber.toSkColor()))
-                   .spanAxis(sel::regex(u8"[0-9]+"), "GRAD", 800.0f)
+                   .spanStyle(sel::regex(u8"[0-9]+"), graded)
                    .fx({.effect = fx::slide(-22.0f),
                         .stagger = stagger(unit::Line,
                                            {.eachMs = 150, .durationMs = 620}),

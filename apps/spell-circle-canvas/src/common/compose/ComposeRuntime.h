@@ -213,6 +213,15 @@ struct Instance {
   std::vector<std::vector<uint8_t>> selectionMasks;
   uint32_t selectionRev = ~0u;
   float selectionWidth = -1.0f;
+  // spanStyle() restyles that differ from the text they cover ONLY in
+  // advance-invariant variable-font axes, carried as tracks instead of
+  // re-shaping: the paragraph keeps the glyphs and pen positions it shaped,
+  // and the coordinate reaches the glyphs at draw time exactly as a driven
+  // axis does. Decided against the materialized paragraph, which is why the
+  // list lives here and not on the description, and rebuilt with it. Drawn
+  // AFTER the description's own tracks, so the painter's selection and
+  // track lists are the description's tracks followed by these.
+  std::vector<Track> spanAxisTracks;
 
   // Caching
   sk_sp<SkPicture> picture;
@@ -854,14 +863,21 @@ float baselineOfTextNode(YGNodeConstRef node, float width, float height);
 struct AxisGate {
   bool allowed = false;
   float min = 0, max = 0;
+  /// Whether a refusal has been written for this (face, axis) yet. A gate
+  /// may be probed silently before any draw-time verb reaches it, so the
+  /// one warning is tied to the first draw-time refusal and not to the
+  /// first probe.
+  bool warned = false;
 };
 
-/** The gate for (face, axis), probed once and remembered. Probing samples
- *  every glyph advance at both extremes of the axis, so it is a per-face
- *  cost and never a per-frame one. */
-inline const AxisGate& axisGate(sigil::weave::FontContext& fonts,
-                                const sk_sp<SkTypeface>& face,
-                                const char (&tag)[5]) {
+/** The verdict for (face, axis), probed once and remembered, WITHOUT a
+ *  warning: probing samples every glyph advance at both extremes of the
+ *  axis, so it is a per-face cost and never a per-frame one. For a caller
+ *  with another way to honour the axis — a span restyle can re-shape — a
+ *  refusal is a routing decision and nothing to warn about. */
+inline AxisGate& axisGateProbe(sigil::weave::FontContext& fonts,
+                               const sk_sp<SkTypeface>& face,
+                               const char (&tag)[5]) {
   static thread_local std::map<std::pair<uint32_t, uint32_t>, AxisGate> table;
   const uint32_t axisTag = SkSetFourByteTag(tag[0], tag[1], tag[2], tag[3]);
   auto [entry, fresh] =
@@ -869,19 +885,7 @@ inline const AxisGate& axisGate(sigil::weave::FontContext& fonts,
   AxisGate& gate = entry->second;
   if (!fresh) return gate;
   gate.allowed = face && fonts.axisIsAdvanceInvariant(face, tag);
-  if (!gate.allowed) {
-    // ONE REFUSAL FOR EVERY VERB THAT REACHES A DRAW-TIME AXIS —
-    // variationDrive, a `TextEffect::variableAxis` track, spanAxis — because it
-    // is one gate and they all fail it for the same reason. Naming a verb here
-    // would send an author reading about the one they did not write.
-    SkDebugf(
-        "sigilcompose: axis \"%s\" is absent or moves advances on this font "
-        "— refused (the glyphs keep the pen positions shaping gave them, so "
-        "the text draws at its shaped coordinates; GRAD is the "
-        "advance-invariant weight, or re-shape through a style)\n",
-        tag);
-    return gate;
-  }
+  if (!gate.allowed) return gate;
   const int count = face->getVariationDesignParameters({});
   if (count > 0) {
     std::vector<SkFontParameters::Variation::Axis> axes((size_t)count);
@@ -891,6 +895,28 @@ inline const AxisGate& axisGate(sigil::weave::FontContext& fonts,
         gate.min = axis.min;
         gate.max = axis.max;
       }
+  }
+  return gate;
+}
+
+/** The gate for (face, axis) as a DRAW-TIME verb reads it: the probe above,
+ *  and one warning on the first refusal. */
+inline const AxisGate& axisGate(sigil::weave::FontContext& fonts,
+                                const sk_sp<SkTypeface>& face,
+                                const char (&tag)[5]) {
+  AxisGate& gate = axisGateProbe(fonts, face, tag);
+  if (!gate.allowed && !gate.warned) {
+    gate.warned = true;
+    // ONE REFUSAL FOR EVERY VERB THAT REACHES A DRAW-TIME AXIS —
+    // variationDrive and a `TextEffect::variableAxis` track — because it is
+    // one gate and they all fail it for the same reason. Naming a verb here
+    // would send an author reading about the one they did not write.
+    SkDebugf(
+        "sigilcompose: axis \"%s\" is absent or moves advances on this font "
+        "— refused (the glyphs keep the pen positions shaping gave them, so "
+        "the text draws at its shaped coordinates; GRAD is the "
+        "advance-invariant weight, or re-shape through a style)\n",
+        tag);
   }
   return gate;
 }
@@ -1043,6 +1069,16 @@ struct Composer::Impl {
       detail::Instance& inst,
       std::span<const sigil::weave::LineMetrics> lines = {},
       std::span<const sigil::weave::ColumnMetrics> columns = {});
+  /** Whether one spanStyle restyle can be carried as draw-time axis tracks
+   *  instead of re-shaping the text it covers: its style must differ from
+   *  every covered span's only in variable-font axes, drop none the text
+   *  was shaped with, and every axis it moves must be advance-invariant on
+   *  that span's face. On success @p axes holds one (tag, coordinate) per
+   *  axis that actually changes. */
+  bool foldableAsAxes(const detail::SpanRestyle& restyle,
+                      std::span<const sigil::weave::CharRange> ranges,
+                      const sigil::weave::Paragraph& paragraph,
+                      std::vector<std::pair<std::string, float>>& axes);
   /** The options a text node actually lays out under: the full-control
    *  overload's value where it has one, with every field a fluent setter
    *  named written over it. */
