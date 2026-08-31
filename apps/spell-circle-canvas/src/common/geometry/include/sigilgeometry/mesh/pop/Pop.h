@@ -16,6 +16,8 @@
  * hashes, the spline and the variant order are what the rest rests on.
  */
 
+#include <sigilcore/comparable/Erased.h>
+
 #include <cstdint>
 #include <map>
 #include <optional>
@@ -26,7 +28,6 @@
 
 #include "sigilgeometry/mesh/curve/Curve.h"
 #include "sigilgeometry/mesh/pop/Points.h"
-#include "sigilgeometry/mesh/pop/Runtime.h"
 
 namespace sigil::geometry::mesh {
 
@@ -404,12 +405,12 @@ struct pop {
    *  runtimes are equal when they hold the same model with the same
    *  value, so a reconciler can ask whether a description's runtime
    *  changed. */
-  class Runtime : public detail::Erased<Executor> {
+  class Runtime : public core::Erased<Executor> {
    public:
-    using detail::Erased<Executor>::Erased;
+    using core::Erased<Executor>::Erased;
     Runtime() = default;
-    Runtime(detail::Erased<Executor> erased)  // NOLINT: a Runtime IS its value
-        : detail::Erased<Executor>(std::move(erased)) {}
+    Runtime(core::Erased<Executor> erased)  // NOLINT: a Runtime IS its value
+        : core::Erased<Executor>(std::move(erased)) {}
 
     /** The built-in executor: every operator evaluated on the CPU, and
      *  the definition every other executor reproduces. Every call

@@ -20,6 +20,8 @@ add_library(SigilWorldElement STATIC
 target_compile_features(SigilWorldElement PUBLIC cxx_std_20)
 target_include_directories(SigilWorldElement PUBLIC ${SIGIL_WORLD_INCLUDE_DIR})
 target_link_libraries(SigilWorldElement PUBLIC
+  SigilCoreComparable
+  SigilCoreCompute
   SigilCoreReconcile
   SigilCoreCache
   SigilGeometryMesh

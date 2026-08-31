@@ -5,7 +5,7 @@
  */
 
 #include <gtest/gtest.h>
-#include <sigilcore/reconcile/Erased.h>
+#include <sigilcore/comparable/Erased.h>
 
 using sigil::core::Erased;
 

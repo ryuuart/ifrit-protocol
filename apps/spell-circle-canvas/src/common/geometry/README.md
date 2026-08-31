@@ -132,7 +132,10 @@ is one definition of "distance along" and one of "closed wraps around".
 **Noise is seeded and bit-exact.** Everything random in the library draws
 from `noise::` — a per-index hash, a PCG stream, and the trilinear value
 noise built on them — so a scattered stamp, a roughened outline or a
-drifted cloud re-rolls identically on every platform and every run.
+drifted cloud re-rolls identically on every platform and every run. The
+mixers under it live one library down, in SigilCoreCompute, so a shader's
+CPU twin and a cache key fold with the same bodies rather than with
+copies of them.
 
 **Values, not baked results.** Options structs, distortion structs,
 operator values, splines, clouds and chains are all plain data you edit and
@@ -245,7 +248,8 @@ what sits above it in the tree — and each header includes what it needs,
 so including a deeper one pulls the shallower ones in.
 
 **`path`** — `SigilGeometryPath`, the leaf. Seven headers that depend on
-nothing else in the library, Skia and glm only:
+nothing else in the library: Skia, glm, and SigilCoreCompute for the
+seeded mixers `noise::` names.
 
 - **`path/Polyline.h`** — the resampling core. `Polyline` and `flatten()`,
   `sample()` to walk a parametric curve evenly by arc length, `Sampled`
@@ -273,7 +277,10 @@ nothing else in the library, Skia and glm only:
   per-index jitter; the PCG family `pcgAdvance`, `pcgMix`, `pcgHash`,
   `pcgNext` (a stream over a carried state) and `pcgUnit` (either squeezed
   to [0, 1)); and `value3()`, trilinear value noise over the integer
-  lattice.
+  lattice. The mixers are SigilCoreCompute's bodies, named here because a
+  resource key and a text cache fold with the same arithmetic; `value3()`
+  is this library's, because it is read at a POSITION rather than at an
+  index.
 - **`path/Numeric.h`** — `kPi`, `kTau`, the degree/radian factors,
   `bisect()` over a predicate and `wrap()` into a period.
 - **`path/Skia.h`** — `toSk()` and `fromSk()` between `glm::vec2` and
@@ -323,9 +330,10 @@ own repertoire here rather than inside whatever draws through it.
 - **`mesh/render/Runtime.h`** — the seam a draw executes through, as a
   value. `Executor` is what a runtime supplies (the mesh draw and the
   panel draw); `Runtime` holds one and compares like the model it holds;
-  `Runtime::cpu()` is the built-in executor. glm and std only — the
-  header names no device, so a GPU executor arrives from a feature that
-  owns one without this target learning about it.
+  `Runtime::cpu()` is the built-in executor, an erased value of
+  SigilCoreComparable's shape. glm, std and that leaf only — the header
+  names no device, so a GPU executor arrives from a feature that owns one
+  without this target learning about it.
 - **`mesh/render/Painter.h`** — the draws themselves: `drawMesh()`
   (transform, per-vertex lighting, back-to-front sort, emission),
   `drawPanel()`/`drawImagePanel()` (perspective-correct 2D content on a
@@ -398,16 +406,13 @@ language.
 - **`mesh/pop/Pop.h`** — the operator chain language and the runtime seam
   it executes through, both in the `pop` scope: `pop::on()` opens a chain,
   `pop::cook()` evaluates one on the `pop::Runtime` it is given,
-  `pop::Executor` is what a runtime supplies and `pop::opName()` names an
+  `pop::Executor` is what a runtime supplies (`pop::Runtime` is an erased
+  value of SigilCoreComparable's shape) and `pop::opName()` names an
   operator. The field table behind `pop::setField()`/`getField()` is
   `Fields.cpp`; the built-in executor, the `Runtime::cpu()` value and the
   `cook()` door that checks an executor's capability before dispatching
   are `Cook.cpp`; the mesh-forming sinks `pop::cookMesh()` and
   `cookSweep()` are `Sinks.cpp`.
-- **`mesh/pop/Runtime.h`** — the machinery a seam value is made of
-  (`detail::Erased`), standard library only. The seam itself is declared
-  in Pop.h beside the chain, because the chain and its operators are
-  members of `pop` and no header can name them before it.
 - **`mesh/pop/Kernel.h`** — the seam between the two ends of one piece of
   arithmetic: `kernel::Args` (the argument block, every member a
   four-component vector so its bytes stand at the same offsets in a
@@ -548,12 +553,14 @@ is silently, plausibly wrong rather than obviously broken.
   while other colours pad white, and vectors pad `{0, 0, 1}`. Call
   `computeNormals()` on the merge when you want the geometric truth instead
   of the pad.
-- **The PCG helpers in `path/Noise.h` are ABI.** `noise::pcgAdvance`,
+- **The PCG helpers `path/Noise.h` names are ABI.** `noise::pcgAdvance`,
   `noise::pcgMix` and `noise::pcgHash` are bit-matched to the GPU compute
-  kernels that execute the same operator chains. The constants and the shift schedule are not tuning
-  knobs — changing either desynchronizes the CPU reference from the GPU
-  executor, and the failure appears as two renderers scattering points
-  differently rather than as a build error.
+  kernels that execute the same operator chains. Their bodies are
+  SigilCoreCompute's, and its tests pin the exact words they answer. The
+  constants and the shift schedule are not tuning knobs — changing either
+  desynchronizes the CPU reference from the GPU executor, and the failure
+  appears as two renderers scattering points differently rather than as a
+  build error.
 - **The declaration order of `pop::Op`'s variant alternatives is ABI.**
   The variant *index* IS the operator number the kernel switches on, so
   one numbering serves the host and the device. New operators are
@@ -618,9 +625,14 @@ is silently, plausibly wrong rather than obviously broken.
 
 ## Boundaries
 
-Publicly the library links Skia and glm and nothing else, and every
-feature links only the features above it in the tree. Privately `mesh`
-uses the header-only earcut for cap triangulation, and `mesh/codec` uses
+Publicly the library links Skia, glm and the two SigilCore leaves —
+SigilCoreCompute for the seeded mixers, SigilCoreComparable for the
+erased value the mesh and point-operator runtimes are — and nothing
+else; every feature links only the features above it in the tree. The
+leaves are the standard library (and Boost.PFR) behind a name, so
+linking them acquires no kernel, no device and nothing that draws.
+Privately `mesh` uses the header-only earcut for cap triangulation, and
+`mesh/codec` uses
 tinyobjloader for OBJ, Alembic for `.abc` and the header-only cgltf for
 glTF; STL, PLY and `.geo` are parsed by hand. None of those reaches
 another feature, and none of them reaches a public header.

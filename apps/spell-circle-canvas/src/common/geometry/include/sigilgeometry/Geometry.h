@@ -16,7 +16,6 @@
 #include "sigilgeometry/mesh/curve/Pose.h"
 #include "sigilgeometry/mesh/pop/Points.h"
 #include "sigilgeometry/mesh/pop/Pop.h"
-#include "sigilgeometry/mesh/pop/Runtime.h"
 #include "sigilgeometry/mesh/render/Painter.h"
 #include "sigilgeometry/mesh/render/Runtime.h"
 #include "sigilgeometry/path/Contour.h"

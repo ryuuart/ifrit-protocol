@@ -9,9 +9,11 @@ graph. It holds no window, no swapchain, no clock, and no second
 copy of anything a library beneath it already defines: meshes, point
 operators, splines, cameras and the CPU mesh executor are SigilGeometry's;
 materials, recipes and programs are SigilMaterial's; the reconciler, its
-phases and the caching proof are SigilCore's; the device, its handles and
-Graphite are SigilSkia's; animation is SigilMotion's; counters and timers
-are SigilMeasure's.
+phases and the caching proof are SigilCore's, as are the erased value a
+`Generator` and a `PassBody` take, the field pin every hand-written
+comparator here sits under, and the fold a geometry signature accumulates
+with; the device, its handles and Graphite are SigilSkia's; animation is
+SigilMotion's; counters and timers are SigilMeasure's.
 
 Namespace `sigil::world`, headers under `include/sigilworld/`. Each
 feature is its own static archive with its own tests and benchmark, and
@@ -155,9 +157,11 @@ node describing the same geometry, and dropped when the last of them lets
 go. An extracted frame lives for one draw.
 
 **The store is keyed by the geometry VALUE.** A cheap signature over
-counts and kinds buckets a lookup and `operator==` decides it, so two
-different geometries can never be served one artefact however their bytes
-happen to fold together. Two nodes describing one chain cook it once.
+counts and kinds — SigilCoreCompute's FNV fold, so a bucket is one number
+wherever it is computed — buckets a lookup and `operator==` decides it,
+so two different geometries can never be served one artefact however
+their bytes happen to fold together. Two nodes describing one chain cook
+it once.
 
 **Lanes are addressed by where the motion lives.** One fixed row per lane
 per node — the nine placement lanes, the three origin lanes, the axis

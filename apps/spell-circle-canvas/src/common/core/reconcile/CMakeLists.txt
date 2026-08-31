@@ -2,9 +2,11 @@
 # tree skeleton, the keyed and positional match, the memo with its
 # captured environment, the identity prune and the counts are here; what a
 # node retains beyond that, and what a patch does to it, is the host's,
-# reached through the ReconcileHost operations. Links SigilMotion (the
-# animatable values and the ticker the lanes ramp on) and SigilMeasure
-# (the published counts), and nothing that draws or lays out.
+# reached through the ReconcileHost operations. Links SigilCoreComparable
+# (the erased seam value a description carries and the field pin its
+# comparators sit under), SigilMotion (the animatable values and the
+# ticker the lanes ramp on) and SigilMeasure (the published counts), and
+# nothing that draws or lays out.
 add_library(SigilCoreReconcile STATIC
   Compare.cpp
   Env.cpp
@@ -24,7 +26,7 @@ add_library(SigilCoreReconcile STATIC
 target_compile_features(SigilCoreReconcile PUBLIC cxx_std_20)
 target_include_directories(SigilCoreReconcile PUBLIC ${SIGIL_CORE_INCLUDE_DIR})
 target_link_libraries(SigilCoreReconcile PUBLIC
-  SigilMeasure SigilMotionClock SigilMotionValues)
+  SigilCoreComparable SigilMeasure SigilMotionClock SigilMotionValues)
 
 # Links only the library it exercises, over a fake host, so a link edge
 # that pulled a drawing or layout library in would show up as a build
@@ -33,7 +35,6 @@ add_executable(sigilcore_reconcile_test
   test/FakeHost.h
   test/ReconcilerTest.cpp
   test/EnvTest.cpp
-  test/ErasedTest.cpp
   test/LanesTest.cpp
   test/PhasesTest.cpp
 )

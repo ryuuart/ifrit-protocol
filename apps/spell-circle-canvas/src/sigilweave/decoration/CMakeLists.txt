@@ -15,6 +15,10 @@ target_include_directories(SigilWeaveDecoration PUBLIC
 target_link_libraries(SigilWeaveDecoration
   PUBLIC
     SigilWeaveLayout
+  PRIVATE
+    # The intercept cache's key is folded with the shared stir, so a hash
+    # is one body wherever it is accumulated.
+    SigilCoreCompute
 )
 
 # Bands checked as geometry, without drawing them.

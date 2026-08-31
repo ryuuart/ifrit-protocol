@@ -2,7 +2,7 @@
  "config": "Release",
  "host": "MacBookPro.control",
  "machine": "arm64",
- "taken": "2026-08-31T04:16:18+00:00",
+ "taken": "2026-08-31T05:11:47+00:00",
  "benches": {
   "compose_brush_bench": {
    "BM_Draw_ArtWarp_Live": {
@@ -2894,6 +2894,94 @@
    "SettledRelease/4096": {
     "real_ns": 113647.31274671474,
     "cpu_ns": 113243.74495560882,
+    "unit": "ns",
+    "repetitions": 4
+   }
+  },
+  "sigilcore_comparable_bench": {
+   "BM_DirectEqual": {
+    "real_ns": 0.3219626376329703,
+    "cpu_ns": 0.3213353503084819,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_ErasedCopiesEqual": {
+    "real_ns": 1.2818376562274079,
+    "cpu_ns": 1.2811763938432148,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_ErasedSameTypeEqual": {
+    "real_ns": 7.74154296559057,
+    "cpu_ns": 7.739251572957709,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_ErasedDifferentTypeEqual": {
+    "real_ns": 3.848404143762778,
+    "cpu_ns": 3.8478584966159506,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_ErasedEscapeHatchEqual": {
+    "real_ns": 1.2818239859201843,
+    "cpu_ns": 1.2813073831943536,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_ErasedConstruct": {
+    "real_ns": 42.45195766323401,
+    "cpu_ns": 42.43087773850028,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_ErasedCopy": {
+    "real_ns": 13.524331366943311,
+    "cpu_ns": 13.520695435357906,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_ErasedDispatch": {
+    "real_ns": 0.961665913352368,
+    "cpu_ns": 0.9613251221839817,
+    "unit": "ns",
+    "repetitions": 4
+   }
+  },
+  "sigilcore_compute_bench": {
+   "BM_NoiseHash": {
+    "real_ns": 3.524433693552967,
+    "cpu_ns": 3.5224166974839846,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_NoisePcgHash": {
+    "real_ns": 1.0198080251090906,
+    "cpu_ns": 1.019368192349642,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_NoisePcgUnitNext": {
+    "real_ns": 3.5313034423132565,
+    "cpu_ns": 3.529110175034403,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_Fnv1aWord": {
+    "real_ns": 12.481838285251646,
+    "cpu_ns": 12.474967369072134,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_Fnv1aText": {
+    "real_ns": 37.03413176236087,
+    "cpu_ns": 36.8451396379246,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_Combine": {
+    "real_ns": 2.8241431786817257,
+    "cpu_ns": 2.8225572380186237,
     "unit": "ns",
     "repetitions": 4
    }

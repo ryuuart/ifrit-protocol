@@ -1,15 +1,10 @@
 #pragma once
 
 /** @file
- * The machinery a runtime seam is made of: a VALUE that answers an
- * interface.
- *
- * The pop seam itself — `pop::Executor` and `pop::Runtime` — is declared
- * beside the chain in Pop.h, because the chain and its operators are
- * members of `pop` and no header can name them before it. What lives
- * here is the part that names nothing of the kind: standard library
- * only, so the shape of the seam can be read without reading the
- * language it executes.
+ * Comparable type erasure — Erased, the one shape a seam value takes: a
+ * set of operations behind an abstract interface, held with the value
+ * that implements them so two holders can ask whether they carry the
+ * same one.
  */
 
 #include <any>
@@ -18,20 +13,22 @@
 #include <type_traits>
 #include <utility>
 
-namespace sigil::geometry::mesh::detail {
+namespace sigil::core {
 
 /** A VALUE that answers an interface.
  *
- *  `Ops` is an abstract class — the operations a caller calls through. A
- *  model is any class deriving from it; constructing an Erased from one
- *  copies the model into shared immutable state, so carrying the value
- *  costs a pointer and a copy is a refcount bump.
+ *  `Ops` is an abstract class — the operations a phase of a kernel calls
+ *  through. A model is any class deriving from it; constructing an Erased
+ *  from one copies the model into shared immutable state, so a description
+ *  carrying the value costs a pointer and a copy-on-write node copy is a
+ *  refcount bump.
  *
- *  Copies of ONE value are equal; two separately-constructed values are
- *  equal when they hold the same model type and that type's `==` says
- *  so; a model with no `==` is the escape hatch and compares equal to
- *  nothing but its own copies. An empty Erased holds no operations and
- *  answers false to `bool`. */
+ *  Equality is the reconciler's question: copies of ONE value (shared
+ *  state) are equal; two separately-constructed values are equal when they
+ *  hold the same model type and that type's `==` says so; a model with no
+ *  `==` is the escape hatch and compares equal to nothing but its own
+ *  copies. An empty Erased holds no operations and answers false to
+ *  `bool`. */
 template <typename Ops>
 class Erased {
  public:
@@ -95,4 +92,4 @@ class Erased {
   std::shared_ptr<const State> m_state;
 };
 
-}  // namespace sigil::geometry::mesh::detail
+}  // namespace sigil::core

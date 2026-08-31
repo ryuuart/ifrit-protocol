@@ -1,6 +1,6 @@
 # SigilCore
 
-The kernels a retained runtime is built on. Two of them.
+The kernels a retained runtime is built on, and the leaves under them.
 
 **The reconciler** — descriptions built fresh every frame, reconciled onto
 a tree the host retains, so that only what changed is touched. It owns the
@@ -20,27 +20,56 @@ paint caches, running motions — is the host's, reached through named
 operations the host implements on itself. That is the line both kernels
 draw: they own the DECISION, the host owns the THING.
 
-Namespace `sigil::core`. One static target per directory:
+Under the kernels are two leaves, which libraries far from any
+reconciler link on their own.
+
+**Comparable** — what a value needs before anything can decide it did not
+change: type erasure that keeps its equality, so a set of operations can
+ride on a value and two holders can still ask whether they carry the
+same one; and the field pin, which fails the build when a struct grows a
+member a hand-written comparator does not mention.
+
+**Compute** — the arithmetic several libraries have to agree on to the
+bit: the seeded mixers a jitter draws from, and the folds a cache key is
+accumulated with. The standard library is the whole of its dependencies,
+so a shader's CPU twin, a point cook, a text cache and a resource store
+all reach the same bodies.
+
+Namespace `sigil::core`. One target per directory:
 
 | target | directory | holds |
 |--------|-----------|-------|
+| `SigilCoreComparable` | `comparable/` | comparable type erasure, the field pin |
+| `SigilCoreCompute` | `compute/` | the seeded mixers, the identifying folds |
 | `SigilCoreReconcile` | `reconcile/` | the reconciler, its memo, the inherited-value channel, the animation lanes, the phase runner |
 | `SigilCoreCache` | `cache/` | the cache policy, the settled-subtree proof, the stability release, the bake seam |
 
+The two leaves are header-only, so they are INTERFACE targets and produce
+no archive; the two kernels are static libraries. `SigilCoreComparable`
+takes the standard library and Boost.PFR, `SigilCoreCompute` the standard
+library alone — which is what lets any library link either without
+pulling a kernel, a device or a drawing library behind it.
+
 Every public header lives under `include/sigilcore/<feature>/` and is
-spelled `<sigilcore/reconcile/X.h>` or `<sigilcore/cache/X.h>`;
+spelled `<sigilcore/comparable/X.h>`, `<sigilcore/compute/X.h>`,
+`<sigilcore/reconcile/X.h>` or `<sigilcore/cache/X.h>`;
+`<sigilcore/comparable/Comparable.h>`, `<sigilcore/compute/Compute.h>`,
 `<sigilcore/reconcile/Reconcile.h>` and `<sigilcore/cache/Cache.h>`
 include their own directory's headers.
 
 | header | holds |
 |--------|-------|
+| `comparable/Erased.h` | `Erased<Ops>` — comparable type erasure: a set of operations carried on the value that implements them |
+| `comparable/Fields.h` | `kFieldCount<T>` — how many direct non-static data members an aggregate has, and the pin a hand-written comparator sits under |
+| `compute/Noise.h` | `noise::hash` (a per-index float in [-1, 1]), and the PCG family `noise::pcgAdvance`, `noise::pcgMix`, `noise::pcgHash`, `noise::pcgNext`, `noise::pcgUnit`, `noise::pcgUnitNext` |
+| `compute/Hash.h` | `hash::kFnvOffset`, `hash::kFnvPrime`, `hash::fnv1a` over a word or over text, and `hash::combine` — the stir that folds one more word into a hash in hand |
 | `reconcile/Reconciler.h` | `Reconciler<Host, Node, Desc>` — `render()`, `replaceContent()`, `patch()`, `patchChildren()`, `resolveMemo()`, `keyOf()`, `matchKeyOf()`, `indexKeys()`, `stats()`, `frame()`, and its `KeyIndex` |
 | `reconcile/Host.h` | the `ReconcileHost` concept — the operations a host implements — and `DescValue` |
 | `reconcile/Node.h` | `Node<Derived, Desc>` — the tree skeleton a host's node derives from: `parent`, `desc`, `memoShell`, `children` |
 | `reconcile/Memo.h` | `Memo<Produced>` — a deferred describe and its key: `props`, `equal`, `invoke`, `env` |
 | `reconcile/Env.h` | `env::Provide`, `env::inherited`, `env::inheritedOr`, `env::bound`, and the `detail::EnvSnapshot`, `detail::envStack`, `detail::envEqual`, `detail::EnvRestore` a memo is built on |
-| `reconcile/Erased.h` | `Erased<Ops>` — comparable type erasure for a seam value on a description |
-| `reconcile/Compare.h` | `easeEqual`, `transitionEqual`, `boundMapEqual`, `propEqual`, and the `detail::fields` pins with `detail::kFieldCount` |
+| `reconcile/Erased.h` | `Erased<Ops>` under the name a description spells it by; the type is `comparable/Erased.h`'s |
+| `reconcile/Compare.h` | `easeEqual`, `transitionEqual`, `boundMapEqual`, `propEqual`, their field pins, and `detail::fields` — the animation values decomposed member by member |
 | `reconcile/Lanes.h` | `AnimatedFloat`, `AnimatedFloats`, `LaneSlot<Family>`, `Lane<Family>`, `familyLanes`, `ResolvedProp`, `resolveProp`, `resolveFloatAt`, `transitionFloatAt`, `retargetSlots`, `retargetFamily`, `mountEntrance` |
 | `reconcile/Phases.h` | `Phase<Impl>` and `runPhases` — a host's declared pass list with its converging group |
 | `reconcile/Stats.h` | `ReconcileStats` — the pass counts, and `report()` into `sigil::measure::Counters` |
@@ -229,16 +258,88 @@ composited into one layer — writes one model per tier and asks the same
 question of all of them, which is what stops each tier from growing its
 own copy of the rule.
 
+## The leaves
+
+**A comparable value carries its own equality.** `Erased<Ops>` holds a
+model behind an abstract interface, and copies of one value are equal by
+their shared state; two separately built values are equal when they hold
+the same model type and that type's `==` says so. A model with no `==`
+is the escape hatch and compares equal to nothing but its own copies —
+conservative on purpose, because a value that cannot answer must never
+answer "unchanged". That is what lets a seam — which executor draws,
+which resolver runs, which painter paints — ride on a description that
+something else compares.
+
+**A hand-written comparator forgets silently.** Leave a field out and two
+different values compare equal, the holder concludes nothing changed, and
+it keeps producing what the old value produced for as long as it lives.
+Nothing detects that from outside, because the wrong answer looks exactly
+like a value that really did not change. `kFieldCount<T>` reads the member
+count off the type, so `static_assert(kFieldCount<T> == N)` beside the
+comparator turns adding a field into a build failure that names the
+comparator to go and fix.
+
+**A mixer is a contract, not a choice.** Everything in `compute/` is a
+bit-exact function of its inputs, and the constants are fixed by the
+agreement between the places that compute them: renders stored as bytes
+are seeded through `noise::`, a GPU kernel reproduces `pcgAdvance`,
+`pcgMix` and `pcgHash` word for word, and cache keys are accumulated with
+`hash::`. Changing a constant fails no build. It re-rolls every stored
+render, desynchronizes the two ends of every operator chain that runs on
+both, and re-buckets everything already keyed. The tests pin exact
+outputs — words as words, floats as bits — because determinism, range and
+"different for different inputs" all survive a body that drifted.
+
+**Two mixers side by side are two different functions.** `noise::hash`
+and `noise::pcgHash` mix differently and answer differently; each seeds
+work compared byte-for-byte against stored renders, so neither can become
+the other. New code takes `pcgHash`. The same rule decides every
+candidate for this directory: a body that differs is a second function
+under its own name, never a merge.
+
+## What belongs here
+
+A function earns a place in one of the leaves when three things hold:
+
+- **Two libraries need it identically.** Not "could share it" — actually
+  compute the same number today, or have to agree with each other
+  tomorrow because one reproduces the other (a shader and its CPU
+  preview, a device executor and its reference).
+- **The contract can be stated.** What it answers, what is fixed about
+  it, and what breaks if it changes — in the header, evaluable by
+  someone who has opened nothing else.
+- **It brings its own test.** For the kernels that means behaviour over
+  a fake host; for the leaves it means the outputs themselves, pinned.
+
+Worked both ways: `Erased` qualifies because a reconciler's descriptions,
+a mesh runtime and a point-operator runtime all carry a comparable erased
+value, and one shape of it is what lets a value cross between them.
+`kFieldCount` qualifies because a pin is worth nothing if each library
+writes its own and one gets it subtly wrong. The seeded mixers qualify
+because a stored render and a GPU kernel have to agree to the bit. An
+easing curve does NOT qualify: it is animation's, and SigilMotion owns
+it. Neither does a numeric constant a single library reaches for — those
+stay with the library that spells them.
+
 ## Boundary
 
-SigilCoreReconcile links SigilMotion (the animatable values and the
-ticker the lanes ramp on) and SigilMeasure (the published counts), and
-nothing that draws, lays out or shapes text. SigilCoreCache links
-SigilCoreReconcile alone, for the comparable type erasure a seam value
-takes. What stays with a host: what a node retains, what a patch does to
-it, how children are ordered for drawing, which descriptions compare
-equal, which of its own values are volatile, and every artefact.
-SigilCompose is one host — its `Composer` holds a `Reconciler` over its
+SigilCoreComparable and SigilCoreCompute link nothing of this project's
+at all — the standard library, and Boost.PFR for the field pin. That is
+the whole point of them: a library anywhere in the tree can link one
+without acquiring a kernel. SigilCoreReconcile links SigilCoreComparable
+(the erased seam value and the field pin), SigilMotion (the animatable
+values and the ticker the lanes ramp on) and SigilMeasure (the published
+counts), and nothing that draws, lays out or shapes text. SigilCoreCache
+links SigilCoreReconcile alone. What stays with a host: what a node
+retains, what a patch does to it, how children are ordered for drawing,
+which descriptions compare equal, which of its own values are volatile,
+and every artefact.
+The leaves are linked from well outside this library: SigilGeometry's
+path leaf names the mixers as its own `noise::`, its mesh and
+point-operator runtimes are erased values, SigilWorld's geometry
+signature is an FNV fold and its element comparator sits under the pin,
+and SigilWeave's intercept cache keys with the stir. SigilCompose is one
+host — its `Composer` holds a `Reconciler` over its
 `Instance` and `ElementNode`, folds its Skia lanes, materials, gates and
 text into the proof's declarations, holds a `Settle` over its own content
 scalars, and implements `BakeOps` over its picture recordings. Yoga,
@@ -254,11 +355,25 @@ cmake --build build --config Debug
 ctest --test-dir build -C Debug -R sigilcore --output-on-failure
 ```
 
+`sigilcore_comparable_test` (`comparable/test/`) covers the erased value
+— empty, copies of one value, two comparable models compared by type and
+by value, and the escape hatch that is equal to nothing but its own
+copies — and the field pin over aggregates of the shapes a comparable
+value takes. `sigilcore_comparable_bench` (`comparable/bench/`) times
+each of those comparisons against the same question asked of the model
+directly, so what erasure costs is the difference between two arms.
+
+`sigilcore_compute_test` (`compute/test/`) pins the mixers to the exact
+words and floats they produce, floats compared as bits: a body that
+drifted by one operation fails there rather than in a stored render
+weeks later. `sigilcore_compute_bench` (`compute/bench/`) times each
+mixer one call at a time, which is how they are spent.
+
 `sigilcore_reconcile_test` (`reconcile/test/`) exercises the reconciler
 over a fake host — `FakeHost.h`, a host with nothing behind it that logs
-every operation — alongside the environment channel, the type erasure,
-the lanes and the phase runner; it links `SigilCoreReconcile` alone, so
-an edge that pulled a drawing library in would fail there. The
+every operation — alongside the environment channel, the lanes and the
+phase runner; it links `SigilCoreReconcile` alone, so an edge that pulled
+a drawing library in would fail there. The
 benchmark, `sigilcore_reconcile_bench` (`reconcile/bench/`), times the
 reconciler over the same fake host at several node counts; it builds
 through the `benches` target and runs through `scripts/bench_ledger.py`,

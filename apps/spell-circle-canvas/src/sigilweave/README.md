@@ -230,7 +230,9 @@ a contour interval carries a `geometry::path::Contour`:
 
 - **`decoration/Decoration.h`** — a decoration resolved against a run's
   metrics: `detail::resolveDecorationBand()`, `decorationBandPaint()`,
-  `decorationSegments()`.
+  `decorationSegments()`. Skip-ink intercepts are memoized on the blob's
+  id and the band window, folded into a key with SigilCoreCompute's stir
+  so a hash is one body wherever it is accumulated.
 - **`decoration/DecorationRects.h`** — the walk that turns a layout's
   decorations into rectangles with their paint, `detail::forEachDecorationRect()`,
   run by both draws.
@@ -306,7 +308,7 @@ thread-local, so every function is safe from any thread.
 | `SigilWeaveFonts` | the font service and the shaper | HarfBuzz, abseil — private |
 | `SigilWeaveParagraph` | the document model | SigilWeaveUnicode, HarfBuzz, abseil — private |
 | `SigilWeaveLayout` | flows, breakers, placement, metrics | SigilGeometryPath (public: `LineInterval::contour` is a `geometry::path::Contour`); ICU, abseil — private |
-| `SigilWeaveDecoration` | decoration bands | — |
+| `SigilWeaveDecoration` | decoration bands | SigilCoreCompute (the stir the skip-ink cache keys with) — private |
 | `SigilWeavePaint` | `draw()` and `drawBatched()`, `paint/Paint.h` | — |
 | `SigilWeaveChoreograph` | per-glyph choreography | — |
 | `SigilWeaveQuery` | range search and markers | ICU, private |

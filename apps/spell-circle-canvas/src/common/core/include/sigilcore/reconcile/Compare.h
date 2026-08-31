@@ -8,27 +8,21 @@
  * rather than pruning into a stale predecessor.
  */
 
+#include <sigilcore/comparable/Fields.h>
 #include <sigilmotion/bind/BoundFloat.h>
 #include <sigilmotion/values/Animatable.h>
 #include <sigilmotion/values/Keyframes.h>
 #include <sigilmotion/values/Transition.h>
 
-#include <cstddef>
 #include <tuple>
-#include <utility>
 
 namespace sigil::core {
 
 namespace detail {
 
-// FIELD PINS. A comparator written by hand can leave a field out, and the
-// failure is invisible by construction: two different values compare
-// equal, the node prunes, and it keeps whatever the old value produced for
-// as long as it lives. A structured binding names every direct non-static
-// data member of a struct, and the count is a hard error the moment the
-// struct changes — so each hand-written comparator sits beside a
-// `static_assert(kFieldCount<T> == N)`, and adding a field fails the build
-// until someone rules on it in the comparator and bumps the count.
+// The animation values decomposed member by member, for a comparator
+// that wants to WALK them rather than name them one at a time. Counting
+// them does not need this: `kFieldCount<T>` reads any aggregate.
 
 inline auto fields(motion::BoundFloat& v) {
   auto& [source, inScale, inOffset, curve, clampInput, envelope, riseStart,
@@ -50,12 +44,6 @@ auto fields(motion::Transitioned<T>& v) {
   return std::tie(value, spec, from, waypoints);
 }
 
-/** How many direct non-static data members @p T has, as the pinned
- *  decomposition above sees them. */
-template <class T>
-inline constexpr std::size_t kFieldCount =
-    std::tuple_size_v<decltype(fields(std::declval<T&>()))>;
-
 }  // namespace detail
 
 /** Equal only when PROVABLY identical: two easing curves compare equal when
@@ -75,7 +63,7 @@ bool transitionEqual(const motion::Transition& a, const motion::Transition& b);
  *  FIELD OF BoundFloat APPEARS in the body, under the pin beside it. */
 bool boundMapEqual(const motion::BoundFloat& a, const motion::BoundFloat& b);
 
-static_assert(detail::kFieldCount<motion::Transitioned<float>> == 4,
+static_assert(kFieldCount<motion::Transitioned<float>> == 4,
               "Transitioned gained or lost a field — rule on it in "
               "propEqual() below, then bump this count.");
 /** Two animatable slots are equal when they take the same form and that

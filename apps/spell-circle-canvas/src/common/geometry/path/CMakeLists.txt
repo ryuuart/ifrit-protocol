@@ -1,8 +1,9 @@
 # The path leaf: polylines, contours addressed by arc length, noise and
-# the numeric routines under them, and the path operators. Skia and glm
-# only — no mesh, no import, no material — so a text engine or a
-# drawable-component library can walk an outline without linking the 3D
-# half of geometry or its importers.
+# the numeric routines under them, and the path operators. Skia, glm and
+# the standard-library mixers under SigilCoreCompute — no mesh, no
+# import, no material — so a text engine or a drawable-component library
+# can walk an outline without linking the 3D half of geometry or its
+# importers.
 add_library(SigilGeometryPath STATIC
   Contour.cpp
   Noise.cpp
@@ -23,7 +24,10 @@ target_include_directories(SigilGeometryPath PUBLIC
   $<INSTALL_INTERFACE:include>
 )
 find_package(glm CONFIG REQUIRED)
-target_link_libraries(SigilGeometryPath PUBLIC unofficial::skia::skia glm::glm)
+# Noise.h names the seeded mixers, which live one library down so that a
+# shader's CPU twin and a resource key reach the same bodies.
+target_link_libraries(SigilGeometryPath PUBLIC unofficial::skia::skia glm::glm
+  SigilCoreCompute)
 
 # The leaf is a public dependency of the text engine, whose install rules
 # export it; an exported target's dependencies must themselves sit in an

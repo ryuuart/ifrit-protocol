@@ -34,7 +34,6 @@ add_library(SigilGeometryMeshPop STATIC
   ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/mesh/pop/Kernel.h
   ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/mesh/pop/Points.h
   ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/mesh/pop/Pop.h
-  ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/mesh/pop/Runtime.h
 )
 target_compile_features(SigilGeometryMeshPop PUBLIC cxx_std_20)
 # The generated headers are PUBLIC because a runtime that dispatches the
@@ -42,7 +41,10 @@ target_compile_features(SigilGeometryMeshPop PUBLIC cxx_std_20)
 # compiling the source a second time.
 target_include_directories(SigilGeometryMeshPop
   PUBLIC ${SIGIL_GEOMETRY_INCLUDE_DIR} ${SIGIL_SLANG_GENERATED_DIR})
-target_link_libraries(SigilGeometryMeshPop PUBLIC SigilGeometryMeshCurve)
+# The Runtime seam is a comparable erased value, which is
+# SigilCoreComparable's shape.
+target_link_libraries(SigilGeometryMeshPop PUBLIC SigilGeometryMeshCurve
+  SigilCoreComparable)
 
 # The pop tests seed chains from an imported model and save a cooked
 # result, so this binary reaches into the codec as well.

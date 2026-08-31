@@ -10,6 +10,7 @@
 #include <include/core/SkFontMetrics.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkTextBlob.h>
+#include <sigilcore/compute/Hash.h>
 
 #include <algorithm>
 #include <cstdint>
@@ -46,14 +47,16 @@ const std::vector<SkScalar>& cachedIntercepts(const SkTextBlob& blob,
   };
   struct KeyHash {
     size_t operator()(const Key& key) const {
+      // The two band bounds are folded as their BIT PATTERNS: they are
+      // window coordinates, and two that differ in the last bit are two
+      // different windows.
       const uint32_t seeded = key.blobId * 0x9E3779B9u;
       size_t h = seeded;
       uint32_t lo, hi;
       memcpy(&lo, &key.lo, sizeof lo);
       memcpy(&hi, &key.hi, sizeof hi);
-      h ^= lo + 0x9E3779B9u + (h << 6u) + (h >> 2u);
-      h ^= hi + 0x9E3779B9u + (h << 6u) + (h >> 2u);
-      return h;
+      h = ::sigil::core::hash::combine(h, lo);
+      return ::sigil::core::hash::combine(h, hi);
     }
   };
   static thread_local std::unordered_map<Key, std::vector<SkScalar>, KeyHash>

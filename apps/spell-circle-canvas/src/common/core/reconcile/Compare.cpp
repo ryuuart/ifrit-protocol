@@ -18,7 +18,7 @@ bool easeEqual(const choreograph::EaseFn& a, const choreograph::EaseFn& b) {
   return pa && pb && *pa == *pb;  // lambdas: unequal (conservative)
 }
 
-static_assert(detail::kFieldCount<motion::Transition> == 3,
+static_assert(kFieldCount<motion::Transition> == 3,
               "Transition gained or lost a field — rule on it in "
               "transitionEqual() below, then bump this count.");
 bool transitionEqual(const motion::Transition& a, const motion::Transition& b) {
@@ -26,7 +26,7 @@ bool transitionEqual(const motion::Transition& a, const motion::Transition& b) {
          easeEqual(a.easing(), b.easing());  // `ease` is read through easing()
 }
 
-static_assert(detail::kFieldCount<motion::BoundFloat> == 24,
+static_assert(kFieldCount<motion::BoundFloat> == 24,
               "BoundFloat gained or lost a field. boundMapEqual() below "
               "compares it BY HAND: rule on the new field (participate, or "
               "a stated reason not to), then bump this count. A miss is "
