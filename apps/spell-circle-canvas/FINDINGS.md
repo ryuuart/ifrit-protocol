@@ -33,33 +33,6 @@ rather than a substitution.
 tier, byte-identical, per file. Both, because the two disagree about one
 thing that matters here (see the next entry).
 
-## A colour quantised to eight bits is invisible on the CPU tier
-
-**What it does.** `aero_desktop`, `beethoven`, `kinetic_card`,
-`manuscript`, `motion_poster` and `night_network` each keep a local text
-style helper whose only difference from `compose::type` is that it hands
-the paint an `SkColor` — `color.toSkColor()` — where the library hands it
-an `SkColor4f`. Every one of those files computes at least one type
-colour rather than quoting it, so the round trip lands it on a 256-step
-ladder.
-
-**What it was evidently intended to do.** Nothing states that these
-palettes belong on that ladder; the round trip is what the helper
-happened to be written with. `compose::type` carries the float through,
-and that is the better default.
-
-**Why it has not moved.** It is a look change, and it is one the CPU tier
-cannot see. Moving all six to `compose::type` leaves the full tier
-byte-identical for all six and moves all six on the quick tier, stably
-and reproducibly: the device raster resolves a float colour differently
-from the same colour rounded to bytes, and the CPU raster does not. So
-this is not a free harvest — it is a deliberate adoption of a slightly
-different colour in six studies, and it wants someone to look at the six
-plates and say yes.
-
-**What a test should assert.** After the decision: both tiers, per file,
-with the quick-tier movers adopted deliberately rather than reproduced.
-
 ## The device tier's plates are not reproducible across two executables
 
 **What it does.** The GPU tier renders a plate that is stable across
