@@ -159,7 +159,7 @@ it on a quiet machine; there is no known-flapper list here — a load spike
 is YOUR machine, rerun the scene.
 """
 
-import argparse, concurrent.futures, hashlib, json, os, struct, subprocess, sys, tempfile, zlib
+import argparse, atexit, concurrent.futures, hashlib, json, os, shutil, struct, subprocess, sys, tempfile, zlib
 
 # WHAT EACH TIER RENDERS WITH. A tier names its own binary, the flags that
 # define its capture, how it lists its registry, how it selects one entry
@@ -377,12 +377,25 @@ def channel_distance(reference, candidate):
     return total / count, p99 or 0, worst
 
 
+def discard_later(directory):
+    """A sweep's plates, marked for removal when the process ends.
+
+    Every tier writes about one full-frame plate per scene, and no path to
+    them is ever printed: what a sweep reports is digests and distances,
+    never a file. Left behind they accumulate a sweep's worth of frames per
+    run in the system temporary directory, so removal is registered where
+    the directory is made and holds on every exit path.
+    """
+    atexit.register(shutil.rmtree, directory, True)
+    return directory
+
+
 def gpu_sweep(profile, binary, scenes, timeout, jobs):
     """The device tier: every study rendered BOTH ways and the two plates
     compared. It has no baseline — the CPU tier's plate of the same study
     IS the reference, and both are made in this run."""
-    host_dir = tempfile.mkdtemp(prefix="plate_world_cpu_")
-    device_dir = tempfile.mkdtemp(prefix="plate_world_gpu_")
+    host_dir = discard_later(tempfile.mkdtemp(prefix="plate_world_cpu_"))
+    device_dir = discard_later(tempfile.mkdtemp(prefix="plate_world_gpu_"))
     host_profile = dict(profile, base_args=())
 
     # One study first, to tell "no device on this machine" from a defect.
@@ -483,7 +496,7 @@ def fps_gate(binary, scenes, budget_ms, floor_fps, timeout):
     JSON line snapshots at sample-window close), so this only trims wall
     clock, never the measurement; the throwaway plates land in a temp dir
     and are NOT ledger material (wrong backend, wrong conditions)."""
-    outdir = tempfile.mkdtemp(prefix="fps_gate_")
+    outdir = discard_later(tempfile.mkdtemp(prefix="fps_gate_"))
     print(
         f"GPU 60 FPS gate: {len(scenes)} scenes, serial, budget "
         f"{budget_ms} ms end-to-end AND {floor_fps:.0f} fps modeled "
@@ -701,7 +714,7 @@ def main():
             f"byte-neutral verdict."
         )
 
-    outdir = tempfile.mkdtemp(prefix="plate_ledger_")
+    outdir = discard_later(tempfile.mkdtemp(prefix="plate_ledger_"))
     results, errors = {}, {}
     with concurrent.futures.ThreadPoolExecutor(args.jobs) as pool:
         for scene, digest, err in pool.map(
@@ -770,7 +783,7 @@ def main():
                     profile,
                     binary,
                     scene,
-                    tempfile.mkdtemp(prefix="plate_stab_"),
+                    discard_later(tempfile.mkdtemp(prefix="plate_stab_")),
                     args.timeout_seconds,
                     tier_args,
                 )

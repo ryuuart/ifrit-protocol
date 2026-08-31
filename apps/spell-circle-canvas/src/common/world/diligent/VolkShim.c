@@ -19,6 +19,9 @@
  */
 
 #define volkInitialize volkInitializeStockDisabled
+/* volk's implementation is compiled into this translation unit, under the
+ * rename above; that is the whole point of the file. */
+/* NOLINTNEXTLINE(bugprone-suspicious-include) */
 #include "thirdparty/volk/volk.c"
 #undef volkInitialize
 
@@ -41,6 +44,10 @@ VkResult volkInitialize(void) {
   void* module = NULL;
   for (unsigned i = 0; i < sizeof(candidates) / sizeof(candidates[0]); ++i) {
     if (!candidates[i]) continue;
+    /* The first candidate is an environment variable on purpose: naming
+     * the loader is how a machine with a Vulkan runtime somewhere else is
+     * told where it is. Whoever sets it already runs this process. */
+    /* NOLINTNEXTLINE(clang-analyzer-optin.taint.GenericTaint) */
     module = dlopen(candidates[i], RTLD_NOW | RTLD_LOCAL);
     if (module) break;
   }

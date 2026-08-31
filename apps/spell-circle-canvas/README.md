@@ -185,7 +185,7 @@ They land in `build/assets/` (gitignored), reach code as the
 tools that take `--assets <dir>`. Nothing here runs during a normal
 build, and configuring the project never touches the network.
 
-The manifest is [`cmake/FetchAssets.cmake`](cmake/FetchAssets.cmake).
+The manifest is `cmake/FetchAssets.cmake`.
 Anything added to it carries an open licence with its licence file
 fetched alongside, is pinned to an immutable commit rather than a branch,
 and declares an `EXPECTED_HASH` so a changed byte is a hard failure.

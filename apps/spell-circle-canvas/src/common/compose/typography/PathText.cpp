@@ -120,6 +120,10 @@ void detail::ensurePathLayout(Composer::Impl& impl, Instance& inst,
       textStateOf(inst).pathSize.width() == size.width() &&
       textStateOf(inst).pathSize.height() == size.height() &&
       textStateOf(inst).pathSpec &&
+      // The conjunct above engages the same optional, and a conjunction
+      // only reaches this one when that held. The check does not survive
+      // the second call to the accessor that returns the state.
+      // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
       samePathLayout(*textStateOf(inst).pathSpec, spec))
     return;
 

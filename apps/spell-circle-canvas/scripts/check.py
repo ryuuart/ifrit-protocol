@@ -290,10 +290,14 @@ def check_clang_tidy(files: list[Path], tidy_all: bool) -> bool:
         # Boundary probes are translation units that MUST fail to compile
         # (their ctest pins the error text); analyzing one reports its
         # deliberate failure as a finding.
+        # The suffix restriction is not cosmetic: the compile database also
+        # carries the macOS app's Swift translation units, and a C++
+        # analyzer handed one fails outright rather than reporting nothing.
         candidates = sorted(
             Path(f).relative_to(REPO_DIR)
             for f in database
             if included(Path(f))
+            and Path(f).suffix in TIDY_SUFFIXES
             and not Path(f).is_relative_to(BUILD_DIR)
             and Path(f).name != "BoundaryProbe.cpp"
         )

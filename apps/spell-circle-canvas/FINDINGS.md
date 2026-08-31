@@ -54,3 +54,42 @@ tolerance the way the world-gpu tier already does — which is the same
 argument, one rasteriser against another — or it states this blind spot
 beside the two it already states, so a mover there is read as a question
 rather than as a finding.
+
+## OpenImageIO's thread pool races on its own worker map (TSan)
+
+**What it does.** `sigil::image::decodeImage` constructs OpenImageIO's
+`thread_pool`, whose worker threads swap an internal
+`tsl::robin_map<std::thread::id, int>` while another worker reads it.
+TSan reports the race inside `OpenImageIO::thread_pool::thread_pool`
+(vendor code, uninstrumented vcpkg archive) during
+`LoaderOiio.ExrDecodesToFloatImage` in `loader_hub_test`. Nothing in
+this repository touches that map.
+
+**What it was evidently intended to do.** Decode an EXR through a
+library whose thread pool is internally consistent.
+
+**What a test should assert.** Either the vendor's pool is fixed
+upstream, or the decoder constructs it with a single worker (or the
+report is suppressed by a TSan suppression file naming
+`OpenImageIO::v3_1::thread_pool`), and the TSan lane runs
+`loader_hub_test` clean.
+
+## OpenUSD's plugin registry races its own name table (TSan)
+
+**What it does.** Opening a stage instantiates USD's
+`TfSingleton<PlugRegistry>`, which registers plugins on TBB worker
+threads. Those workers rehash the registry's `__hash_table` of plugin
+names while another thread reads the same buckets, and TSan reports the
+pair with every frame inside `libusd_plug` and `pxr` headers. It fires
+in `UsdWrite.AuthorsAMeshWithSubsetsAndMaterials` in `usd_write_test`
+and in `UsdRead.ReadsAHandAuthoredStage` in `usd_read_test`. Nothing in
+this repository touches that table; the repository's code only holds a
+`TfWeakPtr`.
+
+**What it was evidently intended to do.** Register plugins with each
+insertion ordered before any other thread's read, which USD's own lock
+evidently provides in practice but not in a form TSan can see.
+
+**What a test should assert.** With a TSan suppression naming
+`pxrInternal_*::PlugRegistry` (or an upstream fix), the TSan lane runs
+`usd_write_test` and `usd_read_test` clean.

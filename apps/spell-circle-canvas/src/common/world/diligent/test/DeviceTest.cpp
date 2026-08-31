@@ -24,6 +24,9 @@ namespace {
 /** Device bring-up needs a Vulkan runtime. The tests SKIP rather than
  *  fail when the machine has none, so a machine without a GPU stays
  *  green. */
+// `d` names the variable the macro declares, and a declarator cannot be
+// parenthesised; every caller passes a plain identifier.
+// NOLINTBEGIN(bugprone-macro-parentheses)
 #define MAKE_DEVICE_OR_SKIP(d)                                   \
   std::unique_ptr<world::diligent::Device> d;                    \
   {                                                              \
@@ -32,6 +35,7 @@ namespace {
     d = world::diligent::Device::create(config, &deviceError);   \
     if (!d) GTEST_SKIP() << "no Vulkan device: " << deviceError; \
   }
+// NOLINTEND(bugprone-macro-parentheses)
 
 /** The pixels of a Graphite surface, read back through the context that
  *  drew it: snap and insert whatever the recorder still holds, ask for
