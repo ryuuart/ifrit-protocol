@@ -71,6 +71,7 @@
 #include <sigilcompose/core/Material.h>
 #include <sigilcompose/core/Pattern.h>
 #include <sigilcompose/core/Patterns.h>
+#include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/shape/Shapes.h>
 #include <sigilcompose/typography/TextFx.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -88,6 +89,9 @@
 namespace sketch = sigil::sketch;
 
 using namespace sigil::compose;
+// Absolute placement: this composition is pinned, so a node says
+// where it goes rather than a layout deciding.
+using sigil::compose::kit::at;
 using namespace std::chrono_literals;
 namespace ch = choreograph;
 
@@ -114,8 +118,6 @@ constexpr SkColor4f kNear = C(0xF1F4F8);     // titles, wordmark
 constexpr SkColor4f kBody = C(0xA8B2C0);     // module body copy
 constexpr SkColor4f kInk = C(0x202B3F);      // dark type on steel bars
 constexpr SkColor4f kHost = C(0xE8920A);     // the ONE saturated mark
-
-inline SkColor4f fade(SkColor4f c, float a) { return {c.fR, c.fG, c.fB, a}; }
 
 // ---------------------------------------------------------------------------
 // Type — Akzidenz-Grotesk substituted with what the platform ships.
@@ -170,11 +172,6 @@ inline sigil::weave::TextStyle prose(float size, SkColor4f c) {
 
 inline Element t(const char* s, sigil::weave::TextStyle st) {
   return text(toU8(s), std::move(st));
-}
-
-inline Element place(Element e, float x, float y, float w, float h) {
-  e.left(Dim(x)).top(Dim(y)).width(Dim(w)).height(Dim(h));
-  return e;
 }
 
 // ---------------------------------------------------------------------------
@@ -450,12 +447,12 @@ struct TwoAdvancedV3 : sketch::Sketch {
         .fill(Material::linearUnit(
             {0, 0}, {0, 1},
             {{0.0f, C(0x8B98B2)}, {0.55f, C(0x64738F)}, {1.0f, C(0x4C5A73)}}))
-        .foreground(shapes::onEdges(
-            shapes::Edge::Bottom,
-            stroke(1, Fill::color(fade(kInk, 0.6f)), PathFormat::Align::Inner)))
-        .foreground(shapes::onEdges(shapes::Edge::Top,
-                                    stroke(1, Fill::color(fade(kSteelHi, 0.7f)),
+        .foreground(shapes::onEdges(shapes::Edge::Bottom,
+                                    stroke(1, Fill::color(alpha(kInk, 0.6f)),
                                            PathFormat::Align::Inner)))
+        .foreground(shapes::onEdges(
+            shapes::Edge::Top, stroke(1, Fill::color(alpha(kSteelHi, 0.7f)),
+                                      PathFormat::Align::Inner)))
         .child(box()
                    .width(16)
                    .height(16)
@@ -466,9 +463,9 @@ struct TwoAdvancedV3 : sketch::Sketch {
         .child(t(label, micro(13, kInk, 140)))
         .child(box().width(6))
         .child(box().grow(1).height(16).fill(dots.material()).opacity(0.85f))
-        .child(box().width(4).height(4).fill(fade(kInk, 0.8f)))
-        .child(box().width(4).height(4).fill(fade(kInk, 0.5f)))
-        .child(box().width(4).height(4).fill(fade(kInk, 0.3f)));
+        .child(box().width(4).height(4).fill(alpha(kInk, 0.8f)))
+        .child(box().width(4).height(4).fill(alpha(kInk, 0.5f)))
+        .child(box().width(4).height(4).fill(alpha(kInk, 0.3f)));
   }
 
   /** The recessed steel button ("VISIT RIVE", "SUBMIT", …). */
@@ -481,7 +478,7 @@ struct TwoAdvancedV3 : sketch::Sketch {
             {0, 0}, {0, 1},
             {{0.0f, kSteelHi}, {0.5f, kSteel}, {1.0f, kSteelDim}}))
         .stroke(
-            stroke(1, Fill::color(fade(kInk, 0.7f)), PathFormat::Align::Inner))
+            stroke(1, Fill::color(alpha(kInk, 0.7f)), PathFormat::Align::Inner))
         .justify(Justify::Center)
         .alignItems(Align::Center)
         .child(t(label, micro(11, kInk, 140)));
@@ -492,35 +489,34 @@ struct TwoAdvancedV3 : sketch::Sketch {
     using namespace tv3;
     Element m = box().row().gap(2).alignItems(Align::Center);
     for (int i = 0; i < 5; ++i)
-      m.child(box().width(9).height(7).fill(i < lit ? fade(kSteelHi, 0.9f)
-                                                    : fade(kSteelDim, 0.4f)));
+      m.child(box().width(9).height(7).fill(i < lit ? alpha(kSteelHi, 0.9f)
+                                                    : alpha(kSteelDim, 0.4f)));
     return m;
   }
 
   Element bevelBar() {
     using namespace tv3;
-    return place(
-               box().fill(Material::linearUnit(
-                   {0, 0}, {0, 1}, {{0.0f, C(0x98A3BA)}, {1.0f, C(0x66738F)}})),
-               kStageX, 0, kStageW, 8)
+    return at(box().fill(Material::linearUnit(
+                  {0, 0}, {0, 1}, {{0.0f, C(0x98A3BA)}, {1.0f, C(0x66738F)}})),
+              kStageX, 0, kStageW, 8)
         .translateY(
             animate(from(-10.0f).to(0.0f), {300ms, &ch::easeOutQuint, 1450ms}));
   }
 
   Element headerStrip() {
     using namespace tv3;
-    Element strip = place(box().clip(), kStageX, 8, kStageW, 74);
+    Element strip = at(box().clip(), kStageX, 8, kStageW, 74);
     if (topHeader) {
       // Drawn at the bitmap's own half-res size and CROPPED at the stage
       // edge, exactly as the page shows it — squeezing it to fit reads
       // measurably lighter than the reference.
       strip.child(
-          place(box().fill(stretchFill(topHeader, 1381, 77)), 0, 0, 1381, 77));
+          at(box().fill(stretchFill(topHeader, 1381, 77)), 0, 0, 1381, 77));
     } else {
       strip.fill(Material::linearUnit(
           {0, 0}, {1, 0.4f}, {{0.0f, C(0x2E3F5D)}, {1.0f, C(0x25334C)}}));
       strip.child(
-          place(box().fill(diag.material()).opacity(0.18f), 0, 0, kStageW, 74));
+          at(box().fill(diag.material()).opacity(0.18f), 0, 0, kStageW, 74));
     }
     return strip
         .translateY(
@@ -544,14 +540,14 @@ struct TwoAdvancedV3 : sketch::Sketch {
           .child(t("2a", type(grotBold(), 18, kNear, 0, 1.0f)));
     }
     Element panel =
-        place(box().row().alignItems(Align::Center).padding(30, 0).gap(16),
-              kStageX, 82, kStageW, 86)
+        at(box().row().alignItems(Align::Center).padding(30, 0).gap(16),
+           kStageX, 82, kStageW, 86)
             .fill(Material::linearUnit(
                 {0, 0}, {0, 1},
                 {{0.0f, C(0x8C99B4)}, {0.6f, kSteel}, {1.0f, C(0x67748E)}}))
-            .foreground(shapes::onEdges(shapes::Edge::Bottom,
-                                        stroke(2, Fill::color(fade(kInk, 0.5f)),
-                                               PathFormat::Align::Inner)))
+            .foreground(shapes::onEdges(
+                shapes::Edge::Bottom, stroke(2, Fill::color(alpha(kInk, 0.5f)),
+                                             PathFormat::Align::Inner)))
             .child(mark)
             .child(
                 box()
@@ -577,7 +573,7 @@ struct TwoAdvancedV3 : sketch::Sketch {
   Element navBar() {
     using namespace tv3;
     Element bar =
-        place(box().row().alignItems(Align::Center), kStageX, 174, kStageW, 33);
+        at(box().row().alignItems(Align::Center), kStageX, 174, kStageW, 33);
     if (navbarBg)
       // Half-res native size, cropped at the stage edge (see the header
       // strip note — squeezing lightens the render).
@@ -596,10 +592,10 @@ struct TwoAdvancedV3 : sketch::Sketch {
             .alignItems(Align::Center)
             .padding(12, 0)
             .gap(7)
-            .fill(fade(C(0x39445C), 0.92f))
-            .foreground(shapes::onEdges(shapes::Edge::Right,
-                                        stroke(1, Fill::color(fade(kInk, 0.8f)),
-                                               PathFormat::Align::Inner)))
+            .fill(alpha(C(0x39445C), 0.92f))
+            .foreground(shapes::onEdges(
+                shapes::Edge::Right, stroke(1, Fill::color(alpha(kInk, 0.8f)),
+                                            PathFormat::Align::Inner)))
             .child(t("\xe2\x86\x92", micro(11, kSteelHi, 0)))
             .child(t("2A.V3..2024 // EXPANSIONS", micro(11.5f, kNear, 80))));
     // Right: the six tab slots live in a slot so the active-section
@@ -627,9 +623,9 @@ struct TwoAdvancedV3 : sketch::Sketch {
                     .alignItems(Align::Center)
                     .gap(2)
                     .child(t(kSections[i].tab,
-                             micro(11, on ? kNear : fade(kNear, 0.82f), 170)))
+                             micro(11, on ? kNear : alpha(kNear, 0.82f), 170)))
                     .child(box().width(46).height(2).fill(
-                        on ? fade(kSteelHi, 0.95f) : SkColor4f{0, 0, 0, 0})));
+                        on ? alpha(kSteelHi, 0.95f) : SkColor4f{0, 0, 0, 0})));
     }
     return row;
   }
@@ -637,18 +633,18 @@ struct TwoAdvancedV3 : sketch::Sketch {
   /** The two hairline bars between navbar and stage art. */
   Element hairlines() {
     using namespace tv3;
-    return place(box()
-                     .column()
-                     .gap(2)
-                     .child(box().height(2).fill(fade(kSteelHi, 0.8f)))
-                     .child(box()
-                                .height(3)
-                                .fill(fade(kSeam, 0.95f))
-                                .child(box()
-                                           .inset(0)
-                                           .fill(vticks.material())
-                                           .opacity(0.55f))),
-                 kStageX, 210, kStageW, 7)
+    return at(box()
+                  .column()
+                  .gap(2)
+                  .child(box().height(2).fill(alpha(kSteelHi, 0.8f)))
+                  .child(box()
+                             .height(3)
+                             .fill(alpha(kSeam, 0.95f))
+                             .child(box()
+                                        .inset(0)
+                                        .fill(vticks.material())
+                                        .opacity(0.55f))),
+              kStageX, 210, kStageW, 7)
         .opacity(
             animate(from(0.0f).to(1.0f), {280ms, &ch::easeOutQuad, 1800ms}));
   }
@@ -658,8 +654,7 @@ struct TwoAdvancedV3 : sketch::Sketch {
    *  "MASK: white rec swipe" gesture) stays out here and plays once. */
   Element stageArt() {
     using namespace tv3;
-    return place(box().clip().child(slot("stage")), kStageX, kArtY, kStageW,
-                 kArtH)
+    return at(box().clip().child(slot("stage")), kStageX, kArtY, kStageW, kArtH)
         .mask(by::edge(0, animate(from(0.0f).to(1.0f),
                                   {650ms, &ch::easeOutQuint, 1900ms})));
   }
@@ -720,8 +715,8 @@ struct TwoAdvancedV3 : sketch::Sketch {
         }();
         art.child(box()
                       .inset(0)
-                      .child(place(box().clip().child(slot("clouds")), 415, 35,
-                                   310, 255))
+                      .child(at(box().clip().child(slot("clouds")), 415, 35,
+                                310, 255))
                       .mask(by::alpha(Material::image(
                           gapMask, SkTileMode::kClamp, SkTileMode::kClamp,
                           SkMatrix::Scale(kStageW / (float)gapMask->width(),
@@ -731,8 +726,8 @@ struct TwoAdvancedV3 : sketch::Sketch {
       }
       // Idle beacon on the art's readout cluster: the one light that
       // never stops blinking.
-      art.child(place(box().corners({3}), kStageW - 116, kArtH - 62, 6, 6)
-                    .fill(fade(kSteelHi, 0.9f))
+      art.child(at(box().corners({3}), kStageW - 116, kArtH - 62, 6, 6)
+                    .fill(alpha(kSteelHi, 0.9f))
                     .opacity(&beaconAlpha));
       return art;
     }
@@ -741,15 +736,15 @@ struct TwoAdvancedV3 : sketch::Sketch {
     // Title spreader, top right: the letterform block settles from
     // stretched-wide to rest as the section engages.
     art.child(
-        place(box()
-                  .row()
-                  .justify(Justify::End)
-                  .alignItems(Align::Center)
-                  .gap(10)
-                  .child(box().grow(1).height(1).fill(fade(kSteelHi, 0.55f)))
-                  .child(t(spec.tab, micro(14, kNear, 600)))
-                  .child(box().width(24).height(8).fill(fade(kSteelHi, 0.8f))),
-              kStageW - 560, 12, 540, 22)
+        at(box()
+               .row()
+               .justify(Justify::End)
+               .alignItems(Align::Center)
+               .gap(10)
+               .child(box().grow(1).height(1).fill(alpha(kSteelHi, 0.55f)))
+               .child(t(spec.tab, micro(14, kNear, 600)))
+               .child(box().width(24).height(8).fill(alpha(kSteelHi, 0.8f))),
+           kStageW - 560, 12, 540, 22)
             .opacity(0.25f + 0.75f * settle)
             .scaleX(1.5f - 0.5f * settle)
             .transformOrigin(1.0f, 0.5f));
@@ -761,24 +756,24 @@ struct TwoAdvancedV3 : sketch::Sketch {
           tabs.child(box()
                          .height(17)
                          .padding(10, 0)
-                         .fill(fade(kSeam, 0.92f))
-                         .stroke(stroke(1, Fill::color(fade(kSteelHi, 0.45f)),
+                         .fill(alpha(kSeam, 0.92f))
+                         .stroke(stroke(1, Fill::color(alpha(kSteelHi, 0.45f)),
                                         PathFormat::Align::Inner))
                          .justify(Justify::Center)
                          .alignItems(Align::Center)
                          .child(t(s, micro(9, kNear, 200))));
-      art.child(place(box().row().justify(Justify::Center).child(tabs),
-                      kStageW / 2 - 220, 26, 440, 17)
+      art.child(at(box().row().justify(Justify::Center).child(tabs),
+                   kStageW / 2 - 220, 26, 440, 17)
                     .opacity(settle));
     }
     // RETURN TO MAIN, bottom right.
-    art.child(place(t("[ RETURN TO MAIN ]", micro(9, fade(kNear, 0.85f), 200)),
-                    kStageW - 190, kArtH - 30, 180, 14)
+    art.child(at(t("[ RETURN TO MAIN ]", micro(9, alpha(kNear, 0.85f), 200)),
+                 kStageW - 190, kArtH - 30, 180, 14)
                   .opacity(settle));
     // MODULE.ENGAGED tick, bottom left — the riv's load-state voice.
-    art.child(place(t(settle >= 1.0f ? "MODULE.ENGAGED" : "LOADING.MODULE",
-                      micro(9, fade(kSteelHi, 0.8f), 240)),
-                    18, kArtH - 30, 220, 14));
+    art.child(at(t(settle >= 1.0f ? "MODULE.ENGAGED" : "LOADING.MODULE",
+                   micro(9, alpha(kSteelHi, 0.8f), 240)),
+                 18, kArtH - 30, 220, 14));
     return art;
   }
 
@@ -797,7 +792,7 @@ struct TwoAdvancedV3 : sketch::Sketch {
     out.child(box().inset(0).child(sectionArt(toSec, f)).mask(by::edge(0, f)));
     // the leading band, one step wide, brightest at mid-sweep
     const float x = kStageW * f;
-    out.child(place(box().fill(fade(kSteelHi, 0.85f)), x - 5, 0, 10, kArtH)
+    out.child(at(box().fill(alpha(kSteelHi, 0.85f)), x - 5, 0, 10, kArtH)
                   .blend(SkBlendMode::kScreen)
                   .opacity(0.28f + 0.5f * std::sin(f * 3.14159f)));
     return out;
@@ -805,23 +800,23 @@ struct TwoAdvancedV3 : sketch::Sketch {
 
   Element scrollStrip() {
     using namespace tv3;
-    return place(box()
-                     .row()
-                     .alignItems(Align::Center)
-                     .padding(10, 0)
-                     .gap(6)
-                     .fill(C(0x4B5870))
-                     .foreground(shapes::onEdges(
-                         shapes::Edge::Top,
-                         stroke(1, Fill::color(fade(kSteelHi, 0.55f)),
-                                PathFormat::Align::Inner)))
-                     .child(t("\xe2\x86\x93", micro(9, kSteelHi, 0)))
-                     .child(t("SCROLL.EXTENDED.CONTENT",
-                              micro(9, fade(kSteelHi, 0.85f), 180)))
-                     .child(box().grow(1))
-                     .child(
-                         t("AMBIENCE.MUTE", micro(9, fade(kSteel, 0.9f), 180))),
-                 kStageX, 617, kStageW, 16)
+    return at(box()
+                  .row()
+                  .alignItems(Align::Center)
+                  .padding(10, 0)
+                  .gap(6)
+                  .fill(C(0x4B5870))
+                  .foreground(shapes::onEdges(
+                      shapes::Edge::Top,
+                      stroke(1, Fill::color(alpha(kSteelHi, 0.55f)),
+                             PathFormat::Align::Inner)))
+                  .child(t("\xe2\x86\x93", micro(9, kSteelHi, 0)))
+                  .child(t("SCROLL.EXTENDED.CONTENT",
+                           micro(9, alpha(kSteelHi, 0.85f), 180)))
+                  .child(box().grow(1))
+                  .child(
+                      t("AMBIENCE.MUTE", micro(9, alpha(kSteel, 0.9f), 180))),
+              kStageX, 617, kStageW, 16)
         .opacity(
             animate(from(0.0f).to(1.0f), {300ms, &ch::easeOutQuad, 2200ms}));
   }
@@ -836,8 +831,8 @@ struct TwoAdvancedV3 : sketch::Sketch {
         .child(moduleBar(glyph, barLabel, kPanelW))
         .child(box()
                    .grow(1)
-                   .fill(fade(C(0x4A5872), 0.80f))
-                   .stroke(stroke(1, Fill::color(fade(kSteelHi, 0.55f)),
+                   .fill(alpha(C(0x4A5872), 0.80f))
+                   .stroke(stroke(1, Fill::color(alpha(kSteelHi, 0.55f)),
                                   PathFormat::Align::Inner))
                    .child(body.inset(0)))
         .translateY(animate(from(46.0f).to(0.0f),
@@ -866,12 +861,12 @@ struct TwoAdvancedV3 : sketch::Sketch {
                 .row()
                 .alignItems(Align::Center)
                 .padding(3, 0)
-                .child(box().width(28).height(4).fill(fade(kSteelHi, 0.85f))))
+                .child(box().width(28).height(4).fill(alpha(kSteelHi, 0.85f))))
         .child(box()
                    .height(96)
                    .shape(chamfer(20, kTR))
                    .fill(C(0x232E48))
-                   .stroke(stroke(1, Fill::color(fade(kSteelHi, 0.5f)),
+                   .stroke(stroke(1, Fill::color(alpha(kSteelHi, 0.5f)),
                                   PathFormat::Align::Inner))
                    .justify(Justify::Center)
                    .alignItems(Align::Center)
@@ -880,7 +875,7 @@ struct TwoAdvancedV3 : sketch::Sketch {
                    .height(22)
                    .shape(chamfer(14, kBL))
                    .fill(C(0x313D5A))
-                   .stroke(stroke(1, Fill::color(fade(kSteelHi, 0.45f)),
+                   .stroke(stroke(1, Fill::color(alpha(kSteelHi, 0.45f)),
                                   PathFormat::Align::Inner))
                    .justify(Justify::Center)
                    .alignItems(Align::Center)
@@ -894,7 +889,7 @@ struct TwoAdvancedV3 : sketch::Sketch {
     if (logoMark)
       row.child(box().width(34).height(34).fill(kNear).mask(
           by::alpha(stretchFill(logoMark, 34, 34))));
-    row.child(t("+", type(grotBold(), 13, fade(kNear, 0.9f), 0)));
+    row.child(t("+", type(grotBold(), 13, alpha(kNear, 0.9f), 0)));
     if (riveLogo)
       row.child(box().width(44).height(44).fill(stretchFill(riveLogo, 44, 44)));
     else
@@ -936,7 +931,7 @@ struct TwoAdvancedV3 : sketch::Sketch {
     if (!discordSeq.empty())
       icon.child(slot("discord"));
     else
-      icon.corners({32}).fill(fade(kSteel, 0.5f));
+      icon.corners({32}).fill(alpha(kSteel, 0.5f));
     Element body =
         box()
             .column()
@@ -1013,15 +1008,15 @@ struct TwoAdvancedV3 : sketch::Sketch {
                        .child(box()
                                   .grow(1)
                                   .height(22)
-                                  .fill(fade(kPage, 0.9f))
-                                  .stroke(
-                                      stroke(1, Fill::color(fade(kSteel, 0.6f)),
-                                             PathFormat::Align::Inner))
+                                  .fill(alpha(kPage, 0.9f))
+                                  .stroke(stroke(
+                                      1, Fill::color(alpha(kSteel, 0.6f)),
+                                      PathFormat::Align::Inner))
                                   .row()
                                   .alignItems(Align::Center)
                                   .padding(7, 0)
                                   .child(t("EMAILADDRESS@DOMAIN.COM",
-                                           micro(9, fade(kBody, 0.7f), 100))))
+                                           micro(9, alpha(kBody, 0.7f), 100))))
                        .child(button("SUBMIT", 64)));
     return module("M", "MAILING LIST", std::move(body), 3);
   }
@@ -1036,7 +1031,7 @@ struct TwoAdvancedV3 : sketch::Sketch {
           .gap(4)
           .alignItems(Align::Center)
           .child(t(head, micro(11, kNear, 60)))
-          .child(t(copy, prose(9, fade(C(0xC7D0DD), 0.95f))))
+          .child(t(copy, prose(9, alpha(C(0xC7D0DD), 0.95f))))
           .child(box().grow(1))
           .child(box()
                      .row()
@@ -1071,8 +1066,8 @@ struct TwoAdvancedV3 : sketch::Sketch {
     } else {
       icons.row().gap(12);
       for (int i = 0; i < 7; ++i)
-        icons.child(
-            box().width(16).height(16).corners({8}).fill(fade(kSteelHi, 0.8f)));
+        icons.child(box().width(16).height(16).corners({8}).fill(
+            alpha(kSteelHi, 0.8f)));
     }
     Element body = box()
                        .column()
@@ -1085,24 +1080,23 @@ struct TwoAdvancedV3 : sketch::Sketch {
 
   Element footerRail() {
     using namespace tv3;
-    return place(
-               box()
-                   .row()
-                   .alignItems(Align::Center)
-                   .padding(10, 0)
-                   .gap(8)
-                   .fill(Material::linearUnit(
-                       {0, 0}, {0, 1},
-                       {{0.0f, C(0x5A6880)}, {1.0f, C(0x49556C)}}))
-                   .child(t("(C) 2024 2ADVANCED STUDIOS", micro(9, kInk, 140)))
-                   .child(t("//", micro(9, fade(kInk, 0.5f), 0)))
-                   .child(t("CONDITIONS OF USE", micro(9, kInk, 140)))
-                   .child(t("//", micro(9, fade(kInk, 0.5f), 0)))
-                   .child(t("PRIVACY POLICY", micro(9, kInk, 140)))
-                   .child(box().grow(1))
-                   .child(t("HOSTING PARTNER:", micro(9, kInk, 140)))
-                   .child(box().width(12).height(12).corners({6}).fill(kHost)),
-               kStageX, 1045, kStageW, 20)
+    return at(box()
+                  .row()
+                  .alignItems(Align::Center)
+                  .padding(10, 0)
+                  .gap(8)
+                  .fill(Material::linearUnit(
+                      {0, 0}, {0, 1},
+                      {{0.0f, C(0x5A6880)}, {1.0f, C(0x49556C)}}))
+                  .child(t("(C) 2024 2ADVANCED STUDIOS", micro(9, kInk, 140)))
+                  .child(t("//", micro(9, alpha(kInk, 0.5f), 0)))
+                  .child(t("CONDITIONS OF USE", micro(9, kInk, 140)))
+                  .child(t("//", micro(9, alpha(kInk, 0.5f), 0)))
+                  .child(t("PRIVACY POLICY", micro(9, kInk, 140)))
+                  .child(box().grow(1))
+                  .child(t("HOSTING PARTNER:", micro(9, kInk, 140)))
+                  .child(box().width(12).height(12).corners({6}).fill(kHost)),
+              kStageX, 1045, kStageW, 20)
         .opacity(
             animate(from(0.0f).to(1.0f), {320ms, &ch::easeOutQuad, 2900ms}));
   }
@@ -1130,8 +1124,8 @@ struct TwoAdvancedV3 : sketch::Sketch {
     o.child(box().inset(0).fill(kPreBg).opacity(
         animate(through({{0ms, 1.0f}, {1250ms, 1.0f}, {1450ms, 0.0f}}))));
     o.child(
-        place(box().column().alignItems(Align::Center).gap(18), kW / 2 - 300,
-              kH / 2 - 170, 600, 360)
+        at(box().column().alignItems(Align::Center).gap(18), kW / 2 - 300,
+           kH / 2 - 170, 600, 360)
             .opacity(animate(through(
                 {{0ms, 0.0f}, {150ms, 1.0f}, {1200ms, 1.0f}, {1350ms, 0.0f}})))
             .child(lockup)
@@ -1173,7 +1167,7 @@ struct TwoAdvancedV3 : sketch::Sketch {
     page.child(scrollStrip());
 
     // The poly-textured ground every lower module sits on.
-    Element ground = place(box().clip(), kStageX, 640, kStageW, 400);
+    Element ground = at(box().clip(), kStageX, 640, kStageW, 400);
     if (lowerPanelBg)
       ground.fill(stretchFill(lowerPanelBg, kStageW, 400));
     else
@@ -1183,16 +1177,16 @@ struct TwoAdvancedV3 : sketch::Sketch {
         animate(from(0.0f).to(1.0f), {380ms, &ch::easeOutQuad, 2250ms}));
     page.child(ground);
 
-    Element mods = place(box().row().gap(10), kStageX, kModY, kStageW, kModH);
+    Element mods = at(box().row().gap(10), kStageX, kModY, kStageW, kModH);
     mods.child(featuredPartner()).child(subData()).child(updates());
     page.child(mods);
     // the dark divider band that closes the module row
-    page.child(place(box().fill(fade(C(0x26314A), 0.9f)), kStageX,
-                     kModY + kModH + 2, kStageW, 8)
+    page.child(at(box().fill(alpha(C(0x26314A), 0.9f)), kStageX,
+                  kModY + kModH + 2, kStageW, 8)
                    .opacity(animate(from(0.0f).to(1.0f),
                                     {320ms, &ch::easeOutQuad, 2650ms})));
 
-    Element row = place(box().row().gap(10), kStageX, kRowY, kStageW, kRowH);
+    Element row = at(box().row().gap(10), kStageX, kRowY, kStageW, kRowH);
     row.child(mailingList()).child(support2a()).child(follow2a());
     page.child(row);
 
@@ -1211,10 +1205,10 @@ struct TwoAdvancedV3 : sketch::Sketch {
     // (20 fps, 102 frames) on its bright crest, frame 50.
     ctx.captureAt(7.6);
 
-    diag = patterns::stripes(2, 9, fade(kSteelHi, 0.5f));
+    diag = patterns::stripes(2, 9, alpha(kSteelHi, 0.5f));
     diag.rotate(45);
-    dots = patterns::halftone(5, 1.3f, fade(kInk, 0.55f));
-    vticks = patterns::stripes(1.5f, 5.5f, fade(kSteelHi, 0.5f));
+    dots = patterns::halftone(5, 1.3f, alpha(kInk, 0.55f));
+    vticks = patterns::stripes(1.5f, 5.5f, alpha(kSteelHi, 0.5f));
 
     // --- the production assets, from the live site ------------------------
     // https fetches cache on disk (CacheFirst): the first run downloads,

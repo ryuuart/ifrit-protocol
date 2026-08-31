@@ -53,6 +53,10 @@ constexpr SkColor4f kBone{0.930f, 0.920f, 0.890f, 1};
 constexpr SkColor4f kAsh{0.540f, 0.540f, 0.590f, 1};
 constexpr SkColor4f kAccent{0.980f, 0.360f, 0.250f, 1};
 
+/** This study's type colour reaches the paint as 8-bit sRGB, so a tint
+ *  computed per frame lands on the same 256-step ladder as a quoted one.
+ *  `compose::type` carries the float through instead, and the device
+ *  raster resolves the two differently. */
 inline sigil::weave::TextStyle type(float size, SkColor4f color,
                                     float tracking = 0) {
   sigil::weave::TextStyle s;

@@ -45,6 +45,7 @@
 #include <sigilcompose/core/Patterns.h>
 #include <sigilcompose/instances/Instances.h>
 #include <sigilcompose/shape/Shapes.h>
+#include <sigilcompose/typography/Typography.h>
 #include <sigilsketch/canvas/Sketch.h>
 
 #include <array>
@@ -110,18 +111,6 @@ inline SkColor4f rarityColor(Rarity r) {
       break;
   }
   return C(0xE8E4DC);
-}
-
-inline sigil::weave::TextStyle type(float size, SkColor4f color,
-                                    float tracking = 0, float weight = 0) {
-  sigil::weave::TextStyle s;
-  s.shaping.fontSize = size;
-  s.shaping.letterSpacing = tracking;
-  if (weight > 0)
-    s.shaping.variations = {sigil::weave::FontVariation("wght", weight)};
-  s.paint.foreground.setColor4f(color, nullptr);
-  s.paint.foreground.setAntiAlias(true);
-  return s;
 }
 
 // ---------------------------------------------------------------------------
@@ -611,12 +600,15 @@ struct LootGrid final : sketch::Sketch {
         .child(loot::panel(lt::kGridW + 2 * pad, lt::kGridH + 2 * pad + 26)
                    .inset(0))
         .child(loot::rivets(lt::kGridW + 2 * pad, lt::kGridH + 2 * pad + 26))
-        .child(text(toU8("HOARD"), lt::type(12, lt::kBronzeLit, 4.5f, 650))
+        .child(text(toU8("HOARD"), type({.size = 12,
+                                         .color = lt::kBronzeLit,
+                                         .track = 4.5f,
+                                         .weight = 650}))
                    .left(pad)
                    .top(pad + 2))
         .child(text(toU8("10 \xc3\x97"
                          " 4"),
-                    lt::type(11, lt::kAsh, 2.0f))
+                    type({.size = 11, .color = lt::kAsh, .track = 2.0f}))
                    .right(pad)
                    .top(pad + 3))
         .child(std::move(grid));
@@ -704,11 +696,13 @@ struct LootGrid final : sketch::Sketch {
                 .alignItems(Align::Center)
                 .opacity(0.13f)
                 .child(lt::artwork(s.ghost, w * 0.64f, h * 0.68f, lt::kParch)));
-        socket.child(text(toU8(s.label), lt::type(7.0f, lt::kAsh, 1.3f))
-                         .left(0)
-                         .right(0)
-                         .bottom(3)
-                         .textAlign(sigil::weave::TextAlignment::kCenter));
+        socket.child(
+            text(toU8(s.label),
+                 type({.size = 7.0f, .color = lt::kAsh, .track = 1.3f}))
+                .left(0)
+                .right(0)
+                .bottom(3)
+                .textAlign(sigil::weave::TextAlignment::kCenter));
       }
       body.child(std::move(socket));
     }
@@ -721,13 +715,17 @@ struct LootGrid final : sketch::Sketch {
           .row()
           .width(Dim(166.0f))
           .alignItems(Align::Center)
-          .child(text(toU8(label), lt::type(10.5f, lt::kAsh, 1.1f)))
+          .child(text(toU8(label),
+                      type({.size = 10.5f, .color = lt::kAsh, .track = 1.1f})))
           .child(box()
                      .grow(1)
                      .height(Dim(1.0f))
                      .margin(6, 0, 6, 0)
                      .fill(Material::solid({0.42f, 0.38f, 0.31f, 0.28f})))
-          .child(text(toU8(value), lt::type(12, valueColor, 0.5f, 620)));
+          .child(text(toU8(value), type({.size = 12,
+                                         .color = valueColor,
+                                         .track = 0.5f,
+                                         .weight = 620})));
     };
     body.child(
         box()
@@ -761,7 +759,10 @@ struct LootGrid final : sketch::Sketch {
         .top(96)
         .child(loot::panel(pw, ph).inset(0))
         .child(loot::rivets(pw, ph))
-        .child(text(toU8("EQUIPPED"), lt::type(12, lt::kBronzeLit, 4.5f, 650))
+        .child(text(toU8("EQUIPPED"), type({.size = 12,
+                                            .color = lt::kBronzeLit,
+                                            .track = 4.5f,
+                                            .weight = 650}))
                    .left(pad)
                    .top(pad))
         .child(std::move(body));
@@ -774,7 +775,7 @@ struct LootGrid final : sketch::Sketch {
     using namespace std::chrono_literals;
     const SkColor4f rc = lt::rarityColor(lt::Rarity::Unique);
     auto line = [&](const char* s, SkColor4f c) {
-      return text(toU8(s), lt::type(11.5f, c, 0.2f));
+      return text(toU8(s), type({.size = 11.5f, .color = c, .track = 0.2f}));
     };
     return box()
         .width(Dim(262.0f))
@@ -792,8 +793,11 @@ struct LootGrid final : sketch::Sketch {
         .opacity(animate(from(0.0f).to(1.0f), {380ms}))
         .translateY(animate(from(8.0f).to(0.0f), {460ms}))
         .zIndex(9)
-        .child(text(toU8("Doomslinger"), lt::type(15, rc, 1.4f, 620)))
-        .child(text(toU8("Colossus Blade"), lt::type(11.5f, lt::kParch, 0.8f))
+        .child(
+            text(toU8("Doomslinger"),
+                 type({.size = 15, .color = rc, .track = 1.4f, .weight = 620})))
+        .child(text(toU8("Colossus Blade"),
+                    type({.size = 11.5f, .color = lt::kParch, .track = 0.8f}))
                    .margin(0, 0, 0, 6))
         .child(line("189% Enhanced Damage", lt::rarityColor(lt::Rarity::Magic)))
         .child(line("+2 to Fire Skills", lt::rarityColor(lt::Rarity::Magic)))
@@ -832,16 +836,20 @@ struct LootGrid final : sketch::Sketch {
                              .material())
                    .opacity(0.5f));
 
-    root.child(box()
-                   .column()
-                   .left(30)
-                   .top(34)
-                   .child(text(toU8("HOARD OF THE HORADRIM"),
-                               lt::type(23, lt::kParch, 3.4f, 640)))
-                   .child(text(toU8("grid inventory \xe2\x80\x94 generated "
-                                    "materials, no sprites"),
-                               lt::type(12, lt::kAsh, 1.0f))
-                              .margin(0, 5, 0, 0)));
+    root.child(
+        box()
+            .column()
+            .left(30)
+            .top(34)
+            .child(
+                text(toU8("HOARD OF THE HORADRIM"), type({.size = 23,
+                                                          .color = lt::kParch,
+                                                          .track = 3.4f,
+                                                          .weight = 640})))
+            .child(text(toU8("grid inventory \xe2\x80\x94 generated "
+                             "materials, no sprites"),
+                        type({.size = 12, .color = lt::kAsh, .track = 1.0f}))
+                       .margin(0, 5, 0, 0)));
 
     root.child(paperdoll());
     root.child(gridPanel());
@@ -868,9 +876,12 @@ struct LootGrid final : sketch::Sketch {
                                               {{0.0f, lt::C(0xFFE9A8)},
                                                {0.6f, lt::C(0xD8A93C)},
                                                {1.0f, lt::C(0x7A5C15)}})))
-            .child(
-                text(toU8(goldText), lt::type(17, lt::C(0xD8B95C), 1.6f, 620)))
-            .child(text(toU8("GOLD"), lt::type(10, lt::kAsh, 2.2f))));
+            .child(text(toU8(goldText), type({.size = 17,
+                                              .color = lt::C(0xD8B95C),
+                                              .track = 1.6f,
+                                              .weight = 620})))
+            .child(text(toU8("GOLD"),
+                        type({.size = 10, .color = lt::kAsh, .track = 2.2f}))));
 
     // the legend for the rarity ladder, bottom right
     auto chip = [&](lt::Rarity r, const char* label) {
@@ -886,7 +897,8 @@ struct LootGrid final : sketch::Sketch {
                      .fill(Material::solid(
                          {c.fR * 0.35f, c.fG * 0.35f, c.fB * 0.35f, 1}))
                      .foreground(stroke(1.0f, Fill::color(c))))
-          .child(text(toU8(label), lt::type(10.5f, c, 0.8f)));
+          .child(text(toU8(label),
+                      type({.size = 10.5f, .color = c, .track = 0.8f})));
     };
     root.child(box()
                    .row()
@@ -914,7 +926,9 @@ struct LootGrid final : sketch::Sketch {
                        .fill(Material::solid({0.16f, 0.80f, 0.24f, 0.30f}))
                        .foreground(stroke(
                            1.0f, Fill::color({0.35f, 1.0f, 0.45f, 0.8f}))))
-            .child(text(toU8("fits"), lt::type(10.5f, lt::kAsh, 0.8f)))
+            .child(
+                text(toU8("fits"),
+                     type({.size = 10.5f, .color = lt::kAsh, .track = 0.8f})))
             .child(box()
                        .width(Dim(11.0f))
                        .height(Dim(11.0f))
@@ -923,7 +937,9 @@ struct LootGrid final : sketch::Sketch {
                        .fill(Material::solid({0.90f, 0.16f, 0.14f, 0.34f}))
                        .foreground(stroke(
                            1.0f, Fill::color({1.0f, 0.35f, 0.30f, 0.8f}))))
-            .child(text(toU8("blocked"), lt::type(10.5f, lt::kAsh, 0.8f))));
+            .child(
+                text(toU8("blocked"),
+                     type({.size = 10.5f, .color = lt::kAsh, .track = 0.8f}))));
     return root;
   }
 };

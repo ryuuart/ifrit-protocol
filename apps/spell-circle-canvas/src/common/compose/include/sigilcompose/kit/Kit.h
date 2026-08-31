@@ -26,6 +26,8 @@
  * | `kit/Frame.h` | `Frame` — figure-local polar coordinates |
  * | `kit/Frame.h` | `Grid` — the unit map (scale, origin, snap) |
  * | `kit/Frame.h` | `disc()` and `centred()` — a box about a centre |
+ * | `kit/Frame.h` | `at()` — a box pinned at absolute coordinates |
+ * | `kit/Sprites.h` | `dotSprite()` — the stamp a point sink draws with |
  * | `kit/Divisions.h` | `ticks()` — a division ladder as one path |
  * | `kit/Divisions.h` | `chords()` — polygon sides as N contours |
  * | `kit/PixelType.h` | the aliased bitmap-font bake |
@@ -52,3 +54,4 @@
 #include "sigilcompose/kit/Instruments.h"
 #include "sigilcompose/kit/Legibility.h"
 #include "sigilcompose/kit/PixelType.h"
+#include "sigilcompose/kit/Sprites.h"

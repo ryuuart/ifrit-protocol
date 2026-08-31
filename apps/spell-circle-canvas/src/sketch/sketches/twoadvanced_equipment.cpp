@@ -41,6 +41,7 @@
 #include <include/core/SkFontMgr.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Material.h>
+#include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/shape/Shapes.h>
 #include <sigilcompose/typography/TextFx.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -55,6 +56,9 @@
 namespace sketch = sigil::sketch;
 
 using namespace sigil::compose;
+// Absolute placement: this composition is pinned, so a node says
+// where it goes rather than a layout deciding.
+using sigil::compose::kit::at;
 using namespace std::chrono_literals;
 namespace ch = choreograph;
 
@@ -101,11 +105,6 @@ inline sigil::weave::TextStyle verdana(SkColor4f color, bool bold = false) {
 
 inline Element t(const char* s, sigil::weave::TextStyle st) {
   return text(toU8(s), std::move(st));
-}
-
-inline Element place(Element e, float x, float y, float w, float h) {
-  e.left(Dim(x)).top(Dim(y)).width(Dim(w)).height(Dim(h));
-  return e;
 }
 
 // Frameset geometry, in the page's own CSS pixels.
@@ -187,10 +186,10 @@ struct TwoAdvancedEquipment : sketch::Sketch {
 
   Element topFrame() {
     using namespace teq;
-    Element f = place(box(), 0, 0, kPageW, kTopH).clip();
-    f.child(place(img("ecom-topbar.gif", 790, 19), 0, 0, 790, 19));
-    f.child(place(img("ecom-logo.gif", 262, 78), 0, 19, 262, 78));
-    f.child(place(img("ecom-titleheader.gif", 511, 63), 262, 19, 511, 63));
+    Element f = at(box(), 0, 0, kPageW, kTopH).clip();
+    f.child(at(img("ecom-topbar.gif", 790, 19), 0, 0, 790, 19));
+    f.child(at(img("ecom-logo.gif", 262, 78), 0, 19, 262, 78));
+    f.child(at(img("ecom-titleheader.gif", 511, 63), 262, 19, 511, 63));
     // The four rollover buttons wrap beneath the title image. The page
     // preloads an -on.gif for each, but the archive never captured
     // those states (they only fetched on hover), so the swap is
@@ -201,22 +200,20 @@ struct TwoAdvancedEquipment : sketch::Sketch {
     float x = 262;
     for (int i = 0; i < 4; ++i) {
       const float w = i == 3 ? 105.0f : 92.0f;
-      f.child(place(img(offs[i], w, 11), x, 82, w, 11));
-      f.child(place(box().fill(fade(kWhite, 0.4f)), x, 82, w, 11)
+      f.child(at(img(offs[i], w, 11), x, 82, w, 11));
+      f.child(at(box().fill(alpha(kWhite, 0.4f)), x, 82, w, 11)
                   .opacity(&hover[(size_t)i]));
       x += w;
     }
     return f;
   }
 
-  static SkColor4f fade(SkColor4f c, float a) { return {c.fR, c.fG, c.fB, a}; }
-
   Element leftFrame() {
     using namespace teq;
-    return place(box().fill(kWhite), 0, kTopH, kLeftW, kContentH)
+    return at(box().fill(kWhite), 0, kTopH, kLeftW, kContentH)
         .clip()
-        .child(place(img("ecom-productselectimage.jpg", 262, 266), 0, 0, 262,
-                     266));
+        .child(
+            at(img("ecom-productselectimage.jpg", 262, 266), 0, 0, 262, 266));
   }
 
   /** One product: the maroon header row, the 2 px seam, the body row. */
@@ -319,15 +316,15 @@ struct TwoAdvancedEquipment : sketch::Sketch {
             .column()
             .child(sbButton(true))
             .child(box().grow(1).fill(kSbTrack).child(
-                place(box().fill(kSbFace).foreground(shapes::onEdges(
-                          shapes::Edge::Top | shapes::Edge::Left,
-                          stroke(1, Fill::color(kWhite),
-                                 PathFormat::Align::Inner))),
-                      0, 0, kSbW, thumbH)
+                at(box().fill(kSbFace).foreground(
+                       shapes::onEdges(shapes::Edge::Top | shapes::Edge::Left,
+                                       stroke(1, Fill::color(kWhite),
+                                              PathFormat::Align::Inner))),
+                   0, 0, kSbW, thumbH)
                     .translateY(&thumbY)))
             .child(sbButton(false));
 
-    return place(box().fill(kWhite), kLeftW, kTopH, kPageW - kLeftW, kContentH)
+    return at(box().fill(kWhite), kLeftW, kTopH, kPageW - kLeftW, kContentH)
         .clip()
         .row()
         .child(box().grow(1).clip().child(list))
@@ -336,8 +333,8 @@ struct TwoAdvancedEquipment : sketch::Sketch {
 
   Element bottomFrame() {
     using namespace teq;
-    return place(box().fill(kWhite), 0, kPageH - kBottomH, kPageW, kBottomH)
-        .child(place(img("ecom-bottombar.gif", 790, 11), 0, 0, 790, 11));
+    return at(box().fill(kWhite), 0, kPageH - kBottomH, kPageW, kBottomH)
+        .child(at(img("ecom-bottombar.gif", 790, 11), 0, 0, 790, 11));
   }
 
   // =========================================================================
@@ -352,7 +349,7 @@ struct TwoAdvancedEquipment : sketch::Sketch {
                        .child(leftFrame())
                        .child(contentFrame())
                        .child(bottomFrame());
-    return stack().child(place(std::move(page), 0, 0, kPageW, kPageH)
+    return stack().child(at(std::move(page), 0, 0, kPageW, kPageH)
                              .scale(2.0f)
                              .transformOrigin(0, 0));
   }

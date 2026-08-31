@@ -88,8 +88,12 @@ class SetKind final : public KindOps {
 
   [[nodiscard]] std::string_view runtime() const override { return "set"; }
 
-  [[nodiscard]] std::unique_ptr<Session> open(weave::FontContext& fonts,
-                                              Assets& assets) const override;
+  /** A set's every frame is a pure function of the scene time, so there
+   *  is nothing a set could have measured about its own execution and
+   *  the determinism answer has nothing to pin. */
+  [[nodiscard]] std::unique_ptr<Session> open(
+      weave::FontContext& fonts, Assets& assets,
+      bool deterministic) const override;
 
  private:
   Factory m_factory;

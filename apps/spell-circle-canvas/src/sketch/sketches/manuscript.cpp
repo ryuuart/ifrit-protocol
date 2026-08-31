@@ -218,6 +218,10 @@ struct Manuscript final : sketch::Sketch {
                 .cache(Cache::None));
   }
 
+  /** The page's inks reach the paint as 8-bit sRGB, so a rubric tint
+   *  computed here lands on the same 256-step ladder as a quoted one.
+   *  `compose::type` carries the float through instead, and the device
+   *  raster resolves the two differently. */
   static SkColor toColor(SkColor4f c) {
     return SkColor4f{c.fR, c.fG, c.fB, c.fA}.toSkColor();
   }

@@ -68,6 +68,11 @@ constexpr float kTaskbarH = 40;
 // Win7 "Sky" accent (registry): #74B8FC.
 constexpr SkColor4f kSky{0.455f, 0.722f, 0.988f, 1};
 
+/** This chrome's type colour reaches the paint as 8-bit sRGB: a grey
+ *  computed per frame lands on the same 256-step ladder as one quoted off
+ *  the capture, which is the ladder the reference itself was drawn on.
+ *  `compose::type` carries the float through instead, and the device
+ *  raster resolves the two differently. */
 inline sigil::weave::TextStyle type(float size, SkColor4f color,
                                     float tracking = 0) {
   sigil::weave::TextStyle s;

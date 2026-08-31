@@ -16,7 +16,7 @@ using namespace sigil::sketch;
 struct StillKind final : KindOps {
   [[nodiscard]] std::string_view runtime() const override { return "still"; }
   [[nodiscard]] std::unique_ptr<Session> open(sigil::weave::FontContext&,
-                                              Assets&) const override {
+                                              Assets&, bool) const override {
     return nullptr;
   }
   bool operator==(const StillKind&) const { return true; }

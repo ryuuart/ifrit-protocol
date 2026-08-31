@@ -105,14 +105,6 @@ class Session {
    *  machine was. A runtime that promotes nothing ignores this. */
   virtual void setAutoPromotion(bool on) { (void)on; }
 
-  /** Pin anything the sketch measured about ITS OWN EXECUTION — a build
-   *  time, a bake cost, a live node count. A capture that will be diffed
-   *  must not differ from itself between two runs of one binary, and a
-   *  sketch that draws its own timings into its own plate does exactly
-   *  that. Off by default: the live host shows real numbers, which is
-   *  where they are wanted. */
-  virtual void setDeterministic(bool on) { (void)on; }
-
   /** Attribute per-node cost on the frames that follow. It costs
    *  something to collect, so a host turns it on for one frame rather
    *  than for a measured run. */

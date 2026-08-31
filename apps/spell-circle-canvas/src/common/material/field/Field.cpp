@@ -47,6 +47,31 @@ Material halftoneRamp(float spacing, float rMin, float rMax, Color color,
                                      rampFrom, rampTo, color});
 }
 
+const std::shared_ptr<const Recipe>& crtOverlayRecipe() {
+  static const auto recipe = std::make_shared<const Recipe>(
+      Recipe::of<CrtOverlayParams>("field.crtOverlay")
+          .frame(FrameInput::Resolution)
+          .body(Target::SkSL, R"(
+      half4 main(float2 xy) {
+        float line = mod(xy.y, uScanPitch) < uScanPitch * 0.5
+                       ? uScanStrength : 0.0;
+        float2 p = (xy / max(uResolution, float2(1.0)) - 0.5) * 2.0;
+        float r = length(p / uSqueeze);
+        float vig = smoothstep(uVigInner, uVigOuter, r) * uVigStrength;
+        float a = clamp(line + vig, 0.0, 1.0);
+        return half4(0.0, 0.0, 0.0, half(a));
+      }
+    )"));
+  return recipe;
+}
+
+Material crtOverlay(float scanPitch, float scanStrength, float vigInner,
+                    float vigOuter, float vigStrength, float squeeze) {
+  return Material(crtOverlayRecipe(),
+                  CrtOverlayParams{scanPitch, scanStrength, vigInner, vigOuter,
+                                   vigStrength, squeeze});
+}
+
 namespace {
 
 /** Skia's Perlin generator as a leaf: equal when its parameters are. */

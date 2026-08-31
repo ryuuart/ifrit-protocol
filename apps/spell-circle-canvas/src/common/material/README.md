@@ -32,7 +32,7 @@ OpenColorIO view transforms baked to LUT materials), **sdf** (shape,
 border, glow and shadow in one pass over a signed distance), **pattern**
 (a tile baked once with a mapping and an explicit reseed, and the stock
 tiles over it), and **field** (the halftone ramp, Perlin noise, luminance
-grain, the ripple). The **kit** holds PRESETS — functions that fix
+grain, the ripple, the CRT overlay). The **kit** holds PRESETS — functions that fix
 colours, proportions or a named style over the primitives: the
 metallic-roughness surface and the masks that stack it; gold, chrome
 and glass over a normal map and an environment; the girih panel and its
@@ -56,7 +56,7 @@ each a static archive that links only what sits beneath it:
 | `SigilMaterialColor` | `Color` (header-only, which the core's `Params.h` includes) and `color::` — the OCIO `viewTransform`, `convert`, `exponent` as LUT materials | SigilMaterialTexture; OpenColorIO privately, when found |
 | `SigilMaterialSdf` | `sdf::` — `Shape`, `Style`, `pad`, `material` | SigilMaterialCore |
 | `SigilMaterialPattern` | `pattern::Tile` and the stock tiles | SigilMaterialTexture |
-| `SigilMaterialField` | `field::` — `halftoneRamp`, `noise`, `grain`, `ripple` | SigilMaterialTexture |
+| `SigilMaterialField` | `field::` — `halftoneRamp`, `noise`, `grain`, `ripple`, `crtOverlay` | SigilMaterialTexture |
 | `SigilMaterialSkia` | the SkSL compiler and `SkiaProgram`, whose builder uploads resolved bytes; `skia::builder` and `skia::shader` binding leaves into slots; `skia::fill` | SigilMaterialTexture |
 | `SigilMaterialKit` | the presets: the metallic-roughness `kit::surface` and `kit::unlit` and the masks that stack them; `kit::gold`, `kit::chrome`, `kit::glass`; `kit::girih8` and its palettes; the gel and chrome tables; the text paints and chrome-type ramps | SigilMaterialPattern, SigilMaterialColor |
 
@@ -422,7 +422,9 @@ reads the resolution; `noise` is Skia's Perlin generator behind a
 pass-through recipe, so it fills a slot and compares by its parameters;
 `grain` is value-noise fBm collapsed to one channel, one recipe per
 octave count because the count is a constant in the body; `ripple`
-resamples its `content` child through a sine displacement.
+resamples its `content` child through a sine displacement; `crtOverlay`
+is the tube laid over a picture — hard scanlines and a corner falloff, in
+black, with the alpha carrying both — and reads the resolution.
 
 ## Boundaries
 

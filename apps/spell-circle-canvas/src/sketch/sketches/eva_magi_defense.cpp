@@ -150,11 +150,11 @@
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkPathUtils.h>
 #include <include/core/SkTypeface.h>
-#include <include/effects/SkRuntimeEffect.h>
 #include <sigilcompose/brush/Brushes.h>
 #include <sigilcompose/core/Feed.h>
 #include <sigilcompose/core/Material.h>
 #include <sigilcompose/kit/Strokes.h>
+#include <sigilmaterial/field/Field.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
@@ -633,23 +633,6 @@ inline Material rampMaterial(float front) {
 // 4% black, a 70%/70% vignette ellipse reaching 40%. Baked once into a texture
 // and crept by a bound translateY — no per-frame shader anywhere.
 
-inline sk_sp<SkRuntimeEffect> crtEffect() {
-  static sk_sp<SkRuntimeEffect> fx = [] {
-    auto [effect, err] = SkRuntimeEffect::MakeForShader(SkString(
-        "uniform float2 uResolution;\n"
-        "half4 main(float2 xy) {\n"
-        "  float line = mod(xy.y, 4.0) < 2.0 ? 0.052 : 0.0;\n"
-        "  float2 p = (xy / max(uResolution, float2(1.0)) - 0.5) * 2.0;\n"
-        "  float r = length(p / 0.70);\n"
-        "  float vig = smoothstep(1.45, 2.15, r) * 0.34;\n"
-        "  float a = clamp(line + vig, 0.0, 1.0);\n"
-        "  return half4(0.0, 0.0, 0.0, half(a));\n}\n"));
-    if (!effect) SkDebugf("eva crt shader: %s\n", err.c_str());
-    return effect;
-  }();
-  return fx;
-}
-
 // ---------------------------------------------------------------------------
 
 /** A quarter-turn defeats Cache::Texture (see art()); everything else bakes. */
@@ -943,7 +926,7 @@ struct EvaMagiDefense : sketch::Sketch {
     root.child(camera(collapsingLayer(1)));
 
     // the photographed CRT: scanlines + vignette baked once, crept
-    Material crt = Material::sksl(crtEffect());
+    Material crt = Material::recipe(sigil::material::field::crtOverlay());
     root.child(box()
                    .left(0)
                    .top(-8)

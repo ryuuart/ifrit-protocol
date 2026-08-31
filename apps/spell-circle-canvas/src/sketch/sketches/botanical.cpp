@@ -9,6 +9,7 @@
 #include <include/core/SkMaskFilter.h>
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/kit/Ornament.h>
+#include <sigilcompose/typography/Typography.h>
 #include <sigilsketch/canvas/Sketch.h>
 
 #include <cmath>
@@ -24,12 +25,6 @@ using namespace sigil::compose::kit::ornament;
 namespace {
 /** A text style at one size and colour — the two things every label in
  *  this piece varies. */
-sigil::weave::TextStyle styleAt(float size, SkColor color = SK_ColorWHITE) {
-  sigil::weave::TextStyle style;
-  style.shaping.fontSize = size;
-  style.paint.foreground.setColor(color);
-  return style;
-}
 
 // The generic RPG HUD that used to live here was replaced by
 // ScenesVeloren.h, which takes its dimensions and palette out of a
@@ -159,9 +154,9 @@ struct Botanical final : sketch::Sketch {
                  drawBranch(c, rng2, {680, 490}, -1.72f, 78, 5);
                }).inset(0))
         .child(std::move(field))
-        .child(
-            text(u8"seeded regrowth every few seconds", styleAt(15, 0xfff6e7d8))
-                .inset(24, 20, 24, 590));
+        .child(text(u8"seeded regrowth every few seconds",
+                    type({.size = 15, .color = hex(0xf6e7d8)}))
+                   .inset(24, 20, 24, 590));
   }
 
   void setup(sketch::SketchContext& ctx) override {

@@ -31,6 +31,7 @@
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilcompose/core/Material.h>
+#include <sigilcompose/typography/Typography.h>
 #include <sigilsketch/canvas/Sketch.h>
 
 #include <cmath>
@@ -45,14 +46,6 @@ constexpr float kPanel = 240.0f;
 constexpr float kMaxSigma = 14.0f;  // the map's 1.0 end, in px of sigma
 constexpr float kFocal = 0.42f;     // panel 2's sharp line, 0..1 down the box
 constexpr double kRackHz = 0.18;    // panel 4's breathing rate
-
-sigil::weave::TextStyle type(float size, SkColor4f color) {
-  sigil::weave::TextStyle style;
-  style.shaping.fontSize = size;
-  style.paint.foreground.setColor4f(color, nullptr);
-  style.paint.foreground.setAntiAlias(true);
-  return style;
-}
 
 const SkColor4f kInk{0.92f, 0.94f, 0.98f, 1};
 const SkColor4f kDim{0.56f, 0.61f, 0.72f, 1};
@@ -113,9 +106,9 @@ Element panel(const char* title, const char* note, Effect e,
       .width(kPanel)
       .column()
       .gap(6)
-      .child(text(toU8(title), type(13, kInk)))
+      .child(text(toU8(title), type({.size = 13, .color = kInk})))
       .child(subject().key(std::move(key)).effect(std::move(e)))
-      .child(text(toU8(note), type(11, kDim)));
+      .child(text(toU8(note), type({.size = 11, .color = kDim})));
 }
 
 }  // namespace
@@ -127,7 +120,7 @@ struct BlurFalloff : sketch::Sketch {
     return stack()
         .child(text(toU8("Effect::blur(Material sigmaMap, float maxSigma) "
                          "\xc2\xb7 one effect, four falloffs"),
-                    type(15, kInk))
+                    type({.size = 15, .color = kInk}))
                    .left(30)
                    .top(16))
         .child(box()
@@ -154,7 +147,7 @@ struct BlurFalloff : sketch::Sketch {
         .child(text(toU8("the parameter is a Material, so it prunes, it "
                          "animates on the one uniform channel, and its unit "
                          "square is whatever box the layout decided"),
-                    type(11, kDim))
+                    type({.size = 11, .color = kDim}))
                    .left(30)
                    .bottom(14));
   }

@@ -78,6 +78,10 @@ constexpr SkColor4f kBone{0.940f, 0.910f, 0.860f, 1};
 constexpr SkColor4f kAsh{0.600f, 0.575f, 0.640f, 1};
 constexpr SkColor4f kVoid{0.016f, 0.012f, 0.024f, 1};  // letterbox
 
+/** This study's type colour reaches the paint as 8-bit sRGB, so a tint
+ *  computed per frame lands on the same 256-step ladder as a quoted one.
+ *  `compose::type` carries the float through instead, and the device
+ *  raster resolves the two differently. */
 inline sigil::weave::TextStyle type(float size, SkColor4f color,
                                     float tracking = 0) {
   sigil::weave::TextStyle s;

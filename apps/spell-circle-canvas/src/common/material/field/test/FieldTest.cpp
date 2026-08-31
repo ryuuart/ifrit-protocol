@@ -1,7 +1,8 @@
 /** @file
  * The fields: the halftone ramp swells downward and its band remaps,
  * grain is monochrome and varies, noise compares by its parameters and
- * shades, and a ripple displaces the content it is handed.
+ * shades, a ripple displaces the content it is handed, and the CRT
+ * overlay stripes and vignettes in alpha alone.
  */
 
 #include <gtest/gtest.h>
@@ -98,4 +99,33 @@ TEST(Field, RippleDisplacesTheContent) {
   }
   EXPECT_NE(firstRow[0], firstRow[1]);
   EXPECT_EQ(r, r);
+}
+
+TEST(Field, CrtOverlayStripesEveryOtherHalfPitchAndDarkensTheCorners) {
+  const Material crt = field::crtOverlay();
+  EXPECT_TRUE(crt.geometryDependent());
+  const SkBitmap bm = render(crt, 128, 128);
+  // Black at every pixel; the whole picture is in the alpha.
+  EXPECT_EQ(SkColorGetR(bm.getColor(64, 64)), 0u);
+  // The default pitch is 4 px with the first half dark, so rows 0 and 1
+  // carry the scanline and rows 2 and 3 do not.
+  const unsigned lit = SkColorGetA(bm.getColor(64, 2));
+  const unsigned dark = SkColorGetA(bm.getColor(64, 0));
+  EXPECT_GT(dark, lit);
+  EXPECT_EQ(SkColorGetA(bm.getColor(64, 1)), dark);
+  EXPECT_EQ(SkColorGetA(bm.getColor(64, 3)), lit);
+  // The corner falloff: a corner is further out than the centre row.
+  EXPECT_GT(SkColorGetA(bm.getColor(1, 1)), SkColorGetA(bm.getColor(64, 64)));
+}
+
+TEST(Field, CrtOverlayScanStrengthAndVignetteAreTheCallersNumbers) {
+  const SkBitmap none =
+      render(field::crtOverlay(4.0f, 0.0f, 1.45f, 2.15f, 0.0f), 64, 64);
+  // Every parameter off: the overlay is fully transparent and changes
+  // nothing about what it sits over.
+  for (int y = 0; y < 4; ++y) EXPECT_EQ(SkColorGetA(none.getColor(32, y)), 0u);
+  const SkBitmap strong =
+      render(field::crtOverlay(4.0f, 0.5f, 1.45f, 2.15f, 0.0f), 64, 64);
+  EXPECT_GT(SkColorGetA(strong.getColor(32, 0)), 100u);
+  EXPECT_EQ(SkColorGetA(strong.getColor(32, 2)), 0u);
 }

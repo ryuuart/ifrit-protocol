@@ -2009,13 +2009,22 @@ struct HitmanVerlet : sketch::Sketch {
     std::snprintf(buf, sizeof buf,
                   "24 sticks: instances()+sizes() %.0f \xc2\xb5s  \xc2\xb7  "
                   "custom()+paintOn %.0f \xc2\xb5s",
-                  instUs, customUs);
+                  // The two numbers on this canvas that measure the host
+                  // rather than the physics, so they differ between two
+                  // renders of the same frame. Pinned when the host is
+                  // capturing for a diff, which is what makes the still
+                  // comparable byte for byte.
+                  deterministic_ ? 0.0 : instUs,
+                  deterministic_ ? 0.0 : customUs);
     return t(buf, mono(7.0f, kTick, 0.2f));
   }
 
   // =========================================================================
 
+  bool deterministic_ = false;  // pin what this study timed about itself
+
   void setup(sketch::SketchContext& ctx) override {
+    deterministic_ = ctx.deterministic;
     ctx.canvas((int)kCanvasW, (int)kCanvasH);
     ctx.background(kInk);
     // This study brings its own canvas, background and capture instant

@@ -109,6 +109,7 @@
 #include <sigilcompose/core/Material.h>
 #include <sigilcompose/core/Patterns.h>
 #include <sigilcompose/shape/Shapes.h>
+#include <sigilcompose/typography/Typography.h>
 #include <sigilsketch/canvas/Sketch.h>
 
 #include <algorithm>
@@ -671,15 +672,6 @@ inline double triArea(const Tri& t) {
 
 // ---------------------------------------------------------------------------
 
-sigil::weave::TextStyle type(float size, SkColor4f color, float tracking) {
-  sigil::weave::TextStyle s;
-  s.shaping.fontSize = size;
-  s.shaping.letterSpacing = tracking;
-  s.paint.foreground.setColor(color.toSkColor());
-  s.paint.foreground.setAntiAlias(true);
-  return s;
-}
-
 }  // namespace
 
 // ===========================================================================
@@ -926,12 +918,13 @@ struct PenrosePaving : sketch::Sketch {
         .stroke(stroke(1.0f, Fill::color(rgb(0x5E6163, 0.55f)),
                        PathFormat::Align::Inner))
         .background(styles::dropShadow(rgb(0x000000, 0.55f), {0, 6}, 22))
-        .child(text(toU8("DEFLATION \xc2\xb7 FAT \xe2\x86\x92 2 FAT + 1 THIN, "
-                         "\xc3\x97"
-                         "1/\xcf\x86"),
-                    type(10.5f, rgb(0x8E9295), 1.0f))
-                   .left(14)
-                   .top(12))
+        .child(
+            text(toU8("DEFLATION \xc2\xb7 FAT \xe2\x86\x92 2 FAT + 1 THIN, "
+                      "\xc3\x97"
+                      "1/\xcf\x86"),
+                 type({.size = 10.5f, .color = rgb(0x8E9295), .track = 1.0f}))
+                .left(14)
+                .top(12))
         .child(box().left(10).top(34).width(kDiagW).height(kDiagH).child(
             slot("deflate")));
   }
@@ -1038,23 +1031,27 @@ struct PenrosePaving : sketch::Sketch {
                                   PathFormat::Align::Inner))
                    .background(
                        styles::dropShadow(rgb(0x000000, 0.5f), {0, 5}, 18)))
-        .child(text(toU8("PENROSE TILING \xc2\xb7 P3 RHOMBI \xc2\xb7 ROYAL "
-                         "WHITE & KOBRA GREY GRANITE \xc2\xb7 POLISHED 30 mm "
-                         "STAINLESS INSERTS"),
-                    type(13.0f, rgb(0xDCE0E2), 1.9f))
-                   .left(76)
-                   .top(1100)
-                   .opacity(1.0f))
-        .child(text(toU8("MATHEMATICAL INSTITUTE, ANDREW WILES BUILDING, "
-                         "OXFORD \xc2\xb7 R. PENROSE 1974 / PAVING 2012"),
-                    type(11.5f, rgb(0xA9AEB1), 1.5f))
-                   .left(76)
-                   .top(1126)
-                   .opacity(1.0f))
-        .child(text(toU8(spec), type(10.5f, rgb(0x8E9598), 1.3f))
-                   .left(76)
-                   .top(1152)
-                   .opacity(1.0f));
+        .child(
+            text(toU8("PENROSE TILING \xc2\xb7 P3 RHOMBI \xc2\xb7 ROYAL "
+                      "WHITE & KOBRA GREY GRANITE \xc2\xb7 POLISHED 30 mm "
+                      "STAINLESS INSERTS"),
+                 type({.size = 13.0f, .color = rgb(0xDCE0E2), .track = 1.9f}))
+                .left(76)
+                .top(1100)
+                .opacity(1.0f))
+        .child(
+            text(toU8("MATHEMATICAL INSTITUTE, ANDREW WILES BUILDING, "
+                      "OXFORD \xc2\xb7 R. PENROSE 1974 / PAVING 2012"),
+                 type({.size = 11.5f, .color = rgb(0xA9AEB1), .track = 1.5f}))
+                .left(76)
+                .top(1126)
+                .opacity(1.0f))
+        .child(
+            text(toU8(spec),
+                 type({.size = 10.5f, .color = rgb(0x8E9598), .track = 1.3f}))
+                .left(76)
+                .top(1152)
+                .opacity(1.0f));
   }
 
   // -------------------------------------------------------------------------

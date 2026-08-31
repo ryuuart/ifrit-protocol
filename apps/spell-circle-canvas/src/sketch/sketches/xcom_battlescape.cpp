@@ -821,8 +821,10 @@ inline Element pixelTextEl(const PixelText& t, float x, float y) {
 // BattlescapeState.cpp:86-161. iconsWidth 320, iconsHeight 56, so
 // visibleMapHeight = 144 and the panel is (0,144)-(320,200).
 
+/** Absolute placement in the GAME'S OWN 320x200 pixels, scaled to canvas
+ *  px on the way through. */
 inline Element at(float x, float y, float w, float h) {
-  return box().left(n(x)).top(n(y)).width(n(w)).height(n(h));
+  return kit::at(n(x), n(y), n(w), n(h));
 }
 
 /** A 32x16 button plate: rounded by RUN LENGTH, not by a corner radius. A

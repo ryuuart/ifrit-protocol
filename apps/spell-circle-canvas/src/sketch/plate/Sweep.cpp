@@ -165,7 +165,16 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
       if (timingJson) std::fclose(timingJson);
       return 1;
     }
-    std::unique_ptr<Session> session = kind->open(fonts, assets);
+    // EVERY headless run writes a plate, and a plate is a picture that
+    // will be diffed, so the session is opened with anything the sketch
+    // measured about its own execution PINNED — a build time, a bake
+    // cost, a live node count would otherwise differ from ITSELF between
+    // two runs of one binary and the sweep would report a mover for a
+    // change that moved nothing. It is not conditional on the ledger
+    // flag because the two modes must photograph the same picture: the
+    // benchmark phases decide how a machine spends its time, never what
+    // the capture contains.
+    std::unique_ptr<Session> session = kind->open(fonts, assets, true);
     if (options.noPromotion) session->setAutoPromotion(false);
     SkDebugf("=== sketch %s\n", entry.name);
 
@@ -275,7 +284,7 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
     // frame the benchmarked sweep captures.
     if (options.ledger && declared <= 0) declared = kCaptureFrame / kRate;
     if (declared > 0) {
-      session = kind->open(fonts, assets);
+      session = kind->open(fonts, assets, true);
       if (options.noPromotion) session->setAutoPromotion(false);
       if (session->canvas().size != size) {
         std::fprintf(stderr,

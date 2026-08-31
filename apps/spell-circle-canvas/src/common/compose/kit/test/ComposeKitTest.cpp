@@ -781,3 +781,66 @@ Fill strokeRed() { return Fill::color({1, 0, 0, 1}); }
 Fill strokeGreen() { return Fill::color({0, 1, 0, 1}); }
 
 }  // namespace
+
+// ---------------------------------------------------------------------------
+// kit/Frame.h — the pinned box.
+//
+// The claim is about where INK LANDS, so these render: restating
+// `left/top/width/height` in the assertion would check the spelling
+// against itself.
+
+TEST(KitAt, PinsInkAtTheAbsoluteRectAndNowhereElse) {
+  StrokeHost host;
+  host.composer.render(box().width(200).height(200).child(
+      kit::at(20, 30, 40, 50).fill(strokeRed())));
+  host.frame();
+  EXPECT_EQ(host.pixel(21, 31), SK_ColorRED);
+  EXPECT_EQ(host.pixel(59, 79), SK_ColorRED);
+  EXPECT_EQ(host.pixel(19, 31), SK_ColorBLACK);
+  EXPECT_EQ(host.pixel(21, 29), SK_ColorBLACK);
+  EXPECT_EQ(host.pixel(61, 81), SK_ColorBLACK);
+}
+
+TEST(KitAt, TheElementOverloadPlacesANodeItDidNotBuild) {
+  StrokeHost host;
+  // The node carries its own paint and knows nothing about the plate; the
+  // plate says where it goes. That split is the overload's whole reason.
+  Element painted = box().fill(strokeGreen());
+  host.composer.render(box().width(200).height(200).child(
+      kit::at(std::move(painted), 100, 10, 30, 20)));
+  host.frame();
+  EXPECT_EQ(host.pixel(101, 11), SK_ColorGREEN);
+  EXPECT_EQ(host.pixel(129, 29), SK_ColorGREEN);
+  EXPECT_EQ(host.pixel(99, 11), SK_ColorBLACK);
+  EXPECT_EQ(host.pixel(131, 31), SK_ColorBLACK);
+}
+
+// ---------------------------------------------------------------------------
+// kit/Sprites.h — the stamp a point sink draws with.
+
+TEST(KitSprites, DotIsOpaqueWhiteAtTheCentreAndClearOutsideTheDisc) {
+  const sk_sp<SkImage> dot = kit::dotSprite();
+  ASSERT_TRUE(dot);
+  EXPECT_EQ(dot->width(), 32);
+  EXPECT_EQ(dot->height(), 32);
+  SkBitmap bm;
+  ASSERT_TRUE(bm.tryAllocPixels(SkImageInfo::MakeN32Premul(32, 32)));
+  ASSERT_TRUE(dot->readPixels(nullptr, bm.pixmap(), 0, 0));
+  EXPECT_EQ(bm.getColor(16, 16), SK_ColorWHITE);
+  EXPECT_EQ(SkColorGetA(bm.getColor(0, 0)), 0u);
+  // The margin is the point: the last row of the image is clear, so the
+  // antialiased edge is inside the stamp rather than cut off by it.
+  for (int x = 0; x < 32; ++x) EXPECT_EQ(SkColorGetA(bm.getColor(x, 31)), 0u);
+}
+
+TEST(KitSprites, MarginAndSizeAreTheCallersNumbers) {
+  const sk_sp<SkImage> dot = kit::dotSprite(64, 0.0f);
+  ASSERT_TRUE(dot);
+  EXPECT_EQ(dot->width(), 64);
+  SkBitmap bm;
+  ASSERT_TRUE(bm.tryAllocPixels(SkImageInfo::MakeN32Premul(64, 64)));
+  ASSERT_TRUE(dot->readPixels(nullptr, bm.pixmap(), 0, 0));
+  // With no margin the disc reaches the edge, which is exactly the
+  // clipped edge the default avoids.
+  EXPECT_GT(SkColorGetA(bm.getColor(32, 63)), 0u);
+}

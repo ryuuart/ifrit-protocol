@@ -28,6 +28,7 @@
 // at 60 Hz, never the theme.
 
 #include <sigilcompose/core/Feed.h>
+#include <sigilcompose/typography/Typography.h>
 #include <sigilsketch/canvas/Sketch.h>
 
 #include <string>
@@ -65,14 +66,6 @@ const Palette kInner{"inner (shadowing)",
 
 constexpr int kLevels = 4;  // containers between Provide and the read
 
-sigil::weave::TextStyle type(float size, SkColor4f color) {
-  sigil::weave::TextStyle style;
-  style.shaping.fontSize = size;
-  style.paint.foreground.setColor4f(color, nullptr);
-  style.paint.foreground.setAntiAlias(true);
-  return style;
-}
-
 const SkColor4f kInk{0.90f, 0.93f, 0.97f, 1};
 const SkColor4f kDim{0.55f, 0.60f, 0.70f, 1};
 const SkColor4f kFrame{0.20f, 0.24f, 0.32f, 1};
@@ -91,7 +84,7 @@ Element chip(const char* label) {
       .stroke(stroke(1.2f, Fill::color(c.accent)))
       .alignItems(Align::Center)
       .justify(Justify::Center)
-      .child(text(toU8(label), type(11, c.ink)));
+      .child(text(toU8(label), type({.size = 11, .color = c.ink})));
 }
 
 /** `kLevels` plain containers, none of which knows a Palette exists. */
@@ -113,7 +106,7 @@ Element boundLine() {
   return text(
       toU8(have ? std::string("env::bound<Palette>() true \xc2\xb7 ") + c.name
                 : std::string("env::bound<Palette>() FALSE")),
-      type(11, have ? c.accent : kDim));
+      type({.size = 11, .color = have ? c.accent : kDim}));
 }
 
 // -------------------------------------------------------------- the library
@@ -123,9 +116,9 @@ Element boundLine() {
 
 feed::TextOptions feedOptions(const Palette& c) {
   feed::TextOptions options;
-  options.styles.base(type(11, c.ink))
-      .set("accent", type(11, c.accent))
-      .set("dim", type(11, kDim));
+  options.styles.base(type({.size = 11, .color = c.ink}))
+      .set("accent", type({.size = 11, .color = c.accent}))
+      .set("dim", type({.size = 11, .color = kDim}));
   options.window.gap = 3;
   options.window.visible = 5;
   return options;
@@ -136,8 +129,8 @@ Element panelColumn(const char* heading, const char* note, Element body) {
       .width(340)
       .column()
       .gap(10)
-      .child(text(toU8(heading), type(14, kInk)))
-      .child(text(toU8(note), type(11, kDim)))
+      .child(text(toU8(heading), type({.size = 14, .color = kInk})))
+      .child(text(toU8(note), type({.size = 11, .color = kDim})))
       .child(std::move(body));
 }
 
@@ -152,7 +145,7 @@ Element themedBody(const feed::TextRing& ring) {
       .child(handedNothing(kLevels))
       .child(boundLine())
       .child(text(toU8("feed::feed(ring) \xc2\xb7 no options argument"),
-                  type(10, kDim)))
+                  type({.size = 10, .color = kDim})))
       .child(feed::feed(ring));
 }
 
@@ -206,8 +199,8 @@ struct EnvTheme : sketch::Sketch {
           .stroke(stroke(1.0f, Fill::color(kFrame)))
           .child(std::move(top))
           .child(std::move(inner))
-          .child(
-              text(toU8("…and back OUT of the inner scope:"), type(10, kDim)))
+          .child(text(toU8("…and back OUT of the inner scope:"),
+                      type({.size = 10, .color = kDim})))
           .child(handedNothing(kLevels))
           .child(feed::feed(ring));
     }();
@@ -216,7 +209,7 @@ struct EnvTheme : sketch::Sketch {
         stack()
             .child(text(toU8("env::Provide<T> / env::inherited<T>() \xc2\xb7 "
                              "read where a component is COMPOSED"),
-                        type(15, kInk))
+                        type({.size = 15, .color = kInk}))
                        .left(30)
                        .top(16))
             .child(
@@ -238,7 +231,7 @@ struct EnvTheme : sketch::Sketch {
             .child(text(toU8("bindings are keyed by C++ TYPE \xc2\xb7 there "
                              "is no library-wide Theme \xc2\xb7 a callable "
                              "the KERNEL invokes sees no scope"),
-                        type(11, kDim))
+                        type({.size = 11, .color = kDim}))
                        .left(30)
                        .bottom(14)));
   }

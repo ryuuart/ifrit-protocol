@@ -20,6 +20,7 @@ add_library(SigilComposeKit STATIC
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/kit/Instruments.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/kit/Kit.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/kit/PixelType.h
+  ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/kit/Sprites.h
 )
 
 target_compile_features(SigilComposeKit PUBLIC cxx_std_20)

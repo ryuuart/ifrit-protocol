@@ -148,9 +148,8 @@ void Host::openSession(const Kind& kind) {
   if (!kind) return;
   {
     PhaseMark mark(Phase::Setup);
-    m_session = kind->open(m_fonts, m_assets);
+    m_session = kind->open(m_fonts, m_assets, m_options.deterministic);
   }
-  if (m_session) m_session->setDeterministic(m_options.deterministic);
   m_workMs.clear();  // fresh sketch, fresh numbers
 }
 

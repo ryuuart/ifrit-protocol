@@ -23,7 +23,8 @@
 //   kTwistDeg  — panel 3's amount.
 
 #include <include/core/SkCanvas.h>
-#include <include/core/SkSurface.h>
+#include <sigilcompose/kit/Sprites.h>
+#include <sigilcompose/typography/Typography.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/codec/Decode.h>
 #include <sigilgeometry/mesh/pop/Points.h>
@@ -47,14 +48,6 @@ constexpr float kRingRadius = 120.0f;
 constexpr float kRingWidth = 34.0f;
 constexpr float kTwistDeg = 70.0f;
 constexpr float kPanel = 360.0f;
-
-sigil::weave::TextStyle type(float size, SkColor4f color) {
-  sigil::weave::TextStyle style;
-  style.shaping.fontSize = size;
-  style.paint.foreground.setColor4f(color, nullptr);
-  style.paint.foreground.setAntiAlias(true);
-  return style;
-}
 
 const SkColor4f kInk{0.90f, 0.93f, 0.97f, 1};
 const SkColor4f kDim{0.55f, 0.60f, 0.70f, 1};
@@ -131,17 +124,9 @@ geometry::mesh::camera::Camera lookDown() {
   return camera;
 }
 
+/** The point stamp, baked once for the process. */
 const sk_sp<SkImage>& disc() {
-  static const sk_sp<SkImage> img = [] {
-    sk_sp<SkSurface> s = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(32, 32));
-    SkCanvas* c = s->getCanvas();
-    c->clear(SK_ColorTRANSPARENT);
-    SkPaint p;
-    p.setAntiAlias(true);
-    p.setColor(SK_ColorWHITE);
-    c->drawCircle(16, 16, 14, p);
-    return s->makeImageSnapshot();
-  }();
+  static const sk_sp<SkImage> img = kit::dotSprite();
   return img;
 }
 
@@ -167,14 +152,14 @@ Element panel(const char* title, const char* note, Element inner) {
       .width(kPanel)
       .column()
       .gap(5)
-      .child(text(toU8(title), type(12.5f, kInk)))
+      .child(text(toU8(title), type({.size = 12.5f, .color = kInk})))
       .child(box()
                  .width(kPanel)
                  .height(kPanel * 0.8f)
                  .clip()
                  .stroke(stroke(1.0f, Fill::color(kFrame)))
                  .child(std::move(inner)))
-      .child(text(toU8(note), type(10.5f, kDim)));
+      .child(text(toU8(note), type({.size = 10.5f, .color = kDim})));
 }
 
 // a literal table; only allocation could throw
@@ -198,7 +183,9 @@ struct GeoGroups : sketch::Sketch {
                                              "grid.geo");
     if (!model || model->parts.empty()) {
       caption = "the .geo did not parse";
-      ctx.composer.render(text(toU8(caption), type(15, kInk)).left(30).top(16));
+      ctx.composer.render(text(toU8(caption), type({.size = 15, .color = kInk}))
+                              .left(30)
+                              .top(16));
       return;
     }
     // asCloud(): positions, "normal" from N, "tint" from Cd, and every
@@ -238,7 +225,7 @@ struct GeoGroups : sketch::Sketch {
                              "group is a pop mask the moment it lands "
                              "\xe2\x80\x94 " +
                              caption),
-                        type(15, kInk))
+                        type({.size = 15, .color = kInk}))
                        .left(30)
                        .top(16))
             .child(
@@ -258,7 +245,7 @@ struct GeoGroups : sketch::Sketch {
             .child(text(toU8("PointSet seeds the same chain on SigilWorld's "
                              "GPU executor: the file's lanes are the arena's "
                              "first upload"),
-                        type(11, kDim))
+                        type({.size = 11, .color = kDim}))
                        .left(30)
                        .bottom(14)));
   }

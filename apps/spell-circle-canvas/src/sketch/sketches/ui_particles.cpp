@@ -25,6 +25,7 @@
 #include <sigilcompose/instances/Instances.h>
 #include <sigilcompose/kit/Flourish.h>
 #include <sigilcompose/kit/Ornament.h>
+#include <sigilcompose/typography/Typography.h>
 #include <sigilsketch/canvas/Sketch.h>
 
 #include <cmath>
@@ -43,12 +44,6 @@ using namespace sigil::compose::kit::flourish;
 namespace {
 /** A text style at one size and colour — the two things every label in
  *  this piece varies. */
-sigil::weave::TextStyle styleAt(float size, SkColor color = SK_ColorWHITE) {
-  sigil::weave::TextStyle style;
-  style.shaping.fontSize = size;
-  style.paint.foreground.setColor(color);
-  return style;
-}
 
 /** The canvas this piece was drawn against, which is also the default a
  *  sketch gets when it declares none. */
@@ -117,7 +112,6 @@ struct UiParticles final : sketch::Sketch {
     return {hsv(hueDegrees, 0.62f, 0.94f), hsv(hueDegrees, 0.80f, 0.45f),
             darkInk ? hsv(hueDegrees, 0.85f, 0.22f) : SkColor4f{1, 1, 1, 1}};
   }
-  static SkColor ink(const ChipTheme& t) { return t.ink.toSkColor(); }
 
   Element pill(const ChipTheme& t, std::u8string label) {
     return box()
@@ -128,7 +122,7 @@ struct UiParticles final : sketch::Sketch {
         .foreground(sigil::compose::stroke(2, Fill::color(t.edge)))
         .alignItems(Align::Center)
         .justify(Justify::Center)
-        .child(text(std::move(label), styleAt(15, ink(t))));
+        .child(text(std::move(label), type({.size = 15, .color = t.ink})));
   }
   Element shout(const ChipTheme& t, std::u8string label, int spikes) {
     return box()
@@ -141,7 +135,7 @@ struct UiParticles final : sketch::Sketch {
         .foreground(sigil::compose::stroke(2, Fill::color(t.edge)))
         .alignItems(Align::Center)
         .justify(Justify::Center)
-        .child(text(std::move(label), styleAt(13, ink(t))));
+        .child(text(std::move(label), type({.size = 13, .color = t.ink})));
   }
   Element seal(const ChipTheme& t, std::u8string label, float lobe) {
     return box()
@@ -152,7 +146,7 @@ struct UiParticles final : sketch::Sketch {
         .foreground(sigil::compose::stroke(2, Fill::color(t.edge)))
         .alignItems(Align::Center)
         .justify(Justify::Center)
-        .child(text(std::move(label), styleAt(13, ink(t))));
+        .child(text(std::move(label), type({.size = 13, .color = t.ink})));
   }
   Element framed(const Palette& pal, std::u8string label) {
     return box()
@@ -162,7 +156,7 @@ struct UiParticles final : sketch::Sketch {
             sigil::image::ImageAsset::wrap(makeCarvedFrame(pal, 96)))))
         .alignItems(Align::Center)
         .justify(Justify::Center)
-        .child(text(std::move(label), styleAt(15, pal.ink.toSkColor())));
+        .child(text(std::move(label), type({.size = 15, .color = pal.ink})));
   }
   Element note(const ChipTheme& t, std::u8string line1, std::u8string line2) {
     PathFormat dashed;
@@ -182,8 +176,8 @@ struct UiParticles final : sketch::Sketch {
         .column()
         .gap(2)
         .padding(6)
-        .child(text(std::move(line1), styleAt(12, ink(t))))
-        .child(text(std::move(line2), styleAt(10, t.edge.toSkColor())));
+        .child(text(std::move(line1), type({.size = 12, .color = t.ink})))
+        .child(text(std::move(line2), type({.size = 10, .color = t.edge})));
   }
 
   void buildChipAtlas() {
@@ -251,10 +245,12 @@ struct UiParticles final : sketch::Sketch {
   Element flourishPost(const PostConfig& cfg) {
     FlourishStyle s;  // gilt-on-parchment
     return flourishCard(s, kPostW - 6, kPostH - 6)
-        .child(text(cfg.title, styleAt(15, toSk(s.ink))))
-        .child(text(cfg.body1, styleAt(10.5f, toSk(s.ink))))
-        .child(text(cfg.body2, styleAt(10.5f, toSk({s.bronze.fR, s.bronze.fG,
-                                                    s.bronze.fB, 1}))));
+        .child(text(cfg.title, type({.size = 15, .color = s.ink})))
+        .child(text(cfg.body1, type({.size = 10.5f, .color = s.ink})))
+        .child(
+            text(cfg.body2, type({.size = 10.5f,
+                                  .color = SkColor4f{s.bronze.fR, s.bronze.fG,
+                                                     s.bronze.fB, 1}})));
   }
   Element carvedPost(const PostConfig& cfg) {
     const Palette pals[4] = {oakPalette(), azurePalette(), crimsonPalette(),
@@ -268,9 +264,9 @@ struct UiParticles final : sketch::Sketch {
         .column()
         .padding(30, 26)
         .gap(5)
-        .child(text(cfg.title, styleAt(15, pal.stem.toSkColor())))
-        .child(text(cfg.body1, styleAt(10.5f, pal.ink.toSkColor())))
-        .child(text(cfg.body2, styleAt(10.5f, pal.ink.toSkColor())));
+        .child(text(cfg.title, type({.size = 15, .color = pal.stem})))
+        .child(text(cfg.body1, type({.size = 10.5f, .color = pal.ink})))
+        .child(text(cfg.body2, type({.size = 10.5f, .color = pal.ink})));
   }
   Element plainPost(const PostConfig& cfg) {
     // A modern dark UI card — the counterpoint to the ornate borders.
@@ -286,11 +282,11 @@ struct UiParticles final : sketch::Sketch {
         .column()
         .padding(16, 14)
         .gap(6)
-        .child(text(cfg.title, styleAt(15, accent.toSkColor())))
+        .child(text(cfg.title, type({.size = 15, .color = accent})))
         .child(box().width(pct(38)).height(2).corners({1}).fill(
             Fill::color(accent)))
-        .child(text(cfg.body1, styleAt(10.5f, 0xffcdd3df)))
-        .child(text(cfg.body2, styleAt(10.5f, 0xff9aa3b4)));
+        .child(text(cfg.body1, type({.size = 10.5f, .color = hex(0xcdd3df)})))
+        .child(text(cfg.body2, type({.size = 10.5f, .color = hex(0x9aa3b4)})));
   }
 
   Element postVariant(const PostConfig& cfg) {
@@ -432,7 +428,7 @@ struct UiParticles final : sketch::Sketch {
             .child(text(u8"UI as particles — 820 chips + 30 multi-paragraph "
                         u8"posts (flourish, carved & plain borders), each tier "
                         u8"one instances() stamp over an EnTT SoA registry",
-                        styleAt(16, 0xffdde4f2))
+                        type({.size = 16, .color = hex(0xdde4f2)}))
                        .inset(24, 24, 24, 590)
                        .zIndex(1)));
   }

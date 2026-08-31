@@ -78,6 +78,35 @@ Material grain(float frequency, int octaves = 4, float seed = 1.0f,
  *  count is a constant in the body, so each count is its own program. */
 const std::shared_ptr<const Recipe>& grainRecipe(int octaves);
 
+/** The tube overlay's ABI. */
+struct CrtOverlayParams {
+  float uScanPitch;     ///< px between scanline centres
+  float uScanStrength;  ///< how dark the dark half of a pitch goes
+  float uVigInner;      ///< normalised radius the corner falloff starts at
+  float uVigOuter;      ///< where it reaches full strength
+  float uVigStrength;
+  float uSqueeze;  ///< < 1 pulls the falloff in along the short axis
+};
+
+/** THE TUBE, as something laid OVER a picture: hard scanlines and a
+ *  corner falloff, in black, with the alpha carrying both. It darkens
+ *  what is under it rather than shading anything itself, so it is drawn
+ *  as the last layer over the frame it ages.
+ *
+ *  @p scanPitch is the full period in px and the darker half is the first
+ *  half of it, which is what makes the lines hard-edged rather than a
+ *  raised-cosine beam. @p squeeze is applied to the normalised
+ *  coordinate before the radius is taken, so a value under 1 makes the
+ *  falloff reach in from the sides sooner than from the top.
+ *
+ *  Reads the resolution. Every parameter is a uniform; the defaults are a
+ *  monitor seen straight on with the lines just visible. */
+Material crtOverlay(float scanPitch = 4.0f, float scanStrength = 0.052f,
+                    float vigInner = 1.45f, float vigOuter = 2.15f,
+                    float vigStrength = 0.34f, float squeeze = 0.70f);
+/** crtOverlay()'s recipe, defined once. */
+const std::shared_ptr<const Recipe>& crtOverlayRecipe();
+
 /** The ripple's ABI. */
 struct RippleParams {
   float uAmp;

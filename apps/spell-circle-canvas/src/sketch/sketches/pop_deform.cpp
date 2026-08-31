@@ -22,7 +22,8 @@
 //                    only the selected band twists, tapers and bends.
 
 #include <include/core/SkCanvas.h>
-#include <include/core/SkSurface.h>
+#include <sigilcompose/kit/Sprites.h>
+#include <sigilcompose/typography/Typography.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/pop/Points.h>
 #include <sigilgeometry/mesh/pop/Pop.h>
@@ -47,14 +48,6 @@ constexpr bool kMaskDeformers = false;
 constexpr float kPanel = 180.0f;
 constexpr float kHeight = 300.0f;  // the column: y in [-150, 150]
 
-sigil::weave::TextStyle type(float size, SkColor4f color) {
-  sigil::weave::TextStyle style;
-  style.shaping.fontSize = size;
-  style.paint.foreground.setColor4f(color, nullptr);
-  style.paint.foreground.setAntiAlias(true);
-  return style;
-}
-
 const SkColor4f kInk{0.90f, 0.93f, 0.97f, 1};
 const SkColor4f kDim{0.55f, 0.60f, 0.70f, 1};
 const SkColor4f kFrame{0.24f, 0.28f, 0.36f, 1};
@@ -76,17 +69,9 @@ geometry::mesh::camera::Camera lookAtColumn() {
   return camera;
 }
 
+/** The point stamp, baked once for the process. */
 const sk_sp<SkImage>& disc() {
-  static const sk_sp<SkImage> img = [] {
-    sk_sp<SkSurface> s = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(32, 32));
-    SkCanvas* c = s->getCanvas();
-    c->clear(SK_ColorTRANSPARENT);
-    SkPaint p;
-    p.setAntiAlias(true);
-    p.setColor(SK_ColorWHITE);
-    c->drawCircle(16, 16, 14, p);
-    return s->makeImageSnapshot();
-  }();
+  static const sk_sp<SkImage> img = kit::dotSprite();
   return img;
 }
 
@@ -112,14 +97,14 @@ Element panel(const char* title, const char* note, Element inner) {
       .width(kPanel)
       .column()
       .gap(5)
-      .child(text(toU8(title), type(12, kInk)))
+      .child(text(toU8(title), type({.size = 12, .color = kInk})))
       .child(box()
                  .width(kPanel)
                  .height(kPanel * 1.6f)
                  .clip()
                  .stroke(stroke(1.0f, Fill::color(kFrame)))
                  .child(std::move(inner)))
-      .child(text(toU8(note), type(10.5f, kDim)));
+      .child(text(toU8(note), type({.size = 10.5f, .color = kDim})));
 }
 
 /** The shared head of every chain: the column, spread, sized, and a
@@ -182,7 +167,7 @@ struct PopDeform : sketch::Sketch {
             .child(text(toU8("geometry::pop \xc2\xb7 select() writes a mask, "
                              ".masked() takes it, and twist / taper / bend / "
                              "peak deform the same column"),
-                        type(15, kInk))
+                        type({.size = 15, .color = kInk}))
                        .left(30)
                        .top(16))
             .child(
@@ -207,7 +192,7 @@ struct PopDeform : sketch::Sketch {
             .child(text(toU8("every chain here cooks identically on "
                              "SigilWorld's GPU executor \xe2\x80\x94 the "
                              "mask is one more lane in the arena"),
-                        type(11, kDim))
+                        type({.size = 11, .color = kDim}))
                        .left(30)
                        .bottom(14)));
   }

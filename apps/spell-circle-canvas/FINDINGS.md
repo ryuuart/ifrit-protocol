@@ -4,78 +4,61 @@ A work queue. Each entry states what the code does, what it was evidently
 intended to do, and what a test should assert once intent is restored.
 Delete an entry as it is fixed, and delete this file when it is empty.
 
-## The byte-identity sweep renders with measured numbers unpinned
+## A text style helper in a dozen files that the library nearly owns
 
-**What it does.** `sketch::Session::setDeterministic()` exists so a
-sketch can pin anything it measured about its own execution, and
-`SketchContext::measured()` is how a sketch asks. The plate sweep never
-turns it on, so a sketch that draws its own bake time into its own plate
-differs from ITSELF between two runs.
+**What it does.** `compose::type({.face, .size, .color, .track,
+.condense, .weight, .slant})` builds a `weave::TextStyle` out of the
+numbers a call site has. A dozen sketches still carry a local helper that
+does a subset of the same thing — `ty(face, size, colour, track)` with
+`mono()` / `sb()` / `it()` spellings over it in `black_watch` and
+`chevreul_circle`, `type(face, size, colour, track)` in
+`chaucer_astrolabe`, `chladni_tab1`, `genesis_fire`, `psx_doom_fire` and
+`fallout2_charsheet`, and `type(size, colour, track, condense, bold)` in
+`ds2_bench` and `eva_magi_defense`.
 
-**What it was evidently intended to do.** Exactly what the flag says: a
-capture that will be diffed must not carry a number the machine decided.
-`slitscan_2001` reads `ctx.deterministic` and writes
-`deterministic_ ? 0.0 : bakeMs` into its sheet — and `slitscan_2001` is
-one of the three names on the ledger's documented self-nondeterministic
-list. The list and the flag are two answers to one problem, and only one
-of them is a fix.
+**What it was evidently intended to do.** Every one of those is a
+`compose::type` call with `.face` (and, for some, `.condense` or
+`.weight`) filled in. The helpers that took only a size, a colour and a
+tracking have already gone; these are the ones that also resolve a face,
+and the face is the only thing they add.
 
-**Why it is not simply switched on.** Turning it on moves the plates of
-every sketch that measures itself, so the change has to be made together
-with adopting those baselines, and each mover has to be checked to be a
-number rather than a picture.
+**Why it has not moved.** Each of these files names its faces once and
+then spells two or three *named* styles over the helper — `mono`,
+`monoB`, `ui` — and those names are the artefact's own vocabulary rather
+than a mechanism. What should move is the body of the helper, leaving the
+named styles as one `compose::type` call each; that is a per-file edit
+rather than a substitution.
 
-**What a test should assert.** Two ledger renders of `slitscan_2001` in
-two processes hash the same, with no name on a flapper list. Then the
-list is checked again: `genesis_fire` and `hitman_verlet` may be flapping
-for a different reason (both simulate), and if they are, the reason
-belongs in their file headers rather than in a script's table.
+**What a test should assert.** The plate ledger's full tier AND its quick
+tier, byte-identical, per file. Both, because the two disagree about one
+thing that matters here (see the next entry).
 
-## Looks and conveniences duplicated across sketch files
+## A colour quantised to eight bits is invisible on the CPU tier
 
-Each of these is the same code in more than one file, with no library
-home. A sketch is meant to be pure declaration of its scene, so anything
-here that is a LOOK belongs in a kit and anything that is a CONVENIENCE
-belongs wherever its type is spelled. Every move has to be gated on the
-plate ledger per scene, because these all reach the pixels.
+**What it does.** `aero_desktop`, `beethoven`, `kinetic_card`,
+`manuscript`, `motion_poster` and `night_network` each keep a local text
+style helper whose only difference from `compose::type` is that it hands
+the paint an `SkColor` — `color.toSkColor()` — where the library hands it
+an `SkColor4f`. Every one of those files computes at least one type
+colour rather than quoting it, so the round trip lands it on a 256-step
+ladder.
 
-- **`crtEffect()`** — a scanline, vignette and bloom overlay, byte-
-  identical in `eva_magi_defense.cpp` and `eva_magi_interior.cpp`.
-  Nothing in `src/common` draws a CRT. It is a preset: it fixes a look.
-- **`disc()`** — a soft-dot sprite raster, verbatim in `geo_groups.cpp`
-  and `pop_deform.cpp`. A point sink needs a sprite and the library ships
-  none.
-- **`fmt()`** — a printf-into-`std::string` helper, in eight files in two
-  flavours (a variadic template with the `-Wformat-security` pragma pair
-  in four; a `va_list` version with a fixed buffer in four).
-- **`place(Element, x, y, w, h)`** / **`at(x, y, w, h)`** — absolute
-  placement spelled as `box().left().top().width().height()`, in six
-  files. `kit/Frame.h` has `centred()` and `disc()` but nothing for the
-  commonest case of all.
-- **`lift()` / `dark()` / `fade()`** — linear-RGB colour nudges, in up to
-  six files. `sigilmaterial/color/Color.h` has Oklab and the sRGB
-  transfer and nothing between.
+**What it was evidently intended to do.** Nothing states that these
+palettes belong on that ladder; the round trip is what the helper
+happened to be written with. `compose::type` carries the float through,
+and that is the better default.
 
-**What a test should assert.** After each move: the plate ledger's full
-tier, byte-neutral, for every scene that used it.
+**Why it has not moved.** It is a look change, and it is one the CPU tier
+cannot see. Moving all six to `compose::type` leaves the full tier
+byte-identical for all six and moves all six on the quick tier, stably
+and reproducibly: the device raster resolves a float colour differently
+from the same colour rounded to bytes, and the CPU raster does not. So
+this is not a free harvest — it is a deliberate adoption of a slightly
+different colour in six studies, and it wants someone to look at the six
+plates and say yes.
 
-## A text style helper in eight files that the library nearly owns
-
-**What it does.** Eight sketches carry a local `styleAt(size, colour)` or
-`type(size, colour, tracking)`, six of them verbatim.
-`compose::type({.size, .color, .track})` is the same idea with a wider
-surface.
-
-**Why it has not moved.** Two differences reach the pixels, and both are
-in the library's favour rather than the sketch's: `compose::type` sets
-the paint's antialias flag where the local helpers leave Skia's default,
-and it sets the colour as `SkColor4f` where two of the local helpers
-round-trip through `toSkColor()` and quantise it to eight bits per
-channel. Moving them is a look change, small but real.
-
-**What a test should assert.** The plate ledger's full tier for the eight
-scenes, with the movers adopted deliberately and the round-trip
-quantisation gone rather than reproduced.
+**What a test should assert.** After the decision: both tiers, per file,
+with the quick-tier movers adopted deliberately rather than reproduced.
 
 ## The device tier's plates are not reproducible across two executables
 

@@ -201,7 +201,6 @@ constexpr SkColor4f C(uint32_t rgb, float a = 1.0f) noexcept {
           (float)((rgb >> 8u) & 0xffu) / 255.0f, (float)(rgb & 0xffu) / 255.0f,
           a};
 }
-inline SkColor4f fade(SkColor4f c, float a) { return {c.fR, c.fG, c.fB, a}; }
 
 // ---------------------------------------------------------------------------
 // PALETTE. Left column = what the code REQUESTS through _colorTable; right =
@@ -391,9 +390,10 @@ inline Element ink(Element e, float x, float y, float rise) {
   e.left(Dim(n(x))).top(Dim(n(y) - rise));
   return e;
 }
+/** Absolute placement in the SHEET'S OWN pixels — the numbers read off
+ *  the capture — scaled to canvas px on the way through. */
 inline Element at(Element e, float x, float y, float w, float h) {
-  e.left(Dim(n(x))).top(Dim(n(y))).width(Dim(n(w))).height(Dim(n(h)));
-  return e;
+  return kit::at(std::move(e), n(x), n(y), n(w), n(h));
 }
 inline Element atR(Element e, Rect r) {
   return at(std::move(e), r.x, r.y, r.w, r.h);
@@ -999,7 +999,7 @@ struct Fallout2CharSheet : sketch::Sketch {
               .fill(Material::linearUnit(
                   {0, 0}, {0, 1}, {{0.0f, kParchLit2}, {1.0f, C(0x8C6428)}})));
       g.child(
-          at(box(), kPlaqueX - 4, y + 15, 2, 7).fill(fade(kParchLit, 0.85f)));
+          at(box(), kPlaqueX - 4, y + 15, 2, 7).fill(alpha(kParchLit, 0.85f)));
       g.child(bodyAt(descriptor(value), kGreen, kDescX, y + 8));
     }
     return g;
@@ -1179,7 +1179,7 @@ struct Fallout2CharSheet : sketch::Sketch {
       const float x1 = 314 - countW - gap * 2;
       if (x1 > x0)
         g.child(at(box(), x0, y + kRowPitch11 * 0.5f - 1.0f, x1 - x0, 1)
-                    .fill(Fill::color(fade(kGreen, 0.85f))));
+                    .fill(Fill::color(alpha(kGreen, 0.85f))));
     }
 
     // The scroll arrows at x = 317 (characterEditorFolderViewClear).
@@ -1193,7 +1193,7 @@ struct Fallout2CharSheet : sketch::Sketch {
       a.foreground(
           stroke(n(0.8f), Fill::color(C(0x1A1610)), PathFormat::Align::Inner));
       a.child(at(box(), 2, 3, 7, 6)
-                  .fill(Fill::color(fade(kGold, 0.9f)))
+                  .fill(Fill::color(alpha(kGold, 0.9f)))
                   .shape([up](SkSize s) {
                     SkPathBuilder b;
                     if (up) {
@@ -1378,35 +1378,39 @@ struct Fallout2CharSheet : sketch::Sketch {
                 .rotate(-16.0f)
                 .translateX(n(120))
                 .fill(Material::linearUnit({0, 0}, {1, 0},
-                                           {{0.0f, fade(kRust, 0.0f)},
-                                            {0.5f, fade(kRust, 0.16f)},
-                                            {1.0f, fade(kRust, 0.0f)}})));
-    c.child(at(box(), -40, -20, 34, 260)
-                .rotate(9.0f)
-                .translateX(n(232))
-                .fill(Material::linearUnit({0, 0}, {1, 0},
-                                           {{0.0f, fade(C(0x7C581C), 0.0f)},
-                                            {0.5f, fade(C(0x6A4A18), 0.20f)},
-                                            {1.0f, fade(C(0x7C581C), 0.0f)}})));
-    c.child(at(box(), 150, 120, 130, 55)
-                .fill(Material::radialUnit({0.55f, 0.75f}, 1.0f,
-                                           {{0.0f, fade(kParchScuff, 0.30f)},
-                                            {1.0f, fade(kParchScuff, 0.0f)}})));
-    c.child(at(box(), -6, -10, 60, 190)
-                .fill(Material::linearUnit({0, 0}, {1, 0},
-                                           {{0.0f, fade(C(0x5A3C10), 0.28f)},
-                                            {1.0f, fade(C(0x5A3C10), 0.0f)}})));
+                                           {{0.0f, alpha(kRust, 0.0f)},
+                                            {0.5f, alpha(kRust, 0.16f)},
+                                            {1.0f, alpha(kRust, 0.0f)}})));
+    c.child(
+        at(box(), -40, -20, 34, 260)
+            .rotate(9.0f)
+            .translateX(n(232))
+            .fill(Material::linearUnit({0, 0}, {1, 0},
+                                       {{0.0f, alpha(C(0x7C581C), 0.0f)},
+                                        {0.5f, alpha(C(0x6A4A18), 0.20f)},
+                                        {1.0f, alpha(C(0x7C581C), 0.0f)}})));
+    c.child(
+        at(box(), 150, 120, 130, 55)
+            .fill(Material::radialUnit({0.55f, 0.75f}, 1.0f,
+                                       {{0.0f, alpha(kParchScuff, 0.30f)},
+                                        {1.0f, alpha(kParchScuff, 0.0f)}})));
+    c.child(
+        at(box(), -6, -10, 60, 190)
+            .fill(Material::linearUnit({0, 0}, {1, 0},
+                                       {{0.0f, alpha(C(0x5A3C10), 0.28f)},
+                                        {1.0f, alpha(C(0x5A3C10), 0.0f)}})));
     // the scrap's own soiling — kept light: the reference card is bright ochre
     // right into its corners
     c.child(box().inset(0).fill(
         Material::radialUnit({0.46f, 0.42f}, 1.35f,
-                             {{0.0f, fade(C(0x2A1C08), 0.0f)},
-                              {0.70f, fade(C(0x2A1C08), 0.04f)},
-                              {1.0f, fade(C(0x2A1C08), 0.22f)}})));
-    c.child(at(box(), 178, 118, 110, 60)
-                .fill(Material::radialUnit({0.60f, 0.85f}, 1.0f,
-                                           {{0.0f, fade(C(0x3A2A12), 0.18f)},
-                                            {1.0f, fade(C(0x3A2A12), 0.0f)}})));
+                             {{0.0f, alpha(C(0x2A1C08), 0.0f)},
+                              {0.70f, alpha(C(0x2A1C08), 0.04f)},
+                              {1.0f, alpha(C(0x2A1C08), 0.22f)}})));
+    c.child(
+        at(box(), 178, 118, 110, 60)
+            .fill(Material::radialUnit({0.60f, 0.85f}, 1.0f,
+                                       {{0.0f, alpha(C(0x3A2A12), 0.18f)},
+                                        {1.0f, alpha(C(0x3A2A12), 0.0f)}})));
     c.stroke(stroke(n(1.5f), Fill::color(C(0x2A1C08, 0.75f)),
                     PathFormat::Align::Inner));
     c.child(box().inset(0).child(slot("card")));

@@ -93,6 +93,10 @@ inline const std::vector<int>& rings() {
   return table;
 }
 
+/** The plate's type colour reaches the paint as 8-bit sRGB, so a tint
+ *  computed here lands on the same 256-step ladder as the sampled inks.
+ *  `compose::type` carries the float through instead, and the device
+ *  raster resolves the two differently. */
 inline sigil::weave::TextStyle type(float size, SkColor4f color = kInk,
                                     float tracking = 0) {
   sigil::weave::TextStyle s;

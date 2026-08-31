@@ -75,6 +75,7 @@
 #include <sigilcompose/core/Pattern.h>
 #include <sigilcompose/core/Patterns.h>
 #include <sigilcompose/instances/Instances.h>
+#include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/shape/Shapes.h>
 #include <sigilcompose/typography/TextFx.h>
 #include <sigilcore/compute/Noise.h>
@@ -111,14 +112,9 @@ constexpr SkColor4f C(uint32_t rgb, float a = 1.0f) noexcept {
           (float)((rgb >> 8u) & 0xffu) / 255.0f, (float)(rgb & 0xffu) / 255.0f,
           a};
 }
-inline SkColor4f lift(SkColor4f c, float k) {
-  return {std::min(1.0f, c.fR + k), std::min(1.0f, c.fG + k),
-          std::min(1.0f, c.fB + k), c.fA};
-}
-inline SkColor4f dark(SkColor4f c, float k) {
-  return {c.fR * (1 - k), c.fG * (1 - k), c.fB * (1 - k), c.fA};
-}
-inline SkColor4f fade(SkColor4f c, float a) { return {c.fR, c.fG, c.fB, a}; }
+/** The shadow tone: the complement spelling of `mul()`, because a bevel
+ *  is authored as "how much darker" rather than as a surviving fraction. */
+inline SkColor4f dark(SkColor4f c, float k) { return mul(c, 1 - k); }
 
 // ---------------------------------------------------------------------------
 // Palette — sampled from the extracted BMPs, or quoted from the skin's own
@@ -248,8 +244,7 @@ inline Element t(const std::string& s, sigil::weave::TextStyle st) {
 
 /** Absolute placement in NATIVE skin coordinates, local to the window. */
 inline Element at(Element e, float x, float y, float w, float h) {
-  e.left(Dim(n(x))).top(Dim(n(y))).width(Dim(n(w))).height(Dim(n(h)));
-  return e;
+  return kit::at(std::move(e), n(x), n(y), n(w), n(h));
 }
 
 /** The raised bevel: 1 native px light top/left, 1 native px dark
@@ -267,7 +262,7 @@ inline Element& raised(Element& e, SkColor4f hi = kBtnHi, SkColor4f lo = kBtnLo,
 }
 /** The sunken bevel — the same pair with the light swapped to the far
  *  edges. Every LCD well, trough and list frame in the skin. */
-inline Element& sunken(Element& e, SkColor4f hi = fade(C(0x5C5C86), 0.9f),
+inline Element& sunken(Element& e, SkColor4f hi = alpha(C(0x5C5C86), 0.9f),
                        SkColor4f lo = C(0x101018), float w = 1.0f) {
   e.foreground(
       shapes::onEdges(shapes::Edge::Top | shapes::Edge::Left,
@@ -517,7 +512,7 @@ struct WinampBase : sketch::Sketch {
     // button edge without a second element.
     e.foreground(shapes::inset(
         n(1), shapes::onEdges(shapes::Edge::Bottom | shapes::Edge::Right,
-                              stroke(n(1), Fill::color(fade(kBtnLo, 0.45f)),
+                              stroke(n(1), Fill::color(alpha(kBtnLo, 0.45f)),
                                      PathFormat::Align::Inner))));
     e.child(std::move(glyph));
     return e;
@@ -555,7 +550,7 @@ struct WinampBase : sketch::Sketch {
     bar.fill(Material::linearUnit(
         {0, 0}, {0, 1},
         {{0.0f, lift(kTitle, 0.06f)}, {1.0f, dark(kTitle, 0.25f)}}));
-    raised(bar, fade(C(0x5A5A82), 0.85f), C(0x101018));
+    raised(bar, alpha(C(0x5A5A82), 0.85f), C(0x101018));
 
     // grip hairlines either side of the wordmark
     const float gripW = wide ? 100.0f : 52.0f;
@@ -587,7 +582,7 @@ struct WinampBase : sketch::Sketch {
                       .fill(dark(kTitle, 0.35f))
                       .justify(Justify::Center)
                       .alignItems(Align::Center);
-      raised(b, fade(C(0x5A5A82), 0.8f), C(0x0E0E16));
+      raised(b, alpha(C(0x5A5A82), 0.8f), C(0x0E0E16));
       b.child(t(g, pix(3.6f, kGold)));
       return b;
     };
@@ -607,7 +602,7 @@ struct WinampBase : sketch::Sketch {
     // The brushed body, on its own leaf so the bake is a texture and the
     // window's live children never drag the grain shader back per frame.
     w.child(box().inset(0).fill(steel).cache(Cache::Texture));
-    raised(w, fade(C(0x585880), 0.7f), C(0x0E0E18));
+    raised(w, alpha(C(0x585880), 0.7f), C(0x0E0E18));
     w.child(titleBar(275, "WINAMP", false));
 
     // ---- the big display well (native x 0..275, y 21..58) ---------------
@@ -617,7 +612,7 @@ struct WinampBase : sketch::Sketch {
 
     // clutter bar O A I D V — its own dark strip, running past the well
     Element clutter = at(box(), 10, 22, 8, 43).fill(C(0x101020));
-    sunken(clutter, fade(C(0x4A4A70), 0.7f), C(0x080810));
+    sunken(clutter, alpha(C(0x4A4A70), 0.7f), C(0x080810));
     static const char* cl[5] = {"O", "A", "I", "D", "V"};
     static const float cy[5] = {3, 11, 18, 25, 33};
     static const float cht[5] = {8, 7, 7, 8, 7};
@@ -660,7 +655,7 @@ struct WinampBase : sketch::Sketch {
     // taller than its advance, so a 6- or 7-px viewport cut the bottom
     // scanline off every round glyph — E read as F, L as I, U as II.
     Element titleWell = at(box(), 109, 22, 158, 11).fill(C(0x101020));
-    sunken(titleWell, fade(C(0x4A4A70), 0.5f), C(0x08080E));
+    sunken(titleWell, alpha(C(0x4A4A70), 0.5f), C(0x08080E));
     Element title = at(box(), 2, 1, 154, 9).clip();
     title.child(marquee(t(marqueeText(), pix(5, C(0x00E000))), marqueeW,
                         &marqueePhase, n(40)));
@@ -671,7 +666,7 @@ struct WinampBase : sketch::Sketch {
     // printed outside it, exactly as MAIN.BMP bakes them.
     auto readout = [&](float x, float wN, const char* v) {
       Element e = at(box(), x, 41, wN, 9).fill(C(0x101020));
-      sunken(e, fade(C(0x4A4A70), 0.5f), C(0x08080E));
+      sunken(e, alpha(C(0x4A4A70), 0.5f), C(0x08080E));
       e.child(at(box(), 1, 2, wN - 2, 6)
                   .justify(Justify::End)
                   .alignItems(Align::Center)
@@ -697,7 +692,7 @@ struct WinampBase : sketch::Sketch {
 
     // ---- the spectrum analyser well (native 24,43,76,16) ---------------
     Element vis = at(box(), 24, 43, 76, 16).fill(C(0x000000));
-    sunken(vis, fade(C(0x4A4A70), 0.6f), C(0x08080E));
+    sunken(vis, alpha(C(0x4A4A70), 0.6f), C(0x08080E));
     vis.child(box().inset(0).fill(visDots.material()));
     // ONE atlas stamp for 19x16 LED segments plus 19 peak-hold dots.
     vis.child(box().inset(0).child(instancing::instances(
@@ -730,7 +725,7 @@ struct WinampBase : sketch::Sketch {
 
     // ---- position / seek bar (native 16,72,248,10) ----------------------
     Element pos = at(box(), 16, 72, 248, 10).fill(C(0x14141F));
-    sunken(pos, fade(C(0x4A4A70), 0.7f), C(0x08080E));
+    sunken(pos, alpha(C(0x4A4A70), 0.7f), C(0x08080E));
     // Two of playPos's consumers, both here: the elapsed underlay's scaleX …
     pos.child(at(box(), 1, 1, 246, 8)
                   .fill(C(0x24243A))
@@ -744,8 +739,8 @@ struct WinampBase : sketch::Sketch {
                 {{0.0f, lift(kBtnFace, 0.12f)}, {1.0f, dark(kBtnFace, 0.28f)}}))
             .translateX(bind(&playPos).target(0, n(248 - 31)));
     raised(thumb);
-    thumb.child(at(box(), 13, 2, 1, 6).fill(fade(kBtnLo, 0.8f)));
-    thumb.child(at(box(), 15, 2, 1, 6).fill(fade(kBtnHi, 0.7f)));
+    thumb.child(at(box(), 13, 2, 1, 6).fill(alpha(kBtnLo, 0.8f)));
+    thumb.child(at(box(), 15, 2, 1, 6).fill(alpha(kBtnHi, 0.7f)));
     pos.child(thumb);
     w.child(pos);
 
@@ -857,7 +852,7 @@ struct WinampBase : sketch::Sketch {
 
     const SkColor4f volColor = kVis[(size_t)std::clamp((vol * 15) / 28, 0, 15)];
     Element track = at(box(), 0, 0, 68, 13).fill(C(0x1B1B2C));
-    sunken(track, fade(C(0x4A4A70), 0.6f), C(0x0A0A12));
+    sunken(track, alpha(C(0x4A4A70), 0.6f), C(0x0A0A12));
     track.child(at(box(), 1, 3, 66, 3).fill(dark(volColor, 0.45f)));
     track.child(at(box(), 1, 6, 66, 3).fill(volColor));
     track.child(at(box(), 1, 9, 66, 2).fill(dark(volColor, 0.65f)));
@@ -868,7 +863,7 @@ struct WinampBase : sketch::Sketch {
                 {{0.0f, lift(kBtnFace, 0.12f)}, {1.0f, dark(kBtnFace, 0.30f)}}))
             .translateX(n((68.0f - 14.0f) * (float)vol / 28.0f));
     raised(vt);
-    vt.child(at(box(), 6, 2, 1, 7).fill(fade(kBtnLo, 0.85f)));
+    vt.child(at(box(), 6, 2, 1, 7).fill(alpha(kBtnLo, 0.85f)));
     track.child(vt);
     g.child(track);
 
@@ -877,9 +872,9 @@ struct WinampBase : sketch::Sketch {
     const int b = std::abs(bal - 14);
     const SkColor4f balColor = kVis[(size_t)std::clamp((b * 15) / 14, 0, 15)];
     Element btr = at(box(), 70, 0, 38, 13).fill(C(0x1B1B2C));
-    sunken(btr, fade(C(0x4A4A70), 0.6f), C(0x0A0A12));
+    sunken(btr, alpha(C(0x4A4A70), 0.6f), C(0x0A0A12));
     btr.child(at(box(), 1, 4, 36, 5).fill(dark(balColor, 0.55f)));
-    btr.child(at(box(), 18, 1, 2, 11).fill(fade(balColor, 0.9f)));
+    btr.child(at(box(), 18, 1, 2, 11).fill(alpha(balColor, 0.9f)));
     Element bt =
         at(box(), 0, 1, 14, 11)
             .fill(Material::linearUnit(
@@ -887,7 +882,7 @@ struct WinampBase : sketch::Sketch {
                 {{0.0f, lift(kBtnFace, 0.12f)}, {1.0f, dark(kBtnFace, 0.30f)}}))
             .translateX(n((38.0f - 14.0f) * (float)bal / 28.0f));
     raised(bt);
-    bt.child(at(box(), 6, 2, 1, 7).fill(fade(kBtnLo, 0.85f)));
+    bt.child(at(box(), 6, 2, 1, 7).fill(alpha(kBtnLo, 0.85f)));
     btr.child(bt);
     g.child(btr);
     return g;
@@ -938,7 +933,7 @@ struct WinampBase : sketch::Sketch {
     using namespace wa;
     Element w = box().width(Dim(n(275))).height(Dim(n(116)));
     w.child(box().inset(0).fill(steel).cache(Cache::Texture));
-    raised(w, fade(C(0x585880), 0.7f), C(0x0E0E18));
+    raised(w, alpha(C(0x585880), 0.7f), C(0x0E0E18));
     w.child(titleBar(275, "WINAMP EQUALIZER", false, false));
 
     // ON / AUTO / PRESETS
@@ -961,7 +956,7 @@ struct WinampBase : sketch::Sketch {
     // the response graph (native 86,17,113,19) — its curve is the SAME 10
     // Outputs the faders below ride, so the two widgets can never disagree.
     Element graph = at(box(), 86, 17, 113, 19).fill(graphMat);
-    sunken(graph, fade(C(0x4A4A70), 0.6f), C(0x08080E));
+    sunken(graph, alpha(C(0x4A4A70), 0.6f), C(0x08080E));
     graph.child(box().inset(0).fill(graphGrid.material()));
     graph.child(eqCurve().inset(0).cache(Cache::None));
     w.child(graph);
@@ -971,7 +966,7 @@ struct WinampBase : sketch::Sketch {
     for (int i = 0; i < 11; ++i) {
       const float x = i == 0 ? 21.0f : 78.0f + 18.0f * (float)(i - 1);
       Element trough = at(box(), x, 38, 14, 63).fill(C(0x14141F));
-      sunken(trough, fade(C(0x4A4A70), 0.55f), C(0x08080E));
+      sunken(trough, alpha(C(0x4A4A70), 0.55f), C(0x08080E));
       trough.child(at(box(), 2, 1, 10, 61).fill(faderTrack));
       // thumb 11x11, travel 0..52 native. bind() turns the [-1,1] gain
       // straight into pixels — no second Output in slider units.
@@ -984,7 +979,7 @@ struct WinampBase : sketch::Sketch {
                               .source(-1.0f, 1.0f)
                               .target(n(52), n(0)));
       raised(th);
-      th.child(at(box(), 2, 5, 8, 1).fill(fade(kBtnLo, 0.85f)));
+      th.child(at(box(), 2, 5, 8, 1).fill(alpha(kBtnLo, 0.85f)));
       trough.child(th);
       w.child(trough);
     }
@@ -1026,7 +1021,7 @@ struct WinampBase : sketch::Sketch {
       const float w = ctx.size.width(), h = ctx.size.height();
       const float mid = h * 0.5f;
       SkPaint zero;
-      zero.setColor4f(wa::fade(wa::kGrid, 0.9f), nullptr);
+      zero.setColor4f(alpha(wa::kGrid, 0.9f), nullptr);
       canvas.drawRect(SkRect::MakeXYWH(0, mid - wa::n(0.5f), w, wa::n(1)),
                       zero);
 
@@ -1085,7 +1080,7 @@ struct WinampBase : sketch::Sketch {
     const float W = 400, H = 377;
     Element w = box().width(Dim(n(W))).height(Dim(n(H)));
     w.child(box().inset(0).fill(steel).cache(Cache::Texture));
-    raised(w, fade(C(0x585880), 0.7f), C(0x0E0E18));
+    raised(w, alpha(C(0x585880), 0.7f), C(0x0E0E18));
     w.child(titleBar(W, "WINAMP PLAYLIST", true, false, 20.0f));
 
     // The list well: left rail 12, right rail 20. At this window height it
@@ -1094,7 +1089,7 @@ struct WinampBase : sketch::Sketch {
     // exactly as the real window does at a size that is not a multiple of
     // the row height.
     Element list = at(box(), 12, 20, W - 32, 319).fill(kPlBg);
-    sunken(list, fade(C(0x4A4A70), 0.6f), C(0x06060A));
+    sunken(list, alpha(C(0x4A4A70), 0.6f), C(0x06060A));
     // row backgrounds: one atlas stamp, three tint states.
     list.child(box().inset(0).child(
         instancing::instances(rowAtlas, rowPool, instancing::Mode::Live)));
@@ -1103,7 +1098,7 @@ struct WinampBase : sketch::Sketch {
 
     // the scrollbar rail and its two arrow buttons
     Element rail = at(box(), W - 20, 20, 20, 319).fill(C(0x1A1A2A));
-    sunken(rail, fade(C(0x4A4A70), 0.5f), C(0x0A0A12));
+    sunken(rail, alpha(C(0x4A4A70), 0.5f), C(0x0A0A12));
     w.child(rail);
     Element grip = at(box(), W - 19, 24, 18, 36).fill(kBtnFace);
     raised(grip);
@@ -1119,7 +1114,7 @@ struct WinampBase : sketch::Sketch {
     // ---- the bottom control strip (native y 339..377) -------------------
     Element bottom = at(box(), 0, 339, W, 38);
     bottom.child(box().inset(0).fill(steel).cache(Cache::Texture));
-    bottom.child(at(box(), 0, 0, W, 1).fill(fade(C(0x585880), 0.6f)));
+    bottom.child(at(box(), 0, 0, W, 1).fill(alpha(C(0x585880), 0.6f)));
 
     // ADD / REM / SEL / MISC. These sit in the strip's own coordinates, 6
     // native px clear of the sill — in the real window the row is pinned to
@@ -1141,7 +1136,7 @@ struct WinampBase : sketch::Sketch {
 
     // the mini transport dock
     Element dock = at(box(), 132, 22, 62, 12).fill(C(0x12121E));
-    sunken(dock, fade(C(0x4A4A70), 0.55f), C(0x08080E));
+    sunken(dock, alpha(C(0x4A4A70), 0.55f), C(0x08080E));
     for (int i = 0; i < 5; ++i) {
       Element g = box();
       if (i == 0) {
@@ -1159,8 +1154,8 @@ struct WinampBase : sketch::Sketch {
         g.child(part(8, 3, 1, 5));
       }
       Element b =
-          at(box(), 2 + 12 * (float)i, 1, 11, 10).fill(fade(kBtnFace, 0.9f));
-      raised(b, fade(kBtnHi, 0.8f), kBtnLo);
+          at(box(), 2 + 12 * (float)i, 1, 11, 10).fill(alpha(kBtnFace, 0.9f));
+      raised(b, alpha(kBtnHi, 0.8f), kBtnLo);
       b.child(g);
       dock.child(b);
     }
@@ -1168,7 +1163,7 @@ struct WinampBase : sketch::Sketch {
 
     // the preview-visualiser swatch (default checkerboard art)
     Element sw = at(box(), W - 88, 20, 38, 14).fill(C(0x000000));
-    sunken(sw, fade(C(0x4A4A70), 0.5f), C(0x08080E));
+    sunken(sw, alpha(C(0x4A4A70), 0.5f), C(0x08080E));
     sw.child(box().inset(0).fill(
         patterns::checker(n(2), C(0x2B2B44), C(0x14141F)).material()));
     bottom.child(sw);
@@ -1304,12 +1299,12 @@ struct WinampBase : sketch::Sketch {
           const size_t i = (size_t)c * (size_t)kRows + (size_t)r;
           pos[i] = {n(4.0f * (float)c + 1.5f),
                     n((float)(kRows - 1 - r) + 0.5f)};
-          tint[i] = fade(kVis[(size_t)r], 0.0f);
+          tint[i] = alpha(kVis[(size_t)r], 0.0f);
         }
       for (int c = 0; c < kCols; ++c) {
         const size_t i = (size_t)kCols * (size_t)kRows + (size_t)c;
         pos[i] = {n(4.0f * (float)c + 1.5f), n(0.5f)};
-        tint[i] = fade(kPeak, 0.0f);
+        tint[i] = alpha(kPeak, 0.0f);
       }
     }
 
@@ -1458,13 +1453,13 @@ struct WinampBase : sketch::Sketch {
         const int lit = (int)colLevel[(size_t)c];
         for (int r = 0; r < kRows; ++r) {
           const size_t i = (size_t)c * (size_t)kRows + (size_t)r;
-          tint[i] = fade(kVis[(size_t)r], r < lit ? 1.0f : 0.0f);
+          tint[i] = alpha(kVis[(size_t)r], r < lit ? 1.0f : 0.0f);
         }
         const size_t pi = (size_t)kCols * (size_t)kRows + (size_t)c;
         const float pk = colPeak[(size_t)c];
         pos[pi] = {n(4.0f * (float)c + 1.5f),
                    n((float)kRows - std::clamp(pk, 0.0f, (float)kRows) + 0.5f)};
-        tint[pi] = fade(kPeak, pk > 0.6f ? 0.85f : 0.0f);
+        tint[pi] = alpha(kPeak, pk > 0.6f ? 0.85f : 0.0f);
       }
     }
 

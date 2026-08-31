@@ -27,14 +27,22 @@ class Session;
  *
  *  @p fonts is the text the body measures and shapes with; @p assets is
  *  what it reaches for that it did not generate. Both outlive every
- *  session opened against them. */
+ *  session opened against them.
+ *
+ *  @p deterministic says the capture this session is opened for WILL BE
+ *  DIFFED, so anything the body measured about its own execution must be
+ *  pinned. It is answered at open rather than set afterwards because a
+ *  body declares itself while it is being opened: a sketch that reads
+ *  the flag while declaring its panels has already drawn the unpinned
+ *  number by the time a later setter could arrive. */
 struct KindOps {
   virtual ~KindOps() = default;
   /** What this kind draws through, named — how a host selects part of a
    *  registry it does not otherwise interpret. */
   [[nodiscard]] virtual std::string_view runtime() const = 0;
-  [[nodiscard]] virtual std::unique_ptr<Session> open(weave::FontContext& fonts,
-                                                      Assets& assets) const = 0;
+  [[nodiscard]] virtual std::unique_ptr<Session> open(
+      weave::FontContext& fonts, Assets& assets,
+      bool deterministic = false) const = 0;
 };
 
 /** WHAT A SKETCH DRAWS, as a value.

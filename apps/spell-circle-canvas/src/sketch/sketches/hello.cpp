@@ -9,6 +9,7 @@
 // exists; editing the file on disk hot-swaps it too).
 
 #include <include/core/SkPathBuilder.h>
+#include <sigilcompose/typography/Typography.h>
 #include <sigilsketch/canvas/Sketch.h>
 
 #include <cmath>
@@ -18,16 +19,7 @@ namespace sketch = sigil::sketch;
 using namespace sigil::compose;
 using namespace std::chrono_literals;
 
-namespace {
-
-sigil::weave::TextStyle type(float size, SkColor color) {
-  sigil::weave::TextStyle style;
-  style.shaping.fontSize = size;
-  style.paint.foreground.setColor(color);
-  return style;
-}
-
-}  // namespace
+namespace {}  // namespace
 
 // The three ways things move here (retained-mode, not p5's redraw
 // loop):
@@ -54,7 +46,8 @@ struct HelloSketch : sketch::Sketch {
           .background(shadow({0, 0, 0, 0.4f}, {3, 4}, 10))
           .alignItems(Align::Center)
           .justify(Justify::Center)
-          .child(text(std::move(label), type(20, SK_ColorWHITE)));
+          .child(text(std::move(label),
+                      type({.size = 20, .color = hex(0xffffff)})));
     };
 
     return stack()
@@ -103,13 +96,13 @@ struct HelloSketch : sketch::Sketch {
                    .cache(Cache::None))
         // Re-rendered by update() whenever the score changes —
         // the keyed text keeps its identity across renders.
-        .child(
-            text(toU8("score " + std::to_string(score)), type(24, 0xffffd9a0))
-                .key("score")
-                .inset(650, 120, 90, 480))
-        .child(
-            text(u8"Sketchbook — edit hello.cpp and save", type(17, 0xff9aa4bb))
-                .inset(90, 560, 90, 40));
+        .child(text(toU8("score " + std::to_string(score)),
+                    type({.size = 24, .color = hex(0xffd9a0)}))
+                   .key("score")
+                   .inset(650, 120, 90, 480))
+        .child(text(u8"Sketchbook — edit hello.cpp and save",
+                    type({.size = 17, .color = hex(0x9aa4bb)}))
+                   .inset(90, 560, 90, 40));
   }
 
   void setup(sketch::SketchContext& ctx) override {

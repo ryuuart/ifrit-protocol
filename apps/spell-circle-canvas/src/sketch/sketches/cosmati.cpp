@@ -34,6 +34,7 @@
 #include <sigilcompose/core/Material.h>
 #include <sigilcompose/core/Patterns.h>
 #include <sigilcompose/shape/Shapes.h>
+#include <sigilcompose/typography/Typography.h>
 #include <sigilsketch/canvas/Sketch.h>
 
 #include <array>
@@ -87,18 +88,6 @@ constexpr float kFieldX = 40;
 constexpr float kFieldY = (kH - kFieldSide) * 0.5f;
 constexpr float kBandW = 40;  // the Purbeck frame carrying the inscription
 constexpr float kInner = kFieldSide - 2 * kBandW;
-
-inline sigil::weave::TextStyle type(float size, SkColor4f color,
-                                    float tracking = 0, float weight = 0) {
-  sigil::weave::TextStyle s;
-  s.shaping.fontSize = size;
-  s.shaping.letterSpacing = tracking;
-  if (weight > 0)
-    s.shaping.variations = {sigil::weave::FontVariation("wght", weight)};
-  s.paint.foreground.setColor4f(color, nullptr);
-  s.paint.foreground.setAntiAlias(true);
-  return s;
-}
 
 /** A cut stone: the quarry's two tones on a diagonal bed, veined with
  *  LUMINANCE grain and flecked with a speckle in the stone's own colours.
@@ -393,16 +382,18 @@ struct Cosmati final : sketch::Sketch {
             .foreground(stroke(2.0f, Fill::color(cs::kMarble),
                                PathFormat::Align::Inner))
             .background(styles::dropShadow({0, 0, 0, 0.7f}, {0, 8}, 18)));
-    floorPlate.child(text(toU8("\xc2\xb7 QVATVOR \xc2\xb7 PRAECEDENTES "
-                               "\xc2\xb7 ET \xc2\xb7 TRES \xc2\xb7"),
-                          cs::type(11, cs::kInkDim, 3.4f))
-                         .left(cs::kBandW)
-                         .top(13));
-    floorPlate.child(text(toU8("\xc2\xb7 ODORICVS \xc2\xb7 FECIT \xc2\xb7 "
-                               "MCCLXVIII \xc2\xb7"),
-                          cs::type(11, cs::kInkDim, 3.4f))
-                         .left(cs::kBandW)
-                         .top(cs::kFieldSide - 24));
+    floorPlate.child(
+        text(toU8("\xc2\xb7 QVATVOR \xc2\xb7 PRAECEDENTES "
+                  "\xc2\xb7 ET \xc2\xb7 TRES \xc2\xb7"),
+             type({.size = 11, .color = cs::kInkDim, .track = 3.4f}))
+            .left(cs::kBandW)
+            .top(13));
+    floorPlate.child(
+        text(toU8("\xc2\xb7 ODORICVS \xc2\xb7 FECIT \xc2\xb7 "
+                  "MCCLXVIII \xc2\xb7"),
+             type({.size = 11, .color = cs::kInkDim, .track = 3.4f}))
+            .left(cs::kBandW)
+            .top(cs::kFieldSide - 24));
 
     // the mortar bed inside the frame
     floorPlate.child(
@@ -448,7 +439,10 @@ struct Cosmati final : sketch::Sketch {
                                "TRIPLEX \xc2\xb7"),
                           [] {
                             namespace cs = cosmati;
-                            auto t = cs::type(9, cs::kGiallo, 2.0f, 600);
+                            auto t = type({.size = 9,
+                                           .color = cs::kGiallo,
+                                           .track = 2.0f,
+                                           .weight = 600});
                             // a cut letter on a busy floor needs its own
                             // shadow to read at all
                             sigil::weave::PaintLayer cut;
@@ -493,11 +487,13 @@ struct Cosmati final : sketch::Sketch {
             .column()
             .left(px)
             .top(cs::kFieldY + 4)
-            .child(
-                text(toU8("OPUS SECTILE"), cs::type(21, cs::kInk, 3.4f, 640)))
+            .child(text(toU8("OPUS SECTILE"), type({.size = 21,
+                                                    .color = cs::kInk,
+                                                    .track = 3.4f,
+                                                    .weight = 640})))
             .child(text(toU8("Cosmatesque \xc2\xb7 Westminster "
                              "1268"),
-                        cs::type(11, cs::kInkDim, 1.4f))
+                        type({.size = 11, .color = cs::kInkDim, .track = 1.4f}))
                        .margin(0, 6, 0, 0))
             .child(box()
                        .width(Dim(190.0f))
@@ -510,14 +506,15 @@ struct Cosmati final : sketch::Sketch {
                                                {1.0f,
                                                 {cs::kGiallo.fR, cs::kGiallo.fG,
                                                  cs::kGiallo.fB, 0.0f}}})))
-            .child(text(toU8("The governing figure is the QUINCUNX "
-                             "\xe2\x80\x94 four roundels about a "
-                             "fifth. The Great Pavement is a "
-                             "quincunx of quincunxes, 25 Roman feet "
-                             "square, laid by a Roman crew under "
-                             "Odoricus."),
-                        cs::type(11.5f, cs::kInkDim, 0.2f))
-                       .width(Dim(210.0f))));
+            .child(
+                text(toU8("The governing figure is the QUINCUNX "
+                          "\xe2\x80\x94 four roundels about a "
+                          "fifth. The Great Pavement is a "
+                          "quincunx of quincunxes, 25 Roman feet "
+                          "square, laid by a Roman crew under "
+                          "Odoricus."),
+                     type({.size = 11.5f, .color = cs::kInkDim, .track = 0.2f}))
+                    .width(Dim(210.0f))));
 
     // the quarry legend: every stone named, with a real sample of it
     struct Quarry {
@@ -558,7 +555,9 @@ struct Cosmati final : sketch::Sketch {
                          .foreground(stroke(
                              1.0f, Fill::color({cs::kMarble.fR, cs::kMarble.fG,
                                                 cs::kMarble.fB, 0.55f}))))
-              .child(text(toU8(q.label), cs::type(10.5f, cs::kInkDim, 0.7f))));
+              .child(text(
+                  toU8(q.label),
+                  type({.size = 10.5f, .color = cs::kInkDim, .track = 0.7f}))));
     root.child(std::move(legend));
     return root;
   }

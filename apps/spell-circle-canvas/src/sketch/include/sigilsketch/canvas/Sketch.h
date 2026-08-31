@@ -148,8 +148,9 @@ class CanvasKind final : public KindOps {
 
   [[nodiscard]] std::string_view runtime() const override { return "canvas"; }
 
-  [[nodiscard]] std::unique_ptr<Session> open(weave::FontContext& fonts,
-                                              Assets& assets) const override;
+  [[nodiscard]] std::unique_ptr<Session> open(
+      weave::FontContext& fonts, Assets& assets,
+      bool deterministic) const override;
 
  private:
   Factory m_factory;

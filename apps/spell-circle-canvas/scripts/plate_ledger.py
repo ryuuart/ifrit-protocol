@@ -3,10 +3,9 @@
 
 Renders every sketch through `Sketchbook --headless --ledger` (the
 benchmark-free exact-stepped capture), N at a time, hashes the plates,
-and compares against a stored baseline manifest — printing movers with
-the known self-nondeterministic sketches attributed instead of alarmed
-about. One binary renders every tier; what separates them is which
-runtime a sketch draws through and what capture the flags ask for.
+and compares against a stored baseline manifest. One binary renders
+every tier; what separates them is which runtime a sketch draws through
+and what capture the flags ask for.
 
 Usage (from apps/spell-circle-canvas):
   scripts/plate_ledger.py --rebase          # bake the baseline manifest
@@ -114,10 +113,18 @@ that expensive — a declared capture moment late in a costly animation is
 content, not a defect, and gets its budget by name instead of inflating
 everyone's.
 
-Known self-nondeterministic scenes (the quiet-machine flap list):
-genesis_fire, hitman_verlet, slitscan_2001. A mover on that list is
-reported as ATTRIBUTED, not as a defect; anything else moving is a
-finding.
+THERE IS NO LIST OF SCENES ALLOWED TO MOVE. Every mover is a finding
+until it is shown to be one, and the showing is `--stability N`: a scene
+that disagrees with ITSELF across N+1 renders is attributed to the scene
+rather than to the change under test. A list would have to be believed;
+this is measured on the machine in front of you, every time.
+
+A sketch that draws a number it measured about its own execution — a
+build time, a bake cost, a live node count — would be a scene like that
+by construction, so the renderer pins those: a headless session is opened
+with `ctx.deterministic` set, and `ctx.measured(value, pinned)` returns
+the pinned number. A sketch that reads a clock and does not go through
+`measured()` is the one thing `--stability` still has to catch.
 
 THE GPU 60 FPS GATE (`--fps-gate`) is a SEPARATE LANE, deliberately never
 mixed into the byte-identity sweep, because timing and hashing want
@@ -153,8 +160,6 @@ is YOUR machine, rerun the scene.
 """
 
 import argparse, concurrent.futures, hashlib, json, os, struct, subprocess, sys, tempfile, zlib
-
-FLAPPERS = {"genesis_fire", "hitman_verlet", "slitscan_2001"}
 
 # WHAT EACH TIER RENDERS WITH. A tier names its own binary, the flags that
 # define its capture, how it lists its registry, how it selects one entry
@@ -580,7 +585,8 @@ def main():
         default=0,
         metavar="N",
         help="re-render each mover N more times; a scene that "
-        "disagrees with ITSELF is attributed to the scene",
+        "disagrees with ITSELF is attributed to the scene. This is "
+        "the ONLY way a mover is excused — there is no list",
     )
     ap.add_argument("--scenes", nargs="*", help="subset (registry names)")
     ap.add_argument(
@@ -642,8 +648,7 @@ def main():
 
     # The render arguments that define the tier. GPU stability was validated
     # empirically on this machine: representative scenes hash identically
-    # across processes under this exact invocation, with only the documented
-    # FLAPPERS moving — the same attribution the full tier already makes.
+    # across processes under this exact invocation.
     quick = args.tier == "quick"
     tier_args = ("--gpu", "--capture-at", f"{args.capture_cap:g}") if quick else ()
 
@@ -758,12 +763,6 @@ def main():
 
     verdict = 0
     for scene in movers:
-        if scene in FLAPPERS:
-            print(
-                f"  MOVED (attributed) {scene} — on the documented "
-                f"self-nondeterministic list"
-            )
-            continue
         if args.stability > 0:
             rerenders = {results[scene]}
             for _ in range(args.stability):
@@ -781,7 +780,7 @@ def main():
                 print(
                     f"  MOVED (self-unstable) {scene} — disagrees with "
                     f"itself across {args.stability + 1} renders; "
-                    f"attribute to the scene, consider adding to FLAPPERS"
+                    f"attribute to the scene, not to the change"
                 )
                 continue
         print(
@@ -792,7 +791,7 @@ def main():
     for scene in missing:
         print(f"  NEW    {scene} (not in baseline — rebase to adopt)")
     if verdict == 0 and not errors:
-        print("VERDICT: byte-neutral (modulo attributed scenes)")
+        print("VERDICT: byte-neutral")
     return verdict or (1 if errors else 0)
 
 

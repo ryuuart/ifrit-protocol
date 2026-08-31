@@ -246,6 +246,7 @@
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/shape/Routers.h>
 #include <sigilcompose/shape/Shapes.h>
+#include <sigilmaterial/field/Field.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
@@ -703,23 +704,6 @@ inline SkPath ownPads(SkSize s, int salt, int count) {
 // THE CRT. Transcribed from TheGreatGildo/nerv-ui components/crt-effects.css
 // and reused UNCHANGED so this study and eva_magi_defense.cpp share one tube:
 // 2 px scanlines at ~4% black, a 70%/70% vignette ellipse to 40%.
-
-inline sk_sp<SkRuntimeEffect> crtEffect() {
-  static sk_sp<SkRuntimeEffect> fx = [] {
-    auto [effect, err] = SkRuntimeEffect::MakeForShader(SkString(
-        "uniform float2 uResolution;\n"
-        "half4 main(float2 xy) {\n"
-        "  float line = mod(xy.y, 4.0) < 2.0 ? 0.052 : 0.0;\n"
-        "  float2 p = (xy / max(uResolution, float2(1.0)) - 0.5) * 2.0;\n"
-        "  float r = length(p / 0.70);\n"
-        "  float vig = smoothstep(1.45, 2.15, r) * 0.34;\n"
-        "  float a = clamp(line + vig, 0.0, 1.0);\n"
-        "  return half4(0.0, 0.0, 0.0, half(a));\n}\n"));
-    if (!effect) SkDebugf("magi crt shader: %s\n", err.c_str());
-    return effect;
-  }();
-  return fx;
-}
 
 }  // namespace magi
 
@@ -1702,7 +1686,7 @@ struct EvaMagiInterior : sketch::Sketch {
                    .top(-8)
                    .width(magi::kW)
                    .height(magi::kH + 16)
-                   .fill(Material::sksl(magi::crtEffect()))
+                   .fill(Material::recipe(sigil::material::field::crtOverlay()))
                    .translateY(&creep)
                    .cache(Cache::Texture)
                    .key("crt"));

@@ -137,6 +137,8 @@
 namespace sketch = sigil::sketch;
 
 using namespace sigil::compose;
+// The whole composition is pinned: an engraved plate has no layout.
+using sigil::compose::kit::at;
 using sigil::compose::kit::centred;
 using namespace std::chrono_literals;
 namespace ch = choreograph;
@@ -412,10 +414,6 @@ inline std::string hexOf(SkColor4f c) {
   return fmt("#%02X%02X%02X", q(c.fR), q(c.fG), q(c.fB));
 }
 
-// The whole composition is pinned: an engraved plate has no layout.
-inline Element at(float x, float y, float w, float h) {
-  return box().left(Dim(x)).top(Dim(y)).width(Dim(w)).height(Dim(h));
-}
 inline Element label(const std::string& s, const weave::TextStyle& st, float x,
                      float y, float w) {
   return at(x, y, w, st.shaping.fontSize * 1.7f).child(text(U(s), st));

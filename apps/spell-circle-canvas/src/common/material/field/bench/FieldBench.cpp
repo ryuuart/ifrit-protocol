@@ -1,6 +1,6 @@
 /** @file
- * The fields under load: grain per octave count and the halftone ramp,
- * each shaded over a box per side.
+ * The fields under load: grain per octave count, the halftone ramp and
+ * the CRT overlay, each shaded over a box per side.
  */
 
 #include <benchmark/benchmark.h>
@@ -33,6 +33,11 @@ void HalftoneRampPaint(benchmark::State& state) {
   paint(state, field::halftoneRamp(8, 1, 3, {0, 0, 0, 1}), (int)state.range(0));
 }
 BENCHMARK(HalftoneRampPaint)->Arg(64)->Arg(256);
+
+void CrtOverlayPaint(benchmark::State& state) {
+  paint(state, field::crtOverlay(), (int)state.range(0));
+}
+BENCHMARK(CrtOverlayPaint)->Arg(64)->Arg(256);
 
 }  // namespace
 

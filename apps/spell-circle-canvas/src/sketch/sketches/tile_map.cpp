@@ -10,6 +10,7 @@
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <include/encode/SkPngEncoder.h>
+#include <sigilcompose/typography/Typography.h>
 #include <sigilimage/asset/ImageAsset.h>
 #include <sigilsketch/canvas/Sketch.h>
 
@@ -24,12 +25,6 @@ using namespace std::chrono_literals;
 namespace {
 /** A text style at one size and colour — the two things every label in
  *  this piece varies. */
-sigil::weave::TextStyle styleAt(float size, SkColor color = SK_ColorWHITE) {
-  sigil::weave::TextStyle style;
-  style.shaping.fontSize = size;
-  style.paint.foreground.setColor(color);
-  return style;
-}
 
 // ---- 11: tile map with chunked caching (#15) ------------------------------
 
@@ -125,7 +120,7 @@ struct TileMap final : sketch::Sketch {
         .fill(Fill::color({0.03f, 0.03f, 0.07f, 1}))
         .child(text(u8"tile maze — atlas regions; one chunk re-records "
                     u8"per mutation",
-                    styleAt(18, 0xff9aa4bb)))
+                    type({.size = 18, .color = hex(0x9aa4bb)})))
         .child(box().height(16))
         .child(std::move(grid));
   }

@@ -152,7 +152,9 @@ class SetSession final : public Session {
 }  // namespace
 
 std::unique_ptr<Session> SetKind::open(weave::FontContext& fonts,
-                                       Assets& assets) const {
+                                       Assets& assets,
+                                       bool deterministic) const {
+  (void)deterministic;
   return std::make_unique<SetSession>(m_factory(), fonts, assets);
 }
 

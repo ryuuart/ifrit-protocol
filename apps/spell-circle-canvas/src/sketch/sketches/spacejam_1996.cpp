@@ -168,7 +168,6 @@ constexpr SkColor4f C(uint32_t rgb, float a = 1.0f) noexcept {
           (float)((rgb >> 8u) & 0xffu) / 255.0f, (float)(rgb & 0xffu) / 255.0f,
           a};
 }
-inline SkColor4f fade(SkColor4f c, float a) { return {c.fR, c.fG, c.fB, a}; }
 
 // Straight out of the shipped HTML:
 // <body bgcolor="#000000" text="#ff0000" link="#ff4c4c" ...>
@@ -649,8 +648,8 @@ inline Element gasGiant(SkPoint c, float r, SkColor4f body, SkColor4f limb,
           .overlay(std::move(bands))
           .stroke(stroke(S(1.5f), Fill::color(limb), PathFormat::Align::Inner));
   d.child(box().inset(0).fill(Material::glowUnit({0.34f, 0.28f}, 1.35f,
-                                                 {{0.0f, fade(hi, 0.42f)},
-                                                  {0.34f, fade(hi, 0.10f)},
+                                                 {{0.0f, alpha(hi, 0.42f)},
+                                                  {0.34f, alpha(hi, 0.10f)},
                                                   {0.62f, {0, 0, 0, 0}},
                                                   {0.90f, {0, 0, 0, 0.30f}},
                                                   {1.0f, {0, 0, 0, 0.62f}}})));
@@ -873,7 +872,7 @@ inline Element artPressBox(sigil::weave::FontContext& f) {
   // dorsal ridge highlight
   ship.child(rect(S(28), S(25), S(72), S(3))
                  .shape(shapes::squircle(2.0f))
-                 .fill(Fill::color(fade(C5(0xFFC6D6), 0.85f))));
+                 .fill(Fill::color(alpha(C5(0xFFC6D6), 0.85f))));
   // nose spike
   ship.child(rect(S(108), S(27), S(24), S(8))
                  .shape(shapes::arrow(0.28f, 0.90f))

@@ -22,6 +22,7 @@
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/core/UniformBlock.h>
 
+#include <algorithm>
 #include <array>
 #include <cassert>
 #include <cstdint>
@@ -108,6 +109,20 @@ constexpr SkColor4f alpha(SkColor4f c, float a) noexcept {
  *  is asking for a different operation and writes it at the call site. */
 constexpr SkColor4f mul(SkColor4f c, float k, float a = -1.0f) noexcept {
   return {c.fR * k, c.fG * k, c.fB * k, a < 0 ? c.fA : a};
+}
+
+/** The ladder upward: add @p k to each RGB channel, CLAMPED at 1, alpha
+ *  kept — the highlight a bevel's lit edge is drawn with.
+ *
+ *  Clamping is what makes it a different operation from mul(), not an
+ *  inconsistency with it. A scale keeps the hue of what it scales and has
+ *  no ceiling to hit; an offset walks every channel toward white and
+ *  saturates there, and a caller lifting a nearly-white base wants the
+ *  saturated answer rather than a channel above 1 that the next blend
+ *  reads as glow. */
+constexpr SkColor4f lift(SkColor4f c, float k) noexcept {
+  return {std::min(1.0f, c.fR + k), std::min(1.0f, c.fG + k),
+          std::min(1.0f, c.fB + k), c.fA};
 }
 
 /** Linear interpolation between two colours, alpha included. Component-wise

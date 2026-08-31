@@ -29,8 +29,12 @@ double millisSince(std::chrono::steady_clock::time_point from,
  *  questions: what the BODY did, and what the runtime did with it. */
 class CanvasSession final : public Session {
  public:
-  CanvasSession(Sketch* sketch, weave::FontContext& fonts, Assets& assets)
-      : m_fonts(fonts), m_assets(assets), m_sketch(sketch) {
+  CanvasSession(Sketch* sketch, weave::FontContext& fonts, Assets& assets,
+                bool deterministic)
+      : m_fonts(fonts),
+        m_assets(assets),
+        m_sketch(sketch),
+        m_deterministic(deterministic) {
     m_composer = std::make_unique<compose::Composer>(m_ticker, m_fonts);
     m_composer->setClock(&m_clock);
     // TWO SIZINGS, deliberately: a sketch may lay out during setup, so
@@ -129,8 +133,6 @@ class CanvasSession final : public Session {
     m_composer->setAutoTexturePromotion(on);
   }
 
-  void setDeterministic(bool on) override { m_deterministic = on; }
-
   void setProfiling(bool on) override { m_composer->setProfiling(on); }
 
   /** The per-node attribution, written out. An expensive node reported
@@ -213,14 +215,16 @@ class CanvasSession final : public Session {
   SkSize m_applied = m_spec.size;  // what the composer was last told
   double m_now = 0.0;              // the stepped timeline, when stepped
   bool m_stepping = false;
-  bool m_deterministic = false;
+  bool m_deterministic;
 };
 
 }  // namespace
 
 std::unique_ptr<Session> CanvasKind::open(weave::FontContext& fonts,
-                                          Assets& assets) const {
-  return std::make_unique<CanvasSession>(m_factory(), fonts, assets);
+                                          Assets& assets,
+                                          bool deterministic) const {
+  return std::make_unique<CanvasSession>(m_factory(), fonts, assets,
+                                         deterministic);
 }
 
 }  // namespace sigil::sketch

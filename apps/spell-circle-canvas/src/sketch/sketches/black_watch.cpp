@@ -103,6 +103,9 @@
 namespace sketch = sigil::sketch;
 
 using namespace sigil::compose;
+// The whole composition is pinned — there is no layout in a pattern
+// card — so every panel is a box at absolute card coordinates.
+using sigil::compose::kit::at;
 using sigil::compose::kit::centred;
 using namespace std::chrono_literals;
 namespace weave = sigil::weave;
@@ -537,11 +540,6 @@ inline std::string fmt(const char* f, ...) {
   return std::string(buf);
 }
 
-// A box at absolute card coordinates. The whole composition is pinned — there
-// is no layout in a pattern card — so every panel spells this once.
-inline Element at(float x, float y, float w, float h) {
-  return box().left(Dim(x)).top(Dim(y)).width(Dim(w)).height(Dim(h));
-}
 inline Element label(const std::string& s, const weave::TextStyle& st, float x,
                      float y, float w) {
   return at(x, y, w, st.shaping.fontSize * 1.6f).child(text(U(s), st));

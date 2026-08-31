@@ -91,6 +91,7 @@
 #include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/core/Material.h>
 #include <sigilcompose/core/Patterns.h>
+#include <sigilcompose/typography/Typography.h>
 #include <sigilsketch/canvas/Sketch.h>
 
 #include <algorithm>
@@ -719,15 +720,6 @@ Element stripElement(const Strip& s, TimberBank& bank,
 
 // ---------------------------------------------------------------------------
 
-sigil::weave::TextStyle type(float size, SkColor4f color, float tracking) {
-  sigil::weave::TextStyle s;
-  s.shaping.fontSize = size;
-  s.shaping.letterSpacing = tracking;
-  s.paint.foreground.setColor(color.toSkColor());
-  s.paint.foreground.setAntiAlias(true);
-  return s;
-}
-
 }  // namespace
 
 // ===========================================================================
@@ -930,7 +922,7 @@ struct KumikoAsanoha : sketch::Sketch {
         .child(text(toU8("ASANOHA KUMIKO \xc2\xb7 SQUARE JIGUMI \xc2\xb7 "
                          "HINOKI ON KEYAKI \xc2\xb7 900\xc3\x97"
                          "400mm TYPE"),
-                    type(12, kCaption, 1.1f))
+                    type({.size = 12, .color = kCaption, .track = 1.1f}))
                    .left(950)
                    .top(916)
                    .width(300)

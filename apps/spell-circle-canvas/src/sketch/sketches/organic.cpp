@@ -16,6 +16,7 @@
 #include <sigilcompose/shape/Layouts.h>
 #include <sigilcompose/shape/Routers.h>
 #include <sigilcompose/shape/Shapes.h>
+#include <sigilcompose/typography/Typography.h>
 #include <sigilsketch/canvas/Sketch.h>
 
 namespace sketch = sigil::sketch;
@@ -27,12 +28,6 @@ using namespace std::chrono_literals;
 namespace {
 /** A text style at one size and colour — the two things every label in
  *  this piece varies. */
-sigil::weave::TextStyle styleAt(float size, SkColor color = SK_ColorWHITE) {
-  sigil::weave::TextStyle style;
-  style.shaping.fontSize = size;
-  style.paint.foreground.setColor(color);
-  return style;
-}
 
 /** The canvas this piece was drawn against, which is also the default a
  *  sketch gets when it declares none. */
@@ -102,10 +97,9 @@ struct Organic final : sketch::Sketch {
                                                     u8"ᚷ", u8"ᚹ", u8"ᚺ"};
                          runes.reserve(9);
                          for (int i = 0; i < 9; ++i)
-                           runes.push_back(
-                               text(std::u8string(glyphs[(size_t)i]),
-                                    styleAt(22, SkColorSetARGB(0xff, 0x2a, 0x10,
-                                                               0x1c))));
+                           runes.push_back(text(
+                               std::u8string(glyphs[(size_t)i]),
+                               type({.size = 22, .color = hex(0x2a101c)})));
                          return runes;
                        }()));
 
@@ -159,9 +153,10 @@ struct Organic final : sketch::Sketch {
             .foreground(shapes::onEdges(shapes::Edge::Bottom, bottomStamp))
             .foreground(shapes::onEdges(shapes::Edge::Left, leftDots))
             .padding(18, 16)
-            .child(text(u8"per-edge chrome:", styleAt(15, 0xff9aa4bb)))
-            .child(
-                text(u8"dash / zigzag / dots / bare", styleAt(17, 0xffe8d9c2)));
+            .child(text(u8"per-edge chrome:",
+                        type({.size = 15, .color = hex(0x9aa4bb)})))
+            .child(text(u8"dash / zigzag / dots / bare",
+                        type({.size = 17, .color = hex(0xe8d9c2)})));
 
     // -- routed connectors (#12) --------------------------------------
     PathFormat wire;
@@ -218,8 +213,9 @@ struct Organic final : sketch::Sketch {
     probe = {kSceneSize.width() / 2, kSceneSize.height() / 2};
     composer.render(describe());
     composer.renderSlot("probe", probeDot());
-    composer.renderSlot("hud", box().child(text(toU8("hit: " + hitLabel),
-                                                styleAt(16, 0xffffe0b0))));
+    composer.renderSlot(
+        "hud", box().child(text(toU8("hit: " + hitLabel),
+                                type({.size = 16, .color = hex(0xffe0b0)}))));
   }
 
   void update(double elapsed, sketch::SketchContext& ctx) override {
@@ -237,8 +233,9 @@ struct Organic final : sketch::Sketch {
     composer.renderSlot("probe", probeDot());
     if (label != hitLabel) {
       hitLabel = std::move(label);
-      composer.renderSlot("hud", box().child(text(toU8("hit: " + hitLabel),
-                                                  styleAt(16, 0xffffe0b0))));
+      composer.renderSlot(
+          "hud", box().child(text(toU8("hit: " + hitLabel),
+                                  type({.size = 16, .color = hex(0xffe0b0)}))));
     }
   }
 };
