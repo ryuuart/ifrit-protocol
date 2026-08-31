@@ -287,10 +287,15 @@ def check_clang_tidy(files: list[Path], tidy_all: bool) -> bool:
         # anything else the build wrote) are not this repository's sources:
         # they are tidied nowhere, and one from an unbuilt configuration
         # cannot even be parsed.
+        # Boundary probes are translation units that MUST fail to compile
+        # (their ctest pins the error text); analyzing one reports its
+        # deliberate failure as a finding.
         candidates = sorted(
             Path(f).relative_to(REPO_DIR)
             for f in database
-            if included(Path(f)) and not Path(f).is_relative_to(BUILD_DIR)
+            if included(Path(f))
+            and not Path(f).is_relative_to(BUILD_DIR)
+            and Path(f).name != "BoundaryProbe.cpp"
         )
     else:
         # Only translation units the compile database knows; a changed
@@ -299,7 +304,9 @@ def check_clang_tidy(files: list[Path], tidy_all: bool) -> bool:
         candidates = [
             f
             for f in files
-            if f.suffix in TIDY_SUFFIXES and str(REPO_DIR / f) in database
+            if f.suffix in TIDY_SUFFIXES
+            and str(REPO_DIR / f) in database
+            and f.name != "BoundaryProbe.cpp"
         ]
         skipped = [
             f

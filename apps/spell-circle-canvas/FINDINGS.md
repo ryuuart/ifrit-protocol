@@ -93,23 +93,3 @@ which is how the rest of the tree reads.
 `scripts/check.py --all --tidy-all` reports no findings in this
 repository's sources.
 
-## The kit boundary probes are translation units clang-tidy cannot pass
-
-**What the code does.** `compose_kit_boundary_probe` and
-`world_kit_boundary_probe` are targets that must FAIL to build — that is
-what makes each kit's include boundary structural rather than a
-convention — and both fail by not finding a header. They sit in the
-compile database like every other target, so `scripts/check.py` analyses
-them and reports `'ComposeInternal.h' file not found` and `'SceneImpl.h'
-file not found` as clang-tidy findings that no edit to either file can
-answer. (`material_kit_boundary_probe` compiles and fails at the link, so
-it is not analysed as a finding.)
-
-**What it was evidently intended to do.** Analyse the translation units
-that are meant to compile, and leave the negative controls to the tests
-that build them and read the message back.
-
-**What a test should assert once intent is restored.** With the probe
-sources out of clang-tidy's selection, `scripts/check.py --all
---tidy-all` reports neither, and each probe's own test still fails unless
-the build says exactly what the boundary predicts.
