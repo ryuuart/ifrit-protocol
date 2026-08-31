@@ -2,7 +2,7 @@
  "config": "Release",
  "host": "MacBookPro.control",
  "machine": "arm64",
- "taken": "2026-08-31T05:25:21+00:00",
+ "taken": "2026-08-31T05:43:31+00:00",
  "benches": {
   "compose_brush_bench": {
    "BM_Draw_ArtWarp_Live": {
@@ -3665,33 +3665,33 @@
    }
   },
   "world_diligent_bench": {
-   "BM_DeviceBringUp": {
-    "real_ns": 6017748.525159227,
-    "cpu_ns": 5013833.333333313,
+   "BM_DeviceAdopt": {
+    "real_ns": 276627.3356562945,
+    "cpu_ns": 275534.2163355454,
     "unit": "ms",
     "repetitions": 4
    },
    "BM_ProgramFromRecipeBody": {
-    "real_ns": 140505583.25834572,
-    "cpu_ns": 137613499.99999985,
+    "real_ns": 119123938.02776933,
+    "cpu_ns": 119012000.00000012,
     "unit": "ms",
     "repetitions": 4
    },
    "BM_FrameOnDevice": {
-    "real_ns": 827019.6663215756,
-    "cpu_ns": 77271.49999999971,
+    "real_ns": 795897.3546046764,
+    "cpu_ns": 61607.500000000044,
     "unit": "ms",
     "repetitions": 4
    },
    "BM_ChainOnDevice/20000": {
-    "real_ns": 3545398.436835967,
-    "cpu_ns": 1770350.0000000037,
+    "real_ns": 2596964.7289126776,
+    "cpu_ns": 1604500.0000000037,
     "unit": "ms",
     "repetitions": 4
    },
    "BM_ChainOnDevice/200000": {
-    "real_ns": 19149263.880939946,
-    "cpu_ns": 16045722.222222213,
+    "real_ns": 18048118.730075657,
+    "cpu_ns": 15350899.999999966,
     "unit": "ms",
     "repetitions": 4
    }

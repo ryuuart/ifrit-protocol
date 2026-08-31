@@ -4,6 +4,14 @@
  * executing a frame's passes on the device. Run a Release build; Debug
  * numbers say nothing. Needs a Vulkan runtime and reports a skip without
  * one.
+ *
+ * EVERY TIMED ARM HERE IS A PROPERTY OF THIS LIBRARY, because the bench
+ * ledger judges every timed arm against a band. Two costs on the way to
+ * a first frame are not: the driver's, which makes a Vulkan device more
+ * slowly the more devices a process has already made, and the Slang
+ * compiler's standard library, which a process loads once. Both are
+ * measured outside every timed region and reported as COUNTERS, which
+ * the ledger prints and never judges.
  */
 
 #include <benchmark/benchmark.h>
@@ -12,39 +20,72 @@
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/core/Recipe.h>
 #include <sigilmotion/clock/Ticker.h>
+#include <sigilskia/device/GpuDevice.h>
+#include <sigilskia/graphite/GraphiteContext.h>
 #include <sigilworld/diligent/Device.h>
 #include <sigilworld/diligent/Pop.h>
 #include <sigilworld/diligent/Runtime.h>
 #include <sigilworld/scene/Scene.h>
 
+#include <chrono>
 #include <memory>
 #include <string>
 #include <vector>
+
+// The adoption itself, which is this library's own seam rather than a
+// public header of it.
+#include "AdoptDevice.h"
 
 using namespace sigil;
 using namespace sigil::world;
 
 namespace {
 
-/** A process pays this once, and it is what the first frame ever drawn
- *  waits on. Teardown is untimed: what is measured is the way in. */
-void BM_DeviceBringUp(benchmark::State& state) {
+/** THE WAY IN, less the driver: the Vulkan handles read off Diligent's
+ *  interfaces, those handles and the loader entry point this process
+ *  already opened handed to SigilSkia, and Graphite stood up on what
+ *  comes back. That is the whole of what this library does to turn one
+ *  device into a device both APIs draw on, and it is measured against a
+ *  device that is already standing.
+ *
+ *  `bringup_ms` is the whole way in — the driver's device creation and
+ *  this — for the one device the arm adopts, taken once per repetition
+ *  and outside every timed region. Teardown is untimed. */
+void BM_DeviceAdopt(benchmark::State& state) {
   const diligent::DeviceConfig config;
   std::string error;
-  if (!diligent::Device::create(config, &error)) {
+  const std::chrono::steady_clock::time_point started =
+      std::chrono::steady_clock::now();
+  std::unique_ptr<diligent::Device> device =
+      diligent::Device::create(config, &error);
+  const std::chrono::steady_clock::duration bringUp =
+      std::chrono::steady_clock::now() - started;
+  if (!device) {
     state.SkipWithError(error);
     return;
   }
+  if (!device->gpu()) {
+    state.SkipWithError("the device was created but not adopted");
+    return;
+  }
+  state.counters["bringup_ms"] =
+      std::chrono::duration<double, std::milli>(bringUp).count();
+
   for ([[maybe_unused]] auto iteration : state) {
-    std::unique_ptr<diligent::Device> device =
-        diligent::Device::create(config, &error);
-    benchmark::DoNotOptimize(device);
+    std::unique_ptr<skia::GpuDevice> gpu = diligent::adoptVulkanDevice(
+        device->renderDevice(), device->context(), &error);
+    std::unique_ptr<skia::GraphiteContext> graphite;
+    if (gpu) graphite = skia::GraphiteContext::create(*gpu);
+    benchmark::DoNotOptimize(graphite);
     state.PauseTiming();
-    device.reset();
+    // Graphite borrows the adopted device, so it goes first; the adopted
+    // device frees none of the Vulkan objects Diligent owns.
+    graphite.reset();
+    gpu.reset();
     state.ResumeTiming();
   }
 }
-BENCHMARK(BM_DeviceBringUp)->Unit(benchmark::kMillisecond);
+BENCHMARK(BM_DeviceAdopt)->Unit(benchmark::kMillisecond);
 
 struct Paint {
   glm::vec4 baseColor{1, 1, 1, 1};
@@ -64,9 +105,29 @@ std::shared_ptr<const material::Recipe> freshRecipe() {
 
 /** What the first frame that names a new material pays: the scaffold,
  *  the recipe's declarations and its body assembled into one module,
- *  compiled to two SPIR-V stages and reflected. */
+ *  compiled to two SPIR-V stages and reflected — with the compiler's
+ *  session already standing, since a process opens one and loads its
+ *  standard library with it.
+ *
+ *  `first_compile_ms` is that load plus the compile that provoked it,
+ *  measured on the first compile this process makes and reported
+ *  unchanged on every repetition, so the figure is the one-time cost
+ *  rather than whichever repetition happened to be first. */
 void BM_ProgramFromRecipeBody(benchmark::State& state) {
-  diligent::installSlangCompiler();
+  static const double firstCompileMs = [] {
+    diligent::installSlangCompiler();
+    const std::chrono::steady_clock::time_point started =
+        std::chrono::steady_clock::now();
+    std::shared_ptr<material::Program> program =
+        material::program(freshRecipe(), material::Target::Slang,
+                          material::Variant{diligent::kVariantLit});
+    const double ms = std::chrono::duration<double, std::milli>(
+                          std::chrono::steady_clock::now() - started)
+                          .count();
+    benchmark::DoNotOptimize(program);
+    return ms;
+  }();
+  state.counters["first_compile_ms"] = firstCompileMs;
   for ([[maybe_unused]] auto iteration : state) {
     std::shared_ptr<material::Program> program =
         material::program(freshRecipe(), material::Target::Slang,

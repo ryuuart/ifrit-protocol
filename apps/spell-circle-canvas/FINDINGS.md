@@ -93,28 +93,23 @@ which is how the rest of the tree reads.
 `scripts/check.py --all --tidy-all` reports no findings in this
 repository's sources.
 
-## Two `world_diligent_bench` arms move more than the ledger's band
+## The kit boundary probes are translation units clang-tidy cannot pass
 
-**What the code does.** `BM_DeviceBringUp` creates a whole Vulkan device
-per iteration. Its median rises within one session — a device made after
-several others costs measurably more than the first — and rises again
-across back-to-back ledger invocations, so a baseline seeded from one
-sweep is outside the ledger's band by the third.
-`BM_ProgramFromRecipeBody` has the same shape for a different reason: at
-the ledger's timed seconds it runs one to three iterations, and the first
-of them pays the Slang compiler's one-time standard-library load, so the
-median is that load divided by however many iterations the run happened
-to fit. Back-to-back sweeps of it read 107 ms, 119 ms and 135 ms with
-nothing about the library changing between them.
+**What the code does.** `compose_kit_boundary_probe` and
+`world_kit_boundary_probe` are targets that must FAIL to build — that is
+what makes each kit's include boundary structural rather than a
+convention — and both fail by not finding a header. They sit in the
+compile database like every other target, so `scripts/check.py` analyses
+them and reports `'ComposeInternal.h' file not found` and `'SceneImpl.h'
+file not found` as clang-tidy findings that no edit to either file can
+answer. (`material_kit_boundary_probe` compiles and fails at the link, so
+it is not analysed as a finding.)
 
-**What it was evidently intended to do.** State what a process pays once
-on its way to its first frame, and what the first frame naming a new
-material pays, as numbers a change to this library could move.
+**What it was evidently intended to do.** Analyse the translation units
+that are meant to compile, and leave the negative controls to the tests
+that build them and read the message back.
 
-**What a test should assert once intent is restored.** That each number
-is a property of the code: either the benchmark measures the part its
-library owns — the adoption, the loader and the shim for one; the
-assemble, compile and reflect with the compiler's session already
-standing for the other — with the one-time cost outside the timed
-region, or the ledger carries a per-benchmark band wide enough to be a
-real gate for them and states why these two are wider.
+**What a test should assert once intent is restored.** With the probe
+sources out of clang-tidy's selection, `scripts/check.py --all
+--tidy-all` reports neither, and each probe's own test still fails unless
+the build says exactly what the boundary predicts.

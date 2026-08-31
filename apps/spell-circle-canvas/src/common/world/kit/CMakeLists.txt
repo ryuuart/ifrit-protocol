@@ -14,6 +14,19 @@ target_compile_features(SigilWorldKit PUBLIC cxx_std_20)
 target_include_directories(SigilWorldKit PUBLIC ${SIGIL_WORLD_INCLUDE_DIR})
 target_link_libraries(SigilWorldKit PUBLIC SigilWorldElement SigilMaterialKit)
 
+# The negative control for the include boundary above: a target that must
+# FAIL to build, and a test that builds it and demands the one message that
+# says the boundary held. Nothing puts a world source directory on the kit's
+# include path, so the retained side's own header is unreachable from kit
+# code — which is what makes "the kit sees public headers only" a property
+# of the build rather than a convention.
+include(BoundaryProbe)
+sigil_boundary_probe(
+  TARGET world_kit_boundary_probe
+  SOURCES BoundaryProbe.cpp
+  LIBRARIES SigilWorldKit
+  EXPECT "'SceneImpl.h' file not found")
+
 # Links only the library it exercises, so a link edge that pulled the
 # retained side or a device in would show up as a build failure here.
 add_executable(world_kit_test test/KitTest.cpp)

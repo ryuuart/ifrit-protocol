@@ -5,8 +5,7 @@
 # Typography tiers, so it sees their PUBLIC headers, and nothing adds the
 # compose source root to its include path — so ComposeInternal.h and
 # ComposeRuntime.h are unreachable from kit code. BoundaryProbe.cpp is the
-# negative control for exactly that (built on demand, expected to fail; see
-# the file).
+# negative control for exactly that (expected to fail; see the file).
 #
 # Four kit headers live with other tiers instead, because their values are
 # spelled in those tiers' types: `kit/Strokes.h` (the stroke grammar) and
@@ -28,13 +27,17 @@ target_compile_features(SigilComposeKit PUBLIC cxx_std_20)
 target_link_libraries(SigilComposeKit PUBLIC
   SigilComposeShape SigilComposeTypography)
 
-# The negative control. EXCLUDE_FROM_ALL so the ordinary build never sees
-# it, and deliberately NOT an add_test(): a compile-failure check cannot
-# live inside a gtest binary, and wiring it as a ctest would put a build
-# error on the dashboard as a pass. Run it by hand when the boundary is in
-# question — it must fail with "'ComposeInternal.h' file not found".
-add_executable(compose_kit_boundary_probe EXCLUDE_FROM_ALL BoundaryProbe.cpp)
-target_link_libraries(compose_kit_boundary_probe PRIVATE SigilComposeKit)
+# The negative control: a target that must FAIL to build, and a test that
+# builds it and demands the one message that says the boundary held. The
+# check cannot live inside a gtest binary — a TU that does not compile
+# cannot also run assertions — and it cannot be an exit status either,
+# since any breakage would then read as a pass.
+include(BoundaryProbe)
+sigil_boundary_probe(
+  TARGET compose_kit_boundary_probe
+  SOURCES BoundaryProbe.cpp
+  LIBRARIES SigilComposeKit
+  EXPECT "'ComposeInternal.h' file not found")
 
 # The kit tier's tests. Separate binary rather than more cases in the
 # kernel binaries: the kit changes nothing in the kernel, so a kit failure

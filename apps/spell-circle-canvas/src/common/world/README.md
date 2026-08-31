@@ -17,9 +17,10 @@ SigilMotion's; counters and timers are SigilMeasure's.
 
 Namespace `sigil::world`, headers under `include/sigilworld/`. Each
 feature is its own static archive with its own tests and benchmark, and
-links only the features beneath it. This page says which features are
-built and which are not, rather than describing a library that is not
-here.
+links only the features beneath it; **`SigilWorld`** is the umbrella over
+them, so a consumer of the whole library names only that. This page says
+which features are built and which are not, rather than describing a
+library that is not here.
 
 ## What is here
 
@@ -33,6 +34,7 @@ here.
 | `kit/` | `SigilWorldKit` | `sigil::world::kit` | presets that compose elements: a three-point rig, a turntable, and the lit set both make over a ground plane. Nothing here decides a look. |
 | `testing/` | `SigilWorldTesting` | `sigil::world::testing` | the study harness — a frame stepped to a declared moment on the CPU and photographed — and the `world_studies` binary the plate ledger's 3D tier drives. |
 | `diligent/` | `SigilWorldDiligent` | `sigil::world::diligent` | the one GPU device 2D and 3D share, the Slang compiler the program cache runs, and the `Runtime` that performs a frame's passes on that device. |
+| — | `SigilWorld` | — | the umbrella: an interface target over every feature above but `testing/`, and `<sigilworld/World.h>`, which is their public headers in one include. A consumer of the whole library names only this; the device feature is in it where it was built. |
 
 ## Writing a scene
 
@@ -650,9 +652,7 @@ of a device pop cook that no longer answers what the host answers.
 ## What is coming
 
 Every feature the layout declares is built. `diligent/` still owes
-`importNative` and the sampled slots past the base-colour map. An
-umbrella interface target named `SigilWorld` gathers every feature once
-there is more than one worth gathering.
+`importNative` and the sampled slots past the base-colour map.
 
 ### Where the shaders come from
 
@@ -776,12 +776,30 @@ and its independence from the order they were written in, a cycle named,
 `previous()` breaking one, the surfaces counted, the hazards stated, and
 each selection realisation ruled on.
 
+`world_kit_boundary_probe` is the kit boundary's NEGATIVE CONTROL: a
+target that must fail to build, run as a test that builds it and requires
+`'SceneImpl.h' file not found` in the output. Nothing puts a world source
+directory on the kit's include path, so the retained side's own header is
+unreachable from kit code — which is what makes "the kit sees public
+headers only" a property of the build rather than a convention. Demanding
+that one message, and not merely a non-zero exit, is what keeps an
+unrelated breakage from reading as the boundary holding.
+
 `world_element_bench`, `world_frame_bench`, `world_graph_bench`,
 `world_scene_bench`, `world_light_bench`, `world_kit_bench` and
 `world_diligent_bench` build through the `benches` target and run through `scripts/bench_ledger.py`;
 use a Release build. The device bench measures the four costs a device
-has that the host does not: bringing the device up, turning a recipe's
-Slang body into a program, a steady frame with every pipeline and every
-mesh already uploaded, and a point-operator chain cooked on the device —
-readback included, because a cook whose answer nobody could read would
-not be a cook.
+has that the host does not: turning the device Diligent made into a
+device both APIs draw on, turning a recipe's Slang body into a program, a
+steady frame with every pipeline and every mesh already uploaded, and a
+point-operator chain cooked on the device — readback included, because a
+cook whose answer nobody could read would not be a cook.
+
+Two costs on the way to a first frame are REPORTED THERE AND NOT TIMED,
+as Google Benchmark counters, because the ledger judges every timed
+number against a band and neither of these is a number this library can
+move: the driver's own device creation, which costs more the more devices
+a process has already made, and the Slang standard library, which a
+process loads once with its first compile. `bringup_ms` is the whole way
+in — that device creation and the adoption together — and
+`first_compile_ms` is that load plus the compile that provoked it.

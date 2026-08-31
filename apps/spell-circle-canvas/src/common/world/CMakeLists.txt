@@ -2,7 +2,8 @@
 # Diligent Engine (Vulkan/MoltenVK on macOS) over a device SigilSkia
 # shares. Each feature is its own static archive with its own tests and
 # benchmarks, and links only the features beneath it, so a consumer that
-# needs one links that one alone.
+# needs one links that one alone. `SigilWorld` is the umbrella: an
+# interface over every feature, for a consumer of the whole library.
 #
 # Every public header lives under one include root, include/sigilworld/,
 # and the directories under it nest the way the targets do, so a feature
@@ -57,6 +58,26 @@ add_subdirectory(kit)
 # because the studies BINARY links it for its --gpu lane while the
 # harness library links no device at all.
 add_subdirectory(testing)
+
+# The umbrella, for a consumer that takes the library rather than a
+# feature of it. The study harness is deliberately outside it: a caller
+# asking for the library is not asking for the harness its studies are
+# photographed under, and the harness links a rasteriser to do it. The
+# device feature joins when it was built, so the umbrella means the same
+# thing on a machine with no Vulkan runtime — the features that need no
+# device.
+add_library(SigilWorld INTERFACE)
+target_link_libraries(SigilWorld INTERFACE
+  SigilWorldElement
+  SigilWorldFrame
+  SigilWorldGraph
+  SigilWorldScene
+  SigilWorldLight
+  SigilWorldKit
+)
+if(TARGET SigilWorldDiligent)
+  target_link_libraries(SigilWorld INTERFACE SigilWorldDiligent)
+endif()
 
 # Registers this library with the `docs` target (see cmake/Docs.cmake).
 # The README is the site's front page, so the generated pages open on the

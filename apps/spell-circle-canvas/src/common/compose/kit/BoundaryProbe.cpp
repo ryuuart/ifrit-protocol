@@ -6,12 +6,8 @@
  * structural; because SigilComposeKit's include path is `include/` alone
  * and ComposeInternal.h lives in core/, it cannot be found.
  *
- *   cmake --build build --config Debug --target compose_kit_boundary_probe
- *
- * must fail with "'ComposeInternal.h' file not found". It is
- * EXCLUDE_FROM_ALL and not registered as a ctest — a test that must fail to
- * build cannot live in a gtest binary, and registering it would make the
- * dashboard report a build error as a pass.
+ * The `compose_kit_boundary_probe` test builds this target and requires
+ * "'ComposeInternal.h' file not found" in the output.
  */
 
 #include "ComposeInternal.h"
