@@ -230,6 +230,18 @@ the translation), a region of the image to read, and the filter. A
 region is cut once per source image and kept, so a texture sampled every
 frame does not copy its pixels every frame.
 
+**A source MAY say that its pixels already stand on a GPU.** One
+optional member, `deviceImage()`, answers a `DeviceImage`: the device
+that owns the texture and the texture itself, as the graphics API's own
+object bridged to opaque values. This library reads none of it and
+compares none of it — the source's own equality is still what says
+whether two textures are the same picture. It is carried, unexamined,
+from a source that painted on a device to a renderer standing on the
+SAME device, which binds those pixels instead of uploading a copy of
+`image()`; a renderer holding another device, or none, finds a device it
+does not know and reads `image()` like any other source's. Every source
+that has no device omits the member and is written exactly as it was.
+
 **Texture sets are the tools' folders.** `textures::classify` reads a
 file name into a `Role` (base colour, normal, roughness, metallic,
 occlusion, emissive, packed occlusion-roughness-metallic, height,

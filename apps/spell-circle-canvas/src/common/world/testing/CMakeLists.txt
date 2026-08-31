@@ -20,6 +20,9 @@ add_executable(world_studies
   studies/Registry.cpp
   studies/first_light.cpp
   studies/glow_trail.cpp
+  studies/key_light.cpp
+  studies/material_lab.cpp
+  studies/woven_card.cpp
   studies/world_studies_main.cpp
   studies/Studies.h
 )
@@ -27,11 +30,16 @@ add_executable(world_studies
 # scene, and the library that renders one must stand on a machine with no
 # Vulkan runtime. Without the device feature the binary is built without
 # its --gpu lane, which reports rather than falling back.
+#
+# The BINARY links compose too, because one study is a compose scene
+# sampled by a 3D surface. That edge runs studies -> compose, never
+# world -> compose: what crosses between the two libraries is a
+# material::Texture, and no world header names a compose type.
+target_link_libraries(world_studies PRIVATE SigilWorldTesting SigilWorldKit
+  SigilMaterialCore SigilMaterialKit
+  SigilComposeTexture SigilComposeTypography SigilWeavePorts)
 if(TARGET SigilWorldDiligent)
-  target_link_libraries(world_studies PRIVATE SigilWorldTesting
-    SigilMaterialCore SigilWorldDiligent)
+  target_link_libraries(world_studies PRIVATE SigilWorldDiligent)
 else()
-  target_link_libraries(world_studies PRIVATE SigilWorldTesting
-    SigilMaterialCore)
   target_compile_definitions(world_studies PRIVATE SIGILWORLD_NO_DEVICE=1)
 endif()

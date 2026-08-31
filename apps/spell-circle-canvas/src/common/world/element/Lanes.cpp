@@ -5,6 +5,8 @@
 
 #include <sigilworld/element/Lanes.h>
 
+#include <optional>
+
 namespace sigil::world {
 
 float standingValue(Slot slot) {
@@ -17,6 +19,12 @@ float standingValue(Slot slot) {
     // than to nothing.
     case kWindowHead:
     case kWindowSpan:
+    // An emitter with no dial on it shines at full strength in its own
+    // colour, which is the emitter's fields standing unscaled.
+    case kIntensity:
+    case kEmissionRed:
+    case kEmissionGreen:
+    case kEmissionBlue:
       return 1.0f;
     default:
       return 0.0f;
@@ -48,6 +56,26 @@ void lanesOf(const ElementNode& node, std::vector<Lane>& out) {
   push(kAlongDistance, node.along ? &node.along->distance : nullptr);
   push(kWindowHead, node.window ? &node.window->head : nullptr);
   push(kWindowSpan, node.window ? &node.window->span : nullptr);
+
+  // The emitter's rows stand where the emitter itself stands, so a
+  // dropped dial ramps back to the light's own field rather than to one.
+  const Emission* emission = node.emission ? &*node.emission : nullptr;
+  const auto pushEmitter =
+      [&out](Slot slot, const std::optional<motion::Animatable<float>>* value,
+             float standing) {
+        out.push_back(
+            Lane{value && *value ? &**value : nullptr,
+                 core::LaneSlot<LaneFamily>{LaneFamily::Slot, (size_t)slot},
+                 standing});
+      };
+  pushEmitter(kIntensity, emission ? &emission->intensity : nullptr,
+              node.light ? node.light->intensity : standingValue(kIntensity));
+  pushEmitter(kEmissionRed, emission ? &emission->red : nullptr,
+              node.light ? node.light->color.r : standingValue(kEmissionRed));
+  pushEmitter(kEmissionGreen, emission ? &emission->green : nullptr,
+              node.light ? node.light->color.g : standingValue(kEmissionGreen));
+  pushEmitter(kEmissionBlue, emission ? &emission->blue : nullptr,
+              node.light ? node.light->color.b : standingValue(kEmissionBlue));
 }
 
 }  // namespace sigil::world

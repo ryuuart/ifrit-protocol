@@ -8,6 +8,7 @@
 #include <sigilworld/element/Node.h>
 
 #include <cstddef>
+#include <optional>
 #include <tuple>
 #include <utility>
 
@@ -42,6 +43,10 @@ inline auto fields(Window& v) {
   auto& [head, span] = v;
   return std::tie(head, span);
 }
+inline auto fields(Emission& v) {
+  auto& [intensity, red, green, blue] = v;
+  return std::tie(intensity, red, green, blue);
+}
 inline auto fields(Camera& v) {
   auto& [eye, target, up, fovYDeg, zNear, zFar] = v;
   return std::tie(eye, target, up, fovYDeg, zNear, zFar);
@@ -52,10 +57,10 @@ inline auto fields(Spline3& v) {
 }
 inline auto fields(ElementNode& v) {
   auto& [key, transform, along, window, geometry, material, slots, tags, light,
-         camera, cachePolicy, nodeTransition, children, memo] = v;
+         emission, camera, cachePolicy, nodeTransition, children, memo] = v;
   return std::tie(key, transform, along, window, geometry, material, slots,
-                  tags, light, camera, cachePolicy, nodeTransition, children,
-                  memo);
+                  tags, light, emission, camera, cachePolicy, nodeTransition,
+                  children, memo);
 }
 
 /** How many direct non-static data members @p T has, as the pinned
@@ -115,6 +120,22 @@ bool windowEqual(const std::optional<Window>& a,
   return propEqual(a->head, b->head) && propEqual(a->span, b->span);
 }
 
+static_assert(detail::kFieldCount<Emission> == 4,
+              "Emission gained or lost a field — rule on it in "
+              "emissionEqual() below, then bump this count.");
+bool emissionEqual(const std::optional<Emission>& a,
+                   const std::optional<Emission>& b) {
+  if (a.has_value() != b.has_value()) return false;
+  if (!a) return true;
+  const auto dialEqual = [](const std::optional<motion::Animatable<float>>& x,
+                            const std::optional<motion::Animatable<float>>& y) {
+    if (x.has_value() != y.has_value()) return false;
+    return !x || propEqual(*x, *y);
+  };
+  return dialEqual(a->intensity, b->intensity) && dialEqual(a->red, b->red) &&
+         dialEqual(a->green, b->green) && dialEqual(a->blue, b->blue);
+}
+
 static_assert(detail::kFieldCount<Camera> == 6,
               "Camera gained or lost a field — rule on it in "
               "cameraEqual() below, then bump this count.");
@@ -137,7 +158,7 @@ bool materialsEqual(const ElementNode& a, const ElementNode& b) {
 
 }  // namespace
 
-static_assert(detail::kFieldCount<ElementNode> == 14,
+static_assert(detail::kFieldCount<ElementNode> == 15,
               "A field of ElementNode appeared or vanished. Rule on it in "
               "propsEqual() below — participate, or a stated reason not to "
               "— then bump this count. A miss is silent: the node prunes, "
@@ -158,6 +179,7 @@ bool propsEqual(const ElementNode& a, const ElementNode& b) {
   if (!materialsEqual(a, b)) return false;
   if (a.tags != b.tags) return false;
   if (a.light != b.light) return false;
+  if (!emissionEqual(a.emission, b.emission)) return false;
   if (!cameraEqual(a.camera, b.camera)) return false;
   if (a.cachePolicy != b.cachePolicy) return false;
   if (a.nodeTransition.has_value() != b.nodeTransition.has_value())

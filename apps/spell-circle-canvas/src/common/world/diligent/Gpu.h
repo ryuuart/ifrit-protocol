@@ -20,6 +20,7 @@
 #include <include/core/SkImage.h>
 #include <include/core/SkSize.h>
 #include <sigilgeometry/mesh/Mesh.h>
+#include <sigilmaterial/texture/Texture.h>
 #include <sigilworld/diligent/Device.h>
 #include <sigilworld/frame/Pass.h>
 #include <sigilworld/frame/Targets.h>
@@ -55,6 +56,15 @@ struct DeviceImage {
   dg::RefCntAutoPtr<dg::ITexture> previous;
   /** Something has painted `current` since the frame opened. */
   bool written = false;
+};
+
+/** A MAP ON THE DEVICE: either an image uploaded from host memory, or a
+ *  texture someone else painted on THIS device, wrapped without a copy.
+ *  `used` is the frame it was last drawn with, so a map no view names
+ *  any more is let go. */
+struct SampledImage {
+  dg::RefCntAutoPtr<dg::ITexture> texture;
+  uint64_t used = 0;
 };
 
 /** A MESH UPLOADED, held under the number the frame gave the artefact it
@@ -122,6 +132,12 @@ struct Gpu {
 
   std::map<uint64_t, MeshBuffers> meshes;
   std::map<PipelineKey, Pipeline> pipelines;
+  /** Maps whose pixels already stand on this device, under the name the
+   *  API gave them. Nothing is copied for one of these. */
+  std::map<uint64_t, SampledImage> wrapped;
+  /** …and maps that had to be brought over, under the id of the image
+   *  they were brought from. */
+  std::map<uint32_t, SampledImage> uploaded;
 
   // ---- what the whole of it is made of (Gpu.cpp) ----
   /** Sizes the frame's targets to @p size, dropping everything made at
@@ -156,6 +172,16 @@ struct Gpu {
   /** @p name's pixels, read back through a staging texture. Null when
    *  nothing has written it. */
   sk_sp<SkImage> read(std::string_view name);
+
+  /** THE MAP @p map IS, on this device.
+   *
+   *  A texture whose source says its pixels already stand on THIS device
+   *  is wrapped where it is — nothing is copied, and a scene painted by
+   *  another library into a texture on the shared device is sampled as
+   *  it was painted. Anything else is brought over from host memory once
+   *  and held under the image it came from. Null when the texture yields
+   *  no image. */
+  dg::ITexture* sample(const material::Texture& map);
 
   /** A texture of this frame's size and format. */
   dg::RefCntAutoPtr<dg::ITexture> makeColor(const char* label);

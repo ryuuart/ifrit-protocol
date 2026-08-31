@@ -6,8 +6,18 @@
 
 #include "Gpu.h"
 
+// clang-format off
+// ORDER IS LOAD-BEARING HERE, which is why the sorter is held off: the
+// engine's Vulkan interface names Vulkan's handle types and does not
+// include the header that declares them, so an alphabetical sort of the
+// two leaves every one of those names unknown.
+#include <vulkan/vulkan.h>
+#include <Graphics/GraphicsEngineVulkan/interface/RenderDeviceVk.h>
+// clang-format on
+
 #include <include/core/SkBitmap.h>
 #include <include/core/SkImageInfo.h>
+#include <sigilskia/device/GpuDevice.h>
 
 #include <Graphics/GraphicsTools/interface/MapHelper.hpp>
 #include <algorithm>
@@ -35,6 +45,24 @@ struct Vertex {
  *  so what it cooked last frame must not be held for the life of the
  *  scene. */
 constexpr uint64_t kMeshLifetime = 2;
+
+/** …and how long a map stays, on the same terms. */
+constexpr uint64_t kMapLifetime = 2;
+
+/** The description every map is given, whether it was uploaded or
+ *  wrapped: a plain two-dimensional colour texture a shader reads. */
+dg::TextureDesc mapDesc(const char* label, int width, int height) {
+  dg::TextureDesc desc;
+  desc.Name = label;
+  desc.Type = dg::RESOURCE_DIM_TEX_2D;
+  desc.Width = (dg::Uint32)width;
+  desc.Height = (dg::Uint32)height;
+  desc.MipLevels = 1;
+  desc.Format = kColorFormat;
+  desc.BindFlags = dg::BIND_SHADER_RESOURCE;
+  desc.Usage = dg::USAGE_DEFAULT;
+  return desc;
+}
 
 /** WHAT MULTIPLIES THE SOURCE, for every mode this backend has: one.
  *  Colour arrives premultiplied — its alpha is already in it — so the
@@ -174,6 +202,56 @@ void Gpu::beginFrame() {
   }
 }
 
+dg::ITexture* Gpu::sample(const material::Texture& map) {
+  if (!device->renderDevice()) return nullptr;
+
+  // ZERO COPY: the pixels already stand on this very device, so what a
+  // draw needs is a name for them and not a second copy of them.
+  const material::DeviceImage where = map.deviceImage();
+  if (where && where.device == device->gpu() && where.handle != 0) {
+    SampledImage& held = wrapped[where.handle];
+    held.used = frame;
+    if (!held.texture) {
+      auto* vk = static_cast<dg::IRenderDeviceVk*>(device->renderDevice());
+      // The image was drawn into and then submitted, so what a sampler
+      // reads is what it was left as: a shader resource.
+      // The image arrives as a NUMBER, because the value that carried it
+      // here belongs to a library that cannot spell a Vulkan type.
+      vk->CreateTextureFromVulkanImage(
+          reinterpret_cast<VkImage>(  // NOLINT(performance-no-int-to-ptr)
+              where.handle),
+          mapDesc("world sampled map", where.width, where.height),
+          dg::RESOURCE_STATE_SHADER_RESOURCE, &held.texture);
+    }
+    if (held.texture) return held.texture;
+    // The wrap was refused; the pixels are still readable the long way.
+  }
+
+  const sk_sp<SkImage> image = map.image();
+  if (!image) return nullptr;
+  SampledImage& held = uploaded[image->uniqueID()];
+  held.used = frame;
+  if (held.texture) return held.texture;
+
+  SkBitmap bytes;
+  if (!bytes.tryAllocPixels(SkImageInfo::Make(image->width(), image->height(),
+                                              kRGBA_8888_SkColorType,
+                                              kPremul_SkAlphaType)))
+    return nullptr;
+  if (!image->readPixels(nullptr, bytes.pixmap(), 0, 0)) return nullptr;
+
+  dg::TextureSubResData level;
+  level.pData = bytes.getPixels();
+  level.Stride = (dg::Uint64)bytes.rowBytes();
+  dg::TextureData data;
+  data.pSubResources = &level;
+  data.NumSubresources = 1;
+  device->renderDevice()->CreateTexture(
+      mapDesc("world sampled map", image->width(), image->height()), &data,
+      &held.texture);
+  return held.texture;
+}
+
 void Gpu::endFrame() {
   // THE FRAME IS CLOSED ON THE DEVICE TOO. Every draw's uniforms come
   // from a heap the device refills once a frame, and a texture let go of
@@ -189,6 +267,18 @@ void Gpu::endFrame() {
   for (auto it = meshes.begin(); it != meshes.end();) {
     if (frame - it->second.used > kMeshLifetime)
       it = meshes.erase(it);
+    else
+      ++it;
+  }
+  for (auto it = wrapped.begin(); it != wrapped.end();) {
+    if (frame - it->second.used > kMapLifetime)
+      it = wrapped.erase(it);
+    else
+      ++it;
+  }
+  for (auto it = uploaded.begin(); it != uploaded.end();) {
+    if (frame - it->second.used > kMapLifetime)
+      it = uploaded.erase(it);
     else
       ++it;
   }

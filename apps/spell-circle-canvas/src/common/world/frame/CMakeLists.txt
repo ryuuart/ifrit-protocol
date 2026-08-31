@@ -21,8 +21,11 @@ add_library(SigilWorldFrame STATIC
 )
 target_compile_features(SigilWorldFrame PUBLIC cxx_std_20)
 target_include_directories(SigilWorldFrame PUBLIC ${SIGIL_WORLD_INCLUDE_DIR})
+# SigilMaterialTexture because a body's view carries the map its surface
+# is dressed with, which every executor samples.
 target_link_libraries(SigilWorldFrame PUBLIC
   SigilWorldElement
+  SigilMaterialTexture
   SigilGeometryMeshRender)
 
 # Links only the library it exercises, so a link edge that pulled the

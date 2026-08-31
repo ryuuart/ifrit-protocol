@@ -2,7 +2,7 @@
  "config": "Release",
  "host": "MacBookPro.lan",
  "machine": "arm64",
- "taken": "2026-08-30T23:26:58+00:00",
+ "taken": "2026-08-31T01:07:39+00:00",
  "benches": {
   "compose_brush_bench": {
    "BM_Draw_ArtWarp_Live": {
@@ -1014,6 +1014,50 @@
     "real_ns": 1549692.9152868688,
     "repetitions": 4,
     "unit": "ns"
+   }
+  },
+  "compose_texture_bench": {
+   "TextureSceneStill/64": {
+    "real_ns": 305.02740832464156,
+    "cpu_ns": 303.46976977556494,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "TextureSceneStill/256": {
+    "real_ns": 1380.1594375970128,
+    "cpu_ns": 1375.95854213678,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "TextureScenePaints/64": {
+    "real_ns": 90082.21731984557,
+    "cpu_ns": 88788.48522167484,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "TextureScenePaints/256": {
+    "real_ns": 315694.445202448,
+    "cpu_ns": 315417.22595078236,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "ComposerDraw/64": {
+    "real_ns": 77422.24441853634,
+    "cpu_ns": 77424.05764966749,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "ComposerDraw/256": {
+    "real_ns": 306513.445094917,
+    "cpu_ns": 306516.51982378797,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "TextureValue": {
+    "real_ns": 24.17120604484061,
+    "cpu_ns": 24.166346479504085,
+    "unit": "ns",
+    "repetitions": 4
    }
   },
   "geometry_mesh_bench": {
@@ -3524,32 +3568,32 @@
   },
   "world_element_bench": {
    "DescribeTree/64": {
-    "real_ns": 8033.8430527237015,
-    "cpu_ns": 8032.374509692461,
+    "real_ns": 7739.996999083656,
+    "cpu_ns": 7740.016685205786,
     "unit": "ns",
     "repetitions": 4
    },
    "DescribeTree/512": {
-    "real_ns": 67779.29385090814,
-    "cpu_ns": 67778.55759922543,
+    "real_ns": 66378.14748465901,
+    "cpu_ns": 66376.53446647781,
     "unit": "ns",
     "repetitions": 4
    },
    "DescribeTree/4096": {
-    "real_ns": 567210.0289702052,
-    "cpu_ns": 567042.6829268293,
+    "real_ns": 553532.832407244,
+    "cpu_ns": 553412.4513618681,
     "unit": "ns",
     "repetitions": 4
    },
    "PropsEqual": {
-    "real_ns": 27.191687017067338,
-    "cpu_ns": 27.16468054115973,
+    "real_ns": 27.19408591121117,
+    "cpu_ns": 27.18842546604484,
     "unit": "ns",
     "repetitions": 4
    },
    "LanesOf": {
-    "real_ns": 14.770959055422194,
-    "cpu_ns": 14.755075510402708,
+    "real_ns": 17.809919448104843,
+    "cpu_ns": 17.809943328587615,
     "unit": "ns",
     "repetitions": 4
    }
@@ -3650,6 +3694,26 @@
    "OrderFan/256": {
     "real_ns": 222139.1291713066,
     "cpu_ns": 222100.15772870503,
+    "unit": "ns",
+    "repetitions": 4
+   }
+  },
+  "world_kit_bench": {
+   "ThreePoint": {
+    "real_ns": 366.7173313610665,
+    "cpu_ns": 365.5491382448246,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "Turntable": {
+    "real_ns": 2633.255704620592,
+    "cpu_ns": 2632.843339975181,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "LitSet": {
+    "real_ns": 4705.236324453526,
+    "cpu_ns": 4702.472081386484,
     "unit": "ns",
     "repetitions": 4
    }

@@ -143,6 +143,16 @@ class Element {
    *  and direction are carried by the node's transform, so `at()` and
    *  `along()` move it. */
   Element& light(Light l);
+  /** THE EMITTER'S STRENGTH, as a lane: it scales what `light()`
+   *  declared, so binding it dims and lifts a lamp without describing a
+   *  new one. A node with no emitter ignores it. */
+  Element& intensity(motion::Animatable<float> v);
+  /** …and its COLOUR, one lane per channel, on the same terms. The
+   *  emitter's own colour stands on every channel the tree leaves out. */
+  Element& emission(motion::Animatable<float> red,
+                    motion::Animatable<float> green,
+                    motion::Animatable<float> blue);
+
   /** A viewpoint standing where this node stands, on the same terms as
    *  `light()`: the camera's eye and target are carried by the node's
    *  transform. */
@@ -198,6 +208,10 @@ class Element {
   template <std::integral T>
   Element& scaleZ(T f) {
     return scaleZ(motion::Animatable<float>((float)f));
+  }
+  template <std::integral T>
+  Element& intensity(T v) {
+    return intensity(motion::Animatable<float>((float)v));
   }
 
   /** @private the reconciler's access to the description this value

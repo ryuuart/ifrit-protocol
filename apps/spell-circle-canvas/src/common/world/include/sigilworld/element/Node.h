@@ -38,6 +38,19 @@ struct Window {
   motion::Animatable<float> span{1.0f};
 };
 
+/** AN EMITTER'S LIVE DIALS: the strength it shines at and the three
+ *  channels of the colour it shines in, each present only when the tree
+ *  said something about it. A dial a description does not carry leaves
+ *  the emitter's own field standing — which is why each is optional and
+ *  why the emitter stays a plain comparable value with no animation in
+ *  it. */
+struct Emission {
+  std::optional<motion::Animatable<float>> intensity;
+  std::optional<motion::Animatable<float>> red;
+  std::optional<motion::Animatable<float>> green;
+  std::optional<motion::Animatable<float>> blue;
+};
+
 /** ONE NODE'S DESCRIPTION, field by field. */
 struct ElementNode {
   /** What children are matched on; empty means positional. */
@@ -53,6 +66,8 @@ struct ElementNode {
   std::vector<::sigil::material::Material> slots;
   std::vector<std::string> tags;
   std::optional<Light> light;
+  /** …and the dials on it, when the tree put any there. */
+  std::optional<Emission> emission;
   std::optional<Camera> camera;
   core::Cache cachePolicy = core::Cache::Auto;
   std::optional<motion::Transition> nodeTransition;

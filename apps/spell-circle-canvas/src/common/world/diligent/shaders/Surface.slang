@@ -15,6 +15,11 @@
 // returning the body's own colour with straight (not premultiplied)
 // alpha. Lighting is not its business.
 //
+// A BODY'S MAP reaches this text as one sampled slot and the placement
+// it is read at, so a surface function never has to know whether it was
+// dressed: the slot an unmapped body leaves empty reads one white texel,
+// and the map multiplies the shaded colour rather than the surface.
+//
 // SIGIL_LIT is the one axis the source is specialised on. Defined, the
 // emitters reach the surface and the vertex stage carries the shading;
 // undefined, the surface colour stands as it is and the lighting, its
@@ -43,6 +48,17 @@ uniform float4x4 uViewProj;
 uniform float4x4 uModel;
 /** The colour a body wears when its material has no program to run. */
 uniform float4 uBaseColor;
+/** THE MAP the body is dressed with, multiplied into the SHADED colour.
+ *  Not into the surface before the lighting: the host tier's rasteriser
+ *  can only modulate a texture against the colour it already shaded, and
+ *  a map that landed on one side of the lighting here and the other side
+ *  there would make the two tiers different pictures. A body given no
+ *  map reads one white texel, so a colour multiplied by a map it does
+ *  not have is that colour. */
+uniform Sampler2D uBaseColorMap;
+/** Where that map is read at, over the mesh's own uv coordinates: the
+ *  identity reads the image once across them. */
+uniform float4x4 uBaseColorMapUv;
 
 #ifdef SIGIL_LIT
 /** view * model, for the position the shading is written in. */
@@ -131,8 +147,11 @@ float4 surfaceFlat(float2 uv) { return uBaseColor; }
  *  sets expects. */
 float4 shade(float4 surface, VSOut input) {
   let straight = float4(surface.rgb * input.tint.rgb, surface.a * input.tint.a);
-  let rgb = saturateP(straight.rgb * input.shadeMul + input.shadeAdd);
-  let a = saturateP(straight.a);
+  let shaded = saturateP(straight.rgb * input.shadeMul + input.shadeAdd);
+  let mapUv = mul(uBaseColorMapUv, float4(input.uv, 0.0, 1.0)).xy;
+  let map = uBaseColorMap.Sample(mapUv);
+  let rgb = shaded * map.rgb;
+  let a = saturateP(straight.a) * map.a;
   return float4(rgb * a, a);
 }
 

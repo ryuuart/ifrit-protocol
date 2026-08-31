@@ -7,7 +7,11 @@
  * not reachable from a pass.
  */
 
+#include <include/core/SkImage.h>
+#include <include/core/SkMatrix.h>
+#include <include/core/SkRefCnt.h>
 #include <include/core/SkSize.h>
+#include <sigilmaterial/texture/Texture.h>
 #include <sigilworld/element/Element.h>
 #include <sigilworld/element/Selector.h>
 
@@ -38,7 +42,32 @@ struct Draw {
   /** The keys from the root down to this body's parent. */
   std::span<const std::string> ancestors;
   const ::sigil::material::Material* material = nullptr;
+  /** THE MAP THE SURFACE IS DRESSED WITH: the base-colour texture the
+   *  body's material carries, or null when it carries none. It is read
+   *  off the material once per frame, so an executor does not walk a
+   *  material tree per draw. */
+  const ::sigil::material::Texture* texture = nullptr;
 };
+
+/** A TEXTURE AS A MESH SAMPLES IT: the image, where it is read at over
+ *  the mesh's own uv coordinates, and whether it repeats outside
+ *  them.
+ *
+ *  A mesh carries normalised uvs, and a `material::Texture` states its
+ *  placement in the image's own pixels, so the matrix is carried across
+ *  rather than copied: it is inverted (a texture's matrix puts the image
+ *  INTO the sampled space, and a lookup goes the other way) and taken
+ *  through the image's size, so `at()` and a scale mean the same thing
+ *  and point the same way on a mesh as they do in a plane. */
+struct Sampling {
+  sk_sp<SkImage> image;
+  SkMatrix uv = SkMatrix::I();
+  bool tile = false;
+};
+
+/** @p texture as a mesh samples it. An empty texture answers an empty
+ *  Sampling, whose null image is a body that is simply not dressed. */
+Sampling samplingOf(const ::sigil::material::Texture& texture);
 
 /** WHAT ONE FRAME EXTRACTED, handed to every pass that runs over it.
  *

@@ -64,12 +64,26 @@ SkColor4f colourOf(const glm::vec4& colour) {
   return SkColor4f{colour.r, colour.g, colour.b, colour.a};
 }
 
+/** The map a body is dressed with, put on the style — and taken off it
+ *  again for a body carrying none, since one style is reused across the
+ *  whole list. */
+void dress(render::MeshStyle& style, const Draw& draw) {
+  const Sampling sampling =
+      draw.texture ? samplingOf(*draw.texture) : Sampling{};
+  style.texture = sampling.image;
+  style.uvTransform = sampling.uv;
+  style.tileTexture = sampling.tile;
+}
+
 void drawSelection(SkCanvas& canvas, const View& view, const Selector& selector,
                    render::MeshStyle& style, bool flat) {
   for (const Draw& draw : view.draws) {
     if (!draw.mesh) continue;
     if (!selector.matches(subjectOf(draw))) continue;
-    if (!flat) style.baseColor = colourOf(draw.baseColor);
+    if (!flat) {
+      style.baseColor = colourOf(draw.baseColor);
+      dress(style, draw);
+    }
     render::drawMesh(canvas, *draw.mesh, draw.world, view.camera,
                      viewportOf(view), style);
   }
@@ -87,6 +101,7 @@ void drawStamps(SkCanvas& canvas, const Pass& pass, const View& view,
     const Cooked cooked = cook(Stamped{*cloud, pass.stamp()});
     if (cooked.mesh.indices.empty()) continue;
     style.baseColor = colourOf({0.9f, 0.9f, 0.95f, 1.0f});
+    style.texture = nullptr;
     render::drawMesh(canvas, cooked.mesh, glm::mat4(1.0f), view.camera,
                      viewportOf(view), style);
   }
@@ -112,6 +127,7 @@ void paintGeometry(const PassWork& work, const View& view, Targets& targets) {
       if (!draw.mesh) continue;
       if (cull && !pass.selector().matches(subjectOf(draw))) continue;
       style.baseColor = colourOf(draw.baseColor);
+      dress(style, draw);
       render::drawMesh(*canvas, *draw.mesh, draw.world, view.camera,
                        viewportOf(view), style);
     }

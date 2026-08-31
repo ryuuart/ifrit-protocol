@@ -7,6 +7,7 @@
 #include <sigilworld/element/Element.h>
 #include <sigilworld/element/Node.h>
 
+#include <optional>
 #include <utility>
 
 namespace sigil::world {
@@ -191,6 +192,24 @@ Element& Element::tag(std::string word) {
 
 Element& Element::light(Light l) {
   m_node->light = l;
+  return *this;
+}
+
+Element& Element::intensity(motion::Animatable<float> v) {
+  std::optional<Emission>& emission = m_node->emission;
+  if (!emission) emission.emplace();
+  emission->intensity = std::move(v);
+  return *this;
+}
+
+Element& Element::emission(motion::Animatable<float> red,
+                           motion::Animatable<float> green,
+                           motion::Animatable<float> blue) {
+  std::optional<Emission>& emission = m_node->emission;
+  if (!emission) emission.emplace();
+  emission->red = std::move(red);
+  emission->green = std::move(green);
+  emission->blue = std::move(blue);
   return *this;
 }
 

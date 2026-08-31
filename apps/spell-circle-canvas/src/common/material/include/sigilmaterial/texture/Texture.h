@@ -32,6 +32,34 @@
 
 namespace sigil::material {
 
+/** WHERE A SOURCE'S PIXELS ALREADY LIVE, when they live on a GPU: the
+ *  device that owns the texture, and the texture itself as the graphics
+ *  API's own object bridged to opaque values — a pointer for one API's
+ *  texture object, an integer for another's image handle, with the
+ *  format and the layout it was left in.
+ *
+ *  Nothing in this library reads any of it. It is carried, unexamined,
+ *  from a source that painted on a device to a renderer standing on the
+ *  SAME device, which binds those pixels instead of uploading a copy of
+ *  `image()`. A renderer holding another device — or none — compares
+ *  `device` against its own, finds it different, and reads `image()`
+ *  exactly as it reads every other source's. Empty unless a source was
+ *  given a device to paint on, which most never are. */
+struct DeviceImage {
+  const void* device = nullptr;
+  const void* pointer = nullptr;
+  uint64_t handle = 0;
+  uint32_t format = 0;
+  uint32_t layout = 0;
+  int width = 0;
+  int height = 0;
+
+  explicit operator bool() const {
+    return device != nullptr && (pointer != nullptr || handle != 0);
+  }
+  bool operator==(const DeviceImage&) const = default;
+};
+
 /** What a texture source must be: it yields an image, says whether that
  *  image can change between frames, and compares by value. */
 template <class S>
@@ -40,6 +68,14 @@ concept TextureSourceType =
       { s.image() } -> std::convertible_to<sk_sp<SkImage>>;
       { s.animated() } -> std::convertible_to<bool>;
     };
+
+/** …and what it MAY be besides: a source whose pixels stand on a device
+ *  says where. One optional member, so every source that has no device
+ *  is written exactly as it was. */
+template <class S>
+concept DeviceTextureSource = requires(const S& s) {
+  { s.deviceImage() } -> std::convertible_to<DeviceImage>;
+};
 
 /** A source held by value with its type erased, comparable across the
  *  erasure: two sources are equal when they are the same source type and
@@ -56,6 +92,11 @@ class TextureSource {
    *  nothing. */
   sk_sp<SkImage> image() const { return m_impl ? m_impl->image() : nullptr; }
   bool animated() const { return m_impl && m_impl->animated(); }
+  /** Where the source's pixels already stand, when they stand on a
+   *  device; empty for every source that has none. */
+  DeviceImage deviceImage() const {
+    return m_impl ? m_impl->deviceImage() : DeviceImage{};
+  }
   /** The held source when it is an @p S, else null. */
   template <class S>
   const S* as() const {
@@ -73,6 +114,7 @@ class TextureSource {
     virtual ~Concept() = default;
     virtual sk_sp<SkImage> image() const = 0;
     virtual bool animated() const = 0;
+    virtual DeviceImage deviceImage() const = 0;
     virtual bool equals(const Concept& other) const = 0;
   };
   template <class S>
@@ -80,6 +122,10 @@ class TextureSource {
     explicit Model(S v) : value(std::move(v)) {}
     sk_sp<SkImage> image() const override { return value.image(); }
     bool animated() const override { return value.animated(); }
+    DeviceImage deviceImage() const override {
+      if constexpr (DeviceTextureSource<S>) return value.deviceImage();
+      return DeviceImage{};
+    }
     bool equals(const Concept& other) const override {
       auto* o = dynamic_cast<const Model<S>*>(&other);
       return o && value == o->value;
@@ -212,6 +258,11 @@ class Texture : public ShaderLeaf {
   sk_sp<SkShader> shader() const override;
 
   bool animated() const override { return m_source.animated(); }
+  /** Where the sampled pixels already stand, when the source painted
+   *  them on a device. A REGION is not applied to it: what the device
+   *  holds is the whole image, and a renderer binding it cuts the region
+   *  itself. */
+  DeviceImage deviceImage() const { return m_source.deviceImage(); }
   bool operator==(const Texture& other) const;
 
  protected:

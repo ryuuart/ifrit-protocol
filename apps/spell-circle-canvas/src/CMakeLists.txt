@@ -6,7 +6,8 @@
 #                measure/ (SigilMeasure), motion/ (SigilMotion), core/ (SigilCore),
 #                geometry/ (SigilGeometry), world/ (SigilWorldElement,
 #                SigilWorldFrame, SigilWorldGraph, SigilWorldScene,
-#                SigilWorldLight, SigilWorldTesting, SigilWorldDiligent),
+#                SigilWorldLight, SigilWorldKit, SigilWorldTesting,
+#                SigilWorldDiligent),
 #                material/ (SigilMaterial), compose/
 #                (SigilCompose)
 #   sigilweave/  the Qt-free SigilWeave text layout engine, its companion

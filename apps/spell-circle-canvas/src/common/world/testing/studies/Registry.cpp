@@ -9,7 +9,8 @@
 namespace sigil::world::testing {
 
 std::span<const Study> registry() {
-  static const std::vector<Study> studies = {firstLight(), glowTrail()};
+  static const std::vector<Study> studies = {
+      firstLight(), glowTrail(), materialLab(), wovenCard(), keyLight()};
   return studies;
 }
 

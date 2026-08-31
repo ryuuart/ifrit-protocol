@@ -19,6 +19,8 @@
 #   SigilComposeTesting     testing/     the read-back checks (headers)
 #   SigilComposeInstances   instances/   the instanced sprite leaf, with the
 #                                        kit's placers
+#   SigilComposeTexture     texture/     a scene painted into a surface and
+#                                        handed over as a material texture
 #   SigilComposeWeb         web/         the Ultralight leaf (headers; only
 #                                        with SigilScry)
 #   SigilComposeKit         kit/         the kit tier over Shape and
@@ -98,6 +100,7 @@ add_subdirectory(shape)
 add_subdirectory(typography)
 add_subdirectory(brush)
 add_subdirectory(instances)
+add_subdirectory(texture)
 add_subdirectory(web)
 add_subdirectory(kit)
 

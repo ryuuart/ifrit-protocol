@@ -176,6 +176,48 @@ TEST(WorldElement, LanesAreOneFixedRowPerSlot) {
   EXPECT_NE(lanes[kWindowSpan].value, nullptr);
 }
 
+TEST(WorldElement, AnEmitterLaneStandsWhereTheEmitterStands) {
+  std::vector<Lane> lanes;
+  // No emitter and no dials: the rows are there, empty, at full
+  // strength in white.
+  lanesOf(*Element().node(), lanes);
+  EXPECT_EQ(lanes[kIntensity].value, nullptr);
+  EXPECT_FLOAT_EQ(lanes[kIntensity].standing, 1.0f);
+  EXPECT_FLOAT_EQ(lanes[kEmissionGreen].standing, 1.0f);
+
+  // An emitter with no dials: each row stands at the emitter's own
+  // field, so a dropped dial ramps back to the light rather than to one.
+  const Light lamp = point({0, 0, 0}, {0.2f, 0.4f, 0.8f, 1.0f}, 0.6f);
+  lanesOf(*Element().light(lamp).node(), lanes);
+  EXPECT_EQ(lanes[kIntensity].value, nullptr);
+  EXPECT_FLOAT_EQ(lanes[kIntensity].standing, 0.6f);
+  EXPECT_FLOAT_EQ(lanes[kEmissionRed].standing, 0.2f);
+  EXPECT_FLOAT_EQ(lanes[kEmissionBlue].standing, 0.8f);
+
+  // …and the dials the tree DID put there carry values.
+  lanesOf(*Element().light(lamp).intensity(2.0f).node(), lanes);
+  EXPECT_NE(lanes[kIntensity].value, nullptr);
+  EXPECT_EQ(lanes[kEmissionRed].value, nullptr);
+  lanesOf(*Element().light(lamp).emission(1.0f, 0.5f, 0.25f).node(), lanes);
+  EXPECT_NE(lanes[kEmissionGreen].value, nullptr);
+  EXPECT_EQ(lanes[kIntensity].value, nullptr);
+}
+
+TEST(WorldElement, TheEmitterDialsTakePartInTheStructuralPrune) {
+  const Light lamp = point({0, 0, 0});
+  EXPECT_TRUE(propsEqual(*Element().light(lamp).intensity(2.0f).node(),
+                         *Element().light(lamp).intensity(2.0f).node()));
+  EXPECT_FALSE(propsEqual(*Element().light(lamp).intensity(2.0f).node(),
+                          *Element().light(lamp).intensity(1.0f).node()));
+  // A dial that is there and one that is not are different descriptions,
+  // because the emitter's own field stands where the dial is absent.
+  EXPECT_FALSE(propsEqual(*Element().light(lamp).intensity(1.0f).node(),
+                          *Element().light(lamp).node()));
+  EXPECT_FALSE(
+      propsEqual(*Element().light(lamp).emission(1.0f, 1.0f, 1.0f).node(),
+                 *Element().light(lamp).emission(1.0f, 1.0f, 0.5f).node()));
+}
+
 TEST(WorldElement, LocalMatrixPlacesScalesAndTurns) {
   TransformValues values;
   values.translate = {10, 0, 0};

@@ -31,6 +31,17 @@ render::Light painterLight(const Light& light) {
   return out;
 }
 
+/** The map a body is dressed with, put on the style — and taken off it
+ *  again for a body carrying none, since one style is reused across the
+ *  whole list. */
+void dress(render::MeshStyle& style, const Draw& body) {
+  const Sampling sampling =
+      body.texture ? samplingOf(*body.texture) : Sampling{};
+  style.texture = sampling.image;
+  style.uvTransform = sampling.uv;
+  style.tileTexture = sampling.tile;
+}
+
 }  // namespace
 
 void Scene::draw(SkCanvas& canvas, const Camera& camera,
@@ -63,6 +74,7 @@ void Scene::draw(SkCanvas& canvas, const Camera& camera,
   for (const Draw& body : bodies) {
     style.baseColor = SkColor4f{body.baseColor.r, body.baseColor.g,
                                 body.baseColor.b, body.baseColor.a};
+    dress(style, body);
     render::drawMesh(canvas, *body.mesh, body.world, camera, viewport, style);
   }
 }

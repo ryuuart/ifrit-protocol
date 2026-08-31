@@ -22,6 +22,20 @@ Study firstLight();
  *  output from the frame before. */
 Study glowTrail();
 
+/** What a surface is made of: five cards over a textured floor — one
+ *  plain, one a stack through a mask, one glass, one emissive, and one
+ *  wearing a map — under the kit's rig and turntable. */
+Study materialLab();
+
+/** A live 2D scene as a texture on a swept band: a compose tree
+ *  reconciled and painted into an image, repeating along a ribbon. */
+Study wovenCard();
+
+/** The emitter's dials: one still set whose key light's strength and
+ *  colour are bound to live values, so what moves is the lane and never
+ *  the description. */
+Study keyLight();
+
 /** Every study, in the order a sweep walks them. */
 std::span<const Study> registry();
 

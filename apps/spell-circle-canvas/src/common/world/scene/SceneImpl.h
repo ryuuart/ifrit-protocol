@@ -20,6 +20,7 @@
 #include <array>
 #include <entt/entity/registry.hpp>
 #include <functional>
+#include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
 #include <memory>
 #include <optional>
@@ -61,6 +62,10 @@ struct Body {
 struct Surface {
   glm::vec4 baseColor{0.8f, 0.8f, 0.85f, 1.0f};
   std::optional<::sigil::material::Material> material;
+  /** The base-colour map that material carries, resolved once at
+   *  extract. It addresses a leaf the material above holds, so it stands
+   *  exactly as long as this component does. */
+  const ::sigil::material::Texture* texture = nullptr;
 };
 
 /** The words this node answers to. */
@@ -92,6 +97,10 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   float alongDistance = 0.0f;
   float windowHead = 1.0f;
   float windowSpan = 1.0f;
+  /** What the emitter's dials resolved to, for a node carrying one:
+   *  the strength it shines at and the colour it shines in. */
+  float intensity = 1.0f;
+  glm::vec3 emission{1.0f, 1.0f, 1.0f};
 
   /** The artefact this node's geometry slot resolved, and the window
    *  values it was resolved at — a moving window is moving geometry, so

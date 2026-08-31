@@ -47,6 +47,11 @@ else()
     "(SigilSkiaDevice)")
 endif()
 
+# The presets: elements composed out of the verbs above — a three-point
+# rig, a turntable, a lit set. It stands on the description and on
+# SigilMaterial's kit, and nothing here draws or retains.
+add_subdirectory(kit)
+
 # The study harness: a scene stepped to a declared moment and
 # photographed, and the studies that ride it. After the device feature,
 # because the studies BINARY links it for its --gpu lane while the

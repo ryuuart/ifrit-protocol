@@ -28,6 +28,7 @@ here.
 | `graph/` | `SigilWorldGraph` | `sigil::world::graph` | the `Plan`: the order the passes run in, the surfaces they share, the barriers between them, and how each selection is realised. It reads declarations and draws nothing. |
 | `scene/` | `SigilWorldScene` | `sigil::world` | the retained side: the reconcile host, the entity store, the content-keyed resource store, the declared phases, the execution of a frame's passes, and the draw. |
 | `light/` | `SigilWorldLight` | `sigil::world::light` | emitters as plain comparable values over glm: a sun, a point light, a spot, their falloffs and the per-frame budget. |
+| `kit/` | `SigilWorldKit` | `sigil::world::kit` | presets that compose elements: a three-point rig, a turntable, and the lit set both make over a ground plane. Nothing here decides a look. |
 | `testing/` | `SigilWorldTesting` | `sigil::world::testing` | the study harness — a frame stepped to a declared moment on the CPU and photographed — and the `world_studies` binary the plate ledger's 3D tier drives. |
 | `diligent/` | `SigilWorldDiligent` | `sigil::world::diligent` | the one GPU device 2D and 3D share, the Slang compiler the program cache runs, and the `Runtime` that performs a frame's passes on that device. |
 
@@ -93,13 +94,43 @@ scene.render(frame);
 scene.draw(canvas);   // what the passes wrote
 ```
 
+### Presets
+
+`kit/` is a handful of trees someone would otherwise write by hand:
+
+```cpp
+#include <sigilworld/kit/Kit.h>
+
+world::kit::Set set;
+set.rig.extent = 140.0f;   // how far across the subject is
+set.table.period = 12.0f;  // seconds for one turn of the camera
+
+scene.render(world::kit::litSet(model, set, seconds));
+```
+
+`kit::threePoint(rig)` is three emitters round a subject, stated in the
+subject's own extents so one rig serves a thumbnail and a room;
+`kit::turntable(table, seconds)` is a camera riding a closed rail and
+looking inward, with `kit::rail(table)` the curve itself; `kit::litSet`
+is both over a ground plane, with the subject under it.
+
+**Nothing here decides a look.** Each returns an ordinary `Element` whose
+every field the caller can read, replace or ignore, and the only
+constants in one are the geometry of the arrangement plus a single
+neutral grey for a ground plane that was given no surface. A preset is
+worth having only for as long as that stays true — which is why a study
+that wants lanes on the rig's key light takes the tree the preset
+returned and rebuilds it with that child replaced, rather than the preset
+growing a hook.
+
 Where a concept exists in two dimensions this spells it the way
 SigilCompose spells it — `key`, `child`, `children`, `memo`, `at`,
 `scale`, `transformOrigin`, `fill`, `cache`, `bind`, `animate`, and the
 `Selector` combinators `|`, `&` and `!`. The new spellings are the ones a
 plane does not have: `translateZ`/`rotateX`/`rotateY`/`rotateZ`/`scaleZ`
 and `rotate(axis, degrees)`, the geometry slot (`mesh`, `cloud`, `chain`,
-`stamp`, `generate`), `window`, `along`, `tag`, `light` and `camera`.
+`stamp`, `generate`), `window`, `along`, `tag`, `light`, the emitter's
+dials `intensity` and `emission`, and `camera`.
 
 ## Mental model
 
@@ -130,8 +161,13 @@ happen to fold together. Two nodes describing one chain cook it once.
 
 **Lanes are addressed by where the motion lives.** One fixed row per lane
 per node — the nine placement lanes, the three origin lanes, the axis
-turn, the along-distance and the window's head and span — so a ramp
-survives a patch that changed what the node holds.
+turn, the along-distance, the window's head and span, and the emitter's
+strength and three colour channels — so a ramp survives a patch that
+changed what the node holds. The four EMITTER rows stand at the
+emitter's own fields rather than at a fixed default: a light whose
+strength lane is dropped ramps back to the strength `light()` declared,
+which is what makes the lanes dials on a value rather than a second copy
+of it, and why `light::Light` itself carries no animation.
 
 **There are exactly two write paths**: `Scene::render`, and the live
 values a description's lanes are bound to. Nothing writes onto a retained
@@ -320,9 +356,52 @@ A material whose recipe has no Slang body is painted in the colour the
 frame extracted — the same reading the CPU tier makes — and the program
 cache has already reported the recipe and the target once.
 
-**Not on the device yet**: a texture leaf in a child slot. Every sampled
-slot reads one white texel, so a body multiplied by a map it was not
-given is the body.
+**The map a body is dressed with** is the `material::Texture` in its
+surface's base-colour slot, and both tiers sample it. It is read off the
+material ONCE, at extract, so an execution reading a body never walks a
+material tree; a mesh carries normalised uvs and a texture states its
+placement in the image's own pixels, so the placement is carried across
+rather than copied — inverted, because a texture's matrix puts the image
+INTO the space it is sampled in and a lookup goes the other way, and
+taken through the image's size, so a scale and an `at()` mean the same
+thing and point the same way on a mesh as they do in a plane. On the
+device the map multiplies the SHADED colour rather than the surface
+before it, because the host tier's rasteriser can only modulate a texture
+against the colour it already shaded, and a map that landed on one side
+of the lighting here and the other side there would make the two tiers
+different pictures.
+
+**Not on the device yet**: every OTHER sampled slot. They read one white
+texel, so a body multiplied by a map it was not given is the body.
+
+## A 2D scene as a texture
+
+A compose scene reaches a 3D surface as a `material::Texture` and by no
+other door. There is no panel element, no card and no branch anywhere
+here on "is this a scene": what a surface holds in its base-colour slot
+is a texture value like any other, and the tiling and the placement reach
+it as they reach any other image — with one wrap for both axes, because a
+mesh's sampler has one and clamping the axis that was asked to repeat
+would drag one edge's pixels across a whole face.
+
+**World does not link SigilCompose and no world header names a compose
+type.** The arrow runs the other way: `SigilComposeTexture` keeps a
+composer and the surface it paints into, and hands out a texture value.
+A host that owns both — a study, an application — makes the scene, hands
+it the tree each frame, and puts the value it returns in a material slot.
+That is the whole handoff.
+
+**The device reaches those pixels through one narrow value.** A
+`material::TextureSource` may answer a `DeviceImage`: the device that
+owns the texture, and the texture as the graphics API's own object,
+bridged to opaque values. SigilMaterial reads none of it. The device
+executor here asks a map where its pixels stand, and when the answer
+names the very device this frame is running on it wraps that image and
+samples it where it is; when the answer names another device, or none,
+it brings the source's `image()` over once and holds it under the id of
+the image it came from. So a compose scene painted into a texture on the
+shared device is sampled by a 3D pass with no copy in either direction,
+and the two libraries still know nothing about each other.
 
 ## The host contract
 
@@ -378,13 +457,23 @@ executor shades on the CPU. That executor's shading is directional and
 per vertex, so:
 
 - a `material::Material` is carried and compared in full, and the tier
-  reads its `baseColor` field when the recipe declares one. A recipe's
-  body is a program, and the CPU tier has no compiler to run one.
+  reads its `baseColor` field when the recipe declares one, plus the
+  `material::Texture` in its base-colour map slot. A recipe's body is a
+  program, and the CPU tier has no compiler to run one.
+- a STACK of surfaces — `material::over` — reaches this tier as the
+  surface at the BOTTOM of it, because the mask that decides where the
+  top shows is a program too. Both the colour and the map are read
+  there.
 - a sun reaches the shading as itself; a point or spot light reaches it
   as the direction from where it stands toward the origin, at the
   strength it has there. The full falloff is `light::attenuation`.
 - bodies are sorted back to front by view depth, stably, so two at one
   depth land in tree order.
+- every body is SHADED. A surface that says light does not reach it —
+  `material::kit::unlit`, an emissive-only set — is shaded like any
+  other, on this tier and on the device: the lit build is decided per
+  PASS, not per body. What such a surface shows is its base colour under
+  the frame's emitters.
 
 That is what a machine with no Vulkan runtime can honestly answer, and it
 is what the plate ledger's 3D tier is judged on. It is not a substitute
@@ -415,18 +504,45 @@ the CPU's plate under a name that asked for the device's. The device is
 brought up by the BINARY, so the harness library links none and a machine
 with no GPU still renders the CPU tier.
 
-`first_light` is the first of them: a tube swept along a closed loop, a
-comet of stamps riding a moving window of that same loop, a plate under
-both, a sun and a lamp, and a camera on a rail of its own.
+Five of them, and between them they exercise every feature this library
+has:
 
-`glow_trail` is the first about the passes. Its set is drawn once, and
-what is tagged "glow" is then reached three ways, one per realisation:
-a narrowed post pass lifts the beads in place through the coverage the
-geometry pass before it was made to write; a narrowed geometry pass draws
-the same beads alone into a target of their own, which is softened and
-dimmed; and that is laid over its own output from the frame before, so
-the comet drags a tail no single frame contains. Six passes, no stated
-order, and three of its surfaces are taken in turns.
+- **`first_light`** — the scene: a tube swept along a closed loop, a
+  comet of stamps riding a moving window of that same loop, a plate under
+  both, a sun and a lamp, and a camera on a rail of its own.
+- **`glow_trail`** — the passes. Its set is drawn once, and what is
+  tagged "glow" is then reached three ways, one per realisation: a
+  narrowed post pass lifts the beads in place through the coverage the
+  geometry pass before it was made to write; a narrowed geometry pass
+  draws the same beads alone into a target of their own, which is
+  softened and dimmed; and that is laid over its own output from the
+  frame before, so the comet drags a tail no single frame contains. Six
+  passes, no stated order, and three of its surfaces are taken in turns.
+- **`material_lab`** — what a surface is made of. Five cards over a
+  floor wearing a texture set: one plain, one a STACK of two through a
+  mask, one glass, one emissive, and one wearing a map of its own. What
+  reaches the pixels is each surface's base colour and its base-colour
+  map, so the stack reads as the surface at the bottom of it — the
+  honest picture of what this library shades today, and the plate moves
+  the day that changes. The texture set is GENERATED in the study rather
+  than read off the disk, through the same `textures::` door a scanned
+  folder arrives by: a plate is a function of the declaration, and what a
+  machine happens to have under `build/assets` is not.
+- **`woven_card`** — a live 2D scene riding a 3D ribbon. A compose tree
+  is rendered into a texture by a composer of its own, and a band swept
+  over a two-point profile is made of it; the card repeats along the
+  band's length, which is the ordinary uv placement every texture has.
+- **`key_light`** — the emitter's dials. One still set under the kit's
+  three-point rig, with the key light's strength and colour bound to live
+  values: nothing about the description changes from frame to frame, and
+  what moves is what the lanes are bound to.
+
+The last three are built out of `kit/`: `kit::threePoint` puts three
+emitters round a subject in its own extents, `kit::turntable` rides a
+closed rail looking inward, and `kit::litSet` is both over a ground
+plane. Every one returns an ordinary `Element`, which is why `key_light`
+can take the rig the preset returned and put lanes on its key light
+without the preset offering a hook for it.
 
 A study returns a `Frame`, and an `Element` is one with no passes, so a
 study about the scene says nothing about passes at all. The harness
@@ -466,17 +582,11 @@ machine with no Vulkan runtime has nothing to disagree about.
 
 ## What is coming
 
-These are not built yet. They arrive in this order, each one leaving the
-tree buildable:
-
-| directory | target | holds |
-|---|---|---|
-| `kit/` | `SigilWorldKit` | presets that compose elements: a three-point rig, a turntable, a lit set |
-
-`diligent/` still owes `importNative`, a point-operator kernel that cooks
-a chain on the device, and a texture leaf that reaches a sampled slot. An
-umbrella interface target named `SigilWorld` gathers every feature once
-there is more than one worth gathering.
+Every feature the layout declares is built. `diligent/` still owes
+`importNative`, a point-operator kernel that cooks a chain on the device,
+and the sampled slots past the base-colour map. An umbrella interface
+target named `SigilWorld` gathers every feature once there is more than
+one worth gathering.
 
 ### Where the shaders come from
 
@@ -557,8 +667,13 @@ ctest --test-dir build -C Debug -R world_
 
 `world_element_test` covers the description: copy-on-write, the
 structural prune field by field, the geometry slot's value type standing
-in for a kind, the lane list, the cook, and the selectors.
-`world_scene_test` covers the retained side: identity across a keyed
+in for a kind, the lane list — including the emitter rows standing where
+the emitter stands — the cook, and the selectors. `world_kit_test`
+covers the presets: what tree each returns, that the rig is stated in the
+subject's own extents, that a whole turn of the turntable is where it
+started, and that the one colour this library states is the ground's.
+`world_scene_test` covers the retained side: an emitter dial reaching the
+light it scales while the tree stands still, identity across a keyed
 reorder, the three lifetimes pulling apart under a geometry-slot change,
 the store sharing one cooked artefact, a lane ramping a placement, the
 bake taken once and lost to a driven lane below it, and a draw that is a
@@ -567,8 +682,12 @@ function of the description alone. `world_light_test` runs anywhere.
 Slang body with its parameter at a reflected offset and the lit build
 carrying shading the unlit one does not, one scene rendered on both tiers
 and measured apart, a cooked chain that matches the host's cook exactly,
-a readback that arrives the frame after, and a masked pass that lifts the
-selection and leaves the ground where it stood. The program tests run
+a readback that arrives the frame after, a masked pass that lifts the
+selection and leaves the ground where it stood, the map a body is dressed
+with reaching both tiers to the same picture, and a map whose pixels
+already stand on this device being bound where they are — proven by a
+source that answers no host image at all, so a picture carrying its
+colour cannot have come from a copy. The program tests run
 anywhere; the ones that need a Vulkan runtime (`brew install molten-vk
 vulkan-loader`) *skip* rather than fail without one, so a machine with no
 GPU stays green.
@@ -584,8 +703,8 @@ and its independence from the order they were written in, a cycle named,
 each selection realisation ruled on.
 
 `world_element_bench`, `world_frame_bench`, `world_graph_bench`,
-`world_scene_bench`, `world_light_bench` and `world_diligent_bench` build
-through the `benches` target and run through `scripts/bench_ledger.py`;
+`world_scene_bench`, `world_light_bench`, `world_kit_bench` and
+`world_diligent_bench` build through the `benches` target and run through `scripts/bench_ledger.py`;
 use a Release build. The device bench measures the three costs a frame
 on a device has that one on the host does not: bringing the device up,
 turning a recipe's Slang body into a program, and a steady frame with

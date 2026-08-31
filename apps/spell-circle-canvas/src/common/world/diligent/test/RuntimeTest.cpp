@@ -16,7 +16,11 @@
 #include <sigilgeometry/mesh/pop/Pop.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/core/Recipe.h>
+#include <sigilmaterial/kit/Surface.h>
 #include <sigilmotion/clock/Ticker.h>
+#include <sigilskia/device/GpuDevice.h>
+#include <sigilskia/graphite/GraphiteContext.h>
+#include <sigilskia/graphite/OffscreenSurface.h>
 #include <sigilworld/diligent/Device.h>
 #include <sigilworld/diligent/Runtime.h>
 #include <sigilworld/scene/Scene.h>
@@ -315,4 +319,129 @@ TEST(GpuRuntime, AMaskedPassReachesOnlyTheSelection) {
   EXPECT_NEAR(groundMasked.fR, groundPlain.fR, 2.0f / 255.0f);
   EXPECT_NEAR(groundMasked.fG, groundPlain.fG, 2.0f / 255.0f);
   EXPECT_NEAR(groundMasked.fB, groundPlain.fB, 2.0f / 255.0f);
+}
+
+// ---- the map a body is dressed with ----------------------------------------
+
+namespace {
+
+/** A flat image, as a texture a surface carries in its base-colour
+ *  slot. */
+material::Texture flatMap(SkColor4f colour, int side = 8) {
+  SkBitmap bitmap;
+  bitmap.allocPixels(SkImageInfo::MakeN32Premul(side, side));
+  bitmap.eraseColor(colour.toSkColor());
+  bitmap.setImmutable();
+  return material::Texture::of(bitmap.asImage());
+}
+
+/** A white lit surface wearing @p map, so what reaches the pixels is
+ *  the map and the shading and nothing else. */
+material::Material dressed(material::Texture map) {
+  material::Material surface =
+      material::kit::surface({.baseColor = {1, 1, 1, 1}});
+  surface.child(material::kit::kBaseColorSlot, std::move(map));
+  return surface;
+}
+
+/** One quad facing the camera, filling most of the frame. */
+Frame dressedQuad(material::Material surface) {
+  namespace gm = ::sigil::geometry::mesh;
+  Frame frame(Element()
+                  .key("set")
+                  .child(Element().key("sun").light(
+                      light::sun({0.0f, 0.0f, -1.0f}, {1, 1, 1, 1}, 1.0f)))
+                  .child(Element()
+                             .key("card")
+                             .mesh(gm::quad(200, 150))
+                             .fill(std::move(surface))));
+  frame.extent(kExtent).camera(eye()).pass(
+      geometryPass("colour").writes("colour").clear(SkColors::kBlack));
+  return frame;
+}
+
+/** A source whose pixels stand on a device and NOWHERE ELSE: `image()`
+ *  answers null, so a renderer that cannot bind what the device holds
+ *  has nothing at all to draw with. */
+struct StandingSource {
+  material::DeviceImage where;
+  sk_sp<SkImage> image() const { return nullptr; }
+  bool animated() const { return false; }
+  material::DeviceImage deviceImage() const { return where; }
+  bool operator==(const StandingSource& other) const {
+    return where == other.where;
+  }
+};
+
+}  // namespace
+
+TEST(GpuRuntime, TheMapABodyIsDressedWithReachesBothTiers) {
+  const OnDevice on = onDevice();
+  if (!on) GTEST_SKIP() << "no Vulkan device: " << on.error;
+  const Frame frame = dressedQuad(dressed(flatMap({0.2f, 0.8f, 0.35f, 1.0f})));
+
+  const SkBitmap host = photograph(frame, Runtime::cpu());
+  const SkBitmap graphics = photograph(frame, on.runtime);
+
+  // The map, not the surface: a white surface under a green map is
+  // green wherever the card stands, on either tier.
+  const SkColor4f centre =
+      host.getColor4f(kExtent.width() / 2, kExtent.height() / 2);
+  EXPECT_GT(centre.fG, centre.fR + 0.15f);
+  EXPECT_GT(centre.fG, centre.fB + 0.15f);
+  const SkColor4f onDeviceCentre =
+      graphics.getColor4f(kExtent.width() / 2, kExtent.height() / 2);
+  EXPECT_GT(onDeviceCentre.fG, onDeviceCentre.fR + 0.15f);
+  EXPECT_GT(onDeviceCentre.fG, onDeviceCentre.fB + 0.15f);
+
+  // …and the two tiers are the same picture: a flat map has no edges of
+  // its own, so what is left is the two rasterisers' own disagreement.
+  const Distance distance = distanceOf(host, graphics);
+  EXPECT_LT(distance.mean, 6.0);
+  EXPECT_LT(distance.p99, 64);
+}
+
+TEST(GpuRuntime, AMapAlreadyOnThisDeviceIsBoundWhereItStands) {
+  const OnDevice on = onDevice();
+  if (!on) GTEST_SKIP() << "no Vulkan device: " << on.error;
+  skia::GpuDevice* gpu = on.device->gpu();
+  skia::GraphiteContext* graphite = on.device->graphite();
+  if (!gpu || !graphite) GTEST_SKIP() << "the device was not adopted";
+
+  // 2D paints into a texture on the one shared device…
+  skia::TextureDesc desc;
+  desc.width = desc.height = 16;
+  desc.format = skia::TextureFormat::RGBA8Unorm;
+  const skia::TextureHandle handle = gpu->createTexture(desc);
+  ASSERT_TRUE((bool)handle);
+  {
+    const world::diligent::Device::QueueLock lock(*on.device);
+    skia::OffscreenSurface surface(*graphite, *gpu, handle);
+    ASSERT_NE(surface.canvas(), nullptr);
+    surface.canvas()->clear(SkColor4f{0.15f, 0.35f, 0.95f, 1.0f});
+    surface.submit();
+  }
+  const skia::NativeTexture native = gpu->exportNative(handle);
+  ASSERT_TRUE((bool)native);
+
+  material::DeviceImage where;
+  where.device = gpu;
+  where.pointer = native.mtlTexture;
+  where.handle = native.vkImage;
+  where.format = native.vkFormat;
+  where.layout = native.vkLayout;
+  where.width = native.width;
+  where.height = native.height;
+
+  // …and 3D binds those very pixels. The source yields no host image at
+  // all, so a picture carrying the colour proves the binding rather than
+  // a copy.
+  const SkBitmap graphics =
+      photograph(dressedQuad(dressed(material::Texture(StandingSource{where}))),
+                 on.runtime);
+  const SkColor4f centre =
+      graphics.getColor4f(kExtent.width() / 2, kExtent.height() / 2);
+  EXPECT_GT(centre.fB, centre.fR + 0.15f);
+  EXPECT_GT(centre.fB, centre.fG + 0.15f);
+  gpu->destroy(handle);
 }

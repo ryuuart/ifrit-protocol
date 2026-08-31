@@ -272,6 +272,49 @@ TEST(WorldScene, EmittersAndViewpointsRideTheirNodesPlacement) {
   EXPECT_FLOAT_EQ(lights.front().position.y, 20.0f);
 }
 
+TEST(WorldScene, AnEmitterDialReachesTheLightItScales) {
+  motion::Ticker ticker;
+  Scene scene(ticker);
+  choreograph::Output<float> strength = 0.25f;
+  choreograph::Output<float> red = 1.0f;
+
+  const auto describe = [&] {
+    return Element().key("root").child(
+        Element()
+            .key("lamp")
+            .light(point({0, 0, 0}, {0.1f, 0.2f, 0.3f, 1.0f}, 0.6f))
+            .intensity(&strength)
+            .emission(&red, 0.5f, 0.5f));
+  };
+
+  scene.render(describe());
+  std::vector<Light> lights = scene.lights();
+  ASSERT_EQ(lights.size(), 1u);
+  EXPECT_FLOAT_EQ(lights.front().intensity, 0.25f);
+  EXPECT_FLOAT_EQ(lights.front().color.r, 1.0f);
+  EXPECT_FLOAT_EQ(lights.front().color.g, 0.5f);
+
+  // A LANE, not a description: the value moves and the tree is unchanged.
+  strength = 0.9f;
+  red = 0.2f;
+  scene.render(describe());
+  lights = scene.lights();
+  ASSERT_EQ(lights.size(), 1u);
+  EXPECT_FLOAT_EQ(lights.front().intensity, 0.9f);
+  EXPECT_FLOAT_EQ(lights.front().color.r, 0.2f);
+}
+
+TEST(WorldScene, AnEmitterWithNoDialsShinesAsItWasDeclared) {
+  motion::Ticker ticker;
+  Scene scene(ticker);
+  scene.render(Element().key("root").child(Element().key("lamp").light(
+      point({0, 0, 0}, {0.3f, 0.6f, 0.9f, 1.0f}, 0.4f))));
+  const std::vector<Light> lights = scene.lights();
+  ASSERT_EQ(lights.size(), 1u);
+  EXPECT_FLOAT_EQ(lights.front().intensity, 0.4f);
+  EXPECT_FLOAT_EQ(lights.front().color.b, 0.9f);
+}
+
 TEST(WorldScene, RetiringANodeHandsBackItsEntityAndItsArtefact) {
   motion::Ticker ticker;
   Scene scene(ticker);

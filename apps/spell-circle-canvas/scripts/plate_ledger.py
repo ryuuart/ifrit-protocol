@@ -218,6 +218,17 @@ DEFAULT_GPU_TOLERANCE = (12.0, 128)
 GPU_TOLERANCE = {
     "first_light": (10.0, 96),
     "glow_trail": (4.0, 32),
+    # material_lab is the looser of the rest, and for one reason: five
+    # upright cards over a broad textured floor is mostly ground plane,
+    # and a ground plane is where the two tiers' vertex-versus-pixel
+    # clamping drifts (see first_light above). Its map lands identically
+    # on both, which is what the number says.
+    "material_lab": (6.0, 64),
+    # A card sampled onto a swept band and a still set under a ramping
+    # key are both nearly all interior: the two tiers agree to a channel
+    # or two everywhere but the silhouettes.
+    "woven_card": (3.0, 32),
+    "key_light": (3.0, 32),
 }
 
 # Scenes whose honest render exceeds the default ceiling. chaucer_astrolabe

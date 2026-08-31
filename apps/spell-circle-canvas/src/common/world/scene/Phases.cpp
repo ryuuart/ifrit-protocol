@@ -7,6 +7,8 @@
 
 #include <sigilcore/cache/Cache.h>
 #include <sigilgeometry/mesh/curve/Pose.h>
+#include <sigilmaterial/core/Combine.h>
+#include <sigilmaterial/kit/Surface.h>
 #include <sigilmotion/clock/Ticker.h>
 
 #include <cstring>
@@ -23,15 +25,33 @@ namespace {
 
 namespace gm = ::sigil::geometry::mesh;
 
+/** The surface a node wears: its own, or the first of its per-face
+ *  slots. */
+const material::Material* surfaceOf(const ElementNode& node) {
+  if (node.material) return &*node.material;
+  return node.slots.empty() ? nullptr : &node.slots.front();
+}
+
+/** THE SURFACE AT THE BOTTOM OF A STACK. A stack is a base, a top and a
+ *  mask that decides where the top shows, and a mask is a program — so
+ *  what a tier with no compiler can honestly state about a stack is the
+ *  surface everything else was laid over. Any other material is
+ *  itself. */
+const material::Material* readableSurface(const material::Material* material) {
+  while (material) {
+    const material::Material* base = material::under(*material);
+    if (base == material) break;
+    material = base;
+  }
+  return material;
+}
+
 /** What the CPU tier shades a surface with. A recipe declaring a
  *  four-float `baseColor` is read for it; anything else takes the mesh
  *  painter's own default, because a recipe's body is a program and the
  *  CPU tier has no compiler to run one. */
-glm::vec4 baseColorOf(const ElementNode& node) {
+glm::vec4 baseColorOf(const material::Material* material) {
   constexpr glm::vec4 kDefault{0.8f, 0.8f, 0.85f, 1.0f};
-  const material::Material* material =
-      node.material ? &*node.material
-                    : (node.slots.empty() ? nullptr : &node.slots.front());
   if (!material) return kDefault;
   const material::Field* field = material->recipe().params().find("baseColor");
   if (!field || field->floats != 4) return kDefault;
@@ -128,6 +148,9 @@ void Scene::Impl::sampleLanes(Instance& inst) {
   inst.alongDistance = read(kAlongDistance);
   inst.windowHead = read(kWindowHead);
   inst.windowSpan = read(kWindowSpan);
+  inst.intensity = read(kIntensity);
+  inst.emission = {read(kEmissionRed), read(kEmissionGreen),
+                   read(kEmissionBlue)};
   for (std::unique_ptr<Instance>& child : inst.children) sampleLanes(*child);
 }
 
@@ -243,12 +266,20 @@ core::SubtreeVerdict Scene::Impl::foldVolatility(Instance& inst) {
     const bool live = lane.value->binding() != nullptr ||
                       (inst.anims[i] && inst.anims[i]->started);
     if (!live) continue;
-    // A window drives what the node IS MADE OF; every other lane drives
-    // only where it stands.
-    if (i == kWindowHead || i == kWindowSpan)
+    // A window drives what the node IS MADE OF; the emitter's dials
+    // drive what the frame is LIT BY and nothing about any node; every
+    // other lane drives only where the node stands.
+    if (i == kWindowHead || i == kWindowSpan) {
       movingContent = true;
-    else
+    } else if (i == kIntensity || i == kEmissionRed || i == kEmissionGreen ||
+               i == kEmissionBlue) {
+      // The emitters are gathered on the walk below, which visits every
+      // node every frame, and a bake holds a draw order and no light —
+      // so a lamp that ramps stales nothing.
+      continue;
+    } else {
       movingPlacement = true;
+    }
   }
   if (node.material && node.material->isAnimated()) movingContent = true;
   for (const material::Material& slot : node.slots)
@@ -284,7 +315,13 @@ core::SubtreeVerdict Scene::Impl::foldVolatility(Instance& inst) {
   // Emitters and viewpoints are gathered on this walk, which visits
   // every node every frame — a bake replays a draw order, and a light
   // inside one must not go missing with it.
-  if (node.light) lights.push_back(placeLight(*node.light, inst.world));
+  if (node.light) {
+    Light emitter = *node.light;
+    emitter.intensity = inst.intensity;
+    emitter.color = {inst.emission.r, inst.emission.g, inst.emission.b,
+                     emitter.color.a};
+    lights.push_back(placeLight(emitter, inst.world));
+  }
   if (node.camera && !camera) camera = placeCamera(*node.camera, inst.world);
   return inst.verdict;
 }
@@ -301,13 +338,19 @@ void Scene::Impl::writeComponents(Instance& inst) {
                                                  inst.resource->id);
   else
     registry.remove<component::Body>(inst.entity);
-  registry.emplace_or_replace<component::Surface>(
-      inst.entity, baseColorOf(node),
-      node.material
-          ? node.material
-          : (node.slots.empty()
-                 ? std::optional<material::Material>()
-                 : std::optional<material::Material>(node.slots.front())));
+  const material::Material* worn = surfaceOf(node);
+  component::Surface& surface = registry.emplace_or_replace<component::Surface>(
+      inst.entity, baseColorOf(readableSurface(worn)),
+      worn ? std::optional<material::Material>(*worn)
+           : std::optional<material::Material>());
+  // The colour and the map are read HERE, once, so that an execution
+  // reading a body never walks a material tree — and both are read off
+  // the same surface, the one at the bottom of whatever was stacked.
+  const material::Material* readable =
+      surface.material ? readableSurface(&*surface.material) : nullptr;
+  surface.texture =
+      readable ? material::kit::map(*readable, material::kit::kBaseColorSlot)
+               : nullptr;
   if (node.tags.empty())
     registry.remove<component::Tagged>(inst.entity);
   else

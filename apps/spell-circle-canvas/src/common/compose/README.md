@@ -1071,6 +1071,9 @@ with it, and the kit's `kit/Placers.h` (the `place::grid`, `place::ring`
 and `place::repeat` pool fillers) ships with it. `web/Web.h` makes a live
 Ultralight page a leaf; it is a header-only adapter and the library does
 not link SigilScry, so include it only in targets that do.
+`texture/Texture.h` is the door OUT of this library: a scene painted into
+a surface and handed over as a SigilMaterial texture value, in its own
+target `SigilComposeTexture` — see Boundaries.
 
 **Testing — `testing/Checks.h`.** A separate target, `SigilComposeTesting`,
 whose one header verifies generated geometry and reads back what was
@@ -1257,6 +1260,21 @@ POLICY the verb states — the fraction wraps on a closed curve and clamps
 on an open one, the tangent angle comes from a look-ahead chord, and the
 path outranks the translate lanes.
 
+`SigilComposeTexture` is the one feature that owns a SURFACE, and it is
+the exception the bullet below states. `compose::TextureScene` keeps a
+composer and the surface it paints into, and hands the picture over as a
+SigilMaterial texture value: a consumer that samples an image samples
+that one with no knowledge that a composer made it, and nothing above has
+to learn what an `Element` is. `compose::texture` is the one-shot form,
+for a picture described once. The version the value carries counts
+PAINTS, not describes — a frame whose reconcile moved nothing leaves the
+value equal to the frame before's, which is what lets a consumer prune on
+it. The surface is a raster one by default and a texture on a GPU device
+when a host hands the scene one, so a renderer standing on that same
+device binds the pixels where they were painted rather than copying them.
+The arrow points one way: this feature links SigilSkia and SigilMaterial's
+texture feature, and nothing that samples the value links compose.
+
 Deliberately *not* linked: SigilScry (the web leaf is a header-only
 adapter, exercised by its own test target), EnTT (the instancing header
 keeps the registry on your side), the mesh-and-material `SigilGeometry`
@@ -1272,9 +1290,12 @@ What it refuses to be:
 - **No imperative node mutation.** Describe or bind, and nothing else.
 - **No timeline object.** Multi-beat choreography is windowed bindings
   over one phase output (`bind(&phase).window(lo, hi)`).
-- **No surface, loop or thread ownership.** The composer is a guest in
-  someone else's canvas, and a host that wants many surfaces makes many
-  composers.
+- **No surface, loop or thread ownership — outside `texture/`.** The
+  composer is a guest in someone else's canvas, and a host that wants
+  many surfaces makes many composers. `compose::TextureScene` is the one
+  place a surface is owned, because a picture another library samples has
+  to live somewhere and the alternative is every such consumer writing
+  the same three lines.
 - **No depth and no perspective in the model.** There is no z, no
   `rotateX`, no projection. A camera, if you want one, is the host's
   matrix on the canvas — a recording is matrix-independent by
@@ -1306,9 +1327,10 @@ type, with the type styles and the text-fx presets), `SigilComposeBrush`
 the mask gates, with `kit/Strokes.h` and `kit/Plate.h`), `SigilComposePaint`
 (`paint/` — patterns, SDF materials, layer styles, OCIO),
 `SigilComposeInstances` (`instances/` — the instanced sprite leaf and the
-kit's placers, over Core), `SigilComposeWeb` (`web/` — header-only,
-present only with SigilScry), `SigilComposeTesting` (`testing/`) and
-`SigilComposeKit` (`kit/`). Each directory holds the target's sources,
+kit's placers, over Core), `SigilComposeTexture` (`texture/` — a scene
+painted into a surface and handed out as a texture value),
+`SigilComposeWeb` (`web/` — header-only, present only with SigilScry),
+`SigilComposeTesting` (`testing/`) and `SigilComposeKit` (`kit/`). Each directory holds the target's sources,
 its internal headers, its `test/` and its `bench/`; the public headers
 sit under `include/sigilcompose/<feature>/`. Every consumer in this
 repository — the gallery, the sketch kit, the benches, the demos, the

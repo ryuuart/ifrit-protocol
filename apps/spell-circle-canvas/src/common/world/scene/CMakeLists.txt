@@ -19,9 +19,13 @@ add_library(SigilWorldScene STATIC
 )
 target_compile_features(SigilWorldScene PUBLIC cxx_std_20)
 target_include_directories(SigilWorldScene PUBLIC ${SIGIL_WORLD_INCLUDE_DIR})
+# SigilMaterialKit is PRIVATE and is read for one thing: the slot name a
+# surface carries its base-colour map in, so that extract can hand an
+# execution the map the body is dressed with rather than a material tree
+# to walk. Nothing here defines a shading model.
 target_link_libraries(SigilWorldScene
   PUBLIC SigilWorldGraph SigilGeometryMeshRender SigilMotionClock
-  PRIVATE EnTT::EnTT)
+  PRIVATE EnTT::EnTT SigilMaterialKit)
 
 add_executable(world_scene_test test/SceneTest.cpp)
 target_link_libraries(world_scene_test PRIVATE SigilWorldScene

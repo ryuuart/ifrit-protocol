@@ -23,6 +23,7 @@
 #include <glm/gtc/matrix_inverse.hpp>
 #include <span>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "Gpu.h"
@@ -39,6 +40,11 @@ constexpr float kShininess = 48.0f;
 constexpr float kRim = 0.25f;
 /** How many emitters one draw carries. */
 constexpr size_t kLights = 4;
+
+/** The scaffold's sampled slot and the placement it is read at — the
+ *  two names the map a body is dressed with arrives under. */
+constexpr std::string_view kMapSlot = "uBaseColorMap";
+constexpr std::string_view kMapUv = "uBaseColorMapUv";
 
 /** The half of the artefact numbering a frame's OWN cooks take. The
  *  scene's store counts up from one, so nothing it hands out ever
@@ -164,11 +170,22 @@ void writeScaffold(Uniforms& uniforms, const Compiled& program,
   uniforms.set("uShading", kSpecular, kShininess, kRim, (float)count);
 }
 
-/** One body, drawn. */
+/** A texture's placement as the scaffold reads it: the same matrix the
+ *  host tier puts on its style, in the four-by-four the uniform is. */
+glm::mat4 mapMatrix(const SkMatrix& uv) {
+  glm::mat4 out(1.0f);
+  out[0] = {uv.getScaleX(), uv.getSkewY(), 0.0f, 0.0f};
+  out[1] = {uv.getSkewX(), uv.getScaleY(), 0.0f, 0.0f};
+  out[3] = {uv.getTranslateX(), uv.getTranslateY(), 0.0f, 1.0f};
+  return out;
+}
+
+/** One body, drawn. @p map is the texture it is dressed with, or null. */
 void drawBody(Gpu& gpu, const glm::mat4& viewProj, const glm::mat4& view,
               uint64_t artefact, const Mesh& mesh, const glm::mat4& model,
               glm::vec4 baseColor, const material::Material* material,
-              std::span<const Light> lights, bool lit, bool depthWrite) {
+              const material::Texture* map, std::span<const Light> lights,
+              bool lit, bool depthWrite) {
   const MeshBuffers* buffers = gpu.upload(artefact, mesh);
   if (!buffers) return;
   const Surface surface = surfaceOf(material, lit);
@@ -184,9 +201,25 @@ void drawBody(Gpu& gpu, const glm::mat4& viewProj, const glm::mat4& view,
                 lights, lit);
   writeMaterial(uniforms, surface);
 
+  // THE MAP, in the one slot the scaffold declares for it. The slots are
+  // bound by NAME rather than by position, because a material's body may
+  // declare sampled slots of its own and the compiler is free to report
+  // them in whatever order it laid them out.
+  std::vector<dg::ITexture*> textures(surface.program->textures.size(),
+                                      nullptr);
+  const Sampling sampling = map ? samplingOf(*map) : Sampling{};
+  uniforms.set(kMapUv, mapMatrix(sampling.uv));
+  // Asked of the device and not of the host image: a source whose pixels
+  // stand on this device has no host image to check for.
+  if (map) {
+    if (dg::ITexture* sampled = gpu.sample(*map))
+      for (size_t i = 0; i < textures.size(); ++i)
+        if (surface.program->textures[i] == kMapSlot) textures[i] = sampled;
+  }
+
   dg::IDeviceContext* context = gpu.device->context();
   context->SetPipelineState(pipeline->state);
-  bindAndCommit(gpu, *pipeline, *surface.program, uniforms, {});
+  bindAndCommit(gpu, *pipeline, *surface.program, uniforms, textures);
   dg::IBuffer* vertices = buffers->vertices;
   const dg::Uint64 offset = 0;
   context->SetVertexBuffers(0, 1, &vertices, &offset,
@@ -212,7 +245,8 @@ void drawBodies(Gpu& gpu, const View& view, const glm::mat4& viewProj,
     if (only && !only->matches(subjectOf(body))) continue;
     const glm::vec4 colour = flat ? *flat : body.baseColor;
     drawBody(gpu, viewProj, viewMatrix, body.geometry, *body.mesh, body.world,
-             colour, flat ? nullptr : body.material, view.lights, lit,
+             colour, flat ? nullptr : body.material,
+             flat ? nullptr : body.texture, view.lights, lit,
              /*depthWrite=*/colour.a >= 1.0f);
   }
 }
@@ -283,8 +317,8 @@ void paintGeometry(Gpu& gpu, const PassWork& work, const View& view,
       const Cooked cooked = cook(Stamped{*cloud, pass.stamp()});
       if (cooked.mesh.indices.empty()) continue;
       drawBody(gpu, viewProj, viewMatrix, ++stamped, cooked.mesh,
-               glm::mat4(1.0f), {0.9f, 0.9f, 0.95f, 1.0f}, nullptr, view.lights,
-               /*lit=*/true, /*depthWrite=*/true);
+               glm::mat4(1.0f), {0.9f, 0.9f, 0.95f, 1.0f}, nullptr, nullptr,
+               view.lights, /*lit=*/true, /*depthWrite=*/true);
     }
   }
 

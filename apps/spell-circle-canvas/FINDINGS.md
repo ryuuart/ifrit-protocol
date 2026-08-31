@@ -131,3 +131,42 @@ bring-up this library owns — the adoption, the loader, the shim — with
 the driver's own device creation outside the timed region, or the ledger
 carries a per-benchmark band wide enough to be a real gate for it and
 states why this one is wider.
+
+## A texture's filter dial reaches no 3D tier
+
+**What the code does.** `material::Texture::filter` states the filter
+between samples, and both tiers that draw a body ignore it. The CPU
+executor's mesh draw builds its sampling options as a constant
+(`SkFilterMode::kLinear` with `SkMipmapMode::kLinear`), and the device
+executor samples every map through one shared linear sampler. A texture
+declaring `filter(SkFilterMode::kNearest)` — a pixel-art map, an index
+map, an atlas whose cells must not bleed — is filtered anyway, silently.
+
+**What it was evidently intended to do.** Sample a map the way its
+texture value says to, on every tier, the way the tiling and the uv
+placement already do.
+
+**What a test should assert once intent is restored.** A body dressed
+with a two-texel map at `filter(kNearest)` shows one hard edge and no
+gradient between the two colours, on the host tier and on the device,
+and the same body at `filter(kLinear)` shows the gradient.
+
+## A material's unlit build reaches no body
+
+**What the code does.** `material::kit::unlit` is the recipe for a
+surface that is its own light, and neither 3D tier honours it per body.
+The CPU executor shades every body through one `MeshStyle` whose mode is
+the lit one, and the device executor decides `SIGIL_LIT` per PASS rather
+than per body, so an unlit or emissive-only surface is shaded by the
+frame's emitters exactly as a lit one is. What reaches the pixels is its
+base colour under the rig.
+
+**What it was evidently intended to do.** Let a surface say that light
+does not reach it — a screen, a decal, an emissive set — and be drawn
+that way.
+
+**What a test should assert once intent is restored.** One set with a
+`kit::unlit` body and a `kit::surface` body of the same base colour,
+under a rig aimed away from both: the unlit body's pixels are its base
+colour and the lit body's are darker, on the host tier and on the
+device.
