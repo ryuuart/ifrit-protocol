@@ -54,6 +54,7 @@ std::string ply(const Mesh& mesh, const PlyOptions& options = {});
  *  cannot be written. */
 bool ply(const std::filesystem::path& file, const Cloud& cloud,
          const PlyOptions& options = {});
+/** The mesh conveniences, declining on the same terms. */
 bool ply(const std::filesystem::path& file, const Mesh& mesh,
          const PlyOptions& options = {});
 

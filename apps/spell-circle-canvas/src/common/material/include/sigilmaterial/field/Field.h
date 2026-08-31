@@ -39,6 +39,9 @@ struct HalftoneRampParams {
 Material halftoneRamp(float spacing, float rMin, float rMax, Color color,
                       float angleDeg = 0.0f, float rampFrom = 0.0f,
                       float rampTo = 1.0f);
+/** halftoneRamp()'s recipe, defined once. A recipe's identity is the
+ *  object, so this — never a fresh construction — is what a caller pins a
+ *  binding to or compares a material against. */
 const std::shared_ptr<const Recipe>& halftoneRampRecipe();
 
 /** Perlin fractal noise — Skia's own generator, bound into a recipe that
@@ -71,6 +74,8 @@ struct GrainParams {
  *  against. */
 Material grain(float frequency, int octaves = 4, float seed = 1.0f,
                float contrast = 1.0f, float stretch = 1.0f);
+/** grain()'s recipe for @p octaves, defined once per count — the octave
+ *  count is a constant in the body, so each count is its own program. */
 const std::shared_ptr<const Recipe>& grainRecipe(int octaves);
 
 /** The ripple's ABI. */
@@ -88,6 +93,8 @@ struct RippleParams {
  *  the caller: a renderer binds the layer it warps. */
 Material ripple(float amplitudePx, float wavelengthPx, float phase = 0.0f,
                 bool vertical = false);
+/** ripple()'s recipe, defined once. Declares the `content` slot the warp
+ *  resamples. */
 const std::shared_ptr<const Recipe>& rippleRecipe();
 
 }  // namespace sigil::material::field

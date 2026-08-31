@@ -22,6 +22,8 @@
 
 namespace sigil::material::sdf {
 
+/** Which silhouette a Shape stands for. One recipe exists per kind — a
+ *  shape does not change kind, it is rebuilt through another factory. */
 enum class Kind : uint8_t { RoundBox, Circle, Star };
 
 struct Shape;

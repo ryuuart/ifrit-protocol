@@ -9,12 +9,17 @@
 
 namespace sigil::geometry::path {
 
+/** π in the float the whole library computes in — an angle that detours
+ *  through a double constant and back rounds twice. */
 inline constexpr float kPi = std::numbers::pi_v<float>;
+/** A full turn: the period every angular `wrap` is taken against. */
 inline constexpr float kTau = 2.0f * kPi;
-// Each written as the correctly rounded float of the exact value, not as a
-// quotient of the rounded kPi: 180 / kPi lands one ulp below the nearest
-// float to 180 / π, and an angle scaled by it drifts by that ulp.
+/** Degrees to radians, written as the correctly rounded float of the exact
+ *  value and not as a quotient of the rounded kPi: 180 / kPi lands one ulp
+ *  below the nearest float to 180 / π, and an angle scaled by it drifts
+ *  by that ulp. */
 inline constexpr float kDegToRad = 0.017453293f;
+/** Radians to degrees, rounded independently for the same reason. */
 inline constexpr float kRadToDeg = 57.29578f;
 
 /** Locates the boundary in [lo, hi] where a predicate stops holding, by

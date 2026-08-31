@@ -34,8 +34,13 @@ struct ElementNode;
 
 // The rest of the currency, under the names a tree spells it — the same
 // entities their own libraries define, reached by a shorter word.
+/** The geometry library's camera value, unchanged — a viewpoint node
+ *  carries one of these and not a world-side copy of it. */
 using Camera = geometry::mesh::camera::Camera;
+/** The geometry library's 3D spline, unchanged — what a node rides when
+ *  it is placed along a curve. */
 using Spline3 = geometry::mesh::curve::Spline3;
+/** The emitter value, unchanged — `point`, `spot` and `sun` build one. */
 using Light = light::Light;
 /** The stock emitters, reached by the word a tree is written in. */
 using light::point;
@@ -63,7 +68,10 @@ class Element {
   /** The author-owned identity: what the reconciler matches a child by
    *  across describes, and what a scene addresses the node by. */
   Element& key(std::string_view k);
+  /** Appends @p e under this node. Children keep the order they were
+   *  added in. */
   Element& child(Element e);
+  /** Appends every element of @p range, in the range's order. */
   template <std::ranges::input_range R>
     requires std::convertible_to<std::ranges::range_value_t<R>, Element>
   Element& children(R&& range) {
@@ -169,6 +177,9 @@ class Element {
   // its own and the resulting error is unreadable. Constrained to
   // std::integral so a float call can never land here: a plain int
   // overload would capture one through the standard conversion and recurse.
+  // Each forwards to the lane setter of the same name and says nothing the
+  // setter does not, so they stay out of the generated reference.
+  /// @cond
   template <std::integral T>
   Element& translateX(T v) {
     return translateX(motion::Animatable<float>((float)v));
@@ -213,6 +224,7 @@ class Element {
   Element& intensity(T v) {
     return intensity(motion::Animatable<float>((float)v));
   }
+  /// @endcond
 
   /** @private the reconciler's access to the description this value
    *  carries. */

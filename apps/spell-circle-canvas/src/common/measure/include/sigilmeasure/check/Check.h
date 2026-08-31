@@ -94,6 +94,8 @@ inline Check check(std::string label, double expected, double actual,
   return c;
 }
 
+/** Text identity — for a claim whose evidence is a name or a spelling
+ *  rather than a number. Byte comparison; no trimming, no case folding. */
 inline Check check(std::string label, std::string_view expected,
                    std::string_view actual) {
   return {std::move(label), std::string(expected), std::string(actual),

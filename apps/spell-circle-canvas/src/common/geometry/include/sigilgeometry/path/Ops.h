@@ -7,7 +7,9 @@
  *  - BOOLEANS over Skia's pathops: unite/subtract/intersect/exclude
  *    plus simplify (self-intersection cleanup) and a stroke-expand
  *    offset() — Illustrator's Offset Path. All pure functions:
- *    SkPath in, SkPath out.
+ *    SkPath in, SkPath out. In the binary four `a` is the back object
+ *    and `b` the front, and a pathops failure comes back as an empty
+ *    path rather than an error.
  *  - DISTORTS as parameter structs: Roughen, Zigzag, PuckerBloat,
  *    Twirl. Each is a small value carrying its dials and applying on
  *    demand (operator()), so a recipe stays editable — restack, retune,
@@ -27,11 +29,13 @@
 
 namespace sigil::geometry::path::ops {
 
-/** The Pathfinder four (binary, `a` is the back object, `b` the front —
- *  subtract() is Minus Front). Empty result on pathops failure. */
+/** Everything either shape covers. */
 SkPath unite(const SkPath& a, const SkPath& b);
+/** Minus Front: `a` with everything the front shape covers taken out. */
 SkPath subtract(const SkPath& a, const SkPath& b);
+/** Only what both shapes cover. */
 SkPath intersect(const SkPath& a, const SkPath& b);
+/** What one shape covers and the other does not. */
 SkPath exclude(const SkPath& a, const SkPath& b);
 /** N-ary union — merge a whole stack at once. */
 SkPath unite(const std::vector<SkPath>& paths);

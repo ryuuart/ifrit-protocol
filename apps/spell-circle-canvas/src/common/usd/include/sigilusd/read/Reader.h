@@ -33,6 +33,9 @@ struct ReadInfo {
  *  neighbours). nullopt when the stage cannot be opened. */
 std::optional<geometry::mesh::codec::decode::Model> readModel(
     const std::filesystem::path& file, std::string* error = nullptr);
+/** The same read, additionally filling @p info with the material names
+ *  the bindings carried — which the Model itself does not keep, because a
+ *  Part refers to its material by index. */
 std::optional<geometry::mesh::codec::decode::Model> readModel(
     const std::filesystem::path& file, ReadInfo* info,
     std::string* error = nullptr);

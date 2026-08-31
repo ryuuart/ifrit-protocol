@@ -51,7 +51,13 @@ struct Sampled {
   glm::vec2 centroid() const;
 };
 
+/** `count` points spaced evenly by arc length along `contour`. A closed
+ *  contour spreads them around the whole loop with no repeat of the seam;
+ *  an open one puts the first and last points on its ends. */
 Sampled resample(const Polyline& contour, int count);
+/** Every contour of `path`, flattened at `tolerance` and resampled to the
+ *  same `count` — which is what makes contours of two different paths
+ *  pairable. */
 std::vector<Sampled> resample(const SkPath& path, int count,
                               float tolerance = 0.25f);
 
@@ -61,14 +67,25 @@ struct Alignment {
   int offset = 0;
   bool reversed = false;
 };
+/** The rotation and direction that minimise the summed squared distance
+ *  between paired points, searched over every rotation and both
+ *  directions. Contours of unequal point count get the identity
+ *  alignment: there is no pairing to score. */
 Alignment bestAlignment(const Sampled& a, const Sampled& b);
+/** `b` with its points rolled and possibly reversed. The count and the
+ *  source length are untouched — only which point is first changes. */
 Sampled applyAlignment(const Sampled& b, const Alignment& alignment);
 
 /** Back to a path: straight segments, or a Catmull-Rom cubic through
  *  the points when `smooth`. */
 SkPath toPath(const Sampled& samples, bool smooth = false);
+/** Straight segments through the points, closed when the polyline is. */
 SkPath toPath(const Polyline& line);
 
+/** Point-for-point interpolation, pairing by index over whichever of the
+ *  two is shorter. Closure comes from `a`; the source length interpolates
+ *  with the points, so a blend still knows how long the curve it stands
+ *  for is. */
 Sampled lerp(const Sampled& a, const Sampled& b, float t);
 
 }  // namespace sigil::geometry::path

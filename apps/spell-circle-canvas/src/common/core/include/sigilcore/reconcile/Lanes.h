@@ -43,6 +43,10 @@ struct LaneSlot {
   size_t index;  ///< a slot row for the fixed family, a position otherwise
 };
 
+/** One transitionable float on a node: what the description asks for, and
+ *  which of the host's storages holds the motion that serves it. A host
+ *  fills a list of these grouped by family, so `familyLanes` can hand back
+ *  one family's run as a contiguous span. */
 template <class Family>
 struct Lane {
   /** The description's animatable, or nullptr on a fixed-slot lane whose
@@ -75,6 +79,10 @@ struct ResolvedProp {
   const motion::Transition* transition = nullptr;  // the slot's or the node's
 };
 
+/** Reads one animatable against the transition the node declares for its
+ *  whole self: a plain value takes that default, a transitioned value keeps
+ *  its own spec instead, and a binding takes neither — it is already a
+ *  running curve. */
 template <typename T>
 ResolvedProp<T> resolveProp(
     const motion::Animatable<T>& v,

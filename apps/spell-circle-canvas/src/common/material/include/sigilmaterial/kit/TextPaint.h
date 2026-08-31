@@ -49,11 +49,19 @@ Material clouds(const SkRect& bounds, float timeSeconds);
 /** An endless raymarched kaleidoscope tunnel, falling away. */
 Material tunnel(const SkRect& bounds, float timeSeconds);
 
+/** water()'s recipe, defined once. A recipe's identity is the object, so
+ *  these six accessors — never a fresh construction — are what a caller
+ *  pins a binding to or recognises one of the paints by. */
 const std::shared_ptr<const Recipe>& waterRecipe();
+/** meshGradient()'s recipe, defined once. */
 const std::shared_ptr<const Recipe>& meshGradientRecipe();
+/** sparkle()'s recipe, defined once. */
 const std::shared_ptr<const Recipe>& sparkleRecipe();
+/** starNest()'s recipe, defined once. */
 const std::shared_ptr<const Recipe>& starNestRecipe();
+/** clouds()'s recipe, defined once. */
 const std::shared_ptr<const Recipe>& cloudsRecipe();
+/** tunnel()'s recipe, defined once. */
 const std::shared_ptr<const Recipe>& tunnelRecipe();
 
 /** The sunset-chrome ramp in unit space, top to bottom: sky to a hard

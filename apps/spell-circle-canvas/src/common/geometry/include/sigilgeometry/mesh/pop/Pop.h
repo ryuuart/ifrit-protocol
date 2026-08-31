@@ -38,6 +38,9 @@ namespace sigil::geometry::mesh {
  *  executing it is the job of a backend, and the CPU and GPU backends
  *  are required to produce the same result from the same Chain. */
 struct pop {
+  /** Sugar for the conventional attribute names: `Lane::P` and the
+   *  string "P" address the same attribute. Anything outside this set is
+   *  reached by its name. */
   enum class Lane : int32_t { P = 0, Dir = 1, Color = 2, Scale = 3, T = 4 };
   /** TouchDesigner's real superpower, adopted: operators address
    *  attributes BY NAME. The conventional lanes ("P", "T", "Dir",
@@ -461,11 +464,16 @@ struct pop {
       }
       return *this;
     }
+    /** Loop entries only; a surface or point-set entry has no radius to
+     *  spread and the call is a no-op. */
     Builder& spread(float radius) {
       if (auto* s = std::get_if<SplineScatter>(&m_chain.front()))
         s->radius = radius;
       return *this;
     }
+    /** Pins the entry scatter's seed. Loop and surface entries only —
+     *  a point set was handed its points and randomizes nothing. The
+     *  chained verbs keep their own auto-varied seeds either way. */
     Builder& seed(uint32_t v) {
       if (auto* s = std::get_if<SplineScatter>(&m_chain.front()))
         s->seed = v;
@@ -679,9 +687,15 @@ struct pop {
     const Chain& chain() const { return m_chain; }
 
     // The sinks (the runtime below cooks for them): pick the former.
+    /** The chain cooked to its points — pop::cook on this builder's
+     *  chain. */
     Cloud cloud(const Runtime& runtime = Runtime::cpu()) const;
+    /** The chain cooked and @p stamp placed at every point — pop::cookMesh
+     *  on this builder's chain. */
     Mesh stamps(const Mesh& stamp,
                 const Runtime& runtime = Runtime::cpu()) const;
+    /** The chain cooked into a spine and @p profile carried along it —
+     *  pop::cookSweep on this builder's chain. */
     Mesh sweep(const path::Polyline& profile, bool closed = false,
                const curve::SweepOptions& options = {.segments = 160},
                const Runtime& runtime = Runtime::cpu()) const;
@@ -766,6 +780,8 @@ struct pop {
    *  nothing for a name the operator does not have; `getField` returns
    *  nullopt for it. */
   static bool setField(Op& op, std::string_view field, float value);
+  /** The read side of that addressing: the named field's value as a
+   *  float, or nullopt when the operator has no such field. */
   static std::optional<float> getField(const Op& op, std::string_view field);
 
   /** The frame a Deform runs in: its axis normalized, its bend direction

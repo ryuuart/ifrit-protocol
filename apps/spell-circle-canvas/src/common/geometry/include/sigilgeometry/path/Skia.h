@@ -13,8 +13,12 @@
 
 namespace sigil::geometry::path {
 
+/** The vector as a Skia point: the same two numbers under the other
+ *  type, no reinterpretation. */
 inline SkPoint toSk(glm::vec2 v) { return {v.x, v.y}; }
+/** The point back as a vector, on the same terms. */
 inline glm::vec2 fromSk(SkPoint p) { return {p.fX, p.fY}; }
+/** A size as a vector: width into x, height into y. */
 inline glm::vec2 fromSk(SkSize s) { return {s.width(), s.height()}; }
 
 /** The rect's centre as a vector. */

@@ -59,6 +59,8 @@ class Writer {
                    const glm::mat4& model,
                    const std::vector<material::Material>& slots,
                    std::string_view parent = "/World");
+  /** The one-material spelling: no GeomSubsets, the binding covers the
+   *  whole mesh. */
   std::string mesh(std::string_view name, const geometry::mesh::Mesh& mesh,
                    const glm::mat4& model, const material::Material& material,
                    std::string_view parent = "/World") {

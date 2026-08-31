@@ -68,7 +68,9 @@ class Selector {
   /** @private the term constructors the `sel::` factories and the
    *  combinators build through. */
   static Selector leaf(Op op, std::string word);
+  /** @private the material-term constructor. */
   static Selector leaf(Op op, ::sigil::material::Material material);
+  /** @private the constructor the combinators build through. */
   static Selector combine(Op op, std::vector<Selector> operands);
 
  private:

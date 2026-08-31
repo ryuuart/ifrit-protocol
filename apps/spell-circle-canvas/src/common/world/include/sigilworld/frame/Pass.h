@@ -89,6 +89,8 @@ class PassBodyOps {
   PassBodyOps& operator=(PassBodyOps&&) = default;
   virtual ~PassBodyOps() = default;
 
+  /** Does the pass's work over what the frame extracted (@p view) and
+   *  the frame's resources (@p targets). */
   virtual void run(const View& view, Targets& targets) const = 0;
 };
 
@@ -149,8 +151,13 @@ class Pass {
   /** The body a geometry pass stands at every point of every point set
    *  it reads. */
   Pass& stamp(Mesh body);
+  /** Soften what the pass reads. A pass carries ONE post op, so this
+   *  replaces whatever `levels` or `composite` set. */
   Pass& blur(float sigma);
+  /** Grade what the pass reads, replacing any other post op. */
   Pass& levels(float gain, float lift, SkColor4f tint = {1, 1, 1, 1});
+  /** Lay what the pass reads one layer over another, replacing any other
+   *  post op. */
   Pass& composite(SkBlendMode mode, float opacity = 1.0f);
   /** THE ESCAPE, as a comparable seam value. */
   Pass& body(PassBody b);

@@ -14,6 +14,8 @@
 
 namespace sigil::geometry::mesh {
 
+/** Unit vector along @p v, or @p fallback when @p v is too short to have
+ *  a direction — the case glm::normalize leaves undefined. */
 inline glm::vec3 normalized(glm::vec3 v, glm::vec3 fallback = {0, 0, 1}) {
   const float len = glm::length(v);
   return len < 1e-12f ? fallback : v * (1.0f / len);

@@ -37,12 +37,18 @@ namespace sigil::material::kit {
  *  set carries. Each takes a `Texture` (or any leaf a renderer binds);
  *  an empty slot reads as the neutral value for that role. */
 inline constexpr std::string_view kBaseColorSlot = "baseColorMap";
-inline constexpr std::string_view kNormalSlot = "normalMap";
-inline constexpr std::string_view kRoughnessSlot = "roughnessMap";
-inline constexpr std::string_view kMetallicSlot = "metallicMap";
-inline constexpr std::string_view kOcclusionSlot = "occlusionMap";
-inline constexpr std::string_view kEmissiveSlot = "emissiveMap";
-inline constexpr std::string_view kOpacitySlot = "opacityMap";
+inline constexpr std::string_view kNormalSlot =
+    "normalMap";  ///< tangent space; `normalScale` and `normalDirectX` read it
+inline constexpr std::string_view kRoughnessSlot =
+    "roughnessMap";  ///< the channel `roughnessChannel` names
+inline constexpr std::string_view kMetallicSlot =
+    "metallicMap";  ///< the channel `metallicChannel` names
+inline constexpr std::string_view kOcclusionSlot =
+    "occlusionMap";  ///< `occlusionChannel`, weighted by `occlusionStrength`
+inline constexpr std::string_view kEmissiveSlot =
+    "emissiveMap";  ///< multiplied by `emissive` and `emissiveStrength`
+inline constexpr std::string_view kOpacitySlot =
+    "opacityMap";  ///< `opacityChannel`; `alphaCutoff` turns it into a cutout
 
 /** The metallic-roughness ABI. Colours are LINEAR. Each scalar is
  *  multiplied by the map in the matching slot, so a set that ships a
@@ -81,6 +87,8 @@ struct SurfaceParams {
 
 /** The recipes, defined once. Both declare every map slot above. */
 const std::shared_ptr<const Recipe>& surfaceRecipe();
+/** The unlit half of that pair — the same params and the same slots, with
+ *  no shading terms read. */
 const std::shared_ptr<const Recipe>& unlitRecipe();
 
 /** A lit metallic-roughness surface. */
@@ -88,9 +96,10 @@ Material surface(const SurfaceParams& params = {});
 /** A surface that is its own light: no shading, no shadow terms. */
 Material unlit(const SurfaceParams& params = {});
 
-/** Whether @p m is an instance of either surface recipe, and whether it
- *  is the unlit one. */
+/** Whether @p m is an instance of either surface recipe. */
 bool isSurface(const Material& m);
+/** Whether @p m is the unlit one specifically. `isSurface` answers true
+ *  for these too. */
 bool isUnlit(const Material& m);
 
 /** The MAP in @p slot: the texture a caller placed there, or null when

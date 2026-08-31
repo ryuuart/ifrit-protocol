@@ -28,8 +28,13 @@ namespace sigil::world {
 // The geometry currency, under the names a tree spells it. These are
 // SigilGeometry's own types reached by a shorter word, not second copies
 // of them: `world::Mesh` and `geometry::mesh::Mesh` name one entity.
+/** The geometry library's formed mesh — points, triangles and lanes. */
 using Mesh = geometry::mesh::Mesh;
+/** The geometry library's point cloud — positions and their lanes, with
+ *  no faces. */
 using Cloud = geometry::mesh::Cloud;
+/** The geometry library's point chain: the description of a cloud, not
+ *  the cloud, until a runtime cooks it. */
 using Chain = geometry::mesh::pop::Chain;
 /** The executor a point chain cooks on, carried as a comparable value. */
 using PopRuntime = geometry::mesh::pop::Runtime;

@@ -43,6 +43,7 @@ class Readback {
   Readback() = default;
   explicit Readback(std::string name) : m_name(std::move(name)) {}
 
+  /** What to do with the resource when it comes back. */
   Readback& then(std::function<void(const Result&)> callback) {
     m_callback = std::move(callback);
     return *this;
@@ -81,7 +82,10 @@ class Frame {
   Frame& extent(SkISize size);
   /** The viewpoint, for a tree that declares none of its own. */
   Frame& camera(Camera c);
+  /** Adds a pass. The order passes are added in is not the order they
+   *  run in — that is derived from what each one reads and writes. */
   Frame& pass(Pass p);
+  /** Asks for a resource back once the frame has made it. */
   Frame& readback(Readback r);
   /** The executor the passes run on. */
   Frame& runtime(Runtime r);

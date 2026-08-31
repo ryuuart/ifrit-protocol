@@ -22,6 +22,12 @@ class SkPathBuilder;
 
 namespace sigil::geometry::path {
 
+/** One sub-path, already measured. Every query is a distance along the
+ *  curve rather than a curve parameter, so two constructions that ask for
+ *  the same distance land on the same point. The measurement is the
+ *  expensive part and is taken once, in `of`; copies share it. A
+ *  default-constructed contour measures nothing and answers `valid()`
+ *  false. */
 class Contour {
  public:
   /** Where the contour is at a distance, and which way it is heading

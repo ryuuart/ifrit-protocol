@@ -49,12 +49,16 @@ struct Key {
   float opacity = 1;
 };
 
+/** What decides how many intermediates fall between one key and the
+ *  next. */
 enum class Spacing : uint8_t {
   Steps,        ///< exactly `steps` intermediates between key pairs
   Distance,     ///< one step every `distance` px of spine
   SmoothColor,  ///< steps chosen so adjacent colors are indistinguishable
 };
 
+/** Whether a step turns as it rides the spine, or only travels along
+ *  it. */
 enum class Orientation : uint8_t {
   AlignToPage,  ///< steps translate along the spine but keep upright
   AlignToPath,  ///< steps rotate with the spine tangent

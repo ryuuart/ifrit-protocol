@@ -57,7 +57,8 @@ Pose poseAlong(const Contour& contour, float distance, Wrap wrap = Wrap::Clamp);
  *  one continuous measure.
  *
  *  `Wrap::Around` comes round the TOTAL, and only when every contour is
- *  closed; anything else clamps. @ref totalLength is that total. */
+ *  closed; anything else clamps. @ref sigil::geometry::path::totalLength()
+ *  is that total. */
 Pose poseAlong(std::span<const Contour> contours, float distance,
                Wrap wrap = Wrap::Clamp);
 

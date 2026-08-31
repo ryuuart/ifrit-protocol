@@ -60,11 +60,18 @@ struct Schema {
   }
 };
 
-/** Maps a C++ type to its uniform kind and float count. A field type with
- *  no specialisation is not a uniform, and `schema<P>()` refuses the
- *  struct at compile time. */
+/** Maps a C++ type to its uniform kind and float count. Specialised for
+ *  `float`, `glm::vec2`, `glm::vec4`, `Color` and `std::array<float, N>`;
+ *  a field type with no specialisation is not a uniform, and `schema<P>()`
+ *  refuses the struct at compile time. */
 template <class T>
 struct UniformTraits;
+
+// The specialisations are that mapping written out. Each says only which
+// Kind and how many floats, both of which the enum above already spells,
+// so they stay out of the generated reference and the primary template
+// carries the rule.
+/// @cond
 template <>
 struct UniformTraits<float> {
   static constexpr Kind kind = Kind::Float;
@@ -90,6 +97,7 @@ struct UniformTraits<Color> {
   static constexpr Kind kind = Kind::Color;
   static constexpr size_t floats = 4;
 };
+/// @endcond
 
 /** A type `UniformTraits` knows. */
 template <class T>

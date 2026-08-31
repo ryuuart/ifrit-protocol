@@ -76,6 +76,8 @@ class WebView {
     explicit operator bool() const { return image != nullptr || bool(texture); }
   };
 
+  /** Which button an input event carries. `None` is the only meaningful
+   *  value for a move with nothing held. */
   enum class MouseButton { None, Left, Middle, Right };
 
   ~WebView();
@@ -146,7 +148,10 @@ class WebView {
   /** Mouse input, in view pixels. `button` is the button held during the
    *  move, or the button pressed/released. */
   void mouseMove(int x, int y, MouseButton button = MouseButton::None);
+  /** A press at @p x, @p y. The page sees no click until the matching
+   *  `mouseUp` arrives. */
   void mouseDown(int x, int y, MouseButton button = MouseButton::Left);
+  /** The release that completes a press. */
   void mouseUp(int x, int y, MouseButton button = MouseButton::Left);
 
   /** Scrolls by @p dx / @p dy pixels. */

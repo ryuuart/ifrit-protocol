@@ -77,7 +77,10 @@ class Targets {
    *  keeps nothing, because the executor that owns where the pixels are
    *  owns what last frame means for them. */
   using ImageSource = std::function<sk_sp<SkImage>(std::string_view)>;
+  /** Installs @p source, on the terms above. */
   void source(ImageSource source) { m_source = std::move(source); }
+  /** Whether one is installed — which is also whether `previous()` and
+   *  `endFrame()` have stopped answering for themselves. */
   [[nodiscard]] bool sourced() const { return (bool)m_source; }
 
   /** Close the frame: every kept name's image becomes what `previous()`
