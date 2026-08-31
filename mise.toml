@@ -174,13 +174,13 @@ dir = "apps/spell-circle-canvas"
 #     mise run plates -- --gpu
 run = '''
 set -e
-cmake --build build --config Debug --target Sketchbook
+cmake --build build --config Release --target Sketchbook
 out="build/plates-out"
 mkdir -p "$out"
 echo "Rendering into $out"
 # Sketchbook is an app bundle, so a headless run goes through the binary
 # inside it rather than the bundle.
-exec "build/bin/Debug/Sketchbook.app/Contents/MacOS/Sketchbook" \
+exec "build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook" \
   --headless "$out"
 '''
 
@@ -189,8 +189,8 @@ description = "Launch Sketchbook, the live sketch host (args go to it, after --)
 dir = "apps/spell-circle-canvas"
 run = '''
 set -e
-cmake --build build --config Debug --target Sketchbook
-exec build/bin/Debug/Sketchbook.app/Contents/MacOS/Sketchbook
+cmake --build build --config Release --target Sketchbook
+exec build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook
 '''
 
 [tasks.ledger]
