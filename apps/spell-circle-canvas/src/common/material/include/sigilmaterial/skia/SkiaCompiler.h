@@ -30,6 +30,12 @@ class SkiaProgram : public Program {
 
   const sk_sp<SkRuntimeEffect>& effect() const { return m_effect; }
 
+  /** The SkSL optimiser discards a uniform the body never reads, and the
+   *  effect is then the only place that says so. */
+  bool keeps(std::string_view name) const override {
+    return m_effect && m_effect->findUniform(name) != nullptr;
+  }
+
   /** Sets every uniform of @p builder — one over `effect()` — from
    *  @p bytes, which are in the recipe's `layout()`: what
    *  `Material::resolve` returns. Children are left for the caller. */

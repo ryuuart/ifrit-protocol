@@ -151,7 +151,10 @@ void forEachField(F&& f) {
 /** The upload layout of @p P. Refuses a struct with a field that is not a
  *  uniform type, and one whose size is not the sum of its fields — padding
  *  between fields would put bytes in the upload the shader does not
- *  declare. */
+ *  declare. A struct with NO fields is a recipe with no ABI of its own —
+ *  a body that reads only child slots and frame inputs — and lays out to
+ *  nothing; the size rule cannot ask anything of it, because an empty
+ *  aggregate occupies a byte the upload never carries. */
 template <class P>
 const Schema& schema() {
   static_assert(std::is_aggregate_v<P>,
@@ -160,9 +163,11 @@ const Schema& schema() {
       detail::allUniform<P>(std::make_index_sequence<fieldCount<P>()>{}),
       "every params field is float, glm::vec2, glm::vec4, "
       "std::array<float, N> or Color");
-  static_assert(sizeof(P) == detail::floatBytes<P>(
-                                 std::make_index_sequence<fieldCount<P>()>{}),
-                "a params struct is packed floats with no padding");
+  static_assert(
+      fieldCount<P>() == 0 ||
+          sizeof(P) == detail::floatBytes<P>(
+                           std::make_index_sequence<fieldCount<P>()>{}),
+      "a params struct is packed floats with no padding");
   static const Schema s = [] {
     Schema out;
     size_t offset = 0;

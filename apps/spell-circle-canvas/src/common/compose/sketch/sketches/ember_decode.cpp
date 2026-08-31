@@ -33,7 +33,7 @@
 //    resolved from the SAME cascade `Composer::beatsOf` reports — the meter
 //    bars under the display line are drawn from that query, so the bars and
 //    the burn read one schedule by construction;
-//  - the material is `Material::sksl(source)` — the source-carrying form —
+//  - the material is `Material::recipe(...)` over a SigilMaterial recipe,
 //    and the runtime owns the per-count specialization and its cache;
 //  - the layer is sampled at the device's resolution, so a 2x host stays
 //    sharp with no supersampled bake;
@@ -65,11 +65,14 @@
 #include <sigilcompose/core/Material.h>
 #include <sigilcompose/typography/TextFx.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigilmaterial/core/Material.h>
 #include <sigilsketch/Sketch.h>
 #include <sigilweave/choreograph/Choreograph.h>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -113,9 +116,6 @@ const SkColor4f kFaint{0.38f, 0.33f, 0.31f, 1};
  *  main() faults in the host's inliner — so the noise, the threshold and
  *  the rim are all written inline. */
 constexpr const char* kBurnSksl = R"(
-uniform float4 uInk;
-uniform float4 uEmber;
-uniform float3 uWeights;  // sweep, speckle, patch
 half4 main(float2 xy) {
   float cover = float(uContent.eval(xy).a);
   // Which unit owns this pixel. step()/mix() rather than a branch: the
@@ -138,7 +138,7 @@ half4 main(float2 xy) {
   float speck = fract(sin(dot(grain, float2(12.9898, 78.233))) * 43758.5453);
   float2 blot = floor(xy * 0.09) + seed;
   float patch = fract(sin(dot(blot, float2(39.3468, 11.135))) * 24634.6345);
-  float thr = uWeights.x * u + uWeights.y * speck + uWeights.z * patch;
+  float thr = uWeights[0] * u + uWeights[1] * speck + uWeights[2] * patch;
   // d is how far this pixel's unit has run past the pixel's own
   // threshold: negative is unburnt, 0 is the crossing, positive resolved.
   float d = p - thr;
@@ -154,8 +154,27 @@ half4 main(float2 xy) {
   return half4(half3(emit * a), half(a));
 })";
 
+/** The burn's ABI. The three weights are one array rather than three
+ *  floats because they are read as a set and the body indexes them. */
+struct BurnParams {
+  sigil::material::Color uInk;
+  sigil::material::Color uEmber;
+  std::array<float, 3> uWeights;  // sweep, speckle, patch
+};
+
+/** The definition, made once for the process: a recipe's identity is the
+ *  object, so a fresh one per describe would compile a fresh program and
+ *  never compare equal to itself. */
+std::shared_ptr<const sigil::material::Recipe> burnRecipe() {
+  static const std::shared_ptr<const sigil::material::Recipe> recipe =
+      std::make_shared<const sigil::material::Recipe>(
+          sigil::material::Recipe::of<BurnParams>("ember.burn")
+              .body(sigil::material::Target::SkSL, kBurnSksl));
+  return recipe;
+}
+
 Material burnMaterial() {
-  return Material::sksl(kBurnSksl)
+  return Material::recipe(sigil::material::Material(burnRecipe()))
       .uniform("uInk", kInk)
       .uniform("uEmber", kEmber)
       .uniform("uWeights", std::vector<float>{kSweep, kSpeckle, kPatch});

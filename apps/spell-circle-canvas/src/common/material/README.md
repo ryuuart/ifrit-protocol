@@ -145,13 +145,33 @@ padding and its memory image is exactly the uniform data in declaration
 order. `schema<P>()` proves this at compile time and refuses a struct with
 any other field type or with padding. The same walk emits the uniform
 declarations (`declare<P>(target)`), so the names in the shader are the
-names in the struct and cannot drift.
+names in the struct and cannot drift. A struct with NO fields is legal and
+is a recipe with no ABI of its own — a body over child slots and frame
+inputs alone.
+
+**A field no body reads is not in the ABI, and the cache says so.** A
+shader compiler discards a uniform its body never mentions, and the upload
+then skips that field: every value the material writes there — a constant,
+a bound output, a whole table — reaches nothing. The program cache compares
+the params against the program it just compiled and names the recipe and
+each unread field on stderr, once per (recipe, target), beside the reports
+for a missing body and a failed compile. `Program::keeps(name)` is what it
+asks; a backend whose compiler drops nothing leaves it at yes. A field a
+body reads on one target and not on another is named for the target that
+drops it, which is the honest answer: on that target the field is dead.
 
 **A recipe's identity is the object.** Two recipes built from the same
 text are two definitions with two sets of programs; `operator==` compares
 definitions and is for tests, while the program cache and a material's
 equality use the pointer. Define a recipe once and hold it in a
 `shared_ptr<const Recipe>` beside the code that owns it.
+
+A definition a renderer can only finish at draw — a body rewritten around
+an array size or a constant nothing knew earlier — is a SPECIALIZATION:
+`m.withRecipe(r)` is the same instance over a second recipe of the same
+params layout, so the values, bindings and children carry over and the two
+definitions compile and cache apart. Hold the specializations, one per
+distinct constant, or the cache fills with a definition per draw.
 
 **One body per target, and asking for a missing one is an error once.**
 `Recipe::body(Target, source)` stores the body for a language;
@@ -167,7 +187,8 @@ material resolved for a target its recipe has no body for — or one no
 compiler is registered for, or one whose body fails to compile — yields a
 null program, and the cache reports it to stderr exactly once per (recipe,
 target), naming both, so the mistake surfaces at the first describe rather
-than scrolling past every frame.
+than scrolling past every frame. A body that compiles but leaves a params
+field unread is reported the same way.
 
 **One program cache.** `ProgramCache::shared()` holds every compiled
 program in the process, keyed by (recipe identity, target, variant). A

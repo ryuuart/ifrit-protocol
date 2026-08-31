@@ -1,16 +1,21 @@
 /** @file
  * The core value model: params reflection names, counts and declarations
  * per target; recipe identity against definition equality; the program
- * cache's keys and its once-reported missing body; material equality,
+ * cache's keys, its once-reported missing body and the params field it
+ * names once when the compiled body never reads it; material equality,
  * bindings, children and tiers; the OKLab round trips; and UniformBlock
  * revisioning.
  */
 
 #include <gtest/gtest.h>
 #include <sigilmaterial/Material.h>
+#include <unistd.h>
 
 #include <array>
 #include <cmath>
+#include <cstdio>
+#include <cstring>
+#include <functional>
 #include <memory>
 #include <string>
 
@@ -43,6 +48,41 @@ std::shared_ptr<Program> countingCompiler(std::shared_ptr<const Recipe> r,
                                           Variant v, std::string&) {
   ++gCompiles;
   return std::make_shared<Program>(std::move(r), Target::Slang, v);
+}
+
+/** A program that has lost one uniform, standing in for a shader compiler
+ *  that discards what its body never reads. */
+class DroppingProgram : public Program {
+ public:
+  DroppingProgram(std::shared_ptr<const Recipe> r, Variant v, std::string drop)
+      : Program(std::move(r), Target::Slang, v), m_drop(std::move(drop)) {}
+  bool keeps(std::string_view name) const override { return name != m_drop; }
+
+ private:
+  std::string m_drop;
+};
+
+/** Everything the cache writes to stderr while @p fn runs. */
+std::string captureStderr(const std::function<void()>& fn) {
+  char path[] = "/tmp/sigil_material_core_test_XXXXXX";
+  const int tmp = mkstemp(path);
+  if (tmp < 0) return {};
+  std::fflush(stderr);
+  const int saved = dup(STDERR_FILENO);
+  dup2(tmp, STDERR_FILENO);
+  fn();
+  std::fflush(stderr);
+  dup2(saved, STDERR_FILENO);
+  close(saved);
+  lseek(tmp, 0, SEEK_SET);
+  std::string out;
+  char buffer[512];
+  for (ssize_t n = read(tmp, buffer, sizeof buffer); n > 0;
+       n = read(tmp, buffer, sizeof buffer))
+    out.append(buffer, (size_t)n);
+  close(tmp);
+  std::remove(path);
+  return out;
 }
 
 }  // namespace
@@ -191,6 +231,62 @@ TEST(ProgramCache, CompileFailureIsNullAndRetriedAfterClear) {
       Recipe::of<TwoParams>("bad").body(Target::Slang, "x"));
   EXPECT_EQ(cache.program(r, Target::Slang), nullptr);
   EXPECT_EQ(calls, 1);
+}
+
+TEST(Recipe, NoParamsIsARecipeOverSlotsAndFrameInputsAlone) {
+  struct NoParams {};
+  auto r = std::make_shared<const Recipe>(Recipe::of<NoParams>("bare")
+                                              .frame(FrameInput::Time)
+                                              .child("uSrc")
+                                              .body(Target::SkSL, "x"));
+  EXPECT_TRUE(r->params().fields.empty());
+  EXPECT_EQ(r->params().byteSize, 0u);
+  // The frame uniform still lays out, from offset zero.
+  ASSERT_EQ(r->layout().fields.size(), 1u);
+  EXPECT_EQ(r->layout().fields[0].name, "uTime");
+  EXPECT_EQ(r->layout().fields[0].offset, 0u);
+  EXPECT_EQ(r->declarations(Target::SkSL),
+            "uniform float uTime;\nuniform shader uSrc;\n");
+  // An instance holds no bytes of its own, and resolving still lays out
+  // the frame value it declared.
+  Material m(r);
+  EXPECT_TRUE(m.bytes().empty());
+  const Material::Resolved resolved =
+      m.resolve(Target::SkSL, FrameData{.seconds = 2.0});
+  ASSERT_EQ(resolved.bytes.size(), sizeof(float));
+  float seconds = 0.0f;
+  std::memcpy(&seconds, resolved.bytes.data(), sizeof(float));
+  EXPECT_EQ(seconds, 2.0f);
+}
+
+TEST(ProgramCache, UnreadParamsFieldIsNamedOnce) {
+  ProgramCache cache;
+  cache.registerCompiler(
+      Target::Slang,
+      [](const std::shared_ptr<const Recipe>& r, Variant v, std::string&) {
+        return std::shared_ptr<Program>(
+            std::make_shared<DroppingProgram>(r, v, "uScale"));
+      });
+  auto r = std::make_shared<const Recipe>(
+      Recipe::of<TwoParams>("dead").body(Target::Slang, "x"));
+  const std::string said = captureStderr(
+      [&] { EXPECT_NE(cache.program(r, Target::Slang), nullptr); });
+  EXPECT_NE(said.find("\"dead\""), std::string::npos) << said;
+  EXPECT_NE(said.find("uScale"), std::string::npos) << said;
+  // The field the body DOES read is not named.
+  EXPECT_EQ(said.find("uColor"), std::string::npos) << said;
+  // Once per (recipe, target), whatever the variant.
+  const std::string again = captureStderr([&] {
+    cache.program(r, Target::Slang);
+    cache.program(r, Target::Slang, Variant{}.with(1));
+  });
+  EXPECT_EQ(again, "") << again;
+  // A program that keeps every field says nothing.
+  ProgramCache clean;
+  clean.registerCompiler(Target::Slang, countingCompiler);
+  const std::string quiet =
+      captureStderr([&] { clean.program(r, Target::Slang); });
+  EXPECT_EQ(quiet, "") << quiet;
 }
 
 TEST(Material, MirrorsParamsAsBytesAndSetsFields) {

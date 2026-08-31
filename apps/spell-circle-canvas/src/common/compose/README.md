@@ -488,20 +488,24 @@ treatment is data rather than scene structure, and the cost is one draw
 plus one pass whatever the unit count is:
 
 ```cpp
-auto burn = Material::sksl(emberDissolve).uniform("uEdgeWidth", 0.15f);
+// emberDissolve is a SigilMaterial recipe over the params struct Burn,
+// carrying the pass body as its SkSL.
+auto burn = Material::recipe(sigil::material::Material(emberDissolve,
+                                                       Burn{ink}));
 text(u8"EMBER DECODE", display)
     .fx({.effect = fx::pass(burn),
          .stagger = stagger(unit::Cluster, {.eachMs = 260})});
 ```
 
-The material must be the SOURCE-CARRYING form — `Material::sksl` given the
-SkSL as a string — because the unit count is baked into the compiled
+The material must be RECIPE-BACKED — `Material::recipe` over a recipe
+carrying an SkSL body — because the unit count is baked into the compiled
 shader: a runtime effect's array size is fixed at compile and SkSL has no
-uniform-bounded loop, so the runtime prepends the declarations above plus
-`const int kUnitCount = N` and compiles once per distinct count, cached
-for the process. Write the source against those names and do not declare
-them; any other material warns once and the track draws its glyphs at
-rest. `main(xy)` runs in the node's own px, the layer is sampled at the
+uniform-bounded loop, so the runtime holds a specialization of that recipe
+per distinct count, its body the declarations above plus `const int
+kUnitCount = N` ahead of the author's. Write the body against those names
+and do not declare them, and declare every uniform of your own as a params
+field rather than in the body's text; any other material warns once and
+the track draws its glyphs at rest. `main(xy)` runs in the node's own px, the layer is sampled at the
 device's resolution (a 2x host stays sharp with no supersampled bake), and
 the pass is BOUNDED: it paints the node's box grown by the track's `reach`
 and nothing outside it, unlike an `Element::effect` shader pass. The

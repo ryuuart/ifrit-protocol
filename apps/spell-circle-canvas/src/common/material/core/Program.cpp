@@ -71,6 +71,30 @@ std::shared_ptr<Program> ProgramCache::program(
     report(std::string(name(target)) + " failed to compile: " + error);
     return nullptr;
   }
+  // A field the compiled body never reads: the shader compiler discarded
+  // the uniform, so nothing is uploaded for it and every value the
+  // material writes there is lost. Named once per (recipe, target), like
+  // every other thing this cache has to say about a definition.
+  std::string unread;
+  for (const Field& f : recipe->params().fields) {
+    if (built->keeps(f.name)) continue;
+    if (!unread.empty()) unread += ", ";
+    unread += f.name;
+  }
+  if (!unread.empty()) {
+    bool first = false;
+    {
+      std::lock_guard lock(m_mutex);
+      first = m_unread.insert({recipe.get(), target}).second;
+    }
+    if (first) {
+      const std::string what = "the " + std::string(name(target)) +
+                               " body never reads " + unread +
+                               " — nothing is uploaded for those fields";
+      std::fprintf(stderr, "[sigil::material] recipe \"%s\": %s\n",
+                   recipe->name().c_str(), what.c_str());
+    }
+  }
   std::lock_guard lock(m_mutex);
   auto [it, inserted] = m_programs.try_emplace(key, built);
   return it->second;
@@ -85,6 +109,7 @@ void ProgramCache::clear() {
   std::lock_guard lock(m_mutex);
   m_programs.clear();
   m_reported.clear();
+  m_unread.clear();
 }
 
 void registerCompiler(Target target, Compiler compiler) {

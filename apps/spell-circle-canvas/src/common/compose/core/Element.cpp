@@ -719,17 +719,19 @@ std::span<const TextEffect> TextEffect::operands() const {
 }
 
 TextEffect TextEffect::pass(Material material) {
-  if (material.skslSource().empty()) {
-    // Once per process: the door takes only the source-carrying form,
-    // because the runtime must specialize the source per unit count.
+  const sigil::material::Material* backing = material.recipeMaterial();
+  if (!backing || !backing->recipe().has(sigil::material::Target::SkSL)) {
+    // Once per process: the door takes only the recipe-backed form,
+    // because the runtime specializes the recipe per unit count and needs
+    // the SkSL body to do it.
     static bool warned = false;
     if (!warned) {
       warned = true;
       SkDebugf(
-          "[compose] fx::pass: the material carries no SkSL source — a "
+          "[compose] fx::pass: the material carries no SkSL recipe — a "
           "pass is compiled per unit count, which needs "
-          "Material::sksl(std::string, ...). The effect is empty and the "
-          "track draws its glyphs at rest.\n");
+          "Material::recipe(...) over a recipe with an SkSL body. The "
+          "effect is empty and the track draws its glyphs at rest.\n");
     }
     return {};
   }

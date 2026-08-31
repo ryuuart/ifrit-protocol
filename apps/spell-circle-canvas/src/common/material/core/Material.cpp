@@ -21,7 +21,28 @@ Material::Material(std::shared_ptr<const Recipe> recipe, const void* params,
   write(params, size, schema);
 }
 
+Material Material::withRecipe(std::shared_ptr<const Recipe> recipe) const {
+  if (!recipe || recipe->params() != m_recipe->params()) {
+    reportOnce("specialize:" + m_recipe->name(),
+               "recipe \"" + m_recipe->name() +
+                   "\": a specialization must carry the same params layout; "
+                   "the material stays on its own recipe");
+    return *this;
+  }
+  Material out = *this;
+  out.m_recipe = std::move(recipe);
+  // The memo keys on the bytes, the target and the variant — not on the
+  // recipe — so a specialization that inherited it would hand back the
+  // other definition's program.
+  out.m_memo = {};
+  return out;
+}
+
 void Material::write(const void* params, size_t size, const Schema* schema) {
+  // A params struct with no fields lays out to nothing while still
+  // occupying a byte as a C++ object, so its size can never be the
+  // upload's; there is simply nothing to copy.
+  if (*schema == m_recipe->params() && schema->fields.empty()) return;
   if (*schema != m_recipe->params() || size != m_bytes.size()) {
     reportOnce("params:" + m_recipe->name(),
                "recipe \"" + m_recipe->name() +
@@ -223,7 +244,8 @@ Material::Resolved Material::resolve(Target target, const FrameData& frame,
                                      Variant variant) const {
   const Schema& layout = m_recipe->layout();
   m_scratch.assign(layout.byteSize, std::byte{0});
-  std::memcpy(m_scratch.data(), m_bytes.data(), m_bytes.size());
+  if (!m_bytes.empty())
+    std::memcpy(m_scratch.data(), m_bytes.data(), m_bytes.size());
   for (const Binding& b : m_bindings) {
     const Field* f = m_recipe->params().find(b.name);
     if (!f) continue;

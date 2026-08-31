@@ -15,6 +15,7 @@
 #include <mutex>
 #include <set>
 #include <string>
+#include <string_view>
 #include <utility>
 
 namespace sigil::material {
@@ -31,6 +32,15 @@ class Program {
   const Recipe& recipe() const { return *m_recipe; }
   Target target() const { return m_target; }
   Variant variant() const { return m_variant; }
+  /** Whether the compiled program still has the uniform @p name. A
+   *  shading language whose compiler discards a uniform no body reads
+   *  answers false for it, and nothing is uploaded for that field however
+   *  the material sets it; a backend that keeps every declared uniform
+   *  leaves this at yes. */
+  virtual bool keeps(std::string_view name) const {
+    (void)name;
+    return true;
+  }
   /** The backend's handle, or null when this program was compiled by a
    *  different backend than @p T expects. */
   template <class T>
@@ -57,7 +67,13 @@ using Compiler = std::function<std::shared_ptr<Program>(
  *  A request that cannot be met — no compiler registered for the target,
  *  no body in the recipe for it, or a body that fails to compile — returns
  *  null and reports once per (recipe, target), naming both, so the error
- *  surfaces at the first describe and does not scroll past every frame. */
+ *  surfaces at the first describe and does not scroll past every frame.
+ *
+ *  A program that COMPILED is checked the same way and reported the same
+ *  once: a params field the body never reads is discarded by the shader
+ *  compiler and uploads nothing, so the field is dead weight in the ABI
+ *  and every value written to it is lost in silence. The check names the
+ *  recipe and each unread field. */
 class ProgramCache {
  public:
   /** The one cache. */
@@ -89,6 +105,9 @@ class ProgramCache {
   std::map<Target, Compiler> m_compilers;
   std::map<Key, std::shared_ptr<Program>> m_programs;
   std::set<std::pair<const Recipe*, Target>> m_reported;
+  // Kept apart from m_reported so that a variant which compiled and one
+  // which did not each still say their piece once.
+  std::set<std::pair<const Recipe*, Target>> m_unread;
 };
 
 /** `ProgramCache::shared().registerCompiler(...)`. */

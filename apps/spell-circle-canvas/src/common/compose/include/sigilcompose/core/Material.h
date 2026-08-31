@@ -166,15 +166,17 @@ struct TextPassInputs {
   uint32_t units = 0;
 };
 
-/** The compiled shader for (pass source, unit count): the runtime's
- *  declarations — `uContent`, `uUnitRect[N]`, `uUnitPhase[N]`,
- *  `kUnitCount` — prepended to the author's source and compiled once per
- *  distinct (source, N), cached for the process. The unit count must be
- *  baked into the source because a runtime effect's array size is fixed at
- *  compile and SkSL has no uniform-bounded loop; caching per count is what
- *  keeps that from meaning a compile per frame. A source that does not
- *  compile warns once and answers null. */
-sk_sp<SkRuntimeEffect> passEffectFor(const std::string& source, uint32_t units);
+/** THE PASS SPECIALIZATION of @p authored at @p units: a recipe with the
+ *  same params ABI whose SkSL body is the runtime's declarations —
+ *  `uContent`, `uUnitRect[N]`, `uUnitPhase[N]`, `kUnitCount` — followed by
+ *  the author's, held once per distinct (recipe, N) for the process. The
+ *  unit count must be baked into the definition because a runtime effect's
+ *  array size is fixed at compile and SkSL has no uniform-bounded loop;
+ *  holding one specialization per count is what keeps that from meaning a
+ *  compile per frame. Null when @p authored carries no SkSL body. */
+std::shared_ptr<const sigil::material::Recipe> passRecipeFor(
+    const std::shared_ptr<const sigil::material::Recipe>& authored,
+    uint32_t units);
 }  // namespace detail
 
 /** The polymorphic paint value. Construct via the static factories; pass to
@@ -245,33 +247,6 @@ class Material {
   static Material sksl(
       sk_sp<SkRuntimeEffect> effect,
       std::vector<std::pair<std::string, float>> constants = {});
-  /** The SOURCE-CARRYING form: the SkSL as a string, compiled by the
-   *  library through a process-wide cache keyed on the source — so a
-   *  helper that re-mints this material every describe still compares
-   *  EQUAL to itself (same source, same cached effect pointer), where the
-   *  compiled-effect overload demands the caller hold one effect.
-   *
-   *  It is also the form `fx::pass` requires. A pass material's SkSL is
-   *  written against declarations the RUNTIME supplies — `uniform shader
-   *  uContent` (the addressed units' rendered layer), `uniform float4
-   *  uUnitRect[N]`, `uniform float2 uUnitPhase[N]` and `const int
-   *  kUnitCount = N` — and N is the track's unit count, known only at
-   *  paint, so the source cannot be compiled by the caller at all: the
-   *  library prepends those declarations and compiles once per distinct
-   *  unit count. Do not declare those four names yourself, and reference
-   *  them only from a material handed to `fx::pass` — used as an ordinary
-   *  fill, this material compiles with N = 1 and the runtime's slots go
-   *  unfilled: the arrays read zero and uContent is the builder's null
-   *  child, so a source meant for a fill should not read them.
-   *
-   *  Everything else is the compiled overload exactly: constants here take
-   *  float uniforms, uniform()/child() add the rest, uTime/uResolution/
-   *  uContentScale inject when declared and set the tier. A source that
-   *  does not compile warns once with the compiler's error and the
-   *  material is NONE. */
-  static Material sksl(
-      std::string source,
-      std::vector<std::pair<std::string, float>> constants = {});
   /** Wrap a raw shader (interop / escape). */
   static Material shader(sk_sp<SkShader> shader);
   /** A SigilMaterial instance as the paint. The recipe's declared frame
@@ -279,7 +254,17 @@ class Material {
    *  time or content scale is LIVE, the resolution is GEOMETRY — and its
    *  bindings make it live. uniform() and child() below reach the
    *  instance's fields and slots; equality is SigilMaterial's, so two
-   *  materials built from equal instances prune. */
+   *  materials built from equal instances prune.
+   *
+   *  It is also the ONLY form `fx::pass` takes. A pass body is written
+   *  against declarations the RUNTIME supplies — `uniform shader uContent`
+   *  (the addressed units' rendered layer), `uniform float4 uUnitRect[N]`,
+   *  `uniform float2 uUnitPhase[N]` and `const int kUnitCount = N` — and N
+   *  is the track's unit count, known only at paint, so the runtime holds
+   *  a specialization of the recipe per distinct count. Do not declare
+   *  those four names in the recipe, and read them only from a material
+   *  handed to `fx::pass`: used as an ordinary fill, the recipe compiles
+   *  without them and a body that mentions them does not compile at all. */
   static Material recipe(sigil::material::Material material);
   /** The SigilMaterial instance behind a recipe() material, or null. */
   const sigil::material::Material* recipeMaterial() const;
@@ -597,18 +582,15 @@ class Material {
   Fill resolve(const PaintContext& ctx) const;
 
   /** THE PASS RESOLVE — what the fx() runtime calls for a `fx::pass`
-   *  track's material, once per draw: the source specialized to
-   *  `in.units` (compiled once per count, cached), the recipe's constants,
-   *  bindings, blocks and children applied exactly as resolve() applies
+   *  track's material, once per draw: the recipe specialized to
+   *  `in.units` (one definition per count, compiled once), the instance's
+   *  values, bindings and children resolved exactly as resolve() resolves
    *  them, and the runtime's own slots — uContent, uUnitRect, uUnitPhase —
-   *  filled from @p in. Null when the material carries no source or the
-   *  source does not compile; the caller draws the units plainly then, so
-   *  a broken pass shows resting letters rather than nothing. */
+   *  filled from @p in. Null when the material is not recipe-backed or its
+   *  specialization does not compile; the caller draws the units plainly
+   *  then, so a broken pass shows resting letters rather than nothing. */
   sk_sp<SkShader> resolvePass(const detail::TextPassInputs& in,
                               const PaintContext& ctx) const;
-  /** The SkSL source behind the source-carrying sksl() form, or empty for
-   *  every other kind — what `fx::pass` requires of its material. */
-  const std::string& skslSource() const;
 
   /** STRUCTURAL value equality — the prune signature. Two materials
    *  compare equal when they were built from the same recipe: solids by
@@ -639,18 +621,9 @@ class Material {
    *  floats, because a digest cannot detect a change in an input it was
    *  never fed; uResolution becomes the root canvas size; and the built
    *  shader is wrapped in W⁻¹ BEFORE the memo stores it, so a field that
-   *  is holding still keeps a stable shader pointer.
-   *
-   *  @p pass non-null is resolvePass()'s route through the SAME body: the
-   *  effect swaps for the source specialized to the unit count, the
-   *  runtime's three slots are filled from the inputs, and the memo is
-   *  skipped — per-unit phases move every frame the pass is live, and a
-   *  settled pass is replayed from its node's recording, not rebuilt. One
-   *  body, so a pass material's constants, bindings, blocks, children and
-   *  injected context can never be applied differently than a fill's. */
+   *  is holding still keeps a stable shader pointer. */
   static sk_sp<SkShader> build(const Live& live, const PaintContext* ctx,
-                               bool worldSpace = false,
-                               const detail::TextPassInputs* pass = nullptr);
+                               bool worldSpace = false);
   /** Fold a Blend recipe's layers into one shader — `ctx` null is the
    *  context-free form (asShader), non-null the per-frame one (resolve).
    *  One function so the two can never disagree. */

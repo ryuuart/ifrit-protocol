@@ -207,6 +207,7 @@
 #include <sigilcompose/typography/Typography.h>
 #include <sigilgeometry/path/Ops.h>
 #include <sigilgeometry/path/Polyline.h>
+#include <sigilmaterial/core/Material.h>
 #include <sigilsketch/Sketch.h>
 #include <sigilweave/style/Style.h>
 
@@ -459,7 +460,6 @@ constexpr const char* kLimina[kLimens] = {
  *  is an exact pass-through, which is what lets it stay mounted for the
  *  whole loop. */
 constexpr const char* kChargeSksl = R"(
-uniform float4 uGold;
 half4 main(float2 xy) {
   half4 c = uContent.eval(xy);
   float flash = 0.0;
@@ -480,6 +480,22 @@ half4 main(float2 xy) {
                uGold.rgb * (0.55 * flash * cov + 0.30 * wash);
   return half4(half3(min(col, float3(a))), half(a));
 })";
+
+/** The charge's ABI: one colour, the gold the flash lays on the names. */
+struct ChargeParams {
+  sigil::material::Color uGold;
+};
+
+/** The definition, made once for the process — a recipe's identity is the
+ *  object, so a fresh one per describe would compile a fresh program and
+ *  never compare equal to itself. */
+std::shared_ptr<const sigil::material::Recipe> chargeRecipe() {
+  static const std::shared_ptr<const sigil::material::Recipe> recipe =
+      std::make_shared<const sigil::material::Recipe>(
+          sigil::material::Recipe::of<ChargeParams>("rota.charge")
+              .body(sigil::material::Target::SkSL, kChargeSksl));
+  return recipe;
+}
 
 // ---- helpers --------------------------------------------------------------
 
@@ -697,8 +713,6 @@ Glow bakeGlow(const std::vector<SkPath>& lines, float coreHalf) {
  *  and the streaks' own widths come from two beats of a hashed angle, so
  *  the fan reads as unequal spokes of light rather than a gear. */
 constexpr const char* kRaysSksl = R"(
-uniform float2 uResolution;
-uniform float4 uInk;
 half4 main(float2 xy) {
   float2 c = uResolution * 0.5;
   float2 d = xy - c;
@@ -711,6 +725,21 @@ half4 main(float2 xy) {
   float v = streak * band;
   return half4(half3(uInk.rgb * v), half(v));
 })";
+
+/** The rays' ABI. The body reads the node's box, which the recipe declares
+ *  as a frame input rather than a field: the runtime fills it. */
+struct RaysParams {
+  sigil::material::Color uInk;
+};
+
+std::shared_ptr<const sigil::material::Recipe> raysRecipe() {
+  static const std::shared_ptr<const sigil::material::Recipe> recipe =
+      std::make_shared<const sigil::material::Recipe>(
+          sigil::material::Recipe::of<RaysParams>("rota.rays")
+              .frame(sigil::material::FrameInput::Resolution)
+              .body(sigil::material::Target::SkSL, kRaysSksl));
+  return recipe;
+}
 
 /** THE CREST'S COLOUR FRINGE: the picture beneath re-sampled with its red
  *  and blue pulled apart ALONG THE RADIUS, which is where a lens throws
@@ -1162,7 +1191,9 @@ struct RotaConvocationis : sigil::compose::sketch::Sketch {
                      stagger(unit::Word, {.eachMs = 170, .durationMs = 820}),
                  .progress = beat(tIgnite, tIgnite + 2.6)});
     names.fx(
-        {.effect = fx::pass(Material::sksl(kChargeSksl).uniform("uGold", kGold))
+        {.effect = fx::pass(Material::recipe(
+                                sigil::material::Material(chargeRecipe()))
+                                .uniform("uGold", kGold))
                        .restsAt(0.0f, 1.0f),
          .stagger = stagger(unit::Word, {.eachMs = 170, .durationMs = 820}),
          .progress = beat(tIgnite, tIgnite + 2.6),
@@ -1621,14 +1652,16 @@ struct RotaConvocationis : sigil::compose::sketch::Sketch {
     // They pass BEHIND the lettering: light coming out from the figure is
     // occluded by the figure, and rays laid over the type would only be a
     // veil across the words.
-    panel.child(box()
-                    .key("rays")
-                    .absolute()
-                    .inset(-170)
-                    .hitTestable(false)
-                    .fill(Material::sksl(kRaysSksl).uniform("uInk", kHalo))
-                    .blend(SkBlendMode::kPlus)
-                    .opacity(&raysA));
+    panel.child(
+        box()
+            .key("rays")
+            .absolute()
+            .inset(-170)
+            .hitTestable(false)
+            .fill(Material::recipe(sigil::material::Material(raysRecipe()))
+                      .uniform("uInk", kHalo))
+            .blend(SkBlendMode::kPlus)
+            .opacity(&raysA));
 
     // THE COMPASS WORK. Every rule below is half of a PAIR, and the pair
     // is what makes a band: no line on this plate stands on its own, and

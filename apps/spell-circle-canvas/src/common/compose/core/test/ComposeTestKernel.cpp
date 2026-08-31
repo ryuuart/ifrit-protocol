@@ -613,8 +613,6 @@ TEST(ComposeMaterial, ANullSkslEffectIsLoudAtBuild) {
   EXPECT_EQ(::testing::internal::GetCapturedStderr(), "")
       << "a valid effect must not warn";
   ::testing::internal::CaptureStderr();
-  // Spelled as the sk_sp overload: a bare nullptr is ambiguous against the
-  // source-carrying overload, and this is the null-EFFECT diagnostic.
   (void)Material::sksl(sk_sp<SkRuntimeEffect>(nullptr));
   const std::string log = ::testing::internal::GetCapturedStderr();
   EXPECT_NE(log.find("Material::sksl"), std::string::npos) << log;

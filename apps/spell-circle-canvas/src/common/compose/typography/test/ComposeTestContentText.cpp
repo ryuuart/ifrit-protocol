@@ -6,7 +6,9 @@
 #include <include/core/SkFont.h>
 #include <include/core/SkPictureRecorder.h>
 #include <sigilcompose/core/Feed.h>
+#include <sigilmaterial/core/Material.h>
 
+#include <memory>
 #include <numeric>
 
 #include "support/TextTestSupport.h"
@@ -1026,9 +1028,14 @@ TEST(ComposeTextFx, EveryEffectAnswersWhetherItMovesItsGlyphs) {
 
   // A PASS IS NOT A PLACEMENT: its shader runs over pixels already
   // rasterized at the resting origins.
-  EXPECT_FALSE(fx::pass(Material::sksl("half4 main(float2 xy) { return "
-                                       "uContent.eval(xy); }"))
-                   .displaces());
+  struct NoParams {};
+  const auto identityPass = std::make_shared<const sigil::material::Recipe>(
+      sigil::material::Recipe::of<NoParams>("test.identity-pass")
+          .body(sigil::material::Target::SkSL,
+                "half4 main(float2 xy) { return uContent.eval(xy); }"));
+  EXPECT_FALSE(
+      fx::pass(Material::recipe(sigil::material::Material(identityPass)))
+          .displaces());
 
   // THE OPAQUE DOOR assumes motion, and takes the author's word otherwise.
   const GlyphModFn still = [](const GlyphInfo&, float, Rng&) {

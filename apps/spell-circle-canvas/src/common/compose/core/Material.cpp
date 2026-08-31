@@ -26,6 +26,7 @@
 #include <array>
 #include <cmath>
 #include <cstring>
+#include <mutex>
 
 #include "ComposeInternal.h"  // ElementNode, for Element::fill(Material)
 
@@ -34,11 +35,6 @@ namespace sigil::compose {
 /** The sksl recipe behind a Material (opaque in the header). */
 struct Material::Live {
   sk_sp<SkRuntimeEffect> effect;
-  // The source-carrying form's SkSL, empty for the compiled-effect form.
-  // When set, `effect` is the source compiled at unit count 1 through the
-  // same cache resolvePass() specializes from — so two materials built
-  // from one source string share an effect pointer and compare equal.
-  std::string source;
   std::vector<std::pair<std::string, float>> constants;
   std::vector<std::pair<std::string, std::array<float, 2>>> constants2;
   std::vector<std::pair<std::string, std::array<float, 4>>> constants4;
@@ -256,52 +252,53 @@ bool declaresUniform(const sk_sp<SkRuntimeEffect>& effect,
   return u && u->sizeInBytes() == bytes;
 }
 
-// The one compile behind every source-carrying material: the pass
-// prelude at the requested unit count, then the author's source, cached
-// per (source, count) for the process — the probe every sksl(source)
-// material validates against is this at count 1, so two materials built
-// from one source string share an effect pointer and compare equal.
-// Failures are cached too: a source that does not compile says why ONCE
-// and then answers null without recompiling per frame.
-sk_sp<SkRuntimeEffect> passEffectFor(const std::string& source,
-                                     uint32_t units) {
+// THE ONE SPECIALIZATION behind every pass: the author's recipe with the
+// runtime's declarations prepended to its SkSL body at the requested unit
+// count, held per (recipe identity, count) for the process. The
+// specialization carries the author's params layout, so the instance's
+// values, bindings and children ride it unchanged; it is a second
+// definition, so its program compiles and caches apart, which is what
+// stops a count from meaning a compile per frame.
+std::shared_ptr<const sigil::material::Recipe> passRecipeFor(
+    const std::shared_ptr<const sigil::material::Recipe>& authored,
+    uint32_t units) {
+  if (!authored || !authored->has(sigil::material::Target::SkSL))
+    return nullptr;
+  // The authored recipe is held, not pointed at: a definition freed and a
+  // second allocated at its address would otherwise inherit the first's
+  // specializations. A recipe is defined once and held anyway.
   struct Cached {
-    std::string source;
+    std::shared_ptr<const sigil::material::Recipe> authored;
     uint32_t units;
-    sk_sp<SkRuntimeEffect> effect;
+    std::shared_ptr<const sigil::material::Recipe> recipe;
   };
   static std::vector<Cached> cache;
+  // Held under a lock because a host may paint two composers on two
+  // threads, and both would reach here for the same definition.
+  static std::mutex mutex;
+  const std::lock_guard lock(mutex);
   const uint32_t n = std::max(units, 1u);
   for (const Cached& c : cache)
-    if (c.units == n && c.source == source) return c.effect;
+    if (c.units == n && c.authored == authored) return c.recipe;
   const std::string count = std::to_string(n);
-  const std::string src =
-      "uniform shader uContent;\n"
-      "uniform float4 uUnitRect[" +
-      count +
-      "];\n"
-      "uniform float2 uUnitPhase[" +
-      count +
-      "];\n"
-      "const int kUnitCount = " +
-      count + ";\n" + source;
-  auto [effect, error] = SkRuntimeEffect::MakeForShader(SkString(src.c_str()));
-  if (!effect) {
-    // Once per source, not per count: the author's error is the same text
-    // at every specialization.
-    bool said = false;
-    for (const Cached& c : cache) said |= !c.effect && c.source == source;
-    if (!said)
-      SkDebugf(
-          "[compose] Material::sksl(source): does not compile — the "
-          "material is NONE and a pass over it draws its units plainly. "
-          "Note the runtime prepends uContent / uUnitRect / uUnitPhase / "
-          "kUnitCount, so line numbers are offset by 4 and those names "
-          "must not be redeclared.\n%s\n",
-          error.c_str());
-  }
-  cache.push_back({source, n, effect});
-  return effect;
+  // The arrays and the loop bound sit at the head of the BODY rather than
+  // among the declarations, because a params field is a value the author
+  // sets and these three are the runtime's alone: nothing may write them
+  // through the instance, and the count is a compile-time constant no
+  // upload could carry.
+  sigil::material::Recipe spec = *authored;
+  spec.child("uContent");
+  spec.body(sigil::material::Target::SkSL,
+            "uniform float4 uUnitRect[" + count +
+                "];\n"
+                "uniform float2 uUnitPhase[" +
+                count +
+                "];\n"
+                "const int kUnitCount = " +
+                count + ";\n" + *authored->body(sigil::material::Target::SkSL));
+  auto held = std::make_shared<const sigil::material::Recipe>(std::move(spec));
+  cache.push_back({authored, n, held});
+  return held;
 }
 
 // The Material→SkShader conversion every child slot performs (declared in
@@ -355,17 +352,8 @@ void digestToRoot(std::vector<float>& inputs, const SkMatrix& w) {
 // last three only when the effect actually declares them (assigning a uniform
 // the effect lacks aborts in debug builds). `ctx` is null for the static build.
 sk_sp<SkShader> Material::build(const Live& live, const PaintContext* ctx,
-                                bool worldSpace,
-                                const detail::TextPassInputs* pass) {
-  // The pass route swaps the effect for the source specialized to the unit
-  // count — everything else below is the one shared body. A pass with no
-  // source has nothing to specialize and answers null; the caller draws
-  // the units plainly.
-  sk_sp<SkRuntimeEffect> effect = live.effect;
-  if (pass) {
-    if (live.source.empty()) return nullptr;
-    effect = detail::passEffectFor(live.source, std::max(pass->units, 1u));
-  }
+                                bool worldSpace) {
+  const sk_sp<SkRuntimeEffect>& effect = live.effect;
   if (!effect) return nullptr;
   // A user-provided uniform (constant or bound) OWNS its slot, and the
   // auto-injects below must never overwrite it. Binding uTime to a
@@ -406,11 +394,9 @@ sk_sp<SkShader> Material::build(const Live& live, const PaintContext* ctx,
                              : (ctx ? ctx->size : SkSize::MakeEmpty());
 
   // The varying-input digest (constants are fixed per recipe; injected
-  // values participate only when actually injected). A PASS skips the memo
-  // outright: its per-unit phases move every frame it is live, and a
-  // settled pass replays from its node's recording rather than resolving.
+  // values participate only when actually injected).
   std::vector<float> inputs;
-  if (ctx && !pass) {
+  if (ctx) {
     inputs.reserve(live.binds.size() + 2 * live.blocks.size() + 10);
     for (const auto& [name, out] : live.binds)
       inputs.push_back(out ? out->value() : 0.0f);
@@ -495,14 +481,6 @@ sk_sp<SkShader> Material::build(const Live& live, const PaintContext* ctx,
   for (const auto& [name, block] : live.blocks)
     if (block)  // size pre-validated at store: a full array write, exactly
       b.uniform(name).set(block->values().data(), (int)block->size());
-  if (pass) {
-    // The runtime's own slots. The counts are the specialization's by
-    // construction, and the builder demands exactly them.
-    b.child("uContent") = pass->content;
-    const int n = (int)std::max(pass->units, 1u);
-    if (pass->rects) b.uniform("uUnitRect").set(pass->rects, n * 4);
-    if (pass->phases) b.uniform("uUnitPhase").set(pass->phases, n * 2);
-  }
   // Children resolve with the SAME PaintContext the parent got (so a live
   // child ticks and a geometry child reads the parent node's box), and with
   // the null context on the static snapshot path.
@@ -527,7 +505,7 @@ sk_sp<SkShader> Material::build(const Live& live, const PaintContext* ctx,
   // recording can replay. Wrapping after the store would mint a fresh
   // wrapper per resolve and the material would read as never holding still.
   if (worldSpace && ctx) built = anchorToRoot(std::move(built), *ctx);
-  if (ctx && !pass) {
+  if (ctx) {
     live.lastInputs = std::move(inputs);
     live.lastShader = built;
   }
@@ -800,20 +778,6 @@ Material Material::sksl(sk_sp<SkRuntimeEffect> effect,
   return m;
 }
 
-Material Material::sksl(std::string source,
-                        std::vector<std::pair<std::string, float>> constants) {
-  // The unit-1 probe from the same cache resolvePass() specializes from:
-  // it is what uniform()/child() validate against (the author's own
-  // declarations are identical at every count), and its pointer identity
-  // is what makes two materials from one source string compare equal.
-  sk_sp<SkRuntimeEffect> probe = detail::passEffectFor(source, 1);
-  if (!probe) return {};  // passEffectFor already said why, once
-  Material m = sksl(std::move(probe), std::move(constants));
-  m.detachLive();  // sole owner here; the mutation below must not share
-  m.m_live->source = std::move(source);
-  return m;
-}
-
 namespace {
 /** mix(a, b, t) as one nested shader — what a blend layer's amount()
  *  lerps with (SkShaders has Blend but no Lerp). One effect for the
@@ -894,8 +858,6 @@ bool Material::operator==(const Material& o) const {
     // Children are recipe, recursively: two materials over one effect that
     // sample DIFFERENT palettes are different materials, and a node that
     // pruned across that swap would sample the old one forever.
-    // The source form compares by effect pointer like the rest: equal
-    // sources share one cached probe, so no string comparison is needed.
     return m_live->effect == o.m_live->effect &&
            m_live->constants == o.m_live->constants &&
            m_live->constants2 == o.m_live->constants2 &&
@@ -1300,15 +1262,45 @@ Material& Material::uniform(std::string name,
   return *this;  // now LIVE; painting resolves per frame (resolve())
 }
 
-const std::string& Material::skslSource() const {
-  static const std::string kEmpty;
-  return m_live ? m_live->source : kEmpty;
-}
-
 sk_sp<SkShader> Material::resolvePass(const detail::TextPassInputs& in,
                                       const PaintContext& ctx) const {
-  if (!m_live || m_live->source.empty()) return nullptr;
-  return build(*m_live, &ctx, m_worldSpace, &in);
+  if (!m_backed) return nullptr;
+  const Backed& backed = *m_backed;
+  const uint32_t n = std::max(in.units, 1u);
+  std::shared_ptr<const sigil::material::Recipe> spec =
+      detail::passRecipeFor(backed.material.recipePtr(), n);
+  if (!spec) return nullptr;
+  // The instance is respecialized per draw rather than held: it carries
+  // the material's CURRENT values, and a held one would go stale the
+  // moment a uniform was set on the material it was taken from. The
+  // definition it points at is what is cached, and that is where the
+  // compile lives.
+  const sigil::material::Material specialized =
+      backed.material.withRecipe(std::move(spec));
+  sigil::material::FrameData frame;
+  frame.seconds = ctx.elapsedSeconds;
+  frame.contentScale = ctx.contentScale;
+  const SkSize resSize =
+      m_worldSpace && !ctx.rootSize.isEmpty() ? ctx.rootSize : ctx.size;
+  frame.resolution = {resSize.width(), resSize.height()};
+  // uContent is the runtime's to fill, never the instance's: the layer is
+  // rendered per draw and no material value could name it.
+  static constexpr std::string_view kContent = "uContent";
+  const std::array<std::string_view, 1> leave{kContent};
+  std::unique_ptr<SkRuntimeShaderBuilder> b =
+      sigil::material::skia::builder(specialized, frame, {}, leave);
+  if (!b) return nullptr;  // the cache already said why, once
+  b->child(kContent) = in.content;
+  // The array counts are the specialization's by construction, and the
+  // builder demands exactly them.
+  if (in.rects) b->uniform("uUnitRect").set(in.rects, (int)n * 4);
+  if (in.phases) b->uniform("uUnitPhase").set(in.phases, (int)n * 2);
+  sk_sp<SkShader> built = b->makeShader();
+  // No memo here: the per-unit phases move every frame the pass is live,
+  // and a settled pass replays from its node's recording rather than
+  // resolving.
+  if (m_worldSpace) built = anchorToRoot(std::move(built), ctx);
+  return built;
 }
 
 /** THE BLEND FOLD, in one place because it has two callers that must agree:

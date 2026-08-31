@@ -12,6 +12,8 @@
 #include <sigilcompose/shape/Shapes.h>
 #include <sigilcompose/typography/TextFx.h>
 
+#include <sigilmaterial/core/Material.h>
+
 #include <sigilweave/SigilWeave.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
@@ -452,13 +454,18 @@ TEST(ComposeGpu, TextPassReachKeepsContentInPlaceOnGraphite) {
     m.dy = -14.0f;
     return m;
   });
-  const char *identity = "half4 main(float2 xy) { return uContent.eval(xy); }";
+  struct NoParams {};
+  const auto identity = std::make_shared<const sigil::material::Recipe>(
+      sigil::material::Recipe::of<NoParams>("gpu.identity-pass")
+          .body(sigil::material::Target::SkSL,
+                "half4 main(float2 xy) { return uContent.eval(xy); }"));
   const auto describe = [&](float reach) {
     return box().padding(60).child(
         text(u8"HOIST", style)
             .key("hoist")
             .fx({.effect = lift})
-            .fx({.effect = fx::pass(Material::sksl(identity)), .reach = reach}));
+            .fx({.effect = fx::pass(Material::recipe(sigil::material::Material(identity))),
+                 .reach = reach}));
   };
   const int w = 200, h = 200;
   sigil::motion::Ticker snugTicker;

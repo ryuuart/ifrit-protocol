@@ -305,10 +305,11 @@ class TextEffect {
   /** A PASS EFFECT: the track's evaluation is one shader pass over the
    *  addressed units' rendered pixels, not a per-glyph deviation — the
    *  factory behind `fx::pass` below, where the contract is
-   *  documented. The material must carry SkSL SOURCE
-   *  (`Material::sksl(std::string, …)`), because the runtime bakes the
-   *  unit count into the compiled shader; any other material warns once
-   *  and returns an EMPTY effect, so the track draws its glyphs at rest. */
+   *  documented. The material must be RECIPE-BACKED (`Material::recipe`)
+   *  over a recipe with an SkSL body, because the runtime bakes the unit
+   *  count into a specialization of that recipe; any other material warns
+   *  once and returns an EMPTY effect, so the track draws its glyphs at
+   *  rest. */
   static TextEffect pass(Material material);
   /** The pass material, or null for every per-glyph effect — what the
    *  runtime dispatches on. */
@@ -444,25 +445,37 @@ namespace fx {
  *  data rather than scene structure and the cost is one draw plus one pass
  *  whatever the unit count is.
  *
- *      auto burn = Material::sksl(emberDissolve).uniform("uEdgeWidth", .15f);
+ *      struct Burn { material::Color uEdge; };
+ *      auto dissolve = std::make_shared<const material::Recipe>(
+ *          material::Recipe::of<Burn>("ember.burn")
+ *              .body(material::Target::SkSL, kBurnSksl));
+ *      auto burn = Material::recipe(material::Material(dissolve, Burn{ink}));
  *      text(u8"EMBER DECODE", display)
  *          .fx({.effect = fx::pass(burn),
  *               .stagger = stagger(unit::Cluster, {.eachMs = 260})});
  *
- *  THE MATERIAL MUST CARRY SKSL SOURCE (`Material::sksl(std::string, …)`),
- *  because the unit count is baked into the compiled shader — a runtime
- *  effect's array size is fixed at compile and SkSL has no uniform-bounded
- *  loop. The RUNTIME owns that specialization: it prepends
+ *  THE MATERIAL MUST BE RECIPE-BACKED (`Material::recipe`) over a recipe
+ *  with an SkSL body, because the unit count is baked into the compiled
+ *  shader — a runtime effect's array size is fixed at compile and SkSL has
+ *  no uniform-bounded loop. The RUNTIME owns that specialization: it holds
+ *  a second recipe over the same params, per distinct unit count, whose
+ *  body is
  *
  *      uniform shader uContent;        // the units' rendered layer
  *      uniform float4 uUnitRect[N];    // per unit: x, y, w, h
  *      uniform float2 uUnitPhase[N];   // per unit: local 0→1, seed
  *      const int kUnitCount = N;      // the loop bound
  *
- *  and compiles once per distinct unit count, cached for the process —
- *  write the source against those names and do not declare them. Any other
- *  material warns once and returns an EMPTY effect, so the track draws its
- *  glyphs at rest rather than nothing.
+ *  ahead of the author's — write the body against those names and do not
+ *  declare them, and put every uniform of your own in the params struct
+ *  rather than in the body's text. The params ARE the ABI: a field the
+ *  body never reads is named on stderr rather than silently dropped. A
+ *  body that does not compile is reported once against its recipe's name,
+ *  with the compiler's own message — whose LINE NUMBERS count from the
+ *  head of the specialization, the generated declarations and the four
+ *  above them, not from the first line you wrote. Any other material warns
+ *  once and returns an EMPTY effect, so the track draws its glyphs at rest
+ *  rather than nothing.
  *
  *  THE COORDINATES ARE THE NODE'S OWN PX: `main(xy)`, `uUnitRect` and the
  *  layer all share the frame the letters were laid out in, and the layer

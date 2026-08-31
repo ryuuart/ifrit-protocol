@@ -59,6 +59,16 @@ class Material {
 
   const Recipe& recipe() const { return *m_recipe; }
   const std::shared_ptr<const Recipe>& recipePtr() const { return m_recipe; }
+  /** THE SAME INSTANCE OVER @p recipe: the values, bindings, children and
+   *  settings unchanged, resolving and caching against a second
+   *  definition. @p recipe must have this one's params layout — it is a
+   *  SPECIALIZATION of the same ABI, a body rewritten around a size or a
+   *  constant a renderer knows only at draw — and a layout that differs is
+   *  reported once and the material comes back on its own recipe. The
+   *  specialization is a distinct identity, so it compiles and caches
+   *  apart, which is the point: one program per specialization rather than
+   *  one per draw. */
+  [[nodiscard]] Material withRecipe(std::shared_ptr<const Recipe> recipe) const;
 
   /** Sets the field @p name to @p value. A name the recipe does not
    *  declare, or a value whose kind does not match the field, is reported

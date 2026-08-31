@@ -5,6 +5,11 @@
 // against Composer::beatsOf, because the pass and that query resolve one
 // TrackCascade and must never disagree.
 
+#include <sigilmaterial/core/Material.h>
+
+#include <memory>
+#include <vector>
+
 #include "support/TextTestSupport.h"
 
 namespace {
@@ -43,39 +48,72 @@ constexpr const char* kIdentitySksl =
 constexpr const char* kEraseSksl =
     "half4 main(float2 xy) { return half4(0.0, 0.0, 0.0, 0.0); }";
 
+/** These bodies read the runtime's declarations and nothing of their own,
+ *  so their recipes carry no ABI. */
+struct NoParams {};
+
+/** The pass material over @p source: ONE recipe per source for the whole
+ *  TU, because a recipe's identity is the object — two materials over one
+ *  definition compare equal, which is what the equality assertions below
+ *  rest on, and a fresh definition per call would compile a fresh program
+ *  every time. */
+Material passOver(const char* source) {
+  struct Held {
+    const char* source;
+    std::shared_ptr<const sigil::material::Recipe> recipe;
+  };
+  static std::vector<Held> held;
+  for (const Held& h : held)
+    if (h.source == source)
+      return Material::recipe(sigil::material::Material(h.recipe));
+  auto recipe = std::make_shared<const sigil::material::Recipe>(
+      sigil::material::Recipe::of<NoParams>("test.pass")
+          .body(sigil::material::Target::SkSL, source));
+  held.push_back({source, recipe});
+  return Material::recipe(sigil::material::Material(recipe));
+}
+
 }  // namespace
 
-TEST(TextPass, SpecializationCompilesAndCachesPerUnitCount) {
-  const std::string source = kFloodSksl;
-  const sk_sp<SkRuntimeEffect> three = detail::passEffectFor(source, 3);
-  ASSERT_TRUE(three);  // the prelude + source compile, arrays at [3]
-  // One compile per (source, count): asking again returns the SAME effect.
-  EXPECT_EQ(three, detail::passEffectFor(source, 3));
-  // Another count is another specialization, compiled and cached apart.
-  const sk_sp<SkRuntimeEffect> five = detail::passEffectFor(source, 5);
+TEST(TextPass, SpecializationIsOneRecipePerUnitCount) {
+  const std::shared_ptr<const sigil::material::Recipe> authored =
+      passOver(kFloodSksl).recipeMaterial()->recipePtr();
+  const std::shared_ptr<const sigil::material::Recipe> three =
+      detail::passRecipeFor(authored, 3);
+  ASSERT_TRUE(three);
+  // The specialization keeps the author's ABI and prepends the runtime's
+  // declarations at the count asked for.
+  EXPECT_EQ(three->params(), authored->params());
+  EXPECT_NE(three->source(sigil::material::Target::SkSL).find("uUnitRect[3]"),
+            std::string::npos);
+  // One definition per (recipe, count): asking again returns the SAME one,
+  // so the program cache holds one program for it however many draws ask.
+  EXPECT_EQ(three, detail::passRecipeFor(authored, 3));
+  // Another count is another definition, compiled and cached apart.
+  const std::shared_ptr<const sigil::material::Recipe> five =
+      detail::passRecipeFor(authored, 5);
   ASSERT_TRUE(five);
   EXPECT_NE(three, five);
-  EXPECT_EQ(five, detail::passEffectFor(source, 5));
+  EXPECT_EQ(five, detail::passRecipeFor(authored, 5));
 }
 
-TEST(TextPass, SourceMaterialsCompareByRecipe) {
-  // The source form's whole point: two materials minted from one source
-  // string share the cached effect and compare EQUAL — a helper may
-  // rebuild its material every describe and still prune.
-  const Material a = Material::sksl(kFloodSksl);
-  const Material b = Material::sksl(kFloodSksl);
+TEST(TextPass, RecipeMaterialsCompareByDefinition) {
+  // Two materials over one recipe compare EQUAL — a helper may rebuild its
+  // material every describe and still prune.
+  const Material a = passOver(kFloodSksl);
+  const Material b = passOver(kFloodSksl);
   EXPECT_TRUE(a == b);
-  EXPECT_FALSE(a == Material::sksl(kIdentitySksl));
+  EXPECT_FALSE(a == passOver(kIdentitySksl));
   // And so do the pass effects wrapping them.
   EXPECT_TRUE(fx::pass(a) == fx::pass(b));
-  EXPECT_FALSE(fx::pass(a) == fx::pass(Material::sksl(kIdentitySksl)));
+  EXPECT_FALSE(fx::pass(a) == fx::pass(passOver(kIdentitySksl)));
 }
 
-TEST(TextPass, NonSourceMaterialRefusedAndGlyphsSurvive) {
-  // fx::pass demands the source-carrying form (the runtime must bake the
-  // unit count into the compiled shader). A compiled-effect material is
-  // refused: the effect is EMPTY, the track is skipped, and the text draws
-  // at rest rather than vanishing.
+TEST(TextPass, NonRecipeMaterialRefusedAndGlyphsSurvive) {
+  // fx::pass demands the recipe-backed form (the runtime specializes the
+  // recipe per unit count). A compiled-effect material is refused: the
+  // effect is EMPTY, the track is skipped, and the text draws at rest
+  // rather than vanishing.
   const TextEffect refused = fx::pass(Material::sksl(ukEffect()));
   EXPECT_FALSE(refused);
 
@@ -91,7 +129,7 @@ TEST(TextPass, UnitRectAndPhaseAgreeWithBeatsOf) {
   host.composer.render(box().padding(20).child(
       text(u8"ABC DEF", whiteStyle(30))
           .key("probe")
-          .fx({.effect = fx::pass(Material::sksl(kPhaseProbeSksl)),
+          .fx({.effect = fx::pass(passOver(kPhaseProbeSksl)),
                .stagger =
                    stagger(unit::Cluster, {.eachMs = 90, .durationMs = 200}),
                .progress = 0.55f})));
@@ -127,10 +165,10 @@ TEST(TextPass, TwoUnitCountsInOneSession) {
           .gap(12)
           .child(text(u8"AB", whiteStyle(28))
                      .key("two")
-                     .fx({.effect = fx::pass(Material::sksl(kIdentitySksl))}))
+                     .fx({.effect = fx::pass(passOver(kIdentitySksl))}))
           .child(text(u8"ABCDE", whiteStyle(28))
                      .key("five")
-                     .fx({.effect = fx::pass(Material::sksl(kIdentitySksl))})));
+                     .fx({.effect = fx::pass(passOver(kIdentitySksl))})));
   host.frame();
   const std::vector<Beat> two = host.composer.beatsOf("two", 0);
   const std::vector<Beat> five = host.composer.beatsOf("five", 0);
@@ -149,8 +187,7 @@ TEST(TextPass, BoundedByBoxPlusReach) {
   host.composer.render(box().padding(60).child(
       text(u8"IN", whiteStyle(30))
           .key("bounded")
-          .fx({.effect = fx::pass(Material::sksl(kFloodSksl)),
-               .reach = 12.0f})));
+          .fx({.effect = fx::pass(passOver(kFloodSksl)), .reach = 12.0f})));
   host.frame();
   const std::optional<SkRect> laidOut = host.composer.bounds("bounded");
   ASSERT_TRUE(laidOut.has_value());
@@ -187,8 +224,7 @@ TEST(TextPass, ReachGrowsBoundsWithoutMovingContent) {
         text(u8"HOIST", whiteStyle(34))
             .key("hoist")
             .fx({.effect = lift})
-            .fx({.effect = fx::pass(Material::sksl(kIdentitySksl)),
-                 .reach = reach}));
+            .fx({.effect = fx::pass(passOver(kIdentitySksl)), .reach = reach}));
   };
   Host snug;
   snug.composer.render(describe(0.0f));
@@ -238,7 +274,7 @@ TEST(TextPass, ProgressAdvancesWithCascadeAndSettles) {
     return box().padding(20).child(
         text(u8"ABCD", whiteStyle(30))
             .key("run")
-            .fx({.effect = fx::pass(Material::sksl(kPhaseProbeSksl)),
+            .fx({.effect = fx::pass(passOver(kPhaseProbeSksl)),
                  .stagger =
                      stagger(unit::Cluster, {.eachMs = 60, .durationMs = 200}),
                  .progress =
@@ -275,7 +311,7 @@ TEST(TextPass, ComposesDownstreamOfDeviationTracks) {
       text(u8"GONE", whiteStyle(40))
           .key("t")
           .fx({.effect = hide})
-          .fx({.effect = fx::pass(Material::sksl(kIdentitySksl))})));
+          .fx({.effect = fx::pass(passOver(kIdentitySksl))})));
   hidden.frame();
   EXPECT_FALSE(anyWhiteIn(hidden, SkIRect::MakeXYWH(10, 10, 180, 180)));
 
@@ -283,7 +319,7 @@ TEST(TextPass, ComposesDownstreamOfDeviationTracks) {
   shown.composer.render(box().padding(30).child(
       text(u8"GONE", whiteStyle(40))
           .key("t")
-          .fx({.effect = fx::pass(Material::sksl(kIdentitySksl))})));
+          .fx({.effect = fx::pass(passOver(kIdentitySksl))})));
   shown.frame();
   EXPECT_TRUE(anyWhiteIn(shown, SkIRect::MakeXYWH(10, 10, 180, 180)));
 }
@@ -295,7 +331,7 @@ TEST(TextPass, AddressedGlyphsDrawOnlyThroughTheirPass) {
   host.composer.render(box().padding(30).child(
       text(u8"ERASED", whiteStyle(40))
           .key("t")
-          .fx({.effect = fx::pass(Material::sksl(kEraseSksl))})));
+          .fx({.effect = fx::pass(passOver(kEraseSksl))})));
   host.frame();
   EXPECT_FALSE(anyWhiteIn(host, SkIRect::MakeXYWH(10, 10, 180, 180)));
 }
@@ -319,7 +355,7 @@ TEST(TextPass, RestsAtSkipsTheShaderWhenEveryUnitSitsOnADeclaredPhase) {
   };
   const Stagger oneShot =
       stagger(unit::Cluster, {.eachMs = 60, .durationMs = 200});
-  const TextEffect erase = fx::pass(Material::sksl(kEraseSksl));
+  const TextEffect erase = fx::pass(passOver(kEraseSksl));
 
   // Undeclared: the pass runs at every phase, both ends included.
   EXPECT_FALSE(lettersShow(erase, oneShot, 0.0f));
@@ -351,7 +387,7 @@ TEST(TextPass, RestDeclarationRidesEqualityAndNeedsAPass) {
   // only in their rests must compare unequal, or a re-described track
   // would prune onto the old declaration and keep (or keep skipping) a
   // shader the author changed their mind about.
-  const Material m = Material::sksl(kEraseSksl);
+  const Material m = passOver(kEraseSksl);
   EXPECT_FALSE(fx::pass(m).restsAt(0.0f) == fx::pass(m));
   EXPECT_TRUE(fx::pass(m).restsAt(0.0f, 1.0f) ==
               fx::pass(m).restsAt(0.0f, 1.0f));
@@ -377,7 +413,7 @@ TEST(TextPass, RidesAPathBaseline) {
           .width(180)
           .height(180)
           .onPath({.path = shapes::circle()})
-          .fx({.effect = fx::pass(Material::sksl(kIdentitySksl))})));
+          .fx({.effect = fx::pass(passOver(kIdentitySksl))})));
   host.frame();
   // The identity pass hands back the curved lettering it was given.
   EXPECT_TRUE(anyWhiteIn(host, SkIRect::MakeXYWH(10, 10, 180, 180)));
@@ -393,7 +429,7 @@ TEST(TextPass, RidesAVerticalColumn) {
           .width(160)
           .height(180)
           .writingMode(sigil::weave::WritingMode::kVerticalRL)
-          .fx({.effect = fx::pass(Material::sksl(kIdentitySksl))})));
+          .fx({.effect = fx::pass(passOver(kIdentitySksl))})));
   host.frame();
   EXPECT_TRUE(anyWhiteIn(host, SkIRect::MakeXYWH(10, 10, 180, 180)));
   EXPECT_FALSE(host.composer.beatsOf("col", 0).empty());
