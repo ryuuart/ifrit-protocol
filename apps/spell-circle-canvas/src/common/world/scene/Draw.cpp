@@ -31,15 +31,17 @@ render::Light painterLight(const Light& light) {
   return out;
 }
 
-/** The map a body is dressed with, put on the style — and taken off it
- *  again for a body carrying none, since one style is reused across the
- *  whole list. */
+/** The map a body is dressed with and whether the emitters reach it, put
+ *  on the style — and taken off it again for a body carrying neither,
+ *  since one style is reused across the whole list. */
 void dress(render::MeshStyle& style, const Draw& body) {
   const Sampling sampling =
       body.texture ? samplingOf(*body.texture) : Sampling{};
   style.texture = sampling.image;
   style.uvTransform = sampling.uv;
   style.tileTexture = sampling.tile;
+  style.filter = sampling.filter;
+  style.lit = body.lit;
 }
 
 }  // namespace

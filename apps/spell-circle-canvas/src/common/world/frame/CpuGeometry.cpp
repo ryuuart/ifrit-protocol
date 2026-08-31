@@ -64,15 +64,17 @@ SkColor4f colourOf(const glm::vec4& colour) {
   return SkColor4f{colour.r, colour.g, colour.b, colour.a};
 }
 
-/** The map a body is dressed with, put on the style — and taken off it
- *  again for a body carrying none, since one style is reused across the
- *  whole list. */
+/** The map a body is dressed with and whether the emitters reach it, put
+ *  on the style — and taken off it again for a body carrying neither,
+ *  since one style is reused across the whole list. */
 void dress(render::MeshStyle& style, const Draw& draw) {
   const Sampling sampling =
       draw.texture ? samplingOf(*draw.texture) : Sampling{};
   style.texture = sampling.image;
   style.uvTransform = sampling.uv;
   style.tileTexture = sampling.tile;
+  style.filter = sampling.filter;
+  style.lit = draw.lit;
 }
 
 void drawSelection(SkCanvas& canvas, const View& view, const Selector& selector,
@@ -102,6 +104,10 @@ void drawStamps(SkCanvas& canvas, const Pass& pass, const View& view,
     if (cooked.mesh.indices.empty()) continue;
     style.baseColor = colourOf({0.9f, 0.9f, 0.95f, 1.0f});
     style.texture = nullptr;
+    // A stamp wears no material, so it says nothing of its own about
+    // the map or the light and takes the pass's reading of both.
+    style.filter = SkFilterMode::kLinear;
+    style.lit = true;
     render::drawMesh(canvas, cooked.mesh, glm::mat4(1.0f), view.camera,
                      viewportOf(view), style);
   }
@@ -138,6 +144,10 @@ void paintGeometry(const PassWork& work, const View& view, Targets& targets) {
       const material::Field* field =
           pass.variant()->recipe().params().find("baseColor");
       render::MeshStyle over = style;
+      // The variant surface is a colour laid over the bodies a selector
+      // names, and the pass's own lights are what it stands under —
+      // whatever the last body drawn happened to say about its own.
+      over.lit = true;
       over.baseColor =
           field && field->floats == 4
               ? colourOf(pass.variant()->get<glm::vec4>("baseColor"))

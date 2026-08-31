@@ -302,10 +302,14 @@ around it are unchanged.
   order and the depth buffer agree wherever the view's centroid sort is
   right, and where it is not the depth buffer is the one telling the
   truth.
-- a **compute pass** cooks its chain on the `pop::Runtime` the pass
-  carries. That is the host executor until a point-operator kernel exists
-  for the device — the points are cooked on the host and uploaded like
-  any other geometry when a stamp is stood at them.
+- a **compute pass** cooks its chain on the DEVICE when the whole of it
+  can be, and on the host when it cannot. A pass carries the host runtime
+  until it is given another, so a pass that named one of its own keeps
+  it; otherwise `diligent::popRuntime(device)` takes the cook, and only
+  when EVERY operator in the chain has a kernel — a chain that would stop
+  partway through is cooked on the host instead, whole, rather than
+  declined. Either way the points are uploaded like any other geometry
+  when a stamp is stood at them.
 - a **post pass** is a shader pass: one triangle covering the target and
   one fragment stage per layer. A texture's origin is its top left and
   clip space counts y upward, so that triangle turns the vertical
@@ -347,7 +351,9 @@ parameters and the scaffold's own — is written at the offset the compiler
 REPORTED for it, so a body that declares one more parameter moves nothing
 a renderer has to be told about. The variant axis is one bit, `kVariantLit`:
 without it the lighting, the uniforms it reads and the loop over the
-emitters are not in the compiled program. The mesh vertex layout is not a
+emitters are not in the compiled program. Which build a body is drawn
+with is the body's own answer as much as the pass's — a surface that is
+its own light takes the unlit one whatever the pass asked for. The mesh vertex layout is not a
 variant axis, because there is one — position, normal, uv and tint, with
 the lanes a mesh does not carry filled in on upload; nor is the blended
 build, which is the blend and depth state a pipeline is created with.
@@ -370,6 +376,11 @@ before it, because the host tier's rasteriser can only modulate a texture
 against the colour it already shaded, and a map that landed on one side
 of the lighting here and the other side there would make the two tiers
 different pictures.
+
+The map is read through the sampler its texture asked for — one per
+filter, made once with the device and picked per draw. Everything with no
+texture to ask, a target a post stage reads among them, takes the linear
+one.
 
 **Not on the device yet**: every OTHER sampled slot. They read one white
 texel, so a body multiplied by a map it was not given is the body.
@@ -469,11 +480,16 @@ per vertex, so:
   strength it has there. The full falloff is `light::attenuation`.
 - bodies are sorted back to front by view depth, stably, so two at one
   depth land in tree order.
-- every body is SHADED. A surface that says light does not reach it —
-  `material::kit::unlit`, an emissive-only set — is shaded like any
-  other, on this tier and on the device: the lit build is decided per
-  PASS, not per body. What such a surface shows is its base colour under
-  the frame's emitters.
+- a surface that says light does not reach it — `material::kit::unlit`
+  — is drawn unshaded, here and on the device alike: what it shows is
+  its base colour and the mesh's own tint, with no ambient under it and
+  no emitter, specular or rim over it. The answer is read off the
+  material once at extract, beside the map, so it is a property of the
+  BODY and not of the pass that draws it.
+- a texture states how it is read BETWEEN texels and both tiers honour
+  it. Nearest keeps a texel's edge hard and takes no mip level with it,
+  because blending two levels is the same bleed arriving by the other
+  door; linear reads between texels and between levels.
 
 That is what a machine with no Vulkan runtime can honestly answer, and it
 is what the plate ledger's 3D tier is judged on. It is not a substitute
@@ -580,13 +596,59 @@ ceilings in the script, set from what the two tiers do rather than from a
 wish. With no device the tier reports that and exits green, because a
 machine with no Vulkan runtime has nothing to disagree about.
 
+### The point operators on the device
+
+`diligent::popRuntime(device)` is a `pop::Runtime` whose executor cooks a
+chain on the device: the chain's generator is run on the HOST and its
+lanes uploaded — a generator makes the points rather than mapping over
+them, and a seed that differed would make every comparison after it
+meaningless — and every operator after it is one compute dispatch over
+those lanes, in chain order, with the cooked lanes read back once at the
+end. One buffer per lane, every one writable, because a filter that edits
+a lane in place is one resource read and written by one dispatch rather
+than the same memory claimed two ways. Between dispatches every lane is
+transitioned from its state to itself, which is the barrier: nothing else
+about the bindings tells the driver that the next operator reads what the
+last one wrote.
+
+Twelve operators have kernels — `Jitter`, `Ramp`, `Vary`, `LookAt`,
+`Math`, `Fill`, `Atlas`, `Lookup`, `Select`, `Affine`, `Peak` and `Mix` —
+and the runtime's `supports()` answers from `kernel::has()` rather than
+from a list of its own. What it declines it declines by name, the way any
+unsupported operator stops a cook: `Relax` reads points it does not own,
+`Sort` is a permutation, `Promote` addresses primitives no sink has
+formed yet, and `Noise` and `Deform` are defined in terms of a library
+sine, which is a different function from the polynomial a portable kernel
+would have to use.
+
+**The two tiers are held to BIT IDENTITY, not to a distance.** That is
+the one place in this library where two backends are, and it is possible
+only because the operators are one piece of arithmetic compiled twice
+under a float model pinned at both ends. Three things pin it, and each of
+them is load-bearing: the generated C++ is compiled with
+`-ffp-contract=off`; the SPIR-V carries one `NoContraction` decoration per
+arithmetic result, which the emitter does not put there; and
+`MVK_CONFIG_FAST_MATH_ENABLED` is set to 0 before the Vulkan instance
+exists, because this driver otherwise takes a square root as an
+approximation and a divide as a reciprocal and a multiply. Remove any one
+and the conformance test in `diligent/test/PopTest.cpp` — every supported
+chain cooked both ways and compared bit for bit — fails on the first
+expression of the shape `a + b * c`.
+
+The last of the three is DEVICE-WIDE and it is not free: the graphics
+pipelines pay it too, and a frame that leans on the post stages is
+measurably slower for it (the bench ledger owns the number). It is set
+with `setenv(..., overwrite=0)`, so a process that has already put
+`MVK_CONFIG_FAST_MATH_ENABLED` in its own environment keeps whatever it
+asked for — which is the way to buy the faster device back, at the cost
+of a device pop cook that no longer answers what the host answers.
+
 ## What is coming
 
 Every feature the layout declares is built. `diligent/` still owes
-`importNative`, a point-operator kernel that cooks a chain on the device,
-and the sampled slots past the base-colour map. An umbrella interface
-target named `SigilWorld` gathers every feature once there is more than
-one worth gathering.
+`importNative` and the sampled slots past the base-colour map. An
+umbrella interface target named `SigilWorld` gathers every feature once
+there is more than one worth gathering.
 
 ### Where the shaders come from
 
@@ -684,13 +746,21 @@ carrying shading the unlit one does not, one scene rendered on both tiers
 and measured apart, a cooked chain that matches the host's cook exactly,
 a readback that arrives the frame after, a masked pass that lifts the
 selection and leaves the ground where it stood, the map a body is dressed
-with reaching both tiers to the same picture, and a map whose pixels
-already stand on this device being bound where they are — proven by a
-source that answers no host image at all, so a picture carrying its
-colour cannot have come from a copy. The program tests run
-anywhere; the ones that need a Vulkan runtime (`brew install molten-vk
-vulkan-loader`) *skip* rather than fail without one, so a machine with no
-GPU stays green.
+with reaching both tiers to the same picture, a map whose pixels already
+stand on this device being bound where they are — proven by a source that
+answers no host image at all, so a picture carrying its colour cannot
+have come from a copy — a texture's filter honoured on both tiers, where
+nearest shows two colours and one edge and linear shows the gradient
+between them, and a surface that is its own light standing at its base
+colour on both tiers while a lit one of the same colour, under a sun
+aimed away, stands darker. `diligent/test/PopTest.cpp` is the point
+operators' CONFORMANCE: every chain the device runtime says it can cook,
+cooked both ways and compared BIT FOR BIT — not a distance and not a
+tolerance, because the operators are one piece of arithmetic compiled
+twice; plus each declined operator refused by name while the host still
+answers it. The program tests run anywhere; the ones that need a Vulkan
+runtime (`brew install molten-vk vulkan-loader`) *skip* rather than fail
+without one, so a machine with no GPU stays green.
 
 `world_frame_test` covers the declarations and the CPU executor without
 anything retained: a pass compares field by field, each realisation
@@ -705,7 +775,9 @@ each selection realisation ruled on.
 `world_element_bench`, `world_frame_bench`, `world_graph_bench`,
 `world_scene_bench`, `world_light_bench`, `world_kit_bench` and
 `world_diligent_bench` build through the `benches` target and run through `scripts/bench_ledger.py`;
-use a Release build. The device bench measures the three costs a frame
-on a device has that one on the host does not: bringing the device up,
-turning a recipe's Slang body into a program, and a steady frame with
-every pipeline and every mesh already uploaded.
+use a Release build. The device bench measures the four costs a device
+has that the host does not: bringing the device up, turning a recipe's
+Slang body into a program, a steady frame with every pipeline and every
+mesh already uploaded, and a point-operator chain cooked on the device —
+readback included, because a cook whose answer nobody could read would
+not be a cook.

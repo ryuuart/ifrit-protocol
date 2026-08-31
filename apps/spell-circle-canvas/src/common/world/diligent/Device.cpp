@@ -8,6 +8,7 @@
 
 #include <Common/interface/RefCntAutoPtr.hpp>
 #include <cstdio>
+#include <cstdlib>
 
 #include "AdoptDevice.h"
 
@@ -45,6 +46,15 @@ Device::~Device() {
 std::unique_ptr<Device> Device::create(const DeviceConfig& config,
                                        std::string* error) {
   using namespace dg;
+  // THE FLOAT MODEL, PINNED BEFORE THE DRIVER READS IT. This driver
+  // relaxes floating point by default: a square root becomes an
+  // approximation and a divide becomes a reciprocal and a multiply, both
+  // of which round differently from the same expression on a host. A
+  // kernel compiled once for both is then two answers, so the relaxation
+  // is turned off here — before the instance exists, which is the only
+  // moment it is read — and left alone when something else already set
+  // it, so a caller may still ask for the faster arithmetic.
+  setenv("MVK_CONFIG_FAST_MATH_ENABLED", "0", /*overwrite=*/0);
   IEngineFactoryVk* factory = GetEngineFactoryVk();
   if (!factory) {
     if (error) *error = "Diligent Vulkan factory unavailable";

@@ -42,6 +42,7 @@ add_library(SigilWorldDiligent STATIC
   Geometry.cpp
   Gpu.cpp
   Gpu.h
+  PopGpu.cpp
   Post.cpp
   Runtime.cpp
   Compile.cpp
@@ -54,6 +55,7 @@ add_library(SigilWorldDiligent STATIC
   ${_shaders}/Surface.slang
   ${_shaders}/Post.slang
   ${SIGIL_WORLD_INCLUDE_DIR}/sigilworld/diligent/Device.h
+  ${SIGIL_WORLD_INCLUDE_DIR}/sigilworld/diligent/Pop.h
   ${SIGIL_WORLD_INCLUDE_DIR}/sigilworld/diligent/Runtime.h
 )
 target_compile_features(SigilWorldDiligent PUBLIC cxx_std_20)
@@ -82,7 +84,8 @@ endif()
 
 # Links Diligent directly: proving that Diligent still drives the device
 # after Graphite has submitted on it means issuing a Diligent command.
-add_executable(world_diligent_test test/DeviceTest.cpp test/RuntimeTest.cpp)
+add_executable(world_diligent_test test/DeviceTest.cpp test/PopTest.cpp
+  test/RuntimeTest.cpp)
 # The runtime test reads the compiled program the compiler registration
 # produced, which is this feature's own header rather than a public one.
 target_include_directories(world_diligent_test PRIVATE ${CMAKE_CURRENT_LIST_DIR})

@@ -8,15 +8,18 @@
 
 #include <benchmark/benchmark.h>
 #include <sigilgeometry/mesh/Mesh.h>
+#include <sigilgeometry/mesh/pop/Pop.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/core/Recipe.h>
 #include <sigilmotion/clock/Ticker.h>
 #include <sigilworld/diligent/Device.h>
+#include <sigilworld/diligent/Pop.h>
 #include <sigilworld/diligent/Runtime.h>
 #include <sigilworld/scene/Scene.h>
 
 #include <memory>
 #include <string>
+#include <vector>
 
 using namespace sigil;
 using namespace sigil::world;
@@ -125,6 +128,51 @@ void BM_FrameOnDevice(benchmark::State& state) {
   }
 }
 BENCHMARK(BM_FrameOnDevice)->Unit(benchmark::kMillisecond);
+
+/** A CHAIN COOKED ON THE DEVICE, steady state: the generator's lanes
+ *  uploaded, one dispatch per operator, and the one readback that brings
+ *  every lane home. The readback is in the number on purpose — a cook
+ *  whose answer nobody could read would not be a cook. */
+void BM_ChainOnDevice(benchmark::State& state) {
+  const diligent::DeviceConfig config;
+  std::string error;
+  std::unique_ptr<diligent::Device> device =
+      diligent::Device::create(config, &error);
+  if (!device) {
+    state.SkipWithError(error);
+    return;
+  }
+  namespace gm = ::sigil::geometry::mesh;
+  const gm::pop::Runtime runtime = diligent::popRuntime(*device);
+  const std::vector<glm::vec3> loop = {{-200, 0, 0},
+                                       {-60, 110, 40},
+                                       {90, 30, -60},
+                                       {180, -80, 20},
+                                       {0, -120, 30}};
+  const gm::pop::Chain chain = gm::pop::on(loop)
+                                   .count((int)state.range(0))
+                                   .spread(24.0f)
+                                   .select("core", {0, 0, 0}, 140.0f, 0.35f)
+                                   .jitter(18.0f)
+                                   .masked("core")
+                                   .vary(0.5f)
+                                   .fade({1, 0.4f, 0.2f, 1}, {0.2f, 0.5f, 1, 1})
+                                   .peak(9.0f);
+  // The first cook makes the pipeline and the lane buffers; what is
+  // measured is every cook after it.
+  gm::Cloud warm = gm::pop::cook(chain, runtime);
+  benchmark::DoNotOptimize(warm);
+  for ([[maybe_unused]] auto iteration : state) {
+    gm::Cloud cooked = gm::pop::cook(chain, runtime);
+    benchmark::DoNotOptimize(cooked);
+  }
+  state.counters["points/s"] = benchmark::Counter(
+      (double)state.range(0), benchmark::Counter::kIsIterationInvariantRate);
+}
+BENCHMARK(BM_ChainOnDevice)
+    ->Arg(20000)
+    ->Arg(200000)
+    ->Unit(benchmark::kMillisecond);
 
 }  // namespace
 

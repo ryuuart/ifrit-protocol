@@ -435,9 +435,15 @@ const Pipeline* Gpu::pipeline(const PipelineKey& key) {
   return placed->second.state ? &placed->second : nullptr;
 }
 
+dg::ISampler* Gpu::samplerFor(SkFilterMode filter) const {
+  return filter == SkFilterMode::kNearest ? nearestSampler.RawPtr()
+                                          : linearSampler.RawPtr();
+}
+
 void bindAndCommit(Gpu& gpu, const Pipeline& pipeline, const Compiled& program,
                    const Uniforms& values,
-                   const std::vector<dg::ITexture*>& textures) {
+                   const std::vector<dg::ITexture*>& textures,
+                   SkFilterMode filter) {
   dg::IDeviceContext* context = gpu.device->context();
   dg::IBuffer* buffer = gpu.uniformBuffer(program.uniformBytes);
   if (buffer && !values.bytes().empty()) {
@@ -463,9 +469,10 @@ void bindAndCommit(Gpu& gpu, const Pipeline& pipeline, const Compiled& program,
         texture->GetDefaultView(dg::TEXTURE_VIEW_SHADER_RESOURCE);
     if (!view) continue;
     // A combined sampler reaches the shader through the view, which is
-    // why every target here is sampled through one shared sampler
-    // rather than through a sampler variable of its own.
-    if (!view->GetSampler()) view->SetSampler(gpu.sampler);
+    // why the filter is set on the view here rather than through a
+    // sampler variable of its own — and set on every draw, because one
+    // view may be read by two draws that asked for different filters.
+    view->SetSampler(gpu.samplerFor(filter));
     if (dg::IShaderResourceVariable* variable =
             pipeline.binding->GetVariableByName(dg::SHADER_TYPE_PIXEL,
                                                 program.textures[i].c_str()))

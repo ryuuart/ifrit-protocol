@@ -170,11 +170,42 @@ value, so a reconciler can ask whether a description's runtime changed.
 **`pop::Chain` is a backend-neutral description.** It is a vector of
 operator variants, not a program — and a value: every operator, `Mesh`
 and `Cloud` compares by content with `==`, so a reconciler can ask
-whether a chain changed. The CPU executor behind `pop::Runtime::cpu()` is
-the reference implementation; a GPU consumer can execute the identical
-chain as compute dispatches, and the two are required to agree bit for bit
-— which is what makes the hash helpers and the variant order load-bearing
+whether a chain changed. A device consumer executes the identical chain
+as compute dispatches, and the two are required to agree bit for bit —
+which is what makes the hash helpers and the variant order load-bearing
 (see below).
+
+**The operators that are per-point ARITHMETIC are written once, in
+Slang.** `mesh/pop/kernels/Pop.slang` is that source, and the build
+compiles it twice: to C++, which the executor behind `pop::Runtime::cpu()`
+calls, and to SPIR-V, which a runtime that owns a device dispatches.
+Neither side re-derives a formula, which is what lets two tiers be held
+to bit identity rather than to a tolerance. `kernel::has(op)` is the one
+answer to whether an operator has a kernel, `kernel::describe()` packs
+one into the argument block both ends read, `kernel::run()` is the host
+call, and `kernel::spirv()` is the module a device runs.
+
+Not every operator has one, and each absence is a boundary rather than a
+gap: a generator makes the points rather than mapping over them (every
+executor seeds through `pop::seedLanes()` and exports through
+`pop::exportLanes()`, so the two ends of a cook are one definition);
+`Relax` reads points it does not own; `Sort` is a permutation; `Promote`
+addresses primitives no sink has formed yet; and `Noise` and `Deform` are
+defined in terms of a library sine, which is a different function from
+the polynomial a portable kernel would have to use — a kernel for either
+would change what the operator MEANS rather than where it runs.
+
+**The portable subset is what one source can be compiled twice from and
+still answer once**: arithmetic plus the operations IEEE 754 pins
+exactly, with a lerp, a dot, a length and a smoothstep written out
+because a library intrinsic is two different pieces of code on two
+targets. Two things outside the source decide the rest. The generated C++
+is compiled with `-ffp-contract=off`, which is also what makes a Debug
+build and a Release one produce the same bits; and the SPIR-V carries one
+`NoContraction` decoration per arithmetic result, added by
+`kernel::spirv()` because the emitter puts none there — without it a
+driver fuses a multiply and the add after it and rounds once where the
+source rounds twice.
 
 **A cook runs on a `Runtime` too, and it is the same kind of value.**
 `pop::cook()`, `cookMesh()` and `cookSweep()` take one, defaulting to
@@ -300,7 +331,12 @@ own repertoire here rather than inside whatever draws through it.
   `drawPanel()`/`drawImagePanel()` (perspective-correct 2D content on a
   plane), and `MeshStyle` with `Light` — the shading mode, colour,
   texture, lights and the `Runtime` that performs the work. `Painter.cpp`
-  is the doors; `Runtime.cpp` is the built-in executor behind them.
+  is the doors; `Runtime.cpp` is the built-in executor behind them. Two
+  fields of the style are the surface speaking for itself rather than the
+  scene: `lit`, off for a surface that is its own light, whose colour and
+  tint are then the whole of what it shows; and `filter`, nearest for a
+  map whose texel edges must stay hard, which takes no mip level with it
+  because blending two levels is the same bleed by the other door.
 
 **`mesh/curve`** — `SigilGeometryMeshCurve`, needs `mesh` and
 `mesh/camera`.
@@ -372,6 +408,18 @@ language.
   (`detail::Erased`), standard library only. The seam itself is declared
   in Pop.h beside the chain, because the chain and its operators are
   members of `pop` and no header can name them before it.
+- **`mesh/pop/Kernel.h`** — the seam between the two ends of one piece of
+  arithmetic: `kernel::Args` (the argument block, every member a
+  four-component vector so its bytes stand at the same offsets in a
+  uniform buffer), `kernel::Dispatch` (which lane fills each binding
+  role), `has()`, `describe()`, `run()` and `spirv()`. `Kernel.cpp` packs
+  and calls; `Spirv.cpp` decorates the module.
+- **`mesh/pop/kernels/Pop.slang`** — the operators themselves, one entry
+  point with the operator chosen by a uniform: one dispatch runs one
+  operator over every point, so the branch is uniform across it, and one
+  entry point is one pipeline and one generated function. `cmake/Slang.cmake`
+  compiles it (`sigil_slang_module` with `CPP_VAR` and `SPIRV_VAR`, and
+  `sigil_slang_kernel_flags` to pin the float model).
 
 **`mesh/codec`** — `SigilGeometryMeshCodec`, needs `mesh` and
 `mesh/pop`. Its parsers
@@ -506,10 +554,11 @@ is silently, plausibly wrong rather than obviously broken.
   knobs — changing either desynchronizes the CPU reference from the GPU
   executor, and the failure appears as two renderers scattering points
   differently rather than as a build error.
-- **The declaration order of `pop::Op`'s variant alternatives is ABI.** A
-  GPU consumer maps each operator's variant *index* to a compute pipeline.
-  New operators are appended; inserting one in the middle silently
-  reassigns every operator after it to the wrong kernel.
+- **The declaration order of `pop::Op`'s variant alternatives is ABI.**
+  The variant *index* IS the operator number the kernel switches on, so
+  one numbering serves the host and the device. New operators are
+  appended; inserting one in the middle silently sends every operator
+  after it to the wrong kernel branch.
 - **`Deform` bends positions only.** `Dir` is left where it was, so a bent
   column's stamps still point the way the loop's tangent did; re-derive a
   direction afterwards (`LookAt`, `Affine` on `Dir`) when the stamps
@@ -594,7 +643,9 @@ not link SigilWorld, does not include its headers, and does not know it
 exists. The consequence worth internalizing is that **the CPU
 implementations here are the reference**: `render::drawMesh()` is the twin
 of the GPU uploader, and `pop::cook()` is the definition a GPU chain
-executor must reproduce. When the two disagree, this side is right.
+executor must reproduce. When the two disagree, this side is right — and
+for the operators that have a kernel they cannot disagree about a
+formula, because there is one formula and this side compiled it.
 
 ## Build and test
 

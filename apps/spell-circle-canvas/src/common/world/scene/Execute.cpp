@@ -67,6 +67,7 @@ void Scene::Impl::collectBodies(const Camera& eye,
         .tags = tagged ? std::span<const std::string>(tagged->words) : kNoWords,
         .ancestors = named.ancestors,
         .material = surface.material ? &*surface.material : nullptr,
+        .lit = surface.lit,
         .texture = surface.texture,
     });
   }

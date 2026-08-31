@@ -93,61 +93,28 @@ which is how the rest of the tree reads.
 `scripts/check.py --all --tidy-all` reports no findings in this
 repository's sources.
 
-## `world_diligent_bench:BM_DeviceBringUp` moves more than the ledger's band
+## Two `world_diligent_bench` arms move more than the ledger's band
 
-**What the code does.** The benchmark creates a whole Vulkan device per
-iteration. Its median rises within one session — a device made after
+**What the code does.** `BM_DeviceBringUp` creates a whole Vulkan device
+per iteration. Its median rises within one session — a device made after
 several others costs measurably more than the first — and rises again
 across back-to-back ledger invocations, so a baseline seeded from one
-sweep is outside the ledger's band by the third. Nothing about the
-library changes between those sweeps.
+sweep is outside the ledger's band by the third.
+`BM_ProgramFromRecipeBody` has the same shape for a different reason: at
+the ledger's timed seconds it runs one to three iterations, and the first
+of them pays the Slang compiler's one-time standard-library load, so the
+median is that load divided by however many iterations the run happened
+to fit. Back-to-back sweeps of it read 107 ms, 119 ms and 135 ms with
+nothing about the library changing between them.
 
 **What it was evidently intended to do.** State what a process pays once
-on its way to its first frame, as a number a change to this library
-could move.
+on its way to its first frame, and what the first frame naming a new
+material pays, as numbers a change to this library could move.
 
-**What a test should assert once intent is restored.** That the number
-is a property of the code: either the benchmark measures the part of
-bring-up this library owns — the adoption, the loader, the shim — with
-the driver's own device creation outside the timed region, or the ledger
-carries a per-benchmark band wide enough to be a real gate for it and
-states why this one is wider.
-
-## A texture's filter dial reaches no 3D tier
-
-**What the code does.** `material::Texture::filter` states the filter
-between samples, and both tiers that draw a body ignore it. The CPU
-executor's mesh draw builds its sampling options as a constant
-(`SkFilterMode::kLinear` with `SkMipmapMode::kLinear`), and the device
-executor samples every map through one shared linear sampler. A texture
-declaring `filter(SkFilterMode::kNearest)` — a pixel-art map, an index
-map, an atlas whose cells must not bleed — is filtered anyway, silently.
-
-**What it was evidently intended to do.** Sample a map the way its
-texture value says to, on every tier, the way the tiling and the uv
-placement already do.
-
-**What a test should assert once intent is restored.** A body dressed
-with a two-texel map at `filter(kNearest)` shows one hard edge and no
-gradient between the two colours, on the host tier and on the device,
-and the same body at `filter(kLinear)` shows the gradient.
-
-## A material's unlit build reaches no body
-
-**What the code does.** `material::kit::unlit` is the recipe for a
-surface that is its own light, and neither 3D tier honours it per body.
-The CPU executor shades every body through one `MeshStyle` whose mode is
-the lit one, and the device executor decides `SIGIL_LIT` per PASS rather
-than per body, so an unlit or emissive-only surface is shaded by the
-frame's emitters exactly as a lit one is. What reaches the pixels is its
-base colour under the rig.
-
-**What it was evidently intended to do.** Let a surface say that light
-does not reach it — a screen, a decal, an emissive set — and be drawn
-that way.
-
-**What a test should assert once intent is restored.** One set with a
-`kit::unlit` body and a `kit::surface` body of the same base colour,
-under a rig aimed away from both: the unlit body's pixels are its base
-colour and the lit body's are darker, on the host tier and on the
-device.
+**What a test should assert once intent is restored.** That each number
+is a property of the code: either the benchmark measures the part its
+library owns — the adoption, the loader and the shim for one; the
+assemble, compile and reflect with the compiler's session already
+standing for the other — with the one-time cost outside the timed
+region, or the ledger carries a per-benchmark band wide enough to be a
+real gate for them and states why these two are wider.

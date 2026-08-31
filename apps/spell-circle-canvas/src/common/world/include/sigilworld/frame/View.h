@@ -10,6 +10,7 @@
 #include <include/core/SkImage.h>
 #include <include/core/SkMatrix.h>
 #include <include/core/SkRefCnt.h>
+#include <include/core/SkSamplingOptions.h>
 #include <include/core/SkSize.h>
 #include <sigilmaterial/texture/Texture.h>
 #include <sigilworld/element/Element.h>
@@ -42,6 +43,11 @@ struct Draw {
   /** The keys from the root down to this body's parent. */
   std::span<const std::string> ancestors;
   const ::sigil::material::Material* material = nullptr;
+  /** DO THE FRAME'S EMITTERS REACH THIS BODY? False for a surface that
+   *  is its own light — a screen, a decal, an emissive set. It is read
+   *  off the material once per frame, beside the map, so an executor
+   *  never asks a material tree what kind of surface a body wears. */
+  bool lit = true;
   /** THE MAP THE SURFACE IS DRESSED WITH: the base-colour texture the
    *  body's material carries, or null when it carries none. It is read
    *  off the material once per frame, so an executor does not walk a
@@ -63,6 +69,10 @@ struct Sampling {
   sk_sp<SkImage> image;
   SkMatrix uv = SkMatrix::I();
   bool tile = false;
+  /** How the image is read BETWEEN texels, carried across from the
+   *  texture: nearest keeps a texel's edge hard, linear reads across
+   *  it. */
+  SkFilterMode filter = SkFilterMode::kLinear;
 };
 
 /** @p texture as a mesh samples it. An empty texture answers an empty

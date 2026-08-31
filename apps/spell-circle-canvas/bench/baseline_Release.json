@@ -1,8 +1,8 @@
 {
  "config": "Release",
- "host": "MacBookPro.lan",
+ "host": "MacBookPro.control",
  "machine": "arm64",
- "taken": "2026-08-31T01:30:08+00:00",
+ "taken": "2026-08-31T04:16:18+00:00",
  "benches": {
   "compose_brush_bench": {
    "BM_Draw_ArtWarp_Live": {
@@ -1484,182 +1484,182 @@
   },
   "geometry_mesh_pop_bench": {
    "BM_PopOperator/0": {
-    "real_ns": 94754.25345469153,
-    "cpu_ns": 94729.34855607788,
+    "real_ns": 11378.585148623963,
+    "cpu_ns": 11330.121255922273,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopOperator/1": {
-    "real_ns": 113882.83122469753,
-    "cpu_ns": 113825.93180015852,
+    "real_ns": 13987.219792698976,
+    "cpu_ns": 13494.793159453486,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopOperator/2": {
-    "real_ns": 115555.16706373231,
-    "cpu_ns": 115512.97648012952,
+    "real_ns": 15273.740789060688,
+    "cpu_ns": 15163.982823403137,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopOperator/3": {
-    "real_ns": 154893.86060787414,
-    "cpu_ns": 154806.24327233635,
+    "real_ns": 67989.6036515267,
+    "cpu_ns": 67607.17749757545,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopOperator/4": {
-    "real_ns": 120445.62586932043,
-    "cpu_ns": 120333.76288659865,
+    "real_ns": 13927.617025169977,
+    "cpu_ns": 13852.270444042584,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopOperator/5": {
-    "real_ns": 136222.48081912645,
-    "cpu_ns": 135969.08734052978,
+    "real_ns": 13721.720194726058,
+    "cpu_ns": 13659.82838544236,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopOperator/6": {
-    "real_ns": 146004.24161464258,
-    "cpu_ns": 145847.32423924457,
+    "real_ns": 13889.99314083358,
+    "cpu_ns": 13817.928448363265,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopOperator/7": {
-    "real_ns": 124194.24849970879,
-    "cpu_ns": 123625.33097970011,
+    "real_ns": 38282.908494188945,
+    "cpu_ns": 38066.178464876524,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopOperator/8": {
-    "real_ns": 122582.93570793926,
-    "cpu_ns": 122220.29488291446,
+    "real_ns": 36440.08378250046,
+    "cpu_ns": 36070.99468488994,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopOperator/9": {
-    "real_ns": 135523.17697664915,
-    "cpu_ns": 135342.707340324,
+    "real_ns": 14238.51582960084,
+    "cpu_ns": 14155.414204147215,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopOperator/10": {
-    "real_ns": 174191.84552379913,
-    "cpu_ns": 174053.37423312757,
+    "real_ns": 19041.758791838507,
+    "cpu_ns": 18917.772416566077,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopOperator/11": {
-    "real_ns": 225426.0945375319,
-    "cpu_ns": 224877.6167471811,
+    "real_ns": 130849.04089368679,
+    "cpu_ns": 130060.1118359731,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopCook_Plain/1000": {
-    "real_ns": 289449.8687237501,
-    "cpu_ns": 289368.421052634,
+    "real_ns": 127338.74789188874,
+    "cpu_ns": 126613.65638766554,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopCook_Plain/10000": {
-    "real_ns": 2910144.9714895957,
-    "cpu_ns": 2908854.166666697,
+    "real_ns": 1284121.3330695475,
+    "cpu_ns": 1279199.0740740784,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopCook_Plain/100000": {
-    "real_ns": 29337075.02670586,
-    "cpu_ns": 29319900.00000013,
+    "real_ns": 12802581.450986592,
+    "cpu_ns": 12748999.99999986,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopCook_MaskedAndDeformed/1000": {
-    "real_ns": 602430.9819654485,
-    "cpu_ns": 602242.2907488977,
+    "real_ns": 222315.36199345844,
+    "cpu_ns": 217006.10687022936,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopCook_MaskedAndDeformed/10000": {
-    "real_ns": 6092702.008216925,
-    "cpu_ns": 6089173.913043505,
+    "real_ns": 2212955.0250986265,
+    "cpu_ns": 2191174.6031746003,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopCook_MaskedAndDeformed/100000": {
-    "real_ns": 61009124.969132245,
-    "cpu_ns": 60988999.9999993,
+    "real_ns": 22085583.380733926,
+    "cpu_ns": 21923083.333333556,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopCook_Relax/1000": {
-    "real_ns": 410387.69616927265,
-    "cpu_ns": 409428.9940828397,
+    "real_ns": 244866.94530778693,
+    "cpu_ns": 243716.1687170514,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopCook_Relax/10000": {
-    "real_ns": 4128865.8086320055,
-    "cpu_ns": 4119602.94117646,
+    "real_ns": 2462367.31069522,
+    "cpu_ns": 2445938.596491253,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopCook_Relax/100000": {
-    "real_ns": 41681909.54563518,
-    "cpu_ns": 41673166.66666624,
+    "real_ns": 24546833.32083126,
+    "cpu_ns": 24380583.333333485,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopCook_PointSetSeed/1000": {
-    "real_ns": 190494.10365064326,
-    "cpu_ns": 190371.82910547697,
+    "real_ns": 18791.712080296726,
+    "cpu_ns": 18657.3278800271,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopCook_PointSetSeed/10000": {
-    "real_ns": 1885069.2541565043,
-    "cpu_ns": 1883824.3243243445,
+    "real_ns": 172081.67558493244,
+    "cpu_ns": 170817.85283473818,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopCook_PointSetSeed/100000": {
-    "real_ns": 18933660.650093637,
-    "cpu_ns": 18927857.142856956,
+    "real_ns": 1764292.7123233676,
+    "cpu_ns": 1752775.0000000175,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopSink_Stamps/1000": {
-    "real_ns": 378413.755516772,
-    "cpu_ns": 378336.02150537213,
+    "real_ns": 174848.4711901381,
+    "cpu_ns": 173504.92610837443,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopSink_Stamps/10000": {
-    "real_ns": 3792244.380944081,
-    "cpu_ns": 3791162.162162129,
+    "real_ns": 1771932.753698924,
+    "cpu_ns": 1756379.7468354043,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopRuntime_Dispatch/1": {
-    "real_ns": 751.1364692216307,
-    "cpu_ns": 750.6460985280148,
+    "real_ns": 1120.6187938749601,
+    "cpu_ns": 1109.6482889733948,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopRuntime_Dispatch/1000": {
-    "real_ns": 284124.3272527091,
-    "cpu_ns": 284076.61290321976,
+    "real_ns": 126407.53339982821,
+    "cpu_ns": 125300.27173913008,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopRuntime_Direct/1": {
-    "real_ns": 742.8568322412016,
-    "cpu_ns": 742.6572608725876,
+    "real_ns": 1113.9701276967673,
+    "cpu_ns": 1106.3548344173882,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopRuntime_Direct/1000": {
-    "real_ns": 282875.84759007266,
-    "cpu_ns": 282837.39837397984,
+    "real_ns": 126398.32861404188,
+    "cpu_ns": 125385.09316770315,
     "unit": "us",
     "repetitions": 4
    }
@@ -3566,20 +3566,32 @@
   },
   "world_diligent_bench": {
    "BM_DeviceBringUp": {
-    "real_ns": 4914545.010955583,
-    "cpu_ns": 4489774.193548409,
+    "real_ns": 6017748.525159227,
+    "cpu_ns": 5013833.333333313,
     "unit": "ms",
     "repetitions": 4
    },
    "BM_ProgramFromRecipeBody": {
-    "real_ns": 106826104.45655882,
-    "cpu_ns": 106826999.99999978,
+    "real_ns": 140505583.25834572,
+    "cpu_ns": 137613499.99999985,
     "unit": "ms",
     "repetitions": 4
    },
    "BM_FrameOnDevice": {
-    "real_ns": 359744.28178245353,
-    "cpu_ns": 57751.155947877225,
+    "real_ns": 827019.6663215756,
+    "cpu_ns": 77271.49999999971,
+    "unit": "ms",
+    "repetitions": 4
+   },
+   "BM_ChainOnDevice/20000": {
+    "real_ns": 3545398.436835967,
+    "cpu_ns": 1770350.0000000037,
+    "unit": "ms",
+    "repetitions": 4
+   },
+   "BM_ChainOnDevice/200000": {
+    "real_ns": 19149263.880939946,
+    "cpu_ns": 16045722.222222213,
     "unit": "ms",
     "repetitions": 4
    }

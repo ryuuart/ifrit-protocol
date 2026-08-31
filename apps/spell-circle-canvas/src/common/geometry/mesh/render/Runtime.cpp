@@ -154,6 +154,13 @@ struct CpuExecutor : Executor {
                     base.z * mesh.colors[i].b};
             alpha *= mesh.colors[i].a;
           }
+          // A SURFACE THAT IS ITS OWN LIGHT stops here: its colour is
+          // what it shows, with no ambient under it and no emitter,
+          // specular or rim over it.
+          if (!style.lit) {
+            shaded[i] = toColor(base, alpha);
+            break;
+          }
           glm::vec3 accum = {style.ambient.fR * base.x,
                              style.ambient.fG * base.y,
                              style.ambient.fB * base.z};
@@ -225,8 +232,13 @@ struct CpuExecutor : Executor {
 
     // Emit in chunks under the 16-bit SkVertices limit: three unshared
     // vertices per triangle keeps the chunking trivial.
-    const SkSamplingOptions sampling(SkFilterMode::kLinear,
-                                     SkMipmapMode::kLinear);
+    // NEAREST TAKES NO MIP LEVEL WITH IT: a map asked for hard texel
+    // edges would get them back softened if two levels were blended
+    // under the lookup, so the level is the image itself.
+    const SkSamplingOptions sampling(style.filter,
+                                     style.filter == SkFilterMode::kNearest
+                                         ? SkMipmapMode::kNone
+                                         : SkMipmapMode::kLinear);
     SkPaint paint;
     paint.setAntiAlias(true);
     const bool textured = style.texture && hasUvs;

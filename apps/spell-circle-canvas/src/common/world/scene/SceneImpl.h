@@ -66,6 +66,10 @@ struct Surface {
    *  extract. It addresses a leaf the material above holds, so it stands
    *  exactly as long as this component does. */
   const ::sigil::material::Texture* texture = nullptr;
+  /** Do the frame's emitters reach this surface? False for one that is
+   *  its own light. Read off the same surface the colour and the map are
+   *  read off — the one at the bottom of whatever was stacked. */
+  bool lit = true;
 };
 
 /** The words this node answers to. */

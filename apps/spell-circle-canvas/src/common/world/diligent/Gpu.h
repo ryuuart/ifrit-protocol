@@ -18,6 +18,7 @@
 #include <Graphics/GraphicsEngine/interface/ShaderResourceBinding.h>
 #include <Graphics/GraphicsEngine/interface/Texture.h>
 #include <include/core/SkImage.h>
+#include <include/core/SkSamplingOptions.h>
 #include <include/core/SkSize.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilmaterial/texture/Texture.h>
@@ -125,7 +126,12 @@ struct Gpu {
   /** Every draw's uniforms, discarded and rewritten per draw. */
   dg::RefCntAutoPtr<dg::IBuffer> uniforms;
   size_t uniformCapacity = 0;
-  dg::RefCntAutoPtr<dg::ISampler> sampler;
+  /** HOW A MAP IS READ BETWEEN TEXELS, one sampler per answer. A
+   *  texture states which it wants and a body's draw picks; everything
+   *  with no texture to ask — a target a post stage reads, the one white
+   *  texel — takes the linear one. */
+  dg::RefCntAutoPtr<dg::ISampler> linearSampler;
+  dg::RefCntAutoPtr<dg::ISampler> nearestSampler;
   /** What an unfilled sampled slot reads: one white texel, so a body
    *  multiplied by a map it was not given is the body. */
   dg::RefCntAutoPtr<dg::ITexture> white;
@@ -183,6 +189,9 @@ struct Gpu {
    *  no image. */
   dg::ITexture* sample(const material::Texture& map);
 
+  /** The sampler @p filter asks for. */
+  dg::ISampler* samplerFor(SkFilterMode filter) const;
+
   /** A texture of this frame's size and format. */
   dg::RefCntAutoPtr<dg::ITexture> makeColor(const char* label);
 };
@@ -212,11 +221,13 @@ class Uniforms {
 };
 
 /** Binds @p pipeline's uniform buffer to @p values and its sampled slots
- *  to @p textures, in the program's declared order, then commits. A slot
- *  with no texture reads the one white texel. */
+ *  to @p textures, in the program's declared order, read through
+ *  @p filter, then commits. A slot with no texture reads the one white
+ *  texel. */
 void bindAndCommit(Gpu& gpu, const Pipeline& pipeline, const Compiled& program,
                    const Uniforms& values,
-                   const std::vector<dg::ITexture*>& textures);
+                   const std::vector<dg::ITexture*>& textures,
+                   SkFilterMode filter = SkFilterMode::kLinear);
 
 /** The two stages of a frame, one file each. */
 void paintGeometry(Gpu& gpu, const PassWork& work, const View& view,

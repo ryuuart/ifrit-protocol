@@ -30,6 +30,7 @@
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "Compile.h"
@@ -259,9 +260,9 @@ TEST(GpuRuntime, ACookedChainMatchesTheHostCook) {
   const std::vector<glm::vec3> graphics = cooked(on.runtime);
   ASSERT_FALSE(host.empty());
   ASSERT_EQ(host.size(), graphics.size());
-  // The chain is cooked on the runtime the PASS carries, which is the
-  // host one on both tiers until a point-operator kernel exists for the
-  // device — so this is an equality and not a distance.
+  // Every operator in this chain has a kernel, so on the device tier the
+  // pass cooked it THERE — and the two answers are still equal to the
+  // bit, because the two tiers run one piece of arithmetic.
   for (size_t i = 0; i < host.size(); ++i) EXPECT_EQ(host[i], graphics[i]);
 }
 
@@ -399,6 +400,229 @@ TEST(GpuRuntime, TheMapABodyIsDressedWithReachesBothTiers) {
   const Distance distance = distanceOf(host, graphics);
   EXPECT_LT(distance.mean, 6.0);
   EXPECT_LT(distance.p99, 64);
+}
+
+// ---- what a texture and a surface each say about themselves ----------------
+
+namespace {
+
+/** THE GROUND EVERY CARD BELOW STANDS AGAINST: a colour no card wears,
+ *  so a card's own pixels are the ones that are not it. */
+constexpr SkColor4f kGround{1.0f, 0.0f, 1.0f, 1.0f};
+
+/** A card facing the camera squarely, and a camera square onto it, so
+ *  what varies across the card is the surface and nothing else. */
+Camera squareOn() {
+  Camera camera;
+  camera.eye = {0, 0, 240};
+  camera.target = {0, 0, 0};
+  return camera;
+}
+
+/** One frame holding @p element, cleared to the ground colour. */
+Frame squareFrame(Element element) {
+  Frame frame(std::move(element));
+  frame.extent(kExtent)
+      .camera(squareOn())
+      .pass(geometryPass("colour").writes("colour").clear(kGround));
+  return frame;
+}
+
+/** One frame, rendered on @p runtime and photographed square on. */
+SkBitmap photographSquare(const Frame& frame, const Runtime& runtime) {
+  motion::Ticker ticker;
+  Scene scene(ticker);
+  Frame copy = frame;
+  copy.runtime(runtime);
+  ticker.tick(1.0 / 60.0);
+  scene.render(copy);
+  SkBitmap bitmap;
+  bitmap.allocPixels(
+      SkImageInfo::MakeN32Premul(kExtent.width(), kExtent.height()));
+  SkCanvas canvas(bitmap);
+  canvas.clear(SK_ColorBLACK);
+  scene.draw(canvas, squareOn());
+  return bitmap;
+}
+
+/** Is this pixel a card's rather than the ground's? Every card below is
+ *  grey or warm and the ground is magenta, so the green channel standing
+ *  where the red does is the whole of the question. */
+bool onACard(const SkColor4f& pixel) {
+  return std::abs(pixel.fR - pixel.fG) < 0.35f;
+}
+
+/** THE RUNS OF CARD along the middle row, as pairs of first and last
+ *  column — so a test finds its subjects rather than being told where a
+ *  projection put them. */
+std::vector<std::pair<int, int>> cardsAcrossTheMiddle(const SkBitmap& plate) {
+  std::vector<std::pair<int, int>> runs;
+  const int y = plate.height() / 2;
+  int start = -1;
+  for (int x = 0; x < plate.width(); ++x) {
+    const bool card = onACard(plate.getColor4f(x, y));
+    if (card && start < 0) start = x;
+    if (!card && start >= 0) {
+      // Two columns in from either edge, so no run keeps the pixels two
+      // rasterisers antialias differently.
+      if (x - 1 - start > 4) runs.emplace_back(start + 2, x - 3);
+      start = -1;
+    }
+  }
+  if (start >= 0 && plate.width() - 1 - start > 4)
+    runs.emplace_back(start + 2, plate.width() - 3);
+  return runs;
+}
+
+/** A two-texel map: black beside white, so what a filter does between
+ *  them is the whole of what the picture shows. */
+material::Texture twoTexelMap() {
+  SkBitmap bitmap;
+  bitmap.allocPixels(SkImageInfo::MakeN32Premul(2, 1));
+  bitmap.eraseColor(SK_ColorBLACK);
+  // Black and white are the same bytes whichever way round the channels
+  // of this format stand.
+  *bitmap.getAddr32(1, 0) = 0xFFFFFFFFu;
+  bitmap.setImmutable();
+  return material::Texture::of(bitmap.asImage());
+}
+
+/** A card wearing @p map, its own light, so the map alone decides every
+ *  pixel of it. */
+Frame mappedCard(material::Texture map) {
+  namespace gm = ::sigil::geometry::mesh;
+  material::Material surface =
+      material::kit::unlit({.baseColor = {1, 1, 1, 1}});
+  surface.child(material::kit::kBaseColorSlot, std::move(map));
+  return squareFrame(Element().key("set").child(
+      Element().key("card").mesh(gm::quad(200, 140)).fill(std::move(surface))));
+}
+
+/** The red channel across the card, at the fractions of its width
+ *  @p at names. Empty when the card was not found at all. */
+std::vector<float> acrossTheCard(const SkBitmap& plate,
+                                 const std::vector<float>& at) {
+  const std::vector<std::pair<int, int>> runs = cardsAcrossTheMiddle(plate);
+  std::vector<float> out;
+  if (runs.size() != 1) return out;
+  const int y = plate.height() / 2;
+  const float lo = (float)runs.front().first;
+  const float span = (float)(runs.front().second - runs.front().first);
+  for (float fraction : at)
+    out.push_back(
+        plate.getColor4f((int)std::lround(lo + span * fraction), y).fR);
+  return out;
+}
+
+}  // namespace
+
+TEST(GpuRuntime, ATexturesFilterIsHonouredOnBothTiers) {
+  const std::vector<float> at = {0.2f, 0.4f, 0.6f, 0.8f};
+  const Frame nearest =
+      mappedCard(twoTexelMap().filter(SkFilterMode::kNearest));
+  const Frame linear = mappedCard(twoTexelMap().filter(SkFilterMode::kLinear));
+
+  const std::vector<float> hostNearest =
+      acrossTheCard(photographSquare(nearest, Runtime::cpu()), at);
+  const std::vector<float> hostLinear =
+      acrossTheCard(photographSquare(linear, Runtime::cpu()), at);
+  ASSERT_EQ(hostNearest.size(), at.size());
+  ASSERT_EQ(hostLinear.size(), at.size());
+
+  // NEAREST is two colours and one edge: the samples either side of the
+  // middle agree exactly, and the pair across it does not.
+  EXPECT_FLOAT_EQ(hostNearest[0], hostNearest[1]);
+  EXPECT_FLOAT_EQ(hostNearest[2], hostNearest[3]);
+  EXPECT_GT(std::abs(hostNearest[1] - hostNearest[2]), 0.5f);
+  // LINEAR is a gradient: every step along the card moves.
+  EXPECT_LT(hostLinear[0], hostLinear[1]);
+  EXPECT_LT(hostLinear[1], hostLinear[2]);
+  EXPECT_LT(hostLinear[2], hostLinear[3]);
+
+  const OnDevice on = onDevice();
+  if (!on) GTEST_SKIP() << "no Vulkan device: " << on.error;
+  const std::vector<float> deviceNearest =
+      acrossTheCard(photographSquare(nearest, on.runtime), at);
+  const std::vector<float> deviceLinear =
+      acrossTheCard(photographSquare(linear, on.runtime), at);
+  ASSERT_EQ(deviceNearest.size(), at.size());
+  ASSERT_EQ(deviceLinear.size(), at.size());
+  EXPECT_FLOAT_EQ(deviceNearest[0], deviceNearest[1]);
+  EXPECT_FLOAT_EQ(deviceNearest[2], deviceNearest[3]);
+  EXPECT_GT(std::abs(deviceNearest[1] - deviceNearest[2]), 0.5f);
+  EXPECT_LT(deviceLinear[0], deviceLinear[1]);
+  EXPECT_LT(deviceLinear[1], deviceLinear[2]);
+  EXPECT_LT(deviceLinear[2], deviceLinear[3]);
+}
+
+namespace {
+
+/** The one colour both cards below wear. */
+constexpr glm::vec4 kBodyColour{0.85f, 0.55f, 0.25f, 1.0f};
+
+/** Two cards of that one colour — one that takes light, one that is its
+ *  own — under a sun aimed away from both, so what separates them is
+ *  only whether the emitter reached them. */
+Frame litAndUnlitCards() {
+  namespace gm = ::sigil::geometry::mesh;
+  const material::kit::SurfaceParams params{
+      .baseColor = {kBodyColour.r, kBodyColour.g, kBodyColour.b, 1.0f}};
+  return squareFrame(Element()
+                         .key("set")
+                         // Travelling away from the camera, so it lands on the
+                         // far side of both cards and neither is diffusely lit.
+                         .child(Element().key("sun").light(light::sun(
+                             {0.0f, 0.0f, 1.0f}, {1, 1, 1, 1}, 1.0f)))
+                         .child(Element()
+                                    .key("lit")
+                                    .at({-70, 0, 0})
+                                    .mesh(gm::quad(110, 110))
+                                    .fill(material::kit::surface(params)))
+                         .child(Element()
+                                    .key("unlit")
+                                    .at({70, 0, 0})
+                                    .mesh(gm::quad(110, 110))
+                                    .fill(material::kit::unlit(params))));
+}
+
+/** The two cards' middles: the left run is the lit one and the right is
+ *  its own light. */
+bool cardCentres(const SkBitmap& plate, int* lit, int* unlit) {
+  const std::vector<std::pair<int, int>> runs = cardsAcrossTheMiddle(plate);
+  if (runs.size() != 2) return false;
+  *lit = (runs[0].first + runs[0].second) / 2;
+  *unlit = (runs[1].first + runs[1].second) / 2;
+  return true;
+}
+
+}  // namespace
+
+TEST(GpuRuntime, AnUnlitSurfaceIsItsOwnLightOnBothTiers) {
+  const Frame frame = litAndUnlitCards();
+  const int y = kExtent.height() / 2;
+
+  const SkBitmap host = photographSquare(frame, Runtime::cpu());
+  int litAt = 0, unlitAt = 0;
+  ASSERT_TRUE(cardCentres(host, &litAt, &unlitAt));
+  const SkColor4f hostUnlit = host.getColor4f(unlitAt, y);
+  const SkColor4f hostLit = host.getColor4f(litAt, y);
+  // The unlit card IS its base colour, and the lit one — with the sun on
+  // its far side — is only what the ambient leaves of it.
+  EXPECT_NEAR(hostUnlit.fR, kBodyColour.r, 3.0f / 255.0f);
+  EXPECT_NEAR(hostUnlit.fG, kBodyColour.g, 3.0f / 255.0f);
+  EXPECT_NEAR(hostUnlit.fB, kBodyColour.b, 3.0f / 255.0f);
+  EXPECT_LT(hostLit.fR, hostUnlit.fR * 0.5f);
+
+  const OnDevice on = onDevice();
+  if (!on) GTEST_SKIP() << "no Vulkan device: " << on.error;
+  const SkBitmap graphics = photographSquare(frame, on.runtime);
+  ASSERT_TRUE(cardCentres(graphics, &litAt, &unlitAt));
+  const SkColor4f deviceUnlit = graphics.getColor4f(unlitAt, y);
+  const SkColor4f deviceLit = graphics.getColor4f(litAt, y);
+  EXPECT_NEAR(deviceUnlit.fR, kBodyColour.r, 3.0f / 255.0f);
+  EXPECT_NEAR(deviceUnlit.fG, kBodyColour.g, 3.0f / 255.0f);
+  EXPECT_NEAR(deviceUnlit.fB, kBodyColour.b, 3.0f / 255.0f);
+  EXPECT_LT(deviceLit.fR, deviceUnlit.fR * 0.5f);
 }
 
 TEST(GpuRuntime, AMapAlreadyOnThisDeviceIsBoundWhereItStands) {

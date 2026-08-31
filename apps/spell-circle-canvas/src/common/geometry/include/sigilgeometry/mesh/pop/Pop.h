@@ -3,12 +3,17 @@
 /** @file
  * SigilGeometry pop — POP-style point combinators as VALUES. A Chain is
  * a description (nondestructive: edit a field, re-describe) over the
- * Cloud vocabulary in Points.h. The LANGUAGE and its CPU reference
- * executor share one scope: pop::on() opens a Chain, pop::cook() is the
- * reference (a Cloud, ready for points::instance / panels /
- * drawBillboards onto a canvas), and SigilWorld runs the same
- * Chain as compute dispatches over GPU lanes. The two must agree —
- * same hashes, same spline, same formulas.
+ * Cloud vocabulary in Points.h. The LANGUAGE and its host executor share
+ * one scope: pop::on() opens a Chain and pop::cook() evaluates one (a
+ * Cloud, ready for points::instance / panels / drawBillboards onto a
+ * canvas), while a runtime that owns a device runs the same Chain as
+ * compute dispatches over the same lanes.
+ *
+ * The two do not agree by inspection: for the operators that are
+ * per-point arithmetic there is ONE formula, written in the kernel this
+ * feature compiles to both a host build and a device one (Kernel.h),
+ * and both ends seed and export through the same two functions here. The
+ * hashes, the spline and the variant order are what the rest rests on.
  */
 
 #include <cstdint>
@@ -53,9 +58,9 @@ struct pop {
     AttrRef(std::string n) : name(std::move(n)) {}  // NOLINT
     bool operator==(const AttrRef&) const = default;
   };
-  /** The GPU executor's packed-lane index for a builtin — "Tex"
-   *  included, slot 5; -1 for custom names, whose chains the GPU
-   *  executor declines gracefully. */
+  /** Which builtin @p attr is — "Tex" included, slot 5 — and -1 for a
+   *  custom name. It is how a reader tells the conventional lanes apart
+   *  from the ones a chain invented, which is what the export needs. */
   static int32_t builtinIndex(const AttrRef& attr) {
     if (attr.name == "P") return 0;
     if (attr.name == "T") return 1;
@@ -84,7 +89,11 @@ struct pop {
     std::string mask;  ///< see "Masks" below; empty = every point
     bool operator==(const Jitter&) const = default;
   };
-  /** Filter: lane += a smooth sin-field drift sampled at P. */
+  /** Filter: lane += a smooth sin-field drift sampled at P. Its field
+   *  is a sum of LIBRARY sines, which is why it has no portable kernel:
+   *  a polynomial sine is a different function, not a rounding of one,
+   *  so a kernel would change what this operator means rather than where
+   *  it runs. */
   struct Noise {
     AttrRef lane = Lane::P;
     float amplitude = 10;
@@ -127,8 +136,9 @@ struct pop {
   /** Filter: neighborhood smoothing — each point eases toward its
    *  chain-order neighbors' midpoint (ends clamp). It heals Noise
    *  kinks before a swept sink so parallel-transport frames stop
-   *  tearing. Double-buffered on both executors, so order can't
-   *  leak. */
+   *  tearing. Double-buffered, so order can't leak — which is also why
+   *  it has no per-point kernel: a point reads two it does not own, so
+   *  one lane cannot be both what is read and what is written. */
   struct Relax {
     AttrRef lane = Lane::P;
     float strength = 0.5f;  ///< 0 = off, 1 = full midpoint
@@ -138,8 +148,9 @@ struct pop {
   };
   /** Generator: scatter count points ON a formed model's surface.
    *  Seeds a chain from a Mesh — sweep a cable, scatter on it, form
-   *  again: pops build on pops' results. CPU-cooked today (the GPU
-   *  executor declines mesh-led chains). */
+   *  again: pops build on pops' results. Like every generator it is
+   *  evaluated on the host wherever the chain is cooked, because it
+   *  MAKES the points rather than mapping over them. */
   struct MeshScatter {
     Mesh mesh;
     int count = 10000;
@@ -172,8 +183,8 @@ struct pop {
    *  Class boundaries, stated: inert on the point sink (a Cloud has no
    *  primitives) and on the swept sinks (their triangles ride
    *  RESAMPLED cross-sections, not points — there is no owning point
-   *  to promote from); honoured by the stamping sink cookMesh(). The
-   *  GPU executor cooks POINTS only and declines any chain holding
+   *  to promote from); honoured by the stamping sink cookMesh(). A
+   *  device executor cooks POINTS only and declines any chain holding
    *  this op outright rather than dropping it silently. */
   struct Promote {
     AttrRef from = Lane::Color;
@@ -209,13 +220,12 @@ struct pop {
    *  through it, and Relax smooths along it. Sorting is therefore an
    *  authoring verb, not a display trick.
    *
-   *  CPU-only, and stated as a boundary rather than a gap: a
-   *  permutation is not a per-point map, so it does not fit the GPU
-   *  executor's one-kernel-per-op arena model (it would want a sorting
-   *  NETWORK — log^2(n) dispatches and a ping-pong — which is a
-   *  different dispatch shape, not a different formula). SigilWorld
-   *  declines any chain holding one, the way it declines MeshScatter
-   *  and Promote. */
+   *  Host-only, and stated as a boundary rather than a gap: a
+   *  permutation is not a per-point map, so it has no kernel (it would
+   *  want a sorting NETWORK — log^2(n) dispatches and a ping-pong —
+   *  which is a different dispatch shape, not a different formula). A
+   *  device executor declines any chain holding one, the way it
+   *  declines Relax and Promote. */
   struct Sort {
     AttrRef by = Lane::P;
     glm::vec4 weights = {0, 0, 1, 0};  ///< key = dot(by, weights)
@@ -302,7 +312,9 @@ struct pop {
    *            tangent there — the arc's length is preserved. Amount 0
    *            is the identity.
    *  Only positions bend (Dir is untouched); re-derive a direction
-   *  downstream with LookAt or an Affine when it matters. */
+   *  downstream with LookAt or an Affine when it matters. Twist and Bend
+   *  turn on library trigonometry, so like Noise this operator has no
+   *  portable kernel and a device executor declines it. */
   struct Deform {
     enum class Kind : int32_t { Twist = 0, Taper = 1, Bend = 2 };
     Kind kind = Kind::Twist;
@@ -699,17 +711,45 @@ struct pop {
   /** The given entry: an existing point set, lanes and all. */
   static Builder on(Cloud given) { return Builder(PointSet{std::move(given)}); }
 
-  /** THE CPU REFERENCE EXECUTOR and the helpers both executors share.
-   *  The GPU executor in SigilWorld runs the same Chain over compute
-   *  lanes; everything below is the definition it must agree with. */
+  /** THE HELPERS EVERY EXECUTOR SHARES. A runtime that performs the
+   *  filters somewhere else still seeds through the same generator and
+   *  exports through the same reading, because the two ends of a cook
+   *  are what make its middle comparable. */
+
+  /** THE ATTRIBUTE STORE a chain runs over: every attribute a named
+   *  float4 lane, builtins ("P", "T", "Dir", "Scale", "Color", "Tex")
+   *  and customs alike, each one value per point. */
+  using Lanes = std::map<std::string, std::vector<glm::vec4>, std::less<>>;
+
+  /** What an untouched lane holds, by name: a scale and a colour start
+   *  at one, a texture window at the whole image, a direction at +z, and
+   *  everything else at zero — which is also what makes a mask lane
+   *  nothing has written select nobody. */
+  static glm::vec4 laneFill(std::string_view name);
+
+  /** THE CHAIN'S GENERATOR, run into @p lanes: the conventional lanes
+   *  created, and whatever leads the chain — a loop scatter, a surface
+   *  scatter, a given point set — written into them. Returns how many
+   *  points there are, zero when nothing leads the chain or the leader
+   *  has nothing to make.
+   *
+   *  A generator is not a map over points and no kernel replaces it, so
+   *  every executor seeds from here: a seed that differed would make
+   *  every comparison after it meaningless. */
+  static size_t seedLanes(const Chain& chain, Lanes* lanes);
+
+  /** @p lanes poured back into a Cloud: the builtins under the
+   *  conventional names — "t", "dir", "size", "tint" — and everything
+   *  else, "Tex" included, as four-wide colour lanes under its own name,
+   *  so nothing an operator wrote is unreachable downstream. */
+  static Cloud exportLanes(const Lanes& lanes, size_t count);
+
   /** How a PointSet's cloud lays out as attributes: the conventional
    *  lanes onto the builtins, everything else under its own name — one
-   *  function, so the CPU cook and the GPU executor's initial upload
+   *  function, so the CPU cook and a device executor's initial upload
    *  agree lane for lane. @p lanes gains or overwrites the seeded names,
    *  every lane sized to the cloud. */
-  static void seedAttrs(
-      const Cloud& cloud,
-      std::map<std::string, std::vector<glm::vec4>, std::less<>>& lanes);
+  static void seedAttrs(const Cloud& cloud, Lanes& lanes);
   /** The custom attribute names seedAttrs would create for @p cloud (the
    *  lanes that are not builtins), in a stable order. */
   static std::vector<std::string> seedCustomNames(const Cloud& cloud);

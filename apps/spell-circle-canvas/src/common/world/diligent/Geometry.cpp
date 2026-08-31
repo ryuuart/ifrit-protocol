@@ -219,7 +219,8 @@ void drawBody(Gpu& gpu, const glm::mat4& viewProj, const glm::mat4& view,
 
   dg::IDeviceContext* context = gpu.device->context();
   context->SetPipelineState(pipeline->state);
-  bindAndCommit(gpu, *pipeline, *surface.program, uniforms, textures);
+  bindAndCommit(gpu, *pipeline, *surface.program, uniforms, textures,
+                sampling.filter);
   dg::IBuffer* vertices = buffers->vertices;
   const dg::Uint64 offset = 0;
   context->SetVertexBuffers(0, 1, &vertices, &offset,
@@ -244,9 +245,12 @@ void drawBodies(Gpu& gpu, const View& view, const glm::mat4& viewProj,
     if (!body.mesh) continue;
     if (only && !only->matches(subjectOf(body))) continue;
     const glm::vec4 colour = flat ? *flat : body.baseColor;
+    // A BODY THAT IS ITS OWN LIGHT is drawn unlit whatever the pass
+    // says, because that is what its surface is and not how this pass
+    // reads it. A flat draw is unlit already.
     drawBody(gpu, viewProj, viewMatrix, body.geometry, *body.mesh, body.world,
              colour, flat ? nullptr : body.material,
-             flat ? nullptr : body.texture, view.lights, lit,
+             flat ? nullptr : body.texture, view.lights, lit && body.lit,
              /*depthWrite=*/colour.a >= 1.0f);
   }
 }

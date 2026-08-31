@@ -26,6 +26,7 @@
 #include <include/core/SkImage.h>
 #include <include/core/SkMatrix.h>
 #include <include/core/SkRefCnt.h>
+#include <include/core/SkSamplingOptions.h>
 #include <include/core/SkSize.h>
 
 #include <functional>
@@ -60,6 +61,13 @@ struct MeshStyle {
     Uv,       ///< uv debug ramp
   };
   Mode mode = Mode::Lit;
+  /** Do the lights reach this surface? False is a surface that is its
+   *  own light — a screen, a decal, an emissive set: what it shows is
+   *  its base colour and the mesh's own tint, with no ambient, no
+   *  emitter, no specular and no rim. It is a property of the SURFACE,
+   *  which is why it sits beside the colour rather than among the modes:
+   *  Normals and Uv render buffers, and this still renders a picture. */
+  bool lit = true;
   SkColor4f baseColor = {0.8f, 0.8f, 0.85f, 1};
   std::vector<Light> lights = {{}};
   SkColor4f ambient = {0.12f, 0.12f, 0.15f, 1};
@@ -75,6 +83,12 @@ struct MeshStyle {
   /** Wrap the texture when uvs leave [0,1] (a scrolling band on a
    *  closed loop); off = clamp, the panel default. */
   bool tileTexture = false;
+  /** How the texture is read BETWEEN texels. Nearest keeps a texel's
+   *  edge hard — a pixel-art map, an index map, an atlas whose cells
+   *  must not bleed — and takes no mip level with it, because blending
+   *  two levels is the same bleed arriving by the other door; linear
+   *  reads between texels and between levels. */
+  SkFilterMode filter = SkFilterMode::kLinear;
   /** PRIMITIVE lane (Mesh::prims) multiplied into each triangle's
    *  colour — flat per-face tint, no vertex duplication. Empty = off;
    *  a missing or mis-sized lane is ignored. Lit mode only: Normals

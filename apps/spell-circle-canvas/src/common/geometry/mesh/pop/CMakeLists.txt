@@ -2,20 +2,46 @@
 # modifiers, instancing and the billboard rasterizer, plus the pop chain
 # language's field table, its CPU reference executor and the
 # mesh-forming sinks.
+
+# THE KERNEL, compiled twice from one source: to the C++ this library's
+# executor calls, and to the SPIR-V a runtime that owns a device
+# dispatches. Neither side re-derives a formula, which is what lets two
+# tiers be held to bit identity rather than to a tolerance. The C++ is
+# compiled with the float model pinned — see cmake/Slang.cmake.
+include(Slang)
+sigil_slang_module(NAME Pop
+  SOURCE ${CMAKE_CURRENT_LIST_DIR}/kernels/Pop.slang
+  ENTRIES sigilPopKernel
+  OUT_VAR SIGIL_POP_KERNEL_H
+  CPP_VAR SIGIL_POP_KERNEL_CPP
+  SPIRV_VAR SIGIL_POP_KERNEL_SPV_H)
+sigil_slang_kernel_flags(${SIGIL_POP_KERNEL_CPP})
+
 add_library(SigilGeometryMeshPop STATIC
   Billboards.cpp
   Cloud.cpp
   Cook.cpp
   Fields.cpp
   Generators.cpp
+  Kernel.cpp
   Modifiers.cpp
   Sinks.cpp
+  Spirv.cpp
+  ${SIGIL_POP_KERNEL_CPP}
+  ${SIGIL_POP_KERNEL_H}
+  ${SIGIL_POP_KERNEL_SPV_H}
+  ${CMAKE_CURRENT_LIST_DIR}/kernels/Pop.slang
+  ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/mesh/pop/Kernel.h
   ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/mesh/pop/Points.h
   ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/mesh/pop/Pop.h
   ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/mesh/pop/Runtime.h
 )
 target_compile_features(SigilGeometryMeshPop PUBLIC cxx_std_20)
-target_include_directories(SigilGeometryMeshPop PUBLIC ${SIGIL_GEOMETRY_INCLUDE_DIR})
+# The generated headers are PUBLIC because a runtime that dispatches the
+# kernel on a device reads the words this build embedded rather than
+# compiling the source a second time.
+target_include_directories(SigilGeometryMeshPop
+  PUBLIC ${SIGIL_GEOMETRY_INCLUDE_DIR} ${SIGIL_SLANG_GENERATED_DIR})
 target_link_libraries(SigilGeometryMeshPop PUBLIC SigilGeometryMeshCurve)
 
 # The pop tests seed chains from an imported model and save a cooked

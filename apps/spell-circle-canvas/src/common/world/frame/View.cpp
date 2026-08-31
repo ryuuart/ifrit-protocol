@@ -20,6 +20,7 @@ Sampling samplingOf(const material::Texture& texture) {
   // edge's pixels across the whole face.
   out.tile = texture.tileX() != SkTileMode::kClamp ||
              texture.tileY() != SkTileMode::kClamp;
+  out.filter = texture.filter();
 
   const SkISize size = out.image ? out.image->dimensions()
                                  : SkISize::Make(where.width, where.height);

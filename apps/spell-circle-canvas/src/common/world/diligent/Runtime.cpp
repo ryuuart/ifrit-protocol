@@ -12,6 +12,7 @@
 #include "sigilworld/diligent/Runtime.h"
 
 #include <sigilgeometry/mesh/pop/Pop.h>
+#include <sigilworld/diligent/Pop.h>
 
 #include <memory>
 #include <string>
@@ -29,7 +30,9 @@ namespace {
  *  separate textures, separate pipelines and separate uploads. */
 class GpuExecutor : public Executor {
  public:
-  explicit GpuExecutor(std::shared_ptr<Gpu> gpu) : m_gpu(std::move(gpu)) {}
+  GpuExecutor(std::shared_ptr<Gpu> gpu,
+              ::sigil::geometry::mesh::pop::Runtime points)
+      : m_gpu(std::move(gpu)), m_points(std::move(points)) {}
 
   bool operator==(const GpuExecutor& other) const {
     return m_gpu == other.m_gpu;
@@ -73,19 +76,35 @@ class GpuExecutor : public Executor {
   void endFrame(Targets&) const override { m_gpu->endFrame(); }
 
  private:
-  /** A chain, cooked on the runtime the pass carries. That runtime is
-   *  the host one until a point-operator kernel exists for the device;
-   *  the cooked points are uploaded like any other geometry when a
-   *  stamp is stood at them. */
-  static void cook(const PassWork& work, Targets& targets) {
+  /** A chain, cooked on the device where the whole of it can be, and on
+   *  the host where it cannot.
+   *
+   *  A pass carries the host runtime until it is given another, so a
+   *  pass that named one of its own keeps it — asking a device to cook
+   *  what an author sent somewhere else on purpose would be answering a
+   *  question nobody asked. Otherwise the device's own runtime takes it,
+   *  and only when EVERY operator in the chain has a kernel: a chain
+   *  that would stop partway through is one this executor cooks on the
+   *  host instead, whole, rather than declining it. */
+  void cook(const PassWork& work, Targets& targets) const {
+    namespace gm = ::sigil::geometry::mesh;
     const Pass& pass = *work.pass;
     const std::span<const std::string> writes = pass.writes();
     if (writes.empty() || pass.chain().empty()) return;
-    *targets.points(writes.front()) =
-        ::sigil::geometry::mesh::pop::cook(pass.chain(), pass.popRuntime());
+    const gm::pop::Runtime& declared = pass.popRuntime();
+    gm::pop::Runtime on = declared;
+    if (m_points && declared == gm::pop::Runtime::cpu()) {
+      bool whole = true;
+      for (const gm::pop::Op& op : pass.chain())
+        whole = whole && m_points->supports(op);
+      if (whole) on = m_points;
+    }
+    *targets.points(writes.front()) = gm::pop::cook(pass.chain(), on);
   }
 
   std::shared_ptr<Gpu> m_gpu;
+  /** The point-operator runtime this device offers a compute pass. */
+  ::sigil::geometry::mesh::pop::Runtime m_points;
 };
 
 }  // namespace
@@ -94,14 +113,21 @@ Runtime runtime(Device& device) {
   installSlangCompiler();
   auto gpu = std::make_shared<Gpu>(device);
 
-  dg::SamplerDesc sampler;
-  sampler.MinFilter = dg::FILTER_TYPE_LINEAR;
-  sampler.MagFilter = dg::FILTER_TYPE_LINEAR;
-  sampler.MipFilter = dg::FILTER_TYPE_LINEAR;
-  sampler.AddressU = dg::TEXTURE_ADDRESS_CLAMP;
-  sampler.AddressV = dg::TEXTURE_ADDRESS_CLAMP;
-  sampler.AddressW = dg::TEXTURE_ADDRESS_CLAMP;
-  device.renderDevice()->CreateSampler(sampler, &gpu->sampler);
+  // ONE SAMPLER PER FILTER, made once and picked per draw: a texture
+  // states how it wants to be read between texels, and a map that asked
+  // for hard texel edges must not have them blended away.
+  const auto makeSampler = [&](dg::FILTER_TYPE type, dg::ISampler** into) {
+    dg::SamplerDesc desc;
+    desc.MinFilter = type;
+    desc.MagFilter = type;
+    desc.MipFilter = type;
+    desc.AddressU = dg::TEXTURE_ADDRESS_CLAMP;
+    desc.AddressV = dg::TEXTURE_ADDRESS_CLAMP;
+    desc.AddressW = dg::TEXTURE_ADDRESS_CLAMP;
+    device.renderDevice()->CreateSampler(desc, into);
+  };
+  makeSampler(dg::FILTER_TYPE_LINEAR, &gpu->linearSampler);
+  makeSampler(dg::FILTER_TYPE_POINT, &gpu->nearestSampler);
 
   // What an unfilled sampled slot reads: one white texel, so a body
   // multiplied by a map it was not given is the body.
@@ -118,7 +144,7 @@ Runtime runtime(Device& device) {
   dg::TextureData data{&level, 1};
   device.renderDevice()->CreateTexture(desc, &data, &gpu->white);
 
-  return Runtime{GpuExecutor{std::move(gpu)}};
+  return Runtime{GpuExecutor{std::move(gpu), popRuntime(device)}};
 }
 
 }  // namespace sigil::world::diligent
