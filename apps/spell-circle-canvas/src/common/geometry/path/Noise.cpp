@@ -11,10 +11,7 @@ namespace sigil::geometry::path::noise {
 
 float value3(glm::vec3 p, uint32_t seed) {
   auto hash = [seed](int x, int y, int z) {
-    uint32_t h = seed + (uint32_t)x * 374761393u + (uint32_t)y * 668265263u +
-                 (uint32_t)z * 2147483647u;
-    h = (h ^ (h >> 13u)) * 1274126177u;
-    return (float)(h ^ (h >> 16u)) / (float)0xFFFFFFFFu;
+    return (float)core::noise::lattice(seed, x, y, z) / (float)0xFFFFFFFFu;
   };
   const int xi = (int)std::floor(p.x), yi = (int)std::floor(p.y),
             zi = (int)std::floor(p.z);

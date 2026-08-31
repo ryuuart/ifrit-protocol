@@ -1,77 +1,100 @@
 # Findings
 
-Defects met while working, as a work queue: delete an entry when it is
-fixed, and the file when it is empty.
+A work queue. Each entry states what the code does, what it was evidently
+intended to do, and what a test should assert once intent is restored.
+Delete an entry as it is fixed, and delete this file when it is empty.
 
-## OpenImageIO's thread pool races on its own worker map (TSan)
+## The byte-identity sweep renders with measured numbers unpinned
 
-**What the code does.** `sigil::image::decodeImage` constructs
-OpenImageIO's `thread_pool`, whose worker threads swap an internal
-`tsl::robin_map<std::thread::id, int>` while another worker reads it.
-TSan reports the race inside `OpenImageIO::thread_pool::thread_pool`
-(vendor code, uninstrumented vcpkg archive) during
-`LoaderOiio.ExrDecodesToFloatImage` in `loader_hub_test`. Nothing in
-this repository touches that map.
+**What it does.** `sketch::Session::setDeterministic()` exists so a
+sketch can pin anything it measured about its own execution, and
+`SketchContext::measured()` is how a sketch asks. The plate sweep never
+turns it on, so a sketch that draws its own bake time into its own plate
+differs from ITSELF between two runs.
 
-**What it was evidently intended to do.** Decode an EXR through a
-library whose thread pool is internally consistent.
+**What it was evidently intended to do.** Exactly what the flag says: a
+capture that will be diffed must not carry a number the machine decided.
+`slitscan_2001` reads `ctx.deterministic` and writes
+`deterministic_ ? 0.0 : bakeMs` into its sheet — and `slitscan_2001` is
+one of the three names on the ledger's documented self-nondeterministic
+list. The list and the flag are two answers to one problem, and only one
+of them is a fix.
 
-**What a test should assert once intent is restored.** Either the
-vendor's pool is fixed upstream, or the decoder constructs it with a
-single worker (or suppresses the report by a TSan suppression file
-naming `OpenImageIO::v3_1::thread_pool`), and the TSan lane runs
-`loader_hub_test` clean.
+**Why it is not simply switched on.** Turning it on moves the plates of
+every sketch that measures itself, so the change has to be made together
+with adopting those baselines, and each mover has to be checked to be a
+number rather than a picture.
 
-## OpenUSD's plugin registry races its own name table (TSan)
+**What a test should assert.** Two ledger renders of `slitscan_2001` in
+two processes hash the same, with no name on a flapper list. Then the
+list is checked again: `genesis_fire` and `hitman_verlet` may be flapping
+for a different reason (both simulate), and if they are, the reason
+belongs in their file headers rather than in a script's table.
 
-**What the code does.** Opening a stage instantiates USD's
-`TfSingleton<PlugRegistry>`, which registers plugins on TBB worker
-threads. Those workers rehash the registry's `__hash_table` of plugin
-names while another thread reads the same buckets, and TSan reports the
-pair with every frame inside `libusd_plug` and `pxr` headers. It fires
-in `UsdWrite.AuthorsAMeshWithSubsetsAndMaterials` in `usd_write_test`
-and in `UsdRead.ReadsAHandAuthoredStage` in `usd_read_test`. Nothing in
-this repository touches that table; the repository's code only holds a
-`TfWeakPtr`.
+## Looks and conveniences duplicated across sketch files
 
-**What it was evidently intended to do.** Register plugins with each
-insertion ordered before any other thread's read, which USD's own lock
-evidently provides in practice but not in a form TSan can see.
+Each of these is the same code in more than one file, with no library
+home. A sketch is meant to be pure declaration of its scene, so anything
+here that is a LOOK belongs in a kit and anything that is a CONVENIENCE
+belongs wherever its type is spelled. Every move has to be gated on the
+plate ledger per scene, because these all reach the pixels.
 
-**What a test should assert once intent is restored.** With a TSan
-suppression naming `pxrInternal_*::PlugRegistry` (or an upstream fix),
-the TSan lane runs `usd_write_test` and `usd_read_test` clean.
+- **`crtEffect()`** — a scanline, vignette and bloom overlay, byte-
+  identical in `eva_magi_defense.cpp` and `eva_magi_interior.cpp`.
+  Nothing in `src/common` draws a CRT. It is a preset: it fixes a look.
+- **`disc()`** — a soft-dot sprite raster, verbatim in `geo_groups.cpp`
+  and `pop_deform.cpp`. A point sink needs a sprite and the library ships
+  none.
+- **`fmt()`** — a printf-into-`std::string` helper, in eight files in two
+  flavours (a variadic template with the `-Wformat-security` pragma pair
+  in four; a `va_list` version with a fixed buffer in four).
+- **`place(Element, x, y, w, h)`** / **`at(x, y, w, h)`** — absolute
+  placement spelled as `box().left().top().width().height()`, in six
+  files. `kit/Frame.h` has `centred()` and `disc()` but nothing for the
+  commonest case of all.
+- **`lift()` / `dark()` / `fade()`** — linear-RGB colour nudges, in up to
+  six files. `sigilmaterial/color/Color.h` has Oklab and the sRGB
+  transfer and nothing between.
 
-## Every target carries Qt automoc, including libraries with no Qt in them
+**What a test should assert.** After each move: the plate ledger's full
+tier, byte-neutral, for every scene that used it.
 
-**What the code does.** The root `qt_standard_project_setup()` turns
-`AUTOMOC` on for every target that follows, so plain static libraries
-such as `SigilComposeBrush` gain a `*_autogen` directory and a generated
-`mocs_compilation` translation unit per configuration; two targets
-already opt out by hand.
+## A text style helper in eight files that the library nearly owns
 
-**What it was evidently intended to do.** Moc only the targets that
-declare Qt objects — the Qt Quick apps, `Ifrit.Ui` and the Qt interop
-libraries.
+**What it does.** Eight sketches carry a local `styleAt(size, colour)` or
+`type(size, colour, tracking)`, six of them verbatim.
+`compose::type({.size, .color, .track})` is the same idea with a wider
+surface.
 
-**What a test should assert once intent is restored.** The compile
-database lists no `*_autogen` translation unit for a target that does
-not link Qt.
+**Why it has not moved.** Two differences reach the pixels, and both are
+in the library's favour rather than the sketch's: `compose::type` sets
+the paint's antialias flag where the local helpers leave Skia's default,
+and it sets the colour as `SkColor4f` where two of the local helpers
+round-trip through `toSkColor()` and quantise it to eight bits per
+channel. Moving them is a look change, small but real.
 
-## The static analysis queue is unanswered in compose and in world
+**What a test should assert.** The plate ledger's full tier for the eight
+scenes, with the movers adopted deliberately and the round-trip
+quantisation gone rather than reproduced.
 
-**What the code does.** `scripts/check.py --all --tidy-all` reports no
-findings in geometry, skia, core, measure, scry, material, usd,
-substance or the text engine. Neither `src/common/compose/` nor
-`src/common/world/` is covered by that sentence: world does not compile
-while its rewrite is in flight, and compose has been analyzed only in
-part — the translation units measured so far report nothing.
+## The device tier's plates are not reproducible across two executables
 
-**What it was evidently intended to do.** Keep the queue closed: a
-finding is either fixed or answered in place with the reason it stands,
-which is how the rest of the tree reads.
+**What it does.** The GPU tier renders a plate that is stable across
+processes, across the order sketches are rendered in, and across repeated
+runs — and yet differs between two executables built from the same
+drawing code. Measured on `botanical`: 502 of 9,216,000 colour channels
+differ, scattered over the frame, the worst by 24. The authoritative CPU
+tier is byte-identical for the same sketch.
 
-**What a test should assert once intent is restored.**
-`scripts/check.py --all --tidy-all` reports no findings in this
-repository's sources.
+**What it was evidently intended to do.** The quick tier hashes bytes, so
+it assumes the device path is a function of the scene. It is a function
+of the scene AND of the binary, which is a blind spot the tier does not
+declare: a change that touches nothing about a sketch can still move its
+quick hash, and the only way to tell that from a real mover is to render
+it on the CPU tier as well.
 
+**What a test should assert.** Either the device tier compares within a
+tolerance the way the world-gpu tier already does — which is the same
+argument, one rasteriser against another — or it states this blind spot
+beside the two it already states, so a mover there is read as a question
+rather than as a finding.

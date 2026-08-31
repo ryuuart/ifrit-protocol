@@ -201,7 +201,7 @@ RampArrays split(const std::vector<Stop>& stops) {
 
 // A named uniform is usable iff the effect declares it at the expected size —
 // assigning an undeclared or mis-sized uniform SkDEBUGFAILs (aborts debug
-// builds), which would let one typo kill the ComposeSketch hot-reload host.
+// builds), which would let one typo kill the hot-reload host.
 // Unknown names warn-and-ignore instead (validated at sksl()/uniform() time,
 // so build() never touches an invalid entry). The rule itself lives in
 // detail:: because Effect's uniform doors answer to it too.

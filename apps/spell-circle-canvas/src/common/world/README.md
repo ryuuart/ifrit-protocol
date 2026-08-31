@@ -32,9 +32,8 @@ library that is not here.
 | `scene/` | `SigilWorldScene` | `sigil::world` | the retained side: the reconcile host, the entity store, the content-keyed resource store, the declared phases, the execution of a frame's passes, and the draw. |
 | `light/` | `SigilWorldLight` | `sigil::world::light` | emitters as plain comparable values over glm: a sun, a point light, a spot, their falloffs and the per-frame budget. |
 | `kit/` | `SigilWorldKit` | `sigil::world::kit` | presets that compose elements: a three-point rig, a turntable, and the lit set both make over a ground plane. Nothing here decides a look. |
-| `testing/` | `SigilWorldTesting` | `sigil::world::testing` | the study harness — a frame stepped to a declared moment on the CPU and photographed — and the `world_studies` binary the plate ledger's 3D tier drives. |
 | `diligent/` | `SigilWorldDiligent` | `sigil::world::diligent` | the one GPU device 2D and 3D share, the Slang compiler the program cache runs, and the `Runtime` that performs a frame's passes on that device. |
-| — | `SigilWorld` | — | the umbrella: an interface target over every feature above but `testing/`, and `<sigilworld/World.h>`, which is their public headers in one include. A consumer of the whole library names only this; the device feature is in it where it was built. |
+| — | `SigilWorld` | — | the umbrella: an interface target over every feature above, and `<sigilworld/World.h>`, which is their public headers in one include. A consumer of the whole library names only this; the device feature is in it where it was built. |
 
 ## Writing a scene
 
@@ -507,14 +506,20 @@ A study is one 3D frame, stepped from zero at a fixed 1/60 to its
 declared moment and photographed — so a plate is a function of the
 declaration alone and never of how fast the machine ran.
 
+A study is a **sketch**, and the harness that runs one belongs to
+SigilSketch rather than here: this library draws a frame and says nothing
+about how a frame is photographed. `src/sketch/README.md` is the canon
+for the registry, the live host and the plates.
+
 ```sh
-build/bin/Release/world_studies --headless <outdir> [--study <name>] [--gpu]
-build/bin/Release/world_studies --headless <outdir> --list-studies
+build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
+    --headless <outdir> --kind set [--sketch <name>] [--gpu]
+build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook --list --kind set
 ```
 
-`--study` takes a case-insensitive substring, which is the loop for
-visual iteration. A study joins the registry by being named in
-`testing/studies/Studies.h` and listed in `testing/CMakeLists.txt`.
+`--sketch` takes a case-insensitive substring, which is the loop for
+visual iteration. A study joins the registry by being a file in
+`src/sketch/sketches/`.
 
 `--gpu` renders every study through the device runtime instead. A study
 that declared no passes is wrapped in one geometry pass clearing to its
@@ -523,8 +528,8 @@ study about the scene must be able to say what it looks like on a device
 too. The flag answers with the device or with nothing: on a machine with
 no Vulkan runtime it reports that and fails, rather than quietly putting
 the CPU's plate under a name that asked for the device's. The device is
-brought up by the BINARY, so the harness library links none and a machine
-with no GPU still renders the CPU tier.
+brought up by the BINARY and installed once for the process, so this
+library links none and a machine with no GPU still renders the CPU tier.
 
 Five of them, and between them they exercise every feature this library
 has:
@@ -567,8 +572,8 @@ can take the rig the preset returned and put lanes on its key light
 without the preset offering a hook for it.
 
 A study returns a `Frame`, and an `Element` is one with no passes, so a
-study about the scene says nothing about passes at all. The harness
-writes the plate's size and its viewpoint into whichever it was handed.
+study about the scene says nothing about passes at all. The host writes
+the plate's size and its viewpoint into whichever it was handed.
 
 ## The plate ledger's 3D tiers
 

@@ -109,7 +109,7 @@ add_subdirectory(kit)
 # consumer OUTSIDE this tree, the way SigilWeave, SigilMotion and
 # SigilGeometry each keep one. It carries no code of its own; linking it is
 # exactly linking Brush (which reaches Shape and Core) plus Typography. Nothing in this repository links it: every consumer here —
-# the gallery, the sketch kit, the benches, the demos, the tests — names
+# the benches, the demos, the tests, and the sketch library above — names
 # the feature targets it draws with, which is what keeps a dependency on a
 # tier a stated fact rather than an accident of the umbrella. The instanced
 # leaf and the web leaf are deliberately NOT here: each is linked by the
@@ -197,12 +197,6 @@ add_executable(compose_demo
 )
 target_link_libraries(compose_demo PRIVATE
   SigilComposeShape SigilComposeBrush SigilWeavePorts)
-
-# The tree-structured products own their CMakeLists: sketch/ defines
-# SigilSketchStudies (every study sketch compiled in place), which the
-# gallery links.
-add_subdirectory(sketch)
-add_subdirectory(gallery)
 
 # Registers this library with the `docs` target (see cmake/Docs.cmake).
 # The README is the site's front page, so the generated pages open on the

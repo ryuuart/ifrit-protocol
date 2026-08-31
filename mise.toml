@@ -14,7 +14,7 @@
 #
 # So each task picks one. Tasks wrapping a script with a considered
 # interface of its own (check.py, coverage.py, sanitize.py,
-# plate_ledger.py, ctest, ComposeGallery) forward and declare nothing;
+# plate_ledger.py, ctest, Sketchbook) forward and declare nothing;
 # tasks that need to choose a build configuration or a target declare
 # `usage` and do not forward.
 
@@ -163,34 +163,34 @@ run = "python3 scripts/sanitize.py"
 # ledger compares rendered bytes from a build whose optimisation settings
 # have to be the ones the baseline was taken with.
 
-[tasks.gallery]
-description = "Render gallery scenes headlessly (args go to ComposeGallery, after --)"
+[tasks.plates]
+description = "Render sketch plates headlessly (args go to Sketchbook, after --)"
 dir = "apps/spell-circle-canvas"
 # Debug, and no --config flag: a task that declares its own flags cannot
-# forward extra arguments, and `--scene <substring>` is the whole point
+# forward extra arguments, and `--sketch <substring>` is the whole point
 # of running this by hand.
 #
-#     mise run gallery -- --scene astrolabe
-#     mise run gallery -- --gpu
+#     mise run plates -- --sketch astrolabe
+#     mise run plates -- --gpu
 run = '''
 set -e
-cmake --build build --config Debug --target ComposeGallery
-out="build/gallery-out"
+cmake --build build --config Debug --target Sketchbook
+out="build/plates-out"
 mkdir -p "$out"
 echo "Rendering into $out"
-# The gallery is an app bundle, so a headless run goes through the
-# binary inside it rather than the bundle.
-exec "build/bin/Debug/ComposeGallery.app/Contents/MacOS/ComposeGallery" \
+# Sketchbook is an app bundle, so a headless run goes through the binary
+# inside it rather than the bundle.
+exec "build/bin/Debug/Sketchbook.app/Contents/MacOS/Sketchbook" \
   --headless "$out"
 '''
 
 [tasks.sketch]
-description = "Launch the live-coding sketch host (args go to ComposeSketch, after --)"
+description = "Launch Sketchbook, the live sketch host (args go to it, after --)"
 dir = "apps/spell-circle-canvas"
 run = '''
 set -e
-cmake --build build --config Debug --target ComposeSketch
-exec build/bin/Debug/ComposeSketch
+cmake --build build --config Debug --target Sketchbook
+exec build/bin/Debug/Sketchbook.app/Contents/MacOS/Sketchbook
 '''
 
 [tasks.ledger]
@@ -198,9 +198,9 @@ description = "Byte-identity sweep over the plate registry (args go to plate_led
 dir = "apps/spell-circle-canvas"
 run = '''
 set -e
-# The ledger renders through ComposeGallery and refuses to run without
-# it, but does not build it itself.
-cmake --build build --config Release --target ComposeGallery
+# The ledger renders through Sketchbook and refuses to run without it,
+# but does not build it itself.
+cmake --build build --config Release --target Sketchbook
 python3 scripts/plate_ledger.py
 '''
 

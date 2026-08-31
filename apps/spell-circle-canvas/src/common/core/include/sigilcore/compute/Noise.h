@@ -18,10 +18,10 @@
  * constant does not fail a build — it re-rolls every stored render and
  * desynchronizes the two ends of every operator chain that runs on both.
  *
- * `hash` and `pcgHash` are different mixers with different outputs, kept
- * side by side because each seeds work that is compared byte-for-byte
- * against stored renders. Pick by what the caller already uses; new
- * code takes `pcgHash`.
+ * `hash`, `lattice` and `pcgHash` are different mixers with different
+ * outputs, kept side by side because each seeds work that is compared
+ * byte-for-byte against stored renders. Pick by what the caller already
+ * uses; new code takes `pcgHash`.
  */
 
 #include <cstdint>
@@ -87,6 +87,27 @@ inline float pcgUnitNext(uint32_t& state) {
  *  lattices agree. */
 inline float pcgUnit(uint32_t x) {
   return (float)(pcgHash(x) & 0x00FFFFFFu) / 16777216.0f;
+}
+
+/** THE LATTICE MIXER: three integer coordinates and a seed to one
+ *  well-mixed word — what value noise asks at each corner of a cell, and
+ *  what anything indexed by a grid position asks for a stable draw.
+ *
+ *  The three coordinate weights are large odd words, so a step of one
+ *  along any axis moves the sum far; the xor-shift-multiply and the
+ *  final fold are what turn that sum into an avalanche. THE CONSTANTS
+ *  AND THE SHIFTS ARE NOT TUNING KNOBS, for the reason stated at the top
+ *  of this file.
+ *
+ *  The multiplies are meant to WRAP. Unsigned operands make that wrap
+ *  the defined kind, where signed ones would overflow; the bits are the
+ *  same either way. */
+[[nodiscard]] constexpr uint32_t lattice(uint32_t seed, int x, int y,
+                                         int z) noexcept {
+  uint32_t h = seed + (uint32_t)x * 374761393u + (uint32_t)y * 668265263u +
+               (uint32_t)z * 2147483647u;
+  h = (h ^ (h >> 13u)) * 1274126177u;
+  return h ^ (h >> 16u);
 }
 
 }  // namespace sigil::core::noise

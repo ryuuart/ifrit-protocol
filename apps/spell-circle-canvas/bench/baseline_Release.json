@@ -2,7 +2,7 @@
  "config": "Release",
  "host": "MacBookPro.control",
  "machine": "arm64",
- "taken": "2026-08-31T05:43:31+00:00",
+ "taken": "2026-08-31T10:08:37+00:00",
  "benches": {
   "compose_brush_bench": {
    "BM_Draw_ArtWarp_Live": {
@@ -3145,6 +3145,76 @@
     "real_ns": 10293.181237712255,
     "cpu_ns": 10256.07581214812,
     "unit": "ns",
+    "repetitions": 4
+   }
+  },
+  "sketch_canvas_bench": {
+   "Frame": {
+    "real_ns": 25621.56834947777,
+    "cpu_ns": 25619.87554904831,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "Open": {
+    "real_ns": 29877.59290118914,
+    "cpu_ns": 29877.901977643975,
+    "unit": "us",
+    "repetitions": 4
+   }
+  },
+  "sketch_core_bench": {
+   "FindExact": {
+    "real_ns": 1612.6594785398515,
+    "cpu_ns": 1612.5176779000383,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "FindSubstring": {
+    "real_ns": 10596.013371966357,
+    "cpu_ns": 10593.419462073127,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "FindMissing": {
+    "real_ns": 17116.403297178917,
+    "cpu_ns": 17110.541727672044,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "MakeKind": {
+    "real_ns": 41.48539412457069,
+    "cpu_ns": 41.473802888396094,
+    "unit": "ns",
+    "repetitions": 4
+   }
+  },
+  "sketch_live_bench": {
+   "Frame": {
+    "real_ns": 5535.784457064055,
+    "cpu_ns": 5535.805168986084,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "Poll": {
+    "real_ns": 1471.7238725595153,
+    "cpu_ns": 1471.6540003654825,
+    "unit": "us",
+    "repetitions": 4
+   }
+  },
+  "sketch_plate_bench": {
+   "Ledger": {
+    "real_ns": 396799.2494411147,
+    "cpu_ns": 396359.59885386785,
+    "unit": "ms",
+    "repetitions": 4
+   }
+  },
+  "sketch_set_bench": {
+   "Frame": {
+    "real_ns": 1338698.8103212346,
+    "cpu_ns": 1338623.8095238078,
+    "unit": "us",
     "repetitions": 4
    }
   },

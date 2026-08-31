@@ -4,9 +4,6 @@
  * Every public header of SigilWorld in one include, for a consumer that
  * takes the whole library rather than a feature of it. Narrowing to the
  * feature headers actually used is always available.
- *
- * The study harness is not here: `sigilworld/testing/Study.h` is what a
- * study is written against, not what a library consumer draws with.
  */
 
 #include "sigilworld/diligent/Device.h"

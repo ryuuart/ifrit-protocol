@@ -5,7 +5,8 @@
 # stack, the geometry ops and the `brush::` kinds) and the layer styles
 # (`styles::` — inner shadows, glows, bevels and the gel and chrome
 # bundles over SigilMaterial's kit tables), with the kit's stroke grammar
-# (`kit/Strokes.h`) and the bordered feed plate (`kit/Plate.h`) that are
+# (`kit/Strokes.h`), the bordered feed plate (`kit/Plate.h`) and the
+# ornament and flourish pieces (`kit/Ornament.h`, `kit/Flourish.h`) that are
 # spelled in this tier's types. And the engine behind the kernel's stroke
 # grammar and mask gates — span claims, the span normal form, bands, the
 # `by::` gates — reached by the kernel through the StrokeResolver and
@@ -35,6 +36,8 @@ add_library(SigilComposeBrush STATIC
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/brush/Layered.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/brush/Lines.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/brush/Rails.h
+  ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/kit/Flourish.h
+  ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/kit/Ornament.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/kit/Plate.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/kit/Strokes.h
 )

@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """The plate ledger, as ONE command: parallel byte-identity sweeps.
 
-Renders every gallery scene through `ComposeGallery --headless --ledger`
-(the benchmark-free exact-stepped capture), N scenes at a time, hashes
-the plates, and compares against a stored baseline manifest — printing
-movers with the known self-nondeterministic scenes attributed instead of
-alarmed about. What used to be a ~40-minute serial sweep plus ad-hoc
-hashing is a few minutes of parallel renders and one verdict table.
+Renders every sketch through `Sketchbook --headless --ledger` (the
+benchmark-free exact-stepped capture), N at a time, hashes the plates,
+and compares against a stored baseline manifest — printing movers with
+the known self-nondeterministic sketches attributed instead of alarmed
+about. One binary renders every tier; what separates them is which
+runtime a sketch draws through and what capture the flags ask for.
 
 Usage (from apps/spell-circle-canvas):
   scripts/plate_ledger.py --rebase          # bake the baseline manifest
@@ -37,17 +37,21 @@ FOUR VERIFICATION TIERS (--tier):
   `--tier quick --rebase` (same subset-merge semantics as the full
   manifest). Stated blind spots, printed on every quick report: content
   that only appears after the cap is never hashed, and the backend is
-  the GPU raster path rather than the full tier's CPU path — so quick
+  the GPU raster path rather than the full tier's CPU path. A THIRD
+  blind spot, measured: the device path is a function of the scene AND
+  of the binary — two executables built from the same drawing code
+  produce plates that differ in a few hundred colour channels out of
+  nine million, stably, while the CPU tier is byte-identical. So quick
   answers "did I move any bytes I didn't mean to?" during iteration,
   and the full tier answers it authoritatively at the end.
 
-  world — the 3D studies, rendered by `world_studies` rather than by
-  ComposeGallery. Each study is stepped from zero to its declared moment
+  world — the 3D studies: the sketches that light a set rather than draw
+  onto a canvas. Each is stepped from zero to its declared moment
   and drawn through SigilGeometry's CPU mesh executor, so a plate is a
   function of the declaration alone and the tier is judged on byte
-  identity exactly as the full tier is. It is a separate REGISTRY, not a
-  separate question: the same sweep, the same hashes, the same verdict
-  table, against its own baseline
+  identity exactly as the full tier is. It is a separate HALF OF THE
+  REGISTRY, not a separate question: the same sweep, the same hashes,
+  the same verdict table, against its own baseline
   (build/plate_baseline_world_<config>.sha256). It needs no device — a
   machine with no GPU runs it green.
 
@@ -82,9 +86,9 @@ FOUR VERIFICATION TIERS (--tier):
   set from what the two tiers actually do rather than from a wish. A
   study with no entry there is judged by DEFAULT_GPU_TOLERANCE.
 
-  It SKIPS cleanly with no device: `world_studies --gpu` reports that it
-  found none and the tier says so and exits 0, because a machine with no
-  Vulkan runtime has nothing to disagree about.
+  It SKIPS cleanly with no device: `--gpu` reports that it found none,
+  the tier says so and exits 0, because a machine with no Vulkan runtime
+  has nothing to disagree about.
 
   A rejected quick-tier design, and why: stepping every pre-capture
   frame without painting and painting only the capture frame. Several
@@ -123,9 +127,9 @@ contention; timing wants SERIAL single-scene renders on the Graphite/Metal
 backend (--gpu) with the full benchmark phases, because parallel renders
 contend for the machine and corrupt every number — the same load
 sensitivity that makes hashing want the opposite. The gate runs
-`ComposeGallery
---headless --scene <s> --gpu` one scene at a time and reads the
-steady-state sample through --timing-json.
+`Sketchbook --headless --sketch <s> --gpu` one sketch at a time and reads
+the steady-state sample through --timing-json. It works over either
+runtime: both write the same timing line.
 
 IT JUDGES TWO NUMBERS, and a scene fails on either: the END-TO-END frame
 time (CPU + drained GPU via submit(SyncToCpu) inside the timed window)
@@ -154,48 +158,41 @@ FLAPPERS = {"genesis_fire", "hitman_verlet", "slitscan_2001"}
 
 # WHAT EACH TIER RENDERS WITH. A tier names its own binary, the flags that
 # define its capture, how it lists its registry, how it selects one entry
-# and what its plates are called. The 2D tiers drive ComposeGallery; the
-# world tier drives world_studies over the 3D study registry. They ask one
-# question — did any byte move that I did not mean to move — of different
-# registries, which is why they share this sweep instead of forking a
+# and which runtime's sketches it walks. They ask one question — did any
+# byte move that I did not mean to move — of different halves of one
+# registry, which is why they share this sweep instead of forking a
 # second script.
 TIERS = {
     "full": {
-        "binary": "ComposeGallery.app/Contents/MacOS/ComposeGallery",
         "base_args": ("--no-promotion", "--ledger"),
-        "list_flag": "--list-scenes",
-        "select_flag": "--scene",
-        "plate_prefix": "gallery_",
+        "kind": "canvas",
         "honor_overrides": True,
     },
     "quick": {
-        "binary": "ComposeGallery.app/Contents/MacOS/ComposeGallery",
         "base_args": ("--no-promotion", "--ledger"),
-        "list_flag": "--list-scenes",
-        "select_flag": "--scene",
-        "plate_prefix": "gallery_",
+        "kind": "canvas",
         # The capture cap removes exactly the cost the per-scene overrides
         # budget for, so a quick render still running at the default
         # ceiling is a defect rather than an expensive scene.
         "honor_overrides": False,
     },
     "world": {
-        "binary": "world_studies",
         "base_args": (),
-        "list_flag": "--list-studies",
-        "select_flag": "--study",
-        "plate_prefix": "study_",
+        "kind": "set",
         "honor_overrides": False,
     },
     "world-gpu": {
-        "binary": "world_studies",
         "base_args": ("--gpu",),
-        "list_flag": "--list-studies",
-        "select_flag": "--study",
-        "plate_prefix": "study_",
+        "kind": "set",
         "honor_overrides": False,
     },
 }
+
+# One binary renders every tier, and one prefix names every plate: what
+# separates the tiers is which runtime a sketch draws through and what
+# capture the flags ask for, not which program was run.
+BINARY = "Sketchbook.app/Contents/MacOS/Sketchbook"
+PLATE_PREFIX = "plate_"
 
 # HOW FAR A STUDY'S DEVICE PLATE MAY STAND FROM ITS CPU PLATE: (mean,
 # p99) per colour channel in 0..255. Set from what the two tiers actually
@@ -265,7 +262,7 @@ def render_scene(profile, binary, scene, outdir, timeout, extra_args=()):
                 outdir,
                 *profile["base_args"],
                 *extra_args,
-                profile["select_flag"],
+                "--sketch",
                 scene,
             ],
             capture_output=True,
@@ -286,7 +283,7 @@ def render_scene(profile, binary, scene, outdir, timeout, extra_args=()):
                 f"slow)"
             ),
         )
-    plate = os.path.join(outdir, f"{profile['plate_prefix']}{scene}.png")
+    plate = os.path.join(outdir, f"{PLATE_PREFIX}{scene}.png")
     if r.returncode != 0 or not os.path.exists(plate):
         return scene, None, (r.stderr or r.stdout).strip()[-300:]
     return scene, sha256(plate), None
@@ -412,8 +409,8 @@ def gpu_sweep(profile, binary, scenes, timeout, jobs):
     verdict = 0
     print()
     for scene in scenes:
-        reference = os.path.join(host_dir, f"{profile['plate_prefix']}{scene}.png")
-        candidate = os.path.join(device_dir, f"{profile['plate_prefix']}{scene}.png")
+        reference = os.path.join(host_dir, f"{PLATE_PREFIX}{scene}.png")
+        candidate = os.path.join(device_dir, f"{PLATE_PREFIX}{scene}.png")
         if not (os.path.exists(reference) and os.path.exists(candidate)):
             verdict = 1
             continue
@@ -497,7 +494,7 @@ def fps_gate(binary, scenes, budget_ms, floor_fps, timeout):
                     "--headless",
                     outdir,
                     "--gpu",
-                    "--scene",
+                    "--sketch",
                     scene,
                     "--timing-json",
                     tj,
@@ -632,7 +629,7 @@ def main():
 
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     profile = TIERS[args.tier]
-    binary = os.path.join(root, "build/bin", args.config, profile["binary"])
+    binary = os.path.join(root, "build/bin", args.config, BINARY)
     # Each tier compares against its own baseline: quick plates are rendered
     # on a different backend at a different scene time, so their hashes can
     # never match the full manifest and must never be written into it.
@@ -650,10 +647,13 @@ def main():
     quick = args.tier == "quick"
     tier_args = ("--gpu", "--capture-at", f"{args.capture_cap:g}") if quick else ()
 
+    # The registry filtered to the runtime this tier renders: the 2D tiers
+    # ask for the sketches drawn onto a canvas, the world tiers for the ones
+    # that light a set. One registry, two questions.
     scenes = args.scenes or [
         s
         for s in subprocess.run(
-            [binary, "--headless", "/tmp", profile["list_flag"]],
+            [binary, "--list", "--kind", profile["kind"]],
             capture_output=True,
             text=True,
             check=True,
@@ -661,11 +661,6 @@ def main():
         if s.strip()
     ]
 
-    if args.fps_gate and args.tier.startswith("world"):
-        sys.exit(
-            "--fps-gate is a ComposeGallery lane: it reads a --timing-json "
-            "line the study harness does not write"
-        )
     if args.tier == "world-gpu":
         if args.rebase:
             sys.exit(

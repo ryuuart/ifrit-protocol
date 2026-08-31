@@ -7,10 +7,12 @@
 # ComposeRuntime.h are unreachable from kit code. BoundaryProbe.cpp is the
 # negative control for exactly that (expected to fail; see the file).
 #
-# Four kit headers live with other tiers instead, because their values are
-# spelled in those tiers' types: `kit/Strokes.h` (the stroke grammar) and
-# `kit/Plate.h` (the bordered feed plate) with Brush, `kit/Legibility.h`
-# with Typography and `kit/Placers.h` with Instances. Include them directly.
+# Six kit headers live with other tiers instead, because their values are
+# spelled in those tiers' types: `kit/Strokes.h` (the stroke grammar),
+# `kit/Plate.h` (the bordered feed plate), `kit/Ornament.h` and
+# `kit/Flourish.h` (the pieces a manuscript border is made of) with Brush,
+# `kit/Legibility.h` with Typography and `kit/Placers.h` with Instances.
+# Include them directly.
 add_library(SigilComposeKit STATIC
   Kit.cpp
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/kit/Divisions.h

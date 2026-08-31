@@ -1,0 +1,122 @@
+#pragma once
+
+/** @file
+ * The 3D sketch surface: a lit set, described as a function of the scene
+ * time. Include this and SIGIL_SKETCH registers a sketch that draws a
+ * world Frame.
+ */
+
+#include <sigilsketch/core/Assets.h>
+#include <sigilsketch/core/CanvasSpec.h>
+#include <sigilsketch/core/Registry.h>
+#include <sigilsketch/core/Session.h>
+#include <sigilworld/element/Element.h>
+#include <sigilworld/frame/Frame.h>
+#include <sigilworld/frame/Runtime.h>
+
+#include <concepts>
+#include <memory>
+
+namespace sigil::weave {
+class FontContext;
+}
+
+namespace sigil::sketch {
+
+/** WHAT A SET IS HANDED when it declares itself: the plate it will be
+ *  photographed onto, the viewpoint it is seen from, and what it may
+ *  reach for. Handed once, at setup — a set's every frame is a function
+ *  of the scene time and of nothing else. */
+struct SetContext {
+  Assets& assets;
+  weave::FontContext& fonts;
+  CanvasSpec* spec = nullptr;    ///< host-owned; written via the calls below
+  world::Camera* eye = nullptr;  ///< host-owned; the fallback viewpoint
+
+  /** Declare the plate's size in pixels. */
+  void canvas(int width, int height) {
+    if (spec) spec->size = {(float)width, (float)height};
+  }
+  /** The colour behind the set — and, on a device, what the frame's own
+   *  clear is written with. */
+  void background(SkColor4f color) {
+    if (spec) spec->background = color;
+  }
+  /** The scene time a still of this set is taken at. */
+  void captureAt(double seconds) {
+    if (spec) spec->captureSeconds = seconds;
+  }
+  /** The viewpoint, unless the tree declares one of its own — a set that
+   *  puts a camera on a rail says so in its description and leaves this
+   *  alone. */
+  void camera(const world::Camera& lens) {
+    if (eye) *eye = lens;
+  }
+};
+
+/** A SKETCH THAT DRESSES A SET: a world Frame, lit and photographed.
+ *
+ *  `describe` is a PURE FUNCTION of the scene time and nothing else,
+ *  which is what makes a plate reproducible: a host steps from zero at a
+ *  fixed rate and photographs the declared moment, so the image depends
+ *  on the declaration and never on how fast the machine ran. Keep no
+ *  state that a second run would start differently.
+ *
+ *  A set about the scene returns an Element and a Frame is made of it; a
+ *  set about the passes returns the Frame itself. The host writes the
+ *  plate's size and the viewpoint into whichever it was handed, so a set
+ *  states its subject and nothing about where it lands. */
+class Set {
+ public:
+  virtual ~Set() = default;
+  /** Declare the plate and the viewpoint. Called once per (re)load. */
+  virtual void setup(SetContext& ctx) { (void)ctx; }
+  /** THE FRAME at scene time @p seconds. */
+  virtual world::Frame describe(float seconds) = 0;
+};
+
+/** THE 3D KIND: a world Frame, reconciled onto a retained Scene and
+ *  drawn through whichever runtime the process brought up. */
+class SetKind final : public KindOps {
+ public:
+  using Factory = Set* (*)();
+  explicit SetKind(Factory factory) : m_factory(factory) {}
+  /** What identifies a kind is the body it opens; see the 2D kind. */
+  bool operator==(const SetKind& other) const {
+    return m_factory == other.m_factory;
+  }
+
+  [[nodiscard]] std::string_view runtime() const override { return "set"; }
+
+  [[nodiscard]] std::unique_ptr<Session> open(weave::FontContext& fonts,
+                                              Assets& assets) const override;
+
+ private:
+  Factory m_factory;
+};
+
+/** The factory SIGIL_SKETCH takes the ADDRESS of; see the 2D one for why
+ *  it is a named template rather than a lambda. */
+template <class SetType>
+[[nodiscard]] Set* makeSet() {
+  return new SetType();
+}
+
+/** The kind a 3D sketch draws through. */
+template <class SetType>
+  requires std::derived_from<SetType, Set>
+[[nodiscard]] Kind kindOf() {
+  return SetKind{&makeSet<SetType>};
+}
+
+/** THE RUNTIME EVERY SET SESSION DRAWS THROUGH, for this process.
+ *
+ *  An empty runtime is the CPU mesh executor: it needs no device, it is
+ *  what a machine with no Vulkan runtime renders on, and it is what a
+ *  byte-identity plate is hashed from. A host that brought a device up
+ *  says so ONCE — one device, one queue, every session — because a
+ *  device is a property of the process and not of a sketch. */
+void useRuntime(const world::Runtime& runtime);
+[[nodiscard]] const world::Runtime& runtime();
+
+}  // namespace sigil::sketch

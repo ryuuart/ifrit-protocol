@@ -17,6 +17,8 @@ do not reconstruct a library's rules from another library's document.
   authoring scenes in Python, building and running
 - `src/sigilweave/README.md` — text shaping and layout
 - `src/common/compose/README.md` — data-driven drawable components
+- `src/sketch/README.md` — SigilSketch: every renderable thing as one
+  sketch file, with Sketchbook, the live host and the plates
 - `src/common/geometry/README.md` — higher-level drawing over Skia
 - `src/common/world/README.md` — 3D surfaces on Diligent Engine
 - `src/common/substance/README.md` — Substance `.sbsar` materials rendered
@@ -96,7 +98,7 @@ HEAD when a port changes (the workflow is in its README). A library that
 is not in upstream vcpkg gets a port there rather than being vendored.
 
 Use a Release build for any performance work. Several benchmarks and
-gallery scenes are deliberately stressful and Debug timings say nothing.
+sketches are deliberately stressful and Debug timings say nothing.
 `cmake --build build --config Release --target benches` builds every
 benchmark binary and `scripts/bench_ledger.py` (or `mise run bench`) runs
 them on a quiet machine, comparing each benchmark's median against
@@ -170,35 +172,46 @@ entities are therefore not warned about by default —
 
 ### Visual work
 
-`ComposeGallery` is a macOS app bundle, so headless runs go through the
-binary inside it:
+Everything renderable in this repository is a **sketch**: one file under
+`src/sketch/sketches/`, addressed by its own stem, in one registry.
+`src/sketch/README.md` is the canon. One application drives all of it —
+**Sketchbook** — and it is a macOS app bundle, so headless runs go
+through the binary inside it:
 
 ```sh
-build/bin/<config>/ComposeGallery.app/Contents/MacOS/ComposeGallery \
-  --headless <outdir> [--gpu] [--scene <name>]
+build/bin/<config>/Sketchbook.app/Contents/MacOS/Sketchbook \
+  --headless <outdir> [--gpu] [--sketch <name>] [--kind canvas|set]
 ```
 
-`--scene` takes a case-insensitive substring and renders just that one,
-which is the loop for visual iteration. `--shot <png>` captures the app
-itself rather than a scene. `ComposeSketch` is the live-coding host; a
-study under `compose/sketch/sketches/` is one file that is both a
-hot-reload sketch and a gallery scene, and answers to its file stem.
+`--sketch` takes a case-insensitive substring and renders just that one,
+which is the loop for visual iteration. `--list` prints the registry;
+`--kind` narrows it to the sketches drawn onto a canvas or the ones that
+light a set. `--shot <png>` captures the app itself rather than a sketch.
+Pointed at a file with no `--headless`, Sketchbook opens on it and
+hot-swaps the recompiled sketch on every save; `--frame out.png` renders
+one headlessly and `--bench` measures it against the 60 FPS gate.
 
-Byte-identity sweeps run through `scripts/plate_ledger.py` in two tiers,
-each with its own baseline. `--tier quick` is the iteration loop —
-GPU renders at a uniform early capture, seconds for the whole registry.
-The default full tier steps every scene to its declared moment on the
-CPU and is the final confirmation gate before trusting a change; one
-legitimately expensive scene (`chaucer_astrolabe`) has its own timeout
-ceiling in the script's override table there. `--rebase` adopts a new
-baseline for the active tier (merging when given `--scenes`), and
-`--stability N` separates scene flap from code changes.
+Byte-identity sweeps run through `scripts/plate_ledger.py` in four tiers,
+each with its own baseline and all through that one binary. `--tier
+quick` is the iteration loop — GPU renders at a uniform early capture,
+seconds for the whole registry. The default full tier steps every canvas
+sketch to its declared moment on the CPU and is the final confirmation
+gate before trusting a change; one legitimately expensive sketch
+(`chaucer_astrolabe`) has its own timeout ceiling in the script's
+override table there. `--tier world` does the same for the sketches that
+light a set, and `--tier world-gpu` renders those on the device and
+compares them against the CPU tier's plates within a stated per-sketch
+tolerance rather than by hash. `--rebase` adopts a new baseline for the
+active tier (merging when given `--scenes`), and `--stability N`
+separates sketch flap from code changes. `--fps-gate` is a separate
+serial lane over either kind.
 
 ## Layout
 
 ```
 apps/spell-circle-canvas/src/
   common/          the libraries — see the README in each
+  sketch/          SigilSketch: the sketches, and Sketchbook over them
   sigilweave/      the text engine, with its examples and benchmarks
   spellcircle/     the product: shared/ core embedded by qt/ and mac/
 apps/python/       scene authoring and UDP transport

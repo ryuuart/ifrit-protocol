@@ -3,7 +3,7 @@
 # of truth for how sketches build is the target graph itself, not a
 # hand-maintained flag list.
 #
-# Inputs: -DCOMPDB=<compile_commands.json> -DANCHOR=<SketchAnchor.cpp>
+# Inputs: -DCOMPDB=<compile_commands.json> -DANCHOR=<Anchor.cpp>
 #         -DCONFIG=<config> -DOUT=<sketch_flags.rsp>
 #         -DEXTRA=<extra link inputs, ;-separated>  (e.g. skia archive)
 
@@ -15,7 +15,7 @@ if(NOT EXISTS "${COMPDB}")
   message(FATAL_ERROR
     "${COMPDB} not found — CMAKE_EXPORT_COMPILE_COMMANDS is only "
     "supported by the Ninja and Makefiles generators; configure with "
-    "one of those to build ComposeSketch (see scripts/setup.py)")
+    "one of those to build the sketch host (see scripts/setup.py)")
 endif()
 
 file(READ "${COMPDB}" _json)

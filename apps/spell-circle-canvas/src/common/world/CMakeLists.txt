@@ -53,19 +53,10 @@ endif()
 # SigilMaterial's kit, and nothing here draws or retains.
 add_subdirectory(kit)
 
-# The study harness: a scene stepped to a declared moment and
-# photographed, and the studies that ride it. After the device feature,
-# because the studies BINARY links it for its --gpu lane while the
-# harness library links no device at all.
-add_subdirectory(testing)
-
 # The umbrella, for a consumer that takes the library rather than a
-# feature of it. The study harness is deliberately outside it: a caller
-# asking for the library is not asking for the harness its studies are
-# photographed under, and the harness links a rasteriser to do it. The
-# device feature joins when it was built, so the umbrella means the same
-# thing on a machine with no Vulkan runtime — the features that need no
-# device.
+# feature of it. The device feature joins when it was built, so the
+# umbrella means the same thing on a machine with no Vulkan runtime — the
+# features that need no device.
 add_library(SigilWorld INTERFACE)
 target_link_libraries(SigilWorld INTERFACE
   SigilWorldElement

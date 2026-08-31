@@ -106,11 +106,10 @@ composer.draw(canvas);
 const bool again = moving || composer.dirty() || ticker.active();
 ```
 
-The sketch host's kit bundles exactly those three lines as a `Stage`
-(`<sigilsketch/Stage.h>`): construct it with a size and a font context,
-`render()` on data change, `frame(canvas)` per paint. It is a convenience
-of that host and not of this library — spell the objects out when the
-clock or the ticker is shared with something else.
+SigilSketch bundles exactly those three lines behind its own session, so
+a sketch declares a scene and never a loop. That is a convenience of a
+host and not of this library — spell the objects out when the clock or
+the ticker is shared with something else.
 
 The other write path is a live binding — a `choreograph::Output` the host
 mutates every frame, read straight out of paint with no `render()` call:
@@ -1093,9 +1092,9 @@ drawn, in `namespace test` (GoogleTest owns `::testing`): `test::coverage`, `tes
 `test::failures`. The checks themselves — `test::check` and
 `test::failures` — are SigilMeasure's, brought into `test`; only the
 geometry readers and the feed `test::report` are this library's. Test
-binaries link it, and so does the sketch host's
-kit for a sketch's `--verify` pass; nothing that ships does, which is what
-keeps a point-sampled coverage scan out of a paint loop.
+binaries link it, and so does the sketch library, so a sketch can report
+its own checks; nothing that ships does, which is what keeps a
+point-sampled coverage scan out of a paint loop.
 
 **Kit — `kit/Kit.h`.** A tier above the library that adds no kernel state
 and no new equality: `kit::Frame` and `kit::Grid` (figure-local polar and
@@ -1344,9 +1343,8 @@ painted into a surface and handed out as a texture value),
 `SigilComposeTesting` (`testing/`) and `SigilComposeKit` (`kit/`). Each directory holds the target's sources,
 its internal headers, its `test/` and its `bench/`; the public headers
 sit under `include/sigilcompose/<feature>/`. Every consumer in this
-repository — the gallery, the sketch kit, the benches, the demos, the
-tests and `geometry_demo` — links the feature
-targets it draws with by name, so a dependency on a tier is a stated fact.
+repository — SigilSketch, the benches, the demos, the tests and
+`geometry_demo` — links the feature targets it draws with by name, so a dependency on a tier is a stated fact.
 `SigilCompose` remains as the whole-library name for a consumer outside
 this tree, the way `SigilWeave`, `SigilMotion` and `SigilGeometry` each
 keep one: it is Paint (which reaches Brush, Shape and Core) plus
@@ -1374,8 +1372,7 @@ the atlas, the stamp, the pick and the placers), `compose_kit_test` and
 instruments over it), `compose_spike_test` (the Yoga+SigilWeave
 measurement contract, with `core/`), and the library's own:
 `compose_docs_test` (the engine walkthroughs and the generated README
-probes), `compose_api_doc_probes_self_test`, `compose_gallery_test`,
-`compose_sketch_smoke`, `compose_sketch_stock`, `compose_sketch_shape`,
+probes) and `compose_api_doc_probes_self_test`,
 plus `compose_gpu_test` (Apple only, needs the Graphite plumbing) and
 `compose_web_test` (needs the Ultralight SDK). Each binary's translation
 units share `test/support/Host.h` — the composer-in-a-raster-surface
@@ -1389,30 +1386,13 @@ by the `benches` target and run by `scripts/bench_ledger.py`; anything
 resembling a performance claim belongs to them and to the plate ledger,
 never to prose.
 
-**The gallery** is a macOS app bundle, so headless runs go through the
-binary inside it:
-
-```sh
-build/bin/<config>/ComposeGallery.app/Contents/MacOS/ComposeGallery \
-    --headless <outdir> [--gpu] [--scene <name|index>]
-```
-
-`--scene` takes a case-insensitive substring and renders just that one,
-which is the loop for visual work. `--shot <png>` captures the application
-window itself rather than a scene.
-
-**The sketch host** is `ComposeSketch`, a live-coding loop: point it at a
-single `.cpp` file, save, and the recompiled sketch hot-swaps into the
-running canvas. It renders headlessly too (`--frame out.png --at <s>`), and
-`--bench` reports frame-time phases. Study sketches are compiled into the
-gallery as an object library, so one file is both a hot-reload sketch and a
-gallery scene.
-
-**Byte-identity sweeps** run through `scripts/plate_ledger.py`, which
-renders every gallery scene in parallel, hashes the plates and compares
-against a stored baseline. `--rebase` adopts a new baseline; `--stability N`
-re-renders movers to separate a self-nondeterministic scene from a real
-change.
+**Looking at any of it** goes through SigilSketch, which is where every
+renderable thing in this repository lives: one file per scene, one
+registry, one application (Sketchbook) and one headless renderer.
+`src/sketch/README.md` is the canon for it — how a sketch is written and
+registered, how the live host reloads one, and how the plates a
+byte-identity sweep hashes are made. Nothing here hosts a catalogue of
+its own.
 
 ### The generated doc-probe translation unit
 

@@ -147,7 +147,7 @@ The two front ends themselves have no automated tests: verifying a change
 to app code means running it and sending it a scene.
 
 Use a Release build for any performance work. Several library
-benchmarks and gallery scenes are deliberately stressful and Debug
+benchmarks and sketches are deliberately stressful and Debug
 timings say nothing useful. The benchmarks are not tests: `cmake --build
 build --config Release --target benches` builds every `*_bench` binary,
 and `scripts/bench_ledger.py` runs them one at a time on a quiet machine
