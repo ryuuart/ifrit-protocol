@@ -89,10 +89,11 @@ out with a configure warning. OpenUSD comes from vcpkg's `usd` port; the project
 (`cmake/triplets/arm64-osx.cmake`, wired through `CMakePresets.json`)
 builds oneTBB as a shared library, because USD's many dylibs each linking
 a static TBB deadlock on the first stage open. Custom ports (`choreograph`, `skia`,
-`diligent-engine`) come from the sigil-vcpkg-registry via
-`vcpkg-configuration.json` — **its `repository` currently points at a
-local checkout, `/Users/long/REI/sigil-vcpkg-registry`.** Update the URL
-and baseline when that registry is pushed; the workflow is in its README.
+`diligent-engine`) come from the sigil-vcpkg-registry at
+https://github.com/ryuuart/sigil-vcpkg-registry via
+`vcpkg-configuration.json`; bump its `baseline` to the registry's new
+HEAD when a port changes (the workflow is in its README). A library that
+is not in upstream vcpkg gets a port there rather than being vendored.
 
 Use a Release build for any performance work. Several benchmarks and
 gallery scenes are deliberately stressful and Debug timings say nothing.
