@@ -63,7 +63,7 @@ scene is one call per prop.
 | a `Material` | `UsdPreviewSurface` under `/World/Materials`, the surface recipe's params read by name and its map slots as `UsdUVTexture` nodes reading `st`, wrap by each texture's own tiling, sRGB/raw by role, normal maps remapped through the node's `scale`/`bias` (the DirectX param flips green); the channel params select the output of a packed map; `alphaCutoff` → `opacityThreshold`; `ior` |
 | what UsdPreviewSurface has no word for | custom data on the prim: `sigil:transmission`, `sigil:layers` (the stack depth), `sigil:unlit`, `sigil:baseColorFactor` |
 | stamps | `UsdGeomPointInstancer` with the stamp as its one prototype: positions, `size` → scales, `dir`/`normal` → orientations (the stamp's +z along it), `tint` → `displayColor`/`displayOpacity` |
-| a point light or a spot / a sun | `UsdLuxSphereLight` (translated, `sigil:range`, and a spot's `sigil:direction` / `sigil:coneInner` / `sigil:coneOuter`) / `UsdLuxDistantLight` (oriented, -Z along the direction) |
+| a point light or a spot / a sun | `UsdLuxSphereLight` (translated, `sigil:range`; a spot oriented -Z along its direction, cone as `shaping:cone:angle` with the inner edge as `shaping:cone:softness`) / `UsdLuxDistantLight` (oriented, -Z along the direction) |
 | the camera | `UsdGeomCamera`, camera-to-world from the view's inverse, a 24 mm vertical aperture and the focal length that gives the vertical fov |
 
 **A stacked material exports the material at the bottom.** Stacking is a

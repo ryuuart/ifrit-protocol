@@ -160,6 +160,9 @@ TEST(UsdWrite, AuthorsStampsLightsAndCameraAsAscii) {
               "/World/sparks");
     EXPECT_EQ(writer.light("lamp", world::light::point({0, 100, 0})),
               "/World/lamp");
+    EXPECT_EQ(writer.light("beam", world::light::spot({0, 80, 0}, {0, -1, 0},
+                                                      40.0f, 28.0f)),
+              "/World/beam");
     EXPECT_EQ(writer.light("sun", world::light::sun({-0.45f, -0.75f, -0.5f})),
               "/World/sun");
     geometry::mesh::camera::Camera camera;
@@ -177,6 +180,7 @@ TEST(UsdWrite, AuthorsStampsLightsAndCameraAsAscii) {
                      std::istreambuf_iterator<char>());
     EXPECT_NE(text.find("#usda"), std::string::npos) << "ascii";
     EXPECT_NE(text.find("SphereLight"), std::string::npos);
+    EXPECT_NE(text.find("shaping:cone:angle"), std::string::npos);
     EXPECT_NE(text.find("DistantLight"), std::string::npos);
     EXPECT_NE(text.find("Camera"), std::string::npos);
     EXPECT_NE(text.find("UsdPreviewSurface"), std::string::npos);

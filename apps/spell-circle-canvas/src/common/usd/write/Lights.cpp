@@ -1,7 +1,8 @@
 /** @file
- * Emitters: a point light or a spot as UsdLuxSphereLight (translated,
- * its range and any cone as custom data) and a sun as UsdLuxDistantLight,
- * oriented so its -Z runs along the direction.
+ * Emitters: a point light or a spot as UsdLuxSphereLight (translated;
+ * range as custom data; a spot oriented -Z along its direction with the
+ * cone as UsdLux shaping — outer angle and inner-edge softness) and a
+ * sun as UsdLuxDistantLight, oriented so its -Z runs along the direction.
  */
 
 #include <pxr/base/gf/quatf.h>
@@ -10,6 +11,7 @@
 #include <pxr/base/tf/token.h>
 #include <pxr/base/vt/value.h>
 #include <pxr/usd/usdLux/distantLight.h>
+#include <pxr/usd/usdLux/shapingAPI.h>
 #include <pxr/usd/usdLux/sphereLight.h>
 
 #include <glm/geometric.hpp>
@@ -38,15 +40,21 @@ std::string Writer::light(std::string_view name,
     sphere.GetPrim().SetCustomDataByKey(TfToken("sigil:range"),
                                         VtValue(light.range));
     if (light.kind == world::light::Kind::Spot) {
-      // A cone on a sphere light has no UsdLux shape here, so the
-      // direction and the two angles ride beside it.
+      // The cone is UsdLux shaping: it opens around the light's -Z, so
+      // the prim is oriented to aim -Z along the direction, the outer
+      // angle is the shaping cone angle, and the inner edge is the
+      // softness — the fraction of the cone over which the light falls
+      // off — so any UsdLux reader shades the same spot.
       const glm::vec3 d = glm::normalize(light.direction);
-      sphere.GetPrim().SetCustomDataByKey(TfToken("sigil:direction"),
-                                          VtValue(GfVec3f(d.x, d.y, d.z)));
-      sphere.GetPrim().SetCustomDataByKey(TfToken("sigil:coneInner"),
-                                          VtValue(light.innerDeg));
-      sphere.GetPrim().SetCustomDataByKey(TfToken("sigil:coneOuter"),
-                                          VtValue(light.outerDeg));
+      const GfRotation rot(GfVec3d(0, 0, -1), GfVec3d(d.x, d.y, d.z));
+      sphere.AddOrientOp().Set(GfQuatf(rot.GetQuat()));
+      UsdLuxShapingAPI shaping = UsdLuxShapingAPI::Apply(sphere.GetPrim());
+      shaping.CreateShapingConeAngleAttr().Set(light.outerDeg);
+      const float softness =
+          light.outerDeg > 0
+              ? std::max(0.0f, 1.0f - light.innerDeg / light.outerDeg)
+              : 0.0f;
+      shaping.CreateShapingConeSoftnessAttr().Set(softness);
     }
     return path;
   }

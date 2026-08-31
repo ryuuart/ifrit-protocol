@@ -2,7 +2,7 @@
  "config": "Release",
  "host": "MacBookPro.lan",
  "machine": "arm64",
- "taken": "2026-08-31T01:07:39+00:00",
+ "taken": "2026-08-31T01:30:08+00:00",
  "benches": {
   "compose_brush_bench": {
    "BM_Draw_ArtWarp_Live": {
@@ -881,65 +881,65 @@
    }
   },
   "compose_shape_bench": {
-   "BM_Draw_BlendField_Blobs/100": {
-    "cpu_ns": 531994.3609022518,
-    "real_ns": 532603.3832463331,
-    "repetitions": 4,
-    "unit": "us"
-   },
-   "BM_Draw_BlendField_Blobs/400": {
-    "cpu_ns": 1094665.3543307106,
-    "real_ns": 1096477.200401815,
-    "repetitions": 4,
-    "unit": "us"
-   },
-   "BM_HitTest_ShapedTree/200": {
-    "cpu_ns": 17831.111957349654,
-    "real_ns": 17841.314377017767,
-    "repetitions": 4,
-    "unit": "ns"
-   },
-   "BM_HitTest_ShapedTree/50": {
-    "cpu_ns": 4418.389674636903,
-    "real_ns": 4426.910890274687,
-    "repetitions": 4,
-    "unit": "ns"
-   },
    "BM_Reconcile_Shapes_Comparable/100": {
-    "cpu_ns": 32203.036483118067,
-    "real_ns": 32313.751154291152,
-    "repetitions": 4,
-    "unit": "us"
-   },
-   "BM_Reconcile_Shapes_Comparable/2000": {
-    "cpu_ns": 1038291.3385826759,
-    "real_ns": 1040171.5898490327,
-    "repetitions": 4,
-    "unit": "us"
+    "real_ns": 31995.47117806881,
+    "cpu_ns": 31976.58434296367,
+    "unit": "us",
+    "repetitions": 4
    },
    "BM_Reconcile_Shapes_Comparable/500": {
-    "cpu_ns": 184343.99999999968,
-    "real_ns": 184792.61143753928,
-    "repetitions": 4,
-    "unit": "us"
+    "real_ns": 169121.0005581741,
+    "cpu_ns": 169109.96354799537,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Reconcile_Shapes_Comparable/2000": {
+    "real_ns": 739769.7469665824,
+    "cpu_ns": 739497.3958333347,
+    "unit": "us",
+    "repetitions": 4
    },
    "BM_Reconcile_Shapes_RawCallable/100": {
-    "cpu_ns": 42970.247177296216,
-    "real_ns": 43030.52833574936,
-    "repetitions": 4,
-    "unit": "us"
-   },
-   "BM_Reconcile_Shapes_RawCallable/2000": {
-    "cpu_ns": 1320447.115384623,
-    "real_ns": 1325596.7575017936,
-    "repetitions": 4,
-    "unit": "us"
+    "real_ns": 47789.350136230554,
+    "cpu_ns": 47783.72881355918,
+    "unit": "us",
+    "repetitions": 4
    },
    "BM_Reconcile_Shapes_RawCallable/500": {
-    "cpu_ns": 244090.03496503382,
-    "real_ns": 245575.02906105213,
-    "repetitions": 4,
-    "unit": "us"
+    "real_ns": 250606.62886413632,
+    "cpu_ns": 250172.839506172,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Reconcile_Shapes_RawCallable/2000": {
+    "real_ns": 1071839.7900837567,
+    "cpu_ns": 1070546.5116279048,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_HitTest_ShapedTree/50": {
+    "real_ns": 4382.641950415344,
+    "cpu_ns": 4377.92579681275,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_HitTest_ShapedTree/200": {
+    "real_ns": 17684.100759081502,
+    "cpu_ns": 17678.76462448099,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_Draw_BlendField_Blobs/100": {
+    "real_ns": 509237.99795598007,
+    "cpu_ns": 509197.46376811556,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Draw_BlendField_Blobs/400": {
+    "real_ns": 1052342.8642299287,
+    "cpu_ns": 1051658.914728684,
+    "unit": "us",
+    "repetitions": 4
    }
   },
   "compose_text_bench": {
@@ -2510,94 +2510,94 @@
   },
   "motion_bind_bench": {
    "BM_Apply_Envelope/0": {
-    "cpu_ns": 3596.499539076104,
-    "real_ns": 3598.917263361484,
-    "repetitions": 4,
-    "unit": "us"
+    "real_ns": 3519.0282377586063,
+    "cpu_ns": 3518.632994094736,
+    "unit": "us",
+    "repetitions": 4
    },
    "BM_Apply_Envelope/1": {
-    "cpu_ns": 3612.4476717142957,
-    "real_ns": 3613.8355544919846,
-    "repetitions": 4,
-    "unit": "us"
+    "real_ns": 3523.863578997916,
+    "cpu_ns": 3521.197694813329,
+    "unit": "us",
+    "repetitions": 4
    },
    "BM_Apply_Envelope/2": {
-    "cpu_ns": 5387.234042553197,
-    "real_ns": 5389.547003342064,
-    "repetitions": 4,
-    "unit": "us"
+    "real_ns": 5131.389499199997,
+    "cpu_ns": 5129.392446633834,
+    "unit": "us",
+    "repetitions": 4
    },
    "BM_Apply_Envelope/3": {
-    "cpu_ns": 3661.7727879406348,
-    "real_ns": 3663.3315665466976,
-    "repetitions": 4,
-    "unit": "us"
+    "real_ns": 3545.802408432067,
+    "cpu_ns": 3544.1146881287723,
+    "unit": "us",
+    "repetitions": 4
    },
    "BM_Apply_Envelope/4": {
-    "cpu_ns": 3572.2313275579436,
-    "real_ns": 3573.3911782904743,
-    "repetitions": 4,
-    "unit": "us"
+    "real_ns": 3835.7251322463535,
+    "cpu_ns": 3834.8037851377667,
+    "unit": "us",
+    "repetitions": 4
    },
    "BM_Apply_Envelope/5": {
-    "cpu_ns": 4546.750955601272,
-    "real_ns": 4547.607193086751,
-    "repetitions": 4,
-    "unit": "us"
+    "real_ns": 4486.905097137,
+    "cpu_ns": 4485.040478704685,
+    "unit": "us",
+    "repetitions": 4
    },
    "BM_Apply_FullChain": {
-    "cpu_ns": 8264.114211550941,
-    "real_ns": 8266.190050231251,
-    "repetitions": 4,
-    "unit": "us"
+    "real_ns": 8210.764242080775,
+    "cpu_ns": 8210.369243372954,
+    "unit": "us",
+    "repetitions": 4
    },
    "BM_Apply_Wiggle/1": {
-    "cpu_ns": 7300.242568125527,
-    "real_ns": 7301.757559061056,
-    "repetitions": 4,
-    "unit": "us"
+    "real_ns": 6960.5679430231085,
+    "cpu_ns": 6957.617838833369,
+    "unit": "us",
+    "repetitions": 4
    },
    "BM_Apply_Wiggle/2": {
-    "cpu_ns": 9692.52278376139,
-    "real_ns": 9692.939893656083,
-    "repetitions": 4,
-    "unit": "us"
+    "real_ns": 9344.702292587237,
+    "cpu_ns": 9343.327533128151,
+    "unit": "us",
+    "repetitions": 4
    },
    "BM_Apply_Wiggle/3": {
-    "cpu_ns": 12421.30321135159,
-    "real_ns": 12422.699575667855,
-    "repetitions": 4,
-    "unit": "us"
+    "real_ns": 11889.701954006774,
+    "cpu_ns": 11882.710797243275,
+    "unit": "us",
+    "repetitions": 4
    },
    "BM_Apply_Wiggle/4": {
-    "cpu_ns": 14251.133086114542,
-    "real_ns": 14254.231920920934,
-    "repetitions": 4,
-    "unit": "us"
+    "real_ns": 14042.702638537183,
+    "cpu_ns": 14039.7110114598,
+    "unit": "us",
+    "repetitions": 4
    },
    "BM_Apply_Wiggle/5": {
-    "cpu_ns": 17163.07013241783,
-    "real_ns": 17163.463454381133,
-    "repetitions": 4,
-    "unit": "us"
+    "real_ns": 16615.356283381123,
+    "cpu_ns": 16610.233883414476,
+    "unit": "us",
+    "repetitions": 4
    },
    "BM_Apply_Wiggle/6": {
-    "cpu_ns": 19745.384615384584,
-    "real_ns": 19751.019854020407,
-    "repetitions": 4,
-    "unit": "us"
+    "real_ns": 19079.480774661104,
+    "cpu_ns": 19073.275275547676,
+    "unit": "us",
+    "repetitions": 4
    },
    "BM_Apply_Wiggle/7": {
-    "cpu_ns": 22101.44238389605,
-    "real_ns": 22106.128194903606,
-    "repetitions": 4,
-    "unit": "us"
+    "real_ns": 21417.71186374616,
+    "cpu_ns": 21416.20068344208,
+    "unit": "us",
+    "repetitions": 4
    },
    "BM_Apply_Wiggle/8": {
-    "cpu_ns": 24602.222614217553,
-    "real_ns": 24603.637473217117,
-    "repetitions": 4,
-    "unit": "us"
+    "real_ns": 23981.538650404727,
+    "cpu_ns": 23937.242798354062,
+    "unit": "us",
+    "repetitions": 4
    }
   },
   "motion_values_bench": {
@@ -2694,132 +2694,132 @@
   },
   "scry_engine_bench": {
    "BM_Frame_Acquire": {
-    "real_ns": 14.024491262581115,
-    "cpu_ns": 14.010235354354423,
+    "real_ns": 13.162165767449034,
+    "cpu_ns": 13.151163689307182,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Draw_RasterCanvas": {
-    "real_ns": 561260.1158962705,
-    "cpu_ns": 560500.0000000007,
+    "real_ns": 533072.8777237651,
+    "cpu_ns": 532438.6617100367,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Slot_UpdateRaster/256": {
-    "real_ns": 13701.572001232533,
-    "cpu_ns": 13440.158820192824,
+    "real_ns": 12142.862233291109,
+    "cpu_ns": 12068.430984902945,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Slot_UpdateRaster/1024": {
-    "real_ns": 156432.03271538648,
-    "cpu_ns": 156277.7777777778,
+    "real_ns": 129200.71000797546,
+    "cpu_ns": 129196.52551574344,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Slot_Paint/256": {
-    "real_ns": 59457.227028906345,
-    "cpu_ns": 6915.749999999975,
+    "real_ns": 52238.96044772118,
+    "cpu_ns": 5913.999999999931,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Slot_Paint/1024": {
-    "real_ns": 192766.064661555,
-    "cpu_ns": 6831.699999999997,
+    "real_ns": 182900.57494305074,
+    "cpu_ns": 6232.700000000024,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Page_ChangeLatency/manual_time": {
-    "real_ns": 20348476.14285714,
-    "cpu_ns": 584642.857142865,
+    "real_ns": 22494932.375,
+    "cpu_ns": 676125.0000000829,
     "unit": "ms",
     "repetitions": 4
    }
   },
   "scry_gpu_bench": {
    "BM_Upload/256": {
-    "real_ns": 10010.05590481295,
-    "cpu_ns": 9990.379133409335,
+    "real_ns": 9511.503766540867,
+    "cpu_ns": 9508.442395063397,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Upload/1024": {
-    "real_ns": 181426.32355496363,
-    "cpu_ns": 180211.58854166663,
+    "real_ns": 165157.66152322953,
+    "cpu_ns": 164979.67980295583,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Copy/256": {
-    "real_ns": 20579.654510614637,
-    "cpu_ns": 6937.684156112696,
+    "real_ns": 21123.977496723295,
+    "cpu_ns": 5939.394575531115,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Copy/1024": {
-    "real_ns": 29408.263219495875,
-    "cpu_ns": 9423.746701846987,
+    "real_ns": 29980.987900217187,
+    "cpu_ns": 8386.4102873702,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Paint/256": {
-    "real_ns": 37161.88783860298,
-    "cpu_ns": 14138.410291752789,
+    "real_ns": 38721.396107151035,
+    "cpu_ns": 12816.674913409173,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Paint/1024": {
-    "real_ns": 38543.913719600714,
-    "cpu_ns": 14880.572346052131,
+    "real_ns": 39994.57798583928,
+    "cpu_ns": 13547.623592288592,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Wrap": {
-    "real_ns": 246.01369121387097,
-    "cpu_ns": 245.26706263421397,
+    "real_ns": 240.33889308322722,
+    "cpu_ns": 239.17308582064533,
     "unit": "ns",
     "repetitions": 4
    }
   },
   "scry_platform_bench": {
    "BM_Resolve": {
-    "real_ns": 67.60165618822407,
-    "cpu_ns": 67.54099706999875,
+    "real_ns": 65.29204530494175,
+    "cpu_ns": 65.27446607871173,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_MimeType": {
-    "real_ns": 95.7607704702861,
-    "cpu_ns": 95.4037074807598,
+    "real_ns": 91.84506562429621,
+    "cpu_ns": 91.81799390960776,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_OpenFile/4": {
-    "real_ns": 15943.481693539268,
-    "cpu_ns": 15896.333182435494,
+    "real_ns": 14478.379469562191,
+    "cpu_ns": 14450.693458556274,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_OpenFile/1024": {
-    "real_ns": 199985.2336832026,
-    "cpu_ns": 199820.31250000017,
+    "real_ns": 188853.63392802258,
+    "cpu_ns": 188780.2419354831,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_ImageSlotFile": {
-    "real_ns": 204.14321494485074,
-    "cpu_ns": 203.89694414642287,
+    "real_ns": 197.64796489436537,
+    "cpu_ns": 197.55186891470655,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_SurfaceResize/256": {
-    "real_ns": 7495.13377620438,
-    "cpu_ns": 7487.992955867424,
+    "real_ns": 7240.968097766838,
+    "cpu_ns": 7238.040943249538,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_SurfaceResize/1280": {
-    "real_ns": 199376.83477445244,
-    "cpu_ns": 199377.17265353422,
+    "real_ns": 168941.56880238478,
+    "cpu_ns": 168552.94117647083,
     "unit": "ns",
     "repetitions": 4
    }
@@ -2986,38 +2986,56 @@
   },
   "sigilskia_device_bench": {
    "BM_HandleAllocateRelease": {
-    "real_ns": 5.098000917293046,
-    "cpu_ns": 5.096956665010081,
+    "real_ns": 5.068851255726649,
+    "cpu_ns": 5.068410263830256,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_HandleBatch/64": {
-    "real_ns": 158.4945677897624,
-    "cpu_ns": 158.47110864118932,
+    "real_ns": 157.66928003826598,
+    "cpu_ns": 157.63800596179905,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_HandleBatch/1024": {
-    "real_ns": 2641.866852646287,
-    "cpu_ns": 2641.4369930910225,
+    "real_ns": 2620.009379593029,
+    "cpu_ns": 2617.3478875334677,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_ImportExportRetire": {
-    "real_ns": 44.819643553537574,
-    "cpu_ns": 44.81330254386562,
+    "real_ns": 44.025351536421596,
+    "cpu_ns": 44.008749484995306,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_CreateDestroyTexture": {
-    "real_ns": 4624.185277336166,
-    "cpu_ns": 4622.583139984536,
+    "real_ns": 4448.129658092439,
+    "cpu_ns": 4446.291267218521,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_FenceRoundTrip": {
-    "real_ns": 86064.81661554426,
-    "cpu_ns": 7791.2999999999665,
+    "real_ns": 68642.05419551581,
+    "cpu_ns": 4744.600000000032,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_Vulkan_CreateDestroyTexture": {
+    "real_ns": 6252.2171937279545,
+    "cpu_ns": 6244.683212715901,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_Vulkan_ImportExportRetire": {
+    "real_ns": 44.04723466496496,
+    "cpu_ns": 44.03995167583808,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_Vulkan_FenceRoundTrip": {
+    "real_ns": 38083.417550054815,
+    "cpu_ns": 19170.958608601795,
     "unit": "ns",
     "repetitions": 4
    }

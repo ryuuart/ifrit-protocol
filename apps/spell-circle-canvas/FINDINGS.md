@@ -93,25 +93,6 @@ which is how the rest of the tree reads.
 `scripts/check.py --all --tidy-all` reports no findings in this
 repository's sources.
 
-## Two benchmarks stand outside their band with no change to attribute
-
-**What the code does.** On a quiet machine
-`scripts/bench_ledger.py` reports
-`compose_shape_bench:BM_Reconcile_Shapes_RawCallable/100` about 14 %
-above its baseline and `motion_bind_bench:BM_Apply_Envelope/4` about
-11 % above, and both reproduce across repeated scoped runs while every
-other slower row of a loaded run does not. Both measure work whose
-bodies moved from headers into one translation unit apiece — the
-reconciler's matching loop and the binding chain's evaluator — so the
-inlining a caller used to get across the header boundary is gone.
-
-**What it was evidently intended to do.** Compile each body once
-without paying for it at every call site that used to inline it.
-
-**What a test should assert once intent is restored.** Either the two
-benchmarks return inside their band, or the baseline records the cost
-with the boundary that causes it named beside it.
-
 ## `world_diligent_bench:BM_DeviceBringUp` moves more than the ledger's band
 
 **What the code does.** The benchmark creates a whole Vulkan device per
