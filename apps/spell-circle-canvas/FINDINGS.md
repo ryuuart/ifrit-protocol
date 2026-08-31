@@ -93,3 +93,15 @@ evidently provides in practice but not in a form TSan can see.
 **What a test should assert.** With a TSan suppression naming
 `pxrInternal_*::PlugRegistry` (or an upstream fix), the TSan lane runs
 `usd_write_test` and `usd_read_test` clean.
+
+## The masked-and-deformed GPU cook seeds unstably at a million points
+
+`world_bench:BM_GpuCook_MaskedAndDeformed/1000000` can record a run
+three times faster than its reproducible cost: a whole-suite rebase
+adopted 4.7 ms where solo, quiet runs read 12.5 ms consistently and
+linearly from the 100k arm, which is stable to a tenth of a percent.
+The intent is a judged arm that cannot adopt an anomalous device run.
+A test/bench change should give the arm the split-and-counter
+treatment the device bring-up bench received — the owned dispatch
+judged, the device-dependent residue reported unjudged — or pin the
+seed with repetitions enough that a single anomalous run cannot win.
