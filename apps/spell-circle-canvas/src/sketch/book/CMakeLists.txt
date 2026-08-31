@@ -6,6 +6,7 @@
 qt_add_executable(Sketchbook
   main.cpp
 )
+sigil_qt_target(Sketchbook)
 
 # A real .app: a bare Mach-O in bin/ gets no bundle identity, so macOS
 # gives it the executable's name in the menu bar and treats activation as

@@ -14,6 +14,7 @@
 qt_add_library(SpellCircleNetwork SHARED
   src/NetworkManager.cpp include/NetworkManager.h
 )
+sigil_qt_target(SpellCircleNetwork)
 
 target_link_libraries(SpellCircleNetwork
     PUBLIC
@@ -32,6 +33,14 @@ target_include_directories(SpellCircleNetwork
 # ── Models: the QML-facing application state ─────────────────────────────
 # The entt-backed SpellCircleModel decoded from the wire format, graphics
 # configuration, the QML-facing Models aggregate, and the font database.
+#
+# The library is spelled out rather than left to qt_add_qml_module() to
+# create, here and for the canvas below, because a QML module registers
+# its types out of moc's JSON output: the scan has to be on for the
+# backing target before the module is declared.
+qt_add_library(SpellCircleModels SHARED)
+sigil_qt_target(SpellCircleModels)
+
 qt_add_qml_module(SpellCircleModels
     URI SpellCircle.Models
     VERSION 1.0
@@ -83,6 +92,9 @@ elseif(WIN32)
     set(SPELLCIRCLE_PUBLISHER_SOURCES src/SpoutBridge.cpp include/SpoutBridge.h)
   endif()
 endif()
+
+qt_add_library(SpellCircleCanvas SHARED)
+sigil_qt_target(SpellCircleCanvas)
 
 qt_add_qml_module(SpellCircleCanvas
     URI SpellCircle.Canvas
@@ -141,6 +153,7 @@ target_include_directories(SpellCircleCanvas PUBLIC
 qt_add_executable(SpellCircle
     src/main.cpp
 )
+sigil_qt_target(SpellCircle)
 
 # App Nap suppression is a main.cpp concern, not a library: fold the one
 # ObjC++ TU straight into the executable on macOS.

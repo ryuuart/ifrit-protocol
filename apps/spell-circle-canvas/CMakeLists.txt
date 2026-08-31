@@ -276,6 +276,18 @@ if(APPLE)
   find_library(SYPHON_FRAMEWORK Syphon)
 endif()
 
+# Qt's source scanning is decided here rather than left to
+# qt_standard_project_setup(), which turns moc on for every target in the
+# tree unless the answer is already set. Almost nothing here is a Qt
+# target, and moc costs a scan of every source plus an autogen build step
+# on each target it is enabled on, found Q_OBJECT or not. So: off by
+# default, on per target through sigil_qt_target(). Everything else the
+# call arranges — the Qt policy level, GNUInstallDirs, IDE folders, the
+# generated-source groups — is still wanted.
+set(CMAKE_AUTOMOC OFF)
+set(CMAKE_AUTOUIC OFF)
+include(QtTarget)
+
 qt_standard_project_setup(REQUIRES 6.11)
 
 # Every benchmark binary hangs off this target, so one build command

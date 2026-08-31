@@ -97,6 +97,13 @@ https://github.com/ryuuart/sigil-vcpkg-registry via
 HEAD when a port changes (the workflow is in its README). A library that
 is not in upstream vcpkg gets a port there rather than being vendored.
 
+Qt's moc runs only where Qt is. The tree configures with `CMAKE_AUTOMOC`
+off, and each target that declares Qt types names itself with
+`sigil_qt_target()` (`cmake/QtTarget.cmake`) — right after the target is
+created, and before its `qt_add_qml_module()` when it has one, since a
+QML module registers its types out of moc's output. A missing call fails
+at link with an undefined vtable or `staticMetaObject`.
+
 Use a Release build for any performance work. Several benchmarks and
 sketches are deliberately stressful and Debug timings say nothing.
 `cmake --build build --config Release --target benches` builds every

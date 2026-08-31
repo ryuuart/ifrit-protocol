@@ -5,6 +5,7 @@
 qt_add_executable(WeaveGallery
   src/gallery_main.cpp
 )
+sigil_qt_target(WeaveGallery)
 
 set_target_properties(WeaveGallery PROPERTIES
     MACOSX_BUNDLE_GUI_IDENTIFIER "dev.sigil.WeaveGallery"

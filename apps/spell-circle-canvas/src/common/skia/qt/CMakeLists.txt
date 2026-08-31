@@ -14,6 +14,7 @@ qt_add_library(SigilSkiaQt STATIC
   ${SIGIL_SKIA_QT_SOURCES}
   ${SIGIL_SKIA_INCLUDE_DIR}/sigilskia/qt/QtInterop.h
 )
+sigil_qt_target(SigilSkiaQt)
 target_compile_features(SigilSkiaQt PUBLIC cxx_std_20)
 target_link_libraries(SigilSkiaQt
   PUBLIC SigilSkiaGraphite Qt6::Core
