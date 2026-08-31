@@ -4,7 +4,7 @@
 // and Tibetan clusters, rare-script fallback, bidi reordering, emoji ZWJ
 // sequences, and supplementary-plane symbols in one cached layout.
 #include <include/core/SkPaint.h>
-#include <sigilweaveqt/SigilWeaveQt.h>
+#include <sigilweave/qt/SigilWeaveQt.h>
 
 #include <algorithm>
 #include <array>
@@ -241,6 +241,6 @@ SceneDescriptor makeHyperScriptsDescriptor() {
 
 }  // namespace
 
-REGISTER_GALLERY_SCENE(makeHyperScriptsDescriptor())
+REGISTER_GALLERY_SCENE(makeHyperScriptsDescriptor)
 
 }  // namespace gallery

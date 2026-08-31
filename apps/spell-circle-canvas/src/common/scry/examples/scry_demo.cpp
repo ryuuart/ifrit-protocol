@@ -1,12 +1,12 @@
-// Headless SigilScry demo — drives the engine in unthreaded (lockstep)
-// mode, renders an HTML/CSS layout, and composites it with direct SkCanvas
-// drawing. Writes PNGs to the output dir (first argument, default
-// ./scry_demo_out):
-//
-//   web_frame.png  the raw Ultralight surface, grabbed zero-copy via
-//                  WebView::peekPixels()
-//   composite.png  the same view drawn over a Skia-painted backdrop with
-//                  extra SkCanvas decorations on top
+/** @file
+ * scry_demo — the engine driven in unthreaded (lockstep) mode: an
+ * HTML/CSS layout rendered and composited with direct SkCanvas drawing.
+ * Writes PNGs to the output dir (first argument, default
+ * ./scry_demo_out): web_frame.png, the raw Ultralight surface grabbed
+ * zero-copy through WebView::peekPixels(), and composite.png, the same
+ * view drawn over a Skia-painted backdrop with SkCanvas decorations on
+ * top.
+ */
 
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
@@ -18,8 +18,8 @@
 #include <include/core/SkSurface.h>
 #include <include/effects/SkGradient.h>
 #include <include/encode/SkPngEncoder.h>
-#include <sigilscry/WebEngine.h>
-#include <sigilscry/WebView.h>
+#include <sigilscry/engine/WebEngine.h>
+#include <sigilscry/engine/WebView.h>
 
 #include <chrono>
 #include <cstdio>
@@ -104,7 +104,8 @@ bool writePng(const SkPixmap& pixmap, const std::filesystem::path& path) {
 
 }  // namespace
 
-int main(int argc, char** argv) {
+int main(int argc, char** argv) {  // NOLINT(bugprone-exception-escape): an
+                                   // uncaught error ends the demo
   if (argc > 1 && argv[1][0] == '-') {
     const bool help =
         std::strcmp(argv[1], "-h") == 0 || std::strcmp(argv[1], "--help") == 0;

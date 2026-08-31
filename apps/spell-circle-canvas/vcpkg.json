@@ -4,6 +4,7 @@
     "alembic",
     "asio",
     "benchmark",
+    "boost-pfr",
     "cgltf",
     "choreograph",
     "concurrentqueue",
@@ -32,6 +33,7 @@
       ]
     },
     "openimageio",
+    "shader-slang",
     {
       "name": "shader-slang",
       "host": true
@@ -44,6 +46,7 @@
         "graphite",
         "jpeg",
         "png",
+        "vulkan",
         "webp",
         {
           "name": "metal",
@@ -51,7 +54,9 @@
         }
       ]
     },
+    "simdjson",
     "spdlog",
+    "stb",
     {
       "name": "spout2",
       "features": [

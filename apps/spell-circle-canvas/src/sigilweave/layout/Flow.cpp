@@ -1,0 +1,371 @@
+/** @file
+ * The ready-made flow geometries: a block, a block minus exclusion shapes
+ * flattened by generation ID and scanned per line band, vertical columns,
+ * an explicit line set, and one line per path contour — and the placement
+ * of a pen coordinate on a contour interval with its tangent snapped.
+ */
+
+#include "sigilweave/layout/Flow.h"
+
+#include <absl/container/flat_hash_map.h>
+#include <include/core/SkPathTypes.h>
+
+#include <algorithm>
+#include <cmath>
+#include <glm/vec2.hpp>
+#include <numbers>
+#include <utility>
+
+#include "sigilgeometry/path/Numeric.h"
+#include "sigilgeometry/path/Polyline.h"
+#include "sigilgeometry/path/Skia.h"
+
+namespace sigil::weave {
+
+namespace {
+
+constexpr float kEps = 0.01f;
+
+// Snaps a unit tangent to one of `steps` directions (512 → 0.7° steps —
+// invisible). Continuously varying per-glyph rotations would otherwise mint
+// a fresh glyph-atlas strike every frame for every glyph on a moving path,
+// turning animated curved text into a per-frame mask-rasterization storm.
+SkVector quantizeTangent(SkVector tangent, int directionCount) {
+  if (directionCount <= 0) return tangent;
+  constexpr float kTwoPi = 2.0f * std::numbers::pi_v<float>;
+  const float angle = std::atan2(tangent.fY, tangent.fX);
+  int directionIndex =
+      static_cast<int>(std::lround(angle / kTwoPi * directionCount)) %
+      directionCount;
+  if (directionIndex < 0) directionIndex += directionCount;
+  const float snapped =
+      static_cast<float>(directionIndex) * kTwoPi / directionCount;
+  return {std::cos(snapped), std::sin(snapped)};
+}
+
+// Removes [excludedStart, excludedEnd] from every sorted, disjoint interval.
+void subtractSpan(std::vector<std::pair<float, float>>& availableSpans,
+                  float excludedStart, float excludedEnd) {
+  std::vector<std::pair<float, float>> remainingSpans;
+  remainingSpans.reserve(availableSpans.size() + 1);
+  for (const auto& [spanStart, spanEnd] : availableSpans) {
+    if (excludedEnd <= spanStart || excludedStart >= spanEnd) {
+      remainingSpans.emplace_back(spanStart, spanEnd);
+      continue;
+    }
+    if (excludedStart > spanStart)
+      remainingSpans.emplace_back(spanStart, excludedStart);
+    if (excludedEnd < spanEnd)
+      remainingSpans.emplace_back(excludedEnd, spanEnd);
+  }
+  availableSpans = std::move(remainingSpans);
+}
+
+// Occupied x-intervals of a flattened polygon set within the band
+// [top, bottom]: fill intervals sampled at three scanlines (respecting the
+// fill rule, so holes and concave gaps stay open) unioned with every edge's
+// x-travel through the band (conservative — catches features that fall
+// between the samples, like a star tip). Appends unmerged occupied spans.
+void bandOccupancy(const std::vector<std::vector<glm::vec2>>& contours,
+                   bool evenOdd, float top, float bottom,
+                   std::vector<std::pair<float, float>>& occupiedSpans) {
+  static thread_local std::vector<std::pair<float, int>> crossings;
+  const float scanlines[3] = {top + kEps, (top + bottom) * 0.5f, bottom - kEps};
+  for (const float scanlineY : scanlines) {
+    crossings.clear();
+    for (const std::vector<glm::vec2>& polygon : contours) {
+      for (size_t pointIndex = 0; pointIndex < polygon.size(); ++pointIndex) {
+        const glm::vec2& startPoint = polygon[pointIndex];
+        const glm::vec2& endPoint = polygon[(pointIndex + 1) % polygon.size()];
+        const float startY = startPoint.y;
+        const float endY = endPoint.y;
+        if (startY == endY) continue;
+        // Half-open [min, max) so shared vertices count exactly once.
+        const bool travelsUp = endY > startY;
+        if (travelsUp ? (scanlineY < startY || scanlineY >= endY)
+                      : (scanlineY < endY || scanlineY >= startY))
+          continue;
+        const float interpolation = (scanlineY - startY) / (endY - startY);
+        crossings.emplace_back(
+            startPoint.x + interpolation * (endPoint.x - startPoint.x),
+            travelsUp ? 1 : -1);
+      }
+    }
+    std::sort(crossings.begin(), crossings.end());
+    int winding = 0;
+    unsigned parity = 0;
+    bool inside = false;
+    float openX = 0;
+    for (const auto& [crossingX, windingDelta] : crossings) {
+      winding += windingDelta;
+      parity ^= 1u;
+      const bool nowInside = evenOdd ? parity != 0 : winding != 0;
+      if (nowInside && !inside) {
+        openX = crossingX;
+        inside = true;
+      } else if (!nowInside && inside) {
+        occupiedSpans.emplace_back(openX, crossingX);
+        inside = false;
+      }
+    }
+  }
+
+  for (const std::vector<glm::vec2>& polygon : contours) {
+    for (size_t pointIndex = 0; pointIndex < polygon.size(); ++pointIndex) {
+      const glm::vec2& startPoint = polygon[pointIndex];
+      const glm::vec2& endPoint = polygon[(pointIndex + 1) % polygon.size()];
+      const float edgeTop = std::min(startPoint.y, endPoint.y);
+      const float edgeBottom = std::max(startPoint.y, endPoint.y);
+      if (edgeBottom <= top || edgeTop >= bottom) continue;
+      float startFraction = 0;
+      float endFraction = 1;
+      if (startPoint.y != endPoint.y) {
+        const float topFraction =
+            (top - startPoint.y) / (endPoint.y - startPoint.y);
+        const float bottomFraction =
+            (bottom - startPoint.y) / (endPoint.y - startPoint.y);
+        startFraction =
+            std::clamp(std::min(topFraction, bottomFraction), 0.0f, 1.0f);
+        endFraction =
+            std::clamp(std::max(topFraction, bottomFraction), 0.0f, 1.0f);
+      }
+      const float startX =
+          startPoint.x + startFraction * (endPoint.x - startPoint.x);
+      const float endX =
+          startPoint.x + endFraction * (endPoint.x - startPoint.x);
+      occupiedSpans.emplace_back(std::min(startX, endX),
+                                 std::max(startX, endX));
+    }
+  }
+}
+
+void mergeSpans(std::vector<std::pair<float, float>>& spans) {
+  std::sort(spans.begin(), spans.end());
+  size_t mergedCount = 0;
+  for (const auto& span : spans) {
+    if (mergedCount > 0 && span.first <= spans[mergedCount - 1].second)
+      spans[mergedCount - 1].second =
+          std::max(spans[mergedCount - 1].second, span.second);
+    else
+      spans[mergedCount++] = span;
+  }
+  spans.resize(mergedCount);
+}
+
+}  // namespace
+
+bool LineInterval::placeAt(float pen, float phase, int rotationSteps,
+                           SkPoint* position, SkVector* tangent) const {
+  if (!contour.valid()) {
+    // Straight: the pen simply travels along the interval's own direction.
+    // Nothing to run off the end of, so the phase is a plain shift.
+    const float travel = pen + phase;
+    *position =
+        origin + SkVector{direction.x() * travel, direction.y() * travel};
+    *tangent = quantizeTangent(direction, rotationSteps);
+    return true;
+  }
+  const float contourLength = contour.length();
+  float contourPosition = contourStart + (pen * advanceScale) + phase;
+  bool inside = true;
+  if (contour.closed() || wrapContour) {
+    // Closed contours wrap: text can march around the loop forever
+    // (shift the phase for an infinite marquee). `wrapContour` wraps a
+    // contour the geometry would clamp, so the wrap is spelled here rather
+    // than left to `around`.
+    contourPosition = geometry::path::wrap(contourPosition, contourLength);
+  } else {
+    inside = contourPosition >= 0 && contourPosition <= contourLength;
+    contourPosition = std::clamp(contourPosition, 0.0f, contourLength);
+  }
+  const std::optional<geometry::path::Contour::Sample> sample =
+      contour.at(contourPosition);
+  if (!sample) {
+    *position = {0, 0};
+    *tangent = {1, 0};
+    return false;
+  }
+  *position = geometry::path::toSk(sample->position);
+  *tangent = geometry::path::toSk(sample->tangent);
+  // Walking backwards faces the other way — turned before the snap, so the
+  // reversed direction lands on a ladder step rather than beside one.
+  if (advanceScale < 0) *tangent = {-tangent->fX, -tangent->fY};
+  // Rotation snaps; position stays exact.
+  *tangent = quantizeTangent(*tangent, rotationSteps);
+  return inside;
+}
+
+// Flattened-polygon form of an exclusion SkPath, cached by generation ID.
+struct ExclusionFlow::FlatPath {
+  std::vector<std::vector<glm::vec2>> contours;  // closed polylines
+  SkRect bounds = SkRect::MakeEmpty();
+  bool evenOdd = false;
+};
+
+// Private container definition: keeps the hash-map dependency out of the
+// public layout/Flow.h. unique_ptr values keep FlatPath addresses stable across
+// rehashes.
+struct ExclusionFlow::PathCache {
+  absl::flat_hash_map<uint32_t, std::unique_ptr<FlatPath>> entries;
+};
+
+ExclusionFlow::ExclusionFlow(const SkRect& bounds)
+    : m_bounds(bounds), m_pathCache(std::make_unique<PathCache>()) {}
+ExclusionFlow::~ExclusionFlow() = default;
+
+const ExclusionFlow::FlatPath& ExclusionFlow::flattenedPathFor(
+    const SkPath& path) {
+  if (!m_pathCache)  // re-arm a moved-from flow instead of dereferencing null
+    m_pathCache = std::make_unique<PathCache>();
+  auto& cache = m_pathCache->entries;
+  const uint32_t generationId = path.getGenerationID();
+  auto cachedPath = cache.find(generationId);
+  if (cachedPath != cache.end()) return *cachedPath->second;
+  if (cache.size() > 64) cache.clear();  // Bound animated path churn.
+
+  auto flattenedPath = std::make_unique<FlatPath>();
+  const SkPathFillType fill = path.getFillType();
+  flattenedPath->evenOdd = fill == SkPathFillType::kEvenOdd ||
+                           fill == SkPathFillType::kInverseEvenOdd;
+  flattenedPath->bounds = path.computeTightBounds();
+
+  // Layout avoidance needs a couple of pixels of fidelity, not rendering
+  // accuracy, and every contour is treated as closed: an open sub-path of
+  // an exclusion is filled as if its ends were joined, exactly as the fill
+  // rule fills it.
+  constexpr float kFlattenTolerance = 0.5f;
+  for (geometry::path::Polyline& polyline :
+       geometry::path::flatten(path, kFlattenTolerance)) {
+    if (polyline.points.size() >= 3)
+      flattenedPath->contours.push_back(std::move(polyline.points));
+  }
+
+  auto cacheEntry = cache.emplace(generationId, std::move(flattenedPath)).first;
+  return *cacheEntry->second;
+}
+
+bool BlockFlow::lineIntervals(int index, float lineHeight, float ascent,
+                              std::vector<LineInterval>& intervals) {
+  intervals.clear();
+  const float top = m_bounds.top() + static_cast<float>(index) * lineHeight;
+  if (top + lineHeight > m_bounds.bottom() + kEps) return false;
+  LineInterval interval;
+  interval.origin = {m_bounds.left(), top + ascent};
+  interval.direction = {1, 0};
+  interval.length = m_bounds.width();
+  intervals.push_back(interval);
+  return true;
+}
+
+bool ExclusionFlow::lineIntervals(int index, float lineHeight, float ascent,
+                                  std::vector<LineInterval>& intervals) {
+  intervals.clear();
+  const float top = m_bounds.top() + static_cast<float>(index) * lineHeight;
+  const float bottom = top + lineHeight;
+  if (bottom > m_bounds.bottom() + kEps) return false;
+
+  std::vector<std::pair<float, float>> availableSpans = {
+      {m_bounds.left(), m_bounds.right()}};
+
+  static thread_local std::vector<std::pair<float, float>> occupiedSpans;
+  for (const Shape& shape : m_shapes) {
+    if (shape.kind == Shape::kPath) {
+      const FlatPath& flattenedPath = flattenedPathFor(shape.path);
+      if (flattenedPath.contours.empty()) continue;
+      const float offsetX = shape.pathOffset.x();
+      const float offsetY = shape.pathOffset.y();
+      const float padding = shape.padding;
+      if (flattenedPath.bounds.bottom() + offsetY + padding <= top ||
+          flattenedPath.bounds.top() + offsetY - padding >= bottom)
+        continue;
+      // Band and results are in path-local space (shifted by the offset);
+      // padding expands the band vertically and each span horizontally.
+      occupiedSpans.clear();
+      bandOccupancy(flattenedPath.contours, flattenedPath.evenOdd,
+                    top - offsetY - padding, bottom - offsetY + padding,
+                    occupiedSpans);
+      mergeSpans(occupiedSpans);
+      for (const auto& [spanStart, spanEnd] : occupiedSpans)
+        subtractSpan(availableSpans, spanStart + offsetX - padding,
+                     spanEnd + offsetX + padding);
+    } else if (shape.kind == Shape::kCircle) {
+      const float radius =
+          std::min(shape.bounds.width(), shape.bounds.height()) * 0.5f +
+          shape.padding;
+      const float centerX = shape.bounds.centerX();
+      const float centerY = shape.bounds.centerY();
+      if (centerY + radius <= top || centerY - radius >= bottom) continue;
+      // Widest chord of the circle within the band: at centerY if the band
+      // contains it, else at the nearest band edge.
+      const float distanceFromCenter =
+          centerY < top ? top - centerY
+                        : (centerY > bottom ? centerY - bottom : 0);
+      if (distanceFromCenter >= radius) continue;
+      const float halfChord =
+          std::sqrt(radius * radius - distanceFromCenter * distanceFromCenter);
+      subtractSpan(availableSpans, centerX - halfChord, centerX + halfChord);
+    } else {
+      const SkRect paddedBounds =
+          shape.bounds.makeOutset(shape.padding, shape.padding);
+      if (paddedBounds.bottom() <= top || paddedBounds.top() >= bottom)
+        continue;
+      subtractSpan(availableSpans, paddedBounds.left(), paddedBounds.right());
+    }
+    if (availableSpans.empty()) break;
+  }
+
+  for (const auto& [spanStart, spanEnd] : availableSpans) {
+    if (spanEnd - spanStart < m_minIntervalWidth) continue;
+    LineInterval interval;
+    interval.origin = {spanStart, top + ascent};
+    interval.direction = {1, 0};
+    interval.length = spanEnd - spanStart;
+    intervals.push_back(interval);
+  }
+  return true;
+}
+
+bool VerticalBlockFlow::lineIntervals(int index, float lineHeight,
+                                      float /*ascent*/,
+                                      std::vector<LineInterval>& intervals) {
+  intervals.clear();
+  const float right = m_bounds.right() - static_cast<float>(index) * lineHeight;
+  if (right - lineHeight < m_bounds.left() - kEps) return false;
+  LineInterval interval;
+  interval.origin = {right - lineHeight * 0.5f, m_bounds.top()};
+  interval.direction = {0, 1};
+  interval.length = m_bounds.height();
+  intervals.push_back(interval);
+  return true;
+}
+
+bool LineSetFlow::lineIntervals(int index, float /*lineHeight*/,
+                                float /*ascent*/,
+                                std::vector<LineInterval>& intervals) {
+  intervals.clear();
+  if (index < 0 || static_cast<size_t>(index) >= m_lines.size()) return false;
+  intervals = m_lines[static_cast<size_t>(index)];
+  return true;
+}
+
+PathFlow::PathFlow(const SkPath& path) { addPath(path); }
+
+void PathFlow::addPath(const SkPath& path) {
+  for (geometry::path::Contour& contour : geometry::path::Contour::of(path))
+    m_contours.push_back(std::move(contour));
+}
+
+bool PathFlow::lineIntervals(int index, float /*lineHeight*/, float /*ascent*/,
+                             std::vector<LineInterval>& intervals) {
+  intervals.clear();
+  if (index < 0 || static_cast<size_t>(index) >= m_contours.size())
+    return false;
+  LineInterval interval;
+  interval.contour = m_contours[static_cast<size_t>(index)];
+  interval.contourStart = 0;
+  interval.length = interval.contour.length();
+  intervals.push_back(interval);
+  return true;
+}
+
+}  // namespace sigil::weave

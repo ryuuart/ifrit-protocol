@@ -5,6 +5,7 @@
 qt_add_executable(WeaveGallery
   src/gallery_main.cpp
 )
+sigil_qt_target(WeaveGallery)
 
 set_target_properties(WeaveGallery PROPERTIES
     MACOSX_BUNDLE_GUI_IDENTIFIER "dev.sigil.WeaveGallery"
@@ -68,16 +69,17 @@ target_link_libraries(WeaveGallery
     Qt6::Quick
     Qt6::QuickControls2
     Qt6::GuiPrivate # QRhi API (rhi/qrhi.h) used by the QQuickRhiItem renderer
-    SigilWeaveQt # carries SigilWeave transitively
+    SigilWeave   # the whole engine: layout, choreography, the label cache
+    SigilWeaveQt # QFont/QString bridging
     SigilWeaveKit # rebuild/layout guards, glyph buckets, labels (kit/README.md)
     SigilWeaveShaders # PaintShaders presets used by the effect scenes
     SigilWeavePorts # systemFontManager()
 )
 
 # The Graphite GPU path reuses the generic Skia/Metal plumbing under
-# src/common/skia (SkiaGraphiteContext + SkiaOffscreenSurface); without it
+# src/common/skia (SigilSkia); without it
 # the gallery still runs on Skia's CPU raster backend with a texture upload.
 if(SPELLCIRCLE_ENABLE_SKIA_CANVAS)
-  target_link_libraries(WeaveGallery PRIVATE SpellCircleSkiaQt)
+  target_link_libraries(WeaveGallery PRIVATE SigilSkiaQt)
   target_compile_definitions(WeaveGallery PRIVATE TEXTFLOW_GALLERY_GPU)
 endif()

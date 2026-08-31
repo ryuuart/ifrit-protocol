@@ -12,6 +12,7 @@
 
 bool WindowChrome::setSubtitle(QQuickWindow *window, const QString &subtitle) {
   if (!window) return false;
+  // NOLINTNEXTLINE(performance-no-int-to-ptr): Qt hands the view over as an integer
   auto *contentView = reinterpret_cast<NSView *>(window->winId());
   if (!contentView || !contentView.window) return false;
   if (@available(macOS 11.0, *)) {
@@ -26,6 +27,7 @@ bool WindowChrome::applyVibrancy(QQuickWindow *window) {
 
   // winId() forces platform-window creation for windows that are not yet
   // visible (the settings window starts hidden), so the NSWindow exists.
+  // NOLINTNEXTLINE(performance-no-int-to-ptr): Qt hands the view over as an integer
   auto *contentView = reinterpret_cast<NSView *>(window->winId());
   if (!contentView) return false;
   NSWindow *nativeWindow = contentView.window;
@@ -55,6 +57,7 @@ bool WindowChrome::applyVibrancy(QQuickWindow *window) {
   effectView.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
 
   [frameView addSubview:effectView positioned:NSWindowBelow relativeTo:nativeWindow.contentView];
+  [effectView release];  // the frame view holds it now
 
   return true;
 }

@@ -74,7 +74,8 @@ void sceneExtreme(FontContext& fontContext,
   {
     SkPathBuilder pathBuilder;
     pathBuilder.moveTo(60, 420);
-    std::mt19937 randomEngine(11);
+    std::mt19937 randomEngine(11);  // NOLINT(bugprone-random-generator-seed): a
+                                    // fixed seed keeps the scene reproducible
     float previousX = 60;
     float previousY = 420;
     for (int curveIndex = 0; curveIndex < 9; ++curveIndex) {
@@ -140,7 +141,8 @@ void sceneExtreme(FontContext& fontContext,
     std::u8string letters;
     const char8_t* cjk[] = {u8"文", u8"字", u8"術", u8"式", u8"光", u8"影",
                             u8"한", u8"글", u8"빛", u8"円", u8"陣", u8"魔"};
-    std::mt19937 randomEngine(5);
+    std::mt19937 randomEngine(5);  // NOLINT(bugprone-random-generator-seed): a
+                                   // fixed seed keeps the scene reproducible
     for (int letterIndex = 0; letterIndex < 120; ++letterIndex) {
       if (letterIndex % 3 == 2)
         letters += cjk[randomEngine() % 12];

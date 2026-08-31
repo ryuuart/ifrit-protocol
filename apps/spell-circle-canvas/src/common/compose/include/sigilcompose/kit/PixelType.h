@@ -58,6 +58,9 @@
 #include <include/core/SkImage.h>
 #include <include/core/SkImageInfo.h>
 #include <include/core/SkSamplingOptions.h>
+#include <include/core/SkSurface.h>
+#include <sigilcompose/core/Element.h>
+#include <sigilcompose/typography/Typography.h>
 
 #include <algorithm>
 #include <array>
@@ -65,11 +68,36 @@
 #include <string>
 #include <string_view>
 
-#include "sigilcompose/Compose.h"
-#include "sigilcompose/Debug.h"
-#include "sigilcompose/Studio.h"
-
 namespace sigil::compose::kit {
+
+namespace detail {
+/** @p root baked at @p size and read back as F16 pixels, or a null bitmap
+ *  when nothing could be drawn. Float rather than 8-bit because a coverage
+ *  measured near the faint end of a glyph edge would otherwise quantise to
+ *  a handful of levels. The wrapper carries EXPLICIT dims and an explicit
+ *  canvas size: snapshot() sizes by the root's children and ignores the
+ *  root's own dimensions. */
+inline SkBitmap rasterize(Element root, sigil::weave::FontContext& fonts,
+                          SkISize size) {
+  SkBitmap out;
+  if (size.isEmpty()) return out;
+  const SkImageInfo info = SkImageInfo::Make(
+      size.width(), size.height(), kRGBA_F16_SkColorType, kPremul_SkAlphaType);
+  sk_sp<SkSurface> surface = SkSurfaces::Raster(info);
+  if (!surface) return out;
+  surface->getCanvas()->clear(SkColor4f{0, 0, 0, 0});
+  if (sk_sp<SkPicture> picture =
+          snapshot(box()
+                       .width((float)size.width())
+                       .height((float)size.height())
+                       .child(std::move(root)),
+                   fonts, {(float)size.width(), (float)size.height()}))
+    surface->getCanvas()->drawPicture(picture);
+  out.allocPixels(info);
+  if (!surface->readPixels(out.pixmap(), 0, 0)) out.reset();
+  return out;
+}
+}  // namespace detail
 
 /** Slack around the measured run, in px **on each side**. See trap 1: the
  *  defaults are a starting point, not a guarantee — `coverage()` grows
@@ -119,10 +147,9 @@ struct Coverage {
  *  overhangs further than that comes back cropped and looks like a
  *  rasterisation bug rather than a sizing one.
  *
- *  Built on `debug::rasterize`, which carries the neighbouring trap:
- *  `snapshot()` sizes by the root's CHILDREN, so the wrapper must carry
- *  explicit dimensions or an absolutely-placed child resolves against
- *  nothing. */
+ *  Built on `snapshot()`, which carries the neighbouring trap: it sizes by
+ *  the root's CHILDREN, so the wrapper must carry explicit dimensions or an
+ *  absolutely-placed child resolves against nothing. */
 inline Coverage coverage(std::u8string_view run,
                          sigil::weave::FontContext& fonts,
                          const sigil::weave::TextStyle& style, Pad pad = {}) {
@@ -140,13 +167,13 @@ inline Coverage coverage(std::u8string_view run,
     // on EVERY side, so a negative left side-bearing has somewhere to go.
     // Growing only the surface would pad right and bottom alone and clip
     // that case no matter how large the pad got.
-    debug::Raster r = debug::rasterize(
+    SkBitmap plane = detail::rasterize(
         box()
             .padding((float)std::max(0, pad.x), (float)std::max(0, pad.y))
             .child(text(text8, style)),
         fonts, {w, h});
-    if (!r.valid()) return out;
-    out.plane = std::move(r.bitmap);
+    if (plane.isNull()) return out;
+    out.plane = std::move(plane);
     int x0 = w, y0 = h, x1 = -1, y1 = -1;
     for (int y = 0; y < h; ++y)
       for (int x = 0; x < w; ++x)
@@ -334,7 +361,7 @@ inline PixFont bakeFont(sigil::weave::FontContext& fonts,
   }
   for (int d = 0; d < 10; ++d)
     f.digitAdvance =
-        std::max(f.digitAdvance, f.cells[(size_t)('0' - 32 + d)].advance);
+        std::max(f.digitAdvance, f.cells[(size_t)d + ('0' - 32)].advance);
   return f;
 }
 

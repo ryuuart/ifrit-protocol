@@ -1,21 +1,28 @@
-# SigilUsd — the world's data in and out of USD (OpenUSD, core only).
-# A leaf: it links SigilWorld and SigilShape; nothing links it but its
-# test, its demo hooks and whoever wants a stage.
+# SigilUsd — the world's data in and out of USD (OpenUSD, core only), as
+# one feature library per directory. The runtime leaf says whether the
+# USD plugins are present; write builds a stage from the values a scene is
+# made of and saves it; read pours a stage into geometry's decode::Model.
+# `SigilUsd` is the umbrella over all three. A leaf of the tree: it links
+# SigilGeometry, SigilMaterial and the world's light values; nothing links
+# it but its tests, its demo hooks and whoever wants a stage.
+#
+# Every public header lives under one include root, include/sigilusd/
+# <feature>/, so a feature adds the root and spells its own directory.
+# <sigilusd/Usd.h> is the umbrella header. Added only when
+# SPELLCIRCLE_ENABLE_USD is on and vcpkg's usd port was found.
 find_package(pxr CONFIG REQUIRED)
 
-add_library(SigilUsd STATIC
-  Usd.cpp
-  include/sigilusd/Usd.h
-)
-target_compile_features(SigilUsd PUBLIC cxx_std_20)
-target_include_directories(SigilUsd PUBLIC ${CMAKE_CURRENT_LIST_DIR}/include)
-target_link_libraries(SigilUsd
-  PUBLIC SigilWorld SigilShape unofficial::skia::skia
-  PRIVATE usd usdGeom usdShade usdLux sdf tf gf vt)
+set(SIGIL_USD_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/include)
 
-add_executable(usd_test test/UsdTest.cpp)
-target_link_libraries(usd_test PRIVATE SigilUsd GTest::gtest_main)
-add_test(NAME usd_test COMMAND usd_test)
+# Dependencies point up this list; write and read are independent of
+# each other and both stand on nothing in this library but the runtime
+# probe their tests skip on.
+add_subdirectory(runtime)
+add_subdirectory(write)
+add_subdirectory(read)
+
+add_library(SigilUsd INTERFACE)
+target_link_libraries(SigilUsd INTERFACE SigilUsdRuntime SigilUsdWrite SigilUsdRead)
 
 # Registers this library with the `docs` target (see cmake/Docs.cmake).
 # The README is the site's front page, so the generated pages open on the

@@ -1,5 +1,4 @@
 // Scene: infinite loop marquee on a closed figure-eight.
-#include <include/core/SkContourMeasure.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>
 
@@ -52,12 +51,13 @@ class LoopScene final : public Scene {
       pathBuilder.close();
       Rail built;
       built.eight = pathBuilder.detach();
-      SkContourMeasureIter contourIterator(built.eight, false);
-      built.contour = contourIterator.next();
+      std::vector<sigil::geometry::path::Contour> contours =
+          sigil::geometry::path::Contour::of(built.eight);
+      if (!contours.empty()) built.contour = std::move(contours.front());
       return built;
     });
-    if (!rail.contour) return {};
-    const float loopLength = rail.contour->length();
+    if (!rail.contour.valid()) return {};
+    const float loopLength = rail.contour.length();
 
     LineSetFlow flow;
     LineInterval interval;
@@ -85,11 +85,11 @@ class LoopScene final : public Scene {
   }
 
  private:
-  /// The marquee rail: figure-eight path plus its contour measure, derived
-  /// together from the canvas size.
+  /// The marquee rail: figure-eight path plus its contour, derived together
+  /// from the canvas size.
   struct Rail {
     SkPath eight;
-    sk_sp<SkContourMeasure> contour;
+    sigil::geometry::path::Contour contour;
   };
   BodyCache m_body;
   sk_sp<SkTypeface> m_serif;
@@ -107,6 +107,6 @@ SceneDescriptor makeLoopDescriptor() {
 
 }  // namespace
 
-REGISTER_GALLERY_SCENE(makeLoopDescriptor())
+REGISTER_GALLERY_SCENE(makeLoopDescriptor)
 
 }  // namespace gallery

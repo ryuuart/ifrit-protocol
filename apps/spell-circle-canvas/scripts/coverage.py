@@ -12,7 +12,7 @@ RUN.txt beside it records the invocation and scope that produced it.
 
 Usage (from apps/spell-circle-canvas):
   scripts/coverage.py                                # full suite
-  scripts/coverage.py --filter 'motion_test|weave_test'
+  scripts/coverage.py --filter 'motion_test|weave_'
   scripts/coverage.py --export-lcov coverage.lcov    # for CI consumers
   scripts/coverage.py --open                         # open the HTML index
 

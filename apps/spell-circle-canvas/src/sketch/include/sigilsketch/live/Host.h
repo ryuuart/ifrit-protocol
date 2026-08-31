@@ -1,0 +1,170 @@
+#pragma once
+
+/** @file
+ * The live-reload host: a sketch file watched, rebuilt into a dylib on
+ * save, and hot-swapped into the running session.
+ */
+
+#include <include/core/SkRefCnt.h>
+#include <sigilsketch/core/Assets.h>
+#include <sigilsketch/core/Registry.h>
+#include <sigilsketch/core/Session.h>
+
+#include <chrono>
+#include <filesystem>
+#include <functional>
+#include <future>
+#include <memory>
+#include <string>
+#include <vector>
+
+class SkImageInfo;
+class SkPixmap;
+class SkSurface;
+
+namespace sigil::weave {
+class FontContext;
+}
+
+namespace sigil::sketch {
+
+/** THE LIVE HOST, and it is Qt-free on purpose: it watches the sketch
+ *  source, rebuilds it into a versioned dylib with the compiler flags
+ *  the build captured, dlopens the result and swaps the running session
+ *  — keeping the previous one alive on a compile error, which is the
+ *  behaviour that makes live coding usable.
+ *
+ *  The host executable exports the framework's symbols, so a sketch
+ *  dylib links with `-undefined dynamic_lookup` and builds in a couple
+ *  of seconds: one small translation unit, nothing linked against the
+ *  static libraries.
+ *
+ *  Old libraries are never dlclosed. Their statics stay valid — a
+ *  running session may hold a vtable, a string literal or a function
+ *  pointer that lives in one — and one small leak per reload is the
+ *  trade every host in this family makes. */
+class Host {
+ public:
+  struct Options {
+    /** The file to watch. */
+    std::filesystem::path sketchPath;
+    /** Where the sketch looks for what it did not generate. Defaults to
+     *  `assets` beside the sketch file. */
+    std::filesystem::path assetsDir;
+    /** The compiler line the build captured, beside the executable. */
+    std::filesystem::path flagsFile;
+    std::string compiler = "clang++";
+    /** Pin anything a sketch measured about its own execution, so a
+     *  capture can be diffed. */
+    bool deterministic = false;
+    /** Start from the sketch already compiled into this binary rather
+     *  than by building the file, and compile only once the file
+     *  changes. Null means always build. */
+    const Entry* compiledIn = nullptr;
+  };
+
+  Host(Options options, weave::FontContext& fonts);
+  ~Host();
+
+  /** Drives the reload machinery: source mtime, finished compiles, asset
+   *  changes. Call once per frame. */
+  void poll();
+
+  /** Ticks and draws one frame. Returns false while nothing has ever
+   *  loaded. A negative @p fixedDt uses wall time. */
+  bool frame(SkCanvas& canvas, double fixedDt = -1.0);
+
+  [[nodiscard]] bool compiling() const { return m_compile.valid(); }
+  [[nodiscard]] bool live() const { return m_session != nullptr; }
+  [[nodiscard]] int generation() const { return m_generation; }
+  /** The running session, for a host that needs more than a frame from
+   *  it — its counters, its viewpoint, its per-node costs. Null until
+   *  something has loaded. */
+  [[nodiscard]] Session* session() { return m_session.get(); }
+
+  /** The lifecycle a status display reads: Compiling wins even while a
+   *  previous build keeps rendering underneath. */
+  enum class State { Waiting, Compiling, Live, Failed };
+  [[nodiscard]] State state() const {
+    if (m_compile.valid()) return State::Compiling;
+    if (!m_errorLog.empty()) return State::Failed;
+    return m_session ? State::Live : State::Waiting;
+  }
+
+  /** Honest frame metrics over a rolling window: the full frame body is
+   *  timed, presentation is what the host reports via markPresented(). */
+  [[nodiscard]] double workMsAverage() const;
+  [[nodiscard]] double workMsP99() const;
+  [[nodiscard]] double presentedFps() const;
+  void markPresented();
+
+  /** Renders the CURRENT state (clock untouched) into a PNG at @p scale
+   *  times the sketch's canvas. The capture path for both the windowed
+   *  save command and headless asset generation. */
+  bool capture(const std::filesystem::path& out, float scale = 1.0f);
+
+  /** A host on the device must route capture through its own backend:
+   *  once live frames render on the GPU, the runtime's caches hold
+   *  device-backed images that cannot replay onto a raster canvas.
+   *  makeSurface builds the capture target and readback fetches its
+   *  pixels after the draw, both on whichever thread calls capture().
+   *  Unset is the CPU raster path. */
+  struct CaptureBackend {
+    std::function<sk_sp<SkSurface>(const SkImageInfo&)> makeSurface;
+    std::function<bool(SkSurface&, const SkPixmap&)> readback;
+  };
+  void setCaptureBackend(CaptureBackend backend) {
+    m_captureBackend = std::move(backend);
+  }
+
+  /** One line of state for a status bar. */
+  [[nodiscard]] const std::string& status() const { return m_status; }
+  /** Full compiler or loader output of the most recent failure; empty
+   *  when the latest build is good. */
+  [[nodiscard]] const std::string& errorLog() const { return m_errorLog; }
+
+  [[nodiscard]] const std::filesystem::path& sketchPath() const {
+    return m_options.sketchPath;
+  }
+  /** The canvas the running sketch declared; hosts letterbox to this
+   *  size and clear with this colour. */
+  [[nodiscard]] SkSize canvasSize() const;
+  [[nodiscard]] SkColor4f background() const;
+
+ private:
+  struct CompileResult {
+    bool ok = false;
+    std::filesystem::path library;
+    std::string output;
+  };
+
+  void startCompile();
+  void adopt(const std::filesystem::path& library);
+  void openSession(const Kind& kind);
+
+  Options m_options;
+  weave::FontContext& m_fonts;
+  std::filesystem::path m_buildDir;
+
+  Assets m_assets;
+  Kind m_kind;
+  std::unique_ptr<Session> m_session;
+  std::vector<void*> m_libraries;  // never dlclosed (statics stay valid)
+
+  std::future<CompileResult> m_compile;
+  std::filesystem::file_time_type m_compiledMtime;
+  bool m_everCompiled = false;
+  int m_generation = 0;
+  int m_frameIndex = -1;  // for the crash reporter's phase line
+  double m_elapsed = 0.0;
+  double m_lastAssetPoll = 0.0;
+  std::chrono::steady_clock::time_point m_compileStart;
+  std::chrono::steady_clock::time_point m_lastPresent;
+  std::vector<double> m_workMs;     // rolling frame-body cost window
+  std::vector<double> m_presentMs;  // rolling present-interval window
+  std::string m_status = "waiting for first build";
+  std::string m_errorLog;
+  CaptureBackend m_captureBackend;
+};
+
+}  // namespace sigil::sketch

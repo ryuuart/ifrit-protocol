@@ -152,7 +152,8 @@ class RainScene final : public Scene {
   Paragraph m_paragraph;
   std::vector<Particle> m_particles;
   GlyphRSXformBatches m_batches;
-  std::mt19937 m_randomEngine{9};
+  std::mt19937 m_randomEngine{9};  // NOLINT(bugprone-random-generator-seed): a
+                                   // fixed seed keeps the scene reproducible
 };
 
 SceneDescriptor makeRainDescriptor() {
@@ -166,6 +167,6 @@ SceneDescriptor makeRainDescriptor() {
 
 }  // namespace
 
-REGISTER_GALLERY_SCENE(makeRainDescriptor())
+REGISTER_GALLERY_SCENE(makeRainDescriptor)
 
 }  // namespace gallery

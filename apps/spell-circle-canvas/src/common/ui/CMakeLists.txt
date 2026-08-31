@@ -4,6 +4,7 @@ set_source_files_properties(
 )
 
 qt_add_library(IfritUi STATIC)
+sigil_qt_target(IfritUi)
 
 qt_add_qml_module(IfritUi
   URI Ifrit.Ui

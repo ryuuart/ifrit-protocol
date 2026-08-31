@@ -3,7 +3,7 @@
 // One entry point per scene file in src/text/demo/. weave_demo.cpp's
 // main() calls these in the order the README describes them.
 
-#include <sigilweave/FontContext.h>
+#include <sigilweave/fonts/FontContext.h>
 
 #include <filesystem>
 

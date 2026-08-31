@@ -82,6 +82,8 @@ bool keepRenderingWhileOccluded(QWindow *window) {
 
   // On macOS QWindow::winId() is the native NSView. Calling it also ensures
   // the platform window has been created before we install the override.
+  // Qt hands the view over as an integer, and ARC bridges only from void*.
+  // NOLINTNEXTLINE(performance-no-int-to-ptr,bugprone-casting-through-void)
   NSView *nativeView = (__bridge NSView *)reinterpret_cast<void *>(window->winId());
   NSWindow *nativeWindow = nativeView.window;
   if (!nativeWindow) return false;

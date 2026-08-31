@@ -121,7 +121,7 @@ The app is thin. Most of the code is in libraries under `src/common/` and
 | --- | --- |
 | [SigilWeave](src/sigilweave/README.md) | Text shaping and layout on HarfBuzz, ICU and Skia |
 | [SigilCompose](src/common/compose/README.md) | Data-driven drawable components — layout, caching, animation |
-| [SigilShape](src/common/shape/README.md) | Higher-level drawing over Skia: geometry, curves, materials |
+| [SigilGeometry](src/common/geometry/README.md) | Higher-level drawing over Skia: geometry, curves, materials |
 | [SigilWorld](src/common/world/README.md) | 3D surfaces on Diligent Engine |
 | [SigilMotion](src/common/motion/README.md) | Animation clock and animatable values |
 | [SigilImage](src/common/image/README.md) | Image decoding and probing |
@@ -147,8 +147,13 @@ The two front ends themselves have no automated tests: verifying a change
 to app code means running it and sending it a scene.
 
 Use a Release build for any performance work. Several library
-benchmarks and gallery scenes are deliberately stressful and Debug
-timings say nothing useful.
+benchmarks and sketches are deliberately stressful and Debug
+timings say nothing useful. The benchmarks are not tests: `cmake --build
+build --config Release --target benches` builds every `*_bench` binary,
+and `scripts/bench_ledger.py` runs them one at a time on a quiet machine
+and judges each benchmark's median real time against the committed
+`bench/baseline_<config>.json` (`--rebase` writes it, `--benches` picks a
+subset; `mise run bench` wraps both steps).
 
 ### Changing the wire format
 
@@ -180,7 +185,7 @@ They land in `build/assets/` (gitignored), reach code as the
 tools that take `--assets <dir>`. Nothing here runs during a normal
 build, and configuring the project never touches the network.
 
-The manifest is [`cmake/FetchAssets.cmake`](cmake/FetchAssets.cmake).
+The manifest is `cmake/FetchAssets.cmake`.
 Anything added to it carries an open licence with its licence file
 fetched alongside, is pinned to an immutable commit rather than a branch,
 and declares an `EXPECTED_HASH` so a changed byte is a hard failure.

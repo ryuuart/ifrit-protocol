@@ -1,0 +1,110 @@
+#pragma once
+
+/** @file
+ * The QML-embedded sketch surface: the registry on one side, one running
+ * sketch on the other, and the live host between them.
+ */
+
+#include <QtCore/QMutex>
+#include <QtCore/QTimer>
+#include <QtCore/QVariantList>
+#include <QtCore/QVariantMap>
+#include <QtQuick/QQuickRhiItem>
+#include <filesystem>
+
+namespace sigil::sketch {
+class Host;
+}
+
+/** THE LIVE CANVAS. Frames render on the render thread, through the
+ *  shared Skia Graphite context straight into the item's texture when the
+ *  QRhi backend supports it, with an explicit raster-and-upload fallback
+ *  elsewhere.
+ *
+ *  Selecting a sketch replaces the running host, and every sketch this
+ *  binary carries is already compiled in — so selection is instant and a
+ *  rebuild happens only when the file on disk changes. */
+class SketchbookView : public QQuickRhiItem {
+  Q_OBJECT
+  QML_ELEMENT
+  Q_PROPERTY(QVariantList sketches READ sketches CONSTANT)
+  Q_PROPERTY(int sketchIndex READ sketchIndex WRITE setSketchIndex NOTIFY
+                 sketchIndexChanged)
+  Q_PROPERTY(bool paused READ paused WRITE setPaused NOTIFY pausedChanged)
+  Q_PROPERTY(double timeScale READ timeScale WRITE setTimeScale NOTIFY
+                 timeScaleChanged)
+  // Structured, not preformatted: the panel is narrow and its width is
+  // the reader's to drag, so QML owns the elision and the formatting.
+  Q_PROPERTY(QVariantMap metrics READ metrics NOTIFY metricsChanged)
+  Q_PROPERTY(QString status READ status NOTIFY stateChanged)
+  Q_PROPERTY(QString errorLog READ errorLog NOTIFY stateChanged)
+  Q_PROPERTY(QString state READ state NOTIFY stateChanged)
+  /** Whether the running sketch has a viewpoint a pointer can move. */
+  Q_PROPERTY(bool orbitable READ orbitable NOTIFY sketchIndexChanged)
+
+ public:
+  explicit SketchbookView(QQuickItem* parent = nullptr);
+  ~SketchbookView() override;
+
+  QQuickRhiItemRenderer* createRenderer() override;
+
+  /** Requests a capture of the current frame; render-thread work, so the
+   *  saved path (or an empty string on failure) arrives via
+   *  captureReady(). Writes beside the sketch, under captures/. */
+  Q_INVOKABLE void capture();
+  /** Moves the viewpoint of a sketch that has one. */
+  Q_INVOKABLE void orbit(float yawDeg, float pitchDeg, float distance);
+
+  [[nodiscard]] QVariantList sketches() const;
+  [[nodiscard]] int sketchIndex() const { return m_sketchIndex; }
+  void setSketchIndex(int index);
+  [[nodiscard]] bool paused() const { return m_paused; }
+  void setPaused(bool paused);
+  [[nodiscard]] double timeScale() const { return m_timeScale; }
+  void setTimeScale(double scale);
+  [[nodiscard]] QVariantMap metrics() const { return m_metrics; }
+  [[nodiscard]] QString status() const { return m_status; }
+  [[nodiscard]] QString errorLog() const { return m_errorLog; }
+  // the QML-facing property is named for the sketch's state, not the
+  // item's
+  // NOLINTNEXTLINE(bugprone-derived-method-shadowing-base-method)
+  [[nodiscard]] QString state() const { return m_state; }
+  [[nodiscard]] bool orbitable() const { return m_orbitable; }
+
+  /** Where the live host finds the file behind a registry entry, and the
+   *  compiler line the build captured. Set by main() before QML loads. */
+  static std::filesystem::path sketchDir;
+  static std::filesystem::path assetsDir;
+  static std::filesystem::path flagsFile;
+  /** The host the render thread draws and the GUI thread polls — every
+   *  access on either side takes the mutex beside it. */
+  static sigil::sketch::Host* host;
+  static QMutex hostMutex;
+
+ signals:
+  void sketchIndexChanged();
+  void pausedChanged();
+  void timeScaleChanged();
+  void metricsChanged();
+  void stateChanged();
+  void captureReady(const QString& path);
+
+ private:
+  friend class SketchbookRenderer;
+
+  QTimer m_timer;
+  int m_sketchIndex = 0;
+  bool m_paused = false;
+  bool m_orbitable = false;
+  double m_timeScale = 1.0;
+  float m_yawDeg = 30.0f;
+  float m_pitchDeg = 18.0f;
+  float m_distance = 0.0f;  // 0 = the sketch's own
+  bool m_orbitDirty = false;
+  QVariantMap m_metrics = {{QStringLiteral("backend"),
+                            QStringLiteral("hardware QRhi renderer required")}};
+  QString m_status;
+  QString m_errorLog;
+  QString m_state = QStringLiteral("waiting");
+  int m_captureRequests = 0;  // consumed by the renderer in synchronize()
+};

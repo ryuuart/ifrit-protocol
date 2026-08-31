@@ -32,11 +32,11 @@
 
 #include <include/core/SkPath.h>
 #include <include/core/SkPathBuilder.h>
+#include <sigilcompose/shape/Shapes.h>
 
 #include <algorithm>
 #include <functional>
 
-#include "sigilcompose/Shapes.h"
 #include "sigilcompose/kit/Frame.h"
 
 namespace sigil::compose::kit {
@@ -57,7 +57,7 @@ struct Span {
  *                                .mark = {.inner = 0.96f, .outer = 1.0f},
  *                                .longEvery = 6,
  *                                .longMark = {.inner = 0.91f, .outer = 1.0f}}))
- *           .stroke(util::stroke(1.0f, Fill::color(brass)));
+ *           .stroke(stroke(1.0f, Fill::color(brass)));
  *
  *  Every angle is in the FRAME's units — `.from = 0` on a North/CW frame
  *  is 12 o'clock, on an East/CW frame it is 3 o'clock. That is the whole
@@ -140,7 +140,7 @@ inline SkPath ticks(const Frame& frame, const Ticks& t) {
  *  Half the shorter side, not half the width, so a ladder on a non-square
  *  box stays a circle instead of silently becoming an ellipse whose
  *  `Frame::fraction()` no longer matches. Give it a square box
- *  (`Frame::box()`, `util::disc`) and the question does not arise.
+ *  (`Frame::box()`, `kit::disc`) and the question does not arise.
  *
  *  Comparable, so the node prunes — unless the Ticks carries a `classify`
  *  callable, which equality cannot see and which therefore makes the whole

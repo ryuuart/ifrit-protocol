@@ -5,7 +5,7 @@ headers, cross-linked, and servable as a container.
 
 ```sh
 cmake --build build --target docs        # everything
-cmake --build build --target docs-SigilShape   # one library
+cmake --build build --target docs-SigilGeometry   # one library
 open build/docs/index.html
 ```
 
@@ -58,7 +58,7 @@ root `CMakeLists.txt` invokes after `add_subdirectory(src)`.
 ## How it is generated
 
 Generation runs in **two passes**. The libraries reference each other's
-types in both directions — SigilWorld takes SigilShape's meshes,
+types in both directions — SigilWorld takes SigilGeometry's meshes,
 SigilCompose takes SigilMotion's animatables — and a Doxygen tag file
 can only be read after it has been written. The first pass writes every
 tag file and no HTML; the second reads all of them and writes the HTML.

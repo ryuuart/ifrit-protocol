@@ -7,7 +7,7 @@
   "registries": [
     {
       "kind": "git",
-      "repository": "/Users/long/REI/sigil-vcpkg-registry",
+      "repository": "https://github.com/ryuuart/sigil-vcpkg-registry",
       "baseline": "801bcc883677c31d638d556648c3003ed13d442b",
       "packages": ["choreograph", "skia", "diligent-engine"]
     }

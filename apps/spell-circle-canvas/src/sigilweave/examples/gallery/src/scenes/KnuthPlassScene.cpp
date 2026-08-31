@@ -110,6 +110,6 @@ SceneDescriptor makeKnuthPlassDescriptor() {
 
 }  // namespace
 
-REGISTER_GALLERY_SCENE(makeKnuthPlassDescriptor())
+REGISTER_GALLERY_SCENE(makeKnuthPlassDescriptor)
 
 }  // namespace gallery

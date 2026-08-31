@@ -11,7 +11,7 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPath.h>
 #include <sigilweave/SigilWeave.h>
-#include <sigilweavekit/SigilWeaveKit.h>
+#include <sigilweave/kit/SigilWeaveKit.h>
 
 #include <QString>
 #include <chrono>

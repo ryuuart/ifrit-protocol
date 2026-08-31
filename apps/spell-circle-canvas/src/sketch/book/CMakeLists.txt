@@ -1,0 +1,171 @@
+# Sketchbook — the one live application, and the one headless renderer.
+#
+# The app lists every sketch, live-edits any of them, and draws a set
+# sketch through an orbitable viewport. `--headless` is the renderer
+# every plate-ledger tier drives.
+qt_add_executable(Sketchbook
+  main.cpp
+)
+sigil_qt_target(Sketchbook)
+
+# A real .app: a bare Mach-O in bin/ gets no bundle identity, so macOS
+# gives it the executable's name in the menu bar and treats activation as
+# a plain process. `--headless` still works through the inner binary
+# (bin/<config>/Sketchbook.app/Contents/MacOS).
+set_target_properties(Sketchbook PROPERTIES
+  MACOSX_BUNDLE_GUI_IDENTIFIER "dev.sigil.Sketchbook"
+  MACOSX_BUNDLE_BUNDLE_NAME "Sketchbook"
+  MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
+  MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
+  MACOSX_BUNDLE TRUE
+)
+
+qt_add_qml_module(Sketchbook
+  URI Sigil.Sketchbook
+  VERSION 1.0
+  QML_FILES qml/Main.qml
+  SOURCES SketchbookView.cpp SketchbookView.h
+)
+set_source_files_properties(qml/Main.qml
+  PROPERTIES QT_RESOURCE_ALIAS Main.qml)
+target_include_directories(Sketchbook PRIVATE ${CMAKE_CURRENT_LIST_DIR})
+target_link_libraries(Sketchbook PRIVATE
+  SigilSketchLive SigilSketchPlate SigilSketches SigilMeasure SigilWeavePorts
+  Qt6::Gui Qt6::GuiPrivate Qt6::Quick Qt6::QuickControls2)
+
+# The device lane for set sketches. Without it the binary reports rather
+# than falling back: a flag that asked for the device answers with the
+# device or with nothing.
+if(TARGET SigilWorldDiligent)
+  target_link_libraries(Sketchbook PRIVATE SigilWorldDiligent)
+else()
+  target_compile_definitions(Sketchbook PRIVATE SIGILSKETCH_NO_DEVICE=1)
+endif()
+
+# Draw straight into QQuickRhiItem's texture through the shared Skia
+# Graphite context when the active QRhi backend supports it. Other builds
+# keep the explicit CPU-raster/upload fallback in SketchbookView.cpp.
+if(TARGET SigilSkiaQt)
+  target_link_libraries(Sketchbook PRIVATE SigilSkiaQt)
+  target_compile_definitions(Sketchbook PRIVATE SIGILSKETCH_BOOK_GPU)
+endif()
+
+# ---------------------------------------------------------------------------
+# THE HOT-RELOAD LINK SURFACE.
+#
+# A sketch dylib links with `-undefined dynamic_lookup` and resolves the
+# framework's symbols out of this executable, so the host must EXPORT
+# them — and it must contain them, which for a static archive means
+# force-loading it whether or not the host's own translation units
+# reference anything inside.
+#
+# The list below and SigilSketches' PUBLIC dependencies are one fact
+# stated twice: the latter decides what a sketch may #include, this
+# decides what it may LINK. When they disagree, every sketch still
+# compiles and every compiled-in sketch still runs — and the hot-reloaded
+# one fails at dlopen with a symbol not found in flat namespace. So
+# anything added there belongs here too, as the ARCHIVES it resolves to:
+# an interface target has no file to force-load, which is why the tiers
+# are named archive by archive.
+if(APPLE)
+  target_link_options(Sketchbook PRIVATE "LINKER:-export_dynamic")
+  foreach(sketch_dep IN ITEMS
+      SigilSketchCore SigilSketchCanvas SigilSketchSet SigilSketchLive
+      SigilComposeCore SigilComposeShape SigilComposeBrush
+      SigilComposeTypography SigilComposeInstances SigilComposeKit
+      SigilComposeTexture
+      SigilImageAsset SigilImageDecode SigilLoaderHub
+      SigilMotionClock SigilMotionBind
+      SigilCoreCache SigilCoreReconcile
+      SigilGeometryPath SigilGeometryPathBlend SigilGeometryMesh
+      SigilGeometryMeshCamera SigilGeometryMeshRender SigilGeometryMeshCurve
+      SigilGeometryMeshPop SigilGeometryMeshCodec
+      SigilMaterialCore SigilMaterialTexture SigilMaterialColor
+      SigilMaterialSdf SigilMaterialPattern SigilMaterialField
+      SigilMaterialSkia SigilMaterialKit
+      SigilWorldElement SigilWorldFrame SigilWorldGraph SigilWorldScene
+      SigilWorldLight SigilWorldKit
+      SigilWeaveUnicode SigilWeaveFonts SigilWeaveParagraph SigilWeaveLayout
+      SigilWeaveDecoration SigilWeavePaint SigilWeaveChoreograph
+      SigilWeaveQuery SigilWeaveCache SigilWeavePorts
+      unofficial::skia::skia)
+    target_link_options(Sketchbook PRIVATE
+      "LINKER:-force_load,$<TARGET_FILE:${sketch_dep}>")
+  endforeach()
+else()
+  target_link_options(Sketchbook PRIVATE "LINKER:--export-dynamic")
+endif()
+
+# The response file is a tracked build output (not POST_BUILD): deleting
+# it or reconfiguring — the compilation database is rewritten at generate
+# time — regenerates it, independent of whether the executable relinks.
+add_custom_command(
+  OUTPUT ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>/sketch_flags.rsp
+  COMMAND ${CMAKE_COMMAND}
+    -DCOMPDB=${CMAKE_BINARY_DIR}/compile_commands.json
+    -DANCHOR=${SIGIL_SKETCH_DIR}/Anchor.cpp
+    -DCONFIG=$<CONFIG>
+    -DOUT=${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>/sketch_flags.rsp
+    # No EXTRA: the host force-loads Skia and re-exports it, so a sketch
+    # resolves Skia through -undefined dynamic_lookup like the rest of
+    # the SDK. Linking the archive into the dylib instead would put two
+    # Skia images in one process, whose objects cannot be exchanged.
+    -P ${CMAKE_SOURCE_DIR}/cmake/ExtractSketchFlags.cmake
+  DEPENDS ${CMAKE_BINARY_DIR}/compile_commands.json
+          ${CMAKE_SOURCE_DIR}/cmake/ExtractSketchFlags.cmake
+  COMMENT "Extracting sketch compile flags from compile_commands.json"
+  VERBATIM)
+add_custom_target(sketch_flags
+  DEPENDS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>/sketch_flags.rsp)
+add_dependencies(Sketchbook sketch_flags)
+
+# End-to-end smoke test of the reload pipeline: compile the starter
+# sketch through the same flags, dlopen it, render a frame.
+add_test(NAME sketch_reload_smoke
+  COMMAND Sketchbook
+    ${SIGIL_SKETCH_DIR}/hello.cpp
+    --frame ${CMAKE_BINARY_DIR}/sketch_reload_smoke.png)
+
+# Paints one of every stock material, so a material that cannot compile
+# or draw fails here rather than in someone's sketch.
+add_test(NAME sketch_reload_materials
+  COMMAND Sketchbook
+    ${SIGIL_SKETCH_DIR}/stock_materials.cpp
+    --frame ${CMAKE_BINARY_DIR}/sketch_reload_materials.png)
+
+# THE LINK-SURFACE GUARD, and the reason it is a third test rather than a
+# case in either of the two above: what it watches is not a compile and
+# not a pixel, it is the force-load list.
+#
+# A missing archive there is invisible everywhere else. Every sketch
+# still compiles (the include surface is a different list) and every
+# compiled-in sketch still runs (a host that links the object library
+# resolves nothing dynamically) — and the hot-reloaded one fails at
+# dlopen. So this test must go through the DYNAMIC path, which `--frame`
+# does: it compiles the file with the response file, dlopens the result,
+# runs it, and exits nonzero when the load fails. shapeworks_lab is the
+# widest surface of the sketches that name geometry and material symbols,
+# so it is the one most likely to catch a partial regression too; neither
+# hello nor stock_materials can, because neither names one.
+add_test(NAME sketch_reload_surface
+  COMMAND Sketchbook
+    ${SIGIL_SKETCH_DIR}/shapeworks_lab.cpp
+    --frame ${CMAKE_BINARY_DIR}/sketch_reload_surface.png)
+
+# …and the same guard for the other runtime: a set sketch names world
+# symbols no canvas sketch does, so a world archive missing from the list
+# above shows up here and nowhere else.
+add_test(NAME sketch_reload_surface_set
+  COMMAND Sketchbook
+    ${SIGIL_SKETCH_DIR}/first_light.cpp
+    --frame ${CMAKE_BINARY_DIR}/sketch_reload_surface_set.png)
+
+# The OTHER registration form. A sketch filed under a name of its own
+# takes SIGIL_SKETCH_AS, whose dylib expansion differs from
+# SIGIL_SKETCH's — and nothing above compiles one, so a break in it would
+# only show up the first time someone edited one of the sketches that use
+# it.
+add_test(NAME sketch_reload_named
+  COMMAND Sketchbook
+    ${SIGIL_SKETCH_DIR}/world_hud.cpp
+    --frame ${CMAKE_BINARY_DIR}/sketch_reload_named.png)

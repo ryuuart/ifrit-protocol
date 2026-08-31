@@ -1,195 +1,7 @@
-#include "ComposeTestSupport.h"
+#include <sigilcompose/brush/Hatches.h>
+#include <sigilcompose/brush/Rails.h>
 
-TEST(ComposeBrushEngine, PipelineStylesEveryLayer) {
-  Host host;
-  Brush b;
-  b.shaped(kit::brush::shapers::Wave{.amplitude = 8, .wavelength = 24})
-      .layer(util::stroke(2, green()))
-      .layer([] {
-        brush::Scatter s;
-        s.art = box().width(6).height(6).fill(red());
-        s.spacing = 40;
-        return s;
-      }());
-  host.composer.render(straightRun(std::move(b)));
-  host.frame();
-  int off = 0;
-  for (int x = 30; x < 170; x += 2)
-    for (int dy : {-7, 7}) off += host.pixel(x, 100 + dy) == SK_ColorGREEN;
-  EXPECT_GT(off, 10);  // the stroke layer rides the waved pipeline
-  int reds = 0;        // and the scatter layer rides the SAME waved geometry
-  for (int x = 24; x < 176; ++x)
-    for (int y = 84; y < 116; ++y) reds += host.pixel(x, y) == SK_ColorRED;
-  EXPECT_GT(reds, 30);
-}
-
-TEST(ComposeBrushEngine, BrushPrunesAsOneValue) {
-  Host host;
-  auto tree = [] {
-    Brush b;
-    b.shaped(kit::brush::shapers::Rounded{6})
-        .shaped(kit::brush::shapers::Wave{.amplitude = 3, .wavelength = 30})
-        .layer(lines::cased(3, Fill::color({0, 1, 0, 1}), 5));
-    return box().child(
-        box().absolute().inset(40, 40, 40, 40).stroke(std::move(b)));
-  };
-  host.composer.render(tree());
-  host.frame();
-  host.composer.render(tree());  // fresh Elements, identical brush values
-  EXPECT_EQ(host.composer.stats().patchedNodes, 0u);
-  host.frame();
-  EXPECT_EQ(host.composer.stats().picturesRecorded, 0u);
-}
-
-TEST(ComposeBrushEngine, SketchyKeepsOpenContoursOpen) {
-  // Under a fill StrokeRec, SkDiscretePathEffect force-closes open
-  // contours — the phantom-channel bug. Hairline rec keeps them open.
-  SkPathBuilder b;
-  b.moveTo(0, 0);
-  b.lineTo(300, 0);
-  const SkPath jittered =
-      kit::brush::shapers::Jitter{8, 2, 11}.shape(b.detach());
-  SkContourMeasureIter iter(jittered, false);
-  float total = 0;
-  bool anyClosed = false;
-  while (sk_sp<SkContourMeasure> c = iter.next()) {
-    total += c->length();
-    anyClosed |= c->isClosed();
-  }
-  EXPECT_FALSE(anyClosed);
-  EXPECT_LT(total, 400.0f);  // a closed loop would be ~2× the 300px run
-}
-
-TEST(ComposeBrushEngine, PerLayerShapersRideTheSharedPipeline) {
-  // One Brush, two layers offset to opposite sides — the asymmetric casing
-  // as a single material value. Positive `px` is LEFT of travel.
-  Host host;
-  Brush b;
-  b.layer(util::stroke(3, green()), {kit::brush::shapers::Offset{12}})
-      .layer(util::stroke(3, blue()), {kit::brush::shapers::Offset{-12}});
-  host.composer.render(straightRun(std::move(b)));
-  host.frame();
-  EXPECT_EQ(host.pixel(100, 88), SK_ColorGREEN);   // left-of-travel rail
-  EXPECT_EQ(host.pixel(100, 112), SK_ColorBLUE);   // right-of-travel rail
-  EXPECT_EQ(host.pixel(100, 100), SK_ColorBLACK);  // nothing on the axis
-}
-
-TEST(ComposeBrushEngine, SquareWaveHoldsPlateausAndEndsOnAxis) {
-  SkPathBuilder b;
-  b.moveTo(0, 0);
-  b.lineTo(320, 0);
-  const SkPath boxy = kit::brush::shapers::Square{8, 80}.shape(b.detach());
-  // Plateaus hold ±8 for half-wavelength runs; endpoints return to 0.
-  const SkRect bounds = boxy.getBounds();
-  EXPECT_NEAR(bounds.top(), -8, 0.5f);
-  EXPECT_NEAR(bounds.bottom(), 8, 0.5f);
-  SkPoint last;
-  SkContourMeasureIter iter(boxy, false);
-  sk_sp<SkContourMeasure> c = iter.next();
-  ASSERT_TRUE(c);
-  ASSERT_TRUE(c->getPosTan(c->length(), &last, nullptr));
-  EXPECT_NEAR(last.y(), 0, 0.5f);  // zero-phase exit
-  EXPECT_NEAR(last.x(), 320, 1.0f);
-}
-
-TEST(ComposeBrushEngine, AnExplicitIntervalIsNotOverriddenBySpacing) {
-  // `spacing` is Interval-mode SUGAR: it stands in for an interval the
-  // author did not set. That is why `interval` is an OPTIONAL rather than a
-  // float with a default — with a default, "unset" would be a number an
-  // author can type by accident, and typing exactly that number would
-  // silently hand the placement over to `spacing` instead.
-  auto stamps = [](std::optional<float> interval, float spacing) {
-    Host host;
-    brush::Scatter b;
-    b.art = box().width(6).height(6).fill(red());
-    b.spacing = spacing;
-    b.place = {brush::Placement::Mode::Interval, interval};
-    b.alignToPath = false;
-    host.composer.render(box().child(box()
-                                         .absolute()
-                                         .inset(20, 20, 20, 20)
-                                         .shape([](SkSize s) {
-                                           SkPathBuilder p;
-                                           p.moveTo(0, 0);
-                                           p.lineTo(s.width(), 0);
-                                           return p.detach();
-                                         })
-                                         .stroke(std::move(b))));
-    host.frame();
-    int runs = 0;
-    bool inRun = false;
-    for (int x = 0; x < 200; ++x) {
-      const bool ink = host.pixel(x, 20) == SK_ColorRED;
-      runs += ink && !inRun;
-      inRun = ink;
-    }
-    return runs;
-  };
-  // 160 px of contour: ~7 stamps at 24 px, ~2 at 80 px.
-  EXPECT_EQ(stamps(24.0f, 80.0f), stamps(24.0f, 24.0f))
-      << "an explicit 24 means 24, whatever spacing says";
-  EXPECT_GT(stamps(24.0f, 80.0f), stamps(std::nullopt, 80.0f))
-      << "and unset still takes spacing";
-}
-
-TEST(ComposeBrushEngine, PlacementGrammarLandsOnRealVertices) {
-  // Vertex family reads the path's actual verbs — stamps sit ON the bends.
-  Host host;
-  brush::Scatter b;
-  b.art = box().width(8).height(8).fill(red());
-  b.place = {brush::Placement::Mode::InnerVertices};
-  b.alignToPath = false;
-  host.composer.render(
-      box().child(box()
-                      .absolute()
-                      .inset(40, 40, 40, 40)
-                      .shape([](SkSize s) {
-                        SkPathBuilder p;  // three segments, two bends
-                        p.moveTo(0, s.height());
-                        p.lineTo(60, s.height());
-                        p.lineTo(60, 0);
-                        p.lineTo(s.width(), 0);
-                        return p.detach();
-                      })
-                      .stroke(std::move(b))));
-  host.frame();
-  EXPECT_EQ(host.pixel(100, 160), SK_ColorRED);   // bend 1 (60,120)+40
-  EXPECT_EQ(host.pixel(100, 40), SK_ColorRED);    // bend 2 (60,0)+40
-  EXPECT_EQ(host.pixel(40, 160), SK_ColorBLACK);  // endpoints excluded
-
-  Host centers;
-  brush::Scatter c;
-  c.art = box().width(8).height(8).fill(blue());
-  c.place = {brush::Placement::Mode::SegmentCenter};
-  c.alignToPath = false;
-  centers.composer.render(box().child(box()
-                                          .absolute()
-                                          .inset(40, 40, 40, 40)
-                                          .shape([](SkSize s) {
-                                            SkPathBuilder p;
-                                            p.moveTo(0, 0);
-                                            p.lineTo(s.width(), 0);
-                                            return p.detach();
-                                          })
-                                          .stroke(std::move(c))));
-  centers.frame();
-  EXPECT_EQ(centers.pixel(100, 40), SK_ColorBLUE);  // the segment midpoint
-}
-
-TEST(ComposeBrushEngine, AlongGradientRampsOverTheArc) {
-  Host host;
-  lines::Line grad;
-  grad.width = 8;
-  grad.alongStops = {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}};
-  host.composer.render(straightRun(std::move(grad)));
-  host.frame();
-  const SkColor start = host.pixel(30, 100);
-  const SkColor end = host.pixel(170, 100);
-  EXPECT_GT(SkColorGetR(start), 200u);  // red end
-  EXPECT_LT(SkColorGetB(start), 60u);
-  EXPECT_GT(SkColorGetB(end), 200u);  // blue end
-  EXPECT_LT(SkColorGetR(end), 60u);
-}
+#include "support/DocsTestSupport.h"
 
 // Value semantics and cache invalidation around Element itself.
 
@@ -222,108 +34,8 @@ TEST(ComposeElement, CopiedValuesMutateIndependently) {
   EXPECT_EQ(host.pixel(150, 50), SK_ColorBLUE);
 }
 
-TEST(ComposeLines, OffsetAlongClampsNonPositiveStep) {
-  SkPathBuilder builder;
-  builder.moveTo(10, 50);
-  builder.lineTo(190, 50);
-  const SkPath route = builder.detach();
-
-  for (float step : {0.0f, -4.0f}) {
-    const SkPath shifted = lines::offsetAcross(route, -10.0f, step);
-    ASSERT_FALSE(shifted.isEmpty()) << "step=" << step;
-    EXPECT_NEAR(shifted.getBounds().top(), 60.0f, 0.01f);
-    EXPECT_NEAR(shifted.getBounds().bottom(), 60.0f, 0.01f);
-  }
-}
-
-TEST(ComposeBrushes, PatternCopyRebakesAllChangedArt) {
-  auto art = [](Fill fill) { return box().width(12).height(12).fill(fill); };
-  brush::Pattern base;
-  base.side = box().width(16).height(4).fill(green());
-  base.start = art(red());
-  base.end = art(red());
-  base.corner = brush::CornerArt{art(red()), brush::CornerAlign::Bisector};
-  base.advance = 16;
-
-  // Aggregate copies intentionally share the memoization cache. The cache
-  // therefore has to key every art slot, not only the side tile.
-  brush::Pattern variant = base;
-  variant.start = art(blue());
-  variant.end = art(blue());
-  variant.corner = brush::CornerArt{art(blue()), brush::CornerAlign::Bisector};
-
-  auto lRun = [](brush::Pattern brush) {
-    return box().child(box()
-                           .absolute()
-                           .inset(30)
-                           .shape([](SkSize size) {
-                             SkPathBuilder path;
-                             path.moveTo(0, 0);
-                             path.lineTo(size.width(), 0);
-                             path.lineTo(size.width(), size.height());
-                             return path.detach();
-                           })
-                           .stroke(std::move(brush)));
-  };
-
-  Host donor;
-  donor.composer.render(lRun(base));
-  donor.frame();  // primes the shared cache with red start/end/corner art
-  EXPECT_EQ(donor.pixel(38, 30), SK_ColorRED);
-  EXPECT_EQ(donor.pixel(170, 162), SK_ColorRED);
-
-  Host changed;
-  changed.composer.render(lRun(variant));
-  changed.frame();
-  EXPECT_EQ(changed.pixel(38, 30), SK_ColorBLUE);    // changed start art
-  EXPECT_EQ(changed.pixel(170, 32), SK_ColorBLUE);   // changed corner art
-  EXPECT_EQ(changed.pixel(170, 162), SK_ColorBLUE);  // changed end art
-}
-
-TEST(ComposeDecorations, ContourWalkCopyRebakesChangedStamp) {
-  ContourWalk base;
-  base.spacing = 1000.0f;  // one stamp at the open route's first point
-  base.stamp = box().width(12).height(12).fill(red());
-  ContourWalk variant = base;
-  variant.stamp = box().width(12).height(12).fill(blue());
-
-  Host donor;
-  donor.composer.render(straightRun(base));
-  donor.frame();  // primes the shared cache with the red stamp
-  EXPECT_EQ(donor.pixel(20, 100), SK_ColorRED);
-
-  Host changed;
-  changed.composer.render(straightRun(variant));
-  changed.frame();
-  EXPECT_EQ(changed.pixel(20, 100), SK_ColorBLUE);
-}
-
-TEST(ComposeTrim, PathFormatOpenContourWrapKeepsTwoPieces) {
-  // PathFormat owns a separate wrapping trim window. It must apply the same
-  // open-contour rule as node-level trim instead of connecting both pieces.
-  Host host;
-  PathFormat format;
-  format.width = 6;
-  format.strokeFill = green();
-  format.trimStart = 0.9f;
-  format.trimEnd = 1.2f;
-  host.composer.render(box().child(box()
-                                       .absolute()
-                                       .inset(20, 80, 20, 80)
-                                       .shape([](SkSize s) {
-                                         SkPathBuilder b;
-                                         b.moveTo(0, s.height() / 2);
-                                         b.lineTo(s.width(), s.height() / 2);
-                                         return b.detach();
-                                       })
-                                       .stroke(format)));
-  host.frame();
-  EXPECT_EQ(host.pixel(170, 100), SK_ColorGREEN);  // tail piece [0.9, 1]
-  EXPECT_EQ(host.pixel(40, 100), SK_ColorGREEN);   // head piece [0, 0.2]
-  EXPECT_EQ(host.pixel(100, 100), SK_ColorBLACK);  // NO invented chord
-}
-
 namespace {
+
 /** A corner tile whose EXTENT is symmetric but whose colour is not: a 24x8
  *  bar, red on its local -x half and green on its local +x half. The stamp
  *  centres on the art's cull rect, so the midpoint of the two blobs is the
@@ -338,6 +50,7 @@ Element directedCornerTile() {
       .child(box().absolute().left(12).top(0).width(12).height(8).fill(
           Fill::color({0, 1, 0, 1})));
 }
+
 struct Blob {
   double x = 0, y = 0;
   size_t n = 0;
@@ -350,6 +63,7 @@ struct Blob {
     return {(float)(x / (double)n), (float)(y / (double)n)};
   }
 };
+
 }  // namespace
 
 // ---------------------------------------------------------------------------
@@ -395,7 +109,7 @@ TEST(ComposeDocs, EverySignatureInTheLineAndBorderDocsCompiles) {
   auto ngon = shapes::polygon(20, -90.0f);
   auto chamfer = shapes::chamfered(22.0f, shapes::Corner::All);
   auto notch = shapes::notched(26.0f, 9.0f, shapes::Corner::Diagonal);
-  auto edges = shapes::onEdges(shapes::Edge::Top, util::stroke(2.0f, ink));
+  auto edges = shapes::onEdges(shapes::Edge::Top, stroke(2.0f, ink));
 
   auto glow =
       kit::brush::presets::filament({0.4f, 0.8f, 1, 1}, {0.9f, 1, 1, 1}, 1.0f);
@@ -404,7 +118,7 @@ TEST(ComposeDocs, EverySignatureInTheLineAndBorderDocsCompiles) {
   // OP FIRST, decoration second. The two arguments read equally well in
   // either order in prose, which is why the call is spelled here.
   auto restyled = brush::restyle(kit::brush::shapers::Jitter{8.0f, 2.0f, 7},
-                                 util::stroke(1.0f, ink), 8.0f);
+                                 stroke(1.0f, ink), 8.0f);
 
   lines::Hatch hatch;
   choreograph::Output<float> pitch{6.0f}, angle{0.0f};
@@ -538,8 +252,8 @@ TEST(ComposeDocs, EverySignatureInTheDecorationAndLayoutDocsCompiles) {
                     .strokeFill = ink,
                     .cap = SkPaint::kRound_Cap,
                     .join = SkPaint::kRound_Join};
-  PathFormat inner = util::stroke(2.0f, ink, PathFormat::Align::Inner);
-  PathFormat outer = util::stroke(2.0f, ink, PathFormat::Align::Outer);
+  PathFormat inner = stroke(2.0f, ink, PathFormat::Align::Inner);
+  PathFormat outer = stroke(2.0f, ink, PathFormat::Align::Outer);
   PathFormat material{.width = 2.0f};
   material.strokeMaterial = Material::solid({0.7f, 0.6f, 0.3f, 1});
   PathFormat stamped{.width = 1.0f, .strokeFill = ink};
@@ -570,7 +284,7 @@ TEST(ComposeDocs, EverySignatureInTheDecorationAndLayoutDocsCompiles) {
   auto wash = decorations::wash(Material::solid({1, 1, 1, 0.2f}),
                                 SkBlendMode::kOverlay, 0.5f);
   // shadow(color, OFFSET, blur) — the offset is the second argument.
-  auto shadow = util::shadow({0, 0, 0, 0.5f}, {0, 2}, 8.0f);
+  auto shadow = sigil::compose::shadow({0, 0, 0, 0.5f}, {0, 2}, 8.0f);
 
   // ---- shapes, exactly as the "shapes" block spells them -----------------
   auto circle = shapes::circle();
@@ -689,8 +403,8 @@ TEST(ComposeDocs, EverySignatureInTheMaterialDocsCompiles) {
   // Every place a Material is accepted, spelled once each.
   (void)box().fill(flat);
   (void)box().textFill(linU);
-  (void)util::stroke(2.0f, Fill::color({1, 1, 1, 1}));
-  PathFormat stroked = util::stroke(2.0f, Fill::color({1, 1, 1, 1}));
+  (void)stroke(2.0f, Fill::color({1, 1, 1, 1}));
+  PathFormat stroked = stroke(2.0f, Fill::color({1, 1, 1, 1}));
   stroked.strokeMaterial = radU;  // a stroke takes a Material, not only a Fill
   (void)decorations::wash(glowU, SkBlendMode::kOverlay, 0.5f);
 
@@ -698,138 +412,6 @@ TEST(ComposeDocs, EverySignatureInTheMaterialDocsCompiles) {
   (void)sksl;
   (void)blended;
   (void)stroked;
-}
-
-TEST(ComposeBrushes, PatternCornerLandsOnTheVertexAndFacesTheBisector) {
-  // Corner placement has two independent ways to go subtly wrong, and a
-  // large corner tile against short sides is what makes both visible.
-  //
-  //  a. The tangent scan STRADDLES the vertex — it compares the tangent at
-  //     d − step with the tangent at d — so a bend is first detected one
-  //     step AFTER it happens. Taking the midpoint of that bracket as the
-  //     vertex puts the art up to half a step along the outgoing leg. The
-  //     corner has to be recovered from the two legs, not from the scan
-  //     position.
-  //  b. A bisector built by re-probing tangents at d ± ε is wrong for the
-  //     same reason: from a point already past the vertex, both probes land
-  //     on the same leg and every corner ends up facing the outgoing
-  //     tangent. The one exception is a closed contour's seam at d = 0,
-  //     whose probes wrap onto both legs — so on a rectangle three corners
-  //     agree with each other and the fourth sits 45 degrees off, which
-  //     reads as "the seam is special" rather than as a general error.
-  //
-  // A rectangle's vertices are exact, so both claims here are arithmetic
-  // rather than approximate.
-  Host host(400, 340);
-  brush::Pattern brush;
-  brush.side = box().width(24).height(10).child(
-      box().absolute().left(2).top(4).width(20).height(2).fill(
-          Fill::color({0.35f, 0.45f, 0.95f, 1})));
-  brush.corner =
-      brush::CornerArt{directedCornerTile(), brush::CornerAlign::Bisector};
-  brush.advance = 24;
-  brush.cornerLength = 40;
-  brush.reach = 40;
-  host.composer.render(box().child(box()
-                                       .absolute()
-                                       .inset(0)
-                                       .shape([](SkSize) {
-                                         SkPathBuilder p;
-                                         p.moveTo(100, 100);
-                                         p.lineTo(300, 100);
-                                         p.lineTo(300, 240);
-                                         p.lineTo(100, 240);
-                                         p.close();
-                                         return p.detach();
-                                       })
-                                       .stroke(std::move(brush))));
-  host.frame();
-
-  SkBitmap bm;
-  bm.allocPixels(SkImageInfo::MakeN32Premul(400, 340));
-  ASSERT_TRUE(host.surface->readPixels(bm.pixmap(), 0, 0));
-  // Quadrant assignment about the rect's centre — unbiased, and every tile
-  // sits within 30 px of its own vertex, nowhere near the middle.
-  Blob red[4], green[4];
-  for (int y = 0; y < 340; ++y)
-    for (int x = 0; x < 400; ++x) {
-      const SkColor c = bm.getColor(x, y);
-      const int r = (int)SkColorGetR(c), g = (int)SkColorGetG(c),
-                b = (int)SkColorGetB(c);
-      const int q = (x > 200 ? 1 : 0) + (y > 170 ? 2 : 0);
-      if (r > 150 && r > 2 * g && r > 2 * b)
-        red[q].add(x, y);
-      else if (g > 150 && g > 2 * r && g > 2 * b)
-        green[q].add(x, y);
-    }
-
-  // quadrant order: 0 = top-left, 1 = top-right, 2 = bottom-left, 3 = BR
-  const SkPoint vertex[4] = {{100, 100}, {300, 100}, {100, 240}, {300, 240}};
-  for (int q = 0; q < 4; ++q) {
-    ASSERT_GT(red[q].n, 20u) << "no corner tile in quadrant " << q;
-    ASSERT_GT(green[q].n, 20u) << "no corner tile in quadrant " << q;
-    const SkPoint rc = red[q].centre(), gc = green[q].centre();
-    const SkPoint place{(rc.x() + gc.x()) * 0.5f, (rc.y() + gc.y()) * 0.5f};
-    EXPECT_NEAR(place.x(), vertex[q].x(), 1.5f)
-        << "corner " << q << " landed off its vertex in x";
-    EXPECT_NEAR(place.y(), vertex[q].y(), 1.5f)
-        << "corner " << q << " landed off its vertex in y";
-    // Every vertex of an axis-aligned rectangle bisects to a diagonal, so
-    // |dx| == |dy|. The outgoing tangent is axis aligned and one of them
-    // would be ~0.
-    const float dx = std::abs(gc.x() - rc.x()), dy = std::abs(gc.y() - rc.y());
-    EXPECT_NEAR(dx, dy, (dx + dy) * 0.2f)
-        << "corner " << q << " faces (" << (gc.x() - rc.x()) << ", "
-        << (gc.y() - rc.y()) << ") — not the bisector";
-  }
-}
-
-TEST(ComposeBrushes, PatternCornerAlignOutgoingIsStillAvailable) {
-  // The other alignment is what a directional marker wants — an arrow that
-  // turns a corner should keep pointing the way it is going.
-  Host host(400, 340);
-  brush::Pattern brush;
-  brush.side =
-      box().width(24).height(2).fill(Fill::color({0.2f, 0.2f, 0.6f, 1}));
-  brush.corner =
-      brush::CornerArt{directedCornerTile(), brush::CornerAlign::Outgoing};
-  brush.advance = 24;
-  brush.cornerLength = 40;
-  brush.reach = 40;
-  host.composer.render(box().child(box()
-                                       .absolute()
-                                       .inset(0)
-                                       .shape([](SkSize) {
-                                         SkPathBuilder p;
-                                         p.moveTo(100, 100);
-                                         p.lineTo(300, 100);
-                                         p.lineTo(300, 240);
-                                         p.lineTo(100, 240);
-                                         p.close();
-                                         return p.detach();
-                                       })
-                                       .stroke(std::move(brush))));
-  host.frame();
-  SkBitmap bm;
-  bm.allocPixels(SkImageInfo::MakeN32Premul(400, 340));
-  ASSERT_TRUE(host.surface->readPixels(bm.pixmap(), 0, 0));
-  Blob red, green;
-  for (int y = 0; y < 170; ++y)
-    for (int x = 201; x < 400; ++x) {  // the top-right vertex only
-      const SkColor c = bm.getColor(x, y);
-      const int r = (int)SkColorGetR(c), g = (int)SkColorGetG(c),
-                b = (int)SkColorGetB(c);
-      if (r > 150 && r > 2 * g && r > 2 * b)
-        red.add(x, y);
-      else if (g > 150 && g > 2 * r && g > 2 * b)
-        green.add(x, y);
-    }
-  ASSERT_GT(red.n, 20u);
-  ASSERT_GT(green.n, 20u);
-  // Leaving (300,100) the contour heads straight DOWN: dx ~ 0, dy > 0.
-  const SkPoint rc = red.centre(), gc = green.centre();
-  EXPECT_NEAR(gc.x() - rc.x(), 0.0f, 2.0f);
-  EXPECT_GT(gc.y() - rc.y(), 6.0f);
 }
 
 TEST(ComposeMaterials, StableLiveResolveReplaysThePicture) {
@@ -935,95 +517,6 @@ TEST(ComposeMaterials, StableLiveResolveBlitsTheTexture) {
 }
 
 // ---------------------------------------------------------------------------
-// instances() — the flyweight repeat layer (<sigilcompose/Instances.h>)
-
-#include <sigilcompose/Instances.h>
-
-TEST(ComposeInstances, StampsAtlasCellsAtPoolPositionsWithTint) {
-  using namespace sigil::compose::instancing;
-  Host host;
-  auto atlas = std::make_shared<Atlas>();
-  atlas->cell(box().fill(Fill::color({1, 1, 1, 1})), {20, 20});
-  auto pool = std::make_shared<Pool>();
-  pool->add({50, 50});                                // white cell, untinted
-  pool->add({150, 50}, 0, 0.0f, 1.0f, {1, 0, 0, 1});  // tinted red
-  // The bake itself: sheet exists and the cell's center is opaque white.
-  ASSERT_TRUE(atlas->ensureBaked(fonts()));
-  ASSERT_TRUE(atlas->image());
-  {
-    SkBitmap probe;
-    probe.allocPixels(SkImageInfo::MakeN32Premul(1, 1));
-    ASSERT_TRUE(atlas->image()->readPixels(nullptr, probe.pixmap(), 20, 20));
-    EXPECT_EQ(probe.getColor(0, 0), SK_ColorWHITE);
-  }
-  host.composer.render(box().child(instances(atlas, pool)));
-  host.frame();
-  EXPECT_EQ(host.pixel(50, 50), SK_ColorWHITE);
-  EXPECT_EQ(host.pixel(150, 50), SK_ColorRED);
-  EXPECT_EQ(host.pixel(100, 100), SK_ColorBLACK);  // between stamps: nothing
-}
-
-TEST(ComposeInstances, DataModePrunesUntilTouched) {
-  using namespace sigil::compose::instancing;
-  Host host;
-  auto atlas = std::make_shared<Atlas>();
-  atlas->cell(box().fill(Fill::color({1, 1, 1, 1})), {16, 16});
-  auto pool = std::make_shared<Pool>();
-  pool->add({40, 40});
-  auto describe = [&] { return box().child(instances(atlas, pool)); };
-  host.composer.render(describe());
-  host.frame();
-  // Unchanged pool: the re-describe prunes (memo hit), the cached picture
-  // replays, nothing re-records.
-  host.composer.render(describe());
-  EXPECT_FALSE(host.composer.dirty());
-  host.frame();
-  EXPECT_EQ(host.composer.stats().picturesRecorded, 0u);
-  // Mutate + touch + render: repaints exactly once, pixels move.
-  pool->positions()[0] = {120, 40};
-  pool->commit();
-  host.composer.render(describe());
-  EXPECT_TRUE(host.composer.dirty());
-  host.frame();
-  EXPECT_GE(host.composer.stats().picturesRecorded, 1u);
-  EXPECT_EQ(host.pixel(120, 40), SK_ColorWHITE);
-  EXPECT_EQ(host.pixel(40, 40), SK_ColorBLACK);
-}
-
-TEST(ComposeInstances, LiveModeReadsThePoolEveryFrame) {
-  using namespace sigil::compose::instancing;
-  Host host;
-  auto atlas = std::make_shared<Atlas>();
-  atlas->cell(box().fill(Fill::color({1, 1, 1, 1})), {16, 16});
-  auto pool = std::make_shared<Pool>();
-  pool->add({40, 40});
-  host.composer.render(box().child(instances(atlas, pool, Mode::Live)));
-  host.frame();
-  EXPECT_EQ(host.pixel(40, 40), SK_ColorWHITE);
-  // No touch(), no render() — the Cache::None leaf reads the latest data.
-  pool->positions()[0] = {140, 140};
-  host.frame();
-  EXPECT_EQ(host.pixel(140, 140), SK_ColorWHITE);
-  EXPECT_EQ(host.pixel(40, 40), SK_ColorBLACK);
-}
-
-TEST(ComposeInstances, RepeaterLawExponentialScaleLinearEverythingElse) {
-  using namespace sigil::compose::instancing;
-  Pool pool;
-  place::repeat(pool, 4, {10, 10}, {5, 0}, 0.1f, 0.5f, 1.0f, 0.25f);
-  ASSERT_EQ(pool.size(), 4u);
-  EXPECT_FLOAT_EQ(pool.positions()[3].fX, 25.0f);  // linear translate
-  EXPECT_FLOAT_EQ(pool.rotations()[3], 0.3f);      // linear rotate
-  EXPECT_FLOAT_EQ(pool.scales()[3], 0.125f);       // pow(0.5, 3)
-  // Opacity and tint are separate lanes: the opacity ramp writes alphas[],
-  // and tints[].fA stays exactly what the author put there. Folding one into
-  // the other would make a tinted pool silently un-tintable.
-  EXPECT_FLOAT_EQ(pool.alphas()[0], 1.0f);  // opacity lerp endpoints
-  EXPECT_FLOAT_EQ(pool.alphas()[3], 0.25f);
-  EXPECT_FLOAT_EQ(pool.tints()[3].fA, 1.0f);  // untouched
-}
-
-// ---------------------------------------------------------------------------
 // The edge store: node→routes back-index + flat derive lists
 
 TEST(ComposeEdgeStore, RoutesAtReturnsAnchoredRoutesInTreeOrder) {
@@ -1072,243 +565,12 @@ TEST(ComposeEdgeStore, IndexClearsWhenRoutesUnmount) {
 // ---------------------------------------------------------------------------
 // The brush-arc tail: art warp (SkVertices), hatch (Sk2D), gloss (table)
 
-#include <sigilcompose/Brushes.h>
-#include <sigilcompose/LayerStyles.h>
-#include <sigilcompose/Lines.h>
-
-TEST(ComposeBrushTail, BrushArtWarpsArtAlongTheOutline) {
-  Host host;
-  // A straight horizontal outline through the node's middle: the warped
-  // ribbon must be a horizontal band of the art's height around it.
-  auto lineOutline = [](SkSize s) {
-    SkPathBuilder b;
-    b.moveTo(0, s.height() / 2);
-    b.lineTo(s.width(), s.height() / 2);
-    return b.detach();
-  };
-  brush::Art brush = brush::artAlong(
-      box().width(40).height(20).fill(Fill::color({1, 1, 1, 1})), 20);
-  host.composer.render(box().child(box()
-                                       .absolute()
-                                       .inset(20, 60, 20, 60)
-                                       .shape(lineOutline)
-                                       .foreground(brush)));
-  host.frame();
-  EXPECT_EQ(host.pixel(100, 100), SK_ColorWHITE);  // on the ribbon
-  EXPECT_EQ(host.pixel(100, 130), SK_ColorBLACK);  // 30px off: outside height
-}
-
-TEST(ComposeBrushTail, HatchFillsInteriorSparsely) {
-  Host host;
-  host.composer.render(box().child(
-      box()
-          .absolute()
-          .inset(50, 50, 50, 50)
-          .background(lines::hatch(Fill::color({1, 1, 1, 1}), 8, 1.5f, 45))));
-  host.frame();
-  // Count lit pixels in the hatched interior: strictly between "empty"
-  // and "solid fill" — the lattice is present but sparse.
-  int lit = 0;
-  const int total = 100 * 100;
-  for (int y = 50; y < 150; y += 2)
-    for (int x = 50; x < 150; x += 2)
-      if (host.pixel(x, y) != SK_ColorBLACK) ++lit;
-  const float coverage = (float)lit / (float)(total / 4);
-  EXPECT_GT(coverage, 0.05f);
-  EXPECT_LT(coverage, 0.75f);
-  // Nothing escapes the clip.
-  EXPECT_EQ(host.pixel(30, 30), SK_ColorBLACK);
-}
-
-TEST(ComposeBrushTail, GlossContourBandsInsideTheShape) {
-  Host plain, glossed;
-  auto shape = [] {
-    return box()
-        .absolute()
-        .inset(50, 50, 50, 50)
-        .corners({24})
-        .fill(Fill::color({0.2f, 0.3f, 0.5f, 1}));
-  };
-  plain.composer.render(box().child(shape()));
-  plain.frame();
-  glossed.composer.render(
-      box().child(shape().foreground(styles::gloss({1, 1, 1, 1}, 8, {0, -4}))));
-  glossed.frame();
-  // The band brightens SOME interior pixels but not the deep center
-  // (table peaks at mid-coverage, so the middle of the shape stays fill).
-  int changed = 0;
-  for (int y = 52; y < 148; y += 2)
-    for (int x = 52; x < 148; x += 2)
-      if (plain.pixel(x, y) != glossed.pixel(x, y)) ++changed;
-  EXPECT_GT(changed, 40);  // a real band appeared
-  EXPECT_EQ(plain.pixel(100, 100), glossed.pixel(100, 100));  // center: fill
-  EXPECT_EQ(plain.pixel(30, 30), glossed.pixel(30, 30));      // outside: clip
-}
-
-// ---------------------------------------------------------------------------
-// VariationDrive — draw-time variable-font axes, gated by the advance probe
-
-TEST(ComposeVariationDrive, GradDrivesPaintOnlyWhenAdvanceInvariant) {
-  // The San Francisco system face carries the advance-invariant GRAD axis
-  // on modern macOS; find a face that passes the probe or skip honestly.
-  sk_sp<SkFontMgr> manager = sigil::weave::ports::systemFontManager();
-  sk_sp<SkTypeface> ui;
-  for (const char* family :
-       {".AppleSystemUIFont", ".SF NS", "SF Pro Text", "SF Pro"}) {
-    ui = manager->matchFamilyStyle(family, SkFontStyle());
-    if (ui && fonts().axisIsAdvanceInvariant(ui, "GRAD")) break;
-    ui = nullptr;
-  }
-  if (!ui) GTEST_SKIP() << "no advance-invariant GRAD face on this system";
-  // The probe proves advances HOLD; it cannot prove the clone RESPONDS
-  // (a hidden system face can accept the axis and render identically).
-  // Check a glyph's outline actually moves across the range, else skip.
-  {
-    const int n = ui->getVariationDesignParameters({});
-    std::vector<SkFontParameters::Variation::Axis> axes((size_t)n);
-    ui->getVariationDesignParameters({axes.data(), axes.size()});
-    float lo = 0, hi = 0;
-    for (const auto& a : axes)
-      if (a.tag == SkSetFourByteTag('G', 'R', 'A', 'D')) {
-        lo = a.min;
-        hi = a.max;
-      }
-    const sigil::weave::FontVariation vLo("GRAD", lo), vHi("GRAD", hi);
-    SkFont fLo(fonts().variedTypeface(ui, {&vLo, 1}), 48);
-    SkFont fHi(fonts().variedTypeface(ui, {&vHi, 1}), 48);
-    SkGlyphID glyph = fLo.unicharToGlyph('W');
-    auto rasterize = [&](const SkFont& f) {
-      sk_sp<SkSurface> s =
-          SkSurfaces::Raster(SkImageInfo::MakeN32Premul(100, 80));
-      s->getCanvas()->clear(SK_ColorBLACK);
-      SkPaint paint;
-      paint.setColor(SK_ColorWHITE);
-      paint.setAntiAlias(true);
-      const SkPoint at{10, 60};
-      s->getCanvas()->drawGlyphs(SkSpan(&glyph, 1), SkSpan(&at, 1), {0, 0}, f,
-                                 paint);
-      SkBitmap bm;
-      bm.allocPixels(s->imageInfo());
-      s->readPixels(bm.pixmap(), 0, 0);
-      return bm;
-    };
-    SkBitmap rLo = rasterize(fLo), rHi = rasterize(fHi);
-    int rasterDelta = 0;
-    for (int y = 0; y < 80; ++y)
-      for (int x = 0; x < 100; ++x)
-        if (rLo.getColor(x, y) != rHi.getColor(x, y)) ++rasterDelta;
-    if (rasterDelta == 0)
-      GTEST_SKIP() << "GRAD clone is rendering-inert on this system face";
-  }
-  // Drive the axis's REAL design range (SF's GRAD span is font-defined;
-  // hardcoded values can land clamped onto the default = no visual delta).
-  float gradeMin = 0, gradeMax = 0;
-  {
-    const int n = ui->getVariationDesignParameters({});
-    std::vector<SkFontParameters::Variation::Axis> axes((size_t)n);
-    ui->getVariationDesignParameters({axes.data(), axes.size()});
-    for (const auto& a : axes)
-      if (a.tag == SkSetFourByteTag('G', 'R', 'A', 'D')) {
-        gradeMin = a.min;
-        gradeMax = a.max;
-      }
-  }
-
-  choreograph::Output<float> grade{gradeMin};
-  Host host;
-  auto describe = [&] {
-    sigil::weave::TextStyle style = styleAt(48);
-    style.shaping.typeface = ui;
-    style.paint.foreground.setColor(SK_ColorWHITE);  // black-on-black otherwise
-    return box().child(text(u8"WEIGHT", style)
-                           .key("t")
-                           .variationDrive("GRAD", &grade)
-                           .absolute()
-                           .inset(20, 60, 20, 60));
-  };
-  host.composer.render(describe());
-  host.frame();
-  const SkRect before = *host.composer.bounds("t");
-  SkBitmap lo;
-  lo.allocPixels(SkImageInfo::MakeN32Premul(200, 200));
-  host.surface->readPixels(lo.pixmap(), 0, 0);
-
-  grade = gradeMax;  // heavy grade — glyphs thicken, advances hold
-  host.frame();
-  const SkRect after = *host.composer.bounds("t");
-  SkBitmap hi;
-  hi.allocPixels(SkImageInfo::MakeN32Premul(200, 200));
-  host.surface->readPixels(hi.pixmap(), 0, 0);
-
-  EXPECT_EQ(before, after);  // no relayout — paint-only volatility
-  int changed = 0;
-  for (int y = 0; y < 200; y += 2)
-    for (int x = 0; x < 200; x += 2)
-      if (lo.getColor(x, y) != hi.getColor(x, y)) ++changed;
-  EXPECT_GT(changed, 20) << "GRAD range " << gradeMin << ".."
-                         << gradeMax;  // visible thickening
-}
-
-TEST(ComposeVariationDrive, TheAxisDrivesOnAPathRunToo) {
-  // The old baseline-on-a-path draw was its own path through the engine and
-  // took none of the per-glyph dressing with it, so a driven axis on a ring
-  // simply did nothing. One draw now places both, so it does.
-  sk_sp<SkFontMgr> manager = sigil::weave::ports::systemFontManager();
-  sk_sp<SkTypeface> ui;
-  for (const char* family :
-       {".AppleSystemUIFont", ".SF NS", "SF Pro Text", "SF Pro"}) {
-    ui = manager->matchFamilyStyle(family, SkFontStyle());
-    if (ui && fonts().axisIsAdvanceInvariant(ui, "GRAD")) break;
-    ui = nullptr;
-  }
-  if (!ui) GTEST_SKIP() << "no advance-invariant GRAD face on this system";
-  float gradeMin = 0, gradeMax = 0;
-  {
-    const int n = ui->getVariationDesignParameters({});
-    std::vector<SkFontParameters::Variation::Axis> axes((size_t)n);
-    ui->getVariationDesignParameters({axes.data(), axes.size()});
-    for (const auto& a : axes)
-      if (a.tag == SkSetFourByteTag('G', 'R', 'A', 'D')) {
-        gradeMin = a.min;
-        gradeMax = a.max;
-      }
-  }
-  if (gradeMax <= gradeMin) GTEST_SKIP() << "GRAD declares no range";
-
-  choreograph::Output<float> grade{gradeMin};
-  Host host(240, 240);
-  sigil::weave::TextStyle style = styleAt(26);
-  style.shaping.typeface = ui;
-  style.paint.foreground.setColor(SK_ColorWHITE);
-  host.composer.render(box().child(
-      text(u8"GRADED RING", style)
-          .key("ring")
-          .width(200)
-          .height(200)
-          .absolute()
-          .left(20)
-          .top(20)
-          .onPath({.path = shapes::circle(), .align = TextPath::Align::Center})
-          .variationDrive("GRAD", &grade)));
-  host.frame();
-  SkBitmap lo;
-  lo.allocPixels(SkImageInfo::MakeN32Premul(240, 240));
-  host.surface->readPixels(lo.pixmap(), 0, 0);
-
-  grade = gradeMax;
-  host.frame();  // paint-only: no re-describe, no relayout
-  SkBitmap hi;
-  hi.allocPixels(SkImageInfo::MakeN32Premul(240, 240));
-  host.surface->readPixels(hi.pixmap(), 0, 0);
-
-  int changed = 0;
-  for (int y = 0; y < 240; y += 2)
-    for (int x = 0; x < 240; x += 2)
-      if (lo.getColor(x, y) != hi.getColor(x, y)) ++changed;
-  EXPECT_GT(changed, 20) << "the drive did not reach the glyphs on the ring";
-}
+#include <sigilcompose/brush/Brushes.h>
+#include <sigilcompose/brush/LayerStyles.h>
+#include <sigilcompose/brush/Lines.h>
 
 namespace {
+
 /** Does @p face DECLARE @p tag at all? `axisIsAdvanceInvariant` answers
  *  FALSE both for "the axis moves advances" and for "there is no such
  *  axis", and the test below has to tell those apart: on a face without a
@@ -1325,242 +587,8 @@ bool faceDeclaresAxis(const sk_sp<SkTypeface>& face, SkFourByteTag tag) {
     if (axis.tag == tag) return true;
   return false;
 }
+
 }  // namespace
-
-TEST(ComposeVariationDrive, AdvanceVariantAxisIsRefused) {
-  // This needs a face whose wght axis genuinely CHANGES advances, so that
-  // the drive has something to refuse. A system face may not offer one — on
-  // macOS the UI face declares no wght axis at all — so the fallback is a
-  // committed instrument, test/assets/AdvanceVariant.ttf: a generated
-  // two-master variable font whose wght interpolates advances (built by
-  // make_advance_variant_vf.py). Both preconditions are asserted below, so
-  // the test cannot pass by running against a face that has no axis.
-  const SkFourByteTag wght = SkSetFourByteTag('w', 'g', 'h', 't');
-  sk_sp<SkTypeface> ui = fonts().defaultTypeface();
-  if (!faceDeclaresAxis(ui, wght) || fonts().axisIsAdvanceInvariant(ui, "wght"))
-    ui = fonts().fontManager()->makeFromFile(SIGILCOMPOSE_TEST_ASSET_DIR
-                                             "/AdvanceVariant.ttf");
-  ASSERT_TRUE(ui) << "test asset AdvanceVariant.ttf failed to load";
-  ASSERT_TRUE(faceDeclaresAxis(ui, wght));
-  ASSERT_FALSE(fonts().axisIsAdvanceInvariant(ui, "wght"))
-      << "the instrument face's wght must move advances";
-
-  choreograph::Output<float> weight{400.0f};
-  Host host;
-  sigil::weave::TextStyle style = styleAt(48);
-  style.shaping.typeface = ui;
-  style.paint.foreground.setColor(SK_ColorWHITE);  // black-on-black otherwise
-  host.composer.render(box().child(text(u8"WEIGHT", style)
-                                       .key("t")
-                                       .variationDrive("wght", &weight)
-                                       .absolute()
-                                       .inset(20, 60, 20, 60)));
-  host.frame();
-  SkBitmap base;
-  base.allocPixels(SkImageInfo::MakeN32Premul(200, 200));
-  host.surface->readPixels(base.pixmap(), 0, 0);
-
-  // Liveness guard: the baseline really has ink, so "the pixels hold" below
-  // is a claim about glyphs rather than about two identical blank grids.
-  int inked = 0;
-  for (int y = 0; y < 200; y += 2)
-    for (int x = 0; x < 200; x += 2)
-      if (base.getColor(x, y) != SK_ColorBLACK) ++inked;
-  ASSERT_GT(inked, 20) << "baseline text never drew";
-
-  weight = 900.0f;
-  host.frame();  // refused: draws at shaped coordinates, pixels hold
-  SkBitmap after;
-  after.allocPixels(SkImageInfo::MakeN32Premul(200, 200));
-  host.surface->readPixels(after.pixmap(), 0, 0);
-  for (int y = 0; y < 200; y += 4)
-    for (int x = 0; x < 200; x += 4)
-      ASSERT_EQ(base.getColor(x, y), after.getColor(x, y));
-}
-
-TEST(ComposeVariationDrive, TheVerbIsATrackAndComposesWithOtherTracks) {
-  // variationDrive() is sugar over fx(): the same axis coordinate reached by
-  // hand as a track must draw the same pixels. The equivalence is the point
-  // — if the verb kept a text path of its own, a track drawn over it would
-  // hide the drive entirely, which is exactly what it used to do.
-  sk_sp<SkFontMgr> manager = sigil::weave::ports::systemFontManager();
-  sk_sp<SkTypeface> ui;
-  for (const char* family :
-       {".AppleSystemUIFont", ".SF NS", "SF Pro Text", "SF Pro"}) {
-    ui = manager->matchFamilyStyle(family, SkFontStyle());
-    if (ui && fonts().axisIsAdvanceInvariant(ui, "GRAD")) break;
-    ui = nullptr;
-  }
-  if (!ui) GTEST_SKIP() << "no advance-invariant GRAD face on this system";
-  float gradeMax = 0;
-  {
-    const int n = ui->getVariationDesignParameters({});
-    std::vector<SkFontParameters::Variation::Axis> axes((size_t)n);
-    ui->getVariationDesignParameters({axes.data(), axes.size()});
-    for (const auto& a : axes)
-      if (a.tag == SkSetFourByteTag('G', 'R', 'A', 'D')) gradeMax = a.max;
-  }
-
-  sigil::weave::TextStyle style = styleAt(48);
-  style.shaping.typeface = ui;
-  style.paint.foreground.setColor(SK_ColorWHITE);
-  choreograph::Output<float> grade{gradeMax};
-
-  Host verb;
-  verb.composer.render(box().child(text(u8"GRADE", style)
-                                       .key("t")
-                                       .variationDrive("GRAD", &grade)
-                                       .absolute()
-                                       .inset(20, 60, 20, 60)));
-  verb.frame();
-
-  Host byHand;
-  byHand.composer.render(
-      box().child(text(u8"GRADE", style)
-                      .key("t")
-                      .fx({.effect = fx::axis("GRAD", gradeMax)})
-                      .absolute()
-                      .inset(20, 60, 20, 60)));
-  byHand.frame();
-
-  SkBitmap fromVerb, fromTrack;
-  fromVerb.allocPixels(SkImageInfo::MakeN32Premul(200, 200));
-  fromTrack.allocPixels(SkImageInfo::MakeN32Premul(200, 200));
-  verb.surface->readPixels(fromVerb.pixmap(), 0, 0);
-  byHand.surface->readPixels(fromTrack.pixmap(), 0, 0);
-  constexpr size_t kRowBytes = 200 * sizeof(uint32_t);
-  for (int y = 0; y < 200; ++y)
-    ASSERT_EQ(std::memcmp(fromVerb.getAddr32(0, y), fromTrack.getAddr32(0, y),
-                          kRowBytes),
-              0)
-        << "the verb and the hand-built axis track disagreed on row " << y;
-
-  // …and the drive is no longer hidden by a track drawn over it: a second
-  // track that moves the glyphs leaves the grade in place.
-  Host stacked;
-  stacked.composer.render(box().child(text(u8"GRADE", style)
-                                          .key("t")
-                                          .variationDrive("GRAD", &grade)
-                                          .fx({.effect = fx::rise(0)})
-                                          .absolute()
-                                          .inset(20, 60, 20, 60)));
-  stacked.frame();
-  SkBitmap composed;
-  composed.allocPixels(SkImageInfo::MakeN32Premul(200, 200));
-  stacked.surface->readPixels(composed.pixmap(), 0, 0);
-  for (int y = 0; y < 200; ++y)
-    ASSERT_EQ(std::memcmp(fromVerb.getAddr32(0, y), composed.getAddr32(0, y),
-                          kRowBytes),
-              0)
-        << "a stacked track dropped the driven axis, at row " << y;
-}
-
-TEST(ComposeVariationDrive, ADrivenAxisRetainsABoundedFacePopulation) {
-  // THE REGRESSION THIS PINS: a varied clone that the font context RETAINS
-  // is retained forever, so a driven axis fed a value that never repeats
-  // must not put one there per frame. It reads as free under a fixed-dt
-  // harness — where an animated value cycles on the scene's own period and
-  // the memo saturates — and as a frame time growing linearly with uptime
-  // in any host that steps wall-clock dt.
-  //
-  // So the coordinates here NEVER REPEAT: a golden-ratio rotation across
-  // the axis's design range, which is irrational and therefore visits a
-  // distinct value on every one of the frames below.
-  sk_sp<SkFontMgr> manager = sigil::weave::ports::systemFontManager();
-  sk_sp<SkTypeface> ui;
-  for (const char* family :
-       {".AppleSystemUIFont", ".SF NS", "SF Pro Text", "SF Pro"}) {
-    ui = manager->matchFamilyStyle(family, SkFontStyle());
-    if (ui && fonts().axisIsAdvanceInvariant(ui, "GRAD")) break;
-    ui = nullptr;
-  }
-  if (!ui) GTEST_SKIP() << "no advance-invariant GRAD face on this system";
-  float gradeMin = 0, gradeMax = 0;
-  {
-    const int n = ui->getVariationDesignParameters({});
-    std::vector<SkFontParameters::Variation::Axis> axes((size_t)n);
-    ui->getVariationDesignParameters({axes.data(), axes.size()});
-    for (const auto& a : axes)
-      if (a.tag == SkSetFourByteTag('G', 'R', 'A', 'D')) {
-        gradeMin = a.min;
-        gradeMax = a.max;
-      }
-  }
-  if (gradeMax <= gradeMin) GTEST_SKIP() << "GRAD declares no range";
-
-  constexpr float kSize = 48.0f;
-  constexpr int kHalf = 200;  // frames per half; the run is two of them
-  // The population is read TWICE — once half way, once at the end — so the
-  // assertions can speak about GROWTH and not only about a number. Each run
-  // gets its own context, so both readings are absolute populations rather
-  // than deltas against whatever the rest of this file left behind.
-  struct Retained {
-    size_t half = 0, full = 0;
-  };
-  const auto retainedAfter = [&](bool continuous) {
-    sigil::weave::FontContext local(sigil::weave::ports::systemFontManager());
-    sigil::motion::Ticker ticker;
-    Composer composer(ticker, local);
-    composer.setSize({200, 200});
-    sk_sp<SkSurface> surface =
-        SkSurfaces::Raster(SkImageInfo::MakeN32Premul(200, 200));
-    sigil::weave::TextStyle style = styleAt(kSize);
-    style.shaping.typeface = ui;
-    style.paint.foreground.setColor(SK_ColorWHITE);
-    choreograph::Output<float> phase{0.0f};
-    // eachMs = 0: every glyph reads the one master phase, so the coordinate
-    // is exactly the sequence driven below and nothing else.
-    Track track{.effect = fx::axis("GRAD", gradeMin, gradeMax),
-                .stagger = {.eachMs = 0, .durationMs = 100},
-                .progress = &phase};
-    track.continuous = continuous;
-    composer.render(box().padding(10).child(
-        text(u8"GRADE", style).key("t").fx(std::move(track))));
-    Retained out;
-    double walk = 0.0;
-    for (int f = 0; f < 2 * kHalf; ++f) {
-      constexpr double kGolden = 0.6180339887498949;
-      walk = std::fmod(walk + kGolden, 1.0);
-      phase = (float)walk;
-      ticker.tick(1.0 / 60.0);
-      surface->getCanvas()->clear(SK_ColorBLACK);
-      composer.draw(*surface->getCanvas());
-      if (f + 1 == kHalf) out.half = local.variedTypefaceCount();
-    }
-    out.full = local.variedTypefaceCount();
-    return out;
-  };
-
-  // A snapped track lands on the ladder, and the ladder is what bounds the
-  // population: at this rendered size it offers a few hundred rungs, and no
-  // number of frames can reach past them. The count that must never come
-  // back is one per frame.
-  const Retained snapped = retainedAfter(false);
-  EXPECT_GT(snapped.full, 0u)
-      << "the drive retained nothing at all, so this measures a track that "
-         "never reached the face";
-  EXPECT_LT(snapped.full, (size_t)(2 * kHalf))
-      << "the snapped ladder retained a clone per frame — the coordinate is "
-         "reaching the memo unsnapped";
-  // Four rungs per rendered pixel of em, plus the two clones an advance
-  // probe adds when this run is the one that pays for it.
-  EXPECT_LE(snapped.full, 4u * (size_t)kSize + 2u)
-      << "more clones than the ladder at " << kSize << " px has rungs";
-
-  // A continuous track has no ladder, so it has nothing bounded to retain
-  // and must retain nothing: the clone is transient and dies with the frame
-  // that drew it. Stated as growth as well as as a count, because that is
-  // the property — 200 further frames, every one asking for a coordinate no
-  // earlier frame asked for, must add exactly zero.
-  const Retained smooth = retainedAfter(true);
-  EXPECT_EQ(smooth.full, smooth.half)
-      << "a continuous coordinate grew the retained population between "
-         "frame "
-      << kHalf << " and frame " << 2 * kHalf;
-  EXPECT_LE(smooth.full, 2u)
-      << "a continuous coordinate was retained; only the advance probe's "
-         "own two clones can belong in the memo";
-}
 
 // ---------------------------------------------------------------------------
 // Shaped bindings — bind(&out).from().map().to().clamp()

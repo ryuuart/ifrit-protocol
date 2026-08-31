@@ -31,8 +31,8 @@ the argument.
 
 ```cpp
 #include <sigilcompose/Compose.h>
-#include <sigilcompose/Studio.h>
-#include <sigilcompose/Util.h>
+#include <sigilcompose/brush/Decorations.h>
+#include <sigilcompose/typography/Typography.h>
 
 #include <ranges>
 #include <vector>
@@ -51,17 +51,17 @@ struct Channel {
 
 Element meter(const Channel &c) {
   const SkColor4f ink =
-      c.alarm ? studio::hex(0xff5252) : studio::hex(0x8fd0ff);
+      c.alarm ? hex(0xff5252) : hex(0x8fd0ff);
   return box()
       .row()
       .gap(10)
       .padding(12)
       .corners({6})
-      .fill(studio::hex(0x0e1218))
+      .fill(hex(0x0e1218))
       .alignItems(Align::Center)
       // A mark on part of the boundary: L-brackets at every tangent break.
-      .stroke(spans::corners(12), util::stroke(1.5f, Fill::color(ink)))
-      .child(text(c.label, studio::type({.size = 13, .color = ink})))
+      .stroke(spans::corners(12), stroke(1.5f, Fill::color(ink)))
+      .child(text(c.label, type({.size = 13, .color = ink})))
       .child(box()
                  .grow()
                  .height(6)
@@ -78,7 +78,7 @@ Element dashboard(const std::vector<Channel> &channels) {
       .column()
       .gap(8)
       .padding(24)
-      .fill(studio::hex(0x05070a))
+      .fill(hex(0x05070a))
       .children(channels | std::views::transform([](const Channel &c) {
                   // memo() skips the describe call entirely while the props
                   // compare equal. key() is what the reconciler matches on
@@ -88,24 +88,11 @@ Element dashboard(const std::vector<Channel> &channels) {
 }
 ```
 
-The host side is three objects, and `util::Stage` bundles them:
+The host side is three objects — a clock, a ticker and the composer —
+which the host owns and wires together:
 
 ```cpp
-#include <sigilcompose/Util.h>
-
 sigil::weave::FontContext fonts = /* yours */;
-util::Stage stage({960, 540}, fonts);
-
-stage.render(dashboard(model));           // whenever the data changes
-
-// …inside your own paint callback:
-bool wantAnotherFrame = stage.frame(canvas);   // tick, draw, needs-more
-```
-
-Spelled out, which is what to do when the clock or the ticker is shared
-with something else:
-
-```cpp
 motion::FrameClock clock;
 motion::Ticker ticker;
 Composer composer(ticker, fonts);       // both must outlive the composer
@@ -119,13 +106,18 @@ composer.draw(canvas);
 const bool again = moving || composer.dirty() || ticker.active();
 ```
 
+SigilSketch bundles exactly those three lines behind its own session, so
+a sketch declares a scene and never a loop. That is a convenience of a
+host and not of this library — spell the objects out when the clock or
+the ticker is shared with something else.
+
 The other write path is a live binding — a `choreograph::Output` the host
 mutates every frame, read straight out of paint with no `render()` call:
 
 ```cpp
 choreograph::Output<float> spin{0.0f};
 ticker.add([&](double) {
-  spin = studio::phase(ticker.elapsed(), 6.0);   // a wrapping [0,1) phase
+  spin = motion::phase(ticker.elapsed(), 6.0);   // a wrapping [0,1) phase
   return true;
 });
 
@@ -252,7 +244,7 @@ position: every run a `rich()` value added under a style name
 ```cpp
 text(rich(base).styles(set)
          .add(u8"gusting ").add(u8"soon", "term").add(u8", then rain"))
-    .fx({.where = !sel::style("term"), .effect = fx::axis("GRAD", 900)});
+    .fx({.where = !sel::style("term"), .effect = TextEffect::variableAxis("GRAD", 900)});
 ```
 
 A glossary set in one registered style stays addressable when the copy
@@ -495,20 +487,24 @@ treatment is data rather than scene structure, and the cost is one draw
 plus one pass whatever the unit count is:
 
 ```cpp
-auto burn = Material::sksl(emberDissolve).uniform("uEdgeWidth", 0.15f);
+// emberDissolve is a SigilMaterial recipe over the params struct Burn,
+// carrying the pass body as its SkSL.
+auto burn = Material::recipe(sigil::material::Material(emberDissolve,
+                                                       Burn{ink}));
 text(u8"EMBER DECODE", display)
     .fx({.effect = fx::pass(burn),
          .stagger = stagger(unit::Cluster, {.eachMs = 260})});
 ```
 
-The material must be the SOURCE-CARRYING form — `Material::sksl` given the
-SkSL as a string — because the unit count is baked into the compiled
+The material must be RECIPE-BACKED — `Material::recipe` over a recipe
+carrying an SkSL body — because the unit count is baked into the compiled
 shader: a runtime effect's array size is fixed at compile and SkSL has no
-uniform-bounded loop, so the runtime prepends the declarations above plus
-`const int kUnitCount = N` and compiles once per distinct count, cached
-for the process. Write the source against those names and do not declare
-them; any other material warns once and the track draws its glyphs at
-rest. `main(xy)` runs in the node's own px, the layer is sampled at the
+uniform-bounded loop, so the runtime holds a specialization of that recipe
+per distinct count, its body the declarations above plus `const int
+kUnitCount = N` ahead of the author's. Write the body against those names
+and do not declare them, and declare every uniform of your own as a params
+field rather than in the body's text; any other material warns once and
+the track draws its glyphs at rest. `main(xy)` runs in the node's own px, the layer is sampled at the
 device's resolution (a 2x host stays sharp with no supersampled bake), and
 the pass is BOUNDED: it paints the node's box grown by the track's `reach`
 and nothing outside it, unlike an `Element::effect` shader pass. The
@@ -596,7 +592,8 @@ where the replacement has the original's advance ALONG THE AXIS ITS RUN
 ADVANCES ON — the width along a line, the height down an upright column; a
 swap that differs there would move every letter after it, which is a
 reshape and not a redraw.
-`fx::axis` sets a coordinate (or sweeps between two across local progress)
+`TextEffect::variableAxis` holds a coordinate and `fx::variableAxisSweep` sweeps between
+two across local progress
 and `fx::scramble` is the decoding-text preset built on the substitution:
 each glyph churns through a charset and resolves to the true letter by
 `t = 1`, seeded per glyph so it is the same churn on every frame.
@@ -717,7 +714,7 @@ be live — bound, or mid-transition — and its effect must actually move
 glyphs, which is what `TextEffect::displaces` answers. That answer is
 *inferred* almost everywhere: a preset knows its own deviation (`fx::rise`,
 `fx::slide`, `fx::pop`, `fx::spinIn`, `fx::scatter` and `fx::waveLoop`
-move glyphs; `fx::typeOn`, `fx::axis`, `fx::tint` and `fx::scramble` touch
+move glyphs; `fx::typeOn`, `fx::variableAxisSweep`, `fx::tint` and `fx::scramble` touch
 coverage, colour or the outline and leave every pen position alone),
 `fx::keys` reads its own table (any entry publishing an offset, a lean, a
 shear or a growth), and `fx::seq`, `fx::mix` and `fx::hold` derive from
@@ -802,42 +799,51 @@ and reads as changed content every time — which is why it stays the escape
 hatch for the passage too custom for either verb, not the way to set two
 colours in a sentence.
 
-**Selector styling.** `Element::spanPaint`, `Element::spanAxis` and
-`Element::spanStyle` restyle whatever the SAME `sel::` selectors the tracks
-use address, on every content form alike — plain text, `rich()` spans and
-the paragraph overload. They are ordered by **what they are allowed to
-disturb**:
+**Selector styling.** `Element::spanPaint` and `Element::spanStyle`
+restyle whatever the SAME `sel::` selectors the tracks use address, on
+every content form alike — plain text, `rich()` spans and the paragraph
+overload. They are ordered by **what they are allowed to disturb**:
 
 | verb | changes | re-shapes |
 | --- | --- | --- |
 | `spanPaint` | paint alone — a colour, a shader, an underline, a glow pass | never |
-| `spanAxis` | one advance-invariant variable-font axis | never |
-| `spanStyle` | anything a `sigil::weave::TextStyle` holds | the words its range covers |
+| `spanStyle` | anything a `sigil::weave::TextStyle` holds | the words its range covers — unless the only change is advance-invariant axes |
 
-All three are ordered lists — a LATER DECLARATION WINS on overlap, so a
-broad rule followed by a narrow exception reads in the order it is written
-— and all three are comparable values, so a re-described list prunes and
-only a changed one re-resolves.
+Both are ordered lists — a LATER DECLARATION WINS on overlap, so a broad
+rule followed by a narrow exception reads in the order it is written — and
+both are comparable values, so a re-described list prunes and only a
+changed one re-resolves.
 
-`spanAxis` is the advance-invariant middle the other two leave out.
-`spanPaint` cannot carry a face or an axis at all; `spanStyle` can and
-re-shapes to do it. A grade is advance-invariant *by construction* — it
-thickens a letter without moving the letter after it — so it is exactly the
-restyle that can keep the layout the paragraph already has:
+That rule holds **per dimension** where the two verbs meet. The paint of a
+range is `spanPaint`'s to say, so a `spanStyle` over text an earlier
+`spanPaint` coloured applies its other dimensions and leaves that colour
+standing: either declaration order draws the same passage, and neither
+verb has to know what the other declared. A `spanStyle` with no
+`spanPaint` under it paints with the style it is given, as ever.
+
+The middle ground is `spanStyle`'s own. A style that differs from the text
+it covers only in variable-font axes the face carries advance-invariantly
+does not re-shape: a grade is advance-invariant *by construction* — it
+thickens a letter without moving the letter after it — so it is exactly
+the restyle that can keep the layout the paragraph already has, and the
+restyle keeps it:
 
 ```cpp
-text(copy).spanAxis(sel::regex(u8"[0-9]+"), "GRAD", 780);
+sigil::weave::TextStyle graded = base;
+graded.variation("GRAD", 780);
+text(copy, base).spanStyle(sel::regex(u8"[0-9]+"), graded);
 ```
 
-It is sugar over `fx()` and inherits what that means. The coordinate is a
-`GlyphMod::axis` on a track, so it goes through the same gate and the same
-size-scaled ladder a driven axis does, an advance-variant axis is refused
-with the same one-per-face warning, and it composes with entrances and
-loops instead of being hidden by them. Being a track it runs on the GLYPHS,
-which is why it takes the selector vocabulary whole where the two
-paragraph-side verbs cannot; and the leaf then draws through the batched
-glyph path, which paints glyphs and not a span style's underline or
-strikethrough.
+Such a restyle is carried as a track holding `TextEffect::variableAxis`,
+and inherits what that means. The coordinate is a `GlyphMod::axis`, so it
+goes through the same size-scaled ladder a driven axis does and composes
+with entrances and loops instead of being hidden by them; and the leaf
+then draws through the batched glyph path, which paints glyphs and not a
+span style's underline or strikethrough. Anything else the style changes —
+another face or size, an axis the face moves advances on, an axis the text
+was shaped with and the restyle drops — is a reshape; and an earlier
+axis-only restyle under a later reshaping one over the same text re-shapes
+too, so the later declaration is the one that stands.
 
 `spanPaint` and `spanStyle` resolve their selection as TEXT RANGES rather
 than glyphs, because a restyle runs on the paragraph before there are
@@ -941,93 +947,174 @@ them. The SigilWeave gallery's vertical scene shows both.
 ## The header map
 
 Everything lives in `namespace sigil::compose` under
-`include/sigilcompose/`. The public include root is `include/` and nothing
-else — the two internal headers beside the sources are not reachable from
-outside the library.
+`include/sigilcompose/<feature>/`, one directory per feature target, and
+the include spelling is the feature's: `<sigilcompose/core/Element.h>`,
+`<sigilcompose/shape/Shapes.h>`. The public include root is `include/`
+and nothing else — the internal headers beside each feature's sources are
+not reachable from outside it. Each feature has an umbrella named after
+it (`core/Core.h`, `shape/Shape.h`, `brush/Brush.h`, `paint/Paint.h`,
+`typography/Typography.h`) over its public headers, and
+`<sigilcompose/Compose.h>` at the root is the transitional umbrella over
+the kernel — exactly `core/Core.h`. Each header stands on its own; include
+the one a translation unit needs, from the feature whose target the
+translation unit links.
 
-**Kernel — `Compose.h`.** `Element` and its builders; the factories `box`,
-`stack`, `positioned`, `text`, `image`, `custom`, `slot`, `connector`,
-`rail`, `band`, `layout`; `Composer`; `memo`; the `env::` inherited-value
-channel; the mixed-text value `rich` and the span-restyling verbs; the
-comparable seam values (`Shape`, `Shaper`, `Profile`,
-`Decoration`, `CrossingRule`); the stroke grammar (`spans::` and
-`Element::stroke`); the masking family (`parts::`, `by::`, `Region`);
-`Effect`; the one-shot verbs `snapshot`, `measure`, `metrics`,
-`measureRun`, `runPens`; and re-exports of SigilMotion's animation vocabulary
-(`Animatable`, `Transition`, `animate`, `bind`, `ease::`) so authoring
-never has to name a second library. A user who reads only this header has a
-complete and sound model; nothing below it changes kernel semantics.
+**Kernel — `core/`.** A user who reads these headers has a complete and
+sound model; nothing below them changes kernel semantics.
 
-**Paint values.** `Material.h` is the polymorphic paint value that
-supersedes a flat `Fill` — gradients, images, raw SkSL with live uniforms
-(float, float2, float4 and whole arrays, constant or live: a scalar binds
-an `Output`, an array binds a caller-owned `UniformBlock` whose
-`commit()` publishes an edit), SkSL as source compiled and cached by the
-library, blend stacks that compile to one shader, world-space anchoring.
-`Effect::uniform` takes the same shapes on the post-processing seam. `Sdf.h`
-gets shape, border, glow and soft shadow out of a single shader pass.
-`Pattern.h` and `Patterns.h` bake tile recipes once into repeating
-materials, plus stock generators. `Ocio.h` is an output-stage view
-transform for `Composer::setView`, compiled only when the build finds
-OpenColorIO.
+- `core/Motion.h` — the re-exports of SigilMotion's animation vocabulary
+  (`Animatable`, `Transition`, `animate`, `bind`, `ease::`,
+  `quantizeTime`), so authoring never has to name a second library.
+- `core/Paint.h` — the paint values: `Fill`, `Corners`, `PaintContext`,
+  `StampCache`, `UniformBlock`, `Effect`, and the colour spellings `hex`,
+  `alpha`, `mul`, `mix`.
+- `core/Text.h` — the text model: `Unit`, `Selector` and `sel::`,
+  `TextEffect`, `Stagger`, `Track`, `Beat`, the mixed-text value `rich` /
+  `RichText`, and `toU8`.
+- `core/Shape.h` — the comparable seam values `Shape` (with
+  `ShapeScheme`), `MotionPath`, `TextPath`, `Decoration` and its
+  declared-volatility concepts, and `LayerStyle`.
+- `core/Stroke.h` — the stroke grammar: `Spans` and `spans::`, `Profile`
+  and `strand::`, `Across`, `Around`, `Formation`, `Shaper`, `StrandPath`,
+  `Crossing`, `CrossingRule` and `crossing::`.
+- `core/Mask.h` — the masking family: `Region`, `parts::`, `by::`, `Gate`,
+  `Mask`.
+- `core/Layout.h` — `Dim` and its literals, `Align`, `Justify`, `Echo`,
+  `Cache`, `LayoutInput` / `LayoutScheme`, and the `ComponentProps` /
+  `ComponentFn` concepts.
+- `core/Element.h` — `Element` and its builders, the class alone.
+- `core/Factories.h` — the functions that start one: `box`, `stack`,
+  `positioned`, `text`, `image`, `custom`, `slot`, `layout`, `memo`.
+- `core/Measure.h` — the one-shot verbs that take a tree without a live
+  composer: `snapshot`, `measure`, `metrics`, `measureRun`, `runPens`.
+- `core/Tiles.h` — `tiles::`, the slicing of one baked picture into a run
+  of tile-sized rasters.
+- `core/Derive.h` — `connector`, `rail`, `Anchor`, `band`, `bandPointAt`,
+  and the `derive::` namespace that gathers the family.
+- `core/Env.h` — the `env::` inherited-value channel, SigilCore's under
+  the compose name.
+- `core/Composer.h` — `Composer`.
+- `core/Material.h` — the polymorphic paint value that supersedes a flat
+  `Fill` — gradients, images, raw SkSL with live uniforms (float, float2,
+  float4 and whole arrays, constant or live: a scalar binds an `Output`,
+  an array binds a caller-owned `UniformBlock` whose `commit()` publishes
+  an edit), SkSL as source compiled and cached by the library, blend
+  stacks that compile to one shader, world-space anchoring — and the
+  one-line gradient `Fill`s, `linearGradient` and `radialGradient`.
+  `Effect::uniform` takes the same shapes on the post-processing seam.
+- `core/Feed.h` — the streaming collection: a `feed::Ring` of rows,
+  windowed to the newest `feed::Options::visible` and keyed by sequence
+  id, so an append costs one mount and every surviving row keeps its
+  cached picture; rows of text name their style in a
+  `sigil::weave::StyleSet` (`feed::TextRow`, `feed::TextOptions`). Built
+  purely by composing the kernel; the bordered strip several feeds sit on
+  is the kit's `kit::plate` (`kit/Plate.h`), with `kit::tinted` building
+  the one-face style set its rows name.
+- `core/GpuImage.h` — `gpuimg::drawLattice` and `gpuimg::drawSpriteAtlas`,
+  which are mandatory rather than convenient (see the traps).
 
-**Geometry.** `Shapes.h` is the silhouette and curve library — every
-generator is a comparable value, so a shaped node prunes like an unshaped
-one. `Layouts.h` holds the placement schemes for the `layout()` seam
-(`layouts::Radial`, `AlongPath`, `ModularGrid`, `Diagonal`, `BaselineGrid`,
-`Scatter`). `Routers.h` holds the stock connector and rail routers
-(`routers::straight`, `orthogonal`, `polyline`, `octilinear`, `orbit`).
+The two time helpers a scene reaches for — `motion::ramp`, a delayed
+eased `Transition` in float milliseconds, and `motion::phase`, a wrapping
+`[0, 1)` over a period — are SigilMotion's, in
+`<sigilmotion/Animation.h>`.
 
-**Marks.** `Decorations.h` has the concrete primitives that plug the
-`Decoration` seam — `PathFormat` (stroke formatting), `Slice` (lattice
-image mapping), `ContourWalk` (walk the outline and run a program at each
-sample), `Wash`, `Border`. `Brushes.h` is the brush engine over them:
-`brush::solid`, the composites `brush::layers` and `brush::weave`, and the
-archetypes `brush::Scatter`, `brush::Pattern`, `brush::Ribbon`,
-`brush::Art`. `Lines.h` is the cartography and diagram stroke vocabulary —
-parallel casings, terminal caps, ties, waves. `LayerStyles.h` is the
-Photoshop route to rich surfaces: bevels, sheens, inner shadows built from
-gradients and blurs rather than shaders.
+**Geometry — `shape/`.** `shape/Shapes.h` is the silhouette and curve
+library, one include over four catalogs — every generator is a comparable
+value, so a shaped node prunes like an unshaped one: `shape/Generators.h`
+(the closed silhouettes: an SVG path, polygon, star, circle, annulus,
+squircle, blob, arc, sector, parallelogram), `shape/Curves.h` (the
+parametric curves in the unit frame: `parametric`, Lissajous,
+harmonograph, rose, spiral, trochoid), `shape/Corners.h` (`rounded` over
+any shape, `chamfered`, `notched`) and `shape/Edges.h` (`edges`,
+`onEdges`, `inset`, `arrow`). `shape/Layouts.h` holds the placement
+schemes for the `layout()` seam (`layouts::Radial`, `AlongPath`,
+`ModularGrid`, `Diagonal`, `BaselineGrid`, `Scatter`). `shape/Routers.h`
+holds the stock connector and rail routers (`routers::straight`,
+`orthogonal`, `polyline`, `octilinear`, `orbit`).
 
-**Components.** `TextFx.h` supplies the stock effects (`fx::rise`,
-`fx::slide`, `fx::pop`, `fx::spinIn`, `fx::typeOn`, `fx::waveLoop`,
-`fx::scatter`, `fx::axis`, `fx::tint`, `fx::scramble`, `fx::effect`), the
-`fx::keys` keyframe table, the `fx::pass` shader pass, and the `fx::seq`,
-`fx::mix` and `fx::hold` combinators, for the kernel's `Element::fx` seam.
-`Feed.h` is the streaming collection — a `feed::Ring` of rows, windowed to
-the newest `feed::Options::visible` and keyed by sequence id, so an append
-costs one mount and every surviving row keeps its cached picture; rows of
-text name their style in a `sigil::weave::StyleSet` (`feed::TextRow`,
-`feed::TextOptions`), and `feed::plate` is the bordered strip several feeds
-sit on. Built purely by composing the kernel. `Instances.h` renders
-thousands of sprites as one leaf, with the pool on your side of the seam. `Web.h` makes a live
+**Marks — `brush/`.** `brush/Decorations.h` has the concrete primitives
+that plug the `Decoration` seam — `PathFormat` (stroke formatting) and
+`stroke`, its one-line spelling; `Shadow` / `shadow`, the soft drop
+shadow; `Slice` (lattice image mapping); `ContourWalk` (walk the outline
+and run a program at each sample); `Wash`; `Border`. The brush engine is
+three headers: `brush/Layered.h`, the stroke stack (`StrokeLayer`,
+`LayeredBrush`); `brush/GeometryOps.h`, the one mechanism door for
+deviating an outline (`ops::`, `GeometryOp`); and `brush/Brushes.h`, the
+brush kinds over them — `brush::solid`, the composites `brush::layers`
+and `brush::weave`, and the archetypes `brush::Scatter`, `brush::Pattern`,
+`brush::Ribbon`, `brush::Art`. The line vocabulary is three more:
+`brush/Lines.h`, the cartography and diagram stroke (`lines::Line` —
+parallel casings, terminal caps, ties, waves); `brush/Rails.h`, N-rail
+strokes where every rail is its own line; and `brush/Hatches.h`, the
+parallel, radial and concentric hatches. `kit/Strokes.h` and
+`kit/Plate.h` ship with this tier because they are spelled in its types.
+
+**Fills.** The paint vocabulary is SigilMaterial's, spelled as compose
+values. `brush/LayerStyles.h` is the Photoshop route to rich surfaces:
+bevels, sheens, inner shadows built from gradients and blurs rather than
+shaders, and the gel and chrome bundles over the kit's colour tables.
+`core/Sdf.h` gets shape, border, glow and soft shadow out of a single
+shader pass. `core/Pattern.h` and `core/Patterns.h` bake tile recipes
+once into repeating materials, plus stock generators. A material recipe
+is a `Material` through `Material::recipe`, an effect through
+`Effect::recipe`, and an output-stage view transform for
+`Composer::setView` is SigilMaterial's colour transform, compiled only
+when the build finds OpenColorIO.
+
+**Type — `typography/`.** `typography/TextFx.h` supplies the stock preset
+effects (`fx::rise`, `fx::slide`, `fx::pop`, `fx::spinIn`, `fx::typeOn`,
+`fx::waveLoop`, `fx::scatter`, `fx::variableAxisSweep`, `fx::tint`) for
+the kernel's `Element::fx` seam — and `marquee`, the seamless ticker
+built from a clipped strip and a wrapping phase. The effects the runtime
+evaluates by structure are declared with the kernel in `core/Text.h`:
+`fx::scramble`, the `fx::keys` keyframe table, the `fx::pass` shader pass,
+the `fx::seq`, `fx::mix` and `fx::hold` combinators, and the `fx::effect`
+door. `typography/Type.h` is the compose-side spelling of a text style:
+`type` builds a `sigil::weave::TextStyle` from a designated-init `Type`,
+and `pickFace` resolves the first installed family of a fallback chain.
+`kit/Legibility.h` ships with this tier.
+
+**Leaves with their own targets.** `instances/Instances.h` renders
+thousands of sprites as one leaf, with the pool on your side of the seam;
+it is its own target, `SigilComposeInstances`, linked only by what stamps
+with it, and the kit's `kit/Placers.h` (the `place::grid`, `place::ring`
+and `place::repeat` pool fillers) ships with it. `web/Web.h` makes a live
 Ultralight page a leaf; it is a header-only adapter and the library does
 not link SigilScry, so include it only in targets that do.
+`texture/Texture.h` is the door OUT of this library: a scene painted into
+a surface and handed over as a SigilMaterial texture value, in its own
+target `SigilComposeTexture` — see Boundaries.
 
-**Host and tooling.** `Util.h` is deliberately-demoted sugar — `util::Stage`
-(the canonical host loop), gradient constructors, `util::stroke`,
-`util::Shadow`, `util::disc`, `util::marquee`. `Studio.h` is the file
-prelude: `studio::hex`, `studio::type`, `studio::pickFace`, `studio::ramp`,
-`studio::phase`, `studio::fmt` — spellings, never decisions.
-`GpuImage.h` holds `gpuimg::drawLattice` and `gpuimg::drawSpriteAtlas`,
-which are mandatory rather than convenient (see the traps). `Debug.h`
-verifies generated geometry — `debug::coverage`, `debug::check`,
-`debug::report`, `debug::failures` — and carries the two instruments for
-text in motion, `debug::trackMeter` (a cascade's schedule drawn, one cell
-per beat at its rect, filled by its local time) and `debug::restGhost` (the
-same word undeformed under the moving one). Both tiers are for tests,
-sketches and `--verify` paths, not the paint loop.
+**Testing — `testing/Checks.h`.** A separate target, `SigilComposeTesting`,
+whose one header verifies generated geometry and reads back what was
+drawn, in `namespace test` (GoogleTest owns `::testing`): `test::coverage`, `test::endpointDegrees`,
+`test::rasterize`, `test::check`, `test::report`,
+`test::failures`. The checks themselves — `test::check` and
+`test::failures` — are SigilMeasure's, brought into `test`; only the
+geometry readers and the feed `test::report` are this library's. Test
+binaries link it, and so does the sketch library, so a sketch can report
+its own checks; nothing that ships does, which is what keeps a
+point-sampled coverage scan out of a paint loop.
 
 **Kit — `kit/Kit.h`.** A tier above the library that adds no kernel state
 and no new equality: `kit::Frame` and `kit::Grid` (figure-local polar and
-unit coordinates), `kit::ticks` and `kit::chords` (division ladders as one
-path), `kit::PixFont` (aliased bitmap-font bakes), `kit::Scrim` and the
-halo/shade legibility helpers, and `kit/Strokes.h`'s shapers, profiles and
-span compositions. The kit is a **separate CMake library**
-(`SigilComposeKit`) whose only include path is compose's public headers,
-which is how the public/internal boundary is proven rather than asserted.
-Note that the umbrella header does not pull in `kit/Strokes.h`; include it
-directly.
+unit coordinates) with `kit::disc` and `kit::centred` (a box about a
+centre) and `kit::at` (a box pinned at absolute coordinates, for the
+plate that has no layout at all), `kit::dotSprite` (the round stamp a
+point sink draws each point with), `kit::ticks` and `kit::chords`
+(division ladders as one path),
+`kit::PixFont` (aliased bitmap-font bakes), `kit::Scrim` and the
+halo/shade legibility helpers, the two instruments for text in motion —
+`kit::trackMeter` (a cascade's schedule drawn, one cell per beat at its
+rect, filled by its local time) and `kit::restGhost` (the same word
+undeformed under the moving one) — and, shipped with the tiers whose
+types they are spelled in, `kit/Strokes.h`'s shapers, profiles and span
+compositions and `kit/Plate.h`'s bordered feed plate (Brush),
+`kit/Legibility.h` (Typography) and `kit/Placers.h` (Instances). The kit
+is a **separate CMake library** (`SigilComposeKit`) whose only include
+path is compose's public headers, which is how the public/internal
+boundary is proven rather than asserted. Note that `kit/Kit.h` does not
+pull in the four headers shipped with other tiers; include them directly.
 
 ---
 
@@ -1160,14 +1247,52 @@ the left edge, not the top one.
 
 ## Boundaries
 
-The library links `SigilImage`, `SigilMotion`, `SigilWeave` and Skia
-publicly, and Yoga privately. OpenColorIO is optional and gates `Ocio.h`
-alone.
+The library links `SigilCoreReconcile`, `SigilCoreCache`,
+`SigilGeometryPath`, `SigilImage`, `SigilMotion`, `SigilWeave` and Skia
+publicly, and Yoga privately. `SigilCoreReconcile` is the reconciler: the
+keyed and positional match, the memo, the identity prune, the `env::`
+channel and the animation lane operations are its, and `Composer` is its
+host — the description comparators, Yoga, text and paint stay here.
+`SigilCoreCache` is the caching kernel, and `Composer` is its host too:
+the three-valued cache policy (`cachePolicy` maps this library's
+five-valued `Cache` onto it, keeping the TIER — picture, texture,
+group — on this side), the fold that turns one node's declarations and
+its children's verdicts into what a subtree promises, the stability
+release that proves a node declaring volatility is holding still, and the
+three-way bake decision are its. What every term MEANS is compose's: which
+Skia paint moves pixels off the describe clock, which of its lanes a value
+memo can compare, what a recording is and when it may be replayed.
+OpenColorIO is optional and gates `paint/Ocio.h` alone.
+`SigilGeometryPath` supplies the contours, polylines, poses and seeded
+noise that every outline walker here reads through, and compose adds no
+path geometry of its own. `travel()`'s motion path is the worked example:
+the curve is measured into that library's contours once per shape and
+size, and each frame's position is one pose read along them, walked as a
+single arc-length coordinate. What stays here is the
+POLICY the verb states — the fraction wraps on a closed curve and clamps
+on an open one, the tangent angle comes from a look-ahead chord, and the
+path outranks the translate lanes.
+
+`SigilComposeTexture` is the one feature that owns a SURFACE, and it is
+the exception the bullet below states. `compose::TextureScene` keeps a
+composer and the surface it paints into, and hands the picture over as a
+SigilMaterial texture value: a consumer that samples an image samples
+that one with no knowledge that a composer made it, and nothing above has
+to learn what an `Element` is. `compose::texture` is the one-shot form,
+for a picture described once. The version the value carries counts
+PAINTS, not describes — a frame whose reconcile moved nothing leaves the
+value equal to the frame before's, which is what lets a consumer prune on
+it. The surface is a raster one by default and a texture on a GPU device
+when a host hands the scene one, so a renderer standing on that same
+device binds the pixels where they were painted rather than copying them.
+The arrow points one way: this feature links SigilSkia and SigilMaterial's
+texture feature, and nothing that samples the value links compose.
 
 Deliberately *not* linked: SigilScry (the web leaf is a header-only
 adapter, exercised by its own test target), EnTT (the instancing header
-keeps the registry on your side), SigilShape, Diligent, and Qt — Qt
-identifiers are banned outright in exported headers.
+keeps the registry on your side), the mesh-and-material `SigilGeometry`
+above the path leaf, Diligent, and Qt — Qt identifiers are banned
+outright in exported headers.
 
 What it refuses to be:
 
@@ -1178,9 +1303,12 @@ What it refuses to be:
 - **No imperative node mutation.** Describe or bind, and nothing else.
 - **No timeline object.** Multi-beat choreography is windowed bindings
   over one phase output (`bind(&phase).window(lo, hi)`).
-- **No surface, loop or thread ownership.** The composer is a guest in
-  someone else's canvas, and a host that wants many surfaces makes many
-  composers.
+- **No surface, loop or thread ownership — outside `texture/`.** The
+  composer is a guest in someone else's canvas, and a host that wants
+  many surfaces makes many composers. `compose::TextureScene` is the one
+  place a surface is owned, because a picture another library samples has
+  to live somewhere and the alternative is every such consumer writing
+  the same three lines.
 - **No depth and no perspective in the model.** There is no z, no
   `rotateX`, no projection. A camera, if you want one, is the host's
   matrix on the canvas — a recording is matrix-independent by
@@ -1201,8 +1329,30 @@ What it refuses to be:
 
 ## Build and test
 
-The library target is `SigilCompose`; the kit is `SigilComposeKit`. From
-`apps/spell-circle-canvas`:
+The library is one feature target per directory, and a consumer links the
+tier it draws with: `SigilComposeCore` (`core/` — the kernel: elements,
+layout, paint, transitions, text and the feed, as the host of
+SigilCore's reconciler),
+`SigilComposeShape` (`shape/` — silhouettes, layouts, routers),
+`SigilComposeTypography` (`typography/` — the text engine behind dressed
+type, with the type styles and the text-fx presets), `SigilComposeBrush`
+(`brush/` — decorations, lines, brushes, the stroke grammar's engine and
+the mask gates, with `kit/Strokes.h` and `kit/Plate.h`), `SigilComposePaint`
+(`paint/` — patterns, SDF materials, layer styles, OCIO),
+`SigilComposeInstances` (`instances/` — the instanced sprite leaf and the
+kit's placers, over Core), `SigilComposeTexture` (`texture/` — a scene
+painted into a surface and handed out as a texture value),
+`SigilComposeWeb` (`web/` — header-only, present only with SigilScry),
+`SigilComposeTesting` (`testing/`) and `SigilComposeKit` (`kit/`). Each directory holds the target's sources,
+its internal headers, its `test/` and its `bench/`; the public headers
+sit under `include/sigilcompose/<feature>/`. Every consumer in this
+repository — SigilSketch, the benches, the demos, the tests and
+`geometry_demo` — links the feature targets it draws with by name, so a dependency on a tier is a stated fact.
+`SigilCompose` remains as the whole-library name for a consumer outside
+this tree, the way `SigilWeave`, `SigilMotion` and `SigilGeometry` each
+keep one: it is Paint (which reaches Brush, Shape and Core) plus
+Typography, never the instanced leaf or the web leaf, and nothing here
+links it. From `apps/spell-circle-canvas`:
 
 ```sh
 python3 scripts/setup.py --config Debug
@@ -1210,42 +1360,46 @@ cmake --build build --config Debug
 ctest --test-dir build -C Debug --output-on-failure
 ```
 
-Registered tests: `compose_test`, `compose_kit_test`, `compose_spike_test`,
-`compose_gallery_test`, `compose_sketch_smoke`, `compose_sketch_stock`,
-`compose_sketch_shape`, plus `compose_gpu_test` (Apple only, needs the
-Graphite plumbing) and `compose_web_test` (needs the Ultralight SDK).
-`compose_bench` and `compose_demo` are executables, not tests — anything
-resembling a performance claim belongs to `compose_bench` and to the plate
-ledger, never to prose.
+Registered tests, one binary per feature target so that each links only
+the target it exercises and a test reaching past its tier fails to link:
+`compose_core_test` (the kernel — elements, the reconciler, layout, paint,
+transitions, text, the feed, masks and the field walks; links
+`SigilComposeCore` alone), `compose_shape_test` (silhouettes, layouts,
+routers, rails, travel), `compose_text_test` (text data, the text pass,
+vertical writing, motion along paths, the text-fx presets, rich spans),
+`compose_brush_test` (decorations, lines, brushes, the stroke grammar,
+the kit's stroke presets), `compose_paint_test` (patterns, SDF materials,
+layer styles, colour management), `compose_instances_test` (the pool,
+the atlas, the stamp, the pick and the placers), `compose_kit_test` and
+`compose_studio_test` (the kit, and the queries, the studio and the
+instruments over it), `compose_spike_test` (the Yoga+SigilWeave
+measurement contract, with `core/`), and the library's own:
+`compose_docs_test` (the engine walkthroughs and the generated README
+probes) and `compose_api_doc_probes_self_test`,
+plus `compose_gpu_test` (Apple only, needs the Graphite plumbing) and
+`compose_web_test` (needs the Ultralight SDK). Each binary's translation
+units share `test/support/Host.h` — the composer-in-a-raster-surface
+harness — through a support header of their own that includes only what
+they use. The benchmarks and `compose_demo` are executables, not tests.
+There is one benchmark binary per tier — `compose_core_bench`,
+`compose_shape_bench`, `compose_brush_bench`, `compose_paint_bench`,
+`compose_text_bench` — each in its feature's `bench/` over the shared
+`bench/BenchSupport.h`, linking only the library it measures, all built
+by the `benches` target and run by `scripts/bench_ledger.py`; anything
+resembling a performance claim belongs to them and to the plate ledger,
+never to prose.
 
-**The gallery** is a macOS app bundle, so headless runs go through the
-binary inside it:
-
-```sh
-build/bin/<config>/ComposeGallery.app/Contents/MacOS/ComposeGallery \
-    --headless <outdir> [--gpu] [--scene <name|index>]
-```
-
-`--scene` takes a case-insensitive substring and renders just that one,
-which is the loop for visual work. `--shot <png>` captures the application
-window itself rather than a scene.
-
-**The sketch host** is `ComposeSketch`, a live-coding loop: point it at a
-single `.cpp` file, save, and the recompiled sketch hot-swaps into the
-running canvas. It renders headlessly too (`--frame out.png --at <s>`), and
-`--bench` reports frame-time phases. Study sketches are compiled into the
-gallery as an object library, so one file is both a hot-reload sketch and a
-gallery scene.
-
-**Byte-identity sweeps** run through `scripts/plate_ledger.py`, which
-renders every gallery scene in parallel, hashes the plates and compares
-against a stored baseline. `--rebase` adopts a new baseline; `--stability N`
-re-renders movers to separate a self-nondeterministic scene from a real
-change.
+**Looking at any of it** goes through SigilSketch, which is where every
+renderable thing in this repository lives: one file per scene, one
+registry, one application (Sketchbook) and one headless renderer.
+`src/sketch/README.md` is the canon for it — how a sketch is written and
+registered, how the live host reloads one, and how the plates a
+byte-identity sweep hashes are made. Nothing here hosts a catalogue of
+its own.
 
 ### The generated doc-probe translation unit
 
-`compose_test` builds a C++ file that does not exist in the source tree.
+`compose_docs_test` builds a C++ file that does not exist in the source tree.
 `test/docs/api_doc_probes.py` reads this document, extracts every qualified
 name an author could copy out of it — from fenced code blocks **and** from
 inline `code` spans, because the prose carries as many names as the

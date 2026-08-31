@@ -11,6 +11,7 @@
 #include <include/core/SkData.h>
 #include <include/core/SkStream.h>
 #include <include/encode/SkPngEncoder.h>
+#include <sigilsubstance/Substance.h>
 
 #include <cstdio>
 #include <cstdlib>
@@ -19,8 +20,6 @@
 #include <sstream>
 #include <string>
 #include <vector>
-
-#include "sigilsubstance/Substance.h"
 
 using namespace sigil;
 
@@ -70,6 +69,8 @@ bool writePng(const sk_sp<SkImage>& image, const std::filesystem::path& path) {
 
 }  // namespace
 
+// an uncaught exception ends the demo with its message
+// NOLINTNEXTLINE(bugprone-exception-escape)
 int main(int argc, char** argv) {
   if (argc < 2 || (argv[1][0] == '-')) {
     const bool help = argc >= 2 && (std::strcmp(argv[1], "-h") == 0 ||

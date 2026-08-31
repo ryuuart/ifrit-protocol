@@ -1,0 +1,36 @@
+/** @file
+ * The describe-time ambient stack behind `env::`: the thread-local
+ * snapshot, its equality, and the scope guard that swaps it around a
+ * deferred call.
+ */
+
+#include "sigilcore/reconcile/Env.h"
+
+namespace sigil::core::detail {
+
+EnvSnapshot& envStack() {
+  static thread_local EnvSnapshot stack;
+  return stack;
+}
+
+bool envEqual(const EnvSnapshot& a, const EnvSnapshot& b) {
+  if (a.size() != b.size()) return false;
+  for (size_t i = 0; i < a.size(); ++i) {
+    if (a[i].type != b[i].type) return false;
+    if (a[i].value == b[i].value)
+      continue;  // the same binding object: equal without asking
+    if (!a[i].equal || !a[i].value || !b[i].value) return false;
+    if (!a[i].equal(a[i].value.get(), b[i].value.get())) return false;
+  }
+  return true;
+}
+
+EnvRestore::EnvRestore(const EnvSnapshot& snapshot) {
+  EnvSnapshot next = snapshot;  // copied first: `snapshot` may alias the stack
+  m_saved = std::move(envStack());
+  envStack() = std::move(next);
+}
+
+EnvRestore::~EnvRestore() { envStack() = std::move(m_saved); }
+
+}  // namespace sigil::core::detail

@@ -14,6 +14,7 @@
 qt_add_library(SpellCircleNetwork SHARED
   src/NetworkManager.cpp include/NetworkManager.h
 )
+sigil_qt_target(SpellCircleNetwork)
 
 target_link_libraries(SpellCircleNetwork
     PUBLIC
@@ -32,6 +33,14 @@ target_include_directories(SpellCircleNetwork
 # ── Models: the QML-facing application state ─────────────────────────────
 # The entt-backed SpellCircleModel decoded from the wire format, graphics
 # configuration, the QML-facing Models aggregate, and the font database.
+#
+# The library is spelled out rather than left to qt_add_qml_module() to
+# create, here and for the canvas below, because a QML module registers
+# its types out of moc's JSON output: the scan has to be on for the
+# backing target before the module is declared.
+qt_add_library(SpellCircleModels SHARED)
+sigil_qt_target(SpellCircleModels)
+
 qt_add_qml_module(SpellCircleModels
     URI SpellCircle.Models
     VERSION 1.0
@@ -84,6 +93,9 @@ elseif(WIN32)
   endif()
 endif()
 
+qt_add_library(SpellCircleCanvas SHARED)
+sigil_qt_target(SpellCircleCanvas)
+
 qt_add_qml_module(SpellCircleCanvas
     URI SpellCircle.Canvas
     VERSION 1.0
@@ -103,6 +115,7 @@ target_link_libraries(SpellCircleCanvas
       Qt6::CanvasPainter
     PRIVATE
       spdlog::spdlog
+      SigilMeasure # the record/submit frame timer in SkiaSceneBackend.cpp
       SpellCircleModels # SpellCircleModel/GraphicsConfig (carries network)
       SpellCircleScene # shared resolve/draw core (also used by ../mac)
       EnTT::EnTT
@@ -121,14 +134,14 @@ elseif(TARGET Spout2::SpoutDX)
   target_compile_definitions(SpellCircleCanvas PRIVATE SPELLCIRCLE_HAVE_SPOUT)
 endif()
 
-# SpellCircleSkia (the generic Skia GPU plumbing under src/common/skia)
+# SigilSkia (the generic Skia GPU plumbing under src/common/skia)
 # only exists when SPELLCIRCLE_ENABLE_SKIA_CANVAS is ON. SigilWeave provides
 # the animated text layer drawn by SkiaSceneBackend.cpp.
 if(SPELLCIRCLE_ENABLE_SKIA_CANVAS)
   # SigilWeaveQt carries SigilWeave transitively; SigilWeavePorts provides the
   # system font manager used by the render-thread FontContext. (No direct
   # absl links: SigilWeave's public headers no longer expose abseil types.)
-  target_link_libraries(SpellCircleCanvas PRIVATE SpellCircleSkiaQt SigilWeaveQt
+  target_link_libraries(SpellCircleCanvas PRIVATE SigilSkiaQt SigilWeaveQt
     SigilWeavePorts)
 endif()
 
@@ -140,6 +153,7 @@ target_include_directories(SpellCircleCanvas PUBLIC
 qt_add_executable(SpellCircle
     src/main.cpp
 )
+sigil_qt_target(SpellCircle)
 
 # App Nap suppression is a main.cpp concern, not a library: fold the one
 # ObjC++ TU straight into the executable on macOS.

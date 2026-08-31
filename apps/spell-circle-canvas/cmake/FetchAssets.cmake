@@ -54,23 +54,23 @@ set(SIGIL_ASSET_MANIFEST
 # full-url | destination | sha256
 set(SIGIL_ASSET_URL_MANIFEST
     # The Ghostscript tiger — the classic vector torture test, exercised
-    # by SigilImage's SVG decode backend and the world_demo SVG panel.
+    # by SigilImage's SVG decode backend.
     # AGPL-3.0 (per its Wikimedia Commons file page).
     "https://upload.wikimedia.org/wikipedia/commons/f/fd/Ghostscript_Tiger.svg|svg/tiger.svg|5211e169283f43ab8ad7ea7998d917d5fbb3c568ac85c1a0217e86792822684d"
     "https://www.gnu.org/licenses/agpl-3.0.txt|svg/tiger.LICENSE.txt|0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0"
     # Poly Haven studio HDRI (CC0) — the literal-materials environment:
-    # SigilShape's Environment::fromEquirect and the world lighting work.
+    # SigilGeometry's Environment::fromEquirect and the world lighting work.
     "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/studio_small_09_1k.hdr|hdri/studio_small_09_1k.hdr|e7cfda5f4e98e623db12b8bfd0184e048488e4855d9c83e2751fb44a32e80c45"
     "https://creativecommons.org/publicdomain/zero/1.0/legalcode.txt|hdri/CC0.LICENSE.txt|a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499"
     # Khronos glTF sample asset "Avocado" (CC0, textures embedded in the
-    # GLB) — SigilShape's model import (shape_demo's imported-models
+    # GLB) — SigilGeometry's model import (geometry_demo's imported-models
     # panel picks up anything under models/).
     "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/2bac6f8c57bf471df0d2a1e8a8ec023c7801dddf/Models/Avocado/glTF-Binary/Avocado.glb|models/Avocado.glb|ccc9c3ce56423720b09399c2351537207cd5a65f859f9e6e2f30922762f3abd4"
     "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/2bac6f8c57bf471df0d2a1e8a8ec023c7801dddf/Models/Avocado/LICENSE.md|models/Avocado.LICENSE.md|15aa885ef74db3dce103da85abb568476378a815ca46db0cf7667a1a795b4194"
     # Poly Haven "metal_plate" PBR texture set (CC0), one file per map in
     # the site's own naming (_diff, _nor_gl, _rough, _metal, _ao, and the
-    # packed _arm) — SigilWorld's texture-set loader recognizes these
-    # names, and world_demo dresses its material lab with them.
+    # packed _arm) — SigilMaterial's texture-set discovery recognizes
+    # these names.
     "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/metal_plate/metal_plate_diff_1k.png|textures/metal_plate/metal_plate_diff_1k.png|00401b4ce56f0ffa8b2c1e10366fa36a7a9b839199b3abac2678790a9883c2e9"
     "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/metal_plate/metal_plate_nor_gl_1k.png|textures/metal_plate/metal_plate_nor_gl_1k.png|d858021ebc0a2a01ec13e574bc47ed58795e129904cda2868b3fb2dfd02d6741"
     "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/metal_plate/metal_plate_rough_1k.png|textures/metal_plate/metal_plate_rough_1k.png|aa6e4947c33559a7012e275d1600bfa6e00c2824271726a94de69f1a7b7fed2e"

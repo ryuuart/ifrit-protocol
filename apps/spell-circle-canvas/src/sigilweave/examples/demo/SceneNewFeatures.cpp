@@ -9,8 +9,8 @@
 #include <include/core/SkSurface.h>
 #include <include/core/SkTileMode.h>
 #include <include/effects/SkGradient.h>
-#include <sigilweave/Features.h>
-#include <sigilweave/PaintShaders.h>
+#include <sigilweave/shaders/PaintShaders.h>
+#include <sigilweave/style/Features.h>
 
 #include <cstdio>
 

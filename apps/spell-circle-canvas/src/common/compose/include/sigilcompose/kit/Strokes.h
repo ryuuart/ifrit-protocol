@@ -26,15 +26,17 @@
 #include <include/core/SkStrokeRec.h>
 #include <include/effects/SkCornerPathEffect.h>
 #include <include/effects/SkDiscretePathEffect.h>
+#include <sigilcompose/brush/Brushes.h>
+#include <sigilcompose/brush/Lines.h>
+#include <sigilcompose/core/Derive.h>
+#include <sigilcompose/core/Stroke.h>
+#include <sigilcompose/shape/Routers.h>
+#include <sigilcompose/shape/Shapes.h>
 
 #include <cmath>
 #include <vector>
 
-#include "sigilcompose/Brushes.h"
-#include "sigilcompose/Compose.h"
-#include "sigilcompose/Lines.h"
-#include "sigilcompose/Routers.h"
-#include "sigilcompose/Shapes.h"
+#include "sigilgeometry/path/Contour.h"
 
 namespace sigil::compose::kit {
 
@@ -91,7 +93,7 @@ struct Wave {
   }
   /** As a SHAPER: displace the path itself. */
   SkPath shape(const SkPath& p) const {
-    return lines::displace(p, amplitude, wavelength, false);
+    return geometry::path::displace(p, amplitude, wavelength, false);
   }
 
  private:
@@ -141,7 +143,7 @@ struct Offset {
   bool operator==(const Offset&) const = default;
   float bleed() const { return std::abs(px); }
   SkPath shape(const SkPath& p) const {
-    return lines::offsetAcross(p, px, step);
+    return geometry::path::parallel(p, px, step);
   }
 };
 
@@ -201,7 +203,7 @@ struct Zigzag {
   bool operator==(const Zigzag&) const = default;
   float bleed() const { return std::abs(amplitude); }
   SkPath shape(const SkPath& p) const {
-    return lines::displace(p, amplitude, wavelength, true);
+    return geometry::path::displace(p, amplitude, wavelength, true);
   }
 };
 
@@ -260,7 +262,7 @@ namespace strands {
  *  a cycle for an impossible braid. */
 inline std::vector<sigil::compose::brush::Strand> braid(int n, float amplitude,
                                                         float wavelength,
-                                                        Decoration ink) {
+                                                        const Decoration& ink) {
   // Fully qualified on purpose. Inside `sigil::compose::kit`, an
   // unqualified `brush::` resolves to kit::brush — the shapers scope
   // above — and NOT to the library's own brush namespace, so any name

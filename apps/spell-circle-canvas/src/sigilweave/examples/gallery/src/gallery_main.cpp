@@ -4,7 +4,8 @@
 #include <QQmlApplicationEngine>
 #include <QQuickWindow>
 
-int main(int argc, char* argv[]) {
+int main(int argc, char* argv[]) {  // NOLINT(bugprone-exception-escape): an
+                                    // uncaught error ends the app
   QGuiApplication application(argc, argv);
   QGuiApplication::setOrganizationDomain("sigil.dev");
   QGuiApplication::setApplicationName("WeaveGallery");
@@ -42,5 +43,5 @@ int main(int argc, char* argv[]) {
       []() { QCoreApplication::exit(-1); }, Qt::QueuedConnection);
   engine.loadFromModule("SigilWeave.Gallery", "Main");
 
-  return application.exec();
+  return QGuiApplication::exec();
 }

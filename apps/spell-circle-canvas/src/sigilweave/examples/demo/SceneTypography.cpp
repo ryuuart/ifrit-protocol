@@ -38,8 +38,8 @@ void sceneTypography(FontContext& fontContext,
   for (int exampleIndex = 0; exampleIndex < 4; ++exampleIndex) {
     const float exampleX =
         30.0f + static_cast<float>(exampleIndex % 2) * 260.0f;
-    const float exampleY =
-        40.0f + static_cast<float>(exampleIndex / 2) * 190.0f;
+    const int exampleRow = exampleIndex / 2;
+    const float exampleY = 40.0f + static_cast<float>(exampleRow) * 190.0f;
     sigil::weave::kit::drawLabel(
         canvas, fontContext, labels[exampleIndex], {exampleX, exampleY - 24},
         {.color = kAccent, .width = 220, .height = 20});

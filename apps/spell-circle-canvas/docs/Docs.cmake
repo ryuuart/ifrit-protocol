@@ -6,7 +6,7 @@
 # ${CMAKE_BINARY_DIR}/docs, plus an index linking them.
 #
 # Generation runs in two passes because the libraries reference each
-# other's types in both directions -- SigilWorld takes SigilShape's
+# other's types in both directions -- SigilWorld takes SigilGeometry's
 # meshes, SigilCompose takes SigilMotion's animatables -- and a tag file
 # can only be read after it is written. The first pass writes every tag
 # file and no HTML; the second reads all of them and writes the HTML. A

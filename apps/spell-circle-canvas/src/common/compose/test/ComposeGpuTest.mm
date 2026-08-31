@@ -6,18 +6,20 @@
 // multi-pass glyph compositing (a blurred underlay beneath a stroked
 // foreground) that must land identically on both backends.
 
-#import <Metal/Metal.h>
-
 #include <sigilcompose/Compose.h>
-#include <sigilcompose/Decorations.h>
-#include <sigilcompose/Instances.h>
-#include <sigilcompose/TextFx.h>
+#include <sigilcompose/brush/Decorations.h>
+#include <sigilcompose/instances/Instances.h>
+#include <sigilcompose/shape/Shapes.h>
+#include <sigilcompose/typography/TextFx.h>
 
-#include <sigilweave/FontContext.h>
+#include <sigilmaterial/core/Material.h>
+
 #include <sigilweave/SigilWeave.h>
+#include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
-#include "SkiaGraphiteContext.h"
+#include <sigilskia/device/GpuDevice.h>
+#include <sigilskia/graphite/GraphiteContext.h>
 
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
@@ -39,19 +41,18 @@ sigil::weave::FontContext &fonts() {
   return *context;
 }
 
-SkiaGraphiteContext *graphite() {
-  static std::unique_ptr<SkiaGraphiteContext> ctx = [] {
-    id<MTLDevice> device = MTLCreateSystemDefaultDevice();
-    id<MTLCommandQueue> queue = [device newCommandQueue];
-    return SkiaGraphiteContext::createMetal((__bridge void *)device, (__bridge void *)queue);
-  }();
+sigil::skia::GraphiteContext *graphite() {
+  static std::unique_ptr<sigil::skia::GpuDevice> device =
+      sigil::skia::GpuDevice::createOwned(sigil::skia::Backend::Metal);
+  static std::unique_ptr<sigil::skia::GraphiteContext> ctx =
+      device ? sigil::skia::GraphiteContext::create(*device) : nullptr;
   return ctx.get();
 }
 
 /** Draws one composer frame on a Graphite surface and reads it back. */
 SkBitmap drawOnGpu(Composer &composer, int w, int h) {
   SkBitmap bm;
-  SkiaGraphiteContext *ctx = graphite();
+  sigil::skia::GraphiteContext *ctx = graphite();
   if (!ctx) return bm;
   const SkImageInfo info = SkImageInfo::MakeN32Premul(w, h);
   sk_sp<SkSurface> surface = SkSurfaces::RenderTarget(ctx->recorder(), info);
@@ -92,7 +93,8 @@ SkBitmap drawOnGpu(Composer &composer, int w, int h) {
 }
 
 /** Reads a Graphite surface back to CPU pixels: snap, insert, async read. */
-SkBitmap readbackGpu(SkiaGraphiteContext *ctx, SkSurface *surface, const SkImageInfo &info) {
+SkBitmap readbackGpu(sigil::skia::GraphiteContext *ctx, SkSurface *surface,
+                     const SkImageInfo &info) {
   SkBitmap bm;
   if (auto recording = ctx->recorder()->snap()) {
     skgpu::graphite::InsertRecordingInfo insert;
@@ -136,9 +138,9 @@ std::shared_ptr<const sigil::image::ImageAsset> whiteTile(int size) {
 
 }  // namespace
 
-#define REQUIRE_GPU()                  \
-  if (!graphite()) {                   \
-    GTEST_SKIP() << "no Metal device"; \
+#define REQUIRE_GPU()                \
+  if (!graphite()) {                 \
+    GTEST_SKIP() << "no GPU device"; \
   }
 
 TEST(ComposeGpu, ImageRectDrawsOnGraphite) {
@@ -188,7 +190,7 @@ TEST(ComposeGpu, InstanceStampsDrawOnGraphite) {
 // which primitive × image-kind combinations actually land?
 TEST(ComposeGpu, DirectPrimitiveMatrix) {
   REQUIRE_GPU();
-  SkiaGraphiteContext *ctx = graphite();
+  sigil::skia::GraphiteContext *ctx = graphite();
   const SkImageInfo info = SkImageInfo::MakeN32Premul(300, 100);
   sk_sp<SkSurface> surface = SkSurfaces::RenderTarget(ctx->recorder(), info);
   ASSERT_TRUE(surface);
@@ -335,7 +337,7 @@ TEST(ComposeGpu, BatchedBlurredUnderlayStaysBeneathForeground) {
   cpu.allocPixels(info);
   ASSERT_TRUE(raster->readPixels(cpu, 0, 0));
 
-  SkiaGraphiteContext *ctx = graphite();
+  sigil::skia::GraphiteContext *ctx = graphite();
   sk_sp<SkSurface> gpuSurface = SkSurfaces::RenderTarget(ctx->recorder(), info);
   ASSERT_TRUE(gpuSurface);
   gpuSurface->getCanvas()->clear(SK_ColorBLACK);
@@ -452,13 +454,18 @@ TEST(ComposeGpu, TextPassReachKeepsContentInPlaceOnGraphite) {
     m.dy = -14.0f;
     return m;
   });
-  const char *identity = "half4 main(float2 xy) { return uContent.eval(xy); }";
+  struct NoParams {};
+  const auto identity = std::make_shared<const sigil::material::Recipe>(
+      sigil::material::Recipe::of<NoParams>("gpu.identity-pass")
+          .body(sigil::material::Target::SkSL,
+                "half4 main(float2 xy) { return uContent.eval(xy); }"));
   const auto describe = [&](float reach) {
     return box().padding(60).child(
         text(u8"HOIST", style)
             .key("hoist")
             .fx({.effect = lift})
-            .fx({.effect = fx::pass(Material::sksl(identity)), .reach = reach}));
+            .fx({.effect = fx::pass(Material::recipe(sigil::material::Material(identity))),
+                 .reach = reach}));
   };
   const int w = 200, h = 200;
   sigil::motion::Ticker snugTicker;

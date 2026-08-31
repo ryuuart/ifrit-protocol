@@ -1,12 +1,11 @@
 #include "GalleryView.h"
 
-#include <sigilweaveqt/SigilWeaveQt.h>
+#include <sigilweave/qt/SigilWeaveQt.h>
 
 #include "SceneRegistry.h"
 
 #ifdef TEXTFLOW_GALLERY_GPU
-#include "SkiaGraphiteContext.h"
-#include "SkiaOffscreenSurface.h"
+#include <sigilskia/qt/QtInterop.h>
 #endif
 
 #include <include/core/SkCanvas.h>
@@ -37,8 +36,10 @@ namespace {
 QString axisTagName(uint32_t tag) {
   QString name;
   name.reserve(4);
-  for (int shift = 24; shift >= 0; shift -= 8)
-    name.append(QChar(static_cast<char>((tag >> shift) & 0xff)));
+  for (unsigned byteIndex = 0; byteIndex < 4; ++byteIndex) {
+    const unsigned shift = 24u - 8u * byteIndex;
+    name.append(QChar(static_cast<char>((tag >> shift) & 0xffu)));
+  }
   return name;
 }
 
@@ -105,7 +106,7 @@ sigil::weave::FontContext::FallbackResolver makeGalleryFallbackResolver(
       serifFamilies.emplace_back(familyName);
     else if (!cuneiformTypeface && familyName == kNotoCuneiformFamily)
       cuneiformTypeface = fontManager.matchFamilyStyle(
-          kNotoCuneiformFamily.data(), SkFontStyle());
+          std::string(kNotoCuneiformFamily).c_str(), SkFontStyle());
   }
   std::sort(serifFamilies.begin(), serifFamilies.end());
   serifFamilies.erase(std::unique(serifFamilies.begin(), serifFamilies.end()),
@@ -175,7 +176,7 @@ class GalleryViewRenderer : public QQuickRhiItemRenderer {
   std::vector<std::unique_ptr<Scene>> m_scenes;
   std::unique_ptr<sigil::weave::FontContext> m_fontContext;
 #ifdef TEXTFLOW_GALLERY_GPU
-  std::unique_ptr<SkiaGraphiteContext> m_graphiteContext;
+  std::unique_ptr<sigil::skia::GraphiteContext> m_graphiteContext;
   bool m_graphiteInitializationAttempted = false;
 #endif
   std::vector<uint32_t> m_rasterPixels;  // CPU fallback framebuffer.
@@ -224,7 +225,7 @@ void GalleryViewRenderer::initialize(QRhiCommandBuffer* /*commandBuffer*/) {
     // Graphite is built on Qt's own device and queue, never a private pair:
     // sharing the queue is what makes this item's submissions order ahead of
     // Qt's scene-graph pass without any explicit synchronisation.
-    m_graphiteContext = SkiaGraphiteContext::create(rhi());
+    m_graphiteContext = sigil::skia::createGraphiteContext(rhi());
   }
 #endif
 }
@@ -353,9 +354,9 @@ void GalleryViewRenderer::renderScene(SkCanvas* canvas, float devicePixelRatio,
         variations.reserve(m_fontCoordinates.size());
         for (const FontCoordinate& coordinate : m_fontCoordinates) {
           sigil::weave::FontVariation variation;
-          variation.tag[0] = static_cast<char>(coordinate.tag >> 24);
-          variation.tag[1] = static_cast<char>(coordinate.tag >> 16);
-          variation.tag[2] = static_cast<char>(coordinate.tag >> 8);
+          variation.tag[0] = static_cast<char>(coordinate.tag >> 24u);
+          variation.tag[1] = static_cast<char>(coordinate.tag >> 16u);
+          variation.tag[2] = static_cast<char>(coordinate.tag >> 8u);
           variation.tag[3] = static_cast<char>(coordinate.tag);
           variation.value = coordinate.value;
           variations.push_back(variation);
@@ -429,7 +430,8 @@ void GalleryViewRenderer::render(QRhiCommandBuffer* commandBuffer) {
   if (m_graphiteContext && m_useGpuBackend) {
     // GPU: record straight into the item's texture, submit asynchronously —
     // Qt's scene-graph pass on the same Metal queue orders after it.
-    SkiaOffscreenSurface surface(*m_graphiteContext, texture, pixelSize);
+    sigil::skia::OffscreenSurface surface =
+        sigil::skia::wrapTexture(*m_graphiteContext, texture, pixelSize);
     if (SkCanvas* canvas = surface.canvas()) {
       renderScene(canvas, devicePixelRatio, m_logicalSize);
       const auto submissionStartTime = Clock::now();

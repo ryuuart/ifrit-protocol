@@ -1,7 +1,7 @@
 # SpellCircleMac — the native macOS SwiftUI companion app. A separate
 # executable from the Qt `SpellCircle` receiver: same UDP wire protocol,
 # same shared C++ core (SpellCircleScene decode/resolve/draw +
-# SpellCircleSkia Metal/Graphite plumbing), same Syphon server name — but
+# SigilSkia Metal/Graphite plumbing), same Syphon server name — but
 # AppKit/SwiftUI chrome with Liquid Glass panels instead of Qt Quick. The
 # Qt app remains the cross-platform build.
 #
@@ -43,11 +43,8 @@ add_library(SpellCircleMacBridge SHARED
 )
 
 # ARC for the ObjC++ engine/view (the shared Skia .mm TUs stay non-ARC and
-# manage CoreFoundation refs explicitly — see SkiaGraphiteContextMetal.mm).
+# manage CoreFoundation refs explicitly — see GraphiteContextMetal.mm).
 target_compile_options(SpellCircleMacBridge PRIVATE -fobjc-arc)
-
-# No Qt anywhere in this target; keep the global AUTOMOC out of it.
-set_target_properties(SpellCircleMacBridge PROPERTIES AUTOMOC OFF AUTOUIC OFF AUTORCC OFF)
 
 target_include_directories(SpellCircleMacBridge PUBLIC
   ${CMAKE_CURRENT_LIST_DIR}/bridge
@@ -60,7 +57,7 @@ target_link_libraries(SpellCircleMacBridge
     ${METAL_FRAMEWORK}
     ${QUARTZCORE_FRAMEWORK}
     SpellCircleScene
-    SpellCircleSkia
+    SigilSkia
     SpellCircleNet
     ${SYPHON_FRAMEWORK}
 )
@@ -84,11 +81,6 @@ add_executable(SpellCircleMac MACOSX_BUNDLE
 )
 
 set_target_properties(SpellCircleMac PROPERTIES
-    # qt_standard_project_setup() enables AUTOMOC globally; a moc object
-    # injected into a Swift target's source list breaks swift-driver.
-    AUTOMOC OFF
-    AUTOUIC OFF
-    AUTORCC OFF
     MACOSX_BUNDLE_GUI_IDENTIFIER "dev.sigil.SpellCircleMac"
     MACOSX_BUNDLE_BUNDLE_NAME "SpellCircle"
     MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}

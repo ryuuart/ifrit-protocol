@@ -1,9 +1,14 @@
-#include "sigilweavekit/SampleText.h"
+/** @file
+ * Deterministic mixed-script filler: a fixed word list drawn by a seeded
+ * generator into alternating color chunks.
+ */
+
+#include "sigilweave/kit/SampleText.h"
 
 #include <random>
 #include <string>
 
-#include "sigilweavekit/Labels.h"
+#include "sigilweave/kit/Labels.h"
 
 namespace sigil::weave::kit {
 
@@ -20,6 +25,7 @@ sigil::weave::Paragraph mixedScriptFiller(int wordCount, float fontSize,
   const sigil::weave::TextStyle styles[3] = {
       makeStyle(fontSize, chunkColors[0]), makeStyle(fontSize, chunkColors[1]),
       makeStyle(fontSize, chunkColors[2])};
+  // NOLINTNEXTLINE(bugprone-random-generator-seed): fixed seed, reproducible
   std::mt19937 randomEngine(23);
   sigil::weave::Paragraph paragraph;
   std::u8string chunk;

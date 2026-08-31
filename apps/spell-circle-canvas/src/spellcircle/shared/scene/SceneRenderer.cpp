@@ -106,7 +106,7 @@ void SceneRenderer::draw(SkCanvas* skCanvas, const ResolvedScene& scene,
       const sigil::weave::LineInterval interval =
           makeRingLabelInterval(m_ringLabelGeometry, fontMetrics,
                                 radius + style.labelOffset, circle.textStart);
-      if (interval.contour) {
+      if (interval.contour.valid()) {
         sigil::weave::Paragraph& label = m_labelParagraphs.paragraphFor(
             u8view(circle.name), typeface, style.fontSize);
         sigil::weave::LineSetFlow flow;

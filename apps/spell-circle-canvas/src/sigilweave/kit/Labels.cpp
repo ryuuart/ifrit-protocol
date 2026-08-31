@@ -1,8 +1,13 @@
-#include "sigilweavekit/Labels.h"
+/** @file
+ * A single-span style and a caption drawn in one call, over a paragraph
+ * shaped and laid out on the spot.
+ */
 
-#include <sigilweave/Flow.h>
-#include <sigilweave/Paragraph.h>
-#include <sigilweave/ParagraphLayout.h>
+#include "sigilweave/kit/Labels.h"
+
+#include <sigilweave/layout/Flow.h>
+#include <sigilweave/layout/ParagraphLayout.h>
+#include <sigilweave/paragraph/Paragraph.h>
 
 #include <utility>
 

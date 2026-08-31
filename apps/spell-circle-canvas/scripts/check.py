@@ -35,7 +35,12 @@ CMAKE_EXPORT_COMPILE_COMMANDS, which setup.py's presets already do).
 The database records /usr/bin/c++ without -isysroot — the Apple driver
 injects the SDK path itself at build time — so the non-Apple clang-tidy
 is passed the SDK root explicitly here; without it every standard
-header is unresolvable.
+header is unresolvable. That SDK root also moves the default
+/usr/local/include search under the SDK, so a package installed there —
+Ultralight's headers — stops resolving, and the directory is appended
+after the system ones to restore it. A translation unit whose headers do
+not resolve still reports findings, and they describe an AST the
+compiler never built: every one of them is noise.
 """
 
 import argparse
@@ -278,8 +283,23 @@ def check_clang_tidy(files: list[Path], tidy_all: bool) -> bool:
         return True
     database = {entry["file"] for entry in json.loads(database_path.read_text())}
     if tidy_all:
+        # Generated translation units (moc compilations under *_autogen,
+        # anything else the build wrote) are not this repository's sources:
+        # they are tidied nowhere, and one from an unbuilt configuration
+        # cannot even be parsed.
+        # Boundary probes are translation units that MUST fail to compile
+        # (their ctest pins the error text); analyzing one reports its
+        # deliberate failure as a finding.
+        # The suffix restriction is not cosmetic: the compile database also
+        # carries the macOS app's Swift translation units, and a C++
+        # analyzer handed one fails outright rather than reporting nothing.
         candidates = sorted(
-            Path(f).relative_to(REPO_DIR) for f in database if included(Path(f))
+            Path(f).relative_to(REPO_DIR)
+            for f in database
+            if included(Path(f))
+            and Path(f).suffix in TIDY_SUFFIXES
+            and not Path(f).is_relative_to(BUILD_DIR)
+            and Path(f).name != "BoundaryProbe.cpp"
         )
     else:
         # Only translation units the compile database knows; a changed
@@ -288,7 +308,9 @@ def check_clang_tidy(files: list[Path], tidy_all: bool) -> bool:
         candidates = [
             f
             for f in files
-            if f.suffix in TIDY_SUFFIXES and str(REPO_DIR / f) in database
+            if f.suffix in TIDY_SUFFIXES
+            and str(REPO_DIR / f) in database
+            and f.name != "BoundaryProbe.cpp"
         ]
         skipped = [
             f
@@ -306,6 +328,10 @@ def check_clang_tidy(files: list[Path], tidy_all: bool) -> bool:
     command = [tidy, "-p", BUILD_DIR, "--quiet"]
     if sdk:
         command.append(f"--extra-arg=-isysroot{sdk}")
+        # Restored after the SDK's own directories, never before them:
+        # a hand-installed SDK under /usr/local must resolve without
+        # shadowing a system header of the same name.
+        command.append("--extra-arg=-idirafter/usr/local/include")
     print(f"{len(candidates)} translation units")
     # One clang-tidy process per translation unit: a single process fed
     # many TUs reuses parse state across them and can report phantom

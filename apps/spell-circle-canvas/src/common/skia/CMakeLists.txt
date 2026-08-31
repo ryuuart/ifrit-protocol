@@ -1,73 +1,43 @@
-# Generic Skia Graphite GPU interop plumbing: standing up a
-# skgpu::graphite::Context/Recorder on a native device/queue, and wrapping
-# an existing native texture as an SkSurface. This knows nothing about
-# SpellCircle scene content — that lives in src/spellcircle/shared/scene/SceneRenderer.cpp and
-# src/spellcircle/qt/src/SkiaSceneBackend.cpp, which link against this.
+# SigilSkia — Skia Graphite brought up on a GPU device someone else owns,
+# as one feature library per directory. The graphite feature stands a
+# Graphite Context and Recorder up on a native device and queue and wraps
+# a native texture as an SkSurface, Metal and Vulkan as parallel paths,
+# with no Qt in it. The device feature is the device itself: owned or
+# adopted, its textures and fences named by generation-checked handles,
+# destruction deferred past the frames in flight. The qt feature is the
+# adapter a Qt host uses: it unwraps a QRhi's native handles and forwards
+# to the graphite feature. `SigilSkia` is the umbrella over every Qt-free
+# feature; a Qt host links `SigilSkiaQt`, which carries the umbrella with
+# it.
 #
-# Split into two targets so the native macOS app can use Graphite without
-# pulling in Qt:
-#  - SpellCircleSkia: Qt-free. On Apple it carries the Metal bring-up
-#    (createMetal + the void* texture wrap); elsewhere it is just the
-#    API-independent common code.
-#  - SpellCircleSkiaQt: the QRhi adapters. On Apple these unwrap native
-#    Metal handles and forward to SpellCircleSkia; elsewhere they are the
-#    Vulkan bring-up TUs themselves (a Windows draft — run with
-#    QSG_RHI_BACKEND=vulkan there; under any other QRhi backend the factory
-#    returns null and the canvas renders no scene content — there is no
-#    non-Skia drawing path).
+# Every public header lives under one include root, include/sigilskia/
+# <feature>/, so a feature adds the root and spells its own directory.
+# <sigilskia/Skia.h> is the umbrella header over the Qt-free features.
 #
-# Only added when SPELLCIRCLE_ENABLE_SKIA_CANVAS is ON (see
-# src/CMakeLists.txt and the top-level CMakeLists.txt).
-if(APPLE)
-  set(SPELLCIRCLE_SKIA_NATIVE_SOURCES
-      SkiaGraphiteContextMetal.mm
-      SkiaOffscreenSurfaceMetal.mm)
-  set(SPELLCIRCLE_SKIA_QT_SOURCES
-      SkiaQtInteropMetal.mm)
-else()
-  set(SPELLCIRCLE_SKIA_NATIVE_SOURCES)
-  set(SPELLCIRCLE_SKIA_QT_SOURCES
-      SkiaGraphiteContextVulkan.cpp
-      SkiaOffscreenSurfaceVulkan.cpp)
-endif()
+# Nothing here knows what is being drawn. Added only when
+# SPELLCIRCLE_ENABLE_SKIA_CANVAS is on (src/CMakeLists.txt).
 
-add_library(SpellCircleSkia STATIC
-  SkiaGraphiteContextCommon.cpp include/SkiaGraphiteContext.h
-  SkiaOffscreenSurfaceCommon.cpp include/SkiaOffscreenSurface.h
-  ${SPELLCIRCLE_SKIA_NATIVE_SOURCES}
-)
+set(SIGIL_SKIA_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/include)
 
-target_link_libraries(SpellCircleSkia
-    PUBLIC
-      unofficial::skia::skia
-)
+# The Vulkan headers, for the graphite feature's Vulkan bring-up and the
+# device feature's Vulkan backend; both link them privately, since every
+# public header spells a Vulkan handle as an opaque value.
+find_package(VulkanHeaders CONFIG REQUIRED)
 
-if(APPLE)
-  target_link_libraries(SpellCircleSkia PRIVATE ${FOUNDATION_FRAMEWORK})
-endif()
+# Dependencies point up this list.
+add_subdirectory(graphite)
+add_subdirectory(device)
+add_subdirectory(qt)
 
-target_include_directories(SpellCircleSkia PUBLIC
-  ${CMAKE_CURRENT_LIST_DIR}/include
-)
-
-qt_add_library(SpellCircleSkiaQt STATIC
-  ${SPELLCIRCLE_SKIA_QT_SOURCES}
-)
-
-target_link_libraries(SpellCircleSkiaQt
-    PUBLIC
-      SpellCircleSkia
-      Qt6::Core
-    PRIVATE
-      Qt6::GuiPrivate
-)
+add_library(SigilSkia INTERFACE)
+target_link_libraries(SigilSkia INTERFACE SigilSkiaGraphite SigilSkiaDevice)
 
 # Registers this library with the `docs` target (see cmake/Docs.cmake).
 # The README is the site's front page, so the generated pages open on the
 # same document that is canon for the library.
 sigil_add_docs(
-  NAME SpellCircleSkia
-  BRIEF "Skia Graphite bring-up over a Metal or QRhi device someone else owns"
+  NAME SigilSkia
+  BRIEF "Skia Graphite bring-up on a Metal or Vulkan device someone else owns"
   INPUT
         ${CMAKE_CURRENT_SOURCE_DIR}/include
         ${CMAKE_CURRENT_SOURCE_DIR}/README.md

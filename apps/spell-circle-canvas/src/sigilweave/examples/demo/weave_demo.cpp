@@ -11,7 +11,7 @@
 //
 //   ./build/bin/Release/weave_demo
 
-#include <sigilweave/FontContext.h>
+#include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
 #include <algorithm>
@@ -21,7 +21,8 @@
 
 #include "DemoScenes.h"
 
-int main(int argc, char** argv) {
+int main(int argc, char** argv) {  // NOLINT(bugprone-exception-escape): an
+                                   // uncaught error ends the demo
   static_cast<void>(argc);
   static_cast<void>(argv);
 

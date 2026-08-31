@@ -10,9 +10,9 @@
 // deciding WHICH contour a spell-circle label follows lives here.
 
 #include <absl/container/flat_hash_map.h>
-#include <include/core/SkContourMeasure.h>
 #include <include/core/SkFontMetrics.h>
-#include <sigilweave/Flow.h>
+#include <sigilgeometry/path/Contour.h>
+#include <sigilweave/layout/Flow.h>
 
 #include <cstddef>
 
@@ -38,19 +38,20 @@ class RingLabelGeometryCache {
       : m_maximumEntries(maximumEntries) {}
 
   /** Returns the measured origin-centered ring for `radius`, measuring it on
-   *  first request. Null for a radius of zero or less, which yields no path to
-   *  measure; null results are never stored, so a degenerate request neither
-   *  occupies a cache slot nor evicts anything. The reference is invalidated
-   *  by clear() and by any later call that overflows the cache; copy the
-   *  sk_sp to keep a measurement alive across calls. */
-  const sk_sp<SkContourMeasure>& ringForRadius(float radius);
+   *  first request. An invalid contour for a radius of zero or less, which
+   *  yields no path to measure; those are never stored, so a degenerate
+   *  request neither occupies a cache slot nor evicts anything. The
+   *  reference is invalidated by clear() and by any later call that
+   *  overflows the cache; copy the contour to keep a measurement alive
+   *  across calls. */
+  const sigil::geometry::path::Contour& ringForRadius(float radius);
 
   /** Drops every measured ring. References previously returned by
-   *  ringForRadius() dangle afterwards; sk_sp copies stay valid. */
+   *  ringForRadius() dangle afterwards; contour copies stay valid. */
   void clear() { m_rings.clear(); }
 
  private:
-  absl::flat_hash_map<int, sk_sp<SkContourMeasure>> m_rings;
+  absl::flat_hash_map<int, sigil::geometry::path::Contour> m_rings;
   size_t m_maximumEntries;
 };
 

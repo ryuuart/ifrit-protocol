@@ -1,7 +1,7 @@
 // Scene: vertical CJK with ruby, kenten, tate-chu-yoko.
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkPaint.h>
-#include <sigilweave/Query.h>
+#include <sigilweave/query/Query.h>
 
 #include <algorithm>
 #include <cmath>
@@ -241,6 +241,6 @@ SceneDescriptor makeVerticalDescriptor() {
 
 }  // namespace
 
-REGISTER_GALLERY_SCENE(makeVerticalDescriptor())
+REGISTER_GALLERY_SCENE(makeVerticalDescriptor)
 
 }  // namespace gallery

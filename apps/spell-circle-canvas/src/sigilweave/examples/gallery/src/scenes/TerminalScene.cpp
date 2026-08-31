@@ -62,11 +62,11 @@ QString terminalDefaultText() {
 // (typing jitter, shimmer phase, glitch bursts) is a pure function of glyph
 // index and time slice, so pausing, scrubbing, and looping stay coherent.
 float hash01(uint32_t value) {
-  value ^= value >> 16;
+  value ^= value >> 16u;
   value *= 0x7feb352du;
-  value ^= value >> 15;
+  value ^= value >> 15u;
   value *= 0x846ca68bu;
-  value ^= value >> 16;
+  value ^= value >> 16u;
   return static_cast<float>(value) * (1.0f / 4294967296.0f);
 }
 
@@ -168,15 +168,15 @@ class TerminalScene final : public Scene {
     float cursorFontSize = params.fontSize;
     for (const PositionedRun& run : m_layout.runs) {
       const Word& word = paragraph.words()[run.wordIndex];
-      if (word.segments.empty()) continue;
+      if (word.segments().empty()) continue;
       if (previousWordIndex != ~0u && run.wordIndex != previousWordIndex)
         revealAt += paragraph.words()[previousWordIndex].mandatoryBreakAfter
                         ? 14.0  // carriage return: the beat between lines
                         : 1.2;  // the space bar
       previousWordIndex = run.wordIndex;
       const WordSegment& segment =
-          word.segments[m_segmentCounters[run.wordIndex]++ %
-                        word.segments.size()];
+          word.segments()[m_segmentCounters[run.wordIndex]++ %
+                          word.segments().size()];
       const ShapedWord& shaped = *segment.shaped;
       const std::vector<SkGlyphID>& scramblePool =
           m_glyphPools.bucketFor(shaped.typeface.get()).glyphs;
@@ -250,11 +250,11 @@ class TerminalScene final : public Scene {
                                hash01(index * 97u + 13) * 6.2832f);
         }
         brightness = std::clamp(brightness * flicker, 0.35f, 1.0f);
-        m_buckets.add(
-            {&shaped,
-             static_cast<int>(brightness * (kBrightnessLevels - 1) + 0.5f),
-             static_cast<int>(fade * (kFadeLevels - 1) + 0.5f)},
-            glyphId, position);
+        m_buckets.add({&shaped,
+                       static_cast<int>(
+                           std::lround(brightness * (kBrightnessLevels - 1))),
+                       static_cast<int>(std::lround(fade * (kFadeLevels - 1)))},
+                      glyphId, position);
       }
     }
     m_scheduleChars = revealAt;  // next frame's loop length
@@ -338,7 +338,7 @@ class TerminalScene final : public Scene {
     m_glyphPools.buckets.clear();  // drop stale typefaces, not just glyphs
     for (const PositionedRun& run : m_layout.runs)
       for (const WordSegment& segment :
-           paragraph.words()[run.wordIndex].segments) {
+           paragraph.words()[run.wordIndex].segments()) {
         const ShapedWord& shaped = *segment.shaped;
         std::vector<SkGlyphID>& pool =
             m_glyphPools.bucketFor(shaped.typeface.get()).glyphs;
@@ -496,6 +496,6 @@ SceneDescriptor makeTerminalDescriptor() {
 
 }  // namespace
 
-REGISTER_GALLERY_SCENE(makeTerminalDescriptor())
+REGISTER_GALLERY_SCENE(makeTerminalDescriptor)
 
 }  // namespace gallery

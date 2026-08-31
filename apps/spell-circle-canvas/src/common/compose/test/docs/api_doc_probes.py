@@ -442,7 +442,7 @@ class Generator:
           % len(self.index_checked))
         w("//   excluded       : %d (exclusion tables and operator-ids)\n"
           % len(self.excluded))
-        w('#include "ComposeTestSupport.h"\n')
+        w('#include "support/DocsTestSupport.h"\n')
         w("// Every compose header, so a name is never reported missing merely\n"
           "// because the harness did not include the file that owns it.\n")
         for header in self.headers:

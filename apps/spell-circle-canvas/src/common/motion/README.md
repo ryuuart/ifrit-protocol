@@ -9,15 +9,30 @@ moving, and a small set of value types describing how a property changes
 over time. It links Choreograph and nothing else, so anything can use it
 without dragging in a graphics stack.
 
-Namespace `sigil::motion`. Headers `FrameClock.h`, `Ticker.h`,
-`Animation.h`.
+Namespace `sigil::motion`. One feature library per directory, linked by
+what a consumer uses; every public header lives under
+`include/sigilmotion/<feature>/` and is spelled `<sigilmotion/<feature>/X.h>`:
+
+| target | headers | holds |
+|--------|---------|-------|
+| `SigilMotionBind`   | `bind/Bound.h`, `bind/BoundFloat.h`, `bind/WiggleNoise.h`; `bind/Bind.h` includes all three | `bind()`, `wiggle()` and the `Bound` chain builder; `BoundFloat` and `Envelope`, the evaluator; the wiggle noise field |
+| `SigilMotionValues` | `values/Transition.h`, `values/Keyframes.h`, `values/Animatable.h`, `values/Time.h`; `values/Values.h` includes all four | `Transition`, `ease::` and `ramp()`; `Transitioned`, `animate()`/`from()`/`to()`/`through()`; `Animatable<T>`; `quantizeTime()` and `phase()` |
+| `SigilMotionClock`  | `clock/FrameClock.h`, `clock/Ticker.h` | the clock and the ticker |
+
+`SigilMotion` is the umbrella target over all three, and
+`<sigilmotion/Animation.h>` is the umbrella header over every values and
+bind header, so a consumer that includes `Animation.h` and links
+`SigilMotion` sees every value and binding (the clock headers are
+included on their own). Bind is the leaf: Values links it because
+`Animatable<T>` can hold a shaped binding, and Clock links it because
+`Ticker::derive` runs one.
 
 ## Using it
 
 ```cpp
 #include <sigilmotion/Animation.h>
-#include <sigilmotion/FrameClock.h>
-#include <sigilmotion/Ticker.h>
+#include <sigilmotion/clock/FrameClock.h>
+#include <sigilmotion/clock/Ticker.h>
 
 using namespace sigil::motion;
 using namespace std::chrono_literals;
@@ -184,7 +199,8 @@ directly.
 
 ## Boundary
 
-`SigilMotion` links `choreograph::choreograph` publicly and nothing else.
+Each of the three libraries links `choreograph::choreograph` publicly and
+nothing else outside this directory.
 That is the point: consumers that also draw — a compositor, a 3D
 renderer — link it without inheriting a drawing library, and can
 re-export its types into their own namespaces.
@@ -201,12 +217,24 @@ From `apps/spell-circle-canvas`:
 
 ```sh
 python3 scripts/setup.py --config Debug
-cmake --build build --config Debug --target motion_test
-ctest --test-dir build -C Debug -R motion_test --output-on-failure
+cmake --build build --config Debug \
+  --target motion_clock_test motion_values_test motion_bind_test
+ctest --test-dir build -C Debug -R motion_ --output-on-failure
 ```
 
-Targets: `SigilMotion` (static library) and `motion_test`. No GPU, no
-assets, no runtime requirements. `motion_test` links only `SigilMotion`
-and GoogleTest, and fails the build if a compositing header becomes
+Targets: `SigilMotionBind`, `SigilMotionValues`, `SigilMotionClock`
+(the libraries, one per feature directory — `bind/`, `values/`, `clock/`
+— each holding its sources, its `test/` and its `bench/`), `SigilMotion`
+(the umbrella), and one test per library:
+`motion_bind_test`, `motion_values_test` and `motion_clock_test`, plus two
+Google Benchmark binaries built by the `benches` target and run from a
+Release build through `scripts/bench_ledger.py`: `motion_bind_bench`
+(`BoundFloat::apply` per call under each envelope and the full chain, and
+the wiggle field by octave) and `motion_values_bench` (the consumer's read
+of an `Animatable` lane per slot for each kind it can hold, and copying
+and constructing such a lane). No GPU,
+no assets, no runtime requirements. Each test links only the library it
+exercises (plus the clock where a value is driven by the ticker) and
+GoogleTest, and fails the build if a compositing header becomes
 reachable from it — that is how the dependency boundary above stays
 honest.

@@ -17,17 +17,22 @@ do not reconstruct a library's rules from another library's document.
   authoring scenes in Python, building and running
 - `src/sigilweave/README.md` — text shaping and layout
 - `src/common/compose/README.md` — data-driven drawable components
-- `src/common/shape/README.md` — higher-level drawing over Skia
+- `src/sketch/README.md` — SigilSketch: every renderable thing as one
+  sketch file, with Sketchbook, the live host and the plates
+- `src/common/geometry/README.md` — higher-level drawing over Skia
 - `src/common/world/README.md` — 3D surfaces on Diligent Engine
 - `src/common/substance/README.md` — Substance `.sbsar` materials rendered
   to images (needs the Adobe SDK; optional)
 - `src/common/usd/README.md` — the world's data written to and read from
   USD (OpenUSD from vcpkg; optional)
 - `src/common/motion/README.md` — animation clock and animatable values
+- `src/common/core/README.md` — the kernels a retained runtime hosts: the
+  reconciler and the caching proof
 - `src/common/image/README.md` — image decoding
 - `src/common/loader/README.md` — resource access: URIs, caching, reload
 - `src/common/scry/README.md` — HTML and CSS rendered to Skia images
-- `src/common/skia/README.md` — Skia Graphite GPU plumbing
+- `src/common/skia/README.md` — SigilSkia: Skia Graphite brought up on a
+  Metal or Vulkan device someone else owns
 - `src/common/ui/README.md` — reusable Qt Quick controls
 - `docs/README.md` — the generated C++ API reference: the `docs`
   target, its theme, and serving it
@@ -49,10 +54,11 @@ reader who has never opened any other document.
 
 - **No citations.** No section numbers, no document names, no "see the
   design doc". State the constraint itself.
-- **No performance measurements.** Benchmarks own numbers — `compose_bench`,
-  `weave_bench`, `scry_bench`, `shape_bench`, `world_bench`, and the plate
-  ledger. A behavioral constant
-  is different and belongs in the comment: if only editing the code could
+- **No performance measurements.** Benchmarks own numbers — the `*_bench`
+  binaries (one per feature target, which the `benches` target builds),
+  `scripts/bench_ledger.py` which judges their medians against a
+  committed baseline, and the plate ledger. A behavioral constant is
+  different and belongs in the comment: if only editing the code could
   falsify it, keep it; if re-running a benchmark could, cut it.
 - **No history.** No dates, no "renamed", no "used to be", no campaign
   names. When a past attempt revealed a real constraint, state the
@@ -85,18 +91,30 @@ out with a configure warning. OpenUSD comes from vcpkg's `usd` port; the project
 (`cmake/triplets/arm64-osx.cmake`, wired through `CMakePresets.json`)
 builds oneTBB as a shared library, because USD's many dylibs each linking
 a static TBB deadlock on the first stage open. Custom ports (`choreograph`, `skia`,
-`diligent-engine`) come from the sigil-vcpkg-registry via
-`vcpkg-configuration.json` — **its `repository` currently points at a
-local checkout, `/Users/long/REI/sigil-vcpkg-registry`.** Update the URL
-and baseline when that registry is pushed; the workflow is in its README.
+`diligent-engine`) come from the sigil-vcpkg-registry at
+https://github.com/ryuuart/sigil-vcpkg-registry via
+`vcpkg-configuration.json`; bump its `baseline` to the registry's new
+HEAD when a port changes (the workflow is in its README). A library that
+is not in upstream vcpkg gets a port there rather than being vendored.
+
+Qt's moc runs only where Qt is. The tree configures with `CMAKE_AUTOMOC`
+off, and each target that declares Qt types names itself with
+`sigil_qt_target()` (`cmake/QtTarget.cmake`) — right after the target is
+created, and before its `qt_add_qml_module()` when it has one, since a
+QML module registers its types out of moc's output. A missing call fails
+at link with an undefined vtable or `staticMetaObject`.
 
 Use a Release build for any performance work. Several benchmarks and
-gallery scenes are deliberately stressful and Debug timings say nothing.
+sketches are deliberately stressful and Debug timings say nothing.
+`cmake --build build --config Release --target benches` builds every
+benchmark binary and `scripts/bench_ledger.py` (or `mise run bench`) runs
+them on a quiet machine, comparing each benchmark's median against
+`bench/baseline_<config>.json`; `--rebase` adopts new numbers.
 
 Some targets are conditional: Ultralight-dependent ones disable
 themselves with a warning when the SDK is missing, GPU tests need Metal,
-and the SigilWorld tests *skip* rather than fail without a Vulkan runtime
-(`brew install molten-vk vulkan-loader`).
+and `world_diligent_test` *skips* rather than fails without a Vulkan
+runtime (`brew install molten-vk vulkan-loader`).
 
 Open-licensed demo assets come from the opt-in `fetch_assets` target into
 `build/assets/`; `cmake/FetchAssets.cmake` holds the manifest rules.
@@ -144,7 +162,7 @@ lane runs `scry_test`'s web-thread handoffs, though the Ultralight
 dylibs themselves are uninstrumented.
 
 API documentation is a Doxygen site per library, built with `cmake
---build build --target docs` (or `--target docs-SigilShape` for one of
+--build build --target docs` (or `--target docs-SigilGeometry` for one of
 them) and landing at `build/docs/index.html`. Everything driving it
 lives in `docs/`, whose README is the canon for it — the theme, the
 two-pass cross-linking, and the container that serves the result. Each
@@ -161,35 +179,46 @@ entities are therefore not warned about by default —
 
 ### Visual work
 
-`ComposeGallery` is a macOS app bundle, so headless runs go through the
-binary inside it:
+Everything renderable in this repository is a **sketch**: one file under
+`src/sketch/sketches/`, addressed by its own stem, in one registry.
+`src/sketch/README.md` is the canon. One application drives all of it —
+**Sketchbook** — and it is a macOS app bundle, so headless runs go
+through the binary inside it:
 
 ```sh
-build/bin/<config>/ComposeGallery.app/Contents/MacOS/ComposeGallery \
-  --headless <outdir> [--gpu] [--scene <name>]
+build/bin/<config>/Sketchbook.app/Contents/MacOS/Sketchbook \
+  --headless <outdir> [--gpu] [--sketch <name>] [--kind canvas|set]
 ```
 
-`--scene` takes a case-insensitive substring and renders just that one,
-which is the loop for visual iteration. `--shot <png>` captures the app
-itself rather than a scene. `ComposeSketch` is the live-coding host; a
-study under `compose/sketch/sketches/` is one file that is both a
-hot-reload sketch and a gallery scene, and answers to its file stem.
+`--sketch` takes a case-insensitive substring and renders just that one,
+which is the loop for visual iteration. `--list` prints the registry;
+`--kind` narrows it to the sketches drawn onto a canvas or the ones that
+light a set. `--shot <png>` captures the app itself rather than a sketch.
+Pointed at a file with no `--headless`, Sketchbook opens on it and
+hot-swaps the recompiled sketch on every save; `--frame out.png` renders
+one headlessly and `--bench` measures it against the 60 FPS gate.
 
-Byte-identity sweeps run through `scripts/plate_ledger.py` in two tiers,
-each with its own baseline. `--tier quick` is the iteration loop —
-GPU renders at a uniform early capture, seconds for the whole registry.
-The default full tier steps every scene to its declared moment on the
-CPU and is the final confirmation gate before trusting a change; one
-legitimately expensive scene (`chaucer_astrolabe`) has its own timeout
-ceiling in the script's override table there. `--rebase` adopts a new
-baseline for the active tier (merging when given `--scenes`), and
-`--stability N` separates scene flap from code changes.
+Byte-identity sweeps run through `scripts/plate_ledger.py` in four tiers,
+each with its own baseline and all through that one binary. `--tier
+quick` is the iteration loop — GPU renders at a uniform early capture,
+seconds for the whole registry. The default full tier steps every canvas
+sketch to its declared moment on the CPU and is the final confirmation
+gate before trusting a change; one legitimately expensive sketch
+(`chaucer_astrolabe`) has its own timeout ceiling in the script's
+override table there. `--tier world` does the same for the sketches that
+light a set, and `--tier world-gpu` renders those on the device and
+compares them against the CPU tier's plates within a stated per-sketch
+tolerance rather than by hash. `--rebase` adopts a new baseline for the
+active tier (merging when given `--scenes`), and `--stability N`
+separates sketch flap from code changes. `--fps-gate` is a separate
+serial lane over either kind.
 
 ## Layout
 
 ```
 apps/spell-circle-canvas/src/
   common/          the libraries — see the README in each
+  sketch/          SigilSketch: the sketches, and Sketchbook over them
   sigilweave/      the text engine, with its examples and benchmarks
   spellcircle/     the product: shared/ core embedded by qt/ and mac/
 apps/python/       scene authoring and UDP transport
@@ -205,7 +234,7 @@ carry the `Sigil` prefix. Product-side integrations keep `Ifrit`
 **Boundaries between libraries are deliberate** and each README states
 its own. Two that are easy to get backwards: SigilLoader owns resource
 *access* while SigilImage owns image *meaning*; and SigilWorld consumes
-SigilShape's types, never the reverse.
+SigilGeometry's types, never the reverse.
 
 ## Generated files — never hand-edit
 

@@ -61,6 +61,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 /** Resolves the backdrop canvas on demand (it may not exist yet when the
  *  chrome builds). */
+// NOLINTNEXTLINE(modernize-redundant-void-arg): C-mode importers need the prototype
 @property(nonatomic, copy, nullable) SCKCanvasView *_Nullable (^canvasProvider)(void);
 
 @end

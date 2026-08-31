@@ -1,6 +1,6 @@
 // Scene: overflow & ellipsis — CSS text-overflow semantics.
 #include <include/core/SkPaint.h>
-#include <sigilweaveqt/SigilWeaveQt.h>
+#include <sigilweave/qt/SigilWeaveQt.h>
 
 #include <cmath>
 
@@ -127,6 +127,6 @@ SceneDescriptor makeOverflowDescriptor() {
 
 }  // namespace
 
-REGISTER_GALLERY_SCENE(makeOverflowDescriptor())
+REGISTER_GALLERY_SCENE(makeOverflowDescriptor)
 
 }  // namespace gallery

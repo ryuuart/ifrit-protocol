@@ -1,78 +1,127 @@
 # SigilCompose — data-driven, cacheable, animated drawable components
-# over Yoga + SigilWeave + Choreograph/SigilMotion + Skia: element values,
-# a keyed reconciler, Yoga layout with SigilWeave-measured text, stacking
-# paint, automatic picture caching of provably-static subtrees, and
-# Choreograph transitions/bindings. README.md is the canon.
-add_library(SigilCompose STATIC
-  Compose.cpp
-  Composer.cpp
-  Reconcile.cpp
-  Layout.cpp
-  Derive.cpp
-  Paint.cpp
-  Transitions.cpp
-  TextFx.cpp
-  Debug.cpp
-  Query.cpp
-  Material.cpp
-  ComposeInternal.h
-  ComposeRuntime.h
-  include/sigilcompose/Brushes.h
-  include/sigilcompose/Compose.h
-  include/sigilcompose/Feed.h
-  include/sigilcompose/Instances.h
-  include/sigilcompose/LayerStyles.h
-  include/sigilcompose/Material.h
-  include/sigilcompose/Pattern.h
-  include/sigilcompose/Patterns.h
-  include/sigilcompose/Debug.h
-  include/sigilcompose/Sdf.h
-  include/sigilcompose/Decorations.h
-  include/sigilcompose/Layouts.h
-  include/sigilcompose/Routers.h
-  include/sigilcompose/Shapes.h
-  include/sigilcompose/Studio.h
-  include/sigilcompose/TextFx.h
-  include/sigilcompose/Util.h
-  include/sigilcompose/Web.h
-)
-# The KIT tier is NOT listed here: it is its own library (kit/CMakeLists.txt)
-# whose include path is compose's public headers alone, which is what makes
-# the tier boundary structural instead of conventional.
+# over Yoga + SigilWeave + SigilMotion + Skia, as one feature library per
+# directory. README.md is the canon.
+#
+# Each feature is its own target with its own tests and benchmarks, and
+# links only the features beneath it, so a consumer links what it draws
+# with and nothing above it:
+#
+#   SigilComposeCore        core/        the kernel — element values, the
+#                                        reconciler, layout, paint,
+#                                        transitions, text at rest
+#   SigilComposeShape       shape/       silhouettes, layouts and routers
+#   SigilComposeTypography  typography/  the text engine (fx tracks, path
+#                                        text, marks), type styles and the
+#                                        text-fx presets
+#   SigilComposeBrush       brush/       decorations, lines, brushes, layer
+#                                        styles, the stroke grammar's engine
+#                                        and the mask gates
+#   SigilComposeTesting     testing/     the read-back checks (headers)
+#   SigilComposeInstances   instances/   the instanced sprite leaf, with the
+#                                        kit's placers
+#   SigilComposeTexture     texture/     a scene painted into a surface and
+#                                        handed over as a material texture
+#   SigilComposeWeb         web/         the Ultralight leaf (headers; only
+#                                        with SigilScry)
+#   SigilComposeKit         kit/         the kit tier over Shape and
+#                                        Typography
+#   SigilCompose                         the whole-library convenience for
+#                                        an OUTSIDE consumer: Brush (which
+#                                        reaches Shape and Core) plus
+#                                        Typography; nothing in this tree
+#                                        links it
+#
+# Every public header lives under one include root, include/sigilcompose/
+# <feature>/, so a feature adds the root and spells its own directory;
+# <sigilcompose/Compose.h> at the root is the transitional umbrella over
+# the kernel and each feature has a <Feature>.h umbrella of its own. Test
+# fixtures every binary shares sit in test/support/ and the bench support
+# in bench/; a feature's test and bench binaries add those directories.
 
-target_compile_features(SigilCompose PUBLIC cxx_std_20)
+set(SIGIL_COMPOSE_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/include)
+set(SIGIL_COMPOSE_TEST_SUPPORT_DIR ${CMAKE_CURRENT_LIST_DIR}/test)
+set(SIGIL_COMPOSE_BENCH_SUPPORT_DIR ${CMAKE_CURRENT_LIST_DIR}/bench)
+# Committed test assets (the SigilImage test/assets convention): today one
+# generated variable font, an advance-variant wght instrument. Not
+# fetch_assets — a TEST must never depend on an opt-in target.
+set(SIGIL_COMPOSE_TEST_ASSET_DIR ${CMAKE_CURRENT_LIST_DIR}/test/assets)
 
-target_include_directories(SigilCompose PUBLIC
-  ${CMAKE_CURRENT_LIST_DIR}/include
-)
+# The tests are one binary per feature target, each with a support header
+# under test/support that includes only the headers its target exposes,
+# over the shared harness in test/support/Host.h. Suites interleave across
+# the files rather than each file holding one suite, and a file named
+# `<Source><Tier>` holds the tier's share of a source file whose suites
+# straddle tiers — so search for a test by name rather than guessing which
+# file owns it.
+#
+# `_compose_test_binary(<name> LIBRARIES <targets>... SOURCES <files>...)`
+# registers one binary over exactly the targets it names — nothing links
+# the umbrella, so a test reaching past its tier fails to link rather than
+# passing on a dependency it was not meant to have.
+function(_compose_test_binary name)
+  cmake_parse_arguments(ARG "" "" "LIBRARIES;SOURCES" ${ARGN})
+  add_executable(${name} ${ARG_SOURCES})
+  target_include_directories(${name} PRIVATE ${SIGIL_COMPOSE_TEST_SUPPORT_DIR})
+  target_link_libraries(${name} PRIVATE
+    ${ARG_LIBRARIES} SigilComposeTesting SigilWeavePorts GTest::gtest_main)
+  add_test(NAME ${name} COMMAND ${name})
+endfunction()
 
-target_link_libraries(SigilCompose
-  PUBLIC
-    SigilImage
-    SigilMotion
-    SigilWeave
-    unofficial::skia::skia
-  PRIVATE
-    yoga::yogacore
-)
+# Benchmarks (Google Benchmark; build in Release before reading anything
+# from them), one binary per feature so each links only the library it
+# measures. None is a test: they build through the `benches` target and run
+# through scripts/bench_ledger.py, which compares them against a baseline.
+#
+# The Graphite arms (COMPOSE_BENCH_GRAPHITE) exist only where a GPU device
+# can be made; they reach it through SigilSkia and name no graphics API.
 
-# OpenColorIO output view transforms (<sigilcompose/Ocio.h>): OCIO is already
-# in the dependency closure (transitively via OpenImageIO), so this adds no
-# new vcpkg dependency — the extension simply disables with a warning if the
-# package is absent (the SPELLCIRCLE_ENABLE_ULTRALIGHT pattern).
-find_package(OpenColorIO CONFIG QUIET)
-if(TARGET OpenColorIO::OpenColorIO)
-  target_sources(SigilCompose PRIVATE Ocio.cpp include/sigilcompose/Ocio.h)
-  target_link_libraries(SigilCompose PRIVATE OpenColorIO::OpenColorIO)
-  target_compile_definitions(SigilCompose PUBLIC SIGILCOMPOSE_ENABLE_OCIO)
-else()
-  message(WARNING "OpenColorIO not found — <sigilcompose/Ocio.h> disabled")
-endif()
+# `_compose_bench(<name> LIBRARIES <targets>... [GPU] SOURCES <files>...)`
+# registers one benchmark binary over bench/BenchSupport.h. GPU adds the
+# Graphite arms when the platform can build them.
+function(_compose_bench name)
+  cmake_parse_arguments(ARG "GPU" "" "LIBRARIES;SOURCES" ${ARGN})
+  add_executable(${name} ${ARG_SOURCES}
+    ${SIGIL_COMPOSE_BENCH_SUPPORT_DIR}/BenchSupport.h)
+  target_include_directories(${name} PRIVATE ${SIGIL_COMPOSE_BENCH_SUPPORT_DIR})
+  target_link_libraries(${name} PRIVATE
+    ${ARG_LIBRARIES} SigilWeavePorts benchmark::benchmark)
+  if(ARG_GPU AND APPLE AND TARGET SigilSkia)
+    target_compile_definitions(${name} PRIVATE COMPOSE_BENCH_GRAPHITE)
+    target_link_libraries(${name} PRIVATE SigilSkia)
+  endif()
+  add_dependencies(benches ${name})
+endfunction()
 
-# The kernel tests, split across files by dominant theme and sharing the
-# harness in test/ComposeTestSupport.h. Suites interleave across the files
-# rather than each file holding one suite, so search for a test by name
-# rather than guessing which file owns it.
+# Dependencies point down this list. testing/ precedes the features whose
+# test binaries link it; kit/ and instances/ link the tiers above them.
+add_subdirectory(core)
+add_subdirectory(testing)
+add_subdirectory(shape)
+add_subdirectory(typography)
+add_subdirectory(brush)
+add_subdirectory(instances)
+add_subdirectory(texture)
+add_subdirectory(web)
+add_subdirectory(kit)
+
+# ---------------------------------------------------------------------------
+# SigilCompose — the whole-library name, kept as a convenience for a
+# consumer OUTSIDE this tree, the way SigilWeave, SigilMotion and
+# SigilGeometry each keep one. It carries no code of its own; linking it is
+# exactly linking Brush (which reaches Shape and Core) plus Typography. Nothing in this repository links it: every consumer here —
+# the benches, the demos, the tests, and the sketch library above — names
+# the feature targets it draws with, which is what keeps a dependency on a
+# tier a stated fact rather than an accident of the umbrella. The instanced
+# leaf and the web leaf are deliberately NOT here: each is linked by the
+# consumers that stamp or browse with it.
+add_library(SigilCompose INTERFACE)
+target_link_libraries(SigilCompose INTERFACE
+  SigilComposeBrush SigilComposeTypography)
+
+# ---------------------------------------------------------------------------
+# The cross-feature tests, which are the library's rather than one tier's.
+
+# The engine walkthroughs and the README's compile check.
 # Every API name the README spells, compiled against the headers that own
 # it. A hand-written guard only covers the sections someone remembered to
 # transcribe, which is how documentation that does not compile reaches a
@@ -91,8 +140,10 @@ add_custom_command(
   COMMAND ${Python3_EXECUTABLE}
           ${CMAKE_CURRENT_SOURCE_DIR}/test/docs/api_doc_probes.py
           --md ${CMAKE_CURRENT_SOURCE_DIR}/README.md
-          --include ${CMAKE_CURRENT_SOURCE_DIR}/include/sigilcompose
+          --include ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose
+          --include ${CMAKE_CURRENT_SOURCE_DIR}/testing/include/sigilcompose
           --include ${CMAKE_CURRENT_SOURCE_DIR}/../motion/include
+          --include ${CMAKE_CURRENT_SOURCE_DIR}/../core/include
           --include ${CMAKE_CURRENT_SOURCE_DIR}/../../sigilweave/include
           --out ${COMPOSE_API_DOC_PROBES}
   DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/README.md
@@ -112,126 +163,40 @@ add_test(NAME compose_api_doc_probes_self_test
           ${CMAKE_CURRENT_SOURCE_DIR}/test/docs/api_doc_probes.py
           --self-test)
 
-add_executable(compose_test
-  ${COMPOSE_API_DOC_PROBES}
-  test/ComposeTestKernel.cpp
-  test/ComposeTestContent.cpp
-  test/ComposeTestLines.cpp
-  test/ComposeTestVertical.cpp
-  test/ComposeTestBrushes.cpp
-  test/ComposeTestEngineDocs.cpp
-  test/ComposeTestTextData.cpp
-  test/ComposeTestTextPass.cpp
-  test/ComposeTestPathMotion.cpp
-  test/ComposeTestQueriesStudio.cpp
-  test/ComposeTestGrammar.cpp
-  test/ComposeTestMask.cpp
-  # The field walks. Includes ComposeInternal.h AND ComposeRuntime.h (the
-  # only test TU that does either) so the equality comparators and the
-  # kSlotSpecs table can be reached DIRECTLY — see the file header.
-  test/ComposeTestFieldPins.cpp
+_compose_test_binary(compose_docs_test
+  LIBRARIES SigilComposeCore SigilComposeShape SigilComposeBrush
+            SigilComposeTypography SigilComposeKit SigilComposeInstances
+  SOURCES
+    ${COMPOSE_API_DOC_PROBES}
+    test/ComposeTestEngineDocs.cpp
 )
-# yoga::yogacore is PRIVATE to SigilCompose, so its headers are not on this
-# target's path by inheritance — and ComposeRuntime.h includes <yoga/Yoga.h>.
-# Listed for the INCLUDE PATH; the archive itself was already in the link
-# closure.
-target_link_libraries(compose_test PRIVATE
-  SigilCompose SigilWeavePorts yoga::yogacore GTest::gtest_main)
-# The generated probe TU lives in the binary dir and includes the shared
-# harness by name, like every hand-written slice does.
-target_include_directories(compose_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test)
-# Committed test assets (the SigilImage test/assets convention): today one
-# generated variable font, an advance-variant wght instrument. Not
-# fetch_assets — a TEST must never depend on an opt-in target.
-target_compile_definitions(compose_test PRIVATE
-  SIGILCOMPOSE_TEST_ASSET_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/assets")
-add_test(NAME compose_test COMMAND compose_test)
+target_compile_definitions(compose_docs_test PRIVATE
+  SIGILCOMPOSE_TEST_ASSET_DIR="${SIGIL_COMPOSE_TEST_ASSET_DIR}")
 
-# The kit tier (include/sigilcompose/kit/*.h). Separate binary rather than
-# more cases in compose_test: the kit changes nothing in the kernel, so a
-# kit failure must never look like a kernel failure on the dashboard.
-add_executable(compose_kit_test
-  test/ComposeKitTest.cpp
-)
-target_link_libraries(compose_kit_test PRIVATE
-  SigilComposeKit SigilWeavePorts GTest::gtest_main)
-add_test(NAME compose_kit_test COMMAND compose_kit_test)
-
-# GPU-backend behavior tests (Graphite Metal): the raster suite proves
+# GPU-backend behavior tests (Graphite on a GPU device): the raster suites prove
 # semantics, this one proves the same pixels arrive on the GPU — it
-# exists for the direct-image draw gaps (lattice/atlas) the raster suite
+# exists for the direct-image draw gaps (lattice/atlas) the raster suites
 # cannot see.
-if(APPLE AND TARGET SpellCircleSkia)
+if(APPLE AND TARGET SigilSkia)
   add_executable(compose_gpu_test
     test/ComposeGpuTest.mm
   )
+  target_include_directories(compose_gpu_test PRIVATE
+    ${SIGIL_COMPOSE_TEST_SUPPORT_DIR})
   target_link_libraries(compose_gpu_test PRIVATE
-    SigilCompose SigilWeavePorts SpellCircleSkia GTest::gtest_main
-    "-framework Metal")
+    SigilComposeShape SigilComposeBrush SigilComposeTypography
+    SigilComposeInstances SigilWeavePorts SigilSkia
+    GTest::gtest_main)
   add_test(NAME compose_gpu_test COMMAND compose_gpu_test)
 endif()
 
-# SigilScry integration (the web() leaf, stress item 19) — the kernel
-# never links SigilScry; the adapter is header-only and this dedicated
-# test target exists only when the Ultralight SDK produced the target.
-if(TARGET SigilScry)
-  add_executable(compose_web_test
-    test/ComposeWebTest.cpp
-  )
-  target_link_libraries(compose_web_test PRIVATE
-    SigilCompose SigilScry SigilWeavePorts GTest::gtest_main)
-  ultralight_copy_resources(compose_web_test)
-  add_test(NAME compose_web_test COMMAND compose_web_test)
-endif()
-
-# The pre-implementation feasibility spike stays: it pins the
-# Yoga+SigilWeave measurement contract independently of the kernel.
-add_executable(compose_spike_test
-  test/ComposeSpikeTest.cpp
-)
-target_link_libraries(compose_spike_test PRIVATE
-  SigilWeave SigilWeavePorts yoga::yogacore GTest::gtest_main)
-add_test(NAME compose_spike_test COMMAND compose_spike_test)
-
-# Perf gate (run in Release): describe/reconcile/draw costs, memo hit
-# behavior, cache effectiveness. Numbers land in STRESS_TESTS.md.
-if(APPLE AND TARGET SpellCircleSkia)
-  set(COMPOSE_BENCH_GPU_SOURCES
-      bench/ComposeBenchGpuMetal.mm bench/ComposeBenchGpu.h)
-else()
-  set(COMPOSE_BENCH_GPU_SOURCES)
-endif()
-add_executable(compose_bench
-  bench/ComposeBench.cpp
-  bench/ComposeCoreBench.cpp
-  ${COMPOSE_BENCH_GPU_SOURCES}
-)
-target_link_libraries(compose_bench PRIVATE
-  SigilCompose SigilWeavePorts benchmark::benchmark EnTT::EnTT)
-if(APPLE AND TARGET SpellCircleSkia)
-  set_source_files_properties(bench/ComposeBenchGpuMetal.mm PROPERTIES
-    COMPILE_OPTIONS -fobjc-arc)
-  target_compile_definitions(compose_bench PRIVATE COMPOSE_BENCH_GRAPHITE)
-  find_library(METAL_FRAMEWORK Metal REQUIRED)
-  target_link_libraries(compose_bench PRIVATE
-    SpellCircleSkia ${METAL_FRAMEWORK})
-endif()
-
 # Headless gallery: renders stress-catalog panels to PNG (out dir:
-# first argument, default ./compose_demo_out). The interactive Qt
-# ComposeGallery follows in a later phase.
+# first argument, default ./compose_demo_out).
 add_executable(compose_demo
   examples/compose_demo.cpp
 )
-target_link_libraries(compose_demo PRIVATE SigilCompose SigilWeavePorts)
-
-# Each tree-structured product owns its CMakeLists (repo convention —
-# see sigilweave/examples/*). kit/ first (it is a library the rest may
-# link), then sketch/, which defines SigilSketchStudies (every study sketch
-# compiled in place) and which the gallery links.
-add_subdirectory(kit)
-add_subdirectory(sketch)
-add_subdirectory(gallery)
+target_link_libraries(compose_demo PRIVATE
+  SigilComposeShape SigilComposeBrush SigilWeavePorts)
 
 # Registers this library with the `docs` target (see cmake/Docs.cmake).
 # The README is the site's front page, so the generated pages open on the
