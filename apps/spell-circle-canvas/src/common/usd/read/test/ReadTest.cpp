@@ -2,8 +2,9 @@
  * usd_read_test — a hand-authored ASCII stage read into a Model (the
  * unweld, the fan, the baked xform, subsets as the "Material" lane, a
  * material's factors and texture bytes, an instancer's sizes), a stage
- * the Writer produced read back, and a file that cannot be opened.
- * Skips when the USD runtime is absent.
+ * the Writer produced read back — its meshes, its three kinds of
+ * emitter and its camera — a stage as another tool would author it, and
+ * a file that cannot be opened. Skips when the USD runtime is absent.
  */
 
 #include <gtest/gtest.h>
@@ -15,7 +16,9 @@
 #include <sigilusd/runtime/Runtime.h>
 #include <sigilusd/write/Writer.h>
 
+#include <cmath>
 #include <filesystem>
+#include <glm/geometric.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
 using namespace sigil;
@@ -38,6 +41,13 @@ sk_sp<SkImage> solid(SkColor color) {
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(4, 4));
   surface->getCanvas()->clear(color);
   return surface->makeImageSnapshot();
+}
+
+const world::light::Light* lightAt(const std::vector<usd::ReadLight>& lights,
+                                   const char* path) {
+  for (const usd::ReadLight& read : lights)
+    if (read.path == path) return &read.light;
+  return nullptr;
 }
 
 const geometry::mesh::codec::decode::Part* named(
@@ -177,9 +187,137 @@ TEST(UsdRead, RoundTripsWhatTheWriterAuthors) {
   EXPECT_FLOAT_EQ(part.baseColor.r, 1.0f);
 }
 
+TEST(UsdRead, RoundTripsTheEmittersAndTheCameraTheWriterAuthors) {
+  SKIP_WITHOUT_USD();
+  const std::filesystem::path file = scratch("emitters.usdc");
+  const world::light::Light sun =
+      world::light::sun({-0.45f, -0.75f, -0.5f}, {1, 0.9f, 0.8f, 1}, 2.5f);
+  const world::light::Light lamp =
+      world::light::point({10, 100, -20}, {0.2f, 0.4f, 1, 1}, 3.0f, 250.0f);
+  const world::light::Light beam = world::light::spot(
+      {0, 80, 0}, {0, -1, 0}, 40.0f, 28.0f, {1, 0.5f, 0, 1}, 4.0f, 500.0f);
+  geometry::mesh::camera::Camera camera;
+  camera.eye = {120, 80, 300};
+  camera.target = {0, 20, -40};
+  camera.fovYDeg = 55;
+  camera.zNear = 2;
+  camera.zFar = 2000;
+  {
+    usd::Writer writer(file);
+    ASSERT_EQ(writer.light("sun", sun), "/World/sun");
+    ASSERT_EQ(writer.light("lamp", lamp), "/World/lamp");
+    ASSERT_EQ(writer.light("beam", beam), "/World/beam");
+    ASSERT_EQ(writer.camera("eye", camera), "/World/eye");
+    std::string error;
+    ASSERT_TRUE(writer.save(&error)) << error;
+  }
+  std::string error;
+  const std::optional<std::vector<usd::ReadLight>> lights =
+      usd::readLights(file, &error);
+  ASSERT_TRUE(lights) << error;
+  ASSERT_EQ(lights->size(), 3u);
+
+  // The sun keeps its direction (normalized on the way out) and nothing
+  // else: a distant light stands nowhere.
+  const world::light::Light* back = lightAt(*lights, "/World/sun");
+  ASSERT_TRUE(back);
+  EXPECT_EQ(back->kind, world::light::Kind::Sun);
+  const glm::vec3 aim = glm::normalize(sun.direction);
+  EXPECT_NEAR(back->direction.x, aim.x, 1e-5f);
+  EXPECT_NEAR(back->direction.y, aim.y, 1e-5f);
+  EXPECT_NEAR(back->direction.z, aim.z, 1e-5f);
+  EXPECT_FLOAT_EQ(back->intensity, 2.5f);
+  EXPECT_FLOAT_EQ(back->color.g, 0.9f);
+
+  // The point light: where it stands, how far it reaches.
+  back = lightAt(*lights, "/World/lamp");
+  ASSERT_TRUE(back);
+  EXPECT_EQ(back->kind, world::light::Kind::Point);
+  EXPECT_NEAR(back->position.x, 10.0f, 1e-4f);
+  EXPECT_NEAR(back->position.y, 100.0f, 1e-4f);
+  EXPECT_NEAR(back->position.z, -20.0f, 1e-4f);
+  EXPECT_FLOAT_EQ(back->range, 250.0f);
+  EXPECT_FLOAT_EQ(back->intensity, 3.0f);
+  EXPECT_FLOAT_EQ(back->color.b, 1.0f);
+
+  // The spot: aim, cone and range. The inner edge travels as the
+  // fraction of the cone the falloff eats, so it comes back through
+  // that arithmetic rather than as itself.
+  back = lightAt(*lights, "/World/beam");
+  ASSERT_TRUE(back);
+  EXPECT_EQ(back->kind, world::light::Kind::Spot);
+  EXPECT_NEAR(back->direction.y, -1.0f, 1e-5f);
+  EXPECT_NEAR(back->position.y, 80.0f, 1e-4f);
+  EXPECT_FLOAT_EQ(back->outerDeg, 40.0f);
+  const float softness = 1.0f - 28.0f / 40.0f;
+  EXPECT_FLOAT_EQ(back->innerDeg, 40.0f * (1.0f - softness));
+  EXPECT_FLOAT_EQ(back->range, 500.0f);
+
+  const std::optional<std::vector<usd::ReadCamera>> cameras =
+      usd::readCameras(file, &error);
+  ASSERT_TRUE(cameras) << error;
+  ASSERT_EQ(cameras->size(), 1u);
+  EXPECT_EQ(cameras->front().path, "/World/eye");
+  const geometry::mesh::camera::Camera& lens = cameras->front().camera;
+  EXPECT_NEAR(lens.eye.x, camera.eye.x, 1e-2f);
+  EXPECT_NEAR(lens.eye.y, camera.eye.y, 1e-2f);
+  EXPECT_NEAR(lens.eye.z, camera.eye.z, 1e-2f);
+  // The focus distance carries where on the view ray the target sits.
+  EXPECT_NEAR(lens.target.x, camera.target.x, 1e-2f);
+  EXPECT_NEAR(lens.target.y, camera.target.y, 1e-2f);
+  EXPECT_NEAR(lens.target.z, camera.target.z, 1e-2f);
+  EXPECT_NEAR(lens.fovYDeg, camera.fovYDeg, 1e-3f);
+  EXPECT_FLOAT_EQ(lens.zNear, camera.zNear);
+  EXPECT_FLOAT_EQ(lens.zFar, camera.zFar);
+  // up is orthonormalized against the view direction on the way out, so
+  // the view itself is what round-trips.
+  const glm::mat4 wanted = camera.view();
+  const glm::mat4 got = lens.view();
+  for (int i = 0; i < 4; ++i)
+    for (int j = 0; j < 4; ++j) EXPECT_NEAR(got[i][j], wanted[i][j], 1e-3f);
+}
+
+TEST(UsdRead, ReadsALightAndACameraAnotherToolAuthored) {
+  SKIP_WITHOUT_USD();
+  std::string error;
+  const std::optional<std::vector<usd::ReadLight>> lights =
+      usd::readLights(asset("foreign.usda"), &error);
+  ASSERT_TRUE(lights) << error;
+  ASSERT_EQ(lights->size(), 1u);
+  EXPECT_EQ(lights->front().path, "/World/rig/key");
+  const world::light::Light& key = lights->front().light;
+  // A shaping cone and no sigil data: a spot whose range is the default,
+  // standing where its parent Xform puts it and aimed by its own
+  // rotation.
+  EXPECT_EQ(key.kind, world::light::Kind::Spot);
+  EXPECT_NEAR(key.position.y, 200.0f, 1e-4f);
+  EXPECT_NEAR(key.direction.y, -1.0f, 1e-5f);
+  EXPECT_FLOAT_EQ(key.outerDeg, 30.0f);
+  EXPECT_FLOAT_EQ(key.innerDeg, 30.0f * (1.0f - 0.25f));
+  EXPECT_FLOAT_EQ(key.intensity, 3.0f);
+  EXPECT_FLOAT_EQ(key.color.b, 1.0f);
+  EXPECT_FLOAT_EQ(key.range, world::light::Light{}.range);
+
+  const std::optional<std::vector<usd::ReadCamera>> cameras =
+      usd::readCameras(asset("foreign.usda"), &error);
+  ASSERT_TRUE(cameras) << error;
+  ASSERT_EQ(cameras->size(), 1u);
+  const geometry::mesh::camera::Camera& lens = cameras->front().camera;
+  EXPECT_NEAR(lens.eye.y, 200.0f, 1e-4f);
+  EXPECT_NEAR(lens.eye.z, 100.0f, 1e-4f);
+  // No focus distance authored: the target sits one unit down the view.
+  EXPECT_NEAR(lens.target.z, 99.0f, 1e-4f);
+  EXPECT_NEAR(lens.fovYDeg, std::atan(12.0f / 50.0f) * 360.0f / (float)M_PI,
+              1e-3f);
+  EXPECT_FLOAT_EQ(lens.zNear, 1.0f);
+  EXPECT_FLOAT_EQ(lens.zFar, 1000.0f);
+}
+
 TEST(UsdRead, RefusesWhatItCannotOpen) {
   SKIP_WITHOUT_USD();
   std::string error;
   EXPECT_FALSE(usd::readModel(scratch("nope.usdc"), &error));
   EXPECT_FALSE(error.empty());
+  EXPECT_FALSE(usd::readLights(scratch("nope.usdc")));
+  EXPECT_FALSE(usd::readCameras(scratch("nope.usdc")));
 }

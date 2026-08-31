@@ -2,7 +2,7 @@
  "config": "Release",
  "host": "MacBookPro.control",
  "machine": "arm64",
- "taken": "2026-08-31T05:11:47+00:00",
+ "taken": "2026-08-31T05:25:21+00:00",
  "benches": {
   "compose_brush_bench": {
    "BM_Draw_ArtWarp_Live": {
@@ -3176,20 +3176,32 @@
   },
   "usd_read_bench": {
    "BM_ReadModel/128": {
-    "real_ns": 193037.15283361572,
-    "cpu_ns": 190895.13888888885,
+    "real_ns": 170456.41160033588,
+    "cpu_ns": 169708.22942643415,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_ReadModel/2048": {
-    "real_ns": 292748.06930233946,
-    "cpu_ns": 289574.3534482757,
+    "real_ns": 265593.7291175417,
+    "cpu_ns": 264028.1553398056,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_ReadModel/32768": {
-    "real_ns": 1786492.961495147,
-    "cpu_ns": 1775474.0259740332,
+    "real_ns": 1606696.7403854835,
+    "cpu_ns": 1600784.090909095,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_ReadEmitters/16": {
+    "real_ns": 475741.4255164513,
+    "cpu_ns": 473028.91156462696,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_ReadEmitters/256": {
+    "real_ns": 2815058.738924563,
+    "cpu_ns": 2785120.0000000102,
     "unit": "ns",
     "repetitions": 4
    }

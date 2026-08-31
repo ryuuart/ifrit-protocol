@@ -72,12 +72,15 @@ class Writer {
                      const geometry::mesh::Mesh& stamp, const glm::mat4& model,
                      const material::Material& material,
                      std::string_view parent = "/World");
-  /** An emitter: distant for a sun, sphere for a point light or a spot
-   *  (whose cone rides as custom data, having no UsdLux shape of its
-   *  own here). */
+  /** An emitter: distant for a sun, sphere for a point light or for a
+   *  spot, whose cone is UsdLux shaping about the prim's -Z. The range,
+   *  which UsdLux has no word for, rides as `sigil:range`. */
   std::string light(std::string_view name, const world::light::Light& light,
                     std::string_view parent = "/World");
-  /** The camera, as UsdGeomCamera. */
+  /** The camera, as UsdGeomCamera: camera-to-world, the focal length
+   *  that gives its vertical field of view against a 24 mm vertical
+   *  aperture, the clipping range, and the distance to what it looks at
+   *  as the focus distance. */
   std::string camera(std::string_view name,
                      const geometry::mesh::camera::Camera& camera,
                      std::string_view parent = "/World");

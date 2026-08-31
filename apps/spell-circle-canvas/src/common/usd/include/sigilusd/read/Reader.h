@@ -3,10 +3,13 @@
 /** @file
  * The reader: a USD stage's meshes, point instancers and materials
  * poured into geometry::mesh::codec::decode::Model, the same currency every
- * other format lands in.
+ * other format lands in, and its emitters and cameras read back as the
+ * values a scene is made of.
  */
 
+#include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/codec/Model.h>
+#include <sigilworld/light/Light.h>
 
 #include <filesystem>
 #include <optional>
@@ -33,5 +36,40 @@ std::optional<geometry::mesh::codec::decode::Model> readModel(
 std::optional<geometry::mesh::codec::decode::Model> readModel(
     const std::filesystem::path& file, ReadInfo* info,
     std::string* error = nullptr);
+
+/** One emitter read from a stage, with the path of the prim it came
+ *  from — the same string the Writer returned for it. */
+struct ReadLight {
+  std::string path;
+  world::light::Light light;
+};
+
+/** One camera read from a stage, with the path of the prim it came
+ *  from. */
+struct ReadCamera {
+  std::string path;
+  geometry::mesh::camera::Camera camera;
+};
+
+/** Every emitter on the stage, in traversal order: a UsdLuxDistantLight
+ *  as a sun aimed along the prim's -Z, a UsdLuxSphereLight as a point
+ *  light where the prim stands — or as a spot when the prim carries an
+ *  authored shaping cone, whose angle is the outer half-angle and whose
+ *  softness is how much of it the falloff eats. `sigil:range` gives the
+ *  range; a light authored without it keeps the Light default. Other
+ *  UsdLux shapes are skipped. nullopt when the stage cannot be
+ *  opened. */
+std::optional<std::vector<ReadLight>> readLights(
+    const std::filesystem::path& file, std::string* error = nullptr);
+
+/** Every UsdGeomCamera on the stage, in traversal order: the prim's
+ *  local-to-world places the eye and aims it, the focal length against
+ *  the vertical aperture gives the vertical field of view, and the
+ *  clipping range the near and far planes. The target sits at the
+ *  authored focus distance along the view direction, one unit ahead
+ *  when the stage names none — the view is the same wherever on that
+ *  ray it lands. nullopt when the stage cannot be opened. */
+std::optional<std::vector<ReadCamera>> readCameras(
+    const std::filesystem::path& file, std::string* error = nullptr);
 
 }  // namespace sigil::usd

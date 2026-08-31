@@ -1,0 +1,38 @@
+#usda 1.0
+(
+    defaultPrim = "World"
+    metersPerUnit = 0.01
+    upAxis = "Y"
+)
+
+def Xform "World"
+{
+    def Xform "rig"
+    {
+        double3 xformOp:translate = (0, 200, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+
+        def SphereLight "key" (
+            prepend apiSchemas = ["ShapingAPI"]
+        )
+        {
+            color3f inputs:color = (0.25, 0.5, 1)
+            float inputs:intensity = 3
+            float inputs:radius = 1
+            float inputs:shaping:cone:angle = 30
+            float inputs:shaping:cone:softness = 0.25
+            float3 xformOp:rotateXYZ = (-90, 0, 0)
+            uniform token[] xformOpOrder = ["xformOp:rotateXYZ"]
+        }
+
+        def Camera "shotcam"
+        {
+            float2 clippingRange = (1, 1000)
+            float focalLength = 50
+            float horizontalAperture = 36
+            float verticalAperture = 24
+            double3 xformOp:translate = (0, 0, 100)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+    }
+}

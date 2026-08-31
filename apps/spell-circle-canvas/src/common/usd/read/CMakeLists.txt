@@ -1,8 +1,12 @@
-# The read feature: a stage poured into geometry's decode::Model. Links
-# the codec feature the Model comes from; OpenUSD is private to it.
+# The read feature: a stage poured into geometry's decode::Model, with
+# its emitters and cameras read back as values. Links the codec feature
+# the Model comes from, SigilWorldLight and the geometry camera those
+# values are; OpenUSD is private to it.
 add_library(SigilUsdRead STATIC
+  Camera.cpp
   GfMatrix.h
   Instancer.cpp
+  Lights.cpp
   Material.cpp
   Mesh.cpp
   Primvar.h
@@ -13,8 +17,9 @@ add_library(SigilUsdRead STATIC
 target_compile_features(SigilUsdRead PUBLIC cxx_std_20)
 target_include_directories(SigilUsdRead PUBLIC ${SIGIL_USD_INCLUDE_DIR})
 target_link_libraries(SigilUsdRead
-  PUBLIC SigilGeometryMeshCodec SigilGeometryMesh
-  PRIVATE usd usdGeom usdShade sdf tf gf vt)
+  PUBLIC SigilGeometryMeshCodec SigilGeometryMesh SigilGeometryMeshCamera
+         SigilWorldLight
+  PRIVATE usd usdGeom usdShade usdLux sdf tf gf vt)
 
 # Links the library it exercises, the runtime probe it skips on, and the
 # writer whose stages it round-trips; the committed fixtures under

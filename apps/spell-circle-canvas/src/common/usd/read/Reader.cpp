@@ -1,7 +1,8 @@
 /** @file
  * readModel(): opens the stage, walks every prim, and hands meshes and
  * point instancers to their readers; the material slot table the walk
- * accumulates comes back as ReadInfo.
+ * accumulates comes back as ReadInfo. The stage-opening every read door
+ * in this feature shares lives here too.
  */
 
 #include "sigilusd/read/Reader.h"
@@ -31,13 +32,17 @@ std::optional<geometry::mesh::codec::decode::Model> readModel(
   return readModel(file, nullptr, error);
 }
 
+UsdStageRefPtr openStage(const std::filesystem::path& file,
+                         std::string* error) {
+  UsdStageRefPtr stage = UsdStage::Open(file.string());
+  if (!stage && error) *error = "cannot open " + file.string();
+  return stage;
+}
+
 std::optional<geometry::mesh::codec::decode::Model> readModel(
     const std::filesystem::path& file, ReadInfo* info, std::string* error) {
-  UsdStageRefPtr stage = UsdStage::Open(file.string());
-  if (!stage) {
-    if (error) *error = "cannot open " + file.string();
-    return std::nullopt;
-  }
+  UsdStageRefPtr stage = openStage(file, error);
+  if (!stage) return std::nullopt;
   ReadContext context;
   context.stageDir = file.parent_path();
   geometry::mesh::codec::decode::Model model;

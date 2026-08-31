@@ -6,7 +6,9 @@ and material slots, stamps as point instancers, lights, a camera — and
 saves it as binary crate (`.usdc`, the default), ASCII (`.usda`), or a
 `.usdz` package. In: `readModel()` pours a USD stage's meshes, point
 instancers and materials into `geometry::mesh::codec::decode::Model`,
-the same currency every other format lands in.
+the same currency every other format lands in, and `readLights()` and
+`readCameras()` hand back its emitters and cameras as the same values
+the writer took — so a stage this library authors round-trips whole.
 
 Materials travel as `UsdPreviewSurface` with `UsdUVTexture` inputs — the
 metallic-roughness surface SigilMaterial's kit defines, slot for slot —
@@ -20,7 +22,7 @@ a consumer uses; every public header lives under
 |--------|---------|-------|
 | `SigilUsdRuntime` | `runtime/Runtime.h` | `runtime::available()` — whether the USD file-format plugins are present in this process |
 | `SigilUsdWrite`   | `write/Writer.h`    | `WriteOptions` and `Writer` — a stage built from values and saved |
-| `SigilUsdRead`    | `read/Reader.h`     | `ReadInfo` and `readModel()` — a stage read into a `Model` |
+| `SigilUsdRead`    | `read/Reader.h`     | `ReadInfo` and `readModel()` — a stage read into a `Model`; `readLights()` and `readCameras()` — its emitters and cameras as values |
 
 `SigilUsd` is the umbrella target over all three, and
 `<sigilusd/Usd.h>` the umbrella header. Write and read are independent
@@ -41,7 +43,9 @@ writer.camera("camera", camera);
 std::string error;
 if (!writer.save(&error)) std::fprintf(stderr, "%s\n", error.c_str());
 
-auto back = usd::readModel("shots/lab.usdc");  // decode::Model
+auto back = usd::readModel("shots/lab.usdc");      // decode::Model
+auto lamps = usd::readLights("shots/lab.usdc");    // ReadLight: path + Light
+auto lenses = usd::readCameras("shots/lab.usdc");  // ReadCamera: path + Camera
 ```
 
 ## The mental model
@@ -64,12 +68,26 @@ scene is one call per prop.
 | what UsdPreviewSurface has no word for | custom data on the prim: `sigil:transmission`, `sigil:layers` (the stack depth), `sigil:unlit`, `sigil:baseColorFactor` |
 | stamps | `UsdGeomPointInstancer` with the stamp as its one prototype: positions, `size` → scales, `dir`/`normal` → orientations (the stamp's +z along it), `tint` → `displayColor`/`displayOpacity` |
 | a point light or a spot / a sun | `UsdLuxSphereLight` (translated, `sigil:range`; a spot oriented -Z along its direction, cone as `shaping:cone:angle` with the inner edge as `shaping:cone:softness`) / `UsdLuxDistantLight` (oriented, -Z along the direction) |
-| the camera | `UsdGeomCamera`, camera-to-world from the view's inverse, a 24 mm vertical aperture and the focal length that gives the vertical fov |
+| the camera | `UsdGeomCamera`, camera-to-world from the view's inverse, a 24 mm vertical aperture and the focal length that gives the vertical fov, the clipping range, and the distance to the target as `focusDistance` |
 
 **A stacked material exports the material at the bottom.** Stacking is a
 live composition; `UsdPreviewSurface` cannot hold it, and this library
 does not bake. The depth rides as `sigil:layers` so a consumer knows
 something is missing.
+
+**Emitters and cameras read back as values, not parts.** A
+`UsdLuxDistantLight` is a sun aimed along the prim's -Z, a
+`UsdLuxSphereLight` a point light where the prim stands — a spot when
+the prim carries an *authored* shaping cone, whose angle is the outer
+half-angle and whose softness gives the inner edge back as `outer × (1 -
+softness)`. `sigil:range` is the range when the stage has it and the
+`Light` default when it does not, so a light another tool authored still
+reads. A camera comes back from the prim's local-to-world, with its
+field of view from the focal length against the vertical aperture; its
+target rides the view direction at the focus distance, one unit ahead
+when the stage names none — a camera sees the same thing wherever along
+that ray the target sits, which is why the distance has to be written
+down to come back. Other UsdLux shapes are skipped.
 
 **Reading unwelds.** Every face-vertex becomes a mesh vertex (so
 face-varying `st` and normals survive), faces fan-triangulate, xforms are
@@ -152,6 +170,10 @@ The read test reads the hand-authored stages committed under
 `read/test/assets/` (an ASCII stage with a parent xform, a mixed
 triangle-and-quad mesh with per-vertex `st` and `displayColor`, two
 subsets bound to two materials, a texture file beside it, and a point
-instancer) and round-trips a stage the writer produced. Every test skips,
+instancer, and a stage as another tool would author it: a sphere light
+with a shaping cone and no `sigil:` data, aimed by its own rotation
+under a translated parent, beside a camera with no focus distance) and
+round-trips a stage the writer produced — its meshes, its three kinds of
+emitter and its camera. Every test skips,
 with the reason, when the runtime probe says the plugins are absent, and
 every benchmark then registers nothing.
