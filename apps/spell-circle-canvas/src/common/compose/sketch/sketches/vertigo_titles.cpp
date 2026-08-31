@@ -130,7 +130,7 @@
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilcompose/shape/Shapes.h>
 #include <sigilcompose/typography/TextFx.h>
-#include <sigilgeometry/path/Noise.h>
+#include <sigilcore/compute/Noise.h>
 #include <sigilsketch/Sketch.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/style/Style.h>
@@ -142,7 +142,7 @@
 #include <vector>
 
 using namespace sigil::compose;
-namespace geometry = sigil::geometry;
+namespace noise = sigil::core::noise;
 using namespace std::chrono_literals;
 namespace ch = choreograph;
 
@@ -733,7 +733,7 @@ struct VertigoTitles : sigil::compose::sketch::Sketch {
     std::vector<Stop> fibres;
     for (int i = 0; i <= 96; ++i) {
       const float v = (i % 2 == 0) ? 0.482f : 0.518f;
-      const float j = 0.012f * geometry::path::noise::hash(17u, (uint32_t)i);
+      const float j = 0.012f * noise::hash(17u, (uint32_t)i);
       fibres.push_back({(float)i / 96.0f, {v + j, v + j, v + j, 1}});
     }
     irisMat = Material::blend(

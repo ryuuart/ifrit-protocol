@@ -12,11 +12,11 @@
 #include <include/pathops/SkPathOps.h>
 #include <include/utils/SkParsePath.h>
 #include <sigilcompose/shape/Shapes.h>
+#include <sigilcore/compute/Noise.h>
 
 #include <algorithm>
 #include <cmath>
 
-#include "sigilgeometry/path/Noise.h"
 #include "sigilgeometry/path/Numeric.h"
 
 namespace sigil::compose::shapes {
@@ -117,8 +117,7 @@ SkPath Blob::path(SkSize s) const {
   for (int i = 0; i < n; ++i) {
     const float a = -SK_FloatPI / 2 + i * (2 * SK_FloatPI / n);
     const float r =
-        1.0f - amplitude * (0.5f + 0.5f * geometry::path::noise::hash(
-                                              seed, (uint32_t)i));
+        1.0f - amplitude * (0.5f + 0.5f * core::noise::hash(seed, (uint32_t)i));
     pts[(size_t)i] = {cx + cx * r * std::cos(a), cy + cy * r * std::sin(a)};
   }
   // Catmull-Rom → cubic Béziers around the loop.

@@ -7,11 +7,10 @@
 
 #include <include/core/SkPaint.h>
 #include <include/core/SkRect.h>
+#include <sigilcore/compute/Noise.h>  // core::noise::hash
 
 #include <algorithm>
 #include <cmath>
-
-#include "sigilgeometry/path/Noise.h"  // noise::hash (the seeded noise)
 
 namespace sigil::material::pattern {
 
@@ -101,12 +100,9 @@ Tile speckle(float tileSize, int count, float rMin, float rMax,
     p.setAntiAlias(true);
     for (int i = 0; i < count; ++i) {
       const uint32_t k = (uint32_t)i;
-      const float x =
-          (0.5f + 0.5f * geometry::path::noise::hash(seed, 3 * k)) * s;
-      const float y =
-          (0.5f + 0.5f * geometry::path::noise::hash(seed, 3 * k + 1)) * s;
-      const float t =
-          0.5f + 0.5f * geometry::path::noise::hash(seed, 3 * k + 2);
+      const float x = (0.5f + 0.5f * core::noise::hash(seed, 3 * k)) * s;
+      const float y = (0.5f + 0.5f * core::noise::hash(seed, 3 * k + 1)) * s;
+      const float t = 0.5f + 0.5f * core::noise::hash(seed, 3 * k + 2);
       const float r = rMin + (rMax - rMin) * t;
       if (!palette.empty())
         p.setColor4f(sk(palette[k % palette.size()]), nullptr);

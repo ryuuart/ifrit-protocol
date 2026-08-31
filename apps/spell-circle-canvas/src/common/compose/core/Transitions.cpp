@@ -359,13 +359,6 @@ std::array<float, 2> detail::Instance::resolvePatternOffset() const {
 // ---------------------------------------------------------------------------
 // The cascade
 
-uint64_t detail::mix64Value(uint64_t z) {
-  z += 0x9e3779b97f4a7c15ull;
-  z = (z ^ (z >> 30u)) * 0xbf58476d1ce4e5b9ull;
-  z = (z ^ (z >> 27u)) * 0x94d049bb133111ebull;
-  return z ^ (z >> 31u);
-}
-
 void detail::cascadeOrder(Stagger::From from, uint32_t count, uint32_t seed,
                           std::vector<float>& order) {
   order.assign(count, 0.0f);

@@ -25,13 +25,13 @@
 
 #include <include/core/SkContourMeasure.h>
 #include <sigilcompose/shape/Shapes.h>
+#include <sigilcore/compute/Noise.h>
 
 #include <algorithm>
 #include <cmath>
 #include <vector>
 
 #include "sigilcompose/Compose.h"
-#include "sigilgeometry/path/Noise.h"
 
 namespace sigil::compose::layouts {
 
@@ -280,11 +280,10 @@ struct Scatter {
     const float ch = in.container.height() / (float)rows;
     for (size_t i = 0; i < n; ++i) {
       const int cx = (int)i % cols, cy = (int)i / cols;
-      const float jx = geometry::path::noise::hash(seed, (uint32_t)(i * 2)) *
-                       jitter * cw / 2;
+      const float jx =
+          core::noise::hash(seed, (uint32_t)(i * 2)) * jitter * cw / 2;
       const float jy =
-          geometry::path::noise::hash(seed, (uint32_t)(i * 2 + 1)) * jitter *
-          ch / 2;
+          core::noise::hash(seed, (uint32_t)(i * 2 + 1)) * jitter * ch / 2;
       SkPoint center{cw * ((float)cx + 0.5f) + jx,
                      ch * ((float)cy + 0.5f) + jy};
       SkRect r = detail::centeredAt(center, in.childSizes[i]);

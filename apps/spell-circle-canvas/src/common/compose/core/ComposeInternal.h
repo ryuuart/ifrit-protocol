@@ -6,14 +6,13 @@
  */
 
 #include <sigilcompose/core/Material.h>
+#include <sigilcore/compute/Noise.h>
 #include <sigilcore/reconcile/Compare.h>
 #include <sigilcore/reconcile/Lanes.h>
 #include <sigilcore/reconcile/Memo.h>
 #include <sigilweave/paragraph/Paragraph.h>
 
 #include <array>
-#include <tuple>
-#include <utility>
 #include <vector>
 
 #include "sigilcompose/Compose.h"
@@ -440,28 +439,21 @@ struct ElementNode {
 // transform gate is the shape this takes in practice: the property works
 // on first paint and then quietly stops responding.
 //
-// THE MECHANISM. A structured binding names every direct non-static data
-// member of a struct, and the count is a hard error the moment the struct
-// changes —
+// THE MECHANISM is SigilCore's `kFieldCount<T>`, which reads the number of
+// direct non-static data members straight off an aggregate. It is EXACT
+// where the obvious alternative is not: a `static_assert(sizeof(T) == N)`
+// is walked straight past by a `bool` dropped into tail padding, while a
+// field count changes the moment a field does. Nested aggregates count as
+// ONE field each, not as their flattened members.
 //
-//     error: type 'PaintProps' decomposes into 16 elements,
-//            but only 15 names were provided
-//
-// — which is why the decompositions below are the pin. They are EXACT where
-// the obvious alternatives are not: a `static_assert(sizeof(T) == N)` is
-// walked straight past by a `bool` dropped into tail padding, and an
-// aggregate-arity probe (`T{Any{}...}`) counts the BRACE-ELIDED flattening
-// of nested aggregates rather than the fields. A structured binding does
-// neither.
-//
-// WHAT A PIN COSTS AND WHAT IT BUYS. Adding a field breaks the
-// decomposition HERE (name it), then the field-count `static_assert` in
-// Reconcile.cpp (rule on it in the comparator, then bump the count), and
-// then — for the two blocks whose fields are all comparable lanes — the
-// field walk `EveryPaintPropsFieldParticipatesInEquality` /
-// `EveryBoundFloatFieldParticipatesInEquality` in ComposeTestKernel.cpp
-// picks the new field up AUTOMATICALLY and fails until the comparator
-// notices it. Three gates, two of them the compiler's.
+// WHAT A PIN COSTS AND WHAT IT BUYS. Adding a field breaks the field-count
+// `static_assert` in Reconcile.cpp (rule on it in the comparator —
+// participate, or a stated reason not to — then bump the count), and then
+// — for the blocks whose fields are all comparable lanes — the field walk
+// `EveryPaintPropsFieldParticipatesInEquality` /
+// `EveryBoundFloatFieldParticipatesInEquality` picks the new field up
+// AUTOMATICALLY and fails until the comparator notices it. Two gates, one
+// of them the compiler's.
 //
 // NO PIN IS NEEDED for a struct whose equality is `= default`
 // (LayoutProps, Corners, MarkLabel, MarkAnchor, Echo, Anchor, Across, Parts,
@@ -471,141 +463,13 @@ struct ElementNode {
 // a defaulted `operator==`.
 //
 // CLASSES WITH PRIVATE STATE (Material, Effect, Region, Animatable, Shape,
-// Decoration, Profile) are NOT pinned here — a structured binding needs
-// access to the members. Their hand-written comparators sit in the same
-// header or translation unit as their members, so a field and its
-// comparison are read together; PaintProps (here) and propsEqual
-// (Reconcile.cpp) are the pair that can drift apart unseen.
+// Decoration, Profile) CANNOT be pinned — reading a field count needs an
+// aggregate. Their hand-written comparators sit in the same header or
+// translation unit as their members, so a field and its comparison are
+// read together; PaintProps (here) and propsEqual (Reconcile.cpp) are the
+// pair that can drift apart unseen.
 
-inline auto fields(PaintProps& v) {
-  auto& [fill, opacity, blendMode, translateX, translateY, rotate, scale,
-         scaleX, scaleY, skewX, skewY, originX, originY, originPx, zIndex] = v;
-  return std::tie(fill, opacity, blendMode, translateX, translateY, rotate,
-                  scale, scaleX, scaleY, skewX, skewY, originX, originY,
-                  originPx, zIndex);
-}
-inline auto fields(TextData& v) {
-  auto& [hasTextStroke, textStrokeWidth, textStrokeFill, utf8, style, rich,
-         paragraphOverride, layoutOptions, options, spanRestyles, tracks,
-         metricFill, onPath, marks, painter] = v;
-  return std::tie(hasTextStroke, textStrokeWidth, textStrokeFill, utf8, style,
-                  rich, paragraphOverride, layoutOptions, options, spanRestyles,
-                  tracks, metricFill, onPath, marks, painter);
-}
-inline auto fields(SpanRestyle& v) {
-  auto& [where, style, paintOnly] = v;
-  return std::tie(where, style, paintOnly);
-}
-inline auto fields(TextOptions& v) {
-  auto& [set, alignment, writingMode, lineBreak, hyphenation, ellipsis,
-         maxLines, lastLineAlignment, justifyLastLine] = v;
-  return std::tie(set, alignment, writingMode, lineBreak, hyphenation, ellipsis,
-                  maxLines, lastLineAlignment, justifyLastLine);
-}
-inline auto fields(ImageData& v) {
-  auto& [asset, region, sampling] = v;
-  return std::tie(asset, region, sampling);
-}
-inline auto fields(CustomData& v) {
-  auto& [program, key] = v;
-  return std::tie(program, key);
-}
-inline auto fields(DeriveData& v) {
-  auto& [placeFn, flowAroundKeys, flowAroundMargin, connectFrom, connectTo,
-         router, connectorGap, railAnchors, railRouter, bandSpine, bandAround,
-         bandWidth, bandFormation, spanFitKeys, borrowedPathKeys] = v;
-  return std::tie(placeFn, flowAroundKeys, flowAroundMargin, connectFrom,
-                  connectTo, router, connectorGap, railAnchors, railRouter,
-                  bandSpine, bandAround, bandWidth, bandFormation, spanFitKeys,
-                  borrowedPathKeys);
-}
-inline auto fields(StrokePass& v) {
-  auto& [where, what, name, half] = v;
-  return std::tie(where, what, name, half);
-}
-inline auto fields(StrokeData& v) {
-  auto& [passes, resolver] = v;
-  return std::tie(passes, resolver);
-}
-inline auto fields(FxData& v) {
-  auto& [layerEffect, backdropEffect, echoes, staggerChildrenMs, staggerFrom,
-         overlays, masks, markNames] = v;
-  return std::tie(layerEffect, backdropEffect, echoes, staggerChildrenMs,
-                  staggerFrom, overlays, masks, markNames);
-}
-inline auto fields(MaterialData& v) {
-  auto& [live, recipe] = v;
-  return std::tie(live, recipe);
-}
-inline auto fields(MemoData& v) {
-  auto& [props, equal, invoke, env] = v;
-  return std::tie(props, equal, invoke, env);
-}
-inline auto fields(ElementNode& v) {
-  auto& [kind, key, layout, paint, corners, shapeFn, clipContent, hitTestable,
-         cacheMode, bakeScale, nodeTransition, backgrounds, foregrounds,
-         textData, imageData, customData, deriveData, fxData, materialData,
-         strokeData, memoData, motionData, children] = v;
-  return std::tie(kind, key, layout, paint, corners, shapeFn, clipContent,
-                  hitTestable, cacheMode, bakeScale, nodeTransition,
-                  backgrounds, foregrounds, textData, imageData, customData,
-                  deriveData, fxData, materialData, strokeData, memoData,
-                  motionData, children);
-}
-// Public values with hand-written comparators. They live in Compose.h /
-// Animation.h; the pin lives here because the comparator does (Spans:: and
-// Gate::operator== are defined in Reconcile.cpp beside propEqual, and
-// BoundFloat/Transition/Transitioned/MotionPath/Fill/Mask are compared by
-// the helpers there).
-inline auto fields(MotionPath& v) {
-  auto& [path, t, lookAhead] = v;
-  return std::tie(path, t, lookAhead);
-}
-inline auto fields(TextPath& v) {
-  auto& [path, at, align, offset, autoFlip, orient, exactTangent] = v;
-  return std::tie(path, at, align, offset, autoFlip, orient, exactTangent);
-}
-// BoundFloat, Transition and Transitioned are pinned where their
-// comparators are, in SigilCore; the pins join this overload set so
-// kFieldCount reads them the same way.
-using ::sigil::core::detail::fields;
-inline auto fields(Fill& v) {
-  auto& [kind, colorValue, shaderValue] = v;
-  return std::tie(kind, colorValue, shaderValue);
-}
-inline auto fields(Spans::Term& v) {
-  auto& [rule, begin, end, offset, arm, angleDeg, duty, margin, count, index,
-         key] = v;
-  return std::tie(rule, begin, end, offset, arm, angleDeg, duty, margin, count,
-                  index, key);
-}
-inline auto fields(Gate& v) {
-  auto& [kind, where, angleDeg, fraction, region, outside, channel, coverage,
-         resolver] = v;
-  return std::tie(kind, where, angleDeg, fraction, region, outside, channel,
-                  coverage, resolver);
-}
-inline auto fields(Mask& v) {
-  auto& [what, with] = v;
-  return std::tie(what, with);
-}
-inline auto fields(Stagger& v) {
-  auto& [eachMs, amountMs, cueMs, durationMs, loopMs, from, seed, over,
-         beatsOver, distribution, inner] = v;
-  return std::tie(eachMs, amountMs, cueMs, durationMs, loopMs, from, seed, over,
-                  beatsOver, distribution, inner);
-}
-inline auto fields(Track& v) {
-  auto& [where, effect, stagger, progress, reach, continuous] = v;
-  return std::tie(where, effect, stagger, progress, reach, continuous);
-}
-
-/** How many direct non-static data members @p T has, as the pinned
- *  decomposition above sees them. `static_assert(kFieldCount<X> == N)` beside
- *  a hand-written comparator is this file's `std::variant_size_v`. */
-template <class T>
-inline constexpr std::size_t kFieldCount =
-    std::tuple_size_v<decltype(fields(std::declval<T&>()))>;
+using ::sigil::core::kFieldCount;
 
 /** THE STRUCTURAL PRUNE (Reconcile.cpp). Declared here — rather than kept
  *  in Reconcile.cpp's anonymous namespace — so the field-participation
@@ -655,9 +519,12 @@ std::u16string toUtf16(std::u8string_view utf8);
  *  ONE BODY for two callers: an fx() track's units and a container's
  *  staggered children. A second spelling would let `Stagger::From` mean
  *  two different orders depending on what it was attached to. */
-/** SplitMix64's finalizer over one key — the same mixer Rng steps, used
- *  to order units rather than to shape a glyph. */
-uint64_t mix64Value(uint64_t z);
+/** The stateless splitmix64 of one key — the avalanche over the key
+ *  offset by the gamma, which is the same mixer `Rng` steps, used to
+ *  order units rather than to shape a glyph. */
+inline uint64_t mix64Value(uint64_t z) {
+  return core::noise::mix64(z + core::noise::kMix64Gamma);
+}
 void cascadeOrder(Stagger::From from, uint32_t count, uint32_t seed,
                   std::vector<float>& out);
 

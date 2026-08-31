@@ -7,19 +7,20 @@
 // ramps an `animate()` on that property. Nothing errors, and no other test
 // fails, so the only thing that can catch it is a test built this way.
 //
-// The compile-time half (a structured binding per struct, plus a
-// `kFieldCount` assert beside each hand-written comparator) makes ADDING a
-// field a build failure. This file makes deciding what to do about it
-// mechanical: each walk perturbs every tied field in turn and demands the
-// comparator notice, so a field is covered the moment it is named in
-// `fields()` — no second list to remember. A field whose type has no
-// perturbation below does not compile either.
+// The compile-time half (a `kFieldCount` assert beside each hand-written
+// comparator) makes ADDING a field a build failure. This file makes
+// deciding what to do about it mechanical: each walk perturbs every field
+// of the struct in turn and demands the comparator notice, so a field is
+// covered the moment it is DECLARED — no second list to remember. A field
+// whose type has no perturbation below does not compile either.
 //
 // Comparing the values DIRECTLY rather than counting `stats().patchedNodes`
 // is deliberate. A prune is a statement about the SAME node across two
 // describes, and keyed siblings never prune into one another — so a harness
 // that renders two trees and counts patched nodes can report exactly what a
 // correct comparator would while the comparator is in fact broken.
+
+#include <boost/pfr/core.hpp>
 
 #include "../ComposeInternal.h"
 #include "support/CoreTestSupport.h"
@@ -127,7 +128,7 @@ template <std::size_t I, class S, class Eq>
 void checkField(Eq equal, const char* name, bool participates) {
   S base{};
   S moved{};
-  perturb(std::get<I>(cd::fields(moved)));
+  perturb(boost::pfr::get<I>(moved));
   const bool equalNow = equal(base, moved);
   if (participates)
     EXPECT_FALSE(equalNow)
@@ -153,7 +154,7 @@ void walkFields(Eq equal, const char* const (&names)[N],
                 const bool (&participates)[N]) {
   static_assert(N == cd::kFieldCount<S>,
                 "the walk's name/participation table has drifted from the "
-                "struct's fields — one row per field, in fields() order");
+                "struct's fields — one row per field, in declaration order");
   walkFields<S>(equal, names, participates, std::make_index_sequence<N>{});
 }
 

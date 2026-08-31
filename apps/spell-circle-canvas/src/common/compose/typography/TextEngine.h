@@ -192,10 +192,15 @@ void resolveTextMarks(Composer::Impl& impl, Instance& inst);
  *  every covered span's only in variable-font axes, drop none the text
  *  was shaped with, and every axis it moves must be advance-invariant on
  *  that span's face. On success @p axes holds one (tag, coordinate) per
- *  axis that actually changes. */
+ *  axis that actually changes.
+ *
+ *  @p paintCarried is the text whose paint an earlier declaration owns:
+ *  a span wholly inside it is compared on its other dimensions alone,
+ *  because a fold writes no paint and leaves that colour standing. */
 bool foldableAsAxes(Composer::Impl& impl, const sigil::weave::TextStyle& style,
                     std::span<const sigil::weave::CharRange> ranges,
                     const sigil::weave::Paragraph& paragraph,
+                    std::span<const sigil::weave::CharRange> paintCarried,
                     std::vector<std::pair<std::string, float>>& axes);
 
 }  // namespace sigil::compose::detail

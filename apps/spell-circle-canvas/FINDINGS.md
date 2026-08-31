@@ -3,24 +3,6 @@
 Defects met while working, as a work queue: delete an entry when it is
 fixed, and the file when it is empty.
 
-## A whole-style `spanStyle` silently discards an earlier `spanPaint` on the same selection
-
-**What the code does.** `Element::spanStyle(where, style)` compares the
-requested style against each covered span's current style, paint
-included. When an earlier `spanPaint` has coloured those spans, a style
-that differs only in variable-font axes is no longer variation-only, so
-it re-shapes and, being later, overwrites the paint with the style's own
-— the author's colour vanishes with no message.
-
-**What it was evidently intended to do.** Let an author restyle one
-aspect of a selection without knowing the declaration order of the
-others, or say once that the order mattered.
-
-**What a test should assert once intent is restored.** Either a
-`spanStyle` that changes only axes folds regardless of the spans' paint
-(the paint stays), or declaring it after `spanPaint` on the same
-selection produces one warning naming both verbs and the element key.
-
 ## OpenImageIO's thread pool races on its own worker map (TSan)
 
 **What the code does.** `sigil::image::decodeImage` constructs

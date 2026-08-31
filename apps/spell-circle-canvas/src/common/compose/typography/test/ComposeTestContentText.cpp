@@ -2997,6 +2997,56 @@ TEST(TextSpanAxis, AnInvariantAxisRedrawsWithoutReshaping) {
       << "the graded numerals are drawing exactly as the ungraded ones did";
 }
 
+TEST(TextSpanAxis, AnAxisRestyleKeepsAnEarlierSpanPaintAndFoldsAnyway) {
+  // The two verbs address different dimensions, so declaring them in
+  // either order over one selection must produce one picture. What made
+  // that untrue is invisible from the authoring side: a `TextStyle`
+  // carries a paint whether or not its author was thinking about paint,
+  // so a `spanStyle` after a `spanPaint` used to read the colour standing
+  // under it as a difference to shape away — and then overwrite it with
+  // the style's own, leaving the author's colour nowhere and saying
+  // nothing.
+  float lo = 0, hi = 0;
+  const sk_sp<SkTypeface> face = gradFace(lo, hi);
+  if (!face) GTEST_SKIP() << "no responsive advance-invariant GRAD face here";
+
+  sigil::weave::TextStyle base = coloredStyle(40, SK_ColorWHITE);
+  base.shaping.typeface = face;
+  const std::u8string body = u8"Count 1234 now";
+  const SkIRect all = SkIRect::MakeWH(400, 120);
+
+  // The order an author reaches for when the colour is the point.
+  Host paintFirst(400, 120);
+  paintFirst.composer.render(box().padding(10).child(
+      text(body, base)
+          .spanPaint(sel::regex(u8"[0-9]+"),
+                     sigil::weave::PaintStyle(SK_ColorRED))
+          .spanStyle(sel::regex(u8"[0-9]+"), withAxis(base, "GRAD", hi))
+          .key("t")));
+  paintFirst.frame();
+  EXPECT_GT(countColor(paintFirst, all, SK_ColorRED), 20)
+      << "the spanStyle painted over the earlier spanPaint's colour";
+  const std::vector<const void*> shapes = runShapes(paintFirst, "t");
+
+  // …and the order that works around it, which must now be the same
+  // picture rather than the only one that keeps both declarations.
+  Host styleFirst(400, 120);
+  styleFirst.composer.render(box().padding(10).child(
+      text(body, base)
+          .spanStyle(sel::regex(u8"[0-9]+"), withAxis(base, "GRAD", hi))
+          .spanPaint(sel::regex(u8"[0-9]+"),
+                     sigil::weave::PaintStyle(SK_ColorRED))
+          .key("t")));
+  styleFirst.frame();
+  EXPECT_EQ(pixelsDiffering(grab(paintFirst, 400, 120),
+                            grab(styleFirst, 400, 120), 400, 120),
+            0)
+      << "the two declaration orders draw different pictures";
+  EXPECT_EQ(shapes, runShapes(styleFirst, "t"))
+      << "the axis restyle re-shaped the numerals under the earlier "
+         "spanPaint instead of folding onto the glyphs it already had";
+}
+
 TEST(TextSpanAxis, AnAdvanceVariantAxisReshapesInstead) {
   // The instrument face whose wght genuinely interpolates advances, so the
   // fold has something to decline. Loaded here rather than shared, so this

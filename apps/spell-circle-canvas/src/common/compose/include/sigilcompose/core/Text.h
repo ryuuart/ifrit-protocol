@@ -13,6 +13,7 @@
 #include <include/core/SkSize.h>
 #include <sigilcompose/core/Erased.h>
 #include <sigilcompose/core/Motion.h>
+#include <sigilcore/compute/Noise.h>
 #include <sigilweave/layout/PositionedRun.h>
 #include <sigilweave/paragraph/Paragraph.h>
 #include <sigilweave/style/PaintStyle.h>
@@ -92,13 +93,12 @@ inline constexpr Unit Sentence = Unit::Sentence;
 class Rng {
  public:
   explicit Rng(uint64_t seed) : m_state(seed) {}
-  /** The next 32 bits (SplitMix64's finalizer over a 64-bit counter). */
+  /** The next 32 bits: a splitmix64 stream — the counter steps by the
+   *  gamma and the stepped value goes through the avalanche, whose HIGH
+   *  half is the word handed back. */
   uint32_t bits() {
-    m_state += 0x9e3779b97f4a7c15ull;
-    uint64_t z = m_state;
-    z = (z ^ (z >> 30u)) * 0xbf58476d1ce4e5b9ull;
-    z = (z ^ (z >> 27u)) * 0x94d049bb133111ebull;
-    return (uint32_t)((z ^ (z >> 31u)) >> 32u);
+    m_state += core::noise::kMix64Gamma;
+    return (uint32_t)(core::noise::mix64(m_state) >> 32u);
   }
   /** The next value in [0, 1). */
   float unit() { return (float)(bits() >> 8u) * (1.0f / 16777216.0f); }
@@ -1272,11 +1272,18 @@ class TextPainterOps {
    *  style must differ from every covered span's only in variable-font
    *  axes, drop none the text was shaped with, and every axis it moves must
    *  be advance-invariant on that span's face. On success @p axes holds one
-   *  (tag, coordinate) per axis that actually changes. */
+   *  (tag, coordinate) per axis that actually changes.
+   *
+   *  @p paintCarried is the text whose PAINT an earlier declaration owns.
+   *  A span lying wholly inside it is compared on its other dimensions
+   *  alone, because the fold writes no paint at all: the colour standing
+   *  there is the one that is meant to stand, so a difference between it
+   *  and @p style's own paint is not a reshape. */
   virtual bool foldable(
       detail::Instance& inst, const sigil::weave::TextStyle& style,
       std::span<const sigil::weave::CharRange> ranges,
       const sigil::weave::Paragraph& paragraph,
+      std::span<const sigil::weave::CharRange> paintCarried,
       std::vector<std::pair<std::string, float>>& axes) const = 0;
   /** THE SCHEDULE ONE TRACK IS RUNNING, resolved against the layout the
    *  last draw produced; rects in the node's own space. */

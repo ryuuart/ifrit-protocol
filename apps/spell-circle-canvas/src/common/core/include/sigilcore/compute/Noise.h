@@ -3,10 +3,11 @@
 /** @file
  * Seeded, deterministic noise — the one place a mixer lives.
  *
- * Two integer mixers and the unit floats squeezed out of them. Every
- * function here is a bit-exact function of its inputs on every platform,
- * so anything seeded by them re-rolls identically: a scattered brush
- * stamp, a roughened outline, a drifted point cloud, a jittered layout.
+ * Two integer mixers — a 64-bit avalanche and the PCG word — and the unit
+ * floats squeezed out of them. Every function here is a bit-exact
+ * function of its inputs on every platform, so anything seeded by them
+ * re-rolls identically: a scattered brush stamp, a roughened outline, a
+ * drifted point cloud, a jittered layout.
  * A shader that has to agree with a CPU preview to the bit reproduces
  * `pcgHash` and `pcgUnit` rather than inventing its own; the
  * point-operator compute kernel does exactly that.
@@ -27,15 +28,32 @@
 
 namespace sigil::core::noise {
 
-/** Hash of (seed, i) to [-1, 1]: a splitmix64 finalizer over the pair.
- *  Successive `i` for one seed read as an uncorrelated sequence, which is
- *  what a per-stamp or per-vertex jitter wants. */
-inline float hash(uint32_t seed, uint32_t i) {
-  uint64_t z = (uint64_t(seed) << 32u | uint64_t(i * 0x9e3779b9u)) +
-               0x9e3779b97f4a7c15ull;
+/** The odd increment a splitmix64 counter walks by. A counter stepped by
+ *  it visits every 64-bit word before repeating, which is what makes
+ *  successive draws from `mix64` uncorrelated rather than merely
+ *  different. */
+inline constexpr uint64_t kMix64Gamma = 0x9e3779b97f4a7c15ull;
+
+/** The 64-bit avalanche: two xor-shift-multiply rounds and a final
+ *  xor-shift, so a one-bit change anywhere in @p z changes about half
+ *  the result. It is a bijection — every input maps to its own output —
+ *  so a counter walked through it never repeats a value before the
+ *  counter does.
+ *
+ *  The stateless form is `mix64(x + kMix64Gamma)`; a stream is a counter
+ *  advanced by the gamma and read through here. */
+inline uint64_t mix64(uint64_t z) {
   z = (z ^ (z >> 30u)) * 0xbf58476d1ce4e5b9ull;
   z = (z ^ (z >> 27u)) * 0x94d049bb133111ebull;
-  z ^= z >> 31u;
+  return z ^ (z >> 31u);
+}
+
+/** Hash of (seed, i) to [-1, 1]: `mix64` over the pair, packed into one
+ *  word. Successive `i` for one seed read as an uncorrelated sequence,
+ *  which is what a per-stamp or per-vertex jitter wants. */
+inline float hash(uint32_t seed, uint32_t i) {
+  const uint64_t z =
+      mix64((uint64_t(seed) << 32u | uint64_t(i * 0x9e3779b9u)) + kMix64Gamma);
   return (float)(z & 0xffffffu) / (float)0x7fffff - 1.0f;
 }
 

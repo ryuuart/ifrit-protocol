@@ -47,8 +47,10 @@ struct TextEngine final : TextPainterOps {
       Instance& inst, const sigil::weave::TextStyle& style,
       std::span<const sigil::weave::CharRange> ranges,
       const sigil::weave::Paragraph& paragraph,
+      std::span<const sigil::weave::CharRange> paintCarried,
       std::vector<std::pair<std::string, float>>& axes) const override {
-    return foldableAsAxes(*inst.owner, style, ranges, paragraph, axes);
+    return foldableAsAxes(*inst.owner, style, ranges, paragraph, paintCarried,
+                          axes);
   }
   std::vector<Beat> beats(Instance& inst, size_t trackIndex) const override {
     return beatsOfTrack(*inst.owner, inst, trackIndex);
@@ -164,11 +166,12 @@ Element& Element::spanStyle(Selector where, sigil::weave::TextStyle style) {
 // ---------------------------------------------------------------------------
 // The fold
 
-bool detail::foldableAsAxes(Composer::Impl& impl,
-                            const sigil::weave::TextStyle& style,
-                            std::span<const sigil::weave::CharRange> ranges,
-                            const sigil::weave::Paragraph& paragraph,
-                            std::vector<std::pair<std::string, float>>& axes) {
+bool detail::foldableAsAxes(
+    Composer::Impl& impl, const sigil::weave::TextStyle& style,
+    std::span<const sigil::weave::CharRange> ranges,
+    const sigil::weave::Paragraph& paragraph,
+    std::span<const sigil::weave::CharRange> paintCarried,
+    std::vector<std::pair<std::string, float>>& axes) {
   axes.clear();
   const auto sameTag = [](const sigil::weave::FontVariation& a,
                           const sigil::weave::FontVariation& b) {
@@ -185,6 +188,16 @@ bool detail::foldableAsAxes(Composer::Impl& impl,
     // must BE the wanted style: any other difference is a reshape.
     sigil::weave::TextStyle probe = span.style;
     probe.shaping.variations = wanted;
+    // …except the PAINT of a span an earlier declaration has coloured,
+    // which that declaration owns. A fold writes no paint, so the colour
+    // standing on such a span is the one meant to stand and cannot be the
+    // reason to re-shape. WHOLLY inside, because a span only half covered
+    // would keep the earlier colour across its other half too.
+    for (const sigil::weave::CharRange& kept : paintCarried)
+      if (kept.start <= span.start && span.end <= kept.end) {
+        probe.paint = style.paint;
+        break;
+      }
     if (!(probe == style)) return false;
     // An axis the text was shaped with and the restyle leaves out is a
     // reset to the face's default, which is a reshape.

@@ -1,6 +1,6 @@
 # The pattern feature: the tile mechanism — one bake, a mapping, an
 # explicit reseed — and the stock tile generators over it. Links the
-# texture feature (a tile is a repeating texture) and the geometry leaf
+# texture feature (a tile is a repeating texture) and the core compute leaf
 # for the seeded hash the speckle scatters with.
 add_library(SigilMaterialPattern STATIC
   Patterns.cpp
@@ -10,7 +10,9 @@ add_library(SigilMaterialPattern STATIC
 )
 target_compile_features(SigilMaterialPattern PUBLIC cxx_std_20)
 target_include_directories(SigilMaterialPattern PUBLIC ${SIGIL_MATERIAL_INCLUDE_DIR})
-target_link_libraries(SigilMaterialPattern PUBLIC SigilMaterialTexture)
+target_link_libraries(SigilMaterialPattern
+  PUBLIC SigilMaterialTexture
+  PRIVATE SigilCoreCompute)
 
 add_executable(material_pattern_test test/PatternTest.cpp)
 target_link_libraries(material_pattern_test PRIVATE SigilMaterialPattern

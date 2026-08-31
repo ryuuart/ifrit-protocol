@@ -6,7 +6,7 @@
  * here is defined by this library.
  */
 
-#include <sigilcore/reconcile/Erased.h>
+#include <sigilcore/comparable/Erased.h>
 
 namespace sigil::compose {
 

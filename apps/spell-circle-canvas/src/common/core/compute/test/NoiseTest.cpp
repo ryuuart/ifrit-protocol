@@ -14,6 +14,7 @@
 
 #include <cstdint>
 #include <cstring>
+#include <utility>
 
 namespace {
 
@@ -26,6 +27,34 @@ uint32_t bits(float f) {
 }
 
 }  // namespace
+
+TEST(Noise, TheAvalancheIsPinnedToItsExactWords) {
+  EXPECT_EQ(noise::mix64(1u), 0x5692161d100b05e5ull);
+  EXPECT_EQ(noise::mix64(42u), 0xa759ea27d4727622ull);
+  EXPECT_EQ(noise::mix64(0xdeadbeefu), 0x4e062702ec929eeaull);
+  EXPECT_EQ(noise::mix64(0xffffffffffffffffull), 0xb4d055fcf2cbbd7bull);
+  // Zero is the one input the avalanche leaves alone — every round of it
+  // is a shift, an xor and a multiply, and all three fix zero. That is
+  // what the gamma is for: a counter starting at 0 is offset off the
+  // fixed point before it is ever mixed.
+  EXPECT_EQ(noise::mix64(0u), 0ull);
+  EXPECT_NE(noise::mix64(noise::kMix64Gamma), 0ull);
+}
+
+TEST(Noise, HashIsTheAvalancheOverThePackedPair) {
+  // The float squeeze is the only thing `hash` adds to the mixer, so the
+  // word behind each of the floats pinned below is reachable here.
+  for (auto [seed, i] : {std::pair<uint32_t, uint32_t>{0u, 0u},
+                         {7u, 1u},
+                         {42u, 99u},
+                         {0xffffffffu, 0xffffffffu}}) {
+    const uint64_t z =
+        noise::mix64(((uint64_t)seed << 32u | (uint64_t)(i * 0x9e3779b9u)) +
+                     noise::kMix64Gamma);
+    EXPECT_FLOAT_EQ(noise::hash(seed, i),
+                    (float)(z & 0xffffffu) / (float)0x7fffff - 1.0f);
+  }
+}
 
 TEST(Noise, HashIsPinnedToItsExactFloats) {
   EXPECT_EQ(bits(noise::hash(0u, 0u)), 0xbf4464a2u);

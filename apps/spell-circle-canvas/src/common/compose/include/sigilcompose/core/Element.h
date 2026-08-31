@@ -633,6 +633,13 @@ class Element {
   // which it carries to the glyphs at draw time with the pen positions
   // standing.
   //
+  // …which is why "later wins" holds PER DIMENSION where the two meet: the
+  // PAINT of a range is `spanPaint`'s to say, so a `spanStyle` over text an
+  // earlier `spanPaint` coloured applies its other dimensions and leaves
+  // that colour standing. Either order therefore does the same thing, and
+  // neither verb has to know what the other declared. A `spanStyle` alone
+  // paints with the style it is given, as ever.
+  //
   // Both run on the PARAGRAPH and resolve their selection as TEXT RANGES,
   // not glyphs: `sel::text` and
   // `sel::regex` go through weave's query layer, `sel::word`, `sel::words`,
@@ -650,7 +657,9 @@ class Element {
   /** Text leaves only: repaint the range this selector finds — a colour, a
    *  shader, an underline, an added glow pass. PAINT ONLY, so it NEVER
    *  re-shapes and never relayouts: the glyphs are exactly the glyphs the
-   *  unrestyled text shaped, drawn differently. */
+   *  unrestyled text shaped, drawn differently. The paint it declares is
+   *  the one the range keeps: a `spanStyle` on the same text after it
+   *  restyles everything else and leaves this colour alone. */
   Element& spanPaint(Selector where, sigil::weave::PaintStyle paint);
   /** Text leaves only: restyle the range this selector finds with a
    *  complete TextStyle — a different face, size, weight or tracking as
@@ -670,7 +679,9 @@ class Element {
    *  underline or strikethrough. An axis the face moves advances on, an
    *  axis the restyle drops, or any other difference is a reshape, and a
    *  later reshaping restyle over the same text keeps the earlier one a
-   *  reshape too, so the later one is the one that stands. */
+   *  reshape too, so the later one is the one that stands. A `spanPaint`
+   *  declared EARLIER over the same text keeps its colour: this style's own
+   *  paint stands only where none reached. */
   Element& spanStyle(Selector where, sigil::weave::TextStyle style);
 
   // ---- layout options, fluently ----------------------------------------

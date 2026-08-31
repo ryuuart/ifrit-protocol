@@ -193,7 +193,7 @@
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilcompose/shape/Shapes.h>
-#include <sigilgeometry/path/Noise.h>
+#include <sigilcore/compute/Noise.h>
 #include <sigilsketch/Sketch.h>
 #include <sigilweave/fonts/FontContext.h>
 
@@ -205,7 +205,7 @@
 #include <vector>
 
 using namespace sigil::compose;
-namespace geometry = sigil::geometry;
+namespace noise = sigil::core::noise;
 using namespace std::chrono_literals;
 namespace ch = choreograph;
 
@@ -2937,32 +2937,23 @@ struct DunhuangStarChart : sigil::compose::sketch::Sketch {
       const float y = 8.0f + (float)i * 46.0f;
       SkPathBuilder pb;
       const uint32_t seed = (uint32_t)(3326 + i * 17);
-      const int nh = 2 + (int)(geometry::path::noise::hash(seed, 1) * 2.99f);
+      const int nh = 2 + (int)(noise::hash(seed, 1) * 2.99f);
       for (int h = 0; h < nh; ++h) {  // horizontals, the spine of a graph
-        const float hy =
-            y + 7 + (float)h * (26.0f / (float)nh) +
-            geometry::path::noise::hash(seed, (uint32_t)(h + 10)) * 3.0f;
-        const float x0 =
-            14 + geometry::path::noise::hash(seed, (uint32_t)(h + 20)) * 7.0f;
-        const float x1 =
-            52 - geometry::path::noise::hash(seed, (uint32_t)(h + 30)) * 8.0f;
+        const float hy = y + 7 + (float)h * (26.0f / (float)nh) +
+                         noise::hash(seed, (uint32_t)(h + 10)) * 3.0f;
+        const float x0 = 14 + noise::hash(seed, (uint32_t)(h + 20)) * 7.0f;
+        const float x1 = 52 - noise::hash(seed, (uint32_t)(h + 30)) * 8.0f;
         pb.moveTo(x0, hy);
-        pb.lineTo(
-            x1,
-            hy + geometry::path::noise::hash(seed, (uint32_t)(h + 40)) * 2.0f -
-                1.0f);
+        pb.lineTo(x1, hy + noise::hash(seed, (uint32_t)(h + 40)) * 2.0f - 1.0f);
       }
-      const float vx = 26 + geometry::path::noise::hash(seed, 50) * 12.0f;
+      const float vx = 26 + noise::hash(seed, 50) * 12.0f;
       pb.moveTo(vx, y + 4);
-      pb.lineTo(vx + geometry::path::noise::hash(seed, 51) * 4.0f - 2.0f,
-                y + 36);
-      if (geometry::path::noise::hash(seed, 52) >
-          0.45f) {  // a left-falling stroke
+      pb.lineTo(vx + noise::hash(seed, 51) * 4.0f - 2.0f, y + 36);
+      if (noise::hash(seed, 52) > 0.45f) {  // a left-falling stroke
         pb.moveTo(34, y + 6);
         pb.lineTo(15, y + 34);
       }
-      if (geometry::path::noise::hash(seed, 53) >
-          0.55f) {  // and a right-falling one
+      if (noise::hash(seed, 53) > 0.55f) {  // and a right-falling one
         pb.moveTo(30, y + 10);
         pb.lineTo(50, y + 34);
       }

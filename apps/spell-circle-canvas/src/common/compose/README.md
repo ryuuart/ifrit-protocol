@@ -815,6 +815,13 @@ rule followed by a narrow exception reads in the order it is written — and
 both are comparable values, so a re-described list prunes and only a
 changed one re-resolves.
 
+That rule holds **per dimension** where the two verbs meet. The paint of a
+range is `spanPaint`'s to say, so a `spanStyle` over text an earlier
+`spanPaint` coloured applies its other dimensions and leaves that colour
+standing: either declaration order draws the same passage, and neither
+verb has to know what the other declared. A `spanStyle` with no
+`spanPaint` under it paints with the style it is given, as ever.
+
 The middle ground is `spanStyle`'s own. A style that differs from the text
 it covers only in variable-font axes the face carries advance-invariantly
 does not re-shape: a grade is advance-invariant *by construction* — it

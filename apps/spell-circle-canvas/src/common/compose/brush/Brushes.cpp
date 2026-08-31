@@ -15,13 +15,13 @@
 #include <include/effects/SkDiscretePathEffect.h>
 #include <include/pathops/SkPathOps.h>
 #include <sigilcompose/brush/Brushes.h>
+#include <sigilcore/compute/Noise.h>
 
 #include <algorithm>
 #include <cmath>
 #include <limits>
 
 #include "sigilgeometry/path/Contour.h"
-#include "sigilgeometry/path/Noise.h"
 #include "sigilgeometry/path/Skia.h"
 
 namespace sigil::compose {
@@ -424,12 +424,10 @@ void Scatter::paint(SkCanvas& c, const PaintContext& ctx) const {
     if (mod) m = mod(samples[i], i, samples.size());
     if (seed != 0) {
       const uint32_t k = (uint32_t)i;
-      m.dAlong += geometry::path::noise::hash(seed, 4 * k) * jitterAlong;
-      m.dNormal += geometry::path::noise::hash(seed, 4 * k + 1) * jitterNormal;
-      m.scale *=
-          1.0f + geometry::path::noise::hash(seed, 4 * k + 2) * jitterScale;
-      m.rotateDeg +=
-          geometry::path::noise::hash(seed, 4 * k + 3) * jitterRotateDeg;
+      m.dAlong += core::noise::hash(seed, 4 * k) * jitterAlong;
+      m.dNormal += core::noise::hash(seed, 4 * k + 1) * jitterNormal;
+      m.scale *= 1.0f + core::noise::hash(seed, 4 * k + 2) * jitterScale;
+      m.rotateDeg += core::noise::hash(seed, 4 * k + 3) * jitterRotateDeg;
     }
     drawStamp(c, *pic, samples[i], alignToPath, 0, 1, 1, m);
   }
