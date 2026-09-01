@@ -2,7 +2,7 @@
  "config": "Release",
  "host": "MacBookPro.control",
  "machine": "arm64",
- "taken": "2026-09-01T01:32:30+00:00",
+ "taken": "2026-09-01T02:14:07+00:00",
  "benches": {
   "compose_brush_bench": {
    "BM_Draw_Mask_Spans_Live/16": {
@@ -3520,6 +3520,18 @@
    "BM_Layout_Vertical_Columns/2000": {
     "real_ns": 178158.6719750222,
     "cpu_ns": 178154.383735705,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Update_MovingColumnExclusions_300w": {
+    "real_ns": 26463.849686172074,
+    "cpu_ns": 26463.33396333445,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Layout_Vertical_ClampedEllipsis_500w": {
+    "real_ns": 11580.255149325541,
+    "cpu_ns": 11580.277502477576,
     "unit": "us",
     "repetitions": 4
    }

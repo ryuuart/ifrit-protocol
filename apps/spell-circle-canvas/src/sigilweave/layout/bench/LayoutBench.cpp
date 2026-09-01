@@ -3,9 +3,9 @@
  * so every arm is placement and line breaking with no shaping under it:
  * greedy and Knuth-Plass swept over paragraph length, and each kind of
  * per-frame update (one-word edit, paint restyle, size restyle, moving
- * exclusions, whole-text replacement) against the same warm relayout, so
- * what the update itself adds is the difference between two arms. Run a
- * Release build; Debug numbers say nothing.
+ * exclusions in lines and in columns, whole-text replacement) against the
+ * same warm relayout, so what the update itself adds is the difference
+ * between two arms. Run a Release build; Debug numbers say nothing.
  */
 
 #include <benchmark/benchmark.h>
@@ -357,6 +357,79 @@ void BM_Update_MovingPathExclusions_300w(benchmark::State& state) {
   countWords(state, 300);
 }
 BENCHMARK(BM_Update_MovingPathExclusions_300w)->Unit(benchmark::kMicrosecond);
+
+// The same sweep read DOWN COLUMNS: the identical star and donut, met by
+// a column flow instead of a line flow. It is the attribution arm for the
+// per-column band scan — the same scan a quarter turn later, over a
+// corpus whose break opportunities sit between characters.
+void BM_Update_MovingColumnExclusions_300w(benchmark::State& state) {
+  Paragraph paragraph;
+  paragraph.appendText(makeColumnText(300), style16());
+  paragraph.setWritingMode(WritingMode::kVerticalRL);
+
+  SkPathBuilder star;
+  for (int pointIndex = 0; pointIndex < 5; ++pointIndex) {
+    const float angle =
+        -std::numbers::pi_v<float> / 2.0f +
+        (float)pointIndex * 4.0f * std::numbers::pi_v<float> / 5.0f;
+    const SkPoint point = {150 + 110 * std::cos(angle),
+                           150 + 110 * std::sin(angle)};
+    if (pointIndex == 0)
+      star.moveTo(point);
+    else
+      star.lineTo(point);
+  }
+  star.close();
+  SkPathBuilder donut;
+  donut.addCircle(700, 450, 110);
+  donut.addCircle(700, 450, 55);
+  donut.setFillType(SkPathFillType::kEvenOdd);
+
+  ExclusionFlow flow(SkRect::MakeWH(3000, 700), FlowAxis::kColumns);
+  flow.shapes().push_back(ExclusionFlow::Shape::fromPath(star.detach(), 8));
+  flow.shapes().push_back(ExclusionFlow::Shape::fromPath(donut.detach(), 8));
+  ParagraphLayoutOptions options;
+  options.lineMetrics.height = 26;  // column pitch
+  layoutParagraph(fontContext(), paragraph, flow, options);
+
+  float animationTime = 0;
+  for ([[maybe_unused]] auto iteration : state) {
+    animationTime += 0.03f;
+    flow.shapes()[0].pathOffset = {
+        900 * (0.5f + 0.5f * std::sin(animationTime * 0.7f)),
+        200 * std::sin(animationTime)};
+    flow.shapes()[1].pathOffset = {300 * std::sin(animationTime * 1.3f),
+                                   -150 * std::cos(animationTime)};
+    ParagraphLayout layout =
+        layoutParagraph(fontContext(), paragraph, flow, options);
+    benchmark::DoNotOptimize(layout.runs.data());
+  }
+  countWords(state, 300);
+}
+BENCHMARK(BM_Update_MovingColumnExclusions_300w)->Unit(benchmark::kMicrosecond);
+
+// A clamped column with an overflow marker at its foot: the trim walks
+// back up the column shaping nothing new, so what this measures against
+// the unclamped column arm is the marker's own cost.
+void BM_Layout_Vertical_ClampedEllipsis_500w(benchmark::State& state) {
+  Paragraph paragraph;
+  paragraph.appendText(makeColumnText(500), style16());
+  paragraph.setWritingMode(WritingMode::kVerticalRL);
+  ParagraphLayoutOptions options;
+  options.lineMetrics.height = 26;  // column pitch
+  options.overflow.maxLines = 8;
+  options.overflow.ellipsis = u"\u2026";
+  VerticalBlockFlow flow(SkRect::MakeWH(20000, 600));
+  layoutParagraph(fontContext(), paragraph, flow, options);
+  for ([[maybe_unused]] auto iteration : state) {
+    ParagraphLayout layout =
+        layoutParagraph(fontContext(), paragraph, flow, options);
+    benchmark::DoNotOptimize(layout.runs.data());
+  }
+  countWords(state, 500);
+}
+BENCHMARK(BM_Layout_Vertical_ClampedEllipsis_500w)
+    ->Unit(benchmark::kMicrosecond);
 
 // The entire paragraph text is replaced every frame, cycling four
 // variants: after one cycle every word is cache-hot, so this is the

@@ -22,6 +22,14 @@ namespace {
 constexpr const char8_t* kProse =
     u8"縦組みの文章は上から下へ流れ右から左へと列が進む";
 
+/** Long enough to fill several columns, so an exclusion in the middle of
+ *  the block costs the passage columns it can be counted on. */
+constexpr const char8_t* kLongProse =
+    u8"縦組みの文章が円をよけて流れる様子を見るための本文であり、列は右から"
+    u8"左へと進みながら、障害物の上と下に分かれて組まれてゆく。文字は列の心"
+    u8"に沿って落ちてゆき、円に出会えば頭と足に分かれ、円を過ぎればまた一本"
+    u8"の列に戻ってゆく。";
+
 sigil::weave::TextStyle jp(float size, SkColor color) {
   sigil::weave::TextStyle s;
   s.shaping.fontSize = size;
@@ -176,25 +184,54 @@ TEST(TextVertical, MaxLinesClampsColumns) {
   EXPECT_TRUE(layout->overflowed());
 }
 
-TEST(TextVertical, AnEllipsisReportsOverflowWithoutDrawingAMarker) {
-  // An overflow marker needs a straight horizontal final line to land on. A
-  // clamped column reports its overflow all the same, so a caller can see
-  // it; what it must not do is silently claim to have drawn one.
-  Host host(340, 200);
-  host.composer.render(box().padding(10).child(
-      text(kProse, jp(20, SK_ColorWHITE))
-          .width(300)
-          .height(120)
-          .writingMode(sigil::weave::WritingMode::kVerticalRL)
-          .maxLines(2)
-          .ellipsis(u8"...")
-          .key("t")));
-  host.frame();
-  const auto* layout = host.composer.paragraphLayout("t");
-  ASSERT_NE(layout, nullptr);
-  EXPECT_TRUE(layout->overflowed());
-  EXPECT_FALSE(layout->ellipsized) << "a column has no line to trim a marker "
-                                      "onto — and must not report one";
+TEST(TextVertical, AClampedColumnEndsInItsMarker) {
+  // The marker lands at the FOOT of the clamped column, upright like the
+  // characters above it, and the cut moves up the column to make room for
+  // it — the same trade a clamped line makes at its end.
+  const auto clamped = [](Host& host, bool withMarker) {
+    Element leaf = text(kProse, jp(20, SK_ColorWHITE))
+                       .width(300)
+                       .height(120)
+                       .writingMode(sigil::weave::WritingMode::kVerticalRL)
+                       .maxLines(2)
+                       .key("t");
+    if (withMarker) leaf.ellipsis(u8"…");
+    host.composer.render(box().padding(10).child(std::move(leaf)));
+    host.frame();
+    return host.composer.paragraphLayout("t");
+  };
+  Host bareHost(340, 200), markedHost(340, 200);
+  const auto* bare = clamped(bareHost, false);
+  const auto* marked = clamped(markedHost, true);
+  ASSERT_NE(bare, nullptr);
+  ASSERT_NE(marked, nullptr);
+
+  EXPECT_TRUE(marked->overflowed());
+  ASSERT_TRUE(marked->ellipsized);
+  ASSERT_FALSE(bare->ellipsized);
+  ASSERT_GE(marked->runs.size(), 2u);
+
+  const sigil::weave::PositionedRun& marker = marked->runs.back();
+  ASSERT_TRUE(marker.shaped);
+  EXPECT_TRUE(marker.shaped->vertical) << "upright, like the column it ends";
+  const sigil::weave::PositionedRun& tail =
+      marked->runs[marked->runs.size() - 2];
+  EXPECT_EQ(marker.lineIndex, tail.lineIndex) << "on the clamped column";
+  EXPECT_FLOAT_EQ(marker.origin.x(), tail.origin.x()) << "on its axis";
+  EXPECT_GE(marker.origin.y(), tail.origin.y());
+  EXPECT_LT(marked->firstUnplacedWord, bare->firstUnplacedWord)
+      << "the cut moved up, and the words it gave up are reported unplaced";
+
+  // And it is DRAWN, below the last of the text: the stretch of column
+  // past where the type stops carries the marker's ink.
+  constexpr int kPad = 10;  // the box the leaf sits in
+  const float textFoot = tail.origin.y() + tail.shaped->advance;
+  EXPECT_GE(marker.origin.y(), textFoot - 0.25f);
+  const SkIRect foot = SkIRect::MakeXYWH(
+      kPad + (int)marker.origin.x() - 12, kPad + (int)textFoot, 24,
+      (int)(marker.origin.y() - textFoot + marker.shaped->advance) + 1);
+  EXPECT_GT(inkCount(markedHost, foot), 0)
+      << "nothing was drawn where the marker was placed";
 }
 
 TEST(TextVertical, ALineSelectorAddressesAColumn) {
@@ -844,4 +881,51 @@ TEST(TextVertical, ASidelineCanTakeTheOtherSideOfTheColumn) {
   EXPECT_EQ(onTheLeft[2], 0) << "the swapped band stayed right of the axis";
   EXPECT_NEAR(onTheLeft[1], onTheRight[2], onTheRight[2] * 0.25)
       << "the same band, the other side: it must keep its length";
+}
+
+TEST(TextVertical, ColumnsFlowAroundASilhouette) {
+  // `flowAround` reads the same in both writing modes: the target's
+  // silhouette is subtracted from the text's geometry, and in a column
+  // that means the column it crosses is cut in two — a head above the
+  // shape and a foot below it — rather than a line shortened beside it.
+  const auto scene = [&](bool avoidIt) {
+    Element leaf = text(kLongProse, jp(19, SK_ColorWHITE))
+                       .width(280)
+                       .height(300)
+                       .writingMode(sigil::weave::WritingMode::kVerticalRL)
+                       .key("body");
+    if (avoidIt) leaf.flowAround("obstacle", 5);
+    return stack()
+        .child(box()
+                   .key("obstacle")
+                   .width(90)
+                   .height(90)
+                   .left(90)
+                   .top(110)
+                   .shape(shapes::circle())
+                   .fill(Fill::color({0, 0.4f, 0, 1})))
+        .child(box().inset(0).child(std::move(leaf)).zIndex(1));
+  };
+  Host over(300, 320), around(300, 320);
+  over.composer.render(scene(false));
+  over.frame();
+  around.composer.render(scene(true));
+  around.frame();
+
+  // The middle of the disc: type crosses it when nothing is declared, and
+  // never when the silhouette is.
+  const SkIRect middle = SkIRect::MakeLTRB(118, 138, 152, 172);
+  EXPECT_TRUE(anyWhiteIn(over, middle));
+  EXPECT_FALSE(anyWhiteIn(around, middle));
+  // And the columns the disc crosses are CUT, not stopped: type stands
+  // both above it and below it, in the strip the disc sits in.
+  EXPECT_TRUE(anyWhiteIn(around, SkIRect::MakeLTRB(95, 20, 185, 100)));
+  EXPECT_TRUE(anyWhiteIn(around, SkIRect::MakeLTRB(95, 210, 185, 295)));
+
+  const auto* layout = around.composer.paragraphLayout("body");
+  ASSERT_NE(layout, nullptr);
+  const auto* clear = over.composer.paragraphLayout("body");
+  ASSERT_NE(clear, nullptr);
+  EXPECT_GT(layout->lineCount, clear->lineCount)
+      << "the exclusion costs the passage columns";
 }

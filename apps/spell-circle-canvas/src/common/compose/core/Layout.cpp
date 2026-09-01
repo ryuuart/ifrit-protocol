@@ -101,38 +101,44 @@ void Composer::Impl::layoutText(Instance& inst, float constraint,
   const bool vertical =
       inst.paragraph &&
       inst.paragraph->writingMode() == sigil::weave::WritingMode::kVerticalRL;
+  // One weave shape per resolved target, in the form the derive pass
+  // resolved it to: an outline for a target that declared a silhouette, an
+  // analytic circle for a round one, its box for a target that declared
+  // none. The margin is the same standoff in all three, and the shapes are
+  // the same in both writing modes — an exclusion cuts a column exactly as
+  // it cuts a line, so only the flow's axis differs.
+  const auto addExclusions = [&](sigil::weave::ExclusionFlow& flow) {
+    const float flowMargin =
+        inst.desc->deriveData ? inst.desc->deriveData->flowAroundMargin : 0.0f;
+    for (const detail::Exclusion& exclusion : inst.exclusionsLocal) {
+      if (exclusion.circle)
+        flow.shapes().push_back(sigil::weave::ExclusionFlow::Shape::fromCircle(
+            exclusion.bounds, flowMargin));
+      else if (!exclusion.path.isEmpty())
+        flow.shapes().push_back(sigil::weave::ExclusionFlow::Shape::fromPath(
+            exclusion.path, flowMargin));
+      else
+        flow.shapes().push_back(
+            sigil::weave::ExclusionFlow::Shape::fromRectangle(exclusion.bounds,
+                                                              flowMargin));
+    }
+  };
   const auto layOut = [&] {
-    if (vertical) {
-      // Exclusions subtract HORIZONTAL extents from horizontal line bands;
-      // there is no column-flow spelling of them. Say so and run the
-      // columns clean rather than silently laying out over the target.
-      if (!inst.exclusionsLocal.empty()) detail::warnFlowAroundVertical();
+    if (vertical && !inst.exclusionsLocal.empty()) {
+      sigil::weave::ExclusionFlow flow(
+          SkRect::MakeWH(constraint, downConstraint),
+          sigil::weave::FlowAxis::kColumns);
+      addExclusions(flow);
+      inst.textLayout =
+          sigil::weave::layoutParagraph(fonts, *inst.paragraph, flow, options);
+    } else if (vertical) {
       sigil::weave::VerticalBlockFlow flow(
           SkRect::MakeWH(constraint, downConstraint));
       inst.textLayout =
           sigil::weave::layoutParagraph(fonts, *inst.paragraph, flow, options);
     } else if (!inst.exclusionsLocal.empty()) {
       sigil::weave::ExclusionFlow flow(SkRect::MakeWH(constraint, 1.0e6f));
-      const float flowMargin = inst.desc->deriveData
-                                   ? inst.desc->deriveData->flowAroundMargin
-                                   : 0.0f;
-      // One weave shape per resolved target, in the form the derive pass
-      // resolved it to: an outline for a target that declared a silhouette,
-      // an analytic circle for a round one, its box for a target that
-      // declared none. The margin is the same standoff in all three.
-      for (const detail::Exclusion& exclusion : inst.exclusionsLocal) {
-        if (exclusion.circle)
-          flow.shapes().push_back(
-              sigil::weave::ExclusionFlow::Shape::fromCircle(exclusion.bounds,
-                                                             flowMargin));
-        else if (!exclusion.path.isEmpty())
-          flow.shapes().push_back(sigil::weave::ExclusionFlow::Shape::fromPath(
-              exclusion.path, flowMargin));
-        else
-          flow.shapes().push_back(
-              sigil::weave::ExclusionFlow::Shape::fromRectangle(
-                  exclusion.bounds, flowMargin));
-      }
+      addExclusions(flow);
       inst.textLayout =
           sigil::weave::layoutParagraph(fonts, *inst.paragraph, flow, options);
     } else {

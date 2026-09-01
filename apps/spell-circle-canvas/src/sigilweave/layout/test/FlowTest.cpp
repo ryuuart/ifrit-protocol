@@ -236,3 +236,120 @@ TEST(Flow, RunsNeverEnterExclusionShapes) {
     }
   }
 }
+
+// ── The same exclusions met by a column ──────────────────────────────────
+
+namespace {
+
+/// The pen spans of one band, in the pen's own direction — the one answer
+/// a flow gives, whichever way its lines run.
+std::vector<std::pair<float, float>> penSpans(FlowGeometry& flow, int index,
+                                              float pitch, float ascent,
+                                              bool columns) {
+  std::vector<LineInterval> intervals;
+  std::vector<std::pair<float, float>> spans;
+  if (!flow.lineIntervals(index, pitch, ascent, intervals)) return spans;
+  for (const LineInterval& interval : intervals) {
+    const float start = columns ? interval.origin.y() : interval.origin.x();
+    spans.emplace_back(start, start + interval.length);
+  }
+  return spans;
+}
+
+/// The same rectangle a quarter turn later. A line flow's bands count DOWN
+/// from the top and a column flow's count LEFT from the right, so a shape
+/// sitting `a` from the top of one sits `a` from the right of the other,
+/// and its along-coordinate simply changes axis.
+SkRect turned(const SkRect& rect, float acrossExtent) {
+  return SkRect::MakeXYWH(acrossExtent - rect.bottom(), rect.left(),
+                          rect.height(), rect.width());
+}
+
+}  // namespace
+
+TEST(Flow, AnExclusionCutsAColumnExactlyAsItCutsALine) {
+  // A COLUMN IS A LINE TURNED A QUARTER TURN. Turn the geometry and the
+  // shape together and every band must answer with the very same pen
+  // spans — which is what makes this one implementation and not two.
+  constexpr float kAlong = 400, kAcross = 200, kPitch = 20, kAscent = 15;
+  const SkRect shape = SkRect::MakeXYWH(150, 50, 100, 60);
+
+  ExclusionFlow lines(SkRect::MakeWH(kAlong, kAcross));
+  lines.shapes().push_back(ExclusionFlow::Shape::fromRectangle(shape, 4));
+  ExclusionFlow columns(SkRect::MakeWH(kAcross, kAlong), FlowAxis::kColumns);
+  columns.shapes().push_back(
+      ExclusionFlow::Shape::fromRectangle(turned(shape, kAcross), 4));
+
+  bool sawASplit = false;
+  for (int index = 0; index < 12; ++index) {
+    const std::vector<std::pair<float, float>> lineSpans =
+        penSpans(lines, index, kPitch, kAscent, false);
+    const std::vector<std::pair<float, float>> columnSpans =
+        penSpans(columns, index, kPitch, kAscent, true);
+    ASSERT_EQ(lineSpans.size(), columnSpans.size()) << "band " << index;
+    if (lineSpans.size() == 2) sawASplit = true;
+    for (size_t span = 0; span < lineSpans.size(); ++span) {
+      EXPECT_FLOAT_EQ(columnSpans[span].first, lineSpans[span].first);
+      EXPECT_FLOAT_EQ(columnSpans[span].second, lineSpans[span].second);
+    }
+  }
+  EXPECT_TRUE(sawASplit) << "the shape must have split some band in two";
+}
+
+TEST(Flow, AnExclusionShortensTheColumnItCrosses) {
+  // The column's own reading of it: a shape over the head of a column
+  // moves the pen down past it, and the column beside it runs clean.
+  ExclusionFlow flow(SkRect::MakeWH(200, 300), FlowAxis::kColumns);
+  flow.shapes().push_back(
+      ExclusionFlow::Shape::fromRectangle(SkRect::MakeXYWH(160, 0, 40, 120)));
+
+  std::vector<LineInterval> out;
+  ASSERT_TRUE(flow.lineIntervals(0, 20, 0, out));  // column x ∈ [180, 200]
+  ASSERT_EQ(out.size(), 1u);
+  EXPECT_FLOAT_EQ(out[0].origin.x(), 190) << "the column's central axis";
+  EXPECT_FLOAT_EQ(out[0].direction.x(), 0);
+  EXPECT_FLOAT_EQ(out[0].direction.y(), 1);
+  EXPECT_FLOAT_EQ(out[0].origin.y(), 120) << "the pen starts below the shape";
+  EXPECT_FLOAT_EQ(out[0].length, 180);
+
+  ASSERT_TRUE(flow.lineIntervals(2, 20, 0, out));  // clear of the shape
+  ASSERT_EQ(out.size(), 1u);
+  EXPECT_FLOAT_EQ(out[0].origin.y(), 0);
+  EXPECT_FLOAT_EQ(out[0].length, 300);
+
+  // Columns run out at the left edge, exactly as lines run out at the
+  // bottom.
+  EXPECT_FALSE(flow.lineIntervals(10, 20, 0, out));
+}
+
+TEST(Flow, ASilhouetteSplitsAColumn) {
+  // The per-column twin of the silhouette scan: the same flattening and
+  // the same fill rule, read DOWN the column. A donut standing in a
+  // column's way leaves its head, its hole and its foot open.
+  SkPathBuilder builder;
+  builder.addCircle(150, 200, 100);
+  builder.addCircle(150, 200, 50);
+  builder.setFillType(SkPathFillType::kEvenOdd);
+
+  ExclusionFlow flow(SkRect::MakeWH(300, 400), FlowAxis::kColumns);
+  flow.shapes().push_back(ExclusionFlow::Shape::fromPath(builder.detach()));
+
+  std::vector<LineInterval> out;
+  ASSERT_TRUE(flow.lineIntervals(7, 20, 0, out));  // column x ∈ [140, 160]
+  ASSERT_EQ(out.size(), 3u);
+  for (const LineInterval& interval : out) {
+    EXPECT_FLOAT_EQ(interval.origin.x(), 150) << "all three on one axis";
+    EXPECT_FLOAT_EQ(interval.direction.y(), 1);
+  }
+  EXPECT_FLOAT_EQ(out[0].origin.y(), 0);
+  EXPECT_LT(out[0].length, 105.0f) << "the head stops above the ring";
+  EXPECT_GT(out[1].origin.y(), 145.0f) << "the middle one is the hole";
+  EXPECT_LT(out[1].origin.y() + out[1].length, 255.0f);
+  EXPECT_GT(out[2].origin.y(), 295.0f) << "the foot resumes below the ring";
+  EXPECT_FLOAT_EQ(out[2].origin.y() + out[2].length, 400.0f);
+
+  // A column clear of the donut runs the whole height.
+  ASSERT_TRUE(flow.lineIntervals(0, 20, 0, out));
+  ASSERT_EQ(out.size(), 1u);
+  EXPECT_FLOAT_EQ(out[0].length, 400);
+}

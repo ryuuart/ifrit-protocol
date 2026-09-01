@@ -1,8 +1,10 @@
 /** @file
  * The ready-made flow geometries: a block, a block minus exclusion shapes
- * flattened by generation ID and scanned per line band, vertical columns,
- * an explicit line set, and one line per path contour — and the placement
- * of a pen coordinate on a contour interval with its tangent snapped.
+ * flattened by generation ID and scanned band by band — in lines or in
+ * columns, one scan turned a quarter turn by its FlowAxis — vertical
+ * columns, an explicit line set, and one line per path contour, and the
+ * placement of a pen coordinate on a contour interval with its tangent
+ * snapped.
  */
 
 #include "sigilweave/layout/Flow.h"
@@ -43,6 +45,30 @@ SkVector quantizeTangent(SkVector tangent, int directionCount) {
   return {std::cos(snapped), std::sin(snapped)};
 }
 
+// THE TWO COORDINATES EVERY BAND SCAN WORKS IN. `along` is the way the pen
+// travels on this flow's lines; `across` is the way its bands stack. A line
+// flow reads x along and y across, a column flow reads y along and x
+// across, and that swap is the whole of the difference between wrapping
+// around a shape in lines and wrapping around it in columns.
+float alongOf(FlowAxis axis, const glm::vec2& point) {
+  return axis == FlowAxis::kColumns ? point.y : point.x;
+}
+float acrossOf(FlowAxis axis, const glm::vec2& point) {
+  return axis == FlowAxis::kColumns ? point.x : point.y;
+}
+float alongMin(FlowAxis axis, const SkRect& rect) {
+  return axis == FlowAxis::kColumns ? rect.top() : rect.left();
+}
+float alongMax(FlowAxis axis, const SkRect& rect) {
+  return axis == FlowAxis::kColumns ? rect.bottom() : rect.right();
+}
+float acrossMin(FlowAxis axis, const SkRect& rect) {
+  return axis == FlowAxis::kColumns ? rect.left() : rect.top();
+}
+float acrossMax(FlowAxis axis, const SkRect& rect) {
+  return axis == FlowAxis::kColumns ? rect.right() : rect.bottom();
+}
+
 // Removes [excludedStart, excludedEnd] from every sorted, disjoint interval.
 void subtractSpan(std::vector<std::pair<float, float>>& availableSpans,
                   float excludedStart, float excludedEnd) {
@@ -61,50 +87,55 @@ void subtractSpan(std::vector<std::pair<float, float>>& availableSpans,
   availableSpans = std::move(remainingSpans);
 }
 
-// Occupied x-intervals of a flattened polygon set within the band
-// [top, bottom]: fill intervals sampled at three scanlines (respecting the
-// fill rule, so holes and concave gaps stay open) unioned with every edge's
-// x-travel through the band (conservative — catches features that fall
-// between the samples, like a star tip). Appends unmerged occupied spans.
+// Occupied ALONG-intervals of a flattened polygon set within the band
+// [bandStart, bandEnd] measured ACROSS: fill intervals sampled at three
+// scanlines (respecting the fill rule, so holes and concave gaps stay open)
+// unioned with every edge's along-travel through the band (conservative —
+// catches features that fall between the samples, like a star tip). Appends
+// unmerged occupied spans. `axis` names which coordinate is which, so a
+// column meets a silhouette through this same scan.
 void bandOccupancy(const std::vector<std::vector<glm::vec2>>& contours,
-                   bool evenOdd, float top, float bottom,
+                   bool evenOdd, FlowAxis axis, float bandStart, float bandEnd,
                    std::vector<std::pair<float, float>>& occupiedSpans) {
   static thread_local std::vector<std::pair<float, int>> crossings;
-  const float scanlines[3] = {top + kEps, (top + bottom) * 0.5f, bottom - kEps};
-  for (const float scanlineY : scanlines) {
+  const float scanlines[3] = {bandStart + kEps, (bandStart + bandEnd) * 0.5f,
+                              bandEnd - kEps};
+  for (const float scanline : scanlines) {
     crossings.clear();
     for (const std::vector<glm::vec2>& polygon : contours) {
       for (size_t pointIndex = 0; pointIndex < polygon.size(); ++pointIndex) {
         const glm::vec2& startPoint = polygon[pointIndex];
         const glm::vec2& endPoint = polygon[(pointIndex + 1) % polygon.size()];
-        const float startY = startPoint.y;
-        const float endY = endPoint.y;
-        if (startY == endY) continue;
+        const float startAcross = acrossOf(axis, startPoint);
+        const float endAcross = acrossOf(axis, endPoint);
+        if (startAcross == endAcross) continue;
         // Half-open [min, max) so shared vertices count exactly once.
-        const bool travelsUp = endY > startY;
-        if (travelsUp ? (scanlineY < startY || scanlineY >= endY)
-                      : (scanlineY < endY || scanlineY >= startY))
+        const bool travelsUp = endAcross > startAcross;
+        if (travelsUp ? (scanline < startAcross || scanline >= endAcross)
+                      : (scanline < endAcross || scanline >= startAcross))
           continue;
-        const float interpolation = (scanlineY - startY) / (endY - startY);
-        crossings.emplace_back(
-            startPoint.x + interpolation * (endPoint.x - startPoint.x),
-            travelsUp ? 1 : -1);
+        const float interpolation =
+            (scanline - startAcross) / (endAcross - startAcross);
+        crossings.emplace_back(alongOf(axis, startPoint) +
+                                   interpolation * (alongOf(axis, endPoint) -
+                                                    alongOf(axis, startPoint)),
+                               travelsUp ? 1 : -1);
       }
     }
     std::sort(crossings.begin(), crossings.end());
     int winding = 0;
     unsigned parity = 0;
     bool inside = false;
-    float openX = 0;
-    for (const auto& [crossingX, windingDelta] : crossings) {
+    float openAlong = 0;
+    for (const auto& [crossingAlong, windingDelta] : crossings) {
       winding += windingDelta;
       parity ^= 1u;
       const bool nowInside = evenOdd ? parity != 0 : winding != 0;
       if (nowInside && !inside) {
-        openX = crossingX;
+        openAlong = crossingAlong;
         inside = true;
       } else if (!nowInside && inside) {
-        occupiedSpans.emplace_back(openX, crossingX);
+        occupiedSpans.emplace_back(openAlong, crossingAlong);
         inside = false;
       }
     }
@@ -114,27 +145,29 @@ void bandOccupancy(const std::vector<std::vector<glm::vec2>>& contours,
     for (size_t pointIndex = 0; pointIndex < polygon.size(); ++pointIndex) {
       const glm::vec2& startPoint = polygon[pointIndex];
       const glm::vec2& endPoint = polygon[(pointIndex + 1) % polygon.size()];
-      const float edgeTop = std::min(startPoint.y, endPoint.y);
-      const float edgeBottom = std::max(startPoint.y, endPoint.y);
-      if (edgeBottom <= top || edgeTop >= bottom) continue;
+      const float startAcross = acrossOf(axis, startPoint);
+      const float endAcross = acrossOf(axis, endPoint);
+      const float edgeNear = std::min(startAcross, endAcross);
+      const float edgeFar = std::max(startAcross, endAcross);
+      if (edgeFar <= bandStart || edgeNear >= bandEnd) continue;
       float startFraction = 0;
       float endFraction = 1;
-      if (startPoint.y != endPoint.y) {
-        const float topFraction =
-            (top - startPoint.y) / (endPoint.y - startPoint.y);
-        const float bottomFraction =
-            (bottom - startPoint.y) / (endPoint.y - startPoint.y);
+      if (startAcross != endAcross) {
+        const float nearFraction =
+            (bandStart - startAcross) / (endAcross - startAcross);
+        const float farFraction =
+            (bandEnd - startAcross) / (endAcross - startAcross);
         startFraction =
-            std::clamp(std::min(topFraction, bottomFraction), 0.0f, 1.0f);
+            std::clamp(std::min(nearFraction, farFraction), 0.0f, 1.0f);
         endFraction =
-            std::clamp(std::max(topFraction, bottomFraction), 0.0f, 1.0f);
+            std::clamp(std::max(nearFraction, farFraction), 0.0f, 1.0f);
       }
-      const float startX =
-          startPoint.x + startFraction * (endPoint.x - startPoint.x);
-      const float endX =
-          startPoint.x + endFraction * (endPoint.x - startPoint.x);
-      occupiedSpans.emplace_back(std::min(startX, endX),
-                                 std::max(startX, endX));
+      const float startAlong = alongOf(axis, startPoint);
+      const float alongTravel = alongOf(axis, endPoint) - startAlong;
+      const float spanStart = startAlong + startFraction * alongTravel;
+      const float spanEnd = startAlong + endFraction * alongTravel;
+      occupiedSpans.emplace_back(std::min(spanStart, spanEnd),
+                                 std::max(spanStart, spanEnd));
     }
   }
 }
@@ -209,8 +242,10 @@ struct ExclusionFlow::PathCache {
   absl::flat_hash_map<uint32_t, std::unique_ptr<FlatPath>> entries;
 };
 
-ExclusionFlow::ExclusionFlow(const SkRect& bounds)
-    : m_bounds(bounds), m_pathCache(std::make_unique<PathCache>()) {}
+ExclusionFlow::ExclusionFlow(const SkRect& bounds, FlowAxis axis)
+    : m_bounds(bounds),
+      m_axis(axis),
+      m_pathCache(std::make_unique<PathCache>()) {}
 ExclusionFlow::~ExclusionFlow() = default;
 
 const ExclusionFlow::FlatPath& ExclusionFlow::flattenedPathFor(
@@ -260,56 +295,85 @@ bool BlockFlow::lineIntervals(int index, float lineHeight, float ascent,
 bool ExclusionFlow::lineIntervals(int index, float lineHeight, float ascent,
                                   std::vector<LineInterval>& intervals) {
   intervals.clear();
-  const float top = m_bounds.top() + static_cast<float>(index) * lineHeight;
-  const float bottom = top + lineHeight;
-  if (bottom > m_bounds.bottom() + kEps) return false;
+  const FlowAxis axis = m_axis;
+  const bool columns = axis == FlowAxis::kColumns;
+
+  // The band this line occupies across the stack, and where its pen sits
+  // inside it. Lines stack DOWN from the top and put the pen on a baseline
+  // `ascent` below the band's near edge; columns advance RIGHT TO LEFT from
+  // the right edge and put the pen on the band's central axis, which is
+  // what a vertical-shaped glyph centres itself on.
+  float bandStart = 0;
+  float bandEnd = 0;
+  float penAxis = 0;
+  if (columns) {
+    bandEnd = m_bounds.right() - static_cast<float>(index) * lineHeight;
+    bandStart = bandEnd - lineHeight;
+    if (bandStart < m_bounds.left() - kEps) return false;
+    penAxis = bandEnd - lineHeight * 0.5f;
+  } else {
+    bandStart = m_bounds.top() + static_cast<float>(index) * lineHeight;
+    bandEnd = bandStart + lineHeight;
+    if (bandEnd > m_bounds.bottom() + kEps) return false;
+    penAxis = bandStart + ascent;
+  }
 
   std::vector<std::pair<float, float>> availableSpans = {
-      {m_bounds.left(), m_bounds.right()}};
+      {alongMin(axis, m_bounds), alongMax(axis, m_bounds)}};
 
   static thread_local std::vector<std::pair<float, float>> occupiedSpans;
   for (const Shape& shape : m_shapes) {
     if (shape.kind == Shape::kPath) {
       const FlatPath& flattenedPath = flattenedPathFor(shape.path);
       if (flattenedPath.contours.empty()) continue;
-      const float offsetX = shape.pathOffset.x();
-      const float offsetY = shape.pathOffset.y();
+      const glm::vec2 offset = {shape.pathOffset.x(), shape.pathOffset.y()};
+      const float offsetAlong = alongOf(axis, offset);
+      const float offsetAcross = acrossOf(axis, offset);
       const float padding = shape.padding;
-      if (flattenedPath.bounds.bottom() + offsetY + padding <= top ||
-          flattenedPath.bounds.top() + offsetY - padding >= bottom)
+      if (acrossMax(axis, flattenedPath.bounds) + offsetAcross + padding <=
+              bandStart ||
+          acrossMin(axis, flattenedPath.bounds) + offsetAcross - padding >=
+              bandEnd)
         continue;
       // Band and results are in path-local space (shifted by the offset);
-      // padding expands the band vertically and each span horizontally.
+      // padding widens the band across and each span along.
       occupiedSpans.clear();
-      bandOccupancy(flattenedPath.contours, flattenedPath.evenOdd,
-                    top - offsetY - padding, bottom - offsetY + padding,
-                    occupiedSpans);
+      bandOccupancy(flattenedPath.contours, flattenedPath.evenOdd, axis,
+                    bandStart - offsetAcross - padding,
+                    bandEnd - offsetAcross + padding, occupiedSpans);
       mergeSpans(occupiedSpans);
       for (const auto& [spanStart, spanEnd] : occupiedSpans)
-        subtractSpan(availableSpans, spanStart + offsetX - padding,
-                     spanEnd + offsetX + padding);
+        subtractSpan(availableSpans, spanStart + offsetAlong - padding,
+                     spanEnd + offsetAlong + padding);
     } else if (shape.kind == Shape::kCircle) {
       const float radius =
           std::min(shape.bounds.width(), shape.bounds.height()) * 0.5f +
           shape.padding;
-      const float centerX = shape.bounds.centerX();
-      const float centerY = shape.bounds.centerY();
-      if (centerY + radius <= top || centerY - radius >= bottom) continue;
-      // Widest chord of the circle within the band: at centerY if the band
-      // contains it, else at the nearest band edge.
+      const glm::vec2 center = {shape.bounds.centerX(), shape.bounds.centerY()};
+      const float centerAlong = alongOf(axis, center);
+      const float centerAcross = acrossOf(axis, center);
+      if (centerAcross + radius <= bandStart ||
+          centerAcross - radius >= bandEnd)
+        continue;
+      // Widest chord of the circle within the band: at the centre when the
+      // band contains it, else at the nearest band edge.
       const float distanceFromCenter =
-          centerY < top ? top - centerY
-                        : (centerY > bottom ? centerY - bottom : 0);
+          centerAcross < bandStart
+              ? bandStart - centerAcross
+              : (centerAcross > bandEnd ? centerAcross - bandEnd : 0);
       if (distanceFromCenter >= radius) continue;
       const float halfChord =
           std::sqrt(radius * radius - distanceFromCenter * distanceFromCenter);
-      subtractSpan(availableSpans, centerX - halfChord, centerX + halfChord);
+      subtractSpan(availableSpans, centerAlong - halfChord,
+                   centerAlong + halfChord);
     } else {
       const SkRect paddedBounds =
           shape.bounds.makeOutset(shape.padding, shape.padding);
-      if (paddedBounds.bottom() <= top || paddedBounds.top() >= bottom)
+      if (acrossMax(axis, paddedBounds) <= bandStart ||
+          acrossMin(axis, paddedBounds) >= bandEnd)
         continue;
-      subtractSpan(availableSpans, paddedBounds.left(), paddedBounds.right());
+      subtractSpan(availableSpans, alongMin(axis, paddedBounds),
+                   alongMax(axis, paddedBounds));
     }
     if (availableSpans.empty()) break;
   }
@@ -317,8 +381,9 @@ bool ExclusionFlow::lineIntervals(int index, float lineHeight, float ascent,
   for (const auto& [spanStart, spanEnd] : availableSpans) {
     if (spanEnd - spanStart < m_minIntervalWidth) continue;
     LineInterval interval;
-    interval.origin = {spanStart, top + ascent};
-    interval.direction = {1, 0};
+    interval.origin =
+        columns ? SkPoint{penAxis, spanStart} : SkPoint{spanStart, penAxis};
+    interval.direction = columns ? SkVector{0, 1} : SkVector{1, 0};
     interval.length = spanEnd - spanStart;
     intervals.push_back(interval);
   }

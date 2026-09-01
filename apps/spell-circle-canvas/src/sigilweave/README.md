@@ -121,6 +121,17 @@ columns advancing right to left), `LineSetFlow` (explicit intervals — any
 origin, direction, and count per line), and `PathFlow` (each contour of a
 path becomes a line).
 
+`ExclusionFlow` takes a `FlowAxis`, and that is the whole of what a column
+costs it: `FlowAxis::kColumns` makes each band a top-to-bottom column
+advancing right to left from the bounds' right edge, and reads every
+shape's extent DOWN the column instead of across the line. A column is a
+line turned a quarter turn — a shape shortens one, or splits it in two,
+exactly as it shortens or splits the other — so the band scan, the fill
+rule, the flattening cache and the sliver threshold are one implementation
+read through two coordinates. Pair `kColumns` with
+`Paragraph::setWritingMode(WritingMode::kVerticalRL)`, exactly as
+`VerticalBlockFlow` is paired.
+
 ## The pipeline
 
 `layoutParagraph()` is the entry point and runs these stages in order.
@@ -403,7 +414,9 @@ state.
   advance is a step down the page rather than across it.
   `FontContext::glyphAdvanceEm()` reports either axis's advance in ems, for a
   caller asking whether two glyphs step the pen alike — the vertical advance
-  is a fact Skia's glyph metrics do not carry at all.
+  is a fact Skia's glyph metrics do not carry at all. A column takes the
+  furniture a line takes: an exclusion cuts it (`FlowAxis::kColumns`), and
+  a clamp ends it in the overflow marker, at the column's foot.
 - **Font fallback** — per-codepoint, per-language, memoized, with an ASCII
   direct-mapped fast table. The default resolver uses the `SkFontMgr`'s
   platform cascade; supply a `FontContext::FallbackResolver` to encode your
@@ -432,6 +445,10 @@ state.
   down the axis the runs reached. Exactly one of the two answers in any
   given layout.
 - **Tab stops, overflow ellipsis, line clamp** — see the options structs.
+  The clamp counts COLUMNS in a vertical flow, and the marker stands for
+  the text that was cut, so it is set the way that text was set: upright
+  after upright glyphs — the face's own `vert` form when it has one — and
+  turned with the column after a rotated run.
 
 ## The hard parts
 
@@ -673,8 +690,9 @@ directly.
 **Several things silently no-op outside their scope.** Decorations render on
 straight runs, set either way; a TRANSFORMED run (on a path, on a rotated
 interval) skips them, and a column's band never skips ink. The
-ellipsis marker requires the final interval to be straight, horizontal, and
-not a contour. `lineMetrics()` skips transformed and vertical runs, and omits
+ellipsis marker requires the final interval to be straight and not a
+contour — a line takes it at its end and a column at its foot, but a loop
+has no end to put one at. `lineMetrics()` skips transformed and vertical runs, and omits
 lines whose geometry placed nothing — `columnMetrics()` is what answers
 there. Tab stops are line-local and scoped to
 straight horizontal left-to-right intervals.

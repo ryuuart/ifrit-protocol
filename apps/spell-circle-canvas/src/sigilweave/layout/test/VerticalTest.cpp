@@ -1,6 +1,7 @@
 /** @file
  * Vertical writing mode through the layout: upright CJK columns,
- * auto-rotated Latin, tate-chu-yoko, and the per-column metrics.
+ * auto-rotated Latin, tate-chu-yoko, the per-column metrics, columns cut
+ * by an exclusion, and the overflow marker at a clamped column's foot.
  */
 
 #include <gtest/gtest.h>
@@ -159,4 +160,176 @@ TEST(Vertical, TateChuYokoCountsItsFontHeightDownTheColumn) {
   };
   EXPECT_NEAR(columnExtent(u8"31"), columnExtent(u8"312"), 0.5f)
       << "a wider tate-chu-yoko run must not lengthen the column";
+}
+
+// ── Columns around an exclusion ──────────────────────────────────────────
+
+TEST(Vertical, ColumnsFlowAroundASilhouette) {
+  // The whole breaker runs over a column flow the way it runs over a line
+  // flow: a column an exclusion crosses hands out two intervals, and no
+  // run may sit anywhere but inside one of them.
+  FontContext& fontContext = sharedContext();
+  Paragraph paragraph;
+  paragraph.appendText(
+      u8"縦組みの文章が円をよけて流れる様子を見るための本文であり、列は右から"
+      u8"左へと進みながら、障害物の上と下に分かれて組まれてゆく。文字は列の心"
+      u8"に沿って落ちてゆき、円に出会えば頭と足に分かれ、円を過ぎればまた一本"
+      u8"の列に戻る。",
+      basicStyle(20.0f));
+  paragraph.setWritingMode(WritingMode::kVerticalRL);
+
+  constexpr float kPitch = 30;
+  ExclusionFlow flow(SkRect::MakeWH(300, 400), FlowAxis::kColumns);
+  flow.shapes().push_back(
+      ExclusionFlow::Shape::fromCircle(SkRect::MakeXYWH(90, 140, 120, 120), 6));
+  ParagraphLayoutOptions options;
+  options.lineMetrics.height = kPitch;
+  ParagraphLayout layout =
+      layoutParagraph(fontContext, paragraph, flow, options);
+
+  ASSERT_FALSE(layout.runs.empty());
+  std::vector<LineInterval> intervals;
+  bool sawASplitColumn = false;
+  for (const PositionedRun& run : layout.runs) {
+    ASSERT_TRUE(run.shaped);
+    ASSERT_FALSE(run.transformed) << "upright CJK all the way down";
+    ASSERT_TRUE(flow.lineIntervals(run.lineIndex, kPitch, 0, intervals));
+    if (intervals.size() > 1) sawASplitColumn = true;
+    const float penStart = run.origin.y();
+    const float penEnd = penStart + run.shaped->advance;
+    bool inside = false;
+    for (const LineInterval& interval : intervals)
+      inside =
+          inside || (penStart >= interval.origin.y() - 0.75f &&
+                     penEnd <= interval.origin.y() + interval.length + 0.75f);
+    EXPECT_TRUE(inside) << "a run on column " << run.lineIndex << " spans ["
+                        << penStart << ", " << penEnd
+                        << "], outside every interval the column offered";
+  }
+  EXPECT_TRUE(sawASplitColumn) << "the circle must have split some column";
+
+  // And the exclusion costs room: the same text in the same block with
+  // nothing in its way needs fewer columns.
+  VerticalBlockFlow clear(SkRect::MakeWH(300, 400));
+  ParagraphLayout unobstructed =
+      layoutParagraph(fontContext, paragraph, clear, options);
+  EXPECT_GT(layout.lineCount, unobstructed.lineCount);
+}
+
+// ── The marker at a column's foot ────────────────────────────────────────
+
+namespace {
+
+/// How far down its column a run reaches. Every form a column carries is
+/// placed from the column's own pen, so one reading covers them all.
+float columnFoot(const PositionedRun& run) {
+  return run.origin.y() + (run.shaped ? run.shaped->advance : 0.0f);
+}
+
+}  // namespace
+
+TEST(Vertical, AClampedColumnEndsInItsMarker) {
+  FontContext& fontContext = sharedContext();
+  Paragraph paragraph;
+  paragraph.appendText(
+      u8"縦組みの文章は上から下へ流れ右から左へと列が進み続けてゆく",
+      basicStyle(20.0f));
+  paragraph.setWritingMode(WritingMode::kVerticalRL);
+
+  VerticalBlockFlow flow(SkRect::MakeWH(200, 220));
+  ParagraphLayoutOptions options;
+  options.lineMetrics.height = 30;
+  options.overflow.maxLines = 1;
+  options.overflow.ellipsis = u"…";
+  ParagraphLayout layout =
+      layoutParagraph(fontContext, paragraph, flow, options);
+
+  ASSERT_TRUE(layout.overflowed());
+  ASSERT_TRUE(layout.ellipsized);
+  ASSERT_GE(layout.runs.size(), 2u);
+  const PositionedRun& marker = layout.runs.back();
+  ASSERT_TRUE(marker.shaped);
+  EXPECT_TRUE(marker.shaped->vertical)
+      << "an upright column takes an upright marker — the face's own "
+         "vertical form when it has one";
+  EXPECT_FALSE(marker.transformed);
+  EXPECT_FLOAT_EQ(marker.origin.x(), 200 - 30 * 0.5f)
+      << "on the column's central axis, like every glyph above it";
+  // At the FOOT: below the last of the text, and inside the column.
+  const PositionedRun& tail = layout.runs[layout.runs.size() - 2];
+  EXPECT_GE(marker.origin.y(), columnFoot(tail) - 0.25f);
+  EXPECT_LE(columnFoot(marker), 220.0f + 0.75f);
+  EXPECT_EQ(marker.lineIndex, tail.lineIndex);
+  for (const PositionedRun& run : layout.runs)
+    if (&run != &marker) EXPECT_LT(run.wordIndex, layout.firstUnplacedWord);
+
+  // The column's own metrics reach it: the marker names the interval it
+  // landed on and where along it, so the column it ends measures down to
+  // the marker's foot rather than stopping at the text.
+  const std::vector<ColumnMetrics> columns = layout.columnMetrics(paragraph);
+  ASSERT_EQ(columns.size(), 1u);
+  EXPECT_NEAR(columns.front().bottom, columnFoot(marker), 0.5f);
+}
+
+TEST(Vertical, TheClampCutMovesUpToMakeRoomForTheMarker) {
+  // The marker is measured against the COLUMN's length, so the cut moves
+  // up by exactly as much as the marker needs — the same trade a line
+  // makes at its end.
+  FontContext& fontContext = sharedContext();
+  const auto clampedColumn = [&](bool withMarker) {
+    Paragraph paragraph;
+    paragraph.appendText(
+        u8"縦組みの文章は上から下へ流れ右から左へと列が進み続けてゆく",
+        basicStyle(20.0f));
+    paragraph.setWritingMode(WritingMode::kVerticalRL);
+    VerticalBlockFlow flow(SkRect::MakeWH(200, 220));
+    ParagraphLayoutOptions options;
+    options.lineMetrics.height = 30;
+    options.overflow.maxLines = 1;
+    if (withMarker) options.overflow.ellipsis = u"…";
+    return layoutParagraph(fontContext, paragraph, flow, options);
+  };
+  const ParagraphLayout bare = clampedColumn(false);
+  const ParagraphLayout marked = clampedColumn(true);
+
+  ASSERT_TRUE(bare.overflowed());
+  ASSERT_TRUE(marked.ellipsized);
+  ASSERT_FALSE(bare.ellipsized);
+  // The last run that is TEXT, not the marker.
+  const PositionedRun& bareTail = bare.runs.back();
+  const PositionedRun& markedTail = marked.runs[marked.runs.size() - 2];
+  EXPECT_LT(columnFoot(markedTail), columnFoot(bareTail))
+      << "the cut moved up the column to make room";
+  EXPECT_LT(marked.firstUnplacedWord, bare.firstUnplacedWord)
+      << "and the words it gave up are reported unplaced";
+}
+
+TEST(Vertical, ARotatedRunTakesARotatedMarker) {
+  // Latin rotates into a column, and the marker that cuts it is turned
+  // with it rather than standing upright beside it.
+  FontContext& fontContext = sharedContext();
+  Paragraph paragraph;
+  paragraph.appendText(
+      u8"a Latin passage set down a column rotates a quarter turn and keeps "
+      u8"going far past the room this clamp allows it",
+      basicStyle(18.0f));
+  paragraph.setWritingMode(WritingMode::kVerticalRL);
+
+  VerticalBlockFlow flow(SkRect::MakeWH(160, 200));
+  ParagraphLayoutOptions options;
+  options.lineMetrics.height = 26;
+  options.overflow.maxLines = 1;
+  options.overflow.ellipsis = u"…";
+  ParagraphLayout layout =
+      layoutParagraph(fontContext, paragraph, flow, options);
+
+  ASSERT_TRUE(layout.ellipsized);
+  const PositionedRun& marker = layout.runs.back();
+  EXPECT_TRUE(marker.transformed)
+      << "the marker after a rotated run is baked into the column's turn";
+  EXPECT_FALSE(marker.shaped->vertical);
+  ASSERT_TRUE(marker.blob);
+  // Baked placement: the blob's ink must sit inside the clamped column.
+  EXPECT_LE(marker.blob->bounds().bottom(), 200.0f + 2.0f);
+  EXPECT_GT(marker.blob->bounds().top(), 0.0f);
 }

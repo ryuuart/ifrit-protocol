@@ -532,10 +532,6 @@ void cascadeOrder(Stagger::From from, uint32_t count, uint32_t seed,
  *  `writingMode`: a path run's baseline is its own geometry, so there are
  *  no columns to advance and the path wins. */
 void warnWritingModeOnPath();
-/** The once-per-process diagnostic behind `flowAround` on vertical text:
- *  exclusions are cut out of horizontal line bands, so the columns run
- *  without them. */
-void warnFlowAroundVertical();
 
 /** Does this selector reach for a LINE, and therefore need a layout to
  *  resolve against? The question the second layout pass is gated on. */

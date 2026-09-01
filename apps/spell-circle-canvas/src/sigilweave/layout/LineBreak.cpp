@@ -8,6 +8,7 @@
  */
 
 #include <hb.h>
+#include <include/core/SkFontMetrics.h>
 #include <include/core/SkRSXform.h>
 #include <include/core/SkTextBlob.h>
 #include <unicode/utf16.h>
@@ -393,8 +394,9 @@ void placeWords(const std::vector<Word>& words, uint32_t firstWordIndex,
 }
 
 // Overflow marker: trim the final placed line until the configured ellipsis
-// fits, then append it as one more run (CSS text-overflow semantics).
-// Straight horizontal intervals only — curved/vertical flows just overflow.
+// fits, then append it as one more run (CSS text-overflow semantics). A
+// line's marker lands at its end and a column's at its foot; a contour
+// interval takes none, because there is no end to a loop.
 void applyEllipsis(FontContext& fontContext, Paragraph& paragraph,
                    IntervalSequence& intervalSequence,
                    const ParagraphLayoutOptions& options,
@@ -407,16 +409,22 @@ void applyEllipsis(FontContext& fontContext, Paragraph& paragraph,
                                      intervalSequence.intervalAt(intervalIndex);
        ++intervalIndex)
     lastInterval = flatInterval;
-  if (!lastInterval || lastInterval->interval.contour.valid() ||
-      lastInterval->interval.direction.x() != 1 ||
-      lastInterval->interval.direction.y() != 0)
-    return;
+  if (!lastInterval || lastInterval->interval.contour.valid()) return;
+  const SkVector direction = lastInterval->interval.direction;
+  const bool alongColumn = direction.x() == 0 && direction.y() == 1;
+  if (!alongColumn && (direction.x() != 1 || direction.y() != 0)) return;
 
   // Shape the marker in the style of the line's tail (fallback-resolved on
-  // its first codepoint; cache-shared like every other word).
+  // its first codepoint; cache-shared like every other word) — and, down a
+  // column, in that tail's FORM. THE MARKER STANDS FOR THE TEXT THAT WAS
+  // CUT, so it is set the way that text was set: a column of upright
+  // glyphs ends in an upright marker, which TTB shaping gives the face's
+  // own `vert` form when it has one, and a rotated Latin run ends in a
+  // marker turned with the column exactly as the letters before it are.
   const int lineIndex = result.runs.back().lineIndex;
   const uint32_t styleIndex = result.runs.back().styleIndex;
   const uint32_t tailWord = result.runs.back().wordIndex;
+  const bool uprightMarker = alongColumn && !result.runs.back().transformed;
   const StyleSpan& span = paragraph.spans()[styleIndex];
   UChar32 firstCodepoint;
   {
@@ -432,13 +440,16 @@ void applyEllipsis(FontContext& fontContext, Paragraph& paragraph,
   if (!typeface) typeface = fontContext.defaultTypeface();
   ShapedWordRef marker = shapeWord(
       fontContext, span.style.shaping, typeface, options.overflow.ellipsis,
-      static_cast<ScriptTag>(HB_SCRIPT_COMMON), false);
+      static_cast<ScriptTag>(HB_SCRIPT_COMMON), false, uprightMarker);
   if (!marker || marker->glyphs.empty()) return;
 
   size_t lineBegin = result.runs.size();
   while (lineBegin > 0 && result.runs[lineBegin - 1].lineIndex == lineIndex)
     lineBegin--;
-  auto runEndX = [&](const PositionedRun& run) {
+  // How far along the interval a run reaches, in the pen's own direction —
+  // the one measurement the trim is made of, and the only thing about it
+  // that the writing mode changes.
+  auto runEnd = [&](const PositionedRun& run) {
     const float runWidth = run.shaped
                                ? run.shaped->advance
                                : (run.placeholderIndex >= 0
@@ -447,14 +458,31 @@ void applyEllipsis(FontContext& fontContext, Paragraph& paragraph,
                                                 run.placeholderIndex)]
                                             .width
                                       : 0.0f);
-    return run.origin.x() + runWidth;
+    if (!alongColumn) return run.origin.x() + runWidth;
+    // A ROTATED run's placement is baked into its blob and its origin is
+    // the canvas origin, so only its pen offset says where down the column
+    // it sits; its horizontal advance IS its travel down the column.
+    if (run.transformed)
+      return lastInterval->interval.origin.y() + run.penOffset + runWidth;
+    // A TATE-CHU-YOKO run stands across the column and consumes its font
+    // height, not the advance of however many digits it holds; its origin
+    // is the baseline it stands on, so its foot is one descent below.
+    if (run.shaped && !run.shaped->vertical) {
+      SkFontMetrics metrics;
+      makeFont(run.shaped->typeface, run.shaped->fontSize, run.shaped->scaleX,
+               run.shaped->aliased)
+          .getMetrics(&metrics);
+      return run.origin.y() + metrics.fDescent;
+    }
+    return run.origin.y() + runWidth;
   };
 
   // Drop whole trailing words until the marker fits inside the interval.
-  const float limit = lastInterval->interval.origin.x() +
-                      lastInterval->interval.length - marker->advance + 0.25f;
-  while (result.runs.size() > lineBegin &&
-         runEndX(result.runs.back()) > limit) {
+  const float intervalStart = alongColumn ? lastInterval->interval.origin.y()
+                                          : lastInterval->interval.origin.x();
+  const float limit =
+      intervalStart + lastInterval->interval.length - marker->advance + 0.25f;
+  while (result.runs.size() > lineBegin && runEnd(result.runs.back()) > limit) {
     const uint32_t trailingWordIndex = result.runs.back().wordIndex;
     while (result.runs.size() > lineBegin &&
            result.runs.back().wordIndex == trailingWordIndex) {
@@ -466,15 +494,32 @@ void applyEllipsis(FontContext& fontContext, Paragraph& paragraph,
 
   PositionedRun run;
   run.shaped = marker;
-  run.blob = wordBlob(*marker);
   run.styleIndex = styleIndex;
   run.wordIndex = tailWord;
   run.lineIndex = lineIndex;
-  if (result.runs.size() > lineBegin)
-    run.origin = {runEndX(result.runs.back()), result.runs.back().origin.y()};
-  else
-    run.origin = {lastInterval->interval.origin.x(),
-                  lastInterval->interval.origin.y()};
+  const bool afterARun = result.runs.size() > lineBegin;
+  const float markerPen =
+      afterARun ? runEnd(result.runs.back()) : intervalStart;
+  // The marker names the interval it landed on and where along it, like
+  // any other run. A COLUMN's metrics are read through that pair — a
+  // column has no baseline to measure from the way a line has one — so a
+  // marker that named neither would fall outside the column it ends.
+  run.intervalIndex = lastInterval->index;
+  run.penOffset = markerPen - intervalStart;
+  if (!alongColumn) {
+    run.blob = wordBlob(*marker);
+    run.origin = {markerPen, afterARun ? result.runs.back().origin.y()
+                                       : lastInterval->interval.origin.y()};
+  } else if (uprightMarker) {
+    run.blob = wordBlob(*marker);
+    run.origin = {lastInterval->interval.origin.x(), markerPen};
+  } else {
+    run.blob = buildTransformedBlob(*marker, lastInterval->interval,
+                                    markerPen - intervalStart,
+                                    options.pathText.tangentRotationSteps);
+    run.transformed = true;
+  }
+  if (!run.blob) return;
   result.runs.push_back(std::move(run));
   result.ellipsized = true;
 }

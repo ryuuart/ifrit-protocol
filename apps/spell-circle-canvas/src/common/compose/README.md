@@ -186,7 +186,8 @@ exclusions and connector/rail routing over flat edge lists, cycle-guarded.
 — a `shape()`, a routed connector or rail — so text runs into a star's
 notches and through an annulus, and its BOX when it declares none. A round
 silhouette is subtracted analytically. The margin means the same standoff in
-every case.
+every case, and so does the writing mode: a column a target crosses is cut
+into a head and a foot exactly as a line is shortened beside it.
 Released scalars are scanned and volatility computed in one walk. Then
 paint runs, selecting a cache tier per node.
 
@@ -922,7 +923,8 @@ there too.
 `stagger(unit::Line)` beats column by column and `sel::line(0)` addresses
 the rightmost one; `unit::Cluster` runs down a column in reading order.
 `spanPaint`, `spanStyle`, `textAlign` (start is the top of the column),
-`maxLines` (which clamps COLUMNS), `lastLine`, `lineBreak`, `textStroke`,
+`maxLines` (which clamps COLUMNS) with `ellipsis` at the clamped column's
+foot, `flowAround`, `lastLine`, `lineBreak`, `textStroke`,
 `variationDrive` and `feed()`'s text tier all work as they do across a line.
 `mark()` anchors as it does anywhere — its rect is the union of the advance
 boxes its selector addressed, and in a column those stack downward, so a
@@ -941,14 +943,21 @@ baseline, across the column. A glyph's pivot moves too: an upright glyph
 turns and scales about the point on the COLUMN AXIS its pen reached, not
 about a point half a column pitch to its right.
 
+**`flowAround` and `ellipsis` follow the type down the page.** An exclusion
+cuts a COLUMN exactly as it cuts a line: the column a target crosses hands
+back a head above it and a foot below it, and the same silhouette is
+subtracted — a `shape()` outline, an analytic circle, or the box a target
+that declared none stands in — with the margin the same standoff in all
+three. And a clamped column ends in its marker, at the column's FOOT,
+measured against the column's length so the cut moves up to make room for
+it. The marker stands for the text it cut and is set the way that text was
+set: upright after upright glyphs, in the face's own vertical form when it
+has one, and turned with the column after a rotated Latin run.
+
 **What does not follow the type down the page.** `onPath` ignores
 `writingMode` entirely — a path run's baseline is its own geometry and has
-no columns to advance — and setting both warns once and keeps the path.
-`flowAround` exclusions are cut out of horizontal line bands and have no
-column spelling: they warn once and the columns run clean. An `ellipsis`
-marker needs a straight horizontal final line to land on, so a clamped
-vertical passage reports its overflow without drawing one. A decoration on
-a span DOES follow the type down the page — an underline runs beside the
+no columns to advance — and setting both warns once and keeps the path. A
+decoration on a span DOES follow the type down the page — an underline runs beside the
 column on its right, an overline on its left, a strikethrough down the
 column axis and a highlight across the whole column pitch — but it never
 skips ink there, because ink intercepts are cut out of a horizontal band

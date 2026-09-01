@@ -10,7 +10,7 @@
  *   - BlockFlow          a single rectangle.
  *   - ExclusionFlow      a rectangle minus moving shapes (circles, rects, or
  *                        arbitrary/compound SkPaths with their fill rule
- *                        honored).
+ *                        honored), in lines or in columns.
  *   - VerticalBlockFlow  top-to-bottom CJK columns advancing right to left.
  *   - LineSetFlow        an explicit set of intervals (any origin/direction).
  *   - PathFlow           each SkPath contour becomes a line; glyphs ride the
@@ -28,12 +28,20 @@
 #include <include/core/SkPoint.h>
 #include <include/core/SkRect.h>
 
+#include <cstdint>
 #include <memory>
 #include <vector>
 
 #include "sigilgeometry/path/Contour.h"
 
 namespace sigil::weave {
+
+/// Which way a flow's lines run, and therefore which way its bands stack:
+/// horizontal lines stacking down the page, or top-to-bottom columns
+/// advancing right to left. It is the writing mode said in the geometry's
+/// own terms — a geometry never sees a paragraph — and a geometry that
+/// offers both takes one of these.
+enum class FlowAxis : uint8_t { kLines, kColumns };
 
 /// One stretch of pen travel a line of text may occupy. Text is never bound
 /// to a rectangle: a "line" is just an ordered list of these, and they can
@@ -148,9 +156,17 @@ class BlockFlow : public FlowGeometry {
 };
 
 /// A rectangle with exclusion shapes punched out (CSS float / shape-outside
-/// style). Each line band subtracts every intersecting shape's horizontal
-/// extent, so lines split into multiple intervals around the shapes. Shapes
-/// are cheap to move: geometry is re-evaluated per layout pass.
+/// style). Each band subtracts every intersecting shape's extent ACROSS the
+/// band, so a line — or a column — shortens, or splits into several
+/// intervals, around the shapes. Shapes are cheap to move: geometry is
+/// re-evaluated per layout pass.
+///
+/// A COLUMN IS A LINE TURNED A QUARTER TURN, and `FlowAxis` is the whole of
+/// the difference: `kColumns` makes each band a top-to-bottom column, the
+/// columns advancing right to left from the bounds' right edge, and reads
+/// every shape's extent down the column instead of across the line. Pair it
+/// with `Paragraph::setWritingMode(WritingMode::kVerticalRL)`, exactly as
+/// `VerticalBlockFlow` is paired.
 class ExclusionFlow : public FlowGeometry {
  public:
   /// One area text must flow around, in the same coordinate space as the
@@ -188,25 +204,29 @@ class ExclusionFlow : public FlowGeometry {
     }
   };
 
-  /** Creates horizontal line bands in `bounds`, minus configured shapes. */
-  explicit ExclusionFlow(const SkRect& bounds);
+  /** Creates line bands — or columns — in `bounds`, minus configured
+   * shapes. */
+  explicit ExclusionFlow(const SkRect& bounds,
+                         FlowAxis axis = FlowAxis::kLines);
   /** Destroys private flattened-path cache entries. */
   ~ExclusionFlow() override;
 
-  /** Returns the mutable list of shapes subtracted from each line band. */
+  /** Returns the mutable list of shapes subtracted from each band. */
   std::vector<Shape>& shapes() { return m_shapes; }
   /** Returns the outer layout bounds. */
   const SkRect& bounds() const { return m_bounds; }
+  /** Returns whether the bands are lines or columns. */
+  FlowAxis axis() const { return m_axis; }
 
-  /** Drops exclusion-created slivers (intervals narrower than
-   * `minimumWidth`, in px) that would otherwise appear between shapes.
-   * Defaults to 8 px.
+  /** Drops exclusion-created slivers (intervals shorter than
+   * `minimumWidth` of pen travel, in px) that would otherwise appear
+   * between shapes. Defaults to 8 px.
    */
   void setMinIntervalWidth(float minimumWidth) {
     m_minIntervalWidth = minimumWidth;
   }
 
-  /** Produces the remaining horizontal intervals for a line band. */
+  /** Produces the remaining intervals of one line band or column. */
   bool lineIntervals(int index, float lineHeight, float ascent,
                      std::vector<LineInterval>& intervals) override;
 
@@ -217,6 +237,7 @@ class ExclusionFlow : public FlowGeometry {
   const FlatPath& flattenedPathFor(const SkPath& path);
 
   SkRect m_bounds;
+  FlowAxis m_axis = FlowAxis::kLines;
   std::vector<Shape> m_shapes;
   float m_minIntervalWidth = 8;
   std::unique_ptr<PathCache> m_pathCache;
