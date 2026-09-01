@@ -1,0 +1,24 @@
+# ThreadSanitizer suppressions for the thread lane, which
+# scripts/sanitize.py points the runtime at.
+#
+# An entry belongs here only for a dependency this lane is structurally
+# unable to judge, and only with the reason written down. A race in this
+# repository's own code is never suppressed — it is fixed.
+
+# OpenUSD arrives as prebuilt, uninstrumented libraries, and its headers
+# define templates this tree instantiates as well. Those definitions are
+# weak, the linker coalesces them onto the instrumented copy, and USD's
+# own libraries then call it: the accesses a VtValue makes inside a
+# crate layer's spec data are recorded, while every ordering edge around
+# them is not. Those edges are USD's work dispatcher handing a container
+# to a worker and waiting for it again, and beneath it oneTBB's task
+# scheduler — all of it lock-free atomics inside archives this lane did
+# not compile, and atomics are the one synchronisation TSan models only
+# in code it instrumented itself. What gets reported is an ordered
+# handoff: a container filled on one thread and read on another after a
+# wait, or filled on one thread and destroyed on a worker the owner
+# handed it to. Nothing on this side can order what is already ordered,
+# and no half of the dependency can be un-watched without also
+# un-watching the standard-library atomics this repository's own threads
+# depend on.
+race:pxrInternal_*::VtValue
