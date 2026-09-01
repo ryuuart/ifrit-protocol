@@ -67,23 +67,31 @@ namespace detail {
 /** NinePatch band edges: divs split [0, srcLen) into alternating
  *  fixed/stretchable intervals starting FIXED. Stretch bands share the
  *  leftover destination space; when the destination is smaller than the
- *  fixed sum, fixed bands scale down proportionally (Skia's rule). */
+ *  fixed sum, fixed bands scale down proportionally (Skia's rule).
+ *
+ *  @p density is SOURCE PIXELS PER DESTINATION UNIT for the fixed bands: a
+ *  frame drawn at twice the size it is used at declares 2 and its corners
+ *  land at half their pixel count, sharp on a 2x device instead of twice
+ *  the intended width. It scales the fixed bands only — the stretchable
+ *  ones absorb whatever is left either way. */
 inline void latticeEdges(const std::vector<int>& divs, float srcLen,
                          float dstLen, std::vector<float>& srcEdges,
-                         std::vector<float>& dstEdges) {
+                         std::vector<float>& dstEdges, float density = 1.0f) {
   srcEdges.clear();
   dstEdges.clear();
   srcEdges.push_back(0);
   for (int d : divs) srcEdges.push_back((float)std::clamp(d, 0, (int)srcLen));
   srcEdges.push_back(srcLen);
+  if (!(density > 0)) density = 1.0f;
   float fixedSum = 0, stretchSum = 0;
   for (size_t i = 0; i + 1 < srcEdges.size(); ++i) {
     const float len = srcEdges[i + 1] - srcEdges[i];
     (i % 2 == 1 ? stretchSum : fixedSum) += len;
   }
-  float fixedScale = 1.0f, stretchScale = 0.0f;
-  if (dstLen >= fixedSum) {
-    stretchScale = stretchSum > 0 ? (dstLen - fixedSum) / stretchSum : 0.0f;
+  const float fixedDst = fixedSum / density;
+  float fixedScale = 1.0f / density, stretchScale = 0.0f;
+  if (dstLen >= fixedDst) {
+    stretchScale = stretchSum > 0 ? (dstLen - fixedDst) / stretchSum : 0.0f;
   } else {
     fixedScale = fixedSum > 0 ? dstLen / fixedSum : 0.0f;
   }
@@ -99,11 +107,12 @@ inline void latticeEdges(const std::vector<int>& divs, float srcLen,
 }  // namespace detail
 
 /** drawImageLattice on every backend (see the file comment). Empty divs
- *  stretch the whole image (plain drawImageRect). */
+ *  stretch the whole image (plain drawImageRect). @p density is the source's
+ *  pixels per destination unit — see latticeEdges. */
 inline void drawLattice(SkCanvas& canvas, Promoted& cache, sk_sp<SkImage> img,
                         const std::vector<int>& xDivs,
                         const std::vector<int>& yDivs, const SkRect& dst,
-                        SkFilterMode filter) {
+                        SkFilterMode filter, float density = 1.0f) {
   if (!img) return;
   const SkSamplingOptions sampling(filter);
   if (xDivs.empty() && yDivs.empty()) {
@@ -116,8 +125,10 @@ inline void drawLattice(SkCanvas& canvas, Promoted& cache, sk_sp<SkImage> img,
   // fine (the shader path consults the ImageProvider).
   img = ready(cache, std::move(img), canvas);
   std::vector<float> sx, dx, sy, dy;
-  detail::latticeEdges(xDivs, (float)img->width(), dst.width(), sx, dx);
-  detail::latticeEdges(yDivs, (float)img->height(), dst.height(), sy, dy);
+  detail::latticeEdges(xDivs, (float)img->width(), dst.width(), sx, dx,
+                       density);
+  detail::latticeEdges(yDivs, (float)img->height(), dst.height(), sy, dy,
+                       density);
   for (size_t iy = 0; iy + 1 < sy.size(); ++iy)
     for (size_t ix = 0; ix + 1 < sx.size(); ++ix) {
       const SkRect src =

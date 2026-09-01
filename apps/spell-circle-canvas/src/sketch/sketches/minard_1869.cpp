@@ -2310,7 +2310,10 @@ struct Minard1869 : sketch::Sketch {
                       "That the room was for the labels is an INFERENCE."),
                  type(faceUi, 10, kCardInk))
                 .left(Dim(60))
-                .top(Dim(by + rowH * 10 + 12))
+                // Two lines of 10 pt under ten rows of 12.2 is what the card's
+                // 206 holds: set any lower and the second line's baseline
+                // falls past the card edge and the sentence is cut in half.
+                .top(Dim(by + rowH * 10 + 4))
                 .width(Dim(900))
                 .key("legTotal")
                 .opacity(beat(tDistort + 0.9f, tDistort + 1.3f)));

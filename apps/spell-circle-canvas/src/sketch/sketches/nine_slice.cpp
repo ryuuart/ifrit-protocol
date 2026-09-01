@@ -28,14 +28,19 @@ struct NineSlice final : sketch::Sketch {
   std::shared_ptr<sigil::image::ImageAsset> oakFrame, azureFrame, crimsonFrame;
   float stretch = 0.0f;
 
+  /** The frame texture, and the factor every consumer of it must repeat:
+   *  drawn at twice the size it is used at, so the corner bands stay sharp
+   *  on a 2x device, and handed to the slice as a density of 2 so they come
+   *  out at the on-page width the panel padding is measured against. */
+  static constexpr float kFrameDensity = 2.0f;
+
   static std::shared_ptr<sigil::image::ImageAsset> generate(
       const Palette& pal) {
     // The intermediate canvas: draw the carved frame once, wrap the
-    // snapshot, stretch it everywhere below. Generated at 2x the
-    // on-page band width so the slice bands never magnify (raster
-    // textures blur when stretched past their resolution).
+    // snapshot, stretch it everywhere below.
     return std::make_shared<sigil::image::ImageAsset>(
-        sigil::image::ImageAsset::wrap(makeCarvedFrame(pal, 192)));
+        sigil::image::ImageAsset::wrap(
+            makeCarvedFrame(pal, (int)(96 * kFrameDensity))));
   }
 
   Element describe() {
@@ -45,7 +50,10 @@ struct NineSlice final : sketch::Sketch {
           .width(w)
           .height(h)
           .inset(l, t, kSceneSize.width() - l - w, kSceneSize.height() - t - h)
-          .background(carvedFrameSlice(f))
+          .background(carvedFrameSlice(f, kFrameDensity))
+          // 24 clears the carved corner bosses, which reach 0.215 of the
+          // 96-unit band in from the edge; a wider band would put type
+          // under them.
           .padding(24);
     };
 

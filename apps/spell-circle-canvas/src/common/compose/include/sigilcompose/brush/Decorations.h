@@ -229,12 +229,20 @@ struct Slice {
    *  for pixel art — a window chrome, a dialog border, a button cut from a
    *  tile sheet — where it blurs every slice boundary. */
   SkFilterMode filter = SkFilterMode::kLinear;
+  /** Source pixels per layout unit in the CORNER and EDGE bands. 1 draws the
+   *  bands at their pixel count, which is right for a texture authored at the
+   *  size it is used. A frame generated oversized so it stays sharp on a
+   *  high-density device declares that factor here — 2 for a texture drawn at
+   *  twice its on-page size — and its corners land at the width they were
+   *  designed for instead of twice it. The stretchable bands absorb the rest
+   *  either way, so this changes the frame's weight and nothing else. */
+  float density = 1.0f;
 
   /** Structural equality (asset by pointer identity) so a static nine-slice
    *  frame prunes without memo. The promotion cache is identity-free. */
   bool operator==(const Slice& o) const {
     return asset == o.asset && xDivs == o.xDivs && yDivs == o.yDivs &&
-           filter == o.filter;
+           filter == o.filter && density == o.density;
   }
 
   void paint(SkCanvas& canvas, const PaintContext& ctx) const;

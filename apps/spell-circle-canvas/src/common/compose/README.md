@@ -1076,7 +1076,10 @@ holds the stock connector and rail routers (`routers::straight`,
 **Marks — `brush/`.** `brush/Decorations.h` has the concrete primitives
 that plug the `Decoration` seam — `PathFormat` (stroke formatting) and
 `stroke`, its one-line spelling; `Shadow` / `shadow`, the soft drop
-shadow; `Slice` (lattice image mapping); `ContourWalk` (walk the outline
+shadow; `Slice` (lattice image mapping — its `density` is the source's pixels per
+layout unit in the fixed bands, so a frame generated oversized to stay
+sharp still draws its corners at the width it was designed for);
+`ContourWalk` (walk the outline
 and run a program at each sample); `Wash`; `Border`. The brush engine is
 three headers: `brush/Layered.h`, the stroke stack (`StrokeLayer`,
 `LayeredBrush`); `brush/GeometryOps.h`, the one mechanism door for

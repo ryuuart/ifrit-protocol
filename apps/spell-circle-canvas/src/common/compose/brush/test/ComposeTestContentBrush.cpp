@@ -5,7 +5,11 @@
 #include <include/core/SkBBHFactory.h>
 #include <include/core/SkFont.h>
 #include <include/core/SkPictureRecorder.h>
+#include <include/core/SkStream.h>
+#include <include/encode/SkPngEncoder.h>
 #include <sigilcompose/core/Feed.h>
+#include <sigilcompose/core/GpuImage.h>
+#include <sigilimage/asset/ImageAsset.h>
 
 #include <numeric>
 
@@ -45,6 +49,72 @@ TEST(ComposeDerive, ConnectorTracksMovedEndpoints) {
   host.frame();
   EXPECT_EQ(host.pixel(20, 100), SK_ColorBLACK);  // old route gone
   EXPECT_NE(host.pixel(95, 95), SK_ColorBLACK);   // new diagonal route
+}
+
+/** A nine-slice source with a marked top-left corner cell: 24x24, blue, with
+ *  the first 8x8 in red, so the corner band's drawn WIDTH is readable off the
+ *  red run. */
+std::shared_ptr<sigil::image::ImageAsset> cornerMarkedFrame() {
+  SkBitmap src;
+  src.allocN32Pixels(24, 24);
+  src.eraseColor(SK_ColorBLUE);
+  src.erase(SK_ColorRED, SkIRect::MakeXYWH(0, 0, 8, 8));
+  SkDynamicMemoryWStream stream;
+  SkPngEncoder::Encode(&stream, src.pixmap(), {});
+  return std::make_shared<sigil::image::ImageAsset>(
+      require(sigil::image::ImageAsset::decode(stream.detachAsData())));
+}
+
+Slice cornerSlice(float density) {
+  Slice nine;
+  nine.asset = cornerMarkedFrame();
+  nine.xDivs = {8, 16};
+  nine.yDivs = {8, 16};
+  nine.filter = SkFilterMode::kNearest;
+  nine.density = density;
+  return nine;
+}
+
+/** The fixed bands are the frame's WEIGHT, and a frame generated oversized so
+ *  it stays sharp has to be able to say so — otherwise its corners come out at
+ *  their pixel count and swallow the padding the content sits in. */
+TEST(ComposeDecorations, SliceDensityScalesTheFixedBandsOnly) {
+  {
+    Host host;
+    host.composer.render(
+        box().width(100).height(100).background(cornerSlice(1.0f)));
+    host.frame();
+    EXPECT_EQ(host.pixel(6, 6), SK_ColorRED);     // inside the 8-unit corner
+    EXPECT_EQ(host.pixel(10, 10), SK_ColorBLUE);  // past it: the stretch band
+  }
+  {
+    Host host;
+    host.composer.render(
+        box().width(100).height(100).background(cornerSlice(2.0f)));
+    host.frame();
+    EXPECT_EQ(host.pixel(2, 2), SK_ColorRED);   // the corner is half as wide
+    EXPECT_EQ(host.pixel(6, 6), SK_ColorBLUE);  // where density 1 was still red
+  }
+}
+
+/** The band arithmetic itself, including the case a density cannot rescue: a
+ *  destination smaller than the fixed bands still shrinks them to fit, which
+ *  is the rule the stretch bands cannot express. */
+TEST(ComposeDecorations, SliceDensityLeavesTheStretchBandTheRemainder) {
+  std::vector<float> src, dst;
+  gpuimg::detail::latticeEdges({8, 16}, 24.0f, 100.0f, src, dst, 2.0f);
+  ASSERT_EQ(dst.size(), 4u);
+  EXPECT_FLOAT_EQ(dst[1], 4.0f);    // 8 source px at 2 px per unit
+  EXPECT_FLOAT_EQ(dst[2], 96.0f);   // the stretch band takes the rest
+  EXPECT_FLOAT_EQ(dst[3], 100.0f);  // and the far corner is 4 again
+
+  gpuimg::detail::latticeEdges({8, 16}, 24.0f, 100.0f, src, dst, 1.0f);
+  EXPECT_FLOAT_EQ(dst[1], 8.0f);  // the default is unchanged
+  EXPECT_FLOAT_EQ(dst[2], 92.0f);
+
+  gpuimg::detail::latticeEdges({8, 16}, 24.0f, 6.0f, src, dst, 2.0f);
+  EXPECT_FLOAT_EQ(dst[1], 3.0f);  // too small for either: split even
+  EXPECT_FLOAT_EQ(dst[2], 3.0f);
 }
 
 TEST(ComposeDecorations, EdgeSliceStrokesSelectedEdgesOnly) {

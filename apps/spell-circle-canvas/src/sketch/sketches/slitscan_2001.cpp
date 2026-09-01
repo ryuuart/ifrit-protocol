@@ -1140,19 +1140,36 @@ struct SlitScan2001 : sketch::Sketch {
         .child(hud(fmt("FRAME %06lld · 24 fps · %d STAMPS/WALL · kPLUS", filmNo,
                        kKDisplay),
                    -1, 10, 10, -1, al(kTick, 0.9f)))
-        .child(hud(fmt("MACHINE TIME %lld h %02lld m  @ 2880 : 1%s", mh, mm,
-                       everClamped ? "  *" : ""),
-                   10, -1, -1, 30, al(kTick, 0.95f)))
-        .child(hud("2.20 : 1 · 65 mm 5-PERF · f/1.8", -1, -1, 10, 30,
-                   al(kTick, 0.95f)))
-        .child(hud("THE FRAME IS HELD, NOT TWEENED. addFixed’s INTERPOLANT "
-                   "DRIVES THE SHUTTER BAR AND NOTHING IN THE PICTURE.",
-                   10, -1, -1, 18, al(kTick, 0.8f)))
-        .child(hud("THE SWEEP BEGINS 5 px FROM THE VANISHING POINT = 15 FEET "
-                   "FROM THE LENS, AND ENDS AT 600 px = 1½ INCHES · THE "
-                   "FRAME IS THE SCAN, 120 : 1, DRAWN TO ITS OWN SCALE — "
-                   "THE 5 px HOLE AT THE APEX IS THAT FAR LIMIT, VISIBLE",
-                   10, -1, -1, 6, al(kType2, 0.95f)));
+        // The footer is ONE bottom-anchored column, not four absolute rows.
+        // Two of these lines are long enough to wrap at this measure, and a
+        // row placed by its own bottom offset grows upward into the row above
+        // it — the stack has to own the spacing for the wrap to be safe.
+        .child(box()
+                   .absolute()
+                   .left(Dim(10))
+                   .right(Dim(10))
+                   .bottom(Dim(6))
+                   .column()
+                   .gap(2)
+                   .child(box()
+                              .row()
+                              .justify(Justify::SpaceBetween)
+                              .child(t(fmt("MACHINE TIME %lld h %02lld m  @ "
+                                           "2880 : 1%s",
+                                           mh, mm, everClamped ? "  *" : ""),
+                                       mono(8, al(kTick, 0.95f), 0.6f)))
+                              .child(t("2.20 : 1 · 65 mm 5-PERF · f/1.8",
+                                       mono(8, al(kTick, 0.95f), 0.6f))))
+                   .child(t("THE FRAME IS HELD, NOT TWEENED. addFixed’s "
+                            "INTERPOLANT DRIVES THE SHUTTER BAR AND NOTHING "
+                            "IN THE PICTURE.",
+                            mono(8, al(kTick, 0.8f), 0.6f)))
+                   .child(t("THE SWEEP BEGINS 5 px FROM THE VANISHING POINT = "
+                            "15 FEET FROM THE LENS, AND ENDS AT 600 px = 1½ "
+                            "INCHES · THE FRAME IS THE SCAN, 120 : 1, DRAWN "
+                            "TO ITS OWN SCALE — THE 5 px HOLE AT THE APEX IS "
+                            "THAT FAR LIMIT, VISIBLE",
+                            mono(8, al(kType2, 0.95f), 0.6f))));
   }
 
   // ------------------------------------------------------------- the rig

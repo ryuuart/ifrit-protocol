@@ -1997,6 +1997,11 @@ struct SigillumAemeth : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
     ctx.canvas(kW, kH);
     ctx.background(kVitrine);
+    // The plate is the finished object, and this piece arrives in stages: the
+    // last Name is solved at tSolve + 7 tSolveEach, the birds' square lands
+    // 2.6 s after tBirds, and the rings start turning at tSpin. Only the
+    // window between the two shows every part of it at once.
+    ctx.captureAt(14.0);
 
     auto family = [&](const char* name, SkFontStyle st) -> sk_sp<SkTypeface> {
       if (!ctx.fonts || !ctx.fonts->fontManager()) return nullptr;

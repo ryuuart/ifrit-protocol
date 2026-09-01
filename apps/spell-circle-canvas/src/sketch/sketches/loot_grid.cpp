@@ -428,7 +428,9 @@ struct LootGrid final : sketch::Sketch {
   }
 
   // Where the dragged shield rests: over the wand+gloves (blocked), then
-  // over the empty right-hand column (free).
+  // clear of the hoard (free). The free pose is BELOW the grid because the
+  // hoard has no free 2x3 anywhere in it — every gap left is one or two
+  // cells wide.
   static constexpr int kDragW = 2, kDragH = 3;
   static SkPoint blockedAt() { return {loot::cellX(4), loot::cellY(1)}; }
   static SkPoint freeAt() { return {loot::cellX(2) + 4, loot::cellY(4) + 8}; }
@@ -625,15 +627,21 @@ struct LootGrid final : sketch::Sketch {
     };
     // D2's footprints: helm 2x2, amulet 1x1, armour 2x3, weapon 2x4,
     // shield 2x4, belt 2x1, rings 1x1, gloves 2x2, boots 2x2.
+    //
+    // The belt row is the tightest one and it fixes every x below: five
+    // sockets — weapon, ring, belt, ring, shield — are 78+38+78+38+78 = 310
+    // px of the 350 between the outer two, so the four gutters are 10 px
+    // each and nothing on the row is free to move. The helm and armour share
+    // the belt's column, and the amulet shares the right ring's.
     static const Slot kSlots[] = {
-        {"HELM", lt::Art::Helm, 160, 0, 2, 2},
-        {"AMULET", lt::Art::Amulet, 262, 20, 1, 1},
+        {"HELM", lt::Art::Helm, 148, 0, 2, 2},
+        {"AMULET", lt::Art::Amulet, 236, 20, 1, 1},
         {"WEAPON", lt::Art::Sword, 12, 92, 2, 4},
-        {"ARMOUR", lt::Art::Armour, 160, 92, 2, 3},
+        {"ARMOUR", lt::Art::Armour, 148, 92, 2, 3},
         {"SHIELD", lt::Art::Shield, 284, 92, 2, 4},
-        {"RING", lt::Art::Ring, 112, 216, 1, 1},
-        {"BELT", lt::Art::Belt, 160, 216, 2, 1},
-        {"RING", lt::Art::Ring, 262, 216, 1, 1},
+        {"RING", lt::Art::Ring, 100, 216, 1, 1},
+        {"BELT", lt::Art::Belt, 148, 216, 2, 1},
+        {"RING", lt::Art::Ring, 236, 216, 1, 1},
         {"GLOVES", lt::Art::Gloves, 12, 262, 2, 2},
         {"BOOTS", lt::Art::Boots, 284, 262, 2, 2},
     };

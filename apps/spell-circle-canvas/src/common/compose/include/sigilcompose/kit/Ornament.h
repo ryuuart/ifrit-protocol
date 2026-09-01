@@ -365,14 +365,20 @@ inline sk_sp<SkImage> makeCarvedFrame(const Palette& pal, int size = 96) {
   return surface->makeImageSnapshot();
 }
 
-/** The carved frame as a nine-slice decoration for any box size. */
+/** The carved frame as a nine-slice decoration for any box size. @p density
+ *  is the texture's pixels per layout unit: makeCarvedFrame's default 96 is
+ *  the frame at its on-page size, so a texture generated at 192 to stay sharp
+ *  on a 2x device passes 2 and its band stays the width the padding around it
+ *  was measured against. */
 inline Slice carvedFrameSlice(
-    const std::shared_ptr<const sigil::image::ImageAsset>& asset) {
+    const std::shared_ptr<const sigil::image::ImageAsset>& asset,
+    float density = 1.0f) {
   Slice nine;
   nine.asset = asset;
   const int size = asset ? asset->width() : 96;
   nine.xDivs = {size / 3, size * 2 / 3};
   nine.yDivs = {size / 3, size * 2 / 3};
+  nine.density = density;
   return nine;
 }
 

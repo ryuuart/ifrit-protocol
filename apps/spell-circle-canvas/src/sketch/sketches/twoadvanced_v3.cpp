@@ -182,7 +182,11 @@ constexpr float kStageX = 300, kStageW = 1320;
 constexpr float kArtY = 217, kArtH = 398;  // the home art band
 constexpr float kModY = 645;               // three-module row
 constexpr float kModH = 252;               // bodies end on the divider band
-constexpr float kRowY = 959, kRowH = 73;   // mailing/support/follow row
+// The support module's right column runs to three lines of copy where its
+// left one runs to two, and its call-to-action is pinned to the panel floor:
+// the row has to be tall enough for the LONGER column or the third line and
+// the button share a baseline.
+constexpr float kRowY = 941, kRowH = 91;           // mailing/support/follow row
 constexpr float kPanelW = (kStageW - 2 * 10) / 3;  // 433⅓ — three across
 
 /** The 45°-cut corner rect: `mask` selects which corners are cut. */

@@ -1462,8 +1462,15 @@ struct Fallout2CharSheet : sketch::Sketch {
     for (int i = 0; i < 3; ++i) {
       Element p = raised(plaques[i], 3.0f);
       p.justify(Justify::Center).alignItems(Align::Center);
-      p.child(engravedText(plaqueText[i], n(26.0f), kGold, engravedCondense(),
-                           0.6f));
+      // A 26-unit run does not fit a 26-unit plaque: its line box is the caps
+      // plus a rise above and a descent below that no capital uses, so it
+      // overflows, pins to the top, and lands its caps on the lower bevel
+      // with the whole leftover above them. Lifting the run by a third of
+      // that rise puts the CAPS' own band in the middle of the plaque, which
+      // is the only band on a run of capitals anyone reads as centred.
+      p.child(
+          engravedText(plaqueText[i], n(26.0f), kGold, engravedCondense(), 0.6f)
+              .margin(0, -engravedRise(n(26.0f)) / 3.0f, 0, 0));
       g.child(p);
     }
 
