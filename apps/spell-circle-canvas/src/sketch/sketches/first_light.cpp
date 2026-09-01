@@ -9,11 +9,13 @@
  */
 
 #include <sigilgeometry/mesh/curve/Curve.h>
+#include <sigilgeometry/mesh/curve/Pose.h>
 #include <sigilgeometry/mesh/pop/Pop.h>
 #include <sigilsketch/set/Set.h>
 #include <sigilworld/kit/Kit.h>
 
 #include <cmath>
+#include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
 #include <memory>
 #include <vector>
@@ -100,12 +102,22 @@ struct FirstLight final : sketch::Set {
 
     const std::vector<glm::vec3> path = loop.sampleArcLength(96);
     const float head = std::fmod(seconds * 0.35f, 1.0f);
+    const float travelled = seconds * 0.06f * track.length();
+    // Where the lens stands: its node carries it, so the pose the rail
+    // puts that node in at the distance it has travelled IS the eye.
+    const glm::vec3 eye = gm::curve::poseAlong(track, travelled).position;
+    // What stands at every point of the comet is a FLAKE, and a flat
+    // body reads as the bead it draws only while it faces the viewer —
+    // so the direction lane the loop seeded with its tangent is
+    // replaced by the gaze, and the square covers the area the bead's
+    // disc did.
     const Chain comet =
         gm::pop::on(path)
             .count(1200)
             .spread(13.0f)
             .vary(0.5f, 1.0f)
-            .fade({1.0f, 0.72f, 0.35f, 1.0f}, {0.25f, 0.55f, 1.0f, 1.0f});
+            .fade({1.0f, 0.72f, 0.35f, 1.0f}, {0.25f, 0.55f, 1.0f, 1.0f})
+            .lookAt(eye);
 
     // The camera's node rides the rail, so its eye and its target are
     // written in the rail's own moving frame: the binormal points inward
@@ -115,7 +127,6 @@ struct FirstLight final : sketch::Set {
     lens.eye = {0.0f, 0.0f, 0.0f};
     lens.target = {kRailRadius, -kRailHeight, 0.0f};
     lens.fovYDeg = 44.0f;
-    const float travelled = seconds * 0.06f * track.length();
 
     return Element()
         .key("set")
@@ -142,7 +153,7 @@ struct FirstLight final : sketch::Set {
         .child(Element()
                    .key("comet")
                    .chain(comet)
-                   .stamp(gm::superellipsoid({4.0f, 4.0f, 4.0f}, 2.0f, 10, 8))
+                   .stamp(gm::quad(7.0f, 7.0f))
                    .window(head, 0.28f)
                    .fill(paint({0.95f, 0.75f, 0.42f, 1.0f}))
                    .tag("glow"));

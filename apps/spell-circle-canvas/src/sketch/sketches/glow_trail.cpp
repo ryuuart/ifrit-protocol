@@ -20,6 +20,7 @@
 #include <sigilsketch/set/Set.h>
 
 #include <cmath>
+#include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
 #include <memory>
 #include <string>
@@ -39,6 +40,9 @@ namespace gm = ::sigil::geometry::mesh;
 constexpr float kTwoPi = 6.283185307179586f;
 constexpr int kPosts = 16;
 constexpr float kRing = 190.0f;
+/** Where the set is watched from. The comet's flakes are turned onto it,
+ *  so the same point is both the lens's station and their gaze. */
+constexpr glm::vec3 kEye{0.0f, 250.0f, 560.0f};
 
 struct Paint {
   glm::vec4 baseColor{1, 1, 1, 1};
@@ -82,12 +86,17 @@ Element set(float seconds) {
   const Spline3 rail = loop();
   const std::vector<glm::vec3> path = rail.sampleArcLength(96);
   const float head = std::fmod(seconds * 0.42f, 1.0f);
+  // What stands at every point is a FLAKE, and a flat body reads as the
+  // bead it draws only while it faces the viewer — so the direction lane
+  // the loop seeded with its tangent is replaced by the gaze, and the
+  // square covers the area the bead's disc did.
   const Chain comet =
       gm::pop::on(path)
           .count(600)
           .spread(7.0f)
           .vary(0.6f, 1.0f)
-          .fade({1.0f, 0.78f, 0.38f, 1.0f}, {1.0f, 0.42f, 0.16f, 1.0f});
+          .fade({1.0f, 0.78f, 0.38f, 1.0f}, {1.0f, 0.42f, 0.16f, 1.0f})
+          .lookAt(kEye);
 
   Element root;
   root.key("set")
@@ -119,7 +128,7 @@ Element set(float seconds) {
   root.child(Element()
                  .key("comet")
                  .chain(comet)
-                 .stamp(gm::superellipsoid({5.0f, 5.0f, 5.0f}, 2.0f, 8, 6))
+                 .stamp(gm::quad(8.9f, 8.9f))
                  .window(head, 0.22f)
                  .fill(paint({1.0f, 0.72f, 0.34f, 1.0f}))
                  .tag("glow"));
@@ -136,7 +145,7 @@ struct GlowTrail final : sketch::Set {
     ctx.background({0.03f, 0.035f, 0.05f, 1.0f});
     ctx.captureAt(1.3);
     world::Camera lens;
-    lens.eye = {0.0f, 250.0f, 560.0f};
+    lens.eye = kEye;
     lens.target = {0.0f, -30.0f, 0.0f};
     lens.fovYDeg = 42.0f;
     ctx.camera(lens);
