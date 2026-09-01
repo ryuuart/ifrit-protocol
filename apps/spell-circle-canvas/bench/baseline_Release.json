@@ -1,8 +1,8 @@
 {
  "config": "Release",
- "host": "sigil.local",
+ "host": "MacBookPro.control",
  "machine": "arm64",
- "taken": "2026-08-31T19:29:58+00:00",
+ "taken": "2026-09-01T01:31:00+00:00",
  "benches": {
   "compose_brush_bench": {
    "BM_Draw_Mask_Spans_Live/16": {
@@ -2854,104 +2854,6 @@
     "repetitions": 4
    }
   },
-  "shape_bench": {
-   "BM_PopCook_Plain/1000": {
-    "real_ns": 275952.0998444613,
-    "cpu_ns": 275940.9448818898,
-    "unit": "ns",
-    "repetitions": 4
-   },
-   "BM_PopCook_Plain/10000": {
-    "real_ns": 2786575.830541551,
-    "cpu_ns": 2785259.9999999944,
-    "unit": "ns",
-    "repetitions": 4
-   },
-   "BM_PopCook_Plain/100000": {
-    "real_ns": 27811633.283272386,
-    "cpu_ns": 27809399.999999985,
-    "unit": "ns",
-    "repetitions": 4
-   },
-   "BM_PopCook_MaskedAndDeformed/1000": {
-    "real_ns": 580953.1685673008,
-    "cpu_ns": 580907.0247933879,
-    "unit": "ns",
-    "repetitions": 4
-   },
-   "BM_PopCook_MaskedAndDeformed/10000": {
-    "real_ns": 5818458.351617058,
-    "cpu_ns": 5818104.166666672,
-    "unit": "ns",
-    "repetitions": 4
-   },
-   "BM_PopCook_MaskedAndDeformed/100000": {
-    "real_ns": 58268343.79695356,
-    "cpu_ns": 58268249.9999998,
-    "unit": "ns",
-    "repetitions": 4
-   },
-   "BM_PopCook_Relax/1000": {
-    "real_ns": 398117.72016533226,
-    "cpu_ns": 398119.31818181905,
-    "unit": "ns",
-    "repetitions": 4
-   },
-   "BM_PopCook_Relax/10000": {
-    "real_ns": 3990550.605314119,
-    "cpu_ns": 3990357.142857143,
-    "unit": "ns",
-    "repetitions": 4
-   },
-   "BM_PopCook_Relax/100000": {
-    "real_ns": 40073015.610687435,
-    "cpu_ns": 40050624.999999896,
-    "unit": "ns",
-    "repetitions": 4
-   },
-   "BM_PopCook_PointSetSeed/1000": {
-    "real_ns": 181237.289952259,
-    "cpu_ns": 181238.34196891123,
-    "unit": "ns",
-    "repetitions": 4
-   },
-   "BM_PopCook_PointSetSeed/10000": {
-    "real_ns": 1798236.106808942,
-    "cpu_ns": 1798205.1282051345,
-    "unit": "ns",
-    "repetitions": 4
-   },
-   "BM_PopCook_PointSetSeed/100000": {
-    "real_ns": 18022450.47292672,
-    "cpu_ns": 18021937.50000003,
-    "unit": "ns",
-    "repetitions": 4
-   },
-   "BM_PopSink_Stamps/1000": {
-    "real_ns": 369964.9472735704,
-    "cpu_ns": 369968.253968258,
-    "unit": "ns",
-    "repetitions": 4
-   },
-   "BM_PopSink_Stamps/10000": {
-    "real_ns": 3720445.1785471877,
-    "cpu_ns": 3719789.4736842196,
-    "unit": "ns",
-    "repetitions": 4
-   },
-   "BM_ImportGeo_Points/10000": {
-    "real_ns": 948714.7100878005,
-    "cpu_ns": 948615.6462585037,
-    "unit": "ns",
-    "repetitions": 4
-   },
-   "BM_ImportGeo_Points/100000": {
-    "real_ns": 9908629.448286124,
-    "cpu_ns": 9908464.285714315,
-    "unit": "ns",
-    "repetitions": 4
-   }
-  },
   "sigilcore_cache_bench": {
    "StillTree/64": {
     "real_ns": 284.8113406375393,
@@ -3862,26 +3764,6 @@
     "repetitions": 4
    }
   },
-  "world_bench": {
-   "BM_GpuCook_MaskedAndDeformed/10000": {
-    "real_ns": 405565.8223410114,
-    "cpu_ns": 77584.25275827461,
-    "unit": "ns",
-    "repetitions": 4
-   },
-   "BM_GpuCook_MaskedAndDeformed/100000": {
-    "real_ns": 1596906.4999371767,
-    "cpu_ns": 71583.49999999913,
-    "unit": "ns",
-    "repetitions": 4
-   },
-   "BM_GpuCook_MaskedAndDeformed/1000000": {
-    "real_ns": 12550481.740952652,
-    "cpu_ns": 115174.20977011329,
-    "unit": "ns",
-    "repetitions": 4
-   }
-  },
   "world_diligent_bench": {
    "BM_DeviceAdopt": {
     "real_ns": 289270.2964605098,
@@ -3890,8 +3772,8 @@
     "repetitions": 4
    },
    "BM_ProgramFromRecipeBody": {
-    "real_ns": 114901708.4389925,
-    "cpu_ns": 114904000.00000012,
+    "real_ns": 154741917.0383364,
+    "cpu_ns": 154732500.00000018,
     "unit": "ms",
     "repetitions": 4
    },
@@ -3901,17 +3783,23 @@
     "unit": "ms",
     "repetitions": 4
    },
-   "BM_ChainOnDevice/20000": {
-    "real_ns": 2562339.7976588244,
-    "cpu_ns": 1603160.9195402248,
+   "BM_ChainOnDevice/20000/repeats:9": {
+    "real_ns": 2611959.5585281355,
+    "cpu_ns": 1610941.1764705828,
     "unit": "ms",
-    "repetitions": 4
+    "repetitions": 8
    },
-   "BM_ChainOnDevice/200000": {
-    "real_ns": 17861954.146064818,
-    "cpu_ns": 15266649.999999914,
+   "BM_ChainOnDevice/200000/repeats:9": {
+    "real_ns": 18034179.136157036,
+    "cpu_ns": 15315350.000000019,
     "unit": "ms",
-    "repetitions": 4
+    "repetitions": 8
+   },
+   "BM_ChainOnDevice/1000000/repeats:9": {
+    "real_ns": 79621145.61814815,
+    "cpu_ns": 72374500.00000001,
+    "unit": "ms",
+    "repetitions": 8
    }
   },
   "world_element_bench": {

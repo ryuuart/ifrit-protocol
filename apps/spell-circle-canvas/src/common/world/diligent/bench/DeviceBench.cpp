@@ -11,7 +11,9 @@
  * slowly the more devices a process has already made, and the Slang
  * compiler's standard library, which a process loads once. Both are
  * measured outside every timed region and reported as COUNTERS, which
- * the ledger prints and never judges.
+ * the ledger never judges. The counters on the chain cook are there for
+ * the same reason from the other side: what the device schedules is
+ * reported beside the arm rather than judged inside it.
  */
 
 #include <benchmark/benchmark.h>
@@ -27,7 +29,9 @@
 #include <sigilworld/diligent/Runtime.h>
 #include <sigilworld/scene/Scene.h>
 
+#include <algorithm>
 #include <chrono>
+#include <limits>
 #include <memory>
 #include <string>
 #include <vector>
@@ -40,6 +44,12 @@ using namespace sigil;
 using namespace sigil::world;
 
 namespace {
+
+/** Repetitions for an arm whose cost the device schedules. The ledger
+ *  discards the first repetition and takes the median of the rest, so
+ *  what this buys is a median wide enough that one repetition the device
+ *  returned early cannot be it. */
+constexpr int kDeviceRepetitions = 9;
 
 /** THE WAY IN, less the driver: the Vulkan handles read off Diligent's
  *  interfaces, those handles and the loader entry point this process
@@ -193,7 +203,23 @@ BENCHMARK(BM_FrameOnDevice)->Unit(benchmark::kMillisecond);
 /** A CHAIN COOKED ON THE DEVICE, steady state: the generator's lanes
  *  uploaded, one dispatch per operator, and the one readback that brings
  *  every lane home. The readback is in the number on purpose — a cook
- *  whose answer nobody could read would not be a cook. */
+ *  whose answer nobody could read would not be a cook.
+ *
+ *  WHAT IS JUDGED IS THE MEAN COOK, over repetitions pinned here rather
+ *  than taken from the ledger's default. The device does not always make
+ *  a cook wait for the same thing: a repetition now and then returns a
+ *  multiple faster than the cost the arm reproduces, and a baseline that
+ *  adopted one of those would hold a number no later run can reach.
+ *  Enough repetitions that no single one can carry the median is the
+ *  cheapest defence, and the count is the arm's own property because the
+ *  reason for it is.
+ *
+ *  `cook_fastest_ms` and `cook_slowest_ms` are the residue: the shortest
+ *  and longest single cook inside a repetition, reported as counters and
+ *  never judged. A fastest far under the mean is the device answering
+ *  without having waited for the work, which is the thing that must not
+ *  win a median; the two counters make it visible in the run that
+ *  produced it rather than a mystery in the baseline. */
 void BM_ChainOnDevice(benchmark::State& state) {
   const diligent::DeviceConfig config;
   std::string error;
@@ -223,16 +249,29 @@ void BM_ChainOnDevice(benchmark::State& state) {
   // measured is every cook after it.
   gm::Cloud warm = gm::pop::cook(chain, runtime);
   benchmark::DoNotOptimize(warm);
+  double fastest = std::numeric_limits<double>::infinity();
+  double slowest = 0.0;
   for ([[maybe_unused]] auto iteration : state) {
+    const std::chrono::steady_clock::time_point started =
+        std::chrono::steady_clock::now();
     gm::Cloud cooked = gm::pop::cook(chain, runtime);
     benchmark::DoNotOptimize(cooked);
+    const double ms = std::chrono::duration<double, std::milli>(
+                          std::chrono::steady_clock::now() - started)
+                          .count();
+    fastest = std::min(fastest, ms);
+    slowest = std::max(slowest, ms);
   }
   state.counters["points/s"] = benchmark::Counter(
       (double)state.range(0), benchmark::Counter::kIsIterationInvariantRate);
+  state.counters["cook_fastest_ms"] = fastest;
+  state.counters["cook_slowest_ms"] = slowest;
 }
 BENCHMARK(BM_ChainOnDevice)
     ->Arg(20000)
     ->Arg(200000)
+    ->Arg(1000000)
+    ->Repetitions(kDeviceRepetitions)
     ->Unit(benchmark::kMillisecond);
 
 }  // namespace

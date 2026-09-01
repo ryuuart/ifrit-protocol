@@ -44,9 +44,15 @@ bench/baseline_<config>.json next to the scripts that read it, so a
 change that moves a number moves it in review. Numbers are per machine:
 a baseline taken on one host says nothing about another, and the file
 records the host it was taken on so a mismatch is visible. --rebase
-writes the file from this sweep; with --benches it MERGES the named
-benches into the existing baseline rather than truncating it to them,
-so adopting one deliberately changed bench never discards the rest.
+writes the file from this sweep, and A NARROWED SWEEP MERGES: with
+--benches it keeps the binaries it did not run, with --filter it keeps
+the arms of a binary it did not select, and with both it keeps both.
+Adopting one deliberately changed number never discards a number this
+run did not take — those would come back as `new`, judged against
+nothing, which is worse than the change being visible. The rebase says
+per binary how many arms it adopted and how many it kept. Only an
+unnarrowed sweep writes the file wholesale, which is what drops a
+benchmark that no longer exists.
 """
 
 import argparse
@@ -84,6 +90,13 @@ TOLERANCES = {
     # repaint, which is paced at a fixed cadence, so the figure moves by a
     # whole frame interval from one run to the next.
     r"^scry_engine_bench:BM_Page_ChangeLatency": 0.75,
+    # The smallest device cook is mostly the fixed cost of putting work on
+    # the device and taking the answer back, and the driver pays that in
+    # one of two states — the arm's median lands in one or the other, a
+    # quarter apart, on a machine doing nothing else. Its own band, not
+    # the benchmark's: the arms with ten and fifty times the points hold
+    # to a percent, and they are where a change to the cook shows.
+    r"^world_diligent_bench:BM_ChainOnDevice/20000/": 0.35,
 }
 
 TIME_UNITS = {"ns": 1.0, "us": 1e3, "ms": 1e6, "s": 1e9}
@@ -187,8 +200,22 @@ def load_baseline(path):
 
 
 def write_baseline(path, config, results, merge_into):
-    benches = dict(merge_into.get("benches", {})) if merge_into else {}
-    benches.update(results)
+    """The baseline, from this sweep and — when it was a subset — what
+    the baseline already held.
+
+    A SUBSET IS A SUBSET AT EVERY LEVEL. --benches names some binaries
+    and --filter names some arms inside them, and either way what was
+    not measured has to survive: adopting one deliberately changed arm
+    must not drop the arms this run never ran, which would leave them
+    unjudged until someone noticed them reported as new. So the merge
+    is per arm, not per binary. Pass merge_into=None for a whole sweep,
+    which is the one run entitled to write the file wholesale and thereby
+    to drop what no longer exists."""
+    benches = {
+        name: dict(rows) for name, rows in (merge_into or {}).get("benches", {}).items()
+    }
+    for name, rows in results.items():
+        benches.setdefault(name, {}).update(rows)
     doc = {
         "config": config,
         "host": platform.node(),
@@ -264,8 +291,10 @@ def main():
     ap.add_argument(
         "--rebase",
         action="store_true",
-        help="write the baseline from this sweep (merging when --benches "
-        "names a subset)",
+        help="write the baseline from this sweep. A narrowed sweep merges: "
+        "--benches keeps the binaries it did not run and --filter keeps "
+        "the arms it did not select, so only an unnarrowed rebase "
+        "rewrites the file wholesale",
     )
     args = ap.parse_args()
 
@@ -339,11 +368,14 @@ def main():
                 f"\nno baseline at {baseline_path} — writing one (this sweep "
                 f"becomes the baseline)"
             )
+        # A sweep narrowed by binary OR by arm merges into what is already
+        # there; only an unnarrowed sweep writes the file wholesale.
+        subset = bool(args.benches or args.filter)
         doc = write_baseline(
             baseline_path,
             args.config,
             results,
-            baseline if args.benches else None,
+            baseline if subset else None,
         )
         print(
             f"\nbaseline written: {baseline_path} "
@@ -352,6 +384,18 @@ def main():
         for name in sorted(results):
             for key, row in results[name].items():
                 print(f"  {name}:{key:<58} {fmt_time(row['real_ns'])}")
+        if subset:
+            # What a filtered rebase kept, said out loud: the arms this
+            # run never measured are the ones a merge exists to protect,
+            # and the count is where a reader sees that it did.
+            for name in sorted(results):
+                written = len(doc["benches"][name])
+                adopted = len(results[name])
+                print(
+                    f"  merged {adopted} of {written} arms in {name}; "
+                    f"{written - adopted} kept at the value the baseline "
+                    f"already held"
+                )
         return 1 if errors else 0
 
     if baseline.get("host") and baseline["host"] != platform.node():

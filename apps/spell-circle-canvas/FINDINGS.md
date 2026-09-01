@@ -31,22 +31,3 @@ rather than a substitution.
 
 **What a test should assert.** The plate ledger's full tier,
 byte-identical, per file, and its quick tier within its ceilings.
-
-## A filtered rebase drops the arms it did not measure
-
-**What it does.** `scripts/bench_ledger.py --rebase` with `--filter`
-writes the baseline entry for each named binary from the sweep it just
-took, and a filtered sweep took only the arms the filter selected. The
-binary's other arms are therefore not written, and a baseline that had
-thirty-two arms for `geometry_mesh_curve_bench` comes back with the
-sixteen the filter named. The next unfiltered run reports the other
-sixteen as `new` and judges nothing.
-
-**What it was evidently intended to do.** `--rebase` already merges when
-`--benches` names a subset of the binaries, so the same posture for a
-subset of the ARMS is what a reader expects: adopt what was measured,
-leave what was not.
-
-**What a test should assert.** A rebase under a filter that selects one
-arm leaves every other arm of that binary at the value it had, and a
-judging run afterwards reports none of them as new.

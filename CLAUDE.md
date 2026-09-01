@@ -150,15 +150,25 @@ Sanitizer runs go through `scripts/sanitize.py`: ASan+UBSan by default
 (`build-asan/`), the TSan lane with `--thread` (`build-tsan/`);
 `--filter`/`--targets`/`--config` work as in `coverage.py`, and both
 orchestrators share `scripts/buildtree.py` for preset resolution and the
-shared-vcpkg configure. The runtimes ship with Clang — no new
-dependencies. UBSan findings abort rather than scroll past, so a finding
+shared-vcpkg configure. A lane deletes its own tree once the tests have
+had their verdict, pass or fail, and refuses to start while the other
+lane's tree stands, so the two never share the machine; `--keep` holds a
+tree for a debugger at the price of removing it by hand before the other
+lane can run. A configure or build failure leaves the tree standing —
+only a finished ctest run makes it disposable. The runtimes ship with
+Clang — no new dependencies. UBSan findings abort rather than scroll past, so a finding
 fails its test. vcpkg archives are uninstrumented, which is why
 container-overflow checking is disabled at runtime and the address lane
 pins Abseil's table layout and Skia's array layout to agree with the
 prebuilt archives (a header that grows a member under instrumentation
 moves every field behind it, and half of those accessors are inline);
-LeakSanitizer is unsupported on Apple Silicon and disabled. The TSan
-lane runs `scry_test`'s web-thread handoffs, though the Ultralight
+LeakSanitizer is unsupported on Apple Silicon and disabled. The thread
+lane meets the same boundary from the other side: a dependency whose
+headers this tree instantiates is watched in half — its accesses
+visible, the ordering compiled into its archive not — so it gets an
+entry in `ThreadSanitizerSuppressions.txt`, which states per dependency
+why the ordering is real and holds nothing of this repository's own. The
+TSan lane runs `scry_test`'s web-thread handoffs, though the Ultralight
 dylibs themselves are uninstrumented.
 
 API documentation is a Doxygen site per library, built with `cmake
@@ -198,20 +208,26 @@ Pointed at a file with no `--headless`, Sketchbook opens on it and
 hot-swaps the recompiled sketch on every save; `--frame out.png` renders
 one headlessly and `--bench` measures it against the 60 FPS gate.
 
-Byte-identity sweeps run through `scripts/plate_ledger.py` in four tiers,
-each with its own baseline and all through that one binary. `--tier
-quick` is the iteration loop — GPU renders at a uniform early capture,
-seconds for the whole registry. The default full tier steps every canvas
-sketch to its declared moment on the CPU and is the final confirmation
-gate before trusting a change; one legitimately expensive sketch
-(`chaucer_astrolabe`) has its own timeout ceiling in the script's
-override table there. `--tier world` does the same for the sketches that
-light a set, and `--tier world-gpu` renders those on the device and
-compares them against the CPU tier's plates within a stated per-sketch
-tolerance rather than by hash. `--rebase` adopts a new baseline for the
-active tier (merging when given `--scenes`), and `--stability N`
-separates sketch flap from code changes. `--fps-gate` is a separate
-serial lane over either kind.
+Plate sweeps run through `scripts/plate_ledger.py` in four tiers, each
+with its own baseline and all through that one binary. The two that
+rasterise on the CPU are judged on byte identity, the two that rasterise
+on a device within stated per-channel ceilings — a device plate is not a
+function of the drawing code alone. `--tier quick` is the iteration loop
+— GPU renders at a uniform early capture, seconds for the whole
+registry; its baseline keeps the plates beside the hash manifest, and a
+hash miss is decoded and compared per colour channel rather than
+reported, because two builds of the host render the same sketch a
+scatter of channels apart. The default full tier steps every canvas
+sketch to its declared moment on the CPU and is the byte-identity gate,
+the final confirmation before trusting a change; one legitimately
+expensive sketch (`chaucer_astrolabe`) has its own timeout ceiling in
+the script's override table there. `--tier world` does the same for the
+sketches that light a set, and `--tier world-gpu` renders those on the
+device and compares them against the CPU tier's plates within a stated
+per-sketch tolerance. `--rebase` adopts a new baseline for the active
+tier (merging when given `--scenes`, and writing the quick tier's plates
+beside its manifest), and `--stability N` separates sketch flap from
+code changes. `--fps-gate` is a separate serial lane over either kind.
 
 ## Layout
 

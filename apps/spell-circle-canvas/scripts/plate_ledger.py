@@ -1,11 +1,17 @@
 #!/usr/bin/env python3
-"""The plate ledger, as ONE command: parallel byte-identity sweeps.
+"""The plate ledger, as ONE command: parallel plate sweeps.
 
 Renders every sketch through `Sketchbook --headless --ledger` (the
 benchmark-free exact-stepped capture), N at a time, hashes the plates,
 and compares against a stored baseline manifest. One binary renders
 every tier; what separates them is which runtime a sketch draws through
 and what capture the flags ask for.
+
+BYTE IDENTITY IS THE BAR ON THE TIERS THAT RASTERISE ON THE CPU — full
+and world, the ones a verdict is trusted from. The two device tiers are
+judged per colour channel within stated ceilings instead, for the same
+reason in both: a device plate is not a function of the drawing code
+alone.
 
 Usage (from apps/spell-circle-canvas):
   scripts/plate_ledger.py --rebase          # bake the baseline manifest
@@ -30,19 +36,52 @@ FOUR VERIFICATION TIERS (--tier):
   late declared moments frame by frame on the CPU; the cap removes
   exactly that cost, which is what makes this the iteration loop. The
   cap is an OVERRIDE, not a minimum — a scene that declared an earlier
-  moment renders at the cap time too — so quick hashes are not
+  moment renders at the cap time too — so quick plates are not
   comparable to full ones and live in their own baseline,
   build/plate_baseline_quick_<config>.sha256, maintained by
   `--tier quick --rebase` (same subset-merge semantics as the full
   manifest). Stated blind spots, printed on every quick report: content
   that only appears after the cap is never hashed, and the backend is
-  the GPU raster path rather than the full tier's CPU path. A THIRD
-  blind spot, measured: the device path is a function of the scene AND
-  of the binary — two executables built from the same drawing code
-  produce plates that differ in a few hundred colour channels out of
-  nine million, stably, while the CPU tier is byte-identical. So quick
-  answers "did I move any bytes I didn't mean to?" during iteration,
-  and the full tier answers it authoritatively at the end.
+  the GPU raster path rather than the full tier's CPU path.
+
+  QUICK IS JUDGED WITHIN A TOLERANCE, not on byte identity, because the
+  device path is a function of the scene AND of the binary: two
+  executables built from the same drawing code render plates that
+  disagree in a few hundred colour channels out of ten million, in a
+  scatter across the frame, none of them off by more than a tenth of the
+  range. That is stable — a plate is reproducible across processes, across
+  the order scenes render in, and across repeated runs — so a hash is
+  still the right first question, and it is the fast one: an equal
+  sha256 is an equal plate and the scene is done. A MISS is where the
+  tolerance lives. Both PNGs are decoded and compared per colour
+  channel, and the same three numbers the world-gpu tier reports are
+  taken: mean and p99 are judged, max is reported.
+
+  THE CEILINGS, per colour channel in 0..255 over every pixel:
+  QUICK_TOLERANCE below, mean 0.005 and p99 0. They are set from what
+  separates the two things a miss can be. The device's own scatter
+  spends some thousands of channel-levels over a whole frame; the smallest
+  change to a picture that anyone would call a change — one glyph, one
+  hairline moved by a pixel — spends tens of thousands, so a mean
+  ceiling in between separates them with room on both sides. p99 0 says
+  the disagreement must be a SCATTER: ninety-nine channels in a hundred
+  identical, not a mild drift everywhere. Erring tight is the safe
+  direction — a ceiling too tight reports a mover the full tier then
+  clears, which is exactly what a hash alone did; a ceiling too loose
+  hides one.
+
+  THE QUICK BASELINE THEREFORE KEEPS ITS PLATES, in
+  build/plate_baseline_quick_<config>.plates/ beside the manifest, one
+  PNG per scene, written by `--tier quick --rebase`. The reference a
+  miss is judged against was rendered by a DIFFERENT executable, and
+  that executable is gone the moment the tree is rebuilt — re-rendering
+  the reference on demand would render it with the binary under test and
+  answer every question with "identical". A manifest with no plate store
+  beside it still runs: a miss is reported as a mover that could not be
+  judged, and `--rebase` fills the store.
+
+  So quick answers "did I move any bytes I didn't mean to?" during
+  iteration, and the full tier answers it authoritatively at the end.
 
   world — the 3D studies: the sketches that light a set rather than draw
   onto a canvas. Each is stepped from zero to its declared moment
@@ -233,6 +272,16 @@ GPU_TOLERANCE = {
     "key_light": (3.0, 32),
 }
 
+# HOW FAR A QUICK PLATE MAY STAND FROM THE BASELINE PLATE OF THE SAME
+# SCENE: (mean, p99) per colour channel in 0..255, one pair for every
+# scene. The device disagrees with itself between two builds of the host
+# in a scatter of a few hundred channels, each off by a fraction of a
+# level; a change to what a scene draws costs an order more than that in
+# the mean and stops being a scatter. One pair rather than a table per
+# scene, because what is being bounded is the device's behaviour and not
+# any scene's picture.
+QUICK_TOLERANCE = (0.005, 0)
+
 # Scenes whose honest render exceeds the default ceiling. chaucer_astrolabe
 # declares its capture moment at 23 s into an animation whose every frame
 # rasterizes a full-canvas noise shader on the CPU (the ledger's own
@@ -375,6 +424,44 @@ def channel_distance(reference, candidate):
         if p99 is None and seen >= cut:
             p99 = value
     return total / count, p99 or 0, worst
+
+
+def judge_quick(store, rendered_dir, scene):
+    """Is one quick-tier hash miss the device's scatter or a moved picture?
+
+    Returns (within, report): True with the three per-channel numbers when
+    the plate stands inside QUICK_TOLERANCE, False with them when it does
+    not, and None when the baseline plate this needs was never stored —
+    an unjudgeable miss, which is a finding until a rebase fills the
+    store."""
+    reference = os.path.join(store, f"{PLATE_PREFIX}{scene}.png")
+    candidate = os.path.join(rendered_dir, f"{PLATE_PREFIX}{scene}.png")
+    if not os.path.exists(reference):
+        return None, "no baseline plate stored for it (--tier quick --rebase)"
+    measured = channel_distance(reference, candidate)
+    if measured is None:
+        return False, "it is not the size the baseline plate is"
+    mean, p99, worst = measured
+    mean_cap, p99_cap = QUICK_TOLERANCE
+    return mean <= mean_cap and p99 <= p99_cap, (
+        f"mean {mean:.4f} (<= {mean_cap:g})  p99 {p99:d} (<= {p99_cap})  max {worst:d}"
+    )
+
+
+def store_quick_plates(store, rendered_dir, scenes, whole_registry):
+    """The plates a rebased quick baseline is judged against.
+
+    A whole-registry rebase re-makes the store, so a plate for a scene
+    that has left the registry cannot linger; a subset rebase replaces
+    only the scenes it rendered, which is the manifest's merge rule
+    applied to the pictures."""
+    if whole_registry and os.path.isdir(store):
+        shutil.rmtree(store)
+    os.makedirs(store, exist_ok=True)
+    for scene in scenes:
+        plate = f"{PLATE_PREFIX}{scene}.png"
+        shutil.copyfile(os.path.join(rendered_dir, plate), os.path.join(store, plate))
+    print(f"baseline plates written: {store} ({len(scenes)} plates)")
 
 
 def discard_later(directory):
@@ -569,8 +656,10 @@ def main():
         help="verification tier. full (default): CPU renders to "
         "each scene's declared capture moment — the final "
         "confirmation gate. quick: GPU renders with a "
-        "uniform capture-time cap, compared against the "
-        "separate quick baseline — the iteration loop. world: "
+        "uniform capture-time cap, hashed against the separate "
+        "quick baseline and, on a miss, judged per colour "
+        "channel against its stored plate — the iteration "
+        "loop. world: "
         "the 3D studies, stepped to their declared moments on "
         "the CPU mesh executor, against their own baseline. "
         "Each tier has its own baseline and they are never "
@@ -590,7 +679,8 @@ def main():
         "--rebase",
         action="store_true",
         help="write the manifest from this sweep (tier-specific: "
-        "--tier quick --rebase writes the quick baseline)",
+        "--tier quick --rebase writes the quick baseline, and the "
+        "plates beside it that a hash miss is judged against)",
     )
     ap.add_argument(
         "--stability",
@@ -656,6 +746,12 @@ def main():
     manifest = os.path.join(
         root, "build", f"plate_baseline{tier_tag}_{args.config}.sha256"
     )
+    # The quick tier judges a hash miss by decoding the two plates, so its
+    # baseline keeps the pictures the manifest names beside it. The tiers
+    # judged on the hash alone need no such store.
+    plate_store = os.path.join(
+        root, "build", f"plate_baseline{tier_tag}_{args.config}.plates"
+    )
     if not os.path.exists(binary):
         sys.exit(f"no binary at {binary} — build the {args.tier} tier's renderer first")
 
@@ -707,11 +803,15 @@ def main():
     if quick:
         print(
             f"QUICK TIER: GPU renders (--gpu --no-promotion), capture "
-            f"capped at {args.capture_cap:g}s. Blind spots: content that "
-            f"only appears after the cap is never hashed, and the backend "
-            f"is the GPU raster path, not the full tier's CPU path. Run "
-            f"the full tier as the final gate before trusting a "
-            f"byte-neutral verdict."
+            f"capped at {args.capture_cap:g}s. An equal hash is an equal "
+            f"plate; a miss is decoded and judged against the stored "
+            f"baseline plate within mean {QUICK_TOLERANCE[0]:g} / p99 "
+            f"{QUICK_TOLERANCE[1]} per colour channel, because two builds "
+            f"of the host render the same scene a scatter of channels "
+            f"apart. Blind spots: content that only appears after the cap "
+            f"is never rendered, and the backend is the GPU raster path, "
+            f"not the full tier's CPU path. Run the full tier as the final "
+            f"gate before trusting a byte-neutral verdict."
         )
 
     outdir = discard_later(tempfile.mkdtemp(prefix="plate_ledger_"))
@@ -755,6 +855,8 @@ def main():
             f"baseline written: {manifest} ({len(merged)} scenes, "
             f"{len(results)} from this sweep)"
         )
+        if quick and results:
+            store_quick_plates(plate_store, outdir, results, not args.scenes)
         return 0 if not errors else 1
 
     baseline = {}
@@ -770,12 +872,24 @@ def main():
             movers.append(scene)
     identical = len(results) - len(movers) - len(missing)
     print(
-        f"\n{identical} byte-identical, {len(movers)} moved, "
+        f"\n{identical} byte-identical, {len(movers)} with a moved hash, "
         f"{len(missing)} not in baseline, {len(errors)} failed"
     )
 
     verdict = 0
     for scene in movers:
+        note = ""
+        if quick:
+            # The hash has already said these two plates are not the same
+            # bytes; what is left is whether they are the same picture.
+            within, report = judge_quick(plate_store, outdir, scene)
+            if within:
+                print(
+                    f"  WITHIN {scene:<24} {report} — the device's own "
+                    f"scatter between two builds"
+                )
+                continue
+            note = f"  ({report})"
         if args.stability > 0:
             rerenders = {results[scene]}
             for _ in range(args.stability):
@@ -798,13 +912,17 @@ def main():
                 continue
         print(
             f"  MOVED  {scene}  {baseline[scene][:12]} -> "
-            f"{results[scene][:12]}   <-- FINDING"
+            f"{results[scene][:12]}{note}   <-- FINDING"
         )
         verdict = 1
     for scene in missing:
         print(f"  NEW    {scene} (not in baseline — rebase to adopt)")
     if verdict == 0 and not errors:
-        print("VERDICT: byte-neutral")
+        print(
+            "VERDICT: no plate moved beyond the device's own scatter"
+            if quick
+            else "VERDICT: byte-neutral"
+        )
     return verdict or (1 if errors else 0)
 
 
