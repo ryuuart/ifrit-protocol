@@ -565,16 +565,24 @@ has:
   softened and dimmed; and that is laid over its own output from the
   frame before, so the comet drags a tail no single frame contains. Six
   passes, no stated order, and three of its surfaces are taken in turns.
-- **`material_lab`** — what a surface is made of. Five cards over a
-  floor wearing a texture set: one plain, one a STACK of two through a
-  mask, one glass, one emissive, and one wearing a map of its own. What
-  reaches the pixels is each surface's base colour and its base-colour
-  map, so the stack reads as the surface at the bottom of it — the
-  honest picture of what this library shades today, and the plate moves
-  the day that changes. The texture set is GENERATED in the study rather
-  than read off the disk, through the same `textures::` door a scanned
-  folder arrives by: a plate is a function of the declaration, and what a
-  machine happens to have under `build/assets` is not.
+- **`material_lab`** — what a surface is made of, and the difference
+  between the tiers. Five curved cards over a floor wearing a texture
+  set: one plain, one a STACK of two through a mask, one wearing a normal
+  map, one wearing a packed roughness-and-metallic map read at two
+  channels, and one that emits in a pattern. Every card is chosen because
+  the device SHADES it, so the device plate is what the params and the
+  maps say; the CPU plate is five flat colours and the floor's weave,
+  because that tier reads a base colour and a base-colour map and nothing
+  else. The cards are curved rather than flat, because a Blinn highlight
+  on a flat card is one value over the whole face and a card meant to
+  show a highlight narrowing has to present a range of normals to the
+  key. The turntable is PARKED: a lab is read rather than watched, so the
+  live picture and the plate are the same picture. There is no glass card
+  — with no environment to sample it would be a tinted rectangle labelled
+  glass. The texture set is GENERATED in the study rather than read off
+  the disk, through the same `textures::` door a scanned folder arrives
+  by: a plate is a function of the declaration, and what a machine
+  happens to have under `build/assets` is not.
 - **`woven_card`** — a live 2D scene riding a 3D ribbon. A compose tree
   is rendered into a texture by a composer of its own, and a band swept
   over a two-point profile is made of it; the card repeats along the
@@ -785,9 +793,21 @@ and a rim term that nothing scales. So:
   a material describes reach the pixels. A recipe with no Slang body is
   painted in the colour the frame extracted, the same reading the CPU
   tier makes.
-- a STACK of surfaces still reaches this tier as the surface at the
-  BOTTOM of it. The stack's own recipe has no Slang body; what it would
-  take is a body for the combine, not a change here.
+- a STACK of surfaces SHADES as a stack. `material::over` composes one
+  Slang body out of its three operands' own bodies, so both surfaces are
+  evaluated and their colours mixed by the mask, and what each of them
+  said per pixel — a normal, a Blinn exponent, a metal weight — is mixed
+  by the same coverage, so a top wearing a normal map bumps the surface
+  only where the mask lets the top show. A stack whose operands do not
+  all have a Slang body is not composed and reaches this tier as the
+  surface at the bottom of it, the way the CPU tier reads one.
+- **a stack running its own body owns every map in it.** The frame
+  extracts the map of the material at the bottom of a stack, because
+  that is what a tier with no compiler can answer with; where the
+  composed body IS run it samples both operands' maps itself, through
+  slots of its own, and the scaffold is handed no map at all — otherwise
+  the bottom's would land a second time and over the whole face rather
+  than where the mask says.
 - the occlusion, emissive and opacity maps reach the pixels through the
   kit's own body: occlusion darkens the albedo at its strength, emission
   is added at its own colour and strength, and `alphaCutoff` turns the
@@ -818,9 +838,10 @@ and a rim term that nothing scales. So:
 ## What is coming
 
 Every feature the layout declares is built, and `diligent/` owes nothing
-the layout promised. What it does not have is a body for the combine
-recipes, which is what would make a stack of surfaces shade as a stack
-rather than as the surface underneath it.
+the layout promised. What it does not have is an ENVIRONMENT: no slot a
+lit body can sample by the reflected view vector, so `transmission`,
+`ior` and `thickness` reach nothing and a glass surface cannot be shaded
+here as anything but a tinted one.
 
 ### Where the shaders come from
 

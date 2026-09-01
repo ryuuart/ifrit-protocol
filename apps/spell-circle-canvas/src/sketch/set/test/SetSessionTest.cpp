@@ -16,7 +16,9 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <glm/geometric.hpp>
 #include <memory>
+#include <optional>
 
 namespace {
 
@@ -54,6 +56,41 @@ struct Spun : Set {
         .child(world::Element()
                    .key("body")
                    .rotateY(seconds * 90.0f)
+                   .mesh(gm::superellipsoid({40, 40, 40}, 0.2f, 24, 16))
+                   .fill(sigil::material::kit::surface()));
+  }
+};
+
+/** THE CAMERA A SET DECLARES IN ITS OWN TREE — nowhere near the
+ *  fallback its host hands in, and looking at a point that is not the
+ *  origin, so that a viewpoint pivoting on the wrong one of the two is
+ *  visible. */
+world::Camera framedLens() {
+  world::Camera lens;
+  lens.eye = {180, 150, 320};
+  lens.target = {40, 30, -10};
+  lens.fovYDeg = 52;
+  return lens;
+}
+
+/** One box seen from a camera the TREE carries. */
+struct Framed : Set {
+  void setup(SetContext& ctx) override {
+    ctx.canvas(160, 120);
+    ctx.background({0.05f, 0.05f, 0.08f, 1});
+    world::Camera fallback;
+    fallback.eye = {0, 0, 900};
+    ctx.camera(fallback);
+  }
+  world::Frame describe(float) override {
+    return world::Element()
+        .key("set")
+        .child(world::Element().key("sun").light(
+            world::sun({-0.4f, -0.8f, -0.3f}, {1, 1, 1, 1}, 1.0f)))
+        .child(world::Element().key("lens").camera(framedLens()))
+        .child(world::Element()
+                   .key("body")
+                   .at({40, 30, -10})
                    .mesh(gm::superellipsoid({40, 40, 40}, 0.2f, 24, 16))
                    .fill(sigil::material::kit::surface()));
   }
@@ -203,6 +240,71 @@ TEST(SetSession, OffersAViewpointAHostCanMove) {
   std::unique_ptr<Session> session = kindOf<Spun>()->open(fonts(), assets());
   EXPECT_TRUE(session->hasViewpoint());
   session->viewpoint(45.0f, 20.0f, 300.0f);
+}
+
+TEST(Orbit, ReadsACameraBackAsTheOrbitThatMakesIt) {
+  // The two are exact inverses, which is what lets a host seed a control
+  // from a set's own lens: moving it by nothing gives that lens back.
+  const world::Camera lens = framedLens();
+  const Orbit orbit = orbitOf(lens);
+  EXPECT_NEAR(orbit.distance, glm::length(lens.eye - lens.target), 1e-3f);
+  const world::Camera back = cameraAt(lens, orbit);
+  EXPECT_NEAR(back.eye.x, lens.eye.x, 1e-3f);
+  EXPECT_NEAR(back.eye.y, lens.eye.y, 1e-3f);
+  EXPECT_NEAR(back.eye.z, lens.eye.z, 1e-3f);
+  // Everything but where the eye stands is the pivot's own.
+  EXPECT_EQ(back.target, lens.target);
+  EXPECT_EQ(back.up, lens.up);
+  EXPECT_FLOAT_EQ(back.fovYDeg, lens.fovYDeg);
+}
+
+TEST(SetSession, IsSeenFromTheCameraItDeclaredUntilADragMovesIt) {
+  // WHAT A LIVE HOST MUST SHOW before anyone touches it: the set as its
+  // plate shows it. The host hands in a fallback camera nowhere near the
+  // one the tree carries, and the tree's is what the session reports.
+  std::unique_ptr<Session> session = kindOf<Framed>()->open(fonts(), assets());
+  SkBitmap bitmap;
+  bitmap.allocPixels(SkImageInfo::MakeN32Premul(160, 120));
+  SkCanvas canvas(bitmap);
+  session->frame(canvas, 1.0 / 60.0);
+
+  const Orbit declared = orbitOf(framedLens());
+  std::optional<Orbit> reported = session->orbit();
+  ASSERT_TRUE(reported.has_value());
+  EXPECT_NEAR(reported->yawDeg, declared.yawDeg, 1e-2f);
+  EXPECT_NEAR(reported->pitchDeg, declared.pitchDeg, 1e-2f);
+  EXPECT_NEAR(reported->distance, declared.distance, 1e-2f);
+
+  // A HOST THAT MOVES IT BY NOTHING CHANGES NOTHING — which is what says
+  // the orbit pivots on the declared camera's own target and stands at
+  // its own distance, rather than on a point and a distance of the
+  // host's.
+  SkBitmap standing;
+  standing.allocPixels(SkImageInfo::MakeN32Premul(160, 120));
+  SkCanvas standingCanvas(standing);
+  session->frame(standingCanvas, 1.0 / 60.0);
+  session->viewpoint(declared.yawDeg, declared.pitchDeg, declared.distance);
+  SkBitmap held;
+  held.allocPixels(SkImageInfo::MakeN32Premul(160, 120));
+  SkCanvas heldCanvas(held);
+  session->frame(heldCanvas, 1.0 / 60.0);
+  ASSERT_EQ(standing.computeByteSize(), held.computeByteSize());
+  EXPECT_EQ(0, std::memcmp(standing.getPixels(), held.getPixels(),
+                           standing.computeByteSize()));
+
+  // …and a drag that is a drag moves it, still about that target.
+  session->viewpoint(declared.yawDeg + 90.0f, declared.pitchDeg,
+                     declared.distance);
+  SkBitmap moved;
+  moved.allocPixels(SkImageInfo::MakeN32Premul(160, 120));
+  SkCanvas movedCanvas(moved);
+  session->frame(movedCanvas, 1.0 / 60.0);
+  EXPECT_NE(0, std::memcmp(standing.getPixels(), moved.getPixels(),
+                           standing.computeByteSize()));
+  const std::optional<Orbit> after = session->orbit();
+  ASSERT_TRUE(after.has_value());
+  EXPECT_NEAR(after->distance, declared.distance, 1e-2f);
+  EXPECT_NEAR(after->pitchDeg, declared.pitchDeg, 1e-2f);
 }
 
 TEST(SetKind, NamesItsRuntime) { EXPECT_EQ(kindOf<Spun>()->runtime(), "set"); }

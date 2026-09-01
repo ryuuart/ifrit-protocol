@@ -113,6 +113,20 @@ template <class SetType>
   return SetKind{&makeSet<SetType>};
 }
 
+/** THE ORBIT @p camera ALREADY STANDS AT: yaw and pitch in degrees about
+ *  its target, and the distance from it. */
+[[nodiscard]] Orbit orbitOf(const world::Camera& camera);
+
+/** @p pivot moved onto @p orbit — the same target, the same up axis and
+ *  the same lens, with the eye put where the yaw, the pitch and the
+ *  distance say.
+ *
+ *  It is the exact inverse of `orbitOf`, which is what lets a host take
+ *  hold of a set's own viewpoint rather than replacing it with one of
+ *  its own: seeding a control from the set's camera and moving it by
+ *  nothing gives back that camera. */
+[[nodiscard]] world::Camera cameraAt(const world::Camera& pivot, Orbit orbit);
+
 /** THE RUNTIME EVERY SET SESSION DRAWS THROUGH, for this process.
  *
  *  An empty runtime is the CPU mesh executor: it needs no device, it is

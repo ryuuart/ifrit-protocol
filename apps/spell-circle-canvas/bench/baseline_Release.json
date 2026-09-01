@@ -2,7 +2,7 @@
  "config": "Release",
  "host": "MacBookPro.control",
  "machine": "arm64",
- "taken": "2026-09-01T02:14:07+00:00",
+ "taken": "2026-09-01T14:47:59+00:00",
  "benches": {
   "compose_brush_bench": {
    "BM_Draw_Mask_Spans_Live/16": {
@@ -2158,74 +2158,74 @@
   },
   "material_core_bench": {
    "BM_Resolve_Live/0": {
-    "real_ns": 35.50047856788237,
-    "cpu_ns": 35.500510418086066,
+    "real_ns": 35.750169966726055,
+    "cpu_ns": 35.73796684946282,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Resolve_Live/4": {
-    "real_ns": 47.54993982480505,
-    "cpu_ns": 47.54087208216124,
+    "real_ns": 47.36300382891932,
+    "cpu_ns": 47.35834272589973,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Resolve_Live/16": {
-    "real_ns": 77.81765242716342,
-    "cpu_ns": 77.80866087074943,
+    "real_ns": 78.24710563765004,
+    "cpu_ns": 78.23298478686763,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Resolve_Memo/0": {
-    "real_ns": 13.053523593061232,
-    "cpu_ns": 13.050005419746515,
+    "real_ns": 13.066026845439806,
+    "cpu_ns": 13.065763248182504,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Resolve_Memo/4": {
-    "real_ns": 13.96646223345324,
-    "cpu_ns": 13.96649547793291,
+    "real_ns": 14.008724535135368,
+    "cpu_ns": 14.006055868668247,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Resolve_Memo/16": {
-    "real_ns": 27.995969123342228,
-    "cpu_ns": 27.983696763797717,
+    "real_ns": 28.04296298508787,
+    "cpu_ns": 28.036324537882244,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Declare/4": {
-    "real_ns": 160.35526951541905,
-    "cpu_ns": 160.34193742203408,
+    "real_ns": 161.44864634312268,
+    "cpu_ns": 161.41938778679156,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Declare/16": {
-    "real_ns": 576.4684069245199,
-    "cpu_ns": 575.7827868852437,
+    "real_ns": 578.1913578263449,
+    "cpu_ns": 577.7788615110787,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Over_Build/1": {
-    "real_ns": 375.45315654480805,
-    "cpu_ns": 375.4450160874964,
+    "real_ns": 834.3176426194093,
+    "cpu_ns": 832.7599489540893,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Over_Build/4": {
-    "real_ns": 1408.6282904658829,
-    "cpu_ns": 1406.6169208822478,
+    "real_ns": 5137.513428937269,
+    "cpu_ns": 5125.579878225602,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Over_Under/1": {
-    "real_ns": 16.539770452004696,
-    "cpu_ns": 16.536897155550896,
+    "real_ns": 9.689671433920934,
+    "cpu_ns": 9.683914720722392,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Over_Under/4": {
-    "real_ns": 49.38314906356047,
-    "cpu_ns": 49.383171343097175,
+    "real_ns": 32.18037535943179,
+    "cpu_ns": 32.16907219734618,
     "unit": "ns",
     "repetitions": 4
    }

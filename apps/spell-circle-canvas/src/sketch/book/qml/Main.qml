@@ -633,9 +633,14 @@ ApplicationWindow {
                 // drag is yaw and pitch; the wheel is distance. A sketch with
                 // no viewpoint gets no handler at all, so a drag over a drawn
                 // tree does nothing rather than something invisible.
-                property real yaw: 30
-                property real pitch: 18
-                property real distance: 480
+                //
+                // EVERY GESTURE STARTS FROM WHERE THE SKETCH STANDS, read off
+                // the view at the moment it begins, so an untouched sketch is
+                // seen from the camera it declared and the first drag moves
+                // that camera rather than replacing it.
+                property real yaw: 0
+                property real pitch: 0
+                property real distance: 0
 
                 DragHandler {
                     enabled: view.orbitable
@@ -644,8 +649,9 @@ ApplicationWindow {
                     property real startPitch: 0
                     onActiveChanged: {
                         if (active) {
-                            startYaw = view.yaw;
-                            startPitch = view.pitch;
+                            startYaw = view.orbitYaw;
+                            startPitch = view.orbitPitch;
+                            view.distance = view.orbitDistance;
                         }
                     }
                     onTranslationChanged: {
@@ -657,8 +663,10 @@ ApplicationWindow {
                 WheelHandler {
                     enabled: view.orbitable
                     onWheel: event => {
+                        view.yaw = view.orbitYaw;
+                        view.pitch = view.orbitPitch;
                         view.distance = Math.max(
-                            40, view.distance - event.angleDelta.y * 0.5);
+                            40, view.orbitDistance - event.angleDelta.y * 0.5);
                         view.orbit(view.yaw, view.pitch, view.distance);
                     }
                 }

@@ -56,19 +56,26 @@ void Material::write(const void* params, size_t size, const Schema* schema) {
 void Material::write(std::string_view name, Kind kind, const void* floats,
                      size_t count) {
   const Field* f = m_recipe->params().find(name);
-  const std::string key = "field:" + m_recipe->name() + ":" + std::string(name);
+  // THE REPORT'S KEY IS BUILT WHERE IT IS REPORTED. This is the per-field
+  // setter, called once per field of every material built, and a string
+  // assembled on the way past would be an allocation per field spent on
+  // a message almost no call makes.
+  const auto key = [&] {
+    return "field:" + m_recipe->name() + ":" + std::string(name);
+  };
   if (!f) {
-    reportOnce(key, "recipe \"" + m_recipe->name() + "\" declares no field \"" +
-                        std::string(name) + "\"; the value is ignored");
+    reportOnce(key(), "recipe \"" + m_recipe->name() +
+                          "\" declares no field \"" + std::string(name) +
+                          "\"; the value is ignored");
     return;
   }
   // Colour and float4 interchange — both are four floats and the shader
   // declares one float4 — but a count mismatch means a different uniform.
   if (f->floats != count) {
-    reportOnce(key, "recipe \"" + m_recipe->name() + "\" field \"" +
-                        std::string(name) + "\" spans " +
-                        std::to_string(f->floats) + " floats, not " +
-                        std::to_string(count) + "; the value is ignored");
+    reportOnce(key(), "recipe \"" + m_recipe->name() + "\" field \"" +
+                          std::string(name) + "\" spans " +
+                          std::to_string(f->floats) + " floats, not " +
+                          std::to_string(count) + "; the value is ignored");
     return;
   }
   (void)kind;

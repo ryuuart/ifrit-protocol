@@ -48,6 +48,10 @@ Recipe::Recipe(std::string name, const Schema& params)
   relayout();
 }
 
+Recipe Recipe::of(std::string name, const Schema& params) {
+  return Recipe(std::move(name), params);
+}
+
 Recipe& Recipe::body(Target target, std::string source) {
   m_bodies[target] = std::move(source);
   return *this;

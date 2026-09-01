@@ -159,8 +159,7 @@ void SketchbookRenderer::synchronize(QQuickRhiItem* item) {
     QMutexLocker lock(&SketchbookView::hostMutex);
     if (SketchbookView::host)
       if (sketch::Session* session = SketchbookView::host->session())
-        session->viewpoint(view->m_yawDeg, view->m_pitchDeg,
-                           view->m_distance > 0 ? view->m_distance : 480.0f);
+        session->viewpoint(view->m_yawDeg, view->m_pitchDeg, view->m_distance);
   }
 }
 
@@ -225,6 +224,16 @@ void SketchbookRenderer::publishMetrics() {
   m_view->m_metrics = std::move(metrics);
   QMetaObject::invokeMethod(m_view, &SketchbookView::metricsChanged,
                             Qt::QueuedConnection);
+
+  // WHERE THE SKETCH IS SEEN FROM, published whether or not a pointer
+  // has moved it: a drag reads this at the moment it starts, so the
+  // first one continues the sketch's own framing and every one after it
+  // continues where the last left off.
+  if (const std::optional<sketch::Orbit> orbit = session->orbit()) {
+    m_view->m_orbit = *orbit;
+    QMetaObject::invokeMethod(m_view, &SketchbookView::orbitChanged,
+                              Qt::QueuedConnection);
+  }
 }
 
 void SketchbookRenderer::drawSketch(SkCanvas& canvas, QSize pixelSize) {
@@ -510,6 +519,10 @@ void SketchbookView::capture() {
 }
 
 void SketchbookView::orbit(float yawDeg, float pitchDeg, float distance) {
+  // A distance of nothing is not a viewpoint: a drag that arrived before
+  // the running sketch had said where it stands is left alone rather
+  // than answered with a number of this host's own.
+  if (!(distance > 0.0f)) return;
   m_yawDeg = yawDeg;
   m_pitchDeg = std::clamp(pitchDeg, -85.0f, 85.0f);
   m_distance = distance;

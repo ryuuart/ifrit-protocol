@@ -5,6 +5,8 @@
  * sketch on the other, and the live host between them.
  */
 
+#include <sigilsketch/core/Session.h>
+
 #include <QtCore/QMutex>
 #include <QtCore/QTimer>
 #include <QtCore/QVariantList>
@@ -41,6 +43,13 @@ class SketchbookView : public QQuickRhiItem {
   Q_PROPERTY(QString state READ state NOTIFY stateChanged)
   /** Whether the running sketch has a viewpoint a pointer can move. */
   Q_PROPERTY(bool orbitable READ orbitable NOTIFY sketchIndexChanged)
+  /** WHERE THE RUNNING SKETCH STANDS: the yaw, pitch and distance of the
+   *  viewpoint it is being seen from right now. A drag reads these at
+   *  the moment it starts, so the first one continues the sketch's own
+   *  framing instead of jumping to a viewpoint this host invented. */
+  Q_PROPERTY(qreal orbitYaw READ orbitYaw NOTIFY orbitChanged)
+  Q_PROPERTY(qreal orbitPitch READ orbitPitch NOTIFY orbitChanged)
+  Q_PROPERTY(qreal orbitDistance READ orbitDistance NOTIFY orbitChanged)
 
  public:
   explicit SketchbookView(QQuickItem* parent = nullptr);
@@ -70,6 +79,9 @@ class SketchbookView : public QQuickRhiItem {
   // NOLINTNEXTLINE(bugprone-derived-method-shadowing-base-method)
   [[nodiscard]] QString state() const { return m_state; }
   [[nodiscard]] bool orbitable() const { return m_orbitable; }
+  [[nodiscard]] qreal orbitYaw() const { return m_orbit.yawDeg; }
+  [[nodiscard]] qreal orbitPitch() const { return m_orbit.pitchDeg; }
+  [[nodiscard]] qreal orbitDistance() const { return m_orbit.distance; }
 
   /** Where the live host finds the file behind a registry entry, and the
    *  compiler line the build captured. Set by main() before QML loads. */
@@ -86,6 +98,7 @@ class SketchbookView : public QQuickRhiItem {
   void pausedChanged();
   void timeScaleChanged();
   void metricsChanged();
+  void orbitChanged();
   void stateChanged();
   void captureReady(const QString& path);
 
@@ -97,10 +110,13 @@ class SketchbookView : public QQuickRhiItem {
   bool m_paused = false;
   bool m_orbitable = false;
   double m_timeScale = 1.0;
-  float m_yawDeg = 30.0f;
-  float m_pitchDeg = 18.0f;
-  float m_distance = 0.0f;  // 0 = the sketch's own
+  float m_yawDeg = 0.0f;
+  float m_pitchDeg = 0.0f;
+  float m_distance = 0.0f;
   bool m_orbitDirty = false;
+  /** Published by the renderer from the running session: where the
+   *  sketch is seen from, whether or not a pointer has moved it. */
+  sigil::sketch::Orbit m_orbit;
   QVariantMap m_metrics = {{QStringLiteral("backend"),
                             QStringLiteral("hardware QRhi renderer required")}};
   QString m_status;

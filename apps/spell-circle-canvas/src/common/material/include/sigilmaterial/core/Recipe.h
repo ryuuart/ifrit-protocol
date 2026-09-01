@@ -44,6 +44,13 @@ class Recipe {
   static Recipe of(std::string name) {
     return Recipe(std::move(name), schema<P>());
   }
+  /** A recipe whose ABI is @p params directly rather than a C++ struct's
+   *  — the door for a definition COMPOSED while the library runs, whose
+   *  fields are other recipes' fields and so belong to no one type.
+   *  `of<P>()` is the ordinary way in; a caller here owes the same rule
+   *  a params struct is checked against, that the layout is packed
+   *  floats. */
+  static Recipe of(std::string name, const Schema& params);
 
   /** The body for @p target: everything after the generated
    *  declarations, so for SkSL the `half4 main(float2 p) { ... }` and its

@@ -13,6 +13,7 @@
  */
 
 #include <sigilgeometry/mesh/pop/Pop.h>
+#include <sigilmaterial/core/Combine.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/core/Params.h>
 #include <sigilmaterial/kit/Surface.h>
@@ -181,6 +182,14 @@ void drawBody(Gpu& gpu, const glm::mat4& viewProj, const glm::mat4& view,
   // so a body can tell an undressed slot from a dressed one exactly.
   std::vector<dg::ITexture*> textures(surface.program->textures.size(),
                                       nullptr);
+  // A STACK RUNNING ITS OWN BODY OWNS EVERY MAP IN IT. The frame extracts
+  // the map of the material at the bottom of a stack, because that is
+  // what a tier with no compiler can answer with; a composed body samples
+  // both operands' maps itself, through slots of its own, so handing the
+  // scaffold the bottom's map as well would land it a second time and
+  // over the whole face rather than where the mask says.
+  if (material && surface.recipe && material::stackDepth(*material) > 0)
+    map = nullptr;
   const Sampling sampling = map ? samplingOf(*map) : Sampling{};
   uniforms.set(kMapUv, mapMatrix(sampling.uv));
   for (size_t i = 0; i < textures.size(); ++i) {

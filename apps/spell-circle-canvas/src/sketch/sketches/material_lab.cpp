@@ -1,23 +1,39 @@
 /** @file
- * material_lab — what a surface is made of, and what a tier with no
- * compiler can say about it.
+ * material_lab — what a surface is made of, and what each tier can say
+ * about it.
  *
- * Five cards stand in a row over a floor dressed with a texture set, lit
- * by the kit's three-point rig and seen from its turntable. Each card is
- * a different KIND of surface: one plain, one a STACK of two through a
- * mask, one glass, one emissive, and one wearing a map of its own.
+ * Five curved cards stand in a row over a floor dressed with a texture
+ * set, lit by the kit's three-point rig and seen from a parked
+ * turntable. Each card is a different KIND of surface, and each is
+ * chosen because a device SHADES it: one plain, one a STACK of two
+ * through a mask, one wearing a normal map, one wearing a packed
+ * roughness-and-metallic map, and one that emits.
  *
- * WHAT REACHES THE PIXELS HERE is the surface's base colour and the map
- * in its base-colour slot, because neither tier compiles the
- * metallic-roughness body: a stack reaches them as the surface at the
- * bottom of it, since the mask that decides where the top shows is a
- * program. So the stack card reads as its base and the glass card as its
- * tint — which is the honest picture of what this library can shade
- * today, and the plate moves the day that changes.
+ * WHICH CARD READS ON WHICH TIER. The device tier runs each material's
+ * own body, so every card there is what its params and its maps say. The
+ * CPU tier has no compiler and reads a surface's base colour and its
+ * base-colour map alone, so on it the row is five flat colours and the
+ * floor's weave: the plain card is its colour, the stack is the colour
+ * of the surface at the bottom of it, and the normal, packed and
+ * emissive cards are their base colours with nothing of the map in them.
+ * Both plates are honest pictures of their tier, and the row is built to
+ * make the difference between them the thing the study shows.
+ *
+ * THE CARDS ARE CURVED, not flat. A Blinn highlight on a flat card is
+ * one value over the whole face — the same value — so a card meant to
+ * show a highlight narrowing has to present a range of normals to the
+ * key light. Each card's face turns through most of a right angle, which
+ * is enough that the highlight lands somewhere on every one of them.
+ *
+ * NO GLASS. `transmission`, `ior` and `thickness` reach no body on
+ * either tier: there is no environment to sample and no refraction, so a
+ * glass card would be a tinted rectangle labelled glass. It is left out
+ * until the lit body has an environment slot to sample by the reflected
+ * view vector.
  *
  * THE TEXTURE SET IS GENERATED HERE, not read off the disk. A plate is a
  * function of the declaration, and what a machine happens to have under
- * `build/assets` is not; the set is built through the same
+ * `build/assets` is not; the floor's set is built through the same
  * `textures::` door a scanned folder arrives by, so what is exercised is
  * the vocabulary rather than the filesystem.
  */
@@ -26,12 +42,15 @@
 #include <include/core/SkImageInfo.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilmaterial/core/Combine.h>
+#include <sigilmaterial/kit/Mask.h>
 #include <sigilmaterial/kit/Surface.h>
 #include <sigilmaterial/texture/TextureSet.h>
 #include <sigilsketch/set/Set.h>
 #include <sigilworld/kit/Kit.h>
 
+#include <algorithm>
 #include <cmath>
+#include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
 #include <map>
 #include <string>
@@ -51,41 +70,132 @@ constexpr int kMapSide = 128;
 constexpr float kCardWidth = 96.0f;
 constexpr float kCardHeight = 132.0f;
 constexpr float kCardGap = 118.0f;
+/** THE RADIUS THE CARDS ARE CURVED ON, and why they are curved at all:
+ *  a Blinn highlight on a flat card is one value over the whole face, so
+ *  a card meant to show a highlight narrowing has to present a range of
+ *  normals to the key. At this radius a card's face turns through most
+ *  of a right angle, which is wide enough that the highlight lands
+ *  somewhere on every one of them whatever the key's exact bearing. */
+constexpr float kCardCurve = 80.0f;
+/** HOW FAR THE ROW LEANS BACK, and why it leans at all. A card curved
+ *  about its own upright axis presents normals that all lie flat, and a
+ *  highlight is where the surface faces halfway between the eye and the
+ *  light — which for an eye above the row and a light that has to stand
+ *  above the floor is never flat. Leaning the cards back until their
+ *  normals point at that halfway direction is what puts the highlight on
+ *  them at all; the curve then sweeps it across each face. */
+constexpr float kCardLean = 25.0f;
 
-/** One generated map. @p warm and @p cool are what its two bands are,
- *  so one function makes a colour map, a roughness map and a normal map
- *  by being asked for different pairs. */
-sk_sp<SkImage> band(SkColor4f warm, SkColor4f cool, int period) {
+/** One generated map, written texel by texel by @p texel — every map in
+ *  this study is a function of where the texel is and of nothing a
+ *  machine decides. */
+template <class F>
+sk_sp<SkImage> generated(const F& texel) {
   SkBitmap bitmap;
   bitmap.allocPixels(SkImageInfo::MakeN32Premul(kMapSide, kMapSide));
-  for (int y = 0; y < kMapSide; ++y) {
+  for (int y = 0; y < kMapSide; ++y)
     for (int x = 0; x < kMapSide; ++x) {
-      // A woven check: two frequencies crossing, so the map has an
-      // orientation and a scale a floor can be read by.
-      const bool warmCell = ((x / period) + (y / period)) % 2 == 0;
-      const float edge =
-          (float)((x % period) + (y % period)) / (float)(2 * period);
-      const SkColor4f base = warmCell ? warm : cool;
-      const SkColor4f shade{base.fR * (0.86f + 0.14f * edge),
-                            base.fG * (0.86f + 0.14f * edge),
-                            base.fB * (0.86f + 0.14f * edge), 1.0f};
-      *bitmap.getAddr32(x, y) = shade.toSkColor();
+      const SkColor4f colour = texel(x, y);
+      *bitmap.getAddr32(x, y) = colour.toSkColor();
     }
-  }
   bitmap.setImmutable();
   return bitmap.asImage();
 }
 
-/** The generated set, keyed by the usage words a material tool tags its
- *  outputs with — the same door a discovered folder's files arrive
- *  through once they are decoded. */
+/** A woven check: two frequencies crossing, so the map has an
+ *  orientation and a scale a floor can be read by. @p warm and @p cool
+ *  are what its two cells are. */
+sk_sp<SkImage> band(SkColor4f warm, SkColor4f cool, int period) {
+  return generated([&](int x, int y) {
+    const bool warmCell = ((x / period) + (y / period)) % 2 == 0;
+    const float edge =
+        (float)((x % period) + (y % period)) / (float)(2 * period);
+    const SkColor4f base = warmCell ? warm : cool;
+    return SkColor4f{base.fR * (0.86f + 0.14f * edge),
+                     base.fG * (0.86f + 0.14f * edge),
+                     base.fB * (0.86f + 0.14f * edge), 1.0f};
+  });
+}
+
+/** A TANGENT NORMAL MAP: a grid of domes, each rising out of the flat
+ *  surface and falling back to it at the cell's edge. Encoded the way a
+ *  tangent normal is — each axis centred on a half, so the flat surface
+ *  is (0.5, 0.5, 1) and a map that says nothing is the one value white
+ *  cannot be mistaken for. */
+sk_sp<SkImage> domes(int cells, float bulge) {
+  const float step = (float)kMapSide / (float)cells;
+  return generated([&](int x, int y) {
+    const float u = (std::fmod((float)x, step) / step) * 2.0f - 1.0f;
+    const float v = (std::fmod((float)y, step) / step) * 2.0f - 1.0f;
+    const float r2 = u * u + v * v;
+    float nx = 0.0f, ny = 0.0f, nz = 1.0f;
+    if (r2 < 1.0f) {
+      nx = u * bulge;
+      ny = v * bulge;
+      nz = std::sqrt(1.0f - r2);
+      const float len = std::sqrt(nx * nx + ny * ny + nz * nz);
+      nx /= len;
+      ny /= len;
+      nz /= len;
+    }
+    return SkColor4f{nx * 0.5f + 0.5f, ny * 0.5f + 0.5f, nz * 0.5f + 0.5f,
+                     1.0f};
+  });
+}
+
+/** ONE PACKED IMAGE holding occlusion, roughness and metallic at glTF's
+ *  channel order, sweeping down the card: rough dielectric at the top,
+ *  polished metal at the bottom. Neither swept channel reaches one,
+ *  because a map that is white everywhere is what "no map here" means
+ *  and a texel of it would drop back to the shading the vertices
+ *  carried. */
+sk_sp<SkImage> occlusionRoughnessMetallic() {
+  return generated([](int, int y) {
+    const float down = (float)y / (float)(kMapSide - 1);
+    return SkColor4f{1.0f, 0.94f - 0.88f * down, 0.02f + 0.80f * down, 1.0f};
+  });
+}
+
+/** THE MASK a stack is read through: soft irregular patches, so the top
+ *  material shows in some places, not in others, and passes through
+ *  every value between at their edges. */
+sk_sp<SkImage> patches() {
+  return generated([](int x, int y) {
+    const float u = (float)x;
+    const float v = (float)y;
+    const float field = 0.5f +
+                        0.30f * std::sin(u * 0.13f) * std::sin(v * 0.11f) +
+                        0.20f * std::sin(u * 0.052f + v * 0.081f) +
+                        0.10f * std::sin(u * 0.31f + v * 0.27f);
+    const float t = std::clamp((field - 0.34f) * 2.6f, 0.0f, 1.0f);
+    const float smooth = t * t * (3.0f - 2.0f * t);
+    return SkColor4f{smooth, smooth, smooth, 1.0f};
+  });
+}
+
+/** A LATTICE OF FILAMENTS on black — what an emissive slot multiplies,
+ *  so the card emits in a pattern rather than all over. */
+sk_sp<SkImage> filaments(int period) {
+  const auto rule = [&](int at) {
+    const float centred =
+        std::abs(std::fmod((float)at, (float)period) - (float)period * 0.5f);
+    return std::clamp(1.0f - centred / 2.5f, 0.0f, 1.0f);
+  };
+  return generated([&](int x, int y) {
+    const float lit = std::clamp(rule(x) + rule(y), 0.0f, 1.0f);
+    return SkColor4f{lit, lit, lit, 1.0f};
+  });
+}
+
+/** The generated floor set, keyed by the usage words a material tool
+ *  tags its outputs with — the same door a discovered folder's files
+ *  arrive through once they are decoded. */
 material::textures::TextureMaps floorMaps() {
   std::map<std::string, sk_sp<SkImage>> byUsage;
   byUsage["baseColor"] =
       band({0.30f, 0.33f, 0.38f, 1}, {0.17f, 0.19f, 0.23f, 1}, 16);
   byUsage["roughness"] =
       band({0.7f, 0.7f, 0.7f, 1}, {0.35f, 0.35f, 0.35f, 1}, 32);
-  byUsage["normal"] = band({0.5f, 0.5f, 1.0f, 1}, {0.5f, 0.5f, 1.0f, 1}, 64);
   return material::textures::fromUsageMap(byUsage, /*normalDirectX=*/false);
 }
 
@@ -94,56 +204,99 @@ Element card(std::string_view key, float x, material::Material surface) {
   return Element()
       .key(key)
       .at({x, 0.0f, 0.0f})
-      .mesh(gm::quad(kCardWidth, kCardHeight))
+      .rotateX(-kCardLean)
+      .mesh(gm::cylinderPanel(kCardWidth, kCardHeight, kCardCurve, 24, 6))
       .fill(std::move(surface))
       .tag("card");
 }
 
+/** PLAIN: a colour and a roughness, and no map anywhere. It is the
+ *  control — the one card that reads the same on both tiers. */
+material::Material plain() {
+  return material::kit::surface(
+      {.baseColor = {0.62f, 0.28f, 0.24f, 1.0f}, .roughness = 0.55f});
+}
+
+/** A STACK: a dark patinated base, a pale bumpy crust over it, and a
+ *  mask that says where the crust shows. Every operand is an ordinary
+ *  material, which is the whole point of the combinator — and on the
+ *  device the stack shades AS a stack, the two operands' colours and
+ *  their per-pixel terms mixed by the same coverage. */
+material::Material stacked() {
+  const material::Material base = material::kit::surface(
+      {.baseColor = {0.13f, 0.20f, 0.17f, 1.0f}, .roughness = 0.8f});
+  material::Material crust = material::kit::surface(
+      {.baseColor = {0.80f, 0.72f, 0.56f, 1.0f}, .roughness = 0.35f});
+  crust.child(material::kit::kNormalSlot,
+              material::Texture::produce("material_lab.crust.normal",
+                                         [] { return domes(6, 0.9f); }));
+  const material::Material mask =
+      material::kit::maskMap(material::Texture::produce(
+          "material_lab.patches", [] { return patches(); }));
+  return material::over(base, std::move(crust), mask);
+}
+
+/** MAPPED NORMAL: one flat colour, and a normal map that makes the key
+ *  light land on a field of domes. Nothing but the map varies over this
+ *  card, so what the device shows past its colour is the map. */
+material::Material bumped() {
+  material::Material m = material::kit::surface(
+      {.baseColor = {0.42f, 0.47f, 0.58f, 1.0f}, .roughness = 0.35f});
+  m.child(material::kit::kNormalSlot,
+          material::Texture::produce("material_lab.bumps",
+                                     [] { return domes(5, 1.0f); }));
+  return m;
+}
+
+/** MAPPED ROUGHNESS AND METALLIC: one packed image in two slots, read at
+ *  two channels — the way a set that ships one occlusion-roughness-
+ *  metallic image is wired. The scalars start at one so the map's own
+ *  values are what reach the shading. */
+material::Material sweep() {
+  material::Material m = material::kit::surface({
+      .baseColor = {0.78f, 0.76f, 0.70f, 1.0f},
+      .metallic = 1.0f,
+      .roughness = 1.0f,
+      .roughnessChannel = 1.0f,
+      .metallicChannel = 2.0f,
+  });
+  const material::Texture packed = material::Texture::produce(
+      "material_lab.orm", [] { return occlusionRoughnessMetallic(); });
+  m.child(material::kit::kRoughnessSlot, packed);
+  m.child(material::kit::kMetallicSlot, packed);
+  return m;
+}
+
+/** EMISSIVE: a dark surface that is also a light source in a pattern —
+ *  the emissive slot multiplied by the emission's own colour and
+ *  strength, added after the lighting. */
+material::Material emitting() {
+  material::Material m = material::kit::surface({
+      .baseColor = {0.30f, 0.13f, 0.09f, 1.0f},
+      .roughness = 0.6f,
+      .emissive = {1.0f, 0.62f, 0.24f, 1.0f},
+      .emissiveStrength = 2.4f,
+  });
+  m.child(material::kit::kEmissiveSlot,
+          material::Texture::produce("material_lab.filaments",
+                                     [] { return filaments(22); }));
+  return m;
+}
+
 /** The five surfaces, left to right. */
 Element cards() {
-  const material::Material plain = material::kit::surface(
-      {.baseColor = {0.62f, 0.28f, 0.24f, 1.0f}, .roughness = 0.55f});
-
-  // A STACK: a copper base, a pale crust over it, and a third surface
-  // read as the mask that says where the crust shows. Every operand is
-  // an ordinary material, which is the whole point of the combinator.
-  const material::Material crust =
-      material::kit::surface({.baseColor = {0.78f, 0.76f, 0.70f, 1.0f}});
-  const material::Material mask =
-      material::kit::surface({.baseColor = {0.5f, 0.5f, 0.5f, 1.0f}});
-  const material::Material stacked = material::over(
-      material::kit::surface({.baseColor = {0.24f, 0.42f, 0.34f, 1.0f}}), crust,
-      mask, material::Blend::Mix);
-
-  const material::Material glass =
-      material::kit::surface({.baseColor = {0.70f, 0.82f, 0.86f, 0.55f},
-                              .roughness = 0.05f,
-                              .transmission = 0.92f,
-                              .ior = 1.52f,
-                              .thickness = 18.0f});
-
-  const material::Material emissive =
-      material::kit::unlit({.baseColor = {0.98f, 0.62f, 0.22f, 1.0f},
-                            .emissive = {0.98f, 0.62f, 0.22f, 1.0f},
-                            .emissiveStrength = 3.0f});
-
-  // …and one card wearing a map, so that the row shows a surface whose
-  // colour is a picture rather than a number.
-  material::Material mapped =
-      material::kit::surface(floorMaps(), {.baseColor = {1, 1, 1, 1}});
-
   const float left = -2.0f * kCardGap;
   return Element()
       .key("cards")
       .at({0.0f, 40.0f, 0.0f})
-      // The row runs across the turntable's first station rather than
-      // along it, so the cards are seen face on where the sweep stops.
+      // The row runs across the turntable's parked station rather than
+      // along it, so the cards are seen face on.
       .rotateY(90.0f)
-      .child(card("plain", left, plain))
-      .child(card("stacked", left + kCardGap, stacked))
-      .child(card("glass", left + 2.0f * kCardGap, glass))
-      .child(card("emissive", left + 3.0f * kCardGap, emissive))
-      .child(card("mapped", left + 4.0f * kCardGap, std::move(mapped)));
+      .child(card("plain", left, plain()))
+      .child(card("stacked", left + kCardGap, stacked()))
+      .child(card("bumped", left + 2.0f * kCardGap, bumped()))
+      .child(card("sweep", left + 3.0f * kCardGap, sweep()))
+      .child(card("emissive", left + 4.0f * kCardGap, emitting()));
 }
 
 }  // namespace
@@ -160,8 +313,14 @@ struct MaterialLab final : sketch::Set {
   world::Frame describe(float seconds) override {
     kit::Set set;
     set.rig.extent = 140.0f;
-    set.rig.bearing = -28.0f;
-    set.rig.elevation = 34.0f;
+    // The key stands just off the eye's own bearing and above it, so
+    // every card is lit face on and the highlight lands where a reader
+    // is already looking; the fill opens the shadowed side and the back
+    // light separates the row from the floor behind it.
+    set.rig.bearing = 78.0f;
+    set.rig.elevation = 30.0f;
+    set.rig.fill = 0.4f;
+    set.rig.back = 0.5f;
     set.ground = 5.0f;
     set.drop = 0.5f;
     // The floor wears the set: a texture that repeats is what says how
@@ -179,7 +338,11 @@ struct MaterialLab final : sketch::Set {
 
     set.table.radius = 760.0f;
     set.table.height = 420.0f;
-    set.table.period = 14.0f;
+    // PARKED. A lab is read, not watched: the row faces the eye and
+    // stays there, so the live picture and the plate are the same
+    // picture and a reader comparing two surfaces is not comparing them
+    // at two bearings.
+    set.table.period = 0.0f;
     set.table.fovYDeg = 46.0f;
     return Frame(kit::litSet(cards(), set, seconds));
   }
@@ -190,5 +353,5 @@ struct MaterialLab final : sketch::Set {
 SIGIL_SKETCH(
     MaterialLab, "Set",
     "What a surface is made of \xe2\x80\x94 five cards over a textured "
-    "floor: one plain, one a stack through a mask, one glass, one "
-    "emissive, and one wearing a map")
+    "floor: one plain, one a stack through a mask, one normal-mapped, "
+    "one sweeping rough to metal, and one emitting")

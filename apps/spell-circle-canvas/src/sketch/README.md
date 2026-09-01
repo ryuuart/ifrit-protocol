@@ -79,6 +79,40 @@ is — both shown beside it in the app. `SIGIL_SKETCH_AS` adds a name of
 its own, for a sketch filed under something other than its stem because
 other things already refer to that name.
 
+### A sketch over an SDK this machine may not have
+
+Such a sketch states its requirement in two places, because there are
+two different absences.
+
+`sketches/CMakeLists.txt` carries a short table of stem → target. When
+the target does not exist — the SDK was not found at configure time, so
+the library over it was never built — the file is dropped from the glob
+and nothing tries to compile it; when it does exist, the target joins the
+sketch API surface, so a hot-reloaded copy of the file compiles and links
+exactly as the built-in one did.
+
+The sketch itself declares a static `available(std::string* why)`, which
+the registration macro reads off the type:
+
+```cpp
+struct WebPanelSketch final : sketch::Sketch {
+  static bool available(std::string* why) {
+    return scry::runtime::available(why);
+  }
+  …
+};
+```
+
+That answers the other absence: an SDK present at build time is not the
+same as its runtime data — a resource folder, a plugin registry, the
+sample archives a piece draws — being installed on the machine running
+the binary. An entry whose probe says no is UNAVAILABLE rather than
+broken: `--list` greys it and names what is missing, the sweep prints
+`[skipped: …]` and writes no plate, and the plate ledger and the
+frame-time gate stand it down by name. A skip is not a failure and not a
+mover, and the plates for such a sketch exist only on the machines where
+its SDK does.
+
 A 3D sketch is the same shape with a different body:
 
 ```cpp

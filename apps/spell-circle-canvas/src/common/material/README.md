@@ -319,6 +319,36 @@ the bottom — and `stackDepth(m)` counts the steps. A consumer that can
 only express one material (`UsdPreviewSurface`, say) writes the bottom
 and records the depth.
 
+**Two kinds of target read a stack, and only one of them can reach the
+operands.** A target whose child slot is a SHADER — SkSL's is — samples
+each operand's own program, so one body over the three slots `base`,
+`top` and `mask` is the whole story. A target handed exactly ONE body per
+material cannot reach a child material at all; for it a stack is
+COMPOSED. `over()` builds a recipe out of its operands' own definitions:
+the parameters are theirs under a prefix per operand (`base_`, `top_`,
+`mask_`), the sampled slots are theirs under the same prefixes, the frame
+inputs are the union of theirs, and the body inlines all three of their
+bodies and mixes what they return. The renaming is the shading
+language's own preprocessor rather than a rewrite of the text — a body
+names its parameters and its slots exactly as its recipe declares them,
+and a macro maps each — and each operand's helpers stand in a namespace
+of its own, so three operands over one recipe are three bodies. **The one
+thing a composable body may not do is give a local the name of one of its
+own parameters.**
+
+A composed stack is the same material otherwise: the same three operands
+as children, the same walk down, and the same recipe NAME — which is what
+says a material is a stack, since a composed one carries a recipe built
+for its own operands rather than the shared one. The operands' values and
+their sampled slots are copied in at the moment of the call, so a later
+edit to an operand is not seen and a live binding on one does not reach
+the composed body; the operand still rides every query as a child, so the
+stack still reports itself animated. The composition costs one recipe and
+one program per distinct triple of definitions and buys nothing for a
+target that samples its operands, so it is built only where a compiler
+that needs it is installed. `Target::Slang` is the one such target today,
+and `stackName(blend)` is the name every stack of a blend carries.
+
 ## The kit
 
 The kit is presets: functions that fix a colour, a proportion or a named
@@ -372,7 +402,10 @@ axis, or a value dotted with an axis, from whatever texture the renderer
 supplies as the source. All of them then fit — `low` and `high` remap the
 raw value onto 0..1 and clamp, and `kit::invert` flips it — which is why
 the slope and height factories take the range: without one those masks
-mean nothing. `kit::fit` moves the range on an existing mask.
+mean nothing. `kit::fit` moves the range on an existing mask. Both mask
+recipes carry a body in every language a renderer here speaks, because a
+mask is an operand of a stack and a stack is only composable for a target
+all three of its operands have a body for.
 
 `kit::gold`, `kit::chrome` and `kit::glass` are recipes over two slots,
 `normals` and `env` (glass adds `backdrop`, an image of what sits behind

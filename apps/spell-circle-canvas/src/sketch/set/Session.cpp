@@ -14,6 +14,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstdio>
+#include <glm/geometric.hpp>
 #include <optional>
 
 namespace sigil::sketch {
@@ -67,6 +68,7 @@ class SetSession final : public Session {
     m_spec.captureSeconds = 1.0;
     SetContext ctx{assets, fonts, &m_spec, &m_camera};
     m_set->setup(ctx);
+    m_declared = m_camera;
     m_extent = {(int)m_spec.size.width(), (int)m_spec.size.height()};
   }
 
@@ -84,11 +86,29 @@ class SetSession final : public Session {
     // formed at the resolution it will be seen at.
     m_extent = extentOn(canvas);
     frame.extent(m_extent).camera(viewing());
+    if (m_orbiting) {
+      // A TREE'S OWN LENS WINS over the frame's, which is what lets a
+      // set put its camera on a rail and be photographed from it. A host
+      // that has taken hold of the viewpoint has to win over THAT, and
+      // the first camera in tree order is the one a frame is seen from,
+      // so the described tree is hung under one node carrying the host's
+      // camera — which stands before whatever the set declared.
+      frame.scene(world::Element().camera(m_orbit).child(frame.scene()));
+    }
     if (processRuntime()) {
       frame.runtime(processRuntime());
       throughPasses(frame, m_spec.background);
     }
     m_scene.render(frame);
+    // WHAT THE SET ITSELF DECLARED, read back after the describe that
+    // said it, so a host asking where the sketch stands is told the
+    // set's own answer and not the fallback the host handed in. It is
+    // only read while the host has NOT taken hold: once it has, the
+    // camera the tree carries is the host's own.
+    if (!m_orbiting) {
+      const std::optional<world::Camera> declared = m_scene.camera();
+      m_declared = declared ? *declared : m_camera;
+    }
     const auto described = std::chrono::steady_clock::now();
     paint(canvas);
     const auto drawn = std::chrono::steady_clock::now();
@@ -125,28 +145,29 @@ class SetSession final : public Session {
     return line;
   }
 
-  /** ORBIT: yaw and pitch about the declared target, at a distance from
-   *  it. The set's own camera is the pivot — a set that puts its lens on
-   *  a rail declares that in its description, and a host taking hold of
-   *  the viewpoint replaces it rather than composing with it. */
+  /** ORBIT: yaw and pitch about the viewpoint's own target, at a
+   *  distance from it. THE SET'S OWN CAMERA IS THE PIVOT — its target,
+   *  its up axis and its lens are kept and only the eye is moved — so a
+   *  set that put its camera somewhere particular is orbited around what
+   *  it was looking at rather than around a point the host chose. Until
+   *  this is called the set is seen from exactly the camera it declared,
+   *  which is what makes the live picture and the plate the same
+   *  picture. */
   [[nodiscard]] bool hasViewpoint() const override { return true; }
 
+  [[nodiscard]] std::optional<Orbit> orbit() const override {
+    return orbitOf(viewing());
+  }
+
   void viewpoint(float yawDeg, float pitchDeg, float distance) override {
-    constexpr float kToRadians = 3.14159265358979f / 180.0f;
-    const float yaw = yawDeg * kToRadians;
-    const float pitch = pitchDeg * kToRadians;
-    m_orbit = m_camera;
-    m_orbit.eye =
-        m_camera.target + glm::vec3{distance * std::cos(pitch) * std::sin(yaw),
-                                    distance * std::sin(pitch),
-                                    distance * std::cos(pitch) * std::cos(yaw)};
+    m_orbit = cameraAt(m_declared, {yawDeg, pitchDeg, distance});
     m_orbiting = true;
   }
 
  private:
   /** The viewpoint a frame is described with. */
   [[nodiscard]] const world::Camera& viewing() const {
-    return m_orbiting ? m_orbit : m_camera;
+    return m_orbiting ? m_orbit : m_declared;
   }
 
   /** The declared canvas in the pixels @p canvas has for it. */
@@ -169,18 +190,19 @@ class SetSession final : public Session {
     SkAutoCanvasRestore restore(&canvas, true);
     canvas.scale(m_spec.size.width() / (float)m_extent.width(),
                  m_spec.size.height() / (float)m_extent.height());
-    // A tree that declares its own lens wins, unless a host has taken
-    // hold of the viewpoint.
-    const std::optional<world::Camera> declared = m_scene.camera();
-    m_scene.draw(canvas,
-                 m_orbiting ? m_orbit : (declared ? *declared : m_camera));
+    m_scene.draw(canvas, viewing());
   }
 
   std::unique_ptr<Set> m_set;
   motion::Ticker m_ticker;
   world::Scene m_scene;
   CanvasSpec m_spec;
+  /** The fallback the set was handed at setup, for a tree declaring no
+   *  camera of its own. */
   world::Camera m_camera;
+  /** The viewpoint the last describe put the set at — the tree's own, or
+   *  the fallback where it declared none. */
+  world::Camera m_declared;
   world::Camera m_orbit;
   bool m_orbiting = false;
   SkISize m_extent{1, 1};  // the pixels the frame standing was formed at
@@ -190,6 +212,30 @@ class SetSession final : public Session {
 };
 
 }  // namespace
+
+Orbit orbitOf(const world::Camera& camera) {
+  constexpr float kToDegrees = 180.0f / 3.14159265358979f;
+  const glm::vec3 out = camera.eye - camera.target;
+  const float distance = glm::length(out);
+  if (!(distance > 0.0f)) return {};
+  // Yaw from the +z axis toward +x and pitch off the ground plane, which
+  // is the pair `cameraAt` puts the eye back at.
+  return {std::atan2(out.x, out.z) * kToDegrees,
+          std::asin(std::clamp(out.y / distance, -1.0f, 1.0f)) * kToDegrees,
+          distance};
+}
+
+world::Camera cameraAt(const world::Camera& pivot, Orbit orbit) {
+  constexpr float kToRadians = 3.14159265358979f / 180.0f;
+  const float yaw = orbit.yawDeg * kToRadians;
+  const float pitch = orbit.pitchDeg * kToRadians;
+  world::Camera out = pivot;
+  out.eye = pivot.target +
+            glm::vec3{orbit.distance * std::cos(pitch) * std::sin(yaw),
+                      orbit.distance * std::sin(pitch),
+                      orbit.distance * std::cos(pitch) * std::cos(yaw)};
+  return out;
+}
 
 std::unique_ptr<Session> SetKind::open(weave::FontContext& fonts,
                                        Assets& assets,

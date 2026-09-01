@@ -1,6 +1,11 @@
 /** @file
- * The two mask bodies in SkSL — a shaped constant and a shaped reading
- * of a source slot — and the factories that fix which reading is used.
+ * The two mask bodies in each language a renderer speaks — a shaped
+ * constant and a shaped reading of a source slot — and the factories
+ * that fix which reading is used.
+ *
+ * A mask answers a SCALAR that its caller reads out of the red channel,
+ * so both bodies return it in all three colour channels at full alpha:
+ * a mask drawn on its own is a grey picture of where it applies.
  */
 
 #include "sigilmaterial/kit/Mask.h"
@@ -46,6 +51,44 @@ half4 main(float2 xy) {
 }
 )";
 
+/** The same two readings in Slang, for a renderer that compiles it. The
+ *  params, the slot and the fit are the same ABI, because they are the
+ *  same recipe; where the SkSL body evaluates the source as a shader,
+ *  this samples it as a texture. */
+constexpr char kSlangFit[] = R"(
+float shapeS(float raw) {
+  float t = clamp((raw - low) / max(high - low, 1e-5), 0.0, 1.0);
+  return inverted > 0.5 ? 1.0 - t : t;
+}
+)";
+
+constexpr char kSlangConstant[] = R"(
+float4 surface(float2 uv) {
+  float v = shapeS(value);
+  return float4(v, v, v, 1.0);
+}
+)";
+
+constexpr char kSlangSampled[] = R"(
+float chanM(float4 c, float which) {
+  return which < 0.5 ? c.r : which < 1.5 ? c.g : which < 2.5 ? c.b : c.a;
+}
+
+float3 unitM(float3 v) {
+  float len = lengthP(v);
+  return len < 1e-5 ? float3(0.0, 1.0, 0.0) : v / len;
+}
+
+float4 surface(float2 uv) {
+  float4 s = source.Sample(uv);
+  float raw = reading < 0.5   ? chanM(s, channel)
+              : reading < 1.5 ? dotP(s.rgb * 2.0 - 1.0, unitM(axis.xyz))
+                              : dotP(s.rgb, axis.xyz);
+  float v = shapeS(raw);
+  return float4(v, v, v, 1.0);
+}
+)";
+
 Material sampled(Texture source, MaskParams params) {
   Material m(sampledMaskRecipe(), params);
   m.child(kMaskSourceSlot, std::move(source));
@@ -58,7 +101,8 @@ const std::shared_ptr<const Recipe>& constantMaskRecipe() {
   static const std::shared_ptr<const Recipe> recipe =
       std::make_shared<const Recipe>(
           Recipe::of<MaskParams>("mask.constant")
-              .body(Target::SkSL, std::string(kFit) + kConstant));
+              .body(Target::SkSL, std::string(kFit) + kConstant)
+              .body(Target::Slang, std::string(kSlangFit) + kSlangConstant));
   return recipe;
 }
 
@@ -67,7 +111,8 @@ const std::shared_ptr<const Recipe>& sampledMaskRecipe() {
       std::make_shared<const Recipe>(
           Recipe::of<MaskParams>("mask.sampled")
               .child(std::string(kMaskSourceSlot))
-              .body(Target::SkSL, std::string(kFit) + kSampled));
+              .body(Target::SkSL, std::string(kFit) + kSampled)
+              .body(Target::Slang, std::string(kSlangFit) + kSlangSampled));
   return recipe;
 }
 
