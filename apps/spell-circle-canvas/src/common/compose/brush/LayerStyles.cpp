@@ -269,9 +269,20 @@ Material silverChromeText() {
 void GlossContour::paint(SkCanvas& c, const PaintContext& ctx) const {
   SkPaint p;
   p.setAntiAlias(true);
-  p.setColor4f(color, nullptr);
+  // The ring table reads blurred COVERAGE, so the outline is drawn opaque
+  // and the colour's alpha is applied after the table: scaling the
+  // coverage first would move the ring, and a translucent colour whose
+  // alpha sits at the ring's centre would put the whole interior on the
+  // peak.
+  p.setColor4f({color.fR, color.fG, color.fB, 1.0f}, nullptr);
+  const float alphaScale[20] = {1, 0, 0, 0,        0,  //
+                                0, 1, 0, 0,        0,  //
+                                0, 0, 1, 0,        0,  //
+                                0, 0, 0, color.fA, 0};
   p.setImageFilter(SkImageFilters::ColorFilter(
-      SkColorFilters::TableARGB(table.data(), nullptr, nullptr, nullptr),
+      SkColorFilters::Compose(
+          SkColorFilters::Matrix(alphaScale),
+          SkColorFilters::TableARGB(table.data(), nullptr, nullptr, nullptr)),
       SkImageFilters::Blur(sigma, sigma, nullptr)));
   c.save();
   c.clipPath(ctx.outline, true);  // satin lives INSIDE the shape
