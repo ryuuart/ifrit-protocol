@@ -359,6 +359,26 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
   if (used == 0 && !ridesPath) return;
   const std::span<const Resolved> live(resolved.data(), used);
 
+  // A TRACK DRAWS ITS OWN GLYPHS, in batched buckets, and a bucket carries
+  // glyphs alone — so a band a span asked for (an underline, a
+  // strikethrough, the sideline beside a column) is not drawn on a node
+  // that moves. Say so once rather than leaving an author to discover it
+  // by its absence.
+  for (const sigil::weave::StyleSpan& span : inst.paragraph->spans()) {
+    if (span.style.paint.decorations.empty()) continue;
+    static thread_local bool warnedAboutBands = false;
+    if (!warnedAboutBands) {
+      warnedAboutBands = true;
+      SkDebugf(
+          "sigilcompose fx: a span of this text asks for a decoration and "
+          "the text also carries an fx() track, which draws its glyphs "
+          "itself — the band is not drawn. Split the two: the passage that "
+          "wears the band stands still, and the one that moves wears "
+          "none.\n");
+    }
+    break;
+  }
+
   // PASS TRACKS (fx::pass): each renders its addressed glyphs into its own
   // lane instead of the canvas, accumulating one rect and one local time
   // per (outer, inner) beat — the same enumeration beatsOfTrack reports,

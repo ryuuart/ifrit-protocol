@@ -907,12 +907,26 @@ because there is no separate concept. 縦中横 is the one to know: a short run
 shaped horizontally and set upright across the column, which is how two-digit
 numbers read in vertical prose.
 
+**What else the face keeps for a column it hands over only when asked.**
+Setting a run down the page applies the `vert` forms by itself; the wider
+`vrt2` rotation set, punctuation recentred (`valt`) or fitted to its ink
+(`vpal`, `vhal`), kana cut for a column (`vkna`) and vertical kerning
+(`vkrn`) are named features, spelled as
+`sigil::weave::Features::verticalRotatedForms` and its siblings and set on
+`shaping.fontFeatures` like any other. They are part of shaping identity, so
+naming one re-shapes the runs it covers — and they are NOT gated on the
+writing direction, so a style carrying them and set along a line takes them
+there too.
+
 **The engine runs in columns.** `unit::Line` IS A COLUMN here, so a
 `stagger(unit::Line)` beats column by column and `sel::line(0)` addresses
 the rightmost one; `unit::Cluster` runs down a column in reading order.
 `spanPaint`, `spanStyle`, `textAlign` (start is the top of the column),
 `maxLines` (which clamps COLUMNS), `lastLine`, `lineBreak`, `textStroke`,
 `variationDrive` and `feed()`'s text tier all work as they do across a line.
+`mark()` anchors as it does anywhere — its rect is the union of the advance
+boxes its selector addressed, and in a column those stack downward, so a
+phrase's mark is a tall box standing in that phrase's column.
 `Element::textFill` maps its unit square onto the COLUMN BLOCK rather than
 onto a cap band — a column's glyphs centre across its axis instead of
 standing on a baseline, so there is no cap band to hang a ramp on — which
@@ -933,8 +947,16 @@ no columns to advance — and setting both warns once and keeps the path.
 `flowAround` exclusions are cut out of horizontal line bands and have no
 column spelling: they warn once and the columns run clean. An `ellipsis`
 marker needs a straight horizontal final line to land on, so a clamped
-vertical passage reports its overflow without drawing one. Underlines and
-strikethroughs skip vertical runs for the same reason.
+vertical passage reports its overflow without drawing one. A decoration on
+a span DOES follow the type down the page — an underline runs beside the
+column on its right, an overline on its left, a strikethrough down the
+column axis and a highlight across the whole column pitch — but it never
+skips ink there, because ink intercepts are cut out of a horizontal band
+window that a column's band is not. A BAND AND A TRACK ON ONE NODE DO NOT
+COMPOSE, in either writing mode: a track draws its own glyphs in batched
+buckets and a bucket carries glyphs alone, so the band is not drawn and
+the node says so once. Split them — the passage that wears the band
+stands still, and the one that moves wears none.
 
 **Ruby and kenten are not library features**, deliberately. Each is a few
 lines over the placed runs of a finished layout — read

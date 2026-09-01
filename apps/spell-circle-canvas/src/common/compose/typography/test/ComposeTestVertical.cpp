@@ -9,6 +9,10 @@
  * geometry and nothing else can check it.
  */
 
+#include <sigilweave/style/Features.h>
+
+#include <algorithm>
+
 #include "support/TextTestSupport.h"
 
 namespace {
@@ -520,4 +524,216 @@ TEST(TextVertical, ASubstitutionIsGatedOnTheAxisItsRunAdvancesOn) {
   EXPECT_FALSE(drawn(line, U'B'))
       << "a level run admitted a wider replacement, which moves every glyph "
          "after it";
+}
+
+TEST(TextVertical, AMarkAnchorsToTheColumnItsUnitStandsIn) {
+  // A mark's rect is the union of the advance boxes of the glyphs it
+  // addressed, and in a column those boxes stack DOWN one axis. So a
+  // phrase's mark is a tall narrow box standing in that phrase's column —
+  // not a wide short one across the page.
+  Host host(300, 260);
+  host.composer.render(box().padding(10).child(
+      text(kProse, jp(22, SK_ColorWHITE))
+          .width(200)
+          .height(200)
+          .writingMode(sigil::weave::WritingMode::kVerticalRL)
+          .mark(sel::text(u8"縦組み"),
+                box().key("rule").width(Dim(3.0f)).fill(red()))
+          .key("t")));
+  host.frame();
+  const auto* layout = host.composer.paragraphLayout("t");
+  ASSERT_NE(layout, nullptr);
+  const SkRect rule =
+      host.composer.bounds("rule").value_or(SkRect::MakeEmpty());
+  ASSERT_FALSE(rule.isEmpty()) << "the mark never resolved";
+  EXPECT_GT(rule.height(), rule.width() * 3)
+      << "three characters of a column make a TALL mark";
+
+  // And it stands in the column those characters are in: the phrase opens
+  // the passage, so that is column 0, the rightmost.
+  const std::vector<float> axes = columnAxes(*layout);
+  ASSERT_GE(axes.size(), 2u);
+  EXPECT_GT(rule.centerX(), (axes[0] + axes[1]) * 0.5f)
+      << "the mark drifted out of the column it names";
+}
+
+TEST(TextVertical, ASpanStyleReshapesOnlyTheRunItNames) {
+  // A span restyle that changes SHAPING re-shapes its own run and leaves
+  // its neighbours' shaped words alone — the same contract a line keeps,
+  // asked of a column, where the re-shaped run also changes how far the
+  // pen steps DOWN.
+  Host host(300, 300);
+  const auto describe = [&](bool dressed) {
+    Element t = text(u8"縦組みの文章", jp(24, SK_ColorWHITE))
+                    .width(80)
+                    .height(260)
+                    .writingMode(sigil::weave::WritingMode::kVerticalRL)
+                    .key("t");
+    if (dressed) {
+      sigil::weave::TextStyle big = jp(40, SK_ColorWHITE);
+      t.spanStyle(sel::text(u8"文章"), big);
+    }
+    return box().padding(10).child(std::move(t));
+  };
+  host.composer.render(describe(false));
+  host.frame();
+  const auto* plain = host.composer.paragraphLayout("t");
+  ASSERT_NE(plain, nullptr);
+  const float plainExtent = plain->runs.back().origin.y();
+
+  host.composer.render(describe(true));
+  host.frame();
+  const auto* dressed = host.composer.paragraphLayout("t");
+  ASSERT_NE(dressed, nullptr);
+  bool sawBigger = false;
+  for (const sigil::weave::PositionedRun& run : dressed->runs)
+    if (run.shaped && run.shaped->fontSize > 30.0f) sawBigger = true;
+  EXPECT_TRUE(sawBigger) << "the named run kept the size it was set at";
+  EXPECT_GT(dressed->runs.back().origin.y(), plainExtent)
+      << "a taller run must push the pen further down the column";
+}
+
+TEST(TextVertical, AColumnCarriesItsSidelineBesideTheType) {
+  // 傍線 through the compose surface: a decoration on a span of a vertical
+  // passage runs BESIDE its column, the length of the run it dresses.
+  Host host(240, 300);
+  sigil::weave::PaintStyle sidelined(SK_ColorWHITE);
+  sigil::weave::Decoration sideline;
+  sideline.thickness = 3.0f;
+  sideline.color = SK_ColorRED;
+  sidelined.addDecoration(sideline);
+  host.composer.render(box().padding(10).child(
+      text(u8"一二三四五六七八", jp(24, SK_ColorWHITE))
+          .width(60)
+          .height(260)
+          .writingMode(sigil::weave::WritingMode::kVerticalRL)
+          .spanPaint(sel::text(u8"三四五六"), sidelined)
+          .key("t")));
+  host.frame();
+  const auto* layout = host.composer.paragraphLayout("t");
+  ASSERT_NE(layout, nullptr);
+  ASSERT_FALSE(layout->runs.empty());
+  const float axis = layout->runs.front().origin.x();
+
+  int top = 1000, bottom = -1, leftOfAxis = 0, redPixels = 0;
+  for (int y = 0; y < 300; ++y)
+    for (int x = 0; x < 240; ++x) {
+      const SkColor c = host.pixel(x, y);
+      if (SkColorGetR(c) < 200 || SkColorGetG(c) > 128 || SkColorGetB(c) > 128)
+        continue;
+      ++redPixels;
+      if ((float)x < axis) ++leftOfAxis;
+      top = std::min(top, y);
+      bottom = std::max(bottom, y);
+    }
+  ASSERT_GT(redPixels, 0) << "the span drew no band";
+  EXPECT_EQ(leftOfAxis, 0) << "the band crossed the column axis";
+  EXPECT_GT(bottom - top, 40) << "the band must run DOWN the column";
+  // Four of eight characters are dressed, so the band covers about half
+  // the column and not all of it.
+  EXPECT_LT(bottom - top, 200);
+}
+
+TEST(TextVertical, ACascadeOverLinesBeatsColumnByColumn) {
+  // `unit::Line` IS a column here. Mid-cascade the first column has
+  // arrived whole and the next has not — the two halves of the same
+  // passage separated by the geometry, not by the text.
+  choreograph::Output<float> progress{0.35f};
+  Host host(300, 260);
+  host.composer.render(box().padding(10).child(
+      text(kProse, jp(22, SK_ColorWHITE))
+          .width(200)
+          .height(200)
+          .writingMode(sigil::weave::WritingMode::kVerticalRL)
+          .fx({.effect = fx::typeOn(),
+               .stagger = stagger(unit::Line, {.eachMs = 400}),
+               .progress = &progress})
+          .key("t")));
+  host.frame();
+  const auto* layout = host.composer.paragraphLayout("t");
+  ASSERT_NE(layout, nullptr);
+  ASSERT_GT(layout->lineCount, 1);
+  const std::vector<float> axes = columnAxes(*layout);
+  ASSERT_GE(axes.size(), 2u);
+  const int split = (int)((axes[0] + axes[1]) * 0.5f);
+
+  EXPECT_GT(inkCount(host, SkIRect::MakeLTRB(split, 0, 300, 260)), 0)
+      << "the first column must have arrived";
+  EXPECT_EQ(inkCount(host, SkIRect::MakeLTRB(0, 0, split, 260)), 0)
+      << "a later column arrived with the first: the cascade is not "
+         "beating over COLUMNS";
+
+  progress = 1.0f;
+  host.frame();
+  EXPECT_GT(inkCount(host, SkIRect::MakeLTRB(0, 0, split, 260)), 0)
+      << "at rest every column draws";
+}
+
+TEST(TextVertical, AColumnStyleCanAskTheFaceForItsVerticalMetrics) {
+  // The vertical feature presets are ordinary shaping fields, so they
+  // reach a column through the same span verbs as any other — and because
+  // they are part of shaping identity, asking for one re-shapes the run
+  // rather than repainting it.
+  Host host(240, 300);
+  const auto describe = [&](bool asked) {
+    sigil::weave::TextStyle style = jp(24, SK_ColorWHITE);
+    if (asked)
+      style.shaping.fontFeatures = {
+          sigil::weave::Features::proportionalVerticalMetrics,
+          sigil::weave::Features::verticalKana};
+    return box().padding(10).child(
+        text(u8"「縦組み」、ちょっと。", style)
+            .width(60)
+            .height(260)
+            .writingMode(sigil::weave::WritingMode::kVerticalRL)
+            .key("t"));
+  };
+  host.composer.render(describe(false));
+  host.frame();
+  const auto* plain = host.composer.paragraphLayout("t");
+  ASSERT_NE(plain, nullptr);
+  ASSERT_FALSE(plain->runs.empty());
+  const void* plainShape = plain->runs.front().shaped.get();
+
+  host.composer.render(describe(true));
+  host.frame();
+  const auto* asked = host.composer.paragraphLayout("t");
+  ASSERT_NE(asked, nullptr);
+  ASSERT_FALSE(asked->runs.empty());
+  EXPECT_NE(asked->runs.front().shaped.get(), plainShape)
+      << "a feature list that is part of the shape key reused a shaped word";
+}
+
+TEST(TextVertical, ABandAndATrackOnOneNodeSayWhichOneDraws) {
+  // A track draws its own glyphs in batched buckets, and a bucket carries
+  // glyphs alone: the band a span asked for is not drawn on a node that
+  // also moves. That is a silent absence, so it is diagnosed once.
+  sigil::weave::PaintStyle sidelined(SK_ColorWHITE);
+  sigil::weave::Decoration sideline;
+  sideline.thickness = 3.0f;
+  sideline.color = SK_ColorRED;
+  sidelined.addDecoration(sideline);
+  const auto describe = [&] {
+    return box().padding(10).child(
+        text(u8"一二三四五六七八", jp(24, SK_ColorWHITE))
+            .width(60)
+            .height(220)
+            .writingMode(sigil::weave::WritingMode::kVerticalRL)
+            .spanPaint(sel::text(u8"三四五六"), sidelined)
+            .fx({.effect = fx::rise(12)})
+            .key("t"));
+  };
+
+  Host host(240, 260);
+  ::testing::internal::CaptureStderr();
+  host.composer.render(describe());
+  host.frame();
+  const std::string first = ::testing::internal::GetCapturedStderr();
+  EXPECT_NE(first.find("decoration"), std::string::npos)
+      << "the band went missing with no word said";
+
+  // Once, not once per frame.
+  ::testing::internal::CaptureStderr();
+  host.frame();
+  EXPECT_EQ(::testing::internal::GetCapturedStderr(), "");
 }

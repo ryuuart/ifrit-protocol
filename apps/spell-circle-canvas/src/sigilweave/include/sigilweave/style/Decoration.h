@@ -50,8 +50,14 @@ namespace sigil::weave {
  * compose the same way glyph passes do: stack several decorations with the
  * same geometry and different fills.
  *
- * Scope: decorations render on straight horizontal runs only — transformed
- * (path/rotated) and vertical runs skip them.
+ * Scope: decorations render on straight runs, set either way. Down a column
+ * the band turns with the type — an underline runs beside the column on its
+ * right, an overline on its left, a strikethrough down the column axis, and
+ * a highlight covers the whole em box — and it draws through the glyphs'
+ * ink, because skip-ink intercepts are cut out of a horizontal band window
+ * that a column's band is not. Transformed runs (on a path, on a rotated
+ * interval) carry no band at all: it would have to follow the curve they
+ * ride.
  */
 struct Decoration {
   /// Selects which font metric anchors the band by default. kHighlight is

@@ -82,6 +82,34 @@ BENCHMARK(BM_Layout_KnuthPlass)
     ->Unit(benchmark::kMicrosecond)
     ->Complexity(benchmark::oN);
 
+// The same warm relayout set DOWN COLUMNS. A column breaks between
+// characters rather than at spaces, so the greedy breaker is asked for a
+// decision at nearly every glyph — which is what this arm measures against
+// the space-separated one above.
+void BM_Layout_Vertical_Columns(benchmark::State& state) {
+  const int words = (int)state.range(0);
+  Paragraph paragraph;
+  paragraph.appendText(makeColumnText(words), style16());
+  paragraph.setWritingMode(WritingMode::kVerticalRL);
+  ParagraphLayoutOptions options;
+  options.lineMetrics.height = 26;  // column pitch
+  VerticalBlockFlow flow(SkRect::MakeWH(20000, 600));
+  layoutParagraph(fontContext(), paragraph, flow, options);
+  for ([[maybe_unused]] auto iteration : state) {
+    ParagraphLayout layout =
+        layoutParagraph(fontContext(), paragraph, flow, options);
+    benchmark::DoNotOptimize(layout.runs.data());
+  }
+  countWords(state, words);
+  state.SetComplexityN(words);
+}
+BENCHMARK(BM_Layout_Vertical_Columns)
+    ->Arg(100)
+    ->Arg(500)
+    ->Arg(2000)
+    ->Unit(benchmark::kMicrosecond)
+    ->Complexity(benchmark::oN);
+
 // Knuth-Plass over text dense with soft hyphens (every word carries
 // discretionary break points) on a narrow measure.
 void BM_Layout_KnuthPlass_Hyphenated_300w(benchmark::State& state) {

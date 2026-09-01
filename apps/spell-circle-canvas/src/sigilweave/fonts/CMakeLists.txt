@@ -27,8 +27,11 @@ target_link_libraries(SigilWeaveFonts
 # shares the one process-wide FontContext in test/support/Fonts.h.
 add_executable(weave_fonts_test
   test/FontContextTest.cpp
+  test/VerticalFeaturesTest.cpp
 )
 target_include_directories(weave_fonts_test PRIVATE ${SIGIL_WEAVE_TEST_SUPPORT_DIR})
+target_compile_definitions(weave_fonts_test PRIVATE
+  SIGILWEAVE_TEST_ASSET_DIR="${SIGIL_WEAVE_TEST_ASSET_DIR}")
 target_link_libraries(weave_fonts_test PRIVATE
   SigilWeaveFonts
   SigilWeavePorts

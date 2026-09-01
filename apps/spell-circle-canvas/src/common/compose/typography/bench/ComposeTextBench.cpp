@@ -104,6 +104,43 @@ static void BM_Draw_KineticText(benchmark::State& state) {
 }
 BENCHMARK(BM_Draw_KineticText)->Arg(14)->Arg(56)->Unit(benchmark::kMicrosecond);
 
+/** The same looping reveal set DOWN COLUMNS, beating over `unit::Line` —
+ *  which in a vertical passage is a column. Read against
+ *  BM_Draw_KineticText: the deviation is applied in the frame the layout
+ *  placed each glyph in, and a column places every glyph as its own
+ *  positioned run rather than a word's worth at a time. */
+static void BM_Draw_KineticColumns(benchmark::State& state) {
+  const int passages = (int)state.range(0);
+  Host host(800, 1200);
+  choreograph::Output<float> progress{0.0f};
+  sigil::weave::TextStyle style;
+  style.shaping.fontSize = 22.0f;
+  style.shaping.languageTag = "ja";
+  auto block = box().row().gap(8).padding(16);
+  for (int i = 0; i < passages; ++i)
+    block.child(
+        text(u8"縦組みの文章は上から下へ流れ右から左へと列が進む", style)
+            .width(160)
+            .height(1100)
+            .writingMode(sigil::weave::WritingMode::kVerticalRL)
+            .fx({.effect = fx::rise(24),
+                 .stagger = stagger(unit::Line, {.eachMs = 120}),
+                 .progress = &progress}));
+  host.composer.render(block);
+  host.draw();
+  float t = 0;
+  for ([[maybe_unused]] auto iteration : state) {
+    t += 1.0f / 60.0f;
+    progress = std::fmod(t, 1.0f);
+    host.draw();
+  }
+  state.counters["passages"] = (double)passages;
+}
+BENCHMARK(BM_Draw_KineticColumns)
+    ->Arg(2)
+    ->Arg(4)
+    ->Unit(benchmark::kMicrosecond);
+
 #ifdef COMPOSE_BENCH_GRAPHITE
 
 // ---- Dense static text on Graphite ---------------------------------------

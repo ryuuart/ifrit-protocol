@@ -193,7 +193,11 @@ text, on ICU alone (its own section below).
   unregistered name resolves to the set's base entry).
 - **`style/Features.h`** — named OpenType presets
   (`Features::tabularNumbers`, `smallCaps`, `stylisticSet(n)`, …) so
-  styles need not hand-spell four-cc tags.
+  styles need not hand-spell four-cc tags, including the ones a COLUMN
+  asks for: `verticalRotatedForms`, `verticalAlternates`,
+  `proportionalVerticalMetrics`, `halfWidthVerticalMetrics`,
+  `verticalKana`, `verticalKerning`, and `verticalFormsOff` to decline
+  the vertical forms shaping takes by itself.
 
 **`fonts`** — `SigilWeaveFonts`, HarfBuzz and abseil private:
 
@@ -356,7 +360,13 @@ state.
   that covers the gaps between words (CSS behavior), `kPerWord` draws one
   band per word (squiggles, chips). `Decoration::paint` takes a full `SkPaint`
   applied verbatim, resolved independently of the glyph paint, so a shaded
-  band can sit under plain ink.
+  band can sit under plain ink. **Down a column the band turns with the
+  type**: an underline runs beside the column on its right — the side a
+  vertical setting reads its emphasis line on — an overline on its left, a
+  strikethrough down the column axis, and a highlight across the whole em
+  box; `Decoration::offset` is then a signed distance ACROSS the column.
+  Ink skipping is a line's alone: intercepts are cut out of a horizontal
+  band window, so a column's band is continuous.
 - **Paint layers** — ordered underlays and overlays around the foreground,
   each a complete `SkPaint` plus an offset; `PaintLayer::dropShadow`, `glow`,
   and `outline` are presets over that. Each layer costs one more draw per
@@ -375,7 +385,14 @@ state.
   `wdth` axis).
 - **Vertical CJK** — `WritingMode::kVerticalRL` with per-character UTR#50
   orientation, `vert` forms, and per-span `VerticalForm` overrides (upright,
-  rotated, tate-chu-yoko). `columnMetrics()` measures the result, and a
+  rotated, tate-chu-yoko). Shaping a run top-to-bottom applies the face's
+  `vert` substitutions and reads its vertical metrics on its own; everything
+  else a column may want from the face — the wider `vrt2` rotation set,
+  punctuation recentred (`valt`) or fitted (`vpal`, `vhal`), kana cut for a
+  column (`vkna`), vertical kerning (`vkrn`) — is a feature a style names,
+  spelled in `style/Features.h`. A named feature is not gated on the
+  direction: it runs whichever way the run is set, so those belong on the
+  styles a passage sets vertically. `columnMetrics()` measures the result, and a
   dressed glyph in a column sets `GlyphDress::centreOffset` because half its
   advance is a step down the page rather than across it.
   `FontContext::glyphAdvanceEm()` reports either axis's advance in ems, for a
@@ -648,7 +665,8 @@ Copy it before handing it to any C API; never pass its `.data()` through
 directly.
 
 **Several things silently no-op outside their scope.** Decorations render on
-straight horizontal runs only — transformed and vertical runs skip them. The
+straight runs, set either way; a TRANSFORMED run (on a path, on a rotated
+interval) skips them, and a column's band never skips ink. The
 ellipsis marker requires the final interval to be straight, horizontal, and
 not a contour. `lineMetrics()` skips transformed and vertical runs, and omits
 lines whose geometry placed nothing — `columnMetrics()` is what answers
@@ -707,8 +725,9 @@ statement of what its feature reaches:
 - `weave_unicode_test` — the Unicode leaf, with no fonts at all.
 - `weave_style_test` — styles as plain values: fluent sugar, paint-layer
   presets, feature preset tags, the `StyleSet` registry. No fonts either.
-- `weave_fonts_test` — the font service on its own: the fallback memo and
-  the transient varied clone.
+- `weave_fonts_test` — the font service on its own: the fallback memo, the
+  transient varied clone, and which vertical OpenType features a column
+  takes by itself against which a style must name.
 - `weave_paragraph_test` — shaping as the paragraph drives it (the shape
   cache under edits and restyles, itemization, complex scripts), the
   document model, and typographic correctness: cluster coverage across
@@ -733,7 +752,11 @@ Fixtures live in `test/support/`: `Fonts.h` holds the one process-wide
 `FontContext` every binary shapes with, `Paragraphs.h` and `Layouts.h` the
 paragraph and layout fixtures, and each binary that needs more has a
 support header that includes exactly the headers its translation units
-use.
+use. `test/assets/` holds the constructed faces a question needs that no
+installed font can answer — `VerticalFeatures.ttf`, where every vertical
+feature has its own visible consequence and none share one — each with
+the script that generates it beside it; `SIGILWEAVE_TEST_ASSET_DIR` names
+the directory to the binaries that read them.
 
 The benchmarks own every performance claim about this library — one
 binary per feature, under its feature's `bench/`, so each links only what

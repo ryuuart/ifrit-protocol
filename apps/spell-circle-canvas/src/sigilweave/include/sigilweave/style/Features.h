@@ -51,6 +51,40 @@ inline constexpr FontFeature contextualAlternatesOff{"calt", 0};
 /// Enables swash forms ("swsh").
 inline constexpr FontFeature swashes{"swsh", 1};
 
+// ── Vertical typesetting (CJK columns) ───────────────────────────────────
+// A column asks the face for more than a line does. Shaping a run
+// top-to-bottom already applies the face's vertical forms ("vert") and
+// reads its vertical metrics; everything below is what a setting asks for
+// on top of that, and each is off until a style names it.
+//
+// A NAMED FEATURE IS NOT GATED ON THE DIRECTION. The shaper runs the
+// lookups a style asks for whichever way the run is set, so a style
+// carrying these and set along a line takes them there too — substituting
+// forms cut for a column, and moving ink off a baseline that was meant to
+// move along a column axis. Carry them on the styles a passage sets
+// vertically.
+/// Suppresses the vertical forms a column takes by default ("vert" 0) —
+/// the brackets and long vowel marks stay in their horizontal shapes.
+inline constexpr FontFeature verticalFormsOff{"vert", 0};
+/// The wider rotation set some faces carry beside their vertical forms
+/// ("vrt2"), covering characters "vert" leaves alone.
+inline constexpr FontFeature verticalRotatedForms{"vrt2", 1};
+/// Alternate vertical positioning ("valt") — the face's own recentring of
+/// punctuation on the column axis, which sits off-centre for a line.
+inline constexpr FontFeature verticalAlternates{"valt", 1};
+/// Proportional vertical metrics ("vpal") — full-width punctuation set to
+/// the space its ink needs down the column rather than to a full em.
+inline constexpr FontFeature proportionalVerticalMetrics{"vpal", 1};
+/// Half-em vertical metrics ("vhal") — the tighter fixed alternative to
+/// the proportional set above.
+inline constexpr FontFeature halfWidthVerticalMetrics{"vhal", 1};
+/// Kana forms cut for a column ("vkna") — small kana sit where a column
+/// reads them rather than where a line does.
+inline constexpr FontFeature verticalKana{"vkna", 1};
+/// Vertical kerning ("vkrn") — the pair adjustments a column needs, which
+/// horizontal kerning does not carry.
+inline constexpr FontFeature verticalKerning{"vkrn", 1};
+
 /** Returns the stylistic-set feature ss01…ss20 for `index` in [1, 20];
  * indices outside that range clamp into it. */
 [[nodiscard]] constexpr FontFeature stylisticSet(int index) {

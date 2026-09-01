@@ -140,3 +140,83 @@ TEST(DecorationTest, HighlightDefaultColorIsTranslucentForeground) {
   EXPECT_FLOAT_EQ(band.position, -20.0f) << "band top at the ascent line";
   EXPECT_FLOAT_EQ(band.thickness, 26.0f) << "ascent + descent tall";
 }
+
+TEST(DecorationTest, AColumnBandIsMeasuredFromTheColumnAxis) {
+  // Down a column there is no baseline: the band is placed from the axis
+  // the glyphs centre on, and the em box's half-depth is what puts it
+  // clear of them. Ascent 20 and descent 6 make that half-depth 13.
+  SkFontMetrics metrics = {};
+  metrics.fFlags = SkFontMetrics::kUnderlineThicknessIsValid_Flag |
+                   SkFontMetrics::kUnderlinePositionIsValid_Flag;
+  metrics.fAscent = -20.0f;
+  metrics.fDescent = 6.0f;
+  metrics.fUnderlineThickness = 2.0f;
+  metrics.fUnderlinePosition = 4.0f;
+  constexpr float kHalfEm = 13.0f;
+
+  const detail::ResolvedDecorationBand underline =
+      detail::resolveDecorationBand({}, metrics, SK_ColorRED,
+                                    /*alongColumn=*/true);
+  EXPECT_FLOAT_EQ(underline.thickness, 2.0f) << "the face's own thickness";
+  EXPECT_FLOAT_EQ(underline.position, kHalfEm)
+      << "an emphasis line stands clear of the em box on the column's RIGHT";
+
+  Decoration overline;
+  overline.kind = Decoration::Kind::kOverline;
+  const detail::ResolvedDecorationBand overBand = detail::resolveDecorationBand(
+      overline, metrics, SK_ColorRED, /*alongColumn=*/true);
+  EXPECT_FLOAT_EQ(overBand.position, -kHalfEm - overBand.thickness)
+      << "and its opposite stands clear on the LEFT";
+
+  Decoration strike;
+  strike.kind = Decoration::Kind::kStrikethrough;
+  const detail::ResolvedDecorationBand strikeBand =
+      detail::resolveDecorationBand(strike, metrics, SK_ColorRED,
+                                    /*alongColumn=*/true);
+  EXPECT_FLOAT_EQ(strikeBand.position, -strikeBand.thickness * 0.5f)
+      << "a strikethrough runs DOWN the axis it crosses out";
+
+  Decoration highlight;
+  highlight.kind = Decoration::Kind::kHighlight;
+  const detail::ResolvedDecorationBand highlightBand =
+      detail::resolveDecorationBand(highlight, metrics, SK_ColorRED,
+                                    /*alongColumn=*/true);
+  EXPECT_FLOAT_EQ(highlightBand.position, -kHalfEm);
+  EXPECT_FLOAT_EQ(highlightBand.thickness, 2 * kHalfEm)
+      << "a highlight covers the whole column pitch";
+
+  // An explicit offset still wins, and is then read across the column.
+  Decoration nudged;
+  nudged.offset = -9.0f;
+  EXPECT_FLOAT_EQ(detail::resolveDecorationBand(nudged, metrics, SK_ColorRED,
+                                                /*alongColumn=*/true)
+                      .position,
+                  -9.0f);
+}
+
+TEST(DecorationTest, AColumnBandRunsUncutDownItsRun) {
+  FontContext& fontContext = sharedContext();
+  Paragraph paragraph = makeParagraph(u8"縦書きの傍線", 32.0f);
+  paragraph.setWritingMode(WritingMode::kVerticalRL);
+  VerticalBlockFlow flow(SkRect::MakeWH(120, 400));
+  ParagraphLayoutOptions options;
+  options.lineMetrics.height = 40;
+  ParagraphLayout layout =
+      layoutParagraph(fontContext, paragraph, flow, options);
+  ASSERT_FALSE(layout.runs.empty());
+  const PositionedRun& run = layout.runs.front();
+  ASSERT_TRUE(run.shaped && run.shaped->vertical);
+
+  const SkFont font = makeFont(run.shaped->typeface, run.shaped->fontSize);
+  SkFontMetrics metrics;
+  font.getMetrics(&metrics);
+  Decoration skipping;  // default underline, skipInk = true
+  const detail::ResolvedDecorationBand band = detail::resolveDecorationBand(
+      skipping, metrics, SK_ColorBLACK, /*alongColumn=*/true);
+  const auto segments = detail::decorationSegments(run, skipping, band);
+  // Intercepts are cut out of a horizontal window; a column has none to
+  // read, so the band is whole and runs along the column, not across it.
+  ASSERT_EQ(segments.size(), 1u);
+  EXPECT_FLOAT_EQ(segments[0].first, run.origin.y());
+  EXPECT_FLOAT_EQ(segments[0].second, run.origin.y() + run.shaped->advance);
+}

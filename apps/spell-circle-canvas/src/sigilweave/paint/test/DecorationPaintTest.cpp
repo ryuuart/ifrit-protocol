@@ -12,6 +12,7 @@
 #include <include/core/SkTileMode.h>
 #include <include/effects/SkGradient.h>
 
+#include <algorithm>
 #include <iomanip>
 #include <vector>
 
@@ -270,4 +271,62 @@ TEST(DecorationTest, ShadedBandDrawsIndependentlyOfGlyphPaint) {
       }
     EXPECT_TRUE(sawInk) << "glyphs must keep their own paint";
   }
+}
+
+TEST(DecorationTest, AColumnDrawsItsBandBesideTheType) {
+  // 傍線: down a column the emphasis line runs BESIDE the characters on the
+  // right, the length of the run — the same band the horizontal setting
+  // draws under a line, turned with the type.
+  FontContext& fontContext = sharedContext();
+  Paragraph paragraph = makeParagraph(u8"縦書きの傍線", 32.0f);
+  paragraph.setWritingMode(WritingMode::kVerticalRL);
+  VerticalBlockFlow flow(SkRect::MakeWH(120, 300));
+  ParagraphLayoutOptions options;
+  options.lineMetrics.height = 40;
+  ParagraphLayout layout =
+      layoutParagraph(fontContext, paragraph, flow, options);
+  ASSERT_FALSE(layout.runs.empty());
+  const PositionedRun& first = layout.runs.front();
+  ASSERT_TRUE(first.shaped && first.shaped->vertical)
+      << "the fixture did not set in columns";
+
+  PaintStyle underlined(SK_ColorBLACK);
+  Decoration sideline;
+  sideline.thickness = 3.0f;
+  sideline.color = SK_ColorRED;
+  underlined.addDecoration(sideline);
+  paragraph.setPaint(0, static_cast<uint32_t>(paragraph.text().size()),
+                     underlined);
+
+  sk_sp<SkSurface> surface =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(120, 300));
+  surface->getCanvas()->clear(SK_ColorWHITE);
+  layout.draw(surface->getCanvas(), paragraph);
+  SkPixmap pixmap;
+  ASSERT_TRUE(surface->peekPixels(&pixmap));
+
+  // Red ink, and all of it on ONE side of the column axis, spread down the
+  // column rather than across it.
+  int redPixels = 0, redLeftOfAxis = 0;
+  int topMost = pixmap.height(), bottomMost = -1;
+  float minX = 1e9f, maxX = -1e9f;
+  for (int y = 0; y < pixmap.height(); ++y)
+    for (int x = 0; x < pixmap.width(); ++x) {
+      const SkColor color = pixmap.getColor(x, y);
+      if (SkColorGetR(color) < 200 || SkColorGetG(color) > 128 ||
+          SkColorGetB(color) > 128)
+        continue;
+      ++redPixels;
+      if ((float)x < first.origin.x()) ++redLeftOfAxis;
+      topMost = std::min(topMost, y);
+      bottomMost = std::max(bottomMost, y);
+      minX = std::min(minX, (float)x);
+      maxX = std::max(maxX, (float)x);
+    }
+  ASSERT_GT(redPixels, 0) << "a column drew no band at all";
+  EXPECT_EQ(redLeftOfAxis, 0)
+      << "the band crossed to the wrong side of the column";
+  EXPECT_GT(bottomMost - topMost, 60)
+      << "the band must run DOWN the column, not across it";
+  EXPECT_LT(maxX - minX, 6.0f) << "a 3px band must stay 3px wide";
 }

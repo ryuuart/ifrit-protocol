@@ -47,6 +47,20 @@ Scene scene(int words, const TextStyle& style) {
   return s;
 }
 
+/** The same quantity of type set DOWN COLUMNS: upright CJK in a vertical
+ *  block flow, on a surface wide enough for the columns it fills. */
+Scene columnScene(int words, const TextStyle& style) {
+  Scene s;
+  s.paragraph.appendText(makeColumnText(words), style);
+  s.paragraph.setWritingMode(WritingMode::kVerticalRL);
+  ParagraphLayoutOptions options;
+  options.lineMetrics.height = 26;  // column pitch
+  VerticalBlockFlow flow(SkRect::MakeWH(1400, 680));
+  s.layout = layoutParagraph(fontContext(), s.paragraph, flow, options);
+  s.surface = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(1400, 700));
+  return s;
+}
+
 void BM_Draw(benchmark::State& state) {
   Scene s = scene((int)state.range(0), style16());
   for ([[maybe_unused]] auto iteration : state) {
@@ -106,6 +120,35 @@ void BM_DrawBatched_PlainUnderline_300w(benchmark::State& state) {
   countGlyphs(state, s.layout);
 }
 BENCHMARK(BM_DrawBatched_PlainUnderline_300w)->Unit(benchmark::kMicrosecond);
+
+// The column pair, read the way the underline pair above is read: the
+// first arm is a plain vertical setting drawn batched, the second the same
+// setting with one band beside every column. A column's band is one rect
+// per group with no intercepts to cut, so the difference is the band walk
+// and the fills alone.
+void BM_DrawBatched_Column_600w(benchmark::State& state) {
+  Scene s = columnScene(600, style16());
+  for ([[maybe_unused]] auto iteration : state) {
+    s.surface->getCanvas()->clear(SK_ColorWHITE);
+    s.layout.drawBatched(s.surface->getCanvas(), s.paragraph);
+    benchmark::DoNotOptimize(s.surface.get());
+  }
+  countGlyphs(state, s.layout);
+}
+BENCHMARK(BM_DrawBatched_Column_600w)->Unit(benchmark::kMicrosecond);
+
+void BM_DrawBatched_ColumnSideline_600w(benchmark::State& state) {
+  TextStyle sidelined = style16();
+  sidelined.paint.addDecoration(Decoration{});
+  Scene s = columnScene(600, sidelined);
+  for ([[maybe_unused]] auto iteration : state) {
+    s.surface->getCanvas()->clear(SK_ColorWHITE);
+    s.layout.drawBatched(s.surface->getCanvas(), s.paragraph);
+    benchmark::DoNotOptimize(s.surface.get());
+  }
+  countGlyphs(state, s.layout);
+}
+BENCHMARK(BM_DrawBatched_ColumnSideline_600w)->Unit(benchmark::kMicrosecond);
 
 // Four ordered glyph passes: blurred shadow, blurred glow, outline, fill.
 // Draw submission scales with pass count; blur-mask work depends on the

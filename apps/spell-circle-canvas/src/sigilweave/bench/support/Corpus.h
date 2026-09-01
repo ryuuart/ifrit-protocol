@@ -57,6 +57,18 @@ inline std::u8string makeText(int wordCount, bool mixed, uint32_t seed = 7) {
   return text;
 }
 
+/** `wordCount` CJK words run together with no separators — the corpus a
+ *  COLUMN is set in, where the break opportunities are between characters
+ *  rather than at spaces, and every character stands upright. */
+inline std::u8string makeColumnText(int wordCount, uint32_t seed = 11) {
+  std::mt19937 randomEngine(seed);
+  const auto& cjk = cjkWords();
+  std::u8string text;
+  for (int wordIndex = 0; wordIndex < wordCount; ++wordIndex)
+    text += cjk[randomEngine() % cjk.size()];
+  return text;
+}
+
 inline TextStyle style16() {
   TextStyle style;
   style.shaping.fontSize = 16.0f;

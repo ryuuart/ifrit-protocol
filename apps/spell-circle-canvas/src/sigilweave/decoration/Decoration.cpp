@@ -84,7 +84,8 @@ const PaintStyle& resolvePaint(const std::vector<StyleSpan>& spans,
 
 ResolvedDecorationBand resolveDecorationBand(const Decoration& decoration,
                                              const SkFontMetrics& metrics,
-                                             SkColor foregroundColor) {
+                                             SkColor foregroundColor,
+                                             bool alongColumn) {
   ResolvedDecorationBand band;
   if (decoration.color != SK_ColorTRANSPARENT) {
     band.color = decoration.color;
@@ -114,6 +115,28 @@ ResolvedDecorationBand resolveDecorationBand(const Decoration& decoration,
 
   if (decoration.offset != 0) {
     band.position = decoration.offset;
+    return band;
+  }
+  if (alongColumn) {
+    // No baseline to measure from: an upright glyph is centred across the
+    // column axis, so the em box's half-depth is the whole geometry. The
+    // underline stands clear of the box on the right — the side a vertical
+    // setting reads its emphasis line on — and the overline on the left.
+    const float halfEm = (-metrics.fAscent + metrics.fDescent) * 0.5f;
+    switch (decoration.kind) {
+      case Decoration::Kind::kUnderline:
+        band.position = halfEm;
+        break;
+      case Decoration::Kind::kOverline:
+        band.position = -halfEm - band.thickness;
+        break;
+      case Decoration::Kind::kStrikethrough:
+        band.position = -band.thickness * 0.5f;  // down the axis itself
+        break;
+      case Decoration::Kind::kHighlight:
+        band.position = -halfEm;  // thickness is already the whole em box
+        break;
+    }
     return band;
   }
   switch (decoration.kind) {
@@ -153,14 +176,16 @@ std::vector<std::pair<float, float>> decorationSegments(
     const PositionedRun& run, const Decoration& decoration,
     const ResolvedDecorationBand& band) {
   std::vector<std::pair<float, float>> segments;
-  if (run.transformed || !run.shaped || run.shaped->vertical ||
-      run.placeholderIndex >= 0)
+  if (run.transformed || !run.shaped || run.placeholderIndex >= 0)
     return segments;
-  const float startX = run.origin.x();
+  const bool alongColumn = run.shaped->vertical;
+  const float startX = alongColumn ? run.origin.y() : run.origin.x();
   const float endX = startX + run.shaped->advance;
   if (endX <= startX) return segments;
 
-  const bool skipInk = decoration.skipInk &&
+  // Intercepts come out of a HORIZONTAL band window, which a column's band
+  // is not: down a column the line draws through the ink.
+  const bool skipInk = decoration.skipInk && !alongColumn &&
                        decoration.kind == Decoration::Kind::kUnderline &&
                        run.blob;
   if (!skipInk) {

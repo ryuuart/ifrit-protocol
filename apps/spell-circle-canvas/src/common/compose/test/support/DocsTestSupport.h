@@ -5,5 +5,8 @@
 // merely because the harness left out the file that owns it.
 
 #include <sigilcompose/kit/Kit.h>
+// The one SigilWeave header no compose header pulls in and the README
+// still names: the OpenType feature presets a style spells by name.
+#include <sigilweave/style/Features.h>
 
 #include "PaintTestSupport.h"
