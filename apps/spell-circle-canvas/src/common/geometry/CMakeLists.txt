@@ -33,22 +33,6 @@ target_link_libraries(SigilGeometry INTERFACE
 # The header tree installs as one unit beside the exported path leaf.
 install(DIRECTORY include/sigilgeometry DESTINATION include)
 
-# Headless PNG panels of the SigilGeometry catalog: blend studies, surface
-# swatches, procedural meshes in perspective. Mirrors compose_demo:
-#   geometry_demo [outdir]            (default geometry_demo_out)
-add_executable(geometry_demo
-  examples/geometry_demo.cpp
-)
-
-# SigilMaterial shades the surface swatches and the chrome meshes over
-# the normal passes this library rasterizes; SigilLoader feeds the
-# optional HDRI-environment panel (fetch_assets); SigilComposeCore +
-# SigilWeave author the yarn-marquee panel's canvas. Demo-only deps: the
-# library itself stays Skia-only.
-target_link_libraries(geometry_demo PRIVATE SigilGeometry SigilMaterialKit
-  SigilMaterialSkia SigilLoader SigilComposeCore SigilWeave
-  SigilWeaveShaders SigilWeavePorts SigilWeaveKit)
-
 # Registers this library with the `docs` target (see cmake/Docs.cmake).
 # The README is the site's front page, so the generated pages open on the
 # same document that is canon for the library.

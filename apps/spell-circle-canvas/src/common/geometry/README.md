@@ -711,9 +711,9 @@ Targets: one static library per feature — `SigilGeometryPath`,
 `SigilGeometryPathBlend`, `SigilGeometryMesh`, `SigilGeometryMeshCamera`,
 `SigilGeometryMeshRender`, `SigilGeometryMeshCurve`,
 `SigilGeometryMeshPop`, `SigilGeometryMeshCodec` — the `SigilGeometry`
-umbrella over all of them, the tests, `geometry_demo`, and one Google
-Benchmark binary per feature, built by the `benches` target and run from
-a Release build through `scripts/bench_ledger.py`:
+umbrella over all of them, the tests, and one Google Benchmark binary
+per feature, built by the `benches` target and run from a Release build
+through `scripts/bench_ledger.py`:
 
 | Binary | Measures |
 | --- | --- |
@@ -745,24 +745,25 @@ recompiles one small file. All are registered with ctest and answer to
 
 Helpers that more than one binary reads (`kCubeObj`, `splitQuad`) live in
 `test/support/GeometrySupport.h` at the library root — the one shared
-test location, beside `examples/geometry_demo.cpp`, which is the one
-program over the whole library; a helper one binary uses stays in that
-binary's file.
+test location; a helper one binary uses stays in that binary's file.
 
 ```sh
 ctest --test-dir build -C Debug -R geometry --output-on-failure
-./build/bin/Debug/geometry_demo [outdir] [assetdir]
 ```
 
 Everything is CPU and raster Skia, so the tests need no GPU and run
 anywhere.
 
-`geometry_demo` writes PNG panels into `outdir` (default `geometry_demo_out`):
-`blend_morph`, `blend_color`, `blend_spine`, `materials`,
-`mesh_perspective`, `mesh_chrome`, `panels_space`, `pathfinder`,
-`splines_particles`, `pop_models`, `pop_prims` and `yarn_marquee`. Two more
-appear when `assetdir` (default `assets`) has been populated by the
-optional `fetch_assets` build target: `materials_hdri`, which lights the
-surface swatches with a loaded HDRI panorama, and `imported_models`, which
-renders whatever model files sit in `<assetdir>/models` through the import
-path.
+**Looking at any of it** goes through SigilSketch, in `src/sketch/`: one
+file per renderable thing, in one registry, drawn by one application.
+The studies over this library are `blend_keys`, `blend_smooth_color`,
+`blend_spine`, `path_booleans`, `mesh_primitives`, `mesh_normal_bridge`,
+`floating_panels`, `spline_stations`, `pop_stamps`, `pop_prims`,
+`pop_deform`, `pop_lanes`, `geo_groups`, `yarn_marquee`,
+`shapeworks_lab` and `easel_playground`; `scattered_model` brings a file
+in through the codec and stands it in a lit room. Each is addressed by
+its own stem:
+
+```sh
+build/bin/<config>/Sketchbook.app/Contents/MacOS/Sketchbook --sketch pop_stamps
+```

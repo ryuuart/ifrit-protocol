@@ -190,14 +190,6 @@ if(APPLE AND TARGET SigilSkia)
   add_test(NAME compose_gpu_test COMMAND compose_gpu_test)
 endif()
 
-# Headless gallery: renders stress-catalog panels to PNG (out dir:
-# first argument, default ./compose_demo_out).
-add_executable(compose_demo
-  examples/compose_demo.cpp
-)
-target_link_libraries(compose_demo PRIVATE
-  SigilComposeShape SigilComposeBrush SigilWeavePorts)
-
 # Registers this library with the `docs` target (see cmake/Docs.cmake).
 # The README is the site's front page, so the generated pages open on the
 # same document that is canon for the library.

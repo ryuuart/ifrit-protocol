@@ -1390,8 +1390,9 @@ painted into a surface and handed out as a texture value),
 `SigilComposeTesting` (`testing/`) and `SigilComposeKit` (`kit/`). Each directory holds the target's sources,
 its internal headers, its `test/` and its `bench/`; the public headers
 sit under `include/sigilcompose/<feature>/`. Every consumer in this
-repository — SigilSketch, the benches, the demos, the tests and
-`geometry_demo` — links the feature targets it draws with by name, so a dependency on a tier is a stated fact.
+repository — SigilSketch, the benches and the tests — links the
+feature targets it draws with by name, so a dependency on a tier is a
+stated fact.
 `SigilCompose` remains as the whole-library name for a consumer outside
 this tree, the way `SigilWeave`, `SigilMotion` and `SigilGeometry` each
 keep one: it is Paint (which reaches Brush, Shape and Core) plus
@@ -1424,7 +1425,7 @@ plus `compose_gpu_test` (Apple only, needs the Graphite plumbing) and
 `compose_web_test` (needs the Ultralight SDK). Each binary's translation
 units share `test/support/Host.h` — the composer-in-a-raster-surface
 harness — through a support header of their own that includes only what
-they use. The benchmarks and `compose_demo` are executables, not tests.
+they use. The benchmarks are executables, not tests.
 There is one benchmark binary per tier — `compose_core_bench`,
 `compose_shape_bench`, `compose_brush_bench`, `compose_paint_bench`,
 `compose_text_bench` — each in its feature's `bench/` over the shared
