@@ -45,6 +45,8 @@
 #include <mach-o/dyld.h>
 #endif
 
+#include <unistd.h>
+
 #include <algorithm>
 #include <cctype>
 #include <chrono>
@@ -490,12 +492,26 @@ int main(int argc, char* argv[]) {
   if (list) {
     // Spelled the way a plate names it, because a script that selects a
     // sketch here looks for its plate under the same name.
+    //
+    // A SKETCH THIS MACHINE CANNOT RUN IS STILL LISTED, with what it is
+    // missing after a tab — one line, two consumers. A reader sees the
+    // entry greyed and the reason beside it; a script splits on the tab
+    // and knows not to ask for a plate it has just been told cannot
+    // exist. Dropping it from the listing would say the same thing by
+    // saying nothing, which reads as a sketch that was deleted.
+    const bool toTerminal = isatty(fileno(stdout)) != 0;
     for (const sketch::Entry& entry : sketch::registry()) {
       if (!kind.empty()) {
         const sketch::Kind entryKind = entry.kind();
         if (!entryKind || entryKind->runtime() != kind) continue;
       }
-      std::printf("%s\n", entry.name);
+      std::string why;
+      if (entry.available(&why)) {
+        std::printf("%s\n", entry.name);
+        continue;
+      }
+      std::printf("%s%s\tunavailable: %s%s\n", toTerminal ? "\x1b[2m" : "",
+                  entry.name, why.c_str(), toTerminal ? "\x1b[0m" : "");
     }
     return 0;
   }

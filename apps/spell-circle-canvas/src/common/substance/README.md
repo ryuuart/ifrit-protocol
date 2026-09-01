@@ -54,9 +54,10 @@ material::Material leaves = material::kit::surface(material::textures::
     fromUsageMap(graph.outputsByUsage(), graph.normalsAreDirectX()));
 ```
 
-`substance_demo <file.sbsar> [outdir] [log2size] [name=value ...]` prints
-a package's parameters and outputs, applies any `name=value` pairs, and
-writes one PNG per output.
+The `substance_swatches` sketch renders a sample archive's channels and
+lays them out as cards, which is this library's output looked at rather
+than described; it reports itself unavailable, with the path it looked
+in, on a machine whose SDK carries no sample archives.
 
 ## The mental model
 
@@ -127,20 +128,22 @@ versioned directory in one of the roots `scripts/setup.py` searches —
 use — or point `SUBSTANCE_SDK_DIR` at the directory holding
 `substance-config.cmake`. `setup.py` writes the location into
 `CMakeUserPresets.json`; without an SDK the top-level configure warns and
-leaves this library, `substance_test`, `substance_bench` and
-`substance_demo` out of the build. Executables that link SigilSubstance
+leaves this library, `substance_test` and `substance_bench` out of the
+build, and the sketch that draws a package is left out of the sketch
+registry. Executables that link SigilSubstance
 carry the SDK's `bin/release` in their runtime search path, which is
 where the engine dylib lives.
 
 ## Build and test
 
-Targets: `SigilSubstance`, `substance_test` (ctest), `substance_bench`
+Targets: `SigilSubstance`, `substance_test` (ctest) and `substance_bench`
 (Google Benchmark, through the `benches` target and
-`scripts/bench_ledger.py`), and `substance_demo`.
+`scripts/bench_ledger.py`).
 
 ```sh
-ctest --test-dir build -C Debug -R substance_test --output-on-failure
-./build/bin/Debug/substance_demo ~/.local/opt/substance/9.4.6/assets/Autumn_Leaves.sbsar out 9
+ctest --test-dir build -C Release -R substance_test --output-on-failure
+build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
+    --sketch substance_swatches
 ```
 
 The test and the benchmark render the SDK's own sample archives

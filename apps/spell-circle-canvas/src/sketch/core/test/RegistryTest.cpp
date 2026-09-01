@@ -24,25 +24,42 @@ struct StillKind final : KindOps {
 
 Kind stillKind() { return StillKind{}; }
 
+/** A sketch over something the machine may not have. The probe is a
+ *  static member, which is how a sketch states its own requirement. */
+struct GatedSketch {
+  static bool missing;
+  static bool available(std::string* why) {
+    if (missing && why) *why = "the thing it draws is not installed";
+    return !missing;
+  }
+};
+bool GatedSketch::missing = true;
+
+/** …and one that needs nothing but the binary it is in. */
+struct PlainSketch {};
+
 /** Registered from a namespace-scope initializer, exactly as a sketch
  *  file's macro does. */
 const bool kRegistered =
     add("zebra_stripe", nullptr, "Test \xc2\xb7 Later", "z", &stillKind) &&
     add("alpha_wave", "alpha wave", "Test \xc2\xb7 Early", "a", &stillKind) &&
-    add("beta_decay", nullptr, "Test \xc2\xb7 Early", "b", &stillKind);
+    add("beta_decay", nullptr, "Test \xc2\xb7 Early", "b", &stillKind) &&
+    add("gated_thing", nullptr, "Test \xc2\xb7 Zed", "g", &stillKind,
+        &probeOf<GatedSketch>);
 
 TEST(SketchRegistry, RecordsEveryEntry) {
   EXPECT_TRUE(kRegistered);
-  EXPECT_EQ(registry().size(), 3u);
+  EXPECT_EQ(registry().size(), 4u);
 }
 
 TEST(SketchRegistry, OrdersByCategoryThenName) {
   // Not registration order, which is link order and depends on nothing a
   // reader can see.
-  ASSERT_EQ(registry().size(), 3u);
+  ASSERT_EQ(registry().size(), 4u);
   EXPECT_STREQ(registry()[0].key, "alpha_wave");
   EXPECT_STREQ(registry()[1].key, "beta_decay");
   EXPECT_STREQ(registry()[2].key, "zebra_stripe");
+  EXPECT_STREQ(registry()[3].key, "gated_thing");
 }
 
 TEST(SketchRegistry, FilesUnderItsStemUnlessToldOtherwise) {
@@ -70,7 +87,35 @@ TEST(SketchRegistry, ExactMatchBeatsASubstringLaterInTheList) {
 TEST(SketchRegistry, RefusesAnEntryWithNothingBehindIt) {
   EXPECT_FALSE(add(nullptr, nullptr, "c", "b", &stillKind));
   EXPECT_FALSE(add("key", nullptr, "c", "b", nullptr));
-  EXPECT_EQ(registry().size(), 3u);
+  EXPECT_EQ(registry().size(), 4u);
+}
+
+TEST(SketchAvailability, ReadsTheProbeOffTheSketchType) {
+  // A type that declares one answers for itself; a type that declares
+  // none is available wherever it compiled.
+  std::string why;
+  GatedSketch::missing = true;
+  EXPECT_FALSE(probeOf<GatedSketch>(&why));
+  EXPECT_FALSE(why.empty());
+  GatedSketch::missing = false;
+  EXPECT_TRUE(probeOf<GatedSketch>(nullptr));
+  EXPECT_TRUE(probeOf<PlainSketch>(nullptr));
+}
+
+TEST(SketchAvailability, AnEntryWithNoProbeIsAvailable) {
+  std::string why = "untouched";
+  EXPECT_TRUE(registry()[0].available(&why));
+  EXPECT_EQ(why, "untouched");
+}
+
+TEST(SketchAvailability, AnEntryReportsWhatItIsMissing) {
+  const Entry& gated = registry()[3];
+  std::string why;
+  GatedSketch::missing = true;
+  EXPECT_FALSE(gated.available(&why));
+  EXPECT_EQ(why, "the thing it draws is not installed");
+  GatedSketch::missing = false;
+  EXPECT_TRUE(gated.available(nullptr));
 }
 
 TEST(SketchTitle, OpensUnderscoresIntoSpaces) {

@@ -13,7 +13,7 @@ header lives under `include/sigilscry/<feature>/` and is spelled
 
 | target | headers | holds |
 |--------|---------|-------|
-| `SigilScryPlatform` | `platform/LogLevel.h` | `LogLevel`, the severity every engine message carries. The rest of the feature — the `SkBitmap`-backed surface, the two-root file system, the logger bridge, the resource directory — is what Ultralight's `Platform` singleton is handed, and stays internal |
+| `SigilScryPlatform` | `platform/LogLevel.h`, `platform/Runtime.h` | `LogLevel`, the severity every engine message carries; `runtime::available(why)`, whether the resource directory an engine would boot with holds the runtime data it needs. The rest of the feature — the `SkBitmap`-backed surface, the two-root file system, the logger bridge, the resource directory — is what Ultralight's `Platform` singleton is handed, and stays internal |
 | `SigilScryGpu`      | — | Ultralight's GPU command lists executed on a SigilSkia `GpuDevice`, and the texture interop the engine needs beyond that; the graphics-API-neutral contract and its Metal implementation are internal |
 | `SigilScryEngine`   | `engine/WebEngine.h`, `engine/WebView.h`, `engine/WebImage.h` | `WebEngineConfig`, `ViewOptions` and `WebEngine`; `WebView` and its `Frame`; `WebImage` |
 
@@ -203,12 +203,11 @@ off with a warning when the SDK is not found (see
 `cmake/FindUltralight.cmake`), and needs the `SigilSkia` target — that is,
 `SPELLCIRCLE_ENABLE_SKIA_CANVAS` on — or it is skipped with a message.
 
-Targets: `SigilScryPlatform`, `SigilScryGpu`, `SigilScryEngine`, the
-`SigilScry` umbrella, `scry_demo` (headless PNG compositing demo) and, on
-Apple, `scry_gpu_demo`. Tests (ctest): `scry_platform_test` exercises the
+Targets: `SigilScryPlatform`, `SigilScryGpu`, `SigilScryEngine` and the
+`SigilScry` umbrella. Tests (ctest): `scry_platform_test` exercises the
 handlers without a renderer — the surface's format and alignment, the
 file system's roots, MIME table and synthesized slot files, the logger's
-routing, the staged resource directory; `scry_gpu_test` (Apple) drives
+routing, the staged resource directory and the runtime probe over it; `scry_gpu_test` (Apple) drives
 the Metal driver directly, with no renderer and no page, and proves
 every upload, paint, blit and wrap by reading pixels back through
 Graphite; `scry_engine_test` runs the CPU-mode engine end to end and
@@ -282,4 +281,8 @@ them. At startup the engine resolves the resource directory in this order:
 2. `resources/` next to the executable — the staged copy,
 3. the SDK location found at configure time, compiled in as a fallback.
 
-Missing resources are what an engine failing to boot usually means.
+Missing resources are what an engine failing to boot usually means, and
+`runtime::available(&why)` in `<sigilscry/platform/Runtime.h>` answers
+whether they are there BEFORE an engine exists — a process is allowed
+exactly one renderer, so a caller that wants to ask first must be able to
+ask without spending it.

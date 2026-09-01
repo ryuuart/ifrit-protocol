@@ -92,8 +92,26 @@ if(APPLE)
     target_link_options(Sketchbook PRIVATE
       "LINKER:-force_load,$<TARGET_FILE:${sketch_dep}>")
   endforeach()
+  # …and the archives an optional SDK produced, on the machines where it
+  # did. A sketch over one of those is only in the registry where its
+  # target exists, so its symbols are only wanted here on the same
+  # machines — and where it IS compiled in, a hot-reload of it needs them
+  # exactly as much as any other sketch needs the list above.
+  foreach(sketch_sdk_dep IN ITEMS
+      SigilScryPlatform SigilScryGpu SigilScryEngine SigilSubstance)
+    if(TARGET ${sketch_sdk_dep})
+      target_link_options(Sketchbook PRIVATE
+        "LINKER:-force_load,$<TARGET_FILE:${sketch_sdk_dep}>")
+    endif()
+  endforeach()
 else()
   target_link_options(Sketchbook PRIVATE "LINKER:--export-dynamic")
+endif()
+
+# The web engine reads its ICU tables and certificate bundle from a
+# folder beside the binary, so every executable that links it stages one.
+if(TARGET SigilScry)
+  ultralight_copy_resources(Sketchbook)
 endif()
 
 # The response file is a tracked build output (not POST_BUILD): deleting
@@ -159,6 +177,24 @@ add_test(NAME sketch_reload_surface_set
   COMMAND Sketchbook
     ${SIGIL_SKETCH_DIR}/first_light.cpp
     --frame ${CMAKE_BINARY_DIR}/sketch_reload_surface_set.png)
+
+# …and once more for each optional SDK, on the machines that have one.
+# These name symbols nothing else in the registry names, so an SDK
+# archive missing from the force-load list shows up here alone. A machine
+# whose SDK is installed but whose runtime data is not still passes: the
+# sketch draws what it is missing rather than failing to load.
+if(TARGET SigilComposeWeb)
+  add_test(NAME sketch_reload_surface_web
+    COMMAND Sketchbook
+      ${SIGIL_SKETCH_DIR}/web_panel.cpp
+      --frame ${CMAKE_BINARY_DIR}/sketch_reload_surface_web.png)
+endif()
+if(TARGET SigilSubstance)
+  add_test(NAME sketch_reload_surface_substance
+    COMMAND Sketchbook
+      ${SIGIL_SKETCH_DIR}/substance_swatches.cpp
+      --frame ${CMAKE_BINARY_DIR}/sketch_reload_surface_substance.png)
+endif()
 
 # The OTHER registration form. A sketch filed under a name of its own
 # takes SIGIL_SKETCH_AS, whose dylib expansion differs from

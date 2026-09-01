@@ -41,21 +41,6 @@ add_library(SigilScry INTERFACE)
 target_link_libraries(SigilScry INTERFACE
   SigilScryPlatform SigilScryGpu SigilScryEngine)
 
-# Headless demo: renders HTML layouts through SigilScry and composites them
-# with direct SkCanvas drawing into PNGs (out dir: first argument,
-# default ./scry_demo_out).
-add_executable(scry_demo examples/scry_demo.cpp)
-target_link_libraries(scry_demo PRIVATE SigilScry)
-ultralight_copy_resources(scry_demo)
-
-# The all-hardware demo: Ultralight's Metal driver feeding texture-backed
-# SkImages into a Graphite surface on the same device and queue.
-if(APPLE)
-  add_executable(scry_gpu_demo examples/scry_gpu_demo.mm)
-  target_link_libraries(scry_gpu_demo PRIVATE SigilScry ${METAL_FRAMEWORK})
-  ultralight_copy_resources(scry_gpu_demo)
-endif()
-
 # Registers this library with the `docs` target (see cmake/Docs.cmake).
 # The README is the site's front page, so the generated pages open on the
 # same document that is canon for the library.

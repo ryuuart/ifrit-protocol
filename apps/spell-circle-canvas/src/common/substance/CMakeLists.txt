@@ -64,11 +64,6 @@ target_compile_definitions(substance_bench PRIVATE
   SIGIL_SUBSTANCE_SDK_DIR="${SUBSTANCE_SDK_DIR}")
 add_dependencies(benches substance_bench)
 
-# Describe an archive and render its outputs to PNGs:
-#   substance_demo <file.sbsar> [outdir] [log2size] [name=value ...]
-add_executable(substance_demo examples/substance_demo.cpp)
-target_link_libraries(substance_demo PRIVATE SigilSubstance)
-
 # Registers this library with the `docs` target (see cmake/Docs.cmake).
 # The README is the site's front page, so the generated pages open on the
 # same document that is canon for the library.

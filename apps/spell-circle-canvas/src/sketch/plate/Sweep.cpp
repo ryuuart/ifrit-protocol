@@ -157,8 +157,20 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
   const std::vector<int> chosen = selection(options);
   const std::vector<Entry>& entries = registry();
   bool anyShortened = false;
+  size_t skipped = 0;
   for (int index : chosen) {
     const Entry& entry = entries[index];
+    // A SKETCH THIS MACHINE CANNOT DRAW IS SKIPPED RATHER THAN FAILED,
+    // and no plate is written for it. What it would draw instead — a
+    // card naming what is missing — is not the picture its name stands
+    // for, and a baseline that adopted one would hold a promise about
+    // this machine's install rather than about the drawing code.
+    std::string why;
+    if (!entry.available(&why)) {
+      std::printf("%-22s %10s  [skipped: %s]\n", entry.name, "-", why.c_str());
+      ++skipped;
+      continue;
+    }
     const Kind kind = entry.kind();
     if (!kind) {
       std::fprintf(stderr, "sketch %s has no kind\n", entry.name);
@@ -412,9 +424,11 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
         "the average still\n  carries some of the entrance. Run it alone "
         "with --sketch for the settled number.\n",
         kProbeFrames + kMaxWarmFrames);
-  if (!options.gpu)
-    std::printf("wrote %zu plate%s to %s\n", chosen.size(),
-                chosen.size() == 1 ? "" : "s", options.outDir.c_str());
+  if (!options.gpu) {
+    const size_t written = chosen.size() - skipped;
+    std::printf("wrote %zu plate%s to %s\n", written, written == 1 ? "" : "s",
+                options.outDir.c_str());
+  }
   if (timingJson) std::fclose(timingJson);
   return 0;
 }

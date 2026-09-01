@@ -3,8 +3,10 @@
 # for the SDK's resources and a root for page content, a logger that
 # bridges to a callback, and the resource directory resolved from the
 # configured path, the folder staged next to the executable, or the SDK
-# location found at configure time. Its public header is the log level;
-# everything else names Ultralight types and stays beside the sources.
+# location found at configure time. Its public headers are the log level
+# and the probe that answers whether that resolved directory actually
+# holds what an engine needs to boot; everything else names Ultralight
+# types and stays beside the sources.
 add_library(SigilScryPlatform STATIC
   FileSystem.cpp
   FileSystem.h
@@ -12,10 +14,12 @@ add_library(SigilScryPlatform STATIC
   Logger.h
   ResourceDir.cpp
   ResourceDir.h
+  Runtime.cpp
   SkiaSurface.cpp
   SkiaSurface.h
   Utf8.h
   ${SIGIL_SCRY_INCLUDE_DIR}/sigilscry/platform/LogLevel.h
+  ${SIGIL_SCRY_INCLUDE_DIR}/sigilscry/platform/Runtime.h
 )
 target_compile_features(SigilScryPlatform PUBLIC cxx_std_20)
 target_include_directories(SigilScryPlatform PUBLIC ${SIGIL_SCRY_INCLUDE_DIR})

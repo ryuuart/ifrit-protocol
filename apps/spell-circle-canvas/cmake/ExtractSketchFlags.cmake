@@ -62,10 +62,18 @@ foreach(_arg IN LISTS _args)
   if(_arg MATCHES "^(-MD|-MMD)$" OR _arg STREQUAL "${ANCHOR}")
     continue()
   endif()
+  # A DOUBLE QUOTE IS GROUPING TO THE TOKENIZER THAT READS THIS FILE, so
+  # a define whose value is a string literal (-DNAME="text") would arrive
+  # with its quotes eaten and expand to bare tokens wherever a sketch
+  # used it. Reading the database unescaped them; this puts them back, so
+  # the response file means what the compile line it was lifted from
+  # meant.
+  string(REPLACE "\"" "\\\"" _arg "${_arg}")
   string(APPEND _flags "${_arg}\n")
 endforeach()
 
 foreach(_extra IN LISTS EXTRA)
+  string(REPLACE "\"" "\\\"" _extra "${_extra}")
   string(APPEND _flags "${_extra}\n")
 endforeach()
 

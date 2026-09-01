@@ -38,11 +38,13 @@ std::string lowered(std::string_view text) {
 }  // namespace
 
 bool add(const char* key, const char* name, const char* category,
-         const char* blurb, Kind (*kind)()) noexcept {
+         const char* blurb, Kind (*kind)(),
+         bool (*probe)(std::string* why)) noexcept {
   if (!key || !kind) return false;
   try {
     recorded().push_back({key, name && *name ? name : key,
-                          category ? category : "", blurb ? blurb : "", kind});
+                          category ? category : "", blurb ? blurb : "", kind,
+                          probe});
   } catch (...) {
     // The registry failed to grow. This runs during static
     // initialization, where no handler exists and an unwinding exception

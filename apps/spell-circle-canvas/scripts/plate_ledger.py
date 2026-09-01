@@ -152,6 +152,22 @@ that expensive — a declared capture moment late in a costly animation is
 content, not a defect, and gets its budget by name instead of inflating
 everyone's.
 
+A SKETCH THIS MACHINE CANNOT RENDER IS SKIPPED BY NAME. A sketch written
+over an optional SDK is only compiled in where that SDK was found, and
+the data the SDK needs at run time — a resource folder, the SDK's own
+sample archives — can still be absent on the machine running the binary.
+The registry answers for that rather than the sweep guessing: `--list`
+marks such a sketch with what it is missing, every lane here prints
+SKIPPED and the reason, and no plate is rendered, hashed or judged. A
+skip is not a failure and not a mover.
+
+SO THE PLATES FOR THOSE SCENES EXIST ONLY WHERE THE SDK DOES. A baseline
+holding one was rebased on a machine that had the SDK; a machine without
+it skips the scene rather than reporting a plate it is missing. A rebase
+that could not ask a scene anything keeps the baseline line already
+there instead of discarding it, so running --rebase on the smaller
+machine does not delete what the larger one recorded.
+
 THERE IS NO LIST OF SCENES ALLOWED TO MOVE. Every mover is a finding
 until it is shown to be one, and the showing is `--stability N`: a scene
 that disagrees with ITSELF across N+1 renders is attributed to the scene
@@ -259,15 +275,22 @@ DEFAULT_GPU_TOLERANCE = (12.0, 128)
 GPU_TOLERANCE = {
     "first_light": (10.0, 96),
     "glow_trail": (4.0, 32),
-    # material_lab is the looser of the rest, and for two reasons. Five
-    # upright cards over a broad floor is mostly ground plane, and a
-    # ground plane is where the two tiers' vertex-versus-pixel clamping
-    # drifts (see first_light above). And that floor wears a check
-    # repeated five times across itself and seen nearly edge on: the two
-    # tiers put the same pattern in the same place, and minify it
-    # differently everywhere at once, which costs more per pixel than a
-    # low-frequency disagreement ever does.
-    "material_lab": (6.0, 64),
+    # material_lab is the loosest entry here, and it is the one study
+    # whose two tiers are MEANT to disagree. Its five cards are chosen
+    # because the device shades them — a stack composed through a mask, a
+    # normal map, a packed roughness-and-metallic map, an emission — and
+    # the CPU tier can read a base colour and a base-colour map and
+    # nothing else, so on four of the five the two pictures are simply
+    # different pictures. That is what puts the p99 where it is: at the
+    # 99th channel the disagreement is the study's whole subject. The
+    # mean is still the number that says a card landed where it belongs,
+    # and it is held near what the two tiers actually produce. On top of
+    # that the study carries the drift every 3D scene here has: a broad
+    # ground plane, where the two tiers' vertex-versus-pixel clamping
+    # parts company (see first_light above), wearing a check repeated
+    # five times across itself and seen nearly edge on, which the two
+    # tiers minify differently everywhere at once.
+    "material_lab": (10.0, 192),
     # A card sampled onto a swept band and a still set under a ramping
     # key are both nearly all interior: the two tiers agree to a channel
     # or two everywhere but the silhouettes.
@@ -326,6 +349,32 @@ def sha256(path):
         for chunk in iter(lambda: f.read(1 << 20), b""):
             h.update(chunk)
     return h.hexdigest()
+
+
+def registry(binary, kind):
+    """What the binary carries for one runtime, split by what this machine
+    can actually render.
+
+    ONE LISTING LINE PER SKETCH, and the ones this machine cannot run
+    carry a tab and the reason. They stay in the listing on purpose: a
+    sketch dropped from it and a sketch deleted from the tree read
+    exactly alike, and the difference is the whole point."""
+    listed = subprocess.run(
+        [binary, "--list", "--kind", kind],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout
+    scenes, unavailable = [], {}
+    for line in listed.splitlines():
+        if not line.strip():
+            continue
+        name, tab, note = line.partition("\t")
+        if tab:
+            unavailable[name] = note.removeprefix("unavailable: ")
+        else:
+            scenes.append(name)
+    return scenes, unavailable
 
 
 def render_scene(profile, binary, scene, outdir, timeout, extra_args=()):
@@ -789,16 +838,19 @@ def main():
     # The registry filtered to the runtime this tier renders: the 2D tiers
     # ask for the sketches drawn onto a canvas, the world tiers for the ones
     # that light a set. One registry, two questions.
-    scenes = args.scenes or [
-        s
-        for s in subprocess.run(
-            [binary, "--list", "--kind", profile["kind"]],
-            capture_output=True,
-            text=True,
-            check=True,
-        ).stdout.splitlines()
-        if s.strip()
-    ]
+    listed, unavailable = registry(binary, profile["kind"])
+    scenes = args.scenes or listed
+    # A scene this machine cannot render is reported and stood down from
+    # every lane below — including one named explicitly on the command
+    # line, because asking for it by name does not install anything.
+    skipped = {
+        scene: why
+        for scene, why in unavailable.items()
+        if not args.scenes or scene in args.scenes
+    }
+    scenes = [scene for scene in scenes if scene not in unavailable]
+    for scene, why in sorted(skipped.items()):
+        print(f"SKIPPED {scene}: {why}")
 
     if args.tier == "world-gpu":
         if args.rebase:
@@ -864,14 +916,19 @@ def main():
         # A subset rebase (--scenes ... --rebase) merges into the existing
         # manifest rather than truncating it to the subset: adopting one
         # deliberately changed plate must not silently discard the baseline
-        # for every scene the sweep did not render.
+        # for every scene the sweep did not render. A rebase that skipped
+        # scenes merges for the same reason narrowed to those: this
+        # machine could not ask them anything, so it has nothing to say
+        # about their baselines either.
         merged = {}
-        if args.scenes and os.path.exists(manifest):
+        if (args.scenes or skipped) and os.path.exists(manifest):
             with open(manifest) as f:
                 for line in f:
                     digest, _, scene = line.rstrip("\n").partition("  ")
                     if scene:
                         merged[scene] = digest
+            if not args.scenes:
+                merged = {s: d for s, d in merged.items() if s in skipped}
         merged.update(results)
         with open(manifest, "w") as f:
             for scene in sorted(merged):

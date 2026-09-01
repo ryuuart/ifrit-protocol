@@ -14,6 +14,39 @@
 file(GLOB SIGIL_SKETCH_FILES CONFIGURE_DEPENDS
      ${CMAKE_CURRENT_LIST_DIR}/*.cpp)
 list(REMOVE_ITEM SIGIL_SKETCH_FILES ${CMAKE_CURRENT_LIST_DIR}/Anchor.cpp)
+
+# THE SKETCHES THAT NEED A LIBRARY THIS BUILD MAY NOT HAVE: stem, then
+# the target that must exist for it to compile. A sketch over an optional
+# SDK is left out of the glob when its target is absent, and the target
+# joins the sketch API surface when it is present — one line states both,
+# because they are the same fact.
+#
+# A TABLE RATHER THAN A FILENAME CONVENTION. A convention would put the
+# requirement in the sketch's name, where it would outlive the
+# requirement and misname the piece; here the stem stays free to say what
+# the sketch IS, and this file — the one place that already decides what
+# is compiled — says what it needs. It is short by construction: a
+# requirement is a defect in anything but a sketch that draws an SDK.
+set(SIGIL_SKETCH_REQUIREMENTS
+  substance_swatches SigilSubstance
+  web_panel          SigilComposeWeb)
+
+list(LENGTH SIGIL_SKETCH_REQUIREMENTS _requirement_entries)
+math(EXPR _requirement_last "${_requirement_entries} / 2 - 1")
+foreach(pair RANGE ${_requirement_last})
+  math(EXPR _stem_index "${pair} * 2")
+  math(EXPR _target_index "${pair} * 2 + 1")
+  list(GET SIGIL_SKETCH_REQUIREMENTS ${_stem_index} sketch_stem)
+  list(GET SIGIL_SKETCH_REQUIREMENTS ${_target_index} sketch_needs)
+  if(TARGET ${sketch_needs})
+    list(APPEND SIGIL_SKETCH_OPTIONAL_LIBRARIES ${sketch_needs})
+  else()
+    list(REMOVE_ITEM SIGIL_SKETCH_FILES
+         ${CMAKE_CURRENT_LIST_DIR}/${sketch_stem}.cpp)
+    message(STATUS
+      "sketch ${sketch_stem} left out: ${sketch_needs} is not configured")
+  endif()
+endforeach()
 foreach(sketch_file IN LISTS SIGIL_SKETCH_FILES)
   get_filename_component(sketch_stem ${sketch_file} NAME_WE)
   set_source_files_properties(${sketch_file} PROPERTIES
@@ -31,9 +64,19 @@ add_library(SigilSketches OBJECT
 # surface a compiled-in sketch sees and the one a hot-reloaded sketch
 # sees cannot drift apart.
 target_link_libraries(SigilSketches PUBLIC
-  SigilSketchCanvas SigilSketchSet)
+  SigilSketchCanvas SigilSketchSet ${SIGIL_SKETCH_OPTIONAL_LIBRARIES})
 target_compile_definitions(SigilSketches PUBLIC
   SIGIL_SKETCH_ASSET_DIR="${SIGIL_SKETCH_ASSET_DIR}"
   SIGIL_SKETCH_DIR="${SIGIL_SKETCH_DIR}"
   SIGIL_ASSET_DIR="${SIGIL_ASSET_DIR}")
+
+# Where the Substance SDK stands, for the sketch that draws one of its
+# sample archives. On the TARGET rather than on the source file, because
+# a hot-reloaded sketch compiles with the flags lifted from Anchor.cpp:
+# a definition only the compiled-in copy carried would break the file the
+# moment someone edited it.
+if(TARGET SigilSubstance)
+  target_compile_definitions(SigilSketches PUBLIC
+    SIGIL_SUBSTANCE_SDK_DIR="${SUBSTANCE_SDK_DIR}")
+endif()
 set_target_properties(SigilSketches PROPERTIES POSITION_INDEPENDENT_CODE ON)
