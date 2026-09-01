@@ -208,8 +208,11 @@ void drawBody(Gpu& gpu, const glm::mat4& viewProj, const glm::mat4& view,
 
   dg::IDeviceContext* context = gpu.device->context();
   context->SetPipelineState(pipeline->state);
+  // The WRAP is the map's own, not a default: one wrap serves both axes
+  // and every slot bound here, and clamping an axis that was asked to
+  // repeat drags one edge's texels across the whole face.
   bindAndCommit(gpu, *pipeline, *surface.program, uniforms, textures,
-                sampling.filter);
+                sampling.filter, sampling.tile);
   dg::IBuffer* vertices = buffers->vertices;
   const dg::Uint64 offset = 0;
   context->SetVertexBuffers(0, 1, &vertices, &offset,

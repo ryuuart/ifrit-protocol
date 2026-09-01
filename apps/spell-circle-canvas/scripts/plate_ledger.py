@@ -259,17 +259,42 @@ DEFAULT_GPU_TOLERANCE = (12.0, 128)
 GPU_TOLERANCE = {
     "first_light": (10.0, 96),
     "glow_trail": (4.0, 32),
-    # material_lab is the looser of the rest, and for one reason: five
-    # upright cards over a broad textured floor is mostly ground plane,
-    # and a ground plane is where the two tiers' vertex-versus-pixel
-    # clamping drifts (see first_light above). Its map lands identically
-    # on both, which is what the number says.
+    # material_lab is the looser of the rest, and for two reasons. Five
+    # upright cards over a broad floor is mostly ground plane, and a
+    # ground plane is where the two tiers' vertex-versus-pixel clamping
+    # drifts (see first_light above). And that floor wears a check
+    # repeated five times across itself and seen nearly edge on: the two
+    # tiers put the same pattern in the same place, and minify it
+    # differently everywhere at once, which costs more per pixel than a
+    # low-frequency disagreement ever does.
     "material_lab": (6.0, 64),
     # A card sampled onto a swept band and a still set under a ramping
     # key are both nearly all interior: the two tiers agree to a channel
     # or two everywhere but the silhouettes.
     "woven_card": (3.0, 32),
     "key_light": (3.0, 32),
+    # A swept rail, a few gates and a dart on it are almost entirely
+    # smooth interior over an empty background, which is where the two
+    # tiers agree most closely of anything in this registry.
+    "dart_flight": (2.0, 24),
+    # …and a densely packed cloud of flakes reads the same way for the
+    # opposite reason: every flake stands against its neighbour rather
+    # than against the background, so there is hardly a silhouette in the
+    # picture to disagree about.
+    "deformed_cloud": (2.0, 24),
+    # A scatter thin enough to see through is the other extreme: nearly
+    # every lit pixel of it IS a silhouette edge, one rasteriser
+    # antialiases those and the other does not, and the p99 says so
+    # while the mean says the two are the same picture.
+    "scattered_model": (4.0, 128),
+    # Screens that are their own light are identical on both tiers; what
+    # is left is the lit shelf and the plinth's edges.
+    "panel_console": (3.0, 32),
+    # Four coloured lamps read as directions on the host and as
+    # attenuated emitters on the device, so the bodies between them are
+    # shaded from slightly different strengths — a low mean over a
+    # picture that is mostly dark, and a p99 at the lit edges.
+    "lantern_room": (4.0, 64),
 }
 
 # HOW FAR A QUICK PLATE MAY STAND FROM THE BASELINE PLATE OF THE SAME

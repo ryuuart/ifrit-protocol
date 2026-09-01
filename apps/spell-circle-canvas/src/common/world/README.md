@@ -551,7 +551,7 @@ the CPU's plate under a name that asked for the device's. The device is
 brought up by the BINARY and installed once for the process, so this
 library links none and a machine with no GPU still renders the CPU tier.
 
-Five of them, and between them they exercise every feature this library
+Ten of them, and between them they exercise every feature this library
 has:
 
 - **`first_light`** — the scene: a tube swept along a closed loop, a
@@ -583,13 +583,43 @@ has:
   three-point rig, with the key light's strength and colour bound to live
   values: nothing about the description changes from frame to frame, and
   what moves is what the lanes are bound to.
+- **`dart_flight`** — `along()`, and nothing else. One winding closed
+  loop swept into a rail, a dart flying it at a distance that is a
+  function of the scene time, and gates standing on the same loop at
+  constant distances and rolled about it — one verb serving a moving
+  body and a still one, and composing with the rotation lanes rather
+  than replacing them.
+- **`scattered_model`** — the import door. A model decoded through the
+  mesh codec and fitted to the stage, with a cloud scattered over its
+  surface and a flake stamped at every point; the codec's output is the
+  same `Mesh` a generated body is, so the tree past the import cannot
+  tell which it holds. It reads `res://models/`, which nothing in this
+  repository mounts, so what a plate is taken from is the generated
+  subject.
+- **`deformed_cloud`** — the point operators, in a room. A band across a
+  scattered body is selected once and addressed twice: the points inside
+  it are pushed out along their own normals, and inverting the same
+  region turns everything outside it about the up axis. The chain is a
+  value the node carries and the frame's runtime cooks it.
+- **`panel_console`** — 2D content on bodies that are not flat. Four
+  compose trees painted into textures and worn by three cards on an arc
+  and one curved band, each an unlit surface, so what the plate shows is
+  what the trees painted.
+- **`lantern_room`** — the three emitters together. Four unlit lantern
+  shells each carrying a coloured point light, a spot opening downward
+  onto the cluster between them, and a sun faint enough to be an
+  outline. An emitter stands where its node stands and carries no
+  geometry, so a lantern here is two siblings sharing a placement.
 
-The last three are built out of `kit/`: `kit::threePoint` puts three
+Most of them are built out of `kit/`: `kit::threePoint` puts three
 emitters round a subject in its own extents, `kit::turntable` rides a
 closed rail looking inward, and `kit::litSet` is both over a ground
 plane. Every one returns an ordinary `Element`, which is why `key_light`
 can take the rig the preset returned and put lanes on its key light
-without the preset offering a hook for it.
+without the preset offering a hook for it — and why `lantern_room`,
+which lights its own room, takes the turntable alone and leaves the rest
+of the preset behind rather than describing a second room over the top
+of its own.
 
 A study returns a `Frame`, and an `Element` is one with no passes, so a
 study about the scene says nothing about passes at all. The host writes

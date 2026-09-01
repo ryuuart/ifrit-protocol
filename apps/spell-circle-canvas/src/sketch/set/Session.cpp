@@ -9,6 +9,7 @@
 #include <sigilworld/frame/Pass.h>
 #include <sigilworld/scene/Scene.h>
 
+#include <algorithm>
 #include <array>
 #include <chrono>
 #include <cmath>
@@ -31,6 +32,21 @@ world::Runtime& processRuntime() {
   return runtime;
 }
 
+/** HOW MANY CANVAS PIXELS ONE DECLARED UNIT COVERS.
+ *
+ *  A host hands over a canvas already fitted: a plate's canvas is the
+ *  declared size and carries nothing, while a live window on a scaled
+ *  screen carries the fit AND the screen's own scale. A drawn tree is
+ *  resolution-independent and needs neither number; a lit set is formed
+ *  at ONE resolution, so a set formed at its declared size and then
+ *  fitted upward is a magnified picture of a smaller one rather than the
+ *  picture at the size it is seen. Reading the number off the canvas is
+ *  what keeps the two agreeing without a second place to state it. */
+float pixelScale(const SkCanvas& canvas) {
+  const float scale = canvas.getTotalMatrix().getMaxScale();
+  return std::isfinite(scale) && scale > 0.0f ? scale : 1.0f;
+}
+
 /** A set about the SCENE, made into one a runtime can perform: one
  *  geometry pass clearing to the declared background and painting every
  *  body. A set that already declares passes is left alone — an executor
@@ -51,6 +67,7 @@ class SetSession final : public Session {
     m_spec.captureSeconds = 1.0;
     SetContext ctx{assets, fonts, &m_spec, &m_camera};
     m_set->setup(ctx);
+    m_extent = {(int)m_spec.size.width(), (int)m_spec.size.height()};
   }
 
   [[nodiscard]] const CanvasSpec& canvas() const override { return m_spec; }
@@ -62,9 +79,11 @@ class SetSession final : public Session {
     m_seconds += step;
     world::Frame frame = m_set->describe((float)m_seconds);
     // The plate's size and its viewpoint are the host's to state: a set
-    // says what it is of, not where it lands.
-    frame.extent({(int)m_spec.size.width(), (int)m_spec.size.height()})
-        .camera(viewing());
+    // says what it is of, not where it lands. The size is the declared
+    // canvas in the pixels this canvas actually has, so the frame is
+    // formed at the resolution it will be seen at.
+    m_extent = extentOn(canvas);
+    frame.extent(m_extent).camera(viewing());
     if (processRuntime()) {
       frame.runtime(processRuntime());
       throughPasses(frame, m_spec.background);
@@ -85,9 +104,11 @@ class SetSession final : public Session {
 
   void repaint(SkCanvas& canvas) override { paint(canvas); }
 
-  /** The plate IS the frame just finished: a set is drawn from shaded
-   *  vertices, so a larger canvas would be a different picture rather
-   *  than a sharper one. */
+  /** The plate IS the frame just finished, put on the canvas the host
+   *  sized. A set is formed at ONE resolution and this call describes
+   *  nothing, so there is nothing here to form again larger: a bigger
+   *  canvas magnifies the frame that stands rather than sharpening it,
+   *  which is why a set asks for no oversample. */
   void still(SkCanvas& canvas) override { paint(canvas); }
 
   [[nodiscard]] Timing timing() const override { return m_timing; }
@@ -128,8 +149,26 @@ class SetSession final : public Session {
     return m_orbiting ? m_orbit : m_camera;
   }
 
+  /** The declared canvas in the pixels @p canvas has for it. */
+  [[nodiscard]] SkISize extentOn(const SkCanvas& canvas) const {
+    const float scale = pixelScale(canvas);
+    return {std::max(1, (int)std::lround(m_spec.size.width() * scale)),
+            std::max(1, (int)std::lround(m_spec.size.height() * scale))};
+  }
+
   void paint(SkCanvas& canvas) {
     canvas.clear(m_spec.background.toSkColor());
+    // The picture arrives as many pixels across as the frame STANDING
+    // was formed at — as a presented resource, or as bodies projected
+    // into that extent — and is put back on the declared canvas here.
+    // It is read off the frame rather than off this canvas because a
+    // repaint may arrive on a canvas fitted differently from the one the
+    // frame was formed for, and the picture that exists is the one that
+    // has to land. On a canvas at the declared size it is the identity
+    // and the bytes are the plate's.
+    SkAutoCanvasRestore restore(&canvas, true);
+    canvas.scale(m_spec.size.width() / (float)m_extent.width(),
+                 m_spec.size.height() / (float)m_extent.height());
     // A tree that declares its own lens wins, unless a host has taken
     // hold of the viewpoint.
     const std::optional<world::Camera> declared = m_scene.camera();
@@ -144,6 +183,7 @@ class SetSession final : public Session {
   world::Camera m_camera;
   world::Camera m_orbit;
   bool m_orbiting = false;
+  SkISize m_extent{1, 1};  // the pixels the frame standing was formed at
   Timing m_timing;
   std::array<Lane, 4> m_lanes{};
   double m_seconds = 0.0;

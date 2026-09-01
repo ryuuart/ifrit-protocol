@@ -59,7 +59,17 @@ void Scene::draw(SkCanvas& canvas, const Camera& camera,
     return;
   }
 
-  const SkISize layer = canvas.getBaseLayerSize();
+  // The viewport is where the projection LANDS, in the canvas's OWN
+  // coordinates — so it is the extent the frame was formed at, and not
+  // the surface standing behind the canvas. A caller that fitted the
+  // picture into something larger left a transform on the canvas, and
+  // reading the projection off the surface instead would magnify the
+  // scene by that fit and carry most of it off its own edge. A frame
+  // that declared no extent has said nothing, and the surface is then
+  // the only size there is.
+  const SkISize declared = impl.frame.extent();
+  const SkISize layer =
+      declared.isEmpty() ? canvas.getBaseLayerSize() : declared;
   const SkSize viewport =
       SkSize::Make((float)layer.width(), (float)layer.height());
 

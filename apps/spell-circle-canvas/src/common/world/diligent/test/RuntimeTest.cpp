@@ -555,6 +555,61 @@ TEST(GpuRuntime, ATexturesFilterIsHonouredOnBothTiers) {
   EXPECT_LT(deviceLinear[2], deviceLinear[3]);
 }
 
+TEST(GpuRuntime, ATexturesWrapIsHonouredOnBothTiers) {
+  // A map asked to repeat, over a card four of itself wide, is four of
+  // itself. Clamping instead is not a near miss: past the image's own
+  // edge one row of texels is dragged across the whole rest of the face,
+  // so a floor whose repeat is what says how large a room is says
+  // nothing at all — and every pixel of it still looks like a surface.
+  constexpr float kTimes = 4.0f;
+  const Frame frame =
+      mappedCard(twoTexelMap()
+                     .filter(SkFilterMode::kNearest)
+                     .tile(SkTileMode::kRepeat)
+                     .uv(SkMatrix::Scale(1.0f / kTimes, 1.0f / kTimes)));
+  // The middle of each half of each repeat, so no sample lands on a
+  // seam: eight of them, alternating dark and light all the way across.
+  std::vector<float> at(8);
+  for (size_t i = 0; i < at.size(); ++i) at[i] = ((float)i + 0.5f) / 8.0f;
+
+  const std::vector<float> host =
+      acrossTheCard(photographSquare(frame, Runtime::cpu()), at);
+  ASSERT_EQ(host.size(), at.size());
+  for (size_t i = 0; i + 1 < host.size(); ++i)
+    EXPECT_GT(std::abs(host[i] - host[i + 1]), 0.5f) << "host step " << i;
+
+  const OnDevice on = onDevice();
+  if (!on) GTEST_SKIP() << "no Vulkan device: " << on.error;
+  const std::vector<float> graphics =
+      acrossTheCard(photographSquare(frame, on.runtime), at);
+  ASSERT_EQ(graphics.size(), at.size());
+  for (size_t i = 0; i + 1 < graphics.size(); ++i)
+    EXPECT_GT(std::abs(graphics[i] - graphics[i + 1]), 0.5f)
+        << "device step " << i;
+}
+
+TEST(SlangProgram, TheKitsOwnSurfacesCompileTheirBodies) {
+  // WHAT MAKES A SURFACE A SURFACE rather than a colour is that its own
+  // body is compiled and run, and every set in this repository wears one
+  // of these two. A recipe whose body will not compile is reported once
+  // and then painted in the colour the frame extracted — which is the
+  // same reading a tier with no compiler makes, so the picture that
+  // comes back looks like a picture rather than like a failure.
+  world::diligent::installSlangCompiler();
+  const material::kit::SurfaceParams params{.baseColor = {0.6f, 0.4f, 0.2f, 1},
+                                            .roughness = 0.4f};
+  for (const material::Material& surface :
+       {material::kit::surface(params), material::kit::unlit(params)}) {
+    const material::Material::Resolved resolved =
+        surface.resolve(material::Target::Slang, material::FrameData{},
+                        material::Variant{world::diligent::kVariantLit});
+    ASSERT_NE(resolved.program, nullptr) << surface.recipe().name();
+    const auto* slang = resolved.program->as<world::diligent::SlangProgram>();
+    ASSERT_NE(slang, nullptr) << surface.recipe().name();
+    EXPECT_FALSE(slang->compiled().empty()) << surface.recipe().name();
+  }
+}
+
 namespace {
 
 /** The one colour both cards below wear. */

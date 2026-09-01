@@ -1,7 +1,7 @@
 /** @file
  * Sketchbook: the one live application, and the one headless renderer.
  *
- *   Sketchbook                                 the app, on the last sketch
+ *   Sketchbook [--no-gpu]                      the app, on the last sketch
  *   Sketchbook --sketch <name>                 the app, on that one
  *   Sketchbook --list [--kind canvas|set]      the registry, one per line
  *   Sketchbook --headless <outdir> [--gpu] [--sketch <name>] [--kind <k>]
@@ -28,6 +28,7 @@
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
+#include <QtCore/QMutex>
 #include <QtCore/QTimer>
 #include <QtGui/QGuiApplication>
 #include <QtGui/QImage>
@@ -110,15 +111,17 @@ sketch::Assets& assets() {
  *  and pipeline it made goes when the device does. */
 std::unique_ptr<sigil::world::diligent::Device> g_device;
 
-/** Puts every set sketch on the device. A flag that asked for the device
- *  answers with the device or with nothing: drawing the CPU's picture
- *  under `--gpu` would put two different pictures under one name. */
+/** Puts every set sketch on the device, and says whether it could. The
+ *  sweep treats a false answer as fatal because drawing the CPU's
+ *  picture under a name that asked for the device's would put two
+ *  different pictures under one name; the live host carries on, because
+ *  a window can say which tier it is showing. */
 bool useDevice() {
   std::string error;
   const sigil::world::diligent::DeviceConfig config;
   g_device = sigil::world::diligent::Device::create(config, &error);
   if (!g_device) {
-    std::fprintf(stderr, "--gpu: no device runtime (%s)\n", error.c_str());
+    std::fprintf(stderr, "no device runtime (%s)\n", error.c_str());
     return false;
   }
   sketch::useRuntime(sigil::world::diligent::runtime(*g_device));
@@ -137,8 +140,7 @@ void releaseDevice() {
 #else
 bool useDevice() {
   std::fprintf(stderr,
-               "--gpu: no device runtime (this binary was built without "
-               "one)\n");
+               "no device runtime (this binary was built without one)\n");
   return false;
 }
 
@@ -404,7 +406,7 @@ int main(int argc, char* argv[]) {
   std::string selected, kind, shotPath;
   sketch::SweepOptions sweepOptions;
   CaptureOptions capture;
-  bool headless = false, list = false, gpu = false;
+  bool headless = false, list = false, gpu = false, noGpu = false;
   std::optional<bool> deterministic;
 
   for (int i = 1; i < argc; ++i) {
@@ -417,6 +419,8 @@ int main(int argc, char* argv[]) {
       list = true;
     } else if (arg == "--gpu") {
       gpu = true;
+    } else if (arg == "--no-gpu") {
+      noGpu = true;
     } else if (arg == "--kind" && i + 1 < argc) {
       kind = argv[++i];
     } else if (arg == "--sketch" && i + 1 < argc) {
@@ -554,6 +558,18 @@ int main(int argc, char* argv[]) {
   }
 
   // ---- the app ---------------------------------------------------------
+  // THE LIVE HOST DRAWS SETS ON THE DEVICE. A device is what runs a
+  // material's own body: the CPU mesh executor has no compiler, so every
+  // surface reaches it as the colour the frame extracted, and a reader
+  // looking at a lit set in this window would be looking at a picture no
+  // recipe ever ran in. Unlike the sweep's flag, a device that will not
+  // come up is not fatal here — there is no plate whose name would then
+  // stand over two different pictures, only a window that says which
+  // tier it is showing.
+  if (noGpu || !useDevice())
+    std::fprintf(stderr,
+                 "[sketchbook] sets draw on the CPU mesh executor: a "
+                 "surface reaches it as the colour extract read off it\n");
   SketchbookView::sketchDir = sketchDir;
   SketchbookView::assetsDir = options.assetsDir;
   SketchbookView::flagsFile = options.flagsFile;
@@ -619,5 +635,16 @@ int main(int argc, char* argv[]) {
         });
     warm->start();
   }
-  return QGuiApplication::exec();
+  const int status = QGuiApplication::exec();
+  // The device outlives every frame that used it and must go before the
+  // process does — and before it, whatever still holds textures it made:
+  // released after its own queue, those take their teardown into static
+  // destruction, where the locks they want no longer exist.
+  {
+    QMutexLocker lock(&SketchbookView::hostMutex);
+    delete SketchbookView::host;
+    SketchbookView::host = nullptr;
+  }
+  releaseDevice();
+  return status;
 }

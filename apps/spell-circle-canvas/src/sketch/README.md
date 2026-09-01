@@ -131,7 +131,7 @@ sketch's own execution rather than from its data.
 ## Running one
 
 ```sh
-Sketchbook                                  # the app
+Sketchbook [--no-gpu]                       # the app
 Sketchbook --sketch <name>                  # the app, on that one
 Sketchbook --list [--kind canvas|set]       # the registry, one per line
 Sketchbook <file.cpp> --frame out.png [--at <sec>] [--scale <n>]
@@ -146,6 +146,16 @@ Sketchbook --headless <outdir> [--gpu] [--sketch <name>] [--kind <k>]
 filed name or its file stem, which is the loop for visual iteration.
 `--shot <png>` captures the app window rather than a sketch, which is
 the only way to look at the sidebar and the metrics panel.
+
+The app brings a device up and every set draws through it, because a
+device is what runs a material's own body: the CPU mesh executor has no
+compiler, so a surface reaches it as the colour the frame extracted and a
+reader would be looking at a picture no recipe ever ran in. `--no-gpu`
+keeps sets on that executor, which is what a plate is hashed from and
+therefore what a window is worth putting beside one. A device that will
+not come up is reported and the app carries on — unlike the sweep's
+`--gpu`, which must fail rather than put two different pictures under one
+plate's name.
 
 The app is a macOS bundle, so a headless run goes through the binary
 inside it:
@@ -213,9 +223,18 @@ The two runtimes make a plate differently, and both ways are
 load-bearing. A drawn tree is resolution-independent, so its still is
 one more frame re-rendered at up to twice the canvas — a texture bake
 re-runs at the capture scale rather than being upsampled. A lit set is
-drawn from shaded vertices, so a larger canvas would be a different
-picture rather than a sharper one, and its plate is the frame it just
+FORMED at one resolution and its still describes nothing, so there is
+nothing to form again larger and its plate is the frame it just
 finished. `Session::still()` is that seam.
+
+Which resolution that is comes off the canvas a host hands over. A
+plate's canvas is the declared size and carries no transform; a live
+window's carries the fit AND the screen's own scale, and a set formed at
+its declared size and then fitted upward would be a magnified picture of
+a smaller one. So a set reads the scale off the canvas it is given,
+forms its frame at that many pixels, and puts the result back on the
+declared canvas — which on a plate's canvas is the identity, and is why
+the two hosts agree to the byte.
 
 `scripts/plate_ledger.py` drives this: four tiers over one binary, each
 with its own baseline. See `CLAUDE.md` for the tiers.
@@ -289,7 +308,7 @@ targets do.
   value the process installs once — one device, one queue, every
   session — so a machine with no device runs every set on the CPU mesh
   executor and the plates it makes are the ones the byte-identity tier
-  hashes.
+  hashes. `book/` is the only place that installs one.
 * **The live host is Qt-free.** Everything about watching, compiling and
   swapping is in `live/`; `book/` is the only place a window appears.
 
