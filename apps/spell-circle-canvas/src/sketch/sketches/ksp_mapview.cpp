@@ -797,14 +797,26 @@ struct KspMapView : sketch::Sketch {
                                       .align = TextPath::Align::Center,
                                       .offset = 8.0f,
                                       .autoFlip = true})));
-    g.child(
-        full(t("TGT · MUN TRANSFER", body(8.5f, alpha(kTarget, 0.85f), 1.4f))
-                 .onPath(TextPath{.path = tgt.outline(-118, 118, 260),
-                                  .at = 0.30f,
-                                  .align = TextPath::Align::Center,
-                                  .offset = -9.0f,
-                                  .autoFlip = true})));
     return g;
+  }
+
+  /** The target trajectory's own readout. It rides the arc at the point
+   *  where the target body's icon sits on that same arc, so it is drawn
+   *  ABOVE the bodies rather than inside the orbit layer beneath them: a
+   *  map readout is HUD text, and a HUD is never occluded by the thing it
+   *  is annotating. */
+  Element targetLabel(sketch::SketchContext& ctx) {
+    using namespace ksp;
+    const Conic tgt = targetOrbit();
+    return t("TGT · MUN TRANSFER", body(8.5f, alpha(kTarget, 0.85f), 1.4f))
+        .onPath(TextPath{.path = tgt.outline(-118, 118, 260),
+                         .at = 0.30f,
+                         .align = TextPath::Align::Center,
+                         .offset = -9.0f,
+                         .autoFlip = true})
+        .inset(0)
+        .width(Dim(ctx.size.width()))
+        .height(Dim(ctx.size.height()));
   }
 
   /** Map marker: diamond + label, the Ap/Pe/AN/DN family.
@@ -1744,6 +1756,7 @@ struct KspMapView : sketch::Sketch {
     g.child(marker("DN", cur.at(280), kApLabel, false, {12, 13}));
     g.child(chip("◗", "Mun", tgt.at(28), kTarget, 12));
     g.child(chip("✦", "", tgt.at(-64), kTarget, 8));
+    g.child(targetLabel(ctx));
     g.child(gizmo());
     // the craft itself, riding its orbit ahead of the node
     g.child(

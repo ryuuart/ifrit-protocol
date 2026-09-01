@@ -23,10 +23,24 @@ using sigil::compose::toU8;
 using namespace std::chrono_literals;
 
 namespace {
-/** A text style at one size and colour — the two things every label in
- *  this piece varies. */
 
 // ---- 11: tile map with chunked caching (#15) ------------------------------
+
+/** The side every 16 px atlas cell is drawn at. It is a SQUARE only while
+ *  the row of chunks gets the width it asks for. */
+constexpr float kTile = 27.0f;
+constexpr int kChunkCols = 8, kChunkRows = 5, kChunks = 4;
+constexpr float kPad = 40.0f;
+constexpr float kCaptionH = 26.0f;  // the caption's own row, one 18 px line
+constexpr float kCaptionGap = 16.0f;
+
+/** The canvas IS the content: four chunks wide and one chunk plus its
+ *  caption tall. A narrower box would shrink the chunks — a row lays its
+ *  children out in the space it has — and the atlas cells would stop being
+ *  square; a taller one would photograph empty ground. */
+constexpr float kCanvasW = kChunks * kChunkCols * kTile + 2 * kPad;
+constexpr float kCanvasH =
+    kChunkRows * kTile + kCaptionH + kCaptionGap + 2 * kPad;
 
 struct TileMap final : sketch::Sketch {
   struct Chunk {
@@ -34,7 +48,7 @@ struct TileMap final : sketch::Sketch {
     int revision;
     bool operator==(const Chunk&) const = default;
   };
-  std::vector<int> revisions = std::vector<int>(4, 0);
+  std::vector<int> revisions = std::vector<int>(kChunks, 0);
   double nextMutation = 0.0;
 
   /** The maze tileset: a procedural 4-cell atlas (16px tiles: floor,
@@ -87,10 +101,9 @@ struct TileMap final : sketch::Sketch {
   static Element chunkElement(const Chunk& chunk) {
     // 8x5 tiles per chunk; a seeded rule picks the atlas region — a
     // maze-ish wall pattern with moss and embers scattered in.
-    constexpr float kTile = 27.0f;
-    auto tiles = box().width(8 * kTile).height(5 * kTile);
-    for (int y = 0; y < 5; ++y)
-      for (int x = 0; x < 8; ++x) {
+    auto tiles = box().width(kChunkCols * kTile).height(kChunkRows * kTile);
+    for (int y = 0; y < kChunkRows; ++y)
+      for (int x = 0; x < kChunkCols; ++x) {
         const uint32_t h = (uint32_t)x * 73856093u ^ (uint32_t)y * 19349663u ^
                            (uint32_t)chunk.index * 83492791u ^
                            chunk.revision * 2654435761u;
@@ -111,24 +124,29 @@ struct TileMap final : sketch::Sketch {
   }
 
   Element describe() {
-    auto grid = box().row();
-    for (int i = 0; i < 4; ++i)
+    auto grid = box().row().width(kChunks * kChunkCols * kTile);
+    for (int i = 0; i < kChunks; ++i)
       grid.child(memo(Chunk{i, revisions[(size_t)i]}, chunkElement)
                      .key("chunk" + std::to_string(i)));
     return box()
-        .padding(40)
+        .padding(kPad)
         .fill(Fill::color({0.03f, 0.03f, 0.07f, 1}))
-        .child(text(u8"tile maze — atlas regions; one chunk re-records "
-                    u8"per mutation",
-                    type({.size = 18, .color = hex(0x9aa4bb)})))
-        .child(box().height(16))
+        .child(box()
+                   .height(kCaptionH)
+                   .row()
+                   .alignItems(Align::Center)
+                   .child(text(u8"tile maze — atlas regions; one chunk "
+                               u8"re-records per mutation",
+                               type({.size = 18, .color = hex(0x9aa4bb)}))))
+        .child(box().height(kCaptionGap))
         .child(std::move(grid));
   }
 
   void setup(sketch::SketchContext& ctx) override {
+    ctx.canvas(kCanvasW, kCanvasH);
     ctx.background({0, 0, 0, 1});
     Composer& composer = ctx.composer;
-    revisions.assign(4, 0);
+    revisions.assign(kChunks, 0);
     nextMutation = 0.0;
     composer.render(describe());
   }
@@ -137,7 +155,7 @@ struct TileMap final : sketch::Sketch {
     Composer& composer = ctx.composer;
     if (elapsed < nextMutation) return;
     nextMutation = elapsed + 0.7;
-    revisions[(size_t)(elapsed * 13.0) % 4]++;
+    revisions[(size_t)(elapsed * 13.0) % kChunks]++;
     composer.render(describe());
   }
 };

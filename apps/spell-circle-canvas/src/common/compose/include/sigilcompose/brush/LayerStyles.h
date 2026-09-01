@@ -196,11 +196,17 @@ struct AquaBody {
 };
 
 /** The highlight lens: a white ramp across the top half of the shape,
- *  clipped inside it — the wet-looking specular that sells the gel. */
+ *  clipped inside it — the wet-looking specular that sells the gel.
+ *
+ *  `fadeEnd` is where the ramp reaches `alphaBottom`, as a fraction of the
+ *  lens. Below 1 the lens's own lower arc is drawn at that value and so
+ *  leaves no visible outline: the highlight ends where the light ends
+ *  rather than where the shape does. */
 struct AquaGloss {
   float insetXFrac = 0.05f;
   float topFrac = 0.04f, bottomFrac = 0.52f;
   float alphaTop = 0.72f, alphaBottom = 0.0f;
+  float fadeEnd = 0.82f;
 
   bool operator==(const AquaGloss&) const = default;
 
@@ -210,7 +216,10 @@ struct AquaGloss {
 /** The drop-in gel bundle: body, gloss and a hairline keyline. Use it on a
  *  pill — `box().corners({h/2}).style(styles::aquaGel(tint))` — and give
  *  the node NO fill: the body decoration paints the surface, and a fill
- *  would cover it. Pass options to retune the lens and the glow. */
+ *  would cover it. Pass options to retune the lens, the glow and the
+ *  recess: `AquaGelOptions{.topBand = 1.0f}` is the deep cut, where the
+ *  band under the top edge ends in a line and the lens reads as a second
+ *  object laid on the pill. */
 LayerStyle aquaGel(SkColor4f tint = detail::rgb(0x1E8FFF),
                    AquaGelOptions opts = {});
 

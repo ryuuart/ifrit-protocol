@@ -145,8 +145,11 @@ void AquaBody::paint(SkCanvas& c, const PaintContext& ctx) const {
   body.setAntiAlias(true);
   body.setShader(detail::vRamp(0, H, kit::aquaBodyRamp(t)));
   c.drawPath(ctx.outline, body);
-  InnerShadow{detail::sk(kit::aquaTopBand(t)), {0, H * 0.08f}, H * 0.25f}.paint(
-      c, ctx);
+  if (opts.topBand > 0) {  // the recess under the top edge
+    sigil::material::Color band = kit::aquaTopBand(t);
+    band.a *= opts.topBand;
+    InnerShadow{detail::sk(band), {0, H * 0.08f}, H * 0.25f}.paint(c, ctx);
+  }
   if (opts.bottomGlow > 0) {  // screen-blended, fading out by mid-height
     SkPaint glow;
     glow.setAntiAlias(true);
@@ -166,9 +169,11 @@ void AquaGloss::paint(SkCanvas& c, const PaintContext& ctx) const {
                                        W * (1 - insetXFrac), H * bottomFrac);
   SkPaint p;
   p.setAntiAlias(true);
-  p.setShader(detail::vRamp(lens.top(), lens.bottom(),
-                            {{1, 1, 1, alphaTop}, {1, 1, 1, alphaBottom}},
-                            {0.0f, 1.0f}));
+  const float fade = std::clamp(fadeEnd, 0.05f, 1.0f);
+  p.setShader(detail::vRamp(
+      lens.top(), lens.bottom(),
+      {{1, 1, 1, alphaTop}, {1, 1, 1, alphaBottom}, {1, 1, 1, alphaBottom}},
+      {0.0f, fade, 1.0f}));
   c.save();
   c.clipPath(ctx.outline, true);
   c.drawRRect(SkRRect::MakeRectXY(lens, lens.height() / 2, lens.height() / 2),
@@ -185,7 +190,7 @@ LayerStyle aquaGel(SkColor4f tint, AquaGelOptions opts) {
   return LayerStyle{
       {Decoration(AquaBody{tint, opts})},
       {Decoration(AquaGloss{opts.lensInsetXFrac, 0.04f, opts.lensBottomFrac,
-                            opts.lensAlphaTop, 0.0f}),
+                            opts.lensAlphaTop, 0.0f, opts.lensFadeEnd}),
        Decoration(hairline)}};
 }
 

@@ -40,6 +40,59 @@ TEST(ComposeStyles, PresetBundlesRenderAndPrune) {
   EXPECT_EQ(host.composer.stats().patchedNodes, 0u);
 }
 
+TEST(ComposeStyles, AquaGelEdgesRunFromNoneToTheDeepCut) {
+  // The two edges the gel's default softens, each read off a rack of
+  // 90x44 pills at y 20..64 that differ in one option and nothing else.
+  const styles::AquaGelOptions preset;
+  auto pill = [](styles::AquaGelOptions opts) {
+    return box().width(90).height(44).corners({22}).style(
+        styles::aquaGel({0.118f, 0.561f, 1.0f, 1.0f}, opts));
+  };
+  auto withTopBand = [&](float v) {
+    styles::AquaGelOptions o;
+    o.topBand = v;
+    return pill(o);
+  };
+  styles::AquaGelOptions noLens;
+  noLens.lensAlphaTop = 0.0f;
+  styles::AquaGelOptions lensToItsOutline;
+  lensToItsOutline.lensFadeEnd = 1.0f;
+
+  Host host(500, 90);
+  host.composer.render(box()
+                           .row()
+                           .gap(8)
+                           .padding(8, 20)
+                           .child(withTopBand(0.0f))
+                           .child(withTopBand(preset.topBand))
+                           .child(withTopBand(1.0f))
+                           .child(pill(noLens))
+                           .child(pill(lensToItsOutline)));
+  host.frame();
+  auto lum = [&](int x, int y) {
+    const SkColor c = host.pixel(x, y);
+    return SkColorGetR(c) + SkColorGetG(c) + SkColorGetB(c);
+  };
+  const int kNoBand = 53, kBand = 151, kDeepBand = 249;  // pill centres
+  const int kNoLens = 347, kLensToOutline = 445;
+
+  // topBand is the recess under the top edge, and the default is a real
+  // recess that is not the deep cut: at a fifth of the height, no band is
+  // the lightest and the deep cut the darkest.
+  EXPECT_GT(lum(kNoBand, 29), lum(kBand, 29));
+  EXPECT_GT(lum(kBand, 29), lum(kDeepBand, 29));
+
+  // lensFadeEnd is where the highlight has finished. Under the default it
+  // is finished BEFORE the lens's own lower arc, so the last rows of the
+  // lens box carry no light at all and the arc cannot draw an edge — the
+  // pill with no lens matches there. At 1 the ramp runs to the arc and
+  // there IS light for the arc to cut off.
+  EXPECT_NEAR(lum(kBand, 41), lum(kNoLens, 41), 4);
+  EXPECT_GT(lum(kLensToOutline, 41), lum(kNoLens, 41) + 12);
+  // …and the row is inside the lens, not below it.
+  EXPECT_GT(lum(kBand, 30), lum(kNoLens, 30) + 100);
+}
+
 TEST(ComposePatterns, HalftoneRampSwellsDownward) {
   Host host(100, 100);
   host.composer.render(box().child(box().width(100).height(100).fill(

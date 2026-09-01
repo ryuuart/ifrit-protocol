@@ -931,18 +931,25 @@ struct Ds2Bench : sketch::Sketch {
     char slots[24];
     std::snprintf(slots, sizeof(slots), "%d / %d NODES", typedCount,
                   c.nodeCount);
+    // The rule spans the tree it heads, and the caption row spans the rule:
+    // name at the left end, count at the right. Butting the count against
+    // the name puts it under the weapon circuit's low-hanging DMG node,
+    // whose corona then eats the digits — and the lattice geometry is read
+    // off the reference frame, so it is the caption that moves.
+    constexpr float kRuleW = 350.0f;
     root.child(
         box()
             .at({c.x0 - 34, c.y0 - 58})
+            .width(Dim(kRuleW))
             .row()
             .alignItems(Align::Center)
-            .gap(14)
+            .justify(Justify::SpaceBetween)
             .zIndex(8)
             .child(text(toU8(c.caption), type(11, alpha(kCyan, 0.62f), 0.18f)))
             .child(text(toU8(slots),
                         type(9.5f, alpha(kCyan, 0.4f), 0.18f, false))));
     root.child(box()
-                   .rect(SkRect::MakeXYWH(c.x0 - 34, c.y0 - 32, 280.0f, 1.0f))
+                   .rect(SkRect::MakeXYWH(c.x0 - 34, c.y0 - 32, kRuleW, 1.0f))
                    .shape(hline())
                    .stroke(stroke(1.0f, Fill::color(alpha(kCyan, 0.28f))))
                    .zIndex(8));

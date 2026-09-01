@@ -16,7 +16,7 @@ Color toward(Color c, Color target, float t, float a) {
 }
 
 std::vector<RampStop> aquaBodyRamp(Color tint) {
-  return {{0.0f, scaled(tint, 0.55f, 0.9f)},
+  return {{0.0f, scaled(tint, 0.72f, 0.9f)},
           {0.55f, tint},
           {1.0f, toward(tint, {1, 1, 1, 1}, 0.35f, 0.95f)}};
 }
@@ -27,7 +27,7 @@ std::vector<RampStop> aquaGlowRamp(Color tint, float strength) {
 }
 
 Color aquaHalo(Color tint) { return toward(tint, {1, 1, 1, 1}, 0.30f, 0.5f); }
-Color aquaTopBand(Color tint) { return scaled(tint, 0.30f, 0.45f); }
+Color aquaTopBand(Color tint) { return scaled(tint, 0.36f, 0.45f); }
 Color aquaHairline(Color tint) { return scaled(tint, 0.45f, 0.6f); }
 
 std::vector<RampStop> chromeRamp(ChromePalette palette) {

@@ -295,7 +295,11 @@ struct Item {
 };
 
 /** The hoard. Footprints are D2's: two-hand sword 2x4, body armour 2x3,
- *  wand 1x3, helm 2x2, gloves 2x2, rings and potions 1x1. */
+ *  wand 1x3, helm 2x2, gloves 2x2, rings and potions 1x1.
+ *
+ *  The layout leaves ONE free 2x3 pocket, at columns 7-8 of rows 1-3: the
+ *  dragged shield's footprint is 2x3, and a "fits" pose has to land on a
+ *  run of cells that is really free or the green highlight is a lie. */
 inline constexpr Item kItems[] = {
     {"Doomslinger", Art::Sword, 0, 0, 2, 4, Rarity::Unique, C(0xB9A06A)},
     {"Sigil Plate", Art::Armour, 2, 0, 2, 3, Rarity::Set, C(0x6E8F63)},
@@ -304,8 +308,8 @@ inline constexpr Item kItems[] = {
     {"Cinder Grips", Art::Gloves, 5, 2, 2, 2, Rarity::Normal, C(0x8A6A46)},
     {"Band of Soot", Art::Ring, 7, 0, 1, 1, Rarity::Rare, C(0xC7A657)},
     {"Ember Charm", Art::Amulet, 8, 0, 1, 1, Rarity::Unique, C(0xC7B377)},
-    {"Healing Draught", Art::Potion, 7, 1, 1, 1, Rarity::Normal, C(0xB03A3A)},
-    {"Healing Draught", Art::Potion, 8, 1, 1, 1, Rarity::Normal, C(0xB03A3A)},
+    {"Healing Draught", Art::Potion, 9, 0, 1, 1, Rarity::Normal, C(0xB03A3A)},
+    {"Healing Draught", Art::Potion, 4, 3, 1, 1, Rarity::Normal, C(0xB03A3A)},
     {"Mana Draught", Art::Potion, 9, 1, 1, 1, Rarity::Normal, C(0x3A56B0)},
     {"Mana Draught", Art::Potion, 9, 2, 1, 1, Rarity::Normal, C(0x3A56B0)},
     {"Warden's Sabatons", Art::Boots, 2, 3, 2, 1, Rarity::Magic, C(0x7A6A55)},
@@ -428,12 +432,11 @@ struct LootGrid final : sketch::Sketch {
   }
 
   // Where the dragged shield rests: over the wand+gloves (blocked), then
-  // clear of the hoard (free). The free pose is BELOW the grid because the
-  // hoard has no free 2x3 anywhere in it — every gap left is one or two
-  // cells wide.
+  // on the hoard's one free 2x3 pocket. Both poses sit ON cells, so the
+  // red and the green are each saying something true about the hoard.
   static constexpr int kDragW = 2, kDragH = 3;
   static SkPoint blockedAt() { return {loot::cellX(4), loot::cellY(1)}; }
-  static SkPoint freeAt() { return {loot::cellX(2) + 4, loot::cellY(4) + 8}; }
+  static SkPoint freeAt() { return {loot::cellX(7), loot::cellY(1)}; }
 
   void setup(sketch::SketchContext& ctx) override {
     ctx.background({0, 0, 0, 1});
@@ -704,9 +707,17 @@ struct LootGrid final : sketch::Sketch {
                 .alignItems(Align::Center)
                 .opacity(0.13f)
                 .child(lt::artwork(s.ghost, w * 0.64f, h * 0.68f, lt::kParch)));
+        // The label rides INSIDE the well, so the widest word has to clear
+        // the narrowest socket: AMULET on a single cell is 38 px of room.
+        // A one-cell socket therefore drops the tracking and condenses,
+        // which narrows the run without cutting the cap height the label
+        // is read by.
+        const bool narrow = s.w < 2;
         socket.child(
-            text(toU8(s.label),
-                 type({.size = 7.0f, .color = lt::kAsh, .track = 1.3f}))
+            text(toU8(s.label), type({.size = 7.0f,
+                                      .color = lt::kAsh,
+                                      .track = narrow ? 0.4f : 1.3f,
+                                      .condense = narrow ? 0.86f : 1.0f}))
                 .left(0)
                 .right(0)
                 .bottom(3)

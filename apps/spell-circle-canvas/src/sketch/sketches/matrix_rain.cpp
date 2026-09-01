@@ -423,6 +423,25 @@ struct MatrixRain : sketch::Sketch {
                         {0.60f, {0, 0, 0, 0.04f}},
                         {1.0f, {0.002f, 0.008f, 0.004f, 0.45f}}})));
 
+    // The caption's own ground. The field runs edge to edge and every
+    // column is churning, so a line of type laid straight onto it competes
+    // with a moving glyph behind every letter. A scrim rising off the
+    // bottom edge — the void the field is drawn on, faded out above the
+    // line — puts the caption on a surface without drawing a bar across
+    // the picture.
+    root.child(box()
+                   .key("caption-scrim")
+                   .left(0)
+                   .top(kH - 52)
+                   .width(kW)
+                   .height(52)
+                   .hitTestable(false)
+                   .fill(Material::linear(
+                       {0, 0}, {0, 52},
+                       {{0.0f, {kVoid.fR, kVoid.fG, kVoid.fB, 0.0f}},
+                        {0.45f, {kVoid.fR, kVoid.fG, kVoid.fB, 0.72f}},
+                        {1.0f, {kVoid.fR, kVoid.fG, kVoid.fB, 0.92f}}})));
+
     root.child(
         text(toU8("SIMON WHITELEY'S DIGITAL RAIN \xc2\xb7 " +
                   std::to_string(totalGlyphs) +
