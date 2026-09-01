@@ -506,10 +506,9 @@ every preset and checks a fill stays inside its path, dresses a surface
 from a decoded set and pins the packed channels it wires, and shades a
 stack at both ends of its mask. `material_core_test` pins what `over()`
 builds: the operands as children, a blend per recipe, and the walk down
-to the bottom of a stack. Three programs are the acceptance pieces: the
-`shapeworks_lab` and `easel_playground` sketches under
-`compose/sketch/sketches/`, and `geometry_demo`, whose
-surface panels are shaded here. SigilCompose is the largest consumer: its
+to the bottom of a stack. The acceptance pieces are the
+`shapeworks_lab`, `easel_playground` and `mesh_normal_bridge` sketches
+under `src/sketch/sketches/`, whose surfaces are shaded here. SigilCompose is the largest consumer: its
 `Material::recipe` resolves a material through this library's cache with
 the frame built from its paint context, and its patterns, SDF fills,
 layer styles and view transforms are the primitives and presets here
