@@ -118,6 +118,7 @@
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/shape/Shapes.h>
 #include <sigilcompose/testing/Checks.h>
+#include <sigilcompose/typography/Type.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/color/Ocio.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -375,27 +376,19 @@ inline const sk_sp<SkTypeface>& mono() {
   return f;
 }
 
-inline weave::TextStyle ty(const sk_sp<SkTypeface>& tf, float size,
-                           SkColor4f color, float track = 0) {
-  weave::TextStyle s;
-  s.shaping.typeface = tf;
-  s.shaping.fontSize = size;
-  s.shaping.letterSpacing = track;
-  s.paint.foreground.setColor4f(color, nullptr);
-  s.paint.foreground.setAntiAlias(true);
-  return s;
-}
+// The plate's four registers, each one library `type()` call: the roman it
+// is set in, its bold, its italic, and the mono the numbers run in.
 inline weave::TextStyle sr(float sz, SkColor4f c, float tr = 0) {
-  return ty(serif(), sz, c, tr);
+  return type({.face = serif(), .size = sz, .color = c, .track = tr});
 }
 inline weave::TextStyle sbd(float sz, SkColor4f c, float tr = 0) {
-  return ty(serifBold(), sz, c, tr);
+  return type({.face = serifBold(), .size = sz, .color = c, .track = tr});
 }
 inline weave::TextStyle it(float sz, SkColor4f c, float tr = 0) {
-  return ty(serifIt(), sz, c, tr);
+  return type({.face = serifIt(), .size = sz, .color = c, .track = tr});
 }
 inline weave::TextStyle mn(float sz, SkColor4f c, float tr = 0) {
-  return ty(mono(), sz, c, tr);
+  return type({.face = mono(), .size = sz, .color = c, .track = tr});
 }
 
 inline std::u8string U(const std::string& s) { return toU8(s); }

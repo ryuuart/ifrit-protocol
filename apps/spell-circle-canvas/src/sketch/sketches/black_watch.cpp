@@ -84,6 +84,7 @@
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/shape/Shapes.h>
 #include <sigilcompose/testing/Checks.h>
+#include <sigilcompose/typography/Type.h>
 #include <sigilimage/asset/ImageAsset.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/fonts/FontContext.h>
@@ -513,21 +514,17 @@ inline const sk_sp<SkTypeface>& serifIt() {
   return f;
 }
 
+// A positional shorthand over the library's designated-init `type()`, for
+// the paragraph registers that name their own face at the call.
 inline weave::TextStyle ty(const sk_sp<SkTypeface>& tf, float size,
                            SkColor4f color, float track = 0) {
-  weave::TextStyle s;
-  s.shaping.typeface = tf;
-  s.shaping.fontSize = size;
-  s.shaping.letterSpacing = track;
-  s.paint.foreground.setColor4f(color, nullptr);
-  s.paint.foreground.setAntiAlias(true);
-  return s;
+  return type({.face = tf, .size = size, .color = color, .track = track});
 }
 inline weave::TextStyle mn(float sz, SkColor4f c, float tr = 0) {
-  return ty(mono(), sz, c, tr);
+  return type({.face = mono(), .size = sz, .color = c, .track = tr});
 }
 inline weave::TextStyle sb(float sz, SkColor4f c, float tr = 0) {
-  return ty(sansB(), sz, c, tr);
+  return type({.face = sansB(), .size = sz, .color = c, .track = tr});
 }
 
 inline std::u8string U(const std::string& s) { return toU8(s); }

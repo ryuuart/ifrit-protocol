@@ -154,6 +154,7 @@
 #include <sigilcompose/core/Feed.h>
 #include <sigilcompose/core/Material.h>
 #include <sigilcompose/kit/Strokes.h>
+#include <sigilcompose/typography/Type.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>
@@ -274,16 +275,15 @@ inline const sk_sp<SkTypeface>& boldFace() {
   return f;
 }
 
+// The terminal's one register, over the library's designated-init `type()`:
+// every mark on this plate is the same bold grotesque, condensed.
 inline weave::TextStyle type(float size, SkColor4f color, float condense = 1.0f,
                              float track = 0.0f) {
-  weave::TextStyle s;
-  s.shaping.typeface = boldFace();
-  s.shaping.fontSize = size;
-  s.shaping.letterSpacing = track;
-  s.shaping.scaleX = condense;
-  s.paint.foreground.setColor4f(color, nullptr);
-  s.paint.foreground.setAntiAlias(true);
-  return s;
+  return sigil::compose::type({.face = boldFace(),
+                               .size = size,
+                               .color = color,
+                               .track = track,
+                               .condense = condense});
 }
 
 // ---------------------------------------------------------------------------

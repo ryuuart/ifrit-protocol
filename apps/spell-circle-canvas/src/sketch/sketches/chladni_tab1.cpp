@@ -110,6 +110,7 @@
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/shape/Shapes.h>
 #include <sigilcompose/typography/TextFx.h>
+#include <sigilcompose/typography/Type.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/fonts/FontContext.h>
 
@@ -379,15 +380,14 @@ struct Xorshift {
   float range(float a, float b) { return a + (b - a) * next(); }
 };
 
+// A positional shorthand over the library's designated-init `type()`: the
+// plate has one type signature and names its own four parameters over it.
 sigil::weave::TextStyle type(sk_sp<SkTypeface> face, float size,
                              SkColor4f color, float tracking = 0) {
-  sigil::weave::TextStyle s;
-  s.shaping.typeface = std::move(face);
-  s.shaping.fontSize = size;
-  s.shaping.letterSpacing = tracking;
-  s.paint.foreground.setColor4f(color, nullptr);
-  s.paint.foreground.setAntiAlias(true);
-  return s;
+  return sigil::compose::type({.face = std::move(face),
+                               .size = size,
+                               .color = color,
+                               .track = tracking});
 }
 
 Transition ramp(float delayMs, float durMs, ch::EaseFn ease = ch::easeOutQuad) {

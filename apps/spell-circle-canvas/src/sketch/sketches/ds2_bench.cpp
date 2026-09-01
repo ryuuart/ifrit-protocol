@@ -68,6 +68,7 @@
 #include <sigilcompose/shape/Routers.h>
 #include <sigilcompose/shape/Shapes.h>
 #include <sigilcompose/typography/TextFx.h>
+#include <sigilcompose/typography/Type.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
@@ -133,19 +134,19 @@ inline sk_sp<SkTypeface> uiFace(bool bold) {
   return mgr->matchFamilyStyle(nullptr, want);
 }
 
+// The bench's one register, over the library's designated-init `type()`.
+// Tracking arrives here in EM, not px, because the reference quotes it that
+// way; the em size is known at this call, so the conversion lands here.
 inline sigil::weave::TextStyle type(float size, SkColor4f color,
                                     float trackEm = 0.07f, bool bold = true,
                                     float stretch = 1.16f) {
   static const sk_sp<SkTypeface> faceB = uiFace(true);
   static const sk_sp<SkTypeface> faceR = uiFace(false);
-  sigil::weave::TextStyle s;
-  s.shaping.typeface = bold ? faceB : faceR;
-  s.shaping.fontSize = size;
-  s.shaping.letterSpacing = trackEm * size;
-  s.shaping.scaleX = stretch;
-  s.paint.foreground.setColor(color.toSkColor());
-  s.paint.foreground.setAntiAlias(true);
-  return s;
+  return sigil::compose::type({.face = bold ? faceB : faceR,
+                               .size = size,
+                               .color = color,
+                               .track = trackEm * size,
+                               .condense = stretch});
 }
 
 // ---------------------------------------------------------------------------

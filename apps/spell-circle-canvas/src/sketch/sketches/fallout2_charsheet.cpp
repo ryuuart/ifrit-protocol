@@ -166,6 +166,7 @@
 #include <sigilcompose/core/Patterns.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/shape/Shapes.h>
+#include <sigilcompose/typography/Type.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/layout/ParagraphLayout.h>
 #include <sigilweave/paragraph/Paragraph.h>
@@ -313,17 +314,16 @@ inline const sk_sp<SkTypeface>& digitFace() {
   return f;
 }
 
+// A positional shorthand over the library's designated-init `type()`: the
+// sheet has one type signature and names its own five parameters over it.
 inline weave::TextStyle type(const sk_sp<SkTypeface>& tf, float size,
                              SkColor4f color, float track = 0,
                              float condense = 1.0f) {
-  weave::TextStyle s;
-  s.shaping.typeface = tf;
-  s.shaping.fontSize = size;
-  s.shaping.letterSpacing = track;
-  s.shaping.scaleX = condense;
-  s.paint.foreground.setColor4f(color, nullptr);
-  s.paint.foreground.setAntiAlias(true);
-  return s;
+  return sigil::compose::type({.face = tf,
+                               .size = size,
+                               .color = color,
+                               .track = track,
+                               .condense = condense});
 }
 
 /** Probed once in setup(): px of advance per em for the body face, and the
@@ -817,7 +817,8 @@ struct Fallout2CharSheet : sketch::Sketch {
    *  substitute runs BOLD — and because Andale Mono is monospaced, bold has
    *  identical advances and every column stays where the game put it. */
   weave::TextStyle body(SkColor4f c) const {
-    return fo::type(fo::bodyBold(), fo::bodySize(), c);
+    return sigil::compose::type(
+        {.face = fo::bodyBold(), .size = fo::bodySize(), .color = c});
   }
   /** The engraved gold. Sizes are DERIVED from measured ink on the capture:
    *  "ST-" is 36x21 original px, "SKILLS" 51x18, "PRINT" 47x16, "LUKE" 58x20.
@@ -829,7 +830,11 @@ struct Fallout2CharSheet : sketch::Sketch {
    *  and buttons state their factors at the call, tuned to their own runs. */
   weave::TextStyle plaqueType(float size, SkColor4f c, float condense = 0.95f,
                               float track = 0.5f) const {
-    return fo::type(fo::engraved(), size, c, fo::n(track), condense);
+    return sigil::compose::type({.face = fo::engraved(),
+                                 .size = size,
+                                 .color = c,
+                                 .track = fo::n(track),
+                                 .condense = condense});
   }
   /** font 102: cap height 17 original px, advance ~6.8 — a heavily condensed
    *  heavy grotesque (measured off the reference: "Strength" is 55 px wide
@@ -837,8 +842,11 @@ struct Fallout2CharSheet : sketch::Sketch {
    *  condense factor is derived in setup() from the substitute's own advance
    *  rather than guessed. */
   weave::TextStyle titleStyle() const {
-    return fo::type(fo::titleFace(), fo::n(23.8f), fo::kInk, fo::n(-0.1f),
-                    fo::titleCondense());
+    return sigil::compose::type({.face = fo::titleFace(),
+                                 .size = fo::n(23.8f),
+                                 .color = fo::kInk,
+                                 .track = fo::n(-0.1f),
+                                 .condense = fo::titleCondense()});
   }
 
   Element bodyAt(const std::string& s, SkColor4f c, float x, float y,

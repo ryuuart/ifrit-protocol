@@ -603,10 +603,10 @@ std::vector<Piece> retePieces(const Rete& r) {
 // ---------------------------------------------------------------------------
 // paint helpers
 
-// The six-statement core lives in Studio.h now. This file keeps a positional
-// shorthand because it has ONE type signature and ~140 call sites; the
-// library's version is a designated-init struct precisely so a file like
-// this can name its own four parameters over it.
+// A positional shorthand over the library's designated-init `type()`: this
+// plate has ONE type signature and ~140 call sites, and the library spells
+// it as a designated-init aggregate precisely so a file like this can name
+// its own four parameters over it.
 sigil::weave::TextStyle type(sk_sp<SkTypeface> face, float size, SkColor4f c,
                              float tracking = 0) {
   return sigil::compose::type(

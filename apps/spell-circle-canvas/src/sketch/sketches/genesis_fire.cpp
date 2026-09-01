@@ -134,6 +134,7 @@
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/shape/Shapes.h>
 #include <sigilcompose/typography/TextFx.h>
+#include <sigilcompose/typography/Type.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
@@ -270,24 +271,25 @@ sk_sp<SkTypeface> heavyFace() {
   return f;
 }
 
+// A positional shorthand over the library's designated-init `type()`, for
+// the one display line that names its own face.
 sigil::weave::TextStyle type(sk_sp<SkTypeface> tf, float size, SkColor4f color,
                              float track = 0.0f) {
-  sigil::weave::TextStyle s;
-  s.shaping.typeface = std::move(tf);
-  s.shaping.fontSize = size;
-  s.shaping.letterSpacing = track;
-  s.paint.foreground.setColor4f(color);
-  s.paint.foreground.setAntiAlias(true);
-  return s;
+  return sigil::compose::type(
+      {.face = std::move(tf), .size = size, .color = color, .track = track});
 }
+// The three registers the panel is set in.
 sigil::weave::TextStyle mono(float size, SkColor4f c, float track = 0.0f) {
-  return type(monoFace(), size, c, track);
+  return sigil::compose::type(
+      {.face = monoFace(), .size = size, .color = c, .track = track});
 }
 sigil::weave::TextStyle monoB(float size, SkColor4f c, float track = 0.0f) {
-  return type(monoBoldFace(), size, c, track);
+  return sigil::compose::type(
+      {.face = monoBoldFace(), .size = size, .color = c, .track = track});
 }
 sigil::weave::TextStyle ui(float size, SkColor4f c, float track = 0.0f) {
-  return type(uiFace(), size, c, track);
+  return sigil::compose::type(
+      {.face = uiFace(), .size = size, .color = c, .track = track});
 }
 
 Element t(const char* s, sigil::weave::TextStyle st) {
