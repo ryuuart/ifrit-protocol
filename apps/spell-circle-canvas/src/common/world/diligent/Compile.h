@@ -98,6 +98,11 @@ class SlangProgram : public material::Program {
  *  to compile, which is reported once. */
 const Compiled& scaffold(bool lit);
 
+/** THE MESH PAINTER'S PROGRAM: the one a draw with no material takes,
+ *  whose three shading modes are a uniform rather than three builds.
+ *  Empty when it failed to compile, which is reported once. */
+const Compiled& painterProgram();
+
 /** WHAT A POST PASS DOES, one program each. Each is a triangle covering
  *  the target and one fragment stage; none of them depends on a
  *  material, so all four are the same for every frame. */

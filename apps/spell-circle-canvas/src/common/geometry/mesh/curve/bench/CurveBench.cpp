@@ -1,7 +1,8 @@
 /** @file
  * Benchmarks of the spline features: arc-length sampling and
- * parallel-transport frames by count, and the sweep by profile and
- * tessellation.
+ * parallel-transport frames by count, the sweep by profile and
+ * tessellation, and the ring seam a device executor replaces on its
+ * own.
  */
 
 // geometry_mesh_curve_bench — what evaluating a spline evenly costs, what
@@ -12,8 +13,10 @@
 #include <benchmark/benchmark.h>
 #include <sigilgeometry/mesh/curve/Curve.h>
 #include <sigilgeometry/mesh/curve/Pose.h>
+#include <sigilgeometry/mesh/curve/Sweep.h>
 
 #include <cmath>
+#include <glm/glm.hpp>
 #include <numbers>
 #include <vector>
 
@@ -88,6 +91,36 @@ void BM_Sweep_Circle(benchmark::State& state) {
 BENCHMARK(BM_Sweep_Circle)
     ->ArgsProduct({{32, 256, 1024}, {6, 24}})
     ->ArgNames({"segments", "sides"})
+    ->Unit(benchmark::kMicrosecond)
+    ->Complexity(benchmark::oN);
+
+/** THE RING SEAM ALONE: what a rail and a profile become as a dispatch,
+ *  and the executor's own call over it, without the topology, the caps or
+ *  the pour into a mesh's lanes. It is the half a device replaces, so a
+ *  device executor's arm has a host number to stand beside. */
+void BM_Sweep_Rings(benchmark::State& state) {
+  const curve::Spline3 spline = knot(9);
+  const path::Polyline profile = curve::profile::circle(24);
+  const curve::SweepOptions options{.segments = (int)state.range(0),
+                                    .scale = 6};
+  const std::vector<curve::Frame3> rail =
+      curve::frames(spline, options.segments, options.up);
+  curve::kernel::Dispatch work;
+  curve::describe(rail, profile, options, &work);
+  std::vector<glm::vec4> positions(work.vertices());
+  std::vector<glm::vec4> normals(work.vertices());
+  for ([[maybe_unused]] auto iteration : state) {
+    options.runtime->rings(work, positions.data(), normals.data());
+    benchmark::DoNotOptimize(positions.data());
+  }
+  state.counters["vertices/s"] =
+      benchmark::Counter((double)state.iterations() * (double)work.vertices(),
+                         benchmark::Counter::kIsRate);
+}
+BENCHMARK(BM_Sweep_Rings)
+    ->Arg(32)
+    ->Arg(256)
+    ->Arg(1024)
     ->Unit(benchmark::kMicrosecond)
     ->Complexity(benchmark::oN);
 

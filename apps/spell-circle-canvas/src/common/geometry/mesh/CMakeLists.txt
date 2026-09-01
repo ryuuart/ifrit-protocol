@@ -4,7 +4,9 @@
 add_library(SigilGeometryMesh STATIC
   Generators.cpp
   Mesh.cpp
+  Spirv.cpp
   ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/mesh/Mesh.h
+  ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/mesh/Spirv.h
   ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/mesh/Vec.h
 )
 target_compile_features(SigilGeometryMesh PUBLIC cxx_std_20)

@@ -5,6 +5,7 @@
 
 #include "Compile.h"
 
+#include <sigilslang/Painter.h>
 #include <sigilslang/Portable.h>
 #include <sigilslang/Post.h>
 #include <sigilslang/Surface.h>
@@ -254,6 +255,23 @@ const Compiled& scaffold(bool lit) {
   static const Compiled shaded = build(true);
   static const Compiled plain = build(false);
   return lit ? shaded : plain;
+}
+
+const Compiled& painterProgram() {
+  static const Compiled built = [] {
+    Compiled program;
+    std::string error;
+    // Compiled once and unspecialised: the painter's modes and its
+    // "does light reach this" answer are fields of a style, which is a
+    // value a caller changes between two draws, so specialising on one
+    // would compile a program per draw rather than per material.
+    if (!compileModule(slangmodule::Painter::kSource, "vsPaint", "fsPaint",
+                       /*lit=*/false, &program, &error))
+      material::reportOnce("world.diligent.painter",
+                           "the mesh painter did not compile: " + error);
+    return program;
+  }();
+  return built;
 }
 
 const PostPrograms& postPrograms() {

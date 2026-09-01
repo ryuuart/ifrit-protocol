@@ -111,40 +111,7 @@ class GpuExecutor : public Executor {
 
 Runtime runtime(Device& device) {
   installSlangCompiler();
-  auto gpu = std::make_shared<Gpu>(device);
-
-  // ONE SAMPLER PER FILTER, made once and picked per draw: a texture
-  // states how it wants to be read between texels, and a map that asked
-  // for hard texel edges must not have them blended away.
-  const auto makeSampler = [&](dg::FILTER_TYPE type, dg::ISampler** into) {
-    dg::SamplerDesc desc;
-    desc.MinFilter = type;
-    desc.MagFilter = type;
-    desc.MipFilter = type;
-    desc.AddressU = dg::TEXTURE_ADDRESS_CLAMP;
-    desc.AddressV = dg::TEXTURE_ADDRESS_CLAMP;
-    desc.AddressW = dg::TEXTURE_ADDRESS_CLAMP;
-    device.renderDevice()->CreateSampler(desc, into);
-  };
-  makeSampler(dg::FILTER_TYPE_LINEAR, &gpu->linearSampler);
-  makeSampler(dg::FILTER_TYPE_POINT, &gpu->nearestSampler);
-
-  // What an unfilled sampled slot reads: one white texel, so a body
-  // multiplied by a map it was not given is the body.
-  const uint32_t white = 0xFFFFFFFFu;
-  dg::TextureDesc desc;
-  desc.Name = "world white";
-  desc.Type = dg::RESOURCE_DIM_TEX_2D;
-  desc.Width = 1;
-  desc.Height = 1;
-  desc.Format = kColorFormat;
-  desc.BindFlags = dg::BIND_SHADER_RESOURCE;
-  desc.Usage = dg::USAGE_IMMUTABLE;
-  dg::TextureSubResData level{&white, sizeof(white)};
-  dg::TextureData data{&level, 1};
-  device.renderDevice()->CreateTexture(desc, &data, &gpu->white);
-
-  return Runtime{GpuExecutor{std::move(gpu), popRuntime(device)}};
+  return Runtime{GpuExecutor{makeGpu(device), popRuntime(device)}};
 }
 
 }  // namespace sigil::world::diligent

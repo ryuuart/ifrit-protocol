@@ -18,8 +18,16 @@
  * so metallic, roughness, the normal map and the glass terms have no
  * effect there. `surface()` shades the albedo attenuated by occlusion
  * plus its emission — the ambient-only evaluation of the model — and
- * `unlit()` shades the albedo alone. A renderer that HAS the surface
- * attributes reads the same params and slots and shades the full model.
+ * `unlit()` shades the albedo alone.
+ *
+ * The Slang bodies read the same params and the same slots, and say one
+ * thing more, because the renderer that compiles them shades: wherever a
+ * MAP varies the normal, the roughness or the metallic across the
+ * surface, the lit body hands that renderer a tangent normal, a Blinn
+ * exponent and a metal weight to shade the pixel with. Where none of
+ * those maps is present it says nothing, because a roughness that is one
+ * number over the whole surface is already what a shading evaluated once
+ * per vertex says it is. The glass terms reach neither body.
  */
 
 #include <sigilmaterial/color/Color.h>

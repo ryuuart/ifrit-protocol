@@ -22,6 +22,8 @@
 #include <Graphics/GraphicsTools/interface/MapHelper.hpp>
 #include <algorithm>
 #include <cstring>
+#include <memory>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -38,7 +40,67 @@ struct Vertex {
   float normal[3];
   float uv[2];
   float color[4];
+  /** The PRIMITIVE lane the triangle this vertex belongs to carries, or
+   *  ones where no lane was named. A triangle has nowhere of its own to
+   *  hold a value, so its three vertices each carry it. */
+  float prim[4];
 };
+
+/** @p mesh as the one vertex layout this backend reads, with the lanes
+ *  it does not carry filled in.
+ *
+ *  A PRIMITIVE lane makes the vertices unshared: its value belongs to a
+ *  triangle, and a vertex two triangles meet at cannot hold two of them.
+ *  Without one the mesh's own indices stand. */
+void fillVertices(const Mesh& mesh, std::string_view primColorLane,
+                  std::vector<Vertex>* vertices,
+                  std::vector<uint32_t>* indices) {
+  const size_t n = mesh.vertexCount();
+  const bool hasNormals = mesh.normals.size() == n;
+  const bool hasUvs = mesh.uvs.size() == n;
+  const bool hasColors = mesh.colors.size() == n;
+  const std::vector<glm::vec4>* prim =
+      primColorLane.empty() ? nullptr : mesh.primIf(primColorLane);
+  if (prim && prim->size() != mesh.triangleCount()) prim = nullptr;
+
+  const auto write = [&](size_t i, glm::vec4 tint) {
+    Vertex v;
+    v.position[0] = mesh.positions[i].x;
+    v.position[1] = mesh.positions[i].y;
+    v.position[2] = mesh.positions[i].z;
+    const glm::vec3 n3 = hasNormals ? mesh.normals[i] : glm::vec3{0, 0, 1};
+    v.normal[0] = n3.x;
+    v.normal[1] = n3.y;
+    v.normal[2] = n3.z;
+    const glm::vec2 uv = hasUvs ? mesh.uvs[i] : glm::vec2{0, 0};
+    v.uv[0] = uv.x;
+    v.uv[1] = uv.y;
+    const glm::vec4 c = hasColors ? mesh.colors[i] : glm::vec4{1, 1, 1, 1};
+    v.color[0] = c.r;
+    v.color[1] = c.g;
+    v.color[2] = c.b;
+    v.color[3] = c.a;
+    v.prim[0] = tint.r;
+    v.prim[1] = tint.g;
+    v.prim[2] = tint.b;
+    v.prim[3] = tint.a;
+    vertices->push_back(v);
+  };
+
+  if (!prim) {
+    vertices->reserve(n);
+    for (size_t i = 0; i < n; ++i) write(i, {1, 1, 1, 1});
+    *indices = mesh.indices;
+    return;
+  }
+  vertices->reserve(mesh.indices.size());
+  indices->reserve(mesh.indices.size());
+  for (size_t t = 0; t + 2 < mesh.indices.size(); t += 3)
+    for (size_t k = 0; k < 3; ++k) {
+      indices->push_back((uint32_t)vertices->size());
+      write(mesh.indices[t + k], (*prim)[t / 3]);
+    }
+}
 
 /** How long a mesh stays uploaded after the last view that named it. A
  *  window sliding along a curve resolves a fresh artefact every frame,
@@ -284,34 +346,16 @@ void Gpu::endFrame() {
   }
 }
 
-const MeshBuffers* Gpu::upload(uint64_t artefact, const Mesh& mesh) {
+const MeshBuffers* Gpu::upload(uint64_t artefact, const Mesh& mesh,
+                               std::string_view primColorLane) {
   if (mesh.positions.empty() || mesh.indices.size() < 3) return nullptr;
   MeshBuffers& buffers = meshes[artefact];
   buffers.used = frame;
   if (buffers.vertices) return &buffers;
 
-  std::vector<Vertex> vertices(mesh.vertexCount());
-  const bool hasNormals = mesh.normals.size() == mesh.vertexCount();
-  const bool hasUvs = mesh.uvs.size() == mesh.vertexCount();
-  const bool hasColors = mesh.colors.size() == mesh.vertexCount();
-  for (size_t i = 0; i < vertices.size(); ++i) {
-    Vertex& v = vertices[i];
-    v.position[0] = mesh.positions[i].x;
-    v.position[1] = mesh.positions[i].y;
-    v.position[2] = mesh.positions[i].z;
-    const glm::vec3 n = hasNormals ? mesh.normals[i] : glm::vec3{0, 0, 1};
-    v.normal[0] = n.x;
-    v.normal[1] = n.y;
-    v.normal[2] = n.z;
-    const glm::vec2 uv = hasUvs ? mesh.uvs[i] : glm::vec2{0, 0};
-    v.uv[0] = uv.x;
-    v.uv[1] = uv.y;
-    const glm::vec4 c = hasColors ? mesh.colors[i] : glm::vec4{1, 1, 1, 1};
-    v.color[0] = c.r;
-    v.color[1] = c.g;
-    v.color[2] = c.b;
-    v.color[3] = c.a;
-  }
+  std::vector<Vertex> vertices;
+  std::vector<uint32_t> indices;
+  fillVertices(mesh, primColorLane, &vertices, &indices);
 
   buffers.vertices.Release();
   buffers.indices.Release();
@@ -325,15 +369,61 @@ const MeshBuffers* Gpu::upload(uint64_t artefact, const Mesh& mesh) {
 
   dg::BufferDesc id;
   id.Name = "world mesh indices";
-  id.Size = mesh.indices.size() * sizeof(uint32_t);
+  id.Size = indices.size() * sizeof(uint32_t);
   id.BindFlags = dg::BIND_INDEX_BUFFER;
   id.Usage = dg::USAGE_IMMUTABLE;
-  dg::BufferData idata{mesh.indices.data(), id.Size};
+  dg::BufferData idata{indices.data(), id.Size};
   device->renderDevice()->CreateBuffer(id, &idata, &buffers.indices);
 
-  buffers.vertexCount = mesh.vertexCount();
-  buffers.indexCount = (uint32_t)mesh.indices.size();
+  buffers.vertexCount = vertices.size();
+  buffers.indexCount = (uint32_t)indices.size();
   return buffers.vertices && buffers.indices ? &buffers : nullptr;
+}
+
+const MeshBuffers* Gpu::stream(const Mesh& mesh,
+                               std::string_view primColorLane) {
+  if (mesh.positions.empty() || mesh.indices.size() < 3) return nullptr;
+  std::vector<Vertex> vertices;
+  std::vector<uint32_t> indices;
+  fillVertices(mesh, primColorLane, &vertices, &indices);
+
+  dg::IRenderDevice* renderDevice = device->renderDevice();
+  // GROWN, NEVER SHRUNK, and the capacities are held APART from the
+  // counts: a draw reads how many indices THIS mesh has, and a smaller
+  // mesh after a larger one must still write into the buffer that is
+  // already big enough rather than make a smaller one.
+  const size_t vertexBytes = vertices.size() * sizeof(Vertex);
+  const size_t indexBytes = indices.size() * sizeof(uint32_t);
+  if (!streamed.vertices || streamedVertices < vertices.size()) {
+    streamed.vertices.Release();
+    dg::BufferDesc vd;
+    vd.Name = "world streamed vertices";
+    vd.Size = vertexBytes;
+    vd.BindFlags = dg::BIND_VERTEX_BUFFER;
+    vd.Usage = dg::USAGE_DEFAULT;
+    renderDevice->CreateBuffer(vd, nullptr, &streamed.vertices);
+    streamedVertices = streamed.vertices ? vertices.size() : 0;
+  }
+  if (!streamed.indices || streamedIndices < indices.size()) {
+    streamed.indices.Release();
+    dg::BufferDesc id;
+    id.Name = "world streamed indices";
+    id.Size = indexBytes;
+    id.BindFlags = dg::BIND_INDEX_BUFFER;
+    id.Usage = dg::USAGE_DEFAULT;
+    renderDevice->CreateBuffer(id, nullptr, &streamed.indices);
+    streamedIndices = streamed.indices ? indices.size() : 0;
+  }
+  if (!streamed.vertices || !streamed.indices) return nullptr;
+  dg::IDeviceContext* context = device->context();
+  context->UpdateBuffer(streamed.vertices, 0, vertexBytes, vertices.data(),
+                        dg::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+  context->UpdateBuffer(streamed.indices, 0, indexBytes, indices.data(),
+                        dg::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+  streamed.used = frame;
+  streamed.vertexCount = vertices.size();
+  streamed.indexCount = (uint32_t)indices.size();
+  return &streamed;
 }
 
 dg::IBuffer* Gpu::uniformBuffer(size_t bytes) {
@@ -402,7 +492,7 @@ const Pipeline* Gpu::pipeline(const PipelineKey& key) {
   // clockwise after the viewport's flip, which is what this convention
   // calls front — the same reading the CPU executor's cull makes.
   graphics.RasterizerDesc.CullMode =
-      key.fullscreen ? dg::CULL_MODE_NONE : dg::CULL_MODE_BACK;
+      key.fullscreen || !key.cull ? dg::CULL_MODE_NONE : dg::CULL_MODE_BACK;
   graphics.RasterizerDesc.FrontCounterClockwise = true;
   graphics.DepthStencilDesc.DepthEnable = key.depth;
   graphics.DepthStencilDesc.DepthWriteEnable = key.depthWrite;
@@ -417,15 +507,21 @@ const Pipeline* Gpu::pipeline(const PipelineKey& key) {
   blend.DestBlendAlpha = blend.DestBlend;
   blend.BlendOpAlpha = dg::BLEND_OPERATION_ADD;
 
-  const dg::LayoutElement elements[] = {
+  // THE STRIDE IS STATED rather than derived from the elements, because
+  // a vertex carries the primitive lane whether or not the program that
+  // reads the others declares it: a layout of four elements over these
+  // vertices still steps a whole one.
+  dg::LayoutElement elements[] = {
       dg::LayoutElement{0, 0, 3, dg::VT_FLOAT32, dg::False},
       dg::LayoutElement{1, 0, 3, dg::VT_FLOAT32, dg::False},
       dg::LayoutElement{2, 0, 2, dg::VT_FLOAT32, dg::False},
       dg::LayoutElement{3, 0, 4, dg::VT_FLOAT32, dg::False},
+      dg::LayoutElement{4, 0, 4, dg::VT_FLOAT32, dg::False},
   };
+  for (dg::LayoutElement& element : elements) element.Stride = sizeof(Vertex);
   if (!key.fullscreen) {
     graphics.InputLayout.LayoutElements = elements;
-    graphics.InputLayout.NumElements = 4;
+    graphics.InputLayout.NumElements = key.prim ? 5 : 4;
   }
 
   renderDevice->CreateGraphicsPipelineState(info, &built.state);
@@ -435,15 +531,16 @@ const Pipeline* Gpu::pipeline(const PipelineKey& key) {
   return placed->second.state ? &placed->second : nullptr;
 }
 
-dg::ISampler* Gpu::samplerFor(SkFilterMode filter) const {
-  return filter == SkFilterMode::kNearest ? nearestSampler.RawPtr()
-                                          : linearSampler.RawPtr();
+dg::ISampler* Gpu::samplerFor(SkFilterMode filter, bool tile) const {
+  if (filter == SkFilterMode::kNearest)
+    return tile ? nearestTiled.RawPtr() : nearestSampler.RawPtr();
+  return tile ? linearTiled.RawPtr() : linearSampler.RawPtr();
 }
 
 void bindAndCommit(Gpu& gpu, const Pipeline& pipeline, const Compiled& program,
                    const Uniforms& values,
                    const std::vector<dg::ITexture*>& textures,
-                   SkFilterMode filter) {
+                   SkFilterMode filter, bool tile) {
   dg::IDeviceContext* context = gpu.device->context();
   dg::IBuffer* buffer = gpu.uniformBuffer(program.uniformBytes);
   if (buffer && !values.bytes().empty()) {
@@ -472,7 +569,7 @@ void bindAndCommit(Gpu& gpu, const Pipeline& pipeline, const Compiled& program,
     // why the filter is set on the view here rather than through a
     // sampler variable of its own — and set on every draw, because one
     // view may be read by two draws that asked for different filters.
-    view->SetSampler(gpu.samplerFor(filter));
+    view->SetSampler(gpu.samplerFor(filter, tile));
     if (dg::IShaderResourceVariable* variable =
             pipeline.binding->GetVariableByName(dg::SHADER_TYPE_PIXEL,
                                                 program.textures[i].c_str()))
@@ -485,6 +582,10 @@ void bindAndCommit(Gpu& gpu, const Pipeline& pipeline, const Compiled& program,
 sk_sp<SkImage> Gpu::read(std::string_view name) {
   dg::ITexture* texture = current(name);
   if (!texture) texture = previous(name);
+  return readTexture(texture);
+}
+
+sk_sp<SkImage> Gpu::readTexture(dg::ITexture* texture) {
   if (!texture || extent.isEmpty()) return nullptr;
 
   dg::TextureDesc desc;
@@ -539,6 +640,88 @@ sk_sp<SkImage> Gpu::read(std::string_view name) {
   context->UnmapTextureSubresource(staging, 0, 0);
   bitmap.setImmutable();
   return bitmap.asImage();
+}
+
+glm::mat4 clipFor(const ::sigil::geometry::mesh::camera::Camera& camera,
+                  SkISize extent) {
+  const float aspect = extent.height() > 0
+                           ? (float)extent.width() / (float)extent.height()
+                           : 1.0f;
+  glm::mat4 depth(1.0f);
+  depth[2][2] = -0.5f;
+  depth[3][2] = 0.5f;
+  return depth * camera.projection(aspect) * camera.view();
+}
+
+glm::mat4 mapMatrix(const SkMatrix& uv) {
+  glm::mat4 out(1.0f);
+  out[0] = {uv.getScaleX(), uv.getSkewY(), 0.0f, 0.0f};
+  out[1] = {uv.getSkewX(), uv.getScaleY(), 0.0f, 0.0f};
+  out[3] = {uv.getTranslateX(), uv.getTranslateY(), 0.0f, 1.0f};
+  return out;
+}
+
+void openTarget(Gpu& gpu, dg::ITexture* colour, const float* clear,
+                bool withDepth) {
+  dg::IDeviceContext* context = gpu.device->context();
+  dg::ITextureView* rtv =
+      colour->GetDefaultView(dg::TEXTURE_VIEW_RENDER_TARGET);
+  dg::ITextureView* dsv =
+      withDepth && gpu.depth
+          ? gpu.depth->GetDefaultView(dg::TEXTURE_VIEW_DEPTH_STENCIL)
+          : nullptr;
+  context->SetRenderTargets(1, &rtv, dsv,
+                            dg::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+  context->ClearRenderTarget(rtv, clear,
+                             dg::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+  if (dsv)
+    context->ClearDepthStencil(dsv, dg::CLEAR_DEPTH_FLAG, 1.0f, 0,
+                               dg::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+}
+
+std::shared_ptr<Gpu> makeGpu(Device& device) {
+  auto gpu = std::make_shared<Gpu>(device);
+
+  // ONE SAMPLER PER ANSWER, made once and picked per draw: a texture
+  // states how it wants to be read between texels and what lies outside
+  // it, and a map that asked for hard texel edges must not have them
+  // blended away.
+  const auto makeSampler = [&](dg::FILTER_TYPE type,
+                               dg::TEXTURE_ADDRESS_MODE address,
+                               dg::ISampler** into) {
+    dg::SamplerDesc desc;
+    desc.MinFilter = type;
+    desc.MagFilter = type;
+    desc.MipFilter = type;
+    desc.AddressU = address;
+    desc.AddressV = address;
+    desc.AddressW = address;
+    device.renderDevice()->CreateSampler(desc, into);
+  };
+  makeSampler(dg::FILTER_TYPE_LINEAR, dg::TEXTURE_ADDRESS_CLAMP,
+              &gpu->linearSampler);
+  makeSampler(dg::FILTER_TYPE_POINT, dg::TEXTURE_ADDRESS_CLAMP,
+              &gpu->nearestSampler);
+  makeSampler(dg::FILTER_TYPE_LINEAR, dg::TEXTURE_ADDRESS_WRAP,
+              &gpu->linearTiled);
+  makeSampler(dg::FILTER_TYPE_POINT, dg::TEXTURE_ADDRESS_WRAP,
+              &gpu->nearestTiled);
+
+  // What an unfilled sampled slot reads: one white texel, so a body
+  // multiplied by a map it was not given is the body.
+  const uint32_t white = 0xFFFFFFFFu;
+  dg::TextureDesc desc;
+  desc.Name = "world white";
+  desc.Type = dg::RESOURCE_DIM_TEX_2D;
+  desc.Width = 1;
+  desc.Height = 1;
+  desc.Format = kColorFormat;
+  desc.BindFlags = dg::BIND_SHADER_RESOURCE;
+  desc.Usage = dg::USAGE_IMMUTABLE;
+  dg::TextureSubResData level{&white, sizeof(white)};
+  dg::TextureData data{&level, 1};
+  device.renderDevice()->CreateTexture(desc, &data, &gpu->white);
+  return gpu;
 }
 
 }  // namespace sigil::world::diligent

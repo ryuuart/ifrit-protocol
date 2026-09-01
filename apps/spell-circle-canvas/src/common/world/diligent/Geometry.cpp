@@ -15,6 +15,7 @@
 #include <sigilgeometry/mesh/pop/Pop.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/core/Params.h>
+#include <sigilmaterial/kit/Surface.h>
 #include <sigilworld/diligent/Runtime.h>
 #include <sigilworld/light/Light.h>
 
@@ -50,25 +51,6 @@ constexpr std::string_view kMapUv = "uBaseColorMapUv";
  *  scene's store counts up from one, so nothing it hands out ever
  *  reaches here. */
 constexpr uint64_t kStampArtefact = 1ull << 63u;
-
-/** THE CAMERA AS THE DEVICE WANTS IT.
- *
- *  The camera's `viewProjection` lands in PIXELS, because that is what a
- *  canvas concat needs; a device wants clip space, so the projection and
- *  the view are composed without the viewport step. What is left to
- *  correct is depth: the projection runs z from one at the near plane to
- *  minus one at the far one, and the device wants zero to one the other
- *  way about. The x and y of that clip space already agree — both count
- *  y upward — so nothing turns them over. */
-glm::mat4 clipFor(const Camera& camera, SkISize extent) {
-  const float aspect = extent.height() > 0
-                           ? (float)extent.width() / (float)extent.height()
-                           : 1.0f;
-  glm::mat4 depth(1.0f);
-  depth[2][2] = -0.5f;
-  depth[3][2] = 0.5f;
-  return depth * camera.projection(aspect) * camera.view();
-}
 
 /** The colour a clear is given, premultiplied — which is what a target
  *  holding premultiplied pixels must receive. */
@@ -170,16 +152,6 @@ void writeScaffold(Uniforms& uniforms, const Compiled& program,
   uniforms.set("uShading", kSpecular, kShininess, kRim, (float)count);
 }
 
-/** A texture's placement as the scaffold reads it: the same matrix the
- *  host tier puts on its style, in the four-by-four the uniform is. */
-glm::mat4 mapMatrix(const SkMatrix& uv) {
-  glm::mat4 out(1.0f);
-  out[0] = {uv.getScaleX(), uv.getSkewY(), 0.0f, 0.0f};
-  out[1] = {uv.getSkewX(), uv.getScaleY(), 0.0f, 0.0f};
-  out[3] = {uv.getTranslateX(), uv.getTranslateY(), 0.0f, 1.0f};
-  return out;
-}
-
 /** One body, drawn. @p map is the texture it is dressed with, or null. */
 void drawBody(Gpu& gpu, const glm::mat4& viewProj, const glm::mat4& view,
               uint64_t artefact, const Mesh& mesh, const glm::mat4& model,
@@ -201,20 +173,37 @@ void drawBody(Gpu& gpu, const glm::mat4& viewProj, const glm::mat4& view,
                 lights, lit);
   writeMaterial(uniforms, surface);
 
-  // THE MAP, in the one slot the scaffold declares for it. The slots are
-  // bound by NAME rather than by position, because a material's body may
-  // declare sampled slots of its own and the compiler is free to report
-  // them in whatever order it laid them out.
+  // THE SAMPLED SLOTS, bound by NAME rather than by position, because a
+  // material's body declares slots of its own and the compiler is free
+  // to report them in whatever order it laid them out. An unbound slot
+  // reads one white texel, which is the neutral for every map a scalar
+  // multiplies — and the one value a tangent-space normal cannot mean,
+  // so a body can tell an undressed slot from a dressed one exactly.
   std::vector<dg::ITexture*> textures(surface.program->textures.size(),
                                       nullptr);
   const Sampling sampling = map ? samplingOf(*map) : Sampling{};
   uniforms.set(kMapUv, mapMatrix(sampling.uv));
-  // Asked of the device and not of the host image: a source whose pixels
-  // stand on this device has no host image to check for.
-  if (map) {
-    if (dg::ITexture* sampled = gpu.sample(*map))
-      for (size_t i = 0; i < textures.size(); ++i)
-        if (surface.program->textures[i] == kMapSlot) textures[i] = sampled;
+  for (size_t i = 0; i < textures.size(); ++i) {
+    const std::string& slot = surface.program->textures[i];
+    // THE BASE COLOUR MAP IS THE SCAFFOLD'S, and only the scaffold's. It
+    // multiplies the SHADED colour rather than the surface before it,
+    // because the host tier's rasteriser can only modulate a texture
+    // against the colour it already shaded — so the body's own base
+    // colour slot is left reading white and the map lands once, on the
+    // side of the lighting both tiers put it.
+    if (slot == kMapSlot) {
+      // Asked of the device and not of the host image: a source whose
+      // pixels stand on this device has no host image to check for.
+      if (map) textures[i] = gpu.sample(*map);
+      continue;
+    }
+    if (!material) continue;
+    // …and every OTHER slot is the material's own. `kit::map` answers
+    // null for a slot still holding the neutral dressing a surface is
+    // built with, which is what keeps an undressed body reading the one
+    // white texel rather than a map that says nothing.
+    const material::Texture* worn = material::kit::map(*material, slot);
+    if (worn && worn != map) textures[i] = gpu.sample(*worn);
   }
 
   dg::IDeviceContext* context = gpu.device->context();
@@ -253,26 +242,6 @@ void drawBodies(Gpu& gpu, const View& view, const glm::mat4& viewProj,
              flat ? nullptr : body.texture, view.lights, lit && body.lit,
              /*depthWrite=*/colour.a >= 1.0f);
   }
-}
-
-/** Binds @p colour as the pass's target, with the depth buffer when one
- *  is wanted, and clears both. */
-void openTarget(Gpu& gpu, dg::ITexture* colour, const float* clear,
-                bool withDepth) {
-  dg::IDeviceContext* context = gpu.device->context();
-  dg::ITextureView* rtv =
-      colour->GetDefaultView(dg::TEXTURE_VIEW_RENDER_TARGET);
-  dg::ITextureView* dsv =
-      withDepth && gpu.depth
-          ? gpu.depth->GetDefaultView(dg::TEXTURE_VIEW_DEPTH_STENCIL)
-          : nullptr;
-  context->SetRenderTargets(1, &rtv, dsv,
-                            dg::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
-  context->ClearRenderTarget(rtv, clear,
-                             dg::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
-  if (dsv)
-    context->ClearDepthStencil(dsv, dg::CLEAR_DEPTH_FLAG, 1.0f, 0,
-                               dg::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
 }
 
 }  // namespace

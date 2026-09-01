@@ -30,6 +30,10 @@ sigil_slang_module(NAME Surface SOURCE ${_shaders}/Surface.slang
   ENTRIES vsMain fsFlat INCLUDE ${_shaders}
   DEPENDS ${_shaders}/Portable.slang
   OUT_VAR SIGIL_WORLD_SURFACE_H)
+sigil_slang_module(NAME Painter SOURCE ${_shaders}/Painter.slang
+  ENTRIES vsPaint fsPaint INCLUDE ${_shaders}
+  DEPENDS ${_shaders}/Portable.slang
+  OUT_VAR SIGIL_WORLD_PAINTER_H)
 sigil_slang_module(NAME Post SOURCE ${_shaders}/Post.slang
   ENTRIES vsFullscreen fsCopy fsBlur fsLevels fsMasked INCLUDE ${_shaders}
   DEPENDS ${_shaders}/Portable.slang
@@ -42,21 +46,29 @@ add_library(SigilWorldDiligent STATIC
   Geometry.cpp
   Gpu.cpp
   Gpu.h
+  Import.cpp
+  PainterGpu.cpp
   PopGpu.cpp
   Post.cpp
   Runtime.cpp
+  SweepGpu.cpp
   Compile.cpp
   Compile.h
   VolkShim.c
   ${SIGIL_WORLD_PORTABLE_H}
   ${SIGIL_WORLD_SURFACE_H}
+  ${SIGIL_WORLD_PAINTER_H}
   ${SIGIL_WORLD_POST_H}
   ${_shaders}/Portable.slang
   ${_shaders}/Surface.slang
+  ${_shaders}/Painter.slang
   ${_shaders}/Post.slang
   ${SIGIL_WORLD_INCLUDE_DIR}/sigilworld/diligent/Device.h
+  ${SIGIL_WORLD_INCLUDE_DIR}/sigilworld/diligent/Import.h
+  ${SIGIL_WORLD_INCLUDE_DIR}/sigilworld/diligent/Painter.h
   ${SIGIL_WORLD_INCLUDE_DIR}/sigilworld/diligent/Pop.h
   ${SIGIL_WORLD_INCLUDE_DIR}/sigilworld/diligent/Runtime.h
+  ${SIGIL_WORLD_INCLUDE_DIR}/sigilworld/diligent/Sweep.h
 )
 target_compile_features(SigilWorldDiligent PUBLIC cxx_std_20)
 target_include_directories(SigilWorldDiligent
@@ -69,10 +81,14 @@ target_include_directories(SigilWorldDiligent
 # value this hands back is executed by a Scene. Diligent and Slang are
 # PRIVATE: the public headers name Diligent's two interfaces by forward
 # declaration only and Slang not at all.
+# SigilMaterialKit is PRIVATE and is read for one thing: whether a
+# material's sampled slot holds a map a caller placed or the neutral
+# dressing every surface is built with, which is what decides whether a
+# slot is bound or left reading one white texel.
 target_link_libraries(SigilWorldDiligent
   PUBLIC SigilSkiaDevice SigilWorldScene
   PRIVATE unofficial::diligent-engine::DiligentCore Vulkan::Headers
-          slang::slang)
+          slang::slang SigilMaterialKit)
 
 # The engine's Vulkan surface code references the Metal/MoltenVK WSI
 # entry points, which volk only emits when the platform extensions are
@@ -84,8 +100,9 @@ endif()
 
 # Links Diligent directly: proving that Diligent still drives the device
 # after Graphite has submitted on it means issuing a Diligent command.
-add_executable(world_diligent_test test/DeviceTest.cpp test/PopTest.cpp
-  test/RuntimeTest.cpp)
+add_executable(world_diligent_test test/DeviceTest.cpp test/PainterTest.cpp
+  test/PopTest.cpp test/RuntimeTest.cpp test/SurfaceTest.cpp
+  test/SweepTest.cpp)
 # The runtime test reads the compiled program the compiler registration
 # produced, which is this feature's own header rather than a public one.
 target_include_directories(world_diligent_test PRIVATE ${CMAKE_CURRENT_LIST_DIR})

@@ -178,12 +178,16 @@ as compute dispatches, and the two are required to agree bit for bit —
 which is what makes the hash helpers and the variant order load-bearing
 (see below).
 
-**The operators that are per-point ARITHMETIC are written once, in
-Slang.** `mesh/pop/kernels/Pop.slang` is that source, and the build
-compiles it twice: to C++, which the executor behind `pop::Runtime::cpu()`
-calls, and to SPIR-V, which a runtime that owns a device dispatches.
-Neither side re-derives a formula, which is what lets two tiers be held
-to bit identity rather than to a tolerance. `kernel::has(op)` is the one
+**The arithmetic two tiers must agree about is written once, in Slang.**
+Two kernels are: `mesh/pop/kernels/Pop.slang`, the operators that are
+per-point arithmetic, and `mesh/curve/kernels/Sweep.slang`, the swept
+ring vertex. The build compiles each twice — to C++, which the executor
+behind the built-in runtime calls, and to SPIR-V, which a runtime that
+owns a device dispatches. Neither side re-derives a formula, which is
+what lets two tiers be held to bit identity rather than to a tolerance.
+`mesh/Spirv.h` is the one thing both kernels' words go through:
+`noContraction()` adds the decoration the emitter leaves out, in one
+place rather than once per kernel. `kernel::has(op)` is the one
 answer to whether an operator has a kernel, `kernel::describe()` packs
 one into the argument block both ends read, `kernel::run()` is the host
 call, and `kernel::spirv()` is the module a device runs.
@@ -198,6 +202,11 @@ defined in terms of a library sine, which is a different function from
 the polynomial a portable kernel would have to use — a kernel for either
 would change what the operator MEANS rather than where it runs.
 
+(The paragraph below and the two after it are about the pop kernel in
+particular; the sweep kernel's subset is narrower still — plain
+arithmetic and one integer-to-float conversion, with no intrinsic at
+all.)
+
 **The portable subset is what one source can be compiled twice from and
 still answer once**: arithmetic plus the operations IEEE 754 pins
 exactly, with a lerp, a dot, a length and a smoothstep written out
@@ -209,6 +218,25 @@ build and a Release one produce the same bits; and the SPIR-V carries one
 `kernel::spirv()` because the emitter puts none there — without it a
 driver fuses a multiply and the add after it and rounds once where the
 source rounds twice.
+
+**A SWEEP runs on one as well, and its executor's whole contract is the
+RING VERTICES.** `SweepOptions::runtime` carries a `curve::SweepRuntime`,
+defaulting to `SweepRuntime::cpu()`, and a sweep is two things of which
+only one is arithmetic: the ring vertices are a pure function of one
+frame, one profile point and the size the profile scales to there, and
+the topology around them — which vertices a quad joins, the fan that
+closes an end, the averaging that forms a geometric normal — is integer
+or a reduction over triangles that do not exist until the vertices do.
+The topology is the same wherever the vertices were formed, so it is
+written once and the seam is narrow: an executor is handed a
+`curve::kernel::Dispatch` and fills two lanes — a position carrying u
+in its fourth float and a normal carrying v in its, because both of
+those floats were spare and a lane of its own for two numbers is a
+third of everything this seam moves. The TAPER never crosses
+it — an arbitrary function of t is evaluated once per ring on the host
+and arrives as the number that ring scales by — which is why a runtime
+that owns a device can hold a sweep to bit identity rather than to a
+tolerance.
 
 **A cook runs on a `Runtime` too, and it is the same kind of value.**
 `pop::cook()`, `cookMesh()` and `cookSweep()` take one, defaulting to
@@ -349,15 +377,25 @@ own repertoire here rather than inside whatever draws through it.
 **`mesh/curve`** — `SigilGeometryMeshCurve`, needs `mesh` and
 `mesh/camera`.
 
+- **`mesh/curve/Frame.h`** — `Frame3`, the moving frame every rail is a
+  sequence of. Its own header because both the sweep and the pose stand
+  on it and neither stands on the other.
 - **`mesh/curve/Curve.h`** — `Spline3` (linear, Catmull-Rom or Bezier, open
   or closed) with `position()`, `tangent()`, `length()`, `sample()` and
   `sampleArcLength()`; the two rails — `curve::frames()`, parallel-transport
   `Frame3`s that do not flip at inflections, and `curve::hangFrames()`, a
   window of a closed loop whose across-vector is held world-vertical; the
+  `curve::sweep()` overload over a spline; and `project()` to draw the
+  curve as a 2D path under a camera. It includes `Sweep.h`, so a
+  consumer that spells only this one reaches everything a sweep needs.
+- **`mesh/curve/Sweep.h`** — the swept primitive as a subject: the
   cross-sections `curve::profile::circle()`, `curve::profile::line()` and
-  `curve::profile::fromPath()`; the one swept former `curve::sweep()` with
-  `SweepOptions`; and `project()` to draw the curve as a 2D path under a
-  camera.
+  `curve::profile::fromPath()`; `SweepOptions` with `SweepNormals`; the
+  one swept former `curve::sweep()` over a rail; and the seam a device
+  replaces — `curve::SweepExecutor` (one call, `rings()`),
+  `curve::SweepRuntime` holding one, `curve::describe()` turning a rail
+  and a profile into a `curve::kernel::Dispatch`, and `kernel::run()` and
+  `kernel::spirv()` as the two ends of the one arithmetic.
 
   **There is one sweep, and the shape is a parameter.** `sweep()` carries
   a 2D `path::Polyline` along a rail: every ring is that contour placed on
@@ -379,9 +417,10 @@ own repertoire here rather than inside whatever draws through it.
   spline, which has no ends. A CLOSED profile wraps back onto its first
   point, so only an OPEN one lets u reach 1 — which is why
   `profile::circle()` duplicates its seam point and comes back open.
-  There are two overloads: one over a rail you built, which is the seam a
-  GPU executor forming the same rings would replace, and one over a
-  `Spline3`, which builds a transported rail of `segments` frames first.
+  There are two overloads: one over a rail you built, which is where a
+  GPU executor forms the same rings, and one over a `Spline3`, which
+  builds a transported rail of `segments` frames first. Both run on
+  `SweepOptions::runtime`.
 
 - **`mesh/curve/Pose.h`** — the rail addressed by DISTANCE rather than by
   index: `curve::poseAlong()` answers the `Frame3` at an arc length, over
@@ -700,7 +739,7 @@ recompiles one small file. All are registered with ctest and answer to
 | `geometry_mesh_test` | `mesh/test/MeshTest.cpp` | the mesh currency and its generators |
 | `geometry_mesh_camera_test` | `mesh/camera/test/CameraTest.cpp` | the view-projection carried through to viewport pixels, and the two placement transforms |
 | `geometry_mesh_render_test` | `mesh/render/test/PainterTest.cpp`, `mesh/render/test/RuntimeTest.cpp` | the mesh draw's pixels, the normals G-buffer's encoding and the primitive tint; and the runtime seam — the built-in value, comparison by model, and a substituted executor receiving the draw |
-| `geometry_mesh_curve_test` | `mesh/curve/test/CurveTest.cpp` | splines, the two rails, the pose along them, and the sweep held vertex for vertex against independent reference bodies for a tube, a ribbon and a banner |
+| `geometry_mesh_curve_test` | `mesh/curve/test/CurveTest.cpp`, `mesh/curve/test/SweepTest.cpp` | splines, the two rails, the pose along them, and the sweep held vertex for vertex against independent reference bodies for a tube, a ribbon and a banner; and the ring seam — what a rail and a profile become as a dispatch, the taper resolved on the host, comparison by model, and a substituted executor forming the vertices |
 | `geometry_mesh_pop_test` | `mesh/pop/test/PointsTest.cpp`, `mesh/pop/test/PopTest.cpp`, `mesh/pop/test/RuntimeTest.cpp` | point clouds, instancing, the agreement between an instanced facing lane and `faceCamera()`, and pop chains with their operators; and the cook's runtime seam — the built-in value, comparison by model, a substituted executor receiving the cook, and the message an unsupported operator produces. Links the codec to seed chains from an imported model |
 | `geometry_mesh_codec_test` | `mesh/codec/test/DecodeTest.cpp`, `mesh/codec/test/EncodeTest.cpp` | every reader, and the PLY writer's round trips; the only one linking Alembic |
 

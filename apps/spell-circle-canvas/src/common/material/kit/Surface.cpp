@@ -60,7 +60,17 @@ half4 main(float2 xy) {
  *  returning the surface's own colour with straight alpha. Where the
  *  SkSL bodies evaluate a child slot as a shader, these sample it as a
  *  texture; the params, the slots and the channel conventions are the
- *  same ABI, because they are the same recipe. */
+ *  same ABI, because they are the same recipe.
+ *
+ *  A Slang renderer shades, and the lit body says three things about its
+ *  surface that a colour cannot carry — `gSurfaceNormal` in tangent
+ *  space, `gSurfaceGloss` as a Blinn exponent, `gSurfaceMetal` — and
+ *  raises `gSurfacePerPixel` when it has. The renderer declares those
+ *  four and reads them after the body has run. It writes them only where
+ *  a MAP varies them across the surface: that is the case a shading
+ *  evaluated once per vertex cannot carry, and a surface whose roughness
+ *  and metallic are one number over the whole of it keeps the shading it
+ *  already had. */
 constexpr char kSlangPrelude[] = R"(
 float chanS(float4 c, float which) {
   return which < 0.5 ? c.r : which < 1.5 ? c.g : which < 2.5 ? c.b : c.a;
@@ -74,6 +84,13 @@ float mixS(float a, float b, float t) { return a + (b - a) * t; }
 float cutS(float a) {
   return alphaCutoff > 0.0 ? (a < alphaCutoff ? 0.0 : 1.0) : a;
 }
+
+// IS THIS SLOT DRESSED? An undressed one reads one white texel — the
+// neutral for every map a scalar multiplies, and the one value a
+// tangent-space normal cannot mean, since such a normal's x and y are
+// centred on a half and only its z reaches one. So white IS "no map
+// here", exactly and with no threshold to pick.
+bool dressedS(float4 c) { return c.r < 1.0 || c.g < 1.0 || c.b < 1.0; }
 )";
 
 constexpr char kSlangSurface[] = R"(
@@ -84,6 +101,34 @@ float4 surface(float2 uv) {
   float3 rgb = c.rgb * occ + emissive.rgb * emissiveStrength *
                                  emissiveMap.Sample(uv).rgb;
   float a = cutS(c.a * chanS(opacityMap.Sample(uv), opacityChannel));
+
+  // THE HALF OF THE MODEL A COLOUR CANNOT CARRY, handed to the renderer
+  // that shades. Only a map reaches it: a surface whose roughness and
+  // metallic are one number over the whole of it is already what a
+  // per-vertex shading says it is.
+  float4 nm = normalMap.Sample(uv);
+  float4 rm = roughnessMap.Sample(uv);
+  float4 mm = metallicMap.Sample(uv);
+  if (dressedS(nm) || dressedS(rm) || dressedS(mm)) {
+    if (dressedS(nm)) {
+      float3 tn = nm.rgb * 2.0 - 1.0;
+      float ty = normalDirectX > 0.5 ? -tn.y : tn.y;
+      gSurfaceNormal = float3(tn.x * normalScale, ty * normalScale, tn.z);
+    }
+    float rough = clamp(
+        roughness * (dressedS(rm) ? chanS(rm, roughnessChannel) : 1.0),
+        0.0, 1.0);
+    // ROUGHNESS AS A BLINN EXPONENT: the mirror end of the range is a
+    // narrow highlight and the rough end is a wide one, squared so the
+    // smooth half of the range spends most of it. It is a mapping and
+    // not a microfacet distribution, which this model does not have.
+    float smoothness = 1.0 - rough;
+    gSurfaceGloss = 2.0 + 254.0 * smoothness * smoothness;
+    gSurfaceMetal = clamp(
+        metallic * (dressedS(mm) ? chanS(mm, metallicChannel) : 1.0),
+        0.0, 1.0);
+    gSurfacePerPixel = true;
+  }
   return float4(min(rgb, float3(a, a, a)), a);
 }
 )";

@@ -18,9 +18,11 @@
 #include <Graphics/GraphicsEngine/interface/ShaderResourceBinding.h>
 #include <Graphics/GraphicsEngine/interface/Texture.h>
 #include <include/core/SkImage.h>
+#include <include/core/SkMatrix.h>
 #include <include/core/SkSamplingOptions.h>
 #include <include/core/SkSize.h>
 #include <sigilgeometry/mesh/Mesh.h>
+#include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilmaterial/texture/Texture.h>
 #include <sigilworld/diligent/Device.h>
 #include <sigilworld/frame/Pass.h>
@@ -32,6 +34,7 @@
 #include <cstdint>
 #include <glm/mat4x4.hpp>
 #include <map>
+#include <memory>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -95,6 +98,13 @@ struct PipelineKey {
   /** No vertex layout and no index buffer: a triangle covering the
    *  target, which is what every post stage draws. */
   bool fullscreen = false;
+  /** Does the vertex layout declare the PRIMITIVE lane? Every vertex
+   *  carries one either way — it is the same buffer — but a program that
+   *  does not read it is not given an attribute it never declared. */
+  bool prim = false;
+  /** Are back faces dropped? A draw the caller asked to keep them for
+   *  is a different pipeline and not a different program. */
+  bool cull = true;
   auto operator<=>(const PipelineKey&) const = default;
 };
 
@@ -132,11 +142,25 @@ struct Gpu {
    *  texel — takes the linear one. */
   dg::RefCntAutoPtr<dg::ISampler> linearSampler;
   dg::RefCntAutoPtr<dg::ISampler> nearestSampler;
+  /** …and the same two for a map that repeats outside its coordinates,
+   *  because wrapping is the sampler's answer and not the lookup's. */
+  dg::RefCntAutoPtr<dg::ISampler> linearTiled;
+  dg::RefCntAutoPtr<dg::ISampler> nearestTiled;
   /** What an unfilled sampled slot reads: one white texel, so a body
    *  multiplied by a map it was not given is the body. */
   dg::RefCntAutoPtr<dg::ITexture> white;
 
   std::map<uint64_t, MeshBuffers> meshes;
+  /** THE ONE PAIR OF BUFFERS a mesh nobody can name is written into,
+   *  grown to fit and overwritten by the next draw. A draw whose seam
+   *  carries no artefact number is told nothing that says two of them
+   *  are the same triangles, so there is nothing to key a cache on and
+   *  nothing kept between them. */
+  MeshBuffers streamed;
+  /** …and how large those two buffers actually are. Held apart from the
+   *  counts in `streamed`, which are THIS draw's and not the buffers'. */
+  size_t streamedVertices = 0;
+  size_t streamedIndices = 0;
   std::map<PipelineKey, Pipeline> pipelines;
   /** Maps whose pixels already stand on this device, under the name the
    *  API gave them. Nothing is copied for one of these. */
@@ -162,7 +186,12 @@ struct Gpu {
    *  for. A frame cooking a mesh of its own — the stamps of a point set
    *  — has no artefact to name, and passes an id of its own that no
    *  frame after it repeats. */
-  const MeshBuffers* upload(uint64_t artefact, const Mesh& mesh);
+  const MeshBuffers* upload(uint64_t artefact, const Mesh& mesh,
+                            std::string_view primColorLane = {});
+  /** @p mesh in the streaming buffers, overwriting whatever draw wrote
+   *  them last. For a caller whose seam carries no artefact number. */
+  const MeshBuffers* stream(const Mesh& mesh,
+                            std::string_view primColorLane = {});
   /** The pipeline for @p key, built on the first ask. Null when the
    *  program is empty or the device refused it. */
   const Pipeline* pipeline(const PipelineKey& key);
@@ -178,6 +207,9 @@ struct Gpu {
   /** @p name's pixels, read back through a staging texture. Null when
    *  nothing has written it. */
   sk_sp<SkImage> read(std::string_view name);
+  /** @p texture's pixels, read back through a staging texture of this
+   *  frame's size. Null when there is nothing to read. */
+  sk_sp<SkImage> readTexture(dg::ITexture* texture);
 
   /** THE MAP @p map IS, on this device.
    *
@@ -189,8 +221,9 @@ struct Gpu {
    *  no image. */
   dg::ITexture* sample(const material::Texture& map);
 
-  /** The sampler @p filter asks for. */
-  dg::ISampler* samplerFor(SkFilterMode filter) const;
+  /** The sampler @p filter asks for, wrapping outside the image when
+   *  @p tile. */
+  dg::ISampler* samplerFor(SkFilterMode filter, bool tile = false) const;
 
   /** A texture of this frame's size and format. */
   dg::RefCntAutoPtr<dg::ITexture> makeColor(const char* label);
@@ -227,7 +260,35 @@ class Uniforms {
 void bindAndCommit(Gpu& gpu, const Pipeline& pipeline, const Compiled& program,
                    const Uniforms& values,
                    const std::vector<dg::ITexture*>& textures,
-                   SkFilterMode filter = SkFilterMode::kLinear);
+                   SkFilterMode filter = SkFilterMode::kLinear,
+                   bool tile = false);
+
+/** THE DEVICE STATE every runtime here stands on: the samplers, the one
+ *  white texel an unfilled slot reads, and the buffers a draw's uniforms
+ *  go in. Every runtime makes one of these and shares it among the
+ *  copies of the value it hands back. */
+std::shared_ptr<Gpu> makeGpu(Device& device);
+
+/** Binds @p colour as a stage's target, with the depth buffer when one
+ *  is wanted, and clears both. */
+void openTarget(Gpu& gpu, dg::ITexture* colour, const float* clear,
+                bool withDepth);
+
+/** THE CAMERA AS THE DEVICE WANTS IT.
+ *
+ *  A camera's `viewProjection` lands in PIXELS, because that is what a
+ *  canvas concat needs; a device wants clip space, so the projection and
+ *  the view are composed without the viewport step. What is left to
+ *  correct is depth: the projection runs z from one at the near plane to
+ *  minus one at the far one, and the device wants zero to one the other
+ *  way about. The x and y of that clip space already agree — both count
+ *  y upward — so nothing turns them over. */
+glm::mat4 clipFor(const ::sigil::geometry::mesh::camera::Camera& camera,
+                  SkISize extent);
+
+/** A texture's placement as a shader reads it: the same matrix a host
+ *  tier puts on its style, in the four-by-four the uniform is. */
+glm::mat4 mapMatrix(const SkMatrix& uv);
 
 /** The two stages of a frame, one file each. */
 void paintGeometry(Gpu& gpu, const PassWork& work, const View& view,

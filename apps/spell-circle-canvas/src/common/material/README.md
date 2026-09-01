@@ -182,6 +182,17 @@ The two targets ask a body for the same thing in their own words:
 |---|---|---|
 | `Target::SkSL` | `half4 main(float2 p)`, returning premultiplied colour | `uniform shader NAME`, evaluated as `NAME.eval(p)` |
 | `Target::Slang` | `float4 surface(float2 uv)`, returning STRAIGHT colour — the renderer that compiles it puts the lighting and the premultiply around it | `uniform Sampler2D NAME`, read as `NAME.Sample(uv)` |
+
+A Slang body may also say what a colour cannot carry. A renderer that
+shades declares four variables the body MAY write —
+`gSurfaceNormal` (tangent space), `gSurfaceGloss` (a Blinn exponent),
+`gSurfaceMetal`, and `gSurfacePerPixel` to say it wrote any of them —
+and evaluates its shading again where those can be seen. A body that
+writes none of them costs nothing and changes nothing. It is an
+OPTIONAL half of the contract: a body that says only a colour is a
+complete body, and the four exist because a MAP that varies a surface
+across a face is a per-pixel answer no per-vertex shading can carry.
+
  A
 material resolved for a target its recipe has no body for — or one no
 compiler is registered for, or one whose body fails to compile — yields a

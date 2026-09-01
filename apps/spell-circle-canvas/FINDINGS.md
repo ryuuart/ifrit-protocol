@@ -29,79 +29,24 @@ than a mechanism. What should move is the body of the helper, leaving the
 named styles as one `compose::type` call each; that is a per-file edit
 rather than a substitution.
 
-**What a test should assert.** The plate ledger's full tier AND its quick
-tier, byte-identical, per file. Both, because the two disagree about one
-thing that matters here (see the next entry).
+**What a test should assert.** The plate ledger's full tier,
+byte-identical, per file, and its quick tier within its ceilings.
 
-## The device tier's plates are not reproducible across two executables
+## A filtered rebase drops the arms it did not measure
 
-**What it does.** The GPU tier renders a plate that is stable across
-processes, across the order sketches are rendered in, and across repeated
-runs — and yet differs between two executables built from the same
-drawing code. Measured on `botanical`: 502 of 9,216,000 colour channels
-differ, scattered over the frame, the worst by 24. The authoritative CPU
-tier is byte-identical for the same sketch.
+**What it does.** `scripts/bench_ledger.py --rebase` with `--filter`
+writes the baseline entry for each named binary from the sweep it just
+took, and a filtered sweep took only the arms the filter selected. The
+binary's other arms are therefore not written, and a baseline that had
+thirty-two arms for `geometry_mesh_curve_bench` comes back with the
+sixteen the filter named. The next unfiltered run reports the other
+sixteen as `new` and judges nothing.
 
-**What it was evidently intended to do.** The quick tier hashes bytes, so
-it assumes the device path is a function of the scene. It is a function
-of the scene AND of the binary, which is a blind spot the tier does not
-declare: a change that touches nothing about a sketch can still move its
-quick hash, and the only way to tell that from a real mover is to render
-it on the CPU tier as well.
+**What it was evidently intended to do.** `--rebase` already merges when
+`--benches` names a subset of the binaries, so the same posture for a
+subset of the ARMS is what a reader expects: adopt what was measured,
+leave what was not.
 
-**What a test should assert.** Either the device tier compares within a
-tolerance the way the world-gpu tier already does — which is the same
-argument, one rasteriser against another — or it states this blind spot
-beside the two it already states, so a mover there is read as a question
-rather than as a finding.
-
-## OpenImageIO's thread pool races on its own worker map (TSan)
-
-**What it does.** `sigil::image::decodeImage` constructs OpenImageIO's
-`thread_pool`, whose worker threads swap an internal
-`tsl::robin_map<std::thread::id, int>` while another worker reads it.
-TSan reports the race inside `OpenImageIO::thread_pool::thread_pool`
-(vendor code, uninstrumented vcpkg archive) during
-`LoaderOiio.ExrDecodesToFloatImage` in `loader_hub_test`. Nothing in
-this repository touches that map.
-
-**What it was evidently intended to do.** Decode an EXR through a
-library whose thread pool is internally consistent.
-
-**What a test should assert.** Either the vendor's pool is fixed
-upstream, or the decoder constructs it with a single worker (or the
-report is suppressed by a TSan suppression file naming
-`OpenImageIO::v3_1::thread_pool`), and the TSan lane runs
-`loader_hub_test` clean.
-
-## OpenUSD's plugin registry races its own name table (TSan)
-
-**What it does.** Opening a stage instantiates USD's
-`TfSingleton<PlugRegistry>`, which registers plugins on TBB worker
-threads. Those workers rehash the registry's `__hash_table` of plugin
-names while another thread reads the same buckets, and TSan reports the
-pair with every frame inside `libusd_plug` and `pxr` headers. It fires
-in `UsdWrite.AuthorsAMeshWithSubsetsAndMaterials` in `usd_write_test`
-and in `UsdRead.ReadsAHandAuthoredStage` in `usd_read_test`. Nothing in
-this repository touches that table; the repository's code only holds a
-`TfWeakPtr`.
-
-**What it was evidently intended to do.** Register plugins with each
-insertion ordered before any other thread's read, which USD's own lock
-evidently provides in practice but not in a form TSan can see.
-
-**What a test should assert.** With a TSan suppression naming
-`pxrInternal_*::PlugRegistry` (or an upstream fix), the TSan lane runs
-`usd_write_test` and `usd_read_test` clean.
-
-## The masked-and-deformed GPU cook seeds unstably at a million points
-
-`world_bench:BM_GpuCook_MaskedAndDeformed/1000000` can record a run
-three times faster than its reproducible cost: a whole-suite rebase
-adopted 4.7 ms where solo, quiet runs read 12.5 ms consistently and
-linearly from the 100k arm, which is stable to a tenth of a percent.
-The intent is a judged arm that cannot adopt an anomalous device run.
-A test/bench change should give the arm the split-and-counter
-treatment the device bring-up bench received — the owned dispatch
-judged, the device-dependent residue reported unjudged — or pin the
-seed with repetitions enough that a single anomalous run cannot win.
+**What a test should assert.** A rebase under a filter that selects one
+arm leaves every other arm of that binary at the value it had, and a
+judging run afterwards reports none of them as new.

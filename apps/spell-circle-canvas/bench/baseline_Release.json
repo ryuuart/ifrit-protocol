@@ -1350,98 +1350,98 @@
     "repetitions": 4
    },
    "BM_Sweep_Circle/segments:32/sides:6": {
-    "real_ns": 7286.174634704476,
-    "cpu_ns": 7285.676768737851,
+    "real_ns": 7676.075129071967,
+    "cpu_ns": 7676.088869335673,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Sweep_Circle/segments:256/sides:6": {
-    "real_ns": 51605.46116873293,
-    "cpu_ns": 51604.04411764731,
+    "real_ns": 56487.25030404944,
+    "cpu_ns": 56475.11219910225,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Sweep_Circle/segments:1024/sides:6": {
-    "real_ns": 203117.03684815572,
-    "cpu_ns": 203114.82558139818,
+    "real_ns": 219204.38800502644,
+    "cpu_ns": 219203.44287949897,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Sweep_Circle/segments:32/sides:24": {
-    "real_ns": 11624.822248936578,
-    "cpu_ns": 11613.909369563364,
+    "real_ns": 12212.85137503111,
+    "cpu_ns": 12211.42284569137,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Sweep_Circle/segments:256/sides:24": {
-    "real_ns": 85050.76692775707,
-    "cpu_ns": 85051.03280680475,
+    "real_ns": 95705.89816797414,
+    "cpu_ns": 95679.42583732077,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Sweep_Circle/segments:1024/sides:24": {
-    "real_ns": 326555.9592089334,
-    "cpu_ns": 326552.32558139716,
+    "real_ns": 367189.6225692554,
+    "cpu_ns": 367134.4647519595,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Sweep_Line/32": {
-    "real_ns": 5982.588542618794,
-    "cpu_ns": 5981.830589439563,
+    "real_ns": 6086.386054437623,
+    "cpu_ns": 6085.234171725908,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Sweep_Line/64": {
-    "real_ns": 11277.435498297462,
-    "cpu_ns": 11274.682934660534,
+    "real_ns": 11523.0055263436,
+    "cpu_ns": 11521.156848245822,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Sweep_Line/256": {
-    "real_ns": 42183.94721024914,
-    "cpu_ns": 42181.052631578495,
+    "real_ns": 43944.15266744072,
+    "cpu_ns": 43943.22459222082,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Sweep_Line/1024": {
-    "real_ns": 167798.00585797837,
-    "cpu_ns": 167752.3866348447,
+    "real_ns": 176880.4423045367,
+    "cpu_ns": 176718.12500000157,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Sweep_Line/2048": {
-    "real_ns": 335493.53622593574,
-    "cpu_ns": 335440.3341288711,
+    "real_ns": 350925.83391815424,
+    "cpu_ns": 350912.49999999354,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Sweep_Hang/32": {
-    "real_ns": 2148.2856905126905,
-    "cpu_ns": 2148.144163528742,
+    "real_ns": 2128.412533184718,
+    "cpu_ns": 2128.3495204657024,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Sweep_Hang/64": {
-    "real_ns": 3787.3428069400143,
-    "cpu_ns": 3786.772643851849,
+    "real_ns": 3799.347454064182,
+    "cpu_ns": 3799.353102660888,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Sweep_Hang/256": {
-    "real_ns": 12896.570964959483,
-    "cpu_ns": 12893.9689619924,
+    "real_ns": 13786.531545459784,
+    "cpu_ns": 13786.142506142485,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Sweep_Hang/1024": {
-    "real_ns": 50035.85088348935,
-    "cpu_ns": 49999.110953059004,
+    "real_ns": 54741.07161368409,
+    "cpu_ns": 54738.943248532385,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Sweep_Hang/2048": {
-    "real_ns": 98235.00631689065,
-    "cpu_ns": 98230.5536089706,
+    "real_ns": 110284.14857098347,
+    "cpu_ns": 110180.04676539487,
     "unit": "us",
     "repetitions": 4
    },
@@ -1478,6 +1478,24 @@
    "BM_PoseAlong_Spline/1024": {
     "real_ns": 156646.5300328224,
     "cpu_ns": 156596.98996655684,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Sweep_Rings/32": {
+    "real_ns": 2076.6799940311944,
+    "cpu_ns": 2076.6787591619714,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Sweep_Rings/256": {
+    "real_ns": 18056.15310098545,
+    "cpu_ns": 18028.07788944718,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Sweep_Rings/1024": {
+    "real_ns": 71717.14802864852,
+    "cpu_ns": 71654.81593545101,
     "unit": "us",
     "repetitions": 4
    }

@@ -32,7 +32,7 @@ library that is not here.
 | `scene/` | `SigilWorldScene` | `sigil::world` | the retained side: the reconcile host, the entity store, the content-keyed resource store, the declared phases, the execution of a frame's passes, and the draw. |
 | `light/` | `SigilWorldLight` | `sigil::world::light` | emitters as plain comparable values over glm: a sun, a point light, a spot, their falloffs and the per-frame budget. |
 | `kit/` | `SigilWorldKit` | `sigil::world::kit` | presets that compose elements: a three-point rig, a turntable, and the lit set both make over a ground plane. Nothing here decides a look. |
-| `diligent/` | `SigilWorldDiligent` | `sigil::world::diligent` | the one GPU device 2D and 3D share, the Slang compiler the program cache runs, and the `Runtime` that performs a frame's passes on that device. |
+| `diligent/` | `SigilWorldDiligent` | `sigil::world::diligent` | the one GPU device 2D and 3D share, the Slang compiler the program cache runs, and the four seam values that stand on that device: the `Runtime` that performs a frame's passes, the `pop::Runtime` that cooks a chain, the `curve::SweepRuntime` that forms a sweep's rings, and the `render::Runtime` that draws a mesh onto a canvas — plus `importNative`, the door a foreign texture reaches a material slot by. |
 | — | `SigilWorld` | — | the umbrella: an interface target over every feature above, and `<sigilworld/World.h>`, which is their public headers in one include. A consumer of the whole library names only this; the device feature is in it where it was built. |
 
 ## Writing a scene
@@ -387,8 +387,28 @@ filter, made once with the device and picked per draw. Everything with no
 texture to ask, a target a post stage reads among them, takes the linear
 one.
 
-**Not on the device yet**: every OTHER sampled slot. They read one white
-texel, so a body multiplied by a map it was not given is the body.
+**Every OTHER sampled slot the recipe declares is bound too** — normal,
+roughness, metallic, occlusion, emissive, opacity — from the material's
+own child slots, by the NAME the program declared them under. A slot
+whose texture is the neutral dressing a surface is built with is left
+UNBOUND, and an unbound slot reads one white texel: the neutral for every
+map a scalar multiplies, and the one value a tangent-space normal cannot
+mean, since such a normal's x and y are centred on a half and only its z
+reaches one. So white IS "no map here", exactly and with no threshold to
+pick — which is what lets a body tell a dressed slot from an undressed
+one, and what keeps a surface nobody dressed the picture it already was.
+
+**A body may ask to be shaded again, per pixel.** The scaffold shades
+per VERTEX, and one thing cannot survive that: a MAP that varies the
+surface across a face. So the scaffold declares four variables a body may
+write — `gSurfaceNormal` in tangent space, `gSurfaceGloss` as a Blinn
+exponent, `gSurfaceMetal`, and `gSurfacePerPixel` to say it wrote any of
+them — and runs the emitter loop again where those values can be seen. A
+body that writes nothing keeps the terms the vertex stage interpolated,
+down to the bit. The tangent frame a normal map is authored against is
+read off the screen derivatives of the view position and the uv, because
+a mesh carries no tangent lane and every generator would have to fill
+one.
 
 ## A 2D scene as a texture
 
@@ -607,6 +627,75 @@ ceilings in the script, set from what the two tiers do rather than from a
 wish. With no device the tier reports that and exits green, because a
 machine with no Vulkan runtime has nothing to disagree about.
 
+### The mesh painter on the device
+
+`diligent::painterRuntime(device)` is a `geometry::mesh::render::Runtime`
+whose executor draws on the device: one pipeline over the mesh's
+vertices, the style's three modes as a uniform rather than three
+programs, the shading per vertex in view space exactly as the host
+executor's is, the primitive lane multiplying the shaded colour, and the
+texture read through the sampler its placement, its wrap and its filter
+ask for. The pixels are then READ BACK and drawn onto the canvas the
+caller passed, premultiplied and under whatever transform that canvas
+carries.
+
+**It is a readback, and this page says so rather than implying
+otherwise.** A canvas does not name the texture behind it, so there is
+nothing to compare against this device to decide that the pixels could be
+bound where they stand — the zero-copy path SigilSkia offers needs a
+caller holding both the surface and the device, and a `render::Executor`
+is handed neither.
+
+**Each mesh draw is a device frame of its own**, because the heap a
+draw's uniforms are written into is refilled once a frame. The command
+context is shared with every other runtime on the device, so a draw taken
+from inside a frame's pass body would close that frame early; a canvas
+draw stands between frames, which is where this belongs.
+
+**A PANEL draw is the canvas's own.** Both executors concat the same
+perspective transform and hand the canvas to the caller, because that
+content is Skia's to rasterise and a panel on a GPU-backed canvas is
+already on the GPU. The two are therefore the same BYTES for a panel, and
+the test says exactly that rather than measuring a distance.
+
+The two mesh draws are measured apart the way the plate ledger's device
+tier measures a scene, over a lit body and over the normal buffer: the
+host sorts triangles back to front and antialiases their edges, this
+depth-tests them and does not. Each is held to a mean channel distance
+under 1 in 0..255 and a 99th percentile at or under 4; the worst channel
+is a silhouette edge and is reported rather than judged.
+
+### The swept rings on the device
+
+`diligent::sweepRuntime(device)` is a `curve::SweepRuntime` whose
+executor forms a sweep's ring vertices on the device: the rail and the
+profile uploaded, one compute dispatch, both output lanes read back in
+one crossing. Everything else a sweep is made of stays on the host and is
+not a second piece of arithmetic — the quads, the cap fans and the
+geometric averaging are integer or a reduction over triangles the
+vertices have to exist first for, and a TAPER is an arbitrary host
+function evaluated once per ring and carried across as the number that
+ring scales by.
+
+**The two tiers are held to BIT IDENTITY**, on the same three pins the
+point operators stand on, and for the same reason: the ring vertex is one
+piece of Slang compiled twice. `diligent/test/SweepTest.cpp` is the
+conformance — every normal rule, on a closed loop and on an open arc,
+with a round profile and a flat one, swept both ways and compared bit for
+bit.
+
+A device that refuses the kernel forms the rings on the host instead.
+That is honest precisely because the two answers are the same bits: where
+the vertices were formed is not what they are, which is the one thing a
+caller holding a runtime must not have to check for.
+
+**World's own geometry slot has no swept kind**, so nothing in `scene/`
+reaches for this: a sweep is formed by whoever describes the geometry,
+and a host that holds the device puts the runtime in the `SweepOptions`
+it sweeps with. A `Chained` slot is the one that carries a runtime today,
+and the device executor swaps the host pop runtime into it when the whole
+chain has kernels.
+
 ### The point operators on the device
 
 `diligent::popRuntime(device)` is a `pop::Runtime` whose executor cooks a
@@ -654,10 +743,54 @@ with `setenv(..., overwrite=0)`, so a process that has already put
 asked for — which is the way to buy the faster device back, at the cost
 of a device pop cook that no longer answers what the host answers.
 
+## What the DEVICE tier can and cannot say
+
+The twin of the CPU tier's paragraph above, for the same scene shaded on
+a device. The lighting is directional, per vertex, and the model is
+ambient plus Lambert scaling the surface colour, plus a Blinn highlight
+and a rim term that nothing scales. So:
+
+- a recipe's `Target::Slang` body IS run, which is the whole difference
+  from the CPU tier: the parameters, the sampled slots and the arithmetic
+  a material describes reach the pixels. A recipe with no Slang body is
+  painted in the colour the frame extracted, the same reading the CPU
+  tier makes.
+- a STACK of surfaces still reaches this tier as the surface at the
+  BOTTOM of it. The stack's own recipe has no Slang body; what it would
+  take is a body for the combine, not a change here.
+- the occlusion, emissive and opacity maps reach the pixels through the
+  kit's own body: occlusion darkens the albedo at its strength, emission
+  is added at its own colour and strength, and `alphaCutoff` turns the
+  opacity map into a CUTOUT — below the threshold the surface is absent
+  rather than translucent.
+- the normal map perturbs the shading, and roughness and metallic reach
+  it **only where a map varies one of them across the surface**. That is
+  not a shortcut: a surface whose roughness is one number over the whole
+  of it is already what a per-vertex shading says it is, and asking for
+  the shading again would cost a per-pixel evaluation to answer the same
+  question. Where the shading IS evaluated again, roughness sets the
+  Blinn exponent — the mirror end of the range a narrow highlight, the
+  rough end a wide one — and metallic takes the light out of the diffuse
+  term and puts the surface's own colour into the highlight.
+- **that is not a metallic-roughness BRDF and this page does not call it
+  one.** There is no Fresnel, no energy conservation, no environment and
+  no importance sampling; `transmission`, `ior` and `thickness` reach
+  nothing at all. What is implemented is the mapping above, and a
+  metallic-roughness texture set therefore reads as a plausible surface
+  rather than as the one a path tracer would produce from the same
+  params.
+- a foreign texture — one another engine, a decoder or a capture painted
+  with the graphics API — reaches a slot through
+  `diligent::importNative`, and is bound where it stands. It answers no
+  host image at all, so a renderer on another device draws the body
+  undressed rather than something it invented.
+
 ## What is coming
 
-Every feature the layout declares is built. `diligent/` still owes
-`importNative` and the sampled slots past the base-colour map.
+Every feature the layout declares is built, and `diligent/` owes nothing
+the layout promised. What it does not have is a body for the combine
+recipes, which is what would make a stack of surfaces shade as a stack
+rather than as the surface underneath it.
 
 ### Where the shaders come from
 
@@ -749,7 +882,21 @@ reorder, the three lifetimes pulling apart under a geometry-slot change,
 the store sharing one cooked artefact, a lane ramping a placement, the
 bake taken once and lost to a driven lane below it, and a draw that is a
 function of the description alone. `world_light_test` runs anywhere.
-`world_diligent_test` covers the device side: a pipeline off a recipe's
+`world_diligent_test` covers the device side. `test/PainterTest.cpp` is
+the mesh painter — the runtime as a value, a lit mesh and the normal
+buffer each measured against the host executor's plate, a surface that is
+its own light standing brighter than a lit one on both executors, and a
+panel that is the same bytes on either. `test/SurfaceTest.cpp` is the
+sampled slots and the import door — an occlusion map darkening only where
+it is dark, an emissive map carrying its own colour, a cutout dropping
+texels outright, a normal map tilting the two halves of one flat card
+apart, a surface dressed with white in every slot being the same picture
+as one dressed with nothing, and a texture painted with the graphics API
+on this device coming in through `importNative` and landing where a
+raster one of the same colour would — with no host image at all, so a
+picture carrying its colour cannot have come from a copy.
+`test/SweepTest.cpp` is the sweep's conformance, bit for bit.
+`test/RuntimeTest.cpp` covers the frame: a pipeline off a recipe's
 Slang body with its parameter at a reflected offset and the lit build
 carrying shading the unlit one does not, one scene rendered on both tiers
 and measured apart, a cooked chain that matches the host's cook exactly,

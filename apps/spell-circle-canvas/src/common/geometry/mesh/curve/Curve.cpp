@@ -1,8 +1,8 @@
 /** @file
- * Splines and what is swept along them: evaluation, arc-length sampling,
+ * Splines and the rails read off them: evaluation, arc-length sampling,
  * the two rails (parallel-transport frames and the world-vertical hang),
- * the profiles a sweep carries, the sweep itself, and projection to a 2D
- * path under a camera.
+ * the sweep over a spline, and projection to a 2D path under a camera.
+ * What a rail carries is `Sweep.cpp`.
  */
 
 #include "sigilgeometry/mesh/curve/Curve.h"
@@ -257,96 +257,6 @@ std::vector<Frame3> hangFrames(const Spline3& spline, int sections, float head,
     frame.t = f;
     out.push_back(frame);
   }
-  return out;
-}
-
-namespace profile {
-
-path::Polyline circle(int sides) {
-  path::Polyline out;
-  sides = std::max(sides, 3);
-  out.points.reserve((size_t)sides + 1);
-  // The seam point is emitted twice, at 0 and at a full turn, so the
-  // swept ring's u reaches 1 rather than folding back to vertex zero.
-  for (int s = 0; s <= sides; ++s) {
-    const float a = (float)s / (float)sides * 2.0f * (float)M_PI;
-    // y-down: -cos puts the first point on the frame's normal.
-    out.points.emplace_back(std::sin(a), -std::cos(a));
-  }
-  return out;
-}
-
-path::Polyline line() {
-  path::Polyline out;
-  out.points = {{-0.5f, 0.0f}, {0.5f, 0.0f}};
-  return out;
-}
-
-path::Polyline fromPath(const SkPath& outline, float tolerance) {
-  const std::vector<path::Polyline> contours =
-      path::flatten(outline, tolerance);
-  if (contours.empty()) return {};
-  return contours.front();
-}
-
-}  // namespace profile
-
-Mesh sweep(const std::vector<Frame3>& rail, const path::Polyline& profile,
-           const SweepOptions& options) {
-  Mesh out;
-  const uint32_t ring = (uint32_t)profile.points.size();
-  if (rail.size() < 2 || ring < 2) return out;
-  // A closed profile wraps back onto its first point; an open one ends,
-  // so it spans one quad fewer and its u reaches 1.
-  const uint32_t span = profile.closed ? ring : ring - 1;
-  const auto next = [&](uint32_t k) {
-    return profile.closed ? (k + 1) % ring : k + 1;
-  };
-  const bool geometric = options.normals == SweepOptions::Normals::Geometric;
-  const bool radial = options.normals == SweepOptions::Normals::Radial;
-
-  for (const Frame3& f : rail) {
-    const float size =
-        options.scale *
-        (options.taper ? std::max(options.taper(f.t), 0.0f) : 1.0f);
-    for (uint32_t k = 0; k < ring; ++k) {
-      const glm::vec2 p = profile.points[k];
-      const glm::vec3 offset = f.binormal * p.x - f.normal * p.y;
-      out.positions.push_back(f.position + offset * size);
-      if (!geometric) out.normals.push_back(radial ? offset : f.normal);
-      out.uvs.emplace_back((float)k / (float)span, f.t);
-    }
-  }
-  const uint32_t rings = (uint32_t)rail.size();
-  for (uint32_t i = 0; i + 1 < rings; ++i)
-    for (uint32_t k = 0; k < span; ++k) {
-      const uint32_t a = i * ring + k;
-      const uint32_t b = i * ring + next(k);
-      const uint32_t c = a + ring;
-      const uint32_t d = b + ring;
-      out.indices.insert(out.indices.end(), {a, b, d, a, d, c});
-    }
-
-  if (options.caps) {
-    for (int end = 0; end < 2; ++end) {
-      const Frame3& f = rail[end == 0 ? 0 : rail.size() - 1];
-      const glm::vec3 n = end == 0 ? f.tangent * -1.0f : f.tangent;
-      const uint32_t center = (uint32_t)out.positions.size();
-      out.positions.push_back(f.position);
-      if (!geometric) out.normals.push_back(n);
-      out.uvs.emplace_back(0.5f, end == 0 ? 0.0f : 1.0f);
-      const uint32_t ringStart = (end == 0 ? 0 : rings - 1) * ring;
-      for (uint32_t k = 0; k < span; ++k) {
-        const uint32_t a = ringStart + k;
-        const uint32_t b = ringStart + next(k);
-        if (end == 0)
-          out.indices.insert(out.indices.end(), {center, b, a});
-        else
-          out.indices.insert(out.indices.end(), {center, a, b});
-      }
-    }
-  }
-  if (geometric) out.computeNormals();
   return out;
 }
 
