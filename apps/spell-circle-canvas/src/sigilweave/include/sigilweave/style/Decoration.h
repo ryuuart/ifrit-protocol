@@ -39,7 +39,7 @@ namespace sigil::weave {
  * with the default range spanning it renders as a continuous highlighter
  * stroke behind the words and their gaps.
  *
- * A decoration separates two concerns: *band geometry* (kind, span,
+ * A decoration separates two concerns: *band geometry* (kind, span, side,
  * thickness, offset, skipInk) and *band fill*. The fill has two spellings:
  * `color` is the lightweight one, and `paint` is the full SkPaint
  * vocabulary — shaders (PaintShaders.h presets animate per frame through
@@ -58,6 +58,13 @@ namespace sigil::weave {
  * that a column's band is not. Transformed runs (on a path, on a rotated
  * interval) carry no band at all: it would have to follow the curve they
  * ride.
+ *
+ * Which side of the run's axis a band takes is `side`, and the two writing
+ * modes disagree about the default: a column's underline stands on the
+ * RIGHT, which is the side a vertical setting reads its emphasis line on,
+ * where CSS's `auto` would put it on the left. `Side::kOpposite` is that
+ * other placement, and it is the same swap along a line — an underline
+ * above the type, an overline below it.
  */
 struct Decoration {
   /// Selects which font metric anchors the band by default. kHighlight is
@@ -73,9 +80,25 @@ struct Decoration {
     kDecoratedRange,  ///< merge contiguous same-style runs, covering gaps
     kPerWord,         ///< one band per word run; breaks at every gap
   };
+  /** Which side of the run's own axis the band anchors on.
+   *
+   * An underline and an overline are one band on opposite sides of that
+   * axis — below the line and above it, right of the column and left of it
+   * — so taking the opposite side is taking the other one's anchor. A
+   * strikethrough and a highlight are anchored ACROSS the type rather than
+   * beside it and have no second side to take, so both ignore this. So does
+   * an explicit `offset`, which names the band's near edge outright and
+   * leaves nothing to choose. */
+  enum class Side : uint8_t {
+    kDefault,   ///< the kind's own side: an underline below the line and
+                ///< right of the column, an overline above it and left
+    kOpposite,  ///< the two swap: an underline above the line or left of
+                ///< the column, an overline below it or right of it
+  };
 
   Kind kind = Kind::kUnderline;       ///< only underlines honor `skipInk`
   Span span = Span::kDecoratedRange;  ///< continuous band vs one per word
+  Side side = Side::kDefault;         ///< which side of the axis it takes
   /// SK_ColorTRANSPARENT → the resolved foreground paint's color — except
   /// for kHighlight, where an opaque foreground would hide the text, so it
   /// resolves to the foreground color at quarter alpha instead.
@@ -83,9 +106,10 @@ struct Decoration {
   /// 0 → thickness from font metrics (kHighlight: ascent + descent),
   /// floored at 1px.
   float thickness = 0;
-  /// 0 → position from font metrics (kHighlight: the ascent line);
-  /// otherwise the band's top edge in px relative to the baseline
-  /// (positive below, Skia's y-grows-down convention).
+  /// 0 → position from font metrics on the side `side` names (kHighlight:
+  /// the ascent line); otherwise the band's top edge in px relative to the
+  /// baseline (positive below, Skia's y-grows-down convention), which
+  /// names a side of its own and leaves `side` nothing to choose.
   float offset = 0;
   /// Underlines only: interrupt the line where glyph ink (descenders)
   /// crosses the band, via SkTextBlob::getIntercepts.
@@ -99,7 +123,7 @@ struct Decoration {
   /// would, ink skipping included.
   std::optional<SkPaint> paint;
 
-  /** Compares kind, span, fill (color and paint override), geometry
+  /** Compares kind, span, side, fill (color and paint override), geometry
    * overrides, and ink skipping. */
   bool operator==(const Decoration&) const = default;
 };

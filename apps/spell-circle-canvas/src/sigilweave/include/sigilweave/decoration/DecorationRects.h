@@ -63,7 +63,8 @@ inline float decorationEntryOf(const PositionedRun& run) {
 
 /// One band rectangle: `start`/`end` travel with the pen, `axis` names the
 /// baseline or the column axis, and the band grows down from a baseline and
-/// right from a column axis.
+/// right from a column axis. Which side of the axis the band stands on is
+/// already carried by `band.position`, signed by the resolve.
 inline SkRect decorationBandRect(bool alongColumn, float start, float end,
                                  float axis,
                                  const ResolvedDecorationBand& band) {

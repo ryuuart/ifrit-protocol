@@ -194,7 +194,7 @@ exec build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook
 '''
 
 [tasks.ledger]
-description = "Byte-identity sweep over the plate registry (args go to plate_ledger.py)"
+description = "Plate sweep over the sketch registry (args go to plate_ledger.py)"
 dir = "apps/spell-circle-canvas"
 run = '''
 set -e

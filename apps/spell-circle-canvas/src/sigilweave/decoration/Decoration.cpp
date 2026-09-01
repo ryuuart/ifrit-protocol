@@ -117,13 +117,32 @@ ResolvedDecorationBand resolveDecorationBand(const Decoration& decoration,
     band.position = decoration.offset;
     return band;
   }
+
+  // WHICH SIDE OF THE AXIS the band anchors on. An underline and an
+  // overline are one band on opposite sides of the same axis — below the
+  // line and above it, right of the column and left of it — so the
+  // opposite side is exactly the other one's anchor, and taking it is
+  // reading the other one's metric. A strikethrough and a highlight are
+  // anchored across the type rather than beside it and have no second side
+  // to take. Only the position is borrowed: thickness and color stay the
+  // decoration's own, so a highlight keeps its full-box depth and an
+  // underline its hairline whichever side it stands on.
+  Decoration::Kind anchor = decoration.kind;
+  if (decoration.side == Decoration::Side::kOpposite) {
+    if (anchor == Decoration::Kind::kUnderline)
+      anchor = Decoration::Kind::kOverline;
+    else if (anchor == Decoration::Kind::kOverline)
+      anchor = Decoration::Kind::kUnderline;
+  }
+
   if (alongColumn) {
     // No baseline to measure from: an upright glyph is centred across the
     // column axis, so the em box's half-depth is the whole geometry. The
-    // underline stands clear of the box on the right — the side a vertical
-    // setting reads its emphasis line on — and the overline on the left.
+    // underline stands clear of the box on the right by default — the side
+    // a vertical setting reads its emphasis line on — and the overline on
+    // the left.
     const float halfEm = (-metrics.fAscent + metrics.fDescent) * 0.5f;
-    switch (decoration.kind) {
+    switch (anchor) {
       case Decoration::Kind::kUnderline:
         band.position = halfEm;
         break;
@@ -139,7 +158,7 @@ ResolvedDecorationBand resolveDecorationBand(const Decoration& decoration,
     }
     return band;
   }
-  switch (decoration.kind) {
+  switch (anchor) {
     case Decoration::Kind::kUnderline: {
       SkScalar underlinePosition = 0;  // metric = distance baseline → band top
       band.position = metrics.hasUnderlinePosition(&underlinePosition)

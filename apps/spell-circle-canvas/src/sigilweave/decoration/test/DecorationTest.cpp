@@ -220,3 +220,101 @@ TEST(DecorationTest, AColumnBandRunsUncutDownItsRun) {
   EXPECT_FLOAT_EQ(segments[0].first, run.origin.y());
   EXPECT_FLOAT_EQ(segments[0].second, run.origin.y() + run.shaped->advance);
 }
+
+TEST(DecorationTest, TheOppositeSideTakesTheOtherAnchor) {
+  // An underline and an overline are one band on the two sides of the same
+  // axis, so asking for the opposite side is reading the other's metric —
+  // below the baseline becomes the ascent line, and right of the column
+  // becomes left of it. Ascent 20 and descent 6 make the column's half-em
+  // 13; the face's underline sits 4 below the baseline, 2 thick.
+  SkFontMetrics metrics = {};
+  metrics.fFlags = SkFontMetrics::kUnderlineThicknessIsValid_Flag |
+                   SkFontMetrics::kUnderlinePositionIsValid_Flag;
+  metrics.fAscent = -20.0f;
+  metrics.fDescent = 6.0f;
+  metrics.fXHeight = 10.0f;
+  metrics.fUnderlineThickness = 2.0f;
+  metrics.fUnderlinePosition = 4.0f;
+  constexpr float kHalfEm = 13.0f;
+
+  const auto band = [&](Decoration::Kind kind, Decoration::Side side,
+                        bool alongColumn) {
+    Decoration decoration;
+    decoration.kind = kind;
+    decoration.side = side;
+    return detail::resolveDecorationBand(decoration, metrics, SK_ColorRED,
+                                         alongColumn);
+  };
+
+  // Along a line the swap is below ↔ above: the flipped underline rides the
+  // ascent line an overline rides, and the flipped overline drops to the
+  // face's underline metric.
+  EXPECT_FLOAT_EQ(
+      band(Decoration::Kind::kUnderline, Decoration::Side::kDefault, false)
+          .position,
+      4.0f);
+  EXPECT_FLOAT_EQ(
+      band(Decoration::Kind::kUnderline, Decoration::Side::kOpposite, false)
+          .position,
+      -20.0f)
+      << "an underline on the opposite side stands ABOVE the line";
+  EXPECT_FLOAT_EQ(
+      band(Decoration::Kind::kOverline, Decoration::Side::kDefault, false)
+          .position,
+      -20.0f);
+  EXPECT_FLOAT_EQ(
+      band(Decoration::Kind::kOverline, Decoration::Side::kOpposite, false)
+          .position,
+      4.0f)
+      << "and an overline on it drops BELOW";
+  // The thickness is the decoration's own either way: it borrows a
+  // position, not a whole band.
+  EXPECT_FLOAT_EQ(
+      band(Decoration::Kind::kUnderline, Decoration::Side::kOpposite, false)
+          .thickness,
+      2.0f);
+
+  // Down a column the same swap is right ↔ left.
+  EXPECT_FLOAT_EQ(
+      band(Decoration::Kind::kUnderline, Decoration::Side::kDefault, true)
+          .position,
+      kHalfEm);
+  EXPECT_FLOAT_EQ(
+      band(Decoration::Kind::kUnderline, Decoration::Side::kOpposite, true)
+          .position,
+      -kHalfEm - 2.0f)
+      << "the column's emphasis line moved to the LEFT of the type";
+  EXPECT_FLOAT_EQ(
+      band(Decoration::Kind::kOverline, Decoration::Side::kDefault, true)
+          .position,
+      -kHalfEm - 2.0f);
+  EXPECT_FLOAT_EQ(
+      band(Decoration::Kind::kOverline, Decoration::Side::kOpposite, true)
+          .position,
+      kHalfEm)
+      << "and the overline to the RIGHT";
+
+  // A strikethrough and a highlight cross the type rather than standing
+  // beside it: they have no second side, in either writing mode.
+  for (const bool alongColumn : {false, true})
+    for (const Decoration::Kind kind :
+         {Decoration::Kind::kStrikethrough, Decoration::Kind::kHighlight}) {
+      EXPECT_FLOAT_EQ(
+          band(kind, Decoration::Side::kOpposite, alongColumn).position,
+          band(kind, Decoration::Side::kDefault, alongColumn).position)
+          << "a band anchored across the type has no side to swap";
+    }
+
+  // An explicit offset names the near edge outright, so there is nothing
+  // left for a side to choose.
+  Decoration nudged;
+  nudged.offset = -9.0f;
+  nudged.side = Decoration::Side::kOpposite;
+  EXPECT_FLOAT_EQ(
+      detail::resolveDecorationBand(nudged, metrics, SK_ColorRED).position,
+      -9.0f);
+  EXPECT_FLOAT_EQ(detail::resolveDecorationBand(nudged, metrics, SK_ColorRED,
+                                                /*alongColumn=*/true)
+                      .position,
+                  -9.0f);
+}

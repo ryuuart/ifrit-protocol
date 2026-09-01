@@ -526,8 +526,8 @@ class Element {
    *  SUGAR over `fx()`: it appends a whole-text track whose deviation is
    *  `GlyphMod::axis`, so a driven axis composes with entrances, loops and
    *  every other track instead of being a second text path they would hide.
-   *  Being a track, it also draws through the batched glyph path, which
-   *  paints glyphs and not a span's underline or strikethrough. */
+   *  Being a track, it also draws through the batched glyph path, so a
+   *  span's band stands at its rest placement while the letters move. */
   Element& variationDrive(const char (&tag)[5],
                           const choreograph::Output<float>* value);
 
@@ -675,10 +675,10 @@ class Element {
    *  carrying `TextEffect::variableAxis`, and it inherits what that means:
    *  the same size-scaled snapping ladder a driven axis takes, composition
    *  with entrances and loops rather than being hidden by them, and the
-   *  batched glyph draw, which paints glyphs and not a span style's
-   *  underline or strikethrough. An axis the face moves advances on, an
-   *  axis the restyle drops, or any other difference is a reshape, and a
-   *  later reshaping restyle over the same text keeps the earlier one a
+   *  batched glyph draw, where a span style's band stands at its rest
+   *  placement while the letters move. An axis the face moves advances on,
+   *  an axis the restyle drops, or any other difference is a reshape, and
+   *  a later reshaping restyle over the same text keeps the earlier one a
    *  reshape too, so the later one is the one that stands. A `spanPaint`
    *  declared EARLIER over the same text keeps its colour: this style's own
    *  paint stands only where none reached. */

@@ -22,6 +22,7 @@
 #include <include/effects/SkTrimPathEffect.h>
 #include <sigilimage/asset/ImageAsset.h>
 #include <sigilweave/choreograph/Choreograph.h>
+#include <sigilweave/decoration/DecorationRects.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/fonts/Shaper.h>  // makeFont — textFill's cap-height metrics
 
@@ -360,24 +361,32 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
   const std::span<const Resolved> live(resolved.data(), used);
 
   // A TRACK DRAWS ITS OWN GLYPHS, in batched buckets, and a bucket carries
-  // glyphs alone — so a band a span asked for (an underline, a
-  // strikethrough, the sideline beside a column) is not drawn on a node
-  // that moves. Say so once rather than leaving an author to discover it
-  // by its absence.
-  for (const sigil::weave::StyleSpan& span : inst.paragraph->spans()) {
-    if (span.style.paint.decorations.empty()) continue;
-    static thread_local bool warnedAboutBands = false;
-    if (!warnedAboutBands) {
-      warnedAboutBands = true;
-      SkDebugf(
-          "sigilcompose fx: a span of this text asks for a decoration and "
-          "the text also carries an fx() track, which draws its glyphs "
-          "itself — the band is not drawn. Split the two: the passage that "
-          "wears the band stands still, and the one that moves wears "
-          "none.\n");
-    }
-    break;
-  }
+  // glyphs alone — so the band a span asked for (an underline, a
+  // strikethrough, the sideline beside a column) has to be drawn here, and
+  // it is drawn AT REST: from the layout's own runs, untouched by any
+  // deviation the tracks apply to the letters above it. That is the same
+  // stand a mark() takes under a track — a rect resolved from the layout
+  // cannot chase a paint-time pose — and it is the honest one for a band,
+  // which spans a whole run rather than following one letter. A run the
+  // layout TURNED carries no band either way, so type on a path keeps
+  // none.
+  //
+  // The phases mirror the batched draw a resting node takes: highlights go
+  // under every glyph pass, and everything else flushes past them.
+  static thread_local std::vector<std::pair<SkRect, SkPaint>> aboveBands;
+  aboveBands.clear();
+  sigil::weave::detail::forEachDecorationRect(
+      layout.runs, inst.paragraph->spans(), override,
+      sigil::weave::detail::DecorationPhase::kBelowGlyphs,
+      [&](SkRect rect, const SkPaint& bandPaint) {
+        canvas.drawRect(rect, bandPaint);
+      });
+  sigil::weave::detail::forEachDecorationRect(
+      layout.runs, inst.paragraph->spans(), override,
+      sigil::weave::detail::DecorationPhase::kAboveGlyphs,
+      [&](SkRect rect, const SkPaint& bandPaint) {
+        aboveBands.emplace_back(rect, bandPaint);
+      });
 
   // PASS TRACKS (fx::pass): each renders its addressed glyphs into its own
   // lane instead of the canvas, accumulating one rect and one local time
@@ -710,6 +719,15 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
     paint.setShader(std::move(pass));
     canvas.drawRect(bounds, paint);
   }
+
+  // The bands that sit above the type, flushed past every glyph the node
+  // drew — the batched buckets and the pass lanes alike, so a strikethrough
+  // reads over a shaded pass exactly as it reads over plain letters. The
+  // paints are dropped straight after: one can hold a shader, and this
+  // storage outlives the frame.
+  for (const auto& [rect, bandPaint] : aboveBands)
+    canvas.drawRect(rect, bandPaint);
+  aboveBands.clear();
 }
 
 }  // namespace sigil::compose

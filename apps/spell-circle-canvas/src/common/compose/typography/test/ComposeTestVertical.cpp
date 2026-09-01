@@ -12,6 +12,7 @@
 #include <sigilweave/style/Features.h>
 
 #include <algorithm>
+#include <array>
 
 #include "support/TextTestSupport.h"
 
@@ -704,10 +705,13 @@ TEST(TextVertical, AColumnStyleCanAskTheFaceForItsVerticalMetrics) {
       << "a feature list that is part of the shape key reused a shaped word";
 }
 
-TEST(TextVertical, ABandAndATrackOnOneNodeSayWhichOneDraws) {
+TEST(TextVertical, ABandStandsAtRestUnderATrack) {
   // A track draws its own glyphs in batched buckets, and a bucket carries
-  // glyphs alone: the band a span asked for is not drawn on a node that
-  // also moves. That is a silent absence, so it is diagnosed once.
+  // glyphs alone — so the band a span asked for is drawn beside them, from
+  // the layout the letters left at rest. It therefore does NOT travel with
+  // the cascade: the letters rise into place and the sideline stands still
+  // the whole way, which is the same stand a mark() takes under a track.
+  choreograph::Output<float> progress{0.4f};
   sigil::weave::PaintStyle sidelined(SK_ColorWHITE);
   sigil::weave::Decoration sideline;
   sideline.thickness = 3.0f;
@@ -720,20 +724,124 @@ TEST(TextVertical, ABandAndATrackOnOneNodeSayWhichOneDraws) {
             .height(220)
             .writingMode(sigil::weave::WritingMode::kVerticalRL)
             .spanPaint(sel::text(u8"三四五六"), sidelined)
-            .fx({.effect = fx::rise(12)})
+            .fx({.effect = fx::rise(24),
+                 .stagger = stagger(unit::Cluster, {.eachMs = 90}),
+                 .progress = &progress})
             .key("t"));
   };
 
   Host host(240, 260);
-  ::testing::internal::CaptureStderr();
   host.composer.render(describe());
   host.frame();
-  const std::string first = ::testing::internal::GetCapturedStderr();
-  EXPECT_NE(first.find("decoration"), std::string::npos)
-      << "the band went missing with no word said";
+  const auto* layout = host.composer.paragraphLayout("t");
+  ASSERT_NE(layout, nullptr);
+  ASSERT_FALSE(layout->runs.empty());
+  const float axis = layout->runs.front().origin.x();
 
-  // Once, not once per frame.
-  ::testing::internal::CaptureStderr();
+  // Every pixel the band painted, as a box: red ink, well clear of the
+  // white glyphs.
+  const auto bandBox = [&] {
+    SkIRect extent = SkIRect::MakeLTRB(1000, 1000, -1, -1);
+    for (int y = 0; y < 260; ++y)
+      for (int x = 0; x < 240; ++x) {
+        const SkColor c = host.pixel(x, y);
+        if (SkColorGetR(c) < 200 || SkColorGetG(c) > 128 ||
+            SkColorGetB(c) > 128)
+          continue;
+        extent.fLeft = std::min(extent.fLeft, x);
+        extent.fTop = std::min(extent.fTop, y);
+        extent.fRight = std::max(extent.fRight, x);
+        extent.fBottom = std::max(extent.fBottom, y);
+      }
+    return extent;
+  };
+
+  const SkIRect midCascade = bandBox();
+  ASSERT_LE(midCascade.left(), midCascade.right())
+      << "the band a span asked for was not drawn under a track";
+  EXPECT_GE((float)midCascade.left(), axis)
+      << "the sideline crossed the column axis";
+  EXPECT_GT(midCascade.height(), 40)
+      << "the band must run DOWN the column it dresses";
+  EXPECT_LT(midCascade.height(), 200)
+      << "the band covers the dressed phrase, not the whole column";
+
+  // Every white pixel: the glyphs, which the track IS moving.
+  const auto glyphInk = [&] {
+    int hits = 0;
+    for (int y = 0; y < 260; ++y)
+      for (int x = 0; x < 240; ++x) {
+        const SkColor c = host.pixel(x, y);
+        if (SkColorGetR(c) > 128 && SkColorGetG(c) > 128 &&
+            SkColorGetB(c) > 128)
+          ++hits;
+      }
+    return hits;
+  };
+  const int midInk = glyphInk();
+
+  progress = 1.0f;
   host.frame();
-  EXPECT_EQ(::testing::internal::GetCapturedStderr(), "");
+  EXPECT_NE(glyphInk(), midInk)
+      << "the cascade did not move the letters, so this proves nothing "
+         "about the band";
+  EXPECT_EQ(bandBox(), midCascade)
+      << "the band moved with the cascade: it must stand at the rest "
+         "placement the layout gives it";
+}
+
+TEST(TextVertical, ASidelineCanTakeTheOtherSideOfTheColumn) {
+  // A column reads its emphasis line on the RIGHT, which is the default
+  // here; `Decoration::Side::kOpposite` is the other placement — the side
+  // an automatic vertical underline would take — and it is a plain field
+  // on the decoration, so it reaches a span through the same paint verb.
+  const auto describe = [&](sigil::weave::Decoration::Side side) {
+    sigil::weave::PaintStyle sidelined(SK_ColorWHITE);
+    sigil::weave::Decoration sideline;
+    sideline.thickness = 3.0f;
+    sideline.color = SK_ColorRED;
+    sideline.side = side;
+    sidelined.addDecoration(sideline);
+    return box().padding(10).child(
+        text(u8"一二三四五六七八", jp(24, SK_ColorWHITE))
+            .width(60)
+            .height(220)
+            .writingMode(sigil::weave::WritingMode::kVerticalRL)
+            .spanPaint(sel::text(u8"三四五六"), sidelined)
+            .key("t"));
+  };
+
+  Host host(240, 260);
+  const auto redSpread = [&] {
+    int count = 0, leftOfAxis = 0, rightOfAxis = 0;
+    const auto* layout = host.composer.paragraphLayout("t");
+    const float axis = layout->runs.front().origin.x();
+    for (int y = 0; y < 260; ++y)
+      for (int x = 0; x < 240; ++x) {
+        const SkColor c = host.pixel(x, y);
+        if (SkColorGetR(c) < 200 || SkColorGetG(c) > 128 ||
+            SkColorGetB(c) > 128)
+          continue;
+        ++count;
+        if ((float)x < axis)
+          ++leftOfAxis;
+        else
+          ++rightOfAxis;
+      }
+    return std::array<int, 3>{count, leftOfAxis, rightOfAxis};
+  };
+
+  host.composer.render(describe(sigil::weave::Decoration::Side::kDefault));
+  host.frame();
+  const std::array<int, 3> onTheRight = redSpread();
+  ASSERT_GT(onTheRight[0], 0) << "the span drew no band";
+  EXPECT_EQ(onTheRight[1], 0) << "the default band stands right of the axis";
+
+  host.composer.render(describe(sigil::weave::Decoration::Side::kOpposite));
+  host.frame();
+  const std::array<int, 3> onTheLeft = redSpread();
+  ASSERT_GT(onTheLeft[0], 0) << "the swapped band vanished";
+  EXPECT_EQ(onTheLeft[2], 0) << "the swapped band stayed right of the axis";
+  EXPECT_NEAR(onTheLeft[1], onTheRight[2], onTheRight[2] * 0.25)
+      << "the same band, the other side: it must keep its length";
 }

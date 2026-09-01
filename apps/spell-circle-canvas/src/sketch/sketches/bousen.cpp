@@ -254,10 +254,11 @@ struct Bousen final : sketch::Sketch {
                                  "keeps for a column"),
                             bs::label(11, bs::kUsu))
                            .width(Dim(300.0f))))
-        // The cascade lives on its own strip, undressed: a track draws its
-        // glyphs itself, in batched buckets, and a batched bucket carries
-        // no band — so the passage that wears the bands stands still and
-        // the one that moves wears none.
+        // The cascade lives on its own strip, and it wears a band. A track
+        // draws its glyphs itself, in batched buckets that carry glyphs
+        // alone, so the sideline is drawn beside them at the placement the
+        // layout left it: it stands still down the whole column while the
+        // letters travel into it.
         .child(
             text(u8"列ごとに文字が現れる。右から左へ。", bs::body(21, bs::kAi))
                 .absolute()
@@ -265,6 +266,11 @@ struct Bousen final : sketch::Sketch {
                 .width(Dim(120.0f))
                 .height(Dim(300.0f))
                 .writingMode(sigil::weave::WritingMode::kVerticalRL)
+                .spanPaint(
+                    sel::text(u8"右から左へ"),
+                    bs::banded(bs::kAi,
+                               sigil::weave::Decoration::Kind::kUnderline,
+                               bs::kAka, 2.0f))
                 .fx({.effect = fx::rise(18),
                      .stagger = {.eachMs = 210,
                                  .durationMs = 520,
@@ -272,7 +278,8 @@ struct Bousen final : sketch::Sketch {
                      .progress = animate(from(0.0f).to(1.0f),
                                          {1400ms, &ch::easeNone, 220ms})}))
         .child(text(toU8("\xe2\x86\x91 this strip's entrance beats over\n"
-                         "unit::Line \xe2\x80\x94 one COLUMN a beat"),
+                         "unit::Line \xe2\x80\x94 one COLUMN a beat,\n"
+                         "and its band stands at rest"),
                     bs::label(10, bs::kUsu))
                    .absolute()
                    .inset(300, 466, 0, 0)

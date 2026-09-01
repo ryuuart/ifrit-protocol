@@ -838,12 +838,12 @@ Such a restyle is carried as a track holding `TextEffect::variableAxis`,
 and inherits what that means. The coordinate is a `GlyphMod::axis`, so it
 goes through the same size-scaled ladder a driven axis does and composes
 with entrances and loops instead of being hidden by them; and the leaf
-then draws through the batched glyph path, which paints glyphs and not a
-span style's underline or strikethrough. Anything else the style changes —
-another face or size, an axis the face moves advances on, an axis the text
-was shaped with and the restyle drops — is a reshape; and an earlier
-axis-only restyle under a later reshaping one over the same text re-shapes
-too, so the later declaration is the one that stands.
+then draws through the batched glyph path, where a span style's band
+stands at its rest placement while the letters move. Anything else the
+style changes — another face or size, an axis the face moves advances on,
+an axis the text was shaped with and the restyle drops — is a reshape; and
+an earlier axis-only restyle under a later reshaping one over the same text
+re-shapes too, so the later declaration is the one that stands.
 
 `spanPaint` and `spanStyle` resolve their selection as TEXT RANGES rather
 than glyphs, because a restyle runs on the paragraph before there are
@@ -952,11 +952,21 @@ a span DOES follow the type down the page — an underline runs beside the
 column on its right, an overline on its left, a strikethrough down the
 column axis and a highlight across the whole column pitch — but it never
 skips ink there, because ink intercepts are cut out of a horizontal band
-window that a column's band is not. A BAND AND A TRACK ON ONE NODE DO NOT
-COMPOSE, in either writing mode: a track draws its own glyphs in batched
-buckets and a bucket carries glyphs alone, so the band is not drawn and
-the node says so once. Split them — the passage that wears the band
-stands still, and the one that moves wears none.
+window that a column's band is not. Which side an underline or an overline
+takes is `side` on the decoration: the default puts a column's underline on
+the right, the side a vertical setting reads its emphasis line on, and
+`Decoration::Side::kOpposite` is the other placement (left of the column,
+above the line).
+
+**A BAND UNDER A TRACK STANDS AT REST**, in either writing mode. A track
+draws its own glyphs in batched buckets and a bucket carries glyphs alone,
+so the band is drawn beside them from the layout the letters left at rest:
+the letters travel on their schedule and the band does not travel with
+them. That is the same stand `mark()` takes — a rect resolved from the
+layout cannot chase a paint-time pose — and it is the honest one for a
+band, which dresses a whole run rather than one letter. Type on a path
+carries no band either way: a turned run's band would have to follow the
+curve it rides.
 
 **Ruby and kenten are not library features**, deliberately. Each is a few
 lines over the placed runs of a finished layout — read

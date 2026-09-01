@@ -50,7 +50,13 @@ struct ResolvedDecorationBand {
  * vertical setting reads its emphasis line on, an overline on the left, a
  * strikethrough down the axis itself, and a highlight across the whole box.
  * `Decoration::offset` still overrides, and is then a signed distance ACROSS
- * the column (positive to the right). */
+ * the column (positive to the right).
+ *
+ * `Decoration::side` chooses between the two anchors an underline and an
+ * overline are: the opposite side reads the other one's metric, in either
+ * writing mode. A strikethrough and a highlight cross the type rather than
+ * standing beside it and have no second side; nor does a decoration with an
+ * explicit offset, which names the near edge outright. */
 [[nodiscard]] ResolvedDecorationBand resolveDecorationBand(
     const Decoration& decoration, const SkFontMetrics& metrics,
     SkColor foregroundColor, bool alongColumn = false);

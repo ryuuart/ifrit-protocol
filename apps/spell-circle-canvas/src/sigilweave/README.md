@@ -366,7 +366,13 @@ state.
   strikethrough down the column axis, and a highlight across the whole em
   box; `Decoration::offset` is then a signed distance ACROSS the column.
   Ink skipping is a line's alone: intercepts are cut out of a horizontal
-  band window, so a column's band is continuous.
+  band window, so a column's band is continuous. `Decoration::side` picks
+  which side of the run's own axis an underline or an overline anchors on
+  — `Side::kOpposite` is the other one's anchor, so a column's underline
+  moves to the left and a line's above the type. A strikethrough and a
+  highlight cross the type rather than standing beside it and have no
+  second side; nor does a decoration with an explicit `offset`, which
+  names the near edge outright.
 - **Paint layers** — ordered underlays and overlays around the foreground,
   each a complete `SkPaint` plus an offset; `PaintLayer::dropShadow`, `glow`,
   and `outline` are presets over that. Each layer costs one more draw per
