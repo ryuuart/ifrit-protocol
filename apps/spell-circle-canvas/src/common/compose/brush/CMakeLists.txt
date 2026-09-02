@@ -12,8 +12,9 @@
 # `by::` gates — reached by the kernel through the StrokeResolver and
 # MaskResolver values the verbs install, which is why `stroke(spans, …)`,
 # `background(spans, …)`, `across()` and every `by::` constructor are
-# defined here though the kernel declares them. Links Shape publicly: a
-# brush is applied to a silhouette.
+# defined here though the kernel declares them. Links the kit publicly: a
+# brush is applied to a silhouette, and the stroke grammar's corner cut is
+# the routers' own.
 add_library(SigilComposeBrush STATIC
   Decorations.cpp
   LayerStyles.cpp
@@ -47,7 +48,7 @@ target_compile_features(SigilComposeBrush PUBLIC cxx_std_20)
 target_include_directories(SigilComposeBrush
   PRIVATE ${CMAKE_CURRENT_LIST_DIR} ${CMAKE_CURRENT_LIST_DIR}/../core)
 target_link_libraries(SigilComposeBrush
-  PUBLIC SigilComposeShape SigilComposeTypography
+  PUBLIC SigilComposeKit SigilComposeTypography
   PRIVATE yoga::yogacore)
 
 # Decorations, lines, rails, hatches, brushes, the stroke grammar (which is

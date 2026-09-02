@@ -1,7 +1,7 @@
 #pragma once
 
 /** @file
- * SigilCompose connector routers — Router values for connector().
+ * The connector routers — Router values for connector().
  *
  * A Router is a plain function of the two endpoint rects returning the
  * routed path, and a RailRouter the same over an ordered run of anchor

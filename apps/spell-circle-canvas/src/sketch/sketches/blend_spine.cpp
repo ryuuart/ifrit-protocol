@@ -27,7 +27,7 @@
 
 #include <include/core/SkMatrix.h>
 #include <include/core/SkPathBuilder.h>
-#include <sigilcompose/shape/Shapes.h>
+#include <sigilcompose/kit/Silhouettes.h>
 #include <sigilgeometry/path/blend/Blend.h>
 #include <sigilsketch/canvas/Sketch.h>
 

@@ -30,7 +30,7 @@
 
 #include <include/core/SkMatrix.h>
 #include <include/core/SkPaint.h>
-#include <sigilcompose/shape/Shapes.h>
+#include <sigilcompose/kit/Silhouettes.h>
 #include <sigilgeometry/path/Ops.h>
 #include <sigilsketch/canvas/Sketch.h>
 

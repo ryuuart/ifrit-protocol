@@ -52,7 +52,7 @@
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Material.h>
 #include <sigilcompose/kit/Frame.h>
-#include <sigilcompose/shape/Shapes.h>
+#include <sigilcompose/kit/Silhouettes.h>
 #include <sigilsketch/canvas/Sketch.h>
 
 #include <algorithm>

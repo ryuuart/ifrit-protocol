@@ -7,7 +7,10 @@
 
 #include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>
+#include <include/core/SkPathEffect.h>
 #include <include/core/SkPathUtils.h>
+#include <include/core/SkStrokeRec.h>
+#include <include/effects/SkCornerPathEffect.h>
 #include <include/pathops/SkPathOps.h>
 
 #include <algorithm>
@@ -91,6 +94,16 @@ SkPath offset(const SkPath& path, float delta) {
   stroke.setStrokeCap(SkPaint::kRound_Cap);
   const SkPath expanded = skpathutils::FillPathWithPaint(path, stroke);
   return delta > 0 ? unite(path, expanded) : simplify(subtract(path, expanded));
+}
+
+SkPath roundCorners(const SkPath& path, float radius) {
+  if (radius <= 0) return path;
+  SkPathBuilder dst;
+  SkStrokeRec rec(SkStrokeRec::kFill_InitStyle);
+  if (sk_sp<SkPathEffect> fx = SkCornerPathEffect::Make(radius);
+      fx && fx->filterPath(&dst, path, &rec))
+    return dst.detach();
+  return path;
 }
 
 SkPath Roughen::apply(const SkPath& path) const {

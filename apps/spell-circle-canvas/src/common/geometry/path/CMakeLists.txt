@@ -6,11 +6,13 @@
 # importers.
 add_library(SigilGeometryPath STATIC
   Contour.cpp
+  Edges.cpp
   Noise.cpp
   Ops.cpp
   Polyline.cpp
   Pose.cpp
   ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/path/Contour.h
+  ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/path/Edges.h
   ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/path/Noise.h
   ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/path/Numeric.h
   ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/path/Ops.h

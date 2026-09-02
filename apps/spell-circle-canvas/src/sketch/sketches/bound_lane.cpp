@@ -48,7 +48,7 @@
 //   kPeriod  — seconds per lap of `phase`; changes speed, not the picture.
 
 #include <include/core/SkPathBuilder.h>
-#include <sigilcompose/shape/Shapes.h>
+#include <sigilcompose/kit/Silhouettes.h>
 #include <sigilcompose/typography/Type.h>
 #include <sigilsketch/canvas/Sketch.h>
 

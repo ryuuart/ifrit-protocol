@@ -65,8 +65,8 @@
 #include <sigilcompose/instances/Instances.h>
 #include <sigilcompose/kit/Divisions.h>
 #include <sigilcompose/kit/Placers.h>
-#include <sigilcompose/shape/Routers.h>
-#include <sigilcompose/shape/Shapes.h>
+#include <sigilcompose/kit/Routers.h>
+#include <sigilcompose/kit/Silhouettes.h>
 #include <sigilcompose/typography/TextFx.h>
 #include <sigilcompose/typography/Type.h>
 #include <sigilsketch/canvas/Sketch.h>

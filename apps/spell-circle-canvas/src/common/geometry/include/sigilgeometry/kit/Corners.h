@@ -1,37 +1,46 @@
 #pragma once
 
 /** @file
- * SigilCompose corner treatments — the wrapper that rounds any shape's
- * corners, and the shapes a frame is actually cut to: chamfered and notched.
+ * The corner treatments — the wrapper that rounds any shape's corners,
+ * and the shapes a frame is actually cut to: chamfered and notched.
  */
 
 #include <include/core/SkPathBuilder.h>
 
 #include <cstdint>
 
-#include "sigilcompose/Compose.h"
+#include <concepts>
+#include <utility>
+
+#include "sigilgeometry/path/Ops.h"
 #include "sigilgeometry/path/Polyline.h"
 #include "sigilgeometry/path/Skia.h"
 
-namespace sigil::compose::shapes {
+namespace sigil::geometry::shapes {
 
 // ---------------------------------------------------------------------------
 // Wrappers — generators over generators
 
-/** Wraps any shape so every sharp corner rounds with a consistent
- *  radius — corners() for arbitrary silhouettes:
- *  `.shape(rounded(star(5), 8))`. Comparable whenever the wrapped shape
- *  is (a wrapped raw callable stays the escape hatch). */
+/** Wraps any silhouette so every sharp corner rounds with a consistent
+ *  radius — the corner treatment for shapes that have no box corners:
+ *  `rounded(star(5), 8)`. It holds the wrapped value rather than erasing
+ *  it, so it is comparable exactly when the wrapped value is: wrapping a
+ *  generator gives a generator, and wrapping a bare callable gives
+ *  something that compares equal to nothing, which is the same escape
+ *  hatch the callable itself was. */
+template <typename Inner>
+  requires std::invocable<const Inner&, SkSize>
 struct Rounded {
-  Shape inner;
+  Inner inner;
   float radius = 0.0f;
   bool operator==(const Rounded&) const = default;
-  SkPath path(SkSize s) const;
+  SkPath path(SkSize s) const { return path::ops::roundCorners(inner(s), radius); }
   SkPath operator()(SkSize s) const { return path(s); }
 };
 
-inline Rounded rounded(Shape shape, float radius) {
-  return Rounded{std::move(shape), radius};
+template <typename Inner>
+Rounded<Inner> rounded(Inner shape, float radius) {
+  return Rounded<Inner>{std::move(shape), radius};
 }
 
 // ---------------------------------------------------------------------------
@@ -96,4 +105,4 @@ inline Notched notched(float notchWidth, float depth,
   return Notched{notchWidth, depth, mask};
 }
 
-}  // namespace sigil::compose::shapes
+}  // namespace sigil::geometry::shapes

@@ -34,7 +34,7 @@
 //                               moment stands after it, so raising it
 //                               past 2.4 s puts the plate mid-entrance.
 
-#include <sigilcompose/shape/Shapes.h>
+#include <sigilcompose/kit/Silhouettes.h>
 #include <sigilcompose/typography/TextFx.h>
 #include <sigilsketch/canvas/Sketch.h>
 

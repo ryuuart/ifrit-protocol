@@ -101,7 +101,7 @@ if(APPLE)
   target_link_options(Sketchbook PRIVATE "LINKER:-export_dynamic")
   foreach(sketch_dep IN ITEMS
       SigilSketchCore SigilSketchCanvas SigilSketchSet SigilSketchLive
-      SigilComposeCore SigilComposeShape SigilComposeBrush
+      SigilComposeCore SigilComposeKit SigilComposeBrush
       SigilComposeTypography SigilComposeInstances SigilComposeKit
       SigilComposeTexture
       SigilImageAsset SigilImageDecode SigilLoaderHub

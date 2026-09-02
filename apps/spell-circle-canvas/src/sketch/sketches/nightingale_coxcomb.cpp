@@ -69,7 +69,7 @@
 #include <sigilcompose/kit/Divisions.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Legibility.h>
-#include <sigilcompose/shape/Shapes.h>
+#include <sigilcompose/kit/Silhouettes.h>
 #include <sigilcompose/typography/TextFx.h>
 #include <sigilcompose/typography/Type.h>
 #include <sigilsketch/canvas/Sketch.h>

@@ -33,7 +33,7 @@
 //                               crosses hands back no foot at all, which
 //                               is the interesting edge of the parting.
 
-#include <sigilcompose/shape/Shapes.h>
+#include <sigilcompose/kit/Silhouettes.h>
 #include <sigilsketch/canvas/Sketch.h>
 
 #include "VerticalSpecimen.h"

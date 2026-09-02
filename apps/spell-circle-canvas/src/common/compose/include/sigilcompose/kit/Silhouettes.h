@@ -1,47 +1,37 @@
 #pragma once
 
 /** @file
- * SigilCompose per-edge extraction — the sub-contours of a resolved outline
- * that face a box edge, and the decorations that run on them: `onEdges`,
- * `inset` and the arrow.
+ * The silhouette shelf, spelled where compose spells it: the geometry
+ * kit's stock generators under `shapes::`, plus the two adaptors that
+ * only mean anything against a node — the ones that REPLACE the outline a
+ * decoration runs on.
+ *
+ *     .shape(shapes::star(5))
+ *     .decorate(shapes::onEdges(Edge::Top, PathFormat{…}))
+ *
+ * The generators themselves know nothing of a node: they are values with
+ * `path(SkSize)` and `operator==`, and `Element::shape()` takes any of
+ * them, or any of yours built the same way. What lives here instead of in
+ * geometry is what reads a PaintContext.
  */
 
-#include <include/core/SkPathBuilder.h>
+#include <sigilcompose/Compose.h>
+#include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilgeometry/path/Edges.h>
 
-#include <cstdint>
-
-#include "sigilcompose/Compose.h"
-#include "sigilgeometry/path/Polyline.h"
-#include "sigilgeometry/path/Skia.h"
+#include <string>
+#include <utility>
+#include <vector>
 
 namespace sigil::compose::shapes {
 
-// ---------------------------------------------------------------------------
-// Per-edge extraction
+/** The stock catalog, which is the geometry library's — every generator,
+ *  curve and corner treatment, comparable and callable over a size. */
+using namespace ::sigil::geometry::shapes;
 
-enum class Edge : uint8_t {
-  Top = 1,
-  Right = 2,
-  Bottom = 4,
-  Left = 8,
-  All = 15,
-};
-constexpr Edge operator|(Edge a, Edge b) {
-  // the type is a bit set; any union of enumerators is a valid value
-  // NOLINTNEXTLINE(clang-analyzer-optin.core.EnumCastOutOfRange)
-  return Edge(uint8_t(a) | uint8_t(b));
-}
-constexpr bool has(Edge mask, Edge e) {
-  return (uint8_t(mask) & uint8_t(e)) != 0;
-}
-
-/** Extracts the sub-contours of @p outline that face the selected box
- *  edges. Facing is classified against the outline's bounds center
- *  (diagonal split, so rounded-rect corner arcs divide naturally
- *  between their two edges). Exact geometry via SkContourMeasure
- *  segment extraction; @p step is the classification sampling length
- *  in px. */
-SkPath edges(const SkPath& outline, Edge mask, float step = 3.0f);
+/** Which box edges a per-edge treatment applies to. */
+using Edge = geometry::path::Edge;
+using geometry::path::has;
 
 /** Decoration adaptor: runs @p inner with the PaintContext outline
  *  replaced by the selected edges — any primitive (PathFormat,
@@ -81,9 +71,8 @@ inline EdgeSlice onEdges(Edge mask, Decoration inner, float step = 3.0f) {
  *  chrome, and without this every nested frame is either a second element
  *  or a bespoke decoration struct.
  *
- *  Positive `px` shrinks; negative grows. Implemented as a stroke-and-fill
- *  offset of the resolved outline, so it follows any silhouette — a
- *  chamfered panel, a star, a blob — not just rectangles. */
+ *  Positive `px` shrinks; negative grows. The offset follows any
+ *  silhouette — a chamfered panel, a star, a blob — not just rectangles. */
 struct Inset {
   float px = 0;
   Decoration inner{PaintProgram{}};
@@ -104,18 +93,9 @@ inline Inset inset(float px, Decoration inner) {
   return Inset{px, std::move(inner)};
 }
 
-/** An arrow along +x, inscribed in the box: a shaft of `shaftFrac` of the
- *  height and a head of `headFrac` of the width. */
-struct Arrow {
-  float shaftFrac = 0.34f;
-  float headFrac = 0.42f;
-  bool operator==(const Arrow&) const = default;
-  SkPath path(SkSize s) const;
-  SkPath operator()(SkSize s) const { return path(s); }
-};
-
-inline Arrow arrow(float shaftFrac = 0.34f, float headFrac = 0.42f) {
-  return Arrow{shaftFrac, headFrac};
-}
+/** The sub-contours of a resolved outline that face the selected box
+ *  edges — the arithmetic `onEdges` runs, for a consumer that wants the
+ *  path rather than the decoration. */
+using geometry::path::edges;
 
 }  // namespace sigil::compose::shapes

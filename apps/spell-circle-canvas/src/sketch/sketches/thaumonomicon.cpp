@@ -152,8 +152,8 @@
 #include <sigilcompose/core/Patterns.h>
 #include <sigilcompose/kit/PixelType.h>
 #include <sigilcompose/kit/Strokes.h>
-#include <sigilcompose/shape/Routers.h>
-#include <sigilcompose/shape/Shapes.h>
+#include <sigilcompose/kit/Routers.h>
+#include <sigilcompose/kit/Silhouettes.h>
 #include <sigilcompose/typography/Type.h>
 #include <sigilcore/compute/Noise.h>
 #include <sigilsketch/canvas/Sketch.h>

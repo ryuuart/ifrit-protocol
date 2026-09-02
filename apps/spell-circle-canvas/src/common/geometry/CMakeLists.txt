@@ -17,6 +17,7 @@ set(SIGIL_GEOMETRY_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/include)
 
 add_subdirectory(path)
 add_subdirectory(mesh)
+add_subdirectory(kit)
 
 add_library(SigilGeometry INTERFACE)
 target_link_libraries(SigilGeometry INTERFACE
@@ -28,6 +29,7 @@ target_link_libraries(SigilGeometry INTERFACE
   SigilGeometryMeshCurve
   SigilGeometryMeshPop
   SigilGeometryMeshCodec
+  SigilGeometryKit
 )
 
 # The header tree installs as one unit beside the exported path leaf.

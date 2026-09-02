@@ -111,7 +111,7 @@
 #include <sigilcompose/core/Patterns.h>
 #include <sigilcompose/instances/Instances.h>
 #include <sigilcompose/kit/Frame.h>
-#include <sigilcompose/shape/Shapes.h>
+#include <sigilcompose/kit/Silhouettes.h>
 #include <sigilcompose/testing/Checks.h>
 #include <sigilcompose/typography/Type.h>
 #include <sigilmaterial/color/Color.h>

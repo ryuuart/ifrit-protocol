@@ -30,8 +30,8 @@
 #include <sigilcompose/brush/Lines.h>
 #include <sigilcompose/core/Derive.h>
 #include <sigilcompose/core/Stroke.h>
-#include <sigilcompose/shape/Routers.h>
-#include <sigilcompose/shape/Shapes.h>
+#include <sigilcompose/kit/Routers.h>
+#include <sigilcompose/kit/Silhouettes.h>
 
 #include <cmath>
 #include <vector>

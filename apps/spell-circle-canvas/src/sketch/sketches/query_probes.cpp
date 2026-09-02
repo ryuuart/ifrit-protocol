@@ -28,7 +28,7 @@
 //   the star's innerRatio      — deeper arms, more misses between them.
 
 #include <include/core/SkPaint.h>
-#include <sigilcompose/shape/Shapes.h>
+#include <sigilcompose/kit/Silhouettes.h>
 #include <sigilsketch/canvas/Sketch.h>
 
 #include <array>

@@ -243,8 +243,8 @@
 #include <sigilcompose/brush/Rails.h>
 #include <sigilcompose/core/Material.h>
 #include <sigilcompose/kit/Frame.h>
-#include <sigilcompose/shape/Routers.h>
-#include <sigilcompose/shape/Shapes.h>
+#include <sigilcompose/kit/Routers.h>
+#include <sigilcompose/kit/Silhouettes.h>
 #include <sigilcompose/typography/Type.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilsketch/canvas/Sketch.h>

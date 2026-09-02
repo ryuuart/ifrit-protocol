@@ -9,7 +9,7 @@
 #include <sigilcompose/Compose.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/instances/Instances.h>
-#include <sigilcompose/shape/Shapes.h>
+#include <sigilcompose/kit/Silhouettes.h>
 #include <sigilcompose/typography/TextFx.h>
 
 #include <sigilmaterial/core/Material.h>

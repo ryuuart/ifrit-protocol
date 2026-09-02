@@ -1,7 +1,7 @@
 #pragma once
 
 /** @file
- * SigilCompose parametric curves — open silhouettes evaluated in the unit
+ * The parametric curves — open silhouettes evaluated in the unit
  * frame: the raw and keyed `parametric`, Lissajous, harmonograph, rose,
  * spiral and trochoid.
  */
@@ -10,12 +10,13 @@
 
 #include <cstdint>
 
-#include "sigilcompose/Compose.h"
-#include "sigilcompose/shape/Generators.h"
+#include <string>
+
+#include "sigilgeometry/kit/Generators.h"
 #include "sigilgeometry/path/Polyline.h"
 #include "sigilgeometry/path/Skia.h"
 
-namespace sigil::compose::shapes {
+namespace sigil::geometry::shapes {
 
 // ---------------------------------------------------------------------------
 // Parametric curves
@@ -193,4 +194,4 @@ inline Trochoid trochoid(float R, float r, float d, bool inside = false,
   return Trochoid{R, r, d, inside, turns, samples};
 }
 
-}  // namespace sigil::compose::shapes
+}  // namespace sigil::geometry::shapes

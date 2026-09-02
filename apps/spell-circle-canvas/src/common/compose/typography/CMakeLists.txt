@@ -36,11 +36,11 @@ target_link_libraries(SigilComposeTypography
   PRIVATE yoga::yogacore)
 
 # Text data, the text pass, vertical writing, motion along paths, the
-# text-fx presets, rich spans and the variation drive. Shape is here
+# text-fx presets, rich spans and the variation drive. The kit is here
 # because a path baseline and an upright column are exercised on `shapes::`
 # silhouettes.
 _compose_test_binary(compose_text_test
-  LIBRARIES SigilComposeTypography SigilComposeShape
+  LIBRARIES SigilComposeTypography SigilComposeKit
   SOURCES
     test/ComposeTestTextData.cpp
     test/ComposeTestTextPass.cpp

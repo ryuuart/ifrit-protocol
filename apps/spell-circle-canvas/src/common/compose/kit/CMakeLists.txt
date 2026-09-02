@@ -1,11 +1,18 @@
 # SigilComposeKit — the KIT tier as its own library.
 #
 # The kit plugs public seams and changes no kernel semantics. This target
-# makes that STRUCTURAL rather than a convention: it links the Shape and
-# Typography tiers, so it sees their PUBLIC headers, and nothing adds the
-# compose source root to its include path — so ComposeInternal.h and
+# makes that STRUCTURAL rather than a convention: it links the kernel and
+# the Typography tier, so it sees their PUBLIC headers, and nothing adds
+# the compose source root to its include path — so ComposeInternal.h and
 # ComposeRuntime.h are unreachable from kit code. BoundaryProbe.cpp is the
 # negative control for exactly that (expected to fail; see the file).
+#
+# The shelves of stock values are here: WHERE a child lands (`layouts::`),
+# WHAT JOINS two of them (`routers::`), and the two outline adaptors that
+# only mean anything against a node (`shapes::onEdges`, `shapes::inset`).
+# The silhouette generators themselves are the geometry library's, spelled
+# under `shapes::` by `kit/Silhouettes.h`, because a `path(SkSize)` value
+# needs nothing of a component tree.
 #
 # Six kit headers live with other tiers instead, because their values are
 # spelled in those tiers' types: `kit/Strokes.h` (the stroke grammar),
@@ -15,20 +22,26 @@
 # Include them directly.
 add_library(SigilComposeKit STATIC
   Kit.cpp
+  Routers.cpp
+  Silhouettes.cpp
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/kit/Divisions.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/kit/Frame.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/kit/Instruments.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/kit/Kit.h
+  ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/kit/Layouts.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/kit/PixelType.h
+  ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/kit/Routers.h
+  ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/kit/Silhouettes.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/kit/Sprites.h
 )
 
 target_compile_features(SigilComposeKit PUBLIC cxx_std_20)
 
 # PUBLIC (not PRIVATE): anything that links the kit gets the tiers its values
-# are expressed in — silhouettes and placement, type styles — with it.
+# are expressed in — the kernel, type styles, and the geometry library's
+# silhouette shelf — with it.
 target_link_libraries(SigilComposeKit PUBLIC
-  SigilComposeShape SigilComposeTypography)
+  SigilComposeCore SigilComposeTypography SigilGeometryKit)
 
 # The negative control: a target that must FAIL to build, and a test that
 # builds it and demands the one message that says the boundary held. The
@@ -65,3 +78,18 @@ _compose_test_binary(compose_studio_test
     test/ComposeTestQueriesStudio.cpp
     test/ComposeTestContentStudio.cpp
 )
+
+# Silhouettes over the kernel's shape seam, the layout schemes, the
+# routers, rails and travel along a path — the shelves this tier adds.
+_compose_test_binary(compose_shape_test
+  LIBRARIES SigilComposeKit SigilComposeBrush
+  SOURCES
+    test/ComposeTestContentShape.cpp
+    test/ComposeTestKernelShape.cpp
+    test/ComposeTestLinesShape.cpp
+)
+
+# Comparable silhouettes, hit testing and blended shaped leaves.
+_compose_bench(compose_shape_bench
+  LIBRARIES SigilComposeKit
+  SOURCES bench/ComposeShapeBench.cpp)

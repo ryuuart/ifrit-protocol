@@ -32,7 +32,7 @@
 //   .smooth(strength, iterations) — drop it and the star sweep kinks.
 
 #include <include/core/SkMatrix.h>
-#include <sigilcompose/shape/Shapes.h>
+#include <sigilcompose/kit/Silhouettes.h>
 #include <sigilcompose/texture/Texture.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/camera/Camera.h>

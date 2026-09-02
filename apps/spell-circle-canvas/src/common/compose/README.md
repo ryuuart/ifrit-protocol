@@ -990,10 +990,10 @@ them. The SigilWeave gallery's vertical scene shows both.
 Everything lives in `namespace sigil::compose` under
 `include/sigilcompose/<feature>/`, one directory per feature target, and
 the include spelling is the feature's: `<sigilcompose/core/Element.h>`,
-`<sigilcompose/shape/Shapes.h>`. The public include root is `include/`
+`<sigilcompose/kit/Silhouettes.h>`. The public include root is `include/`
 and nothing else — the internal headers beside each feature's sources are
 not reachable from outside it. Each feature has an umbrella named after
-it (`core/Core.h`, `shape/Shape.h`, `brush/Brush.h`, `paint/Paint.h`,
+it (`core/Core.h`, `kit/Kit.h`, `brush/Brush.h`, `paint/Paint.h`,
 `typography/Typography.h`) over its public headers, and
 `<sigilcompose/Compose.h>` at the root is the transitional umbrella over
 the kernel — exactly `core/Core.h`. Each header stands on its own; include
@@ -1059,19 +1059,19 @@ eased `Transition` in float milliseconds, and `motion::phase`, a wrapping
 `[0, 1)` over a period — are SigilMotion's, in
 `<sigilmotion/Animation.h>`.
 
-**Geometry — `shape/`.** `shape/Shapes.h` is the silhouette and curve
-library, one include over four catalogs — every generator is a comparable
-value, so a shaped node prunes like an unshaped one: `shape/Generators.h`
-(the closed silhouettes: an SVG path, polygon, star, circle, annulus,
-squircle, blob, arc, sector, parallelogram), `shape/Curves.h` (the
-parametric curves in the unit frame: `parametric`, Lissajous,
-harmonograph, rose, spiral, trochoid), `shape/Corners.h` (`rounded` over
-any shape, `chamfered`, `notched`) and `shape/Edges.h` (`edges`,
-`onEdges`, `inset`, `arrow`). `shape/Layouts.h` holds the placement
-schemes for the `layout()` seam (`layouts::Radial`, `AlongPath`,
-`ModularGrid`, `Diagonal`, `BaselineGrid`, `Scatter`). `shape/Routers.h`
-holds the stock connector and rail routers (`routers::straight`,
-`orthogonal`, `polyline`, `octilinear`, `orbit`).
+**Geometry — `kit/`.** `kit/Silhouettes.h` puts the silhouette and curve
+catalog under `shapes::` — the generators themselves are SigilGeometry's
+(`<sigilgeometry/kit/Silhouettes.h>`), because a comparable
+`path(SkSize)` value needs nothing of a component tree, and every one of
+them prunes a shaped node exactly as an unshaped one prunes. The header
+adds the two things that DO need a node: `shapes::onEdges`, which runs an
+inner decoration against only the sub-contours facing chosen box edges,
+and `shapes::inset`, which runs it against a concentric copy of the
+outline. `kit/Layouts.h` holds the placement schemes for the `layout()`
+seam (`layouts::Radial`, `AlongPath`, `ModularGrid`, `Diagonal`,
+`BaselineGrid`, `Scatter`). `kit/Routers.h` holds the stock connector and
+rail routers (`routers::straight`, `orthogonal`, `polyline`,
+`octilinear`, `orbit`).
 
 **Marks — `brush/`.** `brush/Decorations.h` has the concrete primitives
 that plug the `Decoration` seam — `PathFormat` (stroke formatting) and
@@ -1379,7 +1379,6 @@ The library is one feature target per directory, and a consumer links the
 tier it draws with: `SigilComposeCore` (`core/` — the kernel: elements,
 layout, paint, transitions, text and the feed, as the host of
 SigilCore's reconciler),
-`SigilComposeShape` (`shape/` — silhouettes, layouts, routers),
 `SigilComposeTypography` (`typography/` — the text engine behind dressed
 type, with the type styles and the text-fx presets), `SigilComposeBrush`
 (`brush/` — decorations, lines, brushes, the stroke grammar's engine and
@@ -1389,7 +1388,9 @@ the mask gates, with `kit/Strokes.h` and `kit/Plate.h`), `SigilComposePaint`
 kit's placers, over Core), `SigilComposeTexture` (`texture/` — a scene
 painted into a surface and handed out as a texture value),
 `SigilComposeWeb` (`web/` — header-only, present only with SigilScry),
-`SigilComposeTesting` (`testing/`) and `SigilComposeKit` (`kit/`). Each directory holds the target's sources,
+`SigilComposeTesting` (`testing/`) and `SigilComposeKit` (`kit/` — the
+shelves: the silhouette catalog spelled for a node, the layout schemes
+and the routers). Each directory holds the target's sources,
 its internal headers, its `test/` and its `bench/`; the public headers
 sit under `include/sigilcompose/<feature>/`. A harness several features
 compose against belongs to none of them, so the shared ones sit at the

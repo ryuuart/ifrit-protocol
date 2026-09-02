@@ -26,9 +26,9 @@
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilcompose/kit/Flourish.h>
 #include <sigilcompose/kit/Ornament.h>
-#include <sigilcompose/shape/Layouts.h>
-#include <sigilcompose/shape/Routers.h>
-#include <sigilcompose/shape/Shapes.h>
+#include <sigilcompose/kit/Layouts.h>
+#include <sigilcompose/kit/Routers.h>
+#include <sigilcompose/kit/Silhouettes.h>
 #include <sigilsketch/canvas/Sketch.h>
 
 #include <algorithm>

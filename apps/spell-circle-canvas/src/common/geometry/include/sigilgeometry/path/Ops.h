@@ -50,6 +50,11 @@ SkPath simplify(const SkPath& path);
  *  slot in later for cartography-grade needs. */
 SkPath offset(const SkPath& path, float delta);
 
+/** Round Corners: every sharp corner of the path replaced by an arc of
+ *  @p radius. Non-positive radius returns the path unchanged, and a path
+ *  the effect refuses comes back unchanged rather than empty. */
+SkPath roundCorners(const SkPath& path, float radius);
+
 // ---------------------------------------------------------------------------
 // Distorts. All resample-based: segmentPx bounds fidelity (smaller =
 // truer curves, more points).

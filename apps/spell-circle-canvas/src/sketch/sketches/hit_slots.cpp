@@ -33,7 +33,7 @@
 //                                   how often the readout changes.
 //   kTargets — more keyed outlines under the same one-pass hit test.
 
-#include <sigilcompose/shape/Shapes.h>
+#include <sigilcompose/kit/Silhouettes.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilsketch/canvas/Sketch.h>
 

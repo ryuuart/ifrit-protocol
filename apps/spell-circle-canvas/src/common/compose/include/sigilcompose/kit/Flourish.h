@@ -12,7 +12,7 @@
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/Compose.h>
 #include <sigilcompose/kit/Ornament.h>
-#include <sigilcompose/shape/Shapes.h>
+#include <sigilcompose/kit/Silhouettes.h>
 
 #include <string>
 #include <vector>

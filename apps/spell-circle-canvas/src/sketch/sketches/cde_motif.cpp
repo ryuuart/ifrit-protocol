@@ -185,7 +185,7 @@
 #include <sigilcompose/core/Material.h>
 #include <sigilcompose/core/Pattern.h>
 #include <sigilcompose/core/Patterns.h>
-#include <sigilcompose/shape/Shapes.h>
+#include <sigilcompose/kit/Silhouettes.h>
 #include <sigilcompose/testing/Checks.h>
 #include <sigilcompose/typography/Type.h>
 #include <sigilsketch/canvas/Sketch.h>

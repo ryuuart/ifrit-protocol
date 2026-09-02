@@ -1,11 +1,11 @@
-// SigilComposeShape benchmarks: what a comparable silhouette buys the
-// reconciler over a raw callable, and what shaped, rotated and blended
+// The kit tier's silhouette benchmarks: what a comparable silhouette buys
+// the reconciler over a raw callable, and what shaped, rotated and blended
 // leaves cost the hit test and the painter.
 
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/Compose.h>
-#include <sigilcompose/shape/Layouts.h>
-#include <sigilcompose/shape/Shapes.h>
+#include <sigilcompose/kit/Layouts.h>
+#include <sigilcompose/kit/Silhouettes.h>
 
 #include <cstdint>
 #include <string>

@@ -260,7 +260,7 @@
 #include <sigilcompose/brush/Lines.h>
 #include <sigilcompose/core/Material.h>
 #include <sigilcompose/core/Patterns.h>
-#include <sigilcompose/shape/Shapes.h>
+#include <sigilcompose/kit/Silhouettes.h>
 #include <sigilcompose/typography/Type.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>

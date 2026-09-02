@@ -142,7 +142,7 @@
 
 #include <sigilcompose/core/Material.h>
 #include <sigilcompose/kit/Frame.h>
-#include <sigilcompose/shape/Shapes.h>
+#include <sigilcompose/kit/Silhouettes.h>
 #include <sigilcompose/typography/TextFx.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilmotion/values/Time.h>

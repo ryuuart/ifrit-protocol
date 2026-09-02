@@ -9,7 +9,6 @@
 #   SigilComposeCore        core/        the kernel — element values, the
 #                                        reconciler, layout, paint,
 #                                        transitions, text at rest
-#   SigilComposeShape       shape/       silhouettes, layouts and routers
 #   SigilComposeTypography  typography/  the text engine (fx tracks, path
 #                                        text, marks), type styles and the
 #                                        text-fx presets
@@ -23,13 +22,14 @@
 #                                        handed over as a material texture
 #   SigilComposeWeb         web/         the Ultralight leaf (headers; only
 #                                        with SigilScry)
-#   SigilComposeKit         kit/         the kit tier over Shape and
-#                                        Typography
+#   SigilComposeKit         kit/         the kit tier: the silhouette shelf
+#                                        spelled for a node, the layout
+#                                        schemes, the routers, and the
+#                                        instruments over Typography
 #   SigilCompose                         the whole-library convenience for
 #                                        an OUTSIDE consumer: Brush (which
-#                                        reaches Shape and Core) plus
-#                                        Typography; nothing in this tree
-#                                        links it
+#                                        reaches Core) plus Typography;
+#                                        nothing in this tree links it
 #
 # Every public header lives under one include root, include/sigilcompose/
 # <feature>/, so a feature adds the root and spells its own directory;
@@ -96,7 +96,6 @@ endfunction()
 # test binaries link it; kit/ and instances/ link the tiers above them.
 add_subdirectory(core)
 add_subdirectory(testing)
-add_subdirectory(shape)
 add_subdirectory(typography)
 add_subdirectory(brush)
 add_subdirectory(instances)
@@ -164,7 +163,7 @@ add_test(NAME compose_api_doc_probes_self_test
           --self-test)
 
 _compose_test_binary(compose_docs_test
-  LIBRARIES SigilComposeCore SigilComposeShape SigilComposeBrush
+  LIBRARIES SigilComposeCore SigilComposeKit SigilComposeBrush
             SigilComposeTypography SigilComposeKit SigilComposeInstances
   SOURCES
     ${COMPOSE_API_DOC_PROBES}
@@ -184,7 +183,7 @@ if(APPLE AND TARGET SigilSkia)
   target_include_directories(compose_gpu_test PRIVATE
     ${SIGIL_COMPOSE_TEST_SUPPORT_DIR})
   target_link_libraries(compose_gpu_test PRIVATE
-    SigilComposeShape SigilComposeBrush SigilComposeTypography
+    SigilComposeKit SigilComposeBrush SigilComposeTypography
     SigilComposeInstances SigilWeavePorts SigilSkia
     GTest::gtest_main)
   add_test(NAME compose_gpu_test COMMAND compose_gpu_test)

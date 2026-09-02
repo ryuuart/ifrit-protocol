@@ -1,20 +1,21 @@
 #pragma once
 
 /** @file
- * SigilCompose shape generators — the closed silhouettes: an SVG path, the
- * polygon, star, circle, annulus, squircle, blob, arc, sector and
- * parallelogram, every one a comparable value with a `path(SkSize)`.
+ * The closed silhouettes: an SVG path, the polygon, star, circle,
+ * annulus, squircle, blob, arc, sector, parallelogram and arrow, every
+ * one a comparable value with a `path(SkSize)`.
  */
 
 #include <include/core/SkPathBuilder.h>
 
 #include <cstdint>
 
-#include "sigilcompose/Compose.h"
+#include <functional>
+
 #include "sigilgeometry/path/Polyline.h"
 #include "sigilgeometry/path/Skia.h"
 
-namespace sigil::compose::shapes {
+namespace sigil::geometry::shapes {
 
 /** A silhouette generator: local-coordinate path over the node's laid-out
  *  size. The ESCAPE-HATCH spelling of what Element::shape() accepts — a
@@ -121,9 +122,9 @@ struct Circle {
   SkPath operator()(SkSize s) const { return path(s); }
 };
 
-/** `kit::disc()` is the ELEMENT form (a pre-sized box centred on a
- *  point); this is the shape value, which is what onPath, the mask gates
- *  and the decorations take. */
+/** The shape VALUE, which is what a path-following consumer takes — a
+ *  baseline, a mask gate, a decoration. A consumer that also has an
+ *  element form for a disc keeps that separately; this is the outline. */
 inline Circle circle() { return Circle{}; }
 inline Circle circle(float inset) { return Circle{.inset = inset}; }
 inline Circle circle(SkPathDirection direction, unsigned startIndex = 1,
@@ -164,9 +165,8 @@ template <typename F>
 inline SkPath samplePolyline(const F& f, float t0, float t1, int samples,
                              bool close, SkSize s) {
   const float cx = s.width() * 0.5f, cy = s.height() * 0.5f;
-  const geometry::path::Polyline unit = geometry::path::sample(
-      [&](float t) { return geometry::path::fromSk(f(t)); }, t0, t1, samples,
-      close);
+  const path::Polyline unit = path::sample(
+      [&](float t) { return path::fromSk(f(t)); }, t0, t1, samples, close);
   SkPathBuilder b;
   bool first = true;
   for (const glm::vec2& u : unit.points) {
@@ -252,4 +252,18 @@ inline Parallelogram parallelogram(float skewDeg) {
   return Parallelogram{skewDeg};
 }
 
-}  // namespace sigil::compose::shapes
+/** An arrow along +x, inscribed in the box: a shaft of `shaftFrac` of the
+ *  height and a head of `headFrac` of the width. */
+struct Arrow {
+  float shaftFrac = 0.34f;
+  float headFrac = 0.42f;
+  bool operator==(const Arrow&) const = default;
+  SkPath path(SkSize s) const;
+  SkPath operator()(SkSize s) const { return path(s); }
+};
+
+inline Arrow arrow(float shaftFrac = 0.34f, float headFrac = 0.42f) {
+  return Arrow{shaftFrac, headFrac};
+}
+
+}  // namespace sigil::geometry::shapes

@@ -7,7 +7,7 @@
 #include <include/core/SkPathEffect.h>
 #include <include/core/SkStrokeRec.h>
 #include <include/effects/SkCornerPathEffect.h>
-#include <sigilcompose/shape/Routers.h>
+#include <sigilcompose/kit/Routers.h>
 
 #include <algorithm>
 #include <cmath>

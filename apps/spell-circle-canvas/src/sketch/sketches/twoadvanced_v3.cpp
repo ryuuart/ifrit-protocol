@@ -72,7 +72,7 @@
 #include <sigilcompose/core/Pattern.h>
 #include <sigilcompose/core/Patterns.h>
 #include <sigilcompose/kit/Frame.h>
-#include <sigilcompose/shape/Shapes.h>
+#include <sigilcompose/kit/Silhouettes.h>
 #include <sigilcompose/typography/TextFx.h>
 #include <sigilcompose/typography/Type.h>
 #include <sigilloader/hub/Network.h>

@@ -37,7 +37,7 @@
 //   kAka / kAi           — the two band inks: vermilion for the right-hand
 //                          sideline, indigo for the left-hand one.
 
-#include <sigilcompose/shape/Shapes.h>
+#include <sigilcompose/kit/Silhouettes.h>
 #include <sigilcompose/typography/TextFx.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/style/Features.h>

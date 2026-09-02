@@ -21,7 +21,7 @@ archive that links only what sits above it in the tree — so a text
 engine or a drawable component library walks an outline through
 **`SigilGeometryPath`** without linking meshes or importers, and a
 renderer takes **`SigilGeometryMeshPop`** without the codec.
-**`SigilGeometry`** is the umbrella, an interface over all eight, so a
+**`SigilGeometry`** is the umbrella, an interface over all nine, so a
 consumer of the whole library names only that.
 
 **Directories, targets, headers and namespaces are the same outline.**
@@ -39,7 +39,13 @@ mesh/          SigilGeometryMesh          sigil::geometry::mesh
   curve/       SigilGeometryMeshCurve     sigil::geometry::mesh::curve
   pop/         SigilGeometryMeshPop       sigil::geometry::mesh::pop
   codec/       SigilGeometryMeshCodec     sigil::geometry::mesh::codec
+kit/           SigilGeometryKit           sigil::geometry::shapes
 ```
+
+`kit/` is the one directory that does not sit in that dependency tree:
+it is the SHELF over the tiers, holding the stock values anybody could
+have written, and nothing beneath it may reach back up into it. A
+consumer that brings its own generators links a tier and not the kit.
 
 Every signature in the library speaks glm — `glm::vec2` for a point on a
 path as much as `glm::vec3` for a vertex — and Skia types appear only
@@ -314,11 +320,17 @@ seeded mixers `noise::` names.
   `bisect()` over a predicate and `wrap()` into a period.
 - **`path/Skia.h`** — `toSk()` and `fromSk()` between `glm::vec2` and
   `SkPoint`, and `centre()` of an `SkRect`.
+- **`path/Edges.h`** — narrowing an outline before something is drawn on
+  it. `Edge` and `has()`, `edges()` (the sub-contours facing chosen box
+  edges, classified against the bounds centre and cut by bisection at
+  each run boundary) and `insetOutline()` (a mitred concentric copy;
+  positive shrinks). Both take an outline and give an outline.
 - **`path/Ops.h`** — path operators. Booleans over Skia's pathops (`unite`,
   `subtract`, `intersect`, `exclude`, `simplify`, and a stroke-expansion
-  `offset`), and four distortions as parameter structs you apply on demand:
-  `Roughen`, `Zigzag`, `PuckerBloat`, `Twirl`. `PathOp` and `chain()`
-  compose them, `offsetBy()` adapts `offset` into a step.
+  `offset`, and `roundCorners`), and four distortions as parameter structs
+  you apply on demand: `Roughen`, `Zigzag`, `PuckerBloat`, `Twirl`.
+  `PathOp` and `chain()` compose them, `offsetBy()` adapts `offset` into a
+  step.
 
 **`path/blend`** — `SigilGeometryPathBlend`, needs `path`.
 
@@ -534,6 +546,35 @@ turn a chain into geometry: `cook()` to a `Cloud`, `cookMesh()` to one
 mesh of stamps, and `cookSweep()` reading the cooked points as the path
 `curve::sweep()` carries a profile along.
 
+**`kit`** — `SigilGeometryKit`, the shelf. Stock values over the tiers
+beneath, in `sigil::geometry::shapes`.
+
+- **`kit/Generators.h`** — the closed silhouettes: `svg()` (an SVG path-d
+  string parsed once, its bounds mapped onto the box), `polygon()`,
+  `star()` (with `waist`, which bows each arm edge inward the way an
+  engraved star narrows), `circle()` (winding, start point and a
+  concentric `inset`), `annulus()`, `squircle()`, `blob()` (seeded, so the
+  same seed is the same blob every run), `arc()` (open), `sector()`
+  (closed and fillable, with an inner radius for the donut slice),
+  `parallelogram()` and `arrow()`.
+- **`kit/Curves.h`** — the open silhouettes, evaluated in a unit frame and
+  scaled onto the box's half-extents so a curve keeps its proportions when
+  the box changes: `parametric()` raw and keyed, `lissajous()`,
+  `harmonograph()` (a Lissajous whose amplitudes decay, with precession),
+  `rose()`, `spiral()` (Archimedean or logarithmic) and `trochoid()`.
+- **`kit/Corners.h`** — `rounded()`, the wrapper that rounds any
+  silhouette's sharp corners, and the two shapes a frame is cut to:
+  `chamfered()` and `notched()`, both taking a per-`Corner` mask because a
+  cut on one diagonal is the common case and no single radius says it.
+- **`kit/Silhouettes.h`** — the shelf, including all three.
+
+Every value here has `path(SkSize)`, `operator==` and `operator()`, and
+that is the whole contract: a consumer that caches drawings prunes on the
+equality, and a consumer that wants a plain path-over-size function gets
+one from the call operator. Your own generator written the same way has
+the same standing — the kit is stock, never privileged, and equal values
+must draw identical paths at every size.
+
 ## Conventions that will bite you
 
 These are properties of the code. Getting one wrong produces geometry that
@@ -711,8 +752,8 @@ cmake --build build --config Debug
 Targets: one static library per feature — `SigilGeometryPath`,
 `SigilGeometryPathBlend`, `SigilGeometryMesh`, `SigilGeometryMeshCamera`,
 `SigilGeometryMeshRender`, `SigilGeometryMeshCurve`,
-`SigilGeometryMeshPop`, `SigilGeometryMeshCodec` — the `SigilGeometry`
-umbrella over all of them, the tests, and one Google Benchmark binary
+`SigilGeometryMeshPop`, `SigilGeometryMeshCodec`, `SigilGeometryKit` —
+the `SigilGeometry` umbrella over all of them, the tests, and one Google Benchmark binary
 per feature, built by the `benches` target and run from a Release build
 through `scripts/bench_ledger.py`:
 
@@ -726,6 +767,7 @@ through `scripts/bench_ledger.py`:
 | `geometry_mesh_curve_bench` | arc-length sampling and parallel-transport frames by count, the pose read over a held rail and over the spline that builds one, and the sweep by tessellation for a circle profile, a line profile and a line on a hung rail |
 | `geometry_mesh_pop_bench` | the pop cook per operator over a thousand points, whole chains by count and operator mix, and the runtime seam's dispatch against the same cook reached directly |
 | `geometry_mesh_codec_bench` | OBJ, GLB and `.geo` decoded from bytes in memory, per triangle or point |
+| `geometry_kit_bench` | one silhouette generated from a value — analytic, sampled by density, seeded, wrapped — against the comparison a caching consumer prunes with |
 
 The tests are one binary per feature, named for the feature's path, each
 linking only that feature's library (and the features above it), so a
@@ -738,6 +780,7 @@ recompiles one small file. All are registered with ctest and answer to
 | `geometry_path_test` | `path/test/PathTest.cpp` | the leaf alone: polylines, contours, poses along them (held against an independent walk of the same contours), the path operators, noise, numerics |
 | `geometry_path_blend_test` | `path/blend/test/BlendTest.cpp` | shape interpolation |
 | `geometry_mesh_test` | `mesh/test/MeshTest.cpp` | the mesh currency and its generators |
+| `geometry_kit_test` | `kit/test/SilhouettesTest.cpp` | the silhouette shelf: every generator inscribed in its box, equal values drawing equal paths, and the corner wrapper over any of them |
 | `geometry_mesh_camera_test` | `mesh/camera/test/CameraTest.cpp` | the view-projection carried through to viewport pixels, and the two placement transforms |
 | `geometry_mesh_render_test` | `mesh/render/test/PainterTest.cpp`, `mesh/render/test/RuntimeTest.cpp` | the mesh draw's pixels, the normals G-buffer's encoding and the primitive tint; and the runtime seam — the built-in value, comparison by model, and a substituted executor receiving the draw |
 | `geometry_mesh_curve_test` | `mesh/curve/test/CurveTest.cpp`, `mesh/curve/test/SweepTest.cpp` | splines, the two rails, the pose along them, and the sweep held vertex for vertex against independent reference bodies for a tube, a ribbon and a banner; and the ring seam — what a rail and a profile become as a dispatch, the taper resolved on the host, comparison by model, and a substituted executor forming the vertices |

@@ -65,7 +65,7 @@
 #include <sigilcompose/core/Material.h>
 #include <sigilcompose/core/Patterns.h>
 #include <sigilcompose/instances/Instances.h>
-#include <sigilcompose/shape/Shapes.h>
+#include <sigilcompose/kit/Silhouettes.h>
 #include <sigilcompose/texture/Texture.h>
 #include <sigilcompose/typography/Type.h>
 #include <sigilgeometry/mesh/Mesh.h>

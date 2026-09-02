@@ -1,7 +1,7 @@
 #pragma once
 
 /** @file
- * SigilCompose layout schemes — free-form placement over the kernel's
+ * The layout schemes — free-form placement over the kernel's
  * LayoutScheme seam (`layout(scheme)`), for compositions that are not rows
  * and columns. Six schemes live here: `Radial` (a ring or fan), `AlongPath`
  * (arc-length placement on any contour), `ModularGrid` (columns × rows of
@@ -24,7 +24,7 @@
  */
 
 #include <include/core/SkContourMeasure.h>
-#include <sigilcompose/shape/Shapes.h>
+#include <sigilcompose/kit/Silhouettes.h>
 #include <sigilcore/compute/Noise.h>
 
 #include <algorithm>

@@ -40,9 +40,9 @@
 //   stampWalk.spacing     — how close the stamped ornaments sit.
 //   the routers           — orthogonal(18) vs arc(0.35) on either wire.
 
-#include <sigilcompose/shape/Layouts.h>
-#include <sigilcompose/shape/Routers.h>
-#include <sigilcompose/shape/Shapes.h>
+#include <sigilcompose/kit/Layouts.h>
+#include <sigilcompose/kit/Routers.h>
+#include <sigilcompose/kit/Silhouettes.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilsketch/canvas/Sketch.h>
 

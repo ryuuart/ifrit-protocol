@@ -39,7 +39,7 @@
 //                   fraction below rides it.
 
 #include <sigilcompose/brush/LayerStyles.h>
-#include <sigilcompose/shape/Generators.h>
+#include <sigilcompose/kit/Silhouettes.h>
 #include <sigilcompose/typography/Type.h>
 #include <sigilsketch/canvas/Sketch.h>
 

@@ -32,7 +32,7 @@
 
 #include <include/core/SkPath.h>
 #include <include/core/SkPathBuilder.h>
-#include <sigilcompose/shape/Shapes.h>
+#include <sigilcompose/kit/Silhouettes.h>
 
 #include <algorithm>
 #include <functional>
