@@ -79,6 +79,17 @@ is — both shown beside it in the app. `SIGIL_SKETCH_AS` adds a name of
 its own, for a sketch filed under something other than its stem because
 other things already refer to that name.
 
+`ctx.oversample(n)` names a whole number of device pixels per canvas
+pixel, and the plate host renders at exactly that rather than at the
+fraction its own width budget would otherwise allow; the live window is
+unaffected and presents at the display's own scale. Declare it on a
+pixel-exact reconstruction — a sketch whose subject's pixel is a whole
+number of canvas pixels — because such a sketch is checked by
+downsampling its plate by that whole number and laying the result over
+the reference, and a fractional scale defeats the check: at 1.875 a
+four-canvas-pixel square covers seven device pixels in one column and
+eight in the next, and no downsample recovers the reference from that.
+
 ### A sketch over an SDK this machine may not have
 
 Such a sketch states its requirement in two places, because there are

@@ -57,7 +57,9 @@ constexpr int kMaxSampleFrames = 120;
 constexpr int kCaptureFrame = kProbeFrames + kMaxWarmFrames + kMaxSampleFrames;
 
 /** How wide a plate may be before the oversample gives way rather than
- *  the pixel count. */
+ *  the pixel count. It bounds what a HOST chose; a sketch that declares
+ *  an oversample of its own is rendered at exactly that, because the
+ *  reason to declare one is a grid a fractional scale would destroy. */
 constexpr float kPlateWidthCeiling = 2400.0f;
 
 double millisSince(std::chrono::steady_clock::time_point from,
@@ -343,9 +345,19 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
       }
     }
 
-    const float scale = std::max(
-        1.0f,
-        std::min(session->oversample(), kPlateWidthCeiling / size.width()));
+    // WHAT THE SKETCH ASKED FOR, WHOLE, or what the width allows. A
+    // declared oversample is the sketch's own grid — one pixel of what
+    // it reconstructs covering the same count of device pixels
+    // everywhere — and the fraction a width ceiling produces is exactly
+    // what that cannot survive, so a declaration outranks the ceiling
+    // and every tier honours it alike: two plates of one sketch are
+    // comparable only if they were photographed on the same grid.
+    const int declaredOversample = session->canvas().oversample;
+    const float scale =
+        declaredOversample > 0
+            ? (float)declaredOversample
+            : std::max(1.0f, std::min(session->oversample(),
+                                      kPlateWidthCeiling / size.width()));
     const SkImageInfo plateInfo = SkImageInfo::MakeN32Premul(
         (int)(size.width() * scale), (int)(size.height() * scale));
     const std::string path = options.outDir + "/plate_" + entry.name + ".png";

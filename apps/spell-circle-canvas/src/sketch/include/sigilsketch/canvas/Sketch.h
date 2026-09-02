@@ -13,6 +13,7 @@
 #include <sigilsketch/core/Registry.h>
 #include <sigilsketch/core/Session.h>
 
+#include <algorithm>
 #include <concepts>
 #include <memory>
 
@@ -100,6 +101,23 @@ struct SketchContext {
    *      ctx.captureAt(7.2); // the hold at the end of the cycle */
   void captureAt(double seconds) {
     if (spec) spec->captureSeconds = seconds;
+  }
+  /** Declare how many device pixels per canvas pixel a PLATE of this
+   *  sketch is taken at — a whole number, at least one, honoured
+   *  exactly rather than fitted to the host's width budget. It changes
+   *  nothing about the live window, which presents at the display's own
+   *  scale.
+   *
+   *  Declare it on a pixel-exact reconstruction: one whose subject's
+   *  pixel is a whole number of canvas pixels, so that downsampling the
+   *  plate by that whole number lays it over the reference. A
+   *  fractional scale spreads one source pixel over seven device pixels
+   *  in one column and eight in the next, and no downsample recovers
+   *  the reference from that.
+   *
+   *      ctx.oversample(2); // one 1994 pixel is 4 canvas px, so 8 here */
+  void oversample(int perCanvasPixel) {
+    if (spec) spec->oversample = std::max(1, perCanvasPixel);
   }
 };
 
