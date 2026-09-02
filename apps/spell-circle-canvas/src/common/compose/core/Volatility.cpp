@@ -336,7 +336,7 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
   // Conservative, and the split is a partition: patternPan and liveMat can
   // never both be true.
   const bool liveMatAnimated = nodeLiveMat && nodeLiveMat->isAnimated();
-  const bool patternPan = liveMatAnimated && nodeLiveMat->hasBoundOffset() &&
+  const bool patternPan = liveMatAnimated && nodeLiveMat->boundOffsetLive() &&
                           !nodeLiveMat->animatedBeyondBoundOffset();
   // truly live (bound/uTime) — geometry-dependent materials resolve at
   // record time and stay cacheable

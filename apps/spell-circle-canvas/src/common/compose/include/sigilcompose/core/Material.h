@@ -534,9 +534,18 @@ class Material {
    *  comparison. */
   Material& offset(std::optional<motion::Animatable<float>> x,
                    std::optional<motion::Animatable<float>> y);
-  /** Does THIS material carry a bound offset (the layer-local answer)? */
+  /** Does THIS material carry a pan channel at all (the layer-local
+   *  answer)? A channel carrying a plain number answers yes: it is still a
+   *  pan the paint has to apply. Whether it MOVES is the next question. */
   bool hasBoundOffset() const {
     return m_boundOffset[0].has_value() || m_boundOffset[1].has_value();
+  }
+  /** Is either axis of that pan actually moving? A pan that is a constant
+   *  is a placed tile, not an animation, and must not put its node on the
+   *  live path forever. */
+  bool boundOffsetLive() const {
+    return (m_boundOffset[0] && motion::isLive(nullptr, *m_boundOffset[0])) ||
+           (m_boundOffset[1] && motion::isLive(nullptr, *m_boundOffset[1]));
   }
   /** The pan as of NOW — what each axis's animatable reads as, 0 for an
    *  axis that carries none. Every consumer reads the pan through this one

@@ -1083,7 +1083,7 @@ bool Material::isAnimated() const {
   // HOW its node caches is a separate question, split out below: a pan-only
   // material qualifies for the cheaper scalar-comparison lane rather than
   // the live-material memo. See animatedBeyondBoundOffset().
-  if (hasBoundOffset()) return true;
+  if (boundOffsetLive()) return true;
   return animatedBeyondBoundOffset();
 }
 
@@ -1092,9 +1092,15 @@ bool Material::animatedBeyondBoundOffset() const {
   // A bound UniformBlock is a bind whose value is a table: the material
   // re-resolves per frame (the resolve memo reads the revision), and its
   // node is declared volatile so a cache cannot freeze the array.
-  if (m_live && (!m_live->binds.empty() || !m_live->blocks.empty() ||
-                 m_live->usesTime || m_live->usesScale))
+  if (m_live &&
+      (!m_live->blocks.empty() || m_live->usesTime || m_live->usesScale))
     return true;
+  // A scalar bind counts only while it is LIVE: one holding a plain
+  // number is a value written into the uniform, and a node does not
+  // repaint forever for a constant.
+  if (m_live)
+    for (const auto& [name, out] : m_live->binds)
+      if (motion::isLive(nullptr, out)) return true;
   // A child slot's volatility is the parent's: the parent samples it, so a
   // live child that did not lift the parent to the live path would be
   // resolved once and frozen into the parent's cache. A NESTED bound

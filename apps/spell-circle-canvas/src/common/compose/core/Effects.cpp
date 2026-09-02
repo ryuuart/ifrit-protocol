@@ -490,7 +490,12 @@ sk_sp<SkImageFilter> Effect::buildFilter(const PaintContext* ctx) const {
 bool Effect::isAnimated() const {
   // A bound block is a bound Output whose value is a table: read at every
   // paint, so the node must stay volatile for as long as it is attached.
-  if (!m_bound.empty() || !m_blocks.empty()) return true;
+  if (!m_blocks.empty()) return true;
+  // A scalar binding counts only while it is LIVE: one holding a plain
+  // number is a uniform value, and a node does not repaint forever for a
+  // constant.
+  for (const auto& [name, out] : m_bound)
+    if (motion::isLive(nullptr, out)) return true;
   // Tier inheritance: a live child makes the whole effect live, so the node
   // is declared volatile and no cache can sample the parameter once and
   // freeze it. Material answers this question for its own subtree, so the
