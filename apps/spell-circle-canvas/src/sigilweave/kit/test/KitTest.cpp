@@ -185,4 +185,51 @@ TEST(LineTables, TheStockProhibitionsAreTheFullWidthPunctuationOfTheGrid) {
   EXPECT_EQ(kit::kinsoku::japanese(), table) << "one derivation, reused";
 }
 
+TEST(Hyphenation, ATableAnswersForTheLanguageItDeclaresAndNoOther) {
+  const kit::PatternHyphenator german("de", "ü1be");
+  std::vector<uint32_t> breaks;
+  german.breakPoints(u"über", "de-DE", breaks);
+  EXPECT_EQ(breaks, (std::vector<uint32_t>{1u})) << "ü-ber";
+  breaks.clear();
+  german.breakPoints(u"über", "en-US", breaks);
+  EXPECT_TRUE(breaks.empty()) << "no answer beats a misspelling";
+  breaks.clear();
+  german.breakPoints(u"über", "", breaks);
+  EXPECT_TRUE(breaks.empty()) << "a text that never said its language";
+}
+
+TEST(Hyphenation, LettersOutsideAsciiAreLettersLikeAnyOther) {
+  // The same pattern reaches the word however the word is capitalised, and
+  // a table written over one alphabet says nothing about another.
+  const kit::PatternHyphenator german("de", "ü1be");
+  std::vector<uint32_t> breaks;
+  german.breakPoints(u"Über", "de", breaks);
+  EXPECT_EQ(breaks, (std::vector<uint32_t>{1u}));
+  breaks.clear();
+  const kit::PatternHyphenator greek("el", "λ1λη");
+  greek.breakPoints(u"ελλην", "el", breaks);
+  EXPECT_EQ(breaks, (std::vector<uint32_t>{2u}));
+}
+
+TEST(Hyphenation, AWordThatIsNotAllLettersIsLeftWhole) {
+  const kit::PatternHyphenator german("de", "ü1be 1be");
+  std::vector<uint32_t> breaks;
+  german.breakPoints(u"über2", "de", breaks);
+  EXPECT_TRUE(breaks.empty()) << "a digit is not a letter";
+  german.breakPoints(u"über-alles", "de", breaks);
+  EXPECT_TRUE(breaks.empty()) << "a word already carrying a hyphen";
+}
+
+TEST(Hyphenation, ExceptionSpellingsAndCommentsSurviveTheParse) {
+  const kit::PatternHyphenator german("de",
+                                      "% Über alles, a licence header\n"
+                                      "ü1be\n"
+                                      "exceptions\n"
+                                      "über\n");
+  std::vector<uint32_t> breaks;
+  german.breakPoints(u"über", "de", breaks);
+  EXPECT_TRUE(breaks.empty()) << "the exception spelling forbids the break";
+  EXPECT_EQ(german.patternCount(), 1u) << "the comment held no pattern";
+}
+
 }  // namespace

@@ -5,16 +5,30 @@
  * the engine holds.
  *
  * The engine asks one question (paragraph/Hyphenation.h) and decides
- * nothing about the answer, because where an English word may be broken is
- * not a property of text layout. PatternHyphenator answers it from Liang's
- * pattern method, the same tables TeX and every typesetter after it use: a
- * word is padded, every substring is looked up, the odd values it collects
- * are break points, and an explicit exception spelling overrides the lot.
+ * nothing about the answer, because where a word may be broken is a fact
+ * about its language and not about text layout. PatternHyphenator answers
+ * it from Liang's pattern method, the same tables TeX and every typesetter
+ * after it use: a word is padded, every substring is looked up, the odd
+ * values it collects are break points, and an explicit exception spelling
+ * overrides the lot.
  *
- * The patterns are the caller's to choose. `patterns::english()` is the
- * one set this kit carries; anything else is loaded from a file in the
- * same format and is a peer of it. Each set records its licence beside it,
- * because pattern tables are somebody's work and travel under terms.
+ * THE METHOD IS NOT ENGLISH'S. It matches letters, of any script, and a
+ * table names the language it answers for; the alphabet a table was
+ * written over is the table's business. Pattern tables in this format are
+ * published for the languages that have them, one file per language, and
+ * a caller loads the one its text is set in: read the file and hand its
+ * text to `load()`.
+ *
+ * The patterns are therefore the caller's to choose. `patterns::english()`
+ * is the one set this kit carries, because a corpus of tables is data
+ * rather than code and belongs where a document's other assets are; a
+ * loaded table is a peer of it, not a fallback behind it. Each set records
+ * its licence beside it, since pattern tables are somebody's work and
+ * travel under terms.
+ *
+ * What the method cannot express is a language whose break rewrites the
+ * word — the spellings that gain or change a letter across the break. A
+ * table proposes positions; it never respells.
  */
 
 #include <cstdint>
@@ -30,19 +44,21 @@ namespace sigil::weave::kit {
 /**
  * Liang's pattern method, over a table loaded once.
  *
- * `load` takes the standard pattern-file text: whitespace-separated
- * patterns, each a lowercase letter run with digits between the letters and
- * `.` standing for a word boundary (`hy3ph`, `.mis1`), optionally followed
- * by a line reading `exceptions` and then hyphenated spellings
- * (`ta-ble`, `present`). Later entries win; anything unparsable is skipped,
+ * `load` takes the standard pattern-file text, UTF-8 encoded:
+ * whitespace-separated patterns, each a letter run with digits between the
+ * letters and `.` standing for a word boundary (`hy3ph`, `.mis1`,
+ * `ü1ber`), optionally followed by a line reading `exceptions` and then
+ * hyphenated spellings (`ta-ble`, `present`). A percent sign starts a
+ * comment that runs to the end of its line, which is how a published table
+ * carries its licence. Later entries win; anything unparsable is skipped,
  * so a truncated file costs break points and never correctness.
  *
- * Matching is over lowercased text and answers only for words made of
- * letters — a word carrying a digit, an apostrophe or a hyphen is left
- * whole, because a pattern table has nothing to say about it. The
- * `languageTag` a paragraph is set in must start with `language()` or the
- * table declines to answer at all: a word broken by the wrong language's
- * rules is a misspelling, and no answer is a ragged line.
+ * Matching is over lower-cased text and answers only for words made of
+ * LETTERS, in any script — a word carrying a digit, an apostrophe or a
+ * hyphen is left whole, because a pattern table has nothing to say about
+ * it. The `languageTag` a paragraph is set in must start with `language()`
+ * or the table declines to answer at all: a word broken by the wrong
+ * language's rules is a misspelling, and no answer is a ragged line.
  */
 class PatternHyphenator final : public Hyphenator {
  public:

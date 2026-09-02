@@ -41,7 +41,7 @@ One header per utility under `include/sigilweave/kit/`, and
 | `SampleText.h` | `mixedScriptFiller()` | Every showcase growing subtly different stress content; timings stay comparable on a shared deterministic corpus. |
 | `Palette.h` | `palette::kInk`, `kPaper`, … | Every showcase picking its own near-black and off-white. |
 | `Timing.h` | `Stopwatch` / `toMicroseconds()` | Frame-timing brackets duplicated across targets. |
-| `Hyphenation.h` | `PatternHyphenator`, `patterns::english()` | The engine growing an opinion about where English words break. |
+| `Hyphenation.h` | `PatternHyphenator`, `patterns::english()` | The engine growing an opinion about where a language's words break. |
 | `LineTables.h` | `kinsoku::japanese()`, `hanging::latin()`, `hanging::japanese()` | The engine growing an opinion about which marks may stand at a line's edge, and how far one may hang past it. |
 
 `sigil::weave::SingleLineParagraphCache` (the engine's `cache` feature) is the companion for
@@ -50,8 +50,8 @@ high-frequency short labels; `drawLabel()` documents when to graduate to it.
 ## The tables: data the engine asks for and does not hold
 
 The engine asks exactly one question about where a word may break
-(`paragraph/Hyphenation.h`) and holds no answer, because where an English
-word may be broken is a fact about English rather than about text layout.
+(`paragraph/Hyphenation.h`) and holds no answer, because where a word may
+be broken is a fact about its language rather than about text layout.
 `PatternHyphenator` answers it by Liang's pattern method — a word is
 padded, every substring is looked up in a loaded table, the odd values it
 collects are break points, and an explicit exception spelling overrides the
@@ -70,6 +70,33 @@ broken by the wrong language's rules is a misspelling and no answer is
 merely a ragged line. `load()` takes the standard pattern-file text, so any
 table in that format is a peer of the one here — a caller's own file, a
 different language, a house exception list.
+
+### Another language's patterns
+
+The method matches LETTERS, of any script, so the engine is not English's.
+`load()` takes UTF-8 pattern text: whitespace-separated patterns of letters
+with digits between them and `.` for a word boundary, a `%` running a
+comment to the end of its line, and optionally a line reading `exceptions`
+followed by hyphenated spellings. That is the format TeX established and
+the format the pattern tables published for other languages ship in — the
+`hyph-utf8` collection carries one file per language for around seventy of
+them, each under its own terms:
+
+```cpp
+// Read the file however this application reads its assets.
+const std::string patterns = readTextFile("hyph-de-1996.pat.txt");
+static const kit::PatternHyphenator german("de", patterns);
+options.hyphenation.patterns = &german;    // one table per language tag
+```
+
+The corpus itself is NOT in this repository: pattern tables are data a
+document ships with, they are large, and each travels under its own
+licence. `patterns::english()` is carried only because a kit with no table
+at all cannot be tried.
+
+What the method cannot express is a language whose break rewrites the word
+— the spellings that gain or change a letter across the break. A table
+proposes positions; it never respells.
 
 `patterns::english()` is a SUBSET of Liang's English (US) table, and it
 says so where it is defined, together with the terms the original travels
