@@ -15,11 +15,9 @@
 #
 # The Skia codec set is guaranteed by the skia vcpkg features declared in
 # vcpkg.json (png/jpeg/webp are port defaults; avif is opted in there).
-# workaround: skia[avif] installs a libavif with no AV1 codec.
-#
-# vcpkg.json also requests libavif[dav1d] explicitly: skia[avif] alone
-# installs libavif with NO AV1 codec, which parses AVIF containers but
-# silently fails to decode any frames.
+# The port's avif feature carries libavif[dav1d], because a libavif built
+# with no AV1 codec parses an AVIF container and decodes no frame out of
+# it.
 
 set(SIGIL_IMAGE_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/include)
 set(SIGIL_IMAGE_TEST_ASSET_DIR ${CMAKE_CURRENT_LIST_DIR}/test/assets)

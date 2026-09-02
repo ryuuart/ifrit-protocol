@@ -26,12 +26,6 @@
       ]
     },
     "icu",
-    {
-      "name": "libavif",
-      "features": [
-        "dav1d"
-      ]
-    },
     "openimageio",
     "shader-slang",
     {
