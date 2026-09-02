@@ -350,11 +350,19 @@ directly.
 ## Boundary
 
 Every feature links `choreograph::choreograph` publicly. The only other
-edge out of this directory is `SigilCoreComparable`, the header-only leaf
-over the standard library and Boost.PFR that supplies `kFieldCount` — the
-pin each comparator above sits under, so that a `static_assert` about
-`BoundFloat`'s field count lives in the same file as `BoundFloat`. It
-carries no kernel, no device and nothing that draws.
+edges out of this directory reach the two header-only leaves under
+SigilCore that depend on the standard library and nothing else:
+`SigilCoreComparable` for `kFieldCount`, the pin each comparator above
+sits under — so that a `static_assert` about `BoundFloat`'s field count
+lives in the same file as `BoundFloat` — and `SigilCoreCompute` for the
+seeded mixer the scattered ordering ranks with, so that a `From::Random`
+permutation is the same permutation wherever in the tree it is dealt.
+Both carry no kernel, no device and nothing that draws.
+
+`SigilMotionSchedule` links neither the clock nor the values. A cascade
+is a pure function of a master float in [0, 1] and two integer counts,
+and keeping it that way is what lets a text engine drive it from a
+track's progress, a set from a lane and a study from a bare `phase()`.
 
 That is the point: consumers that also draw — a compositor, a 3D
 renderer — link this library without inheriting a drawing library, and
