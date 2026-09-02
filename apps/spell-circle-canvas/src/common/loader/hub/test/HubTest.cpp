@@ -18,31 +18,19 @@
 
 #include <gtest/gtest.h>
 
+#include <chrono>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <string>
+
+#include "ScratchDir.h"
 
 using namespace sigil::loader;
+using sigil::test::ScratchDir;
 namespace fs = std::filesystem;
 
 namespace {
-
-struct TempDir {
-  fs::path path;
-  TempDir() {
-    path = fs::temp_directory_path() /
-           ("sigilloader_test_" + std::to_string(::getpid()));
-    fs::create_directories(path);
-  }
-  ~TempDir() {
-    std::error_code ec;
-    fs::remove_all(path, ec);
-  }
-  void write(const std::string& name, std::string_view content) {
-    fs::create_directories((path / name).parent_path());
-    std::ofstream(path / name, std::ios::binary) << content;
-  }
-};
 
 /** A size x size solid PNG, for tests that need a real decodable
  *  image whose dimensions identify which file (or which version of a
@@ -57,6 +45,17 @@ void writePng(const fs::path& path, int size, SkColor color) {
   ASSERT_TRUE(writeBytes(path, png->data(), png->size()));
 }
 
+/** Stamps @p path in the near future, so a reload that watches mtimes
+ *  cannot mistake this write for the one it already saw. A filesystem's
+ *  timestamp granularity can be coarser than the gap between two writes
+ *  in one case; the stamp is set outright rather than waited for,
+ *  because waiting would put somebody else's granularity into this
+ *  test's running time. */
+void touchForward(const fs::path& path) {
+  fs::last_write_time(
+      path, fs::file_time_type::clock::now() + std::chrono::seconds(2));
+}
+
 }  // namespace
 
 // The hub is the reference ByteSource: the source concepts are
@@ -64,11 +63,23 @@ void writePng(const fs::path& path, int size, SkColor color) {
 static_assert(ByteSource<Hub>);
 static_assert(ResolvingByteSource<Hub>);
 
-TEST(LoaderSource, HubFetchesAndErasesToAnyByteSource) {
-  TempDir dir;
-  dir.write("notes/hello.txt", "carry the coal");
+/** WHAT A HUB NEEDS BEFORE IT CAN BE ASKED ANYTHING: one scratch
+ *  directory of its own, mounted at res://. */
+class MountedHub : public ::testing::Test {
+ protected:
+  MountedHub() { hub.mount("res://", dir.path); }
+
+  ScratchDir dir{"sigilloader_hub"};
   Hub hub;
-  hub.mount("res://", dir.path);
+};
+
+class LoaderSource : public MountedHub {};
+class LoaderHub : public MountedHub {};
+class LoaderOiio : public MountedHub {};
+class LoaderChannels : public MountedHub {};
+
+TEST_F(LoaderSource, HubFetchesAndErasesToAnyByteSource) {
+  dir.write("notes/hello.txt", "carry the coal");
   auto fetched = hub.fetch("res://notes/hello.txt");
   ASSERT_NE(fetched, nullptr);
   EXPECT_EQ(fetched->asText(), "carry the coal");
@@ -102,11 +113,8 @@ struct WordCounter {
 };
 static_assert(Decoder<WordCounter, WordCount>);
 
-TEST(LoaderHub, RegisteredDecodersAnswerLoadAndReloadOnPoll) {
-  TempDir dir;
+TEST_F(LoaderHub, RegisteredDecodersAnswerLoadAndReloadOnPoll) {
   dir.write("live.txt", "one two three");
-  Hub hub;
-  hub.mount("res://", dir.path);
   // No decoder for the type: null, and nothing fetched.
   EXPECT_EQ(hub.load<WordCount>("res://live.txt"), nullptr);
   hub.registerDecoder<WordCount>(WordCounter{});
@@ -118,8 +126,7 @@ TEST(LoaderHub, RegisteredDecodersAnswerLoadAndReloadOnPoll) {
   EXPECT_EQ(hub.text("res://live.txt"), "one two three");
   // A changed file re-decodes every populated view from one read.
   dir.write("live.txt", "four five");
-  fs::last_write_time(dir.path / "live.txt", fs::file_time_type::clock::now() +
-                                                 std::chrono::seconds(2));
+  touchForward(dir.path / "live.txt");
   EXPECT_TRUE(hub.poll());
   auto recounted = hub.load<WordCount>("res://live.txt");
   ASSERT_NE(recounted, nullptr);
@@ -128,32 +135,23 @@ TEST(LoaderHub, RegisteredDecodersAnswerLoadAndReloadOnPoll) {
   EXPECT_EQ(hub.text("res://live.txt"), "four five");
 }
 
-TEST(LoaderHub, LoadImageAssetIsTheImageView) {
-  TempDir dir;
+TEST_F(LoaderHub, LoadImageAssetIsTheImageView) {
   writePng(dir.path / "logo.png", 3, SK_ColorRED);
-  Hub hub;
-  hub.mount("res://", dir.path);
   auto image = hub.image("res://logo.png");
   ASSERT_NE(image, nullptr);
   EXPECT_EQ(hub.load<sigil::image::ImageAsset>("res://logo.png"), image);
   EXPECT_EQ(image->width(), 3);
 }
 
-TEST(LoaderHub, MountsResolveLongestPrefix) {
-  TempDir dir;
-  Hub hub;
-  hub.mount("res://", dir.path);
+TEST_F(LoaderHub, MountsResolveLongestPrefix) {
   hub.mount("res://deep/", dir.path / "elsewhere");
   EXPECT_EQ(hub.resolve("res://a.txt"), dir.path / "a.txt");
   EXPECT_EQ(hub.resolve("res://deep/b.txt"), dir.path / "elsewhere" / "b.txt");
   EXPECT_TRUE(hub.resolve("other://x").empty());
 }
 
-TEST(LoaderHub, BlobAndTextLoadThroughMounts) {
-  TempDir dir;
+TEST_F(LoaderHub, BlobAndTextLoadThroughMounts) {
   dir.write("notes/hello.txt", "carry the coal");
-  Hub hub;
-  hub.mount("res://", dir.path);
   auto text = hub.text("res://notes/hello.txt");
   ASSERT_TRUE(text.has_value());
   EXPECT_EQ(*text, "carry the coal");
@@ -163,36 +161,16 @@ TEST(LoaderHub, BlobAndTextLoadThroughMounts) {
   EXPECT_EQ(hub.blob("res://missing.bin"), nullptr);
 }
 
-TEST(LoaderHub, MissingFilesHealWithoutStaleCache) {
-  TempDir dir;
-  Hub hub;
-  hub.mount("res://", dir.path);
+TEST_F(LoaderHub, MissingFilesHealWithoutStaleCache) {
   EXPECT_EQ(hub.text("res://late.txt"), std::nullopt);
   dir.write("late.txt", "arrived");
   EXPECT_EQ(hub.text("res://late.txt"), "arrived");
 }
 
-TEST(LoaderHub, PollReloadsChangedText) {
-  TempDir dir;
-  dir.write("live.txt", "one");
-  Hub hub;
-  hub.mount("res://", dir.path);
-  EXPECT_EQ(hub.text("res://live.txt"), "one");
-  // Filesystem mtime granularity can be coarse; force a distinct stamp.
-  dir.write("live.txt", "two");
-  fs::last_write_time(dir.path / "live.txt", fs::file_time_type::clock::now() +
-                                                 std::chrono::seconds(2));
-  EXPECT_TRUE(hub.poll());
-  EXPECT_EQ(hub.text("res://live.txt"), "two");
-}
-
 // blob(), image(), and channels() are independent views of one
 // resource: asking for one must not null a later ask for another.
-TEST(LoaderHub, BlobThenImageThenChannelsAllAnswer) {
-  TempDir dir;
+TEST_F(LoaderHub, BlobThenImageThenChannelsAllAnswer) {
   writePng(dir.path / "logo.png", 1, SK_ColorRED);
-  Hub hub;
-  hub.mount("res://", dir.path);
   ASSERT_NE(hub.blob("res://logo.png"), nullptr);
   auto image = hub.image("res://logo.png");
   ASSERT_NE(image, nullptr);
@@ -203,29 +181,12 @@ TEST(LoaderHub, BlobThenImageThenChannelsAllAnswer) {
   EXPECT_NE(hub.image("res://logo.png"), nullptr);
 }
 
-TEST(LoaderHub, ImageThenBlobBothAnswer) {
-  TempDir dir;
-  writePng(dir.path / "logo.png", 1, SK_ColorRED);
-  Hub hub;
-  hub.mount("res://", dir.path);
-  auto image = hub.image("res://logo.png");
-  ASSERT_NE(image, nullptr);
-  EXPECT_EQ(image->width(), 1);
-  auto bytes = hub.blob("res://logo.png");
-  ASSERT_NE(bytes, nullptr);
-  EXPECT_GT(bytes->bytes.size(), 0u);
-  EXPECT_NE(hub.image("res://logo.png"), nullptr);
-}
-
 // blob() never decodes: bytes no image codec accepts still load, and
 // the failed image() ask that follows does not disturb them. This is
 // the observable face of "asking for bytes costs no decode" — a blob
 // ask cannot depend on decodability in any way.
-TEST(LoaderHub, BlobAloneDoesNotDecode) {
-  TempDir dir;
+TEST_F(LoaderHub, BlobAloneDoesNotDecode) {
   dir.write("fake.png", "not an image at all");
-  Hub hub;
-  hub.mount("res://", dir.path);
   auto bytes = hub.blob("res://fake.png");
   ASSERT_NE(bytes, nullptr);
   EXPECT_EQ(hub.image("res://fake.png"), nullptr);
@@ -235,11 +196,8 @@ TEST(LoaderHub, BlobAloneDoesNotDecode) {
 // image() after blob() decodes the bytes the entry already holds:
 // with the file deleted in between, the cached bytes are the only
 // possible source, and no second read of the source happens.
-TEST(LoaderHub, ImageDecodesOnDemandFromCachedBytes) {
-  TempDir dir;
+TEST_F(LoaderHub, ImageDecodesOnDemandFromCachedBytes) {
   writePng(dir.path / "logo.png", 1, SK_ColorRED);
-  Hub hub;
-  hub.mount("res://", dir.path);
   ASSERT_NE(hub.blob("res://logo.png"), nullptr);
   fs::remove(dir.path / "logo.png");
   auto image = hub.image("res://logo.png");
@@ -250,12 +208,9 @@ TEST(LoaderHub, ImageDecodesOnDemandFromCachedBytes) {
 // A '#' in a filename is URI content, not cache-key syntax. The decoy
 // file at the name a '#'-truncating parse would produce is the trap:
 // poll() must stat and reload the real file, never the decoy.
-TEST(LoaderHub, PollReloadsFilesWhoseNamesContainHash) {
-  TempDir dir;
+TEST_F(LoaderHub, PollReloadsFilesWhoseNamesContainHash) {
   writePng(dir.path / "tile", 2, SK_ColorGREEN);      // decoy
   writePng(dir.path / "tile#3.png", 1, SK_ColorRED);  // the resource
-  Hub hub;
-  hub.mount("res://", dir.path);
   auto image = hub.image("res://tile#3.png");
   ASSERT_NE(image, nullptr);
   EXPECT_EQ(image->width(), 1);
@@ -265,30 +220,25 @@ TEST(LoaderHub, PollReloadsFilesWhoseNamesContainHash) {
   EXPECT_EQ(hub.image("res://tile#3.png")->width(), 1);
   // Touch the real file: poll() reloads that same file.
   writePng(dir.path / "tile#3.png", 2, SK_ColorBLUE);
-  fs::last_write_time(
-      dir.path / "tile#3.png",
-      fs::file_time_type::clock::now() + std::chrono::seconds(2));
+  touchForward(dir.path / "tile#3.png");
   EXPECT_TRUE(hub.poll());
   auto reloaded = hub.image("res://tile#3.png");
   ASSERT_NE(reloaded, nullptr);
   EXPECT_EQ(reloaded->width(), 2);
 }
 
-TEST(LoaderHub, ProbeReportsPlainData) {
-  TempDir dir;
+TEST_F(LoaderHub, ProbeReportsPlainData) {
   dir.write("table.bin", std::string(64, '\0'));
-  Hub hub;
-  hub.mount("res://", dir.path);
   auto info = hub.probe("res://table.bin");
   ASSERT_TRUE(info.has_value());
   EXPECT_EQ(info->kind, ResourceInfo::Kind::Data);
   EXPECT_EQ(info->byteSize, 64u);
 }
 
-TEST(LoaderHub, FileUrlsLoadAsLocalPaths) {
-  TempDir dir;
+TEST_F(LoaderHub, FileUrlsLoadAsLocalPaths) {
+  // Nothing about the mount is used: a file:// URI strips to a plain
+  // local path.
   dir.write("direct.txt", "no mount needed");
-  Hub hub;  // note: nothing mounted
   const std::string url = "file://" + (dir.path / "direct.txt").string();
   auto text = hub.text(url);
   ASSERT_TRUE(text.has_value());
@@ -298,10 +248,7 @@ TEST(LoaderHub, FileUrlsLoadAsLocalPaths) {
   EXPECT_EQ(bytes->bytes.size(), 15u);
 }
 
-TEST(LoaderHub, WriteStoresThroughTheMountItReadsBy) {
-  TempDir dir;
-  Hub hub;
-  hub.mount("res://", dir.path);
+TEST_F(LoaderHub, WriteStoresThroughTheMountItReadsBy) {
   const std::string_view payload = "written through the mount";
   ASSERT_TRUE(hub.write("res://out/note.txt", payload.data(), payload.size()));
   EXPECT_TRUE(fs::exists(dir.path / "out" / "note.txt"));
@@ -310,11 +257,8 @@ TEST(LoaderHub, WriteStoresThroughTheMountItReadsBy) {
   EXPECT_EQ(*text, payload);
 }
 
-TEST(LoaderHub, WriteReplacesWhatWasCached) {
-  TempDir dir;
+TEST_F(LoaderHub, WriteReplacesWhatWasCached) {
   dir.write("note.txt", "before");
-  Hub hub;
-  hub.mount("res://", dir.path);
   ASSERT_EQ(hub.text("res://note.txt"), "before");
   const std::string_view after = "after";
   ASSERT_TRUE(hub.write("res://note.txt", after.data(), after.size()));
@@ -322,10 +266,7 @@ TEST(LoaderHub, WriteReplacesWhatWasCached) {
   EXPECT_EQ(hub.text("res://note.txt"), "after");
 }
 
-TEST(LoaderHub, WrittenImageBytesDecodeBackThroughTheHub) {
-  TempDir dir;
-  Hub hub;
-  hub.mount("res://", dir.path);
+TEST_F(LoaderHub, WrittenImageBytesDecodeBackThroughTheHub) {
   SkBitmap bitmap;
   bitmap.allocPixels(SkImageInfo::MakeN32Premul(7, 7));
   bitmap.eraseColor(SK_ColorMAGENTA);
@@ -339,8 +280,7 @@ TEST(LoaderHub, WrittenImageBytesDecodeBackThroughTheHub) {
   EXPECT_EQ(image->width(), 7);
 }
 
-TEST(LoaderHub, NetworkUrisCannotBeWritten) {
-  Hub hub;
+TEST_F(LoaderHub, NetworkUrisCannotBeWritten) {
   const std::string_view payload = "nope";
   EXPECT_FALSE(
       hub.write("https://example.com/x.txt", payload.data(), payload.size()));
@@ -360,7 +300,7 @@ TEST(LoaderNet, CacheKeyKeepsUrlExtension) {
 TEST(LoaderNet, SeededCacheServesWithoutNetwork) {
   // Hermetic: the cache file is pre-seeded under the same key the hub
   // computes, so the fake host is never contacted.
-  TempDir cache;
+  const ScratchDir cache("sigilloader_net");
   const std::string url = "https://fake.invalid/x.txt";
   std::ofstream(cache.path / networkCacheKey(url), std::ios::binary)
       << "from the cache";
@@ -372,7 +312,7 @@ TEST(LoaderNet, SeededCacheServesWithoutNetwork) {
 }
 
 TEST(LoaderNet, SeededCacheDecodesImagesWithExtensionHint) {
-  TempDir cache;
+  const ScratchDir cache("sigilloader_net");
   const std::string url = "https://fake.invalid/red.png";
   SkBitmap bitmap;
   bitmap.allocPixels(SkImageInfo::MakeN32Premul(1, 1));
@@ -394,7 +334,7 @@ TEST(LoaderNet, SeededCacheDecodesImagesWithExtensionHint) {
 }
 
 TEST(LoaderNet, PollSkipsNetworkEntries) {
-  TempDir cache;
+  const ScratchDir cache("sigilloader_net");
   const std::string url = "https://fake.invalid/data.bin";
   std::ofstream(cache.path / networkCacheKey(url), std::ios::binary) << "abc";
   Hub hub;
@@ -439,11 +379,8 @@ void writeLayeredExr(const fs::path& path) {
 
 }  // namespace
 
-TEST(LoaderOiio, ExrDecodesToFloatImage) {
-  TempDir dir;
+TEST_F(LoaderOiio, ExrDecodesToFloatImage) {
   writeLayeredExr(dir.path / "probe.exr");
-  Hub hub;
-  hub.mount("res://", dir.path);
   auto image = hub.image("res://probe.exr");
   ASSERT_NE(image, nullptr);
   ASSERT_FALSE(image->frames().empty());
@@ -452,11 +389,8 @@ TEST(LoaderOiio, ExrDecodesToFloatImage) {
   EXPECT_EQ(sk->colorType(), kRGBA_F32_SkColorType);
 }
 
-TEST(LoaderOiio, ExrLayerSelectionReadsHdrChannels) {
-  TempDir dir;
+TEST_F(LoaderOiio, ExrLayerSelectionReadsHdrChannels) {
   writeLayeredExr(dir.path / "probe.exr");
-  Hub hub;
-  hub.mount("res://", dir.path);
   auto glow = hub.image("res://probe.exr", {.layer = "glow"});
   ASSERT_NE(glow, nullptr);
   const sk_sp<SkImage>& sk = glow->frames().front().image;
@@ -467,11 +401,8 @@ TEST(LoaderOiio, ExrLayerSelectionReadsHdrChannels) {
   EXPECT_FLOAT_EQ(px[1], 0.125f);
 }
 
-TEST(LoaderOiio, ProbeListsLayersAndChannels) {
-  TempDir dir;
+TEST_F(LoaderOiio, ProbeListsLayersAndChannels) {
   writeLayeredExr(dir.path / "probe.exr");
-  Hub hub;
-  hub.mount("res://", dir.path);
   auto info = hub.probe("res://probe.exr");
   ASSERT_TRUE(info.has_value());
   EXPECT_EQ(info->kind, ResourceInfo::Kind::Image);
@@ -483,11 +414,8 @@ TEST(LoaderOiio, ProbeListsLayersAndChannels) {
   EXPECT_EQ(info->image.layers[0], "glow");
 }
 
-TEST(LoaderOiio, ChannelsExposeRawFloatData) {
-  TempDir dir;
+TEST_F(LoaderOiio, ChannelsExposeRawFloatData) {
   writeLayeredExr(dir.path / "probe.exr");
-  Hub hub;
-  hub.mount("res://", dir.path);
   auto channels = hub.channels("res://probe.exr");
   ASSERT_NE(channels, nullptr);
   EXPECT_EQ(channels->width, 4);
@@ -504,10 +432,9 @@ TEST(LoaderOiio, ChannelsExposeRawFloatData) {
 
 #endif  // SIGILLOADER_HAS_OIIO
 
-TEST(LoaderChannels, LdrFormatsNormalizeToFloats) {
+TEST_F(LoaderChannels, LdrFormatsNormalizeToFloats) {
   // A 1x1 red PNG (encoded by Skia) via the Skia decode path:
   // channels arrive as R/G/B/A in 0..1.
-  TempDir dir;
   SkBitmap bitmap;
   bitmap.allocPixels(SkImageInfo::MakeN32Premul(1, 1));
   bitmap.eraseColor(SK_ColorRED);
@@ -515,8 +442,6 @@ TEST(LoaderChannels, LdrFormatsNormalizeToFloats) {
       sigil::image::encodeImage(bitmap.pixmap(), sigil::image::Format::Png);
   ASSERT_TRUE(png);
   ASSERT_TRUE(writeBytes(dir.path / "red.png", png->data(), png->size()));
-  Hub hub;
-  hub.mount("res://", dir.path);
   auto channels = hub.channels("res://red.png");
   ASSERT_NE(channels, nullptr);
   ASSERT_EQ(channels->names.size(), 4u);
@@ -526,7 +451,7 @@ TEST(LoaderChannels, LdrFormatsNormalizeToFloats) {
 }
 
 TEST(LoaderNet, OfflinePolicyServesCacheAndNeverFetches) {
-  TempDir cache;
+  const ScratchDir cache("sigilloader_net");
   const std::string cached = "https://fake.invalid/have.txt";
   std::ofstream(cache.path / networkCacheKey(cached), std::ios::binary)
       << "kept";
@@ -539,7 +464,7 @@ TEST(LoaderNet, OfflinePolicyServesCacheAndNeverFetches) {
 }
 
 TEST(LoaderNet, RefreshPolicyFallsBackToCacheOnFetchFailure) {
-  TempDir cache;
+  const ScratchDir cache("sigilloader_net");
   const std::string url = "https://fake.invalid/live.txt";
   std::ofstream(cache.path / networkCacheKey(url), std::ios::binary)
       << "yesterday's copy";
@@ -552,13 +477,14 @@ TEST(LoaderNet, RefreshPolicyFallsBackToCacheOnFetchFailure) {
 
 // Opt-in live-network round trip: fetch once, then read the same URL
 // back through a fresh hub locked Offline — the persisted cache is the
-// only possible source. Pinned to an immutable commit.
-//   SIGILLOADER_NET_TESTS=1 ./loader_test
+// only possible source. Pinned to an immutable commit. It is skipped
+// unless SIGILLOADER_NET_TESTS is set in the environment, so a default
+// run needs no connectivity.
 TEST(LoaderNet, LiveFetchThenOfflineRoundTrip) {
   if (!std::getenv("SIGILLOADER_NET_TESTS"))
     GTEST_SKIP() << "set SIGILLOADER_NET_TESTS=1 to run live-network "
                     "tests";
-  TempDir cache;
+  const ScratchDir cache("sigilloader_net");
   const std::string url =
       "https://raw.githubusercontent.com/KhronosGroup/"
       "glTF-Sample-Assets/2bac6f8c57bf471df0d2a1e8a8ec023c7801dddf/"

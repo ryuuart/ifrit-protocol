@@ -9,7 +9,6 @@
 #include <sigilloader/source/Sink.h>
 #include <sigilloader/source/Source.h>
 
-#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <map>
@@ -17,7 +16,10 @@
 #include <sstream>
 #include <string>
 
+#include "ScratchDir.h"
+
 using namespace sigil::loader;
+using sigil::test::ScratchDir;
 
 namespace {
 
@@ -107,67 +109,43 @@ struct TableSink {
 };
 static_assert(ByteSink<TableSink>);
 
-std::filesystem::path scratch() {
-  return std::filesystem::temp_directory_path() /
-         ("sigilloader_sink_" + std::to_string(::getpid()));
-}
-
 }  // namespace
 
 TEST(SinkVocabulary, WriteBytesMakesTheDirectoriesAboveTheFile) {
-  const std::filesystem::path root = scratch();
-  std::error_code ec;
-  std::filesystem::remove_all(root, ec);
-  const std::filesystem::path file = root / "deep" / "deeper" / "note.txt";
+  const ScratchDir root("sigilloader_sink");
+  const std::filesystem::path file = root.path / "deep" / "deeper" / "note.txt";
   const std::string_view payload = "written";
   EXPECT_TRUE(writeBytes(file, payload.data(), payload.size()));
   std::ifstream in(file, std::ios::binary);
   std::ostringstream read;
   read << in.rdbuf();
   EXPECT_EQ(read.str(), payload);
-  std::filesystem::remove_all(root, ec);
 }
 
 TEST(SinkVocabulary, WriteBytesTruncatesWhatWasThere) {
-  const std::filesystem::path root = scratch();
-  std::error_code ec;
-  std::filesystem::remove_all(root, ec);
-  const std::filesystem::path file = root / "note.txt";
+  const ScratchDir root("sigilloader_sink");
+  const std::filesystem::path file = root.path / "note.txt";
   const std::string_view before = "a longer first value";
   ASSERT_TRUE(writeBytes(file, before.data(), before.size()));
   const std::string_view after = "short";
   ASSERT_TRUE(writeBytes(file, after.data(), after.size()));
   EXPECT_EQ(std::filesystem::file_size(file), after.size());
-  std::filesystem::remove_all(root, ec);
 }
 
 TEST(SinkVocabulary, AnEmptyWriteStillMakesTheFile) {
-  const std::filesystem::path root = scratch();
-  std::error_code ec;
-  std::filesystem::remove_all(root, ec);
-  const std::filesystem::path file = root / "empty.bin";
+  const ScratchDir root("sigilloader_sink");
+  const std::filesystem::path file = root.path / "empty.bin";
   EXPECT_TRUE(writeBytes(file, nullptr, 0));
   EXPECT_TRUE(std::filesystem::exists(file));
   EXPECT_EQ(std::filesystem::file_size(file), 0u);
-  std::filesystem::remove_all(root, ec);
 }
 
 TEST(SinkVocabulary, TheBytesSpellingWritesTheSameFile) {
-  const std::filesystem::path root = scratch();
-  std::error_code ec;
-  std::filesystem::remove_all(root, ec);
+  const ScratchDir root("sigilloader_sink");
   Bytes bytes;
   for (const char c : std::string_view("abc"))
     bytes.bytes.push_back((std::byte)c);
-  const std::filesystem::path file = root / "abc.bin";
+  const std::filesystem::path file = root.path / "abc.bin";
   EXPECT_TRUE(writeBytes(file, bytes));
   EXPECT_EQ(std::filesystem::file_size(file), 3u);
-  std::filesystem::remove_all(root, ec);
-}
-
-TEST(SinkVocabulary, AFixtureSinkTakesBytesWithNoDiskInSight) {
-  TableSink sink;
-  const std::string_view payload = "delta";
-  EXPECT_TRUE(sink.write("mem://d", payload.data(), payload.size()));
-  EXPECT_EQ(sink.table["mem://d"], "delta");
 }

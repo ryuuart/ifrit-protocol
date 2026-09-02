@@ -15,6 +15,7 @@ target_include_directories(SigilLoaderSource INTERFACE
 # The concepts checked against a fixture source and a fixture decoder,
 # with no hub, codec or disk in the binary.
 add_executable(loader_source_test test/SourceTest.cpp)
+target_include_directories(loader_source_test PRIVATE ${SIGIL_TEST_SUPPORT_DIR})
 target_link_libraries(loader_source_test PRIVATE SigilLoaderSource
   GTest::gtest_main)
 add_test(NAME loader_source_test COMMAND loader_source_test)

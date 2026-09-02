@@ -25,6 +25,7 @@ target_link_libraries(SigilLoaderHub PRIVATE CURL::libcurl)
 find_package(OpenImageIO CONFIG QUIET)
 
 add_executable(loader_hub_test test/HubTest.cpp)
+target_include_directories(loader_hub_test PRIVATE ${SIGIL_TEST_SUPPORT_DIR})
 target_link_libraries(loader_hub_test PRIVATE SigilLoaderHub SigilImageEncode
   GTest::gtest_main)
 if(OpenImageIO_FOUND)

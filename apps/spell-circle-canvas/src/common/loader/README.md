@@ -206,8 +206,20 @@ decoded view per call, `resolve` per URI against the mount table, and
 `networkCacheKey` per URL — the disk kept out of every timed loop); and
 `SigilLoader`, the umbrella.
 
+Both binaries take their scratch directory from `src/test/ScratchDir.h`,
+the repository-level test support header: a directory named after the
+case and the process, emptied on the way in and removed on the way out.
+`loader_hub_test` opens most of its cases from a `MountedHub` fixture —
+one such directory mounted at `res://`, which is the whole of what a hub
+needs before it can be asked anything — and forces a distinct mtime
+through one `touchForward()` helper rather than by sleeping, since a
+filesystem's timestamp granularity is not this test's running time.
+
 Two parts of `loader_hub_test` are conditional. The EXR cases compile only
 when OpenImageIO is found at configure time — the test uses it to *write*
 its fixtures, while the library itself never calls it. The live-network
-cases skip unless `SIGILLOADER_NET_TESTS=1` is set in the environment, so
-the default run needs no connectivity.
+case fetches a pinned immutable URL once and reads it back through a
+fresh hub locked `Offline`, and it skips unless `SIGILLOADER_NET_TESTS=1`
+is set in the environment. Every other network case is a pre-seeded disk
+cache, so the fetch path itself is untested by default and the default
+run needs no connectivity at all.
