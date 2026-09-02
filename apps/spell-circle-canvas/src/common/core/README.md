@@ -580,13 +580,19 @@ the proof over the same fake host at several node counts.
 A fake host is the subject of a measurement as much as of a test, so
 each of those two benchmarks compiles with its own feature's `test/` on
 its include path and drives the host defined there — one definition, and
-the two binaries cannot disagree about what they are exercising.
+the two binaries cannot disagree about what they are exercising. Each
+fake lives in its own `sigil::core::test::<feature>` namespace, which is
+what lets every one of them spell the plainest name for what it is —
+`FakeHost`, `FakeNode` — with no feature's test reaching into another's
+directory to find out.
 
 `core_hardware_test` (`hardware/test/`) needs a GPU, so it exists on
 Apple alone: it proves the handles go stale and a reused slot rejects the
-old name, that destruction retires at frame + 3, that a texture
-round-trips through import and export, that a mip chain is as deep as the
-size allows, and that a fence signals and holds. The same questions on
+old name, that destruction retires at frame + 3, that a borrowed import
+and an owned one differ in who releases the texture, that a mip chain is
+as deep as the size allows, and that a fence signals and holds — the last
+of those by waiting, since a queue held by a fence has no other way of
+saying so. The same questions on
 the Vulkan backend are asked in `geometry_device_test`, since that is
 where a Vulkan device exists to ask them of. `core_hardware_bench`
 (`hardware/bench/`) is the benchmark, through the `benches` target and

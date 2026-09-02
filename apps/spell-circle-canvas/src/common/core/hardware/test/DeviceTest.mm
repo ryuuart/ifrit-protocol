@@ -12,6 +12,7 @@
 #include <cstring>
 #include <string>
 #include <thread>
+#include <type_traits>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -19,6 +20,11 @@
 using namespace sigil::core::hardware;
 
 namespace {
+
+// A handle names one kind of resource and cannot be passed as another —
+// decided by the compiler, so it is asserted where the compiler reads it.
+static_assert(!std::is_convertible_v<TextureHandle, BufferHandle>);
+static_assert(!std::is_convertible_v<FenceHandle, TextureHandle>);
 
 TextureDesc smallTexture() {
   TextureDesc desc;
@@ -56,11 +62,6 @@ TEST(SigilCoreHardwareHandle, ReusedSlotRejectsTheOldHandle) {
   EXPECT_TRUE(table.contains(second));
 }
 
-TEST(SigilCoreHardwareHandle, TypedHandlesDoNotMix) {
-  static_assert(!std::is_convertible_v<TextureHandle, BufferHandle>);
-  static_assert(!std::is_convertible_v<FenceHandle, TextureHandle>);
-}
-
 TEST(SigilCoreHardwareHandle, DrainStalesEveryHandle) {
   HandleTable<int, BufferHandle> table;
   const BufferHandle a = table.allocate(1);
@@ -81,19 +82,19 @@ TEST(SigilCoreHardware, OwnedMetalDeviceHasAQueue) {
   EXPECT_EQ(device->frameIndex(), 0u);
 }
 
-TEST(SigilCoreHardware, AdoptVulkanNeedsEveryHandle) {
+TEST(SigilCoreHardware, AdoptRefusesAnIncompleteNativeDevice) {
+  // Adoption takes handles somebody else owns, so a missing one is the
+  // caller's mistake to hear about rather than a device to half-build.
   NativeDevice vulkan;
   vulkan.backend = Backend::Vulkan;
   std::string error;
   EXPECT_EQ(GpuDevice::adopt(vulkan, &error), nullptr);
-  EXPECT_FALSE(error.empty());
-}
+  EXPECT_FALSE(error.empty()) << "a refusal must say what was missing";
 
-TEST(SigilCoreHardware, AdoptNeedsBothHandles) {
   NativeDevice half;
   half.backend = Backend::Metal;
   half.mtlDevice = (void *)MTLCreateSystemDefaultDevice();
-  EXPECT_EQ(GpuDevice::adopt(half), nullptr);
+  EXPECT_EQ(GpuDevice::adopt(half), nullptr) << "a queue is a handle too";
 }
 
 TEST(SigilCoreHardware, DestroyedHandleIsStaleAtOnce) {
@@ -139,7 +140,7 @@ TEST(SigilCoreHardware, DestroyRetiresAtFramePlusThree) {
   CFRelease((CFTypeRef)native);
 }
 
-TEST(SigilCoreHardware, ImportExportRoundTrip) {
+TEST(SigilCoreHardware, BorrowedAndOwnedImportsDifferInWhoReleases) {
   auto device = GpuDevice::createOwned();
   ASSERT_NE(device, nullptr);
   id<MTLDevice> mtl = (id<MTLDevice>)device->native().mtlDevice;
@@ -212,6 +213,11 @@ TEST(SigilCoreHardware, FenceSignalsAndWaits) {
   id<MTLCommandQueue> queue = (id<MTLCommandQueue>)device->native().mtlCommandQueue;
   id<MTLCommandBuffer> held = [queue commandBuffer];
   [held commit];
+  // Waiting is the only way to observe a negative about a queue: nothing
+  // signals "still held". This is therefore the one assertion in the file
+  // a fast enough machine could pass without the wait having held
+  // anything, and the arrangement below — the signal coming from another
+  // queue — is what makes the positive half of the claim real.
   std::this_thread::sleep_for(std::chrono::milliseconds(20));
   EXPECT_NE(held.status, MTLCommandBufferStatusCompleted) << "held by the wait";
 

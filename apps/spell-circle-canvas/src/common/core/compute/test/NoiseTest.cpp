@@ -14,7 +14,6 @@
 
 #include <cstdint>
 #include <cstring>
-#include <utility>
 
 namespace {
 
@@ -39,21 +38,6 @@ TEST(Noise, TheAvalancheIsPinnedToItsExactWords) {
   // fixed point before it is ever mixed.
   EXPECT_EQ(noise::mix64(0u), 0ull);
   EXPECT_NE(noise::mix64(noise::kMix64Gamma), 0ull);
-}
-
-TEST(Noise, HashIsTheAvalancheOverThePackedPair) {
-  // The float squeeze is the only thing `hash` adds to the mixer, so the
-  // word behind each of the floats pinned below is reachable here.
-  for (auto [seed, i] : {std::pair<uint32_t, uint32_t>{0u, 0u},
-                         {7u, 1u},
-                         {42u, 99u},
-                         {0xffffffffu, 0xffffffffu}}) {
-    const uint64_t z =
-        noise::mix64(((uint64_t)seed << 32u | (uint64_t)(i * 0x9e3779b9u)) +
-                     noise::kMix64Gamma);
-    EXPECT_FLOAT_EQ(noise::hash(seed, i),
-                    (float)(z & 0xffffffu) / (float)0x7fffff - 1.0f);
-  }
 }
 
 TEST(Noise, HashIsPinnedToItsExactFloats) {

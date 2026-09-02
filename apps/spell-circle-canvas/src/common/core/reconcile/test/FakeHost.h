@@ -16,6 +16,9 @@
 #include <utility>
 #include <vector>
 
+// Every feature's fake host lives in its own `sigil::core::test::<feature>`
+// namespace. That is what lets each of them use the plainest name for what
+// it is — FakeHost, FakeNode — without one redefining another.
 namespace sigil::core::test::reconcile {
 
 struct FakeDesc;
