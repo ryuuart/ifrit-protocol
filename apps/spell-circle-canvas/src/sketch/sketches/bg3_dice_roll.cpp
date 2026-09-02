@@ -232,7 +232,12 @@ namespace bg3 {
 
 // ---------------------------------------------------------------- the plate
 constexpr float kW = 1200.0f;
+/** The artefact's own height. Everything on the overlay is derived from
+ *  it, so the caption band below can grow the canvas without moving
+ *  anything on the plate. */
 constexpr float kH = 1200.0f;
+constexpr float kBandH = 118.0f;
+constexpr float kCanvasH = kH + kBandH;
 
 /** Everything is placed on radii from here. */
 constexpr float kCx = 600.0f;
@@ -247,15 +252,27 @@ constexpr float kCornerAngle = 12.0f;
 
 // ------------------------------------------------------------------ palette
 // Illuminated-manuscript register.
-constexpr SkColor4f kVellum{0.910f, 0.863f, 0.753f, 1.0f};  // #E8DCC0
-constexpr SkColor4f kVellumDeep{0.796f, 0.733f, 0.604f, 1.0f};
-constexpr SkColor4f kInk{0.141f, 0.110f, 0.078f, 1.0f};        // #241C14
-constexpr SkColor4f kGilt{0.788f, 0.635f, 0.153f, 1.0f};       // #C9A227
-constexpr SkColor4f kGiltDark{0.549f, 0.420f, 0.082f, 1.0f};   // #8C6B15
-constexpr SkColor4f kViridian{0.184f, 0.365f, 0.290f, 1.0f};   // #2F5D4A
-constexpr SkColor4f kOxblood{0.431f, 0.122f, 0.133f, 1.0f};    // #6E1F22
-constexpr SkColor4f kAdvantage{0.306f, 0.604f, 0.306f, 1.0f};  // #4E9A4E
-constexpr SkColor4f kBone{0.871f, 0.824f, 0.706f, 1.0f};       // #DED2B4
+// THE OVERLAY IS DARK. Baldur's Gate 3 drops a near-black scrim with a
+// heavy vignette over the scene and lights the roundel and the die out of
+// it: the roll is a thing happening in front of the world, not a page
+// laid over it. This sheet was parchment, and every other difference from
+// the reference followed from that one — a gilt band on cream is
+// ornament, and the same band on black is metal.
+//
+// The inversion is TWO CONSTANTS, because every call site names the
+// ground and the ink rather than a colour: the ground goes near-black and
+// the ink goes bone. The gilt does not move, the die's own stone does not
+// move, and the three status colours are lifted to where they read on
+// black rather than re-chosen.
+constexpr SkColor4f kVellum{0.043f, 0.037f, 0.031f, 1.0f};  // the scrim
+constexpr SkColor4f kVellumDeep{0.086f, 0.071f, 0.055f, 1.0f};
+constexpr SkColor4f kInk{0.878f, 0.839f, 0.745f, 1.0f};       // bone type
+constexpr SkColor4f kGilt{0.788f, 0.635f, 0.153f, 1.0f};      // #C9A227
+constexpr SkColor4f kGiltDark{0.549f, 0.420f, 0.082f, 1.0f};  // #8C6B15
+constexpr SkColor4f kViridian{0.353f, 0.678f, 0.541f, 1.0f};
+constexpr SkColor4f kOxblood{0.816f, 0.290f, 0.290f, 1.0f};
+constexpr SkColor4f kAdvantage{0.435f, 0.827f, 0.435f, 1.0f};
+constexpr SkColor4f kBone{0.871f, 0.824f, 0.706f, 1.0f};  // #DED2B4
 
 inline Fill ink(float a = 1.0f) { return Fill::color(alpha(kInk, a)); }
 inline Fill gilt(float a = 1.0f) { return Fill::color(alpha(kGilt, a)); }
@@ -508,11 +525,11 @@ inline void tumbleAngles(double t, float kAx, float kAy, float kAz, float& ax,
     ay += b * 0.7f;
     az += b * 1.3f;
   }
-  if (t > kSettleAt) {  // a breath, so the plate is never frozen
-    const float w = (float)(t - kSettleAt);
-    ax += 0.010f * std::sin(w * 0.8f);
-    ay += 0.013f * std::sin(w * 0.55f + 1.1f);
-  }
+  // AND THEN IT STOPS. A die that keeps breathing after it has landed is
+  // a scene with no settled state, so a still of it is a still of a
+  // moment nothing declared — and the one thing this study is about is
+  // what happens AFTER the die lands. Past kSettleAt the attitude is the
+  // settle attitude and nothing else.
 }
 
 }  // namespace bg3
@@ -619,7 +636,11 @@ struct Bg3DiceRoll : sketch::Sketch {
              for (int f = 0; f < nf; ++f) {
                if (!vis[(size_t)f]) continue;
                const auto& t = solid.faces[(size_t)f];
-               const float k = 0.72f + 0.28f * nz[(size_t)f];
+               // A WIDER RANGE THAN A DIAGRAM WANTS. On cream, faces
+               // a quarter apart read as a solid; on black the same
+               // spread reads as a flat net, and the die is the one lit
+               // object in the frame.
+               const float k = 0.34f + 0.66f * nz[(size_t)f];
                body.setColor4f({bg3::kBone.fR * k, bg3::kBone.fG * k,
                                 bg3::kBone.fB * k, opacity},
                                nullptr);
@@ -941,10 +962,6 @@ struct Bg3DiceRoll : sketch::Sketch {
       g.child(labelR(std::to_string(sk.ordinal), kX - 19.0f, y - 6.0f, 9.5f,
                      alpha(bg3::kInk, live ? 0.85f : 0.34f), true));
     }
-    g.child(label("Ext_Enums.SkillId  :33053", kX - 14.0f, yLast + 26.0f, 8.5f,
-                  alpha(bg3::kInk, 0.45f), 1.0f, true));
-    g.child(label("ordinals ARE the governing-ability grouping", kX - 14.0f,
-                  yLast + 39.0f, 8.5f, alpha(bg3::kInk, 0.34f), 0.6f, true));
     return g.cache(Cache::Texture);
   }
 
@@ -1151,13 +1168,6 @@ struct Bg3DiceRoll : sketch::Sketch {
     g.child(
         label("BALDUR\xe2\x80\x99S GATE 3  \xc2\xb7  DIALOGUE ABILITY CHECK",
               56.0f, 44.0f, 13.0f, alpha(bg3::kInk, 0.62f), 3.4f));
-    g.child(label("AdvantageContext.SourceDialogue  8", 56.0f, 64.0f, 9.0f,
-                  alpha(bg3::kGiltDark, 0.9f), 1.2f, true));
-    g.child(labelR("PLATE I", bg3::kW - 56.0f, 44.0f, 11.0f,
-                   alpha(bg3::kInk, 0.5f), true));
-    g.child(
-        labelR("Norbyte/bg3se \xc2\xb7 ExtIdeHelpers.lua \xc2\xb7 35,855 lines",
-               bg3::kW - 56.0f, 60.0f, 8.5f, alpha(bg3::kInk, 0.36f), true));
 
     // The advantage note: in the top-left margin, clear of both the skill
     // ladder and the bezel. The leader running from it down to the discarded
@@ -1165,45 +1175,17 @@ struct Bg3DiceRoll : sketch::Sketch {
     constexpr float kAx2 = 56.0f, kAy2 = 138.0f;
     g.child(label("ADVANTAGE", kAx2, kAy2, 12.0f, alpha(bg3::kAdvantage, 0.95f),
                   3.2f));
-    g.child(label("AdvantageBoostType 0", kAx2, kAy2 + 18.0f, 8.0f,
-                  alpha(bg3::kInk, 0.42f), 0.8f, true));
-    g.child(label("AdvantageContext.SourceDialogue  8", kAx2, kAy2 + 29.0f,
-                  8.0f, alpha(bg3::kInk, 0.42f), 0.8f, true));
-    g.child(rule(kAx2, kAy2 + 46.0f, 188.0f,
+    g.child(rule(kAx2, kAy2 + 17.0f, 188.0f,
                  stroke(1.2f, Fill::color(alpha(bg3::kAdvantage, 0.75f))),
                  1.2f));
     g.child(label("2d20 keep highest \xc2\xb7 DiscardedDiceTotal  " +
                       std::to_string(bg3::kDiscardedDiceTotal),
-                  kAx2, kAy2 + 51.0f, 9.0f, alpha(bg3::kInk, 0.55f), 0.8f,
+                  kAx2, kAy2 + 22.0f, 9.0f, alpha(bg3::kInk, 0.55f), 0.8f,
                   true));
     // The leader to the discarded die is NOT drawn here — see
     // advantageLeader(). Marginalia paints under the roundel, and the rosette
     // is opaque by design, so a leader laid down at this point loses its last
     // 29% at the rosette's rim and ends in mid-air on the gilt band.
-
-    // The footer: four lines, each on its own baseline, clear of the outcome
-    // banner's left edge at x = 636.
-    constexpr float kFootX = 56.0f;
-    constexpr float kFootTop = bg3::kH - 112.0f;
-    constexpr float kFootLead = 15.0f;
-    g.child(rule(kFootX, kFootTop - 12.0f, 470.0f,
-                 lines::cased(0.7f, bg3::ink(0.34f), 3.0f), 1.0f));
-    const char* foot[] = {
-        "PROFICIENCY  +2 (1\xe2\x80\x93"
-        "4)   +3 (5\xe2\x80\x93"
-        "8)   "
-        "+4 (9\xe2\x80\x93"
-        "12)  \xe2\x97\x82 BG3 caps at level 12",
-        "RollCritical  None 0 \xc2\xb7 Success 1 \xc2\xb7 Fail 2      "
-        "DiceSizeId  D20 = 5",
-        "ResolvedRollBonus{SourceName, Description, NumDice, DiceSize, Bonus}",
-        "modifiers are added AFTER the die lands",
-    };
-    for (int i = 0; i < 4; ++i)
-      g.child(
-          label(foot[i], kFootX, kFootTop + (float)i * kFootLead, 9.5f,
-                i == 3 ? alpha(bg3::kGiltDark, 0.9f) : alpha(bg3::kInk, 0.45f),
-                1.1f, true));
 
     // NaturalRoll — the single most important number on the plate before the
     // modifiers accumulate, so it gets the margin to itself: a leader running
@@ -1239,7 +1221,7 @@ struct Bg3DiceRoll : sketch::Sketch {
         .height(bg3::kH)
         .fill(linearGradient(
             {0, 0}, {bg3::kW * 0.7f, bg3::kH},
-            {bg3::kVellum, bg3::kVellumDeep, {0.741f, 0.667f, 0.529f, 1.0f}},
+            {bg3::kVellumDeep, bg3::kVellum, {0.016f, 0.013f, 0.011f, 1.0f}},
             {0.0f, 0.62f, 1.0f}))
         .cache(Cache::Texture);
   }
@@ -1344,13 +1326,50 @@ struct Bg3DiceRoll : sketch::Sketch {
         .child(once([this] { return dcPlate(); }))
         .child(modifierColumn())
         .child(totalBlock())
-        .child(outcome());
+        .child(outcome())
+        .child(once([this] { return captionBand(); }));
+  }
+
+  /** THE CAPTION BAND, outside the overlay. What the study is grounded in
+   *  — the extender's generated type surface and the enum ordinals it
+   *  reads — was printed onto the overlay as four footer lines, a plate
+   *  number, a source citation and two identifier lines beside the skill
+   *  ladder. Baldur's Gate 3 shows none of that on a roll, so the
+   *  citations are the header's and the one thing worth reading beside
+   *  the picture stands under it. */
+  Element captionBand() const {
+    Element band = box()
+                       .key("caption")
+                       .left(0)
+                       .right(0)
+                       .top(bg3::kH)
+                       .height(bg3::kBandH)
+                       .column()
+                       .justify(Justify::Center)
+                       .padding(56.0f, 0.0f)
+                       .gap(7.0f)
+                       .zIndex(30)
+                       .fill(Fill::color({0.020f, 0.017f, 0.014f, 1.0f}));
+    band.child(label("BALDUR\xe2\x80\x99S GATE 3 \xc2\xb7 DIALOGUE ABILITY "
+                     "CHECK, THE INSTANT AFTER THE DIE LANDS",
+                     0.0f, 0.0f, 12.0f, alpha(bg3::kGilt, 0.92f), 2.8f, true)
+                   .left(0.0f)
+                   .top(0.0f)
+                   .absolute()
+                   .left(56.0f)
+                   .top(30.0f));
+    band.child(
+        label("Every ordinal and enum name off Norbyte/bg3se's generated Lua "
+              "type surface \xc2\xb7 the modifiers are added AFTER the "
+              "natural roll",
+              56.0f, 58.0f, 10.0f, alpha(bg3::kInk, 0.46f), 0.6f, true));
+    return band;
   }
 
   // ------------------------------------------------------------------- setup
   void setup(sketch::SketchContext& ctx) override {
     ctx.captureAt(6.0);
-    ctx.canvas(bg3::kW, bg3::kH);
+    ctx.canvas(bg3::kW, bg3::kCanvasH);
     ctx.background(bg3::kVellum);
 
     // BG3 sets a humanist old-style with tall caps; these are the closest
