@@ -79,7 +79,7 @@ target_link_libraries(SigilWorldDiligent
   PRIVATE SigilMaterialKit)
 
 add_executable(world_diligent_test test/PainterTest.cpp test/RuntimeTest.cpp
-  test/StackTest.cpp test/SurfaceTest.cpp)
+  test/StackTest.cpp test/SurfaceTest.cpp test/Distance.h)
 # The runtime test reads the compiled program the compiler registration
 # produced, which is this feature's own header rather than a public one.
 target_include_directories(world_diligent_test PRIVATE ${CMAKE_CURRENT_LIST_DIR})

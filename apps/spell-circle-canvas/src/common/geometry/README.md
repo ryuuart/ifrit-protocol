@@ -792,6 +792,14 @@ sampled slot reads, and the staging copy `read()` brings a texture's
 pixels home through. None of it is a frame's; a frame's targets, meshes
 and pipelines belong to whatever draws frames.
 
+Four of those five samplers ARE the engine's own named states, and the
+uniform buffer is made by its own one-call constructor, so nothing here
+respells what the engine already spells; the readback's row copy is its
+stride-aware subresource copy, which is what the two differing strides
+need. The panorama's sampler is the one that stays written out, because
+it is the one no named state covers: two different wraps on its two axes,
+and a level range a roughness reads across.
+
 **The Vulkan loader is opened once**, by the volk shim in
 `device/VolkShim.c`, and the `vkGetInstanceProcAddr` it resolves is
 handed to the hardware device — which refuses an adoption without one,

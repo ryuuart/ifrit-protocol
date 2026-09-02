@@ -35,6 +35,11 @@
 
 using namespace sigil;
 using namespace sigil::world;
+// The device every executor here stands on is SigilGeometry's — it is
+// the one point in the tree that can create a Diligent device — so it is
+// spelled by its own library's name and not through the feature that
+// draws on it.
+namespace device = sigil::geometry::device;
 
 namespace {
 
@@ -95,16 +100,15 @@ BENCHMARK(BM_ProgramFromRecipeBody)->Unit(benchmark::kMillisecond);
  *  ordering and the passes, with every pipeline and every mesh already
  *  uploaded — which is what a frame after the first costs. */
 void BM_FrameOnDevice(benchmark::State& state) {
-  const diligent::DeviceConfig config;
+  const device::DeviceConfig config;
   std::string error;
-  std::unique_ptr<diligent::Device> device =
-      diligent::Device::create(config, &error);
-  if (!device) {
+  std::unique_ptr<device::Device> gpu = device::Device::create(config, &error);
+  if (!gpu) {
     state.SkipWithError(error);
     return;
   }
   namespace gm = ::sigil::geometry::mesh;
-  const Runtime runtime = diligent::runtime(*device);
+  const Runtime runtime = diligent::runtime(*gpu);
   motion::Ticker ticker;
   Scene scene(ticker);
 
@@ -165,16 +169,15 @@ BENCHMARK(BM_FrameOnDevice)->Unit(benchmark::kMillisecond);
  *  win a median; the two counters make it visible in the run that
  *  produced it rather than a mystery in the baseline. */
 void BM_ChainOnDevice(benchmark::State& state) {
-  const diligent::DeviceConfig config;
+  const device::DeviceConfig config;
   std::string error;
-  std::unique_ptr<diligent::Device> device =
-      diligent::Device::create(config, &error);
-  if (!device) {
+  std::unique_ptr<device::Device> gpu = device::Device::create(config, &error);
+  if (!gpu) {
     state.SkipWithError(error);
     return;
   }
   namespace gm = ::sigil::geometry::mesh;
-  const gm::pop::Runtime runtime = gm::pop::deviceRuntime(*device);
+  const gm::pop::Runtime runtime = gm::pop::deviceRuntime(*gpu);
   const std::vector<glm::vec3> loop = {{-200, 0, 0},
                                        {-60, 110, 40},
                                        {90, 30, -60},

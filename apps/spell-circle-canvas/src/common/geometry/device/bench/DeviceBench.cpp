@@ -29,6 +29,10 @@
 
 using namespace sigil;
 using namespace sigil::geometry::device;
+// The hardware device's own vocabulary — its texture and fence handles —
+// is SigilCoreHardware's, and the arms below spell it as its own library
+// does rather than through the one that adopts it.
+using namespace sigil::core::hardware;
 
 namespace {
 

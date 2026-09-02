@@ -21,6 +21,8 @@
 #include <include/core/SkImageInfo.h>
 #include <sigilcore/hardware/GpuDevice.h>
 
+#include <Graphics/GraphicsEngine/interface/GraphicsTypesX.hpp>
+#include <Graphics/GraphicsTools/interface/CommonlyUsedStates.h>
 #include <Graphics/GraphicsTools/interface/MapHelper.hpp>
 #include <algorithm>
 #include <cstring>
@@ -146,20 +148,24 @@ dg::TextureDesc uploadedMapDesc(const char* label, int width, int height) {
   return desc;
 }
 
-/** WHAT MULTIPLIES THE SOURCE, for every mode this backend has: one.
- *  Colour arrives premultiplied — its alpha is already in it — so the
+/** HOW A MODE BLENDS, as the engine's own named states.
+ *
+ *  Colour arrives PREMULTIPLIED — its alpha is already in it — so the
  *  source is taken whole and the mode is decided entirely by what
- *  multiplies the destination. */
-constexpr dg::BLEND_FACTOR kSrcFactor = dg::BLEND_FACTOR_ONE;
-
-dg::BLEND_FACTOR dstFactorOf(SkBlendMode mode) {
+ *  multiplies the destination, which is exactly the distinction the
+ *  three states below draw. A draw that replaces what stands blends
+ *  nothing at all, and the default state is the one with blending off.
+ *
+ *  This mapping is the one thing here the engine cannot spell: an
+ *  `SkBlendMode` is Skia's word and no Diligent type names it. */
+const dg::BlendStateDesc& blendFor(SkBlendMode mode) {
   switch (mode) {
     case SkBlendMode::kSrc:
-      return dg::BLEND_FACTOR_ZERO;
+      return dg::BS_Default;
     case SkBlendMode::kPlus:
-      return dg::BLEND_FACTOR_ONE;
+      return dg::BS_AdditiveBlend;
     default:
-      return dg::BLEND_FACTOR_INV_SRC_ALPHA;
+      return dg::BS_PremultipliedAlphaBlend;
   }
 }
 
@@ -454,34 +460,36 @@ const MeshBuffers* Gpu::stream(const Mesh& mesh,
   fillVertices(mesh, primColorLane, &vertices, &indices);
 
   dg::IRenderDevice* renderDevice = device->renderDevice();
-  // GROWN, NEVER SHRUNK, and the capacities are held APART from the
-  // counts: a draw reads how many indices THIS mesh has, and a smaller
-  // mesh after a larger one must still write into the buffer that is
-  // already big enough rather than make a smaller one.
+  dg::IDeviceContext* context = device->context();
   const size_t vertexBytes = vertices.size() * sizeof(Vertex);
   const size_t indexBytes = indices.size() * sizeof(uint32_t);
-  if (!streamed.vertices || streamedVertices < vertices.size()) {
-    streamed.vertices.Release();
-    dg::BufferDesc vd;
-    vd.Name = "world streamed vertices";
-    vd.Size = vertexBytes;
-    vd.BindFlags = dg::BIND_VERTEX_BUFFER;
-    vd.Usage = dg::USAGE_DEFAULT;
-    renderDevice->CreateBuffer(vd, nullptr, &streamed.vertices);
-    streamedVertices = streamed.vertices ? vertices.size() : 0;
-  }
-  if (!streamed.indices || streamedIndices < indices.size()) {
-    streamed.indices.Release();
-    dg::BufferDesc id;
-    id.Name = "world streamed indices";
-    id.Size = indexBytes;
-    id.BindFlags = dg::BIND_INDEX_BUFFER;
-    id.Usage = dg::USAGE_DEFAULT;
-    renderDevice->CreateBuffer(id, nullptr, &streamed.indices);
-    streamedIndices = streamed.indices ? indices.size() : 0;
-  }
+
+  // GROWN, NEVER SHRUNK: a smaller mesh after a larger one writes into
+  // the buffer that is already big enough rather than making one its own
+  // size, so a stream that has settled allocates nothing. The resize
+  // discards, because every draw overwrites the whole of what it reads
+  // and copying the last draw's triangles into the new buffer would be
+  // work nobody looks at.
+  const auto grow = [&](std::unique_ptr<dg::DynamicBuffer>& held,
+                        const char* name, dg::BIND_FLAGS bind,
+                        size_t bytes) -> dg::IBuffer* {
+    if (!held) {
+      dg::DynamicBufferCreateInfo info;
+      info.Desc.Name = name;
+      info.Desc.Size = bytes;
+      info.Desc.BindFlags = bind;
+      info.Desc.Usage = dg::USAGE_DEFAULT;
+      held = std::make_unique<dg::DynamicBuffer>(renderDevice, info);
+    } else if (held->GetDesc().Size < bytes) {
+      held->Resize(renderDevice, context, bytes, /*DiscardContent=*/true);
+    }
+    return held->Update(renderDevice, context);
+  };
+  streamed.vertices = grow(streamVertices, "world streamed vertices",
+                           dg::BIND_VERTEX_BUFFER, vertexBytes);
+  streamed.indices = grow(streamIndices, "world streamed indices",
+                          dg::BIND_INDEX_BUFFER, indexBytes);
   if (!streamed.vertices || !streamed.indices) return nullptr;
-  dg::IDeviceContext* context = device->context();
   context->UpdateBuffer(streamed.vertices, 0, vertexBytes, vertices.data(),
                         dg::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
   context->UpdateBuffer(streamed.indices, 0, indexBytes, indices.data(),
@@ -525,38 +533,37 @@ const Pipeline* Gpu::pipeline(const PipelineKey& key) {
     return nullptr;
   }
 
-  dg::GraphicsPipelineStateCreateInfo info;
-  info.PSODesc.Name = "world pipeline";
+  dg::GraphicsPipelineStateCreateInfoX info{"world pipeline"};
   // DYNAMIC, because every one of these is rebound per draw: one uniform
   // buffer rewritten for each body, and the sampled slots a post stage
   // reads changing between one stage and the next.
   info.PSODesc.ResourceLayout.DefaultVariableType =
       dg::SHADER_RESOURCE_VARIABLE_TYPE_DYNAMIC;
-  info.pVS = vs;
-  info.pPS = ps;
-  dg::GraphicsPipelineDesc& graphics = info.GraphicsPipeline;
-  graphics.NumRenderTargets = 1;
-  graphics.RTVFormats[0] = kColorFormat;
-  graphics.DSVFormat = key.depth ? kDepthFormat : dg::TEX_FORMAT_UNKNOWN;
-  graphics.PrimitiveTopology = dg::PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+  info.AddShader(vs)
+      .AddShader(ps)
+      .AddRenderTarget(kColorFormat)
+      .SetDepthFormat(key.depth ? kDepthFormat : dg::TEX_FORMAT_UNKNOWN)
+      .SetPrimitiveTopology(dg::PRIMITIVE_TOPOLOGY_TRIANGLE_LIST)
+      .SetBlendDesc(blendFor(key.blend));
+
   // Front faces wind counter-clockwise in a y-up space and arrive
   // clockwise after the viewport's flip, which is what this convention
-  // calls front — the same reading the CPU executor's cull makes.
-  graphics.RasterizerDesc.CullMode =
-      key.fullscreen || !key.cull ? dg::CULL_MODE_NONE : dg::CULL_MODE_BACK;
-  graphics.RasterizerDesc.FrontCounterClockwise = true;
-  graphics.DepthStencilDesc.DepthEnable = key.depth;
-  graphics.DepthStencilDesc.DepthWriteEnable = key.depthWrite;
-  graphics.DepthStencilDesc.DepthFunc = dg::COMPARISON_FUNC_LESS_EQUAL;
+  // calls front — the same reading the CPU executor's cull makes. Where
+  // nothing is culled the winding decides nothing, so the no-cull state
+  // is taken as it comes.
+  info.SetRasterizerDesc(key.fullscreen || !key.cull
+                             ? dg::RS_SolidFillNoCull
+                             : dg::RS_SolidFillCullBackCCW);
 
-  dg::RenderTargetBlendDesc& blend = graphics.BlendDesc.RenderTargets[0];
-  blend.BlendEnable = key.blend != SkBlendMode::kSrc;
-  blend.SrcBlend = kSrcFactor;
-  blend.DestBlend = dstFactorOf(key.blend);
-  blend.BlendOp = dg::BLEND_OPERATION_ADD;
-  blend.SrcBlendAlpha = blend.SrcBlend;
-  blend.DestBlendAlpha = blend.DestBlend;
-  blend.BlendOpAlpha = dg::BLEND_OPERATION_ADD;
+  // THE COMPARISON IS LESS-OR-EQUAL and no named state spells that: the
+  // engine's two depth states both compare strictly, and a body redrawn
+  // over itself — a variant surface laid on the bodies a selector names —
+  // must not lose to the depth it wrote the first time.
+  dg::DepthStencilStateDesc depth;
+  depth.DepthEnable = key.depth;
+  depth.DepthWriteEnable = key.depthWrite;
+  depth.DepthFunc = dg::COMPARISON_FUNC_LESS_EQUAL;
+  info.SetDepthStencilDesc(depth);
 
   // THE STRIDE IS STATED rather than derived from the elements, because
   // a vertex carries the primitive lane whether or not the program that
@@ -570,10 +577,9 @@ const Pipeline* Gpu::pipeline(const PipelineKey& key) {
       dg::LayoutElement{4, 0, 4, dg::VT_FLOAT32, dg::False},
   };
   for (dg::LayoutElement& element : elements) element.Stride = sizeof(Vertex);
-  if (!key.fullscreen) {
-    graphics.InputLayout.LayoutElements = elements;
-    graphics.InputLayout.NumElements = key.prim ? 5 : 4;
-  }
+  // A fullscreen draw declares no layout: it reads no vertex buffer.
+  if (!key.fullscreen)
+    info.SetInputLayout(dg::InputLayoutDesc{elements, key.prim ? 5u : 4u});
 
   renderDevice->CreateGraphicsPipelineState(info, &built.state);
   if (built.state)

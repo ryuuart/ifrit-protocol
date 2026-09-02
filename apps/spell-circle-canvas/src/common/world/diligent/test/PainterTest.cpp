@@ -25,14 +25,16 @@
 #include <sigilgeometry/device/Device.h>
 #include <sigilworld/diligent/Painter.h>
 
-#include <algorithm>
-#include <cmath>
 #include <cstring>
 #include <memory>
 #include <string>
 #include <vector>
 
+#include "Distance.h"
+
 using namespace sigil;
+using sigil::world::diligent::Distance;
+using sigil::world::diligent::distanceOf;
 namespace gm = sigil::geometry::mesh;
 namespace render = sigil::geometry::mesh::render;
 
@@ -64,51 +66,6 @@ gm::camera::Camera eye() {
   camera.eye = {0, 90, 240};
   camera.target = {0, 0, 0};
   return camera;
-}
-
-/** HOW FAR TWO PLATES STAND APART, per colour channel in 0..255. */
-struct Distance {
-  double mean = 0;
-  int p99 = 0;
-  int max = 0;
-};
-
-Distance distanceOf(const SkBitmap& a, const SkBitmap& b) {
-  Distance out;
-  if (a.width() != b.width() || a.height() != b.height()) {
-    out.max = 255;
-    return out;
-  }
-  std::vector<int> histogram(256, 0);
-  double total = 0;
-  size_t count = 0;
-  for (int y = 0; y < a.height(); ++y)
-    for (int x = 0; x < a.width(); ++x) {
-      const SkColor4f left = a.getColor4f(x, y);
-      const SkColor4f right = b.getColor4f(x, y);
-      const float channels[4][2] = {{left.fR, right.fR},
-                                    {left.fG, right.fG},
-                                    {left.fB, right.fB},
-                                    {left.fA, right.fA}};
-      for (const auto& pair : channels) {
-        const int diff = (int)std::lround(std::abs(pair[0] - pair[1]) * 255.0f);
-        ++histogram[(size_t)std::clamp(diff, 0, 255)];
-        total += diff;
-        ++count;
-        out.max = std::max(out.max, diff);
-      }
-    }
-  out.mean = count ? total / (double)count : 0.0;
-  const size_t cut = (size_t)((double)count * 0.99);
-  size_t seen = 0;
-  for (int value = 0; value < 256; ++value) {
-    seen += (size_t)histogram[(size_t)value];
-    if (seen >= cut) {
-      out.p99 = value;
-      break;
-    }
-  }
-  return out;
 }
 
 SkBitmap plate() {

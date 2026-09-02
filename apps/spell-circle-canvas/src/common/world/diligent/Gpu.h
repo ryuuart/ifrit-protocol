@@ -31,6 +31,7 @@
 #include <sigilworld/frame/View.h>
 
 #include <Common/interface/RefCntAutoPtr.hpp>
+#include <Graphics/GraphicsTools/interface/DynamicBuffer.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <glm/mat4x4.hpp>
@@ -148,12 +149,15 @@ struct Gpu {
    *  grown to fit and overwritten by the next draw. A draw whose seam
    *  carries no artefact number is told nothing that says two of them
    *  are the same triangles, so there is nothing to key a cache on and
-   *  nothing kept between them. */
+   *  nothing kept between them.
+   *
+   *  The two below own the storage and the growth; `streamed` carries
+   *  the counts of THIS draw, which are not the buffers'. Each is made
+   *  on the first stream, because a `DynamicBuffer` cannot be moved and
+   *  an executor that never streams should hold no buffer at all. */
+  std::unique_ptr<dg::DynamicBuffer> streamVertices;
+  std::unique_ptr<dg::DynamicBuffer> streamIndices;
   MeshBuffers streamed;
-  /** …and how large those two buffers actually are. Held apart from the
-   *  counts in `streamed`, which are THIS draw's and not the buffers'. */
-  size_t streamedVertices = 0;
-  size_t streamedIndices = 0;
   std::map<PipelineKey, Pipeline> pipelines;
   /** Maps whose pixels already stand on this device, under the name the
    *  API gave them. Nothing is copied for one of these. */

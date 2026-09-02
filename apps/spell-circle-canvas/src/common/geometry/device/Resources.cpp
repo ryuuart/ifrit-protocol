@@ -11,9 +11,11 @@
 #include <include/core/SkBitmap.h>
 #include <include/core/SkImageInfo.h>
 
+#include <Graphics/GraphicsAccessories/interface/GraphicsAccessories.hpp>
+#include <Graphics/GraphicsTools/interface/CommonlyUsedStates.h>
+#include <Graphics/GraphicsTools/interface/GraphicsUtilities.h>
 #include <algorithm>
 #include <cstdint>
-#include <cstring>
 
 namespace sigil::geometry::device {
 
@@ -23,23 +25,14 @@ Resources::Resources(Device& device) : m_device(&device) {
   // ONE SAMPLER PER ANSWER, made once and picked per draw: a texture
   // states how it wants to be read between texels and what lies outside
   // it, and a map that asked for hard texel edges must not have them
-  // blended away.
-  const auto makeSampler = [&](dg::FILTER_TYPE type,
-                               dg::TEXTURE_ADDRESS_MODE address,
-                               dg::ISampler** into) {
-    dg::SamplerDesc desc;
-    desc.MinFilter = type;
-    desc.MagFilter = type;
-    desc.MipFilter = type;
-    desc.AddressU = address;
-    desc.AddressV = address;
-    desc.AddressW = address;
-    device.renderDevice()->CreateSampler(desc, into);
-  };
-  makeSampler(dg::FILTER_TYPE_LINEAR, dg::TEXTURE_ADDRESS_CLAMP, &m_linear);
-  makeSampler(dg::FILTER_TYPE_POINT, dg::TEXTURE_ADDRESS_CLAMP, &m_nearest);
-  makeSampler(dg::FILTER_TYPE_LINEAR, dg::TEXTURE_ADDRESS_WRAP, &m_linearTiled);
-  makeSampler(dg::FILTER_TYPE_POINT, dg::TEXTURE_ADDRESS_WRAP, &m_nearestTiled);
+  // blended away. All four are the engine's own named descriptions —
+  // one filter on all three stages, one address mode on all three axes —
+  // so the four answers are spelled where every renderer on this engine
+  // spells them.
+  device.renderDevice()->CreateSampler(dg::Sam_LinearClamp, &m_linear);
+  device.renderDevice()->CreateSampler(dg::Sam_PointClamp, &m_nearest);
+  device.renderDevice()->CreateSampler(dg::Sam_LinearWrap, &m_linearTiled);
+  device.renderDevice()->CreateSampler(dg::Sam_PointWrap, &m_nearestTiled);
   {
     // THE PANORAMA'S SAMPLER, which none of the four above can be: an
     // equirect map's u axis is periodic and its v axis ends at the
@@ -78,13 +71,11 @@ dg::IBuffer* Resources::uniformBuffer(size_t bytes) {
   const size_t wanted = std::max<size_t>(bytes, 256);
   if (m_uniforms && m_uniformCapacity >= wanted) return m_uniforms;
   m_uniforms.Release();
-  dg::BufferDesc desc;
-  desc.Name = "device draw uniforms";
-  desc.Size = wanted;
-  desc.BindFlags = dg::BIND_UNIFORM_BUFFER;
-  desc.Usage = dg::USAGE_DYNAMIC;
-  desc.CPUAccessFlags = dg::CPU_ACCESS_WRITE;
-  m_device->renderDevice()->CreateBuffer(desc, nullptr, &m_uniforms);
+  // Dynamic and CPU-writable, which is what a buffer rewritten once per
+  // draw is; those are the engine's own defaults for a uniform buffer,
+  // so they are not restated here.
+  dg::CreateUniformBuffer(m_device->renderDevice(), wanted,
+                          "device draw uniforms", &m_uniforms);
   m_uniformCapacity = m_uniforms ? wanted : 0;
   return m_uniforms;
 }
@@ -146,11 +137,15 @@ sk_sp<SkImage> Resources::read(dg::ITexture* texture) {
   // Skia's.
   bitmap.allocPixels(SkImageInfo::Make(width, height, kRGBA_8888_SkColorType,
                                        kPremul_SkAlphaType));
-  const auto* source = static_cast<const uint8_t*>(mapped.pData);
-  for (int y = 0; y < height; ++y)
-    std::memcpy(bitmap.pixmap().writable_addr(0, y),
-                source + (size_t)y * mapped.Stride,
-                std::min<size_t>(mapped.Stride, bitmap.rowBytes()));
+  // THE TWO STRIDES DIFFER: what the device mapped is padded to its own
+  // alignment and what Skia allocated is not, so the rows are copied one
+  // at a time rather than the block at once.
+  dg::CopyTextureSubresource(
+      dg::TextureSubResData{mapped.pData, mapped.Stride}, (dg::Uint32)height,
+      /*NumDepthSlices=*/1,
+      std::min<dg::Uint64>(mapped.Stride, bitmap.rowBytes()),
+      bitmap.getPixels(), (dg::Uint64)bitmap.rowBytes(),
+      /*DstDepthStride=*/0);
   context->UnmapTextureSubresource(staging, 0, 0);
   bitmap.setImmutable();
   return bitmap.asImage();

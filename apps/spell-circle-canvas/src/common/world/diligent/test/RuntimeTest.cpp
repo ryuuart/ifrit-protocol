@@ -34,10 +34,13 @@
 #include <utility>
 #include <vector>
 
+#include "Distance.h"
 #include "Programs.h"
 
 using namespace sigil;
 using namespace sigil::world;
+using sigil::world::diligent::Distance;
+using sigil::world::diligent::distanceOf;
 
 namespace {
 
@@ -107,58 +110,6 @@ Camera eye() {
   camera.eye = {0, 90, 240};
   camera.target = {0, 0, 0};
   return camera;
-}
-
-/** HOW FAR TWO PLATES STAND APART, per colour channel in 0..255: the
- *  mean over every channel of every pixel, the value 99 in a hundred
- *  stay under, and the worst one anywhere.
- *
- *  The mean is what says the two pictures ARE the same picture; the
- *  99th is what says the disagreement is confined; the maximum is an
- *  edge, and an edge is where two rasterisers always differ. */
-struct Distance {
-  double mean = 0;
-  int p99 = 0;
-  int max = 0;
-};
-
-Distance distanceOf(const SkBitmap& a, const SkBitmap& b) {
-  Distance out;
-  if (a.width() != b.width() || a.height() != b.height()) {
-    out.max = 255;
-    return out;
-  }
-  std::vector<int> histogram(256, 0);
-  double total = 0;
-  size_t count = 0;
-  for (int y = 0; y < a.height(); ++y) {
-    for (int x = 0; x < a.width(); ++x) {
-      const SkColor4f left = a.getColor4f(x, y);
-      const SkColor4f right = b.getColor4f(x, y);
-      const float channels[4][2] = {{left.fR, right.fR},
-                                    {left.fG, right.fG},
-                                    {left.fB, right.fB},
-                                    {left.fA, right.fA}};
-      for (const auto& pair : channels) {
-        const int diff = (int)std::lround(std::abs(pair[0] - pair[1]) * 255.0f);
-        ++histogram[(size_t)std::clamp(diff, 0, 255)];
-        total += diff;
-        ++count;
-        out.max = std::max(out.max, diff);
-      }
-    }
-  }
-  out.mean = count ? total / (double)count : 0.0;
-  const size_t cut = (size_t)((double)count * 0.99);
-  size_t seen = 0;
-  for (int value = 0; value < 256; ++value) {
-    seen += (size_t)histogram[(size_t)value];
-    if (seen >= cut) {
-      out.p99 = value;
-      break;
-    }
-  }
-  return out;
 }
 
 /** One frame, rendered on @p runtime and photographed. */

@@ -366,6 +366,17 @@ variant axis, because there is one — position, normal, uv and tint, with
 the lanes a mesh does not carry filled in on upload; nor is the blended
 build, which is the blend and depth state a pipeline is created with.
 
+A pipeline is assembled through the engine's own create-info builder,
+and its blend and rasterizer states are the engine's named ones — a
+premultiplied-alpha blend, an additive one, and blending off for a draw
+that replaces what stands; solid fill culling back faces at the
+counter-clockwise winding, or culling none. Two things stay written out.
+The mapping from an `SkBlendMode` to one of those states is ours because
+`SkBlendMode` is Skia's word and no Diligent type names it. And the depth
+comparison is LESS-OR-EQUAL where both named depth states compare
+strictly, so that a body redrawn over itself does not lose to the depth
+it wrote the first time.
+
 A material whose recipe has no Slang body is painted in the colour the
 frame extracted — the same reading the CPU tier makes — and the program
 cache has already reported the recipe and the target once.
