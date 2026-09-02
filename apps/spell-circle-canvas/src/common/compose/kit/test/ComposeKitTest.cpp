@@ -550,6 +550,26 @@ TEST(KitPixelType, BlitAdvancesByTheMeasuredWidthAndSnaps) {
   EXPECT_NEAR(std::fmod(ws, 4.0f), 0.0f, 1e-3f);
 }
 
+TEST(KitPixelType, ASnappedRunMeasuresTheWidthItDraws) {
+  const kit::PixFont f = kit::bakeFont(fonts(), pixelStyle(10.0f));
+  sk_sp<SkSurface> s = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(200, 40));
+  ASSERT_TRUE(s);
+  // Snapping rounds EVERY pen step, not just the origin, so it changes the
+  // advance a run occupies. A measure that adds the raw advances reports a
+  // width the drawing never uses, and a layout laid out on it overlaps the
+  // next thing.
+  const kit::Blit b{.track = 1.0f, .snap = 3.0f};
+  const float drawn =
+      kit::blit(*s->getCanvas(), f, {3.0f, 3.0f}, "1234", {1, 1, 1, 1}, b);
+  EXPECT_FLOAT_EQ(drawn, kit::widthOf(f, "1234", b));
+  EXPECT_NEAR(std::fmod(drawn, 3.0f), 0.0f, 1e-3f);
+  // The origin's own fraction is not part of the run's width: it is snapped
+  // once, before the walk.
+  EXPECT_FLOAT_EQ(
+      kit::blit(*s->getCanvas(), f, {4.9f, 4.1f}, "1234", {1, 1, 1, 1}, b),
+      drawn);
+}
+
 TEST(KitPixelType, MaskedIsANodeTheSizeOfTheMask) {
   const kit::Mask m = kit::bakeRun(u8"88", fonts(), pixelStyle(10.0f));
   ASSERT_TRUE(m);

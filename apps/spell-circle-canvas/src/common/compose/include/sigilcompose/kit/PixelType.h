@@ -390,20 +390,40 @@ namespace detail {
 inline float snapTo(float v, float grid) {
   return grid > 0 ? std::round(v / grid) * grid : v;
 }
-}  // namespace detail
 
-/** Advance width of @p s without drawing it. */
-inline float widthOf(const PixFont& f, std::string_view s, const Blit& b = {}) {
-  float w = 0;
+/** THE PEN WALK, and the only one. Measuring and drawing must accumulate
+ *  the same way or a snapped run is laid out to one width and drawn at
+ *  another: `snap` rounds every pen step, so it changes the advance and
+ *  not merely where the cells land. @p emit is handed each cell and the
+ *  pen position it occupies, relative to a pen that started at 0; the
+ *  return is the run's advance.
+ *
+ *  Starting at 0 loses nothing: a caller's own origin is snapped before
+ *  the walk, and a snapped origin plus a snapped offset is already on the
+ *  grid, so adding it back per cell rounds to the same place. */
+template <typename Emit>
+inline float walkRun(const PixFont& f, std::string_view s, const Blit& b,
+                     Emit&& emit) {
+  float x = 0;
   for (char raw : s) {
     const int i = (int)(unsigned char)raw - 32;
     if (i < 0 || i >= 96) continue;
+    const Cell& cell = f.cells[(size_t)i];
     const bool digit = raw >= '0' && raw <= '9';
-    w += (float)(digit && b.tabularDigits ? f.digitAdvance
-                                          : f.cells[(size_t)i].advance) +
-         b.track;
+    emit(cell, x);
+    x = snapTo(
+        x + (float)(digit && b.tabularDigits ? f.digitAdvance : cell.advance) +
+            b.track,
+        b.snap);
   }
-  return w;
+  return x;
+}
+}  // namespace detail
+
+/** Advance width of @p s without drawing it — the width `blit` returns for
+ *  the same run and the same options, snapping included. */
+inline float widthOf(const PixFont& f, std::string_view s, const Blit& b = {}) {
+  return detail::walkRun(f, s, b, [](const Cell&, float) {});
 }
 
 /** Draw @p s at @p at (top-left of the line box) and return the advance.
@@ -418,23 +438,14 @@ inline float blit(SkCanvas& canvas, const PixFont& f, SkPoint at,
   p.setColor4f(colour, nullptr);
   const SkSamplingOptions nearest(SkFilterMode::kNearest);
   const float x0 = detail::snapTo(at.fX, b.snap);
-  float x = x0;
   const float y = detail::snapTo(at.fY, b.snap);
-  for (char raw : s) {
-    const int i = (int)(unsigned char)raw - 32;
-    if (i < 0 || i >= 96) continue;
-    const Cell& cell = f.cells[(size_t)i];
-    const bool digit = raw >= '0' && raw <= '9';
+  return detail::walkRun(f, s, b, [&](const Cell& cell, float x) {
     if (cell.mask)
-      canvas.drawImageRect(cell.mask,
-                           SkRect::MakeXYWH(x, y, (float)cell.w, (float)cell.h),
-                           nearest, &p);
-    x = detail::snapTo(
-        x + (float)(digit && b.tabularDigits ? f.digitAdvance : cell.advance) +
-            b.track,
-        b.snap);
-  }
-  return x - x0;
+      canvas.drawImageRect(
+          cell.mask,
+          SkRect::MakeXYWH(x0 + x, y, (float)cell.w, (float)cell.h), nearest,
+          &p);
+  });
 }
 
 }  // namespace sigil::compose::kit
