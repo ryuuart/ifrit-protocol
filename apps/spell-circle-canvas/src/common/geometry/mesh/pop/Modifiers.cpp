@@ -40,6 +40,20 @@ void displaceNoise(Cloud& cloud, float amplitude, float frequency,
   }
 }
 
+InstanceOptions stampOptions(const Cloud& cloud) {
+  InstanceOptions options;
+  options.scaleLane = cloud.scalarIf("size") ? "size" : "";
+  options.tintLane = cloud.colorIf("tint") ? "tint" : "";
+  // "dir" is what a chain exports and "normal" what a generator or an
+  // importer writes; either stands the stamp up, "dir" winning where
+  // both are present.
+  if (cloud.vectorIf("dir"))
+    options.orientLane = "dir";
+  else if (cloud.vectorIf("normal"))
+    options.orientLane = "normal";
+  return options;
+}
+
 Mesh instance(const Cloud& cloud, const Mesh& stamp,
               const InstanceOptions& options) {
   Mesh out;

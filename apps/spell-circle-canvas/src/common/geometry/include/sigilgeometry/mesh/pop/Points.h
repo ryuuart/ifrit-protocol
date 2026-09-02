@@ -123,6 +123,20 @@ struct InstanceOptions {
   glm::vec3 up = {0, 1, 0};
 };
 
+/** HOW A STAMP RIDES A CLOUD'S CONVENTIONAL LANES, as one table.
+ *
+ *  The orient lane is "dir" where a chain produced one and "normal"
+ *  where a generator or an importer did, so a cloud from either source
+ *  stands its stamps up without the author naming a lane; "size" scales
+ *  and "tint" colours. A lane the cloud does not carry is left empty
+ *  rather than named, so nothing is looked for that is not there.
+ *
+ *  Every stamping path takes its options from here. Two tables would
+ *  mean one cloud standing its stamps up through one caller and lying
+ *  them flat through another, which is what a single convention is for.
+ */
+InstanceOptions stampOptions(const Cloud& cloud);
+
 /** Stamp @p stamp at every point into one merged Mesh. */
 Mesh instance(const Cloud& cloud, const Mesh& stamp,
               const InstanceOptions& options = {});

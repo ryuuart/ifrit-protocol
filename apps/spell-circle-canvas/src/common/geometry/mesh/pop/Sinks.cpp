@@ -18,29 +18,12 @@ using path::Polyline;
 
 namespace {
 
-/** pop's attribute names -> the Cloud lane cook() exported them under.
- *  The builtins land on the conventional lowercase lanes; "Tex" and
- *  every custom keep their own name. One table, so the prim class
- *  addresses attributes with exactly the same spelling the point class
- *  does. "Id" is reserved and handled by promoteToPrims. */
-std::string cloudLaneFor(const std::string& attr) {
-  if (attr == "T") return "t";
-  if (attr == "Dir") return "dir";
-  if (attr == "Scale") return "size";
-  if (attr == "Color") return "tint";
-  return attr;  // "P" has no lane; "Tex" and customs keep their names
-}
-
 }  // namespace
 
 Mesh pop::cookMesh(const pop::Chain& chain, const Mesh& stamp,
                    const pop::Runtime& runtime) {
   const Cloud cloud = cook(chain, runtime);
-  points::InstanceOptions options;
-  options.orientLane = "dir";
-  options.scaleLane = "size";
-  options.tintLane = "tint";
-  Mesh out = points::instance(cloud, stamp, options);
+  Mesh out = points::instance(cloud, stamp, points::stampOptions(cloud));
   // The texture hint: "Tex" = {uOff, vOff, uScale, vScale} per point
   // remaps each stamped point's uv block — atlas selection, sprite
   // variety, per-point texture windows.
@@ -65,7 +48,9 @@ Mesh pop::cookMesh(const pop::Chain& chain, const Mesh& stamp,
     if (const auto* promote = std::get_if<pop::Promote>(&op))
       points::promoteToPrims(
           out, cloud,
-          promote->from.name == "Id" ? "Id" : cloudLaneFor(promote->from.name),
+          promote->from.name == "Id"
+              ? "Id"
+              : std::string(cloudLaneFor(promote->from.name)),
           promote->to.empty() ? promote->from.name : promote->to);
   return out;
 }

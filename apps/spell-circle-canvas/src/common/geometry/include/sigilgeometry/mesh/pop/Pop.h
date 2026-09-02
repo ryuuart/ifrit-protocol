@@ -828,6 +828,19 @@ struct pop {
                         const curve::SweepOptions& options = {.segments = 160},
                         const Runtime& runtime = Runtime::cpu());
 
+  /** THE ONE TABLE between a Cloud's lane names and this language's
+   *  attribute names, in each direction: `t`↔`T`, `size`↔`Scale`,
+   *  `dir`↔`Dir`, `tint`↔`Color`, with `normal` also seeding `Dir`
+   *  because that is what a generator or an importer writes. `P` has no
+   *  lane of its own — it is the cloud's positions — and `Tex` and every
+   *  custom name keep their own spelling on both sides.
+   *
+   *  Every path that crosses between the two spellings reads these, so a
+   *  cloud seeded into a chain and exported back out again comes home to
+   *  the lanes it left from. A name outside the table maps to itself. */
+  static std::string_view attrFor(std::string_view lane);
+  static std::string_view cloudLaneFor(std::string_view attr);
+
   /** THE DEVICE EXECUTOR, beside the CPU one: the `Runtime` that cooks a
    *  chain on @p device by dispatching the kernel this build compiled,
    *  rather than stepping the C++ that came out of the same source. The

@@ -43,17 +43,13 @@ glm::mat3 normalMatrix(const glm::mat4& m) {
   return glm::inverseTranspose(basis);
 }
 
-/** Multiply a shaded vertex colour by a primitive lane value. The
- *  shaded colour is already sRGB-encoded bytes, so this is a plain
- *  byte-domain modulate — the same posture SkBlendMode::kModulate has
- *  for the texture path. */
-SkColor modulate(SkColor c, glm::vec4 m) {
-  const auto scale = [](U8CPU channel, float k) -> U8CPU {
-    return (U8CPU)std::clamp((float)channel * k + 0.5f, 0.0f, 255.0f);
-  };
-  return SkColorSetARGB(scale(SkColorGetA(c), m.a), scale(SkColorGetR(c), m.r),
-                        scale(SkColorGetG(c), m.g), scale(SkColorGetB(c), m.b));
-}
+/** A shaded colour as this executor carries it between shading and
+ *  emission: STRAIGHT FLOAT, so a primitive lane multiplies into it in
+ *  the same domain the device painter multiplies in and the mesh's own
+ *  `bakePrimColor` folds in. Quantising first and multiplying bytes
+ *  afterwards is a different answer, and one lane must not mean two
+ *  colours. */
+glm::vec4 rgba(glm::vec3 rgb, float a) { return {rgb.x, rgb.y, rgb.z, a}; }
 
 SkColor toColor(glm::vec3 rgb, float a) {
   const SkColor4f c = {
@@ -96,7 +92,7 @@ struct CpuExecutor : Executor {
     // Project + shade every vertex once.
     std::vector<SkPoint> screen(n);
     std::vector<float> viewZ(n);
-    std::vector<SkColor> shaded(n);
+    std::vector<glm::vec4> shaded(n);
     std::vector<bool> valid(n, true);
     const bool hasNormals = mesh.normals.size() == n;
     const bool hasUvs = mesh.uvs.size() == n;
@@ -120,14 +116,14 @@ struct CpuExecutor : Executor {
                                     ? normalized(normalM * mesh.normals[i])
                                     : glm::vec3{0, 0, 1};
           // Materials.h G-buffer convention: DEVICE-space normals, +y down.
-          shaded[i] = toColor(
+          shaded[i] = rgba(
               {nrm.x * 0.5f + 0.5f, -nrm.y * 0.5f + 0.5f, nrm.z * 0.5f + 0.5f},
               1);
           break;
         }
         case MeshStyle::Mode::Uv: {
           const glm::vec2 uv = hasUvs ? mesh.uvs[i] : glm::vec2{0, 0};
-          shaded[i] = toColor({uv.x, uv.y, 0.5f}, 1);
+          shaded[i] = rgba({uv.x, uv.y, 0.5f}, 1);
           break;
         }
         case MeshStyle::Mode::Lit:
@@ -150,7 +146,7 @@ struct CpuExecutor : Executor {
           // what it shows, with no ambient under it and no emitter,
           // specular or rim over it.
           if (!style.lit) {
-            shaded[i] = toColor(base, alpha);
+            shaded[i] = rgba(base, alpha);
             break;
           }
           // WHAT A METAL IS: the light stops reaching the diffuse and
@@ -199,7 +195,7 @@ struct CpuExecutor : Executor {
                 style.rim;
             accum += glm::vec3{rim, rim, rim};
           }
-          shaded[i] = toColor(accum, alpha);
+          shaded[i] = rgba(accum, alpha);
           break;
         }
       }
@@ -277,7 +273,8 @@ struct CpuExecutor : Executor {
             primColor ? (*primColor)[tri.index] : glm::vec4{1, 1, 1, 1};
         for (uint32_t idx : {tri.i0, tri.i1, tri.i2}) {
           pos.push_back(screen[idx]);
-          col.push_back(primColor ? modulate(shaded[idx], flat) : shaded[idx]);
+          const glm::vec4 c = primColor ? shaded[idx] * flat : shaded[idx];
+          col.push_back(toColor({c.x, c.y, c.z}, c.w));
           if (textured) {
             const SkPoint uv =
                 style.uvTransform.mapPoint({mesh.uvs[idx].x, mesh.uvs[idx].y});

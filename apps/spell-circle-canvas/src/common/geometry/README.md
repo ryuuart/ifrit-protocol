@@ -610,6 +610,19 @@ one from the call operator. Your own generator written the same way has
 the same standing — the kit is stock, never privileged, and equal values
 must draw identical paths at every size.
 
+**One table for the lane convention, and one for the stamp.**
+`pop::attrFor` and `pop::cloudLaneFor` are the whole of the mapping
+between a Cloud's lane names and the chain's attribute names —
+`t`↔`T`, `size`↔`Scale`, `dir`↔`Dir`, `tint`↔`Color`, with `normal` also
+seeding `Dir` because that is what a generator or an importer writes —
+so a cloud seeded into a chain and exported back comes home to the lanes
+it left from. `points::stampOptions(cloud)` is the whole of how a stamp
+rides those lanes: "dir" where a chain produced one, "normal" where a
+generator did, "size" scaling and "tint" colouring, each only where the
+cloud carries it. Every stamping path takes its options from there,
+because two tables mean one cloud standing its stamps up through one
+caller and lying them flat through another.
+
 ## The device
 
 `device::Device::create(config, &error)` brings the one GPU device up:

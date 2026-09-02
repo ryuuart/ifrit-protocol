@@ -32,26 +32,14 @@ uint64_t mixCloud(uint64_t hash, const Cloud& cloud) {
   return fnv1a(hash, cloud.colors.size());
 }
 
-/** How the stamp rides its points: the conventional lanes every point
- *  operator already writes. The orient lane is "dir" where a chain
- *  produced one and "normal" where a generator did, so a cloud from
- *  either source stands its stamps up without the author naming a lane.
- */
-gm::points::InstanceOptions stampOptions(const Cloud& cloud) {
-  gm::points::InstanceOptions options;
-  options.scaleLane = cloud.scalarIf("size") ? "size" : "";
-  options.tintLane = cloud.colorIf("tint") ? "tint" : "";
-  if (cloud.vectorIf("dir"))
-    options.orientLane = "dir";
-  else if (cloud.vectorIf("normal"))
-    options.orientLane = "normal";
-  return options;
-}
-
 Cooked cookPoints(Cloud cloud, const Mesh& stamp) {
   Cooked cooked;
+  // How the stamp rides its points is the point operators' own table —
+  // one convention, so a cloud stands its stamps up the same way here
+  // and through `pop::cookMesh`.
   if (!stamp.positions.empty() && !cloud.positions.empty())
-    cooked.mesh = gm::points::instance(cloud, stamp, stampOptions(cloud));
+    cooked.mesh =
+        gm::points::instance(cloud, stamp, gm::points::stampOptions(cloud));
   cooked.cloud = std::move(cloud);
   return cooked;
 }

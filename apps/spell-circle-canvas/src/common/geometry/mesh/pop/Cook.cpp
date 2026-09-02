@@ -94,6 +94,22 @@ glm::vec4 pop::laneFill(std::string_view name) {
   return {0, 0, 0, 0};
 }
 
+std::string_view pop::attrFor(std::string_view lane) {
+  if (lane == "t") return "T";
+  if (lane == "size") return "Scale";
+  if (lane == "dir" || lane == "normal") return "Dir";
+  if (lane == "tint") return "Color";
+  return lane;
+}
+
+std::string_view pop::cloudLaneFor(std::string_view attr) {
+  if (attr == "T") return "t";
+  if (attr == "Scale") return "size";
+  if (attr == "Dir") return "dir";
+  if (attr == "Color") return "tint";
+  return attr;
+}
+
 void pop::seedAttrs(const Cloud& cloud, pop::Lanes& lanes) {
   const size_t n = cloud.size();
   const auto lane = [&](const std::string& name, glm::vec4 fill) -> auto& {
@@ -112,9 +128,7 @@ void pop::seedAttrs(const Cloud& cloud, pop::Lanes& lanes) {
   lane("Tex", {0, 0, 1, 1});
   for (const auto& [name, values] : cloud.scalars) {
     if (values.size() != n) continue;
-    const std::string target = name == "t"      ? "T"
-                               : name == "size" ? "Scale"
-                                                : name;
+    const std::string target(attrFor(name));
     std::vector<glm::vec4>& out = lane(target, {0, 0, 0, 0});
     for (size_t i = 0; i < n; ++i)
       out[i] = target == "Scale"
@@ -124,17 +138,17 @@ void pop::seedAttrs(const Cloud& cloud, pop::Lanes& lanes) {
   for (const auto& [name, values] : cloud.vectors) {
     if (values.size() != n) continue;
     // "dir" is the cook's own export; "normal" is what generators and
-    // importers write. Either seeds Dir, "dir" winning when both exist.
-    const bool isDir =
-        name == "dir" || (name == "normal" && !cloud.vectorIf("dir"));
-    const std::string target = isDir ? "Dir" : name;
+    // importers write. The table maps either onto Dir, so "dir" has to
+    // win where both exist.
+    const bool skip = name == "normal" && cloud.vectorIf("dir");
+    const std::string target(skip ? std::string_view(name) : attrFor(name));
     std::vector<glm::vec4>& out = lane(target, {0, 0, 1, 0});
     for (size_t i = 0; i < n; ++i)
       out[i] = {values[i].x, values[i].y, values[i].z, 0};
   }
   for (const auto& [name, values] : cloud.colors) {
     if (values.size() != n) continue;
-    const std::string target = name == "tint" ? "Color" : name;
+    const std::string target(attrFor(name));
     lane(target, {1, 1, 1, 1}) = values;
   }
 }
@@ -270,10 +284,10 @@ Cloud pop::exportLanes(const pop::Lanes& lanes, size_t count) {
   if (!P || !T || !Dir || !Scale || !Color) return out;
 
   out.positions.resize(count);
-  std::vector<float>& t = out.scalar("t");
-  std::vector<glm::vec3>& dir = out.vector("dir");
-  std::vector<float>& size = out.scalar("size", 1);
-  std::vector<glm::vec4>& tint = out.color("tint");
+  std::vector<float>& t = out.scalar(std::string(cloudLaneFor("T")));
+  std::vector<glm::vec3>& dir = out.vector(std::string(cloudLaneFor("Dir")));
+  std::vector<float>& size = out.scalar(std::string(cloudLaneFor("Scale")), 1);
+  std::vector<glm::vec4>& tint = out.color(std::string(cloudLaneFor("Color")));
   for (size_t i = 0; i < count; ++i) {
     const glm::vec4 p = (*P)[i];
     out.positions[i] = {p.x, p.y, p.z};
