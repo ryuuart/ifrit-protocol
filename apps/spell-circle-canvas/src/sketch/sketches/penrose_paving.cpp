@@ -1050,6 +1050,9 @@ struct PenrosePaving : sketch::Sketch {
   // -------------------------------------------------------------------------
 
   void setup(sketch::SketchContext& ctx) override {
+    // The finished plaza. 0.75 catches the crystal front mid-growth over the
+    // exact five-fold centre, 1.45 the inlay chaining on.
+    ctx.captureAt(4.6);
     ctx.canvas(kW, kH);
     ctx.background(kNight);
 

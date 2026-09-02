@@ -1349,6 +1349,7 @@ struct Bg3DiceRoll : sketch::Sketch {
 
   // ------------------------------------------------------------------- setup
   void setup(sketch::SketchContext& ctx) override {
+    ctx.captureAt(6.0);
     ctx.canvas(bg3::kW, bg3::kH);
     ctx.background(bg3::kVellum);
 

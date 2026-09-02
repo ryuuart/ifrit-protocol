@@ -1386,6 +1386,7 @@ struct AstralTome : sketch::Sketch {
   // --------------------------------------------------------------- setup
 
   void setup(sketch::SketchContext& ctx) override {
+    ctx.captureAt(6.0);
     ctx.canvas(at::kCanvasW, at::kCanvasH);
     ctx.background({0, 0, 0, 1});
 

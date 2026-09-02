@@ -1263,6 +1263,9 @@ struct WinampBase : sketch::Sketch {
   // =========================================================================
 
   void setup(sketch::SketchContext& ctx) override {
+    // Inside the llama beat, which runs 7.0-7.8 s: past its bounce and
+    // before its fade. Every other second of the loop is missing it.
+    ctx.captureAt(7.4);
     using namespace wa;
     ctx.canvas(1320, 1947);
     ctx.background(kDesk);

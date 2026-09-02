@@ -62,6 +62,7 @@ Element swatch(const char* name, Material material) {
 
 struct StockMaterialsSketch : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
+    ctx.captureAt(6.0);
     // Three rows of 112 from top 52 end at 428, and the footer sits 16 above
     // the bottom: 420 clipped the last row and printed the footer through
     // its labels. Nobody saw it while this only ever ran as a ctest that

@@ -1468,6 +1468,9 @@ struct GenesisFire : sketch::Sketch {
   bool deterministic_ = false;  // --deterministic: pin self-measurements
 
   void setup(sketch::SketchContext& ctx) override {
+    // 4.6 s into the 10 s loop: the wavefront is near the right edge, the
+    // leftmost systems are burning out and the rightmost have just ignited.
+    ctx.captureAt(4.6);
     deterministic_ = ctx.deterministic;
     ctx.canvas((int)kCanvasW, (int)kCanvasH);
     ctx.background(kInk);

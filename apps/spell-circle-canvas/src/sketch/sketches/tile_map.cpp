@@ -143,6 +143,7 @@ struct TileMap final : sketch::Sketch {
   }
 
   void setup(sketch::SketchContext& ctx) override {
+    ctx.captureAt(6.0);
     ctx.canvas(kCanvasW, kCanvasH);
     ctx.background({0, 0, 0, 1});
     Composer& composer = ctx.composer;

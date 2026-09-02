@@ -174,6 +174,7 @@ struct GeoGroups : sketch::Sketch {
   std::string caption;
 
   void setup(sketch::SketchContext& ctx) override {
+    ctx.captureAt(6.0);
     ctx.canvas(1200, 400);
     ctx.background({0.055f, 0.06f, 0.085f, 1});
 

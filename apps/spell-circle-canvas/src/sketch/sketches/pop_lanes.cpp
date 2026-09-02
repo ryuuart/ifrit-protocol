@@ -147,6 +147,7 @@ struct PopLanes : sketch::Sketch {
   geometry::mesh::Cloud downT, byHeight, unsorted, sorted;
 
   void setup(sketch::SketchContext& ctx) override {
+    ctx.captureAt(6.0);
     ctx.canvas(1200, 400);
     ctx.background({0.055f, 0.06f, 0.085f, 1});
 

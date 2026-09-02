@@ -135,6 +135,7 @@ struct WiggleShake : sketch::Sketch {
   choreograph::Output<float> seconds{0};
 
   void setup(sketch::SketchContext& ctx) override {
+    ctx.captureAt(6.0);
     ctx.canvas(1120, 680);
     ctx.background({0.055f, 0.06f, 0.085f, 1});
 

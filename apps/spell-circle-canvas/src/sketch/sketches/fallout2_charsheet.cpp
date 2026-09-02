@@ -1673,6 +1673,7 @@ struct Fallout2CharSheet : sketch::Sketch {
   // =========================================================================
 
   void setup(sketch::SketchContext& ctx) override {
+    ctx.captureAt(6.0);
     using namespace fo;
     ctx.canvas(kScreenW, kScreenH + kCaptionH);
     ctx.background(hex(0x050604));

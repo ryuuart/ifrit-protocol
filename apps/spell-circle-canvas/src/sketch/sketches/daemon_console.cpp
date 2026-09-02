@@ -292,6 +292,7 @@ struct DaemonConsole final : sketch::Sketch {
   }
 
   void setup(sketch::SketchContext& ctx) override {
+    ctx.canvas(kSceneSize.fWidth, kSceneSize.fHeight);
     ctx.background({0, 0, 0, 1});
     ctx.captureAt(9.0);
     Composer& composer = ctx.composer;

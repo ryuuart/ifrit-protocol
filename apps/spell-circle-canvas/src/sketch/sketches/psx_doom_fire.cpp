@@ -715,6 +715,7 @@ struct PsxDoomFire : sketch::Sketch {
   // =========================================================================
 
   void setup(sketch::SketchContext& ctx) override {
+    ctx.captureAt(6.0);
     ctx.canvas(1360, 760);
     ctx.background(kInk);
 

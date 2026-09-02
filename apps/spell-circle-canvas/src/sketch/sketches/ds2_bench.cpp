@@ -1235,6 +1235,7 @@ struct Ds2Bench : sketch::Sketch {
   }
 
   void setup(sketch::SketchContext& ctx) override {
+    ctx.captureAt(2.5);
     ctx.canvas((int)kW, (int)kH);
     ctx.background(hex(0x02060A));
     bakePips();

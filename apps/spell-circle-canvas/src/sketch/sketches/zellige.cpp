@@ -86,6 +86,8 @@ struct Zellige final : sketch::Sketch {
   // setup recipes — the ones the captions describe.
 
   void setup(sketch::SketchContext& ctx) override {
+    ctx.canvas(kSceneSize.fWidth, kSceneSize.fHeight);
+    ctx.captureAt(6.0);
     ctx.background({0, 0, 0, 1});
     ctx.captureAt(1.5);
     Composer& composer = ctx.composer;

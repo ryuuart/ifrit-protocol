@@ -155,6 +155,7 @@ struct EnvTheme : sketch::Sketch {
   feed::TextRing ring{16};
 
   void setup(sketch::SketchContext& ctx) override {
+    ctx.captureAt(6.0);
     ctx.canvas(1140, 470);
     ctx.background({0.055f, 0.06f, 0.085f, 1});
 

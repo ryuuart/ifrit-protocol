@@ -256,6 +256,8 @@ struct PersonaMenu final : sketch::Sketch {
   choreograph::Output<float> curDx{40}, curDy{-40};
 
   void setup(sketch::SketchContext& ctx) override {
+    ctx.canvas(kSceneSize.fWidth, kSceneSize.fHeight);
+    ctx.captureAt(6.0);
     ctx.background({0, 0, 0, 1});
     Composer& composer = ctx.composer;
     sigil::motion::Ticker& ticker = ctx.ticker;

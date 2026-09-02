@@ -22,6 +22,8 @@ struct Load final : sketch::Sketch {
   std::vector<std::unique_ptr<choreograph::Output<float>>> movers;
 
   void setup(sketch::SketchContext& ctx) override {
+    ctx.canvas(900, 640);
+    ctx.captureAt(6.0);
     ctx.background({0, 0, 0, 1});
     Composer& composer = ctx.composer;
     sigil::motion::Ticker& ticker = ctx.ticker;

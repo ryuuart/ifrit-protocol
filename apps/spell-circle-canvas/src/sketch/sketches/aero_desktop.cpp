@@ -232,6 +232,8 @@ struct AeroDesktop final : sketch::Sketch {
   choreograph::Output<float> orbGlow{0};  // start-orb ambient breathing
 
   void setup(sketch::SketchContext& ctx) override {
+    ctx.canvas(kSceneSize.fWidth, kSceneSize.fHeight);
+    ctx.captureAt(6.0);
     ctx.background({0, 0, 0, 1});
     Composer& composer = ctx.composer;
     sigil::motion::Ticker& ticker = ctx.ticker;

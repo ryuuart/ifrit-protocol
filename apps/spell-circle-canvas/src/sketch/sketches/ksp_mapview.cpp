@@ -1812,6 +1812,7 @@ struct KspMapView : sketch::Sketch {
   // -------------------------------------------------------------------
 
   void setup(sketch::SketchContext& ctx) override {
+    ctx.captureAt(6.0);
     using namespace ksp;
     ctx.canvas(1200, 800);
     ctx.background(kSpace);

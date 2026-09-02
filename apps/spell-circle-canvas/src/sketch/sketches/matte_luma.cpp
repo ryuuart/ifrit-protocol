@@ -186,6 +186,7 @@ Element captioned(const char* title, const char* note, Element body) {
 
 struct MatteLuma : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
+    ctx.captureAt(6.0);
     ctx.canvas(1180, 620);
     ctx.background({0.055f, 0.06f, 0.085f, 1});
 

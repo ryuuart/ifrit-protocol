@@ -135,6 +135,7 @@ struct GerstnerGrid final : sketch::Sketch {
   // entrance, well clear of the first step.
 
   void setup(sketch::SketchContext& ctx) override {
+    ctx.canvas(kSceneSize.fWidth, kSceneSize.fHeight);
     ctx.background({0, 0, 0, 1});
     ctx.captureAt(1.5);
     Composer& composer = ctx.composer;

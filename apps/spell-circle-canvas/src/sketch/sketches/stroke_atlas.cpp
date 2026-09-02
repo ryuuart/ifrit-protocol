@@ -1119,6 +1119,7 @@ struct StrokeAtlasSketch : sketch::Sketch {
   }
 
   void setup(sketch::SketchContext& ctx) override {
+    ctx.captureAt(6.0);
     ctx.canvas(1600, 1990);
     ctx.background(kPaper);
 

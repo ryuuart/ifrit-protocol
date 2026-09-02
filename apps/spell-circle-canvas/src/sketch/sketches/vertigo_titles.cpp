@@ -702,6 +702,7 @@ struct VertigoTitles : sketch::Sketch {
 
   // ------------------------------------------------------------------
   void setup(sketch::SketchContext& ctx) override {
+    ctx.captureAt(5.2);
     ctx.canvas(kW, kH);
     ctx.background(kInk);
 

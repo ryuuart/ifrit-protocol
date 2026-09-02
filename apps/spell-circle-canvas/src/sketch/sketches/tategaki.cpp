@@ -105,6 +105,7 @@ struct Tategaki final : sketch::Sketch {
   /// a frame of its entrance.
 
   void setup(sketch::SketchContext& ctx) override {
+    ctx.canvas(kSceneSize.fWidth, kSceneSize.fHeight);
     ctx.background({0, 0, 0, 1});
     ctx.captureAt(2.4);
     Composer& composer = ctx.composer;

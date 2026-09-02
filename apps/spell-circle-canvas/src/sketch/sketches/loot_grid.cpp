@@ -433,6 +433,7 @@ struct LootGrid final : sketch::Sketch {
   static SkPoint freeAt() { return {loot::cellX(7), loot::cellY(1)}; }
 
   void setup(sketch::SketchContext& ctx) override {
+    ctx.canvas(kSceneSize.fWidth, kSceneSize.fHeight);
     ctx.background({0, 0, 0, 1});
     ctx.captureAt(5.1);
     Composer& composer = ctx.composer;

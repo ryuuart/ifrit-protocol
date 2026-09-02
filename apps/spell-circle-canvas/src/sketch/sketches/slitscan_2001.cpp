@@ -1912,6 +1912,9 @@ void SlitScan2001::setup(sketch::SketchContext& ctx) {
   using namespace slit;
   ctx.canvas(kCanvasW, kCanvasH);
   ctx.background(kInk);
+  // tau lands on 0.60 here, which is the carriage two thirds down its
+  // fourteen feet, mid-exposure — what the +0.60 phase offset is for.
+  ctx.captureAt(6.0);
 
   // ---- bake the artwork ONCE. These are static images made at setup and
   // never mutated afterwards, so they are plain baked SkImages; a live

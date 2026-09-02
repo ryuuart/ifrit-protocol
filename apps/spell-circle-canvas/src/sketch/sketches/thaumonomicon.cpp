@@ -1740,6 +1740,7 @@ struct Thaumonomicon : sketch::Sketch {
   // -------------------------------------------------------------------------
 
   void setup(sketch::SketchContext& ctx) override {
+    ctx.captureAt(6.0);
     ctx.canvas(kCanvasW, kCanvasH);
     ctx.background(hex(0x0B0906));
 

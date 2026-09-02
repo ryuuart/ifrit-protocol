@@ -119,6 +119,8 @@ struct NineSlice final : sketch::Sketch {
   static float breathHalf(float h) { return (h - 130.0f) * 0.5f; }
 
   void setup(sketch::SketchContext& ctx) override {
+    ctx.canvas(kSceneSize.fWidth, kSceneSize.fHeight);
+    ctx.captureAt(6.0);
     ctx.background({0, 0, 0, 1});
     Composer& composer = ctx.composer;
     sigil::motion::Ticker& ticker = ctx.ticker;
