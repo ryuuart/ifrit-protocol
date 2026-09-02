@@ -193,19 +193,23 @@ def sha256_of(path: Path) -> str:
     return digest.hexdigest()
 
 
-def fetch(assets, out: Path, label: str = "assets") -> None:
+def fetch(assets, out: Path, quiet: bool = False) -> None:
     """Downloads what is missing or wrong, leaves what already matches.
 
     The hash is the contract: a file already at its destination is kept
     only when it hashes to what the manifest says, and a download whose
-    bytes hash to something else is removed rather than left in place to
+    bytes hash to something else is never written, so a mismatch cannot
     be read later as the asset it is not.
+
+    A download always says so. `quiet` drops the line per file already
+    in place, for a caller that fetches as one step of something larger.
     """
     context = ssl.create_default_context()
     for asset in assets:
         target = out / asset.dest
         if target.exists() and sha256_of(target) == asset.sha256:
-            print(f"have {asset.dest}")
+            if not quiet:
+                print(f"have {asset.dest}")
             continue
         print(f"fetch {asset.dest}")
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -219,7 +223,6 @@ def fetch(assets, out: Path, label: str = "assets") -> None:
         if got != asset.sha256:
             sys.exit(f"{asset.dest}: expected sha256 {asset.sha256}, got {got}")
         target.write_bytes(payload)
-    print(f"{label} in {out}")
 
 
 def main() -> None:
@@ -231,7 +234,9 @@ def main() -> None:
         help="where to write the assets (default: build/assets)",
     )
     args = parser.parse_args()
-    fetch(ASSETS, args.out.resolve())
+    out = args.out.resolve()
+    fetch(ASSETS, out)
+    print(f"assets in {out}")
 
 
 if __name__ == "__main__":

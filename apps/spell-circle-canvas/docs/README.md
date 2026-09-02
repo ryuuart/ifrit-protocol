@@ -17,24 +17,27 @@ optional and adds inheritance graphs.
 
 | File | What it is |
 | --- | --- |
-| `Docs.cmake` | The target machinery. Included by the root `CMakeLists.txt`. |
+| `Docs.cmake` | Registration: `sigil_add_docs()`, and the targets. Included by the root `CMakeLists.txt`. |
 | `Doxyfile.in` | The settings every library's site shares. |
-| `FetchTheme.cmake` | Downloads the theme into the build tree, pinned by hash. |
-| `MakeHeader.cmake` | Generates the HTML header the theme's scripts hang off. |
 | `custom.css` | Project overrides, loaded after the theme. |
 | `Dockerfile`, `nginx.conf`, `dockerignore` | Serving the generated site. |
+
+The generation itself is `scripts/build_docs.py`: the two passes, the
+theme download, the HTML header, the rendered Doxyfiles, the landing
+page and the container staging. CMake keeps what only CMake knows —
+whether Doxygen is installed, where it is, and which libraries
+registered themselves — and writes that to `build/docs-manifest.txt`,
+which is what the script reads.
 
 Nothing here is generated, and nothing here is vendored. The theme is
 downloaded at build time.
 
 The build writes two directories. `build/docs/` is the output: the
 sites, the landing page and the container files, and nothing else — it
-is what gets served, and deleting it forces a clean regeneration.
-`build/docs-build/` holds the intermediates (the configured Doxyfiles,
-the tag files, the theme, the generated header). They are kept apart on
-purpose: the Doxyfiles are written by `configure_file`, so the build has
-no rule that can bring one back, and a `rm -rf build/docs` that took
-them along would break the build until the next `cmake` run.
+is what gets served. `build/docs-build/` holds the intermediates: the
+rendered Doxyfiles, the tag files, the theme, the generated header.
+Either can be deleted; the next `docs` build writes back whatever is
+missing.
 
 ## Adding a library
 
@@ -68,6 +71,13 @@ order the subdirectories were added.
 The result is that a type used across a library boundary links to the
 page that defines it, in whichever direction it is used.
 
+A tag file is rewritten when a header, a README, or the Doxyfile that
+reads them is newer than it, so a second `docs` build re-indexes nothing
+and only writes the HTML. `docs-<Lib>` writes one library's site and
+leaves the landing page and the container files alone, but still brings
+every tag file up to date first — that is what its cross-library links
+resolve against.
+
 ## What gets documented
 
 `EXTRACT_ALL` is off. The house convention is that a **type** carries a
@@ -93,9 +103,10 @@ the stylesheet without changing the generated HTML structure, so the
 markup Doxygen emits stays the markup the theme expects.
 
 It is pinned to a commit and hash-checked per file in
-`FetchTheme.cmake`, fetched into `build/docs-build/theme/`, and never
-vendored. A file whose bytes already match is not re-fetched, so only
-the first `docs` build touches the network.
+`scripts/build_docs.py`, fetched into `build/docs-build/theme/` through
+the same downloader as the demo assets, and never vendored. A file whose
+bytes already match is not re-fetched, so only the first `docs` build
+touches the network.
 
 `custom.css` carries what the theme cannot fix from its variables:
 Doxygen emits several blocks whose intrinsic width comes from their
