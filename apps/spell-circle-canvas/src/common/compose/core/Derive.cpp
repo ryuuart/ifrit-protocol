@@ -21,6 +21,7 @@
 #include <include/core/SkPathUtils.h>
 
 #include <algorithm>
+#include <cmath>
 
 #include "ComposeRuntime.h"
 
@@ -119,10 +120,35 @@ bool Composer::Impl::resolveThreads() {
   for (Instance* head : threadedInstances) {
     if (threadedInto.count(head)) continue;  // not a head
     uint32_t cursor = 0;
+    // The story numbers its own lines, so each frame is told where in that
+    // numbering its first line stands. Words, characters, sentences and
+    // named runs are already the story's — every frame builds the whole
+    // story's paragraph and resumes at a word — and the line is the one
+    // address that was the frame's rather than the story's.
+    uint32_t lineOffset = 0;
     for (Instance* frame = head; frame; ) {
       if (!visited.insert(frame).second) break;  // a cycle: stop where it closes
-      if (frame->threadCursor != cursor) {
+      const detail::TextData* text =
+          frame->desc && frame->desc->textData ? &*frame->desc->textData : nullptr;
+      Instance* next = nullptr;
+      if (text && !text->threadTo.empty()) {
+        auto found = byKey.find(text->threadTo);
+        if (found != byKey.end()) next = found->second;
+      }
+      // THE MEASURE THE NEXT FRAME SETS IN, for the widow rule: the lines
+      // it counts are the remainder, and the remainder is what the next
+      // frame will hold. Read off the box that frame resolved to on the
+      // pass before this one — 0 the first time round, which is weave's
+      // "not known" and leaves the count at this frame's own measure.
+      const float nextMeasure =
+          next ? instanceRect(*next).width() : 0.0f;
+      if (frame->threadCursor != cursor ||
+          frame->threadLineOffset != lineOffset ||
+          frame->threadNextMeasure != nextMeasure) {
         frame->threadCursor = cursor;
+        frame->threadLineOffset = lineOffset;
+        frame->threadNextMeasure =
+            std::isfinite(nextMeasure) && nextMeasure > 0 ? nextMeasure : 0.0f;
         frame->contentRev++;
         if (frame->yoga) YGNodeMarkDirty(frame->yoga);
         moved = true;
@@ -139,11 +165,8 @@ bool Composer::Impl::resolveThreads() {
                    : (frame->paragraph
                           ? (uint32_t)frame->paragraph->words().size()
                           : cursor);
-      const detail::TextData* text =
-          frame->desc && frame->desc->textData ? &*frame->desc->textData : nullptr;
-      if (!text || text->threadTo.empty()) break;
-      auto next = byKey.find(text->threadTo);
-      frame = next == byKey.end() ? nullptr : next->second;
+      lineOffset += (uint32_t)std::max(frame->textLayout.lineCount, 0);
+      frame = next;
     }
   }
   return moved;

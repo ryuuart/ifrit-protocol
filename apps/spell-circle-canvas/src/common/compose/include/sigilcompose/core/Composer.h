@@ -150,6 +150,28 @@ class Composer {
    *  layout; for glyph choreography and queries). */
   const sigil::weave::ParagraphLayout* paragraphLayout(
       std::string_view key) const;
+  /** WHAT A LIVE PASSAGE'S LAST LAYOUT COST — the report a host folds into
+   *  its own proof that a node is holding still.
+   *
+   *  A text told its input is moving (`Element::live`) keeps its break
+   *  decisions and reuses them: `reused` is how many blocks this frame
+   *  answered from decisions it already had, and `degraded` how many the
+   *  budget forced to the greedy breaker. A frame that reused every block
+   *  and degraded none is set exactly as the frame before it. A frame that
+   *  degraded is set PROVISIONALLY — the setting the author asked for
+   *  comes back the frame the budget is met, and the leaf lays out again
+   *  to get it.
+   *
+   *  There is one proof in a runtime that a node has settled and this is
+   *  not it: this is a fact about one input, reported so the proof can
+   *  fold it beside every other input the node has. A layout reporting
+   *  degrades every frame is asking for a longer budget or a shorter
+   *  block.
+   *
+   *  Valid after a draw(). An unknown key, and a node that is not text,
+   *  resolve to a zeroed value, as the rest of the query family does. */
+  [[nodiscard]] TextSettling settling(std::string_view key) const;
+
   /** THE SCHEDULE ONE fx() TRACK IS RUNNING: a `Beat` per beat of track
    *  @p trackIndex on the keyed text node, in draw order. Valid after a
    *  draw() (or any other call that runs layout), and computed on demand —

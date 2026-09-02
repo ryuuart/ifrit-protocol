@@ -154,6 +154,17 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // thread(): the word this frame's fill begins at — 0 for the head of a
   // chain, and whatever the frame before it left unplaced for every other.
   uint32_t threadCursor = 0;
+  // …and the LINE this frame's first line is, counted from the story's
+  // start. A story numbers its own lines: sel::line(40) is the fortieth
+  // line of the story wherever it landed, so a chain that reflows moves
+  // the selection with the text instead of addressing a different line in
+  // every frame. 0 for the head, and for every text that is not a frame.
+  uint32_t threadLineOffset = 0;
+  // …and the MEASURE THE NEXT FRAME SETS IN, which the widow rule needs
+  // because the lines it counts are the ones this frame will not hold.
+  // Only the chain knows it; 0 says it is not known yet, which is the
+  // first pass over a chain nobody has laid out.
+  float threadNextMeasure = 0;
   uint32_t contentRev = 0;        // bumped on text/exclusion change
   uint32_t measuredRev = ~0u;     // rev the cached measurement belongs to
   // rich().slot(): the slot names in the order the content declares them —
@@ -279,6 +290,19 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // a declaration, so a run that stops keeps the placement it was moving
   // with instead of taking one last shift as it settles.
   bool placementUnderMotion = false;
+  // …and is the COMPOSER still working on this passage? A text told its
+  // input is moving (Element::live) has its break decisions kept and
+  // reused, and a frame that answered every block from that store did no
+  // work at all: the passage is set exactly as the frame before it. So the
+  // leaf reports what its last layout cost — how many blocks came from the
+  // store, how many the budget forced to the greedy breaker — and this is
+  // the one bit the caching proof reads off that report: a live passage
+  // whose layout is not yet stable can change without any number this node
+  // carries changing, which is what "opaque to a value memo" means.
+  // Written in layoutText, beside the layout it describes.
+  bool textComposing = false;
+  /// What the last layout of this leaf cost, for `Composer::settling`.
+  int textReusedBlocks = 0, textDegradedBlocks = 0;
   // …and is the device rect it actually LANDS on holding still? These are
   // NOT the same predicate: a node with no animated property of its own
   // still moves every frame under a resizing window or a pinch zoom, and a
@@ -533,6 +557,7 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // is the one invalidation that must not depend on a flag.
   SkPath coverageOutline;
   SkSize coverageOutlineSize = {-1.0f, -1.0f};
+  float coverageOutlineScale = -1.0f;  ///< the device scale it was traced at
   SkPath outlineCache;
   SkSize outlineCacheSize = {-1.0f, -1.0f};
   const ElementNode* outlineCacheDesc = nullptr;
@@ -631,6 +656,16 @@ inline TextState& textStateOf(Instance& inst) {
 inline bool childrenCarryYoga(const Instance& inst) {
   return inst.yoga != nullptr && inst.desc && !inst.desc->layout.positioned &&
          inst.desc->kind != Kind::Text;
+}
+
+/** WHERE A LEAF STANDS IN ITS STORY, read off the retained instance: the
+ *  line offset the frame chain gave it, and its own key for the frame-local
+ *  address. A leaf that is not a frame of a chain answers a zero offset and
+ *  its own key, so the ordinary text is the general case with nothing
+ *  subtracted. */
+[[nodiscard]] inline TextScope scopeOf(const Instance& inst) {
+  return {inst.threadLineOffset,
+          inst.desc ? std::string_view(inst.desc->key) : std::string_view{}};
 }
 
 }  // namespace sigil::compose::detail

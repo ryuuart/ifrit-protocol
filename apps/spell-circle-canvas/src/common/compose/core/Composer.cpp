@@ -553,6 +553,18 @@ const sigil::weave::ParagraphLayout* Composer::paragraphLayout(
   return &it->second->textLayout;
 }
 
+TextSettling Composer::settling(std::string_view key) const {
+  auto it = m_impl->byKey.find(std::string(key));
+  if (it == m_impl->byKey.end() || !it->second->paragraph) return {};
+  const detail::Instance& inst = *it->second;
+  return {.live = inst.desc && inst.desc->textData &&
+                  (inst.desc->textData->options.set &
+                   detail::TextOptions::kLive) != 0 &&
+                  inst.desc->textData->options.live,
+          .reused = inst.textReusedBlocks,
+          .degraded = inst.textDegradedBlocks};
+}
+
 std::vector<Beat> Composer::beatsOf(std::string_view key,
                                     size_t trackIndex) const {
   auto it = m_impl->byKey.find(std::string(key));

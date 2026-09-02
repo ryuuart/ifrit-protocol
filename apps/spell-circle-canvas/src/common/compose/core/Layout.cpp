@@ -227,7 +227,22 @@ void Composer::Impl::layoutText(Instance& inst, float constraint,
   // The readings, laid out on the placement the base just reached. Their
   // band was already in the base's strut, so nothing here moves the base.
   resolveTextAnnotations(inst);
-  inst.measuredForWidth = constraint;
+  // WHAT THIS LAYOUT COST, reported for the proof that the node is holding
+  // still. A live passage answered entirely from break decisions it already
+  // had is set exactly as the frame before it and did no work; one that
+  // still decided a break, or degraded because the budget ran out, may be
+  // set differently the next frame with no number on this node changing.
+  //
+  // A DEGRADE IS PROVISIONAL. The block was filled greedily for this frame
+  // alone and the setting the author asked for is still what the passage
+  // wants, so the layout is NOT held as valid for this measure: the next
+  // frame asks again, and everything is back the frame the budget is met.
+  inst.textReusedBlocks = inst.textLayout.reusedBlocks;
+  inst.textDegradedBlocks = inst.textLayout.degradedBlocks;
+  inst.textComposing = options.live && (inst.textLayout.reusedBlocks == 0 ||
+                                        inst.textLayout.degradedBlocks > 0);
+  inst.measuredForWidth =
+      inst.textLayout.degradedBlocks > 0 ? -1.0f : constraint;
   inst.measuredForHeight = downConstraint;
   SkRect bounds = SkRect::MakeEmpty();
   for (const sigil::weave::LineMetrics& line : inst.lines)

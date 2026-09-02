@@ -517,3 +517,196 @@ TEST(ComposeBoundary, GlyphsHandTheDecorationsTheLettersInsteadOfTheBox) {
   // …and the letters themselves are painted under both.
   EXPECT_TRUE(anyGreenIn(lettered, SkIRect::MakeXYWH(10, 10, 240, 60)));
 }
+
+// ── Live text: what a moving passage costs, frame by frame ───────────────
+
+namespace {
+
+/** A passage long enough that a frame of it is worth composing — past the
+ *  stride the optimizing breaker reads its budget on, so a starved block
+ *  can notice it has run out. */
+std::u8string longPassage() {
+  std::u8string out;
+  for (int i = 0; i < 30; ++i) out += passage() + toU8(" ");
+  return out;
+}
+
+/** One frame of a live passage at `measure`, reporting what it cost. */
+TextSettling settlingAt(Host& host, float measure, float budget) {
+  host.composer.render(box().child(text(longPassage(), whiteStyle(13))
+                                       .key("t")
+                                       .width(Dim(measure))
+                                       .lineBreak(sigil::weave::LineBreakStrategy::kKnuthPlass)
+                                       .live(true, budget)));
+  host.frame();
+  return host.composer.settling("t");
+}
+
+}  // namespace
+
+TEST(ComposeLiveText, ABoundMeasureRelaysEveryFrameWithoutGrowingTheTree) {
+  Host host(600, 500);
+  // The width sweeps, so every frame is a layout the frame before it did
+  // not answer — which is what a bound measure is.
+  const std::vector<float> sweep = {320, 330, 340, 350, 360, 370, 380};
+  std::vector<int> lineCounts;
+  for (const float measure : sweep) {
+    settlingAt(host, measure, 0.0f);
+    const sigil::weave::ParagraphLayout* layout =
+        host.composer.paragraphLayout("t");
+    ASSERT_NE(layout, nullptr);
+    lineCounts.push_back(layout->lineCount);
+  }
+  // It re-laid: a wider measure took fewer lines than the narrowest.
+  EXPECT_GT(lineCounts.front(), lineCounts.back());
+
+  // …AND THE TREE DOES NOT GROW WHILE IT DOES. A frame of a moving passage
+  // re-decides breaks and re-fills; what it must not do is leave anything
+  // behind. Compared between two runs of the same sweep rather than
+  // against the first frame, because the first run of a sweep is also the
+  // one that warms the caches a settled measure is then answered from.
+  for (int pass = 0; pass < 3; ++pass)
+    for (const float measure : sweep) settlingAt(host, measure, 0.0f);
+  const Composer::Stats warm = host.composer.stats();
+  for (int pass = 0; pass < 3; ++pass)
+    for (const float measure : sweep) settlingAt(host, measure, 0.0f);
+  const Composer::Stats after = host.composer.stats();
+  EXPECT_EQ(after.instances, warm.instances);
+  EXPECT_EQ(after.picturesLive, warm.picturesLive);
+  EXPECT_EQ(after.texturesLive, warm.texturesLive);
+
+  // …and a measure it has already crossed costs no break decision at all:
+  // the block is answered from decisions this thread already has.
+  const TextSettling seen = settlingAt(host, sweep.front(), 0.0f);
+  EXPECT_TRUE(seen.live);
+  EXPECT_GT(seen.reused, 0);
+  EXPECT_EQ(seen.degraded, 0);
+}
+
+TEST(ComposeLiveText, ASettledTextDecidesItsBreaksOnceAndThenComposesNothing) {
+  Host host(600, 500);
+  const Element leaf =
+      box().child(text(longPassage(), whiteStyle(13))
+                      .key("t")
+                      .width(Dim(340.0f))
+                      .lineBreak(sigil::weave::LineBreakStrategy::kKnuthPlass));
+  host.composer.render(leaf);
+  host.frame();
+  // A settled passage never asks the break store — it is not one of a run
+  // of layouts, so there is nothing for a later frame to reuse.
+  const TextSettling first = host.composer.settling("t");
+  EXPECT_FALSE(first.live);
+  EXPECT_EQ(first.reused, 0);
+  EXPECT_EQ(first.degraded, 0);
+
+  // …and the frames after it compose nothing at all: the layout is valid
+  // for the measure it was asked at, so no dynamic program runs and the
+  // node's recording stands.
+  for (int i = 0; i < 3; ++i) {
+    host.composer.render(leaf);
+    host.frame();
+  }
+  const Composer::Stats settled = host.composer.stats();
+  EXPECT_EQ(settled.picturesRecorded, 0u);
+  EXPECT_EQ(host.composer.settling("t").reused, 0);
+  EXPECT_EQ(host.composer.settling("t").degraded, 0);
+}
+
+TEST(ComposeLiveText, ADegradedFrameIsProvisionalAndTheSettingComesBack) {
+  Host host(600, 500);
+  // A budget no composer can meet: the block is filled greedily for that
+  // frame and says so.
+  const TextSettling starved = settlingAt(host, 340.0f, 1.0f);
+  EXPECT_TRUE(starved.live);
+  EXPECT_GT(starved.degraded, 0);
+  // …and a budget it can meet gets the setting back, at the same measure,
+  // because a degrade never held the layout as the answer for it.
+  const TextSettling fed = settlingAt(host, 340.0f, 1.0e6f);
+  EXPECT_EQ(fed.degraded, 0);
+}
+
+// ── A story numbers its own lines ────────────────────────────────────────
+
+namespace {
+
+/** A chain of two frames over one story, drawn once. */
+void twoFrames(Host& host, float measure = 160.0f) {
+  Story article(rich(whiteStyle(13)).add(longPassage()));
+  host.composer.render(
+      box()
+          .row()
+          .child(frame(article).key("a").thread("b").width(Dim(measure)).height(
+              Dim(70.0f)))
+          .child(
+              frame(article).key("b").width(Dim(measure)).height(Dim(400.0f))));
+  host.frame();
+}
+
+}  // namespace
+
+TEST(ComposeStory, LinesAreNumberedFromTheStoryAndNotFromTheFrame) {
+  Host host(600, 500);
+  twoFrames(host);
+  const sigil::weave::ParagraphLayout* head = host.composer.paragraphLayout("a");
+  ASSERT_NE(head, nullptr);
+  const int headLines = head->lineCount;
+  ASSERT_GT(headLines, 1);
+
+  // A line the FIRST frame holds is addressed on the first frame and
+  // nowhere else…
+  EXPECT_FALSE(host.composer.units("a", sel::line(0), unit::Line).empty());
+  EXPECT_TRUE(host.composer.units("b", sel::line(0), unit::Line).empty());
+  // …and the line just past it is the second frame's first line, addressed
+  // by its number in the STORY rather than by its number in the frame.
+  EXPECT_TRUE(
+      host.composer.units("a", sel::line((uint32_t)headLines), unit::Line)
+          .empty());
+  EXPECT_FALSE(
+      host.composer.units("b", sel::line((uint32_t)headLines), unit::Line)
+          .empty());
+}
+
+TEST(ComposeStory, InFrameIsTheFrameLocalAddressBesideTheStoryWideOnes) {
+  Host host(600, 500);
+  twoFrames(host);
+  const sigil::weave::ParagraphLayout* head = host.composer.paragraphLayout("a");
+  ASSERT_NE(head, nullptr);
+
+  // On its own it is everything that frame holds, and nothing anywhere
+  // else.
+  EXPECT_FALSE(
+      host.composer.units("b", sel::inFrame("b"), unit::Line).empty());
+  EXPECT_TRUE(host.composer.units("a", sel::inFrame("b"), unit::Line).empty());
+  // Composed, it cuts a story-wide address to one frame: the story's line 0
+  // is in frame a, so asking for it inside frame b addresses nothing.
+  EXPECT_TRUE(
+      host.composer.units("b", sel::inFrame("b") & sel::line(0), unit::Line)
+          .empty());
+  EXPECT_FALSE(
+      host.composer.units("a", sel::inFrame("a") & sel::line(0), unit::Line)
+          .empty());
+}
+
+// ── The line-edge and full-width tables, from a compose leaf ─────────────
+
+TEST(ComposeLineTables, TsumeClosesTheGapsBetweenFullWidthCharacters) {
+  // The room between two full-width characters is a table, and tsume is
+  // the fraction closed at every gap the table gives no class of its own.
+  // A passage set with it is narrower than the same passage without.
+  const auto widthWith = [](float tsume) {
+    Host host(400, 300);
+    Element leaf = text(toU8("あいうえお、かきくけこ。さしすせそ"),
+                        whiteStyle(20))
+                       .key("t")
+                       .width(Dim(360.0f));
+    if (tsume != 0) leaf.mojikumi({}, tsume);
+    host.composer.render(box().child(std::move(leaf)));
+    host.frame();
+    const std::vector<TextUnit> line =
+        host.composer.units("t", sel::line(0), unit::Line);
+    return line.empty() ? 0.0f : line.front().rect.width();
+  };
+  const float plain = widthWith(0.0f);
+  ASSERT_GT(plain, 0.0f);
+  EXPECT_LT(widthWith(0.5f), plain);
+}

@@ -33,8 +33,10 @@ struct GlyphStructure {
   std::array<std::vector<uint32_t>, kUnits> unitOf;
   std::array<uint32_t, kUnits> unitCounts{};
 
+  TextScope scope;  ///< carried so every resolver reads one value
+
   void build(const sigil::weave::ParagraphLayout& layout,
-             const sigil::weave::Paragraph& paragraph);
+             const sigil::weave::Paragraph& paragraph, TextScope scope = {});
 };
 
 /** Which glyphs a selector addresses: one byte per glyph, in walk order.
@@ -48,6 +50,9 @@ std::vector<uint8_t> resolveSelection(const Selector& selector,
 void warnBadSelectorPattern(const std::u8string& pattern);
 /** The once-per-name diagnostic behind an `sel::style` no run answers to. */
 void warnNoSuchStyleName(const std::u8string& name);
+/** The once-per-key diagnostic behind an `sel::inFrame` naming a frame no
+ *  leaf in the tree carries. */
+void warnNoSuchFrameKey(const std::u8string& key);
 /** WHICH TEXT A SELECTOR ADDRESSES, as UTF-16 ranges rather than glyphs —
  *  the form span restyling needs, because a restyle happens on the
  *  Paragraph, before there are glyphs to point at.
@@ -68,7 +73,7 @@ std::vector<sigil::weave::CharRange> resolveTextRanges(
     sigil::weave::FontContext& fonts,
     std::span<const sigil::weave::LineMetrics> lines,
     std::span<const sigil::weave::ColumnMetrics> columns,
-    std::span<const NamedRun> named);
+    std::span<const NamedRun> named, TextScope scope = {});
 
 /** ONE TRACK'S CASCADE RESOLVED AGAINST A LAID-OUT PARAGRAPH: which beat
  *  every glyph falls in at each level, and the ladder those beats run on.

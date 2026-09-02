@@ -479,9 +479,20 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
   // memo, named once, while `boundFill` and `liveMat` are handled per
   // consumer below (the fill rides the memoized scalar lane, the live
   // material has its own memo). No consumer re-enumerates.
+  //
+  // A LIVE PASSAGE STILL BEING COMPOSED joins them, and it is the one term
+  // here that is read off a REPORT rather than off a declaration. It has to
+  // be: whether the composer had to decide a break this frame is not
+  // knowable before it runs, and the whole point of telling a layout its
+  // input is moving is that the answer comes from the store on the frames
+  // it can. A passage answered entirely from that store is set exactly as
+  // the frame before it, so it is not here; one that still decided, or one
+  // the budget degraded, can be set differently next frame with no float on
+  // this node moving, which is precisely what no memo can see. Over-
+  // reporting costs a re-record and nothing else.
   const bool sharedOpaque = metricLive || cacheNone || decorLive || imageLive ||
                             spanVolatile || maskOpaque || liveEffect ||
-                            passLive;
+                            passLive || inst.textComposing;
   // A bound fill still refuses Cache::Group, even though it rides the
   // node-level scalar lane. The group memo's currency is one flat float
   // vector gathered across the subtree (collectGroupScalars), and a Fill's

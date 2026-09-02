@@ -102,7 +102,7 @@ void detail::resolveTextMarks(Composer::Impl& impl, Instance& inst) {
   const sigil::weave::ParagraphLayout& layout =
       onPath ? textStateOf(inst).pathLayout : inst.textLayout;
   static thread_local detail::GlyphStructure structure;
-  structure.build(layout, *inst.paragraph);
+  structure.build(layout, *inst.paragraph, scopeOf(inst));
   if (structure.glyphs.empty()) return;
   const auto count = (uint32_t)structure.glyphs.size();
 
@@ -158,7 +158,7 @@ std::vector<TextUnit> detail::unitsOfText(Composer::Impl& impl, Instance& inst,
       onPath ? textStateOf(inst).pathLayout : inst.textLayout;
 
   static thread_local detail::GlyphStructure structure;
-  structure.build(layout, paragraph);
+  structure.build(layout, paragraph, scopeOf(inst));
   if (structure.glyphs.empty()) return {};
   const auto count = (uint32_t)structure.glyphs.size();
   const std::vector<uint8_t> selected = detail::resolveSelection(
@@ -268,7 +268,7 @@ bool resolveTrackSchedule(Composer::Impl& impl, Instance& inst,
   out.layout = out.ridesPath ? &textStateOf(inst).pathLayout : &inst.textLayout;
 
   static thread_local detail::GlyphStructure structure;
-  structure.build(*out.layout, *inst.paragraph);
+  structure.build(*out.layout, *inst.paragraph, scopeOf(inst));
   out.glyphCount = (uint32_t)structure.glyphs.size();
   if (out.glyphCount == 0) return false;
 

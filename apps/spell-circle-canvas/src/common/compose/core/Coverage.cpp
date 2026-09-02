@@ -26,16 +26,18 @@ using namespace detail;
 
 namespace {
 
-/** THE TRACE RASTER, in pixels along the node's longer side.
+/** THE CEILING ON THE TRACE RASTER, in pixels along the node's longer
+ *  side.
  *
- *  The node's box is rasterised at exactly this many pixels on its longer
- *  side whatever size the box is, so one traced boundary costs one fixed
- *  raster — and the steps of the staircase it produces are the node's own
- *  longer side divided by this. A number large enough that a step is
- *  under half a percent of the node, and small enough that the raster and
- *  the run-scan over it are a rounding error beside the paint that filled
- *  it. */
-constexpr int kTraceRaster = 256;
+ *  The trace rasterises at the NODE'S OWN DEVICE SCALE, so a step of the
+ *  staircase it produces is one device pixel and the boundary is as fine
+ *  as the edge the viewer is looking at — which is the whole reason to
+ *  trace pixels rather than a shape. This is only the bound that keeps a
+ *  very large node from asking for a very large surface: past it the
+ *  raster is scaled down to fit and the steps grow, which is the same
+ *  coarsening a decoration on a huge node can afford and the only
+ *  alternative to refusing outright. */
+constexpr int kMaxTraceRaster = 2048;
 
 /** A pixel is COVERED when the node's paint reached at least half of it —
  *  the rule an unantialiased rasteriser uses, which puts the traced edge
@@ -100,20 +102,28 @@ SkRegion regionOfCoveredPixels(const SkPixmap& alpha) {
 const SkPath& Composer::Impl::coverageOutline(Instance& inst, SkSize size,
                                               float contentScale) {
   const bool sized = size.width() > 0 && size.height() > 0;
+  // The device scale is part of the answer, not just of its cost: the
+  // staircase is one device pixel a step, so a node that moves to a denser
+  // display traces a finer boundary and must be traced again.
   const bool stale = inst.paintDirty || inst.subtreeVolatile ||
-                     inst.coverageOutlineSize != size;
+                     inst.coverageOutlineSize != size ||
+                     inst.coverageOutlineScale != contentScale;
   if (!stale || !sized) {
     if (!sized) {
       inst.coverageOutline.reset();
       inst.coverageOutlineSize = size;
+      inst.coverageOutlineScale = contentScale;
     }
     return inst.coverageOutline;
   }
   inst.coverageOutlineSize = size;
+  inst.coverageOutlineScale = contentScale;
   inst.coverageOutline.reset();
 
   const float longer = std::max(size.width(), size.height());
-  const float scale = (float)kTraceRaster / longer;
+  const float scale =
+      std::min(contentScale > 0 ? contentScale : 1.0f,
+               (float)kMaxTraceRaster / std::max(longer, 1.0f));
   const int width = std::max(1, (int)std::ceil(size.width() * scale));
   const int height = std::max(1, (int)std::ceil(size.height() * scale));
   // One channel, because coverage is the only channel the answer reads.

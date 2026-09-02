@@ -40,8 +40,9 @@ struct TextEngine final : TextPainterOps {
       sigil::weave::FontContext& fonts,
       std::span<const sigil::weave::LineMetrics> lines,
       std::span<const sigil::weave::ColumnMetrics> columns,
-      std::span<const NamedRun> named) const override {
-    return resolveTextRanges(selector, paragraph, fonts, lines, columns, named);
+      std::span<const NamedRun> named, TextScope scope) const override {
+    return resolveTextRanges(selector, paragraph, fonts, lines, columns, named,
+                             scope);
   }
   bool foldable(
       Instance& inst, const sigil::weave::TextStyle& style,

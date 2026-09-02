@@ -1,6 +1,8 @@
 /** @file
- * The corner-scan diagnostics: what the library says, once, when a corner
- * treatment finds no corners on a shape that plainly has vertices.
+ * What the library says, once, when a declaration resolves to nothing: a
+ * corner treatment that finds no corners on a shape that plainly has
+ * vertices, a writing mode a path run cannot honour, a paragraph style
+ * name no set in scope carries.
  */
 
 #include <include/core/SkContourMeasure.h>
@@ -16,7 +18,10 @@
 
 #include <algorithm>
 #include <cmath>   // std::isfinite — the profileOffset non-finite guard
-#include <cstdio>  // std::snprintf — variationDrive's effect key
+#include <cstdio>
+#include <string>
+#include <string_view>
+#include <unordered_set>  // std::snprintf — variationDrive's effect key
 #include <set>
 
 #include "ComposeInternal.h"
@@ -95,6 +100,22 @@ void warnWritingModeOnPath() {
                "SigilCompose: onPath() and writingMode() on one text leaf — "
                "a path run's baseline IS its geometry and has no columns to "
                "advance, so the path stands and the writing mode is dropped\n");
+}
+
+void warnNoSuchParagraphStyle(std::string_view name, bool anySetInScope) {
+  // Once per distinct name: a description re-runs every frame and a name
+  // that is wrong is wrong every time.
+  static thread_local std::unordered_set<std::string> seen;
+  if (!seen.insert(std::string(name)).second) return;
+  std::fprintf(
+      stderr,
+      "SigilCompose: paragraphs(\"%.*s\") — %s, so this block is set in a "
+      "plain default. Register it with ParagraphStyleSet::set() and provide "
+      "the set above this element (env::Provide<weave::ParagraphStyleSet>), "
+      "or pass the style itself.\n",
+      (int)name.size(), name.data(),
+      anySetInScope ? "the paragraph style set in scope carries no such name"
+                    : "no paragraph style set is in scope");
 }
 
 }  // namespace detail

@@ -155,6 +155,10 @@ struct TextOptions {
     kFrame = 1u << 8u,
     kJustification = 1u << 9u,
     kTabStops = 1u << 10u,
+    kLive = 1u << 11u,
+    kLineTables = 1u << 12u,
+    kReserved = 1u << 13u,
+    kLineBreakLocale = 1u << 14u,
   };
   uint16_t set = 0;  ///< which fields below were written
 
@@ -181,6 +185,26 @@ struct TextOptions {
   sigil::weave::FrameOptions frame;
   sigil::weave::JustificationOptions justification;
   sigil::weave::TabStopOptions tabStops;
+  /// live(): this layout is one of a run of them. The budget rides with it
+  /// because they are one statement — a text that says it is moving is the
+  /// only one for which running out of time is a normal event.
+  bool live = false;
+  float budgetMicroseconds = 0;
+  /// The three tables a house's own setting is stated in, and the fraction
+  /// beside the third. One mask bit for all four: they are the same
+  /// declaration made in four places, and a caller who sets one and expects
+  /// a full-control overload's others to survive has no way to say so.
+  sigil::weave::KinsokuTable kinsoku;
+  sigil::weave::HangingTable hanging;
+  sigil::weave::MojikumiTable mojikumi;
+  float tsume = 0;
+  /// reserve(): room beside every line of this passage, on top of whatever
+  /// an annotation reserves.
+  sigil::weave::ReservedBand reserved;
+  /// Not a ParagraphLayoutOptions field either — the line-break tailoring
+  /// belongs to the Paragraph, for the same reason the writing mode does,
+  /// and materializeText writes it there under the same mask rule.
+  std::string lineBreakLocale;
 
   /** Writes every SET field over @p options, leaving the rest alone. */
   void applyTo(sigil::weave::ParagraphLayoutOptions& options) const;
@@ -193,7 +217,12 @@ struct TextOptions {
            lastLineAlignment == other.lastLineAlignment &&
            justifyLastLine == other.justifyLastLine && blocks == other.blocks &&
            frame == other.frame && justification == other.justification &&
-           tabStops == other.tabStops;
+           tabStops == other.tabStops && live == other.live &&
+           budgetMicroseconds == other.budgetMicroseconds &&
+           kinsoku == other.kinsoku && hanging == other.hanging &&
+           mojikumi == other.mojikumi && tsume == other.tsume &&
+           reserved == other.reserved &&
+           lineBreakLocale == other.lineBreakLocale;
   }
 };
 
@@ -566,6 +595,12 @@ inline uint64_t mix64Value(uint64_t z) {
  *  `writingMode`: a path run's baseline is its own geometry, so there are
  *  no columns to advance and the path wins. */
 void warnWritingModeOnPath();
+
+/** The once-per-name diagnostic behind a paragraph style name that
+ *  resolves to nothing — no set in scope, or a set that does not carry it.
+ *  A block set in a default nobody asked for is the silent no-op this
+ *  library refuses to ship. */
+void warnNoSuchParagraphStyle(std::string_view name, bool anySetInScope);
 
 /** Does this selector reach for a LINE, and therefore need a layout to
  *  resolve against? The question the second layout pass is gated on. */

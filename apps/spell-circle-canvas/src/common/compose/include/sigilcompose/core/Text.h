@@ -714,6 +714,7 @@ class Selector {
     Text,
     Style,
     Each,
+    InFrame,
     Union,
     Intersect,
     Complement,
@@ -725,9 +726,10 @@ class Selector {
   struct State {
     Kind kind = Kind::All;
     uint32_t lo = 0, hi = 0;  ///< Word/Words/Line/Sentence/Range bounds
-    /** Regex/Text needle, or the style NAME an `sel::style` addresses — one
-     *  slot, because no selector carries two of them and a second string
-     *  would ride on every selector in the tree to serve one form. */
+    /** Regex/Text needle, the style NAME an `sel::style` addresses, or the
+     *  frame KEY an `sel::inFrame` names — one slot, because no selector
+     *  carries two of them and a second string would ride on every selector
+     *  in the tree to serve one form. */
     std::u8string pattern;
     Unit each = Unit::Glyph;  ///< Each granularity
     int take = -1;            ///< Each: glyphs kept per unit (-1 = all)
@@ -750,9 +752,15 @@ namespace sel {
 [[nodiscard]] Selector word(uint32_t index);
 /** Words `[lo, hi)`. */
 [[nodiscard]] Selector words(uint32_t lo, uint32_t hi);
-/** The i-th flow line OF THE CURRENT LAYOUT — re-resolved when the text
- *  reflows, so a narrower box moves the selection with the break. */
+/** The i-th flow line OF THE STORY — re-resolved when the text reflows,
+ *  so a narrower box moves the selection with the break, and numbered from
+ *  the story's first line however many frames it runs through. On a text
+ *  that is not a frame of a chain — the ordinary case — the story is that
+ *  one leaf and the number is the leaf's own. Compose it with
+ *  `sel::inFrame` to address a line within one frame. */
 [[nodiscard]] Selector line(uint32_t index);
+/** Lines `[lo, hi)` of the story. */
+[[nodiscard]] Selector lines(uint32_t lo, uint32_t hi);
 /** The i-th sentence (ICU sentence segmentation). */
 [[nodiscard]] Selector sentence(uint32_t index);
 /** Every glyph whose cluster falls inside a UTF-16 range of the text. */
@@ -784,6 +792,19 @@ namespace sel {
 /** Every unit of `granularity`, ready to be sliced with `.take()` /
  *  `.drop()`. Unsliced it is the same as selecting everything. */
 [[nodiscard]] Selector each(Unit granularity);
+/** EVERYTHING THE NAMED FRAME HOLDS — the frame-local address, since every
+ *  other form here numbers the story.
+ *
+ *      sel::inFrame("b") & sel::line(0)   // no line: line 0 is in frame a
+ *      sel::inFrame("b")                  // the text frame b actually got
+ *
+ *  Resolved on the leaf being addressed and nowhere else: it selects
+ *  everything on the frame whose `key` it names and nothing anywhere else,
+ *  so it composes with the story-wide forms as a plain intersection. A key
+ *  no frame carries selects nothing and warns once — a frame-local address
+ *  that quietly became story-wide is the silent no-op this vocabulary
+ *  refuses. */
+[[nodiscard]] Selector inFrame(std::string_view key);
 }  // namespace sel
 
 /** WHICH LIST A CASCADE NUMBERS ITS BEATS AGAINST.
@@ -1242,6 +1263,31 @@ class Story {
   std::vector<sigil::weave::ParagraphStyle> m_blocks;
 };
 
+/** WHAT A LIVE PASSAGE'S LAST LAYOUT COST — `Composer::settling`'s answer.
+ *
+ *  A text told its input is moving keeps its break decisions and reuses
+ *  them, and this is what a frame actually got for that: how many blocks
+ *  came out of the store, and how many the composer's budget forced to the
+ *  greedy breaker. It is a REPORT about one input, not a verdict about the
+ *  node — the runtime holds one proof that a node has settled, and folds
+ *  this into it beside everything else the node reads. */
+struct TextSettling {
+  /// The leaf declared its input moving (`Element::live`). A settled
+  /// passage reports nothing here and answers `reused == 0`: it decided
+  /// its breaks once, and no later frame asks it again.
+  bool live = false;
+  /// Blocks answered from break decisions this thread already had. Under
+  /// `live`, a frame that reused every block of its passage did no
+  /// composing at all.
+  int reused = 0;
+  /// Blocks the budget forced to the greedy breaker. A degrade drops the
+  /// whole setting — the hyphens, the justification passes past the word
+  /// gaps, the widow rule — for that frame alone, and the leaf lays out
+  /// again so the setting comes back the frame the budget is met.
+  int degraded = 0;
+  bool operator==(const TextSettling&) const = default;
+};
+
 /** Starts a mixed-text value whose default is @p base — see RichText. */
 [[nodiscard]] RichText rich(sigil::weave::TextStyle base = {});
 
@@ -1270,6 +1316,20 @@ namespace detail {
 struct NamedRun {
   std::string name;
   sigil::weave::CharRange chars;
+};
+
+/** WHERE A LEAF STANDS IN ITS STORY — what makes `sel::line` address the
+ *  story and `sel::inFrame` address one frame of it.
+ *
+ *  A story's words, characters, sentences and named runs are the story's
+ *  already: every frame of a chain builds the whole story's paragraph and
+ *  resumes at a word, so those numbers never were the frame's. The LINE is
+ *  the one address that was, and the offset is what turns it back. A leaf
+ *  that is not a frame carries a zero offset and its own key, so the
+ *  ordinary case is the general one with nothing subtracted. */
+struct TextScope {
+  uint32_t lineOffset = 0;     ///< story line index of this leaf's line 0
+  std::string_view frameKey;   ///< this leaf's key, for sel::inFrame
 };
 }  // namespace detail
 
@@ -1327,7 +1387,8 @@ class TextPainterOps {
       sigil::weave::FontContext& fonts,
       std::span<const sigil::weave::LineMetrics> lines,
       std::span<const sigil::weave::ColumnMetrics> columns,
-      std::span<const detail::NamedRun> named) const = 0;
+      std::span<const detail::NamedRun> named,
+      detail::TextScope scope) const = 0;
   /** Whether a restyle to @p style over @p ranges can be carried as
    *  draw-time axis tracks instead of re-shaping the text it covers: the
    *  style must differ from every covered span's only in variable-font

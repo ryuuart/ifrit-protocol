@@ -282,7 +282,7 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
   // thread-locally: a frame of animated text rebuilds it, but never
   // reallocates it.
   static thread_local detail::GlyphStructure structure;
-  structure.build(layout, *inst.paragraph);
+  structure.build(layout, *inst.paragraph, scopeOf(inst));
   const uint32_t count = (uint32_t)structure.glyphs.size();
   if (count == 0) return;
 

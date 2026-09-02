@@ -130,7 +130,7 @@ bool textPathEqual(const TextPath& a, const TextPath& b) {
          a.orient == b.orient && a.exactTangent == b.exactTangent;
 }
 
-static_assert(kFieldCount<TextData> == 17 && kFieldCount<TextOptions> == 13 &&
+static_assert(kFieldCount<TextData> == 17 && kFieldCount<TextOptions> == 21 &&
                   kFieldCount<SpanRestyle> == 3,
               "TextData gained or lost a field — rule on it in textEqual() "
               "below, then bump this count. (`layoutOptions` is the one "
@@ -673,6 +673,11 @@ void Composer::Impl::materializeText(
   // its baseline IS the geometry — so the path wins and says so.
   if (text.options.set & TextOptions::kWritingMode)
     inst.paragraph->setWritingMode(text.options.writingMode);
+  // The line-break tailoring is the Paragraph's too, and lands under the
+  // same mask rule: a locale nobody named leaves a passed-in paragraph's
+  // own standing.
+  if (text.options.set & TextOptions::kLineBreakLocale)
+    inst.paragraph->setLineBreakLocale(text.options.lineBreakLocale);
   if (text.onPath &&
       inst.paragraph->writingMode() != sigil::weave::WritingMode::kHorizontal) {
     warnWritingModeOnPath();
@@ -710,7 +715,7 @@ void Composer::Impl::materializeText(
     if (painter)
       resolvedRanges[i] =
           painter->ranges(text.spanRestyles[i].where, *inst.paragraph, fonts,
-                          lines, columns, inst.textNamedRuns);
+                          lines, columns, inst.textNamedRuns, scopeOf(inst));
   if (inst.textState) inst.textState->spanAxisTracks.clear();
   // The intersection of two selections, as the ranges they share.
   const auto overlap = [](std::span<const sigil::weave::CharRange> a,
@@ -810,6 +815,11 @@ sigil::weave::ParagraphLayoutOptions Composer::Impl::textLayoutOptions(
   // of a chain is the one that threads nowhere, and it keeps whatever
   // ellipsis the leaf asked for.
   if (!text.threadTo.empty()) options.overflow.ellipsis.clear();
+  // THE NEXT FRAME'S MEASURE, which only the chain knows and the widow
+  // rule needs: the lines it counts are the remainder, and the remainder
+  // is set in the frame after this one. 0 until the chain has been walked
+  // once, which is weave's "not known".
+  options.nextMeasure = inst.threadNextMeasure;
   // THE BAND A RESERVING READING NEEDS, asked before anything is broken and
   // answered from the reading's own metrics — which is the whole of why a
   // reservation is a layout input and not a cycle. Only the engine can

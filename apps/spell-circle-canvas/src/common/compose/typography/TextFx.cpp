@@ -64,7 +64,9 @@ bool startsUnit(Unit granularity, const sigil::weave::PlacedGlyph& glyph,
 }  // namespace
 
 void GlyphStructure::build(const sigil::weave::ParagraphLayout& layout,
-                           const sigil::weave::Paragraph& paragraph) {
+                           const sigil::weave::Paragraph& paragraph,
+                           TextScope textScope) {
+  scope = textScope;
   glyphs.clear();
   for (auto& lane : unitOf) lane.clear();
   unitCounts = {};
@@ -81,7 +83,11 @@ void GlyphStructure::build(const sigil::weave::ParagraphLayout& layout,
         info.cluster = placed.cluster;
         info.textIndex = placed.textIndex;
         info.wordIndex = placed.wordIndex;
-        info.lineIndex = (uint32_t)std::max(placed.lineIndex, 0);
+        // THE STORY'S LINE, not this frame's: a frame of a chain is told
+        // where its first line stands in the story's numbering, and every
+        // line it placed is that many further on.
+        info.lineIndex =
+            (uint32_t)std::max(placed.lineIndex, 0) + textScope.lineOffset;
         info.styleIndex = placed.styleIndex;
         info.sentenceIndex = placed.sentenceIndex;
         glyphs.push_back(info);
@@ -196,6 +202,18 @@ void resolveInto(const Selector& selector, const GlyphStructure& structure,
       markRanges(runs, structure, out);
       break;
     }
+    case Selector::Kind::InFrame: {
+      // The frame-local address, resolved on the leaf being addressed: it
+      // is everything on the frame it names and nothing anywhere else, so
+      // intersecting it with a story-wide form cuts that form to one frame.
+      const std::u8string_view key(
+          (const char8_t*)structure.scope.frameKey.data(),
+          structure.scope.frameKey.size());
+      if (key.empty()) warnNoSuchFrameKey(s->pattern);
+      if (!key.empty() && key == s->pattern)
+        std::fill(out.begin(), out.end(), (uint8_t)1);
+      break;
+    }
     case Selector::Kind::Each: {
       // Every unit sliced the same way, at GLYPH granularity inside it.
       // `drop(n)` and `take(n)` partition a unit exactly: the two answer
@@ -258,6 +276,18 @@ void warnNoSuchStyleName(const std::u8string& name) {
                "written under that name, so it addresses nothing (only a "
                "rich() run added with add(text, styleName) carries one)\n",
                key.c_str());
+}
+
+void warnNoSuchFrameKey(const std::u8string& key) {
+  static thread_local std::unordered_set<std::string> seen;
+  std::string name((const char*)key.data(), key.size());
+  if (!seen.insert(name).second) return;
+  std::fprintf(stderr,
+               "SigilCompose: sel::inFrame(\"%s\") on a text leaf with no "
+               "key() of its own — a frame-local address is matched against "
+               "the leaf's own key, so this one can never match and "
+               "addresses nothing\n",
+               name.c_str());
 }
 
 std::vector<uint8_t> resolveSelection(const Selector& selector,
@@ -349,7 +379,7 @@ Ranges resolveTextRangesInto(
     sigil::weave::FontContext& fonts,
     std::span<const sigil::weave::LineMetrics> lines,
     std::span<const sigil::weave::ColumnMetrics> columns,
-    std::span<const NamedRun> named) {
+    std::span<const NamedRun> named, const TextScope& scope) {
   const auto length = (uint32_t)paragraph.text().size();
   const Selector::State* s = selector.state();
   if (!s) return {{0, length}};  // default-constructed: everything
@@ -366,17 +396,29 @@ Ranges resolveTextRangesInto(
     }
     case Selector::Kind::Line: {
       // A vertical passage numbers COLUMNS where a horizontal one numbers
-      // lines, and only one of the two lists is ever populated.
+      // lines, and only one of the two lists is ever populated. The index
+      // asked for is the STORY's, so it is brought back to this frame's
+      // numbering before it is compared — the geometry knows only the lines
+      // this frame placed.
       Ranges out;
+      const uint32_t offset = scope.lineOffset;
+      const auto within = [&](int index) {
+        const auto story = (uint32_t)index + offset;
+        return story >= s->lo && story < s->hi;
+      };
       for (const sigil::weave::LineMetrics& line : lines)
-        if ((uint32_t)line.lineIndex >= s->lo &&
-            (uint32_t)line.lineIndex < s->hi)
-          out.push_back({line.textBegin, line.textEnd});
+        if (within(line.lineIndex)) out.push_back({line.textBegin, line.textEnd});
       for (const sigil::weave::ColumnMetrics& column : columns)
-        if ((uint32_t)column.lineIndex >= s->lo &&
-            (uint32_t)column.lineIndex < s->hi)
+        if (within(column.lineIndex))
           out.push_back({column.textBegin, column.textEnd});
       return normalize(std::move(out));
+    }
+    case Selector::Kind::InFrame: {
+      const std::u8string_view key((const char8_t*)scope.frameKey.data(),
+                                   scope.frameKey.size());
+      if (key.empty()) warnNoSuchFrameKey(s->pattern);
+      if (!key.empty() && key == s->pattern) return {{0, length}};
+      return {};
     }
     case Selector::Kind::Sentence: {
       const std::span<const uint32_t> starts = paragraph.sentenceStarts();
@@ -426,22 +468,22 @@ Ranges resolveTextRangesInto(
     }
     case Selector::Kind::Union: {
       Ranges out = resolveTextRangesInto(s->operands[0], paragraph, fonts,
-                                         lines, columns, named);
+                                         lines, columns, named, scope);
       Ranges rhs = resolveTextRangesInto(s->operands[1], paragraph, fonts,
-                                         lines, columns, named);
+                                         lines, columns, named, scope);
       out.insert(out.end(), rhs.begin(), rhs.end());
       return normalize(std::move(out));
     }
     case Selector::Kind::Intersect:
       return intersectRanges(
           resolveTextRangesInto(s->operands[0], paragraph, fonts, lines,
-                                columns, named),
+                                columns, named, scope),
           resolveTextRangesInto(s->operands[1], paragraph, fonts, lines,
-                                columns, named));
+                                columns, named, scope));
     case Selector::Kind::Complement:
       return complementRanges(
           resolveTextRangesInto(s->operands[0], paragraph, fonts, lines,
-                                columns, named),
+                                columns, named, scope),
           length);
   }
   return {};
@@ -454,9 +496,9 @@ std::vector<sigil::weave::CharRange> resolveTextRanges(
     sigil::weave::FontContext& fonts,
     std::span<const sigil::weave::LineMetrics> lines,
     std::span<const sigil::weave::ColumnMetrics> columns,
-    std::span<const NamedRun> named) {
+    std::span<const NamedRun> named, TextScope scope) {
   return resolveTextRangesInto(selector, paragraph, fonts, lines, columns,
-                               named);
+                               named, scope);
 }
 
 void TrackCascade::build(const Track& track, const GlyphStructure& structure,

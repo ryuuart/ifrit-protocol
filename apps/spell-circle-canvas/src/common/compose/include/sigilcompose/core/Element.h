@@ -722,6 +722,72 @@ class Element {
    *  and the leader set across the gap it opened. */
   Element& tabStops(sigil::weave::TabStopOptions stops);
 
+  /** Text leaves only: AN INPUT OF THIS PASSAGE IS MOVING — a measure that
+   *  animates, a frame that grows, content that changes from one frame to
+   *  the next — so this layout is one of a run of them rather than an
+   *  answer somebody asked for once.
+   *
+   *      text(caption, body).width(Dim(slider)).live(true, 2000.0f)
+   *
+   *  It buys two things. The break decisions of a block set in a uniform
+   *  measure are kept and reused, keyed on the words and on the measure
+   *  taken to the whole pixel below it, so a measure already crossed costs
+   *  no break decision at all. And the block is broken against the measure
+   *  alone rather than against the frame's supply of lines, so a frame
+   *  that only changes in DEPTH changes which lines it holds and never
+   *  where they break. `Composer::settling` reports what a frame actually
+   *  got for it.
+   *
+   *  `budgetMicroseconds` is the floor under a frame the optimizing
+   *  breaker cannot finish in time: a block past it is filled greedily for
+   *  that frame and counted as a degrade, and everything is back the next
+   *  frame the budget is met. 0 is no floor.
+   *
+   *  NOTHING INFERS THIS. A live layout answers the overflow tail
+   *  differently from a settled one — it is broken against the measure
+   *  rather than against the lines the frame has left — so a guess would
+   *  change the setting of a page that never moves. A passage that moves
+   *  says so. */
+  Element& live(bool on = true, float budgetMicroseconds = 0);
+
+  /** Text leaves only: WHICH CHARACTERS MAY NOT STAND AT A LINE'S EDGE —
+   *  kinsoku shori, as a house's own table over whatever the line-break
+   *  locale already prohibits. The prohibition is settled during
+   *  segmentation, so both breakers obey it and neither learns a rule.
+   *  `sigil::weave::kit::kinsoku()` is the stock table and a caller's own
+   *  is its peer. */
+  Element& kinsoku(sigil::weave::KinsokuTable table);
+  /** Text leaves only: HOW FAR A CHARACTER MAY STAND OUTSIDE THE MEASURE,
+   *  as a fraction of its own advance — optical margin alignment along a
+   *  line, burasagari down a column. It is the LINE EDGE and has nothing
+   *  to do with the hanging indent, which is a negative
+   *  `ParagraphStyle::indent.firstLine`. `sigil::weave::kit::hanging()` is
+   *  the stock table. */
+  Element& hanging(sigil::weave::HangingTable table);
+  /** Text leaves only: HOW MUCH ROOM STANDS BETWEEN TWO ADJACENT
+   *  FULL-WIDTH CHARACTERS, by the class of each, as a fraction of the em
+   *  — negative closes the gap up, which is what nearly every entry of a
+   *  real table does. `tsume` closes the gap after every full-width
+   *  character the table gives no class of its own, on top of that. Both
+   *  apply where two characters meet across a break opportunity; two
+   *  characters shaped inside one word are the face's and the shaper's. */
+  Element& mojikumi(sigil::weave::MojikumiTable table, float tsume = 0);
+  /** Text leaves only: ROOM BESIDE EVERY LINE of this passage, over and
+   *  above the leading — `before` above a line and right of a column,
+   *  `after` below one and left. It is a layout input: the room is in the
+   *  strut before anything is broken. `annotate` reserves its own band on
+   *  top of this, so a passage that only carries readings needs none of
+   *  this. */
+  Element& reserve(sigil::weave::ReservedBand band);
+  /** Text leaves only: THE TAILORING THE LINE-BREAK ANALYSIS RUNS UNDER —
+   *  `"ja@lb=strict"` is the strict Japanese rule set a printed page is
+   *  set under, `"zh@lb=loose"` the loose Chinese one. A tailored
+   *  prohibition is a boundary that never opens, so nothing downstream
+   *  learns a rule. It belongs to the Paragraph rather than to the layout
+   *  options, so it is a field-masked override like `writingMode`: a
+   *  locale nobody names leaves a passed-in paragraph's own standing. */
+  Element& lineBreakLocale(std::string_view locale);
+
   /** Text leaves only: lay this passage out in VERTICAL-RL CJK columns
    *  (`sigil::weave::WritingMode::kVerticalRL`) instead of horizontal
    *  lines. Characters run top to bottom, columns advance RIGHT TO LEFT

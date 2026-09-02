@@ -582,8 +582,16 @@ Element& Element::paragraphs(std::span<const std::string_view> names) {
       env::inherited<sigil::weave::ParagraphStyleSet>();
   std::vector<sigil::weave::ParagraphStyle> resolved;
   resolved.reserve(names.size());
-  for (const std::string_view name : names)
-    resolved.push_back(set ? (*set)[name] : sigil::weave::ParagraphStyle{});
+  for (const std::string_view name : names) {
+    const sigil::weave::ParagraphStyle* found = set ? set->find(name) : nullptr;
+    // A name nobody registered would otherwise resolve to the set's base
+    // and set the block in a default the author never asked for, which
+    // looks exactly like a style that did not take.
+    if (!found) detail::warnNoSuchParagraphStyle(name, set != nullptr);
+    resolved.push_back(found ? *found
+                       : set ? set->base()
+                             : sigil::weave::ParagraphStyle{});
+  }
   return paragraphs(std::move(resolved));
 }
 
@@ -621,6 +629,50 @@ Element& Element::tabStops(sigil::weave::TabStopOptions stops) {
   detail::TextOptions& options = m_node->textData.ensure().options;
   options.tabStops = std::move(stops);
   options.set |= detail::TextOptions::kTabStops;
+  return *this;
+}
+
+Element& Element::live(bool on, float budgetMicroseconds) {
+  detail::TextOptions& options = m_node->textData.ensure().options;
+  options.live = on;
+  options.budgetMicroseconds = budgetMicroseconds;
+  options.set |= detail::TextOptions::kLive;
+  return *this;
+}
+
+Element& Element::kinsoku(sigil::weave::KinsokuTable table) {
+  detail::TextOptions& options = m_node->textData.ensure().options;
+  options.kinsoku = std::move(table);
+  options.set |= detail::TextOptions::kLineTables;
+  return *this;
+}
+
+Element& Element::hanging(sigil::weave::HangingTable table) {
+  detail::TextOptions& options = m_node->textData.ensure().options;
+  options.hanging = std::move(table);
+  options.set |= detail::TextOptions::kLineTables;
+  return *this;
+}
+
+Element& Element::mojikumi(sigil::weave::MojikumiTable table, float tsume) {
+  detail::TextOptions& options = m_node->textData.ensure().options;
+  options.mojikumi = std::move(table);
+  options.tsume = tsume;
+  options.set |= detail::TextOptions::kLineTables;
+  return *this;
+}
+
+Element& Element::reserve(sigil::weave::ReservedBand band) {
+  detail::TextOptions& options = m_node->textData.ensure().options;
+  options.reserved = band;
+  options.set |= detail::TextOptions::kReserved;
+  return *this;
+}
+
+Element& Element::lineBreakLocale(std::string_view locale) {
+  detail::TextOptions& options = m_node->textData.ensure().options;
+  options.lineBreakLocale = std::string(locale);
+  options.set |= detail::TextOptions::kLineBreakLocale;
   return *this;
 }
 
@@ -996,6 +1048,9 @@ Selector words(uint32_t lo, uint32_t hi) {
 Selector line(uint32_t index) {
   return indexed(Selector::Kind::Line, index, index + 1);
 }
+Selector lines(uint32_t lo, uint32_t hi) {
+  return indexed(Selector::Kind::Line, lo, hi);
+}
 Selector sentence(uint32_t index) {
   return indexed(Selector::Kind::Sentence, index, index + 1);
 }
@@ -1007,6 +1062,13 @@ Selector regex(std::u8string_view utf8Pattern) {
 }
 Selector text(std::u8string_view utf8Substring) {
   return needle(Selector::Kind::Text, utf8Substring);
+}
+Selector inFrame(std::string_view key) {
+  // The key rides the needle slot the same way a style name does, and for
+  // the same reason: it is compared against the bytes the frame's key() was
+  // written with, so no transcoding is involved either way.
+  return needle(Selector::Kind::InFrame,
+                std::u8string_view((const char8_t*)key.data(), key.size()));
 }
 Selector style(std::string_view name) {
   // A style name is ASCII-or-whatever the author typed, and the needle slot
@@ -1061,6 +1123,17 @@ void detail::TextOptions::applyTo(
   if (set & kTabStops) options.tabStops = tabStops;
   if (set & kBlocks) options.blocks = blocks;
   if (set & kFrame) options.frame = frame;
+  if (set & kLive) {
+    options.live = live;
+    options.knuthPlass.budgetMicroseconds = budgetMicroseconds;
+  }
+  if (set & kLineTables) {
+    options.kinsoku = kinsoku;
+    options.hanging = hanging;
+    options.mojikumi = mojikumi;
+    options.tsume = tsume;
+  }
+  if (set & kReserved) options.reserved = reserved;
 }
 
 std::u16string detail::toUtf16(std::u8string_view utf8) {
