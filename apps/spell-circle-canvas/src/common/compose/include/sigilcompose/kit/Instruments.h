@@ -30,6 +30,26 @@ namespace sigil::compose::kit {
 // layout and hand back ordinary elements — so neither costs anything on a
 // frame that does not build one.
 
+/** WHERE A METER'S CELLS STAND relative to the beats they report on.
+ *
+ *  A cell over its beat is the reading a cascade wants while it is being
+ *  tuned: the fraction is on the letter it belongs to and nothing else has
+ *  to be looked at. It is the wrong reading when the letters themselves
+ *  are what is being watched — under a pass that paints the type, a cell
+ *  laid over it hides the thing the meter is reporting on — so a meter can
+ *  also stand its cells UNDER the beats as a rule of its own thickness.
+ *
+ *  `trim` shortens every cell by that many pixels, which is what keeps a
+ *  run of finished beats reading as a run of beats rather than as one
+ *  filled bar. */
+struct MeterPlacement {
+  enum class Where { Over, Under };
+  Where where = Where::Over;
+  float thickness = 3.0f;  // Under only; Over takes the beat's own height
+  float gap = 6.0f;        // Under only: below the beat's bottom edge
+  float trim = 0.0f;       // taken off every cell's width
+};
+
 /** THE SCHEDULE, DRAWN: one cell per beat of track @p trackIndex on the
  *  keyed text node, at that beat's own laid-out rect, filled left to right
  *  by that beat's local progress.
@@ -55,27 +75,32 @@ namespace sigil::compose::kit {
 [[nodiscard]] inline Element trackMeter(const Composer& composer,
                                         std::string_view key, size_t trackIndex,
                                         SkColor4f fill,
-                                        SkColor4f bed = {1, 1, 1, 0.10f}) {
+                                        SkColor4f bed = {1, 1, 1, 0.10f},
+                                        MeterPlacement placement = {}) {
   Element overlay = positioned();
+  const bool under = placement.where == MeterPlacement::Where::Under;
   const std::vector<Beat> beats = composer.beatsOf(key, trackIndex);
   for (size_t i = 0; i < beats.size(); ++i) {
     const SkRect& rect = beats[i].rect;
+    const float width = std::max(0.0f, rect.width() - placement.trim);
+    const float height = under ? placement.thickness : rect.height();
+    const float top = under ? rect.bottom() + placement.gap : rect.top();
     const std::string cell = "beat" + std::to_string(i);
-    overlay.child(box()
-                      .key(cell)
-                      .left(rect.left())
-                      .top(rect.top())
-                      .width(rect.width())
-                      .height(rect.height())
-                      .fill(Fill::color(bed))
-                      .child(box()
-                                 .key(cell + "-t")
-                                 .left(0)
-                                 .top(0)
-                                 .width(rect.width() *
-                                        std::clamp(beats[i].localT, 0.0f, 1.0f))
-                                 .height(rect.height())
-                                 .fill(Fill::color(fill))));
+    overlay.child(
+        box()
+            .key(cell)
+            .left(rect.left())
+            .top(top)
+            .width(width)
+            .height(height)
+            .fill(Fill::color(bed))
+            .child(box()
+                       .key(cell + "-t")
+                       .left(0)
+                       .top(0)
+                       .width(width * std::clamp(beats[i].localT, 0.0f, 1.0f))
+                       .height(height)
+                       .fill(Fill::color(fill))));
   }
   return overlay;
 }

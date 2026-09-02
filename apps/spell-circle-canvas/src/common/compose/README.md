@@ -1150,7 +1150,9 @@ point sink draws each point with), `kit::ticks` and `kit::chords`
 `kit::PixFont` (aliased bitmap-font bakes), `kit::Scrim` and the
 halo/shade legibility helpers, the two instruments for text in motion —
 `kit::trackMeter` (a cascade's schedule drawn, one cell per beat at its
-rect, filled by its local time) and `kit::restGhost` (the same word
+rect, filled by its local time — `MeterPlacement` stands the cells over
+the beats or under them as a rule, for a track whose own letters are
+what is being watched) and `kit::restGhost` (the same word
 undeformed under the moving one) — and, shipped with the tiers whose
 types they are spelled in, `kit/Strokes.h`'s shapers, profiles and span
 compositions and `kit/Plate.h`'s bordered feed plate (Brush),
