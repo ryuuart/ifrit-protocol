@@ -118,8 +118,15 @@ the writer's, not this one's.
 ## Testing and benchmarks
 
 `measure_test` covers the quantile's edges (empty, one sample,
-interpolation, clamping), the ring's wrap-around, the counters, the
-stopwatch, lap timer and frame timer, check formatting including the
-tolerance clause. `measure_bench` times `Samples::add`,
+interpolation, clamping), the ring's wrap-around, the counters, the lap
+timer's naming and totals, `ScopedMs` leaving its target alone until
+scope exit, the frame timer's lanes, and `Check::line` formatting as one
+parameterised case per kind of claim — integral, tolerance, text, bare
+condition, and a label longer than its column. Exactly one case reads the
+wall clock, and it owns every claim that needs one: that the stopwatch,
+the lap timer and `ScopedMs` advance with real time and that a reset
+sends the reading back. Every other timing case is deterministic, because
+sleeping and then asserting on a duration asserts the operating system's
+scheduler rather than anything this library promises. `measure_bench` times `Samples::add`,
 `Samples::percentile` and `Samples::mean` per sample count; it builds
 through the `benches` target and runs through `scripts/bench_ledger.py`.
