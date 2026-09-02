@@ -96,7 +96,6 @@
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilmaterial/kit/Surface.h>
 #include <sigilsketch/canvas/Sketch.h>
-#include <sigilweave/ports/SystemFontManager.h>
 #include <sigilworld/frame/Frame.h>
 #include <sigilworld/scene/Scene.h>
 
@@ -110,6 +109,8 @@
 #include <string>
 #include <vector>
 
+#include "twoadvanced.h"
+
 namespace sketch = sigil::sketch;
 namespace world = sigil::world;
 
@@ -121,6 +122,7 @@ using namespace std::chrono_literals;
 namespace ch = choreograph;
 
 namespace tav {
+using namespace twoadvanced;
 
 // ---------------------------------------------------------------------------
 // Palette — every value sampled from one of the reference artefacts above,
@@ -159,67 +161,22 @@ constexpr SkColor4f kHeadDim = hex(0xB8A0A0);
 inline SkColor4f dark(SkColor4f c, float k) { return mul(c, 1 - k); }
 
 // ---------------------------------------------------------------------------
-// Type — the SWF's embedded faces, substituted with the nearest the
-// platform ships. Helvetica CondensedBlack is the whole chrome voice.
-
-inline sk_sp<SkTypeface> face(const char* family, int weight, int width,
-                              const char* fallbackFamily = nullptr) {
-  auto mgr = sigil::weave::ports::systemFontManager();
-  sk_sp<SkTypeface> f = mgr->matchFamilyStyle(
-      family, SkFontStyle(weight, width, SkFontStyle::kUpright_Slant));
-  if (!f && fallbackFamily)
-    f = mgr->matchFamilyStyle(
-        fallbackFamily,
-        SkFontStyle(weight, width, SkFontStyle::kUpright_Slant));
-  if (!f) f = mgr->matchFamilyStyle(nullptr, SkFontStyle::Bold());
-  return f;
-}
-
-inline const sk_sp<SkTypeface>& condBlack() {
-  static sk_sp<SkTypeface> f =
-      face("Helvetica Neue", SkFontStyle::kBlack_Weight,
-           SkFontStyle::kCondensed_Width, "Avenir Next Condensed");
-  return f;
-}
-inline const sk_sp<SkTypeface>& blackFace() {
-  static sk_sp<SkTypeface> f =
-      face("Arial Black", SkFontStyle::kBlack_Weight,
-           SkFontStyle::kNormal_Width, "Helvetica Neue");
-  return f;
-}
-inline const sk_sp<SkTypeface>& arial() {
-  static sk_sp<SkTypeface> f = face("Arial", SkFontStyle::kNormal_Weight,
-                                    SkFontStyle::kNormal_Width, "Helvetica");
-  return f;
-}
-
-/** Tracking is authored in Illustrator units — 1/1000 em — and converted
- *  to pixels here, so a tracking value stays the same when the size does. */
-inline sigil::weave::TextStyle type(const sk_sp<SkTypeface>& tf, float size,
-                                    SkColor4f color, float trackUnits = 0,
-                                    float condense = 1.0f) {
-  return sigil::compose::type({.face = tf,
-                               .size = size,
-                               .color = color,
-                               .track = size * trackUnits / 1000.0f,
-                               .condense = condense});
-}
+// Type — the studio's chassis (the faces, the 1/1000-em tracking unit and
+// the text alias) plus THIS artefact's own register: Helvetica
+// CondensedBlack is the whole chrome voice, Arial Black is the headline
+// weight, and Arial is the only thing prose is ever set in.
 
 inline sigil::weave::TextStyle micro(float size, SkColor4f c, float tr = 200) {
-  return type(condBlack(), size, c, tr, 0.92f);
+  return tracked(condBlack(), size, c, tr, 0.92f);
 }
 inline sigil::weave::TextStyle label(float size, SkColor4f c, float tr = 100) {
-  return type(condBlack(), size, c, tr, 0.88f);
+  return tracked(condBlack(), size, c, tr, 0.88f);
 }
 inline sigil::weave::TextStyle heavy(float size, SkColor4f c, float tr = 40) {
-  return type(blackFace(), size, c, tr, 0.94f);
+  return tracked(blackFace(), size, c, tr, 0.94f);
 }
 inline sigil::weave::TextStyle prose(float size, SkColor4f c) {
-  return type(arial(), size, c, 0);
-}
-
-inline Element t(const char* s, sigil::weave::TextStyle st) {
-  return text(toU8(s), std::move(st));
+  return tracked(arial(), size, c, 0);
 }
 
 // ---------------------------------------------------------------------------
@@ -490,7 +447,8 @@ struct TwoAdvancedV4 : sketch::Sketch {
   static constexpr const char* kNavItems[7] = {
       "COMPANY",      "SERVICES",  "PORTFOLIO", "ACCOLADES",
       "EXPERIMENTAL", "EQUIPMENT", "CONTACT"};
-  static constexpr double kCycleStart = 8.0, kHoldS = 4.9, kTransS = 0.9;
+  static constexpr tav::SectionCycle kCycle{
+      .start = 8.0, .hold = 4.9, .transition = 0.9, .stops = 7};
   std::array<ch::Output<float>, 6> shutter{};  // per-slat cover fraction
   ch::Output<float> shutterInfo{0.0f};         // ACCESSING plate opacity
   ch::Output<float> navIndX{0.0f};             // selection mark X offset
@@ -629,7 +587,7 @@ struct TwoAdvancedV4 : sketch::Sketch {
                                     stroke(1, Fill::color(alpha(kCyan, 0.35f)),
                                            PathFormat::Align::Inner)))
         .child(t(boldHalf, heavy(17, kNear, 40)))
-        .child(t(restHalf, type(arial(), 15, kHeadDim, 40, 0.95f)))
+        .child(t(restHalf, tracked(arial(), 15, kHeadDim, 40, 0.95f)))
         .child(box().width(12))
         .child(box().width(1).height(12).fill(alpha(kCyan, 0.4f)))
         .child(box().width(10))
@@ -798,8 +756,8 @@ struct TwoAdvancedV4 : sketch::Sketch {
                   stroke(2, Fill::color(sel ? kCyan : alpha(kDust, 0.35f)),
                          PathFormat::Align::Inner)))
               .child(t(sel ? "\xe2\x96\xb8" : " ", micro(11, kCyan, 0)))
-              .child(t(tracks[i], type(blackFace(), 13, sel ? kNear : kHeadDim,
-                                       60, 0.92f))));
+              .child(t(tracks[i], tracked(blackFace(), 13,
+                                          sel ? kNear : kHeadDim, 60, 0.92f))));
     }
 
     Element scope =
@@ -944,7 +902,7 @@ struct TwoAdvancedV4 : sketch::Sketch {
                      .stroke(stroke(1, Fill::color(alpha(kCyanRing, 0.75f))))
                      .justify(Justify::Center)
                      .alignItems(Align::Center)
-                     .child(t("2", type(blackFace(), 32, kCyan, 0, 0.85f))));
+                     .child(t("2", tracked(blackFace(), 32, kCyan, 0, 0.85f))));
     }
 
     return box()
@@ -967,7 +925,7 @@ struct TwoAdvancedV4 : sketch::Sketch {
                            .column()
                            .gap(6)
                            .child(t("2ADVANCED STUDIOS",
-                                    type(blackFace(), 25, kCyan, 80, 0.90f))
+                                    tracked(blackFace(), 25, kCyan, 80, 0.90f))
                                       .effect(styles::textGlow(
                                           alpha(kGlow, 0.55f), 6)))
                            .child(t("PROGRESSIVE DESIGN TECHNOLOGY",
@@ -1496,7 +1454,7 @@ struct TwoAdvancedV4 : sketch::Sketch {
         .gap(2)
         .child(t(k, micro(9, alpha(hex(0x123B3D), 0.75f), 260)))
         .child(box().height(1).fill(alpha(kDate, 0.28f)))
-        .child(t(v, type(blackFace(), 11, hex(0x0E3234), 40, 0.92f)));
+        .child(t(v, tracked(blackFace(), 11, hex(0x0E3234), 40, 0.92f)));
   }
 
   Element featureSystem() {
@@ -1539,11 +1497,11 @@ struct TwoAdvancedV4 : sketch::Sketch {
                                .height(9)
                                .shape(shapes::polygon(3, 90))
                                .fill(kDate))
-                    .child(
-                        t("01.30.06", type(blackFace(), 14, kDate, 40, 0.95f)))
+                    .child(t("01.30.06",
+                             tracked(blackFace(), 14, kDate, 40, 0.95f)))
                     .child(box().grow(1).height(1).fill(alpha(kDate, 0.35f))))
             .child(t("N.O.-XPLODE TV COMMERCIAL",
-                     type(blackFace(), 17, hex(0x0E3234), 40, 0.92f)))
+                     tracked(blackFace(), 17, hex(0x0E3234), 40, 0.92f)))
             .child(box()
                        .height(84)
                        .padding(9)
@@ -1607,11 +1565,11 @@ struct TwoAdvancedV4 : sketch::Sketch {
                 .child(box().height(1).fill(alpha(kDate, 0.28f)))
                 .child(t("DIRECTION", micro(9, kDate, 200)))
                 .child(t("ERIC JORDAN",
-                         type(blackFace(), 11, hex(0x0E3234), 40, 0.92f)))
+                         tracked(blackFace(), 11, hex(0x0E3234), 40, 0.92f)))
                 .child(box().height(3))
                 .child(t("STUDIO", micro(9, kDate, 200)))
                 .child(t("2ADVANCED",
-                         type(blackFace(), 11, hex(0x0E3234), 40, 0.92f)))
+                         tracked(blackFace(), 11, hex(0x0E3234), 40, 0.92f)))
                 .child(box().grow(1))
                 .child(box()
                            .row()
@@ -1698,11 +1656,12 @@ struct TwoAdvancedV4 : sketch::Sketch {
                       .alignItems(Align::Center)
                       .fill(alpha(kPanelSh, 0.55f))
                       .padding(6, 3)
-                      .child(t(e.date, type(blackFace(), 13, kDate, 40, 0.95f)))
+                      .child(
+                          t(e.date, tracked(blackFace(), 13, kDate, 40, 0.95f)))
                       .child(box().grow(1).height(1).fill(alpha(kDate, 0.3f)))
                       .child(t("\xe2\x96\xb8", micro(9, kDate, 0))))
               .child(t(e.headline,
-                       type(blackFace(), 13, hex(0x0E3234), 50, 0.92f)))
+                       tracked(blackFace(), 13, hex(0x0E3234), 50, 0.92f)))
               .child(t(e.body, prose(12.5f, hex(0x0C2E30)))));
     return list;
   }
@@ -1882,17 +1841,18 @@ struct TwoAdvancedV4 : sketch::Sketch {
                     .row()
                     .gap(8)
                     .grow(1)
-                    .child(box()
-                               .width(118)
-                               .shrink(0)
-                               .fill(hex(0xF2F0EA))
-                               .column()
-                               .padding(7, 6)
-                               .gap(2)
-                               .child(t("Photoshop",
-                                        type(arial(), 15, hex(0x2A4A7A), 0)))
-                               .child(t("Secrets of the Pros",
-                                        type(arial(), 10, hex(0x333333), 0))))
+                    .child(
+                        box()
+                            .width(118)
+                            .shrink(0)
+                            .fill(hex(0xF2F0EA))
+                            .column()
+                            .padding(7, 6)
+                            .gap(2)
+                            .child(t("Photoshop",
+                                     tracked(arial(), 15, hex(0x2A4A7A), 0)))
+                            .child(t("Secrets of the Pros",
+                                     tracked(arial(), 10, hex(0x333333), 0))))
                     .child(t("Eric Jordan appears in \"Photoshop: Secrets "
                              "of the Pros\", a book featuring 20 top "
                              "designers with insights on their "
@@ -2054,7 +2014,7 @@ struct TwoAdvancedV4 : sketch::Sketch {
             animate(from(0.0f).to(1.0f), {400ms, &ch::easeOutQuad, 3650ms}))
         .foreground(TickRail{alpha(kDust, 0.35f), 9, 4, 8, 1, 4, false, false})
         .child(t("SUB", heavy(15, kNear, 40)))
-        .child(t("SYSTEM", type(arial(), 14, kHeadDim, 40, 0.95f)))
+        .child(t("SYSTEM", tracked(arial(), 14, kHeadDim, 40, 0.95f)))
         .child(box().width(1).height(30).fill(alpha(kDust, 0.35f)))
         .child(t("PARTNERS:", micro(11, kDust, 240)))
         .child(chip("A"))
@@ -2254,7 +2214,7 @@ struct TwoAdvancedV4 : sketch::Sketch {
                      .row()
                      .alignItems(Align::Center)
                      .gap(6)
-                     .child(t(title, type(blackFace(), 12, kD7, 60, 0.92f)))
+                     .child(t(title, tracked(blackFace(), 12, kD7, 60, 0.92f)))
                      .child(box().grow(1).height(1).fill(kD4))
                      .child(t("\xc2\xbb", micro(11, kD5, 0))))
           .child(t(a, micro(10, kD6, 220)))
@@ -2303,14 +2263,14 @@ struct TwoAdvancedV4 : sketch::Sketch {
             .gap(5)
             .foreground(InsetBevel{kD5, {0, 0, 0, 0.6f}, 0, 1, 1})
             .foreground(Brackets{kD6, 9, 2, 3, shapes::Corner::All})
-            .child(
-                box()
-                    .row()
-                    .alignItems(Align::Center)
-                    .gap(6)
-                    .child(t("SIGNAL", type(blackFace(), 12, kD7, 60, 0.92f)))
-                    .child(box().grow(1).height(1).fill(kD4))
-                    .child(t("\xc2\xbb", micro(11, kD5, 0))))
+            .child(box()
+                       .row()
+                       .alignItems(Align::Center)
+                       .gap(6)
+                       .child(t("SIGNAL",
+                                tracked(blackFace(), 12, kD7, 60, 0.92f)))
+                       .child(box().grow(1).height(1).fill(kD4))
+                       .child(t("\xc2\xbb", micro(11, kD5, 0))))
             .child(box()
                        .grow(1)
                        .fill(hex(0x0D0202))
@@ -2479,8 +2439,8 @@ struct TwoAdvancedV4 : sketch::Sketch {
         .row()
         .alignItems(Align::Baseline)
         .gap(6)
-        .child(t(buf, type(blackFace(), 46, kCyan, 40, 0.9f)))
-        .child(t("%", type(blackFace(), 20, alpha(kCyan, 0.6f), 40, 0.9f)));
+        .child(t(buf, tracked(blackFace(), 46, kCyan, 40, 0.9f)))
+        .child(t("%", tracked(blackFace(), 20, alpha(kCyan, 0.6f), 40, 0.9f)));
   }
 
   // =========================================================================
@@ -2648,15 +2608,12 @@ struct TwoAdvancedV4 : sketch::Sketch {
 
       // the section cycle: shutters, ACCESSING plate, selection mark
       {
-        float ph = -1.0f;  // transition phase, <0 outside a change
+        const tav::SectionCycle::At now = kCycle.at(t);
+        const float ph = now.phase;  // transition phase, <0 outside a change
         int target = 2, from = 2;
-        if (t >= kCycleStart) {
-          const double u = std::fmod(t - kCycleStart, 7.0 * kHoldS);
-          const int stop = (int)(u / kHoldS);
-          const double within = u - stop * kHoldS;
-          target = cycleTarget(stop);
-          from = stop == 0 ? 2 : cycleTarget(stop - 1);
-          if (within < kTransS) ph = (float)(within / kTransS);
+        if (now.running) {
+          target = cycleTarget(now.stop);
+          from = now.previous < 0 ? 2 : cycleTarget(now.previous);
         }
         for (int i = 0; i < 6; ++i) {
           float cover = 0.0f;
@@ -2729,11 +2686,8 @@ struct TwoAdvancedV4 : sketch::Sketch {
     // the DATA path: re-rendered into its slot only when the cycle's
     // target changes.
     {
-      int target = 2;
-      if (elapsed >= kCycleStart) {
-        const double u = std::fmod(elapsed - kCycleStart, 7.0 * kHoldS);
-        target = cycleTarget((int)(u / kHoldS));
-      }
+      const tav::SectionCycle::At now = kCycle.at(elapsed);
+      const int target = now.running ? cycleTarget(now.stop) : 2;
       if (target != mfSection) {
         mfSection = target;
         ctx.composer.renderSlot("mfload", mfLoadReadout(target));

@@ -77,7 +77,6 @@
 #include <sigilcompose/typography/Type.h>
 #include <sigilloader/hub/Network.h>
 #include <sigilsketch/canvas/Sketch.h>
-#include <sigilweave/ports/SystemFontManager.h>
 
 #include <algorithm>
 #include <array>
@@ -89,6 +88,8 @@
 #include <string>
 #include <vector>
 
+#include "twoadvanced.h"
+
 namespace sketch = sigil::sketch;
 
 using namespace sigil::compose;
@@ -99,6 +100,7 @@ using namespace std::chrono_literals;
 namespace ch = choreograph;
 
 namespace tv3 {
+using namespace twoadvanced;
 
 // ---------------------------------------------------------------------------
 // Palette — sampled from the studio's own 1920×1080 capture, never eyed.
@@ -117,55 +119,19 @@ constexpr SkColor4f kInk = hex(0x202B3F);      // dark type on steel bars
 constexpr SkColor4f kHost = hex(0xE8920A);     // the ONE saturated mark
 
 // ---------------------------------------------------------------------------
-// Type — Akzidenz-Grotesk substituted with what the platform ships.
-
-inline sk_sp<SkTypeface> face(const char* family, int weight, int width,
-                              const char* fallbackFamily = nullptr) {
-  auto mgr = sigil::weave::ports::systemFontManager();
-  sk_sp<SkTypeface> f = mgr->matchFamilyStyle(
-      family, SkFontStyle(weight, width, SkFontStyle::kUpright_Slant));
-  if (!f && fallbackFamily)
-    f = mgr->matchFamilyStyle(
-        fallbackFamily,
-        SkFontStyle(weight, width, SkFontStyle::kUpright_Slant));
-  if (!f) f = mgr->matchFamilyStyle(nullptr, SkFontStyle::Bold());
-  return f;
-}
-
-inline const sk_sp<SkTypeface>& grot() {  // the workhorse medium
-  static sk_sp<SkTypeface> f =
-      face("Helvetica Neue", SkFontStyle::kMedium_Weight,
-           SkFontStyle::kNormal_Width, "Arial");
-  return f;
-}
-inline const sk_sp<SkTypeface>& grotBold() {
-  static sk_sp<SkTypeface> f = face("Helvetica Neue", SkFontStyle::kBold_Weight,
-                                    SkFontStyle::kNormal_Width, "Arial");
-  return f;
-}
-
-inline sigil::weave::TextStyle type(const sk_sp<SkTypeface>& tf, float size,
-                                    SkColor4f color, float trackUnits = 0,
-                                    float stretch = 1.0f) {
-  return sigil::compose::type({.face = tf,
-                               .size = size,
-                               .color = color,
-                               .track = size * trackUnits / 1000.0f,
-                               .condense = stretch});
-}
+// Type — the studio's chassis (the faces, the 1/1000-em tracking unit and
+// the text alias) plus THIS artefact's own register: the 2024 rebuild is
+// lettered in one grotesque at two weights, tracked wide for the chrome
+// and loose for the prose.
 
 inline sigil::weave::TextStyle micro(float size, SkColor4f c, float tr = 160) {
-  return type(grotBold(), size, c, tr, 0.96f);
+  return tracked(grotBold(), size, c, tr, 0.96f);
 }
 inline sigil::weave::TextStyle title(float size, SkColor4f c, float tr = 80) {
-  return type(grotBold(), size, c, tr, 1.0f);
+  return tracked(grotBold(), size, c, tr, 1.0f);
 }
 inline sigil::weave::TextStyle prose(float size, SkColor4f c) {
-  return type(grot(), size, c, 30);
-}
-
-inline Element t(const char* s, sigil::weave::TextStyle st) {
-  return text(toU8(s), std::move(st));
+  return tracked(grot(), size, c, 30);
 }
 
 // ---------------------------------------------------------------------------
@@ -544,7 +510,7 @@ struct TwoAdvancedV3 : sketch::Sketch {
           .stroke(stroke(3, Fill::color(kNear), PathFormat::Align::Inner))
           .justify(Justify::Center)
           .alignItems(Align::Center)
-          .child(t("2a", type(grotBold(), 18, kNear, 0, 1.0f)));
+          .child(t("2a", tracked(grotBold(), 18, kNear, 0, 1.0f)));
     }
     Element panel =
         at(box().row().alignItems(Align::Center).padding(30, 0).gap(16),
@@ -556,19 +522,19 @@ struct TwoAdvancedV3 : sketch::Sketch {
                 shapes::Edge::Bottom, stroke(2, Fill::color(alpha(kInk, 0.5f)),
                                              PathFormat::Align::Inner)))
             .child(mark)
-            .child(
-                box()
-                    .column()
-                    .gap(2)
-                    .child(box()
-                               .row()
-                               .alignItems(Align::Start)
-                               .gap(4)
-                               .child(t("2 A D V A N C E D",
-                                        type(grotBold(), 27, kNear, 80, 1.02f)))
-                               .child(t("\xc2\xae", micro(9, kNear, 0))))
-                    .child(t("S T U D I O S",
-                             type(grotBold(), 12, kNear, 560, 1.0f))))
+            .child(box()
+                       .column()
+                       .gap(2)
+                       .child(box()
+                                  .row()
+                                  .alignItems(Align::Start)
+                                  .gap(4)
+                                  .child(t("2 A D V A N C E D",
+                                           tracked(grotBold(), 27, kNear, 80,
+                                                   1.02f)))
+                                  .child(t("\xc2\xae", micro(9, kNear, 0))))
+                       .child(t("S T U D I O S",
+                                tracked(grotBold(), 12, kNear, 560, 1.0f))))
             .child(box().grow(1));
     return panel
         .translateY(
@@ -901,11 +867,11 @@ struct TwoAdvancedV3 : sketch::Sketch {
     if (logoMark)
       row.child(box().width(34).height(34).fill(kNear).mask(
           by::alpha(stretchFill(logoMark, 34, 34))));
-    row.child(t("+", type(grotBold(), 13, alpha(kNear, 0.9f), 0)));
+    row.child(t("+", tracked(grotBold(), 13, alpha(kNear, 0.9f), 0)));
     if (riveLogo)
       row.child(box().width(44).height(44).fill(stretchFill(riveLogo, 44, 44)));
     else
-      row.child(t("R", type(grotBold(), 26, kNear, 0)));
+      row.child(t("R", tracked(grotBold(), 26, kNear, 0)));
     return row;
   }
 
@@ -979,11 +945,11 @@ struct TwoAdvancedV3 : sketch::Sketch {
             .row()
             .padding(12)
             .gap(12)
-            .child(thumbPlate(dddLogo
-                                  ? box().width(56).height(72).fill(
-                                        stretchFill(dddLogo, 56, 72))
-                                  : t("DDD", type(grotBold(), 20, kNear, 100)),
-                              "VISIT DDD"))
+            .child(thumbPlate(
+                dddLogo ? box().width(56).height(72).fill(
+                              stretchFill(dddLogo, 56, 72))
+                        : t("DDD", tracked(grotBold(), 20, kNear, 100)),
+                "VISIT DDD"))
             .child(
                 box()
                     .grow(1)
@@ -1130,7 +1096,7 @@ struct TwoAdvancedV3 : sketch::Sketch {
     else
       lockup.justify(Justify::Center)
           .alignItems(Align::Center)
-          .child(t("2ADVANCED", type(grotBold(), 24, kNear, 200, 1.0f)));
+          .child(t("2ADVANCED", tracked(grotBold(), 24, kNear, 200, 1.0f)));
 
     Element o = stack().inset(0).zIndex(90);
     o.child(box().inset(0).fill(kPreBg).opacity(
@@ -1142,7 +1108,7 @@ struct TwoAdvancedV3 : sketch::Sketch {
                 {{0ms, 0.0f}, {150ms, 1.0f}, {1200ms, 1.0f}, {1350ms, 0.0f}})))
             .child(lockup)
             .child(t("SOLACE IN TECHNOLOGY. BELIEF IN THE FUTURE.",
-                     type(grot(), 10, kPreInk, 400, 1.0f)))
+                     tracked(grot(), 10, kPreInk, 400, 1.0f)))
             .child(slot("bootpct")));
     o.opacity(animate(through({{1400ms, 1.0f}, {1450ms, 0.0f}})));
     return o;
@@ -1152,7 +1118,7 @@ struct TwoAdvancedV3 : sketch::Sketch {
     using namespace tv3;
     char buf[8];
     std::snprintf(buf, sizeof buf, "%d", bootPct);
-    return t(buf, type(grot(), 150, hex(0x7183A5), 0, 1.0f));
+    return t(buf, tracked(grot(), 150, hex(0x7183A5), 0, 1.0f));
   }
 
   ch::Output<float> beaconAlpha{1.0f};
@@ -1279,11 +1245,12 @@ struct TwoAdvancedV3 : sketch::Sketch {
   }
 
   // --- the section cycle -----------------------------------------------
-  // The home view holds until kCycleStart, then the simulated visitor
+  // The home view holds until the cycle starts, then the simulated visitor
   // walks every tab in order and returns to main — each change playing
   // the stepped shape-wipe. All of it is a pure function of the clock,
   // so captures land on the same frame every run.
-  static constexpr double kCycleStart = 8.0, kHold = 5.0, kTrans = 0.7;
+  static constexpr tv3::SectionCycle kCycle{
+      .start = 8.0, .hold = 5.0, .transition = 0.7, .stops = 7};
   int stageSec = -1;   // section the stage currently shows (-1 = home)
   int stageStep = -1;  // -1 stable, else the transition step shown
   int navActive = -2;  // tab lit in the nav slot (-1 = none), -2 = unset
@@ -1309,14 +1276,11 @@ struct TwoAdvancedV3 : sketch::Sketch {
     // The section cycle state, then the frame sequences — everything on
     // the DATA path, each slot swap touching only its own subtree.
     int sec = -1, step = -1, from = -1;
-    if (elapsed >= kCycleStart) {
-      const double u = std::fmod(elapsed - kCycleStart, 7.0 * kHold);
-      const int stop = (int)(u / kHold);
-      const double within = u - stop * kHold;
-      sec = stopTarget(stop);
-      from = stop == 0 ? -1 : stopTarget(stop - 1);
-      if (within < kTrans)
-        step = std::min(14, 1 + (int)(within / kTrans * 14.0));
+    const tv3::SectionCycle::At now = kCycle.at(elapsed);
+    if (now.running) {
+      sec = stopTarget(now.stop);
+      from = now.previous < 0 ? -1 : stopTarget(now.previous);
+      step = tv3::SectionCycle::step(now.phase, 14);
     }
     if (navActive != sec) renderNavTabs(ctx, sec);
     if (sec != stageSec || step != stageStep) {

@@ -44,13 +44,14 @@
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/shape/Shapes.h>
 #include <sigilsketch/canvas/Sketch.h>
-#include <sigilweave/ports/SystemFontManager.h>
 
 #include <algorithm>
 #include <array>
 #include <cmath>
 #include <map>
 #include <string>
+
+#include "twoadvanced.h"
 
 namespace sketch = sigil::sketch;
 
@@ -62,6 +63,7 @@ using namespace std::chrono_literals;
 namespace ch = choreograph;
 
 namespace teq {
+using namespace twoadvanced;
 
 // The page's entire palette, straight from its attributes.
 constexpr SkColor4f kMaroon = hex(0x7C252C);   // header rows, copy, links
@@ -71,33 +73,11 @@ constexpr SkColor4f kSbFace = hex(0xBBC0C9);   // SCROLLBAR-FACE-COLOR
 constexpr SkColor4f kSbTrack = hex(0xE4E6EA);  // SCROLLBAR-TRACK-COLOR
 constexpr SkColor4f kSbArrow = hex(0x666666);  // SCROLLBAR-ARROW-COLOR
 
-inline sk_sp<SkTypeface> verdanaFace(bool bold) {
-  auto mgr = sigil::weave::ports::systemFontManager();
-  sk_sp<SkTypeface> f = mgr->matchFamilyStyle(
-      "Verdana",
-      SkFontStyle(
-          bold ? SkFontStyle::kBold_Weight : SkFontStyle::kNormal_Weight,
-          SkFontStyle::kNormal_Width, SkFontStyle::kUpright_Slant));
-  if (!f)
-    f = mgr->matchFamilyStyle(
-        "Arial", bold ? SkFontStyle::Bold() : SkFontStyle::Normal());
-  return f;
-}
-
-/** Verdana at HTML size=1: 10 px. */
+/** Verdana at HTML size=1: 10 px — the one register the whole store is
+ *  set in, bold only in the product headers. Untracked, because an HTML
+ *  table cell had no way to say otherwise. */
 inline sigil::weave::TextStyle verdana(SkColor4f color, bool bold = false) {
-  sigil::weave::TextStyle s;
-  static const sk_sp<SkTypeface> regular = verdanaFace(false);
-  static const sk_sp<SkTypeface> boldFace = verdanaFace(true);
-  s.shaping.typeface = bold ? boldFace : regular;
-  s.shaping.fontSize = 10;
-  s.paint.foreground.setColor4f(color, nullptr);
-  s.paint.foreground.setAntiAlias(true);
-  return s;
-}
-
-inline Element t(const char* s, sigil::weave::TextStyle st) {
-  return text(toU8(s), std::move(st));
+  return tracked(verdanaFace(bold), 10, color);
 }
 
 // Frameset geometry, in the page's own CSS pixels.
