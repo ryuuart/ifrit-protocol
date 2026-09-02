@@ -10,11 +10,11 @@
  */
 
 #include <gtest/gtest.h>
+#include <sigilgeometry/device/Device.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/curve/Curve.h>
-#include <sigilgeometry/mesh/curve/Sweep.h>
-#include <sigilgeometry/device/Device.h>
 #include <sigilgeometry/mesh/pop/Pop.h>
+#include <sigilgeometry/mesh/pop/Sweep.h>
 
 #include <bit>
 #include <cstdint>

@@ -6,7 +6,8 @@ add_library(SigilMaterialSdf STATIC
 )
 target_compile_features(SigilMaterialSdf PUBLIC cxx_std_20)
 target_include_directories(SigilMaterialSdf PUBLIC ${SIGIL_MATERIAL_INCLUDE_DIR})
-target_link_libraries(SigilMaterialSdf PUBLIC SigilMaterialCore)
+target_link_libraries(SigilMaterialSdf PUBLIC SigilMaterialCore
+  SigilMaterialColor)
 
 # The test shades, so it links the Skia backend beside the feature.
 add_executable(material_sdf_test test/SdfTest.cpp)

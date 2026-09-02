@@ -14,7 +14,6 @@ add_library(SigilMaterialCore STATIC
   Program.cpp
   Recipe.cpp
   ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/Material.h
-  ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/color/Color.h
   ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/core/Combine.h
   ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/core/FrameData.h
   ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/core/Leaf.h
@@ -29,9 +28,10 @@ target_compile_features(SigilMaterialCore PUBLIC cxx_std_20)
 target_include_directories(SigilMaterialCore PUBLIC ${SIGIL_MATERIAL_INCLUDE_DIR})
 # Params.h includes <boost/pfr.hpp>, so the include path must reach every
 # consumer that instantiates schema<P>(); the target is header-only, and
-# nothing links.
+# nothing links. SigilMaterialColor is the colour value a params struct
+# holds, included by the same header.
 target_link_libraries(SigilMaterialCore
-  PUBLIC SigilGeometryPath SigilMotionValues Boost::pfr)
+  PUBLIC SigilMaterialColor SigilGeometryPath SigilMotionValues Boost::pfr)
 
 # Links only the library it exercises, so a link edge that pulled a
 # renderer in would show up as a build failure here.

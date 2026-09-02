@@ -9,10 +9,13 @@
 # texture as a comparable leaf, the tools' texture sets, the environment
 # and bevel producers, the atlas. Each backend is its own feature that
 # links the core and its renderer, so a consumer of the model alone links
-# no renderer. The colour, sdf, pattern and field features are the
-# primitives — fully parameterised generators — and the kit holds the
-# presets over them. `SigilMaterial` is the umbrella: an interface over
-# every feature, for a consumer of the whole library.
+# no renderer. The colour feature is the leaf under the core: the value
+# a params struct holds and the OKLab round trip, linking nothing. The
+# sdf, pattern and field features are the primitives — fully
+# parameterised generators — the ocio feature bakes OpenColorIO's view
+# transforms to LUT materials over the texture feature, and the kit
+# holds the presets over them. `SigilMaterial` is the umbrella: an
+# interface over every feature, for a consumer of the whole library.
 #
 # Every public header lives under one include root, include/sigilmaterial/
 # <feature>/, so a feature adds the root and spells its own directory.
@@ -21,9 +24,10 @@
 set(SIGIL_MATERIAL_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/include)
 
 # Dependencies point up this list.
+add_subdirectory(color)
 add_subdirectory(core)
 add_subdirectory(texture)
-add_subdirectory(color)
+add_subdirectory(ocio)
 add_subdirectory(sdf)
 add_subdirectory(pattern)
 add_subdirectory(field)
@@ -33,9 +37,9 @@ add_subdirectory(slang)
 
 add_library(SigilMaterial INTERFACE)
 target_link_libraries(SigilMaterial INTERFACE
-  SigilMaterialCore SigilMaterialTexture SigilMaterialColor SigilMaterialSdf
-  SigilMaterialPattern SigilMaterialField SigilMaterialSkia SigilMaterialKit
-  SigilMaterialSlang)
+  SigilMaterialColor SigilMaterialCore SigilMaterialTexture SigilMaterialOcio
+  SigilMaterialSdf SigilMaterialPattern SigilMaterialField SigilMaterialSkia
+  SigilMaterialKit SigilMaterialSlang)
 
 # Registers this library with the `docs` target (see cmake/Docs.cmake).
 # The README is the site's front page, so the generated pages open on the

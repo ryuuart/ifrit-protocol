@@ -3,7 +3,7 @@
 # library per directory. The platform feature is what Ultralight's
 # Platform singleton is handed: an SkBitmap-backed surface, the two-root
 # file system, the logger bridge and the resource directory. The gpu
-# feature executes Ultralight's GPU command lists on a SigilSkia
+# feature executes Ultralight's GPU command lists on a SigilCoreHardware
 # GpuDevice and gives the engine its texture interop — Metal today, the
 # seam a Vulkan driver implements. The engine feature is the web thread,
 # the views that publish frames and the image slots pages display.
@@ -18,8 +18,8 @@
 #
 # Only added when SPELLCIRCLE_ENABLE_ULTRALIGHT is ON (auto-off when the
 # SDK is missing; see cmake/FindUltralight.cmake). Textures are named on
-# a SigilSkia GpuDevice and the GPU driver draws over a shared SigilSkia
-# Graphite context, so the library needs SigilSkia
+# SigilCoreHardware's GpuDevice and the GPU driver draws over a shared
+# Graphite context, so the library needs SigilSkia's graphite feature
 # (SPELLCIRCLE_ENABLE_SKIA_CANVAS).
 if(NOT TARGET SigilSkia)
   message(STATUS "SigilScry skipped: needs SPELLCIRCLE_ENABLE_SKIA_CANVAS (SigilSkia)")

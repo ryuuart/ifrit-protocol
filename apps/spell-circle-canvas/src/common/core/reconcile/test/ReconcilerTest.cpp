@@ -156,7 +156,7 @@ Desc memoOf(std::string key, int props, int* calls) {
     ++*calls;
     return desc(key, std::any_cast<int>(p));
   };
-  memo.env = detail::envStack();
+  memo.env = env::capture();
   shell->memo = std::move(memo);
   return shell;
 }
@@ -218,7 +218,7 @@ TEST(Reconciler, ADeferredDescribeRunsUnderTheEnvironmentItWasWrittenIn) {
       const Theme* t = env::inherited<Theme>();
       return desc("m", t ? t->tone : -1);
     };
-    memo.env = detail::envStack();
+    memo.env = env::capture();
     shell->memo = std::move(memo);
   }
   ASSERT_FALSE(env::bound<Theme>());  // the author's scope is gone

@@ -85,7 +85,7 @@ include their own directory's headers. The hardware feature's are
 | `reconcile/Host.h` | the `ReconcileHost` concept — the operations a host implements — and `DescValue` |
 | `reconcile/Node.h` | `Node<Derived, Desc>` — the tree skeleton a host's node derives from: `parent`, `desc`, `memoShell`, `children` |
 | `reconcile/Memo.h` | `Memo<Produced>` — a deferred describe and its key: `props`, `equal`, `invoke`, `env` |
-| `reconcile/Env.h` | `env::Provide`, `env::inherited`, `env::inheritedOr`, `env::bound`, and the `detail::EnvSnapshot`, `detail::envStack`, `detail::envEqual`, `detail::EnvRestore` a memo is built on |
+| `reconcile/Env.h` | `env::Provide`, `env::inherited`, `env::inheritedOr`, `env::bound`, and the `env::Snapshot`, `env::capture`, `env::Restore` a memo is built on |
 | `reconcile/Erased.h` | `Erased<Ops>` under the name a description spells it by; the type is `comparable/Erased.h`'s |
 | `reconcile/Phases.h` | `Phase<Impl>` and `runPhases` — a host's declared pass list with its converging group |
 | `reconcile/Reads.h` | `Facet`, `Read`, `orderByReads` — what one node reads off another, and the order that puts every reader after what it read |
@@ -216,7 +216,7 @@ be a memo shell: props, a comparison over them, and a deferred describe.
 The reconciler compares the shell's captured environment first and its
 props second against the shell the node was last described from; on a
 hit the node's payload stands and the describe is skipped, on a miss the
-describe runs under the environment its author had (`EnvRestore`) and
+describe runs under the environment its author had (`env::Restore`) and
 the result becomes the payload. The shell rides on the node as
 `memoShell`; the payload is `desc`.
 

@@ -208,7 +208,7 @@ class Reconciler {
     // described under.
     if (existing && existing->memoShell) {
       const auto* previous = m_host.memoOf(existing->memoShell);
-      if (previous && detail::envEqual(previous->env, memo->env) &&
+      if (previous && previous->env == memo->env &&
           previous->equal(previous->props, memo->props)) {
         m_stats.memoHits++;
         described = false;
@@ -218,7 +218,7 @@ class Reconciler {
     described = true;
     // …and the deferred call runs under the bindings its AUTHOR had, not
     // whatever scope this reconcile happens to sit inside (usually none).
-    detail::EnvRestore restore(memo->env);
+    env::Restore restore(memo->env);
     return m_host.produce(*memo);
   }
 

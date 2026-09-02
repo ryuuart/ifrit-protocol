@@ -112,7 +112,7 @@ if(APPLE)
       SigilGeometryMeshPop SigilGeometryMeshCodec
       SigilMaterialCore SigilMaterialTexture SigilMaterialColor
       SigilMaterialSdf SigilMaterialPattern SigilMaterialField
-      SigilMaterialSkia SigilMaterialKit
+      SigilMaterialSkia SigilMaterialKit SigilMaterialOcio
       SigilWorldElement SigilWorldFrame SigilWorldGraph SigilWorldScene
       SigilWorldLight SigilWorldKit
       SigilWeaveUnicode SigilWeaveFonts SigilWeaveParagraph SigilWeaveLayout

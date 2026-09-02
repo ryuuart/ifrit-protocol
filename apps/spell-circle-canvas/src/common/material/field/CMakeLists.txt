@@ -7,7 +7,8 @@ add_library(SigilMaterialField STATIC
 )
 target_compile_features(SigilMaterialField PUBLIC cxx_std_20)
 target_include_directories(SigilMaterialField PUBLIC ${SIGIL_MATERIAL_INCLUDE_DIR})
-target_link_libraries(SigilMaterialField PUBLIC SigilMaterialTexture)
+target_link_libraries(SigilMaterialField PUBLIC SigilMaterialTexture
+  SigilMaterialColor)
 
 add_executable(material_field_test test/FieldTest.cpp)
 target_link_libraries(material_field_test PRIVATE SigilMaterialField

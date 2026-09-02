@@ -63,46 +63,46 @@ TEST(Env, AScopeDestroyedOutOfOrderRemovesOnlyItsOwnBindingAndWarns) {
 }
 
 TEST(Env, SnapshotsCompareByBindingValueInOrder) {
-  detail::EnvSnapshot empty;
-  EXPECT_TRUE(detail::envEqual(empty, empty));
-  detail::EnvSnapshot one, sameValue, otherValue, otherType, longer;
+  env::Snapshot empty;
+  EXPECT_TRUE(empty == empty);
+  env::Snapshot one, sameValue, otherValue, otherType, longer;
   {
     env::Provide<Palette> p(Palette{1});
-    one = detail::envStack();
+    one = env::capture();
     {
       env::Provide<Other> o(Other{1});
-      longer = detail::envStack();
+      longer = env::capture();
     }
   }
   {
     env::Provide<Palette> p(Palette{1});
-    sameValue = detail::envStack();
+    sameValue = env::capture();
   }
   {
     env::Provide<Palette> p(Palette{2});
-    otherValue = detail::envStack();
+    otherValue = env::capture();
   }
   {
     env::Provide<Other> o(Other{1});
-    otherType = detail::envStack();
+    otherType = env::capture();
   }
-  EXPECT_TRUE(detail::envEqual(one, one));  // the same holder short-circuits
-  EXPECT_TRUE(detail::envEqual(one, sameValue));
-  EXPECT_FALSE(detail::envEqual(one, otherValue));
-  EXPECT_FALSE(detail::envEqual(one, otherType));
-  EXPECT_FALSE(detail::envEqual(one, longer));
-  EXPECT_FALSE(detail::envEqual(one, empty));
+  EXPECT_TRUE(one == one);  // the same holder short-circuits
+  EXPECT_TRUE(one == sameValue);
+  EXPECT_FALSE(one == otherValue);
+  EXPECT_FALSE(one == otherType);
+  EXPECT_FALSE(one == longer);
+  EXPECT_FALSE(one == empty);
 }
 
 TEST(Env, RestoreSwapsACapturedStackInAndBackOut) {
-  detail::EnvSnapshot captured;
+  env::Snapshot captured;
   {
     env::Provide<Palette> p(Palette{3});
-    captured = detail::envStack();
+    captured = env::capture();
   }
   env::Provide<Other> ambient(Other{1});
   {
-    detail::EnvRestore restore(captured);
+    env::Restore restore(captured);
     // The deferred call sees exactly the author's scope: not the ambient
     // one on top of it.
     EXPECT_EQ(env::inherited<Palette>()->surface, 3);

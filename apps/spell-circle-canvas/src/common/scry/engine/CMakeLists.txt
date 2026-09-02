@@ -24,7 +24,8 @@ target_include_directories(SigilScryEngine
   PUBLIC ${SIGIL_SCRY_INCLUDE_DIR}
   PRIVATE ${CMAKE_CURRENT_LIST_DIR}/../platform ${CMAKE_CURRENT_LIST_DIR}/../gpu)
 target_link_libraries(SigilScryEngine
-  PUBLIC SigilScryPlatform SigilScryGpu SigilSkia unofficial::skia::skia
+  PUBLIC SigilScryPlatform SigilScryGpu SigilSkiaGraphite SigilCoreHardware
+         unofficial::skia::skia
   PRIVATE Ultralight::Ultralight Ultralight::AppCore)
 
 # Ultralight allows one Renderer per process, so the CPU-mode and the

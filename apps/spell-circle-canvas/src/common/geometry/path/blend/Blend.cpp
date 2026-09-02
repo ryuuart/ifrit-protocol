@@ -10,6 +10,7 @@
 #include <include/core/SkMatrix.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>
+#include <sigilmaterial/color/Color.h>
 
 #include <algorithm>
 #include <cmath>
@@ -17,7 +18,6 @@
 
 #include "sigilgeometry/path/Numeric.h"
 #include "sigilgeometry/path/Skia.h"
-#include "sigilmaterial/color/Color.h"
 
 namespace sigil::geometry::path::blend {
 

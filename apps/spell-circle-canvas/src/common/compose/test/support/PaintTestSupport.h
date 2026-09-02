@@ -15,7 +15,7 @@
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/sdf/Sdf.h>
 #ifdef SIGILMATERIAL_ENABLE_OCIO
-#include <sigilmaterial/color/Ocio.h>
+#include <sigilmaterial/ocio/Ocio.h>
 #endif
 
 #include "BrushTestSupport.h"

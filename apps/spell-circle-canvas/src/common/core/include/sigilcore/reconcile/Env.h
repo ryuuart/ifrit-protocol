@@ -2,9 +2,10 @@
 
 /** @file
  * An inherited value, read where a component is described: env::Provide
- * binds a value for a describe scope, env::inherited reads it, and the
- * detail:: snapshot types are what a memo captures so that its environment
- * is part of its key.
+ * binds a value for a describe scope, env::inherited reads it, and
+ * env::capture is what a memo takes where it is written, so that its
+ * environment is part of its key and env::Restore can re-establish it
+ * around the deferred describe.
  */
 
 #include <cassert>
@@ -67,43 +68,38 @@ namespace sigil::core {
 // than a design-token vocabulary: the key a component uses is its own
 // props type.
 
-namespace detail {
+namespace env {
 
 /** One ambient binding, type-erased. `type` is a per-T address so no RTTI
- *  is needed and the type test is a pointer compare. */
-struct EnvEntry {
+ *  is needed and the type test is a pointer compare. Two entries are
+ *  equal when they bind the same type to values equal by that type's
+ *  own `operator==`; the same holder short-circuits. */
+struct Entry {
   const void* type = nullptr;
   std::shared_ptr<const void> value;
   bool (*equal)(const void*, const void*) = nullptr;
+
+  bool operator==(const Entry& o) const {
+    if (type != o.type) return false;
+    if (value == o.value) return true;  // the same binding object
+    return equal && value && o.value && equal(value.get(), o.value.get());
+  }
 };
 
-/** A captured ambient stack, innermost LAST. Empty is the overwhelmingly
- *  common case and costs one empty vector — the feature is free unused. */
-using EnvSnapshot = std::vector<EnvEntry>;
+/** A captured ambient stack, innermost LAST. Compares by value — the same
+ *  bindings, in the same order, each equal by its own `operator==` —
+ *  which is what makes a memo's environment part of its key. Empty is
+ *  the overwhelmingly common case and costs one empty vector: the
+ *  feature is free unused. */
+using Snapshot = std::vector<Entry>;
+
+}  // namespace env
+
+namespace detail {
 
 /** The live describe-time stack. Thread-local: a describe runs on whatever
  *  thread the host calls on. */
-EnvSnapshot& envStack();
-
-/** Value equality over two captured stacks: same bindings, in the same
- *  order, each equal by its own `operator==`. Identical holders short-
- *  circuit. This is what makes a memo's environment part of its key. */
-bool envEqual(const EnvSnapshot& a, const EnvSnapshot& b);
-
-/** Re-establishes a captured stack around a DEFERRED describe (the memo
- *  invoke). Swaps rather than pushes: a deferred call must see exactly
- *  what its author's scope had, not that stack plus whatever the current
- *  reconcile walk happens to sit inside. */
-class EnvRestore {
- public:
-  explicit EnvRestore(const EnvSnapshot& snapshot);
-  ~EnvRestore();
-  EnvRestore(const EnvRestore&) = delete;
-  EnvRestore& operator=(const EnvRestore&) = delete;
-
- private:
-  EnvSnapshot m_saved;
-};
+env::Snapshot& envStack();
 
 template <class T>
 const void* envTypeTag() {
@@ -112,6 +108,30 @@ const void* envTypeTag() {
 }
 
 }  // namespace detail
+
+namespace env {
+
+/** The bindings in scope right now, copied — what a memo captures where
+ *  it is WRITTEN, because by the time the reconciler decides whether to
+ *  run the deferred describe the author's scope is gone. */
+Snapshot capture();
+
+/** Re-establishes a captured stack around a DEFERRED describe (the memo
+ *  invoke). Swaps rather than pushes: a deferred call must see exactly
+ *  what its author's scope had, not that stack plus whatever the current
+ *  reconcile walk happens to sit inside. */
+class Restore {
+ public:
+  explicit Restore(const Snapshot& snapshot);
+  ~Restore();
+  Restore(const Restore&) = delete;
+  Restore& operator=(const Restore&) = delete;
+
+ private:
+  Snapshot m_saved;
+};
+
+}  // namespace env
 
 namespace env {
 
@@ -126,7 +146,7 @@ class Provide {
                   "an inherited value is a value");
     auto held = std::make_shared<const T>(std::move(value));
     m_self = held.get();
-    detail::envStack().push_back(detail::EnvEntry{
+    detail::envStack().push_back(Entry{
         detail::envTypeTag<T>(), std::shared_ptr<const void>(std::move(held)),
         [](const void* a, const void* b) {
           return *static_cast<const T*>(a) == *static_cast<const T*>(b);
@@ -140,7 +160,7 @@ class Provide {
    *  The misuse warns; the well-nested path stays a compare and a
    *  pop_back, allocation-free. */
   ~Provide() {
-    detail::EnvSnapshot& stack = detail::envStack();
+    Snapshot& stack = detail::envStack();
     if (stack.size() == m_depth && stack.back().value.get() == m_self) {
       stack.pop_back();
       return;
@@ -169,7 +189,7 @@ class Provide {
  *  read it). */
 template <class T>
 const T* inherited() {
-  const detail::EnvSnapshot& stack = detail::envStack();
+  const Snapshot& stack = detail::envStack();
   const void* tag = detail::envTypeTag<T>();
   for (size_t i = stack.size(); i-- > 0;)
     if (stack[i].type == tag)

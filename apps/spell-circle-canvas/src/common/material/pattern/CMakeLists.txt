@@ -11,7 +11,7 @@ add_library(SigilMaterialPattern STATIC
 target_compile_features(SigilMaterialPattern PUBLIC cxx_std_20)
 target_include_directories(SigilMaterialPattern PUBLIC ${SIGIL_MATERIAL_INCLUDE_DIR})
 target_link_libraries(SigilMaterialPattern
-  PUBLIC SigilMaterialTexture
+  PUBLIC SigilMaterialTexture SigilMaterialColor
   PRIVATE SigilCoreCompute)
 
 add_executable(material_pattern_test test/PatternTest.cpp)

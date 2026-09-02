@@ -5,10 +5,11 @@ add_library(SigilGeometryPathBlend STATIC
 )
 target_compile_features(SigilGeometryPathBlend PUBLIC cxx_std_20)
 target_include_directories(SigilGeometryPathBlend PUBLIC ${SIGIL_GEOMETRY_INCLUDE_DIR})
-# The colour interpolation runs in OKLab, whose conversions SigilMaterial
-# owns; the link is private because no header here spells its types.
+# The colour interpolation runs in OKLab, whose conversions are
+# SigilMaterial's colour leaf; the link is private because no header here
+# spells its types.
 target_link_libraries(SigilGeometryPathBlend PUBLIC SigilGeometryPath
-  PRIVATE SigilMaterialCore)
+  PRIVATE SigilMaterialColor)
 
 add_executable(geometry_path_blend_test test/BlendTest.cpp)
 target_link_libraries(geometry_path_blend_test PRIVATE SigilGeometryPathBlend

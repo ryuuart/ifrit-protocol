@@ -80,7 +80,6 @@ add_library(SigilGeometryMeshPop STATIC
   ${CMAKE_CURRENT_LIST_DIR}/kernels/Pop.slang
   ${CMAKE_CURRENT_LIST_DIR}/kernels/Stamp.slang
   ${CMAKE_CURRENT_LIST_DIR}/kernels/Sweep.slang
-  ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/mesh/curve/Sweep.h
   ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/mesh/pop/Kernel.h
   ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/mesh/pop/Points.h
   ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/mesh/pop/Pop.h

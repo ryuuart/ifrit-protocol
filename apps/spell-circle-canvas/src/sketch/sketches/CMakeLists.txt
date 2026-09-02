@@ -29,7 +29,8 @@ list(REMOVE_ITEM SIGIL_SKETCH_FILES ${CMAKE_CURRENT_LIST_DIR}/Anchor.cpp)
 # requirement is a defect in anything but a sketch that draws an SDK.
 set(SIGIL_SKETCH_REQUIREMENTS
   substance_swatches SigilSubstance
-  web_panel          SigilComposeWeb)
+  web_panel          SigilComposeWeb
+  web_panel          SigilScry)
 
 list(LENGTH SIGIL_SKETCH_REQUIREMENTS _requirement_entries)
 math(EXPR _requirement_last "${_requirement_entries} / 2 - 1")
@@ -63,8 +64,21 @@ add_library(SigilSketches OBJECT
 # compilation database — which is a source of THIS target. So the header
 # surface a compiled-in sketch sees and the one a hot-reloaded sketch
 # sees cannot drift apart.
+#
+# Every library a sketch includes is named here, by its umbrella where
+# the library has one and by feature target where the umbrella leaves a
+# feature out (compose's instanced, texture and testing leaves; weave's
+# kit and ports) or would bring a device with it (world's diligent
+# feature, which only the app installs). A sketch reaches no library
+# through a neighbour's link line.
 target_link_libraries(SigilSketches PUBLIC
-  SigilSketchCanvas SigilSketchSet ${SIGIL_SKETCH_OPTIONAL_LIBRARIES})
+  SigilSketchCanvas SigilSketchSet
+  SigilCompose SigilComposeInstances SigilComposeTexture SigilComposeTesting
+  SigilGeometry SigilMaterial
+  SigilWeave SigilWeaveKit SigilWeavePorts
+  SigilWorldElement SigilWorldFrame SigilWorldScene SigilWorldKit
+  SigilCoreCompute SigilImage SigilMotion SigilLoader
+  ${SIGIL_SKETCH_OPTIONAL_LIBRARIES})
 target_compile_definitions(SigilSketches PUBLIC
   SIGIL_SKETCH_ASSET_DIR="${SIGIL_SKETCH_ASSET_DIR}"
   SIGIL_SKETCH_DIR="${SIGIL_SKETCH_DIR}"

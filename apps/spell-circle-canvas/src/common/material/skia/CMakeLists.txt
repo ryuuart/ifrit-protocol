@@ -23,7 +23,8 @@ add_library(SigilMaterialSkia STATIC
 target_compile_features(SigilMaterialSkia PUBLIC cxx_std_20)
 target_include_directories(SigilMaterialSkia PUBLIC ${SIGIL_MATERIAL_INCLUDE_DIR})
 target_link_libraries(SigilMaterialSkia
-  PUBLIC SigilMaterialTexture SigilMotionValues unofficial::skia::skia)
+  PUBLIC SigilMaterialTexture SigilMaterialColor SigilMotionValues
+         unofficial::skia::skia)
 
 add_executable(material_skia_test test/SkiaTest.cpp)
 target_link_libraries(material_skia_test PRIVATE SigilMaterialSkia

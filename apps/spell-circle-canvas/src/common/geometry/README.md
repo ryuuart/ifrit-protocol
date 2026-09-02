@@ -8,9 +8,12 @@ geometry, point clouds carrying named attribute lanes and a point-operator
 chain language, and a runtime that draws meshes and perspective panels
 onto an ordinary `SkCanvas`.
 
-It links only Skia and [glm](https://github.com/g-truc/glm) publicly. There
-is no windowing, no GPU device, no UI framework and no scene graph — you
-hand it values, it hands you paths, meshes, clouds and pixels.
+It links Skia, [glm](https://github.com/g-truc/glm) and two SigilCore
+leaves publicly, and SigilMaterial's colour leaf privately in the one
+feature that interpolates colour. There is no windowing, no UI framework
+and no scene graph — you hand it values, it hands you paths, meshes,
+clouds and pixels — and the one feature that owns a GPU device is named
+`device`, linked only by what wants one.
 
 It is **two tiers**, one per currency, and eight feature libraries under
 them. The `path` tier is 2D: an outline resampled, addressed by
@@ -541,8 +544,7 @@ the decoration a compiled module needs before a driver may be handed it.
   `curve::kernel::Dispatch`, and `kernel::run()` and `kernel::spirv()` as
   the two ends of the one arithmetic. `Sweep.cpp` holds the profiles, the
   packing, the topology and the built-in executor; `device/Sweep.cpp` the
-  device one. `<sigilgeometry/mesh/curve/Sweep.h>` forwards to this
-  header.
+  device one.
 
   **There is one sweep, and the shape is a parameter.** `sweep()` carries
   a 2D `path::Polyline` along a rail: every ring is that contour placed on
@@ -1051,7 +1053,10 @@ erased value the mesh and point-operator runtimes are — and nothing
 else; every feature links only the features above it in the tree. The
 leaves are the standard library (and Boost.PFR) behind a name, so
 linking them acquires no kernel, no device and nothing that draws.
-Privately `mesh` uses the header-only earcut for cap triangulation, and
+Privately `path/blend` links `SigilMaterialColor`, the colour value and
+the OKLab round trip its colour interpolation runs in — the one edge
+from this library into SigilMaterial, and no header spells it. Privately
+`mesh` uses the header-only earcut for cap triangulation, and
 `mesh/codec` uses
 tinyobjloader for OBJ, Alembic for `.abc` and the header-only cgltf for
 glTF, and simdjson for the JSON a `.geo` is; STL and PLY are parsed by

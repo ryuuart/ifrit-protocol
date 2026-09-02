@@ -1,9 +1,9 @@
 /** @file
- * OCIO to LUT baking: the slices laid side by side in one image, the
- * trilinear body, and the three transform factories.
+ * OCIO to LUT baking: the slices laid side by side in one image, and the
+ * three transform factories over the trilinear recipe.
  */
 
-#include "sigilmaterial/color/Ocio.h"
+#include "sigilmaterial/ocio/Ocio.h"
 
 #include <OpenColorIO/OpenColorIO.h>
 #include <include/core/SkBitmap.h>
@@ -19,7 +19,7 @@
 
 namespace OCIO = OCIO_NAMESPACE;
 
-namespace sigil::material::color {
+namespace sigil::material::ocio {
 
 namespace {
 
@@ -84,30 +84,6 @@ Material bake(const OCIO::ConstConfigRcPtr& config,
 
 }  // namespace
 
-const std::shared_ptr<const Recipe>& lutRecipe() {
-  static const auto recipe =
-      std::make_shared<const Recipe>(Recipe::of<LutParams>("color.lut3d")
-                                         .child("content")
-                                         .child("lut")
-                                         .body(Target::SkSL, R"(
-half4 main(float2 xy) {
-  half4 c = content.eval(xy);
-  float a = max(float(c.a), 0.0001);
-  float3 rgb = clamp(float3(c.rgb) / a, 0.0, 1.0);
-  float n = lutSize;
-  float3 p = rgb * (n - 1.0);
-  float zf = floor(p.z);
-  float zc = min(zf + 1.0, n - 1.0);
-  float t = p.z - zf;
-  float2 uv0 = float2(zf * n + p.x + 0.5, p.y + 0.5);
-  float2 uv1 = float2(zc * n + p.x + 0.5, p.y + 0.5);
-  float3 m = mix(float3(lut.eval(uv0).rgb), float3(lut.eval(uv1).rgb), t);
-  return half4(half3(m * a), c.a);
-}
-)"));
-  return recipe;
-}
-
 bool available() {
   try {
     return (bool)OCIO::Config::CreateRaw();
@@ -127,7 +103,7 @@ Material viewTransform(std::string_view config, std::string_view displayName,
     return bake(cfg, t, lutSize);
   } catch (const OCIO::Exception& e) {
     SkDebugf(
-        "sigilmaterial color::viewTransform(\"%.*s\", \"%.*s\", \"%.*s\"): "
+        "sigilmaterial ocio::viewTransform(\"%.*s\", \"%.*s\", \"%.*s\"): "
         "%s\n",
         (int)config.size(), config.data(), (int)displayName.size(),
         displayName.data(), (int)viewName.size(), viewName.data(), e.what());
@@ -157,7 +133,7 @@ Material convert(std::string_view config, std::string_view src,
     t->setDst(std::string(dst).c_str());
     return bake(cfg, t, lutSize);
   } catch (const OCIO::Exception& e) {
-    SkDebugf("sigilmaterial color::convert(\"%.*s\" -> \"%.*s\"): %s\n",
+    SkDebugf("sigilmaterial ocio::convert(\"%.*s\" -> \"%.*s\"): %s\n",
              (int)src.size(), src.data(), (int)dst.size(), dst.data(),
              e.what());
     return Material(lutRecipe());
@@ -172,9 +148,9 @@ Material exponent(float gamma, int lutSize) {
     t->setValue(v);
     return bake(cfg, t, lutSize);
   } catch (const OCIO::Exception& e) {
-    SkDebugf("sigilmaterial color::exponent(%f): %s\n", gamma, e.what());
+    SkDebugf("sigilmaterial ocio::exponent(%f): %s\n", gamma, e.what());
     return Material(lutRecipe());
   }
 }
 
-}  // namespace sigil::material::color
+}  // namespace sigil::material::ocio

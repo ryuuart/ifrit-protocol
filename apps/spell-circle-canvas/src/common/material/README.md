@@ -27,12 +27,14 @@ a bespoke recipe per pair but a composition: `over(base, top, mask)`
 stacks two materials where a mask says.
 
 Above those sit the PRIMITIVES — fully parameterised generators, one
-feature each: **colour** (the colour value, the OKLab round trip, and
-OpenColorIO view transforms baked to LUT materials), **sdf** (shape,
+feature each: **sdf** (shape,
 border, glow and shadow in one pass over a signed distance), **pattern**
 (a tile baked once with a mapping and an explicit reseed, and the stock
 tiles over it), and **field** (the halftone ramp, Perlin noise, luminance
-grain, the ripple, the CRT overlay). The **kit** holds PRESETS — functions that fix
+grain, the ripple, the CRT overlay). Under the core sits **colour**, the
+leaf: the colour value a params struct holds and the OKLab round trip,
+linking nothing; above the texture feature sits **ocio**, OpenColorIO's
+view transforms baked to LUT materials. The **kit** holds PRESETS — functions that fix
 colours, proportions or a named style over the primitives: the
 metallic-roughness surface and the masks that stack it; gold, chrome
 and glass over a normal map and an environment; the girih panel and its
@@ -51,22 +53,23 @@ scaffold its body is appended to and registers the result, so what lives
 here is the compile and the layout and nothing that knows a pass or a
 device.
 
-Namespace `sigil::material`. Nine feature libraries, one per directory,
+Namespace `sigil::material`. Ten feature libraries, one per directory,
 each a static archive that links only what sits beneath it:
 
 | target | holds | links |
 |--------|-------|-------|
-| `SigilMaterialCore` | the value model: `Target`, `Params`, `Recipe`, `Program` and the cache, `Material`, `Leaf`, `UniformBlock`, `FrameData`; and `over()`, the combinator that stacks one material on another through a mask | SigilGeometryPath, SigilMotionBind, Boost::pfr |
+| `SigilMaterialColor` | `Color`, `rgb()` and the OKLab round trip — the leaf, which the core's `Params.h` includes | nothing of this project's |
+| `SigilMaterialCore` | the value model: `Target`, `Params`, `Recipe`, `Program` and the cache, `Material`, `Leaf`, `UniformBlock`, `FrameData`; and `over()`, the combinator that stacks one material on another through a mask | SigilMaterialColor, SigilGeometryPath, SigilMotionValues, Boost::pfr |
 | `SigilMaterialTexture` | `Texture` and its sources, `ShaderLeaf`, `textures::` (the tools' sets by role), `EnvironmentMap` and `bevelNormals`, `Atlas` | SigilMaterialCore, SigilImageAsset, Skia; simdjson and stb privately |
-| `SigilMaterialColor` | `Color` (header-only, which the core's `Params.h` includes) and `color::` — the OCIO `viewTransform`, `convert`, `exponent` as LUT materials | SigilMaterialTexture; OpenColorIO privately, when found |
-| `SigilMaterialSdf` | `sdf::` — `Shape`, `Style`, `pad`, `material` | SigilMaterialCore |
-| `SigilMaterialPattern` | `pattern::Tile` and the stock tiles | SigilMaterialTexture |
-| `SigilMaterialField` | `field::` — `halftoneRamp`, `noise`, `grain`, `ripple`, `crtOverlay` | SigilMaterialTexture |
-| `SigilMaterialSkia` | the SkSL compiler and `SkiaProgram`, whose builder uploads resolved bytes; `skia::builder` and `skia::shader` binding leaves into slots; `skia::fill`; the colour bridge `skia::toColor` / `skia::toSkColor` / `skia::toColors`; `skia::Paint`, the model as ONE shader; and `skia::Effect`, the post-processing recipe over a rendered layer | SigilMaterialTexture, SigilMotionValues |
+| `SigilMaterialOcio` | `ocio::` — `available()`, and the OCIO `viewTransform`, `convert`, `exponent` as LUT materials | SigilMaterialTexture; OpenColorIO privately, when found |
+| `SigilMaterialSdf` | `sdf::` — `Shape`, `Style`, `pad`, `material` | SigilMaterialCore, SigilMaterialColor |
+| `SigilMaterialPattern` | `pattern::Tile` and the stock tiles | SigilMaterialTexture, SigilMaterialColor |
+| `SigilMaterialField` | `field::` — `halftoneRamp`, `noise`, `grain`, `ripple`, `crtOverlay` | SigilMaterialTexture, SigilMaterialColor |
+| `SigilMaterialSkia` | the SkSL compiler and `SkiaProgram`, whose builder uploads resolved bytes; `skia::builder` and `skia::shader` binding leaves into slots; `skia::fill`; the colour bridge `skia::toColor` / `skia::toSkColor` / `skia::toColors`; `skia::Paint`, the model as ONE shader; and `skia::Effect`, the post-processing recipe over a rendered layer | SigilMaterialTexture, SigilMaterialColor, SigilMotionValues |
 | `SigilMaterialSlang` | the Slang compiler: `slang::compileModule` to SPIR-V, `slang::Compiled` with the reflected `slang::UniformSlot` per uniform, `slang::SlangProgram`, and `slang::Uniforms`, the buffer one draw is written into; `Portable.slang`, the subset a host and a device answer alike, loaded into every session by name | SigilMaterialCore; SigilMaterialKit and Slang privately |
 | `SigilMaterialKit` | the presets: the metallic-roughness `kit::surface` and `kit::unlit` and the masks that stack them; `kit::gold`, `kit::chrome`, `kit::glass`; `kit::girih8` and its palettes; the gel and chrome tables with `kit::contourRing`; the text paints and chrome-type ramps; and `kit::terms`, the shading terms a surface is composed of | SigilMaterialPattern, SigilMaterialColor |
 
-`SigilMaterial` is the umbrella, an interface over all nine. Headers live
+`SigilMaterial` is the umbrella, an interface over all ten. Headers live
 under `include/sigilmaterial/<feature>/` and are spelled that way —
 `<sigilmaterial/core/Recipe.h>`, `<sigilmaterial/texture/Texture.h>`,
 `<sigilmaterial/kit/Surfaces.h>` — and `<sigilmaterial/Material.h>`
@@ -563,15 +566,17 @@ copy is a place where a channel order or an alpha convention drifts
 silently.
 
 **A view transform is a LUT material with one open slot.** OpenColorIO's
-GPU codegen never emits SkSL, so `color::viewTransform(config, display,
-view)`, `color::convert(config, src, dst)` and `color::exponent(gamma)`
+GPU codegen never emits SkSL, so `ocio::viewTransform(config, display,
+view)`, `ocio::convert(config, src, dst)` and `ocio::exponent(gamma)`
 each build a CPU processor, bake it into a 3D LUT once (F16, because F32
 textures are not linearly filterable on Apple GPUs), hold the LUT as a
 texture in the `lut` slot, and apply it through the trilinear
 `lutRecipe()`. The `content` slot is the layer being transformed and is
 left to the renderer. A bad config fails soft to a material with an empty
-LUT slot and the error reported. Compiled only under
-`SIGILMATERIAL_ENABLE_OCIO`.
+LUT slot and the error reported. In a build that found no OpenColorIO
+the feature still links: `ocio::available()` is false and every factory
+answers that empty material, and `SIGILMATERIAL_ENABLE_OCIO` says which
+build this is.
 
 ## The primitives
 
@@ -668,14 +673,14 @@ routes it, and holds no paint model of its own.
 
 ## Building and testing
 
-Eight tests and eight benchmarks, one pair per feature:
+Ten tests and ten benchmarks, one pair per feature:
 
 ```sh
 ctest --test-dir build -C Debug -R material
-python3 scripts/bench_ledger.py --benches material_core_bench \
-    material_texture_bench material_color_bench material_sdf_bench \
-    material_pattern_bench material_field_bench material_skia_bench \
-    material_kit_bench
+python3 scripts/bench_ledger.py --benches material_color_bench \
+    material_core_bench material_texture_bench material_ocio_bench \
+    material_sdf_bench material_pattern_bench material_field_bench \
+    material_skia_bench material_kit_bench material_slang_bench
 ```
 
 `material_core_test` links the core alone, so a link edge that pulled a
@@ -685,7 +690,8 @@ bevel producers and the atlas readers and packer. `material_skia_test`
 compiles a two-uniform recipe through the cache and checks the raster it
 shades is byte-identical to the same SkSL compiled and filled by hand.
 `material_sdf_test`, `material_pattern_test`, `material_field_test` and
-`material_color_test` cover the primitives; `material_kit_test` compiles
+`material_color_test` cover the primitives, and `material_ocio_test`
+bakes an exponent through OpenColorIO where it is available; `material_kit_test` compiles
 every preset and checks a fill stays inside its path, dresses a surface
 from a decoded set and pins the packed channels it wires, and shades a
 stack at both ends of its mask. `material_core_test` pins what `over()`

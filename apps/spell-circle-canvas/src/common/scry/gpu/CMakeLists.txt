@@ -1,5 +1,5 @@
 # The gpu feature: Ultralight's GPU command lists executed on the
-# device behind a SigilSkia GpuDevice, and the texture interop the
+# device behind a SigilCoreHardware GpuDevice, and the texture interop the
 # engine needs beyond that — publish and slot textures named by handle,
 # blits, uploads, painting through a Graphite recorder, and wrapping a
 # texture as an SkImage. GpuDriver.h is the graphics-API-neutral
@@ -28,8 +28,11 @@ add_library(SigilScryGpu STATIC
   ${SIGIL_SCRY_GPU_NATIVE_SOURCES}
 )
 target_compile_features(SigilScryGpu PUBLIC cxx_std_20)
+# Textures and fences are named on SigilCoreHardware's device and the
+# driver paints through SigilSkia's Graphite context: both PUBLIC, because
+# the driver contract spells the handle and the context.
 target_link_libraries(SigilScryGpu
-  PUBLIC SigilSkia
+  PUBLIC SigilSkiaGraphite SigilCoreHardware
   PRIVATE Ultralight::Ultralight)
 if(APPLE)
   set_source_files_properties(metal/MetalDriver.mm metal/MetalInterop.mm

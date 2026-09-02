@@ -296,7 +296,7 @@ Element detail::makeMemo(
     std::function<Element(const std::any&)> invoke) {
   Element element;
   element.node()->memo = Memo{std::move(props), std::move(equal),
-                              std::move(invoke), core::detail::envStack()};
+                              std::move(invoke), core::env::capture()};
   return element;
 }
 

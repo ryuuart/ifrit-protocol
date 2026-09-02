@@ -1,8 +1,10 @@
 #pragma once
 
 /** @file
- * OpenColorIO view transforms as materials. Compiled in only when the
- * build found OpenColorIO; guarded by SIGILMATERIAL_ENABLE_OCIO.
+ * OpenColorIO view transforms as materials. In a build that found no
+ * OpenColorIO the feature still links: `available()` is false and every
+ * factory answers the empty LUT material a bad config would.
+ * SIGILMATERIAL_ENABLE_OCIO says which build this is.
  *
  * OCIO's own GPU codegen emits GLSL, HLSL, MSL and OSL and never SkSL, so
  * it cannot shade here directly. Each factory builds a CPU processor for
@@ -27,7 +29,7 @@
 #include <memory>
 #include <string_view>
 
-namespace sigil::material::color {
+namespace sigil::material::ocio {
 
 /** True when OCIO support was compiled in AND the runtime can create its
  *  built-in raw config. */
@@ -62,4 +64,4 @@ Material convert(std::string_view config, std::string_view src,
  *  needs no config file. A quick grade, and the plumbing test. */
 Material exponent(float gamma, int lutSize = 33);
 
-}  // namespace sigil::material::color
+}  // namespace sigil::material::ocio
