@@ -49,7 +49,7 @@
 // Render:
 //   ./build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
 //       src/sketch/sketches/ds2_bench.cpp \
-//       --frame /tmp/ds2_bench.png --at 2.5
+//       --frame /tmp/ds2_bench.png
 
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkPathBuilder.h>
@@ -296,14 +296,14 @@ inline std::function<SkPath(SkSize)> vline() {
 // ---------------------------------------------------------------------------
 // the router the Bench actually draws with
 //
-// routers::orthogonal() was the first thing tried here and it is the
-// WRONG shape twice over: it always breaks at midX (a Z, never an L at
-// the target's column — a PCB never routes that way), and on an
-// axis-aligned pair it emits DUPLICATE points, which makes every
-// parallel-offset brush (lines::cased) spike at both endpoints. Routers
-// are values, so this is the fix: an L with a 45 deg cut corner, a single
-// clean segment for a pure run, and an optional 45 deg Z-JOG for long
-// horizontals — the stepped trace the screenshot is full of.
+// routers::orthogonal() is the WRONG shape here twice over: it always
+// breaks at midX (a Z, never an L at the target's column — a PCB never
+// routes that way), and on an axis-aligned pair it emits DUPLICATE
+// points, which makes every parallel-offset brush (lines::cased) spike at
+// both endpoints. Routers are values, so this one is written here: an L
+// with a 45 deg cut corner, a single clean segment for a pure run, and an
+// optional 45 deg Z-JOG for long horizontals — the stepped trace the
+// screenshot is full of.
 
 inline Router pcb(float cut, float jog) {
   return [cut, jog](const SkRect& from, const SkRect& to) {
@@ -633,8 +633,7 @@ struct Ds2Bench : sketch::Sketch {
                                              {0.38f, hex(0x1C303C, a)},
                                              {1.0f, hex(0x080F16, a * 0.2f)}}))
                      // the strut melts vertically out of focus: 18 along
-                     // the vertical, 12 across (== the hand-built
-                     // Blur(12, 18) this consolidated, bit-identically)
+                     // the vertical, 12 across
                      .effect(Effect::directionalBlur(18, 90, 12))
                      .zIndex(0));
     };
@@ -647,7 +646,7 @@ struct Ds2Bench : sketch::Sketch {
                    .fill(Material::linear({0, 0}, {0, 28},
                                           {{0.0f, hex(0x243B47, 0.5f)},
                                            {1.0f, hex(0x0A141C, 0.25f)}}))
-                   // (== the hand-built Blur(7, 10), bit-identically)
+                   // 10 along the vertical, 7 across
                    .effect(Effect::directionalBlur(10, 90, 7))
                    .zIndex(0));
   }

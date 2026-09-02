@@ -4,11 +4,10 @@
  * and an entrance that beats column by column.
  */
 
-// 傍線 — where tategaki sets the three vertical FORMS against each other,
-// this plate is about everything ELSE a column carries once the letters
-// stand: the band that runs beside it, the metrics a face keeps for a
-// column and hands over only when asked, the anchor a caller hangs off one
-// phrase, and the reading order a cascade beats in.
+// 傍線 — everything a column carries once the letters stand: the band that runs
+// beside it, the metrics a face keeps for a column and hands over only when
+// asked, the anchor a caller hangs off one phrase, and the reading order a
+// cascade beats in.
 //
 // Four things are on the page, and each is one declaration:
 //

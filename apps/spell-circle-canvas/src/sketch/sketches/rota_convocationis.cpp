@@ -176,7 +176,7 @@
 // Run:
 //   ./build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
 //       src/sketch/sketches/rota_convocationis.cpp \
-//       --frame /tmp/rota_convocationis.png --at 14.3
+//       --frame /tmp/rota_convocationis.png
 //
 //   ~1.7 s  the compass: the rules and the rim's serration sweep on
 //   ~3.6 s  the invocation mid-write, the scribe point leading the letters
@@ -2360,6 +2360,6 @@ struct RotaConvocationis : sketch::Sketch {
 };
 
 SIGIL_SKETCH(RotaConvocationis, "Study \xc2\xb7 Type",
-             "An invented conjuring wheel in the Solomonic idiom \xe2\x80\x94 "
-             "fourteen curved baselines assembling ring by ring, every start "
-             "chained from a span")
+             "An invented conjuring wheel in the anime idiom \xe2\x80\x94 "
+             "twenty-three curved baselines assembling ring by ring, every "
+             "start chained from a span")

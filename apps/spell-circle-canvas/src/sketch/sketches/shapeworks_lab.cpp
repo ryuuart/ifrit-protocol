@@ -1,7 +1,7 @@
 // shapeworks_lab.cpp — SIGILGEOMETRY AND SIGILMATERIAL, LIVE
 // =============================================================================
 // A lab, not a study: there is no external artwork behind this one. What it
-// exercises is src/common/geometry and src/common/material themselves, and
+// exercises is the geometry and material vocabularies themselves, and
 // everything here is hot-editable — change a blend key, a surface
 // parameter, a camera angle, save, and the canvas follows.
 //

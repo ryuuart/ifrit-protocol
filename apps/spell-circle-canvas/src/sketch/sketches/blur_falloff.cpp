@@ -22,10 +22,10 @@
 //                only the FALLOFF changes: the effect, the content and the
 //                node are untouched.
 //
-// Of the three ways a scene can move (see hello.cpp), panel 4 is the driven
-// one: nothing re-describes, an Output does the moving. The bound Output IS
-// the volatility declaration — a live map or a live maxSigma lifts the whole
-// effect to live, so no bake can sample the parameter once and freeze it.
+// Of the three ways a scene can move, panel 4 is the driven one: nothing
+// re-describes, an Output does the moving. The bound Output IS the volatility
+// declaration — a live map or a live maxSigma lifts the whole effect to live,
+// so no bake can sample the parameter once and freeze it.
 
 #include <include/core/SkString.h>
 #include <include/effects/SkImageFilters.h>

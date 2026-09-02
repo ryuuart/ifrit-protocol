@@ -179,12 +179,11 @@
 // -----------------------------------------------------------------------------
 // WHAT THE LIBRARY CANNOT SAY HERE, AND WHAT THIS FILE DOES INSTEAD
 //
-//  A. `routers::orthogonal()` CANNOT BE HANDED TO `rail()`, AND THIS ARTEFACT
-//     IS A PCB. `orthogonal()` is a `Router(SkRect, SkRect)` that always bends
-//     at midX; `rail()` needs a `RailRouter(std::span<const SkPoint>)`, and the
-//     only ones are polyline / octilinear / orbit. There is no adapter between
-//     the two, so the obvious call does not compile and the three orange stubs
-//     go through `polyline(0)` on anchor points chosen by hand.
+//  A. `routers::orthogonal()` BENDS AT midX, AND THIS ARTEFACT IS A PCB.
+//     `routers::fromPairwise()` adapts it to the `RailRouter` `rail()`
+//     wants, so the call compiles — but every leg would break at its own
+//     midpoint, which is a Z where the plate has an L. The three orange
+//     stubs go through `polyline(0)` on anchor points chosen by hand.
 //  B. NEITHER RAIL ROUTER CAN CUT A CORNER — both only round
 //     (SkCornerPathEffect), so `polyline(0)` (no rounding at all) is the only
 //     usable setting on a plate whose every elbow is square.
@@ -216,7 +215,7 @@
 // Run:
 //   ./build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
 //       src/sketch/sketches/eva_magi_interior.cpp \
-//       --frame /tmp/eva_magi_interior.png --at 2.5
+//       --frame /tmp/eva_magi_interior.png
 //
 //   2.5 s  THE REFERENCE MOMENT — MELCHIOR taken (measured 95.2% red),
 //          BALTHASAR at the measured 30.2% with a ragged front, CASPER clean
@@ -1006,8 +1005,8 @@ struct EvaMagiInterior : sketch::Sketch {
 
     // MAGI, in the hole the three panels leave — cap 37, ink span 118. The
     // flat plate's own runs are M 559-592, A 595-622, G 627-655, I 664-673:
-    // ink 559..673 over rows 648..683. Set 40/138 it ran to 696 and the I was
-    // cut by MELCHIOR's chamfer, which reaches x 684 at that baseline.
+    // ink 559..673 over rows 648..683. MELCHIOR's chamfer reaches x 684 at
+    // that baseline, so anything wider than 138 has its I cut by it.
     g.child(inked(
         u8"MAGI",
         fitRun(magi::latin(), u8"MAGI", 37.0f, 118.0f, magi::kOrange, &sMagi),
@@ -1043,9 +1042,9 @@ struct EvaMagiInterior : sketch::Sketch {
     const SkColor4f ink = carried ? magi::kGoldPeak : magi::kRedHot;
     float sl = 0;
     const auto st = fitEmSpan(carried ? u8"可決" : u8"否決", 150.0f, ink, &sl);
-    // 430 is the gap the right margin actually leaves, between the countdown
-    // numeral and the first portrait leader line; at 620 the card runs
-    // straight through portrait labels 1-3.
+    // 430 is the gap the right margin leaves, between the countdown numeral
+    // and the first portrait leader line. Below it the card crosses
+    // portrait labels 1-3.
     Element card =
         box()
             .left(1130)
@@ -1735,8 +1734,8 @@ struct EvaMagiInterior : sketch::Sketch {
     ctx.background(magi::kGround);
     // The reference moment the arrival field is SOLVED to land on — MELCHIOR
     // taken, BALTHASAR at the measured 30.2% with a ragged front; exact by
-    // construction. 6.0 s is a dead beat by comparison: both MAGI are flat red
-    // by then and the verdict card has not been filed yet.
+    // construction. By 6.0 s both MAGI are flat red and the verdict card is
+    // still unfiled — nothing of the arrival field is left to see.
     ctx.captureAt(2.5);
     fonts = ctx.fonts;
     audit();

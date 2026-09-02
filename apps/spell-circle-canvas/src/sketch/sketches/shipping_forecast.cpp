@@ -112,8 +112,8 @@
 //     without a fourth string in this file. The one thing still spelled
 //     twice is the name itself: once in `forecastStyles` and once in the
 //     selector, which is what naming anything costs.
-//  2. A number picked out by pattern can now be picked out in weight as
-//     well as in colour: a `spanStyle` that changes only an advance-invariant
+//  2. A number picked out by pattern is picked out in weight as well as
+//     in colour: a `spanStyle` that changes only an advance-invariant
 //     axis holds it on the glyphs without re-shaping them, which is what the
 //     synopsis's millibar readings take. The forecast paragraph does NOT, and
 //     the reason is composition rather than a missing verb — every initial
@@ -123,7 +123,7 @@
 // Run:
 //   ./build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
 //       src/sketch/sketches/shipping_forecast.cpp \
-//       --frame /tmp/shipping_forecast.png --at 3.6
+//       --frame /tmp/shipping_forecast.png
 //
 //   The whole bulletin:  --at 0.2 --frames 30 --fps 4
 

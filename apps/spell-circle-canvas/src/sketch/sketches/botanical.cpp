@@ -23,12 +23,6 @@ using namespace std::chrono_literals;
 using namespace sigil::compose::kit::ornament;
 
 namespace {
-/** A text style at one size and colour — the two things every label in
- *  this piece varies. */
-
-// The generic RPG HUD that used to live here was replaced by
-// ScenesVeloren.h, which takes its dimensions and palette out of a
-// real game's source instead of inventing them.
 
 struct Botanical final : sketch::Sketch {
   uint32_t seed = 7;
@@ -187,4 +181,4 @@ struct Botanical final : sketch::Sketch {
 }  // namespace
 
 SIGIL_SKETCH_AS(Botanical, "botanical", "Catalog \xc2\xb7 Generative",
-                "generative")
+                "procedural branches, stamped leaves, re-seeded flower fields")

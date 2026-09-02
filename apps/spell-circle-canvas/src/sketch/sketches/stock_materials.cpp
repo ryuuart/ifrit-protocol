@@ -1,8 +1,8 @@
 // stock_materials.cpp — the guard sketch for the split-Skia SkSL rule.
 //
 // A sketch dylib carries its OWN copy of Skia (vcpkg builds Skia with
-// hidden visibility, so sketch dylibs link libskia.a directly rather than
-// resolving its symbols from the host — see sketch/README.md). That means
+// hidden visibility, so a sketch dylib links libskia.a directly rather
+// than resolving its symbols from the host). That means
 // `SkRuntimeEffect::MakeForShader` allocates the SkSL AST inside the
 // SKETCH's Skia image, while `SkRuntimeEffect::getRPProgram` and the SkSL
 // inliner run inside the HOST's. Virtual dispatch across that boundary
@@ -15,13 +15,8 @@
 //     every stock SkSL material must keep main() monolithic.
 //
 // This sketch paints one of each of them, so the rule is enforced by the
-// build rather than by memory. It is wired up as the `compose_sketch_stock`
-// ctest; if someone adds a helper function to a shader in Patterns.h,
-// Material.h or Sdf.h, this test segfaults and says so.
-//
-// (patterns::grain shipped with a hash21()/vnoise() pair and crashed every
-// sketch that touched it. Two agents in the overnight program found it
-// within minutes of each other.)
+// build rather than by memory: add a helper function to a shader in
+// Patterns.h, Material.h or Sdf.h and reloading this sketch segfaults.
 
 #include <sigilcompose/core/Material.h>
 #include <sigilcompose/core/Patterns.h>
@@ -63,10 +58,9 @@ Element swatch(const char* name, Material material) {
 struct StockMaterialsSketch : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
     ctx.captureAt(6.0);
-    // Three rows of 112 from top 52 end at 428, and the footer sits 16 above
-    // the bottom: 420 clipped the last row and printed the footer through
-    // its labels. Nobody saw it while this only ever ran as a ctest that
-    // checks for a segfault — it became visible the day it joined a gallery.
+    // Three rows of 112 from top 52 end at 428 and the footer sits 16 above
+    // the bottom, so anything under 476 clips the last row and prints the
+    // footer through its labels.
     ctx.canvas(660, 476);
     ctx.background({0.05f, 0.05f, 0.07f, 1});
 

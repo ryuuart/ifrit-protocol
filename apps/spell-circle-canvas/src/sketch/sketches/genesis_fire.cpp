@@ -1,4 +1,4 @@
-// genesis_fire.cpp — STUDY 03: the Genesis Demo wall of fire (Lucasfilm
+// genesis_fire.cpp — the Genesis Demo wall of fire (Lucasfilm
 // Ltd, 1982) and the first particle system.
 //
 // SUBJECT  The wall-of-fire element of the ~67-second Genesis Demo in
@@ -99,10 +99,10 @@
 //   shows the SAME pool at kSrcOver and kPlus side by side. Two do not:
 //     * `shape: streaked spherical` is per-instance NON-UNIFORM scale (a
 //       quad 0.5*|v| long by `size` wide: elongated at ejection, wider
-//       than it is long at apogee). SkRSXform is uniform by
-//       construction, so the main field is drawn instead by custom()
-//       plus one SkVertices list per 8,000 streaks — which is Reeves'
-//       own renderer, "merely antialiased lines".
+//       than it is long at apogee). `instancing::Pool::sizes()` carries
+//       exactly that lane; the main field is drawn instead by custom()
+//       plus one SkVertices list per 8,000 streaks — which is Reeves' own
+//       renderer, "merely antialiased lines".
 //     * `lifetime`, measured in frames, has no delay/progress lane, and
 //       the wall of fire IS a stagger. It lives in a parallel Site::t0.
 //   Everything else is the library: two CONTROL pools through
@@ -114,7 +114,7 @@
 //
 //   ./build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
 //       src/sketch/sketches/genesis_fire.cpp \
-//       --frame /tmp/genesis_fire.png --at 4.6
+//       --frame /tmp/genesis_fire.png
 //
 //   4.6 s into the 10 s loop is the one instant that shows the whole
 //   stagger at once: the wavefront is close to the right edge (it clears
@@ -1332,8 +1332,7 @@ struct GenesisFire : sketch::Sketch {
                  "IS LUT ENTRY n=1. ONLY THE RIGHT CELL IS STREAKED "
                  "SPHERICAL \xe2\x80\x94 LENGTH 0.5\xc2\xb7|v|, WIDTH size "
                  "\xe2\x80\x94 SO ITS SLOW PARTICLES COLLAPSE TO DOTS AT "
-                 "APOGEE WHILE THE ATLAS HOLDS ONE BAKED ASPECT FOREVER. "
-                 "SkRSXform IS UNIFORM BY CONSTRUCTION.",
+                 "APOGEE WHILE THE ATLAS HOLDS ONE BAKED ASPECT FOREVER.",
                  mono(6.5f, kSteel, 0.2f))
                    .shrink(0));
   }
@@ -1382,8 +1381,7 @@ struct GenesisFire : sketch::Sketch {
         .shrink(0)
         .gap(4)
         .child(
-            t("TECHNIQUE STUDY 03 \xc2\xb7 STOCHASTIC PARTICLE SYSTEMS",
-              ui(11.5f, kSteel, 2.7f))
+            t("STOCHASTIC PARTICLE SYSTEMS", ui(11.5f, kSteel, 2.7f))
                 .opacity(animate(from(0.0f).to(1.0f), {.duration = 260ms}))
                 .translateY(animate(from(8.0f).to(0.0f), {.duration = 260ms})))
         .child(t("THE GENESIS DEMO, 1982", type(heavyFace(), 46, kBone, -0.4f))

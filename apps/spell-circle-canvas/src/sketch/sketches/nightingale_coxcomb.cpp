@@ -46,13 +46,13 @@
 //   Material::blend()     wash + stipple + blot + density, one fill value
 //   fx::typeOn()          the pen writing the title and the legend
 //   spans::upTo / scale / animate  the whole 13.6 s reading order
-//   text() x ~230         the ring labels, ONE ELEMENT PER GLYPH, because
-//                         Compose has no text-on-path (see arcRun below)
+//   text() x ~230         the ring labels, ONE ELEMENT PER GLYPH: each
+//                         glyph is placed and rotated on its own bearing
 //
 // Run:
 //   ./build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
 //       src/sketch/sketches/nightingale_coxcomb.cpp \
-//       --frame /tmp/nightingale_coxcomb.png --at 13.6
+//       --frame /tmp/nightingale_coxcomb.png
 //
 // The 13.6 s mark is the settled plate. Earlier moments show the argument
 // being made: 2.2 s is diagram 1 growing clockwise out of July 1854.
@@ -267,9 +267,11 @@ struct NightingaleCoxcomb : sketch::Sketch {
   sk_sp<SkTypeface> faceDisplay, faceGrotesque, faceLabel, faceScript;
 
   // ------------------------------------------------------------------
-  // per-glyph text on a circle. SigilCompose has no text-on-path, and
-  // layouts::AlongPath throws the tangent away (it passes nullptr to
-  // getPosTan), so every glyph is placed and rotated by hand.
+  // per-glyph text on a circle. `Element::onPath` runs a whole text leaf
+  // along one path; these labels need a bearing per glyph in two
+  // different registers, and layouts::AlongPath throws the tangent away
+  // (it passes nullptr to getPosTan), so every glyph is placed and
+  // rotated by hand.
   //
   //   tangential: glyph-up points radially outward, advance follows the
   //               clockwise tangent  -> rotation = bearing

@@ -64,7 +64,7 @@
 //
 //   ./build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
 //       src/sketch/sketches/black_watch.cpp \
-//       --frame /tmp/black_watch.png --at 7.4
+//       --frame /tmp/black_watch.png
 //
 // --at 0.45 catches the warp alone on the beam (the whole design, in one
 // dimension, and it does not look like a tartan yet); 2.0 the cloth weaving

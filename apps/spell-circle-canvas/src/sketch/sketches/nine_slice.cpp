@@ -17,9 +17,6 @@ using namespace std::chrono_literals;
 using namespace sigil::compose::kit::ornament;
 
 namespace {
-/** A text style at one size and colour — the two things every label in
- *  this piece varies. */
-
 /** The canvas this piece was drawn against, which is also the default a
  *  sketch gets when it declares none. */
 constexpr SkSize kSceneSize = {900, 640};
@@ -141,5 +138,6 @@ struct NineSlice final : sketch::Sketch {
 
 }  // namespace
 
-SIGIL_SKETCH_AS(NineSlice, "nine slice", "Catalog \xc2\xb7 Scale",
-                "#9 texture-gen")
+SIGIL_SKETCH_AS(
+    NineSlice, "nine slice", "Catalog \xc2\xb7 Scale",
+    "frame textures generated once and stretched over panels of every size")

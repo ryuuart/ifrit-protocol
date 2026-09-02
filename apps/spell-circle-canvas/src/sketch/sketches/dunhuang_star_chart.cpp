@@ -129,8 +129,8 @@
 // draughtsman's fine brush on 0.04 mm mulberry. One weight,
 // one ring, three fills, and a hand-drawn join BOWS: every asterism line
 // here is shapers::Jitter at low amplitude over a polyline through real dot
-// centres, revealed by trim() in RA order so the joining sweeps
-// right-to-left across the scroll, in reading order.
+// centres, revealed by spans::upTo(gate(...)) in RA order so the joining
+// sweeps right-to-left across the scroll, in reading order.
 //
 // BUILT FROM (the library, not by hand):
 //   instancing::Atlas/Pool   1,460 dots as ONE leaf, Mode::Live, rebuilt
@@ -154,14 +154,15 @@
 //                        disc's 28-fold division turns 12.86° per vertex
 //                        and the 30° default finds no corners at all
 //   TextPath::Orient::Radial   the disc's mansion names
-//   trim() + bind().window()   one Output writes the whole plate
-//   feed::TextRing       four panels of checks, printed as they run
-//   slot()/renderSlot()  the audit advances without a full render()
+//   spans::upTo + gate()  one Output writes the whole plate
+//   feed::TextRing       three panels of checks, printed as they run
+//   slot()/renderSlot()  the audit panel re-renders without a full
+//                        render() of the scroll
 //
 // Run:
 //   ./build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
 //       src/sketch/sketches/dunhuang_star_chart.cpp \
-//       --frame /tmp/dunhuang_star_chart.png --at 29.0   (the settled plate)
+//       --frame /tmp/dunhuang_star_chart.png   (the settled plate)
 //
 //    1.6 s  the mulberry ground, the roll's contact ghosts, the 1950s
 //           Kraft lining showing warm at the edges

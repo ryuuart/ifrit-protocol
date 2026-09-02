@@ -130,7 +130,7 @@
 // Run:
 //   ./build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
 //       src/sketch/sketches/thunder_fulu.cpp \
-//       --frame /tmp/thunder_fulu.png --at 20.6
+//       --frame /tmp/thunder_fulu.png
 //
 //    1.9 s  三勾 — the three hooks of the 三清, one chant line per stroke
 //    5.1 s  符竅 — the aperture, struck in one revolution, ends not meeting
@@ -2244,16 +2244,15 @@ SIGIL_SKETCH(
 // 49 full-plate boxes would move the cost out of the ink and into culling and
 // layer composites, since a node's box is what those two are charged for.
 //
-// Two shapes that do NOT pay here, and are worth knowing before trying them:
-//   1. `bakeScale(0.5f)` on the full-plate grain wash makes it worse, not
-//      better. The upscale resample at composite time costs more than the
-//      half-area bake saves, and a large soft wash is already the cheapest
-//      thing a texture bake can hold.
-//   2. removing the plate group's BOUND OPACITY — a full-plate saveLayer
-//      every frame — buys almost nothing, because a layer only costs what
-//      the subtree under it costs to replay, and this subtree is already two
-//      texture bakes and a pile of small cached fills. The plate's arrival is
-//      part of the score, so the binding stays.
+// Two shapes to know before trying them:
+//   1. `bakeScale(0.5f)` on the full-plate grain wash trades a half-area
+//      bake for an upscale resample at every composite, and a large soft
+//      wash is already the cheapest thing a texture bake can hold.
+//   2. removing the plate group's BOUND OPACITY would remove a full-plate
+//      saveLayer every frame, but a layer costs what the subtree under it
+//      costs to replay, and this subtree is already two texture bakes and a
+//      pile of small cached fills. The plate's arrival is part of the score,
+//      so the binding stays.
 // The one node that genuinely costs is the grain wash: an opacity +
 // kSoftLight leaf the library will not promote on its own (see ironWash), so
 // its bake is asked for by name.

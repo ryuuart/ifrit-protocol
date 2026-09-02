@@ -18,7 +18,7 @@
 //             signature, so two materials with different children are
 //             never equal and the reconciler repatches exactly those.
 //
-// The three ways things move (hello.cpp): the LIVE panel is door 3.
+// The three ways things move: the LIVE panel is door 3.
 // update() changes DATA (which LUT is current), re-describes, and the
 // reconciler diffs — there is no binding and no per-frame work anywhere.
 
@@ -48,8 +48,11 @@ const SkColor4f kInk{0.90f, 0.93f, 0.97f, 1};
 const SkColor4f kDim{0.55f, 0.60f, 0.70f, 1};
 const SkColor4f kFrame{0.20f, 0.24f, 0.32f, 1};
 
-/** THE SHADER. Two `uniform shader` slots, one float. Monolithic main() —
- *  see stock_materials.cpp for why a helper function here is a crash. */
+/** THE SHADER. Two `uniform shader` slots, one float, and main() kept
+ *  MONOLITHIC: a sketch dylib carries its own copy of Skia, so the SkSL
+ *  AST is allocated in one Skia image and inlined in another, and virtual
+ *  dispatch across that boundary faults on pointer authentication. A
+ *  helper function here is a crash, not a style choice. */
 sk_sp<SkRuntimeEffect> paletteEffect() {
   static const sk_sp<SkRuntimeEffect> fx = [] {
     auto [effect, error] = SkRuntimeEffect::MakeForShader(

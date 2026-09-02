@@ -1,4 +1,4 @@
-// hitman_verlet.cpp — STUDY 04: the Hitman corpse (IO Interactive, 2000)
+// hitman_verlet.cpp — the Hitman corpse (IO Interactive, 2000)
 // and Thomas Jakobsen's verlet character physics.
 //
 // SUBJECT  The corpse / cloth / plant simulation of Hitman: Codename 47
@@ -176,7 +176,7 @@
 //
 //   ./build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
 //       src/sketch/sketches/hitman_verlet.cpp \
-//       --frame /tmp/hitman_verlet.png --at 3.35
+//       --frame /tmp/hitman_verlet.png
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkColor.h>
@@ -1917,8 +1917,7 @@ struct HitmanVerlet : sketch::Sketch {
         .shrink(0)
         .gap(3)
         .child(
-            t("TECHNIQUE STUDY 04 \xc2\xb7 STATE AND CONTACT",
-              ui(10.0f, kSteel, 2.6f))
+            t("STATE AND CONTACT", ui(10.0f, kSteel, 2.6f))
                 .opacity(animate(from(0.0f).to(1.0f), {.duration = 260ms}))
                 .translateY(animate(from(8.0f).to(0.0f), {.duration = 260ms})))
         .child(

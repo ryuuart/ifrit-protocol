@@ -8,9 +8,9 @@
 //   · topframe.htm: ecom-topbar.gif 790×19; then a table row of
 //     ecom-logo.gif 262×78 and ecom-titleheader.gif 511×63; the four
 //     nav buttons (92/92/92/105 × 11) flow inline after the title image
-//     and wrap beneath it. Their rollover states are real files —
-//     MM_preloadImages names every -on.gif — and MM_swapImage swaps
-//     src on mouseover, which is what the hover cycle below replays.
+//     and wrap beneath it. MM_preloadImages names an -on.gif for each and
+//     MM_swapImage swaps src on mouseover; the archive never captured
+//     those states, so the hover cycle below approximates them.
 //   · leftframe-productselection.htm: ecom-productselectimage.jpg
 //     262×266, alone on white.
 //   · productselect.htm: ecom-productselection.gif 501×16, then per

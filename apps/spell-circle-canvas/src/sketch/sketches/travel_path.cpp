@@ -13,7 +13,7 @@
 //              twice as far round as track 2's. 0.5 is half a lap.
 //   kPeriod  — seconds per lap of `phase`; changes speed, not the picture.
 //
-// The three ways things move (hello.cpp): this uses door 1 only. setup()
+// The three ways things move: this uses door 1 only. setup()
 // DECLARES the five tracks once and a ticker steppable walks `phase`; the
 // runtime re-resolves the five `t` lanes every frame. Nothing re-describes,
 // and travel() is paint-only — no track ever relayouts.

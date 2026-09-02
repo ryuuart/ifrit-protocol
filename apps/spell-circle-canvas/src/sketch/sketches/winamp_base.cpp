@@ -9,7 +9,7 @@
 // an ordinary real-world resize). Canvas 1320x1947 = 1200x1827 of content
 // plus a flat 60 px desktop margin on all four sides.
 //
-// REFERENCE (fetched, unzipped and pixel-sampled — not remembered):
+// REFERENCE:
 //   · base-2.91.wsz, the literal shipped skin package, mirrored MIT at
 //     raw.githubusercontent.com/captbaritone/webamp/master/packages/webamp/
 //     assets/skins/base-2.91.wsz — MAIN.BMP, TITLEBAR.BMP, CBUTTONS.BMP,
@@ -19,7 +19,7 @@
 //     Base uses no window-shape mask, every window is a plain rectangle.
 //   · archive.org/details/base-2.91 ("Winamp Classic: Justin Frankel;
 //     Nullsoft"); skins.webamp.org/skin/5e4f10275dcb1fb211d4a8b4f1bda236.
-//   · captbaritone/webamp (MIT) read directly: js/constants.ts gives
+//   · captbaritone/webamp (MIT): js/constants.ts gives
 //     WINDOW_WIDTH=275, WINDOW_HEIGHT=116, TRACK_HEIGHT=13,
 //     WINDOW_RESIZE_SEGMENT_WIDTH=25, _HEIGHT=29 and the real band set
 //     [60,170,310,600,1000,3000,6000,12000,14000,16000]; js/skinSprites.ts

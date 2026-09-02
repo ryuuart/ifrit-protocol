@@ -1,4 +1,4 @@
-// slitscan_2001.cpp — STUDY 05: Douglas Trumbull's Slit-Scan machine
+// slitscan_2001.cpp — Douglas Trumbull's Slit-Scan machine
 // (MGM Borehamwood, 1966-68) and the Star Gate of 2001: A Space Odyssey.
 // =============================================================================
 // SUBJECT  The machine, not the shot. A slit-scan frame is a TIME INTEGRAL:
@@ -1046,8 +1046,7 @@ struct SlitScan2001 : sketch::Sketch {
         .height(Dim(kHeaderH))
         .gap(4)
         .child(
-            t("TECHNIQUE STUDY 05 · TIME AS AN AXIS OF THE IMAGE",
-              ui(10, kType2, 2.6f))
+            t("TIME AS AN AXIS OF THE IMAGE", ui(10, kType2, 2.6f))
                 .key("eyebrow")
                 .opacity(animate(from(0.0f).to(1.0f), {260ms, ch::easeOutQuad}))
                 .translateY(
@@ -1413,8 +1412,8 @@ struct SlitScan2001 : sketch::Sketch {
            "405.6 → 406",
            mono(7.1f, al(kCold, 0.9f))));
     p.child(
-        pl("THE BRIEF SAID 402 — IT LINEARISED THE LOGARITHM (4.7875 × "
-           "84); AT K = 400 THE STAMPS NO LONGER QUITE TOUCH.",
+        pl("LINEARISING THE LOGARITHM (4.7875 × 84) GIVES 402; AT K = 400 "
+           "THE STAMPS NO LONGER QUITE TOUCH.",
            mono(6.5f, kAmber)));
     p.child(slot("ripple").height(Dim(19)).shrink(0));
     p.child(

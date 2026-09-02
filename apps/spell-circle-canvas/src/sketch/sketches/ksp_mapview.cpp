@@ -326,9 +326,10 @@ constexpr float kNodeNu = -130.0f;  ///< the manoeuvre node's true anomaly
 
 /** The manoeuvre-handle PADDLE: a shaft from the hub end out to a triangular
  *  head whose TIP is at the box's right edge, drawn pointing +x so the arm's
- *  rotate() is its bearing. Shapes.h has polygon/star/blob/squircle/arc/
- *  sector/parallelogram and no directional pointer of any kind, so every one
- *  of the six arms is this hand-rolled path. */
+ *  rotate() is its bearing. `shapes::arrow` takes its shaft and head as
+ *  FRACTIONS of the box; the six arms here share a shaft width and a head
+ *  in px across boxes of different lengths, which is a different
+ *  parameterisation. */
 inline std::function<SkPath(SkSize)> paddle(float shaftW, float headW,
                                             float headL) {
   return [shaftW, headW, headL](SkSize s) {
@@ -417,12 +418,13 @@ inline std::function<SkPath(SkSize)> chevron() {
 // ---------------------------------------------------------------------------
 // A marching-dot decoration.
 //
-// PathFormat and lines::Line both carry `dashIntervals`/`dashPhase`, but only
-// `trimPhase` accepts a bound ch::Output — a dash phase can only change by
-// re-describing. Marching ants on three orbit lines every frame is exactly
-// what the declared-volatility rule exists to avoid, so this is the library's
-// own extension seam used as designed: a value DecorationScheme with a bound
-// Output and isAnimated() == true, which redraws without re-describing.
+// PathFormat, lines::Line and Rails all carry a `dashPhaseBinding`, so a
+// dash phase can march without re-describing. This decoration exists for
+// the other half of the effect: the dots are drawn as ROUND CAPS on their
+// own paint, sized independently of the line under them, which a dash
+// interval on the line itself cannot express. It is the library's own
+// extension seam used as designed — a value DecorationScheme with a bound
+// Output and isAnimated() == true.
 
 struct MarchingDots {
   float width = 1.0f;

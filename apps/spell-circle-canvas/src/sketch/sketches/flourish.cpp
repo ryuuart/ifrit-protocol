@@ -15,9 +15,9 @@
 //   the Texture/Picture/None cache partition kept honest (every bound node
 //   is a sibling of the bake, never inside it).
 //
-// The static border lives in FlourishKit (shared with the particle posts);
-// this file adds the live layers — spinning medallions, the draw-on
-// scrollwork, and the shimmer.
+// The live layers are the ones that carry the piece: spinning medallions,
+// the draw-on scrollwork, and the shimmer. Everything else is static, and
+// every bound node is a sibling of a bake rather than inside one.
 
 #include <include/core/SkImageInfo.h>
 #include <include/core/SkMatrix.h>
@@ -609,8 +609,8 @@ struct Flourish final : sketch::Sketch {
     if (elapsed < nextAccent) return;
     nextAccent = elapsed + 4.0;
     accent = !accent;
-    // The sketch's rubric flare: each accent beat re-lights the medallion
-    // bosses, then settles back over 1.1 s (flourish_border.cpp update()).
+    // The rubric flare: each accent beat re-lights the medallion bosses,
+    // then settles back over 1.1 s.
     if (sceneTicker) {
       flare = 1.0f;
       sceneTicker->timeline().apply(&flare).then<ch::RampTo>(0.55f, 1.1f,
@@ -624,5 +624,6 @@ struct Flourish final : sketch::Sketch {
 
 }  // namespace
 
-SIGIL_SKETCH_AS(Flourish, "flourish", "Catalog \xc2\xb7 Generative",
-                "the whole surface, at once")
+SIGIL_SKETCH_AS(
+    Flourish, "flourish", "Catalog \xc2\xb7 Generative",
+    "an ornamental border reaching across the whole compose surface")

@@ -119,7 +119,7 @@
 // Run:
 //   ./build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
 //       src/sketch/sketches/chaucer_astrolabe.cpp \
-//       --frame /tmp/chaucer_astrolabe.png --at 22.1
+//       --frame /tmp/chaucer_astrolabe.png
 //
 // 22.1 s IS CHAUCER'S MOMENT, TAKEN AT THE INSTANT IT SETTLES: 12 March 1391,
 // the sun's declination circle and the 25.5° almucantar both lit in #2f6f9c,

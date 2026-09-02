@@ -859,8 +859,10 @@ struct Fallout2CharSheet : sketch::Sketch {
   void buildSurfaces() {
     using namespace fo;
     // The plate: an olive ramp, a cast-metal tooth, and rust blotches. The
-    // tooth and rust ride as separate LAYER ELEMENTS with node opacity because
-    // Material::blend has no per-layer amount.
+    // tooth and rust ride as separate LAYER ELEMENTS with node opacity.
+    // `Material::amount` thins a blend layer's own alpha before the mode
+    // sees it, which is a different picture from compositing a whole
+    // element at an opacity.
     // Sampled off the capture: the plate sits between #302820 and #383020 with
     // lit facets up to #483828 — a narrow band, so the ramp is shallow and the
     // grain does the work.
@@ -1533,8 +1535,8 @@ struct Fallout2CharSheet : sketch::Sketch {
                          .height(Dim(kScreenH))
                          .clip()
                          .fill(plateMat);
-    // the cast-metal tooth and the rust, as layer elements because
-    // Material::blend has no per-layer amount
+    // the cast-metal tooth and the rust, as layer elements: each composites
+    // whole against what is already on the canvas
     screen.child(box()
                      .inset(0)
                      .fill(plateTooth)

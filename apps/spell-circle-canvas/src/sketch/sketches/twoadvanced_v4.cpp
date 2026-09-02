@@ -46,12 +46,12 @@
 // ORDER is what does the work, not any one layer.
 //
 // Two things the hero depends on that no reference image states:
-//  · the FOG RAMP runs toward the centre, not away from it. Keying slab
-//    opacity to |x − cx| so the EDGE buildings are the most opaque makes
-//    the skyline a bar chart; the near ones have to be the hard
-//    silhouettes and the far ones dissolve. And none of it reads at all
-//    without a full-width kPlus haze band UNDER the skyline, because the
-//    outer thirds are otherwise black-on-black.
+//  · the FOG RAMP runs toward the centre, not away from it: the near
+//    buildings are the hard silhouettes and the far ones dissolve. Keyed
+//    the other way — opacity to |x − cx| — the skyline reads as a bar
+//    chart. And none of it reads at all without a full-width kPlus haze
+//    band UNDER the skyline, because the outer thirds are otherwise
+//    black-on-black.
 //  · the reflection is sold by the specular COLUMN, not the blur. A
 //    vertically-smeared bar of glow under the portal reads as water from
 //    across the room; the mirrored blurred disc alone does not.

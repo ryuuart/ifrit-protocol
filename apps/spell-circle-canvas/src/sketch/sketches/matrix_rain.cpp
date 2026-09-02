@@ -108,7 +108,7 @@
 // Run:
 //   ./build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
 //       src/sketch/sketches/matrix_rain.cpp \
-//       --frame /tmp/matrix_rain.png --at 7.0
+//       --frame /tmp/matrix_rain.png
 
 #include <sigilcompose/core/Material.h>
 #include <sigilcompose/kit/Instruments.h>

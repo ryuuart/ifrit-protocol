@@ -27,8 +27,6 @@
 // shader with a smoothstep knockout under the pane: the glass is
 // translucent, so a solid shadow core would show through the backdrop blur
 // and muddy it.
-//
-// The window-open animation replays on every activation of the scene.
 
 #include <include/core/SkString.h>
 #include <include/effects/SkImageFilters.h>
@@ -287,8 +285,8 @@ struct AeroDesktop final : sketch::Sketch {
   Element captionButton(float w, float h, Corners c, Element glyph,
                         bool hovered) {
     namespace ad = aero_desktop;
-    // Inner-aligned edge: the full 1px lands inside the clip (a Center
-    // stroke under clip() kept only its inner half).
+    // Inner-aligned edge, so the full 1 px lands inside the clip: a Center
+    // stroke under clip() keeps only its inner half.
     auto b = box()
                  .width(w)
                  .height(h)
@@ -663,7 +661,7 @@ struct AeroDesktop final : sketch::Sketch {
         .child(text(toU8("4:20 PM"), ad::type(12, {1, 1, 1, 0.92f}))
                    .top(13)
                    .right(10))
-        .child(text(toU8("7/20/2026"), ad::type(10, {1, 1, 1, 0.65f}))
+        .child(text(toU8("11/8/2006"), ad::type(10, {1, 1, 1, 0.65f}))
                    .top(27)
                    .right(10));
   }
@@ -727,11 +725,10 @@ struct AeroDesktop final : sketch::Sketch {
   Element describe() {
     namespace ad = aero_desktop;
     return stack()
-        // The wallpaper is its OWN texture plane: with the live fill on
-        // the root, the root's (volatile-children-blocked) cache never
-        // engaged and 900x640 of SkSL re-rastered every frame. As a
-        // liveMatOnly plane it re-bakes on the 10 Hz step and BLITS
-        // between steps.
+        // The wallpaper is its OWN texture plane. A live fill on the root
+        // blocks the root's cache on volatile children, which leaves
+        // 900x640 of SkSL re-rastering every frame; as a liveMatOnly plane
+        // it re-bakes on the 10 Hz step and BLITS between steps.
         .child(
             box()
                 .inset(0)

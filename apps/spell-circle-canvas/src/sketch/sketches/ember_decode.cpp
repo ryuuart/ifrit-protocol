@@ -28,7 +28,7 @@
 // inside each unit, so the letter is eaten from seeded edges; the band where
 // the threshold is being crossed is drawn hot, which is the ember rim.
 //
-// WHAT THE ENGINE SUPPLIES NOW (each was hand-rolled machinery here once):
+// WHAT THE ENGINE SUPPLIES:
 //  - the unit boxes and per-unit clocks arrive as `uUnitRect`/`uUnitPhase`,
 //    resolved from the SAME cascade `Composer::beatsOf` reports — the meter
 //    bars under the display line are drawn from that query, so the bars and
@@ -60,7 +60,7 @@
 // Run:
 //   ./build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
 //       src/sketch/sketches/ember_decode.cpp \
-//       --frame /tmp/ember_decode.png --at 2.4
+//       --frame /tmp/ember_decode.png
 
 #include <sigilcompose/core/Material.h>
 #include <sigilcompose/typography/TextFx.h>

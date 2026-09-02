@@ -56,8 +56,7 @@ const SkColor4f kInk{0.92f, 0.94f, 0.98f, 1};
 const SkColor4f kDim{0.56f, 0.61f, 0.72f, 1};
 const SkColor4f kAccent{0.95f, 0.35f, 0.18f, 1};
 
-/** The same shape as the `slowThemedPanel` fixture in ComposeCoreBench.cpp:
- *  `kCells` stroked, shaped cells — each recording its own picture — plus
+/** `kCells` stroked, shaped cells — each recording its own picture — plus
  *  ONE accent cell in the same row whose fill is BOUND rather than a plain
  *  value. Everything above that accent shares its volatility, which is why
  *  a single leaf decides the cost of the whole panel. */

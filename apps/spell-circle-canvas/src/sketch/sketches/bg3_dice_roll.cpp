@@ -194,7 +194,7 @@
 // against this polygon's 18 — less than 2x apart. Any default low enough to
 // catch a 20-gon invents corners on every rounded rect, and ornament that
 // quietly grows extra arms is far harder to notice than ornament that draws
-// nothing. See the notes at the bottom of this file.
+// nothing.
 //
 // -----------------------------------------------------------------------------
 
@@ -298,7 +298,7 @@ constexpr double kSettleAt = 1.45;   ///< the die is still
 constexpr double kOutcomeAt = 1.95;  ///< the last row has counted in
 
 /** `Ext_Enums.SkillId` (:33053) at its true ordinals — the engine's order,
- *  which is the governing-ability grouping. See correction 1. */
+ *  which is the governing-ability grouping, not alphabetical. */
 struct Skill {
   int ordinal;
   const char* name;

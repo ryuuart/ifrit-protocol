@@ -530,8 +530,8 @@ struct StrokeAtlasSketch : sketch::Sketch {
                     .absolute()
                     .left(58)
                     .top(70));
-    plate.child(call("src/common/compose/include/sigilcompose/{Lines,Brushes,"
-                     "Decorations,Shapes}.h",
+    plate.child(call("sigilcompose/brush/{Lines,Brushes,Hatches,Rails}.h + "
+                     "shape/Shapes.h",
                      9.0f, kRed)
                     .absolute()
                     .left(58)

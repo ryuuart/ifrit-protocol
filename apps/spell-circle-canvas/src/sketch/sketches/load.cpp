@@ -16,7 +16,7 @@ using namespace std::chrono_literals;
 
 namespace {
 
-// ---- 13: sustained load — cached cards + bound movers (#21) ---------------
+// ---- sustained load: cached cards + bound movers ---------------------------
 
 struct Load final : sketch::Sketch {
   std::vector<std::unique_ptr<choreograph::Output<float>>> movers;
@@ -67,4 +67,5 @@ struct Load final : sketch::Sketch {
 
 }  // namespace
 
-SIGIL_SKETCH_AS(Load, "load", "Catalog \xc2\xb7 Scale", "#21 sustained load")
+SIGIL_SKETCH_AS(Load, "load", "Catalog \xc2\xb7 Scale",
+                "24 bound movers over cached cards, at once")

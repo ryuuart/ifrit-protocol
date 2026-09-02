@@ -42,9 +42,6 @@ using namespace sigil::compose::kit::ornament;
 using namespace sigil::compose::kit::flourish;
 
 namespace {
-/** A text style at one size and colour — the two things every label in
- *  this piece varies. */
-
 /** The canvas this piece was drawn against, which is also the default a
  *  sketch gets when it declares none. */
 constexpr SkSize kSceneSize = {900, 640};
@@ -311,10 +308,10 @@ struct UiParticles final : sketch::Sketch {
          u8"Six barrels of pitch, the copper bowls, and forty fathoms of "
          u8"good rope coiled against the cellar wall.",
          u8"One coal, still warm. Signed at the water line."},
-        {PostKind::Plain, 0, u8"BUILD #482",
-         u8"reconciler pruned every unchanged subtree; 0 pictures "
-         u8"re-recorded, dirty() stayed false.",
-         u8"frame 0.41 ms · 100 rows cached · headroom to spare"},
+        {PostKind::Plain, 0, u8"Ferryman",
+         u8"The channel runs black under the second arch and the lanterns "
+         u8"will not sit still on it; steer by the drowned road instead.",
+         u8"Count the crossings, not the hours."},
         {PostKind::Flourish, 2, u8"Rubric II",
          u8"The gate takes no coin but memory, and gives back the shape of "
          u8"every hand that held the rope.",
@@ -324,10 +321,10 @@ struct UiParticles final : sketch::Sketch {
          u8"rope hums under a traveler's hand.",
          u8"Twelve nights the lanterns answered; on the last, the gate "
          u8"stood open."},
-        {PostKind::Plain, 1, u8"RELEASE",
-         u8"texture-baked bloom pays the filter once — 92x over per-frame "
-         u8"picture replay on raster.",
-         u8"ship it; the numbers held on Graphite too"},
+        {PostKind::Plain, 1, u8"Lampwright",
+         u8"Silvered glass and a short wick: the halo is the lamp seen "
+         u8"twice, once sharp and once spread.",
+         u8"Trim them at dusk and they hold to the turn of the tide."},
     };
 
     postAtlas = std::make_shared<instancing::Atlas>();  // 2x: crisp paragraphs

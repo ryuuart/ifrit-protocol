@@ -54,8 +54,7 @@
 //   * Minard's own scale bar disagrees with his own map by 1.82x, and I
 //     cannot explain it. Three hypotheses, none asserted.
 //
-// MEASURED IN THIS FILE'S OWN SCRIPTS (lat2.py, hann.py) — the two
-// projection scales, and one finding that is new:
+// MEASURED HERE — the two projection scales, and one finding that is new:
 //   * Napoleon panel latitude scale, least-squares on the tan band's
 //     centreline at 8 stations east of Polotzk (where exactly one band
 //     occupies every column): d = 280.3 px/deg on the Commons scan,
@@ -121,13 +120,13 @@
 // against the sheet's own 2.258 px per millimetre; the Russian panel's
 // city positions come out of the affine fit above; every printed number
 // is computed in this file. The Hannibal band's stations ARE read off
-// the scan, and that is forced rather than lazy: hann.py shows there is
-// no projection to fit.
+// the scan, and that is forced rather than lazy: the Hannibal panel has no
+// projection to fit.
 //
 // Run:
 //   ./build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
 //       src/sketch/sketches/minard_1869.cpp \
-//       --frame /tmp/minard_1869.png --at 20.0
+//       --frame /tmp/minard_1869.png
 
 #include <include/core/SkFont.h>
 #include <include/core/SkFontMgr.h>
@@ -219,7 +218,7 @@ constexpr float kFrameB = 1160.0f;
 
 // Napoleon panel: x = a + b*lon, y = c − d*lat.
 // b from the Commons scan (130.890 px/deg / 3.4482 px/mm * kPxPerMm);
-// d/b = 2.142 from lat2.py.
+// d/b = 2.142.
 constexpr float kLonPx = 85.69f;
 constexpr float kLon0 = 22.867f;           // longitude at the frame's left rule
 constexpr float kLatPx = kLonPx * 2.142f;  // 183.55
@@ -361,7 +360,8 @@ const std::array<Temp, 9> kTemps = {{
 }};
 
 // --- the Hannibal panel ---------------------------------------------------
-// Stations READ OFF the BnF scan in sheet coordinates, which hann.py makes
+// Stations READ OFF the BnF scan in sheet coordinates, which the panel's
+// own lack of a fittable projection makes
 // the only honest option: a least-squares latitude fit on that band returns
 // d/b = 0.048 at R² = 0.12, i.e. there is no projection there to fit.
 struct HStation {
@@ -750,7 +750,7 @@ WidthAudit widthAlong(const SkPath& band, const SkPath& spine,
     // band, so it reads well under the true width and swamps every real
     // error — the cap is the one place where the shortest chord through a
     // point is not the width. The engraving measurement excludes ends the
-    // same way (stair.py splits at the risers and never straddles an end),
+    // same way (the split is at the risers and never straddles an end),
     // so the two audits stay comparable.
     const float margin = w.maxPx * 0.55f + step;
     // the loop walks a distance; the accumulated float is the position
@@ -1919,7 +1919,7 @@ struct Minard1869 : sketch::Sketch {
   /** Card 1 — DOES THE PLATE OBEY ITS OWN LEGEND?  The eleven measured
    *  treads, the fit through them, and the two rules that matter. */
   Element cardScale() {
-    // the measured staircase (Commons scan, stair2.py)
+    // the measured staircase (Commons scan)
     static const std::array<std::pair<float, float>, 11> treads = {{
         {422000, 166.54f},
         {400000, 154.46f},
@@ -2887,16 +2887,13 @@ struct Minard1869 : sketch::Sketch {
         "two nearly cancel.",
         "fail");
     say(colE,
-        "  Debug.h's own lesson from the other side: AREA is the "
-        "cheap check that PASSES",
+        "  AREA is the cheap check, and it PASSES here. Min-chord sees "
+        "it at once, at",
         "dim");
+    say(colE, "  Wilna, 28 mm of Minard's paper.", "dim");
     say(colE,
-        "  here. Min-chord sees it at once, at Wilna, 28 mm of "
-        "Minard's paper.",
-        "dim");
-    say(colE,
-        "  ⇒ debug::widthAlong is not a nicety: coverage() provably "
-        "cannot substitute.",
+        "  \xe2\x87\x92 A WIDTH-ALONG AUDIT IS NOT A NICETY: coverage "
+        "provably cannot substitute.",
         "fail");
     say(colE,
         "  The advance zones are drawn as quads + a hand-rolled "

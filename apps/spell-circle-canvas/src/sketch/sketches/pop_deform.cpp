@@ -1,9 +1,8 @@
 // pop_deform.cpp — SELECTORS, MASKS AND DEFORMERS in geometry::pop.
 // =============================================================================
-// Links geometry:: like pop_lanes.cpp: every cloud is cooked once by the CPU
-// reference executor in setup() and splatted by points::drawBillboards.
-// SigilWorld cooks the identical chains on the GPU; this sketch is the
-// Skia-painter view of the same language.
+// Every cloud is cooked once by the CPU reference executor in setup() and
+// splatted by points::drawBillboards, so this file is the Skia-painter
+// view of the operator language and nothing else.
 //
 // One column of points, six ways:
 //   1. select()      — a Group writes a mask lane from a region; the
@@ -190,9 +189,9 @@ struct PopDeform : sketch::Sketch {
                                  splat(bent)))
                     .child(panel("orient() . peak(70).masked()",
                                  "push along a re-aimed Dir", splat(peaked))))
-            .child(text(toU8("every chain here cooks identically on "
-                             "SigilWorld's GPU executor \xe2\x80\x94 the "
-                             "mask is one more lane in the arena"),
+            .child(text(toU8("a mask is one more lane on the cloud, so a "
+                             "masked deformer is the same chain reading "
+                             "one more channel"),
                         type({.size = 11, .color = kDim}))
                        .left(30)
                        .bottom(14)));

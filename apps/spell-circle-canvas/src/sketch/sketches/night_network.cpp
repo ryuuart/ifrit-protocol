@@ -3,9 +3,8 @@
  * different brush: the brush engine put through everything it has.
  */
 
-// The brush-engine showcase (REFERENCES.md section 9), ported from
-// sketch/sketches/transit.cpp: one metro map, twelve constructions,
-// every route a different brush:
+// The brush engine put through everything it has: one metro map, twelve
+// constructions, every route a different brush:
 //
 //   EMBER LINE ...... Brush{ .shaped(shapers::Rounded) } + a cased layer --
 //                     the classic two-rail metro pair (rounding from the
@@ -27,9 +26,8 @@
 //
 // Stations are centerAt() SDF discs (bone fill, ink border); the interchange
 // wears the breathing SDF star. Routes draw themselves on via staggered
-// timeline trims. Coordinates recomposed from the sketch's 1280x800 onto the
-// gallery's 900x640 (octilinear legs re-trued to dx==dy where they are pure
-// diagonals; the routers snap the rest).
+// timeline trims. The octilinear legs hold dx == dy exactly where they are
+// pure diagonals; the routers snap the rest.
 
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/brush/Brushes.h>
@@ -88,8 +86,8 @@ inline Element pin(const char* key, float x, float y) {
 }
 
 /** A station: centerAt() SDF disc, bone fill + ink border (the classic
- *  interchange glyph). No glow -- sdf pad charges glowR*3.2 against the
- *  box, which is what erased the sketch's round-1 stations. */
+ *  interchange glyph). No glow: sdf pad charges glowR*3.2 against the box,
+ *  which at this size leaves no box to draw. */
 inline Element station(const char* key, float x, float y, float size = 16) {
   return box()
       .key(key)
@@ -107,7 +105,6 @@ inline Element label(const char* s, float x, float y, SkColor4f c = kAsh,
   return text(toU8(s), type(size, c, track)).inset(x, y, 0, 0).zIndex(8);
 }
 
-/** Legend row: colored line name + ash construction note. */
 /** The ARTLINE art cell: a stem with alternating leaf lenses — reads as a
  *  living vine once the art warp bends it (logical 48x16). */
 inline Element vineArt() {
@@ -134,6 +131,7 @@ inline Element vineArt() {
       .child(leaf(31, 0, -24, kMoss));
 }
 
+/** Legend row: coloured line name + ash construction note. */
 inline Element legendRow(const char* name, const char* what, SkColor4f c,
                          float y) {
   return box()
@@ -192,7 +190,7 @@ struct NightNetwork final : sketch::Sketch {
     emberBrush.shaped(kit::brush::shapers::Rounded{12.0f});
     emberBrush.layer(lines::cased(2.6f, Fill::color(nn::kEmber), 7.0f));
 
-    // -- 3. CURRENT LINE: the section-9 decorator pattern -- repeated
+    // -- 3. CURRENT LINE: the decorator pattern -- repeated
     //    mid-path chevrons + terminal arrow, tip AT the endpoint, body
     //    trimmed under the head so nothing pokes past.
     lines::Line current{.width = 3.5f,
@@ -220,7 +218,7 @@ struct NightNetwork final : sketch::Sketch {
                 {kit::brush::shapers::Offset{.px = routeW * 1.95f}});
 
     // -- 5. NIGHT BUS: asymmetric casing from shapers::Offset. Positive
-    //    offset = LEFT of travel (the one convention, R3): amber
+    //    offset = LEFT of travel, which is the engine's one convention: amber
     //    dashed bus lane one side, thin bone curb the other. One Brush per
     //    side -- the pipeline applies to ALL layers, so per-side treatments
     //    are separate strokes.

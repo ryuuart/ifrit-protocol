@@ -28,7 +28,7 @@
 //     opengroup.org/infosrv/openmotif/R2.1.30/motif/lib/Xm/). Every
 //     constant below is a verbatim #define; Brightness() and
 //     CalculateColorsFor{Light,Dark,Medium}Background() are transcribed
-//     line for line from that file, which was read directly.
+//     line for line from that file.
 //   · THE BEVEL. lib/Xm/Draw.c, DrawSimpleShadow / XmeDrawShadows /
 //     XmeDrawHighlight — the segment table in motifShadowPaths() is that
 //     function, index arithmetic included.
@@ -125,9 +125,8 @@
 //    paints live on every frame, which here is most of the desktop. As
 //    values, almost everything prunes and picture-caches, at the cost of
 //    one heavier frame — a re-describe that repatches and re-records the
-//    screen — when the palette actually turns. Steady-state paint
-//    dominates, because there are hundreds of steady frames per switch.
-//    Nothing is wrong with the binding; it just cannot say "this
+//    screen — when the palette actually turns. Nothing is wrong with the
+//    binding; it just cannot say "this
 //    repaints when the theme changes" as distinct from "this repaints at
 //    60 Hz".
 //  · A 2 px BAND LANDS EXACTLY ON THE DEVICE PIXEL GRID. At contentScale
@@ -135,12 +134,13 @@
 //    flat colour with no 254/255 edge anywhere. Yoga's resolved rects
 //    are integers when the inputs are, `.padding(6)` is exact, and
 //    shapes::inset(5, …)'s path-op offset survives it.
-//  · TEXT EDGING IS THE ONE THING THAT CANNOT BE ASKED FOR. `TextStyle`
-//    has no edging or hinting field and SigilWeave's makeFont() pins
-//    SkFont::Edging::kAntiAlias; Skia takes glyph edging from the
-//    SkFont, never from the paint, so setAntiAlias(false) on the style
-//    is silently ignored. On a 1995 X11 desktop — which is ~100% 13 px
-//    UI type in a 1-bit face — that is the loudest possible anachronism.
+//  · EDGING IS ASKABLE; HINTING AND PIXEL ORIGINS ARE NOT.
+//    `ShapingStyle::aliased` (compose spells it `Type::aliased`) selects
+//    hard-edged rasterisation and is part of the shape-cache key. What no
+//    style field reaches is `SkFont::setHinting(kFull)` and
+//    `setSubpixel(false)`, and a 13 px outline face needs both to sit on
+//    the pixel grid the way an X core font does. On a 1995 X11 desktop —
+//    ~100% 13 px UI type in a 1-bit face — that is what shows.
 //    The workaround is MotifLabel below (a raw kAlias SkFont in a
 //    decoration on a measured box); the ONE remaining SigilWeave run is
 //    the derivation strip's title, kept in the capture so the two sit
@@ -722,19 +722,15 @@ inline sk_sp<SkTypeface> uiFace() {
 
 constexpr float kType = 13.0f;  // [MEAS] ink boxes: cap height 9-10 px
 
-/** The compose spelling, kept because it is the one that SHOULD be used —
- *  and because the mnemonic underline was checked through it before being
- *  filed as a gap: a two-span Paragraph plus
+/** The compose spelling, kept beside the workaround so the two are
+ *  comparable in one capture. A two-span Paragraph plus
  *  sigil::weave::Decoration{Kind::kUnderline} underlines exactly one
- *  character and works. See mnemonicLabel() below.
+ *  character, which is Motif's mnemonic.
  *
- *  It is not what draws this canvas, for one reason: SigilWeave's
- *  makeFont() hardcodes SkFont::Edging::kAntiAlias, `ShapingStyle` has no
- *  edging or hinting field, and Skia takes glyph edging from the SkFont
- *  and NOT from the paint — so `paint.foreground.setAntiAlias(false)` is
- *  silently ignored. An X11 core font has no antialiasing whatever;
- *  every glyph is a 1-bit bitmap, and greyscale-AA 13 px type is the
- *  single loudest anachronism available on this artefact. */
+ *  It is not what draws this canvas: hard edging is reachable through
+ *  `aliased`, but full hinting and whole-pixel origins are not, and a
+ *  13 px outline face without them does not land on the pixel grid an X
+ *  core font's 1-bit bitmaps land on. */
 inline sigil::weave::TextStyle type(SkColor4f c, float size = kType) {
   return sigil::compose::type(
       {.face = uiFace(), .size = size, .color = c, .antiAlias = false});
@@ -801,7 +797,7 @@ inline Element label(std::string_view t, SkColor4f c, float size = kType,
 
 // ===========================================================================
 // 7. WIDGETS.  Every one takes its colour set(s) as an argument, because
-//    there is no other way to give it one (see the gap list). A File
+//    a widget has no other channel for one. A File
 //    Manager window needs THREE at once: set 1 chrome, set 6 menus,
 //    set 5 client area.
 // ===========================================================================
@@ -879,12 +875,11 @@ inline Element textField(std::string_view t, const ColorSet& s, float w,
  *
  *  Motif underlines exactly one character of every menu label, and the
  *  kernel's text(u8string, TextStyle) applies one style to the whole run.
- *  THIS IS NOT A GAP — it was checked before being filed as one: the
- *  Paragraph form takes spans, and
+ *  The Paragraph form takes spans, and
  *  sigil::weave::Decoration{Kind::kUnderline} with skipInk off and
- *  thickness 1 is a correct Motif mnemonic. Two spans, one call. The
- *  only reason the desktop below does not use it is edging (see
- *  uiFont()).
+ *  thickness 1 is a correct Motif mnemonic: two spans, one call. The only
+ *  reason the desktop below does not use it is hinting and pixel origins,
+ *  which uiFont() sets on a raw SkFont.
  *
  *  The returned paragraph must be held: pointer identity is the change
  *  signal, so a fresh shared_ptr per describe re-shapes. */
@@ -1588,9 +1583,9 @@ struct CdeMotifSketch : sketch::Sketch {
         // The ONE run of SigilWeave text on this canvas, kept beside
         // eighty runs of the aliased workaround so the difference is in
         // the capture: same face, same 13 px, greyscale-antialiased
-        // because nothing in TextStyle can turn it off. It also carries
-        // the Motif mnemonic underline through the Paragraph-span path,
-        // which is the check that kept that off the gap list.
+        // greyscale-antialiased. It also carries the Motif mnemonic
+        // underline through the Paragraph-span path, which is the correct
+        // spelling of it.
         .child(box().padding(8, 6).child(
             mnemonics.make("XmGetColors( bg ) - live, via SigilWeave", s.fgV)))
         .child(box()
@@ -2021,9 +2016,9 @@ struct CdeMotifSketch : sketch::Sketch {
       ctx.composer.renderSlot("derivation", derivationStrip());
     }
 
-    // Around a switch, print EVERY frame: the study's headline number is
-    // "what does a theme change cost in a retained tree where every
-    // colour is bound", and that is one frame against its neighbours.
+    // Around a switch, print EVERY frame: what a theme change does to a
+    // retained tree where every colour is bound shows up as one frame's
+    // node counts against its neighbours'.
     const double sinceSwitch = elapsed - (nextSwitch - 3.0);
     const bool nearSwitch = sinceSwitch >= 0.0 && sinceSwitch < 0.09;
     if (nearSwitch || elapsed - lastReport >= 0.5) {
@@ -2031,12 +2026,10 @@ struct CdeMotifSketch : sketch::Sketch {
       const auto& st = ctx.composer.stats();
       std::printf(
           "[cde]%s t=%6.3f pal=%-8s instances=%zu pictures=%zu "
-          "painted=%zu recorded=%zu | reconcile %.3f layout %.3f "
-          "volatile %.3f paint %.3f ms\n",
+          "painted=%zu recorded=%zu\n",
           nearSwitch ? "*" : " ", elapsed,
           cde::kPalettes[(size_t)paletteIndex]->name, st.instances,
-          st.picturesLive, st.nodesPainted, st.picturesRecorded, st.reconcileMs,
-          st.layoutMs, st.volatileMs, st.paintMs);
+          st.picturesLive, st.nodesPainted, st.picturesRecorded);
     }
   }
 };

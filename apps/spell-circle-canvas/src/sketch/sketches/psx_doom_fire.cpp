@@ -1,4 +1,4 @@
-// psx_doom_fire.cpp — STUDY 01: the DOOM PSX fire, 1995.
+// psx_doom_fire.cpp — the DOOM PSX fire, 1995.
 //
 // Reference (all read directly, numbers taken verbatim):
 //   * Fabien Sanglard, "How DOOM fire was done"
@@ -30,7 +30,7 @@
 //
 //   ./build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
 //       src/sketch/sketches/psx_doom_fire.cpp \
-//       --frame /tmp/psx_doom_fire.png --at 6.0
+//       --frame /tmp/psx_doom_fire.png
 
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
@@ -146,10 +146,11 @@ sigil::weave::TextStyle ui(float size, SkColor4f c, float track = 0.0f) {
 /** back.out with the standard 1.70158 overshoot, the same constant
  *  fx::pop uses.
  *
- *  Choreograph ships one of these. This is written out rather than
- *  called because the two associate the same algebra differently —
- *  `1 + (s+1)u^3 + s·u^2` here against `u^2((s+1)u + s) + 1` there — and
- *  the plate this file is hashed as was taken through this one. */
+ *  Written out rather than calling choreograph's, which associates the
+ *  same algebra the other way — `1 + (s+1)u³ + s·u²` here against
+ *  `u²((s+1)u + s) + 1` there. The two are equal in exact arithmetic and
+ *  a rounding apart in float, and this is the one the stored plate is
+ *  drawn through. */
 float easeOutBack(float t) {
   constexpr float s = 1.70158f;
   const float u = t - 1.0f;
@@ -328,8 +329,7 @@ struct PsxDoomFire : sketch::Sketch {
   // Description
 
   Element eyebrow() {
-    return text(toU8("STUDY 01 \xc2\xb7 CELLULAR AUTOMATON"),
-                ui(12, kSteel, 2.6f))
+    return text(toU8("CELLULAR AUTOMATON"), ui(12, kSteel, 2.6f))
         .opacity(animate(from(0.0f).to(1.0f), {.duration = 260ms}))
         .translateY(animate(from(8.0f).to(0.0f), {.duration = 260ms}));
   }
@@ -746,10 +746,11 @@ struct PsxDoomFire : sketch::Sketch {
     rasterize();
 
     // ---- the fixed-timestep accumulator ---------------------------------
-    // Ticker hands us a continuous dt; there is no "fixed update" helper, so
-    // the accumulator is bespoke sketch code. Everything the automaton does
-    // — step, rasterize, strobe — happens on THIS clock, at 27 Hz, whatever
-    // the render rate is.
+    // Everything the automaton does — step, rasterize, strobe — happens on
+    // THIS clock, at 27 Hz, whatever the render rate is. `Ticker::addFixed`
+    // is the same construction as a Ticker member, with a catch-up clamp
+    // and a status flag; the accumulator is written out here because the
+    // automaton is the subject of the sketch.
     // NOTE: SketchContext is a per-call VALUE the host rebuilds every frame —
     // capturing it by reference would dangle. Capture the Composer, which is
     // host-owned and stable across the sketch's life.

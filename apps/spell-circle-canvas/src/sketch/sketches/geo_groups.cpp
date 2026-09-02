@@ -1,11 +1,10 @@
 // geo_groups.cpp — A HOUDINI .geo COMES IN, GROUPS AND ALL, and its groups
 // are pop masks the moment they land.
 // =============================================================================
-// Links geometry:: like pop_deform.cpp: the file is parsed by SigilGeometry's
-// importer, poured into a Cloud, and that cloud SEEDS a chain
-// (pop::on(cloud), the PointSet generator). Its point group "ring" is a
-// 0/1 lane under that name — exactly what `.masked("ring")` reads. Every
-// chain here cooks identically on SigilWorld's GPU executor.
+// The file is parsed by SigilGeometry's importer, poured into a Cloud, and
+// that cloud SEEDS a chain (pop::on(cloud), the PointSet generator). Its
+// point group "ring" is a 0/1 lane under that name — exactly what
+// `.masked("ring")` reads.
 //
 // The .geo text is generated below in the shape Houdini writes (paged
 // attributes, boolRLE groups) so this file stays self-contained; drop a
@@ -243,9 +242,9 @@ struct GeoGroups : sketch::Sketch {
                                  splat(peaked)))
                     .child(panel("twist(70).masked(\"ring\")",
                                  "only the group turns", splat(twisted))))
-            .child(text(toU8("PointSet seeds the same chain on SigilWorld's "
-                             "GPU executor: the file's lanes are the arena's "
-                             "first upload"),
+            .child(text(toU8("a point group arrives from the file as a 0/1 "
+                             "lane under its own name, which is what "
+                             "masked() reads"),
                         type({.size = 11, .color = kDim}))
                        .left(30)
                        .bottom(14)));

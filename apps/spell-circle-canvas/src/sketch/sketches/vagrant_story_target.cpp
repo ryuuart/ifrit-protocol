@@ -399,14 +399,14 @@ inline Wire buildWire(const Cam& cam, float halfExtent,
 }
 
 // ---------------------------------------------------------------------------
-// THE BITMAP-CELL TYPE. SigilWeave has no bitmap-font path; ShapingStyle::
-// aliased gives the hard-edged rasterisation, which is most of what a PS1 face
-// looked like. Static labels go through text() elements with aliased shaping,
-// condensed and snapped to the 512-grid. LIVE numbers (the hit percentage,
-// RISK, the rate) cannot: text() takes no Animatable. So the digits and a few
-// symbols are baked ONCE into 1-bit A8 cells at setup and blitted with
-// kNearest inside custom() leaves that read the bound Output directly — the
-// number IS the value, with no re-describe.
+// THE BITMAP-CELL TYPE. ShapingStyle::aliased gives the hard-edged
+// rasterisation, which is most of what a PS1 face looked like. Static labels go
+// through text() elements with aliased shaping, condensed and snapped to the
+// 512-grid. LIVE numbers (the hit percentage, RISK, the rate) cannot: text()
+// takes no Animatable. So the digits and a few symbols are baked ONCE into
+// 1-bit A8 cells at setup and blitted with kNearest inside custom() leaves that
+// read the bound Output directly — the number IS the value, with no
+// re-describe.
 
 struct Cell {
   sk_sp<SkImage> mask;

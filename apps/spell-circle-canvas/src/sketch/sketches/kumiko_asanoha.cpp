@@ -82,7 +82,7 @@
 //
 //   ./build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
 //       src/sketch/sketches/kumiko_asanoha.cpp \
-//       --frame /tmp/kumiko_asanoha.png --at 4.2
+//       --frame /tmp/kumiko_asanoha.png
 // =============================================================================
 
 #include <include/core/SkPathBuilder.h>
@@ -236,13 +236,12 @@ sk_sp<SkRuntimeEffect> timberEffect() {
 // value) so a soft-light pass reads as light on the timber rather than as a
 // hue shift. Wood fibre runs LENGTHWISE, which is what the stretch is.
 //
-// This is the same FIELD as `patterns::grain(0.42f, 3, 4.0f, 0.30f, 3.2f)`
-// and NOT the same pixels, which is why it stays here. The stock
-// generator folds the stretch into the frequency on the CPU and samples
-// `pos * uFreq`; this samples `pos.x * uFreq / uStretch`. Multiplying and
-// then dividing is not the same float as multiplying by a precomputed
-// quotient, so the two disagree in the last bits of every sample
-// coordinate — which is invisible to look at and moves the plate.
+// The same FIELD as `patterns::grain(0.42f, 3, 4.0f, 0.30f, 3.2f)` and not
+// the same pixels. The stock generator folds the stretch into the frequency
+// on the CPU and samples `pos * uFreq`; this samples
+// `pos.x * uFreq / uStretch`. Multiplying and then dividing is not the same
+// float as multiplying by a precomputed quotient, so the two disagree in
+// the last bits of every sample coordinate.
 sk_sp<SkRuntimeEffect> toothEffect() {
   static const sk_sp<SkRuntimeEffect> fx = [] {
     auto [effect, err] = SkRuntimeEffect::MakeForShader(SkString(R"(

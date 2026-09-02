@@ -40,9 +40,9 @@
 //   grade .......... an OCIO exponent, when the build has OpenColorIO
 //
 // The scene is re-rendered on every append and every prompt keystroke, and
-// reconciliation still prices each at a constant handful of nodes: the new
-// row's mount plus the few chrome leaves whose text actually changed. The
-// retained instance tree is what makes that work; there is no virtualizer.
+// reconciliation touches a constant handful of nodes for each: the new row's
+// mount plus the few chrome leaves whose text actually changed. The retained
+// instance tree is what makes that work; there is no virtualizer.
 
 #include <sigilcompose/core/Feed.h>
 #include <sigilcompose/core/Material.h>
@@ -711,4 +711,4 @@ struct DaemonConsole final : sketch::Sketch {
 }  // namespace
 
 SIGIL_SKETCH_AS(DaemonConsole, "daemon console", "Catalog \xc2\xb7 Game UI",
-                "feed() over a TextRing")
+                "feed::Ring<LogRow>, with an entrance per severity")

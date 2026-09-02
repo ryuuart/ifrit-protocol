@@ -208,8 +208,8 @@ struct EaselPlayground : sketch::Sketch {
     // RIGHT — a wire crossing space, everything hung on it: a steel
     // tube, particles, and the TILED UNTILEABLE MARQUEE — a
     // Fibonacci-word band scrolling around a second, wider loop.
-    // Nothing marquee-shaped exists in the library: it is
-    // a line profile swept (the (across, along) uv chart) + tileTexture +
+    // `marquee` scrolls a laid-out element; this band is swept GEOMETRY —
+    // a line profile over the (across, along) uv chart + tileTexture +
     // uvTransform, the same verbs any conveyor or ticker uses.
     Element flight =
         custom([this](SkCanvas& canvas, const PaintContext& paint) {

@@ -85,10 +85,10 @@ constexpr float kInner = kFieldSide - 2 * kBandW;
 
 /** A cut stone: the quarry's two tones on a diagonal bed, veined with
  *  LUMINANCE grain and flecked with a speckle in the stone's own colours.
- *  patterns::grain() exists because patterns::noise() is fractal RGB
- *  noise whose three channels are independent — overlaid on a coloured
- *  surface it hue-shifts rather than shades, and turned every quarry here
- *  into rainbow terrazzo, which is the one thing a Cosmati floor is not. */
+ *  patterns::grain() rather than patterns::noise(): noise is fractal RGB
+ *  whose three channels are independent, so over a coloured surface it
+ *  hue-shifts rather than shades, and a Cosmati floor is the one thing
+ *  that must never read as rainbow terrazzo. */
 inline Material stone(SkColor4f hi, SkColor4f lo, float angleDeg = 24,
                       int octaves = 3) {
   const float a = angleDeg * 3.14159265f / 180.0f;
@@ -318,10 +318,9 @@ struct Cosmati final : sketch::Sketch {
     const std::chrono::milliseconds delay{600 + 80 * seed};
     // The bed is the largest stone surface on the plate and every square
     // pixel of it is an SkSL evaluation — three fBm octaves under three
-    // gradients. It is static once it has entered, so bake it. This matters
-    // little on GPU and enormously on the CPU raster backend, where the
-    // alternative is re-evaluating that shader over the whole quarter every
-    // single frame.
+    // gradients. It is static once it has entered, so bake it: the
+    // alternative is re-evaluating that shader over the whole quarter on
+    // every frame, which the CPU raster backend does literally.
     Element q = stack()
                     .width(Dim(side))
                     .height(Dim(side))

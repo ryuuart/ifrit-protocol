@@ -11,7 +11,7 @@
 // and beads riding a star contour (Layouts.h schemes), a plaque
 // dressed per-edge (Shapes.h edges()), routed connectors
 // (Routers.h), and a wandering hit probe reading
-// Composer::hitTest() live. Catalog: #5 #9 #10 #12 + the shape kit.
+// Composer::hitTest() live.
 
 #include <sigilcompose/shape/Layouts.h>
 #include <sigilcompose/shape/Routers.h>
@@ -26,9 +26,6 @@ using sigil::compose::toU8;
 using namespace std::chrono_literals;
 
 namespace {
-/** A text style at one size and colour — the two things every label in
- *  this piece varies. */
-
 /** The canvas this piece was drawn against, which is also the default a
  *  sketch gets when it declares none. */
 constexpr SkSize kSceneSize = {900, 640};
@@ -245,4 +242,4 @@ struct Organic final : sketch::Sketch {
 }  // namespace
 
 SIGIL_SKETCH_AS(Organic, "organic", "Catalog \xc2\xb7 Generative",
-                "#5 #9 #10 #12 shapes/layouts")
+                "shapes dressed per edge, routed connectors, a live hit probe")

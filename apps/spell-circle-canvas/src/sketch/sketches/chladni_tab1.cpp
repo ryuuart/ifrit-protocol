@@ -91,7 +91,7 @@
 // Run:
 //   ./build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
 //       src/sketch/sketches/chladni_tab1.cpp \
-//       --frame /tmp/chladni_tab1.png --at 10.6
+//       --frame /tmp/chladni_tab1.png
 //
 // 10.6 s is the settled plate with the bow back on figure 8's rim. 3.4 s
 // is the argument being made: figures 1-3 drawn in sand, figure 4 in the
@@ -583,11 +583,12 @@ struct ChladniTab1 : sketch::Sketch {
       // z-order is the cutout.
       //
       // The engraved tone inside each petal is a RADIAL FAN, and
-      // lines::hatch is a parallel lattice at one angle: there is no
-      // tangent-following hatch in the library. The fan is therefore
-      // built out of the shape kit instead — each petal is cut into ~9
-      // degree sectors and each sector carries its own rotated hatch, so
-      // the rules turn with the bearing the way the burin did.
+      // lines::hatch is a parallel lattice at one angle. The fan is built
+      // out of the shape kit instead — each petal is cut into ~9 degree
+      // sectors and each sector carries its own rotated hatch, so the
+      // rules turn with the bearing the way the burin did.
+      // `lines::radialHatch` rules from a point rather than across a
+      // wedge, which is a different field.
       const int petals = (int)f.points;
       const float sweep = 360.0f / (float)petals;
       const int sub = std::max(8, (int)std::lround(sweep / 6.0f));

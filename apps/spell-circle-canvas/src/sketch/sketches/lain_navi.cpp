@@ -135,8 +135,10 @@
 //                                     a shader per pixel for the same picture
 //   Material::linearUnit              each chrome bar's INVERSE bevel, its
 //                                     six stops read off the bar's own rows
-//   shapes::parametric                every ellipse: the rims, the waist and
-//                                     the tilted orbit, as real curves
+//   a sampled ellipse path            every ellipse: the rims, the waist and
+//                                     the tilted orbit, as real curves — the
+//                                     arcs are cut by parameter, which an
+//                                     oval cannot express
 //   LayeredBrush{blend = kPlus}       THE ADDITIVE TRICK. kPlus on a NODE
 //                                     allocates a saveLayer; kPlus on a
 //                                     stroke PASS is just a path draw
@@ -220,9 +222,10 @@
 //
 // Three smaller limits, all worked around in this file:
 //
-//  * `LayeredBrush` declares no `bleed()`, so a blurred additive stack is
-//    culled at its node's own bounds. Wrapped here in an eight-line scheme
-//    that declares the reach the blur actually needs.
+//  * A blurred additive stack is culled at its node's own bounds unless the
+//    node declares its reach; `LayeredBrush::bleed()` computes that per
+//    layer as `width / 2 + 3σ`, so every call site hands the brush straight
+//    to `foreground()` and nothing sets a reach by hand.
 //  * A Texture-cached node whose DECORATION paints kPlus must also carry
 //    `.blend(kPlus)` on the node, or the bake composites kSrcOver and paints
 //    its blurred stroke straight over the plate — the eye comes back as two
@@ -232,7 +235,7 @@
 // Run:
 //   ./build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
 //       src/sketch/sketches/lain_navi.cpp \
-//       --frame /tmp/lain_navi.png --at 2.5
+//       --frame /tmp/lain_navi.png
 //
 //   2.5 s  THE REFERENCE MOMENT, and it is chosen so the diff is like for
 //          like: the scroll is phased (kScrollPhase) to put the plate's own
@@ -515,8 +518,8 @@ inline const sk_sp<SkTypeface>& monoFace() {
       face({"JetBrainsMono Nerd Font", "JetBrains Mono", "Andale Mono", "Menlo",
             "Courier New"},
            // LIGHT, not ExtraLight. At 22 px under a mask-filter blur an
-           // ExtraLight stem never reaches the clip, so the in-focus core came
-           // back #70BDE8 (blue) where the plate reads #72F9F5 (cyan) — the
+           // ExtraLight stem never reaches full coverage, which reads as
+           // #70BDE8 (blue) where the plate is #72F9F5 (cyan) — the
            // colour is right and the STEM is too thin to show it.
            300, SkFontStyle::kUpright_Slant);
   return f;
@@ -631,10 +634,10 @@ constexpr float kFirstBase = 112.0f;
 constexpr float kFocus = 402.0f;  // the stationary focal plane
 constexpr int kScrollPhase = 27;  // see the note above kListing
 
-/** CONSTANT INK, LINEAR SIGMA. See correction 2: the amplitude does not fall,
- *  and every version of this sketch that made it fall was reading a coverage
- *  statistic and calling it brightness. 0.30 px at the band to 1.43 at the
- *  block's ends is a 5.4x sigma swing, which is what the reference's own
+/** CONSTANT INK, LINEAR SIGMA. The amplitude does not fall with distance
+ *  from the focal band — a coverage statistic falls, and coverage is not
+ *  brightness. 0.30 px at the band to 1.43 at the block's ends is a 5.4x
+ *  sigma swing, which is what the reference's own
  *  5.54x in mean|dI/dx| and 1.98x in per-line PEAK jointly solve to. */
 inline float focusSigma(float baselineY) {
   const float d = std::fabs(baselineY - kFocus);
@@ -801,8 +804,8 @@ struct LainNavi : sketch::Sketch {
       const float y = kFirstBase + kPitch * (float)i;
       const int src =
           ((scrollLine + i + kScrollPhase) % kListingN + kListingN) % kListingN;
-      // ONE colour for all fifteen lines — correction 2. The whole focal
-      // plane is the sigma, and the sigma is on the glyph MASK.
+      // ONE colour for all fifteen lines. The whole focal plane is the
+      // sigma, and the sigma is on the glyph MASK.
       const SkColor4f c = kConsoleInk;
       const float sigma = std::max(0.10f, focusSigma(y) + breathe.value());
       const std::u8string line = toU8(kListing[src]);
@@ -887,9 +890,8 @@ struct LainNavi : sketch::Sketch {
     // `make me feel alright?` rides the tilted orbit's lower-left arc,
     // (185, 455) counter-clockwise up to (840, 215) — the run the conic was
     // fitted through in the first place. onPath is a property of the TEXT
-    // LEAF, not of a wrapper (a wrapper takes the spec and quietly ignores
-    // it, which is how the first render put the run down the left margin as
-    // a wrapped column).
+    // LEAF, not of a wrapper: a wrapper takes the spec and quietly ignores
+    // it, and the run falls down the left margin as a wrapped column.
     g.child(text(u8"make me feel alright?",
                  type(monoFace(), 31.0f, kAlright, 0.55f, 4.0f))
                 .rect(SkRect::MakeXYWH(0, 0, kW, kH))
@@ -901,8 +903,7 @@ struct LainNavi : sketch::Sketch {
                                        // (185, 455) and 17.7 deg at
                                        // (840, 215) — DECREASING. A forward
                                        // path puts the run in mirror order
-                                       // on the wrong arc, which is what the
-                                       // second render showed.
+                                       // on the wrong arc.
                                        return ellipsePath(kOrbit2C, kOrbit2A,
                                                           kOrbit2B, tilt2,
                                                           6.2831853f, 0.0f);

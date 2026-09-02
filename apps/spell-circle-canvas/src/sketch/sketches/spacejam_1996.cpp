@@ -103,11 +103,6 @@
 // proportionally instead makes the second row far too tall and drags every
 // image below it down. Both branches are in `TableScheme::solve()`.
 
-// Material.h first, defensively: Sketch.h pulls in Decorations.h, whose
-// Wash holds a Material BY VALUE, and Compose.h only forward-declares that
-// type. Any header in this chain that forgets its own Material.h include
-// therefore needs the complete type to already be in scope, and putting it
-// first here costs nothing.
 #include <include/core/SkCanvas.h>
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkPathBuilder.h>
@@ -1639,4 +1634,4 @@ struct SpaceJam1996 : sketch::Sketch {
 SIGIL_SKETCH(
     SpaceJam1996, "Study \xc2\xb7 Screens",
     "spacejam.com, still live \xe2\x80\x94 HTML auto table layout as a "
-    "LayoutScheme, to 0.11 px")
+    "LayoutScheme")

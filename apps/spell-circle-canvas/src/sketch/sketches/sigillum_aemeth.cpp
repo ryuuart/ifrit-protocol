@@ -152,16 +152,16 @@
 //      turning groups even though they belong to the same figure.
 //   6. the solver is an independent update domain — slot() + renderSlot() —
 //      so advancing the walk never re-describes the plate.
-// And one thing that does NOT pay: forcing Cache::Texture on the big groups
-// is slower than the library's own promotion, because it bakes one giant
-// layer where the library bakes several small ones. The exception is a group
-// under a LIVE rotation, where the library falls back to replaying the
-// picture through a rotated matrix and an explicit bake wins.
+// And one shape to know before trying it: forcing Cache::Texture on the big
+// groups bakes ONE layer the size of the plate where the library's own
+// promotion bakes several the size of their subtrees. The exception is a
+// group under a LIVE rotation, where the library falls back to replaying the
+// picture through a rotated matrix and an explicit bake is the only bake.
 //
 // Run:
 //   ./build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
 //       src/sketch/sketches/sigillum_aemeth.cpp \
-//       --frame /tmp/sigillum_aemeth.png --at 2.5
+//       --frame /tmp/sigillum_aemeth.png
 //
 //   1.0 s  the two circles struck, the 40 cells cut
 //   2.5 s  the solver walking Galas / Gethog — arcs leaping the rim

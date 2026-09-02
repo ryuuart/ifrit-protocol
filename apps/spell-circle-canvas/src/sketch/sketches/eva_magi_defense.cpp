@@ -133,7 +133,7 @@
 // Run:
 //   ./build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
 //       src/sketch/sketches/eva_magi_defense.cpp \
-//       --frame /tmp/eva_magi_defense.png --at 2.5
+//       --frame /tmp/eva_magi_defense.png
 //
 //   2.5 s  THE REFERENCE MOMENT: all five outer MAGI have fallen, the front
 //          has not moved, and the frame diffs against the plate directly
@@ -312,11 +312,11 @@ inline weave::TextStyle type(float size, SkColor4f color, float condense = 1.0f,
  *  the bake's blit and reshuffles roughly a pixel of antialiasing along every
  *  edge in the plate. */
 inline LayeredBrush rimGlow(float core, SkColor4f c) {
-  // TWO passes, not three. A middle pass at width core+3.5 and only sigma 2
-  // does not read as a halo, it reads as a FATTER RIM — side by side with the
-  // plate the 2 px keyline came out looking 6 px thick. The measured profile
-  // is one hard core and one long soft tail (v 254 -> 98 at 3 px -> 25 at
-  // 9 px), so: a hairline, and a wide dim blur under it.
+  // TWO passes, not three. The measured profile is one hard core and one
+  // long soft tail (v 254 -> 98 at 3 px -> 25 at 9 px), so: a hairline and
+  // a wide dim blur under it. A middle pass at width core+3.5 and sigma 2
+  // fills the gap between them and the keyline reads three times its
+  // width — a fatter rim, not a halo.
   SkColor4f wide = c;
   wide.fA = 0.30f;
   return LayeredBrush{{
@@ -345,12 +345,11 @@ inline weave::TextStyle glowType(float size, SkColor4f color, float condense,
  *  shape that measures. kPlus makes the paint order irrelevant. */
 inline Element glowText(std::u8string s, float size, SkColor4f c,
                         float condense = 1.0f) {
-  // ORDER IS THE WHOLE FIX. Painted OVER the core, two additive halos put
-  // #FDA114 at 1.76x and the numerals came back chartreuse — kPlus clips R at
-  // 255 and keeps lifting G, so the amber walks toward yellow-green, which is
-  // exactly the failure mode every recreation of this look has. Declared
-  // FIRST they paint UNDER an opaque core: the glyph body stays the sampled
-  // colour to the byte and the halo only exists where the glyph is not.
+  // ORDER IS THE WHOLE THING. Two additive halos over the core put #FDA114
+  // at 1.76x, and kPlus clips R at 255 while it keeps lifting G, so the
+  // amber walks toward yellow-green. Declared FIRST they paint UNDER an
+  // opaque core: the glyph body stays the sampled colour to the byte and
+  // the halo only exists where the glyph is not.
   return box()
       .child(text(s, glowType(size, c, condense, 6.5f, 0.34f)).inset(0))
       .child(text(s, glowType(size, c, condense, 2.2f, 0.62f)).inset(0))
@@ -795,11 +794,11 @@ struct EvaMagiDefense : sketch::Sketch {
     // 11% wide, and the excess is not cosmetic: the label is centred at local
     // (173.5, 66) and the stem cell's top edge is at local y 110, so on the
     // two sites rotated +-90 (MAGI 04 and 05) the word's HALF-WIDTH is what
-    // has to clear that 44 px, upright, in world x. At 46 px it did not:
-    // MAGI 04 read "MAG" with the I bisected by cell 2's left edge and MAGI 05
-    // had the M sitting on it. Helvetica Bold "MAGI" is 2.667 em, so 83 px at
-    // 36 pt is scaleX 0.86 — the word is Helvetica CONDENSED on the plate and
-    // the numerals are not, which is what fontsinuse lists for the panels.
+    // has to clear that 44 px, upright, in world x. A half-width over 44 px
+    // puts MAGI 04's I under cell 2's left edge and MAGI 05's M on it.
+    // Helvetica Bold "MAGI" is 2.667 em, so 83 px at 36 pt is scaleX 0.86 — the
+    // word is Helvetica CONDENSED on the plate and the numerals are not, which
+    // is what fontsinuse lists for the panels.
     plate.child(box()
                     .centerAt(tre::kLabelAt)
                     .column()
@@ -861,11 +860,10 @@ struct EvaMagiDefense : sketch::Sketch {
     // the same picture. Texture is wasteful wherever the covered region is
     // sparse relative to its bounds.
     //
-    // EXCEPT AT +/-90 DEGREES, WHICH IS A LIBRARY BUG: a node carrying
-    // rotate(+/-90) bakes at the wrong resolution and its content comes back
-    // non-uniformly resampled. On the LEFT SIDE BARRIER pill (196x33,
-    // rotate -90) the type is destroyed. 0, 45 and 180 are all clean, so the
-    // guard is exactly the quarter-turn.
+    // EXCEPT AT +/-90 DEGREES: a node carrying rotate(+/-90) bakes at the
+    // wrong resolution and its content comes back non-uniformly resampled,
+    // which destroys the type on the LEFT SIDE BARRIER pill (196x33). 0, 45
+    // and 180 are all clean, so the guard is exactly the quarter-turn.
     for (int i = 0; i < kSiteN; ++i)
       g.child(installation(i).cache(
           bakeable(kSites[i].rotation) ? Cache::Texture : Cache::Auto));

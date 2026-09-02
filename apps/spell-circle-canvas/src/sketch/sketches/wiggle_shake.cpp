@@ -9,14 +9,14 @@
 //
 // EDIT THESE FIRST
 //   kSeedY   — top row. Set it to kSeedX (= 1) and the 2-D locus collapses
-//              to a straight diagonal: that is the SHARED-SEED failure the
-//              docs warn about, and the left panel already shows it.
+//              to a straight diagonal: one seed drives both axes, so x and
+//              y move together instead of independently.
 //   kOctaves — bottom row's three curves. 1 is drift, 6 is flicker.
 //   kAmount  — px. The red rails are at +-kAmount, and the curve never
 //              crosses them AT ANY OCTAVE COUNT: the noise is normalised
 //              to [-1,1] first, so `amount` is a BOUND, not a scale factor.
 //
-// The three ways things move (hello.cpp): the two chips are door 1 — the
+// The three ways things move: the two chips are door 1 — the
 // shake is DECLARED as a bound property and the runtime resolves it every
 // frame. The graphs are static leaves; nothing here re-describes.
 

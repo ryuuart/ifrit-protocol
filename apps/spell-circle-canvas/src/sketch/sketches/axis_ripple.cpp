@@ -70,7 +70,7 @@
 // Run:
 //   ./build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
 //       src/sketch/sketches/axis_ripple.cpp \
-//       --frame /tmp/axis_ripple.png --at 2.05
+//       --frame /tmp/axis_ripple.png
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkTypeface.h>

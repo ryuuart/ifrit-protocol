@@ -97,15 +97,17 @@
 // a motor does not ease); spun forever by one shared rotate(&spin).
 //
 // ---------------------------------------------------------------------
-// WHERE THE LIBRARY MADE THIS AWKWARD
+// WHAT THIS FILE SPELLS OUT RATHER THAN ASKS FOR
 // ---------------------------------------------------------------------
-//  1. No shapes::parametric()/lissajous(). Shapes.h generates closed
-//     SHAPES; nothing evaluates a caller's t → (x, y). The curve is a
-//     hand-rolled SkPathBuilder loop inside outline().
-//  2. No derived Outputs. `penTip` must be a second, independently-owned
-//     Output the ticker re-copies from `growth − 0.008` every tick; so
-//     must `penA`. Four cards × two shadow cells = eight scalars kept in
-//     sync by hand.
+//  1. The curve is a hand-rolled SkPathBuilder loop inside outline().
+//     `shapes::harmonograph` names the damped, precessing figure this
+//     draws; the loop stays because the four presets are read straight
+//     off the pendulum's own a:b:δ:k:R.
+//  2. `penTip` is a second, independently-owned Output the ticker
+//     re-copies from `growth − 0.008` every tick; so is `penA`. Four
+//     cards × two shadow cells = eight scalars kept in sync by hand,
+//     where `Ticker::derive` with `bind().offset().clamp()` would keep
+//     one.
 //  3. ONE trim window per NODE. trim() is an Element property and
 //     decorations receive the already-trimmed outline, so the pen-tip
 //     highlight is not a second stroke() — it is a duplicate node that
@@ -114,7 +116,7 @@
 // Run:
 //   ./build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
 //       src/sketch/sketches/vertigo_titles.cpp \
-//       --frame shots/vertigo_titles.png --at 5.2
+//       --frame shots/vertigo_titles.png
 //
 //   Motion check (the pen edge advancing along arc length across card B's
 //   1400 ms draw window):  --at 4.30 --frames 8 --fps 5
@@ -403,8 +405,8 @@ struct VertigoTitles : sketch::Sketch {
     // node, one fx::pop() track cascading the capitals 30 ms apart. The
     // track's batched draw carries the style's whole paint — the blurred
     // stroke underlay stays beneath the hollow stroke while the letters
-    // pop. The 3 px the letter row used to open between nodes is tracking
-    // now, because with one node the spacing IS letterspacing.
+    // pop. The 3 px between capitals is tracking, not a gap: with one text
+    // node the spacing IS letterspacing.
     {
       auto face = hollow(faceDisplay, 76, kBone, 2.2f, 3.0f);
       // Legibility underlay over the busiest cards. NOT dropShadow() —
@@ -630,8 +632,7 @@ struct VertigoTitles : sketch::Sketch {
             .column()
             .grow(1)
             .gap(7)
-            .child(text(toU8("TECHNIQUE STUDY 02 · PRECESSING LISSAJOUS "
-                             "FIGURES"),
+            .child(text(toU8("PRECESSING LISSAJOUS FIGURES"),
                         type(faceGothicBold, 11, kSteel, 3.0f))
                        .key("eyebrow")
                        .opacity(animate(from(0.0f).to(1.0f), ramp(0, 260)))

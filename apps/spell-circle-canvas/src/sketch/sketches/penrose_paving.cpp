@@ -94,7 +94,7 @@
 //
 //   ./build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
 //       src/sketch/sketches/penrose_paving.cpp \
-//       --frame /tmp/penrose_paving.png --at 4.6
+//       --frame /tmp/penrose_paving.png
 //
 // --at 0.75 catches the crystal front mid-growth over the exact 5-fold
 // centre, 1.45 the inlay chaining on, 4.6 the finished plaza.

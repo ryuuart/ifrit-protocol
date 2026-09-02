@@ -124,7 +124,8 @@ inline Element gelOrb(float d = kOrbD) {
 }
 
 // ---------------------------------------------------------------------------
-// HAND-BUILT section-2 pill (round 1, verbatim) - the A/B reference.
+// The HAND-BUILT Aqua pill, kept as the A/B reference against the preset:
+// five stops and a knockout highlight, spelled out.
 
 struct PillTint {
   SkColor4f deep, mid, light, glow, halo;
@@ -444,8 +445,8 @@ struct Y2kChrome final : sketch::Sketch {
                                .alignItems(Align::Center)
                                .gap(6)
                                .child(yc::aquaPill("AQUA  2000", yc::kBluePill))
-                               .child(yc::caption("HAND-BUILT \xc2\xb7 \xc2\xa7"
-                                                  "2 VERBATIM")))
+                               .child(yc::caption("HAND-BUILT \xc2\xb7 FIVE "
+                                                  "STOPS BY HAND")))
                     .child(box()
                                .column()
                                .alignItems(Align::Center)
@@ -473,10 +474,11 @@ struct Y2kChrome final : sketch::Sketch {
             .child(box().width(1).height(11).fill(Fill::color(hex(0xA6ADB4))))
             .child(text(toU8("56K"), yc::type(10, hex(0x6A737D), 1.0f, 700)));
 
-    // The window's large blurred shadow is static, but the old combined node
-    // inherited volatility from the marquee. Split only its backplate so the
-    // filter bakes once; the identically rounded live content still clips and
-    // keeps the border in its original foreground paint order.
+    // The window's large blurred shadow is static and the marquee inside it
+    // is not, and a node combining the two inherits the marquee's
+    // volatility. Only the backplate is split out, so the filter bakes once;
+    // the identically rounded live content still clips and keeps the border
+    // in its original foreground paint order.
     Element windowBackplate =
         box()
             .inset(yc::kWindowX, yc::kWindowY, yc::kWindowX, yc::kWindowY)

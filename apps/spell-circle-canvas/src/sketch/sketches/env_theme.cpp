@@ -22,7 +22,7 @@
 //                            the dependency tracker.
 //   kLevels                 — how deep the handed-nothing chain runs.
 //
-// The three ways things move (hello.cpp): none of them. env:: is a
+// The three ways things move: none of them. env:: is a
 // DESCRIBE-path channel — a theme change re-describes and the reconciler
 // patches the nodes whose props moved. Bind the one property that scrubs
 // at 60 Hz, never the theme.

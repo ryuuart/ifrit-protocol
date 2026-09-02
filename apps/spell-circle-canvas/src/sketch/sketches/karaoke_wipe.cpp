@@ -71,7 +71,7 @@
 // Run:
 //   ./build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
 //       src/sketch/sketches/karaoke_wipe.cpp \
-//       --frame /tmp/karaoke_wipe.png --at 1.7
+//       --frame /tmp/karaoke_wipe.png
 //
 //   The hop, frame by frame:  --at 1.20 --frames 10 --fps 12
 

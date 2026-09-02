@@ -24,7 +24,7 @@ using namespace std::chrono_literals;
 
 namespace {
 
-// ---- 11: tile map with chunked caching (#15) ------------------------------
+// ---- tile map with chunked caching ----------------------------------------
 
 /** The side every 16 px atlas cell is drawn at. It is a SQUARE only while
  *  the row of chunks gets the width it asks for. */
@@ -52,8 +52,8 @@ struct TileMap final : sketch::Sketch {
   double nextMutation = 0.0;
 
   /** The maze tileset: a procedural 4-cell atlas (16px tiles: floor,
-   *  brick wall, moss floor, ember) built once — the stress-item-15
-   *  shape: image(atlas).region(cell) selects per tile. */
+   *  brick wall, moss floor, ember) built once, with
+   *  image(atlas).region(cell) selecting per tile. */
   static std::shared_ptr<sigil::image::ImageAsset> atlas() {
     static std::shared_ptr<sigil::image::ImageAsset> asset = [] {
       sk_sp<SkSurface> s =
@@ -163,4 +163,5 @@ struct TileMap final : sketch::Sketch {
 
 }  // namespace
 
-SIGIL_SKETCH_AS(TileMap, "tile map", "Catalog \xc2\xb7 Tiling", "#15")
+SIGIL_SKETCH_AS(TileMap, "tile map", "Catalog \xc2\xb7 Tiling",
+                "chunked caching: which chunk re-records when the map changes")

@@ -1,9 +1,9 @@
 // pop_lanes.cpp — TWO POP OPERATORS: Builder::rampBy() (Lookup) and
 // Builder::order() (Sort), from SigilGeometry.
 // =============================================================================
-// Links geometry:: like shapeworks_lab.cpp: the clouds are cooked by the CPU
-// reference executor in setup() and splatted by points::drawBillboards, so
-// this file is the adapter and nothing else.
+// The clouds are cooked by the CPU reference executor in setup() and
+// splatted by points::drawBillboards, so this file is the adapter and
+// nothing else.
 //
 // rampBy — `fade()` grown up. Pick the SOURCE lane, pick which component
 // reads, state the range it spans, hand over as many stops as the curve
@@ -24,7 +24,7 @@
 //   kRange   — panel 2's `low`/`high` for the height ramp. Narrow it and
 //              the table clips at both ends.
 //
-// The three ways things move (hello.cpp): none of them, deliberately. The
+// The three ways things move: none of them, deliberately. The
 // clouds are cooked ONCE; the four leaves are immediate-mode `custom()`
 // programs only because a projection is cheaper to redo than to cache.
 

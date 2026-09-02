@@ -28,7 +28,7 @@
 //             0.2126 / 0.7152 / 0.0722 and the pairs stop matching, which
 //             is the classic mistake the law names.
 //
-// The three ways things move (hello.cpp): none. Every gate here is a
+// The three ways things move: none. Every gate here is a
 // constant; a gate's `fraction` / `Spans` can be bound, and each mask
 // carries its own animation slot, but a still comparison wants none.
 

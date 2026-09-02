@@ -1155,8 +1155,8 @@ inline Element cornerPlate(SkColor4f tint) {
 
 // ---------------------------------------------------------------------------
 // PIXEL TYPE. Minecraft's ascii.png is a 1-bit bitmap face on an 8-px cell and
-// is in no repo. SigilWeave has no bitmap-font path, so the substitute is
-// shaped with ShapingStyle::aliased at the ORIGINAL 1x size, rasterised into
+// is in no repo, so the substitute is shaped with ShapingStyle::aliased at
+// the ORIGINAL 1x size, rasterised into
 // an A8 mask, and presented at 2x with kNearest — which makes it a bitmap
 // face again, on the grid, with no antialiasing anywhere. The drop shadow is
 // the game's own: FontRenderer offsets by +1 and multiplies the colour by

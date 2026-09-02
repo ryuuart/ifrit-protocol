@@ -76,7 +76,7 @@
 // Run:
 //   ./build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
 //       src/sketch/sketches/elastic_type.cpp \
-//       --frame /tmp/elastic_type.png --at 1.15
+//       --frame /tmp/elastic_type.png
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPathBuilder.h>

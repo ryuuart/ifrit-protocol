@@ -78,29 +78,24 @@
 //
 // NO Composer::setView() ANYWHERE, DELIBERATELY. The whole piece is the
 // claim that a described sRGB value is the delivered sRGB value, and an
-// output transform would silently invalidate checks 10 and 12. There is no
-// way in the API to DECLARE that: "I thought about colour and chose not to
-// transform it" and "nobody thought about colour" produce identical trees.
+// output transform would silently invalidate checks 10 and 12.
 //
-// COST. Three environment switches price this plate against itself, and
-// what they show is where the money actually is.
+// WHAT THREE ENVIRONMENT SWITCHES ISOLATE.
 //   CHEVREUL_STATS=1 dumps Composer::stats(). In steady state there is one
-//       render() and everything else is a binding, so paint is negligible.
-//   CHEVREUL_REDESCRIBE=1 re-describes the whole plate every frame, which
-//       is catastrophic — and almost all of it is ONE node: the plate-tone
-//       wash, a patterns::grain under .cache(Cache::Texture) whose shape is
-//       an `.shape(shapes::circle())` LAMBDA. An outline() callable can
-//       never compare equal, so its Texture bake is thrown away and redone
-//       every single frame. Remove that one node and the same experiment is
-//       cheap again.
+//       render() and everything else is a binding.
+//   CHEVREUL_REDESCRIBE=1 re-describes the whole plate every frame. What
+//       that exposes is ONE node: the plate-tone wash, a patterns::grain
+//       under .cache(Cache::Texture) whose shape is an
+//       `.shape(shapes::circle())` LAMBDA. An outline() callable can never
+//       compare equal, so its Texture bake is thrown away and redone every
+//       frame.
 //   CHEVREUL_NOLIMB=1 drops the 78 onPath limb runs, which cannot prune
-//       because TextPath carries no operator==. Real, and orders of
-//       magnitude smaller than the un-comparable outline above.
+//       because TextPath carries no operator==.
 //
 // Run (13.0 s loop; 12.6 s is the settled plate):
 //   ./build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
 //       src/sketch/sketches/chevreul_circle.cpp \
-//       --frame /tmp/chevreul_circle.png --at 12.6
+//       --frame /tmp/chevreul_circle.png
 
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkFontStyle.h>
@@ -811,10 +806,10 @@ struct ChevreulCircle : sketch::Sketch {
       v.covUncovered = cov.uncovered;
       v.covDoubled = cov.doubled;
 
-      // endpointDegrees on the same 72 pieces. It used to report 72 points
-      // of degree 1 for a ring of closed sectors; it now retracts them and
-      // says how many contours were CLOSED, so "this test does not apply"
-      // is legible instead of inferred.
+      // endpointDegrees on the same 72 pieces. It reports how many contours
+      // were CLOSED rather than counting their endpoints, so a ring of
+      // closed sectors reads as "this test does not apply" rather than as 72
+      // points of degree 1.
       std::vector<SkPath> sectorsOnly(pieces.begin(), pieces.end() - 1);
       const test::VertexDegrees deg = test::endpointDegrees(sectorsOnly);
       v.closedContours = deg.closedContours;

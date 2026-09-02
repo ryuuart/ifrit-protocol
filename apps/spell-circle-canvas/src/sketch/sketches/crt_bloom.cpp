@@ -5,11 +5,11 @@
 // that already exist.
 //
 //   THE BLOOM  the headline is described TWICE: once sharp on top, and
-//     once underneath, blurred and blended with kPlus. There is no glow
-//     primitive and there does not need to be one — a halo is a dim
-//     spread copy of the thing that glows, and stating it that way keeps
-//     the halo's colour, weight and position exactly the headline's
-//     because it IS the headline. The blurred copy carries
+//     once underneath, blurred and blended with kPlus. `Effect::glow` and
+//     `styles::textGlow` name exactly this construction; spelling it out
+//     here is the point of the sketch, and it keeps the halo's colour,
+//     weight and position exactly the headline's because it IS the
+//     headline. The blurred copy carries
 //     `Cache::Texture`: it never changes, and a blur re-run every frame
 //     over a headline that is standing still is the most expensive
 //     nothing in a scene.
