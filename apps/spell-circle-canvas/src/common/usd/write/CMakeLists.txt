@@ -28,6 +28,10 @@ target_link_libraries(SigilUsdWrite
 # Links the library it exercises, the runtime probe it skips on, and USD
 # itself to inspect the authored stage.
 add_executable(usd_write_test test/WriteTest.cpp)
+# The library's own test directory holds the scratch path, the runtime
+# skip and the scene both doors are exercised over.
+target_include_directories(usd_write_test PRIVATE
+  ${CMAKE_CURRENT_LIST_DIR}/../test)
 target_link_libraries(usd_write_test PRIVATE SigilUsdWrite SigilUsdRuntime
   SigilGeometryKit GTest::gtest_main usd usdGeom usdShade sdf tf vt)
 add_test(NAME usd_write_test COMMAND usd_write_test)

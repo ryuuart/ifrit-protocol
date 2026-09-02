@@ -26,6 +26,10 @@ target_link_libraries(SigilUsdRead
 # writer whose stages it round-trips; the committed fixtures under
 # test/assets/ reach it through the IFRIT_USD_TEST_ASSET_DIR definition.
 add_executable(usd_read_test test/ReadTest.cpp)
+# The library's own test directory holds the scratch path, the runtime
+# skip and the scene both doors are exercised over.
+target_include_directories(usd_read_test PRIVATE
+  ${CMAKE_CURRENT_LIST_DIR}/../test)
 target_link_libraries(usd_read_test PRIVATE SigilUsdRead SigilUsdWrite
   SigilUsdRuntime SigilGeometryKit GTest::gtest_main)
 target_compile_definitions(usd_read_test PRIVATE

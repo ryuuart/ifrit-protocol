@@ -168,27 +168,38 @@ only). When the package is not found the top-level configure warns and
 leaves every target here out.
 
 Targets: `SigilUsdRuntime`, `SigilUsdWrite`, `SigilUsdRead`, the
-`SigilUsd` umbrella; `usd_runtime_test`, `usd_write_test` and
-`usd_read_test` (ctest); `usd_runtime_bench`, `usd_write_bench` and
-`usd_read_bench` (Google Benchmark, through the `benches` target and
-`scripts/bench_ledger.py`).
+`SigilUsd` umbrella; `usd_write_test` and `usd_read_test` (ctest);
+`usd_runtime_bench`, `usd_write_bench` and `usd_read_bench` (Google
+Benchmark, through the `benches` target and `scripts/bench_ledger.py`).
 
 ```sh
 ctest --test-dir build -C Debug -R usd_ --output-on-failure
 ```
 
-The write test authors stages into a temporary directory and inspects
-them through USD's own API — prim paths and their uniqueness, the mesh's
-attributes and subsets, shared material prims and the single texture
-file behind them, the instancer, the file formats an extension selects.
-The read test reads the hand-authored stages committed under
-`read/test/assets/` (an ASCII stage with a parent xform, a mixed
+Two test binaries, one per door, over one fixture header at
+`test/Fixture.h`: the scratch path an authored stage is written to —
+named for the process, so two runs never read each other's files — the
+skip every case opens with, and the two-slot ring both doors are
+exercised over. The runtime leaf carries no test binary of its own; its
+claim, that the probe answers and answers the same way twice, is
+asserted in `usd_read_test` beside the cases that skip on it.
+
+The write test authors stages into that scratch directory and inspects
+them through USD's own API, one case per subject: the crate bytes and
+the stage metrics a consumer reads them by, a mesh's points with one
+bound subset per slot, the same material binding one prim and writing
+one image file, stamps as a point instancer over one prototype, the
+ascii a `.usda` extension asks for, and the prim paths names are
+sanitized into. The read test reads the hand-authored stages committed
+under `read/test/assets/` (an ASCII stage with a parent xform, a mixed
 triangle-and-quad mesh with per-vertex `st` and `displayColor`, two
 subsets bound to two materials, a texture file beside it, and a point
 instancer, and a stage as another tool would author it: a sphere light
 with a shaping cone and no `sigil:` data, aimed by its own rotation
 under a translated parent, beside a camera with no focus distance) and
-round-trips a stage the writer produced — its meshes, its three kinds of
-emitter and its camera. Every test skips,
-with the reason, when the runtime probe says the plugins are absent, and
-every benchmark then registers nothing.
+round-trips stages the writer produced — its meshes, and one case each
+for the sun, the point light, the spot, the camera, and a dome light's
+panorama beside the stage and its orientation. Every case skips, with
+the reason, when the runtime probe says the plugins are absent, so a
+machine without them checks nothing here; every benchmark then registers
+nothing.

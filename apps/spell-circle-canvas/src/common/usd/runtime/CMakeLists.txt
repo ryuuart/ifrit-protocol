@@ -10,10 +10,9 @@ target_compile_features(SigilUsdRuntime PUBLIC cxx_std_20)
 target_include_directories(SigilUsdRuntime PUBLIC ${SIGIL_USD_INCLUDE_DIR})
 target_link_libraries(SigilUsdRuntime PRIVATE usd sdf tf)
 
-# Links only the library it exercises.
-add_executable(usd_runtime_test test/RuntimeTest.cpp)
-target_link_libraries(usd_runtime_test PRIVATE SigilUsdRuntime GTest::gtest_main)
-add_test(NAME usd_runtime_test COMMAND usd_runtime_test)
+# The probe's own claim — it answers, and answers the same way twice —
+# is asserted in usd_read_test, where a case that skips on it stands
+# beside it. This leaf carries no test binary of its own.
 
 # Google Benchmark (use a Release build). Not a test: it builds through the
 # `benches` target and runs through scripts/bench_ledger.py.
