@@ -149,8 +149,9 @@ sigil::weave::TextStyle ui(float size, SkColor4f c, float track = 0.0f) {
  *  Written out rather than calling choreograph's, which associates the
  *  same algebra the other way — `1 + (s+1)u³ + s·u²` here against
  *  `u²((s+1)u + s) + 1` there. The two are equal in exact arithmetic and
- *  a rounding apart in float, and this is the one the stored plate is
- *  drawn through. */
+ *  a rounding apart in float, so which of the two a placard's overshoot
+ *  runs through is a fact about the picture rather than an
+ *  implementation detail. */
 float easeOutBack(float t) {
   constexpr float s = 1.70158f;
   const float u = t - 1.0f;
@@ -181,8 +182,8 @@ struct PsxDoomFire : sketch::Sketch {
   uint32_t rng = 0x9E3779B9u;           // xorshift32 state, reseeded in setup()
 
   // --- clocks ---
-  double accumulator = 0.0;  // the fixed-timestep bank
-  uint64_t simSteps = 0;     // sim ticks since setup
+  bool stepped = false;   // the automaton advanced since the last picture
+  uint64_t simSteps = 0;  // sim ticks since setup
   uint64_t drawFrames = 0;
   double elapsed = 0.0;
   double drawHz = 60.0;
@@ -695,12 +696,21 @@ struct PsxDoomFire : sketch::Sketch {
         .child(box().width(6).height(6).fill(kAmber).opacity(&pulse));
   }
 
-  Element stats() {
+  /** The three rates are measurements THIS SKETCH TOOK OF ITS OWN
+   *  EXECUTION — how often the host called it and how many steps that
+   *  bought — so each goes through `ctx.measured`, which hands back the
+   *  real number normally and the nominal one when the host is capturing
+   *  for a diff. Left raw they differ from themselves between two runs of
+   *  the same binary, which is the false positive a pixel sweep cannot
+   *  tell from a regression. */
+  Element stats(const sketch::SketchContext& ctx) {
     char rate[32], draw[32], ratio[32];
-    std::snprintf(rate, sizeof rate, "%.2f Hz",
-                  elapsed > 0.5 ? (double)simSteps / elapsed : kSimHz);
-    std::snprintf(draw, sizeof draw, "%.1f Hz", drawHz);
-    std::snprintf(ratio, sizeof ratio, "%.2f\xc3\x97", drawHz / kSimHz);
+    const double simRate = ctx.measured(
+        elapsed > 0.5 ? (double)simSteps / elapsed : kSimHz, kSimHz);
+    const double drawRate = ctx.measured(drawHz, 60.0);
+    std::snprintf(rate, sizeof rate, "%.2f Hz", simRate);
+    std::snprintf(draw, sizeof draw, "%.1f Hz", drawRate);
+    std::snprintf(ratio, sizeof ratio, "%.2f\xc3\x97", drawRate / kSimHz);
     return box()
         .column()
         .gap(3)
@@ -724,7 +734,7 @@ struct PsxDoomFire : sketch::Sketch {
     ctx.background(kInk);
 
     rng = 0x9E3779B9u;
-    accumulator = 0.0;
+    stepped = false;
     simSteps = 0;
     drawFrames = 0;
     elapsed = 0.0;
@@ -749,12 +759,24 @@ struct PsxDoomFire : sketch::Sketch {
     seed();
     rasterize();
 
-    // ---- the fixed-timestep accumulator ---------------------------------
-    // Everything the automaton does — step, rasterize, strobe — happens on
-    // THIS clock, at 27 Hz, whatever the render rate is. `Ticker::addFixed`
-    // is the same construction as a Ticker member, with a catch-up clamp
-    // and a status flag; the accumulator is written out here because the
-    // automaton is the subject of the sketch.
+    // ---- the fixed-timestep clock ----------------------------------------
+    // Everything the automaton does happens on THIS clock, at 27 Hz,
+    // whatever the render rate is — which is the whole subject. The step
+    // count comes from TOTAL ELAPSED TIME rather than from a float
+    // accumulator compared against a step size: an accumulator drifts over
+    // a long run, so the same simulated moment lands on either side of a
+    // boundary depending on how fast the host drew, and a captured frame
+    // is then a function of the machine.
+    ctx.ticker.addFixed(
+        kSimHz,
+        [this] {
+          doFire();
+          ++simSteps;
+          stepped = true;
+          return true;
+        },
+        6);
+
     // NOTE: SketchContext is a per-call VALUE the host rebuilds every frame —
     // capturing it by reference would dangle. Capture the Composer, which is
     // host-owned and stable across the sketch's life.
@@ -763,23 +785,7 @@ struct PsxDoomFire : sketch::Sketch {
       elapsed += dt;
       ++drawFrames;
       if (dt > 0.0) drawHz = drawHz * 0.9 + (1.0 / dt) * 0.1;
-
-      accumulator += dt;
-      bool stepped = false;
-      int guard = 0;
-      while (accumulator >= kSimStep && guard++ < 6) {
-        accumulator -= kSimStep;
-        doFire();
-        ++simSteps;
-        stepped = true;
-      }
-      if (stepped) {
-        rasterize();
-        // Slots only: the readout and the stat block follow the SIM clock;
-        // describe() is not called, and no other cache is touched.
-        composer.renderSlot("readout", readout());
-        composer.renderSlot("stats", stats());
-      }
+      (void)composer;
 
       // Energy strobe: exponential decay with a 20 ms time constant, reset
       // to 1 on every simulation tick.
@@ -818,10 +824,22 @@ struct PsxDoomFire : sketch::Sketch {
 
     ctx.composer.render(describe());
     ctx.composer.renderSlot("readout", readout());
-    ctx.composer.renderSlot("stats", stats());
+    ctx.composer.renderSlot("stats", stats(ctx));
   }
 
-  void update(double, sketch::SketchContext&) override {}
+  /** THE PICTURE FOLLOWS THE SIM CLOCK. The automaton stepped or it did
+   *  not; when it did, the buffer is rasterized once and the two slots
+   *  that read it are re-rendered. It is here rather than in the ticker
+   *  because the stat block's numbers are measurements of this sketch's
+   *  own execution, and `ctx` is where the pin for those lives. Slots
+   *  only: describe() is not called and no other cache is touched. */
+  void update(double, sketch::SketchContext& ctx) override {
+    if (!stepped) return;
+    stepped = false;
+    rasterize();
+    ctx.composer.renderSlot("readout", readout());
+    ctx.composer.renderSlot("stats", stats(ctx));
+  }
 };
 
 SIGIL_SKETCH(
