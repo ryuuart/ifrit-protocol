@@ -141,8 +141,8 @@ constexpr bool kMeter = false;
 // down from it: `colorMul` can only darken, so the brightest state must be
 // the one the style owns.
 constexpr SkColor4f kVoid = {0.004f, 0.012f, 0.006f, 1};
-constexpr SkColor4f kHead = {0.90f, 1.0f, 0.92f, 1};
-constexpr SkColor4f kBedInk = {0.055f, 0.17f, 0.075f, 1};
+constexpr SkColor4f kHead = {0.97f, 1.0f, 0.98f, 1};
+constexpr SkColor4f kBedInk = {0.030f, 0.095f, 0.042f, 1};
 constexpr SkColor4f kLabel = {0.24f, 0.42f, 0.28f, 1};
 
 /** One falling curtain. The three differ in size (depth), rate and period,
@@ -158,12 +158,18 @@ struct FieldSpec {
   uint32_t seed;     ///< the field's own text draw AND its column scatter
   double churnSecs;  ///< one full re-roll cycle of the substitution
 };
+// THE COLUMNS REST. A drop lasts `durationMs` and re-opens every
+// `loopMs`, so the fraction of the period a column is lit is the ratio of
+// the two: at 1400 over 4600 the near field is alight a third of the
+// time, which fills the screen. The film's screens hold long dark gaps
+// and the eye reads individual columns, so the periods run to twice the
+// life and the field thins to streaks with black between them.
 constexpr FieldSpec kFields[] = {
-    {"rain-far", 16.0f, 130.0f, 1900.0f, 8400.0f, 0.55f, 0.0f, 0x5157A3B1u,
+    {"rain-far", 16.0f, 130.0f, 1900.0f, 14200.0f, 0.55f, 0.0f, 0x5157A3B1u,
      9.2},
-    {"rain-mid", 23.0f, 105.0f, 1650.0f, 6200.0f, 0.80f, 4.0f, 0xA70F3C55u,
+    {"rain-mid", 23.0f, 105.0f, 1650.0f, 11000.0f, 0.80f, 5.5f, 0xA70F3C55u,
      7.6},
-    {"rain-near", 32.0f, 80.0f, 1400.0f, 4600.0f, 1.0f, 7.0f, 0x2F81D9E7u, 6.4},
+    {"rain-near", 32.0f, 80.0f, 1400.0f, 8200.0f, 1.0f, 9.0f, 0x2F81D9E7u, 6.4},
 };
 constexpr int kFieldCount = 3;
 
@@ -229,8 +235,8 @@ void appendUtf8(std::string& out, char32_t c) {
 TextEffect streak() {
   return fx::keys({
       {0.000f, {}},
-      {0.090f, {}},
-      {0.220f, {.colorMul = {0.27f, 0.96f, 0.42f, 1}}},
+      {0.155f, {}},
+      {0.300f, {.colorMul = {0.27f, 0.96f, 0.42f, 1}}},
       {0.600f, {.colorMul = {0.09f, 0.50f, 0.16f, 1}}},
       {1.000f, {.alpha = 0.0f, .colorMul = {0.02f, 0.20f, 0.06f, 1}}},
   });
@@ -286,7 +292,6 @@ struct MatrixRain : sketch::Sketch {
   std::string fieldText[kFieldCount];
   int fieldCols[kFieldCount] = {};
   std::string bedText;
-  int totalGlyphs = 0;
 
   ch::Output<float> fall[kFieldCount];
   ch::Output<float> churn[kFieldCount];
@@ -301,8 +306,16 @@ struct MatrixRain : sketch::Sketch {
         type({.face = faceKana, .size = size, .color = color});
     style.shaping.verticalForm = sigil::weave::VerticalForm::kUpright;
     if (glowSigma > 0)
+      // THE HALATION. A phosphor screen does not draw a glyph, it excites
+      // a spot, and the spot spreads: the film's rain has a green bloom
+      // around every column heavy enough to fill the space between the
+      // strokes of a glyph. A crisp glyph with a faint edge is a printed
+      // one. The FAR field takes none of it — a blurred underlay is a
+      // second pass over every glyph in the plane, and the plane whose
+      // glyphs are sixteen pixels tall spends that budget without
+      // changing the picture.
       style.paint.addUnderlay(
-          sigil::weave::PaintLayer::glow(0x8030FF60, glowSigma, 1.2f));
+          sigil::weave::PaintLayer::glow(0xC040FF70, glowSigma, 1.9f));
     return style;
   }
 
@@ -339,7 +352,6 @@ struct MatrixRain : sketch::Sketch {
       }
     }
     if (outCols) *outCols = cols;
-    totalGlyphs += rows * cols;
   }
 
   /** One falling curtain: the streak on the declared looping schedule, the
@@ -443,9 +455,14 @@ struct MatrixRain : sketch::Sketch {
                         {1.0f, {kVoid.fR, kVoid.fG, kVoid.fB, 0.92f}}})));
 
     root.child(
-        text(toU8("SIMON WHITELEY'S DIGITAL RAIN \xc2\xb7 " +
-                  std::to_string(totalGlyphs) +
-                  " GLYPHS IN FOUR PLANES \xc2\xb7 KATAKANA AND DIGITS, "
+        // NO GLYPH COUNT. The number this caption used to carry was
+        // derived from a probe against the host's own fonts: stable per
+        // font set, and therefore the one thing on the page that could
+        // differ between two machines rendering the same declared moment.
+        // What it said — that there are four planes — is a fact about the
+        // declaration, so the declaration is what the caption states.
+        text(toU8("SIMON WHITELEY'S DIGITAL RAIN \xc2\xb7 FOUR PLANES OF "
+                  "HALF-WIDTH KATAKANA AND DIGITS, "
                   "MIRRORED PER GLYPH, HELD UPRIGHT \xc2\xb7 THE LIGHT FALLS, "
                   "THE TYPE STANDS STILL"),
              type({.face = faceLabel,
@@ -478,7 +495,6 @@ struct MatrixRain : sketch::Sketch {
 
     const std::u32string kana = rainKana();
     const std::u32string west = rainWest();
-    totalGlyphs = 0;
     for (int j = 0; j < kFieldCount; ++j) {
       const FieldSpec& f = kFields[j];
       buildField(ctx, kana, west, f.size, f.seed, fieldText[j], &fieldCols[j]);
