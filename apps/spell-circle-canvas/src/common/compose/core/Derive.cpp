@@ -88,8 +88,65 @@ bool borrowIsCyclic(const Instance& inst, Instance* target) {
 bool Composer::Impl::resolveDerived() {
   bool relayout = false;
   for (Instance* inst : flowInstances) relayout |= deriveFlow(*inst);
+  relayout |= resolveThreads();
   for (Instance* inst : routedInstances) deriveRoute(*inst);
   return relayout;
+}
+
+/** ONE STORY THROUGH AS MANY FRAMES AS IT WAS GIVEN.
+ *
+ *  Every other derived thing borrows a rect or a path from a node's BOX;
+ *  a frame borrows where the frame before it STOPPED, which is an answer
+ *  of that frame's own text layout rather than of its geometry. So the
+ *  chain is walked here, in chain order, and each frame is laid out again
+ *  at the measure it already resolved to before the next one is asked
+ *  what it inherits — a chain of any length therefore settles inside this
+ *  one pass, rather than one link per convergence round.
+ *
+ *  A CHAIN'S HEAD is a frame nothing threads into. A frame that threads
+ *  into itself, or into a cycle, is dropped at the point the walk revisits
+ *  it, which is the same rule the borrow family applies to a cyclic key. */
+bool Composer::Impl::resolveThreads() {
+  if (threadedInstances.empty()) return false;
+  bool moved = false;
+  // Which frames are somebody's target: the rest are chain heads.
+  std::set<const Instance*> threadedInto;
+  for (Instance* inst : threadedInstances) {
+    auto found = byKey.find(inst->desc->textData->threadTo);
+    if (found != byKey.end()) threadedInto.insert(found->second);
+  }
+  std::set<const Instance*> visited;
+  for (Instance* head : threadedInstances) {
+    if (threadedInto.count(head)) continue;  // not a head
+    uint32_t cursor = 0;
+    for (Instance* frame = head; frame; ) {
+      if (!visited.insert(frame).second) break;  // a cycle: stop where it closes
+      if (frame->threadCursor != cursor) {
+        frame->threadCursor = cursor;
+        frame->contentRev++;
+        if (frame->yoga) YGNodeMarkDirty(frame->yoga);
+        moved = true;
+      }
+      // Re-fill at the box this frame RESOLVED to, so the next link reads
+      // a remainder that belongs to this cursor. The box and not the
+      // measure: a frame is bounded by its own depth, and the depth is an
+      // answer of the layout that just ran.
+      const SkRect box = instanceRect(*frame);
+      if (box.isFinite() && box.width() > 0)
+        layoutText(*frame, box.width(), box.height());
+      cursor = frame->textLayout.overflowed()
+                   ? frame->textLayout.firstUnplacedWord
+                   : (frame->paragraph
+                          ? (uint32_t)frame->paragraph->words().size()
+                          : cursor);
+      const detail::TextData* text =
+          frame->desc && frame->desc->textData ? &*frame->desc->textData : nullptr;
+      if (!text || text->threadTo.empty()) break;
+      auto next = byKey.find(text->threadTo);
+      frame = next == byKey.end() ? nullptr : next->second;
+    }
+  }
+  return moved;
 }
 
 bool Composer::Impl::deriveFlow(Instance& inst) {

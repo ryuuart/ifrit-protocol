@@ -7,6 +7,7 @@
 add_library(SigilWeaveKit STATIC
   Hyphenation.cpp
   Labels.cpp
+  LineTables.cpp
   SampleText.cpp
   ${SIGIL_WEAVE_INCLUDE_DIR}/sigilweave/kit/SigilWeaveKit.h
   ${SIGIL_WEAVE_INCLUDE_DIR}/sigilweave/kit/RebuildGuard.h
@@ -16,6 +17,7 @@ add_library(SigilWeaveKit STATIC
   ${SIGIL_WEAVE_INCLUDE_DIR}/sigilweave/kit/GlyphBuckets.h
   ${SIGIL_WEAVE_INCLUDE_DIR}/sigilweave/kit/Hyphenation.h
   ${SIGIL_WEAVE_INCLUDE_DIR}/sigilweave/kit/Labels.h
+  ${SIGIL_WEAVE_INCLUDE_DIR}/sigilweave/kit/LineTables.h
   ${SIGIL_WEAVE_INCLUDE_DIR}/sigilweave/kit/Palette.h
   ${SIGIL_WEAVE_INCLUDE_DIR}/sigilweave/kit/SampleText.h
   ${SIGIL_WEAVE_INCLUDE_DIR}/sigilweave/kit/Timing.h

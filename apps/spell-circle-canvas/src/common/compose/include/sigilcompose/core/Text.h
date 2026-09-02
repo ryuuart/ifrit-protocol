@@ -14,6 +14,7 @@
 #include <sigilcompose/core/Erased.h>
 #include <sigilcompose/core/Motion.h>
 #include <sigilcore/compute/Noise.h>
+#include <sigilweave/layout/LayoutOptions.h>
 #include <sigilweave/layout/PositionedRun.h>
 #include <sigilweave/paragraph/Paragraph.h>
 #include <sigilweave/style/PaintStyle.h>
@@ -1060,6 +1061,122 @@ struct Beat {
   bool operator==(const Beat&) const = default;
 };
 
+/** A READING SET BESIDE THE TYPE IT READS — furigana over a compound,
+ *  emphasis dots down a column, a gloss under a phrase.
+ *
+ *  IT IS PART OF THE TEXT, not a thing standing next to it, and the one
+ *  fact that makes it so is `reserve`: the band the reading occupies is
+ *  stated BEFORE the base is laid out, from the annotation's own metrics,
+ *  and goes into the base's strut. The base is then broken and placed once
+ *  with the room already there, and the readings are placed on the result.
+ *  Nothing chases anything, and there is no round of convergence to run
+ *  out of. `kit::annotate` is the other half of the idea — a sibling that
+ *  reserves nothing and stands beside the finished text — and marginalia,
+ *  callouts and word labels belong there.
+ *
+ *  MONO, GROUP AND JUKUGO RUBY ARE THE UNIT CHOICE and nothing else.
+ *  `unit::Cluster` gives one reading per character, which is mono ruby;
+ *  `unit::Word` gives one per word, which is group ruby; and a base that
+ *  BREAKS ACROSS A LINE OR A COLUMN reports its units on both, so its
+ *  reading splits with it, in proportion to the base's advance either
+ *  side. That is not a special case here — it is what reading the units off
+ *  the placement means.
+ *
+ *  THE SIZE IS THE ANNOTATION'S OWN. `style` is a whole TextStyle, and
+ *  there is no fraction of the base's size anywhere in the library: a ruby
+ *  set at half the base is a decision, and decisions of that kind are the
+ *  caller's. */
+struct Annotation {
+  /** Which of the base's units are annotated. */
+  Selector where;
+  /** The granularity the readings map to — cluster for mono ruby, word for
+   *  group ruby, sentence or line for a note over a passage. */
+  Unit unit = Unit::Cluster;
+  /** One reading per addressed unit, in draw order. A LIST OF ONE is used
+   *  for every unit, which is how a row of identical emphasis marks is
+   *  written; a list shorter than the units leaves the rest bare. */
+  std::vector<std::u8string> readings;
+  /** The reading's own type. */
+  sigil::weave::TextStyle style;
+  /** Which side of the type it stands on: `Before` is above a line and to
+   *  the RIGHT of a column, `After` below a line and to the LEFT of one —
+   *  the sides each writing mode reads its furniture on. */
+  enum class Side { Before, After };
+  Side side = Side::Before;
+  /** Standoff from the type's own band, px. */
+  float gap = 0;
+  /** Whether the band this reading occupies is put into the base's strut
+   *  before the base is laid out. False sets the reading over the type it
+   *  reads, which is what an emphasis dot does and a furigana never
+   *  does. */
+  bool reserve = true;
+
+  bool operator==(const Annotation& other) const {
+    return where == other.where && unit == other.unit &&
+           readings == other.readings && style == other.style &&
+           side == other.side && gap == other.gap && reserve == other.reserve;
+  }
+};
+
+/** ONE UNIT OF A LAID-OUT TEXT, as everything beside the text reads it —
+ *  what `Composer::units` reports and what every annotation is placed
+ *  from.
+ *
+ *  A `Beat` is the same rect under a schedule: it needs an `fx()` track, a
+ *  stagger and a progress, and it answers about a cascade. This answers
+ *  about the TEXT — where a word, a cluster or a line landed, on which
+ *  baseline, in which writing mode, set in which style — for a selector and
+ *  a unit, with no track anywhere. It is read off the placement rather than
+ *  measured again, so it follows a wrapped line, a mixed-style run's own
+ *  size, a path run's curve and a vertical column's axis by construction.
+ *
+ *  ONE ENTRY PER UNIT, in draw order. A selector that addresses several
+ *  units reports several entries — which is the whole difference from
+ *  `mark()`, whose one rect is the union of them all. */
+struct TextUnit {
+  /** The unit's laid-out rect in the node's own space: the axis-aligned
+   *  bound of the advance boxes of the glyphs the selector addressed in
+   *  it. */
+  SkRect rect = SkRect::MakeEmpty();
+  /** The unit's ordinal among those the selector addressed, from 0 in draw
+   *  order. */
+  uint32_t index = 0;
+  /** HORIZONTAL: the baseline the unit stands on, in y. VERTICAL: the
+   *  central axis of the column it stands in, in x — a column has no
+   *  baseline, and its glyphs centre themselves across that axis. */
+  float axis = 0;
+  /** The flow's band depth: the line's pitch, which in a vertical setting
+   *  is the width of the column. */
+  float pitch = 0;
+  /** The band the unit's own face occupies either side of its baseline,
+   *  from the face's metrics rather than from its ink — so a unit of
+   *  lowercase and a unit of capitals report the same band. */
+  float ascent = 0, descent = 0;
+  /** Which way the passage runs. */
+  sigil::weave::WritingMode writingMode =
+      sigil::weave::WritingMode::kHorizontal;
+  /** How the unit stands in its column: upright, turned with the column,
+   *  or set across it. `kAuto` in a horizontal passage, where the question
+   *  does not arise. */
+  sigil::weave::VerticalForm verticalForm = sigil::weave::VerticalForm::kAuto;
+  /** The text the unit covers, as UTF-16 units into the node's
+   *  paragraph. */
+  sigil::weave::CharRange range;
+  /** The style the unit's first glyph is set in — the annotation's cue for
+   *  a size of its own, since the library decides no typographic ratio. */
+  sigil::weave::TextStyle style;
+  /** The flow line (or COLUMN) the unit landed on. */
+  int lineIndex = 0;
+
+  bool operator==(const TextUnit& other) const {
+    return rect == other.rect && index == other.index && axis == other.axis &&
+           pitch == other.pitch && ascent == other.ascent &&
+           descent == other.descent && writingMode == other.writingMode &&
+           verticalForm == other.verticalForm && range == other.range &&
+           style == other.style && lineIndex == other.lineIndex;
+  }
+};
+
 // ---------------------------------------------------------------------------
 // MIXED TEXT — one value, several styles
 //
@@ -1197,6 +1314,65 @@ class RichText {
   bool m_stylesExplicit = false;  // styles() gave it; env cannot replace it
 };
 
+/** A TEXT FILLED INTO AS MANY FRAMES AS IT IS GIVEN.
+ *
+ *      Story article(rich(body).add(u8"…"));
+ *      article.paragraphs({heading, para, para});
+ *
+ *      root.child(frame(article).key("a").thread("b").width(Dim(300)))
+ *          .child(frame(article).key("b").thread("c").width(Dim(300)))
+ *          .child(frame(article).key("c").width(Dim(300)).ellipsis(u8"…"));
+ *
+ *  A story is CONTENT PLUS ITS BLOCK STYLES and nothing else — it holds no
+ *  layout, no cursor and no frame. Each frame of a chain fills from where
+ *  the one before it stopped, and the cut moves as any frame's measure
+ *  moves. The BLOCKS ARE NUMBERED FROM THE STORY'S START, so the third
+ *  block is set the same way whichever frame it happens to land in.
+ *
+ *  Pitch, writing mode and block styles are the story's and a frame cannot
+ *  override them: a frame that wants a different pitch is a different
+ *  story. What a frame decides is its own geometry — its box, its
+ *  exclusions, a silhouette it flows around — and whether it is the last,
+ *  which is the one that sets an ellipsis. Overflow on any other frame is
+ *  the normal case and draws nothing.
+ *
+ *  It is a VALUE: two stories describing the same runs in the same styles
+ *  are equal, so a component that rebuilds its story every describe prunes
+ *  exactly like a static leaf. */
+class Story {
+ public:
+  Story() = default;
+  /** A story over mixed content. */
+  explicit Story(RichText content) : m_content(std::move(content)) {}
+  /** A story over one styled string. */
+  Story(std::u8string utf8, sigil::weave::TextStyle style)
+      : m_content(RichText(std::move(style))) {
+    m_content.add(m_contentScratch = std::move(utf8));
+  }
+
+  /** How each BLOCK of the story is set, in block order — the same value
+   *  `Element::paragraphs` takes, and stated once for every frame. */
+  Story& paragraphs(std::vector<sigil::weave::ParagraphStyle> blocks) {
+    m_blocks = std::move(blocks);
+    return *this;
+  }
+
+  [[nodiscard]] const RichText& content() const { return m_content; }
+  [[nodiscard]] std::span<const sigil::weave::ParagraphStyle> blocks() const {
+    return m_blocks;
+  }
+  [[nodiscard]] bool empty() const { return m_content.empty(); }
+
+  bool operator==(const Story& other) const {
+    return m_content == other.m_content && m_blocks == other.m_blocks;
+  }
+
+ private:
+  RichText m_content;
+  std::u8string m_contentScratch;
+  std::vector<sigil::weave::ParagraphStyle> m_blocks;
+};
+
 /** Starts a mixed-text value whose default is @p base — see RichText. */
 [[nodiscard]] RichText rich(sigil::weave::TextStyle base = {});
 
@@ -1258,6 +1434,21 @@ class TextPainterOps {
   /** WHERE EACH mark() ANCHORS: refills the instance's mark rects from the
    *  layout the letters are drawn from, one rect per anchor. */
   virtual void marks(detail::Instance& inst) const = 0;
+  /** WHERE THE UNITS A SELECTOR ADDRESSES LANDED, one entry each, read off
+   *  the same layout the letters are drawn from — the query behind
+   *  `Composer::units`. */
+  virtual std::vector<TextUnit> units(detail::Instance& inst,
+                                      const Selector& selector,
+                                      Unit unit) const = 0;
+  /** LAYS OUT EVERY READING this text carries against the layout its
+   *  letters are drawn from, and leaves the results on the instance for
+   *  the kernel to draw. */
+  virtual void annotations(detail::Instance& inst) const = 0;
+  /** THE BAND THIS TEXT'S RESERVING ANNOTATIONS NEED, from their own
+   *  metrics alone — asked BEFORE the text is laid out, which is what
+   *  makes a reservation a layout input rather than a cycle. */
+  virtual sigil::weave::ReservedBand reservedBand(
+      detail::Instance& inst, std::span<const Annotation> annotations) const = 0;
   /** WHICH TEXT A SELECTOR ADDRESSES, as UTF-16 ranges — sorted, merged,
    *  non-overlapping. `sel::line` reads @p lines, or @p columns where the
    *  passage is vertical; `sel::style` reads @p named. */
@@ -1299,5 +1490,17 @@ class TextPainterOps {
  *  from structural equality because it is the same engine on every text
  *  that has one. */
 using TextPainter = Erased<TextPainterOps>;
+
+namespace detail {
+/** THE ENGINE WITHOUT A DESCRIPTION TO CARRY IT. A text leaf installs the
+ *  painter when it dresses its type, and one that dresses nothing has
+ *  none — which is right for drawing, and wrong for a query that asks
+ *  where a plain passage's words landed. The typography tier registers
+ *  itself here as it is linked in, and the read-back queries fall through
+ *  to it. Null in a program that links the kernel without that tier, where
+ *  those queries answer empty, as an unknown key does. */
+void registerTextEngine(const TextPainterOps* engine);
+[[nodiscard]] const TextPainterOps* registeredTextEngine();
+}  // namespace detail
 
 }  // namespace sigil::compose

@@ -442,10 +442,26 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
   // …and the marks' boundary, which is the SAME OBJECT whenever one mask
   // gates both — the overwhelmingly common case, and the reason a whole-node
   // spans gate walks the boundary once rather than twice.
-  SkPath marksPath = !marksShow ? fullOutline
-                     : (surfaceShow && *marksShow == *surfaceShow)
+  // WHAT THE DECORATIONS DRESS. Every decoration is drawn across an
+  // outline, and a text leaf whose boundary is its GLYPHS hands them the
+  // glyph contours the placement produced instead of its box — which is
+  // the whole of what makes a chrome or a bevel land on letters. The
+  // SURFACE keeps the node's own shape either way: a fill is what the box
+  // is filled with, not what its letters are cut from.
+  const SkPath* decorationBase = &fullOutline;
+  if (node.boundary == Boundary::Glyphs && node.kind == Kind::Text &&
+      inst.paragraph) {
+    if (inst.glyphOutlineRev != inst.measuredRev) {
+      inst.glyphOutline = inst.textLayout.glyphOutline(*inst.paragraph);
+      inst.glyphOutlineRev = inst.measuredRev;
+    }
+    if (!inst.glyphOutline.isEmpty()) decorationBase = &inst.glyphOutline;
+  }
+  SkPath marksPath = !marksShow ? *decorationBase
+                     : (surfaceShow && *marksShow == *surfaceShow &&
+                        decorationBase == &fullOutline)
                          ? surfacePath
-                         : gateOutline(arith, fullOutline, *marksShow);
+                         : gateOutline(arith, *decorationBase, *marksShow);
   const bool trimmed = cut;
 
   // The MARKS' boundary is what a decoration receives: every decoration
@@ -849,8 +865,15 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
                                    sigil::weave::TextAlignment::kStart) &&
                (inst.measuredForWidth != bounds.width() ||
                 (verticalRun && inst.measuredForHeight != bounds.height()))))
+            // A FRAME is bounded by its own depth either way round: its
+            // remainder is what the next frame of its chain begins at, and
+            // a re-layout here at an unbounded depth would place the whole
+            // story and leave the next frame nothing.
             layoutText(inst, bounds.width(),
-                       verticalRun ? bounds.height() : 1.0e6f);
+                       verticalRun || (node.textData &&
+                                       !node.textData->threadTo.empty())
+                           ? bounds.height()
+                           : 1.0e6f);
           // Misprint echoes of the TEXT, under the real pass (fx() text
           // draws its own buckets — echoes skip it by contract).
           if (!echoesOf(node).empty() && !hasTextFx(inst)) {
@@ -888,6 +911,13 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
           } else {
             inst.textLayout.drawBatched(&canvas, *inst.paragraph, glyphPaint);
           }
+          // The readings beside the type. They stand AT REST while the
+          // letters move, as a mark and a band do: a reading that travelled
+          // with a cascade would be reading a letter that had left.
+          for (const Instance::PlacedAnnotation& reading :
+               inst.textAnnotations)
+            if (reading.paragraph)
+              reading.layout.drawBatched(&canvas, *reading.paragraph);
         }
         break;
       case Kind::Image:

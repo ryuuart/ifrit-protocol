@@ -141,6 +141,94 @@ void detail::resolveTextMarks(Composer::Impl& impl, Instance& inst) {
   }
 }
 
+std::vector<TextUnit> detail::unitsOfText(Composer::Impl& impl, Instance& inst,
+                                          const Selector& selector, Unit unit) {
+  if (!inst.desc || !inst.paragraph) return {};
+  const sigil::weave::Paragraph& paragraph = *inst.paragraph;
+  const TextData* textData = inst.desc->textData ? &*inst.desc->textData : nullptr;
+  const TextPath* onPath =
+      textData && textData->onPath ? &*textData->onPath : nullptr;
+  if (onPath) {
+    const SkRect rect = impl.instanceRect(inst);
+    ensurePathLayout(impl, inst, *onPath, {rect.width(), rect.height()});
+    if (!textStateOf(inst).pathValid) return {};
+  }
+  const sigil::weave::ParagraphLayout& layout =
+      onPath ? textStateOf(inst).pathLayout : inst.textLayout;
+
+  static thread_local detail::GlyphStructure structure;
+  structure.build(layout, paragraph);
+  if (structure.glyphs.empty()) return {};
+  const auto count = (uint32_t)structure.glyphs.size();
+  const std::vector<uint8_t> selected = detail::resolveSelection(
+      selector, structure, paragraph, inst.textNamedRuns);
+  const std::vector<uint32_t>& unitOf = structure.unitOf[(size_t)unit];
+  const bool vertical =
+      paragraph.writingMode() == sigil::weave::WritingMode::kVerticalRL;
+
+  const PoseContext poseCtx{&inst, &layout, onPath, onPath != nullptr, 0.0f};
+  std::vector<std::pair<BandKey, GlyphBand>> bandMemo;
+  std::vector<TextUnit> units;
+  // The source unit AND the line it landed on. A base that broke across a
+  // line or a column is two entries, on the two lines — which is what lets
+  // a reading split with its base, and is a truer answer than one rect
+  // spanning a break could ever be.
+  std::vector<std::pair<uint32_t, int>> keys;
+  uint32_t ordinal = 0;
+  sigil::weave::forEachPlacedGlyph(
+      layout, paragraph, [&](const sigil::weave::PlacedGlyph& placed) {
+        const uint32_t g = ordinal++;
+        if (g >= count || !selected[g]) return;
+        RestPose pose;
+        if (!restPoseOf(poseCtx, placed, pose)) return;
+        const GlyphBand band = bandOf(placed.shaped, bandMemo);
+        const SkRect box = glyphBox(placed, pose, band);
+        const uint32_t source = g < unitOf.size() ? unitOf[g] : 0;
+        for (size_t i = keys.size(); i-- > 0;)
+          if (keys[i].first == source && keys[i].second == placed.lineIndex) {
+            TextUnit& existing = units[i];
+            existing.rect.join(box);
+            existing.range.start = std::min(existing.range.start, placed.textIndex);
+            existing.range.end =
+                std::max(existing.range.end, placed.textIndex + 1);
+            return;
+          }
+        TextUnit entry;
+        entry.rect = box;
+        entry.index = (uint32_t)units.size();
+        // A COLUMN HAS NO BASELINE: its glyphs centre themselves across the
+        // column's axis, so that axis is what the annotation beside them
+        // reads. A line reports the baseline they stand on.
+        entry.axis = vertical ? pose.centre.x() : placed.rest.y();
+        entry.pitch = layout.linePitch;
+        entry.ascent = band.ascent;
+        entry.descent = band.descent;
+        entry.writingMode = paragraph.writingMode();
+        // The form is what the placement did with the glyph: a run shaped
+        // top-to-bottom stands upright, one whose placement was baked per
+        // glyph is turned with the column, and a horizontal run standing in
+        // a column is set across it.
+        if (!vertical)
+          entry.verticalForm = sigil::weave::VerticalForm::kAuto;
+        else if (placed.transformed)
+          entry.verticalForm = sigil::weave::VerticalForm::kRotated;
+        else if (placed.shaped && placed.shaped->vertical)
+          entry.verticalForm = sigil::weave::VerticalForm::kUpright;
+        else
+          entry.verticalForm = sigil::weave::VerticalForm::kTateChuYoko;
+        entry.range = {placed.textIndex, placed.textIndex + 1};
+        for (const sigil::weave::StyleSpan& span : paragraph.spans())
+          if (placed.textIndex < span.end) {
+            entry.style = span.style;
+            break;
+          }
+        entry.lineIndex = placed.lineIndex;
+        keys.emplace_back(source, placed.lineIndex);
+        units.push_back(std::move(entry));
+      });
+  return units;
+}
+
 namespace {
 /** ONE TRACK'S SCHEDULE RESOLVED FOR A QUERY — the front half `beatsOfTrack`
  *  and `cascadeSpanOfTrack` share: which layout the letters are on, which

@@ -29,6 +29,7 @@
 #include <functional>
 #include <memory>
 #include <ranges>
+#include <span>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -377,6 +378,24 @@ class Element {
    *  a sweep reaches them. The ONE thing the pass form does that the mask
    *  spelling does not: it CLAIMS its run and joins the overlap check. */
   Element& stroke(Spans where, Decoration what, std::string name = {});
+  /** WHAT THIS NODE'S DECORATIONS DRESS — its own shape (the default), or,
+   *  on a text leaf, THE OUTLINE OF ITS GLYPHS.
+   *
+   *      text(u8"CHROME", heavy).boundary(Boundary::Glyphs).style(styles::chrome())
+   *
+   *  A decoration was never about a box: it is drawn across an outline, and
+   *  which outline it gets is this. So every layer style already written —
+   *  bevel, inner shadow, outer glow, gloss, the aqua and chrome presets —
+   *  works on letters the moment the letters are the outline, with no new
+   *  preset and no second code path.
+   *
+   *  The glyph outline is the placement's own: it follows a wrapped line, a
+   *  mixed-style run's size, a path run's curve and a vertical column's
+   *  axis, because it is read off the placed glyphs rather than measured
+   *  again. On a node that is not text it means the node's shape, which is
+   *  what every node means by default. */
+  Element& boundary(Boundary source);
+
   /** Apply a whole LayerStyle (preset or hand-built): its `under` layers
    *  append as backgrounds, `over` as foregrounds — one call dresses the
    *  node in aqua gel / y2k chrome / any bundled treatment. Composable
@@ -592,6 +611,102 @@ class Element {
    *  node is WIDER than its text (explicit width, grow, stack stretch);
    *  intrinsic-width text has nothing to align within. */
   Element& textAlign(sigil::weave::TextAlignment a);
+
+  /** Text leaves only: THE FRAME THIS ONE FILLS INTO — the next link of a
+   *  chain over one `Story`.
+   *
+   *      root.child(frame(article).key("a").thread("b").width(Dim(280)))
+   *          .child(frame(article).key("b").thread("c").width(Dim(280)))
+   *          .child(frame(article).key("c").width(Dim(280)));
+   *
+   *  Each frame fills from where the one before it stopped, so the cut
+   *  moves as any frame's measure moves. A frame that threads somewhere
+   *  has a remainder BY DESIGN: overflow is the normal case there and
+   *  draws no marker, whatever ellipsis the leaf asked for. The last frame
+   *  of a chain is the one that threads nowhere, and it keeps its.
+   *
+   *  A frame nothing threads into is a chain's head and starts at the
+   *  story's first word. A chain that closes on itself stops where it
+   *  closes, as a cyclic borrow does. */
+  Element& thread(std::string_view key);
+
+  /** Text leaves only: A READING SET BESIDE THE TYPE — furigana over a
+   *  compound, emphasis dots down a column, a gloss under a phrase.
+   *
+   *      text(passage, body)
+   *          .writingMode(WritingMode::kVerticalRL)
+   *          .annotate({.where = sel::text(u8"漢字"),
+   *                     .unit = unit::Word,          // group ruby
+   *                     .readings = {u8"かんじ"},
+   *                     .style = furigana})
+   *
+   *  A reading is PART OF THE TEXT rather than a thing standing next to
+   *  it: where it reserves, the band it occupies goes into the base's
+   *  strut BEFORE the base is broken, so the base is laid out once with the
+   *  room already there and the readings are then placed on the result.
+   *  `kit::annotate` is the other half of the idea, and marginalia, word
+   *  labels and callouts belong there — a sibling that reserves nothing
+   *  and reads the finished text.
+   *
+   *  Mono, group and jukugo ruby are the `unit` choice, and a base that
+   *  breaks across a line or a column splits its reading with it, in
+   *  proportion to the base's advance either side. See `Annotation`. */
+  Element& annotate(Annotation reading);
+
+  /** Text leaves only: how each BLOCK of this passage is set — one entry
+   *  per block, in block order, a block being the text between two hard
+   *  breaks.
+   *
+   *      text(rich(body).add(u8"A heading\nand its body text\nand more"))
+   *          .paragraphs({headingStyle, bodyStyle})
+   *
+   *  A block past the end of the list is set by this leaf's own alignment,
+   *  justification, hyphenation and tab stops alone, so one entry styles
+   *  the first block and leaves the rest plain — which is what a heading
+   *  over a body wants. `sigil::weave::ParagraphStyle` carries the leading,
+   *  the air before and after, the four indents, the keeps, and whichever
+   *  of the four layout-wide settings the block overrides; SigilWeave's
+   *  README is the canon for what each one means. */
+  Element& paragraphs(std::vector<sigil::weave::ParagraphStyle> blocks);
+  /** The same, by NAME, resolved through the `ParagraphStyleSet` the
+   *  environment offers (`env::Provide<sigil::weave::ParagraphStyleSet>`).
+   *
+   *  Resolution happens where this is written, inside the author's describe
+   *  scope, so the finished description holds real styles and depends on no
+   *  scope that has since ended — the same discipline `rich().add(text,
+   *  name)` follows for character styles. A name the set does not carry
+   *  resolves to the set's base entry, and with no set in scope every name
+   *  resolves to a plain block. */
+  Element& paragraphs(std::span<const std::string_view> names);
+  /** Every block of this passage set alike. */
+  Element& paragraph(sigil::weave::ParagraphStyle style);
+
+  /** Text leaves only: WHERE THE FIRST BASELINE SITS below the top of this
+   *  leaf's box — the first line's own ascent (the default), its cap
+   *  height, its x-height, its whole pitch, or `offset` outright. Every
+   *  later baseline follows at its own block's pitch, so this moves the
+   *  whole passage rather than its first line. Two leaves of different type
+   *  seated on cap height start their text at the same height, which is
+   *  what a page ruled against a grid needs and an ascent cannot give. */
+  Element& firstBaseline(sigil::weave::FrameOptions::FirstBaseline rule,
+                         float offset = 0);
+  /** Text leaves only: what becomes of the room left over down this leaf's
+   *  box — nothing (the default), half above and half below, all above, or
+   *  spread BETWEEN the lines as extra leading, at most
+   *  `maximumInterlineSpacing` per gap. It reads the leaf's resolved
+   *  height, so a leaf sized by its own content has nothing left over and
+   *  nothing to spend. */
+  Element& distribute(sigil::weave::FrameOptions::Distribute rule,
+                      float maximumInterlineSpacing = 0);
+  /** Text leaves only: how a justified line spends what it has — the word
+   *  spacing it aims at and its elasticity, then letter spacing, then a
+   *  horizontal scale on the glyphs, each bounded by its own two limits.
+   *  Inert unless the passage justifies. */
+  Element& justification(sigil::weave::JustificationOptions spec);
+  /** Text leaves only: where a tab takes the pen, what the stop pins there
+   *  — the start of its cell, its end, its centre, or a named character —
+   *  and the leader set across the gap it opened. */
+  Element& tabStops(sigil::weave::TabStopOptions stops);
 
   /** Text leaves only: lay this passage out in VERTICAL-RL CJK columns
    *  (`sigil::weave::WritingMode::kVerticalRL`) instead of horizontal

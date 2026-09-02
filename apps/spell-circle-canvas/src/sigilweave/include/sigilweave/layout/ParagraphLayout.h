@@ -20,6 +20,7 @@
  */
 
 #include <include/core/SkCanvas.h>
+#include <include/core/SkPath.h>
 #include <include/core/SkPoint.h>
 
 #include <cstdint>
@@ -121,6 +122,21 @@ struct ParagraphLayout {
   [[nodiscard]] std::vector<LineMetrics> lineMetrics(
       const Paragraph& paragraph) const;
 
+  /** Returns the OUTLINE OF EVERY GLYPH this layout placed, as one path in
+   * the layout's own coordinate space.
+   *
+   * Not the ink bounds and not the advance boxes: the actual contours, at
+   * the positions the placement put them, including the per-glyph
+   * transforms a rotated or curved run baked. It is what anything that
+   * dresses letters rather than a box needs — a bevel, a glow, a chrome, a
+   * cut-out — and it is derived, not stored: nothing is recorded during
+   * layout and a caller who never asks pays nothing.
+   *
+   * Glyphs a face reports no path for (bitmap and colour glyphs) are
+   * absent, because they have no contour to give.
+   */
+  [[nodiscard]] SkPath glyphOutline(const Paragraph& paragraph) const;
+
   /** Returns per-COLUMN geometry for a vertical layout, ascending by column
    * index — what lineMetrics() is for a horizontal one, and the only one of
    * the two that answers in a vertical paragraph.
@@ -135,13 +151,30 @@ struct ParagraphLayout {
       const Paragraph& paragraph) const;
 };
 
-/** Lays `paragraph` out into `geometry`. Ensures the paragraph is shaped
- * (cache-hot when little changed), breaks it into lines with the configured
- * breaker, and returns positioned runs backed by shared word blobs.
+/** Lays `paragraph` out into `geometry`, starting at `firstWord`. Ensures
+ * the paragraph is shaped (cache-hot when little changed), breaks it into
+ * lines with the configured breaker, and returns positioned runs backed by
+ * shared word blobs.
+ *
+ * `firstWord` IS THE RESUME POINT, and it is the same number the pass
+ * before it reported as `firstUnplacedWord` — which is what makes a text
+ * fill as many frames as it is given. One paragraph, shaped once, filled
+ * frame after frame: every pass reads the same word list and the same warm
+ * shape cache, and a word index is a sound cursor because a Word's extent
+ * is a fact about the text rather than about any one layout of it. Blocks
+ * are numbered from the START of the text however far in a pass begins, so
+ * `ParagraphLayoutOptions::blocks` addresses the same block in every frame
+ * of a chain.
+ *
+ * OVERFLOW IS THE NORMAL CASE HERE and is not a cut: a pass that ran out
+ * of geometry reports where it stopped and draws no marker unless the
+ * caller asked for one. A frame that means to be the last of a chain is
+ * the one that sets `OverflowOptions::ellipsis`.
  */
 ParagraphLayout layoutParagraph(FontContext& fontContext, Paragraph& paragraph,
                                 FlowGeometry& geometry,
-                                const ParagraphLayoutOptions& options = {});
+                                const ParagraphLayoutOptions& options = {},
+                                uint32_t firstWord = 0);
 
 /**
  * Lays a paragraph out as one unconstrained horizontal line whose baseline

@@ -292,6 +292,26 @@ struct TextPath {
   bool exactTangent = false;
 };
 
+/** WHAT A NODE'S DECORATIONS DRESS.
+ *
+ *  Every decoration — a bevel, an inner shadow, a glow, a gloss, a
+ *  keyline, a whole layer style — is drawn ACROSS AN OUTLINE, and the
+ *  outline it is handed has always been the node's own shape. On a text
+ *  leaf that shape is a rectangle, which is why a chrome style on a word
+ *  bevels a slab behind it rather than the word.
+ *
+ *  `Glyphs` says otherwise: the outline a text leaf's decorations dress is
+ *  the union of its GLYPH OUTLINES at the placement its layout produced.
+ *  Every existing decoration then works on letters with no new preset,
+ *  because a decoration was never about a box — it was about whatever
+ *  outline it was handed.
+ *
+ *  `Auto` is what a node that says nothing gets, and it means the node's
+ *  own shape. A text leaf does NOT default to its glyphs: a caption with a
+ *  drop shadow means the caption's box, and changing that under every
+ *  existing passage would repaint pages nobody asked to repaint. */
+enum class Boundary : uint8_t { Auto, Outline, Glyphs };
+
 /** Anything with paint(canvas, PaintContext) — decorations, effect
  *  bodies. An optional `bool isAnimated() const` declares per-frame
  *  volatility; see AnimatedDecoration below. */

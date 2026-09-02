@@ -128,7 +128,7 @@ bool textPathEqual(const TextPath& a, const TextPath& b) {
          a.orient == b.orient && a.exactTangent == b.exactTangent;
 }
 
-static_assert(kFieldCount<TextData> == 15 && kFieldCount<TextOptions> == 9 &&
+static_assert(kFieldCount<TextData> == 17 && kFieldCount<TextOptions> == 13 &&
                   kFieldCount<SpanRestyle> == 3,
               "TextData gained or lost a field — rule on it in textEqual() "
               "below, then bump this count. (`layoutOptions` is the one "
@@ -196,6 +196,15 @@ bool textEqual(const ElementNode& a, const ElementNode& b) {
   // declaration order — so a re-described mark list prunes, and a mark
   // pointed at a different unit re-resolves its rect.
   if (ta.marks != tb.marks) return false;
+  // annotate(): comparable selectors, readings and styles in declaration
+  // order — so a re-described reading list prunes, and a changed reading
+  // re-lays the small paragraph it is set in AND, where it reserves, the
+  // base whose strut its band is in.
+  if (ta.annotations != tb.annotations) return false;
+  // thread(): the key of the next frame. A chain that re-describes the
+  // same links prunes; one that names a different frame re-fills from
+  // there.
+  if (ta.threadTo != tb.threadTo) return false;
   return true;
 }
 
@@ -480,7 +489,7 @@ namespace detail {
  *  here, because `inst.desc` holds the memo's PRODUCED payload; and
  *  `children` are reconciled by key rather than compared — a node that
  *  prunes still walks them. */
-static_assert(kFieldCount<ElementNode> == 23 && kFieldCount<PaintProps> == 15 &&
+static_assert(kFieldCount<ElementNode> == 24 && kFieldCount<PaintProps> == 15 &&
                   kFieldCount<ImageData> == 3 && kFieldCount<CustomData> == 2 &&
                   kFieldCount<MotionPath> == 3 && kFieldCount<Fill> == 3,
               "A struct propsEqual() compares BY HAND gained or lost a "
@@ -520,8 +529,8 @@ bool propsEqual(const ElementNode& a, const ElementNode& b) {
   for (size_t i = 0; i < a.foregrounds.size(); ++i)
     if (!(a.foregrounds[i] == b.foregrounds[i])) return false;
   if (!(a.layout == b.layout) || !(a.corners == b.corners) ||
-      a.clipContent != b.clipContent || a.cacheMode != b.cacheMode ||
-      a.bakeScale != b.bakeScale)
+      a.clipContent != b.clipContent || a.boundary != b.boundary ||
+      a.cacheMode != b.cacheMode || a.bakeScale != b.bakeScale)
     return false;
   if (!fxEqual(a.fxData, b.fxData)) return false;
   if (!strokeEqual(a.strokeData, b.strokeData)) return false;
@@ -800,6 +809,27 @@ sigil::weave::ParagraphLayoutOptions Composer::Impl::textLayoutOptions(
   // full-control caller keeps every field no setter named.
   options = text.layoutOptions;
   text.options.applyTo(options);
+  // OVERFLOW IS THE NORMAL CASE ON EVERY FRAME BUT THE LAST. A frame that
+  // threads into another has a remainder by design, and a marker there
+  // would say the text was cut when it was only continued; the last frame
+  // of a chain is the one that threads nowhere, and it keeps whatever
+  // ellipsis the leaf asked for.
+  if (!text.threadTo.empty()) options.overflow.ellipsis.clear();
+  // THE BAND A RESERVING READING NEEDS, asked before anything is broken and
+  // answered from the reading's own metrics — which is the whole of why a
+  // reservation is a layout input and not a cycle. Only the engine can
+  // measure a face, so the painter answers; a text that dresses nothing has
+  // no annotations either.
+  if (!text.annotations.empty()) {
+    const TextPainterOps* painter = textPainterOf(inst);
+    if (!painter) painter = detail::registeredTextEngine();
+    if (painter) {
+      const sigil::weave::ReservedBand band =
+          painter->reservedBand(const_cast<Instance&>(inst), text.annotations);
+      options.reserved.before += band.before;
+      options.reserved.after += band.after;
+    }
+  }
   return options;
 }
 
@@ -904,6 +934,7 @@ void Composer::Impl::rebuildKeyIndex() {
   routedInstances.clear();
   flowInstances.clear();
   pathMarkInstances.clear();
+  threadedInstances.clear();
   routesByAnchor.clear();
   hasDerived = false;
   hasCustomLayout = false;
@@ -950,9 +981,13 @@ void Composer::Impl::rebuildKeyIndex() {
       if (node.kind == Kind::Text && node.textData && node.textData->onPath &&
           !node.textData->marks.empty())
         pathMarkInstances.push_back(&inst);
+      if (node.kind == Kind::Text && node.textData &&
+          !node.textData->threadTo.empty())
+        threadedInstances.push_back(&inst);
       if (node.layout.centerAt) hasCenterPins = true;
     });
-  hasDerived = !routedInstances.empty() || !flowInstances.empty();
+  hasDerived = !routedInstances.empty() || !flowInstances.empty() ||
+               !threadedInstances.empty();
 }
 
 }  // namespace sigil::compose

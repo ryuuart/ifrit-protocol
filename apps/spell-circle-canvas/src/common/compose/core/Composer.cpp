@@ -578,6 +578,40 @@ std::vector<Beat> Composer::beatsOf(std::string_view key,
   return beats;
 }
 
+std::vector<TextUnit> Composer::units(std::string_view key,
+                                      const Selector& selector,
+                                      Unit unit) const {
+  auto it = m_impl->byKey.find(std::string(key));
+  if (it == m_impl->byKey.end()) return {};
+  // Logically const: resolving the units fills the same per-instance
+  // scratch the painter does and changes nothing the next draw can see.
+  Impl& impl = const_cast<Impl&>(*m_impl);
+  // A passage that dresses nothing carries no painter, and it still has
+  // units to report — so the engine the typography tier registered answers
+  // for it.
+  const TextPainterOps* painter = Impl::textPainterOf(*it->second);
+  if (!painter) painter = detail::registeredTextEngine();
+  if (!painter) return {};
+  std::vector<TextUnit> units = painter->units(*it->second, selector, unit);
+  if (units.empty()) return units;
+  // Rects come out in the node's own space; the same walk up the tree the
+  // bounds and beat queries take lifts them into the composer's, so a
+  // sibling reading them stands where the glyphs do.
+  SkPoint origin{0, 0};
+  for (Instance* node = it->second; node; node = node->parent) {
+    const SkRect rect = impl.instanceRect(*node);
+    if (!rect.isFinite()) return {};  // laid out by nothing yet
+    origin.offset(rect.left(), rect.top());
+  }
+  for (TextUnit& entry : units) {
+    entry.rect.offset(origin.x(), origin.y());
+    entry.axis += entry.writingMode == sigil::weave::WritingMode::kVerticalRL
+                      ? origin.x()
+                      : origin.y();
+  }
+  return units;
+}
+
 float Composer::cascadeSpanMs(std::string_view key, size_t trackIndex) const {
   auto it = m_impl->byKey.find(std::string(key));
   if (it == m_impl->byKey.end()) return 0.0f;

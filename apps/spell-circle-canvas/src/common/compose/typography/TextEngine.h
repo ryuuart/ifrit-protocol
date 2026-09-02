@@ -174,6 +174,24 @@ void ensurePathLayout(Composer::Impl& impl, Instance& inst,
  *  composer's, as the bounds query does. */
 std::vector<Beat> beatsOfTrack(Composer::Impl& impl, Instance& inst,
                                size_t trackIndex);
+/** WHERE THE UNITS A SELECTOR ADDRESSES LANDED, one entry each, in draw
+ *  order — the read-back behind Composer::units. Read off the same layout
+ *  the letters are drawn from and built from the same pose and the same
+ *  advance box a mark and a beat are built from, so an annotation placed
+ *  from this and a mark anchored to the same selection cannot disagree
+ *  about where a unit is. Rects come out in the NODE's own space. */
+std::vector<TextUnit> unitsOfText(Composer::Impl& impl, Instance& inst,
+                                  const Selector& selector, Unit unit);
+/** THE BAND A TEXT'S RESERVING READINGS NEED, from their own metrics
+ *  alone: the tallest reading's line height plus its standoff, on each
+ *  side that carries one. Asked BEFORE the base is laid out. */
+sigil::weave::ReservedBand reservedBandOf(
+    Composer::Impl& impl, std::span<const Annotation> annotations);
+/** LAYS OUT EVERY READING against the placement the base reached, leaving
+ *  the results on the instance for the kernel to draw. A base unit that
+ *  broke across a line or a column has its reading split between the
+ *  pieces in proportion to the base's advance either side. */
+void resolveTextAnnotations(Composer::Impl& impl, Instance& inst);
 /** THE SAME SCHEDULE'S WHOLE VIRTUAL SPAN in ms — the read-back behind
  *  Composer::cascadeSpanMs, resolved by the same body as beatsOfTrack.
  *  0 wherever beatsOfTrack answers empty. */

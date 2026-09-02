@@ -41,6 +41,7 @@ One header per utility under `include/sigilweave/kit/`, and
 | `Palette.h` | `palette::kInk`, `kPaper`, … | Every showcase picking its own near-black and off-white. |
 | `Timing.h` | `Stopwatch` / `toMicroseconds()` | Frame-timing brackets duplicated across targets. |
 | `Hyphenation.h` | `PatternHyphenator`, `patterns::english()` | The engine growing an opinion about where English words break. |
+| `LineTables.h` | `kinsoku::japanese()`, `hanging::latin()`, `hanging::japanese()` | The engine growing an opinion about which marks may stand at a line's edge, and how far one may hang past it. |
 
 `sigil::weave::SingleLineParagraphCache` (the engine's `cache` feature) is the companion for
 high-frequency short labels; `drawLabel()` documents when to graduate to it.
@@ -75,6 +76,16 @@ under. A subset proposes fewer break points than the whole table, never a
 different one where the whole table would inhibit — which is why the
 exception spellings whose inhibitions matter most are carried with it. A
 document that needs the whole table loads the whole table.
+
+`LineTables.h` is the same idea at a line's two EDGES. `kinsoku::` names
+the characters that may not open or close a line, and the engine settles
+the prohibition by never opening that boundary; `hanging::` names how far
+a character may stand outside the measure, as a fraction of its own
+advance, which is optical margin alignment down a page and burasagari down
+a column. The Japanese prohibition set is largely already true — the
+segmentation is UAX #14's and forbids most of it on its own — and that is
+worth knowing rather than hiding: the table's value is that it is a table,
+so a house's own additions are a value rather than a patch.
 
 ## The shape of a well-behaved scene
 

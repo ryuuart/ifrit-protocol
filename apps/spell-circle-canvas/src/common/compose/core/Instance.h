@@ -151,6 +151,9 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   float measuredForHeight = -1.0f;
   YGSize measuredSize{0, 0};
   float measuredBaseline = 0.0f;  // first character's baseline, from the top
+  // thread(): the word this frame's fill begins at — 0 for the head of a
+  // chain, and whatever the frame before it left unplaced for every other.
+  uint32_t threadCursor = 0;
   uint32_t contentRev = 0;        // bumped on text/exclusion change
   uint32_t measuredRev = ~0u;     // rev the cached measurement belongs to
   // rich().slot(): the slot names in the order the content declares them —
@@ -164,6 +167,14 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // produced. A key that resolved no glyphs is absent, and its child places
   // nothing.
   std::vector<std::pair<std::string, SkRect>> textMarkRects;
+  // annotate(): every reading, laid out where the base's units put it, in
+  // this node's own space. Each is a small paragraph of its own with its own
+  // placement, so the kernel draws it exactly as it draws the base.
+  struct PlacedAnnotation {
+    std::shared_ptr<sigil::weave::Paragraph> paragraph;
+    sigil::weave::ParagraphLayout layout;
+  };
+  std::vector<PlacedAnnotation> textAnnotations;
   // rich().add(text, styleName): each named run and the text it occupies, in
   // declaration order — what sel::style resolves against. Cleared and
   // rebuilt with the paragraph, so the names a node answers for are exactly
@@ -507,6 +518,11 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // Resolved custom-outline cache: generators (blobs, rounded stars) can be
   // arbitrarily expensive — resolve once per (description, size). Desc pointer
   // identity keys invalidation: every patch swaps the description.
+  // Element::boundary(Boundary::Glyphs): the union of this text's glyph
+  // outlines at the placement its layout produced, resolved once per
+  // layout because a decoration asked for it and never otherwise.
+  SkPath glyphOutline;
+  uint32_t glyphOutlineRev = ~0u;
   SkPath outlineCache;
   SkSize outlineCacheSize = {-1.0f, -1.0f};
   const ElementNode* outlineCacheDesc = nullptr;

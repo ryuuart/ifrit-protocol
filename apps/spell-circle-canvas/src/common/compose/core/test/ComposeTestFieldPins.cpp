@@ -63,6 +63,8 @@ void perturb(cd::Kind& v) { v = cd::Kind::Stack; }
 
 void perturb(Cache& v) { v = Cache::None; }
 
+void perturb(Boundary& v) { v = Boundary::Glyphs; }
+
 void perturb(SkBlendMode& v) { v = SkBlendMode::kMultiply; }
 
 void perturb(Corners& v) { v.topLeft += 1.0f; }
@@ -278,14 +280,15 @@ TEST(ComposeReconcile, EveryElementNodeFieldParticipatesInEquality) {
   //    still walks them — that is the whole point of the structural prune.
   static const char* const kNames[] = {
       "kind",        "key",        "layout",         "paint",
-      "corners",     "shapeFn",    "clipContent",    "hitTestable",
+      "corners",     "shapeFn",    "boundary",       "clipContent",
+      "hitTestable",
       "cacheMode",   "bakeScale",  "nodeTransition", "backgrounds",
       "foregrounds", "textData",   "imageData",      "customData",
       "deriveData",  "fxData",     "materialData",   "strokeData",
       "memoData",    "motionData", "children"};
   static const bool kParticipates[] = {
-      true,  true, true, true, true, true, true, true, true, true,
-      true,  true, true, true, true, true, true, true, true, true,
+      true, true, true, true, true, true, true, true, true, true, true,
+      true, true, true, true, true, true, true, true, true, true,
       false,  // memoData — resolveMemo owns it, and it never lands in desc
       true,
       false,  // children — reconciled by key, never compared

@@ -92,7 +92,14 @@ void Composer::Impl::layoutText(Instance& inst, float constraint,
       downConstraint == inst.measuredForHeight &&
       inst.measuredRev == inst.contentRev)
     return;  // layout is already valid for this content and measure
-  const sigil::weave::ParagraphLayoutOptions options = textLayoutOptions(inst);
+  sigil::weave::ParagraphLayoutOptions options = textLayoutOptions(inst);
+  // HOW DEEP THE FRAME IS is a fact only this side knows: weave is handed a
+  // geometry, not a box, and its vertical distribution and first-baseline
+  // rule need the depth the node resolved to. A leaf sized by its own
+  // content has no room left over, which is what an unconstrained measure
+  // reports here.
+  if (options.frame.distribute != sigil::weave::FrameOptions::Distribute::kStart)
+    options.frame.extent = downConstraint < 1.0e6f ? downConstraint : 0.0f;
   // Vertical-RL: the geometry is columns, not bands, and they hang off the
   // RIGHT edge of the measure — so the constraint is not just a wrap width
   // here, it is where the first column stands. That is why a vertical leaf
@@ -129,22 +136,36 @@ void Composer::Impl::layoutText(Instance& inst, float constraint,
           SkRect::MakeWH(constraint, downConstraint),
           sigil::weave::FlowAxis::kColumns);
       addExclusions(flow);
-      inst.textLayout =
-          sigil::weave::layoutParagraph(fonts, *inst.paragraph, flow, options);
+      inst.textLayout = sigil::weave::layoutParagraph(
+          fonts, *inst.paragraph, flow, options, inst.threadCursor);
     } else if (vertical) {
       sigil::weave::VerticalBlockFlow flow(
           SkRect::MakeWH(constraint, downConstraint));
-      inst.textLayout =
-          sigil::weave::layoutParagraph(fonts, *inst.paragraph, flow, options);
+      inst.textLayout = sigil::weave::layoutParagraph(
+          fonts, *inst.paragraph, flow, options, inst.threadCursor);
     } else if (!inst.exclusionsLocal.empty()) {
-      sigil::weave::ExclusionFlow flow(SkRect::MakeWH(constraint, 1.0e6f));
+      const float depth =
+          inst.desc->textData && !inst.desc->textData->threadTo.empty()
+              ? downConstraint
+              : 1.0e6f;
+      sigil::weave::ExclusionFlow flow(SkRect::MakeWH(constraint, depth));
       addExclusions(flow);
-      inst.textLayout =
-          sigil::weave::layoutParagraph(fonts, *inst.paragraph, flow, options);
+      inst.textLayout = sigil::weave::layoutParagraph(
+          fonts, *inst.paragraph, flow, options, inst.threadCursor);
     } else {
-      sigil::weave::BlockFlow flow(SkRect::MakeWH(constraint, 1.0e6f));
-      inst.textLayout =
-          sigil::weave::layoutParagraph(fonts, *inst.paragraph, flow, options);
+      // A HORIZONTAL LEAF GROWS: its height is an answer, not a measure,
+      // so its flow is unbounded down the page and the box clips whatever
+      // does not fit. A FRAME IS THE EXCEPTION, and it is what makes a
+      // frame a frame: a leaf that threads into another is bounded by its
+      // own depth, so it runs out of room and the remainder is what the
+      // next frame begins at.
+      const float depth =
+          inst.desc->textData && !inst.desc->textData->threadTo.empty()
+              ? downConstraint
+              : 1.0e6f;
+      sigil::weave::BlockFlow flow(SkRect::MakeWH(constraint, depth));
+      inst.textLayout = sigil::weave::layoutParagraph(
+          fonts, *inst.paragraph, flow, options, inst.threadCursor);
     }
   };
   // ONE of the two is populated, and which one is the writing mode: a
@@ -203,6 +224,9 @@ void Composer::Impl::layoutText(Instance& inst, float constraint,
   // ensureLayout's post-layout pass instead.
   if (!inst.desc->textData || !inst.desc->textData->onPath)
     resolveTextMarks(inst);
+  // The readings, laid out on the placement the base just reached. Their
+  // band was already in the base's strut, so nothing here moves the base.
+  resolveTextAnnotations(inst);
   inst.measuredForWidth = constraint;
   inst.measuredForHeight = downConstraint;
   SkRect bounds = SkRect::MakeEmpty();

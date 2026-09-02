@@ -17,6 +17,7 @@
 add_library(SigilComposeTypography STATIC
   TextFx.cpp
   TextFxPainting.cpp
+  TextAnnotations.cpp
   TextMarks.cpp
   PathText.cpp
   TextPainter.cpp
@@ -47,6 +48,7 @@ _compose_test_binary(compose_text_test
     test/ComposeTestVertical.cpp
     test/ComposeTestPathMotion.cpp
     test/ComposeTestContentText.cpp
+    test/ComposeTestParagraphs.cpp
     test/ComposeTestEngineDocsText.cpp
 )
 target_compile_definitions(compose_text_test PRIVATE

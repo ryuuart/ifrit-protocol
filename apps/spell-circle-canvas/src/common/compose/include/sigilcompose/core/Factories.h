@@ -63,6 +63,13 @@ Element text(std::u8string utf8, sigil::weave::TextStyle style);
  *  identical value prunes, which is the whole difference between this and
  *  the pointer overload below. */
 Element text(RichText spans);
+/** ONE FRAME OF A STORY — a text leaf over `story`'s content and block
+ *  styles, which `key()` names and `thread()` links to the next.
+ *
+ *  Every frame of a chain declares the same story, and the chain decides
+ *  which part of it each one holds. See `Story` and `Element::thread`. */
+Element frame(Story story);
+
 /** Full-control text: a prebuilt Paragraph (spans, mixed styles) plus
  *  ParagraphLayoutOptions (justification, hyphenation, Knuth–Plass,
  *  overflow…). The paragraph is shared by reference: reuse one

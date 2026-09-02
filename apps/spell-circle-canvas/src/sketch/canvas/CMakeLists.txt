@@ -18,7 +18,9 @@ target_link_libraries(SigilSketchCanvas PUBLIC
   # Header-only, so it costs nothing at link time: a sketch that reports
   # its own checks reads the testing surface.
   SigilComposeTesting
-  SigilGeometry SigilMaterial SigilWeavePorts EnTT::EnTT)
+  # The weave kit carries the tables a page of set text asks for — the
+  # hyphenation patterns among them — so a sketch may reach one.
+  SigilGeometry SigilMaterial SigilWeaveKit SigilWeavePorts EnTT::EnTT)
 set_target_properties(SigilSketchCanvas PROPERTIES
   POSITION_INDEPENDENT_CODE ON)
 

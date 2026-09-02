@@ -275,6 +275,29 @@ struct FrameOptions {
 };
 
 /**
+ * SPACE RESERVED BESIDE EVERY LINE, over and above the leading — the band
+ * something set alongside the type occupies: a reading over a base, a row
+ * of emphasis dots, a note in the gutter.
+ *
+ * It is a LAYOUT INPUT and that is the whole point of it. The band is
+ * stated before the text is laid out, from the annotation's own metrics,
+ * never from where the base's glyphs turned out to land — so the base is
+ * broken and placed once, with the room already in its strut, and the
+ * annotation is then placed on the result. Nothing chases anything.
+ *
+ * `before` is above a line and to the RIGHT of a column, `after` below a
+ * line and to the LEFT of one: the sides each writing mode reads its
+ * furniture on. Both open the pitch; `before` also moves the baseline down
+ * inside the band, so the type stays where the reader expects it and the
+ * room appears where the reading goes.
+ */
+struct ReservedBand {
+  float before = 0;
+  float after = 0;
+  bool operator==(const ReservedBand&) const = default;
+};
+
+/**
  * How far apart a block's lines stand — its PITCH, which in a vertical
  * setting is the width of its columns.
  *
@@ -371,6 +394,8 @@ struct ParagraphStyle {
   Leading leading;        ///< the block's pitch
   float spaceBefore = 0;  ///< px of air before the block
   float spaceAfter = 0;   ///< px of air after it
+  /// Added to whatever the whole layout reserved (see ReservedBand).
+  ReservedBand reserved;
   IndentOptions indent;
   KeepOptions keep;
   /// Spend the optimizing breaker's slack on lines of even LENGTH rather
@@ -464,6 +489,18 @@ struct ParagraphLayoutOptions {
   TabStopOptions tabStops;   ///< empty/zero → tabs measure as shaped spaces
   PathTextOptions pathText;  ///< draw-time only, never affects breaking
   FrameOptions frame;        ///< first baseline and vertical distribution
+  /// Room beside every line for what is set alongside the type; a block
+  /// may reserve more.
+  ReservedBand reserved;
+
+  /// Which characters may not stand at a line's edge (kinsoku shori). A
+  /// prohibition is settled during SEGMENTATION — the boundary is simply
+  /// not opened — so no breaker knows the rule and both of them obey it.
+  KinsokuTable kinsoku;
+  /// How far a character may hang past the measure (optical margin
+  /// alignment; burasagari down a column). Empty leaves every line squared
+  /// on its advances, which is what a text that says nothing gets.
+  HangingTable hanging;
 
   /// One entry per BLOCK — the text between two mandatory breaks — in
   /// block order. A block past the end of this list, and every block when

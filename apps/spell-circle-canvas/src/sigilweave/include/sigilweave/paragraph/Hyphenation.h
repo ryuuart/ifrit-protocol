@@ -17,6 +17,7 @@
  */
 
 #include <cstdint>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -67,6 +68,66 @@ class Hyphenator {
   virtual void breakPoints(std::u16string_view word,
                            std::string_view languageTag,
                            std::vector<uint32_t>& out) const = 0;
+};
+
+/**
+ * WHICH CHARACTERS MAY NOT STAND AT A LINE'S EDGE — kinsoku shori, the
+ * Japanese line-breaking prohibitions, and the same idea wherever else a
+ * script has one.
+ *
+ * `notLineStart` holds the characters that may not OPEN a line: closing
+ * brackets, the small kana, the sound marks, a full stop or a comma. A
+ * break that would put one there is simply not a break: the boundary is
+ * dropped during segmentation, so the character before it comes down to
+ * the next line with it and no breaker has to know the rule. That is
+ * "push-out", the resolution a reader expects.
+ *
+ * `notLineEnd` holds the characters that may not CLOSE one — the opening
+ * brackets — and works the same way from the other side.
+ *
+ * Both are plain UTF-16 strings, one character per prohibition, because a
+ * prohibition set is a fact about a language's punctuation and a caller's
+ * own set is a peer of the ones the kit ships.
+ */
+struct KinsokuTable {
+  std::u16string notLineStart;
+  std::u16string notLineEnd;
+  [[nodiscard]] bool empty() const {
+    return notLineStart.empty() && notLineEnd.empty();
+  }
+  bool operator==(const KinsokuTable&) const = default;
+};
+
+/**
+ * HOW FAR A CHARACTER MAY HANG PAST THE MEASURE — optical margin
+ * alignment, and in a column the same rule under the name burasagari.
+ *
+ * A line that begins with an opening quote or ends in a comma reads as
+ * indented and as short, because the eye squares a margin on the mass of
+ * the type rather than on its advances. Letting those characters hang
+ * OUTSIDE the measure squares it again. Each entry is a fraction of that
+ * character's own advance, so the rule scales with the type and needs no
+ * per-size table.
+ */
+struct HangingEdge {
+  char16_t character = 0;
+  float atStart = 0;  ///< fraction hanging back past the line's start
+  float atEnd = 0;    ///< fraction hanging past the line's end
+  bool operator==(const HangingEdge&) const = default;
+};
+
+/** The hanging fractions, looked up by character. A linear scan: a table
+ *  is a handful of punctuation marks and a scan of a handful beats a hash
+ *  of one. */
+struct HangingTable {
+  std::vector<HangingEdge> entries;
+  [[nodiscard]] const HangingEdge* find(char16_t character) const {
+    for (const HangingEdge& entry : entries)
+      if (entry.character == character) return &entry;
+    return nullptr;
+  }
+  [[nodiscard]] bool empty() const { return entries.empty(); }
+  bool operator==(const HangingTable&) const = default;
 };
 
 }  // namespace sigil::weave

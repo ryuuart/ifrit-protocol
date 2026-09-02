@@ -861,13 +861,132 @@ breaks leaves the selection where the first breaking put it.
 
 **Layout options, fluently.** `Element::textAlign`, `Element::lineBreak`
 (greedy or Knuth-Plass), `Element::hyphenation`, `Element::ellipsis`,
-`Element::maxLines` and `Element::lastLine` set the general knobs of
+`Element::maxLines`, `Element::lastLine`, `Element::justification` and
+`Element::tabStops` set the general knobs of
 `sigil::weave::ParagraphLayoutOptions` on any content form. The rest of
-that struct — justification elasticity, Knuth-Plass tolerance, tab stops,
-line-metric overrides — stays behind the paragraph overload, which takes
-the whole options value. **On that overload the setters override FIELD BY
-FIELD**, and only the fields actually set: everything a setter did not name
-keeps the value that was passed in.
+that struct — Knuth-Plass tolerance, line-metric overrides — stays behind
+the paragraph overload, which takes the whole options value. **On that
+overload the setters override FIELD BY FIELD**, and only the fields
+actually set: everything a setter did not name keeps the value that was
+passed in.
+
+### Paragraphs, frames and stories
+
+A hard break inside a passage separates **blocks** — the paragraphs a
+reader sees — and `Element::paragraphs` says how each one is set, one entry
+per block in block order:
+
+```cpp
+text(rich(body).add(u8"A heading\nand its body, which runs on\nand on"))
+    .width(Dim(360.0f))
+    .paragraphs({headingStyle, bodyStyle})
+    .firstBaseline(sigil::weave::FrameOptions::FirstBaseline::kCapHeight)
+    .distribute(sigil::weave::FrameOptions::Distribute::kJustify);
+```
+
+`sigil::weave::ParagraphStyle` carries the leading, the air before and
+after, the four indents, the keeps and whichever of the leaf's own
+alignment, justification, hyphenation and tab stops the block overrides;
+SigilWeave's README is the canon for what each one means. A block past the
+end of the list is set by the leaf's own settings alone, so ONE entry
+styles the first block and leaves the rest plain. `Element::paragraph`
+sets every block alike, and `Element::paragraphs` also takes NAMES,
+resolved through the `sigil::weave::ParagraphStyleSet` the environment
+offers — the same discipline `rich().add(text, name)` follows for
+character styles.
+
+`Element::firstBaseline` and `Element::distribute` are the two decisions a
+FRAME makes that no line makes for itself: where baseline 0 sits below the
+top of the box, and what becomes of the room left over down it.
+
+**A story fills as many frames as it is given.** `Story` is content plus
+its block styles and nothing else — no layout, no cursor, no frame — and
+`frame(story)` is one text leaf over it, which `Element::key` names and
+`Element::thread` links to the next:
+
+```cpp
+Story article(rich(body).add(u8"…"));
+article.paragraphs({headingStyle, bodyStyle, bodyStyle});
+
+root.child(frame(article).key("a").thread("b").width(Dim(300.0f)))
+    .child(frame(article).key("b").width(Dim(300.0f)).ellipsis(u8"…"));
+```
+
+Each frame fills from where the one before it stopped, so the cut moves as
+any frame's measure moves, and the blocks are numbered from the STORY's
+start — the third block is set the same way whichever frame it lands in.
+Overflow on any frame but the last is the normal case and draws no marker,
+whatever ellipsis the leaf asked for; the last frame is the one that
+threads nowhere. A frame's own geometry is its business: it may flow
+around a silhouette or carry exclusions like any other text leaf.
+`kit::columns` is N frames side by side threaded in order, which is what a
+Western multi-column measure is — the vertical writing mode keeps the word
+column for the thing it already meant.
+
+The chain is walked in the derive pass, in chain order, with each frame
+re-filled at the measure it resolved to before the next is asked what it
+inherits — so a chain of any length settles in one pass rather than one
+link per convergence round. A chain that closes on itself stops where it
+closes, as a cyclic borrow does.
+
+### Beside the text
+
+`Composer::units` is what everything standing next to a passage is placed
+from: one `TextUnit` per unit a selector addresses, in draw order, in the
+composer's space.
+
+```cpp
+for (const TextUnit &u : composer.units("verse", sel::each(unit::Word),
+                                        unit::Word))
+  ;  // u.rect, u.axis, u.pitch, u.ascent, u.range, u.style, u.lineIndex
+```
+
+`Beat` is the same rect under a schedule and needs an `fx()` track to
+report it; this needs none, and carries the baseline (or the column's
+axis), the pitch, the face's band, the writing mode, the vertical form,
+the text range and the style beside each rect. It is read off the
+placement rather than measured again, so a unit whose base broke across
+two lines reports TWO entries, on the two lines.
+
+Two things are built on it, and which one a case wants is decided by one
+question — does the annotation need ROOM?
+
+- **`Element::annotate`** is part of the text. Its band is put into the
+  base's strut BEFORE the base is broken, so the pitch opens once and the
+  reading is placed on the result; nothing chases anything. Ruby and
+  kenten are `Annotation` values, and mono, group and jukugo ruby are the
+  UNIT choice and nothing else. `kit::ruby` and `kit::kenten` are the two
+  stock spellings.
+- **`kit::annotate`** is a sibling that reserves nothing and stands beside
+  the finished text — marginalia, word labels, callouts. It resolves at
+  describe time from the layout the last draw left standing, on the same
+  terms as the instruments, so a text that reflows wants a re-describe for
+  its annotations to follow.
+
+`kit::rules` cuts a rule or a shade to the extent a block's lines actually
+occupy, `kit::bullets` hangs markers in a hanging indent, and
+`kit::dropCap` is an initial with the body flowing around it — an ordinary
+exclusion, resolved in the ordinary pass.
+
+### What a decoration dresses
+
+Every decoration is drawn ACROSS AN OUTLINE, and the outline a node hands
+its decorations has always been its own shape — which on a text leaf is a
+rectangle, and is why a chrome style on a word bevelled a slab behind the
+word. `Element::boundary` says otherwise:
+
+```cpp
+text(u8"CHROME", display).boundary(Boundary::Glyphs).style(styles::y2kChrome());
+```
+
+`Boundary::Glyphs` hands them the glyph contours the placement produced,
+so every layer style already written works on letters with no new preset
+and no second code path. The outline follows a wrapped line, a mixed-style
+run's size, a path run's curve and a vertical column's axis, because it is
+read off the placed glyphs. `Boundary::Auto` is what a node that says
+nothing gets and means its own shape: a caption with a drop shadow means
+the caption's box, and a text leaf does not silently change what it has
+always meant.
 
 ### Vertical CJK
 

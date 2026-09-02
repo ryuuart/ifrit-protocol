@@ -6,6 +6,10 @@
  */
 
 #include <include/core/SkFontMetrics.h>
+#include <include/core/SkMatrix.h>
+#include <include/core/SkPathBuilder.h>
+
+#include <optional>
 
 #include <algorithm>
 #include <vector>
@@ -85,6 +89,66 @@ std::vector<LineMetrics> ParagraphLayout::lineMetrics(
               return left.lineIndex < right.lineIndex;
             });
   return lines;
+}
+
+SkPath ParagraphLayout::glyphOutline(const Paragraph& paragraph) const {
+  static_cast<void>(paragraph);
+  SkPathBuilder outline;
+  const SkTypeface* lastTypeface = nullptr;
+  float lastFontSize = 0;
+  float lastScaleX = 0;
+  SkFont font;
+  for (const PositionedRun& run : runs) {
+    if (!run.shaped) continue;
+    const ShapedWord& word = *run.shaped;
+    if (word.typeface.get() != lastTypeface || word.fontSize != lastFontSize ||
+        word.scaleX != lastScaleX) {
+      lastTypeface = word.typeface.get();
+      lastFontSize = word.fontSize;
+      lastScaleX = word.scaleX;
+      font = makeFont(word.typeface, word.fontSize, word.scaleX, word.aliased);
+    }
+    // A TRANSFORMED run carries its placement per glyph rather than in its
+    // origin: the interval it landed on and the pen it started at are the
+    // whole of what says where each contour goes, and they are the same two
+    // the blob was baked from.
+    const LineInterval* interval =
+        run.transformed && run.intervalIndex >= 0 &&
+                static_cast<size_t>(run.intervalIndex) < intervals.size()
+            ? &intervals[static_cast<size_t>(run.intervalIndex)]
+            : nullptr;
+    float pen = 0;
+    for (size_t glyphIndex = 0; glyphIndex < word.glyphs.size(); ++glyphIndex) {
+      std::optional<SkPath> contour = font.getPath(word.glyphs[glyphIndex]);
+      if (!contour) {
+        pen += word.advances[glyphIndex];
+        continue;
+      }
+      if (!interval) {
+        outline.addPath(*contour,
+                        run.origin.x() + word.positions[glyphIndex].x(),
+                        run.origin.y() + word.positions[glyphIndex].y());
+        continue;
+      }
+      const float advance = word.advances[glyphIndex];
+      const float offsetX = word.positions[glyphIndex].x() - pen;
+      const float offsetY = word.positions[glyphIndex].y();
+      SkPoint position;
+      SkVector tangent;
+      interval->placeAt(run.penOffset + pen + advance * 0.5f, 0.0f,
+                        tangentRotationSteps, &position, &tangent);
+      const float centreX = advance * 0.5f - offsetX;
+      const float centreY = -offsetY;
+      SkMatrix place;
+      place.setSinCos(tangent.y(), tangent.x());
+      place.postTranslate(
+          position.x() - (tangent.x() * centreX - tangent.y() * centreY),
+          position.y() - (tangent.y() * centreX + tangent.x() * centreY));
+      outline.addPath(contour->makeTransform(place));
+      pen += advance;
+    }
+  }
+  return outline.detach();
 }
 
 std::vector<ColumnMetrics> ParagraphLayout::columnMetrics(

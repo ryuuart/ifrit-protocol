@@ -123,6 +123,19 @@ class Paragraph {
    * pointer is borrowed: it must outlive every layout of this paragraph.
    */
   void setHyphenator(const Hyphenator* hyphenator, HyphenationLimits limits);
+  /** Sets which characters may not stand at a line's edge — see
+   * KinsokuTable in paragraph/Hyphenation.h.
+   *
+   * A prohibition is a break opportunity that is never opened, so it is
+   * decided during segmentation like every other break opportunity, and
+   * neither breaker learns a rule. `layoutParagraph` sets this from
+   * `ParagraphLayoutOptions::kinsoku` before it analyzes.
+   */
+  void setKinsoku(KinsokuTable table);
+  /** Returns the prohibitions this paragraph was segmented under. */
+  [[nodiscard]] const KinsokuTable& kinsoku() const noexcept {
+    return m_kinsoku;
+  }
   /** Returns what is asked where inside a word may break, or null. */
   [[nodiscard]] const Hyphenator* hyphenator() const noexcept {
     return m_hyphenator;
@@ -286,6 +299,7 @@ class Paragraph {
   // borrowed, and null for the typed soft hyphens alone.
   const Hyphenator* m_hyphenator = nullptr;
   HyphenationLimits m_hyphenationLimits;
+  KinsokuTable m_kinsoku;
   bool m_dirty = true;
   bool m_paintDirty = false;
 

@@ -476,6 +476,15 @@ Element text(RichText spans) {
   return e;
 }
 
+Element frame(Story story) {
+  Element e = text(story.content());
+  const std::span<const sigil::weave::ParagraphStyle> blocks = story.blocks();
+  if (!blocks.empty())
+    e.paragraphs(std::vector<sigil::weave::ParagraphStyle>(blocks.begin(),
+                                                           blocks.end()));
+  return e;
+}
+
 Element text(std::shared_ptr<sigil::weave::Paragraph> paragraph,
              sigil::weave::ParagraphLayoutOptions options) {
   Element e;
@@ -548,6 +557,72 @@ Element& Element::ellipsis(std::u8string_view marker) {
   detail::TextOptions& options = m_node->textData.ensure().options;
   options.ellipsis = detail::toUtf16(marker);
   options.set |= detail::TextOptions::kEllipsis;
+  return *this;
+}
+
+Element& Element::paragraphs(std::vector<sigil::weave::ParagraphStyle> blocks) {
+  detail::TextOptions& options = m_node->textData.ensure().options;
+  options.blocks = std::move(blocks);
+  options.set |= detail::TextOptions::kBlocks;
+  return *this;
+}
+
+Element& Element::paragraphs(std::span<const std::string_view> names) {
+  // The set is read HERE, inside the author's describe scope, exactly as a
+  // named character run reads its own: the finished description then holds
+  // real styles and depends on no scope that has since ended.
+  const sigil::weave::ParagraphStyleSet* set =
+      env::inherited<sigil::weave::ParagraphStyleSet>();
+  std::vector<sigil::weave::ParagraphStyle> resolved;
+  resolved.reserve(names.size());
+  for (const std::string_view name : names)
+    resolved.push_back(set ? (*set)[name] : sigil::weave::ParagraphStyle{});
+  return paragraphs(std::move(resolved));
+}
+
+Element& Element::paragraph(sigil::weave::ParagraphStyle style) {
+  return paragraphs(std::vector<sigil::weave::ParagraphStyle>{std::move(style)});
+}
+
+Element& Element::firstBaseline(sigil::weave::FrameOptions::FirstBaseline rule,
+                                float offset) {
+  detail::TextOptions& options = m_node->textData.ensure().options;
+  options.frame.firstBaseline = rule;
+  options.frame.firstBaselineOffset = offset;
+  options.set |= detail::TextOptions::kFrame;
+  return *this;
+}
+
+Element& Element::distribute(sigil::weave::FrameOptions::Distribute rule,
+                             float maximumInterlineSpacing) {
+  detail::TextOptions& options = m_node->textData.ensure().options;
+  options.frame.distribute = rule;
+  options.frame.maximumInterlineSpacing = maximumInterlineSpacing;
+  options.set |= detail::TextOptions::kFrame;
+  return *this;
+}
+
+Element& Element::justification(sigil::weave::JustificationOptions spec) {
+  detail::TextOptions& options = m_node->textData.ensure().options;
+  options.justification = std::move(spec);
+  options.set |= detail::TextOptions::kJustification;
+  return *this;
+}
+
+Element& Element::tabStops(sigil::weave::TabStopOptions stops) {
+  detail::TextOptions& options = m_node->textData.ensure().options;
+  options.tabStops = std::move(stops);
+  options.set |= detail::TextOptions::kTabStops;
+  return *this;
+}
+
+Element& Element::boundary(Boundary source) {
+  m_node->boundary = source;
+  return *this;
+}
+
+Element& Element::thread(std::string_view key) {
+  m_node->textData.ensure().threadTo = std::string(key);
   return *this;
 }
 
@@ -940,6 +1015,19 @@ Stagger cues(std::vector<float> startMs, Stagger spec) {
   return spec;
 }
 
+namespace {
+const TextPainterOps*& textEngineSlot() {
+  static const TextPainterOps* engine = nullptr;
+  return engine;
+}
+}  // namespace
+
+void detail::registerTextEngine(const TextPainterOps* engine) {
+  textEngineSlot() = engine;
+}
+
+const TextPainterOps* detail::registeredTextEngine() { return textEngineSlot(); }
+
 void detail::TextOptions::applyTo(
     sigil::weave::ParagraphLayoutOptions& options) const {
   if (set & kAlignment) options.alignment = alignment;
@@ -947,10 +1035,14 @@ void detail::TextOptions::applyTo(
   if (set & kHyphenation) options.hyphenation = hyphenation;
   if (set & kEllipsis) options.overflow.ellipsis = ellipsis;
   if (set & kMaxLines) options.overflow.maxLines = maxLines;
+  if (set & kJustification) options.justification = justification;
   if (set & kLastLine) {
     options.justification.lastLineAlignment = lastLineAlignment;
     options.justification.justifyLastLine = justifyLastLine;
   }
+  if (set & kTabStops) options.tabStops = tabStops;
+  if (set & kBlocks) options.blocks = blocks;
+  if (set & kFrame) options.frame = frame;
 }
 
 std::u16string detail::toUtf16(std::u8string_view utf8) {

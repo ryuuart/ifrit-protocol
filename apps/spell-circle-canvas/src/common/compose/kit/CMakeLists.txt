@@ -26,6 +26,8 @@ add_library(SigilComposeKit STATIC
   Silhouettes.cpp
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/kit/Divisions.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/kit/Frame.h
+  ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/kit/Annotations.h
+  ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/kit/Typeset.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/kit/Instruments.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/kit/Kit.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/kit/Layouts.h

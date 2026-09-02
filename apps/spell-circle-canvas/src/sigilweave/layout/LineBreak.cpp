@@ -52,6 +52,24 @@ GapKind gapKind(const std::vector<Word>& words, uint32_t wordIndex,
   return GapKind::kRigid;
 }
 
+/** The advance of a word's FIRST glyph — what a character hanging back
+ *  past the line's start is a fraction of. */
+float leadingAdvanceOf(const Word& word) {
+  for (const WordSegment& segment : word.segments())
+    if (!segment.shaped->advances.empty()) return segment.shaped->advances.front();
+  return 0.0f;
+}
+
+/** The advance of a word's LAST glyph — what a character hanging past the
+ *  line's end is a fraction of. */
+float trailingAdvanceOf(const Word& word) {
+  const std::span<const WordSegment> segments = word.segments();
+  for (size_t index = segments.size(); index-- > 0;)
+    if (!segments[index].shaped->advances.empty())
+      return segments[index].shaped->advances.back();
+  return 0.0f;
+}
+
 /** Returns a word's em size, including a safe default for placeholders. */
 float wordFontSize(const Word& word) {
   return word.segments().empty() ? 16.0f
@@ -281,8 +299,9 @@ float widthBeforeAlignCharacter(const Paragraph& paragraph,
  *  column is a different convention and this is not it. */
 void emitLeader(FontContext& fontContext, const Paragraph& paragraph,
                 ParagraphLayout& result, const FlatInterval& flatInterval,
-                const Word& word, const TabStop& stop, float gapStart,
-                float gapEnd, const ParagraphLayoutOptions& options) {
+                const Word& word, uint32_t wordIndex, const TabStop& stop,
+                float gapStart, float gapEnd,
+                const ParagraphLayoutOptions& options) {
   static_cast<void>(options);
   if (gapEnd - gapStart <= 0 || flatInterval.interval.contour.valid()) return;
   if (flatInterval.interval.direction.x() != 1 ||
@@ -316,7 +335,11 @@ void emitLeader(FontContext& fontContext, const Paragraph& paragraph,
     run.blob = wordBlob(*leader);
     run.shaped = leader;
     run.styleIndex = styleIndex;
-    run.wordIndex = ~0u;
+    // A leader belongs to the WORD BEFORE ITS TAB: it is set in that word's
+    // style, on that word's line, and everything that reads a run back —
+    // the line bands, the choreography walk — asks a run which word it
+    // came from.
+    run.wordIndex = wordIndex;
     run.lineIndex = flatInterval.sourceLineIndex;
     run.intervalIndex = flatInterval.index;
     run.penOffset = pen;
@@ -428,8 +451,30 @@ void placeWords(FontContext& fontContext, const Paragraph& paragraph,
   const float naturalLineWidth =
       hasTab ? resolvedNaturalWidth
              : naturalWidth(words, firstWordIndex, endWordIndex) + hyphenWidth;
-  const float extraWidthNatural =
-      flatInterval.interval.length - naturalLineWidth;
+  // OPTICAL MARGIN ALIGNMENT: a line that opens on a quote or closes on a
+  // comma reads as indented and as short, because the eye squares a margin
+  // on the mass of the type rather than on its advances. A hanging table
+  // says how much of such a character may stand OUTSIDE the measure, as a
+  // fraction of its own advance — so the rule scales with the type — and
+  // the line is then fitted as though the measure were that much wider.
+  // Down a column the same rule is burasagari.
+  float hangAtStart = 0;
+  float hangAtEnd = 0;
+  if (!options.hanging.empty() && !flatInterval.interval.contour.valid()) {
+    const Word& first = words[firstWordIndex];
+    const Word& last = words[endWordIndex - 1];
+    if (first.textEnd > first.textBegin)
+      if (const HangingEdge* edge =
+              options.hanging.find(paragraph.text()[first.textBegin]))
+        hangAtStart = edge->atStart * leadingAdvanceOf(first);
+    if (last.textEnd > last.textBegin)
+      if (const HangingEdge* edge =
+              options.hanging.find(paragraph.text()[last.textEnd - 1]))
+        hangAtEnd = edge->atEnd * trailingAdvanceOf(last);
+  }
+
+  const float extraWidthNatural = flatInterval.interval.length -
+                                  naturalLineWidth + hangAtStart + hangAtEnd;
   const float extraWidth = extraWidthNatural;
 
   TextAlignment resolvedAlignment = alignment;
@@ -574,7 +619,11 @@ void placeWords(FontContext& fontContext, const Paragraph& paragraph,
     }
   }
 
-  float penPosition = startOffset;
+  // The hang itself: the line starts one hang back, so the character that
+  // may hang sits outside the measure and the letters after it square on
+  // it. A justified line spent the extra room the hang opened, so its
+  // interior is already correct.
+  float penPosition = startOffset - hangAtStart;
   for (size_t visualIndex = 0; visualIndex < visualWordOrder.size();
        ++visualIndex) {
     const uint32_t wordIndex = visualWordOrder[visualIndex];
@@ -658,7 +707,8 @@ void placeWords(FontContext& fontContext, const Paragraph& paragraph,
           penPosition = std::max(penPosition, target);
           if (resolved.stop && !resolved.stop->leader.empty())
             emitLeader(fontContext, paragraph, result, flatInterval, word,
-                       *resolved.stop, gapStart, penPosition, options);
+                       wordIndex, *resolved.stop, gapStart, penPosition,
+                       options);
           continue;
         }
       }
@@ -849,11 +899,13 @@ std::vector<detail::Block> resolveBlocks(
   uint32_t first = 0;
   for (uint32_t wordIndex = 0; wordIndex < words.size(); ++wordIndex)
     if (words[wordIndex].mandatoryBreakAfter) {
-      blocks.push_back(detail::Block{first, wordIndex + 1});
+      blocks.push_back(
+          detail::Block{static_cast<int>(blocks.size()), first, wordIndex + 1});
       first = wordIndex + 1;
     }
   if (first < words.size() || blocks.empty())
-    blocks.push_back(detail::Block{first, static_cast<uint32_t>(words.size())});
+    blocks.push_back(detail::Block{static_cast<int>(blocks.size()), first,
+                                   static_cast<uint32_t>(words.size())});
 
   const ParagraphStyle unstyled;
   float previousSpaceAfter = 0;
@@ -898,10 +950,17 @@ std::vector<detail::Block> resolveBlocks(
                              : faceHeight;
         break;
     }
-    block.pitch = pitch;
-    block.ascent = style.leading.kind == Leading::Kind::kFace
-                       ? faceAscent
-                       : faceAscent + (pitch - faceHeight);
+    // The reserved band is a layout input: it opens the pitch before
+    // anything is broken, and `before` carries the baseline down inside the
+    // band so the type stays where a reader expects it.
+    const float reservedBefore =
+        options.reserved.before + style.reserved.before;
+    const float reservedAfter = options.reserved.after + style.reserved.after;
+    block.pitch = pitch + reservedBefore + reservedAfter;
+    block.ascent = (style.leading.kind == Leading::Kind::kFace
+                        ? faceAscent
+                        : faceAscent + (pitch - faceHeight)) +
+                   reservedBefore;
     block.gridStep = gridStep;
     block.lead = blockIndex == 0
                      ? style.spaceBefore
@@ -1151,7 +1210,8 @@ void distributeInFrame(const FrameOptions& frame, float usedDepth,
 
 ParagraphLayout layoutParagraph(FontContext& fontContext, Paragraph& paragraph,
                                 FlowGeometry& geometry,
-                                const ParagraphLayoutOptions& options) {
+                                const ParagraphLayoutOptions& options,
+                                uint32_t firstWord) {
   using namespace detail;
 
   LineLimitedGeometry clampedGeometry(geometry, options.overflow.maxLines);
@@ -1169,6 +1229,7 @@ ParagraphLayout layoutParagraph(FontContext& fontContext, Paragraph& paragraph,
   paragraph.setSoftHyphenBreaks(options.hyphenation.enabled);
   paragraph.setHyphenator(options.hyphenation.patterns,
                           options.hyphenation.limits);
+  paragraph.setKinsoku(options.kinsoku);
 
   // Segmentation only; the breakers pull HarfBuzz shaping just ahead of
   // their own frontier, so text past the geometry never shapes at all.
@@ -1178,9 +1239,28 @@ ParagraphLayout layoutParagraph(FontContext& fontContext, Paragraph& paragraph,
   const std::vector<Word>& words = paragraph.words();
   if (words.empty()) return result;
 
-  const std::vector<Block> blocks =
-      resolveBlocks(fontContext, paragraph, options);
-  const Paragraph::Strut strut = paragraph.strutAt(fontContext, 0);
+  std::vector<Block> blocks = resolveBlocks(fontContext, paragraph, options);
+  // RESUMING: the blocks are numbered from the start of the text, so a
+  // frame in the middle of a chain reads the same style for the same
+  // block. What changes is where the fill begins — the blocks already
+  // placed are dropped and the one the cursor sits in starts at the
+  // cursor.
+  if (firstWord > 0) {
+    size_t firstBlock = 0;
+    while (firstBlock < blocks.size() && blocks[firstBlock].endWord <= firstWord)
+      ++firstBlock;
+    if (firstBlock >= blocks.size()) return result;
+    blocks.erase(blocks.begin(), blocks.begin() + (long)firstBlock);
+    blocks.front().firstWord = std::max(blocks.front().firstWord, firstWord);
+    // A block resumed part-way opens no air of its own: the gap it asked
+    // for was spent where it began, in the frame before this one.
+    blocks.front().lead = 0;
+  }
+  const Paragraph::Strut strut = paragraph.strutAt(
+      fontContext,
+      blocks.front().firstWord < words.size()
+          ? words[blocks.front().firstWord].textBegin
+          : 0);
 
   IntervalSequence intervalSequence(
       effectiveGeometry, blocks.front().pitch, blocks.front().ascent,
@@ -1212,9 +1292,8 @@ ParagraphLayout layoutParagraph(FontContext& fontContext, Paragraph& paragraph,
     if (block.firstWord >= block.endWord) continue;
     if (!optimizing && block.style.keep != KeepOptions{})
       warnGreedyIgnoresKeeps();
-    intervalSequence.openBlock(static_cast<int>(blockIndex), block.pitch,
-                               block.ascent, block.lead, block.gridStep,
-                               block.style.indent);
+    intervalSequence.openBlock(block.index, block.pitch, block.ascent,
+                               block.lead, block.gridStep, block.style.indent);
     intervalSequence.setUniformBlocks(block.style.indent.firstLine == 0 &&
                                       block.style.indent.lastLine == 0);
     uint32_t overflowWord = ~0u;

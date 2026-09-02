@@ -173,6 +173,30 @@ class Composer {
    *  query family. Check your key first. */
   [[nodiscard]] std::vector<Beat> beatsOf(std::string_view key,
                                           size_t trackIndex) const;
+  /** WHERE THE UNITS A SELECTOR ADDRESSES LANDED on the keyed text node —
+   *  one `TextUnit` per addressed unit, in draw order, in the composer's
+   *  coordinate space. Valid after a draw() (or any other call that runs
+   *  layout), and computed on demand.
+   *
+   *  This is what anything BESIDE a text is placed from: a label per word,
+   *  a note per line, a reading over a compound, a dot beside a character.
+   *  `beatsOf` answers the same rects under a schedule and needs an `fx()`
+   *  track to do it; this needs none, and reports the baseline (or the
+   *  column's axis), the pitch, the face's own band, the writing mode, the
+   *  vertical form, the text range and the style beside each rect —
+   *  everything a thing standing next to a unit has to know about it.
+   *
+   *  It is read off the placement rather than measured again, so it follows
+   *  a wrapped line, a mixed-style run's own size, a path run's curve and a
+   *  vertical column's axis by construction; a unit whose base broke across
+   *  two lines reports two entries, on the two lines.
+   *
+   *  An unknown key, a node that is not text, and a selector that addresses
+   *  nothing all resolve to an EMPTY vector, silently, exactly as an
+   *  unknown key resolves everywhere else in the query family. */
+  [[nodiscard]] std::vector<TextUnit> units(std::string_view key,
+                                            const Selector& selector,
+                                            Unit unit) const;
   /** THE CASCADE'S WHOLE VIRTUAL SPAN, in ms — what track @p trackIndex's
    *  master progress [0,1] maps onto: the moment its last beat closes,
    *  compounded under a nested cascade and read off the table under a cue

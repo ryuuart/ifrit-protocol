@@ -37,6 +37,9 @@ struct FlatInterval {
 // applied — so the breakers, the glue arithmetic and the placement all read
 // one flat value and none of them resolves an optional in a loop.
 struct Block {
+  // The block's place in the TEXT, which a frame resuming part-way through
+  // a story still counts from the story's start.
+  int index = 0;
   uint32_t firstWord = 0;
   uint32_t endWord = 0;
   ParagraphLayoutOptions options;

@@ -463,6 +463,16 @@ and the layout does not; 0 leaves both alone. Neither applies to a flow
 whose intervals ride a contour, nor to runs whose glyphs are baked per
 glyph.
 
+**A line's two edges are tables.** `ParagraphLayoutOptions::kinsoku` says
+which characters may not open or close a line, and the prohibition is
+settled during SEGMENTATION — the boundary is simply never opened — so
+neither breaker learns a rule and both obey it. `hanging` says how far a
+character may stand OUTSIDE the measure, as a fraction of its own advance:
+a line that begins on a quote or ends in a comma then squares optically
+rather than on its advances, which is optical margin alignment down a page
+and burasagari down a column. Both are DATA; the kit ships stock tables
+(`kit/LineTables.h`) and a caller's own is a peer of them.
+
 **Hyphenation is two decisions in two places.** WHERE a word may break is
 segmentation, so the whole layout shares it: the soft hyphens the author
 typed, plus whatever a `Hyphenator` finds inside a word under
@@ -559,6 +569,71 @@ where English breaks, because that is not a property of text layout.
   the text that was cut, so it is set the way that text was set: upright
   after upright glyphs — the face's own `vert` form when it has one — and
   turned with the column after a rotated run.
+
+## What this covers, control by control
+
+The list a page-layout application's paragraph and character panels
+present, and where each one stands here. It is the FEATURE list: what a
+typesetter reaches for, not what a file format carries.
+
+| Control | Status | Where |
+| --- | --- | --- |
+| Alignment: left / centre / right / justify variants | done, per block | `ParagraphStyle::alignment` |
+| Justification: word spacing min/desired/max | done | `JustificationOptions::wordSpacing`, `spaceStretch`, `spaceShrink` |
+| Justification: letter spacing min/desired/max | done | `JustificationOptions::letterSpacing*` |
+| Justification: glyph scaling min/desired/max | done | `JustificationOptions::glyphScale*` |
+| Justification: single-word rule | done | `JustificationOptions::singleWord` |
+| Left / right / first-line / last-line indent | done | `IndentOptions` |
+| Space before / after | done, larger-of | `ParagraphStyle::spaceBefore`, `spaceAfter` |
+| Leading: auto, multiple, absolute, baseline grid | done | `Leading` |
+| Keep: widows, orphans, with next, all lines together, start in next frame | **partial** — the value is stated and carried; the frame fill does not enforce it yet, and the greedy breaker says once that it ignores it | `KeepOptions` |
+| Hyphenation: pattern dictionary | done | `HyphenationOptions::patterns`, `kit::PatternHyphenator` |
+| Hyphenation: minimum word, letters before / after, capitalised words | done | `HyphenationLimits` |
+| Hyphenation: consecutive limit, last word of a block | done | `HyphenationOptions` |
+| Hyphenation: zone | **partial** — the field is read and stated; the breakers do not yet weigh it | `HyphenationOptions::zone` |
+| Composer: single-line vs paragraph | done | `LineBreakStrategy` |
+| Composer: balance ragged lines | done, as an APPROXIMATION — the optimizing breaker scores the last line like every other rather than letting it absorb the slack, which spreads the words; it is not a search for the smallest measure that keeps the line count | `ParagraphStyle::balanceRaggedLines` |
+| Optical margin alignment (hanging punctuation) | done | `HangingTable`, `kit::hanging` |
+| Drop caps: lines × characters | done as compose kit | `kit::dropCap` |
+| Drop caps: nested style | **not started** | — |
+| Bullets and numbering | done as compose kit | `kit::bullets` |
+| Tabs: position, leaders, alignment on a character | done | `TabStop` |
+| Paragraph rules above / below, shading | done as compose kit | `kit::rules` |
+| Paragraph border | **not started** | — |
+| Nested styles, GREP styles, line styles | exists | `sel::regex`, `sel::line`, `sel::style`, span restyling |
+| Character: size, tracking, horizontal scale | exists | `ShapingStyle` |
+| Character: metric kerning | exists (HarfBuzz) | shaping |
+| Character: optical kerning | **not started**. When it lands it will be an APPROXIMATION: optical kerning is a judgement about glyph shapes, and a pair table derived from outlines is a different answer from a designer's | — |
+| Character: baseline shift, skew | **not started** | — |
+| OpenType features, small caps, figures, sets | exists | `style/Features.h` |
+| Underline / strikethrough / overline / highlight options | exists | `Decoration` |
+| Frame: columns, gutter | done as compose kit — a Western column is a FRAME | `kit::columns` |
+| Frame: balance columns | **not started** | — |
+| Frame: inset | exists | compose padding |
+| Frame: vertical justification | done | `FrameOptions::distribute` |
+| Frame: first-baseline offset | done | `FrameOptions::firstBaseline` |
+| Frame: auto-size | exists | compose measure |
+| Threading (in and out ports) | done | `layoutParagraph`'s resume word; compose's `Story`, `frame`, `thread` |
+| Text wrap: bounding box, object shape, offsets | exists | `ExclusionFlow`, compose `flowAround` |
+| Text wrap: jump object, wrap to one side | **not started** | — |
+| Anchored objects: inline | exists | `Placeholder`, `RichText::slot` |
+| Anchored objects: above line | done, for a READING — a band reserved above the line and filled with set text | compose `Element::annotate` |
+| Anchored objects: custom position | **not started** | — |
+| Type on a path: orient, flip, start / end, align | exists | `PathFlow`, compose `onPath` |
+| Type on a path: effects (skew, stair, gravity) | **not started** | — |
+| CJK: tate-chu-yoko | exists | `VerticalForm::kTateChuYoko` |
+| CJK: ruby — mono, group, jukugo | done | compose `Annotation`, `kit::ruby` |
+| CJK: kenten | done | `kit::kenten` |
+| CJK: kinsoku | done, as a table over the segmentation | `KinsokuTable`, `kit::kinsoku` |
+| CJK: burasagari | done — the hanging table, along the column | `HangingTable` |
+| CJK: mojikumi (per-class spacing) | **not started** | — |
+| CJK: tsume | **not started** | — |
+| CJK: warichu | **not started** | — |
+| Baseline grid | done | `Leading::grid` |
+| Frame grid (CJK cell grid) | **not started** | — |
+| Footnotes and endnotes | out of scope | — |
+| Tables | out of scope — a layout, not a text | — |
+| Text variables, cross-references, conditional text | out of scope — data, not typography | — |
 
 ## The hard parts
 

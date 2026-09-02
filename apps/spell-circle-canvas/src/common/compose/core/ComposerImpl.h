@@ -90,6 +90,10 @@ struct Composer::Impl {
   // marks resolve in a post-layout pass over this flat list instead of
   // inside measure like a flow run's.
   std::vector<detail::Instance*> pathMarkInstances;
+  // Text nodes that thread INTO another frame. The chain is walked in the
+  // derive pass, because frame b's fill begins where frame a's RESULT ended
+  // and the phase order has no edge for that.
+  std::vector<detail::Instance*> threadedInstances;
   std::unordered_map<std::string, std::vector<detail::Instance*>>
       routesByAnchor;
   bool volatileDirty = true;  // recompute needed (render or animation)
@@ -353,6 +357,9 @@ struct Composer::Impl {
    *  pass needed). */
   bool resolveDerived();
   bool deriveFlow(detail::Instance& inst);
+  /** Walks every frame chain in order, handing each frame the cursor the
+   *  one before it left. True when a cursor moved. */
+  bool resolveThreads();
   void deriveRoute(detail::Instance& inst);
 
   // ---- the node's paint transform, resolved once (Bounds.cpp) ----
@@ -460,6 +467,19 @@ struct Composer::Impl {
       painter->marks(inst);
     else
       inst.textMarkRects.clear();
+  }
+  /** Lays out the node's annotate() readings against the layout its letters
+   *  are drawn from. The engine answers even for a passage that dresses
+   *  nothing else, because a reading IS the dressing and the base may
+   *  carry no other. */
+  void resolveTextAnnotations(detail::Instance& inst) {
+    inst.textAnnotations.clear();
+    if (!inst.desc || !inst.desc->textData ||
+        inst.desc->textData->annotations.empty())
+      return;
+    const TextPainterOps* painter = textPainterOf(inst);
+    if (!painter) painter = detail::registeredTextEngine();
+    if (painter) painter->annotations(inst);
   }
 
   // ---- paint (StackingPainter.cpp and the paint-phase files beside it) ----

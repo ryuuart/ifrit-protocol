@@ -531,6 +531,12 @@ std::span<const uint32_t> Paragraph::sentenceStarts() const {
   return m_sentenceStarts;
 }
 
+void Paragraph::setKinsoku(KinsokuTable table) {
+  if (m_kinsoku == table) return;
+  m_kinsoku = std::move(table);
+  markDirty();  // break opportunities are decided in analyze()
+}
+
 void Paragraph::openPatternBreaks(std::vector<uint32_t>& boundaries,
                                   std::vector<uint8_t>& isHyphen) const {
   const HyphenationLimits& limits = m_hyphenationLimits;
@@ -622,6 +628,32 @@ void Paragraph::analyze(FontContext& fontContext) {
     for (const uint32_t boundary : boundaries) {
       if (boundary < static_cast<uint32_t>(textLength) &&
           m_text[static_cast<size_t>(boundary) - 1] == 0x00AD)
+        continue;
+      boundaries[keptCount++] = boundary;
+    }
+    boundaries.resize(keptCount);
+    if (boundaries.empty())
+      boundaries.push_back(static_cast<uint32_t>(textLength));
+  }
+
+  // KINSOKU SHORI: a boundary that would open a line with a character
+  // that may not open one, or close a line with one that may not close
+  // one, is simply not a boundary. Dropping it here is push-out — the
+  // word before comes down with the character — and it means neither
+  // breaker knows the rule, exactly as neither knows the soft-hyphen one.
+  if (!m_kinsoku.empty()) {
+    size_t keptCount = 0;
+    for (const uint32_t boundary : boundaries) {
+      const bool interior = boundary < static_cast<uint32_t>(textLength);
+      const bool opensProhibited =
+          interior &&
+          m_kinsoku.notLineStart.find(m_text[boundary]) != std::u16string::npos;
+      const bool closesProhibited =
+          interior && boundary > 0 &&
+          m_kinsoku.notLineEnd.find(m_text[boundary - 1]) !=
+              std::u16string::npos;
+      if ((opensProhibited || closesProhibited) &&
+          !unicode::isHardLineBreak(m_text[boundary - 1]))
         continue;
       boundaries[keptCount++] = boundary;
     }

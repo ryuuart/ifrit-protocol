@@ -12,6 +12,7 @@
 #include <include/core/SkRect.h>
 #include <sigilcompose/core/Composer.h>
 #include <sigilcompose/core/Element.h>
+#include <sigilcompose/core/Factories.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/Text.h>
 

@@ -52,6 +52,18 @@ struct TextEngine final : TextPainterOps {
     return foldableAsAxes(*inst.owner, style, ranges, paragraph, paintCarried,
                           axes);
   }
+  std::vector<TextUnit> units(Instance& inst, const Selector& selector,
+                              Unit unit) const override {
+    return unitsOfText(*inst.owner, inst, selector, unit);
+  }
+  void annotations(Instance& inst) const override {
+    resolveTextAnnotations(*inst.owner, inst);
+  }
+  sigil::weave::ReservedBand reservedBand(
+      Instance& inst,
+      std::span<const Annotation> annotations) const override {
+    return reservedBandOf(*inst.owner, annotations);
+  }
   std::vector<Beat> beats(Instance& inst, size_t trackIndex) const override {
     return beatsOfTrack(*inst.owner, inst, trackIndex);
   }
@@ -66,6 +78,17 @@ const TextPainter& enginePainter() {
   static const TextPainter kPainter{TextEngine{}};
   return kPainter;
 }
+
+/** THE ENGINE, ANNOUNCED. A text leaf that dresses nothing carries no
+ *  painter, and the read-back queries would then have to answer empty
+ *  about a passage that is perfectly well laid out. Linking this tier is
+ *  what makes them answer; the registration happens as the process starts
+ *  and nothing depends on the order it happens in, because the queries run
+ *  long after. */
+const bool kEngineRegistered = [] {
+  detail::registerTextEngine(enginePainter().get());
+  return true;
+}();
 
 /** The node's text block with the engine installed — what every verb that
  *  dresses type writes into. */
@@ -86,6 +109,12 @@ Element& Element::onPath(TextPath spec) {
 
 Element& Element::fx(Track track) {
   dressedText(m_node->textData.ensure()).tracks.push_back(std::move(track));
+  return *this;
+}
+
+Element& Element::annotate(Annotation reading) {
+  detail::TextData& text = dressedText(m_node->textData.ensure());
+  text.annotations.push_back(std::move(reading));
   return *this;
 }
 

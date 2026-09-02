@@ -143,7 +143,7 @@ struct MarkAnchor {
  *  the caller passed alone, and there is no way to tell "never asked for"
  *  from "asked for the default value" without it. */
 struct TextOptions {
-  enum Field : uint8_t {
+  enum Field : uint16_t {
     kAlignment = 1u << 0u,
     kLineBreak = 1u << 1u,
     kHyphenation = 1u << 2u,
@@ -151,8 +151,12 @@ struct TextOptions {
     kMaxLines = 1u << 4u,
     kLastLine = 1u << 5u,
     kWritingMode = 1u << 6u,
+    kBlocks = 1u << 7u,
+    kFrame = 1u << 8u,
+    kJustification = 1u << 9u,
+    kTabStops = 1u << 10u,
   };
-  uint8_t set = 0;  ///< which fields below were written
+  uint16_t set = 0;  ///< which fields below were written
 
   sigil::weave::TextAlignment alignment = sigil::weave::TextAlignment::kStart;
   /// Not a ParagraphLayoutOptions field — the writing mode belongs to the
@@ -169,6 +173,14 @@ struct TextOptions {
   sigil::weave::TextAlignment lastLineAlignment =
       sigil::weave::TextAlignment::kStart;
   bool justifyLastLine = false;
+  /// paragraphs(): one entry per BLOCK — the text between two hard breaks
+  /// — in block order. A block past the end of the list is set by the
+  /// layout-wide fields alone, so one style here sets the first block and
+  /// leaves the rest plain, which is what a heading over a body wants.
+  std::vector<sigil::weave::ParagraphStyle> blocks;
+  sigil::weave::FrameOptions frame;
+  sigil::weave::JustificationOptions justification;
+  sigil::weave::TabStopOptions tabStops;
 
   /** Writes every SET field over @p options, leaving the rest alone. */
   void applyTo(sigil::weave::ParagraphLayoutOptions& options) const;
@@ -176,11 +188,12 @@ struct TextOptions {
   bool operator==(const TextOptions& other) const {
     return set == other.set && alignment == other.alignment &&
            writingMode == other.writingMode && lineBreak == other.lineBreak &&
-           hyphenation.enabled == other.hyphenation.enabled &&
-           hyphenation.penalty == other.hyphenation.penalty &&
-           ellipsis == other.ellipsis && maxLines == other.maxLines &&
+           hyphenation == other.hyphenation && ellipsis == other.ellipsis &&
+           maxLines == other.maxLines &&
            lastLineAlignment == other.lastLineAlignment &&
-           justifyLastLine == other.justifyLastLine;
+           justifyLastLine == other.justifyLastLine && blocks == other.blocks &&
+           frame == other.frame && justification == other.justification &&
+           tabStops == other.tabStops;
   }
 };
 
@@ -218,6 +231,15 @@ struct TextData {
   // resolves to, in declaration order. The rects themselves live on the
   // Instance (textMarkRects) because they are an answer of the layout.
   std::vector<MarkAnchor> marks;
+  // annotate(): readings set beside the type, in declaration order. A
+  // reserving one is a LAYOUT INPUT — its band reaches the strut before the
+  // text is broken — and the placed readings live on the Instance, because
+  // where each one landed is an answer of the layout.
+  std::vector<Annotation> annotations;
+  // thread(): the key of the frame this one fills INTO. A chain of frames
+  // over one story; the cursor each frame starts at lives on the Instance,
+  // because where a fill stopped is an answer of the layout.
+  std::string threadTo;
   // THE TEXT ENGINE, as the description carries it: installed by the verbs
   // that dress type (fx, onPath, mark, spanStyle, spanPaint,
   // variationDrive), read by the kernel wherever it needs more than the
@@ -384,6 +406,9 @@ struct ElementNode {
   Shape shapeFn;  // custom silhouette; overrides corners. A comparable
                   // scheme prunes; a raw callable never compares equal, so
                   // its node re-patches on every describe.
+  // Element::boundary(): what this node's decorations dress — its own
+  // shape, or (on a text leaf) the outline of its glyphs.
+  Boundary boundary = Boundary::Auto;
   bool clipContent = false;
   // Element::hitTestable(false): the node and its own box are skipped by
   // hitTest, though its CHILDREN are still tested. A keyed full-bleed

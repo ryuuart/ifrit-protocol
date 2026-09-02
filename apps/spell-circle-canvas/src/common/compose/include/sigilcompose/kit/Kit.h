@@ -33,6 +33,8 @@
  * | `kit/PixelType.h` | the aliased bitmap-font bake |
  * | `kit/Legibility.h` | halo / shade / scrim |
  * | `kit/Instruments.h` | `trackMeter()` and `restGhost()` — a cascade seen |
+ * | `kit/Annotations.h` | `annotate()` — an element per unit, beside it |
+ * | `kit/Typeset.h` | ruby, kenten, drop cap, bullets, block rules |
  *
  * **`kit/Strokes.h` AND `kit/Plate.h` ARE NOT INCLUDED HERE, AND THIS
  * UMBRELLA DOES NOT GIVE YOU THEM.** Both are spelled in the Brush tier's
@@ -49,9 +51,11 @@
  * are the prelude; `stroke` (`Decorations.h`) is the value spelling.
  */
 
+#include "sigilcompose/kit/Annotations.h"
 #include "sigilcompose/kit/Divisions.h"
 #include "sigilcompose/kit/Frame.h"
 #include "sigilcompose/kit/Instruments.h"
 #include "sigilcompose/kit/Legibility.h"
 #include "sigilcompose/kit/PixelType.h"
 #include "sigilcompose/kit/Sprites.h"
+#include "sigilcompose/kit/Typeset.h"
