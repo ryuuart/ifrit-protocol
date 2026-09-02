@@ -75,9 +75,11 @@
 //
 //   The hop, frame by frame:  --at 1.20 --frames 10 --fps 12
 
+#include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Material.h>
 #include <sigilcompose/typography/TextFx.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigilmotion/values/Time.h>
 #include <sigilsketch/canvas/Sketch.h>
 
 #include <algorithm>
@@ -86,6 +88,7 @@
 #include <vector>
 
 namespace sketch = sigil::sketch;
+namespace motion = sigil::motion;
 
 using namespace sigil::compose;
 
@@ -94,19 +97,44 @@ namespace {
 constexpr float kW = 1020.0f;
 constexpr float kH = 470.0f;
 
-constexpr SkColor4f kStage = hex(0x0A0A12);
-constexpr SkColor4f kBand = hex(0x11111D);
-constexpr SkColor4f kSung = hex(0x53E0C4);  // the saturated colour
-constexpr SkColor4f kPale = hex(0xF2EFE6);  // the resting line
-constexpr SkColor4f kNext = hex(0x585F6E);  // the line to come
-constexpr SkColor4f kLabel = hex(0x767E8D);
-constexpr SkColor4f kFaint = hex(0x333A47);
+// THE CD+G PALETTE. A disc's graphics channel carries 16 colours at 4 bits
+// a component, so every value here is a multiple of 0x11 — the only values
+// that hardware could name. The ground is the saturated blue a karaoke
+// screen sits on; the resting line is a PALE low-chroma blue and the sweep
+// is the warm near-yellow, so the swept half is both the brightest and the
+// most coloured thing on the line. Reversed — a white resting line and a
+// mid-chroma sweep — the wipe reads backwards, because the part not yet
+// sung is then what the eye goes to.
+//
+// THE TINT IS A MULTIPLIER, so the resting colour must be no brighter than
+// the sung one in ANY channel: the line is set in the sung colour and
+// multiplied down, and a channel asking to rise simply clamps. That is why
+// the resting blue is a dim slate rather than a pale one — a pale blue
+// against a warm yellow would come back olive, which looks like a bug in
+// the tint rather than a choice about the palette.
+constexpr SkColor4f kStage = hex(0x110033);
+constexpr SkColor4f kBand = hex(0x220055);
+constexpr SkColor4f kSung = hex(0xFFEEAA);  // the saturated colour
+constexpr SkColor4f kPale = hex(0x5A6B84);  // the resting line
+constexpr SkColor4f kNext = hex(0x44557A);  // the line to come
+constexpr SkColor4f kLabel = hex(0x88AACC);
+constexpr SkColor4f kFaint = hex(0x445588);
+/** The hard black keyline every CD+G caption wears. A disc draws it as a
+ *  second colour index around the glyph cell; here it is a stroke under
+ *  the fill, which is the same picture and the same reason — a caption
+ *  over a video signal has no ground of its own. */
+constexpr SkColor4f kKey = hex(0x000000);
 
 const char* kLine1 = "COME TAKE A TRIP IN MY AIRSHIP";
 const char* kLine2 = "COME TAKE A SAIL AMONG THE STARS";
 
 constexpr float kLyricSize = 46.0f;
 constexpr float kTrack = 2.0f;
+/** The CD+G screen is a grid of 6x12 pixel cells and its type is a bitmap
+ *  face with no antialiasing at all. `ShapingStyle::aliased` is the verb
+ *  for that: Skia lights a pixel iff its centre is inside the outline, so
+ *  the glyph edges land on the grid instead of ramping across it. */
+constexpr bool kAliased = true;
 
 // ---- the schedule ---------------------------------------------------------
 /** ONE TIME PER WORD of kLine1, in ms — the shape the tune has, not a
@@ -251,7 +279,10 @@ struct KaraokeWipe : sketch::Sketch {
                                   .width(15)
                                   .height(15)
                                   .corners({8})
-                                  .fill(Fill::color(kPale))
+                                  // Fleischer's ball is a hard white disc,
+                                  // and it is the one thing on the frame
+                                  // that is not part of the caption.
+                                  .fill(Fill::color(hex(0xFFFFFF)))
                                   .translateX(&ballX)
                                   .translateY(&ballY)))
             .child(lyricLine())
@@ -259,7 +290,9 @@ struct KaraokeWipe : sketch::Sketch {
             .child(text(toU8(kLine2), type({.face = face,
                                             .size = kLyricSize * 0.78f,
                                             .color = kNext,
-                                            .track = kTrack}))
+                                            .track = kTrack,
+                                            .aliased = kAliased,
+                                            .antiAlias = false}))
                        .key("line2")
                        .margin(0, 22, 0, 0));
 
@@ -300,19 +333,35 @@ struct KaraokeWipe : sketch::Sketch {
     if (!ctx.fonts) return;
 
     face = pickFace({"Avenir Next", "Futura", "Helvetica Neue"}, 600);
-    lyric = type(
-        {.face = face, .size = kLyricSize, .color = kSung, .track = kTrack});
+    lyric = type({.face = face,
+                  .size = kLyricSize,
+                  .color = kSung,
+                  .track = kTrack,
+                  .aliased = kAliased,
+                  .antiAlias = false});
+    // The keyline: a black pass under the glyphs, which is what keeps a
+    // caption legible over a picture it does not own.
+    sigil::weave::PaintLayer key;
+    key.paint.setColor4f(kKey, nullptr);
+    key.paint.setStyle(SkPaint::kStroke_Style);
+    key.paint.setStrokeWidth(5.0f);
+    key.paint.setStrokeJoin(SkPaint::kRound_Join);
+    key.paint.setAntiAlias(false);
+    lyric.paint.addUnderlay(key);
     schedule.clear();
     words.clear();
     lineWidth = 0;
 
-    // Mid-line: the wipe has crossed four words, the ball is in the air
-    // between two, and the ruler shows both.
-    ctx.captureAt(kLeadIn + kLineSeconds * 0.55);
+    // ON A WORD. Fleischer's ball lands on the word it is naming and
+    // crosses in a hurry, so the one position it never holds is the gap
+    // between two — and a moment declared mid-flight photographs exactly
+    // that. This lands inside a word's own hold, with the wipe part way
+    // through it.
+    ctx.captureAt(kLeadIn + kLineSeconds * 0.44);
 
     ctx.ticker.add([this, t = 0.0](double dt) mutable {
       t += dt;
-      cycle = (float)std::fmod(t, loop);
+      cycle = motion::phase(t, loop) * (float)loop;
       return true;
     });
 
@@ -363,6 +412,7 @@ struct KaraokeWipe : sketch::Sketch {
     const std::vector<float> coverage = wordCoverage(schedule);
     float front = 0;
     for (const float share : coverage) front += share;
+    if (words.empty()) return;  // no unit rects, nothing to point at
     const auto centre = [this](size_t w) {
       const size_t clamped = std::min(w, words.size() - 1);
       return words[clamped].centerX() - 7.5f;
