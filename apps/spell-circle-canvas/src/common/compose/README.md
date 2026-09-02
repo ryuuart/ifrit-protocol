@@ -1389,7 +1389,9 @@ painted into a surface and handed out as a texture value),
 `SigilComposeWeb` (`web/` — header-only, present only with SigilScry),
 `SigilComposeTesting` (`testing/`) and `SigilComposeKit` (`kit/`). Each directory holds the target's sources,
 its internal headers, its `test/` and its `bench/`; the public headers
-sit under `include/sigilcompose/<feature>/`. Every consumer in this
+sit under `include/sigilcompose/<feature>/`. A harness several features
+compose against belongs to none of them, so the shared ones sit at the
+library root: `test/support/`, `test/assets/` and `bench/BenchSupport.h`. Every consumer in this
 repository — SigilSketch, the benches and the tests — links the
 feature targets it draws with by name, so a dependency on a tier is a
 stated fact.

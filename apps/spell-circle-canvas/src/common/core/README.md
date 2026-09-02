@@ -387,3 +387,8 @@ ancestor, a declared opt-out, the three sides of the release, and the
 counts that say a settled tree bakes once and replays after. It links
 `SigilCoreCache` alone. `sigilcore_cache_bench` (`cache/bench/`) times
 the proof over the same fake host at several node counts.
+
+A fake host is the subject of a measurement as much as of a test, so
+each of those two benchmarks compiles with its own feature's `test/` on
+its include path and drives the host defined there — one definition, and
+the two binaries cannot disagree about what they are exercising.

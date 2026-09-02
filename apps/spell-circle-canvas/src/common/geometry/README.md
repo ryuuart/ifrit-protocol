@@ -271,7 +271,8 @@ not dials, and stay out of it.
 Each feature is a directory holding its sources, its `CMakeLists.txt`,
 its `test/` and its `bench/`; its public headers sit under the matching
 directory of `include/sigilgeometry/`. Internal headers never leave the
-feature directory. Features nest by dependency — a feature links only
+feature directory, and a fixture several features' tests share sits at
+the library root instead, in `test/support/`. Features nest by dependency — a feature links only
 what sits above it in the tree — and each header includes what it needs,
 so including a deeper one pulls the shallower ones in.
 

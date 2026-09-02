@@ -177,7 +177,9 @@ read through two coordinates. Pair `kColumns` with
 
 Each feature is a directory holding its sources, its `CMakeLists.txt`, its
 `test/` and (where it has one) its `bench/`; its public headers sit under
-`include/sigilweave/<feature>/`. Internal headers never leave the feature
+`include/sigilweave/<feature>/`. A fixture several features shape with
+belongs to none of them, so the shared ones sit at the library root:
+`test/support/`, `test/assets/` and `bench/support/`. Internal headers never leave the feature
 directory. The features form a dependency chain — each links those it
 needs, and each header includes those it needs, so including a later one
 pulls the earlier ones in. `<sigilweave/SigilWeave.h>` is a transitional
