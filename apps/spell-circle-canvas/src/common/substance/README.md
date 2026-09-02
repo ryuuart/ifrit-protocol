@@ -148,9 +148,24 @@ build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
 
 The test and the benchmark render the SDK's own sample archives
 (`assets/Autumn_Leaves.sbsar`, and `assets/Post_Illumination.sbsar` for
-the composition test), found through the SDK directory the build was
-configured from. When a sample is not there, the test skips with a
-message naming the file and the benchmark registers nothing, so an SDK
-installed without its samples reports the fact rather than failing. The
-engine dylib itself is a link-time dependency: a binary built against
-the SDK does not start without it.
+the composition cases), found through the SDK directory the build was
+configured from. Without the SDK there is no `substance_test` at all —
+the target is left out of the build with the library.
+
+One case per promise: the engine reports its version, a package finds
+every graph by the url and the label it reports, a graph describes its
+parameters with their kinds and arities and tags its outputs with the
+channels they feed, it answers no image before the first render, it
+renders every output at the resolution it was set to and again at the
+next one, the normal-format input selects the green convention it
+reports back, a parameter it has is set and one it does not have is
+refused, `reset()` returns every parameter to its authored value, an
+image input takes an image whose size is not the graph's own, two
+graphs compose through image inputs, and bytes that are not an archive
+— and a file that is not there — are refused. When a sample is not
+there the case skips with a message naming the file and the benchmark
+registers nothing, so an SDK installed without its samples reports the
+fact rather than failing; the two refusal cases and the engine version
+need no sample and run either way. The engine dylib itself is a
+link-time dependency: a binary built against the SDK does not start
+without it.
