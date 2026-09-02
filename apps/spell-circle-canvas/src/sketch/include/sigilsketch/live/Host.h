@@ -6,6 +6,8 @@
  */
 
 #include <include/core/SkRefCnt.h>
+#include <sigilmeasure/stats/Samples.h>
+#include <sigilmeasure/time/Stopwatch.h>
 #include <sigilsketch/core/Assets.h>
 #include <sigilsketch/core/Registry.h>
 #include <sigilsketch/core/Session.h>
@@ -109,7 +111,7 @@ class Host {
    *  presentation starts one rather than extending the one this session
    *  was paused in the middle of — the rolling windows themselves stay,
    *  which is the point of a session outliving the look away from it. */
-  void resume() { m_lastPresent = {}; }
+  void resume() { m_presentSince.reset(); }
 
   /** Renders the CURRENT state (clock untouched) into a PNG at @p scale
    *  times the sketch's canvas. The capture path for both the windowed
@@ -186,10 +188,12 @@ class Host {
   double m_elapsed = 0.0;
   double m_lastAssetPoll = 0.0;
   std::chrono::steady_clock::time_point m_compileStart;
-  std::chrono::steady_clock::time_point m_lastPresent;
-  std::vector<double> m_workMs;     // rolling frame-body cost window
-  std::vector<double> m_drawMs;     // …and the paint phase inside it
-  std::vector<double> m_presentMs;  // rolling present-interval window
+  // Absent until the first presentation: there is no interval to measure
+  // from before one, and resume() empties it for the same reason.
+  std::optional<measure::Stopwatch> m_presentSince;
+  measure::Samples m_workMs{120};    // rolling frame-body cost window
+  measure::Samples m_drawMs{120};    // …and the paint phase inside it
+  measure::Samples m_presentMs{60};  // rolling present-interval window
   std::string m_status = "waiting for first build";
   std::string m_errorLog;
   CaptureBackend m_captureBackend;

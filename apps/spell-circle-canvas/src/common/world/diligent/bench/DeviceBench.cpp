@@ -22,6 +22,7 @@
 #include <sigilgeometry/mesh/pop/Pop.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/core/Recipe.h>
+#include <sigilmeasure/time/Stopwatch.h>
 #include <sigilmotion/clock/Ticker.h>
 #include <sigilskia/device/GpuDevice.h>
 #include <sigilskia/graphite/GraphiteContext.h>
@@ -31,7 +32,6 @@
 #include <sigilworld/scene/Scene.h>
 
 #include <algorithm>
-#include <chrono>
 #include <limits>
 #include <memory>
 #include <string>
@@ -65,12 +65,10 @@ constexpr int kDeviceRepetitions = 9;
 void BM_DeviceAdopt(benchmark::State& state) {
   const diligent::DeviceConfig config;
   std::string error;
-  const std::chrono::steady_clock::time_point started =
-      std::chrono::steady_clock::now();
+  const measure::Stopwatch bringUp;
   std::unique_ptr<diligent::Device> device =
       diligent::Device::create(config, &error);
-  const std::chrono::steady_clock::duration bringUp =
-      std::chrono::steady_clock::now() - started;
+  const double bringUpMs = bringUp.elapsedMs();
   if (!device) {
     state.SkipWithError(error);
     return;
@@ -79,8 +77,7 @@ void BM_DeviceAdopt(benchmark::State& state) {
     state.SkipWithError("the device was created but not adopted");
     return;
   }
-  state.counters["bringup_ms"] =
-      std::chrono::duration<double, std::milli>(bringUp).count();
+  state.counters["bringup_ms"] = bringUpMs;
 
   for ([[maybe_unused]] auto iteration : state) {
     std::unique_ptr<skia::GpuDevice> gpu = diligent::adoptVulkanDevice(
@@ -127,14 +124,11 @@ std::shared_ptr<const material::Recipe> freshRecipe() {
 void BM_ProgramFromRecipeBody(benchmark::State& state) {
   static const double firstCompileMs = [] {
     diligent::installSlangCompiler();
-    const std::chrono::steady_clock::time_point started =
-        std::chrono::steady_clock::now();
+    const measure::Stopwatch watch;
     std::shared_ptr<material::Program> program =
         material::program(freshRecipe(), material::Target::Slang,
                           material::Variant{diligent::kVariantLit});
-    const double ms = std::chrono::duration<double, std::milli>(
-                          std::chrono::steady_clock::now() - started)
-                          .count();
+    const double ms = watch.elapsedMs();
     benchmark::DoNotOptimize(program);
     return ms;
   }();
@@ -253,13 +247,10 @@ void BM_ChainOnDevice(benchmark::State& state) {
   double fastest = std::numeric_limits<double>::infinity();
   double slowest = 0.0;
   for ([[maybe_unused]] auto iteration : state) {
-    const std::chrono::steady_clock::time_point started =
-        std::chrono::steady_clock::now();
+    const measure::Stopwatch watch;
     gm::Cloud cooked = gm::pop::cook(chain, runtime);
     benchmark::DoNotOptimize(cooked);
-    const double ms = std::chrono::duration<double, std::milli>(
-                          std::chrono::steady_clock::now() - started)
-                          .count();
+    const double ms = watch.elapsedMs();
     fastest = std::min(fastest, ms);
     slowest = std::max(slowest, ms);
   }

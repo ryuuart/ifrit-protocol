@@ -318,63 +318,39 @@ void Host::poll() {
 
 bool Host::frame(SkCanvas& canvas, double fixedDt) {
   if (!m_session) return false;
-  const auto start = std::chrono::steady_clock::now();
+  const measure::Stopwatch watch;
   m_elapsed += fixedDt >= 0 ? fixedDt : 0.0;
   noteFrame(++m_frameIndex, m_elapsed);
   {
     PhaseMark mark(Phase::Update);
     m_session->frame(canvas, fixedDt);
   }
-  const double ms = std::chrono::duration<double, std::milli>(
-                        std::chrono::steady_clock::now() - start)
-                        .count();
-  if (m_workMs.size() >= 120) m_workMs.erase(m_workMs.begin());
-  m_workMs.push_back(ms);
-  if (m_drawMs.size() >= 120) m_drawMs.erase(m_drawMs.begin());
-  m_drawMs.push_back(m_session->timing().drawMs);
+  m_workMs.add(watch.elapsedMs());
+  m_drawMs.add(m_session->timing().drawMs);
   return true;
 }
 
-double Host::workMsAverage() const {
-  if (m_workMs.empty()) return 0.0;
-  double sum = 0.0;
-  for (double v : m_workMs) sum += v;
-  return sum / (double)m_workMs.size();
-}
+double Host::workMsAverage() const { return m_workMs.mean(); }
 
-double Host::drawMsAverage() const {
-  if (m_drawMs.empty()) return 0.0;
-  double sum = 0.0;
-  for (double v : m_drawMs) sum += v;
-  return sum / (double)m_drawMs.size();
-}
+double Host::drawMsAverage() const { return m_drawMs.mean(); }
 
-double Host::workMsP99() const {
-  if (m_workMs.empty()) return 0.0;
-  std::vector<double> sorted = m_workMs;
-  std::sort(sorted.begin(), sorted.end());
-  return sorted[(size_t)((double)(sorted.size() - 1) * 0.99)];
-}
+double Host::workMsP99() const { return m_workMs.percentile(0.99); }
 
 double Host::presentedFps() const {
   if (m_presentMs.size() < 2) return 0.0;
-  double sum = 0.0;
-  for (double v : m_presentMs) sum += v;
-  const double mean = sum / (double)m_presentMs.size();
+  const double mean = m_presentMs.mean();
   return mean > 0 ? 1000.0 / mean : 0.0;
 }
 
 void Host::markPresented() {
-  const auto now = std::chrono::steady_clock::now();
-  if (m_lastPresent.time_since_epoch().count() != 0) {
-    const double ms =
-        std::chrono::duration<double, std::milli>(now - m_lastPresent).count();
-    if (ms < 1000.0) {  // ignore stalls (window drags, sleeps)
-      if (m_presentMs.size() >= 60) m_presentMs.erase(m_presentMs.begin());
-      m_presentMs.push_back(ms);
-    }
+  if (!m_presentSince) {
+    m_presentSince.emplace();  // seeds the cadence; nothing to measure yet
+    return;
   }
-  m_lastPresent = now;
+  const double ms = m_presentSince->elapsedMs();
+  if (ms < 1000.0)  // ignore stalls (window drags, sleeps)
+    m_presentMs.add(ms);
+  m_presentSince->reset();
 }
 
 bool Host::capture(const std::filesystem::path& out, float scale) {

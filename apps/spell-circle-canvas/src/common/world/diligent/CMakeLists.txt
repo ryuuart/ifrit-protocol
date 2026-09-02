@@ -115,5 +115,5 @@ add_test(NAME world_diligent_test COMMAND world_diligent_test)
 add_executable(world_diligent_bench bench/DeviceBench.cpp)
 target_include_directories(world_diligent_bench PRIVATE ${CMAKE_CURRENT_LIST_DIR})
 target_link_libraries(world_diligent_bench PRIVATE SigilWorldDiligent
-  SigilMaterialKit SigilGeometryKit benchmark::benchmark)
+  SigilMaterialKit SigilGeometryKit SigilMeasure benchmark::benchmark)
 add_dependencies(benches world_diligent_bench)

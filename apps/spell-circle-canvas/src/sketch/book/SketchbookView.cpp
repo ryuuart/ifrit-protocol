@@ -18,6 +18,7 @@
 #include <include/core/SkPixmap.h>
 #include <include/core/SkSurface.h>
 #include <rhi/qrhi.h>
+#include <sigilmeasure/time/Stopwatch.h>
 #include <sigilsketch/core/Registry.h>
 #include <sigilsketch/live/Host.h>
 #include <sigilweave/fonts/FontContext.h>
@@ -407,7 +408,6 @@ bool SketchbookRenderer::readbackGraphite(SkSurface& surface,
 #endif
 
 void SketchbookRenderer::render(QRhiCommandBuffer* commandBuffer) {
-  using Clock = std::chrono::steady_clock;
   QRhiTexture* texture = colorTexture();
   if (!texture || m_logicalSize.width() < 1 || m_logicalSize.height() < 1)
     return;
@@ -427,11 +427,9 @@ void SketchbookRenderer::render(QRhiCommandBuffer* commandBuffer) {
           openSketch(m_index);
         }
         drawSketch(*canvas, pixelSize);
-        const auto submitStart = Clock::now();
+        const sigil::measure::Stopwatch submitWatch;
         surface.submit();
-        const double submitMs = std::chrono::duration<double, std::milli>(
-                                    Clock::now() - submitStart)
-                                    .count();
+        const double submitMs = submitWatch.elapsedMs();
         m_submitMsAverage = m_submitMsAverage == 0.0
                                 ? submitMs
                                 : m_submitMsAverage * 0.95 + submitMs * 0.05;
@@ -485,7 +483,7 @@ void SketchbookRenderer::render(QRhiCommandBuffer* commandBuffer) {
     }
   }
 
-  const auto submitStart = Clock::now();
+  const sigil::measure::Stopwatch submitWatch;
   QRhiResourceUpdateBatch* batch = rhi()->nextResourceUpdateBatch();
   // fromRawData keeps this upload view non-owning; the render-thread
   // buffer stays stable through QRhi's endFrame.
@@ -495,9 +493,7 @@ void SketchbookRenderer::render(QRhiCommandBuffer* commandBuffer) {
   QRhiTextureSubresourceUploadDescription sub(uploadBytes);
   batch->uploadTexture(texture, QRhiTextureUploadDescription({0, 0, sub}));
   commandBuffer->resourceUpdate(batch);
-  const double submitMs =
-      std::chrono::duration<double, std::milli>(Clock::now() - submitStart)
-          .count();
+  const double submitMs = submitWatch.elapsedMs();
   m_submitMsAverage = m_submitMsAverage == 0.0
                           ? submitMs
                           : m_submitMsAverage * 0.95 + submitMs * 0.05;

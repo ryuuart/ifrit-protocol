@@ -4,6 +4,7 @@
  */
 
 #include <include/core/SkCanvas.h>
+#include <sigilmeasure/time/Laps.h>
 #include <sigilmotion/clock/Ticker.h>
 #include <sigilsketch/set/Set.h>
 #include <sigilworld/frame/Pass.h>
@@ -11,7 +12,6 @@
 
 #include <algorithm>
 #include <array>
-#include <chrono>
 #include <cmath>
 #include <cstdio>
 #include <glm/geometric.hpp>
@@ -20,11 +20,6 @@
 namespace sigil::sketch {
 
 namespace {
-
-double millisSince(std::chrono::steady_clock::time_point from,
-                   std::chrono::steady_clock::time_point to) {
-  return std::chrono::duration<double, std::milli>(to - from).count();
-}
 
 /** The process's runtime. A device is one device and one queue for the
  *  whole run; an empty value is the CPU mesh executor. */
@@ -75,7 +70,7 @@ class SetSession final : public Session {
   [[nodiscard]] const CanvasSpec& canvas() const override { return m_spec; }
 
   void frame(SkCanvas& canvas, double dt) override {
-    const auto start = std::chrono::steady_clock::now();
+    m_laps.reset();
     const double step = dt >= 0.0 ? dt : 1.0 / 60.0;
     m_ticker.tick(step);
     m_seconds += step;
@@ -109,12 +104,10 @@ class SetSession final : public Session {
       const std::optional<world::Camera> declared = m_scene.camera();
       m_declared = declared ? *declared : m_camera;
     }
-    const auto described = std::chrono::steady_clock::now();
+    m_timing.updateMs = m_laps.mark("update");
     paint(canvas);
-    const auto drawn = std::chrono::steady_clock::now();
-    m_timing.updateMs = millisSince(start, described);
-    m_timing.drawMs = millisSince(described, drawn);
-    m_timing.totalMs = millisSince(start, drawn);
+    m_timing.drawMs = m_laps.mark("draw");
+    m_timing.totalMs = m_laps.totalMs();
     const world::SceneStats& stats = m_scene.stats();
     m_lanes = {Lane{"nodes", (double)stats.nodes},
                Lane{"drawn", (double)stats.drawn},
@@ -207,6 +200,9 @@ class SetSession final : public Session {
   bool m_orbiting = false;
   SkISize m_extent{1, 1};  // the pixels the frame standing was formed at
   Timing m_timing;
+  // Reset per frame rather than built per frame, so the laps a frame
+  // lays cost no allocation inside the span they are timing.
+  measure::Laps m_laps;
   std::array<Lane, 4> m_lanes{};
   double m_seconds = 0.0;
 };

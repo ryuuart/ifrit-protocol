@@ -31,6 +31,7 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
 #include <sigilmeasure/stats/Samples.h>
+#include <sigilmeasure/time/Stopwatch.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/core/Registry.h>
 #include <sigilsketch/live/Crash.h>
@@ -306,11 +307,9 @@ int runBench(sketch::Host& host, const CaptureOptions& options,
   std::vector<std::string> laneNames;
   frames.reserve((size_t)options.benchFrames);
   for (int i = 0; i < options.benchFrames; ++i) {
-    const auto begin = std::chrono::steady_clock::now();
+    const sigil::measure::Stopwatch watch;
     step();
-    frames.push_back(std::chrono::duration<double, std::milli>(
-                         std::chrono::steady_clock::now() - begin)
-                         .count());
+    frames.push_back(watch.elapsedMs());
     if (sketch::Session* session = host.session()) {
       const sketch::Timing timing = session->timing();
       updates.push_back(timing.updateMs);

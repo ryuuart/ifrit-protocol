@@ -9,6 +9,7 @@
 #include <include/core/SkStream.h>
 #include <include/core/SkSurface.h>
 #include <include/encode/SkPngEncoder.h>
+#include <sigilmeasure/time/Stopwatch.h>
 #include <sigilsketch/core/Assets.h>
 #include <sigilsketch/core/Registry.h>
 #include <sigilsketch/core/Session.h>
@@ -26,7 +27,6 @@
 #endif
 
 #include <algorithm>
-#include <chrono>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -61,11 +61,6 @@ constexpr int kCaptureFrame = kProbeFrames + kMaxWarmFrames + kMaxSampleFrames;
  *  an oversample of its own is rendered at exactly that, because the
  *  reason to declare one is a grid a fractional scale would destroy. */
 constexpr float kPlateWidthCeiling = 2400.0f;
-
-double millisSince(std::chrono::steady_clock::time_point from,
-                   std::chrono::steady_clock::time_point to) {
-  return std::chrono::duration<double, std::milli>(to - from).count();
-}
 
 /** The entries this run walks. */
 std::vector<int> selection(const SweepOptions& options) {
@@ -220,14 +215,14 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
 
     FrameStats stats;
     const auto stepOne = [&](SkSurface& target) {
-      const auto start = std::chrono::steady_clock::now();
+      // One watch, read twice: the two lanes both start at the top of the
+      // frame and differ only in whether the backend drain is inside.
+      const measure::Stopwatch watch;
       target.getCanvas()->clear(clearColor);
       session->frame(*target.getCanvas(), kStep);
-      const auto composed = std::chrono::steady_clock::now();
+      stats.addWork(watch.elapsedMs());
       if (flushHook) flushHook();
-      const auto finished = std::chrono::steady_clock::now();
-      stats.addWork(millisSince(start, composed));
-      stats.add(millisSince(start, finished));
+      stats.add(watch.elapsedMs());
     };
 
     // Warm past the entrance choreography so the table reports STEADY

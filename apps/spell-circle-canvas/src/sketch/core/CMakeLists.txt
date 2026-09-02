@@ -1,10 +1,10 @@
 # The core feature: what a sketch is, what it declares about its canvas,
 # what it reaches for, and the seam that says which runtime draws it.
 #
-# It links the resource hub (a sketch reaches for files) and the
-# comparable erasure the kind seam is built on, and nothing that draws:
-# a consumer that only wants to know what sketches exist links this
-# alone.
+# It links the resource hub (a sketch reaches for files), the comparable
+# erasure the kind seam is built on, and the instruments every runtime
+# times itself with — and nothing that draws: a consumer that only wants
+# to know what sketches exist links this alone.
 add_library(SigilSketchCore STATIC
   Assets.cpp
   Registry.cpp
@@ -16,7 +16,8 @@ add_library(SigilSketchCore STATIC
 )
 target_compile_features(SigilSketchCore PUBLIC cxx_std_20)
 target_include_directories(SigilSketchCore PUBLIC ${SIGIL_SKETCH_INCLUDE_DIR})
-target_link_libraries(SigilSketchCore PUBLIC SigilLoader SigilCoreComparable)
+target_link_libraries(SigilSketchCore PUBLIC SigilLoader SigilCoreComparable
+  SigilMeasure)
 set_target_properties(SigilSketchCore PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 add_executable(sketch_core_test test/RegistryTest.cpp)

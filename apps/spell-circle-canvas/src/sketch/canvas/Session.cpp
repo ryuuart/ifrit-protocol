@@ -4,22 +4,17 @@
  */
 
 #include <sigilcompose/core/Composer.h>
+#include <sigilmeasure/time/Laps.h>
 #include <sigilmotion/clock/FrameClock.h>
 #include <sigilmotion/clock/Ticker.h>
 #include <sigilsketch/canvas/Sketch.h>
 
 #include <array>
-#include <chrono>
 #include <cstdio>
 
 namespace sigil::sketch {
 
 namespace {
-
-double millisSince(std::chrono::steady_clock::time_point from,
-                   std::chrono::steady_clock::time_point to) {
-  return std::chrono::duration<double, std::milli>(to - from).count();
-}
 
 /** ONE 2D SKETCH, RUNNING.
  *
@@ -56,7 +51,7 @@ class CanvasSession final : public Session {
   [[nodiscard]] const CanvasSpec& canvas() const override { return m_spec; }
 
   void frame(SkCanvas& canvas, double dt) override {
-    const auto start = std::chrono::steady_clock::now();
+    m_laps.reset();
     double step = 0.0;
     if (dt >= 0.0) {
       if (!m_stepping) {
@@ -83,12 +78,10 @@ class CanvasSession final : public Session {
       m_sketch->update(m_clock.elapsed(), ctx);
     }
     applySize();  // a sketch may resize itself mid-run, p5 style
-    const auto described = std::chrono::steady_clock::now();
+    m_timing.updateMs = m_laps.mark("update");
     m_composer->draw(canvas);
-    const auto drawn = std::chrono::steady_clock::now();
-    m_timing.updateMs = millisSince(start, described);
-    m_timing.drawMs = millisSince(described, drawn);
-    m_timing.totalMs = millisSince(start, drawn);
+    m_timing.drawMs = m_laps.mark("draw");
+    m_timing.totalMs = m_laps.totalMs();
     const compose::Composer::Stats& stats = m_composer->stats();
     m_lanes = {Lane{"recon", stats.reconcileMs}, Lane{"layout", stats.layoutMs},
                Lane{"volat", stats.volatileMs}, Lane{"paint", stats.paintMs}};
@@ -211,6 +204,9 @@ class CanvasSession final : public Session {
   // (which may point at sketch-owned Outputs) before their owner.
   std::unique_ptr<compose::Composer> m_composer;
   Timing m_timing;
+  // Reset per frame rather than built per frame, so the laps a frame
+  // lays cost no allocation inside the span they are timing.
+  measure::Laps m_laps;
   std::array<Lane, 4> m_lanes{};
   SkSize m_applied = m_spec.size;  // what the composer was last told
   double m_now = 0.0;              // the stepped timeline, when stepped
