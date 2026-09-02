@@ -1328,8 +1328,8 @@ struct NamedRun {
  *  that is not a frame carries a zero offset and its own key, so the
  *  ordinary case is the general one with nothing subtracted. */
 struct TextScope {
-  uint32_t lineOffset = 0;     ///< story line index of this leaf's line 0
-  std::string_view frameKey;   ///< this leaf's key, for sel::inFrame
+  uint32_t lineOffset = 0;    ///< story line index of this leaf's line 0
+  std::string_view frameKey;  ///< this leaf's key, for sel::inFrame
 };
 }  // namespace detail
 

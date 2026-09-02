@@ -407,7 +407,8 @@ Ranges resolveTextRangesInto(
         return story >= s->lo && story < s->hi;
       };
       for (const sigil::weave::LineMetrics& line : lines)
-        if (within(line.lineIndex)) out.push_back({line.textBegin, line.textEnd});
+        if (within(line.lineIndex))
+          out.push_back({line.textBegin, line.textEnd});
       for (const sigil::weave::ColumnMetrics& column : columns)
         if (within(column.lineIndex))
           out.push_back({column.textBegin, column.textEnd});

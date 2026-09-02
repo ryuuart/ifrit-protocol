@@ -18,11 +18,11 @@
 
 #include <algorithm>
 #include <cmath>   // std::isfinite — the profileOffset non-finite guard
-#include <cstdio>
+#include <cstdio>  // std::snprintf — variationDrive's effect key
+#include <set>
 #include <string>
 #include <string_view>
-#include <unordered_set>  // std::snprintf — variationDrive's effect key
-#include <set>
+#include <unordered_set>  // the once-per-name diagnostics' seen sets
 
 #include "ComposeInternal.h"
 #include "sigilgeometry/path/Contour.h"

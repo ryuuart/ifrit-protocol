@@ -121,9 +121,8 @@ const SkPath& Composer::Impl::coverageOutline(Instance& inst, SkSize size,
   inst.coverageOutline.reset();
 
   const float longer = std::max(size.width(), size.height());
-  const float scale =
-      std::min(contentScale > 0 ? contentScale : 1.0f,
-               (float)kMaxTraceRaster / std::max(longer, 1.0f));
+  const float scale = std::min(contentScale > 0 ? contentScale : 1.0f,
+                               (float)kMaxTraceRaster / std::max(longer, 1.0f));
   const int width = std::max(1, (int)std::ceil(size.width() * scale));
   const int height = std::max(1, (int)std::ceil(size.height() * scale));
   // One channel, because coverage is the only channel the answer reads.

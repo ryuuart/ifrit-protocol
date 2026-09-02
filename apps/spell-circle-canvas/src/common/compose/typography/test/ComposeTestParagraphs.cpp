@@ -533,11 +533,12 @@ std::u8string longPassage() {
 
 /** One frame of a live passage at `measure`, reporting what it cost. */
 TextSettling settlingAt(Host& host, float measure, float budget) {
-  host.composer.render(box().child(text(longPassage(), whiteStyle(13))
-                                       .key("t")
-                                       .width(Dim(measure))
-                                       .lineBreak(sigil::weave::LineBreakStrategy::kKnuthPlass)
-                                       .live(true, budget)));
+  host.composer.render(
+      box().child(text(longPassage(), whiteStyle(13))
+                      .key("t")
+                      .width(Dim(measure))
+                      .lineBreak(sigil::weave::LineBreakStrategy::kKnuthPlass)
+                      .live(true, budget)));
   host.frame();
   return host.composer.settling("t");
 }
@@ -635,8 +636,11 @@ void twoFrames(Host& host, float measure = 160.0f) {
   host.composer.render(
       box()
           .row()
-          .child(frame(article).key("a").thread("b").width(Dim(measure)).height(
-              Dim(70.0f)))
+          .child(frame(article)
+                     .key("a")
+                     .thread("b")
+                     .width(Dim(measure))
+                     .height(Dim(70.0f)))
           .child(
               frame(article).key("b").width(Dim(measure)).height(Dim(400.0f))));
   host.frame();
@@ -647,7 +651,8 @@ void twoFrames(Host& host, float measure = 160.0f) {
 TEST(ComposeStory, LinesAreNumberedFromTheStoryAndNotFromTheFrame) {
   Host host(600, 500);
   twoFrames(host);
-  const sigil::weave::ParagraphLayout* head = host.composer.paragraphLayout("a");
+  const sigil::weave::ParagraphLayout* head =
+      host.composer.paragraphLayout("a");
   ASSERT_NE(head, nullptr);
   const int headLines = head->lineCount;
   ASSERT_GT(headLines, 1);
@@ -669,13 +674,13 @@ TEST(ComposeStory, LinesAreNumberedFromTheStoryAndNotFromTheFrame) {
 TEST(ComposeStory, InFrameIsTheFrameLocalAddressBesideTheStoryWideOnes) {
   Host host(600, 500);
   twoFrames(host);
-  const sigil::weave::ParagraphLayout* head = host.composer.paragraphLayout("a");
+  const sigil::weave::ParagraphLayout* head =
+      host.composer.paragraphLayout("a");
   ASSERT_NE(head, nullptr);
 
   // On its own it is everything that frame holds, and nothing anywhere
   // else.
-  EXPECT_FALSE(
-      host.composer.units("b", sel::inFrame("b"), unit::Line).empty());
+  EXPECT_FALSE(host.composer.units("b", sel::inFrame("b"), unit::Line).empty());
   EXPECT_TRUE(host.composer.units("a", sel::inFrame("b"), unit::Line).empty());
   // Composed, it cuts a story-wide address to one frame: the story's line 0
   // is in frame a, so asking for it inside frame b addresses nothing.
@@ -695,10 +700,10 @@ TEST(ComposeLineTables, TsumeClosesTheGapsBetweenFullWidthCharacters) {
   // A passage set with it is narrower than the same passage without.
   const auto widthWith = [](float tsume) {
     Host host(400, 300);
-    Element leaf = text(toU8("あいうえお、かきくけこ。さしすせそ"),
-                        whiteStyle(20))
-                       .key("t")
-                       .width(Dim(360.0f));
+    Element leaf =
+        text(toU8("あいうえお、かきくけこ。さしすせそ"), whiteStyle(20))
+            .key("t")
+            .width(Dim(360.0f));
     if (tsume != 0) leaf.mojikumi({}, tsume);
     host.composer.render(box().child(std::move(leaf)));
     host.frame();

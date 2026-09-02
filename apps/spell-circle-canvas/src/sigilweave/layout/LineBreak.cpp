@@ -1341,10 +1341,9 @@ float enforceKeeps(FontContext& fontContext, Paragraph& paragraph,
     } else if (keep.orphanLines > 0 && last.lines < keep.orphanLines) {
       wholeBlock = true;
     } else if (keep.widowLines > 0) {
-      const int carried =
-          remainderLines(fontContext, paragraph, result.firstUnplacedWord,
-                         last.block->endWord, remainderMeasure,
-                         keep.widowLines);
+      const int carried = remainderLines(
+          fontContext, paragraph, result.firstUnplacedWord, last.block->endWord,
+          remainderMeasure, keep.widowLines);
       retractLines = keep.widowLines - carried;
       // Every line pulled back out of this frame is a line the next frame
       // gains, so what the block keeps here must still satisfy its own
@@ -1657,10 +1656,9 @@ ParagraphLayout layoutParagraph(FontContext& fontContext, Paragraph& paragraph,
     }
   }
 
-  const float depthFreed =
-      enforceKeeps(fontContext, paragraph, placedBlocks,
-                   options.nextMeasure > 0 ? options.nextMeasure : lastMeasure,
-                   result);
+  const float depthFreed = enforceKeeps(
+      fontContext, paragraph, placedBlocks,
+      options.nextMeasure > 0 ? options.nextMeasure : lastMeasure, result);
   result.lineCount = lastLineUsed + 1;
   if (depthFreed > 0) {
     int highestLine = -1;

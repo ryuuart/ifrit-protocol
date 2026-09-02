@@ -128,8 +128,9 @@ bool Composer::Impl::resolveThreads() {
     uint32_t lineOffset = 0;
     for (Instance* frame = head; frame; ) {
       if (!visited.insert(frame).second) break;  // a cycle: stop where it closes
-      const detail::TextData* text =
-          frame->desc && frame->desc->textData ? &*frame->desc->textData : nullptr;
+      const detail::TextData* text = frame->desc && frame->desc->textData
+                                         ? &*frame->desc->textData
+                                         : nullptr;
       Instance* next = nullptr;
       if (text && !text->threadTo.empty()) {
         auto found = byKey.find(text->threadTo);
@@ -140,8 +141,7 @@ bool Composer::Impl::resolveThreads() {
       // frame will hold. Read off the box that frame resolved to on the
       // pass before this one — 0 the first time round, which is weave's
       // "not known" and leaves the count at this frame's own measure.
-      const float nextMeasure =
-          next ? instanceRect(*next).width() : 0.0f;
+      const float nextMeasure = next ? instanceRect(*next).width() : 0.0f;
       if (frame->threadCursor != cursor ||
           frame->threadLineOffset != lineOffset ||
           frame->threadNextMeasure != nextMeasure) {
