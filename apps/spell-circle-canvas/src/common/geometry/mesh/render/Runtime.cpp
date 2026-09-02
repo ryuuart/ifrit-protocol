@@ -12,6 +12,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <glm/gtc/matrix_inverse.hpp>
+#include <glm/mat3x3.hpp>
 #include <numeric>
 
 #include "sigilgeometry/mesh/Vec.h"
@@ -26,44 +28,19 @@ using camera::toSkM44;
 
 namespace {
 
-/** Upper-left 3x3 of @p m, inverse-transposed — the normal matrix. */
-struct Mat3 {
-  float m[9];
-
-  glm::vec3 apply(glm::vec3 v) const {
-    return {m[0] * v.x + m[1] * v.y + m[2] * v.z,
-            m[3] * v.x + m[4] * v.y + m[5] * v.z,
-            m[6] * v.x + m[7] * v.y + m[8] * v.z};
-  }
-
-  /** The transpose, which for the rotation part of a rigid placement is
-   *  its inverse — how a direction gets back out of view space. */
-  Mat3 transposed() const {
-    return {{m[0], m[3], m[6], m[1], m[4], m[7], m[2], m[5], m[8]}};
-  }
-};
-
-Mat3 normalMatrix(const SkM44& src) {
-  const float a00 = src.rc(0, 0), a01 = src.rc(0, 1), a02 = src.rc(0, 2);
-  const float a10 = src.rc(1, 0), a11 = src.rc(1, 1), a12 = src.rc(1, 2);
-  const float a20 = src.rc(2, 0), a21 = src.rc(2, 1), a22 = src.rc(2, 2);
-  const float det = a00 * (a11 * a22 - a12 * a21) -
-                    a01 * (a10 * a22 - a12 * a20) +
-                    a02 * (a10 * a21 - a11 * a20);
-  Mat3 out{{1, 0, 0, 0, 1, 0, 0, 0, 1}};
-  if (std::abs(det) < 1e-12f) return out;
-  const float inv = 1.0f / det;
-  // rows of the inverse transpose = columns of the inverse
-  out.m[0] = (a11 * a22 - a12 * a21) * inv;
-  out.m[1] = (a12 * a20 - a10 * a22) * inv;
-  out.m[2] = (a10 * a21 - a11 * a20) * inv;
-  out.m[3] = (a02 * a21 - a01 * a22) * inv;
-  out.m[4] = (a00 * a22 - a02 * a20) * inv;
-  out.m[5] = (a01 * a20 - a00 * a21) * inv;
-  out.m[6] = (a01 * a12 - a02 * a11) * inv;
-  out.m[7] = (a02 * a10 - a00 * a12) * inv;
-  out.m[8] = (a00 * a11 - a01 * a10) * inv;
-  return out;
+/** Upper-left 3x3 of @p m, inverse-transposed — the normal matrix. A
+ *  non-uniform scale tilts a surface and its normal the opposite way, so
+ *  the plain matrix would leave every normal off the surface it
+ *  describes.
+ *
+ *  The determinant is tested before the inverse is taken: glm's ends
+ *  with an unguarded divide by it, so a placement that collapsed an axis
+ *  would come back as infinities. A basis with no volume has no normal
+ *  transform, and the identity is what leaves a normal alone. */
+glm::mat3 normalMatrix(const glm::mat4& m) {
+  const glm::mat3 basis(m);
+  if (std::abs(glm::determinant(basis)) < 1e-12f) return glm::mat3(1.0f);
+  return glm::inverseTranspose(basis);
 }
 
 /** Multiply a shaded vertex colour by a primitive lane value. The
@@ -104,12 +81,13 @@ struct CpuExecutor : Executor {
     viewModel.preConcat(toSkM44(model));
     SkM44 full = toSkM44(camera.viewProjection(viewport));
     full.preConcat(toSkM44(model));
-    const Mat3 normalM = normalMatrix(viewModel);
-    const Mat3 lightM = normalMatrix(toSkM44(camera.view()));
+    const glm::mat3 normalM = normalMatrix(camera.view() * model);
+    const glm::mat3 lightM = normalMatrix(camera.view());
     // The shading is written in view space and an environment map is a
     // panorama of the WORLD, so a direction goes back out through the
-    // inverse of the rotation that brought it in.
-    const Mat3 worldM = lightM.transposed();
+    // inverse of the rotation that brought it in — which, for the
+    // rotation part of a rigid placement, is its transpose.
+    const glm::mat3 worldM = glm::transpose(lightM);
     const Environment& environment = style.environment;
     const bool sky = environment.valid();
     const float metal = std::clamp(style.metallic, 0.0f, 1.0f);
@@ -139,7 +117,7 @@ struct CpuExecutor : Executor {
       switch (style.mode) {
         case MeshStyle::Mode::Normals: {
           const glm::vec3 nrm = hasNormals
-                                    ? normalized(normalM.apply(mesh.normals[i]))
+                                    ? normalized(normalM * mesh.normals[i])
                                     : glm::vec3{0, 0, 1};
           // Materials.h G-buffer convention: DEVICE-space normals, +y down.
           shaded[i] = toColor(
@@ -157,7 +135,7 @@ struct CpuExecutor : Executor {
           const SkV4 vp4 = viewModel * SkV4{p.x, p.y, p.z, 1};
           const glm::vec3 posView = {vp4.x, vp4.y, vp4.z};
           const glm::vec3 N = hasNormals
-                                  ? normalized(normalM.apply(mesh.normals[i]))
+                                  ? normalized(normalM * mesh.normals[i])
                                   : glm::vec3{0, 0, 1};
           const glm::vec3 V = normalized(posView * -1.0f);
           glm::vec3 base = {style.baseColor.fR, style.baseColor.fG,
@@ -186,13 +164,13 @@ struct CpuExecutor : Executor {
           // actually falls on a surface facing this way from every
           // direction, rather than one constant for the whole set.
           const glm::vec3 ambient =
-              sky ? environmentIrradiance(environment, worldM.apply(N))
+              sky ? environmentIrradiance(environment, worldM * N)
                   : glm::vec3{style.ambient.fR, style.ambient.fG,
                               style.ambient.fB};
           glm::vec3 accum = albedo * ambient;
           for (const Light& light : style.lights) {
             const glm::vec3 L =
-                normalized(lightM.apply(light.direction * -1.0f));
+                normalized(lightM * (light.direction * -1.0f));
             const float diff = std::max(glm::dot(N, L), 0.0f);
             const glm::vec3 lc = {light.color.fR * light.intensity,
                                   light.color.fG * light.intensity,
@@ -212,7 +190,7 @@ struct CpuExecutor : Executor {
             const float nDotV = std::max(glm::dot(N, V), 0.0f);
             const glm::vec3 R = N * (2.0f * nDotV) - V;
             accum += environmentSpecular(
-                environmentRadiance(environment, worldM.apply(R), rough), f0,
+                environmentRadiance(environment, worldM * R, rough), f0,
                 rough, nDotV);
           }
           if (style.rim > 0) {

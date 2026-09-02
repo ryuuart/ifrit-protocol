@@ -19,8 +19,9 @@
 # a no-op for these targets, and the model is pinned where the code is
 # finally generated — `-ffp-contract=off` on generated C++,
 # `-fmetal-math-mode=safe -ffp-contract=off` on Metal, and
-# MVK_CONFIG_FAST_MATH_ENABLED=0 for MoltenVK at run time. Slang emits no
-# NoContraction decoration in SPIR-V, so a driver is free to fuse a
+# MVK_CONFIG_FAST_MATH_ENABLED=0 for MoltenVK at run time. Slang through
+# 2026.7.1 emits no NoContraction decoration in SPIR-V — `-fp-mode
+# precise` included — so a driver is free to fuse a
 # multiply-add inside a module compiled here; a kernel that needs the
 # unfused answer has to reach the same result without depending on it.
 

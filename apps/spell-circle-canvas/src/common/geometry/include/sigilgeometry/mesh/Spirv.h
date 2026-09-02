@@ -3,9 +3,11 @@
 /** @file
  * A compiled kernel's SPIR-V, made to mean what its source says.
  *
- * THE GAP THIS CLOSES. The emitter puts no `NoContraction` decoration in
- * the module it produces, so nothing in the words tells a driver that a
- * multiply and the add after it are two operations. A driver is then
+ * workaround: THE GAP THIS CLOSES. Slang through 2026.7.1 puts no
+ * `NoContraction` decoration in the module it emits — `-fp-mode precise`
+ * included, which is a no-op for the SPIR-V target — so nothing in the
+ * words tells a driver that a multiply and the add after it are two
+ * operations. A driver is then
  * free to fuse them into one, which rounds once where the source rounds
  * twice — and a host build whose contraction is pinned off rounds twice.
  * One decoration per arithmetic result is what makes the two agree, and
