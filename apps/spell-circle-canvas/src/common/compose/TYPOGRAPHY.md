@@ -788,6 +788,17 @@ everything the named frame holds, and nothing anywhere else — so
 `sel::inFrame("b") & sel::line(40)` is "line 40, if frame b is where it
 landed". A frame-local address on a leaf with no `key` can never match and
 warns once.
+
+**BEATS SPAN THE CHAIN.** A cascade over a threaded story runs one clock
+across the whole of it: with `beats::Text` the fortieth word is beat forty
+wherever it landed, so a staggered reveal carries on from one frame into
+the next instead of restarting, and a `fx::seq` phase's crossfade stays
+put across a reflow that moves a word from one frame to another —
+its beat is the story's, not the frame's. The word, the sentence and the
+line are the three granularities this holds for, because each carries a
+story ordinal on the placed glyph. A CLUSTER AND A GLYPH DO NOT: their
+ordinal is a position in this frame's walk, so a cascade over either
+restarts at each frame.
 Overflow on any frame but the last is the normal case and draws no marker,
 whatever ellipsis the leaf asked for; the last frame is the one that
 threads nowhere. A frame's own geometry is its business: it may flow

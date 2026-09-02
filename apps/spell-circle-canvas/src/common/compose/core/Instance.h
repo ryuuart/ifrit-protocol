@@ -165,6 +165,10 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // Only the chain knows it; 0 says it is not known yet, which is the
   // first pass over a chain nobody has laid out.
   float threadNextMeasure = 0;
+  // …and the lines the WHOLE chain placed, written to every frame once the
+  // walk knows it. A cascade numbered over the story needs the story's own
+  // count, and no single fill has it.
+  uint32_t threadStoryLines = 0;
   uint32_t contentRev = 0;        // bumped on text/exclusion change
   uint32_t measuredRev = ~0u;     // rev the cached measurement belongs to
   // rich().slot(): the slot names in the order the content declares them —
@@ -664,7 +668,10 @@ inline bool childrenCarryYoga(const Instance& inst) {
  *  its own key, so the ordinary text is the general case with nothing
  *  subtracted. */
 [[nodiscard]] inline TextScope scopeOf(const Instance& inst) {
-  return {inst.threadLineOffset,
+  const bool threads = inst.desc && inst.desc->textData &&
+                       !inst.desc->textData->threadTo.empty();
+  return {inst.threadLineOffset, inst.threadStoryLines,
+          threads || inst.threadLineOffset > 0,
           inst.desc ? std::string_view(inst.desc->key) : std::string_view{}};
 }
 

@@ -126,7 +126,8 @@ bool Composer::Impl::resolveThreads() {
     // story's paragraph and resumes at a word — and the line is the one
     // address that was the frame's rather than the story's.
     uint32_t lineOffset = 0;
-    for (Instance* frame = head; frame; ) {
+    std::vector<Instance*> chain;
+    for (Instance* frame = head; frame;) {
       if (!visited.insert(frame).second) break;  // a cycle: stop where it closes
       const detail::TextData* text = frame->desc && frame->desc->textData
                                          ? &*frame->desc->textData
@@ -166,8 +167,13 @@ bool Composer::Impl::resolveThreads() {
                           ? (uint32_t)frame->paragraph->words().size()
                           : cursor);
       lineOffset += (uint32_t)std::max(frame->textLayout.lineCount, 0);
+      chain.push_back(frame);
       frame = next;
     }
+    // The story's own line count, which only the finished walk knows and
+    // every frame of the chain needs: a cascade numbered over the story
+    // spans the story's units, not the ones this frame happened to hold.
+    for (Instance* link : chain) link->threadStoryLines = lineOffset;
   }
   return moved;
 }

@@ -32,6 +32,21 @@ struct GlyphStructure {
    *  draw order. */
   std::array<std::vector<uint32_t>, kUnits> unitOf;
   std::array<uint32_t, kUnits> unitCounts{};
+  /** THE SAME LANES NUMBERED OVER THE STORY, for a leaf that is one frame
+   *  of a chain: the beats of a cascade over a threaded story run on one
+   *  clock across the whole of it, so the fortieth word is beat forty
+   *  wherever it landed and a stagger does not restart at each frame.
+   *
+   *  Only three granularities have a story ordinal to report — the word,
+   *  the sentence and the line each carry one on the placed glyph, because
+   *  every frame builds the whole story's paragraph and resumes at a word.
+   *  A CLUSTER AND A GLYPH DO NOT: a cluster's ordinal is a walk position
+   *  and the walk is this frame's, so those two lanes are the frame's
+   *  numbering and a cascade over them restarts per frame. Empty on a leaf
+   *  that is not a frame of a chain, which then reads the lanes above and
+   *  is numbered exactly as it always was. */
+  std::array<std::vector<uint32_t>, kUnits> storyUnitOf;
+  std::array<uint32_t, kUnits> storyUnitCounts{};
 
   TextScope scope;  ///< carried so every resolver reads one value
 

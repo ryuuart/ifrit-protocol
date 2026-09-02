@@ -715,3 +715,41 @@ TEST(ComposeLineTables, TsumeClosesTheGapsBetweenFullWidthCharacters) {
   ASSERT_GT(plain, 0.0f);
   EXPECT_LT(widthWith(0.5f), plain);
 }
+
+TEST(ComposeStory, BeatsSpanTheChainOnOneMasterProgress) {
+  Host host(600, 500);
+  Story article(rich(whiteStyle(13)).add(longPassage()));
+  const auto reveal = [] {
+    Track track;
+    track.effect = fx::rise(20.0f);
+    track.over = unit::Word;
+    track.beatsOver = beats::Text;
+    track.stagger = {.durationMs = 100.0f, .eachMs = 20.0f};
+    track.progress = 0.5f;
+    return track;
+  };
+  host.composer.render(box()
+                           .row()
+                           .child(frame(article)
+                                      .key("a")
+                                      .thread("b")
+                                      .width(Dim(160.0f))
+                                      .height(Dim(70.0f))
+                                      .fx(reveal()))
+                           .child(frame(article)
+                                      .key("b")
+                                      .width(Dim(160.0f))
+                                      .height(Dim(400.0f))
+                                      .fx(reveal())));
+  host.frame();
+  const std::vector<Beat> first = host.composer.beatsOf("a", 0);
+  const std::vector<Beat> second = host.composer.beatsOf("b", 0);
+  ASSERT_FALSE(first.empty());
+  ASSERT_FALSE(second.empty());
+  // A cascade over a threaded story runs ONE clock across the whole of it:
+  // the second frame's first word carries on from where the first frame's
+  // last word left off rather than restarting at beat 0.
+  EXPECT_EQ(first.front().unitIndex, 0u);
+  EXPECT_GT(second.front().unitIndex, first.back().unitIndex);
+  EXPECT_GT(second.front().startMs, first.back().startMs);
+}

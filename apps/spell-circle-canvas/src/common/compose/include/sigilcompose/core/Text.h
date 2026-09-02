@@ -1329,6 +1329,8 @@ struct NamedRun {
  *  ordinary case is the general one with nothing subtracted. */
 struct TextScope {
   uint32_t lineOffset = 0;    ///< story line index of this leaf's line 0
+  uint32_t storyLines = 0;    ///< lines the whole chain placed; 0 if not one
+  bool inChain = false;       ///< this leaf is one frame of several
   std::string_view frameKey;  ///< this leaf's key, for sel::inFrame
 };
 }  // namespace detail

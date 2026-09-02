@@ -69,7 +69,9 @@ void GlyphStructure::build(const sigil::weave::ParagraphLayout& layout,
   scope = textScope;
   glyphs.clear();
   for (auto& lane : unitOf) lane.clear();
+  for (auto& lane : storyUnitOf) lane.clear();
   unitCounts = {};
+  storyUnitCounts = {};
 
   sigil::weave::PlacedGlyph previous;
   bool first = true;
@@ -97,9 +99,31 @@ void GlyphStructure::build(const sigil::weave::ParagraphLayout& layout,
             ++unitCounts[lane];
           unitOf[lane].push_back(unitCounts[lane] - 1);
         }
+        if (textScope.inChain) {
+          // The three lanes the placed glyph carries a STORY ordinal for.
+          // A cluster and a glyph are walk positions and the walk is this
+          // frame's, so they keep the frame's numbering.
+          storyUnitOf[(size_t)Unit::Word].push_back(placed.wordIndex);
+          storyUnitOf[(size_t)Unit::Sentence].push_back(placed.sentenceIndex);
+          storyUnitOf[(size_t)Unit::Line].push_back(info.lineIndex);
+          storyUnitOf[(size_t)Unit::Cluster].push_back(
+              unitOf[(size_t)Unit::Cluster].back());
+          storyUnitOf[(size_t)Unit::Glyph].push_back(
+              unitOf[(size_t)Unit::Glyph].back());
+        }
         previous = placed;
         first = false;
       });
+
+  if (textScope.inChain) {
+    storyUnitCounts = unitCounts;
+    storyUnitCounts[(size_t)Unit::Word] = (uint32_t)paragraph.words().size();
+    storyUnitCounts[(size_t)Unit::Sentence] =
+        (uint32_t)paragraph.sentenceStarts().size();
+    storyUnitCounts[(size_t)Unit::Line] = textScope.storyLines
+                                             ? textScope.storyLines
+                                             : unitCounts[(size_t)Unit::Line];
+  }
 
   // The two per-word facts an effect reads (which letter of its word, of
   // how many) need the word's size, which is only known once the word has
@@ -506,7 +530,16 @@ void TrackCascade::build(const Track& track, const GlyphStructure& structure,
                          const std::vector<uint8_t>& selected) {
   const motion::Spread& spec = track.stagger;
   const auto count = (uint32_t)structure.glyphs.size();
-  const std::vector<uint32_t>& outerLane = structure.unitOf[(size_t)track.over];
+  // THE STORY'S NUMBERING where this leaf is one frame of a chain, the
+  // leaf's own everywhere else. A cascade over a threaded story runs one
+  // clock across the whole of it: the fortieth word is beat forty wherever
+  // it landed, so a stagger does not restart at each frame. The lanes are
+  // empty for an ordinary leaf, which is then numbered exactly as it always
+  // was.
+  const bool story = !structure.storyUnitOf[(size_t)track.over].empty();
+  const std::vector<uint32_t>& outerLane =
+      story ? structure.storyUnitOf[(size_t)track.over]
+            : structure.unitOf[(size_t)track.over];
   outerUnit.assign(count, 0);
   uint32_t outerCount = 0;
   if (track.beatsOver == Beats::Text) {
@@ -515,7 +548,8 @@ void TrackCascade::build(const Track& track, const GlyphStructure& structure,
     // track happens to address, so two tracks that split one paragraph run
     // one clock however differently their selections resolve.
     for (uint32_t g = 0; g < count; ++g) outerUnit[g] = outerLane[g];
-    outerCount = structure.unitCounts[(size_t)track.over];
+    outerCount = story ? structure.storyUnitCounts[(size_t)track.over]
+                       : structure.unitCounts[(size_t)track.over];
   } else {
     // Renumber the units the SELECTION covers, from 0, in draw order — then
     // a stagger's From, its amount-mode division and its distribution all
