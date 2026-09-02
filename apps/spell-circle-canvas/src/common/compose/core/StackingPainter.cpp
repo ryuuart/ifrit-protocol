@@ -22,15 +22,16 @@
 #include <include/effects/SkRuntimeEffect.h>
 #include <include/effects/SkTrimPathEffect.h>
 #include <sigilimage/asset/ImageAsset.h>
+#include <sigilmeasure/time/Stopwatch.h>
 #include <sigilweave/choreograph/Choreograph.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/fonts/Shaper.h>  // makeFont — textFill's cap-height metrics
 
 #include <algorithm>
-#include <chrono>
 #include <cmath>
 #include <cstdlib>
 #include <map>
+#include <optional>
 #include <set>
 #include <tuple>
 #include <unordered_set>
@@ -914,8 +915,7 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
           // The readings beside the type. They stand AT REST while the
           // letters move, as a mark and a band do: a reading that travelled
           // with a cascade would be reading a letter that had left.
-          for (const Instance::PlacedAnnotation& reading :
-               inst.textAnnotations)
+          for (const Instance::PlacedAnnotation& reading : inst.textAnnotations)
             if (reading.paragraph)
               reading.layout.drawBatched(&canvas, *reading.paragraph);
         }
@@ -1034,7 +1034,9 @@ struct ProfileScope {
   Composer::Impl* impl = nullptr;
   size_t row = SIZE_MAX;
   double savedChildren = 0;
-  std::chrono::steady_clock::time_point start;
+  // Absent until profiling is on: a clock read per node per frame is not
+  // a cost an unprofiled paint should pay.
+  std::optional<measure::Stopwatch> watch;
 
   ProfileScope(Composer::Impl* i, const detail::Instance& inst,
                const SkRect& rect)
@@ -1047,13 +1049,11 @@ struct ProfileScope {
     savedChildren = impl->profChildMs;
     impl->profChildMs = 0;
     ++impl->profDepth;
-    start = std::chrono::steady_clock::now();
+    watch.emplace();
   }
   ~ProfileScope() {
     if (row == SIZE_MAX) return;
-    const double total = std::chrono::duration<double, std::milli>(
-                             std::chrono::steady_clock::now() - start)
-                             .count();
+    const double total = watch->elapsedMs();
     impl->profileRows[row].totalMs = total;
     impl->profileRows[row].selfMs = total - impl->profChildMs;
     // Hand our whole cost up to the parent's child accumulator.
@@ -1292,11 +1292,9 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
       draw();
       return;
     }
-    const auto t0 = std::chrono::steady_clock::now();
+    const measure::Stopwatch watch;
     draw();
-    const double ms = std::chrono::duration<double, std::milli>(
-                          std::chrono::steady_clock::now() - t0)
-                          .count();
+    const double ms = watch.elapsedMs();
     if (ms > kProfMs)
       SkDebugf("[prof] %s %s kind=%d rect=%.0fx%.0f %.1fms\n", what,
                node.key.empty() ? "(anon)" : node.key.c_str(), (int)node.kind,
@@ -1657,14 +1655,12 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
       // The own half, live and TIMED. This is the number the split is
       // promoted on — the node's own paint, with its children excluded by
       // construction rather than by subtraction.
-      const auto ownStart = std::chrono::steady_clock::now();
+      const measure::Stopwatch ownWatch;
       profDraw("live own", [&] {
         paintContent(inst, canvas, hostScale, leafBlend, leafOpacity,
                      Phase::OwnOnly);
       });
-      const double ownMs = std::chrono::duration<double, std::milli>(
-                               std::chrono::steady_clock::now() - ownStart)
-                               .count();
+      const double ownMs = ownWatch.elapsedMs();
       inst.ownPaintMs = inst.ownPaintMs * 0.6f + (float)ownMs * 0.4f;
       if (inst.ownPaintMs > kPromoteMs) {
         if (inst.ownHotFrames < 255) ++inst.ownHotFrames;
@@ -2059,11 +2055,9 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
     // The measurement that drives promotion. Two clock reads per candidate
     // node per frame, against a full rasterisation — the overhead is not
     // close to material.
-    const auto replayStart = std::chrono::steady_clock::now();
+    const measure::Stopwatch replayWatch;
     profDraw("replay", [&] { pictureBake->replay(target); });
-    accrue(std::chrono::duration<double, std::milli>(
-               std::chrono::steady_clock::now() - replayStart)
-               .count());
+    accrue(replayWatch.elapsedMs());
   } else {
     stats.nodesPainted++;
     // A LEAF never records a picture — one draw call beats a nested
@@ -2078,13 +2072,11 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
         paintContent(inst, canvas, hostScale, leafBlend, leafOpacity);
       });
     } else {
-      const auto liveStart = std::chrono::steady_clock::now();
+      const measure::Stopwatch liveWatch;
       profDraw("live", [&] {
         paintContent(inst, canvas, hostScale, leafBlend, leafOpacity);
       });
-      accrue(std::chrono::duration<double, std::milli>(
-                 std::chrono::steady_clock::now() - liveStart)
-                 .count());
+      accrue(liveWatch.elapsedMs());
     }
     inst.paintDirty = false;
   }
