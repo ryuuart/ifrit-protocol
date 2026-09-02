@@ -212,6 +212,106 @@ TEST(ComposeDepth, ASpaceIsSeenThroughTheViewOfTheNodeThatDeclaredIt) {
   EXPECT_EQ(orthographic.pixel(103, 52), SK_ColorRED);
 }
 
+namespace {
+
+// CSS's own matrices, written out by hand so the test's ground truth
+// shares no code with the kernel: rotateY(deg) and perspective(d) about a
+// point, in a frame with +z toward the viewer.
+SkM44 cssRotateY(float degrees) {
+  const float r = degrees * 0.017453293f;
+  const float c = std::cos(r), s = std::sin(r);
+  return SkM44(c, 0, s, 0,   //
+               0, 1, 0, 0,   //
+               -s, 0, c, 0,  //
+               0, 0, 0, 1);
+}
+SkM44 cssPerspective(float distance, SkPoint origin) {
+  SkM44 p;
+  p.setRC(3, 2, -1.0f / distance);
+  return SkM44::Translate(origin.x(), origin.y()) * p *
+         SkM44::Translate(-origin.x(), -origin.y());
+}
+
+}  // namespace
+
+TEST(ComposeDepth, AHitLandsWhereTheProjectionPutThePlane) {
+  // A 100×100 card at (50, 50) turned 50° about its centre, seen through
+  // perspective(500) on the root, whose origin is the canvas centre. The
+  // projection is built by hand, and every local point of the card hits
+  // the card where that projection puts it — and paints red there.
+  Host host(200, 200);
+  host.composer.render(box().perspective(500).child(
+      box()
+          .key("card")
+          .absolute()
+          .rect(SkRect::MakeXYWH(50, 50, 100, 100))
+          .fill(red())
+          .rotateY(50)));
+  host.frame();
+  const SkM44 projection = cssPerspective(500, {100, 100}) *
+                           SkM44::Translate(50, 50) * SkM44::Translate(50, 50) *
+                           cssRotateY(50) * SkM44::Translate(-50, -50);
+  const SkMatrix flat = projection.asM33();
+  for (SkPoint local : {SkPoint{10, 10}, SkPoint{90, 50}, SkPoint{50, 90},
+                        SkPoint{5, 95}, SkPoint{95, 5}}) {
+    const SkPoint on = flat.mapPoint(local);
+    EXPECT_EQ(host.composer.hitTest(on).value_or(""), "card")
+        << "local (" << local.x() << ", " << local.y() << ") projected to ("
+        << on.x() << ", " << on.y() << ")";
+    EXPECT_EQ(host.pixel((int)std::lround(on.x()), (int)std::lround(on.y())),
+              SK_ColorRED)
+        << "…and the pixel there is the card's";
+  }
+  // Just outside the card's own edge, projected: a miss.
+  const SkPoint off = flat.mapPoint({-4, 50});
+  EXPECT_FALSE(host.composer.hitTest(off).has_value());
+  // Inside the FLAT box but off the projected quad: the far (right) edge
+  // recedes, so the right side of where the card used to be is empty.
+  const SkPoint farEdge = flat.mapPoint({100, 50});
+  EXPECT_LT(farEdge.x(), 145.0f);
+  EXPECT_FALSE(host.composer.hitTest({145, 100}).has_value())
+      << "the flat box's right side is no longer under the card";
+  EXPECT_EQ(host.pixel(145, 100), SK_ColorBLACK);
+}
+
+TEST(ComposeDepth, AnEdgeOnPlaneAnswersNoHit) {
+  Host host(200, 200);
+  host.composer.render(box().child(box()
+                                       .key("card")
+                                       .absolute()
+                                       .rect(SkRect::MakeXYWH(50, 50, 100, 100))
+                                       .fill(red())
+                                       .rotateY(90)));
+  host.frame();
+  EXPECT_FALSE(host.composer.hitTest({100, 100}).has_value());
+}
+
+TEST(ComposeDepth, AHitInASharedSpaceAnswersTheNearestPlane) {
+  // The cube's faces are keyed; the face under the centre is the nearest
+  // one, whatever order the faces were declared in — the back face is
+  // declared last and painted first, and hits only once it is nearest.
+  Host host(200, 200);
+  host.composer.render(cube(0, 0));
+  host.frame();
+  EXPECT_EQ(host.composer.hitTest({100, 100}).value_or(""), "front");
+  host.composer.render(cube(180, 0));
+  host.frame();
+  EXPECT_EQ(host.composer.hitTest({100, 100}).value_or(""), "back");
+  host.composer.render(cube(-90, 0));
+  host.frame();
+  EXPECT_EQ(host.composer.hitTest({100, 100}).value_or(""), "right");
+  EXPECT_EQ(host.composer.hitTest({55, 55}).value_or(""), "right")
+      << "the space places the face, not the edge-on host";
+  host.composer.render(cube(45, 0));
+  host.frame();
+  EXPECT_EQ(host.composer.hitTest({103, 100}).value_or(""), "front");
+  EXPECT_EQ(host.composer.hitTest({97, 100}).value_or(""), "left");
+  EXPECT_EQ(host.composer.hitTest({103, 47}).value_or(""), "front")
+      << "the near edge is taller under the view, and hits there";
+  EXPECT_FALSE(host.composer.hitTest({168, 47}).has_value())
+      << "…and the far edge is not";
+}
+
 TEST(ComposeDepth, ADepthLaneRampsLikeAnyOtherLane) {
   // The lanes are Instance::Slot rows, so a re-described rotateY with a
   // transition ramps from the turn it is at: halfway through a 0 → 90

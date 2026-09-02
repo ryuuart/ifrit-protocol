@@ -663,9 +663,21 @@ struct Composer::Impl {
 
   // ---- hit testing / queries (Query.cpp) ----
   bool shapeContains(detail::Instance& inst, SkPoint local, SkSize size) const;
+  /** The hit test's view of a shared space: the host's accumulation, and
+   *  the point being tested in the plane the space is drawn on — a node
+   *  in the space maps THAT point back through its own full projection,
+   *  since its parent's local plane is not the plane it stands on. */
+  struct HitSpace {
+    SkM44 accum;
+    SkPoint planePt;
+  };
+  /** @p parentPt is the point in the parent's local plane, read when the
+   *  node stands on it; @p space is the shared space the parent hosts,
+   *  null under a flat parent. */
   std::optional<std::string> hitInstance(detail::Instance& inst,
                                          SkPoint parentPt,
-                                         const std::string* inheritedKey);
+                                         const std::string* inheritedKey,
+                                         const HitSpace* space);
 };
 
 }  // namespace sigil::compose

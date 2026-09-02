@@ -642,7 +642,7 @@ std::optional<std::string> Composer::hitTest(SkPoint canvasPoint) const {
   // (memoization, not mutation of observable state).
   Impl& impl = const_cast<Impl&>(*m_impl);
   if (!impl.root) return std::nullopt;
-  return impl.hitInstance(*impl.root, canvasPoint, nullptr);
+  return impl.hitInstance(*impl.root, canvasPoint, nullptr, nullptr);
 }
 
 const Composer::Stats& Composer::stats() const {

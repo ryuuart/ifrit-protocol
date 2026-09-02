@@ -10,6 +10,7 @@
  */
 
 #include <include/core/SkM44.h>
+#include <include/core/SkScalar.h>
 
 #include <cmath>
 #include <optional>
@@ -35,10 +36,16 @@ namespace sigil::compose::detail {
 
 constexpr float kDegreesToRadians = 0.017453293f;
 
+// The sine and cosine of a lane's angle SNAP TO ZERO within Skia's own
+// tolerance, exactly as SkMatrix::setRotate snaps them for the 2D rotate:
+// a quarter turn is then a plane that is edge-on in fact — its flattening
+// singular, so it draws nothing and answers no hit — rather than one
+// 4e-8 wide, which would still hold a hit down its centre line.
+
 /** CSS `rotateX(deg)`: positive tips the bottom edge toward the viewer. */
 inline SkM44 rotateXMatrix(float degrees) {
   const float r = degrees * kDegreesToRadians;
-  const float c = std::cos(r), s = std::sin(r);
+  const float c = SkScalarCosSnapToZero(r), s = SkScalarSinSnapToZero(r);
   return SkM44(1, 0, 0, 0,  //
                0, c, -s, 0,  //
                0, s, c, 0,   //
@@ -48,7 +55,7 @@ inline SkM44 rotateXMatrix(float degrees) {
 /** CSS `rotateY(deg)`: positive tips the left edge toward the viewer. */
 inline SkM44 rotateYMatrix(float degrees) {
   const float r = degrees * kDegreesToRadians;
-  const float c = std::cos(r), s = std::sin(r);
+  const float c = SkScalarCosSnapToZero(r), s = SkScalarSinSnapToZero(r);
   return SkM44(c, 0, s, 0,   //
                0, 1, 0, 0,   //
                -s, 0, c, 0,  //
@@ -60,7 +67,7 @@ inline SkM44 rotateYMatrix(float degrees) {
  *  turns the same way whichever producer builds it. */
 inline SkM44 rotateZMatrix(float degrees) {
   const float r = degrees * kDegreesToRadians;
-  const float c = std::cos(r), s = std::sin(r);
+  const float c = SkScalarCosSnapToZero(r), s = SkScalarSinSnapToZero(r);
   return SkM44(c, -s, 0, 0,  //
                s, c, 0, 0,   //
                0, 0, 1, 0,   //
