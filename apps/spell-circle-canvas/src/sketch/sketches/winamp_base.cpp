@@ -1268,6 +1268,10 @@ struct WinampBase : sketch::Sketch {
     ctx.captureAt(7.4);
     using namespace wa;
     ctx.canvas(1320, 1947);
+    // The plate at exactly 2x. One native skin pixel is three canvas px and
+    // six device px, so every BMP cell — the 5x6 TEXT.BMP glyph included —
+    // keeps its edges on whole pixels.
+    ctx.oversample(2);
     ctx.background(kDesk);
     buildMaterials();
 

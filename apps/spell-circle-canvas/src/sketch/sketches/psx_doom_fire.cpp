@@ -717,6 +717,10 @@ struct PsxDoomFire : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
     ctx.captureAt(6.0);
     ctx.canvas(1360, 760);
+    // The plate at exactly 2x. kBlit is an integer nearest scale for a
+    // reason; doubled, one fire cell is six device px, and a fractional
+    // scale would resample the one blit this study is about.
+    ctx.oversample(2);
     ctx.background(kInk);
 
     rng = 0x9E3779B9u;

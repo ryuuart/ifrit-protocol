@@ -1742,6 +1742,9 @@ struct Thaumonomicon : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
     ctx.captureAt(6.0);
     ctx.canvas(kCanvasW, kCanvasH);
+    // The plate at exactly 2x. One GUI px is two canvas px and four device
+    // px, so every stamped tile on the 24-px lattice lands whole.
+    ctx.oversample(2);
     ctx.background(hex(0x0B0906));
 
     face = systemFace();

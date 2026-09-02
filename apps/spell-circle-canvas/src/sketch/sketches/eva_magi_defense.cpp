@@ -977,6 +977,9 @@ struct EvaMagiDefense : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
     using namespace eva;
     ctx.canvas(kW, kH);
+    // The plate at exactly 2x. The canvas is the reference frame's own
+    // 1920x1080, so halving the capture puts it on the frame directly.
+    ctx.oversample(2);
     ctx.background(kGround);
     // The REFERENCE MOMENT this sketch is built to be diffed at: all five
     // outer MAGI fallen (last at 2.28), the hue front not yet moving (3.0).

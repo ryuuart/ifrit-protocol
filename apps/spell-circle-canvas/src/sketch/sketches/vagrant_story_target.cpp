@@ -1918,6 +1918,12 @@ struct VagrantStoryTarget : sketch::Sketch {
     // boundary, where the chain-ability ring — a headline element — is masked
     // out at sweep 0 and RISK is at its instantaneous spike.
     ctx.captureAt(7.0);
+    // The plate at exactly 2x. The two grids this screen snaps to are 4
+    // canvas px for geometry and 2.5 for a text advance; doubled they are 8
+    // and 5 device px, so both survive the capture whole. A fractional scale
+    // lands the text grid between pixels, which is the one thing that makes
+    // VS's font read wrong.
+    ctx.oversample(2);
 
     face = pickFace();
     if (ctx.fonts) {

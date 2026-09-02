@@ -1665,6 +1665,10 @@ struct XcomBattlescape : sketch::Sketch {
     // intact, which runs [3.2, 4.8). 4.0 s is its midpoint. Later phases open
     // the fire-mode popup, which covers most of the battlescape.
     ctx.captureAt(4.0);
+    // The plate at exactly 2x. One 1994 pixel is four canvas px, so eight
+    // device px in every column and every row, and an integer downsample of
+    // the capture lays it over the reference.
+    ctx.oversample(2);
 
     bakeAtlas();
     terrain = std::make_shared<Pool>();
