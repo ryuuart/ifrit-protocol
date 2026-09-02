@@ -103,9 +103,9 @@ constexpr float kEachMs = 260;   // start-to-start, left to right
 constexpr float kUnitMs = 1000;  // one unit's own 0 -> 1
 
 // ---- the burn --------------------------------------------------------------
-constexpr float kSweep = 0.28f;  // the three threshold weights: they sum to 1
-constexpr float kSpeckle = 0.30f;
-constexpr float kPatch = 0.42f;
+constexpr float kSweep = 0.26f;  // the three threshold weights: they sum to 1
+constexpr float kSpeckle = 0.22f;
+constexpr float kPatch = 0.52f;
 
 const SkColor4f kPlate{0.027f, 0.024f, 0.031f, 1};
 const SkColor4f kInk{0.96f, 0.91f, 0.82f, 1};    // the resolved letter
@@ -146,9 +146,9 @@ half4 main(float2 xy) {
   // blotch a few pixels across: a coarser cell than the type's own stems
   // reads as a mosaic laid over the letter rather than as the letter
   // burning.
-  float2 grain = floor(xy * 2.0) + seed;
+  float2 grain = floor(xy * 1.0) + seed;
   float speck = fract(sin(dot(grain, float2(12.9898, 78.233))) * 43758.5453);
-  float2 blot = floor(xy * 0.35) + seed;
+  float2 blot = floor(xy * 0.22) + seed;
   float patch = fract(sin(dot(blot, float2(39.3468, 11.135))) * 24634.6345);
   float thr = uWeights[0] * u + uWeights[1] * speck + uWeights[2] * patch;
   // d is how far this pixel's unit has run past the pixel's own
@@ -161,20 +161,30 @@ half4 main(float2 xy) {
   // exps per pixel of the line's whole box, and this shader runs on the
   // raster backend as well as on a device.
   float on = smoothstep(0.0, 0.03, p);
-  float e = exp(-abs(d) * 9.0);
+  float e = exp(-abs(d) * 5.0);
   float body = smoothstep(0.0, 0.055, d);
-  float front = 1.10 * e * on * (1.0 - 0.35 * body);
-  float glow = 0.42 * on * (1.0 - 0.55 * body) / (1.0 + 6.0 * abs(d));
+  float front = 1.60 * e * on * (1.0 - 0.35 * body);
+  float glow = 0.85 * on * (1.0 - 0.55 * body) / (1.0 + 3.0 * abs(d));
   float core = e * e * e * on;
-  // ASH. What the front has not reached is char, not absence: the letter
-  // is on the page before it lights, so the line is READABLE at every
-  // moment of the decode and the burn is something happening TO a word
-  // rather than a word arriving out of nothing.
-  float ash = (1.0 - body) * (0.42 + 0.26 * speck);
-  float a = cover * clamp(body + front + glow + core + ash, 0.0, 1.0);
+  // The glow bleeds PAST the letter: four taps of the layer around this
+  // pixel widen the coverage the ember terms are allowed to light, so a
+  // burning stem has a halo on the page and not only inside its own ink.
+  float spill = cover;
+  spill = max(spill, float(uContent.eval(xy + float2(4.0, 0.0)).a));
+  spill = max(spill, float(uContent.eval(xy - float2(4.0, 0.0)).a));
+  spill = max(spill, float(uContent.eval(xy + float2(0.0, 4.0)).a));
+  spill = max(spill, float(uContent.eval(xy - float2(0.0, 4.0)).a));
+  float halo = (spill - cover) * 0.6;
+  // ASH. What the front has not reached is a faint char, so the line's
+  // shape is on the page before it lights, but only just: the event is
+  // the front, and a letter that is already bright has nothing to burn.
+  float ash = (1.0 - body) * (0.10 + 0.08 * speck);
+  float a = clamp(cover * (body + front + glow + core + ash) +
+                      halo * (front + glow),
+                  0.0, 1.0);
   float3 emit = min(uAsh.rgb * ash + uInk.rgb * body +
                     uEmber.rgb * (front + glow) +
-                    float3(1.0, 0.92, 0.72) * core * 0.55,
+                    float3(1.0, 0.92, 0.72) * core * 0.9,
                     float3(1.0));
   return half4(half3(emit * a), half(a));
 })";
