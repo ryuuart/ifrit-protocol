@@ -61,8 +61,9 @@
 // built and rasterized fresh every frame.
 //
 // EDIT THESE FIRST
-//   kRadPerGlyph — the wavelength. 0 makes the whole line pulse together;
-//                  0.55 is about one full wave across HAMBURGEFONTSIV.
+//   kWavesAcross — the wavelength, in waves per word. 1 puts one crest and
+//                  one trough on the line, which is what a specimen page
+//                  shows; 0 makes the whole line pulse together.
 //   kGradLo / kGradHi — the ends of the ramp. The axis's own range is
 //                  400 to 1000 on this face and the sketch prints it.
 //   kPeriod      — seconds per pass.
@@ -102,19 +103,25 @@ constexpr SkColor4f kAxis = hex(0x63B8FF);  // the driven coordinate
 
 const char* kProof = "HAMBURGEFONTSIV";
 
-constexpr float kProofSize = 64.0f;
+constexpr float kPadX = 52.0f;
+constexpr float kPadY = 44.0f;
+// The hero is set TO THE MEASURE rather than to a number: shaped once at
+// this reference size and scaled so the word spans the column, which is
+// what a specimen page does and what keeps the meter's bars as wide as the
+// letters they report on.
+constexpr float kRefSize = 64.0f;
 constexpr float kProofTrack = 1.0f;
 
 // ---- the wave -------------------------------------------------------------
 constexpr float kGradLo = 400.0f;
 constexpr float kGradHi = 1000.0f;
-constexpr float kRadPerGlyph = 0.55f;
+constexpr float kWavesAcross = 1.0f;
 constexpr double kPeriod = 2.6;
 
 // ---- the proof ------------------------------------------------------------
 constexpr float kWghtLo = 300.0f;
 constexpr float kWghtHi = 900.0f;
-constexpr float kProofRowSize = 40.0f;
+constexpr float kProofRowSize = 34.0f;
 
 /** The ripple: `fx::waveLoop`'s sine, landing on the axis coordinate.
  *
@@ -154,6 +161,9 @@ struct AxisRipple : sketch::Sketch {
   sigil::weave::TextStyle proof;
   std::vector<float> pens;  // the ripple line's glyph pens
   int glyphs = 0;
+  float proofSize = 0;                     // the hero, fitted to the measure
+  float radPerGlyph = 0;                   // kWavesAcross, over this word
+  float gradRowLo = 0, gradRowHi = 0;      // the GRAD proof rows
   float widthLo = 0, widthHi = 0;          // the wght proof rows
   float gradWidthLo = 0, gradWidthHi = 0;  // the same measure on GRAD
   float axisMin = 0, axisMax = 0;          // what the face itself declares
@@ -193,9 +203,10 @@ struct AxisRipple : sketch::Sketch {
     // is, and a copy that can allocate is a copy that can throw.
     auto localPens = std::make_shared<const std::vector<float>>(pens);
     const int n = glyphs;
+    const float rad = radPerGlyph;
     const choreograph::Output<float>* clock = &phase;
     return custom("axis-meter",
-                  [localPens = std::move(localPens), n, clock](
+                  [localPens = std::move(localPens), n, rad, clock](
                       SkCanvas& canvas, const PaintContext& ctx) {
                     const float t = clock->value();
                     const float h = ctx.size.height();
@@ -206,9 +217,8 @@ struct AxisRipple : sketch::Sketch {
                       const float x = (*localPens)[(size_t)i];
                       const float w = (*localPens)[(size_t)i + 1] - x - 3.0f;
                       if (w <= 0) continue;
-                      const float s =
-                          0.5f + 0.5f * std::sin(t * 6.2831853f -
-                                                 (float)i * kRadPerGlyph);
+                      const float s = 0.5f + 0.5f * std::sin(t * 6.2831853f -
+                                                             (float)i * rad);
                       canvas.drawRect(SkRect::MakeXYWH(x, h - 1, w, 1), bed);
                       canvas.drawRect(SkRect::MakeXYWH(x, h - 1 - s * (h - 1),
                                                        w, s * (h - 1) + 1),
@@ -229,7 +239,7 @@ struct AxisRipple : sketch::Sketch {
                      small(kLabel)));
     panel.child(text(toU8(kProof), proof)
                     .key("ripple")
-                    .fx({.effect = gradWave(kGradLo, kGradHi, kRadPerGlyph),
+                    .fx({.effect = gradWave(kGradLo, kGradHi, radPerGlyph),
                          .stagger = {.eachMs = 0, .durationMs = 400},
                          .progress = &phase}));
     panel.child(meter(width));
@@ -237,10 +247,10 @@ struct AxisRipple : sketch::Sketch {
     // One line, deliberately: the panel is the run's own width, so a
     // caption that wraps changes the sheet's height between frames.
     std::snprintf(line, sizeof(line),
-                  "GRAD %.0f\xe2\x80\x93%.0f \xc2\xb7 %.2f RAD/GLYPH "
-                  "\xc2\xb7 %.1f S PER PASS \xc2\xb7 RUN WIDTH "
+                  "GRAD %.0f\xe2\x80\x93%.0f \xc2\xb7 %.0f WAVE ACROSS "
+                  "THE WORD \xc2\xb7 %.1f S PER PASS \xc2\xb7 RUN WIDTH "
                   "\xce\x94 %.2f PX ACROSS THE RAMP",
-                  axisMin, axisMax, kRadPerGlyph, kPeriod,
+                  axisMin, axisMax, kWavesAcross, kPeriod,
                   gradWidthHi - gradWidthLo);
     panel.child(text(toU8(hasGrad ? line
                                   : "THIS FACE DECLARES NO GRAD AXIS \xc2\xb7 "
@@ -250,65 +260,97 @@ struct AxisRipple : sketch::Sketch {
     return panel;
   }
 
-  /** The proof: the same word shaped at two weights, left edges aligned.
-   *
-   *  Every letter after the first has moved, and the rule marks where the
-   *  light run ended. That distance is what a draw-time drive would have to
-   *  pretend was zero, which is why the runtime measures the face and says
-   *  no. */
-  [[nodiscard]] Element wghtPanel() {
-    const auto row = [&](float weight, SkColor4f color, const char* tag,
-                         bool marked) {
-      Element run = text(toU8(kProof), type({.face = face,
-                                             .size = kProofRowSize,
-                                             .color = color,
-                                             .track = kProofTrack * 0.6f,
-                                             .weight = weight}));
-      // THE RULE IS ANCHORED TO THE RUN, not fitted to it. An unsliced
-      // selector resolves to the union of every glyph's box, so pct(100) of
-      // that rect is the last letter's trailing edge — which moves with the
-      // label column, the gap and the tracking, none of which the mark has
-      // to be told about.
-      if (marked)
-        run.mark(
-            Selector{},
-            box().key("rule").left(pct(100)).top(0).width(1).height(112).fill(
-                Fill::color(kMark)));
-      return box()
-          .row()
-          .alignItems(Align::Baseline)
-          .gap(16)
-          .child(text(toU8(tag), small(kLabel, 11.0f, 1.6f)).width(62))
-          .child(std::move(run));
-    };
-    char delta[160];
-    std::snprintf(delta, sizeof(delta),
-                  "wght %.0f \xe2\x86\x92 %.0f WIDENS THE RUN BY %.2f PX "
-                  "(%.1f%%) \xc2\xb7 EVERY LETTER AFTER THE FIRST MOVES, "
-                  "SO THE DRIVE IS REFUSED",
-                  kWghtLo, kWghtHi, widthHi - widthLo,
-                  widthLo > 0 ? 100.0f * (widthHi - widthLo) / widthLo : 0.0f);
+  /** One end of one axis, set at the proof size, with the rule that marks
+   *  where the run stopped. */
+  [[nodiscard]] Element proofRow(const char (&tag)[5], float value,
+                                 const char* label, bool marked) {
+    sigil::weave::TextStyle style = type({.face = face,
+                                          .size = kProofRowSize,
+                                          .color = kInk,
+                                          .track = kProofTrack * 0.6f});
+    style.variation(tag, value);
+    Element run = text(toU8(kProof), style);
+    // THE RULE IS ANCHORED TO THE RUN, not fitted to it. An unsliced
+    // selector resolves to the union of every glyph's box, so pct(100) of
+    // that rect is the last letter's trailing edge — which moves with the
+    // label column, the gap and the tracking, none of which the mark has
+    // to be told about.
+    if (marked)
+      run.mark(Selector{},
+               box().key("rule").left(pct(100)).top(0).width(1).height(96).fill(
+                   Fill::color(kMark)));
+    return box()
+        .row()
+        .alignItems(Align::Baseline)
+        .gap(14)
+        .child(text(toU8(label), small(kLabel, 11.0f, 1.6f)).width(52))
+        .child(std::move(run));
+  }
 
+  /** One axis, proved: the same word shaped at each end of it, left edges
+   *  aligned, with a rule standing where the FIRST run ended. The two
+   *  panels below are the same construction over the two axes, so the
+   *  reader compares one picture against another rather than a picture
+   *  against a sentence. */
+  [[nodiscard]] Element axisPanel(const char* heading, const char (&tag)[5],
+                                  float lo, float hi, const char* loLabel,
+                                  const char* hiLabel, const char* verdict,
+                                  SkColor4f verdictInk) {
     return box()
         .column()
         .gap(12)
-        .child(text(toU8("wght \xe2\x80\x94 A SHAPING AXIS: THE SAME WORD, "
-                         "TWICE, MEASURED"),
-                    small(kLabel)))
-        // The rule stands where the LIGHT run ended, so the heavy run's
-        // overhang past it is the number below.
+        .grow(1)
+        .child(text(toU8(heading), small(kLabel)))
         .child(box()
                    .column()
                    .gap(6)
-                   .child(row(kWghtLo, kInk, "300", true))
-                   .child(row(kWghtHi, kInk, "900", false)))
-        .child(text(toU8(delta), small(kMark, 11.0f, 0.6f)));
+                   .child(proofRow(tag, lo, loLabel, true))
+                   .child(proofRow(tag, hi, hiLabel, false)))
+        .child(text(toU8(verdict), small(verdictInk, 11.0f, 0.6f)));
+  }
+
+  /** The proof, twice: the axis that moves advances beside the axis that
+   *  does not.
+   *
+   *  On the left every letter after the first has left the rule behind, and
+   *  that distance is what a draw-time drive would have to pretend was
+   *  zero. On the right the heavy run stops on the same rule as the light
+   *  one — weight without width, which is what makes the ripple above
+   *  lawful at one shaping. */
+  [[nodiscard]] Element proofPanels() {
+    char wght[200];
+    std::snprintf(wght, sizeof(wght),
+                  "WIDENS THE RUN BY %.2f PX (%.1f%%) \xc2\xb7 EVERY LETTER "
+                  "AFTER THE FIRST MOVES, SO THE DRIVE IS REFUSED",
+                  widthHi - widthLo,
+                  widthLo > 0 ? 100.0f * (widthHi - widthLo) / widthLo : 0.0f);
+    char grad[200];
+    std::snprintf(
+        grad, sizeof(grad),
+        "MOVES THE RUN BY %.2f PX (%.1f%%) \xc2\xb7 THE HEAVY RUN "
+        "STOPS ON THE LIGHT ONE'S RULE, SO THE DRIVE IS HONOURED",
+        gradRowHi - gradRowLo,
+        gradRowLo > 0 ? 100.0f * (gradRowHi - gradRowLo) / gradRowLo : 0.0f);
+    char wghtHead[120], gradHead[120];
+    std::snprintf(wghtHead, sizeof(wghtHead),
+                  "wght %.0f \xe2\x86\x92 %.0f \xe2\x80\x94 A SHAPING AXIS",
+                  kWghtLo, kWghtHi);
+    std::snprintf(gradHead, sizeof(gradHead),
+                  "GRAD %.0f \xe2\x86\x92 %.0f \xe2\x80\x94 A DRAWN AXIS",
+                  kGradLo, kGradHi);
+    return box()
+        .row()
+        .gap(44)
+        .child(axisPanel(wghtHead, "wght", kWghtLo, kWghtHi, "300", "900", wght,
+                         kMark))
+        .child(axisPanel(gradHead, "GRAD", kGradLo, kGradHi, "400", "1000",
+                         grad, kAxis));
   }
 
   [[nodiscard]] Element describe() {
     return box()
         .column()
-        .padding(52, 44)
+        .padding(kPadX, kPadY)
         .gap(30)
         .fill(Material::linear(
             {0, 0}, {0, kH},
@@ -324,7 +366,7 @@ struct AxisRipple : sketch::Sketch {
         .child(box().height(1).fill(Fill::color(kFaint)))
         .child(ripplePanel())
         .child(box().height(6))
-        .child(wghtPanel())
+        .child(proofPanels())
         .child(box().grow(1))
         .child(text(toU8("A GRADE IS WEIGHT WITHOUT WIDTH \xc2\xb7 IT IS THE "
                          "ONE AXIS A DRAW-TIME DRIVE CAN HONOUR, AND THE "
@@ -346,12 +388,26 @@ struct AxisRipple : sketch::Sketch {
     // weight to measure against it.
     face = pickFace({".SF NS", "SF Pro", "Helvetica Neue"}, 700);
     faceLabel = pickFace({".SF NS", "SF Pro", "Helvetica Neue"}, 500);
-    proof = type({.face = face,
-                  .size = kProofSize,
-                  .color = kInk,
-                  .track = kProofTrack});
+    const float measure = kW - 2.0f * kPadX;
+    const auto runAt = [&](float size) {
+      return runPens(toU8(kProof),
+                     type({.face = face,
+                           .size = size,
+                           .color = kInk,
+                           .track = kProofTrack}),
+                     *ctx.fonts)
+          .back();
+    };
+    proofSize = kRefSize * measure / runAt(kRefSize);
+    proof = type(
+        {.face = face, .size = proofSize, .color = kInk, .track = kProofTrack});
     pens = runPens(toU8(kProof), proof, *ctx.fonts);
     glyphs = (int)pens.size() - 1;
+    // ONE WAVE MEANS ONE WAVE. A radians-per-glyph constant is a wavelength
+    // stated in the wrong unit: the same number is more than a full wave on
+    // a long word and less than half on a short one, and a wave that laps
+    // itself puts two crests on the line and a step where it wraps.
+    radPerGlyph = glyphs > 0 ? 6.2831853f * kWavesAcross / (float)glyphs : 0.0f;
 
     // What the face itself declares, read off the face rather than assumed.
     if (face) {
@@ -376,14 +432,16 @@ struct AxisRipple : sketch::Sketch {
           type({.face = face,
                 .size = size,
                 .color = kInk,
-                .track = kProofTrack * (size == kProofSize ? 1.0f : 0.6f)});
+                .track = kProofTrack * (size == proofSize ? 1.0f : 0.6f)});
       s.variation(tag, value);
       return runPens(toU8(kProof), s, *ctx.fonts).back();
     };
     widthLo = widthAt("wght", kWghtLo, kProofRowSize);
     widthHi = widthAt("wght", kWghtHi, kProofRowSize);
-    gradWidthLo = widthAt("GRAD", kGradLo, kProofSize);
-    gradWidthHi = widthAt("GRAD", kGradHi, kProofSize);
+    gradWidthLo = widthAt("GRAD", kGradLo, proofSize);
+    gradWidthHi = widthAt("GRAD", kGradHi, proofSize);
+    gradRowLo = widthAt("GRAD", kGradLo, kProofRowSize);
+    gradRowHi = widthAt("GRAD", kGradHi, kProofRowSize);
 
     ctx.ticker.add([this, t = 0.0](double dt) mutable {
       t += dt;
