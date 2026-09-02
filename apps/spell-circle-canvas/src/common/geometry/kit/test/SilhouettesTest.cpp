@@ -56,6 +56,13 @@ TEST(Silhouettes, TheCornerWrapperComposesOverAnyGeneratorAndKeepsComparing) {
   const auto a = rounded(star(5), 6.0f);
   EXPECT_EQ(a, rounded(star(5), 6.0f));
   EXPECT_NE(a, rounded(star(5), 7.0f));
+  static_assert(Silhouette<decltype(a)>);
+  // A capture-free closure is an empty class, so a compiler-written
+  // equality over one is vacuously true — it would claim two different
+  // drawings are the same. Wrapping a callable must therefore give
+  // something that compares to nothing, exactly as the callable did.
+  const auto raw = [](SkSize s) { return circle()(s); };
+  static_assert(!Silhouette<decltype(rounded(raw, 6.0f))>);
   // Rounding a star cannot be said with a box-corner radius, which is
   // why the wrapper exists: the result is a different path.
   EXPECT_NE(a(kBox), star(5)(kBox));

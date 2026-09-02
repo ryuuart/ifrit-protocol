@@ -21,20 +21,39 @@ namespace sigil::geometry::shapes {
 // ---------------------------------------------------------------------------
 // Wrappers — generators over generators
 
+/** A silhouette VALUE: comparable, and answering a path for a size
+ *  through the `path(SkSize)` member every generator here declares.
+ *
+ *  The member is what separates a value from a bare closure, and the
+ *  separation is load-bearing: a capture-free closure is an EMPTY class,
+ *  so a compiler-written equality over it is vacuously true and would
+ *  claim two different drawings are the same one. A wrapper asks for this
+ *  before it agrees to compare. */
+template <typename S>
+concept Silhouette =
+    std::equality_comparable<S> && requires(const S& s, SkSize size) {
+      { s.path(size) } -> std::convertible_to<SkPath>;
+    };
+
 /** Wraps any silhouette so every sharp corner rounds with a consistent
  *  radius — the corner treatment for shapes that have no box corners:
  *  `rounded(star(5), 8)`. It holds the wrapped value rather than erasing
- *  it, so it is comparable exactly when the wrapped value is: wrapping a
- *  generator gives a generator, and wrapping a bare callable gives
- *  something that compares equal to nothing, which is the same escape
- *  hatch the callable itself was. */
+ *  it, so wrapping a generator gives a generator that compares by its
+ *  parameters, and wrapping a bare callable gives something that compares
+ *  to nothing — the same escape hatch the callable itself was. */
 template <typename Inner>
   requires std::invocable<const Inner&, SkSize>
 struct Rounded {
   Inner inner;
   float radius = 0.0f;
-  bool operator==(const Rounded&) const = default;
-  SkPath path(SkSize s) const { return path::ops::roundCorners(inner(s), radius); }
+  bool operator==(const Rounded& o) const
+    requires Silhouette<Inner>
+  {
+    return inner == o.inner && radius == o.radius;
+  }
+  SkPath path(SkSize s) const {
+    return path::ops::roundCorners(inner(s), radius);
+  }
   SkPath operator()(SkSize s) const { return path(s); }
 };
 

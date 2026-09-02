@@ -100,6 +100,11 @@ class Shape {
   SkPath operator()(SkSize size) const {
     return m_state && m_state->generate ? m_state->generate(size) : SkPath();
   }
+  /** A Shape is itself a scheme, so it NESTS: a wrapper that asks for a
+   *  scheme takes one, and the equality it then uses is the one below —
+   *  which refuses a callable, where a compiler-written equality over an
+   *  empty closure type would vacuously accept it. */
+  SkPath path(SkSize size) const { return (*this)(size); }
   /** Does this value participate in structural equality? (False for the
    *  callable escape hatch.) */
   bool comparable() const { return m_state && (bool)m_state->equals; }
