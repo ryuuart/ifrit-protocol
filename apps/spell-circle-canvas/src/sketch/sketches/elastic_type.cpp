@@ -8,7 +8,7 @@
 // entries are the whole elastic-lettering genre:
 //
 //   rubberBand — a squash-and-stretch on the two scale axes, overshooting
-//                and settling in six keyframes.
+//                and settling over seven stops.
 //   jello      — a decaying shear: the same skew, halved and reversed at
 //                each step, eight times.
 //
@@ -86,6 +86,7 @@
 #include <sigilcompose/typography/Typography.h>
 #include <sigilsketch/canvas/Sketch.h>
 
+#include <algorithm>
 #include <string>
 #include <utility>
 #include <vector>
@@ -111,6 +112,7 @@ constexpr float kWordSize = 68.0f;
 constexpr float kEachMs = 62.0f;
 constexpr float kDurMs = 900.0f;
 constexpr double kLoop = 3.4;  // one pass of both rows, then a rest
+constexpr float kPlotH = 112.0f;
 
 // ---------------------------------------------------------------------------
 // The tables, and the curve every segment of one is crossed with.
@@ -192,41 +194,84 @@ void strokePath(SkCanvas& canvas, const SkPath& path, SkColor4f color,
   canvas.drawPath(path, paint);
 }
 
+/** A value the plot rules and names on its own axis. The published tables
+ *  are read in these units, so a reader can put a ruler on the trace. */
+struct Tick {
+  float value;
+  const char* label;
+};
+
+using Ticks = std::vector<Tick>;
+
+/** Where a value sits in a plot box of height @p h, in that box's own
+ *  pixels. The graph paints its rules with it and `plot` hangs its labels
+ *  off the same arithmetic, so the two cannot drift apart. */
+float tickY(float value, float lo, float hi, float h) {
+  return h - (value - lo) / (hi - lo) * h;
+}
+
+// The two axes, named where they are ruled. The extremes are the published
+// tables' own outer values, so a trace that touches a ruled line is a
+// transcription a reader can check off the plate.
+constexpr float kScaleLo = 0.62f, kScaleHi = 1.38f;
+constexpr float kShearLo = -14.0f, kShearHi = 14.0f;
+
+Ticks scaleTicks() {
+  return {{1.25f, "1.25"}, {1.00f, "1.00"}, {0.75f, "0.75"}};
+}
+
+Ticks shearTicks() {
+  return {{12.5f, "+12.5\xc2\xb0"},
+          {0.0f, "0\xc2\xb0"},
+          {-12.5f,
+           "\xe2\x88\x92"
+           "12.5\xc2\xb0"}};
+}
+
 /** One lane of one effect, over local time, with a dot at every published
  *  keyframe. `lane` picks the field out of the deviation; @p lo and @p hi
- *  are the value range the plot's height spans. */
+ *  are the value range the plot's height spans, and @p ticks are the values
+ *  it rules. */
 Element graph(const char* key, TextEffect effect, Table table,
               float (*lane)(const GlyphMod&), SkColor4f color, float lo,
-              float hi, float rest) {
-  return custom(
-             key,
-             [effect = std::move(effect), table = std::move(table), lane, color,
-              lo, hi, rest](SkCanvas& canvas, const PaintContext& ctx) {
-               const float w = ctx.size.width(), h = ctx.size.height();
-               const auto toY = [&](float v) {
-                 return h - (v - lo) / (hi - lo) * h;
-               };
-               SkPaint rule;
-               rule.setStyle(SkPaint::kStroke_Style);
-               rule.setStrokeWidth(1);
-               rule.setColor4f(kRest, nullptr);
-               canvas.drawLine(0, toY(rest), w, toY(rest), rule);
+              float hi, float rest, Ticks ticks) {
+  return custom(key,
+                [effect = std::move(effect), table = std::move(table),
+                 ticks = std::move(ticks), lane, color, lo, hi,
+                 rest](SkCanvas& canvas, const PaintContext& ctx) {
+                  const float w = ctx.size.width(), h = ctx.size.height();
+                  const auto toY = [&](float v) { return tickY(v, lo, hi, h); };
+                  SkPaint rule;
+                  rule.setStyle(SkPaint::kStroke_Style);
+                  rule.setStrokeWidth(1);
+                  // The ruled values first, in the faint ink, then the rest
+                  // line over them in the ghost's own colour: a reader looking
+                  // for "did it reach 1.25" wants the extreme ruled, and a
+                  // reader looking for "did it come home" wants rest loudest.
+                  rule.setColor4f(kFaint, nullptr);
+                  for (const Tick& tick : ticks)
+                    if (tick.value != rest)
+                      canvas.drawLine(0, toY(tick.value), w, toY(tick.value),
+                                      rule);
+                  rule.setColor4f(kRest, nullptr);
+                  canvas.drawLine(0, toY(rest), w, toY(rest), rule);
 
-               SkPathBuilder trace;
-               for (int i = 0; i <= 240; ++i) {
-                 const float t = (float)i / 240.0f;
-                 const SkPoint point{w * t, toY(lane(at(effect, t)))};
-                 i == 0 ? (void)trace.moveTo(point) : (void)trace.lineTo(point);
-               }
-               strokePath(canvas, trace.detach(), color, 1.6f);
+                  SkPathBuilder trace;
+                  for (int i = 0; i <= 240; ++i) {
+                    const float t = (float)i / 240.0f;
+                    const SkPoint point{w * t, toY(lane(at(effect, t)))};
+                    i == 0 ? (void)trace.moveTo(point)
+                           : (void)trace.lineTo(point);
+                  }
+                  strokePath(canvas, trace.detach(), color, 1.6f);
 
-               SkPaint dot;
-               dot.setAntiAlias(true);
-               dot.setColor4f(color, nullptr);
-               for (const fx::Key& key : table)
-                 canvas.drawCircle(w * key.at, toY(lane(at(effect, key.at))),
-                                   2.6f, dot);
-             })
+                  SkPaint dot;
+                  dot.setAntiAlias(true);
+                  dot.setColor4f(color, nullptr);
+                  for (const fx::Key& key : table)
+                    canvas.drawCircle(w * key.at, toY(lane(at(effect, key.at))),
+                                      2.6f, dot);
+                })
       .width(pct(100))
       .height(pct(100));
 }
@@ -274,16 +319,31 @@ struct ElasticType : sketch::Sketch {
             kRest));
   }
 
-  [[nodiscard]] Element plot(const char* title, Element inner) {
+  /** A plot, its frame, and the axis it is read against. The labels hang
+   *  off `tickY` with the plot box's own height, which is the arithmetic
+   *  the trace inside is drawn with, so a label names the line beside it
+   *  and cannot slide off it. */
+  [[nodiscard]] Element plot(const char* title, Element inner, float lo,
+                             float hi, const Ticks& ticks) {
+    Element frame = box()
+                        .width(pct(100))
+                        .height(kPlotH)
+                        .stroke(stroke(1.0f, Fill::color(kFaint)))
+                        .child(std::move(inner).inset(0));
+    for (const Tick& tick : ticks)
+      frame.child(text(toU8(tick.label), small(kLabel, 9.5f, 0.4f))
+                      .absolute()
+                      .right(5)
+                      // Held inside the frame: a value at the very top of the
+                      // range would hang its label off the plot, and a label
+                      // outside the box it names is a label for nothing.
+                      .top(std::clamp(tickY(tick.value, lo, hi, kPlotH) - 12.0f,
+                                      1.0f, kPlotH - 15.0f)));
     return box()
         .column()
         .grow(1)
         .gap(7)
-        .child(box()
-                   .width(pct(100))
-                   .height(112)
-                   .stroke(stroke(1.0f, Fill::color(kFaint)))
-                   .child(std::move(inner).inset(0)))
+        .child(std::move(frame))
         .child(text(toU8(title), small(kLabel, 11.0f, 0.8f)));
   }
 
@@ -304,8 +364,12 @@ struct ElasticType : sketch::Sketch {
                                     "STRETCH 1981"),
                                small(kFaint))))
         .child(box().height(1).fill(Fill::color(kFaint)))
+        .child(text(toU8("GREY IS THE REST POSE, SHARING THE LIVE LINE'S "
+                         "ORIGIN \xe2\x80\x94 WHERE IT SHOWS, THAT LETTER "
+                         "IS DEFORMED"),
+                    small(kRest, 10.5f, 0.6f)))
         .child(row("RUBBERBAND",
-                   "rubberBand \xc2\xb7 SIX KEYFRAMES ON TWO SCALE AXES",
+                   "rubberBand \xc2\xb7 SEVEN STOPS ON TWO SCALE AXES",
                    fx::keys(rubberTable(), &cssEase)))
         .child(row("JELLO",
                    "jello \xc2\xb7 A HALVING, ALTERNATING SHEAR \xc2\xb7 "
@@ -321,20 +385,23 @@ struct ElasticType : sketch::Sketch {
                                    "g-rx", fx::keys(rubberTable(), &cssEase),
                                    rubberTable(),
                                    [](const GlyphMod& m) { return m.scaleX; },
-                                   kX, 0.62f, 1.38f, 1.0f)))
+                                   kX, kScaleLo, kScaleHi, 1.0f, scaleTicks()),
+                               kScaleLo, kScaleHi, scaleTicks()))
                    .child(plot("rubberBand \xe2\x80\x94 scaleY 0.75 TO 1.25",
                                graph(
                                    "g-ry", fx::keys(rubberTable(), &cssEase),
                                    rubberTable(),
                                    [](const GlyphMod& m) { return m.scaleY; },
-                                   kY, 0.62f, 1.38f, 1.0f)))
+                                   kY, kScaleLo, kScaleHi, 1.0f, scaleTicks()),
+                               kScaleLo, kScaleHi, scaleTicks()))
                    .child(plot("jello \xe2\x80\x94 skewX = skewY \xc2\xb1"
                                "12.5\xc2\xb0, HALVING",
                                graph(
                                    "g-j", fx::keys(jelloTable(), &cssEase),
                                    jelloTable(),
                                    [](const GlyphMod& m) { return m.skewXDeg; },
-                                   kX, -14.0f, 14.0f, 0.0f))))
+                                   kX, kShearLo, kShearHi, 0.0f, shearTicks()),
+                               kShearLo, kShearHi, shearTicks())))
         .child(text(toU8("A NON-UNIFORM SCALE AND A SHEAR ARE THE ONE "
                          "DEVIATION AN RSXFORM CANNOT CARRY \xc2\xb7 EVERY "
                          "GLYPH ON THESE TWO LINES DRAWS UNDER ITS OWN "
