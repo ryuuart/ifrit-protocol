@@ -100,6 +100,118 @@ TEST(ComposeDepth, AViewOnTheParentLeavesAFlatChildAlone) {
   EXPECT_TRUE(identicalPixels(flat, viewed, 200, 200));
 }
 
+namespace {
+
+/** A cube of six 100 px faces about the centre of a 200×200 canvas, as a
+ *  preserve3d host turned by @p yaw about y and @p pitch about x, seen
+ *  through a view of @p distance on the host's parent. A face is turned
+ *  about its own centre and then moved half an edge along the cube's
+ *  axis in the host's frame — `rotateY(90).translateX(50)` for the right
+ *  face — because the lanes compose as translate · rotate · scale, with
+ *  the translate outermost. Declared FRONT FIRST and BACK LAST, so tree
+ *  order would put the back on top; the space's depth order must not. */
+Element cubeUnder(float distance, float yaw, float pitch) {
+  const auto face = [](const char* key, Fill fill) {
+    return box()
+        .key(key)
+        .absolute()
+        .rect(SkRect::MakeXYWH(50, 50, 100, 100))
+        .fill(std::move(fill));
+  };
+  return box().perspective(distance).child(
+      box()
+          .absolute()
+          .rect(SkRect::MakeXYWH(0, 0, 200, 200))
+          .preserve3d()
+          .rotateX(pitch)
+          .rotateY(yaw)
+          .child(face("front", red()).translateZ(50))
+          .child(face("right", green()).rotateY(90).translateX(50))
+          .child(face("top", blue()).rotateX(90).translateY(-50))
+          .child(face("left", Fill::color({1, 1, 0, 1}))
+                     .rotateY(-90)
+                     .translateX(-50))
+          .child(face("bottom", Fill::color({0, 1, 1, 1}))
+                     .rotateX(-90)
+                     .translateY(50))
+          .child(face("back", Fill::color({1, 0, 1, 1}))
+                     .rotateY(180)
+                     .translateZ(-50)));
+}
+
+Element cube(float yaw, float pitch) { return cubeUnder(800, yaw, pitch); }
+
+constexpr SkColor kYellow = SkColorSetARGB(255, 255, 255, 0);
+constexpr SkColor kMagenta = SkColorSetARGB(255, 255, 0, 255);
+
+}  // namespace
+
+TEST(ComposeDepth, ASharedSpaceDrawsItsPlanesBackToFront) {
+  // Facing the cube, the front face (declared first) is nearest and must
+  // cover the back face (declared last) at the centre; the side faces are
+  // edge-on and draw nothing there. Turn the cube half round and the back
+  // face is nearest instead; a quarter turn brings a side to the front;
+  // a pitch brings the top. Declaration order decides none of it.
+  Host host(200, 200);
+  host.composer.render(cube(0, 0));
+  host.frame();
+  EXPECT_EQ(host.pixel(100, 100), SK_ColorRED) << "the front face is nearest";
+
+  host.composer.render(cube(180, 0));
+  host.frame();
+  EXPECT_EQ(host.pixel(100, 100), kMagenta)
+      << "half a turn later the back face is nearest";
+
+  host.composer.render(cube(-90, 0));
+  host.frame();
+  EXPECT_EQ(host.pixel(100, 100), SK_ColorGREEN)
+      << "a quarter turn brings the right face to the front";
+
+  host.composer.render(cube(0, -90));
+  host.frame();
+  EXPECT_EQ(host.pixel(100, 100), SK_ColorBLUE)
+      << "pitched down, the top face is nearest";
+}
+
+TEST(ComposeDepth, TheHostsOwnPlaneNeverHidesItsSpace) {
+  // The host is edge-on at a quarter turn about y: its own plane has no
+  // width, yet the faces it hosts stand where the space puts them — the
+  // right face square to the viewer, magnified a little by the view. A
+  // space needs no inverse of its host.
+  Host host(200, 200);
+  host.composer.render(cube(-90, 0));
+  host.frame();
+  EXPECT_EQ(host.pixel(100, 100), SK_ColorGREEN);
+  EXPECT_EQ(host.pixel(55, 55), SK_ColorGREEN);
+  EXPECT_EQ(host.pixel(145, 145), SK_ColorGREEN);
+}
+
+TEST(ComposeDepth, ASpaceIsSeenThroughTheViewOfTheNodeThatDeclaredIt) {
+  // Turned 45° about y the cube shows its front face on the right half
+  // and its left face on the left half, meeting at the centre column —
+  // the edge nearest the viewer. The perspective on the cube's parent
+  // reaches the faces: that near edge is taller than the two far edges,
+  // so each face is a trapezoid, and a cube seen with no view is not.
+  Host host(200, 200);
+  host.composer.render(cube(45, 0));
+  host.frame();
+  EXPECT_EQ(host.pixel(103, 100), SK_ColorRED);
+  EXPECT_EQ(host.pixel(97, 100), kYellow);
+  EXPECT_EQ(host.pixel(103, 47), SK_ColorRED) << "the near edge is taller";
+  EXPECT_EQ(host.pixel(97, 47), kYellow);
+  EXPECT_EQ(host.pixel(168, 52), SK_ColorRED) << "the far edge is not";
+  EXPECT_EQ(host.pixel(168, 47), SK_ColorBLACK);
+  EXPECT_EQ(host.pixel(32, 47), SK_ColorBLACK);
+
+  Host orthographic(200, 200);
+  orthographic.composer.render(cubeUnder(0, 45, 0));
+  orthographic.frame();
+  EXPECT_EQ(orthographic.pixel(103, 100), SK_ColorRED);
+  EXPECT_EQ(orthographic.pixel(103, 47), SK_ColorBLACK)
+      << "with no view every edge is 50 px tall";
+  EXPECT_EQ(orthographic.pixel(103, 52), SK_ColorRED);
+}
+
 TEST(ComposeDepth, ADepthLaneRampsLikeAnyOtherLane) {
   // The lanes are Instance::Slot rows, so a re-described rotateY with a
   // transition ramps from the turn it is at: halfway through a 0 → 90
