@@ -139,8 +139,8 @@ TEST(ComposeFeed, TheWindowNeverMountsTheRowsOutsideIt) {
 }
 
 TEST(ComposeFeed, TheEntranceStaggerDelaysOnlyTheRowsThatMount) {
-  // Options::entrance is a Stagger — the same value the glyph engine and
-  // staggerChildren speak — with a ROW as the beat. The initial describe
+  // Options::entrance is a motion::Spread — the same value the glyph
+  // engine and staggerChildren speak — with a ROW as the beat. The initial describe
   // cascades the window; an append is the only new mount in its patch, so
   // it enters AT ONCE instead of inheriting a full window's worth of steps,
   // and no row already on screen re-enters.
