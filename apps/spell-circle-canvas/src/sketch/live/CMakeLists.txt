@@ -11,7 +11,8 @@ add_library(SigilSketchLive STATIC
   ${SIGIL_SKETCH_INCLUDE_DIR}/sigilsketch/live/Residency.h
 )
 target_compile_features(SigilSketchLive PUBLIC cxx_std_20)
-target_link_libraries(SigilSketchLive PUBLIC SigilSketchCore SigilImageEncode)
+target_link_libraries(SigilSketchLive PUBLIC SigilSketchCore SigilImageEncode
+  SigilMotionClock)
 set_target_properties(SigilSketchLive PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 add_executable(sketch_live_test test/HostTest.cpp test/ResidencyTest.cpp)
