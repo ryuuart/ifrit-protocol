@@ -1,38 +1,63 @@
 /** @file
- * world hud — an action-RPG HUD at Voxygen's own dimensions:
- * bars, hotbar and minimap, every measurement read out of the source
- * rather than invented, because a HUD's proportions ARE its design.
+ * world_hud — an action-RPG HUD at Voxygen's own dimensions, over the
+ * kind of world it was drawn for.
+ *
+ * The action-RPG HUD study, grounded in a real one: Veloren's
+ * (github.com/veloren/veloren, voxygen/src/hud/). Every dimension and
+ * every colour below is read out of that source rather than invented —
+ * which is the point, because a HUD's proportions ARE its design.
+ *
+ * IT IS A SET, and the world behind it is the reason. A HUD is not a
+ * page; it is a layer whose whole job is to stay legible over something
+ * else moving underneath, and a HUD photographed over an empty gradient
+ * is a picture of half the problem. So the frame carries a voxel valley
+ * — Veloren's own terrain form — lit by a sun, and the HUD is a compose
+ * tree painted into a texture and hung on one unlit quad that exactly
+ * fills the frustum. The seam is an ordinary `material::Texture` in a
+ * base-colour slot: nothing in the HUD knows it is on a quad.
+ *
+ * From voxygen/src/hud/skillbar.rs:
+ *   health frame 484x24, content 480x18       energy frame 323x16,
+ *   content 319x10                            poise frame 323x16,
+ *   tick 3x10                                 hotbar slot 40x40 in a
+ *   42x42 frame, ten of them between the two mouse slots
+ *   selected-exp chip 34x38, hung off slot10
+ * From voxygen/src/hud/mod.rs (the palette, verbatim Rgba -> hex):
+ *   HP #54A100   LOW_HP #ED9608   CRITICAL_HP #C9302B   STAMINA #4A9EBF
+ *   XP #9669AB   POISE #B30099    POISE_TICK #B3E600    ENEMY_HP #ED1A4A
+ *   BUFF #10B01F DEBUFF #C9302B   quality ladder LOW #999999 /
+ *   COMMON #C9FFFF / MODERATE #10B01F / HIGH #2E52E6 / EPIC #944AED /
+ *   LEGENDARY #EBC200 / ARTIFACT #BD3D1C
+ *
+ * The HUD's own pixels are Veloren's unscaled, and the plate is twice
+ * that, so the tree is laid out at 900x640 and presented at 2x into an
+ * 1800x1280 texture. Scaling the dimensions instead would lose the one
+ * thing the study is for.
+ *
+ * What it exercises: a bar STACK whose widths carry meaning (the health
+ * bar is 1.5x the energy bar because Veloren says so), the decay ghost
+ * Veloren paints in QUALITY_EPIC behind lost maximum health, the low-HP
+ * animation, a twelve-slot hotbar through instances() with per-slot
+ * cooldown sweeps, a framed minimap with a compass rose over generated
+ * terrain, buff/debuff pips with drain rings, the loot scroller's
+ * quality-coloured feed, and an enemy nameplate.
+ *
+ * Veloren's own art is hand-painted wood and bone. Nothing here is an
+ * image: the frames are ramps under noise inside a bevel, the minimap's
+ * terrain is patterns::noise thresholded into bands, the item glyphs are
+ * paths, and the valley behind is one merged mesh of voxel columns whose
+ * colour is a vertex lane.
+ *
+ * THE COMBAT LOOP IS A FUNCTION OF THE SCENE TIME, in `driveTo` — which
+ * a set requires and which is also the honest shape for it: every bar on
+ * the HUD reads one clock, so there is one place that says what second 6
+ * of the fight looks like.
+ *
+ * EDIT THESE FIRST
+ *   driveTo — the 9 s combat loop; every bar and sweep on the HUD.
+ *   kEye / kLook — where the camera stands over the valley.
+ *   kColumns / kColumnSize — how coarse the voxel terrain is.
  */
-
-// The action-RPG HUD study, grounded in a real one: Veloren's
-// (github.com/veloren/veloren, voxygen/src/hud/). Every dimension and
-// every colour below is read out of that source rather than invented —
-// which is the point, because a HUD's proportions ARE its design.
-//
-// From voxygen/src/hud/skillbar.rs:
-//   health frame 484x24, content 480x18       energy frame 323x16,
-//   content 319x10                            poise frame 323x16,
-//   tick 3x10                                 hotbar slot 40x40 in a
-//   42x42 frame, ten of them between the two mouse slots
-//   selected-exp chip 34x38, hung off slot10
-// From voxygen/src/hud/mod.rs (the palette, verbatim Rgba -> hex):
-//   HP #54A100   LOW_HP #ED9608   CRITICAL_HP #C9302B   STAMINA #4A9EBF
-//   XP #9669AB   POISE #B30099    POISE_TICK #B3E600    ENEMY_HP #ED1A4A
-//   BUFF #10B01F DEBUFF #C9302B   quality ladder LOW #999999 /
-//   COMMON #C9FFFF / MODERATE #10B01F / HIGH #2E52E6 / EPIC #944AED /
-//   LEGENDARY #EBC200 / ARTIFACT #BD3D1C
-//
-// What it exercises: a bar STACK whose widths carry meaning (the health
-// bar is 1.5x the energy bar because Veloren says so), the decay ghost
-// Veloren paints in QUALITY_EPIC behind lost maximum health, the low-HP
-// animation, a twelve-slot hotbar through instances() with per-slot
-// cooldown sweeps, a framed minimap with a rotating compass rose over
-// generated terrain, buff/debuff pips with drain rings, the loot
-// scroller's quality-coloured feed, and an enemy nameplate.
-//
-// Veloren's own art is hand-painted wood and bone. Nothing here is an
-// image: the frames are ramps under noise inside a bevel, the terrain is
-// patterns::noise thresholded into bands, the item glyphs are paths.
 
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/brush/Brushes.h>
@@ -41,16 +66,31 @@
 #include <sigilcompose/core/Patterns.h>
 #include <sigilcompose/instances/Instances.h>
 #include <sigilcompose/shape/Shapes.h>
+#include <sigilcompose/texture/Texture.h>
 #include <sigilcompose/typography/Type.h>
-#include <sigilsketch/canvas/Sketch.h>
+#include <sigilgeometry/mesh/Mesh.h>
+#include <sigilgeometry/mesh/camera/Camera.h>
+#include <sigilmaterial/kit/Surface.h>
+#include <sigilsketch/set/Set.h>
+#include <sigilweave/fonts/FontContext.h>
+#include <sigilworld/kit/Kit.h>
 
 #include <cmath>
-#include <cstdio>
+#include <cstdint>
+#include <glm/geometric.hpp>
+#include <glm/mat4x4.hpp>
+#include <glm/vec3.hpp>
+#include <glm/vec4.hpp>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace sketch = sigil::sketch;
+namespace world = sigil::world;
+namespace material = sigil::material;
+namespace compose = sigil::compose;
+namespace weave = sigil::weave;
 
 using namespace sigil::compose;
 using sigil::compose::toU8;
@@ -142,6 +182,15 @@ inline Element boneFrame(float w, float h, float radius = 3) {
       .corners({radius})
       .fill(Material::linear(
           {0, 0}, {0, h}, {{0.0f, kBoneHi}, {0.45f, kBone}, {1.0f, kBoneLo}}))
+      // The grain: Veloren's frames are carved, and a ramp with no noise
+      // in it is a plastic one. It rides UNDER the bevel, so the carve
+      // reads through the highlight rather than over it.
+      .child(box()
+                 .inset(0)
+                 .corners({radius})
+                 .fill(patterns::noise(0.36f, 3, 1.0f))
+                 .opacity(0.38f)
+                 .blend(SkBlendMode::kMultiply))
       .foreground(styles::BevelEmboss{
           1.6f, 2.4f, 120, {1, 1, 1, 0.35f}, {0, 0, 0, 0.65f}})
       .foreground(stroke(1.0f, Fill::color({0.05f, 0.04f, 0.03f, 0.9f}),
@@ -257,9 +306,131 @@ inline std::function<SkPath(SkSize)> glyphPath(Glyph g) {
   };
 }
 
+// ---------------------------------------------------------------------------
+// THE VALLEY. One merged mesh of voxel columns, coloured by a vertex
+// lane, because a mesh is one body and one body is one depth-sorted draw:
+// a thousand separate columns would be a thousand bodies sorted against
+// each other by their centres, which is where a painter's order shows.
+
+namespace gm = ::sigil::geometry::mesh;
+
+constexpr int kColumns = 44;          ///< columns per side
+constexpr float kColumnSize = 62.0f;  ///< how wide one column is
+constexpr float kStep = 46.0f;        ///< the height quantum
+constexpr float kWaterLevel = 1.0f * kStep;
+
+/** Where the camera stands over the valley, and what it looks at. */
+constexpr glm::vec3 kEye{40.0f, 690.0f, 1420.0f};
+constexpr glm::vec3 kLook{0.0f, 150.0f, -320.0f};
+
+/** A deterministic value in [0,1) from a pair of integers — the terrain
+ *  has to be the same valley on every machine and in every run. */
+inline float hash2(int x, int z) {
+  uint32_t h = (uint32_t)x * 374761393u ^ (uint32_t)z * 668265263u;
+  h = (h ^ (h >> 13U)) * 1274126177u;
+  return (float)((h ^ (h >> 16U)) & 0xFFFFFFu) / 16777216.0f;
+}
+
+/** One axis-aligned box, 24 vertices and 12 triangles with flat normals
+ *  and one colour in the vertex lane. */
+inline void addBox(gm::Mesh& out, glm::vec3 lo, glm::vec3 hi, glm::vec4 tint) {
+  static const glm::vec3 kNormals[6] = {{0, 0, 1},  {0, 0, -1}, {1, 0, 0},
+                                        {-1, 0, 0}, {0, 1, 0},  {0, -1, 0}};
+  const glm::vec3 c[8] = {{lo.x, lo.y, hi.z}, {hi.x, lo.y, hi.z},
+                          {hi.x, hi.y, hi.z}, {lo.x, hi.y, hi.z},
+                          {lo.x, lo.y, lo.z}, {hi.x, lo.y, lo.z},
+                          {hi.x, hi.y, lo.z}, {lo.x, hi.y, lo.z}};
+  static const int kFace[6][4] = {{0, 1, 2, 3}, {5, 4, 7, 6}, {1, 5, 6, 2},
+                                  {4, 0, 3, 7}, {3, 2, 6, 7}, {4, 5, 1, 0}};
+  // Five faces, not six: the camera stands above the valley and the
+  // underside of a column is a tenth of the triangles for nothing.
+  for (int f = 0; f < 5; ++f) {
+    const uint32_t base = (uint32_t)out.positions.size();
+    // The top face carries the column's own colour; the sides take a
+    // fraction of it, which is what makes a voxel field read as blocks
+    // rather than as a surface.
+    const float side = f == 4 ? 1.0f : 0.72f;
+    for (int k = 0; k < 4; ++k) {
+      out.positions.push_back(c[kFace[f][k]]);
+      out.normals.push_back(kNormals[f]);
+      out.uvs.emplace_back((float)(k == 1 || k == 2), (float)(k >= 2));
+      out.colors.emplace_back(tint.r * side, tint.g * side, tint.b * side,
+                              1.0f);
+    }
+    out.indices.insert(out.indices.end(),
+                       {base, base + 1, base + 2, base, base + 2, base + 3});
+  }
+}
+
+/** The terrain height at a column, in quanta. Two ridges crossed by a
+ *  valley floor, roughened by the hash so no two columns of one band
+ *  stand at the same height. */
+inline int heightAt(int ix, int iz) {
+  const float x = (float)ix / (float)kColumns - 0.5f;
+  const float z = (float)iz / (float)kColumns - 0.5f;
+  const float valley = 5.6f * (x * x * 8.0f);
+  // The ridges are damped toward the middle, which is what cuts the
+  // river channel: a valley floor is flat because the ridges do not
+  // reach it, not because a second rule flattened it.
+  const float bank = std::min(1.0f, std::abs(x) * 3.4f);
+  const float ridge =
+      bank * (1.9f * std::sin(z * 7.4f + 1.2f) + 1.3f * std::cos(x * 5.1f));
+  const float grain = bank * hash2(ix, iz) * 1.15f;
+  return (int)std::lround(0.4f + valley + ridge + grain);
+}
+
+/** The colour band a column's top stands in: water sand, valley grass,
+ *  hillside, and bare rock above the tree line. */
+inline glm::vec4 bandOf(int height, float grain) {
+  const glm::vec4 water{0.09f, 0.26f, 0.33f, 1.0f};
+  if (height <= 0) return water;
+  const glm::vec4 sand{0.60f, 0.54f, 0.36f, 1.0f};
+  const glm::vec4 grass{0.24f, 0.44f, 0.19f, 1.0f};
+  const glm::vec4 slope{0.20f, 0.34f, 0.17f, 1.0f};
+  const glm::vec4 rock{0.36f, 0.35f, 0.33f, 1.0f};
+  glm::vec4 c = height <= 1   ? sand
+                : height <= 3 ? grass
+                : height <= 6 ? slope
+                              : rock;
+  const float j = 0.90f + 0.20f * grain;
+  return {c.r * j, c.g * j, c.b * j, 1.0f};
+}
+
+/** The valley, plus the trees standing on it: one mesh. */
+inline gm::Mesh valley() {
+  gm::Mesh out;
+  const float half = 0.5f * (float)kColumns * kColumnSize;
+  for (int iz = 0; iz < kColumns; ++iz)
+    for (int ix = 0; ix < kColumns; ++ix) {
+      const int h = heightAt(ix, iz);
+      const float x0 = (float)ix * kColumnSize - half;
+      const float z0 = (float)iz * kColumnSize - half;
+      // A column below the water line stands AT it: the river is voxel
+      // water in the same mesh, not a translucent plane over the terrain
+      // — one body is one depth-sorted draw, and two huge overlapping
+      // bodies have no order a painter can be right about.
+      const float top =
+          (float)std::max(h, 0) * kStep + (h <= 0 ? kWaterLevel * 0.62f : 0.0f);
+      addBox(out, {x0, top - kStep * 3.0f, z0},
+             {x0 + kColumnSize, top, z0 + kColumnSize},
+             bandOf(h, hash2(ix + 91, iz + 17)));
+      // A tree on one column in fourteen, above the water and below the
+      // rock: a trunk and two canopy blocks, which is the whole of what a
+      // voxel tree is.
+      if (h < 2 || h > 6 || hash2(ix + 7, iz + 41) > 0.07f) continue;
+      const float cx = x0 + kColumnSize * 0.5f, cz = z0 + kColumnSize * 0.5f;
+      addBox(out, {cx - 9.0f, top, cz - 9.0f},
+             {cx + 9.0f, top + 78.0f, cz + 9.0f}, {0.26f, 0.18f, 0.11f, 1.0f});
+      addBox(out, {cx - 44.0f, top + 62.0f, cz - 44.0f},
+             {cx + 44.0f, top + 122.0f, cz + 44.0f},
+             {0.13f, 0.30f, 0.13f, 1.0f});
+    }
+  return out;
+}
+
 }  // namespace worldhud
 
-struct WorldHud final : sketch::Sketch {
+struct WorldHud final : sketch::Set {
   // Plain fractions in [0,1], not pixel widths. Every bar here is a
   // full-size fill whose growing edge is pinned with transformOrigin() and
   // whose extent is carried by scaleX, so these Outputs feed the transform
@@ -272,21 +443,26 @@ struct WorldHud final : sketch::Sketch {
   std::shared_ptr<instancing::Atlas> slotAtlas;
   std::shared_ptr<instancing::Pool> slotPool;
 
-  void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kSceneSize.fWidth, kSceneSize.fHeight);
-    ctx.captureAt(6.0);
-    ctx.background({0, 0, 0, 1});
-    Composer& composer = ctx.composer;
-    sigil::motion::Ticker& ticker = ctx.ticker;
+  weave::FontContext* fonts = nullptr;
+  std::shared_ptr<compose::TextureScene> overlay;
+  Element retained;
+  float lastSeconds = -1.0f;
+  world::Camera lens;
+
+  void setup(sketch::SetContext& ctx) override {
     namespace wh = worldhud;
-    hp = 0.62f;
-    energy = 0.78f;
-    poise = 0.55f;
-    xp = 0;
-    enemyHp = 0.4f;
-    lowPulse = 0;
-    compass = 0;
-    for (auto& c : cooldown) c = 0.0f;
+    ctx.canvas((int)kSceneSize.fWidth, (int)kSceneSize.fHeight);
+    ctx.captureAt(6.0);
+    ctx.background({0.086f, 0.118f, 0.165f, 1.0f});
+    fonts = &ctx.fonts;
+
+    lens.eye = wh::kEye;
+    lens.target = wh::kLook;
+    lens.up = {0.0f, 1.0f, 0.0f};
+    lens.fovYDeg = 46.0f;
+    lens.zNear = 8.0f;
+    lens.zFar = 8192.0f;
+    ctx.camera(lens);
 
     // The empty slot frame is one atlas cell stamped twelve times.
     slotAtlas = std::make_shared<instancing::Atlas>(2.0f);
@@ -299,42 +475,100 @@ struct WorldHud final : sketch::Sketch {
       slotPool->add(
           {i * (wh::kSlotFrame + wh::kSlotGap) + wh::kSlotFrame * 0.5f,
            wh::kSlotFrame * 0.5f});
+    retained = hud();
+  }
 
-    ticker.add([this, t = 0.0](double dt) mutable {
-      t += dt;
-      // Combat, on a loop: health drains, a heal lands, energy spends and
-      // regenerates, poise breaks and recovers.
-      const double cycle = std::fmod(t, 9.0);
-      float h = 0.62f;
-      if (cycle < 3.0)
-        h = 0.62f - 0.42f * (float)(cycle / 3.0);
-      else if (cycle < 3.5)
-        h = 0.20f + 0.55f * (float)((cycle - 3.0) / 0.5);
-      else
-        h = 0.75f - 0.13f * (float)((cycle - 3.5) / 5.5);
-      hp = h;
-      // Veloren's hp_ani: below 20% the bar breathes.
-      lowPulse = h < 0.25f ? 0.5f + 0.5f * (float)std::sin(t * 9.0) : 0.0f;
-      energy = 0.35f + 0.45f * (float)(0.5 + 0.5 * std::sin(t * 0.9));
-      poise = 0.30f + 0.60f * (float)(0.5 + 0.5 * std::sin(t * 0.55 + 1.7));
-      compass = (float)std::fmod(t * 8.0, 360.0);
-      xp = (float)std::fmod(t * 0.11, 1.0);
-      // The boss bar drains on a sawtooth and must never reach zero. A
-      // formulation that clamps at empty spends part of every cycle showing a
-      // boss nameplate over an unfilled black slab, and any still captured in
-      // that window looks like a bug in the bar rather than a moment in the
-      // animation. Scaling the ramp so it bottoms out just above empty keeps
-      // the same read with no dead interval.
-      enemyHp = 0.85f - 0.77f * (float)std::fmod(t * 0.16, 1.0);
-      for (size_t i = 0; i < cooldown.size(); ++i) {
-        const double period = 2.4 + 0.9 * (double)i;
-        // the dark cover keeps its top edge and its bottom edge rises
-        cooldown[i] = 1.0f - (float)(std::fmod(t, period) / period);
-      }
-      return true;
-    });
+  /** THE COMBAT LOOP, as one function of the scene time: health drains,
+   *  a heal lands, energy spends and regenerates, poise breaks and
+   *  recovers, four abilities cool down on periods of their own. Every
+   *  bar on the HUD reads this one clock, so there is one place that
+   *  says what any second of the fight looks like. */
+  void driveTo(double t) {
+    const double cycle = std::fmod(t, 9.0);
+    float h = 0.62f;
+    if (cycle < 3.0)
+      h = 0.62f - 0.42f * (float)(cycle / 3.0);
+    else if (cycle < 3.5)
+      h = 0.20f + 0.55f * (float)((cycle - 3.0) / 0.5);
+    else
+      h = 0.75f - 0.13f * (float)((cycle - 3.5) / 5.5);
+    hp = h;
+    // Veloren's hp_ani: below 20% the bar breathes.
+    lowPulse = h < 0.25f ? 0.5f + 0.5f * (float)std::sin(t * 9.0) : 0.0f;
+    energy = 0.35f + 0.45f * (float)(0.5 + 0.5 * std::sin(t * 0.9));
+    poise = 0.30f + 0.60f * (float)(0.5 + 0.5 * std::sin(t * 0.55 + 1.7));
+    compass = (float)std::fmod(t * 8.0, 360.0);
+    xp = (float)std::fmod(t * 0.11, 1.0);
+    // The boss bar drains on a sawtooth and must never reach zero: a
+    // formulation that clamps at empty spends part of every cycle showing
+    // a boss nameplate over an unfilled black slab.
+    enemyHp = 0.85f - 0.77f * (float)std::fmod(t * 0.16, 1.0);
+    for (size_t i = 0; i < cooldown.size(); ++i) {
+      const double period = 2.4 + 0.9 * (double)i;
+      // the dark cover keeps its top edge and its bottom edge rises
+      cooldown[i] = 1.0f - (float)(std::fmod(t, period) / period);
+    }
+  }
 
-    composer.render(describe());
+  /** The overlay's quad: it stands a fixed distance in front of the eye
+   *  and is exactly as wide and as tall as the frustum is there, so a
+   *  texture pixel and a plate pixel are the same pixel. */
+  world::Element overlayQuad(material::Texture texture) {
+    const glm::vec3 forward = glm::normalize(lens.target - lens.eye);
+    constexpr float kAt = 60.0f;
+    const float h =
+        2.0f * kAt * std::tan(lens.fovYDeg * 0.5f * 3.14159265358979f / 180.0f);
+    const float w = h * kSceneSize.fWidth / kSceneSize.fHeight;
+    const glm::vec3 at = lens.eye + forward * kAt;
+    material::Material surface =
+        material::kit::unlit({.baseColor = {1, 1, 1, 1}});
+    surface.child(material::kit::kBaseColorSlot, std::move(texture));
+    return world::Element()
+        .key("overlay")
+        .transform(
+            ::sigil::geometry::mesh::camera::faceCamera(lens.eye, at, lens.up))
+        .mesh(worldhud::gm::quad(w, h))
+        .fill(std::move(surface))
+        .tag("overlay");
+  }
+
+  world::Frame describe(float seconds) override {
+    namespace wh = worldhud;
+    driveTo((double)seconds);
+
+    world::Element scene = world::Element().key("vale");
+    scene.child(world::Element().key("sun").light(world::sun(
+        {-0.44f, -0.78f, -0.44f}, {1.00f, 0.94f, 0.80f, 1.0f}, 1.05f)));
+    scene.child(world::Element().key("sky").light(world::sun(
+        {
+            0.26f,
+            0.52f,
+            0.36f,
+        },
+        {0.42f, 0.56f, 0.78f, 1.0f}, 0.42f)));
+
+    // The valley is cooked once and held: it is a function of nothing,
+    // and rebuilding twenty thousand triangles per frame would be a
+    // statement about the terrain rather than about the HUD.
+    static const wh::gm::Mesh kValley = wh::valley();
+    scene.child(world::Element()
+                    .key("terrain")
+                    .mesh(kValley)
+                    .fill(material::kit::surface(
+                        {.baseColor = {1, 1, 1, 1}, .roughness = 0.92f}))
+                    .tag("terrain"));
+
+    if (!overlay || seconds <= lastSeconds)
+      overlay = compose::TextureScene::make(
+          {(int)kSceneSize.fWidth, (int)kSceneSize.fHeight}, *fonts);
+    lastSeconds = seconds;
+    // THE HUD IS DESCRIBED ONCE. Every bar on it is a bound Output on a
+    // retained node, so the frames after the first cost a reconcile
+    // against a tree that did not change — re-describing a hundred nodes
+    // per frame would be paying for the bindings twice.
+    overlay->render(retained, (double)seconds);
+    scene.child(overlayQuad(overlay->texture()));
+    return world::Frame(std::move(scene));
   }
 
   // ------------------------------------------------------------------
@@ -523,6 +757,19 @@ struct WorldHud final : sketch::Sketch {
                            .fill(patterns::noise(0.014f, 5, 3.0f))
                            .opacity(0.85f)
                            .blend(SkBlendMode::kMultiply))
+                // the height BANDS: three thresholds of one noise field,
+                // which is how a world map reads as terrain rather than
+                // as a texture
+                .child(box()
+                           .inset(0)
+                           .fill(patterns::noise(0.030f, 4, 2.0f))
+                           .opacity(0.55f)
+                           .blend(SkBlendMode::kOverlay))
+                .child(box()
+                           .inset(0)
+                           .fill(patterns::noise(0.070f, 2, 5.0f))
+                           .opacity(0.30f)
+                           .blend(SkBlendMode::kMultiply))
                 .child(box().inset(0).fill(
                     Material::radial({d * 0.5f, d * 0.5f}, d * 0.55f,
                                      {{0.0f, {0, 0, 0, 0}},
@@ -535,13 +782,27 @@ struct WorldHud final : sketch::Sketch {
                                      .material())
                            .rotate(24.0f)
                            .opacity(0.7f)))
-        // compass rose, counter-rotating under the frame
-        .child(box().inset(0).rotate(&compass).child(
-            box()
-                .inset(0)
-                .shape(shapes::star(4, 0.12f))
-                .fill(Material::solid(
-                    {wh::kBoneHi.fR, wh::kBoneHi.fG, wh::kBoneHi.fB, 0.22f}))))
+        // THE COMPASS ROSE, turning under the frame. It is a rose and not
+        // a cross: small, at the middle, eight points, with the four
+        // cardinal arms longer than the four between them.
+        .child(box()
+                   .left(d * 0.5f - 23)
+                   .top(d * 0.5f - 23)
+                   .width(Dim(46.0f))
+                   .height(Dim(46.0f))
+                   .rotate(&compass)
+                   .child(box()
+                              .inset(0)
+                              .shape(shapes::star(8, 0.34f))
+                              .fill(Material::solid({wh::kBoneHi.fR,
+                                                     wh::kBoneHi.fG,
+                                                     wh::kBoneHi.fB, 0.30f})))
+                   .child(box()
+                              .inset(9)
+                              .shape(shapes::star(4, 0.22f))
+                              .fill(Material::solid({wh::kBoneHi.fR,
+                                                     wh::kBoneHi.fG,
+                                                     wh::kBoneHi.fB, 0.62f}))))
         .child(box()
                    .left(d * 0.5f - 4)
                    .top(d * 0.5f - 4)
@@ -583,7 +844,7 @@ struct WorldHud final : sketch::Sketch {
                    .right(0)
                    .bottom(-19)
                    .justify(Justify::Center)
-                   .child(text(toU8("WELDRIN VALE  \xc2\xb7  1204, -388"),
+                   .child(text(toU8("1204, -388"),
                                wh::type(10, wh::kInkDim, 1.2f))));
   }
 
@@ -595,6 +856,15 @@ struct WorldHud final : sketch::Sketch {
       const char* label;
       SkColor4f color;
       float left;
+    };
+    // The ring is the outline itself, trimmed: a fraction of the way
+    // round is a fraction of the buff left.
+    auto drainRing = [](SkColor4f colour, float left) {
+      PathFormat ring = stroke(2.6f, Fill::color(colour));
+      ring.cap = SkPaint::kRound_Cap;
+      ring.trimStart = 0.0f;
+      ring.trimEnd = std::max(0.0f, std::min(1.0f, left));
+      return ring;
     };
     static const Pip kPips[] = {
         {"REG", wh::kBuff, 0.72f},   {"HST", wh::kBuff, 0.35f},
@@ -621,7 +891,12 @@ struct WorldHud final : sketch::Sketch {
                   {0, 0}, {0, 30},
                   {{0.0f, hex(0x2A2118)}, {1.0f, hex(0x120C08)}}))
               .foreground(stroke(1.4f, Fill::color({p.color.fR, p.color.fG,
-                                                    p.color.fB, 0.9f})))
+                                                    p.color.fB, 0.28f})))
+              // THE DRAIN RING: the same outline stroked again, trimmed
+              // to what is left of the buff. One node, two decorations —
+              // a trim window is per decoration, so the spent part and
+              // the remaining part need no second element.
+              .foreground(drainRing(p.color, p.left))
               .alignItems(Align::Center)
               .justify(Justify::Center)
               // the drain: a dark wipe from the bottom, under the label
@@ -712,49 +987,15 @@ struct WorldHud final : sketch::Sketch {
                               .fill(Material::solid(wh::kEnemyHp))));
   }
 
-  Element describe() {
+  /** The HUD itself: everything Veloren draws over the world. */
+  Element hud() {
     namespace wh = worldhud;
     using namespace std::chrono_literals;
 
-    auto root = stack().fill(Material::linear({0, 0}, {0, wh::kH},
-                                              {{0.0f, hex(0x1B2B36)},
-                                               {0.55f, hex(0x24331F)},
-                                               {1.0f, hex(0x11170E)}}));
-
-    // a coarse world under the HUD so the bars have something to be legible
-    // against — the HUD is the subject, but a HUD over nothing is a lie
-    root.child(box()
-                   .inset(0)
-                   .fill(patterns::noise(0.006f, 6, 12.0f))
-                   .opacity(0.55f)
-                   .blend(SkBlendMode::kOverlay));
-    // a horizon and two ridgelines, so the HUD reads as an overlay on a
-    // world rather than as a diagram floating in a void
-    auto ridge = [&](float baseY, float amp, float freq, float phase,
-                     SkColor4f color) {
-      return box()
-          .inset(0)
-          .shape([baseY, amp, freq, phase](SkSize s) {
-            SkPathBuilder b;
-            b.moveTo(0, s.height());
-            b.lineTo(0, baseY);
-            // the loop walks a distance; the accumulated float is the position
-            // NOLINTNEXTLINE(clang-analyzer-security.FloatLoopCounter,bugprone-float-loop-counter)
-            for (float x = 0; x <= s.width(); x += 6)
-              b.lineTo(x, baseY + amp * std::sin(x * freq + phase) +
-                              amp * 0.4f * std::sin(x * freq * 2.7f));
-            b.lineTo(s.width(), s.height());
-            b.close();
-            return b.detach();
-          })
-          .fill(Material::solid(color));
-    };
-    root.child(ridge(268, 26, 0.0085f, 0.4f, hex(0x15201A)));
-    root.child(ridge(322, 18, 0.0135f, 2.1f, hex(0x0E1712)));
-    root.child(ridge(392, 12, 0.0210f, 4.4f, hex(0x080D09)));
-    root.child(box().inset(0).fill(
-        Material::radial({wh::kW * 0.5f, wh::kH * 0.42f}, wh::kW * 0.72f,
-                         {{0.0f, {0, 0, 0, 0}}, {1.0f, {0, 0, 0, 0.65f}}})));
+    // The root paints NOTHING. What is behind the HUD is the frame's own
+    // valley, and a scrim here would be this study answering its own
+    // question.
+    auto root = stack();
 
     root.child(box()
                    .column()
@@ -763,8 +1004,7 @@ struct WorldHud final : sketch::Sketch {
                    .zIndex(6)
                    .child(text(toU8("WELDRIN VALE"),
                                wh::type(20, wh::kInk, 2.6f, 640)))
-                   .child(text(toU8("action-RPG HUD \xe2\x80\x94 every "
-                                    "dimension from voxygen/src/hud"),
+                   .child(text(toU8("LEVEL 34  \xc2\xb7  CLEAR, LIGHT WIND"),
                                wh::type(11, wh::kInkDim, 0.9f))
                               .margin(0, 5, 0, 0)));
 
@@ -780,5 +1020,8 @@ struct WorldHud final : sketch::Sketch {
 
 }  // namespace
 
-SIGIL_SKETCH_AS(WorldHud, "world hud", "Catalog \xc2\xb7 Game UI",
-                "voxygen dimensions \xe2\x80\x94 bars, hotbar, minimap")
+SIGIL_SKETCH_AS(
+    WorldHud, "world hud", "Catalog \xc2\xb7 Game UI",
+    "Voxygen's own dimensions \xe2\x80\x94 bars, hotbar, minimap and "
+    "nameplate \xe2\x80\x94 baked into one texture over a lit voxel "
+    "valley, which is the thing a HUD has to stay legible on")
