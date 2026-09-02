@@ -278,7 +278,12 @@ inline SkColor4f hex(uint32_t v, float a = 1.0f) noexcept {
 // PALETTE — HSV-class percentiles over the anchor. There is NO WHITE.
 
 const SkColor4f kGround = hex(0x040001);  // dark p50 — a RED-cast black
-const SkColor4f kAzure = hex(0x579ED5);   // measured p50 inside CASPER; FLAT
+// THE PANEL BLUE IS A CEL BLUE. Sampled off the frame it is a deep,
+// low-chroma blue that sits UNDER the red rather than beside it; the
+// brighter reading is a flat-UI sky blue, which on a black ground makes
+// the two blue panels the loudest thing in the picture and MELCHIOR's red
+// a third colour rather than the subject.
+const SkColor4f kAzure = hex(0x2E6E96);   // measured p50 inside CASPER; FLAT
 const SkColor4f kRed = hex(0xAA0506);     // MELCHIOR p50 — and the traces, to
 const SkColor4f kRedHot = hex(0xB0090A);  // within 1 LSB: ONE colour, TWO
                                           // coverages, which is the whole idea
@@ -498,8 +503,12 @@ float h21(float2 p) {
 float arrival(float2 c, float2 seed) {
   float2 d = c - seed;
   float manh = abs(d.x) + abs(d.y);
-  float nh = h21(floor(c * float2(0.28, 1.0)));
-  float nv = h21(floor(c * float2(1.0, 0.28)) + 41.0);
+  // LONGER LOBES. A lobe 3.5 cells long at a thirty-two pixel cell was a
+  // hundred pixels of finger; at a ten pixel cell the same 0.28 is thirty,
+  // which is a dash. Stretching to 0.085 keeps the finger the length the
+  // cel's traces run and makes it a twelfth of the width.
+  float nh = h21(floor(c * float2(0.085, 1.0)));
+  float nv = h21(floor(c * float2(1.0, 0.085)) + 41.0);
   // R2 (Roberts' low-discrepancy) for the per-cell grain: three ops against
   // h21's twelve, and a punch-out mask does not need Hoskins' quality.
   float grain = fract(c.x * 0.7548777 + c.y * 0.5698403 + 0.137);
@@ -644,7 +653,13 @@ inline float hashF(int a, int b, int salt) {
                  0xffffffu) /
          16777215.0f;
 }
-constexpr float kCell = 32.0f;
+// THE CELL IS THE TRACE'S WIDTH. At thirty-two pixels a finger is a slab
+// and the pour reads as a mask over the panel; the epigraph the whole
+// artefact hangs on is "the growing lines are the electrical circuits",
+// and a circuit's line is thin. Ten pixels puts nine times as many cells
+// under the same front, so the anisotropic lobes read as the long
+// orthogonal runs they compute — a trace network, not a stain.
+constexpr float kCell = 10.0f;
 constexpr int kDX[4] = {1, 0, -1, 0};
 constexpr int kDY[4] = {0, 1, 0, -1};
 
@@ -1503,10 +1518,17 @@ struct EvaMagiInterior : sketch::Sketch {
     }
     Element tissue =
         box()
-            .left(Wd * 0.30f)
-            .top(Ht * 0.26f)
-            .width(Wd * 0.44f)
-            .height(Ht * 0.52f)
+            // THE BRAIN IS THE SUBJECT of this plate, so it fills the
+            // window rather than sitting in the middle of it as a card.
+            .left(Wd * 0.20f)
+            .top(Ht * 0.17f)
+            .width(Wd * 0.60f)
+            .height(Ht * 0.66f)
+            // A ROUNDED OUTLINE, because a rectangle with folds drawn on
+            // it is a card with folds drawn on it. The corners take almost
+            // half the short side, which is as close to an organ as a
+            // shape this small needs to be.
+            .corners({Ht * 0.30f})
             .rotate(-9.0f)
             .fill(Material::radialUnit({0.44f, 0.40f}, 1.05f,
                                        {{0.0f, hex(0xDBC49A)},
@@ -1553,15 +1575,43 @@ struct EvaMagiInterior : sketch::Sketch {
                 .top(Ht * 0.63f)
                 .child(text(u8"MAGI", magi::type(magi::latin(), 28.0f,
                                                  hex(0x8C2A1E), 0.86f))));
-    for (int k = 0; k < 2; ++k)
+    // THE STRAPS. "A human brain strapped behind glass" — two steel bands
+    // bolted corner to corner, and they have to READ as steel: two flat
+    // black bars of five pixels across a small card are a cancellation
+    // cross, which is what an error placeholder looks like. So they run
+    // rivet to rivet, they are wide enough to carry a bevel, and the bevel
+    // is what says band rather than stroke.
+    for (int k = 0; k < 2; ++k) {
+      const float x0 = 25.0f, y0 = k ? Ht - 23.0f : 23.0f;
+      const float x1 = Wd - 25.0f, y1 = k ? 23.0f : Ht - 23.0f;
+      const float len = std::hypot(x1 - x0, y1 - y0);
+      const float ang = std::atan2(y1 - y0, x1 - x0) * 57.29578f;
       g.child(box()
-                  .left(Wd * 0.24f)
-                  .top(Ht * (k ? 0.72f : 0.24f))
-                  .width(Wd * 0.58f)
-                  .height(5.0f)
-                  .rotate(k ? -34.0f : 34.0f)
+                  .left(x0)
+                  .top(y0 - 7.0f)
+                  .width(len)
+                  .height(14.0f)
+                  .rotate(ang)
                   .transformOrigin(0.0f, 0.5f)
-                  .fill(Material::solid(hex(0x090509))));
+                  .fill(Material::linear({0, 0}, {0, 14},
+                                         {{0.00f, hex(0x6A6470)},
+                                          {0.22f, hex(0x8E8896)},
+                                          {0.55f, hex(0x413B48)},
+                                          {1.00f, hex(0x14101A)}}))
+                  .foreground(
+                      decorations::border(1.2f, Fill::color(hex(0x08050A)))));
+    }
+    // …and the glass they are behind: one diagonal sheen over the whole
+    // plate, which is the difference between a card and a window.
+    g.child(box()
+                .inset(0)
+                .fill(Material::linear({0, Ht}, {Wd, 0},
+                                       {{0.00f, {1, 1, 1, 0.00f}},
+                                        {0.44f, {1, 1, 1, 0.00f}},
+                                        {0.52f, {0.82f, 0.90f, 1.0f, 0.16f}},
+                                        {0.60f, {1, 1, 1, 0.00f}},
+                                        {1.00f, {1, 1, 1, 0.00f}}}))
+                .blend(SkBlendMode::kPlus));
     g.child(
         box()
             .inset(0)
