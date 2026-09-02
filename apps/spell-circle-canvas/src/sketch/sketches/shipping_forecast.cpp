@@ -22,7 +22,8 @@
 //     and is preceded by Ronald Binge's "Sailing By" (1963).
 //   * THIRTY-ONE SEA AREAS, read in ONE fixed order that runs broadly
 //     clockwise from Viking, off the north-east of Scotland, round the
-//     islands. The ring here carries the first sixteen of that order,
+//     islands. The ring here carries the first sixteen of that order, each
+//     at its own compass bearing from the middle of the islands,
 //     unaltered: Viking, North Utsire, South Utsire, Forties, Cromarty,
 //     Forth, Tyne, Dogger, Fisher, German Bight, Humber, Thames, Dover,
 //     Wight, Portland, Plymouth.
@@ -120,6 +121,18 @@
 //     there is already inside a grade sweep, and a static span axis over the
 //     numerals would replace a moving coordinate with a still one.
 //
+// EDIT THESE FIRST
+//   kAreaRing  — the sixteen sea areas and the compass bearing each is
+//                set at. Move a bearing and the name moves round the ring.
+//   kLoop      — one bulletin, in seconds. Everything else is a window,
+//                a swell or an envelope shaped out of it.
+//   kBreathPeriod — the grade swell's period. The declared moment is its
+//                second peak, so changing it moves the still.
+//   kRingR / kInnerR — the ring's two radii, and therefore how much arc a
+//                name has before it meets its neighbour.
+//   kAmber     — the one accent. Everything picked out on this sheet is
+//                picked out in it.
+//
 // Run:
 //   ./build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
 //       src/sketch/sketches/shipping_forecast.cpp \
@@ -132,6 +145,7 @@
 #include <sigilcompose/shape/Shapes.h>
 #include <sigilcompose/typography/TextFx.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigilmotion/values/Time.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/style/Style.h>
 
@@ -141,6 +155,7 @@
 namespace sketch = sigil::sketch;
 
 using namespace sigil::compose;
+namespace motion = sigil::motion;
 namespace ch = choreograph;
 
 namespace {
@@ -178,13 +193,29 @@ constexpr double kRingPeriod = 46.0;   // one lap of the sea areas
 constexpr float kInFrom = 0.04f / (float)kLoop, kInTo = 0.42f / (float)kLoop;
 constexpr float kOutFrom = 12.6f / (float)kLoop, kOutTo = 14.2f / (float)kLoop;
 
-/** The sea areas, in the order they are read. The ring is this string and
- *  nothing else: sixteen areas and their separators, laid on a circle. */
-const char* kAreas =
-    "VIKING \xc2\xb7 NORTH UTSIRE \xc2\xb7 SOUTH UTSIRE \xc2\xb7 FORTIES "
-    "\xc2\xb7 CROMARTY \xc2\xb7 FORTH \xc2\xb7 TYNE \xc2\xb7 DOGGER \xc2\xb7 "
-    "FISHER \xc2\xb7 GERMAN BIGHT \xc2\xb7 HUMBER \xc2\xb7 THAMES \xc2\xb7 "
-    "DOVER \xc2\xb7 WIGHT \xc2\xb7 PORTLAND \xc2\xb7 PLYMOUTH \xc2\xb7 ";
+/** THE SEA AREAS AT THEIR OWN BEARINGS. The first sixteen of the order lie
+ *  off the east and south of the British Isles, and the bulletin reads them
+ *  broadly clockwise from Viking, north-east of Shetland, round to Plymouth
+ *  in the south-west. Each carries its compass bearing from the middle of
+ *  the islands, so the ring is a chart rather than an ornament: where a
+ *  name sits IS where the sea is, and the reading order is that sweep made
+ *  visible.
+ *
+ *  Bearings are degrees clockwise from north, rounded to the ring's own
+ *  legibility rather than to a chart's precision — two adjacent areas
+ *  whose true bearings differ by three degrees would set as one word. */
+struct Area {
+  const char* name;
+  float bearingDeg;
+};
+constexpr Area kAreaRing[] = {
+    {"VIKING", 14.0f},        {"NORTH UTSIRE", 33.0f}, {"SOUTH UTSIRE", 50.0f},
+    {"FORTIES", 65.0f},       {"CROMARTY", 78.0f},     {"FORTH", 90.0f},
+    {"TYNE", 101.0f},         {"DOGGER", 112.0f},      {"FISHER", 124.0f},
+    {"GERMAN BIGHT", 137.0f}, {"HUMBER", 152.0f},      {"THAMES", 166.0f},
+    {"DOVER", 178.0f},        {"WIGHT", 192.0f},       {"PORTLAND", 206.0f},
+    {"PLYMOUTH", 222.0f}};
+constexpr int kAreaCount = (int)(sizeof(kAreaRing) / sizeof(kAreaRing[0]));
 
 }  // namespace
 
@@ -316,14 +347,12 @@ struct ShippingForecast : sketch::Sketch {
   // ------------------------------------------------------------------
   // The ring
 
-  /** Sixteen areas, then the letters inside each. Built as a named value
-   *  because `Stagger::then` returns a reference and a designated
-   *  initialiser is the wrong place to be mutating one. */
+  /** The letters of one area name, entering off their own curved
+   *  baseline. Each name is its own run at its own bearing, so the sweep
+   *  across the sixteen is a delay per run rather than an outer level of
+   *  one cascade. */
   [[nodiscard]] static Stagger ringCascade() {
-    Stagger cascade =
-        stagger(unit::Word, {.amountMs = 1500, .from = Stagger::From::Start});
-    cascade.then(unit::Cluster, {.eachMs = 20, .durationMs = 420});
-    return cascade;
+    return stagger(unit::Cluster, {.eachMs = 20, .durationMs = 420});
   }
 
   [[nodiscard]] Element ringPanel() {
@@ -345,45 +374,71 @@ struct ShippingForecast : sketch::Sketch {
     panel.child(hair(kInnerR, kKeyline, 1.0f).key("ring-inner"));
     panel.child(hair(kInnerR - 9.0f, hex(0x121B26), 1.0f).key("ring-inner-2"));
 
-    // THE MARQUEE. `at` is where along the baseline the run sits, as a
-    // fraction of the whole path; on a closed contour that fraction wraps,
-    // so a phase running 0→1 forever walks the sea areas round the circle
-    // and back with no seam and no relayout. Moving it re-places glyphs
-    // that were already placed — a repaint, never a reflow.
+    // THE COMPASS. A tick at every area's own bearing, and a longer one
+    // with a letter at each cardinal point, so the ring can be read as a
+    // bearing and not only as a list.
+    for (int i = 0; i < kAreaCount; ++i) {
+      const float rad = kAreaRing[i].bearingDeg * 3.14159265f / 180.0f;
+      const float sx = std::sin(rad), sy = -std::cos(rad);
+      panel.child(box()
+                      .key("tick" + std::to_string(i))
+                      .width(1.0f)
+                      .height(9.0f)
+                      .rotate(kAreaRing[i].bearingDeg)
+                      .centerAt({kEye.x() + sx * (kRingR + 28.0f),
+                                 kEye.y() + sy * (kRingR + 28.0f)})
+                      .fill(Fill::color(kSlateDim))
+                      .opacity(beat(0.10f, 1.20f)));
+    }
+    const char* kCardinals[4] = {"N", "E", "S", "W"};
+    for (int q = 0; q < 4; ++q) {
+      const float rad = (float)q * 1.5707963f;
+      panel.child(text(toU8(kCardinals[q]), label(12.0f, kAmber, 2.0f))
+                      .key(std::string("card") + kCardinals[q])
+                      .centerAt({kEye.x() + std::sin(rad) * (kRingR + 46.0f),
+                                 kEye.y() - std::cos(rad) * (kRingR + 46.0f)})
+                      .opacity(beat(0.10f, 1.20f)));
+    }
+
+    // THE AREAS, one run each, ON the circle at its own bearing. `at` is
+    // where along the baseline a run sits as a fraction of the whole path,
+    // and shapes::circle() starts at due east and runs clockwise, so a
+    // bearing becomes a fraction by subtracting the quarter turn between
+    // the two conventions. Every run is centred on its own bearing, which
+    // is the whole difference between a chart ring and a band of type
+    // going round.
     //
-    // The entrance composes with the baseline rather than fighting it: the
-    // baseline places each glyph and turns it to its tangent, and the rise
-    // then lifts it along THAT frame, so the letters come in off the curve
-    // radially instead of straight up the canvas.
-    panel.child(
-        text(toU8(kAreas), type({.face = faceBold,
-                                 .size = 15.0f,
-                                 .color = hex(0xBFC7D1),
-                                 .track = 3.6f}))
-            .key("areas")
-            .inset(kRingBox * 0.5f - kRingR)
-            .onPath({.path = shapes::circle(),
-                     .at = bind(&secs).scale(1.0f / (float)kRingPeriod).wrap(1),
-                     .align = TextPath::Align::Center,
-                     .offset = 7.0f,
-                     // NOT flipped. A run that goes all the way round has
-                     // no side to be turned over to: the flip is one turn
-                     // of the whole run, so on a closed ring it can only
-                     // trade which half reads upside down. Left alone, the
-                     // rule is the engraver's — glyph-up points radially
-                     // outward everywhere — which is what a coin's legend
-                     // and a chart's compass ring both do.
-                     .autoFlip = false})
-            // A NESTED cascade, and the ring is where it earns its keep:
-            // the outer level beats once per AREA NAME, in the order the
-            // bulletin reads them, and inside each of those beats a second
-            // cascade runs the letters of that name. The outer duration is
-            // not a number this code gets to pick — a word's beat lasts
-            // exactly as long as its own letters need — so the only budget
-            // written here is the total spread across the sixteen areas.
-            .fx({.effect = fx::rise(13.0f),
-                 .stagger = ringCascade(),
-                 .progress = beat(0.20f, 3.10f)}));
+    // NOT flipped. A ring has no side to be turned over to, so the rule is
+    // the engraver's: glyph-up points radially outward everywhere, which is
+    // what a coin's legend and a chart's compass ring both do.
+    for (int i = 0; i < kAreaCount; ++i) {
+      const float frac =
+          std::fmod(kAreaRing[i].bearingDeg / 360.0f + 0.75f, 1.0f);
+      // TWO RADII, ALTERNATING. Sixteen bearings thirteen to seventeen
+      // degrees apart, and a name twenty degrees of arc long: on one
+      // circle every neighbour collides, and the fix a chart uses is not
+      // to move a label off its bearing but to move it off its
+      // neighbour's ring.
+      const float radius = (i % 2 == 0) ? kRingR : kRingR - 31.0f;
+      // The sixteen beat in READ ORDER, not in bearing order — they are the
+      // same sweep here, and saying it once in the delay is what makes that
+      // visible rather than coincidental.
+      const float start = 0.20f + (float)i * 0.17f;
+      panel.child(text(toU8(kAreaRing[i].name), type({.face = faceBold,
+                                                      .size = 11.5f,
+                                                      .color = hex(0xBFC7D1),
+                                                      .track = 1.1f}))
+                      .key(std::string("area") + std::to_string(i))
+                      .inset(kRingBox * 0.5f - radius)
+                      .onPath({.path = shapes::circle(),
+                               .at = frac,
+                               .align = TextPath::Align::Center,
+                               .offset = 7.0f,
+                               .autoFlip = false})
+                      .fx({.effect = fx::rise(13.0f),
+                           .stagger = ringCascade(),
+                           .progress = beat(start, start + 0.62f)}));
+    }
 
     // The area being read, in the middle of its own ring.
     Element name = box()
@@ -832,10 +887,14 @@ struct ShippingForecast : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
     ctx.canvas(kW, kH);
     ctx.background(kSea);
-    // Hero settled, the ring in place, the paragraph two-thirds through its
-    // cascade, the barometer mid-decode, and the grade swell at its peak —
-    // the one frame in the bulletin where every register is legible at once.
-    ctx.captureAt(3.6);
+    // EVERY SCRAMBLE HAS RESOLVED. The barometer's readout runs an
+    // `fx::hold(fx::scramble(...))` to 4.10 s and the forecast paragraph's
+    // initials converge on their bodies after that, so a still taken
+    // before either lands photographs a nonsense word under a caption that
+    // defines the real one, and a paragraph that reads as a rendering
+    // fault. The grade swell peaks every 7.2 s, so the second peak is the
+    // frame where the swell is at its height AND nothing is mid-decode.
+    ctx.captureAt(10.8);
 
     // The system grotesque is the face that carries GRAD, the
     // advance-invariant weight axis the swell needs. The stand-ins keep the
@@ -857,7 +916,7 @@ struct ShippingForecast : sketch::Sketch {
 
     ctx.ticker.add([this, t = 0.0](double dt) mutable {
       t += dt;
-      cycle = (float)std::fmod(t, kLoop);
+      cycle = motion::phase(t, kLoop) * (float)kLoop;
       secs = (float)t;
       return true;
     });
