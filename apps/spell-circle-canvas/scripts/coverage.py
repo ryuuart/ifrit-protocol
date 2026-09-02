@@ -74,9 +74,12 @@ IGNORE_ALWAYS = [
     r"SpellCircle_generated\.h",
 ]
 
-# Test sources all live in directories named test/; excluded from the
-# report unless --include-tests asks for them.
-IGNORE_TEST_SOURCES = [r"/test/"]
+# Test sources live in directories named test/ or tests/; excluded from
+# the report unless --include-tests asks for them. Both spellings are
+# matched because a directory that moved or was named the other way would
+# otherwise start counting toward coverage silently, and a regression
+# that shows up as a BETTER number is one nobody goes looking for.
+IGNORE_TEST_SOURCES = [r"/tests?/"]
 
 
 def llvm_tool(tool: str) -> list:
