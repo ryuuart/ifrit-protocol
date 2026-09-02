@@ -8,5 +8,9 @@
 // The one SigilWeave header no compose header pulls in and the README
 // still names: the OpenType feature presets a style spells by name.
 #include <sigilweave/style/Features.h>
+// …and the one SigilCore header in the same position: a derivation
+// declares what it reads in core's vocabulary, and the declaration is
+// carried on a block only the library's own translation units see.
+#include <sigilcore/reconcile/Reads.h>
 
 #include "PaintTestSupport.h"
