@@ -1,13 +1,17 @@
 /** @file
  * The schedule: the five orderings and their determinism, the even
  * ladder and the amount-mode division, a cue table and what a short one
- * does, the nested cascade's compounded beat, the looping fold, and the
- * beat a host reads back.
+ * does, the nested cascade's compounded beat, the looping fold, the beat
+ * a host reads back, and the field walk that demands every member of a
+ * spread participate in its own equality.
  */
 
 #include <gtest/gtest.h>
+#include <sigilcore/comparable/Fields.h>
 #include <sigilmotion/schedule/Schedule.h>
 
+#include <algorithm>
+#include <boost/pfr/core.hpp>
 #include <vector>
 
 using namespace sigil::motion;
@@ -158,4 +162,45 @@ TEST(Spread, EqualityReadsEveryFieldAndDescendsIntoTheNesting) {
   EXPECT_TRUE(a == b);
   b.then(Spread{.eachMs = 11});
   EXPECT_FALSE(a == b);
+}
+
+// ---------------------------------------------------------------------------
+// THE FIELD WALK — the runtime half of the pin beside Spread::operator==.
+//
+// A spread is a comparable value, and its equality is what lets the node
+// holding one prune. A field left out fails INVISIBLY: two different
+// cascades compare equal, the node prunes, and it keeps beating to the old
+// ladder forever. The compile-time half (the kFieldCount assert beside the
+// comparator) makes ADDING a field a build failure; this makes deciding
+// what to do about it mechanical, because it perturbs every field the type
+// DECLARES rather than a list someone remembered to extend.
+
+namespace {
+
+void perturb(float& v) { v += 1.0f; }
+void perturb(uint32_t& v) { v += 1u; }
+void perturb(std::vector<float>& v) { v.push_back(1.0f); }
+void perturb(Spread::From& v) { v = Spread::From::End; }
+void perturb(choreograph::EaseFn& v) { v = &choreograph::easeInQuad; }
+void perturb(std::shared_ptr<const Spread>& v) {
+  v = std::make_shared<const Spread>();
+}
+
+}  // namespace
+
+TEST(Spread, EveryFieldParticipatesInEquality) {
+  static const char* const kNames[] = {"eachMs",     "amountMs",     "cueMs",
+                                       "durationMs", "loopMs",       "from",
+                                       "seed",       "distribution", "inner"};
+  static_assert(sigil::core::kFieldCount<Spread> == std::size(kNames),
+                "name a new field here as well as in operator==");
+  const Spread base;
+  [&]<std::size_t... I>(std::index_sequence<I...>) {
+    (([&] {
+       Spread moved = base;
+       perturb(boost::pfr::get<I>(moved));
+       EXPECT_FALSE(base == moved) << "field " << kNames[I] << " is unread";
+     }()),
+     ...);
+  }(std::make_index_sequence<sigil::core::kFieldCount<Spread>>{});
 }

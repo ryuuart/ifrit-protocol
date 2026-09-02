@@ -523,6 +523,16 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // layout because a decoration asked for it and never otherwise.
   SkPath glyphOutline;
   uint32_t glyphOutlineRev = ~0u;
+  // Element::boundary(Boundary::Coverage): the silhouette of what this
+  // node's layer drew, traced off that layer's alpha, in the node's own
+  // space. Re-traced when the layer that produced it is invalidated —
+  // `paintDirty`, which every content, prop and layout change raises on
+  // the node and on every ancestor — and on every frame of a subtree whose
+  // volatility means nothing about it is cached. The size it was traced at
+  // is kept beside it because a resized box is a different silhouette and
+  // is the one invalidation that must not depend on a flag.
+  SkPath coverageOutline;
+  SkSize coverageOutlineSize = {-1.0f, -1.0f};
   SkPath outlineCache;
   SkSize outlineCacheSize = {-1.0f, -1.0f};
   const ElementNode* outlineCacheDesc = nullptr;

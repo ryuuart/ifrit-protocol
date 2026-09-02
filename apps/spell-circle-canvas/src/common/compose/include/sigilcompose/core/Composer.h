@@ -207,12 +207,12 @@ class Composer {
    *  computed by the same resolved cascade `beatsOf` and the glyphs read,
    *  so the three cannot disagree about the schedule.
    *
-   *  A LOOPING track (`Stagger::loopMs`) answers its PERIOD: the master
+   *  A LOOPING track (`motion::Spread::loopMs`) answers its PERIOD: the master
    *  maps onto one cycle rather than a one-shot span, so the period is
    *  what a wrapping phase's wall time must span for the schedule to run
    *  at its authored ms.
    *
-   *  Valid after a draw(), like `beatsOf`. `Stagger::spanMs` is the
+   *  Valid after a draw(), like `beatsOf`. `Track::spanMs` is the
    *  DECLARE-TIME form of the same number, for the site that needs it
    *  before any layout exists — handed its unit count, where this reads
    *  the count off the laid-out text. An unknown key, a node that is not

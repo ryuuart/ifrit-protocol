@@ -106,7 +106,8 @@ std::unique_ptr<Instance> Composer::Impl::create(const Desc& node,
     // staggerMs > 0 only when parent->desc->fxData exists: the ternary
     // above yields 0 for a null parent, so this dereference is guarded.
     // NOLINTNEXTLINE(clang-analyzer-core.CallAndMessage)
-    cascadeOrder(parent->desc->fxData->staggerFrom, (uint32_t)count, 0u, order);
+    motion::cascadeOrder(parent->desc->fxData->staggerFrom, (uint32_t)count, 0u,
+                         order);
     if (ordinal < order.size()) mountDelayCarryMs += staggerMs * order[ordinal];
   }
   auto inst = std::make_unique<Instance>();

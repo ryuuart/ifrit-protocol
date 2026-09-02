@@ -145,8 +145,7 @@ float Cascade::localTime(float master, uint32_t outerUnit,
       1.0f);
 }
 
-Beat Cascade::beat(float master, uint32_t outerUnit,
-                   uint32_t innerUnit) const {
+Beat Cascade::beat(float master, uint32_t outerUnit, uint32_t innerUnit) const {
   Beat out;
   out.unitIndex = outerUnit;
   out.startMs = startMs(outerUnit, innerUnit);

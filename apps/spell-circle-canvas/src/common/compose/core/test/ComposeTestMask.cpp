@@ -235,3 +235,105 @@ TEST(ComposeCache, ALiveEffectMovingOverAHeldMaterialRepaints) {
   EXPECT_LT(redInk(host, 25, 25, 115, 115), 100)
       << "the live effect moved and the live-material memo replayed stale";
 }
+
+// ---- what a decoration dresses: the coverage boundary --------------------
+
+namespace {
+
+/** A decoration that FLOODS whatever outline it is handed, so a pixel test
+ *  reads back exactly where the boundary was. */
+Decoration flooding(SkColor color) {
+  return Decoration(
+      PaintProgram([color](SkCanvas& canvas, const PaintContext& ctx) {
+        SkPaint paint;
+        paint.setColor(color);
+        paint.setAntiAlias(false);
+        canvas.drawPath(ctx.outline, paint);
+      }));
+}
+
+/** A 32×32 image whose only opaque pixels are its top-left quarter: a
+ *  silhouette that is neither the node's shape nor a glyph run. */
+std::shared_ptr<sigil::image::ImageAsset> cutOutQuarter() {
+  SkBitmap src;
+  src.allocN32Pixels(32, 32);
+  src.eraseColor(SK_ColorTRANSPARENT);
+  src.erase(SK_ColorBLUE, SkIRect::MakeXYWH(0, 0, 16, 16));
+  return std::make_shared<sigil::image::ImageAsset>(
+      sigil::image::ImageAsset::wrap(src.asImage()));
+}
+
+}  // namespace
+
+TEST(ComposeBoundary, CoverageDressesWhatTheSubtreeDrewAndNotTheNodesBox) {
+  // A 100×100 node whose only paint is a child across its top 40px. On the
+  // default boundary its decoration floods the whole box; on the coverage
+  // boundary it floods where the child drew and nowhere else.
+  const auto describe = [](Boundary boundary) {
+    Element node = positioned()
+                       .left(20)
+                       .top(20)
+                       .width(100)
+                       .height(100)
+                       .child(box().left(0).top(0).width(100).height(40).fill(
+                           red()))
+                       .foreground(flooding(SK_ColorGREEN));
+    if (boundary != Boundary::Auto) node.boundary(boundary);
+    return positioned().inset(0, 0, 0, 0).child(std::move(node));
+  };
+  Host boxed, drawn;
+  boxed.composer.render(describe(Boundary::Auto));
+  boxed.frame();
+  drawn.composer.render(describe(Boundary::Coverage));
+  drawn.frame();
+
+  // Inside the child's band, both flood.
+  EXPECT_EQ(boxed.pixel(70, 40), SK_ColorGREEN);
+  EXPECT_EQ(drawn.pixel(70, 40), SK_ColorGREEN);
+  // Below it — inside the node's box, and where nothing was drawn.
+  EXPECT_EQ(boxed.pixel(70, 100), SK_ColorGREEN);
+  EXPECT_NE(drawn.pixel(70, 100), SK_ColorGREEN);
+}
+
+TEST(ComposeBoundary, CoverageFollowsAnImagesAlphaCutOut) {
+  // The mechanism the glyph boundary cannot reach: the image fills its
+  // node's box, and a quarter of that box is all it makes opaque.
+  const auto describe = [](Boundary boundary) {
+    Element node = image(cutOutQuarter())
+                       .left(20)
+                       .top(20)
+                       .width(100)
+                       .height(100)
+                       .foreground(flooding(SK_ColorGREEN));
+    if (boundary != Boundary::Auto) node.boundary(boundary);
+    return positioned().inset(0, 0, 0, 0).child(std::move(node));
+  };
+  Host boxed, drawn;
+  boxed.composer.render(describe(Boundary::Auto));
+  boxed.frame();
+  drawn.composer.render(describe(Boundary::Coverage));
+  drawn.frame();
+
+  EXPECT_EQ(boxed.pixel(40, 40), SK_ColorGREEN);   // the opaque quarter
+  EXPECT_EQ(drawn.pixel(40, 40), SK_ColorGREEN);
+  EXPECT_EQ(boxed.pixel(100, 100), SK_ColorGREEN);  // the cut-out
+  EXPECT_NE(drawn.pixel(100, 100), SK_ColorGREEN);
+}
+
+TEST(ComposeBoundary, ANodeThatDrewNothingKeepsItsShapeUnderCoverage) {
+  // A node whose own marks are all it paints has no silhouette to trace —
+  // the marks are what dress the boundary and are never in it — so the
+  // boundary falls back to the node's shape rather than vanishing.
+  Host host;
+  host.composer.render(positioned().inset(0, 0, 0, 0).child(
+      positioned()
+          .left(20)
+          .top(20)
+          .width(100)
+          .height(100)
+          .boundary(Boundary::Coverage)
+          .foreground(flooding(SK_ColorGREEN))));
+  host.frame();
+  EXPECT_EQ(host.pixel(70, 70), SK_ColorGREEN);
+  EXPECT_NE(host.pixel(10, 10), SK_ColorGREEN);
+}

@@ -104,12 +104,12 @@ struct Options {
   size_t visible = 24;
   /** Between rows, along the column. */
   float gap = 2.0f;
-  /** The entrance cascade for rows that mount, in the vocabulary the glyph
-   *  engine and `staggerChildren()` already speak. `eachMs` is the delay
-   *  step and `from` is where the cascade starts; the fields that describe
-   *  a per-unit remap inside one element (`durationMs`, `amountMs`, `over`,
-   *  `distribution`, `inner`) belong to `fx()` tracks and a feed does not
-   *  read them — a ROW is the beat here.
+  /** The entrance cascade for rows that mount, in the schedule vocabulary
+   *  the glyph engine and `staggerChildren()` already speak. `eachMs` is
+   *  the delay step and `from` is where the cascade starts; the fields
+   *  that describe a per-unit remap inside one element (`durationMs`,
+   *  `amountMs`, `distribution`, `inner`) belong to `fx()` tracks and a
+   *  feed does not read them — a ROW is the beat here.
    *
    *  It delays only rows that actually mount, which is what makes it usable
    *  on a live feed: the first describe cascades the whole window, and each
@@ -118,7 +118,7 @@ struct Options {
    *  screen never re-enter — an append does not re-cascade them.
    *
    *  Zero (the default) mounts every row immediately. */
-  Stagger entrance{.eachMs = 0, .durationMs = 0};
+  motion::Spread entrance{.eachMs = 0, .durationMs = 0};
 
   bool operator==(const Options&) const = default;
 };

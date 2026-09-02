@@ -378,22 +378,31 @@ class Element {
    *  a sweep reaches them. The ONE thing the pass form does that the mask
    *  spelling does not: it CLAIMS its run and joins the overlap check. */
   Element& stroke(Spans where, Decoration what, std::string name = {});
-  /** WHAT THIS NODE'S DECORATIONS DRESS — its own shape (the default), or,
-   *  on a text leaf, THE OUTLINE OF ITS GLYPHS.
+  /** WHAT THIS NODE'S DECORATIONS DRESS — its own shape (the default), the
+   *  OUTLINE OF ITS GLYPHS on a text leaf, or the silhouette of WHAT IT
+   *  DREW.
    *
-   *      text(u8"CHROME", heavy).boundary(Boundary::Glyphs).style(styles::chrome())
+   *      text(u8"CHROME",
+   * heavy).boundary(Boundary::Glyphs).style(styles::chrome())
+   *      image(cutOut).boundary(Boundary::Coverage).style(styles::chrome())
    *
    *  A decoration was never about a box: it is drawn across an outline, and
    *  which outline it gets is this. So every layer style already written —
    *  bevel, inner shadow, outer glow, gloss, the aqua and chrome presets —
-   *  works on letters the moment the letters are the outline, with no new
-   *  preset and no second code path.
+   *  works on letters, or around a cut-out, the moment that is the outline,
+   *  with no new preset and no second code path.
    *
    *  The glyph outline is the placement's own: it follows a wrapped line, a
    *  mixed-style run's size, a path run's curve and a vertical column's
    *  axis, because it is read off the placed glyphs rather than measured
    *  again. On a node that is not text it means the node's shape, which is
-   *  what every node means by default. */
+   *  what every node means by default.
+   *
+   *  The coverage outline is read off the node's rendered layer instead of
+   *  off any description of it, which is why it is the answer for a
+   *  cut-out, a clip or a mask — and why it is a staircase at the raster's
+   *  resolution, and costs a raster and a trace whenever the node's layer
+   *  is invalidated. Boundary states the whole bargain. */
   Element& boundary(Boundary source);
 
   /** Apply a whole LayerStyle (preset or hand-built): its `under` layers
@@ -900,9 +909,11 @@ class Element {
    *  (declaration order), End (last child first, a bottom-up cascade
    *  without reordering paint), Center (ripple outward). One call, no
    *  per-child delay arithmetic:
-   *  `column().staggerChildren(33ms, Stagger::From::End).children(rows)`. */
-  Element& staggerChildren(std::chrono::milliseconds each,
-                           Stagger::From from = Stagger::From::Start);
+   *  `column().staggerChildren(33ms, motion::Spread::From::End)
+   *  .children(rows)`. */
+  Element& staggerChildren(
+      std::chrono::milliseconds each,
+      motion::Spread::From from = motion::Spread::From::Start);
 
   // ---- composition ----
   Element& child(Element e);

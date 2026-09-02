@@ -421,7 +421,7 @@ Element& Element::transition(Transition t) {
   return *this;
 }
 Element& Element::staggerChildren(std::chrono::milliseconds each,
-                                  Stagger::From from) {
+                                  motion::Spread::From from) {
   detail::FxData& fx = m_node->fxData.ensure();
   fx.staggerChildrenMs = (float)each.count();
   fx.staggerFrom = from;
@@ -581,7 +581,8 @@ Element& Element::paragraphs(std::span<const std::string_view> names) {
 }
 
 Element& Element::paragraph(sigil::weave::ParagraphStyle style) {
-  return paragraphs(std::vector<sigil::weave::ParagraphStyle>{std::move(style)});
+  return paragraphs(
+      std::vector<sigil::weave::ParagraphStyle>{std::move(style)});
 }
 
 Element& Element::firstBaseline(sigil::weave::FrameOptions::FirstBaseline rule,
@@ -997,20 +998,9 @@ Selector each(Unit granularity) {
 }  // namespace sel
 
 // ---------------------------------------------------------------------------
-// Stagger
+// The cascade over text
 
-Stagger& Stagger::then(Unit granularity, Stagger nested) {
-  nested.over = granularity;
-  inner = std::make_shared<const Stagger>(std::move(nested));
-  return *this;
-}
-
-Stagger stagger(Unit granularity, Stagger spec) {
-  spec.over = granularity;
-  return spec;
-}
-
-Stagger cues(std::vector<float> startMs, Stagger spec) {
+motion::Spread cues(std::vector<float> startMs, motion::Spread spec) {
   spec.cueMs = std::move(startMs);
   return spec;
 }
@@ -1026,7 +1016,9 @@ void detail::registerTextEngine(const TextPainterOps* engine) {
   textEngineSlot() = engine;
 }
 
-const TextPainterOps* detail::registeredTextEngine() { return textEngineSlot(); }
+const TextPainterOps* detail::registeredTextEngine() {
+  return textEngineSlot();
+}
 
 void detail::TextOptions::applyTo(
     sigil::weave::ParagraphLayoutOptions& options) const {

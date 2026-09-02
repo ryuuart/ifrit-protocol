@@ -124,7 +124,8 @@ static void BM_Draw_KineticColumns(benchmark::State& state) {
             .height(1100)
             .writingMode(sigil::weave::WritingMode::kVerticalRL)
             .fx({.effect = fx::rise(24),
-                 .stagger = stagger(unit::Line, {.eachMs = 120}),
+                 .stagger = {.eachMs = 120},
+                 .over = unit::Line,
                  .progress = &progress}));
   host.composer.render(block);
   host.draw();

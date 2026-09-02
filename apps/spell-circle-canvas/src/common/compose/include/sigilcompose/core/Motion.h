@@ -6,9 +6,16 @@
  * quantizeTime and Animatable, under the compose name every property slot
  * is spelled in. Nothing here is defined by this library; the re-export
  * exists so that authoring never has to name a second one.
+ *
+ * The SCHEDULE is reachable from here and deliberately NOT re-exported: a
+ * cascade over glyphs is the same value as a cascade over a set's
+ * children or a feed's rows, so it is spelled `motion::Spread` at every
+ * site, and what compose adds to it — what a unit IS — sits beside it on
+ * the track rather than inside it.
  */
 
 #include <sigilmotion/Animation.h>
+#include <sigilmotion/schedule/Schedule.h>
 
 namespace sigil::compose {
 

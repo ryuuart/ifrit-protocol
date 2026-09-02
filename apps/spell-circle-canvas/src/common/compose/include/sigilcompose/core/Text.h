@@ -2,7 +2,7 @@
 
 /** @file
  * SigilCompose text model — the multi-track per-glyph seam (Unit, Selector,
- * TextEffect, Stagger, Track, and Beat, a resolved cascade read back) and
+ * TextEffect, Track, and Beat, a resolved cascade read back) and
  * RichText, the mixed-style value the text() factory takes. The stock
  * effects that plug the seam live in <sigilcompose/TextFx.h>.
  */
@@ -453,7 +453,7 @@ namespace fx {
  *      auto burn = Material::recipe(material::Material(dissolve, Burn{ink}));
  *      text(u8"EMBER DECODE", display)
  *          .fx({.effect = fx::pass(burn),
- *               .stagger = stagger(unit::Cluster, {.eachMs = 260})});
+ *               .stagger = {.eachMs = 260}, .over = unit::Cluster});
  *
  *  THE MATERIAL MUST BE RECIPE-BACKED (`Material::recipe`) over a recipe
  *  with an SkSL body, because the unit count is baked into the compiled
@@ -527,7 +527,7 @@ namespace fx {
  *  the schedule crosses the declared phase, with no diagnostic. The
  *  comparison is exact — which the schedule supplies, a one-shot cascade
  *  clamping a unit to exactly 0 before its beat and exactly 1 after. Under
- *  a LOOPING cascade (`Stagger::loopMs`) a unit touches 0 only at the
+ *  a LOOPING cascade (`motion::Spread::loopMs`) a unit touches 0 only at the
  *  instant its beat re-opens, so `restsAt(0)` effectively never engages
  *  there — correctly, the cycle is always mid-flight somewhere — while a
  *  unit RESTS at exactly 1 between beats, so `restsAt(1)` engages whenever
@@ -625,11 +625,11 @@ struct Key {
  *
  *  A ONE-SHOT effect is what this is for. A loop effect reads a wrapping
  *  phase that passes through 0 on every cycle, and a held loop would blink
- *  its glyphs out each time it did. A LOOPING CASCADE (`Stagger::loopMs`)
- *  has nothing for this to withhold either: its fold keeps every unit
- *  somewhere in its cycle — there is no "not yet" — and local time touches
- *  0 only at the instant a beat re-opens, so the veto blanks that single
- *  instant and nothing else. An effect on a looping cascade gates its own
+ *  its glyphs out each time it did. A LOOPING CASCADE
+ * (`motion::Spread::loopMs`) has nothing for this to withhold either: its fold
+ * keeps every unit somewhere in its cycle — there is no "not yet" — and local
+ * time touches 0 only at the instant a beat re-opens, so the veto blanks that
+ * single instant and nothing else. An effect on a looping cascade gates its own
  *  arrival, the way a streak table's head is its own entrance. */
 [[nodiscard]] TextEffect hold(TextEffect effect);
 
@@ -809,173 +809,21 @@ inline constexpr Beats Selection = Beats::Selection;
 inline constexpr Beats Text = Beats::Text;
 }  // namespace beats
 
-/** THE PER-UNIT TIME REMAP (the GSAP stagger model). The track's master
- *  progress [0,1] spans `durationMs + eachMs·(N−1)` of virtual time,
- *  where N is the number of UNITS the cascade numbers; unit i starts after
- *  its delay and runs for durationMs.
+/** THE PER-UNIT TIME REMAP over a run of text, from a table of start
+ *  times in ms: `cues({0, 340, 720, 1180, 1600}, {.durationMs = 180})`.
  *
- *  The unit is what makes this more than per-glyph spacing: `over =
- *  unit::Word` beats once per word, and every glyph of that word shares
- *  its beat. The default, `unit::Cluster`, is per-glyph for ordinary
- *  Latin text and keeps a base letter attached to its combining marks
- *  everywhere else.
+ *  Caption, lyric and lip-sync timing is a table cut against a recording,
+ *  and no even spread is a substitute for one. Sugar for setting
+ *  `motion::Spread::cueMs`, whose documentation states what a table
+ *  shorter or longer than the unit list does; everything else a spread
+ *  says (how long one unit's motion lasts, whether a second cascade nests
+ *  inside each beat) is orthogonal and still wanted, which is why this
+ *  answers a whole spread and not a table.
  *
- *  The spread is EVEN unless `cueMs` names the times outright. */
-struct Stagger {
-  float eachMs = 30;
-  /** Amount-mode (mutually exclusive with eachMs; wins when > 0): the
-   *  TOTAL spread, divided across however many units there are. Use it
-   *  when the budget for the whole entrance is fixed and the text may
-   *  change length — `eachMs` keeps per-unit spacing and lets the total
-   *  grow, this keeps the total and shrinks the spacing. */
-  float amountMs = 0;
-  /** AN IRREGULAR TABLE: one start time per unit, in ms from the start of
-   *  the track's progress, read by unit index. Caption, lyric and lip-sync
-   *  timing is a table cut against a recording, and no even spread is a
-   *  substitute for one.
-   *
-   *  Non-empty, it REPLACES the even spread: `eachMs`, `amountMs`, `from`
-   *  and `distribution` say nothing, because a table already states both
-   *  the order and the shape of the cascade. Everything else this struct
-   *  says still holds — `over` is still what a unit is, `durationMs` is
-   *  still how long one unit's own motion lasts, and `then()` still nests a
-   *  second cascade inside every beat.
-   *
-   *  A unit past the end of the table starts at the LAST entry, so a short
-   *  table piles its tail on one beat rather than inventing times; entries
-   *  past the last unit are ignored. Either mismatch warns once. Build one
-   *  with `cues()`. */
-  std::vector<float> cueMs;
-  float durationMs = 450;
-  /** THE PER-UNIT WRAPPING BEAT: set above 0 and the cascade LOOPS — every
-   *  unit's beat RE-OPENS on its own cycle of this period, phase-offset by
-   *  the unit's start time (even ladder and cue table alike), so steady
-   *  continuous motion — rain re-dropping column by column, arrivals that
-   *  never stop arriving — is DECLARED rather than faked by re-running a
-   *  one-shot.
-   *
-   *  THE MASTER STILL CLOCKS IT, and one full sweep 0→1 is exactly ONE
-   *  CYCLE: the master maps onto `loopMs` of virtual time instead of the
-   *  one-shot span, and unit i reads
-   *  `clamp(((master·loopMs − startMs_i) mod loopMs) / durationMs)`.
-   *  Master 0 and master 1 name the same instant of the cycle, so a
-   *  WRAPPING bound phase — an Output stepped mod 1, the clock
-   *  `fx::waveLoop` already reads — drives it seamlessly forever, and
-   *  driving that phase is what keeps the element painting live: a looping
-   *  cascade at a CONSTANT master is one still frame of the cycle, exactly
-   *  as a wave at one phase is.
-   *
-   *  BETWEEN a beat's close and its next opening the unit rests at local 1
-   *  — its landed deviation — and returns to 0 the instant its beat
-   *  re-opens, so an effect that loops cleanly ends where nothing shows.
-   *  Start offsets FOLD mod the period: two units whose starts differ by
-   *  exactly `loopMs` share a phase, and a period shorter than
-   *  `durationMs` re-opens a beat before it lands. The fold also means
-   *  every unit is ALWAYS somewhere in its cycle — there is no "before
-   *  the first beat" — so `fx::hold` has nothing left to veto (its t ≤ 0
-   *  test is true only at the instant of re-opening); an effect on a
-   *  looping cascade gates its own arrival instead.
-   *
-   *  `spanMs` and `Composer::cascadeSpanMs` answer the PERIOD — still the
-   *  ms the master maps onto, and the number a driver needs: wrap the
-   *  phase every `loopMs` of wall time and the schedule runs at its
-   *  authored ms. ONE loop governs the whole cascade, read off the OUTER
-   *  spec under `then()` as `beatsOver` is; a nested loopMs is ignored.
-   *  0 — the default — is the one-shot cascade. */
-  float loopMs = 0;
-  /** Where the cascade starts. `Random` is keyed on the unit count and
-   *  `seed`, so a scatter is the SAME scatter on every frame and after
-   *  every relayout; `Edges` starts at both ends and meets in the middle. */
-  enum class From : uint8_t {
-    Start,
-    Center,
-    End,
-    Random,
-    Edges
-  } from = From::Start;
-  /** WHICH scatter `From::Random` deals. The ranking hash is keyed on the
-   *  unit count alone at the default 0, so two same-count cascades scatter
-   *  IDENTICALLY — three curtains of equal columns would all drop in one
-   *  order. A nonzero seed mixes into that hash and deals an independent
-   *  scatter per value, which is what several fields of one composition
-   *  want. The scatter stays the scrambled EVEN ladder either way: every
-   *  unit takes a distinct rank, so no two units ever open together, and
-   *  `distribution` still shapes how those ranks crowd. Read only under
-   *  `From::Random`; the other origins are their own order. */
-  uint32_t seed = 0;
-  /** Which units get a beat. */
-  Unit over = Unit::Cluster;
-  /** WHICH LIST those beats are numbered against — see `Beats`. The default
-   *  numbers the track's own selection, which is what a track that owns its
-   *  text means; `beats::Text` numbers the paragraph, which is what two
-   *  tracks partitioning one paragraph need if they are to share a clock.
-   *  A NESTED cascade takes the outer one's answer: a nested `beatsOver` is
-   *  ignored, as its `durationMs` is. */
-  Beats beatsOver = Beats::Selection;
-  /** Shapes the START TIMES across the cascade (not the per-unit motion,
-   *  which the effect and the progress own): the linear ramp of delays is
-   *  passed through this curve, so an ease-in distribution crowds the
-   *  early units together and lets the tail spread out. Null is the
-   *  uniform spacing. */
-  choreograph::EaseFn distribution = nullptr;
-  /** A NESTED cascade inside each of this one's beats — see `then()`.
-   *  Held out of line because a Stagger cannot contain itself by value. */
-  std::shared_ptr<const Stagger> inner;
-
-  /** Compounds a second cascade inside every beat of this one:
-   *  `stagger(unit::Word, {…}).then(unit::Glyph, {…})` delays each word,
-   *  then delays each glyph within its word's beat. The outer
-   *  `durationMs` is ignored — a beat lasts exactly as long as the inner
-   *  cascade needs. */
-  Stagger& then(Unit granularity, Stagger nested);
-
-  /** THE VIRTUAL SPAN, in ms: what a track's master progress [0,1] maps
-   *  onto when this cascade numbers @p unitCount units — the moment the
-   *  last beat closes. `durationMs + eachMs·(N−1)` for the even ladder,
-   *  `durationMs + amountMs` past one unit in amount mode (every count
-   *  past one answers the same, because the amount IS the spread), the
-   *  latest time any unit reads out of a cue table plus `durationMs`, and
-   *  the compounded extent under `then()`, where @p innerUnitCount is how
-   *  many inner units one beat holds (the widest beat's count, where they
-   *  vary). Zero units answer as one unit does: `durationMs` alone.
-   *
-   *  A LOOPING cascade (`loopMs` > 0) answers its PERIOD, whatever the
-   *  counts: the master maps onto one cycle, so the period is what a
-   *  driver's wrap must span for the schedule to run at its authored ms.
-   *
-   *  This is the DECLARE-TIME form, for the number a description needs
-   *  before any node exists — above all a progress transition whose
-   *  duration should cover the cascade exactly, so the last beat closes
-   *  as the master arrives at 1 and the schedule runs at its authored ms.
-   *  `Composer::cascadeSpanMs` reads the same number off a MOUNTED track,
-   *  with the unit counts the laid-out text supplies; the two agree
-   *  because one resolved-cascade body computes both. */
-  [[nodiscard]] float spanMs(uint32_t unitCount,
-                             uint32_t innerUnitCount = 1) const;
-
-  bool operator==(const Stagger& other) const;
-};
-
-/** Names the units a cascade beats over: `stagger(unit::Word, {.eachMs =
- *  60})`. Sugar for setting `Stagger::over`, and the spelling `then()`
- *  reads against. */
-[[nodiscard]] Stagger stagger(Unit granularity, Stagger spec = {});
-
-/** AN IRREGULAR CASCADE, from a table of start times in ms:
- *  `cues({0, 340, 720, 1180, 1600}, {.durationMs = 180})`.
- *
- *  A cue table IS a Stagger — it answers only "when does unit k start", and
- *  every other thing a cascade says (what a unit is, how long one unit's
- *  motion lasts, whether a second cascade nests inside each beat, which
- *  list the beats are numbered against) is orthogonal to that and still
- *  wanted. Being one value rather than two also keeps a track's cascade one
- *  slot, with one equality and one prune.
- *
- *  So this goes wherever `stagger()` goes, and the two compose — name the
- *  granularity with `stagger(unit::Word, cues({…}))`. Sugar for setting
- *  `Stagger::cueMs`, whose documentation states what a table shorter or
- *  longer than the unit list does. */
-[[nodiscard]] Stagger cues(std::vector<float> startMs, Stagger spec = {});
+ *  WHAT a unit is stays on the track — `Track::over` — because it is the
+ *  one part of a cascade over text that is about the text. */
+[[nodiscard]] motion::Spread cues(std::vector<float> startMs,
+                                  motion::Spread spec = {});
 
 /** ONE TRACK: which glyphs, what deviation, how the beats spread, and the
  *  master progress that drives it.
@@ -990,7 +838,31 @@ struct Stagger {
 struct Track {
   Selector where;    ///< default: every glyph
   TextEffect effect; /**< what it does */
-  Stagger stagger;
+  /** THE PER-UNIT TIME REMAP (the GSAP stagger model), which is
+   *  SigilMotion's and says nothing about text: the master progress
+   *  [0,1] spans `durationMs + eachMs·(N−1)` of virtual time, where N is
+   *  the number of UNITS the cascade numbers, and unit i starts after its
+   *  delay and runs for `durationMs`. The three fields below say what a
+   *  unit IS, which is the whole of what makes this a cascade over TEXT
+   *  rather than over a set's children or a feed's rows. */
+  motion::Spread stagger;
+  /** Which units get a beat. It is what makes the remap above more than
+   *  per-glyph spacing: `over = unit::Word` beats once per word, and
+   *  every glyph of that word shares its beat. The default,
+   *  `unit::Cluster`, is per-glyph for ordinary Latin text and keeps a
+   *  base letter attached to its combining marks everywhere else. */
+  Unit over = Unit::Cluster;
+  /** Which units the NESTED cascade — `stagger.then({…})` — beats over
+   *  inside each of `over`'s beats. Read only when the spread nests; a
+   *  spread with no inner level never looks at it. */
+  Unit innerOver = Unit::Glyph;
+  /** WHICH LIST those beats are numbered against — see `Beats`. The
+   *  default numbers the track's own selection, which is what a track
+   *  that owns its text means; `beats::Text` numbers the paragraph, which
+   *  is what two tracks partitioning one paragraph need if they are to
+   *  share a clock. ONE setting governs both levels of a nested cascade,
+   *  as one `loopMs` governs both periods. */
+  Beats beatsOver = Beats::Selection;
   Animatable<float> progress = 1.0f;
   /** Pixels beyond the element's box this track may paint, which the
    *  recording cull grows by. Negative means "ask the effect", which is
@@ -1014,6 +886,18 @@ struct Track {
   [[nodiscard]] float reachPx() const {
     return reach >= 0 ? reach : effect.reach();
   }
+  /** THE VIRTUAL SPAN, in ms: what `progress` maps onto when this track's
+   *  cascade numbers @p unitCount units, each holding @p innerUnitCount
+   *  units of a nested spread — the moment the last beat closes, and above
+   *  all the duration a progress transition should carry so the schedule
+   *  runs at its authored ms. `Composer::cascadeSpanMs` reads the same
+   *  number off a MOUNTED track, with the unit counts the laid-out text
+   *  supplies; the two agree because one resolved-cascade body computes
+   *  both. */
+  [[nodiscard]] float spanMs(uint32_t unitCount,
+                             uint32_t innerUnitCount = 1) const {
+    return stagger.spanMs(unitCount, innerUnitCount);
+  }
   /** Structural equality, EXCLUDING `progress` — an Animatable is compared
    *  where every other animated slot is, by the reconciler. */
   bool sameShape(const Track& other) const;
@@ -1021,15 +905,20 @@ struct Track {
   bool operator==(const Track& other) const;
 };
 
-/** ONE BEAT OF A RESOLVED CASCADE — what `Composer::beatsOf` reports.
+/** ONE BEAT OF A RESOLVED CASCADE, WHERE THE TEXT PUT IT — what
+ *  `Composer::beatsOf` reports.
  *
  *  A stagger is otherwise an invisible remap: it numbers units, spreads
  *  them, and tells nobody. Anything that must travel WITH a cascade and is
  *  not a glyph — a bouncing ball, a playhead, a travelling underline, a
  *  caret, a per-unit meter — then has to restate `i · eachMs` in its own
  *  arithmetic, which stops agreeing with the engine the moment the cascade
- *  nests or takes a cue table. This is the schedule read back instead. */
-struct Beat {
+ *  nests or takes a cue table. This is the schedule read back instead.
+ *
+ *  The schedule half — `unitIndex`, `startMs`, `localT`, `active` — is
+ *  `motion::Beat`, answered by the same cascade the glyphs are drawn
+ *  through. What this library adds is where the beat LANDED. */
+struct Beat : motion::Beat {
   /** The unit's laid-out rect, in the composer's coordinate space: the
    *  axis-aligned bound of the advance boxes the layout placed for the
    *  glyphs this track addresses in this beat. It follows a wrapped line,
@@ -1037,26 +926,6 @@ struct Beat {
    *  column's axis, because it is read off the placement rather than
    *  measured again. */
   SkRect rect = SkRect::MakeEmpty();
-  /** The OUTER unit this beat belongs to, numbered as the cascade numbers
-   *  it — the track's own selection under `beats::Selection`, the whole
-   *  paragraph under `beats::Text`. A nested cascade reports several beats
-   *  sharing one `unitIndex`, one per inner unit inside that outer beat,
-   *  which is what lets a per-word mark and a per-letter one read the same
-   *  list. */
-  uint32_t unitIndex = 0;
-  /** When this beat opens, in ms from the start of the track's progress —
-   *  the COMPOUNDED delay, outer plus inner, under a nested cascade. */
-  float startMs = 0;
-  /** This beat's own 0→1 at the track's progress right now — the same
-   *  number the effect is being handed for these glyphs. Under a looping
-   *  cascade (`Stagger::loopMs`) it is the WRAPPED local time of the
-   *  current cycle, and no cycle index rides beside it: the master is a
-   *  phase mod 1 and carries no cycle count into the composer, so cycle
-   *  identity lives with whoever steps the phase. */
-  float localT = 0;
-  /** The beat is running: it has begun and has not finished — under a
-   *  looping cascade, mid-beat in its current cycle. */
-  bool active = false;
 
   bool operator==(const Beat&) const = default;
 };
@@ -1200,7 +1069,7 @@ struct TextUnit {
  *                   .add(u8" through ")
  *                   .add(u8"noise", mono);
  *      text(p).fx({.effect = fx::slide(-60),
- *                  .stagger = stagger(unit::Word, {.eachMs = 120})});
+ *                  .stagger = {.eachMs = 120}, .over = unit::Word});
  *
  *  `add(utf8)` sets a run in the base style; `add(utf8, style)` sets it in
  *  its own; `add(utf8, name)` sets it in a style looked up by NAME (see
@@ -1448,7 +1317,8 @@ class TextPainterOps {
    *  metrics alone — asked BEFORE the text is laid out, which is what
    *  makes a reservation a layout input rather than a cycle. */
   virtual sigil::weave::ReservedBand reservedBand(
-      detail::Instance& inst, std::span<const Annotation> annotations) const = 0;
+      detail::Instance& inst,
+      std::span<const Annotation> annotations) const = 0;
   /** WHICH TEXT A SELECTOR ADDRESSES, as UTF-16 ranges — sorted, merged,
    *  non-overlapping. `sel::line` reads @p lines, or @p columns where the
    *  passage is vertical; `sel::style` reads @p named. */

@@ -130,8 +130,8 @@ TEST(TextPass, UnitRectAndPhaseAgreeWithBeatsOf) {
       text(u8"ABC DEF", whiteStyle(30))
           .key("probe")
           .fx({.effect = fx::pass(passOver(kPhaseProbeSksl)),
-               .stagger =
-                   stagger(unit::Cluster, {.eachMs = 90, .durationMs = 200}),
+               .stagger = {.eachMs = 90, .durationMs = 200},
+               .over = unit::Cluster,
                .progress = 0.55f})));
   host.frame();
 
@@ -275,8 +275,8 @@ TEST(TextPass, ProgressAdvancesWithCascadeAndSettles) {
         text(u8"ABCD", whiteStyle(30))
             .key("run")
             .fx({.effect = fx::pass(passOver(kPhaseProbeSksl)),
-                 .stagger =
-                     stagger(unit::Cluster, {.eachMs = 60, .durationMs = 200}),
+                 .stagger = {.eachMs = 60, .durationMs = 200},
+                 .over = unit::Cluster,
                  .progress =
                      animate(to(target), Transition{.duration = 200ms})}));
   };
@@ -341,7 +341,7 @@ TEST(TextPass, RestsAtSkipsTheShaderWhenEveryUnitSitsOnADeclaredPhase) {
   // what makes the skip observable: at a phase covered by the declaration
   // the batches draw directly and the letters show, while any phase off
   // the declaration still runs the shader and erases them.
-  const auto lettersShow = [](TextEffect effect, Stagger cascade,
+  const auto lettersShow = [](TextEffect effect, motion::Spread cascade,
                               float master) {
     Host host;
     host.composer.render(
@@ -349,12 +349,12 @@ TEST(TextPass, RestsAtSkipsTheShaderWhenEveryUnitSitsOnADeclaredPhase) {
                                     .key("t")
                                     .fx({.effect = std::move(effect),
                                          .stagger = std::move(cascade),
+                                         .over = unit::Cluster,
                                          .progress = master})));
     host.frame();
     return anyWhiteIn(host, SkIRect::MakeXYWH(10, 10, 180, 180));
   };
-  const Stagger oneShot =
-      stagger(unit::Cluster, {.eachMs = 60, .durationMs = 200});
+  const motion::Spread oneShot{.eachMs = 60, .durationMs = 200};
   const TextEffect erase = fx::pass(passOver(kEraseSksl));
 
   // Undeclared: the pass runs at every phase, both ends included.
@@ -376,7 +376,7 @@ TEST(TextPass, RestsAtSkipsTheShaderWhenEveryUnitSitsOnADeclaredPhase) {
   // A LOOPING cascade: units genuinely rest at exactly 1 between beats, so
   // restsAt(1) engages whenever no beat is mid-cycle — and does not while
   // any unit is mid-beat.
-  Stagger loop = stagger(unit::Cluster, {.eachMs = 60, .durationMs = 100});
+  motion::Spread loop{.eachMs = 60, .durationMs = 100};
   loop.loopMs = 1000;
   EXPECT_TRUE(lettersShow(erase.restsAt(1.0f), loop, 0.5f));
   EXPECT_FALSE(lettersShow(erase.restsAt(1.0f), loop, 0.05f));

@@ -81,8 +81,13 @@ struct Spread {
   /** Where the cascade starts. `Random` is keyed on the unit count and
    *  `seed`, so a scatter is the SAME scatter on every frame and after
    *  every rebuild; `Edges` starts at both ends and meets in the middle. */
-  enum class From : uint8_t { Start, Center, End, Random, Edges } from =
-      From::Start;
+  enum class From : uint8_t {
+    Start,
+    Center,
+    End,
+    Random,
+    Edges
+  } from = From::Start;
   /** WHICH scatter `From::Random` deals. The ranking hash is keyed on the
    *  unit count alone at the default 0, so two same-count cascades scatter
    *  IDENTICALLY — three curtains of equal columns would all drop in one

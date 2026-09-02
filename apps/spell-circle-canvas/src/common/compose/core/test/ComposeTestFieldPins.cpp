@@ -108,13 +108,7 @@ void perturb(Unit& v) { v = Unit::Line; }
 
 void perturb(Beats& v) { v = Beats::Text; }
 
-void perturb(Stagger::From& v) { v = Stagger::From::End; }
-
 void perturb(std::vector<float>& v) { v.push_back(1.0f); }
-
-void perturb(std::shared_ptr<const Stagger>& v) {
-  v = std::make_shared<const Stagger>();
-}
 
 template <class T>
 void perturb(cd::Box<T>& v) {
@@ -184,20 +178,31 @@ TEST(ComposeReconcile, EveryPaintPropsFieldParticipatesInEquality) {
       kNames, kParticipates);
 }
 
-TEST(ComposeReconcile, EveryStaggerFieldParticipatesInEquality) {
-  // A cascade is a comparable value, and its equality is what lets text
-  // carrying tracks prune. Miss a field here and a re-described track keeps
-  // the OLD schedule with no diagnostic — a re-cut cue table that never
+TEST(ComposeReconcile, EveryCascadeFieldOfATrackParticipatesInEquality) {
+  // A cascade over text is two values: the SCHEDULE, which is
+  // SigilMotion's and pinned there, and the three fields that say what a
+  // unit IS, which are this library's. Miss one and a re-described track
+  // keeps the OLD schedule with no diagnostic — a granularity that never
   // takes, or a `beatsOver` flipped to Text on a paragraph that goes on
   // beating over each half's own selection. Both are silent, and both look
   // exactly like the engine ignoring the author.
-  static const char* const kNames[] = {
-      "eachMs", "amountMs", "cueMs",     "durationMs",   "loopMs", "from",
-      "seed",   "over",     "beatsOver", "distribution", "inner"};
-  static const bool kParticipates[] = {true, true, true, true, true, true,
-                                       true, true, true, true, true};
-  walkFields<Stagger>([](const Stagger& a, const Stagger& b) { return a == b; },
-                      kNames, kParticipates);
+  //
+  // The pin beside `Track::sameShape()` makes a NEW field a build failure;
+  // this makes the decision about it mechanical.
+  const Track base{.stagger = {.eachMs = 30}};
+  Track over = base;
+  over.over = Unit::Line;
+  EXPECT_FALSE(base.sameShape(over)) << "over";
+  Track innerOver = base;
+  innerOver.innerOver = Unit::Line;
+  EXPECT_FALSE(base.sameShape(innerOver)) << "innerOver";
+  Track beatsOver = base;
+  beatsOver.beatsOver = Beats::Text;
+  EXPECT_FALSE(base.sameShape(beatsOver)) << "beatsOver";
+  Track schedule = base;
+  schedule.stagger.eachMs = 31;
+  EXPECT_FALSE(base.sameShape(schedule)) << "the schedule itself";
+  EXPECT_TRUE(base.sameShape(base));
 }
 
 TEST(ComposeReconcile, EveryBoundFloatFieldParticipatesInEquality) {
@@ -279,16 +284,15 @@ TEST(ComposeReconcile, EveryElementNodeFieldParticipatesInEquality) {
   //  - `children` are reconciled BY KEY, not compared. A node that prunes
   //    still walks them — that is the whole point of the structural prune.
   static const char* const kNames[] = {
-      "kind",        "key",        "layout",         "paint",
-      "corners",     "shapeFn",    "boundary",       "clipContent",
-      "hitTestable",
-      "cacheMode",   "bakeScale",  "nodeTransition", "backgrounds",
-      "foregrounds", "textData",   "imageData",      "customData",
-      "deriveData",  "fxData",     "materialData",   "strokeData",
-      "memoData",    "motionData", "children"};
+      "kind",        "key",         "layout",     "paint",
+      "corners",     "shapeFn",     "boundary",   "clipContent",
+      "hitTestable", "cacheMode",   "bakeScale",  "nodeTransition",
+      "backgrounds", "foregrounds", "textData",   "imageData",
+      "customData",  "deriveData",  "fxData",     "materialData",
+      "strokeData",  "memoData",    "motionData", "children"};
   static const bool kParticipates[] = {
-      true, true, true, true, true, true, true, true, true, true, true,
-      true, true, true, true, true, true, true, true, true, true,
+      true,  true, true, true, true, true, true, true, true, true, true,
+      true,  true, true, true, true, true, true, true, true, true,
       false,  // memoData — resolveMemo owns it, and it never lands in desc
       true,
       false,  // children — reconciled by key, never compared

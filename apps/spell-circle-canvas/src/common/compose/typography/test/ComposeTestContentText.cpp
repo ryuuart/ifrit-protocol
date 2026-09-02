@@ -424,11 +424,12 @@ std::vector<size_t> addressed(const std::vector<FxSample>& samples) {
 
 /** A track whose effect records, over the whole text unless told otherwise. */
 Track probeTrack(std::vector<FxSample>* into, Selector where = {},
-                 Stagger cascade = {.eachMs = 0, .durationMs = 100},
-                 float progress = 1.0f) {
+                 motion::Spread cascade = {.eachMs = 0, .durationMs = 100},
+                 float progress = 1.0f, Unit over = Unit::Cluster) {
   return Track{.where = std::move(where),
                .effect = probe("probe", into),
                .stagger = std::move(cascade),
+               .over = over,
                .progress = progress};
 }
 
@@ -444,9 +445,8 @@ TEST(ComposeTextFx, AWordCascadeBeatsOncePerWordAndInOrder) {
   host.composer.render(box().padding(10).child(
       text(u8"AAA BBB CCC", whiteStyle(20))
           .key("k")
-          .fx(probeTrack(
-              &samples, {},
-              stagger(unit::Word, {.eachMs = 100, .durationMs = 100}), 0.5f))));
+          .fx(probeTrack(&samples, {}, {.eachMs = 100, .durationMs = 100}, 0.5f,
+                         unit::Word))));
   host.frame();
   ASSERT_EQ(samples.size(), 9u) << "the probe did not see every glyph";
 
@@ -470,10 +470,8 @@ TEST(ComposeTextFx, ASentenceCascadeBeatsOncePerSentence) {
       text(u8"One two. Three four. Five.", whiteStyle(16))
           .key("k")
           .width(pct(100))
-          .fx(probeTrack(
-              &samples, {},
-              stagger(unit::Sentence, {.eachMs = 100, .durationMs = 100}),
-              0.5f))));
+          .fx(probeTrack(&samples, {}, {.eachMs = 100, .durationMs = 100}, 0.5f,
+                         unit::Sentence))));
   host.frame();
   ASSERT_FALSE(samples.empty());
   EXPECT_EQ(samples.front().info.unitCount, 3u)
@@ -525,10 +523,8 @@ TEST(ComposeTextFx, AClusterIsOneBeatSoAMarkNeverLeavesItsLetter) {
   host.composer.render(box().padding(10).child(
       text(u8"x́ýz", whiteStyle(28))
           .key("k")
-          .fx(probeTrack(
-              &raw, {},
-              stagger(unit::Glyph, {.eachMs = 100, .durationMs = 400}),
-              0.5f))));
+          .fx(probeTrack(&raw, {}, {.eachMs = 100, .durationMs = 400}, 0.5f,
+                         unit::Glyph))));
   host.frame();
   ASSERT_EQ(raw.size(), samples.size());
   EXPECT_EQ(raw.front().info.unitCount, (uint32_t)raw.size());
@@ -661,7 +657,7 @@ TEST(ComposeTextFx, RandomOriginIsAStableScatterAcrossFrames) {
             .fx(probeTrack(into, {},
                            {.eachMs = 100,
                             .durationMs = 100,
-                            .from = Stagger::From::Random},
+                            .from = motion::Spread::From::Random},
                            0.5f)));
   };
   // TWO HOSTS, one paint each: re-describing the same tracks into one host
@@ -688,15 +684,15 @@ TEST(ComposeTextFx, RandomOriginIsAStableScatterAcrossFrames) {
 }
 
 TEST(ComposeTextFx, RandomSeedDealsItsOwnScatterAndZeroKeepsTheDefault) {
-  // From::Random ranks units by a hash keyed on the count and Stagger::seed.
+  // From::Random ranks units by a hash keyed on the count and the seed.
   // Three claims, each a behaviour an author leans on: seed 0 IS the
   // count-keyed deal (pinned against the exact ranks that key hashes to, so
   // every settled scene keeps its scatter bit for bit), a nonzero seed deals
   // a different permutation, and two nonzero seeds deal independently.
   const auto ranksOf = [](uint32_t seed) {
     Host host(300, 120);
-    Stagger scatter{
-        .eachMs = 100, .durationMs = 100, .from = Stagger::From::Random};
+    motion::Spread scatter{
+        .eachMs = 100, .durationMs = 100, .from = motion::Spread::From::Random};
     scatter.seed = seed;
     host.composer.render(box().padding(10).child(
         text(u8"AAA BBB CCC", whiteStyle(20))
@@ -724,7 +720,8 @@ TEST(ComposeTextFx, RandomSeedDealsItsOwnScatterAndZeroKeepsTheDefault) {
   EXPECT_EQ(sorted, ladder) << "a seeded scatter dropped or doubled a rank";
   // A different seed is a different cascade to the reconciler, or a
   // re-described field would prune onto the old scatter and keep it.
-  Stagger a{.from = Stagger::From::Random}, b{.from = Stagger::From::Random};
+  motion::Spread a{.from = motion::Spread::From::Random},
+      b{.from = motion::Spread::From::Random};
   b.seed = 42;
   EXPECT_FALSE(a == b);
   a.seed = 42;
@@ -736,15 +733,15 @@ TEST(ComposeTextFx, NestedStaggerDelaysGlyphsInsideTheirWordsBeat) {
   // glyph gets its own start. Two ladders, one master progress.
   Host host(300, 120);
   std::vector<FxSample> samples;
-  Stagger cascade = stagger(unit::Word, {.eachMs = 200, .durationMs = 100});
-  cascade.then(unit::Glyph, {.eachMs = 50, .durationMs = 100});
+  motion::Spread cascade{.eachMs = 200, .durationMs = 100};
+  cascade.then({.eachMs = 50, .durationMs = 100});
   // A beat is 100 + 50·2 = 200 ms and the whole cascade spans 400; 0.3 of
   // that lands inside the first word's beat, where the two ladders are
   // both readable.
   host.composer.render(box().padding(10).child(
       text(u8"AAA BBB", whiteStyle(20))
           .key("k")
-          .fx(probeTrack(&samples, {}, cascade, 0.3f))));
+          .fx(probeTrack(&samples, {}, cascade, 0.3f, unit::Word))));
   host.frame();
   ASSERT_EQ(samples.size(), 6u);
   // Inside a word the glyphs no longer share a time — the inner ladder ran.
@@ -1871,17 +1868,16 @@ TEST(ComposeTextFx, PartitioningTracksShareOneClockOnlyUnderBeatsText) {
   // count the paragraph's words, so word three is beat three in both.
   const auto beatsUnder = [](Beats numbering) {
     Host host(400, 120);
-    const Stagger spec{.eachMs = 100,
-                       .durationMs = 100,
-                       .over = unit::Word,
-                       .beatsOver = numbering};
+    const motion::Spread spec{.eachMs = 100, .durationMs = 100};
     host.composer.render(box().padding(6).child(
         text(u8"AA BB CC DD", whiteStyle(16))
             .key("p")
             .width(360)
             .fx({.where = sel::each(unit::Word).take(1) & sel::words(1, 4),
                  .effect = fx::rise(6),
-                 .stagger = spec})
+                 .stagger = spec,
+                 .over = unit::Word,
+                 .beatsOver = numbering})
             .fx({.where = sel::each(unit::Word).drop(1),
                  .effect = fx::rise(6),
                  .stagger = spec})));
@@ -1926,9 +1922,8 @@ TEST(ComposeTextFx, ACueTableStartsUnitKAtItsOwnTime) {
           .key("p")
           .width(360)
           .fx({.effect = fx::rise(6),
-               .stagger =
-                   stagger(unit::Word,
-                           cues(table, {.eachMs = 999, .durationMs = 180}))})));
+               .stagger = cues(table, {.eachMs = 999, .durationMs = 180}),
+               .over = unit::Word})));
   host.frame();
   const std::vector<Beat> beats = host.composer.beatsOf("p", 0);
   ASSERT_EQ(beats.size(), table.size());
@@ -1937,12 +1932,12 @@ TEST(ComposeTextFx, ACueTableStartsUnitKAtItsOwnTime) {
     EXPECT_FLOAT_EQ(beats[k].startMs, table[k])
         << "unit " << k << " did not start at its own cue";
   }
-  // cues() is a Stagger, so it compares like one — and a different table is
+  // cues() answers a spread, so it compares like one — and a different table is
   // a different cascade, or a re-described track would prune onto the old
   // schedule and keep singing the previous line's timing.
   EXPECT_TRUE(cues(table) == cues(table));
   EXPECT_FALSE(cues(table) == cues({0.0f, 340.0f, 720.0f}));
-  EXPECT_FALSE(cues(table) == Stagger{});
+  EXPECT_FALSE(cues(table) == motion::Spread{});
 }
 
 TEST(ComposeTextFx, AShortCueTablePilesItsTailAndWarnsOnce) {
@@ -1956,8 +1951,8 @@ TEST(ComposeTextFx, AShortCueTablePilesItsTailAndWarnsOnce) {
           .key("p")
           .width(360)
           .fx({.effect = fx::rise(6),
-               .stagger = stagger(
-                   unit::Word, cues({0.0f, 200.0f}, {.durationMs = 100}))})));
+               .stagger = cues({0.0f, 200.0f}, {.durationMs = 100}),
+               .over = unit::Word})));
   host.frame();
   const std::string log = ::testing::internal::GetCapturedStderr();
   EXPECT_NE(log.find("cue table"), std::string::npos) << log;
@@ -1989,7 +1984,8 @@ TEST(ComposeTextFx, BeatsOfReportsWhereTheGlyphsActuallyWentAndWhen) {
   host.composer.render(
       box().padding(10).child(text(copy).key("p").width(120).fx(
           {.effect = fx::rise(8),
-           .stagger = stagger(unit::Word, {.eachMs = 100, .durationMs = 200}),
+           .stagger = {.eachMs = 100, .durationMs = 200},
+           .over = unit::Word,
            .progress = &progress})));
   host.frame();
 
@@ -2042,13 +2038,13 @@ TEST(ComposeTextFx, BeatsOfFollowsAPathBaseline) {
   // and a mark placed from anything but the placement would sit in the
   // node's box while the type rides a circle beside it.
   Host host(300, 200);
-  host.composer.render(box().child(
-      text(u8"CIRCVMFERENTIA", whiteStyle(18))
-          .key("ring")
-          .width(100)
-          .height(100)
-          .onPath({.path = BeatRing{}})
-          .fx({.effect = fx::rise(4), .stagger = stagger(unit::Cluster)})));
+  host.composer.render(
+      box().child(text(u8"CIRCVMFERENTIA", whiteStyle(18))
+                      .key("ring")
+                      .width(100)
+                      .height(100)
+                      .onPath({.path = BeatRing{}})
+                      .fx({.effect = fx::rise(4), .over = unit::Cluster})));
   host.frame();
   const std::vector<Beat> beats = host.composer.beatsOf("ring", 0);
   ASSERT_GT(beats.size(), 8u);
@@ -2087,13 +2083,16 @@ TEST(ComposeTextFx, BeatsOfCompoundsANestedCascade) {
   // times. Word w's letter i opens at w·outerEach + i·innerEach, and the
   // read-back is the only place that is true without being retyped.
   Host host(400, 120);
-  Stagger cascade = stagger(unit::Word, {.eachMs = 300});
-  cascade.then(unit::Cluster, {.eachMs = 40, .durationMs = 100});
-  host.composer.render(box().padding(6).child(
-      text(u8"AB CD", whiteStyle(16))
-          .key("p")
-          .width(360)
-          .fx({.effect = fx::rise(6), .stagger = cascade})));
+  motion::Spread cascade{.eachMs = 300};
+  cascade.then({.eachMs = 40, .durationMs = 100});
+  host.composer.render(
+      box().padding(6).child(text(u8"AB CD", whiteStyle(16))
+                                 .key("p")
+                                 .width(360)
+                                 .fx({.effect = fx::rise(6),
+                                      .stagger = cascade,
+                                      .over = unit::Word,
+                                      .innerOver = unit::Cluster})));
   host.frame();
   const std::vector<Beat> beats = host.composer.beatsOf("p", 0);
   ASSERT_EQ(beats.size(), 4u) << "one beat per letter, two letters per word";
@@ -2113,7 +2112,7 @@ TEST(ComposeTextFx, BeatsOfResolvesEmptyRatherThanGuessing) {
   host.composer.render(box().padding(6).child(
       text(u8"AA BB", whiteStyle(16))
           .key("p")
-          .fx({.effect = fx::rise(6), .stagger = stagger(unit::Word)})));
+          .fx({.effect = fx::rise(6), .over = unit::Word})));
   host.frame();
   EXPECT_FALSE(host.composer.beatsOf("p", 0).empty());
   EXPECT_TRUE(host.composer.beatsOf("typo", 0).empty()) << "unknown key";
@@ -2126,13 +2125,13 @@ TEST(ComposeTextFx, CascadeSpanMsIsWhatTheMasterProgressMapsOnto) {
   // last beat's start plus one beat's own duration — checked against the
   // beats themselves, so the two read-backs cannot drift apart — and the
   // declare-time form answers the same number from the counts alone.
-  const Stagger spec = stagger(unit::Word, {.eachMs = 100, .durationMs = 200});
+  const motion::Spread spec{.eachMs = 100, .durationMs = 200};
   Host host(400, 120);
   host.composer.render(box().padding(6).child(
       text(u8"AA BB CC DD", whiteStyle(16))
           .key("p")
           .width(360)
-          .fx({.effect = fx::rise(6), .stagger = spec})));
+          .fx({.effect = fx::rise(6), .stagger = spec, .over = unit::Word})));
   host.frame();
   const float span = host.composer.cascadeSpanMs("p", 0);
   EXPECT_FLOAT_EQ(span, 500.0f) << "durationMs + eachMs·(N−1) over 4 words";
@@ -2148,7 +2147,7 @@ TEST(ComposeTextFx, CascadeSpanMsIsWhatTheMasterProgressMapsOnto) {
 
   // Amount-mode is count-independent past one unit — the amount IS the
   // spread — and one unit (or none) is a bare beat.
-  const Stagger amount{.amountMs = 700, .durationMs = 420};
+  const motion::Spread amount{.amountMs = 700, .durationMs = 420};
   EXPECT_FLOAT_EQ(amount.spanMs(2), 1120.0f);
   EXPECT_FLOAT_EQ(amount.spanMs(9), 1120.0f);
   EXPECT_FLOAT_EQ(amount.spanMs(1), 420.0f);
@@ -2160,15 +2159,18 @@ TEST(ComposeTextFx, CascadeSpanMsCompoundsNestingAndReadsTheTable) {
   // span compounds — the latest outer start, plus the latest inner start,
   // plus one INNER duration (the outer durationMs is ignored, as always
   // under then()).
-  Stagger nested = stagger(unit::Word, {.eachMs = 300, .durationMs = 999});
-  nested.then(unit::Cluster, {.eachMs = 40, .durationMs = 100});
+  motion::Spread nested{.eachMs = 300, .durationMs = 999};
+  nested.then({.eachMs = 40, .durationMs = 100});
   {
     Host host(400, 120);
-    host.composer.render(box().padding(6).child(
-        text(u8"AB CD", whiteStyle(16))
-            .key("p")
-            .width(360)
-            .fx({.effect = fx::rise(6), .stagger = nested})));
+    host.composer.render(
+        box().padding(6).child(text(u8"AB CD", whiteStyle(16))
+                                   .key("p")
+                                   .width(360)
+                                   .fx({.effect = fx::rise(6),
+                                        .stagger = nested,
+                                        .over = unit::Word,
+                                        .innerOver = unit::Cluster})));
     host.frame();
     const float span = host.composer.cascadeSpanMs("p", 0);
     EXPECT_FLOAT_EQ(span, 440.0f) << "300·1 + 40·1 + 100";
@@ -2183,23 +2185,21 @@ TEST(ComposeTextFx, CascadeSpanMsCompoundsNestingAndReadsTheTable) {
   // reads plus the duration — a max, not the final entry, because a table
   // is not required to ascend.
   const std::vector<float> table{0.0f, 340.0f, 720.0f, 1180.0f};
-  const Stagger cued = stagger(unit::Word, cues(table, {.durationMs = 180}));
+  const motion::Spread cued = cues(table, {.durationMs = 180});
   {
     Host host(400, 120);
     host.composer.render(box().padding(6).child(
         text(u8"AA BB CC DD", whiteStyle(16))
             .key("p")
             .width(360)
-            .fx({.effect = fx::rise(6), .stagger = cued})));
+            .fx({.effect = fx::rise(6), .stagger = cued, .over = unit::Word})));
     host.frame();
     const float span = host.composer.cascadeSpanMs("p", 0);
     EXPECT_FLOAT_EQ(span, 1360.0f) << "the table's last time plus one beat";
     EXPECT_FLOAT_EQ(cued.spanMs(4), span);
   }
-  EXPECT_FLOAT_EQ(
-      stagger(unit::Word, cues({0.0f, 900.0f, 300.0f}, {.durationMs = 100}))
-          .spanMs(3),
-      1000.0f)
+  EXPECT_FLOAT_EQ(cues({0.0f, 900.0f, 300.0f}, {.durationMs = 100}).spanMs(3),
+                  1000.0f)
       << "an out-of-order table spans to its LATEST time, not its last entry";
 }
 
@@ -2208,7 +2208,7 @@ TEST(ComposeTextFx, CascadeSpanMsResolvesZeroRatherThanGuessing) {
   host.composer.render(box().padding(6).key("b").child(
       text(u8"AA BB", whiteStyle(16))
           .key("p")
-          .fx({.effect = fx::rise(6), .stagger = stagger(unit::Word)})));
+          .fx({.effect = fx::rise(6), .over = unit::Word})));
   host.frame();
   EXPECT_GT(host.composer.cascadeSpanMs("p", 0), 0.0f);
   EXPECT_FLOAT_EQ(host.composer.cascadeSpanMs("typo", 0), 0.0f)
@@ -2229,9 +2229,8 @@ std::vector<Beat> loopBeatsAt(Host& host, float master, float loopMs = 400) {
           .key("p")
           .width(360)
           .fx({.effect = fx::rise(6),
-               .stagger = stagger(
-                   unit::Word,
-                   {.eachMs = 100, .durationMs = 200, .loopMs = loopMs}),
+               .stagger = {.eachMs = 100, .durationMs = 200, .loopMs = loopMs},
+               .over = unit::Word,
                .progress = master})));
   host.frame();
   return host.composer.beatsOf("p", 0);
@@ -2279,8 +2278,7 @@ TEST(ComposeTextFx, ALoopingCascadeReopensEachUnitOnItsOwnCycle) {
   // The period is what the master maps onto, so the span queries answer it
   // — mounted and at declare time alike.
   EXPECT_FLOAT_EQ(host.composer.cascadeSpanMs("p", 0), 400.0f);
-  const Stagger looping =
-      stagger(unit::Word, {.eachMs = 100, .durationMs = 200, .loopMs = 400});
+  const motion::Spread looping{.eachMs = 100, .durationMs = 200, .loopMs = 400};
   EXPECT_FLOAT_EQ(looping.spanMs(3), 400.0f);
 
   // A start PAST the period folds mod it — the beat still re-opens once
@@ -2291,9 +2289,8 @@ TEST(ComposeTextFx, ALoopingCascadeReopensEachUnitOnItsOwnCycle) {
             .key("p")
             .width(360)
             .fx({.effect = fx::rise(6),
-                 .stagger =
-                     stagger(unit::Word,
-                             {.eachMs = 300, .durationMs = 200, .loopMs = 400}),
+                 .stagger = {.eachMs = 300, .durationMs = 200, .loopMs = 400},
+                 .over = unit::Word,
                  .progress = 0.75f})));  // virtual 300
     host.frame();
     const std::vector<Beat> beats = host.composer.beatsOf("p", 0);
@@ -2309,12 +2306,13 @@ TEST(ComposeTextFx, LoopMsZeroIsTheOneShotCascade) {
   // 0 — the default — is the one-shot path: a spelled-out zero is the same
   // value, the same schedule and the same bytes as never mentioning it,
   // and a unit short of its start WAITS at 0 rather than resting at 1.
-  EXPECT_TRUE((Stagger{.eachMs = 100, .durationMs = 200}) ==
-              (Stagger{.eachMs = 100, .durationMs = 200, .loopMs = 0}));
-  EXPECT_FALSE((Stagger{.eachMs = 100, .durationMs = 200}) ==
-               (Stagger{.eachMs = 100, .durationMs = 200, .loopMs = 400}));
+  EXPECT_TRUE((motion::Spread{.eachMs = 100, .durationMs = 200}) ==
+              (motion::Spread{.eachMs = 100, .durationMs = 200, .loopMs = 0}));
+  EXPECT_FALSE(
+      (motion::Spread{.eachMs = 100, .durationMs = 200}) ==
+      (motion::Spread{.eachMs = 100, .durationMs = 200, .loopMs = 400}));
 
-  const auto render = [](Stagger cascade) {
+  const auto render = [](motion::Spread cascade) {
     Host host(400, 120);
     host.composer.render(
         box().padding(6).child(text(u8"AA BB CC", whiteStyle(16))
@@ -2322,15 +2320,16 @@ TEST(ComposeTextFx, LoopMsZeroIsTheOneShotCascade) {
                                    .width(360)
                                    .fx({.effect = fx::rise(6),
                                         .stagger = std::move(cascade),
+                                        .over = unit::Word,
                                         .progress = 0.25f})));
     host.frame();
     return std::pair(host.composer.beatsOf("p", 0),
                      surfaceBytes(host, 400, 120));
   };
   const auto [defaulted, defaultedBytes] =
-      render(stagger(unit::Word, {.eachMs = 100, .durationMs = 200}));
-  const auto [spelled, spelledBytes] = render(
-      stagger(unit::Word, {.eachMs = 100, .durationMs = 200, .loopMs = 0}));
+      render({.eachMs = 100, .durationMs = 200});
+  const auto [spelled, spelledBytes] =
+      render({.eachMs = 100, .durationMs = 200, .loopMs = 0});
   EXPECT_EQ(defaultedBytes, spelledBytes);
   ASSERT_EQ(defaulted.size(), 3u);
   ASSERT_EQ(spelled.size(), 3u);
@@ -2352,14 +2351,14 @@ TEST(ComposeTextFx, AHeldEffectOnALoopingCascadeHasNothingLeftToVeto) {
   // the single instant of re-opening (local 0), which is exactly where
   // the existing hold law already blanks.
   const auto tree = [](float loopMs) {
-    return box().padding(10).child(
-        text(u8"AA BB", whiteStyle(28))
-            .key("p")
-            .fx({.effect = fx::hold(fx::rise(24)),
-                 .stagger = stagger(
-                     unit::Word,
-                     {.eachMs = 300, .durationMs = 100, .loopMs = loopMs}),
-                 .progress = 0.25f}));
+    return box().padding(10).child(text(u8"AA BB", whiteStyle(28))
+                                       .key("p")
+                                       .fx({.effect = fx::hold(fx::rise(24)),
+                                            .stagger = {.eachMs = 300,
+                                                        .durationMs = 100,
+                                                        .loopMs = loopMs},
+                                            .over = unit::Word,
+                                            .progress = 0.25f}));
   };
   const auto rightHalfInk = [](Host& host) {
     auto b = host.composer.bounds("p");
@@ -2397,9 +2396,8 @@ TEST(ComposeTextFx, ALoopingCascadeOnAWrappingPhaseNeverSettles) {
       text(u8"LOOP", whiteStyle(28))
           .key("p")
           .fx({.effect = fx::rise(24),
-               .stagger =
-                   stagger(unit::Cluster,
-                           {.eachMs = 100, .durationMs = 200, .loopMs = 400}),
+               .stagger = {.eachMs = 100, .durationMs = 200, .loopMs = 400},
+               .over = unit::Cluster,
                .progress = &phase})));
   live.frame();
   double clock = 0.0;
@@ -2417,8 +2415,8 @@ TEST(ComposeTextFx, ALoopingCascadeOnAWrappingPhaseNeverSettles) {
       text(u8"LOOP", whiteStyle(28))
           .key("p")
           .fx({.effect = fx::rise(24),
-               .stagger =
-                   stagger(unit::Cluster, {.eachMs = 100, .durationMs = 200}),
+               .stagger = {.eachMs = 100, .durationMs = 200},
+               .over = unit::Cluster,
                .progress = animate(from(0.0f).to(1.0f),
                                    {200ms, &choreograph::easeNone})})));
   for (int i = 0; i < 24; ++i) still.frame(0.016);
@@ -2733,10 +2731,11 @@ TEST(TextStyleSelector, AddressesTheNamedRunsAndNotTheirWords) {
   // resolved, so the beat list IS the addressed word list — and each beat's
   // rect says which word it is.
   const auto wordsAddressed = [&](Selector where) {
-    host.composer.render(box().padding(10).child(text(copy).key("t").fx(
-        {.where = std::move(where),
-         .effect = fx::rise(0),
-         .stagger = stagger(unit::Word, {.eachMs = 1, .durationMs = 1})})));
+    host.composer.render(box().padding(10).child(
+        text(copy).key("t").fx({.where = std::move(where),
+                                .effect = fx::rise(0),
+                                .stagger = {.eachMs = 1, .durationMs = 1},
+                                .over = unit::Word})));
     host.frame();
     return host.composer.beatsOf("t", 0);
   };
@@ -2759,10 +2758,11 @@ TEST(TextStyleSelector, ComposesUnderTheSelectorAlgebra) {
   // Beats at GLYPH granularity: one per addressed glyph, so the count is the
   // selection's size and the algebra can be checked as arithmetic.
   const auto glyphsAddressed = [&](Selector where) {
-    host.composer.render(box().padding(10).child(text(copy).key("t").fx(
-        {.where = std::move(where),
-         .effect = fx::rise(0),
-         .stagger = stagger(unit::Glyph, {.eachMs = 1, .durationMs = 1})})));
+    host.composer.render(box().padding(10).child(
+        text(copy).key("t").fx({.where = std::move(where),
+                                .effect = fx::rise(0),
+                                .stagger = {.eachMs = 1, .durationMs = 1},
+                                .over = unit::Glyph})));
     host.frame();
     return host.composer.beatsOf("t", 0).size();
   };
@@ -2791,7 +2791,8 @@ TEST(TextStyleSelector, PlainTextCarriesNoNamesAndSaysSoOnce) {
             .key("t")
             .fx({.where = sel::style("unregistered-register"),
                  .effect = fx::rise(0),
-                 .stagger = stagger(unit::Glyph, {.durationMs = 1})}));
+                 .stagger = {.durationMs = 1},
+                 .over = unit::Glyph}));
   };
   host.composer.render(describe());
   host.frame();
@@ -2805,7 +2806,8 @@ TEST(TextStyleSelector, PlainTextCarriesNoNamesAndSaysSoOnce) {
           .key("t")
           .fx({.where = sel::style("unregistered-register"),
                .effect = fx::rise(0),
-               .stagger = stagger(unit::Glyph, {.durationMs = 1})})));
+               .stagger = {.durationMs = 1},
+               .over = unit::Glyph})));
   host.frame();
   const std::string log = ::testing::internal::GetCapturedStderr();
   size_t seen = 0;
@@ -2824,10 +2826,11 @@ TEST(TextStyleSelector, ReachesTheSpanRestylesToo) {
 
   // Where the three betas actually sit, read off the layout rather than
   // guessed, so the assertions below can name one of them.
-  host.composer.render(box().padding(10).child(text(copy).key("t").fx(
-      {.where = sel::text(u8"beta"),
-       .effect = fx::rise(0),
-       .stagger = stagger(unit::Word, {.eachMs = 1, .durationMs = 1})})));
+  host.composer.render(box().padding(10).child(
+      text(copy).key("t").fx({.where = sel::text(u8"beta"),
+                              .effect = fx::rise(0),
+                              .stagger = {.eachMs = 1, .durationMs = 1},
+                              .over = unit::Word})));
   host.frame();
   const std::vector<Beat> betas = host.composer.beatsOf("t", 0);
   ASSERT_EQ(betas.size(), 3u);
@@ -2884,8 +2887,8 @@ TEST(TextStyleSelector, ANameOutlivesTheStyleItResolvedTo) {
             .key("t")
             .fx({.where = sel::style("term"),
                  .effect = fx::rise(0),
-                 .stagger =
-                     stagger(unit::Glyph, {.eachMs = 1, .durationMs = 1})})));
+                 .stagger = {.eachMs = 1, .durationMs = 1},
+                 .over = unit::Glyph})));
     host.frame();
     return host.composer.beatsOf("t", 0).size();
   };
@@ -3483,7 +3486,7 @@ TEST(ComposeTextFx, MarkPlacesAChildOnTheRectItsSelectorResolves) {
   host.composer.render(box().padding(10).child(
       text(u8"ALPHA BETA GAMMA", whiteStyle(24))
           .key("line")
-          .fx({.effect = fx::rise(4), .stagger = stagger(unit::Word)})
+          .fx({.effect = fx::rise(4), .over = unit::Word})
           .mark(sel::word(1), box().key("caret").fill(green()))));
   host.frame();
   const std::vector<Beat> beats = host.composer.beatsOf("line", 0);
@@ -3573,7 +3576,7 @@ TEST(ComposeTextFx, MarkOnAPathRunStandsOnTheCurve) {
           .width(180)
           .height(180)
           .onPath({.path = shapes::circle()})
-          .fx({.effect = fx::rise(4), .stagger = stagger(unit::Word)})
+          .fx({.effect = fx::rise(4), .over = unit::Word})
           .mark(sel::word(2), box().key("caret").fill(green()))));
   host.frame();
   const std::vector<Beat> beats = host.composer.beatsOf("ring", 0);
@@ -3593,7 +3596,7 @@ TEST(ComposeTextFx, MarkOnAPathRunStandsOnTheCurve) {
           .key("ring")
           .width(180)
           .height(180)
-          .fx({.effect = fx::rise(4), .stagger = stagger(unit::Word)})
+          .fx({.effect = fx::rise(4), .over = unit::Word})
           .mark(sel::word(2), box().key("caret").fill(green()))));
   straight.frame();
   const SkRect flow = markRect(straight, "caret");

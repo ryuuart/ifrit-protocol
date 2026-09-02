@@ -208,16 +208,19 @@ escape the z-order of the site it was composed into.
 
 ### Text fx
 
-Motion inside a text leaf is a list of **tracks**. One `Track` is four
+Motion inside a text leaf is a list of **tracks**. One `Track` is five
 values — *which* glyphs (`Selector`), *what* deviation from rest
-(`TextEffect`), *how* the beats spread (`Stagger`), and the master
-`Animatable<float>` progress that drives it. `Element::fx` appends one;
+(`TextEffect`), *how* the beats spread (`motion::Spread`), what a unit IS
+(`Track::over`), and the master `Animatable<float>` progress that drives
+it. The spread is SigilMotion's and says nothing about text; `over` is the
+whole of what makes it a cascade over glyphs rather than over a set's
+children or a feed's rows. `Element::fx` appends one;
 several compose per glyph, with `GlyphMod` offsets and rotations adding
 and scale and alpha multiplying.
 
 ```cpp
 text(u8"ONE LINE, TWO MOVES", display)
-    .fx({.effect = fx::rise(20), .stagger = stagger(unit::Word)})
+    .fx({.effect = fx::rise(20), .over = unit::Word})
     .fx({.where = sel::text(u8"TWO"),
          .effect = fx::waveLoop(),
          .progress = &phase});
@@ -257,18 +260,18 @@ named `rich()` run carries a name: plain text, a run given a style
 directly, and the paragraph overload have none, so there it selects nothing
 and warns once per name, as does a name no run was written with.
 
-**Cascades.** `Stagger` keeps the GSAP model — `eachMs` or `amountMs`,
-`durationMs`, and a `Stagger::From` origin: `Start`, `Center`, `End`, a
-seeded `Random` and a two-ended `Edges`. `Random` deals a scrambled EVEN
-ladder — every unit takes a distinct rank, so no two units open together —
-and it is deterministic: the ranking hash is keyed on the unit count and
-`Stagger::seed`, so the same text scatters the same way on every frame and
-after every relayout. At the default seed of 0 the key is the count alone,
-which makes two same-count cascades scatter identically; give each field
-its own nonzero seed for independent scatters. `Stagger::distribution`
-shapes the start times across the cascade, and `Stagger::then` nests a
-second cascade inside every beat of the first (`stagger(unit::Word,
-{…}).then(unit::Glyph, {…})`).
+**Cascades.** `motion::Spread` keeps the GSAP model — `eachMs` or
+`amountMs`, `durationMs`, and a `motion::Spread::From` origin: `Start`,
+`Center`, `End`, a seeded `Random` and a two-ended `Edges`. `Random` deals
+a scrambled EVEN ladder — every unit takes a distinct rank, so no two units
+open together — and it is deterministic: the ranking hash is keyed on the
+unit count and the seed, so the same text scatters the same way on every
+frame and after every relayout. At the default seed of 0 the key is the
+count alone, which makes two same-count cascades scatter identically; give
+each field its own nonzero seed for independent scatters.
+`motion::Spread::distribution` shapes the start times across the cascade,
+and `motion::Spread::then` nests a second cascade inside every beat of the
+first — `Track::innerOver` says what a unit is at that second level.
 
 **Irregular timing.** `cues` replaces the even spread with a TABLE — one
 start time per unit, in ms — which is what caption, lyric and lip-sync
@@ -276,20 +279,19 @@ timing actually is:
 
 ```cpp
 text(lyric).fx({.effect = fx::rise(12),
-                .stagger = stagger(unit::Word,
-                                   cues({0, 340, 720, 1180},
-                                        {.durationMs = 180}))});
+                .stagger = cues({0, 340, 720, 1180}, {.durationMs = 180}),
+                .over = unit::Word});
 ```
 
-It returns a `Stagger`, so it goes anywhere one goes and compares like one.
-A table says only *when unit k starts*; `over`, `durationMs` and `then` are
-untouched by it, while `eachMs`, `amountMs`, `from` and `distribution` have
-nothing left to say and are ignored. A unit past the end of `Stagger::cueMs`
-starts at the last entry (the tail piles, visibly, rather than being given
+It returns a `motion::Spread`, so it goes anywhere one goes and compares
+like one. A table says only *when unit k starts*; `durationMs` and `then`
+are untouched by it, while `eachMs`, `amountMs`, `from` and `distribution`
+have nothing left to say and are ignored. A unit past the end of
+`motion::Spread::cueMs` starts at the last entry (the tail piles, visibly, rather than being given
 times nobody wrote), entries past the last unit go unread, and either
 mismatch warns once.
 
-**Which list the beats are numbered against.** `Stagger::beatsOver` takes
+**Which list the beats are numbered against.** `Track::beatsOver` takes
 `beats::Selection` — the default, numbering only the units the track's own
 selector resolved — or `beats::Text`, numbering every unit of that
 granularity in the paragraph, addressed or not. Two tracks that partition
@@ -330,19 +332,19 @@ a whole sentence.
 says when the whole schedule is *over* — the ms of virtual time the track's
 master progress [0,1] maps onto: `durationMs + eachMs·(N−1)` for the flat
 even ladder, `durationMs + amountMs` in amount mode, the compounded extent
-under `Stagger::then`, and the latest time any unit reads plus `durationMs`
+under `motion::Spread::then`, and the latest time any unit reads plus `durationMs`
 under a cue table. It is the number a progress duration must equal for a
 cascade to run at its authored ms — a table's times are absolute only when
 the window driving the track spans exactly the span — and the number
 anything sequenced *after* the cascade offsets from. It is computed by the
 same resolved cascade the glyphs and `beatsOf` read, so the three cannot
 disagree; an unknown key or track index resolves to 0, silently.
-`Stagger::spanMs` is the same number at *declare* time, computed from unit
+`Track::spanMs` is the same number at *declare* time, computed from unit
 counts alone for the site that needs it before any node exists — above all
 the progress transition written right next to the stagger:
 
 ```cpp
-const Stagger cascade{.eachMs = 28, .durationMs = 480};
+const motion::Spread cascade{.eachMs = 28, .durationMs = 480};
 const float span = cascade.spanMs(13);  // 480 + 28·12, before any layout
 // Drive the track's progress over exactly `span` ms and the last glyph
 // lands as the master arrives at 1. After a draw,
@@ -354,7 +356,7 @@ For a nested cascade the second argument is how many inner units one beat
 holds (the widest beat's count, where they vary), and an amount-mode span
 is the same for every count past one, because the amount *is* the spread.
 
-**The looping cascade.** `Stagger::loopMs` makes the schedule wrap: above 0,
+**The looping cascade.** `motion::Spread::loopMs` makes the schedule wrap: above 0,
 every unit's beat re-opens on its own cycle of that period, phase-offset by
 the unit's start time — even ladder and cue table alike — so steady
 continuous motion (rain re-dropping column by column, arrivals that never
@@ -366,10 +368,11 @@ phase** — an `Output` stepped mod 1, the clock `fx::waveLoop` already reads
 — drives it seamlessly forever:
 
 ```cpp
-Stagger cascade = stagger(unit::Line, cues(columnStartsMs));
-cascade.then(unit::Cluster, {.eachMs = 80, .durationMs = 1400});
+motion::Spread cascade = cues(columnStartsMs);
+cascade.then({.eachMs = 80, .durationMs = 1400});
 cascade.loopMs = 5000;  // every column re-drops on its own cue, forever
 text(field, rain).fx({.effect = streak, .stagger = cascade,
+                      .over = unit::Line, .innerOver = unit::Cluster,
                       .progress = &phase});  // phase wraps every 5 s
 ```
 
@@ -381,11 +384,11 @@ fold means every unit is *always* somewhere in its cycle: there is no
 "before the first beat", which leaves `fx::hold` nothing to veto (local
 time touches 0 only at the instant of re-opening) — an effect on a looping
 cascade gates its own arrival instead, the way a streak table's head is its
-own entrance. `Composer::cascadeSpanMs` and `Stagger::spanMs` answer the
+own entrance. `Composer::cascadeSpanMs` and `Track::spanMs` answer the
 **period** — still the ms the master maps onto, and the number a driver's
 wrap must span for the schedule to run at its authored ms. One loop governs
-the whole cascade, read off the outer spec under `Stagger::then` as
-`Stagger::beatsOver` is; `Beat::localT` reports the wrapped local time (the
+the whole cascade, read off the outer spec under `motion::Spread::then` as
+`Track::beatsOver` is; `Beat::localT` reports the wrapped local time (the
 same number the effect is handed) and no cycle index rides beside it — the
 master is a phase mod 1, so cycle identity lives with whoever steps the
 phase. Driving that phase is also what keeps the element live: a looping
@@ -493,8 +496,7 @@ plus one pass whatever the unit count is:
 auto burn = Material::recipe(sigil::material::Material(emberDissolve,
                                                        Burn{ink}));
 text(u8"EMBER DECODE", display)
-    .fx({.effect = fx::pass(burn),
-         .stagger = stagger(unit::Cluster, {.eachMs = 260})});
+    .fx({.effect = fx::pass(burn), .stagger = {.eachMs = 260}});
 ```
 
 The material must be RECIPE-BACKED — `Material::recipe` over a recipe
@@ -643,7 +645,7 @@ text(u8"SIGILLVM · DEI · AEMETH", inscription)
              .at = &phase,                       // the marquee
              .align = TextPath::Align::Center,
              .orient = TextPath::Orient::Tangent})
-    .fx({.effect = fx::rise(18), .stagger = stagger(unit::Cluster)});
+    .fx({.effect = fx::rise(18)});
 ```
 
 **`at` is where along the baseline the run sits**, as a fraction of the whole
@@ -985,10 +987,44 @@ text(u8"CHROME", display).boundary(Boundary::Glyphs).style(styles::y2kChrome());
 so every layer style already written works on letters with no new preset
 and no second code path. The outline follows a wrapped line, a mixed-style
 run's size, a path run's curve and a vertical column's axis, because it is
-read off the placed glyphs. `Boundary::Auto` is what a node that says
-nothing gets and means its own shape: a caption with a drop shadow means
-the caption's box, and a text leaf does not silently change what it has
-always meant.
+read off the placed glyphs.
+
+The three answers are three MECHANISMS, and the third one is the only one
+that looks at a pixel. `Boundary::Outline` is the node's SHAPE — its box,
+its `shape()`, a routed path, a band's swept region. `Boundary::Glyphs` is
+the PLACEMENT's contours. `Boundary::Coverage` is WHAT THE NODE DREW: its
+rendered layer is rasterised into an alpha surface of its own and the
+covered pixels are traced back into a path, which is the only answer that
+knows about an image's alpha cut-out, a clipped or masked subtree, or
+anything else whose visible silhouette is neither a shape nor a glyph run.
+
+```cpp
+image(logo).boundary(Boundary::Coverage).style(styles::y2kChrome());
+```
+
+Tracing a raster has three consequences and all three show:
+
+- **The boundary is a staircase.** It is built from whole pixels, so its
+  edges are axis-aligned steps and a decoration that dresses it dresses
+  that staircase.
+- **The step size is the node's own.** The trace rasterises the node's box
+  at a fixed number of pixels on its longer side however large the box is,
+  so one traced boundary costs one fixed raster and a big node's steps are
+  bigger than a small node's.
+- **Paint below half coverage is not a silhouette.** A pixel joins the
+  boundary when the node's paint covered at least half of it, so a 30%
+  wash traces to nothing and its decorations have nothing to dress.
+
+The node's OWN marks are not in the trace — they are what dresses it, and
+a mark that dressed itself would have no fixed point — while its fill, its
+content, its children and their marks are. A node that traced to nothing
+keeps its shape, exactly as a text leaf with no glyph outline does. The
+trace is re-run when the node's rendered layer is invalidated, which for a
+volatile subtree is every frame.
+
+`Boundary::Auto` is what a node that says nothing gets and means its own
+shape: a caption with a drop shadow means the caption's box, and neither a
+text leaf nor an image silently changes what it has always meant.
 
 ### Vertical CJK
 
@@ -1006,7 +1042,7 @@ text(rich(mincho)
          .add(u8"年、縦組みに対応した。"))
     .width(260).height(300)
     .writingMode(sigil::weave::WritingMode::kVerticalRL)
-    .fx({.effect = fx::rise(24), .stagger = stagger(unit::Cluster)});
+    .fx({.effect = fx::rise(24)});
 ```
 
 **BOTH AXES ARE MEASURES.** A horizontal passage reads its width as the
@@ -1041,7 +1077,7 @@ writing direction, so a style carrying them and set along a line takes them
 there too.
 
 **The engine runs in columns.** `unit::Line` IS A COLUMN here, so a
-`stagger(unit::Line)` beats column by column and `sel::line(0)` addresses
+track with `.over = unit::Line` beats column by column and `sel::line(0)` addresses
 the rightmost one; `unit::Cluster` runs down a column in reading order.
 `spanPaint`, `spanStyle`, `textAlign` (start is the top of the column),
 `maxLines` (which clamps COLUMNS) with `ellipsis` at the clamped column's
@@ -1131,7 +1167,7 @@ sound model; nothing below them changes kernel semantics.
   `StampCache`, `UniformBlock`, `Effect`, and the colour spellings `hex`,
   `alpha`, `mul`, `mix`.
 - `core/Text.h` — the text model: `Unit`, `Selector` and `sel::`,
-  `TextEffect`, `Stagger`, `Track`, `Beat`, the mixed-text value `rich` /
+  `TextEffect`, `Track`, `Beat`, the mixed-text value `rich` /
   `RichText`, and `toU8`.
 - `core/Shape.h` — the comparable seam values `Shape` (with
   `ShapeScheme`), `MotionPath`, `TextPath`, `Decoration` and its

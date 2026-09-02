@@ -358,33 +358,19 @@ bool Selector::operator==(const Selector& other) const {
   return *m_state == *other.m_state;
 }
 
-static_assert(kFieldCount<Stagger> == 11,
-              "Stagger gained or lost a field — rule on it in "
-              "Stagger::operator== below, then bump this count. A field left "
-              "out makes two different cascades compare equal, the text node "
-              "prunes, and it keeps beating to the old ladder forever.");
-bool Stagger::operator==(const Stagger& other) const {
-  if (eachMs != other.eachMs || amountMs != other.amountMs ||
-      durationMs != other.durationMs || loopMs != other.loopMs ||
-      from != other.from || seed != other.seed || over != other.over ||
-      beatsOver != other.beatsOver || cueMs != other.cueMs)
-    return false;
-  if (!easeEqual(distribution, other.distribution)) return false;
-  if (inner == other.inner) return true;  // both absent, or one shared value
-  if (!inner || !other.inner) return false;
-  return *inner == *other.inner;
-}
-
-static_assert(kFieldCount<Track> == 6,
+static_assert(kFieldCount<Track> == 9,
               "Track gained or lost a field — rule on it in "
               "Track::sameShape() below, then bump this count. `progress` is "
               "deliberately NOT compared there: it is an Animatable, and "
               "textEqual() compares it through propEqual with every other "
-              "animated slot.");
+              "animated slot. A cascade field left out makes two different "
+              "cascades compare equal, the text node prunes, and it keeps "
+              "beating to the old ladder forever.");
 bool Track::sameShape(const Track& other) const {
   return where == other.where && effect == other.effect &&
-         stagger == other.stagger && reach == other.reach &&
-         continuous == other.continuous;
+         stagger == other.stagger && over == other.over &&
+         innerOver == other.innerOver && beatsOver == other.beatsOver &&
+         reach == other.reach && continuous == other.continuous;
 }
 bool Track::operator==(const Track& other) const {
   return sameShape(other) && propEqual(progress, other.progress);

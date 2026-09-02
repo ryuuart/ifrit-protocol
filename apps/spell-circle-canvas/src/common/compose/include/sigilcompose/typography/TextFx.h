@@ -17,7 +17,7 @@
  * progress:
  *
  *   text(u8"ONE LINE, TWO MOVES", display)
- *       .fx({.effect = fx::rise(20), .stagger = stagger(unit::Word)})
+ *       .fx({.effect = fx::rise(20), .over = unit::Word})
  *       .fx({.where = sel::text(u8"TWO"),
  *            .effect = fx::waveLoop(),
  *            .progress = &phase});
@@ -30,7 +30,7 @@
  *
  * One-shot effects consume progress 0→1; loop effects (waveLoop) read a
  * WRAPPING bound phase (an Output stepped mod 1), and a looping CASCADE
- * (`Stagger::loopMs`) reads the same wrapping phase and re-opens every
+ * (`motion::Spread::loopMs`) reads the same wrapping phase and re-opens every
  * unit's beat once per wrap. Everything renders
  * through batched RSXform draws — moving text is never per-glyph draw
  * calls — and every preset declares the reach its motion needs so the

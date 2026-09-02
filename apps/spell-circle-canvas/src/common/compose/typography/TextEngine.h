@@ -48,10 +48,6 @@ std::vector<uint8_t> resolveSelection(const Selector& selector,
 void warnBadSelectorPattern(const std::u8string& pattern);
 /** The once-per-name diagnostic behind an `sel::style` no run answers to. */
 void warnNoSuchStyleName(const std::u8string& name);
-/** The once-per-shape diagnostic behind a cue table that does not have one
- *  entry per unit: the tail either piles on the last cue or goes unread,
- *  and both are a table cut against the wrong text. */
-void warnCueTableMismatch(size_t cueCount, size_t unitCount);
 /** WHICH TEXT A SELECTOR ADDRESSES, as UTF-16 ranges rather than glyphs —
  *  the form span restyling needs, because a restyle happens on the
  *  Paragraph, before there are glyphs to point at.
@@ -74,45 +70,6 @@ std::vector<sigil::weave::CharRange> resolveTextRanges(
     std::span<const sigil::weave::ColumnMetrics> columns,
     std::span<const NamedRun> named);
 
-/** ONE TRACK'S CASCADE, resolved for a frame's unit counts: the delay
- *  ladder, the beat length, and the virtual span the master progress maps
- *  onto. Built per track per paint; localTime() is then a few adds per
- *  glyph. */
-struct Cascade {
-  std::vector<float> outerOrder;  ///< outer unit → its place in the cascade
-  std::vector<float> innerOrder;  ///< inner unit → the same, within a beat
-  /** The author's start-time table at each level, in ms, or empty for the
-   *  even ladder above. A table names delays outright, so the order, the
-   *  spacing and the distribution curve have nothing left to say. */
-  std::vector<float> outerCue, innerCue;
-  choreograph::EaseFn outerDistribution, innerDistribution;
-  float outerEach = 0;  ///< ms between outer starts
-  float innerEach = 0;  ///< ms between inner starts
-  float duration = 1;   ///< ms one unit's own motion lasts
-  float beatMs = 1;     ///< ms one outer beat occupies
-  /** Ms the master progress spans: the one-shot closing span, or the loop
-   *  PERIOD when the cascade loops — either way, `master · totalMs` is the
-   *  virtual time every local clock reads. */
-  float totalMs = 1;
-  /** The wrapping period (`Stagger::loopMs`), or 0 for a one-shot cascade.
-   *  When set, `totalMs` IS this period and localTime() folds each unit's
-   *  elapsed time mod it, so every beat re-opens once per cycle. */
-  float loopMs = 0;
-
-  void build(const Stagger& spec, uint32_t outerCount, uint32_t innerCount);
-  /** When this unit's beat opens, in ms from the start of the master
-   *  progress — the outer delay plus, under a nested cascade, the inner
-   *  one. THE one place the schedule is arithmetic; everything that reports
-   *  a start time reads it here. */
-  [[nodiscard]] float startMs(uint32_t outerUnit, uint32_t innerUnit) const;
-  /** The local 0→1 this unit sees at master progress `master`. Clamped at
-   *  both ends for a one-shot cascade; a looping one folds the unit's
-   *  elapsed time mod `loopMs` first, so the answer re-opens at 0 once per
-   *  cycle and rests at 1 between its beat's close and its next opening. */
-  [[nodiscard]] float localTime(float master, uint32_t outerUnit,
-                                uint32_t innerUnit) const;
-};
-
 /** ONE TRACK'S CASCADE RESOLVED AGAINST A LAID-OUT PARAGRAPH: which beat
  *  every glyph falls in at each level, and the ladder those beats run on.
  *
@@ -123,12 +80,17 @@ struct Cascade {
  *  into the per-glyph lanes rather than clearing them, so a page of
  *  animated type does not mint a pair of vectors per track per frame. */
 struct TrackCascade {
-  Cascade cascade;
+  motion::Cascade cascade;
   std::vector<uint32_t> outerUnit;  ///< glyph → its beat
   std::vector<uint32_t> innerUnit;  ///< glyph → its beat inside that beat;
                                     ///< empty without a nested cascade
 
-  void build(const Stagger& spec, const GlyphStructure& structure,
+  /** THE GLYPH ADAPTER, and the whole of what compose adds to a schedule:
+   *  @p track says what a unit is (`over`, `innerOver`) and which list the
+   *  beats are numbered against (`beatsOver`), this walk turns the laid-out
+   *  glyphs into those numbers, and the arithmetic over them is
+   *  SigilMotion's. */
+  void build(const Track& track, const GlyphStructure& structure,
              const std::vector<uint8_t>& selected);
 };
 

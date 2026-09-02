@@ -360,7 +360,7 @@ TEST(ComposeMotion, StaggerFromEndRunsBottomUp) {
   host.composer.render(box()
                            .column()
                            .gap(10)
-                           .staggerChildren(400ms, Stagger::From::End)
+                           .staggerChildren(400ms, motion::Spread::From::End)
                            .child(card())
                            .child(card()));
   host.frame(0.3);  // LAST child leads; first still holds its `from`

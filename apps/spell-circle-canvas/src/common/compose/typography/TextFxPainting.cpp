@@ -353,7 +353,7 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
         i < inst.trackAnims.size() ? inst.trackAnims[i].get() : nullptr;
     r.master =
         std::clamp(inst.resolveFloatAt(anim, track.progress), 0.0f, 1.0f);
-    r.resolved.build(track.stagger, structure, *r.selected);
+    r.resolved.build(track, structure, *r.selected);
   }
   // A path run with no tracks still draws: every glyph keeps the identity
   // deviation and rests on the curve.

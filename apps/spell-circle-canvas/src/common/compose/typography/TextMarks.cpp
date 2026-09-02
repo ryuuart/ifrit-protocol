@@ -145,7 +145,8 @@ std::vector<TextUnit> detail::unitsOfText(Composer::Impl& impl, Instance& inst,
                                           const Selector& selector, Unit unit) {
   if (!inst.desc || !inst.paragraph) return {};
   const sigil::weave::Paragraph& paragraph = *inst.paragraph;
-  const TextData* textData = inst.desc->textData ? &*inst.desc->textData : nullptr;
+  const TextData* textData =
+      inst.desc->textData ? &*inst.desc->textData : nullptr;
   const TextPath* onPath =
       textData && textData->onPath ? &*textData->onPath : nullptr;
   if (onPath) {
@@ -188,7 +189,8 @@ std::vector<TextUnit> detail::unitsOfText(Composer::Impl& impl, Instance& inst,
           if (keys[i].first == source && keys[i].second == placed.lineIndex) {
             TextUnit& existing = units[i];
             existing.rect.join(box);
-            existing.range.start = std::min(existing.range.start, placed.textIndex);
+            existing.range.start =
+                std::min(existing.range.start, placed.textIndex);
             existing.range.end =
                 std::max(existing.range.end, placed.textIndex + 1);
             return;
@@ -272,7 +274,7 @@ bool resolveTrackSchedule(Composer::Impl& impl, Instance& inst,
 
   out.selected = detail::resolveSelection(out.track->where, structure,
                                           *inst.paragraph, inst.textNamedRuns);
-  out.resolved.build(out.track->stagger, structure, out.selected);
+  out.resolved.build(*out.track, structure, out.selected);
   return true;
 }
 }  // namespace
@@ -333,15 +335,11 @@ std::vector<Beat> detail::beatsOfTrack(Composer::Impl& impl, Instance& inst,
             beats[i].rect.join(box);
             return;
           }
-        Beat beat;
+        // The schedule half is the cascade's own answer, so a mark
+        // travelling beside a track cannot be told a different one from
+        // the glyphs it is marking; the rect is this library's.
+        Beat beat{resolved.cascade.beat(master, outer, inner)};
         beat.rect = box;
-        beat.unitIndex = outer;
-        beat.startMs = resolved.cascade.startMs(outer, inner);
-        beat.localT = resolved.cascade.localTime(master, outer, inner);
-        // A beat that has begun and not finished. The clamped local time
-        // reads 0 both before the beat opens and exactly as it does, and 1
-        // for the whole of the rest of the track's life.
-        beat.active = beat.localT > 0.0f && beat.localT < 1.0f;
         keys.emplace_back(outer, inner);
         beats.push_back(beat);
       });

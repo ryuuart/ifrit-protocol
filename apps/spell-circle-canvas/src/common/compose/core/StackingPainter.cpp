@@ -318,6 +318,12 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
   // below are each opened and closed inside the half they belong to.
   const bool emitOwn = phase != Phase::ChildrenOnly;
   const bool emitChildren = phase != Phase::OwnOnly;
+  // A COVERAGE TRACE OF THIS NODE draws everything the node draws EXCEPT
+  // its own marks: the marks are what dress the traced boundary, so a mark
+  // inside the trace would be dressing itself. The node's children — and
+  // their marks — are drawn, because they are part of what the node drew
+  // and none of them reads this node's boundary.
+  const bool emitMarks = coverageTrace != &inst;
   const SkRect ownRect = instanceRect(inst);
   const SkRect bounds = SkRect::MakeWH(ownRect.width(), ownRect.height());
   const SkRRect rrect = cornersRRect(bounds, node.corners);
@@ -449,6 +455,13 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
   // the whole of what makes a chrome or a bevel land on letters. The
   // SURFACE keeps the node's own shape either way: a fill is what the box
   // is filled with, not what its letters are cut from.
+  //
+  // A COVERAGE boundary is neither: it is the silhouette of what the node
+  // actually drew, traced off its layer's alpha, which is the only answer
+  // that knows about an image's cut-out or a masked subtree. It is asked
+  // for only where it is consumed — inside the trace itself the node has
+  // no marks, so it needs no boundary for them either, and that is what
+  // keeps the trace from re-entering itself.
   const SkPath* decorationBase = &fullOutline;
   if (node.boundary == Boundary::Glyphs && node.kind == Kind::Text &&
       inst.paragraph) {
@@ -457,6 +470,10 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
       inst.glyphOutlineRev = inst.measuredRev;
     }
     if (!inst.glyphOutline.isEmpty()) decorationBase = &inst.glyphOutline;
+  } else if (node.boundary == Boundary::Coverage && emitMarks) {
+    const SkPath& traced = coverageOutline(
+        inst, {bounds.width(), bounds.height()}, contentScale);
+    if (!traced.isEmpty()) decorationBase = &traced;
   }
   SkPath marksPath = !marksShow ? *decorationBase
                      : (surfaceShow && *marksShow == *surfaceShow &&
@@ -733,7 +750,7 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
   // Decorations are NEVER clipped — they dress the outline, so shadows keep
   // their reach and an outer stroke survives on a node that clips its
   // content.
-  if (emitOwn) {
+  if (emitOwn && emitMarks) {
     for (size_t i = 0; i < node.backgrounds.size(); ++i)
       paintMark(node.backgrounds[i], detail::MarkSlot::Background, i);
     // Span-qualified BACKGROUND passes land here, in the background half,
@@ -835,7 +852,7 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
   // Overlays: over the fill, under the content and children. The slot a
   // textured button needs so its own hazard stripe does not grey out its
   // label. Unclipped like the other decorations — they dress the outline.
-  if (emitOwn && node.fxData)
+  if (emitOwn && emitMarks && node.fxData)
     for (size_t i = 0; i < node.fxData->overlays.size(); ++i)
       paintMark(node.fxData->overlays[i], detail::MarkSlot::Overlay, i);
 
@@ -962,7 +979,7 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
   // half and can never be in an own-paint bake. The own half is the
   // contiguous PREFIX up to the children loop, which is not the same thing
   // as "everything except the children".
-  if (emitChildren)
+  if (emitChildren && emitMarks)
     for (size_t i = 0; i < node.foregrounds.size(); ++i)
       paintMark(node.foregrounds[i], detail::MarkSlot::Foreground, i);
 
@@ -971,7 +988,8 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
   // the sub-geometry it CLAIMED, so a brush that knows nothing about
   // spans (a PathFormat, a Brush, a brush::Pattern) dresses part of a
   // boundary with no new vocabulary.
-  if (emitChildren) paintSpanHalf(detail::StrokePass::Half::Foreground);
+  if (emitChildren && emitMarks)
+    paintSpanHalf(detail::StrokePass::Half::Foreground);
 
   leaveGates(hoistSaves, hoistCover);
 

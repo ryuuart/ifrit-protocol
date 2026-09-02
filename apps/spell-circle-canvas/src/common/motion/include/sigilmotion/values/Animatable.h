@@ -8,9 +8,8 @@
  * an identity prune reads two slots through.
  */
 
-#include <sigilcore/comparable/Fields.h>
-
 #include <choreograph/Choreograph.h>
+#include <sigilcore/comparable/Fields.h>
 
 #include <cstdint>
 #include <memory>

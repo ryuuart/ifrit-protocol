@@ -358,7 +358,7 @@ struct FxData {
   // Misprint echoes (offset flat-color re-stamps under fill/text)
   std::vector<Echo> echoes;
   float staggerChildrenMs = 0;  // extra order·each mount delay per subtree
-  Stagger::From staggerFrom = Stagger::From::Start;
+  motion::Spread::From staggerFrom = motion::Spread::From::Start;
   // Element::overlay(): decorations painted OVER the fill and UNDER the
   // content and children. Lives in this block rather than beside
   // backgrounds/foregrounds so sizeof(ElementNode) does not grow — the
@@ -533,25 +533,12 @@ bool describedTransformEqual(const ElementNode& a, const ElementNode& b);
 /** UTF-8 to the UTF-16 the weave layer speaks. */
 std::u16string toUtf16(std::u8string_view utf8);
 
-/** WHERE INDEX `i` OF `count` SITS IN A CASCADE, in multiples of the
- *  per-step delay — 0,1,2… from Start, reversed from End, the two
- *  symmetric V shapes for Center and Edges, and a seeded permutation for
- *  Random. `seed` is `Stagger::seed` — read only by Random, where 0 keys
- *  the ranking hash on the count alone and a nonzero value deals an
- *  independent permutation.
- *
- *  ONE BODY for two callers: an fx() track's units and a container's
- *  staggered children. A second spelling would let `Stagger::From` mean
- *  two different orders depending on what it was attached to. */
 /** The stateless splitmix64 of one key — the avalanche over the key
  *  offset by the gamma, which is the same mixer `Rng` steps, used to
  *  order units rather than to shape a glyph. */
 inline uint64_t mix64Value(uint64_t z) {
   return core::noise::mix64(z + core::noise::kMix64Gamma);
 }
-void cascadeOrder(Stagger::From from, uint32_t count, uint32_t seed,
-                  std::vector<float>& out);
-
 /** The once-per-process diagnostic behind `onPath` plus a vertical
  *  `writingMode`: a path run's baseline is its own geometry, so there are
  *  no columns to advance and the path wins. */

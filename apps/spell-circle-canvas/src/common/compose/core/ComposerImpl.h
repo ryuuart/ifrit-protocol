@@ -513,6 +513,27 @@ struct Composer::Impl {
                     SkBlendMode leafBlend = SkBlendMode::kSrcOver,
                     float leafOpacity = 1.0f, Phase phase = Phase::All);
   const SkPath& resolveOutline(detail::Instance& inst, SkSize size) const;
+  /** THE COVERAGE BOUNDARY (Coverage.cpp): the silhouette of what this
+   *  node's layer drew, in the node's own space.
+   *
+   *  The node's fill, content and children are rasterised into an alpha
+   *  surface of their own and the covered pixels are traced back into a
+   *  path, so the answer is the visible extent of an image with a cut-out,
+   *  of a clipped or masked subtree, of anything a shape and a glyph run
+   *  cannot describe. Cached on the instance and re-traced only when the
+   *  layer that produced it is invalidated. */
+  const SkPath& coverageOutline(detail::Instance& inst, SkSize size,
+                                float contentScale);
+  /** The node whose coverage is being traced RIGHT NOW, if any.
+   *
+   *  A coverage boundary is what the node drew, and the node's own marks
+   *  are what dress that boundary: drawing them into the trace would make
+   *  the boundary a function of itself. So paintContent emits no marks for
+   *  this one node while it is set, and asks it for no coverage boundary
+   *  either — which is also what keeps the trace from re-entering itself.
+   *  Its children, and their marks, are drawn: they are part of what the
+   *  node drew, and none of them reads this node's boundary. */
+  const detail::Instance* coverageTrace = nullptr;
   /** What the node paints BY ITSELF, in its own local space: its box grown
    *  by every decoration's declared bleed and any routed path, and NOTHING
    *  from its children. The split bake sizes its layer with this — and the

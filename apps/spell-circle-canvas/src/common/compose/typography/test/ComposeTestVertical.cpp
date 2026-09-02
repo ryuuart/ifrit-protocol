@@ -273,7 +273,8 @@ TEST(TextVertical, AClusterEntranceStaggersDownTheColumn) {
           .height(300)
           .writingMode(sigil::weave::WritingMode::kVerticalRL)
           .fx({.effect = fx::rise(30),
-               .stagger = stagger(unit::Cluster, {.eachMs = 90}),
+               .stagger = {.eachMs = 90},
+               .over = unit::Cluster,
                .progress = &progress})
           .key("t")));
   host.frame();
@@ -462,7 +463,8 @@ TEST(TextVertical, BeatsOfRunsDownTheColumnAndAcrossToTheNext) {
           .height(240)
           .writingMode(sigil::weave::WritingMode::kVerticalRL)
           .fx({.effect = fx::rise(10),
-               .stagger = stagger(unit::Cluster, {.eachMs = 40})})));
+               .stagger = {.eachMs = 40},
+               .over = unit::Cluster})));
   host.frame();
 
   const std::vector<Beat> beats = host.composer.beatsOf("col", 0);
@@ -684,7 +686,8 @@ TEST(TextVertical, ACascadeOverLinesBeatsColumnByColumn) {
           .height(200)
           .writingMode(sigil::weave::WritingMode::kVerticalRL)
           .fx({.effect = fx::typeOn(),
-               .stagger = stagger(unit::Line, {.eachMs = 400}),
+               .stagger = {.eachMs = 400},
+               .over = unit::Line,
                .progress = &progress})
           .key("t")));
   host.frame();
@@ -762,7 +765,8 @@ TEST(TextVertical, ABandStandsAtRestUnderATrack) {
             .writingMode(sigil::weave::WritingMode::kVerticalRL)
             .spanPaint(sel::text(u8"三四五六"), sidelined)
             .fx({.effect = fx::rise(24),
-                 .stagger = stagger(unit::Cluster, {.eachMs = 90}),
+                 .stagger = {.eachMs = 90},
+                 .over = unit::Cluster,
                  .progress = &progress})
             .key("t"));
   };

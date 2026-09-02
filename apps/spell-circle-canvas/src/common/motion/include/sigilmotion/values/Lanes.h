@@ -77,9 +77,8 @@ void retargetSlots(Ticker& ticker,
       continue;  // neither description carries it: nothing to ramp
     const Animatable<float> standing = next[i].standing;
     transitionFloatAt(ticker, anims[next[i].slot.index],
-                              prev[i].value ? *prev[i].value : standing,
-                              next[i].value ? *next[i].value : standing,
-                              nodeDefault);
+                      prev[i].value ? *prev[i].value : standing,
+                      next[i].value ? *next[i].value : standing, nodeDefault);
   }
 }
 
@@ -102,8 +101,8 @@ void retargetFamily(Ticker& ticker, AnimatedFloats& anims,
     // Size it here too rather than indexing an empty vector.
     if (anims.size() != next.size()) anims.resize(next.size());
     for (size_t i = 0; i < next.size(); ++i)
-      transitionFloatAt(ticker, anims[i], *prev[i].value,
-                                *next[i].value, nodeDefault);
+      transitionFloatAt(ticker, anims[i], *prev[i].value, *next[i].value,
+                        nodeDefault);
   }
 }
 

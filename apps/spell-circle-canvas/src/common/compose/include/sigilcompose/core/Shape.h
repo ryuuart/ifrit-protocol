@@ -295,22 +295,52 @@ struct TextPath {
 /** WHAT A NODE'S DECORATIONS DRESS.
  *
  *  Every decoration — a bevel, an inner shadow, a glow, a gloss, a
- *  keyline, a whole layer style — is drawn ACROSS AN OUTLINE, and the
- *  outline it is handed has always been the node's own shape. On a text
+ *  keyline, a whole layer style — is drawn ACROSS AN OUTLINE, and this
+ *  says which outline it is handed. The three answers are three different
+ *  MECHANISMS, not three shapes:
+ *
+ *  `Outline` is THE NODE'S SHAPE — its rounded box, its `shape()`
+ *  generator, a routed connector's path, a band's swept region. On a text
  *  leaf that shape is a rectangle, which is why a chrome style on a word
  *  bevels a slab behind it rather than the word.
  *
- *  `Glyphs` says otherwise: the outline a text leaf's decorations dress is
- *  the union of its GLYPH OUTLINES at the placement its layout produced.
- *  Every existing decoration then works on letters with no new preset,
- *  because a decoration was never about a box — it was about whatever
- *  outline it was handed.
+ *  `Glyphs` is THE PLACEMENT'S CONTOURS: the union of a text leaf's glyph
+ *  outlines exactly where its layout put them. Every decoration already
+ *  written then works on letters with no new preset, because a decoration
+ *  was never about a box — it was about whatever outline it was handed.
+ *  On a node that is not text it means the node's shape.
+ *
+ *  `Coverage` is WHAT THE NODE ACTUALLY DREW: its rendered layer's alpha,
+ *  traced back into a path. Neither of the other two looks at a pixel, so
+ *  neither can answer for an image with an alpha cut-out, a clipped or
+ *  masked subtree, or anything else whose visible silhouette is not its
+ *  shape and not a glyph run. This one can, and it is the only one that
+ *  can. Three things follow from tracing a raster, and all three are
+ *  visible in the result:
+ *
+ *  - THE BOUNDARY IS A STAIRCASE. It is built from whole pixels of a
+ *    bounded raster, so its edges are axis-aligned steps, and a
+ *    decoration that dresses it dresses that staircase. A keyline around
+ *    a cut-out reads as a keyline around a stepped cut-out.
+ *  - THE STEP SIZE IS THE NODE'S OWN. The trace rasterises the node's box
+ *    at a fixed number of pixels on its longer side however large the box
+ *    is, so the cost of a coverage boundary does not grow with the node,
+ *    and the steps of a big node are bigger than the steps of a small one.
+ *  - PAINT BELOW HALF COVERAGE IS NOT A SILHOUETTE. A pixel joins the
+ *    boundary when the node's paint covers at least half of it, so a 30%
+ *    wash over the whole box traces to nothing at all and its decorations
+ *    have nothing to dress.
+ *
+ *  The node's OWN decorations are not in the trace — they are what dresses
+ *  it, and a mark that dressed itself would have no fixed point. Its fill,
+ *  its content, its children and their marks are.
  *
  *  `Auto` is what a node that says nothing gets, and it means the node's
- *  own shape. A text leaf does NOT default to its glyphs: a caption with a
- *  drop shadow means the caption's box, and changing that under every
- *  existing passage would repaint pages nobody asked to repaint. */
-enum class Boundary : uint8_t { Auto, Outline, Glyphs };
+ *  own shape. A text leaf does NOT default to its glyphs and nothing
+ *  defaults to its coverage: a caption with a drop shadow means the
+ *  caption's box, and changing that under every existing passage would
+ *  repaint pages nobody asked to repaint. */
+enum class Boundary : uint8_t { Auto, Outline, Glyphs, Coverage };
 
 /** Anything with paint(canvas, PaintContext) — decorations, effect
  *  bodies. An optional `bool isAnimated() const` declares per-frame

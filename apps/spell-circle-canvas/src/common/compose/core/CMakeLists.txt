@@ -39,6 +39,7 @@ add_library(SigilComposeCore STATIC
   Volatility.cpp
   Bounds.cpp
   StackingPainter.cpp
+  Coverage.cpp
   # text
   TextAtRest.cpp
   # paint values
