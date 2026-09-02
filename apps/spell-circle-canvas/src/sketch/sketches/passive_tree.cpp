@@ -123,7 +123,11 @@ inline float diameterOf(data::Kind k) {
 }
 
 /** How wide the rope art is drawn at this cluster's zoom. */
-constexpr float kRopeScale = 0.62f;
+// THE ROPE'S TWIST HAS TO READ. `presets::rope` counter-dashes two
+// strands against a body, and at 0.62 the strands are three pixels and
+// the whole connector is a gold dash. Path of Exile's allocated edges are
+// a thick braid with a visible turn in it.
+constexpr float kRopeScale = 0.92f;
 
 /** An edge's rope state, the game's rule: Active when BOTH ends are
  *  allocated, Intermediate when exactly one is (the link you could travel),
@@ -334,9 +338,14 @@ struct PassiveTree final : sketch::Sketch {
             .width(Dim(dia + 10))
             .height(Dim(dia + 10))
             .centerAt(at)
-            .shape(pt::notchRing(8, 0.72f, 1.0f))
-            .stroke(stroke(1.4f, Fill::color({ring.fR, ring.fG, ring.fB,
-                                              alloc ? 0.9f : 0.5f})))
+            // THE NOTCH ROSETTE IS THE NOTABLE'S METALWORK. PoE carries
+            // the node hierarchy in the frame art, not in the radius, and
+            // a rosette at a pixel and a half beside a plain minor circle
+            // is the same circle at a different size. Deeper notches, a
+            // heavier stroke.
+            .shape(pt::notchRing(8, 0.60f, 1.0f))
+            .stroke(stroke(2.4f, Fill::color({ring.fR, ring.fG, ring.fB,
+                                              alloc ? 1.0f : 0.72f})))
             .zIndex(4));
     // The well is never empty in the real thing — a cast sigil sits in it.
     parent.child(box()
@@ -466,10 +475,25 @@ struct PassiveTree final : sketch::Sketch {
               .width(Dim(discR * 2))
               .height(Dim(discR * 2))
               .centerAt({g.x, g.y})
+              // THE GROUP DISC HAS TO BE SEEN. Path of Exile's
+              // PSGroupBackground is a warm plate the rosette sits ON,
+              // and at half a stop over the ground it is invisible: the
+              // rosettes then float on flat charcoal and the tree loses
+              // the one cue that says which nodes belong together.
               .fill(Material::radial({discR, discR}, discR,
-                                     {{0.00f, {0.20f, 0.16f, 0.13f, 0.55f}},
-                                      {0.62f, {0.16f, 0.13f, 0.11f, 0.30f}},
+                                     {{0.00f, {0.30f, 0.24f, 0.18f, 0.85f}},
+                                      {0.55f, {0.22f, 0.18f, 0.14f, 0.62f}},
+                                      {0.86f, {0.15f, 0.12f, 0.10f, 0.28f}},
                                       {1.00f, {0.10f, 0.08f, 0.07f, 0.0f}}}))
+              .zIndex(0));
+      // …and its rim, which is what turns a wash into a plate.
+      root.child(
+          box()
+              .width(Dim(discR * 2))
+              .height(Dim(discR * 2))
+              .centerAt({g.x, g.y})
+              .shape(pt::circleOutline())
+              .stroke(stroke(1.2f, Fill::color({0.44f, 0.36f, 0.26f, 0.30f})))
               .zIndex(0));
       for (float r : g.radius) {
         if (r <= 0) continue;
