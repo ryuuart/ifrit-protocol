@@ -761,18 +761,28 @@ struct ThunderFulu : sketch::Sketch {
       // the stroke's own centreline are tangent-aligned by construction —
       // no per-stroke shader matrix, which is what a canvas-axis grain
       // would have needed.
+      // The streaks are the GROUND, not a darker ink: where the hairs part
+      // the iron shows through. A dark hairline over cinnabar is a line
+      // drawn on a wet stroke; the plate's own mid-tone at this width is a
+      // stroke that has run dry. Three rails at three offsets, each on its
+      // own dash phase, so no two open at the same place along the run.
       PathFormat hair;
-      hair.width = 1.3f;
-      hair.strokeFill = Fill::color(hex(0x231f1c));
+      hair.width = 2.6f;
+      hair.strokeFill = Fill::color(kIronMid);
       hair.cap = SkPaint::kButt_Cap;
-      hair.dashIntervals = {5.0f, 3.4f};
+      hair.dashIntervals = {7.0f, 3.0f};
       hair.dashPhase = 2.0f;
-      brush.layer(hair, {kit::brush::shapers::Offset{-2.2f, 3.0f}});
+      brush.layer(hair, {kit::brush::shapers::Offset{-2.6f, 3.0f}});
       PathFormat hair2 = hair;
-      hair2.width = 1.0f;
-      hair2.dashIntervals = {3.6f, 5.2f};
+      hair2.width = 1.8f;
+      hair2.dashIntervals = {5.0f, 4.2f};
       hair2.dashPhase = 5.5f;
-      brush.layer(hair2, {kit::brush::shapers::Offset{2.4f, 3.0f}});
+      brush.layer(hair2, {kit::brush::shapers::Offset{2.8f, 3.0f}});
+      PathFormat hair3 = hair;
+      hair3.width = 1.2f;
+      hair3.dashIntervals = {4.0f, 6.0f};
+      hair3.dashPhase = 9.0f;
+      brush.layer(hair3, {kit::brush::shapers::Offset{0.2f, 3.0f}});
     }
 
     const SkRect f = s.frame;
@@ -973,6 +983,42 @@ struct ThunderFulu : sketch::Sketch {
 
   void buildStrokes() {
     strokes.clear();
+
+    // --- 封界 THE ENCLOSING STROKES -------------------------------------
+    // A fu is BOUNDED. The pair of long wavy verticals down either side of
+    // the column, each hooked into a small loop at head and foot, is what
+    // makes the writing a talisman rather than a line of characters left
+    // on a plate; without them the column floats on the iron with nothing
+    // saying where the charm begins or ends, and the plate reads two
+    // thirds empty because the column stops where the writing stops
+    // instead of where the boundary does.
+    //
+    // They are written FIRST, as the enclosure is: the head is set down
+    // inside a space already claimed.
+    for (int side = 0; side < 2; ++side) {
+      const float x = side == 0 ? kCol - 132.0f : kCol + 148.0f;
+      const float dir = side == 0 ? -1.0f : 1.0f;
+      const float y0 = 30.0f, y1 = 1006.0f;
+      SkPathBuilder b;
+      // the head hook: a small loop turning outward
+      b.moveTo(x + dir * 26.0f, y0 + 30.0f);
+      b.quadTo(x + dir * 30.0f, y0, x, y0 + 6.0f);
+      b.quadTo(x - dir * 18.0f, y0 + 14.0f, x, y0 + 40.0f);
+      // the shaft: a slow wave, four bellies down the plate
+      const int steps = 48;
+      for (int i = 1; i <= steps; ++i) {
+        const float u = (float)i / (float)steps;
+        const float y = y0 + 40.0f + (y1 - 60.0f - y0) * u;
+        const float wob = std::sin(u * 4.0f * 3.14159265f) * 13.0f;
+        b.lineTo(x + dir * wob, y);
+      }
+      // the foot hook, turning outward as the head's does
+      b.quadTo(x + dir * 30.0f, y1 - 34.0f, x + dir * 22.0f, y1 - 6.0f);
+      b.quadTo(x + dir * 4.0f, y1 + 12.0f, x - dir * 8.0f, y1 - 4.0f);
+      push(b.detach(), 9.5f, SHU, tLoad + (float)side * 0.30f,
+           tLoad + 0.62f + (float)side * 0.30f, kCinnabar,
+           fmt("bound%d", side));
+    }
 
     // --- 符頭 三勾 ------------------------------------------------------
     // Three hooks for the 三清 — 元始天尊, 靈寶天尊, 道德天尊 — written
