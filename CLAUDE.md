@@ -75,6 +75,30 @@ reader who has never opened any other document.
 
 ## Build and test
 
+### How to work
+
+These libraries are nascent and break often, and the way to work with
+them is to expect that. A change is made by editing, building the one
+target it touches, and looking at the result — a `--frame`, the
+window, a test binary. Commit freely; a pass of work carries several
+breaking changes at once and fixes forward rather than stopping to
+re-verify. None of the checks below runs between changes: no gate, no
+ledger sweep, no window sweep, no tidy, no sanitizer.
+
+Verification is ONE refinement pass, right before a push or an
+integration point, and it does all of it at once: `scripts/check.py`,
+the tests, the plate tiers (rebasing the scenes a change was meant to
+move, with the cause in the commit), the window lane, and the
+sanitizers only when memory ownership changed. Byte identity is
+confirmed there and nowhere earlier.
+
+A change that cannot be made without the whole tree re-verifying is
+telling you the code is too integrated: split the library or feature
+so the change is local. That is a design signal, never a reason for
+more checking. Performance is designed in while writing and measured
+with `--bench` or `--window-bench` when something feels slow, not
+gated per change.
+
 From `apps/spell-circle-canvas`:
 
 ```sh
@@ -148,7 +172,8 @@ ruff from `brew install ruff`; the other tools ride the Xcode and Qt
 installs the build already needs.
 
 The quick checks run together through `scripts/gate.py` — one command,
-one verdict, before a commit. Each lane is its own subprocess with its
+one verdict, at the refinement pass before a push, or whenever one
+wants a fast answer. Each lane is its own subprocess with its
 output held back: `scripts/check.py` over the changed files, the ctest
 tests those files belong to, the plate ledger's quick tier, its world
 tier when the change can move a set, and clang-tidy with `--tidy`. They
