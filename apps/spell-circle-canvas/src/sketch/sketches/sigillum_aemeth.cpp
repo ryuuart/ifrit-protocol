@@ -216,12 +216,16 @@ using sigil::compose::hex;  // 0xRRGGBB (+ optional alpha) → SkColor4f
 // shadowed wall and a lit wall.
 
 constexpr SkColor4f kVitrine = hex(0x14161c);
-constexpr SkColor4f kWaxDeep = hex(0x8d6d3a);
-constexpr SkColor4f kWaxMid = hex(0xb59463);
-constexpr SkColor4f kWaxLit = hex(0xdcc596);
-constexpr SkColor4f kWaxPale = hex(0xe9dab2);
-constexpr SkColor4f kCutDark = hex(0x3f2c12);
-constexpr SkColor4f kCutLite = hex(0xfaeecb);
+// THE DISC IS WAX, and the record says which wax: a dull olive-brown
+// beeswax, matte, scuffed, green-stained where the graver went in. A warm
+// parchment tan with a golden sheen is new vellum, and on new vellum a
+// line is drawn; on wax it is CUT.
+constexpr SkColor4f kWaxDeep = hex(0x5c4c26);
+constexpr SkColor4f kWaxMid = hex(0x7d6a37);
+constexpr SkColor4f kWaxLit = hex(0x9c8949);
+constexpr SkColor4f kWaxPale = hex(0xb3a267);
+constexpr SkColor4f kCutDark = hex(0x2b2210);  // the groove's floor
+constexpr SkColor4f kCutLite = hex(0xc4b485);  // the wall that catches light
 constexpr SkColor4f kInk = hex(0x2b2118);
 constexpr SkColor4f kInkSoft = hex(0x6a5a42);
 constexpr SkColor4f kRubric = hex(0x8c2f22);
@@ -994,56 +998,44 @@ struct SigillumAemeth : sketch::Sketch {
         b.lineTo(w.v[(i + 1) % 7]);
         return b.detach();
       };
-      auto limb = [&](SkCanvas& cv, int i, bool shadowed) {
+      // ONE LIMB, CUT INTO THE WAX. A groove is a floor with two walls:
+      // under a light from the upper left the far wall catches it and the
+      // near one is in shadow, so the two rails are UNEQUAL and the band
+      // between them is DARKER than the surface, not lighter. Drawn the
+      // other way round — a pale band with a dark line either side and a
+      // shadow cast onto its neighbour — the same geometry reads as a
+      // batten laid on top, and the seal stops being engraved.
+      auto limb = [&](SkCanvas& cv, int i, bool over) {
         const SkPath p = seg(i);
-        if (shadowed) {
-          // The strap passing UNDER must be occluded, not merely interrupted:
-          // the over-strap casts a soft shadow onto it, offset across its own
-          // width. Without this the weave is in the data and not in the eye.
-          SkPaint cast;
-          cast.setAntiAlias(true);
-          cast.setStyle(SkPaint::kStroke_Style);
-          cast.setStrokeWidth(bandW + 7.0f);
-          cast.setStrokeCap(SkPaint::kButt_Cap);
-          cast.setColor4f(hex(0x150d02, 0.30f), nullptr);
-          cv.save();
-          cv.translate(4.0f, 5.5f);
-          cv.drawPath(p, cast);
-          cast.setStrokeWidth(bandW + 5.0f);
-          cast.setColor4f(hex(0x150d02, 0.42f), nullptr);
-          cv.translate(-1.4f, -1.9f);
-          cv.drawPath(p, cast);
-          cast.setStrokeWidth(bandW + 2.0f);
-          cast.setColor4f(hex(0x150d02, 0.55f), nullptr);
-          cv.translate(-1.2f, -1.7f);
-          cv.drawPath(p, cast);
-          cv.restore();
-        }
         SkPaint body;
         body.setAntiAlias(true);
         body.setStyle(SkPaint::kStroke_Style);
         body.setStrokeWidth(bandW);
         body.setStrokeCap(SkPaint::kButt_Cap);
-        body.setColor4f(hex(0xf0dcae, 1.0f), nullptr);
+        body.setColor4f(kCutDark, nullptr);
         cv.drawPath(p, body);
         decorations::paintOn(
             cv, ctx, p,
-            lines::rails({{.across = bandW * 0.5f,
-                           .width = 2.6f,
-                           .fill = Fill::color(hex(0x241603, 1.0f))},
-                          {.across = bandW * 0.5f - 3.0f,
-                           .width = 0.8f,
-                           .fill = Fill::color(hex(0xfbf0d0, 0.55f))},
-                          {.across = -bandW * 0.5f,
-                           .width = 2.6f,
-                           .fill = Fill::color(hex(0x241603, 1.0f))},
-                          {.across = 3.0f - bandW * 0.5f,
-                           .width = 0.8f,
-                           .fill = Fill::color(hex(0x8a6c3c, 0.45f))}}));
+            lines::rails(
+                {// the lit wall
+                 {.across = bandW * 0.5f - 1.2f,
+                  .width = 2.4f,
+                  .fill = Fill::color(kCutLite)},
+                 // the shadowed wall, and the lip of wax pushed up beside it
+                 {.across = 1.2f - bandW * 0.5f,
+                  .width = 2.4f,
+                  .fill = Fill::color(hex(0x1a1409, 0.85f))},
+                 {.across = 1.6f - bandW * 0.5f - 2.4f,
+                  .width = 1.0f,
+                  .fill = Fill::color(hex(0xbfae76, 0.45f))}}));
+        (void)over;
       };
       for (int i = 0; i < 7; ++i) limb(c, i, false);
-      // the weave: at each crossing, redraw whichever limb passes OVER,
-      // clipped to a disc the width of the band.
+      // THE WEAVE, CUT. At a crossing the graver takes the over-limb
+      // through and stops the under-limb's walls short of it, so the
+      // interlace is in the cut rather than in a cast shadow: redraw the
+      // over limb clipped to a disc the width of the band, and its floor
+      // and walls close over the other's.
       for (const Weave::Cross& x : w.crossings) {
         const int over = x.aOver ? x.segA : x.segB;
         SkPathBuilder clipB;
