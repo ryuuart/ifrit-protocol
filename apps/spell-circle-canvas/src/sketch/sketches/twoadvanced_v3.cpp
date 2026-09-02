@@ -181,41 +181,6 @@ constexpr float kModH = 252;               // bodies end on the divider band
 constexpr float kRowY = 941, kRowH = 91;           // mailing/support/follow row
 constexpr float kPanelW = (kStageW - 2 * 10) / 3;  // 433⅓ — three across
 
-/** The 45°-cut corner rect: `mask` selects which corners are cut. */
-enum Cut : uint8_t { kTL = 1, kTR = 2, kBR = 4, kBL = 8 };
-inline std::function<SkPath(SkSize)> chamfer(float cut, uint8_t mask) {
-  return [cut, mask](SkSize s) {
-    const float w = s.width(), h = s.height();
-    const float c = std::min({cut, w * 0.5f, h * 0.5f});
-    SkPathBuilder b;
-    if (mask & kTL)
-      b.moveTo(c, 0);
-    else
-      b.moveTo(0, 0);
-    if (mask & kTR) {
-      b.lineTo(w - c, 0);
-      b.lineTo(w, c);
-    } else {
-      b.lineTo(w, 0);
-    }
-    if (mask & kBR) {
-      b.lineTo(w, h - c);
-      b.lineTo(w - c, h);
-    } else {
-      b.lineTo(w, h);
-    }
-    if (mask & kBL) {
-      b.lineTo(c, h);
-      b.lineTo(0, h - c);
-    } else {
-      b.lineTo(0, h);
-    }
-    if (mask & kTL) b.lineTo(0, c);
-    b.close();
-    return b.detach();
-  };
-}
-
 }  // namespace tv3
 
 // ===========================================================================
@@ -862,7 +827,7 @@ struct TwoAdvancedV3 : sketch::Sketch {
                 .child(box().width(28).height(4).fill(alpha(kSteelHi, 0.85f))))
         .child(box()
                    .height(96)
-                   .shape(chamfer(20, kTR))
+                   .shape(shapes::chamfered(20, shapes::Corner::TopRight))
                    .fill(hex(0x232E48))
                    .stroke(stroke(1, Fill::color(alpha(kSteelHi, 0.5f)),
                                   PathFormat::Align::Inner))
@@ -871,7 +836,7 @@ struct TwoAdvancedV3 : sketch::Sketch {
                    .child(std::move(content)))
         .child(box()
                    .height(22)
-                   .shape(chamfer(14, kBL))
+                   .shape(shapes::chamfered(14, shapes::Corner::BottomLeft))
                    .fill(hex(0x313D5A))
                    .stroke(stroke(1, Fill::color(alpha(kSteelHi, 0.45f)),
                                   PathFormat::Align::Inner))

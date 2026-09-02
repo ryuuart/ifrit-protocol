@@ -199,44 +199,6 @@ inline Element t(const char* s, sigil::weave::TextStyle st) {
 // Geometry vocabulary — chamfers, not radii. Nothing on this interface is
 // round; every corner that is not square is cut at 45°.
 
-enum Cut : uint8_t { kTL = 1, kTR = 2, kBR = 4, kBL = 8 };
-
-/** The angle-cut rect: a 45° cut removing a cut×cut triangle from each
- *  selected corner. Reused at every nesting depth — status-bar seam, CTA
- *  buttons, panel end-caps, readout windows, transport keys, dropdowns. */
-inline std::function<SkPath(SkSize)> chamfer(float cut, uint8_t mask) {
-  return [cut, mask](SkSize s) {
-    const float w = s.width(), h = s.height();
-    const float c = std::min({cut, w * 0.5f, h * 0.5f});
-    SkPathBuilder b;
-    if (mask & kTL)
-      b.moveTo(c, 0);
-    else
-      b.moveTo(0, 0);
-    if (mask & kTR) {
-      b.lineTo(w - c, 0);
-      b.lineTo(w, c);
-    } else {
-      b.lineTo(w, 0);
-    }
-    if (mask & kBR) {
-      b.lineTo(w, h - c);
-      b.lineTo(w - c, h);
-    } else {
-      b.lineTo(w, h);
-    }
-    if (mask & kBL) {
-      b.lineTo(c, h);
-      b.lineTo(0, h - c);
-    } else {
-      b.lineTo(0, h);
-    }
-    if (mask & kTL) b.lineTo(0, c);
-    b.close();
-    return b.detach();
-  };
-}
-
 /** An OPEN hairline across the node — the trim() reveal primitive: a
  *  stroked open outline draws itself on when trim's end ramps 0→1. */
 inline std::function<SkPath(SkSize)> ray(float dirX, float dirY) {
@@ -257,7 +219,7 @@ inline std::function<SkPath(SkSize)> ray(float dirX, float dirY) {
 struct Brackets {
   SkColor4f color = kCyan;
   float leg = 18, thickness = 3, gap = 4;
-  uint8_t mask = 0xF;
+  shapes::Corner mask = shapes::Corner::All;
 
   bool operator==(const Brackets&) const = default;
   void paint(SkCanvas& c, const PaintContext& ctx) const {
@@ -275,10 +237,10 @@ struct Brackets {
       b.lineTo(x, y + sy * leg);
       c.drawPath(b.detach(), p);
     };
-    if (mask & kTL) L(o, o, 1, 1);
-    if (mask & kTR) L(w - o, o, -1, 1);
-    if (mask & kBR) L(w - o, h - o, -1, -1);
-    if (mask & kBL) L(o, h - o, 1, -1);
+    if (has(mask, shapes::Corner::TopLeft)) L(o, o, 1, 1);
+    if (has(mask, shapes::Corner::TopRight)) L(w - o, o, -1, 1);
+    if (has(mask, shapes::Corner::BottomRight)) L(w - o, h - o, -1, -1);
+    if (has(mask, shapes::Corner::BottomLeft)) L(o, h - o, 1, -1);
   }
 };
 
@@ -659,7 +621,7 @@ struct TwoAdvancedV4 : sketch::Sketch {
     return box()
         .width(Dim(w))
         .height(Dim(h))
-        .shape(chamfer(9, kTL | kBR))
+        .shape(shapes::chamfered(9, shapes::Corner::Diagonal))
         .fill(Material::linearUnit(
             {0, 0}, {0, 1},
             {{0.0f, kCtaHi}, {0.42f, kCta}, {1.0f, hex(0x3A0000)}}))
@@ -680,11 +642,12 @@ struct TwoAdvancedV4 : sketch::Sketch {
     return box()
         .width(Dim(w))
         .height(Dim(h))
-        .shape(chamfer(7, kTR | kBL))
+        .shape(shapes::chamfered(7, shapes::Corner::AntiDiagonal))
         .fill(ground)
         .foreground(
             InsetBevel{alpha(kChromeHi, 0.6f), {0, 0, 0, 0.5f}, 0, 1, 1})
-        .foreground(Brackets{alpha(kCyan, 0.55f), 8, 2, 3, 0xF});
+        .foreground(
+            Brackets{alpha(kCyan, 0.55f), 8, 2, 3, shapes::Corner::All});
   }
 
   /** A radar wedge: shapes::sector, rotation BOUND. Every gauge on the
@@ -708,17 +671,18 @@ struct TwoAdvancedV4 : sketch::Sketch {
     // Two segments meeting on a DIAGONAL seam, not a vertical edge. They
     // drop in one after the other: teal leads, maroon follows 80 ms later.
     Element teal =
-        singleBevel(box()
-                        .left(Dim(0))
-                        .top(Dim(0))
-                        .width(560)
-                        .height(40)
-                        .shape(chamfer(40, kBR))
-                        .row()
-                        .alignItems(Align::Center)
-                        .padding(10, 0)
-                        .gap(8),
-                    kTealBar)
+        singleBevel(
+            box()
+                .left(Dim(0))
+                .top(Dim(0))
+                .width(560)
+                .height(40)
+                .shape(shapes::chamfered(40, shapes::Corner::BottomRight))
+                .row()
+                .alignItems(Align::Center)
+                .padding(10, 0)
+                .gap(8),
+            kTealBar)
             .translateY(animate(from(-46.0f).to(0.0f),
                                 {380ms, &ch::easeOutQuint, 1450ms}))
             .child(box()
@@ -753,7 +717,7 @@ struct TwoAdvancedV4 : sketch::Sketch {
                         .top(Dim(0))
                         .width(Dim(1892.0f - 548.0f))
                         .height(40)
-                        .shape(chamfer(40, kTL))
+                        .shape(shapes::chamfered(40, shapes::Corner::TopLeft))
                         .row()
                         .alignItems(Align::Center)
                         .padding(58, 0, 14, 0)
@@ -810,21 +774,23 @@ struct TwoAdvancedV4 : sketch::Sketch {
                                        60, 0.92f))));
     }
 
-    Element scope = box()
-                        .grow(1)
-                        .height(100)
-                        .shape(chamfer(8, kTR | kBL))
-                        .fill(spectrum)
-                        .foreground(Scanlines{{0, 0, 0, 0.16f}, 3, 1})
-                        .foreground(Brackets{alpha(kCyan, 0.6f), 10, 2, 3, 0xF})
-                        .foreground(stroke(1, Fill::color(alpha(kCyan, 0.35f)),
-                                           PathFormat::Align::Inner));
+    Element scope =
+        box()
+            .grow(1)
+            .height(100)
+            .shape(shapes::chamfered(8, shapes::Corner::AntiDiagonal))
+            .fill(spectrum)
+            .foreground(Scanlines{{0, 0, 0, 0.16f}, 3, 1})
+            .foreground(
+                Brackets{alpha(kCyan, 0.6f), 10, 2, 3, shapes::Corner::All})
+            .foreground(stroke(1, Fill::color(alpha(kCyan, 0.35f)),
+                               PathFormat::Align::Inner));
 
     auto key = [&](const char* glyph, bool hot) {
       return box()
           .width(38)
           .height(22)
-          .shape(chamfer(6, kTL | kBR))
+          .shape(shapes::chamfered(6, shapes::Corner::Diagonal))
           .fill(Material::linearUnit({0, 0}, {0, 1},
                                      {{0.0f, hot ? kCtaHi : hex(0x5A2226)},
                                       {0.5f, hot ? kCta : hex(0x3A0F12)},
@@ -853,7 +819,9 @@ struct TwoAdvancedV4 : sketch::Sketch {
     Element panel = singleBevel(
         box().width(596).height(174).column().padding(9).gap(6), hex(0x3E1013));
     panel.key("audio")
-        .foreground(Brackets{kCyan, 18, 3, 4, kTL | kTR})
+        .foreground(
+            Brackets{kCyan, 18, 3, 4,
+                     shapes::Corner::TopLeft | shapes::Corner::TopRight})
         .foreground(TickRail{alpha(kDust, 0.45f), 7, 3, 6, 1, 4, false, true})
         .child(box().row().gap(8).height(100).child(list).child(scope))
         .child(box()
@@ -940,7 +908,7 @@ struct TwoAdvancedV4 : sketch::Sketch {
               .child(
                   box()
                       .grow(1)
-                      .shape(chamfer(8, kTL | kBR))
+                      .shape(shapes::chamfered(8, shapes::Corner::Diagonal))
                       .fill(Material::linearUnit(
                           {0, 0}, {0, 1},
                           {{0.0f, hex(0x06232A)}, {1.0f, hex(0x01090B)}}))
@@ -954,7 +922,8 @@ struct TwoAdvancedV4 : sketch::Sketch {
                       .child(at(box().fill(hex(0x02171B)), 30, 8, 20, 34))
                       .child(at(box().fill(hex(0x010A0C)), 54, 20, 16, 22))
                       .child(at(box().fill(alpha(kGlow, 0.5f)), 0, 41, 200, 1))
-                      .foreground(Brackets{alpha(kCyan, 0.6f), 7, 1, 2, 0xF})
+                      .foreground(Brackets{alpha(kCyan, 0.6f), 7, 1, 2,
+                                           shapes::Corner::All})
                       .foreground(Scanlines{{0, 0, 0, 0.24f}, 3, 1})
                       .child(box().left(Dim(4)).top(Dim(3)).child(
                           t(nums[i], micro(9, alpha(kCyan, 0.9f), 140)))))
@@ -968,7 +937,9 @@ struct TwoAdvancedV4 : sketch::Sketch {
             animate(from(40.0f).to(0.0f), {380ms, &ch::easeOutQuint, 2450ms}))
         .opacity(
             animate(from(0.0f).to(1.0f), {320ms, &ch::easeOutQuad, 2450ms}))
-        .foreground(Brackets{alpha(kCyan, 0.55f), 12, 2, 4, kBL | kBR})
+        .foreground(
+            Brackets{alpha(kCyan, 0.55f), 12, 2, 4,
+                     shapes::Corner::BottomLeft | shapes::Corner::BottomRight})
         .child(box()
                    .row()
                    .alignItems(Align::Center)
@@ -1324,8 +1295,8 @@ struct TwoAdvancedV4 : sketch::Sketch {
                                                   {0.58f, {0, 0, 0, 0.10f}},
                                                   {1.00f, {0, 0, 0, 0.66f}}})));
     s.child(box().inset(0).foreground(Scanlines{}));
-    s.child(
-        box().inset(0).foreground(Brackets{alpha(kCyan, 0.7f), 22, 2, 8, 0xF}));
+    s.child(box().inset(0).foreground(
+        Brackets{alpha(kCyan, 0.7f), 22, 2, 8, shapes::Corner::All}));
 
     auto corner = [&](const char* a, const char* b, float l, float tp,
                       bool end) {
@@ -1382,11 +1353,12 @@ struct TwoAdvancedV4 : sketch::Sketch {
                    .top(Dim(316.0f / 2 - 32))
                    .width(440)
                    .height(64)
-                   .shape(chamfer(10, kTL | kBR))
+                   .shape(shapes::chamfered(10, shapes::Corner::Diagonal))
                    .fill(alpha(hex(0x140404), 0.92f))
                    .stroke(stroke(1, Fill::color(alpha(kCyan, 0.6f)),
                                   PathFormat::Align::Inner))
-                   .foreground(Brackets{alpha(kCyan, 0.7f), 10, 2, 3, 0xF})
+                   .foreground(Brackets{alpha(kCyan, 0.7f), 10, 2, 3,
+                                        shapes::Corner::All})
                    .justify(Justify::Center)
                    .alignItems(Align::Center)
                    .child(slot("mfload"))
@@ -1455,7 +1427,7 @@ struct TwoAdvancedV4 : sketch::Sketch {
               .child(
                   box()
                       .grow(1)
-                      .shape(chamfer(7, kTL | kBR))
+                      .shape(shapes::chamfered(7, shapes::Corner::Diagonal))
                       .fill(Material::linearUnit(
                           {0, 0}, {0, 1},
                           {{0.0f, hex(0x0A2C33)}, {1.0f, hex(0x02171B)}}))
@@ -1470,7 +1442,8 @@ struct TwoAdvancedV4 : sketch::Sketch {
                       .child(at(box().fill(hex(0x01191D)), 24 + 3 * (float)i, 8,
                                 16, 40))
                       .child(at(box().fill(alpha(kGlow, 0.55f)), 0, 40, 200, 1))
-                      .foreground(Brackets{alpha(kCyan, 0.5f), 6, 1, 2, 0xF})
+                      .foreground(Brackets{alpha(kCyan, 0.5f), 6, 1, 2,
+                                           shapes::Corner::All})
                       .foreground(Scanlines{{0, 0, 0, 0.24f}, 3, 1}))
               .child(t(caps[i], micro(9, hex(0x123B3D), 220)));
       out.push_back(std::move(cell));
@@ -1496,7 +1469,7 @@ struct TwoAdvancedV4 : sketch::Sketch {
             .width(150)
             .height(150)
             .shrink(0)
-            .shape(chamfer(12, kTL | kBR))
+            .shape(shapes::chamfered(12, shapes::Corner::Diagonal))
             .fill(Material::linearUnit(
                 {0, 0}, {0, 1}, {{0.0f, hex(0x06232A)}, {1.0f, hex(0x011114)}}))
             .stroke(stroke(1, Fill::color(alpha(hex(0x0B3B40), 0.9f)),
@@ -1510,7 +1483,8 @@ struct TwoAdvancedV4 : sketch::Sketch {
             .child(at(box().fill(hex(0x02171B)), 52, 46, 44, 88))
             .child(at(box().fill(hex(0x010A0C)), 100, 62, 34, 72))
             .child(at(box().fill(alpha(kGlow, 0.6f)), 0, 108, 150, 1))
-            .foreground(Brackets{alpha(kCyan, 0.85f), 12, 2, 4, 0xF})
+            .foreground(
+                Brackets{alpha(kCyan, 0.85f), 12, 2, 4, shapes::Corner::All})
             .foreground(Scanlines{{0, 0, 0, 0.22f}, 3, 1});
 
     Element copy =
@@ -1912,7 +1886,8 @@ struct TwoAdvancedV4 : sketch::Sketch {
                        .child(box()
                                   .width(20)
                                   .height(20)
-                                  .shape(chamfer(6, kTL | kBR))
+                                  .shape(shapes::chamfered(
+                                      6, shapes::Corner::Diagonal))
                                   .fill(Material::linearUnit(
                                       {0, 0}, {0, 1},
                                       {{0.0f, hex(0xE8A83C)},
@@ -2014,7 +1989,8 @@ struct TwoAdvancedV4 : sketch::Sketch {
             animate(from(56.0f).to(0.0f), {400ms, &ch::easeOutQuint, 3400ms}))
         .opacity(
             animate(from(0.0f).to(1.0f), {320ms, &ch::easeOutQuad, 3400ms}))
-        .foreground(Brackets{alpha(kCyan, 0.5f), 14, 2, 5, kTR | kBL})
+        .foreground(Brackets{alpha(kCyan, 0.5f), 14, 2, 5,
+                             shapes::Corner::AntiDiagonal})
         .child(box()
                    .row()
                    .alignItems(Align::Center)
@@ -2044,7 +2020,8 @@ struct TwoAdvancedV4 : sketch::Sketch {
                         .fill(hex(0x180505))
                         .foreground(InsetBevel{
                             alpha(kChromeHi, 0.5f), {0, 0, 0, 0.5f}, 0, 1, 1})
-                        .foreground(Brackets{alpha(kCyan, 0.4f), 9, 2, 3, 0xF})
+                        .foreground(Brackets{alpha(kCyan, 0.4f), 9, 2, 3,
+                                             shapes::Corner::All})
                         .child(
                             box()
                                 .row()
@@ -2180,7 +2157,7 @@ struct TwoAdvancedV4 : sketch::Sketch {
     return box()
         .height(18)
         .padding(7, 0)
-        .shape(chamfer(5, kTL | kBR))
+        .shape(shapes::chamfered(5, shapes::Corner::Diagonal))
         .fill(on ? Material::linearUnit(
                        {0, 0}, {0, 1},
                        {{0.0f, hex(0x0A4148)}, {1.0f, hex(0x02181C)}})
@@ -2229,7 +2206,7 @@ struct TwoAdvancedV4 : sketch::Sketch {
           .child(box()
                      .width(46)
                      .height(34)
-                     .shape(chamfer(8, kTL | kBR))
+                     .shape(shapes::chamfered(8, shapes::Corner::Diagonal))
                      .fill(Material::radialUnit(
                          {0.5f, 0.76f}, 1.1f,
                          {{0.0f, hex(0x0A4148)}, {1.0f, hex(0x010D10)}}))
@@ -2354,7 +2331,8 @@ struct TwoAdvancedV4 : sketch::Sketch {
                             box()
                                 .height(24)
                                 .padding(8, 0)
-                                .shape(chamfer(7, kTL | kBR))
+                                .shape(shapes::chamfered(
+                                    7, shapes::Corner::Diagonal))
                                 .fill(hex(0x2A0A0C))
                                 .stroke(stroke(1,
                                                Fill::color(alpha(kDust, 0.45f)),
@@ -2489,7 +2467,7 @@ struct TwoAdvancedV4 : sketch::Sketch {
         box()
             .width(260)
             .height(150)
-            .shape(chamfer(7, kTR | kBL))
+            .shape(shapes::chamfered(7, shapes::Corner::AntiDiagonal))
             .fill(hex(0x110303))
             .foreground(InsetBevel{kD5, {0, 0, 0, 0.6f}, 0, 1, 1})
             .child(box().left(Dim(12)).top(Dim(12)).width(236).height(96).child(
@@ -2504,13 +2482,13 @@ struct TwoAdvancedV4 : sketch::Sketch {
         box()
             .grow(1)
             .height(150)
-            .shape(chamfer(7, kTR | kBL))
+            .shape(shapes::chamfered(7, shapes::Corner::AntiDiagonal))
             .fill(hex(0x140404))
             .column()
             .padding(10)
             .gap(5)
             .foreground(InsetBevel{kD5, {0, 0, 0, 0.6f}, 0, 1, 1})
-            .foreground(Brackets{kD6, 9, 2, 3, 0xF})
+            .foreground(Brackets{kD6, 9, 2, 3, shapes::Corner::All})
             .child(
                 box()
                     .row()
@@ -2542,11 +2520,11 @@ struct TwoAdvancedV4 : sketch::Sketch {
         box()
             .width(310)
             .height(150)
-            .shape(chamfer(9, kTL | kBR))
+            .shape(shapes::chamfered(9, shapes::Corner::Diagonal))
             .fill(Material::linearUnit({0, 0}, {0, 1},
                                        {{0.0f, kD3}, {1.0f, hex(0x0C0202)}}))
             .foreground(InsetBevel{kD5, {0, 0, 0, 0.6f}, 5, 2, 1})
-            .foreground(Brackets{kD6, 12, 2, 5, 0xF})
+            .foreground(Brackets{kD6, 12, 2, 5, shapes::Corner::All})
             .row()
             .justify(Justify::Center)
             .alignItems(Align::Center)
