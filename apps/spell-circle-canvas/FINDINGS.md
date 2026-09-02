@@ -211,3 +211,45 @@ Assert once fixed: the test as written must complete — the three pixel
 assertions at pan 0, half a tile and a full tile — and the whole binary
 must run to its summary line inside the time every other compose test
 binary takes.
+
+## A pass's stamps are cooked inside the draw, every frame, on both tiers
+
+`world/frame/CpuGeometry.cpp`'s `drawStamps` and
+`world/diligent/Geometry.cpp`'s stamp block both call `cook(Stamped{...})`
+once per named point set per frame, inside the rasteriser. The device
+tier then mints a fresh artefact number per frame
+(`kStampArtefact | (gpu.frame << 8u)`) precisely so the upload cache
+cannot hold the result — so a stamped point set re-instances on the host
+and re-uploads its whole vertex buffer every frame, however still it is.
+
+Intended: a stamped set is formed once per distinct (cloud, stamp) and
+uploaded once, the way every other geometry artefact is. The stamping
+itself is a point operator — a Copy/Instance with a kernel, written into
+the device vertex buffer directly on the tier that has one, its host
+executor generated from the same Slang source — which is what removes
+both the re-cook and the artefact-id trick rather than caching around
+them.
+
+Assert once fixed: draw a pass whose point set does not change across
+three frames and count the instancings and the vertex-buffer uploads; the
+second and third frames must do neither. And: cook one chain through the
+stamping kernel and through the host executor and compare the vertex
+buffers bit for bit, the way the chain cook and the swept rings already
+are.
+
+## Two authoring verbs each mean two different random fields
+
+`points::jitter` (`mesh/pop/Modifiers.cpp`) walks one stateful
+`pcgUnitNext` sequence; `pop::Jitter` (`kernels/Pop.slang`) is stateless
+and seeds per index. `points::displaceNoise` sums three taps of
+`noise::value3` (a trilinear lattice); `pop::Noise` (`mesh/pop/Cook.cpp`)
+sums six library sines. Each pair carries one verb's name and answers
+with a different field, and nothing marks either half superseded.
+
+Intended: one verb, one field. The chain op is the current spelling and
+the pre-chain modifier is what a caller reaches for without a chain, so
+the modifier should be the op's arithmetic applied directly.
+
+Assert once fixed: displace the same cloud through the modifier and
+through a one-op chain and compare the points bit for bit, for both
+verbs.
