@@ -118,6 +118,7 @@ TEST(ComposeTexture, NoDeviceMeansNoDeviceImage) {
 
 TEST(ComposeTexture, ADeviceTakesTheSceneAndSaysWhereItStands) {
   namespace skia = sigil::skia;
+  namespace core = sigil::core;
   std::string error;
   const std::unique_ptr<core::hardware::GpuDevice> device =
       core::hardware::GpuDevice::createOwned(&error);

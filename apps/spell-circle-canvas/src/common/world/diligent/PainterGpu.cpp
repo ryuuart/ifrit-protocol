@@ -37,9 +37,11 @@ namespace render = ::sigil::geometry::mesh::render;
 namespace camera = ::sigil::geometry::mesh::camera;
 
 /** How many emitters one draw carries. It is the array the program
- *  declares; a style naming more is drawn with the first four, which is
- *  the same budget a frame's lights are gathered under. */
-constexpr size_t kLights = 4;
+ *  declares, and it is the same number the scaffold declares, because a
+ *  mesh drawn through the painter and the same mesh drawn as a body must
+ *  be lit by the same emitters. A style naming more is drawn with the
+ *  first eight. */
+constexpr size_t kLights = 8;
 
 /** THE EXECUTOR. Its device state is shared rather than held, so the
  *  value is copyable and two styles carrying copies of one runtime

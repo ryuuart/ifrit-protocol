@@ -50,8 +50,8 @@ uniform float4 uAmbient;
 /** Per emitter: the direction it TRAVELS in world space, and its colour
  *  already scaled by its intensity. `uShading.w` says how many of the
  *  four are lit. */
-uniform float4 uLightDir[4];
-uniform float4 uLightColor[4];
+uniform float4 uLightDir[8];
+uniform float4 uLightColor[8];
 /** x: specular strength; y: specular exponent; z: rim strength;
  *  w: how many emitters. */
 uniform float4 uShading;
@@ -114,7 +114,7 @@ float4 shadeVertex(VSIn input) {
   let v = normalizeP(-viewPos);
   float3 accum = uAmbient.rgb * base;
   let count = int(uShading.w);
-  for (int i = 0; i < 4; ++i) {
+  for (int i = 0; i < 8; ++i) {
     if (i >= count) break;
     let l = normalizeP(mul(uLightMatrix, float4(-uLightDir[i].xyz, 0.0)).xyz);
     let lambert = max(dotP(n, l), 0.0);
