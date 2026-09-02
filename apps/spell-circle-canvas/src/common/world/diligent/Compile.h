@@ -98,6 +98,13 @@ class SlangProgram : public material::Program {
  *  to compile, which is reported once. */
 const Compiled& scaffold(bool lit);
 
+/** THE SKY ITSELF, as one triangle over the whole target: the same
+ *  scaffold text, compiled at its other pair of entry points. It is a
+ *  pass rather than a body because a body would need a mesh, a placement
+ *  and a depth, and a sky has none of the three. Empty when it failed to
+ *  compile, which is reported once. */
+const Compiled& backdropProgram();
+
 /** THE MESH PAINTER'S PROGRAM: the one a draw with no material takes,
  *  whose three shading modes are a uniform rather than three builds.
  *  Empty when it failed to compile, which is reported once. */

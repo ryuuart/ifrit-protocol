@@ -25,11 +25,13 @@
  * key light. Each card's face turns through most of a right angle, which
  * is enough that the highlight lands somewhere on every one of them.
  *
- * NO GLASS. `transmission`, `ior` and `thickness` reach no body on
- * either tier: there is no environment to sample and no refraction, so a
- * glass card would be a tinted rectangle labelled glass. It is left out
- * until the lit body has an environment slot to sample by the reflected
- * view vector.
+ * NO GLASS, AND NO SKY. This set is lit by three lamps and nothing else,
+ * so `transmission`, `ior` and `thickness` have nothing to refract here:
+ * a glass card would be a tinted rectangle labelled glass. What glass
+ * needs is a panorama to bend, and the study of that is `reflection_lab`
+ * — which is also where the environment terms are read, because a card
+ * is the wrong shape to show a reflection and a sphere is the right
+ * one.
  *
  * THE TEXTURE SET IS GENERATED HERE, not read off the disk. A plate is a
  * function of the declaration, and what a machine happens to have under

@@ -135,6 +135,12 @@ void paintGeometry(const PassWork& work, const View& view, Targets& targets) {
     style = coverageStyle();
     drawSelection(*canvas, view, pass.selector(), style, /*flat=*/true);
   } else {
+    // THE SKY FIRST, where the set shows one: it stands behind every
+    // body in the frame, so it is painted before the first of them and
+    // nothing about it is a body's business.
+    render::drawBackdrop(*canvas, style.environment,
+                         view.camera.projection(viewportOf(view).width() > 0 ? viewportOf(view).width() / viewportOf(view).height() : 1.0f),
+                         view.camera.view(), viewportOf(view));
     const bool cull = work.realisation == Selection::Cull;
     for (const Draw& draw : view.draws) {
       if (!draw.mesh) continue;

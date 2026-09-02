@@ -5,8 +5,11 @@
 
 #include <sigilgeometry/mesh/render/Shading.h>
 
+#include <include/core/SkBitmap.h>
 #include <include/core/SkImageInfo.h>
 #include <include/core/SkPixmap.h>
+
+#include <glm/gtc/matrix_inverse.hpp>
 
 #include <map>
 #include <mutex>
@@ -117,6 +120,54 @@ glm::vec3 environmentIrradiance(const Environment& environment,
         (samplePanorama(environment.nextIrradiance, uv) - received) * fade;
   return received * environment.tint * environment.intensity *
          environment.diffuse;
+}
+
+void drawBackdrop(SkCanvas& canvas, const Environment& environment,
+                  const glm::mat4& projection, const glm::mat4& viewMatrix,
+                  SkSize viewport) {
+  if (!environment.valid() || environment.backdrop <= 0) return;
+  const int w = (int)viewport.width(), h = (int)viewport.height();
+  if (w <= 0 || h <= 0) return;
+
+  // The sky's own strength is not the specular dial, which belongs to
+  // what a surface MIRRORS; the panorama is read through the same
+  // function either way, so that dial is divided back out here.
+  Environment sky = environment;
+  sky.specular = 1;
+  sky.roughnessBias = 0;
+  const glm::mat4 rayMatrix = glm::inverse(projection);
+  const glm::mat3 worldFromView =
+      glm::transpose(glm::mat3(glm::inverseTranspose(glm::mat3(viewMatrix))));
+  const float blur = std::clamp(environment.backdropBlur, 0.0f, 1.0f);
+
+  SkBitmap picture;
+  if (!picture.tryAllocPixels(SkImageInfo::MakeN32Premul(w, h))) return;
+  for (int y = 0; y < h; ++y) {
+    uint32_t* row = picture.getAddr32(0, y);
+    // The camera's projection is authored for a CANVAS, whose second
+    // axis runs down the picture, so a pixel's row maps straight onto
+    // the clip coordinate rather than being turned over on the way.
+    const float ndcY = 2.0f * ((float)y + 0.5f) / (float)h - 1.0f;
+    for (int x = 0; x < w; ++x) {
+      const float ndcX = 2.0f * ((float)x + 0.5f) / (float)w - 1.0f;
+      const glm::vec4 onRay = rayMatrix * glm::vec4(ndcX, ndcY, 1.0f, 1.0f);
+      glm::vec3 view = glm::vec3(onRay / onRay.w);
+      // A view-space point in FRONT of the eye has a negative z. The
+      // homogeneous divide above can land on a negative w and answer
+      // the ray behind the eye instead, which puts the ground where the
+      // zenith is and nothing about a smooth sky would show it.
+      if (view.z > 0) view = -view;
+      const glm::vec3 ray = worldFromView * view;
+      const glm::vec3 radiance =
+          environmentRadiance(sky, ray, blur) * environment.backdrop;
+      const SkColor4f colour{std::clamp(radiance.x, 0.0f, 1.0f),
+                             std::clamp(radiance.y, 0.0f, 1.0f),
+                             std::clamp(radiance.z, 0.0f, 1.0f), 1.0f};
+      row[x] = colour.toSkColor();
+    }
+  }
+  picture.setImmutable();
+  canvas.drawImage(picture.asImage(), 0, 0);
 }
 
 }  // namespace sigil::geometry::mesh::render

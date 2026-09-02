@@ -303,6 +303,63 @@ void drawBody(Gpu& gpu, const glm::mat4& viewProj, const glm::mat4& view,
   context->DrawIndexed(draw);
 }
 
+/** THE SKY, drawn over the whole target before every body in it. It is a
+ *  pass and not a body because a body would need a mesh, a placement and
+ *  a depth, and a sky has none of the three: it is what is there when
+ *  nothing else is. */
+void drawBackdrop(Gpu& gpu, const View& view, const glm::mat4& projection,
+                  const glm::mat4& viewMatrix) {
+  const Environment& sky = view.environment;
+  if (!sky.valid() || sky.backdrop.intensity <= 0) return;
+  const Compiled& program = backdropProgram();
+  if (program.empty()) return;
+  dg::ITexture* panorama = gpu.environment(sky.map);
+  if (!panorama) return;
+  dg::ITexture* panoramaNext = gpu.environment(sky.next);
+  if (!panoramaNext) panoramaNext = panorama;
+  dg::ITexture* lobe = gpu.irradiance(sky.map);
+  dg::ITexture* lobeNext = gpu.irradiance(sky.next);
+  if (!lobeNext) lobeNext = lobe;
+
+  // The sky is opaque and stands behind everything, so it writes no
+  // depth and takes none: whatever is drawn after it covers it.
+  const PipelineKey key{&program, SkBlendMode::kSrc, false, false, true};
+  const Pipeline* pipeline = gpu.pipeline(key);
+  if (!pipeline) return;
+
+  Uniforms uniforms(program);
+  uniforms.set("uEnvTint", sky.tint.x * sky.intensity,
+               sky.tint.y * sky.intensity, sky.tint.z * sky.intensity,
+               std::clamp(sky.crossfade, 0.0f, 1.0f));
+  uniforms.set("uEnvDials", sky.diffuse, sky.specular, sky.roughnessBias,
+               (float)panorama->GetDesc().MipLevels);
+  uniforms.set("uBackdrop", sky.backdrop.intensity,
+               std::clamp(sky.backdrop.blur, 0.0f, 1.0f), 0.0f, 0.0f);
+  uniforms.set("uEnvMatrix",
+               glm::mat4(view.orientation *
+                         glm::transpose(glm::mat3(
+                             glm::inverseTranspose(glm::mat3(viewMatrix))))));
+  uniforms.set("uInvProj", glm::inverse(projection));
+
+  std::vector<dg::ITexture*> textures(program.textures.size(), nullptr);
+  for (size_t i = 0; i < program.textures.size(); ++i) {
+    const std::string& slot = program.textures[i];
+    if (slot == kEnvironmentSlots[0]) textures[i] = panorama;
+    else if (slot == kEnvironmentSlots[1]) textures[i] = panoramaNext;
+    else if (slot == kEnvironmentSlots[2]) textures[i] = lobe;
+    else if (slot == kEnvironmentSlots[3]) textures[i] = lobeNext;
+  }
+
+  dg::IDeviceContext* context = gpu.device->context();
+  context->SetPipelineState(pipeline->state);
+  bindAndCommit(gpu, *pipeline, program, uniforms, textures,
+                SkFilterMode::kLinear, false, &isEnvironmentSlot);
+  dg::DrawAttribs draw;
+  draw.NumVertices = 3;
+  draw.Flags = dg::DRAW_FLAG_VERIFY_ALL;
+  context->Draw(draw);
+}
+
 /** The frame's bodies, or the ones a selector leaves. */
 void drawBodies(Gpu& gpu, const View& view, const glm::mat4& viewProj,
                 const glm::mat4& viewMatrix, const Selector* only, bool lit,
@@ -352,6 +409,12 @@ void paintGeometry(Gpu& gpu, const PassWork& work, const View& view,
   }
 
   openTarget(gpu, colour, clear, true);
+  // The PROJECTION alone is what turns a pixel into a ray, and it is the
+  // clip transform with the view taken back out of it — the clip
+  // transform is where the target's aspect and the depth convention
+  // already are, so deriving it is what keeps the sky's rays and the
+  // bodies' positions answering to one camera.
+  drawBackdrop(gpu, view, viewProj * glm::inverse(viewMatrix), viewMatrix);
   const bool cull = work.realisation == Selection::Cull;
   drawBodies(gpu, view, viewProj, viewMatrix, cull ? &pass.selector() : nullptr,
              /*lit=*/true, nullptr);

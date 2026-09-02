@@ -83,6 +83,8 @@ SurfaceTerms surfaceTermsOf(const ::sigil::material::Material* material) {
   out.diffuse = environment.diffuse;
   out.specular = environment.specular;
   out.roughnessBias = environment.roughnessBias;
+  out.backdrop = environment.backdrop.intensity;
+  out.backdropBlur = environment.backdrop.blur;
   return out;
 }
 

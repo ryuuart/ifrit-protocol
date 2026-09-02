@@ -86,6 +86,11 @@ void Scene::draw(SkCanvas& canvas, const Camera& camera,
   style.environment =
       paintedEnvironment(impl.environment, impl.environmentOrientation);
 
+  // THE SKY FIRST, where the set shows one: it stands behind every body
+  // in the frame.
+  render::drawBackdrop(canvas, style.environment, camera.projection(viewport.width() > 0 ? viewport.width() / viewport.height() : 1.0f),
+                       camera.view(), viewport);
+
   std::vector<Draw> bodies;
   impl.collectBodies(camera, bodies);
   for (const Draw& body : bodies) {

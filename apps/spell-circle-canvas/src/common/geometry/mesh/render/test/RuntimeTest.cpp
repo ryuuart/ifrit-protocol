@@ -17,6 +17,7 @@
 #include <utility>
 #include <vector>
 
+#include "sigilgeometry/mesh/camera/Camera.h"
 #include "sigilgeometry/mesh/render/Painter.h"
 
 using namespace sigil::geometry::mesh;
@@ -187,4 +188,55 @@ TEST(Shading, AConstantPanoramaAnswersItsConstantFromEveryDirection) {
   const Environment none;
   EXPECT_FALSE(none.valid());
   EXPECT_EQ(environmentRadiance(none, {0, 0, -1}, 0).x, 0.0f);
+}
+
+TEST(Shading, TheBackdropPutsTheZENITHAtTheTOP) {
+  using namespace sigil::geometry::mesh::render;
+  // The one sky whose reading is legible from a single pixel: two
+  // hemispheres, two colours, a hard horizon. A tier that read the
+  // panorama's second axis the wrong way round would put the ground
+  // where the zenith is, and nothing about a smooth sky would show it.
+  const int w = 64, h = 32;
+  std::vector<float> px((size_t)w * h * 4);
+  for (int y = 0; y < h; ++y)
+    for (int x = 0; x < w; ++x) {
+      float* t = &px[((size_t)y * w + x) * 4];
+      t[0] = y < h / 2 ? 0.9f : 0.1f;
+      t[1] = 0.1f;
+      t[2] = y < h / 2 ? 0.1f : 0.9f;
+      t[3] = 1.0f;
+    }
+  const SkImageInfo info =
+      SkImageInfo::Make(w, h, kRGBA_F32_SkColorType, kPremul_SkAlphaType);
+  sk_sp<SkImage> panorama = SkImages::RasterFromPixmapCopy(
+      {info, px.data(), (size_t)w * 4 * sizeof(float)});
+  ASSERT_TRUE(panorama);
+
+  Environment sky;
+  sky.levels = {panorama};
+  sky.irradiance = panorama;
+  sky.backdrop = 1.0f;
+
+  sigil::geometry::mesh::camera::Camera camera;
+  camera.eye = {0, 0, 200};
+  camera.target = {0, 0, 0};
+  const SkSize viewport = SkSize::Make(120, 120);
+  SkBitmap plate;
+  plate.allocPixels(SkImageInfo::MakeN32Premul(120, 120));
+  SkCanvas canvas(plate);
+  canvas.clear(SK_ColorBLACK);
+  drawBackdrop(canvas, sky, camera.projection(1.0f), camera.view(), viewport);
+
+  const SkColor4f top = plate.getColor4f(60, 8);
+  const SkColor4f bottom = plate.getColor4f(60, 112);
+  EXPECT_GT(top.fR, top.fB) << "the zenith is red and it belongs at the top";
+  EXPECT_GT(bottom.fB, bottom.fR)
+      << "the nadir is blue and it belongs at the bottom";
+
+  // The strength is also the switch: a set that carries a panorama and
+  // shows none of it leaves the canvas as it was.
+  sky.backdrop = 0.0f;
+  canvas.clear(SK_ColorBLACK);
+  drawBackdrop(canvas, sky, camera.projection(1.0f), camera.view(), viewport);
+  EXPECT_EQ(plate.getColor4f(60, 8).fR, 0.0f);
 }

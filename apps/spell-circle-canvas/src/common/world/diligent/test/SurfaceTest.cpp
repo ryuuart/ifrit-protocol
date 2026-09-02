@@ -24,12 +24,14 @@
 #include <sigilworld/diligent/Device.h>
 #include <sigilworld/diligent/Import.h>
 #include <sigilworld/diligent/Runtime.h>
+#include <sigilmaterial/texture/EnvironmentMap.h>
 #include <sigilworld/scene/Scene.h>
 
 #include <cstring>
 #include <functional>
 #include <memory>
 #include <string>
+#include <vector>
 
 using namespace sigil;
 using namespace sigil::world;
@@ -302,4 +304,124 @@ TEST(SurfaceSlots, AnImportedNativeTextureLandsWhereARasterOneWould) {
   // refuses, is an empty value rather than a texture that lies.
   EXPECT_FALSE(
       world::diligent::importNative(*on.device, skia::NativeTexture{}).valid());
+}
+
+// ---- the environment map -------------------------------------------
+// A panorama both tiers sample, and the two questions a picture of one
+// has to answer: is it the right way up, and does it reach a body.
+
+namespace {
+
+/** A panorama whose two hemispheres are two colours, with a hard
+ *  horizon: the one sky whose reading is legible from a single pixel,
+ *  which is what makes an orientation testable at all. */
+material::EnvironmentMap hemispheres(SkColor4f above, SkColor4f below) {
+  constexpr int kWidth = 64, kHeight = 32;
+  std::vector<float> pixels((size_t)kWidth * kHeight * 4);
+  for (int y = 0; y < kHeight; ++y) {
+    const SkColor4f colour = y < kHeight / 2 ? above : below;
+    for (int x = 0; x < kWidth; ++x) {
+      float* px = &pixels[((size_t)y * kWidth + x) * 4];
+      px[0] = colour.fR;
+      px[1] = colour.fG;
+      px[2] = colour.fB;
+      px[3] = 1;
+    }
+  }
+  const SkImageInfo info = SkImageInfo::Make(
+      kWidth, kHeight, kRGBA_F32_SkColorType, kPremul_SkAlphaType);
+  return material::EnvironmentMap::fromEquirect(SkImages::RasterFromPixmapCopy(
+      {info, pixels.data(), (size_t)kWidth * 4 * sizeof(float)}));
+}
+
+/** A set carrying @p sky and nothing else — no body, no emitter — so
+ *  what a plate of it shows is the backdrop alone. */
+Frame skyAlone(const world::Environment& sky) {
+  Element root =
+      Element().key("set").child(Element().key("sky").environmentMap(sky));
+  Frame frame(root);
+  frame.extent(kExtent).camera(eye()).pass(
+      geometryPass("colour").writes("colour").clear(SkColors::kBlack));
+  return frame;
+}
+
+}  // namespace
+
+TEST(Environment, TheBackdropPutsTheZENITHAtTheTOP) {
+  const OnDevice on = onDevice();
+  if (!on) GTEST_SKIP() << on.error;
+  // v = 0 is the zenith, and a camera looking along -z from above the
+  // origin has the upper hemisphere in the upper half of its frame. A
+  // sky read with its second axis the wrong way round puts the ground
+  // where the zenith is and every reflection in the set with it, and
+  // nothing about a smooth panorama would show that.
+  world::Environment sky;
+  sky.map = hemispheres({0.9f, 0.1f, 0.1f, 1}, {0.1f, 0.1f, 0.9f, 1});
+  sky.backdrop.intensity = 1.0f;
+  const SkBitmap plate = photograph(skyAlone(sky), on.runtime);
+
+  const SkColor4f top = at(plate, 0.5f, 0.08f);
+  const SkColor4f bottom = at(plate, 0.5f, 0.92f);
+  EXPECT_GT(top.fR, top.fB) << "the zenith is red and it belongs at the top";
+  EXPECT_GT(bottom.fB, bottom.fR)
+      << "the nadir is blue and it belongs at the bottom";
+}
+
+TEST(Environment, ABackdropAtZeroStrengthDrawsNothing) {
+  const OnDevice on = onDevice();
+  if (!on) GTEST_SKIP() << on.error;
+  // The strength is also the switch, so there is no flag that can
+  // disagree with it: a set that carries a panorama and shows none of it
+  // stands against whatever the pass cleared to.
+  world::Environment sky;
+  sky.map = hemispheres({0.9f, 0.1f, 0.1f, 1}, {0.1f, 0.1f, 0.9f, 1});
+  const SkBitmap plate = photograph(skyAlone(sky), on.runtime);
+  EXPECT_LT(luma(at(plate, 0.5f, 0.08f)), 0.02f);
+  EXPECT_LT(luma(at(plate, 0.5f, 0.92f)), 0.02f);
+}
+
+TEST(Environment, AMirrorWearsTheSkyAndAMatteSurfaceIsLitByIt) {
+  const OnDevice on = onDevice();
+  if (!on) GTEST_SKIP() << on.error;
+  // What the test pins is the difference between a mirror and a matte
+  // surface under one sky, with no emitter anywhere in the set: the
+  // mirror takes the sky's own colour off its reflected view vector,
+  // the matte one keeps its albedo and is lit by what falls on it. A
+  // set with neither an emitter nor a sky would be black.
+  // A NEUTRAL sky, so what the matte surface shows is its own albedo:
+  // under a coloured one a green surface reads by the product of the
+  // two, which is a fact about multiplication and not about the tier.
+  world::Environment sky;
+  sky.map = hemispheres({0.8f, 0.8f, 0.8f, 1}, {0.8f, 0.8f, 0.8f, 1});
+
+  const auto photographWith = [&](const material::Material& surface) {
+    Element root = Element()
+                       .key("set")
+                       .child(Element().key("sky").environmentMap(sky))
+                       .child(Element()
+                                  .key("card")
+                                  .mesh(::sigil::geometry::mesh::quad(120, 120))
+                                  .fill(surface));
+    Frame frame(root);
+    frame.extent(kExtent).camera(eye()).pass(
+        geometryPass("colour").writes("colour").clear(SkColors::kBlack));
+    return photograph(frame, on.runtime);
+  };
+
+  material::kit::SurfaceParams mirror = material::kit::SurfaceParams::chrome();
+  mirror.baseColor = {1, 1, 1, 1};
+  const SkBitmap chrome = photographWith(material::kit::surface(mirror));
+  const SkBitmap matte = photographWith(material::kit::surface(
+      material::kit::SurfaceParams::dielectric({0.1f, 0.6f, 0.1f, 1}, 0.9f)));
+
+  const SkColor4f mirrored = at(chrome, 0.5f, 0.5f);
+  const SkColor4f diffuse = at(matte, 0.5f, 0.5f);
+  // The mirror wears the sky, which is neutral, so no channel of it
+  // stands out; the matte surface keeps its own green.
+  EXPECT_NEAR(mirrored.fR, mirrored.fG, 0.05f);
+  EXPECT_GT(diffuse.fG, diffuse.fR + 0.05f);
+  // And the sky reaches them both — a body under a lit sky with no
+  // emitter in the set is not black.
+  EXPECT_GT(luma(diffuse), 0.02f);
+  EXPECT_GT(luma(mirrored), 0.02f);
 }

@@ -111,6 +111,15 @@ uniform float4x4 uEnvMatrix;
 /** rgb: the strength and tint every sample is multiplied by;
  *  a: how far along the crossfade to the second map. */
 uniform float4 uEnvTint;
+/** THE BACKDROP'S OWN DIALS, for the pass that DRAWS the sky rather than
+ *  shades a body with it. x: its strength, which is also its switch —
+ *  at zero nothing is drawn, so there is no flag that can disagree with
+ *  a number. y: how blurred it is shown, in the same roughness units a
+ *  reflection reads, so racking a sky out of focus costs nothing. */
+uniform float4 uBackdrop;
+/** The projection's inverse, which turns a point on the near plane into
+ *  the direction the eye is looking through it. */
+uniform float4x4 uInvProj;
 /** x: the diffuse side's own scale; y: the specular side's;
  *  z: added to every surface's roughness; w: how many levels the chain
  *  has — and zero, which is a frame with no environment at all. */
@@ -380,3 +389,50 @@ float4 shade(float4 surface, VSOut input) {
 float4 fsFlat(VSOut input) : SV_Target {
   return shade(surfaceFlat(input.uv), input);
 }
+
+#ifdef SIGIL_LIT
+// ---- THE SKY ITSELF ------------------------------------------------
+// One triangle over the whole target, drawn before every body in the
+// frame, with each pixel reading the panorama along the ray the eye
+// looks through it. It is a separate pass and not a body because a body
+// would need a mesh, a placement and a depth, and a sky has none of the
+// three: it is what is there when nothing else is.
+
+struct BackdropOut {
+  float4 position : SV_Position;
+  /** Where on the near plane this pixel stands, in clip coordinates. */
+  float2 ndc : TEXCOORD0;
+};
+
+[shader("vertex")]
+BackdropOut vsBackdrop(uint vertex : SV_VertexID) {
+  // One oversized triangle rather than two: no shared edge to seam and
+  // no vertex buffer to bind.
+  BackdropOut out;
+  out.ndc = float2((vertex == 2) ? 3.0 : -1.0, (vertex == 1) ? 3.0 : -1.0);
+  out.position = float4(out.ndc, 0.0, 1.0);
+  return out;
+}
+
+[shader("fragment")]
+float4 fsBackdrop(BackdropOut input) : SV_Target {
+  if (uBackdrop.x <= 0.0 || uEnvDials.w <= 0.0) discard;
+  // The direction the eye looks through this pixel, in the space the
+  // shading is written in — which is the space `environmentAt` takes.
+  // THE RAY THROUGH THIS PIXEL, in the space the shading is written in.
+  // The depth this renderer clips in is REVERSED — the near plane is at
+  // one — so the point named here stands on it, which is the same ray a
+  // far point stands on and is what this pass wants.
+  let onRay = mul(uInvProj, float4(input.ndc, 1.0, 1.0));
+  var ray = normalizeP(onRay.xyz / onRay.w);
+  // A view-space point in front of the eye has a negative z; a
+  // homogeneous divide by a negative w would answer the ray behind it.
+  if (ray.z > 0.0) ray = -ray;
+  let sky = environmentAt(ray, uBackdrop.y) * uBackdrop.x;
+  // The specular dial belongs to what a surface mirrors and not to what
+  // the sky IS, so it is divided back out here.
+  let scale = uEnvDials.y > 0.0 ? 1.0 / uEnvDials.y : 0.0;
+  let rgb = saturateP(sky * scale);
+  return float4(rgb, 1.0);
+}
+#endif

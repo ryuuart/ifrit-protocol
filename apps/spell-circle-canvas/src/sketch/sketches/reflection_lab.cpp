@@ -14,11 +14,16 @@
  * That is what makes the study readable — a still picture of a mirror
  * says nothing about which way the mirror is facing.
  *
- * TWO SKIES, CROSSFADED. The study runs from the neutral studio bake to
- * the sunset one over its own duration, so the same four surfaces are
- * seen under two very different environments without the row moving. A
- * crossfade samples both maps and mixes; it does not rebuild one, which
- * is what lets it run while the frame is running.
+ * TWO SKIES, CROSSFADED. The row stands under a mix of the neutral
+ * studio bake and the sunset one, so what every surface reflects is
+ * something neither panorama holds. A crossfade samples both maps and
+ * mixes; it does not rebuild one, which is what lets it move while the
+ * frame is running. It is HELD at one value here rather than ramping,
+ * because a dial that moves with the time is photographed at whatever
+ * value each lane's own route to the capture reached, and two plates of
+ * one description have to be pictures of the same moment. The turn of
+ * the sky is what moves, and a transform is the same transform on
+ * either tier.
  *
  * WHAT EACH TIER SAYS. Both tiers compute the same terms — the cosine
  * convolution for what falls on a surface, the split sum for what it
@@ -44,7 +49,6 @@
 #include <sigilsketch/set/Set.h>
 #include <sigilworld/kit/Kit.h>
 
-#include <cmath>
 #include <glm/vec3.hpp>
 #include <string_view>
 
@@ -145,10 +149,15 @@ struct ReflectionLab final : sketch::Set {
                        .key("sky")
                        .environmentMap(sky)
                        .rotateY(seconds * 26.0f)
-                       // One pass from the studio bake to the sunset one
-                       // and back, so a plate taken anywhere in the loop
-                       // is a picture of two skies mixing.
-                       .crossfade(0.5f - 0.5f * std::cos(seconds * 0.9f))
+                       // HELD, not ramping. Both maps are sampled and
+                       // mixed at this value, which is what the dial
+                       // does; moving it with the time would photograph
+                       // at two different values on two lanes that
+                       // reach their capture by different routes, and
+                       // the tiers would stop being comparable pictures
+                       // of one description. The SKY'S TURN is what
+                       // moves here, and it is a transform.
+                       .crossfade(0.45f)
                        // The backdrop is shown, softly, so the row is
                        // read against the sky it is reflecting rather
                        // than against a flat ground.

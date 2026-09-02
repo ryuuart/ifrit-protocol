@@ -20,12 +20,15 @@
  * reads as facets where a device reads as a curve.
  */
 
+#include <include/core/SkCanvas.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkRefCnt.h>
+#include <include/core/SkSize.h>
 
 #include <algorithm>
 #include <cmath>
 #include <glm/mat3x3.hpp>
+#include <glm/mat4x4.hpp>
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 #include <vector>
@@ -58,6 +61,11 @@ struct Environment {
   float diffuse = 1;
   float specular = 1;
   float roughnessBias = 0;
+  /** THE SKY SHOWN behind the set, at this strength — zero draws none of
+   *  it, so the dial is also the switch — and blurred by this much, in
+   *  the same roughness units a reflection reads. */
+  float backdrop = 0;
+  float backdropBlur = 0;
 
   bool valid() const { return !levels.empty() || irradiance != nullptr; }
 };
@@ -164,5 +172,19 @@ glm::vec3 environmentRadiance(const Environment& environment,
  *  when the environment carries none. */
 glm::vec3 environmentIrradiance(const Environment& environment,
                                 glm::vec3 normal);
+
+/** THE SKY ITSELF, painted over the whole of @p canvas before anything
+ *  stands in front of it: every pixel reads the panorama along the ray
+ *  the eye looks through it. @p projection is the camera's own, without
+ *  the view in it, and @p viewMatrix is what carries a direction back
+ *  out of the space the shading is written in.
+ *
+ *  It is a fill and not a body because a body would need a mesh, a
+ *  placement and a depth, and a sky has none of the three: it is what is
+ *  there when nothing else is. Does nothing where the environment is
+ *  empty or its backdrop strength is zero. */
+void drawBackdrop(SkCanvas& canvas, const Environment& environment,
+                  const glm::mat4& projection, const glm::mat4& viewMatrix,
+                  SkSize viewport);
 
 }  // namespace sigil::geometry::mesh::render

@@ -265,6 +265,21 @@ const Compiled& scaffold(bool lit) {
   return lit ? shaded : plain;
 }
 
+const Compiled& backdropProgram() {
+  static const Compiled built = [] {
+    Compiled program;
+    std::string error;
+    // The LIT build, always: the sky's uniforms are the lit scaffold's,
+    // and a build with no lighting in it does not declare them.
+    if (!compileModule(slangmodule::Surface::kSource, "vsBackdrop",
+                       "fsBackdrop", /*lit=*/true, &program, &error))
+      material::reportOnce("world.diligent.backdrop",
+                           "the sky pass did not compile: " + error);
+    return program;
+  }();
+  return built;
+}
+
 const Compiled& painterProgram() {
   static const Compiled built = [] {
     Compiled program;
