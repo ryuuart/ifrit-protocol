@@ -301,12 +301,17 @@ void knuthPlassBlock(FontContext& fontContext, Paragraph& paragraph,
   // could be placed), reports whether the lifeline ever had to force an
   // overfull line, and — when the geometry ran out before the text did —
   // the first word that no longer fit.
-  // THE MEASURE THE BREAKER FITS AGAINST, which is the interval's own
-  // until a balanced block narrows it (see the search below). Placement
-  // never sees it: a balanced line is broken short and then set in the
-  // interval it actually landed in, so a centred block stays centred on
-  // the real measure.
-  float measureCap = std::numeric_limits<float>::max();
+  // WHAT A BALANCED BLOCK NARROWS BY, as a fraction of each interval's own
+  // length (see the search below); 1 is every interval at its full width,
+  // which is what an unbalanced block is broken against. It is a FRACTION
+  // and not a width because a line an exclusion cut short is already
+  // shorter than the rest and taking the same number of pixels off both
+  // would tighten it by more of itself: an even rag over unequal lines is
+  // every line giving up the same PROPORTION. Placement never sees it —
+  // a balanced line is broken short and then set in the interval it
+  // actually landed in, so a centred block stays centred on the real
+  // measure.
+  float balanceFraction = 1.0f;
 
   auto runPass = [&](bool useEmergencyStretch, bool& forcedOverfull,
                      uint32_t& firstUnplacedWord) -> int32_t {
@@ -359,9 +364,9 @@ void knuthPlassBlock(FontContext& fontContext, Paragraph& paragraph,
           continue;
         }
         const uint32_t lineStart = node.breakAt;
-        const float measure = std::min(
-            liveMeasure ? *liveMeasure : lineInterval->interval.length,
-            measureCap);
+        const float measure =
+            (liveMeasure ? *liveMeasure : lineInterval->interval.length) *
+            balanceFraction;
         float natural = lineNatural(lineStart, breakIndex);
         float stretch = lineStretch(lineStart, breakIndex);
         float shrink = lineShrink(lineStart, breakIndex);
@@ -577,12 +582,14 @@ void knuthPlassBlock(FontContext& fontContext, Paragraph& paragraph,
   //
   // The search is a bisection over that narrowing, and it is bounded: a
   // fixed number of steps, each one full pass over a block that asked to be
-  // balanced. TWO APPROXIMATIONS REMAIN. The narrowing is ONE number
-  // applied to every interval, so a block whose lines differ in length — an
-  // exclusion cut into it, a contour it rides — is balanced by a single
-  // reduction rather than per line. And the bisection stops at a fraction
-  // of the measure rather than at the exact width where the line count
-  // turns over, so the last sliver of slack survives.
+  // balanced. The narrowing is a FRACTION of each interval's own length, so
+  // a block an exclusion cut into unequal lines gives up the same
+  // proportion of every one of them rather than the same number of pixels;
+  // over a uniform measure — the ordinary case, and the only one a live
+  // block ever has — the two are the same search. ONE APPROXIMATION
+  // REMAINS: the bisection stops after a fixed number of steps rather than
+  // at the exact fraction where the line count turns over, so the last
+  // sliver of slack survives.
   if (balance && best >= 0 && firstUnplacedWord == ~0u) {
     const auto lineCountOf = [&](int32_t node) {
       int lines = 0;
@@ -591,10 +598,12 @@ void knuthPlassBlock(FontContext& fontContext, Paragraph& paragraph,
       return lines;
     };
     const int target = lineCountOf(best);
-    float widest = liveMeasure.value_or(0.0f);
+    // A block with one line has nothing to even out, and one with no
+    // measure at all has nothing to narrow.
+    float anyMeasure = liveMeasure.value_or(0.0f);
     for (const FlatInterval& flat : intervalSequence.flattened())
-      widest = std::max(widest, flat.interval.length);
-    if (target > 1 && widest > 0) {
+      anyMeasure = std::max(anyMeasure, flat.interval.length);
+    if (target > 1 && anyMeasure > 0) {
       // The breaks the search will keep, remembered outside the arena the
       // next pass clears.
       BreakList keptBreaks;
@@ -607,9 +616,9 @@ void knuthPlassBlock(FontContext& fontContext, Paragraph& paragraph,
       };
       constexpr int kBisectionSteps = 8;
       float tooNarrow = 0;
-      float wideEnough = widest;
+      float wideEnough = 1.0f;
       for (int step = 0; step < kBisectionSteps; ++step) {
-        measureCap = (tooNarrow + wideEnough) * 0.5f;
+        balanceFraction = (tooNarrow + wideEnough) * 0.5f;
         bool narrowedOverfull = false;
         uint32_t narrowedUnplaced = ~0u;
         const int32_t narrowed =
@@ -618,13 +627,13 @@ void knuthPlassBlock(FontContext& fontContext, Paragraph& paragraph,
         // leaves text behind is one step too far.
         if (narrowed >= 0 && !narrowedOverfull && narrowedUnplaced == ~0u &&
             lineCountOf(narrowed) == target) {
-          wideEnough = measureCap;
+          wideEnough = balanceFraction;
           rememberBreaks(narrowed);
         } else {
-          tooNarrow = measureCap;
+          tooNarrow = balanceFraction;
         }
       }
-      measureCap = std::numeric_limits<float>::max();
+      balanceFraction = 1.0f;
       if (!keptBreaks.empty()) {
         // Placement below walks the arena from `best`; the balanced answer
         // is a break list of its own, so it is handed over directly.

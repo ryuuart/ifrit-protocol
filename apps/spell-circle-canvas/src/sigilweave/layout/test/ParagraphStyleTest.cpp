@@ -838,6 +838,39 @@ TEST(Keeps, AWidowIsCountedInTheLinesTheNextFrameWouldGet) {
   EXPECT_EQ(placedLines(2), total - 2);
 }
 
+TEST(Keeps, AWidowIsCountedAtTheMeasureTheNextFrameSetsIn) {
+  FontContext& fonts = sharedContext();
+  const std::u8string body =
+      u8"One block long enough to fill several lines of a narrow frame and "
+      u8"leave a short remainder behind it.";
+  Paragraph measured = makeParagraph(body, 16.0f);
+  BlockFlow open(SkRect::MakeWH(150, 600));
+  const int total = layoutParagraph(fonts, measured, open).lineCount;
+  ASSERT_GT(total, 3);
+
+  // The remainder is what the NEXT frame will set, so how many lines it
+  // takes is a fact about the next frame's measure. A chain that widens
+  // hands the remainder fewer lines than this frame would have given it,
+  // and a widow rule counting at this frame's measure over-counts and
+  // retracts a line it did not need to.
+  const auto placedLines = [&](float nextMeasure) {
+    Paragraph paragraph = makeParagraph(body, 16.0f);
+    BlockFlow flow(SkRect::MakeWH(150, 600));
+    ParagraphLayoutOptions options = framedTo(total - 2);
+    options.nextMeasure = nextMeasure;
+    ParagraphStyle style;
+    style.keep.widowLines = 2;
+    options.blocks = {style};
+    return layoutParagraph(fonts, paragraph, flow, options).lineCount;
+  };
+  // Two lines carry over at this frame's own measure, which the rule
+  // already accepts, so nothing is retracted either way — and a next frame
+  // wide enough to take those two lines as one leaves a single widow, so
+  // the rule pulls a line back to join it.
+  EXPECT_EQ(placedLines(0), total - 2);
+  EXPECT_EQ(placedLines(600.0f), total - 3);
+}
+
 // ── Balanced ragged lines ─────────────────────────────────────────────────
 
 namespace {
@@ -896,6 +929,41 @@ TEST(Balance, ABalancedBlockIsSetInTheNarrowestMeasureThatKeepsItsLineCount) {
     return *high - *low;
   };
   EXPECT_LT(spread(balanced), spread(loose));
+  EXPECT_LE(*std::max_element(balanced.begin(), balanced.end()),
+            *std::max_element(loose.begin(), loose.end()) + 0.5f);
+}
+
+TEST(Balance, ABlockCutIntoUnequalLinesGivesUpAProportionOfEachOfThem) {
+  FontContext& fonts = sharedContext();
+  // The narrowing is a FRACTION of each interval's own length, so a line an
+  // exclusion already cut short is not asked for the same number of pixels
+  // as a full-width one. What has to hold either way: the block keeps its
+  // line count, places all its text, and every line still fits the room it
+  // was given.
+  const std::u8string text =
+      u8"A caption of several words set beside a figure it has to flow "
+      u8"around, wanting an even rag under the cut";
+  const auto fillWith = [&](bool balance) {
+    Paragraph paragraph = makeParagraph(text, 15.0f);
+    ExclusionFlow flow(SkRect::MakeWH(300, 400));
+    flow.shapes().push_back(
+        {ExclusionFlow::Shape::kRect, SkRect::MakeXYWH(200, 0, 100, 60), 0});
+    ParagraphLayoutOptions options;
+    options.lineBreakStrategy = LineBreakStrategy::kKnuthPlass;
+    ParagraphStyle style;
+    style.balanceRaggedLines = balance;
+    options.blocks = {style};
+    const ParagraphLayout layout =
+        layoutParagraph(fonts, paragraph, flow, options);
+    EXPECT_FALSE(layout.overflowed());
+    return std::make_pair(layout.lineCount, lineWidths(layout, paragraph));
+  };
+  const auto [looseLines, loose] = fillWith(false);
+  const auto [balancedLines, balanced] = fillWith(true);
+  ASSERT_GE(loose.size(), 3u);
+  EXPECT_EQ(looseLines, balancedLines);
+  ASSERT_EQ(loose.size(), balanced.size());
+  for (const float width : balanced) EXPECT_LE(width, 300.0f);
   EXPECT_LE(*std::max_element(balanced.begin(), balanced.end()),
             *std::max_element(loose.begin(), loose.end()) + 0.5f);
 }

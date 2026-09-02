@@ -1248,13 +1248,16 @@ struct PlacedBlock {
 /** How many lines the words in `[first, end)` would take at `measure`,
  *  counted no further than `cap`.
  *
- *  It is a greedy fit at ONE measure and nothing else: the frame that will
- *  hold these words is not this fill's to ask, so the count is taken at the
- *  measure the last line of THIS frame was set in. Two frames of the same
- *  width — the ordinary chain — count the same either way; a chain that
- *  narrows counts a line or two short. Counting stops at `cap` because
- *  every caller only asks whether the remainder REACHES a number, and
- *  stopping there is what keeps the tail of a long block unshaped. */
+ *  It is a greedy fit at ONE measure and nothing else. The measure is the
+ *  NEXT frame's where the caller stated one
+ *  (`ParagraphLayoutOptions::nextMeasure`) and the measure this frame's
+ *  last line was set in otherwise, which is the same number for a chain of
+ *  equal frames and the honest fallback when nobody holds the chain. The
+ *  FIT stays greedy even for a block the optimizing breaker set, so a
+ *  remainder whose hyphens or demerits would have bought it a line comes
+ *  out a line long. Counting stops at `cap` because every caller only asks
+ *  whether the remainder REACHES a number, and stopping there is what
+ *  keeps the tail of a long block unshaped. */
 int remainderLines(FontContext& fontContext, Paragraph& paragraph,
                    uint32_t first, uint32_t end, float measure, int cap) {
   if (first >= end || measure <= 0 || cap <= 0) return 0;
@@ -1295,8 +1298,8 @@ int remainderLines(FontContext& fontContext, Paragraph& paragraph,
  *  Returns the depth the retracted lines had occupied, which the frame's
  *  vertical distribution must not spend. */
 float enforceKeeps(FontContext& fontContext, Paragraph& paragraph,
-                   const std::vector<PlacedBlock>& placed, float lastMeasure,
-                   ParagraphLayout& result) {
+                   const std::vector<PlacedBlock>& placed,
+                   float remainderMeasure, ParagraphLayout& result) {
   if (!result.overflowed() || placed.empty()) return 0;
 
   float depthFreed = 0;
@@ -1340,7 +1343,8 @@ float enforceKeeps(FontContext& fontContext, Paragraph& paragraph,
     } else if (keep.widowLines > 0) {
       const int carried =
           remainderLines(fontContext, paragraph, result.firstUnplacedWord,
-                         last.block->endWord, lastMeasure, keep.widowLines);
+                         last.block->endWord, remainderMeasure,
+                         keep.widowLines);
       retractLines = keep.widowLines - carried;
       // Every line pulled back out of this frame is a line the next frame
       // gains, so what the block keeps here must still satisfy its own
@@ -1654,7 +1658,9 @@ ParagraphLayout layoutParagraph(FontContext& fontContext, Paragraph& paragraph,
   }
 
   const float depthFreed =
-      enforceKeeps(fontContext, paragraph, placedBlocks, lastMeasure, result);
+      enforceKeeps(fontContext, paragraph, placedBlocks,
+                   options.nextMeasure > 0 ? options.nextMeasure : lastMeasure,
+                   result);
   result.lineCount = lastLineUsed + 1;
   if (depthFreed > 0) {
     int highestLine = -1;

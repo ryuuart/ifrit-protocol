@@ -617,6 +617,17 @@ struct ParagraphLayoutOptions {
   /// may reserve more.
   ReservedBand reserved;
 
+  /// THE MEASURE THE NEXT FRAME OF THE CHAIN SETS IN, for the one keep
+  /// that has to count lines this frame will not hold. The widow rule asks
+  /// how many lines the remainder takes, and the remainder is set in the
+  /// NEXT frame's measure, which this fill has no other way to learn: only
+  /// whoever holds the chain knows what comes after. 0 says nothing is
+  /// known and the count is taken at the measure this frame's last line
+  /// was set in, which is exact for a chain of equal frames and off by the
+  /// difference for one that changes width. Every other keep is settled
+  /// from lines this frame placed and never reads it.
+  float nextMeasure = 0;
+
   /// Which characters may not stand at a line's edge (kinsoku shori). A
   /// prohibition is settled during SEGMENTATION — the boundary is simply
   /// not opened — so no breaker knows the rule and both of them obey it.
