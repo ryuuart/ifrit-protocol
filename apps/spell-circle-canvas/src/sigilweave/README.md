@@ -654,7 +654,7 @@ typesetter reaches for, not what a file format carries.
 | Composer: balance ragged lines | done — a bisection for the narrowest measure that keeps the line count, with the last line scored like every other. Two APPROXIMATIONS remain: the narrowing is one number applied to every interval, so a block an exclusion cut into unequal lines is balanced by a single reduction; and the bisection stops at a fraction of the measure rather than at the exact width where the count turns over | `ParagraphStyle::balanceRaggedLines` |
 | Optical margin alignment (hanging punctuation) | done | `HangingTable`, `kit::hanging` |
 | Drop caps: lines × characters | done as compose kit | `kit::dropCap` |
-| Drop caps: nested style | **not started** | — |
+| Drop caps: nested style | done as compose kit — the run stated in the text's own terms (words, a character count, or through a delimiter) and applied as a span restyle | `kit::NestedStyle`, `kit::nestedRun`, `kit::dropCap` |
 | Bullets and numbering | done as compose kit | `kit::bullets` |
 | Tabs: position, leaders, alignment on a character | done | `TabStop` |
 | Paragraph rules above / below, shading | done as compose kit | `kit::rules` |
@@ -678,7 +678,7 @@ typesetter reaches for, not what a file format carries.
 | Text wrap: jump object, wrap to one side | **not started** | — |
 | Anchored objects: inline | exists | `Placeholder`, `RichText::slot` |
 | Anchored objects: above line | done, for a READING — a band reserved above the line and filled with set text | compose `Element::annotate` |
-| Anchored objects: custom position | **not started** | — |
+| Anchored objects: custom position | done as compose kit — an object tied to a text unit and placed at an offset the caller states, with the x and y references named separately (the unit, its line, or the frame) | compose `kit::annotate` with `kit::Anchored` |
 | Type on a path: orient, flip, start / end, align | exists | `PathFlow`, compose `onPath` |
 | Type on a path: effects (skew, stair, gravity) | **not started** | — |
 | CJK: tate-chu-yoko | exists | `VerticalForm::kTateChuYoko` |
