@@ -159,6 +159,41 @@ The canvas runtime is retained-mode, not a redraw loop:
    and let the reconciler diff it. Do not re-render every frame out of
    habit — bindings are cheaper.
 
+The first path is the one most sketches reach for last, because the
+familiar move is a ticker lambda that computes a position and writes it
+into an Output. A **shaped bound Output** does that at declaration time
+instead: one Output carries the clock, and every value derived from it is
+a named envelope on the property that reads it.
+
+```cpp
+ch::Output<float> clock{0};                       // the only thing ticking
+ctx.ticker.add([this, t = 0.0](double dt) mutable {
+  t += dt;
+  clock = (float)t;
+  return true;
+});
+
+// hold, glide down over five seconds, hold, four seconds back — the four
+// corners are positions in one 14 s cycle, and the ease rounds both
+// shoulders without moving them
+list.translateY(bind(&clock)
+                    .source(0, 14.0f)
+                    .trapezoid(3 / 14.f, 8 / 14.f, 9 / 14.f, 13 / 14.f)
+                    .map(ch::easeInOutQuad)
+                    .target(0, -overflow));
+
+// one second lit out of every eight, starting at 2 s: a pulse, folded on
+// its own period, so it repeats for as long as the clock runs
+button.opacity(bind(&clock).source(2.0f, 10.0f).square(1.0f / 8.0f));
+```
+
+`cosine()` is the swell, `pingPong()` the there-and-back, `trapezoid()`
+the loop envelope that can cut while it is dark, `square()` the pulse,
+and `wave()` takes a shape of your own. Each replaces the `std::sin`,
+`std::fmod` or four-branch `if` ladder a ticker lambda would otherwise
+carry, and the value is then a declared property the reconciler can
+prune on rather than a write nobody can compare.
+
 Keep state in members. Every reload constructs a fresh instance, so a
 reload restarts the piece from zero: the entrance you are editing plays
 again.
