@@ -176,6 +176,7 @@
 #include <array>
 #include <cmath>
 #include <cstdio>
+#include <cstring>
 #include <memory>
 #include <string>
 #include <vector>
@@ -275,17 +276,27 @@ inline sk_sp<SkTypeface> face(const char* family, int weight,
   if (!f) f = mgr->matchFamilyStyle(nullptr, SkFontStyle::Normal());
   return f;
 }
-/** font 101 substitute — a squarish near-monospace. */
+/** font 101 substitute — a squarish PROPORTIONAL face.
+ *
+ *  font101.aaf is proportional: `fontGetStringWidth()` sums glyphWidth +
+ *  letterSpacing per glyph, and no monospace can match that. A monospace
+ *  substitute runs every label column about forty per cent wide — "Energy
+ *  Weapons" stops short of the middle of the card in the capture and
+ *  nearly reaches it when every glyph takes an M's advance — and that
+ *  changes the whole density of the sheet, which is the one thing a
+ *  reconstruction of a LAYOUT cannot afford. It costs nothing in geometry:
+ *  every value column is at an absolute x, so a shorter label simply ends
+ *  sooner. */
 inline const sk_sp<SkTypeface>& bodyFace() {
   static sk_sp<SkTypeface> f =
-      face("Andale Mono", SkFontStyle::kNormal_Weight,
-           SkFontStyle::kNormal_Width, "Menlo", "PT Mono");
+      face("Verdana", SkFontStyle::kNormal_Weight, SkFontStyle::kNormal_Width,
+           "DejaVu Sans", "Helvetica");
   return f;
 }
 inline const sk_sp<SkTypeface>& bodyBold() {
   static sk_sp<SkTypeface> f =
-      face("Andale Mono", SkFontStyle::kBold_Weight, SkFontStyle::kNormal_Width,
-           "Menlo", "PT Mono");
+      face("Verdana", SkFontStyle::kBold_Weight, SkFontStyle::kNormal_Width,
+           "DejaVu Sans", "Helvetica");
   return f;
 }
 /** The engraved gold: plaques, tabs, buttons, S.P.E.C.I.A.L. caps. */
@@ -343,17 +354,18 @@ inline float& engravedCondense() {
   static float v = 0.84f;
   return v;
 }
-/** Original px the body face advances per character.
+/** Original px the body face advances per character, ON AVERAGE.
  *
- *  Fallout's font 101 is PROPORTIONAL, not monospaced — fontGetStringWidth()
- *  sums glyphWidth + letterSpacing per glyph — so no single advance can match
- *  it. Measured off the capture's ten derived-stat labels: 752 px of ink over
- *  119 characters, i.e. ~6.4 px of advance. But "Critical Chance" is 15
- *  characters and its VALUE column starts at x = 288, only 94 px away, so a
- *  6.4 px monospace collides with its own value. 6.15 is the widest advance
- *  that keeps every row inside its column — the compromise a monospaced
- *  substitute forces, stated rather than hidden. */
-constexpr float kBodyAdvance = 6.15f;
+ *  Measured off the capture's ten derived-stat labels: 752 px of ink over
+ *  119 characters, i.e. 6.32 px per character. With a proportional
+ *  substitute that is what it should be — a MEAN, not a cell — and the
+ *  size is solved so the same sample string measures that width. The
+ *  figure sits a little under the measurement because the substitute's
+ *  own letterforms are wider than font101's at the same mean: 5.80 is
+ *  where "Critical Chance" clears its value column at x = 288 and the
+ *  skill rows clear the +/- buttons, which is the constraint the
+ *  measurement has to survive. */
+constexpr float kBodyAdvance = 5.80f;
 inline float bodySize() { return n(kBodyAdvance) / bodyEm(); }
 
 /** The distance from a laid-out line's TOP to the top of its capitals, in
@@ -866,9 +878,13 @@ struct Fallout2CharSheet : sketch::Sketch {
     // Sampled off the capture: the plate sits between #302820 and #383020 with
     // lit facets up to #483828 — a narrow band, so the ramp is shallow and the
     // grain does the work.
+    // ON THE SAMPLED BAND, not a stop over it. The plate reads dark grimy
+    // olive-steel on the capture and a fifth of a stop lighter turns it
+    // into painted card, which is most of what made this sheet read warm
+    // and flat beside the reference.
     plateMat = Material::linearUnit(
         {0, 0}, {0.15f, 1},
-        {{0.0f, hex(0x4A4030)}, {0.40f, hex(0x3A3222)}, {1.0f, hex(0x322A1C)}});
+        {{0.0f, hex(0x483828)}, {0.40f, hex(0x383020)}, {1.0f, hex(0x302820)}});
     plateTooth = patterns::grain(0.22f, 3, 11.0f, 0.65f, 1.0f);
     rustMat = Material::blend({{Material::solid(kRust), SkBlendMode::kSrcOver},
                                {patterns::grain(0.0075f, 3, 5.0f, 1.35f, 1.0f),
@@ -911,7 +927,12 @@ struct Fallout2CharSheet : sketch::Sketch {
    *  bevel, and rivets at the corners. shapes::inset is literally "the same
    *  keyline again N px further in", which is this chrome's whole vocabulary.
    */
-  Element well(fo::Rect r, float radius = 3.0f, bool rivets = true) {
+  /** THE RIVETS ARE THE PLATE'S, NOT EVERY WELL'S. On the capture only the
+   *  outer plate carries corner rivets; a well is a recess cut into it and
+   *  a recess has no fasteners of its own. Five wells wearing four rivets
+   *  each is twenty studs the sheet does not have, and they are the
+   *  brightest small marks on it. */
+  Element well(fo::Rect r, float radius = 3.0f, bool rivets = false) {
     using namespace fo;
     Element e = atR(box(), r).corners(Corners{n(radius)}).fill(wellMat);
     e.background(styles::dropShadow(hex(0x000000, 0.55f), {0, n(1)}, n(2)));
@@ -1045,19 +1066,15 @@ struct Fallout2CharSheet : sketch::Sketch {
                         .child(t(glyph, fo::type(digitFace(), n(20.0f), kDigit,
                                                  0, 0.98f))
                                    .translateY(n(0.7f))));
-      // The seam ACROSS the digit — the counter-wheel tell, and the reason
-      // these things blank for 123 ms instead of cross-fading. It has to paint
-      // over the glyph, so it is a foreground, not a background: the exact
-      // slot Element::overlay() does NOT cover.
+      // NO SEAM ACROSS THE DIGIT. The wheels are the mechanism and the
+      // 123 ms blank is how it reads on screen, but the capture's BIG_NUM
+      // glyphs are solid beige bitmaps on a dark inset with nothing across
+      // them — a rule through the middle turns a 14x24 numeral into a
+      // flip-clock digit at this size. What stays is the well's own inner
+      // keyline, which the sprite sheet does have.
       wheel.foreground(shapes::onEdges(
           shapes::Edge::All, stroke(n(0.7f), Fill::color(hex(0x000000, 0.75f)),
                                     PathFormat::Align::Inner)));
-      wheel.child(at(box(), 0, kOdoH * 0.5f - 0.6f, kOdoW - 1, 1.2f)
-                      .fill(Fill::color(hex(0x000000, 0.60f)))
-                      .zIndex(3));
-      wheel.child(at(box(), 0, kOdoH * 0.5f + 0.6f, kOdoW - 1, 0.7f)
-                      .fill(Fill::color(hex(0xC0C0C0, 0.22f)))
-                      .zIndex(3));
       g.child(wheel);
     }
     return g;
@@ -1713,10 +1730,18 @@ struct Fallout2CharSheet : sketch::Sketch {
     // that its small font is near-monospaced, so the substitute has to land on
     // kBodyAdvance original px per character.
     {
-      const float w = ctx.measure(t("MMMMMMMMMMMMMMMMMMMM",
-                                    fo::type(bodyFace(), 100.0f, kGreen)))
-                          .width();
-      if (w > 1.0f) bodyEm() = w / 2000.0f;
+      // THE PROBE IS THE CAPTURE'S OWN SAMPLE, not a row of Ms. A
+      // proportional face has no single advance, so the size is solved
+      // against the same 119 characters the 752 px was measured over —
+      // an M sample would set the size by the widest glyph in the face
+      // and print the whole sheet a third too small.
+      static const char* kProbe =
+          "Armor ClassAction PointsCarry WeightMelee DamageDamage Res."
+          "Poison Res.Radiation Res.Sequence Healing RateCritical Chance";
+      const float probeChars = (float)std::strlen(kProbe);
+      const float w =
+          ctx.measure(t(kProbe, fo::type(bodyFace(), 100.0f, kGreen))).width();
+      if (w > 1.0f) bodyEm() = w / (probeChars * 100.0f);
       // The line-top -> cap-top slack. Fallout's draw y is the top of the
       // glyph cell; SigilWeave's node top is the line box's top, and the two
       // differ by (ascent - capHeight). Taken as a fraction of the measured
