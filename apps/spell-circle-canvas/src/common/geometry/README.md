@@ -342,13 +342,15 @@ seeded mixers `noise::` names.
 **`mesh`** — `SigilGeometryMesh`, needs `path`. The 3D tier's root, and
 the currency every feature under it speaks.
 
-- **`mesh/Mesh.h`** — the mesh currency and its generators. The `Mesh`
-  struct (positions, normals, uvs, colors, indices, and the `prims` lane
-  map), `append()`/`transform()`/`computeNormals()`/`bounds()`, and the
-  generators `extrude()`, `revolve()`, `grid()`, `torus()`,
-  `superellipsoid()`, `cylinderPanel()`, `quad()`, plus
-  `mesh::bakePrimColor()`. The struct's own methods are `Mesh.cpp`; the
-  generators are `Generators.cpp`.
+- **`mesh/Mesh.h`** — the mesh currency. The `Mesh` struct (positions,
+  normals, uvs, colors, indices, and the `prims` lane map),
+  `append()`/`transform()`/`computeNormals()`/`bounds()`, and
+  `mesh::bakePrimColor()`. Two surfaces are here rather than on the kit's
+  shelf because everything else is built through them: `grid()`, the
+  parametric-sheet seam a caller hands its own formula to, and `quad()`,
+  the flat panel a consumer needs to have a mesh at all. The struct's own
+  methods are `Mesh.cpp`; the two surfaces and the bake are
+  `Generators.cpp`.
 - **`mesh/Vec.h`** — the two glm policies the library and its GPU twin
   share: `normalized()` with a fallback for a degenerate vector, and
   `basisFor()`, the orientation basis every stamp is placed with, so a
@@ -566,7 +568,15 @@ beneath, in `sigil::geometry::shapes`.
   silhouette's sharp corners, and the two shapes a frame is cut to:
   `chamfered()` and `notched()`, both taking a per-`Corner` mask because a
   cut on one diagonal is the common case and no single radius says it.
-- **`kit/Silhouettes.h`** — the shelf, including all three.
+- **`kit/Silhouettes.h`** — the 2D shelf, including all three.
+- **`kit/Solids.h`** — the 3D shelf, in `sigil::geometry::mesh` because
+  what it makes is a `Mesh`. Two of them LIFT another currency:
+  `extrude()` raises a filled path into a solid (caps earcut-triangulated
+  with holes intact, walls swept from the flattened contours) and
+  `revolve()` lathes a profile polyline around +y. The rest are the named
+  surfaces — `torus()`, `superellipsoid()`, `cylinderPanel()` — each one
+  `mesh::grid()` evaluated through a formula anyone could have written,
+  which is why they are a shelf and not the currency.
 
 Every value here has `path(SkSize)`, `operator==` and `operator()`, and
 that is the whole contract: a consumer that caches drawings prunes on the
@@ -761,13 +771,13 @@ through `scripts/bench_ledger.py`:
 | --- | --- |
 | `geometry_path_bench` | flattening and resampling by point count, corner detection and the parallel and displaced constructions by contour length, the noise hashes per call, and the pose read over one contour and over many |
 | `geometry_path_blend_bench` | a two-key blend by step count and by sample density, and the same blend threaded onto a spine |
-| `geometry_mesh_bench` | extrude, revolve and the grid presets by vertex count |
+| `geometry_mesh_bench` | the parametric sheet by vertex count, and the two whole-mesh rewrites: appending and unwelding a primitive colour lane |
 | `geometry_mesh_camera_bench` | the per-frame transform builds: view, view-projection, the matrix seam, and the two placement helpers |
 | `geometry_mesh_render_bench` | the built-in runtime by triangle count and by shading mode, the cost of the cull and the sort, and the panel concat |
 | `geometry_mesh_curve_bench` | arc-length sampling and parallel-transport frames by count, the pose read over a held rail and over the spline that builds one, and the sweep by tessellation for a circle profile, a line profile and a line on a hung rail |
 | `geometry_mesh_pop_bench` | the pop cook per operator over a thousand points, whole chains by count and operator mix, and the runtime seam's dispatch against the same cook reached directly |
 | `geometry_mesh_codec_bench` | OBJ, GLB and `.geo` decoded from bytes in memory, per triangle or point |
-| `geometry_kit_bench` | one silhouette generated from a value — analytic, sampled by density, seeded, wrapped — against the comparison a caching consumer prunes with |
+| `geometry_kit_bench` | one silhouette generated from a value — analytic, sampled by density, seeded, wrapped — against the comparison a caching consumer prunes with; and the solids by output size, an extrusion against the outline it lifts and a lathe against the profile it turns |
 
 The tests are one binary per feature, named for the feature's path, each
 linking only that feature's library (and the features above it), so a
@@ -779,8 +789,8 @@ recompiles one small file. All are registered with ctest and answer to
 | --- | --- | --- |
 | `geometry_path_test` | `path/test/PathTest.cpp` | the leaf alone: polylines, contours, poses along them (held against an independent walk of the same contours), the path operators, noise, numerics |
 | `geometry_path_blend_test` | `path/blend/test/BlendTest.cpp` | shape interpolation |
-| `geometry_mesh_test` | `mesh/test/MeshTest.cpp` | the mesh currency and its generators |
-| `geometry_kit_test` | `kit/test/SilhouettesTest.cpp` | the silhouette shelf: every generator inscribed in its box, equal values drawing equal paths, and the corner wrapper over any of them |
+| `geometry_mesh_test` | `mesh/test/MeshTest.cpp` | the mesh currency: the sheet's coherent lanes, transform and append, the primitive bake |
+| `geometry_kit_test` | `kit/test/SilhouettesTest.cpp`, `kit/test/SolidsTest.cpp` | the two shelves: every silhouette inscribed in its box, equal values drawing equal paths, the corner wrapper over any of them; and a path lifted with its hole intact, a profile lathed, the named surfaces closed and unit-normalled |
 | `geometry_mesh_camera_test` | `mesh/camera/test/CameraTest.cpp` | the view-projection carried through to viewport pixels, and the two placement transforms |
 | `geometry_mesh_render_test` | `mesh/render/test/PainterTest.cpp`, `mesh/render/test/RuntimeTest.cpp` | the mesh draw's pixels, the normals G-buffer's encoding and the primitive tint; and the runtime seam — the built-in value, comparison by model, and a substituted executor receiving the draw |
 | `geometry_mesh_curve_test` | `mesh/curve/test/CurveTest.cpp`, `mesh/curve/test/SweepTest.cpp` | splines, the two rails, the pose along them, and the sweep held vertex for vertex against independent reference bodies for a tube, a ribbon and a banner; and the ring seam — what a rail and a profile become as a dispatch, the taper resolved on the host, comparison by model, and a substituted executor forming the vertices |

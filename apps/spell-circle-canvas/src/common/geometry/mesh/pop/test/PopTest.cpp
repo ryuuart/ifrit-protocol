@@ -18,6 +18,7 @@
 #include "sigilgeometry/mesh/pop/Points.h"
 #include "sigilgeometry/mesh/pop/Pop.h"
 #include "support/GeometrySupport.h"
+#include <sigilgeometry/kit/Solids.h>
 
 using namespace sigil::geometry;
 using namespace sigil::geometry::mesh;

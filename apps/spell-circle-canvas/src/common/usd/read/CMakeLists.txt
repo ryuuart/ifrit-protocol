@@ -26,7 +26,7 @@ target_link_libraries(SigilUsdRead
 # test/assets/ reach it through the IFRIT_USD_TEST_ASSET_DIR definition.
 add_executable(usd_read_test test/ReadTest.cpp)
 target_link_libraries(usd_read_test PRIVATE SigilUsdRead SigilUsdWrite
-  SigilUsdRuntime GTest::gtest_main)
+  SigilUsdRuntime SigilGeometryKit GTest::gtest_main)
 target_compile_definitions(usd_read_test PRIVATE
   IFRIT_USD_TEST_ASSET_DIR="${CMAKE_CURRENT_LIST_DIR}/test/assets")
 add_test(NAME usd_read_test COMMAND usd_read_test)
@@ -35,5 +35,5 @@ add_test(NAME usd_read_test COMMAND usd_read_test)
 # `benches` target and runs through scripts/bench_ledger.py.
 add_executable(usd_read_bench bench/ReadBench.cpp)
 target_link_libraries(usd_read_bench PRIVATE SigilUsdRead SigilUsdWrite
-  SigilUsdRuntime benchmark::benchmark)
+  SigilUsdRuntime SigilGeometryKit benchmark::benchmark)
 add_dependencies(benches usd_read_bench)

@@ -32,6 +32,7 @@
 
 #include <include/core/SkColor.h>
 #include <include/core/SkSurface.h>
+#include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/render/Painter.h>

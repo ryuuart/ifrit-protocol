@@ -20,6 +20,7 @@
  * flight are read off it.
  */
 
+#include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/curve/Curve.h>
 #include <sigilmaterial/kit/Surface.h>

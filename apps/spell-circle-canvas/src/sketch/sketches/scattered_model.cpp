@@ -22,6 +22,7 @@
  * cloud and it cooks once however long the study runs.
  */
 
+#include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/codec/Decode.h>
 #include <sigilgeometry/mesh/pop/Points.h>

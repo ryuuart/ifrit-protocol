@@ -106,7 +106,8 @@ add_executable(world_diligent_test test/DeviceTest.cpp test/PainterTest.cpp
 # produced, which is this feature's own header rather than a public one.
 target_include_directories(world_diligent_test PRIVATE ${CMAKE_CURRENT_LIST_DIR})
 target_link_libraries(world_diligent_test PRIVATE SigilWorldDiligent
-  SigilMaterialKit unofficial::diligent-engine::DiligentCore GTest::gtest_main)
+  SigilMaterialKit SigilGeometryKit
+  unofficial::diligent-engine::DiligentCore GTest::gtest_main)
 add_test(NAME world_diligent_test COMMAND world_diligent_test)
 
 # Google Benchmark (use a Release build). Not a test: it builds through
@@ -114,5 +115,5 @@ add_test(NAME world_diligent_test COMMAND world_diligent_test)
 add_executable(world_diligent_bench bench/DeviceBench.cpp)
 target_include_directories(world_diligent_bench PRIVATE ${CMAKE_CURRENT_LIST_DIR})
 target_link_libraries(world_diligent_bench PRIVATE SigilWorldDiligent
-  SigilMaterialKit benchmark::benchmark)
+  SigilMaterialKit SigilGeometryKit benchmark::benchmark)
 add_dependencies(benches world_diligent_bench)

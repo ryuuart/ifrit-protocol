@@ -1,6 +1,7 @@
-// The silhouette shelf's cost: generating a path from a value, and
-// comparing two values — the two things a caching consumer does per
-// frame, one per describe and one per prune.
+// The kit's two shelves. The silhouettes: generating a path from a value,
+// and comparing two values — the two things a caching consumer does per
+// frame, one per describe and one per prune. The solids are in
+// SolidsBench.cpp beside this file, in the same binary.
 
 #include <benchmark/benchmark.h>
 #include <sigilgeometry/kit/Silhouettes.h>

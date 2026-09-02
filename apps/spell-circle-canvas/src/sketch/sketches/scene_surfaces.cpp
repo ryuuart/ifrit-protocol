@@ -37,6 +37,7 @@
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/texture/Texture.h>
 #include <sigilcompose/typography/Type.h>
+#include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/curve/Curve.h>
 #include <sigilmaterial/kit/Surface.h>

@@ -25,12 +25,12 @@ target_link_libraries(SigilUsdWrite
 # itself to inspect the authored stage.
 add_executable(usd_write_test test/WriteTest.cpp)
 target_link_libraries(usd_write_test PRIVATE SigilUsdWrite SigilUsdRuntime
-  GTest::gtest_main usd usdGeom usdShade sdf tf vt)
+  SigilGeometryKit GTest::gtest_main usd usdGeom usdShade sdf tf vt)
 add_test(NAME usd_write_test COMMAND usd_write_test)
 
 # Google Benchmark (use a Release build). Not a test: it builds through the
 # `benches` target and runs through scripts/bench_ledger.py.
 add_executable(usd_write_bench bench/WriteBench.cpp)
 target_link_libraries(usd_write_bench PRIVATE SigilUsdWrite SigilUsdRuntime
-  benchmark::benchmark)
+  SigilGeometryKit benchmark::benchmark)
 add_dependencies(benches usd_write_bench)

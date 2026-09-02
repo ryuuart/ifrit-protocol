@@ -24,6 +24,7 @@
 
 #include <include/core/SkPath.h>
 #include <sigilcore/comparable/Erased.h>
+#include <sigilgeometry/kit/Solids.h>
 
 #include <cstdint>
 #include <functional>

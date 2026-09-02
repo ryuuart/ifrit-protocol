@@ -26,5 +26,5 @@ add_test(NAME geometry_mesh_render_test COMMAND geometry_mesh_render_test)
 
 add_executable(geometry_mesh_render_bench bench/RenderBench.cpp)
 target_link_libraries(geometry_mesh_render_bench PRIVATE SigilGeometryMeshRender
-  benchmark::benchmark)
+  SigilGeometryKit benchmark::benchmark)
 add_dependencies(benches geometry_mesh_render_bench)

@@ -34,6 +34,7 @@
 #include <include/core/SkMatrix.h>
 #include <sigilcompose/kit/Silhouettes.h>
 #include <sigilcompose/texture/Texture.h>
+#include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/curve/Curve.h>

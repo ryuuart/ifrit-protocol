@@ -55,10 +55,10 @@ add_executable(geometry_mesh_pop_test
 )
 target_include_directories(geometry_mesh_pop_test PRIVATE ${CMAKE_CURRENT_LIST_DIR}/../../test)
 target_link_libraries(geometry_mesh_pop_test PRIVATE SigilGeometryMeshPop
-  SigilGeometryMeshCodec GTest::gtest_main)
+  SigilGeometryMeshCodec SigilGeometryKit GTest::gtest_main)
 add_test(NAME geometry_mesh_pop_test COMMAND geometry_mesh_pop_test)
 
 add_executable(geometry_mesh_pop_bench bench/PopBench.cpp)
 target_link_libraries(geometry_mesh_pop_bench PRIVATE SigilGeometryMeshPop
-  benchmark::benchmark)
+  SigilGeometryKit benchmark::benchmark)
 add_dependencies(benches geometry_mesh_pop_bench)

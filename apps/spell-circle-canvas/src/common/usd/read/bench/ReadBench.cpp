@@ -9,6 +9,7 @@
  */
 
 #include <benchmark/benchmark.h>
+#include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilmaterial/kit/Surface.h>
 #include <sigilusd/read/Reader.h>

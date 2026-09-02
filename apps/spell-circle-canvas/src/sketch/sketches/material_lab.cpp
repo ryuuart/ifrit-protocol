@@ -40,6 +40,7 @@
 
 #include <include/core/SkBitmap.h>
 #include <include/core/SkImageInfo.h>
+#include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilmaterial/core/Combine.h>
 #include <sigilmaterial/kit/Mask.h>

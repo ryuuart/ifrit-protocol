@@ -5,6 +5,7 @@
  */
 
 #include <gtest/gtest.h>
+#include <sigilgeometry/kit/Solids.h>
 #include <sigilmaterial/kit/Surface.h>
 #include <sigilworld/element/Node.h>
 #include <sigilworld/kit/Kit.h>

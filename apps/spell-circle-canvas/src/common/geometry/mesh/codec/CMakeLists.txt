@@ -38,7 +38,7 @@ add_executable(geometry_mesh_codec_test
 )
 target_include_directories(geometry_mesh_codec_test PRIVATE ${CMAKE_CURRENT_LIST_DIR}/../../test)
 target_link_libraries(geometry_mesh_codec_test PRIVATE SigilGeometryMeshCodec
-  SigilGeometryMeshPop GTest::gtest_main Alembic::Alembic)
+  SigilGeometryMeshPop SigilGeometryKit GTest::gtest_main Alembic::Alembic)
 add_test(NAME geometry_mesh_codec_test COMMAND geometry_mesh_codec_test)
 
 add_executable(geometry_mesh_codec_bench bench/CodecBench.cpp)

@@ -3,6 +3,7 @@
  * turntable rides, and the set both of them make with a ground plane.
  */
 
+#include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilmaterial/kit/Surface.h>
 #include <sigilworld/kit/Kit.h>

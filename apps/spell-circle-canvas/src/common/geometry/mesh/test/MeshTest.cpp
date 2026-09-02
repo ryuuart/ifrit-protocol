@@ -1,8 +1,7 @@
 /** @file
- * The mesh currency and its generators: extrusion, revolution and the
- * grid presets produce coherent lanes, transform and append keep every
- * lane sized to the vertices, and a primitive colour lane bakes into
- * unwelded vertices.
+ * The mesh currency: the parametric sheet produces coherent lanes,
+ * transform and append keep every lane sized to the vertices, and a
+ * primitive colour lane bakes into unwelded vertices.
  */
 
 #include <gtest/gtest.h>
@@ -21,53 +20,7 @@ using sigil::geometry::test::splitQuad;
 
 namespace {
 
-SkPath rect(float x, float y, float w, float h) {
-  return SkPath::Rect(SkRect::MakeXYWH(x, y, w, h));
-}
-
 }  // namespace
-
-TEST(Mesh, ExtrudeRectMakesABox) {
-  Mesh m = mesh::extrude(rect(0, 0, 100, 60), {.depth = 20});
-  ASSERT_GT(m.vertexCount(), 0u);
-  ASSERT_EQ(m.normals.size(), m.vertexCount());
-  ASSERT_EQ(m.uvs.size(), m.vertexCount());
-  glm::vec3 lo, hi;
-  m.bounds(&lo, &hi);
-  EXPECT_NEAR(hi.x - lo.x, 100.0f, 1e-3f);
-  EXPECT_NEAR(hi.y - lo.y, 60.0f, 1e-3f);
-  EXPECT_NEAR(hi.z - lo.z, 20.0f, 1e-3f);
-  // 2 caps (2 tris each) + 4 walls (2 tris each) = 12 triangles.
-  EXPECT_EQ(m.triangleCount(), 12u);
-  // All normals unit length.
-  for (const glm::vec3& n : m.normals) EXPECT_NEAR(glm::length(n), 1.0f, 1e-4f);
-}
-
-TEST(Mesh, ExtrudeAnnulusKeepsHole) {
-  SkPathBuilder ring;
-  ring.addCircle(0, 0, 80);
-  ring.addCircle(0, 0, 40, SkPathDirection::kCCW);
-  Mesh m = mesh::extrude(ring.detach(), {.depth = 10});
-  ASSERT_GT(m.triangleCount(), 0u);
-  // The hole must survive triangulation, which is checked by area rather
-  // than by counting triangles: the tessellation is free to change, the
-  // covered area is not. Extrusion centres the profile on z, so the whole
-  // front cap sits at z = +depth/2 and can be picked out by that alone.
-  // The 3% slack absorbs the circle being flattened to a polygon, which
-  // always under-measures.
-  double area = 0;
-  for (size_t t = 0; t + 2 < m.indices.size(); t += 3) {
-    const glm::vec3& a = m.positions[m.indices[t]];
-    const glm::vec3& b = m.positions[m.indices[t + 1]];
-    const glm::vec3& c = m.positions[m.indices[t + 2]];
-    if (a.z > 4.9f && b.z > 4.9f && c.z > 4.9f) {
-      const glm::vec3 ab = b - a, ac = c - a;
-      area += 0.5 * std::abs((double)ab.x * ac.y - (double)ab.y * ac.x);
-    }
-  }
-  const double expected = M_PI * (80.0 * 80.0 - 40.0 * 40.0);
-  EXPECT_NEAR(area / expected, 1.0, 0.03);
-}
 
 TEST(Mesh, GridUvAndIndicesCoherent) {
   Mesh m = mesh::grid(
@@ -82,17 +35,6 @@ TEST(Mesh, GridUvAndIndicesCoherent) {
   EXPECT_EQ(m.uvs.front().y, 1.0f);
   EXPECT_EQ(m.uvs.back().y, 0.0f);
   for (uint32_t i : m.indices) EXPECT_LT(i, m.vertexCount());
-}
-
-TEST(Mesh, TorusNormalsPointOutward) {
-  Mesh m = mesh::torus(100, 30, 32, 16);
-  // Parameterization convention: the first vertex is u = v = 0, which is on
-  // the outer equator facing +x, so its normal points outward along +x. An
-  // inward-facing generator would put the normal at -x and light the torus
-  // inside out.
-  const glm::vec3 n0 = m.normals.front();
-  EXPECT_GT(std::abs(n0.x), 0.7f);
-  for (const glm::vec3& n : m.normals) EXPECT_NEAR(glm::length(n), 1.0f, 1e-3f);
 }
 
 TEST(Mesh, TransformMovesBoundsAndKeepsUnitNormals) {

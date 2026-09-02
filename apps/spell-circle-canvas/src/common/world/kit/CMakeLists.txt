@@ -12,7 +12,8 @@ add_library(SigilWorldKit STATIC
 )
 target_compile_features(SigilWorldKit PUBLIC cxx_std_20)
 target_include_directories(SigilWorldKit PUBLIC ${SIGIL_WORLD_INCLUDE_DIR})
-target_link_libraries(SigilWorldKit PUBLIC SigilWorldElement SigilMaterialKit)
+target_link_libraries(SigilWorldKit PUBLIC SigilWorldElement SigilMaterialKit
+  SigilGeometryKit)
 
 # The negative control for the include boundary above: a target that must
 # FAIL to build, and a test that builds it and demands the one message that
