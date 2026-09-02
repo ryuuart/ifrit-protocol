@@ -165,7 +165,12 @@ constexpr SkColor4f kPageBlack = hex(0x000000);
 constexpr SkColor4f kBodyText = hex(0xFF0000);
 
 // The label treatment, pixel-sampled and identical on all twelve GIFs
+// THE LABELS ARE NOT ALL YELLOW. The shipped art sets STELLAR SOUVENIRS,
+// LUNAR TUNES and PRESS BOX SHUTTLE in WHITE and SITE MAP in yellow, and
+// that split is the page's only typographic variation — flattened to one
+// colour, twelve buttons read as one button repeated.
 const SkColor4f kLabel = C5(0xFFFF00);
+const SkColor4f kLabelWhite = C5(0xFFFFFF);
 const SkColor4f kLabelInk = C5(0x080800);
 
 // ---------------------------------------------------------------------------
@@ -500,9 +505,10 @@ inline Element starTile() {
  *  cap height. `measure()` is doing the work `<img width=>` did for the
  *  browser: the run has to fit its box before the table sees it. */
 inline Element navLabel(sigil::weave::FontContext& fonts, const char* s,
-                        float x, float y, float w, float capPx) {
+                        float x, float y, float w, float capPx,
+                        SkColor4f ink = kLabel) {
   const float track = 0.4f * kScale;
-  auto styleAt = [&](float sz) { return ty(display(), sz, kLabel, track); };
+  auto styleAt = [&](float sz) { return ty(display(), sz, ink, track); };
   float size = capPx / 0.72f;  // Impact cap height ~0.72 em
   SkSize m = measure(text(U(s), styleAt(size)), fonts);
   float sx = 1.0f;
@@ -552,7 +558,7 @@ inline Element artSouvenirs(sigil::weave::FontContext& f) {
                                         {1.0f, C5(0x006363)}}))
                  .stroke(stroke(S(1.5f), Fill::color(C5(0x005252)),
                                 PathFormat::Align::Inner)))
-      .child(navLabel(f, "STELLAR SOUVENIRS", 0, S(-1), W, S(10)));
+      .child(navLabel(f, "STELLAR SOUVENIRS", 0, S(-1), W, S(10), kLabelWhite));
 }
 
 // --- p-jump.gif, 58x52 — the other centred glow.
@@ -721,7 +727,7 @@ inline Element artLunarTunes(sigil::weave::FontContext& f) {
                  .zIndex(2)
                  .child(ring({c.fX, -S(0)}, S(47), S(16), -20, 0.62f, ringMat())
                             .top(Dim(-c.fY))))
-      .child(navLabel(f, "LUNAR TUNES", S(19), S(0), S(57), S(9)));
+      .child(navLabel(f, "LUNAR TUNES", S(19), S(0), S(57), S(9), kLabelWhite));
 }
 
 // --- p-lineup.gif, 63x52 — the same construction, red and cyan.
@@ -868,7 +874,8 @@ inline Element artPressBox(sigil::weave::FontContext& f) {
 
   return artBox(W, H)
       .child(std::move(ship))
-      .child(navLabel(f, "PRESS BOX SHUTTLE", S(50), S(38), S(80), S(10)));
+      .child(navLabel(f, "PRESS BOX SHUTTLE", S(50), S(38), S(80), S(10),
+                      kLabelWhite));
 }
 
 // --- p-jamlogo.gif, 272x165 — the largest object on the page by a factor
@@ -1175,9 +1182,14 @@ struct TableScheme {
 // Monolithic, one expression for the Bayer index (the recursive matrix's
 // closed form), because a shader authored in a sketch and compiled by the
 // host's Skia cannot carry user-defined functions. `pos` is quantised by
-// uScale first, so the dither cell is locked to the 1996 pixel grid rather
-// than to the canvas's — unquantised, the 4x4 cell would land on canvas
-// pixels and come out finer than the art it is dithering.
+// THE SNAP CARRIES NO SCREEN. The page's palette is the 216-colour web
+// cube and the view transform quantises to it, but an ORDERED dither over
+// the whole frame lays a regular 4x4 lattice across every disc — and the
+// shipped GIFs carry no lattice at all: p-souvenirs.gif is a smooth cyan
+// radial with a white core, p-lunartunes.gif is flat blue with a hard
+// pink ring. A 1996 encoder that dithered at all dithered by error
+// diffusion, which is scattered; a lattice is the one thing the reference
+// definitely does not have. So the quantisation rounds.
 
 inline sk_sp<SkRuntimeEffect> ditherEffect() {
   static sk_sp<SkRuntimeEffect> fx = [] {
@@ -1190,13 +1202,7 @@ half4 main(float2 pos) {
   float  al = max(float(src.a), 1e-4);
   float3 v  = float3(src.rgb) / al;
 
-  float2 p = floor(pos / uScale);
-  float a = mod(p.x, 2.0), c = mod(floor(p.x * 0.5), 2.0);
-  float b = mod(p.y, 2.0), d = mod(floor(p.y * 0.5), 2.0);
-  float bayer = (4.0 * (2.0*a + 3.0*b - 4.0*a*b)
-                     + (2.0*c + 3.0*d - 4.0*c*d)) / 16.0;
-
-  float3 q = clamp(floor(v * 5.0 + bayer), 0.0, 5.0) / 5.0;
+  float3 q = clamp(floor(v * 5.0 + 0.5), 0.0, 5.0) / 5.0;
   return half4(half3(q * al), src.a);
 }
 )";
