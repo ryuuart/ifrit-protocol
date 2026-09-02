@@ -1,8 +1,9 @@
-# The path leaf: polylines, contours addressed by arc length, noise and
-# the numeric routines under them, and the path operators. Skia, glm and
-# the standard-library mixers under SigilCoreCompute — no mesh, no
-# import, no material — so a text engine or a drawable-component library
-# can walk an outline without linking the 3D half of geometry or its
+# The path leaf: polylines, contours addressed by arc length, noise, the
+# numeric routines under them, where a run of n items falls on a ring or
+# in a grid, and the path operators. Skia, glm and the standard-library
+# mixers under SigilCoreCompute — no mesh, no import, no material — so a
+# text engine or a drawable-component library can walk an outline, or
+# place a run of things, without linking the 3D half of geometry or its
 # importers.
 add_library(SigilGeometryPath STATIC
   Contour.cpp
@@ -11,6 +12,7 @@ add_library(SigilGeometryPath STATIC
   Ops.cpp
   Polyline.cpp
   Pose.cpp
+  ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/path/Arrange.h
   ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/path/Contour.h
   ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/path/Edges.h
   ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/path/Noise.h

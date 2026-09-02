@@ -318,6 +318,20 @@ seeded mixers `noise::` names.
   index.
 - **`path/Numeric.h`** — `kPi`, `kTau`, the degree/radian factors,
   `bisect()` over a predicate and `wrap()` into a period.
+- **`path/Arrange.h`** — namespace `arrange`. Where item i of n goes when
+  a run of things is spread out: `Turn` (`Open` occupies both ends of an
+  extent in n−1 steps, `Closed` takes n steps so the last stops short of
+  the first), `step()` and `along()` over an extent in the caller's own
+  unit — radians round a ring, arc length along a contour — and
+  `onRing()`, item i's centre on the ellipse at a centre with a radius per
+  axis. The grid half is `Cell`, `cellAt()` (row-major index to column and
+  row), `moduleSize()` (the module that fits columns by rows of itself and
+  the gaps between them exactly into a container) and `cellRect()` (the
+  rect a block of cells covers, swallowing the gaps it crosses; nothing is
+  clamped to a column or row count, because whether landing outside is an
+  error or a bleed is the caller's to know). Here rather than in a
+  catalog of placements because a catalog is where this arithmetic gets
+  spelled a second time, and two spellings of one ring round apart.
 - **`path/Skia.h`** — `toSk()` and `fromSk()` between `glm::vec2` and
   `SkPoint`, and `centre()` of an `SkRect`.
 - **`path/Edges.h`** — narrowing an outline before something is drawn on
