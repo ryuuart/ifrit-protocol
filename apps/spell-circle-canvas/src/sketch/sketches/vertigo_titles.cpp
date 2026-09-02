@@ -268,14 +268,6 @@ sigil::weave::TextStyle hollow(sk_sp<SkTypeface> face, float size,
   return s;
 }
 
-Transition ramp(float delayMs, float durMs, ch::EaseFn ease = ch::easeOutQuad) {
-  Transition t;
-  t.duration = std::chrono::milliseconds((int)durMs);
-  t.delay = std::chrono::milliseconds((int)delayMs);
-  t.ease = std::move(ease);
-  return t;
-}
-
 /** A clockwise circle of radius @p r centred on the node's box, starting
  *  at @p startDeg — the baseline for the onPath() ring captions.
  *  Fraction 0.25 is 12 o'clock and 0.75 is 6 o'clock at the default

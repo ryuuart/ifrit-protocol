@@ -60,8 +60,11 @@ constexpr int kPieces = 64;
 
 /** A four-stop ramp walked in OKLab, at a lightness multiplier. @p f
  *  wraps, so the ramp closes on itself the way a loop of facets needs
- *  it to. */
-glm::vec4 ramp(float f, float value) {
+ *  it to.
+ *
+ *  Named for the space it walks: `ramp` alone is compose's transition
+ *  spelled in milliseconds, and both take two floats. */
+glm::vec4 oklabRamp(float f, float value) {
   static const material::Color stops[5] = {{0.98f, 0.42f, 0.30f, 1},
                                            {0.98f, 0.85f, 0.35f, 1},
                                            {0.35f, 0.88f, 0.62f, 1},
@@ -120,7 +123,8 @@ struct PopPrims final : sketch::Sketch {
         // The two triangles of a quad share its ramp position and differ
         // only in lightness — which is the alternation this stanza is for.
         const size_t quad = t / 2;
-        color[t] = ramp((float)quad / (float)quads, t % 2 == 0 ? 1.0f : 0.55f);
+        color[t] =
+            oklabRamp((float)quad / (float)quads, t % 2 == 0 ? 1.0f : 0.55f);
       }
     }
 
@@ -145,8 +149,8 @@ struct PopPrims final : sketch::Sketch {
       std::vector<glm::vec4>& tint = pieces.prim("Color");
       for (size_t t = 0; t < tint.size(); ++t) {
         const int id = (int)(*ids)[t].x;
-        tint[t] = ramp((float)(id * 19 % kPieces) / (float)kPieces,
-                       t % 2 == 0 ? 1.0f : 0.62f);
+        tint[t] = oklabRamp((float)(id * 19 % kPieces) / (float)kPieces,
+                            t % 2 == 0 ? 1.0f : 0.62f);
       }
     }
 

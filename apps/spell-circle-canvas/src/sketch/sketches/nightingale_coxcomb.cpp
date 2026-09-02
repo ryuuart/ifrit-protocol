@@ -233,14 +233,6 @@ sigil::weave::TextStyle type(sk_sp<SkTypeface> face, float size,
                                .track = tracking});
 }
 
-Transition ramp(float delayMs, float durMs, ch::EaseFn ease = ch::easeOutQuad) {
-  Transition t;
-  t.duration = std::chrono::milliseconds((int)durMs);
-  t.delay = std::chrono::milliseconds((int)delayMs);
-  t.ease = std::move(ease);
-  return t;
-}
-
 }  // namespace
 
 // ===========================================================================

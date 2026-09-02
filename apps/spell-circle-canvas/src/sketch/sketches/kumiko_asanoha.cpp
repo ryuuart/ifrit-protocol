@@ -174,7 +174,6 @@ constexpr double kTSeat = 2.62, kDSeat = 0.24;
 constexpr double kTGlow = 2.78, kDGlow = 0.60;
 
 inline float clamp01(double v) { return (float)std::clamp(v, 0.0, 1.0); }
-inline float easeOutCubic(float p) { return 1 - (1 - p) * (1 - p) * (1 - p); }
 inline float easeOutBack(float p) {
   const float c = 1.70158f, c3 = c + 1;
   const float q = p - 1;
@@ -957,12 +956,13 @@ struct KumikoAsanoha : sketch::Sketch {
       for (size_t i = 0; i < panel.strips.size(); ++i) {
         const Strip& s = panel.strips[i];
         const float raw = clamp01((now - s.delay) / s.dur);
-        fade[i] = std::min(1.0f, easeOutCubic(raw) * 1.35f);
+        fade[i] = std::min(1.0f, choreograph::easeOutCubic(raw) * 1.35f);
         pop[i] = 0.55f + 0.45f * easeOutBack(raw);
       }
-      seat = easeOutCubic(clamp01((now - kTSeat) / kDSeat));
-      glow = easeOutCubic(clamp01((now - kTGlow) / kDGlow));
-      frameTrim = easeOutCubic(clamp01((now - kTFrame) / (kDFrame + 0.35)));
+      seat = choreograph::easeOutCubic(clamp01((now - kTSeat) / kDSeat));
+      glow = choreograph::easeOutCubic(clamp01((now - kTGlow) / kDGlow));
+      frameTrim = choreograph::easeOutCubic(
+          clamp01((now - kTFrame) / (kDFrame + 0.35)));
       return true;
     });
 

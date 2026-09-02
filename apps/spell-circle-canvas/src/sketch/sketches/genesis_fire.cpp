@@ -908,10 +908,8 @@ struct GenesisFire : sketch::Sketch {
                 .blend(SkBlendMode::kPlus)
                 .scale(bind(&loopU)
                            .map([](float v) {
-                             const float t =
-                                 std::clamp(v * 10.0f / 1.1f, 0.0f, 1.0f);
-                             const float u = t - 1.0f;
-                             return 1.0f + u * u * u;  // easeOutCubic
+                             return choreograph::easeOutCubic(
+                                 std::clamp(v * 10.0f / 1.1f, 0.0f, 1.0f));
                            })
                            .clamp(0.001f, 1.0f))
                 .opacity(bind(&loopU).map([](float v) {

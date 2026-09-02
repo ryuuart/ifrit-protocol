@@ -183,7 +183,6 @@ constexpr double kSheen0 = 2.55, kSheenDur = 1.10;
 const double kGenAt[4] = {0.70, 1.55, 2.45, 3.35};
 
 inline float clamp01(double v) { return (float)std::clamp(v, 0.0, 1.0); }
-inline float easeOutCubic(float p) { return 1 - (1 - p) * (1 - p) * (1 - p); }
 inline float easeOutBack(float p) {
   const float c = 1.32f, c3 = c + 1, q = p - 1;
   return 1 + c3 * q * q * q + c * q * q;
@@ -1180,8 +1179,8 @@ struct PenrosePaving : sketch::Sketch {
         const double u = (double)tiles[i].radius / (double)kCorner;
         // the ripple front: a raw linear progress, nothing shaped here
         grow[i] = clamp01((now - (kTileT0 + kTileSweep * u)) / kTileDur);
-        arcT[i] =
-            easeOutCubic(clamp01((now - (kArcT0 + kArcSweep * u)) / kArcDur));
+        arcT[i] = choreograph::easeOutCubic(
+            clamp01((now - (kArcT0 + kArcSweep * u)) / kArcDur));
       }
       const float sp = clamp01((now - kSheen0) / kSheenDur);
       sheen = std::sin(sp * 3.14159265f);  // one pass, then gone

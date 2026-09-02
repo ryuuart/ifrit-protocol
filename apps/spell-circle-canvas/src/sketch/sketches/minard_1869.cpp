@@ -899,14 +899,6 @@ std::string french(float men) {
   return s;
 }
 
-Transition ramp(float delayMs, float durMs, ch::EaseFn ease = ch::easeOutQuad) {
-  Transition t;
-  t.duration = std::chrono::milliseconds((int)durMs);
-  t.delay = std::chrono::milliseconds((int)delayMs);
-  t.ease = std::move(ease);
-  return t;
-}
-
 }  // namespace
 
 // ===========================================================================

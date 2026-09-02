@@ -39,6 +39,10 @@ using motion::BoundFloat;
 using motion::From;
 using motion::from;
 using motion::FromTo;
+/** `ramp(delayMs, durationMs, ease)` — a Transition spelled in float
+ *  milliseconds, for the staggered reveal whose delay is arithmetic
+ *  rather than a literal. */
+using motion::ramp;
 using motion::through;
 using motion::To;
 using motion::to;
