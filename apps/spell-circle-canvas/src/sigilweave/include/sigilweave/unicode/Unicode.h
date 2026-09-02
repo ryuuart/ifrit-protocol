@@ -50,8 +50,12 @@ namespace sigil::weave::unicode {
  */
 [[nodiscard]] bool isWhitespace(char32_t codePoint);
 
-/** Whether one UTF-16 unit forces a line break after itself: LF, CR, NEL,
- * LINE SEPARATOR, PARAGRAPH SEPARATOR.
+/** Whether one UTF-16 unit forces a line break after itself — the four
+ * line-break classes that break unconditionally: the mandatory-break
+ * characters (VT, FF, LINE SEPARATOR, PARAGRAPH SEPARATOR), CR, LF and
+ * NEL. It is a question about the CHARACTER; whether a given BOUNDARY is
+ * mandatory is LineBreak::mandatory, which is the segmentation's answer
+ * and covers the sequences (CR LF) a character cannot.
  */
 [[nodiscard]] bool isHardLineBreak(char16_t unit);
 
@@ -61,12 +65,24 @@ namespace sigil::weave::unicode {
  */
 [[nodiscard]] bool inheritsTypeface(char32_t codePoint);
 
-/** Whether a code point can force right-to-left directionality: the
- * right-to-left script blocks and the explicit right-to-left controls.
- * Text with no such code point resolves to one uniform left-to-right level
- * without a full bidirectional pass.
+/** Whether a code point can force right-to-left directionality: its
+ * bidirectional class is one of the right-to-left ones, the Arabic
+ * letters included. Text with no such code point resolves to one uniform
+ * left-to-right level without a full bidirectional pass. It is a property
+ * lookup rather than a range test, so a script Unicode adds tomorrow
+ * cannot be missed by it.
  */
 [[nodiscard]] bool mayRequireBidi(char32_t codePoint);
+
+/** Whether a code point is set in a FULL-WIDTH CELL — East Asian Width
+ * Wide or Fullwidth. That is the property behind every question this
+ * engine asks about "ideographic" text: a full-width character has no
+ * spaces around it and the zero-width gap beside it is what a justified
+ * CJK line spends its slack on. It is a character property and not a
+ * script one, so fullwidth Latin (Ａ Ｂ Ｃ) set among kanji answers the
+ * same way the kanji do.
+ */
+[[nodiscard]] bool isFullWidth(char32_t codePoint);
 
 /// How a character stands in a vertical column (UTR#50 Vertical_Orientation):
 /// upright as in CJK, rotated a quarter turn as in Latin, or upright with a
@@ -108,12 +124,6 @@ inline constexpr Script kInheritedScript = 1;  ///< Zinh: takes its neighbours'
  * nullptr for a code outside [0, scriptLimit()).
  */
 [[nodiscard]] const char* scriptShortName(Script script) noexcept;
-
-/** Whether a script writes without spaces between words, so a break
- * opportunity inside it carries no glue: Han, the kana, Hangul, Bopomofo
- * and Yi.
- */
-[[nodiscard]] bool isIdeographicScript(Script script) noexcept;
 
 /// A maximal run of text in one script; `end` is exclusive, and the run
 /// starts where the previous one ended (0 for the first).
@@ -160,15 +170,50 @@ bool caseMap(std::u16string_view text, Case mapping, std::string_view locale,
 
 // ── Segmentation ───────────────────────────────────────────────────────
 
+/// ONE LINE-BREAK OPPORTUNITY: where a line may end, and whether it MUST.
+/// The offset is one past the unit the break follows. `mandatory` is the
+/// segmentation's own answer — the rule that opened the boundary was one
+/// of UAX#14's unconditional ones — so a CR LF pair, which no per-character
+/// test can judge, is one mandatory break and not two.
+struct LineBreak {
+  uint32_t offset = 0;
+  bool mandatory = false;
+  bool operator==(const LineBreak&) const = default;
+};
+
 /** Returns every line-break opportunity in the text (UAX#14), ascending:
  * the offsets a line may end at, each one past the unit it follows, always
- * ending with `text.size()` and never containing 0. Empty text yields
- * {0}. A break after a soft hyphen (U+00AD) is reported like any other.
+ * ending with `text.size()` and never containing 0. Empty text yields one
+ * opportunity at 0. A break after a soft hyphen (U+00AD) is reported like
+ * any other.
+ *
+ * `locale` selects the tailoring the segmentation runs under: a BCP 47 tag,
+ * optionally carrying ICU's line-break keyword ("ja@lb=strict" sets the
+ * strict Japanese rules a printed page uses, "zh@lb=loose" the loose ones),
+ * and empty is the untailored root behaviour every text gets by default.
+ * Iterators are cached per locale, so alternating between two costs no
+ * more than staying in one.
  */
-[[nodiscard]] std::vector<uint32_t> lineBreaks(std::u16string_view text);
+[[nodiscard]] std::vector<LineBreak> lineBreaks(std::u16string_view text,
+                                                std::string_view locale = {});
 
 /** lineBreaks() into caller-owned storage, which is cleared first. */
-void lineBreaks(std::u16string_view text, std::vector<uint32_t>& breaks);
+void lineBreaks(std::u16string_view text, std::vector<LineBreak>& breaks,
+                std::string_view locale = {});
+
+/** Returns every GRAPHEME CLUSTER boundary in the text (UAX#29), ascending,
+ * starting with 0 and ending with `text.size()`; the clusters are the
+ * ranges between consecutive entries. A cluster is what a reader calls one
+ * character, so it is the unit anything cutting text apart must land on:
+ * a combining mark, a Hangul syllable, a regional-indicator pair and an
+ * emoji ZWJ sequence are each indivisible here. Empty text yields {0}.
+ */
+[[nodiscard]] std::vector<uint32_t> graphemeBoundaries(
+    std::u16string_view text);
+
+/** graphemeBoundaries() into caller-owned storage, cleared first. */
+void graphemeBoundaries(std::u16string_view text,
+                        std::vector<uint32_t>& boundaries);
 
 /** Returns every word boundary in the text (UAX#29), ascending, starting
  * with 0 and ending with `text.size()`; the words are the ranges between

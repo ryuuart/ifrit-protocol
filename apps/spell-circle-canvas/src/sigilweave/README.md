@@ -314,10 +314,10 @@ Skia, no other header of this library:
 | Function | Answer |
 |---|---|
 | `toUtf16` / `toUtf8` / `decodeAt` | transcoding and code-point decoding |
-| `isWhitespace`, `isHardLineBreak`, `inheritsTypeface`, `mayRequireBidi`, `verticalOrientation` | per-character properties: what separates words, what forces a line end, what takes its neighbour's typeface, what can turn a paragraph bidirectional, how a character stands in a vertical column (UTR#50) |
-| `scriptOf`, `scriptShortName`, `isIdeographicScript`, `itemize` | scripts, and the text split into `ScriptRun`s with Common and Inherited characters attached to their neighbours |
+| `isWhitespace`, `isHardLineBreak`, `inheritsTypeface`, `mayRequireBidi`, `isFullWidth`, `verticalOrientation` | per-character properties, each one ICU's own answer for that character: what separates words, what forces a line end, what takes its neighbour's typeface, what can turn a paragraph bidirectional, what stands in a full-width cell (East Asian Width), how a character stands in a vertical column (UTR#50) |
+| `scriptOf`, `scriptShortName`, `itemize` | scripts, and the text split into `ScriptRun`s with Common and Inherited characters attached to their neighbours |
 | `caseMap` / `caseMapped` | locale-aware upper, lower and first-code-point title case |
-| `lineBreaks`, `wordBoundaries`, `sentenceStarts` | UAX#14 break opportunities and UAX#29 word and sentence segmentation, as ascending offsets |
+| `lineBreaks`, `graphemeBoundaries`, `wordBoundaries`, `sentenceStarts` | UAX#14 break opportunities — each one a `LineBreak`, an offset and whether the text DEMANDS the break there — under an optional locale tailoring, and UAX#29 grapheme, word and sentence segmentation as ascending offsets |
 | `bidi` | UAX#9 embedding levels as `BidiRun`s against a chosen `BaseDirection` |
 
 The engine consumes it privately: `Paragraph` runs `lineBreaks`, `itemize`
@@ -480,6 +480,13 @@ carry. None of them knows what a ruby IS, or which unit somebody
 annotated, or how big a reading should be beside its base: a reading's
 size is its own style's, and there is no fraction of anything in that
 header.
+
+**A script's own prohibitions come from the segmentation.**
+`Paragraph::setLineBreakLocale` names the tailoring the line iterator runs
+under — `"ja@lb=strict"` is the strict Japanese rule set a printed page is
+set under, `"zh@lb=loose"` the loose Chinese one — and a tailored
+prohibition is a boundary that never opens, so nothing downstream learns a
+rule. A table is what a HOUSE adds on top of that.
 
 **A line's two edges are tables.** `ParagraphLayoutOptions::kinsoku` says
 which characters may not open or close a line, and the prohibition is
@@ -649,7 +656,7 @@ typesetter reaches for, not what a file format carries.
 | CJK: tate-chu-yoko | exists | `VerticalForm::kTateChuYoko` |
 | CJK: ruby — mono, group, jukugo | done | `layout/Beside.h`; compose `Annotation`, `kit::ruby` |
 | CJK: kenten | done | `kit::kenten` |
-| CJK: kinsoku | done, as a table over the segmentation | `KinsokuTable`, `kit::kinsoku` |
+| CJK: kinsoku | done — ICU's own strict/loose tailoring under a locale, plus a table over the segmentation for a house's own additions | `Paragraph::setLineBreakLocale`, `KinsokuTable`, `kit::kinsoku` |
 | CJK: burasagari | done — the hanging table, along the column | `HangingTable` |
 | CJK: mojikumi (per-class spacing) | **not started** | — |
 | CJK: tsume | **not started** | — |

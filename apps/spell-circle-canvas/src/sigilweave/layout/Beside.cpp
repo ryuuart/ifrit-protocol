@@ -8,9 +8,11 @@
 
 #include <algorithm>
 #include <cmath>
+#include <vector>
 
 #include "sigilweave/fonts/FontContext.h"
 #include "sigilweave/layout/Flow.h"
+#include "sigilweave/unicode/Unicode.h"
 
 namespace sigil::weave {
 
@@ -69,10 +71,19 @@ std::u16string shareOfReading(std::u16string_view reading, float here,
   const auto length = static_cast<float>(reading.size());
   auto cut = static_cast<size_t>(std::lround(here / total * length));
   cut = std::min(cut, reading.size());
-  // A cut between the halves of a surrogate pair would make two ill-formed
-  // strings out of one well-formed one; step off it.
-  if (cut < reading.size() && (reading[cut] & 0xFC00u) == 0xDC00u) --cut;
-  return std::u16string(reading.substr(0, cut));
+  // THE CUT LANDS ON A GRAPHEME CLUSTER, which is what a reader calls one
+  // character: a combining mark, a Hangul syllable, a regional-indicator
+  // pair and an emoji sequence are each one thing, and half of any of them
+  // is not a reading. The boundary at or before the proportional cut is
+  // the one taken, so a reading never gains a character it did not have.
+  static thread_local std::vector<uint32_t> clusters;
+  unicode::graphemeBoundaries(reading, clusters);
+  size_t chosen = 0;
+  for (const uint32_t boundary : clusters) {
+    if (boundary > cut) break;
+    chosen = boundary;
+  }
+  return std::u16string(reading.substr(0, chosen));
 }
 
 }  // namespace sigil::weave

@@ -531,26 +531,33 @@ std::span<const uint32_t> Paragraph::sentenceStarts() const {
   return m_sentenceStarts;
 }
 
+void Paragraph::setLineBreakLocale(std::string locale) {
+  if (m_lineBreakLocale == locale) return;
+  m_lineBreakLocale = std::move(locale);
+  markDirty();  // break opportunities are decided in analyze()
+}
+
 void Paragraph::setKinsoku(KinsokuTable table) {
   if (m_kinsoku == table) return;
   m_kinsoku = std::move(table);
   markDirty();  // break opportunities are decided in analyze()
 }
 
-void Paragraph::openPatternBreaks(std::vector<uint32_t>& boundaries,
+void Paragraph::openPatternBreaks(std::vector<unicode::LineBreak>& boundaries,
                                   std::vector<uint8_t>& isHyphen) const {
   const HyphenationLimits& limits = m_hyphenationLimits;
-  std::vector<uint32_t> merged;
+  std::vector<unicode::LineBreak> merged;
   std::vector<uint8_t> mergedFlags;
   merged.reserve(boundaries.size());
   mergedFlags.reserve(boundaries.size());
   std::vector<uint32_t> points;
   size_t spanCursor = 0;
   int32_t segmentStart = 0;
-  for (const uint32_t breakOffset : boundaries) {
+  for (const unicode::LineBreak& breakEntry : boundaries) {
+    const uint32_t breakOffset = breakEntry.offset;
     const auto boundary = static_cast<int32_t>(breakOffset);
     if (boundary <= segmentStart) {
-      merged.push_back(breakOffset);
+      merged.push_back(breakEntry);
       mergedFlags.push_back(0);
       continue;
     }
@@ -588,13 +595,13 @@ void Paragraph::openPatternBreaks(std::vector<uint32_t>& boundaries,
               length - inside < limits.minimumLettersAfter)
             continue;
           const auto absolute = static_cast<uint32_t>(segmentStart + inside);
-          if (!merged.empty() && merged.back() >= absolute) continue;
-          merged.push_back(absolute);
+          if (!merged.empty() && merged.back().offset >= absolute) continue;
+          merged.push_back({absolute, false});
           mergedFlags.push_back(1);
         }
       }
     }
-    merged.push_back(breakOffset);
+    merged.push_back(breakEntry);
     mergedFlags.push_back(0);
     segmentStart = boundary;
   }
@@ -612,8 +619,8 @@ void Paragraph::analyze(FontContext& fontContext) {
   // ── Line-break opportunities (UAX #14) ─────────────────────────────────
   // Scratch buffers persist across analyses (one FontContext == one thread
   // by contract, so thread_local matches the ownership model).
-  static thread_local std::vector<uint32_t> boundaries;
-  unicode::lineBreaks(m_text, boundaries);
+  static thread_local std::vector<unicode::LineBreak> boundaries;
+  unicode::lineBreaks(m_text, boundaries, m_lineBreakLocale);
 
   // A soft hyphen (U+00AD) is the one discretionary break opportunity the
   // word list carries. When it is turned off, the boundary UAX#14 opened
@@ -625,15 +632,15 @@ void Paragraph::analyze(FontContext& fontContext) {
   // belongs to the space and not to the hyphen.
   if (!m_softHyphenBreaks) {
     size_t keptCount = 0;
-    for (const uint32_t boundary : boundaries) {
-      if (boundary < static_cast<uint32_t>(textLength) &&
-          m_text[static_cast<size_t>(boundary) - 1] == 0x00AD)
+    for (const unicode::LineBreak& entry : boundaries) {
+      if (entry.offset < static_cast<uint32_t>(textLength) &&
+          m_text[static_cast<size_t>(entry.offset) - 1] == 0x00AD)
         continue;
-      boundaries[keptCount++] = boundary;
+      boundaries[keptCount++] = entry;
     }
     boundaries.resize(keptCount);
     if (boundaries.empty())
-      boundaries.push_back(static_cast<uint32_t>(textLength));
+      boundaries.push_back({static_cast<uint32_t>(textLength), false});
   }
 
   // KINSOKU SHORI: a boundary that would open a line with a character
@@ -643,7 +650,8 @@ void Paragraph::analyze(FontContext& fontContext) {
   // breaker knows the rule, exactly as neither knows the soft-hyphen one.
   if (!m_kinsoku.empty()) {
     size_t keptCount = 0;
-    for (const uint32_t boundary : boundaries) {
+    for (const unicode::LineBreak& entry : boundaries) {
+      const uint32_t boundary = entry.offset;
       const bool interior = boundary < static_cast<uint32_t>(textLength);
       const bool opensProhibited =
           interior &&
@@ -652,14 +660,13 @@ void Paragraph::analyze(FontContext& fontContext) {
           interior && boundary > 0 &&
           m_kinsoku.notLineEnd.find(m_text[boundary - 1]) !=
               std::u16string::npos;
-      if ((opensProhibited || closesProhibited) &&
-          !unicode::isHardLineBreak(m_text[boundary - 1]))
-        continue;
-      boundaries[keptCount++] = boundary;
+      // A break the text itself demands is never a prohibition's to drop.
+      if ((opensProhibited || closesProhibited) && !entry.mandatory) continue;
+      boundaries[keptCount++] = entry;
     }
     boundaries.resize(keptCount);
     if (boundaries.empty())
-      boundaries.push_back(static_cast<uint32_t>(textLength));
+      boundaries.push_back({static_cast<uint32_t>(textLength), false});
   }
 
   // Pattern hyphenation: break opportunities INSIDE a word, which UAX #14
@@ -699,7 +706,8 @@ void Paragraph::analyze(FontContext& fontContext) {
   int32_t segmentStart = 0;
   for (size_t boundaryIndex = 0; boundaryIndex < boundaries.size();
        ++boundaryIndex) {
-    const int32_t boundary = static_cast<int32_t>(boundaries[boundaryIndex]);
+    const int32_t boundary =
+        static_cast<int32_t>(boundaries[boundaryIndex].offset);
     const bool patternHyphen = patternBreak[boundaryIndex] != 0;
     if (boundary <= segmentStart) continue;
 
@@ -729,23 +737,19 @@ void Paragraph::analyze(FontContext& fontContext) {
 
     // Trailing whitespace (including any hard-break characters at the end).
     int32_t whitespaceStart = boundary;
-    bool hardBreak = false;
-    while (whitespaceStart > segmentStart) {
-      const char16_t character = m_text[whitespaceStart - 1];
-      if (unicode::isHardLineBreak(character)) {
-        hardBreak = true;
-        --whitespaceStart;
-      } else if (unicode::isWhitespace(character)) {
-        --whitespaceStart;
-      } else {
-        break;
-      }
-    }
+    while (whitespaceStart > segmentStart &&
+           (unicode::isHardLineBreak(m_text[whitespaceStart - 1]) ||
+            unicode::isWhitespace(m_text[whitespaceStart - 1])))
+      --whitespaceStart;
 
     Word word;
     word.textBegin = static_cast<uint32_t>(segmentStart);
     word.whitespaceEnd = static_cast<uint32_t>(boundary);
-    word.mandatoryBreakAfter = hardBreak;
+    // WHETHER THE TEXT DEMANDS A BREAK HERE IS THE SEGMENTATION'S ANSWER,
+    // reported beside the boundary that opened. Re-deriving it from the
+    // characters before the boundary is a second, worse implementation of
+    // a rule the analysis already applied.
+    word.mandatoryBreakAfter = boundaries[boundaryIndex].mandatory;
     word.bidiLevel = bidiLevels ? bidiLevels[segmentStart] : uniformLevel;
 
     // A trailing soft hyphen (U+00AD) is a discretionary break: it never
@@ -770,8 +774,8 @@ void Paragraph::analyze(FontContext& fontContext) {
 
     if (whitespaceStart > segmentStart) {
       size_t codePointEnd = static_cast<size_t>(segmentStart);
-      word.ideographic = unicode::isIdeographicScript(
-          unicode::scriptOf(unicode::decodeAt(m_text, codePointEnd)));
+      word.ideographic =
+          unicode::isFullWidth(unicode::decodeAt(m_text, codePointEnd));
     }
 
     // Glyphs, widths, and glue come later: shapeWordContent() fills them in

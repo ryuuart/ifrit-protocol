@@ -25,6 +25,7 @@
 #include "sigilweave/paragraph/Hyphenation.h"
 #include "sigilweave/paragraph/Word.h"
 #include "sigilweave/style/Style.h"
+#include "sigilweave/unicode/Unicode.h"
 
 namespace sigil::weave {
 
@@ -132,6 +133,22 @@ class Paragraph {
    * `ParagraphLayoutOptions::kinsoku` before it analyzes.
    */
   void setKinsoku(KinsokuTable table);
+  /** Sets the TAILORING the line segmentation runs under: a BCP 47 tag,
+   * optionally carrying ICU's line-break keyword — "ja@lb=strict" is the
+   * strict Japanese rule set a printed page is set under, "zh@lb=loose"
+   * the loose Chinese one — and empty is the untailored behaviour a text
+   * that says nothing gets.
+   *
+   * It is where a script's own prohibitions come from before any table
+   * does: a tailoring the segmentation applies is a boundary that never
+   * opens, so nothing downstream learns a rule. A KinsokuTable stays the
+   * seam for a HOUSE's additions on top of it.
+   */
+  void setLineBreakLocale(std::string locale);
+  /** The tailoring the line segmentation runs under. */
+  [[nodiscard]] const std::string& lineBreakLocale() const {
+    return m_lineBreakLocale;
+  }
   /** Returns the prohibitions this paragraph was segmented under. */
   [[nodiscard]] const KinsokuTable& kinsoku() const noexcept {
     return m_kinsoku;
@@ -283,7 +300,7 @@ class Paragraph {
   void analyze(FontContext& fontContext);
   // Splits every word of `boundaries` at the offsets the hyphenator names,
   // under m_hyphenationLimits, marking the added boundaries in `isHyphen`.
-  void openPatternBreaks(std::vector<uint32_t>& boundaries,
+  void openPatternBreaks(std::vector<unicode::LineBreak>& boundaries,
                          std::vector<uint8_t>& isHyphen) const;
   void reshapeShapedPrefix(FontContext& fontContext);
   void shapeWordContent(FontContext& fontContext, Word& word);
@@ -295,6 +312,8 @@ class Paragraph {
   WritingMode m_writingMode = WritingMode::kHorizontal;
   // Whether analyze() keeps the UAX#14 boundary a soft hyphen opens.
   bool m_softHyphenBreaks = true;
+  // The tailoring the line segmentation runs under; empty is untailored.
+  std::string m_lineBreakLocale;
   // Where inside a word analyze() opens further break opportunities;
   // borrowed, and null for the typed soft hyphens alone.
   const Hyphenator* m_hyphenator = nullptr;

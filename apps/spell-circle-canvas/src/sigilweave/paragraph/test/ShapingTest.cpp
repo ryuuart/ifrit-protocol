@@ -192,6 +192,29 @@ TEST(Itemization, HardBreakIsMandatory) {
   EXPECT_TRUE(sawMandatory);
 }
 
+TEST(Itemization, ThePairAndTheFormFeedAreMandatoryBreaksToo) {
+  FontContext& fontContext = sharedContext();
+  // The flag is the segmentation's, so a CR LF pair is ONE break and the
+  // form feed no hand-written list remembers is a break at all.
+  Paragraph paragraph = makeParagraph(u8"first\r\nsecond\fthird");
+  paragraph.ensureShaped(fontContext);
+  int mandatory = 0;
+  for (const Word& word : paragraph.words())
+    if (word.mandatoryBreakAfter) ++mandatory;
+  EXPECT_EQ(mandatory, 2);
+}
+
+TEST(Itemization, FullWidthLatinIsSetLikeTheKanjiAroundIt) {
+  FontContext& fontContext = sharedContext();
+  // The question a justified CJK line asks is whether a character stands
+  // in a full-width cell, which fullwidth Latin does however Latin its
+  // script is.
+  Paragraph paragraph = makeParagraph(u8"\uFF21\uFF22\uFF23");
+  paragraph.ensureShaped(fontContext);
+  ASSERT_FALSE(paragraph.words().empty());
+  for (const Word& word : paragraph.words()) EXPECT_TRUE(word.ideographic);
+}
+
 TEST(Itemization, RtlWordShapesRtl) {
   FontContext& fontContext = sharedContext();
   Paragraph paragraph = makeParagraph(u8"שלום");

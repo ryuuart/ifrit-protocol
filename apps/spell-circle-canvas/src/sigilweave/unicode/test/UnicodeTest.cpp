@@ -62,8 +62,20 @@ TEST(Properties, HardLineBreaks) {
   EXPECT_TRUE(isHardLineBreak(u'\u0085')) << "next line";
   EXPECT_TRUE(isHardLineBreak(u'\u2028')) << "line separator";
   EXPECT_TRUE(isHardLineBreak(u'\u2029')) << "paragraph separator";
+  EXPECT_TRUE(isHardLineBreak(u'\u000B')) << "vertical tab";
+  EXPECT_TRUE(isHardLineBreak(u'\u000C')) << "form feed";
   EXPECT_FALSE(isHardLineBreak(u' '));
   EXPECT_FALSE(isHardLineBreak(u'\t'));
+}
+
+TEST(Properties, RightToLeftIsTheCharactersOwnClass) {
+  // The question is the character's bidirectional class, so a mark that
+  // only ever takes the direction of what it follows cannot force one,
+  // however right-to-left the block around it reads.
+  EXPECT_TRUE(mayRequireBidi(U'\u05D0')) << "Hebrew alef";
+  EXPECT_FALSE(mayRequireBidi(U'\u0591')) << "a Hebrew accent, a mark";
+  EXPECT_TRUE(mayRequireBidi(U'\U0001E900')) << "Adlam, beyond the BMP";
+  EXPECT_FALSE(mayRequireBidi(U'\u0000'));
 }
 
 TEST(Properties, TypefaceInheritance) {
@@ -117,13 +129,16 @@ TEST(Scripts, ScriptOfAndNames) {
   EXPECT_EQ(scriptShortName(-1), nullptr);
 }
 
-TEST(Scripts, IdeographicScripts) {
-  EXPECT_TRUE(isIdeographicScript(scriptOf(U'中')));
-  EXPECT_TRUE(isIdeographicScript(scriptOf(U'あ'))) << "hiragana";
-  EXPECT_TRUE(isIdeographicScript(scriptOf(U'한'))) << "hangul";
-  EXPECT_FALSE(isIdeographicScript(scriptOf(U'a')));
-  EXPECT_FALSE(isIdeographicScript(scriptOf(U'ก'))) << "Thai";
-  EXPECT_FALSE(isIdeographicScript(kCommonScript));
+TEST(Properties, FullWidthIsACharacterPropertyAndNotAScriptOne) {
+  EXPECT_TRUE(isFullWidth(U'中'));
+  EXPECT_TRUE(isFullWidth(U'あ')) << "hiragana";
+  EXPECT_TRUE(isFullWidth(U'한')) << "hangul";
+  EXPECT_TRUE(isFullWidth(U'Ａ'))
+      << "fullwidth Latin stands in a full-width cell like the kanji it is "
+         "set among";
+  EXPECT_FALSE(isFullWidth(U'A'));
+  EXPECT_FALSE(isFullWidth(U'ก')) << "Thai";
+  EXPECT_FALSE(isFullWidth(U' '));
 }
 
 TEST(Scripts, ItemizeAttachesCommonToNeighbours) {
@@ -185,21 +200,65 @@ TEST(CaseMapping, OutParameterFormReplacesContents) {
 
 // ── Segmentation ───────────────────────────────────────────────────────
 
+/// The offsets alone, for the cases the flag is not what is under test.
+std::vector<uint32_t> breakOffsets(std::u16string_view text,
+                                   std::string_view locale = {}) {
+  std::vector<uint32_t> offsets;
+  for (const LineBreak& entry : lineBreaks(text, locale))
+    offsets.push_back(entry.offset);
+  return offsets;
+}
+
 TEST(Segmentation, LineBreaksFollowSpacesAndEndAtTheText) {
   const std::u16string text = u"one two\nthree";
-  EXPECT_EQ(lineBreaks(text), (std::vector<uint32_t>{4, 8, 13}));
-  EXPECT_EQ(lineBreaks(u""), (std::vector<uint32_t>{0}));
-  EXPECT_EQ(lineBreaks(u"word"), (std::vector<uint32_t>{4}));
+  EXPECT_EQ(breakOffsets(text), (std::vector<uint32_t>{4, 8, 13}));
+  EXPECT_EQ(breakOffsets(u""), (std::vector<uint32_t>{0}));
+  EXPECT_EQ(breakOffsets(u"word"), (std::vector<uint32_t>{4}));
+}
+
+TEST(Segmentation, TheSegmentationSaysWhichBreakTheTextDemands) {
+  // The flag is the rule that opened the boundary, so a CR LF pair — which
+  // no test of the character before the boundary can judge — is one
+  // mandatory break, and the vertical tab and form feed no hand-written
+  // list remembers are mandatory too.
+  const std::vector<LineBreak> breaks = lineBreaks(u"a\r\nb\u000Bc");
+  ASSERT_EQ(breaks.size(), 3u);
+  EXPECT_EQ(breaks[0], (LineBreak{3, true}));
+  EXPECT_EQ(breaks[1], (LineBreak{5, true}));
+  EXPECT_EQ(breaks[2], (LineBreak{6, false})) << "the end of the text";
+  for (const LineBreak& entry : lineBreaks(u"one two"))
+    EXPECT_FALSE(entry.mandatory);
+}
+
+TEST(Segmentation, ATailoringIsWhereAScriptsOwnProhibitionsComeFrom) {
+  // The strict Japanese rules forbid a break before a small kana; the
+  // untailored root rules allow one.
+  const std::u16string text = u"\u3068\u3063\u3066";  // と っ て
+  const std::vector<uint32_t> loose = breakOffsets(text, "ja@lb=loose");
+  const std::vector<uint32_t> strict = breakOffsets(text, "ja@lb=strict");
+  EXPECT_LT(strict.size(), loose.size());
+  EXPECT_EQ(strict, breakOffsets(text))
+      << "the strict rules are what an untailored text already gets";
+}
+
+TEST(Segmentation, GraphemeClustersAreWhatAReaderCallsCharacters) {
+  // A base and its combining mark, and a regional-indicator pair, are each
+  // one cluster however many code units they take.
+  EXPECT_EQ(graphemeBoundaries(u"e\u0301x"),
+            (std::vector<uint32_t>{0, 2, 3}));
+  EXPECT_EQ(graphemeBoundaries(u"\U0001F1EF\U0001F1F5"),
+            (std::vector<uint32_t>{0, 4}));
+  EXPECT_EQ(graphemeBoundaries(u""), (std::vector<uint32_t>{0}));
 }
 
 TEST(Segmentation, LineBreaksBetweenIdeographsAndNotAtNoBreakSpace) {
-  EXPECT_EQ(lineBreaks(u"中文字"), (std::vector<uint32_t>{1, 2, 3}));
-  EXPECT_EQ(lineBreaks(u"a b c"), (std::vector<uint32_t>{4, 5}));
-  EXPECT_EQ(lineBreaks(u"co­op"), (std::vector<uint32_t>{3, 5}))
+  EXPECT_EQ(breakOffsets(u"中文字"), (std::vector<uint32_t>{1, 2, 3}));
+  EXPECT_EQ(breakOffsets(u"a b c"), (std::vector<uint32_t>{4, 5}));
+  EXPECT_EQ(breakOffsets(u"co­op"), (std::vector<uint32_t>{3, 5}))
       << "a soft hyphen opens a break right after itself";
-  std::vector<uint32_t> reused = {7, 7, 7};
+  std::vector<LineBreak> reused = {{7, false}, {7, false}};
   lineBreaks(u"ab", reused);
-  EXPECT_EQ(reused, (std::vector<uint32_t>{2}));
+  EXPECT_EQ(reused, (std::vector<LineBreak>{{2, false}}));
 }
 
 TEST(Segmentation, WordBoundariesBracketEveryWord) {

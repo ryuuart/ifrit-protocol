@@ -11,6 +11,7 @@
 #include <include/core/SkFontMetrics.h>
 #include <include/core/SkRSXform.h>
 #include <include/core/SkTextBlob.h>
+#include <unicode/ubidi.h>
 #include <unicode/utf16.h>
 
 #include <algorithm>
@@ -209,39 +210,27 @@ void emitSegment(ParagraphLayout& result, const FlatInterval& flatInterval,
   if (run.blob) result.runs.push_back(std::move(run));
 }
 
-// UAX #9 rule L2 over per-word levels: reverse maximal runs of every level
-// >= each odd level, highest level first.
+// UAX #9 rule L2 over per-word levels, which is a reordering ICU performs
+// on a level array: the levels of the words on the line go in, and the
+// answer is the logical index each visual position holds.
 void visualOrder(const std::vector<Word>& words, uint32_t firstWordIndex,
                  uint32_t endWordIndex,
                  std::vector<uint32_t>& visualWordOrder) {
   visualWordOrder.clear();
-  visualWordOrder.reserve(endWordIndex - firstWordIndex);
-  uint8_t maximumLevel = 0;
-  uint8_t minimumOddLevel = 255;
+  if (endWordIndex <= firstWordIndex) return;
+  const int32_t count = static_cast<int32_t>(endWordIndex - firstWordIndex);
+  static thread_local std::vector<UBiDiLevel> levels;
+  static thread_local std::vector<int32_t> indexMap;
+  levels.clear();
+  levels.reserve(static_cast<size_t>(count));
   for (uint32_t wordIndex = firstWordIndex; wordIndex < endWordIndex;
-       ++wordIndex) {
-    visualWordOrder.push_back(wordIndex);
-    const uint8_t level = words[wordIndex].bidiLevel;
-    maximumLevel = std::max(maximumLevel, level);
-    if (level & 1u) minimumOddLevel = std::min(minimumOddLevel, level);
-  }
-  for (uint8_t level = maximumLevel;
-       level >= minimumOddLevel && minimumOddLevel != 255; --level) {
-    size_t rangeStart = 0;
-    while (rangeStart < visualWordOrder.size()) {
-      if (words[visualWordOrder[rangeStart]].bidiLevel >= level) {
-        size_t rangeEnd = rangeStart;
-        while (rangeEnd < visualWordOrder.size() &&
-               words[visualWordOrder[rangeEnd]].bidiLevel >= level)
-          rangeEnd++;
-        std::reverse(visualWordOrder.begin() + rangeStart,
-                     visualWordOrder.begin() + rangeEnd);
-        rangeStart = rangeEnd;
-      } else {
-        rangeStart++;
-      }
-    }
-  }
+       ++wordIndex)
+    levels.push_back(static_cast<UBiDiLevel>(words[wordIndex].bidiLevel));
+  indexMap.resize(static_cast<size_t>(count));
+  ubidi_reorderVisual(levels.data(), count, indexMap.data());
+  visualWordOrder.reserve(static_cast<size_t>(count));
+  for (const int32_t logical : indexMap)
+    visualWordOrder.push_back(firstWordIndex + static_cast<uint32_t>(logical));
 }
 
 }  // namespace
