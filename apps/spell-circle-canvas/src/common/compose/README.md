@@ -1177,7 +1177,11 @@ sound model; nothing below them changes kernel semantics.
 
 - `core/Motion.h` — the re-exports of SigilMotion's animation vocabulary
   (`Animatable`, `Transition`, `animate`, `bind`, `ease::`,
-  `quantizeTime`), so authoring never has to name a second library.
+  `quantizeTime`), so authoring never has to name a second library. What
+  it deliberately does NOT re-export is the SCHEDULE: a cascade over
+  glyphs is the same value as a cascade over a set's children or a feed's
+  rows, so it is spelled `motion::Spread` at every site and what compose
+  adds to it — what a unit IS — sits beside it on the track.
 - `core/Paint.h` — the paint values: `Fill`, `Corners`, `PaintContext`,
   `StampCache`, `UniformBlock`, `Effect`, and the colour spellings `hex`,
   `alpha`, `mul`, `mix`.
@@ -1226,10 +1230,14 @@ sound model; nothing below them changes kernel semantics.
 - `core/GpuImage.h` — `gpuimg::drawLattice` and `gpuimg::drawSpriteAtlas`,
   which are mandatory rather than convenient (see the traps).
 
-The two time helpers a scene reaches for — `motion::ramp`, a delayed
-eased `Transition` in float milliseconds, and `motion::phase`, a wrapping
-`[0, 1)` over a period — are SigilMotion's, in
-`<sigilmotion/Animation.h>`.
+The time helpers a scene reaches for — `motion::ramp`, a delayed eased
+`Transition` in float milliseconds; `motion::phase`, a wrapping `[0, 1)`
+over a period; `motion::quantizeTime` and its integer counterpart
+`motion::stepIndex`; `motion::decay`, the open-ended settle a duration-
+based curve cannot be — are SigilMotion's, in `<sigilmotion/Animation.h>`.
+So is the whole of "is this value moving": `motion::isLive` is the one
+body every volatility walk in this library asks, and what it can and
+cannot say is stated in that library's README.
 
 **Geometry — `kit/`.** `kit/Silhouettes.h` puts the silhouette and curve
 catalog under `shapes::` — the generators themselves are SigilGeometry's

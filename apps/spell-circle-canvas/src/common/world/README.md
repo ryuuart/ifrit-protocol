@@ -459,12 +459,30 @@ itself. Operation by operation:
 | `reconcilesChildren` | true: children are described, never filled by another path |
 | `children` / `descOf` | the description's `children`, and the node handle off each `Element` |
 | `memoOf` / `produce` | the description's `Memo`, and the deferred describe run under the environment its author had |
-| `create` | a node, an entity with a `Placement`, and the first patch |
-| `onPatched` | retargets the lanes (mounting entrances on the first patch), marks the geometry slot for resolution when it or its window changed, and stales every bake above |
+| `create` | a node, an entity with a `Placement`, and the first patch — with the child's ordinal read through the parent's `staggerChildren()` schedule, so the entrance the patch mounts is delayed by where this child sits in the cascade |
+| `onPatched` | retargets the lanes (mounting entrances on the first patch, at whatever the enclosing cascade delayed this branch by), marks the geometry slot for resolution when it or its window changed, and stales every bake above |
 | `reorder` | stales every bake above when a child mounted, unmounted or moved |
 | `remountRequired` | **false, always** — nothing a node retains is welded to what its slots hold |
 | `invalidate` | stales every bake above |
 | `destroy` | destroys the subtree's entities and releases its resource references |
+
+**Entrances cascade.** `Element::staggerChildren(motion::Spread)` puts a
+schedule on a node, and each child that MOUNTS enters at the start time
+that schedule gives its ordinal — an even ladder, a fixed total divided
+across however many children turn up, an irregular cue table, one of five
+orderings, a distribution curve. It is SigilMotion's schedule, the same
+body a paragraph's glyphs cascade through, so `From::Center` means one
+thing in a set and in a line of type. The delay compounds down the
+subtree and only children that actually mount are delayed: appending one
+node to a live list enters it at once rather than making it wait out the
+whole list.
+
+**Lanes and the values on them are SigilMotion's.** `Lane`,
+`retargetSlots`, `mountEntrance`, `isLive` and the comparators that decide
+two animatable slots are the same live in `<sigilmotion/values/…>`; this
+library names the FAMILY (`LaneFamily::Slot`), the 26 rows, and what each
+row's standing value is when a description does not carry the block that
+holds it.
 
 **Phases** are declared through `core::Phase` and run by `core::runPhases`:
 `describe` → `lanes` → `derive` (converging) → `extract` → `graph` →

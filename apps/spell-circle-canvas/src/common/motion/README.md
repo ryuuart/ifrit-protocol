@@ -16,7 +16,7 @@ what a consumer uses; every public header lives under
 | target | headers | holds |
 |--------|---------|-------|
 | `SigilMotionBind`   | `bind/Bound.h`, `bind/BoundFloat.h`, `bind/WiggleNoise.h`; `bind/Bind.h` includes all three | `bind()`, `wiggle()` and the `Bound` chain builder; `BoundFloat` and `Envelope`, the evaluator; the wiggle noise field; `easeEqual()` and `boundMapEqual()` |
-| `SigilMotionValues` | `values/Transition.h`, `values/Keyframes.h`, `values/Animatable.h`, `values/Animated.h`, `values/Lanes.h`, `values/Time.h`; `values/Values.h` includes all six | `Transition`, `ease::`, `ramp()` and `transitionEqual()`; `Transitioned`, `animate()`/`from()`/`to()`/`through()`; `Animatable<T>` and `propEqual()`; `AnimatedFloat` and the operations on a held motion; `Lane`, `LaneSlot` and the retargets; `quantizeTime()` and `phase()` |
+| `SigilMotionValues` | `values/Transition.h`, `values/Keyframes.h`, `values/Animatable.h`, `values/Animated.h`, `values/Lanes.h`, `values/Time.h`; `values/Values.h` includes all six | `Transition`, `ease::`, `ramp()`, `clamp01()` and `transitionEqual()`; `Transitioned`, `animate()`/`from()`/`to()`/`through()`; `Animatable<T>` and `propEqual()`; `AnimatedFloat`, the operations on a held motion, `isLive()` and `progressRamp()`; `Lane`, `LaneSlot` and the retargets; `quantizeTime()`, `stepIndex()`, `phase()` and `decay()` |
 | `SigilMotionClock`  | `clock/FrameClock.h`, `clock/Ticker.h` | the clock and the ticker |
 | `SigilMotionSchedule` | `schedule/Spread.h`, `schedule/Order.h`, `schedule/Cascade.h`; `schedule/Schedule.h` includes all three | `Spread`, the spec; `cascadeOrder()`, the five orderings; `Cascade` and `Beat`, a spread resolved against a frame's counts |
 
@@ -248,6 +248,33 @@ value and a row neither carries is skipped entirely. A **positional**
 family is sized by the description, so a change of SHAPE drops the
 running motions rather than carrying them onto endpoints that now mean
 something else.
+
+## Stillness, in three words
+
+"Is anything still moving" is three different questions, and answering one
+with another is how a tree that has come to rest goes on repainting
+forever. Each has its own word here:
+
+| word | asks | grain |
+|---|---|---|
+| **declared** — a value holds a binding or a transition | *could* this move? | one value, from the description alone |
+| **running** — `isLive(anim, v)` | is it moving *now*? | one value plus the motion held for it |
+| **settled** — `core::Settle` in SigilCore | has it provably *held still*? | a node's values, observed across frames |
+
+The trap is that the first two can never say "it stopped". A binding
+stays attached for the whole life of the value it drives, so a
+declaration is permanent; and `AnimatedFloat::started` is permanent in
+the same way, which is why `isLive` asks `Output::isConnected()` instead
+— Choreograph disconnects an output when its motion finishes, and that is
+the one thing in a running motion that changes when it lands.
+
+Even "running" is a declaration about the *machinery*, not about the
+numbers: a wave held at a constant phase is connected and moves nothing.
+Only the third question is a FACT, and answering it means comparing the
+values across frames, which is a caching concern and lives with the cache.
+`Ticker::active()` is the same question asked of a whole animation domain
+rather than one value — is any motion registered at all — and it is the
+signal a host sleeps on.
 
 ## Comparing two descriptions
 
