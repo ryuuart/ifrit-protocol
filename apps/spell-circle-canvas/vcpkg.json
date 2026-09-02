@@ -33,7 +33,15 @@
       "host": true
     },
     {
+      "$comment": [
+        "version>= holds the port cmake/SkiaSanitizerAbi.h was written",
+        "against. That header claims SkASAN.h's include guard by name to",
+        "keep sanitized objects on the archive's layout, and a guard is",
+        "only claimable while the name is the one the port's header",
+        "declares. Raise both together."
+      ],
       "name": "skia",
+      "version>=": "151#2",
       "features": [
         "avif",
         "default-visibility",

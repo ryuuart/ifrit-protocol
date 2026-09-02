@@ -101,8 +101,12 @@ a static TBB deadlock on the first stage open. Custom ports (`choreograph`, `ski
 `diligent-engine`) come from the sigil-vcpkg-registry at
 https://github.com/ryuuart/sigil-vcpkg-registry via
 `vcpkg-configuration.json`; bump its `baseline` to the registry's new
-HEAD when a port changes (the workflow is in its README). A library that
-is not in upstream vcpkg gets a port there rather than being vendored.
+HEAD when a port changes (the workflow is in its README). `skia` also
+carries a `version>=` in `vcpkg.json`, naming the port
+`cmake/SkiaSanitizerAbi.h` reads a header guard out of; raise the two
+together, and the assertion in that header says so if they part. A
+library that is not in upstream vcpkg gets a port there rather than
+being vendored.
 
 Qt's moc runs only where Qt is. The tree configures with `CMAKE_AUTOMOC`
 off, and each target that declares Qt types names itself with
