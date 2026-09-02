@@ -92,20 +92,3 @@ the property.
 Assert: a translation unit that includes exactly one public compose
 header, first and alone, compiles. One test per header, generated from
 the header list.
-
-## The window ledger keys its rows by the first word of a display name
-
-`Sketchbook --window-bench` prints `WINDOW <name> …` with the FILED name,
-which carries spaces, and `scripts/app_fps_ledger.py` matches `(\S+)` —
-so `aero desktop` is stored as `aero` and the rest of the name is parsed
-as if it were key=value pairs. Fifteen of the hundred rows in
-`bench/app_fps_Release.json` are truncated this way, and two sketches
-whose filed names shared a first word would silently share one row.
-
-Intended: a row is keyed by the registry stem, which is what `--sketch`
-takes and what the file on disk is called, and carries no spaces by
-construction.
-
-Assert once fixed: every key in the baseline is the stem of a file in
-`sketches/`, and a sketch filed under a two-word name round-trips
-through the ledger under its stem.

@@ -5,7 +5,7 @@
   "window": "1440x900@2",
   "taken": "2026-09-02T12:38:35+00:00",
   "sketches": {
-    "aero": {
+    "aero_desktop": {
       "window": "1440x900@2",
       "canvas": "900x640",
       "kind": "canvas",
@@ -181,17 +181,6 @@
       "submit": 0.1,
       "headroom": 4794.0
     },
-    "cross_library": {
-      "window": "1440x900@2",
-      "canvas": "1280x780",
-      "kind": "canvas",
-      "fps": 119.2,
-      "work": 1.92,
-      "p99": 4.05,
-      "draw": 1.92,
-      "submit": 0.31,
-      "headroom": 521.0
-    },
     "crt_bloom": {
       "window": "1440x900@2",
       "canvas": "860x520",
@@ -203,7 +192,7 @@
       "submit": 0.06,
       "headroom": 7604.4
     },
-    "daemon": {
+    "daemon_console": {
       "window": "1440x900@2",
       "canvas": "900x640",
       "kind": "canvas",
@@ -390,7 +379,7 @@
       "submit": 0.23,
       "headroom": 763.9
     },
-    "gerstner": {
+    "gerstner_grid": {
       "window": "1440x900@2",
       "canvas": "900x640",
       "kind": "canvas",
@@ -467,7 +456,7 @@
       "submit": 0.29,
       "headroom": 232.3
     },
-    "kinetic": {
+    "kinetic_card": {
       "window": "1440x900@2",
       "canvas": "900x640",
       "kind": "canvas",
@@ -522,7 +511,7 @@
       "submit": 0.07,
       "headroom": 350.4
     },
-    "loot": {
+    "loot_grid": {
       "window": "1440x900@2",
       "canvas": "900x640",
       "kind": "canvas",
@@ -632,7 +621,7 @@
       "submit": 1.05,
       "headroom": 542.2
     },
-    "motion": {
+    "motion_poster": {
       "window": "1440x900@2",
       "canvas": "900x640",
       "kind": "canvas",
@@ -643,7 +632,7 @@
       "submit": 0.05,
       "headroom": 11016.6
     },
-    "night": {
+    "night_network": {
       "window": "1440x900@2",
       "canvas": "900x640",
       "kind": "canvas",
@@ -665,7 +654,7 @@
       "submit": 1.93,
       "headroom": 556.6
     },
-    "nine": {
+    "nine_slice": {
       "window": "1440x900@2",
       "canvas": "900x640",
       "kind": "canvas",
@@ -676,7 +665,7 @@
       "submit": 0.05,
       "headroom": 9405.2
     },
-    "passive": {
+    "passive_tree": {
       "window": "1440x900@2",
       "canvas": "900x640",
       "kind": "canvas",
@@ -709,7 +698,7 @@
       "submit": 0.58,
       "headroom": 169.8
     },
-    "persona": {
+    "persona_menu": {
       "window": "1440x900@2",
       "canvas": "900x640",
       "kind": "canvas",
@@ -830,6 +819,17 @@
       "submit": 0.49,
       "headroom": 599.1
     },
+    "shapeworks_lab": {
+      "window": "1440x900@2",
+      "canvas": "1280x780",
+      "kind": "canvas",
+      "fps": 119.2,
+      "work": 1.92,
+      "p99": 4.05,
+      "draw": 1.92,
+      "submit": 0.31,
+      "headroom": 521.0
+    },
     "shipping_forecast": {
       "window": "1440x900@2",
       "canvas": "1440x880",
@@ -940,7 +940,7 @@
       "submit": 0.24,
       "headroom": 2678.9
     },
-    "tile": {
+    "tile_map": {
       "window": "1440x900@2",
       "canvas": "944x257",
       "kind": "canvas",
@@ -984,7 +984,7 @@
       "submit": 1.24,
       "headroom": 519.2
     },
-    "ui": {
+    "ui_particles": {
       "window": "1440x900@2",
       "canvas": "900x640",
       "kind": "canvas",
@@ -1050,7 +1050,7 @@
       "submit": 0.55,
       "headroom": 537.1
     },
-    "world": {
+    "world_hud": {
       "window": "1440x900@2",
       "canvas": "900x640",
       "kind": "canvas",
@@ -1072,7 +1072,7 @@
       "submit": 0.13,
       "headroom": 1946.6
     },
-    "y2k": {
+    "y2k_chrome": {
       "window": "1440x900@2",
       "canvas": "900x640",
       "kind": "canvas",

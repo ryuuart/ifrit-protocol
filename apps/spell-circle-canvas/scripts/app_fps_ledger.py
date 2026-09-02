@@ -75,11 +75,16 @@ def tolerance_for(name):
 
 
 def parse_lines(text):
-    """The WINDOW lines, as {name: row} plus the names stood down.
+    """The WINDOW lines, as {stem: row} plus the stems stood down.
 
     A row is the key=value pairs after the name, numbers where they read
     as numbers. A line saying SKIPPED is a sketch this machine cannot
-    run: not a measurement and not a failure."""
+    run: not a measurement and not a failure.
+
+    The name on a line is the sketch's STEM — the file it lives in, and
+    what --sketch takes. The line is whitespace-separated, so a name
+    carrying a space would end halfway through and the remainder would be
+    read as fields nobody wrote."""
     rows, skipped = {}, {}
     for line in text.splitlines():
         found = LINE.match(line.strip())

@@ -497,11 +497,16 @@ bool startWindowBench(QGuiApplication& application, QQuickWindow& window,
           const std::string_view runtime = kind ? kind->runtime() : "?";
           const SkSize canvas = host ? host->canvasSize() : SkSize::Make(0, 0);
           const double work = host ? host->workMsAverage() : 0.0;
+          // KEYED BY THE STEM, not by the filed name: the line is one
+          // whitespace-separated record, and a filed name carries spaces
+          // — "aero desktop" would be read as the name "aero" followed
+          // by a field nobody wrote. The stem cannot contain a space and
+          // is what --sketch already takes.
           std::printf(
               "WINDOW %s window=%dx%d@%g canvas=%dx%d kind=%.*s fps=%.1f "
               "work=%.2fms p99=%.2fms draw=%.2fms submit=%.2fms "
               "headroom=%.1f\n",
-              entry.name, window.width(), window.height(),
+              entry.key, window.width(), window.height(),
               window.devicePixelRatio(), (int)canvas.width(),
               (int)canvas.height(), (int)runtime.size(), runtime.data(),
               host ? host->presentedFps() : 0.0, work,
@@ -541,7 +546,7 @@ std::vector<int> windowBenchSelection(int only, const std::string& kind) {
     }
     std::string why;
     if (!entries[i].available(&why)) {
-      std::printf("WINDOW %s SKIPPED %s\n", entries[i].name, why.c_str());
+      std::printf("WINDOW %s SKIPPED %s\n", entries[i].key, why.c_str());
       continue;
     }
     selection.push_back(i);
