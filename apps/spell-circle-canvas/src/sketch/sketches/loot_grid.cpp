@@ -47,6 +47,7 @@
 #include <sigilcompose/shape/Shapes.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilweave/ports/SystemFontManager.h>
 
 #include <array>
 #include <cmath>
@@ -65,7 +66,7 @@ using namespace std::chrono_literals;
 namespace {
 /** The canvas this piece was drawn against, which is also the default a
  *  sketch gets when it declares none. */
-constexpr SkSize kSceneSize = {900, 640};
+constexpr SkSize kSceneSize = {900, 880};
 
 namespace loot {
 
@@ -366,7 +367,13 @@ inline Element panel(float w, float h) {
           {0, 0, 0, 0.7f}})
       .foreground(stroke(2.0f, Fill::color(kBronze)))
       .foreground(
-          stroke(1.0f, Fill::color(kBronzeDim), PathFormat::Align::Inner));
+          stroke(1.0f, Fill::color(kBronzeDim), PathFormat::Align::Inner))
+      // A PANEL IS A STILL LIFE: a ramp, a generated grain and a bevel,
+      // none of which ever change. Recorded rather than baked it re-runs
+      // the grain over every pixel of a tall plate on every frame, which
+      // is most of this scene's budget; asked for by name it is
+      // rasterised once.
+      .cache(Cache::Texture);
 }
 
 /** Four rivets, one per corner of a panel. */
@@ -432,10 +439,19 @@ struct LootGrid final : sketch::Sketch {
   static SkPoint blockedAt() { return {loot::cellX(4), loot::cellY(1)}; }
   static SkPoint freeAt() { return {loot::cellX(7), loot::cellY(1)}; }
 
+  /** The display face an item's NAME is set in. Diablo II names items in
+   *  a blackletter-derived type; the fallback chain walks from the
+   *  closest thing a system carries down to a serif, and the grotesque
+   *  the rest of the sheet is set in is never reached. */
+  sk_sp<SkTypeface> displayFace;
+
   void setup(sketch::SketchContext& ctx) override {
     ctx.canvas(kSceneSize.fWidth, kSceneSize.fHeight);
     ctx.background({0, 0, 0, 1});
     ctx.captureAt(5.1);
+    displayFace = pickFace({"Papyrus", "Baskerville", "Hoefler Text",
+                            "Iowan Old Style", "Georgia"},
+                           600);
     Composer& composer = ctx.composer;
     sigil::motion::Ticker& ticker = ctx.ticker;
     namespace lt = loot;
@@ -489,14 +505,15 @@ struct LootGrid final : sketch::Sketch {
 
   // ------------------------------------------------------------------
 
+  /** The hoard: ten by four at the paperdoll's own cell, standing in the
+   *  lower half of the one tall panel. */
   Element gridPanel() {
     namespace lt = loot;
-    constexpr float pad = 15;
     Element grid = stack()
                        .width(Dim(lt::kGridW))
                        .height(Dim(lt::kGridH))
-                       .left(pad)
-                       .top(pad + 26);
+                       .left(16.0f)
+                       .top(516.0f);
 
     // the empty wells — forty cells, one stamp
     grid.child(instances(cellAtlas, cellPool));
@@ -514,21 +531,28 @@ struct LootGrid final : sketch::Sketch {
               .corners({2})
               .left(lt::cellX(item.col))
               .top(lt::cellY(item.row))
-              .fill(Material::linear(
-                  {0, 0}, {0, h},
-                  {{0.0f, {rc.fR * 0.30f, rc.fG * 0.30f, rc.fB * 0.30f, 0.85f}},
-                   {1.0f,
-                    {rc.fR * 0.13f, rc.fG * 0.13f, rc.fB * 0.13f, 0.85f}}}))
+              // THE CELL STAYS NEUTRAL. Diablo II reads an item's quality
+              // off the NAME in its tooltip and off the glow a set or
+              // unique throws; the cell behind it is the same dark well
+              // whatever is in it. Tinting the cell makes the ladder the
+              // loudest thing on the screen and turns a hoard into a
+              // status grid, so what quality carries here is a hairline
+              // and, for the two lit ranks, a bloom.
+              .fill(Material::linear({0, 0}, {0, h},
+                                     {{0.0f, {0.10f, 0.095f, 0.082f, 0.92f}},
+                                      {1.0f, {0.05f, 0.048f, 0.042f, 0.92f}}}))
               .foreground(stroke(
-                  1.0f, Fill::color({rc.fR, rc.fG, rc.fB, lit ? 0.7f : 0.3f})))
+                  1.0f, Fill::color({rc.fR, rc.fG, rc.fB, lit ? 0.8f : 0.34f})))
               .row()
               .justify(Justify::Center)
               .alignItems(Align::Center)
               .child(lt::artwork(item.art, w * 0.76f, h * 0.80f, item.tint,
                                  item.art == lt::Art::Potion));
+      // A set or a unique GLOWS — the one thing besides the tooltip's
+      // name that says what a thing is worth.
       if (lit)
         cell.background(
-            styles::dropShadow({rc.fR, rc.fG, rc.fB, 0.35f}, {0, 0}, 9));
+            styles::dropShadow({rc.fR, rc.fG, rc.fB, 0.62f}, {0, 0}, 13));
       // uniques catch a light band that sweeps them
       if (item.rarity == lt::Rarity::Unique)
         cell.child(box().inset(1).clip().child(
@@ -593,30 +617,31 @@ struct LootGrid final : sketch::Sketch {
                                       hex(0x8895A2))));
 
     return stack()
-        .width(Dim(lt::kGridW + 2 * pad))
-        .height(Dim(lt::kGridH + 2 * pad + 26))
-        .left(452)
-        .top(96)
-        .child(loot::panel(lt::kGridW + 2 * pad, lt::kGridH + 2 * pad + 26)
-                   .inset(0))
-        .child(loot::rivets(lt::kGridW + 2 * pad, lt::kGridH + 2 * pad + 26))
+        .width(Dim(430.0f))
+        .height(Dim(690.0f))
+        .left(30.0f)
+        .top(96.0f)
         .child(text(toU8("HOARD"), type({.size = 12,
                                          .color = lt::kBronzeLit,
                                          .track = 4.5f,
                                          .weight = 650}))
-                   .left(pad)
-                   .top(pad + 2))
+                   .left(16.0f)
+                   .top(492.0f))
         .child(text(toU8("10 \xc3\x97"
                          " 4"),
                     type({.size = 11, .color = lt::kAsh, .track = 2.0f}))
-                   .right(pad)
-                   .top(pad + 3))
+                   .left(398.0f)
+                   .top(493.0f))
         .child(std::move(grid));
   }
 
   Element paperdoll() {
     namespace lt = loot;
-    constexpr float pw = 396, ph = 500, pad = 16;
+    // ONE TALL PANEL. D2 hangs the paperdoll and the ten-by-four hoard
+    // in a single stone plate, and the grid is the study's subject: put
+    // it in a panel of its own beside the figure and it reads as a
+    // second, smaller thing. The panel is as tall as both.
+    constexpr float pw = 430, ph = 690, pad = 16;
     struct Slot {
       const char* label;
       lt::Art ghost;
@@ -668,7 +693,7 @@ struct LootGrid final : sketch::Sketch {
       Element socket = stack()
                            .width(Dim(w))
                            .height(Dim(h))
-                           .left(pad + s.x)
+                           .left(pad + 17 + s.x)
                            .top(pad + 22 + s.y)
                            .child(lt::well(w, h).inset(0));
       if (equipped) {
@@ -677,14 +702,14 @@ struct LootGrid final : sketch::Sketch {
             box()
                 .inset(2)
                 .corners({2})
-                .fill(Material::linear(
-                    {0, 0}, {0, h},
-                    {{0.0f,
-                      {rc.fR * 0.28f, rc.fG * 0.28f, rc.fB * 0.28f, 0.9f}},
-                     {1.0f,
-                      {rc.fR * 0.12f, rc.fG * 0.12f, rc.fB * 0.12f, 0.9f}}}))
+                // The same rule as the hoard's cells: the socket is a dark
+                // well whatever is worn in it, and quality is a hairline.
+                .fill(
+                    Material::linear({0, 0}, {0, h},
+                                     {{0.0f, {0.10f, 0.095f, 0.082f, 0.95f}},
+                                      {1.0f, {0.05f, 0.048f, 0.042f, 0.95f}}}))
                 .foreground(
-                    stroke(1.0f, Fill::color({rc.fR, rc.fG, rc.fB, 0.45f}))));
+                    stroke(1.0f, Fill::color({rc.fR, rc.fG, rc.fB, 0.5f}))));
         socket.child(box()
                          .inset(0)
                          .row()
@@ -745,8 +770,8 @@ struct LootGrid final : sketch::Sketch {
         box()
             .row()
             .gap(20)
-            .left(pad + 10)
-            .bottom(pad + 8)
+            .left(pad + 27)
+            .top(pad + 376)
             .child(box()
                        .column()
                        .gap(4)
@@ -792,9 +817,9 @@ struct LootGrid final : sketch::Sketch {
       return text(toU8(s), type({.size = 11.5f, .color = c, .track = 0.2f}));
     };
     return box()
-        .width(Dim(262.0f))
-        .left(452)
-        .top(340)
+        .width(Dim(300.0f))
+        .left(500)
+        .top(300)
         .column()
         .alignItems(Align::Center)
         .padding(14, 11)
@@ -807,9 +832,17 @@ struct LootGrid final : sketch::Sketch {
         .opacity(animate(from(0.0f).to(1.0f), {380ms}))
         .translateY(animate(from(8.0f).to(0.0f), {460ms}))
         .zIndex(9)
-        .child(
-            text(toU8("Doomslinger"),
-                 type({.size = 15, .color = rc, .track = 1.4f, .weight = 620})))
+        // THE NAME IS THE ONE PLACE QUALITY IS SPELLED OUT, so it is set
+        // in a display face rather than in the sheet's grotesque: Diablo
+        // II names items in a blackletter-derived display type and reads
+        // everything else in a small serif, and the difference between
+        // those two registers is most of what makes a tooltip feel like
+        // that game's tooltip.
+        .child(text(toU8("Doomslinger"), type({.face = displayFace,
+                                               .size = 17,
+                                               .color = rc,
+                                               .track = 1.2f,
+                                               .weight = 620})))
         .child(text(toU8("Colossus Blade"),
                     type({.size = 11.5f, .color = lt::kParch, .track = 0.8f}))
                    .margin(0, 0, 0, 6))
@@ -832,6 +865,86 @@ struct LootGrid final : sketch::Sketch {
         .child(line("Required Level: 63", hex(0xD04040)));
   }
 
+  /** THE BELT: four quick-slots on the same cell, which is the one place
+   *  Diablo II lets an item be USED rather than carried. It is here
+   *  because a grid study wants more than one construction over the same
+   *  well and the same footprint rules. */
+  Element beltRack() {
+    namespace lt = loot;
+    Element rack = box().row().gap(lt::kGap).key("belt");
+    static const char* kKeys[4] = {"1", "2", "3", "4"};
+    static const lt::Art kHeld[4] = {lt::Art::Potion, lt::Art::Potion,
+                                     lt::Art::Potion, lt::Art::Ring};
+    for (int i = 0; i < 4; ++i) {
+      Element slot = stack()
+                         .width(Dim(lt::kCell))
+                         .height(Dim(lt::kCell))
+                         .child(lt::well(lt::kCell, lt::kCell).inset(0));
+      slot.child(box()
+                     .inset(0)
+                     .row()
+                     .justify(Justify::Center)
+                     .alignItems(Align::Center)
+                     .child(lt::artwork(
+                         kHeld[i], lt::kCell * 0.6f, lt::kCell * 0.7f,
+                         i == 3 ? hex(0xB9A06A) : hex(0xC24040), i != 3)));
+      slot.child(text(toU8(kKeys[i]),
+                      type({.size = 8, .color = lt::kAsh, .track = 0.4f}))
+                     .left(3)
+                     .top(2));
+      rack.child(std::move(slot));
+    }
+    return box()
+        .column()
+        .gap(7)
+        .left(500)
+        .top(150)
+        .child(text(toU8("BELT"), type({.size = 12,
+                                        .color = lt::kBronzeLit,
+                                        .track = 4.5f,
+                                        .weight = 650})))
+        .child(std::move(rack));
+  }
+
+  /** THE CUBE: three by four, the transmutation grid. The same well, the
+   *  same footprint arithmetic and a different rule about what may sit in
+   *  it — which is the argument for a grid being a LAYOUT and not a
+   *  widget. */
+  Element cubePanel() {
+    namespace lt = loot;
+    Element grid = stack()
+                       .width(Dim(3 * lt::kCell + 2 * lt::kGap))
+                       .height(Dim(4 * lt::kCell + 3 * lt::kGap));
+    for (int r = 0; r < 4; ++r)
+      for (int c = 0; c < 3; ++c)
+        grid.child(lt::well(lt::kCell, lt::kCell)
+                       .key("cube" + std::to_string(r * 3 + c))
+                       .left(lt::cellX(c))
+                       .top(lt::cellY(r)));
+    grid.child(box()
+                   .left(lt::cellX(1))
+                   .top(lt::cellY(1))
+                   .width(Dim(lt::kCell))
+                   .height(Dim(lt::kCell))
+                   .row()
+                   .justify(Justify::Center)
+                   .alignItems(Align::Center)
+                   .child(lt::artwork(lt::Art::Ring, lt::kCell * 0.6f,
+                                      lt::kCell * 0.6f, hex(0xB9A06A))));
+    return box()
+        .column()
+        .gap(7)
+        .left(500)
+        .top(560)
+        .child(text(toU8("HORADRIC CUBE \xc2\xb7 3 \xc3\x97"
+                         " 4"),
+                    type({.size = 12,
+                          .color = lt::kBronzeLit,
+                          .track = 4.5f,
+                          .weight = 650})))
+        .child(std::move(grid));
+  }
+
   Element describe() {
     namespace lt = loot;
     char goldText[32];
@@ -841,13 +954,42 @@ struct LootGrid final : sketch::Sketch {
         {0, 0}, {0, lt::kH},
         {{0.0f, hex(0x0D0C0A)}, {0.5f, hex(0x14120F)}, {1.0f, hex(0x080706)}}));
 
-    // a faint speckled floor so the panels sit ON something
-    root.child(box()
-                   .inset(0)
-                   .fill(patterns::speckle(140, 26, 0.4f, 1.4f,
-                                           {{0.55f, 0.48f, 0.36f, 0.20f}})
-                             .material())
-                   .opacity(0.5f));
+    // THE GROUND IS TOOLED LEATHER, and it is tiled rather than painted:
+    // two patterns over one dark ramp, each a repeating tile the
+    // renderer resolves rather than an image anyone fetched. The grain is
+    // the hide and the wide gold rule grid is
+    // the blind tooling a bound cover carries. A panel needs something
+    // under it that is not a gradient, or its bevel has no ground to be a
+    // bevel against.
+    //
+    // IT IS ONE BAKED NODE, AT HALF SCALE. Four full-canvas shaders
+    // re-evaluated per frame cost this scene forty milliseconds for a
+    // picture that never changes; under one `Cache::Texture` the ground is
+    // rasterised once and blitted after. The bake itself is the only
+    // expensive frame in the piece, so it is taken at a third of the canvas and
+    // scaled up — a hide's grain and a blind rule have nothing in them
+    // that a coarse raster loses, and the bake costs a ninth.
+    root.child(
+        box()
+            .key("ground")
+            .inset(0)
+            .cache(Cache::Texture)
+            .bakeScale(0.34f)
+            .child(box()
+                       .inset(0)
+                       .fill(patterns::noise(0.9f, 4, 3.0f))
+                       .opacity(0.34f)
+                       .blend(SkBlendMode::kOverlay))
+            .child(box().inset(0).fill(
+                patterns::gridLines(96.0f, 1.0f, {0.62f, 0.50f, 0.26f, 0.10f})
+                    .material()))
+            .child(box()
+                       .inset(0)
+                       .fill(patterns::gridLines(96.0f, 1.0f,
+                                                 {0.0f, 0.0f, 0.0f, 0.22f})
+                                 .material())
+                       .translateX(1.0f)
+                       .translateY(1.0f)));
 
     root.child(
         box()
@@ -867,6 +1009,8 @@ struct LootGrid final : sketch::Sketch {
     root.child(paperdoll());
     root.child(gridPanel());
     root.child(tooltip());
+    root.child(beltRack());
+    root.child(cubePanel());
 
     // gold, on its own little plaque
     root.child(
