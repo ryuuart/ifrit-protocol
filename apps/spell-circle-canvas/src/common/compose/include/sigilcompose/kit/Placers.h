@@ -7,17 +7,32 @@
  * pool filled by hand and then arranged here keeps its tints and frames.
  * Shipped with the instances tier because every signature is spelled in
  * its Pool.
+ *
+ * WHAT A PLACER MAY NOT SPELL ITSELF. Where item i of n falls on a ring,
+ * and which cell of a grid of modules it occupies, belong to nothing here
+ * and are SigilGeometry's, in `<sigilgeometry/path/Arrange.h>`. `grid` and
+ * `ring` step through those bodies, and so do the layout schemes of
+ * `<sigilcompose/kit/Layouts.h>` — a ring is one ring whether its items
+ * are measured children or sprite positions in a buffer. Spelling it a
+ * second time here would round its own way, and the same ring stamped and
+ * laid out would differ by a pixel with nothing in either file to say why.
+ * What a placer owns is what a Pool is: which lanes a parameter speaks to,
+ * and when a lane is left alone.
  */
 
 #include <include/core/SkPoint.h>
 #include <include/core/SkSize.h>
 #include <sigilcompose/instances/Instances.h>
+#include <sigilgeometry/path/Arrange.h>
+#include <sigilgeometry/path/Numeric.h>
 
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
 
 namespace sigil::compose::instancing::place {
+
+namespace arrange = sigil::geometry::arrange;
 
 /** Row-major grid of cell-sized slots from @p origin. */
 inline void grid(Pool& pool, size_t count, int columns, SkSize cell,
@@ -46,14 +61,12 @@ inline void grid(Pool& pool, size_t count, int columns, SkSize cell,
                  SkPoint origin, SkSize gap) {
   pool.resize(count);
   auto positions = pool.positions();
-  const int cols = std::max(1, columns);
-  for (size_t i = 0; i < count; ++i) {
-    const int col = (int)(i % (size_t)cols), row = (int)(i / (size_t)cols);
-    positions[i] = {origin.fX + cell.width() * 0.5f +
-                        (float)col * (cell.width() + gap.width()),
-                    origin.fY + cell.height() * 0.5f +
-                        (float)row * (cell.height() + gap.height())};
-  }
+  // An instance sits at the CENTRE of its slot; a laid-out child is given
+  // the whole rect. Same cells either way.
+  for (size_t i = 0; i < count; ++i)
+    positions[i] =
+        arrange::cellRect(arrange::cellAt(i, columns), cell, gap, origin)
+            .center();
   pool.commit();
 }
 
@@ -62,11 +75,15 @@ inline void ring(Pool& pool, size_t count, SkPoint center, float radius,
   pool.resize(count);
   auto positions = pool.positions();
   auto rotations = pool.rotations();
+  // A whole turn, so the last instance stops short of the first rather
+  // than doubling it.
+  const float sweep = geometry::path::kTau;
   for (size_t i = 0; i < count; ++i) {
-    const float a = startRadians + (float)i * 2.0f * (float)M_PI / (float)count;
-    positions[i] = {center.fX + std::cos(a) * radius,
-                    center.fY + std::sin(a) * radius};
-    if (faceOut) rotations[i] = a + (float)M_PI / 2.0f;
+    const float a =
+        arrange::along(startRadians, sweep, i, count, arrange::Turn::Closed);
+    positions[i] = arrange::onEllipse(center, {radius, radius}, a);
+    // faceOut turns each instance to look along its own spoke.
+    if (faceOut) rotations[i] = a + geometry::path::kPi / 2.0f;
   }
   pool.commit();
 }

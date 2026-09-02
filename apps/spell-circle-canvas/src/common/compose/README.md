@@ -1073,6 +1073,18 @@ seam (`layouts::Radial`, `AlongPath`, `ModularGrid`, `Diagonal`,
 rail routers (`routers::straight`, `orthogonal`, `polyline`,
 `octilinear`, `orbit`).
 
+Neither the schemes nor the pool fillers of `kit/Placers.h` derive a ring
+or a grid for themselves. Where item i of n falls on a ring, and which
+cell of a grid of modules it occupies, are functions of numbers alone —
+they belong to SigilGeometry, in `<sigilgeometry/path/Arrange.h>`, and
+both shelves step through those bodies. **One arithmetic, one place**: a
+ring is one ring whether its items are measured children or sprite
+positions in a buffer, and a second spelling would round its own way and
+put the same ring a pixel off itself with nothing in either file to say
+why. What the shelves keep is the decision on top — which radius per
+child, where the anchor of a box is, what closes a run, which pool lanes
+a parameter speaks to.
+
 **Marks — `brush/`.** `brush/Decorations.h` has the concrete primitives
 that plug the `Decoration` seam — `PathFormat` (stroke formatting) and
 `stroke`, its one-line spelling; `Shadow` / `shadow`, the soft drop
@@ -1122,7 +1134,9 @@ and `pickFace` resolves the first installed family of a fallback chain.
 thousands of sprites as one leaf, with the pool on your side of the seam;
 it is its own target, `SigilComposeInstances`, linked only by what stamps
 with it, and the kit's `kit/Placers.h` (the `place::grid`, `place::ring`
-and `place::repeat` pool fillers) ships with it. `web/Web.h` makes a live
+and `place::repeat` pool fillers) ships with it — the first two over the
+same ring and grid arithmetic the layout schemes use, which is
+SigilGeometry's. `web/Web.h` makes a live
 Ultralight page a leaf; it is a header-only adapter and the library does
 not link SigilScry, so include it only in targets that do.
 `texture/Texture.h` is the door OUT of this library: a scene painted into

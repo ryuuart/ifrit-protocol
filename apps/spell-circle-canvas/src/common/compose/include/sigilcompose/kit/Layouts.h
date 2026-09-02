@@ -21,11 +21,24 @@
  * not belong here when the placement IS the design decision: a generator
  * that produces arrangements "in the family" of a hand-chosen one produces
  * the single thing the design is not.
+ *
+ * WHAT A SCHEME MAY NOT SPELL ITSELF. The two arithmetics a placement
+ * catalog keeps arriving at — where item i of n falls on a ring, and which
+ * cell of a grid of modules it occupies — belong to nothing here and are
+ * SigilGeometry's, in `<sigilgeometry/path/Arrange.h>`. `Radial`,
+ * `AlongPath`, `ModularGrid` and `Scatter` step through those bodies; the
+ * pool fillers of `<sigilcompose/kit/Placers.h>` step through the same
+ * ones. A scheme that re-derived a ring here would round its own way, and
+ * the same ring drawn two ways would differ by a pixel with nothing in
+ * either file to say why. What a scheme owns is the DECISION on top: which
+ * radius per child, where the anchor of a box is, what closes the run.
  */
 
 #include <include/core/SkContourMeasure.h>
 #include <sigilcompose/kit/Silhouettes.h>
 #include <sigilcore/compute/Noise.h>
+#include <sigilgeometry/path/Arrange.h>
+#include <sigilgeometry/path/Numeric.h>
 
 #include <algorithm>
 #include <cmath>
@@ -34,6 +47,8 @@
 #include "sigilcompose/Compose.h"
 
 namespace sigil::compose::layouts {
+
+namespace arrange = sigil::geometry::arrange;
 
 namespace detail {
 inline SkRect centeredAt(SkPoint center, SkSize size) {
@@ -75,15 +90,18 @@ struct Radial {
       return i < radiusAt.size() ? radiusAt[i] : radiusFraction;
     };
     // A full circle spaces n children evenly (endpoint excluded); a
-    // partial sweep includes both endpoints.
-    const bool full = std::abs(std::abs(sweepDeg) - 360.0f) < 1e-3f;
-    const float step =
-        n <= 1 ? 0.0f : sweepDeg / (full ? (float)n : (float)(n - 1));
+    // partial sweep includes both endpoints. The test is made in degrees,
+    // the unit the author stated the sweep in.
+    const arrange::Turn turn = std::abs(std::abs(sweepDeg) - 360.0f) < 1e-3f
+                                   ? arrange::Turn::Closed
+                                   : arrange::Turn::Open;
+    const float start = startDeg * geometry::path::kDegToRad;
+    const float sweep = sweepDeg * geometry::path::kDegToRad;
     for (size_t i = 0; i < n; ++i) {
-      const float a = (startDeg + step * (float)i) * SK_FloatPI / 180.0f;
-      const float rx = cx * frac(i), ry = cy * frac(i);
+      const float r = frac(i);
       rects[i] = detail::centeredAt(
-          {cx + rx * std::cos(a), cy + ry * std::sin(a)}, in.childSizes[i]);
+          arrange::onRing(i, n, {cx, cy}, {cx * r, cy * r}, start, sweep, turn),
+          in.childSizes[i]);
     }
     return rects;
   }
@@ -118,14 +136,16 @@ struct AlongPath {
     const float d0 = length * startFraction;
     const float d1 = length * endFraction;
     // Closed stretches exclude the duplicate endpoint; open ones hit
-    // both ends.
+    // both ends. Arc length divides among n children exactly as an angle
+    // does around a ring, so the same run arithmetic answers both.
     const bool loop = resolved.isLastContourClosed() && startFraction == 0.0f &&
                       endFraction == 1.0f;
-    const float step =
-        n <= 1 ? 0.0f : (d1 - d0) / (loop ? (float)n : (float)(n - 1));
+    const arrange::Turn turn =
+        loop ? arrange::Turn::Closed : arrange::Turn::Open;
     for (size_t i = 0; i < n; ++i) {
       SkPoint pos;
-      if (contour->getPosTan(d0 + step * (float)i, &pos, nullptr))
+      if (contour->getPosTan(arrange::along(d0, d1 - d0, i, n, turn), &pos,
+                             nullptr))
         rects[i] = detail::centeredAt(pos, in.childSizes[i]);
     }
     return rects;
@@ -163,27 +183,22 @@ struct ModularGrid {
   std::vector<Span> spans;  // per-child; missing entries auto-flow
 
   std::vector<SkRect> place(const LayoutInput& in) const {
-    const int cols = std::max(columns, 1), rws = std::max(rows, 1);
-    const float cw =
-        (in.container.width() - gutter * (float)(cols - 1)) / (float)cols;
-    const float rh =
-        (in.container.height() - gutter * (float)(rws - 1)) / (float)rws;
+    const int cols = std::max(columns, 1);
+    const SkSize gap{gutter, gutter};
+    const SkSize module =
+        arrange::moduleSize(in.container, cols, std::max(rows, 1), gap);
     std::vector<SkRect> rects(in.childSizes.size());
     for (size_t i = 0; i < in.childSizes.size(); ++i) {
       Span s;
       if (i < spans.size()) {
         s = spans[i];
       } else {  // auto-flow the overflow, one module each
-        const size_t k = i - spans.size();
-        s.col = (int)(k % (size_t)cols);
-        s.row = (int)(k / (size_t)cols);
+        const arrange::Cell cell = arrange::cellAt(i - spans.size(), cols);
+        s.col = cell.column;
+        s.row = cell.row;
       }
-      s.colSpan = std::max(s.colSpan, 1);
-      s.rowSpan = std::max(s.rowSpan, 1);
-      rects[i] = SkRect::MakeXYWH(
-          (cw + gutter) * (float)s.col, (rh + gutter) * (float)s.row,
-          cw * (float)s.colSpan + gutter * (float)(s.colSpan - 1),
-          rh * (float)s.rowSpan + gutter * (float)(s.rowSpan - 1));
+      rects[i] = arrange::cellRect({s.col, s.row}, module, gap, {0, 0},
+                                   s.colSpan, s.rowSpan);
     }
     return rects;
   }
@@ -207,7 +222,7 @@ struct Diagonal {
   enum class Anchor : uint8_t { Start, End } anchor = Anchor::Start;
 
   std::vector<SkRect> place(const LayoutInput& in) const {
-    const float k = std::tan(skewDeg * SK_FloatPI / 180.0f);
+    const float k = std::tan(skewDeg * geometry::path::kDegToRad);
     std::vector<SkRect> rects(in.childSizes.size());
     float y = 0.0f, minX = 0.0f, maxRight = 0.0f;
     for (size_t i = 0; i < in.childSizes.size(); ++i) {
@@ -276,17 +291,18 @@ struct Scatter {
     if (n == 0) return rects;
     const int cols = (int)std::ceil(std::sqrt((float)n));
     const int rows = (int)std::ceil((float)n / (float)cols);
-    const float cw = in.container.width() / (float)cols;
-    const float ch = in.container.height() / (float)rows;
+    // The regular grid the jitter is measured against is the same grid a
+    // modular layout lays down: gapless modules filling the container.
+    const SkSize module = arrange::moduleSize(in.container, cols, rows, {0, 0});
     for (size_t i = 0; i < n; ++i) {
-      const int cx = (int)i % cols, cy = (int)i / cols;
-      const float jx =
-          core::noise::hash(seed, (uint32_t)(i * 2)) * jitter * cw / 2;
-      const float jy =
-          core::noise::hash(seed, (uint32_t)(i * 2 + 1)) * jitter * ch / 2;
-      SkPoint center{cw * ((float)cx + 0.5f) + jx,
-                     ch * ((float)cy + 0.5f) + jy};
-      SkRect r = detail::centeredAt(center, in.childSizes[i]);
+      const float jx = core::noise::hash(seed, (uint32_t)(i * 2)) * jitter *
+                       module.width() / 2;
+      const float jy = core::noise::hash(seed, (uint32_t)(i * 2 + 1)) * jitter *
+                       module.height() / 2;
+      const SkPoint cell =
+          arrange::cellRect(arrange::cellAt(i, cols), module).center();
+      SkRect r =
+          detail::centeredAt({cell.fX + jx, cell.fY + jy}, in.childSizes[i]);
       // Clamp into the container so jitter never clips children away.
       r.offset(std::max(0.0f, -r.left()) -
                    std::max(0.0f, r.right() - in.container.width()),
