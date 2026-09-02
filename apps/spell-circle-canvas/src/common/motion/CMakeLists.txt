@@ -21,8 +21,8 @@ set(SIGIL_MOTION_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/include)
 
 # Dependencies point down this list.
 add_subdirectory(bind)
-add_subdirectory(values)
 add_subdirectory(clock)
+add_subdirectory(values)
 
 add_library(SigilMotion INTERFACE)
 target_link_libraries(SigilMotion INTERFACE

@@ -94,7 +94,7 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   entt::entity entity = entt::null;
   /** One motion slot per fixed lane row, so a lane keeps its meaning
    *  across a patch that changed what the node holds. */
-  std::array<std::unique_ptr<core::AnimatedFloat>, kLaneCount> anims;
+  std::array<std::unique_ptr<motion::AnimatedFloat>, kLaneCount> anims;
 
   /** What the lanes resolved to this frame. */
   TransformValues values;

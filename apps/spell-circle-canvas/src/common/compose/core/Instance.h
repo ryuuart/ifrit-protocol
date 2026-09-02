@@ -55,9 +55,9 @@ struct Instance;
 inline bool childrenCarryYoga(const Instance& inst);
 
 /** One float property that can transition: the Choreograph output is the
- *  source of truth while a motion is connected. SigilCore's, because the
- *  reconciler's lane operations ramp it. */
-using AnimatedFloat = core::AnimatedFloat;
+ *  source of truth while a motion is connected. SigilMotion's, because a
+ *  moving animatable is the motion library's business. */
+using AnimatedFloat = motion::AnimatedFloat;
 
 /** ONE RESOLVED `flowAround` TARGET, in the text node's own space.
  *

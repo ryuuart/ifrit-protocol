@@ -37,14 +37,15 @@ void Scene::Impl::onPatched(Instance& inst, const ElementNode* prev,
   if (prev) {
     lanesOf(*prev, prevLaneScratch);
     core::retargetSlots<LaneFamily>(
-        ticker, std::span<std::unique_ptr<core::AnimatedFloat>>(inst.anims),
+        ticker,
+        std::span<std::unique_ptr<motion::AnimatedFloat>>(inst.anims),
         std::span<const Lane>(prevLaneScratch),
         std::span<const Lane>(laneScratch), next.nodeTransition);
   } else {
     for (const Lane& lane : laneScratch)
       if (lane.value)
-        core::mountEntrance(ticker, inst.anims[lane.slot.index], *lane.value,
-                            0.0f);
+        motion::mountEntrance(ticker, inst.anims[lane.slot.index], *lane.value,
+                              0.0f);
   }
 
   // The geometry slot's value type is the node's kind, so a change of

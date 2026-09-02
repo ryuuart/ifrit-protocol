@@ -21,12 +21,12 @@ using namespace detail;
 
 float detail::Instance::resolveFloat(Slot slot,
                                      const Animatable<float>& v) const {
-  return core::resolveFloatAt(anims[slot].get(), v);
+  return motion::resolveFloatAt(anims[slot].get(), v);
 }
 
 float detail::Instance::resolveFloatAt(const AnimatedFloat* anim,
                                        const Animatable<float>& v) const {
-  return core::resolveFloatAt(anim, v);
+  return motion::resolveFloatAt(anim, v);
 }
 
 namespace {
@@ -133,7 +133,7 @@ void Composer::Impl::applyMountTransitions(Instance& inst,
   const float carrySeconds = mountDelayCarryMs / 1000.0f;
   auto entranceAt = [&](std::unique_ptr<AnimatedFloat>& slotAnim,
                         const Animatable<float>& v) {
-    core::mountEntrance(ticker, slotAnim, v, carrySeconds);
+    motion::mountEntrance(ticker, slotAnim, v, carrySeconds);
   };
   // Every lane the node carries. A mount entrance asks nothing of a slot's
   // ROLE: the description either declared a `from` or it did not.

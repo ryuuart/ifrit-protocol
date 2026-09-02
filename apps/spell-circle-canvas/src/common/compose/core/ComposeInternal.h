@@ -486,9 +486,9 @@ using ::sigil::core::boundMapEqual;
  *  form-by-form comparator. */
 using ::sigil::core::propEqual;
 
-/** Constant, binding, or transitioned — flattened for the reconciler. */
-using ::sigil::core::ResolvedProp;
-using ::sigil::core::resolveProp;
+/** Constant, binding, or transitioned — one animatable flattened. */
+using ::sigil::motion::ResolvedProp;
+using ::sigil::motion::resolveProp;
 
 // ---------------------------------------------------------------------------
 // TEXT FX — the runtime side of the fx() seam (TextFx.cpp)

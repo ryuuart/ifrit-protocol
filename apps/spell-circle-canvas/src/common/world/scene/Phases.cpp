@@ -135,7 +135,7 @@ void Scene::Impl::sampleLanes(Instance& inst) {
   const auto read = [this, &inst](Slot slot) {
     const Lane& lane = laneScratch[slot];
     return lane.value
-               ? core::resolveFloatAt(inst.anims[slot].get(), *lane.value)
+               ? motion::resolveFloatAt(inst.anims[slot].get(), *lane.value)
                : lane.standing;
   };
   inst.values.translate = {read(kTranslateX), read(kTranslateY),

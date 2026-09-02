@@ -1,22 +1,23 @@
 /** @file
- * The lane operations: resolving a lane for this frame, retargeting a
- * running ramp from its current value when a patch moves the target, and
- * starting a mount entrance from the value a description declared.
+ * The operations on a held motion: reading the value for this frame,
+ * retargeting a running ramp from where it is when the target moves, and
+ * starting an entrance from the value the description declared.
  */
 
-#include "sigilcore/reconcile/Lanes.h"
+#include "sigilmotion/values/Animated.h"
 
 #include <algorithm>
 #include <chrono>
 
-namespace sigil::core {
+#include "sigilmotion/bind/BoundFloat.h"
 
-float resolveFloatAt(const AnimatedFloat* anim,
-                     const motion::Animatable<float>& v) {
+namespace sigil::motion {
+
+float resolveFloatAt(const AnimatedFloat* anim, const Animatable<float>& v) {
   if (const choreograph::Output<float>* binding = v.binding()) {
     // A shaped binding (bind(&out).map().to()…) runs its map here — the
     // one place a bound float is read, so every consumer gets it for free.
-    if (const motion::BoundFloat* shape = v.boundMap())
+    if (const BoundFloat* shape = v.boundMap())
       return shape->apply(binding->value());
     return binding->value();
   }
@@ -25,18 +26,17 @@ float resolveFloatAt(const AnimatedFloat* anim,
   return v.transitioned()->value;
 }
 
-bool transitionFloatAt(motion::Ticker& ticker,
-                       std::unique_ptr<AnimatedFloat>& slotAnim,
-                       const motion::Animatable<float>& prevValue,
-                       const motion::Animatable<float>& nextValue,
-                       const std::optional<motion::Transition>& nodeDefault) {
-  ResolvedProp<float> prev = resolveProp(prevValue, nodeDefault);
-  ResolvedProp<float> next = resolveProp(nextValue, nodeDefault);
+bool transitionFloatAt(Ticker& ticker, std::unique_ptr<AnimatedFloat>& held,
+                       const Animatable<float>& prevValue,
+                       const Animatable<float>& nextValue,
+                       const std::optional<Transition>& fallback) {
+  ResolvedProp<float> prev = resolveProp(prevValue, fallback);
+  ResolvedProp<float> next = resolveProp(nextValue, fallback);
   // Snap semantics must actually LAND: a lingering ramp from an earlier
   // transition would shadow the plain description forever (resolveFloatAt
   // prefers a started anim), so the snap paths disconnect it.
   auto snapAnim = [&] {
-    if (auto& anim = slotAnim; anim && anim->started) {
+    if (auto& anim = held; anim && anim->started) {
       anim->value.disconnect();
       anim->started = false;
     }
@@ -50,7 +50,7 @@ bool transitionFloatAt(motion::Ticker& ticker,
     return false;  // binding → constant: snap (no meaningful "from")
   }
 
-  auto& anim = slotAnim;
+  auto& anim = held;
   // A running motion already headed at this exact target keeps flying —
   // an unrelated prop patch mid-entrance must not restart it (and must
   // never re-hold its delay).
@@ -62,7 +62,7 @@ bool transitionFloatAt(motion::Ticker& ticker,
   if (current == next.target) {
     // The value COINCIDES with the new target, but a connected motion that
     // passed the keeps-flying guard is provably headed somewhere else —
-    // left alone it would carry the slot to a STALE target (permanent,
+    // left alone it would carry the value to a STALE target (permanent,
     // since identical re-describes prune). Disconnect; the description's
     // own value (== next.target) shows through.
     if (anim && anim->started && anim->value.isConnected() &&
@@ -87,16 +87,14 @@ bool transitionFloatAt(motion::Ticker& ticker,
   return true;
 }
 
-void mountEntrance(motion::Ticker& ticker,
-                   std::unique_ptr<AnimatedFloat>& slotAnim,
-                   const motion::Animatable<float>& v,
-                   float extraDelaySeconds) {
-  const motion::Transitioned<float>* tr = v.transitioned();
+void mountEntrance(Ticker& ticker, std::unique_ptr<AnimatedFloat>& held,
+                   const Animatable<float>& v, float extraDelaySeconds) {
+  const Transitioned<float>* tr = v.transitioned();
   if (!tr) return;
-  // animate(through({…})): the multi-segment mount path — checked BEFORE
+  // animate(through({…})): the multi-segment entrance — checked BEFORE
   // the from==value guard (a shake 0→−20→0 starts and ends equal).
   if (tr->waypoints.size() >= 2) {
-    auto& anim = slotAnim;
+    auto& anim = held;
     if (!anim) anim = std::make_unique<AnimatedFloat>();
     const float first = tr->waypoints.front().second;
     anim->value = first;
@@ -118,14 +116,14 @@ void mountEntrance(motion::Ticker& ticker,
     return;
   }
   if (!tr->from || *tr->from == tr->value) return;
-  auto& anim = slotAnim;
+  auto& anim = held;
   if (!anim) anim = std::make_unique<AnimatedFloat>();
   anim->value = *tr->from;
   anim->started = true;
   anim->target = tr->value;
   auto motion = ticker.timeline().apply(&anim->value);
   const float delay = std::chrono::duration<float>(tr->spec.delay).count() +
-                      extraDelaySeconds;  // a staggered mount's carry
+                      extraDelaySeconds;  // a staggered entrance's carry
   if (delay > 0)  // stagger: hold the `from` before entering
     motion.then<choreograph::Hold>(*tr->from, delay);
   motion.then<choreograph::RampTo>(
@@ -133,4 +131,4 @@ void mountEntrance(motion::Ticker& ticker,
       tr->spec.easing());
 }
 
-}  // namespace sigil::core
+}  // namespace sigil::motion

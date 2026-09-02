@@ -4,13 +4,12 @@
 # node retains beyond that, and what a patch does to it, is the host's,
 # reached through the ReconcileHost operations. Links SigilCoreComparable
 # (the erased seam value a description carries and the field pin its
-# comparators sit under), SigilMotion (the animatable values and the
-# ticker the lanes ramp on) and SigilMeasure (the published counts), and
-# nothing that draws or lays out.
+# comparators sit under), SigilMotion (the animatable values, the ticker,
+# and the held motions a lane addresses) and SigilMeasure (the published
+# counts), and nothing that draws or lays out.
 add_library(SigilCoreReconcile STATIC
   Compare.cpp
   Env.cpp
-  Lanes.cpp
   ${SIGIL_CORE_INCLUDE_DIR}/sigilcore/reconcile/Compare.h
   ${SIGIL_CORE_INCLUDE_DIR}/sigilcore/reconcile/Env.h
   ${SIGIL_CORE_INCLUDE_DIR}/sigilcore/reconcile/Erased.h

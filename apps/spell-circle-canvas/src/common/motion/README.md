@@ -16,16 +16,17 @@ what a consumer uses; every public header lives under
 | target | headers | holds |
 |--------|---------|-------|
 | `SigilMotionBind`   | `bind/Bound.h`, `bind/BoundFloat.h`, `bind/WiggleNoise.h`; `bind/Bind.h` includes all three | `bind()`, `wiggle()` and the `Bound` chain builder; `BoundFloat` and `Envelope`, the evaluator; the wiggle noise field |
-| `SigilMotionValues` | `values/Transition.h`, `values/Keyframes.h`, `values/Animatable.h`, `values/Time.h`; `values/Values.h` includes all four | `Transition`, `ease::` and `ramp()`; `Transitioned`, `animate()`/`from()`/`to()`/`through()`; `Animatable<T>`; `quantizeTime()` and `phase()` |
+| `SigilMotionValues` | `values/Transition.h`, `values/Keyframes.h`, `values/Animatable.h`, `values/Animated.h`, `values/Time.h`; `values/Values.h` includes all five | `Transition`, `ease::` and `ramp()`; `Transitioned`, `animate()`/`from()`/`to()`/`through()`; `Animatable<T>`; `AnimatedFloat` and the operations on a held motion; `quantizeTime()` and `phase()` |
 | `SigilMotionClock`  | `clock/FrameClock.h`, `clock/Ticker.h` | the clock and the ticker |
 
 `SigilMotion` is the umbrella target over all three, and
 `<sigilmotion/Animation.h>` is the umbrella header over every values and
 bind header, so a consumer that includes `Animation.h` and links
-`SigilMotion` sees every value and binding (the clock headers are
-included on their own). Bind is the leaf: Values links it because
-`Animatable<T>` can hold a shaped binding, and Clock links it because
-`Ticker::derive` runs one.
+`SigilMotion` sees every value and binding. Bind is the leaf: Values
+links it because `Animatable<T>` can hold a shaped binding, and Clock
+links it because `Ticker::derive` runs one. Values links Clock in turn,
+because an animatable that is MOVING is moving on a ticker — the values
+feature ships both the slot and the motion the slot runs as.
 
 ## Using it
 
@@ -88,6 +89,33 @@ and sleep when it is not.
 registration order; then the derivations. Because derivations run second,
 a derived cell never reads a source that has not been stepped this frame,
 whatever order things were registered in.
+
+A moving `Animatable<float>` has a second half: the motion a ticker is
+actually running for it. That is `AnimatedFloat` — a held `Output<float>`,
+whether it has started, and the endpoint it is flying at — and a consumer
+that retains state keeps one beside each animatable it lets move. Four
+operations are stated over one held motion, so the consumer's storage (a
+fixed array, a vector, one member) stays its own business:
+
+```cpp
+AnimatedFloat*                    held;    // what the consumer retains
+resolveFloatAt(held, v);                   // the value for this frame
+transitionFloatAt(ticker, held, prev, next, fallback);  // a moved target
+mountEntrance(ticker, held, v, extraDelaySeconds);      // the first appearance
+```
+
+`resolveFloatAt` is the reading order and the reason there is one body:
+a bound `Output` wins (shaped through its map when it has one), then a
+running ramp, then the plain value. `transitionFloatAt` starts a ramp
+from WHERE THE VALUE IS rather than from the previous description, so a
+target that moves mid-flight bends the motion instead of restarting it;
+a motion already headed at the new target keeps flying, and a next value
+that is plain or bound snaps and disconnects. `mountEntrance` plays the
+`from` an `animate(from(a).to(b))` declares, or a `through({…})`
+waypoint list segment by segment, after whatever extra delay the caller
+staggers by. `resolveProp<T>` is the flattening underneath: an animatable
+read against a fallback transition, giving a target, a binding, or a
+spec.
 
 `Animatable<T>` holds one of four forms, discriminated by `index()`: `0`
 plain constant, `1` `Transitioned<T>`, `2` bare `Output<T>*`, `3` shaped
@@ -205,9 +233,11 @@ That is the point: consumers that also draw — a compositor, a 3D
 renderer — link it without inheriting a drawing library, and can
 re-export its types into their own namespaces.
 
-The library ships the values and the clock. It does not resolve them.
-Turning an `Animatable<T>` into a concrete value for a given frame, in a
-given paint or render context, belongs to whoever owns that context.
+The library ships the values, the clock, and the motion a value runs as
+— everything answerable from the animatable and the ticker alone.
+Resolving an animatable against a CONTEXT is the consumer's: which of a
+node's properties are animated at all, where their held motions live, and
+what a resolved number then means to a paint, a layout or a render pass.
 Anything that would pull a graphics, layout, or scene-graph dependency in
 here does not belong here.
 

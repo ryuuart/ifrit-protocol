@@ -70,7 +70,7 @@ include their own directory's headers.
 | `reconcile/Env.h` | `env::Provide`, `env::inherited`, `env::inheritedOr`, `env::bound`, and the `detail::EnvSnapshot`, `detail::envStack`, `detail::envEqual`, `detail::EnvRestore` a memo is built on |
 | `reconcile/Erased.h` | `Erased<Ops>` under the name a description spells it by; the type is `comparable/Erased.h`'s |
 | `reconcile/Compare.h` | `easeEqual`, `transitionEqual`, `boundMapEqual`, `propEqual`, their field pins, and `detail::fields` — the animation values decomposed member by member |
-| `reconcile/Lanes.h` | `AnimatedFloat`, `AnimatedFloats`, `LaneSlot<Family>`, `Lane<Family>`, `familyLanes`, `ResolvedProp`, `resolveProp`, `resolveFloatAt`, `transitionFloatAt`, `retargetSlots`, `retargetFamily`, `mountEntrance` |
+| `reconcile/Lanes.h` | `LaneSlot<Family>`, `Lane<Family>`, `familyLanes`, `retargetSlots`, `retargetFamily` — the ADDRESSING of a node's animation lanes; the motions they ramp are SigilMotion's `AnimatedFloat` and its operations |
 | `reconcile/Phases.h` | `Phase<Impl>` and `runPhases` — a host's declared pass list with its converging group |
 | `reconcile/Stats.h` | `ReconcileStats` — the pass counts, and `report()` into `sigil::measure::Counters` |
 | `cache/Policy.h` | `Cache` — the three-valued cache policy: `Auto`, `Always`, `Never` |
@@ -198,8 +198,16 @@ row from wherever its motion is now, using the lane's standing value
 where one side of the diff lacks the field; `retargetFamily` does the
 same for a positional family and DROPS the motions when the family's
 shape changed, because a motion carried onto an endpoint that now means
-something else is worse than none. `mountEntrance` plays what a
-description declared as its entrance, after the host's extra delay.
+something else is worse than none.
+
+A lane says WHICH held motion serves which animatable and hands both to
+SigilMotion, which owns the motion itself: `motion::AnimatedFloat` is the
+held Choreograph output, `motion::resolveFloatAt` reads it for a frame,
+`motion::transitionFloatAt` bends it onto a new endpoint, and
+`motion::mountEntrance` plays what a description declared as its
+entrance. A host calls those directly for the storages the reconciler
+does not walk — an entrance has no previous description to diff against,
+so there is no lane pair to retarget.
 
 **Phases converge.** A host declares its settling passes as a list of
 `Phase<Impl>` — a name, a member function answering whether it moved
@@ -328,8 +336,9 @@ at all — the standard library, and Boost.PFR for the field pin. That is
 the whole point of them: a library anywhere in the tree can link one
 without acquiring a kernel. SigilCoreReconcile links SigilCoreComparable
 (the erased seam value and the field pin), SigilMotion (the animatable
-values and the ticker the lanes ramp on) and SigilMeasure (the published
-counts), and nothing that draws, lays out or shapes text. SigilCoreCache
+values, the ticker, and the held motions a lane addresses) and
+SigilMeasure (the published counts), and nothing that draws, lays out or
+shapes text. SigilCoreCache
 links SigilCoreReconcile alone. What stays with a host: what a node
 retains, what a patch does to it, how children are ordered for drawing,
 which descriptions compare equal, which of its own values are volatile,
