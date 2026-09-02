@@ -1,13 +1,15 @@
 /** @file
- * The Houdini .geo reader: a small JSON reader sized to what Houdini
- * writes, then the file's point, vertex, primitive and group classes
+ * The Houdini .geo reader: the document parsed by simdjson into the small
+ * tree this file addresses it through, then the file's point, vertex,
+ * primitive and group classes
  * decoded into one unwelded Part — polygons fan-triangulated with each
  * polygon vertex its own mesh vertex, point attributes as lanes,
  * primitive attributes as primitive lanes, groups as 0/1 lanes named
  * after the group, and a primitive-less file as a point cloud.
  */
 
-#include <cctype>
+#include <simdjson.h>
+
 #include <cstdlib>
 #include <cstring>
 #include <functional>
@@ -67,201 +69,48 @@ struct Json {
   }
 };
 
-class JsonReader {
- public:
-  explicit JsonReader(std::string_view text) : m_text(text) {}
-  std::optional<Json> read() {
-    Json out;
-    if (!value(out)) return std::nullopt;
-    skipSpace();
-    return out;
-  }
-
- private:
-  bool value(Json& out) {
-    skipSpace();
-    if (m_pos >= m_text.size()) return false;
-    const char c = m_text[m_pos];
-    if (c == '{') return object(out);
-    if (c == '[') return array(out);
-    if (c == '"') {
-      std::string s;
-      if (!string(s)) return false;
-      out.v = std::move(s);
-      return true;
-    }
-    if (m_text.substr(m_pos, 4) == "true") {
-      m_pos += 4;
-      out.v = true;
-      return true;
-    }
-    if (m_text.substr(m_pos, 5) == "false") {
-      m_pos += 5;
-      out.v = false;
-      return true;
-    }
-    if (m_text.substr(m_pos, 4) == "null") {
-      m_pos += 4;
-      out.v = nullptr;
-      return true;
-    }
-    return number(out);
-  }
-  bool object(Json& out) {
-    ++m_pos;  // {
-    Json::Object members;
-    skipSpace();
-    if (peek() == '}') {
-      ++m_pos;
-      out.v = std::move(members);
-      return true;
-    }
-    for (;;) {
-      skipSpace();
-      std::string key;
-      if (!string(key)) return false;
-      skipSpace();
-      if (peek() != ':') return false;
-      ++m_pos;
-      Json member;
-      if (!value(member)) return false;
-      members.emplace_back(std::move(key), std::move(member));
-      skipSpace();
-      if (peek() == ',') {
-        ++m_pos;
-        continue;
-      }
-      if (peek() == '}') {
-        ++m_pos;
-        out.v = std::move(members);
-        return true;
-      }
-      return false;
-    }
-  }
-  bool array(Json& out) {
-    ++m_pos;  // [
-    Json::Array items;
-    skipSpace();
-    if (peek() == ']') {
-      ++m_pos;
+/** The document as this importer's tree. simdjson owns the parse — a
+ *  grammar is not something to write twice — and what is built from it
+ *  is the small value the decoding below reads: a `.geo` addresses most
+ *  of its members through arrays laid out as alternating key and value,
+ *  which no JSON library models, so `Json::get` is what this file
+ *  actually needs and the tree is what carries it. */
+Json fromDom(simdjson::dom::element element) {
+  Json out;
+  switch (element.type()) {
+    case simdjson::dom::element_type::ARRAY: {
+      Json::Array items;
+      for (simdjson::dom::element item : simdjson::dom::array(element))
+        items.push_back(fromDom(item));
       out.v = std::move(items);
-      return true;
+      break;
     }
-    for (;;) {
-      Json item;
-      if (!value(item)) return false;
-      items.push_back(std::move(item));
-      skipSpace();
-      if (peek() == ',') {
-        ++m_pos;
-        continue;
-      }
-      if (peek() == ']') {
-        ++m_pos;
-        out.v = std::move(items);
-        return true;
-      }
-      return false;
+    case simdjson::dom::element_type::OBJECT: {
+      Json::Object members;
+      for (auto [key, value] : simdjson::dom::object(element))
+        members.emplace_back(std::string(key), fromDom(value));
+      out.v = std::move(members);
+      break;
     }
+    case simdjson::dom::element_type::STRING:
+      out.v = std::string(std::string_view(element));
+      break;
+    // Every number this importer reads is a coordinate, a count or an
+    // index, and it reads all of them as doubles — which is what the
+    // file's own numbers are once they are past the grammar.
+    case simdjson::dom::element_type::DOUBLE:
+    case simdjson::dom::element_type::INT64:
+    case simdjson::dom::element_type::UINT64:
+      out.v = double(element);
+      break;
+    case simdjson::dom::element_type::BOOL:
+      out.v = bool(element);
+      break;
+    case simdjson::dom::element_type::NULL_VALUE:
+      break;
   }
-  bool string(std::string& out) {
-    if (peek() != '"') return false;
-    ++m_pos;
-    while (m_pos < m_text.size()) {
-      const char c = m_text[m_pos++];
-      if (c == '"') return true;
-      if (c != '\\') {
-        out += c;
-        continue;
-      }
-      if (m_pos >= m_text.size()) return false;
-      const char e = m_text[m_pos++];
-      switch (e) {
-        case '"':
-          out += '"';
-          break;
-        case '\\':
-          out += '\\';
-          break;
-        case '/':
-          out += '/';
-          break;
-        case 'b':
-          out += '\b';
-          break;
-        case 'f':
-          out += '\f';
-          break;
-        case 'n':
-          out += '\n';
-          break;
-        case 'r':
-          out += '\r';
-          break;
-        case 't':
-          out += '\t';
-          break;
-        case 'u': {
-          if (m_pos + 4 > m_text.size()) return false;
-          unsigned code = 0;
-          for (int i = 0; i < 4; ++i) {
-            const char h = m_text[m_pos++];
-            code <<= 4u;
-            if (h >= '0' && h <= '9')
-              code |= (unsigned)(h - '0');
-            else if (h >= 'a' && h <= 'f')
-              code |= (unsigned)(h - 'a' + 10);
-            else if (h >= 'A' && h <= 'F')
-              code |= (unsigned)(h - 'A' + 10);
-            else
-              return false;
-          }
-          // Basic-plane code points to UTF-8; surrogates are rare in
-          // attribute names and are passed through as replacement.
-          if (code < 0x80) {
-            out += (char)code;
-          } else if (code < 0x800) {
-            out += (char)(0xC0u | (code >> 6u));
-            out += (char)(0x80u | (code & 0x3Fu));
-          } else {
-            out += (char)(0xE0u | (code >> 12u));
-            out += (char)(0x80u | ((code >> 6u) & 0x3Fu));
-            out += (char)(0x80u | (code & 0x3Fu));
-          }
-          break;
-        }
-        default:
-          return false;
-      }
-    }
-    return false;
-  }
-  bool number(Json& out) {
-    const size_t start = m_pos;
-    if (peek() == '-' || peek() == '+') ++m_pos;
-    while (m_pos < m_text.size() &&
-           (std::isdigit((unsigned char)m_text[m_pos]) ||
-            m_text[m_pos] == '.' || m_text[m_pos] == 'e' ||
-            m_text[m_pos] == 'E' || m_text[m_pos] == '-' ||
-            m_text[m_pos] == '+'))
-      ++m_pos;
-    if (m_pos == start) return false;
-    const std::string token(m_text.substr(start, m_pos - start));
-    char* end = nullptr;
-    const double d = std::strtod(token.c_str(), &end);
-    if (!end || *end != '\0') return false;
-    out.v = d;
-    return true;
-  }
-  char peek() const { return m_pos < m_text.size() ? m_text[m_pos] : '\0'; }
-  void skipSpace() {
-    while (m_pos < m_text.size() && std::isspace((unsigned char)m_text[m_pos]))
-      ++m_pos;
-  }
-  std::string_view m_text;
-  size_t m_pos = 0;
-};
+  return out;
+}
 
 /** One decoded .geo attribute: a name, its tuple size, and every
  *  element's tuple flattened. Strings arrive as their table indices. */
@@ -547,7 +396,11 @@ std::vector<GeoPolygon> geoPolygons(const Json* primitives) {
  *  same on the primitive class. Detail attributes have no home and are
  *  dropped. */
 std::optional<Model> importHoudiniGeo(std::string_view text) {
-  std::optional<Json> rootOpt = JsonReader(text).read();
+  simdjson::dom::parser parser;
+  simdjson::dom::element document;
+  if (parser.parse(simdjson::padded_string(text)).get(document))
+    return std::nullopt;
+  const std::optional<Json> rootOpt = fromDom(document);
   if (!rootOpt || !rootOpt->isArray()) return std::nullopt;
   const Json& root = *rootOpt;
   if (!root.get("fileversion") || !root.get("pointcount")) return std::nullopt;

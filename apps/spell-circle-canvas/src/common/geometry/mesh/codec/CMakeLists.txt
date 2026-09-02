@@ -2,8 +2,8 @@
 # currencies, and the PLY writer back out. The parsers are private
 # plumbing — tinyobjloader for OBJ, header-only cgltf for glTF/GLB,
 # Alembic (Ogawa only; the hdf5 feature stays off and legacy archives
-# return nullopt); STL, PLY and .geo are parsed by hand. None of them
-# reaches a public header.
+# return nullopt), simdjson for the JSON a `.geo` is; STL and PLY are
+# parsed by hand. None of them reaches a public header.
 add_library(SigilGeometryMeshCodec STATIC
   Alembic.cpp
   Geo.cpp
@@ -25,9 +25,11 @@ find_path(CGLTF_INCLUDE_DIR cgltf.h REQUIRED)
 target_include_directories(SigilGeometryMeshCodec PRIVATE ${CGLTF_INCLUDE_DIR})
 find_package(tinyobjloader CONFIG REQUIRED)
 find_package(Alembic CONFIG REQUIRED)
+find_package(simdjson CONFIG REQUIRED)
 target_link_libraries(SigilGeometryMeshCodec
   PUBLIC SigilGeometryMesh SigilGeometryMeshPop
-  PRIVATE tinyobjloader::tinyobjloader Alembic::Alembic)
+  PRIVATE tinyobjloader::tinyobjloader Alembic::Alembic
+          simdjson::simdjson)
 
 # The decode tests write Alembic archives in memory with the O* API, so
 # the binary needs the library directly, not just the codec's door; they
