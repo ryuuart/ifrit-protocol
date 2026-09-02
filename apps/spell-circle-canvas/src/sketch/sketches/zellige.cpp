@@ -46,6 +46,32 @@ namespace zellige_wall {
 
 constexpr float kW = kSceneSize.fWidth, kH = kSceneSize.fHeight;
 constexpr SkColor4f kPlaster{0.885f, 0.850f, 0.775f, 1};
+
+// THE WALL IS WHITE. Every zellige field on a Fes or Meknes wall is
+// white-dominant with the cobalt, turquoise, ochre, brick-red, green and
+// black inside it — the white is the GROUND the colours are cut into, and
+// the kit's two default palettes put the colour on the ground and the
+// bone on the strap, which is the reading turned inside out. These three
+// are the wall's own: one white ground, one hue in the star and one in
+// the strap, black in the joint.
+inline patterns::GirihPalette fesCobalt() {
+  return {{0.949f, 0.937f, 0.906f, 1},   // the white ground
+          {0.118f, 0.310f, 0.627f, 1},   // cobalt star
+          {0.118f, 0.557f, 0.525f, 1},   // turquoise strap
+          {0.102f, 0.090f, 0.078f, 1}};  // the black joint
+}
+inline patterns::GirihPalette fesTurquoise() {
+  return {{0.949f, 0.937f, 0.906f, 1},
+          {0.118f, 0.557f, 0.525f, 1},
+          {0.647f, 0.251f, 0.169f, 1},  // brick red
+          {0.102f, 0.090f, 0.078f, 1}};
+}
+inline patterns::GirihPalette fesOchre() {
+  return {{0.949f, 0.937f, 0.906f, 1},
+          {0.788f, 0.541f, 0.180f, 1},  // ochre
+          {0.180f, 0.431f, 0.290f, 1},  // green
+          {0.102f, 0.090f, 0.078f, 1}};
+}
 constexpr SkColor4f kInk{0.180f, 0.129f, 0.106f, 1};
 constexpr SkColor4f kSub{0.42f, 0.36f, 0.30f, 1};
 constexpr double kSwapPeriod = 3.0;  // seconds between re-tilings
@@ -71,9 +97,9 @@ struct Zellige final : sketch::Sketch {
   // Three panels from one generator at different parameters. Held as members
   // rather than built in describe(): a Pattern bakes once per recipe, so a
   // fresh one each render would re-bake every frame.
-  Pattern left = patterns::girih8(16, patterns::fezPalette());
-  Pattern middle = patterns::girih8(26, patterns::nasridPalette());
-  Pattern right = patterns::girih8(20, patterns::fezPalette());
+  Pattern left = patterns::girih8(12, zellige_wall::fesCobalt());
+  Pattern middle = patterns::girih8(34, zellige_wall::fesTurquoise());
+  Pattern right = patterns::girih8(22, zellige_wall::fesOchre());
   Pattern grain =
       patterns::speckle(96, 60, 0.4f, 1.1f, {{0.35f, 0.30f, 0.24f, 0.25f}});
   std::string captions[3];
@@ -87,19 +113,20 @@ struct Zellige final : sketch::Sketch {
 
   void setup(sketch::SketchContext& ctx) override {
     ctx.canvas(kSceneSize.fWidth, kSceneSize.fHeight);
-    ctx.captureAt(6.0);
     ctx.background({0, 0, 0, 1});
     ctx.captureAt(1.5);
     Composer& composer = ctx.composer;
     namespace zw = zellige_wall;
     nextSwap = zw::kSwapPeriod;
     phase = 0;
-    left = patterns::girih8(16, patterns::fezPalette());
-    middle = patterns::girih8(26, patterns::nasridPalette());
-    right = patterns::girih8(20, patterns::fezPalette());
-    captions[0] = zw::caption("fez", 16, false);
-    captions[1] = zw::caption("nasrid", 26, false);
-    captions[2] = zw::caption("fez", 20, false);
+    // THREE SCALES, side by side, as a wall carries them: a fine band, a
+    // coarse field, and a middle course between them.
+    left = patterns::girih8(12, zw::fesCobalt());
+    middle = patterns::girih8(34, zw::fesTurquoise());
+    right = patterns::girih8(22, zw::fesOchre());
+    captions[0] = zw::caption("cobalt", 12, false);
+    captions[1] = zw::caption("turquoise", 34, false);
+    captions[2] = zw::caption("ochre", 22, false);
     composer.render(describe());
   }
 
@@ -113,10 +140,18 @@ struct Zellige final : sketch::Sketch {
                    .grow(1)
                    .corners({3})
                    .fill(p.material())
-                   // Carved-plaster depth: the Photoshop route, no shader.
-                   .foreground(styles::InnerShadow{{0, 0, 0, 0.38f}, {0, 4}, 9})
-                   .foreground(styles::innerGlow({1, 1, 1, 0.18f}, 5))
-                   .stroke(sigil::compose::stroke(2.5f, Fill::color(zw::kInk))))
+                   // GLAZED, not carved. An inner shadow with an inner glow
+                   // is a bevel cut into plaster; a glazed tile is a hard
+                   // gloss with a sheen running off the light and a thin
+                   // wet line where the glaze pools at the joint.
+                   .foreground(styles::innerGlow({1, 1, 1, 0.26f}, 2))
+                   .stroke(sigil::compose::stroke(2.5f, Fill::color(zw::kInk)))
+                   .child(box().inset(0).fill(
+                       Material::linear({0, 0}, {180, 260},
+                                        {{0.00f, {1, 1, 1, 0.20f}},
+                                         {0.42f, {1, 1, 1, 0.05f}},
+                                         {0.58f, {0, 0, 0, 0.03f}},
+                                         {1.00f, {0, 0, 0, 0.10f}}}))))
         .child(text(toU8(label), zw::type(13, zw::kInk, 1.2f)));
   }
 
@@ -158,21 +193,22 @@ struct Zellige final : sketch::Sketch {
     ++phase;
     // Runtime regeneration: new parameters → new recipes → each panel
     // re-bakes exactly once and the reconciler sees one changed fill.
-    const float edges[3] = {14.0f + 4 * (float)(phase % 3),
-                            22.0f + 6 * (float)((phase + 1) % 2),
-                            18.0f + 3 * (float)(phase % 4)};
+    const float edges[3] = {11.0f + 3 * (float)(phase % 3),
+                            30.0f + 6 * (float)((phase + 1) % 2),
+                            20.0f + 3 * (float)(phase % 4)};
     const bool swapPalettes = (phase % 2) != 0;
-    left = patterns::girih8(edges[0], swapPalettes ? patterns::nasridPalette()
-                                                   : patterns::fezPalette());
-    middle =
-        patterns::girih8(edges[1], swapPalettes ? patterns::fezPalette()
-                                                : patterns::nasridPalette());
-    right = patterns::girih8(edges[2], patterns::fezPalette());
+    left = patterns::girih8(
+        edges[0], swapPalettes ? zw::fesTurquoise() : zw::fesCobalt());
+    middle = patterns::girih8(
+        edges[1], swapPalettes ? zw::fesCobalt() : zw::fesTurquoise());
+    right = patterns::girih8(edges[2], zw::fesOchre());
     const bool rotated = (phase % 8) != 0;
     right.rotate((float)(phase % 8) * 22.5f);
-    captions[0] = zw::caption(swapPalettes ? "nasrid" : "fez", edges[0], false);
-    captions[1] = zw::caption(swapPalettes ? "fez" : "nasrid", edges[1], false);
-    captions[2] = zw::caption("fez", edges[2], rotated);
+    captions[0] =
+        zw::caption(swapPalettes ? "turquoise" : "cobalt", edges[0], false);
+    captions[1] =
+        zw::caption(swapPalettes ? "cobalt" : "turquoise", edges[1], false);
+    captions[2] = zw::caption("ochre", edges[2], rotated);
     composer.render(describe());
   }
 };
