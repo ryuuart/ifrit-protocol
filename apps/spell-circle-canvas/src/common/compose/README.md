@@ -956,7 +956,9 @@ question — does the annotation need ROOM?
   reading is placed on the result; nothing chases anything. Ruby and
   kenten are `Annotation` values, and mono, group and jukugo ruby are the
   UNIT choice and nothing else. `kit::ruby` and `kit::kenten` are the two
-  stock spellings.
+  stock spellings. The PLACEMENT is SigilWeave's — the band a reading
+  needs, where it stands against its base, and how a broken base shares
+  it — and this tier only says which units are annotated with what.
 - **`kit::annotate`** is a sibling that reserves nothing and stands beside
   the finished text — marginalia, word labels, callouts. It resolves at
   describe time from the layout the last draw left standing, on the same
