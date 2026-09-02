@@ -8,17 +8,19 @@
  * this is the one place in the writer where the format of that picture
  * is a decision rather than a convention. A panorama holds values above
  * one — that is what makes a sun a sun rather than a white disc the same
- * brightness as the sky beside it — and no encoder in this tree writes a
- * floating-point image. So the panorama is DIVIDED BY ITS PEAK, written
- * as a sixteen-bit PNG, and the peak is multiplied into the dome light's
- * intensity. The ratios survive at sixteen bits a channel, the total
- * brightness is right, and it is right through the standard attribute
- * rather than through a custom one only this library reads.
+ * brightness as the sky beside it — and a stage this writer produces
+ * must open the same way on every machine, so the format cannot be one
+ * an optional backend supplies. That rules out the floating-point
+ * formats and leaves the deepest one always present. So the panorama is
+ * DIVIDED BY ITS PEAK, written as a sixteen-bit PNG, and the peak is
+ * multiplied into the dome light's intensity. The ratios survive at
+ * sixteen bits a channel, the total brightness is right, and it is right
+ * through the standard attribute rather than through a custom one only
+ * this library reads.
  */
 
 #include <include/core/SkBitmap.h>
-#include <include/core/SkStream.h>
-#include <include/encode/SkPngEncoder.h>
+#include <include/core/SkData.h>
 #include <pxr/base/gf/matrix3d.h>
 #include <pxr/base/gf/matrix4d.h>
 #include <pxr/base/gf/quatf.h>
@@ -28,6 +30,8 @@
 #include <pxr/base/vt/value.h>
 #include <pxr/usd/sdf/assetPath.h>
 #include <pxr/usd/usdLux/domeLight.h>
+#include <sigilimage/encode/Encode.h>
+#include <sigilloader/source/Sink.h>
 
 #include <algorithm>
 #include <cmath>
@@ -66,9 +70,11 @@ float writePanorama(const sk_sp<SkImage>& image,
   if (!SkPixmap(info, pixels.data(), (size_t)w * 4 * sizeof(float))
            .readPixels(bm.pixmap()))
     return 0;
-  SkFILEWStream stream(path.string().c_str());
-  if (!stream.isValid() || !SkPngEncoder::Encode(&stream, bm.pixmap(), {}))
-    return 0;
+  // The pixmap door, not the image one: the sixteen bits a channel this
+  // function exists to keep are the caller's choice, and a readback
+  // would pick eight.
+  const sk_sp<SkData> png = image::encodeImage(bm.pixmap(), image::Format::Png);
+  if (!png || !loader::writeBytes(path, png->data(), png->size())) return 0;
   return peak;
 }
 

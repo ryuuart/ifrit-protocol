@@ -8,9 +8,9 @@
 #include <include/core/SkData.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkPixmap.h>
-#include <include/core/SkStream.h>
-#include <include/encode/SkPngEncoder.h>
+#include <sigilimage/encode/Encode.h>
 #include <sigilloader/hub/Hub.h>
+#include <sigilloader/source/Sink.h>
 
 #ifdef SIGILLOADER_HAS_OIIO
 #include <OpenImageIO/imageio.h>
@@ -51,9 +51,10 @@ void writePng(const fs::path& path, int size, SkColor color) {
   SkBitmap bitmap;
   bitmap.allocPixels(SkImageInfo::MakeN32Premul(size, size));
   bitmap.eraseColor(color);
-  SkFILEWStream stream(path.string().c_str());
-  ASSERT_TRUE(SkPngEncoder::Encode(&stream, bitmap.pixmap(), {}));
-  stream.flush();
+  const sk_sp<SkData> png =
+      sigil::image::encodeImage(bitmap.pixmap(), sigil::image::Format::Png);
+  ASSERT_TRUE(png);
+  ASSERT_TRUE(writeBytes(path, png->data(), png->size()));
 }
 
 }  // namespace
@@ -328,9 +329,9 @@ TEST(LoaderHub, WrittenImageBytesDecodeBackThroughTheHub) {
   SkBitmap bitmap;
   bitmap.allocPixels(SkImageInfo::MakeN32Premul(7, 7));
   bitmap.eraseColor(SK_ColorMAGENTA);
-  SkDynamicMemoryWStream stream;
-  ASSERT_TRUE(SkPngEncoder::Encode(&stream, bitmap.pixmap(), {}));
-  const sk_sp<SkData> encoded = stream.detachAsData();
+  const sk_sp<SkData> encoded =
+      sigil::image::encodeImage(bitmap.pixmap(), sigil::image::Format::Png);
+  ASSERT_TRUE(encoded);
   ASSERT_TRUE(
       hub.write("res://made/tile.png", encoded->data(), encoded->size()));
   auto image = hub.image("res://made/tile.png");
@@ -376,9 +377,11 @@ TEST(LoaderNet, SeededCacheDecodesImagesWithExtensionHint) {
   SkBitmap bitmap;
   bitmap.allocPixels(SkImageInfo::MakeN32Premul(1, 1));
   bitmap.eraseColor(SK_ColorRED);
-  SkFILEWStream stream((cache.path / networkCacheKey(url)).string().c_str());
-  ASSERT_TRUE(SkPngEncoder::Encode(&stream, bitmap.pixmap(), {}));
-  stream.flush();
+  const sk_sp<SkData> png =
+      sigil::image::encodeImage(bitmap.pixmap(), sigil::image::Format::Png);
+  ASSERT_TRUE(png);
+  ASSERT_TRUE(
+      writeBytes(cache.path / networkCacheKey(url), png->data(), png->size()));
   Hub hub;
   hub.setNetworkCacheDir(cache.path);
   auto image = hub.image(url);
@@ -508,9 +511,10 @@ TEST(LoaderChannels, LdrFormatsNormalizeToFloats) {
   SkBitmap bitmap;
   bitmap.allocPixels(SkImageInfo::MakeN32Premul(1, 1));
   bitmap.eraseColor(SK_ColorRED);
-  SkFILEWStream stream((dir.path / "red.png").string().c_str());
-  ASSERT_TRUE(SkPngEncoder::Encode(&stream, bitmap.pixmap(), {}));
-  stream.flush();
+  const sk_sp<SkData> png =
+      sigil::image::encodeImage(bitmap.pixmap(), sigil::image::Format::Png);
+  ASSERT_TRUE(png);
+  ASSERT_TRUE(writeBytes(dir.path / "red.png", png->data(), png->size()));
   Hub hub;
   hub.mount("res://", dir.path);
   auto channels = hub.channels("res://red.png");

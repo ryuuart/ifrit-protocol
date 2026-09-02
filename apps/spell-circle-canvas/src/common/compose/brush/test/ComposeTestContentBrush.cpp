@@ -6,7 +6,6 @@
 #include <include/core/SkFont.h>
 #include <include/core/SkPictureRecorder.h>
 #include <include/core/SkStream.h>
-#include <include/encode/SkPngEncoder.h>
 #include <sigilcompose/core/Feed.h>
 #include <sigilcompose/core/GpuImage.h>
 #include <sigilimage/asset/ImageAsset.h>
@@ -59,10 +58,8 @@ std::shared_ptr<sigil::image::ImageAsset> cornerMarkedFrame() {
   src.allocN32Pixels(24, 24);
   src.eraseColor(SK_ColorBLUE);
   src.erase(SK_ColorRED, SkIRect::MakeXYWH(0, 0, 8, 8));
-  SkDynamicMemoryWStream stream;
-  SkPngEncoder::Encode(&stream, src.pixmap(), {});
   return std::make_shared<sigil::image::ImageAsset>(
-      require(sigil::image::ImageAsset::decode(stream.detachAsData())));
+      sigil::image::ImageAsset::wrap(src.asImage()));
 }
 
 Slice cornerSlice(float density) {

@@ -12,9 +12,8 @@
 #include <include/core/SkColor.h>
 #include <include/core/SkData.h>
 #include <include/core/SkStream.h>
-#include <include/encode/SkJpegEncoder.h>
-#include <include/encode/SkPngEncoder.h>
 #include <sigilimage/decode/Decode.h>
+#include <sigilimage/encode/Encode.h>
 
 #include <cmath>
 #include <cstddef>
@@ -51,16 +50,11 @@ SkBitmap testCard(int size) {
 }
 
 std::vector<std::byte> encode(const SkBitmap& bitmap, int format) {
-  SkDynamicMemoryWStream stream;
-  if (format == kPng) {
-    SkPngEncoder::Options options;
-    SkPngEncoder::Encode(&stream, bitmap.pixmap(), options);
-  } else {
-    SkJpegEncoder::Options options;
-    options.fQuality = 90;
-    SkJpegEncoder::Encode(&stream, bitmap.pixmap(), options);
-  }
-  sk_sp<SkData> data = stream.detachAsData();
+  const sk_sp<SkData> data = sigil::image::encodeImage(
+      bitmap.pixmap(),
+      format == kPng ? sigil::image::Format::Png : sigil::image::Format::Jpeg,
+      {.quality = 90});
+  if (!data) return {};
   const auto* begin = static_cast<const std::byte*>(data->data());
   return {begin, begin + data->size()};
 }

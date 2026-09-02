@@ -12,7 +12,6 @@
 #include <include/core/SkSurface.h>
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
-#include <include/encode/SkPngEncoder.h>
 #include <sigilcompose/Compose.h>
 #include <sigilcompose/core/Material.h>
 #include <sigilcompose/instances/Instances.h>
@@ -562,10 +561,8 @@ std::shared_ptr<sigil::image::ImageAsset> benchAtlas() {
     for (int i = 0; i < 4; ++i)
       src.erase(SkColorSetRGB((U8CPU)(60 + i * 40), 40, 90),
                 SkIRect::MakeXYWH(i * 16, 0, 16, 16));
-    SkDynamicMemoryWStream stream;
-    SkPngEncoder::Encode(&stream, src.pixmap(), {});
     return std::make_shared<sigil::image::ImageAsset>(
-        *sigil::image::ImageAsset::decode(stream.detachAsData()));
+        sigil::image::ImageAsset::wrap(src.asImage()));
   }();
   return asset;
 }

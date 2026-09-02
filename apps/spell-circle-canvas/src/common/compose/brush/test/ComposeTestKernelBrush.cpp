@@ -115,10 +115,8 @@ TEST(ComposeDecorations, SliceStretchesCenterKeepsCorners) {
   src.allocN32Pixels(30, 30);
   src.eraseColor(SK_ColorRED);
   src.erase(SK_ColorGREEN, SkIRect::MakeXYWH(10, 10, 10, 10));
-  SkDynamicMemoryWStream stream;
-  SkPngEncoder::Encode(&stream, src.pixmap(), {});
   auto asset = std::make_shared<sigil::image::ImageAsset>(
-      require(sigil::image::ImageAsset::decode(stream.detachAsData())));
+      sigil::image::ImageAsset::wrap(src.asImage()));
 
   Host host;
   Slice nine;

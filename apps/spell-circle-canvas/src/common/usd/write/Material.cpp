@@ -5,9 +5,8 @@
  * written as PNG files beside the stage.
  */
 
-#include <include/core/SkBitmap.h>
-#include <include/core/SkStream.h>
-#include <include/encode/SkPngEncoder.h>
+#include <include/core/SkData.h>
+#include <include/core/SkImage.h>
 #include <pxr/base/gf/vec3f.h>
 #include <pxr/base/gf/vec4f.h>
 #include <pxr/base/tf/token.h>
@@ -19,6 +18,8 @@
 #include <pxr/usd/usdShade/material.h>
 #include <pxr/usd/usdShade/output.h>
 #include <pxr/usd/usdShade/shader.h>
+#include <sigilimage/encode/Encode.h>
+#include <sigilloader/source/Sink.h>
 #include <sigilmaterial/core/Combine.h>
 #include <sigilmaterial/kit/Surface.h>
 
@@ -33,11 +34,8 @@ namespace sigil::usd {
 namespace {
 
 bool writePng(const sk_sp<SkImage>& image, const std::filesystem::path& path) {
-  SkBitmap bm;
-  bm.allocPixels(SkImageInfo::MakeN32Premul(image->width(), image->height()));
-  if (!image->readPixels(nullptr, bm.pixmap(), 0, 0)) return false;
-  SkFILEWStream stream(path.string().c_str());
-  return stream.isValid() && SkPngEncoder::Encode(&stream, bm.pixmap(), {});
+  const sk_sp<SkData> png = image::encodeImage(*image, image::Format::Png);
+  return png && loader::writeBytes(path, png->data(), png->size());
 }
 
 }  // namespace

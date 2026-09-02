@@ -8,9 +8,10 @@
 #include <dlfcn.h>
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
-#include <include/core/SkStream.h>
+#include <include/core/SkData.h>
 #include <include/core/SkSurface.h>
-#include <include/encode/SkPngEncoder.h>
+#include <sigilimage/encode/Encode.h>
+#include <sigilloader/source/Sink.h>
 #include <unistd.h>
 
 #include <algorithm>
@@ -374,10 +375,11 @@ bool Host::capture(const std::filesystem::path& out, float scale) {
   } else {
     surface->readPixels(bitmap.pixmap(), 0, 0);
   }
-  std::error_code ec;
-  std::filesystem::create_directories(out.parent_path(), ec);
-  SkFILEWStream stream(out.string().c_str());
-  return stream.isValid() && SkPngEncoder::Encode(&stream, bitmap.pixmap(), {});
+  // The format the capture path is named for; the directories above the
+  // file are the sink's business, not this one's.
+  const sk_sp<SkData> png =
+      image::encodeImage(bitmap.pixmap(), image::Format::Png);
+  return png && loader::writeBytes(out, png->data(), png->size());
 }
 
 }  // namespace sigil::sketch

@@ -55,12 +55,12 @@ target_compile_definitions(image_decode_test PRIVATE
 add_test(NAME image_decode_test COMMAND image_decode_test)
 
 # The decode benchmark (Google Benchmark; use a Release build) encodes
-# its own fixtures in memory and reads the committed 4 x 4 ones for the
-# per-call floor. Not a test: it builds through the `benches` target and
-# runs through scripts/bench_ledger.py.
+# its own fixtures in memory through the encode feature and reads the
+# committed 4 x 4 ones for the per-call floor. Not a test: it builds
+# through the `benches` target and runs through scripts/bench_ledger.py.
 add_executable(image_decode_bench bench/DecodeBench.cpp)
 target_link_libraries(image_decode_bench PRIVATE SigilImageDecode
-  benchmark::benchmark)
+  SigilImageEncode benchmark::benchmark)
 target_compile_definitions(image_decode_bench PRIVATE
   IFRIT_IMAGE_TEST_ASSET_DIR="${SIGIL_IMAGE_TEST_ASSET_DIR}"
 )

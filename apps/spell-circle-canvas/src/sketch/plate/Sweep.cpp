@@ -6,9 +6,11 @@
 
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
-#include <include/core/SkStream.h>
+#include <include/core/SkData.h>
+#include <include/core/SkPixmap.h>
 #include <include/core/SkSurface.h>
-#include <include/encode/SkPngEncoder.h>
+#include <sigilimage/encode/Encode.h>
+#include <sigilloader/source/Sink.h>
 #include <sigilmeasure/time/Stopwatch.h>
 #include <sigilsketch/core/Assets.h>
 #include <sigilsketch/core/Registry.h>
@@ -61,6 +63,14 @@ constexpr int kCaptureFrame = kProbeFrames + kMaxWarmFrames + kMaxSampleFrames;
  *  an oversample of its own is rendered at exactly that, because the
  *  reason to declare one is a grid a fractional scale would destroy. */
 constexpr float kPlateWidthCeiling = 2400.0f;
+
+/** A plate on disk: encoded once, written once. The plate ledger hashes
+ *  what lands here, so the encode is the picture's identity and a
+ *  half-written file must read as a failure rather than as a plate. */
+bool writePlate(const SkPixmap& pixels, const std::filesystem::path& path) {
+  const sk_sp<SkData> png = image::encodeImage(pixels, image::Format::Png);
+  return png && loader::writeBytes(path, png->data(), png->size());
+}
 
 /** The entries this run walks. */
 std::vector<int> selection(const SweepOptions& options) {
@@ -407,8 +417,7 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
         std::memcpy(bitmap.pixmap().writable_addr(0, y),
                     src + (size_t)y * srcRowBytes,
                     std::min(srcRowBytes, bitmap.rowBytes()));
-      SkFILEWStream stream(path.c_str());
-      if (stream.isValid()) SkPngEncoder::Encode(&stream, bitmap.pixmap(), {});
+      writePlate(bitmap.pixmap(), path);
       continue;
     }
 #endif
@@ -417,9 +426,7 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
     plate->getCanvas()->scale(scale, scale);
     session->still(*plate->getCanvas());
     plate->readPixels(bitmap.pixmap(), 0, 0);
-    SkFILEWStream stream(path.c_str());
-    if (!stream.isValid() ||
-        !SkPngEncoder::Encode(&stream, bitmap.pixmap(), {})) {
+    if (!writePlate(bitmap.pixmap(), path)) {
       if (timingJson) std::fclose(timingJson);
       return 1;
     }

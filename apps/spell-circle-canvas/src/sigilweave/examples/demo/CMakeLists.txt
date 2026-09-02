@@ -15,4 +15,5 @@ add_executable(weave_demo
   SceneNewFeatures.cpp
 )
 target_link_libraries(weave_demo PRIVATE SigilWeave SigilWeaveShaders
-                                            SigilWeavePorts SigilWeaveKit)
+                                            SigilWeavePorts SigilWeaveKit
+                                            SigilImageEncode SigilLoaderSource)

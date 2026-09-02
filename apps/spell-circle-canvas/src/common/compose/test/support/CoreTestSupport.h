@@ -13,7 +13,6 @@
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <include/effects/SkTrimPathEffect.h>
-#include <include/encode/SkPngEncoder.h>
 #include <sigilcompose/Compose.h>
 #include <sigilcompose/core/Feed.h>
 #include <sigilcompose/core/Material.h>

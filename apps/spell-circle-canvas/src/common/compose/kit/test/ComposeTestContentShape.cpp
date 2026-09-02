@@ -602,10 +602,8 @@ std::shared_ptr<sigil::image::ImageAsset> fourTileAtlas() {
   src.erase(SK_ColorGREEN, SkIRect::MakeXYWH(8, 0, 8, 8));
   src.erase(SK_ColorBLUE, SkIRect::MakeXYWH(0, 8, 8, 8));
   src.erase(SK_ColorYELLOW, SkIRect::MakeXYWH(8, 8, 8, 8));
-  SkDynamicMemoryWStream stream;
-  SkPngEncoder::Encode(&stream, src.pixmap(), {});
   return std::make_shared<sigil::image::ImageAsset>(
-      require(sigil::image::ImageAsset::decode(stream.detachAsData())));
+      sigil::image::ImageAsset::wrap(src.asImage()));
 }
 
 struct ChunkProps {

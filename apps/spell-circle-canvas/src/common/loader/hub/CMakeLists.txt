@@ -19,12 +19,14 @@ target_link_libraries(SigilLoaderHub PUBLIC SigilLoaderSource SigilImageDecode)
 find_package(CURL CONFIG REQUIRED)
 target_link_libraries(SigilLoaderHub PRIVATE CURL::libcurl)
 
-# The test writes its own EXR fixtures, so it needs OIIO directly (the
-# library itself does not).
+# The test builds its own PNG fixtures through the image encoder and
+# writes its own EXR ones through OIIO directly — the library itself
+# encodes nothing.
 find_package(OpenImageIO CONFIG QUIET)
 
 add_executable(loader_hub_test test/HubTest.cpp)
-target_link_libraries(loader_hub_test PRIVATE SigilLoaderHub GTest::gtest_main)
+target_link_libraries(loader_hub_test PRIVATE SigilLoaderHub SigilImageEncode
+  GTest::gtest_main)
 if(OpenImageIO_FOUND)
   target_link_libraries(loader_hub_test PRIVATE OpenImageIO::OpenImageIO)
   target_compile_definitions(loader_hub_test PRIVATE SIGILLOADER_HAS_OIIO)
