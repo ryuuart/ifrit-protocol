@@ -174,11 +174,16 @@ public float3 refraction(float3 i, float3 n, float eta) {
   return i * eta - n * (eta * ni + sqrt(k));
 }
 
-/** ABSORPTION, Beer-Lambert: what is left of a radiance after it has
- *  travelled @p thickness through a medium that takes @p absorption out
- *  of it per unit. This is what makes thick glass green at its edge and
- *  clear across its face. */
-public float3 absorption(float3 radiance, float3 absorb, float thickness) {
+/** ATTENUATION, Beer-Lambert: what is left of a radiance after it has
+ *  travelled @p thickness through a medium that takes @p absorb out of
+ *  it per unit. This is what makes thick glass green at its edge and
+ *  clear across its face.
+ *
+ *  It is not called `absorption`, because a surface's own absorption is
+ *  a uniform of that name and a term compiled beside one would be an
+ *  ambiguous reference. A term's name has to survive being read in the
+ *  same scope as every material parameter there is. */
+public float3 attenuate(float3 radiance, float3 absorb, float thickness) {
   float t = max(thickness, 0.0);
   return radiance * float3(exp(-absorb.x * t), exp(-absorb.y * t),
                            exp(-absorb.z * t));

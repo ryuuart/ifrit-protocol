@@ -44,6 +44,12 @@ struct Environment {
   /** The diffuse side: what a surface facing a direction receives from
    *  everywhere, already convolved with a cosine lobe. */
   sk_sp<SkImage> irradiance;
+  /** A SECOND PANORAMA and how far along the way to it every sample
+   *  stands. Both are sampled and mixed rather than one being rebuilt,
+   *  which is what lets a sky change while the frame is running. */
+  std::vector<sk_sp<SkImage>> nextLevels;
+  sk_sp<SkImage> nextIrradiance;
+  float crossfade = 0;
   /** Takes a WORLD-space direction into the panorama's own frame, so
    *  turning the node that placed the sky turns the reflection. */
   glm::mat3 orientation{1.0f};
@@ -126,8 +132,8 @@ inline glm::vec3 environmentSpecular(glm::vec3 radiance, glm::vec3 f0,
 
 /** Beer-Lambert: what is left of a radiance after @p thickness of a
  *  medium that takes @p absorb out of it per unit. */
-inline glm::vec3 absorption(glm::vec3 radiance, glm::vec3 absorb,
-                            float thickness) {
+inline glm::vec3 attenuate(glm::vec3 radiance, glm::vec3 absorb,
+                           float thickness) {
   const float t = std::max(thickness, 0.0f);
   return radiance * glm::vec3(std::exp(-absorb.x * t), std::exp(-absorb.y * t),
                               std::exp(-absorb.z * t));

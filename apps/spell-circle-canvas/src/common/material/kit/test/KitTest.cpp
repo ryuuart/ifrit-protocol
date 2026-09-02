@@ -130,11 +130,11 @@ TEST(Terms, EachTermMeetsItsClosedForm) {
               0.3f, 2e-3f);
 
   // BEER-LAMBERT over half a unit of a medium that takes one per unit.
-  EXPECT_NEAR(scalar("absorption(float3(1.0, 1.0, 1.0), "
+  EXPECT_NEAR(scalar("attenuate(float3(1.0, 1.0, 1.0), "
                      "float3(1.0, 1.0, 1.0), 0.5).r"),
               std::exp(-0.5f), 2e-3f);
   // Nothing absorbed is everything through.
-  EXPECT_NEAR(scalar("absorption(float3(0.8, 0.8, 0.8), "
+  EXPECT_NEAR(scalar("attenuate(float3(0.8, 0.8, 0.8), "
                      "float3(0.0, 0.0, 0.0), 100.0).r"),
               0.8f, 2e-3f);
 

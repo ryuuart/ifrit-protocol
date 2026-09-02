@@ -23,6 +23,7 @@
 #include <include/core/SkSize.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
+#include <sigilmaterial/texture/EnvironmentMap.h>
 #include <sigilmaterial/texture/Texture.h>
 #include <sigilworld/diligent/Device.h>
 #include <sigilworld/frame/Pass.h>
@@ -146,6 +147,12 @@ struct Gpu {
    *  because wrapping is the sampler's answer and not the lookup's. */
   dg::RefCntAutoPtr<dg::ISampler> linearTiled;
   dg::RefCntAutoPtr<dg::ISampler> nearestTiled;
+  /** …and ONE MORE, for a panorama, which none of the four above can
+   *  read: an equirect map repeats in azimuth and clamps at the poles,
+   *  so its two axes want different wraps, and its prefiltered levels
+   *  are different images rather than a filtering aid, so it reads
+   *  linearly ACROSS them as well as within one. */
+  dg::RefCntAutoPtr<dg::ISampler> panoramaSampler;
   /** What an unfilled sampled slot reads: one white texel, so a body
    *  multiplied by a map it was not given is the body. */
   dg::RefCntAutoPtr<dg::ITexture> white;
@@ -168,6 +175,14 @@ struct Gpu {
   /** …and maps that had to be brought over, under the id of the image
    *  they were brought from. */
   std::map<uint32_t, SampledImage> uploaded;
+  /** PREFILTERED PANORAMAS, under the id of the panorama they were
+   *  built from. One texture with the whole chain in it, in a float
+   *  format, because a sky holds values above one and an eight-bit
+   *  upload would put the sun and the sky beside it at the same
+   *  brightness. */
+  std::map<uint32_t, SampledImage> environments;
+  /** …and the cosine convolutions, under the same key. */
+  std::map<uint32_t, SampledImage> irradiances;
 
   // ---- what the whole of it is made of (Gpu.cpp) ----
   /** Sizes the frame's targets to @p size, dropping everything made at
@@ -188,6 +203,13 @@ struct Gpu {
    *  frame after it repeats. */
   const MeshBuffers* upload(uint64_t artefact, const Mesh& mesh,
                             std::string_view primColorLane = {});
+  /** THE PANORAMA on the device: one texture whose levels are the map's
+   *  prefiltered chain, uploaded once per map and kept. Null when the
+   *  map carries nothing or the device refused it. */
+  dg::ITexture* environment(const material::EnvironmentMap& map);
+  /** …and the cosine convolution beside it, one small texture a normal
+   *  reads directly. */
+  dg::ITexture* irradiance(const material::EnvironmentMap& map);
   /** @p mesh in the streaming buffers, overwriting whatever draw wrote
    *  them last. For a caller whose seam carries no artefact number. */
   const MeshBuffers* stream(const Mesh& mesh,
@@ -256,12 +278,18 @@ class Uniforms {
 /** Binds @p pipeline's uniform buffer to @p values and its sampled slots
  *  to @p textures, in the program's declared order, read through
  *  @p filter, then commits. A slot with no texture reads the one white
- *  texel. */
+ *  texel.
+ *
+ *  @p panoramaSlot names the slots that are read as an equirect map
+ *  instead: one wrap on each axis, and linearly across the prefiltered
+ *  levels. Every other slot in a draw shares one filter and one wrap,
+ *  which is what a base-colour map's sampling decides for all of them. */
 void bindAndCommit(Gpu& gpu, const Pipeline& pipeline, const Compiled& program,
                    const Uniforms& values,
                    const std::vector<dg::ITexture*>& textures,
                    SkFilterMode filter = SkFilterMode::kLinear,
-                   bool tile = false);
+                   bool tile = false,
+                   bool (*panoramaSlot)(std::string_view) = nullptr);
 
 /** THE DEVICE STATE every runtime here stands on: the samplers, the one
  *  white texel an unfilled slot reads, and the buffers a draw's uniforms

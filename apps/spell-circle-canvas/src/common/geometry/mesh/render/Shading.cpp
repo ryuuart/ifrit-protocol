@@ -72,24 +72,36 @@ glm::vec3 samplePanorama(const sk_sp<SkImage>& panorama, glm::vec2 uv) {
   return top * (1 - ty) + bot * ty;
 }
 
+namespace {
+
+/** One chain, at @p uv and the level @p pick names. The chain was
+ *  filtered linearly in roughness, so the level is read linearly out of
+ *  it and the two either side are mixed rather than the nearer one
+ *  taken — a body whose roughness ramps must not step from one blur to
+ *  the next. */
+glm::vec3 atLevel(const std::vector<sk_sp<SkImage>>& levels, glm::vec2 uv,
+                  float pick) {
+  if (levels.empty()) return {0, 0, 0};
+  const int low = std::clamp((int)pick, 0, (int)levels.size() - 1);
+  const int high = std::min(low + 1, (int)levels.size() - 1);
+  const float t = std::clamp(pick - (float)low, 0.0f, 1.0f);
+  return samplePanorama(levels[low], uv) * (1.0f - t) +
+         samplePanorama(levels[high], uv) * t;
+}
+
+}  // namespace
+
 glm::vec3 environmentRadiance(const Environment& environment,
                               glm::vec3 direction, float roughness) {
   if (environment.levels.empty()) return {0, 0, 0};
   const glm::vec2 uv = equirectUv(environment.orientation * direction);
-  // The chain was filtered linearly in roughness, so the level is read
-  // linearly out of it, and the two levels either side are mixed rather
-  // than the nearer one taken — a body whose roughness ramps must not
-  // step from one blur to the next.
-  const float levels = (float)environment.levels.size();
   const float pick =
       std::clamp(roughness + environment.roughnessBias, 0.0f, 1.0f) *
-      (levels - 1.0f);
-  const int low = (int)pick;
-  const int high = std::min(low + 1, (int)levels - 1);
-  const float t = pick - (float)low;
-  const glm::vec3 radiance = samplePanorama(environment.levels[low], uv) *
-                                 (1.0f - t) +
-                             samplePanorama(environment.levels[high], uv) * t;
+      (float)(environment.levels.size() - 1);
+  glm::vec3 radiance = atLevel(environment.levels, uv, pick);
+  const float fade = std::clamp(environment.crossfade, 0.0f, 1.0f);
+  if (fade > 0 && !environment.nextLevels.empty())
+    radiance += (atLevel(environment.nextLevels, uv, pick) - radiance) * fade;
   return radiance * environment.tint * environment.intensity *
          environment.specular;
 }
@@ -98,8 +110,13 @@ glm::vec3 environmentIrradiance(const Environment& environment,
                                 glm::vec3 normal) {
   if (!environment.irradiance) return {0, 0, 0};
   const glm::vec2 uv = equirectUv(environment.orientation * normal);
-  return samplePanorama(environment.irradiance, uv) * environment.tint *
-         environment.intensity * environment.diffuse;
+  glm::vec3 received = samplePanorama(environment.irradiance, uv);
+  const float fade = std::clamp(environment.crossfade, 0.0f, 1.0f);
+  if (fade > 0 && environment.nextIrradiance)
+    received +=
+        (samplePanorama(environment.nextIrradiance, uv) - received) * fade;
+  return received * environment.tint * environment.intensity *
+         environment.diffuse;
 }
 
 }  // namespace sigil::geometry::mesh::render

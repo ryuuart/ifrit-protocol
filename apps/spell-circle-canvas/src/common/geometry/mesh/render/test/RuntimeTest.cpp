@@ -132,7 +132,7 @@ TEST(Shading, TheTermsMeetTheirClosedForms) {
             environmentSpecular(glm::vec3(1.0f), glm::vec3(0.04f), 0.0f, 1.0f).x);
 
   // Beer-Lambert over half a unit of a medium that takes one per unit.
-  EXPECT_NEAR(absorption(glm::vec3(1.0f), glm::vec3(1.0f), 0.5f).x,
+  EXPECT_NEAR(attenuate(glm::vec3(1.0f), glm::vec3(1.0f), 0.5f).x,
               std::exp(-0.5f), 1e-5f);
   // Refraction through no change of index is the ray it was given.
   EXPECT_NEAR(refraction({0, 0, -1}, {0, 0, 1}, 1.0f).z, -1.0f, 1e-5f);

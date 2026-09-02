@@ -40,8 +40,24 @@ constexpr float kAmbient[4] = {0.12f, 0.12f, 0.15f, 1.0f};
 constexpr float kSpecular = 0.5f;
 constexpr float kShininess = 48.0f;
 constexpr float kRim = 0.25f;
-/** How many emitters one draw carries. */
-constexpr size_t kLights = 4;
+/** How many emitters one draw carries — the budget the light value
+ *  declares and the host tier honours, so both tiers light a set with
+ *  the same emitters rather than the device dropping the last four. */
+constexpr size_t kLights = 8;
+
+/** The four panorama slots the scaffold declares, and the sampler they
+ *  are read with. Named here because the binding has to tell them from
+ *  a material's own slots: an equirect map wants a wrap of its own on
+ *  each axis and reads linearly across its levels, and the one sampler
+ *  every other slot in a draw shares can be neither. */
+constexpr std::string_view kEnvironmentSlots[4] = {
+    "uEnvironment", "uEnvironmentNext", "uIrradiance", "uIrradianceNext"};
+
+bool isEnvironmentSlot(std::string_view slot) {
+  for (std::string_view name : kEnvironmentSlots)
+    if (slot == name) return true;
+  return false;
+}
 
 /** The scaffold's sampled slot and the placement it is read at — the
  *  two names the map a body is dressed with arrives under. */
@@ -125,7 +141,8 @@ void writeMaterial(Uniforms& uniforms, const Surface& surface) {
 void writeScaffold(Uniforms& uniforms, const Compiled& program,
                    const glm::mat4& viewProj, const glm::mat4& view,
                    const glm::mat4& model, glm::vec4 baseColor,
-                   std::span<const Light> lights, bool lit) {
+                   std::span<const Light> lights, const Environment& sky,
+                   const glm::mat3& orientation, int levels, bool lit) {
   uniforms.set("uViewProj", viewProj);
   uniforms.set("uModel", model);
   uniforms.set("uBaseColor", baseColor.r, baseColor.g, baseColor.b,
@@ -138,7 +155,25 @@ void writeScaffold(Uniforms& uniforms, const Compiled& program,
                glm::mat4(glm::inverseTranspose(glm::mat3(modelView))));
   uniforms.set("uLightMatrix",
                glm::mat4(glm::inverseTranspose(glm::mat3(view))));
+  // THE AMBIENT CONSTANT, and what replaces it. A set carrying a
+  // panorama reads what actually falls on a surface facing each way; one
+  // that carries none keeps the single value both tiers hold, so its
+  // picture is what it was.
   uniforms.set("uAmbient", kAmbient, 4);
+  const bool hasSky = levels > 0;
+  uniforms.set("uEnvTint", sky.tint.x * sky.intensity,
+               sky.tint.y * sky.intensity, sky.tint.z * sky.intensity,
+               std::clamp(sky.crossfade, 0.0f, 1.0f));
+  uniforms.set("uEnvDials", hasSky ? sky.diffuse : 0.0f,
+               hasSky ? sky.specular : 0.0f, sky.roughnessBias,
+               hasSky ? (float)levels : 0.0f);
+  // The shading is written in view space and a panorama is of the world,
+  // so a direction goes out through the view's inverse and then into the
+  // frame the node that placed the sky put it in.
+  uniforms.set("uEnvMatrix",
+               glm::mat4(orientation * glm::transpose(
+                                           glm::mat3(glm::inverseTranspose(
+                                               glm::mat3(view))))));
   const size_t count = std::min(lights.size(), kLights);
   for (size_t i = 0; i < count; ++i) {
     const light::Directional value = light::directional(lights[i]);
@@ -158,7 +193,8 @@ void drawBody(Gpu& gpu, const glm::mat4& viewProj, const glm::mat4& view,
               uint64_t artefact, const Mesh& mesh, const glm::mat4& model,
               glm::vec4 baseColor, const material::Material* material,
               const material::Texture* map, std::span<const Light> lights,
-              bool lit, bool depthWrite) {
+              const Environment& sky, const glm::mat3& orientation, bool lit,
+              bool depthWrite) {
   const MeshBuffers* buffers = gpu.upload(artefact, mesh);
   if (!buffers) return;
   const Surface surface = surfaceOf(material, lit);
@@ -169,9 +205,21 @@ void drawBody(Gpu& gpu, const glm::mat4& viewProj, const glm::mat4& view,
   const Pipeline* pipeline = gpu.pipeline(key);
   if (!pipeline) return;
 
+  // THE PANORAMA, uploaded once per map and kept. Its level count is
+  // what says there is a sky at all, so it is asked for before the
+  // uniforms are written.
+  dg::ITexture* panorama = lit ? gpu.environment(sky.map) : nullptr;
+  dg::ITexture* panoramaNext = lit ? gpu.environment(sky.next) : nullptr;
+  dg::ITexture* lobe = lit ? gpu.irradiance(sky.map) : nullptr;
+  dg::ITexture* lobeNext = lit ? gpu.irradiance(sky.next) : nullptr;
+  if (!panoramaNext) panoramaNext = panorama;
+  if (!lobeNext) lobeNext = lobe;
+  const int levels =
+      panorama ? (int)panorama->GetDesc().MipLevels : 0;
+
   Uniforms uniforms(*surface.program);
   writeScaffold(uniforms, *surface.program, viewProj, view, model, baseColor,
-                lights, lit);
+                lights, sky, orientation, levels, lit);
   writeMaterial(uniforms, surface);
 
   // THE SAMPLED SLOTS, bound by NAME rather than by position, because a
@@ -206,6 +254,25 @@ void drawBody(Gpu& gpu, const glm::mat4& viewProj, const glm::mat4& view,
       if (map) textures[i] = gpu.sample(*map);
       continue;
     }
+    // …and the four panorama slots are the FRAME'S, not any material's:
+    // a sky is a property of the set every body in it reads, so it is
+    // bound beside the lights rather than dressed onto a surface.
+    if (slot == kEnvironmentSlots[0]) {
+      textures[i] = panorama;
+      continue;
+    }
+    if (slot == kEnvironmentSlots[1]) {
+      textures[i] = panoramaNext;
+      continue;
+    }
+    if (slot == kEnvironmentSlots[2]) {
+      textures[i] = lobe;
+      continue;
+    }
+    if (slot == kEnvironmentSlots[3]) {
+      textures[i] = lobeNext;
+      continue;
+    }
     if (!material) continue;
     // …and every OTHER slot is the material's own. `kit::map` answers
     // null for a slot still holding the neutral dressing a surface is
@@ -221,7 +288,7 @@ void drawBody(Gpu& gpu, const glm::mat4& viewProj, const glm::mat4& view,
   // and every slot bound here, and clamping an axis that was asked to
   // repeat drags one edge's texels across the whole face.
   bindAndCommit(gpu, *pipeline, *surface.program, uniforms, textures,
-                sampling.filter, sampling.tile);
+                sampling.filter, sampling.tile, &isEnvironmentSlot);
   dg::IBuffer* vertices = buffers->vertices;
   const dg::Uint64 offset = 0;
   context->SetVertexBuffers(0, 1, &vertices, &offset,
@@ -251,7 +318,8 @@ void drawBodies(Gpu& gpu, const View& view, const glm::mat4& viewProj,
     // reads it. A flat draw is unlit already.
     drawBody(gpu, viewProj, viewMatrix, body.geometry, *body.mesh, body.world,
              colour, flat ? nullptr : body.material,
-             flat ? nullptr : body.texture, view.lights, lit && body.lit,
+             flat ? nullptr : body.texture, view.lights, view.environment,
+             view.orientation, lit && body.lit,
              /*depthWrite=*/colour.a >= 1.0f);
   }
 }
@@ -303,7 +371,8 @@ void paintGeometry(Gpu& gpu, const PassWork& work, const View& view,
       if (cooked.mesh.indices.empty()) continue;
       drawBody(gpu, viewProj, viewMatrix, ++stamped, cooked.mesh,
                glm::mat4(1.0f), {0.9f, 0.9f, 0.95f, 1.0f}, nullptr, nullptr,
-               view.lights, /*lit=*/true, /*depthWrite=*/true);
+               view.lights, view.environment, view.orientation,
+               /*lit=*/true, /*depthWrite=*/true);
     }
   }
 

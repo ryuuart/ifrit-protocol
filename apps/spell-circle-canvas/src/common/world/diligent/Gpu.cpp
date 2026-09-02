@@ -6,6 +6,8 @@
 
 #include "Gpu.h"
 
+#include <sigilskia/device/Pixels.h>
+
 // clang-format off
 // ORDER IS LOAD-BEARING HERE, which is why the sorter is held off: the
 // engine's Vulkan interface names Vulkan's handle types and does not
@@ -314,6 +316,80 @@ dg::ITexture* Gpu::sample(const material::Texture& map) {
   return held.texture;
 }
 
+dg::ITexture* Gpu::environment(const material::EnvironmentMap& map) {
+  if (!device->renderDevice() || !map.valid()) return nullptr;
+  const sk_sp<SkImage> base = map.image(0);
+  if (!base) return nullptr;
+  SampledImage& held = environments[base->uniqueID()];
+  held.used = frame;
+  if (held.texture) return held.texture;
+
+  const std::vector<sk_sp<SkImage>> levels = map.chain();
+  if (levels.empty() || !levels.front()) return nullptr;
+
+  // A SKY IS NOT EIGHT BITS. The values above one are what make a sun a
+  // sun rather than a white disc the same brightness as the sky beside
+  // it, and they are what a reflection is mostly made of. Half floats
+  // keep them and are filterable everywhere; the thirty-two-bit form the
+  // panorama was blurred in is not, on an Apple GPU.
+  std::vector<std::vector<uint16_t>> pixels;
+  std::vector<dg::TextureSubResData> subresources;
+  pixels.reserve(levels.size());
+  subresources.reserve(levels.size());
+  for (const sk_sp<SkImage>& level : levels) {
+    pixels.push_back(skia::halfFloatPixels(level));
+    if (pixels.back().empty()) return nullptr;
+    dg::TextureSubResData data;
+    data.pData = pixels.back().data();
+    data.Stride = (dg::Uint64)level->width() * 4 * sizeof(uint16_t);
+    subresources.push_back(data);
+  }
+
+  dg::TextureDesc desc;
+  desc.Name = "world environment";
+  desc.Type = dg::RESOURCE_DIM_TEX_2D;
+  desc.Width = (dg::Uint32)levels.front()->width();
+  desc.Height = (dg::Uint32)levels.front()->height();
+  desc.MipLevels = (dg::Uint32)levels.size();
+  desc.Format = dg::TEX_FORMAT_RGBA16_FLOAT;
+  desc.BindFlags = dg::BIND_SHADER_RESOURCE;
+  desc.Usage = dg::USAGE_IMMUTABLE;
+  dg::TextureData data;
+  data.pSubResources = subresources.data();
+  data.NumSubresources = (dg::Uint32)subresources.size();
+  device->renderDevice()->CreateTexture(desc, &data, &held.texture);
+  return held.texture;
+}
+
+dg::ITexture* Gpu::irradiance(const material::EnvironmentMap& map) {
+  if (!device->renderDevice() || !map.valid()) return nullptr;
+  const sk_sp<SkImage> base = map.image(0);
+  if (!base) return nullptr;
+  SampledImage& held = irradiances[base->uniqueID()];
+  held.used = frame;
+  if (held.texture) return held.texture;
+
+  const sk_sp<SkImage> lobe = map.irradiance();
+  if (!lobe) return nullptr;
+  const std::vector<uint16_t> pixels = skia::halfFloatPixels(lobe);
+  if (pixels.empty()) return nullptr;
+  dg::TextureSubResData level;
+  level.pData = pixels.data();
+  level.Stride = (dg::Uint64)lobe->width() * 4 * sizeof(uint16_t);
+  dg::TextureDesc desc;
+  desc.Name = "world irradiance";
+  desc.Type = dg::RESOURCE_DIM_TEX_2D;
+  desc.Width = (dg::Uint32)lobe->width();
+  desc.Height = (dg::Uint32)lobe->height();
+  desc.MipLevels = 1;
+  desc.Format = dg::TEX_FORMAT_RGBA16_FLOAT;
+  desc.BindFlags = dg::BIND_SHADER_RESOURCE;
+  desc.Usage = dg::USAGE_IMMUTABLE;
+  dg::TextureData data{&level, 1};
+  device->renderDevice()->CreateTexture(desc, &data, &held.texture);
+  return held.texture;
+}
+
 void Gpu::endFrame() {
   // THE FRAME IS CLOSED ON THE DEVICE TOO. Every draw's uniforms come
   // from a heap the device refills once a frame, and a texture let go of
@@ -540,7 +616,8 @@ dg::ISampler* Gpu::samplerFor(SkFilterMode filter, bool tile) const {
 void bindAndCommit(Gpu& gpu, const Pipeline& pipeline, const Compiled& program,
                    const Uniforms& values,
                    const std::vector<dg::ITexture*>& textures,
-                   SkFilterMode filter, bool tile) {
+                   SkFilterMode filter, bool tile,
+                   bool (*panoramaSlot)(std::string_view)) {
   dg::IDeviceContext* context = gpu.device->context();
   dg::IBuffer* buffer = gpu.uniformBuffer(program.uniformBytes);
   if (buffer && !values.bytes().empty()) {
@@ -569,7 +646,15 @@ void bindAndCommit(Gpu& gpu, const Pipeline& pipeline, const Compiled& program,
     // why the filter is set on the view here rather than through a
     // sampler variable of its own — and set on every draw, because one
     // view may be read by two draws that asked for different filters.
-    view->SetSampler(gpu.samplerFor(filter, tile));
+    // ONE FILTER AND ONE WRAP FOR EVERY SLOT IN A DRAW, taken from the
+    // base-colour map — except a panorama, which cannot be read that
+    // way at all: its u axis is periodic where its v axis ends at the
+    // poles, and its levels are prefiltered images a roughness reads
+    // across rather than a filtering aid.
+    const bool panorama =
+        panoramaSlot && panoramaSlot(program.textures[i]) && gpu.panoramaSampler;
+    view->SetSampler(panorama ? gpu.panoramaSampler.RawPtr()
+                              : gpu.samplerFor(filter, tile));
     if (dg::IShaderResourceVariable* variable =
             pipeline.binding->GetVariableByName(dg::SHADER_TYPE_PIXEL,
                                                 program.textures[i].c_str()))
@@ -706,6 +791,23 @@ std::shared_ptr<Gpu> makeGpu(Device& device) {
               &gpu->linearTiled);
   makeSampler(dg::FILTER_TYPE_POINT, dg::TEXTURE_ADDRESS_WRAP,
               &gpu->nearestTiled);
+  {
+    // THE PANORAMA'S SAMPLER, which none of the four above can be: an
+    // equirect map's u axis is periodic and its v axis ends at the
+    // poles, so the two want different wraps, and its levels are
+    // different prefiltered images rather than a filtering aid, so a
+    // roughness between two of them has to read across both.
+    dg::SamplerDesc desc;
+    desc.Name = "world panorama";
+    desc.MinFilter = dg::FILTER_TYPE_LINEAR;
+    desc.MagFilter = dg::FILTER_TYPE_LINEAR;
+    desc.MipFilter = dg::FILTER_TYPE_LINEAR;
+    desc.AddressU = dg::TEXTURE_ADDRESS_WRAP;
+    desc.AddressV = dg::TEXTURE_ADDRESS_CLAMP;
+    desc.AddressW = dg::TEXTURE_ADDRESS_CLAMP;
+    desc.MaxLOD = 32;
+    device.renderDevice()->CreateSampler(desc, &gpu->panoramaSampler);
+  }
 
   // What an unfilled sampled slot reads: one white texel, so a body
   // multiplied by a map it was not given is the body.

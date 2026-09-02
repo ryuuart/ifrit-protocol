@@ -72,6 +72,11 @@ SurfaceTerms surfaceTermsOf(const ::sigil::material::Material* material) {
   // by the value, so asking for them every frame is a lookup.
   out.levels = environment.map.chain();
   out.irradiance = environment.map.irradiance();
+  if (environment.next.valid()) {
+    out.nextLevels = environment.next.chain();
+    out.nextIrradiance = environment.next.irradiance();
+  }
+  out.crossfade = environment.crossfade;
   out.orientation = orientation;
   out.tint = environment.tint;
   out.intensity = environment.intensity;

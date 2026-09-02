@@ -523,6 +523,24 @@ per vertex, so:
   it. Nearest keeps a texel's edge hard and takes no mip level with it,
   because blending two levels is the same bleed arriving by the other
   door; linear reads between texels and between levels.
+- an ENVIRONMENT MAP reaches this tier in full, and its terms are the
+  same arithmetic the device evaluates: the panorama's cosine
+  convolution replaces the flat ambient, the split sum adds what the
+  surface mirrors off the reflected view vector, a metal takes the light
+  out of its diffuse, and a crossfade samples both maps and mixes. What
+  differs is the RATE. This tier evaluates them once per vertex and Skia
+  interpolates between, so a coarse mesh under a bright sky reads as
+  facets where a device reads as a curve, and the two tiers' plates are
+  compared within a ceiling that says so. The surface's metallic and
+  roughness are read off the material's params by name, one number over
+  the whole body: there is no per-pixel half here and no map is sampled
+  for either.
+- GLASS is where the two tiers part company most. `transmission`, `ior`
+  and `thickness` reach the device and not this tier, because a
+  refracted ray is a per-pixel question — a per-vertex one would bend
+  the sky at four corners and interpolate a colour across the middle,
+  which is not a picture of anything. A glass body here is its diffuse
+  and its reflection.
 
 That is what a machine with no Vulkan runtime can honestly answer, and it
 is what the plate ledger's 3D tier is judged on. It is not a substitute
@@ -585,9 +603,8 @@ has:
   on a flat card is one value over the whole face and a card meant to
   show a highlight narrowing has to present a range of normals to the
   key. The turntable is PARKED: a lab is read rather than watched, so the
-  live picture and the plate are the same picture. There is no glass card
-  — with no environment to sample it would be a tinted rectangle labelled
-  glass. The texture set is GENERATED in the study rather than read off
+  live picture and the plate are the same picture. The texture set is
+  GENERATED in the study rather than read off
   the disk, through the same `textures::` door a scanned folder arrives
   by: a plate is a function of the declaration, and what a machine
   happens to have under `build/assets` is not.
@@ -821,22 +838,37 @@ and a rim term that nothing scales. So:
   is added at its own colour and strength, and `alphaCutoff` turns the
   opacity map into a CUTOUT — below the threshold the surface is absent
   rather than translucent.
-- the normal map perturbs the shading, and roughness and metallic reach
-  it **only where a map varies one of them across the surface**. That is
-  not a shortcut: a surface whose roughness is one number over the whole
-  of it is already what a per-vertex shading says it is, and asking for
-  the shading again would cost a per-pixel evaluation to answer the same
-  question. Where the shading IS evaluated again, roughness sets the
-  Blinn exponent — the mirror end of the range a narrow highlight, the
-  rough end a wide one — and metallic takes the light out of the diffuse
-  term and puts the surface's own colour into the highlight.
-- **that is not a metallic-roughness BRDF and this page does not call it
-  one.** There is no Fresnel, no energy conservation, no environment and
-  no importance sampling; `transmission`, `ior` and `thickness` reach
-  nothing at all. What is implemented is the mapping above, and a
-  metallic-roughness texture set therefore reads as a plausible surface
-  rather than as the one a path tracer would produce from the same
-  params.
+- the normal map perturbs the shading, and the shading is evaluated again
+  per pixel **where a map varies the surface across a face, or where the
+  set carries an ENVIRONMENT MAP**. The first is not a shortcut: a
+  surface whose roughness is one number over the whole of it is already
+  what a per-vertex shading says it is. The second is not optional: a
+  reflection is a function of the view vector, which turns under every
+  pixel of a curved body, and a per-vertex one reads as facets. Where the
+  shading is evaluated again, roughness sets the Blinn exponent — the
+  mirror end of the range a narrow highlight, the rough end a wide one —
+  and metallic takes the light out of the diffuse term and puts the
+  surface's own colour into the highlight.
+- **with an environment map the model has a Fresnel and an environment
+  term**, composed from the material kit's shading terms: the flat
+  ambient constant is replaced by the panorama's cosine convolution
+  sampled by the normal, and the split sum — prefiltered radiance times
+  the surface's own reflectance and its Fresnel — is added for what the
+  surface mirrors, off the reflected view vector at the level its
+  roughness picks. `transmission`, `ior`, `thickness` and the medium's
+  absorption reach the shading too: the refracted ray reads the same
+  panorama, attenuated by Beer-Lambert over the thickness it crossed,
+  and Fresnel decides how much of the light went that way. That is glass
+  against the WORLD; what stands behind a body ON SCREEN is a backdrop
+  pass and not a shading term, and there is none.
+- **it is still not a path tracer's answer and this page does not call it
+  one.** There is no importance sampling, no multiple scattering and no
+  shadowing between bodies; the prefilter is nine box-blurred levels
+  rather than a GGX convolution, and the split sum is an analytic fit of
+  the integral rather than a lookup table. What is implemented is the
+  arithmetic above, and a metallic-roughness texture set therefore reads
+  as a plausible surface rather than as the one a renderer with those
+  three would produce from the same params.
 - a foreign texture — one another engine, a decoder or a capture painted
   with the graphics API — reaches a slot through
   `diligent::importNative`, and is bound where it stands. It answers no
@@ -846,10 +878,22 @@ and a rim term that nothing scales. So:
 ## What is coming
 
 Every feature the layout declares is built, and `diligent/` owes nothing
-the layout promised. What it does not have is an ENVIRONMENT: no slot a
-lit body can sample by the reflected view vector, so `transmission`,
-`ior` and `thickness` reach nothing and a glass surface cannot be shaded
-here as anything but a tinted one.
+the layout promised. Two things an environment map makes possible are
+NOT here, and both are frame-graph subjects rather than shading ones:
+
+- **The sky is not drawn.** `Backdrop` carries the dials — a strength
+  that is also the switch, a blur in the same roughness units a
+  reflection reads, and a ground-projection radius that would treat the
+  panorama as a sphere standing on the ground rather than one at
+  infinity — and nothing reads them. A set with an environment map is
+  lit and reflected by it and stands against whatever the frame cleared
+  to.
+- **Glass refracts the world and not what is behind it.** A refracted
+  ray reads the panorama, which is right for a body with sky behind it
+  and wrong for one with another body behind it. Screen-space refraction
+  wants the colour target as it stood before the body was drawn, which
+  is a pass that reads what another pass wrote — a thing the frame graph
+  can already order and that nothing has yet been written to do.
 
 ### Where the shaders come from
 
