@@ -360,7 +360,7 @@ Element figure(const std::string& prefix, glm::vec3 at, float facingDeg,
     body.child(Element()
                    .key(prefix + "-mark")
                    .at(p.at)
-                   .mesh(gm::torus(r, 3.2f, 44, 8))
+                   .mesh(gm::torus(r, 3.2f, 36, 6))
                    .fill(wire(1.0f, 3.4f))
                    .tag("mark"));
   }
@@ -388,7 +388,7 @@ Element reachSphere(float seconds) {
     bearing.child(Element()
                       .key("ring")
                       .rotateX(90.0f)
-                      .mesh(gm::torus(kSphereRadius, 1.1f, 96, 6))
+                      .mesh(gm::torus(kSphereRadius, 1.1f, 64, 5))
                       .fill(wire(0.34f, 1.5f))
                       .tag("wire"));
     sphere.child(std::move(bearing));
@@ -400,7 +400,7 @@ Element reachSphere(float seconds) {
         Element()
             .key("latitude" + std::to_string(i))
             .at({0.0f, kSphereRadius * std::sin(lat), 0.0f})
-            .mesh(gm::torus(kSphereRadius * std::cos(lat), 1.1f, 96, 6))
+            .mesh(gm::torus(kSphereRadius * std::cos(lat), 1.1f, 64, 5))
             .fill(wire(i == 2 ? 0.62f : 0.30f, i == 2 ? 2.4f : 1.5f))
             .tag("wire"));
   }
@@ -507,6 +507,7 @@ namespace {
 struct VagrantStoryTarget final : sketch::Set {
   weave::FontContext* fonts = nullptr;
   std::shared_ptr<compose::TextureScene> overlay;
+  compose::Element retained;
   float lastSeconds = -1.0f;
   /** The camera. It is a member because the overlay's quad has to be put
    *  where the frustum is, and a set whose camera is declared once is a
@@ -526,6 +527,11 @@ struct VagrantStoryTarget final : sketch::Set {
     lens.zNear = 4.0f;
     lens.zFar = 4096.0f;
     ctx.camera(lens);
+    // THE OVERLAY IS DESCRIBED ONCE. The screen this reconstructs is the
+    // one in which world time has stopped, so nothing on the overlay is a
+    // function of the clock and re-describing it per frame would be
+    // paying for a picture that cannot change.
+    retained = hud();
   }
 
   /** The overlay's own tree, described fresh each frame — it is a few
@@ -702,7 +708,7 @@ struct VagrantStoryTarget final : sketch::Set {
     if (!overlay || seconds <= lastSeconds)
       overlay = compose::TextureScene::make({kHudW, kHudH}, *fonts);
     lastSeconds = seconds;
-    overlay->render(hud(), (double)seconds);
+    overlay->render(retained, (double)seconds);
     scene.child(overlayQuad(overlay->texture()));
 
     return Frame(std::move(scene));
