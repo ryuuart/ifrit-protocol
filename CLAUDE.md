@@ -99,7 +99,11 @@ are in, one final pass brings every sketch up to the new vocabulary
 and the plates are rebased then. "Everything builds" during a library
 pass means the libraries and their tests.
 
-Before writing a mechanism, look for it in the dependencies. Diligent
+Before implementing any feature, consult what exists: the dependencies,
+the code already in this tree (a sibling library often owns the
+mechanism), and how other engines solved it. Nothing is written from
+scratch until that search has come up empty, and the comment on what
+is then written says what was found and why it did not serve. Diligent
 (with DiligentFX and DiligentTools), Skia, choreograph, glm, HarfBuzz,
 ICU, OpenImageIO, OpenUSD and Slang each ship far more than the slice
 this tree first reached for — DiligentFX carries a PBR renderer with
