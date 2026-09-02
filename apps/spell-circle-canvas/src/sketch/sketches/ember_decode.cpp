@@ -154,16 +154,18 @@ half4 main(float2 xy) {
   // d is how far this pixel's unit has run past the pixel's own
   // threshold: negative is unburnt, 0 is the crossing, positive resolved.
   float d = p - thr;
+  // ONE TRANSCENDENTAL for the three bands. The rim's falloff is the exp;
+  // the crossing inside it is that falloff cubed, which is a tighter band
+  // for two multiplies; and the glow around it is a rational falloff,
+  // which is wide and soft and costs a divide. Three exps here is three
+  // exps per pixel of the line's whole box, and this shader runs on the
+  // raster backend as well as on a device.
+  float on = smoothstep(0.0, 0.03, p);
+  float e = exp(-abs(d) * 9.0);
   float body = smoothstep(0.0, 0.055, d);
-  float front = 1.10 * exp(-abs(d) * 9.0) * smoothstep(0.0, 0.03, p) *
-                (1.0 - 0.35 * body);
-  // The glow is the same crossing read wide: a burning edge lights what
-  // is around it, so the falloff either side of the front is gentle where
-  // the front itself is tight.
-  float glow = 0.42 * exp(-abs(d) * 2.4) * smoothstep(0.0, 0.03, p) *
-               (1.0 - 0.55 * body);
-  // A tighter band inside the ember one: the crossing itself, white-hot.
-  float core = exp(-abs(d) * 30.0) * smoothstep(0.0, 0.03, p);
+  float front = 1.10 * e * on * (1.0 - 0.35 * body);
+  float glow = 0.42 * on * (1.0 - 0.55 * body) / (1.0 + 6.0 * abs(d));
+  float core = e * e * e * on;
   // ASH. What the front has not reached is char, not absence: the letter
   // is on the page before it lights, so the line is READABLE at every
   // moment of the decode and the burn is something happening TO a word
