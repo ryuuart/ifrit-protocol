@@ -22,6 +22,14 @@ bool anyGreenIn(Host& host, SkIRect region) {
   return false;
 }
 
+/** A text style of a stated size in a stated colour — the probe a span
+ *  restyle is read back with. */
+sigil::weave::TextStyle colouredStyle(float size, SkColor colour) {
+  sigil::weave::TextStyle style = whiteStyle(size);
+  style.paint.foreground.setColor(colour);
+  return style;
+}
+
 /** A passage long enough to wrap at the measures below. */
 std::u8string passage() {
   return toU8(
@@ -204,6 +212,176 @@ TEST(ComposeUnits, ASiblingAnnotationPlacesOneElementPerUnit) {
         if (host.pixel(x, y) == SK_ColorGREEN) anyGreen = true;
     EXPECT_TRUE(anyGreen) << "no marker under the word at " << word.rect.left();
   }
+}
+
+// ── An object anchored to a text position, at a stated offset ────────────
+
+TEST(ComposeUnits, AnAnchoredObjectStandsWhereTheOffsetPutsIt) {
+  // The custom position: the object is tied to a WORD — it moves when the
+  // text reflows — but neither sits in the line nor stands in a reserved
+  // band. Here its x is measured from the FRAME's left edge and its y from
+  // the word, which is the margin figure every page of print carries, and
+  // is why the two references are named per axis.
+  Host host(400, 300);
+  const auto describe = [&](kit::Anchored anchored) {
+    return box()
+        .child(text(toU8("alpha beta gamma"), whiteStyle(16))
+                   .key("t")
+                   .absolute()
+                   .left(Dim(80.0f))
+                   .top(Dim(40.0f))
+                   .width(Dim(300.0f)))
+        .child(kit::annotate(host.composer, "t", sel::text(toU8("gamma")),
+                             unit::Word, anchored,
+                             [](const TextUnit&) {
+                               return box()
+                                   .width(Dim(6.0f))
+                                   .height(Dim(6.0f))
+                                   .fill(green());
+                             })
+                   .absolute()
+                   .inset(0, 0, 0, 0));
+  };
+  const kit::Anchored fromFrame{.horizontal = kit::Anchored::From::Frame,
+                                .offset = {-20.0f, 0.0f}};
+  host.composer.render(describe(fromFrame));
+  host.frame();
+  // The read-back is a DESCRIBE-time answer, so the first describe had no
+  // layout to read: the second is the one that places anything.
+  host.composer.render(describe(fromFrame));
+  host.frame();
+
+  const std::vector<TextUnit> words =
+      host.composer.units("t", sel::text(toU8("gamma")), unit::Word);
+  ASSERT_EQ(words.size(), 1u);
+  const SkRect& word = words.front().rect;
+  const auto frame = host.composer.bounds("t");
+  ASSERT_TRUE(frame.has_value());
+  EXPECT_GT(word.left(), frame->left() + 40.0f)
+      << "the third word must be well inside the frame for this to prove "
+         "anything";
+  // x from the frame, y from the word.
+  EXPECT_TRUE(anyGreenIn(
+      host, SkIRect::MakeXYWH((int)(frame->left() - 20.0f), (int)word.top(), 6,
+                              6)));
+  // …and nothing where the word's own left edge would have put it.
+  EXPECT_FALSE(anyGreenIn(
+      host,
+      SkIRect::MakeXYWH((int)(word.left() - 20.0f), (int)word.top(), 6, 6)));
+}
+
+// ── A nested style: the opening of a block, set differently ──────────────
+
+TEST(ComposeTypeset, ANestedStyleCoversTheWordsItCountsAndStops) {
+  // The mechanism is a selector and a span restyle, so the run stops where
+  // the TEXT says rather than where a pixel count says: three words in,
+  // whatever those words are and wherever they break.
+  Host host(400, 300);
+  const kit::NestedStyle opening{.until = kit::NestedStyle::Until::Words,
+                                 .count = 3,
+                                 .style = colouredStyle(16, SK_ColorGREEN)};
+  host.composer.render(
+      box().child(text(toU8("alpha beta gamma delta epsilon"), whiteStyle(16))
+                      .key("t")
+                      .absolute()
+                      .left(Dim(20.0f))
+                      .top(Dim(40.0f))
+                      .width(Dim(360.0f))
+                      .spanStyle(kit::nestedRun(opening), opening.style)));
+  host.frame();
+  const std::vector<TextUnit> words =
+      host.composer.units("t", sel::each(unit::Word), unit::Word);
+  ASSERT_EQ(words.size(), 5u);
+  for (size_t index = 0; index < words.size(); ++index) {
+    const SkRect& word = words[index].rect;
+    const SkIRect box = SkIRect::MakeLTRB((int)word.left(), (int)word.top(),
+                                          (int)word.right() + 1,
+                                          (int)word.bottom() + 1);
+    EXPECT_EQ(anyGreenIn(host, box), index < 3u)
+        << "word " << index << " is on the wrong side of the nested run";
+  }
+}
+
+TEST(ComposeTypeset, ANestedRunEndsOnItsDelimiterAndIncludesIt) {
+  // The spelling that counts nothing: a lead-in that ends at a mark. The
+  // mark is quoted into the pattern rather than pasted into it, so a
+  // delimiter that is also a regular-expression operator means itself.
+  Host host(400, 300);
+  const kit::NestedStyle lead{.until = kit::NestedStyle::Until::Delimiter,
+                              .delimiter = toU8("."),
+                              .style = colouredStyle(16, SK_ColorGREEN)};
+  host.composer.render(
+      box().child(text(toU8("alpha beta. gamma delta"), whiteStyle(16))
+                      .key("t")
+                      .absolute()
+                      .left(Dim(20.0f))
+                      .top(Dim(40.0f))
+                      .width(Dim(360.0f))
+                      .spanStyle(kit::nestedRun(lead), lead.style)));
+  host.frame();
+  const std::vector<TextUnit> words =
+      host.composer.units("t", sel::each(unit::Word), unit::Word);
+  ASSERT_GE(words.size(), 4u);
+  const auto greenAt = [&](size_t index) {
+    const SkRect& word = words[index].rect;
+    return anyGreenIn(host, SkIRect::MakeLTRB((int)word.left(), (int)word.top(),
+                                              (int)word.right() + 1,
+                                              (int)word.bottom() + 1));
+  };
+  EXPECT_TRUE(greenAt(0));
+  EXPECT_TRUE(greenAt(1))
+      << "the word carrying the delimiter is inside the run";
+  EXPECT_FALSE(greenAt(2)) << "the run ends AT the mark, not after it";
+  // A delimiter that never occurs covers nothing, rather than everything.
+  Host missing(400, 300);
+  const kit::NestedStyle absent{.until = kit::NestedStyle::Until::Delimiter,
+                                .delimiter = toU8("§"),
+                                .style = colouredStyle(16, SK_ColorGREEN)};
+  missing.composer.render(
+      box().child(text(toU8("alpha beta. gamma delta"), whiteStyle(16))
+                      .key("t")
+                      .absolute()
+                      .left(Dim(20.0f))
+                      .top(Dim(40.0f))
+                      .width(Dim(360.0f))
+                      .spanStyle(kit::nestedRun(absent), absent.style)));
+  missing.frame();
+  EXPECT_FALSE(anyGreenIn(missing, SkIRect::MakeXYWH(0, 0, 400, 300)));
+}
+
+TEST(ComposeTypeset, ADropCapCarriesANestedOpeningIntoItsBody) {
+  // The case the two pieces exist for: an initial, and the words after it
+  // set in a style of their own. The cap is its own leaf in its own type,
+  // so the nested run is stated over the body that flows around it.
+  Host host(400, 300);
+  const kit::NestedStyle opening{.until = kit::NestedStyle::Until::Words,
+                                 .count = 2,
+                                 .style = colouredStyle(16, SK_ColorGREEN)};
+  auto [initial, body] =
+      kit::dropCap(toU8("W"), whiteStyle(48), toU8("hale alpha beta gamma"),
+                   whiteStyle(16), "dropcap", 6.0f, opening);
+  host.composer.render(box().child(
+      box()
+          .absolute()
+          .left(Dim(20.0f))
+          .top(Dim(40.0f))
+          .width(Dim(340.0f))
+          .height(Dim(200.0f))
+          .child(std::move(initial))
+          .child(std::move(body).key("body").width(Dim(240.0f)))));
+  host.frame();
+  const std::vector<TextUnit> words =
+      host.composer.units("body", sel::each(unit::Word), unit::Word);
+  ASSERT_GE(words.size(), 4u);
+  const auto greenAt = [&](size_t index) {
+    const SkRect& word = words[index].rect;
+    return anyGreenIn(host, SkIRect::MakeLTRB((int)word.left(), (int)word.top(),
+                                              (int)word.right() + 1,
+                                              (int)word.bottom() + 1));
+  };
+  EXPECT_TRUE(greenAt(0));
+  EXPECT_TRUE(greenAt(1));
+  EXPECT_FALSE(greenAt(2)) << "the nested run counted two words, not three";
 }
 
 // ── Readings that reserve ─────────────────────────────────────────────────

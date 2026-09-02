@@ -16,6 +16,7 @@
 
 #include <sigilmotion/Animation.h>
 #include <sigilmotion/schedule/Schedule.h>
+#include <sigilmotion/values/Animated.h>
 
 namespace sigil::compose {
 

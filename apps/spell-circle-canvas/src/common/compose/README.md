@@ -982,10 +982,51 @@ question — does the annotation need ROOM?
   terms as the instruments, so a text that reflows wants a re-describe for
   its annotations to follow.
 
+`kit::annotate` says where an object goes in one of two ways, and they are
+one mechanism with two placement values. `kit::Beside` does the arithmetic
+of the READING DIRECTION — before or after the unit across it, at its
+start or its end along it — so a note above a line and a note right of a
+column are the same declaration. `kit::Anchored` hands the arithmetic to
+the caller: the object is still tied to a text position and still moves
+when the text reflows, but it stands at an offset the author states.
+
+```cpp
+kit::annotate(composer, "verse", sel::text(u8"Ishmael"), unit::Word,
+              {.horizontal = kit::Anchored::From::Frame, .offset = {-44, 0}},
+              [&](const TextUnit &u) { return figure(u); });
+```
+
+`kit::Anchored::horizontal` and `kit::Anchored::vertical` name what each
+AXIS is measured from — the unit, the whole line it landed on, or the text
+node's frame — separately, because the commonest anchored object in print
+takes its x from the frame's edge and its y from the word it belongs to.
+`kit::Anchored::at` picks the point of those rects to measure from, as
+fractions, and `kit::Anchored::offset` how far. The offset is in the
+composition's axes rather than the reading direction's, which is the whole
+difference between the two values.
+
 `kit::rules` cuts a rule or a shade to the extent a block's lines actually
 occupy, `kit::bullets` hangs markers in a hanging indent, and
 `kit::dropCap` is an initial with the body flowing around it — an ordinary
 exclusion, resolved in the ordinary pass.
+
+A NESTED STYLE — the opening of a paragraph set differently from the rest
+of it — is a selector and a span restyle, and `kit::NestedStyle` is the
+statement of where it stops: `kit::NestedStyle::Until::Words` counts the
+paragraph's own words, `Until::Characters` counts a character range, and
+`Until::Delimiter` runs through the first occurrence of a mark, inclusive.
+`kit::nestedRun` answers the `Selector` that means, `Element::spanStyle`
+does the work, and `kit::dropCap` takes one so an initial and the small
+caps that carry a paragraph out of it are written together.
+
+```cpp
+kit::dropCap(u8"W", capType, rest, bodyType, "dropcap", 6.0f,
+             kit::NestedStyle{.count = 3, .style = smallCaps});
+```
+
+Because it is a selector, the run re-resolves with the text: an edit that
+adds a word before the delimiter extends it, and one that removes the
+delimiter leaves it covering nothing rather than covering the paragraph.
 
 ### What a decoration dresses
 

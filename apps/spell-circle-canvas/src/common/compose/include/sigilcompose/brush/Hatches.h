@@ -20,27 +20,30 @@ struct Hatch {
   float width = 1.2f;
   float angleDeg = 45.0f;
   bool cross = false;
-  /** Live pitch and live angle: a raw `Output<float>*`, the same
-   *  convention `PathFormat::dashPhaseBinding`, `PathFormat::trimPhase`,
-   *  `Line::dashPhaseBinding` and `Rails::dashPhaseBinding` already use.
+  /** Live pitch and live angle, on the same terms as
+   *  `PathFormat::dashPhaseBinding`: an animatable, so a moiré that
+   *  breathes, a tightening engraving or a rotating shade pass is one
+   *  `bind()` chain rather than a second Output somebody steps by hand.
+   *  Either one live makes `isAnimated()` true, which is what declares
+   *  the node volatile and keeps it repainting.
    *
-   *  A raw Output pointer and NOT an `Animatable`, because a decoration
-   *  paints with only a `PaintContext` and has no instance against which a
-   *  transition could be resolved. Binding either one makes
-   *  `isAnimated()` true, which is what declares the node volatile and
-   *  keeps a moiré, a tightening engraving or a rotating shade pass
-   *  repainting. */
-  const choreograph::Output<float>* spacingBinding = nullptr;
-  const choreograph::Output<float>* angleBinding = nullptr;
+   *  A decoration paints with only a `PaintContext` and has no instance
+   *  holding a motion, so a value carrying its own TRANSITION has nothing
+   *  to run it and reads as its target. */
+  std::optional<motion::Animatable<float>> spacingBinding;
+  std::optional<motion::Animatable<float>> angleBinding;
 
   bool isAnimated() const {
-    return spacingBinding != nullptr || angleBinding != nullptr;
+    return (spacingBinding && motion::isLive(nullptr, *spacingBinding)) ||
+           (angleBinding && motion::isLive(nullptr, *angleBinding));
   }
   float pitch() const {
-    return spacingBinding ? spacingBinding->value() : spacing;
+    return spacingBinding ? motion::resolveFloatAt(nullptr, *spacingBinding)
+                          : spacing;
   }
   float angle() const {
-    return angleBinding ? angleBinding->value() : angleDeg;
+    return angleBinding ? motion::resolveFloatAt(nullptr, *angleBinding)
+                        : angleDeg;
   }
 
   bool operator==(const Hatch& o) const {

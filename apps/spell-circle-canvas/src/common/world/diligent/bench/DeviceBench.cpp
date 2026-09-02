@@ -23,7 +23,7 @@
 #include <sigilmeasure/time/Stopwatch.h>
 #include <sigilmotion/clock/Ticker.h>
 #include <sigilgeometry/device/Device.h>
-#include <sigilworld/diligent/Pop.h>
+#include <sigilgeometry/mesh/pop/Pop.h>
 #include <sigilworld/diligent/Runtime.h>
 #include <sigilworld/scene/Scene.h>
 
@@ -174,7 +174,7 @@ void BM_ChainOnDevice(benchmark::State& state) {
     return;
   }
   namespace gm = ::sigil::geometry::mesh;
-  const gm::pop::Runtime runtime = diligent::popRuntime(*device);
+  const gm::pop::Runtime runtime = gm::pop::deviceRuntime(*device);
   const std::vector<glm::vec3> loop = {{-200, 0, 0},
                                        {-60, 110, 40},
                                        {90, 30, -60},

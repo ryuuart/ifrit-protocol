@@ -33,8 +33,10 @@
  * | `kit/PixelType.h` | the aliased bitmap-font bake |
  * | `kit/Legibility.h` | halo / shade / scrim |
  * | `kit/Instruments.h` | `trackMeter()` and `restGhost()` — a cascade seen |
- * | `kit/Annotations.h` | `annotate()` — an element per unit, beside it |
- * | `kit/Typeset.h` | ruby, kenten, drop cap, bullets, block rules |
+ * | `kit/Annotations.h` | `annotate()` — an element per unit, `Beside` it |
+ * | `kit/Annotations.h` | …or `Anchored`, where the caller says |
+ * | `kit/Typeset.h` | ruby, kenten, drop cap, `NestedStyle` |
+ * | `kit/Typeset.h` | bullets, block rules |
  *
  * **`kit/Strokes.h` AND `kit/Plate.h` ARE NOT INCLUDED HERE, AND THIS
  * UMBRELLA DOES NOT GIVE YOU THEM.** Both are spelled in the Brush tier's

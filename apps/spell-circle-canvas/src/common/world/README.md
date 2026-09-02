@@ -32,7 +32,7 @@ library that is not here.
 | `scene/` | `SigilWorldScene` | `sigil::world` | the retained side: the reconcile host, the entity store, the content-keyed resource store, the declared phases, the execution of a frame's passes, and the draw. |
 | `light/` | `SigilWorldLight` | `sigil::world::light` | emitters as plain comparable values over glm: a sun, a point light, a spot, their falloffs and the per-frame budget. |
 | `kit/` | `SigilWorldKit` | `sigil::world::kit` | presets that compose elements: a three-point rig, a turntable, and the lit set both make over a ground plane. Nothing here decides a look. |
-| `diligent/` | `SigilWorldDiligent` | `sigil::world::diligent` | the programs this backend draws with — the scaffold, the sky, the mesh painter and the post stages, compiled through SigilMaterial's Slang backend — and the four seam values that stand on that device: the `Runtime` that performs a frame's passes, the `pop::Runtime` that cooks a chain, the `curve::SweepRuntime` that forms a sweep's rings, and the `render::Runtime` that draws a mesh onto a canvas — plus `importNative`, the door a foreign texture reaches a material slot by. |
+| `diligent/` | `SigilWorldDiligent` | `sigil::world::diligent` | the programs this backend draws with — the scaffold, the sky, the mesh painter and the post stages, compiled through SigilMaterial's Slang backend — and the two seam values that stand on that device: the `Runtime` that performs a frame's passes and the `render::Runtime` that draws a mesh onto a canvas — plus `importNative`, the door a foreign texture reaches a material slot by. The chain cook and the swept rings are SigilGeometry's own device executors, beside the CPU ones of the same seams. |
 | — | `SigilWorld` | — | the umbrella: an interface target over every feature above, and `<sigilworld/World.h>`, which is their public headers in one include. A consumer of the whole library names only this; the device feature is in it where it was built. |
 
 ## Writing a scene
@@ -310,7 +310,7 @@ around it are unchanged.
 - a **compute pass** cooks its chain on the DEVICE when the whole of it
   can be, and on the host when it cannot. A pass carries the host runtime
   until it is given another, so a pass that named one of its own keeps
-  it; otherwise `diligent::popRuntime(device)` takes the cook, and only
+  it; otherwise `pop::deviceRuntime(device)` takes the cook, and only
   when EVERY operator in the chain has a kernel — a chain that would stop
   partway through is cooked on the host instead, whole, rather than
   declined. Either way the points are uploaded like any other geometry
@@ -756,7 +756,7 @@ is a silhouette edge and is reported rather than judged.
 
 ### The swept rings on the device
 
-`diligent::sweepRuntime(device)` is a `curve::SweepRuntime` whose
+`curve::deviceRuntime(device)` is a `curve::SweepRuntime` whose
 executor forms a sweep's ring vertices on the device: the rail and the
 profile uploaded, one compute dispatch, both output lanes read back in
 one crossing. Everything else a sweep is made of stays on the host and is
@@ -768,7 +768,7 @@ ring scales by.
 
 **The two tiers are held to BIT IDENTITY**, on the same three pins the
 point operators stand on, and for the same reason: the ring vertex is one
-piece of Slang compiled twice. `diligent/test/SweepTest.cpp` is the
+piece of Slang compiled twice. SigilGeometry's `mesh/pop/test/DeviceSweepTest.cpp` is the
 conformance — every normal rule, on a closed loop and on an open arc,
 with a round profile and a flat one, swept both ways and compared bit for
 bit.
@@ -787,7 +787,7 @@ chain has kernels.
 
 ### The point operators on the device
 
-`diligent::popRuntime(device)` is a `pop::Runtime` whose executor cooks a
+`pop::deviceRuntime(device)` is a `pop::Runtime` whose executor cooks a
 chain on the device: the chain's generator is run on the HOST and its
 lanes uploaded — a generator makes the points rather than mapping over
 them, and a seed that differed would make every comparison after it

@@ -26,6 +26,7 @@
 #include <include/core/SkPaint.h>
 #include <sigilcompose/core/Material.h>  // Stop — the along-arc gradient ramp
 
+#include <optional>
 #include <vector>
 
 #include "sigilcompose/Compose.h"
@@ -170,7 +171,7 @@ struct Line {
   std::vector<SkScalar> dashIntervals;
   float dashPhase = 0.0f;
   /** Bind it and the dashes march (see PathFormat::dashPhaseBinding). */
-  const choreograph::Output<float>* dashPhaseBinding = nullptr;
+  std::optional<motion::Animatable<float>> dashPhaseBinding;
 
   /** Along-arc gradient: colour as a ramp over the run's arc fraction — an
    *  energy fade, an elevation-coloured trail. Drawn as up to 48 arc chunks
@@ -185,9 +186,12 @@ struct Line {
 
   /** A bound dash phase makes the node volatile, the same declared-
    *  volatility contract PathFormat::trimPhase uses. */
-  bool isAnimated() const { return dashPhaseBinding != nullptr; }
+  bool isAnimated() const {
+    return dashPhaseBinding && motion::isLive(nullptr, *dashPhaseBinding);
+  }
   float phase() const {
-    return dashPhaseBinding ? dashPhaseBinding->value() : dashPhase;
+    return dashPhaseBinding ? motion::resolveFloatAt(nullptr, *dashPhaseBinding)
+                            : dashPhase;
   }
 
   /** Paint reach beyond the outline (cull growth): outer parallels, tie

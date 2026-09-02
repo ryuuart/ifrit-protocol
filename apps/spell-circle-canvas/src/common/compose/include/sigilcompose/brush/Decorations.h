@@ -83,8 +83,16 @@ struct PathFormat {
   /** Bind the dash phase to a wrapping Output and the dashes MARCH — a
    *  selected route, a live link, a cut line. Like `trimPhase`, it
    *  supersedes the constant and declares the decoration animated, so the
-   *  node repaints every frame without needing a re-describe. */
-  const choreograph::Output<float>* dashPhaseBinding = nullptr;
+   *  node repaints every frame without needing a re-describe.
+   *
+   *  An animatable rather than a bare Output, so the arithmetic that
+   *  shapes the march — `bind(&secs).source(0, 3).wrap(1)`, a ping-pong,
+   *  a wiggle — sits next to the phase it drives instead of in a second
+   *  Output somebody has to step. What it cannot carry is its own
+   *  TRANSITION: a decoration paints with a PaintContext and no instance,
+   *  so there is no held motion for one to run on, and a transitioned
+   *  value reads as its target. */
+  std::optional<motion::Animatable<float>> dashPhaseBinding;
 
   /** Stamp this path repeatedly along the contour (advance px apart),
    *  rotated to follow it — vines, chains, ornament runs. */
@@ -117,7 +125,8 @@ struct PathFormat {
    *  duplicating the same path is never needed for this. */
   float trimStart = 0.0f, trimEnd = 1.0f;
   float trimOffset = 0.0f;
-  const choreograph::Output<float>* trimPhase = nullptr;  // replaces offset
+  /** Replaces `trimOffset` when set, on `dashPhaseBinding`'s terms. */
+  std::optional<motion::Animatable<float>> trimPhase;
 
   /** Structural equality so a static stroked/dashed/stamped border prunes
    *  without memo (the custom SkPathEffect compares by pointer identity). */
@@ -137,11 +146,13 @@ struct PathFormat {
   /** A bound trim phase, a bound dash phase, or a live stroke material
    *  repaints per frame (declared volatility). */
   bool isAnimated() const {
-    return trimPhase != nullptr || dashPhaseBinding != nullptr ||
+    return (trimPhase && motion::isLive(nullptr, *trimPhase)) ||
+           (dashPhaseBinding && motion::isLive(nullptr, *dashPhaseBinding)) ||
            (strokeMaterial && strokeMaterial->isAnimated());
   }
   float phase() const {
-    return dashPhaseBinding ? dashPhaseBinding->value() : dashPhase;
+    return dashPhaseBinding ? motion::resolveFloatAt(nullptr, *dashPhaseBinding)
+                            : dashPhase;
   }
 
   void paint(SkCanvas& canvas, const PaintContext& ctx) const;
@@ -172,8 +183,8 @@ struct Shadow {
    *  animated (per-frame volatility) — the hover-lift shadow slides
    *  without re-describing. `maxBind` reserves cull reach for the bound
    *  range (bleed() can't read a future value). */
-  const choreograph::Output<float>* bindOffsetX = nullptr;
-  const choreograph::Output<float>* bindOffsetY = nullptr;
+  std::optional<motion::Animatable<float>> bindOffsetX;
+  std::optional<motion::Animatable<float>> bindOffsetY;
   float maxBind = 0.0f;
 
   /** CSS box-shadow semantics: knock the shape's own footprint OUT of the
@@ -183,7 +194,10 @@ struct Shadow {
   bool knockout = false;
 
   bool operator==(const Shadow&) const = default;
-  bool isAnimated() const { return bindOffsetX || bindOffsetY; }
+  bool isAnimated() const {
+    return (bindOffsetX && motion::isLive(nullptr, *bindOffsetX)) ||
+           (bindOffsetY && motion::isLive(nullptr, *bindOffsetY));
+  }
   /** Paint reach beyond the node's bounds; the recording's cull rect grows
    *  by this. Under-report it and a big soft shadow is clipped at the
    *  node's picture-cache bounds, which is why the bound range has to be
@@ -200,8 +214,10 @@ struct Shadow {
       p.setMaskFilter(SkMaskFilter::MakeBlur(kNormal_SkBlurStyle, blur * 0.5f));
     canvas.save();
     if (knockout) canvas.clipPath(ctx.outline, SkClipOp::kDifference, true);
-    canvas.translate(bindOffsetX ? bindOffsetX->value() : offset.x(),
-                     bindOffsetY ? bindOffsetY->value() : offset.y());
+    canvas.translate(bindOffsetX ? motion::resolveFloatAt(nullptr, *bindOffsetX)
+                                 : offset.x(),
+                     bindOffsetY ? motion::resolveFloatAt(nullptr, *bindOffsetY)
+                                 : offset.y());
     canvas.drawPath(ctx.outline, p);
     canvas.restore();
   }
@@ -407,14 +423,18 @@ struct Border {
 
   std::vector<SkScalar> dash;
   float dashPhase = 0.0f;
-  const choreograph::Output<float>* dashPhaseBinding = nullptr;
+  /** On `PathFormat::dashPhaseBinding`'s terms. */
+  std::optional<motion::Animatable<float>> dashPhaseBinding;
   SkPaint::Cap cap = SkPaint::kButt_Cap;
   SkPaint::Join join = SkPaint::kMiter_Join;
 
   bool operator==(const Border&) const = default;
-  bool isAnimated() const { return dashPhaseBinding != nullptr; }
+  bool isAnimated() const {
+    return dashPhaseBinding && motion::isLive(nullptr, *dashPhaseBinding);
+  }
   float phase() const {
-    return dashPhaseBinding ? dashPhaseBinding->value() : dashPhase;
+    return dashPhaseBinding ? motion::resolveFloatAt(nullptr, *dashPhaseBinding)
+                            : dashPhase;
   }
   float bleed() const {
     const float heaviest = std::max(width, cornerWidth);

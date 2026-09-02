@@ -282,20 +282,27 @@ dg::ITexture* Gpu::sample(const material::Texture& map) {
     return nullptr;
   if (!image->readPixels(nullptr, bytes.pixmap(), 0, 0)) return nullptr;
 
+  // NO INITIAL DATA: a texture is created with as many subresources as
+  // it has levels or the device refuses it, and only level zero is
+  // known here. It is written after the fact and the levels under it
+  // derived from it, once, on the frame the map first appears.
+  device->renderDevice()->CreateTexture(
+      uploadedMapDesc("world sampled map", image->width(), image->height()),
+      nullptr, &held.texture);
+  if (!held.texture) return nullptr;
+
   dg::TextureSubResData level;
   level.pData = bytes.getPixels();
   level.Stride = (dg::Uint64)bytes.rowBytes();
-  dg::TextureData data;
-  data.pSubResources = &level;
-  data.NumSubresources = 1;
-  device->renderDevice()->CreateTexture(
-      uploadedMapDesc("world sampled map", image->width(), image->height()),
-      &data, &held.texture);
-  // The upload filled level zero; the rest of the chain is the device's
-  // to derive, once, on the frame the map first appears.
-  if (held.texture)
-    device->context()->GenerateMips(
-        held.texture->GetDefaultView(dg::TEXTURE_VIEW_SHADER_RESOURCE));
+  dg::Box whole;
+  whole.MaxX = (dg::Uint32)image->width();
+  whole.MaxY = (dg::Uint32)image->height();
+  dg::IDeviceContext* context = device->context();
+  context->UpdateTexture(held.texture, 0, 0, whole, level,
+                         dg::RESOURCE_STATE_TRANSITION_MODE_TRANSITION,
+                         dg::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+  context->GenerateMips(
+      held.texture->GetDefaultView(dg::TEXTURE_VIEW_SHADER_RESOURCE));
   return held.texture;
 }
 

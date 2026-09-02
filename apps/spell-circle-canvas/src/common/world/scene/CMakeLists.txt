@@ -25,6 +25,7 @@ target_include_directories(SigilWorldScene PUBLIC ${SIGIL_WORLD_INCLUDE_DIR})
 # to walk. Nothing here defines a shading model.
 target_link_libraries(SigilWorldScene
   PUBLIC SigilWorldGraph SigilGeometryMeshRender SigilMotionClock
+  SigilMotionSchedule
   PRIVATE EnTT::EnTT SigilMaterialKit)
 
 add_executable(world_scene_test test/SceneTest.cpp)

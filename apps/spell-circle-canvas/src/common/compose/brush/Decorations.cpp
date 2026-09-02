@@ -43,7 +43,8 @@ void PathFormat::paint(SkCanvas& canvas, const PaintContext& ctx) const {
   // The decoration's own trim window (wrapping; the marching sliver).
   const SkPath* drawn = &ctx.outline;
   SkPath windowed;
-  const float off = trimPhase ? trimPhase->value() : trimOffset;
+  const float off =
+      trimPhase ? motion::resolveFloatAt(nullptr, *trimPhase) : trimOffset;
   const float s0 = trimStart + off, e0 = trimEnd + off;
   const float span = e0 - s0;
   if (span > 0.0f && span < 1.0f) {

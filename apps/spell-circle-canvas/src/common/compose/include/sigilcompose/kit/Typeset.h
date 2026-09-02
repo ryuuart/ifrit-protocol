@@ -4,8 +4,9 @@
  * SigilCompose KIT — the furniture a page of set text carries, as stock
  * values over the seams underneath: readings beside the type (`ruby`,
  * `kenten`), a block's opening letter dropped into its first lines
- * (`dropCap`), a list whose markers hang in the indent (`bullets`), and
- * rules and shading cut to what a block actually occupies (`rules`).
+ * (`dropCap`) with the opening words set in a style of their own
+ * (`NestedStyle`), a list whose markers hang in the indent (`bullets`),
+ * and rules and shading cut to what a block actually occupies (`rules`).
  *
  * None of these is a mechanism. Ruby and kenten are `Annotation` values —
  * a selector, a unit, a reading and a type — and the whole of what
@@ -30,6 +31,8 @@
 #include <sigilweave/style/Style.h>
 
 #include <algorithm>
+#include <cstdint>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -89,30 +92,94 @@ namespace sigil::compose::kit {
                     .reserve = false};
 }
 
+/** HOW FAR A NESTED STYLE RUNS from the start of a block, and what the
+ *  text it covers is set in.
+ *
+ *  A nested style is the opening of a paragraph set differently from the
+ *  rest of it — small caps for the first three words after a drop cap, a
+ *  bold lead-in up to the em dash, an initial phrase in the display face.
+ *  What makes it a nested style rather than a hand-cut restyle is that the
+ *  author states WHERE IT STOPS in the text's own terms and the text
+ *  decides where that falls, so the opening keeps its treatment when the
+ *  copy or the measure changes.
+ *
+ *  `Words` counts the paragraph's own line-break words. `Characters`
+ *  counts UTF-16 code units of the text, which is what a character range
+ *  addresses — a combining mark counts as its own, so a passage of
+ *  decomposed text wants `Words` or a delimiter. `Delimiter` runs from the
+ *  start THROUGH the first occurrence of a mark the author names,
+ *  inclusive, which is how a lead-in that ends at a colon or a dash is
+ *  written without counting anything. */
+struct NestedStyle {
+  enum class Until { Characters, Words, Delimiter };
+  Until until = Until::Words;
+  /** `Characters` and `Words`: how many. Zero covers nothing. */
+  uint32_t count = 1;
+  /** `Delimiter`: the mark the run ends on, and includes. */
+  std::u8string delimiter;
+  /** What the run it names is set in. */
+  sigil::weave::TextStyle style;
+};
+
+/** THE SELECTOR A NESTED STYLE MEANS.
+ *
+ *  There is no nested-style mechanism under this and there does not need
+ *  to be: a nested style is a span restyle over a range the selector
+ *  vocabulary can already name, so this answers the selector and
+ *  `Element::spanStyle` does the work. A delimiter becomes an anchored
+ *  non-greedy regular expression — literal-quoted, so a mark that is also
+ *  a regex operator (`*`, `.`, `(`) means itself — which is the one of the
+ *  three that has no counting selector of its own.
+ *
+ *  It re-resolves with the text, because a selector does: an edit that
+ *  adds a word before the delimiter extends the run, and one that removes
+ *  the delimiter leaves the run covering nothing rather than covering the
+ *  paragraph. */
+[[nodiscard]] inline Selector nestedRun(const NestedStyle& nested) {
+  switch (nested.until) {
+    case NestedStyle::Until::Characters:
+      return sel::range({0, nested.count});
+    case NestedStyle::Until::Words:
+      return sel::words(0, nested.count);
+    case NestedStyle::Until::Delimiter:
+      break;
+  }
+  if (nested.delimiter.empty()) return sel::words(0, 0);
+  return sel::regex(u8"\\A[\\s\\S]*?\\Q" + nested.delimiter + u8"\\E");
+}
+
 /** A BLOCK'S OPENING LETTER, dropped into the lines beneath it.
  *
- *      const auto [initial, body] = kit::dropCap(u8"W", capType, 3, bodyType);
+ *      const auto [initial, body] =
+ *          kit::dropCap(u8"W", capType, rest, bodyType);
  *      root.child(box().child(initial).child(body.width(measure)));
  *
  *  There is no drop-cap facility under this, and there does not need to
  *  be: the initial is a text leaf with a key, and the body is a text leaf
  *  that flows around it — the same exclusion a photograph in a column
- *  gets, resolved in the same pass. `lines` states how deep the initial
- *  goes in lines of the body, and `margin` how far the text stands off it.
+ *  gets, resolved in the same pass. HOW DEEP THE INITIAL GOES IS ITS OWN
+ *  TYPE'S SIZE, because the initial is set at that size and the body flows
+ *  around the box it occupies; a cap three lines deep is a cap set three
+ *  lines deep. `margin` is how far the text stands off it.
  *
  *  The caller splits the string, because where a "letter" ends is a
  *  question about the text: one grapheme usually, two for a digraph, a
- *  whole word for an opening word set large. */
+ *  whole word for an opening word set large.
+ *
+ *  `nested` sets the opening of the BODY in a style of its own — the small
+ *  caps that carry a paragraph out of its initial. The cap is a leaf of
+ *  its own in its own type, so the nested run is stated over what follows
+ *  it, and it is applied as an ordinary span restyle over the selector
+ *  `nestedRun` answers: nothing about a drop cap is required for one, and
+ *  a paragraph with no initial takes the same two lines. */
 struct DroppedCap {
   Element initial;  ///< the letter, keyed and absolutely placed
   Element body;     ///< the rest, flowing around it
 };
-[[nodiscard]] inline DroppedCap dropCap(std::u8string letter,
-                                        sigil::weave::TextStyle capStyle,
-                                        std::u8string rest,
-                                        sigil::weave::TextStyle bodyStyle,
-                                        std::string key = "dropcap",
-                                        float margin = 6.0f) {
+[[nodiscard]] inline DroppedCap dropCap(
+    std::u8string letter, sigil::weave::TextStyle capStyle, std::u8string rest,
+    sigil::weave::TextStyle bodyStyle, std::string key = "dropcap",
+    float margin = 6.0f, std::optional<NestedStyle> nested = {}) {
   Element initial = text(std::move(letter), std::move(capStyle))
                         .key(key)
                         .absolute()
@@ -120,6 +187,7 @@ struct DroppedCap {
                         .top(Dim(0.0f));
   Element body =
       text(std::move(rest), std::move(bodyStyle)).flowAround(key, margin);
+  if (nested) body.spanStyle(nestedRun(*nested), nested->style);
   return {std::move(initial), std::move(body)};
 }
 

@@ -11,6 +11,7 @@
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/curve/Curve.h>
 #include <sigilmaterial/core/Material.h>
+#include <sigilmotion/schedule/Spread.h>
 #include <sigilmotion/values/Animatable.h>
 #include <sigilmotion/values/Transition.h>
 #include <sigilworld/element/Environment.h>

@@ -148,4 +148,12 @@ bool propEqual(const Animatable<T>& a, const Animatable<T>& b) {
   return a.binding() == b.binding();
 }
 
+/** `propEqual` under the operator, so a description struct holding an
+ *  animatable slot keeps its `= default` equality and cannot acquire a
+ *  second, weaker rule by accident. ONE body: this IS `propEqual`. */
+template <typename T>
+bool operator==(const Animatable<T>& a, const Animatable<T>& b) {
+  return propEqual(a, b);
+}
+
 }  // namespace sigil::motion

@@ -39,12 +39,10 @@ add_library(SigilWorldDiligent STATIC
   Gpu.h
   Import.cpp
   PainterGpu.cpp
-  PopGpu.cpp
   Post.cpp
   Programs.cpp
   Programs.h
   Runtime.cpp
-  SweepGpu.cpp
   ${SIGIL_WORLD_SURFACE_H}
   ${SIGIL_WORLD_PAINTER_H}
   ${SIGIL_WORLD_POST_H}
@@ -53,9 +51,7 @@ add_library(SigilWorldDiligent STATIC
   ${_shaders}/Post.slang
   ${SIGIL_WORLD_INCLUDE_DIR}/sigilworld/diligent/Import.h
   ${SIGIL_WORLD_INCLUDE_DIR}/sigilworld/diligent/Painter.h
-  ${SIGIL_WORLD_INCLUDE_DIR}/sigilworld/diligent/Pop.h
   ${SIGIL_WORLD_INCLUDE_DIR}/sigilworld/diligent/Runtime.h
-  ${SIGIL_WORLD_INCLUDE_DIR}/sigilworld/diligent/Sweep.h
 )
 target_compile_features(SigilWorldDiligent PUBLIC cxx_std_20)
 target_include_directories(SigilWorldDiligent
@@ -79,11 +75,11 @@ target_include_directories(SigilWorldDiligent
 # the order matters.
 target_link_libraries(SigilWorldDiligent
   PUBLIC SigilGeometryDevice SigilWorldScene SigilMaterialSlang
+         SigilGeometryMeshPop
   PRIVATE SigilMaterialKit)
 
-add_executable(world_diligent_test test/PainterTest.cpp
-  test/PopTest.cpp test/RuntimeTest.cpp test/StackTest.cpp
-  test/SurfaceTest.cpp test/SweepTest.cpp)
+add_executable(world_diligent_test test/PainterTest.cpp test/RuntimeTest.cpp
+  test/StackTest.cpp test/SurfaceTest.cpp)
 # The runtime test reads the compiled program the compiler registration
 # produced, which is this feature's own header rather than a public one.
 target_include_directories(world_diligent_test PRIVATE ${CMAKE_CURRENT_LIST_DIR})

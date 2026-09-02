@@ -31,7 +31,7 @@ target_link_libraries(SigilWorldElement PUBLIC
   SigilGeometryMeshPop
   SigilMaterialCore
   SigilMaterialTexture
-  SigilMotionValues
+  SigilMotionValues SigilMotionSchedule
   SigilWorldLight)
 
 # Links only the library it exercises, so a link edge that pulled the

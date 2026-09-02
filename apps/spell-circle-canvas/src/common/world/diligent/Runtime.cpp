@@ -12,7 +12,7 @@
 #include "sigilworld/diligent/Runtime.h"
 
 #include <sigilgeometry/mesh/pop/Pop.h>
-#include <sigilworld/diligent/Pop.h>
+#include <sigilgeometry/mesh/pop/Pop.h>
 
 #include <memory>
 #include <string>
@@ -111,7 +111,9 @@ class GpuExecutor : public Executor {
 
 Runtime runtime(Device& device) {
   installSlangCompiler();
-  return Runtime{GpuExecutor{makeGpu(device), popRuntime(device)}};
+  return Runtime{GpuExecutor{
+      makeGpu(device),
+      ::sigil::geometry::mesh::pop::deviceRuntime(device)}};
 }
 
 }  // namespace sigil::world::diligent

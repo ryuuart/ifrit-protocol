@@ -6,7 +6,6 @@
  * feature headers actually used is always available.
  */
 
-#include "sigilworld/diligent/Pop.h"
 #include "sigilworld/diligent/Runtime.h"
 #include "sigilworld/element/Element.h"
 #include "sigilworld/element/Geometry.h"
