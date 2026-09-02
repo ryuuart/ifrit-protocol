@@ -205,6 +205,7 @@
 #include <sigilcompose/shape/Shapes.h>
 #include <sigilcompose/typography/TextFx.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigilcore/compute/Noise.h>
 #include <sigilgeometry/path/Ops.h>
 #include <sigilgeometry/path/Polyline.h>
 #include <sigilmaterial/core/Material.h>
@@ -363,15 +364,6 @@ const char32_t kSmallRegister[] = {
 constexpr int kSmallRegisterN =
     (int)(sizeof(kSmallRegister) / sizeof(kSmallRegister[0]));
 
-/** One step of the deal. Integer arithmetic on a fixed width, so the same
- *  seed gives the same band wherever this runs. */
-uint32_t nextSeed(uint32_t s) {
-  s ^= s << 13u;
-  s ^= s >> 17u;
-  s ^= s << 5u;
-  return s;
-}
-
 /** Append @p cp to @p out as UTF-8. The bands are built as bytes because
  *  everything downstream — measuring, fitting, glyph counting — speaks
  *  the same encoding the content literals do. */
@@ -389,17 +381,19 @@ void appendUtf8(std::string& out, char32_t cp) {
 }
 
 /** @p words words of @p lo…@p hi letters, space-separated, dealt from one
- *  of the two registers. */
+ *  of the two registers. The draw is fixed-width integer arithmetic, so
+ *  the same seed gives the same band wherever this runs; the `| 1u`
+ *  keeps the stream off the state every shift fixes. */
 std::string deal(uint32_t seed, int words, int lo, int hi, bool small = false) {
   const char32_t* set = small ? kSmallRegister : kRegister;
   const int n = small ? kSmallRegisterN : kRegisterN;
   std::string out;
   uint32_t s = seed | 1u;
   for (int w = 0; w < words; ++w) {
-    s = nextSeed(s);
+    sigil::core::noise::xorshiftNext(s);
     const int len = lo + (int)(s % (uint32_t)(hi - lo + 1));
     for (int i = 0; i < len; ++i) {
-      s = nextSeed(s);
+      sigil::core::noise::xorshiftNext(s);
       appendUtf8(out, set[s % (uint32_t)n]);
     }
     out += ' ';

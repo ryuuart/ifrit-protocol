@@ -92,6 +92,7 @@
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilcompose/shape/Shapes.h>
+#include <sigilcore/compute/Noise.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
@@ -624,10 +625,8 @@ struct KspMapView : sketch::Sketch {
     g.child(wisp(13u, 340, 10, 1000, 350, kNebula2, 0.14f, -16));
     uint32_t ws = 0x2545F491u;
     auto wr = [&ws] {
-      ws ^= ws << 13u;
-      ws ^= ws >> 17u;
-      ws ^= ws << 5u;
-      return (float)(ws & 0xffffffu) / (float)0xffffff;
+      return (float)(sigil::core::noise::xorshiftNext(ws) & 0xffffffu) /
+             (float)0xffffff;
     };
     for (int i = 0; i < 16; ++i) {
       const float u = (float)i / 15.0f;
@@ -1823,10 +1822,8 @@ struct KspMapView : sketch::Sketch {
     starPool = std::make_shared<instancing::Pool>();
     uint32_t s = 0x9E3779B9u;
     auto rnd = [&s] {
-      s ^= s << 13u;
-      s ^= s >> 17u;
-      s ^= s << 5u;
-      return (float)(s & 0xffffffu) / (float)0xffffff;
+      return (float)(sigil::core::noise::xorshiftNext(s) & 0xffffffu) /
+             (float)0xffffff;
     };
     for (int i = 0; i < 360; ++i) {
       const float px = rnd() * 1200.0f, py = rnd() * 800.0f;

@@ -54,6 +54,18 @@ void BM_NoisePcgUnitNext(benchmark::State& state) {
 }
 BENCHMARK(BM_NoisePcgUnitNext);
 
+/** The second stream, three shift-xors against the PCG multiply. */
+void BM_NoiseXorshiftUnitNext(benchmark::State& state) {
+  uint32_t carried = 1u;
+  float sink = 0;
+  for ([[maybe_unused]] auto iteration : state) {
+    sink += noise::xorshiftUnitNext(carried);
+    benchmark::DoNotOptimize(sink);
+  }
+  state.counters["calls/s"] = perCall();
+}
+BENCHMARK(BM_NoiseXorshiftUnitNext);
+
 void BM_Fnv1aWord(benchmark::State& state) {
   uint64_t running = hash::kFnvOffset, i = 0;
   for ([[maybe_unused]] auto iteration : state) {

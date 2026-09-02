@@ -112,3 +112,38 @@ TEST(Noise, TheStreamCarriesItsStateAndItsFirstWordIsTheStatelessHash) {
   EXPECT_EQ(bits(noise::pcgUnitNext(state)), 0x3e8cbceeu);
   EXPECT_EQ(state, 1561666408u);
 }
+
+TEST(Noise, TheXorshiftStepIsPinnedToItsExactWords) {
+  uint32_t state = 1u;
+  EXPECT_EQ(noise::xorshiftNext(state), 270369u);
+  EXPECT_EQ(noise::xorshiftNext(state), 67634689u);
+  EXPECT_EQ(noise::xorshiftNext(state), 2647435461u);
+  state = 0x9E3779B9u;
+  EXPECT_EQ(noise::xorshiftNext(state), 1359758873u);
+  state = 0x2545F491u;
+  EXPECT_EQ(noise::xorshiftNext(state), 3777279546u);
+}
+
+TEST(Noise, TheXorshiftStreamAdvancesInPlaceAndReturnsWhatItAdvancedTo) {
+  uint32_t carried = 42u, mirror = 42u;
+  const uint32_t drawn = noise::xorshiftNext(carried);
+  EXPECT_EQ(drawn, carried);
+  EXPECT_NE(carried, mirror);
+  // Zero is the fixed point every shift shares: a stream that starts
+  // there never leaves, which is why the seed must be any other word.
+  uint32_t zero = 0u;
+  EXPECT_EQ(noise::xorshiftNext(zero), 0u);
+}
+
+TEST(Noise, XorshiftUnitIsPinnedToItsExactFloats) {
+  uint32_t state = 0x9E3779B9u;
+  EXPECT_EQ(bits(noise::xorshiftUnitNext(state)), 0x3ea2188cu);
+  EXPECT_EQ(bits(noise::xorshiftUnitNext(state)), 0x3f602e55u);
+  EXPECT_EQ(bits(noise::xorshiftUnitNext(state)), 0x3ef7731eu);
+  state = 1u;
+  for (int draw = 0; draw < 4096; ++draw) {
+    const float u = noise::xorshiftUnitNext(state);
+    EXPECT_GE(u, 0.0f);
+    EXPECT_LT(u, 1.0f);
+  }
+}

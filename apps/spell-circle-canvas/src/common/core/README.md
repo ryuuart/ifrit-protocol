@@ -61,7 +61,7 @@ include their own directory's headers.
 |--------|-------|
 | `comparable/Erased.h` | `Erased<Ops>` — comparable type erasure: a set of operations carried on the value that implements them |
 | `comparable/Fields.h` | `kFieldCount<T>` — how many direct non-static data members an aggregate has, and the pin a hand-written comparator sits under |
-| `compute/Noise.h` | `noise::hash` (a per-index float in [-1, 1]), and the PCG family `noise::pcgAdvance`, `noise::pcgMix`, `noise::pcgHash`, `noise::pcgNext`, `noise::pcgUnit`, `noise::pcgUnitNext` |
+| `compute/Noise.h` | `noise::hash` (a per-index float in [-1, 1]), and the PCG family `noise::pcgAdvance`, `noise::pcgMix`, `noise::pcgHash`, `noise::pcgNext`, `noise::pcgUnit`, `noise::pcgUnitNext`, and the xorshift stream `noise::xorshiftNext`/`noise::xorshiftUnitNext` |
 | `compute/Hash.h` | `hash::kFnvOffset`, `hash::kFnvPrime`, `hash::fnv1a` over a word or over text, and `hash::combine` — the stir that folds one more word into a hash in hand |
 | `reconcile/Reconciler.h` | `Reconciler<Host, Node, Desc>` — `render()`, `replaceContent()`, `patch()`, `patchChildren()`, `resolveMemo()`, `keyOf()`, `matchKeyOf()`, `indexKeys()`, `stats()`, `frame()`, and its `KeyIndex` |
 | `reconcile/Host.h` | the `ReconcileHost` concept — the operations a host implements — and `DescValue` |

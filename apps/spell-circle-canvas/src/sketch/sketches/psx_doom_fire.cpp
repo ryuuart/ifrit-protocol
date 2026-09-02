@@ -42,6 +42,7 @@
 #include <sigilcompose/core/Material.h>
 #include <sigilcompose/typography/TextFx.h>
 #include <sigilcompose/typography/Type.h>
+#include <sigilcore/compute/Noise.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
@@ -200,12 +201,7 @@ struct PsxDoomFire : sketch::Sketch {
   // =========================================================================
   // The algorithm, verbatim.
 
-  float rand01() {  // xorshift32
-    rng ^= rng << 13u;
-    rng ^= rng >> 17u;
-    rng ^= rng << 5u;
-    return (float)(rng >> 8u) * (1.0f / 16777216.0f);
-  }
+  float rand01() { return sigil::core::noise::xorshiftUnitNext(rng); }
 
   void seed() {
     heat.assign((size_t)kFireW * kFireH, 0);

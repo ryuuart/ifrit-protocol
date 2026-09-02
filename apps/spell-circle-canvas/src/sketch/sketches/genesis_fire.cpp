@@ -135,6 +135,7 @@
 #include <sigilcompose/shape/Shapes.h>
 #include <sigilcompose/typography/TextFx.h>
 #include <sigilcompose/typography/Type.h>
+#include <sigilcore/compute/Noise.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
@@ -395,12 +396,7 @@ struct GenesisFire : sketch::Sketch {
   // RNG — [R83 §2.1] "Rand is a procedure returning a uniformly distributed
   // random number between -1.0 and +1.0".
 
-  float rand01() {
-    rng ^= rng << 13u;
-    rng ^= rng >> 17u;
-    rng ^= rng << 5u;
-    return (float)(rng >> 8u) * (1.0f / 16777216.0f);
-  }
+  float rand01() { return sigil::core::noise::xorshiftUnitNext(rng); }
   float rand11() { return rand01() * 2.0f - 1.0f; }
 
   // =========================================================================

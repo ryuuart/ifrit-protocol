@@ -3,8 +3,9 @@
 /** @file
  * Seeded, deterministic noise — the one place a mixer lives.
  *
- * Two integer mixers — a 64-bit avalanche and the PCG word — and the unit
- * floats squeezed out of them. Every function here is a bit-exact
+ * Three integer mixers — a 64-bit avalanche, the PCG word and the
+ * xorshift step — and the unit floats squeezed out of them. Every
+ * function here is a bit-exact
  * function of its inputs on every platform, so anything seeded by them
  * re-rolls identically: a scattered brush stamp, a roughened outline, a
  * drifted point cloud, a jittered layout.
@@ -18,10 +19,10 @@
  * constant does not fail a build — it re-rolls every stored render and
  * desynchronizes the two ends of every operator chain that runs on both.
  *
- * `hash`, `lattice` and `pcgHash` are different mixers with different
- * outputs, kept side by side because each seeds work that is compared
- * byte-for-byte against stored renders. Pick by what the caller already
- * uses; new code takes `pcgHash`.
+ * `hash`, `lattice`, `pcgHash` and `xorshiftNext` are different mixers
+ * with different outputs, kept side by side because each seeds work that
+ * is compared byte-for-byte against stored renders. Pick by what the
+ * caller already uses; new code takes `pcgHash`.
  */
 
 #include <cstdint>
@@ -87,6 +88,31 @@ inline float pcgUnitNext(uint32_t& state) {
  *  lattices agree. */
 inline float pcgUnit(uint32_t x) {
   return (float)(pcgHash(x) & 0x00FFFFFFu) / 16777216.0f;
+}
+
+/** ONE XORSHIFT32 STEP, in the shift schedule 13 left, 17 right, 5 left:
+ *  advances @p state in place and returns it.
+ *
+ *  A second stream beside the PCG one, for the same reason the constants
+ *  above are fixed: a scatter already keyed to these three shifts draws
+ *  a different sequence from `pcgNext`, so the two are not
+ *  interchangeable in anything stored as bytes. New code takes
+ *  `pcgUnitNext`.
+ *
+ *  Zero is the one state to keep out: all three shifts fix it, so a
+ *  stream that reaches zero stays there. Seed with any other word. */
+inline uint32_t xorshiftNext(uint32_t& state) {
+  state ^= state << 13u;
+  state ^= state >> 17u;
+  state ^= state << 5u;
+  return state;
+}
+
+/** `xorshiftNext` squeezed to [0, 1) through the top 24 bits — the 24 a
+ *  float's mantissa holds exactly, taken from the high end, which is the
+ *  end an xorshift word mixes best. */
+inline float xorshiftUnitNext(uint32_t& state) {
+  return (float)(xorshiftNext(state) >> 8u) * (1.0f / 16777216.0f);
 }
 
 /** THE LATTICE MIXER: three integer coordinates and a seed to one
