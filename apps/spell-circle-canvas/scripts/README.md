@@ -6,6 +6,25 @@ repository-root `mise.toml`; anything after `--` is forwarded). This
 README is the canon for how the checks and ledgers work; `--help` on
 each script is the canon for its flags.
 
+## Tests
+
+A unit test asserts one behaviour a library promises through its public
+headers to a caller who has read only its README, and its name is that
+promise written as a sentence — `ASettledOpacityRebakesTheLeaf` — so a
+failure reads as the claim that broke. It pins only what editing the
+code alone could falsify: a caching count, a closed form, a field walk
+over whatever a type declares; never what a rebuild, a font, a device or
+a clock could move — exact pixels, byte layouts, hash permutations,
+elapsed time. A claim made N times with one thing varying is one
+`TEST_P` whose parameter is that thing, and a fixture two files need
+lives once in the library's `test/support/`. Pixel identity is the plate
+ledger's to judge and timing is the bench ledger's: a test that renders
+a picture to compare it, or times a loop to bound it, belongs to one of
+those instruments rather than to ctest. A case that skips on this
+machine is not coverage on this machine — say what it needs with a ctest
+label (`gpu`, `fonts`), and commit the instrument whenever one can be
+committed.
+
 ## Formatting and linting — `check.py`
 
 One command covering clang-format (Google C++ style, stock), ruff (lint
