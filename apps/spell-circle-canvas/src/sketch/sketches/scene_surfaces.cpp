@@ -1,31 +1,44 @@
 /** @file
- * panel_console — 2D content standing in a 3D room.
+ * scene_surfaces — a compose scene is an ordinary texture, and every
+ * sampling dial applies to it.
  *
- * Four screens on a console: three flat cards on an arc and one curved
- * band under them, each wearing a compose tree of its own that is
- * reconciled and painted every frame. What crosses from 2D to 3D is an
- * ordinary `material::Texture` in a surface's base-colour slot; there is
- * no panel element and no door of its own, which is why the curved band
- * takes the same content as the flat cards without either side knowing
- * about the other's shape.
+ * There is no panel element here and no door of its own. What crosses
+ * from 2D to 3D is a `material::Texture` in a surface's base-colour
+ * slot, which is why one kind of content dresses three different
+ * surfaces without either side knowing about the other's shape:
+ *
+ *   FLAT — three cards on an arc, each a quad wearing its own scene.
+ *   CURVED — one `cylinderPanel` band under them, taking the same kind
+ *     of content with no change on either side of the slot.
+ *   TILED — one swept ribbon, whose card repeats along the band's v and
+ *     stands once across its u, which is `Texture::tile` and `uv()`
+ *     doing the work a panel type would otherwise have to invent.
  *
  * THE SCREENS ARE THEIR OWN LIGHT. A screen is `kit::unlit`, so what it
  * shows is exactly what its compose tree painted and the room's emitters
- * do not reach it — which is the honest reading of a display, and also
- * what makes the picture a statement about the 2D content rather than
- * about the shading over it. The console's frame beside them is lit, so
- * both readings stand in one plate.
+ * do not reach it — the honest reading of a display, and what makes the
+ * picture a statement about the 2D content rather than about the shading
+ * over it. The ribbon is `kit::surface` instead: it is printed tape, not
+ * a display, so the same texture read through a lit body is the third
+ * reading and the shelf beside them is the fourth.
  *
- * Each screen keeps a scene ACROSS frames and is remade when the clock
+ * Each surface keeps a scene ACROSS frames and remakes it when the clock
  * goes backwards, which is what starts a sweep: a plate is a function of
  * the declared moment and of the number of steps taken to reach it, so a
  * second sweep in one process must not begin where the first left off.
+ *
+ * EDIT THESE FIRST
+ * kArcSpreadDeg — how far round the arc the three flat cards spread
+ * kRepeats — how many times the ribbon's card repeats along its length
+ * kRibbonRadius — how wide the tape loop stands round the console
  */
 
 #include <sigilcompose/core/Factories.h>
+#include <sigilcompose/core/Paint.h>
 #include <sigilcompose/texture/Texture.h>
 #include <sigilcompose/typography/Type.h>
 #include <sigilgeometry/mesh/Mesh.h>
+#include <sigilgeometry/mesh/curve/Curve.h>
 #include <sigilmaterial/kit/Surface.h>
 #include <sigilsketch/set/Set.h>
 #include <sigilweave/fonts/FontContext.h>
@@ -56,13 +69,14 @@ constexpr float kTwoPi = 6.283185307179586f;
 constexpr float kCardWidth = 210.0f;
 constexpr float kCardHeight = 140.0f;
 constexpr float kArcRadius = 300.0f;
-constexpr float kArcSpreadDeg = 44.0f;
-
-weave::TextStyle type(float size, SkColor colour) {
-  return compose::type({.size = size,
-                        .color = SkColor4f::FromColor(colour),
-                        .antiAlias = false});
-}
+constexpr float kArcSpreadDeg = 52.0f;
+/** The tape loop under the console: how far out it runs, and how many
+ *  times its card repeats round it. */
+constexpr float kRibbonRadius = 360.0f;
+constexpr float kRibbonDrop = -150.0f;
+constexpr float kRepeats = 6.0f;
+constexpr int kTapeWidth = 512;
+constexpr int kTapeHeight = 160;
 
 /** A LEVEL SCREEN: a row of bars whose heights ride one wave, so the
  *  whole row moves together and no single bar has to be watched. */
@@ -73,8 +87,11 @@ compose::Element levels(float seconds, SkColor4f accent) {
                               .column()
                               .gap(8.0f)
                               .padding(16.0f)
-                              .fill(SkColor4f{0.07f, 0.09f, 0.13f, 1.0f});
-  root.child(compose::text(u8"LEVELS", type(22.0f, 0xFFBFD4EF)));
+                              .fill(compose::hex(0x12171f));
+  root.child(
+      compose::text(u8"LEVELS", compose::type({.size = 22.0f,
+                                               .color = compose::hex(0xbfd4ef),
+                                               .antiAlias = false})));
   compose::Element row =
       compose::box().row().gap(7.0f).height(compose::pct(100));
   for (int i = 0; i < 9; ++i) {
@@ -100,8 +117,11 @@ compose::Element trace(float seconds, SkColor4f accent) {
                               .column()
                               .gap(10.0f)
                               .padding(16.0f)
-                              .fill(SkColor4f{0.06f, 0.08f, 0.11f, 1.0f});
-  root.child(compose::text(u8"TRACE", type(22.0f, 0xFFBFD4EF)));
+                              .fill(compose::hex(0x0f141c));
+  root.child(
+      compose::text(u8"TRACE", compose::type({.size = 22.0f,
+                                              .color = compose::hex(0xbfd4ef),
+                                              .antiAlias = false})));
   constexpr int kCells = 14;
   compose::Element row = compose::box().row().gap(5.0f).height(44.0f);
   for (int i = 0; i < kCells; ++i) {
@@ -115,8 +135,10 @@ compose::Element trace(float seconds, SkColor4f accent) {
                                   accent.fB * lit, 1.0f}));
   }
   root.child(std::move(row));
-  root.child(
-      compose::text(u8"one wave, fourteen cells", type(19.0f, 0xFF7E93B4)));
+  root.child(compose::text(u8"one wave, fourteen cells",
+                           compose::type({.size = 19.0f,
+                                          .color = compose::hex(0x7e93b4),
+                                          .antiAlias = false})));
   return root;
 }
 
@@ -130,13 +152,16 @@ compose::Element dial(float seconds, SkColor4f accent) {
                               .column()
                               .gap(10.0f)
                               .padding(16.0f)
-                              .fill(SkColor4f{0.08f, 0.07f, 0.12f, 1.0f});
-  root.child(compose::text(u8"DIAL", type(22.0f, 0xFFBFD4EF)));
+                              .fill(compose::hex(0x14121f));
+  root.child(
+      compose::text(u8"DIAL", compose::type({.size = 22.0f,
+                                             .color = compose::hex(0xbfd4ef),
+                                             .antiAlias = false})));
   const float reading = 0.5f + 0.5f * std::sin(seconds * 1.15f);
   compose::Element track = compose::box()
                                .width(compose::pct(100))
                                .height(26.0f)
-                               .fill(SkColor4f{0.14f, 0.16f, 0.22f, 1.0f});
+                               .fill(compose::hex(0x242938));
   compose::Element needle =
       compose::box().width(10.0f).height(26.0f).fill(accent);
   needle.absolute().left(6.0f + reading * 150.0f).top(0.0f);
@@ -159,7 +184,7 @@ compose::Element band(float seconds) {
                               .row()
                               .gap(6.0f)
                               .padding(12.0f)
-                              .fill(SkColor4f{0.05f, 0.07f, 0.10f, 1.0f});
+                              .fill(compose::hex(0x0d121a));
   constexpr int kCells = 26;
   for (int i = 0; i < kCells; ++i) {
     const float phase = seconds * 1.4f - (float)i * 0.34f;
@@ -174,9 +199,71 @@ compose::Element band(float seconds) {
   return root;
 }
 
-/** ONE SCREEN'S SCENE, kept across the frames of a sweep and remade when
- *  the clock goes backwards. The tree it paints is handed in, so one
- *  type serves every screen on the console. */
+/** THE CARD ON THE TAPE: type over a plate, with three marks swinging
+ *  under it, so the repeat has something in it that moves and something
+ *  that stands still. */
+compose::Element tape(float seconds) {
+  compose::Element root = compose::box()
+                              .width(compose::pct(100))
+                              .height(compose::pct(100))
+                              .column()
+                              .gap(6.0f)
+                              .padding(14.0f)
+                              .fill(compose::hex(0x1f2430));
+  root.child(
+      compose::text(u8"WOVEN", compose::type({.size = 46.0f,
+                                              .color = compose::hex(0xf2ebdc),
+                                              .antiAlias = false})));
+  root.child(compose::text(u8"a scene, sampled",
+                           compose::type({.size = 20.0f,
+                                          .color = compose::hex(0x9eb8d9),
+                                          .antiAlias = false})));
+  compose::Element marks =
+      compose::box().row().gap(10.0f).height(18.0f).absolute();
+  marks.left(16.0f).bottom(14.0f);
+  for (int i = 0; i < 3; ++i) {
+    const float phase = seconds * 1.7f + (float)i * 0.7f;
+    const float length = 46.0f + 34.0f * (0.5f + 0.5f * std::sin(phase));
+    marks.child(
+        compose::box().width(length).height(6.0f).fill(compose::hex(0xeb8c40)));
+  }
+  root.child(std::move(marks));
+  return root;
+}
+
+/** THE TILING, written as the texture's own placement.
+ *
+ *  A swept band's u runs ACROSS it and its v along it, while a card
+ *  reads along its own WIDTH — so the two axes are exchanged, and the
+ *  card repeats @p repeats times down the length. Placement puts image
+ *  pixels into the space they are sampled in; a sampler reads the other
+ *  way, so what a face sees is this matrix undone. */
+SkMatrix alongTheBand(SkISize card, float repeats) {
+  const float width = (float)card.width();
+  const float height = (float)card.height();
+  return SkMatrix::MakeAll(0.0f, width / height, 0.0f,
+                           height / (repeats * width), 0.0f, 0.0f, 0.0f, 0.0f,
+                           1.0f);
+}
+
+/** The ribbon the tape rides: a closed loop that rises and falls, so
+ *  the band reads as a curve in space rather than as a ring. */
+Spline3 ribbon() {
+  Spline3 spline;
+  for (int i = 0; i < 6; ++i) {
+    const float angle = (float)i * kTwoPi / 6.0f;
+    const float radius = (i % 2 == 0) ? kRibbonRadius : kRibbonRadius * 0.64f;
+    const float height = (i % 2 == 0) ? 34.0f : -30.0f;
+    spline.points.emplace_back(radius * std::cos(angle), kRibbonDrop + height,
+                               radius * std::sin(angle));
+  }
+  spline.closed = true;
+  return spline;
+}
+
+/** ONE SURFACE'S SCENE, kept across the frames of one sweep and remade
+ *  when the clock goes backwards. The tree it paints is handed in, so
+ *  one type serves every surface in the room. */
 struct Screen {
   SkISize size{256, 160};
   weave::FontContext* fonts = nullptr;
@@ -205,12 +292,16 @@ material::Material screenOf(material::Texture texture) {
 
 namespace {
 
-struct PanelConsole final : sketch::Set {
+struct SceneSurfaces final : sketch::Set {
   std::array<Screen, 3> cards;
   Screen strip;
+  Screen loop;
+  /** The tape's rail, swept once: the ribbon never changes, so sweeping
+   *  it per frame would be work the description already did. */
+  gm::Mesh rail;
 
   void setup(sketch::SetContext& ctx) override {
-    ctx.canvas(900, 580);
+    ctx.canvas(960, 620);
     ctx.background({0.025f, 0.028f, 0.038f, 1.0f});
     ctx.captureAt(1.35);
     for (Screen& card : cards) {
@@ -219,6 +310,13 @@ struct PanelConsole final : sketch::Set {
     }
     strip.fonts = &ctx.fonts;
     strip.size = {1024, 128};
+    loop.fonts = &ctx.fonts;
+    loop.size = {kTapeWidth, kTapeHeight};
+    rail =
+        gm::curve::sweep(ribbon(), gm::curve::profile::line(),
+                         {.segments = 240,
+                          .scale = 46.0f,
+                          .normals = gm::curve::SweepOptions::Normals::Frame});
   }
 
   world::Frame describe(float seconds) override {
@@ -246,19 +344,18 @@ struct PanelConsole final : sketch::Set {
               .key("card" + std::to_string(i))
               .at({kArcRadius * std::sin(bearing), 78.0f,
                    kArcRadius * std::cos(bearing) - kArcRadius})
-              .rotateY(bearingDeg)
               .mesh(gm::quad(kCardWidth, kCardHeight))
               .fill(screenOf(cards[(size_t)i].at(seconds, content[(size_t)i])))
-              .tag("screen"));
+              .tag("flat"));
     }
 
-    // The band: the same kind of content on a panel that is not flat.
+    // CURVED: the same kind of content on a panel that is not flat.
     console.child(Element()
                       .key("band")
                       .at({0.0f, -40.0f, 0.0f})
                       .mesh(gm::cylinderPanel(560.0f, 76.0f, kArcRadius, 72, 6))
                       .fill(screenOf(strip.at(seconds, band(seconds))))
-                      .tag("screen"));
+                      .tag("curved"));
 
     // …and one lit body in front of them, so the plate carries both
     // readings at once: a surface the emitters reach, and screens they
@@ -272,24 +369,43 @@ struct PanelConsole final : sketch::Set {
                 {.baseColor = {0.42f, 0.45f, 0.53f, 1.0f}, .roughness = 0.3f}))
             .tag("frame"));
 
+    // TILED: the third sampling of the same kind of scene. The card
+    // repeats along the ribbon and stands once across it, and the tape
+    // is lit, so the texture is read here through a shading model
+    // rather than emitted straight out of the slot.
+    material::Texture printed = loop.at(seconds, tape(seconds));
+    printed.tile(SkTileMode::kRepeat)
+        .uv(alongTheBand({kTapeWidth, kTapeHeight}, kRepeats));
+    material::Material printedTape =
+        material::kit::surface({.baseColor = {1, 1, 1, 1}, .roughness = 0.4f});
+    printedTape.child(material::kit::kBaseColorSlot, std::move(printed));
+
+    Element room = Element().key("room");
+    room.child(std::move(console));
+    room.child(Element()
+                   .key("ribbon")
+                   .mesh(rail)
+                   .fill(std::move(printedTape))
+                   .tag("tiled"));
+
     kit::Set set;
-    set.rig.extent = 260.0f;
+    set.rig.extent = 300.0f;
     set.rig.bearing = -22.0f;
     set.rig.elevation = 26.0f;
     set.rig.intensity = 0.85f;
-    set.ground = 3.2f;
-    set.drop = 0.62f;
-    set.table.radius = 720.0f;
-    set.table.height = 165.0f;
+    set.ground = 4.2f;
+    set.drop = 0.92f;
+    set.table.radius = 1020.0f;
+    set.table.height = 345.0f;
     set.table.period = 40.0f;
     set.table.fovYDeg = 40.0f;
-    return Frame(kit::litSet(std::move(console), set, seconds));
+    return Frame(kit::litSet(std::move(room), set, seconds));
   }
 };
 
 }  // namespace
 
-SIGIL_SKETCH(PanelConsole, "Set",
-             "Four live 2D scenes as screens in a 3D room \xe2\x80\x94 three "
-             "flat cards on an arc and one curved band, each an ordinary "
-             "texture in a surface's base-colour slot")
+SIGIL_SKETCH(SceneSurfaces, "Set",
+             "One kind of 2D scene on three surfaces \xe2\x80\x94 flat cards, "
+             "a curved band and a tiled ribbon, each an ordinary texture in "
+             "a base-colour slot")
