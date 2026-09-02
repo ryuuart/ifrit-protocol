@@ -2,14 +2,18 @@
 
 /** @file
  * How a property change moves: the Transition spec (duration, curve,
- * delay), the house easing curves as EaseFn values, and `ramp()`, the
- * transition spelled in float milliseconds.
+ * delay), the house easing curves as EaseFn values, `ramp()`, the
+ * transition spelled in float milliseconds, and the comparator an
+ * identity prune reads two specs through.
  */
 
 #include <choreograph/Choreograph.h>
 
 #include <chrono>
+#include <tuple>
 #include <utility>
+
+#include "sigilmotion/bind/BoundFloat.h"
 
 namespace sigil::motion {
 
@@ -88,5 +92,17 @@ inline Transition ramp(float delayMs, float durationMs,
   t.ease = std::move(ease);
   return t;
 }
+
+/** Same duration, same delay, same curve under `easeEqual`'s rule. */
+bool transitionEqual(const Transition& a, const Transition& b);
+
+namespace detail {
+/** The spec decomposed member by member, for a comparator that wants to
+ *  WALK it rather than name each field one at a time. */
+inline auto fields(Transition& v) {
+  auto& [duration, ease, delay] = v;
+  return std::tie(duration, ease, delay);
+}
+}  // namespace detail
 
 }  // namespace sigil::motion

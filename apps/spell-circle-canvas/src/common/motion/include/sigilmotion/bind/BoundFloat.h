@@ -11,6 +11,7 @@
 #include <choreograph/Choreograph.h>
 
 #include <cstdint>
+#include <tuple>
 
 namespace sigil::motion {
 
@@ -98,5 +99,41 @@ struct BoundFloat {
   /** Runs the chain on one sample of the bound Output. */
   float apply(float v) const;
 };
+
+/** Equal only when PROVABLY identical: two easing curves compare equal
+ *  when both are the same plain function pointer. A lambda-valued curve
+ *  compares unequal, conservatively, because a std::function holding one
+ *  cannot be inspected.
+ *
+ *  ONE BODY for every curve slot in the library — the two on the record
+ *  above, a Transition's, a Spread's distribution — because a second
+ *  spelling of this rule would let two comparators disagree about
+ *  whether the value that holds a curve may prune. It lives at the
+ *  bottom of the library because the record above is the lowest thing in
+ *  it that carries a curve. */
+bool easeEqual(const choreograph::EaseFn& a, const choreograph::EaseFn& b);
+
+/** Shaped bindings prune like anything else: same Output, same affine,
+ *  same curve under easeEqual's rule. A re-describe that only changes the
+ *  CURVE must NOT prune — the map is read live, so a pruned node would
+ *  keep shaping through the old one forever. EVERY FIELD OF BoundFloat
+ *  APPEARS in the body, under the pin beside it. */
+bool boundMapEqual(const BoundFloat& a, const BoundFloat& b);
+
+namespace detail {
+/** The record decomposed member by member, for a comparator that wants to
+ *  WALK it rather than name each field one at a time. Counting the fields
+ *  does not need this: `core::kFieldCount<T>` reads any aggregate. */
+inline auto fields(BoundFloat& v) {
+  auto& [source, inScale, inOffset, curve, clampInput, envelope, riseStart,
+         holdStart, holdEnd, fallEnd, duty, waveFn, steps, scale, offset,
+         clamped, lo, hi, wiggleAmount, wiggleFrequency, wiggleSeed,
+         wiggleOctaves, wiggleFalloff, wrapPeriod] = v;
+  return std::tie(source, inScale, inOffset, curve, clampInput, envelope,
+                  riseStart, holdStart, holdEnd, fallEnd, duty, waveFn, steps,
+                  scale, offset, clamped, lo, hi, wiggleAmount, wiggleFrequency,
+                  wiggleSeed, wiggleOctaves, wiggleFalloff, wrapPeriod);
+}
+}  // namespace detail
 
 }  // namespace sigil::motion

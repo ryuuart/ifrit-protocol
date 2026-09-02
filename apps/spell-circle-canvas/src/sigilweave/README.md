@@ -496,9 +496,14 @@ segmentation, so the whole layout shares it: the soft hyphens the author
 typed, plus whatever a `Hyphenator` finds inside a word under
 `HyphenationOptions::limits` (minimum word length, letters before and
 after, capitalised words). WHICH of those a line takes is a break decision,
-so a block owns it: `consecutiveLimit`, `zone`, `lastWordOfBlock`. The kit
-carries the pattern tables (see below); the engine decides nothing about
-where English breaks, because that is not a property of text layout.
+so a block owns it: `consecutiveLimit`, `zone`, `lastWordOfBlock`. The
+`zone` is the band at the ragged edge inside which a line is already square
+enough for the eye — asked of the line WITHOUT the break, so a word broken
+to reach past a word that already ends inside the band is a hyphen neither
+breaker takes — and a word that is the whole line is still broken, having
+nothing else on the line to be measured against. The kit carries the
+pattern tables (see below); the engine decides nothing about where English
+breaks, because that is not a property of text layout.
 
 ## What the engine covers
 
@@ -609,7 +614,7 @@ typesetter reaches for, not what a file format carries.
 | Hyphenation: pattern dictionary | done | `HyphenationOptions::patterns`, `kit::PatternHyphenator` |
 | Hyphenation: minimum word, letters before / after, capitalised words | done | `HyphenationLimits` |
 | Hyphenation: consecutive limit, last word of a block | done | `HyphenationOptions` |
-| Hyphenation: zone | **partial** — the field is read and stated; the breakers do not yet weigh it | `HyphenationOptions::zone` |
+| Hyphenation: zone | done, both breakers | `HyphenationOptions::zone` |
 | Composer: single-line vs paragraph | done | `LineBreakStrategy` |
 | Composer: balance ragged lines | done, as an APPROXIMATION — the optimizing breaker scores the last line like every other rather than letting it absorb the slack, which spreads the words; it is not a search for the smallest measure that keeps the line count | `ParagraphStyle::balanceRaggedLines` |
 | Optical margin alignment (hanging punctuation) | done | `HangingTable`, `kit::hanging` |

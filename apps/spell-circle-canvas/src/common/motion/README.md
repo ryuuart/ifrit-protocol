@@ -15,8 +15,8 @@ what a consumer uses; every public header lives under
 
 | target | headers | holds |
 |--------|---------|-------|
-| `SigilMotionBind`   | `bind/Bound.h`, `bind/BoundFloat.h`, `bind/WiggleNoise.h`; `bind/Bind.h` includes all three | `bind()`, `wiggle()` and the `Bound` chain builder; `BoundFloat` and `Envelope`, the evaluator; the wiggle noise field |
-| `SigilMotionValues` | `values/Transition.h`, `values/Keyframes.h`, `values/Animatable.h`, `values/Animated.h`, `values/Time.h`; `values/Values.h` includes all five | `Transition`, `ease::` and `ramp()`; `Transitioned`, `animate()`/`from()`/`to()`/`through()`; `Animatable<T>`; `AnimatedFloat` and the operations on a held motion; `quantizeTime()` and `phase()` |
+| `SigilMotionBind`   | `bind/Bound.h`, `bind/BoundFloat.h`, `bind/WiggleNoise.h`; `bind/Bind.h` includes all three | `bind()`, `wiggle()` and the `Bound` chain builder; `BoundFloat` and `Envelope`, the evaluator; the wiggle noise field; `easeEqual()` and `boundMapEqual()` |
+| `SigilMotionValues` | `values/Transition.h`, `values/Keyframes.h`, `values/Animatable.h`, `values/Animated.h`, `values/Lanes.h`, `values/Time.h`; `values/Values.h` includes all six | `Transition`, `ease::`, `ramp()` and `transitionEqual()`; `Transitioned`, `animate()`/`from()`/`to()`/`through()`; `Animatable<T>` and `propEqual()`; `AnimatedFloat` and the operations on a held motion; `Lane`, `LaneSlot` and the retargets; `quantizeTime()` and `phase()` |
 | `SigilMotionClock`  | `clock/FrameClock.h`, `clock/Ticker.h` | the clock and the ticker |
 
 `SigilMotion` is the umbrella target over all three, and
@@ -172,6 +172,51 @@ where the corners are and what shape the shoulders take are separate
 decisions. `square` has no shoulders to round, and its phase 0 is ON —
 a caret born at the start of its cycle is born visible.
 
+## Lanes: where a host's motions live
+
+A retained host holds one `AnimatedFloat` per animatable it lets move,
+and a patch has to bend the running motions of the old description onto
+the endpoints the new one asks for. A **lane** is that pairing: an
+animatable the description carries, and the address of the held motion
+that serves it.
+
+```cpp
+enum class Family : uint8_t { Slot, Span };   // the HOST's storages
+
+std::vector<Lane<Family>> prev, next;         // filled by the host
+retargetSlots<Family>(ticker, anims, familyLanes(prev, Family::Slot),
+                      familyLanes(next, Family::Slot), nodeTransition);
+retargetFamily<Family>(ticker, spanAnims, familyLanes(prev, Family::Span),
+                       familyLanes(next, Family::Span), nodeTransition);
+```
+
+`Family` is the host's own enumeration and nothing here reads it beyond
+grouping — which is why lanes are motion's rather than a reconciler's.
+A **fixed** family is a slot array whose rows are a property of the host,
+so a row one description lacks ramps from or to the lane's `standing`
+value and a row neither carries is skipped entirely. A **positional**
+family is sized by the description, so a change of SHAPE drops the
+running motions rather than carrying them onto endpoints that now mean
+something else.
+
+## Comparing two descriptions
+
+An identity prune asks whether two descriptions are provably the same,
+and the animation values are the part of that question this library
+answers. Four comparators, each beside the value it compares and each
+under a field pin that fails the build when that value gains a member:
+
+| comparator | rule |
+|---|---|
+| `easeEqual` | two curves are equal when both are the same plain function pointer; a capturing lambda is unequal to everything |
+| `transitionEqual` | same duration, same delay, same curve — the curve read through `easing()`, so `{360ms, {}, 220ms}` compares as the default it behaves as |
+| `boundMapEqual` | every one of `BoundFloat`'s fields, by hand, under the pin |
+| `propEqual` | same form, then that form's contents; a bare binding by the Output's IDENTITY, never by the number behind it |
+
+The last rule is the load-bearing one: a live binding stays connected for
+the whole life of the value it drives, so comparing the sampled number
+would let a moving value prune into a still one.
+
 ## Gotchas
 
 `Ticker` is not thread-safe. Use one per animation domain and touch it
@@ -227,11 +272,16 @@ directly.
 
 ## Boundary
 
-Each of the three libraries links `choreograph::choreograph` publicly and
-nothing else outside this directory.
+Every feature links `choreograph::choreograph` publicly. The only other
+edge out of this directory is `SigilCoreComparable`, the header-only leaf
+over the standard library and Boost.PFR that supplies `kFieldCount` — the
+pin each comparator above sits under, so that a `static_assert` about
+`BoundFloat`'s field count lives in the same file as `BoundFloat`. It
+carries no kernel, no device and nothing that draws.
+
 That is the point: consumers that also draw — a compositor, a 3D
-renderer — link it without inheriting a drawing library, and can
-re-export its types into their own namespaces.
+renderer — link this library without inheriting a drawing library, and
+can re-export its types into their own namespaces.
 
 The library ships the values, the clock, and the motion a value runs as
 — everything answerable from the animatable and the ticker alone.

@@ -52,7 +52,7 @@ catalog. One target per directory:
 |--------|-----------|-------|
 | `SigilCoreComparable` | `comparable/` | comparable type erasure, the field pin |
 | `SigilCoreCompute` | `compute/` | the seeded mixers, the identifying folds |
-| `SigilCoreReconcile` | `reconcile/` | the reconciler, its memo, the inherited-value channel, the animation lanes, the phase runner, the order declared reads imply |
+| `SigilCoreReconcile` | `reconcile/` | the reconciler, its memo, the inherited-value channel, the phase runner, the order declared reads imply |
 | `SigilCoreCache` | `cache/` | the cache policy, the settled-subtree proof, the stability release, the bake seam |
 | `SigilCoreHardware` | `hardware/` | the GPU device and its queue, owned or adopted; textures and fences by generation-checked handle; deferred destruction |
 
@@ -87,8 +87,6 @@ include their own directory's headers. The hardware feature's are
 | `reconcile/Memo.h` | `Memo<Produced>` — a deferred describe and its key: `props`, `equal`, `invoke`, `env` |
 | `reconcile/Env.h` | `env::Provide`, `env::inherited`, `env::inheritedOr`, `env::bound`, and the `detail::EnvSnapshot`, `detail::envStack`, `detail::envEqual`, `detail::EnvRestore` a memo is built on |
 | `reconcile/Erased.h` | `Erased<Ops>` under the name a description spells it by; the type is `comparable/Erased.h`'s |
-| `reconcile/Compare.h` | `easeEqual`, `transitionEqual`, `boundMapEqual`, `propEqual`, their field pins, and `detail::fields` — the animation values decomposed member by member |
-| `reconcile/Lanes.h` | `LaneSlot<Family>`, `Lane<Family>`, `familyLanes`, `retargetSlots`, `retargetFamily` — the ADDRESSING of a node's animation lanes; the motions they ramp are SigilMotion's `AnimatedFloat` and its operations |
 | `reconcile/Phases.h` | `Phase<Impl>` and `runPhases` — a host's declared pass list with its converging group |
 | `reconcile/Reads.h` | `Facet`, `Read`, `orderByReads` — what one node reads off another, and the order that puts every reader after what it read |
 | `reconcile/Stats.h` | `ReconcileStats` — the pass counts, and `report()` into `sigil::measure::Counters` |
@@ -234,24 +232,14 @@ host's caches by itself; a node whose content changed under it — a
 slot's content replaced through `replaceContent` — is reported through
 `invalidate`, and the host stales what it keeps above the node.
 
-**Lanes are addressed by where the motion lives.** A lane is one
-`Animatable<float>` a description carries, with the slot the host holds
-its motion in: a fixed row of the host's slot array, or a position in a
-family whose length the description decides. `retargetSlots` ramps every
-row from wherever its motion is now, using the lane's standing value
-where one side of the diff lacks the field; `retargetFamily` does the
-same for a positional family and DROPS the motions when the family's
-shape changed, because a motion carried onto an endpoint that now means
-something else is worse than none.
-
-A lane says WHICH held motion serves which animatable and hands both to
-SigilMotion, which owns the motion itself: `motion::AnimatedFloat` is the
-held Choreograph output, `motion::resolveFloatAt` reads it for a frame,
-`motion::transitionFloatAt` bends it onto a new endpoint, and
-`motion::mountEntrance` plays what a description declared as its
-entrance. A host calls those directly for the storages the reconciler
-does not walk — an entrance has no previous description to diff against,
-so there is no lane pair to retarget.
+**Animation is not the reconciler's.** A patch bends the running motions
+of one description onto the endpoints of the next, and every part of
+that — the lane that addresses a held motion, the retargets over a fixed
+or a positional family, and the comparators that decide two animatable
+slots are the same — is SigilMotion's, in `<sigilmotion/values/Lanes.h>`
+and beside the values themselves. The reconciler calls a host's
+`onPatched` and the host does the retarget; the kernel names no motion
+type at all, and links no motion target.
 
 **Phases converge.** A host declares its settling passes as a list of
 `Phase<Impl>` — a name, a member function answering whether it moved
@@ -496,19 +484,21 @@ value, and one shape of it is what lets a value cross between them.
 writes its own and one gets it subtly wrong. The seeded mixers qualify
 because a stored render and a GPU kernel have to agree to the bit. An
 easing curve does NOT qualify: it is animation's, and SigilMotion owns
-it. Neither does a numeric constant a single library reaches for — those
-stay with the library that spells them.
+it — which is why the comparator over that curve lives there too, beside
+the curve, rather than in the kernel that happens to prune with it.
+Neither does a numeric constant a single library reaches for — those stay
+with the library that spells them.
 
 ## Boundary
 
 SigilCoreComparable and SigilCoreCompute link nothing of this project's
 at all — the standard library, and Boost.PFR for the field pin. That is
 the whole point of them: a library anywhere in the tree can link one
-without acquiring a kernel. SigilCoreReconcile links SigilCoreComparable
-(the erased seam value and the field pin), SigilMotion (the animatable
-values, the ticker, and the held motions a lane addresses) and
-SigilMeasure (the published counts), and nothing that draws, lays out or
-shapes text. SigilCoreCache
+without acquiring a kernel, and SigilMotion is one of the libraries that
+does, for the pin its own comparators sit under. SigilCoreReconcile links
+SigilCoreComparable (the erased seam value and the field pin) and
+SigilMeasure (the published counts), and nothing that draws, lays out,
+shapes text or animates. SigilCoreCache
 links SigilCoreReconcile alone. SigilCoreHardware links nothing of this
 project's either: the platform's graphics API — Metal where there is one,
 the Vulkan loader resolved at run time everywhere — and no Skia, no
@@ -556,9 +546,9 @@ mixer one call at a time, which is how they are spent.
 
 `sigilcore_reconcile_test` (`reconcile/test/`) exercises the reconciler
 over a fake host — `FakeHost.h`, a host with nothing behind it that logs
-every operation — alongside the environment channel, the lanes and the
-phase runner; it links `SigilCoreReconcile` alone, so an edge that pulled
-a drawing library in would fail there. The
+every operation — alongside the environment channel and the phase
+runner; it links `SigilCoreReconcile` alone, so an edge that pulled a
+drawing or animation library in would fail there. The
 benchmark, `sigilcore_reconcile_bench` (`reconcile/bench/`), times the
 reconciler over the same fake host at several node counts; it builds
 through the `benches` target and runs through `scripts/bench_ledger.py`,

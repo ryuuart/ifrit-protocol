@@ -184,6 +184,7 @@ void knuthPlassBlock(FontContext& fontContext, Paragraph& paragraph,
   // justified: ragged lines (and demoted last lines) render at natural
   // width, so a "feasible shrunk" break there would leak past the measure.
   const bool justify = options.alignment == TextAlignment::kJustify;
+  const float zone = options.hyphenation.zone;
   const bool lastLineJustify =
       justify &&
       (options.justification.justifyLastLine ||
@@ -292,13 +293,32 @@ void knuthPlassBlock(FontContext& fontContext, Paragraph& paragraph,
             100.0f * clampedRatio * clampedRatio * clampedRatio, kMaxBadness);
         const bool feasible =
             !overfull && badness <= options.knuthPlass.tolerance;
+        // THE HYPHENATION ZONE, asked of the line WITHOUT the break: a
+        // ragged line whose last whole word already ends inside the band at
+        // the measure is square enough for the eye, so a word broken to
+        // reach further is a hyphen the page did not need. The break is
+        // simply not a candidate — the whole-word break it competes with is
+        // one the DP already holds — and it is not a lifeline either,
+        // because a line that fits without it is never the least-bad
+        // answer. A justified line shows its slack in the gaps rather than
+        // at the edge, so the zone is a ragged-setting rule only.
+        bool zoneRefusesBreak = false;
+        if (zone > 0 && !justify && hyphenWidthAt(breakIndex) > 0) {
+          uint32_t whole = breakIndex - 1;
+          while (whole > lineStart && words[whole - 1].hyphenBreak) --whole;
+          zoneRefusesBreak =
+              whole > lineStart &&
+              measure - lineNatural(lineStart, whole) <= zone;
+        }
 
         float demerits =
             node.demerits + (kLinePenalty + badness) * (kLinePenalty + badness);
         if (hyphenWidthAt(breakIndex) > 0)
           demerits += options.hyphenation.penalty * options.hyphenation.penalty;
 
-        if (feasible) {
+        if (zoneRefusesBreak) {
+          // Neither a node nor a lifeline.
+        } else if (feasible) {
           Node candidate{breakIndex, node.interval + 1, demerits, nodeIndex};
           newNodes.emplace_back(candidate.interval, -1);
           arena.push_back(candidate);

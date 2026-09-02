@@ -7,22 +7,23 @@
  * running motions of one storage onto the endpoints the next description
  * asks for.
  *
- * The motions themselves are SigilMotion's: a lane says which held
- * motion serves which animatable, and hands both to the motion library
- * to ramp.
+ * A lane names no host type: `Family` is the host's own enumeration of
+ * its storages, and everything else here is an animatable, a held motion
+ * and a ticker. That is why it sits with the values it retargets rather
+ * than with the reconciler that calls it.
  */
-
-#include <sigilmotion/clock/Ticker.h>
-#include <sigilmotion/values/Animatable.h>
-#include <sigilmotion/values/Animated.h>
-#include <sigilmotion/values/Transition.h>
 
 #include <cstddef>
 #include <memory>
 #include <optional>
 #include <span>
 
-namespace sigil::core {
+#include "sigilmotion/clock/Ticker.h"
+#include "sigilmotion/values/Animatable.h"
+#include "sigilmotion/values/Animated.h"
+#include "sigilmotion/values/Transition.h"
+
+namespace sigil::motion {
 
 /** Where a lane's motion is held on the node. `Family` is the host's
  *  enumeration of its storages: one fixed slot array whose rows are a
@@ -43,7 +44,7 @@ struct Lane {
   /** The description's animatable, or nullptr on a fixed-slot lane whose
    *  node does not carry the block that holds it. A positional lane
    *  always has one. */
-  const motion::Animatable<float>* value;
+  const Animatable<float>* value;
   LaneSlot<Family> slot;
   /** The endpoint a patch ramps from or to when `value` is null on one
    *  side of the diff — the field's own default. Meaningful for
@@ -66,16 +67,16 @@ std::span<const Lane<Family>> familyLanes(std::span<const Lane<Family>> lanes,
  *  is retargeted; a row neither carries is skipped; a row one side lacks
  *  ramps from or to the lane's standing value. */
 template <class Family>
-void retargetSlots(motion::Ticker& ticker,
-                   std::span<std::unique_ptr<motion::AnimatedFloat>> anims,
+void retargetSlots(Ticker& ticker,
+                   std::span<std::unique_ptr<AnimatedFloat>> anims,
                    std::span<const Lane<Family>> prev,
                    std::span<const Lane<Family>> next,
-                   const std::optional<motion::Transition>& nodeDefault) {
+                   const std::optional<Transition>& nodeDefault) {
   for (size_t i = 0; i < next.size(); ++i) {
     if (!prev[i].value && !next[i].value)
       continue;  // neither description carries it: nothing to ramp
-    const motion::Animatable<float> standing = next[i].standing;
-    motion::transitionFloatAt(ticker, anims[next[i].slot.index],
+    const Animatable<float> standing = next[i].standing;
+    transitionFloatAt(ticker, anims[next[i].slot.index],
                               prev[i].value ? *prev[i].value : standing,
                               next[i].value ? *next[i].value : standing,
                               nodeDefault);
@@ -88,10 +89,10 @@ void retargetSlots(motion::Ticker& ticker,
  *  that now mean something else — the same rule keys enforce for whole
  *  nodes. A family of equal shape retargets lane by lane. */
 template <class Family>
-void retargetFamily(motion::Ticker& ticker, motion::AnimatedFloats& anims,
+void retargetFamily(Ticker& ticker, AnimatedFloats& anims,
                     std::span<const Lane<Family>> prev,
                     std::span<const Lane<Family>> next,
-                    const std::optional<motion::Transition>& nodeDefault) {
+                    const std::optional<Transition>& nodeDefault) {
   if (prev.size() != next.size()) {
     anims.clear();
     anims.resize(next.size());
@@ -101,9 +102,9 @@ void retargetFamily(motion::Ticker& ticker, motion::AnimatedFloats& anims,
     // Size it here too rather than indexing an empty vector.
     if (anims.size() != next.size()) anims.resize(next.size());
     for (size_t i = 0; i < next.size(); ++i)
-      motion::transitionFloatAt(ticker, anims[i], *prev[i].value,
+      transitionFloatAt(ticker, anims[i], *prev[i].value,
                                 *next[i].value, nodeDefault);
   }
 }
 
-}  // namespace sigil::core
+}  // namespace sigil::motion

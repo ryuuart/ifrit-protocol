@@ -7,9 +7,8 @@
 
 #include <sigilcompose/core/Material.h>
 #include <sigilcore/compute/Noise.h>
-#include <sigilcore/reconcile/Compare.h>
-#include <sigilcore/reconcile/Lanes.h>
 #include <sigilcore/reconcile/Memo.h>
+#include <sigilmotion/values/Animated.h>
 #include <sigilweave/paragraph/Paragraph.h>
 
 #include <array>
@@ -504,12 +503,12 @@ using ::sigil::core::kFieldCount;
  *  compares two different nodes will report a difference whatever the
  *  comparator does, and so passes even when the field is unread. */
 bool propsEqual(const ElementNode& a, const ElementNode& b);
-/** The shaped-binding half of the same comparator, SigilCore's: every
+/** The shaped-binding half of the same comparator, SigilMotion's: every
  *  field of BoundFloat participates, under the pin beside its body. */
-using ::sigil::core::boundMapEqual;
-/** An Animatable compared where every other animated slot is: SigilCore's
- *  form-by-form comparator. */
-using ::sigil::core::propEqual;
+using ::sigil::motion::boundMapEqual;
+/** An Animatable compared where every other animated slot is:
+ *  SigilMotion's form-by-form comparator. */
+using ::sigil::motion::propEqual;
 
 /** Constant, binding, or transitioned — one animatable flattened. */
 using ::sigil::motion::ResolvedProp;
@@ -520,12 +519,12 @@ using ::sigil::motion::resolveProp;
 
 /** Equal only when PROVABLY identical: two easing curves compare equal when
  *  both are the same plain function pointer, and a lambda-valued curve
- *  compares unequal, conservatively. SigilCore's one body, so no second
+ *  compares unequal, conservatively. SigilMotion's one body, so no second
  *  spelling of the rule can let two comparators disagree about whether a
  *  node may prune. */
-using ::sigil::core::easeEqual;
+using ::sigil::motion::easeEqual;
 /** Same duration, same delay, same curve under easeEqual. */
-using ::sigil::core::transitionEqual;
+using ::sigil::motion::transitionEqual;
 /** Did the DESCRIBED transform change between two descriptions? The lanes
  *  mirror propsEqual's transform block plus travel(). Defined in
  *  Reconcile.cpp beside the comparators it is built from. */

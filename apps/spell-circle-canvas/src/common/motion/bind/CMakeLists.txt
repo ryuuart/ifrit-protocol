@@ -1,6 +1,12 @@
 # The bind leaf: bind(), the Bound chain builder, the BoundFloat
-# evaluator it fills, and the value-noise field behind wiggle().
-# Choreograph, cmath and integers only.
+# evaluator it fills, the value-noise field behind wiggle(), and the two
+# comparators an identity prune reads a curve and a shaped binding
+# through — here because the record this feature owns is the lowest thing
+# in the library that carries a curve.
+#
+# Choreograph, cmath and integers, plus SigilCoreComparable for the field
+# pin the shaped-binding comparator sits under: an edge OUT of this
+# library, to a header-only leaf over the standard library and Boost.PFR.
 add_library(SigilMotionBind STATIC
   Bound.cpp
   BoundFloat.cpp
@@ -12,7 +18,8 @@ add_library(SigilMotionBind STATIC
 )
 target_compile_features(SigilMotionBind PUBLIC cxx_std_20)
 target_include_directories(SigilMotionBind PUBLIC ${SIGIL_MOTION_INCLUDE_DIR})
-target_link_libraries(SigilMotionBind PUBLIC choreograph::choreograph)
+target_link_libraries(SigilMotionBind PUBLIC
+  SigilCoreComparable choreograph::choreograph)
 
 # Links only the library it exercises, so a link edge that pulled a
 # drawing library in would show up as a build failure here.

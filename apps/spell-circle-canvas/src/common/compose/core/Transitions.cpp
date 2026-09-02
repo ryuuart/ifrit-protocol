@@ -51,7 +51,7 @@ std::vector<std::unique_ptr<AnimatedFloat>>& familyAnims(Instance& inst,
 /** Core's run-of-a-family read, over the lane list lanes() filled. */
 std::span<const Lane> familyLanes(const std::vector<Lane>& lanes,
                                   LaneFamily family) {
-  return core::familyLanes(std::span<const Lane>(lanes), family);
+  return motion::familyLanes(std::span<const Lane>(lanes), family);
 }
 
 constexpr LaneFamily kPositionalFamilies[] = {
@@ -197,7 +197,7 @@ void Composer::Impl::applyTransitions(Instance& inst, const ElementNode& prev,
   static thread_local std::vector<Lane> prevLanes, nextLanes;
   lanes(prev, prevLanes);
   lanes(next, nextLanes);
-  core::retargetSlots(ticker,
+  motion::retargetSlots(ticker,
                       std::span<std::unique_ptr<AnimatedFloat>>(inst.anims),
                       familyLanes(prevLanes, LaneFamily::Slot),
                       familyLanes(nextLanes, LaneFamily::Slot), nd);
@@ -225,7 +225,7 @@ void Composer::Impl::applyTransitions(Instance& inst, const ElementNode& prev,
   // Add or remove a track and the shape changed — the motions drop rather
   // than carrying onto a progress that now drives a different effect.
   for (const LaneFamily family : kPositionalFamilies)
-    core::retargetFamily(ticker, familyAnims(inst, family),
+    motion::retargetFamily(ticker, familyAnims(inst, family),
                          familyLanes(prevLanes, family),
                          familyLanes(nextLanes, family), nd);
 

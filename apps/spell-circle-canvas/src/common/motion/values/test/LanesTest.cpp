@@ -5,18 +5,13 @@
  */
 
 #include <gtest/gtest.h>
-#include <sigilcore/reconcile/Lanes.h>
 #include <sigilmotion/values/Keyframes.h>
+#include <sigilmotion/values/Lanes.h>
 
 #include <chrono>
 #include <vector>
 
-using namespace sigil::core;
-using sigil::motion::Animatable;
-using sigil::motion::AnimatedFloat;
-using sigil::motion::AnimatedFloats;
-using sigil::motion::Ticker;
-using sigil::motion::Transitioned;
+using namespace sigil::motion;
 
 namespace {
 

@@ -1011,6 +1011,38 @@ bool hyphenAllowedHere(const detail::Block& block,
          consecutiveHyphens < hyphenation.consecutiveLimit;
 }
 
+/** Where the WHOLE word a break at `endWordIndex` cuts into begins: a
+ *  hyphenated word is a run of pieces, and the piece boundaries before this
+ *  one belong to the same word. */
+uint32_t wholeWordStart(const std::vector<Word>& words, uint32_t endWordIndex) {
+  uint32_t start = endWordIndex > 0 ? endWordIndex - 1 : 0;
+  while (start > 0 && words[start - 1].hyphenBreak) --start;
+  return start;
+}
+
+/** Whether the HYPHENATION ZONE leaves this break alone.
+ *
+ *  The zone is a band at the ragged edge: a line whose last WHOLE word ends
+ *  inside it is already square enough for the eye, so breaking a word to
+ *  reach further is a hyphen the page did not need. So the question is
+ *  asked of the line WITHOUT the break — everything up to the start of the
+ *  word the break cuts into — and the answer is a fact about that line, not
+ *  about the demerits of the break.
+ *
+ *  It is a ragged-setting rule and nothing else. A justified line spends
+ *  its slack on the gaps rather than showing it at the edge, so a zone
+ *  there would only remove breaks the spacing was relying on. */
+bool zoneAllowsHyphen(const detail::Block& block,
+                      const std::vector<Word>& words, uint32_t lineStart,
+                      uint32_t endWordIndex, float measure) {
+  const float zone = block.options.hyphenation.zone;
+  if (zone <= 0 || block.options.alignment == TextAlignment::kJustify)
+    return true;
+  const uint32_t whole = wholeWordStart(words, endWordIndex);
+  if (whole <= lineStart) return true;  // the word is the whole line
+  return measure - naturalWidth(words, lineStart, whole) > zone;
+}
+
 /** Fills one block greedily from `firstInterval`, appending to `result`.
  *  Returns the index of the last interval it placed anything in, or
  *  SIZE_MAX when it placed nothing; sets `overflowWord` when the geometry
@@ -1116,7 +1148,15 @@ size_t greedyBlock(FontContext& fontContext, Paragraph& paragraph,
       continue;
     }
 
-    flushLine(wordIndex, /*isLast=*/false);
+    // A break the zone refuses hands the whole word to the next interval
+    // instead of cutting it, and the line ends where that word began.
+    uint32_t breakAt = wordIndex;
+    if (hyphenTakenAt(words, breakAt, false, options) &&
+        !zoneAllowsHyphen(block, words, firstWordIndex, breakAt,
+                          flatInterval->interval.length))
+      breakAt = wholeWordStart(words, breakAt);
+    flushLine(breakAt, /*isLast=*/false);
+    wordIndex = breakAt;
     flatInterval = intervalSequence.intervalAt(++intervalIndex);
   }
 

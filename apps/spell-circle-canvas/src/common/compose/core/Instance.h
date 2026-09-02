@@ -8,7 +8,7 @@
  */
 
 #include <sigilcore/cache/Settle.h>
-#include <sigilcore/reconcile/Lanes.h>
+#include <sigilmotion/values/Lanes.h>
 #include <sigilcore/reconcile/Node.h>
 #include <yoga/Yoga.h>
 

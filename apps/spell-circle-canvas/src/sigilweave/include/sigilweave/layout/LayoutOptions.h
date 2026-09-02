@@ -81,8 +81,14 @@ struct HyphenationOptions {
 
   /// Most lines in a row that may end in a hyphen; 0 lifts the limit.
   int consecutiveLimit = 0;
-  /// A ragged line whose last word ends within this distance of the measure
-  /// is left ragged rather than broken, px. 0 lifts the limit.
+  /// The band at the ragged edge inside which a line is already square
+  /// enough, px; 0 lifts it. A line whose last WHOLE word ends inside the
+  /// band is left ragged, because a word broken to reach further is a
+  /// hyphen the page did not need — so the question is asked of the line
+  /// WITHOUT the break, and both breakers ask it the same way. A word that
+  /// is the whole line is still broken: there is nothing else on the line
+  /// for the zone to measure. Ragged setting only — a justified line
+  /// shows its slack in the gaps rather than at the edge.
   float zone = 0;
   /// Whether the last word of a block may be broken.
   bool lastWordOfBlock = true;

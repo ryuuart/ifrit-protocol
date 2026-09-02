@@ -1,9 +1,13 @@
 /** @file
  * `BoundFloat::apply()`: one sample of the bound Output run through the
- * chain in its fixed stage order.
+ * chain in its fixed stage order — and, under the pin that keeps them
+ * honest, the two comparators an identity prune reads a shaped binding
+ * through.
  */
 
 #include "sigilmotion/bind/BoundFloat.h"
+
+#include <sigilcore/comparable/Fields.h>
 
 #include <cmath>
 
@@ -96,6 +100,39 @@ float BoundFloat::apply(float v) const {
                                             wiggleOctaves, wiggleFalloff);
   if (clamped) v = v < lo ? lo : (v > hi ? hi : v);
   return v;
+}
+
+bool easeEqual(const choreograph::EaseFn& a, const choreograph::EaseFn& b) {
+  const bool aSet = (bool)a, bSet = (bool)b;
+  if (aSet != bSet) return false;
+  if (!aSet) return true;
+  using Ptr = float (*)(float);
+  const Ptr* pa = a.target<Ptr>();
+  const Ptr* pb = b.target<Ptr>();
+  return pa && pb && *pa == *pb;  // lambdas: unequal (conservative)
+}
+
+static_assert(core::kFieldCount<BoundFloat> == 24,
+              "BoundFloat gained or lost a field. boundMapEqual() below "
+              "compares it BY HAND: rule on the new field (participate, or "
+              "a stated reason not to), then bump this count. A miss is "
+              "silent — the node prunes and keeps shaping through the old "
+              "map forever.");
+bool boundMapEqual(const BoundFloat& a, const BoundFloat& b) {
+  return a.source == b.source && a.inScale == b.inScale &&
+         a.inOffset == b.inOffset && a.clampInput == b.clampInput &&
+         a.envelope == b.envelope && a.riseStart == b.riseStart &&
+         a.holdStart == b.holdStart && a.holdEnd == b.holdEnd &&
+         a.fallEnd == b.fallEnd && a.duty == b.duty && a.steps == b.steps &&
+         a.scale == b.scale && a.offset == b.offset && a.clamped == b.clamped &&
+         a.lo == b.lo && a.hi == b.hi && a.wiggleAmount == b.wiggleAmount &&
+         a.wiggleFrequency == b.wiggleFrequency &&
+         a.wiggleSeed == b.wiggleSeed && a.wiggleOctaves == b.wiggleOctaves &&
+         a.wiggleFalloff == b.wiggleFalloff && a.wrapPeriod == b.wrapPeriod &&
+         // The two curve slots compare under the same conservative rule: a
+         // plain function is compared by identity, a capturing lambda is
+         // unequal to everything and the binding re-patches every describe.
+         easeEqual(a.curve, b.curve) && easeEqual(a.waveFn, b.waveFn);
 }
 
 }  // namespace sigil::motion

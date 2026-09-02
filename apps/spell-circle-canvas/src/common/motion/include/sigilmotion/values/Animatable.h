@@ -4,17 +4,22 @@
  * Animatable<T>, the property slot that holds exactly one of a
  * constant, a constant with its own transition, a live Output, or an
  * Output shaped through a bound chain — the fat forms behind one
- * out-of-line block so the slot itself stays small.
+ * out-of-line block so the slot itself stays small — and the comparator
+ * an identity prune reads two slots through.
  */
+
+#include <sigilcore/comparable/Fields.h>
 
 #include <choreograph/Choreograph.h>
 
 #include <cstdint>
 #include <memory>
+#include <tuple>
 #include <utility>
 
 #include "sigilmotion/bind/Bound.h"
 #include "sigilmotion/values/Keyframes.h"
+#include "sigilmotion/values/Transition.h"
 
 namespace sigil::motion {
 
@@ -108,5 +113,40 @@ class Animatable {
   const choreograph::Output<T>* m_bound = nullptr;
   std::unique_ptr<Extra> m_extra;
 };
+
+namespace detail {
+/** A transitioned value decomposed member by member, for a comparator
+ *  that wants to WALK it rather than name each field one at a time. */
+template <typename T>
+auto fields(Transitioned<T>& v) {
+  auto& [value, spec, from, waypoints] = v;
+  return std::tie(value, spec, from, waypoints);
+}
+}  // namespace detail
+
+static_assert(core::kFieldCount<Transitioned<float>> == 4,
+              "Transitioned gained or lost a field — rule on it in "
+              "propEqual() below, then bump this count.");
+/** Two animatable slots are equal when they take the same form and that
+ *  form's contents are equal: a plain value by `==`, a transitioned value
+ *  by target, origin, waypoints and spec, a shaped binding by
+ *  `boundMapEqual`, and a bare binding by the Output's identity — the
+ *  pointer, not the number behind it. A LIVE binding therefore never
+ *  compares equal to a different Output, and a slot that is moving is
+ *  never pruned into a slot that is moving to something else. */
+template <typename T>
+bool propEqual(const Animatable<T>& a, const Animatable<T>& b) {
+  if (a.index() != b.index()) return false;
+  if (const T* plainA = a.plain()) return *plainA == *b.plain();
+  if (const Transitioned<T>* trA = a.transitioned()) {
+    const Transitioned<T>* trB = b.transitioned();
+    return trA->value == trB->value && trA->from == trB->from &&
+           trA->waypoints == trB->waypoints &&
+           transitionEqual(trA->spec, trB->spec);
+  }
+  if (const BoundFloat* mapA = a.boundMap())
+    return boundMapEqual(*mapA, *b.boundMap());
+  return a.binding() == b.binding();
+}
 
 }  // namespace sigil::motion
