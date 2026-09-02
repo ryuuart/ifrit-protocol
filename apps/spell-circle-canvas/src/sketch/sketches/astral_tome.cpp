@@ -299,10 +299,16 @@ namespace at {
 // THE GRID. One scale for the whole page: 3 canvas px per GUI px.
 
 constexpr float kU = 3.0f;  ///< canvas px per GUI px
-constexpr float kCanvasW = 1200.0f, kCanvasH = 750.0f;
+/** THE ARTEFACT'S OWN HEIGHT, and the band under it. A plate of a page
+ *  is a plate of the page; what the study proves stands in a band
+ *  declared OUTSIDE it, so the tome's own geometry is derived from
+ *  `kArtH` and never from the canvas the band grew. */
+constexpr float kArtH = 750.0f;
+constexpr float kBandH = 78.0f;
+constexpr float kCanvasW = 1200.0f, kCanvasH = kArtH + kBandH;
 constexpr float kGuiW = 420.0f, kGuiH = 270.0f;  // GuiScreenJournal(270, 420)
 constexpr float kGuiLeft = (kCanvasW - kGuiW * kU) * 0.5f;  // -30
-constexpr float kGuiTop = (kCanvasH - kGuiH * kU) * 0.5f;   // -30
+constexpr float kGuiTop = (kArtH - kGuiH * kU) * 0.5f;      // -30
 
 inline float g(float gui) { return gui * kU; }
 inline float gx(float gui) { return kGuiLeft + gui * kU; }
@@ -592,7 +598,7 @@ struct AstralTome : sketch::Sketch {
   Element leather() const {
     Element e =
         box()
-            .inset(0)
+            .inset(0, 0, 0, at::kBandH)
             .key("leather")
             .cache(Cache::Texture)
             .fill(Material::blend(
@@ -675,10 +681,24 @@ struct AstralTome : sketch::Sketch {
    *  pass's own brightness. Rendered as a Ribbon body (tapered to 40% at each
    *  end — the departure) under a five-rail engraved rule whose three inner
    *  alphas are integrated off connectionperks.png. */
+  /** THE PAGE'S OWN RANGE. `RenderConstellation` tints by tier, and the
+   *  tier colours are saturated — but on the cluster page the four charts
+   *  are drawn pale, close together, and the tint is what tells them
+   *  apart rather than what the eye reads first. Four fully saturated
+   *  hues on one spread makes the page a colour key. This mixes each
+   *  tier's own colour most of the way to the page's silver and keeps its
+   *  hue as the difference. */
+  static SkColor4f paled(SkColor4f c) {
+    constexpr float k = 0.66f;
+    constexpr SkColor4f kSilver{0.80f, 0.84f, 0.93f, 1.0f};
+    return {c.fR + (kSilver.fR - c.fR) * k, c.fG + (kSilver.fG - c.fG) * k,
+            c.fB + (kSilver.fB - c.fB) * k, c.fA};
+  }
+
   Element linkPass(const at::Con& c, int li, int pass, int key) const {
     const SkPoint a = at::starAt(c, c.links[(size_t)li].first);
     const SkPoint b = at::starAt(c, c.links[(size_t)li].second);
-    const SkColor4f col = at::hex(c.color);
+    const SkColor4f col = paled(at::hex(c.color));
     const float half = at::g(at::kLineBreadth);  // 6 canvas px
     const float band = half * 2.0f;              // 12 canvas px
 
@@ -764,7 +784,7 @@ struct AstralTome : sketch::Sketch {
    *  the one piece of magnitude information the graph actually carries. */
   Element starEl(const at::Con& c, int si, int key) const {
     const SkPoint p = at::starAt(c, si);
-    const SkColor4f col = at::hex(c.color);
+    const SkColor4f col = paled(at::hex(c.color));
     const int deg = at::degreeOf(c, si);
     const float base = at::g(at::kUlen * 2.0f);  // 18.39 canvas px
     const float r = base * (0.74f + 0.15f * (float)std::min(deg, 4));
@@ -778,17 +798,21 @@ struct AstralTome : sketch::Sketch {
     Element grp = box().width(side).height(side).centerAt(p).key(
         std::string("st") + std::to_string(key));
     // the halo — a gradient, which lowers to a SIMD blitter, not a blur
+    // star1.png is a BLURRED point, and its falloff is most of what makes
+    // a chart read as a sky rather than as a dot diagram: the halo carries
+    // further and holds more of the light than the glyph does.
     grp.child(box().inset(0).fill(
-        Material::glowUnit({0.5f, 0.5f}, 0.5f,
-                           {{0.0f, at::mul(col, 1.0f, 0.42f)},
-                            {0.34f, at::mul(col, 1.0f, 0.13f)},
+        Material::glowUnit({0.5f, 0.5f}, 0.62f,
+                           {{0.0f, at::mul(col, 1.0f, 0.60f)},
+                            {0.22f, at::mul(col, 1.0f, 0.30f)},
+                            {0.55f, at::mul(col, 1.0f, 0.09f)},
                             {1.0f, at::mul(col, 1.0f, 0.0f)}})));
     // the glyph
     grp.child(
         box()
             .rect(SkRect::MakeXYWH((side - r) * 0.5f, (side - r) * 0.5f, r, r))
             .shape(shapes::star(4, 0.24f, 0.16f))
-            .fill(Fill::color(at::mul(col, 1.35f, 0.92f))));
+            .fill(Fill::color(at::mul(col, 1.15f, 0.74f))));
     // the white-hot core. The one kPlus on this canvas, declared as a
     // departure on the plate: the source is GL_SRC_ALPHA/ONE_MINUS_SRC_ALPHA
     // throughout (Blending.java:23).
@@ -798,62 +822,8 @@ struct AstralTome : sketch::Sketch {
                                          cr, cr))
                   .blend(SkBlendMode::kPlus)
                   .shape(shapes::circle())
-                  .fill(Fill::color({0.92f, 0.94f, 1.0f, 0.85f})));
+                  .fill(Fill::color({0.92f, 0.94f, 1.0f, 0.52f})));
     return grp;
-  }
-
-  // -------------------------------------------------------------- cell plate
-  /** The 80 x 110 HIT box (Cluster:219) as a chart plate: brackets at the four
-   *  corners and a gapped rule on the TOP EDGE ONLY. The mod draws no cell
-   *  border, so this is the study's apparatus — and it is drawn on the hit box
-   *  precisely so the 95-wide chart can be seen overflowing it. */
-  Element cellPlate(int i, bool key) const {
-    const SkPoint o = at::kOffsets[(size_t)i];
-    // The corner marks are a span claim on the plate's own boundary. The
-    // top-edge rule cannot be spelled that way — the spans:: family has no
-    // box-edge vocabulary — so it stays a Border under shapes::onEdges.
-    Element e =
-        box()
-            .rect(SkRect::MakeXYWH(at::gx(o.fX), at::gy(o.fY),
-                                   at::g(at::kCellW), at::g(at::kCellH)))
-            .key(std::string("cell") + std::to_string(i))
-            .shape(shapes::chamfered(at::g(4.0f), shapes::Corner::All))
-            .stroke(spans::corners(at::g(14.0f)),
-                    brush::solid(1.5f,
-                                 Fill::color(at::mul(at::kGilt, 1.0f, 0.62f))))
-            .foreground(shapes::onEdges(
-                shapes::Edge::Top,
-                Border{.width = 1.0f,
-                       .fill = Fill::color(at::mul(at::kGilt, 1.0f, 0.30f)),
-                       .mode = Border::Mode::Gapped,
-                       .corner = at::g(16.0f)}));
-    if (key) {
-      // The declination ladder: 31 divisions of the cell, every 5th long —
-      // the grid the star coordinates actually live on, drawn once.
-      const float pitch = at::g(at::kCellH) / (float)at::kGrid;
-      Element tick = box()
-                         .width(1.0f)
-                         .height(at::g(2.6f))
-                         .fill(Fill::color(at::mul(at::kGilt, 1.0f, 0.55f)));
-      Element longTick =
-          box()
-              .width(1.2f)
-              .height(at::g(6.0f))
-              .fill(Fill::color(at::mul(at::kGilt, 1.0f, 0.85f)));
-      e.foreground(
-          shapes::onEdges(shapes::Edge::Left,
-                          Decoration(brush::Scatter{.art = std::move(tick),
-                                                    .spacing = pitch,
-                                                    .alignToPath = true,
-                                                    .reach = at::g(4.0f)})));
-      e.foreground(
-          shapes::onEdges(shapes::Edge::Left,
-                          Decoration(brush::Scatter{.art = std::move(longTick),
-                                                    .spacing = pitch * 5.0f,
-                                                    .alignToPath = true,
-                                                    .reach = at::g(8.0f)})));
-    }
-    return e;
   }
 
   // ---------------------------------------------------------------- arrows
@@ -887,6 +857,38 @@ struct AstralTome : sketch::Sketch {
    *  when not selected. Almost all of it is off the page: the tab sticks out
    *  past the tome's own right edge, which is why it bleeds off this canvas.
    *  Labels from ClientProxy:196-205. */
+  /** THE CAPTION BAND: what the plate proves, under the plate. */
+  Element captionBand() const {
+    Element band = box()
+                       .key("caption")
+                       .left(0)
+                       .right(0)
+                       .bottom(0)
+                       .height(at::kBandH)
+                       .column()
+                       .justify(Justify::Center)
+                       .padding(34.0f, 0.0f)
+                       .gap(5.0f)
+                       .zIndex(20)
+                       .fill(Fill::color({0.031f, 0.027f, 0.023f, 1.0f}));
+    band.child(text(toU8("ASTRAL SORCERY \xc2\xb7 "
+                         "GuiJournalConstellationCluster, PAGE 1 OF 4"),
+                    sigil::compose::type({.face = mono,
+                                          .size = 13.0f,
+                                          .color = {0.72f, 0.66f, 0.50f, 1.0f},
+                                          .track = 2.6f})));
+    band.child(text(
+        toU8("Four charts on one page at the mod's own numbers: a 95x95 "
+             "SQUARE render box hung on an 80x110 hit cell, the offsetMap's "
+             "zig-zag placing them, and every star's twinkle on its own "
+             "divisor between 12 and 21."),
+        sigil::compose::type({.face = mono,
+                              .size = 11.0f,
+                              .color = {0.50f, 0.46f, 0.38f, 1.0f},
+                              .track = 0.4f})));
+    return band;
+  }
+
   Element bookmarkRail() const {
     static constexpr const char* kNames[4] = {"RESEARCH", "CONSTELLATIONS",
                                               "PERKS", "KNOWLEDGE"};
@@ -918,469 +920,6 @@ struct AstralTome : sketch::Sketch {
                      // does not print as a clipped fragment.
     }
     return rail;
-  }
-
-  // --------------------------------------------------------- the apparatus
-  /** THE KEY CELL. Chart 0 gets the 31 x 31 lattice its star coordinates
-   *  actually live on, drawn once, on the 95 x 95 RENDER box — which is how
-   *  you see it stand 15 px proud of the 80-wide cell plate under it. */
-  Element keyLattice(int ci) const {
-    const SkPoint o = at::kOffsets[(size_t)ci];
-    const float side = at::g(at::kRenderBox);
-    Element e =
-        box()
-            .rect(SkRect::MakeXYWH(at::gx(o.fX), at::gy(o.fY), side, side))
-            .key("lattice")
-            .foreground(
-                lines::crosshatch(Fill::color(at::mul(at::kGilt, 1.0f, 0.11f)),
-                                  at::g(at::kUlen), 0.5f, 0.0f))
-            .foreground(decorations::border(
-                0.9f, Fill::color(at::mul(at::kGilt, 1.0f, 0.34f))));
-    return e;
-  }
-
-  /** Every star on the key chart carries its own grid coordinate, small, the
-   *  way a plate labels the positions it was set from. */
-  Element keyCoords(int ci) const {
-    const at::Con& c = at::kPage0[(size_t)ci];
-    const SkPoint o = at::kOffsets[(size_t)ci];
-    Element g2 = box().inset(0).key("coords").zIndex(7);
-    for (int si = 1; si <= c.starCount; ++si) {
-      const SkPoint p = at::starAt(c, si);
-      const auto& s = c.stars[(size_t)(si - 1)];
-      const std::string t =
-          std::to_string(s.first) + "," + std::to_string(s.second);
-      // SCRIMMED, like every other annotation that has to sit on the field.
-      // A coordinate is pinned +9,-16 from its star, which is exactly where
-      // an edge leaving up-and-right goes, so without the sill a link runs
-      // straight through the x-height of the label it belongs to.
-      g2.child(scrimLabel(t, at::gx(o.fX) + p.fX + 9.0f,
-                          at::gy(o.fY) + p.fY - 16.0f, 10.0f,
-                          at::mul(at::hex(c.color), 1.25f, 0.86f), 0.6f));
-    }
-    return g2;
-  }
-
-  /** THE MAGNITUDE KEY, as a specimen ROW rather than a column — four glyphs
-   *  on one rule in the pocket between armara, vicio and aevitas. The mod
-   *  draws every star at one size; this plate does not, and the variable is
-   *  LINK DEGREE off the connection list, so each specimen names the star it
-   *  was measured from. */
-  Element magnitudeKey(float x, float y) const {
-    static constexpr const char* kWho[4] = {"discidia sl1", "vicio sl4",
-                                            "aevitas sl1", "armara sl2"};
-    Element k = box().inset(0).key("magkey").zIndex(14);
-    k.child(label("GLYPH RADIUS \xC3\x97 LINK DEGREE", x, y - 22.0f, 10.5f,
-                  at::mul(at::kGilt, 1.0f, 0.68f), 2.0f, true));
-    k.child(
-        box()
-            .rect(SkRect::MakeXYWH(x, y - 6.0f, 216.0f, 2.0f))
-            .key("magrule")
-            .shape([](SkSize s2) {
-              SkPathBuilder p;
-              p.moveTo(0, 1);
-              p.lineTo(s2.width(), 1);
-              return p.detach();
-            })
-            .stroke(lines::Rails{
-                .rails = {{.across = 0,
-                           .width = 1.0f,
-                           .fill = Fill::color(at::mul(at::kGilt, 1.0f, 0.5f))},
-                          {.across = -4.0f,
-                           .width = 0.7f,
-                           .fill = Fill::color(at::mul(at::kGilt, 1.0f, 0.24f)),
-                           .dash = {2.0f, 5.0f}}}}));
-    const float base = at::g(at::kUlen * 2.0f);
-    for (int d = 1; d <= 4; ++d) {
-      const float r = base * (0.74f + 0.15f * (float)d);
-      const float cx = x + 22.0f + (float)(d - 1) * 58.0f;
-      k.child(box()
-                  .width(r)
-                  .height(r)
-                  .centerAt({cx, y + 26.0f})
-                  .key(std::string("mk") + std::to_string(d))
-                  .shape(shapes::star(4, 0.24f, 0.16f))
-                  .fill(Fill::color(at::mul(at::kInk, 1.0f, 0.88f))));
-      k.child(label(std::to_string(d), cx - 3.0f, y + 46.0f, 11.0f,
-                    at::mul(at::kGilt, 1.05f, 0.78f), 0.6f, true));
-    }
-    k.child(label(kWho[0], x, y + 64.0f, 8.5f, at::mul(at::kGilt, 0.9f, 0.45f),
-                  0.3f, true));
-    k.child(label(kWho[3], x + 122.0f, y + 64.0f, 8.5f,
-                  at::mul(at::kGilt, 0.9f, 0.45f), 0.3f, true));
-    return k;
-  }
-
-  /** THE LIVE DIVISOR STRIP. Ten bars, ten Outputs — the whole twinkle of this
-   *  page, as a 250 px rule under the plate head rather than a panel in a
-   *  corner. Each bar is bound to the SAME Output that drives every star and
-   *  every link filed under that divisor, so the strip is a direct read on the
-   *  structure, not a legend for it. */
-  Element divisorStrip(float x, float y) {
-    Element k = box().inset(0).key("divstrip").zIndex(14);
-    k.child(label(
-        "conCFlicker \xC2\xB7 seed 0x4196A15C91A5E199 \xC2\xB7 d = 12 "
-        "\xE2\x80\xA6 21 \xC2\xB7 3.77 \xE2\x80\x93 6.60 s",
-        x, y + 24.0f, 10.0f, at::mul(at::kGilt, 0.95f, 0.52f), 0.8f, true));
-    for (int i = 0; i < at::kDivCount; ++i) {
-      const float bx = x + (float)i * 25.0f;
-      k.child(box()
-                  .rect(SkRect::MakeXYWH(bx, y, 17.0f, 18.0f))
-                  .key(std::string("fb") + std::to_string(i))
-                  .transformOrigin(0.5f, 1.0f)
-                  .scaleY(bind(&bright[(size_t)i])
-                              .source(0.3875f, 0.7375f)
-                              .scale(0.78f)
-                              .offset(0.22f))
-                  .fill(Fill::color(at::mul(at::kInk, 1.0f, 0.72f))));
-      k.child(box()
-                  .rect(SkRect::MakeXYWH(bx, y + 19.0f, 17.0f, 1.0f))
-                  .key(std::string("fu") + std::to_string(i))
-                  .fill(Fill::color(at::mul(at::kGilt, 1.0f, 0.45f))));
-    }
-    return k;
-  }
-
-  /** A LEADER CALLOUT on one star of each chart: the drafting leader, a dot on
-   *  the star, a bent rule out to a caption that names the star's grid
-   *  coordinate, its link degree, and the divisor the seeded sequence handed
-   *  it. Marginalia standing next to what it describes — four of them,
-   *  radiating into four different pockets of the page. */
-  Element callout(int ci, int si, SkPoint to, bool flip) const {
-    const at::Con& c = at::kPage0[(size_t)ci];
-    const SkPoint o = at::kOffsets[(size_t)ci];
-    const SkPoint p{at::gx(o.fX) + at::starAt(c, si).fX,
-                    at::gy(o.fY) + at::starAt(c, si).fY};
-    const SkColor4f col = at::hex(c.color);
-    const auto& s = c.stars[(size_t)(si - 1)];
-    const int deg = at::degreeOf(c, si);
-    const int d = divisors[(size_t)(2 * c.linkCount + si - 1)];
-
-    const SkRect bb =
-        SkRect::MakeLTRB(std::min(p.fX, to.fX) - 2, std::min(p.fY, to.fY) - 2,
-                         std::max(p.fX, to.fX) + 2, std::max(p.fY, to.fY) + 2);
-    const SkPoint a0{p.fX - bb.left(), p.fY - bb.top()};
-    const SkPoint a1{to.fX - bb.left(), to.fY - bb.top()};
-    Element g2 =
-        box().inset(0).key(std::string("co") + std::to_string(ci)).zIndex(13);
-    g2.child(
-        box()
-            .rect(
-                SkRect::MakeXYWH(bb.left(), bb.top(), bb.width(), bb.height()))
-            .key(std::string("col") + std::to_string(ci))
-            .shape([a0, a1](SkSize) {
-              // an elbow: out along the bearing, then flat into the
-              // caption — the leader a draughtsman draws, not a chord
-              SkPathBuilder pb;
-              pb.moveTo(a0);
-              pb.lineTo(a1.fX + (a0.fX < a1.fX ? -26.0f : 26.0f), a1.fY);
-              pb.lineTo(a1);
-              return pb.detach();
-            })
-            .stroke(lines::Line{.width = 0.9f,
-                                .fill = Fill::color(at::mul(col, 1.2f, 0.55f)),
-                                .startCap = lines::Cap::Dot,
-                                .capSize = 6.0f}));
-    char buf[96];
-    std::snprintf(buf, sizeof buf,
-                  "sl%d (%d,%d) \xC2\xB7 deg %d \xC2\xB7 d=%d \xC2\xB7 %.2f s",
-                  si, s.first, s.second, deg, d, 6.2831853f * (float)d / 20.0f);
-    g2.child(scrimLabel(buf, flip ? to.fX - 182.0f : to.fX + 8.0f,
-                        to.fY - 13.0f, 10.5f, at::mul(col, 1.3f, 0.95f), 0.5f));
-    return g2;
-  }
-
-  /** THE SPRITE PROFILE. connectionperks.png is 64 x 64, white, and its ALPHA
-   *  is a vertical ramp with a narrow bright core — which is a three-rail rule
-   *  in the artefact, not a departure from it. The 64 measured samples are
-   *  plotted here with the three integration bands ruled across them and the
-   *  three solved rail alphas printed, so the numbers in linkPass() have their
-   *  derivation on the same page. */
-  Element spriteProfile(float x, float y) const {
-    static constexpr int kProf[64] = {
-        1,   1,   2,   4,   5,   6,   9,   11,  14,  17,  21,  25,  29,
-        34,  40,  45,  52,  57,  63,  69,  76,  82,  89,  95,  101, 107,
-        113, 119, 134, 172, 205, 233, 248, 224, 194, 159, 124, 116, 109,
-        104, 98,  91,  84,  78,  72,  65,  59,  52,  48,  41,  36,  31,
-        26,  22,  19,  14,  12,  9,   7,   5,   4,   2,   2,   1};
-    const float w = 176.0f, h = 74.0f;
-    const SkColor4f ink = at::mul(at::kGilt, 1.15f, 0.9f);
-    const SkColor4f dim = at::mul(at::kGilt, 1.0f, 0.30f);
-    Element m = box().inset(0).key("sprofile").zIndex(14);
-    m.child(label("connectionperks.png \xC2\xB7 alpha by v", x, y - 20.0f,
-                  10.0f, at::mul(at::kGilt, 1.0f, 0.66f), 1.4f, true));
-    m.child(
-        box()
-            .rect(SkRect::MakeXYWH(x, y, w, h))
-            .key("sprof")
-            .stroke(spans::corners(12.0f), brush::solid(1.0f, Fill::color(dim)))
-            .background(at::prog([=](SkCanvas& c, const PaintContext&) {
-              SkPaint band;
-              band.setAntiAlias(false);
-              // the three integration bands, as the ink they became
-              const int lo[3] = {0, 20, 28}, hi[3] = {63, 43, 36};
-              const float al[3] = {0.097f, 0.309f, 0.580f};
-              for (int b = 0; b < 3; ++b) {
-                band.setColor4f(
-                    {ink.fR, ink.fG, ink.fB, 0.09f + 0.07f * (float)b},
-                    nullptr);
-                c.drawRect(SkRect::MakeLTRB(w * (float)lo[b] / 63.0f, 0,
-                                            w * (float)hi[b] / 63.0f, h),
-                           band);
-                (void)al[b];
-              }
-              SkPathBuilder pb;
-              for (int i = 0; i < 64; ++i) {
-                const float px = w * (float)i / 63.0f;
-                const float py = h - h * (float)kProf[i] / 255.0f;
-                if (i == 0)
-                  pb.moveTo(px, py);
-                else
-                  pb.lineTo(px, py);
-              }
-              SkPaint line;
-              line.setAntiAlias(true);
-              line.setStyle(SkPaint::kStroke_Style);
-              line.setStrokeWidth(1.3f);
-              line.setColor4f(ink, nullptr);
-              c.drawPath(pb.detach(), line);
-            })));
-    m.child(label(
-        "0.097 \xC2\xB7 0.309 \xC2\xB7 0.580  \xE2\x86\x92  three rails", x,
-        y + h + 5.0f, 9.0f, at::mul(at::kGilt, 1.0f, 0.55f), 0.4f, true));
-    return m;
-  }
-
-  /** THE OFFSET MAP, at 1/5.45 scale: the four cells on their authored
-   *  zig-zag, numbered, with the offsets printed. A key to the composition,
-   *  the way a plate carries a key to its own frame — and the fastest way to
-   *  see that (45,55) (125,105) (200,45) (280,110) is high-low-high-low at an
-   *  80 px pitch and NOT a grid. */
-  Element offsetKey(float x, float y) const {
-    const float k = 0.55f;  // canvas px per GUI px, ~1/5.45 of the plate
-    Element m = box().inset(0).key("offkey").zIndex(14);
-    m.child(label("offsetMap \xC2\xB7 4 PER PAGE", x, y - 22.0f, 10.5f,
-                  at::mul(at::kGilt, 1.0f, 0.68f), 1.6f, true));
-    m.child(box()
-                .rect(SkRect::MakeXYWH(x, y, at::kGuiW * k, at::kGuiH * k))
-                .key("offframe")
-                .shape(shapes::chamfered(7.0f, shapes::Corner::All))
-                .foreground(decorations::weightedCorners(
-                    0.7f, 2.0f, Fill::color(at::mul(at::kGilt, 1.0f, 0.42f)),
-                    16.0f)));
-    for (int i = 0; i < 4; ++i) {
-      const SkPoint o = at::kOffsets[(size_t)i];
-      // the 80 x 110 hit cell
-      m.child(box()
-                  .rect(SkRect::MakeXYWH(x + o.fX * k, y + o.fY * k,
-                                         at::kCellW * k, at::kCellH * k))
-                  .key(std::string("ok") + std::to_string(i))
-                  .stroke(spans::corners(9.0f),
-                          brush::solid(
-                              0.9f, Fill::color(at::hex(
-                                        at::kPage0[(size_t)i].color, 0.8f)))));
-      // the 95 x 95 render box standing proud of it
-      m.child(
-          box()
-              .rect(SkRect::MakeXYWH(x + o.fX * k, y + o.fY * k,
-                                     at::kRenderBox * k, at::kRenderBox * k))
-              .key(std::string("or") + std::to_string(i))
-              .foreground(lines::Line{.width = 0.7f,
-                                      .fill = Fill::color(at::hex(
-                                          at::kPage0[(size_t)i].color, 0.32f)),
-                                      .dashIntervals = {2.0f, 4.0f}}));
-      m.child(label(std::to_string(i), x + o.fX * k + 3.0f, y + o.fY * k + 2.0f,
-                    9.5f, at::hex(at::kPage0[(size_t)i].color, 0.95f), 0.4f,
-                    true));
-    }
-    m.child(label("0 45,55    1 125,105", x, y + at::kGuiH * k + 5.0f, 8.5f,
-                  at::mul(at::kGilt, 0.95f, 0.58f), 0.4f, true));
-    m.child(label("2 200,45   3 280,110", x, y + at::kGuiH * k + 16.0f, 8.5f,
-                  at::mul(at::kGilt, 0.95f, 0.58f), 0.4f, true));
-    m.child(
-        label("hit cell 80\xC3\x97"
-              "110 \xC2\xB7 render 95\xC3\x97"
-              "95",
-              x, y + at::kGuiH * k + 27.0f, 8.5f,
-              at::mul(at::kGilt, 0.9f, 0.5f), 0.4f, true));
-    return m;
-  }
-
-  /** THE PIVOT MARK. Cluster:222 scales the hovered chart about
-   *  (offsetX + width/2, offsetY + width/2) — width/2 on BOTH axes. Drawn:
-   *  the ghost of the un-hovered 95 x 95 render box, the pivot cross, and the
-   *  chart's true centre 7.5 GUI px down-right of it. */
-  Element pivotMark(int ci) const {
-    const SkPoint o = at::kOffsets[(size_t)ci];
-    const float side = at::g(at::kRenderBox);
-    const SkPoint pivot{at::gx(o.fX) + at::g(at::kCellW * 0.5f),
-                        at::gy(o.fY) + at::g(at::kCellW * 0.5f)};
-    const SkPoint centre{at::gx(o.fX) + side * 0.5f,
-                         at::gy(o.fY) + side * 0.5f};
-    Element m = box().inset(0).key("pivot").zIndex(13);
-    // the ghost: where the chart sits when NOT hovered
-    m.child(box()
-                .rect(SkRect::MakeXYWH(at::gx(o.fX), at::gy(o.fY), side, side))
-                .key("ghost")
-                .foreground(lines::Line{
-                    .width = 1.1f,
-                    .fill = Fill::color(at::mul(at::kInk, 1.0f, 0.40f)),
-                    .dashIntervals = {5.0f, 7.0f}}));
-    m.child(
-        scrimLabel("95\xC3\x97"
-                   "95 UNHOVERED  \xC2\xB7  hover \xC3\x97"
-                   "1.1 "
-                   "grows DOWN and RIGHT",
-                   at::gx(o.fX) + 4.0f, at::gy(o.fY) - 18.0f, 9.5f,
-                   at::mul(at::kInk, 1.0f, 0.72f), 0.9f));
-    m.child(box()
-                .width(26.0f)
-                .height(26.0f)
-                .centerAt(pivot)
-                .key("pivotx")
-                .shape(shapes::star(4, 0.06f, 0.0f))
-                .fill(Fill::color(at::mul(at::kGilt, 1.4f, 0.95f))));
-    m.child(box()
-                .width(11.0f)
-                .height(11.0f)
-                .centerAt(centre)
-                .key("truec")
-                .shape(shapes::circle())
-                .foreground(decorations::border(
-                    1.0f, Fill::color(at::mul(at::kInk, 1.0f, 0.45f)))));
-    m.child(scrimLabel("pivot 40,40", pivot.fX - 102.0f, pivot.fY - 26.0f,
-                       10.0f, at::mul(at::kGilt, 1.3f, 0.98f), 0.6f));
-    m.child(scrimLabel("centre 47.5", centre.fX - 102.0f, centre.fY + 16.0f,
-                       10.0f, at::mul(at::kInk, 1.0f, 0.72f), 0.6f));
-    return m;
-  }
-
-  // ----------------------------------------------------------- marginalia
-  Element marginalia() const {
-    Element m = box().inset(0).key("margin").zIndex(14);
-
-    // The plate frame: a double border whose outer rule THICKENS into the
-    // corner and whose inner rule stops short of it, over a chamfered
-    // silhouette. A frame is not a 1 px rounded rect.
-    m.child(box()
-                .rect(SkRect::MakeXYWH(at::gx(15) + 5, 5,
-                                       at::g(at::kGuiW - 30) - 10,
-                                       at::kCanvasH - 10))
-                .key("plateframe")
-                .shape(shapes::chamfered(26.0f, shapes::Corner::All))
-                // The inner rule is a Border rather than a span pass: a
-                // LayerStyle slot takes decorations, not stroke passes, and
-                // an inset rule has no stroke-pass spelling.
-                .style(decorations::doubleBorder(
-                    decorations::weightedCorners(
-                        1.0f, 3.2f,
-                        Fill::color(at::mul(at::kGilt, 1.0f, 0.55f)), 44.0f),
-                    Border{.width = 0.8f,
-                           .fill = Fill::color(at::mul(at::kGilt, 1.0f, 0.22f)),
-                           .inset = 7.0f,
-                           .mode = Border::Mode::Gapped,
-                           .corner = 62.0f})));
-
-    // Plate head — kept inside x < 560 so nothing in the top-right pocket can
-    // collide with it.
-    m.child(label("ASTRAL TOME \xC2\xB7 CONSTELLATIONS \xC2\xB7 PAGE 1 OF 4",
-                  34.0f, 16.0f, 17.0f, at::mul(at::kGilt, 1.15f, 0.92f), 3.2f));
-    m.child(label(
-        "GuiJournalConstellationCluster \xC2\xB7 AstralSorcery 1.12.2", 35.0f,
-        40.0f, 11.5f, at::mul(at::kGilt, 0.85f, 0.6f), 0.4f, true));
-    m.child(box()
-                .rect(SkRect::MakeXYWH(34.0f, 56.0f, 500.0f, 3.0f))
-                .key("headrule")
-                .shape([](SkSize s2) {
-                  SkPathBuilder p;
-                  p.moveTo(0, 1.5f);
-                  p.lineTo(s2.width(), 1.5f);
-                  return p.detach();
-                })
-                .stroke(lines::heavyHairHeavy(
-                    1.6f, 0.5f, Fill::color(at::mul(at::kGilt, 1.0f, 0.5f)),
-                    3.0f)));
-
-    // The evidence. Bottom-left pocket: x 34..545, clear of rectBack
-    // (Cluster:198 -> canvas 561,660) and below armara's cell plate.
-    const float ex = 34.0f, ey = 638.0f;
-    static const char* kNotes[5] = {
-        "renderConstellationIntoGUI(\xE2\x80\xA6, 95, 95, 2F)  \xE2\x80\x94  "
-        "the "
-        "render box is SQUARE. u = v = 3.0645",
-        "width=80 height=110  \xE2\x80\x94  hit box, pivot, label. never the "
-        "render",
-        "translate(x + width/2, y + width/2)  \xE2\x80\x94  width/2 on BOTH "
-        "axes",
-        "Blending.DEFAULT = SRC_ALPHA / ONE_MINUS_SRC_ALPHA \xE2\x80\x94 "
-        "alpha, not add.",
-        "getConstellationScreen() \xE2\x80\x94 the tier split is commented "
-        "out"};
-    for (int i = 0; i < 5; ++i)
-      m.child(label(kNotes[i], ex, ey + (float)i * 19.0f, 11.0f,
-                    at::mul(at::kGilt, 0.95f, i >= 3 ? 0.82f : 0.6f), 0.2f,
-                    true));
-    m.child(label("CORRECTIONS FROM THE SOURCE", ex, ey - 24.0f, 10.5f,
-                  at::mul(at::kGilt, 1.1f, 0.72f), 2.2f, true));
-    m.child(box()
-                .rect(SkRect::MakeXYWH(ex, ey - 8.0f, 496.0f, 2.0f))
-                .key("noterule")
-                .shape([](SkSize s2) {
-                  SkPathBuilder p;
-                  p.moveTo(0, 1);
-                  p.lineTo(s2.width(), 1);
-                  return p.detach();
-                })
-                .stroke(lines::Rails{
-                    .rails = {
-                        {.across = 0,
-                         .width = 1.0f,
-                         .fill = Fill::color(at::mul(at::kGilt, 1.0f, 0.42f))},
-                        {.across = -3.5f,
-                         .width = 0.6f,
-                         .fill = Fill::color(at::mul(at::kGilt, 1.0f, 0.2f)),
-                         .dash = {1.5f, 4.5f}}}}));
-
-    // The twelve NOT on this page: a horizontal swatch strip in the
-    // bottom-right pocket, two rows of six, each in its own colour.
-    const float tx = 684.0f, ty = 642.0f;
-    m.child(label(
-        "NOT ON THIS PAGE \xC2\xB7 PAGES 2\xE2\x80\x93"
-        "4",
-        tx, ty - 22.0f, 10.5f, at::mul(at::kGilt, 1.0f, 0.68f), 2.0f, true));
-    m.child(box()
-                .rect(SkRect::MakeXYWH(tx, ty - 8.0f, 486.0f, 1.0f))
-                .key("tierrule")
-                .fill(Fill::color(at::mul(at::kGilt, 1.0f, 0.36f))));
-    for (int i = 0; i < 12; ++i) {
-      const SkColor4f c = at::hex(at::kRest[(size_t)i].color);
-      const float cx = tx + (float)(i % 6) * 81.0f;
-      const int row = i / 6;
-      const float cy = ty + (float)row * 46.0f;
-      m.child(box()
-                  .rect(SkRect::MakeXYWH(cx, cy + 4.0f, 26.0f, 3.0f))
-                  .key(std::string("tier") + std::to_string(i))
-                  .fill(Fill::color(at::mul(c, 1.0f, 0.92f))));
-      m.child(label(at::kRest[(size_t)i].name, cx, cy + 10.0f, 9.5f,
-                    at::mul(c, 1.0f, 0.8f), 0.5f, true));
-      m.child(label(at::kRest[(size_t)i].band, cx, cy + 24.0f, 8.0f,
-                    at::mul(at::kGilt, 0.9f, 0.42f), 0.6f, true));
-    }
-
-    // Registration marks on the page plate.
-    m.child(box()
-                .rect(SkRect::MakeXYWH(at::gx(15), 0, at::g(at::kGuiW - 30),
-                                       at::kCanvasH))
-                .key("reg")
-                // A Border again, for the inset: a stroke pass rides the
-                // node's own outline and cannot be pulled in 4 px.
-                .foreground(
-                    Border{.width = 1.4f,
-                           .fill = Fill::color(at::mul(at::kGilt, 1.0f, 0.4f)),
-                           .inset = 4.0f,
-                           .mode = Border::Mode::Bracket,
-                           .corner = 30.0f}));
-    return m;
   }
 
   // --------------------------------------------------------------- setup
@@ -1416,12 +955,6 @@ struct AstralTome : sketch::Sketch {
     Element root = box().inset(0);
     root.child(leather().zIndex(0));
     root.child(pagePlate().zIndex(1));
-
-    // The cell plates first — they are apparatus, under the charts. Chart 0
-    // is the KEY cell and additionally carries the 31 x 31 lattice, so the
-    // 95-vs-80 overhang is a thing you can see rather than a caption.
-    for (int i = 0; i < 4; ++i) root.child(cellPlate(i, i == 0).zIndex(2));
-    root.child(keyLattice(0).zIndex(2));
 
     // THE TWINKLE. Ten divisors is the whole of it (12 + rand.nextInt(10)),
     // so ten ch::Output<float> drive 31 stars and 62 connection passes — but
@@ -1509,26 +1042,20 @@ struct AstralTome : sketch::Sketch {
                      .zIndex(6));
     }
 
-    root.child(keyCoords(0));
-    root.child(pivotMark(1));
-
-    // The apparatus, distributed into the page's own pockets rather than
-    // stacked into a column: the specimen row between three charts, the
-    // offsetMap key in the top-right, the live divisor strip under the head,
-    // and four leader callouts standing next to the stars they describe.
-    root.child(magnitudeKey(634.0f, 478.0f));
-    root.child(offsetKey(896.0f, 56.0f));
-    root.child(divisorStrip(34.0f, 74.0f));
-    root.child(spriteProfile(404.0f, 132.0f));
-    root.child(callout(0, 6, {132.0f, 476.0f}, false));  // discidia sl6
-    root.child(callout(1, 3, {170.0f, 560.0f}, false));  // armara sl3
-    root.child(callout(2, 7, {636.0f, 82.0f}, false));   // vicio sl7
-    root.child(callout(3, 5, {1112.0f, 268.0f}, true));  // aevitas sl5
-
     root.child(arrow(367, 125, false, false, "arrowNext").zIndex(10));
     root.child(arrow(197, 230, true, false, "arrowBack").zIndex(10));
     root.child(bookmarkRail());
-    root.child(marginalia());
+
+    // THE CAPTION BAND, outside the tome. Everything this study has to
+    // say about the page — the 95-against-80 overhang, the offsetMap's
+    // zig-zag, the twinkle's divisor ladder, the sprite's own three-band
+    // alpha profile, the corrections the mod's source forced — was drawn
+    // ONTO the page as tick labels, leaders, insets and a corrections
+    // block, so a still of it was a still of a diagram about a page
+    // rather than of the page. The measurements live in this file's
+    // header now, and what stands under the artefact is one band naming
+    // what the plate is.
+    root.child(captionBand());
 
     ctx.composer.render(root);
   }
