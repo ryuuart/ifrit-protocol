@@ -3046,29 +3046,21 @@ struct ChaucerAstrolabe : sketch::Sketch {
     // paid for in full canvases.
     ctx.captureAt(tStill);
 
-    auto family = [&](const char* name, SkFontStyle st) -> sk_sp<SkTypeface> {
-      if (!ctx.fonts || !ctx.fonts->fontManager()) return nullptr;
-      return ctx.fonts->fontManager()->matchFamilyStyle(name, st);
-    };
     // Three lettering systems, genuinely different: a chiselled Latin
     // majuscule for what is engraved on the RETE, an engraver's copperplate
     // for the ruled LIMB, and a modern-legible serif + mono for the
     // commentary, which never touches the object.
-    faceEngrave = family("Herculanum", SkFontStyle::Normal());
-    faceLimb = family("Copperplate", SkFontStyle::Normal());
-    faceSerif = family("Hoefler Text", SkFontStyle::Normal());
-    faceItalic = family("Hoefler Text", SkFontStyle::Italic());
-    faceBold = family("Hoefler Text", SkFontStyle::Bold());
-    faceMono = family("Menlo", SkFontStyle::Normal());
-    if (!faceEngrave) faceEngrave = family("Optima", SkFontStyle::Normal());
-    if (!faceLimb) faceLimb = family("Optima", SkFontStyle::Normal());
-    if (!faceSerif) faceSerif = family("Baskerville", SkFontStyle::Normal());
-    if (!faceItalic) faceItalic = family("Baskerville", SkFontStyle::Italic());
-    if (!faceMono) faceMono = family("Courier New", SkFontStyle::Normal());
-    if (!faceEngrave) faceEngrave = faceSerif;
-    if (!faceLimb) faceLimb = faceSerif;
-    if (!faceItalic) faceItalic = faceSerif;
-    if (!faceBold) faceBold = faceSerif;
+    // ONE FALLBACK CHAIN PER LETTERING SYSTEM, resolved through the
+    // library's own walk: the first installed family wins, and a machine
+    // with none of them gets the default face AT THE WEIGHT ASKED FOR
+    // rather than silently at Normal.
+    faceEngrave = pickFace({"Herculanum", "Optima", "Baskerville"});
+    faceLimb = pickFace({"Copperplate", "Optima", "Baskerville"});
+    faceSerif = pickFace({"Hoefler Text", "Baskerville"});
+    faceItalic =
+        pickFace({"Hoefler Text", "Baskerville"}, SkFontStyle::Italic());
+    faceBold = pickFace({"Hoefler Text", "Baskerville"}, SkFontStyle::Bold());
+    faceMono = pickFace({"Menlo", "Courier New"});
 
     brassGrain = patterns::grain(0.9f, 3, 11.0f, 0.30f);
     verdigris = patterns::speckle(420, 16, 1.6f, 5.0f, {hex(0x2f5a44, 0.09f)});

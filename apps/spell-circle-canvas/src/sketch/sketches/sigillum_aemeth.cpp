@@ -1993,25 +1993,20 @@ struct SigillumAemeth : sketch::Sketch {
     // window between the two shows every part of it at once.
     ctx.captureAt(14.0);
 
-    auto family = [&](const char* name, SkFontStyle st) -> sk_sp<SkTypeface> {
-      if (!ctx.fonts || !ctx.fonts->fontManager()) return nullptr;
-      return ctx.fonts->fontManager()->matchFamilyStyle(name, st);
-    };
-    faceSeal = family("Herculanum", SkFontStyle::Normal());
-    faceRing = family("Trattatello", SkFontStyle::Normal());
-    faceQuill = family("Hoefler Text", SkFontStyle::Italic());
-    faceDisplay = family("Luminari", SkFontStyle::Normal());
-    faceSerif = family("Hoefler Text", SkFontStyle::Normal());
-    faceItalic = family("Hoefler Text", SkFontStyle::Italic());
-    faceMono = family("Menlo", SkFontStyle::Normal());
-    if (!faceSerif) faceSerif = family("Baskerville", SkFontStyle::Normal());
-    if (!faceItalic) faceItalic = family("Baskerville", SkFontStyle::Italic());
-    if (!faceSeal) faceSeal = family("Optima", SkFontStyle::Normal());
-    if (!faceQuill) faceQuill = faceItalic;
-    if (!faceRing) faceRing = faceItalic;
-    if (!faceDisplay) faceDisplay = faceSeal;
-    if (!faceMono) faceMono = family("Courier New", SkFontStyle::Normal());
-    if (!faceSeal) faceSeal = faceSerif;
+    // ONE FALLBACK CHAIN PER LETTERING SYSTEM, resolved through the
+    // library's own walk: the first installed family wins, and a machine
+    // with none of them gets the default face AT THE WEIGHT ASKED FOR
+    // rather than silently at Normal.
+    faceSerif = pickFace({"Hoefler Text", "Baskerville"});
+    faceItalic =
+        pickFace({"Hoefler Text", "Baskerville"}, SkFontStyle::Italic());
+    faceMono = pickFace({"Menlo", "Courier New"});
+    faceSeal = pickFace({"Herculanum", "Optima", "Baskerville"});
+    faceRing = pickFace({"Trattatello", "Hoefler Text", "Baskerville"},
+                        SkFontStyle::Italic());
+    faceQuill =
+        pickFace({"Hoefler Text", "Baskerville"}, SkFontStyle::Italic());
+    faceDisplay = pickFace({"Luminari", "Herculanum", "Optima", "Baskerville"});
 
     waxGrain = patterns::grain(1.6f, 4, 1582.0f, 0.34f);
     waxSpeck = patterns::speckle(520, 18, 1.4f, 4.4f, {hex(0x6a4a20, 0.10f)});

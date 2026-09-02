@@ -2958,31 +2958,24 @@ struct Minard1869 : sketch::Sketch {
     // quiescent alternative — every beat settled, nothing still moving.
     ctx.captureAt(20.0);
 
-    auto family = [&](const char* name, SkFontStyle st) -> sk_sp<SkTypeface> {
-      if (!ctx.fonts || !ctx.fonts->fontManager()) return nullptr;
-      return ctx.fonts->fontManager()->matchFamilyStyle(name, st);
-    };
     // The plate's lettering is FOUR systems and they are genuinely
     // different: a looping engraver's ronde for the titles and the legend
     // paragraphs, an upright condensed face for the numbers across the
     // zones, a fine sloped italic for the place names, and spaced roman
     // capitals for MOSCOU alone.
-    faceScript = family("Snell Roundhand", SkFontStyle::Normal());
-    if (!faceScript)
-      faceScript = family("Apple Chancery", SkFontStyle::Normal());
-    faceItalic = family("Baskerville", SkFontStyle::Italic());
-    if (!faceItalic)
-      faceItalic = family("Times New Roman", SkFontStyle::Italic());
-    faceRoman = family("Baskerville", SkFontStyle::Normal());
-    if (!faceRoman)
-      faceRoman = family("Times New Roman", SkFontStyle::Normal());
-    faceNum = family("Baskerville", SkFontStyle::Normal());
-    faceUi = family("Helvetica Neue", SkFontStyle::Normal());
-    faceUiBold = family("Helvetica Neue", SkFontStyle::Bold());
-    faceMono = family("Menlo", SkFontStyle::Normal());
-    if (!faceMono) faceMono = family("Courier New", SkFontStyle::Normal());
-    if (!faceUi) faceUi = faceRoman;
-    if (!faceUiBold) faceUiBold = faceUi;
+    // ONE FALLBACK CHAIN PER LETTERING SYSTEM, resolved through the
+    // library's own walk: the first installed family wins, and a machine
+    // with none of them gets the default face AT THE WEIGHT ASKED FOR
+    // rather than silently at Normal.
+    faceScript = pickFace({"Snell Roundhand", "Apple Chancery"});
+    faceItalic =
+        pickFace({"Baskerville", "Times New Roman"}, SkFontStyle::Italic());
+    faceRoman = pickFace({"Baskerville", "Times New Roman"});
+    faceNum = pickFace({"Baskerville"});
+    faceUi = pickFace({"Helvetica Neue", "Baskerville"});
+    faceUiBold =
+        pickFace({"Helvetica Neue", "Baskerville"}, SkFontStyle::kBold_Weight);
+    faceMono = pickFace({"Menlo", "Courier New"});
 
     // THE PAPER, and it is a FIBRE problem, not a colour problem: pulp
     // grain, the laid lines of a hand-made 19th-century sheet at ~1.2 px

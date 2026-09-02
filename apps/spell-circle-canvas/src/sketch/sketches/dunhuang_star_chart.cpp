@@ -3972,22 +3972,18 @@ struct DunhuangStarChart : sketch::Sketch {
     // no asterisms, no checking panel.
     ctx.captureAt(29.0);
 
-    auto family = [&](const char* name, SkFontStyle st) -> sk_sp<SkTypeface> {
-      if (!ctx.fonts || !ctx.fonts->fontManager()) return nullptr;
-      return ctx.fonts->fontManager()->matchFamilyStyle(name, st);
-    };
-    faceSerif = family("Hoefler Text", SkFontStyle::Normal());
-    faceItalic = family("Hoefler Text", SkFontStyle::Italic());
-    faceMono = family("Menlo", SkFontStyle::Normal());
-    faceDisplay = family("Optima", SkFontStyle::Bold());
-    faceHan = family("Songti SC", SkFontStyle::Normal());
-    if (!faceHan) faceHan = family("PingFang SC", SkFontStyle::Normal());
-    if (!faceHan) faceHan = family("Hiragino Sans", SkFontStyle::Normal());
-    if (!faceSerif) faceSerif = family("Baskerville", SkFontStyle::Normal());
-    if (!faceItalic) faceItalic = faceSerif;
-    if (!faceMono) faceMono = family("Courier New", SkFontStyle::Normal());
-    if (!faceDisplay) faceDisplay = faceSerif;
-    if (!faceHan) faceHan = faceSerif;
+    // ONE FALLBACK CHAIN PER LETTERING SYSTEM, resolved through the
+    // library's own walk: the first installed family wins, and a machine
+    // with none of them gets the default face AT THE WEIGHT ASKED FOR
+    // rather than silently at Normal.
+    faceSerif = pickFace({"Hoefler Text", "Baskerville"});
+    faceItalic =
+        pickFace({"Hoefler Text", "Baskerville"}, SkFontStyle::Italic());
+    faceMono = pickFace({"Menlo", "Courier New"});
+    faceDisplay =
+        pickFace({"Optima", "Baskerville"}, SkFontStyle::kBold_Weight);
+    faceHan =
+        pickFace({"Songti SC", "PingFang SC", "Hiragino Sans", "Baskerville"});
 
     // the fibre runs ALONG the roll: anisotropic luminance grain, not noise
     paperGrain = patterns::grain(1.15f, 4, 3326.0f, 0.42f, 5.5f);

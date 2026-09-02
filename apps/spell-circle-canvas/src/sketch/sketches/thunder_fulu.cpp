@@ -2206,18 +2206,16 @@ struct ThunderFulu : sketch::Sketch {
     // nothing in motion.
     ctx.captureAt(20.6);
 
-    auto family = [&](const char* name, SkFontStyle st) -> sk_sp<SkTypeface> {
-      if (!ctx.fonts || !ctx.fonts->fontManager()) return nullptr;
-      return ctx.fonts->fontManager()->matchFamilyStyle(name, st);
-    };
-    faceSerif = family("Hoefler Text", SkFontStyle::Normal());
-    faceItalic = family("Hoefler Text", SkFontStyle::Italic());
-    faceMono = family("Menlo", SkFontStyle::Normal());
-    faceDisplay = family("Optima", SkFontStyle::Bold());
-    if (!faceSerif) faceSerif = family("Baskerville", SkFontStyle::Normal());
-    if (!faceItalic) faceItalic = faceSerif;
-    if (!faceMono) faceMono = family("Courier New", SkFontStyle::Normal());
-    if (!faceDisplay) faceDisplay = faceSerif;
+    // ONE FALLBACK CHAIN PER LETTERING SYSTEM, resolved through the
+    // library's own walk: the first installed family wins, and a machine
+    // with none of them gets the default face AT THE WEIGHT ASKED FOR
+    // rather than silently at Normal.
+    faceSerif = pickFace({"Hoefler Text", "Baskerville"});
+    faceItalic =
+        pickFace({"Hoefler Text", "Baskerville"}, SkFontStyle::Italic());
+    faceMono = pickFace({"Menlo", "Courier New"});
+    faceDisplay =
+        pickFace({"Optima", "Baskerville"}, SkFontStyle::kBold_Weight);
 
     ironGrain = patterns::grain(2.2f, 4, 1356.0f, 0.55f, 2.6f);
     ironSpeck = patterns::speckle(420, 26, 0.7f, 2.6f,

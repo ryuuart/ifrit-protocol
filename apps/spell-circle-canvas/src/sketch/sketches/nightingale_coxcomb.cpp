@@ -701,25 +701,22 @@ struct NightingaleCoxcomb : sketch::Sketch {
     // written and the dashed leader mid-draw.
     ctx.captureAt(13.6);
 
-    auto family = [&](const char* name,
-                      SkFontStyle style) -> sk_sp<SkTypeface> {
-      if (!ctx.fonts || !ctx.fonts->fontManager()) return nullptr;
-      return ctx.fonts->fontManager()->matchFamilyStyle(name, style);
-    };
     // The plate's title face is an ornamental Victorian INLINE Roman —
     // dark stems carrying a white hairline. "Academy Engraved LET" is the
     // only installed face of that genre; it draws lighter than the plate,
     // so the title carries a glyph-level stroke underlay to thicken the
     // ink ribbon (Bodoni 72 Bold matches the WEIGHT but loses the genre).
-    faceDisplay = family("Academy Engraved LET", SkFontStyle::Normal());
-    faceGrotesque = family("Copperplate", SkFontStyle::Bold());
-    faceLabel = family("Copperplate", SkFontStyle::Normal());
-    faceScript = family("Snell Roundhand", SkFontStyle::Normal());
-    if (!faceDisplay) faceDisplay = family("Bodoni 72", SkFontStyle::Bold());
-    if (!faceLabel) faceLabel = family("Helvetica Neue", SkFontStyle::Bold());
-    if (!faceGrotesque) faceGrotesque = faceLabel;
-    if (!faceScript)
-      faceScript = family("Apple Chancery", SkFontStyle::Normal());
+    // ONE FALLBACK CHAIN PER LETTERING SYSTEM, resolved through the
+    // library's own walk: the first installed family wins, and a machine
+    // with none of them gets the default face AT THE WEIGHT ASKED FOR
+    // rather than silently at Normal.
+    faceDisplay = pickFace({"Academy Engraved LET"}, SkFontStyle::Normal());
+    if (!faceDisplay)
+      faceDisplay = pickFace({"Bodoni 72"}, SkFontStyle::kBold_Weight);
+    faceGrotesque =
+        pickFace({"Copperplate", "Helvetica Neue"}, SkFontStyle::kBold_Weight);
+    faceLabel = pickFace({"Copperplate", "Helvetica Neue"});
+    faceScript = pickFace({"Snell Roundhand", "Apple Chancery"});
 
     // The litho tint: a paper-side wash with the ink dot field over it.
     // Two speckle layers per band — a fine one for the tint itself and a

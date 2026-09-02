@@ -764,21 +764,16 @@ struct ChladniTab1 : sketch::Sketch {
     // sand still migrating and the Capieux credit absent.
     ctx.captureAt(10.6);
 
-    auto family = [&](const char* name, SkFontStyle st) -> sk_sp<SkTypeface> {
-      if (!ctx.fonts || !ctx.fonts->fontManager()) return nullptr;
-      return ctx.fonts->fontManager()->matchFamilyStyle(name, st);
-    };
     // The plate's numerals are a modern face with hairline serifs; the
     // reference letters are its italic; "Tab. I." and the credit are a
     // flourished engraver's chancery, a genuinely different hand.
-    faceNumeral = family("Didot", SkFontStyle::Normal());
-    faceLabel = family("Didot", SkFontStyle::Italic());
-    faceSwash = family("Apple Chancery", SkFontStyle::Normal());
-    if (!faceNumeral) faceNumeral = family("Bodoni 72", SkFontStyle::Normal());
-    if (!faceLabel) faceLabel = family("Baskerville", SkFontStyle::Italic());
-    if (!faceSwash)
-      faceSwash = family("Snell Roundhand", SkFontStyle::Normal());
-    if (!faceSwash) faceSwash = faceLabel;
+    // ONE FALLBACK CHAIN PER LETTERING SYSTEM, resolved through the
+    // library's own walk: the first installed family wins, and a machine
+    // with none of them gets the default face AT THE WEIGHT ASKED FOR
+    // rather than silently at Normal.
+    faceNumeral = pickFace({"Didot", "Bodoni 72"});
+    faceLabel = pickFace({"Didot", "Baskerville"}, SkFontStyle::Italic());
+    faceSwash = pickFace({"Apple Chancery", "Snell Roundhand", "Baskerville"});
 
     paperMat = patterns::grain(0.013f, 4, 9.0f);
     // Sparse, and NOT on a grid you can see: the tile has to be big
