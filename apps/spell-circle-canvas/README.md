@@ -174,18 +174,22 @@ and imported without a CMake build in reach. Run
 
 Several library examples reproduce real reference designs, and a
 reference typeset in whatever face the host happens to ship is only half
-a reference. An opt-in target fetches the open-licensed ones:
+a reference. One script fetches the open-licensed ones, and the build reaches the
+same script through an opt-in target:
 
 ```sh
+scripts/fetch_assets.py
 cmake --build build --config Release --target fetch_assets
 ```
 
 They land in `build/assets/` (gitignored), reach code as the
 `SIGIL_ASSET_DIR` compile definition, and are also accepted directly by
 tools that take `--assets <dir>`. Nothing here runs during a normal
-build, and configuring the project never touches the network.
+build, and configuring the project never touches the network. The script
+writes files and nothing else, so it runs on a fresh checkout with no
+build tree.
 
-The manifest is `cmake/FetchAssets.cmake`.
+The manifest is `scripts/fetch_assets.py`.
 Anything added to it carries an open licence with its licence file
 fetched alongside, is pinned to an immutable commit rather than a branch,
-and declares an `EXPECTED_HASH` so a changed byte is a hard failure.
+and declares a sha256 so a changed byte is a hard failure.

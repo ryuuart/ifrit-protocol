@@ -117,7 +117,8 @@ and `world_diligent_test` *skips* rather than fails without a Vulkan
 runtime (`brew install molten-vk vulkan-loader`).
 
 Open-licensed demo assets come from the opt-in `fetch_assets` target into
-`build/assets/`; `cmake/FetchAssets.cmake` holds the manifest rules.
+`build/assets/`; `scripts/fetch_assets.py` holds the manifest and the
+rules for adding to it, and runs on its own without a configured tree.
 
 Formatting and linting run through `scripts/check.py` — one command
 covering clang-format (Google C++ style, stock), ruff (lint and format),

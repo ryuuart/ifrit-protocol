@@ -262,4 +262,6 @@ run = "sh scripts/regen_flatbuffers.sh"
 [tasks.assets]
 description = "Fetch the open-licensed demo assets into build/assets"
 dir = "apps/spell-circle-canvas"
-run = "cmake --build build --config Debug --target fetch_assets"
+# The fetcher only writes files, so this works on a fresh checkout with
+# no configured build tree.
+run = "python3 scripts/fetch_assets.py"

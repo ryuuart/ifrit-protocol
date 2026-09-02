@@ -244,9 +244,18 @@ if(SPELLCIRCLE_SANITIZE)
   add_link_options("$<$<LINK_LANGUAGE:C,CXX,OBJC,OBJCXX>:-fsanitize=${spellcircle_sanitize_names}>")
 endif()
 
-# Opt-in network fetch of open-licensed demo assets into the build tree
-# (`--target fetch_assets`); nothing here runs during a normal build.
-include(FetchAssets)
+# Opt-in network fetch of open-licensed demo assets into the build tree;
+# nothing here runs during a normal build, and configuring the project
+# never touches the network. The manifest and the downloader are
+# scripts/fetch_assets.py, which needs no build tree of its own — this
+# target is the same fetch reached through the build.
+set(SIGIL_ASSET_DIR "${CMAKE_BINARY_DIR}/assets" CACHE PATH
+    "Where fetch_assets writes downloaded demo assets")
+add_custom_target(fetch_assets
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_LIST_DIR}/scripts/fetch_assets.py
+          --out ${SIGIL_ASSET_DIR}
+  COMMENT "Fetching demo assets into ${SIGIL_ASSET_DIR}"
+  VERBATIM)
 
 # Per-library Doxygen sites (`--target docs`); nothing here runs during a
 # normal build, and the target is simply absent when Doxygen is not
