@@ -97,28 +97,39 @@ inline sk_sp<SkRuntimeEffect> auroraEffect() {
       // curtain waviness -- bands bend instead of staying ruler-straight
       float wob = 0.045 * sin(uv.x * 5.1 + t * 2.0)
                 + 0.030 * sin(uv.y * 7.3 - t * 1.4);
-      float b1 = exp(-pow((d - 0.05 + wob) * 3.4, 2.0));
-      float b2 = exp(-pow((d + 0.34 - wob * 0.7) * 2.8, 2.0));
-      float b3 = exp(-pow((d - 0.46 + wob * 1.3) * 5.0, 2.0));
+      // NARROW CURTAINS, WITH NIGHT BETWEEN THEM. At a gaussian this wide
+      // the first curtain covers the whole sky and the wallpaper is one
+      // smooth teal field — which is the case this scene's own header
+      // says defeats the glass, because a tight blur over a smooth field
+      // shows nothing and the pane then reads as a flat tint.
+      float b1 = exp(-pow((d - 0.05 + wob) * 8.5, 2.0));
+      float b2 = exp(-pow((d + 0.30 - wob * 0.7) * 7.0, 2.0));
+      float b3 = exp(-pow((d - 0.46 + wob * 1.3) * 11.0, 2.0));
+      float b4 = exp(-pow((d - 0.24 - wob * 1.1) * 13.0, 2.0));
       // curtains hang in the upper sky
-      float sky = 1.0 - smoothstep(0.35, 0.95, uv.y);
+      float sky = 1.0 - smoothstep(0.10, 0.72, uv.y);
       // the main green curtain shifts green->cyan along its run
       float3 c1 = mix(float3(0.05, 0.48, 0.24), float3(0.07, 0.40, 0.46),
                       uv.x);
-      col += c1 * b1 * 0.62 * (0.35 + 0.65 * sky);
-      col += float3(0.34, 0.24, 0.68) * b2 * 0.40 * (0.45 + 0.55 * sky);
-      col += float3(0.06, 0.34, 0.38) * b3 * 0.38 * (0.35 + 0.65 * sky);
+      col += c1 * b1 * 0.72 * (0.12 + 0.88 * sky);
+      col += float3(0.34, 0.24, 0.68) * b2 * 0.46 * (0.20 + 0.80 * sky);
+      col += float3(0.06, 0.34, 0.38) * b3 * 0.48 * (0.12 + 0.88 * sky);
+      col += float3(0.10, 0.52, 0.30) * b4 * 0.42 * (0.12 + 0.88 * sky);
       // faint filaments inside the curtains (detail for the glass blur)
+      // THE FILAMENTS ARE THE POINT. A curtain is a sheet of vertical
+      // rays and it is what a tight blur has to smear; at a pow of
+      // eighteen they are below the tint stack's own noise floor and the
+      // pane has nothing to blur.
       float f = 0.5 + 0.5 * sin(d * 150.0 + wob * 40.0 + uTime * 0.4);
-      col += float3(0.35, 0.90, 0.65) * pow(f, 18.0) * b1 * 0.20 * sky;
+      col += float3(0.35, 0.90, 0.65) * pow(f, 5.0) * b1 * 0.60 * sky;
       float f2 = 0.5 + 0.5 * sin(d * 95.0 - uTime * 0.25 + 1.7);
-      col += float3(0.55, 0.50, 0.95) * pow(f2, 24.0) * b2 * 0.16 * sky;
+      col += float3(0.55, 0.50, 0.95) * pow(f2, 7.0) * b2 * 0.44 * sky;
       // sparse small stars, brighter high in the sky
       float2 cell = floor(p / 3.0);
       float h = fract(sin(dot(cell, float2(127.1, 311.7))) * 43758.5453);
-      float star = step(0.9982, h);
+      float star = step(0.9950, h);
       col += float3(0.80, 0.88, 1.0) * star *
-             (0.12 + 0.45 * fract(h * 91.7)) * (1.0 - uv.y * 0.75);
+             (0.22 + 0.78 * fract(h * 91.7)) * (1.0 - uv.y * 0.70);
       col = clamp(col, 0.0, 1.0);
       return half4(half3(col), 1.0);
     }
@@ -139,7 +150,11 @@ inline Material glassTint(float w, float h) {
       // tint*colorBalance -- the flat Sky wash.
       //
       // This alpha is the whole scene's balance point, so change it
-      // knowingly. The pane's translucency does not come from a live
+      // knowingly. It is a THIRD lower than a flat sky wash wants,
+      // because what has to survive it is the wallpaper's own filament
+      // structure seen through the blur — the one thing that makes a
+      // nine-pixel frame read as a band of glass rather than as a pale
+      // keyline. The pane's translucency does not come from a live
       // backdrop(): it is a canvas-aligned frozen copy of the aurora,
       // blurred and clipped to the pane, chosen deliberately so the pane can
       // bake as one texture. That copy resolves correctly underneath, and
@@ -147,14 +162,14 @@ inline Material glassTint(float w, float h) {
       // blurred desktop, and the glass stops reading as glass; lower it and
       // the Sky character goes, along with the contrast the dark caption text
       // needs to stay legible.
-      {Material::solid({kSky.fR, kSky.fG, kSky.fB, 0.30f}),
+      {Material::solid({kSky.fR, kSky.fG, kSky.fB, 0.19f}),
        SkBlendMode::kSrcOver},
       // afterglow stand-in: brighter accent breathing down from the top
       {Material::linear({0, 0}, {0, h},
-                        {{0.00f, {0.62f, 0.82f, 1.00f, 0.38f}},
-                         {0.10f, {0.55f, 0.78f, 1.00f, 0.18f}},
-                         {0.30f, {0.45f, 0.72f, 0.99f, 0.05f}},
-                         {1.00f, {0.45f, 0.72f, 0.99f, 0.12f}}}),
+                        {{0.00f, {0.62f, 0.82f, 1.00f, 0.24f}},
+                         {0.10f, {0.55f, 0.78f, 1.00f, 0.11f}},
+                         {0.30f, {0.45f, 0.72f, 0.99f, 0.03f}},
+                         {1.00f, {0.45f, 0.72f, 0.99f, 0.07f}}}),
        SkBlendMode::kSrcOver},
       // the desktop-space diagonal sheen (~30 deg, peak a~.2)
       {Material::linear({0, h * 0.85f}, {w, h * 0.15f},
@@ -729,11 +744,15 @@ struct AeroDesktop final : sketch::Sketch {
         // blocks the root's cache on volatile children, which leaves
         // 900x640 of SkSL re-rastering every frame; as a liveMatOnly plane
         // it re-bakes on the 10 Hz step and BLITS between steps.
-        .child(
-            box()
-                .inset(0)
-                .cache(Cache::Texture)
-                .fill(Material::sksl(ad::auroraEffect()).quantizeTime(10.0f)))
+        .child(box()
+                   .inset(0)
+                   .cache(Cache::Texture)
+                   // FOUR STEPS A SECOND, not ten. The bake is a full-canvas
+                   // SkSL evaluation and it is the only expensive frame in
+                   // this scene; the curtains drift at a tenth of a screen a
+                   // second, so ten steps and four are the same picture in
+                   // motion and four is six tenths of the bakes.
+                   .fill(Material::sksl(ad::auroraEffect()).quantizeTime(4.0f)))
         .child(desktopIcon(24, 22, binGlyph(), "Recycle Bin"))
         .child(desktopIcon(24, 116, folderGlyph(), "Nightscapes"))
         // Each chrome region is its own texture PLANE: the backdrop blur
