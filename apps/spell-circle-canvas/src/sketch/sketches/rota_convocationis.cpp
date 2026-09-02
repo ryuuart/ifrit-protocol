@@ -288,6 +288,11 @@ constexpr float rStar = 0.520f;      // {12/3} vertices
 constexpr float rCrescOut = 0.492f;  // ─┐ THREE crescents, 120° apart, laid
 constexpr float rCrescIn = 0.454f;   // ─┘ ACROSS the compound: the one
                                      //   three-fold mark on the plate
+
+// THE CAGE FLOOR: the annulus under the star, fenced like every other
+// band and filled at the plate's own two pitches.
+constexpr float rCageOut = 0.446f;
+constexpr float rCageIn = 0.378f;
 constexpr float rEnv = 0.368f;       // ─┐ where the {12/3} chords run
 constexpr float rEnvIn = 0.356f;     // ─┘ tangent: a circle it decides
 constexpr float rInner = 0.348f;     // {12/4} vertices
@@ -296,6 +301,7 @@ constexpr float rHubIn = 0.160f;     // ─┘ tangent: the hub's own rule
 constexpr float rHubCase = 0.150f;   //   the emblem's outermost line
 constexpr float rEmblem = 0.140f;    //   the disc of light
 constexpr float rHexagram = 0.118f;  //   the emblem's own figure
+constexpr float rHubMote = 0.058f;   //   six motes inside the kern ring
 constexpr float rHubKern = 0.104f;   //   …and the ring its chords enclose:
                                      //   three nested circles, so the centre
                                      //   steps down as the plate does rather
@@ -843,6 +849,7 @@ struct RotaConvocationis : sketch::Sketch {
   std::vector<SkPath> chalk;
   std::vector<Glow> glows;
   std::vector<SkPath> starSteps;
+  SkPath cageLadder, cageBeads, cageFenceOut, cageFenceIn, hubMotes;
   SkPath arcNodes, starNodes, arcSpokes, starSpokes, innerSpokes, hubDots,
       spurRules;
   std::shared_ptr<instancing::Atlas> emberAtlas;
@@ -1299,6 +1306,11 @@ struct RotaConvocationis : sketch::Sketch {
     // they ride the compound's rotation, so three things visibly sweep
     // past twelve.
     turn.child(rule("cresc-chalk", kChalkCresc, 1.3f, kIron, tStar + 0.5, 1.0));
+    turn.child(line("cage-fence-o", cageFenceOut, 0.9f, kIronDim, tStar, 1.0));
+    turn.child(line("cage-fence-i", cageFenceIn, 0.9f, kIronDim, tStar, 1.0));
+    turn.child(
+        line("cage-ladder", cageLadder, 0.6f, kIronDim, tStar + 0.1, 1.2));
+    turn.child(line("cage-beads", cageBeads, 0.9f, kIron, tStar + 0.3, 0.9));
     turn.child(
         line("star-spokes", starSpokes, 0.8f, kIronDim, tStar + 0.2, 1.0));
     turn.child(line("star-nodes", starNodes, 1.0f, kIron, tStar + 0.4, 0.9));
@@ -1558,6 +1570,7 @@ struct RotaConvocationis : sketch::Sketch {
             bind(&hexSpin).target(0.0f, 360.0f));
     hub.child(rule("hex-chalk", kChalkHexagram, 1.1f, kIron, tInner, 0.8));
     hub.child(line("hub-dots", hubDots, 1.0f, kIron, tInner + 0.3, 0.7));
+    hub.child(line("hub-motes", hubMotes, 0.9f, kIronDim, tInner + 0.5, 0.7));
     hub.child(emissive("hub-lit", glows[kGlowHub], &litHub));
     hub.child(
         text(toU8(hubRuneText), rune(13.0f, kAsh, 0.0f))
@@ -2093,6 +2106,23 @@ struct RotaConvocationis : sketch::Sketch {
     arcNodes = nodeRing(kStations, (rArcIn + rArcOut) * 0.5f, 5.0f, 0.0f);
     starSpokes = spokeRing(kStations, rEnv, rStar, 0.0f);
     starNodes = nodeRing(kStations, rStar, 9.0f, 0.0f);
+    // THE CAGE FLOOR. Twelve spokes across an annulus this deep leave the
+    // largest bare region on the plate, and the density rule this circle
+    // is built to — no empty annulus anywhere — forbids exactly that. It
+    // is fenced like every other band and filled at the plate's own two
+    // pitches: a fine tick class at six per station, and a bead course
+    // between them at two.
+    cageFenceOut = ringPath(rCageOut);
+    cageFenceIn = ringPath(rCageIn);
+    cageLadder = spokeRing(kStations * 6, rCageIn + 0.004f, rCageOut - 0.004f,
+                           kPitch / 12.0f);
+    cageBeads = nodeRing(kStations * 2, (rCageIn + rCageOut) * 0.5f, 2.6f,
+                         kPitch * 0.25f);
+    // THE EYE. The centre was bare inside the emblem's own kern ring but
+    // for the hexagram, which is the second of the two empty regions; six
+    // motes on a half-pitch step the centre down instead of stopping it
+    // dead.
+    hubMotes = nodeRing(6, rHubMote, 2.2f, kPitch * 0.5f);
     innerSpokes = spokeRing(kStations, rHubOut, rInner, kPitch * 0.5f);
     hubDots = nodeRing(6, rHubKern, 4.0f, kPitch);
     // A DASHED RING is a ring at a duty cycle: sixty marks of a little
