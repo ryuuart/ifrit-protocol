@@ -21,6 +21,7 @@
 #include <sigilcompose/core/Material.h>
 #include <sigilcompose/core/Patterns.h>
 #include <sigilcompose/core/Sdf.h>
+#include <sigilcompose/typography/Type.h>
 #include <sigilsketch/canvas/Sketch.h>
 
 namespace sketch = sigil::sketch;
@@ -29,13 +30,9 @@ using namespace sigil::compose;
 
 namespace {
 
+/** Every label on the sheet: one size, one tracking, one ink. */
 sigil::weave::TextStyle label(float size) {
-  sigil::weave::TextStyle s;
-  s.shaping.fontSize = size;
-  s.shaping.letterSpacing = 1.2f;
-  s.paint.foreground.setColor4f({0.86f, 0.88f, 0.92f, 1}, nullptr);
-  s.paint.foreground.setAntiAlias(true);
-  return s;
+  return type({.size = size, .color = {0.86f, 0.88f, 0.92f, 1}, .track = 1.2f});
 }
 
 /** One labelled swatch. The material is PAINTED, which is the whole

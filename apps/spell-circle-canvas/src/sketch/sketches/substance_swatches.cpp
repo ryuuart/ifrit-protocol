@@ -13,6 +13,14 @@
 // why it can be UNAVAILABLE on a machine whose SDK arrived without its
 // assets: the probe says which file it looked for, and no plate is
 // taken.
+//
+// EDIT THESE FIRST
+//   kCookLog2 — the cook's resolution as a power of two, both axes. It
+//               is the number the archive is rendered at, so it is also
+//               what every card shows under its usage word.
+//   kPerRow   — cards across, which sets the canvas: the sheet is sized
+//               from the count rather than a size being chosen and the
+//               cards fitted into it.
 
 #include <sigilcompose/typography/Typography.h>
 #include <sigilimage/asset/ImageAsset.h>

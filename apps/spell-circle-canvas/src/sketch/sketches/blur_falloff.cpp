@@ -27,10 +27,9 @@
 // declaration — a live map or a live maxSigma lifts the whole effect to live,
 // so no bake can sample the parameter once and freeze it.
 
-#include <include/core/SkString.h>
 #include <include/effects/SkImageFilters.h>
-#include <include/effects/SkRuntimeEffect.h>
 #include <sigilcompose/core/Material.h>
+#include <sigilcompose/core/Patterns.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilsketch/canvas/Sketch.h>
 
@@ -51,18 +50,14 @@ const SkColor4f kInk{0.92f, 0.94f, 0.98f, 1};
 const SkColor4f kDim{0.56f, 0.61f, 0.72f, 1};
 
 /** THE CONTENT, one function so every panel blurs the SAME picture: fine
- *  horizontal rules (detail a blur destroys visibly) under three discs. */
+ *  horizontal rules (detail a blur destroys visibly) under three discs.
+ *  A two-run sequence is the rules; turned a quarter, because a sequence
+ *  runs along +x and a rule ladder runs down the page. */
 Material rules() {
-  static const sk_sp<SkRuntimeEffect> fx = [] {
-    auto [effect, error] = SkRuntimeEffect::MakeForShader(
-        SkString("half4 main(float2 p) {"
-                 "  float band = mod(floor(p.y / 7.0), 2.0);"
-                 "  return band < 1.0 ? half4(0.16, 0.19, 0.28, 1)"
-                 "                    : half4(0.62, 0.70, 0.86, 1);"
-                 "}"));
-    return effect;
-  }();
-  return Material::sksl(fx);
+  return patterns::sequence({{7.0f, {0.16f, 0.19f, 0.28f, 1}},
+                             {7.0f, {0.62f, 0.70f, 0.86f, 1}}})
+      .rotate(90.0f)
+      .material();
 }
 
 Element disc(float size, float left, float top, SkColor4f color) {

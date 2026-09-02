@@ -40,10 +40,6 @@ constexpr float kShade = 6.0f;      // uShade on the fourth panel
 constexpr double kSwapEvery = 0.8;  // seconds per LUT on the live panel
 constexpr int kCells = 4;           // the index chart is kCells x kCells
 
-sigil::weave::TextStyle type(float size, SkColor4f color) {
-  return sigil::compose::type({.size = size, .color = color});
-}
-
 const SkColor4f kInk{0.90f, 0.93f, 0.97f, 1};
 const SkColor4f kDim{0.55f, 0.60f, 0.70f, 1};
 const SkColor4f kFrame{0.20f, 0.24f, 0.32f, 1};
@@ -164,7 +160,7 @@ Element panel(const char* title, const char* note, const sk_sp<SkImage>& table,
       .width(kPanel)
       .column()
       .gap(6)
-      .child(text(toU8(title), type(13, kInk)))
+      .child(text(toU8(title), type({.size = 13, .color = kInk})))
       .child(box()
                  .key(std::move(key))
                  .width(kPanel)
@@ -172,7 +168,7 @@ Element panel(const char* title, const char* note, const sk_sp<SkImage>& table,
                  .fill(paletted(table, shade))
                  .stroke(stroke(1.0f, Fill::color(kFrame))))
       .child(lutStrip(table))
-      .child(text(toU8(note), type(11, kDim)));
+      .child(text(toU8(note), type({.size = 11, .color = kDim})));
 }
 
 }  // namespace
@@ -196,7 +192,7 @@ struct MaterialChild : sketch::Sketch {
     return stack()
         .child(text(toU8("Material::sksl(...).child(name, Material) \xc2\xb7 "
                          "an index texture through a palette LUT"),
-                    type(15, kInk))
+                    type({.size = 15, .color = kInk}))
                    .left(30)
                    .top(16))
         .child(
@@ -218,7 +214,7 @@ struct MaterialChild : sketch::Sketch {
         .child(text(toU8("one effect, two children, ONE draw \xc2\xb7 children "
                          "ride the prune signature, so a swapped LUT "
                          "repatches and an identical one prunes"),
-                    type(11, kDim))
+                    type({.size = 11, .color = kDim}))
                    .left(30)
                    .bottom(14));
   }

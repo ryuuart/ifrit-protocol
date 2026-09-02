@@ -120,15 +120,19 @@ struct NineSlice final : sketch::Sketch {
     ctx.captureAt(6.0);
     ctx.background({0, 0, 0, 1});
     Composer& composer = ctx.composer;
-    sigil::motion::Ticker& ticker = ctx.ticker;
     oakFrame = generate(oakPalette());
     azureFrame = generate(azurePalette());
     crimsonFrame = generate(crimsonPalette());
     stretch = 0.0f;
-    ticker.add([this](double) { return true; });  // keep clock alive
     composer.render(describe());
   }
 
+  /** THE WHOLE TREE, EVERY FRAME, and deliberately: what moves here is a
+   *  panel's HEIGHT, so the frame texture is re-sliced and everything
+   *  below it re-laid out. That is the describe path — a bound Output
+   *  animates a value the layout already settled, and this changes what
+   *  the layout settles. The reconciler diffs the rest, which is the
+   *  point of watching the stretch rather than assuming it. */
   void update(double elapsed, sketch::SketchContext& ctx) override {
     Composer& composer = ctx.composer;
     stretch = 0.5f + 0.5f * (float)std::sin(elapsed * 1.4);
@@ -139,5 +143,5 @@ struct NineSlice final : sketch::Sketch {
 }  // namespace
 
 SIGIL_SKETCH_AS(
-    NineSlice, "nine slice", "Catalog \xc2\xb7 Scale",
+    NineSlice, "nine slice", "Kit \xc2\xb7 API",
     "frame textures generated once and stretched over panels of every size")

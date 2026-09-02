@@ -22,6 +22,17 @@
 // is being declared: a static document publishes one picture and then
 // stops, and every frame after that draws the same published frame no
 // matter when it is asked for.
+//
+// AND THE ONE WAY IT IS NOT. The wait has a wall-clock deadline, so a
+// machine on which the engine takes longer than that draws a card saying
+// what is missing instead of the page — the same build, a different
+// picture, decided by how fast the machine ran. A plate that shows the
+// card is a plate of the deadline, not of this sketch.
+//
+// EDIT THESE FIRST
+//   kPage                     — the document. It is the subject.
+//   kPageWidth / kPageHeight  — the view's own pixels, which the layout
+//                               around it is sized against.
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPaint.h>

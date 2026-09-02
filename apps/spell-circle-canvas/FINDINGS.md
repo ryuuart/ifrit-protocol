@@ -28,10 +28,7 @@ reads them from every describe. A second instance, or a reload that
 reuses a loaded dylib's statics, sees another sketch instance's probe
 results. `winamp_base` has the same shape in `monoEm()`, `boldEm()` and
 `pushSlots`'s `lastNow`/`lastSel`; `cde_motif`'s `g_liveColors` is a
-mutable global written in `setup()`; `stroke_atlas` keeps a process-wide
-`Type&` singleton holding three typefaces, which additionally SHADOWS the
-library's `type()` and forces every text call in the file to be spelled
-`sigil::compose::text(...)`.
+mutable global written in `setup()`.
 
 Intended: a sketch's state lives on the sketch instance, so two live
 sessions of one sketch cannot see each other's.
@@ -92,3 +89,20 @@ the property.
 Assert: a translation unit that includes exactly one public compose
 header, first and alone, compiles. One test per header, generated from
 the header list.
+
+## blur_falloff does not hold 60 FPS at its own canvas
+
+`--bench` reports p99 ≈ 18.8 ms at 1080×372, and one node is all of it:
+the rack-focus panel re-runs a 240×240 blur every frame because its
+sigma breathes, at 17.4 ms of a 18.0 ms frame. The other three panels
+hold a fixed sigma and cost hundredths of a millisecond each, so the
+cost is a full-resolution Gaussian at up to 14 px of sigma re-evaluated
+per frame rather than anything about the sheet.
+
+Intended: a sketch holds 60 FPS at the canvas it declares, and a blur
+whose only changing input is one scalar does not re-read every source
+pixel to answer it.
+
+Assert once fixed: `--bench --sketch blur_falloff` verdicts PASS, and
+the rack panel's per-frame cost tracks the panel's area rather than its
+area times the sigma.

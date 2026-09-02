@@ -35,6 +35,7 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
 #include <sigilcompose/core/Material.h>
+#include <sigilcompose/core/Patterns.h>
 #include <sigilcompose/typography/Type.h>
 #include <sigilsketch/canvas/Sketch.h>
 
@@ -65,27 +66,13 @@ const std::array<Band, 8> kBands{{
     {{0.5f, 0.5f, 0.5f, 1}, "grey .5"},
 }};
 
-sigil::weave::TextStyle type(float size, SkColor4f color) {
-  return sigil::compose::type({.size = size, .color = color});
-}
-
 const SkColor4f kInk{0.90f, 0.93f, 0.97f, 1};
 const SkColor4f kDim{0.55f, 0.60f, 0.70f, 1};
 const SkColor4f kFrame{0.24f, 0.28f, 0.36f, 1};
 
 /** The "is it there?" backdrop. Anything hidden by a gate shows this. */
-const sk_sp<SkImage>& checker() {
-  static const sk_sp<SkImage> img = [] {
-    sk_sp<SkSurface> s = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(16, 16));
-    SkCanvas* c = s->getCanvas();
-    c->clear(SkColorSetARGB(255, 26, 28, 36));
-    SkPaint p;
-    p.setColor(SkColorSetARGB(255, 40, 44, 56));
-    c->drawRect(SkRect::MakeXYWH(0, 0, 8, 8), p);
-    c->drawRect(SkRect::MakeXYWH(8, 8, 8, 8), p);
-    return s->makeImageSnapshot();
-  }();
-  return img;
+Material checker() {
+  return patterns::checker(8.0f, hex(0x1a1c24), hex(0x282c38)).material();
 }
 
 /** THE MATTE, baked at panel size so its local matrix is the identity.
@@ -148,7 +135,7 @@ Element content(float w, float h) {
                                   {1.0f, {0.35f, 0.40f, 0.98f, 1}}}))
       .alignItems(Align::Center)
       .justify(Justify::Center)
-      .child(text(u8"MATTE", type(30, {1, 1, 1, 0.92f})));
+      .child(text(u8"MATTE", type({.size = 30, .color = {1, 1, 1, 0.92f}})));
 }
 
 /** A panel: checkerboard, then the content, then the gate. */
@@ -157,8 +144,7 @@ Element cell(float w, float h, Element inner) {
       .width(w)
       .height(h)
       .stroke(stroke(1.0f, Fill::color(kFrame)))
-      .child(box().inset(0).fill(
-          Material::image(checker(), SkTileMode::kRepeat, SkTileMode::kRepeat)))
+      .child(box().inset(0).fill(checker()))
       .child(std::move(inner));
 }
 
@@ -166,10 +152,11 @@ Element cell(float w, float h, Element inner) {
 Element bandLabels(float stripW) {
   Element row = box().row().width(stripW);
   for (const Band& band : kBands)
-    row.child(box()
-                  .width(stripW / (float)kBands.size())
-                  .justify(Justify::Center)
-                  .child(text(toU8(band.label), type(10, kDim))));
+    row.child(
+        box()
+            .width(stripW / (float)kBands.size())
+            .justify(Justify::Center)
+            .child(text(toU8(band.label), type({.size = 10, .color = kDim}))));
   return row;
 }
 
@@ -177,9 +164,9 @@ Element captioned(const char* title, const char* note, Element body) {
   return box()
       .column()
       .gap(5)
-      .child(text(toU8(title), type(13, kInk)))
+      .child(text(toU8(title), type({.size = 13, .color = kInk})))
       .child(std::move(body))
-      .child(text(toU8(note), type(11, kDim)));
+      .child(text(toU8(note), type({.size = 11, .color = kDim})));
 }
 
 }  // namespace
@@ -209,7 +196,7 @@ struct MatteLuma : sketch::Sketch {
         stack()
             .child(text(toU8("by::alpha / alphaOut / luma / lumaOut \xc2\xb7 "
                              "one content, one coverage Material, four gates"),
-                        type(15, kInk))
+                        type({.size = 15, .color = kInk}))
                        .left(30)
                        .top(16))
 
@@ -233,7 +220,7 @@ struct MatteLuma : sketch::Sketch {
             .child(text(toU8("right halves match between alpha and luma "
                              "because the luma is taken on the PREMULTIPLIED "
                              "colour \xc2\xb7 left halves do not"),
-                        type(11, kDim))
+                        type({.size = 11, .color = kDim}))
                        .left(30)
                        .top(336))
 
@@ -245,20 +232,20 @@ struct MatteLuma : sketch::Sketch {
                        .child(text(toU8("Rec. 601 on ENCODED values \xc2\xb7 "
                                         "each colour paired with its 0.299 R "
                                         "+ 0.587 G + 0.114 B grey twin"),
-                                   type(13, kInk)))
+                                   type({.size = 13, .color = kInk})))
                        .child(cell(stripW, 64, box().inset(0).fill(bands)))
                        .child(bandLabels(stripW))
                        .child(text(toU8("…the same eight bands as a "
                                         "by::luma matte \xe2\x86\x93 each "
                                         "pair reads the SAME"),
-                                   type(11, kDim))
+                                   type({.size = 11, .color = kDim}))
                                   .margin(0, 6, 0, 0))
                        .child(cell(stripW, 64, std::move(bandMatted))))
 
             .child(text(toU8("Y' = 0.299 R' + 0.587 G' + 0.114 B' \xc2\xb7 "
                              "Rec. 709's luminance coefficients on encoded "
                              "values would break every pair above"),
-                        type(11, kDim))
+                        type({.size = 11, .color = kDim}))
                        .left(30)
                        .bottom(14)));
   }

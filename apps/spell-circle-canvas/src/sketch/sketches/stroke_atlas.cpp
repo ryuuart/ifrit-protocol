@@ -59,7 +59,7 @@
 //   shapes::onEdges/inset/parametric/spiral/star/polygon
 //   decorations::wash
 
-#include <include/core/SkFontMgr.h>
+#include <include/core/SkFontStyle.h>
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/brush/Brushes.h>
 #include <sigilcompose/brush/Hatches.h>
@@ -70,8 +70,8 @@
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilcompose/shape/Layouts.h>
 #include <sigilcompose/shape/Shapes.h>
+#include <sigilcompose/typography/Typography.h>
 #include <sigilsketch/canvas/Sketch.h>
-#include <sigilweave/fonts/FontContext.h>
 
 #include <cmath>
 #include <optional>
@@ -102,45 +102,42 @@ Fill soft() { return Fill::color(kInkSoft); }
 // ---------------------------------------------------------------------------
 // type
 
-sk_sp<SkTypeface> face(sketch::SketchContext& ctx, const char* family,
-                       SkFontStyle style = SkFontStyle::Normal()) {
-  if (!ctx.fonts || !ctx.fonts->fontManager()) return nullptr;
-  return ctx.fonts->fontManager()->matchFamilyStyle(family, style);
-}
-
-struct Type {
+/** The three faces the sheet is set in. Resolved on first use and never
+ *  written again — walking the system font list per call is what the
+ *  fallback chain is memoised against, and a value nothing mutates is a
+ *  memo rather than state two sessions of this sketch could share. */
+struct Faces {
   sk_sp<SkTypeface> mono, roman, romanBold;
 };
-Type& type() {
-  static Type t;
-  return t;
-}
-
-sigil::weave::TextStyle style(sk_sp<SkTypeface> f, float size, SkColor4f c,
-                              float tracking = 0) {
-  sigil::weave::TextStyle s;
-  s.shaping.typeface = std::move(f);
-  s.shaping.fontSize = size;
-  s.shaping.letterSpacing = tracking;
-  s.paint.foreground.setColor4f(c, nullptr);
-  s.paint.foreground.setAntiAlias(true);
-  return s;
+const Faces& faces() {
+  static const Faces f{
+      .mono = pickFace({"Menlo", "Courier New"}),
+      .roman = pickFace({"Palatino", "Georgia"}),
+      .romanBold = pickFace({"Palatino", "Georgia"}, SkFontStyle::kBold_Weight),
+  };
+  return f;
 }
 
 /** The caption IS the call: monospaced, small, and set in the same ink as
  *  the body unless a caller asks for a lighter one. */
-Element call(const char* text, float size = 9.5f, SkColor4f c = kInk) {
-  return sigil::compose::text(toU8(text), style(type().mono, size, c, 0.1f));
+Element call(const char* words, float size = 9.5f, SkColor4f c = kInk) {
+  return text(
+      toU8(words),
+      type({.face = faces().mono, .size = size, .color = c, .track = 0.1f}));
 }
-Element roman(const char* text, float size, SkColor4f c = kInk,
+Element roman(const char* words, float size, SkColor4f c = kInk,
               float tracking = 0) {
-  return sigil::compose::text(toU8(text),
-                              style(type().roman, size, c, tracking));
+  return text(toU8(words), type({.face = faces().roman,
+                                 .size = size,
+                                 .color = c,
+                                 .track = tracking}));
 }
-Element romanBold(const char* text, float size, SkColor4f c = kInk,
+Element romanBold(const char* words, float size, SkColor4f c = kInk,
                   float tracking = 0) {
-  return sigil::compose::text(toU8(text),
-                              style(type().romanBold, size, c, tracking));
+  return text(toU8(words), type({.face = faces().romanBold,
+                                 .size = size,
+                                 .color = c,
+                                 .track = tracking}));
 }
 
 // ---------------------------------------------------------------------------
@@ -1122,15 +1119,6 @@ struct StrokeAtlasSketch : sketch::Sketch {
     ctx.captureAt(6.0);
     ctx.canvas(1600, 1990);
     ctx.background(kPaper);
-
-    type().mono = face(ctx, "Menlo");
-    if (!type().mono) type().mono = face(ctx, "Courier New");
-    type().roman = face(ctx, "Palatino");
-    if (!type().roman) type().roman = face(ctx, "Georgia");
-    type().romanBold =
-        face(ctx, type().roman ? "Palatino" : "Georgia",
-             SkFontStyle(SkFontStyle::kBold_Weight, SkFontStyle::kNormal_Width,
-                         SkFontStyle::kUpright_Slant));
 
     // The one moving thing on the sheet: the marching-ants frame. A specimen
     // plate should still prove that a rule can be alive.
