@@ -207,7 +207,8 @@ text (its own section below).
 - **`style/Style.h`** — the umbrella over the vocabulary every other
   header speaks, one header per subject beneath it: `style/ShapingStyle.h`
   (`ShapingStyle`, the shape-cache key, with `FontFeature`,
-  `FontVariation`, `TextTransform`, `VerticalForm`), `style/PaintLayer.h`
+  `FontVariation`, `TextTransform`, `VerticalForm` and
+  `opticalKerning`), `style/PaintLayer.h`
   (`PaintLayer` — a pass's `SkPaint`, its offset, and optionally a
   SigilMaterial instance it shades with, held by pointer and resolved at
   draw time through `paint/Paint.h`'s resolver), `style/Decoration.h`
@@ -661,7 +662,7 @@ typesetter reaches for, not what a file format carries.
 | Nested styles, GREP styles, line styles | exists | `sel::regex`, `sel::line`, `sel::style`, span restyling |
 | Character: size, tracking, horizontal scale | exists | `ShapingStyle` |
 | Character: metric kerning | exists (HarfBuzz) | shaping |
-| Character: optical kerning | **not started**, and the bounded shape it would take is stated so it is not designed twice: a per-glyph EDGE PROFILE (the first and last ink column of each band of the glyph's outline, taken once per glyph per face and kept), a pair's gap read as the smallest distance between the left glyph's right profile and the right glyph's left profile, and every pair closed to the gap the FACE'S OWN even pair leaves — so the library holds no opinion about how tight type should be, only that a pair should be as tight as that face's own rhythm. It would be an APPROXIMATION either way: optical kerning is a judgement about shapes, and a table derived from outlines is a different answer from a designer's | — |
+| Character: optical kerning | done, as a STATED APPROXIMATION: every adjacent pair of a word is measured — the narrowest distance between the left glyph's right edge and the right glyph's left, in bands off the outlines — and closed to the distance the FACE'S OWN even pair leaves, with the face's kerning table switched off because the two are answers to one question. A designer kerns by judging the white as an area and as a rhythm; this measures a distance, so a pair a designer would have opened for legibility comes out tighter. The library decides nothing about how tight type should be — the reference is the face's own — and no pair moves further than a stated bound | `ShapingStyle::opticalKerning` |
 | Character: baseline shift | done | `PaintStyle::baselineShift` |
 | Character: skew | **not started** | — |
 | OpenType features, small caps, figures, sets | exists | `style/Features.h` |

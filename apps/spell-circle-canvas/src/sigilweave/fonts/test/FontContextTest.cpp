@@ -8,6 +8,7 @@
 #include <include/core/SkFontStyle.h>
 #include <include/core/SkTypeface.h>
 #include <sigilweave/fonts/FontContext.h>
+#include <sigilweave/fonts/Shaper.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
 #include <string>
@@ -104,4 +105,63 @@ TEST(Shaper, TransientVariedTypefacesAreNotRetained) {
   // An empty variation list is the base either way, and retains nothing.
   EXPECT_EQ(fontContext.variedTypefaceTransient(base, {}).get(), base.get());
   EXPECT_EQ(fontContext.variedTypefaceCount(), 1u);
+}
+
+// ── Optical kerning ───────────────────────────────────────────────────────
+
+TEST(Shaper, OpticalKerningSetsAPairByWhatItsOutlinesLeaveBetweenThem) {
+  FontContext fontContext(ports::systemFontManager());
+  sk_sp<SkTypeface> typeface = fontContext.fontManager()->matchFamilyStyle(
+      "Helvetica", SkFontStyle::Normal());
+  if (!typeface) GTEST_SKIP() << "no Helvetica installed";
+
+  ShapingStyle metric;
+  metric.typeface = typeface;
+  metric.fontSize = 64.0f;
+  ShapingStyle optical = metric;
+  optical.opticalKerning = true;
+
+  // A pair whose outlines lean into each other: the diagonal of the V
+  // stands clear of the A's own diagonal for most of their height, so a
+  // measurement of the two edges closes them further than a face's even
+  // pair sits.
+  const ShapedWordRef byMetrics =
+      shapeWord(fontContext, metric, typeface, u"AV", 0, false, false);
+  const ShapedWordRef byOutlines =
+      shapeWord(fontContext, optical, typeface, u"AV", 0, false, false);
+  ASSERT_TRUE(byMetrics);
+  ASSERT_TRUE(byOutlines);
+  ASSERT_EQ(byMetrics->glyphs.size(), 2u);
+  ASSERT_EQ(byOutlines->glyphs.size(), 2u);
+  EXPECT_LT(byOutlines->advance, byMetrics->advance);
+  // The second glyph moved with the advance: a kerned pair is two glyphs
+  // closer together, not one advance quietly disagreeing with a position.
+  EXPECT_NEAR(byOutlines->positions[1].x() - byMetrics->positions[1].x(),
+              byOutlines->advance - byMetrics->advance, 0.01f);
+
+  // The two answers are two cache entries, not one: a word shaped under one
+  // must never be handed back for the other.
+  EXPECT_NE(byMetrics.get(), byOutlines.get());
+  EXPECT_EQ(shapeWord(fontContext, optical, typeface, u"AV", 0, false, false)
+                .get(),
+            byOutlines.get());
+}
+
+TEST(Shaper, OpticalKerningLeavesAGlyphWithNoNeighbourAlone) {
+  FontContext fontContext(ports::systemFontManager());
+  sk_sp<SkTypeface> typeface = fontContext.fontManager()->matchFamilyStyle(
+      "Helvetica", SkFontStyle::Normal());
+  if (!typeface) GTEST_SKIP() << "no Helvetica installed";
+  ShapingStyle style;
+  style.typeface = typeface;
+  style.fontSize = 32.0f;
+  ShapingStyle optical = style;
+  optical.opticalKerning = true;
+  const ShapedWordRef plain =
+      shapeWord(fontContext, style, typeface, u"o", 0, false, false);
+  const ShapedWordRef kerned =
+      shapeWord(fontContext, optical, typeface, u"o", 0, false, false);
+  ASSERT_TRUE(plain);
+  ASSERT_TRUE(kerned);
+  EXPECT_FLOAT_EQ(kerned->advance, plain->advance);
 }

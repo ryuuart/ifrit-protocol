@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "sigilweave/fonts/FontContext.h"
+#include "OpticalKerning.h"
 #include "sigilweave/fonts/Shaper.h"
 
 namespace sigil::weave {
@@ -43,6 +44,9 @@ struct ShapeKey {
   // costs one duplicate entry per face-size actually used both ways,
   // and not keying on it silently hands back the wrong rasterisation.
   bool aliased = false;
+  // Optical kerning moves the advances, so two words shaped from the same
+  // text under the two answers are two different shaped words.
+  bool opticalKerning = false;
   std::string languageTag;
   std::vector<FontFeature> fontFeatures;
   std::u16string text;
@@ -60,6 +64,7 @@ struct ShapeKeyView {
   bool rightToLeft = false;
   bool vertical = false;
   bool aliased = false;
+  bool opticalKerning = false;
   std::string_view languageTag;
   const FontFeature* fontFeatures = nullptr;
   size_t featureCount = 0;
@@ -75,6 +80,7 @@ inline ShapeKeyView makeShapeKeyView(const ShapeKey& key) {
           key.rightToLeft,
           key.vertical,
           key.aliased,
+          key.opticalKerning,
           key.languageTag,
           key.fontFeatures.data(),
           key.fontFeatures.size(),
@@ -113,7 +119,8 @@ struct ShapeKeyHash {
     const ShapeKeyView key = makeShapeKeyView(source);
     return absl::HashOf(key.typefaceId, key.fontSizeBits, key.letterSpacingBits,
                         key.scaleXBits, key.script, key.rightToLeft,
-                        key.vertical, key.aliased, key.languageTag,
+                        key.vertical, key.aliased, key.opticalKerning,
+                        key.languageTag,
                         objectBytes(key.fontFeatures, key.featureCount),
                         objectBytes(key.text.data(), key.text.size()));
   }
@@ -131,6 +138,7 @@ struct ShapeKeyEq {
            left.scaleXBits == right.scaleXBits && left.script == right.script &&
            left.rightToLeft == right.rightToLeft &&
            left.vertical == right.vertical && left.aliased == right.aliased &&
+           left.opticalKerning == right.opticalKerning &&
            left.languageTag == right.languageTag &&
            left.featureCount == right.featureCount &&
            (left.featureCount == 0 ||
@@ -207,6 +215,15 @@ struct FontContext::Impl {
   AsciiTable* lastAsciiFallbackTable = nullptr;
   absl::flat_hash_map<ShapeKey, ShapedWordRef, ShapeKeyHash, ShapeKeyEq>
       shapeCache;
+
+  // (typefaceId, glyph) -> the glyph's edge profile in ems, measured once
+  // and good for every size: optical kerning asks for a handful of glyphs
+  // per word and the same handful for every word after it.
+  absl::flat_hash_map<uint64_t, detail::GlyphProfile> glyphProfiles;
+  // The distance the face's own reference pair leaves, in ems, per face —
+  // what optical kerning closes every other pair to. Absent from the map
+  // until the face has been asked; kNoInk when the face has no such pair.
+  absl::flat_hash_map<uint32_t, float> referenceGaps;
 
   // Reused scratch object (the context is single-threaded by contract).
   hb_buffer_t* shapingBuffer = nullptr;

@@ -5,7 +5,9 @@
 add_library(SigilWeaveFonts STATIC
   FontContext.cpp
   Shaper.cpp
+  OpticalKerning.cpp
   FontContextImpl.h
+  OpticalKerning.h
   ${SIGIL_WEAVE_INCLUDE_DIR}/sigilweave/fonts/FontContext.h
   ${SIGIL_WEAVE_INCLUDE_DIR}/sigilweave/fonts/Shaper.h
 )

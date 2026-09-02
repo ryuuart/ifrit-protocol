@@ -142,11 +142,34 @@ struct ShapingStyle {
    *  carries the flag through to the SkFont used at draw time. */
   bool aliased = false;
 
+  /** SET EVERY PAIR AS TIGHT AS THIS FACE'S OWN EVEN PAIR, by measuring
+   *  the letters rather than by reading the face's kerning table.
+   *
+   *  A face's kerning is a designer's table of pairs. This is the answer
+   *  when there is none, or when a line mixes faces that never met: each
+   *  adjacent pair's outlines are measured for the narrowest distance
+   *  between them, and the pair is closed — or opened — until that
+   *  distance is the one the face's own reference pair leaves. The face's
+   *  table is switched off while this is on, because the two are answers
+   *  to the same question and a page takes one of them.
+   *
+   *  IT IS AN APPROXIMATION. A designer kerns by judging the white between
+   *  two letters as an area and as a rhythm; this measures a distance in
+   *  bands. A pair a designer would have opened for legibility, and a pair
+   *  whose white is wide but shallow, both come out tighter here. What the
+   *  library does NOT decide is how tight type should be: the reference is
+   *  the face's own even pair, so a loose face stays loose.
+   *
+   *  It reaches between the letters of one word. Two words are separated
+   *  by a space, whose own width is the setting's to spend. */
+  bool opticalKerning = false;
+
   /** Compares every input that participates in shaping identity. */
   bool operator==(const ShapingStyle& other) const {
     return typeface.get() == other.typeface.get() &&
            fontSize == other.fontSize && letterSpacing == other.letterSpacing &&
            scaleX == other.scaleX && aliased == other.aliased &&
+           opticalKerning == other.opticalKerning &&
            wordSpacing == other.wordSpacing &&
            languageTag == other.languageTag &&
            fontFeatures == other.fontFeatures &&
