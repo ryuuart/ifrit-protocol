@@ -22,6 +22,16 @@
 // The pair is on the page rather than in this comment.
 //
 // The plate is a settled page: nothing here moves.
+//
+// EDIT THESE FIRST
+//   kBlockLeft / kBlockTop    — where the passage stands on the page.
+//   kBlockW / kBlockH         — its measure and its depth, which is what
+//                               decides whether the clamped column has
+//                               anything left to report.
+//   kDiscSize / kSealSize     — the two obstacles. Grow either past the
+//                               block's own measure and the column it
+//                               crosses hands back no foot at all, which
+//                               is the interesting edge of the parting.
 
 #include <sigilcompose/shape/Shapes.h>
 #include <sigilsketch/canvas/Sketch.h>

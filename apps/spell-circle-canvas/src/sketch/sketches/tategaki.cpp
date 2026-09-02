@@ -21,6 +21,18 @@
 // placed runs of a finished layout rather than a library feature, and the
 // shapes they take differ enough per passage that a verb would fit none of
 // them.
+//
+// EDIT THESE FIRST
+//   kBodySize                 — the passage's size. The three specimen
+//                               columns are set from it, so the whole
+//                               page rescales off this one number.
+//   kColumnBlockW / ...H      — the main column block's measure and its
+//                               depth: how many columns the passage
+//                               breaks into, and how far each one runs.
+//   the stagger's amountMs    — how long the settling entrance takes to
+//                               reach the last cluster. The declared
+//                               moment stands after it, so raising it
+//                               past 2.4 s puts the plate mid-entrance.
 
 #include <sigilcompose/shape/Shapes.h>
 #include <sigilcompose/typography/TextFx.h>
