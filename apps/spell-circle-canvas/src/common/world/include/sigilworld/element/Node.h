@@ -51,6 +51,21 @@ struct Emission {
   std::optional<motion::Animatable<float>> blue;
 };
 
+/** AN ENVIRONMENT MAP'S LIVE DIALS, on the same terms as an emitter's:
+ *  each present only where the tree said something about it, so a dial
+ *  the description drops leaves the environment's own field standing.
+ *  Its strength and its tint are the emitter rows above, because a
+ *  panorama placed in a set is an emitter of a kind and a node carries
+ *  one or the other. */
+struct SkyDials {
+  std::optional<motion::Animatable<float>> diffuse;
+  std::optional<motion::Animatable<float>> specular;
+  std::optional<motion::Animatable<float>> roughnessBias;
+  std::optional<motion::Animatable<float>> crossfade;
+  std::optional<motion::Animatable<float>> backdrop;
+  std::optional<motion::Animatable<float>> backdropBlur;
+};
+
 /** ONE NODE'S DESCRIPTION, field by field. */
 struct ElementNode {
   /** What children are matched on; empty means positional. */
@@ -68,6 +83,9 @@ struct ElementNode {
   std::optional<Light> light;
   /** …and the dials on it, when the tree put any there. */
   std::optional<Emission> emission;
+  /** The panorama this node places, and its own dials. */
+  std::optional<Environment> environment;
+  std::optional<SkyDials> sky;
   std::optional<Camera> camera;
   core::Cache cachePolicy = core::Cache::Auto;
   std::optional<motion::Transition> nodeTransition;

@@ -13,6 +13,7 @@
 #include <sigilmaterial/core/Material.h>
 #include <sigilmotion/values/Animatable.h>
 #include <sigilmotion/values/Transition.h>
+#include <sigilworld/element/Environment.h>
 #include <sigilworld/element/Geometry.h>
 #include <sigilworld/light/Light.h>
 
@@ -156,10 +157,39 @@ class Element {
    *  new one. A node with no emitter ignores it. */
   Element& intensity(motion::Animatable<float> v);
   /** …and its COLOUR, one lane per channel, on the same terms. The
-   *  emitter's own colour stands on every channel the tree leaves out. */
+   *  emitter's own colour stands on every channel the tree leaves out.
+   *  On a node carrying an environment map these are its tint. */
   Element& emission(motion::Animatable<float> red,
                     motion::Animatable<float> green,
                     motion::Animatable<float> blue);
+
+  /** THE ENVIRONMENT MAP THIS SET STANDS IN: the panorama every lit body
+   *  samples by its normal for what falls on it from all around, and by
+   *  its reflected view vector for what it mirrors. The node's transform
+   *  ORIENTS it, the way a dome light is placed in every authoring tool,
+   *  so `rotateY()` turns the sky.
+   *
+   *  A frame holds ONE. A second one described is a warning naming both
+   *  keys, and the first in tree order is the one that shades — a silent
+   *  no-op would be a set lit by whichever node happened to come last. */
+  Element& environmentMap(Environment e);
+  /** How much of the map reaches a surface as the light falling on it
+   *  from everywhere, and how much of it a surface mirrors. Pushing one
+   *  and not the other is a look, not a physical claim. */
+  Element& diffuse(motion::Animatable<float> v);
+  Element& specular(motion::Animatable<float> v);
+  /** Added to every surface's roughness before it picks a prefiltered
+   *  level, so a whole set softens without a material being edited. */
+  Element& roughnessBias(motion::Animatable<float> v);
+  /** Between the map and the second one: 0 is all of the first, 1 all of
+   *  the second. Both are sampled and mixed, which is what lets a sky
+   *  change while the frame is running. */
+  Element& crossfade(motion::Animatable<float> v);
+  /** THE SKY SHOWN behind the set, at this strength — zero draws none of
+   *  it, so the dial is also the switch — blurred by @p blur in the same
+   *  roughness units a reflection reads. */
+  Element& backdrop(motion::Animatable<float> intensity);
+  Element& backdropBlur(motion::Animatable<float> v);
 
   /** A viewpoint standing where this node stands, on the same terms as
    *  `light()`: the camera's eye and target are carried by the node's

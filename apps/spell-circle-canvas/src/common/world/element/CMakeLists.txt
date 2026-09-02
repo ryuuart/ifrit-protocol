@@ -11,6 +11,7 @@ add_library(SigilWorldElement STATIC
   Selector.cpp
   Transform.cpp
   ${SIGIL_WORLD_INCLUDE_DIR}/sigilworld/element/Element.h
+  ${SIGIL_WORLD_INCLUDE_DIR}/sigilworld/element/Environment.h
   ${SIGIL_WORLD_INCLUDE_DIR}/sigilworld/element/Geometry.h
   ${SIGIL_WORLD_INCLUDE_DIR}/sigilworld/element/Lanes.h
   ${SIGIL_WORLD_INCLUDE_DIR}/sigilworld/element/Node.h
@@ -29,6 +30,7 @@ target_link_libraries(SigilWorldElement PUBLIC
   SigilGeometryMeshCurve
   SigilGeometryMeshPop
   SigilMaterialCore
+  SigilMaterialTexture
   SigilMotionValues
   SigilWorldLight)
 

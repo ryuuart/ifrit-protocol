@@ -1,10 +1,12 @@
 # The write feature: a stage built from the values a scene is made of and
 # saved in the format the file's extension asks for. Links the geometry
 # features it takes values from, SigilMaterialKit for the surface recipe
-# whose params and map slots become a preview surface, and SigilWorldLight
-# for the emitters; OpenUSD is private to it.
+# whose params and map slots become a preview surface, SigilWorldLight for
+# the emitters and SigilWorldElement for the environment map a dome light
+# carries; OpenUSD is private to it.
 add_library(SigilUsdWrite STATIC
   Camera.cpp
+  Environment.cpp
   GfMatrix.h
   Lights.cpp
   Material.cpp
@@ -17,7 +19,7 @@ add_library(SigilUsdWrite STATIC
 target_compile_features(SigilUsdWrite PUBLIC cxx_std_20)
 target_include_directories(SigilUsdWrite PUBLIC ${SIGIL_USD_INCLUDE_DIR})
 target_link_libraries(SigilUsdWrite
-  PUBLIC SigilMaterialKit SigilWorldLight SigilGeometryMesh
+  PUBLIC SigilMaterialKit SigilWorldElement SigilWorldLight SigilGeometryMesh
          SigilGeometryMeshPop SigilGeometryMeshCamera unofficial::skia::skia
   PRIVATE usd usdGeom usdShade usdLux sdf tf gf vt)
 

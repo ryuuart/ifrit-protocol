@@ -9,6 +9,7 @@
 
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/codec/Model.h>
+#include <sigilworld/element/Environment.h>
 #include <sigilworld/light/Light.h>
 
 #include <filesystem>
@@ -47,6 +48,19 @@ struct ReadLight {
   world::light::Light light;
 };
 
+/** ONE ENVIRONMENT MAP read from a stage: its dials, where the panorama
+ *  is oriented, and the name of the file holding it. The panorama is NOT
+ *  decoded — this library opens no image, the way it opens no texture
+ *  for a material either — so `environment.map` is empty and `texture`
+ *  is the path, relative to the stage, that a caller decodes and hands
+ *  to `EnvironmentMap::fromEquirect`. */
+struct ReadEnvironment {
+  std::string path;
+  std::string texture;
+  world::Environment environment;
+  glm::mat3 orientation{1.0f};
+};
+
 /** One camera read from a stage, with the path of the prim it came
  *  from. */
 struct ReadCamera {
@@ -63,6 +77,14 @@ struct ReadCamera {
  *  UsdLux shapes are skipped. nullopt when the stage cannot be
  *  opened. */
 std::optional<std::vector<ReadLight>> readLights(
+    const std::filesystem::path& file, std::string* error = nullptr);
+
+/** Every UsdLuxDomeLight on the stage, in traversal order. The
+ *  intensity read back carries the factor the writer divided the
+ *  panorama by, so a stage written and read again lights a set at the
+ *  radiance it was described with. nullopt when the stage cannot be
+ *  opened. */
+std::optional<std::vector<ReadEnvironment>> readEnvironments(
     const std::filesystem::path& file, std::string* error = nullptr);
 
 /** Every UsdGeomCamera on the stage, in traversal order: the prim's

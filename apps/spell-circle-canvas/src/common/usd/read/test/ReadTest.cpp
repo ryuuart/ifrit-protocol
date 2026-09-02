@@ -13,6 +13,7 @@
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilmaterial/kit/Surface.h>
+#include <sigilmaterial/texture/EnvironmentMap.h>
 #include <sigilusd/read/Reader.h>
 #include <sigilusd/runtime/Runtime.h>
 #include <sigilusd/write/Writer.h>
@@ -276,6 +277,62 @@ TEST(UsdRead, RoundTripsTheEmittersAndTheCameraTheWriterAuthors) {
   const glm::mat4 got = lens.view();
   for (int i = 0; i < 4; ++i)
     for (int j = 0; j < 4; ++j) EXPECT_NEAR(got[i][j], wanted[i][j], 1e-3f);
+}
+
+TEST(UsdRead, AnEnvironmentMapRoundTripsAsADomeLight) {
+  SKIP_WITHOUT_USD();
+  const std::filesystem::path file = scratch("sky.usda");
+  world::Environment sky;
+  sky.map = material::EnvironmentMap::sunset(64);
+  sky.intensity = 1.5f;
+  sky.tint = {0.9f, 0.95f, 1.0f};
+  sky.diffuse = 0.7f;
+  sky.specular = 1.3f;
+  sky.roughnessBias = 0.05f;
+  sky.backdrop.intensity = 0.8f;
+  sky.backdrop.blur = 0.2f;
+  sky.backdrop.groundRadius = 400.0f;
+  // A quarter turn about the vertical, as a frame carries it: the
+  // matrix that takes a world direction INTO the panorama's frame.
+  const glm::mat3 orientation =
+      glm::mat3(glm::rotate(glm::mat4(1.0f), -1.5707963f, glm::vec3(0, 1, 0)));
+  {
+    usd::Writer writer(file);
+    ASSERT_EQ(writer.environmentMap("sky", sky, orientation), "/World/sky");
+    std::string error;
+    ASSERT_TRUE(writer.save(&error)) << error;
+  }
+  std::string error;
+  const std::optional<std::vector<usd::ReadEnvironment>> read =
+      usd::readEnvironments(file, &error);
+  ASSERT_TRUE(read) << error;
+  ASSERT_EQ(read->size(), 1u);
+  const usd::ReadEnvironment& back = read->front();
+  EXPECT_EQ(back.path, "/World/sky");
+  // The panorama is a file beside the stage; this library decodes none.
+  EXPECT_NE(back.texture.find("_environment.png"), std::string::npos);
+  EXPECT_TRUE(std::filesystem::exists(file.parent_path() / back.texture));
+  EXPECT_FALSE(back.environment.valid());
+
+  // A sunset has values above one, so the writer divided the panorama by
+  // its peak and multiplied that peak into the light's strength: what
+  // comes back is brighter than what went out by exactly that factor,
+  // and the radiance the set is lit at is the same either way.
+  EXPECT_GT(back.environment.intensity, sky.intensity);
+  EXPECT_FLOAT_EQ(back.environment.tint.x, 0.9f);
+  EXPECT_FLOAT_EQ(back.environment.diffuse, 0.7f);
+  EXPECT_FLOAT_EQ(back.environment.specular, 1.3f);
+  EXPECT_FLOAT_EQ(back.environment.roughnessBias, 0.05f);
+  EXPECT_FLOAT_EQ(back.environment.backdrop.intensity, 0.8f);
+  EXPECT_FLOAT_EQ(back.environment.backdrop.blur, 0.2f);
+  EXPECT_FLOAT_EQ(back.environment.backdrop.groundRadius, 400.0f);
+
+  // And the turn survives: the orientation read back takes a world
+  // direction into the same frame the one written did.
+  for (int c = 0; c < 3; ++c)
+    for (int r = 0; r < 3; ++r)
+      EXPECT_NEAR(back.orientation[c][r], orientation[c][r], 1e-4f)
+          << c << "," << r;
 }
 
 TEST(UsdRead, ReadsALightAndACameraAnotherToolAuthored) {

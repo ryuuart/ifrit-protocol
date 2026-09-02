@@ -213,6 +213,53 @@ Element& Element::emission(motion::Animatable<float> red,
   return *this;
 }
 
+Element& Element::environmentMap(Environment e) {
+  m_node->environment = std::move(e);
+  return *this;
+}
+
+namespace {
+
+/** One of the environment's own dials, filled in place. */
+template <class Member>
+void setSky(std::optional<SkyDials>& sky, Member member,
+            motion::Animatable<float> v) {
+  if (!sky) sky.emplace();
+  (*sky).*member = std::move(v);
+}
+
+}  // namespace
+
+Element& Element::diffuse(motion::Animatable<float> v) {
+  setSky(m_node->sky, &SkyDials::diffuse, std::move(v));
+  return *this;
+}
+
+Element& Element::specular(motion::Animatable<float> v) {
+  setSky(m_node->sky, &SkyDials::specular, std::move(v));
+  return *this;
+}
+
+Element& Element::roughnessBias(motion::Animatable<float> v) {
+  setSky(m_node->sky, &SkyDials::roughnessBias, std::move(v));
+  return *this;
+}
+
+Element& Element::crossfade(motion::Animatable<float> v) {
+  setSky(m_node->sky, &SkyDials::crossfade, std::move(v));
+  return *this;
+}
+
+Element& Element::backdrop(motion::Animatable<float> intensity) {
+  setSky(m_node->sky, &SkyDials::backdrop, std::move(intensity));
+  return *this;
+}
+
+Element& Element::backdropBlur(motion::Animatable<float> v) {
+  setSky(m_node->sky, &SkyDials::backdropBlur, std::move(v));
+  return *this;
+}
+
 Element& Element::camera(Camera c) {
   m_node->camera = c;
   return *this;

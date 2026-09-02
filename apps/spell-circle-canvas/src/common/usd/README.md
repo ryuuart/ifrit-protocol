@@ -68,7 +68,18 @@ scene is one call per prop.
 | what UsdPreviewSurface has no word for | custom data on the prim: `sigil:transmission`, `sigil:layers` (the stack depth), `sigil:unlit`, `sigil:baseColorFactor` |
 | stamps | `UsdGeomPointInstancer` with the stamp as its one prototype: positions, `size` → scales, `dir`/`normal` → orientations (the stamp's +z along it), `tint` → `displayColor`/`displayOpacity` |
 | a point light or a spot / a sun | `UsdLuxSphereLight` (translated, `sigil:range`; a spot oriented -Z along its direction, cone as `shaping:cone:angle` with the inner edge as `shaping:cone:softness`) / `UsdLuxDistantLight` (oriented, -Z along the direction) |
+| an environment map | `UsdLuxDomeLight`: the panorama beside the stage as a sixteen-bit PNG on `inputs:texture:file`, `textureFormat` `latlong`, the strength and the tint on `intensity` and `color`, the orientation as the prim's transform, and the dials UsdLux has no word for as `sigil:diffuse`, `sigil:specular`, `sigil:roughnessBias`, `sigil:backdrop`, `sigil:backdropBlur`, `sigil:groundRadius` |
 | the camera | `UsdGeomCamera`, camera-to-world from the view's inverse, a 24 mm vertical aperture and the focal length that gives the vertical fov, the clipping range, and the distance to the target as `focusDistance` |
+
+**A panorama is written scaled and the scale rides the intensity.** A
+sky holds values above one — that is what makes a sun a sun rather than
+a white disc the same brightness as the sky beside it — and no encoder
+in this tree writes a floating-point image. So the panorama is divided
+by its peak, written as a sixteen-bit PNG, and the peak multiplied into
+the dome light's `intensity`: the ratios survive at sixteen bits a
+channel, the total radiance is right, and it is right through the
+standard attribute rather than through a custom one only this library
+reads. A stage written and read again lights a set as it was described.
 
 **A stacked material exports the material at the bottom.** Stacking is a
 live composition; `UsdPreviewSurface` cannot hold it, and this library
@@ -87,7 +98,11 @@ field of view from the focal length against the vertical aperture; its
 target rides the view direction at the focus distance, one unit ahead
 when the stage names none — a camera sees the same thing wherever along
 that ray the target sits, which is why the distance has to be written
-down to come back. Other UsdLux shapes are skipped.
+down to come back. A `UsdLuxDomeLight` comes back as an environment's
+dials and the NAME of its panorama file, not its pixels: this library
+opens no image, the way it opens no texture for a material either, so a
+caller decodes the file and builds the map. Other UsdLux shapes are
+skipped.
 
 **Reading unwelds.** Every face-vertex becomes a mesh vertex (so
 face-varying `st` and normals survive), faces fan-triangulate, xforms are

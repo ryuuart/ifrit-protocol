@@ -105,6 +105,15 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
    *  the strength it shines at and the colour it shines in. */
   float intensity = 1.0f;
   glm::vec3 emission{1.0f, 1.0f, 1.0f};
+  /** …and what an environment map's own dials resolved to, for a node
+   *  placing one. Its strength and tint are the two rows above: a
+   *  panorama placed in a set is an emitter of a kind. */
+  float envDiffuse = 1.0f;
+  float envSpecular = 1.0f;
+  float envRoughness = 0.0f;
+  float envCrossfade = 0.0f;
+  float backdrop = 0.0f;
+  float backdropBlur = 0.0f;
 
   /** The artefact this node's geometry slot resolved, and the window
    *  values it was resolved at — a moving window is moving geometry, so
@@ -176,6 +185,12 @@ struct Scene::Impl {
   /** The extracted draw order, in tree order. */
   std::vector<entt::entity> order;
   std::vector<Light> lights;
+  /** The one environment map the frame described, with its dials
+   *  resolved and the node's placement folded into its orientation. A
+   *  frame holds one; a second is a warning naming both keys. */
+  Environment environment;
+  glm::mat3 environmentOrientation{1.0f};
+  std::string environmentKey;
   std::optional<Camera> camera;
 
   std::vector<Lane> laneScratch;

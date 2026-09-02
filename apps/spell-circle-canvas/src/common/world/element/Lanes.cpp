@@ -25,6 +25,10 @@ float standingValue(Slot slot) {
     case kEmissionRed:
     case kEmissionGreen:
     case kEmissionBlue:
+    // An environment believed in full on both sides, which is what a
+    // panorama placed with no dials on it means.
+    case kEnvironmentDiffuse:
+    case kEnvironmentSpecular:
       return 1.0f;
     default:
       return 0.0f;
@@ -68,14 +72,48 @@ void lanesOf(const ElementNode& node, std::vector<Lane>& out) {
                  core::LaneSlot<LaneFamily>{LaneFamily::Slot, (size_t)slot},
                  standing});
       };
+  // A node carries an emitter OR an environment map, and both read the
+  // strength and colour rows — a panorama placed in a set is an emitter
+  // of a kind, and its tint is the colour it shines in.
+  const Environment* sky = node.environment ? &*node.environment : nullptr;
+  const auto standing = [&](Slot slot, float fromLight, float fromSky) {
+    if (node.light) return fromLight;
+    if (sky) return fromSky;
+    return standingValue(slot);
+  };
   pushEmitter(kIntensity, emission ? &emission->intensity : nullptr,
-              node.light ? node.light->intensity : standingValue(kIntensity));
+              standing(kIntensity, node.light ? node.light->intensity : 0,
+                       sky ? sky->intensity : 0));
   pushEmitter(kEmissionRed, emission ? &emission->red : nullptr,
-              node.light ? node.light->color.r : standingValue(kEmissionRed));
+              standing(kEmissionRed, node.light ? node.light->color.r : 0,
+                       sky ? sky->tint.x : 0));
   pushEmitter(kEmissionGreen, emission ? &emission->green : nullptr,
-              node.light ? node.light->color.g : standingValue(kEmissionGreen));
+              standing(kEmissionGreen, node.light ? node.light->color.g : 0,
+                       sky ? sky->tint.y : 0));
   pushEmitter(kEmissionBlue, emission ? &emission->blue : nullptr,
-              node.light ? node.light->color.b : standingValue(kEmissionBlue));
+              standing(kEmissionBlue, node.light ? node.light->color.b : 0,
+                       sky ? sky->tint.z : 0));
+
+  // The environment's own six, standing where the environment stands.
+  const SkyDials* dials = node.sky ? &*node.sky : nullptr;
+  const auto pushSky =
+      [&](Slot slot, std::optional<motion::Animatable<float>> SkyDials::*member,
+          float own) {
+        const std::optional<motion::Animatable<float>>* value =
+            dials ? &(dials->*member) : nullptr;
+        out.push_back(
+            Lane{value && *value ? &**value : nullptr,
+                 core::LaneSlot<LaneFamily>{LaneFamily::Slot, (size_t)slot},
+                 sky ? own : standingValue(slot)});
+      };
+  pushSky(kEnvironmentDiffuse, &SkyDials::diffuse, sky ? sky->diffuse : 1);
+  pushSky(kEnvironmentSpecular, &SkyDials::specular, sky ? sky->specular : 1);
+  pushSky(kEnvironmentRoughness, &SkyDials::roughnessBias,
+          sky ? sky->roughnessBias : 0);
+  pushSky(kEnvironmentCrossfade, &SkyDials::crossfade, sky ? sky->crossfade : 0);
+  pushSky(kBackdrop, &SkyDials::backdrop, sky ? sky->backdrop.intensity : 0);
+  pushSky(kBackdropBlur, &SkyDials::backdropBlur,
+          sky ? sky->backdrop.blur : 0);
 }
 
 }  // namespace sigil::world

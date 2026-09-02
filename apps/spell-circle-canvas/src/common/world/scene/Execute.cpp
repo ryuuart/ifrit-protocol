@@ -110,6 +110,8 @@ bool Scene::Impl::phaseGraph() {
   collectBodies(viewpoint(), draws);
   view.draws = draws;
   view.lights = lights;
+  view.environment = environment;
+  view.orientation = environmentOrientation;
   view.camera = viewpoint();
   view.extent = frame.extent();
 

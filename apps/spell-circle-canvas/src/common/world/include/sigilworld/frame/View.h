@@ -14,8 +14,10 @@
 #include <include/core/SkSize.h>
 #include <sigilmaterial/texture/Texture.h>
 #include <sigilworld/element/Element.h>
+#include <sigilworld/element/Environment.h>
 #include <sigilworld/element/Selector.h>
 
+#include <glm/mat3x3.hpp>
 #include <glm/mat4x4.hpp>
 #include <glm/vec4.hpp>
 #include <span>
@@ -89,6 +91,14 @@ Sampling samplingOf(const ::sigil::material::Texture& texture);
 struct View {
   std::span<const Draw> draws;
   std::span<const Light> lights;
+  /** THE SET'S ENVIRONMENT MAP, oriented — the panorama every lit body
+   *  samples for what reaches it from every direction. `orientation`
+   *  carries a world-space direction into the panorama's own frame, so
+   *  turning the node that placed it turns the sky. Invalid when the
+   *  frame described none, and a lit body then falls back to the flat
+   *  ambient it always had. */
+  Environment environment;
+  glm::mat3 orientation{1.0f};
   Camera camera;
   SkISize extent{0, 0};
 };

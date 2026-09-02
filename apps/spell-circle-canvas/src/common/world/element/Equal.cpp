@@ -88,6 +88,26 @@ bool cameraEqual(const std::optional<Camera>& a,
          a->fovYDeg == b->fovYDeg && a->zNear == b->zNear && a->zFar == b->zFar;
 }
 
+static_assert(core::kFieldCount<SkyDials> == 6,
+              "SkyDials gained or lost a field — rule on it in "
+              "skyEqual() below, then bump this count.");
+bool skyEqual(const std::optional<SkyDials>& a,
+              const std::optional<SkyDials>& b) {
+  if (a.has_value() != b.has_value()) return false;
+  if (!a) return true;
+  const auto dialEqual = [](const std::optional<motion::Animatable<float>>& x,
+                            const std::optional<motion::Animatable<float>>& y) {
+    if (x.has_value() != y.has_value()) return false;
+    return !x || propEqual(*x, *y);
+  };
+  return dialEqual(a->diffuse, b->diffuse) &&
+         dialEqual(a->specular, b->specular) &&
+         dialEqual(a->roughnessBias, b->roughnessBias) &&
+         dialEqual(a->crossfade, b->crossfade) &&
+         dialEqual(a->backdrop, b->backdrop) &&
+         dialEqual(a->backdropBlur, b->backdropBlur);
+}
+
 bool materialsEqual(const ElementNode& a, const ElementNode& b) {
   if (a.material.has_value() != b.material.has_value()) return false;
   if (a.material && !(*a.material == *b.material)) return false;
@@ -99,7 +119,7 @@ bool materialsEqual(const ElementNode& a, const ElementNode& b) {
 
 }  // namespace
 
-static_assert(core::kFieldCount<ElementNode> == 15,
+static_assert(core::kFieldCount<ElementNode> == 17,
               "A field of ElementNode appeared or vanished. Rule on it in "
               "propsEqual() below — participate, or a stated reason not to "
               "— then bump this count. A miss is silent: the node prunes, "
@@ -121,6 +141,11 @@ bool propsEqual(const ElementNode& a, const ElementNode& b) {
   if (a.tags != b.tags) return false;
   if (a.light != b.light) return false;
   if (!emissionEqual(a.emission, b.emission)) return false;
+  // An environment is a plain value all the way down — the panorama
+  // behind it is a shared handle, so comparing two is comparing two
+  // pointers and a handful of floats.
+  if (a.environment != b.environment) return false;
+  if (!skyEqual(a.sky, b.sky)) return false;
   if (!cameraEqual(a.camera, b.camera)) return false;
   if (a.cachePolicy != b.cachePolicy) return false;
   if (a.nodeTransition.has_value() != b.nodeTransition.has_value())

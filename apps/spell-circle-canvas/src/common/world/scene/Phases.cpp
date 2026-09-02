@@ -11,6 +11,7 @@
 #include <sigilmaterial/kit/Surface.h>
 #include <sigilmotion/clock/Ticker.h>
 
+#include <cstdio>
 #include <cstring>
 #include <glm/gtc/matrix_inverse.hpp>
 #include <optional>
@@ -151,6 +152,12 @@ void Scene::Impl::sampleLanes(Instance& inst) {
   inst.intensity = read(kIntensity);
   inst.emission = {read(kEmissionRed), read(kEmissionGreen),
                    read(kEmissionBlue)};
+  inst.envDiffuse = read(kEnvironmentDiffuse);
+  inst.envSpecular = read(kEnvironmentSpecular);
+  inst.envRoughness = read(kEnvironmentRoughness);
+  inst.envCrossfade = read(kEnvironmentCrossfade);
+  inst.backdrop = read(kBackdrop);
+  inst.backdropBlur = read(kBackdropBlur);
   for (std::unique_ptr<Instance>& child : inst.children) sampleLanes(*child);
 }
 
@@ -272,7 +279,10 @@ core::SubtreeVerdict Scene::Impl::foldVolatility(Instance& inst) {
     if (i == kWindowHead || i == kWindowSpan) {
       movingContent = true;
     } else if (i == kIntensity || i == kEmissionRed || i == kEmissionGreen ||
-               i == kEmissionBlue) {
+               i == kEmissionBlue || i == kEnvironmentDiffuse ||
+               i == kEnvironmentSpecular || i == kEnvironmentRoughness ||
+               i == kEnvironmentCrossfade || i == kBackdrop ||
+               i == kBackdropBlur) {
       // The emitters are gathered on the walk below, which visits every
       // node every frame, and a bake holds a draw order and no light —
       // so a lamp that ramps stales nothing.
@@ -321,6 +331,34 @@ core::SubtreeVerdict Scene::Impl::foldVolatility(Instance& inst) {
     emitter.color = {inst.emission.r, inst.emission.g, inst.emission.b,
                      emitter.color.a};
     lights.push_back(placeLight(emitter, inst.world));
+  }
+  if (node.environment) {
+    if (environment.valid()) {
+      // A SECOND SKY IS NOT A CHOICE THE FRAME CAN MAKE. The first in
+      // tree order shades, and both keys are named, because a silent
+      // no-op would be a set lit by whichever node happened to come
+      // last and no way to see which.
+      fprintf(stderr,
+              "[world] two environment maps in one frame: \"%s\" shades "
+              "and \"%s\" is ignored\n",
+              environmentKey.c_str(), inst.desc->key.c_str());
+    } else {
+      environment = *node.environment;
+      environment.intensity = inst.intensity;
+      environment.tint = inst.emission;
+      environment.diffuse = inst.envDiffuse;
+      environment.specular = inst.envSpecular;
+      environment.roughnessBias = inst.envRoughness;
+      environment.crossfade = inst.envCrossfade;
+      environment.backdrop.intensity = inst.backdrop;
+      environment.backdrop.blur = inst.backdropBlur;
+      // THE NODE'S TRANSFORM ORIENTS THE SKY. A panorama is sampled by
+      // a direction, so only the rotation of the placement means
+      // anything to it; the inverse of that rotation is what carries a
+      // world-space direction into the panorama's own frame.
+      environmentOrientation = glm::inverse(glm::mat3(inst.world));
+      environmentKey = inst.desc->key;
+    }
   }
   if (node.camera && !camera) camera = placeCamera(*node.camera, inst.world);
   return inst.verdict;
@@ -409,6 +447,9 @@ void Scene::Impl::extractInto(Instance& inst, std::vector<entt::entity>& into,
 bool Scene::Impl::phaseExtract() {
   order.clear();
   lights.clear();
+  environment = {};
+  environmentOrientation = glm::mat3(1.0f);
+  environmentKey.clear();
   camera.reset();
   ancestry.clear();
   if (!root) return false;
