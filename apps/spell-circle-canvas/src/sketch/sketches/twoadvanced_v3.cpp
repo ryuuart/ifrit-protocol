@@ -75,6 +75,7 @@
 #include <sigilcompose/shape/Shapes.h>
 #include <sigilcompose/typography/TextFx.h>
 #include <sigilcompose/typography/Type.h>
+#include <sigilloader/hub/Network.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
@@ -83,6 +84,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <filesystem>
 #include <map>
 #include <string>
 #include <vector>
@@ -186,6 +188,48 @@ constexpr float kPanelW = (kStageW - 2 * 10) / 3;  // 433⅓ — three across
 // ===========================================================================
 
 struct TwoAdvancedV3 : sketch::Sketch {
+  /** THE PRODUCTION ART IS RUNTIME DATA, and a sketch over runtime data a
+   *  machine may not have says so rather than drawing a second picture
+   *  under the same name. Every bitmap on this page comes off the
+   *  studio's own host through the loader's https path, which caches on
+   *  disk; the use sites all keep a procedural stand-in, so a cold cache
+   *  renders — but it renders the STAND-IN page, and the plate this
+   *  sketch is judged on is then not the picture the header describes.
+   *  Two plates, one name is the one thing a byte-identity sweep cannot
+   *  survive.
+   *
+   *  So the probe asks the loader's own cache key what is on disk. A
+   *  machine that has fetched once is available forever after and
+   *  offline; a machine that never has is UNAVAILABLE by name, with the
+   *  first missing URL as the reason, and the ledger stands it down
+   *  rather than hashing a different page. */
+  static bool available(std::string* why) {
+    static const char* kNeeded[] = {
+        "https://v3.2advanced.com/V3ExpansionsReboot/assets/background.gif",
+        "https://v3.2advanced.com/V3ExpansionsReboot/assets/images/"
+        "social-icons@2x.png",
+        "https://v3.2advanced.com/V3ExpansionsReboot/assets/images/"
+        "2a-logo@2x.png",
+        "https://v3.2advanced.com/v3expansionsreboot/mainstage.riv",
+    };
+    const std::filesystem::path dir =
+        std::filesystem::temp_directory_path() / "sigilloader-net-cache";
+    for (const char* url : kNeeded) {
+      std::error_code ec;
+      if (std::filesystem::exists(dir / sigil::loader::networkCacheKey(url),
+                                  ec) &&
+          !ec)
+        continue;
+      if (why)
+        *why = std::string(
+                   "the site's own art is not in the loader's cache "
+                   "on this machine \xe2\x80\x94 ") +
+               url;
+      return false;
+    }
+    return true;
+  }
+
   using ImagePtr = std::shared_ptr<const sigil::image::ImageAsset>;
 
   // --- the production art, out of mainstage.riv --------------------------
@@ -422,7 +466,7 @@ struct TwoAdvancedV3 : sketch::Sketch {
                    .justify(Justify::Center)
                    .alignItems(Align::Center)
                    .child(t(glyph, micro(9, kSteelHi, 0))))
-        .child(t(label, micro(13, kInk, 140)))
+        .child(t(label, micro(14.5f, kInk, 140)))
         .child(box().width(6))
         .child(box().grow(1).height(16).fill(dots.material()).opacity(0.85f))
         .child(box().width(4).height(4).fill(alpha(kInk, 0.8f)))
@@ -578,17 +622,22 @@ struct TwoAdvancedV3 : sketch::Sketch {
     Element row = box().width(Dim(kStageW - 230)).height(33).row();
     for (int i = 0; i < 6; ++i) {
       const bool on = i == active;
-      row.child(box()
-                    .grow(1)
-                    .height(33)
-                    .column()
-                    .justify(Justify::Center)
-                    .alignItems(Align::Center)
-                    .gap(2)
-                    .child(t(kSections[i].tab,
-                             micro(11, on ? kNear : alpha(kNear, 0.82f), 170)))
-                    .child(box().width(46).height(2).fill(
-                        on ? alpha(kSteelHi, 0.95f) : SkColor4f{0, 0, 0, 0})));
+      row.child(
+          box()
+              .grow(1)
+              .height(33)
+              .column()
+              .justify(Justify::Center)
+              .alignItems(Align::Center)
+              .gap(2)
+              // THE NAV IS THE PAGE'S LOUDEST TYPE. On the studio's
+              // own capture the six section names are set larger
+              // than the module headers under them; at eleven they
+              // sat under, and the whole page read thin.
+              .child(t(kSections[i].tab,
+                       micro(13.5f, on ? kNear : alpha(kNear, 0.88f), 170)))
+              .child(box().width(46).height(2).fill(
+                  on ? alpha(kSteelHi, 0.95f) : SkColor4f{0, 0, 0, 0})));
     }
     return row;
   }
