@@ -1,12 +1,48 @@
 /** @file
- * manuscript — an illuminated page: procedural vine borders, corner
- * flourishes the text weaves between, a drop cap, and a rubric panel
- * whose colours arrive as data.
+ * manuscript — an illuminated page in the Florentine humanist manner:
+ * a bianchi girari margin, a versal on a cobalt ground, and a text that
+ * flows around both.
  */
+
+// THE BOOK THIS IS SET AFTER
+//
+// The bianchi girari ("white vine-stem") book of the Florentine humanist
+// workshops, c. 1450–1480 — Vespasiano da Bisticci's among them: white
+// interlaced vine-stems reserved out of a blue, green and vermilion
+// ground, running the margin and knotting at the corners; a gold versal
+// on a cobalt panel; a vermilion incipit above the text; and the body in
+// HUMANIST MINUSCULE, the hand those scribes cut from Carolingian models
+// and the hand every roman typeface since is descended from.
+//
+// That descent is why the face here is a humanist old-style rather than
+// a blackletter: the page is a fifteenth-century Florentine book and not
+// a thirteenth-century northern one, and the letterform the scribes used
+// is the one this line of type still carries. A grotesque is the one
+// thing it cannot be — a book hand is the first thing a reader of an
+// illuminated page sees.
+//
+// A TRUE DROP CAP, and where its geometry comes from: there is no
+// dedicated drop-cap facility. The verse's first grapheme is split off
+// as its own element and the remainder is a paragraph that FLOWS AROUND
+// it, through the same exclusion machinery the sprigs and the rubric
+// panel use — so the initial's box is the only thing that decides where
+// the first lines start, and moving it re-runs the flow.
+//
+// EDIT THESE FIRST
+//   kBookFaces  — the humanist old-style the body is set in, in order of
+//                 preference; the first one installed wins.
+//   kTurnSecs   — how long a verse holds before the page turns.
+//   azurePalette() / crimsonPalette() — the page's two colour sets, one
+//                 for the margin and versal and one for the rubric.
+//   the flowAround margins below — the white a line keeps from each
+//                 exclusion it meets.
 
 #include <include/core/SkMaskFilter.h>
 #include <sigilcompose/kit/Ornament.h>
+#include <sigilcompose/typography/Typography.h>
 #include <sigilsketch/canvas/Sketch.h>
+
+#include <initializer_list>
 
 namespace sketch = sigil::sketch;
 
@@ -16,14 +52,15 @@ using namespace std::chrono_literals;
 using namespace sigil::compose::kit::ornament;
 
 namespace {
-/** A text style at one size and colour — the two things every label in
- *  this piece varies. */
-sigil::weave::TextStyle styleAt(float size, SkColor color = SK_ColorWHITE) {
-  sigil::weave::TextStyle style;
-  style.shaping.fontSize = size;
-  style.paint.foreground.setColor(color);
-  return style;
-}
+/** The humanist old-styles this page is set in, best first. Every one of
+ *  them descends from the minuscule the Florentine scribes wrote, which
+ *  is the whole reason a roman face is right here at all. */
+constexpr std::initializer_list<const char*> kBookFaces = {
+    "Hoefler Text", "Palatino", "Baskerville", "Iowan Old Style",
+    "Times New Roman"};
+
+/// How long one verse holds before the page turns.
+constexpr double kTurnSecs = 7.0;
 
 /** The canvas this piece was drawn against, which is also the default a
  *  sketch gets when it declares none. */
@@ -50,7 +87,14 @@ struct Manuscript final : sketch::Sketch {
       u8"nights the vine was fed, twelve nights the lanterns answered, "
       u8"and on the last the gate stood open wide enough for one small "
       u8"boat, one warden, and the weight of everything they chose to "
-      u8"leave behind on the far shore of the salt gardens.",
+      u8"leave behind on the far shore of the salt gardens. Of the "
+      u8"twelve, four were kept by the ferry and four by the bell, and "
+      u8"the last four were carried down to the water line and set in "
+      u8"the reeds, where the tide could read them. It is written that "
+      u8"the wardens did not speak on the crossing, and that the rope "
+      u8"was warm under their hands from the hands before them. Whoever "
+      u8"comes after, let them find the margin kept, the coal banked, "
+      u8"and the gate answering to a steady hand alone.",
       u8"In the second season the wardens counted the lanterns twice, "
       u8"once for the living channel and once for the drowned road "
       u8"beneath it. The gate takes no coin but memory, says the "
@@ -62,7 +106,13 @@ struct Manuscript final : sketch::Sketch {
       u8"corner free for the fox, and let no page close on a coal "
       u8"still warm; the book is a causeway too, and every reader "
       u8"crosses it holding somebody's light. Here ends the second "
-      u8"verse of the ember gate, and the water keeps the rest."};
+      u8"verse of the ember gate, and the water keeps the rest. What "
+      u8"the second season took, the third gave back doubled, and the "
+      u8"keepers wrote it down twice for fear of the tide. Read slowly, "
+      u8"and keep the lantern low; the ink is young and the water is "
+      u8"patient, and a page turned in haste is a crossing missed."};
+
+  sk_sp<SkTypeface> book;
 
   Element describe() {
     const Palette pal = azurePalette();
@@ -129,7 +179,7 @@ struct Manuscript final : sketch::Sketch {
                        .child(box().inset(14).foreground(goldDash)))
             // Title rubric line.
             .child(text(u8"INCIPIT LIBER PORTAE CINERUM",
-                        styleAt(24, toColor(rubric.stem)))
+                        type({.face = book, .size = 24, .color = rubric.stem}))
                        .inset(200, 88, 200, kSceneSize.height() - 126)
                        .zIndex(1))
             // The illuminated initial: first grapheme on a cobalt block
@@ -141,35 +191,45 @@ struct Manuscript final : sketch::Sketch {
                        .inset(84, 146, kSceneSize.width() - 84 - 92,
                               kSceneSize.height() - 146 - 98)
                        .zIndex(3)
-                       .corners({8})
+                       // A versal is a PANEL: a square field of colour
+                       // with a gold letter reserved in it and a gold
+                       // fillet round the edge. The rounded corners and
+                       // the dashed inner rule it carried are a modern
+                       // callout's furniture and read as one.
                        .background(
                            sigil::compose::shadow({0, 0, 0, 0.35f}, {2, 3}, 7))
                        .fill(Fill::color(pal.stem))
                        .foreground(
-                           sigil::compose::stroke(1.6f, Fill::color(pal.gold)))
+                           sigil::compose::stroke(2.2f, Fill::color(pal.gold)))
                        .alignItems(Align::Center)
                        .justify(Justify::Center)
-                       .child(box().inset(5).foreground(goldDash))
-                       .child(text(letter, styleAt(62, toColor(pal.gold)))))
+                       .child(text(letter, type({.face = book,
+                                                 .size = 66,
+                                                 .color = pal.gold}))))
             // Rubric side panel: the same component, crimson palette.
-            .child(illuminatedPanel(rubric)
-                       .key("rubric")
-                       .width(200)
-                       .height(148)
-                       .inset(600, 270, kSceneSize.width() - 600 - 200,
-                              kSceneSize.height() - 270 - 148)
-                       .zIndex(3)
-                       .padding(18)
-                       .gap(8)
-                       .child(text(u8"nota bene",
-                                   styleAt(15, toColor(rubric.stem))))
-                       .child(text(u8"the gate takes no coin but memory",
-                                   styleAt(16, toColor(rubric.ink)))))
+            .child(
+                illuminatedPanel(rubric)
+                    .key("rubric")
+                    .width(200)
+                    .height(148)
+                    .inset(600, 270, kSceneSize.width() - 600 - 200,
+                           kSceneSize.height() - 270 - 148)
+                    .zIndex(3)
+                    .padding(18)
+                    .gap(8)
+                    .child(text(
+                        u8"nota bene",
+                        type({.face = book, .size = 15, .color = rubric.stem})))
+                    .child(text(
+                        u8"the gate takes no coin but memory",
+                        type({.face = book, .size = 16, .color = rubric.ink}))))
             // Body text weaving between drop cap, rubric, and all four
             // corner flourishes.
             .child(box()
                        .inset(100, 132, 100, 82)
-                       .child(text(body, styleAt(19.5f, toColor(pal.ink)))
+                       .child(text(body, type({.face = book,
+                                               .size = 19.5f,
+                                               .color = pal.ink}))
                                   .key("body")
                                   .flowAround("dropcap", 14)
                                   .flowAround("rubric", 14)
@@ -187,7 +247,11 @@ struct Manuscript final : sketch::Sketch {
             .child(band(2, true, 814, 340, 52, 260))
             // Keyed sprigs the body text weaves around (with the drop cap
             // and rubric, the multi-exclusion flow demo).
-            .child(weaveSprig("sprigL", 96, 300, 90.0f))
+            // Seated against the foot of the versal. Left lower, it opened
+            // exactly one line of full measure between the two
+            // exclusions, and a single line jutting five ems past its
+            // neighbours reads as a broken column rather than as a flow.
+            .child(weaveSprig("sprigL", 96, 246, 90.0f))
             .child(weaveSprig("sprigR", 748, 210, -90.0f))
             .child(weaveSprig("sprigB", 424, 486, 0.0f));
 
@@ -218,26 +282,21 @@ struct Manuscript final : sketch::Sketch {
                 .cache(Cache::None));
   }
 
-  /** A computed tint as the 8-bit sRGB word `styleAt` hands the paint, so
-   *  it lands on the same 256-step ladder every quoted ink here does. */
-  static SkColor toColor(SkColor4f c) {
-    return SkColor4f{c.fR, c.fG, c.fB, c.fA}.toSkColor();
-  }
-
   void setup(sketch::SketchContext& ctx) override {
     ctx.canvas(kSceneSize.fWidth, kSceneSize.fHeight);
     ctx.background({0, 0, 0, 1});
     ctx.captureAt(3.5);
     Composer& composer = ctx.composer;
+    book = pickFace(kBookFaces, 400);
     verse = 0;
-    nextTurn = 7.0;
+    nextTurn = kTurnSecs;
     composer.render(describe());
   }
 
   void update(double elapsed, sketch::SketchContext& ctx) override {
     Composer& composer = ctx.composer;
     if (elapsed < nextTurn) return;
-    nextTurn = elapsed + 7.0;
+    nextTurn = elapsed + kTurnSecs;
     verse = (verse + 1) % 2;
     composer.render(describe());  // reflow weaves through the exclusions
   }
