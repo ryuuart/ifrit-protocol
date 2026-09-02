@@ -234,7 +234,7 @@ inline Element glint(float size, float rotationDeg, float alpha = 0.95f) {
 
 /** Small caption under the A/B specimens. */
 inline Element caption(std::string_view s) {
-  return text(toU8(s), type(10, hex(0x59626C), 0.8f, 600));
+  return text(toU8(s), type(10, hex(0xAFC0DE), 0.8f, 600));
 }
 
 }  // namespace y2k_chrome
@@ -406,7 +406,7 @@ struct Y2kChrome final : sketch::Sketch {
             .opacity(animate(from(0.0f).to(1.0f), {400ms}))
             .child(text(toU8("\xc2\xb7 t h e   f u t u r e   i s   "
                              "c h r o m e \xc2\xb7"),
-                        yc::type(14, hex(0x0F86C8), 2.5f, 650))
+                        yc::type(14, hex(0x7FD0FF), 2.5f, 650))
                        .effect(styles::textGlow({1.0f, 1.0f, 1.0f, 0.95f}, 2)
                                    .then(styles::textGlow(
                                        {0.36f, 0.80f, 1.0f, 0.9f}, 7))));
@@ -438,8 +438,8 @@ struct Y2kChrome final : sketch::Sketch {
                     .gap(28)
                     .padding(16, 10)
                     .corners({8})
-                    .fill(Fill::color({1, 1, 1, 0.30f}))
-                    .stroke(stroke(1, Fill::color(hex(0x9AA1A9))))
+                    .fill(Fill::color({1, 1, 1, 0.13f}))
+                    .stroke(stroke(1, Fill::color(hex(0x9AA1A9, 0.6f))))
                     .child(box()
                                .column()
                                .alignItems(Align::Center)
@@ -479,12 +479,35 @@ struct Y2kChrome final : sketch::Sketch {
     // volatility. Only the backplate is split out, so the filter bakes once;
     // the identically rounded live content still clips and keeps the border
     // in its original foreground paint order.
+    // THE PAGE'S GROUND. The era did not build on white. A hyperportal
+    // page of 1999 stood on a TILED GIF or a saturated field, and chrome
+    // is a mirror: on a flat near-white it has nothing to reflect and the
+    // bevels read as a modern app shell. So the body is a saturated
+    // midnight-blue field with the period's own seamless tile over it —
+    // a two-pixel diagonal weave, the kind that shipped as a 16x16 GIF —
+    // and a corner vignette, which is what puts the wordmark's dark half
+    // and its specular band on opposite sides of a real value range.
     Element windowBackplate =
         box()
             .inset(yc::kWindowX, yc::kWindowY, yc::kWindowX, yc::kWindowY)
             .background(styles::dropShadow({0, 0, 0, 0.38f}, {0, 7}, 18))
-            .fill(Fill::color(hex(0xE9EBEE)))
+            .fill(Material::linear({0, 0}, {0, yc::kH},
+                                   {{0.00f, hex(0x16204A)},
+                                    {0.48f, hex(0x0B1030)},
+                                    {1.00f, hex(0x050817)}}))
             .corners({6})
+            .clip()
+            .child(box()
+                       .inset(0)
+                       .fill(patterns::stripes(1, 4, hex(0x6E8CD8, 0.16f))
+                                 .rotate(45)
+                                 .material())
+                       .blend(SkBlendMode::kPlus))
+            .child(box().inset(0).fill(
+                Material::glowUnit({0.5f, 0.42f}, 1.02f,
+                                   {{0.0f, {0.36f, 0.52f, 0.92f, 0.16f}},
+                                    {0.55f, {0, 0, 0, 0.0f}},
+                                    {1.0f, {0, 0, 0, 0.45f}}})))
             .cache(Cache::Texture);
 
     // ---- assembly ---------------------------------------------------------
@@ -542,14 +565,14 @@ struct Y2kChrome final : sketch::Sketch {
                                         .margin(14, 0, 0, 4)
                                         .gap(3)
                                         .child(text(toU8("now streaming @ 56k"),
-                                                    yc::type(12, hex(0x4E5760),
+                                                    yc::type(12, hex(0xC8D6EE),
                                                              0.6f, 600)))
                                         .child(text(
                                             toU8("\xc2\xa9 2000 sigilnet "
                                                  "industries \xe2\x80\x94 "
                                                  "best viewed at 800\xc3\x97"
                                                  "600"),
-                                            yc::type(10, hex(0x7A828B), 0.4f))))
+                                            yc::type(10, hex(0x8DA0C4), 0.4f))))
                                 .child(box().grow(1))
                                 .child(
                                     box()
@@ -561,7 +584,7 @@ struct Y2kChrome final : sketch::Sketch {
                                             yc::plasticButton("ENTER SITE >>"))
                                         .child(text(toU8("[ no frames \xc2\xb7 "
                                                          "spacer.gif free ]"),
-                                                    yc::type(10, hex(0x8A929B),
+                                                    yc::type(10, hex(0x8DA0C4),
                                                              0.4f))))))
                 .child(statusBar));
   }
