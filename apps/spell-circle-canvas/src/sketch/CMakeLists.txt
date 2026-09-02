@@ -12,6 +12,10 @@
 # include root, include/sigilsketch/, and the directories under it nest
 # the way the targets do.
 set(SIGIL_SKETCH_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/include)
+# The fixtures every sketch test binary shares — the one font context and
+# the one asset store a process holds. A test target adds this directory
+# and spells "Support.h".
+set(SIGIL_SKETCH_TEST_SUPPORT_DIR ${CMAKE_CURRENT_LIST_DIR}/test)
 # Where a sketch looks for what it did not generate, and where the live
 # host finds the file behind a registry entry. Neither directory need
 # exist: a missing asset yields the placeholder and heals when a file

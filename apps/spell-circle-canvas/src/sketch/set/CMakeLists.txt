@@ -16,6 +16,8 @@ target_link_libraries(SigilSketchSet PUBLIC
 set_target_properties(SigilSketchSet PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 add_executable(sketch_set_test test/SetSessionTest.cpp)
+target_include_directories(sketch_set_test PRIVATE
+  ${SIGIL_SKETCH_TEST_SUPPORT_DIR})
 target_link_libraries(sketch_set_test PRIVATE SigilSketchSet SigilWeavePorts SigilWeaveFonts
   SigilGeometryKit GTest::gtest_main)
 add_test(NAME sketch_set_test COMMAND sketch_set_test)

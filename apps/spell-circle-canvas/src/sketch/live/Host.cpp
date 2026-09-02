@@ -170,12 +170,12 @@ std::optional<std::filesystem::file_time_type> Host::sourceStamp() {
   // The headers standing beside the sketch are part of it — a quoted
   // include resolves relative to the including file, so a directory of
   // sketches shares helpers with none of them on the include path. They
-  // are re-read a few times a second rather than every poll: a directory
-  // read is cheap but it is not free, and a header is saved by hand
-  // while the sketch is saved by the same hand a moment later.
+  // are re-read on the cadence the options name rather than every poll:
+  // a directory read is cheap but it is not free, and a header is saved
+  // by hand while the sketch is saved by the same hand a moment later.
   const auto now = std::chrono::steady_clock::now();
   if (m_lastSiblingScan.time_since_epoch().count() == 0 ||
-      now - m_lastSiblingScan > std::chrono::milliseconds(250)) {
+      now - m_lastSiblingScan >= m_options.siblingScanInterval) {
     m_lastSiblingScan = now;
     m_siblingStamp = {};
     std::error_code scan;

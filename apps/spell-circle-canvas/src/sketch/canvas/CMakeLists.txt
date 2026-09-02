@@ -25,6 +25,8 @@ set_target_properties(SigilSketchCanvas PROPERTIES
   POSITION_INDEPENDENT_CODE ON)
 
 add_executable(sketch_canvas_test test/CanvasSessionTest.cpp)
+target_include_directories(sketch_canvas_test PRIVATE
+  ${SIGIL_SKETCH_TEST_SUPPORT_DIR})
 target_link_libraries(sketch_canvas_test PRIVATE SigilSketchCanvas
   GTest::gtest_main)
 add_test(NAME sketch_canvas_test COMMAND sketch_canvas_test)

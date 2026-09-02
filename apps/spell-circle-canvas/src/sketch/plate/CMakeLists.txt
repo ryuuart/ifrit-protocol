@@ -21,6 +21,8 @@ if(APPLE AND TARGET SigilSkia)
 endif()
 
 add_executable(sketch_plate_test test/SweepTest.cpp)
+target_include_directories(sketch_plate_test PRIVATE
+  ${SIGIL_SKETCH_TEST_SUPPORT_DIR} ${SIGIL_TEST_SUPPORT_DIR})
 target_link_libraries(sketch_plate_test PRIVATE SigilSketchPlate
   SigilSketchCanvas SigilWeavePorts GTest::gtest_main)
 add_test(NAME sketch_plate_test COMMAND sketch_plate_test)

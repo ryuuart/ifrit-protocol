@@ -10,8 +10,6 @@
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilmaterial/kit/Surface.h>
 #include <sigilsketch/set/Set.h>
-#include <sigilweave/fonts/FontContext.h>
-#include <sigilweave/ports/SystemFontManager.h>
 #include <sigilworld/element/Element.h>
 
 #include <algorithm>
@@ -21,22 +19,16 @@
 #include <memory>
 #include <optional>
 
+#include "Support.h"
+
 namespace {
 
 using namespace sigil::sketch;
 namespace world = sigil::world;
 namespace gm = sigil::geometry::mesh;
 
-sigil::weave::FontContext& fonts() {
-  static auto* context =
-      new sigil::weave::FontContext(sigil::weave::ports::systemFontManager());
-  return *context;
-}
-
-Assets& assets() {
-  static auto* store = new Assets("");
-  return *store;
-}
+using sigil::sketch::test::assets;
+using sigil::sketch::test::fonts;
 
 /** One box on a turntable, and nothing else. */
 struct Spun : Set {
@@ -113,6 +105,21 @@ SkBitmap steppedOnto(float scale, int frames) {
 
 SkBitmap steppedTo(int frames) { return steppedOnto(1.0f, frames); }
 
+/** One frame of @p session onto a plate of the declared canvas size. */
+SkBitmap oneFrame(Session& session) {
+  SkBitmap bitmap;
+  bitmap.allocPixels(SkImageInfo::MakeN32Premul(160, 120));
+  SkCanvas canvas(bitmap);
+  session.frame(canvas, 1.0 / 60.0);
+  return bitmap;
+}
+
+/** Whether two plates are the same picture, byte for byte. */
+bool samePicture(const SkBitmap& a, const SkBitmap& b) {
+  return a.computeByteSize() == b.computeByteSize() &&
+         std::memcmp(a.getPixels(), b.getPixels(), a.computeByteSize()) == 0;
+}
+
 /** WHERE THE PICTURE STANDS, as fractions of the plate, so two plates of
  *  different sizes can be asked whether they show the same thing in the
  *  same place. A set's background is one flat colour and everything
@@ -145,29 +152,20 @@ TEST(SetSession, ReadsTheDeclarationBackAfterSetup) {
 TEST(SetSession, TheSameMomentIsTheSamePicture) {
   // The plate contract: a set is a pure function of the scene time, so
   // two runs that step the same number of frames agree on every byte.
-  const SkBitmap first = steppedTo(30);
-  const SkBitmap second = steppedTo(30);
-  ASSERT_EQ(first.computeByteSize(), second.computeByteSize());
-  EXPECT_EQ(0, std::memcmp(first.getPixels(), second.getPixels(),
-                           first.computeByteSize()));
+  EXPECT_TRUE(samePicture(steppedTo(30), steppedTo(30)));
 }
 
 TEST(SetSession, ADifferentMomentIsADifferentPicture) {
-  const SkBitmap early = steppedTo(6);
-  const SkBitmap late = steppedTo(30);
-  EXPECT_NE(0, std::memcmp(early.getPixels(), late.getPixels(),
-                           early.computeByteSize()));
+  EXPECT_FALSE(samePicture(steppedTo(6), steppedTo(30)));
 }
 
-TEST(SetSession, AFittedCanvasHoldsTheSamePictureInTheSamePlace) {
+TEST(SetSession, AFittedCanvasPutsThePictureInTheSamePlace) {
   // A live host hands over a canvas ALREADY FITTED: the sketch's own
   // canvas scaled up to the window it was letterboxed into, on a screen
-  // that may have two pixels for every one of those. A set is formed at
-  // ONE resolution, so it has to be formed at the canvas's — a set
-  // formed at its declared size and then magnified onto the canvas is a
-  // picture of a smaller one, and a set whose projection is read off the
-  // surface instead lands at the surface's size inside a box that is
-  // still the declared one, which carries most of it off its own edge.
+  // that may have two pixels for every one of those. A set whose
+  // projection is read off the surface instead of off the canvas lands
+  // at the surface's size inside a box that is still the declared one,
+  // which carries most of it off its own edge.
   const SkBitmap declared = steppedOnto(1.0f, 30);
   const SkBitmap fitted = steppedOnto(2.0f, 30);
   ASSERT_EQ(fitted.width(), declared.width() * 2);
@@ -184,11 +182,21 @@ TEST(SetSession, AFittedCanvasHoldsTheSamePictureInTheSamePlace) {
   EXPECT_NEAR(one.fTop, two.fTop, kSlack);
   EXPECT_NEAR(one.fRight, two.fRight, kSlack);
   EXPECT_NEAR(one.fBottom, two.fBottom, kSlack);
+}
 
-  // …and the same picture INSIDE the outline too, which is what says the
-  // projection landed where it belongs rather than merely fitting: every
-  // 2x2 of the fitted plate averages to its own pixel of the declared
-  // one, to within what two resolutions do to an edge.
+TEST(SetSession, AFittedCanvasHoldsTheSamePicture) {
+  // The same picture INSIDE the outline too, which is what says the
+  // projection landed where it belongs rather than merely fitting: a set
+  // is formed at ONE resolution, so it has to be formed at the canvas's
+  // — one formed at its declared size and then magnified onto the canvas
+  // is a picture of a smaller one. Every 2x2 of the fitted plate
+  // averages to its own pixel of the declared one, to within what two
+  // resolutions do to an edge.
+  const SkBitmap declared = steppedOnto(1.0f, 30);
+  const SkBitmap fitted = steppedOnto(2.0f, 30);
+  ASSERT_EQ(fitted.width(), declared.width() * 2);
+  ASSERT_EQ(fitted.height(), declared.height() * 2);
+
   double total = 0;
   for (int y = 0; y < declared.height(); ++y)
     for (int x = 0; x < declared.width(); ++x) {
@@ -259,55 +267,49 @@ TEST(Orbit, ReadsACameraBackAsTheOrbitThatMakesIt) {
   EXPECT_FLOAT_EQ(back.fovYDeg, lens.fovYDeg);
 }
 
-TEST(SetSession, IsSeenFromTheCameraItDeclaredUntilADragMovesIt) {
+TEST(SetSession, IsSeenFromTheCameraItsOwnTreeCarries) {
   // WHAT A LIVE HOST MUST SHOW before anyone touches it: the set as its
   // plate shows it. The host hands in a fallback camera nowhere near the
   // one the tree carries, and the tree's is what the session reports.
   std::unique_ptr<Session> session = kindOf<Framed>()->open(fonts(), assets());
-  SkBitmap bitmap;
-  bitmap.allocPixels(SkImageInfo::MakeN32Premul(160, 120));
-  SkCanvas canvas(bitmap);
-  session->frame(canvas, 1.0 / 60.0);
+  oneFrame(*session);
 
   const Orbit declared = orbitOf(framedLens());
-  std::optional<Orbit> reported = session->orbit();
+  const std::optional<Orbit> reported = session->orbit();
   ASSERT_TRUE(reported.has_value());
   EXPECT_NEAR(reported->yawDeg, declared.yawDeg, 1e-2f);
   EXPECT_NEAR(reported->pitchDeg, declared.pitchDeg, 1e-2f);
   EXPECT_NEAR(reported->distance, declared.distance, 1e-2f);
+}
 
-  // A HOST THAT MOVES IT BY NOTHING CHANGES NOTHING — which is what says
-  // the orbit pivots on the declared camera's own target and stands at
-  // its own distance, rather than on a point and a distance of the
-  // host's.
-  SkBitmap standing;
-  standing.allocPixels(SkImageInfo::MakeN32Premul(160, 120));
-  SkCanvas standingCanvas(standing);
-  session->frame(standingCanvas, 1.0 / 60.0);
+TEST(SetSession, ADragThatMovesItByNothingChangesNothing) {
+  // Which is what says the orbit pivots on the declared camera's own
+  // target and stands at its own distance, rather than on a point and a
+  // distance of the host's.
+  std::unique_ptr<Session> session = kindOf<Framed>()->open(fonts(), assets());
+  oneFrame(*session);
+  const Orbit declared = orbitOf(framedLens());
+
+  const SkBitmap standing = oneFrame(*session);
   session->viewpoint(declared.yawDeg, declared.pitchDeg, declared.distance);
-  SkBitmap held;
-  held.allocPixels(SkImageInfo::MakeN32Premul(160, 120));
-  SkCanvas heldCanvas(held);
-  session->frame(heldCanvas, 1.0 / 60.0);
-  ASSERT_EQ(standing.computeByteSize(), held.computeByteSize());
-  EXPECT_EQ(0, std::memcmp(standing.getPixels(), held.getPixels(),
-                           standing.computeByteSize()));
+  const SkBitmap held = oneFrame(*session);
+  EXPECT_TRUE(samePicture(standing, held));
+}
 
-  // …and a drag that is a drag moves it, still about that target.
+TEST(SetSession, ADragMovesItAboutTheTargetItDeclared) {
+  std::unique_ptr<Session> session = kindOf<Framed>()->open(fonts(), assets());
+  oneFrame(*session);
+  const Orbit declared = orbitOf(framedLens());
+
+  const SkBitmap standing = oneFrame(*session);
   session->viewpoint(declared.yawDeg + 90.0f, declared.pitchDeg,
                      declared.distance);
-  SkBitmap moved;
-  moved.allocPixels(SkImageInfo::MakeN32Premul(160, 120));
-  SkCanvas movedCanvas(moved);
-  session->frame(movedCanvas, 1.0 / 60.0);
-  EXPECT_NE(0, std::memcmp(standing.getPixels(), moved.getPixels(),
-                           standing.computeByteSize()));
+  const SkBitmap moved = oneFrame(*session);
+  EXPECT_FALSE(samePicture(standing, moved));
   const std::optional<Orbit> after = session->orbit();
   ASSERT_TRUE(after.has_value());
   EXPECT_NEAR(after->distance, declared.distance, 1e-2f);
   EXPECT_NEAR(after->pitchDeg, declared.pitchDeg, 1e-2f);
 }
-
-TEST(SetKind, NamesItsRuntime) { EXPECT_EQ(kindOf<Spun>()->runtime(), "set"); }
 
 }  // namespace

@@ -102,16 +102,16 @@ TEST(SketchAvailability, ReadsTheProbeOffTheSketchType) {
   EXPECT_TRUE(probeOf<PlainSketch>(nullptr));
 }
 
-TEST(SketchAvailability, AnEntryWithNoProbeIsAvailable) {
+TEST(SketchAvailability, AnEntryAnswersForTheSketchBehindIt) {
+  // An entry with no probe is available and leaves the reason alone; one
+  // with a probe answers what the sketch says and names what is missing.
   std::string why = "untouched";
   EXPECT_TRUE(registry()[0].available(&why));
   EXPECT_EQ(why, "untouched");
-}
 
-TEST(SketchAvailability, AnEntryReportsWhatItIsMissing) {
   const Entry& gated = registry()[3];
-  std::string why;
   GatedSketch::missing = true;
+  why.clear();
   EXPECT_FALSE(gated.available(&why));
   EXPECT_EQ(why, "the thing it draws is not installed");
   GatedSketch::missing = false;

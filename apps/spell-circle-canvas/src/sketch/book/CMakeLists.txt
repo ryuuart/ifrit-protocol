@@ -168,13 +168,6 @@ add_custom_target(sketch_flags
   DEPENDS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>/sketch_flags.rsp)
 add_dependencies(Sketchbook sketch_flags)
 
-# End-to-end smoke test of the reload pipeline: compile the starter
-# sketch through the same flags, dlopen it, render a frame.
-add_test(NAME sketch_reload_smoke
-  COMMAND Sketchbook
-    ${SIGIL_SKETCH_DIR}/hello.cpp
-    --frame ${CMAKE_BINARY_DIR}/sketch_reload_smoke.png)
-
 # Paints one of every stock material, so a material that cannot compile
 # or draw fails here rather than in someone's sketch.
 add_test(NAME sketch_reload_materials

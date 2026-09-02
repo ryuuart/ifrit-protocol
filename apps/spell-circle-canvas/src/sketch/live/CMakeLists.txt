@@ -16,6 +16,8 @@ target_link_libraries(SigilSketchLive PUBLIC SigilSketchCore SigilImageEncode
 set_target_properties(SigilSketchLive PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 add_executable(sketch_live_test test/HostTest.cpp test/ResidencyTest.cpp)
+target_include_directories(sketch_live_test PRIVATE
+  ${SIGIL_SKETCH_TEST_SUPPORT_DIR} ${SIGIL_TEST_SUPPORT_DIR})
 target_link_libraries(sketch_live_test PRIVATE SigilSketchLive
   SigilSketchCanvas GTest::gtest_main)
 add_test(NAME sketch_live_test COMMAND sketch_live_test)

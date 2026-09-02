@@ -65,6 +65,12 @@ class Host {
      *  than by building the file, and compile only once the file
      *  changes. Null means always build. */
     const Entry* compiledIn = nullptr;
+    /** How long between re-reads of the headers standing beside the
+     *  sketch. The sketch's own file is stamped every poll; the
+     *  directory around it is not, because reading a directory is cheap
+     *  but not free and a header is saved by hand a moment before the
+     *  sketch is. Zero re-reads them on every poll. */
+    std::chrono::milliseconds siblingScanInterval{250};
   };
 
   Host(Options options, weave::FontContext& fonts);
@@ -178,9 +184,10 @@ class Host {
 
   std::future<CompileResult> m_compile;
   std::filesystem::file_time_type m_compiledMtime;
-  // The sibling headers' newest write, re-read on a slower cadence than
-  // the sketch itself: reading a directory is not per-frame work, and
-  // the file being typed into is where responsiveness is wanted.
+  // The sibling headers' newest write, re-read on the cadence the
+  // options name rather than every poll: reading a directory is not
+  // per-frame work, and the file being typed into is where
+  // responsiveness is wanted.
   std::filesystem::file_time_type m_siblingStamp;
   std::chrono::steady_clock::time_point m_lastSiblingScan;
   bool m_everCompiled = false;

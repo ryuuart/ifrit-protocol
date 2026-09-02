@@ -567,3 +567,59 @@ forgiving contract a live-edited file wants — a magenta placeholder
 stands in for a missing or undecodable file and heals the moment one
 appears, re-running the sketch's declaration — and `hub()` opens the
 full resource surface without the sketch ever touching the filesystem.
+
+## Build and test
+
+From `apps/spell-circle-canvas`:
+
+```sh
+python3 scripts/setup.py --config Debug
+cmake --build build --config Debug --target sketch_core_test \
+  sketch_canvas_test sketch_set_test sketch_live_test sketch_plate_test
+ctest --test-dir build -C Debug -R sketch_ --output-on-failure
+```
+
+One test binary per feature, each linking that feature alone:
+`sketch_core_test` over the registry and the kind seam, `sketch_canvas_test`
+and `sketch_set_test` over the two sessions, `sketch_live_test` over the
+host and the resident set, `sketch_plate_test` over the sweep.
+
+`test/Support.h` at the library root holds what every one of them opens a
+session with — the one font context and the one asset store a process
+holds, neither ever destroyed, because a context outlives everything
+shaped through it. A test target adds `test/` to its include path and
+spells `"Support.h"`. `live/test/Fixture.h` holds what both halves of
+`sketch_live_test` need beyond that: the compiled-in square, its registry
+entry, and a `Watched` file standing in a scratch directory of its own,
+which the shared `src/test/ScratchDir.h` empties on the way in and
+removes on the way out. `sketch_plate_test` registers its fixture sketches
+the way a sketch file does, so the sweep it drives walks a real registry —
+including one whose `available()` probe says no, which the sweep passes
+over rather than failing on and writes no plate for.
+
+`Host::Options::siblingScanInterval` names how long the host waits
+between re-reads of the headers standing beside the sketch. It defaults
+to a quarter second, because reading a directory is cheap but not free
+and a header is saved by hand a moment before the sketch is; a test that
+edits a header and polls sets it to zero, so the edit is seen when it is
+made rather than whenever the cadence next comes round.
+
+### Three ways a sketch is put through a host, and why they are all here
+
+The `sketch_reload_*` entries in `book/CMakeLists.txt` run
+`Sketchbook <file.cpp> --frame out.png`, which compiles the file with the
+captured response file, dlopens the result and runs it — the DYNAMIC
+path, and the only one that can see a missing archive in the force-load
+list. `sketch_plate_test` calls `sweep()` IN PROCESS against fixture
+sketches its own binary registered. `scripts/plate_ledger.py` runs
+`Sketchbook --headless --ledger` over the COMPILED-IN registry and judges
+plate hashes. Three different things, and none of them stands in for
+another.
+
+Within the dynamic entries, one per distinct surface: `shapeworks_lab`
+and `first_light` are the widest canvas and set sketches by the symbols
+they name, `stock_materials` paints one of every stock material,
+`world_hud` is the other registration form, and the two behind an
+optional SDK name symbols nothing else does. A starter sketch that names
+none of those adds no entry of its own: anything that stops it compiling
+and loading stops the wide ones too.
