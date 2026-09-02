@@ -213,20 +213,6 @@ Assert once fixed: render a Variant pass on both tiers over a body under
 one directional light and compare the two plates within the tier
 ceiling; the overlay's shading must agree, not just its coverage.
 
-## weave_unicode_bench does not compile
-
-`BM_LineBreaks` declares `std::vector<uint32_t> breaks` and hands it to
-`unicode::lineBreaks`, whose out-parameter overload takes
-`std::vector<LineBreak>&`. Nothing else in the file uses the value, so
-the only consumer of the wrong type is the call that fails. The `benches`
-target therefore cannot build, and `bench_ledger.py` cannot run.
-
-Intended: every feature's bench builds through the `benches` target, so
-the ledger has a median to judge.
-
-Assert once fixed: `cmake --build build --config Release --target benches`
-succeeds, and `bench_ledger.py` reports a median for `BM_LineBreaks`.
-
 ## The mesh painter's agreement with the host is asserted nowhere
 
 `world_diligent_test` compared a lit mesh and its normal buffer drawn on
