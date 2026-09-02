@@ -67,9 +67,10 @@
 //   * Amplitudes carry a 0.88 fit scale. The rotated composition reaches
 //     R·√2 from centre rather than R, and at full R that plus
 //     filament()'s glow overflows a 596 px-tall panel.
-//   * T = 12π, six pendulum periods. Three draws a clean wireframe
-//     rosette — a plotted function. Six, under the damping envelope, is
-//     where it turns into ink.
+//   * T = 6π, three pendulum periods. The record's spirals are sparse —
+//     a fine line making a few dozen readable loops — so the count is set
+//     where the precession can still be followed round rather than where
+//     the card turns into a ball of thread.
 //   * The credit line is set in CLARENDON, not the gothic. Typotheque
 //     says the body credits are "solid black capitals of the SAME
 //     typeface" as the titles, so News Gothic's stand-in is confined to
@@ -85,41 +86,40 @@
 // STATIONARY frame, is a Lissajous figure composed with a continuous
 // rotation — a precessing rosette:
 //
-//     t   = i/(N-1) · T                 T = 12π (6 pendulum periods)
+//     t   = i/(N-1) · T                 T = 6π (3 pendulum periods)
 //     env = exp(-damp·t)                (this study's damping)
 //     xl  = R·env·sin(a·t + δ)          pendulum, in the table's frame
 //     yl  = R·env·sin(b·t)
 //     θ   = k·t                         the table's own rotation
 //     p   = centre + rot(θ) · (xl, yl)
 //
-// Sampled once into an open SkPath and handed to Element::outline();
-// revealed by Element::trim(0, &growth) at a CONSTANT rate (easeNone —
-// a motor does not ease); spun forever by one shared rotate(&spin).
+// That is `shapes::harmonograph(a, b, δ, damping, precession, turns)` to
+// the line, so it is asked for rather than spelled: the six constants go
+// in and a COMPARABLE value comes out, which is what lets the thirteen
+// nodes holding one prune instead of re-patching on every describe. The
+// amplitude R is the node's own half-extent, because the curve is sampled
+// in a unit frame that the box scales.
+//
+// Revealed by Element::trim(0, &growth) at a CONSTANT rate (easeNone — a
+// motor does not ease); spun forever by one shaped binding on the clock.
 //
 // ---------------------------------------------------------------------
-// WHAT THIS FILE SPELLS OUT RATHER THAN ASKS FOR
+// THE ONE CONSTRAINT WORTH STATING
 // ---------------------------------------------------------------------
-//  1. The curve is a hand-rolled SkPathBuilder loop inside outline().
-//     `shapes::harmonograph` names the damped, precessing figure this
-//     draws; the loop stays because the four presets are read straight
-//     off the pendulum's own a:b:δ:k:R.
-//  2. `penTip` is a second, independently-owned Output the ticker
-//     re-copies from `growth − 0.008` every tick; so is `penA`. Four
-//     cards × two shadow cells = eight scalars kept in sync by hand,
-//     where `Ticker::derive` with `bind().offset().clamp()` would keep
-//     one.
-//  3. ONE trim window per NODE. trim() is an Element property and
-//     decorations receive the already-trimmed outline, so the pen-tip
-//     highlight is not a second stroke() — it is a duplicate node that
-//     rebuilds and re-measures the same 2000-segment path.
+// ONE TRIM WINDOW PER NODE. trim() is an Element property and decorations
+// receive the already-trimmed outline, so the bright pen-tip highlight
+// riding just behind the drawing edge cannot be a second stroke on the
+// same node. It is a sibling holding the same curve value with its own
+// window — and because the curve IS a value, the two siblings compare
+// equal and the second one costs a window rather than a second figure.
 //
-// Run:
-//   ./build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
-//       src/sketch/sketches/vertigo_titles.cpp \
-//       --frame shots/vertigo_titles.png
-//
-//   Motion check (the pen edge advancing along arc length across card B's
-//   1400 ms draw window):  --at 4.30 --frames 8 --fps 5
+// EDIT THESE FIRST
+//   kTurns   — how many pendulum periods each card draws. Three is a
+//              readable rosette; past four the loops stop resolving.
+//   kCards   — the four a:b:δ:k:R:damping presets and their inks.
+//   kFit     — how much of its 2R box the figure is allowed; the rotated
+//              composition reaches R·√2, so this keeps the glow inside.
+//   the 16 s card cycle in the ticker — four cards, four seconds each.
 
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkFontStyle.h>
@@ -181,7 +181,7 @@ constexpr float kSideW = 476.0f;
 
 // ---------------------------------------------------------------------------
 // the four spiral cards. a/b/delta/k/R are this study's invention (see
-// the header); damp is too. `T = 12π` for all four.
+// the header); damp is too. `T = 6π` for all four.
 
 struct Card {
   const char* tag;
@@ -196,11 +196,15 @@ struct Card {
 };
 
 constexpr float kFit = 0.88f;  // R·√2 + glow must clear kPanelH/2
-// Six pendulum periods. At three the figure reads as a clean wireframe
-// rosette — a plotted function. Whitney's cards are dense nested ink, and
-// six periods under the damping envelope is where it turns over.
-constexpr float kT = 12.0f * kPi;
-constexpr int kSamples = 2000;
+// THREE pendulum periods. The record's spirals are sparse — a single fine
+// line making a few dozen readable loops, so the eye can follow the
+// precession round. Past four the loops stop resolving and the card reads
+// as a ball of thread, which is a scribble rather than a mechanism.
+constexpr float kTurns = 3.0f;
+constexpr int kSamples = 1100;
+/** How far behind the drawing edge the bright nib window trails, as a
+ *  fraction of the contour's arc length. */
+constexpr float kNib = 0.008f;
 
 constexpr std::array<Card, 4> kCards = {{
     {"A", 3, 2, 90.0f, 0.15f, 200.0f, 0.035f, hex(0xE0601A),
@@ -216,31 +220,25 @@ constexpr std::array<Card, 4> kCards = {{
      "D — PURPLE · a:b = 5:3 · δ 60°", "k 0.12 · R 167 px · 5-lobe flower"},
 }};
 
-/** The pendulum-over-turntable curve, sampled into an OPEN contour.
- *  `amplitude` overrides the card's R (the sidebar chips draw the same
- *  figure at 15 px). Centred on the node's own box. */
-std::function<SkPath(SkSize)> lissajous(Card c, float amplitude,
-                                        int samples = kSamples) {
-  return [c, amplitude, samples](SkSize s) {
-    SkPathBuilder p;
-    const float cx = s.width() * 0.5f, cy = s.height() * 0.5f;
-    const float d = c.deltaDeg * kDeg;
-    for (int i = 0; i < samples; ++i) {
-      const float t = (float)i / (float)(samples - 1) * kT;
-      const float env = std::exp(-c.damp * t);
-      const float xl = amplitude * env * std::sin(c.a * t + d);
-      const float yl = amplitude * env * std::sin(c.b * t);
-      const float th = c.k * t;
-      const float ct = std::cos(th), st = std::sin(th);
-      const float x = xl * ct - yl * st;
-      const float y = xl * st + yl * ct;
-      if (i == 0)
-        p.moveTo(cx + x, cy + y);
-      else
-        p.lineTo(cx + x, cy + y);
-    }
-    return p.detach();  // deliberately NOT closed
-  };
+/** The pendulum-over-turntable curve. `shapes::harmonograph` IS the rig:
+ *  a Lissajous whose amplitudes decay under exp(-damping·t), rotated by
+ *  precession·t as it draws — the pendulum over the turning plate, in one
+ *  comparable value. The card's six constants go in unchanged.
+ *
+ *  AMPLITUDE IS THE NODE'S OWN BOX. The curve is sampled in a unit frame
+ *  where ±1 spans the box, so a card's R is spelled by giving its node a
+ *  2R square rather than by scaling inside the generator — which is what
+ *  makes the shape a value the node can compare and prune on rather than
+ *  a callable it must re-patch on every describe. */
+shapes::Harmonograph figure(const Card& c, int samples = kSamples) {
+  return shapes::harmonograph(c.a, c.b, c.deltaDeg, c.damp, c.k, kTurns,
+                              samples);
+}
+
+/** A node sized and placed so its box gives @p radius as the curve's
+ *  amplitude about @p centre. */
+Element figureBox(SkPoint centre, float radius) {
+  return box().width(radius * 2.0f).height(radius * 2.0f).centerAt(centre);
 }
 
 // ---------------------------------------------------------------------------
@@ -270,25 +268,20 @@ sigil::weave::TextStyle hollow(sk_sp<SkTypeface> face, float size,
   return s;
 }
 
-/** A clockwise circle of radius @p r centred on the node's box, starting
- *  at @p startDeg — the baseline for the onPath() ring captions.
- *  Fraction 0.25 is 12 o'clock and 0.75 is 6 o'clock at the default
- *  start. The last sample repeats the first, so the contour reads as
- *  geometrically closed and centred runs straddle the seam. */
-std::function<SkPath(SkSize)> circlePath(float r, float startDeg = 180.0f) {
-  return [r, startDeg](SkSize s) {
-    SkPathBuilder p;
-    const float cx = s.width() * 0.5f, cy = s.height() * 0.5f;
-    for (int i = 0; i <= 360; ++i) {
-      const float a = (startDeg + (float)i) * kDeg;
-      const SkPoint q{cx + r * std::cos(a), cy + r * std::sin(a)};
-      if (i == 0)
-        p.moveTo(q);
-      else
-        p.lineTo(q);
-    }
-    return p.detach();
-  };
+/** THE RING BASELINE for the onPath() legends: a clockwise circle
+ *  starting at 9 o'clock, so fraction 0.25 is 12 o'clock and 0.75 is 6
+ *  o'clock. The radius is the node's own half-extent, as everywhere else
+ *  a curve is sampled here.
+ *
+ *  Keyed, not bare. A raw callable never compares equal to a separately
+ *  constructed one, so the node holding it re-patches on every describe
+ *  and can never prune; the key is the promise that this name always
+ *  means this curve. */
+shapes::KeyedParametric ringPath() {
+  return shapes::parametric(
+      "vertigo-limbus",
+      [](float a) { return SkPoint{std::cos(a), std::sin(a)}; }, kPi,
+      kPi + 2.0f * kPi, 361);
 }
 
 /** A concentric ring on the panel — the pupil edge and the limbus, which
@@ -316,48 +309,60 @@ Element plate(float height) {
 // ===========================================================================
 
 struct VertigoTitles : sketch::Sketch {
-  // --- the perpetual loop's live cells (17 scalars, all hand-stepped) ---
-  ch::Output<float> spin{0};
+  // --- the perpetual loop's live cells ---------------------------------
+  // One clock and three cells per card. What used to be a fourth cell —
+  // the nib's trailing edge — is a shaped binding on `growth`, and what
+  // used to be a fifth is the turntable, which is a shaped binding on the
+  // clock. A value derived from another one is not its own state.
+  ch::Output<float> secs{0};
   std::array<ch::Output<float>, 4> growth{};  // trim end   — the pen
-  std::array<ch::Output<float>, 4> penTip{};  // trim start — growth − ε
   std::array<ch::Output<float>, 4> cardA{};   // card opacity
   std::array<ch::Output<float>, 4> penA{};    // nib opacity (fades at arrival)
+
+  /** THE TURNTABLE: 18°/s, folded into [0,360) — which is exactly what
+   *  `fmod(seconds · 18, 360)` computes, said as a lane instead of as a
+   *  scalar the ticker has to write. It never syncs to the 16 s card
+   *  cycle (lcm(16,20) = 80 s), the way a motor keeps running across cuts
+   *  the editor made without it. */
+  Bound turntable() const { return bind(&secs).scale(18.0f).wrap(360.0f); }
 
   sk_sp<SkTypeface> faceDisplay, faceGothic, faceGothicBold;
   Material irisMat, filmGrain, paperGrain;
 
   // ------------------------------------------------------------------
-  // one spiral card = TWO nodes over the same curve. The library has one
-  // trim window per NODE (trim() is an Element property; decorations
-  // receive the already-trimmed outline as PaintContext::outline), so a
-  // pen-tip highlight riding just behind the drawing edge cannot be a
-  // second stroke on the same node — it is a sibling with an identical
-  // outline and its own [penTip, growth] window.
+  // one spiral card = TWO nodes over the same curve. There is one trim
+  // window per NODE (trim() is an Element property; decorations receive
+  // the already-trimmed outline as PaintContext::outline), so a pen-tip
+  // highlight riding just behind the drawing edge cannot be a second
+  // stroke on the same node — it is a sibling with an identical outline
+  // and its own window, whose trailing edge is `growth` shaped.
   void spiralCard(Element& into, int i) {
     const Card& c = kCards[i];
     const float R = c.amp * kFit;
     const std::string tag = c.tag;
 
     into.child(
-        box()
+        figureBox(kEye, R)
             .key("curve" + tag)
-            .inset(0)
-            .shape(lissajous(c, R))
+            .shape(figure(c))
             .stroke(spans::upTo(&growth[i]),
                     kit::brush::presets::filament(c.core, hex(0xFFE9CF), 0.48f))
-            .rotate(&spin)
+            .rotate(turntable())
             .opacity(&cardA[i]));
 
     // the nib: a short bright plus-blended window at the trailing edge
+    // The nib's trailing edge is `growth` MINUS a constant — a derived
+    // value, which is a shaped binding on the same Output rather than a
+    // second Output kept in step by hand.
     into.child(
-        box()
+        figureBox(kEye, R)
             .key("nib" + tag)
-            .inset(0)
-            .shape(lissajous(c, R))
-            .stroke(spans::range(&penTip[i], &growth[i]),
+            .shape(figure(c))
+            .stroke(spans::range(bind(&growth[i]).offset(-kNib).clamp(0, 1),
+                                 &growth[i]),
                     kit::brush::presets::pulse({1.0f, 0.90f, 0.72f, 0.42f},
                                                {1, 1, 1, 0.95f}, 0.7f))
-            .rotate(&spin)
+            .rotate(turntable())
             .opacity(&penA[i]));
   }
 
@@ -418,10 +423,14 @@ struct VertigoTitles : sketch::Sketch {
         SkPaint halo;
         halo.setAntiAlias(true);
         halo.setStyle(SkPaint::kStroke_Style);
-        halo.setStrokeWidth(7.0f);
-        halo.setColor(0xA6000000);
+        // Kept THIN and weak on purpose. A heavy underlay reads as a
+        // fill, and a filled display cap is the one thing this register
+        // exists not to be: the record's whole point is outline type the
+        // image is seen through.
+        halo.setStrokeWidth(4.0f);
+        halo.setColor(0x59000000);
         face.paint.underlays.push_back(
-            sigil::weave::PaintLayer::blurred(halo, 3.5f));
+            sigil::weave::PaintLayer::blurred(halo, 2.4f));
       }
       // The entrance ramp covers the cascade's own span, so the last
       // capital lands exactly when the master progress does.
@@ -455,8 +464,10 @@ struct VertigoTitles : sketch::Sketch {
         text(toU8("JOHN WHITNEY · M-5 GUN DIRECTOR · PENDULUM OVER PLATE"),
              type(faceGothic, 11, hex(0xEDE6D8, 0.42f), 3.4f))
             .key("ring-top")
-            .inset(0)
-            .onPath({.path = circlePath(272.0f),
+            .width(544)
+            .height(544)
+            .centerAt(kEye)
+            .onPath({.path = ringPath(),
                      .at = 0.25f,
                      .align = TextPath::Align::Center,
                      .offset = 3.0f,
@@ -466,12 +477,14 @@ struct VertigoTitles : sketch::Sketch {
         text(toU8("PARAMOUNT 1958 · 1.85:1 · TECHNICOLOR"),
              type(faceGothic, 11, hex(0xEDE6D8, 0.42f), 3.4f))
             .key("ring-bottom")
-            .inset(0)
+            .width(544)
+            .height(544)
+            .centerAt(kEye)
             // Same clockwise baseline as the top caption, half a turn
             // round. autoFlip turns the whole run over so it reads right
             // way up on the underside of the ring; glyph order and glyph
             // orientation both follow, so the text is not mirrored.
-            .onPath({.path = circlePath(272.0f),
+            .onPath({.path = ringPath(),
                      .at = 0.75f,
                      .align = TextPath::Align::Center,
                      .offset = 3.0f,
@@ -493,23 +506,22 @@ struct VertigoTitles : sketch::Sketch {
                       .left(22)
                       .top(20)
                       .opacity(&cardA[i]));
-    panel.child(text(toU8("T = 12π · N = 2000 · TURNTABLE 18°/s · easeNone"),
+    panel.child(text(toU8("T = 6π · N = 1100 · TURNTABLE 18°/s · easeNone"),
                      type(faceGothic, 10, hex(0xEDE6D8, 0.50f), 1.8f))
                     .key("slug-rig")
                     .left(22)
                     .bottom(20)
                     .opacity(animate(from(0.0f).to(1.0f), ramp(1200, 400))));
 
-    // film gate: grain, then a soft vignette
+    // Film gate: grain, and NO vignette. The one colour source located
+    // for this passage describes a flat saturated field — cool tones and
+    // warm tones, not a centre that falls off to black. A ramp to the
+    // corners is a modern device and it was reading as the subject.
     panel.child(box()
                     .inset(0)
                     .fill(filmGrain)
                     .blend(SkBlendMode::kOverlay)
                     .opacity(0.42f));
-    panel.child(box().inset(0).fill(radialGradient(
-        kEye, kPanelW * 0.52f,
-        {hex(0x000000, 0.0f), hex(0x000000, 0.10f), hex(0x050302, 0.80f)},
-        {0.0f, 0.44f, 1.0f})));
 
     // the bezel is its OWN node: trim() on the panel would reveal the
     // iris fill along with the keyline.
@@ -531,15 +543,11 @@ struct VertigoTitles : sketch::Sketch {
     auto p = plate(140).gap(6);
     // something to see THROUGH the counters — the whole point of the
     // outline register. Card C's own curve, spinning with the rest.
-    p.child(box()
+    p.child(figureBox({130.0f, 70.0f}, 74.0f)
                 .key("spec-bed")
-                .left(-46)
-                .top(-64)
-                .width(352)
-                .height(268)
-                .shape(lissajous(kCards[2], 74.0f, 900))
+                .shape(figure(kCards[2], 700))
                 .stroke(stroke(0.8f, Fill::color(hex(0x2E5C9E, 0.55f))))
-                .rotate(&spin));
+                .rotate(turntable()));
     p.child(text(toU8("VERTIGO"), hollow(faceDisplay, 34, kBone, 1.1f, 4.0f))
                 .key("spec-outline"));
     p.child(text(toU8("SAUL BASS · JOHN WHITNEY"),
@@ -572,11 +580,10 @@ struct VertigoTitles : sketch::Sketch {
                     .fill(Fill::color(hex(0x080605)))
                     .stroke(stroke(1.0f, Fill::color(kKeyline),
                                    PathFormat::Align::Inner))
-                    .child(box()
-                               .inset(0)
-                               .shape(lissajous(c, 13.0f, 420))
+                    .child(figureBox({19.0f, 19.0f}, 13.0f)
+                               .shape(figure(c, 360))
                                .stroke(stroke(0.9f, Fill::color(c.core)))
-                               .rotate(&spin)));
+                               .rotate(turntable())));
       row.child(
           box()
               .column()
@@ -707,19 +714,16 @@ struct VertigoTitles : sketch::Sketch {
     ctx.canvas(kW, kH);
     ctx.background(kInk);
 
-    auto family = [&](const char* name, SkFontStyle s) -> sk_sp<SkTypeface> {
-      if (!ctx.fonts || !ctx.fonts->fontManager()) return nullptr;
-      return ctx.fonts->fontManager()->matchFamilyStyle(name, s);
-    };
-    // Clarendon is REAL here: macOS ships Apple's SuperClarendon.
-    faceDisplay = family("SuperClarendon", SkFontStyle::Bold());
-    if (!faceDisplay)
-      faceDisplay = family("Super Clarendon", SkFontStyle::Bold());
-    if (!faceDisplay) faceDisplay = family("Rockwell", SkFontStyle::Bold());
-    if (!faceDisplay) faceDisplay = family("Bodoni 72", SkFontStyle::Bold());
+    // Clarendon is REAL here: macOS ships Apple's SuperClarendon. The
+    // rest of the list is what this plate will accept instead of it, in
+    // order — which is the whole reason the face verb takes a chain.
+    faceDisplay =
+        pickFace({"SuperClarendon", "Super Clarendon", "Rockwell", "Bodoni 72"},
+                 SkFontStyle::Bold());
     // News Gothic is NOT installed — Helvetica Neue stands in, condensed.
-    faceGothic = family("Helvetica Neue", SkFontStyle::Normal());
-    faceGothicBold = family("Helvetica Neue", SkFontStyle::Bold());
+    faceGothic = pickFace({"Helvetica Neue", "Helvetica"});
+    faceGothicBold =
+        pickFace({"Helvetica Neue", "Helvetica"}, SkFontStyle::kBold_Weight);
 
     // ---- the iris: TWO gradient kinds flattened into one shader ----
     // radial sepia ramp (pupil → bright inner iris → limbus → dark) with
@@ -747,12 +751,12 @@ struct VertigoTitles : sketch::Sketch {
     filmGrain = patterns::grain(0.62f, 3, 4.0f, 0.34f, 1.0f);
     paperGrain = patterns::grain(0.42f, 2, 11.0f, 0.28f, 1.0f);
 
-    // ---- the perpetual loop: 17 hand-stepped scalars ---------------
-    // spin never syncs to the 16 s card cycle (lcm(16,20) = 80 s), the
-    // way a motor keeps running across cuts the editor made without it.
+    // ---- the perpetual loop --------------------------------------
+    // One clock, and the card cycle's own three cells. Everything the
+    // turntable and the nib need is derived from these where it is used.
     ctx.ticker.add([this, t = 0.0](double dt) mutable {
       t += dt;
-      spin = (float)std::fmod(t * 18.0, 360.0);
+      secs = (float)t;
       const double cycle = std::fmod(t, 16.0);
       for (int i = 0; i < 4; ++i) {
         const double L = std::fmod(cycle - (double)i * 4.0 + 16.0, 16.0);
@@ -766,11 +770,6 @@ struct VertigoTitles : sketch::Sketch {
         }
         cardA[i] = op;
         growth[i] = g;
-        // shadow state the sketch keeps in sync BY HAND — there is no
-        // "this Output, minus a constant" Animatable form, so a value
-        // derived from another one has to be its own Output, re-stepped
-        // here every tick.
-        penTip[i] = std::max(0.0f, g - 0.008f);
         penA[i] = op * std::clamp((1.0f - g) / 0.06f, 0.0f, 1.0f) *
                   std::clamp(g / 0.02f, 0.0f, 1.0f);
       }
