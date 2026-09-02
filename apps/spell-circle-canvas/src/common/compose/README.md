@@ -651,8 +651,20 @@ the left edge, not the top one.
 ## Boundaries
 
 The library links `SigilCoreReconcile`, `SigilCoreCache`,
-`SigilGeometryPath`, `SigilImage`, `SigilMotion`, `SigilWeave` and Skia
-publicly, and Yoga privately. `SigilCoreReconcile` is the reconciler: the
+`SigilGeometryPath`, `SigilImage`, `SigilMaterial`, `SigilMotion`,
+`SigilSkiaDraw`, `SigilWeave` and Skia publicly, and Yoga privately.
+
+**What compose IS, after all of those: the element runtime.** It
+reconciles a description against a retained tree, lays it out, paints it
+in a stated stacking order, caches what it can prove is still, and holds
+the text element and the marks that dress an outline. What it does not
+hold is any of the four vocabularies it draws with. A silhouette, a width
+law, a deviation, a band, a crossing and a figure's coordinate frame are
+`geometry::`; a paint, a post-processing effect, a signed-distance
+surface, a tile and a field are `material::`; a style, a face and a
+paragraph are `weave::`; an animatable, a transition and a cascade are
+`motion::`. Each is spelled at its own origin here — compose re-exports
+none of them. `SigilCoreReconcile` is the reconciler: the
 keyed and positional match, the memo, the identity prune, the
 `core::env::` channel and the animation lane operations are its, and `Composer` is its
 host — the description comparators, Yoga, text and paint stay here.
@@ -665,10 +677,9 @@ release that proves a node declaring volatility is holding still, and the
 three-way bake decision are its. What every term MEANS is compose's: which
 Skia paint moves pixels off the describe clock, which of its lanes a value
 memo can compare, what a recording is and when it may be replayed.
-OpenColorIO is optional and gates `paint/Ocio.h` alone.
-`SigilGeometryPath` supplies the contours, polylines, poses and seeded
-noise that every outline walker here reads through, and compose adds no
-path geometry of its own. `travel()`'s motion path is the worked example:
+`SigilGeometryPath` supplies the contours, polylines, poses, seeded
+noise, width laws, shapers, bands and crossings that every outline walker
+here reads through, and compose adds no path geometry of its own. `travel()`'s motion path is the worked example:
 the curve is measured into that library's contours once per shape and
 size, and each frame's position is one pose read along them, walked as a
 single arc-length coordinate. What stays here is the
