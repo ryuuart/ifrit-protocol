@@ -1351,7 +1351,10 @@ struct HitmanVerlet : sketch::Sketch {
                               .width(Dim(1))
                               .height(Dim(76))
                               .fill(hex(0x191B22, 0.9f))))
-        .child(slot("benchStat").height(Dim(10)).shrink(0));
+        .child(t("ONE POOL WITH sizes() \xc2\xb7 ONE custom() PROGRAM",
+                 mono(7.0f, kTick, 0.2f))
+                   .height(Dim(10))
+                   .shrink(0));
   }
 
   Element errorLegend() {
@@ -1534,6 +1537,14 @@ struct HitmanVerlet : sketch::Sketch {
         .child(t("(1000, 1000)", mono(7.5f, kTick))
                    .left(Dim(kStage - 62))
                    .top(Dim(5)))
+        .child(t("\xc2\xa7"
+                 "9 \xc2\xb7 THE CORPSE \xc2\xb7 16 PARTICLES, 24 STICKS, "
+                 "4 ITERATIONS \xc2\xb7 EVERY STICK COLOURED BY ITS LIVE "
+                 "CONSTRAINT ERROR",
+                 ui(7.5f, kBone, 0.5f))
+                   .left(Dim(16))
+                   .top(Dim(548))
+                   .width(Dim(214)))
         .child(t("\xc2\xa7"
                  "4 \xc2\xb7 TRIANGULAR MESH \xc2\xb7 ONE PARTICLE "
                  "PINNED \xc2\xb7 ONE ITERATION \xc2\xb7 THE SAG IS THE "
@@ -1997,21 +2008,6 @@ struct HitmanVerlet : sketch::Sketch {
     return t(buf, monoB(8.0f, errColor(stageMaxErr), 0.1f));
   }
 
-  Element benchStatEl() {
-    char buf[128];
-    std::snprintf(buf, sizeof buf,
-                  "24 sticks: instances()+sizes() %.0f \xc2\xb5s  \xc2\xb7  "
-                  "custom()+paintOn %.0f \xc2\xb5s",
-                  // The two numbers on this canvas that measure the host
-                  // rather than the physics, so they differ between two
-                  // renders of the same frame. Pinned when the host is
-                  // capturing for a diff, which is what makes the still
-                  // comparable byte for byte.
-                  deterministic_ ? 0.0 : instUs,
-                  deterministic_ ? 0.0 : customUs);
-    return t(buf, mono(7.0f, kTick, 0.2f));
-  }
-
   // =========================================================================
 
   bool deterministic_ = false;  // pin what this study timed about itself
@@ -2085,7 +2081,6 @@ struct HitmanVerlet : sketch::Sketch {
         stepped = false;
         composer.renderSlot("chainStat", chainStatEl());
         composer.renderSlot("stageStat", stageStatEl());
-        composer.renderSlot("benchStat", benchStatEl());
         composer.renderSlot("phase", phaseStrip());
       }
       writeDotPool();
@@ -2101,7 +2096,6 @@ struct HitmanVerlet : sketch::Sketch {
     composer.render(describe());
     composer.renderSlot("chainStat", chainStatEl());
     composer.renderSlot("stageStat", stageStatEl());
-    composer.renderSlot("benchStat", benchStatEl());
   }
 
   void update(double, sketch::SketchContext&) override {}
