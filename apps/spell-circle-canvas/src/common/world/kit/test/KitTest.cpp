@@ -168,4 +168,32 @@ TEST(WorldKit, TheSetIsAGroundARigACameraAndTheSubject) {
             (std::vector<std::string>{"rig", "camera", "subject"}));
 }
 
+TEST(WorldKit, ARigWithNoExtentStandsAtTheSubject) {
+  // Every distance in the arrangement is a multiple of the extent, so a
+  // subject nothing across puts all three lamps where it stands. The
+  // tree is still three keyed emitters: a degenerate number narrows the
+  // arrangement rather than dropping a light out of it.
+  kit::Rig flat;
+  flat.extent = 0.0f;
+  const Element rig = kit::threePoint(flat);
+  EXPECT_EQ(keysOf(rig), (std::vector<std::string>{"key", "fill", "back"}));
+  for (const std::string& key : {"key", "fill", "back"}) {
+    const Light* lamp = lightOf(rig, key);
+    ASSERT_NE(lamp, nullptr) << key;
+    EXPECT_NEAR(glm::length(lamp->position - flat.at), 0.0f, 1e-4f) << key;
+  }
+}
+
+TEST(WorldKit, ARailIsAClosedLoopHoweverFewStationsItIsAskedFor) {
+  // A rail is a closed loop drawn through its stations, and fewer than
+  // three points is not a loop — so the rail stands at three rather than
+  // handing back a curve a camera cannot ride.
+  kit::Turntable few;
+  few.stations = 1;
+  const Spline3 track = kit::rail(few);
+  EXPECT_TRUE(track.closed);
+  EXPECT_EQ((int)track.points.size(), 3);
+  EXPECT_GT(track.length(), 0.0f);
+}
+
 }  // namespace

@@ -35,8 +35,9 @@ namespace sigil::world::diligent {
  *
  * WHAT DIFFERS FROM THE HOST, and neither is a shading disagreement:
  * the host sorts triangles back to front and antialiases their edges,
- * while this depth-tests them and does not. `world_diligent_test` states
- * the tolerance that leaves.
+ * while this depth-tests them and does not. So the two draw the same
+ * picture and not the same bytes, and what they disagree about is a
+ * silhouette.
  *
  * WHAT THIS COSTS, said plainly: one readback per mesh draw. A canvas
  * does not name the texture behind it, so there is nothing to compare
@@ -56,6 +57,7 @@ namespace sigil::world::diligent {
  * Two runtimes made by one call to this compare equal; two separate
  * calls do not, because they hold separate device state.
  */
-::sigil::geometry::mesh::render::Runtime painterRuntime(::sigil::geometry::device::Device& device);
+::sigil::geometry::mesh::render::Runtime painterRuntime(
+    ::sigil::geometry::device::Device& device);
 
 }  // namespace sigil::world::diligent

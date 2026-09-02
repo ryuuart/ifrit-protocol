@@ -11,21 +11,13 @@
 #include <string>
 #include <vector>
 
+#include "TestMaterial.h"
+
 using namespace sigil;
 using namespace sigil::world;
+using namespace sigil::world::test;
 
 namespace {
-
-struct Paint {
-  glm::vec4 baseColor{1, 1, 1, 1};
-};
-
-material::Material paint(glm::vec4 colour) {
-  static const std::shared_ptr<const material::Recipe> recipe =
-      std::make_shared<const material::Recipe>(
-          material::Recipe::of<Paint>("world.test.selector"));
-  return material::Material(recipe, Paint{colour});
-}
 
 struct Node {
   std::string key;
@@ -64,7 +56,7 @@ TEST(WorldSelector, AMaterialTermComparesByValue) {
   EXPECT_FALSE(sel::material(red).matches(node.subject()));
 }
 
-TEST(WorldSelector, CombinatorsCompose) {
+TEST(WorldSelector, AndOrAndNotCombineTheirTermsVerdicts) {
   const Node glowing{"body", {"glow"}, {"rig"}, nullptr};
   const Node plain{"body", {}, {"rig"}, nullptr};
   EXPECT_TRUE(

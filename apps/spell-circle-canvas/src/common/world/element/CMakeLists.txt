@@ -40,6 +40,7 @@ add_executable(world_element_test
   test/ElementTest.cpp
   test/SelectorTest.cpp
 )
+target_include_directories(world_element_test PRIVATE ${SIGIL_WORLD_TEST_DIR})
 target_link_libraries(world_element_test PRIVATE SigilWorldElement
   GTest::gtest_main)
 add_test(NAME world_element_test COMMAND world_element_test)

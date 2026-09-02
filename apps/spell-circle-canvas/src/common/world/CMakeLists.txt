@@ -10,6 +10,11 @@
 # adds the root and spells its own directory.
 set(SIGIL_WORLD_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/include)
 
+# The fixtures every test binary here shares live in test/, so a feature's
+# test target adds this one directory and includes the header by name. It
+# is on no library's include path: nothing shipped may reach a fixture.
+set(SIGIL_WORLD_TEST_DIR ${CMAKE_CURRENT_LIST_DIR}/test)
+
 # The light feature stands alone: emitter VALUES over glm, with no
 # device and no registry, so a consumer that only needs to say where the
 # lights are links it without anything that draws.

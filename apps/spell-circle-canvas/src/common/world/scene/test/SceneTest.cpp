@@ -23,20 +23,17 @@
 #include <string>
 #include <vector>
 
+#include "TestMaterial.h"
+
 using namespace sigil;
 using namespace sigil::world;
+using namespace sigil::world::test;
 using namespace std::chrono_literals;
 
 namespace {
 
-Mesh triangle(float size) {
-  Mesh m;
-  m.positions = {{-size, -size, 0}, {size, -size, 0}, {0, size, 0}};
-  m.normals = {{0, 0, 1}, {0, 0, 1}, {0, 0, 1}};
-  m.uvs = {{0, 0}, {1, 0}, {0.5f, 1}};
-  m.indices = {0, 1, 2};
-  return m;
-}
+/** A flat body @p size across each way, facing the camera. */
+Mesh card(float size) { return geometry::mesh::quad(size * 2.0f, size * 2.0f); }
 
 /** A closed loop and a chain of stamps riding a window of it — the same
  *  VALUE wherever it is built, which is what makes it shareable. */
@@ -67,16 +64,22 @@ std::vector<uint8_t> plate(Scene& scene) {
   return {pixels, pixels + bitmap.computeByteSize()};
 }
 
+/** A CLOCK AND A SCENE READING IT — what nearly every case below opens
+ *  with, and the only state any of them shares. */
+class WorldScene : public testing::Test {
+ protected:
+  motion::Ticker ticker;
+  Scene scene{ticker};
+};
+
 }  // namespace
 
-TEST(WorldScene, AKeyedReorderKeepsEveryNodesHandle) {
-  motion::Ticker ticker;
-  Scene scene(ticker);
+TEST_F(WorldScene, AKeyedReorderKeepsEveryNodesHandle) {
   const auto describe = [](const std::vector<std::string>& order) {
     Element root;
     root.key("root");
     for (const std::string& key : order)
-      root.child(Element().key(key).mesh(triangle(10)));
+      root.child(Element().key(key).mesh(card(10)));
     return root;
   };
 
@@ -96,9 +99,7 @@ TEST(WorldScene, AKeyedReorderKeepsEveryNodesHandle) {
   EXPECT_EQ(scene.stats().reconcile.retired, 0);
 }
 
-TEST(WorldScene, AGeometrySlotChangeKeepsTheNodeAndItsLanes) {
-  motion::Ticker ticker;
-  Scene scene(ticker);
+TEST_F(WorldScene, AGeometrySlotChangeKeepsTheNodeAndItsLanes) {
   choreograph::Output<float> lift = 0.0f;
 
   const auto describe = [&lift](bool asCloud) {
@@ -106,9 +107,9 @@ TEST(WorldScene, AGeometrySlotChangeKeepsTheNodeAndItsLanes) {
     if (asCloud) {
       Cloud points;
       points.positions = {{-20, 0, 0}, {20, 0, 0}};
-      body.cloud(points).stamp(triangle(4));
+      body.cloud(points).stamp(card(4));
     } else {
-      body.mesh(triangle(20));
+      body.mesh(card(20));
     }
     return Element().key("root").child(std::move(body));
   };
@@ -133,19 +134,12 @@ TEST(WorldScene, AGeometrySlotChangeKeepsTheNodeAndItsLanes) {
   EXPECT_EQ(scene.stats().resources, 1);
 }
 
-TEST(WorldScene, TwoNodesDescribingOneChainShareOneCook) {
-  motion::Ticker ticker;
-  Scene scene(ticker);
+TEST_F(WorldScene, TwoNodesDescribingOneChainShareOneCook) {
   const Chain chain = cometChain();
   Element root;
   root.key("root")
-      .child(
-          Element().key("left").chain(chain).stamp(triangle(3)).at({-40, 0, 0}))
-      .child(Element()
-                 .key("right")
-                 .chain(chain)
-                 .stamp(triangle(3))
-                 .at({40, 0, 0}));
+      .child(Element().key("left").chain(chain).stamp(card(3)).at({-40, 0, 0}))
+      .child(Element().key("right").chain(chain).stamp(card(3)).at({40, 0, 0}));
 
   scene.render(root);
   EXPECT_EQ(scene.stats().cooked, 1);
@@ -157,28 +151,22 @@ TEST(WorldScene, TwoNodesDescribingOneChainShareOneCook) {
   // the other node keeps drawing from it.
   Element split;
   split.key("root")
-      .child(
-          Element().key("left").chain(chain).stamp(triangle(3)).at({-40, 0, 0}))
-      .child(Element().key("right").mesh(triangle(9)).at({40, 0, 0}));
+      .child(Element().key("left").chain(chain).stamp(card(3)).at({-40, 0, 0}))
+      .child(Element().key("right").mesh(card(9)).at({40, 0, 0}));
   scene.render(split);
   EXPECT_EQ(scene.stats().resources, 2);
   EXPECT_EQ(scene.referencesOf("left"), 1);
   EXPECT_EQ(scene.referencesOf("right"), 1);
 }
 
-TEST(WorldScene, ALaneRampsAPlacement) {
-  motion::Ticker ticker;
-  Scene scene(ticker);
+TEST_F(WorldScene, ALaneRampsAPlacement) {
   const auto describe = [](float target) {
     return Element().key("root").child(
-        Element()
-            .key("body")
-            .mesh(triangle(10))
-            .translateX(motion::animate(motion::to(target),
-                                        motion::Transition{200ms})));
+        Element().key("body").mesh(card(10)).translateX(
+            motion::animate(motion::to(target), motion::Transition{200ms})));
   };
 
-  const auto reach = [&scene] {
+  const auto reach = [this] {
     const std::optional<glm::mat4> world = scene.transformOf("body");
     return world ? (*world)[3].x : std::numeric_limits<float>::quiet_NaN();
   };
@@ -198,13 +186,11 @@ TEST(WorldScene, ALaneRampsAPlacement) {
   EXPECT_NEAR(reach(), 100.0f, 1e-3f);
 }
 
-TEST(WorldScene, ASettledSubtreeBakesOnceAndADrivenLaneBelowUnsettlesIt) {
-  motion::Ticker ticker;
-  Scene scene(ticker);
+TEST_F(WorldScene, ASettledSubtreeBakesOnceAndADrivenLaneBelowUnsettlesIt) {
   choreograph::Output<float> spin = 0.0f;
   const auto describe = [&spin] {
     return Element().key("root").child(Element().key("rig").child(
-        Element().key("body").mesh(triangle(10)).rotateY(&spin)));
+        Element().key("body").mesh(card(10)).rotateY(&spin)));
   };
 
   // Still frames: the placement resolves identically, the settle
@@ -229,14 +215,12 @@ TEST(WorldScene, ASettledSubtreeBakesOnceAndADrivenLaneBelowUnsettlesIt) {
   EXPECT_FALSE(scene.stats().drawn == 0);
 }
 
-TEST(WorldScene, AStillChildInsideAMovingRigIsDrawnWhereItNowStands) {
-  motion::Ticker ticker;
-  Scene scene(ticker);
+TEST_F(WorldScene, AStillChildInsideAMovingRigIsDrawnWhereItNowStands) {
   choreograph::Output<float> pan = 0.0f;
   const auto describe = [](choreograph::Output<float>* lane) {
     return Element().key("root").child(
         Element().key("rig").translateX(lane).child(
-            Element().key("body").mesh(triangle(20))));
+            Element().key("body").mesh(card(20))));
   };
 
   // `body` declares no motion of its own, so its draw order is recorded on
@@ -259,29 +243,25 @@ TEST(WorldScene, AStillChildInsideAMovingRigIsDrawnWhereItNowStands) {
   EXPECT_EQ(plate(scene), plate(fresh));
 }
 
-TEST(WorldScene, ADrawIsAFunctionOfTheDescriptionAlone) {
-  motion::Ticker ticker;
-  Scene first(ticker);
+TEST_F(WorldScene, ADrawIsAFunctionOfTheDescriptionAlone) {
   Scene second(ticker);
   const auto describe = [] {
     return Element()
         .key("root")
         .child(Element().key("sun").light(sun({-0.4f, -0.7f, -0.6f})))
-        .child(Element().key("body").mesh(triangle(60)).rotateY(20.0f));
+        .child(Element().key("body").mesh(card(60)).rotateY(20.0f));
   };
-  first.render(describe());
+  scene.render(describe());
   second.render(describe());
 
-  const std::vector<uint8_t> a = plate(first);
+  const std::vector<uint8_t> a = plate(scene);
   const std::vector<uint8_t> b = plate(second);
   EXPECT_EQ(a, b);
   // …and it drew something, so the comparison is not two empty plates.
   EXPECT_NE(a, std::vector<uint8_t>(a.size(), 0));
 }
 
-TEST(WorldScene, EmittersAndViewpointsRideTheirNodesPlacement) {
-  motion::Ticker ticker;
-  Scene scene(ticker);
+TEST_F(WorldScene, EmittersAndViewpointsRideTheirNodesPlacement) {
   Camera declared;
   declared.eye = {0, 0, 100};
   scene.render(Element().key("root").child(
@@ -302,9 +282,7 @@ TEST(WorldScene, EmittersAndViewpointsRideTheirNodesPlacement) {
   EXPECT_FLOAT_EQ(lights.front().position.y, 20.0f);
 }
 
-TEST(WorldScene, AnEmitterDialReachesTheLightItScales) {
-  motion::Ticker ticker;
-  Scene scene(ticker);
+TEST_F(WorldScene, AnEmitterDialReachesTheLightItScales) {
   choreograph::Output<float> strength = 0.25f;
   choreograph::Output<float> red = 1.0f;
 
@@ -334,9 +312,7 @@ TEST(WorldScene, AnEmitterDialReachesTheLightItScales) {
   EXPECT_FLOAT_EQ(lights.front().color.r, 0.2f);
 }
 
-TEST(WorldScene, AnEmitterWithNoDialsShinesAsItWasDeclared) {
-  motion::Ticker ticker;
-  Scene scene(ticker);
+TEST_F(WorldScene, AnEmitterWithNoDialsShinesAsItWasDeclared) {
   scene.render(Element().key("root").child(Element().key("lamp").light(
       point({0, 0, 0}, {0.3f, 0.6f, 0.9f, 1.0f}, 0.4f))));
   const std::vector<Light> lights = scene.lights();
@@ -345,11 +321,9 @@ TEST(WorldScene, AnEmitterWithNoDialsShinesAsItWasDeclared) {
   EXPECT_FLOAT_EQ(lights.front().color.b, 0.9f);
 }
 
-TEST(WorldScene, RetiringANodeHandsBackItsEntityAndItsArtefact) {
-  motion::Ticker ticker;
-  Scene scene(ticker);
+TEST_F(WorldScene, RetiringANodeHandsBackItsEntityAndItsArtefact) {
   scene.render(
-      Element().key("root").child(Element().key("body").mesh(triangle(10))));
+      Element().key("root").child(Element().key("body").mesh(card(10))));
   EXPECT_EQ(scene.stats().resources, 1);
   EXPECT_NE(scene.handleOf("body"), 0u);
 
@@ -370,10 +344,8 @@ constexpr SkISize kFrameExtent{96, 96};
 Element pair() {
   return Element()
       .key("root")
-      .child(
-          Element().key("left").at({-46, 0, 0}).mesh(triangle(34)).tag("plain"))
-      .child(
-          Element().key("right").at({46, 0, 0}).mesh(triangle(34)).tag("glow"));
+      .child(Element().key("left").at({-46, 0, 0}).mesh(card(34)).tag("plain"))
+      .child(Element().key("right").at({46, 0, 0}).mesh(card(34)).tag("glow"));
 }
 
 Frame framed(Element scene) {
@@ -382,38 +354,32 @@ Frame framed(Element scene) {
   return frame;
 }
 
-/** How much ink stands in one half of what a frame presented. */
-int paintedIn(Scene& scene, bool leftHalf) {
+/** WHAT A FRAME PRESENTED, as pixels. */
+SkBitmap present(Scene& scene) {
   SkBitmap bitmap;
   bitmap.allocPixels(
       SkImageInfo::MakeN32Premul(kFrameExtent.width(), kFrameExtent.height()));
   bitmap.eraseColor(SK_ColorTRANSPARENT);
   SkCanvas canvas(bitmap);
   scene.draw(canvas);
-  int count = 0;
-  const int mid = bitmap.width() / 2;
-  for (int y = 0; y < bitmap.height(); ++y)
-    for (int x = 0; x < bitmap.width(); ++x) {
-      if (leftHalf != (x < mid)) continue;
-      if (SkColorGetA(bitmap.getColor(x, y)) > 0) ++count;
-    }
-  return count;
+  return bitmap;
+}
+
+/** …and how much ink stands in one half of it. */
+int inkIn(Scene& scene, bool leftHalf) {
+  return test::paintedIn(present(scene), leftHalf);
 }
 
 }  // namespace
 
-TEST(WorldScene, AFrameWithNoPassesDrawsTheSceneItIs) {
-  motion::Ticker ticker;
-  Scene scene(ticker);
+TEST_F(WorldScene, AFrameWithNoPassesDrawsTheSceneItIs) {
   scene.render(framed(pair()));
   EXPECT_EQ(scene.stats().passes, 0);
   EXPECT_TRUE(scene.plan().steps().empty());
   EXPECT_TRUE(scene.error().empty());
 }
 
-TEST(WorldScene, APassSeesWhatExtractWroteAndNotTheTree) {
-  motion::Ticker ticker;
-  Scene scene(ticker);
+TEST_F(WorldScene, APassSeesWhatExtractWroteAndNotTheTree) {
   std::vector<std::string> keys;
   std::vector<std::string> ancestors;
   std::vector<std::string> tags;
@@ -436,9 +402,7 @@ TEST(WorldScene, APassSeesWhatExtractWroteAndNotTheTree) {
   EXPECT_EQ(ancestors.front(), "root");
 }
 
-TEST(WorldScene, ACulledGeometryPassDrawsOnlyItsSelection) {
-  motion::Ticker ticker;
-  Scene scene(ticker);
+TEST_F(WorldScene, ACulledGeometryPassDrawsOnlyItsSelection) {
   Frame frame = framed(pair());
   frame.pass(geometryPass("glow").only(sel::tag("glow")).writes("colour"));
   scene.render(frame);
@@ -446,13 +410,12 @@ TEST(WorldScene, ACulledGeometryPassDrawsOnlyItsSelection) {
   ASSERT_TRUE(scene.error().empty());
   ASSERT_EQ(scene.plan().steps().size(), 1u);
   EXPECT_EQ(scene.plan().steps().front().realisation, Selection::Cull);
-  EXPECT_EQ(paintedIn(scene, /*leftHalf=*/true), 0);
-  EXPECT_GT(paintedIn(scene, /*leftHalf=*/false), 0);
+  EXPECT_EQ(inkIn(scene, /*leftHalf=*/true), 0);
+  EXPECT_GT(inkIn(scene, /*leftHalf=*/false), 0);
 }
 
-TEST(WorldScene, ANarrowedPostPassReachesOnlyItsCoverage) {
-  motion::Ticker ticker;
-  Scene plain(ticker);
+TEST_F(WorldScene, ANarrowedPostPassReachesOnlyItsCoverage) {
+  Scene& plain = scene;
   Scene masked(ticker);
   Frame flat = framed(pair());
   flat.pass(geometryPass("main").writes("colour"));
@@ -470,19 +433,9 @@ TEST(WorldScene, ANarrowedPostPassReachesOnlyItsCoverage) {
 
   // The unselected half is byte for byte what it was; the selected half
   // is not.
-  EXPECT_EQ(paintedIn(plain, true), paintedIn(masked, true));
-  SkBitmap before;
-  SkBitmap after;
-  before.allocPixels(
-      SkImageInfo::MakeN32Premul(kFrameExtent.width(), kFrameExtent.height()));
-  after.allocPixels(
-      SkImageInfo::MakeN32Premul(kFrameExtent.width(), kFrameExtent.height()));
-  before.eraseColor(SK_ColorTRANSPARENT);
-  after.eraseColor(SK_ColorTRANSPARENT);
-  SkCanvas one(before);
-  SkCanvas two(after);
-  plain.draw(one);
-  masked.draw(two);
+  EXPECT_EQ(inkIn(plain, true), inkIn(masked, true));
+  const SkBitmap before = present(plain);
+  const SkBitmap after = present(masked);
   const int y = kFrameExtent.height() / 2;
   EXPECT_EQ(before.getColor(kFrameExtent.width() / 4, y),
             after.getColor(kFrameExtent.width() / 4, y));
@@ -490,9 +443,7 @@ TEST(WorldScene, ANarrowedPostPassReachesOnlyItsCoverage) {
             after.getColor(kFrameExtent.width() * 3 / 4, y));
 }
 
-TEST(WorldScene, AReadbackIsHandedOverTheFrameAfter) {
-  motion::Ticker ticker;
-  Scene scene(ticker);
+TEST_F(WorldScene, AReadbackIsHandedOverTheFrameAfter) {
   int calls = 0;
   uint64_t at = 0;
   bool hadImage = false;
@@ -518,9 +469,7 @@ TEST(WorldScene, AReadbackIsHandedOverTheFrameAfter) {
   EXPECT_EQ(at, 1u);
 }
 
-TEST(WorldScene, ACycleInThePassesIsAnErrorAndNothingRuns) {
-  motion::Ticker ticker;
-  Scene scene(ticker);
+TEST_F(WorldScene, ACycleInThePassesIsAnErrorAndNothingRuns) {
   Frame frame = framed(pair());
   frame.pass(postPass("a").reads("second").writes("first"))
       .pass(postPass("b").reads("first").writes("second"));
@@ -530,9 +479,7 @@ TEST(WorldScene, ACycleInThePassesIsAnErrorAndNothingRuns) {
   EXPECT_EQ(scene.stats().passes, 0);
 }
 
-TEST(WorldScene, AFrameThatDeclaresPassesAndNoExtentSaysSo) {
-  motion::Ticker ticker;
-  Scene scene(ticker);
+TEST_F(WorldScene, AFrameThatDeclaresPassesAndNoExtentSaysSo) {
   Frame frame(pair());
   frame.pass(geometryPass("main").writes("colour"));
   scene.render(frame);
@@ -540,9 +487,7 @@ TEST(WorldScene, AFrameThatDeclaresPassesAndNoExtentSaysSo) {
   EXPECT_EQ(scene.stats().passes, 0);
 }
 
-TEST(WorldScene, TheOrderingsCountsAreOnTheFramesTally) {
-  motion::Ticker ticker;
-  Scene scene(ticker);
+TEST_F(WorldScene, TheOrderingsCountsAreOnTheFramesTally) {
   Frame frame = framed(pair());
   frame.pass(geometryPass("main").writes("colour"))
       .pass(postPass("half").reads("colour").writes("half"))

@@ -11,21 +11,13 @@
  */
 
 #include <gtest/gtest.h>
-#include <include/core/SkBitmap.h>
-#include <include/core/SkCanvas.h>
-#include <include/core/SkImageInfo.h>
-#include <sigilgeometry/mesh/Mesh.h>
 #include <sigilmaterial/core/Combine.h>
 #include <sigilmaterial/core/FrameData.h>
 #include <sigilmaterial/kit/Mask.h>
 #include <sigilmaterial/kit/Surface.h>
-#include <sigilmotion/clock/Ticker.h>
-#include <sigilgeometry/device/Device.h>
 #include <sigilworld/diligent/Runtime.h>
-#include <sigilworld/scene/Scene.h>
 
-#include <memory>
-#include <string>
+#include "OnDevice.h"
 
 using namespace sigil;
 using namespace sigil::world;
@@ -34,57 +26,14 @@ namespace {
 
 constexpr SkISize kExtent{80, 80};
 
-struct OnDevice {
-  std::unique_ptr<geometry::device::Device> device;
-  Runtime runtime;
-  std::string error;
-  explicit operator bool() const { return (bool)device; }
-};
-
-OnDevice onDevice() {
-  OnDevice out;
-  const geometry::device::DeviceConfig config;
-  out.device = geometry::device::Device::create(config, &out.error);
-  if (out.device) out.runtime = world::diligent::runtime(*out.device);
-  return out;
-}
-
-Camera eye() {
-  Camera camera;
-  camera.eye = {0, 0, 200};
-  camera.target = {0, 0, 0};
-  return camera;
-}
-
-/** A card facing the camera, wearing @p surface, lit by one sun. */
-Frame card(const material::Material& surface) {
-  namespace gm = ::sigil::geometry::mesh;
-  Element root =
-      Element()
-          .key("set")
-          .child(Element().key("sun").light(light::sun({-0.2f, -0.3f, -1.0f})))
-          .child(Element().key("card").mesh(gm::quad(120, 120)).fill(surface));
-  Frame frame(root);
-  frame.extent(kExtent).camera(eye()).pass(
-      geometryPass("colour").writes("colour").clear(SkColors::kBlack));
-  return frame;
-}
-
-SkColor4f centreOf(const Frame& frame, const Runtime& runtime) {
-  motion::Ticker ticker;
-  Scene scene(ticker);
-  Frame copy = frame;
-  copy.runtime(runtime);
-  ticker.tick(1.0 / 60.0);
-  scene.render(copy);
-
-  SkBitmap bitmap;
-  bitmap.allocPixels(
-      SkImageInfo::MakeN32Premul(kExtent.width(), kExtent.height()));
-  SkCanvas canvas(bitmap);
-  canvas.clear(SK_ColorBLACK);
-  scene.draw(canvas, eye());
-  return bitmap.getColor4f(kExtent.width() / 2, kExtent.height() / 2);
+/** The centre of a card wearing @p surface, rendered on @p runtime —
+ *  which is where a mask that is half is half. */
+SkColor4f centreOfCard(const material::Material& surface,
+                       const Runtime& runtime) {
+  return diligent::at(
+      diligent::photograph(diligent::card(surface, kExtent), runtime, kExtent,
+                           diligent::levelEye()),
+      0.5f, 0.5f);
 }
 
 material::Material red() {
@@ -121,13 +70,13 @@ TEST(Stack, ComposesIntoABodyThisTargetCanCompile) {
 }
 
 TEST(Stack, ShadesAsNeitherOperandWhereTheMaskIsHalf) {
-  const OnDevice on = onDevice();
+  const auto on = diligent::onDevice();
   if (!on) GTEST_SKIP() << on.error;
 
-  const SkColor4f base = centreOf(card(red()), on.runtime);
-  const SkColor4f top = centreOf(card(blue()), on.runtime);
-  const SkColor4f mixed = centreOf(
-      card(material::over(red(), blue(), material::kit::maskConstant(0.5f))),
+  const SkColor4f base = centreOfCard(red(), on.runtime);
+  const SkColor4f top = centreOfCard(blue(), on.runtime);
+  const SkColor4f mixed = centreOfCard(
+      material::over(red(), blue(), material::kit::maskConstant(0.5f)),
       on.runtime);
 
   // Half of each, which is neither of them: the stack has to have run
@@ -139,11 +88,11 @@ TEST(Stack, ShadesAsNeitherOperandWhereTheMaskIsHalf) {
   EXPECT_LT(mixed.fB, top.fB - 0.1f);
 
   // …and at the ends of the mask it IS each of them.
-  const SkColor4f none = centreOf(
-      card(material::over(red(), blue(), material::kit::maskConstant(0.0f))),
+  const SkColor4f none = centreOfCard(
+      material::over(red(), blue(), material::kit::maskConstant(0.0f)),
       on.runtime);
-  const SkColor4f all = centreOf(
-      card(material::over(red(), blue(), material::kit::maskConstant(1.0f))),
+  const SkColor4f all = centreOfCard(
+      material::over(red(), blue(), material::kit::maskConstant(1.0f)),
       on.runtime);
   EXPECT_NEAR(none.fR, base.fR, 0.02f);
   EXPECT_NEAR(all.fB, top.fB, 0.02f);

@@ -12,8 +12,11 @@
 #include <string>
 #include <vector>
 
+#include "TestMaterial.h"
+
 using namespace sigil;
 using namespace sigil::world;
+using namespace sigil::world::test;
 
 namespace {
 
@@ -222,12 +225,7 @@ TEST(WorldGraph, AMaskWithNothingPaintingBodiesAheadOfItIsAnError) {
 }
 
 TEST(WorldGraph, AVariantSurfaceIsRedrawn) {
-  struct Paint {
-    glm::vec4 baseColor{1, 1, 1, 1};
-  };
-  const auto recipe = std::make_shared<const material::Recipe>(
-      material::Recipe::of<Paint>("world.test.paint"));
-  const material::Material white(recipe, Paint{{1, 1, 1, 1}});
+  const material::Material white = paint({1, 1, 1, 1});
   const Frame frame = framed().pass(geometryPass("main")
                                         .writes("colour")
                                         .only(sel::tag("glow"))

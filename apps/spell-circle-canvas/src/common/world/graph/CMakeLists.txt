@@ -17,6 +17,7 @@ target_include_directories(SigilWorldGraph PUBLIC ${SIGIL_WORLD_INCLUDE_DIR})
 target_link_libraries(SigilWorldGraph PUBLIC SigilWorldFrame)
 
 add_executable(world_graph_test test/GraphTest.cpp)
+target_include_directories(world_graph_test PRIVATE ${SIGIL_WORLD_TEST_DIR})
 target_link_libraries(world_graph_test PRIVATE SigilWorldGraph
   GTest::gtest_main)
 add_test(NAME world_graph_test COMMAND world_graph_test)

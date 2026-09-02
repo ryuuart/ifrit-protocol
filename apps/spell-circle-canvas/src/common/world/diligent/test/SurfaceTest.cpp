@@ -15,52 +15,28 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkImageInfo.h>
 #include <include/core/SkSurface.h>
+#include <sigilcore/hardware/GpuDevice.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilmaterial/kit/Surface.h>
-#include <sigilmotion/clock/Ticker.h>
-#include <sigilcore/hardware/GpuDevice.h>
-#include <sigilskia/graphite/GraphiteContext.h>
-#include <sigilskia/graphite/OffscreenSurface.h>
-#include <sigilgeometry/device/Device.h>
+#include <sigilmaterial/texture/EnvironmentMap.h>
 #include <sigilworld/diligent/Import.h>
 #include <sigilworld/diligent/Runtime.h>
-#include <sigilmaterial/texture/EnvironmentMap.h>
-#include <sigilworld/scene/Scene.h>
 
 #include <cstring>
 #include <functional>
-#include <memory>
 #include <string>
+#include <utility>
 #include <vector>
+
+#include "OnDevice.h"
 
 using namespace sigil;
 using namespace sigil::world;
+using ::sigil::world::diligent::at;
 
 namespace {
 
 constexpr SkISize kExtent{120, 120};
-
-struct OnDevice {
-  std::unique_ptr<geometry::device::Device> device;
-  Runtime runtime;
-  std::string error;
-  explicit operator bool() const { return (bool)device; }
-};
-
-OnDevice onDevice() {
-  OnDevice out;
-  const geometry::device::DeviceConfig config;
-  out.device = geometry::device::Device::create(config, &out.error);
-  if (out.device) out.runtime = world::diligent::runtime(*out.device);
-  return out;
-}
-
-Camera eye() {
-  Camera camera;
-  camera.eye = {0, 0, 200};
-  camera.target = {0, 0, 0};
-  return camera;
-}
 
 /** A texture of @p width x @p height, painted by @p paint. Named by a
  *  key so two identical asks are one texture. */
@@ -81,40 +57,14 @@ material::Texture flat(const std::string& key, SkColor4f colour) {
                  [colour](SkCanvas& canvas) { canvas.clear(colour); });
 }
 
-/** A card facing the camera, wearing @p surface, lit by one sun. */
-Frame card(const material::Material& surface) {
-  namespace gm = ::sigil::geometry::mesh;
-  Element root =
-      Element()
-          .key("set")
-          .child(Element().key("sun").light(light::sun({-0.2f, -0.3f, -1.0f})))
-          .child(Element().key("card").mesh(gm::quad(120, 120)).fill(surface));
-  Frame frame(root);
-  frame.extent(kExtent).camera(eye()).pass(
-      geometryPass("colour").writes("colour").clear(SkColors::kBlack));
-  return frame;
+/** One frame, rendered on @p runtime and photographed square on. */
+SkBitmap plateOf(const Frame& frame, const Runtime& runtime) {
+  return diligent::photograph(frame, runtime, kExtent, diligent::levelEye());
 }
 
-SkBitmap photograph(const Frame& frame, const Runtime& runtime) {
-  motion::Ticker ticker;
-  Scene scene(ticker);
-  Frame copy = frame;
-  copy.runtime(runtime);
-  ticker.tick(1.0 / 60.0);
-  scene.render(copy);
-
-  SkBitmap bitmap;
-  bitmap.allocPixels(
-      SkImageInfo::MakeN32Premul(kExtent.width(), kExtent.height()));
-  SkCanvas canvas(bitmap);
-  canvas.clear(SK_ColorBLACK);
-  scene.draw(canvas, eye());
-  return bitmap;
-}
-
-SkColor4f at(const SkBitmap& plate, float x, float y) {
-  return plate.getColor4f((int)(x * (float)plate.width()),
-                          (int)(y * (float)plate.height()));
+/** …and a card wearing @p surface, on the same terms. */
+SkBitmap cardOn(const material::Material& surface, const Runtime& runtime) {
+  return plateOf(diligent::card(surface, kExtent), runtime);
 }
 
 float luma(SkColor4f c) { return c.fR * 0.3f + c.fG * 0.59f + c.fB * 0.11f; }
@@ -122,7 +72,7 @@ float luma(SkColor4f c) { return c.fR * 0.3f + c.fG * 0.59f + c.fB * 0.11f; }
 }  // namespace
 
 TEST(SurfaceSlots, AnOcclusionMapDarkensWhereItIsDark) {
-  const OnDevice on = onDevice();
+  const auto on = diligent::onDevice();
   if (!on) GTEST_SKIP() << on.error;
 
   material::Material plain =
@@ -137,8 +87,8 @@ TEST(SurfaceSlots, AnOcclusionMapDarkensWhereItIsDark) {
                    canvas.drawRect(SkRect::MakeXYWH(0, 0, 1, 1), paint);
                  }));
 
-  const SkBitmap bare = photograph(card(plain), on.runtime);
-  const SkBitmap dressed = photograph(card(occluded), on.runtime);
+  const SkBitmap bare = cardOn(plain, on.runtime);
+  const SkBitmap dressed = cardOn(occluded, on.runtime);
   // The map's dark half darkens and its white half does not. The two
   // points sit at the OUTER edges and not either side of the middle: a
   // two-texel map read linearly blends the halves across everything
@@ -150,7 +100,7 @@ TEST(SurfaceSlots, AnOcclusionMapDarkensWhereItIsDark) {
 }
 
 TEST(SurfaceSlots, AnEmissiveMapCarriesItsOwnColour) {
-  const OnDevice on = onDevice();
+  const auto on = diligent::onDevice();
   if (!on) GTEST_SKIP() << on.error;
 
   // Emission is the map TIMES the strength, so a surface with no
@@ -165,14 +115,14 @@ TEST(SurfaceSlots, AnEmissiveMapCarriesItsOwnColour) {
   glowing.child(material::kit::kEmissiveSlot,
                 flat("world.test.emissive", {0.9f, 0.2f, 0.2f, 1.0f}));
 
-  const SkColor4f bare = at(photograph(card(dark), on.runtime), 0.5f, 0.5f);
-  const SkColor4f lit = at(photograph(card(glowing), on.runtime), 0.5f, 0.5f);
+  const SkColor4f bare = at(cardOn(dark, on.runtime), 0.5f, 0.5f);
+  const SkColor4f lit = at(cardOn(glowing, on.runtime), 0.5f, 0.5f);
   EXPECT_GT(lit.fR, bare.fR + 0.3f) << "the emission reaches the pixels";
   EXPECT_GT(lit.fR, lit.fG + 0.3f) << "and it is the MAP\'s colour";
 }
 
 TEST(SurfaceSlots, AnOpacityCutoutDropsTexelsOutright) {
-  const OnDevice on = onDevice();
+  const auto on = diligent::onDevice();
   if (!on) GTEST_SKIP() << on.error;
 
   material::kit::SurfaceParams params;
@@ -187,7 +137,7 @@ TEST(SurfaceSlots, AnOpacityCutoutDropsTexelsOutright) {
               canvas.drawRect(SkRect::MakeXYWH(0, 0, 1, 1), paint);
             }));
 
-  const SkBitmap plate = photograph(card(cut), on.runtime);
+  const SkBitmap plate = cardOn(cut, on.runtime);
   // Below the threshold the surface is ABSENT, so the pass's clear
   // stands there; above it the card is its own colour.
   EXPECT_LT(luma(at(plate, 0.35f, 0.5f)), 0.02f);
@@ -195,7 +145,7 @@ TEST(SurfaceSlots, AnOpacityCutoutDropsTexelsOutright) {
 }
 
 TEST(SurfaceSlots, ANormalMapTiltsTheShading) {
-  const OnDevice on = onDevice();
+  const auto on = diligent::onDevice();
   if (!on) GTEST_SKIP() << on.error;
 
   material::Material plain =
@@ -213,8 +163,8 @@ TEST(SurfaceSlots, ANormalMapTiltsTheShading) {
                  canvas.drawRect(SkRect::MakeXYWH(1, 0, 1, 1), paint);
                }));
 
-  const SkBitmap bare = photograph(card(plain), on.runtime);
-  const SkBitmap tilted = photograph(card(bumped), on.runtime);
+  const SkBitmap bare = cardOn(plain, on.runtime);
+  const SkBitmap tilted = cardOn(bumped, on.runtime);
   // A flat card with no map shades ALMOST alike across its face — a
   // light standing off to one side falls a little more steeply on one
   // half than the other, which is the card's own falloff and not a map…
@@ -228,7 +178,7 @@ TEST(SurfaceSlots, ANormalMapTiltsTheShading) {
 }
 
 TEST(SurfaceSlots, WhiteIsTheNEUTRALEverySlotFallsBackTo) {
-  const OnDevice on = onDevice();
+  const auto on = diligent::onDevice();
   if (!on) GTEST_SKIP() << on.error;
 
   // Every slot of a surface nobody dressed holds the neutral fill, which
@@ -246,8 +196,8 @@ TEST(SurfaceSlots, WhiteIsTheNEUTRALEverySlotFallsBackTo) {
   white.child(material::kit::kOcclusionSlot, texel);
   white.child(material::kit::kOpacitySlot, texel);
 
-  const SkBitmap bare = photograph(card(plain), on.runtime);
-  const SkBitmap dressed = photograph(card(white), on.runtime);
+  const SkBitmap bare = cardOn(plain, on.runtime);
+  const SkBitmap dressed = cardOn(white, on.runtime);
   for (int y = 0; y < bare.height(); ++y)
     ASSERT_EQ(0, std::memcmp(bare.getAddr32(0, y), dressed.getAddr32(0, y),
                              (size_t)bare.width() * 4))
@@ -257,61 +207,84 @@ TEST(SurfaceSlots, WhiteIsTheNEUTRALEverySlotFallsBackTo) {
   EXPECT_GT(centre.fG, centre.fB);
 }
 
-TEST(SurfaceSlots, AnImportedNativeTextureLandsWhereARasterOneWould) {
-  const OnDevice on = onDevice();
+// ---- the door a foreign texture comes in by -------------------------
+
+namespace {
+
+/** The colour the texture below is painted in on the device, and the
+ *  one a raster texture is held against it in. */
+constexpr SkColor4f kImportedColour{0.15f, 0.75f, 0.35f, 1.0f};
+
+/** A card wearing @p map and its own light, so the map alone decides
+ *  every pixel of it. */
+material::Material dressedWith(material::Texture map) {
+  material::Material surface =
+      material::kit::unlit({.baseColor = {1, 1, 1, 1}});
+  surface.child(material::kit::kBaseColorSlot, std::move(map));
+  return surface;
+}
+
+}  // namespace
+
+TEST(SurfaceSlots, AnImportedNativeTextureCarriesItsColourAndNoHostImage) {
+  const auto on = diligent::onDevice();
   if (!on) GTEST_SKIP() << on.error;
-  core::hardware::GpuDevice* gpu = on.device->gpu();
-  skia::GraphiteContext* graphite = on.device->graphite();
-  if (!gpu || !graphite) GTEST_SKIP() << "2D on the 3D device is unavailable";
+  const diligent::PaintedTexture painted =
+      diligent::paintOnDevice(*on.device, kImportedColour);
+  if (!painted.native) GTEST_SKIP() << "2D on the 3D device is unavailable";
 
-  // A texture painted with the graphics API on this very device, handed
-  // back as the API's own object…
-  core::hardware::TextureDesc desc;
-  desc.width = desc.height = 16;
-  desc.format = core::hardware::TextureFormat::RGBA8Unorm;
-  const core::hardware::TextureHandle painted = gpu->createTexture(desc);
-  ASSERT_TRUE((bool)painted);
-  const SkColor4f colour{0.15f, 0.75f, 0.35f, 1.0f};
-  {
-    const geometry::device::Device::QueueLock lock(*on.device);
-    skia::OffscreenSurface surface(*graphite, *gpu, painted);
-    ASSERT_NE(surface.canvas(), nullptr);
-    surface.canvas()->clear(colour);
-    surface.submit();
-  }
-  const core::hardware::NativeTexture native = gpu->exportNative(painted);
-  ASSERT_TRUE((bool)native);
-
-  // …comes back in through the one door, as an ordinary texture value.
+  // A texture painted with the graphics API on this very device comes
+  // back in through the one door, as an ordinary texture value.
   const material::Texture imported =
-      world::diligent::importNative(*on.device, native);
+      world::diligent::importNative(*on.device, painted.native);
   ASSERT_TRUE(imported.valid());
   // NO HOST IMAGE AT ALL: a picture carrying this colour cannot have
   // come from a copy of it.
   EXPECT_EQ(imported.image(), nullptr);
-  EXPECT_EQ(imported.deviceImage().device, gpu);
+  EXPECT_EQ(imported.deviceImage().device, on.device->gpu());
 
-  material::Material dressed =
-      material::kit::unlit({.baseColor = {1, 1, 1, 1}});
-  dressed.child(material::kit::kBaseColorSlot, imported);
-  const SkBitmap plate = photograph(card(dressed), on.runtime);
-  const SkColor4f centre = at(plate, 0.5f, 0.5f);
+  const SkColor4f centre =
+      at(cardOn(dressedWith(imported), on.runtime), 0.5f, 0.5f);
   EXPECT_GT(centre.fG, centre.fR + 0.2f);
   EXPECT_GT(centre.fG, centre.fB + 0.2f);
+  on.device->gpu()->destroy(painted.handle);
+}
 
-  // …and it stands where a raster texture of the same colour would.
-  material::Material raster = material::kit::unlit({.baseColor = {1, 1, 1, 1}});
-  raster.child(material::kit::kBaseColorSlot,
-               flat("world.test.raster", colour));
-  const SkColor4f other = at(photograph(card(raster), on.runtime), 0.5f, 0.5f);
-  EXPECT_NEAR(centre.fR, other.fR, 0.02f);
-  EXPECT_NEAR(centre.fG, other.fG, 0.02f);
-  EXPECT_NEAR(centre.fB, other.fB, 0.02f);
+TEST(SurfaceSlots, AnImportedNativeTextureStandsWhereARasterOneWould) {
+  const auto on = diligent::onDevice();
+  if (!on) GTEST_SKIP() << on.error;
+  const diligent::PaintedTexture painted =
+      diligent::paintOnDevice(*on.device, kImportedColour);
+  if (!painted.native) GTEST_SKIP() << "2D on the 3D device is unavailable";
 
-  // An import a device has no adopted GpuDevice for, or one the device
-  // refuses, is an empty value rather than a texture that lies.
+  const material::Texture imported =
+      world::diligent::importNative(*on.device, painted.native);
+  ASSERT_TRUE(imported.valid());
+  const SkColor4f bound =
+      at(cardOn(dressedWith(imported), on.runtime), 0.5f, 0.5f);
+  const SkColor4f raster =
+      at(cardOn(dressedWith(flat("world.test.raster", kImportedColour)),
+                on.runtime),
+         0.5f, 0.5f);
+
+  // WHICH DOOR A TEXTURE CAME IN BY IS NOT SOMETHING A PICTURE OF IT
+  // SHOWS: bound where its pixels already stand, it reads as a copy of
+  // them would.
+  EXPECT_NEAR(bound.fR, raster.fR, 0.02f);
+  EXPECT_NEAR(bound.fG, raster.fG, 0.02f);
+  EXPECT_NEAR(bound.fB, raster.fB, 0.02f);
+  on.device->gpu()->destroy(painted.handle);
+}
+
+TEST(SurfaceSlots, AnImportOfNothingIsNoTextureRatherThanOneThatLies) {
+  const auto on = diligent::onDevice();
+  if (!on) GTEST_SKIP() << on.error;
+  // A device with no adopted 2D side, or a native texture the device
+  // refuses, answers an empty value: a body wearing it is undressed
+  // rather than wearing something the renderer invented.
   EXPECT_FALSE(
-      world::diligent::importNative(*on.device, core::hardware::NativeTexture{}).valid());
+      world::diligent::importNative(*on.device, core::hardware::NativeTexture{})
+          .valid());
 }
 
 // ---- the environment map -------------------------------------------
@@ -348,15 +321,16 @@ Frame skyAlone(const world::Environment& sky) {
   Element root =
       Element().key("set").child(Element().key("sky").environmentMap(sky));
   Frame frame(root);
-  frame.extent(kExtent).camera(eye()).pass(
-      geometryPass("colour").writes("colour").clear(SkColors::kBlack));
+  frame.extent(kExtent)
+      .camera(diligent::levelEye())
+      .pass(geometryPass("colour").writes("colour").clear(SkColors::kBlack));
   return frame;
 }
 
 }  // namespace
 
 TEST(Environment, TheBackdropPutsTheZENITHAtTheTOP) {
-  const OnDevice on = onDevice();
+  const auto on = diligent::onDevice();
   if (!on) GTEST_SKIP() << on.error;
   // v = 0 is the zenith, and a camera looking along -z from above the
   // origin has the upper hemisphere in the upper half of its frame. A
@@ -366,7 +340,7 @@ TEST(Environment, TheBackdropPutsTheZENITHAtTheTOP) {
   world::Environment sky;
   sky.map = hemispheres({0.9f, 0.1f, 0.1f, 1}, {0.1f, 0.1f, 0.9f, 1});
   sky.backdrop.intensity = 1.0f;
-  const SkBitmap plate = photograph(skyAlone(sky), on.runtime);
+  const SkBitmap plate = plateOf(skyAlone(sky), on.runtime);
 
   const SkColor4f top = at(plate, 0.5f, 0.08f);
   const SkColor4f bottom = at(plate, 0.5f, 0.92f);
@@ -376,20 +350,20 @@ TEST(Environment, TheBackdropPutsTheZENITHAtTheTOP) {
 }
 
 TEST(Environment, ABackdropAtZeroStrengthDrawsNothing) {
-  const OnDevice on = onDevice();
+  const auto on = diligent::onDevice();
   if (!on) GTEST_SKIP() << on.error;
   // The strength is also the switch, so there is no flag that can
   // disagree with it: a set that carries a panorama and shows none of it
   // stands against whatever the pass cleared to.
   world::Environment sky;
   sky.map = hemispheres({0.9f, 0.1f, 0.1f, 1}, {0.1f, 0.1f, 0.9f, 1});
-  const SkBitmap plate = photograph(skyAlone(sky), on.runtime);
+  const SkBitmap plate = plateOf(skyAlone(sky), on.runtime);
   EXPECT_LT(luma(at(plate, 0.5f, 0.08f)), 0.02f);
   EXPECT_LT(luma(at(plate, 0.5f, 0.92f)), 0.02f);
 }
 
 TEST(Environment, AMirrorWearsTheSkyAndAMatteSurfaceIsLitByIt) {
-  const OnDevice on = onDevice();
+  const auto on = diligent::onDevice();
   if (!on) GTEST_SKIP() << on.error;
   // What the test pins is the difference between a mirror and a matte
   // surface under one sky, with no emitter anywhere in the set: the
@@ -411,9 +385,10 @@ TEST(Environment, AMirrorWearsTheSkyAndAMatteSurfaceIsLitByIt) {
                                   .mesh(::sigil::geometry::mesh::quad(120, 120))
                                   .fill(surface));
     Frame frame(root);
-    frame.extent(kExtent).camera(eye()).pass(
-        geometryPass("colour").writes("colour").clear(SkColors::kBlack));
-    return photograph(frame, on.runtime);
+    frame.extent(kExtent)
+        .camera(diligent::levelEye())
+        .pass(geometryPass("colour").writes("colour").clear(SkColors::kBlack));
+    return plateOf(frame, on.runtime);
   };
 
   material::kit::SurfaceParams mirror = material::kit::SurfaceParams::chrome();

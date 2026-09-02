@@ -29,6 +29,7 @@ target_link_libraries(SigilWorldScene
   PRIVATE EnTT::EnTT SigilMaterialKit)
 
 add_executable(world_scene_test test/SceneTest.cpp)
+target_include_directories(world_scene_test PRIVATE ${SIGIL_WORLD_TEST_DIR})
 target_link_libraries(world_scene_test PRIVATE SigilWorldScene
   GTest::gtest_main)
 add_test(NAME world_scene_test COMMAND world_scene_test)

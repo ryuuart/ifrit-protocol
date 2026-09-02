@@ -71,7 +71,8 @@ struct Turntable {
   float fovYDeg = 42.0f;
   /** How many points the rail is drawn through. More is rounder; the
    *  count is here because it decides the curve and therefore the
-   *  pixels, not because it is a dial worth turning. */
+   *  pixels, not because it is a dial worth turning. Fewer than three is
+   *  three, because a closed loop needs three points to be one. */
   int stations = 12;
 };
 

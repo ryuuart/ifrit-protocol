@@ -1,28 +1,33 @@
 /** @file
- * What the device executor answers, and how far its answer stands from
- * the host's.
+ * What the device executor answers.
  *
- * TWO RASTERISERS ARE NOT ASKED TO AGREE BIT FOR BIT. The host paints
- * shaded vertices through a triangle sort; the device rasterises the
- * same shading through a depth buffer. They agree about what the scene
- * is, and they differ along every edge — which is why what is asserted
- * here is a per-channel distance and not a hash.
+ * WHAT EACH CASE HOLDS IT TO is a claim about the picture that only
+ * this code can falsify: a chain cooked on the device is the host's cook
+ * to the bit, a readback arrives the frame after, a mask reaches the
+ * selection and leaves the ground where it stood, a filter reads between
+ * texels or does not, a surface that is its own light stands at its base
+ * colour. A claim a picture makes whichever rasteriser drew it is
+ * written once and answered on both tiers, with the tier as the
+ * parameter.
+ *
+ * HOW FAR THE TWO TIERS STAND APART IS NOT ASKED HERE. Two rasterisers
+ * are not the same picture bit for bit, the distance between them is a
+ * different number per subject, and it moves with the scene rather than
+ * with this code — so it is judged over the whole registry, against a
+ * committed baseline, by the plate ledger's device tier.
  */
 
 #include <gtest/gtest.h>
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkImageInfo.h>
+#include <sigilcore/hardware/GpuDevice.h>
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/pop/Pop.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/core/Recipe.h>
 #include <sigilmaterial/kit/Surface.h>
 #include <sigilmotion/clock/Ticker.h>
-#include <sigilcore/hardware/GpuDevice.h>
-#include <sigilskia/graphite/GraphiteContext.h>
-#include <sigilskia/graphite/OffscreenSurface.h>
-#include <sigilgeometry/device/Device.h>
 #include <sigilworld/diligent/Runtime.h>
 #include <sigilworld/scene/Scene.h>
 
@@ -36,52 +41,15 @@
 
 #include "Distance.h"
 #include "Gpu.h"
+#include "OnDevice.h"
 #include "Programs.h"
+#include "TestMaterial.h"
 
 using namespace sigil;
 using namespace sigil::world;
-using sigil::world::diligent::Distance;
-using sigil::world::diligent::distanceOf;
+using namespace sigil::world::test;
 
 namespace {
-
-/** A DEVICE AND THE RUNTIME ON IT, or the reason there is neither. Every
- *  test that needs one SKIPS rather than fails without a Vulkan runtime,
- *  so a machine with no GPU stays green. */
-struct OnDevice {
-  std::unique_ptr<geometry::device::Device> device;
-  Runtime runtime;
-  std::string error;
-  explicit operator bool() const { return (bool)device; }
-};
-
-OnDevice onDevice() {
-  OnDevice out;
-  const geometry::device::DeviceConfig config;
-  out.device = geometry::device::Device::create(config, &out.error);
-  if (out.device) out.runtime = world::diligent::runtime(*out.device);
-  return out;
-}
-
-struct Paint {
-  glm::vec4 baseColor{1, 1, 1, 1};
-};
-
-constexpr char kPaintSlang[] = R"(
-float4 surface(float2 uv) { return baseColor; }
-)";
-
-const std::shared_ptr<const material::Recipe>& paintRecipe() {
-  static const std::shared_ptr<const material::Recipe> recipe =
-      std::make_shared<const material::Recipe>(
-          material::Recipe::of<Paint>("world.test.paint")
-              .body(material::Target::Slang, kPaintSlang));
-  return recipe;
-}
-
-material::Material paint(glm::vec4 colour) {
-  return material::Material(paintRecipe(), Paint{colour});
-}
 
 constexpr SkISize kExtent{160, 120};
 
@@ -97,45 +65,50 @@ Element set() {
                  .at({0, -40, 0})
                  .rotateX(-90.0f)
                  .mesh(gm::quad(300, 300))
-                 .fill(paint({0.15f, 0.16f, 0.2f, 1.0f}))
+                 .fill(slangPaint({0.15f, 0.16f, 0.2f, 1.0f}))
                  .tag("ground"))
       .child(Element()
                  .key("body")
                  .mesh(gm::superellipsoid({40, 40, 40}, 2.0f, 24, 16))
-                 .fill(paint({0.8f, 0.6f, 0.3f, 1.0f}))
+                 .fill(slangPaint({0.8f, 0.6f, 0.3f, 1.0f}))
                  .tag("glow"));
 }
 
-Camera eye() {
-  Camera camera;
-  camera.eye = {0, 90, 240};
-  camera.target = {0, 0, 0};
-  return camera;
-}
-
-/** One frame, rendered on @p runtime and photographed. */
+/** One frame, rendered on @p runtime and photographed from above and in
+ *  front. */
 SkBitmap photograph(const Frame& frame, const Runtime& runtime) {
-  motion::Ticker ticker;
-  Scene scene(ticker);
-  Frame copy = frame;
-  copy.runtime(runtime);
-  ticker.tick(1.0 / 60.0);
-  scene.render(copy);
-
-  SkBitmap bitmap;
-  bitmap.allocPixels(
-      SkImageInfo::MakeN32Premul(kExtent.width(), kExtent.height()));
-  SkCanvas canvas(bitmap);
-  canvas.clear(SK_ColorBLACK);
-  scene.draw(canvas, eye());
-  return bitmap;
+  return diligent::photograph(frame, runtime, kExtent, diligent::raisedEye());
 }
 
 Frame lit() {
   Frame frame(set());
-  frame.extent(kExtent).camera(eye()).pass(
-      geometryPass("colour").writes("colour").clear(SkColors::kBlack));
+  frame.extent(kExtent)
+      .camera(diligent::raisedEye())
+      .pass(geometryPass("colour").writes("colour").clear(SkColors::kBlack));
   return frame;
+}
+
+/** THE TWO TIERS, AS A PARAMETER. A claim a picture has to make
+ *  whichever rasteriser drew it is written once and answered twice: on
+ *  the host, which needs nothing, and on the device, which SKIPS where
+ *  there is no Vulkan runtime to ask. */
+enum class Tier { Host, Device };
+
+class EitherTier : public testing::TestWithParam<Tier> {
+ protected:
+  void SetUp() override {
+    if (GetParam() == Tier::Host) return;
+    on = diligent::onDevice();
+    if (!on) GTEST_SKIP() << "no Vulkan device: " << on.error;
+    runtime = on.runtime;
+  }
+
+  diligent::OnDevice<Runtime> on;
+  Runtime runtime = Runtime::cpu();
+};
+
+std::string tierName(const testing::TestParamInfo<Tier>& info) {
+  return info.param == Tier::Host ? "Host" : "Device";
 }
 
 }  // namespace
@@ -143,7 +116,7 @@ Frame lit() {
 TEST(SurfaceProgram, APipelineComesOffARecipeBody) {
   world::diligent::installSlangCompiler();
   const std::shared_ptr<material::Program> program =
-      material::program(paintRecipe(), material::Target::Slang,
+      material::program(slangPaintRecipe(), material::Target::Slang,
                         material::Variant{world::diligent::kVariantLit});
   ASSERT_NE(program, nullptr);
   const auto* slang = program->as<material::slang::SlangProgram>();
@@ -157,7 +130,7 @@ TEST(SurfaceProgram, APipelineComesOffARecipeBody) {
   // The lit build carries the shading the unlit one does not.
   EXPECT_NE(slang->compiled().uniform("uShading"), nullptr);
   const std::shared_ptr<material::Program> unlit =
-      material::program(paintRecipe(), material::Target::Slang);
+      material::program(slangPaintRecipe(), material::Target::Slang);
   ASSERT_NE(unlit, nullptr);
   EXPECT_EQ(unlit->as<material::slang::SlangProgram>()->compiled().uniform(
                 "uShading"),
@@ -173,21 +146,8 @@ TEST(GpuRuntime, TheScaffoldAndThePostStagesCompile) {
   EXPECT_FALSE(world::diligent::postPrograms().masked.empty());
 }
 
-TEST(GpuRuntime, OneSceneOnBothTiers) {
-  const OnDevice on = onDevice();
-  if (!on) GTEST_SKIP() << "no Vulkan device: " << on.error;
-  const SkBitmap host = photograph(lit(), Runtime::cpu());
-  const SkBitmap graphics = photograph(lit(), on.runtime);
-  const Distance distance = distanceOf(host, graphics);
-  // The scene is the same scene: most of the picture agrees closely and
-  // what disagrees is confined to the edges two rasterisers antialias
-  // differently.
-  EXPECT_LT(distance.mean, 12.0) << "mean channel distance";
-  EXPECT_LT(distance.p99, 128) << "99th percentile channel distance";
-}
-
 TEST(GpuRuntime, ACookedChainMatchesTheHostCook) {
-  const OnDevice on = onDevice();
+  const auto on = diligent::onDevice();
   if (!on) GTEST_SKIP() << "no Vulkan device: " << on.error;
   namespace gm = ::sigil::geometry::mesh;
   const std::vector<glm::vec3> path = {
@@ -199,7 +159,7 @@ TEST(GpuRuntime, ACookedChainMatchesTheHostCook) {
     Scene scene(ticker);
     Frame frame(set());
     frame.extent(kExtent)
-        .camera(eye())
+        .camera(diligent::raisedEye())
         .runtime(runtime)
         .pass(computePass("cook").chain(chain).writes("points"))
         .pass(geometryPass("colour").reads("points").writes("colour").stamp(
@@ -220,7 +180,7 @@ TEST(GpuRuntime, ACookedChainMatchesTheHostCook) {
 }
 
 TEST(GpuRuntime, AReadbackArrivesTheFrameAfter) {
-  const OnDevice on = onDevice();
+  const auto on = diligent::onDevice();
   if (!on) GTEST_SKIP() << "no Vulkan device: " << on.error;
   motion::Ticker ticker;
   Scene scene(ticker);
@@ -243,11 +203,11 @@ TEST(GpuRuntime, AReadbackArrivesTheFrameAfter) {
 }
 
 TEST(GpuRuntime, AMaskedPassReachesOnlyTheSelection) {
-  const OnDevice on = onDevice();
+  const auto on = diligent::onDevice();
   if (!on) GTEST_SKIP() << "no Vulkan device: " << on.error;
   Frame frame(set());
   frame.extent(kExtent)
-      .camera(eye())
+      .camera(diligent::raisedEye())
       .runtime(on.runtime)
       .pass(geometryPass("colour").writes("colour").clear(SkColors::kBlack))
       .pass(postPass("hot")
@@ -258,15 +218,16 @@ TEST(GpuRuntime, AMaskedPassReachesOnlyTheSelection) {
   const SkBitmap masked = photograph(frame, on.runtime);
 
   Frame plain(set());
-  plain.extent(kExtent).camera(eye()).pass(
-      geometryPass("colour").writes("colour").clear(SkColors::kBlack));
+  plain.extent(kExtent)
+      .camera(diligent::raisedEye())
+      .pass(geometryPass("colour").writes("colour").clear(SkColors::kBlack));
   const SkBitmap unmasked = photograph(plain, on.runtime);
 
   // The lift reaches the tagged body and nothing else: the two plates
   // differ somewhere, and the ground — which nothing selected — stands
   // where it stood.
-  const Distance distance = distanceOf(masked, unmasked);
-  EXPECT_GT(distance.max, 16) << "the mask lifted nothing at all";
+  EXPECT_GT(diligent::worstChannel(masked, unmasked), 16)
+      << "the mask lifted nothing at all";
   const int y = kExtent.height() - 4;
   const SkColor4f groundMasked = masked.getColor4f(6, y);
   const SkColor4f groundPlain = unmasked.getColor4f(6, y);
@@ -309,8 +270,9 @@ Frame dressedQuad(material::Material surface) {
                              .key("card")
                              .mesh(gm::quad(200, 150))
                              .fill(std::move(surface))));
-  frame.extent(kExtent).camera(eye()).pass(
-      geometryPass("colour").writes("colour").clear(SkColors::kBlack));
+  frame.extent(kExtent)
+      .camera(diligent::raisedEye())
+      .pass(geometryPass("colour").writes("colour").clear(SkColors::kBlack));
   return frame;
 }
 
@@ -329,34 +291,19 @@ struct StandingSource {
 
 }  // namespace
 
-TEST(GpuRuntime, TheMapABodyIsDressedWithReachesBothTiers) {
-  const OnDevice on = onDevice();
-  if (!on) GTEST_SKIP() << "no Vulkan device: " << on.error;
-  const Frame frame = dressedQuad(dressed(flatMap({0.2f, 0.8f, 0.35f, 1.0f})));
-
-  const SkBitmap host = photograph(frame, Runtime::cpu());
-  const SkBitmap graphics = photograph(frame, on.runtime);
-
+TEST_P(EitherTier, TheMapABodyIsDressedWithReachesThePixels) {
+  const SkBitmap plate = photograph(
+      dressedQuad(dressed(flatMap({0.2f, 0.8f, 0.35f, 1.0f}))), runtime);
   // The map, not the surface: a white surface under a green map is
-  // green wherever the card stands, on either tier.
+  // green wherever the card stands.
   const SkColor4f centre =
-      host.getColor4f(kExtent.width() / 2, kExtent.height() / 2);
+      plate.getColor4f(kExtent.width() / 2, kExtent.height() / 2);
   EXPECT_GT(centre.fG, centre.fR + 0.15f);
   EXPECT_GT(centre.fG, centre.fB + 0.15f);
-  const SkColor4f onDeviceCentre =
-      graphics.getColor4f(kExtent.width() / 2, kExtent.height() / 2);
-  EXPECT_GT(onDeviceCentre.fG, onDeviceCentre.fR + 0.15f);
-  EXPECT_GT(onDeviceCentre.fG, onDeviceCentre.fB + 0.15f);
-
-  // …and the two tiers are the same picture: a flat map has no edges of
-  // its own, so what is left is the two rasterisers' own disagreement.
-  const Distance distance = distanceOf(host, graphics);
-  EXPECT_LT(distance.mean, 6.0);
-  EXPECT_LT(distance.p99, 64);
 }
 
 TEST(GpuRuntime, AMapTOOSMALLForAChainAsksForNoneAtAll) {
-  const OnDevice on = onDevice();
+  const auto on = diligent::onDevice();
   if (!on) GTEST_SKIP() << "no Vulkan device: " << on.error;
   const std::shared_ptr<diligent::Gpu> gpu = diligent::makeGpu(*on.device);
 
@@ -409,19 +356,7 @@ Frame squareFrame(Element element) {
 
 /** One frame, rendered on @p runtime and photographed square on. */
 SkBitmap photographSquare(const Frame& frame, const Runtime& runtime) {
-  motion::Ticker ticker;
-  Scene scene(ticker);
-  Frame copy = frame;
-  copy.runtime(runtime);
-  ticker.tick(1.0 / 60.0);
-  scene.render(copy);
-  SkBitmap bitmap;
-  bitmap.allocPixels(
-      SkImageInfo::MakeN32Premul(kExtent.width(), kExtent.height()));
-  SkCanvas canvas(bitmap);
-  canvas.clear(SK_ColorBLACK);
-  scene.draw(canvas, squareOn());
-  return bitmap;
+  return diligent::photograph(frame, runtime, kExtent, squareOn());
 }
 
 /** Is this pixel a card's rather than the ground's? Every card below is
@@ -493,48 +428,41 @@ std::vector<float> acrossTheCard(const SkBitmap& plate,
   return out;
 }
 
-}  // namespace
-
-TEST(GpuRuntime, ATexturesFilterIsHonouredOnBothTiers) {
-  const std::vector<float> at = {0.2f, 0.4f, 0.6f, 0.8f};
-  const Frame nearest =
-      mappedCard(twoTexelMap().filter(SkFilterMode::kNearest));
-  const Frame linear = mappedCard(twoTexelMap().filter(SkFilterMode::kLinear));
-
-  const std::vector<float> hostNearest =
-      acrossTheCard(photographSquare(nearest, Runtime::cpu()), at);
-  const std::vector<float> hostLinear =
-      acrossTheCard(photographSquare(linear, Runtime::cpu()), at);
-  ASSERT_EQ(hostNearest.size(), at.size());
-  ASSERT_EQ(hostLinear.size(), at.size());
-
-  // NEAREST is two colours and one edge: the samples either side of the
-  // middle agree exactly, and the pair across it does not.
-  EXPECT_FLOAT_EQ(hostNearest[0], hostNearest[1]);
-  EXPECT_FLOAT_EQ(hostNearest[2], hostNearest[3]);
-  EXPECT_GT(std::abs(hostNearest[1] - hostNearest[2]), 0.5f);
-  // LINEAR is a gradient: every step along the card moves.
-  EXPECT_LT(hostLinear[0], hostLinear[1]);
-  EXPECT_LT(hostLinear[1], hostLinear[2]);
-  EXPECT_LT(hostLinear[2], hostLinear[3]);
-
-  const OnDevice on = onDevice();
-  if (!on) GTEST_SKIP() << "no Vulkan device: " << on.error;
-  const std::vector<float> deviceNearest =
-      acrossTheCard(photographSquare(nearest, on.runtime), at);
-  const std::vector<float> deviceLinear =
-      acrossTheCard(photographSquare(linear, on.runtime), at);
-  ASSERT_EQ(deviceNearest.size(), at.size());
-  ASSERT_EQ(deviceLinear.size(), at.size());
-  EXPECT_FLOAT_EQ(deviceNearest[0], deviceNearest[1]);
-  EXPECT_FLOAT_EQ(deviceNearest[2], deviceNearest[3]);
-  EXPECT_GT(std::abs(deviceNearest[1] - deviceNearest[2]), 0.5f);
-  EXPECT_LT(deviceLinear[0], deviceLinear[1]);
-  EXPECT_LT(deviceLinear[1], deviceLinear[2]);
-  EXPECT_LT(deviceLinear[2], deviceLinear[3]);
+/** The four samples every filter case below reads a card at. */
+const std::vector<float>& quarters() {
+  static const std::vector<float> at = {0.2f, 0.4f, 0.6f, 0.8f};
+  return at;
 }
 
-TEST(GpuRuntime, ATexturesWrapIsHonouredOnBothTiers) {
+}  // namespace
+
+TEST_P(EitherTier, ANearestFilteredMapIsTwoColoursAndOneEdge) {
+  const std::vector<float> across = acrossTheCard(
+      photographSquare(mappedCard(twoTexelMap().filter(SkFilterMode::kNearest)),
+                       runtime),
+      quarters());
+  ASSERT_EQ(across.size(), quarters().size());
+  // The samples either side of the middle agree exactly, and the pair
+  // across it does not: nothing is read BETWEEN two texels.
+  EXPECT_FLOAT_EQ(across[0], across[1]);
+  EXPECT_FLOAT_EQ(across[2], across[3]);
+  EXPECT_GT(std::abs(across[1] - across[2]), 0.5f);
+}
+
+TEST_P(EitherTier, ALinearFilteredMapIsAGradientBetweenTwoTexels) {
+  const std::vector<float> across = acrossTheCard(
+      photographSquare(mappedCard(twoTexelMap().filter(SkFilterMode::kLinear)),
+                       runtime),
+      quarters());
+  ASSERT_EQ(across.size(), quarters().size());
+  // Every step along the card moves, because every sample is read
+  // between the two texels rather than at one of them.
+  EXPECT_LT(across[0], across[1]);
+  EXPECT_LT(across[1], across[2]);
+  EXPECT_LT(across[2], across[3]);
+}
+
+TEST_P(EitherTier, AMapAskedToRepeatIsAsManyOfItselfAsItWasAsked) {
   // A map asked to repeat, over a card four of itself wide, is four of
   // itself. Clamping instead is not a near miss: past the image's own
   // edge one row of texels is dragged across the whole rest of the face,
@@ -551,20 +479,11 @@ TEST(GpuRuntime, ATexturesWrapIsHonouredOnBothTiers) {
   std::vector<float> at(8);
   for (size_t i = 0; i < at.size(); ++i) at[i] = ((float)i + 0.5f) / 8.0f;
 
-  const std::vector<float> host =
-      acrossTheCard(photographSquare(frame, Runtime::cpu()), at);
-  ASSERT_EQ(host.size(), at.size());
-  for (size_t i = 0; i + 1 < host.size(); ++i)
-    EXPECT_GT(std::abs(host[i] - host[i + 1]), 0.5f) << "host step " << i;
-
-  const OnDevice on = onDevice();
-  if (!on) GTEST_SKIP() << "no Vulkan device: " << on.error;
-  const std::vector<float> graphics =
-      acrossTheCard(photographSquare(frame, on.runtime), at);
-  ASSERT_EQ(graphics.size(), at.size());
-  for (size_t i = 0; i + 1 < graphics.size(); ++i)
-    EXPECT_GT(std::abs(graphics[i] - graphics[i + 1]), 0.5f)
-        << "device step " << i;
+  const std::vector<float> across =
+      acrossTheCard(photographSquare(frame, runtime), at);
+  ASSERT_EQ(across.size(), at.size());
+  for (size_t i = 0; i + 1 < across.size(); ++i)
+    EXPECT_GT(std::abs(across[i] - across[i + 1]), 0.5f) << "step " << i;
 }
 
 TEST(SurfaceProgram, TheKitsOwnSurfacesCompileTheirBodies) {
@@ -631,65 +550,38 @@ bool cardCentres(const SkBitmap& plate, int* lit, int* unlit) {
 
 }  // namespace
 
-TEST(GpuRuntime, AnUnlitSurfaceIsItsOwnLightOnBothTiers) {
-  const Frame frame = litAndUnlitCards();
-  const int y = kExtent.height() / 2;
-
-  const SkBitmap host = photographSquare(frame, Runtime::cpu());
+TEST_P(EitherTier, AnUnlitSurfaceIsItsOwnLight) {
+  const SkBitmap plate = photographSquare(litAndUnlitCards(), runtime);
   int litAt = 0, unlitAt = 0;
-  ASSERT_TRUE(cardCentres(host, &litAt, &unlitAt));
-  const SkColor4f hostUnlit = host.getColor4f(unlitAt, y);
-  const SkColor4f hostLit = host.getColor4f(litAt, y);
+  ASSERT_TRUE(cardCentres(plate, &litAt, &unlitAt));
+  const int y = kExtent.height() / 2;
+  const SkColor4f unlit = plate.getColor4f(unlitAt, y);
+  const SkColor4f lit = plate.getColor4f(litAt, y);
   // The unlit card IS its base colour, and the lit one — with the sun on
   // its far side — is only what the ambient leaves of it.
-  EXPECT_NEAR(hostUnlit.fR, kBodyColour.r, 3.0f / 255.0f);
-  EXPECT_NEAR(hostUnlit.fG, kBodyColour.g, 3.0f / 255.0f);
-  EXPECT_NEAR(hostUnlit.fB, kBodyColour.b, 3.0f / 255.0f);
-  EXPECT_LT(hostLit.fR, hostUnlit.fR * 0.5f);
-
-  const OnDevice on = onDevice();
-  if (!on) GTEST_SKIP() << "no Vulkan device: " << on.error;
-  const SkBitmap graphics = photographSquare(frame, on.runtime);
-  ASSERT_TRUE(cardCentres(graphics, &litAt, &unlitAt));
-  const SkColor4f deviceUnlit = graphics.getColor4f(unlitAt, y);
-  const SkColor4f deviceLit = graphics.getColor4f(litAt, y);
-  EXPECT_NEAR(deviceUnlit.fR, kBodyColour.r, 3.0f / 255.0f);
-  EXPECT_NEAR(deviceUnlit.fG, kBodyColour.g, 3.0f / 255.0f);
-  EXPECT_NEAR(deviceUnlit.fB, kBodyColour.b, 3.0f / 255.0f);
-  EXPECT_LT(deviceLit.fR, deviceUnlit.fR * 0.5f);
+  EXPECT_NEAR(unlit.fR, kBodyColour.r, 3.0f / 255.0f);
+  EXPECT_NEAR(unlit.fG, kBodyColour.g, 3.0f / 255.0f);
+  EXPECT_NEAR(unlit.fB, kBodyColour.b, 3.0f / 255.0f);
+  EXPECT_LT(lit.fR, unlit.fR * 0.5f);
 }
 
 TEST(GpuRuntime, AMapAlreadyOnThisDeviceIsBoundWhereItStands) {
-  const OnDevice on = onDevice();
+  const auto on = diligent::onDevice();
   if (!on) GTEST_SKIP() << "no Vulkan device: " << on.error;
-  core::hardware::GpuDevice* gpu = on.device->gpu();
-  skia::GraphiteContext* graphite = on.device->graphite();
-  if (!gpu || !graphite) GTEST_SKIP() << "the device was not adopted";
 
   // 2D paints into a texture on the one shared device…
-  core::hardware::TextureDesc desc;
-  desc.width = desc.height = 16;
-  desc.format = core::hardware::TextureFormat::RGBA8Unorm;
-  const core::hardware::TextureHandle handle = gpu->createTexture(desc);
-  ASSERT_TRUE((bool)handle);
-  {
-    const geometry::device::Device::QueueLock lock(*on.device);
-    skia::OffscreenSurface surface(*graphite, *gpu, handle);
-    ASSERT_NE(surface.canvas(), nullptr);
-    surface.canvas()->clear(SkColor4f{0.15f, 0.35f, 0.95f, 1.0f});
-    surface.submit();
-  }
-  const core::hardware::NativeTexture native = gpu->exportNative(handle);
-  ASSERT_TRUE((bool)native);
+  const diligent::PaintedTexture painted =
+      diligent::paintOnDevice(*on.device, SkColor4f{0.15f, 0.35f, 0.95f, 1.0f});
+  if (!painted.native) GTEST_SKIP() << "the device was not adopted";
 
   material::DeviceImage where;
-  where.device = gpu;
-  where.pointer = native.mtlTexture;
-  where.handle = native.vkImage;
-  where.format = native.vkFormat;
-  where.layout = native.vkLayout;
-  where.width = native.width;
-  where.height = native.height;
+  where.device = on.device->gpu();
+  where.pointer = painted.native.mtlTexture;
+  where.handle = painted.native.vkImage;
+  where.format = painted.native.vkFormat;
+  where.layout = painted.native.vkLayout;
+  where.width = painted.native.width;
+  where.height = painted.native.height;
 
   // …and 3D binds those very pixels. The source yields no host image at
   // all, so a picture carrying the colour proves the binding rather than
@@ -701,5 +593,8 @@ TEST(GpuRuntime, AMapAlreadyOnThisDeviceIsBoundWhereItStands) {
       graphics.getColor4f(kExtent.width() / 2, kExtent.height() / 2);
   EXPECT_GT(centre.fB, centre.fR + 0.15f);
   EXPECT_GT(centre.fB, centre.fG + 0.15f);
-  gpu->destroy(handle);
+  on.device->gpu()->destroy(painted.handle);
 }
+
+INSTANTIATE_TEST_SUITE_P(Tiers, EitherTier,
+                         testing::Values(Tier::Host, Tier::Device), tierName);

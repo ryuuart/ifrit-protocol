@@ -31,6 +31,7 @@ target_link_libraries(SigilWorldFrame PUBLIC
 # Links only the library it exercises, so a link edge that pulled the
 # retained side or a device in would show up as a build failure here.
 add_executable(world_frame_test test/FrameTest.cpp)
+target_include_directories(world_frame_test PRIVATE ${SIGIL_WORLD_TEST_DIR})
 target_link_libraries(world_frame_test PRIVATE SigilWorldFrame
   GTest::gtest_main)
 add_test(NAME world_frame_test COMMAND world_frame_test)

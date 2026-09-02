@@ -79,13 +79,21 @@ target_link_libraries(SigilWorldDiligent
   PRIVATE SigilMaterialKit)
 
 add_executable(world_diligent_test test/PainterTest.cpp test/RuntimeTest.cpp
-  test/StackTest.cpp test/SurfaceTest.cpp test/Distance.h)
+  test/StackTest.cpp test/SurfaceTest.cpp test/Distance.h test/OnDevice.h)
 # The runtime test reads the compiled program the compiler registration
-# produced, which is this feature's own header rather than a public one.
-target_include_directories(world_diligent_test PRIVATE ${CMAKE_CURRENT_LIST_DIR})
+# produced, which is this feature's own header rather than a public one;
+# the second directory is the fixtures every world test binary shares.
+target_include_directories(world_diligent_test
+  PRIVATE ${CMAKE_CURRENT_LIST_DIR} ${SIGIL_WORLD_TEST_DIR})
 target_link_libraries(world_diligent_test PRIVATE SigilWorldDiligent
   SigilMaterialKit SigilGeometryKit GTest::gtest_main)
 add_test(NAME world_diligent_test COMMAND world_diligent_test)
+# HALF THIS BINARY IS A NO-OP WITHOUT A VULKAN RUNTIME, and it reports
+# pass either way, because a case that cannot ask its question skips
+# rather than fails. The label is what makes that visible from outside:
+# `ctest -L gpu` is the run that needs a device, and a run that excludes
+# it is a run nobody should read a device verdict out of.
+set_tests_properties(world_diligent_test PROPERTIES LABELS gpu)
 
 # Google Benchmark (use a Release build). Not a test: it builds through
 # the `benches` target and runs through scripts/bench_ledger.py.

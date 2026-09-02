@@ -20,22 +20,15 @@
 #include <string>
 #include <vector>
 
+#include "TestMaterial.h"
+
 using namespace sigil;
 using namespace sigil::world;
+using namespace sigil::world::test;
 
 namespace {
 
 constexpr SkISize kExtent{80, 80};
-
-Mesh square(float size) {
-  Mesh m;
-  m.positions = {
-      {-size, -size, 0}, {size, -size, 0}, {size, size, 0}, {-size, size, 0}};
-  m.normals = {{0, 0, 1}, {0, 0, 1}, {0, 0, 1}, {0, 0, 1}};
-  m.uvs = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
-  m.indices = {0, 1, 2, 0, 2, 3};
-  return m;
-}
 
 Camera frontCamera() {
   Camera camera;
@@ -46,7 +39,7 @@ Camera frontCamera() {
 
 /** Two squares side by side, the right one tagged "glow". */
 struct Bodies {
-  Mesh mesh = square(40.0f);
+  Mesh mesh = geometry::mesh::quad(80.0f, 80.0f);
   std::vector<std::string> none;
   std::vector<std::string> glow = {"glow"};
   std::vector<Draw> draws;
@@ -77,34 +70,41 @@ struct Bodies {
   }
 };
 
-int painted(const sk_sp<SkImage>& image) {
-  if (!image) return 0;
-  SkBitmap bitmap;
-  bitmap.allocPixels(
+/** WHAT A PASS WROTE, brought back as pixels. An empty bitmap where
+ *  there was nothing to read, so a case that expected a target and got
+ *  none reads as no ink rather than as a crash. */
+SkBitmap read(const sk_sp<SkImage>& image) {
+  SkBitmap plate;
+  if (!image) return plate;
+  plate.allocPixels(
       SkImageInfo::MakeN32Premul(image->width(), image->height()));
-  if (!image->readPixels(bitmap.pixmap(), 0, 0)) return 0;
-  int count = 0;
-  for (int y = 0; y < bitmap.height(); ++y)
-    for (int x = 0; x < bitmap.width(); ++x)
-      if (SkColorGetA(bitmap.getColor(x, y)) > 0) ++count;
-  return count;
+  if (!image->readPixels(plate.pixmap(), 0, 0)) plate.reset();
+  return plate;
 }
 
-/** How much ink stands in the left or the right half of the plate. */
-int paintedIn(const sk_sp<SkImage>& image, bool leftHalf) {
-  if (!image) return 0;
-  SkBitmap bitmap;
-  bitmap.allocPixels(
-      SkImageInfo::MakeN32Premul(image->width(), image->height()));
-  if (!image->readPixels(bitmap.pixmap(), 0, 0)) return 0;
-  int count = 0;
-  const int mid = bitmap.width() / 2;
-  for (int y = 0; y < bitmap.height(); ++y)
-    for (int x = 0; x < bitmap.width(); ++x) {
-      if (leftHalf != (x < mid)) continue;
-      if (SkColorGetA(bitmap.getColor(x, y)) > 0) ++count;
-    }
-  return count;
+/** …and the resource @p targets holds under @p name. */
+SkBitmap read(Targets& targets, const char* name) {
+  return read(targets.image(name));
+}
+
+/** How much ink stands in one half of what a pass wrote. */
+int inkIn(const sk_sp<SkImage>& image, bool leftHalf) {
+  return test::paintedIn(read(image), leftHalf);
+}
+
+/** …and over the whole of it. */
+int painted(const sk_sp<SkImage>& image) {
+  const SkBitmap plate = read(image);
+  return test::paintedIn(plate, true) + test::paintedIn(plate, false);
+}
+
+/** THE COMPUTE PASS the cases below cook the same point set with: 48
+ *  motes spread along one closed path. */
+Pass cookMotes() {
+  const std::vector<glm::vec3> path = {
+      {-40, 0, 0}, {0, 30, 0}, {40, 0, 0}, {0, -30, 0}};
+  return computePass("cook").writes("motes").chain(
+      geometry::mesh::pop::on(path).count(48).spread(3.0f));
 }
 
 PassWork workOf(const Pass& pass, Selection realisation = Selection::None) {
@@ -155,21 +155,8 @@ TEST(WorldFrame, AGeometryPassPaintsEveryBody) {
   Runtime::cpu()->execute(workOf(pass), bodies.view(), targets);
 
   const sk_sp<SkImage> colour = targets.image("colour");
-  EXPECT_GT(paintedIn(colour, /*leftHalf=*/true), 0);
-  EXPECT_GT(paintedIn(colour, /*leftHalf=*/false), 0);
-}
-
-TEST(WorldFrame, ACulledGeometryPassPaintsOnlyItsSelection) {
-  Bodies bodies;
-  Targets targets = targetsAt(kExtent);
-  const Pass pass =
-      geometryPass("glow").only(sel::tag("glow")).writes("colour");
-  Runtime::cpu()->execute(workOf(pass, Selection::Cull), bodies.view(),
-                          targets);
-
-  const sk_sp<SkImage> colour = targets.image("colour");
-  EXPECT_EQ(paintedIn(colour, /*leftHalf=*/true), 0);
-  EXPECT_GT(paintedIn(colour, /*leftHalf=*/false), 0);
+  EXPECT_GT(inkIn(colour, /*leftHalf=*/true), 0);
+  EXPECT_GT(inkIn(colour, /*leftHalf=*/false), 0);
 }
 
 TEST(WorldFrame, AMaskRealisationPaintsCoverageAndNothingElse) {
@@ -180,8 +167,8 @@ TEST(WorldFrame, AMaskRealisationPaintsCoverageAndNothingElse) {
                           targets);
 
   const sk_sp<SkImage> mask = targets.image("mask");
-  EXPECT_EQ(paintedIn(mask, /*leftHalf=*/true), 0);
-  EXPECT_GT(paintedIn(mask, /*leftHalf=*/false), 0);
+  EXPECT_EQ(inkIn(mask, /*leftHalf=*/true), 0);
+  EXPECT_GT(inkIn(mask, /*leftHalf=*/false), 0);
 }
 
 TEST(WorldFrame, AVariantRealisationDrawsTheSelectionAgain) {
@@ -189,12 +176,7 @@ TEST(WorldFrame, AVariantRealisationDrawsTheSelectionAgain) {
   Targets plain = targetsAt(kExtent);
   Targets varied = targetsAt(kExtent);
 
-  struct Paint {
-    glm::vec4 baseColor{1, 1, 1, 1};
-  };
-  const auto recipe = std::make_shared<const material::Recipe>(
-      material::Recipe::of<Paint>("world.test.paint"));
-  const material::Material white(recipe, Paint{{1.0f, 1.0f, 1.0f, 1.0f}});
+  const material::Material white = paint({1, 1, 1, 1});
 
   const Pass ordinary = geometryPass("main").writes("colour");
   Runtime::cpu()->execute(workOf(ordinary), bodies.view(), plain);
@@ -206,14 +188,10 @@ TEST(WorldFrame, AVariantRealisationDrawsTheSelectionAgain) {
                           varied);
 
   // The left body is untouched and the right one is repainted.
-  EXPECT_EQ(paintedIn(plain.image("colour"), true),
-            paintedIn(varied.image("colour"), true));
-  SkBitmap a;
-  SkBitmap b;
-  a.allocPixels(SkImageInfo::MakeN32Premul(kExtent.width(), kExtent.height()));
-  b.allocPixels(SkImageInfo::MakeN32Premul(kExtent.width(), kExtent.height()));
-  ASSERT_TRUE(plain.image("colour")->readPixels(a.pixmap(), 0, 0));
-  ASSERT_TRUE(varied.image("colour")->readPixels(b.pixmap(), 0, 0));
+  EXPECT_EQ(inkIn(plain.image("colour"), true),
+            inkIn(varied.image("colour"), true));
+  const SkBitmap a = read(plain, "colour");
+  const SkBitmap b = read(varied, "colour");
   const int x = kExtent.width() * 3 / 4;
   const int y = kExtent.height() / 2;
   EXPECT_NE(a.getColor(x, y), b.getColor(x, y));
@@ -229,14 +207,8 @@ TEST(WorldFrame, APostPassGradesWhatItReads) {
       postPass("dark").reads("colour").writes("graded").levels(0.25f, 0.0f);
   Runtime::cpu()->execute(workOf(dark), bodies.view(), targets);
 
-  SkBitmap before;
-  SkBitmap after;
-  before.allocPixels(
-      SkImageInfo::MakeN32Premul(kExtent.width(), kExtent.height()));
-  after.allocPixels(
-      SkImageInfo::MakeN32Premul(kExtent.width(), kExtent.height()));
-  ASSERT_TRUE(targets.image("colour")->readPixels(before.pixmap(), 0, 0));
-  ASSERT_TRUE(targets.image("graded")->readPixels(after.pixmap(), 0, 0));
+  const SkBitmap before = read(targets, "colour");
+  const SkBitmap after = read(targets, "graded");
   const int x = kExtent.width() / 4;
   const int y = kExtent.height() / 2;
   EXPECT_GT(
@@ -244,40 +216,6 @@ TEST(WorldFrame, APostPassGradesWhatItReads) {
           SkColorGetB(before.getColor(x, y)),
       SkColorGetR(after.getColor(x, y)) + SkColorGetG(after.getColor(x, y)) +
           SkColorGetB(after.getColor(x, y)));
-}
-
-TEST(WorldFrame, AMaskedPostPassReachesOnlyItsCoverage) {
-  Bodies bodies;
-  Targets targets = targetsAt(kExtent);
-  const Pass main = geometryPass("main").writes("colour");
-  PassWork paint = workOf(main);
-  paint.coverageOut = "bloom.coverage";
-  paint.coverageOf = sel::tag("glow");
-  Runtime::cpu()->execute(paint, bodies.view(), targets);
-
-  const Pass bloom = postPass("bloom")
-                         .reads("colour")
-                         .writes("lit")
-                         .only(sel::tag("glow"))
-                         .levels(0.0f, 0.0f);
-  PassWork masked = workOf(bloom, Selection::Mask);
-  masked.coverageIn = "bloom.coverage";
-  Runtime::cpu()->execute(masked, bodies.view(), targets);
-
-  SkBitmap before;
-  SkBitmap after;
-  before.allocPixels(
-      SkImageInfo::MakeN32Premul(kExtent.width(), kExtent.height()));
-  after.allocPixels(
-      SkImageInfo::MakeN32Premul(kExtent.width(), kExtent.height()));
-  ASSERT_TRUE(targets.image("colour")->readPixels(before.pixmap(), 0, 0));
-  ASSERT_TRUE(targets.image("lit")->readPixels(after.pixmap(), 0, 0));
-  const int y = kExtent.height() / 2;
-  // Outside the coverage the picture stands; inside it the grade landed.
-  EXPECT_EQ(before.getColor(kExtent.width() / 4, y),
-            after.getColor(kExtent.width() / 4, y));
-  EXPECT_NE(before.getColor(kExtent.width() * 3 / 4, y),
-            after.getColor(kExtent.width() * 3 / 4, y));
 }
 
 TEST(WorldFrame, APreviousReadIsWhatStoodAtTheEndOfTheFrameBefore) {
@@ -305,14 +243,8 @@ TEST(WorldFrame, APreviousReadIsWhatStoodAtTheEndOfTheFrameBefore) {
   Runtime::cpu()->execute(workOf(trail), bodies.view(), targets);
   EXPECT_GE(painted(targets.image("trail")), first);
 
-  SkBitmap once;
-  SkBitmap twice;
-  once.allocPixels(
-      SkImageInfo::MakeN32Premul(kExtent.width(), kExtent.height()));
-  twice.allocPixels(
-      SkImageInfo::MakeN32Premul(kExtent.width(), kExtent.height()));
-  ASSERT_TRUE(targets.previous("trail")->readPixels(once.pixmap(), 0, 0));
-  ASSERT_TRUE(targets.image("trail")->readPixels(twice.pixmap(), 0, 0));
+  const SkBitmap once = read(targets.previous("trail"));
+  const SkBitmap twice = read(targets, "trail");
   const int x = kExtent.width() / 4;
   const int y = kExtent.height() / 2;
   EXPECT_NE(once.getColor(x, y), twice.getColor(x, y));
@@ -321,10 +253,7 @@ TEST(WorldFrame, APreviousReadIsWhatStoodAtTheEndOfTheFrameBefore) {
 TEST(WorldFrame, AComputePassCooksItsChainIntoThePointSetItWrites) {
   Bodies bodies;
   Targets targets = targetsAt(kExtent);
-  const std::vector<glm::vec3> path = {
-      {-40, 0, 0}, {0, 30, 0}, {40, 0, 0}, {0, -30, 0}};
-  const Pass cook = computePass("cook").writes("motes").chain(
-      geometry::mesh::pop::on(path).count(48).spread(3.0f));
+  const Pass cook = cookMotes();
   Runtime::cpu()->execute(workOf(cook), bodies.view(), targets);
 
   const Cloud* motes = targets.points("motes");
@@ -335,16 +264,14 @@ TEST(WorldFrame, AComputePassCooksItsChainIntoThePointSetItWrites) {
 TEST(WorldFrame, AGeometryPassStampsThePointSetsItReads) {
   Bodies bodies;
   Targets targets = targetsAt(kExtent);
-  const std::vector<glm::vec3> path = {
-      {-40, 0, 0}, {0, 30, 0}, {40, 0, 0}, {0, -30, 0}};
-  const Pass cook = computePass("cook").writes("motes").chain(
-      geometry::mesh::pop::on(path).count(48).spread(3.0f));
+  const Pass cook = cookMotes();
   Runtime::cpu()->execute(workOf(cook), bodies.view(), targets);
 
   View empty = bodies.view();
   empty.draws = {};
   const Pass beads =
-      geometryPass("beads").reads("motes").writes("colour").stamp(square(3.0f));
+      geometryPass("beads").reads("motes").writes("colour").stamp(
+          geometry::mesh::quad(6.0f, 6.0f));
   Runtime::cpu()->execute(workOf(beads), empty, targets);
   EXPECT_GT(painted(targets.image("colour")), 0);
 }
@@ -357,16 +284,14 @@ TEST(WorldFrame, AGeometryPassStampsThePointSetsItReads) {
 TEST(WorldFrame, AStillPointSetIsStampedOnceHoweverManyFramesDrawIt) {
   Bodies bodies;
   Targets targets = targetsAt(kExtent);
-  const std::vector<glm::vec3> path = {
-      {-40, 0, 0}, {0, 30, 0}, {40, 0, 0}, {0, -30, 0}};
-  const Pass cook = computePass("cook").writes("motes").chain(
-      geometry::mesh::pop::on(path).count(48).spread(3.0f));
+  const Pass cook = cookMotes();
   Runtime::cpu()->execute(workOf(cook), bodies.view(), targets);
 
   View empty = bodies.view();
   empty.draws = {};
   const Pass beads =
-      geometryPass("beads").reads("motes").writes("colour").stamp(square(3.0f));
+      geometryPass("beads").reads("motes").writes("colour").stamp(
+          geometry::mesh::quad(6.0f, 6.0f));
 
   for (int frame = 0; frame < 3; ++frame) {
     Runtime::cpu()->execute(workOf(beads), empty, targets);

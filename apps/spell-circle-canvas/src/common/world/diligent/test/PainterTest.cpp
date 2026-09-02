@@ -1,17 +1,15 @@
 /** @file
- * The mesh painter on the device, held against the one on the host.
+ * The mesh painter on the device: the runtime as a value, the style's
+ * own answers read the same way on either executor, and the one thing
+ * the two are the same BYTES about.
  *
- * TWO RASTERISERS ARE NOT ASKED TO AGREE BIT FOR BIT. The host paints
- * shaded vertices through a triangle sort with Skia's antialiasing; the
- * device rasterises the same shading through a depth buffer with none.
- * What is asserted is a per-channel distance — the mean, which says the
- * two are the same picture, and the 99th percentile, which says the
- * disagreement is confined to the edges where two rasterisers always
- * differ.
- *
- * A PANEL IS NOT ONE OF THOSE. Both executors concat the same transform
+ * A PANEL IS THAT ONE THING. Both executors concat the same transform
  * and hand the canvas to the caller, so the pixels are the same pixels
- * and the test says exactly that.
+ * and the test says exactly that. Everything a rasteriser decides —
+ * where an edge falls, how it is antialiased — is a picture two
+ * rasterisers do not agree about bit for bit, and how far apart they
+ * stand is judged against a committed baseline by the plate ledger's
+ * device tier rather than here.
  */
 
 #include <gtest/gtest.h>
@@ -22,19 +20,15 @@
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/render/Painter.h>
-#include <sigilgeometry/device/Device.h>
 #include <sigilworld/diligent/Painter.h>
 
 #include <cstring>
-#include <memory>
 #include <string>
 #include <vector>
 
-#include "Distance.h"
+#include "OnDevice.h"
 
 using namespace sigil;
-using sigil::world::diligent::Distance;
-using sigil::world::diligent::distanceOf;
 namespace gm = sigil::geometry::mesh;
 namespace render = sigil::geometry::mesh::render;
 
@@ -42,31 +36,6 @@ namespace {
 
 constexpr SkISize kExtent{160, 120};
 constexpr SkSize kViewport{(float)kExtent.width(), (float)kExtent.height()};
-
-/** A DEVICE AND THE PAINTER ON IT, or the reason there is neither. Every
- *  test that needs one SKIPS rather than fails without a Vulkan runtime,
- *  so a machine with no GPU stays green. */
-struct OnDevice {
-  std::unique_ptr<geometry::device::Device> device;
-  render::Runtime painter;
-  std::string error;
-  explicit operator bool() const { return (bool)device; }
-};
-
-OnDevice onDevice() {
-  OnDevice out;
-  const geometry::device::DeviceConfig config;
-  out.device = geometry::device::Device::create(config, &out.error);
-  if (out.device) out.painter = world::diligent::painterRuntime(*out.device);
-  return out;
-}
-
-gm::camera::Camera eye() {
-  gm::camera::Camera camera;
-  camera.eye = {0, 90, 240};
-  camera.target = {0, 0, 0};
-  return camera;
-}
 
 SkBitmap plate() {
   SkBitmap bitmap;
@@ -103,58 +72,27 @@ SkBitmap drawnWith(const render::Runtime& runtime, render::MeshStyle style) {
   style.runtime = runtime;
   SkBitmap bitmap = plate();
   SkCanvas canvas(bitmap);
-  render::drawMesh(canvas, body(), glm::mat4(1.0f), eye(), kViewport, style);
+  render::drawMesh(canvas, body(), glm::mat4(1.0f),
+                   world::diligent::raisedEye(), kViewport, style);
   return bitmap;
 }
 
 }  // namespace
 
 TEST(Painter, TheRuntimeIsAValue) {
-  const OnDevice on = onDevice();
+  const auto on = world::diligent::onPainterDevice();
   if (!on) GTEST_SKIP() << on.error;
-  EXPECT_TRUE((bool)on.painter);
-  EXPECT_EQ(on.painter, render::Runtime(on.painter))
+  EXPECT_TRUE((bool)on.runtime);
+  EXPECT_EQ(on.runtime, render::Runtime(on.runtime))
       << "copies of one runtime are one value";
-  EXPECT_NE(on.painter, render::Runtime::cpu());
+  EXPECT_NE(on.runtime, render::Runtime::cpu());
   // Two separate calls hold separate device state, which is what a
   // reconciler asking "did the runtime change" has to be told.
-  EXPECT_NE(on.painter, world::diligent::painterRuntime(*on.device));
-}
-
-TEST(Painter, ALitMeshLandsWhereTheHostPutsIt) {
-  const OnDevice on = onDevice();
-  if (!on) GTEST_SKIP() << on.error;
-
-  const SkBitmap host = drawnWith(render::Runtime::cpu(), litStyle());
-  const SkBitmap device = drawnWith(on.painter, litStyle());
-  const Distance distance = distanceOf(host, device);
-  // THE TOLERANCE, and what each half of it is for. The mean says the
-  // two are the same picture; the 99th says the disagreement is
-  // confined. The worst channel is an edge — the host antialiases and
-  // the device does not — and is reported rather than judged.
-  EXPECT_LT(distance.mean, 1.0) << "mean channel distance";
-  EXPECT_LE(distance.p99, 4) << "99th percentile channel distance";
-  std::cerr << "[ lit mesh ] mean " << distance.mean << " p99 " << distance.p99
-            << " max " << distance.max << "\n";
-}
-
-TEST(Painter, TheNormalBufferAgreesToo) {
-  const OnDevice on = onDevice();
-  if (!on) GTEST_SKIP() << on.error;
-
-  render::MeshStyle style = litStyle();
-  style.mode = render::MeshStyle::Mode::Normals;
-  const SkBitmap host = drawnWith(render::Runtime::cpu(), style);
-  const SkBitmap device = drawnWith(on.painter, style);
-  const Distance distance = distanceOf(host, device);
-  EXPECT_LT(distance.mean, 1.0) << "mean channel distance";
-  EXPECT_LE(distance.p99, 4) << "99th percentile channel distance";
-  std::cerr << "[ normals ] mean " << distance.mean << " p99 " << distance.p99
-            << " max " << distance.max << "\n";
+  EXPECT_NE(on.runtime, world::diligent::painterRuntime(*on.device));
 }
 
 TEST(Painter, ASurfaceThatIsItsOwnLightIsBrighterThanALitOne) {
-  const OnDevice on = onDevice();
+  const auto on = world::diligent::onPainterDevice();
   if (!on) GTEST_SKIP() << on.error;
 
   render::MeshStyle unlit = litStyle();
@@ -167,8 +105,8 @@ TEST(Painter, ASurfaceThatIsItsOwnLightIsBrighterThanALitOne) {
   shaded.specular = 0;
   shaded.rim = 0;
 
-  const SkBitmap own = drawnWith(on.painter, unlit);
-  const SkBitmap lit = drawnWith(on.painter, shaded);
+  const SkBitmap own = drawnWith(on.runtime, unlit);
+  const SkBitmap lit = drawnWith(on.runtime, shaded);
   const auto brightness = [](const SkBitmap& b) {
     double total = 0;
     for (int y = 0; y < b.height(); ++y)
@@ -186,7 +124,7 @@ TEST(Painter, ASurfaceThatIsItsOwnLightIsBrighterThanALitOne) {
 }
 
 TEST(Painter, APanelIsTheSamePixelsOnBothExecutors) {
-  const OnDevice on = onDevice();
+  const auto on = world::diligent::onPainterDevice();
   if (!on) GTEST_SKIP() << on.error;
 
   const auto content = [](SkCanvas& canvas) {
@@ -202,12 +140,13 @@ TEST(Painter, APanelIsTheSamePixelsOnBothExecutors) {
 
   SkBitmap host = plate();
   SkCanvas hostCanvas(host);
-  render::drawPanel(hostCanvas, model, eye(), kViewport, content,
-                    render::Runtime::cpu());
+  render::drawPanel(hostCanvas, model, world::diligent::raisedEye(), kViewport,
+                    content, render::Runtime::cpu());
 
   SkBitmap device = plate();
   SkCanvas deviceCanvas(device);
-  render::drawPanel(deviceCanvas, model, eye(), kViewport, content, on.painter);
+  render::drawPanel(deviceCanvas, model, world::diligent::raisedEye(),
+                    kViewport, content, on.runtime);
 
   // NOT a tolerance: a panel's content is Skia's to rasterise on either
   // executor, so the two must be the same bytes.
