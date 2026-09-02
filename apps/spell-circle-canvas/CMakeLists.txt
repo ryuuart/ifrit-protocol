@@ -1,12 +1,12 @@
 cmake_minimum_required(VERSION 3.16)
 
-# workaround: four vcpkg configs each flatten the same libraries into
-# their own link interface.
+# workaround: vcpkg configs each flatten the same libraries into their own
+# link interface.
 #
-# Our third-party interfaces overlap heavily: skia, freetype (via harfbuzz),
-# OpenImageIO and OpenColorIO each flatten libpng/libz/libexpat/Imath into
-# their own link interface, so every executable named several archives twice
-# and ld64 answered with `ignoring duplicate libraries` on each. Under
+# Our third-party interfaces overlap heavily: freetype (via harfbuzz),
+# OpenImageIO and OpenColorIO each flatten libpng/libz/Imath into their own
+# link interface, so every executable named several archives twice and ld64
+# answered with `ignoring duplicate libraries` on each. Under
 # cmake_minimum_required(3.16) both de-duplication policies default to OLD,
 # which is what kept the repeats. ld64 records symbols as it scans and
 # re-visits earlier archives, so one occurrence is enough.
@@ -39,6 +39,13 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+
+# A package found in two directories otherwise defines its imported
+# targets twice — once per directory scope — and the same archive reaches
+# ld64 under both names, since CMake collapses two link items only when
+# they are one item. Promoting them makes the second find_package() see
+# the targets the first defined.
+set(CMAKE_FIND_PACKAGE_TARGETS_GLOBAL ON)
 
 # Redirects final executables (.exe, ELF binaries)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
@@ -274,18 +281,17 @@ include("${CMAKE_CURRENT_LIST_DIR}/docs/Docs.cmake")
 
 enable_testing()
 
-# workaround: the skia port names archives as paths where freetype names
-# them as targets.
+# workaround: vcpkg configs name some dependencies as imported targets and
+# others as archive paths.
 #
-# What the policies above cannot reach: vcpkg's exported configs disagree
-# about how to name the same archive. freetype pulls libpng and zlib through
-# the PNG::PNG / ZLIB::ZLIB imported targets, while unofficial-skia flattens
-# its whole closure into raw find_library() paths inside one
-# $<LINK_ONLY:$<$<CONFIG:DEBUG>:...>> blob. CMake de-duplicates targets
-# against targets and paths against paths, never a target against a path, so
-# libpng/libz/libexpat/libjpeg still reach ld64 twice. The second copy is
-# ignored by the linker, which is correct but noisy — this silences the note
-# without pretending the link line is minimal.
+# What the policies above cannot reach: CMake collapses two link items only
+# when they are the same item — two targets, or two identical paths — never a
+# target against a path. freetype names ZLIB/BZip2/PNG as targets and brotli
+# as archive paths, minizip-ng names bz2 and lzma as paths where others name
+# the targets, and OpenImageIO names libpng16 and libz both ways inside a
+# single interface. Those archives therefore still reach ld64 twice. The
+# second copy is ignored by the linker, which is correct but noisy — this
+# silences the note without pretending the link line is minimal.
 if(APPLE AND NOT CMAKE_VERSION VERSION_LESS 3.18) # CheckLinkerFlag
   include(CheckLinkerFlag)
   check_linker_flag(CXX "-Wl,-no_warn_duplicate_libraries"
