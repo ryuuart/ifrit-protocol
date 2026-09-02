@@ -420,9 +420,13 @@ struct ParagraphStyle {
   ReservedBand reserved;
   IndentOptions indent;
   KeepOptions keep;
-  /// Spend the optimizing breaker's slack on lines of even LENGTH rather
-  /// than even spacing, which is what a ragged heading of three lines
-  /// wants. Ignored by the greedy breaker.
+  /// Set the block in the NARROWEST MEASURE THAT STILL TAKES THE SAME
+  /// NUMBER OF LINES, which is what a ragged heading of three lines wants:
+  /// the lines then have nowhere to be long, and that is an even rag. The
+  /// optimizing breaker searches for that measure by bisection and breaks
+  /// against it; placement still sets the lines in the measure the geometry
+  /// gave, so a centred block stays centred on the real one. Ignored by the
+  /// greedy breaker, which takes the first break that fits.
   bool balanceRaggedLines = false;
 
   std::optional<TextAlignment> alignment;

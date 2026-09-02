@@ -837,3 +837,91 @@ TEST(Keeps, AWidowIsCountedInTheLinesTheNextFrameWouldGet) {
   EXPECT_EQ(placedLines(0), total - 1);
   EXPECT_EQ(placedLines(2), total - 2);
 }
+
+// ── Balanced ragged lines ─────────────────────────────────────────────────
+
+namespace {
+
+/// Extent of each placed line, ascending by line index.
+std::vector<float> lineWidths(const ParagraphLayout& layout,
+                              const Paragraph& paragraph) {
+  std::vector<std::pair<int, std::pair<float, float>>> byLine;
+  for (const PositionedRun& run : layout.runs) {
+    const float left = run.origin.x();
+    const float right = runEnd(paragraph, run);
+    auto found = std::find_if(byLine.begin(), byLine.end(),
+                              [&](const auto& entry) {
+                                return entry.first == run.lineIndex;
+                              });
+    if (found == byLine.end())
+      byLine.emplace_back(run.lineIndex, std::make_pair(left, right));
+    else {
+      found->second.first = std::min(found->second.first, left);
+      found->second.second = std::max(found->second.second, right);
+    }
+  }
+  std::sort(byLine.begin(), byLine.end());
+  std::vector<float> widths;
+  for (const auto& [line, extent] : byLine)
+    widths.push_back(extent.second - extent.first);
+  return widths;
+}
+
+}  // namespace
+
+TEST(Balance, ABalancedBlockIsSetInTheNarrowestMeasureThatKeepsItsLineCount) {
+  FontContext& fonts = sharedContext();
+  const std::u8string text =
+      u8"A heading of several words that wants an even rag beneath it";
+  const auto fillWith = [&](bool balance) {
+    Paragraph paragraph = makeParagraph(text, 16.0f);
+    BlockFlow flow(SkRect::MakeWH(200, 400));
+    ParagraphLayoutOptions options;
+    options.lineBreakStrategy = LineBreakStrategy::kKnuthPlass;
+    ParagraphStyle style;
+    style.balanceRaggedLines = balance;
+    options.blocks = {style};
+    const ParagraphLayout layout =
+        layoutParagraph(fonts, paragraph, flow, options);
+    return lineWidths(layout, paragraph);
+  };
+  const std::vector<float> loose = fillWith(false);
+  const std::vector<float> balanced = fillWith(true);
+  ASSERT_GE(loose.size(), 3u);
+  // The count is what the narrowing is searched under, so it is unchanged.
+  ASSERT_EQ(loose.size(), balanced.size());
+  const auto spread = [](const std::vector<float>& widths) {
+    const auto [low, high] =
+        std::minmax_element(widths.begin(), widths.end());
+    return *high - *low;
+  };
+  EXPECT_LT(spread(balanced), spread(loose));
+  EXPECT_LE(*std::max_element(balanced.begin(), balanced.end()),
+            *std::max_element(loose.begin(), loose.end()) + 0.5f);
+}
+
+TEST(Balance, ABalancedBlockIsStillSetInItsWholeMeasure) {
+  FontContext& fonts = sharedContext();
+  // The narrowing is a break decision only: a centred block stays centred
+  // on the measure it was given, not on the one it was broken against.
+  Paragraph paragraph = makeParagraph(
+      u8"A heading of several words that wants an even rag beneath it",
+      16.0f);
+  BlockFlow flow(SkRect::MakeWH(260, 400));
+  ParagraphLayoutOptions options;
+  options.lineBreakStrategy = LineBreakStrategy::kKnuthPlass;
+  ParagraphStyle style;
+  style.balanceRaggedLines = true;
+  style.alignment = TextAlignment::kCenter;
+  options.blocks = {style};
+  const ParagraphLayout layout =
+      layoutParagraph(fonts, paragraph, flow, options);
+  const std::vector<float> widths = lineWidths(layout, paragraph);
+  ASSERT_FALSE(widths.empty());
+  std::vector<float> centres;
+  for (const PositionedRun& run : layout.runs)
+    if (run.lineIndex == 0) centres.push_back(run.origin.x());
+  ASSERT_FALSE(centres.empty());
+  const float left = *std::min_element(centres.begin(), centres.end());
+  EXPECT_NEAR(left, (260.0f - widths.front()) * 0.5f, 1.0f);
+}

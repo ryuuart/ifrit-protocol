@@ -616,7 +616,7 @@ typesetter reaches for, not what a file format carries.
 | Hyphenation: consecutive limit, last word of a block | done | `HyphenationOptions` |
 | Hyphenation: zone | done, both breakers | `HyphenationOptions::zone` |
 | Composer: single-line vs paragraph | done | `LineBreakStrategy` |
-| Composer: balance ragged lines | done, as an APPROXIMATION — the optimizing breaker scores the last line like every other rather than letting it absorb the slack, which spreads the words; it is not a search for the smallest measure that keeps the line count | `ParagraphStyle::balanceRaggedLines` |
+| Composer: balance ragged lines | done — a bisection for the narrowest measure that keeps the line count, with the last line scored like every other. Two APPROXIMATIONS remain: the narrowing is one number applied to every interval, so a block an exclusion cut into unequal lines is balanced by a single reduction; and the bisection stops at a fraction of the measure rather than at the exact width where the count turns over | `ParagraphStyle::balanceRaggedLines` |
 | Optical margin alignment (hanging punctuation) | done | `HangingTable`, `kit::hanging` |
 | Drop caps: lines × characters | done as compose kit | `kit::dropCap` |
 | Drop caps: nested style | **not started** | — |

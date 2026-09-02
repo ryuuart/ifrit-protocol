@@ -201,6 +201,13 @@ void knuthPlassBlock(FontContext& fontContext, Paragraph& paragraph,
   // could be placed), reports whether the lifeline ever had to force an
   // overfull line, and — when the geometry ran out before the text did —
   // the first word that no longer fit.
+  // THE MEASURE THE BREAKER FITS AGAINST, which is the interval's own
+  // until a balanced block narrows it (see the search below). Placement
+  // never sees it: a balanced line is broken short and then set in the
+  // interval it actually landed in, so a centred block stays centred on
+  // the real measure.
+  float measureCap = std::numeric_limits<float>::max();
+
   auto runPass = [&](bool useEmergencyStretch, bool& forcedOverfull,
                      uint32_t& firstUnplacedWord) -> int32_t {
     forcedOverfull = false;
@@ -244,7 +251,7 @@ void knuthPlassBlock(FontContext& fontContext, Paragraph& paragraph,
           continue;
         }
         const uint32_t lineStart = node.breakAt;
-        const float measure = lineInterval->interval.length;
+        const float measure = std::min(lineInterval->interval.length, measureCap);
         float natural = lineNatural(lineStart, breakIndex);
         float stretch = lineStretch(lineStart, breakIndex);
         float shrink = lineShrink(lineStart, breakIndex);
@@ -419,6 +426,8 @@ void knuthPlassBlock(FontContext& fontContext, Paragraph& paragraph,
     return best;
   };
 
+  // A balanced block's own break list, when the search below found one.
+  std::vector<std::pair<uint32_t, uint32_t>> balancedBreaks;
   bool forcedOverfull = false;
   uint32_t firstUnplacedWord = ~0u;
   int32_t best = runPass(false, forcedOverfull, firstUnplacedWord);
@@ -431,6 +440,77 @@ void knuthPlassBlock(FontContext& fontContext, Paragraph& paragraph,
       firstUnplacedWord = retryFirstUnplacedWord;
     }
   }
+
+  // ── Balancing ─────────────────────────────────────────────────────────
+  //
+  // A BALANCED BLOCK IS THE SAME BLOCK SET IN THE NARROWEST MEASURE THAT
+  // STILL TAKES THE SAME NUMBER OF LINES. Withdrawing the last line's
+  // freedom to absorb the slack is not enough on its own — the breaker
+  // still fills each line as full as its demerits allow and leaves the
+  // remainder wherever it falls — so the measure itself is narrowed until
+  // one more step would cost a line, and the block is broken against that.
+  // The lines then have nowhere to be long, which is what an even rag is.
+  //
+  // The search is a bisection over that narrowing, and it is bounded: a
+  // fixed number of steps, each one full pass over a block that asked to be
+  // balanced. TWO APPROXIMATIONS REMAIN. The narrowing is ONE number
+  // applied to every interval, so a block whose lines differ in length — an
+  // exclusion cut into it, a contour it rides — is balanced by a single
+  // reduction rather than per line. And the bisection stops at a fraction
+  // of the measure rather than at the exact width where the line count
+  // turns over, so the last sliver of slack survives.
+  if (balance && best >= 0 && firstUnplacedWord == ~0u) {
+    const auto lineCountOf = [&](int32_t node) {
+      int lines = 0;
+      for (int32_t index = node; index > 0; index = arena[index].previousNode)
+        ++lines;
+      return lines;
+    };
+    const int target = lineCountOf(best);
+    float widest = 0;
+    for (const FlatInterval& flat : intervalSequence.flattened())
+      widest = std::max(widest, flat.interval.length);
+    if (target > 1 && widest > 0) {
+      // The breaks the search will keep, remembered outside the arena the
+      // next pass clears.
+      std::vector<std::pair<uint32_t, uint32_t>> keptBreaks;
+      const auto rememberBreaks = [&](int32_t node) {
+        keptBreaks.clear();
+        for (int32_t index = node; index > 0; index = arena[index].previousNode)
+          keptBreaks.emplace_back(arena[index].breakAt,
+                                  arena[arena[index].previousNode].interval);
+        std::reverse(keptBreaks.begin(), keptBreaks.end());
+      };
+      constexpr int kBisectionSteps = 8;
+      float tooNarrow = 0;
+      float wideEnough = widest;
+      for (int step = 0; step < kBisectionSteps; ++step) {
+        measureCap = (tooNarrow + wideEnough) * 0.5f;
+        bool narrowedOverfull = false;
+        uint32_t narrowedUnplaced = ~0u;
+        const int32_t narrowed =
+            runPass(false, narrowedOverfull, narrowedUnplaced);
+        // A narrowing that costs a line, forces a word past the measure or
+        // leaves text behind is one step too far.
+        if (narrowed >= 0 && !narrowedOverfull && narrowedUnplaced == ~0u &&
+            lineCountOf(narrowed) == target) {
+          wideEnough = measureCap;
+          rememberBreaks(narrowed);
+        } else {
+          tooNarrow = measureCap;
+        }
+      }
+      measureCap = std::numeric_limits<float>::max();
+      if (!keptBreaks.empty()) {
+        // Placement below walks the arena from `best`; the balanced answer
+        // is a break list of its own, so it is handed over directly.
+        arena.clear();
+        arena.push_back({base, static_cast<uint32_t>(firstInterval), 0, -1});
+        best = 0;
+        balancedBreaks = std::move(keptBreaks);
+      }
+    }
+  }
   if (best < 0) {
     overflowWord = base;
     return;
@@ -439,12 +519,14 @@ void knuthPlassBlock(FontContext& fontContext, Paragraph& paragraph,
 
   // The chain, oldest first: each entry is where a line ends and which
   // interval the line before it occupied.
-  std::vector<std::pair<uint32_t, uint32_t>> breaks;
-  for (int32_t nodeIndex = best; nodeIndex > 0;
-       nodeIndex = arena[nodeIndex].previousNode)
-    breaks.emplace_back(arena[nodeIndex].breakAt,
-                        arena[arena[nodeIndex].previousNode].interval);
-  std::reverse(breaks.begin(), breaks.end());
+  std::vector<std::pair<uint32_t, uint32_t>> breaks = balancedBreaks;
+  if (breaks.empty()) {
+    for (int32_t nodeIndex = best; nodeIndex > 0;
+         nodeIndex = arena[nodeIndex].previousNode)
+      breaks.emplace_back(arena[nodeIndex].breakAt,
+                          arena[arena[nodeIndex].previousNode].interval);
+    std::reverse(breaks.begin(), breaks.end());
+  }
 
   // ── Placement ─────────────────────────────────────────────────────────
   uint32_t firstWordIndex = base;
