@@ -12,6 +12,8 @@ target_link_libraries(SigilImageAsset PUBLIC unofficial::skia::skia)
 
 # Links only the library it exercises.
 add_executable(image_asset_test test/AssetTest.cpp)
+target_include_directories(image_asset_test PRIVATE
+  ${SIGIL_IMAGE_TEST_SUPPORT_DIR})
 target_link_libraries(image_asset_test PRIVATE SigilImageAsset GTest::gtest_main)
 target_compile_definitions(image_asset_test PRIVATE
   IFRIT_IMAGE_TEST_ASSET_DIR="${SIGIL_IMAGE_TEST_ASSET_DIR}"

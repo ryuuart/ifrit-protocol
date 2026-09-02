@@ -220,7 +220,20 @@ per library — `image_asset_test`, `image_decode_test` and
 `image_encode_test`, the last also linking `SigilImageDecode` because the
 claim a round trip makes is that what came back out is what went in — and
 two benchmarks (Google Benchmark, built by the `benches` target and run
-from a Release build through `scripts/bench_ledger.py`):
+from a Release build through `scripts/bench_ledger.py`).
+
+`test/Pixels.h` beside the fixtures is what all three read a picture by:
+where a committed file stands, one pixel out of a decoded frame
+unpremultiplied, and a per-channel comparison a lossy format can pass. A
+test target adds `test/` to its include path and spells `"Pixels.h"`.
+`image_encode_test` asks the round trip as one parameterised case over
+`{format, quality, lossless}`, because what separates PNG from WebP at 80
+is those three values and not the shape of the question: a lossless
+subject is compared for equality on all four quadrants of the fixture, a
+lossy one at quadrant centres, away from the edge its chroma subsampling
+smears.
+
+The benchmarks:
 `image_decode_bench` times `decodeImage` per megapixel over PNG and JPEG
 fixtures encoded in memory at several sizes, the committed 4x4 stills for
 the per-call floor, and `probeImage`; `image_encode_bench` times each

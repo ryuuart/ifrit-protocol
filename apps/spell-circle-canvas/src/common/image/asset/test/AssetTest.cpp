@@ -15,37 +15,19 @@
 
 #include <string>
 
+#include "Pixels.h"
+
 using sigil::image::ImageAsset;
 
 namespace {
 
-std::string assetPath(const char* name) {
-  return std::string(IFRIT_IMAGE_TEST_ASSET_DIR "/") + name;
-}
+using sigil::image::test::assetPath;
+using sigil::image::test::expectNearColor;
+using sigil::image::test::pixelAt;
 
 /** Reads a fixture and decodes it through the Skia codecs. */
 std::optional<ImageAsset> load(const std::string& path) {
   return ImageAsset::decode(SkData::MakeFromFileName(path.c_str()));
-}
-
-/** Reads the pixel at (x, y) of a decoded frame as unpremultiplied color. */
-SkColor pixelAt(const sk_sp<SkImage>& image, int x, int y) {
-  SkBitmap bitmap;
-  bitmap.allocPixels(SkImageInfo::MakeN32(image->width(), image->height(),
-                                          kUnpremul_SkAlphaType));
-  EXPECT_TRUE(image->readPixels(nullptr, bitmap.pixmap(), 0, 0));
-  return bitmap.getColor(x, y);
-}
-
-void expectNearColor(SkColor actual, SkColor expected, int tolerance,
-                     const char* what) {
-  EXPECT_NEAR(int(SkColorGetR(actual)), int(SkColorGetR(expected)), tolerance)
-      << what;
-  EXPECT_NEAR(int(SkColorGetG(actual)), int(SkColorGetG(expected)), tolerance)
-      << what;
-  EXPECT_NEAR(int(SkColorGetB(actual)), int(SkColorGetB(expected)), tolerance)
-      << what;
-  EXPECT_EQ(SkColorGetA(actual), SkColorGetA(expected)) << what;
 }
 
 TEST(ImageAsset, DecodesEveryStillFormat) {

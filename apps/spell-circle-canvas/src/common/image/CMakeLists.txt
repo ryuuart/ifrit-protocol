@@ -21,6 +21,9 @@
 
 set(SIGIL_IMAGE_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/include)
 set(SIGIL_IMAGE_TEST_ASSET_DIR ${CMAKE_CURRENT_LIST_DIR}/test/assets)
+# The helpers every image test reads a fixture by. A test target adds
+# this directory and spells "Pixels.h".
+set(SIGIL_IMAGE_TEST_SUPPORT_DIR ${CMAKE_CURRENT_LIST_DIR}/test)
 
 # Dependencies point down this list.
 add_subdirectory(asset)

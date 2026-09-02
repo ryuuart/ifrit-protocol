@@ -14,11 +14,13 @@
 #include <string>
 #include <vector>
 
+#include "Pixels.h"
+
 namespace {
 
-std::string assetPath(const char* name) {
-  return std::string(IFRIT_IMAGE_TEST_ASSET_DIR "/") + name;
-}
+using sigil::image::test::assetPath;
+using sigil::image::test::expectNearColor;
+using sigil::image::test::pixelAt;
 
 std::vector<std::byte> readFile(const std::string& path) {
   std::ifstream stream(path, std::ios::binary | std::ios::ate);
@@ -29,26 +31,6 @@ std::vector<std::byte> readFile(const std::string& path) {
   stream.read(reinterpret_cast<char*>(bytes.data()),
               (std::streamsize)bytes.size());
   return bytes;
-}
-
-/** Reads the pixel at (x, y) of a decoded frame as unpremultiplied color. */
-SkColor pixelAt(const sk_sp<SkImage>& image, int x, int y) {
-  SkBitmap bitmap;
-  bitmap.allocPixels(SkImageInfo::MakeN32(image->width(), image->height(),
-                                          kUnpremul_SkAlphaType));
-  EXPECT_TRUE(image->readPixels(nullptr, bitmap.pixmap(), 0, 0));
-  return bitmap.getColor(x, y);
-}
-
-void expectNearColor(SkColor actual, SkColor expected, int tolerance,
-                     const char* what) {
-  EXPECT_NEAR(int(SkColorGetR(actual)), int(SkColorGetR(expected)), tolerance)
-      << what;
-  EXPECT_NEAR(int(SkColorGetG(actual)), int(SkColorGetG(expected)), tolerance)
-      << what;
-  EXPECT_NEAR(int(SkColorGetB(actual)), int(SkColorGetB(expected)), tolerance)
-      << what;
-  EXPECT_EQ(SkColorGetA(actual), SkColorGetA(expected)) << what;
 }
 
 TEST(ImageDecode, RoutesRasterBytesThroughTheSkiaCodecs) {

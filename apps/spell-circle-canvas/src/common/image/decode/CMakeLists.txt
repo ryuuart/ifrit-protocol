@@ -45,6 +45,8 @@ endif()
 
 # Links only the library it exercises.
 add_executable(image_decode_test test/DecodeTest.cpp)
+target_include_directories(image_decode_test PRIVATE
+  ${SIGIL_IMAGE_TEST_SUPPORT_DIR})
 target_link_libraries(image_decode_test PRIVATE SigilImageDecode GTest::gtest_main)
 if(TARGET unofficial::skia::modules::svg)
   target_compile_definitions(image_decode_test PRIVATE SIGILIMAGE_HAS_SVG)

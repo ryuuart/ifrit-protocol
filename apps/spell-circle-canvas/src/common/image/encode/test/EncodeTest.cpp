@@ -12,6 +12,7 @@
 #include <include/core/SkPixmap.h>
 
 #include <cmath>
+#include <string>
 
 #include "sigilimage/decode/Decode.h"
 #include "sigilimage/encode/Encode.h"
@@ -67,32 +68,39 @@ std::optional<SkBitmap> roundTrip(const sk_sp<SkData>& encoded,
 
 }  // namespace
 
-TEST(Encode, PngRoundTripsExactly) {
+/** ONE FORMAT AT ONE QUALITY, and whether it promises the pixels back
+ *  unchanged. PNG is lossless at every setting; WebP at 100 selects the
+ *  format's lossless encoder rather than its lossy one at maximum
+ *  quality, and below 100 it is the lossy one. */
+struct RoundTripCase {
+  Format format;
+  int quality;
+  bool lossless;
+  const char* label;
+};
+
+class EncodeRoundTrip : public ::testing::TestWithParam<RoundTripCase> {};
+
+TEST_P(EncodeRoundTrip, TheDecodedPictureIsThePictureThatWentIn) {
+  const RoundTripCase& subject = GetParam();
   const SkBitmap src = fixture();
-  const sk_sp<SkData> bytes = encodeImage(src.pixmap(), Format::Png);
+  const sk_sp<SkData> bytes =
+      encodeImage(src.pixmap(), subject.format, {.quality = subject.quality});
   ASSERT_TRUE(bytes);
   const std::optional<SkBitmap> back = roundTrip(bytes, kN32_SkColorType);
   ASSERT_TRUE(back);
   EXPECT_EQ(back->width(), kSize);
   EXPECT_EQ(back->height(), kSize);
-  // PNG is lossless, so this is equality and not a tolerance.
-  EXPECT_EQ(back->getColor(2, 2), SK_ColorRED);
-  EXPECT_EQ(back->getColor(12, 2), SK_ColorGREEN);
-  EXPECT_EQ(back->getColor(2, 12), SK_ColorBLUE);
-  EXPECT_EQ(back->getColor(12, 12), SK_ColorWHITE);
-}
-
-TEST(Encode, JpegRoundTripsWithinItsLoss) {
-  const SkBitmap src = fixture();
-  const sk_sp<SkData> bytes =
-      encodeImage(src.pixmap(), Format::Jpeg, {.quality = 95});
-  ASSERT_TRUE(bytes);
-  const std::optional<SkBitmap> back = roundTrip(bytes, kN32_SkColorType);
-  ASSERT_TRUE(back);
-  EXPECT_EQ(back->width(), kSize);
-  // Sampled at a quadrant centre rather than an edge: JPEG's chroma
-  // subsampling smears the boundary between two flat fields, which is
-  // the loss the format is for, not a defect in the encode.
+  if (subject.lossless) {
+    EXPECT_EQ(back->getColor(2, 2), SK_ColorRED);
+    EXPECT_EQ(back->getColor(12, 2), SK_ColorGREEN);
+    EXPECT_EQ(back->getColor(2, 12), SK_ColorBLUE);
+    EXPECT_EQ(back->getColor(12, 12), SK_ColorWHITE);
+    return;
+  }
+  // Sampled at a quadrant centre rather than an edge: a lossy codec's
+  // chroma subsampling smears the boundary between two flat fields,
+  // which is the loss the format is for, not a defect in the encode.
   const SkColor red = back->getColor(3, 3);
   EXPECT_GT(SkColorGetR(red), 200u);
   EXPECT_LT(SkColorGetG(red), 60u);
@@ -100,25 +108,15 @@ TEST(Encode, JpegRoundTripsWithinItsLoss) {
   EXPECT_GT(SkColorGetG(green), 200u);
 }
 
-TEST(Encode, WebpAtFullQualityIsLossless) {
-  const SkBitmap src = fixture();
-  const sk_sp<SkData> bytes = encodeImage(src.pixmap(), Format::Webp);
-  ASSERT_TRUE(bytes);
-  const std::optional<SkBitmap> back = roundTrip(bytes, kN32_SkColorType);
-  ASSERT_TRUE(back);
-  EXPECT_EQ(back->getColor(2, 2), SK_ColorRED);
-  EXPECT_EQ(back->getColor(12, 12), SK_ColorWHITE);
-}
-
-TEST(Encode, WebpBelowFullQualityStillRoundTrips) {
-  const SkBitmap src = fixture();
-  const sk_sp<SkData> bytes =
-      encodeImage(src.pixmap(), Format::Webp, {.quality = 80});
-  ASSERT_TRUE(bytes);
-  const std::optional<SkBitmap> back = roundTrip(bytes, kN32_SkColorType);
-  ASSERT_TRUE(back);
-  EXPECT_GT(SkColorGetR(back->getColor(3, 3)), 200u);
-}
+INSTANTIATE_TEST_SUITE_P(
+    EveryFormatThisBuildWrites, EncodeRoundTrip,
+    ::testing::Values(RoundTripCase{Format::Png, 100, true, "Png"},
+                      RoundTripCase{Format::Jpeg, 95, false, "Jpeg95"},
+                      RoundTripCase{Format::Webp, 100, true, "Webp100"},
+                      RoundTripCase{Format::Webp, 80, false, "Webp80"}),
+    [](const ::testing::TestParamInfo<RoundTripCase>& info) {
+      return std::string(info.param.label);
+    });
 
 TEST(Encode, TheImageOverloadReadsBackAndEncodes) {
   const SkBitmap src = fixture();
