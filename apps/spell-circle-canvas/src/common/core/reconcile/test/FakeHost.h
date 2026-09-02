@@ -16,7 +16,7 @@
 #include <utility>
 #include <vector>
 
-namespace sigil::core::test {
+namespace sigil::core::test::reconcile {
 
 struct FakeDesc;
 using Desc = std::shared_ptr<FakeDesc>;
@@ -127,4 +127,4 @@ struct FakeHost {
   }
 };
 
-}  // namespace sigil::core::test
+}  // namespace sigil::core::test::reconcile

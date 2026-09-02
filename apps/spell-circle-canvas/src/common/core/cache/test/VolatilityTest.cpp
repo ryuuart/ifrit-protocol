@@ -9,7 +9,7 @@
 #include "FakeCacheHost.h"
 
 using namespace sigil::core;
-using namespace sigil::core::test;
+using namespace sigil::core::test::cache;
 
 namespace {
 

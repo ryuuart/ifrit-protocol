@@ -13,7 +13,7 @@
 #include "FakeHost.h"
 
 using namespace sigil::core;
-using namespace sigil::core::test;
+using namespace sigil::core::test::reconcile;
 
 namespace {
 

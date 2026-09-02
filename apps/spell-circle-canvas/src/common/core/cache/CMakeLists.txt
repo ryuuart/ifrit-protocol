@@ -26,6 +26,11 @@ add_executable(sigilcore_cache_test
   test/VolatilityTest.cpp
   test/SettleTest.cpp
   test/BakeTest.cpp
+  # The one place both fake hosts are compiled together, so the compiler
+  # answers whether their names collide. It reaches the reconcile kernel's
+  # fake through a relative include and adds no link edge: SigilCoreCache
+  # already carries SigilCoreReconcile.
+  test/FakesAreDistinctTest.cpp
 )
 target_link_libraries(sigilcore_cache_test PRIVATE
   SigilCoreCache GTest::gtest_main)
