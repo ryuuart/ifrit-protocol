@@ -35,6 +35,7 @@
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/core/Material.h>
+#include <sigilcompose/typography/Type.h>
 #include <sigilsketch/canvas/Sketch.h>
 
 #include <cmath>
@@ -75,12 +76,8 @@ constexpr SkColor4f kSky{0.455f, 0.722f, 0.988f, 1};
  *  raster resolves the two differently. */
 inline sigil::weave::TextStyle type(float size, SkColor4f color,
                                     float tracking = 0) {
-  sigil::weave::TextStyle s;
-  s.shaping.fontSize = size;
-  s.shaping.letterSpacing = tracking;
-  s.paint.foreground.setColor(color.toSkColor());
-  s.paint.foreground.setAntiAlias(true);
-  return s;
+  return sigil::compose::type(
+      {.size = size, .color = color, .track = tracking, .color8 = true});
 }
 
 // The aurora wallpaper: deep vertical ground, flowing diagonal light

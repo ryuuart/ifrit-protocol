@@ -211,6 +211,7 @@
 #include <sigilcompose/core/Material.h>
 #include <sigilcompose/core/Patterns.h>
 #include <sigilcompose/shape/Shapes.h>
+#include <sigilcompose/typography/Type.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
@@ -1355,19 +1356,13 @@ struct Bg3DiceRoll : sketch::Sketch {
     ctx.canvas(bg3::kW, bg3::kH);
     ctx.background(bg3::kVellum);
 
-    sk_sp<SkFontMgr> mgr = weave::ports::systemFontManager();
-    auto pick = [&](std::initializer_list<const char*> names) {
-      for (const char* n : names)
-        if (sk_sp<SkTypeface> f =
-                mgr->matchFamilyStyle(n, SkFontStyle::Normal()))
-          return f;
-      return mgr->matchFamilyStyle(nullptr, SkFontStyle::Normal());
-    };
     // BG3 sets a humanist old-style with tall caps; these are the closest
     // faces present on the host.
-    serif = pick({"Baskerville", "Palatino", "Hoefler Text", "Georgia",
-                  "Times New Roman", "Helvetica"});
-    mono = pick({"Menlo", "SF Mono", "Monaco", "Courier New", "Helvetica"});
+    serif =
+        sigil::compose::pickFace({"Baskerville", "Palatino", "Hoefler Text",
+                                  "Georgia", "Times New Roman", "Helvetica"});
+    mono = sigil::compose::pickFace(
+        {"Menlo", "SF Mono", "Monaco", "Courier New", "Helvetica"});
 
     solid = bg3::buildSolid();
     bg3::settleAttitude(solid, tx, ty, tz);

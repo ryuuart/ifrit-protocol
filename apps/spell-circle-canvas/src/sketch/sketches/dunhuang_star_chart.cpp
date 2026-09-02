@@ -193,6 +193,7 @@
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilcompose/shape/Shapes.h>
+#include <sigilcompose/typography/Type.h>
 #include <sigilcore/compute/Noise.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/fonts/FontContext.h>
@@ -1779,13 +1780,8 @@ int astUnique(const AstRec& A) {
 
 sigil::weave::TextStyle type(sk_sp<SkTypeface> face, float size, SkColor4f c,
                              float tracking = 0) {
-  sigil::weave::TextStyle s;
-  s.shaping.typeface = std::move(face);
-  s.shaping.fontSize = size;
-  s.shaping.letterSpacing = tracking;
-  s.paint.foreground.setColor4f(c, nullptr);
-  s.paint.foreground.setAntiAlias(true);
-  return s;
+  return sigil::compose::type(
+      {.face = std::move(face), .size = size, .color = c, .track = tracking});
 }
 
 SkColor4f schoolInk(char c) {

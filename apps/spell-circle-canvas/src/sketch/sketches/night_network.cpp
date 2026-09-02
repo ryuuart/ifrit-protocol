@@ -40,6 +40,7 @@
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilcompose/shape/Routers.h>
 #include <sigilcompose/shape/Shapes.h>
+#include <sigilcompose/typography/Type.h>
 #include <sigilsketch/canvas/Sketch.h>
 
 #include <cmath>
@@ -77,12 +78,8 @@ constexpr SkColor4f kAsphalt{0.23f, 0.25f, 0.32f, 1};
  *  raster resolves the two differently. */
 inline sigil::weave::TextStyle type(float size, SkColor4f color,
                                     float tracking = 0) {
-  sigil::weave::TextStyle s;
-  s.shaping.fontSize = size;
-  s.shaping.letterSpacing = tracking;
-  s.paint.foreground.setColor(color.toSkColor());
-  s.paint.foreground.setAntiAlias(true);
-  return s;
+  return sigil::compose::type(
+      {.size = size, .color = color, .track = tracking, .color8 = true});
 }
 
 /** Invisible keyed waypoint -- rivers and roads route through pins. */

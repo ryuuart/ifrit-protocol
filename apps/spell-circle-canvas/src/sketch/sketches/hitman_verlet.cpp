@@ -193,6 +193,7 @@
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/shape/Shapes.h>
 #include <sigilcompose/typography/TextFx.h>
+#include <sigilcompose/typography/Type.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
@@ -303,9 +304,7 @@ inline float len(SkPoint a) { return std::sqrt(dot(a, a)); }
 // Type
 
 sk_sp<SkTypeface> face(const char* family, SkFontStyle style) {
-  auto mgr = sigil::weave::ports::systemFontManager();
-  sk_sp<SkTypeface> f = mgr->matchFamilyStyle(family, style);
-  return f ? f : mgr->matchFamilyStyle(nullptr, style);
+  return sigil::compose::pickFace({family}, style);
 }
 sk_sp<SkTypeface> monoFace() {
   static sk_sp<SkTypeface> f = face("Menlo", SkFontStyle::Normal());
@@ -333,13 +332,8 @@ sk_sp<SkTypeface> heavyFace() {
 
 sigil::weave::TextStyle type(sk_sp<SkTypeface> tf, float size, SkColor4f color,
                              float track = 0.0f) {
-  sigil::weave::TextStyle s;
-  s.shaping.typeface = std::move(tf);
-  s.shaping.fontSize = size;
-  s.shaping.letterSpacing = track;
-  s.paint.foreground.setColor4f(color);
-  s.paint.foreground.setAntiAlias(true);
-  return s;
+  return sigil::compose::type(
+      {.face = std::move(tf), .size = size, .color = color, .track = track});
 }
 sigil::weave::TextStyle mono(float size, SkColor4f c, float track = 0.0f) {
   return type(monoFace(), size, c, track);

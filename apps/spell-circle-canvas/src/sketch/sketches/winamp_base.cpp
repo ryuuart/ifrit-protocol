@@ -78,6 +78,7 @@
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/shape/Shapes.h>
 #include <sigilcompose/typography/TextFx.h>
+#include <sigilcompose/typography/Type.h>
 #include <sigilcore/compute/Noise.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/layout/ParagraphLayout.h>
@@ -198,14 +199,11 @@ inline const sk_sp<SkTypeface>& arial() {
 inline sigil::weave::TextStyle type(const sk_sp<SkTypeface>& tf, float size,
                                     SkColor4f color, float track = 0,
                                     float condense = 1.0f) {
-  sigil::weave::TextStyle s;
-  s.shaping.typeface = tf;
-  s.shaping.fontSize = size;
-  s.shaping.letterSpacing = track;
-  s.shaping.scaleX = condense;
-  s.paint.foreground.setColor4f(color, nullptr);
-  s.paint.foreground.setAntiAlias(true);
-  return s;
+  return sigil::compose::type({.face = tf,
+                               .size = size,
+                               .color = color,
+                               .track = track,
+                               .condense = condense});
 }
 
 /** The advance/em of the substituted monospace faces, in em. Probed once in

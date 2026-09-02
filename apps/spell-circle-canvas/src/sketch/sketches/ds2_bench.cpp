@@ -120,18 +120,15 @@ constexpr float kPipW = 36, kPipH = 17, kPipGap = 6;
 // type
 
 inline sk_sp<SkTypeface> uiFace(bool bold) {
-  auto mgr = sigil::weave::ports::systemFontManager();
-  if (!mgr) return nullptr;
   const SkFontStyle want = bold ? SkFontStyle::Bold()
                                 : SkFontStyle(SkFontStyle::kMedium_Weight,
                                               SkFontStyle::kNormal_Width,
                                               SkFontStyle::kUpright_Slant);
   // Eurostile Extended lineage; DIN Alternate is the closest squared-off
   // technical grotesque macOS ships, stretched the last of the way.
-  for (const char* family :
-       {"Eurostile", "Bank Gothic", "DIN Alternate", "Helvetica Neue", "Arial"})
-    if (sk_sp<SkTypeface> f = mgr->matchFamilyStyle(family, want)) return f;
-  return mgr->matchFamilyStyle(nullptr, want);
+  return sigil::compose::pickFace(
+      {"Eurostile", "Bank Gothic", "DIN Alternate", "Helvetica Neue", "Arial"},
+      want);
 }
 
 // The bench's one register, over the library's designated-init `type()`.

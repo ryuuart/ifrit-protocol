@@ -246,6 +246,7 @@
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/shape/Routers.h>
 #include <sigilcompose/shape/Shapes.h>
+#include <sigilcompose/typography/Type.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>
@@ -351,14 +352,11 @@ inline const sk_sp<SkTypeface>& han() {
 inline weave::TextStyle type(const sk_sp<SkTypeface>& tf, float size,
                              SkColor4f color, float condense = 1.0f,
                              float track = 0.0f) {
-  weave::TextStyle s;
-  s.shaping.typeface = tf;
-  s.shaping.fontSize = size;
-  s.shaping.letterSpacing = track;
-  s.shaping.scaleX = condense;
-  s.paint.foreground.setColor4f(color, nullptr);
-  s.paint.foreground.setAntiAlias(true);
-  return s;
+  return sigil::compose::type({.face = tf,
+                               .size = size,
+                               .color = color,
+                               .track = track,
+                               .condense = condense});
 }
 
 // ---------------------------------------------------------------------------

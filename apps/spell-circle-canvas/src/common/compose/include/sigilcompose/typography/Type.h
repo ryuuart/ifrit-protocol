@@ -68,6 +68,16 @@ struct Type {
   /** The glyph paint's own antialias flag (edges of strokes/decorations on
    *  the paint, not the glyph edging above). */
   bool antiAlias = true;
+  /** Send `color` to the paint through an 8-bit sRGB word — Skia's
+   *  `setColor(SkColor)` — instead of as float.
+   *
+   *  NOT a no-op and not an equivalent spelling: the round trip quantises
+   *  each channel to one of 256 values, and Skia climbs a byte back to
+   *  float by multiplying by 1/255 where `hex()` divides by 255, which
+   *  lands one ulp apart on 126 of the 256 byte values. A palette taken
+   *  from a reference's own ARGB words wants this ladder; a colour
+   *  computed in float does not. */
+  bool color8 = false;
   /** Anything else in design space — appended after weight/slant, so the
    *  order is stable and two styles built the same way share one
    *  varied-face memo entry. */
@@ -82,7 +92,10 @@ inline sigil::weave::TextStyle type(const Type& t) {
   s.shaping.letterSpacing = t.track;
   s.shaping.scaleX = t.condense;
   s.shaping.aliased = t.aliased;
-  s.paint.foreground.setColor4f(t.color, nullptr);
+  if (t.color8)
+    s.paint.foreground.setColor(t.color.toSkColor());
+  else
+    s.paint.foreground.setColor4f(t.color, nullptr);
   s.paint.foreground.setAntiAlias(t.antiAlias);
   if (t.weight > 0) s.variation("wght", t.weight);
   if (t.slant != 0) s.variation("slnt", t.slant);

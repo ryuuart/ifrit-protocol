@@ -19,6 +19,7 @@
 // and travel() is paint-only — no track ever relayouts.
 
 #include <sigilcompose/shape/Shapes.h>
+#include <sigilcompose/typography/Type.h>
 #include <sigilsketch/canvas/Sketch.h>
 
 #include <cmath>
@@ -34,11 +35,7 @@ constexpr float kLook = 0.02f;   // lookAhead: the auto-orient chord
 constexpr float kLaps = 2.0f;    // track 4's .target(0, kLaps)
 
 sigil::weave::TextStyle type(float size, SkColor4f color) {
-  sigil::weave::TextStyle style;
-  style.shaping.fontSize = size;
-  style.paint.foreground.setColor4f(color, nullptr);
-  style.paint.foreground.setAntiAlias(true);
-  return style;
+  return sigil::compose::type({.size = size, .color = color});
 }
 
 const SkColor4f kInk{0.90f, 0.93f, 0.97f, 1};

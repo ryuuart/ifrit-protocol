@@ -168,6 +168,7 @@
 #include <sigilcompose/core/Pattern.h>
 #include <sigilcompose/core/Patterns.h>
 #include <sigilcompose/shape/Shapes.h>
+#include <sigilcompose/typography/Type.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/paragraph/Paragraph.h>
 #include <sigilweave/ports/SystemFontManager.h>
@@ -715,19 +716,7 @@ inline PatternProgram pinStripeTile(SkColor4f light, SkColor4f dark) {
 // ===========================================================================
 
 inline sk_sp<SkTypeface> uiFace() {
-  static sk_sp<SkTypeface> f = [] {
-    auto mgr = sigil::weave::ports::systemFontManager();
-    sk_sp<SkTypeface> t = mgr->matchFamilyStyle(
-        "Helvetica",
-        SkFontStyle(SkFontStyle::kNormal_Weight, SkFontStyle::kNormal_Width,
-                    SkFontStyle::kUpright_Slant));
-    if (!t)
-      t = mgr->matchFamilyStyle(
-          "Arial",
-          SkFontStyle(SkFontStyle::kNormal_Weight, SkFontStyle::kNormal_Width,
-                      SkFontStyle::kUpright_Slant));
-    return t;
-  }();
+  static sk_sp<SkTypeface> f = sigil::compose::pickFace({"Helvetica", "Arial"});
   return f;
 }
 
@@ -747,12 +736,8 @@ constexpr float kType = 13.0f;  // [MEAS] ink boxes: cap height 9-10 px
  *  every glyph is a 1-bit bitmap, and greyscale-AA 13 px type is the
  *  single loudest anachronism available on this artefact. */
 inline sigil::weave::TextStyle type(SkColor4f c, float size = kType) {
-  sigil::weave::TextStyle s;
-  s.shaping.typeface = uiFace();
-  s.shaping.fontSize = size;
-  s.paint.foreground.setColor(c, nullptr);
-  s.paint.foreground.setAntiAlias(false);  // no effect — see above
-  return s;
+  return sigil::compose::type(
+      {.face = uiFace(), .size = size, .color = c, .antiAlias = false});
 }
 
 /** The workaround: a raw SkFont with kAlias edging, whole-pixel

@@ -102,9 +102,7 @@ constexpr double kSimStep = 1.0 / kSimHz;
 // Type
 
 sk_sp<SkTypeface> face(const char* family, SkFontStyle style) {
-  auto mgr = sigil::weave::ports::systemFontManager();
-  sk_sp<SkTypeface> f = mgr->matchFamilyStyle(family, style);
-  return f ? f : mgr->matchFamilyStyle(nullptr, style);
+  return sigil::compose::pickFace({family}, style);
 }
 
 sk_sp<SkTypeface> monoFace() {

@@ -41,6 +41,7 @@
 #include <sigilcompose/core/Patterns.h>
 #include <sigilcompose/instances/Instances.h>
 #include <sigilcompose/shape/Shapes.h>
+#include <sigilcompose/typography/Type.h>
 #include <sigilsketch/canvas/Sketch.h>
 
 #include <cmath>
@@ -117,13 +118,8 @@ constexpr float kSlotsX = (kW - kSlotsW) * 0.5f;
 
 inline sigil::weave::TextStyle type(float size, SkColor4f color,
                                     float tracking = 0, float weight = 0) {
-  sigil::weave::TextStyle s;
-  s.shaping.fontSize = size;
-  s.shaping.letterSpacing = tracking;
-  if (weight > 0)
-    s.shaping.variations = {sigil::weave::FontVariation("wght", weight)};
-  s.paint.foreground.setColor4f(color, nullptr);
-  s.paint.foreground.setAntiAlias(true);
+  sigil::weave::TextStyle s = sigil::compose::type(
+      {.size = size, .color = color, .track = tracking, .weight = weight});
   // Veloren draws every HUD string twice: black underneath, then the
   // colour on top. At 10px over terrain that is the whole legibility
   // budget, so it is not optional.

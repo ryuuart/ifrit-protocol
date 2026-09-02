@@ -25,6 +25,7 @@
 #include <include/core/SkBitmap.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilcompose/core/Material.h>
+#include <sigilcompose/typography/Type.h>
 #include <sigilsketch/canvas/Sketch.h>
 
 #include <vector>
@@ -40,11 +41,7 @@ constexpr double kSwapEvery = 0.8;  // seconds per LUT on the live panel
 constexpr int kCells = 4;           // the index chart is kCells x kCells
 
 sigil::weave::TextStyle type(float size, SkColor4f color) {
-  sigil::weave::TextStyle style;
-  style.shaping.fontSize = size;
-  style.paint.foreground.setColor4f(color, nullptr);
-  style.paint.foreground.setAntiAlias(true);
-  return style;
+  return sigil::compose::type({.size = size, .color = color});
 }
 
 const SkColor4f kInk{0.90f, 0.93f, 0.97f, 1};

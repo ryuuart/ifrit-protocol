@@ -30,6 +30,7 @@
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
+#include <sigilcompose/typography/Type.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/pop/Points.h>
 #include <sigilgeometry/mesh/pop/Pop.h>
@@ -53,11 +54,7 @@ constexpr float kRange = 210.0f;          // panel 2's height ramp, +-kRange
 constexpr float kPanel = 274.0f;
 
 sigil::weave::TextStyle type(float size, SkColor4f color) {
-  sigil::weave::TextStyle style;
-  style.shaping.fontSize = size;
-  style.paint.foreground.setColor4f(color, nullptr);
-  style.paint.foreground.setAntiAlias(true);
-  return style;
+  return sigil::compose::type({.size = size, .color = color});
 }
 
 const SkColor4f kInk{0.90f, 0.93f, 0.97f, 1};

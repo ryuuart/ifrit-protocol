@@ -59,6 +59,7 @@
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilcompose/shape/Routers.h>
 #include <sigilcompose/shape/Shapes.h>
+#include <sigilcompose/typography/Type.h>
 #include <sigilsketch/canvas/Sketch.h>
 
 #include <algorithm>
@@ -141,13 +142,11 @@ inline SkColor4f ringColor(data::State s) {
 
 inline sigil::weave::TextStyle type(float size, SkColor4f color,
                                     float tracking = 0, bool italic = false) {
-  sigil::weave::TextStyle s;
-  s.shaping.fontSize = size;
-  s.shaping.letterSpacing = tracking;
-  if (italic) s.shaping.variations = {sigil::weave::FontVariation("slnt", -10)};
-  s.paint.foreground.setColor(color.toSkColor());
-  s.paint.foreground.setAntiAlias(true);
-  return s;
+  return sigil::compose::type({.size = size,
+                               .color = color,
+                               .track = tracking,
+                               .slant = italic ? -10.0f : 0.0f,
+                               .color8 = true});
 }
 
 /** Full-circle outline for orbit guide rings, centered in the node. */

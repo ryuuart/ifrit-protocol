@@ -186,6 +186,7 @@
 #include <sigilcompose/core/Patterns.h>
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilcompose/shape/Shapes.h>
+#include <sigilcompose/typography/Type.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
@@ -1846,13 +1847,8 @@ struct VagrantStoryTarget : sketch::Sketch {
   // -------------------------------------------------------------------------
 
   static sk_sp<SkTypeface> pickFace() {
-    sk_sp<SkFontMgr> mgr = weave::ports::systemFontManager();
-    if (!mgr) return nullptr;
-    for (const char* n : {"Charter", "Palatino", "Times New Roman", "Georgia",
-                          "Baskerville", "Helvetica"})
-      if (sk_sp<SkTypeface> f = mgr->matchFamilyStyle(n, SkFontStyle::Normal()))
-        return f;
-    return mgr->matchFamilyStyle(nullptr, SkFontStyle::Normal());
+    return sigil::compose::pickFace({"Charter", "Palatino", "Times New Roman",
+                                     "Georgia", "Baskerville", "Helvetica"});
   }
 
   /** THE PANELS ARE PLACED BY THE BODY, NOT BY A MARGIN.

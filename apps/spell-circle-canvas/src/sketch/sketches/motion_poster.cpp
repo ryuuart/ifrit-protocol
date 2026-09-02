@@ -38,6 +38,7 @@
 
 #include <sigilcompose/core/Material.h>
 #include <sigilcompose/shape/Shapes.h>
+#include <sigilcompose/typography/Type.h>
 #include <sigilsketch/canvas/Sketch.h>
 #if defined(SIGILMATERIAL_ENABLE_OCIO)
 #include <sigilmaterial/color/Ocio.h>
@@ -84,12 +85,8 @@ constexpr SkColor4f kVoid{0.016f, 0.012f, 0.024f, 1};  // letterbox
  *  raster resolves the two differently. */
 inline sigil::weave::TextStyle type(float size, SkColor4f color,
                                     float tracking = 0) {
-  sigil::weave::TextStyle s;
-  s.shaping.fontSize = size;
-  s.shaping.letterSpacing = tracking;
-  s.paint.foreground.setColor(color.toSkColor());
-  s.paint.foreground.setAntiAlias(true);
-  return s;
+  return sigil::compose::type(
+      {.size = size, .color = color, .track = tracking, .color8 = true});
 }
 
 // The breathing ring: pure SkSL over the node's box. uPulse is a live bound

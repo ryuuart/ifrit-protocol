@@ -23,6 +23,7 @@
 
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/texture/Texture.h>
+#include <sigilcompose/typography/Type.h>
 #include <sigilgeometry/mesh/curve/Curve.h>
 #include <sigilmaterial/kit/Surface.h>
 #include <sigilsketch/set/Set.h>
@@ -70,10 +71,9 @@ SkMatrix alongTheBand(SkISize card, float repeats) {
 /** One type style: a size and a colour, which is all the card asks of
  *  the shaping vocabulary. */
 weave::TextStyle type(float size, SkColor colour) {
-  weave::TextStyle style;
-  style.shaping.fontSize = size;
-  style.paint.foreground.setColor(colour);
-  return style;
+  return compose::type({.size = size,
+                        .color = SkColor4f::FromColor(colour),
+                        .antiAlias = false});
 }
 
 /** THE CARD: type over a plate, with three marks swinging under it at a

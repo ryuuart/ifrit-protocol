@@ -130,6 +130,7 @@
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilcompose/shape/Shapes.h>
 #include <sigilcompose/typography/TextFx.h>
+#include <sigilcompose/typography/Type.h>
 #include <sigilcore/compute/Noise.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/fonts/FontContext.h>
@@ -246,14 +247,11 @@ std::function<SkPath(SkSize)> lissajous(Card c, float amplitude,
 sigil::weave::TextStyle type(sk_sp<SkTypeface> face, float size,
                              SkColor4f color, float tracking = 0,
                              float condense = 1.0f) {
-  sigil::weave::TextStyle s;
-  s.shaping.typeface = std::move(face);
-  s.shaping.fontSize = size;
-  s.shaping.letterSpacing = tracking;
-  s.shaping.scaleX = condense;
-  s.paint.foreground.setColor4f(color, nullptr);
-  s.paint.foreground.setAntiAlias(true);
-  return s;
+  return sigil::compose::type({.face = std::move(face),
+                               .size = size,
+                               .color = color,
+                               .track = tracking,
+                               .condense = condense});
 }
 
 /** The OUTLINE register: PaintLayer::outline()'s stroked paint installed

@@ -35,6 +35,7 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
 #include <sigilcompose/core/Material.h>
+#include <sigilcompose/typography/Type.h>
 #include <sigilsketch/canvas/Sketch.h>
 
 #include <array>
@@ -65,11 +66,7 @@ const std::array<Band, 8> kBands{{
 }};
 
 sigil::weave::TextStyle type(float size, SkColor4f color) {
-  sigil::weave::TextStyle style;
-  style.shaping.fontSize = size;
-  style.paint.foreground.setColor4f(color, nullptr);
-  style.paint.foreground.setAntiAlias(true);
-  return style;
+  return sigil::compose::type({.size = size, .color = color});
 }
 
 const SkColor4f kInk{0.90f, 0.93f, 0.97f, 1};

@@ -25,6 +25,7 @@
 
 #include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/core/Patterns.h>
+#include <sigilcompose/typography/Type.h>
 #include <sigilsketch/canvas/Sketch.h>
 
 #include <cstdio>
@@ -51,12 +52,8 @@ constexpr double kSwapPeriod = 3.0;  // seconds between re-tilings
 
 inline sigil::weave::TextStyle type(float size, SkColor4f color,
                                     float tracking = 0) {
-  sigil::weave::TextStyle s;
-  s.shaping.fontSize = size;
-  s.shaping.letterSpacing = tracking;
-  s.paint.foreground.setColor(color.toSkColor());
-  s.paint.foreground.setAntiAlias(true);
-  return s;
+  return sigil::compose::type(
+      {.size = size, .color = color, .track = tracking, .color8 = true});
 }
 
 inline std::string caption(const char* palette, float edge, bool rotated) {

@@ -21,6 +21,7 @@
 // frame. The graphs are static leaves; nothing here re-describes.
 
 #include <include/core/SkPathBuilder.h>
+#include <sigilcompose/typography/Type.h>
 #include <sigilsketch/canvas/Sketch.h>
 
 #include <cmath>
@@ -40,11 +41,7 @@ constexpr float kFalloff = 0.5f;
 constexpr float kWindow = 2.0f;  // seconds of `seconds` on the x axis
 
 sigil::weave::TextStyle type(float size, SkColor4f color) {
-  sigil::weave::TextStyle style;
-  style.shaping.fontSize = size;
-  style.paint.foreground.setColor4f(color, nullptr);
-  style.paint.foreground.setAntiAlias(true);
-  return style;
+  return sigil::compose::type({.size = size, .color = color});
 }
 
 const SkColor4f kInk{0.90f, 0.93f, 0.97f, 1};

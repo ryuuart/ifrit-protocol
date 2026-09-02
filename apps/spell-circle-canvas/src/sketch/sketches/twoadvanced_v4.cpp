@@ -73,6 +73,7 @@
 #include <sigilcompose/kit/Placers.h>
 #include <sigilcompose/shape/Shapes.h>
 #include <sigilcompose/typography/TextFx.h>
+#include <sigilcompose/typography/Type.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
@@ -176,14 +177,11 @@ inline const sk_sp<SkTypeface>& arial() {
 inline sigil::weave::TextStyle type(const sk_sp<SkTypeface>& tf, float size,
                                     SkColor4f color, float trackUnits = 0,
                                     float condense = 1.0f) {
-  sigil::weave::TextStyle s;
-  s.shaping.typeface = tf;
-  s.shaping.fontSize = size;
-  s.shaping.letterSpacing = size * trackUnits / 1000.0f;
-  s.shaping.scaleX = condense;
-  s.paint.foreground.setColor4f(color, nullptr);
-  s.paint.foreground.setAntiAlias(true);
-  return s;
+  return sigil::compose::type({.face = tf,
+                               .size = size,
+                               .color = color,
+                               .track = size * trackUnits / 1000.0f,
+                               .condense = condense});
 }
 
 inline sigil::weave::TextStyle micro(float size, SkColor4f c, float tr = 200) {

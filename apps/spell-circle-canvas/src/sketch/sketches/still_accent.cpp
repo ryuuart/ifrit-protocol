@@ -33,6 +33,7 @@
 // parked. Parked is the whole point.
 
 #include <sigilcompose/brush/Brushes.h>
+#include <sigilcompose/typography/Type.h>
 #include <sigilsketch/canvas/Sketch.h>
 
 #include <cmath>
@@ -48,11 +49,7 @@ constexpr int kCells = 512;         // enough cells for picture replay to hurt
 constexpr double kRepaintHz = 0.0;  // 0 = the bound colour never moves
 
 sigil::weave::TextStyle type(float size, SkColor4f color) {
-  sigil::weave::TextStyle style;
-  style.shaping.fontSize = size;
-  style.paint.foreground.setColor4f(color, nullptr);
-  style.paint.foreground.setAntiAlias(true);
-  return style;
+  return sigil::compose::type({.size = size, .color = color});
 }
 
 const SkColor4f kInk{0.92f, 0.94f, 0.98f, 1};

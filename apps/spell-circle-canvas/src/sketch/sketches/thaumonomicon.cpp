@@ -153,6 +153,7 @@
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilcompose/shape/Routers.h>
 #include <sigilcompose/shape/Shapes.h>
+#include <sigilcompose/typography/Type.h>
 #include <sigilcore/compute/Noise.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>
@@ -1285,13 +1286,8 @@ struct Thaumonomicon : sketch::Sketch {
   PixText tipTitle, tipMissing, tipParent;
 
   static sk_sp<SkTypeface> systemFace() {
-    sk_sp<SkFontMgr> mgr = weave::ports::systemFontManager();
-    if (!mgr) return nullptr;
-    for (const char* name : {"Menlo", "Monaco", "Courier New", "Helvetica"})
-      if (sk_sp<SkTypeface> f =
-              mgr->matchFamilyStyle(name, SkFontStyle::Normal()))
-        return f;
-    return mgr->matchFamilyStyle(nullptr, SkFontStyle::Normal());
+    return sigil::compose::pickFace(
+        {"Menlo", "Monaco", "Courier New", "Helvetica"});
   }
 
   // -------------------------------------------------------------------------

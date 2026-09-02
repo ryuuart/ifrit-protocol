@@ -275,6 +275,7 @@
 #include <sigilcompose/core/Material.h>
 #include <sigilcompose/core/Patterns.h>
 #include <sigilcompose/shape/Shapes.h>
+#include <sigilcompose/typography/Type.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
@@ -1383,22 +1384,16 @@ struct AstralTome : sketch::Sketch {
   }
 
   // --------------------------------------------------------------- setup
-  static sk_sp<SkTypeface> pick(std::initializer_list<const char*> names) {
-    sk_sp<SkFontMgr> mgr = weave::ports::systemFontManager();
-    if (!mgr) return nullptr;
-    for (const char* n : names)
-      if (sk_sp<SkTypeface> f = mgr->matchFamilyStyle(n, SkFontStyle::Normal()))
-        return f;
-    return mgr->matchFamilyStyle(nullptr, SkFontStyle::Normal());
-  }
 
   void setup(sketch::SketchContext& ctx) override {
     ctx.canvas(at::kCanvasW, at::kCanvasH);
     ctx.background({0, 0, 0, 1});
 
-    serif = pick({"Baskerville", "Charter", "Palatino", "Times New Roman",
-                  "Georgia", "Helvetica"});
-    mono = pick({"Menlo", "SF Mono", "Monaco", "Courier New", "Helvetica"});
+    serif =
+        sigil::compose::pickFace({"Baskerville", "Charter", "Palatino",
+                                  "Times New Roman", "Georgia", "Helvetica"});
+    mono = sigil::compose::pickFace(
+        {"Menlo", "SF Mono", "Monaco", "Courier New", "Helvetica"});
     divisors = at::divisorSequence(64);
 
     // ---- motion ---------------------------------------------------------

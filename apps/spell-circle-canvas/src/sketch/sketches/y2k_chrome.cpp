@@ -32,6 +32,7 @@
 #include <sigilcompose/core/Patterns.h>
 #include <sigilcompose/shape/Shapes.h>
 #include <sigilcompose/typography/TextFx.h>
+#include <sigilcompose/typography/Type.h>
 #include <sigilsketch/canvas/Sketch.h>
 
 #include <cmath>
@@ -70,14 +71,8 @@ constexpr SkColor4f C(uint32_t rgb, float a = 1.0f) noexcept {
 
 inline sigil::weave::TextStyle type(float size, SkColor4f color,
                                     float tracking = 0, float weight = 0) {
-  sigil::weave::TextStyle s;
-  s.shaping.fontSize = size;
-  s.shaping.letterSpacing = tracking;
-  if (weight > 0)
-    s.shaping.variations = {sigil::weave::FontVariation("wght", weight)};
-  s.paint.foreground.setColor4f(color, nullptr);
-  s.paint.foreground.setAntiAlias(true);
-  return s;
+  return sigil::compose::type(
+      {.size = size, .color = color, .track = tracking, .weight = weight});
 }
 
 /** Label riding a gel surface: white with a 1px tint-derived ground. */

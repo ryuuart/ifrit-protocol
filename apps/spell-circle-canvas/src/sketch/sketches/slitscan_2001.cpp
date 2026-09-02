@@ -208,6 +208,7 @@
 #include <sigilcompose/kit/Legibility.h>
 #include <sigilcompose/shape/Shapes.h>
 #include <sigilcompose/typography/TextFx.h>
+#include <sigilcompose/typography/Type.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
@@ -325,9 +326,7 @@ constexpr float kPanelStripW = 432;  // 144 in at 3.0 px/in, exact
 // Type
 
 sk_sp<SkTypeface> face(const char* family, SkFontStyle style) {
-  auto mgr = sigil::weave::ports::systemFontManager();
-  sk_sp<SkTypeface> f = mgr->matchFamilyStyle(family, style);
-  return f ? f : mgr->matchFamilyStyle(nullptr, style);
+  return sigil::compose::pickFace({family}, style);
 }
 sk_sp<SkTypeface> uiFace() {
   static sk_sp<SkTypeface> f = face("Helvetica Neue", SkFontStyle::Normal());
@@ -348,13 +347,8 @@ sk_sp<SkTypeface> monoBoldFace() {
 
 sigil::weave::TextStyle type(sk_sp<SkTypeface> tf, float size, SkColor4f color,
                              float track = 0.0f) {
-  sigil::weave::TextStyle s;
-  s.shaping.typeface = std::move(tf);
-  s.shaping.fontSize = size;
-  s.shaping.letterSpacing = track;
-  s.paint.foreground.setColor4f(color);
-  s.paint.foreground.setAntiAlias(true);
-  return s;
+  return sigil::compose::type(
+      {.face = std::move(tf), .size = size, .color = color, .track = track});
 }
 sigil::weave::TextStyle ui(float s, SkColor4f c, float tr = 0) {
   return type(uiFace(), s, c, tr);

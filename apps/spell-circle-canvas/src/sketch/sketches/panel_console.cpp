@@ -24,6 +24,7 @@
 
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/texture/Texture.h>
+#include <sigilcompose/typography/Type.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilmaterial/kit/Surface.h>
 #include <sigilsketch/set/Set.h>
@@ -58,10 +59,9 @@ constexpr float kArcRadius = 300.0f;
 constexpr float kArcSpreadDeg = 44.0f;
 
 weave::TextStyle type(float size, SkColor colour) {
-  weave::TextStyle style;
-  style.shaping.fontSize = size;
-  style.paint.foreground.setColor(colour);
-  return style;
+  return compose::type({.size = size,
+                        .color = SkColor4f::FromColor(colour),
+                        .antiAlias = false});
 }
 
 /** A LEVEL SCREEN: a row of bars whose heights ride one wave, so the

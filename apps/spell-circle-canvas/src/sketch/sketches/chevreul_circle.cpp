@@ -348,12 +348,7 @@ inline SkColor4f predicted(SkColor4f self, int neighbourSector,
 
 inline sk_sp<SkTypeface> face(const char* family, SkFontStyle style,
                               const char* fallback) {
-  auto mgr = weave::ports::systemFontManager();
-  if (!mgr) return nullptr;
-  sk_sp<SkTypeface> t = mgr->matchFamilyStyle(family, style);
-  if (!t && fallback) t = mgr->matchFamilyStyle(fallback, style);
-  if (!t) t = mgr->matchFamilyStyle(nullptr, style);
-  return t;
+  return sigil::compose::pickFace({family, fallback}, style);
 }
 inline const sk_sp<SkTypeface>& serif() {
   static sk_sp<SkTypeface> f =

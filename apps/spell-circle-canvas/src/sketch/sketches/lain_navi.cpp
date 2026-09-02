@@ -260,6 +260,7 @@
 #include <sigilcompose/core/Material.h>
 #include <sigilcompose/core/Patterns.h>
 #include <sigilcompose/shape/Shapes.h>
+#include <sigilcompose/typography/Type.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
@@ -557,12 +558,8 @@ inline const sk_sp<SkTypeface>& markerFace() {
 inline weave::TextStyle type(const sk_sp<SkTypeface>& tf, float size,
                              SkColor4f c, float sigma = 0.0f,
                              float track = 0.0f) {
-  weave::TextStyle s;
-  s.shaping.typeface = tf;
-  s.shaping.fontSize = size;
-  s.shaping.letterSpacing = track;
-  s.paint.foreground.setColor4f(c, nullptr);
-  s.paint.foreground.setAntiAlias(true);
+  weave::TextStyle s = sigil::compose::type(
+      {.face = tf, .size = size, .color = c, .track = track});
   s.paint.foreground.setBlendMode(SkBlendMode::kPlus);
   if (sigma > 0.01f)
     s.paint.foreground.setMaskFilter(
