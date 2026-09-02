@@ -1,3 +1,5 @@
+#include <sigilmeasure/time/Stopwatch.h>
+
 #include "support/BrushTestSupport.h"
 
 namespace {
@@ -364,13 +366,11 @@ TEST(ComposeBand, ConstructionStaysUnderTheQuadraticCeiling) {
   };
   const auto build = [&](float r) {
     Host host(1400, 1400);
-    const auto t0 = std::chrono::steady_clock::now();
+    const sigil::measure::Stopwatch watch;
     host.composer.render(
         stack().child(band(ring(r), across(14)).inset(0).fill(red())));
     host.frame();
-    return std::chrono::duration<double, std::milli>(
-               std::chrono::steady_clock::now() - t0)
-        .count();
+    return watch.elapsedMs();
   };
   const double big = build(550.0f);
   EXPECT_LT(big, 250.0) << "r=550 band took " << big
