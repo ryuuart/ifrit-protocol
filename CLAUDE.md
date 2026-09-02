@@ -131,7 +131,8 @@ Formatting and linting run through `scripts/check.py` — one command
 covering clang-format (Google C++ style, stock), ruff (lint and format),
 qmllint, and clang-tidy, scoped by default to the files git sees as
 changed. `--all` checks the whole tree, `--fix` applies the format
-fixes, `--tidy-all` analyzes every translation unit. The configs live at
+fixes, `--tidy-all` analyzes every translation unit, and `--skip-tidy`
+and `--tidy-only` split the command in half. The configs live at
 the repository root: `.clang-format` with `.clang-format-ignore`,
 `.clang-tidy`, `.clangd`, and `ruff.toml`. The discipline is
 check-forward: the tools police changes, never mass-reformat — the one
@@ -141,6 +142,27 @@ whole-tree reformat that adopted the style is listed in
 honors it automatically). clang-tidy comes from `brew install llvm`,
 ruff from `brew install ruff`; the other tools ride the Xcode and Qt
 installs the build already needs.
+
+The quick checks run together through `scripts/gate.py` — one command,
+one verdict, before a commit. Each lane is its own subprocess with its
+output held back: `scripts/check.py` over the changed files, the ctest
+tests those files belong to, the plate ledger's quick tier, its world
+tier when the change can move a set, and clang-tidy with `--tidy`. They
+run side by side, so the wait is the slowest lane rather than the sum;
+each prints one PASS/FAIL line with its wall time as it lands, and then
+`GATE: pass` or `GATE: fail — <lane>`, with only the failing lanes'
+output under it. The test scope comes from the build graph rather than
+from a rule about directory names — the tests a changed source or header
+is linked into, read through `ninja -t inputs` and the deps log — and a
+file the graph cannot place means the graph is behind the tree, so the
+lane runs the whole suite and says so on its line. `--all` widens the
+lint and the tests to everything, `--config` picks the configuration the
+lanes read (Release, which is what the plate baselines are), and
+`--timeout-seconds` fails a wedged lane by name with everything it
+started. It builds nothing itself; `mise run gate` builds first. The
+plate ledger's full tier, the sanitizers and `--tidy-all` are
+deliberately outside it — those are the gate before a push and stay
+separate commands.
 
 Code coverage runs through `scripts/coverage.py` — one command that
 configures a dedicated instrumented tree (`build-coverage/`, reusing the

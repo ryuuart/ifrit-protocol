@@ -20,6 +20,9 @@ Usage (from anywhere in the repository):
                                # in the compile database (slow: a full
                                # semantic analysis per TU)
   scripts/check.py --skip-tidy # just the fast checks
+  scripts/check.py --tidy-only # just clang-tidy — the other half of
+                               # --skip-tidy, for running the two at
+                               # once as separate lanes
   scripts/check.py FILE...     # check exactly these files
 
 Exit status is non-zero when any tool reports a finding.
@@ -415,12 +418,22 @@ def main() -> int:
             "run)"
         ),
     )
-    argument_parser.add_argument(
+    tidy_scoping = argument_parser.add_mutually_exclusive_group()
+    tidy_scoping.add_argument(
         "--skip-tidy",
         action="store_true",
         help=(
             "run only the fast checks; clang-tidy costs a semantic "
             "analysis per translation unit and can take its own pass"
+        ),
+    )
+    tidy_scoping.add_argument(
+        "--tidy-only",
+        action="store_true",
+        help=(
+            "run only clang-tidy — the fast checks are the other half of "
+            "--skip-tidy, so the two together cover this command once "
+            "each and can run side by side"
         ),
     )
     argument_parser.add_argument(
@@ -444,13 +457,15 @@ def main() -> int:
     # (--tidy-all), not a side effect of widening the fast checks.
     tidy_scope = scope if arguments.files else changed_files()
 
-    results = {
-        "clang-format": check_clang_format(
+    results = {}
+    if not arguments.tidy_only:
+        results["clang-format"] = check_clang_format(
             with_suffixes(scope, CXX_SUFFIXES), arguments.fix
-        ),
-        "ruff": check_ruff(with_suffixes(scope, {".py"}), arguments.fix, arguments.all),
-        "qmllint": check_qmllint(with_suffixes(scope, {".qml"})),
-    }
+        )
+        results["ruff"] = check_ruff(
+            with_suffixes(scope, {".py"}), arguments.fix, arguments.all
+        )
+        results["qmllint"] = check_qmllint(with_suffixes(scope, {".qml"}))
     if arguments.skip_tidy:
         section("clang-tidy (C++ static analysis)")
         print("skipped (--skip-tidy)")

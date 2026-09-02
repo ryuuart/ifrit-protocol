@@ -13,7 +13,7 @@
 #  * A task that declares its own arguments in `usage` CANNOT forward.
 #
 # So each task picks one. Tasks wrapping a script with a considered
-# interface of its own (check.py, coverage.py, sanitize.py,
+# interface of its own (gate.py, check.py, coverage.py, sanitize.py,
 # plate_ledger.py, ctest, Sketchbook) forward and declare nothing;
 # tasks that need to choose a build configuration or a target declare
 # `usage` and do not forward.
@@ -137,9 +137,19 @@ run = "ctest --test-dir build -C Release --output-on-failure"
 # so none of them declare flags of their own — everything after `--` is
 # forwarded:
 #
+#     mise run gate -- --tidy
 #     mise run check -- --fix
 #     mise run sanitize -- --thread
 #     mise run coverage -- --filter compose --open
+
+[tasks.gate]
+description = "The fast gate before a commit, in parallel lanes (args go to gate.py)"
+dir = "apps/spell-circle-canvas"
+# Release, and the whole build: the lanes read binaries rather than
+# building them, and a verdict about the last build is a verdict about
+# code nobody has any more.
+depends = ["build --config Release"]
+run = "python3 scripts/gate.py"
 
 [tasks.check]
 description = "Format and lint the changed files (args after -- go to check.py)"
