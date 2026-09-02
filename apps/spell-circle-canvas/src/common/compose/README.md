@@ -255,7 +255,7 @@ rectangle, and is why a chrome style on a word bevelled a slab behind the
 word. `Element::boundary` says otherwise:
 
 ```cpp
-text(u8"CHROME", display).boundary(Boundary::Glyphs).style(styles::y2kChrome());
+text(u8"CHROME", display).boundary(Boundary::Glyphs).style(kit::y2kChrome());
 ```
 
 `Boundary::Glyphs` hands them the glyph contours the placement produced,
@@ -274,7 +274,7 @@ knows about an image's alpha cut-out, a clipped or masked subtree, or
 anything else whose visible silhouette is neither a shape nor a glyph run.
 
 ```cpp
-image(logo).boundary(Boundary::Coverage).style(styles::y2kChrome());
+image(logo).boundary(Boundary::Coverage).style(kit::y2kChrome());
 ```
 
 Tracing a raster has three consequences and all three show:
@@ -447,9 +447,11 @@ parallel, radial and concentric hatches. `kit/Strokes.h` and
 `material::skia::Paint` is what `Element::fill` takes, and
 `material::sdf`, `material::pattern` and `material::field` are where the
 signed-distance surfaces, the tiles and the fields come from.
-`brush/LayerStyles.h` is the Photoshop route to rich surfaces: bevels,
-sheens, inner shadows built from gradients and blurs rather than shaders,
-and the gel and chrome bundles over the kit's colour tables.
+`brush/LayerStyles.h` is the Photoshop route to rich surfaces — the
+MECHANISMS: bevels, sheens, inner shadows, outer glows and overlays built
+from gradients and blurs rather than shaders. The LOOKS they are bundled
+into are the kit's, one era per header: `kit/Gel.h`, `kit/Chrome.h`,
+`kit/Gloss.h`, each over SigilMaterial's colour tables.
 `core/Pattern.h` adds the one thing a tile cannot do for itself — an
 element tree AS the tile, baked through `snapshot()`. A recipe instance
 becomes a paint through `material::skia::Paint::recipe`, an effect

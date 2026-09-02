@@ -506,7 +506,7 @@ class Decoration {
 };
 
 /** A named bundle of decorations applied together — the Photoshop "layer
- *  style" as a value. Presets (styles::aquaGel(), styles::y2kChrome())
+ *  style" as a value. Presets (kit::aquaGel(), kit::y2kChrome())
  *  return one; Element::style() splices it in: `under` layers paint below
  *  the fill/content (drop shadows, body ramps), `over` layers above
  *  (gloss lenses, bevels, keylines). One call dresses the node. */

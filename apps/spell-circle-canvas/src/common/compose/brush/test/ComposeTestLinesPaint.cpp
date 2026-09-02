@@ -11,10 +11,9 @@ TEST(ComposeStyles, PresetBundlesRenderAndPrune) {
         .row()
         .gap(20)
         .padding(20)
+        .child(box().width(120).height(44).corners({22}).style(kit::aquaGel()))
         .child(
-            box().width(120).height(44).corners({22}).style(styles::aquaGel()))
-        .child(box().width(120).height(44).corners({8}).style(
-            styles::y2kChrome()));
+            box().width(120).height(44).corners({8}).style(kit::y2kChrome()));
   };
   host.composer.render(tree());
   host.frame();
@@ -43,19 +42,19 @@ TEST(ComposeStyles, PresetBundlesRenderAndPrune) {
 TEST(ComposeStyles, AquaGelEdgesRunFromNoneToTheDeepCut) {
   // The two edges the gel's default softens, each read off a rack of
   // 90x44 pills at y 20..64 that differ in one option and nothing else.
-  const styles::AquaGelOptions preset;
-  auto pill = [](styles::AquaGelOptions opts) {
+  const material::kit::AquaGelOptions preset;
+  auto pill = [](material::kit::AquaGelOptions opts) {
     return box().width(90).height(44).corners({22}).style(
-        styles::aquaGel({0.118f, 0.561f, 1.0f, 1.0f}, opts));
+        kit::aquaGel({0.118f, 0.561f, 1.0f, 1.0f}, opts));
   };
   auto withTopBand = [&](float v) {
-    styles::AquaGelOptions o;
+    material::kit::AquaGelOptions o;
     o.topBand = v;
     return pill(o);
   };
-  styles::AquaGelOptions noLens;
+  material::kit::AquaGelOptions noLens;
   noLens.lensAlphaTop = 0.0f;
-  styles::AquaGelOptions lensToItsOutline;
+  material::kit::AquaGelOptions lensToItsOutline;
   lensToItsOutline.lensFadeEnd = 1.0f;
 
   Host host(500, 90);

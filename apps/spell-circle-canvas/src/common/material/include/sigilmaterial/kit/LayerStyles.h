@@ -4,12 +4,15 @@
  * Layer-style presets: the colour tables and option sets behind the
  * gel and chrome looks an image editor builds from ramps and blurs —
  * the aqua body, lens and glow ramps and the two chrome palettes, each
- * as stops a renderer turns into its own gradient. The decorations that
- * paint them belong to the renderer; what is preset here is the look.
+ * as stops a renderer turns into its own gradient — and the contour
+ * table a satin band remaps blurred coverage through. The decorations
+ * that paint them belong to the renderer; what is preset here is the
+ * look.
  */
 
 #include <sigilmaterial/color/Color.h>
 
+#include <array>
 #include <cstdint>
 #include <vector>
 
@@ -96,5 +99,17 @@ struct ChromeOptions {
 
 /** The dark inner band the Steel palette wears beneath its top edge. */
 inline Color chromeSteelTopBand() { return rgb(0x001020, 0.30f); }
+
+// ---------------------------------------------------------------------------
+// Contour tables — a remap of BLURRED COVERAGE, which is what makes a
+// satin band follow the shape's own distance field rather than a screen
+// axis: on a blob it curves with the blob.
+
+/** A RING table: 256 entries peaking where blurred coverage crosses
+ *  @p center — 0 is the rim, 1 the deep interior — over a band @p width
+ *  wide, so a renderer that maps coverage through it gets one bright ring
+ *  inside the silhouette. The peak is eased, not linear, or the ring's
+ *  edges read as two hard lines rather than as light. */
+std::array<uint8_t, 256> contourRing(float center = 0.55f, float width = 0.35f);
 
 }  // namespace sigil::material::kit

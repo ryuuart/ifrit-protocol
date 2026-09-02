@@ -228,7 +228,7 @@ TEST(ComposeBrushTail, GlossContourBandsInsideTheShape) {
   plain.composer.render(box().child(shape()));
   plain.frame();
   glossed.composer.render(
-      box().child(shape().foreground(styles::gloss({1, 1, 1, 1}, 8, {0, -4}))));
+      box().child(shape().foreground(kit::gloss({1, 1, 1, 1}, 8, {0, -4}))));
   glossed.frame();
   // The band brightens SOME interior pixels but not the deep center
   // (table peaks at mid-coverage, so the middle of the shape stays fill).
@@ -256,7 +256,7 @@ TEST(ComposeBrushTail, GlossContourRingIsWhereTheCoverageSaysNotTheAlpha) {
   plain.composer.render(box().child(shape()));
   plain.frame();
   glossed.composer.render(box().child(shape().foreground(
-      styles::gloss({1, 1, 1, 0.5f}, 8, {0, -4}, /*ringCenter=*/0.5f))));
+      kit::gloss({1, 1, 1, 0.5f}, 8, {0, -4}, /*ringCenter=*/0.5f))));
   glossed.frame();
   int changed = 0;
   for (int y = 52; y < 148; y += 2)

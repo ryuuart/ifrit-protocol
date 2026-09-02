@@ -21,10 +21,14 @@
 # `kit/Legibility.h` with Typography and `kit/Placers.h` with Instances.
 # Include them directly.
 add_library(SigilComposeKit STATIC
+  Eras.cpp
   Kit.cpp
   Routers.cpp
   Silhouettes.cpp
+  ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/kit/Chrome.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/kit/Frame.h
+  ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/kit/Gel.h
+  ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/kit/Gloss.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/kit/Annotations.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/kit/Typeset.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/kit/Instruments.h

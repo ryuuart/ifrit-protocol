@@ -1,8 +1,12 @@
 /** @file
- * The gel and chrome colour tables.
+ * The gel and chrome colour tables, and the contour table a satin band
+ * remaps blurred coverage through.
  */
 
 #include "sigilmaterial/kit/LayerStyles.h"
+
+#include <algorithm>
+#include <cmath>
 
 namespace sigil::material::kit {
 
@@ -39,6 +43,20 @@ std::vector<RampStop> chromeRamp(ChromePalette palette) {
   return {{0.0f, rgb(0xF4F7FA)},  {0.35f, rgb(0x97A1AC)},
           {0.49f, rgb(0x3A4654)}, {0.51f, rgb(0x1E2833)},
           {0.62f, rgb(0x5C6B7C)}, {1.0f, rgb(0xDCE4EA)}};
+}
+
+std::array<uint8_t, 256> contourRing(float center, float width) {
+  std::array<uint8_t, 256> table{};
+  for (int i = 0; i < 256; ++i) {
+    const float a = (float)i / 255.0f;
+    const float d = std::abs(a - center) / std::max(0.05f, width * 0.5f);
+    const float peak = std::max(0.0f, 1.0f - d);
+    // The cubic ease, spelled here rather than reached for: this table is
+    // data with no clock behind it.
+    const float eased = peak * peak * (3.0f - 2.0f * peak);
+    table[(size_t)i] = (uint8_t)std::lround(255.0f * eased);
+  }
+  return table;
 }
 
 }  // namespace sigil::material::kit

@@ -23,13 +23,12 @@
  *
  * | header | component |
  * |---|---|
- * | `kit/Frame.h` | `Frame` — figure-local polar coordinates |
- * | `kit/Frame.h` | `Grid` — the unit map (scale, origin, snap) |
- * | `kit/Frame.h` | `disc()` and `centred()` — a box about a centre |
+ * | `kit/Frame.h` | `disc()` — a node about a centre, or at a frame's |
  * | `kit/Frame.h` | `at()` — a box pinned at absolute coordinates |
  * | `kit/Sprites.h` | `dotSprite()` — the stamp a point sink draws with |
- * | `kit/Divisions.h` | `ticks()` — a division ladder as one path |
- * | `kit/Divisions.h` | `chords()` — polygon sides as N contours |
+ * | `kit/Gel.h` | `aquaGel()`, `aquaOrb()` — one era's look |
+ * | `kit/Chrome.h` | `y2kChrome()` — another |
+ * | `kit/Gloss.h` | `gloss()` and the two chrome type ramps |
  * | `kit/PixelType.h` | the aliased bitmap-font bake |
  * | `kit/Legibility.h` | halo / shade / scrim |
  * | `kit/Instruments.h` | `trackMeter()` and `restGhost()` — a cascade seen |
@@ -41,21 +40,27 @@
  * **`kit/Strokes.h` AND `kit/Plate.h` ARE NOT INCLUDED HERE, AND THIS
  * UMBRELLA DOES NOT GIVE YOU THEM.** Both are spelled in the Brush tier's
  * types and ship with it: `kit/Strokes.h` carries the stroke grammar —
- * `kit::brush::shapers`, `kit::profile`, `kit::strands`, `kit::spans`,
- * `kit::shapes`, and the `kit::brush::presets` — and `kit/Plate.h` the
+ * `kit::strands`, `kit::spans` and the `kit::brush::presets` — and
+ * `kit/Plate.h` the
  * bordered feed plate (`kit::plate`, `kit::tinted`). Including this file
  * brings in none of those names; include either header directly.
  *
  * Already shipped elsewhere and deliberately NOT duplicated here:
  * `test::check` / `report` / `failures` (`testing/Checks.h`, the
  * SigilComposeTesting target) are the verification plate; `hex`
- * (`Paint.h`), `type` and `pickFace` (`Typography.h`) and `motion::ramp`
- * are the prelude; `stroke` (`Decorations.h`) is the value spelling.
+ * (`Paint.h`), `weave::type`, `weave::ports::pickFace` and `motion::ramp`
+ * are the prelude; `stroke` (`Decorations.h`) is the value spelling. The
+ * figure's own coordinate systems and its division ladders are
+ * SigilGeometry's — `geometry::path::Frame`, `geometry::path::Grid`,
+ * `geometry::path::centred`, `geometry::shapes::ticks` and
+ * `geometry::shapes::chords`.
  */
 
 #include "sigilcompose/kit/Annotations.h"
-#include "sigilgeometry/kit/Divisions.h"
+#include "sigilcompose/kit/Chrome.h"
 #include "sigilcompose/kit/Frame.h"
+#include "sigilcompose/kit/Gel.h"
+#include "sigilcompose/kit/Gloss.h"
 #include "sigilcompose/kit/Instruments.h"
 #include "sigilcompose/kit/Legibility.h"
 #include "sigilcompose/kit/PixelType.h"
