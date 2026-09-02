@@ -232,59 +232,6 @@ sk_sp<SkRuntimeEffect> timberEffect() {
   return fx;
 }
 
-// The milled tooth: LUMINANCE noise (all three channels carrying the same
-// value) so a soft-light pass reads as light on the timber rather than as a
-// hue shift. Wood fibre runs LENGTHWISE, which is what the stretch is.
-//
-// The same FIELD as `patterns::grain(0.42f, 3, 4.0f, 0.30f, 3.2f)` and not
-// the same pixels. The stock generator folds the stretch into the frequency
-// on the CPU and samples `pos * uFreq`; this samples
-// `pos.x * uFreq / uStretch`. Multiplying and then dividing is not the same
-// float as multiplying by a precomputed quotient, so the two disagree in
-// the last bits of every sample coordinate.
-sk_sp<SkRuntimeEffect> toothEffect() {
-  static const sk_sp<SkRuntimeEffect> fx = [] {
-    auto [effect, err] = SkRuntimeEffect::MakeForShader(SkString(R"(
-uniform float uFreq;
-uniform float uSeed;
-uniform float uAmp;    // contrast about mid-grey — wood, not granite
-uniform float uStretch; // >1 draws the cells out along the piece's length
-float hash21(float2 p) {
-  p = fract(p * float2(123.34, 456.21) + uSeed);
-  p += dot(p, p + 45.32);
-  return fract(p.x * p.y);
-}
-float vnoise(float2 p) {
-  float2 i = floor(p);
-  float2 f = fract(p);
-  float2 u = f * f * (3.0 - 2.0 * f);
-  return mix(mix(hash21(i), hash21(i + float2(1, 0)), u.x),
-             mix(hash21(i + float2(0, 1)), hash21(i + float2(1, 1)), u.x),
-             u.y);
-}
-half4 main(float2 pos) {
-  // Wood fibre runs LENGTHWISE: the cells are drawn out along local x, so
-  // the tooth streaks with the grain instead of pebbling like stone.
-  float2 q = float2(pos.x * uFreq / uStretch, pos.y * uFreq * uStretch);
-  float v = 0.5 * vnoise(q) + 0.25 * vnoise(q * 2.0) + 0.125 * vnoise(q * 4.0);
-  v = 0.5 + (v / 0.875 - 0.5) * uAmp;
-  return half4(half3(v), 1.0);
-}
-)"));
-    if (!effect) SkDebugf("kumiko tooth shader: %s\n", err.c_str());
-    return effect;
-  }();
-  return fx;
-}
-
-Material toothMaterial(float freq, float seed, float amp, float stretch) {
-  sk_sp<SkRuntimeEffect> fx = toothEffect();
-  if (!fx) return Material::solid({0.5f, 0.5f, 0.5f, 1});
-  return Material::sksl(
-      std::move(fx),
-      {{"uFreq", freq}, {"uSeed", seed}, {"uAmp", amp}, {"uStretch", stretch}});
-}
-
 struct Timber {
   SkColor4f base, light, dark;
   float grain;
@@ -334,7 +281,11 @@ class TimberBank {
 
  private:
   // Built ONCE — every call compiles its own runtime effect.
-  Material m_tooth = toothMaterial(0.42f, 4.0f, 0.30f, 3.2f);
+  // The library's own luminance grain, at the frequency, seed, contrast
+  // and lengthwise stretch this timber wants. A local copy of it existed
+  // only because adopting the library verb moves the plate, and this pass
+  // moves the plate anyway.
+  Material m_tooth = patterns::grain(0.42f, 3, 4.0f, 0.30f, 3.2f);
   std::map<uint64_t, Material> m_bank;
 };
 
@@ -826,20 +777,22 @@ struct KumikoAsanoha : sketch::Sketch {
         .clip(true)
         .opacity(&glow)
         .background(styles::OuterGlow{hex(0xF4E3B8, 0.34f), 70, 6})
-        // A hot core fading out across the opening. The outer radius is
-        // sized to the opening's diagonal, not to its half-width: a 520 px
-        // stop leaves the field's corner cells black at this canvas size,
-        // and 585 keeps the outermost cells legible.
+        // A SHOJI DIFFUSES. Paper over a lamp is a lit field, not a point
+        // source seen through a hole: the ramp falls a third of a stop
+        // from the middle of the opening to its corners, and the pattern —
+        // which is the whole subject — is readable everywhere across it.
+        // A hot core with a dark rim blows out the middle third and puts
+        // the corner cells in the dark, which loses the field at both ends
+        // at once. The outer radius is the opening's diagonal.
         .child(box()
                    .inset(0, 0, 0, 0)
                    .fill(Material::radial(
                        {open.width() * 0.5f, open.height() * 0.5f}, 585,
-                       {{0.00f, hex(0xFDEDC4, 0.95f)},
-                        {0.24f, hex(0xF0DCA6, 0.91f)},
-                        {0.48f, hex(0xCE9E5C, 0.68f)},
-                        {0.70f, hex(0x88532A, 0.34f)},
-                        {0.87f, hex(0x2E1C0C, 0.11f)},
-                        {1.00f, hex(0x0D0906, 0.00f)}})));
+                       {{0.00f, hex(0xF7E8C6, 0.88f)},
+                        {0.30f, hex(0xF2E0B4, 0.85f)},
+                        {0.58f, hex(0xE6CE9A, 0.79f)},
+                        {0.80f, hex(0xD3B37C, 0.71f)},
+                        {1.00f, hex(0xBE9862, 0.62f)}})));
   }
 
   Element beam(float y, float h, bool top) {
