@@ -46,11 +46,13 @@
 //   Material::blend()     wash + stipple + blot + density, one fill value
 //   fx::typeOn()          the pen writing the title and the legend
 //   spans::upTo / scale / animate  the whole 13.6 s reading order
-//   Element::onPath       the ring labels: one text leaf per label whose
-//                         BASELINE is its own ring, so a month is shaped
-//                         and kerned as a run and the engraver's rule —
-//                         glyph-up outward, never flipped — falls out of
-//                         the orientation rather than being applied
+//   text() x ~230         the ring labels, ONE ELEMENT PER GLYPH: each
+//                         glyph is placed and rotated on its own bearing
+//
+// Run:
+//   ./build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
+//       src/sketch/sketches/nightingale_coxcomb.cpp \
+//       --frame /tmp/nightingale_coxcomb.png
 //
 // The 13.6 s mark is the settled plate. Earlier moments show the argument
 // being made: 2.2 s is diagram 1 growing clockwise out of July 1854.
@@ -269,68 +271,62 @@ struct NightingaleCoxcomb : sketch::Sketch {
   sk_sp<SkTypeface> faceDisplay, faceGrotesque, faceLabel, faceScript;
 
   // ------------------------------------------------------------------
-  // A LABEL ON A RING is one text leaf whose BASELINE IS THE RING, in one
-  // of the plate's two registers:
+  // per-glyph text on a circle. `Element::onPath` runs a whole text leaf
+  // along one path; these labels need a bearing per glyph in two
+  // different registers, and layouts::AlongPath throws the tangent away
+  // (it passes nullptr to getPosTan), so every glyph is placed and
+  // rotated by hand.
   //
-  //   tangential: the baseline lies along the ring, so glyph-up points
-  //               radially outward everywhere — which is why the labels
-  //               at the bottom of a wheel read upside down, exactly as
-  //               they do on the lithograph. Never flipped.
-  //   radial:     the baseline runs out along the spoke, which is how the
-  //               campaign annotations are set.
-  //
-  // The text node IS the ring: its own box is what the path resolves
-  // against, so it carries the wheel's diameter and is centred on the
-  // wheel. Kerning survives, because the run is shaped once as a run.
-  Element arcLabel(const sigil::weave::TextStyle& style, SkPoint centre,
-                   const std::string& content, float bearingDeg, float radius,
-                   float tracking, float delayMs, const std::string& key) {
-    sigil::weave::TextStyle run = style;
-    run.shaping.letterSpacing = tracking;
-    // The plate's bearings run clockwise from 12 o'clock; a circle on a
-    // box starts at 3 o'clock, so the fraction is the bearing turned back
-    // a quarter.
-    const float f = std::fmod(2.0f + (bearingDeg - 90.0f) / 360.0f, 1.0f);
-    return text(toU8(content), run)
-        .key(key)
-        .width(Dim(2.0f * radius))
-        .height(Dim(2.0f * radius))
-        .centerAt(centre)
-        .onPath(TextPath{.path = shapes::circle(),
-                         .at = f,
-                         .align = TextPath::Align::Center,
-                         .offset = 0.0f,
-                         .autoFlip = false,
-                         .orient = TextPath::Orient::Tangent})
-        .opacity(fadeIn(delayMs, content.size()));
-  }
+  //   tangential: glyph-up points radially outward, advance follows the
+  //               clockwise tangent  -> rotation = bearing
+  //   radial:     advance runs outward along the spoke
+  //               -> rotation = bearing - 90
+  void arcRun(std::vector<Element>& out, sketch::SketchContext& ctx,
+              const sigil::weave::TextStyle& style, SkPoint centre,
+              const std::string& content, float bearingDeg, float radius,
+              bool radial, float tracking, float delayMs,
+              const std::string& keyBase) {
+    if (content.empty() || radius <= 1.0f) return;
 
-  /** …and the OTHER register: an annotation set out along its spoke. Its
-   *  baseline is a straight radius, not the ring, so it is a rotation and
-   *  a placement rather than a curve — the run is measured once to find
-   *  where its middle falls on the spoke. */
-  Element spokeLabel(sketch::SketchContext& ctx,
-                     const sigil::weave::TextStyle& style, SkPoint centre,
-                     const std::string& content, float bearingDeg, float radius,
-                     float tracking, float delayMs, const std::string& key) {
-    sigil::weave::TextStyle run = style;
-    run.shaping.letterSpacing = tracking;
-    Element leaf = text(toU8(content), run);
-    const float half = ctx.measure(leaf).width() * 0.5f;
-    return leaf.key(key)
-        .centerAt(polar(centre, radius + half, bearingDeg))
-        .rotate(bearingDeg - 90.0f)
-        .transformOrigin(0.5f, 0.5f)
-        .opacity(fadeIn(delayMs, content.size()));
-  }
+    std::vector<float> widths;
+    widths.reserve(content.size());
+    float total = 0;
+    for (char c : content) {
+      float w =
+          (c == ' ')
+              ? style.shaping.fontSize * 0.30f
+              : ctx.measure(text(std::u8string(1, (char8_t)c), style)).width();
+      widths.push_back(w);
+      total += w;
+    }
+    total += tracking * (float)(content.size() - 1);
 
-  /** The label's arrival. The glyphs used to fade one after another and
-   *  the declared moment stands long after either has settled, so the run
-   *  fades as a run and costs one animated property instead of one node
-   *  per glyph. */
-  static Animatable<float> fadeIn(float delayMs, size_t glyphs) {
-    return animate(from(0.0f).to(1.0f),
-                   ramp(delayMs, 180.0f + 16.0f * (float)glyphs));
+    float cum = 0;
+    for (size_t i = 0; i < content.size(); ++i) {
+      const float w = widths[i];
+      const float along = cum + w * 0.5f - total * 0.5f;
+      cum += w + tracking;
+      if (content[i] == ' ') continue;
+
+      SkPoint at;
+      float rotate = 0;
+      if (radial) {
+        at = polar(centre, radius + along, bearingDeg);
+        rotate = bearingDeg - 90.0f;
+      } else {
+        const float b = bearingDeg + (along / radius) / kDeg;
+        at = polar(centre, radius, b);
+        rotate = b;
+      }
+      out.push_back(
+          text(std::u8string(1, (char8_t)content[i]), style)
+              .key(keyBase + std::to_string(i))
+              .centerAt(at)
+              .rotate(rotate)
+              .transformOrigin(0.5f, 0.5f)
+              .opacity(animate(from(0.0f).to(1.0f),
+                               ramp(delayMs + (float)i * 16.0f, 180.0f))));
+    }
   }
 
   // ------------------------------------------------------------------
@@ -611,27 +607,27 @@ struct NightingaleCoxcomb : sketch::Sketch {
         const float bearing = (float)m * 30.0f + 15.0f;
         const float delay = (startSec + (float)m * 0.028f) * 1000.0f;
         const bool twoLines = mo.line2[0] != '\0';
-        labels.push_back(arcLabel(
-            style, centre, mo.label, bearing, base + (twoLines ? step : 0.0f),
-            0.5f, delay, std::string(tag) + "L" + std::to_string(m) + "a"));
+        arcRun(labels, ctx, style, centre, mo.label, bearing,
+               base + (twoLines ? step : 0.0f), false, 0.5f, delay,
+               std::string(tag) + "L" + std::to_string(m) + "a");
         if (twoLines)
-          labels.push_back(arcLabel(
-              style, centre, mo.line2, bearing, base, 0.5f, delay + 60.0f,
-              std::string(tag) + "L" + std::to_string(m) + "b"));
+          arcRun(labels, ctx, style, centre, mo.line2, bearing, base, false,
+                 0.5f, delay + 60.0f,
+                 std::string(tag) + "L" + std::to_string(m) + "b");
       }
     };
     ringLabels(kD1, kC1, kR1, 172.0f, labelStyle, 26.0f, 24.0f, tLabel1, "a");
     ringLabels(kD2, kC2, kR2, 160.0f, smallLabel, 14.0f, 14.0f, tLabel2, "b");
 
     // the campaign annotations — set RADIALLY along their spoke
-    labels.push_back(spokeLabel(ctx, campaign, kC1, "BULGARIA", 358.0f, 150.0f,
-                                2.0f, tLabel1 * 1000 + 380, "bulg"));
-    labels.push_back(spokeLabel(ctx, campaign, kC1, "CRIMEA", 94.0f, 268.0f,
-                                1.8f, tLabel1 * 1000 + 460, "crim"));
+    arcRun(labels, ctx, campaign, kC1, "BULGARIA", 358.0f, 150.0f, true, 2.0f,
+           tLabel1 * 1000 + 380, "bulg");
+    arcRun(labels, ctx, campaign, kC1, "CRIMEA", 94.0f, 268.0f, true, 1.8f,
+           tLabel1 * 1000 + 460, "crim");
     // the left wheel's year marker, upside down at 6 o'clock — which is
     // simply the outward-up rule arriving at the bottom of the circle
-    labels.push_back(arcLabel(smallLabel, kC2, "1856", 180.0f, 134.0f, 0.6f,
-                              tLabel2 * 1000 + 300, "y1856"));
+    arcRun(labels, ctx, smallLabel, kC2, "1856", 180.0f, 134.0f, false, 0.6f,
+           tLabel2 * 1000 + 300, "y1856");
 
     for (Element& e : labels) root.child(std::move(e));
 

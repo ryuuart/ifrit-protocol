@@ -28,6 +28,15 @@
 // wears the breathing SDF star. Routes draw themselves on via staggered
 // timeline trims. The octilinear legs hold dx == dy exactly where they are
 // pure diagonals; the routers snap the rest.
+//
+// EDIT THESE FIRST
+//   the five reveal delays in setup() — the order the map draws itself
+//                    on, and therefore what a plate taken before the last
+//                    one lands would be missing.
+//   routeW           — the weight every construction is measured in: the
+//                    Thames band is a multiple of it, the casings are
+//                    fractions of it, and the legend's swatches follow.
+//   the palette block — one colour per line, and the legend reads them.
 
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/brush/Brushes.h>

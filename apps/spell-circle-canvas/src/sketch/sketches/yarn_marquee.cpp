@@ -6,12 +6,9 @@
 //   THE PICTURE  a single compose column — a rule down each side, a
 //     heading, then numbered sectors with `grow()` boxes between them so
 //     the spacing distributes itself over whatever height the column is
-//     given. It is baked ONCE, whole, and each arc cuts its own quarter
-//     out of it with `MeshStyle::uvTransform` — which also carries the
-//     mirror in x, because a swept ribbon charts u ACROSS the profile
-//     and the wall therefore samples it from the far side. Slicing the
-//     picture into four surfaces would say the same thing with four
-//     rasters and a canvas transform; a uv matrix says it with neither.
+//     given. It is baked once and sliced into four tiles, each mirrored
+//     in x, because a swept ribbon charts u ACROSS the profile and the
+//     wall therefore samples it from the far side.
 //   THE RAIL     `curve::hangFrames` over one quarter of a closed
 //     spline, four windows covering it end to end. Hang frames put the
 //     binormal along world-down, so the band never rolls upside down
@@ -33,8 +30,7 @@
 //   the winding's lat/azi factors — how many times the yarn crosses
 //                itself, which is what makes the sort do any work.
 
-#include <include/core/SkMatrix.h>
-#include <sigilcompose/texture/Texture.h>
+#include <include/core/SkSurface.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/curve/Curve.h>
@@ -44,7 +40,6 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
-#include <memory>
 #include <vector>
 
 namespace sketch = sigil::sketch;
@@ -138,18 +133,8 @@ struct YarnMarquee final : sketch::Sketch {
     float depth = 0;
     int tile = 0;
   };
-  /** The scene behind the column, and the one picture it painted. The
-   *  scene owns the surface, so it is held for as long as the image. */
-  std::shared_ptr<TextureScene> column;
-  sk_sp<SkImage> banner;
+  std::vector<sk_sp<SkImage>> tiles;
   std::vector<Arc> arcs;
-
-  /** ONE ARC'S QUARTER OF THE COLUMN, in uv: mirrored in x, and the kth
-   *  of kTiles bands down the picture. */
-  static SkMatrix window(int k) {
-    return SkMatrix::Translate(1.0f, (float)k / (float)kTiles) *
-           SkMatrix::Scale(-1.0f, 1.0f / (float)kTiles);
-  }
 
   void draw(SkCanvas& canvas) const {
     camera::Camera view;
@@ -158,10 +143,11 @@ struct YarnMarquee final : sketch::Sketch {
     view.fovYDeg = 46;
     for (const Arc& arc : arcs) {
       render::MeshStyle cloth;
-      cloth.texture = banner;
-      cloth.uvTransform = window(arc.tile);
+      cloth.texture = tiles.empty() ? nullptr : tiles[(size_t)arc.tile];
       cloth.baseColor = {1, 1, 1, 1};
-      cloth.lit = false;
+      cloth.ambient = {1, 1, 1, 1};
+      cloth.lights = {};
+      cloth.specular = 0;
       cloth.backfaceCull = false;
       render::drawMesh(canvas, arc.cloth, glm::mat4(1.0f), view, kCanvas,
                        cloth);
@@ -173,12 +159,24 @@ struct YarnMarquee final : sketch::Sketch {
     ctx.background({0.031f, 0.031f, 0.051f, 1});
     ctx.captureAt(1.0);
 
-    // The picture, once and whole. What each arc shows is a window onto
-    // it, and the window is a uv matrix rather than a slice.
+    // The picture, once, then sliced. Mirroring in x is not a taste
+    // decision: the ribbon's u runs across the profile from the side the
+    // wall is read from, so an unmirrored tile reads backwards.
+    const float total = (float)kTiles * kTilePx;
     if (ctx.fonts) {
-      column = TextureScene::make({kAcrossPx, kTiles * kTilePx}, *ctx.fonts);
-      column->render(strip((float)kTiles * kTilePx));
-      banner = column->image();
+      const sk_sp<SkPicture> art = snapshot(
+          box().child(strip(total)), *ctx.fonts, {(float)kAcrossPx, total});
+      for (int k = 0; k < kTiles; ++k) {
+        sk_sp<SkSurface> surface =
+            SkSurfaces::Raster(SkImageInfo::MakeN32Premul(kAcrossPx, kTilePx));
+        SkCanvas* c = surface->getCanvas();
+        c->clear(SK_ColorTRANSPARENT);
+        c->translate((float)kAcrossPx, 0);
+        c->scale(-1, 1);
+        c->translate(0, -(float)k * kTilePx);
+        if (art) c->drawPicture(art);
+        tiles.push_back(surface->makeImageSnapshot());
+      }
     }
 
     const curve::Spline3 yarn = winding();

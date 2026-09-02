@@ -123,7 +123,8 @@ struct PopStamps final : sketch::Sketch {
 
     render::MeshStyle sprites;
     sprites.baseColor = {1, 1, 1, 1};
-    sprites.lit = false;
+    sprites.ambient = {0.85f, 0.85f, 0.9f, 1};
+    sprites.specular = 0;
     sprites.texture = atlas;
     render::drawMesh(canvas, plates, camera::place({330, 60, 0}, -16), view,
                      kCanvas, sprites);
@@ -134,7 +135,8 @@ struct PopStamps final : sketch::Sketch {
 
     render::MeshStyle glint;
     glint.baseColor = {1.0f, 0.95f, 0.8f, 1};
-    glint.lit = false;
+    glint.ambient = {0.85f, 0.8f, 0.7f, 1};
+    glint.specular = 0;
     render::drawMesh(canvas, glints, crownPlace, view, kCanvas, glint);
 
     render::MeshStyle jade = steel;

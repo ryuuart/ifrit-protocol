@@ -89,12 +89,11 @@ struct PopPrims final : sketch::Sketch {
     view.target = {0, 0, 0};
     view.fovYDeg = 42;
 
-    // No view-dependent term anywhere on this sheet: 1 and 2 must be
-    // comparable, so what each panel shows is its colour and nothing a
-    // light did to it.
     render::MeshStyle flat;
     flat.baseColor = {1, 1, 1, 1};
-    flat.lit = false;
+    flat.ambient = {0.34f, 0.34f, 0.38f, 1};
+    flat.specular = 0;  // no view-dependent term: 1 and 2 must be comparable
+    flat.rim = 0;
 
     render::MeshStyle lane = flat;
     lane.primColorLane = "Color";
@@ -105,6 +104,7 @@ struct PopPrims final : sketch::Sketch {
                      kCanvas, flat);
 
     render::MeshStyle stamped = lane;
+    stamped.ambient = {0.9f, 0.9f, 0.95f, 1};
     render::drawMesh(canvas, pieces, camera::place({380, 10, 0}), view, kCanvas,
                      stamped);
   }

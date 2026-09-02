@@ -35,7 +35,6 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
 #include <sigilcompose/core/Material.h>
-#include <sigilcompose/core/Patterns.h>
 #include <sigilcompose/typography/Type.h>
 #include <sigilsketch/canvas/Sketch.h>
 
@@ -71,8 +70,18 @@ const SkColor4f kDim{0.55f, 0.60f, 0.70f, 1};
 const SkColor4f kFrame{0.24f, 0.28f, 0.36f, 1};
 
 /** The "is it there?" backdrop. Anything hidden by a gate shows this. */
-Material checker() {
-  return patterns::checker(8.0f, hex(0x1a1c24), hex(0x282c38)).material();
+const sk_sp<SkImage>& checker() {
+  static const sk_sp<SkImage> img = [] {
+    sk_sp<SkSurface> s = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(16, 16));
+    SkCanvas* c = s->getCanvas();
+    c->clear(SkColorSetARGB(255, 26, 28, 36));
+    SkPaint p;
+    p.setColor(SkColorSetARGB(255, 40, 44, 56));
+    c->drawRect(SkRect::MakeXYWH(0, 0, 8, 8), p);
+    c->drawRect(SkRect::MakeXYWH(8, 8, 8, 8), p);
+    return s->makeImageSnapshot();
+  }();
+  return img;
 }
 
 /** THE MATTE, baked at panel size so its local matrix is the identity.
@@ -144,7 +153,8 @@ Element cell(float w, float h, Element inner) {
       .width(w)
       .height(h)
       .stroke(stroke(1.0f, Fill::color(kFrame)))
-      .child(box().inset(0).fill(checker()))
+      .child(box().inset(0).fill(
+          Material::image(checker(), SkTileMode::kRepeat, SkTileMode::kRepeat)))
       .child(std::move(inner));
 }
 

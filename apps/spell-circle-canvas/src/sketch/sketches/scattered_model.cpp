@@ -25,7 +25,6 @@
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/codec/Decode.h>
 #include <sigilgeometry/mesh/pop/Points.h>
-#include <sigilgeometry/mesh/pop/Pop.h>
 #include <sigilloader/Loader.h>
 #include <sigilmaterial/kit/Surface.h>
 #include <sigilsketch/set/Set.h>
@@ -95,28 +94,29 @@ gm::Mesh generated() {
 }
 
 /** THE DUST: points on the subject's surface, each carrying the size and
- *  the tint its stamp is drawn at. Both lanes are written by the chain
- *  rather than by hand — the height a point stands at decides its
- *  colour, a seeded hash its size — so the cloud describes the whole
- *  look and the stamp is one small body repeated.
- *
- *  The scatter is seeded and both filters read that seed, so the cloud
- *  is the same cloud on every run and on every tier; cooking it here
- *  rather than carrying the chain is what makes it a value a member can
- *  hold from setup. */
+ *  the tint its stamp is drawn at. Both lanes are written from the point
+ *  itself — its height decides its colour, its index its size — so the
+ *  cloud describes the whole look and the stamp is one small body
+ *  repeated. */
 gm::Cloud dustOver(const gm::Mesh& subject) {
-  const gm::Cloud seedPoints = gm::points::onMesh(subject, kMotes, 3);
+  gm::Cloud dust = gm::points::onMesh(subject, kMotes, 3);
   float low = 0.0f, high = 0.0f;
-  for (const glm::vec3& point : seedPoints.positions) {
+  for (const glm::vec3& point : dust.positions) {
     low = std::min(low, point.y);
     high = std::max(high, point.y);
   }
-  return gm::pop::on(seedPoints)
-      .rampBy(gm::pop::Lane::P, 1,
-              {{0.35f, 0.52f, 0.95f, 1.0f}, {0.97f, 0.70f, 0.40f, 1.0f}}, low,
-              std::max(high, low + 1e-3f))
-      .vary(0.436f, 0.975f)
-      .cloud();
+  const float span = std::max(high - low, 1e-3f);
+  std::vector<glm::vec4>& tint = dust.color("tint");
+  std::vector<float>& size = dust.scalar("size", 1.0f);
+  for (size_t i = 0; i < dust.size(); ++i) {
+    const float up = (dust.positions[i].y - low) / span;
+    tint[i] = {0.35f + 0.62f * up, 0.52f + 0.18f * up, 0.95f - 0.55f * up,
+               1.0f};
+    // A varied size read off the index rather than off a generator, so
+    // the cloud is the same cloud on every run and on every tier.
+    size[i] = 0.55f + 0.85f * (0.5f + 0.5f * std::sin((float)i * 2.399963f));
+  }
+  return dust;
 }
 
 }  // namespace

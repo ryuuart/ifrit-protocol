@@ -150,13 +150,14 @@ struct FloatingPanels final : sketch::Sketch {
                            0.95f);
 
     // The curved sheet: the same kind of picture, mapped per triangle.
-    // Unlit on purpose — a screen is its own light, and a light term on
-    // it would read as a smear across the curve. One field says that:
-    // no ambient under the picture, no emitter, specular or rim over it.
+    // Unlit on purpose — a screen emits, and a light term on it would
+    // read as a smear across the curve.
     render::MeshStyle emissive;
     emissive.texture = screen;
     emissive.baseColor = {1, 1, 1, 1};
-    emissive.lit = false;
+    emissive.ambient = {0.9f, 0.9f, 0.9f, 1};
+    emissive.lights = {};
+    emissive.specular = 0;
     render::drawMesh(canvas, curved, camera::place({0, -160, 60}, 0, 10), view,
                      kCanvas, emissive);
   }
