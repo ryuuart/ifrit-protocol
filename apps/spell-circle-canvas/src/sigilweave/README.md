@@ -744,9 +744,14 @@ settled" is a second answer that can disagree.
 **The floor under a frame that cannot be composed in time.**
 `KnuthPlassOptions::budgetMicroseconds` is a degrade and not a policy: a
 block the composer cannot finish inside it is filled greedily for that
-frame and counted in `ParagraphLayout::degradedBlocks`. A layout that
-reports degrades every frame is asking for a longer budget or a shorter
-block, not for a different breaker.
+frame and counted in `ParagraphLayout::degradedBlocks`. A degrade drops
+the whole setting and not the breaker alone — the hyphens, the
+justification passes past the word gaps, and the widow rule (the one keep
+that has to count lines the frame cannot see) go with it, while the keeps
+that cost nothing are enforced as always — and everything is back the next
+frame the budget is met. A layout that reports degrades every frame is
+asking for a longer budget or a shorter block, not for a different
+breaker.
 
 **The budget the arms hold.** `weave_layout_bench` carries one arm per
 mechanism — the paragraph controls, hyphenation, the justification ranges,

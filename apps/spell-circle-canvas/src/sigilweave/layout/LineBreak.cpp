@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <deque>
 #include <vector>
 
 #include "ParagraphLayoutInternal.h"
@@ -1547,6 +1548,12 @@ ParagraphLayout layoutParagraph(FontContext& fontContext, Paragraph& paragraph,
   size_t nextInterval = 0;
   int lastLineUsed = -1;
   std::vector<PlacedBlock> placedBlocks;
+  // The cheapened copies a degraded frame is set from — a block that
+  // degrades is set from ITS copy, and everything downstream reads the
+  // setting the lines were actually made under. A deque because a record
+  // points at one: it allocates nothing until a block degrades, and never
+  // moves what it holds.
+  std::deque<Block> cheapBlocks;
   float lastMeasure = 0;
   for (size_t blockIndex = 0; blockIndex < blocks.size(); ++blockIndex) {
     const Block& block = blocks[blockIndex];
@@ -1587,18 +1594,39 @@ ParagraphLayout layoutParagraph(FontContext& fontContext, Paragraph& paragraph,
       knuthPlassBlock(fontContext, paragraph, intervalSequence, block,
                       nextInterval, result, lastIntervalUsed, overflowWord,
                       outOfBudget);
+    // WHAT A DEGRADE ACTUALLY DROPS. The composer ran out of budget on
+    // this block, so the frame is set greedily rather than late — and
+    // greedily means the whole setting, not the breaker alone. The
+    // controls that cost a frame something go with it: the hyphens (a
+    // break the greedy fitter would have to reserve room for and then
+    // weigh), the justification passes past the word gaps (letter spacing
+    // and glyph scaling, both a second and third fitting of every line),
+    // and the widow rule (the one keep that has to count lines the frame
+    // cannot see, which means shaping past its own end). The keeps that
+    // cost nothing — orphans, keep-with-next, all-lines-together — are
+    // enforced as they always are. Everything is back the next frame the
+    // budget is met.
+    const Block* setFrom = &block;
     if (outOfBudget) {
-      // The composer ran out of budget on this block: it placed nothing,
-      // and the frame is set greedily rather than late.
       ++result.degradedBlocks;
       overflowWord = ~0u;
+      cheapBlocks.push_back(block);
+      Block& cheap = cheapBlocks.back();
+      cheap.options.hyphenation.enabled = false;
+      JustificationOptions& justification = cheap.options.justification;
+      justification.letterSpacingMinimum = justification.letterSpacing;
+      justification.letterSpacingMaximum = justification.letterSpacing;
+      justification.glyphScaleMinimum = justification.glyphScale;
+      justification.glyphScaleMaximum = justification.glyphScale;
+      cheap.style.keep.widowLines = 0;
+      setFrom = &cheap;
     }
     if ((!optimizing && !kept) || outOfBudget)
       lastIntervalUsed =
-          greedyBlock(fontContext, paragraph, intervalSequence, block,
+          greedyBlock(fontContext, paragraph, intervalSequence, *setFrom,
                       nextInterval, result, overflowWord);
     if (result.runs.size() > firstRun) {
-      PlacedBlock entry{&block, firstRun, result.runs.size(), 1};
+      PlacedBlock entry{setFrom, firstRun, result.runs.size(), 1};
       for (size_t runIndex = firstRun + 1; runIndex < result.runs.size();
            ++runIndex)
         if (result.runs[runIndex].lineIndex !=
