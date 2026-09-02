@@ -99,6 +99,17 @@ are in, one final pass brings every sketch up to the new vocabulary
 and the plates are rebased then. "Everything builds" during a library
 pass means the libraries and their tests.
 
+Before writing a mechanism, look for it in the dependencies. Diligent
+(with DiligentFX and DiligentTools), Skia, choreograph, glm, HarfBuzz,
+ICU, OpenImageIO, OpenUSD and Slang each ship far more than the slice
+this tree first reached for — DiligentFX carries a PBR renderer with
+image-based lighting precomputation, an environment-map renderer and
+post-processing; Skia carries path ops, contour measures, runtime
+effects, encoders and a paragraph layout. Read the dependency's
+headers and its shipped docs under `build/vcpkg_installed/.../share`
+first; write it here only when ours must differ on a point the comment
+states.
+
 A change that cannot be made without the whole tree re-verifying is
 telling you the code is too integrated: split the library or feature
 so the change is local. That is a design signal, never a reason for
