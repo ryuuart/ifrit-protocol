@@ -855,10 +855,16 @@ struct ChaucerAstrolabe : sketch::Sketch {
     return Material::linearUnit(
         u({kCx - kMaterR * 0.95f, kCy + kMaterR * 0.95f}),
         u({kCx + kMaterR * 0.85f, kCy - kMaterR * 1.05f}),
-        {{0.0f, brassRamp(level - 0.11f)},
+        // EVEN LATTEN. The object is a flat sheet of yellow latten under
+        // a museum's own even light: the swing across it is a sheen, not a
+        // key. A quarter of the ramp's range from corner to corner makes
+        // the mater's centre the darkest region of the picture — which is
+        // exactly where all seventy-three drawn circles live, so the
+        // material wins over the geometry the plate exists to show.
+        {{0.0f, brassRamp(level - 0.045f)},
          {0.44f, brassRamp(level)},
-         {0.80f, brassRamp(level + 0.07f)},
-         {1.0f, brassRamp(level + 0.13f)}});
+         {0.80f, brassRamp(level + 0.030f)},
+         {1.0f, brassRamp(level + 0.055f)}});
   }
   Material brassDisc(SkPoint c, float rad, float level = 0.5f) const {
     return brass(
@@ -872,11 +878,12 @@ struct ChaucerAstrolabe : sketch::Sketch {
     auto p = [&](SkPoint q) {
       return SkPoint{q.fX - r.left(), q.fY - r.top()};
     };
-    return linearGradient(p({kCx - kMaterR * 0.95f, kCy + kMaterR * 0.95f}),
-                          p({kCx + kMaterR * 0.85f, kCy - kMaterR * 1.05f}),
-                          {brassRamp(level - 0.11f), brassRamp(level),
-                           brassRamp(level + 0.07f), brassRamp(level + 0.13f)},
-                          {0.0f, 0.44f, 0.80f, 1.0f});
+    return linearGradient(
+        p({kCx - kMaterR * 0.95f, kCy + kMaterR * 0.95f}),
+        p({kCx + kMaterR * 0.85f, kCy - kMaterR * 1.05f}),
+        {brassRamp(level - 0.045f), brassRamp(level), brassRamp(level + 0.030f),
+         brassRamp(level + 0.055f)},
+        {0.0f, 0.44f, 0.80f, 1.0f});
   }
 
   // =========================================================================
@@ -888,7 +895,11 @@ struct ChaucerAstrolabe : sketch::Sketch {
                  .key("plate")
                  .shape(shapes::circle())
                  .clip(true)
-                 .fill(brassDisc({kCx, kCy}, kR, 0.255f));
+                 // The plate is lifted off the bottom of the ramp: a
+                 // recessed disc drawn at a quarter of the range put the
+                 // engraved circle family on the darkest brass on the
+                 // object, where an engraved hairline cannot survive.
+                 .fill(brassDisc({kCx, kCy}, kR, 0.44f));
 
     // Wear: brass handled for 700 years is bright on the high edges and dark
     // in the cuts, and an unpolished latten greens in its recesses first. A
@@ -936,8 +947,12 @@ struct ChaucerAstrolabe : sketch::Sketch {
     for (int i = 1; i <= 44; ++i) {
       const float h = (float)(i * 2);
       const bool five = (i % 5) == 0;
-      g.child(cut({0, almCy(h)}, almR(h), five ? 1.7f : 1.3f,
-                  five ? 0.62f : 0.44f, five ? 0.30f : 0.20f,
+      // The almucantar family is the plate's whole subject: on the object
+      // they are ~30 crisp lines filling the upper half. Cut at less than
+      // half opacity they are a smooth disc with two or three faint rings
+      // on it, whatever the brass is doing.
+      g.child(cut({0, almCy(h)}, almR(h), five ? 1.9f : 1.5f,
+                  five ? 0.86f : 0.70f, five ? 0.46f : 0.34f,
                   "alm" + std::to_string(i))
                   .opacity(animate(from(0.0f).to(1.0f),
                                    ramp(tAlmu * 1000 + (float)(44 - i) * 38.0f,
