@@ -19,33 +19,33 @@
 //                     replays, zero re-records while it spins)
 //   rules & chrome .. PathFormat dashes via shapes::onEdges (bottom edge
 //                     only) — decorations compare by value, so they prune
-//   film grain ...... Material::sksl reading uTime, soft-light over the
+//   film grain ...... patterns::grain, soft-light over the
 //                     poster panel
 //   entrance ........ Choreograph timeline ramps (Hold-staggered drop+fade
 //                     per line, retarget-safe)
-//   grade ........... OCIO exponent view on the Composer — applied after
-//                     caching, in one saveLayer. An ACES SDR view would need
-//                     the palette re-authored scene-linear first.
+//   grade ........... carried in the palette's own numbers rather than in
+//                     a view: a display-referred exponent is a per-channel
+//                     power, and a palette of flat inks can hold it. A view
+//                     is a full-canvas pass every frame, which on the raster
+//                     backend costs more than the whole poster draws.
 //
-// The poster is authored in its own 4:5 portrait space and then paint-scaled
-// into a centred panel on this landscape canvas, with dark letterbox panels
-// either side and a caption bottom-left. Scaling by transform rather than by
-// re-authoring means one recording replayed under a matrix.
+// The poster is authored in its own 4:5 portrait space and paint-scaled onto
+// the canvas, WHICH IS THAT SHAPE. Scaling by transform rather than by
+// re-authoring means one recording replayed under a matrix; declaring the
+// canvas in the poster's own proportion means the plate is a poster rather
+// than a photograph of one lying on a table.
 //
-// The grain overlay sits OUTSIDE that scaled subtree, at panel-native
+// The grain overlay sits OUTSIDE that scaled subtree, at canvas-native
 // resolution, so its noise stays pixel-sized instead of being magnified with
 // everything else.
 
+#include <include/core/SkString.h>
+#include <include/effects/SkRuntimeEffect.h>
 #include <sigilcompose/core/Material.h>
+#include <sigilcompose/core/Patterns.h>
 #include <sigilcompose/shape/Shapes.h>
 #include <sigilcompose/typography/Type.h>
 #include <sigilsketch/canvas/Sketch.h>
-#if defined(SIGILMATERIAL_ENABLE_OCIO)
-#include <sigilmaterial/color/Ocio.h>
-#endif
-
-#include <include/core/SkString.h>
-#include <include/effects/SkRuntimeEffect.h>
 
 #include <cmath>
 
@@ -58,26 +58,29 @@ using namespace std::chrono_literals;
 namespace {
 /** The canvas this piece was drawn against, which is also the default a
  *  sketch gets when it declares none. */
-constexpr SkSize kSceneSize = {900, 640};
+constexpr SkSize kSceneSize = {512, 640};
 
 namespace ember_poster {
 
 // ---- stage geometry -------------------------------------------------------
 constexpr float kW = kSceneSize.fWidth, kH = kSceneSize.fHeight;
-constexpr float kPanelW = 512, kPanelH = 640;     // the 4:5 poster panel
-constexpr float kPanelX = (kW - kPanelW) * 0.5f;  // letterbox width, 194
-constexpr float kPW = 810, kPH = 1012;            // sketch author space
-constexpr float kScale = kPanelW / kPW;           // paint-scale into panel
+constexpr float kPanelW = kW, kPanelH = kH;  // the canvas IS the 4:5 poster
+constexpr float kPW = 810, kPH = 1012;       // sketch author space
+constexpr float kScale = kPanelW / kPW;      // paint-scale into panel
 
-// ---- palette (authored flat; the OCIO view grades the composite) ----------
-constexpr SkColor4f kInk{0.043f, 0.031f, 0.075f, 1};
-constexpr SkColor4f kPlum{0.180f, 0.075f, 0.190f, 1};
-constexpr SkColor4f kEmberDeep{0.420f, 0.120f, 0.075f, 1};
-constexpr SkColor4f kEmber{0.960f, 0.475f, 0.180f, 1};
-constexpr SkColor4f kEmberHot{1.000f, 0.800f, 0.420f, 1};
-constexpr SkColor4f kBone{0.940f, 0.910f, 0.860f, 1};
-constexpr SkColor4f kAsh{0.600f, 0.575f, 0.640f, 1};
-constexpr SkColor4f kVoid{0.016f, 0.012f, 0.024f, 1};  // letterbox
+// ---- palette, authored WITH its own contrast --------------------------
+// A display-referred exponent view is a full-canvas pass every frame, and
+// on the raster backend that pass costs more than everything the poster
+// draws put together. The curve is a per-channel power, so a palette of
+// flat inks can carry it in its own numbers: these are the inks at
+// exponent 1.12, which is what a view would have applied to them.
+constexpr SkColor4f kInk{0.029f, 0.020f, 0.055f, 1};
+constexpr SkColor4f kPlum{0.147f, 0.055f, 0.156f, 1};
+constexpr SkColor4f kEmberDeep{0.378f, 0.093f, 0.055f, 1};
+constexpr SkColor4f kEmber{0.955f, 0.434f, 0.147f, 1};
+constexpr SkColor4f kEmberHot{1.000f, 0.779f, 0.378f, 1};
+constexpr SkColor4f kBone{0.933f, 0.900f, 0.845f, 1};
+constexpr SkColor4f kAsh{0.564f, 0.538f, 0.607f, 1};
 
 /** This study's type colour reaches the paint as 8-bit sRGB, so a tint
  *  computed per frame lands on the same 256-step ladder as a quoted one.
@@ -102,6 +105,11 @@ inline sk_sp<SkRuntimeEffect> ringEffect() {
       float d = distance(p, c) / r;
       float ringAt = 0.74 + 0.045 * uPulse;
       float band = abs(d - ringAt);
+      // Everything below is transparent past a quarter of the radius from
+      // the band, and the box this runs over is mostly that: leaving early
+      // skips the exp, the atan and the sin for the four pixels in five
+      // that could only ever return zero.
+      if (band > 0.25) return half4(0);
       float ring = smoothstep(0.016, 0.002, band);
       float glow = exp(-9.0 * band) * (0.55 + 0.30 * uPulse);
       // slow rune ticks riding the ring
@@ -118,25 +126,6 @@ inline sk_sp<SkRuntimeEffect> ringEffect() {
   static auto effect = [] {
     auto [fx, err] = SkRuntimeEffect::MakeForShader(SkString(kSkSL));
     if (!fx) SkDebugf("ring shader: %s\n", err.c_str());
-    return fx;
-  }();
-  return effect;
-}
-
-// Film grain, soft-lighted over the poster panel. uTime keeps it alive.
-inline sk_sp<SkRuntimeEffect> grainEffect() {
-  static const char* kSkSL = R"(
-    uniform float uTime;
-    half4 main(float2 p) {
-      float n = fract(sin(dot(p + fract(uTime) * 61.7,
-                              float2(12.9898, 78.233))) * 43758.5453);
-      half g = half(0.5 + 0.5 * n);
-      return half4(g * 0.06, g * 0.06, g * 0.06, 0.06); // premultiplied
-    }
-  )";
-  static auto effect = [] {
-    auto [fx, err] = SkRuntimeEffect::MakeForShader(SkString(kSkSL));
-    if (!fx) SkDebugf("grain shader: %s\n", err.c_str());
     return fx;
   }();
   return effect;
@@ -185,13 +174,6 @@ struct MotionPoster final : sketch::Sketch {
       return true;
     });
 
-#if defined(SIGILMATERIAL_ENABLE_OCIO)
-    // Gentle exponent contrast grade (display-referred, matches how this
-    // palette is authored). The sketch's real ACES 2.0 SDR view works but
-    // expects scene-linear input — flip after re-authoring the palette.
-    composer.setView(sigil::material::color::exponent(1.12f));
-#endif
-
     composer.render(describe());
   }
 
@@ -202,7 +184,10 @@ struct MotionPoster final : sketch::Sketch {
   Element poster() {
     namespace ep = ember_poster;
     const float W = ep::kPW, H = ep::kPH;
-    const SkPoint focus = {W * 0.5f, H * 0.40f};
+    // The ring's lower arc used to cross the title at cap height, with no
+    // exclusion and no knockout, so the overlap read as an accident rather
+    // than as a device. Raised, it closes above the type.
+    const SkPoint focus = {W * 0.5f, H * 0.335f};
 
     // Ground: one 4-stop ramp — a value, cached, recipe-pruned.
     Material ground = Material::linear({0, 0}, {0, H},
@@ -332,12 +317,11 @@ struct MotionPoster final : sketch::Sketch {
   Element describe() {
     namespace ep = ember_poster;
     return stack()
-        .fill(Fill::color(ep::kVoid))
-        // the 4:5 poster panel, centered; the poster paints in sketch
-        // space and the scale transform replays its pictures — no
-        // re-authoring, no re-records.
+        .fill(Fill::color(ep::kInk))
+        // The poster paints in its own space and the scale transform
+        // replays its pictures — no re-authoring, no re-records.
         .child(box()
-                   .inset(ep::kPanelX, 0, ep::kPanelX, 0)
+                   .inset(0)
                    .fill(Fill::color(ep::kInk))
                    .clip()
                    .child(poster()
@@ -352,21 +336,16 @@ struct MotionPoster final : sketch::Sketch {
                    .child(box()
                               .inset(0)
                               .zIndex(3)
-                              .fill(Material::sksl(ep::grainEffect()))
-                              .blend(SkBlendMode::kSoftLight)))
-        // caption in the left letterbox panel, fading in with the info line
-        .child(
-            box()
-                .column()
-                .gap(4)
-                .left(24)
-                .bottom(28)
-                .opacity(&fadeInfo)
-                .child(text(toU8("EMBER GATE"), ep::type(13, ep::kAsh, 2)))
-                .child(text(
-                    toU8("material-era living poster"),
-                    ep::type(11, {ep::kAsh.fR, ep::kAsh.fG, ep::kAsh.fB, 0.7f},
-                             1))));
+                              // The library's own grain field. It was a raw
+                              // runtime effect reseeded from uTime, which is
+                              // a full-canvas hash every frame and the
+                              // sketch's single largest cost; the field is a
+                              // recipe the runtime can hold still, and a
+                              // still grain is what a printed poster has.
+                              .fill(patterns::grain(0.9f, 3, 7.0f, 1.0f))
+                              .opacity(0.20f)
+                              .blend(SkBlendMode::kSoftLight)
+                              .cache(Cache::Texture)));
   }
 };
 
