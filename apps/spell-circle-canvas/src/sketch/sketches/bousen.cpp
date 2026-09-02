@@ -27,6 +27,15 @@
 // COLUMN a beat — because a band and a track do not share a node: a track
 // draws its own glyphs in batched buckets and a bucket carries glyphs
 // alone. The plate is the settled page.
+//
+// EDIT THESE FIRST
+//   kBodySize            — the passage's own size; the column pitch, and
+//                          therefore how wide a highlight is, follows it.
+//   kBlockW / kBlockH    — the passage's measure and depth, which is what
+//                          decides where its columns break and so which
+//                          band crosses a break.
+//   kAka / kAi           — the two band inks: vermilion for the right-hand
+//                          sideline, indigo for the left-hand one.
 
 #include <sigilcompose/shape/Shapes.h>
 #include <sigilcompose/typography/TextFx.h>
@@ -141,6 +150,26 @@ struct Bousen final : sketch::Sketch {
     ctx.composer.render(describe());
   }
 
+  /** One band convention, drawn: a short column wearing exactly one
+   *  decoration, captioned with the side it stands on. The footer used to
+   *  say the three in words; a specimen says them in the same terms the
+   *  page above uses. */
+  Element bandSpecimen(const char* caption, sigil::weave::Decoration::Kind kind,
+                       SkColor4f band, float thickness) {
+    namespace bs = bousen;
+    sigil::weave::TextStyle style = bs::body(18, bs::kSumi);
+    style.paint = bs::banded(bs::kSumi, kind, band, thickness);
+    return box()
+        .column()
+        .gap(8)
+        .child(text(toU8(caption), bs::label(9, bs::kUsu, 0.6f))
+                   .width(Dim(132.0f)))
+        .child(text(u8"\xe5\x82\x8d\xe7\xb7\x9a\xe4\xbe\x8b", style)
+                   .width(Dim(28.0f))
+                   .height(Dim(62.0f))
+                   .writingMode(sigil::weave::WritingMode::kVerticalRL));
+  }
+
   /** One punctuation column, captioned: the same characters set twice,
    *  once as the face gives them and once as it gives them when asked. */
   Element specimen(const char* caption, const sigil::weave::TextStyle& style) {
@@ -211,7 +240,22 @@ struct Bousen final : sketch::Sketch {
                           .key("callout")
                           .left(Dim(-168.0f))
                           .top(pct(0))
-                          .width(Dim(150.0f))
+                          .width(Dim(168.0f))
+                          // THE LEADER. A note standing in the margin is a
+                          // note about nothing until something joins it to
+                          // the phrase; the rule runs from the text block
+                          // to the mark's own left edge, which is the
+                          // phrase's edge, so it lands where the anchor is
+                          // rather than where a coordinate would have put
+                          // it.
+                          .child(box()
+                                     .key("leader")
+                                     .absolute()
+                                     .left(Dim(0.0f))
+                                     .top(Dim(42.0f))
+                                     .width(Dim(168.0f))
+                                     .height(Dim(1.0f))
+                                     .fill(Fill::color(bs::kAka)))
                           .child(text(rich(bs::label(10, bs::kUsu))
                                           .add(toU8("mark() "),
                                                bs::label(11, bs::kAka, 1))
@@ -283,14 +327,29 @@ struct Bousen final : sketch::Sketch {
                    .absolute()
                    .inset(300, 466, 0, 0)
                    .width(Dim(180.0f)))
+        // The three conventions, each on a column of its own, so the page
+        // shows them side by side instead of naming them in a footer.
         .child(
-            text(toU8("underline \xe2\x86\x92 right of the column  \xc2\xb7  "
-                      "overline \xe2\x86\x92 left  \xc2\xb7  highlight "
-                      "\xe2\x86\x92 the whole pitch  \xc2\xb7  the entrance "
-                      "beats over COLUMNS"),
-                 bs::label(12, bs::kUsu))
+            box()
                 .absolute()
-                .inset(64, bs::kH - 44, 0, 0));
+                .inset(64, 512, 0, 0)
+                .row()
+                .gap(26)
+                .child(bandSpecimen("UNDERLINE \xc2\xb7 RIGHT",
+                                    sigil::weave::Decoration::Kind::kUnderline,
+                                    bs::kAka, 2.5f))
+                .child(bandSpecimen("OVERLINE \xc2\xb7 LEFT",
+                                    sigil::weave::Decoration::Kind::kOverline,
+                                    bs::kAi, 2.0f))
+                .child(bandSpecimen("HIGHLIGHT \xc2\xb7 PITCH",
+                                    sigil::weave::Decoration::Kind::kHighlight,
+                                    {bs::kAi.fR, bs::kAi.fG, bs::kAi.fB, 0.13f},
+                                    0)))
+        .child(text(toU8("the entrance beats over COLUMNS \xc2\xb7 a band is "
+                         "beside the column, never beneath a line"),
+                    bs::label(12, bs::kUsu))
+                   .absolute()
+                   .inset(64, bs::kH - 44, 0, 0));
   }
 };
 
