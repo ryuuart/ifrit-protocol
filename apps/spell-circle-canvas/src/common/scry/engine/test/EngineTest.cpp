@@ -19,10 +19,14 @@
 #include <chrono>
 #include <condition_variable>
 #include <mutex>
+#include <string>
 #include <thread>
 #include <vector>
 
+#include "Wait.h"
+
 using namespace sigil::scry;
+using namespace sigil::scry::test;
 
 namespace {
 
@@ -51,22 +55,22 @@ bool logContains(const std::string& needle) {
   return false;
 }
 
-/** Polls until the view has published a frame newer than @p sinceVersion,
- *  or fails after @p timeout. */
-bool waitForFrame(
-    WebView& view, uint64_t sinceVersion,
-    std::chrono::milliseconds timeout = std::chrono::milliseconds(10000)) {
-  auto deadline = std::chrono::steady_clock::now() + timeout;
-  while (std::chrono::steady_clock::now() < deadline) {
-    if (view.frameVersion() > sinceVersion) return true;
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
-  }
-  return false;
+/** A view showing @p slot at 64 x 64 on black, so the slot's own colour
+ *  is what the centre of the page reads. */
+std::shared_ptr<WebView> viewShowingSlot(const char* slot) {
+  auto view = sharedEngine().createView(64, 64, {.transparent = false});
+  if (!view) return view;
+  view->loadHTML(std::string("<html><body style='margin:0;background:#000'>"
+                             "<img src='") +
+                 slot +
+                 ".imgsrc' style='display:block;width:64px;height:64px'>"
+                 "</body></html>");
+  return view;
 }
 
 }  // namespace
 
-TEST(WebViewTest, RendersSolidColorHtml) {
+TEST(WebViewTest, PublishesTheColourTheDocumentDeclares) {
   auto view = sharedEngine().createView(160, 120, {.transparent = false});
   ASSERT_NE(view, nullptr);
 
@@ -74,26 +78,10 @@ TEST(WebViewTest, RendersSolidColorHtml) {
       "<html><body style='background:#ff0000;margin:0'>"
       "</body></html>");
   ASSERT_TRUE(waitForFrame(*view, 0));
-
-  // The page may publish an intermediate blank frame before the styled
-  // document paints; wait until the pixels actually turn red.
-  auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
-  SkColor center = 0;
-  while (std::chrono::steady_clock::now() < deadline) {
-    WebView::Frame frame = view->frame();
-    ASSERT_NE(frame.image, nullptr);
-    SkBitmap readback;
-    ASSERT_TRUE(readback.tryAllocPixels(SkImageInfo::MakeN32Premul(
-        frame.image->width(), frame.image->height())));
-    ASSERT_TRUE(frame.image->readPixels(nullptr, readback.pixmap(), 0, 0));
-    center = readback.getColor(80, 60);
-    if (center == SK_ColorRED) break;
-    std::this_thread::sleep_for(std::chrono::milliseconds(20));
-  }
-  EXPECT_EQ(center, SK_ColorRED);
+  EXPECT_TRUE(waitForCentre(*view, SK_ColorRED));
 }
 
-TEST(WebViewTest, DrawsOntoSkCanvas) {
+TEST(WebViewTest, DrawsThePageIntoTheRectItIsGiven) {
   auto view = sharedEngine().createView(64, 64, {.transparent = false});
   ASSERT_NE(view, nullptr);
 
@@ -105,24 +93,22 @@ TEST(WebViewTest, DrawsOntoSkCanvas) {
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(128, 128));
   ASSERT_NE(surface, nullptr);
+  SkBitmap composite;
+  ASSERT_TRUE(composite.tryAllocPixels(SkImageInfo::MakeN32Premul(128, 128)));
 
-  auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
-  SkColor sampled = 0;
-  while (std::chrono::steady_clock::now() < deadline) {
+  // The page lands inside the rect it was given and nowhere else, so the
+  // canvas's own colour still stands outside it.
+  ASSERT_TRUE(waitForColour("the page inside its rect", SK_ColorBLUE, [&] {
     surface->getCanvas()->clear(SK_ColorGREEN);
     view->draw(*surface->getCanvas(), SkRect::MakeXYWH(32, 32, 64, 64));
-    SkBitmap readback;
-    ASSERT_TRUE(readback.tryAllocPixels(SkImageInfo::MakeN32Premul(128, 128)));
-    ASSERT_TRUE(surface->readPixels(readback.pixmap(), 0, 0));
-    sampled = readback.getColor(64, 64);
-    if (sampled == SK_ColorBLUE && readback.getColor(8, 8) == SK_ColorGREEN)
-      break;
-    std::this_thread::sleep_for(std::chrono::milliseconds(20));
-  }
-  EXPECT_EQ(sampled, SK_ColorBLUE);
+    if (!surface->readPixels(composite.pixmap(), 0, 0))
+      return SK_ColorTRANSPARENT;
+    return composite.getColor(64, 64);
+  }));
+  EXPECT_EQ(composite.getColor(8, 8), SK_ColorGREEN);
 }
 
-TEST(WebViewTest, EvaluatesScript) {
+TEST(WebViewTest, AnswersTheValueAScriptEvaluatesTo) {
   auto view = sharedEngine().createView(32, 32);
   ASSERT_NE(view, nullptr);
 
@@ -139,8 +125,8 @@ TEST(WebViewTest, EvaluatesScript) {
   });
 
   std::unique_lock<std::mutex> lock(mutex);
-  ASSERT_TRUE(
-      cv.wait_for(lock, std::chrono::seconds(10), [&] { return done; }));
+  ASSERT_TRUE(cv.wait_for(lock, std::chrono::seconds(10), [&] { return done; }))
+      << "the wait expired: the script never answered";
   EXPECT_EQ(result, "42");
 }
 
@@ -157,29 +143,10 @@ TEST(WebViewTest, CompositesSkiaContentIntoPage) {
   swatchCanvas.clear(SK_ColorMAGENTA);
   image->update(swatch.pixmap());
 
-  auto view = sharedEngine().createView(64, 64, {.transparent = false});
+  auto view = viewShowingSlot("cpu_swatch");
   ASSERT_NE(view, nullptr);
-  view->loadHTML(
-      "<html><body style='margin:0;background:#000'>"
-      "<img src='cpu_swatch.imgsrc' "
-      "style='display:block;width:64px;height:64px'>"
-      "</body></html>");
   ASSERT_TRUE(waitForFrame(*view, 0));
-
-  auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
-  SkColor center = 0;
-  while (std::chrono::steady_clock::now() < deadline) {
-    WebView::Frame frame = view->frame();
-    ASSERT_NE(frame.image, nullptr);
-    SkBitmap readback;
-    ASSERT_TRUE(readback.tryAllocPixels(SkImageInfo::MakeN32Premul(
-        frame.image->width(), frame.image->height())));
-    ASSERT_TRUE(frame.image->readPixels(nullptr, readback.pixmap(), 0, 0));
-    center = readback.getColor(32, 32);
-    if (center == SK_ColorMAGENTA) break;
-    std::this_thread::sleep_for(std::chrono::milliseconds(20));
-  }
-  EXPECT_EQ(center, SK_ColorMAGENTA);
+  EXPECT_TRUE(waitForCentre(*view, SK_ColorMAGENTA));
 }
 
 // Same round trip through the one-call paint() API, which wraps the
@@ -190,29 +157,10 @@ TEST(WebViewTest, PaintsSlotWithCallback) {
   ASSERT_TRUE(
       image->paint([](SkCanvas& canvas) { canvas.clear(SK_ColorYELLOW); }));
 
-  auto view = sharedEngine().createView(64, 64, {.transparent = false});
+  auto view = viewShowingSlot("cpu_paint_swatch");
   ASSERT_NE(view, nullptr);
-  view->loadHTML(
-      "<html><body style='margin:0;background:#000'>"
-      "<img src='cpu_paint_swatch.imgsrc' "
-      "style='display:block;width:64px;height:64px'>"
-      "</body></html>");
   ASSERT_TRUE(waitForFrame(*view, 0));
-
-  auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
-  SkColor center = 0;
-  while (std::chrono::steady_clock::now() < deadline) {
-    WebView::Frame frame = view->frame();
-    ASSERT_NE(frame.image, nullptr);
-    SkBitmap readback;
-    ASSERT_TRUE(readback.tryAllocPixels(SkImageInfo::MakeN32Premul(
-        frame.image->width(), frame.image->height())));
-    ASSERT_TRUE(frame.image->readPixels(nullptr, readback.pixmap(), 0, 0));
-    center = readback.getColor(32, 32);
-    if (center == SK_ColorYELLOW) break;
-    std::this_thread::sleep_for(std::chrono::milliseconds(20));
-  }
-  EXPECT_EQ(center, SK_ColorYELLOW);
+  EXPECT_TRUE(waitForCentre(*view, SK_ColorYELLOW));
 }
 
 // Referencing a slot no WebImage is registered under must be loud, not a
@@ -228,10 +176,11 @@ TEST(WebViewTest, WarnsOnUnregisteredSlot) {
   while (!logContains("definitely_missing") &&
          std::chrono::steady_clock::now() < deadline)
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
-  EXPECT_TRUE(logContains("definitely_missing"));
+  EXPECT_TRUE(logContains("definitely_missing"))
+      << "the wait expired: no message ever named the slot";
 }
 
-TEST(WebViewTest, FrameCallbackFires) {
+TEST(WebViewTest, CallsBackWithEachFrameItPublishes) {
   auto view = sharedEngine().createView(48, 48, {.transparent = false});
   ASSERT_NE(view, nullptr);
 
@@ -247,6 +196,7 @@ TEST(WebViewTest, FrameCallbackFires) {
   view->loadHTML("<html><body style='background:#123456'></body></html>");
 
   std::unique_lock<std::mutex> lock(mutex);
-  EXPECT_TRUE(cv.wait_for(lock, std::chrono::seconds(10),
-                          [&] { return callbackVersion > 0; }));
+  EXPECT_TRUE(cv.wait_for(lock, std::chrono::seconds(10), [&] {
+    return callbackVersion > 0;
+  })) << "the wait expired: no frame was ever handed to the callback";
 }

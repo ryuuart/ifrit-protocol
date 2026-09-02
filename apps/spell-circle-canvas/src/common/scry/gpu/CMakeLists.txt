@@ -44,10 +44,17 @@ if(APPLE)
   add_executable(scry_gpu_test test/GpuDriverTest.mm)
   set_source_files_properties(test/GpuDriverTest.mm PROPERTIES
     COMPILE_OPTIONS -fobjc-arc)
-  target_include_directories(scry_gpu_test PRIVATE ${CMAKE_CURRENT_LIST_DIR})
+  # The library's own test directory holds the device, the Graphite
+  # context and the asynchronous read every GPU test here shares.
+  target_include_directories(scry_gpu_test PRIVATE ${CMAKE_CURRENT_LIST_DIR}
+    ${CMAKE_CURRENT_LIST_DIR}/../test)
   target_link_libraries(scry_gpu_test PRIVATE SigilScryGpu
     Ultralight::Ultralight GTest::gtest_main ${METAL_FRAMEWORK})
   add_test(NAME scry_gpu_test COMMAND scry_gpu_test)
+  # Every case here needs a device, so on a machine without one the
+  # binary checks nothing. The label is what makes that visible as a
+  # lane not run rather than as a lane that passed.
+  set_tests_properties(scry_gpu_test PROPERTIES LABELS gpu)
 
   # Google Benchmark (use a Release build). Not a test: it builds through
   # the `benches` target and runs through scripts/bench_ledger.py.

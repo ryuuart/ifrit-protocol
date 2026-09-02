@@ -207,11 +207,22 @@ Targets: `SigilScryPlatform`, `SigilScryGpu`, `SigilScryEngine` and the
 `SigilScry` umbrella. Tests (ctest): `scry_platform_test` exercises the
 handlers without a renderer — the surface's format and alignment, the
 file system's roots, MIME table and synthesized slot files, the logger's
-routing, the staged resource directory and the runtime probe over it; `scry_gpu_test` (Apple) drives
-the Metal driver directly, with no renderer and no page, and proves
-every upload, paint, blit and wrap by reading pixels back through
-Graphite; `scry_engine_test` runs the CPU-mode engine end to end and
-`scry_engine_gpu_test` (Apple) the GPU-mode one. Benchmarks (Google
+routing, and the staged resource directory with the runtime probe that
+answers over it; `scry_gpu_test` drives the Metal driver directly, with
+no renderer and no page, and proves every upload, paint, blit and wrap
+by reading pixels back through Graphite; `scry_engine_test` runs the
+CPU-mode engine end to end and `scry_engine_gpu_test` the GPU-mode one,
+one case per door a page-visible slot can be filled through.
+
+The two GPU binaries exist only on Apple and every case in them needs a
+device, so they carry the ctest label `gpu`: a machine without one shows
+them as a lane not run rather than as a lane that passed. Both take the
+device, the shared Graphite context and the asynchronous surface read
+from `test/GraphiteReadback.h`; the two engine binaries take the page
+waits from `engine/test/Wait.h`, where a wait that expires says so and
+names what it was waiting for, rather than reporting the colour a page
+never painted. They stay two binaries because a process gets one
+renderer. Benchmarks (Google
 Benchmark, through the `benches` target and `scripts/bench_ledger.py`):
 `scry_platform_bench`, `scry_gpu_bench` (Apple), and `scry_engine_bench`
 — `--gpu` runs the latter's GPU-mode arms, a separate run because of the

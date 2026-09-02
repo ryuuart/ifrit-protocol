@@ -63,8 +63,16 @@ add_dependencies(benches scry_engine_bench)
 # SkImages into the Graphite context the test shares with the engine.
 if(APPLE)
   add_executable(scry_engine_gpu_test test/EngineGpuTest.mm)
+  # The library's own test directory holds the device, the Graphite
+  # context and the asynchronous read every GPU test here shares.
+  target_include_directories(scry_engine_gpu_test PRIVATE
+    ${CMAKE_CURRENT_LIST_DIR}/../test)
   target_link_libraries(scry_engine_gpu_test PRIVATE
     SigilScryEngine GTest::gtest_main ${METAL_FRAMEWORK})
   ultralight_copy_resources(scry_engine_gpu_test)
   add_test(NAME scry_engine_gpu_test COMMAND scry_engine_gpu_test)
+  # Every case here needs a device, so on a machine without one the
+  # binary checks nothing. The label is what makes that visible as a
+  # lane not run rather than as a lane that passed.
+  set_tests_properties(scry_engine_gpu_test PROPERTIES LABELS gpu)
 endif()

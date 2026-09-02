@@ -156,12 +156,10 @@ TEST(ScryPlatform, ResourceDirIsStagedNextToTheExecutable) {
   // The configured directory wins; otherwise the staged one.
   EXPECT_EQ(resolveResourceDir("/explicit"), "/explicit");
   EXPECT_EQ(resolveResourceDir(""), staged);
-}
-
-TEST(ScryPlatform, RuntimeProbeAnswersForTheResolvedResourceDirectory) {
-  // The resources are staged beside this binary, so the probe says yes
-  // and writes nothing; a machine missing them gets the reason instead,
-  // which is what a caller shows in place of the thing it cannot run.
+  // The probe answers over that same resolved directory: the runtime data
+  // is there, so it says yes and writes no reason. A machine missing it
+  // gets the reason instead, which is what a caller shows in place of the
+  // thing it cannot run.
   std::string why = "untouched";
   EXPECT_TRUE(runtime::available(&why));
   EXPECT_EQ(why, "untouched");

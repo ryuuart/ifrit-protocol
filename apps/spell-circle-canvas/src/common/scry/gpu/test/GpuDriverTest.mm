@@ -17,41 +17,22 @@
 #include <include/core/SkColor.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkSurface.h>
-#include <include/core/SkUnPreMultiply.h>
 #include <include/gpu/graphite/Context.h>
 #include <include/gpu/graphite/Recorder.h>
-#include <include/gpu/graphite/Recording.h>
 #include <include/gpu/graphite/Surface.h>
 #include <sigilcore/hardware/GpuDevice.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 
-#include <chrono>
 #include <memory>
-#include <mutex>
-#include <thread>
 #include <vector>
 
+#include "GraphiteReadback.h"
 #include "metal/MetalDriver.h"
 
 using namespace sigil::scry;
+using namespace sigil::scry::test;
 
 namespace {
-
-/** The device this process owns, shared by the driver and every test. */
-sigil::core::hardware::GpuDevice *sharedDevice() {
-  static std::unique_ptr<sigil::core::hardware::GpuDevice> device =
-      sigil::core::hardware::GpuDevice::createOwned();
-  return device.get();
-}
-
-/** The Graphite context the tests draw with and the driver shares: the
- *  driver's paint path records on its own recorder over it, so every
- *  context call here holds lockContext(). */
-sigil::skia::GraphiteContext *sharedGraphite() {
-  static std::unique_ptr<sigil::skia::GraphiteContext> graphite =
-      sharedDevice() ? sigil::skia::GraphiteContext::create(*sharedDevice()) : nullptr;
-  return graphite.get();
-}
 
 MetalDriver &sharedDriver() {
   // This binary is built only where a Metal device is guaranteed, so the
@@ -62,49 +43,6 @@ MetalDriver &sharedDriver() {
   // NOLINTEND(clang-analyzer-core.NonNullParamChecker)
   EXPECT_NE(driver, nullptr);
   return *driver;
-}
-
-/** Renders the Graphite surface's pending work and reads back the pixel
- *  at (x, y) as an unpremultiplied SkColor. */
-SkColor readbackPixel(sigil::skia::GraphiteContext &graphite, SkSurface *surface, int x, int y) {
-  std::unique_ptr<skgpu::graphite::Recording> recording = graphite.recorder()->snap();
-  const std::unique_lock<std::mutex> lock = graphite.lockContext();
-  if (recording) {
-    skgpu::graphite::InsertRecordingInfo info;
-    info.fRecording = recording.get();
-    graphite.context()->insertRecording(info);
-  }
-
-  struct ReadContext {
-    std::unique_ptr<const SkImage::AsyncReadResult> result;
-    bool called = false;
-  } readContext;
-
-  graphite.context()->asyncRescaleAndReadPixels(
-      surface, SkImageInfo::MakeN32Premul(1, 1), SkIRect::MakeXYWH(x, y, 1, 1),
-      SkImage::RescaleGamma::kSrc, SkImage::RescaleMode::kNearest,
-      [](SkImage::ReadPixelsContext context,
-         std::unique_ptr<const SkImage::AsyncReadResult> result) {
-        auto *read = static_cast<ReadContext *>(context);
-        read->result = std::move(result);
-        read->called = true;
-      },
-      &readContext);
-
-  skgpu::graphite::SubmitInfo submitInfo;
-  submitInfo.fSync = skgpu::graphite::SyncToCpu::kYes;
-  graphite.context()->submit(submitInfo);
-
-  auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
-  while (!readContext.called && std::chrono::steady_clock::now() < deadline) {
-    graphite.context()->checkAsyncWorkCompletion();
-    std::this_thread::sleep_for(std::chrono::milliseconds(1));
-  }
-  if (!readContext.result) return SK_ColorTRANSPARENT;
-
-  const uint32_t *pixels = static_cast<const uint32_t *>(readContext.result->data(0));
-  SkPMColor pm = pixels[0];
-  return SkUnPreMultiply::PMColorToColor(pm);
 }
 
 /** Draws the wrap of @p texture full-size into a fresh Graphite surface
