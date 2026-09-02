@@ -220,7 +220,7 @@ it on a quiet machine; there is no known-flapper list here — a load spike
 is YOUR machine, rerun the scene.
 """
 
-import argparse, atexit, concurrent.futures, hashlib, json, os, shutil, struct, subprocess, sys, tempfile, time, zlib
+import argparse, atexit, concurrent.futures, fcntl, hashlib, json, os, shutil, struct, subprocess, sys, tempfile, time, zlib
 
 # WHAT EACH TIER RENDERS WITH. A tier names its own binary, the flags that
 # define its capture, how it lists its registry, how it selects one entry
@@ -358,6 +358,44 @@ def read_manifest(path):
                 if scene:
                     baseline[scene] = digest
     return baseline
+
+
+def write_manifest(path, keep, results):
+    """The baseline manifest, replaced whole, with @p results merged over
+    whichever of its entries @p keep selects from the file AS IT STANDS.
+
+    A sweep takes minutes and the merge is decided at the end of them, so
+    the manifest is re-read here rather than reused from the copy the run
+    judged against: a rebase that landed in between wrote entries this one
+    never saw, and merging into the older copy would drop them. The lock
+    makes the read-modify-write one step against another writer holding
+    the same lock, and the temp file plus rename makes it one step against
+    everything else — a reader never sees half a manifest, and a run that
+    dies mid-write leaves the previous one intact.
+
+    @p keep answers which of the standing entries survive: None for a
+    whole sweep, which is the one run entitled to drop what no longer
+    exists; True for a narrowed sweep, which keeps every entry it did not
+    render; or the set of scene names this sweep had nothing to say
+    about."""
+    lock = path + ".lock"
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    with open(lock, "w") as handle:
+        fcntl.flock(handle, fcntl.LOCK_EX)
+        merged = {}
+        if keep is not None:
+            standing = read_manifest(path)
+            merged = (
+                standing
+                if keep is True
+                else {s: d for s, d in standing.items() if s in keep}
+            )
+        merged.update(results)
+        temporary = f"{path}.{os.getpid()}.tmp"
+        with open(temporary, "w") as f:
+            f.writelines(f"{merged[scene]}  {scene}\n" for scene in sorted(merged))
+        os.replace(temporary, path)
+    return merged
 
 
 def sha256(path):
@@ -980,15 +1018,8 @@ def main():
         # scenes merges for the same reason narrowed to those: this
         # machine could not ask them anything, so it has nothing to say
         # about their baselines either.
-        merged = {}
-        if args.scenes or skipped:
-            merged = dict(baseline)
-            if not args.scenes:
-                merged = {s: d for s, d in merged.items() if s in skipped}
-        merged.update(results)
-        with open(manifest, "w") as f:
-            for scene in sorted(merged):
-                f.write(f"{merged[scene]}  {scene}\n")
+        keep = True if args.scenes else (set(skipped) if skipped else None)
+        merged = write_manifest(manifest, keep, results)
         print(
             f"baseline written: {manifest} ({len(merged)} scenes, "
             f"{len(results)} from this sweep)"
