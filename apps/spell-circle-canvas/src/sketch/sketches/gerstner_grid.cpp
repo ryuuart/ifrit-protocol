@@ -31,12 +31,19 @@
 //
 // Palette from the period's process: paper, one black, one warm red, and
 // the non-printing blue a grid was drawn in.
+//
+// EDIT THESE FIRST
+//   kUnit      — the screen size of Gerstner's 10-point unit. The measure,
+//                the field and every column width are multiples of it.
+//   kConfigs   — the six configurations, each with the body size its
+//                measure is set at and the number of copy blocks that runs
+//                that measure to the foot.
+//   kHoldSecs  — how long a configuration stands before the programme
+//                steps to the next.
+//   kSweepSecs — one pass of the reading index down the field.
 
-#include <include/core/SkPathBuilder.h>
-#include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/core/Material.h>
 #include <sigilcompose/core/Patterns.h>
-#include <sigilcompose/shape/Shapes.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilsketch/canvas/Sketch.h>
 
@@ -77,19 +84,30 @@ constexpr float kFieldH = kRows * kUnit;
 constexpr float kFieldX = 84;
 constexpr float kFieldY = 92;
 
+/// One pass of the reading index down the field.
+constexpr double kSweepSecs = 5.2;
+/// How long one configuration holds before the programme steps.
+constexpr double kHoldSecs = 2.6;
+
 /** One configuration of the programme: n columns of `width` units with
  *  two units of gutter between them, summing to 58. */
 struct Config {
   int columns, width, gutter;
   const char* arithmetic;
+  float size;  // the body size this measure is set at
+  // How many copy blocks it takes to run this measure to the foot of the
+  // field. A wide column swallows a block in three lines and a narrow one
+  // takes thirteen, so the number is per configuration; the field clips,
+  // the way a page does when the story runs on.
+  int blocks;
 };
 inline constexpr Config kConfigs[] = {
-    {1, 58, 2, "58"},
-    {2, 28, 2, "2 \xc3\x97 28 + 1 \xc3\x97 2"},
-    {3, 18, 2, "3 \xc3\x97 18 + 2 \xc3\x97 2"},
-    {4, 13, 2, "4 \xc3\x97 13 + 3 \xc3\x97 2"},
-    {5, 10, 2, "5 \xc3\x97 10 + 4 \xc3\x97 2"},
-    {6, 8, 2, "6 \xc3\x97 8 + 5 \xc3\x97 2"},
+    {1, 58, 2, "58", 15.0f, 9},
+    {2, 28, 2, "2 \xc3\x97 28 + 1 \xc3\x97 2", 13.5f, 6},
+    {3, 18, 2, "3 \xc3\x97 18 + 2 \xc3\x97 2", 12.0f, 5},
+    {4, 13, 2, "4 \xc3\x97 13 + 3 \xc3\x97 2", 10.5f, 5},
+    {5, 10, 2, "5 \xc3\x97 10 + 4 \xc3\x97 2", 9.0f, 4},
+    {6, 8, 2, "6 \xc3\x97 8 + 5 \xc3\x97 2", 9.0f, 4},
 };
 inline constexpr int kConfigCount =
     (int)(sizeof(kConfigs) / sizeof(kConfigs[0]));
@@ -145,12 +163,12 @@ struct GerstnerGrid final : sketch::Sketch {
     shownConfig = -1;
     // hold the opening configuration for one beat so a still frame
     // lands on a real setting rather than mid-step
-    nextStep = 2.6;
+    nextStep = gerstner::kHoldSecs;
     ticker.add([this, t = 0.0](double dt) mutable {
       t += dt;
-      // The reading index: one pass down the field every 5.2 s.
+      // The reading index: one pass down the field every kSweepSecs.
       sweep = gerstner::kFieldY +
-              gerstner::kFieldH * (float)std::fmod(t / 5.2, 1.0);
+              gerstner::kFieldH * motion::phase(t, gerstner::kSweepSecs);
       return true;
     });
     composer.render(describe());
@@ -163,7 +181,7 @@ struct GerstnerGrid final : sketch::Sketch {
     Composer& composer = ctx.composer;
     if (elapsed < nextStep && shownConfig == config) return;
     if (elapsed >= nextStep) {
-      nextStep = elapsed + 2.6;
+      nextStep = elapsed + gerstner::kHoldSecs;
       config = (config + 1) % gerstner::kConfigCount;
     }
     shownConfig = config;
@@ -173,33 +191,29 @@ struct GerstnerGrid final : sketch::Sketch {
   // ------------------------------------------------------------------
 
   /** The grid itself, drawn in the blue a grid was drawn in: every unit
-   *  column hairline, every fifth baseline, and the field's own frame. */
+   *  ruled faintly both ways, and over it the emphasis — every second
+   *  column line and every fifth baseline — struck harder.
+   *
+   *  Two materials rather than ninety-three boxes. A ruled field is a
+   *  PATTERN, and stating it as one means the pitch is a number the
+   *  material reads rather than a loop the tree carries. */
   Element gridPlate() {
     namespace g = gerstner;
-    Element plate = stack()
-                        .left(g::kFieldX)
-                        .top(g::kFieldY)
-                        .width(Dim(g::kFieldW))
-                        .height(Dim(g::kFieldH));
-    for (int u = 0; u <= g::kUnits; ++u)
-      plate.child(
-          box()
-              .left((float)u * g::kUnit)
-              .top(0)
-              .width(Dim(0.5f))
-              .height(Dim(g::kFieldH))
-              .fill(Material::solid({g::kBlue.fR, g::kBlue.fG, g::kBlue.fB,
-                                     u % 2 == 0 ? 0.16f : 0.07f})));
-    for (int r = 0; r <= g::kRows; ++r)
-      plate.child(
-          box()
-              .left(0)
-              .top((float)r * g::kUnit)
-              .width(Dim(g::kFieldW))
-              .height(Dim(0.5f))
-              .fill(Material::solid({g::kBlue.fR, g::kBlue.fG, g::kBlue.fB,
-                                     r % 5 == 0 ? 0.20f : 0.07f})));
-    return plate;
+    const auto blue = [](float alpha) {
+      return SkColor4f{g::kBlue.fR, g::kBlue.fG, g::kBlue.fB, alpha};
+    };
+    return stack()
+        .left(g::kFieldX)
+        .top(g::kFieldY)
+        .width(Dim(g::kFieldW))
+        .height(Dim(g::kFieldH))
+        .child(box().inset(0).fill(
+            patterns::gridLines(g::kUnit, g::kUnit, 0.5f, blue(0.07f))
+                .material()))
+        .child(box().inset(0).fill(patterns::gridLines(g::kUnit * 2.0f,
+                                                       g::kUnit * 5.0f, 0.5f,
+                                                       blue(0.16f))
+                                       .material()));
   }
 
   /** The configuration: n column bands, each entering on a stagger. */
@@ -230,34 +244,24 @@ struct GerstnerGrid final : sketch::Sketch {
               .opacity(animate(from(0.0f).to(1.0f), {320ms, &ch::easeOutQuad}))
               .translateY(
                   animate(from(9.0f).to(0.0f), {420ms, &ch::easeOutQuint}))
-              .fill(Material::solid(
-                  {g::kRed.fR, g::kRed.fG, g::kRed.fB, 0.045f}));
-      // the copy, flowed to this measure
-      const char* copy = g::kBody[i % g::kBodyCount];
-      const float size = c.columns >= 5   ? 9.0f
-                         : c.columns == 4 ? 10.5f
-                         : c.columns == 3 ? 12.0f
-                         : c.columns == 2 ? 13.5f
-                                          : 15.0f;
-      // two paragraphs per column, so a narrow measure actually fills its
-      // depth and the reflow is visible rather than implied
-      const char* copy2 = g::kBody[(i + 1) % g::kBodyCount];
-      band.child(box()
-                     .left(0)
-                     .top(g::kUnit * 5)
-                     .right(0)
-                     .column()
-                     .gap(g::kUnit)
-                     .child(text(toU8(copy), type({.size = size,
-                                                   .color = g::kInk,
-                                                   .track = 0,
-                                                   .weight = 0}))
-                                .width(Dim(colW)))
-                     .child(text(toU8(copy2), type({.size = size,
-                                                    .color = g::kInkSoft,
-                                                    .track = 0,
-                                                    .weight = 0}))
-                                .width(Dim(colW))));
+              .fill(
+                  Material::solid({g::kRed.fR, g::kRed.fG, g::kRed.fB, 0.045f}))
+              // The field's foot is the page's foot: the copy that does not
+              // fit is cut there, as it is in a magazine.
+              .clip();
+      // THE COPY RUNS THE MEASURE. A programme that generates a page
+      // generates a FULL one: a column that stops a third of the way down
+      // is a layout abandoned, not a configuration.
+      Element copy =
+          box().left(0).top(g::kUnit * 5).right(0).column().gap(g::kUnit);
+      for (int b = 0; b < c.blocks; ++b)
+        copy.child(text(toU8(g::kBody[(i + b) % g::kBodyCount]),
+                        type({.size = c.size,
+                              .color = b % 2 == 0 ? g::kInk : g::kInkSoft,
+                              .track = 0,
+                              .weight = 0}))
+                       .width(Dim(colW)));
+      band.child(std::move(copy));
       // a column rule at the head, the way Capital marked its columns
       band.child(box()
                      .left(0)
@@ -367,20 +371,33 @@ struct GerstnerGrid final : sketch::Sketch {
     auto root = stack().fill(Material::linear(
         {0, 0}, {0, g::kH}, {{0.0f, g::kPaper}, {1.0f, g::kPaperLo}}));
 
-    // paper tooth
+    // Paper tooth: a full-canvas fractal noise that never changes. The
+    // library will not bake through an opacity and a blend — it would
+    // round the coverage twice — so the bake is asked for here, and the
+    // three octaves are evaluated once instead of once a frame.
     root.child(box()
                    .inset(0)
                    .fill(patterns::noise(0.9f, 3, 5.0f))
                    .opacity(0.05f)
-                   .blend(SkBlendMode::kMultiply));
+                   .blend(SkBlendMode::kMultiply)
+                   .cache(Cache::Texture));
 
     root.child(gridPlate());
     root.child(columns());
     root.child(headline());
     root.child(arithmetic());
 
-    // the reading index: one hairline sweeping the baseline grid, the
-    // only continuous motion on a page of discrete states
+    // THE READING INDEX: one hairline sweeping the baseline grid, the
+    // only continuous motion on a page of discrete states — and named on
+    // the page, because an unlabelled red rule across live text reads as a
+    // defect rather than as an instrument.
+    root.child(
+        text(toU8("READING INDEX"),
+             type({.size = 7, .color = g::kRed, .track = 0.6f, .weight = 620}))
+            .left(g::kFieldX + g::kFieldW + 6)
+            .top(-4)
+            .translateY(&sweep)
+            .zIndex(6));
     root.child(box()
                    .left(g::kFieldX - 22)
                    .width(Dim(g::kFieldW + 44))
