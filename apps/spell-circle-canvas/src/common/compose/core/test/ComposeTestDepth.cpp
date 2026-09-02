@@ -312,6 +312,110 @@ TEST(ComposeDepth, AHitInASharedSpaceAnswersTheNearestPlane) {
       << "…and the far edge is not";
 }
 
+TEST(ComposeDepth, AHiddenBackfaceIsNeitherPaintedNorHit) {
+  // Two cards on one spot, the front one turned half round. With its back
+  // hidden it is neither drawn nor hit and the card beneath shows and
+  // answers; with its back visible it covers the other, mirrored, and
+  // answers the hit itself. The same half turn about x hides it too.
+  const auto pair = [](Backface facing, float rx, float ry) {
+    return box()
+        .child(box()
+                   .key("under")
+                   .absolute()
+                   .rect(SkRect::MakeXYWH(50, 50, 100, 100))
+                   .fill(green()))
+        .child(box()
+                   .key("over")
+                   .absolute()
+                   .rect(SkRect::MakeXYWH(50, 50, 100, 100))
+                   .fill(red())
+                   .rotateX(rx)
+                   .rotateY(ry)
+                   .backface(facing));
+  };
+  Host host(200, 200);
+  host.composer.render(pair(Backface::Hidden, 0, 180));
+  host.frame();
+  EXPECT_EQ(host.pixel(100, 100), SK_ColorGREEN);
+  EXPECT_EQ(host.composer.hitTest({100, 100}).value_or(""), "under");
+
+  host.composer.render(pair(Backface::Visible, 0, 180));
+  host.frame();
+  EXPECT_EQ(host.pixel(100, 100), SK_ColorRED);
+  EXPECT_EQ(host.composer.hitTest({100, 100}).value_or(""), "over");
+
+  host.composer.render(pair(Backface::Hidden, 180, 0));
+  host.frame();
+  EXPECT_EQ(host.pixel(100, 100), SK_ColorGREEN);
+  EXPECT_EQ(host.composer.hitTest({100, 100}).value_or(""), "under");
+
+  // Facing the viewer — including a turn short of a quarter — the front
+  // is drawn whichever way the backface is set.
+  host.composer.render(pair(Backface::Hidden, 0, 60));
+  host.frame();
+  EXPECT_EQ(host.pixel(100, 100), SK_ColorRED);
+  EXPECT_EQ(host.composer.hitTest({100, 100}).value_or(""), "over");
+}
+
+TEST(ComposeDepth, AMirrorIsNotABackface) {
+  // scaleX(−1) mirrors the plane without turning it: the normal's z stays
+  // positive (cofactor and determinant both negate), so a hidden backface
+  // still shows the mirrored front, as CSS's rule has it.
+  Host host(200, 200);
+  host.composer.render(box().child(box()
+                                       .key("card")
+                                       .absolute()
+                                       .rect(SkRect::MakeXYWH(50, 50, 100, 100))
+                                       .fill(red())
+                                       .scaleX(-1)
+                                       .rotateY(0)
+                                       .backface(Backface::Hidden)));
+  host.frame();
+  EXPECT_EQ(host.pixel(100, 100), SK_ColorRED);
+  EXPECT_EQ(host.composer.hitTest({100, 100}).value_or(""), "card");
+}
+
+TEST(ComposeDepth, AFlippingCardShowsOneFaceAtATime) {
+  // The card-flip idiom: a host turned by rotateY holds a front and a
+  // back, the back pre-turned half round, both with their backs hidden.
+  // Through the turn exactly one face is drawn and hit — the front until
+  // the quarter turn, the back after it.
+  const auto card = [](float turn) {
+    const auto face = [](const char* key, Fill fill, float ry) {
+      return box()
+          .key(key)
+          .absolute()
+          .rect(SkRect::MakeXYWH(50, 50, 100, 100))
+          .fill(std::move(fill))
+          .rotateY(ry)
+          .backface(Backface::Hidden);
+    };
+    return box().perspective(600).child(box()
+                                            .absolute()
+                                            .rect(SkRect::MakeXYWH(0, 0, 200,
+                                                                   200))
+                                            .preserve3d()
+                                            .rotateY(turn)
+                                            .child(face("front", red(), 0))
+                                            .child(face("back", blue(), 180)));
+  };
+  Host host(200, 200);
+  for (float turn : {0.0f, 30.0f, 80.0f}) {
+    host.composer.render(card(turn));
+    host.frame();
+    EXPECT_EQ(host.pixel(100, 100), SK_ColorRED) << "turn " << turn;
+    EXPECT_EQ(host.composer.hitTest({100, 100}).value_or(""), "front")
+        << "turn " << turn;
+  }
+  for (float turn : {100.0f, 150.0f, 180.0f}) {
+    host.composer.render(card(turn));
+    host.frame();
+    EXPECT_EQ(host.pixel(100, 100), SK_ColorBLUE) << "turn " << turn;
+    EXPECT_EQ(host.composer.hitTest({100, 100}).value_or(""), "back")
+        << "turn " << turn;
+  }
+}
+
 TEST(ComposeDepth, ADepthLaneRampsLikeAnyOtherLane) {
   // The lanes are Instance::Slot rows, so a re-described rotateY with a
   // transition ramps from the turn it is at: halfway through a 0 → 90
