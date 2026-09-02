@@ -92,3 +92,38 @@ the property.
 Assert: a translation unit that includes exactly one public compose
 header, first and alone, compiles. One test per header, generated from
 the header list.
+
+## A narrowed plate rebase can clobber a concurrent one
+
+`scripts/plate_ledger.py` reads the baseline manifest once, before the
+sweep, and writes the merge of it and this sweep's digests after — a
+window of minutes. `--rebase --scenes` merges into the copy it read at
+the start, then truncates the file with `open(manifest, "w")`, so a
+second rebase that finished inside that window has its entries silently
+dropped. Nothing in the file is locked and nothing is written atomically:
+a run killed mid-write also leaves a half manifest that reads as a
+baseline.
+
+Intended: a subset rebase merges into the manifest AS IT STANDS when it
+writes, and the file is only ever replaced whole.
+
+Assert once fixed: two rebases of disjoint scene subsets, the second
+starting and finishing while the first is between its read and its
+write, leave a manifest carrying both subsets' digests.
+
+## The window ledger keys its rows by the first word of a display name
+
+`Sketchbook --window-bench` prints `WINDOW <name> …` with the FILED name,
+which carries spaces, and `scripts/app_fps_ledger.py` matches `(\S+)` —
+so `aero desktop` is stored as `aero` and the rest of the name is parsed
+as if it were key=value pairs. Fifteen of the hundred rows in
+`bench/app_fps_Release.json` are truncated this way, and two sketches
+whose filed names shared a first word would silently share one row.
+
+Intended: a row is keyed by the registry stem, which is what `--sketch`
+takes and what the file on disk is called, and carries no spaces by
+construction.
+
+Assert once fixed: every key in the baseline is the stem of a file in
+`sketches/`, and a sketch filed under a two-word name round-trips
+through the ledger under its stem.
