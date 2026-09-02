@@ -11,8 +11,9 @@
 
 #include <glm/gtc/matrix_inverse.hpp>
 
-#include <map>
+#include <cstdint>
 #include <mutex>
+#include <unordered_map>
 
 namespace sigil::geometry::mesh::render {
 
@@ -24,24 +25,61 @@ namespace {
  *  a texel out of an SkImage is a pixel-map lock and a colour-space
  *  question every time. The pixels behind an environment do not change
  *  — the value that owns them bakes once — so they are read out on
- *  first use and kept against the image's own address. */
+ *  first use and kept. */
 struct Pixels {
   int w = 0;
   int h = 0;
   std::vector<float> px;
 };
 
+/** One kept read, with enough of the image beside it to recognise it.
+ *
+ *  The sk_sp reaching this file is BORROWED: the environment that owns
+ *  the panorama can drop its last reference while the read taken from it
+ *  stays, so an entry keyed on the image's address would let the
+ *  allocator hand that address to the next sky and serve it the previous
+ *  one's texels. The key is the image's unique id, which is never
+ *  reissued, and the dimensions are re-checked on every hit so that a key
+ *  that somehow repeats reads as a miss rather than as a wrong answer. A
+ *  failed read is kept too — the dimensions are recorded even when no
+ *  texels were — so an unreadable panorama is not re-attempted per
+ *  vertex. */
+struct Entry {
+  int width = 0;
+  int height = 0;
+  Pixels pixels;
+};
+
+/** How many panoramas' texels are held before the map is dropped whole.
+ *
+ *  Nothing here can see a panorama go away, so an entry lives until this
+ *  cap acts, and each one is width x height x four floats. The cap is a
+ *  memory ceiling rather than a hit-rate tuning, and the map is cleared
+ *  wholesale rather than evicted from: one lit frame reads a diffuse and
+ *  a specular chain for at most two crossfading environments, a few
+ *  dozen levels, so a clear costs one frame's re-read of the levels
+ *  still in use and nothing after that. */
+inline constexpr size_t kKeptPanoramas = 64;
+
 const Pixels& pixelsOf(const sk_sp<SkImage>& image) {
   static std::mutex lock;
-  static std::map<const SkImage*, Pixels> cache;
+  static std::unordered_map<uint32_t, Entry> cache;
   static const Pixels empty;
   if (!image) return empty;
   const std::lock_guard<std::mutex> held(lock);
-  auto it = cache.find(image.get());
-  if (it != cache.end()) return it->second;
+  const uint32_t id = image->uniqueID();
+  const auto it = cache.find(id);
+  if (it != cache.end() && it->second.width == image->width() &&
+      it->second.height == image->height())
+    return it->second.pixels;
+  if (cache.size() >= kKeptPanoramas) cache.clear();
+
+  Entry entry;
+  entry.width = image->width();
+  entry.height = image->height();
   Pixels read;
-  read.w = image->width();
-  read.h = image->height();
+  read.w = entry.width;
+  read.h = entry.height;
   read.px.assign((size_t)read.w * read.h * 4, 0.0f);
   const SkImageInfo info = SkImageInfo::Make(
       read.w, read.h, kRGBA_F32_SkColorType, kPremul_SkAlphaType);
@@ -50,7 +88,8 @@ const Pixels& pixelsOf(const sk_sp<SkImage>& image) {
           SkPixmap(info, read.px.data(), (size_t)read.w * 4 * sizeof(float)), 0,
           0))
     read = Pixels{};
-  return cache.emplace(image.get(), std::move(read)).first->second;
+  entry.pixels = std::move(read);
+  return cache.insert_or_assign(id, std::move(entry)).first->second.pixels;
 }
 
 }  // namespace

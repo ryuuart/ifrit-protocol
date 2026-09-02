@@ -240,3 +240,29 @@ TEST(Shading, TheBackdropPutsTheZENITHAtTheTOP) {
   drawBackdrop(canvas, sky, camera.projection(1.0f), camera.view(), viewport);
   EXPECT_EQ(plate.getColor4f(60, 8).fR, 0.0f);
 }
+
+TEST(Shading, APanoramaReadAfterAnotherWasReleasedReadsItsOwnTexels) {
+  using namespace sigil::geometry::mesh::render;
+  // The kept read outlives the image it came from, so an entry keyed on
+  // the sk_sp's address lets the allocator hand the next panorama that
+  // address and answer it with the previous sky's texels. Same
+  // dimensions, alternating radiance, each one released before the next
+  // is made: the recycling an address key cannot see.
+  const int w = 8, h = 4;
+  const SkImageInfo info =
+      SkImageInfo::Make(w, h, kRGBA_F32_SkColorType, kPremul_SkAlphaType);
+  for (int round = 0; round < 64; ++round) {
+    const float radiance = (round % 2) ? 0.875f : 0.125f;
+    std::vector<float> px((size_t)w * h * 4, 1.0f);
+    for (size_t i = 0; i < (size_t)w * h; ++i) {
+      px[i * 4 + 0] = radiance;
+      px[i * 4 + 1] = radiance;
+      px[i * 4 + 2] = radiance;
+    }
+    const sk_sp<SkImage> sky = SkImages::RasterFromPixmapCopy(
+        {info, px.data(), (size_t)w * 4 * sizeof(float)});
+    ASSERT_TRUE(sky);
+    EXPECT_NEAR(samplePanorama(sky, {0.5f, 0.5f}).x, radiance, 1e-4f)
+        << "round " << round;
+  }
+}

@@ -155,3 +155,43 @@ different statement from a sweep that takes a while.
 
 Assert once fixed: `--bench` verdicts PASS for both, `nightingale_coxcomb`
 with p99 inside the budget rather than the median alone.
+
+## A cube map in a container file cannot be loaded
+
+`material::EnvironmentMap::fromCubeMap` takes an ordinary image — a
+cross or a strip — because that is what SigilImage decodes. DDS and KTX,
+the two container formats that hold six faces and a mip chain in one
+file and the two every capture tool writes, decode nowhere in this tree,
+so a cube map has to be unpacked to a sheet or to six files by hand
+before it reaches the library.
+
+Intended: the six named sources the design lists reach the value from
+the forms they actually ship in.
+
+Both containers are already readable by a dependency this build
+installs: DiligentTools' `Image` names `IMAGE_FILE_FORMAT_DDS` and
+`IMAGE_FILE_FORMAT_KTX`, and `CreateTextureFromFile` reads them. It is
+reachable only from a target that links Diligent, and the material kit
+is asserted by a boundary probe to link no renderer — so the door is in
+`world/diligent` or in SigilImage's decode feature beside the
+OpenImageIO backend, not in the value itself.
+
+Assert once fixed: a six-face cube written to a DDS and to a KTX loads
+to the same panorama a sheet of the same faces does, texel for texel at
+the six face-centre directions.
+
+## The environment's ground projection is carried and never read
+
+`world::Backdrop::groundRadius` and `projectionCenter` are extracted
+into the view and written to a USD dome light, and no tier reads either:
+the sky is drawn at infinity on both. A set whose camera moves through
+it therefore sees a horizon that does not shift, which is the one thing
+ground projection exists to fix.
+
+Intended: past zero, the panorama is treated as a sphere of that radius
+standing on the ground rather than one at infinity, so the ray a pixel
+reads is the intersection of the view ray with that sphere.
+
+Assert once fixed: photograph one set from two camera positions a
+radius apart with `groundRadius` set, and the horizon must land at two
+different heights in the frame; with it at zero the two must agree.
