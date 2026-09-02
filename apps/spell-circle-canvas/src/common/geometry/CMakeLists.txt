@@ -16,11 +16,10 @@
 set(SIGIL_GEOMETRY_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/include)
 
 add_subdirectory(path)
-add_subdirectory(mesh)
-add_subdirectory(kit)
 # The device feature needs Graphite on the shared device, since the whole
 # point of it is that both APIs draw on one; it is absent otherwise, and
-# so are the device executors that stand on it.
+# so are the device executors that stand on it. It comes BEFORE the tiers
+# that ask whether it exists.
 if(TARGET SigilSkiaGraphite)
   add_subdirectory(device)
 else()
@@ -28,6 +27,8 @@ else()
     "SigilGeometryDevice skipped: needs SPELLCIRCLE_ENABLE_SKIA_CANVAS "
     "(SigilSkiaGraphite)")
 endif()
+add_subdirectory(mesh)
+add_subdirectory(kit)
 
 add_library(SigilGeometry INTERFACE)
 target_link_libraries(SigilGeometry INTERFACE

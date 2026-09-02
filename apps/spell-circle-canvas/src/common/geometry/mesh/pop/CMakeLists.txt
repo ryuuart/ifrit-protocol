@@ -2,6 +2,13 @@
 # modifiers, instancing and the billboard rasterizer, plus the pop chain
 # language's field table, its CPU reference executor and the
 # mesh-forming sinks.
+#
+# AND THE DEVICE EXECUTORS BESIDE THEM, in device/: the chain cooked by
+# dispatching its kernel, and the sweep's rings formed by dispatching
+# theirs. A device executor stands beside the CPU executor of the seam it
+# serves — the ABI the chain declares is honoured in the same library
+# that declares it — and both are compiled only where a device exists to
+# run on.
 
 # THE KERNEL, compiled twice from one source: to the C++ this library's
 # executor calls, and to the SPIR-V a runtime that owns a device
@@ -17,7 +24,17 @@ sigil_slang_module(NAME Pop
   SPIRV_VAR SIGIL_POP_KERNEL_SPV_H)
 sigil_slang_kernel_flags(${SIGIL_POP_KERNEL_CPP})
 
+# The device half, present only where a device feature was built.
+if(TARGET SigilGeometryDevice)
+  set(SIGIL_POP_DEVICE_SOURCES
+      device/Cook.cpp
+      device/Sweep.cpp)
+else()
+  set(SIGIL_POP_DEVICE_SOURCES)
+endif()
+
 add_library(SigilGeometryMeshPop STATIC
+  ${SIGIL_POP_DEVICE_SOURCES}
   Billboards.cpp
   Cloud.cpp
   Cook.cpp
@@ -45,10 +62,24 @@ target_include_directories(SigilGeometryMeshPop
 # SigilCoreComparable's shape.
 target_link_libraries(SigilGeometryMeshPop PUBLIC SigilGeometryMeshCurve
   SigilCoreComparable)
+# The device executors dispatch the kernels this feature compiled, on the
+# device SigilGeometryDevice created. Diligent arrives through that
+# target and is never named beside it — see its CMakeLists for why the
+# link order matters.
+if(TARGET SigilGeometryDevice)
+  target_link_libraries(SigilGeometryMeshPop PUBLIC SigilGeometryDevice)
+endif()
 
 # The pop tests seed chains from an imported model and save a cooked
 # result, so this binary reaches into the codec as well.
+if(TARGET SigilGeometryDevice)
+  set(SIGIL_POP_DEVICE_TESTS test/DeviceCookTest.cpp test/DeviceSweepTest.cpp)
+else()
+  set(SIGIL_POP_DEVICE_TESTS)
+endif()
+
 add_executable(geometry_mesh_pop_test
+  ${SIGIL_POP_DEVICE_TESTS}
   test/PointsTest.cpp
   test/PopTest.cpp
   test/RuntimeTest.cpp

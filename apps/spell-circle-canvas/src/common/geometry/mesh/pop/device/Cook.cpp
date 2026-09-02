@@ -28,21 +28,18 @@
 #include <variant>
 #include <vector>
 
-#include "sigilworld/diligent/Pop.h"
+#include <sigilgeometry/mesh/pop/Pop.h>
 
-namespace sigil::world::diligent {
+namespace sigil::geometry::mesh {
 
 using ::sigil::geometry::device::Device;
 
 namespace dg = Diligent;
-namespace gm = ::sigil::geometry::mesh;
 
 namespace {
 
-using gm::Cloud;
-using gm::pop;
-using gm::kernel::Args;
-using gm::kernel::Dispatch;
+using kernel::Args;
+using kernel::Dispatch;
 
 /** How many lanes one dispatched group covers. It is the kernel's own
  *  `numthreads`, and the kernel drops the lanes past the point count
@@ -120,7 +117,7 @@ bool PopGpu::ready() {
   // Asked of the kernel and not of the build's raw output: the words a
   // driver may fuse a multiply-add in are not the words this dispatch is
   // held to agree with the host about.
-  const std::span<const uint32_t> words = gm::kernel::spirv();
+  const std::span<const uint32_t> words = kernel::spirv();
   ci.ByteCode = words.data();
   ci.ByteCodeSize = words.size() * sizeof(uint32_t);
   renderDevice->CreateShader(ci, &cs);
@@ -321,11 +318,12 @@ void PopGpu::readBack(pop::Lanes& into, size_t count) {
 /** THE EXECUTOR. Its device state is shared rather than held, so the
  *  value is copyable and two chains cooked through copies of one runtime
  *  meet the same pipeline and the same buffers. */
-class PopExecutor : public pop::Executor {
+class DeviceExecutor : public pop::Executor {
  public:
-  explicit PopExecutor(std::shared_ptr<PopGpu> gpu) : m_gpu(std::move(gpu)) {}
+  explicit DeviceExecutor(std::shared_ptr<PopGpu> gpu)
+      : m_gpu(std::move(gpu)) {}
 
-  bool operator==(const PopExecutor& other) const {
+  bool operator==(const DeviceExecutor& other) const {
     return m_gpu == other.m_gpu;
   }
 
@@ -338,7 +336,7 @@ class PopExecutor : public pop::Executor {
     const bool leads = std::holds_alternative<pop::SplineScatter>(op) ||
                        std::holds_alternative<pop::MeshScatter>(op) ||
                        std::holds_alternative<pop::PointSet>(op);
-    return leads || gm::kernel::has(op);
+    return leads || kernel::has(op);
   }
 
   Cloud cook(const pop::Chain& chain) const override {
@@ -355,7 +353,7 @@ class PopExecutor : public pop::Executor {
 
     for (size_t opIndex = 1; opIndex < chain.size(); ++opIndex) {
       Dispatch work;
-      if (!gm::kernel::describe(chain[opIndex], count, &work)) continue;
+      if (!kernel::describe(chain[opIndex], count, &work)) continue;
       m_gpu->dispatch(work, count);
     }
 
@@ -369,8 +367,8 @@ class PopExecutor : public pop::Executor {
 
 }  // namespace
 
-pop::Runtime popRuntime(Device& device) {
-  return pop::Runtime{PopExecutor{std::make_shared<PopGpu>(device)}};
+pop::Runtime pop::deviceRuntime(Device& device) {
+  return pop::Runtime{DeviceExecutor{std::make_shared<PopGpu>(device)}};
 }
 
-}  // namespace sigil::world::diligent
+}  // namespace sigil::geometry::mesh

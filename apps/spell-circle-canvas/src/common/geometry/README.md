@@ -659,6 +659,19 @@ fence signal or wait on `gpu()`, is made under a `QueueLock`. Diligent
 takes the same lock from inside its own submissions, which is why the
 lock does not nest: no Diligent call may be made while one is held.
 
+**The device executors of this library's own seams stand beside their CPU
+ones**, in `mesh/pop/device/`: `pop::deviceRuntime(device)` cooks a chain
+by dispatching the kernel this build compiled, and
+`curve::deviceRuntime(device)` forms a sweep's rings by dispatching
+theirs. Neither computes an arithmetic of its own — the kernel is one
+Slang source compiled twice, to the C++ the host executor calls and to
+the SPIR-V dispatched here — which is what lets the two tiers be held to
+bit identity rather than to a tolerance. Both are absent from a build
+with no device feature, and `mesh/pop/test/DeviceCookTest.cpp` and
+`DeviceSweepTest.cpp` are the conformance: every chain and every sweep
+the device runtime says it can do, done both ways and compared bit for
+bit.
+
 `device::Resources` is what every executor on that device stands on,
 made once and shared: the buffer a draw's uniforms go into, the samplers
 a map is read through (linear and nearest, clamped and tiled, plus the
@@ -900,7 +913,7 @@ recompiles one small file. All are registered with ctest and answer to
 | `geometry_mesh_camera_test` | `mesh/camera/test/CameraTest.cpp` | the view-projection carried through to viewport pixels, and the two placement transforms |
 | `geometry_mesh_render_test` | `mesh/render/test/PainterTest.cpp`, `mesh/render/test/RuntimeTest.cpp` | the mesh draw's pixels, the normals G-buffer's encoding and the primitive tint; and the runtime seam — the built-in value, comparison by model, and a substituted executor receiving the draw |
 | `geometry_mesh_curve_test` | `mesh/curve/test/CurveTest.cpp`, `mesh/curve/test/SweepTest.cpp` | splines, the two rails, the pose along them, and the sweep held vertex for vertex against independent reference bodies for a tube, a ribbon and a banner; and the ring seam — what a rail and a profile become as a dispatch, the taper resolved on the host, comparison by model, and a substituted executor forming the vertices |
-| `geometry_mesh_pop_test` | `mesh/pop/test/PointsTest.cpp`, `mesh/pop/test/PopTest.cpp`, `mesh/pop/test/RuntimeTest.cpp` | point clouds, instancing, the agreement between an instanced facing lane and `faceCamera()`, and pop chains with their operators; and the cook's runtime seam — the built-in value, comparison by model, a substituted executor receiving the cook, and the message an unsupported operator produces. Links the codec to seed chains from an imported model |
+| `geometry_mesh_pop_test` | `mesh/pop/test/PointsTest.cpp`, `mesh/pop/test/PopTest.cpp`, `mesh/pop/test/RuntimeTest.cpp`, and where a device exists `mesh/pop/test/DeviceCookTest.cpp` and `mesh/pop/test/DeviceSweepTest.cpp` | point clouds, instancing, the agreement between an instanced facing lane and `faceCamera()`, and pop chains with their operators; and the cook's runtime seam — the built-in value, comparison by model, a substituted executor receiving the cook, and the message an unsupported operator produces; and the CONFORMANCE of the device executors, every chain and every sweep they say they can do compared with the host's bit for bit. Links the codec to seed chains from an imported model |
 | `geometry_mesh_codec_test` | `mesh/codec/test/DecodeTest.cpp`, `mesh/codec/test/EncodeTest.cpp` | every reader, and the PLY writer's round trips; the only one linking Alembic |
 
 Helpers that more than one binary reads (`kCubeObj`, `splitQuad`) live in

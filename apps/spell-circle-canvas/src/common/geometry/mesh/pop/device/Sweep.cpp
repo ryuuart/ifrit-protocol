@@ -24,14 +24,13 @@
 #include <utility>
 #include <vector>
 
-#include "sigilworld/diligent/Sweep.h"
+#include <sigilgeometry/mesh/curve/Sweep.h>
 
-namespace sigil::world::diligent {
+namespace sigil::geometry::mesh::curve {
 
 using ::sigil::geometry::device::Device;
 
 namespace dg = Diligent;
-namespace curve = ::sigil::geometry::mesh::curve;
 
 namespace {
 
@@ -99,7 +98,7 @@ struct SweepGpu {
   /** @p values uploaded into @p lane, which is grown to hold them. */
   dg::IBufferView* upload(LaneBuffer& lane, const char* label,
                           const std::vector<glm::vec4>& values);
-  bool dispatch(const curve::kernel::Dispatch& work);
+  bool dispatch(const kernel::Dispatch& work);
   /** The two output lanes, read back in one crossing. */
   void readBack(size_t count, glm::vec4* positions, glm::vec4* normals);
 };
@@ -117,7 +116,7 @@ bool SweepGpu::ready() {
   // Asked of the kernel and not of the build's raw output: the words a
   // driver may fuse a multiply-add in are not the words this dispatch is
   // held to agree with the host about.
-  const std::span<const uint32_t> words = curve::kernel::spirv();
+  const std::span<const uint32_t> words = kernel::spirv();
   ci.ByteCode = words.data();
   ci.ByteCodeSize = words.size() * sizeof(uint32_t);
   renderDevice->CreateShader(ci, &cs);
@@ -136,7 +135,7 @@ bool SweepGpu::ready() {
 
   dg::BufferDesc desc;
   desc.Name = "sweep kernel arguments";
-  desc.Size = sizeof(curve::kernel::Args);
+  desc.Size = sizeof(kernel::Args);
   desc.BindFlags = dg::BIND_UNIFORM_BUFFER;
   // Written with UpdateBuffer rather than mapped: a sweep is not
   // necessarily inside a frame, and a default buffer's write does not
@@ -157,7 +156,7 @@ dg::IBufferView* SweepGpu::upload(LaneBuffer& lane, const char* label,
   return view;
 }
 
-bool SweepGpu::dispatch(const curve::kernel::Dispatch& work) {
+bool SweepGpu::dispatch(const kernel::Dispatch& work) {
   const size_t count = work.vertices();
   dg::IDeviceContext* context = device->context();
   dg::IRenderDevice& renderDevice = *device->renderDevice();
@@ -176,7 +175,7 @@ bool SweepGpu::dispatch(const curve::kernel::Dispatch& work) {
   if (!railPos || !railNor || !railBin || !contour || !outPos || !outNor)
     return false;
 
-  context->UpdateBuffer(arguments, 0, sizeof(curve::kernel::Args), &work.args,
+  context->UpdateBuffer(arguments, 0, sizeof(kernel::Args), &work.args,
                         dg::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
 
   const auto bind = [&](const char* name, dg::IDeviceObject* object) {
@@ -197,8 +196,8 @@ bool SweepGpu::dispatch(const curve::kernel::Dispatch& work) {
                                  dg::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
   dg::DispatchComputeAttribs attribs;
   attribs.ThreadGroupCountX =
-      (dg::Uint32)((count + curve::kernel::kGroupSize - 1) /
-                   curve::kernel::kGroupSize);
+      (dg::Uint32)((count + kernel::kGroupSize - 1) /
+                   kernel::kGroupSize);
   context->DispatchCompute(attribs);
   return true;
 }
@@ -245,18 +244,18 @@ void SweepGpu::readBack(size_t count, glm::vec4* positions,
 /** THE EXECUTOR. Its device state is shared rather than held, so the
  *  value is copyable and two sweeps through copies of one runtime meet
  *  the same pipeline and the same buffers. */
-class SweepExecutor : public curve::SweepExecutor {
+class DeviceSweepExecutor : public SweepExecutor {
  public:
-  explicit SweepExecutor(std::shared_ptr<SweepGpu> gpu)
+  explicit DeviceSweepExecutor(std::shared_ptr<SweepGpu> gpu)
       : m_gpu(std::move(gpu)) {}
 
-  bool operator==(const SweepExecutor& other) const {
+  bool operator==(const DeviceSweepExecutor& other) const {
     return m_gpu == other.m_gpu;
   }
 
   std::string name() const override { return "diligent"; }
 
-  void rings(const curve::kernel::Dispatch& work, glm::vec4* positions,
+  void rings(const kernel::Dispatch& work, glm::vec4* positions,
              glm::vec4* normals) const override {
     const size_t count = work.vertices();
     if (count == 0) return;
@@ -265,7 +264,7 @@ class SweepExecutor : public curve::SweepExecutor {
     // formed and not what they are — which is the one thing a caller
     // holding a runtime must not have to check for.
     if (!m_gpu->ready() || !m_gpu->dispatch(work)) {
-      curve::kernel::run(work, positions, normals);
+      kernel::run(work, positions, normals);
       return;
     }
     m_gpu->readBack(count, positions, normals);
@@ -277,8 +276,8 @@ class SweepExecutor : public curve::SweepExecutor {
 
 }  // namespace
 
-curve::SweepRuntime sweepRuntime(Device& device) {
-  return curve::SweepRuntime{SweepExecutor{std::make_shared<SweepGpu>(device)}};
+SweepRuntime deviceRuntime(Device& device) {
+  return SweepRuntime{DeviceSweepExecutor{std::make_shared<SweepGpu>(device)}};
 }
 
-}  // namespace sigil::world::diligent
+}  // namespace sigil::geometry::mesh::curve

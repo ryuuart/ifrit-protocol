@@ -14,7 +14,7 @@
 #include <sigilgeometry/mesh/curve/Curve.h>
 #include <sigilgeometry/mesh/curve/Sweep.h>
 #include <sigilgeometry/device/Device.h>
-#include <sigilworld/diligent/Sweep.h>
+#include <sigilgeometry/mesh/pop/Pop.h>
 
 #include <bit>
 #include <cstdint>
@@ -42,7 +42,7 @@ OnDevice onDevice() {
   OnDevice out;
   const geometry::device::DeviceConfig config;
   out.device = geometry::device::Device::create(config, &out.error);
-  if (out.device) out.sweep = world::diligent::sweepRuntime(*out.device);
+  if (out.device) out.sweep = curve::deviceRuntime(*out.device);
   return out;
 }
 
@@ -122,7 +122,7 @@ TEST(DeviceSweep, TheRuntimeIsAValue) {
   EXPECT_EQ(on.sweep->name(), "diligent");
   EXPECT_EQ(on.sweep, curve::SweepRuntime(on.sweep));
   EXPECT_NE(on.sweep, curve::SweepRuntime::cpu());
-  EXPECT_NE(on.sweep, world::diligent::sweepRuntime(*on.device));
+  EXPECT_NE(on.sweep, curve::deviceRuntime(*on.device));
 }
 
 TEST(DeviceSweep, EveryNormalRuleIsBitIdenticalToTheHost) {

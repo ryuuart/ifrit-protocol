@@ -14,7 +14,7 @@
 #include <sigilgeometry/mesh/pop/Kernel.h>
 #include <sigilgeometry/mesh/pop/Pop.h>
 #include <sigilgeometry/device/Device.h>
-#include <sigilworld/diligent/Pop.h>
+#include <sigilgeometry/mesh/pop/Pop.h>
 
 #include <bit>
 #include <cstdint>
@@ -43,7 +43,7 @@ OnDevice onDevice() {
   OnDevice out;
   const geometry::device::DeviceConfig config;
   out.device = geometry::device::Device::create(config, &out.error);
-  if (out.device) out.runtime = world::diligent::popRuntime(*out.device);
+  if (out.device) out.runtime = pop::deviceRuntime(*out.device);
   return out;
 }
 
@@ -254,7 +254,7 @@ TEST(DevicePop, AnOperatorWithNoKernelIsDeclinedByName) {
 TEST(DevicePop, TwoRuntimesFromOneDeviceAreNotOneValue) {
   const OnDevice on = onDevice();
   if (!on) GTEST_SKIP() << "no Vulkan device: " << on.error;
-  const pop::Runtime again = world::diligent::popRuntime(*on.device);
+  const pop::Runtime again = pop::deviceRuntime(*on.device);
   // Each call holds its own pipeline and its own buffers, so a
   // reconciler comparing two descriptions sees two runtimes; a copy of
   // one is the one it was copied from.
