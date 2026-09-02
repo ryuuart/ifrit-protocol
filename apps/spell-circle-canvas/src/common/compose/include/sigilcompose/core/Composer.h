@@ -76,7 +76,7 @@ class Composer {
    *  display/view baked to a 3D LUT (SigilMaterial's colour transforms),
    *  but any Effect works. Per-node caches are unaffected (this is
    *  post-cache, at composite). */
-  void setView(Effect view);
+  void setView(material::skia::Effect view);
   /** The view as a SigilMaterial recipe whose `content` slot is the
    *  output — `Effect::recipe(view)`. */
   void setView(const sigil::material::Material& view);

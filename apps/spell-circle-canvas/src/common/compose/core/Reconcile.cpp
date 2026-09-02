@@ -104,8 +104,8 @@ void applyDim(YGNodeRef node, const Dim& d, void (*setPx)(YGNodeRef, float),
 // beside its body there; the Effect and the blocks below are this
 // library's own.
 
-bool effectEqual(const std::optional<Effect>& a,
-                 const std::optional<Effect>& b) {
+bool effectEqual(const std::optional<material::skia::Effect>& a,
+                 const std::optional<material::skia::Effect>& b) {
   if (a.has_value() != b.has_value()) return false;
   if (!a) return true;
   // Structural (Effect::operator==): static shader recipes compare by

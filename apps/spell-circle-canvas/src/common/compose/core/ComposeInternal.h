@@ -405,8 +405,8 @@ struct MarkLabel {
 };
 
 struct FxData {
-  std::optional<Effect> layerEffect;
-  std::optional<Effect> backdropEffect;
+  std::optional<material::skia::Effect> layerEffect;
+  std::optional<material::skia::Effect> backdropEffect;
   // Misprint echoes (offset flat-color re-stamps under fill/text)
   std::vector<Echo> echoes;
   float staggerChildrenMs = 0;  // extra order·each mount delay per subtree

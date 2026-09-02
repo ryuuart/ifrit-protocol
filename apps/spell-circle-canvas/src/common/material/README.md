@@ -62,7 +62,7 @@ each a static archive that links only what sits beneath it:
 | `SigilMaterialSdf` | `sdf::` — `Shape`, `Style`, `pad`, `material` | SigilMaterialCore |
 | `SigilMaterialPattern` | `pattern::Tile` and the stock tiles | SigilMaterialTexture |
 | `SigilMaterialField` | `field::` — `halftoneRamp`, `noise`, `grain`, `ripple`, `crtOverlay` | SigilMaterialTexture |
-| `SigilMaterialSkia` | the SkSL compiler and `SkiaProgram`, whose builder uploads resolved bytes; `skia::builder` and `skia::shader` binding leaves into slots; `skia::fill`; the colour bridge `skia::toColor` / `skia::toSkColor` / `skia::toColors`; and `skia::Paint`, the model as ONE shader | SigilMaterialTexture, SigilMotionValues |
+| `SigilMaterialSkia` | the SkSL compiler and `SkiaProgram`, whose builder uploads resolved bytes; `skia::builder` and `skia::shader` binding leaves into slots; `skia::fill`; the colour bridge `skia::toColor` / `skia::toSkColor` / `skia::toColors`; `skia::Paint`, the model as ONE shader; and `skia::Effect`, the post-processing recipe over a rendered layer | SigilMaterialTexture, SigilMotionValues |
 | `SigilMaterialSlang` | the Slang compiler: `slang::compileModule` to SPIR-V, `slang::Compiled` with the reflected `slang::UniformSlot` per uniform, `slang::SlangProgram`, and `slang::Uniforms`, the buffer one draw is written into; `Portable.slang`, the subset a host and a device answer alike, loaded into every session by name | SigilMaterialCore; SigilMaterialKit and Slang privately |
 | `SigilMaterialKit` | the presets: the metallic-roughness `kit::surface` and `kit::unlit` and the masks that stack them; `kit::gold`, `kit::chrome`, `kit::glass`; `kit::girih8` and its palettes; the gel and chrome tables with `kit::contourRing`; the text paints and chrome-type ramps; and `kit::terms`, the shading terms a surface is composed of | SigilMaterialPattern, SigilMaterialColor |
 
@@ -642,6 +642,16 @@ compares by EFFECT POINTER, so a helper that compiles a fresh
 `SkRuntimeEffect` per call never compares equal to itself — compile once
 and hold the paint. Every mutation is copy-on-write, so binding on a copy
 never reaches the value it was copied from.
+
+**Post-processing is the other half of the same frame.** `skia::Effect`
+takes the layer a consumer has already rendered and runs a filter over
+it: `filter()` wraps any `SkImageFilter`, `shader()` an SkSL program
+whose `content` child IS that layer, `recipe()` a `Material` in the same
+position, and `blur()`/`directionalBlur()`/`glow()` are the three named
+ones. `then()` chains them, and the same tier rules hold — a bound
+uniform or a live child makes the effect live, and a static chain
+precomposes once. It resolves against the same `PaintFrame` a paint
+does, so a consumer builds one frame per draw and hands it to both.
 
 ## Boundaries
 

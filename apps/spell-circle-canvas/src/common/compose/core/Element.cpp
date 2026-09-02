@@ -318,11 +318,11 @@ Element& Element::style(LayerStyle s) {
   }
   return *this;
 }
-Element& Element::effect(Effect e) {
+Element& Element::effect(material::skia::Effect e) {
   m_node->fxData.ensure().layerEffect = std::move(e);
   return *this;
 }
-Element& Element::backdrop(Effect e) {
+Element& Element::backdrop(material::skia::Effect e) {
   m_node->fxData.ensure().backdropEffect = std::move(e);
   return *this;
 }

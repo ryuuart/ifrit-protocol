@@ -483,18 +483,22 @@ TEST(TextPass, MisSizedUniformsWarnOnceAndAreIgnored) {
   wrong.uniform("uPair", std::array<float, 4>{1, 2, 3, 4});  // float2 slot
   EXPECT_TRUE(base == wrong);
 
-  Effect effect = Effect::shader(wideUniformEffect());
-  Effect wrongEffect = Effect::shader(wideUniformEffect());
+  material::skia::Effect effect =
+      material::skia::Effect::shader(wideUniformEffect());
+  material::skia::Effect wrongEffect =
+      material::skia::Effect::shader(wideUniformEffect());
   wrongEffect.uniform("uVals", std::vector<float>{1, 2, 3});
   wrongEffect.uniform("uNothing", 1.0f);
   EXPECT_TRUE(effect == wrongEffect);
 }
 
 TEST(TextPass, EffectConstantLanesParticipateInEquality) {
-  Effect a = Effect::shader(wideUniformEffect());
+  material::skia::Effect a =
+      material::skia::Effect::shader(wideUniformEffect());
   a.uniform("uPair", std::array<float, 2>{1, 0});
   a.uniform("uVals", std::vector<float>{1, 2, 3, 4});
-  Effect b = Effect::shader(wideUniformEffect());
+  material::skia::Effect b =
+      material::skia::Effect::shader(wideUniformEffect());
   b.uniform("uPair", std::array<float, 2>{1, 0});
   b.uniform("uVals", std::vector<float>{1, 2, 3, 4});
   EXPECT_TRUE(a == b);

@@ -507,9 +507,10 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
   // effect (bound uniforms, a live child material) resolves here per paint,
   // and computeVolatile has declared such a node volatile, so this
   // recording is never cached stale.
-  const Effect* layerFx = layerEffectOf(node);
+  const material::skia::Effect* layerFx = layerEffectOf(node);
+  const material::skia::PaintFrame layerFrame = frameOf(paintCtx);
   const sk_sp<SkImageFilter> layerFilter =
-      layerFx ? layerFx->resolvedImageFilter(&paintCtx) : nullptr;
+      layerFx ? layerFx->resolvedImageFilter(&layerFrame) : nullptr;
   const bool hasEffect = (bool)layerFilter;
   if (hasEffect) {
     SkPaint effectPaint;
@@ -1124,7 +1125,7 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
   curToRoot.preConcat(
       tf.matrix({0, 0}, node.paint, rect.width(), rect.height()));
 
-  const Effect* backdropFx = backdropEffectOf(node);
+  const material::skia::Effect* backdropFx = backdropEffectOf(node);
   sk_sp<SkImageFilter> backdropFilter;
   if (backdropFx) {
     // A backdrop effect's child materials resolve against the node's box
@@ -1142,7 +1143,8 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
                                    &inst.stampCache,
                                    curToRoot,  // this node→root
                                    rootLayoutSize};
-    backdropFilter = backdropFx->resolvedImageFilter(&backdropCtx);
+    const material::skia::PaintFrame backdropFrame = frameOf(backdropCtx);
+    backdropFilter = backdropFx->resolvedImageFilter(&backdropFrame);
   }
   const bool hasBackdrop = (bool)backdropFilter;
   if (hasBackdrop) {

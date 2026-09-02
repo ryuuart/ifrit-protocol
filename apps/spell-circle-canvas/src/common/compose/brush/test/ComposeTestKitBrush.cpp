@@ -17,6 +17,8 @@
 #include <utility>
 #include <vector>
 using namespace sigil::compose;
+
+namespace geometry = sigil::geometry;
 #include <sigilcompose/brush/Brushes.h>
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilcompose/typography/Typography.h>
@@ -34,36 +36,32 @@ sigil::weave::FontContext& fonts() {
 }  // namespace
 
 TEST(ComposeKitStrokes, ShapersSatisfyThePublicSeam) {
-  static_assert(sigil::geometry::path::ShaperScheme<sigil::geometry::shapers::Wave>);
-  static_assert(
-      sigil::geometry::path::ShaperScheme<sigil::geometry::shapers::Jitter>);
-  static_assert(
-      sigil::geometry::path::ShaperScheme<sigil::geometry::shapers::Offset>);
+  static_assert(geometry::path::ShaperScheme<geometry::shapers::Wave>);
+  static_assert(geometry::path::ShaperScheme<geometry::shapers::Jitter>);
+  static_assert(geometry::path::ShaperScheme<geometry::shapers::Offset>);
   // …and the wave doubles as a PROFILE, which is what makes a braid strand
   // and an undulating band one vocabulary.
-  static_assert(
-      sigil::geometry::path::ProfileScheme<sigil::geometry::shapers::Wave>);
+  static_assert(geometry::path::ProfileScheme<geometry::shapers::Wave>);
 
   SkPathBuilder b;
   b.moveTo(0, 50);
   b.lineTo(200, 50);
   const SkPath straight = b.detach();
 
-  const SkPath waved = sigil::geometry::shapes::wave(6, 30).shape(straight);
+  const SkPath waved = geometry::shapers::wave(6, 30).shape(straight);
   EXPECT_GT(waved.getBounds().height(), 6.0f) << "the wave did not deviate";
-  const SkPath jittered = sigil::geometry::shapes::jitter(8, 3, 5).shape(straight);
+  const SkPath jittered = geometry::shapers::jitter(8, 3, 5).shape(straight);
   EXPECT_GT(jittered.getBounds().height(), 1.0f);
-  const SkPath railed = sigil::geometry::shapes::offset(-12).shape(straight);
+  const SkPath railed = geometry::shapers::offset(-12).shape(straight);
   EXPECT_NEAR(railed.getBounds().centerY(), 62.0f, 1.5f)
       << "positive offset is LEFT of travel — the one convention (R3's "
          "sign port), so travelling +x with y down a NEGATIVE offset goes "
          "down the screen";
 
   // Comparable, so a brush holding one prunes.
-  EXPECT_TRUE(sigil::geometry::shapes::wave(6, 30) ==
-              sigil::geometry::shapes::wave(6, 30));
-  EXPECT_FALSE(sigil::geometry::shapes::wave(6, 30) ==
-               sigil::geometry::shapers::wave(6, 31));
+  EXPECT_TRUE(geometry::shapers::wave(6, 30) == geometry::shapers::wave(6, 30));
+  EXPECT_FALSE(geometry::shapers::wave(6, 30) ==
+               geometry::shapers::wave(6, 31));
 }
 
 TEST(ComposeKitStrokes, BraidCrossesByConstruction) {
@@ -83,10 +81,9 @@ TEST(ComposeKitStrokes, BraidCrossesByConstruction) {
     std::vector<SkPath> paths;
     paths.reserve(braid.size());
     for (const brush::Strand& s : braid)
-      paths.push_back(
-          sigil::geometry::path::profileOffset(spine, s.path.profile()));
-    const std::vector<sigil::geometry::path::Crossing> crossings =
-        sigil::geometry::path::discoverCrossings(paths);
+      paths.push_back(geometry::path::profileOffset(spine, s.path.profile()));
+    const std::vector<geometry::path::Crossing> crossings =
+        geometry::path::discoverCrossings(paths);
     EXPECT_GT(crossings.size(), 0u)
         << n << " braided waves produced no crossing";
     // Numbering is positional and contiguous, so a pin means the same knot
@@ -99,9 +96,9 @@ TEST(ComposeKitStrokes, BraidCrossesByConstruction) {
   std::vector<SkPath> rails;
   rails.reserve(3);
   for (int k = 0; k < 3; ++k)
-    rails.push_back(sigil::geometry::path::profileOffset(
-        spine, sigil::geometry::path::profile::offset((float)k * 6.0f)));
-  EXPECT_TRUE(sigil::geometry::path::discoverCrossings(rails).empty())
+    rails.push_back(geometry::path::profileOffset(
+        spine, geometry::path::profile::offset((float)k * 6.0f)));
+  EXPECT_TRUE(geometry::path::discoverCrossings(rails).empty())
       << "parallels are rails — they must not braid";
 }
 
@@ -129,15 +126,15 @@ TEST(ComposeKitStrokes, TheWaveProfileIsAKitValueOverACoreSeam) {
   // The seam itself ships profile::self()/offset() only; everything that
   // oscillates lives in the geometry kit — but it plugs the SAME Profile
   // seam, so nothing beneath it learns that a kit profile exists.
-  const sigil::geometry::path::Profile undulating = geometry::path::profile::wave(9, 50);
+  const geometry::path::Profile undulating =
+      geometry::path::profile::wave(9, 50);
   EXPECT_NEAR(undulating.max(), 9.0f, 1e-4f) << "max() is required by the seam";
   EXPECT_TRUE(undulating == geometry::path::profile::wave(9, 50));
   EXPECT_FALSE(undulating == geometry::path::profile::wave(9, 51));
-  EXPECT_FALSE(undulating == sigil::geometry::path::profile::offset(9));
+  EXPECT_FALSE(undulating == geometry::path::profile::offset(9));
 
   // A band takes it, because a band's taper and a strand's path are one value.
-  Element undulatingBand =
-      band(sigil::geometry::shapes::circle(), across(undulating));
+  Element undulatingBand = band(geometry::shapes::circle(), across(undulating));
   EXPECT_TRUE(undulatingBand.node() != nullptr);
 }
 
@@ -222,17 +219,14 @@ TEST(ComposeKitStrokes, ShapedAgreesWithTheRestyleWrapper) {
 }
 
 TEST(ComposeKitStrokes, ShapersAreComparableValuesAndPrune) {
-  static_assert(sigil::geometry::path::ShaperScheme<geometry::shapers::Wave>);
-  EXPECT_TRUE(sigil::geometry::path::Shaper(geometry::shapers::wave(4, 20)) ==
-              sigil::geometry::path::Shaper(geometry::shapers::wave(4, 20)));
-  EXPECT_FALSE(
-      sigil::geometry::path::Shaper(geometry::shapers::wave(4, 20)) ==
-      sigil::geometry::path::Shaper(geometry::shapers::wave(5, 20)));
-  EXPECT_FALSE(
-      sigil::geometry::path::Shaper(geometry::shapers::wave(4, 20)) ==
-      sigil::geometry::path::Shaper(geometry::shapers::jitter()));
-  EXPECT_TRUE(sigil::geometry::path::Shaper() ==
-              sigil::geometry::path::Shaper())
+  static_assert(geometry::path::ShaperScheme<geometry::shapers::Wave>);
+  EXPECT_TRUE(geometry::path::Shaper(geometry::shapers::wave(4, 20)) ==
+              geometry::path::Shaper(geometry::shapers::wave(4, 20)));
+  EXPECT_FALSE(geometry::path::Shaper(geometry::shapers::wave(4, 20)) ==
+               geometry::path::Shaper(geometry::shapers::wave(5, 20)));
+  EXPECT_FALSE(geometry::path::Shaper(geometry::shapers::wave(4, 20)) ==
+               geometry::path::Shaper(geometry::shapers::jitter()));
+  EXPECT_TRUE(geometry::path::Shaper() == geometry::path::Shaper())
       << "reflexive when empty";
 }
 
@@ -273,24 +267,23 @@ TEST(ComposeKitStrokes, BraidAlternatesAlongTheWholeRun) {
             // survive each return
             // NOLINTNEXTLINE(performance-no-automatic-move)
             .shape([&](SkSize) { return spine; })
-            .stroke(brush::weave(
-                strands, sigil::geometry::path::crossing::alternate()))));
+            .stroke(
+                brush::weave(strands, geometry::path::crossing::alternate()))));
     host.frame();
 
     // The knots, in the same order the rule numbers them.
     std::vector<SkPath> paths;
     paths.reserve(strands.size());
     for (const brush::Strand& st : strands)
-      paths.push_back(
-          sigil::geometry::path::profileOffset(spine, st.path.profile()));
-    const std::vector<sigil::geometry::path::Crossing> knots =
-        sigil::geometry::path::discoverCrossings(paths);
+      paths.push_back(geometry::path::profileOffset(spine, st.path.profile()));
+    const std::vector<geometry::path::Crossing> knots =
+        geometry::path::discoverCrossings(paths);
     EXPECT_GT(knots.size(), 20u) << "not enough knots to show the defect";
 
     // alternate() puts strand 0 (red) over at even ordinals, strand 1
     // (green) over at odd ones. Sample each knot and count disagreements.
     int wrong = 0, sampled = 0;
-    for (const sigil::geometry::path::Crossing& k : knots) {
+    for (const geometry::path::Crossing& k : knots) {
       const int px = (int)std::lround(k.at.fX);
       const int py = (int)std::lround(k.at.fY);
       // A knot bisected by the frame has no interior pixel to read — the
@@ -343,21 +336,17 @@ TEST(ComposeKitStrokes, TheThreeTwinsThatAbsorbedTheOpsStructs) {
 }
 
 TEST(ComposeKitStrokes, TheNewTwinsAreComparableSeamValuesLikeTheRest) {
-  static_assert(
-      sigil::geometry::path::ShaperScheme<geometry::shapers::Rounded>);
-  static_assert(
-      sigil::geometry::path::ShaperScheme<geometry::shapers::Square>);
-  static_assert(
-      sigil::geometry::path::ShaperScheme<geometry::shapers::Zigzag>);
-  EXPECT_TRUE(sigil::geometry::path::Shaper(geometry::shapes::rounded(6)) ==
-              sigil::geometry::path::Shaper(geometry::shapes::rounded(6)));
-  EXPECT_FALSE(sigil::geometry::path::Shaper(geometry::shapes::rounded(6)) ==
-               sigil::geometry::path::Shaper(geometry::shapes::rounded(7)));
+  static_assert(geometry::path::ShaperScheme<geometry::shapers::Rounded>);
+  static_assert(geometry::path::ShaperScheme<geometry::shapers::Square>);
+  static_assert(geometry::path::ShaperScheme<geometry::shapers::Zigzag>);
+  EXPECT_TRUE(geometry::path::Shaper(geometry::shapers::rounded(6)) ==
+              geometry::path::Shaper(geometry::shapers::rounded(6)));
+  EXPECT_FALSE(geometry::path::Shaper(geometry::shapers::rounded(6)) ==
+               geometry::path::Shaper(geometry::shapers::rounded(7)));
   // Different KINDS never compare equal even at equal numbers — the type
   // is part of the value, which is what keeps a re-described brush honest.
-  EXPECT_FALSE(
-      sigil::geometry::path::Shaper(geometry::shapers::square(4, 28)) ==
-      sigil::geometry::path::Shaper(geometry::shapers::zigzag(4, 28)));
+  EXPECT_FALSE(geometry::path::Shaper(geometry::shapers::square(4, 28)) ==
+               geometry::path::Shaper(geometry::shapers::zigzag(4, 28)));
 }
 
 TEST(ComposeKitPresets, TheFourPresetsCameOutOfCoreUNCHANGED) {
@@ -467,7 +456,7 @@ TEST(ComposeKitStrokes, ABleedIsADISTANCEAndNeverNegative) {
   EXPECT_FLOAT_EQ(kitSquare.bleed(), 5.0f);
   EXPECT_FLOAT_EQ(kitZigzag.bleed(), 4.0f);
   // …and the type-erased seams read the same number through.
-  EXPECT_FLOAT_EQ(sigil::geometry::path::Shaper(kitWave).bleed(), 4.0f);
+  EXPECT_FLOAT_EQ(geometry::path::Shaper(kitWave).bleed(), 4.0f);
   EXPECT_FLOAT_EQ(GeometryOp(kitSquare).bleed(), 5.0f);
   // A negative amplitude still DRAWS — it is the same wave, half a cycle
   // over — so this is a cull fix and not a clamp on the value.

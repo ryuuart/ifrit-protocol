@@ -235,13 +235,13 @@ void Composer::setClock(const motion::FrameClock* clock) {
   m_impl->clock = clock;
 }
 
-void Composer::setView(Effect view) {
+void Composer::setView(material::skia::Effect view) {
   m_impl->view = std::move(view);
   m_impl->contentDirty = true;  // the composite changes even if no node did
 }
 
 void Composer::setView(const sigil::material::Material& view) {
-  setView(Effect::recipe(view));
+  setView(material::skia::Effect::recipe(view));
 }
 
 void Composer::declareInputSpace(InputSpace space) {

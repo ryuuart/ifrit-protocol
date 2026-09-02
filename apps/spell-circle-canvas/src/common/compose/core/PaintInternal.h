@@ -52,10 +52,10 @@ inline bool hasTextFx(const Instance& inst) {
 inline const sigil::image::ImageAsset* imageAssetOf(const ElementNode& n) {
   return n.imageData ? n.imageData->asset.get() : nullptr;
 }
-inline const Effect* layerEffectOf(const ElementNode& n) {
+inline const material::skia::Effect* layerEffectOf(const ElementNode& n) {
   return n.fxData && n.fxData->layerEffect ? &*n.fxData->layerEffect : nullptr;
 }
-inline const Effect* backdropEffectOf(const ElementNode& n) {
+inline const material::skia::Effect* backdropEffectOf(const ElementNode& n) {
   return n.fxData && n.fxData->backdropEffect ? &*n.fxData->backdropEffect
                                               : nullptr;
 }

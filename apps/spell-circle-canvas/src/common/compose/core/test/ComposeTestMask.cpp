@@ -226,7 +226,8 @@ TEST(ComposeCache, ALiveEffectMovingOverAHeldMaterialRepaints) {
   host.composer.render(box().child(
       maskBox()
           .fill(material::skia::Paint::sksl(matfx).uniform("lift", &lift))
-          .effect(Effect::shader(fx, {{"amt", 1.0f}}).uniform("amt", &amt))));
+          .effect(material::skia::Effect::shader(fx, {{"amt", 1.0f}})
+                      .uniform("amt", &amt))));
   host.frame();
   for (int i = 0; i < 4; ++i) host.frame(0.016);
   EXPECT_GT(redInk(host, 25, 25, 115, 115), 4000) << "red to begin with";

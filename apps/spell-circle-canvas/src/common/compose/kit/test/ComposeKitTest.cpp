@@ -22,6 +22,7 @@
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkSurface.h>
 #include <sigilcompose/kit/Kit.h>
+#include <sigilgeometry/kit/Divisions.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
@@ -118,14 +119,15 @@ TEST(KitFrame, NorthClockwiseMatchesTheHandRolledSpelling) {
 }
 
 TEST(KitFrame, EastAndCounterClockwiseAreTheOtherConventions) {
-  const geometry::path::Frame east{.centre = {0, 0}, .radius = 1, .zero = geometry::path::Zero::East};
+  const geometry::path::Frame east{
+      .centre = {0, 0}, .radius = 1, .zero = geometry::path::Zero::East};
   EXPECT_TRUE(near(east.at(0, 1), {1, 0}, 1e-5f));
   EXPECT_TRUE(near(east.at(90, 1), {0, 1}, 1e-5f));  // screen-clockwise
 
   const geometry::path::Frame ccw{.centre = {0, 0},
-                       .radius = 1,
-                       .zero = geometry::path::Zero::East,
-                       .sense = geometry::path::Sense::CCW};
+                                  .radius = 1,
+                                  .zero = geometry::path::Zero::East,
+                                  .sense = geometry::path::Sense::CCW};
   EXPECT_TRUE(near(ccw.at(90, 1), {0, -1}, 1e-5f));
 }
 
@@ -162,11 +164,12 @@ TEST(KitFrame, TheBaselinesDirectionIsNotTheFramesSense) {
 
   // Every combination of frame sense and baseline direction must land on
   // the same point the frame names.
-  for (geometry::path::Sense sense : {geometry::path::Sense::CW, geometry::path::Sense::CCW}) {
+  for (geometry::path::Sense sense :
+       {geometry::path::Sense::CW, geometry::path::Sense::CCW}) {
     const geometry::path::Frame f{.centre = {100, 100},
-                       .radius = 100,
-                       .zero = geometry::path::Zero::North,
-                       .sense = sense};
+                                  .radius = 100,
+                                  .zero = geometry::path::Zero::North,
+                                  .sense = sense};
     for (auto dir : {SkPathDirection::kCW, SkPathDirection::kCCW}) {
       const SkPath& path = dir == SkPathDirection::kCW ? cw : ccw;
       for (float th : {0.0f, 60.0f, 210.0f})
@@ -194,10 +197,10 @@ TEST(KitFrame, DegOfInvertsFraction) {
 
 TEST(KitFrame, TurnedComposesAndScaledKeepsConventions) {
   const geometry::path::Frame f{.centre = {10, 20},
-                     .radius = 8,
-                     .zero = geometry::path::Zero::North,
-                     .sense = geometry::path::Sense::CCW,
-                     .originDeg = 4.0f};
+                                .radius = 8,
+                                .zero = geometry::path::Zero::North,
+                                .sense = geometry::path::Sense::CCW,
+                                .originDeg = 4.0f};
   EXPECT_EQ(f.turned(4.5f).turned(-4.5f), f);
   // A half-division offset must move the point by half a division.
   EXPECT_TRUE(near(f.turned(9.0f).at(0, 1), f.at(9.0f, 1), 1e-4f));
@@ -274,7 +277,8 @@ TEST(KitGrid, MapsAPolylineAndAMatrix) {
 
 TEST(KitTicks, EmitsOneContourPerDivisionAndPlacesThemOnTheFrame) {
   const geometry::path::Frame f{.centre = {0, 0}, .radius = 100};
-  const SkPath p = geometry::shapes::ticks(f, {.divisions = 12, .mark = {0.9f, 1.0f}});
+  const SkPath p =
+      geometry::shapes::ticks(f, {.divisions = 12, .mark = {0.9f, 1.0f}});
   const Contours c = walk(p);
   EXPECT_EQ(c.pieces.size(), 12u);
   for (float len : c.lengths) EXPECT_NEAR(len, 10.0f, 1e-2f);
@@ -287,9 +291,9 @@ TEST(KitTicks, EmitsOneContourPerDivisionAndPlacesThemOnTheFrame) {
 TEST(KitTicks, LongEveryLengthensEveryNthMark) {
   const geometry::path::Frame f{.centre = {0, 0}, .radius = 100};
   const SkPath p = geometry::shapes::ticks(f, {.divisions = 72,
-                                  .mark = {0.96f, 1.0f},
-                                  .longEvery = 6,
-                                  .longMark = {0.91f, 1.0f}});
+                                               .mark = {0.96f, 1.0f},
+                                               .longEvery = 6,
+                                               .longMark = {0.91f, 1.0f}});
   const Contours c = walk(p);
   ASSERT_EQ(c.pieces.size(), 72u);
   int longs = 0;
@@ -309,7 +313,7 @@ TEST(KitTicks, ClassifyReachesThreeLengthClasses) {
   const SkPath p = geometry::shapes::ticks(
       f, {.divisions = 9,
           .mark = {0.5f, 1.0f},
-          .classify = [](int i, kit::Span s) {
+          .classify = [](int i, geometry::shapes::Span s) {
             s.outer = (i % 3 == 0) ? 1.0f : (i % 3 == 1 ? 0.86f : 0.93f);
             return s;
           }});
@@ -349,7 +353,8 @@ TEST(KitTicks, OutlineFormTakesHalfTheShorterSide) {
 
 TEST(KitTicks, ZeroLengthMarksAreSkippedRatherThanEmittedEmpty) {
   const geometry::path::Frame f{.centre = {0, 0}, .radius = 10};
-  const SkPath p = geometry::shapes::ticks(f, {.divisions = 6, .mark = {1.0f, 1.0f}});
+  const SkPath p =
+      geometry::shapes::ticks(f, {.divisions = 6, .mark = {1.0f, 1.0f}});
   EXPECT_TRUE(p.isEmpty());
 }
 
@@ -390,23 +395,26 @@ TEST(KitChords, PolygonCannotDoThat) {
 TEST(KitChords, InsetShortensBothEndsAndDropsDegenerateSides) {
   const geometry::path::Frame f{.centre = {0, 0}, .radius = 100};
   const Contours plain = walk(geometry::shapes::chords(f, {.sides = 7}));
-  const Contours inset = walk(geometry::shapes::chords(f, {.sides = 7, .inset = 6.0f}));
+  const Contours inset =
+      walk(geometry::shapes::chords(f, {.sides = 7, .inset = 6.0f}));
   ASSERT_EQ(inset.pieces.size(), 7u);
   EXPECT_NEAR(plain.lengths[0] - inset.lengths[0], 12.0f, 1e-2f);
   // An inset wider than the side leaves nothing to draw.
-  EXPECT_TRUE(geometry::shapes::chords(f, {.sides = 7, .inset = 500.0f}).isEmpty());
+  EXPECT_TRUE(
+      geometry::shapes::chords(f, {.sides = 7, .inset = 500.0f}).isEmpty());
 }
 
 TEST(KitChords, StepMakesStarPolygonsAndGcdDecidesTheRingCount) {
   const geometry::path::Frame f{.centre = {0, 0}, .radius = 100};
   // {7/2}: coprime, so one closed traversal of all seven vertices.
-  EXPECT_EQ(walk(geometry::shapes::chords(f, {.sides = 7, .step = 2, .closed = true}))
-                .pieces.size(),
-            1u);
+  EXPECT_EQ(
+      walk(geometry::shapes::chords(f, {.sides = 7, .step = 2, .closed = true}))
+          .pieces.size(),
+      1u);
   // {6/2}: gcd 2, so the hexagram really is TWO separate triangles. Emitting
   // one contour here would be wrong geometry, not a simplification.
-  const Contours hex =
-      walk(geometry::shapes::chords(f, {.sides = 6, .step = 2, .closed = true}));
+  const Contours hex = walk(
+      geometry::shapes::chords(f, {.sides = 6, .step = 2, .closed = true}));
   EXPECT_EQ(hex.pieces.size(), 2u);
   for (float len : hex.lengths)
     EXPECT_NEAR(len, 3.0f * 100.0f * std::sqrt(3.0f), 0.5f);
@@ -675,10 +683,10 @@ TEST(KitLegibility, DrawHaloedPutsGroundColourAroundTheInk) {
 
 TEST(KitDocs, EverySignatureIsSpelledOnce) {
   const geometry::path::Frame frame{.centre = {100, 100},
-                         .radius = 80,
-                         .zero = geometry::path::Zero::North,
-                         .sense = geometry::path::Sense::CW,
-                         .originDeg = 0};
+                                    .radius = 80,
+                                    .zero = geometry::path::Zero::North,
+                                    .sense = geometry::path::Sense::CW,
+                                    .originDeg = 0};
   (void)frame.skiaDeg(30);
   (void)frame.skiaSweep(30);
   (void)frame.radians(30);
@@ -690,7 +698,7 @@ TEST(KitDocs, EverySignatureIsSpelledOnce) {
   (void)frame.px(30, 40);
   (void)frame.dir(30);
   (void)frame.box(0.5f);
-  (void)frame.disc(0.5f);
+  (void)kit::disc(frame, 0.5f);
   (void)frame.scaled(0.5f);
   (void)frame.about({0, 0});
   (void)frame.turned(4.5f);
@@ -708,20 +716,20 @@ TEST(KitDocs, EverySignatureIsSpelledOnce) {
   (void)grid.scaled(0.625f);
 
   (void)geometry::shapes::ticks(frame, {.divisions = 72,
-                           .from = 0,
-                           .sweep = 360,
-                           .closed = false,
-                           .mark = {0.96f, 1.0f},
-                           .longEvery = 6,
-                           .longMark = {0.91f, 1.0f},
-                           .classify = nullptr});
+                                        .from = 0,
+                                        .sweep = 360,
+                                        .closed = false,
+                                        .mark = {0.96f, 1.0f},
+                                        .longEvery = 6,
+                                        .longMark = {0.91f, 1.0f},
+                                        .classify = nullptr});
   (void)geometry::shapes::ticks({.divisions = 12}, frame);
   (void)geometry::shapes::chords(frame, {.sides = 7,
-                            .step = 1,
-                            .radius = 0.9f,
-                            .from = 0,
-                            .inset = 4,
-                            .closed = false});
+                                         .step = 1,
+                                         .radius = 0.9f,
+                                         .from = 0,
+                                         .inset = 4,
+                                         .closed = false});
   (void)geometry::shapes::chords({.sides = 7}, frame);
 
   const auto style = pixelStyle(10.0f);

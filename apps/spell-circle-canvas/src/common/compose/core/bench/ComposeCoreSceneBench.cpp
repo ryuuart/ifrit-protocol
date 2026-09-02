@@ -192,7 +192,8 @@ Element bloomBlock(Cache mode) {
   return box()
       .padding(24)
       .cache(mode)
-      .effect(Effect::filter(SkImageFilters::Blur(12, 12, nullptr)))
+      .effect(sigil::material::skia::Effect::filter(
+          SkImageFilters::Blur(12, 12, nullptr)))
       .child(text(u8"BLOOM PIPELINE", style));
 }
 
@@ -303,7 +304,7 @@ sk_sp<SkRuntimeEffect> naiveVaryingBlur(int radius) {
   return effect;
 }
 
-Element varyingPanel(int side, Effect e) {
+Element varyingPanel(int side, sigil::material::skia::Effect e) {
   return box()
       .width((float)side)
       .height((float)side)
@@ -313,20 +314,22 @@ Element varyingPanel(int side, Effect e) {
 
 enum class BlurArm { Pyramid, Naive, ConstantMax };
 
-Effect blurEffect(BlurArm arm, float sigma) {
+sigil::material::skia::Effect blurEffect(BlurArm arm, float sigma) {
   switch (arm) {
     case BlurArm::Pyramid:
-      return Effect::blur(sigmaRamp(), sigma);
+      return sigil::material::skia::Effect::blur(sigmaRamp(), sigma);
     case BlurArm::Naive: {
       // A Gaussian is negligible past three standard deviations, so R = 3σ
       // is the radius the worst pixel in the node needs — and every pixel
       // pays it.
       const int radius = (int)std::lround(3.0f * sigma);
-      return Effect::shader(naiveVaryingBlur(radius), {{"uMaxSigma", sigma}})
+      return sigil::material::skia::Effect::shader(naiveVaryingBlur(radius),
+                                                   {{"uMaxSigma", sigma}})
           .child("param", sigmaRamp());
     }
     case BlurArm::ConstantMax:
-      return Effect::filter(SkImageFilters::Blur(sigma, sigma, nullptr));
+      return sigil::material::skia::Effect::filter(
+          SkImageFilters::Blur(sigma, sigma, nullptr));
   }
   return {};
 }

@@ -115,7 +115,8 @@ struct Composer::Impl {
   bool hasCustomLayout = false;
   bool hasCenterPins = false;  // any centerAt() in the tree
   bool liveOnly = false;       // snapshot(): skip per-node caches
-  Effect view;  // output view transform (null filter = pass-through)
+  material::skia::Effect
+      view;  // output view transform (null filter = pass-through)
   // What the AUTHOR declared their colour values to be. Read by
   // declaredInputSpace() and by nothing else: compositing happens in
   // encoded sRGB regardless, with no linear stage and no conversion, so

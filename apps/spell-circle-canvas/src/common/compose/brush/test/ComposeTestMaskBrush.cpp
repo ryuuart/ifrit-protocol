@@ -1047,7 +1047,8 @@ TEST(ComposeCache, ALiveEffectMovingUnderAHeldGateRepaints) {
   host.composer.render(box().child(
       maskBox()
           .fill(Fill::color({1, 0, 0, 1}))
-          .effect(Effect::shader(fx, {{"amt", 1.0f}}).uniform("amt", &amt))
+          .effect(material::skia::Effect::shader(fx, {{"amt", 1.0f}})
+                      .uniform("amt", &amt))
           .mask(by::spans(spans::upTo(&reveal)))));
   host.frame();
   for (int i = 0; i < 4; ++i) host.frame(0.016);

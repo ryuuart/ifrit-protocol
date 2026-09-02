@@ -256,17 +256,18 @@ TEST(ComposePaintBounds, PerAxisScaleReachesTheParentsChildBoundsUnion) {
   // saveLayer: that layer clips to recordBounds(), so wrong bounds delete the
   // scaled-out half of the bar instead of merely mis-sizing something.
   Host host(200, 200);
-  host.composer.render(box().child(
-      box()
-          .absolute()
-          .rect(SkRect::MakeXYWH(20, 20, 40, 40))
-          .effect(Effect::filter(SkImageFilters::Offset(0, 0, nullptr)))
-          .child(box()
-                     .absolute()
-                     .rect(SkRect::MakeXYWH(0, 0, 40, 40))
-                     .transformOrigin(0, 0)
-                     .fill(red())
-                     .scaleX(3.0f))));
+  host.composer.render(
+      box().child(box()
+                      .absolute()
+                      .rect(SkRect::MakeXYWH(20, 20, 40, 40))
+                      .effect(material::skia::Effect::filter(
+                          SkImageFilters::Offset(0, 0, nullptr)))
+                      .child(box()
+                                 .absolute()
+                                 .rect(SkRect::MakeXYWH(0, 0, 40, 40))
+                                 .transformOrigin(0, 0)
+                                 .fill(red())
+                                 .scaleX(3.0f))));
   host.frame();
   EXPECT_EQ(host.pixel(30, 40), SK_ColorRED) << "the unscaled part is missing";
   EXPECT_EQ(host.pixel(120, 40), SK_ColorRED)

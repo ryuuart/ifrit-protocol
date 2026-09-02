@@ -14,6 +14,7 @@
 #include <include/core/SkSurface.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilmaterial/skia/Color.h>
+#include <sigilmaterial/skia/Effect.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
 
@@ -268,4 +269,45 @@ TEST(SkiaPaint, CopyOnWriteKeepsAMutationOffTheValueItWasCopiedFrom) {
   copy.uniform("uK", 0.25f);
   EXPECT_FALSE(base == copy);
   EXPECT_TRUE(base == skia::Paint::sksl(constantEffect(), {{"uK", 1.0f}}));
+}
+
+// ---------------------------------------------------------------------------
+// The post-processing value.
+
+TEST(SkiaEffect, AFilterIsBuiltOnceAndComparesByItsIdentity) {
+  const skia::Effect glow = skia::Effect::glow({0, 1, 1, 1}, 6.0f);
+  EXPECT_NE(glow.resolvedImageFilter(nullptr), nullptr);
+  EXPECT_FALSE(glow.isAnimated());
+  // filter() compares by the built filter's pointer, so a copy prunes and
+  // a separately built one does not.
+  EXPECT_TRUE(glow == skia::Effect(glow));
+  EXPECT_FALSE(glow == skia::Effect::glow({0, 1, 1, 1}, 6.0f));
+  // The empty effect resolves to nothing and is reflexive.
+  EXPECT_EQ(skia::Effect().resolvedImageFilter(nullptr), nullptr);
+  EXPECT_TRUE(skia::Effect() == skia::Effect{});
+}
+
+TEST(SkiaEffect, ABoundUniformMakesItLiveAndItNeverPrunes) {
+  auto [effect, error] = SkRuntimeEffect::MakeForShader(
+      SkString("uniform shader content;\n"
+               "uniform float uK;\n"
+               "half4 main(float2 p) { return content.eval(p) * half(uK); }"));
+  ASSERT_NE(effect, nullptr);
+  choreograph::Output<float> k(1.0f);
+  skia::Effect live = skia::Effect::shader(effect);
+  EXPECT_FALSE(live.isAnimated());
+  live.uniform("uK", &k);
+  EXPECT_TRUE(live.isAnimated());
+  // Live never prunes — the same rule a live paint follows.
+  EXPECT_FALSE(live == live);
+}
+
+TEST(SkiaEffect, ChainingPrecomposesAndAnEmptySideIsTheOther) {
+  const skia::Effect blur = skia::Effect::directionalBlur(4.0f, 0.0f, 1.0f);
+  const skia::Effect glow = skia::Effect::glow({1, 0, 0, 1}, 3.0f);
+  EXPECT_NE(blur.then(glow).resolvedImageFilter(nullptr), nullptr);
+  // then() over nothing is the effect itself, so a conditional chain
+  // needs no branch at the call site.
+  EXPECT_TRUE(blur.then(skia::Effect{}) == blur);
+  EXPECT_TRUE(skia::Effect{}.then(blur) == blur);
 }

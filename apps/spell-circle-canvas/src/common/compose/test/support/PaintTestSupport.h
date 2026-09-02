@@ -5,6 +5,9 @@
 
 #include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/core/Pattern.h>
+#include <sigilcompose/kit/Chrome.h>
+#include <sigilcompose/kit/Gel.h>
+#include <sigilcompose/kit/Gloss.h>
 #include <sigilgeometry/kit/Shapers.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilmaterial/field/Field.h>

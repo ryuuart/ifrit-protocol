@@ -1371,7 +1371,8 @@ TEST(ComposeCache, PromotionRefusesABackdropFilter) {
               Fill::color({0.55f, 0.55f, 0.6f, 1})))
           .child(expensivePanel().key("reader").child(
               box().absolute().left(20).top(20).width(90).height(90).backdrop(
-                  Effect::filter(SkImageFilters::Blur(3, 3, nullptr)))))));
+                  material::skia::Effect::filter(
+                      SkImageFilters::Blur(3, 3, nullptr)))))));
   for (int i = 0; i < 24; ++i) host.frame();
   const Composer::NodeCost* row = requireRow(host.composer, "reader");
   ASSERT_NE(row, nullptr);
@@ -1813,10 +1814,10 @@ TEST(ComposeRouters, ChamferCutsTheCornerRoundingCannot) {
   EXPECT_GT(round.curves, 0);
   // The kit shaper is the same cut for any brush pipeline: a closed
   // 100x100 polyline square chamfered at 30 becomes the octagon
-  // geometry::shapes::chamfered() draws — 8 vertices, corners cut.
+  // geometry::shapers::chamfered() draws — 8 vertices, corners cut.
   SkPathBuilder sq;
   sq.moveTo(0, 0).lineTo(100, 0).lineTo(100, 100).lineTo(0, 100).close();
-  const SkPath oct = geometry::shapes::chamfered(30).shape(sq.detach());
+  const SkPath oct = geometry::shapers::chamfered(30).shape(sq.detach());
   PathDump o = dumpPath(oct);
   EXPECT_EQ(o.closes, 1);
   // 8 unique vertices (the iterator's synthesized closing line repeats

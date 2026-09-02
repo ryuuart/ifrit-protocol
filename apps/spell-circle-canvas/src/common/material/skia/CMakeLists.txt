@@ -2,17 +2,21 @@
 # builder that uploads resolved bytes into an SkRuntimeEffect, the leaf
 # binding of a texture into a child slot, the draw of a material over a
 # path, the one colour bridge between SkColor4f and this library's Color,
-# and Paint — the model as ONE Skia shader, with the gradients, the image
-# and buffer sources, the SkSL leaf with its live uniforms and child
-# slots, the blend stack, and the door onto a recipe instance. Links the
+# Paint — the model as ONE Skia shader, with the gradients, the image and
+# buffer sources, the SkSL leaf with its live uniforms and child slots,
+# the blend stack, and the door onto a recipe instance — and Effect, the
+# post-processing recipe over a layer a consumer has already rendered.
+# Links the
 # texture feature (and through it the core and Skia) and SigilMotion, for
 # the animatable a live uniform and a bound pan hold.
 add_library(SigilMaterialSkia STATIC
   Draw.cpp
+  Effect.cpp
   Paint.cpp
   SkiaCompiler.cpp
   ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/skia/Color.h
   ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/skia/Draw.h
+  ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/skia/Effect.h
   ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/skia/Paint.h
   ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/skia/SkiaCompiler.h
 )

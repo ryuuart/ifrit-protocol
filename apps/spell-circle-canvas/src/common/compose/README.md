@@ -322,8 +322,8 @@ translation unit links.
 sound model; nothing below them changes kernel semantics.
 
 - `core/Paint.h` — the paint values: `Fill`, `Corners`, `PaintContext`,
-  `StampCache`, `Effect`, and the colour spellings `hex`, `alpha`, `mul`,
-  `lift`, `mix` over `SkColor4f`.
+  `StampCache`, and the colour spellings `hex`, `alpha`, `mul`, `lift`,
+  `mix` over `SkColor4f`.
 - `core/Text.h` — the text model: `Unit`, `Selector` and `sel::`,
   `TextEffect`, `Track`, `Beat`, the mixed-text value `rich` /
   `RichText`, and `toU8`.
@@ -455,7 +455,8 @@ into are the kit's, one era per header: `kit/Gel.h`, `kit/Chrome.h`,
 `core/Pattern.h` adds the one thing a tile cannot do for itself — an
 element tree AS the tile, baked through `snapshot()`. A recipe instance
 becomes a paint through `material::skia::Paint::recipe`, an effect
-through `Effect::recipe`, and an output-stage view transform for
+through `material::skia::Effect::recipe`, and an output-stage view
+transform for
 `Composer::setView` is SigilMaterial's colour transform, compiled only
 when the build finds OpenColorIO.
 
@@ -540,10 +541,10 @@ find out.
   immediate-mode floor and it costs a repaint per frame, which is the
   point.
 - A `material::skia::Paint` that reads `uTime` or carries a uniform bound
-  to an `Output` is live by construction and declares itself; so is an `Effect`
-  with a bound uniform or a live child. Tier inheritance is real: a live
-  child makes the parent effect live, so no cache can freeze the
-  parameter.
+  to an `Output` is live by construction and declares itself; so is a
+  `material::skia::Effect` with a bound uniform or a live child. Tier
+  inheritance is real: a live child makes the parent effect live, so no
+  cache can freeze the parameter.
 - A decoration that paints beyond the node's box declares `bleed()`, and
   one that needs to say how wide the *mark* is declares `reach()`. These
   are different numbers — an inner-aligned stroke bleeds zero while

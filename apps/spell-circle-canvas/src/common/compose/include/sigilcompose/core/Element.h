@@ -139,8 +139,8 @@ class Element {
    *
    *  Does not cover right()/bottom() pinning, percentage insets, or
    *  autoDim() sides — those are different intents and keep the longhand.
-   *  `geometry::path::centred()` (kit/Frame.h) builds the rect for the centre-and-size
-   *  case. */
+   *  `geometry::path::centred()` (kit/Frame.h) builds the rect for the
+   * centre-and-size case. */
   Element& rect(const SkRect& r);
   /** Pin an absolute node's top-left to a parent-space POINT, leaving the
    *  node to size itself from its content — `left(p.fX).top(p.fY)`. The
@@ -419,12 +419,12 @@ class Element {
   Element& echo(SkVector offset, SkColor4f color);
   /** Post-processes this node's rendered layer (forces a stacking
    *  context). Baked once under Cache::Texture. */
-  Element& effect(Effect e);
+  Element& effect(material::skia::Effect e);
   /** Filters what is already painted beneath this node's bounds before
    *  the node paints (CSS backdrop-filter). Incompatible with
    *  Cache::Texture (the backdrop depends on the live destination);
    *  such nodes fall back to picture caching. */
-  Element& backdrop(Effect e);
+  Element& backdrop(material::skia::Effect e);
   Element& opacity(motion::Animatable<float> o);
   Element& blend(SkBlendMode mode);
   Element& translateX(motion::Animatable<float> v);

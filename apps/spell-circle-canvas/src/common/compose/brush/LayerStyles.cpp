@@ -114,8 +114,8 @@ void Overlay::paint(SkCanvas& c, const PaintContext& ctx) const {
   c.drawPath(ctx.outline, p);
 }
 
-Effect ripple(float amplitudePx, float wavelengthPx, float phase,
-              bool vertical) {
+material::skia::Effect ripple(float amplitudePx, float wavelengthPx,
+                              float phase, bool vertical) {
   // The field's recipe compiled through SigilMaterial's cache, spelled
   // as a shader effect so the recipe's float uniforms stay comparable and
   // a re-described equal ripple prunes.
@@ -129,11 +129,11 @@ Effect ripple(float amplitudePx, float wavelengthPx, float phase,
           ? resolved.program->as<sigil::material::skia::SkiaProgram>()
           : nullptr;
   if (!program) return {};
-  return Effect::shader(program->effect(),
-                        {{"uAmp", m.get<float>("uAmp")},
-                         {"uFreq", m.get<float>("uFreq")},
-                         {"uPhase", m.get<float>("uPhase")},
-                         {"uVertical", m.get<float>("uVertical")}});
+  return material::skia::Effect::shader(
+      program->effect(), {{"uAmp", m.get<float>("uAmp")},
+                          {"uFreq", m.get<float>("uFreq")},
+                          {"uPhase", m.get<float>("uPhase")},
+                          {"uVertical", m.get<float>("uVertical")}});
 }
 
 }  // namespace sigil::compose::styles

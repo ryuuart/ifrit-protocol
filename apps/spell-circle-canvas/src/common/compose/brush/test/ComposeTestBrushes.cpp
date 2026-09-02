@@ -244,8 +244,8 @@ TEST(ComposeBrushes, RibbonTapersAndNibVariesWithAngle) {
 
 TEST(ComposeBrushes, RestyleWavesAnyDecoration) {
   Host host;
-  host.composer.render(straightRun(brush::restyle(
-      geometry::shapers::Wave{8, 24}, stroke(2, green()), 12)));
+  host.composer.render(straightRun(
+      brush::restyle(geometry::shapers::Wave{8, 24}, stroke(2, green()), 12)));
   host.frame();
   int offAxis = 0;
   for (int x = 30; x < 170; x += 2)
@@ -960,12 +960,13 @@ TEST(ComposePaint, BackdropLeavesDecorationsUnclipped) {
   // An outer-aligned stroke lies OUTSIDE the node's shape, so clipping it
   // away is silent and total.
   Host host;
-  host.composer.render(box().child(
-      box()
-          .absolute()
-          .inset(60, 60, 60, 60)
-          .backdrop(Effect::filter(SkImageFilters::Blur(2, 2, nullptr)))
-          .stroke(stroke(10, green(), PathFormat::Align::Outer))));
+  host.composer.render(
+      box().child(box()
+                      .absolute()
+                      .inset(60, 60, 60, 60)
+                      .backdrop(material::skia::Effect::filter(
+                          SkImageFilters::Blur(2, 2, nullptr)))
+                      .stroke(stroke(10, green(), PathFormat::Align::Outer))));
   host.frame();
   EXPECT_EQ(host.pixel(52, 100), SK_ColorGREEN);  // outer stroke intact
 }
