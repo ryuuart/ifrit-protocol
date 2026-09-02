@@ -24,6 +24,7 @@
 
 #include <sigilcompose/instances/Instances.h>
 #include <sigilcompose/kit/Flourish.h>
+#include <sigilcompose/kit/Legibility.h>
 #include <sigilcompose/kit/Ornament.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -55,7 +56,7 @@ struct UiParticles final : sketch::Sketch {
   // ---- posts (the feed tier) ----------------------------------------------
   static constexpr size_t kPostCount = 30;
   static constexpr float kPostW = 232.0f, kPostH = 148.0f;
-  static constexpr int kPostVariants = 6;
+  static constexpr int kPostVariants = 12;
 
   entt::registry chips;
   entt::registry posts;
@@ -325,6 +326,35 @@ struct UiParticles final : sketch::Sketch {
          u8"Silvered glass and a short wick: the halo is the lamp seen "
          u8"twice, once sharp and once spread.",
          u8"Trim them at dusk and they hold to the turn of the tide."},
+        // TWELVE CARDS, NOT SIX. At six variants over thirty posts every
+        // card is on the page five times, and at this density the
+        // repetition is the first thing the eye finds — which is the one
+        // reading a scale study cannot afford, because it looks exactly
+        // like the instancing showing through.
+        {PostKind::Carved, 1, u8"Salt Garden",
+         u8"Between the second arch and the bell the ground goes white by "
+         u8"midsummer, and nothing grows in it but the reeds we planted.",
+         u8"Cut them short. They come back taller."},
+        {PostKind::Flourish, 1, u8"Antiphon",
+         u8"Sung at the turn of the tide, once from the near bank and once "
+         u8"from the far, so that neither singer hears the other finish.",
+         u8"The water carries the second half."},
+        {PostKind::Plain, 2, u8"Tide Table",
+         u8"High water an hour before the lanterns; low water when the "
+         u8"drowned road shows its kerb and the ferry rope goes slack.",
+         u8"Nothing crosses on the slack."},
+        {PostKind::Carved, 2, u8"Bell Keeper",
+         u8"Three strokes for a crossing, two for a warden overdue, and "
+         u8"one, held, for a coal gone out on the far shore.",
+         u8"It has been rung once in my time."},
+        {PostKind::Flourish, 3, u8"Margin Note",
+         u8"Whoever copies this book next: keep the margin free. The vine "
+         u8"is not decoration, it is where the corrections go.",
+         u8"I have left room for yours."},
+        {PostKind::Plain, 3, u8"Ropewright",
+         u8"Forty fathoms, laid left-handed against the current, and "
+         u8"spliced under the arch where the splice stays dry.",
+         u8"A rope that has held once will tell you before it fails."},
     };
 
     postAtlas = std::make_shared<instancing::Atlas>();  // 2x: crisp paragraphs
@@ -424,12 +454,22 @@ struct UiParticles final : sketch::Sketch {
                 chipAtlas, chipPool, instancing::Mode::Live)))
             .child(box().inset(0).child(instancing::instances(
                 postAtlas, postPool, instancing::Mode::Live)))
-            .child(text(u8"UI as particles — 820 chips + 30 multi-paragraph "
-                        u8"posts (flourish, carved & plain borders), each tier "
-                        u8"one instances() stamp over an EnTT SoA registry",
-                        type({.size = 16, .color = hex(0xdde4f2)}))
-                       .inset(24, 24, 24, 590)
-                       .zIndex(1)));
+            // THE TITLE, ON A SILL. The ground here is not merely crossed
+            // by the type, it is the densest thing in the registry: a
+            // knockout works against linework and disappears against a
+            // field of stamps, so the line stands on an opaque plate of
+            // its own.
+            .child(
+                kit::scrim(text(u8"UI as particles \u2014 820 chips over "
+                                u8"30 posts, one instances() stamp a tier",
+                                type({.size = 17, .color = hex(0xf2f5fb)})),
+                           {.fill = Fill::color({0.03f, 0.025f, 0.06f, 0.92f}),
+                            .paddingX = 14,
+                            .paddingY = 9})
+                    .absolute()
+                    .left(24)
+                    .top(22)
+                    .zIndex(2)));
   }
 };
 
