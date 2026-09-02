@@ -24,22 +24,6 @@ namespace sigil::compose::routers {
  *  out of the source first. */
 enum class Bend { MidX, HFirst, VFirst };
 
-/** CUT EVERY LINE-LINE CORNER of @p path with a straight bevel @p cut px
- *  along each leg — on the orthogonal family's right angles that is the
- *  45° face of the game-UI and PCB corner convention, which
- *  `SkCornerPathEffect` cannot spell because it only rounds. The cut
- *  clamps to half of each adjacent leg, so short legs degenerate to a
- *  diagonal rather than crossing over. Straight-through vertices are left
- *  alone; closed polyline contours chamfer the closing vertex too, so a
- *  routed loop and a `shapes::chamfered` panel agree.
- *
- *  THIS IS A POLYLINE TREATMENT. A contour containing ANY curve segment —
- *  quad, conic or cubic — is copied through completely untouched, so a
- *  chamfer over `arc()`, `octilinear()`'s rounded output, or anything
- *  already run through a corner effect is a silent no-op on that
- *  contour. */
-SkPath chamfer(const SkPath& path, float cut);
-
 /** Straight center-to-center line — the connector default, as a named
  *  value for symmetry. */
 Router straight();
@@ -54,7 +38,8 @@ Router orthogonal(float cornerRadius = 0.0f);
  *  Collinear points collapse, so an axis-aligned pair emits ONE segment
  *  rather than three with zero-length ends, and the corner is either
  *  rounded (@p cornerRadius, SkCornerPathEffect) or cut at 45°
- *  (@p chamferCut — see `chamfer()` above). The two are alternatives:
+ *  (@p chamferCut — `geometry::path::ops::chamferCorners`). The two
+ *  are alternatives:
  *  chamfer wins when both are set.
  *
  *  The zero-argument `orthogonal()` is NOT this function with defaults. It

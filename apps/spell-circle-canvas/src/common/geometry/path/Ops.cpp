@@ -6,6 +6,7 @@
 #include "sigilgeometry/path/Ops.h"
 
 #include <include/core/SkPaint.h>
+#include <include/core/SkContourMeasure.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkPathEffect.h>
 #include <include/core/SkPathUtils.h>
@@ -180,6 +181,170 @@ PathOp chain(std::vector<PathOp> steps) {
       if (step) current = step(current);
     return current;
   };
+}
+
+
+// ---------------------------------------------------------------------------
+// Corner and displacement treatments over a POLYLINE contour.
+
+SkPath chamferCorners(const SkPath& path, float cut) {
+  if (cut <= 0 || path.isEmpty()) return path;
+  SkPathBuilder out;
+  std::vector<SkPoint> run;  // current contour's polyline vertices
+  SkPathBuilder verbatim;    // the same contour, copied exactly
+  bool closed = false, anyCurve = false;
+
+  // A vertex's cut points: entry on the incoming leg, exit on the
+  // outgoing leg, each clamped to half its leg. False at a
+  // straight-through or degenerate vertex (no corner to cut).
+  const auto cutAt = [&](size_t i, SkPoint& entry, SkPoint& exit) {
+    const size_t n = run.size();
+    const SkPoint prev = run[(i + n - 1) % n], v = run[i],
+                  next = run[(i + 1) % n];
+    const SkVector in{v.x() - prev.x(), v.y() - prev.y()};
+    const SkVector outV{next.x() - v.x(), next.y() - v.y()};
+    const float lenIn = std::hypot(in.x(), in.y());
+    const float lenOut = std::hypot(outV.x(), outV.y());
+    if (lenIn < 1e-4f || lenOut < 1e-4f) return false;
+    const float cross = in.x() * outV.y() - in.y() * outV.x();
+    const float dot = in.x() * outV.x() + in.y() * outV.y();
+    if (std::abs(cross) <= 1e-4f * lenIn * lenOut && dot > 0)
+      return false;  // straight through — no corner
+    const float cIn = std::min(cut, lenIn * 0.5f);
+    const float cOut = std::min(cut, lenOut * 0.5f);
+    entry = {v.x() - in.x() / lenIn * cIn, v.y() - in.y() / lenIn * cIn};
+    exit = {v.x() + outV.x() / lenOut * cOut, v.y() + outV.y() / lenOut * cOut};
+    return true;
+  };
+
+  const auto emitChamfered = [&] {
+    if (run.empty()) return;
+    if (closed && run.size() > 1 && run.front() == run.back())
+      run.pop_back();  // the closing joint belongs to close()
+    const size_t n = run.size();
+    SkPoint entry, exit;
+    if (n < 3) {  // nothing to cut — as collected
+      out.moveTo(run.front());
+      for (size_t i = 1; i < n; ++i) out.lineTo(run[i]);
+      if (closed) out.close();
+      return;
+    }
+    if (!closed) {
+      out.moveTo(run.front());
+      for (size_t i = 1; i + 1 < n; ++i) {
+        if (cutAt(i, entry, exit)) {
+          out.lineTo(entry);
+          out.lineTo(exit);
+        } else {
+          out.lineTo(run[i]);
+        }
+      }
+      out.lineTo(run.back());
+    } else {  // every vertex is interior, the moveTo joint included
+      bool started = false;
+      // NOT named `emit`: this header reaches Qt TUs, where that is a macro.
+      const auto put = [&](SkPoint p) {
+        if (started)
+          out.lineTo(p);
+        else {
+          out.moveTo(p);
+          started = true;
+        }
+      };
+      for (size_t i = 0; i < n; ++i) {
+        if (cutAt(i, entry, exit)) {
+          put(entry);
+          out.lineTo(exit);
+          started = true;
+        } else {
+          put(run[i]);
+        }
+      }
+      out.close();
+    }
+  };
+
+  const auto flushContour = [&] {
+    if (anyCurve)  // chamfer is a polyline treatment: curves pass through
+      out.addPath(verbatim.detach());
+    else
+      emitChamfered();
+    verbatim = SkPathBuilder();
+    run.clear();
+    closed = false;
+    anyCurve = false;
+  };
+
+  SkPath::Iter iter(path, false);
+  SkPoint pts[4];
+  SkPath::Verb verb;
+  while ((verb = iter.next(pts)) != SkPath::kDone_Verb) {
+    switch (verb) {
+      case SkPath::kMove_Verb:
+        flushContour();
+        run.push_back(pts[0]);
+        verbatim.moveTo(pts[0]);
+        break;
+      case SkPath::kLine_Verb:
+        run.push_back(pts[1]);
+        verbatim.lineTo(pts[1]);
+        break;
+      case SkPath::kQuad_Verb:
+        anyCurve = true;
+        verbatim.quadTo(pts[1], pts[2]);
+        break;
+      case SkPath::kConic_Verb:
+        anyCurve = true;
+        verbatim.conicTo(pts[1], pts[2], iter.conicWeight());
+        break;
+      case SkPath::kCubic_Verb:
+        anyCurve = true;
+        verbatim.cubicTo(pts[1], pts[2], pts[3]);
+        break;
+      case SkPath::kClose_Verb:
+        closed = true;
+        verbatim.close();
+        break;
+      default:
+        break;
+    }
+  }
+  flushContour();
+  return out.detach();
+}
+
+SkPath displaceSquare(const SkPath& src, float amplitude, float wavelength) {
+  SkPathBuilder out;
+  SkContourMeasureIter iter(src, false);
+  while (sk_sp<SkContourMeasure> contour = iter.next()) {
+    const float len = contour->length();
+    const float lambdaMax = std::max(wavelength, 2.0f);
+    const float lambda = len / std::max(1.0f, std::round(len / lambdaMax));
+    auto plot = [&](float d, float disp, bool first) {
+      SkPoint pos;
+      SkVector tan;
+      if (!contour->getPosTan(std::min(d, len), &pos, &tan)) return;
+      const SkPoint p{pos.x() - tan.y() * disp, pos.y() + tan.x() * disp};
+      if (first)
+        out.moveTo(p);
+      else
+        out.lineTo(p);
+    };
+    plot(0, 0, true);
+    float cur = amplitude;
+    plot(0, cur, false);
+    // the loop walks a distance; the accumulated float is the position
+    // NOLINTNEXTLINE(clang-analyzer-security.FloatLoopCounter,bugprone-float-loop-counter)
+    for (float d = lambda * 0.5f; d < len - 0.25f; d += lambda * 0.5f) {
+      plot(d, cur, false);
+      cur = -cur;
+      plot(d, cur, false);
+    }
+    plot(len, cur, false);
+    plot(len, 0, false);
+    if (contour->isClosed()) out.close();
+  }
+  return out.detach();
 }
 
 }  // namespace sigil::geometry::path::ops

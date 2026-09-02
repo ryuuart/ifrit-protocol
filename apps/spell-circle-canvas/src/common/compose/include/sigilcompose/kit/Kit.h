@@ -54,7 +54,7 @@
  */
 
 #include "sigilcompose/kit/Annotations.h"
-#include "sigilcompose/kit/Divisions.h"
+#include "sigilgeometry/kit/Divisions.h"
 #include "sigilcompose/kit/Frame.h"
 #include "sigilcompose/kit/Instruments.h"
 #include "sigilcompose/kit/Legibility.h"

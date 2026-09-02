@@ -34,36 +34,36 @@ sigil::weave::FontContext& fonts() {
 }  // namespace
 
 TEST(ComposeKitStrokes, ShapersSatisfyThePublicSeam) {
-  static_assert(sigil::geometry::path::ShaperScheme<kit::brush::shapers::Wave>);
+  static_assert(sigil::geometry::path::ShaperScheme<sigil::geometry::shapers::Wave>);
   static_assert(
-      sigil::geometry::path::ShaperScheme<kit::brush::shapers::Jitter>);
+      sigil::geometry::path::ShaperScheme<sigil::geometry::shapers::Jitter>);
   static_assert(
-      sigil::geometry::path::ShaperScheme<kit::brush::shapers::Offset>);
+      sigil::geometry::path::ShaperScheme<sigil::geometry::shapers::Offset>);
   // …and the wave doubles as a PROFILE, which is what makes a braid strand
   // and an undulating band one vocabulary.
   static_assert(
-      sigil::geometry::path::ProfileScheme<kit::brush::shapers::Wave>);
+      sigil::geometry::path::ProfileScheme<sigil::geometry::shapers::Wave>);
 
   SkPathBuilder b;
   b.moveTo(0, 50);
   b.lineTo(200, 50);
   const SkPath straight = b.detach();
 
-  const SkPath waved = kit::brush::shapers::wave(6, 30).shape(straight);
+  const SkPath waved = sigil::geometry::shapes::wave(6, 30).shape(straight);
   EXPECT_GT(waved.getBounds().height(), 6.0f) << "the wave did not deviate";
-  const SkPath jittered = kit::brush::shapers::jitter(8, 3, 5).shape(straight);
+  const SkPath jittered = sigil::geometry::shapes::jitter(8, 3, 5).shape(straight);
   EXPECT_GT(jittered.getBounds().height(), 1.0f);
-  const SkPath railed = kit::brush::shapers::offset(-12).shape(straight);
+  const SkPath railed = sigil::geometry::shapes::offset(-12).shape(straight);
   EXPECT_NEAR(railed.getBounds().centerY(), 62.0f, 1.5f)
       << "positive offset is LEFT of travel — the one convention (R3's "
          "sign port), so travelling +x with y down a NEGATIVE offset goes "
          "down the screen";
 
   // Comparable, so a brush holding one prunes.
-  EXPECT_TRUE(kit::brush::shapers::wave(6, 30) ==
-              kit::brush::shapers::wave(6, 30));
-  EXPECT_FALSE(kit::brush::shapers::wave(6, 30) ==
-               kit::brush::shapers::wave(6, 31));
+  EXPECT_TRUE(sigil::geometry::shapes::wave(6, 30) ==
+              sigil::geometry::shapes::wave(6, 30));
+  EXPECT_FALSE(sigil::geometry::shapes::wave(6, 30) ==
+               sigil::geometry::shapers::wave(6, 31));
 }
 
 TEST(ComposeKitStrokes, BraidCrossesByConstruction) {
@@ -118,27 +118,21 @@ TEST(ComposeKitStrokes, BraidSharesOneBrushAcrossItsStrands) {
   EXPECT_FALSE(braid[0].path == braid[1].path);
 }
 
-TEST(ComposeKitStrokes, SpansAndShapesAreCompositionsNotNewKinds) {
+TEST(ComposeKitStrokes, ASpanCompositionIsNotANewKind) {
   // kit::spans::brackets is a COMPOSITION of core terms, which is what a
   // kit span can be and why Spans stays a closed value.
   EXPECT_TRUE(kit::spans::brackets(18) == spans::corners(18));
   EXPECT_FALSE(kit::spans::brackets(18) == spans::corners(19));
-
-  // kit::shapes::ring is a plainer name for core's annulus, not a second
-  // shape — same path, so a figure can use either spelling.
-  const SkPath ring = kit::shapes::ring(0.6f)({100, 100});
-  EXPECT_FALSE(ring.isEmpty());
-  EXPECT_EQ(ring, sigil::geometry::shapes::annulus(0.6f)({100, 100}));
 }
 
 TEST(ComposeKitStrokes, TheWaveProfileIsAKitValueOverACoreSeam) {
-  // Core ships geometry::path::profile::self()/offset() only; everything that
-  // oscillates lives in the kit — but it plugs the SAME Profile seam, so core
-  // code never learns that a kit profile exists.
-  const sigil::geometry::path::Profile undulating = kit::profile::wave(9, 50);
+  // The seam itself ships profile::self()/offset() only; everything that
+  // oscillates lives in the geometry kit — but it plugs the SAME Profile
+  // seam, so nothing beneath it learns that a kit profile exists.
+  const sigil::geometry::path::Profile undulating = geometry::path::profile::wave(9, 50);
   EXPECT_NEAR(undulating.max(), 9.0f, 1e-4f) << "max() is required by the seam";
-  EXPECT_TRUE(undulating == kit::profile::wave(9, 50));
-  EXPECT_FALSE(undulating == kit::profile::wave(9, 51));
+  EXPECT_TRUE(undulating == geometry::path::profile::wave(9, 50));
+  EXPECT_FALSE(undulating == geometry::path::profile::wave(9, 51));
   EXPECT_FALSE(undulating == sigil::geometry::path::profile::offset(9));
 
   // A band takes it, because a band's taper and a strand's path are one value.
@@ -201,11 +195,11 @@ TEST(ComposeKitStrokes, ShapedAgreesWithTheRestyleWrapper) {
     StrokeHost host(200, 200);
     Element e = box().rect(SkRect::MakeXYWH(30, 30, 140, 140));
     if (legacySpelling)
-      e.stroke(brush::restyle(kit::brush::shapers::Wave{5, 24},
+      e.stroke(brush::restyle(geometry::shapers::Wave{5, 24},
                               brush::solid(3, strokeRed()), 8));
     else
       e.stroke(Brush{}
-                   .shaped(kit::brush::shapers::wave(5, 24))
+                   .shaped(geometry::shapers::wave(5, 24))
                    .layer(brush::solid(3, strokeRed())));
     host.composer.render(stack().child(std::move(e)));
     host.frame();
@@ -221,22 +215,22 @@ TEST(ComposeKitStrokes, ShapedAgreesWithTheRestyleWrapper) {
 
   // Two brushes built from equal shaper values compare equal, which is what
   // lets a node carrying a shaped brush prune instead of re-patching.
-  EXPECT_TRUE(Brush{}.shaped(kit::brush::shapers::wave(5, 24)) ==
-              Brush{}.shaped(kit::brush::shapers::wave(5, 24)));
-  EXPECT_FALSE(Brush{}.shaped(kit::brush::shapers::wave(5, 24)) ==
-               Brush{}.shaped(kit::brush::shapers::wave(5, 25)));
+  EXPECT_TRUE(Brush{}.shaped(geometry::shapers::wave(5, 24)) ==
+              Brush{}.shaped(geometry::shapers::wave(5, 24)));
+  EXPECT_FALSE(Brush{}.shaped(geometry::shapers::wave(5, 24)) ==
+               Brush{}.shaped(geometry::shapers::wave(5, 25)));
 }
 
 TEST(ComposeKitStrokes, ShapersAreComparableValuesAndPrune) {
-  static_assert(sigil::geometry::path::ShaperScheme<kit::brush::shapers::Wave>);
-  EXPECT_TRUE(sigil::geometry::path::Shaper(kit::brush::shapers::wave(4, 20)) ==
-              sigil::geometry::path::Shaper(kit::brush::shapers::wave(4, 20)));
+  static_assert(sigil::geometry::path::ShaperScheme<geometry::shapers::Wave>);
+  EXPECT_TRUE(sigil::geometry::path::Shaper(geometry::shapers::wave(4, 20)) ==
+              sigil::geometry::path::Shaper(geometry::shapers::wave(4, 20)));
   EXPECT_FALSE(
-      sigil::geometry::path::Shaper(kit::brush::shapers::wave(4, 20)) ==
-      sigil::geometry::path::Shaper(kit::brush::shapers::wave(5, 20)));
+      sigil::geometry::path::Shaper(geometry::shapers::wave(4, 20)) ==
+      sigil::geometry::path::Shaper(geometry::shapers::wave(5, 20)));
   EXPECT_FALSE(
-      sigil::geometry::path::Shaper(kit::brush::shapers::wave(4, 20)) ==
-      sigil::geometry::path::Shaper(kit::brush::shapers::jitter()));
+      sigil::geometry::path::Shaper(geometry::shapers::wave(4, 20)) ==
+      sigil::geometry::path::Shaper(geometry::shapers::jitter()));
   EXPECT_TRUE(sigil::geometry::path::Shaper() ==
               sigil::geometry::path::Shaper())
       << "reflexive when empty";
@@ -262,9 +256,9 @@ TEST(ComposeKitStrokes, BraidAlternatesAlongTheWholeRun) {
     const SkPath spine = sp.detach();
 
     const std::vector<brush::Strand> strands = {
-        brush::Strand{kit::profile::wave(amp, wavelength, 0.0f),
+        brush::Strand{geometry::path::profile::wave(amp, wavelength, 0.0f),
                       brush::solid(inkWidth, strokeRed())},
-        brush::Strand{kit::profile::wave(amp, wavelength, 0.5f),
+        brush::Strand{geometry::path::profile::wave(amp, wavelength, 0.5f),
                       brush::solid(inkWidth, strokeGreen())}};
     // Same phases braid() would hand out for n = 2.
     const std::vector<brush::Strand> viaBraid = kit::strands::braid(
@@ -336,11 +330,11 @@ TEST(ComposeKitStrokes, TheThreeTwinsThatAbsorbedTheOpsStructs) {
 
   // (Named locals rather than braced temporaries inline: a designated
   // aggregate inside EXPECT_* hands the macro its commas.)
-  const kit::brush::shapers::Square kitSquare{5, 26};
-  const kit::brush::shapers::Zigzag kitZigzag{4, 28};
-  const kit::brush::shapers::Wave kitWave{4, 28};
+  const geometry::shapers::Square kitSquare{5, 26};
+  const geometry::shapers::Zigzag kitZigzag{4, 28};
+  const geometry::shapers::Wave kitWave{4, 28};
 
-  EXPECT_FALSE(kit::brush::shapers::Rounded{9.0f}.shape(src) == src)
+  EXPECT_FALSE(geometry::shapers::Rounded{9.0f}.shape(src) == src)
       << "Rounded did not round the corners";
   EXPECT_FALSE(kitSquare.shape(src) == src);
   EXPECT_FALSE(kitZigzag.shape(src) == src);
@@ -350,20 +344,20 @@ TEST(ComposeKitStrokes, TheThreeTwinsThatAbsorbedTheOpsStructs) {
 
 TEST(ComposeKitStrokes, TheNewTwinsAreComparableSeamValuesLikeTheRest) {
   static_assert(
-      sigil::geometry::path::ShaperScheme<kit::brush::shapers::Rounded>);
+      sigil::geometry::path::ShaperScheme<geometry::shapers::Rounded>);
   static_assert(
-      sigil::geometry::path::ShaperScheme<kit::brush::shapers::Square>);
+      sigil::geometry::path::ShaperScheme<geometry::shapers::Square>);
   static_assert(
-      sigil::geometry::path::ShaperScheme<kit::brush::shapers::Zigzag>);
-  EXPECT_TRUE(sigil::geometry::path::Shaper(kit::brush::shapers::rounded(6)) ==
-              sigil::geometry::path::Shaper(kit::brush::shapers::rounded(6)));
-  EXPECT_FALSE(sigil::geometry::path::Shaper(kit::brush::shapers::rounded(6)) ==
-               sigil::geometry::path::Shaper(kit::brush::shapers::rounded(7)));
+      sigil::geometry::path::ShaperScheme<geometry::shapers::Zigzag>);
+  EXPECT_TRUE(sigil::geometry::path::Shaper(geometry::shapes::rounded(6)) ==
+              sigil::geometry::path::Shaper(geometry::shapes::rounded(6)));
+  EXPECT_FALSE(sigil::geometry::path::Shaper(geometry::shapes::rounded(6)) ==
+               sigil::geometry::path::Shaper(geometry::shapes::rounded(7)));
   // Different KINDS never compare equal even at equal numbers — the type
   // is part of the value, which is what keeps a re-described brush honest.
   EXPECT_FALSE(
-      sigil::geometry::path::Shaper(kit::brush::shapers::square(4, 28)) ==
-      sigil::geometry::path::Shaper(kit::brush::shapers::zigzag(4, 28)));
+      sigil::geometry::path::Shaper(geometry::shapers::square(4, 28)) ==
+      sigil::geometry::path::Shaper(geometry::shapers::zigzag(4, 28)));
 }
 
 TEST(ComposeKitPresets, TheFourPresetsCameOutOfCoreUNCHANGED) {
@@ -466,9 +460,9 @@ TEST(ComposeKitStrokes, ABleedIsADISTANCEAndNeverNegative) {
   // The rule is the same across core and kit, so all three are checked.
   // (Named locals: a braced aggregate inside EXPECT_* hands the macro its
   // commas.)
-  const kit::brush::shapers::Wave kitWave{-4.0f, 20.0f};
-  const kit::brush::shapers::Square kitSquare{-5.0f, 26.0f};
-  const kit::brush::shapers::Zigzag kitZigzag{-4.0f, 28.0f};
+  const geometry::shapers::Wave kitWave{-4.0f, 20.0f};
+  const geometry::shapers::Square kitSquare{-5.0f, 26.0f};
+  const geometry::shapers::Zigzag kitZigzag{-4.0f, 28.0f};
   EXPECT_FLOAT_EQ(kitWave.bleed(), 4.0f);
   EXPECT_FLOAT_EQ(kitSquare.bleed(), 5.0f);
   EXPECT_FLOAT_EQ(kitZigzag.bleed(), 4.0f);

@@ -24,39 +24,6 @@
 
 namespace sigil::compose::lines {
 
-SkPath displaceSquare(const SkPath& src, float amplitude, float wavelength) {
-  SkPathBuilder out;
-  SkContourMeasureIter iter(src, false);
-  while (sk_sp<SkContourMeasure> contour = iter.next()) {
-    const float len = contour->length();
-    const float lambdaMax = std::max(wavelength, 2.0f);
-    const float lambda = len / std::max(1.0f, std::round(len / lambdaMax));
-    auto plot = [&](float d, float disp, bool first) {
-      SkPoint pos;
-      SkVector tan;
-      if (!contour->getPosTan(std::min(d, len), &pos, &tan)) return;
-      const SkPoint p{pos.x() - tan.y() * disp, pos.y() + tan.x() * disp};
-      if (first)
-        out.moveTo(p);
-      else
-        out.lineTo(p);
-    };
-    plot(0, 0, true);
-    float cur = amplitude;
-    plot(0, cur, false);
-    // the loop walks a distance; the accumulated float is the position
-    // NOLINTNEXTLINE(clang-analyzer-security.FloatLoopCounter,bugprone-float-loop-counter)
-    for (float d = lambda * 0.5f; d < len - 0.25f; d += lambda * 0.5f) {
-      plot(d, cur, false);
-      cur = -cur;
-      plot(d, cur, false);
-    }
-    plot(len, cur, false);
-    plot(len, 0, false);
-    if (contour->isClosed()) out.close();
-  }
-  return out.detach();
-}
 
 SkPath dashGeometry(const SkPath& src, SkSpan<const SkScalar> intervals,
                     float phase) {

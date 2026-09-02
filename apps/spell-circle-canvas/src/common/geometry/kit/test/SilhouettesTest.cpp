@@ -1,11 +1,16 @@
 /** @file
- * The silhouette shelf: every generator answers a path inscribed in the
- * box it is given, equal values generate equal paths (the contract a
+ * The 2D shelves: every silhouette generator answers a path inscribed in
+ * the box it is given, equal values generate equal paths (the contract a
  * caching consumer prunes on), and the corner wrapper composes over any
- * of them.
+ * of them; every shaper answers the deviation seam and actually moves the
+ * mark; and a division ladder is ONE multi-contour path at its frame's
+ * convention.
  */
 
 #include <gtest/gtest.h>
+#include <include/core/SkPathBuilder.h>
+#include <sigilgeometry/kit/Divisions.h>
+#include <sigilgeometry/kit/Shapers.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 
 using namespace sigil::geometry::shapes;
@@ -82,4 +87,85 @@ TEST(Silhouettes, TheCurveFamiliesSampleIntoNonEmptyOpenPaths) {
   EXPECT_FALSE(rose(5)(kBox).isEmpty());
   EXPECT_FALSE(spiral(4)(kBox).isEmpty());
   EXPECT_FALSE(trochoid(5, 3, 2)(kBox).isEmpty());
+}
+
+// ---------------------------------------------------------------------------
+// The shaper shelf: the stock values over the deviation seam.
+
+TEST(Shapers, EveryStockShaperAnswersTheSeamAndComparesByItsDials) {
+  using namespace sigil::geometry;
+  static_assert(path::ShaperScheme<shapers::Wave>);
+  static_assert(path::ShaperScheme<shapers::Zigzag>);
+  static_assert(path::ShaperScheme<shapers::Jitter>);
+  static_assert(path::ShaperScheme<shapers::Offset>);
+  static_assert(path::ShaperScheme<shapers::Rounded>);
+  static_assert(path::ShaperScheme<shapers::Chamfer>);
+  static_assert(path::ShaperScheme<shapers::Square>);
+  EXPECT_TRUE(shapers::wave(6, 40) == shapers::wave(6, 40));
+  EXPECT_FALSE(shapers::wave(6, 40) == shapers::wave(6, 41));
+  // Bleed is how far the deviation reaches, so a cull can grow by it.
+  EXPECT_FLOAT_EQ(shapers::wave(6, 40).bleed(), 6.0f);
+  EXPECT_FLOAT_EQ(shapers::zigzag(4, 24).bleed(), 4.0f);
+  EXPECT_FLOAT_EQ(shapers::offset(-9).bleed(), 9.0f);
+}
+
+TEST(Shapers, EachOneActuallyMovesTheMarkItIsGiven) {
+  SkPathBuilder b;
+  b.moveTo(0, 50);
+  b.lineTo(200, 50);
+  const SkPath run = b.detach();
+  using namespace sigil::geometry;
+  // A wave and a zigzag swing the run off its own axis.
+  EXPECT_GT(shapers::wave(8, 40).shape(run).getBounds().height(), 8.0f);
+  EXPECT_GT(shapers::zigzag(8, 40).shape(run).getBounds().height(), 8.0f);
+  EXPECT_GT(shapers::square(8, 40).shape(run).getBounds().height(), 8.0f);
+  // An offset moves it bodily, LEFT of travel, which on a west-to-east
+  // run is upward on screen.
+  EXPECT_NEAR(shapers::offset(10).shape(run).getBounds().centerY(), 40.0f, 1.5f);
+  // A corner treatment over a straight run has no corner to treat.
+  EXPECT_EQ(shapers::rounded(6).shape(run).getBounds(), run.getBounds());
+}
+
+TEST(Shapers, TheOscillatingWidthLawIsZeroMeanAndPlugsTheProfileSeam) {
+  using namespace sigil::geometry;
+  const path::Profile w = path::profile::wave(9, 50);
+  EXPECT_NEAR(w.max(), 9.0f, 1e-4f) << "max() is what a cull is sized from";
+  EXPECT_TRUE(w == path::profile::wave(9, 50));
+  EXPECT_FALSE(w == path::profile::wave(9, 51));
+  // Zero-mean: it goes both ways, which is what makes it a centreline and
+  // not a band width.
+  bool positive = false, negative = false;
+  for (int k = 0; k <= 64; ++k) {
+    const float v = w.across((float)k / 64.0f);
+    positive = positive || v > 0.5f;
+    negative = negative || v < -0.5f;
+  }
+  EXPECT_TRUE(positive && negative);
+}
+
+// ---------------------------------------------------------------------------
+// The division shelf: a figure's ladders as ONE path.
+
+TEST(Divisions, ATickLadderIsOneMultiContourPathAtTheFramesConvention) {
+  using namespace sigil::geometry;
+  const path::Frame fig{.centre = {100, 100}, .radius = 100,
+                        .zero = path::Zero::North, .sense = path::Sense::CW};
+  const SkPath twelve = ticks(fig, {.divisions = 12});
+  EXPECT_FALSE(twelve.isEmpty());
+  // One contour per mark, and every mark inside the frame's own box.
+  EXPECT_TRUE(fig.box().contains(twelve.getBounds()));
+  EXPECT_LT(ticks(fig, {.divisions = 6}).countPoints(), twelve.countPoints());
+  // The shape form is a comparable silhouette, so a node carrying one
+  // prunes like any other.
+  EXPECT_TRUE(ticks(Ticks{.divisions = 12}) == ticks(Ticks{.divisions = 12}));
+  EXPECT_FALSE(ticks(Ticks{.divisions = 12}) == ticks(Ticks{.divisions = 13}));
+  EXPECT_FALSE(ticks(Ticks{.divisions = 12})({200, 200}).isEmpty());
+}
+
+TEST(Divisions, AChordFanIsOnePathAndComparesByItsParameters) {
+  using namespace sigil::geometry;
+  const path::Frame fig{.centre = {100, 100}, .radius = 100};
+  EXPECT_FALSE(chords(fig, {.sides = 7}).isEmpty());
+  EXPECT_TRUE(chords(Chords{.sides = 7}) == chords(Chords{.sides = 7}));
+  EXPECT_FALSE(chords(Chords{.sides = 7}) == chords(Chords{.sides = 8}));
 }

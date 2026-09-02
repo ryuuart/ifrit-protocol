@@ -9,7 +9,9 @@
  *    offset() — Illustrator's Offset Path. All pure functions:
  *    SkPath in, SkPath out. In the binary four `a` is the back object
  *    and `b` the front, and a pathops failure comes back as an empty
- *    path rather than an error.
+ *    path rather than an error. Beside them the two POLYLINE corner and
+ *    displacement treatments, roundCorners/chamferCorners and
+ *    displaceSquare.
  *  - DISTORTS as parameter structs: Roughen, Zigzag, PuckerBloat,
  *    Twirl. Each is a small value carrying its dials and applying on
  *    demand (operator()), so a recipe stays editable — restack, retune,
@@ -54,6 +56,29 @@ SkPath offset(const SkPath& path, float delta);
  *  @p radius. Non-positive radius returns the path unchanged, and a path
  *  the effect refuses comes back unchanged rather than empty. */
 SkPath roundCorners(const SkPath& path, float radius);
+
+/** CUT EVERY LINE-LINE CORNER of @p path with a straight bevel @p cut px
+ *  along each leg — on an orthogonal route's right angles that is the
+ *  45-degree face of the game-UI and PCB corner convention, which
+ *  `SkCornerPathEffect` cannot spell because it only rounds. The cut
+ *  clamps to half of each adjacent leg, so short legs degenerate to a
+ *  diagonal rather than crossing over. Straight-through vertices are left
+ *  alone; closed polyline contours chamfer the closing vertex too, so a
+ *  routed loop and a `shapes::chamfered` panel agree.
+ *
+ *  THIS IS A POLYLINE TREATMENT. A contour containing ANY curve segment —
+ *  quad, conic or cubic — is copied through completely untouched, so a
+ *  chamfer over an arc, a rounded route, or anything already run through a
+ *  corner effect is a silent no-op on that contour. */
+SkPath chamferCorners(const SkPath& path, float cut);
+
+/** A SQUARE WAVE across the mark: the contour walked at a fixed
+ *  wavelength and displaced by +/- @p amplitude on its normal with
+ *  vertical jumps between — battlements, the Greek meander key, a stepped
+ *  circuit trace. The wavelength is rounded so a whole number of periods
+ *  fits the contour, which is what keeps a closed mark from meeting itself
+ *  mid-step. */
+SkPath displaceSquare(const SkPath& src, float amplitude, float wavelength);
 
 // ---------------------------------------------------------------------------
 // Distorts. All resample-based: segmentPx bounds fidelity (smaller =

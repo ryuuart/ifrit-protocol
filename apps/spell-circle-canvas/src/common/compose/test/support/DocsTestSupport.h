@@ -17,6 +17,7 @@
 // declares what it reads in core's vocabulary, and the declaration is
 // carried on a block only the library's own translation units see.
 #include <sigilcore/reconcile/Reads.h>
+#include <sigilgeometry/kit/Shapers.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 
 #include "PaintTestSupport.h"

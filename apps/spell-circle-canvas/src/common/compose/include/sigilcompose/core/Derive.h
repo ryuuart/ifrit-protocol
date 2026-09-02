@@ -119,7 +119,7 @@ Element band(Around spine, Across width);
  *
  *  THIS IS THE ONE STATEMENT OF THAT CONVENTION for the whole library.
  *  `Profile::across`, `strand::offset`, `geometry::parallel`,
- *  `lines::Rail::across`, `kit::brush::shapers::offset` and
+ *  `lines::Rail::across`, `geometry::shapes::offset` and
  *  `TextPath::offset` all mean this same side. Anything placing content on
  *  a band reads it here, so the placement and the band's own geometry
  *  cannot disagree. */

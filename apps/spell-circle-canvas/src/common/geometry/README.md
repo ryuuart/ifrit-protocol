@@ -293,7 +293,7 @@ the library root instead, in `test/support/`. Features nest by dependency — a 
 what sits above it in the tree — and each header includes what it needs,
 so including a deeper one pulls the shallower ones in.
 
-**`path`** — `SigilGeometryPath`, the leaf. Eleven headers that depend on
+**`path`** — `SigilGeometryPath`, the leaf. Twelve headers that depend on
 nothing else in the library: Skia, glm, and SigilCoreCompute for the
 seeded mixers `noise::` names.
 
@@ -378,6 +378,17 @@ seeded mixers `noise::` names.
   `Formation::Centered`, `Outward` or `Inward`. A constant profile
   delegates to `parallel`, so corners get the real-vertex repair rather
   than the spur a sample-and-displace walk leaves inside every rectangle.
+- **`path/Frame.h`** — the two coordinate systems a figure is measured in.
+  `Frame` converts `(angle, radius)` into a point, a rect or an
+  arc-length fraction IN THE DRAWING'S OWN CONVENTION: `Zero::North` or
+  `East`, `Sense::CW` or `CCW`, plus an origin offset. That is the reason
+  it is a value — written as a bare `polar()` helper the difference is a
+  sign flip and a −90 that every call site repeats. `scaled`, `about` and
+  `turned` derive a frame that keeps the convention it came from. `Grid`
+  is the unit map: artefact units to canvas px through one scale, an
+  origin and an optional snap, `constexpr` so a canvas constant can be
+  declared in the artefact's units. `centred` is the rect both are read
+  through.
 - **`path/Crossings.h`** — where a set of paths cross each other and who
   is on top there. `discoverCrossings()` finds every PROPER crossing —
   coincident paths and endpoint touches are meetings, not crossings —
@@ -752,6 +763,20 @@ beneath, in `sigil::geometry::shapes`.
   `chamfered()` and `notched()`, both taking a per-`Corner` mask because a
   cut on one diagonal is the common case and no single radius says it.
 - **`kit/Silhouettes.h`** — the 2D shelf, including all three.
+- **`kit/Shapers.h`** — `shapers::`, the stock over the deviation seam:
+  `Wave` (also the braid primitive — strands that oscillate trade sides,
+  and where they trade sides they cross), `Zigzag`, `Square`, `Jitter`,
+  `Offset`, `Rounded` and `Chamfer`, with a factory each. Beside them, in
+  the seam's OWN namespace one directory down, `path::profile::wave` —
+  the oscillating width law, which is ZERO-MEAN and therefore a strand
+  centreline rather than a band width.
+- **`kit/Divisions.h`** — a figure's divisions as ONE multi-contour path:
+  `ticks()` walks a division count around a `Frame` (with a longer mark
+  every N), `chords()` walks a polygon's sides. One path rather than N
+  drawn things, because a divider ladder is static geometry with one
+  style — the exception is per-mark animation, which needs its own
+  keyed items. Each has a comparable `Silhouette` form (`TicksShape`,
+  `ChordsShape`) for a consumer that shapes a box with it.
 - **`kit/Solids.h`** — the 3D shelf, in `sigil::geometry::mesh` because
   what it makes is a `Mesh`. Two of them LIFT another currency:
   `extrude()` raises a filled path into a solid (caps earcut-triangulated

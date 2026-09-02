@@ -245,7 +245,7 @@ TEST(ComposeBrushes, RibbonTapersAndNibVariesWithAngle) {
 TEST(ComposeBrushes, RestyleWavesAnyDecoration) {
   Host host;
   host.composer.render(straightRun(brush::restyle(
-      kit::brush::shapers::Wave{8, 24}, stroke(2, green()), 12)));
+      geometry::shapers::Wave{8, 24}, stroke(2, green()), 12)));
   host.frame();
   int offAxis = 0;
   for (int x = 30; x < 170; x += 2)
@@ -260,7 +260,7 @@ TEST(ComposeBrushes, RestyleWavesAnyDecoration) {
 TEST(ComposeSeams, SketchyJitterLeavesTheAxis) {
   Host host, plain;
   host.composer.render(straightRun(brush::restyle(
-      kit::brush::shapers::Jitter{8, 3.0f, 11}, stroke(2, green()))));
+      geometry::shapers::Jitter{8, 3.0f, 11}, stroke(2, green()))));
   plain.composer.render(straightRun(stroke(2, green())));
   host.frame();
   plain.frame();

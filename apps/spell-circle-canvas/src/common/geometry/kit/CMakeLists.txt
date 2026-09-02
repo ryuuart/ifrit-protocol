@@ -8,13 +8,19 @@
 #
 # One shelf per dimension: `kit/Silhouettes.h` (the 2D generators, curves
 # and corner treatments, as comparable `path(SkSize)` values) and
-# `kit/Solids.h` (the stock meshes over the parametric-sheet seam).
+# `kit/Solids.h` (the stock meshes over the parametric-sheet seam). Beside
+# them the stock values over the leaf's other two 2D seams —
+# `kit/Shapers.h` (what bends one continuous mark, and the width laws that
+# oscillate) and `kit/Divisions.h` (a figure's tick ladder and chord fan as
+# one path).
 add_library(SigilGeometryKit STATIC
   Silhouettes.cpp
   Solids.cpp
   ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/kit/Corners.h
   ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/kit/Curves.h
+  ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/kit/Divisions.h
   ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/kit/Generators.h
+  ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/kit/Shapers.h
   ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/kit/Silhouettes.h
   ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/kit/Solids.h
 )

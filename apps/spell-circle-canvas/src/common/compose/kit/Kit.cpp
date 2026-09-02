@@ -12,7 +12,7 @@
  * for how to run it.
  */
 
-#include <sigilcompose/kit/Divisions.h>
+#include <sigilgeometry/kit/Divisions.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Kit.h>
 #include <sigilcompose/kit/Legibility.h>
@@ -28,10 +28,10 @@ namespace sigil::compose::kit {
  *  value ever stops being a peer of a hand-written one, this stops
  *  compiling. */
 bool kitLinked() {
-  static_assert(std::equality_comparable<Frame>);
-  static_assert(std::equality_comparable<Grid>);
-  static_assert(std::equality_comparable<Ticks>);
-  static_assert(std::equality_comparable<TicksShape>);
+  static_assert(std::equality_comparable<geometry::path::Frame>);
+  static_assert(std::equality_comparable<geometry::path::Grid>);
+  static_assert(std::equality_comparable<geometry::shapes::Ticks>);
+  static_assert(std::equality_comparable<geometry::shapes::TicksShape>);
   return true;
 }
 

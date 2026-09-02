@@ -2,7 +2,8 @@
 # numeric routines under them, where a run of n items falls on a ring or
 # in a grid, the path operators, the two comparable seams a mark is
 # deviated and widened through (Shaper and Profile) with the band those
-# rails cut, and where a set of paths cross. Skia, glm and the
+# rails cut, where a set of paths cross, and the two coordinate systems a
+# figure is measured in (the polar Frame and the unit-map Grid). Skia, glm and the
 # standard-library mixers under SigilCoreCompute — no mesh, no import, no
 # material — so a text engine or a drawable-component library can walk an
 # outline, or place a run of things, without linking the 3D half of
@@ -21,6 +22,7 @@ add_library(SigilGeometryPath STATIC
   ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/path/Contour.h
   ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/path/Crossings.h
   ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/path/Edges.h
+  ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/path/Frame.h
   ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/path/Noise.h
   ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/path/Numeric.h
   ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/path/Ops.h

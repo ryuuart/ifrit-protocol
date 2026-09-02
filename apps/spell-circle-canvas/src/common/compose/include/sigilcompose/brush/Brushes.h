@@ -37,6 +37,7 @@
 #include <sigilcompose/brush/Decorations.h>  // PathSample
 #include <sigilcompose/brush/Lines.h>        // lines::displace (the wave op)
 #include <sigilcompose/kit/Silhouettes.h>
+#include <sigilgeometry/kit/Shapers.h>
 
 #include <any>
 #include <functional>
@@ -219,8 +220,8 @@ Weave weave(
  *  composition:
  *
  *    element.stroke(Brush{}
- *        .shaped(kit::brush::shapers::Rounded{6})
- *        .shaped(kit::brush::shapers::Wave{.amplitude = 3, .wavelength = 30})
+ *        .shaped(geometry::shapers::Rounded{6})
+ *        .shaped(geometry::shapers::Wave{.amplitude = 3, .wavelength = 30})
  *        .layer(lines::cased(3, ink, 5))
  *        .layer(brush::Scatter{.art = spark(), .spacing = 40}));
  *
@@ -246,7 +247,7 @@ struct Brush {
 
   /** Append to the shared geometry pipeline. A `Shaper` is any comparable
    *  value with `SkPath shape(const SkPath &) const`; the stock ones
-   *  (`kit::brush::shapers::wave/jitter/offset`) are peers of anything you
+   *  (`geometry::shapes::wave/jitter/offset`) are peers of anything you
    *  write, which is why there is no shorthand for them here. */
   Brush& shaped(geometry::path::Shaper s) {
     pipeline.push_back(std::move(s));

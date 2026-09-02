@@ -139,7 +139,7 @@ class Element {
    *
    *  Does not cover right()/bottom() pinning, percentage insets, or
    *  autoDim() sides — those are different intents and keep the longhand.
-   *  `kit::centred()` (kit/Frame.h) builds the rect for the centre-and-size
+   *  `geometry::path::centred()` (kit/Frame.h) builds the rect for the centre-and-size
    *  case. */
   Element& rect(const SkRect& r);
   /** Pin an absolute node's top-left to a parent-space POINT, leaving the

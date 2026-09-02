@@ -9,7 +9,7 @@
 TEST(ComposeBrushEngine, PipelineStylesEveryLayer) {
   Host host;
   Brush b;
-  b.shaped(kit::brush::shapers::Wave{.amplitude = 8, .wavelength = 24})
+  b.shaped(geometry::shapers::Wave{.amplitude = 8, .wavelength = 24})
       .layer(stroke(2, green()))
       .layer([] {
         brush::Scatter s;
@@ -33,8 +33,8 @@ TEST(ComposeBrushEngine, BrushPrunesAsOneValue) {
   Host host;
   auto tree = [] {
     Brush b;
-    b.shaped(kit::brush::shapers::Rounded{6})
-        .shaped(kit::brush::shapers::Wave{.amplitude = 3, .wavelength = 30})
+    b.shaped(geometry::shapers::Rounded{6})
+        .shaped(geometry::shapers::Wave{.amplitude = 3, .wavelength = 30})
         .layer(lines::cased(3, Fill::color({0, 1, 0, 1}), 5));
     return box().child(
         box().absolute().inset(40, 40, 40, 40).stroke(std::move(b)));
@@ -54,7 +54,7 @@ TEST(ComposeBrushEngine, SketchyKeepsOpenContoursOpen) {
   b.moveTo(0, 0);
   b.lineTo(300, 0);
   const SkPath jittered =
-      kit::brush::shapers::Jitter{8, 2, 11}.shape(b.detach());
+      geometry::shapers::Jitter{8, 2, 11}.shape(b.detach());
   SkContourMeasureIter iter(jittered, false);
   float total = 0;
   bool anyClosed = false;
@@ -71,8 +71,8 @@ TEST(ComposeBrushEngine, PerLayerShapersRideTheSharedPipeline) {
   // as a single material value. Positive `px` is LEFT of travel.
   Host host;
   Brush b;
-  b.layer(stroke(3, green()), {kit::brush::shapers::Offset{12}})
-      .layer(stroke(3, blue()), {kit::brush::shapers::Offset{-12}});
+  b.layer(stroke(3, green()), {geometry::shapers::Offset{12}})
+      .layer(stroke(3, blue()), {geometry::shapers::Offset{-12}});
   host.composer.render(straightRun(std::move(b)));
   host.frame();
   EXPECT_EQ(host.pixel(100, 88), SK_ColorGREEN);   // left-of-travel rail
@@ -84,7 +84,7 @@ TEST(ComposeBrushEngine, SquareWaveHoldsPlateausAndEndsOnAxis) {
   SkPathBuilder b;
   b.moveTo(0, 0);
   b.lineTo(320, 0);
-  const SkPath boxy = kit::brush::shapers::Square{8, 80}.shape(b.detach());
+  const SkPath boxy = geometry::shapers::Square{8, 80}.shape(b.detach());
   // Plateaus hold ±8 for half-wavelength runs; endpoints return to 0.
   const SkRect bounds = boxy.getBounds();
   EXPECT_NEAR(bounds.top(), -8, 0.5f);

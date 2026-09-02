@@ -497,12 +497,10 @@ its own checks; nothing that ships does, which is what keeps a
 point-sampled coverage scan out of a paint loop.
 
 **Kit — `kit/Kit.h`.** A tier above the library that adds no kernel state
-and no new equality: `kit::Frame` and `kit::Grid` (figure-local polar and
-unit coordinates) with `kit::disc` and `kit::centred` (a box about a
-centre) and `kit::at` (a box pinned at absolute coordinates, for the
-plate that has no layout at all), `kit::dotSprite` (the round stamp a
-point sink draws each point with), `kit::ticks` and `kit::chords`
-(division ladders as one path),
+and no new equality: `kit::disc` (a node about a centre, at a radius or
+at a `geometry::path::Frame`'s) and `kit::at` (a box pinned at absolute
+coordinates, for the plate that has no layout at all), `kit::dotSprite`
+(the round stamp a point sink draws each point with),
 `kit::PixFont` (aliased bitmap-font bakes), `kit::Scrim` and the
 halo/shade legibility helpers, the two instruments for text in motion —
 `kit::trackMeter` (a cascade's schedule drawn, one cell per beat at its

@@ -29,7 +29,7 @@ namespace sigil::compose {
 //
 // Geometry deviation has one comparable seam — `Shaper`, any value with
 // `SkPath shape(const SkPath &) const` and equality. Stock shapers are
-// `kit::brush::shapers::`, and writing your own is a few lines; both prune.
+// `geometry::shapes::`, and writing your own is a few lines; both prune.
 //
 // A raw lambda cannot be a Shaper, because a closure has no equality. That
 // capability is still reachable, through exactly one door —

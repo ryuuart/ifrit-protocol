@@ -33,13 +33,6 @@
 
 namespace sigil::compose::lines {
 
-/** Square-wave (battlement) displacement: the run holds at +amp for half a
- *  wavelength then drops to −amp for the next, with the verticals coming
- *  from doubled points at each step. Zero at both endpoints and snapped to
- *  fit, exactly like `geometry::path::displace` — the boxy member of the same
- *  family. */
-SkPath displaceSquare(const SkPath& src, float amplitude, float wavelength);
-
 namespace detail {}  // namespace detail
 
 /** Convert a path into its DASHED GEOMETRY — the dash segments as real
@@ -146,7 +139,7 @@ struct Line {
   /** One-sided displacement of the whole run, **positive LEFT of travel**
    *  (the one convention — see `geometry::path::parallel`) — bus lanes beside
    * the road, half-side hachures. Same semantics as
-   *  `kit::brush::shapers::Offset` in a Brush pipeline: reach for the
+   *  `geometry::shapers::Offset` in a Brush pipeline: reach for the
    *  shaper when several layers share one displacement, this field for a
    *  single Line. */
   float across = 0.0f;

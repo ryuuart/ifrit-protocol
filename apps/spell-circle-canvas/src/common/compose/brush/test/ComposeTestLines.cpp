@@ -726,8 +726,8 @@ TEST(ComposeLines, RailsDashesStayRegisteredThroughCurvature) {
   Host naive(300, 300);
   lines::Line dashed{.width = 3, .fill = green(), .dashIntervals = {8, 8}};
   Brush perLayer;
-  perLayer.layer(dashed, {kit::brush::shapers::Offset{.px = 8, .step = 2}})
-      .layer(dashed, {kit::brush::shapers::Offset{.px = -8, .step = 2}});
+  perLayer.layer(dashed, {geometry::shapers::Offset{.px = 8, .step = 2}})
+      .layer(dashed, {geometry::shapers::Offset{.px = -8, .step = 2}});
   naive.composer.render(circleRun(perLayer, 100));
   naive.frame();
   const RailScan sheared = scanRails(naive, 150, 150, 92, 108);
@@ -1816,7 +1816,7 @@ TEST(ComposeRouters, ChamferCutsTheCornerRoundingCannot) {
   // geometry::shapes::chamfered() draws — 8 vertices, corners cut.
   SkPathBuilder sq;
   sq.moveTo(0, 0).lineTo(100, 0).lineTo(100, 100).lineTo(0, 100).close();
-  const SkPath oct = kit::brush::shapers::chamfered(30).shape(sq.detach());
+  const SkPath oct = geometry::shapes::chamfered(30).shape(sq.detach());
   PathDump o = dumpPath(oct);
   EXPECT_EQ(o.closes, 1);
   // 8 unique vertices (the iterator's synthesized closing line repeats

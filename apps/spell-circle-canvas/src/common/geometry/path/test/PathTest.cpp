@@ -22,6 +22,7 @@
 #include "sigilgeometry/path/Band.h"
 #include "sigilgeometry/path/Contour.h"
 #include "sigilgeometry/path/Crossings.h"
+#include "sigilgeometry/path/Frame.h"
 #include "sigilgeometry/path/Noise.h"
 #include "sigilgeometry/path/Numeric.h"
 #include "sigilgeometry/path/Ops.h"
@@ -669,6 +670,71 @@ TEST(CrossingPatch, TheLensIsBoundedByTheKnotsOwnTerritory) {
       crossingPatch(a, 1.0f, segment(0, 900, 10, 900), 1.0f, {5, 900}, 6.0f);
   EXPECT_FALSE(far.isEmpty());
   EXPECT_LE(far.getBounds().width(), 13.0f);
+}
+
+
+// ---------------------------------------------------------------------------
+// The two coordinate systems a figure is measured in.
+
+TEST(Frame, TheConventionIsCarriedByTheValueAndNotByTheCallSite) {
+  const Frame skiaLike{.centre = {100, 100}, .radius = 50, .zero = Zero::East,
+                       .sense = Sense::CW};
+  const Frame plate{.centre = {100, 100}, .radius = 50, .zero = Zero::North,
+                    .sense = Sense::CW};
+  // 0 degrees is due east in one and twelve o'clock in the other, and
+  // that is the whole reason this is a value.
+  EXPECT_FLOAT_EQ(skiaLike.skiaDeg(0), 0.0f);
+  EXPECT_FLOAT_EQ(plate.skiaDeg(0), -90.0f);
+  // A counter-clockwise plate turns the other way from the same zero.
+  const Frame widdershins{
+      .centre = {100, 100}, .radius = 50, .zero = Zero::North,
+      .sense = Sense::CCW};
+  EXPECT_FLOAT_EQ(widdershins.skiaDeg(90), -180.0f);
+  EXPECT_FLOAT_EQ(plate.skiaDeg(90), 0.0f);
+}
+
+TEST(Frame, PolarPointsAndTheArcLengthFractionRoundTrip) {
+  const Frame f{.centre = {0, 0}, .radius = 100, .zero = Zero::North,
+                .sense = Sense::CW};
+  const SkPoint north = f.at(0, 1.0f);
+  EXPECT_NEAR(north.fX, 0.0f, 1e-3f);
+  EXPECT_NEAR(north.fY, -100.0f, 1e-3f);
+  const SkPoint east = f.at(90, 1.0f);
+  EXPECT_NEAR(east.fX, 100.0f, 1e-3f);
+  EXPECT_NEAR(east.fY, 0.0f, 1e-3f);
+  // fraction() and its inverse are the one place the circle's contour
+  // start leaks, and they compose back to the angle they were given (mod
+  // a turn, since a fraction has no memory of which lap it was on).
+  for (float deg : {0.0f, 37.5f, 180.0f, 359.0f}) {
+    float back = std::fmod(f.degOf(f.fraction(deg)) + 720.0f, 360.0f);
+    EXPECT_NEAR(back, std::fmod(deg, 360.0f), 1e-2f);
+  }
+}
+
+TEST(Frame, DerivedFramesKeepTheConventionTheyCameFrom) {
+  const Frame f{.centre = {10, 20}, .radius = 80, .zero = Zero::North,
+                .sense = Sense::CCW, .originDeg = 4.5f};
+  EXPECT_FLOAT_EQ(f.scaled(0.5f).radius, 40.0f);
+  EXPECT_EQ(f.scaled(0.5f).zero, f.zero);
+  EXPECT_EQ(f.about({0, 0}).sense, f.sense);
+  // Turning composes and inverts, which is what makes a nudge safe.
+  EXPECT_TRUE(f.turned(9.0f).turned(-9.0f) == f);
+  // The box a silhouette inscribes itself in is centred on the frame.
+  EXPECT_EQ(f.box(0.5f), SkRect::MakeXYWH(10 - 40, 20 - 40, 80, 80));
+}
+
+TEST(Grid, TheUnitMapScalesLengthsAndPositionsAndSnapsTheResult) {
+  const Grid g{.scale = 4.0f, .origin = {10, 20}};
+  EXPECT_FLOAT_EQ(g.s(3.0f), 12.0f);
+  EXPECT_FLOAT_EQ(g.x(3.0f), 22.0f);
+  EXPECT_FLOAT_EQ(g.y(3.0f), 32.0f);
+  // Snap rounds half away from zero: 0.7 units is 2.8 px, which is more
+  // than half a 5 px step, and 0.6 is not.
+  const Grid snapped{.scale = 4.0f, .origin = {0, 0}, .snap = 5.0f};
+  EXPECT_FLOAT_EQ(snapped.x(0.7f), 5.0f);
+  EXPECT_FLOAT_EQ(snapped.x(0.6f), 0.0f);
+  EXPECT_FLOAT_EQ(snapped.scaled(0.5f).scale, 2.0f);
+  EXPECT_FLOAT_EQ(snapped.scaled(0.5f).snap, 5.0f);
 }
 
 }  // namespace

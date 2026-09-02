@@ -16,6 +16,7 @@
 #include <sigilcompose/Compose.h>
 #include <sigilcompose/core/Feed.h>
 #include <sigilcompose/testing/Checks.h>
+#include <sigilgeometry/kit/Shapers.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilimage/asset/ImageAsset.h>
 #include <sigilmaterial/skia/Paint.h>

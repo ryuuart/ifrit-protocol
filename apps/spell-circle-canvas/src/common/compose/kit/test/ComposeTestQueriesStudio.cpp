@@ -880,9 +880,9 @@ TEST(ComposeDebug, CheckPrintsTheVerdictItComputed) {
 }
 
 TEST(ComposeUtil, CentredBuildsTheRectFifteenSitesComputeByHand) {
-  const SkRect r = kit::centred({100, 50}, 40, 20);
+  const SkRect r = geometry::path::centred({100, 50}, 40, 20);
   EXPECT_EQ(r, SkRect::MakeXYWH(80, 40, 40, 20));
-  EXPECT_EQ(kit::centred({100, 50}, SkSize{40, 20}), r);
+  EXPECT_EQ(geometry::path::centred({100, 50}, SkSize{40, 20}), r);
 
   // The point of it being a VALUE: rect() takes it, and so does everything
   // else that wants the same geometry.

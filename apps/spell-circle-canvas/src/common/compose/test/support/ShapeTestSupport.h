@@ -5,6 +5,7 @@
 #include <sigilcompose/kit/Layouts.h>
 #include <sigilcompose/kit/Routers.h>
 #include <sigilcompose/kit/Silhouettes.h>
+#include <sigilgeometry/kit/Shapers.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 
 #include "CoreTestSupport.h"

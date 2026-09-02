@@ -119,7 +119,7 @@ TEST(ComposeDocs, EverySignatureInTheLineAndBorderDocsCompiles) {
   auto cord = kit::brush::presets::rope(1, 1.0f);
   // OP FIRST, decoration second. The two arguments read equally well in
   // either order in prose, which is why the call is spelled here.
-  auto restyled = brush::restyle(kit::brush::shapers::Jitter{8.0f, 2.0f, 7},
+  auto restyled = brush::restyle(geometry::shapers::Jitter{8.0f, 2.0f, 7},
                                  stroke(1.0f, ink), 8.0f);
 
   lines::Hatch hatch;
@@ -128,11 +128,11 @@ TEST(ComposeDocs, EverySignatureInTheLineAndBorderDocsCompiles) {
   hatch.angleBinding = &angle;
   EXPECT_TRUE(hatch.isAnimated());  // a binding IS the volatility declaration
 
-  kit::brush::shapers::Wave wave{.amplitude = 3.5f, .wavelength = 22};
-  kit::brush::shapers::Rounded rounded{};
-  kit::brush::shapers::Jitter jitter{};
-  kit::brush::shapers::Square square{};
-  kit::brush::shapers::Offset offset{};
+  geometry::shapers::Wave weave{.amplitude = 3.5f, .wavelength = 22};
+  geometry::shapers::Rounded rounded{};
+  geometry::shapers::Jitter jitter{};
+  geometry::shapers::Square square{};
+  geometry::shapers::Offset off_t{};
 
   (void)brackets;
   (void)gapped;
@@ -149,11 +149,11 @@ TEST(ComposeDocs, EverySignatureInTheLineAndBorderDocsCompiles) {
   (void)trace;
   (void)cord;
   (void)restyled;
-  (void)wave;
+  (void)weave;
   (void)rounded;
   (void)jitter;
   (void)square;
-  (void)offset;
+  (void)off_t;
 }
 
 TEST(ComposeDocs, EverySignatureInTheCachingDocsCompiles) {
