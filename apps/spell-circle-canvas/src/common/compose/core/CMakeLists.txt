@@ -61,8 +61,7 @@ add_library(SigilComposeCore STATIC
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/core/Element.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/core/Factories.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/core/Feed.h
-  ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/core/GpuImage.h
-  ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/core/Layout.h
+    ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/core/Layout.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/core/Mask.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/core/Measure.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/core/Paint.h
@@ -86,6 +85,7 @@ target_link_libraries(SigilComposeCore
     SigilGeometryPath
     SigilImage
     SigilMaterial
+    SigilSkiaDraw
     SigilMeasure
     SigilMotion
     SigilWeave

@@ -34,9 +34,9 @@
 #include <include/core/SkPathEffect.h>
 #include <include/core/SkPicture.h>
 #include <sigilcompose/brush/Lines.h>  // insetOutline, cornerBrackets, cornerGaps
-#include <sigilcompose/core/GpuImage.h>
 #include <sigilimage/asset/ImageAsset.h>
 #include <sigilmaterial/skia/Paint.h>  // Wash — the material-valued decoration
+#include <sigilskia/draw/Direct.h>
 
 #include <algorithm>
 #include <optional>
@@ -235,12 +235,12 @@ struct Slice {
   std::vector<int> yDivs;
   /** Skia's native lattice draw is not implemented on every backend and
    *  silently draws NOTHING where it is not — including when a picture
-   *  recorded elsewhere replays there. `gpuimg::drawLattice` decomposes
+   *  recorded elsewhere replays there. `skia::draw::drawLattice` decomposes
    *  the lattice itself on every backend and promotes raster sources
    *  through this cache. Excluded from equality: a cache is not part of
    *  the value. */
-  std::shared_ptr<gpuimg::Promoted> gpuCache =
-      std::make_shared<gpuimg::Promoted>();
+  std::shared_ptr<skia::draw::Promoted> gpuCache =
+      std::make_shared<skia::draw::Promoted>();
   /** How the slices sample. Linear is right for a soft frame and wrong
    *  for pixel art — a window chrome, a dialog border, a button cut from a
    *  tile sheet — where it blurs every slice boundary. */

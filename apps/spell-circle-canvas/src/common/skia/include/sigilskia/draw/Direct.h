@@ -1,12 +1,11 @@
 #pragma once
 
 /** @file
- * Backend-portable forms of the two SkCanvas draws Graphite DOES NOT
- * IMPLEMENT: in this Skia, graphite::Device overrides drawImageLattice
- * and drawAtlas with empty bodies ("TODO: Implement these using per-edge
- * AA quads…"), so every such draw on a Graphite canvas silently vanishes
- * — found as invisible nine-slice frames and instance stamps in the GPU
- * gallery, pinned by compose_gpu_test's DirectPrimitiveMatrix.
+ * workaround: backend-portable forms of the two SkCanvas draws Graphite
+ * DOES NOT IMPLEMENT. In this Skia, `graphite::Device` overrides
+ * `drawImageLattice` and `drawAtlas` with empty bodies, so every such
+ * draw on a Graphite canvas silently vanishes — as invisible nine-slice
+ * frames and instance stamps.
  *
  * These decompose on EVERY backend, and never call the native ops — a
  * picture recorded on a raster canvas must be able to replay on Graphite,
@@ -35,7 +34,7 @@
 #include <cstdint>
 #include <vector>
 
-namespace sigil::compose::gpuimg {
+namespace sigil::skia::draw {
 
 /** One promoted texture, keyed by (source image, recorder) — hold one per
  *  owning value (a Slice, an Atlas) so re-draws reuse the upload. */
@@ -251,4 +250,4 @@ inline void drawSpriteAtlas(SkCanvas& canvas, Promoted& cache,
   canvas.drawVertices(vertices, SkBlendMode::kModulate, p);
 }
 
-}  // namespace sigil::compose::gpuimg
+}  // namespace sigil::skia::draw

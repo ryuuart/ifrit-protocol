@@ -29,11 +29,12 @@ directory, and links only what it needs.
 |---|---|---|---|
 | graphite | `SigilSkiaGraphite` | `<sigilskia/graphite/GraphiteContext.h>`, `<sigilskia/graphite/OffscreenSurface.h>`, `<sigilskia/graphite/Pixels.h>` | the context over a native device and queue, the surface over a texture, and the pixel reads a device upload takes; Metal and Vulkan as parallel paths, and the entry points that read a `GpuDevice` — `GraphiteContext::create`, the `OffscreenSurface` wrap over a `TextureHandle`, the submit that signals a `FenceHandle` |
 | qt | `SigilSkiaQt` | `<sigilskia/qt/QtInterop.h>` | the adapters that unwrap a `QRhi`'s native handles and forward to graphite |
+| draw | `SigilSkiaDraw` | `<sigilskia/draw/Direct.h>` | the two `SkCanvas` ops Graphite leaves unimplemented, decomposed into ones every backend performs |
 
-`SigilSkia` is the umbrella over the Qt-free features — today, graphite
-alone. Dependencies point one way: Graphite stands on the hardware
-device, so both features link `SigilCoreHardware` and nothing there
-knows Skia exists. A Qt host links `SigilSkiaQt`, which carries the
+`SigilSkia` is the umbrella over the Qt-free features. Dependencies point
+one way: Graphite stands on the hardware device, so the graphite and qt
+features link `SigilCoreHardware` and nothing there knows Skia exists.
+The draw feature is header-only over Skia and links neither. A Qt host links `SigilSkiaQt`, which carries the
 umbrella with it. A consumer that owns its own Metal device (the native
 macOS app, the headless gallery, the GPU tests and benchmarks) links
 `SigilSkia` and never sees Qt.
@@ -246,10 +247,33 @@ host that needs a particular layout afterwards transitions it itself.
 budget from the environment. Unset leaves Skia's default in place; it
 exists so the budget can be varied while measuring.
 
+## The two draws Graphite does not implement
+
+`graphite::Device` overrides `drawImageLattice` and `drawAtlas` with
+empty bodies, so every such call on a Graphite canvas silently vanishes —
+a nine-slice frame or a sheet of instance stamps simply does not appear,
+with no error anywhere. `<sigilskia/draw/Direct.h>` is the way round it:
+`draw::drawLattice` emits per-cell `drawImageRect`s over the alternating
+fixed and stretchable bands `draw::detail::latticeEdges` computes, and
+`draw::drawSpriteAtlas` emits one `drawVertices` quad list sampling the
+sheet.
+
+**They decompose on EVERY backend and never call the native op.** A
+picture recorded on a raster canvas must be able to replay on a Graphite
+one, and a recorded native lattice or atlas op vanishes there. The
+canvas's recorder gates only TEXTURE PROMOTION — `draw::ready` uploads a
+raster source through a per-owner `draw::Promoted` cache, because
+Graphite performs no implicit upload for direct image use.
+
+This feature is unconditional where the rest of the library is gated:
+the ops vanish on a Graphite canvas whether or not this repository is the
+one that stood that canvas up.
+
 ## Boundary
 
-Public dependencies: Skia and SigilCoreHardware — the device this stands
-Graphite on, which knows nothing of Skia in return. `SigilSkiaQt` adds
+Public dependencies: Skia and, for the two features that bring Graphite
+up, SigilCoreHardware — the device this stands Graphite on, which knows
+nothing of Skia in return. `SigilSkiaQt` adds
 `Qt6::Core` publicly and uses `Qt6::GuiPrivate` for the `QRhi` API; on
 Apple, `SigilSkiaGraphite` links Foundation privately. The graphite
 feature never links Qt, and nothing here links a renderer, a text engine,
@@ -257,8 +281,9 @@ or a scene.
 
 ## Building
 
-Added only when `SPELLCIRCLE_ENABLE_SKIA_CANVAS` is on. Targets:
-`SigilSkiaGraphite`, `SigilSkiaQt`, the `SigilSkia` umbrella, and on
+`SigilSkiaDraw` and `sigilskia_draw_test` are always built; the rest —
+`SigilSkiaGraphite`, `SigilSkiaQt` and the `SigilSkia` umbrella — only
+when `SPELLCIRCLE_ENABLE_SKIA_CANVAS` is on, with on
 Apple `sigilskia_graphite_test` (ctest) plus `sigilskia_graphite_bench`
 (Google Benchmark, through the `benches` target and
 `scripts/bench_ledger.py`). The test takes the Metal path end to end on

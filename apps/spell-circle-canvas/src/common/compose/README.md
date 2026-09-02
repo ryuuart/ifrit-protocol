@@ -369,8 +369,6 @@ sound model; nothing below them changes kernel semantics.
   purely by composing the kernel; the bordered strip several feeds sit on
   is the kit's `kit::plate` (`kit/Plate.h`), with `kit::tinted` building
   the one-face style set its rows name.
-- `core/GpuImage.h` — `gpuimg::drawLattice` and `gpuimg::drawSpriteAtlas`,
-  which are mandatory rather than convenient (see the traps).
 
 **The animation vocabulary is SigilMotion's and is spelled that way.**
 `motion::Animatable` is the property slot every setter here takes,
@@ -583,10 +581,11 @@ exactly like a layout bug.
 - **Skia's native lattice and atlas draws are not implemented on
   Graphite** in this Skia — they draw nothing. Worse, one recorded on a
   raster canvas still vanishes when the recording replays on Graphite, so
-  a raster test cannot see it. Use `gpuimg::drawLattice` and
-  `gpuimg::drawSpriteAtlas`, which decompose on every backend and never
-  emit the native op. This is not an optimisation layer; it is the only
-  correct path.
+  a raster test cannot see it. Use SigilSkia's `skia::draw::drawLattice`
+  and `skia::draw::drawSpriteAtlas`
+  (`<sigilskia/draw/Direct.h>`), which decompose on every backend and
+  never emit the native op. This is not an optimisation layer; it is the
+  only correct path.
 - **A `custom()` leaf sizes like an empty box.** It is literally a box with
   one background program, so it has no intrinsic size: dropped into an
   `absolute().inset(0)` parent it measures zero on the main axis and the

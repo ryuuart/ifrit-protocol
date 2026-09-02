@@ -88,8 +88,8 @@ void Slice::paint(SkCanvas& canvas, const PaintContext& ctx) const {
   sk_sp<SkImage> img = asset->frames().front().image;
   if (!img) return;
   const SkRect dst = SkRect::MakeWH(ctx.size.width(), ctx.size.height());
-  gpuimg::drawLattice(canvas, *gpuCache, std::move(img), xDivs, yDivs, dst,
-                      filter, density);
+  skia::draw::drawLattice(canvas, *gpuCache, std::move(img), xDivs, yDivs, dst,
+                          filter, density);
 }
 
 void ContourWalk::paint(SkCanvas& canvas, const PaintContext& ctx) const {

@@ -15,7 +15,7 @@
  *  - The POOL is yours: plain parallel arrays (position / rotation / uniform
  *    scale / tint / frame). Mutate it directly, from a ticker, or by copying
  *    out of an ECS — no registry type crosses this seam.
- *  - Stamping is one `gpuimg::drawSpriteAtlas` call with RSXform semantics:
+ *  - Stamping is one `skia::draw::drawSpriteAtlas` call with RSXform semantics:
  *    rotation, uniform scale and translation, plus two opt-in lanes —
  *    `sizes()` for per-instance NON-UNIFORM scale and `texWindows()` for a
  *    per-sprite UV window. Skew is not expressible; use real elements.
@@ -43,7 +43,7 @@
 #include <include/core/SkColor.h>
 #include <include/core/SkImage.h>
 #include <sigilcompose/Compose.h>
-#include <sigilcompose/core/GpuImage.h>
+#include <sigilskia/draw/Direct.h>
 
 #include <algorithm>
 #include <cstdint>
@@ -232,9 +232,9 @@ class Atlas {
  public:
   /** The GPU promotion of the baked sheet. A raster sheet handed straight
    *  to a native atlas draw does not appear on every backend, so the stamp
-   *  goes through `gpuimg::` and this cache holds whatever that promotion
+   *  goes through `skia::draw::` and this cache holds whatever that promotion
    *  produced. Used by detail::stamp; not part of the atlas's identity. */
-  gpuimg::Promoted gpuCache;
+  skia::draw::Promoted gpuCache;
 };
 
 // ---------------------------------------------------------------------------

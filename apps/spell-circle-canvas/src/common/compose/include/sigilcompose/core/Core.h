@@ -3,9 +3,8 @@
 /** @file
  * SigilCompose core — the kernel in dependency order. Each header stands
  * on its own; include the one a translation unit needs, or this file for
- * all of them. The paint values with bodies (Material.h), the streaming
- * feed (Feed.h) and the direct-image draws (GpuImage.h) are the kernel's
- * too, and are included by name.
+ * all of them. The streaming feed (Feed.h) is the kernel's too and is
+ * included by name.
  */
 
 #include "sigilcompose/core/Composer.h"

@@ -26,9 +26,7 @@ set(SIGIL_TEST_SUPPORT_DIR ${CMAKE_CURRENT_LIST_DIR}/test)
 # Core first: its hardware feature is the device every drawing library
 # below stands on.
 add_subdirectory(common/core)
-if(SPELLCIRCLE_ENABLE_SKIA_CANVAS)
-  add_subdirectory(common/skia)
-endif()
+add_subdirectory(common/skia)
 add_subdirectory(common/ui)
 add_subdirectory(common/image)
 add_subdirectory(common/loader)

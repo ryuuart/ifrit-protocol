@@ -16,22 +16,29 @@
 # <feature>/, so a feature adds the root and spells its own directory.
 # <sigilskia/Skia.h> is the umbrella header over the Qt-free features.
 #
-# Nothing here knows what is being drawn. Added only when
-# SPELLCIRCLE_ENABLE_SKIA_CANVAS is on (src/CMakeLists.txt).
+# Nothing here knows what is being drawn. The GRAPHITE bring-up and its
+# Qt adapter are added only when SPELLCIRCLE_ENABLE_SKIA_CANVAS is on
+# (src/CMakeLists.txt); the draw feature is unconditional, because the
+# ops it decomposes vanish on a Graphite canvas whether or not this
+# repository is the one that stood that canvas up.
 
 set(SIGIL_SKIA_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/include)
 
-# The Vulkan headers, for the graphite feature's Vulkan bring-up; it links
-# them privately, since every public header spells a Vulkan handle as an
-# opaque value.
-find_package(VulkanHeaders CONFIG REQUIRED)
-
 # Dependencies point up this list.
-add_subdirectory(graphite)
-add_subdirectory(qt)
+add_subdirectory(draw)
 
-add_library(SigilSkia INTERFACE)
-target_link_libraries(SigilSkia INTERFACE SigilSkiaGraphite)
+if(SPELLCIRCLE_ENABLE_SKIA_CANVAS)
+  # The Vulkan headers, for the graphite feature's Vulkan bring-up; it
+  # links them privately, since every public header spells a Vulkan handle
+  # as an opaque value.
+  find_package(VulkanHeaders CONFIG REQUIRED)
+
+  add_subdirectory(graphite)
+  add_subdirectory(qt)
+
+  add_library(SigilSkia INTERFACE)
+  target_link_libraries(SigilSkia INTERFACE SigilSkiaGraphite SigilSkiaDraw)
+endif()
 
 # Registers this library with the `docs` target (see cmake/Docs.cmake).
 # The README is the site's front page, so the generated pages open on the
