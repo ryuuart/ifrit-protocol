@@ -90,10 +90,23 @@ constexpr SkColor4f kLut4{0.9882f, 0.9961f, 0.9961f, 1};           // #FCFEFE
 constexpr SkColor4f kCausLight{0.5882f, 0.8902f, 0.9412f, 0.47f};  // #96E3F0
 constexpr SkColor4f kCausBub{0.3294f, 0.9294f, 0.9176f, 0.255f};   // #54EDEA
 constexpr SkColor4f kBotDark{0, 0.0627f, 0.4275f, 1};              // #00106D
-constexpr SkColor4f kTopCyan{0, 0.9882f, 0.9490f, 0.39f};    // #00FCF2 a.39
-constexpr SkColor4f kTintVeil{0, 0.4980f, 0.8235f, 0.36f};   // #007FD2
-constexpr SkColor4f kNumeral{0.4706f, 0.4706f, 0.4706f, 1};  // #787878
-constexpr SkColor4f kRing{0.3647f, 0.4157f, 0.5333f, 1};     // #5D6A88
+// The top framing gradient, at a third of the strength the recreation
+// gives it: over the LUT's own near-black first band a bright cyan at
+// four tenths IS the top third of the screen, and the bands under it
+// stop being readable as bands.
+constexpr SkColor4f kTopCyan{0, 0.9882f, 0.9490f, 0.14f};  // #00FCF2
+// THE VEIL IS A TINT, NOT A WASH. At the strength this carried, a
+// bright cyan over the LUT's near-black top band lifted the whole
+// sea to a mid teal, and nothing on the screen was dark enough for
+// anything to pop off. P3R's sea of souls runs navy to black with
+// the bands reading as hard steps.
+constexpr SkColor4f kTintVeil{0, 0.4980f, 0.8235f, 0.12f};  // #007FD2
+// THE INDEX NUMERAL IS BEHIND THE MENU, and behind means screened:
+// P3R tints the sea with an oversized digit pair rather than laying
+// an opaque slab over it. Painted at #787878 it competed with the
+// selection and read as a graphical fault crossing the party rail.
+constexpr SkColor4f kNumeral{0.235f, 0.290f, 0.470f, 1};
+constexpr SkColor4f kRing{0.3647f, 0.4157f, 0.5333f, 1};  // #5D6A88
 constexpr SkColor4f kPaper{1, 1, 1, 1};
 constexpr SkColor4f kInk{0, 0, 0, 1};
 
@@ -203,47 +216,6 @@ inline sigil::weave::TextStyle smallType(float size, SkColor4f c,
   s.paint.foreground.setColor(c.toSkColor());
   s.paint.foreground.setAntiAlias(true);
   return s;
-}
-
-/** The caustic layer of the sea-of-souls backdrop: two value-noise fields
- *  offset
- *  by .5 UV, alpha = step(cut, |p1-p2|), vertically masked into the sea
- *  band. uTime is bound to a HOST-QUANTIZED output (floor(t*6)/6) -- the
- *  water steps at 6 Hz, "we imagine the interpolation ourselves". */
-inline sk_sp<SkRuntimeEffect> causticFx() {
-  static const sk_sp<SkRuntimeEffect> fx = [] {
-    auto [effect, err] = SkRuntimeEffect::MakeForShader(SkString(R"(
-      uniform float2 uResolution;
-      uniform float  uTime;   // pre-quantized to 6 Hz by the host
-      uniform float  uCut;
-      uniform float  uScale;
-      uniform float2 uVel;    // uv/s (y+ = texture rises)
-      uniform float4 uColor;
-      float vhash(float2 p) {
-        return fract(sin(dot(p, float2(127.1, 311.7))) * 43758.5453);
-      }
-      float vnoise(float2 p) {
-        float2 i = floor(p);
-        float2 f = fract(p);
-        f = f * f * (3.0 - 2.0 * f);
-        return mix(mix(vhash(i), vhash(i + float2(1, 0)), f.x),
-                   mix(vhash(i + float2(0, 1)), vhash(i + float2(1, 1)), f.x),
-                   f.y);
-      }
-      half4 main(float2 xy) {
-        float2 uv = xy / max(uResolution.y, 1.0);
-        float2 o = uVel * uTime;
-        float p1 = vnoise((uv - o) * uScale);
-        float p2 = vnoise((uv - o + 0.5) * uScale);
-        float band = smoothstep(0.30, 0.55, xy.y / max(uResolution.y, 1.0));
-        float a = step(uCut, abs(p1 - p2)) * uColor.a * band;
-        return half4(half3(uColor.rgb) * a, a);
-      }
-    )"));
-    if (!effect) SkDebugf("persona_menu caustics shader: %s\n", err.c_str());
-    return effect;
-  }();
-  return fx;
 }
 
 }  // namespace persona_menu
@@ -370,15 +342,6 @@ struct PersonaMenu final : sketch::Sketch {
     return m;
   }
 
-  Material caustic(float cut, float scale, SkColor4f color,
-                   std::array<float, 2> vel) {
-    namespace nn = persona_menu;
-    Material m =
-        Material::sksl(nn::causticFx(), {{"uCut", cut}, {"uScale", scale}});
-    m.uniform("uColor", color).uniform("uVel", vel).uniform("uTime", &qTime);
-    return m;
-  }
-
   /** The sea-of-souls backdrop, approximated but built in the original's
    *  layer order — the order is what produces the colour. */
   Element backdrop() {
@@ -410,11 +373,11 @@ struct PersonaMenu final : sketch::Sketch {
                    .fill(Material::linear(
                        {0, 0}, {0, nn::kH},
                        {{0.0f, nn::kGroundDark}, {1.0f, nn::kGround}}))
-                   .child(box().inset(0).fill(bands).opacity(0.9f))
+                   .child(box().inset(0).fill(bands).opacity(0.97f))
                    .child(box()
                               .inset(0)
                               .fill(patterns::noise(0.006f, 4))
-                              .opacity(0.32f)
+                              .opacity(0.20f)
                               .blend(SkBlendMode::kSoftLight))
                    .child(box().inset(0).fill(Material::solid(nn::kTintVeil))))
         // The sea: one dual-layer 6Hz shader, its own texture plane --
@@ -738,7 +701,8 @@ struct PersonaMenu final : sketch::Sketch {
                    .centerAt({450, 306})
                    .rotate(90)
                    .zIndex(1)
-                   .opacity(animate(from(0.0f).to(1.0f), {500ms}))
+                   .blend(SkBlendMode::kScreen)
+                   .opacity(animate(from(0.0f).to(0.85f), {500ms}))
                    // 220px digits render as glyph PATHS (over the atlas
                    // cutoff); bake them once, the rotation rides outside
                    .cache(Cache::Texture))
