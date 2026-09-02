@@ -347,7 +347,22 @@ inline Router pcb(float cut, float jog) {
 // ---------------------------------------------------------------------------
 // the CRT stack: one SkSL scanline field, stepped at 6 Hz
 
-inline Material scanField(SkColor4f tint, float period) {
+/** THE 6 Hz STEP, PHASE-SHIFTED HALF A STEP. `quantizeTime(6)` puts a
+ *  boundary at every whole sixth of a second, and a host that captures at
+ *  a whole number of seconds captures exactly on one: the clock a plate
+ *  reaches is a sum of steps of 1/60 rather than the exact number, so a
+ *  float tie-break decides which side of the boundary the scanlines land
+ *  on and every line on the panel moves 1.17 px between two runs of the
+ *  same code. Quantising `t + 1/12` moves every boundary a half step off
+ *  the whole seconds, which is where every host in this repository
+ *  captures. The look is identical: it is the same ladder, read half a
+ *  rung along. */
+inline float steppedTime(double t) {
+  return (float)(std::floor((t + 1.0 / 12.0) * 6.0) / 6.0);
+}
+
+inline Material scanField(SkColor4f tint, float period,
+                          const choreograph::Output<float>* clock) {
   static const sk_sp<SkRuntimeEffect> fx = [] {
     auto [effect, err] = SkRuntimeEffect::MakeForShader(SkString(R"(
       uniform float2 uResolution;
@@ -371,7 +386,7 @@ inline Material scanField(SkColor4f tint, float period) {
   if (!fx) return Material::solid({0, 0, 0, 0});
   return Material::sksl(fx, {{"uPeriod", period}})
       .uniform("uColor", tint)
-      .quantizeTime(6.0f);  // the declared-choppiness rule
+      .uniform("uTime", clock);
 }
 
 // ---------------------------------------------------------------------------
@@ -563,6 +578,9 @@ struct Ds2Bench : sketch::Sketch {
   choreograph::Output<float> scanY{0};
   choreograph::Output<float> jitterX{0};
   choreograph::Output<float> holoAlpha{1.0f};
+  /** The scanline field's own clock: the scene time stepped at 6 Hz, half
+   *  a step off the whole seconds. See `steppedTime`. */
+  choreograph::Output<float> scanClock{0};
 
   // the legend pip masses: one atlas (2 cells), one pool per row
   std::shared_ptr<instancing::Atlas> pips =
@@ -637,10 +655,40 @@ struct Ds2Bench : sketch::Sketch {
                      .effect(Effect::directionalBlur(18, 90, 12))
                      .zIndex(0));
     };
-    strut(-30, 96, 0.8f);
-    strut(66, 30, 0.45f);
-    strut(1108, 92, 0.8f);
-    strut(1040, 26, 0.4f);
+    // THE MACHINE ROOM, so the panel has something to be glass OVER.
+    // Dead Space's bench is a hologram standing in a room and the wall
+    // structure reads through the whole of it; struts confined to the two
+    // margins leave the panel floating on the frame's own black, which is
+    // the one thing a translucent panel cannot do.
+    strut(-30, 96, 0.9f);
+    strut(66, 30, 0.5f);
+    strut(1108, 92, 0.9f);
+    strut(1040, 26, 0.45f);
+    strut(196, 54, 0.42f);
+    strut(430, 38, 0.30f);
+    strut(690, 46, 0.34f);
+    strut(902, 32, 0.28f);
+    // A lit doorway behind the panel's left third — one warm rectangle is
+    // what tells an eye the wall is a wall and not a backdrop.
+    root.child(box()
+                   .rect(SkRect::MakeXYWH(250.0f, 118.0f, 176.0f, 470.0f))
+                   .fill(Material::linear({0, 0}, {0, 470},
+                                          {{0.0f, hex(0x2A4A52, 0.34f)},
+                                           {0.45f, hex(0x3E6A6E, 0.26f)},
+                                           {1.0f, hex(0x0C1A20, 0.09f)}}))
+                   .effect(Effect::directionalBlur(22, 90, 16))
+                   .zIndex(0));
+    // …and a bank of pipes crossing the wall behind the right half.
+    for (int i = 0; i < 5; ++i)
+      root.child(box()
+                     .rect(SkRect::MakeXYWH(560.0f, 150.0f + (float)i * 96.0f,
+                                            560.0f, 13.0f))
+                     .fill(Material::linear({0, 0}, {0, 13},
+                                            {{0.0f, hex(0x25444E, 0.30f)},
+                                             {0.5f, hex(0x1A3038, 0.20f)},
+                                             {1.0f, hex(0x0A1218, 0.07f)}}))
+                     .effect(Effect::directionalBlur(9, 0, 14))
+                     .zIndex(0));
     root.child(box()
                    .rect(SkRect::MakeXYWH(-40.0f, 2.0f, kW + 80, 28.0f))
                    .fill(Material::linear({0, 0}, {0, 28},
@@ -656,22 +704,29 @@ struct Ds2Bench : sketch::Sketch {
 
   void plate(Element& root) {
     // body: solid + a radial lift + the live scanline field, ONE shader
-    root.child(box()
-                   .key("plate")
-                   .rect(SkRect::MakeXYWH(kPX, kPY, kPW, kPH))
-                   .shape(panelOuter(kOuterCut, kOuterStep, kOuterShoulder))
-                   .fill(Material::blend(
-                       {{Material::solid(kBody), SkBlendMode::kSrcOver},
-                        // unit-square ramp: the lift is authored against the
-                        // box, not against a pixel extent transcribed by hand
-                        {Material::radialUnit({0.40f, 0.32f}, 1.15f,
-                                              {{0.0f, hex(0xFFFFFF)},
-                                               {0.5f, hex(0xC0D0D0)},
-                                               {1.0f, hex(0x4E6264)}}),
-                         SkBlendMode::kMultiply},
-                        {scanField(alpha(kCyan, 0.075f), 3.0f),
-                         SkBlendMode::kScreen}}))
-                   .zIndex(1));
+    root.child(
+        box()
+            .key("plate")
+            .rect(SkRect::MakeXYWH(kPX, kPY, kPW, kPH))
+            .shape(panelOuter(kOuterCut, kOuterStep, kOuterShoulder))
+            // THE PANEL IS GLASS. Dropping the 3D framing is
+            // stated; dropping the translucency was not, and it is
+            // the separate half — Dead Space's hologram is a sheet
+            // of light with the room behind it visible through
+            // every part of it, and an opaque body makes the same
+            // drawing a flat rectangle on black.
+            .fill(Material::blend(
+                {{Material::solid(alpha(kBody, 0.70f)), SkBlendMode::kSrcOver},
+                 // unit-square ramp: the lift is authored against the
+                 // box, not against a pixel extent transcribed by hand
+                 {Material::radialUnit({0.40f, 0.32f}, 1.15f,
+                                       {{0.0f, hex(0xFFFFFF)},
+                                        {0.5f, hex(0xC0D0D0)},
+                                        {1.0f, hex(0x4E6264)}}),
+                  SkBlendMode::kMultiply},
+                 {scanField(alpha(kCyan, 0.075f), 3.0f, &scanClock),
+                  SkBlendMode::kScreen}}))
+            .zIndex(1));
 
     // the grain the compressed CRT capture carries — enough to kill the
     // "clean vector art" read without becoming VHS noise
@@ -995,7 +1050,8 @@ struct Ds2Bench : sketch::Sketch {
             .rect(SkRect::MakeXYWH(kLegX, kBandY, kLegW, kBandH))
             .fill(Material::blend(
                 {{Material::solid(alpha(kStrip, 0.6f)), SkBlendMode::kSrcOver},
-                 {scanField(alpha(kCyan, 0.05f), 3.0f), SkBlendMode::kScreen}}))
+                 {scanField(alpha(kCyan, 0.05f), 3.0f, &scanClock),
+                  SkBlendMode::kScreen}}))
             .shape(chamfer(12))
             .zIndex(7)
             .column()
@@ -1054,7 +1110,8 @@ struct Ds2Bench : sketch::Sketch {
             .shape(chamfer(12))
             .fill(Material::blend(
                 {{Material::solid(alpha(kStrip, 0.6f)), SkBlendMode::kSrcOver},
-                 {scanField(alpha(kCyan, 0.05f), 3.0f), SkBlendMode::kScreen}}))
+                 {scanField(alpha(kCyan, 0.05f), 3.0f, &scanClock),
+                  SkBlendMode::kScreen}}))
             .column()
             .alignItems(Align::Center)
             .padding(16, 11)
@@ -1245,6 +1302,7 @@ struct Ds2Bench : sketch::Sketch {
         glow[i] = 6.0f + 2.1f * (float)std::sin(t * 2.75 + (double)i * 0.62);
       socketPulse = 0.78f + 0.22f * (float)std::sin(t * 3.9);
       scanY = (float)std::fmod(t * 96.0, (double)(kPH - 40));
+      scanClock = steppedTime(t);
 
       // the hologram stutter: ~100 ms of snap (not eased) jitter every
       // 4-7 s, scheduled deterministically so a capture is reproducible
