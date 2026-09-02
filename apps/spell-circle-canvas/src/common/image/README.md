@@ -184,6 +184,13 @@ optionally, degrading the same way to "that format fails to encode". A
 consumer that only draws decoded images links `SigilImageAsset` and never
 sees a backend.
 
+**No codec is written here.** Every format is somebody else's encoder or
+decoder called by name — `SkPngEncoder`, `SkJpegEncoder` and
+`SkWebpEncoder` from Skia's `include/encode/`, `OIIO::ImageOutput` and
+`OIIO::ImageInput` from OpenImageIO, Skia's own codecs and SVG module.
+What this library adds is the routing, the readback, and the decisions a
+format offers that a caller should not have to re-make.
+
 SigilImage owns **meaning**: format sniffing, decode and encode backends,
 probing, channel and layer semantics, colour type choice, and the quality
 and depth decisions a format offers. It owns nothing about *access* —
