@@ -77,8 +77,7 @@ class SetSession final : public Session {
     // and both take the same pause, time scale and stall clamp. A host
     // that kept its own accumulator here would drift from the ticker the
     // first time either was paused.
-    const double step =
-        dt >= 0.0 ? m_clock.advance(dt) : m_clock.tick();
+    const double step = dt >= 0.0 ? m_clock.advance(dt) : m_clock.tick();
     m_ticker.tick(step);
     world::Frame frame = m_set->describe((float)m_clock.elapsed());
     // The plate's size and its viewpoint are the host's to state: a set

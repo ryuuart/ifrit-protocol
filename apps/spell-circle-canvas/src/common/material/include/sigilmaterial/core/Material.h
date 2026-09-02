@@ -16,6 +16,7 @@
 #include <sigilmaterial/core/Program.h>
 #include <sigilmaterial/core/Recipe.h>
 #include <sigilmaterial/core/UniformBlock.h>
+#include <sigilmotion/values/Animatable.h>
 
 #include <concepts>
 #include <cstddef>
@@ -33,20 +34,25 @@ namespace sigil::material {
  *
  *  VALUES are held as the bytes the shader receives, written from the
  *  params struct at construction and by `set()` per field afterwards.
- *  BINDINGS replace a field's bytes at every resolve: a `choreograph::
- *  Output<float>` fills a float field with its current sample, a
- *  `UniformBlock` fills an array field with its current values. A bound
- *  field is live — `isAnimated()` — and the resolve memo keys on the
- *  sampled values, so a frame that changed nothing reuses the last
- *  resolve. CHILDREN fill the recipe's declared slots with other materials
- *  or with leaves (a `Leaf`: an image and its sampling, bound by the
- *  backend rather than compiled) and ride every query: a live child makes
- *  the parent live, a different child makes the parent unequal.
+ *  BINDINGS replace a field's bytes at every resolve: a
+ *  `motion::Animatable<float>` fills a float field with what it reads as
+ *  this frame, a `UniformBlock` fills an array field with its current
+ *  values. A field bound to a LIVE animatable — a `choreograph::Output`,
+ *  bare or shaped through a `bind()` chain — is live, which is what
+ *  `isAnimated()` answers; one bound to a plain number is a value like
+ *  any other. The resolve memo keys on the sampled values, so a frame
+ *  that changed nothing reuses the last resolve. CHILDREN fill the recipe's
+ * declared slots with other materials or with leaves (a `Leaf`: an image and
+ * its sampling, bound by the backend rather than compiled) and ride every
+ * query: a live child makes the parent live, a different child makes the parent
+ * unequal.
  *
- *  EQUALITY is by value: recipe identity, bytes, bindings by identity (an
- *  `Output*` or a block pointer, never the values behind them), children
- *  by value, and the instance settings. Two materials describing the same
- *  thing compare equal, which is what lets a node prune. */
+ *  EQUALITY is by value: recipe identity, bytes, bindings under
+ *  SigilMotion's rule for an animatable (a live binding by the Output's
+ *  IDENTITY, never the number behind it; a plain value by its number) and
+ *  a block by pointer, children by value, and the instance settings. Two
+ * materials describing the same thing compare equal, which is what lets a node
+ * prune. */
 class Material {
  public:
   /** An instance of @p recipe with the field values of @p params, whose
@@ -102,10 +108,19 @@ class Material {
     return out;
   }
 
-  /** Binds a float field to @p output: each resolve uploads the output's
-   *  current value. Null clears the binding. */
-  Material& bind(std::string_view name,
-                 const choreograph::Output<float>* output);
+  /** Binds a float field to @p value: each resolve uploads what the
+   *  animatable reads as now. `&someOutput` is the live case, a shaped
+   *  `bind(&phase).cosine().target(…)` chain is the same case with the
+   *  arithmetic moved next to the uniform it feeds, and a plain number is
+   *  a value written once per resolve. `unbind()` clears it.
+   *
+   *  A material holds no clock, so an animatable carrying its OWN
+   *  transition has nothing to run it and reads as its target. Motion
+   *  into a shader arrives through an Output the host steps. */
+  Material& bind(std::string_view name, motion::Animatable<float> value);
+  /** Drops the binding on @p name, leaving whatever `set()` last wrote in
+   *  the field. Unknown names are ignored. */
+  Material& unbind(std::string_view name);
   /** Binds an array field to @p block, whose size must equal the field's
    *  float count: each resolve uploads the block's current values. Null
    *  clears the binding. */
@@ -185,7 +200,9 @@ class Material {
  private:
   struct Binding {
     std::string name;
-    const choreograph::Output<float>* output = nullptr;
+    /** One or the other: an array field carries the block, a float field
+     *  carries the animatable. The block is what tells the two apart. */
+    motion::Animatable<float> value{0.0f};
     std::shared_ptr<const UniformBlock> block;
   };
   Material(std::shared_ptr<const Recipe> recipe, const void* params,

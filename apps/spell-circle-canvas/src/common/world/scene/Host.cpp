@@ -53,8 +53,7 @@ void Scene::Impl::onPatched(Instance& inst, const ElementNode* prev,
   if (prev) {
     lanesOf(*prev, prevLaneScratch);
     motion::retargetSlots<LaneFamily>(
-        ticker,
-        std::span<std::unique_ptr<motion::AnimatedFloat>>(inst.anims),
+        ticker, std::span<std::unique_ptr<motion::AnimatedFloat>>(inst.anims),
         std::span<const Lane>(prevLaneScratch),
         std::span<const Lane>(laneScratch), next.nodeTransition);
   } else {

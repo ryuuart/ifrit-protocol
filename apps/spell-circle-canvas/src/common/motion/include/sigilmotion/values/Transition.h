@@ -108,7 +108,9 @@ inline choreograph::EaseFn outBounce(float a = 1.70158f) {
  *  or two distances keeps stepping outside of. One body, because the
  *  three-way `std::clamp` spelled by hand is where a NaN quietly becomes
  *  the low end. */
-inline float clamp01(float v) { return v < 0.0f ? 0.0f : (v > 1.0f ? 1.0f : v); }
+inline float clamp01(float v) {
+  return v < 0.0f ? 0.0f : (v > 1.0f ? 1.0f : v);
+}
 
 /** A delayed ramp, in MILLISECONDS as floats.
  *

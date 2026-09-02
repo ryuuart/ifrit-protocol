@@ -283,8 +283,8 @@ Material::Resolved Material::resolve(Target target, const FrameData& frame,
     const Field* f = layout.find(uniformName(input));
     std::memcpy(m_scratch.data() + f->offset, floats, count * sizeof(float));
   };
-  const float seconds = motion::quantizeTime((float)frame.seconds,
-                                             m_quantizeHz);
+  const float seconds =
+      motion::quantizeTime((float)frame.seconds, m_quantizeHz);
   put(FrameInput::Time, &seconds, 1);
   put(FrameInput::Resolution, &frame.resolution, 2);
   put(FrameInput::ContentScale, &frame.contentScale, 1);

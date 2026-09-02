@@ -210,7 +210,7 @@ class CanvasSession final : public Session {
   measure::Laps m_laps;
   std::array<Lane, 4> m_lanes{};
   SkSize m_applied = m_spec.size;  // what the composer was last told
-  bool m_stepping = false;  // the last frame took a stated step
+  bool m_stepping = false;         // the last frame took a stated step
   bool m_deterministic;
 };
 
