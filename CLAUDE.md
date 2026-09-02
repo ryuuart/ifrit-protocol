@@ -92,6 +92,13 @@ move, with the cause in the commit), the window lane, and the
 sanitizers only when memory ownership changed. Byte identity is
 confirmed there and nowhere earlier.
 
+The sketches come last. Library work is expected to break them, so a
+library pass does not build `SigilSketches` or Sketchbook and does not
+edit sketches to keep them compiling; when the libraries' new features
+are in, one final pass brings every sketch up to the new vocabulary
+and the plates are rebased then. "Everything builds" during a library
+pass means the libraries and their tests.
+
 A change that cannot be made without the whole tree re-verifying is
 telling you the code is too integrated: split the library or feature
 so the change is local. That is a design signal, never a reason for
