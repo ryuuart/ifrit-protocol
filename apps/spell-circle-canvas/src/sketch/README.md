@@ -293,6 +293,14 @@ embedding a scripting language — so a sketch never leaves the real API.
 * A sketch this binary already carries opens **instantly**, and the file
   is watched from where it stands: an edit builds, an unedited file
   never does.
+* The last **three** sketches opened stay resident. Selecting one swaps
+  which of them the window presents rather than building it again, so
+  setup runs once per sketch instead of once per visit and the rolling
+  frame windows behind the readout survive a look at something else — a
+  sketch you come back to shows its own numbers, not a ring filling from
+  zero. What leaves is the one presented longest ago. An EDIT is not a
+  switch: a rebuild restarts its own session from nothing, which is
+  exactly what an edit wants.
 * The watch covers the **headers standing beside the sketch** as well as
   the sketch. A sketch is one translation unit and more than one file: a
   helper beside it is reached by a quoted include, which resolves
@@ -368,7 +376,7 @@ src/sketch/
   core/       what a sketch is, what it declares, the registry, the kind seam
   canvas/     the 2D runtime: a clock, a ticker and a Composer
   set/        the 3D runtime: a ticker and a retained Scene
-  live/       the reload engine, and the crash reporter around the guest
+  live/       the reload engine, the resident set, and the crash reporter
   plate/      the headless sweep
   book/       Sketchbook: the app, and the headless entry point
   sketches/   every sketch, one file each

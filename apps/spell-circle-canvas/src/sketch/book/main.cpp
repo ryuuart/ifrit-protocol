@@ -700,7 +700,7 @@ int main(int argc, char* argv[]) {
   // destruction, where the locks they want no longer exist.
   {
     QMutexLocker lock(&SketchbookView::hostMutex);
-    delete SketchbookView::host;
+    SketchbookView::sessions.clear();
     SketchbookView::host = nullptr;
   }
   releaseDevice();

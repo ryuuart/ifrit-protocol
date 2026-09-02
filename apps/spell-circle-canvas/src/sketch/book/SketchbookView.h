@@ -6,6 +6,7 @@
  */
 
 #include <sigilsketch/core/Session.h>
+#include <sigilsketch/live/Residency.h>
 
 #include <QtCore/QMutex>
 #include <QtCore/QTimer>
@@ -102,8 +103,15 @@ class SketchbookView : public QQuickRhiItem {
    *  hot-loaded sketch exports carries neither key nor name. */
   static std::vector<std::filesystem::path> externals;
   /** The host the render thread draws and the GUI thread polls — every
-   *  access on either side takes the mutex beside it. */
+   *  access on either side takes the mutex beside it. It is the resident
+   *  set's presented session, held as a pointer because that is what
+   *  every frame, poll and capture already reaches for. */
   static sigil::sketch::Host* host;
+  /** THE SESSIONS THIS WINDOW HAS OPENED. Selecting a sketch swaps which
+   *  one is presented rather than building it again, so a switch does
+   *  not re-run setup and the frame windows behind the readout survive a
+   *  look at something else. Under the same mutex as `host`. */
+  static sigil::sketch::Residency sessions;
   static QMutex hostMutex;
 
  signals:

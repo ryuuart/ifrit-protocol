@@ -45,6 +45,7 @@ std::filesystem::path SketchbookView::assetsDir;
 std::filesystem::path SketchbookView::flagsFile;
 std::vector<std::filesystem::path> SketchbookView::externals;
 sketch::Host* SketchbookView::host = nullptr;
+sketch::Residency SketchbookView::sessions;
 // QMutex's constructor does not throw
 // NOLINTNEXTLINE(bugprone-throwing-static-initialization)
 QMutex SketchbookView::hostMutex;
@@ -97,6 +98,11 @@ class SketchbookRenderer final : public QQuickRhiItemRenderer {
   void runPendingCaptures();   // hostMutex must be held
   void openSketch(int index);  // hostMutex must be held
   void publishMetrics();       // hostMutex must be held
+  /** Routes a session's captures through this renderer's own context.
+   *  Once live frames render on the device, the runtime's caches hold
+   *  device-backed images that cannot replay onto a raster canvas, so
+   *  every session gets this as it is built rather than only the first. */
+  void installCaptureBackend(sketch::Host& host);
 
 #ifdef SIGILSKETCH_BOOK_GPU
   bool readbackGraphite(SkSurface& surface, const SkPixmap& out);
@@ -125,33 +131,26 @@ void SketchbookRenderer::initialize(QRhiCommandBuffer* /*commandBuffer*/) {
   if (m_initialized && m_rhi == currentRhi) return;
 
   QMutexLocker lock(&SketchbookView::hostMutex);
+  // A REPLACEMENT QRhi INVALIDATES EVERY IMAGE THE OLD CONTEXT MINTED,
+  // and a resident session holds them: its caches cannot replay onto a
+  // backend that never saw them. So the whole set goes, and it goes
+  // before the context does — released after it, the images it holds
+  // would be freed against a context that is no longer there.
+  SketchbookView::sessions.clear();
+  SketchbookView::host = nullptr;
 #ifdef SIGILSKETCH_BOOK_GPU
   m_graphiteContext.reset();
-  if (SketchbookView::host) SketchbookView::host->setCaptureBackend({});
   // Metal only: the Vulkan adapter does not yet hand the image's final
   // layout back to QRhi's state tracker, so Qt's later sampling of it
   // would be undefined.
   if (currentRhi && currentRhi->backend() == QRhi::Metal)
     m_graphiteContext = sigil::skia::createGraphiteContext(currentRhi);
-  if (m_graphiteContext && SketchbookView::host) {
-    SketchbookView::host->setCaptureBackend(
-        {[this](const SkImageInfo& info) -> sk_sp<SkSurface> {
-           if (!m_graphiteContext) return nullptr;
-           return SkSurfaces::RenderTarget(m_graphiteContext->recorder(), info);
-         },
-         [this](SkSurface& surface, const SkPixmap& out) {
-           return readbackGraphite(surface, out);
-         }});
-  }
   g_backend.store(m_graphiteContext ? 1 : 2);
 #else
   g_backend.store(2);
 #endif
   m_rhi = currentRhi;
   m_initialized = true;
-  // A replacement QRhi invalidates every image the old context minted, so
-  // the sketch is reopened rather than replayed onto a backend that never
-  // saw its caches.
   m_index = -1;
   m_frameCount = 0;
   m_metricsDirty = true;
@@ -201,11 +200,26 @@ void SketchbookRenderer::openSketch(int index) {
   }
   options.assetsDir = SketchbookView::assetsDir;
   options.flagsFile = SketchbookView::flagsFile;
-  delete SketchbookView::host;
-  SketchbookView::host = new sketch::Host(std::move(options), fonts());
-  m_frameCount = 0;
+  // The file is the session's name: it is what distinguishes a registry
+  // entry from every other, and a file opened by path from every other.
+  const std::string key = options.sketchPath.string();
+  const sketch::Residency::Presented presented =
+      SketchbookView::sessions.present(key, [this, &options] {
+        auto host = std::make_unique<sketch::Host>(std::move(options), fonts());
+        installCaptureBackend(*host);
+        return host;
+      });
+  SketchbookView::host = presented.host;
+  if (!SketchbookView::host) return;
+  // The window's own rolling numbers start over for a session that has
+  // just been built and carry on for one that was already running —
+  // which is what a resident set is for: the readout on return is the
+  // sketch's own history, not a ring filling from zero.
+  if (presented.opened) {
+    m_frameCount = 0;
+    m_submitMsAverage = 0.0;
+  }
   m_metricsDirty = true;
-  m_submitMsAverage = 0.0;
   m_lastFrame = {};
   const bool orbits = SketchbookView::host->session() &&
                       SketchbookView::host->session()->hasViewpoint();
@@ -214,6 +228,22 @@ void SketchbookRenderer::openSketch(int index) {
     QMetaObject::invokeMethod(m_view, &SketchbookView::sketchIndexChanged,
                               Qt::QueuedConnection);
   }
+}
+
+void SketchbookRenderer::installCaptureBackend(sketch::Host& host) {
+#ifdef SIGILSKETCH_BOOK_GPU
+  if (!m_graphiteContext) return;
+  host.setCaptureBackend({[this](const SkImageInfo& info) -> sk_sp<SkSurface> {
+                            if (!m_graphiteContext) return nullptr;
+                            return SkSurfaces::RenderTarget(
+                                m_graphiteContext->recorder(), info);
+                          },
+                          [this](SkSurface& surface, const SkPixmap& out) {
+                            return readbackGraphite(surface, out);
+                          }});
+#else
+  (void)host;
+#endif
 }
 
 void SketchbookRenderer::publishMetrics() {
@@ -406,14 +436,16 @@ void SketchbookRenderer::render(QRhiCommandBuffer* commandBuffer) {
       return;
     }
     // Latch the CPU fallback until Qt supplies a new QRhi: images minted
-    // by this context cannot replay onto a raster canvas, so the sketch
-    // is reopened rather than replayed.
+    // by this context cannot replay onto a raster canvas, so every
+    // resident session goes rather than being replayed — and goes before
+    // the context that made its images does.
     std::fprintf(stderr,
                  "[sketchbook] Graphite texture wrap failed; switching to "
                  "CPU raster\n");
     QMutexLocker lock(&SketchbookView::hostMutex);
+    SketchbookView::sessions.clear();
+    SketchbookView::host = nullptr;
     m_graphiteContext.reset();
-    if (SketchbookView::host) SketchbookView::host->setCaptureBackend({});
     g_backend.store(2);
     m_index = -1;
   }

@@ -98,6 +98,12 @@ class Host {
   [[nodiscard]] double workMsP99() const;
   [[nodiscard]] double presentedFps() const;
   void markPresented();
+  /** BEGINS PRESENTING AGAIN after a stretch in which something else
+   *  held the window. That stretch is not a frame interval, so the next
+   *  presentation starts one rather than extending the one this session
+   *  was paused in the middle of — the rolling windows themselves stay,
+   *  which is the point of a session outliving the look away from it. */
+  void resume() { m_lastPresent = {}; }
 
   /** Renders the CURRENT state (clock untouched) into a PNG at @p scale
    *  times the sketch's canvas. The capture path for both the windowed
