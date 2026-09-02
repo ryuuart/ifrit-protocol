@@ -196,31 +196,6 @@ Assert once fixed: photograph one set from two camera positions a
 radius apart with `groundRadius` set, and the horizon must land at two
 different heights in the frame; with it at zero the two must agree.
 
-## A pass's stamps are cooked inside the draw, every frame, on both tiers
-
-`world/frame/CpuGeometry.cpp`'s `drawStamps` and
-`world/diligent/Geometry.cpp`'s stamp block both call `cook(Stamped{...})`
-once per named point set per frame, inside the rasteriser. The device
-tier then mints a fresh artefact number per frame
-(`kStampArtefact | (gpu.frame << 8u)`) precisely so the upload cache
-cannot hold the result — so a stamped point set re-instances on the host
-and re-uploads its whole vertex buffer every frame, however still it is.
-
-Intended: a stamped set is formed once per distinct (cloud, stamp) and
-uploaded once, the way every other geometry artefact is. The stamping
-itself is a point operator — a Copy/Instance with a kernel, written into
-the device vertex buffer directly on the tier that has one, its host
-executor generated from the same Slang source — which is what removes
-both the re-cook and the artefact-id trick rather than caching around
-them.
-
-Assert once fixed: draw a pass whose point set does not change across
-three frames and count the instancings and the vertex-buffer uploads; the
-second and third frames must do neither. And: cook one chain through the
-stamping kernel and through the host executor and compare the vertex
-buffers bit for bit, the way the chain cook and the swept rings already
-are.
-
 ## A variant re-draw is lit on the host tier and unlit on the device
 
 `world/frame/CpuGeometry.cpp`'s variant overlay sets `over.lit = true`

@@ -1,8 +1,8 @@
 /** @file
  * What is done to a cloud once it exists: positions jittered or
- * drifted by noise, a stamp mesh instanced at every point into one
- * merged mesh, and point lanes promoted onto the merged mesh's
- * primitive lanes.
+ * drifted by noise, the table a stamp rides its lanes by, and point
+ * lanes promoted onto a stamped mesh's primitive lanes. The stamping
+ * itself is an operator with a kernel and lives in `Stamp.cpp`.
  *
  * ONE VERB IS ONE FIELD. The two modifiers here are the chain
  * operators of the same names with their arguments applied directly —
@@ -31,8 +31,8 @@ namespace points {
 void jitter(Cloud& cloud, float amplitude, uint32_t seed) {
   const size_t n = cloud.size();
   if (n == 0) return;
-  kernel::Dispatch work;
-  if (!kernel::describe(pop::Op{pop::Jitter{pop::Lane::P, amplitude, seed}}, n,
+  mesh::kernel::Dispatch work;
+  if (!mesh::kernel::describe(pop::Op{pop::Jitter{pop::Lane::P, amplitude, seed}}, n,
                         &work))
     return;
   // The kernel reads and writes one four-wide lane; the positions are
@@ -43,7 +43,7 @@ void jitter(Cloud& cloud, float amplitude, uint32_t seed) {
     lane[i] = {cloud.positions[i].x, cloud.positions[i].y,
                cloud.positions[i].z, 0};
   glm::vec4* const values = lane.data();
-  kernel::run(work, values, values, values, values, values);
+  mesh::kernel::run(work, values, values, values, values, values);
   for (size_t i = 0; i < n; ++i)
     cloud.positions[i] = {lane[i].x, lane[i].y, lane[i].z};
 }
@@ -66,59 +66,6 @@ InstanceOptions stampOptions(const Cloud& cloud) {
   else if (cloud.vectorIf("normal"))
     options.orientLane = "normal";
   return options;
-}
-
-Mesh instance(const Cloud& cloud, const Mesh& stamp,
-              const InstanceOptions& options) {
-  Mesh out;
-  const size_t n = cloud.size();
-  const size_t stampVerts = stamp.vertexCount();
-  out.positions.reserve(n * stampVerts);
-  out.normals.reserve(n * stampVerts);
-  out.uvs.reserve(n * stampVerts);
-  out.indices.reserve(n * stamp.indices.size());
-
-  const std::vector<float>* scaleLane =
-      options.scaleLane.empty() ? nullptr : cloud.scalarIf(options.scaleLane);
-  const std::vector<glm::vec4>* tintLane =
-      options.tintLane.empty() ? nullptr : cloud.colorIf(options.tintLane);
-  const std::vector<glm::vec3>* orientLane =
-      options.orientLane.empty() ? nullptr : cloud.vectorIf(options.orientLane);
-  const bool tinted = tintLane != nullptr || !stamp.colors.empty();
-
-  for (size_t i = 0; i < n; ++i) {
-    const float s =
-        options.scale *
-        (scaleLane && i < scaleLane->size() ? (*scaleLane)[i] : 1.0f);
-    glm::vec3 bx{1, 0, 0}, by{0, 1, 0}, bz{0, 0, 1};
-    if (orientLane && i < orientLane->size())
-      basisFor((*orientLane)[i], options.up, &bx, &by, &bz);
-    const glm::vec3 origin = cloud.positions[i];
-    const uint32_t base = (uint32_t)out.positions.size();
-    for (size_t v = 0; v < stampVerts; ++v) {
-      const glm::vec3& p = stamp.positions[v];
-      out.positions.push_back(origin + (bx * p.x + by * p.y + bz * p.z) * s);
-      if (v < stamp.normals.size()) {
-        const glm::vec3& nrm = stamp.normals[v];
-        out.normals.push_back(bx * nrm.x + by * nrm.y + bz * nrm.z);
-      }
-      if (v < stamp.uvs.size()) out.uvs.push_back(stamp.uvs[v]);
-      if (tinted) {
-        glm::vec4 tint = tintLane && i < tintLane->size()
-                             ? (*tintLane)[i]
-                             : glm::vec4{1, 1, 1, 1};
-        if (v < stamp.colors.size()) tint *= stamp.colors[v];
-        out.colors.push_back(tint);
-      }
-    }
-    for (uint32_t idx : stamp.indices) out.indices.push_back(base + idx);
-  }
-  return out;
-}
-
-Mesh quads(const Cloud& cloud, float width, float height,
-           const InstanceOptions& options) {
-  return instance(cloud, mesh::quad(width, height), options);
 }
 
 void promoteToPrims(Mesh& mesh, const Cloud& cloud, std::string_view cloudLane,

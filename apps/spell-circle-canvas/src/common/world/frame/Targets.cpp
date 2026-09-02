@@ -1,6 +1,7 @@
 /** @file
  * The frame's named resources: surfaces made on first ask, the images
- * kept for the frame after, and the point sets a compute pass cooks.
+ * kept for the frame after, the point sets a compute pass cooks, and the
+ * stamped meshes formed from them.
  */
 
 #include <include/core/SkCanvas.h>
@@ -8,6 +9,7 @@
 #include <include/core/SkImageInfo.h>
 #include <sigilworld/frame/Targets.h>
 
+#include <iterator>
 #include <string>
 #include <utility>
 
@@ -98,6 +100,26 @@ const Cloud* Targets::points(std::string_view name) const {
   return it == m_points.end() ? nullptr : &it->second;
 }
 
+const Mesh* Targets::stamped(const Cloud& cloud, const Mesh& stamp,
+                             uint64_t* key) {
+  if (cloud.positions.empty() || stamp.positions.empty()) return nullptr;
+  const uint64_t folded = stampKey(cloud, stamp);
+  if (key) *key = folded;
+  const auto found = m_stamped.find(folded);
+  if (found != m_stamped.end()) {
+    found->second.used = m_frame;
+    return &found->second.mesh;
+  }
+  Stamping made;
+  // How the stamp rides its points is the point operators' own table —
+  // one convention, so a cloud stands its stamps up the same way here
+  // and through `pop::cookMesh`.
+  made.mesh = cook(Stamped{cloud, stamp}).mesh;
+  made.used = m_frame;
+  ++m_stampings;
+  return &m_stamped.emplace(folded, std::move(made)).first->second.mesh;
+}
+
 int Targets::surfaces() const {
   int count = 0;
   for (const sk_sp<SkSurface>& surface : m_shared)
@@ -108,6 +130,12 @@ int Targets::surfaces() const {
 }
 
 void Targets::endFrame() {
+  // A stamping no pass asked for this frame is let go: the set it came
+  // from may have been dropped, and holding its mesh would hold a copy
+  // of geometry nothing draws.
+  for (auto it = m_stamped.begin(); it != m_stamped.end();)
+    it = it->second.used < m_frame ? m_stamped.erase(it) : std::next(it);
+  ++m_frame;
   // With a source installed, what "last frame" means belongs to the
   // executor that holds the pixels; keeping a raster copy here would
   // cost a crossing back for every kept name and answer with a second,

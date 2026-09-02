@@ -336,8 +336,21 @@ renderer holding buffers per geometry keys on `Draw::geometry`, which the
 resource store counts up once for the process. An address cannot serve:
 an artefact that is dropped frees its memory and the next one cooked can
 land on it, and a count per store would hand two scenes' artefacts one
-number. A frame that cooks a mesh of its OWN — the stamps of a point set
-— has no artefact to name and takes a number this frame alone uses.
+number.
+
+**A STAMPED POINT SET IS AN ARTEFACT LIKE ANY OTHER.** A geometry pass
+draws the stamps of every point set it reads, every frame, and forming
+one costs the whole cloud times the stamp's vertices — so it is formed
+ONCE per distinct (cloud, stamp) and uploaded once, and a set that has
+not moved between two frames is neither instanced again nor re-uploaded.
+`Targets::stamped()` is where it is formed and held;
+`world::stampKey()` is the number the two values fold to, read from
+their CONTENT because that is what "the same stamping" means — an
+address cannot say it and a shape cannot — and the device tier keys its
+upload by that same number. `Targets::stampings()` counts what has
+actually been formed, which is what the test asserts does not move
+across three frames of a still set. A stamping no pass asked for in a
+frame is let go at the end of it.
 
 **The pixels stay on the device.** The frame's resources are device
 textures for as long as the runtime lives, and nothing crosses back until

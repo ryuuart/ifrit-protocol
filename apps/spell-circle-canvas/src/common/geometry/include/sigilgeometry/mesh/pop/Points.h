@@ -36,6 +36,7 @@
 #include "sigilgeometry/mesh/Mesh.h"
 #include "sigilgeometry/mesh/camera/Camera.h"
 #include "sigilgeometry/mesh/curve/Curve.h"
+#include "sigilgeometry/mesh/pop/Stamp.h"
 
 namespace sigil::geometry::mesh {
 
@@ -126,6 +127,11 @@ struct InstanceOptions {
    *  keep the stamp's own orientation. */
   std::string orientLane;
   glm::vec3 up = {0, 1, 0};
+  /** Who forms the stamped vertices. The default is the built-in host
+   *  executor; assigning another one is the whole of switching runtimes,
+   *  and the indices and the lanes the result carries are the same
+   *  either way. */
+  StampRuntime runtime = StampRuntime::cpu();
 };
 
 /** HOW A STAMP RIDES A CLOUD'S CONVENTIONAL LANES, as one table.
@@ -142,7 +148,18 @@ struct InstanceOptions {
  */
 InstanceOptions stampOptions(const Cloud& cloud);
 
-/** Stamp @p stamp at every point into one merged Mesh. */
+/** @p cloud stamped with @p stamp under @p options, as a dispatch.
+ *  False — leaving @p out untouched — when there is nothing to stamp:
+ *  no points, or a stamp with no vertices. A lane the cloud or the stamp
+ *  does not carry is filled here with what it would have been read as,
+ *  once, rather than asked about per vertex. */
+bool describe(const Cloud& cloud, const Mesh& stamp,
+              const InstanceOptions& options, kernel::Dispatch* out);
+
+/** Stamp @p stamp at every point into one merged Mesh — dir orients,
+ *  size scales, tint colours, and the cloud's "Tex" window remaps each
+ *  stamped vertex's uv. The vertices are formed on `options.runtime`;
+ *  every executor writes exactly these vertices from the same cloud. */
 Mesh instance(const Cloud& cloud, const Mesh& stamp,
               const InstanceOptions& options = {});
 

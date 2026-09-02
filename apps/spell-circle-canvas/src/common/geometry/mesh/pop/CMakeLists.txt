@@ -34,10 +34,22 @@ sigil_slang_module(NAME Sweep
   SPIRV_VAR SIGIL_SWEEP_KERNEL_SPV_H)
 sigil_slang_kernel_flags(${SIGIL_SWEEP_KERNEL_CPP})
 
+# THE STAMPING KERNEL, the Copy operator's own, compiled the same two
+# ways. It is what keeps a stamped point set from being formed by the
+# host on the tier that has a device to form it on.
+sigil_slang_module(NAME Stamp
+  SOURCE ${CMAKE_CURRENT_LIST_DIR}/kernels/Stamp.slang
+  ENTRIES sigilStampKernel
+  OUT_VAR SIGIL_STAMP_KERNEL_H
+  CPP_VAR SIGIL_STAMP_KERNEL_CPP
+  SPIRV_VAR SIGIL_STAMP_KERNEL_SPV_H)
+sigil_slang_kernel_flags(${SIGIL_STAMP_KERNEL_CPP})
+
 # The device half, present only where a device feature was built.
 if(TARGET SigilGeometryDevice)
   set(SIGIL_POP_DEVICE_SOURCES
       device/Cook.cpp
+      device/Stamp.cpp
       device/Sweep.cpp)
 else()
   set(SIGIL_POP_DEVICE_SOURCES)
@@ -54,20 +66,26 @@ add_library(SigilGeometryMeshPop STATIC
   Modifiers.cpp
   Sinks.cpp
   Spirv.cpp
+  Stamp.cpp
   Sweep.cpp
   ${SIGIL_POP_KERNEL_CPP}
   ${SIGIL_POP_KERNEL_H}
   ${SIGIL_POP_KERNEL_SPV_H}
+  ${SIGIL_STAMP_KERNEL_CPP}
+  ${SIGIL_STAMP_KERNEL_H}
+  ${SIGIL_STAMP_KERNEL_SPV_H}
   ${SIGIL_SWEEP_KERNEL_CPP}
   ${SIGIL_SWEEP_KERNEL_H}
   ${SIGIL_SWEEP_KERNEL_SPV_H}
   ${CMAKE_CURRENT_LIST_DIR}/kernels/Pop.slang
+  ${CMAKE_CURRENT_LIST_DIR}/kernels/Stamp.slang
   ${CMAKE_CURRENT_LIST_DIR}/kernels/Sweep.slang
   ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/mesh/curve/Sweep.h
   ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/mesh/pop/Kernel.h
   ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/mesh/pop/Points.h
   ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/mesh/pop/Pop.h
   ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/mesh/pop/Spirv.h
+  ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/mesh/pop/Stamp.h
   ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/mesh/pop/Sweep.h
 )
 target_compile_features(SigilGeometryMeshPop PUBLIC cxx_std_20)
@@ -91,7 +109,8 @@ endif()
 # The pop tests seed chains from an imported model and save a cooked
 # result, so this binary reaches into the codec as well.
 if(TARGET SigilGeometryDevice)
-  set(SIGIL_POP_DEVICE_TESTS test/DeviceCookTest.cpp test/DeviceSweepTest.cpp)
+  set(SIGIL_POP_DEVICE_TESTS test/DeviceCookTest.cpp test/DeviceStampTest.cpp
+      test/DeviceSweepTest.cpp)
 else()
   set(SIGIL_POP_DEVICE_TESTS)
 endif()

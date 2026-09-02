@@ -17,6 +17,7 @@
 #include <include/core/SkSurface.h>
 #include <sigilworld/element/Geometry.h>
 
+#include <cstdint>
 #include <functional>
 #include <map>
 #include <set>
@@ -64,6 +65,31 @@ class Targets {
   Cloud* points(std::string_view name);
   [[nodiscard]] const Cloud* points(std::string_view name) const;
 
+  /** @p cloud STAMPED with @p stamp, formed once per distinct pair and
+   *  kept while both stand. Null when there is nothing to stamp.
+   *
+   *  A geometry pass draws the stamps of every point set it reads, every
+   *  frame. Forming them in the draw would re-stamp a set that has not
+   *  moved — the whole cloud times the stamp's vertices, on both tiers,
+   *  however still the frame is — so the answer is held here under
+   *  `stampKey`, which is a fold over the two VALUES. A frame that asks
+   *  for one it already has pays the fold and nothing else, and the
+   *  device tier keys its upload by the same number, so a still set is
+   *  neither formed twice nor uploaded twice.
+   *
+   *  What is not asked for in a frame is let go at the end of it.
+   *
+   *  @p key, when given, receives the number this stamping is held
+   *  under — for a tier that keys an upload by the same one, so that the
+   *  fold is paid once per frame and not twice. */
+  const Mesh* stamped(const Cloud& cloud, const Mesh& stamp,
+                      uint64_t* key = nullptr);
+
+  /** How many stamped meshes have been FORMED here, over the store's
+   *  whole life. A frame drawing a set that has not moved must not move
+   *  this number. */
+  [[nodiscard]] uint64_t stampings() const { return m_stampings; }
+
   /** How many surfaces the names bound here needed. */
   [[nodiscard]] int surfaces() const;
 
@@ -97,6 +123,14 @@ class Targets {
   std::map<std::string, sk_sp<SkImage>> m_previous;
   std::set<std::string> m_kept;
   std::map<std::string, Cloud> m_points;
+  /** A formed stamping and the frame it was last asked for in. */
+  struct Stamping {
+    Mesh mesh;
+    uint64_t used = 0;
+  };
+  std::map<uint64_t, Stamping> m_stamped;
+  uint64_t m_frame = 0;
+  uint64_t m_stampings = 0;
   ImageSource m_source;
 
   /** The surface @p name sits in, made on the first ask. */

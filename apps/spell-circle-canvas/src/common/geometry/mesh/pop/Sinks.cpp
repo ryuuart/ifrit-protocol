@@ -23,24 +23,11 @@ namespace {
 Mesh pop::cookMesh(const pop::Chain& chain, const Mesh& stamp,
                    const pop::Runtime& runtime) {
   const Cloud cloud = cook(chain, runtime);
+  // The texture hint — "Tex" = {uOff, vOff, uScale, vScale} per point,
+  // which remaps each stamped vertex's uv for atlas selection and sprite
+  // variety — is the stamping operator's own, applied as the vertex is
+  // formed rather than walked over afterwards.
   Mesh out = points::instance(cloud, stamp, points::stampOptions(cloud));
-  // The texture hint: "Tex" = {uOff, vOff, uScale, vScale} per point
-  // remaps each stamped point's uv block — atlas selection, sprite
-  // variety, per-point texture windows.
-  if (const std::vector<glm::vec4>* tex = cloud.colorIf("Tex")) {
-    const size_t stampVerts = stamp.vertexCount();
-    // A uv-less stamp instances with an EMPTY uv lane; only remap
-    // when the instanced uvs actually cover every stamped vertex.
-    if (out.uvs.size() == cloud.size() * stampVerts) {
-      for (size_t point = 0; point < cloud.size(); ++point) {
-        const glm::vec4& cell = (*tex)[point];
-        for (size_t v = 0; v < stampVerts; ++v) {
-          glm::vec2& uv = out.uvs[point * stampVerts + v];
-          uv = {cell.x + uv.x * cell.z, cell.y + uv.y * cell.w};
-        }
-      }
-    }
-  }
   // The PRIMITIVE class: every Promote op bakes a point lane onto the
   // stamped triangles. Each point owns stamp.triangleCount() of them,
   // which is exactly the run points::promoteToPrims addresses.

@@ -7,6 +7,7 @@
 #include <sigilworld/element/Geometry.h>
 
 #include <cstring>
+#include <vector>
 
 namespace sigil::world {
 
@@ -44,7 +45,46 @@ Cooked cookPoints(Cloud cloud, const Mesh& stamp) {
   return cooked;
 }
 
+/** Every float of a lane folded in, read as its bits so that two values
+ *  differing in their last place are two values. */
+uint64_t mixFloats(uint64_t hash, const float* values, size_t count) {
+  for (size_t i = 0; i < count; ++i) {
+    uint32_t bits = 0;
+    std::memcpy(&bits, values + i, sizeof(bits));
+    hash = fnv1a(hash, (uint64_t)bits);
+  }
+  return hash;
+}
+
+template <class T>
+uint64_t mixLane(uint64_t hash, const std::vector<T>& lane) {
+  hash = fnv1a(hash, lane.size());
+  return mixFloats(hash, reinterpret_cast<const float*>(lane.data()),
+                   lane.size() * (sizeof(T) / sizeof(float)));
+}
+
 }  // namespace
+
+uint64_t stampKey(const Cloud& cloud, const Mesh& stamp) {
+  uint64_t hash = fnv1a(kFnvOffset, cloud.size());
+  hash = mixLane(hash, cloud.positions);
+  // The named lanes fold with their names, so a lane renamed is a
+  // different stamping — it is, since the table that stands a stamp up
+  // reads lanes by name.
+  for (const auto& [name, values] : cloud.scalars)
+    hash = mixLane(fnv1a(hash, name), values);
+  for (const auto& [name, values] : cloud.vectors)
+    hash = mixLane(fnv1a(hash, name), values);
+  for (const auto& [name, values] : cloud.colors)
+    hash = mixLane(fnv1a(hash, name), values);
+  hash = mixLane(hash, stamp.positions);
+  hash = mixLane(hash, stamp.normals);
+  hash = mixLane(hash, stamp.uvs);
+  hash = mixLane(hash, stamp.colors);
+  hash = fnv1a(hash, stamp.indices.size());
+  for (uint32_t index : stamp.indices) hash = fnv1a(hash, (uint64_t)index);
+  return hash;
+}
 
 Cooked cook(const Geometry& geometry) {
   if (const Mesh* mesh = std::get_if<Mesh>(&geometry)) return {{}, *mesh};

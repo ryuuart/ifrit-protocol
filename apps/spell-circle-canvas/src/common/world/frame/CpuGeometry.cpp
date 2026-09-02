@@ -105,22 +105,27 @@ void drawSelection(SkCanvas& canvas, const View& view, const Selector& selector,
 
 /** The stamps of every point set the pass reads. A compute pass writes
  *  points; this is what makes them visible, and a pass with no stamp
- *  draws none of them. */
+ *  draws none of them.
+ *
+ *  The stamping is FORMED IN THE STORE and not here: a set that has not
+ *  moved between two frames is one stamping, and re-forming it inside
+ *  the rasteriser would instance the whole cloud again every frame
+ *  however still the pass is. */
 void drawStamps(SkCanvas& canvas, const Pass& pass, const View& view,
-                const Targets& targets, render::MeshStyle& style) {
+                Targets& targets, render::MeshStyle& style) {
   if (pass.stamp().positions.empty()) return;
   for (const std::string& name : pass.reads()) {
     const Cloud* cloud = targets.points(name);
     if (!cloud || cloud->positions.empty()) continue;
-    const Cooked cooked = cook(Stamped{*cloud, pass.stamp()});
-    if (cooked.mesh.indices.empty()) continue;
+    const Mesh* stamped = targets.stamped(*cloud, pass.stamp());
+    if (!stamped || stamped->indices.empty()) continue;
     style.baseColor = colourOf({0.9f, 0.9f, 0.95f, 1.0f});
     style.texture = nullptr;
     // A stamp wears no material, so it says nothing of its own about
     // the map or the light and takes the pass's reading of both.
     style.filter = SkFilterMode::kLinear;
     style.lit = true;
-    render::drawMesh(canvas, cooked.mesh, glm::mat4(1.0f), view.camera,
+    render::drawMesh(canvas, *stamped, glm::mat4(1.0f), view.camera,
                      viewportOf(view), style);
   }
 }

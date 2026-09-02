@@ -349,6 +349,41 @@ TEST(WorldFrame, AGeometryPassStampsThePointSetsItReads) {
   EXPECT_GT(painted(targets.image("colour")), 0);
 }
 
+// A STAMPED SET IS FORMED ONCE per distinct (cloud, stamp). A pass
+// draws the stamps of the sets it reads every frame, and a set that has
+// not moved between two of them must not be instanced a second time —
+// the whole cloud times the stamp's vertices is what forming one costs,
+// and paying it per frame is paying it for nothing.
+TEST(WorldFrame, AStillPointSetIsStampedOnceHoweverManyFramesDrawIt) {
+  Bodies bodies;
+  Targets targets = targetsAt(kExtent);
+  const std::vector<glm::vec3> path = {
+      {-40, 0, 0}, {0, 30, 0}, {40, 0, 0}, {0, -30, 0}};
+  const Pass cook = computePass("cook").writes("motes").chain(
+      geometry::mesh::pop::on(path).count(48).spread(3.0f));
+  Runtime::cpu()->execute(workOf(cook), bodies.view(), targets);
+
+  View empty = bodies.view();
+  empty.draws = {};
+  const Pass beads =
+      geometryPass("beads").reads("motes").writes("colour").stamp(square(3.0f));
+
+  for (int frame = 0; frame < 3; ++frame) {
+    Runtime::cpu()->execute(workOf(beads), empty, targets);
+    EXPECT_EQ(targets.stampings(), 1u) << "after frame " << frame;
+    targets.endFrame();
+  }
+
+  // …and a set that HAS moved is a second stamping, which is what makes
+  // the first assertion a statement about the content and not about the
+  // cache never missing.
+  Cloud* motes = targets.points("motes");
+  ASSERT_NE(motes, nullptr);
+  motes->positions.front().x += 1.0f;
+  Runtime::cpu()->execute(workOf(beads), empty, targets);
+  EXPECT_EQ(targets.stampings(), 2u);
+}
+
 TEST(WorldFrame, ADeclaredBodyIsHandedTheExtractedViewAndTheTargets) {
   Bodies bodies;
   Targets targets = targetsAt(kExtent);

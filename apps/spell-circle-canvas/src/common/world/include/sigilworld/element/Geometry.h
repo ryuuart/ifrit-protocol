@@ -106,6 +106,21 @@ struct Cooked {
  *  and then instances; a Generator is asked. */
 Cooked cook(const Geometry& geometry);
 
+/** THE NUMBER TWO STAMPINGS AGREE ON when they are the same stamping:
+ *  a fold over the VALUES of @p cloud and @p stamp, not over their
+ *  shapes and not over their addresses. A stamped point set is formed
+ *  once per distinct pair and uploaded once, so what says "distinct"
+ *  has to be the content — a cloud that has not moved between two
+ *  frames must answer with the same number, and a cloud that has moved
+ *  must not.
+ *
+ *  An address cannot say it (a cloud freed and remade lands on the same
+ *  memory) and a shape cannot (two clouds of one size are two clouds),
+ *  which is why this reads the bytes. It costs one pass over the cloud
+ *  against forming its whole stamped mesh, which is the point count
+ *  times the stamp's vertices. */
+uint64_t stampKey(const Cloud& cloud, const Mesh& stamp);
+
 /** A cheap signature over @p geometry: equal values always share one,
  *  unequal values usually do not. It reads counts and kinds rather than
  *  contents, so it is a BUCKET and never an answer — the store that

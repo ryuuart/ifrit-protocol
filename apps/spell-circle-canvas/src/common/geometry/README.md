@@ -526,6 +526,27 @@ the decoration a compiled module needs before a driver may be handed it.
   builds a transported rail of `segments` frames first. Both run on
   `SweepOptions::runtime`.
 
+- **`mesh/pop/Stamp.h`** — the stamping operator as a subject —
+  TouchDesigner's Copy, Houdini's copy-to-points — and the seam a device
+  replaces: `points::StampExecutor` (one call, `vertices()`),
+  `points::StampRuntime` holding one, `points::kernel::Dispatch` (the
+  stamp's lanes and the points', each four floats wide), and
+  `kernel::run()` and `kernel::spirv()` as the two ends of the one
+  arithmetic. `points::describe()` and `points::instance()` are in
+  `Points.h`, because they are where a Cloud and a Mesh become one;
+  `Stamp.cpp` is the packing, the index runs and the built-in executor,
+  and `device/Stamp.cpp` is the device one. Nothing here names a Cloud, a
+  Mesh or a device, so the seam is declarable before either of them.
+
+  **The stamp rides the point, and the arithmetic is written once.** A
+  point's origin, its size from the `size` lane, its direction from
+  `dir` (or `normal`) and its tint from `tint` place the stamp's every
+  vertex, and the cloud's `Tex` window remaps that vertex's uv as it is
+  formed rather than in a second pass afterwards. Which of the optional
+  lanes the result carries is the STAMP's answer and not the kernel's: a
+  stamp with no normals forms none, because a lane is present on a mesh
+  when it is sized to the positions and every consumer reads that as the
+  presence bit.
 - **`mesh/pop/Spirv.h`** — `mesh::noContraction()`, a compiled module
   given one `NoContraction` decoration per arithmetic result. It stands
   here once rather than beside each kernel's own words, because a module
@@ -535,8 +556,9 @@ the decoration a compiled module needs before a driver may be handed it.
   entry point with the operator chosen by a uniform: one dispatch runs one
   operator over every point, so the branch is uniform across it, and one
   entry point is one pipeline and one generated function.
-  **`mesh/pop/kernels/Sweep.slang`** is the ring vertex, written the same
-  way. `cmake/Slang.cmake` compiles both (`sigil_slang_module` with
+  **`mesh/pop/kernels/Sweep.slang`** is the ring vertex and
+  **`mesh/pop/kernels/Stamp.slang`** the stamped vertex, written the same
+  way. `cmake/Slang.cmake` compiles all three (`sigil_slang_module` with
   `CPP_VAR` and `SPIRV_VAR`, and `sigil_slang_kernel_flags` to pin the
   float model).
 
@@ -655,7 +677,7 @@ And the sinks, which stand on the cooked cloud:
 | Sink | What it forms | Host | Device |
 | --- | --- | --- | --- |
 | `cook()` | the `Cloud` itself | yes | the chain dispatched, read back once |
-| `cookMesh()` | the stamp placed at every point | yes | — |
+| `cookMesh()` / `points::instance()` | the stamp placed at every point | yes | the vertices dispatched, read back once |
 | `cookSweep()` / `curve::sweep()` | the profile carried along the cooked points | yes | the ring vertices dispatched, read back once |
 | `points::drawBillboards()` | camera-facing sprites on a canvas | yes | — |
 
@@ -772,16 +794,17 @@ lock does not nest: no Diligent call may be made while one is held.
 
 **The device executors of this library's own seams stand beside their CPU
 ones**, in `mesh/pop/device/`: `pop::deviceRuntime(device)` cooks a chain
-by dispatching the kernel this build compiled, and
+by dispatching the kernel this build compiled,
 `curve::deviceRuntime(device)` forms a sweep's rings by dispatching
-theirs. Neither computes an arithmetic of its own — the kernel is one
+theirs, and `points::deviceRuntime(device)` forms a stamping's vertices
+by dispatching the third. Neither computes an arithmetic of its own — the kernel is one
 Slang source compiled twice, to the C++ the host executor calls and to
 the SPIR-V dispatched here — which is what lets the two tiers be held to
-bit identity rather than to a tolerance. Both are absent from a build
-with no device feature, and `mesh/pop/test/DeviceCookTest.cpp` and
-`DeviceSweepTest.cpp` are the conformance: every chain and every sweep
-the device runtime says it can do, done both ways and compared bit for
-bit.
+bit identity rather than to a tolerance. All three are absent from a build with no device feature, and
+`mesh/pop/test/DeviceCookTest.cpp`, `DeviceStampTest.cpp` and
+`DeviceSweepTest.cpp` are the conformance: every chain, every stamping
+and every sweep the device runtimes say they can do, done both ways and
+compared bit for bit.
 
 `device::Resources` is what every executor on that device stands on,
 made once and shared: the buffer a draw's uniforms go into, the samplers
@@ -925,7 +948,10 @@ is silently, plausibly wrong rather than obviously broken.
 - **`mesh::quad()` and `mesh::cylinderPanel()` face +z**, and
   `camera::faceCamera()` orients that +z face at the eye. `points::instance`
   orients a stamp's +z along the orient lane using the same basis
-  construction, so a face-camera'd quad and an instanced facing lane agree.
+  construction — `mesh::basisFor`'s policy, written out a second time in
+  `kernels/Stamp.slang` because a kernel cannot call it, and held to it
+  by the device conformance — so a face-camera'd quad and an instanced
+  facing lane agree, and a cloud stamps identically on either tier.
 - **Imported textures are not decoded.** `decode::Part` carries the encoded
   bytes (or the unresolved URI); turning them into pixels is a separate
   concern. glTF's whole metallic-roughness material rides along the same
@@ -1044,7 +1070,7 @@ recompiles one small file. All are registered with ctest and answer to
 | `geometry_mesh_camera_test` | `mesh/camera/test/CameraTest.cpp` | the view-projection carried through to viewport pixels, and the two placement transforms |
 | `geometry_mesh_render_test` | `mesh/render/test/PainterTest.cpp`, `mesh/render/test/RuntimeTest.cpp` | the mesh draw's pixels, the normals G-buffer's encoding and the primitive tint; and the runtime seam — the built-in value, comparison by model, and a substituted executor receiving the draw |
 | `geometry_mesh_curve_test` | `mesh/curve/test/CurveTest.cpp` | splines, the two rails, the pose along them, and the projection to a 2D path |
-| `geometry_mesh_pop_test` | `mesh/pop/test/PointsTest.cpp`, `mesh/pop/test/PopTest.cpp`, `mesh/pop/test/RuntimeTest.cpp`, `mesh/pop/test/SweepTest.cpp`, and where a device exists `mesh/pop/test/DeviceCookTest.cpp` and `mesh/pop/test/DeviceSweepTest.cpp` | point clouds, instancing, the agreement between an instanced facing lane and `faceCamera()`, and pop chains with their operators; and the cook's runtime seam — the built-in value, comparison by model, a substituted executor receiving the cook, and the message an unsupported operator produces; the swept operator held vertex for vertex against independent reference bodies for a tube, a ribbon and a banner, and its ring seam — what a rail and a profile become as a dispatch, the taper resolved on the host, comparison by model, and a substituted executor forming the vertices; and the CONFORMANCE of the device executors, every chain and every sweep they say they can do compared with the host's bit for bit. Links the codec to seed chains from an imported model |
+| `geometry_mesh_pop_test` | `mesh/pop/test/PointsTest.cpp`, `mesh/pop/test/PopTest.cpp`, `mesh/pop/test/RuntimeTest.cpp`, `mesh/pop/test/SweepTest.cpp`, and where a device exists `mesh/pop/test/DeviceCookTest.cpp`, `mesh/pop/test/DeviceStampTest.cpp` and `mesh/pop/test/DeviceSweepTest.cpp` | point clouds, instancing, the agreement between an instanced facing lane and `faceCamera()`, and pop chains with their operators; and the cook's runtime seam — the built-in value, comparison by model, a substituted executor receiving the cook, and the message an unsupported operator produces; the swept operator held vertex for vertex against independent reference bodies for a tube, a ribbon and a banner, and its ring seam — what a rail and a profile become as a dispatch, the taper resolved on the host, comparison by model, and a substituted executor forming the vertices; and the CONFORMANCE of the device executors, every chain, every stamping and every sweep they say they can do compared with the host's bit for bit. Links the codec to seed chains from an imported model |
 | `geometry_mesh_codec_test` | `mesh/codec/test/DecodeTest.cpp`, `mesh/codec/test/EncodeTest.cpp` | every reader, and the PLY writer's round trips; the only one linking Alembic |
 
 Helpers that more than one binary reads (`kCubeObj`, `splitQuad`) live in

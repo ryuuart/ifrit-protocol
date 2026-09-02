@@ -64,9 +64,11 @@ bool isEnvironmentSlot(std::string_view slot) {
 constexpr std::string_view kMapSlot = "uBaseColorMap";
 constexpr std::string_view kMapUv = "uBaseColorMapUv";
 
-/** The half of the artefact numbering a frame's OWN cooks take. The
+/** The half of the artefact numbering a STAMPED point set takes. The
  *  scene's store counts up from one, so nothing it hands out ever
- *  reaches here. */
+ *  reaches here, and the rest of the number is the stamping's own
+ *  content key — which is what makes a set that has not moved answer
+ *  with the artefact it was already uploaded under. */
 constexpr uint64_t kStampArtefact = 1ull << 63u;
 
 /** The colour a clear is given, premultiplied — which is what a target
@@ -427,16 +429,21 @@ void paintGeometry(Gpu& gpu, const PassWork& work, const View& view,
   // points; this is what makes them visible, and a pass with no stamp
   // draws none of them.
   if (!pass.stamp().positions.empty()) {
-    // The stamps are cooked here rather than resolved from the store, so
-    // they carry no artefact number: each is given one this frame alone
-    // uses, which is what makes the upload fresh and lets it go.
-    uint64_t stamped = kStampArtefact | (gpu.frame << 8u);
+    // A STAMPING IS AN ARTEFACT LIKE ANY OTHER: formed once per distinct
+    // (cloud, stamp) in the store, and uploaded once under the number
+    // that pair folds to. A set that has not moved between two frames is
+    // therefore neither instanced again nor re-uploaded, however many
+    // frames draw it.
     for (const std::string& name : pass.reads()) {
       const Cloud* cloud = targets.points(name);
       if (!cloud || cloud->positions.empty()) continue;
-      const Cooked cooked = cook(Stamped{*cloud, pass.stamp()});
-      if (cooked.mesh.indices.empty()) continue;
-      drawBody(gpu, viewProj, viewMatrix, ++stamped, cooked.mesh,
+      uint64_t key = 0;
+      const Mesh* stamped = targets.stamped(*cloud, pass.stamp(), &key);
+      if (!stamped || stamped->indices.empty()) continue;
+      // The top bit is the half of the numbering these take, so the
+      // store's key is carried in the rest of it.
+      const uint64_t artefact = kStampArtefact | (key >> 1u);
+      drawBody(gpu, viewProj, viewMatrix, artefact, *stamped,
                glm::mat4(1.0f), {0.9f, 0.9f, 0.95f, 1.0f}, nullptr, nullptr,
                view.lights, view.environment, view.orientation,
                /*lit=*/true, /*depthWrite=*/true);
