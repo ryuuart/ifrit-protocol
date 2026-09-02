@@ -8,6 +8,7 @@
 #include <sigilcompose/core/Material.h>
 #include <sigilcore/compute/Noise.h>
 #include <sigilcore/reconcile/Memo.h>
+#include <sigilcore/reconcile/Reads.h>
 #include <sigilmotion/values/Animated.h>
 #include <sigilweave/paragraph/Paragraph.h>
 
@@ -306,6 +307,28 @@ struct DeriveData {
   // path borrow re-evaluates the target's shape generator, so the two
   // costs are not paid for each other.
   std::vector<std::string> borrowedPathKeys;
+  /** WHAT THIS NODE READS OFF ANOTHER, declared where the derivation is
+   *  WRITTEN — one entry per keyed node this one's answer is a function
+   *  of, and which facet of that node it needs.
+   *
+   *  Every field above says what a pass will RESOLVE; this says what the
+   *  node DEPENDS ON, and the two are different questions with different
+   *  readers. The resolve pass reads the fields, because it needs the
+   *  margin, the gap, the router and the formation beside each key. The
+   *  ordering reads this, because all it needs is the edges — and reading
+   *  them here rather than reconstructing them from which fields happen to
+   *  be non-empty is what keeps a new derivation from being ordered a pass
+   *  behind by a chain that never heard of it. A verb that borrows a key
+   *  adds its read in the same statement that stores the key.
+   *
+   *  A frame chain declares its read here too, though its key lives in
+   *  TextData: a node has ONE list of what it reads, whatever block holds
+   *  the data behind it.
+   *
+   *  Excluded from structural equality on purpose — every entry is a
+   *  function of fields the comparator already compares, so a description
+   *  that differs in a read differs in the field that produced it. */
+  std::vector<sigil::core::Read> reads;
 };
 
 /** One span-qualified pass — Element::stroke(where, what, name) or

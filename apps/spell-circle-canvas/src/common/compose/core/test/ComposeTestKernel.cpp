@@ -1262,6 +1262,52 @@ TEST(ComposeMaterial, AnUndeclaredChildNameIsIgnored) {
   EXPECT_FALSE(solid.isAnimated());
 }
 
+// ---- the order the declared reads imply -------------------------------------
+
+namespace {
+
+/** A decoration that strokes a path BORROWED from a keyed node — the one
+ *  kind of mark whose answer is another node's finished geometry. */
+struct BorrowedStroke {
+  std::string key;
+  std::vector<std::string> borrows() const { return {key}; }
+  void paint(SkCanvas& canvas, const PaintContext& ctx) const {
+    SkPaint paint;
+    paint.setColor(SK_ColorRED);
+    paint.setStyle(SkPaint::kStroke_Style);
+    paint.setStrokeWidth(6.0f);
+    paint.setAntiAlias(false);
+    canvas.drawPath(ctx.borrowedPath(key), paint);
+  }
+};
+
+}  // namespace
+
+TEST(ComposeDerive, ABorrowOfAConnectorWrittenAfterItLandsOnTheFirstFrame) {
+  // The borrower reads the wire's OUTLINE and is written before the wire,
+  // so resolving the two in the order they were written hands it a route
+  // that has not been laid yet — it dresses the connector's empty box for
+  // a whole frame and only catches up on the next one. Both declare what
+  // they read, so both are resolved in one pass in the order those
+  // declarations imply, and the borrowed route is right the first time.
+  Host host;
+  host.composer.render(
+      positioned()
+          .inset(0, 0, 0, 0)
+          .child(box().absolute().inset(0, 0, 0, 0).foreground(
+              Decoration(BorrowedStroke{"wire"})))
+          .child(box().key("a").left(20).top(90).width(20).height(20))
+          .child(box().key("b").left(160).top(90).width(20).height(20))
+          .child(connector("a", "b").key("wire").absolute().inset(0, 0, 0, 0)));
+  host.frame();  // THE FIRST frame — a pass behind is visible only here
+  // The route runs centre to centre along y=100, and the borrowed stroke
+  // is on it. An unrouted borrow dresses the connector's own box instead,
+  // whose edges are nowhere near the middle of the canvas.
+  EXPECT_EQ(host.pixel(100, 100), SK_ColorRED);
+  EXPECT_EQ(host.pixel(40, 100), SK_ColorRED);
+  EXPECT_EQ(host.pixel(100, 40), SK_ColorBLACK);
+}
+
 // ---- rail(): the component that IS a line ----------------------------------
 
 namespace {

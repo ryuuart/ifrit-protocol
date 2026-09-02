@@ -188,6 +188,21 @@ notches and through an annulus, and its BOX when it declares none. A round
 silhouette is subtracted analytically. The margin means the same standoff in
 every case, and so does the writing mode: a column a target crosses is cut
 into a head and a foot exactly as a line is shortened beside it.
+
+Every derivation DECLARES WHAT IT READS, in the same statement that stores
+the key: `flowAround`, `spans::fit`, `strand::from`, `band` around a key,
+`connector`, `rail` and `thread` each record a `sigil::core::Read` — the
+node waited for, and which `sigil::core::Facet` of it is needed (a box, an
+outline, or the units a text produces). `sigil::core::orderByReads` turns
+those declarations into the order the derived nodes are resolved in, so a
+rail anchored on a connector written after it, or a frame threaded from a
+frame written later, settles in the same pass instead of one behind. It is
+stable: derivations that read none of each other are resolved in exactly
+the order they were written in, which is nearly every tree. Nothing infers
+an edge from which fields a node carries, so a derivation added later is
+ordered by its own declaration and by no list that has to be found and
+extended.
+
 Released scalars are scanned and volatility computed in one walk. Then
 paint runs, selecting a cache tier per node.
 

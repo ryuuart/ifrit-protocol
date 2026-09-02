@@ -301,6 +301,9 @@ Element band(Around spine, Across width) {
   detail::DeriveData& derive = e.node()->deriveData.ensure();
   derive.bandAround = std::move(spine.key);
   derive.bandWidth = std::move(width);
+  // A borrowed spine is the target's SHAPE swept at a width, so what the
+  // band waits for is that node's outline.
+  derive.reads.push_back({derive.bandAround, sigil::core::Facet::Outline});
   return e;
 }
 

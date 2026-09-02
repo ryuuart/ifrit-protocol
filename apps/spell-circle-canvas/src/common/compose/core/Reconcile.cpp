@@ -210,7 +210,7 @@ bool textEqual(const ElementNode& a, const ElementNode& b) {
   return true;
 }
 
-static_assert(kFieldCount<DeriveData> == 15,
+static_assert(kFieldCount<DeriveData> == 16,
               "DeriveData gained or lost a field — rule on it in "
               "deriveEqual() below, then bump this count.");
 bool deriveEqual(const Box<DeriveData>& a, const Box<DeriveData>& b) {
@@ -226,6 +226,13 @@ bool deriveEqual(const Box<DeriveData>& a, const Box<DeriveData>& b) {
   if (!(a->bandSpine == b->bandSpine)) return false;
   if (a->bandWidth.has_value() != b->bandWidth.has_value()) return false;
   if (a->bandWidth && !(*a->bandWidth == *b->bandWidth)) return false;
+  // `reads` is EXCLUDED, and the exclusion is a derivation rather than a
+  // judgement call: every entry is pushed by the same statement that
+  // writes one of the fields compared above (or `TextData::threadTo`,
+  // compared with the text block), so two descriptions that differ in a
+  // read differ in the field that produced it and are already unequal.
+  // A verb that ever declared a read WITHOUT storing the key behind it
+  // would break that, and would have to be compared here.
   return a->railAnchors == b->railAnchors &&
          a->flowAroundKeys == b->flowAroundKeys &&
          a->flowAroundMargin == b->flowAroundMargin &&
@@ -946,6 +953,13 @@ void Composer::Impl::rebuildKeyIndex() {
         // of question a connector asks — "where did that keyed node land"
         // — so they ride the SAME flat derive list rather than growing a
         // phase.
+        //
+        // THESE THREE ARE NOT READ QUESTIONS, which is why they read the
+        // fields and not the declared reads: they choose WHICH PASS
+        // resolves the node — a route, a flow, a chain — and which anchors
+        // a route is re-run from when one of them moves. A read says what
+        // a node waits for; this says what is done to it, and two nodes
+        // reading the same key can still be resolved by different passes.
         const bool isBorrowed = !derive.bandAround.empty() ||
                                 !derive.spanFitKeys.empty() ||
                                 !derive.borrowedPathKeys.empty();
@@ -987,10 +1001,14 @@ void Composer::Impl::rebuildKeyIndex() {
  *  a connector's own box, a frame threaded from a frame written later — is
  *  a pass behind for as long as the order is the order it was written in.
  *
- *  So each list declares what it reads and `core::orderByReads` says which
- *  order to walk it in. It is STABLE: a list whose members read none of
- *  each other comes back exactly as it went in, which is every list on
- *  nearly every tree, so adopting it moved nothing. */
+ *  Every derivation DECLARES what it reads, in the statement that writes
+ *  it, and this hands those declarations to `core::orderByReads`. Nothing
+ *  here infers an edge from which fields a node happens to carry: a
+ *  derivation added tomorrow is ordered correctly by the same lines,
+ *  because the only thing they know about it is its own declaration.
+ *
+ *  The order is STABLE: a list whose members read none of each other comes
+ *  back exactly as it went in, which is every list on nearly every tree. */
 void Composer::Impl::orderDerivedByReads() {
   const auto reorder = [](std::vector<Instance*>& list) {
     if (list.size() < 2) return;
@@ -1000,33 +1018,10 @@ void Composer::Impl::orderDerivedByReads() {
     reads.reserve(list.size());
     for (const Instance* inst : list) {
       keys.push_back(inst->desc ? inst->desc->key : std::string());
-      std::vector<sigil::core::Read> declared;
-      if (inst->desc && inst->desc->deriveData) {
-        const DeriveData& derive = *inst->desc->deriveData;
-        // A flow reads a silhouette or a box; a band, a fit and a strand
-        // read an outline; a connector and a rail read two boxes.
-        for (const std::string& key : derive.flowAroundKeys)
-          declared.push_back({key, sigil::core::Facet::Outline});
-        if (!derive.bandAround.empty())
-          declared.push_back({derive.bandAround, sigil::core::Facet::Outline});
-        for (const std::string& key : derive.spanFitKeys)
-          declared.push_back({key, sigil::core::Facet::Bounds});
-        for (const std::string& key : derive.borrowedPathKeys)
-          declared.push_back({key, sigil::core::Facet::Outline});
-        if (!derive.connectFrom.empty())
-          declared.push_back({derive.connectFrom, sigil::core::Facet::Bounds});
-        if (!derive.connectTo.empty())
-          declared.push_back({derive.connectTo, sigil::core::Facet::Bounds});
-        for (const Anchor& anchor : derive.railAnchors)
-          declared.push_back({anchor.nodeKey, sigil::core::Facet::Bounds});
-      }
-      // A frame reads the UNITS of the frame it threads into — the finest
-      // answer a text produces, and the one a chain is cut by.
-      if (inst->desc && inst->desc->textData &&
-          !inst->desc->textData->threadTo.empty())
-        declared.push_back(
-            {inst->desc->textData->threadTo, sigil::core::Facet::Units});
-      reads.push_back(std::move(declared));
+      if (inst->desc && inst->desc->deriveData)
+        reads.push_back(inst->desc->deriveData->reads);
+      else
+        reads.emplace_back();  // a node that declares nothing reads nothing
     }
     const std::vector<uint32_t> order = sigil::core::orderByReads(keys, reads);
     std::vector<Instance*> sorted;

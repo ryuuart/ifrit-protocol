@@ -225,8 +225,12 @@ Element& Element::addSpanPass(Spans where, Decoration what, std::string name,
   // into DeriveData where the ONE derive-registration walk finds them —
   // the flowAround pattern, not a second phase.
   for (const Spans::Term& t : where.terms)
-    if (t.rule == Spans::Rule::Fit && !t.key.empty())
-      m_node->deriveData.ensure().spanFitKeys.push_back(t.key);
+    if (t.rule == Spans::Rule::Fit && !t.key.empty()) {
+      detail::DeriveData& derive = m_node->deriveData.ensure();
+      derive.spanFitKeys.push_back(t.key);
+      // A gap sized from where a node LANDED is a read of its box.
+      derive.reads.push_back({t.key, sigil::core::Facet::Bounds});
+    }
   claimBorrows(what);
   detail::StrokeData& strokes = m_node->strokeData.ensure();
   if (!strokes.resolver) strokes.resolver = detail::strokeResolver();

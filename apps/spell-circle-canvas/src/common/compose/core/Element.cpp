@@ -219,8 +219,12 @@ Element& Element::mask(Parts what, Gate with) {
   // DeriveData where the ONE derive-registration walk finds them.
   if (with.kind == Gate::Kind::Spans)
     for (const Spans::Term& t : with.where.terms)
-      if (t.rule == Spans::Rule::Fit && !t.key.empty())
-        m_node->deriveData.ensure().spanFitKeys.push_back(t.key);
+      if (t.rule == Spans::Rule::Fit && !t.key.empty()) {
+        detail::DeriveData& derive = m_node->deriveData.ensure();
+        derive.spanFitKeys.push_back(t.key);
+        // A gap sized from where a node LANDED is a read of its box.
+        derive.reads.push_back({t.key, sigil::core::Facet::Bounds});
+      }
   m_node->fxData.ensure().masks.push_back(
       Mask{std::move(what), std::move(with)});
   return *this;
@@ -254,8 +258,11 @@ Element& Element::hitTestable(bool enabled) {
 void Element::claimBorrows(const Decoration& d) {
   if (d.borrows().empty()) return;
   detail::DeriveData& derive = m_node->deriveData.ensure();
-  for (const std::string& key : d.borrows())
+  for (const std::string& key : d.borrows()) {
     derive.borrowedPathKeys.push_back(key);
+    // A borrowed strand is the target's own outline, not its box.
+    derive.reads.push_back({key, sigil::core::Facet::Outline});
+  }
 }
 
 /** Bind a LOCAL label to the mark at (slot, index), so `parts::named()`
@@ -624,6 +631,16 @@ Element& Element::boundary(Boundary source) {
 
 Element& Element::thread(std::string_view key) {
   m_node->textData.ensure().threadTo = std::string(key);
+  // A frame is cut where the frame before it stopped, so it reads the
+  // FINEST answer that frame produces — its units, not its box. The link
+  // itself is LAST-WINS, so the read is replaced rather than added to: a
+  // frame threads into exactly one frame, and a chain that named another
+  // one first no longer waits for it.
+  detail::DeriveData& derive = m_node->deriveData.ensure();
+  std::erase_if(derive.reads, [](const sigil::core::Read& read) {
+    return read.facet == sigil::core::Facet::Units;
+  });
+  derive.reads.push_back({std::string(key), sigil::core::Facet::Units});
   return *this;
 }
 
@@ -647,6 +664,9 @@ Element& Element::flowAround(std::string_view key, float margin) {
   detail::DeriveData& derive = m_node->deriveData.ensure();
   derive.flowAroundKeys.emplace_back(key);
   derive.flowAroundMargin = margin;
+  // An exclusion subtracts the target's SILHOUETTE where it declares one,
+  // which is a read of its outline and not merely of its box.
+  derive.reads.push_back({std::string(key), sigil::core::Facet::Outline});
   return *this;
 }
 
@@ -659,6 +679,9 @@ Element connector(std::string_view fromKey, std::string_view toKey,
   derive.connectTo = std::string(toKey);
   derive.router = std::move(router);
   derive.connectorGap = gap;
+  // A wire is routed between two settled BOXES, one at each end.
+  derive.reads.push_back({derive.connectFrom, sigil::core::Facet::Bounds});
+  derive.reads.push_back({derive.connectTo, sigil::core::Facet::Bounds});
   return e;
 }
 
@@ -668,6 +691,9 @@ Element rail(std::vector<Anchor> anchors, RailRouter router) {
   detail::DeriveData& derive = e.node()->deriveData.ensure();
   derive.railAnchors = std::move(anchors);
   derive.railRouter = std::move(router);
+  // …and a rail through as many boxes as it has waypoints.
+  for (const Anchor& anchor : derive.railAnchors)
+    derive.reads.push_back({anchor.nodeKey, sigil::core::Facet::Bounds});
   return e;
 }
 
