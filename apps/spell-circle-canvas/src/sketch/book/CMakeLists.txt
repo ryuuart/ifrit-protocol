@@ -119,18 +119,19 @@ endif()
 # time — regenerates it, independent of whether the executable relinks.
 add_custom_command(
   OUTPUT ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>/sketch_flags.rsp
-  COMMAND ${CMAKE_COMMAND}
-    -DCOMPDB=${CMAKE_BINARY_DIR}/compile_commands.json
-    -DANCHOR=${SIGIL_SKETCH_DIR}/Anchor.cpp
-    -DCONFIG=$<CONFIG>
-    -DOUT=${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>/sketch_flags.rsp
-    # No EXTRA: the host force-loads Skia and re-exports it, so a sketch
-    # resolves Skia through -undefined dynamic_lookup like the rest of
-    # the SDK. Linking the archive into the dylib instead would put two
-    # Skia images in one process, whose objects cannot be exchanged.
-    -P ${CMAKE_SOURCE_DIR}/cmake/ExtractSketchFlags.cmake
+  COMMAND ${Python3_EXECUTABLE}
+    ${CMAKE_SOURCE_DIR}/scripts/extract_sketch_flags.py
+    --compdb ${CMAKE_BINARY_DIR}/compile_commands.json
+    --anchor ${SIGIL_SKETCH_DIR}/Anchor.cpp
+    --config $<CONFIG>
+    --out ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>/sketch_flags.rsp
+    # No --extra: the host force-loads Skia and re-exports it, so a
+    # sketch resolves Skia through -undefined dynamic_lookup like the
+    # rest of the SDK. Linking the archive into the dylib instead would
+    # put two Skia images in one process, whose objects cannot be
+    # exchanged.
   DEPENDS ${CMAKE_BINARY_DIR}/compile_commands.json
-          ${CMAKE_SOURCE_DIR}/cmake/ExtractSketchFlags.cmake
+          ${CMAKE_SOURCE_DIR}/scripts/extract_sketch_flags.py
   COMMENT "Extracting sketch compile flags from compile_commands.json"
   VERBATIM)
 add_custom_target(sketch_flags

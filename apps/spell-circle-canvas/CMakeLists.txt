@@ -92,6 +92,12 @@ find_package(harfbuzz CONFIG REQUIRED COMPONENTS icu)
 find_package(yoga CONFIG REQUIRED)
 find_package(choreograph CONFIG REQUIRED)
 
+# The administrative steps around the build — extracting the sketch
+# compile flags, fetching assets, generating the API documentation — are
+# Python scripts under scripts/, and the build calls them rather than
+# re-implementing text and file work in CMake.
+find_package(Python3 COMPONENTS Interpreter REQUIRED)
+
 if(SPELLCIRCLE_ENABLE_ULTRALIGHT)
   find_package(Ultralight)
   if(NOT Ultralight_FOUND)
