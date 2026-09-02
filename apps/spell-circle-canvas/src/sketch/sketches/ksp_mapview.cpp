@@ -1176,6 +1176,62 @@ struct KspMapView : sketch::Sketch {
     g.child(at(box().fill(std::move(ball)).key("navball"), kBall, kBallR * 2,
                kBallR * 2));
 
+    // THE PITCH LADDER. A navball is an ATTITUDE INDICATOR, and what makes
+    // one readable is the numbered ladder: white rungs at 10, 20, 30, 45
+    // and 60 either side of a bold horizon, carrying their own numerals.
+    // Latitude and longitude bands say where a point on a sphere is; a
+    // ladder says where the CRAFT is, which is the instrument's whole job.
+    //
+    // The deck rides the same two Outputs the sphere's shader does, so it
+    // can never disagree with the ball under it: roll turns it, pitch
+    // slides it. Over this scene's pitch range the small-angle map is
+    // within two per cent of the sphere's own sine, and the deck is
+    // clipped to the ball, so the error lands where nothing is drawn.
+    {
+      Element deck =
+          box()
+              .inset(0)
+              .rotate(bind(&rollOut)
+                          .source(-1.0f, 1.0f)
+                          .target(57.29578f, -57.29578f))
+              .transformOrigin(0.5f, 0.5f)
+              .translateY(
+                  bind(&pitchOut).source(-1.0f, 1.0f).target(-kBallR, kBallR));
+      static const int kRungs[5] = {10, 20, 30, 45, 60};
+      const float mid = kBallR;
+      auto rung = [&](int deg, int sign) {
+        const float y =
+            mid - (float)sign * kBallR * std::sin((float)deg * 0.0174532925f);
+        const float halfW = (deg % 30 == 0) ? kBallR * 0.44f : kBallR * 0.26f;
+        deck.child(box()
+                       .left(Dim(mid - halfW))
+                       .top(Dim(y - 0.9f))
+                       .width(Dim(halfW * 2.0f))
+                       .height(Dim(1.8f))
+                       .fill(Material::solid(alpha(hex(0xEAF4F8), 0.88f))));
+        const std::string num = std::to_string(deg);
+        for (int e = 0; e < 2; ++e)
+          deck.child(
+              t(num.c_str(), bold(7.0f, alpha(hex(0xEAF4F8), 0.9f), 0.3f))
+                  .left(Dim(e ? mid + halfW + 3.0f : mid - halfW - 13.0f))
+                  .top(Dim(y - 5.0f)));
+      };
+      for (int r : kRungs) {
+        rung(r, +1);
+        rung(r, -1);
+      }
+      // The horizon: one bold white rule, which is the line every other
+      // reading on the instrument is taken against.
+      deck.child(box()
+                     .left(Dim(mid - kBallR * 0.92f))
+                     .top(Dim(mid - 1.4f))
+                     .width(Dim(kBallR * 1.84f))
+                     .height(Dim(2.8f))
+                     .fill(Material::solid(hex(0xFFFFFF))));
+      g.child(at(box().shape(circleOutline()).clip().child(std::move(deck)),
+                 kBall, kBallR * 2, kBallR * 2));
+    }
+
     // Curved dial tapes on the bezel annulus — THROTTLE left, G FORCE right,
     // exactly as the reference draws them. sector() gives the closed,
     // fillable annular segment; onPath gives the curved lettering.
@@ -1194,6 +1250,26 @@ struct KspMapView : sketch::Sketch {
     g.child(tape(-30, 60, hex(0x23282B)));  // g-force body
     g.child(tape(-38, 9, hex(0xC0392B)));
     g.child(tape(30, 7, hex(0x2E7D32)));
+
+    // THE TICK LADDERS. The reference's two tapes are read against a rung
+    // ladder, not against their own ends: eleven ticks across each arc,
+    // every fifth one long. Without them a needle on a plain band says
+    // "somewhere in this arc" and nothing more.
+    for (int side = 0; side < 2; ++side) {
+      const float from = side ? -30.0f : 150.0f;
+      const float sweep = 60.0f;
+      for (int i = 0; i <= 10; ++i) {
+        const bool major = i % 5 == 0;
+        const float a = from + sweep * (float)i / 10.0f;
+        g.child(
+            at(box()
+                   .shape(shapes::sector(-0.42f, 0.84f, major ? 0.79f : 0.86f))
+                   .fill(Material::solid(alpha(hex(0xC6CFD3), 0.85f)))
+                   .rotate(a)
+                   .transformOrigin(0.5f, 0.5f),
+               kBall, kBezelR * 2, kBezelR * 2));
+      }
+    }
 
     // Moving needles. The Outputs stay in their OWN units — throttle and
     // g-force are both 0..1 — and bind() maps each onto its tape's arc at
