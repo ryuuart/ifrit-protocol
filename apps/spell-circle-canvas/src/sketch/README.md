@@ -177,12 +177,13 @@ Sketchbook --headless <outdir> [--gpu] [--sketch <name>] [--kind <k>]
            [--timing-json <path>]
 Sketchbook --window-bench [<sec>] [--window-size <WxH>] [--window-scale <n>]
 … [--assets <dir>]                          # what mounts at res://
+… [--plates <dir>]                          # the stills the browser shows
 ```
 
 `--sketch` takes a case-insensitive substring and answers to a sketch's
 filed name or its file stem, which is the loop for visual iteration.
 `--shot <png>` captures the app window rather than a sketch, which is
-the only way to look at the sidebar and the metrics panel.
+the only way to look at the browser and the inspector.
 
 The app brings a device up and every set draws through it, because a
 device is what runs a material's own body: the CPU mesh executor has no
@@ -276,6 +277,78 @@ presented rate against `bench/app_fps_<config>.json` within a stated
 band, `--rebase` adopting. The baseline is per machine AND per display
 mode, so it records the window size and scale it was taken at and the
 run says so when they differ.
+
+## Going through the registry
+
+The app is a BROWSER BESIDE A CANVAS, and the canvas never gives up its
+half. Going through a hundred sketches is a matter of looking at one
+after another, so the two questions are kept apart:
+
+* **selection is a look.** Arrow keys move it, a click moves it, and all
+  it moves is the inspector on the right. Whatever the canvas was
+  presenting keeps presenting while you read.
+* **Enter presents.** So does a double click, and so does the
+  inspector's Open. This is the only thing that changes what is drawn —
+  and the resident set is what makes it cheap, because a sketch already
+  opened comes back without being built again.
+
+Two views over the same rows, and the toggle is in the top bar:
+
+* **the list** (the default) — one line per sketch, folded into its
+  folder, with the thumbnail, the blurb, the folder, the runtime, the
+  canvas, the declared moment and the line count in columns. Clicking a
+  column heading orders by it and clicking again reverses; ordering by
+  anything but `folder` flattens the folds, because a column you asked to
+  read down is one you want to read without interruptions.
+* **the gallery** — every sketch as its own still, with the folders as
+  chips across the top.
+
+The filter takes free words and field words together, and every word has
+to match: a free word narrows on the name, the folder, the blurb and the
+file stem at once, while `folder:` and `kind:` narrow on that field
+alone — so `folder:study kind:canvas rain` is one question, not three.
+`/` puts the cursor in it and Escape empties it.
+
+**The thumbnails are the quick tier's plates**, read from the baseline
+the plate ledger writes beside its manifest — so a checkout that has
+never run a sweep has no thumbnails, and one that has is looking at
+exactly the images the sweep judged. `--plates <dir>` names another
+directory. A sketch with no plate gets a drawn glyph for the runtime it
+draws through.
+
+**What is not in a row is the canvas.** A sketch declares its size, its
+ground and the moment it names from inside its own setup, so those are
+facts of a RUNNING session and cannot be read off a file that has not
+run. They fill in as sketches are presented and the browser keeps them
+afterwards, and a row that has never been presented says so rather than
+guessing.
+
+### How a sketch introduces itself
+
+The inspector shows two blocks read from the top of the sketch's own
+file. The rule is small on purpose, and it is stated here so an author
+can write to it:
+
+The header is every line from the first line of the file down to the
+first line that is neither a comment nor blank — a run of line comments,
+a doc block, or one after the other. The comment markers come off, and a
+line reading only `@file` is dropped. What is left reads as
+**paragraphs**: runs of non-blank lines, broken by blank lines and by
+rule lines (a line of nothing but `=` or `-`).
+
+* **The subject** is the first paragraph after the title paragraph — the
+  title being the first one, which by convention opens `stem.cpp — …`.
+  A one-line paragraph that ends no sentence is a heading: it is kept and
+  read on into the paragraph below it, so a file that puts `THE PATTERN`
+  over its opening prose shows both.
+* **Edit these first** is the paragraph opening with a line that reads
+  exactly `EDIT THESE FIRST`, minus that line — the knobs the author says
+  to reach for, stated once, beside the code they name. It keeps one line
+  per knob: a line indented deeper than the first is an entry that ran
+  past the file's own margin, and it rejoins the line above.
+
+Neither is required. A file with neither shows neither, and nothing about
+a sketch depends on writing one.
 
 ## Plates
 
