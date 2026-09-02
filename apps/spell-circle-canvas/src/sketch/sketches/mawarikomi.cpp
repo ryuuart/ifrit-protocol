@@ -24,7 +24,6 @@
 // The plate is a settled page: nothing here moves.
 
 #include <sigilcompose/shape/Shapes.h>
-#include <sigilcompose/typography/TextFx.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>

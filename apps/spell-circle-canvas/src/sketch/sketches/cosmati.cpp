@@ -190,9 +190,8 @@ inline std::function<SkPath(SkSize)> triangleCourse(int cols, int rows,
 }  // namespace cosmati
 
 struct Cosmati final : sketch::Sketch {
-  choreograph::Output<float> rake{0};   // the raking light's sweep, 0..1
-  choreograph::Output<float> lay{0};    // the laying-in progress, 0..1
-  choreograph::Output<float> plait{0};  // the guilloche phase
+  choreograph::Output<float> rake{0};  // the raking light's sweep, 0..1
+  choreograph::Output<float> lay{0};   // the laying-in progress, 0..1
 
   void setup(sketch::SketchContext& ctx) override {
     ctx.canvas(kSceneSize.fWidth, kSceneSize.fHeight);
@@ -202,13 +201,11 @@ struct Cosmati final : sketch::Sketch {
     sigil::motion::Ticker& ticker = ctx.ticker;
     rake = 0;
     lay = 0;
-    plait = 0;
     ticker.add([this, t = 0.0](double dt) mutable {
       t += dt;
       // A raking light crosses the floor every 7 s: the way polished
       // porphyry actually announces itself in a nave.
       rake = (float)std::fmod(t / 7.0, 1.0);
-      plait = (float)std::fmod(t * 0.10, 1.0);
       lay = (float)std::min(1.0, t / 2.4);
       return true;
     });
@@ -437,15 +434,6 @@ struct Cosmati final : sketch::Sketch {
                                            .color = cs::kGiallo,
                                            .track = 2.0f,
                                            .weight = 600});
-                            // a cut letter on a busy floor needs its own
-                            // shadow to read at all
-                            sigil::weave::PaintLayer cut;
-                            cut.paint.setAntiAlias(true);
-                            cut.paint.setStyle(SkPaint::kStroke_Style);
-                            cut.paint.setStrokeWidth(2.6f);
-                            cut.paint.setStrokeJoin(SkPaint::kRound_Join);
-                            cut.paint.setColor4f({0, 0, 0, 0.82f}, nullptr);
-                            (void)cut;
                             return t;
                           }())
                          .width(Dim(big * 1.50f))

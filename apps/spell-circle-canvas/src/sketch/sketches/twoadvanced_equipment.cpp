@@ -43,7 +43,6 @@
 #include <sigilcompose/core/Material.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/shape/Shapes.h>
-#include <sigilcompose/typography/TextFx.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>
 

@@ -802,16 +802,6 @@ inline Element label(std::string_view t, SkColor4f c, float size = kType,
 //    set 5 client area.
 // ===========================================================================
 
-/** A raised or sunken Motif surface: the background fill plus the shadow,
- *  with children inset by the shadow thickness the way Motif insets a
- *  manager's children. This is the single primitive the whole desktop is
- *  made of. */
-inline Element surface(const ColorSet& s, float T = 2, bool sunken = false) {
-  Element e = box().fill(s.pBg());
-  if (T > 0) e.overlay(bevel(T, sunken, false, s)).padding(T);
-  return e;
-}
-
 /** XmPushButton. Armed is XmSHADOW_IN *and* the background swapped to the
  *  derived select colour — which is the only place `select` shows up in
  *  ordinary use besides a list selection. */

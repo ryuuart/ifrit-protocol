@@ -779,8 +779,6 @@ struct VertigoTitles : sketch::Sketch {
 
     ctx.composer.render(describe());
   }
-
-  void update(double, sketch::SketchContext&) override {}
 };
 
 SIGIL_SKETCH(

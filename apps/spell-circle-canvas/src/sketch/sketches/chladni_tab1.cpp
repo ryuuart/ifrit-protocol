@@ -433,10 +433,6 @@ struct ChladniTab1 : sketch::Sketch {
   // ------------------------------------------------------------------
   // shapes
 
-  static std::function<SkPath(SkSize)> starOutline(float points, float inner) {
-    return shapes::star((int)points, inner);
-  }
-
   // ------------------------------------------------------------------
   // sand: 9,580 grains (the per-figure counts in kFigures, summed), one
   // pool, one atlas stamp
@@ -463,10 +459,10 @@ struct ChladniTab1 : sketch::Sketch {
       std::vector<float> curveLen;
       float totalLen = 0;
       if (f.kind == Kind::Star) {
-        starPath = starOutline(f.points,
-                               f.inner)(SkSize{2 * kR * kTip, 2 * kR * kTip});
+        starPath = shapes::star((int)f.points,
+                                f.inner)(SkSize{2 * kR * kTip, 2 * kR * kTip});
       } else if (f.kind == Kind::Petals) {
-        starPath = starOutline(f.points, f.inner)(SkSize{2 * kR, 2 * kR});
+        starPath = shapes::star((int)f.points, f.inner)(SkSize{2 * kR, 2 * kR});
       } else {
         for (const Linie& l : linienOf(f.num)) {
           SkContourMeasureIter it(liniePath(l, kR), false);
@@ -573,7 +569,7 @@ struct ChladniTab1 : sketch::Sketch {
     if (f.kind == Kind::Star) {
       root.child(kit::disc(c, kR * kTip)
                      .key(tag + "star")
-                     .shape(starOutline(f.points, f.inner))
+                     .shape(shapes::star((int)f.points, f.inner))
                      .fill(inkMat)
                      .opacity(inkIn()));
     } else if (f.kind == Kind::Petals) {
@@ -608,7 +604,7 @@ struct ChladniTab1 : sketch::Sketch {
         }
       root.child(kit::disc(c, kR * 1.002f)
                      .key(tag + "mask")
-                     .shape(starOutline(f.points, f.inner))
+                     .shape(shapes::star((int)f.points, f.inner))
                      .fill(Fill::color(kPaper)));
     } else {
       const std::vector<Linie>& lines = linienOf(f.num);

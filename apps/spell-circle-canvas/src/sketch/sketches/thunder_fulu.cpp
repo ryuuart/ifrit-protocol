@@ -700,7 +700,7 @@ const char* kGallChant[6] = {
 // ===========================================================================
 
 struct ThunderFulu : sketch::Sketch {
-  sk_sp<SkTypeface> faceSerif, faceItalic, faceMono, faceDisplay, faceSmall;
+  sk_sp<SkTypeface> faceSerif, faceItalic, faceMono, faceDisplay;
 
   // ONE Output writes the entire plate: it is the score position in seconds,
   // and every stroke's beat is a window() on it.
@@ -2168,7 +2168,6 @@ struct ThunderFulu : sketch::Sketch {
     faceItalic = family("Hoefler Text", SkFontStyle::Italic());
     faceMono = family("Menlo", SkFontStyle::Normal());
     faceDisplay = family("Optima", SkFontStyle::Bold());
-    faceSmall = faceMono;
     if (!faceSerif) faceSerif = family("Baskerville", SkFontStyle::Normal());
     if (!faceItalic) faceItalic = faceSerif;
     if (!faceMono) faceMono = family("Courier New", SkFontStyle::Normal());

@@ -574,8 +574,6 @@ struct SigillumAemeth : sketch::Sketch {
 
   // ONE Output turns three systems that cannot agree except at 12 o'clock
   ch::Output<float> settle{0.0f};
-  ch::Output<float> tracer{0.0f};
-  ch::Output<float> pulseT{0.0f};
 
   feed::TextRing logA{64}, logB{64}, logC{64}, logD{64};
   Weave weave;
@@ -2043,7 +2041,6 @@ struct SigillumAemeth : sketch::Sketch {
       clockT += dt;
       const double loop = 26.0;
       const double t = std::fmod(clockT, loop);
-      pulseT = (float)t;
       // the rings turn from tSpin, decelerating into the one alignment
       const double a = (t - (double)tSpin) / (24.0 - (double)tSpin);
       const double k = a <= 0   ? 0.0
@@ -2057,7 +2054,6 @@ struct SigillumAemeth : sketch::Sketch {
         s = (float)((1.0 - u) * (1.0 - u) * (1.0 - u));
       }
       settle = s;
-      tracer = (float)t;
       return true;
     });
 

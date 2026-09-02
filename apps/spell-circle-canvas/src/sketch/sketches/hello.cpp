@@ -19,8 +19,6 @@ namespace sketch = sigil::sketch;
 using namespace sigil::compose;
 using namespace std::chrono_literals;
 
-namespace {}  // namespace
-
 // The three ways things move here (retained-mode, not p5's redraw
 // loop):
 //  1. setup() DECLARES the scene once — including its motion: bound

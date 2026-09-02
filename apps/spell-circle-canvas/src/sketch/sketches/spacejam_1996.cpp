@@ -383,8 +383,6 @@ struct Bands {
       SkPath band = top.detach();
       SkPath under = bot.detach();
       // walk the bottom edge back to close the ribbon
-      SkPath rev;
-      if (under.isLastContourClosed()) rev = under;
       SkPathBuilder closed;
       closed.addPath(band);
       const int pts = under.countPoints();
@@ -535,11 +533,6 @@ inline Element ring(SkPoint c, float rx, float ry, float rotDeg,
       .fill(std::move(m))
       .rotate(rotDeg);
 }
-
-struct Art {
-  Element tree;
-  float w = 0, h = 0;
-};
 
 inline Element artBox(float w, float h) {
   return stack().width(Dim(w)).height(Dim(h)).clip(true);

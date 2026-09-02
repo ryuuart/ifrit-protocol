@@ -184,14 +184,12 @@
 #include <sigilcompose/brush/Brushes.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/brush/Hatches.h>
-#include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/brush/Lines.h>
 #include <sigilcompose/brush/Rails.h>
 #include <sigilcompose/core/Feed.h>
 #include <sigilcompose/core/Material.h>
 #include <sigilcompose/core/Patterns.h>
 #include <sigilcompose/instances/Instances.h>
-#include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilcompose/shape/Shapes.h>
 #include <sigilcompose/typography/Type.h>
@@ -1742,7 +1740,6 @@ const M13Row kMap13[] = {
     {"P32", "Shi", "\xe5\x8a\xbf", 'B', 4, 4, nullptr},
     {"P30", "Tianlao", "\xe5\xa4\xa9\xe7\x89\xa2", 'R', 6, 6, nullptr},
 };
-constexpr int kMap13Count = (int)(sizeof(kMap13) / sizeof(kMap13[0]));
 
 // the 28 mansions in order, and their determinative stars' HIP numbers as
 // Stellarium's lunar_system.defining_stars gives them
@@ -1758,11 +1755,6 @@ const char* kXiuPinyin[28] = {
     "Jiao", "Kang", "Di",  "Fang", "Xin",  "Wei",   "Ji",  "Dou", "Niu", "Nu",
     "Xu",   "Wei",  "Shi", "Bi",   "Kui",  "Lou",   "Wei", "Mao", "Bi",  "Zui",
     "Shen", "Jing", "Gui", "Liu",  "Xing", "Zhang", "Yi",  "Zhen"};
-const int kXiuHip[28] = {65474, 69427,  72622,  78265,  80112,  82514,  88635,
-                         92041, 100345, 102618, 106278, 109074, 113963, 1067,
-                         3693,  8903,   12719,  17499,  20889,  26176,  25930,
-                         30343, 41822,  42313,  46390,  48356,  53740,  59803};
-
 /** Distinct stars in an asterism. `AstRec::stars` is the VERTEX count and a
  *  Chen Zhuo polyline revisits stars (東井 is 14 vertices over 9 stars), so
  *  comparing it to Table 4's n(SXC) compares two different things. */
@@ -1830,11 +1822,9 @@ struct DunhuangStarChart : sketch::Sketch {
 
   // ONE Output writes the plate: the score position in seconds.
   ch::Output<float> scribe{0.0f};
-  ch::Output<float> reveal{0.0f};  // 0→1 over the asterism sweep
   double clockT = 0;
-  int auditPhase = -2;
 
-  feed::TextRing logA{72}, logB{72}, logC{72}, logD{72};
+  feed::TextRing logA{72}, logB{72}, logC{72};
 
   /** THE ONE DISCRETE STATE, AND IT IS A CACHING STATE. Every reveal on this
    *  plate is a window() on `scribe`, which is a BOUND property and therefore
@@ -1871,7 +1861,6 @@ struct DunhuangStarChart : sketch::Sketch {
 
   Material paperGrain;
   Pattern paperSpeck;
-  Element rollMark;
 
   // --- the star field -----------------------------------------------------
   std::shared_ptr<instancing::Atlas> atlas;
@@ -2648,7 +2637,6 @@ struct DunhuangStarChart : sketch::Sketch {
                         astSchool[(size_t)a] == 'W' ? hex(0x6a5a3f, 0.80f)
                                                     : hex(0x24201a, 0.86f)});
     }
-    nDrawnAst = (int)astArt.size();
   }
 
   Element asterismLines() {
@@ -2675,7 +2663,6 @@ struct DunhuangStarChart : sketch::Sketch {
     }
     return g;
   }
-  int nDrawnAst = 0;
 
   /** Where an asterism's stars land on the paper, and its own box. */
   bool astCentroid(const char* cid, SkPoint& out, int& region) const {
@@ -4104,7 +4091,6 @@ struct DunhuangStarChart : sketch::Sketch {
       const float e = 2000.0f + (700.0f - 2000.0f) *
                                     smooth((t - tPrec0) / (tPrec1 - tPrec0));
       const float f = smooth((t - tFold0) / (tFold1 - tFold0));
-      reveal = clamp01((t - tLine0) / (tLine1 - tLine0));
       rebuild(e, f);
       return true;
     });

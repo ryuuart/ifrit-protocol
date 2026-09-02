@@ -443,7 +443,7 @@ struct WorldHud final : sketch::Sketch {
         rail.child(
             box()
                 .left(x + 9)
-                .top(wh::kSlotsY * 0 + 9)
+                .top(9)
                 .width(Dim(24.0f))
                 .height(Dim(24.0f))
                 .shape(wh::glyphPath(kSlots[i].glyph))

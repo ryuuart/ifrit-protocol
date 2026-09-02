@@ -229,7 +229,6 @@ constexpr float kMmPer10k = 1.1258f;
 constexpr float kStatedMmPer10k = 1.0f;
 constexpr float kPxPer10k = kMmPer10k * kPxPerMm;  // 2.5421
 constexpr float kLigneHalf = 1.1279f;              // 2.2558 / 2
-constexpr float kFloorMm = 1.57f;                  // what the crayon holds
 
 inline float mapX(float lon) { return kFrameL + (lon - kLon0) * kLonPx; }
 inline float mapY(float lat) { return kLatRefY + (55.8f - lat) * kLatPx; }
@@ -925,12 +924,12 @@ struct Minard1869 : sketch::Sketch {
                                                // metrics()/measureRun()
 
   Pattern paperPulp, laidLines, chainLines, foxing, tintSpeckle;
-  Material paperMat, zoneMat, inkMat, vignette, stampGrain;
+  Material paperMat, vignette;
 
   // audits, computed once in setup()
   WidthAudit auditAdvance, auditRetreat;
   float advanceInk = 0, advanceArea = 0;
-  float retreatInk = 0, retreatArea = 0;
+  float retreatArea = 0;
   float coverDoubled = 0;
   float unionArea = 0;
   const char* worstCorner = "";
@@ -1466,12 +1465,6 @@ struct Minard1869 : sketch::Sketch {
     // slightly out of register. One translate, and it is the single most
     // convincing "this is a lithograph" cue on the sheet.
     auto redStone = box().inset(0).translateX(0.4f).translateY(-0.3f);
-    const SkPath trunk = polyline(kAdvTrunk);
-    const SkPath north = polyline(kAdvNorth);
-    const SkPath polotzk = polyline(kAdvPolotzk);
-    (void)trunk;
-    (void)north;
-    (void)polotzk;
     // The zones ride in a SLOT: their geometry is a function of the live
     // mmScale Output, and Element::outline() is memoised on (descriptor,
     // size) — a shape cannot BE a bound value, so a geometry morph costs a
@@ -2748,7 +2741,6 @@ struct Minard1869 : sketch::Sketch {
       const test::Coverage cov = test::coverage(pieces, bb, 512);
       advanceArea = (1.0f - cov.uncoveredFraction()) * bb.width() * bb.height();
     }
-    retreatInk = inkIntegral(retSpine, retProf);
     {
       const SkRect bb = retBand.getBounds();
       const std::array<SkPath, 1> pieces{retBand};
@@ -2995,7 +2987,6 @@ struct Minard1869 : sketch::Sketch {
     foxing.seed(91);
     tintSpeckle = patterns::speckle(64, 40, 0.6f, 2.4f, {hex(0x8f6a55, 0.5f)});
     tintSpeckle.seed(41);
-    stampGrain = patterns::grain(0.55f, 2, 13.0f, 1.4f);
 
     paperMat = Material::blend({
         {Material::solid(kPaperBody), SkBlendMode::kSrc},
