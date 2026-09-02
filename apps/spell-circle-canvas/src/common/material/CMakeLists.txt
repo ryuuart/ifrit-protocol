@@ -2,7 +2,10 @@
 # directory. The core feature is the value model: a recipe (a reflected
 # params struct plus one body per shading language), the material that
 # instantiates it, and the one program cache that compiles through the
-# compilers backends register. The texture feature is the image side: a
+# compilers backends register. There are two of those backends: the Skia
+# one compiles a recipe's SkSL body into an SkRuntimeEffect, the Slang one
+# compiles its Slang body to SPIR-V and reports the layout a device
+# renderer writes uniforms at. The texture feature is the image side: a
 # texture as a comparable leaf, the tools' texture sets, the environment
 # and bevel producers, the atlas. Each backend is its own feature that
 # links the core and its renderer, so a consumer of the model alone links
@@ -26,11 +29,13 @@ add_subdirectory(pattern)
 add_subdirectory(field)
 add_subdirectory(skia)
 add_subdirectory(kit)
+add_subdirectory(slang)
 
 add_library(SigilMaterial INTERFACE)
 target_link_libraries(SigilMaterial INTERFACE
   SigilMaterialCore SigilMaterialTexture SigilMaterialColor SigilMaterialSdf
-  SigilMaterialPattern SigilMaterialField SigilMaterialSkia SigilMaterialKit)
+  SigilMaterialPattern SigilMaterialField SigilMaterialSkia SigilMaterialKit
+  SigilMaterialSlang)
 
 # Registers this library with the `docs` target (see cmake/Docs.cmake).
 # The README is the site's front page, so the generated pages open on the

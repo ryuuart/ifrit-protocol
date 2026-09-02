@@ -32,7 +32,7 @@ library that is not here.
 | `scene/` | `SigilWorldScene` | `sigil::world` | the retained side: the reconcile host, the entity store, the content-keyed resource store, the declared phases, the execution of a frame's passes, and the draw. |
 | `light/` | `SigilWorldLight` | `sigil::world::light` | emitters as plain comparable values over glm: a sun, a point light, a spot, their falloffs and the per-frame budget. |
 | `kit/` | `SigilWorldKit` | `sigil::world::kit` | presets that compose elements: a three-point rig, a turntable, and the lit set both make over a ground plane. Nothing here decides a look. |
-| `diligent/` | `SigilWorldDiligent` | `sigil::world::diligent` | the one GPU device 2D and 3D share, the Slang compiler the program cache runs, and the four seam values that stand on that device: the `Runtime` that performs a frame's passes, the `pop::Runtime` that cooks a chain, the `curve::SweepRuntime` that forms a sweep's rings, and the `render::Runtime` that draws a mesh onto a canvas — plus `importNative`, the door a foreign texture reaches a material slot by. |
+| `diligent/` | `SigilWorldDiligent` | `sigil::world::diligent` | the one GPU device 2D and 3D share, the programs this backend draws with — the scaffold, the sky, the mesh painter and the post stages, compiled through SigilMaterial's Slang backend — and the four seam values that stand on that device: the `Runtime` that performs a frame's passes, the `pop::Runtime` that cooks a chain, the `curve::SweepRuntime` that forms a sweep's rings, and the `render::Runtime` that draws a mesh onto a canvas — plus `importNative`, the door a foreign texture reaches a material slot by. |
 | — | `SigilWorld` | — | the umbrella: an interface target over every feature above, and `<sigilworld/World.h>`, which is their public headers in one include. A consumer of the whole library names only this; the device feature is in it where it was built. |
 
 ## Writing a scene
@@ -912,24 +912,28 @@ also generates a header carrying each module's text, because the source a
 material's body is appended to cannot be finished until the material
 exists. At run time the scaffold's text, a recipe's generated
 declarations, its body and one fragment entry point are assembled into
-one module and compiled through the Slang library, which is also what
-reports every uniform's offset.
+one module and compiled through `material::slang::compileModule`, which
+is also what reports every uniform's offset. `Programs.h` is where this
+backend's own four programs live — the scaffold in its lit and unlit
+builds, the sky, the mesh painter and the post stages — each compiled
+once for the process; `installSlangCompiler()` registers the one that
+appends a recipe's body to the scaffold, because only this backend knows
+what that scaffold is.
 
-`Portable.slang` is the subset one source can be compiled twice from and
-still answer once: arithmetic plus the operations IEEE 754 pins exactly,
-with `sqrt`, `dot`, `length`, `mix`, `smoothstep` and the trigonometric
-functions written out, because a library intrinsic is two different
-pieces of code on two targets.
-
-`Shading` is not this library's module: it is the material kit's shading
-TERMS, which the scaffold imports and which are loaded into the compiler
-session from the kit's own text, so the scaffold's shading and every
-material body compiled beside it call one definition of a term rather
-than a copy apiece. The build-time compile finds the same file on disk,
-which is why `slangc` is pointed at the kit's shader directory. Slang emits no contraction decoration in
-its SPIR-V, so a driver is free to fuse a multiply-add inside a module
-compiled here; a kernel that needs the unfused answer has to reach the
-same result without depending on it.
+Neither `Portable` nor `Shading` is this library's module. `Portable` is
+SigilMaterial's Slang backend's — the subset one source can be compiled
+twice from and still answer once: arithmetic plus the operations IEEE 754
+pins exactly, with `sqrt`, `dot`, `length`, `mix`, `smoothstep` and the
+trigonometric functions written out, because a library intrinsic is two
+different pieces of code on two targets. `Shading` is the material kit's
+shading TERMS. Both are loaded into every compiler session by name, so
+the scaffold's shading and every material body compiled beside it call
+one definition of a term rather than a copy apiece; the build-time
+compile finds the same files on disk, which is why `slangc` is pointed at
+both directories. Slang emits no contraction decoration in its SPIR-V, so
+a driver is free to fuse a multiply-add inside a module compiled here; a
+kernel that needs the unfused answer has to reach the same result without
+depending on it.
 
 ### The one device
 

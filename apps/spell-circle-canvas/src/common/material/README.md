@@ -42,11 +42,16 @@ chrome-type ramps.
 The core links glm (for the vector types a struct may hold), choreograph
 (for the animation output a field may bind to) and Boost.PFR (for the
 reflection that reads a struct's field names off the type). The core has
-no renderer in it: compilers arrive from backend features. One ships in
-this library, for Skia's SkSL; `Target::Slang` is compiled by whichever
-3D renderer speaks it, which registers itself the same way.
+no renderer in it: compilers arrive from backend features, and two of
+them ship here. The Skia one turns a recipe's SkSL body into an
+`SkRuntimeEffect`. The Slang one compiles Slang source to SPIR-V and
+reports the layout every uniform's bytes go at, which is what a device
+renderer writes a draw's uniforms into — the renderer supplies the
+scaffold its body is appended to and registers the result, so what lives
+here is the compile and the layout and nothing that knows a pass or a
+device.
 
-Namespace `sigil::material`. Eight feature libraries, one per directory,
+Namespace `sigil::material`. Nine feature libraries, one per directory,
 each a static archive that links only what sits beneath it:
 
 | target | holds | links |
@@ -58,9 +63,10 @@ each a static archive that links only what sits beneath it:
 | `SigilMaterialPattern` | `pattern::Tile` and the stock tiles | SigilMaterialTexture |
 | `SigilMaterialField` | `field::` — `halftoneRamp`, `noise`, `grain`, `ripple`, `crtOverlay` | SigilMaterialTexture |
 | `SigilMaterialSkia` | the SkSL compiler and `SkiaProgram`, whose builder uploads resolved bytes; `skia::builder` and `skia::shader` binding leaves into slots; `skia::fill` | SigilMaterialTexture |
+| `SigilMaterialSlang` | the Slang compiler: `slang::compileModule` to SPIR-V, `slang::Compiled` with the reflected `slang::UniformSlot` per uniform, `slang::SlangProgram`, and `slang::Uniforms`, the buffer one draw is written into; `Portable.slang`, the subset a host and a device answer alike, loaded into every session by name | SigilMaterialCore; SigilMaterialKit and Slang privately |
 | `SigilMaterialKit` | the presets: the metallic-roughness `kit::surface` and `kit::unlit` and the masks that stack them; `kit::gold`, `kit::chrome`, `kit::glass`; `kit::girih8` and its palettes; the gel and chrome tables; the text paints and chrome-type ramps; and `kit::terms`, the shading terms a surface is composed of | SigilMaterialPattern, SigilMaterialColor |
 
-`SigilMaterial` is the umbrella, an interface over all eight. Headers live
+`SigilMaterial` is the umbrella, an interface over all nine. Headers live
 under `include/sigilmaterial/<feature>/` and are spelled that way —
 `<sigilmaterial/core/Recipe.h>`, `<sigilmaterial/texture/Texture.h>`,
 `<sigilmaterial/kit/Surfaces.h>` — and `<sigilmaterial/Material.h>`
@@ -205,7 +211,9 @@ field unread is reported the same way.
 **One program cache.** `ProgramCache::shared()` holds every compiled
 program in the process, keyed by (recipe identity, target, variant). A
 backend registers its compiler with `registerCompiler(Target, Compiler)`
-and the cache compiles on first use. `Variant` is a small ordered key the
+and the cache compiles on first use. `SigilMaterialSkia` registers the
+SkSL one with `skia::install()`; a device renderer registers the Slang
+one, since only the renderer knows the scaffold a body is appended to. `Variant` is a small ordered key the
 backend owns the meaning of — a premultiplied build, a debug view — and
 the default variant is the plain build.
 
@@ -371,6 +379,42 @@ one program per distinct triple of definitions and buys nothing for a
 target that samples its operands, so it is built only where a compiler
 that needs it is installed. `Target::Slang` is the one such target today,
 and `stackName(blend)` is the name every stack of a blend carries.
+
+## The Slang backend
+
+`slang::compileModule(source, vertexEntry, fragmentEntry, lit, &out,
+&error)` compiles a whole module — imports, both entry points and all —
+and hands back a `slang::Compiled`: the two stages' SPIR-V words, the
+sampled slots in their declared order, and a `slang::UniformSlot` per
+uniform saying where its bytes go. NOTHING GUESSES A LAYOUT: every offset
+is the one the compiler reported for the program it just built, so a body
+that declares one more parameter moves nothing a renderer has to be told
+about. `slang::Uniforms` is the buffer a draw writes into at those
+offsets — a matrix row by row and an array element by element where the
+layout put them apart, and a name the program does not carry skipped,
+since an optimiser that dropped an unused uniform is not a mistake to
+report.
+
+Both stages are linked as one program, because the layout is a property
+of the linked program: linking them apart would let an unused uniform be
+dropped from one and not the other, and the two would then read one
+buffer at two sets of offsets.
+
+Every session carries two modules by name, so a shader's `import`
+resolves in memory and nothing is looked for on disk. `Portable` is the
+subset whose transcendentals a host and a device answer alike — a kernel
+compiled for both cannot afford two spellings of a square root.
+`Shading` is `kit::terms`' own text, so a renderer's shading and every
+material body compiled beside it call one definition of a term rather
+than a copy apiece.
+
+`lit` is the one axis a session specialises on: it defines `SIGIL_LIT`,
+so a renderer's scaffold can carry its lighting uniforms in one build and
+not the other. There are therefore two sessions, and a module is loaded
+into whichever one the caller asked for under a name no other module
+has — a session remembers a module by its name, so two recipes under one
+name would be one module and every material after the first would be
+drawn with the first one's program.
 
 ## The kit
 

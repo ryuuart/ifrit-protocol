@@ -27,22 +27,25 @@ find_package(VulkanHeaders CONFIG REQUIRED)
 # is appended to cannot be finished until the material exists.
 include(Slang)
 set(_shaders ${CMAKE_CURRENT_LIST_DIR}/shaders)
-sigil_slang_module(NAME Portable SOURCE ${_shaders}/Portable.slang
-  OUT_VAR SIGIL_WORLD_PORTABLE_H)
-# Surface.slang imports the material kit's shading terms, so slangc is
-# pointed at the directory that file lives in. At run time the same text
-# is loaded into the compiler session from the header the kit generated.
+# Every module here imports the portable subset, and Surface.slang the
+# material kit's shading terms as well, so slangc is pointed at the two
+# directories those files live in. At run time the same texts are loaded
+# into the compiler session by name, from the headers their own builds
+# generated.
+set(_imports ${_shaders} ${SIGIL_MATERIAL_SLANG_SHADER_DIR}
+             ${SIGIL_MATERIAL_SHADER_DIR})
+set(_portable ${SIGIL_MATERIAL_SLANG_SHADER_DIR}/Portable.slang)
 sigil_slang_module(NAME Surface SOURCE ${_shaders}/Surface.slang
-  ENTRIES vsMain fsFlat INCLUDE ${_shaders} ${SIGIL_MATERIAL_SHADER_DIR}
-  DEPENDS ${_shaders}/Portable.slang ${SIGIL_MATERIAL_SHADER_DIR}/Shading.slang
+  ENTRIES vsMain fsFlat INCLUDE ${_imports}
+  DEPENDS ${_portable} ${SIGIL_MATERIAL_SHADER_DIR}/Shading.slang
   OUT_VAR SIGIL_WORLD_SURFACE_H)
 sigil_slang_module(NAME Painter SOURCE ${_shaders}/Painter.slang
-  ENTRIES vsPaint fsPaint INCLUDE ${_shaders}
-  DEPENDS ${_shaders}/Portable.slang
+  ENTRIES vsPaint fsPaint INCLUDE ${_imports}
+  DEPENDS ${_portable}
   OUT_VAR SIGIL_WORLD_PAINTER_H)
 sigil_slang_module(NAME Post SOURCE ${_shaders}/Post.slang
-  ENTRIES vsFullscreen fsCopy fsBlur fsLevels fsMasked INCLUDE ${_shaders}
-  DEPENDS ${_shaders}/Portable.slang
+  ENTRIES vsFullscreen fsCopy fsBlur fsLevels fsMasked INCLUDE ${_imports}
+  DEPENDS ${_portable}
   OUT_VAR SIGIL_WORLD_POST_H)
 
 add_library(SigilWorldDiligent STATIC
@@ -56,16 +59,14 @@ add_library(SigilWorldDiligent STATIC
   PainterGpu.cpp
   PopGpu.cpp
   Post.cpp
+  Programs.cpp
+  Programs.h
   Runtime.cpp
   SweepGpu.cpp
-  Compile.cpp
-  Compile.h
   VolkShim.c
-  ${SIGIL_WORLD_PORTABLE_H}
   ${SIGIL_WORLD_SURFACE_H}
   ${SIGIL_WORLD_PAINTER_H}
   ${SIGIL_WORLD_POST_H}
-  ${_shaders}/Portable.slang
   ${_shaders}/Surface.slang
   ${_shaders}/Painter.slang
   ${_shaders}/Post.slang
@@ -87,15 +88,19 @@ target_include_directories(SigilWorldDiligent
 # value this hands back is executed by a Scene. Diligent and Slang are
 # PRIVATE: the public headers name Diligent's two interfaces by forward
 # declaration only and Slang not at all.
+# SigilMaterialSlang is PUBLIC because a compiled program and the
+# uniforms written into it are what Gpu.h hands around; Slang itself is
+# reached only through it, so nothing here links the compiler.
 # SigilMaterialKit is PRIVATE and is read for one thing: whether a
 # material's sampled slot holds a map a caller placed or the neutral
 # dressing every surface is built with, which is what decides whether a
 # slot is bound or left reading one white texel.
 target_link_libraries(SigilWorldDiligent
   PUBLIC SigilCoreHardware SigilSkiaGraphite SigilWorldScene
+         SigilMaterialSlang
   PRIVATE unofficial::diligent-engine::DiligentCore
           unofficial::diligent-engine::volk Vulkan::Headers
-          slang::slang SigilMaterialKit)
+          SigilMaterialKit)
 
 # Links Diligent directly: proving that Diligent still drives the device
 # after Graphite has submitted on it means issuing a Diligent command.

@@ -34,7 +34,7 @@
 #include <utility>
 #include <vector>
 
-#include "Compile.h"
+#include "Programs.h"
 
 using namespace sigil;
 using namespace sigil::world;
@@ -188,13 +188,13 @@ Frame lit() {
 
 }  // namespace
 
-TEST(SlangProgram, APipelineComesOffARecipeBody) {
+TEST(SurfaceProgram, APipelineComesOffARecipeBody) {
   world::diligent::installSlangCompiler();
   const std::shared_ptr<material::Program> program =
       material::program(paintRecipe(), material::Target::Slang,
                         material::Variant{world::diligent::kVariantLit});
   ASSERT_NE(program, nullptr);
-  const auto* slang = program->as<world::diligent::SlangProgram>();
+  const auto* slang = program->as<material::slang::SlangProgram>();
   ASSERT_NE(slang, nullptr);
   // Two stages, and the recipe's own parameter reachable at an offset
   // the compiler reported rather than one the renderer guessed.
@@ -207,7 +207,7 @@ TEST(SlangProgram, APipelineComesOffARecipeBody) {
   const std::shared_ptr<material::Program> unlit =
       material::program(paintRecipe(), material::Target::Slang);
   ASSERT_NE(unlit, nullptr);
-  EXPECT_EQ(unlit->as<world::diligent::SlangProgram>()->compiled().uniform(
+  EXPECT_EQ(unlit->as<material::slang::SlangProgram>()->compiled().uniform(
                 "uShading"),
             nullptr);
 }
@@ -589,7 +589,7 @@ TEST(GpuRuntime, ATexturesWrapIsHonouredOnBothTiers) {
         << "device step " << i;
 }
 
-TEST(SlangProgram, TheKitsOwnSurfacesCompileTheirBodies) {
+TEST(SurfaceProgram, TheKitsOwnSurfacesCompileTheirBodies) {
   // WHAT MAKES A SURFACE A SURFACE rather than a colour is that its own
   // body is compiled and run, and every set in this repository wears one
   // of these two. A recipe whose body will not compile is reported once
@@ -605,7 +605,7 @@ TEST(SlangProgram, TheKitsOwnSurfacesCompileTheirBodies) {
         surface.resolve(material::Target::Slang, material::FrameData{},
                         material::Variant{world::diligent::kVariantLit});
     ASSERT_NE(resolved.program, nullptr) << surface.recipe().name();
-    const auto* slang = resolved.program->as<world::diligent::SlangProgram>();
+    const auto* slang = resolved.program->as<material::slang::SlangProgram>();
     ASSERT_NE(slang, nullptr) << surface.recipe().name();
     EXPECT_FALSE(slang->compiled().empty()) << surface.recipe().name();
   }

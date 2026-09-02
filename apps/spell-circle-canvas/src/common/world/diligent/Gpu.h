@@ -40,7 +40,7 @@
 #include <string_view>
 #include <vector>
 
-#include "Compile.h"
+#include "Programs.h"
 
 namespace sigil::world::diligent {
 
@@ -90,7 +90,7 @@ struct MeshBuffers {
  *  how it blends, and whether it writes depth. Two draws that agree on
  *  both share one pipeline. */
 struct PipelineKey {
-  const Compiled* program = nullptr;
+  const material::slang::Compiled* program = nullptr;
   /** kSrcOver for a body, kPlus for a composite that adds, and kSrc for
    *  a draw that replaces what stands. */
   SkBlendMode blend = SkBlendMode::kSrcOver;
@@ -251,30 +251,6 @@ struct Gpu {
   dg::RefCntAutoPtr<dg::ITexture> makeColor(const char* label);
 };
 
-/** ONE DRAW'S UNIFORMS, written at the offsets the program reported. */
-class Uniforms {
- public:
-  explicit Uniforms(const Compiled& program)
-      : m_program(&program), m_bytes(program.uniformBytes, std::byte{0}) {}
-
-  /** @p count floats into @p name, spread over the member's rows or
-   *  elements where the layout put them apart. A name the program does
-   *  not carry is skipped: an optimiser that dropped an unused uniform
-   *  is not a mistake to report. */
-  void set(std::string_view name, const float* values, size_t count);
-  void set(std::string_view name, const glm::mat4& m);
-  void set(std::string_view name, float x, float y, float z, float w);
-  /** Element @p index of an array member. */
-  void setElement(std::string_view name, size_t index, const float* values,
-                  size_t count);
-
-  [[nodiscard]] const std::vector<std::byte>& bytes() const { return m_bytes; }
-
- private:
-  const Compiled* m_program;
-  std::vector<std::byte> m_bytes;
-};
-
 /** Binds @p pipeline's uniform buffer to @p values and its sampled slots
  *  to @p textures, in the program's declared order, read through
  *  @p filter, then commits. A slot with no texture reads the one white
@@ -284,8 +260,8 @@ class Uniforms {
  *  instead: one wrap on each axis, and linearly across the prefiltered
  *  levels. Every other slot in a draw shares one filter and one wrap,
  *  which is what a base-colour map's sampling decides for all of them. */
-void bindAndCommit(Gpu& gpu, const Pipeline& pipeline, const Compiled& program,
-                   const Uniforms& values,
+void bindAndCommit(Gpu& gpu, const Pipeline& pipeline, const material::slang::Compiled& program,
+                   const material::slang::Uniforms& values,
                    const std::vector<dg::ITexture*>& textures,
                    SkFilterMode filter = SkFilterMode::kLinear,
                    bool tile = false,

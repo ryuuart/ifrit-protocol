@@ -153,46 +153,6 @@ Gpu::~Gpu() {
   if (device && device->context()) device->context()->Flush();
 }
 
-void Uniforms::set(std::string_view name, const float* values, size_t count) {
-  const UniformSlot* slot = m_program->uniform(name);
-  if (!slot) return;
-  const size_t perRow = slot->count ? count / slot->count : count;
-  if (slot->stride == 0 || slot->count <= 1) {
-    const size_t bytes = std::min(count * sizeof(float), slot->bytes);
-    std::memcpy(m_bytes.data() + slot->offset, values, bytes);
-    return;
-  }
-  for (size_t row = 0; row < slot->count; ++row) {
-    const size_t at = slot->offset + row * slot->stride;
-    if (at + perRow * sizeof(float) > m_bytes.size()) break;
-    std::memcpy(m_bytes.data() + at, values + row * perRow,
-                perRow * sizeof(float));
-  }
-}
-
-void Uniforms::set(std::string_view name, const glm::mat4& m) {
-  // The shader reads a matrix row by row, and glm holds it column by
-  // column, so what is written is the transpose.
-  float rows[16];
-  for (int r = 0; r < 4; ++r)
-    for (int c = 0; c < 4; ++c) rows[r * 4 + c] = m[c][r];
-  set(name, rows, 16);
-}
-
-void Uniforms::set(std::string_view name, float x, float y, float z, float w) {
-  const float values[4] = {x, y, z, w};
-  set(name, values, 4);
-}
-
-void Uniforms::setElement(std::string_view name, size_t index,
-                          const float* values, size_t count) {
-  const UniformSlot* slot = m_program->uniform(name);
-  if (!slot || index >= slot->count) return;
-  const size_t at = slot->offset + index * slot->stride;
-  if (at + count * sizeof(float) > m_bytes.size()) return;
-  std::memcpy(m_bytes.data() + at, values, count * sizeof(float));
-}
-
 dg::RefCntAutoPtr<dg::ITexture> Gpu::makeColor(const char* label) {
   dg::RefCntAutoPtr<dg::ITexture> texture;
   if (extent.isEmpty() || !device->renderDevice()) return texture;
@@ -613,8 +573,8 @@ dg::ISampler* Gpu::samplerFor(SkFilterMode filter, bool tile) const {
   return tile ? linearTiled.RawPtr() : linearSampler.RawPtr();
 }
 
-void bindAndCommit(Gpu& gpu, const Pipeline& pipeline, const Compiled& program,
-                   const Uniforms& values,
+void bindAndCommit(Gpu& gpu, const Pipeline& pipeline, const material::slang::Compiled& program,
+                   const material::slang::Uniforms& values,
                    const std::vector<dg::ITexture*>& textures,
                    SkFilterMode filter, bool tile,
                    bool (*panoramaSlot)(std::string_view)) {

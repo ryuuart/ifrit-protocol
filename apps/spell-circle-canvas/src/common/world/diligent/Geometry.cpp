@@ -81,7 +81,7 @@ void premultiplied(SkColor4f colour, float* into) {
 /** What one body is drawn with: its program, the bytes its material
  *  resolved to, and whether the emitters reach it. */
 struct Surface {
-  const Compiled* program = nullptr;
+  const material::slang::Compiled* program = nullptr;
   std::span<const std::byte> bytes;
   const material::Recipe* recipe = nullptr;
   bool lit = true;
@@ -98,7 +98,7 @@ Surface surfaceOf(const material::Material* material, bool lit) {
   const material::Material::Resolved resolved = material->resolve(
       material::Target::Slang, material::FrameData{}, variant);
   const auto* program =
-      resolved.program ? resolved.program->as<SlangProgram>() : nullptr;
+      resolved.program ? resolved.program->as<material::slang::SlangProgram>() : nullptr;
   if (!program) {
     // The cache has already reported the recipe and the target; the body
     // it would have painted is drawn in the colour the frame extracted,
@@ -118,7 +118,7 @@ Surface surfaceOf(const material::Material* material, bool lit) {
  *  A 3x3 is the one field whose bytes are not already in the order the
  *  shader reads them in: the params hold it column by column, the way
  *  glm does, and the program reads it row by row. */
-void writeMaterial(Uniforms& uniforms, const Surface& surface) {
+void writeMaterial(material::slang::Uniforms& uniforms, const Surface& surface) {
   if (!surface.recipe) return;
   for (const material::Field& field : surface.recipe->layout().fields) {
     const size_t bytes = field.floats * sizeof(float);
@@ -138,7 +138,7 @@ void writeMaterial(Uniforms& uniforms, const Surface& surface) {
 
 /** Everything a draw's scaffold needs: where the body stands, where the
  *  camera is, and what is shining on it. */
-void writeScaffold(Uniforms& uniforms, const Compiled& program,
+void writeScaffold(material::slang::Uniforms& uniforms, const material::slang::Compiled& program,
                    const glm::mat4& viewProj, const glm::mat4& view,
                    const glm::mat4& model, glm::vec4 baseColor,
                    std::span<const Light> lights, const Environment& sky,
@@ -217,7 +217,7 @@ void drawBody(Gpu& gpu, const glm::mat4& viewProj, const glm::mat4& view,
   const int levels =
       panorama ? (int)panorama->GetDesc().MipLevels : 0;
 
-  Uniforms uniforms(*surface.program);
+  material::slang::Uniforms uniforms(*surface.program);
   writeScaffold(uniforms, *surface.program, viewProj, view, model, baseColor,
                 lights, sky, orientation, levels, lit);
   writeMaterial(uniforms, surface);
@@ -311,7 +311,7 @@ void drawBackdrop(Gpu& gpu, const View& view, const glm::mat4& projection,
                   const glm::mat4& viewMatrix) {
   const Environment& sky = view.environment;
   if (!sky.valid() || sky.backdrop.intensity <= 0) return;
-  const Compiled& program = backdropProgram();
+  const material::slang::Compiled& program = backdropProgram();
   if (program.empty()) return;
   dg::ITexture* panorama = gpu.environment(sky.map);
   if (!panorama) return;
@@ -327,7 +327,7 @@ void drawBackdrop(Gpu& gpu, const View& view, const glm::mat4& projection,
   const Pipeline* pipeline = gpu.pipeline(key);
   if (!pipeline) return;
 
-  Uniforms uniforms(program);
+  material::slang::Uniforms uniforms(program);
   uniforms.set("uEnvTint", sky.tint.x * sky.intensity,
                sky.tint.y * sky.intensity, sky.tint.z * sky.intensity,
                std::clamp(sky.crossfade, 0.0f, 1.0f));

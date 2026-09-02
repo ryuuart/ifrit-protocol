@@ -25,7 +25,7 @@
 #include <utility>
 #include <vector>
 
-#include "Compile.h"
+#include "Programs.h"
 #include "Gpu.h"
 #include "sigilworld/diligent/Painter.h"
 
@@ -60,7 +60,7 @@ class PainterExecutor : public render::Executor {
                          (int)std::ceil(viewport.height())};
     if (extent.isEmpty()) return;
     if (mesh.positions.empty() || mesh.indices.size() < 3) return;
-    const Compiled& program = painterProgram();
+    const material::slang::Compiled& program = painterProgram();
     if (program.empty()) return;
 
     Gpu& gpu = *m_gpu;
@@ -97,7 +97,7 @@ class PainterExecutor : public render::Executor {
     const float clear[4] = {0, 0, 0, 0};
     openTarget(gpu, colour, clear, /*withDepth=*/true);
 
-    Uniforms uniforms(program);
+    material::slang::Uniforms uniforms(program);
     writeUniforms(uniforms, program, model, cam, extent, style);
 
     std::vector<dg::ITexture*> textures(program.textures.size(), nullptr);
@@ -156,7 +156,7 @@ class PainterExecutor : public render::Executor {
  private:
   /** Every field of the style the program reads, at the offsets the
    *  compiler reported for them. */
-  static void writeUniforms(Uniforms& uniforms, const Compiled& program,
+  static void writeUniforms(material::slang::Uniforms& uniforms, const material::slang::Compiled& program,
                             const glm::mat4& model, const camera::Camera& cam,
                             SkISize extent, const render::MeshStyle& style) {
     const glm::mat4 view = cam.view();
