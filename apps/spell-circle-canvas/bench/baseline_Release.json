@@ -3150,24 +3150,6 @@
     "cpu_ns": 7284.700000000077,
     "unit": "ns",
     "repetitions": 4
-   },
-   "BM_Vulkan_CreateDestroyTexture": {
-    "real_ns": 6374.424752861896,
-    "cpu_ns": 6365.12135133881,
-    "unit": "ns",
-    "repetitions": 4
-   },
-   "BM_Vulkan_ImportExportRetire": {
-    "real_ns": 44.01048861259626,
-    "cpu_ns": 43.99782571288513,
-    "unit": "ns",
-    "repetitions": 4
-   },
-   "BM_Vulkan_FenceRoundTrip": {
-    "real_ns": 37314.16526623146,
-    "cpu_ns": 19387.48137108785,
-    "unit": "ns",
-    "repetitions": 4
    }
   },
   "sigilskia_graphite_bench": {
@@ -3180,12 +3162,6 @@
    "BM_Wrap_Handle": {
     "real_ns": 10303.27541803414,
     "cpu_ns": 10302.925749877064,
-    "unit": "ns",
-    "repetitions": 4
-   },
-   "BM_Vulkan_Wrap_Handle": {
-    "real_ns": 10366.533069117657,
-    "cpu_ns": 10358.669678221864,
     "unit": "ns",
     "repetitions": 4
    }
@@ -3819,12 +3795,6 @@
    }
   },
   "world_diligent_bench": {
-   "BM_DeviceAdopt": {
-    "real_ns": 289270.2964605098,
-    "cpu_ns": 288069.7674418503,
-    "unit": "ms",
-    "repetitions": 4
-   },
    "BM_ProgramFromRecipeBody": {
     "real_ns": 154741917.0383364,
     "cpu_ns": 154732500.00000018,
@@ -4104,6 +4074,38 @@
    "DrawFrame/512": {
     "real_ns": 480918.31533846376,
     "cpu_ns": 480871.1340206176,
+    "unit": "ns",
+    "repetitions": 4
+   }
+  },
+  "geometry_device_bench": {
+   "BM_DeviceAdopt": {
+    "real_ns": 289270.2964605098,
+    "cpu_ns": 288069.7674418503,
+    "unit": "ms",
+    "repetitions": 4
+   },
+   "BM_Adopted_CreateDestroyTexture": {
+    "real_ns": 6374.424752861896,
+    "cpu_ns": 6365.12135133881,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_Adopted_ImportExportRetire": {
+    "real_ns": 44.01048861259626,
+    "cpu_ns": 43.99782571288513,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_Adopted_FenceRoundTrip": {
+    "real_ns": 37314.16526623146,
+    "cpu_ns": 19387.48137108785,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_Adopted_Wrap_Handle": {
+    "real_ns": 10366.533069117657,
+    "cpu_ns": 10358.669678221864,
     "unit": "ns",
     "repetitions": 4
    }

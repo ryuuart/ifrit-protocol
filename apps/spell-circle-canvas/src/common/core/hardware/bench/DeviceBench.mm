@@ -16,15 +16,7 @@ using namespace sigil::core::hardware;
 namespace {
 
 GpuDevice *device() {
-  static std::unique_ptr<GpuDevice> d = GpuDevice::createOwned(Backend::Metal);
-  return d.get();
-}
-
-/** The Vulkan device, or null with the reason — an arm on it skips. */
-GpuDevice *vulkanDevice(std::string *why) {
-  static std::string error;
-  static std::unique_ptr<GpuDevice> d = GpuDevice::createOwned(Backend::Vulkan, &error);
-  if (why) *why = error;
+  static std::unique_ptr<GpuDevice> d = GpuDevice::createOwned();
   return d.get();
 }
 
@@ -126,73 +118,6 @@ void BM_FenceRoundTrip(benchmark::State &state) {
   dev->destroyFence(fence);
 }
 BENCHMARK(BM_FenceRoundTrip);
-
-/** Vulkan: create a small image with its memory and destroy it, with the
- *  frame advance that actually releases it. */
-void BM_Vulkan_CreateDestroyTexture(benchmark::State &state) {
-  std::string why;
-  GpuDevice *dev = vulkanDevice(&why);
-  if (!dev) {
-    state.SkipWithMessage("no Vulkan device: " + why);
-    return;
-  }
-  TextureDesc desc;
-  desc.width = 64;
-  desc.height = 64;
-  for ([[maybe_unused]] auto iteration : state) {
-    const TextureHandle handle = dev->createTexture(desc);
-    dev->destroy(handle);
-    dev->beginFrame();
-  }
-  state.SetItemsProcessed(state.iterations());
-}
-BENCHMARK(BM_Vulkan_CreateDestroyTexture);
-
-/** Vulkan: import a VkImage borrowed, export it, destroy and retire. */
-void BM_Vulkan_ImportExportRetire(benchmark::State &state) {
-  std::string why;
-  GpuDevice *dev = vulkanDevice(&why);
-  if (!dev) {
-    state.SkipWithMessage("no Vulkan device: " + why);
-    return;
-  }
-  TextureDesc desc;
-  desc.width = 64;
-  desc.height = 64;
-  const TextureHandle original = dev->createTexture(desc);
-  const NativeTexture native = dev->exportNative(original);
-  for ([[maybe_unused]] auto iteration : state) {
-    const TextureHandle handle = dev->importNative(native);
-    benchmark::DoNotOptimize(dev->exportNative(handle).vkImage);
-    dev->destroy(handle);
-    dev->beginFrame();
-  }
-  state.SetItemsProcessed(state.iterations());
-  dev->destroy(original);
-}
-BENCHMARK(BM_Vulkan_ImportExportRetire);
-
-/** Vulkan: signal a timeline semaphore from the queue and wait on the
- *  CPU. */
-void BM_Vulkan_FenceRoundTrip(benchmark::State &state) {
-  std::string why;
-  GpuDevice *dev = vulkanDevice(&why);
-  if (!dev) {
-    state.SkipWithMessage("no Vulkan device: " + why);
-    return;
-  }
-  const FenceHandle fence = dev->createFence();
-  for ([[maybe_unused]] auto iteration : state) {
-    const FenceValue value = dev->signal(fence);
-    if (dev->waitCpu(fence, value) != FenceWait::Reached) {
-      state.SkipWithError("fence did not signal");
-      break;
-    }
-  }
-  state.SetItemsProcessed(state.iterations());
-  dev->destroyFence(fence);
-}
-BENCHMARK(BM_Vulkan_FenceRoundTrip);
 
 }  // namespace
 

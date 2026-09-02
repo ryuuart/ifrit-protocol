@@ -120,7 +120,7 @@ TEST(ComposeTexture, ADeviceTakesTheSceneAndSaysWhereItStands) {
   namespace skia = sigil::skia;
   std::string error;
   const std::unique_ptr<core::hardware::GpuDevice> device =
-      core::hardware::GpuDevice::createOwned(core::hardware::Backend::Metal, &error);
+      core::hardware::GpuDevice::createOwned(&error);
   if (!device) GTEST_SKIP() << error;
   const std::unique_ptr<skia::GraphiteContext> context =
       skia::GraphiteContext::create(*device);

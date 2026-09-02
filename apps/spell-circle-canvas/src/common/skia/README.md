@@ -52,7 +52,7 @@ std::unique_ptr<sigil::skia::GraphiteContext> graphite =
     sigil::skia::GraphiteContext::createMetal(device, queue);
 
 // …or from Vulkan handles, every one an opaque value:
-sigil::skia::VulkanHandles handles;
+sigil::core::hardware::VulkanHandles handles;
 handles.instance = instance;
 handles.physicalDevice = physicalDevice;
 handles.device = device;
@@ -146,9 +146,10 @@ one factory and one wrapping constructor each, both Qt-free, both in the
 graphite feature. The Metal translation units exist on Apple alone; the
 Vulkan ones compile on every platform and are live only where the linked
 Skia carries the backend (`SK_VULKAN`) — elsewhere the factory returns
-null and the wrap leaves `canvas()` null. The Vulkan path has no host
-that exercises it yet: it builds, and the first consumer with a Vulkan
-device is its test.
+null and the wrap leaves `canvas()` null. Its consumer is the renderer
+that creates the Vulkan device: SigilGeometry's `device` feature adopts
+what Diligent made and stands Graphite on it, and its test is where the
+Vulkan arms of this one live.
 
 **The Qt adapter serves one API per build.** `createGraphiteContext(QRhi
 *)` unwraps Metal handles on Apple and Vulkan handles elsewhere, and
@@ -266,9 +267,9 @@ read back through the queue the context shares. It then takes the same
 wrap through a device — a texture the device made, the surface built
 from its handle, a stale handle that wraps nothing, a fence the submit
 signals, and the factory that reads a device the host adopted — on
-Metal, and again on Vulkan where a runtime is installed. The half-float
-read is checked there too, since its whole reason is a sampler that
-refuses F32. The benchmark weighs the handle wrap against the native one
+Metal. The same wrap on a Vulkan device is `geometry_device_test`'s,
+since that is where a Vulkan device is made. The half-float read is
+checked here, since its whole reason is a sampler that refuses F32. The benchmark weighs the handle wrap against the native one
 on the same texture. The Qt adapters and the products are exercised
 through `compose_gpu_test`, `scry_gpu_test` and the applications.
 

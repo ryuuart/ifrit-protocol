@@ -347,8 +347,8 @@ handle rather than holding the API's objects:
 #include <sigilcore/hardware/GpuDevice.h>
 using namespace sigil::core::hardware;
 
-// The system default device and a fresh queue — or adopt a host's:
-std::unique_ptr<GpuDevice> device = GpuDevice::createOwned(Backend::Metal);
+// The platform's own device and a fresh queue — or adopt a host's:
+std::unique_ptr<GpuDevice> device = GpuDevice::createOwned();
 // NativeDevice native{Backend::Metal, mtlDevice, mtlCommandQueue};
 // device = GpuDevice::adopt(native);      // never frees them
 
@@ -387,20 +387,26 @@ level 0. `exportNative` reports what the texture actually got.
 
 ### Adopting a device an engine created
 
-Some 3D engines create the Vulkan device themselves and cannot attach to
-one that already exists. There the device is theirs and everything else
-joins it, rather than the other way round. What `adopt` wants is exactly
-what such an engine exposes: instance, physical device, device, queue and
-queue family, the API version, and the `vkGetInstanceProcAddr` the loader
-already in the process hands out. Three conditions come with it:
+**A VULKAN DEVICE IS ONLY EVER ADOPTED.** 3D engines create the Vulkan
+device themselves and cannot attach to one that already exists, so
+whoever owns the API in a process makes it and everything else joins it,
+rather than the other way round — and a second instance here would mean
+two loaders, two queues and a copy between them. `createOwned` therefore
+makes the platform's own device (Metal on Apple) and nothing else.
+
+What `adopt` wants is exactly what such an engine exposes: instance,
+physical device, device, queue and queue family, the API version, and the
+`vkGetInstanceProcAddr` the loader already in the process hands out.
+Three conditions come with it:
 
 - **Timeline semaphores must be enabled on that device.** A fence here is
   one, and a device created without them cannot make one. Ask the engine
   for the feature before it creates the device — Diligent spells it
   `NativeFence` — because it cannot be turned on afterwards.
-- **The loader should be the engine's.** Leaving `getInstanceProcAddr`
-  null is legal and this library finds a loader itself, but then the two
-  APIs dispatch through separately opened copies of it.
+- **The loader must be the engine's.** An adoption with no
+  `getInstanceProcAddr` is refused: opening the same library a second
+  time would work, but then the two APIs dispatch through separately
+  opened copies of it and "one device" stops meaning anything.
 - **The queue is now shared, and sharing has a rule.** Every submission
   goes into the one queue in submission order — that is what lets a
   submit be asynchronous and still correct — but only while the streams
@@ -451,16 +457,17 @@ belongs to the one thread that counts frames. A device from
 
 | | Metal | Vulkan |
 |---|---|---|
-| `createOwned` | the system default device and a fresh queue | the loader (platform search, or `SIGIL_VULKAN_LIBRARY`), an instance with portability enumeration where offered, the first physical device with a graphics queue, a device with timeline semaphores enabled and the portability subset where required, that queue |
-| `adopt` | `mtlDevice` + `mtlCommandQueue` | instance, physical device, device, queue and family index; `getInstanceProcAddr` optional (the loader is found otherwise); the device must have timeline semaphores enabled |
+| `createOwned` | the system default device and a fresh queue | — a Vulkan device is only ever adopted |
+| `adopt` | `mtlDevice` + `mtlCommandQueue` | instance, physical device, device, queue and family index, and the host's own `getInstanceProcAddr`; the device must have timeline semaphores enabled |
 | texture | `id<MTLTexture>`; `cpuAccessible` is shared storage | `VkImage` + `VkDeviceMemory`, optimal tiling, sampled, colour-attachment, input-attachment and transfer usage (+ storage for `ShaderWrite`) — input attachment because a 2D backend reads a render target back through one; `cpuAccessible` prefers host-visible coherent memory and falls back to device-local; formats map to `R8G8B8A8_UNORM`, `B8G8R8A8_UNORM`, `R16G16B16A16_SFLOAT` |
 | import with ownership | retains the texture | destroys the `VkImage` and frees `vkMemory` when given |
 | fence | `MTLSharedEvent` | timeline `VkSemaphore`; `waitCpu` is `vkWaitSemaphores`, queue signal and wait are empty submissions |
-| loading | the framework | every entry point resolved from `vkGetInstanceProcAddr` at run time; nothing links Vulkan, and a machine without a loader or driver gets the reason from `createOwned` |
+| loading | the framework | every entry point resolved from the host's own `vkGetInstanceProcAddr` at run time; nothing links Vulkan |
 
-Without a Vulkan runtime, `createOwned(Backend::Vulkan)` returns null and
-names the reason; on macOS the runtime is `brew install molten-vk
-vulkan-loader`, and the tests on that backend skip with the same message.
+The Vulkan arms of this feature are therefore exercised where a Vulkan
+device is made: `geometry_device_test`, beside the feature that creates
+one. They skip, naming why, on a machine with no Vulkan runtime (on
+macOS: `brew install molten-vk vulkan-loader`).
 
 ## What belongs here
 
@@ -572,8 +579,8 @@ the two binaries cannot disagree about what they are exercising.
 Apple alone: it proves the handles go stale and a reused slot rejects the
 old name, that destruction retires at frame + 3, that a texture
 round-trips through import and export, that a mip chain is as deep as the
-size allows, and that a fence signals and holds — on Metal, and again on
-Vulkan where a runtime is installed, each Vulkan arm skipping with its
-reason when there is none. `core_hardware_bench` (`hardware/bench/`) is
-its benchmark, through the `benches` target and
+size allows, and that a fence signals and holds. The same questions on
+the Vulkan backend are asked in `geometry_device_test`, since that is
+where a Vulkan device exists to ask them of. `core_hardware_bench`
+(`hardware/bench/`) is the benchmark, through the `benches` target and
 `scripts/bench_ledger.py`.

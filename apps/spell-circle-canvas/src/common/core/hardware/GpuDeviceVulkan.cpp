@@ -1,11 +1,16 @@
 // The Vulkan backend of GpuDevice: images as VkImage with their memory,
 // fences as timeline semaphores, both signalled and waited on through
 // the device's one queue. Every entry point is resolved at run time from
-// the loader — found through the platform's library search, or the
-// host's own vkGetInstanceProcAddr for an adopted device — so the
-// library links no Vulkan and a machine without a driver simply reports
-// that. Compiles everywhere; the Vulkan headers are the only build-time
-// need.
+// the host's own vkGetInstanceProcAddr, so the library links no Vulkan
+// and a machine without a driver simply reports that. Compiles
+// everywhere; the Vulkan headers are the only build-time need.
+//
+// A VULKAN DEVICE IS ONLY EVER ADOPTED HERE. Whoever owns the Vulkan API
+// in a process creates the device — a renderer that cannot attach to one
+// someone else made has no choice about that — and hands over instance,
+// physical device, device, queue and its own loader entry point. Two
+// instances in one process would mean two loaders, two queues and a copy
+// between them, which is exactly what adopting exists to avoid.
 
 #define VK_NO_PROTOTYPES
 #include <vulkan/vulkan_core.h>
@@ -20,106 +25,19 @@
 
 #include "DeviceBackend.h"
 
-#if defined(_WIN32)
-#include <windows.h>
-#else
-#include <dlfcn.h>
-#endif
-
 namespace sigil::core::hardware {
 
 namespace {
 
-// ---------------------------------------------------------------------------
-// The loader: the few entry points this backend needs, resolved through
-// vkGetInstanceProcAddr and, for device-level calls, vkGetDeviceProcAddr.
-
 using GetInstanceProcAddr = VulkanHandles::GetInstanceProcAddr;
-
-/** Opens the Vulkan loader library and hands back its
- *  vkGetInstanceProcAddr; null with a reason when none is found. */
-GetInstanceProcAddr openLoader(std::string* error) {
-  static GetInstanceProcAddr cached = nullptr;
-  if (cached) return cached;
-  const char* candidates[] = {
-      std::getenv("SIGIL_VULKAN_LIBRARY"),
-#if defined(_WIN32)
-      "vulkan-1.dll",
-#elif defined(__APPLE__)
-      "libvulkan.dylib",
-      "libvulkan.1.dylib",
-      "/opt/homebrew/lib/libvulkan.dylib",
-      "/opt/homebrew/lib/libvulkan.1.dylib",
-      "/usr/local/lib/libvulkan.dylib",
-      "/opt/homebrew/lib/libMoltenVK.dylib",
-      "/usr/local/lib/libMoltenVK.dylib",
-      "libMoltenVK.dylib",
-#else
-      "libvulkan.so.1",
-      "libvulkan.so",
-#endif
-  };
-  for (const char* candidate : candidates) {
-    if (!candidate) continue;
-#if defined(_WIN32)
-    HMODULE module = LoadLibraryA(candidate);
-    if (!module) continue;
-    auto proc = reinterpret_cast<GetInstanceProcAddr>(
-        GetProcAddress(module, "vkGetInstanceProcAddr"));
-#else
-    // The first candidate is an environment variable on purpose: naming
-    // the loader is how a machine with a Vulkan runtime somewhere else is
-    // told where it is. Whoever sets it already runs this process.
-    // NOLINTNEXTLINE(clang-analyzer-optin.taint.GenericTaint)
-    void* module = dlopen(candidate, RTLD_NOW | RTLD_LOCAL);
-    if (!module) continue;
-    auto proc = reinterpret_cast<GetInstanceProcAddr>(
-        dlsym(module, "vkGetInstanceProcAddr"));
-#endif
-    if (!proc) continue;
-#if defined(__APPLE__)
-    // The Homebrew loader discovers the MoltenVK driver through its own
-    // sysconfdir; a process running with a stripped environment is told
-    // where that is. A caller's own configuration is never overridden.
-    setenv("VK_DRIVER_FILES",
-           "/opt/homebrew/etc/vulkan/icd.d/MoltenVK_icd.json",
-           /*overwrite=*/0);
-    setenv("VK_ICD_FILENAMES",
-           "/opt/homebrew/etc/vulkan/icd.d/MoltenVK_icd.json",
-           /*overwrite=*/0);
-#endif
-    cached = proc;
-    return cached;
-  }
-  if (error)
-    *error =
-        "no Vulkan loader library (on macOS: brew install molten-vk "
-        "vulkan-loader; or point SIGIL_VULKAN_LIBRARY at one)";
-  return nullptr;
-}
 
 /** Every Vulkan call the backend makes, as resolved function pointers. */
 struct Api {
   GetInstanceProcAddr getInstanceProcAddr = nullptr;
   PFN_vkGetDeviceProcAddr getDeviceProcAddr = nullptr;
-  // Global.
-  PFN_vkCreateInstance createInstance = nullptr;
-  PFN_vkEnumerateInstanceExtensionProperties enumerateInstanceExtensions =
-      nullptr;
   // Instance.
-  PFN_vkDestroyInstance destroyInstance = nullptr;
-  PFN_vkEnumeratePhysicalDevices enumeratePhysicalDevices = nullptr;
-  PFN_vkGetPhysicalDeviceQueueFamilyProperties getQueueFamilyProperties =
-      nullptr;
   PFN_vkGetPhysicalDeviceMemoryProperties getMemoryProperties = nullptr;
-  PFN_vkGetPhysicalDeviceProperties getPhysicalDeviceProperties = nullptr;
-  PFN_vkGetPhysicalDeviceFeatures2 getPhysicalDeviceFeatures2 = nullptr;
-  PFN_vkEnumerateDeviceExtensionProperties enumerateDeviceExtensions = nullptr;
-  PFN_vkCreateDevice createDevice = nullptr;
   // Device.
-  PFN_vkDestroyDevice destroyDevice = nullptr;
-  PFN_vkGetDeviceQueue getDeviceQueue = nullptr;
-  PFN_vkDeviceWaitIdle deviceWaitIdle = nullptr;
   PFN_vkQueueSubmit queueSubmit = nullptr;
   PFN_vkCreateImage createImage = nullptr;
   PFN_vkDestroyImage destroyImage = nullptr;
@@ -138,46 +56,20 @@ struct Api {
     return reinterpret_cast<Fn>(gipa(instance, name));
   }
 
-  bool loadGlobal(GetInstanceProcAddr gipa) {
-    getInstanceProcAddr = gipa;
-    createInstance =
-        instanceProc<PFN_vkCreateInstance>(gipa, nullptr, "vkCreateInstance");
-    enumerateInstanceExtensions =
-        instanceProc<PFN_vkEnumerateInstanceExtensionProperties>(
-            gipa, nullptr, "vkEnumerateInstanceExtensionProperties");
-    return createInstance != nullptr;
-  }
-
   bool loadInstance(VkInstance instance) {
     auto gipa = getInstanceProcAddr;
 #define SIGIL_VK_INSTANCE(field, name) \
   field = instanceProc<decltype(field)>(gipa, instance, name)
     SIGIL_VK_INSTANCE(getDeviceProcAddr, "vkGetDeviceProcAddr");
-    SIGIL_VK_INSTANCE(destroyInstance, "vkDestroyInstance");
-    SIGIL_VK_INSTANCE(enumeratePhysicalDevices,
-                          "vkEnumeratePhysicalDevices");
-    SIGIL_VK_INSTANCE(getQueueFamilyProperties,
-                          "vkGetPhysicalDeviceQueueFamilyProperties");
     SIGIL_VK_INSTANCE(getMemoryProperties,
                           "vkGetPhysicalDeviceMemoryProperties");
-    SIGIL_VK_INSTANCE(getPhysicalDeviceProperties,
-                          "vkGetPhysicalDeviceProperties");
-    SIGIL_VK_INSTANCE(getPhysicalDeviceFeatures2,
-                          "vkGetPhysicalDeviceFeatures2");
-    SIGIL_VK_INSTANCE(enumerateDeviceExtensions,
-                          "vkEnumerateDeviceExtensionProperties");
-    SIGIL_VK_INSTANCE(createDevice, "vkCreateDevice");
 #undef SIGIL_VK_INSTANCE
-    return getDeviceProcAddr && enumeratePhysicalDevices &&
-           getQueueFamilyProperties && getMemoryProperties && createDevice;
+    return getDeviceProcAddr && getMemoryProperties;
   }
 
   bool loadDevice(VkDevice device) {
 #define SIGIL_VK_DEVICE(field, name) \
   field = reinterpret_cast<decltype(field)>(getDeviceProcAddr(device, name))
-    SIGIL_VK_DEVICE(destroyDevice, "vkDestroyDevice");
-    SIGIL_VK_DEVICE(getDeviceQueue, "vkGetDeviceQueue");
-    SIGIL_VK_DEVICE(deviceWaitIdle, "vkDeviceWaitIdle");
     SIGIL_VK_DEVICE(queueSubmit, "vkQueueSubmit");
     SIGIL_VK_DEVICE(createImage, "vkCreateImage");
     SIGIL_VK_DEVICE(destroyImage, "vkDestroyImage");
@@ -226,13 +118,6 @@ VkImageUsageFlags toVulkan(TextureUsage usage) {
   return flags;
 }
 
-bool hasExtension(const std::vector<VkExtensionProperties>& available,
-                  const char* name) {
-  for (const VkExtensionProperties& extension : available)
-    if (std::strcmp(extension.extensionName, name) == 0) return true;
-  return false;
-}
-
 template <typename T>
 uint64_t toHandle(T object) {
   return static_cast<uint64_t>(reinterpret_cast<uintptr_t>(object));
@@ -250,19 +135,14 @@ T fromHandle(uint64_t value) {
 
 class VulkanBackend final : public GpuDevice::Backend_ {
  public:
-  VulkanBackend(Api api, NativeDevice native, bool owned)
-      : m_api(api), m_native(native), m_owned(owned) {
+  VulkanBackend(Api api, NativeDevice native)
+      : m_api(api), m_native(native) {
     m_api.getMemoryProperties(physicalDevice(), &m_memory);
   }
 
-  ~VulkanBackend() override {
-    if (!m_owned) return;
-    // Everything the device still references has been released by the
-    // owner; the queue is drained before the objects under it go.
-    if (m_api.deviceWaitIdle) m_api.deviceWaitIdle(device());
-    if (m_api.destroyDevice) m_api.destroyDevice(device(), nullptr);
-    if (m_api.destroyInstance) m_api.destroyInstance(instance(), nullptr);
-  }
+  // Nothing is torn down: every Vulkan object behind an adopted device
+  // is the host's, and it outlives this.
+  ~VulkanBackend() override = default;
 
   const NativeDevice& native() const override { return m_native; }
 
@@ -441,191 +321,42 @@ class VulkanBackend final : public GpuDevice::Backend_ {
 
   Api m_api;
   NativeDevice m_native;
-  bool m_owned;
   VkPhysicalDeviceMemoryProperties m_memory{};
 };
-
-/** Instance, physical device, device and queue of this library's own. */
-bool createOwnedHandles(Api& api, NativeDevice& native, std::string* error) {
-  // Instance: 1.2 for timeline semaphores in core, and on Apple the
-  // portability enumeration that lets MoltenVK show up at all.
-  std::vector<const char*> instanceExtensions;
-  VkInstanceCreateFlags instanceFlags = 0;
-  if (api.enumerateInstanceExtensions) {
-    uint32_t count = 0;
-    api.enumerateInstanceExtensions(nullptr, &count, nullptr);
-    std::vector<VkExtensionProperties> available(count);
-    api.enumerateInstanceExtensions(nullptr, &count, available.data());
-    if (hasExtension(available, "VK_KHR_portability_enumeration")) {
-      instanceExtensions.push_back("VK_KHR_portability_enumeration");
-      instanceFlags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
-    }
-    if (hasExtension(available, "VK_KHR_get_physical_device_properties2"))
-      instanceExtensions.push_back("VK_KHR_get_physical_device_properties2");
-  }
-  VkApplicationInfo application{};
-  application.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-  application.pApplicationName = "SigilSkia";
-  application.apiVersion = VK_API_VERSION_1_2;
-  VkInstanceCreateInfo instanceInfo{};
-  instanceInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-  instanceInfo.flags = instanceFlags;
-  instanceInfo.pApplicationInfo = &application;
-  instanceInfo.enabledExtensionCount =
-      static_cast<uint32_t>(instanceExtensions.size());
-  instanceInfo.ppEnabledExtensionNames = instanceExtensions.data();
-  VkInstance instance = VK_NULL_HANDLE;
-  if (api.createInstance(&instanceInfo, nullptr, &instance) != VK_SUCCESS) {
-    if (error) *error = "vkCreateInstance failed (no Vulkan driver?)";
-    return false;
-  }
-  if (!api.loadInstance(instance)) {
-    if (error) *error = "the loader lacks instance entry points";
-    return false;
-  }
-
-  // The first physical device with a graphics queue.
-  uint32_t deviceCount = 0;
-  api.enumeratePhysicalDevices(instance, &deviceCount, nullptr);
-  std::vector<VkPhysicalDevice> devices(deviceCount);
-  api.enumeratePhysicalDevices(instance, &deviceCount, devices.data());
-  VkPhysicalDevice physical = VK_NULL_HANDLE;
-  uint32_t family = 0;
-  for (VkPhysicalDevice candidate : devices) {
-    uint32_t familyCount = 0;
-    api.getQueueFamilyProperties(candidate, &familyCount, nullptr);
-    std::vector<VkQueueFamilyProperties> families(familyCount);
-    api.getQueueFamilyProperties(candidate, &familyCount, families.data());
-    for (uint32_t i = 0; i < familyCount; ++i) {
-      if (families[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
-        physical = candidate;
-        family = i;
-        break;
-      }
-    }
-    if (physical) break;
-  }
-  if (!physical) {
-    if (error) *error = "no Vulkan physical device with a graphics queue";
-    api.destroyInstance(instance, nullptr);
-    return false;
-  }
-
-  // The device: timeline semaphores are what fences are built on, so a
-  // driver without them is refused; the portability subset is enabled
-  // where the driver requires it (MoltenVK).
-  VkPhysicalDeviceVulkan12Features features12{};
-  features12.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
-  VkPhysicalDeviceFeatures2 features{};
-  features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
-  features.pNext = &features12;
-  if (api.getPhysicalDeviceFeatures2)
-    api.getPhysicalDeviceFeatures2(physical, &features);
-  if (!features12.timelineSemaphore) {
-    if (error) *error = "the Vulkan device has no timeline semaphores";
-    api.destroyInstance(instance, nullptr);
-    return false;
-  }
-  VkPhysicalDeviceVulkan12Features enable12{};
-  enable12.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
-  enable12.timelineSemaphore = VK_TRUE;
-  VkPhysicalDeviceFeatures2 enable{};
-  enable.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
-  enable.pNext = &enable12;
-
-  std::vector<const char*> deviceExtensions;
-  if (api.enumerateDeviceExtensions) {
-    uint32_t count = 0;
-    api.enumerateDeviceExtensions(physical, nullptr, &count, nullptr);
-    std::vector<VkExtensionProperties> available(count);
-    api.enumerateDeviceExtensions(physical, nullptr, &count, available.data());
-    if (hasExtension(available, "VK_KHR_portability_subset"))
-      deviceExtensions.push_back("VK_KHR_portability_subset");
-  }
-  const float priority = 1.0f;
-  VkDeviceQueueCreateInfo queueInfo{};
-  queueInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-  queueInfo.queueFamilyIndex = family;
-  queueInfo.queueCount = 1;
-  queueInfo.pQueuePriorities = &priority;
-  VkDeviceCreateInfo deviceInfo{};
-  deviceInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-  deviceInfo.pNext = &enable;
-  deviceInfo.queueCreateInfoCount = 1;
-  deviceInfo.pQueueCreateInfos = &queueInfo;
-  deviceInfo.enabledExtensionCount =
-      static_cast<uint32_t>(deviceExtensions.size());
-  deviceInfo.ppEnabledExtensionNames = deviceExtensions.data();
-  VkDevice device = VK_NULL_HANDLE;
-  if (api.createDevice(physical, &deviceInfo, nullptr, &device) != VK_SUCCESS) {
-    if (error) *error = "vkCreateDevice failed";
-    api.destroyInstance(instance, nullptr);
-    return false;
-  }
-  if (!api.loadDevice(device)) {
-    if (error) *error = "the loader lacks device entry points";
-    api.destroyInstance(instance, nullptr);
-    return false;
-  }
-  VkQueue queue = VK_NULL_HANDLE;
-  api.getDeviceQueue(device, family, 0, &queue);
-
-  VkPhysicalDeviceProperties properties{};
-  if (api.getPhysicalDeviceProperties)
-    api.getPhysicalDeviceProperties(physical, &properties);
-
-  native.vulkan.instance = instance;
-  native.vulkan.physicalDevice = physical;
-  native.vulkan.device = device;
-  native.vulkan.queue = queue;
-  native.vulkan.queueFamilyIndex = family;
-  native.vulkan.apiVersion =
-      properties.apiVersion
-          ? std::min(properties.apiVersion,
-                     static_cast<uint32_t>(VK_API_VERSION_1_2))
-          : VK_API_VERSION_1_2;
-  native.vulkan.getInstanceProcAddr = api.getInstanceProcAddr;
-  return true;
-}
 
 }  // namespace
 
 std::unique_ptr<GpuDevice::Backend_> createVulkanBackend(
-    const NativeDevice& native, bool owned, std::string* error) {
+    const NativeDevice& native, std::string* error) {
   NativeDevice resolved = native;
   resolved.backend = Backend::Vulkan;
-  Api api;
-  if (owned) {
-    GetInstanceProcAddr gipa = openLoader(error);
-    if (!gipa || !api.loadGlobal(gipa)) {
-      if (error && error->empty()) *error = "the loader lacks vkCreateInstance";
-      return nullptr;
-    }
-    if (!createOwnedHandles(api, resolved, error)) return nullptr;
-  } else {
-    const VulkanHandles& handles = native.vulkan;
-    if (!handles.instance || !handles.physicalDevice || !handles.device ||
-        !handles.queue) {
-      if (error)
-        *error =
-            "a Vulkan instance, physical device, device and queue are all "
-            "required";
-      return nullptr;
-    }
-    GetInstanceProcAddr gipa = handles.getInstanceProcAddr;
-    if (!gipa) gipa = openLoader(error);
-    if (!gipa) return nullptr;
-    api.loadGlobal(gipa);
-    if (!api.loadInstance(static_cast<VkInstance>(handles.instance)) ||
-        !api.loadDevice(static_cast<VkDevice>(handles.device))) {
-      if (error) *error = "the loader lacks the entry points this device needs";
-      return nullptr;
-    }
-    resolved.vulkan.getInstanceProcAddr = gipa;
-    if (!resolved.vulkan.apiVersion)
-      resolved.vulkan.apiVersion = VK_API_VERSION_1_2;
+  const VulkanHandles& handles = native.vulkan;
+  if (!handles.instance || !handles.physicalDevice || !handles.device ||
+      !handles.queue) {
+    if (error)
+      *error =
+          "a Vulkan instance, physical device, device and queue are all "
+          "required";
+    return nullptr;
   }
-  return std::make_unique<VulkanBackend>(api, resolved, owned);
+  // The HOST'S loader, always: it already opened one, and dispatching
+  // through a second copy of the same library is what makes two APIs
+  // stop being one device.
+  if (!handles.getInstanceProcAddr) {
+    if (error)
+      *error = "a Vulkan device is adopted with the loader that made it";
+    return nullptr;
+  }
+  Api api;
+  api.getInstanceProcAddr = handles.getInstanceProcAddr;
+  if (!api.loadInstance(static_cast<VkInstance>(handles.instance)) ||
+      !api.loadDevice(static_cast<VkDevice>(handles.device))) {
+    if (error) *error = "the loader lacks the entry points this device needs";
+    return nullptr;
+  }
+  if (!resolved.vulkan.apiVersion)
+    resolved.vulkan.apiVersion = VK_API_VERSION_1_2;
+  return std::make_unique<VulkanBackend>(api, resolved);
 }
 
 }  // namespace sigil::core::hardware

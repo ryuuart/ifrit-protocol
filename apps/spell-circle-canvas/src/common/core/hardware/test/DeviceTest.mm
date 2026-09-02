@@ -73,7 +73,7 @@ TEST(SigilCoreHardwareHandle, DrainStalesEveryHandle) {
 }
 
 TEST(SigilCoreHardware, OwnedMetalDeviceHasAQueue) {
-  auto device = GpuDevice::createOwned(Backend::Metal);
+  auto device = GpuDevice::createOwned();
   ASSERT_NE(device, nullptr) << "no Metal device";
   EXPECT_EQ(device->backend(), Backend::Metal);
   EXPECT_NE(device->native().mtlDevice, nullptr);
@@ -97,7 +97,7 @@ TEST(SigilCoreHardware, AdoptNeedsBothHandles) {
 }
 
 TEST(SigilCoreHardware, DestroyedHandleIsStaleAtOnce) {
-  auto device = GpuDevice::createOwned(Backend::Metal);
+  auto device = GpuDevice::createOwned();
   ASSERT_NE(device, nullptr);
   const TextureHandle texture = device->createTexture(smallTexture());
   ASSERT_TRUE(device->isValid(texture));
@@ -115,7 +115,7 @@ TEST(SigilCoreHardware, DestroyedHandleIsStaleAtOnce) {
 }
 
 TEST(SigilCoreHardware, DestroyRetiresAtFramePlusThree) {
-  auto device = GpuDevice::createOwned(Backend::Metal);
+  auto device = GpuDevice::createOwned();
   ASSERT_NE(device, nullptr);
   device->beginFrame();
   device->beginFrame();
@@ -140,7 +140,7 @@ TEST(SigilCoreHardware, DestroyRetiresAtFramePlusThree) {
 }
 
 TEST(SigilCoreHardware, ImportExportRoundTrip) {
-  auto device = GpuDevice::createOwned(Backend::Metal);
+  auto device = GpuDevice::createOwned();
   ASSERT_NE(device, nullptr);
   id<MTLDevice> mtl = (id<MTLDevice>)device->native().mtlDevice;
   MTLTextureDescriptor *desc =
@@ -191,7 +191,7 @@ TEST(SigilCoreHardware, ImportExportRoundTrip) {
 }
 
 TEST(SigilCoreHardware, FenceSignalsAndWaits) {
-  auto device = GpuDevice::createOwned(Backend::Metal);
+  auto device = GpuDevice::createOwned();
   ASSERT_NE(device, nullptr);
   const FenceHandle fence = device->createFence();
   ASSERT_TRUE(device->isValid(fence));
@@ -239,62 +239,6 @@ TEST(SigilCoreHardware, FenceSignalsAndWaits) {
   EXPECT_EQ(device->signal(fence), kFenceInitialValue);
   EXPECT_EQ(device->waitCpu(fence, 1), FenceWait::Invalid);
 }
-// ---------------------------------------------------------------------------
-// The Vulkan backend. Every arm skips, naming why, on a machine without a
-// Vulkan loader and driver (on macOS: brew install molten-vk vulkan-loader).
-
-namespace {
-
-/** A Vulkan device this process owns, or the reason there is none. */
-GpuDevice *vulkanDevice(std::string *why) {
-  static std::string error;
-  static std::unique_ptr<GpuDevice> device = GpuDevice::createOwned(Backend::Vulkan, &error);
-  if (why) *why = error;
-  return device.get();
-}
-
-// `var` names the variable the macro declares, and a declarator cannot
-// be parenthesised; every caller passes a plain identifier.
-// NOLINTBEGIN(bugprone-macro-parentheses)
-#define SIGIL_NEED_VULKAN(var)             \
-  std::string vulkanError;                     \
-  GpuDevice *var = vulkanDevice(&vulkanError); \
-  if (!(var)) GTEST_SKIP() << "no Vulkan device: " << vulkanError
-// NOLINTEND(bugprone-macro-parentheses)
-
-}  // namespace
-
-TEST(SigilCoreHardwareVulkan, OwnedDeviceHasEveryHandle) {
-  SIGIL_NEED_VULKAN(device);
-  EXPECT_EQ(device->backend(), Backend::Vulkan);
-  const VulkanHandles &handles = device->native().vulkan;
-  EXPECT_NE(handles.instance, nullptr);
-  EXPECT_NE(handles.physicalDevice, nullptr);
-  EXPECT_NE(handles.device, nullptr);
-  EXPECT_NE(handles.queue, nullptr);
-  EXPECT_NE(handles.getInstanceProcAddr, nullptr);
-  EXPECT_NE(handles.apiVersion, 0u);
-}
-
-TEST(SigilCoreHardwareVulkan, AdoptsItsOwnHandles) {
-  SIGIL_NEED_VULKAN(owned);
-  // The owned device's handles, adopted by a second device object that
-  // never frees them: both name textures on one VkDevice.
-  std::string error;
-  auto adopted = GpuDevice::adopt(owned->native(), &error);
-  ASSERT_NE(adopted, nullptr) << error;
-  EXPECT_EQ(adopted->native().vulkan.device, owned->native().vulkan.device);
-  TextureDesc desc = smallTexture();
-  const TextureHandle texture = adopted->createTexture(desc);
-  ASSERT_TRUE(adopted->isValid(texture));
-  const NativeTexture native = adopted->exportNative(texture);
-  EXPECT_EQ(native.backend, Backend::Vulkan);
-  EXPECT_NE(native.vkImage, 0u);
-  EXPECT_NE(native.vkMemory, 0u);
-  adopted->destroy(texture);
-  adopted.reset();  // releases what it still holds; the VkDevice stays
-  EXPECT_NE(owned->native().vulkan.device, nullptr);
-}
 
 TEST(SigilCoreHardware, AMipChainIsAsDeepAsTheSizeAllows) {
   // The rule has no backend in it, so it is checked without one.
@@ -307,7 +251,7 @@ TEST(SigilCoreHardware, AMipChainIsAsDeepAsTheSizeAllows) {
 }
 
 TEST(SigilCoreHardware, MetalTextureCarriesTheLevelsItWasAskedFor) {
-  std::unique_ptr<GpuDevice> device = GpuDevice::createOwned(Backend::Metal);
+  std::unique_ptr<GpuDevice> device = GpuDevice::createOwned();
   ASSERT_TRUE(device);
   TextureDesc desc = smallTexture();
   desc.width = 256;
@@ -330,97 +274,4 @@ TEST(SigilCoreHardware, MetalTextureCarriesTheLevelsItWasAskedFor) {
   const TextureHandle flat = device->createTexture(desc);
   EXPECT_EQ(device->exportNative(flat).mipLevels, 1);
   device->destroy(flat);
-}
-TEST(SigilCoreHardwareVulkan, TextureFormatsMapAndRetire) {
-  SIGIL_NEED_VULKAN(device);
-  const TextureFormat formats[] = {TextureFormat::RGBA8Unorm, TextureFormat::BGRA8Unorm,
-                                   TextureFormat::RGBA16Float};
-  const uint32_t expected[] = {37 /*R8G8B8A8_UNORM*/, 44 /*B8G8R8A8_UNORM*/,
-                               97 /*R16G16B16A16_SFLOAT*/};
-  for (int i = 0; i < 3; ++i) {
-    TextureDesc desc = smallTexture();
-    desc.format = formats[i];
-    const TextureHandle texture = device->createTexture(desc);
-    ASSERT_TRUE(device->isValid(texture)) << "format " << i;
-    const NativeTexture native = device->exportNative(texture);
-    EXPECT_EQ(native.vkFormat, expected[i]);
-    EXPECT_EQ(native.width, 8);
-    EXPECT_EQ(native.mipLevels, 1);
-    EXPECT_EQ(native.vkLayout, 0u) << "undefined until drawn";
-    device->destroy(texture);
-    EXPECT_FALSE(device->isValid(texture));
-  }
-  EXPECT_EQ(device->pendingDestroys(), 3u);
-  for (int i = 0; i < 3; ++i) device->beginFrame();
-  EXPECT_EQ(device->pendingDestroys(), 0u);
-
-  TextureDesc cpu = smallTexture();
-  cpu.cpuAccessible = true;
-  const TextureHandle hostVisible = device->createTexture(cpu);
-  EXPECT_TRUE(device->isValid(hostVisible));
-  device->destroy(hostVisible);
-
-  // A prefiltered environment is one image per level, so a Vulkan image
-  // has to be created with the whole chain rather than have one
-  // generated from level 0.
-  TextureDesc chained = smallTexture();
-  chained.width = 256;
-  chained.height = 128;
-  chained.format = TextureFormat::RGBA16Float;
-  chained.mipLevels = 9;
-  const TextureHandle panorama = device->createTexture(chained);
-  ASSERT_TRUE(device->isValid(panorama));
-  EXPECT_EQ(device->exportNative(panorama).mipLevels, 9);
-  device->destroy(panorama);
-}
-
-TEST(SigilCoreHardwareVulkan, ImportExportRoundTrip) {
-  SIGIL_NEED_VULKAN(device);
-  // A device-made image stands in for the host's: exported, imported
-  // borrowed under a second name, exported again unchanged.
-  const TextureHandle original = device->createTexture(smallTexture());
-  const NativeTexture native = device->exportNative(original);
-  ASSERT_TRUE(native);
-  const TextureHandle borrowed = device->importNative(native);
-  ASSERT_TRUE(device->isValid(borrowed));
-  EXPECT_NE(borrowed, original);
-  const NativeTexture again = device->exportNative(borrowed);
-  EXPECT_EQ(again.vkImage, native.vkImage);
-  EXPECT_EQ(again.vkFormat, native.vkFormat);
-  EXPECT_EQ(again.height, native.height);
-  device->destroy(borrowed);  // forgets only; the image stays the original's
-  for (int i = 0; i < 3; ++i) device->beginFrame();
-  EXPECT_TRUE(device->exportNative(original));
-  device->destroy(original);
-
-  NativeTexture metal;
-  metal.backend = Backend::Metal;
-  metal.mtlTexture = &metal;
-  EXPECT_FALSE(device->importNative(metal)) << "another API's texture";
-}
-
-TEST(SigilCoreHardwareVulkan, TimelineFenceSignalsAndWaits) {
-  SIGIL_NEED_VULKAN(device);
-  const FenceHandle fence = device->createFence();
-  ASSERT_TRUE(device->isValid(fence));
-  EXPECT_EQ(device->completedValue(fence), kFenceInitialValue);
-  EXPECT_NE(device->exportNative(fence), nullptr);
-
-  const FenceValue first = device->signal(fence);
-  EXPECT_EQ(first, 1u);
-  EXPECT_EQ(device->waitCpu(fence, first), FenceWait::Reached);
-  EXPECT_GE(device->completedValue(fence), first);
-  EXPECT_EQ(device->waitCpu(fence, first + 1, std::chrono::milliseconds(20)), FenceWait::TimedOut);
-
-  // A wait on the queue for a value already reached holds nothing; the
-  // signal queued after it is reached in turn.
-  device->waitGpu(fence, first);
-  const FenceValue second = device->signal(fence);
-  EXPECT_EQ(second, first + 1);
-  EXPECT_EQ(device->waitCpu(fence, second), FenceWait::Reached);
-
-  device->destroyFence(fence);
-  EXPECT_FALSE(device->isValid(fence));
-  EXPECT_EQ(device->exportNative(fence), nullptr);
-  EXPECT_EQ(device->waitCpu(fence, 1), FenceWait::Invalid);
 }

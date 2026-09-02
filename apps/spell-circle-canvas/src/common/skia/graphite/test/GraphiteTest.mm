@@ -4,8 +4,9 @@
 // context shares, which is the ordering the asynchronous submit relies on.
 // Then the same wrap without naming an API: a GpuDevice over those very
 // objects, a texture it created, the surface built from the handle, and a
-// fence signalled by the submit. The Vulkan arms take that second path on
-// a device of their own and skip when the machine has no Vulkan runtime.
+// fence signalled by the submit. The same three arms on a Vulkan device
+// live beside the feature that creates one — a Vulkan device is only ever
+// adopted, never made here.
 
 #import <Metal/Metal.h>
 
@@ -75,25 +76,6 @@ GpuDevice *adoptedDevice() {
     return GpuDevice::adopt(native);
   }();
   return d.get();
-}
-
-/** A device of this library's own on the Vulkan backend, or null with the
- *  reason — every Vulkan arm skips on that. */
-GpuDevice *vulkanDevice(std::string *why) {
-  static std::string error;
-  static std::unique_ptr<GpuDevice> d = GpuDevice::createOwned(Backend::Vulkan, &error);
-  if (why) *why = error;
-  return d.get();
-}
-
-/** Graphite on that Vulkan device; null when this Skia carries no Vulkan
- *  backend. */
-GraphiteContext *vulkanGraphite() {
-  static std::unique_ptr<GraphiteContext> ctx = [] {
-    GpuDevice *dev = vulkanDevice(nullptr);
-    return dev ? GraphiteContext::create(*dev) : nullptr;
-  }();
-  return ctx.get();
 }
 
 /** An 8x8 BGRA render target the device owns, readable by the CPU so the
@@ -300,52 +282,7 @@ TEST(SigilSkiaGraphite, StaleHandleWrapsNothing) {
   EXPECT_EQ(surface.submit(*dev, FenceHandle{}), kFenceInitialValue);
 }
 
-TEST(SigilSkiaGraphiteVulkan, WrapsATextureNamedByHandle) {
-  std::string why;
-  GpuDevice *dev = vulkanDevice(&why);
-  if (!dev) GTEST_SKIP() << "no Vulkan device: " << why;
-  GraphiteContext *ctx = vulkanGraphite();
-  if (!ctx) GTEST_SKIP() << "this Skia carries no Vulkan backend";
 
-  TextureDesc desc = smallTarget();
-  // Host-visible memory is not what a render target wants on this path;
-  // the pixels come back through Skia rather than a map.
-  desc.cpuAccessible = false;
-  const TextureHandle handle = dev->createTexture(desc);
-  ASSERT_TRUE(dev->isValid(handle));
-  OffscreenSurface surface(*ctx, *dev, handle);
-  ASSERT_NE(surface.canvas(), nullptr);
-  surface.canvas()->clear(SkColorSetARGB(255, 0, 255, 0));
-
-  const SkBitmap pixels = readback(*ctx, surface.surface());
-  ASSERT_FALSE(pixels.empty());
-  EXPECT_EQ(pixels.getColor(0, 0), SkColorSetARGB(255, 0, 255, 0));
-  EXPECT_EQ(pixels.getColor(7, 7), SkColorSetARGB(255, 0, 255, 0));
-  dev->destroy(handle);
-}
-
-TEST(SigilSkiaGraphiteVulkan, SubmitSignalsAFence) {
-  std::string why;
-  GpuDevice *dev = vulkanDevice(&why);
-  if (!dev) GTEST_SKIP() << "no Vulkan device: " << why;
-  GraphiteContext *ctx = vulkanGraphite();
-  if (!ctx) GTEST_SKIP() << "this Skia carries no Vulkan backend";
-
-  TextureDesc desc = smallTarget();
-  desc.cpuAccessible = false;
-  const TextureHandle handle = dev->createTexture(desc);
-  const FenceHandle fence = dev->createFence();
-  OffscreenSurface surface(*ctx, *dev, handle);
-  ASSERT_NE(surface.canvas(), nullptr);
-  surface.canvas()->clear(SkColorSetARGB(255, 0, 0, 255));
-
-  const FenceValue value = surface.submit(*dev, fence);
-  EXPECT_GT(value, kFenceInitialValue);
-  EXPECT_EQ(dev->waitCpu(fence, value), FenceWait::Reached);
-
-  dev->destroyFence(fence);
-  dev->destroy(handle);
-}
 
 TEST(SigilSkiaGraphite, StandsOnADeviceAdoptedFromTheHost) {
   // The factory that reads a device rather than raw handles: the one
@@ -380,24 +317,6 @@ TEST(SigilSkiaGraphite, StandsOnADeviceAdoptedFromTheHost) {
   dev->destroy(handle);
 }
 
-TEST(SigilSkiaGraphiteVulkan, RenderTargetClearsAndReadsBack) {
-  std::string why;
-  GpuDevice *dev = vulkanDevice(&why);
-  if (!dev) GTEST_SKIP() << "no Vulkan device: " << why;
-  GraphiteContext *ctx = vulkanGraphite();
-  if (!ctx) GTEST_SKIP() << "this Skia carries no Vulkan backend";
-
-  // A Graphite-owned target: the context alone, no wrap. The surface
-  // lives inside the context's lifetime — its memory is freed through the
-  // context — so it is scoped to go first.
-  const SkImageInfo info = SkImageInfo::MakeN32Premul(8, 8);
-  sk_sp<SkSurface> target = SkSurfaces::RenderTarget(ctx->recorder(), info);
-  ASSERT_NE(target, nullptr);
-  target->getCanvas()->clear(SkColorSetARGB(255, 0, 255, 0));
-  const SkBitmap pixels = readback(*ctx, target.get());
-  ASSERT_FALSE(pixels.empty());
-  EXPECT_EQ(pixels.getColor(3, 3), SkColorSetARGB(255, 0, 255, 0));
-}
 
 TEST(SigilSkiaGraphite, AFloatImageReadsBackAsHalvesWithItsRangeIntact) {
   // The values above one are the whole reason a panorama is float, and a

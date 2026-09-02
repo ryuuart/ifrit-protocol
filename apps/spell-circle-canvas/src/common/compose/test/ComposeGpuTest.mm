@@ -43,7 +43,7 @@ sigil::weave::FontContext &fonts() {
 
 sigil::skia::GraphiteContext *graphite() {
   static std::unique_ptr<sigil::core::hardware::GpuDevice> device =
-      sigil::core::hardware::GpuDevice::createOwned(sigil::core::hardware::Backend::Metal);
+      sigil::core::hardware::GpuDevice::createOwned();
   static std::unique_ptr<sigil::skia::GraphiteContext> ctx =
       device ? sigil::skia::GraphiteContext::create(*device) : nullptr;
   return ctx.get();

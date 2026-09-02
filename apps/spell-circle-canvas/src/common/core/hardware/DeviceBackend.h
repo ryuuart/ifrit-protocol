@@ -56,9 +56,11 @@ class GpuDevice::Backend_ {
 std::unique_ptr<GpuDevice::Backend_> createMetalBackend(
     const NativeDevice& native, bool owned);
 
-/** The Vulkan implementation; null, with the reason in @p error, when
- *  the loader, a driver or a required handle is missing. */
+/** The Vulkan implementation over handles the host owns; null, with the
+ *  reason in @p error, when a required handle or entry point is
+ *  missing. There is no owned Vulkan device: whoever owns the Vulkan API
+ *  in a process creates it and this adopts it. */
 std::unique_ptr<GpuDevice::Backend_> createVulkanBackend(
-    const NativeDevice& native, bool owned, std::string* error);
+    const NativeDevice& native, std::string* error);
 
 }  // namespace sigil::core::hardware

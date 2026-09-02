@@ -40,7 +40,7 @@ namespace {
 /** The device this process owns, shared by the driver and every test. */
 sigil::core::hardware::GpuDevice *sharedDevice() {
   static std::unique_ptr<sigil::core::hardware::GpuDevice> device =
-      sigil::core::hardware::GpuDevice::createOwned(sigil::core::hardware::Backend::Metal);
+      sigil::core::hardware::GpuDevice::createOwned();
   return device.get();
 }
 

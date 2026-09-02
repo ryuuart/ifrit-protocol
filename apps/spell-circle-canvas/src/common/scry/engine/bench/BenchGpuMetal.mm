@@ -16,7 +16,7 @@ namespace sigil::scry::bench {
 
 sigil::core::hardware::GpuDevice *gpuDevice() {
   static std::unique_ptr<sigil::core::hardware::GpuDevice> device =
-      sigil::core::hardware::GpuDevice::createOwned(sigil::core::hardware::Backend::Metal);
+      sigil::core::hardware::GpuDevice::createOwned();
   return device.get();
 }
 

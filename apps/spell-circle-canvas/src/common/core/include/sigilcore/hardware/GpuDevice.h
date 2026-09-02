@@ -140,21 +140,24 @@ struct NativeTexture {
  */
 class GpuDevice {
  public:
-  /** A device this library owns. Metal: the system default device and a
-   *  fresh queue on it. Vulkan: the loader found through the platform's
-   *  library search (or SIGIL_VULKAN_LIBRARY), an instance, the first
-   *  physical device with a graphics queue, a device on it with timeline
-   *  semaphores enabled, and that queue. Null when the backend is not
-   *  available here — no Metal off Apple, no Vulkan loader or driver —
-   *  with the reason in @p error when one is given. */
-  static std::unique_ptr<GpuDevice> createOwned(Backend backend,
-                                                std::string* error = nullptr);
+  /** A device this library owns, on the platform's own API: the system
+   *  default Metal device and a fresh queue on it. Null off Apple, with
+   *  the reason in @p error when one is given.
+   *
+   *  THERE IS NO OWNED VULKAN DEVICE. Whoever owns the Vulkan API in a
+   *  process creates it — a renderer that cannot attach to a device
+   *  someone else made has no choice about that — and this adopts what
+   *  it made. Two instances in one process would mean two loaders, two
+   *  queues and a copy between them, which is what adopting exists to
+   *  avoid. */
+  static std::unique_ptr<GpuDevice> createOwned(std::string* error = nullptr);
   /** A device over objects the host owns and keeps alive; the device
    *  never frees them. A Vulkan set needs instance, physical device,
-   *  device and queue, and a device created with timeline semaphores
-   *  enabled; `getInstanceProcAddr` may be null, in which case the
-   *  loader is found the way createOwned finds it. Null when a required
-   *  handle is missing, with the reason in @p error when one is given. */
+   *  device and queue, a device created with timeline semaphores
+   *  enabled, and the host's own `getInstanceProcAddr` — dispatching
+   *  through a second copy of the same loader is what makes two APIs
+   *  stop being one device. Null when a required handle is missing, with
+   *  the reason in @p error when one is given. */
   static std::unique_ptr<GpuDevice> adopt(const NativeDevice& native,
                                           std::string* error = nullptr);
 

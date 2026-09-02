@@ -62,28 +62,18 @@ void report(std::string* error, const char* message) {
 
 }  // namespace
 
-std::unique_ptr<GpuDevice> GpuDevice::createOwned(Backend backend,
-                                                  std::string* error) {
+std::unique_ptr<GpuDevice> GpuDevice::createOwned(std::string* error) {
   std::unique_ptr<Backend_> impl;
-  switch (backend) {
-    case Backend::Metal: {
 #ifdef __APPLE__
-      NativeDevice native;
-      native.backend = Backend::Metal;
-      impl = createMetalBackend(native, /*owned=*/true);
-      if (!impl) report(error, "no Metal device");
+  NativeDevice native;
+  native.backend = Backend::Metal;
+  impl = createMetalBackend(native, /*owned=*/true);
+  if (!impl) report(error, "no Metal device");
 #else
-      report(error, "Metal exists only on Apple platforms");
+  report(error,
+         "this platform has no device of its own to make; adopt the one the "
+         "renderer created");
 #endif
-      break;
-    }
-    case Backend::Vulkan: {
-      NativeDevice native;
-      native.backend = Backend::Vulkan;
-      impl = createVulkanBackend(native, /*owned=*/true, error);
-      break;
-    }
-  }
   if (!impl) return nullptr;
   return std::unique_ptr<GpuDevice>(new GpuDevice(std::move(impl)));
 }
@@ -106,7 +96,7 @@ std::unique_ptr<GpuDevice> GpuDevice::adopt(const NativeDevice& native,
       break;
     }
     case Backend::Vulkan:
-      impl = createVulkanBackend(native, /*owned=*/false, error);
+      impl = createVulkanBackend(native, error);
       break;
   }
   if (!impl) return nullptr;
