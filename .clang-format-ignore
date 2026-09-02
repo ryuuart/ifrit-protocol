@@ -1,6 +1,8 @@
 # Sources clang-format must never touch: vendored code keeps its
 # upstream formatting so future drops diff cleanly, and generated files
 # are owned by their generators (regenerating would discard any
-# reformat). clang-format 18+ honors this file; scripts/check.py applies
-# the same exclusions in its own file selection.
-apps/spell-circle-canvas/src/common/world/thirdparty/**
+# reformat). The tree holds neither today — nothing is vendored, and
+# every generated source is written into the build tree, which is not
+# checked — so this file carries no patterns and is the place a new one
+# goes. clang-format 18+ honors this file; scripts/check.py applies the
+# same exclusions in its own file selection.

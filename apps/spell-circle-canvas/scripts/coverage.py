@@ -63,12 +63,11 @@ from buildtree import (
 
 COVERAGE_BUILD_DIR = PROJECT_DIR / "build-coverage"
 
-# Source paths the report never counts: prebuilt dependencies, vendored
-# code, Qt/moc-generated sources, the build tree's own generated files,
-# and the FlatBuffers-generated header.
+# Source paths the report never counts: prebuilt dependencies,
+# Qt/moc-generated sources, the build tree's own generated files, and
+# the FlatBuffers-generated header.
 IGNORE_ALWAYS = [
     r"vcpkg_installed/",
-    r"thirdparty/",
     r"_autogen/",
     r"build-coverage/",
     r"SpellCircle_generated\.h",

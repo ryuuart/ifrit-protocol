@@ -16,7 +16,7 @@
 // as a pointer, and the Diligent interfaces that follow name Vulkan
 // types without including a Vulkan header of their own.
 // clang-format off
-#include "thirdparty/volk/volk.h"
+#include <volk.h>
 
 #include <Graphics/GraphicsEngineVulkan/interface/CommandQueueVk.h>
 #include <Graphics/GraphicsEngineVulkan/interface/RenderDeviceVk.h>

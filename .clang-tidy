@@ -50,4 +50,4 @@ WarningsAsErrors: ''
 # Report findings in this repository's own headers, but never in
 # vendored or generated ones.
 HeaderFilterRegex: 'apps/spell-circle-canvas/src/'
-ExcludeHeaderFilterRegex: 'thirdparty/|SpellCircle_generated'
+ExcludeHeaderFilterRegex: 'SpellCircle_generated'

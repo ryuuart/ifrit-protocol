@@ -6,16 +6,16 @@
 # adopts the device, queue and loader entry points it made, so there is
 # one device, one queue and one handle table under both APIs.
 #
-# workaround: the diligent-engine port expects a volk loader it does not
-# provide.
-#
-# VolkShim.c supplies the volk loader the diligent-engine port expects
-# (vendored under thirdparty/volk, MIT), with a Homebrew-aware
-# volkInitialize so /opt/homebrew MoltenVK installs work without DYLD
-# environment surgery. It is the loader for Diligent alone: SigilSkia
-# resolves its own entry points and links nothing, and AdoptDevice.cpp
-# passes volk's vkGetInstanceProcAddr on to it so both APIs dispatch
-# through the one loader this process opened.
+# VolkShim.c compiles volk with a Homebrew-aware volkInitialize, so
+# /opt/homebrew MoltenVK installs work without DYLD environment surgery.
+# unofficial::diligent-engine::volk is what it compiles against: volk's
+# headers under the same platform definitions the engine's own copy was
+# built with, without which the surface entry point the engine calls is
+# missing here and that copy is linked in beside this one. It is the
+# loader for Diligent alone: SigilSkia resolves its own entry points and
+# links nothing, and AdoptDevice.cpp passes volk's vkGetInstanceProcAddr
+# on to it so both APIs dispatch through the one loader this process
+# opened.
 enable_language(C)
 
 find_package(unofficial-diligent-engine CONFIG REQUIRED)
@@ -90,19 +90,9 @@ target_include_directories(SigilWorldDiligent
 # slot is bound or left reading one white texel.
 target_link_libraries(SigilWorldDiligent
   PUBLIC SigilSkiaDevice SigilWorldScene
-  PRIVATE unofficial::diligent-engine::DiligentCore Vulkan::Headers
+  PRIVATE unofficial::diligent-engine::DiligentCore
+          unofficial::diligent-engine::volk Vulkan::Headers
           slang::slang SigilMaterialKit)
-
-# workaround: volk emits the Metal/MoltenVK WSI entry points only under
-# the platform defines.
-#
-# The engine's Vulkan surface code references the Metal/MoltenVK WSI
-# entry points, which volk only emits when the platform extensions are
-# visible.
-if(APPLE)
-  set_source_files_properties(VolkShim.c PROPERTIES COMPILE_DEFINITIONS
-    "VK_USE_PLATFORM_METAL_EXT=1;VK_USE_PLATFORM_MACOS_MVK=1")
-endif()
 
 # Links Diligent directly: proving that Diligent still drives the device
 # after Graphite has submitted on it means issuing a Diligent command.

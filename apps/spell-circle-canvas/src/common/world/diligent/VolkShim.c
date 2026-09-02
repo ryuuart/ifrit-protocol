@@ -5,9 +5,8 @@
  * MoltenVK and loader install at /opt/homebrew on Apple Silicon — and
  * macOS dlopen matches neither that directory nor an already-loaded
  * image by leaf name, so nothing outside the process can correct it.
- * This translation unit therefore compiles vendored volk
- * (thirdparty/volk, MIT, pinned vulkan-sdk-1.4.321.0) with
- * volkInitialize renamed away and re-implemented below over an
+ * This translation unit therefore compiles volk's own implementation
+ * with volkInitialize renamed away and re-implemented below over an
  * absolute-path candidate list. Defining every volk symbol here is also
  * what keeps the copy DiligentCore archives from being pulled in beside
  * it: the linker has nothing left to resolve from that member.
@@ -22,7 +21,7 @@
 /* volk's implementation is compiled into this translation unit, under the
  * rename above; that is the whole point of the file. */
 /* NOLINTNEXTLINE(bugprone-suspicious-include) */
-#include "thirdparty/volk/volk.c"
+#include <volk.c>
 #undef volkInitialize
 
 #if defined(__APPLE__)

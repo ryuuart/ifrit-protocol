@@ -67,12 +67,11 @@ PROJECT_PRESETS = PROJECT_DIR / "CMakePresets.json"
 CXX_SUFFIXES = {".cpp", ".cc", ".cxx", ".c", ".h", ".hh", ".hpp", ".mm", ".m"}
 TIDY_SUFFIXES = {".cpp", ".cc", ".cxx", ".mm"}
 
-# Paths no checker touches: vendored and generated sources. Mirrors
-# .clang-format-ignore (which only clang-format 18+ reads on its own)
-# and ruff.toml's extend-exclude, so the selection holds even when a
-# tool predates its ignore mechanism.
+# Paths no checker touches: prebuilt dependencies and generated
+# sources. Mirrors .clang-format-ignore (which only clang-format 18+
+# reads on its own) and ruff.toml's extend-exclude, so the selection
+# holds even when a tool predates its ignore mechanism.
 EXCLUDED_FRAGMENTS = (
-    "thirdparty/",
     "SpellCircle_generated",
     "vcpkg_installed/",
 )

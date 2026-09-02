@@ -904,9 +904,9 @@ adopted side and are null together when the adoption failed — a driver
 without timeline semaphores, for instance, since that is what a SigilSkia
 fence is. A failed adoption costs the shared 2D path and nothing else.
 
-The Vulkan loader is opened once, by the volk shim vendored under
-`diligent/thirdparty/volk`, and the `vkGetInstanceProcAddr` it resolves
-is handed to SigilSkia, so both APIs dispatch through the same entry
+The Vulkan loader is opened once, by the volk shim in
+`diligent/VolkShim.c`, and the `vkGetInstanceProcAddr` it resolves is
+handed to SigilSkia, so both APIs dispatch through the same entry
 points. `SIGILWORLD_VULKAN_LIBRARY` names a Vulkan library to open ahead
 of the built-in candidates.
 
