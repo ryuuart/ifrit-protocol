@@ -555,7 +555,12 @@ class Element {
    *  `GlyphMod::axis`, so a driven axis composes with entrances, loops and
    *  every other track instead of being a second text path they would hide.
    *  Being a track, it also draws through the batched glyph path, so a
-   *  span's band stands at its rest placement while the letters move. */
+   *  span's band stands at its rest placement while the letters move.
+   *
+   *  A BARE OUTPUT and not an animatable, deliberately: a drive IS a live
+   *  binding — a constant axis coordinate is `style.variations`, not this
+   *  — and the effect's identity is keyed on WHICH Output feeds it, so two
+   *  drives of one axis from two Outputs cannot prune onto each other. */
   Element& variationDrive(const char (&tag)[5],
                           const choreograph::Output<float>* value);
 

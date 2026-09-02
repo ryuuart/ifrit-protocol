@@ -119,10 +119,10 @@ class Pattern {
    *  content volatility while the values move; once they hold still the
    *  library's stability detection releases it back to the cached tier,
    *  and it re-declares volatile on the frame the pan resumes. */
-  Pattern& offset(const choreograph::Output<float>* x,
-                  const choreograph::Output<float>* y) {
-    m_boundX = x;
-    m_boundY = y;
+  Pattern& offset(std::optional<motion::Animatable<float>> x,
+                  std::optional<motion::Animatable<float>> y) {
+    m_boundX = std::move(x);
+    m_boundY = std::move(y);
     return *this;
   }
   /** How the baked tile samples. Defaults to linear, which is right for
@@ -182,8 +182,8 @@ class Pattern {
   // the bake's home, and setting its program there is the bake beginning.
   mutable sigil::material::pattern::Tile m_tile;
   std::shared_ptr<const Element> m_tree;
-  const choreograph::Output<float>* m_boundX = nullptr;
-  const choreograph::Output<float>* m_boundY = nullptr;
+  std::optional<motion::Animatable<float>> m_boundX;
+  std::optional<motion::Animatable<float>> m_boundY;
   SkSamplingOptions m_sampling{SkFilterMode::kLinear};
 };
 

@@ -110,8 +110,8 @@ inline constexpr float kNominalSizePx = 96.0f;
       "pop", {fromScale, overshoot},
       [fromScale, overshoot](const GlyphInfo&, float t, Rng&) {
         GlyphMod m;
-        m.scale =
-            fromScale + (1 - fromScale) * choreograph::easeOutBack(t, overshoot);
+        m.scale = fromScale +
+                  (1 - fromScale) * choreograph::easeOutBack(t, overshoot);
         m.alpha = std::min(1.0f, t * 2.2f);
         return m;
       },
@@ -271,8 +271,7 @@ namespace sigil::compose {
  *  invisible. Binding translateX is paint-only volatility: the strip's
  *  recording replays every frame, nothing re-records. Keep `content`
  *  keyless (it mounts twice). */
-inline Element marquee(const Element& content,
-                       const choreograph::Output<float>* phase,
+inline Element marquee(const Element& content, motion::Animatable<float> phase,
                        float gap = 0.0f) {
   return box().clip(true).child(box()
                                     .row()
@@ -291,8 +290,7 @@ inline Element marquee(const Element& content,
  *  Measure once — `ctx.measure(strip).width()` — and pass it here; wrap
  *  the phase over [-(contentWidth + gap), 0]. */
 inline Element marquee(Element content, float contentWidth,
-                       const choreograph::Output<float>* phase,
-                       float gap = 0.0f) {
+                       motion::Animatable<float> phase, float gap = 0.0f) {
   auto pinned = [&] {
     return box().width(Dim(contentWidth)).shrink(0).child(content);
   };

@@ -46,8 +46,12 @@ class Animatable {
   Animatable(Transitioned<T> t) : m_kind(Kind::kAnim) {
     extra().anim = std::move(t);
   }
+  /** A NULL Output is not a binding: the slot holds its plain value
+   *  instead. A caller passing one has nothing for the slot to read at
+   *  paint, and the alternative — a slot that says it is bound and points
+   *  at nothing — has no value to answer with at all. */
   Animatable(const choreograph::Output<T>* bound)
-      : m_kind(Kind::kBound), m_bound(bound) {}
+      : m_kind(bound ? Kind::kBound : Kind::kPlain), m_bound(bound) {}
   /** bind(&out).…  — a shaped binding. Float properties only; the extra
    *  block is the same one the transitioned form allocates, so this adds
    *  nothing to sizeof(Animatable) and nothing to a slot that never uses

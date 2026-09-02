@@ -55,6 +55,7 @@
 
 #include <array>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <tuple>
@@ -386,7 +387,14 @@ class Material {
    *  at store against the declared array's total float count. */
   Material& uniform(std::string name,
                     std::shared_ptr<const UniformBlock> block);
-  Material& uniform(std::string name, const choreograph::Output<float>* output);
+  /** A LIVE SCALAR: the value is read at every paint, so the material is
+   *  live and its node volatile for as long as the binding is attached.
+   *  An animatable, so the arithmetic that shapes the number — a wrapped
+   *  ramp, a raised cosine, a wiggle — sits beside the uniform it feeds
+   *  rather than in a second Output somebody steps by hand. A material
+   *  holds no instance, so a value carrying its own TRANSITION has nothing
+   *  to run it and reads as its target. */
+  Material& uniform(std::string name, motion::Animatable<float> output);
 
   /** THE CHILD SLOT — a SECOND SOURCE for an sksl() material. The effect
    *  declares `uniform shader NAME;` and this fills it with another
@@ -515,19 +523,25 @@ class Material {
    *  kind it is warned and IGNORED, matching uniform()'s guardrails.
    *  Composes with the recipe's static matrix rather than replacing it: the
    *  bound values post-translate, so a static phase origin and a bound pan
-   *  add. Either pointer may be null to pan one axis only.
+   *  add. Either axis may be left empty to pan the other alone, and an
+   *  axis may be a shaped `bind()` chain — a wrapped ramp is a conveyor, a
+   *  ping-pong is a rocking weave — so the arithmetic sits beside the pan
+   *  it drives.
    *
-   *  The BINDING is recipe and participates in operator== by pointer
-   *  identity, like a bound fill; the values it resolves to belong to the
-   *  system and never enter the prune comparison. */
-  Material& offset(const choreograph::Output<float>* x,
-                   const choreograph::Output<float>* y);
+   *  The BINDING is recipe and participates in operator== as an animatable
+   *  does: a live axis by its Output's identity, like a bound fill; the
+   *  values it resolves to belong to the system and never enter the prune
+   *  comparison. */
+  Material& offset(std::optional<motion::Animatable<float>> x,
+                   std::optional<motion::Animatable<float>> y);
   /** Does THIS material carry a bound offset (the layer-local answer)? */
-  bool hasBoundOffset() const { return m_boundOffset[0] || m_boundOffset[1]; }
-  /** The pan as of NOW — one pointer dereference per axis, 0 for a null
-   *  one. Every consumer reads the pan through this one body, so the
-   *  volatility release, the per-draw scan and the paint itself cannot
-   *  disagree about what the current value is. */
+  bool hasBoundOffset() const {
+    return m_boundOffset[0].has_value() || m_boundOffset[1].has_value();
+  }
+  /** The pan as of NOW — what each axis's animatable reads as, 0 for an
+   *  axis that carries none. Every consumer reads the pan through this one
+   * body, so the volatility release, the per-draw scan and the paint itself
+   * cannot disagree about what the current value is. */
   SkPoint boundOffsetValue() const;
   /** Everything isAnimated() reports EXCEPT this material's own bound
    *  offset: live uniform bindings, uTime/uContentScale, and any animated
@@ -644,8 +658,9 @@ class Material {
   bool m_worldSpace = false;  // root-frame anchoring (see worldSpace())
   float m_amount = 1.0f;      // blend-layer strength (see amount())
   float m_bleed = 0.0f;       // recording-cull reserve (see bleed())
-  // The bound pan (x, y) — see offset(). Recipe, by pointer identity.
-  std::array<const choreograph::Output<float>*, 2> m_boundOffset{};
+  // The bound pan (x, y) — see offset(). Recipe: compared as an
+  // animatable is, so a live axis compares by its Output's identity.
+  std::array<std::optional<motion::Animatable<float>>, 2> m_boundOffset{};
   SkColor4f m_solid = {0, 0, 0, 0};
   sk_sp<SkShader> m_shader;      // static resolution: null for solid/none; for
                                  // sksl a constants-only snapshot (live paint

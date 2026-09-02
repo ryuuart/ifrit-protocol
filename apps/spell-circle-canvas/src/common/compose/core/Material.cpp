@@ -40,7 +40,7 @@ struct Material::Live {
   std::vector<std::pair<std::string, std::array<float, 4>>> constants4;
   // Constant arrays, stored flat; validated at store by total float count.
   std::vector<std::pair<std::string, std::vector<float>>> constantArrays;
-  std::vector<std::pair<std::string, const choreograph::Output<float>*>> binds;
+  std::vector<std::pair<std::string, motion::Animatable<float>>> binds;
   // Live arrays: caller-owned blocks, read per resolve. Any entry makes
   // the material LIVE, like a bind; the resolve memo digests revisions.
   std::vector<std::pair<std::string, std::shared_ptr<const UniformBlock>>>
@@ -399,7 +399,7 @@ sk_sp<SkShader> Material::build(const Live& live, const PaintContext* ctx,
   if (ctx) {
     inputs.reserve(live.binds.size() + 2 * live.blocks.size() + 10);
     for (const auto& [name, out] : live.binds)
-      inputs.push_back(out ? out->value() : 0.0f);
+      inputs.push_back(motion::resolveFloatAt(nullptr, out));
     // A block's REVISION stands in for its values: commit() moves it, an
     // uncommitted frame leaves it, and two floats carry it without the
     // digest walking the whole table. Split because a float holds 24 bits
@@ -477,7 +477,7 @@ sk_sp<SkShader> Material::build(const Live& live, const PaintContext* ctx,
   for (const auto& [name, values] : live.constantArrays)
     b.uniform(name).set(values.data(), (int)values.size());
   for (const auto& [name, out] : live.binds)
-    if (out) b.uniform(name) = out->value();
+    b.uniform(name) = motion::resolveFloatAt(nullptr, out);
   for (const auto& [name, block] : live.blocks)
     if (block)  // size pre-validated at store: a full array write, exactly
       b.uniform(name).set(block->values().data(), (int)block->size());
@@ -952,10 +952,10 @@ Material& Material::child(std::string name, Material source) {
 }
 
 Material& Material::uniform(std::string name,
-                            const choreograph::Output<float>* output) {
+                            motion::Animatable<float> output) {
   if (m_backed) {
     detachBacked();
-    m_backed->material.bind(name, output);
+    m_backed->material.bind(name, std::move(output));
     return *this;  // now LIVE
   }
   if (!m_live) {
@@ -970,7 +970,7 @@ Material& Material::uniform(std::string name,
     return *this;
   }
   detachLive();
-  m_live->binds.emplace_back(std::move(name), output);
+  m_live->binds.emplace_back(std::move(name), std::move(output));
   return *this;  // now LIVE; painting resolves per frame (resolve())
 }
 
@@ -979,8 +979,8 @@ Material& Material::amount(float a01) {
   return *this;
 }
 
-Material& Material::offset(const choreograph::Output<float>* x,
-                           const choreograph::Output<float>* y) {
+Material& Material::offset(std::optional<motion::Animatable<float>> x,
+                           std::optional<motion::Animatable<float>> y) {
   // Only the image-backed kinds carry a local matrix for the pan to
   // translate. Everything else warns and ignores, following the same rule
   // uniform() uses: never abort (one typo must not kill a live-coding host),
@@ -994,13 +994,15 @@ Material& Material::offset(const choreograph::Output<float>* x,
         "materials carry a local matrix to pan (Pattern's backend)\n");
     return *this;
   }
-  m_boundOffset = {x, y};
+  m_boundOffset = {std::move(x), std::move(y)};
   return *this;
 }
 
 SkPoint Material::boundOffsetValue() const {
-  return {m_boundOffset[0] ? m_boundOffset[0]->value() : 0.0f,
-          m_boundOffset[1] ? m_boundOffset[1]->value() : 0.0f};
+  return {m_boundOffset[0] ? motion::resolveFloatAt(nullptr, *m_boundOffset[0])
+                           : 0.0f,
+          m_boundOffset[1] ? motion::resolveFloatAt(nullptr, *m_boundOffset[1])
+                           : 0.0f};
 }
 
 /** The panned build — the ONE construction resolve() and asShader() share

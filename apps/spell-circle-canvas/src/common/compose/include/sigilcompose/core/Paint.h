@@ -373,10 +373,14 @@ class Effect {
    *  binding warns and is ignored there, and no volatility is declared, so
    *  nothing animates. Every other rejection behaves the same way — a name
    *  a shader() effect does not declare as a float uniform, an unknown
-   *  recipe name on the other kinds, a null @p value: warned about once,
-   *  not recorded, and no volatility declared for it, because a binding
-   *  nothing reads must not cost a repaint per frame forever. */
-  Effect& uniform(std::string name, const choreograph::Output<float>* value);
+   *  recipe name on the other kinds: warned about once, not recorded, and
+   *  no volatility declared for it, because a binding nothing reads must
+   *  not cost a repaint per frame forever.
+   *
+   *  An animatable, so a shaped `bind()` chain drives the uniform
+   *  directly. An effect holds no instance, so a value carrying its own
+   *  TRANSITION has nothing to run it and reads as its target. */
+  Effect& uniform(std::string name, motion::Animatable<float> value);
   /** CONSTANT uniforms after construction — Material::uniform's shapes on
    *  the effect seam, for the sizes the shader() constructor list cannot
    *  carry. The float form is the constructor list's late spelling; the
@@ -466,8 +470,7 @@ class Effect {
   std::vector<std::pair<std::string, std::array<float, 2>>> m_uniforms2;
   std::vector<std::pair<std::string, std::array<float, 4>>> m_uniforms4;
   std::vector<std::pair<std::string, std::vector<float>>> m_uniformArrays;
-  std::vector<std::pair<std::string, const choreograph::Output<float>*>>
-      m_bound;
+  std::vector<std::pair<std::string, motion::Animatable<float>>> m_bound;
   // Live arrays: caller-owned UniformBlocks, read at every paint. Their
   // presence makes the effect isAnimated(), like a bound scalar.
   std::vector<std::pair<std::string, std::shared_ptr<const UniformBlock>>>

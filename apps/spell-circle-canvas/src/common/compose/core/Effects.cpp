@@ -286,18 +286,10 @@ sk_sp<SkShader> Effect::childShaderFor(std::string_view name,
   return nullptr;
 }
 
-Effect& Effect::uniform(std::string name,
-                        const choreograph::Output<float>* value) {
+Effect& Effect::uniform(std::string name, motion::Animatable<float> value) {
   // Every dropped binding says so — Material's guardrail: warn and ignore,
   // never a debug abort (one sketch typo must not kill the hot-reload
   // host). A silent drop here loses an animation with no diagnostic.
-  if (!value) {
-    SkDebugf(
-        "[compose] Effect::uniform(\"%s\"): null Output — there is "
-        "nothing to read at paint time; ignored\n",
-        name.c_str());
-    return *this;
-  }
   if (m_dirBlur) {
     // The recipe's named parameters — anything else warns and is ignored.
     if (name != "sigma" && name != "angle" && name != "across") {
@@ -307,7 +299,7 @@ Effect& Effect::uniform(std::string name,
           name.c_str());
       return *this;
     }
-    m_bound.emplace_back(std::move(name), value);
+    m_bound.emplace_back(std::move(name), std::move(value));
     return *this;
   }
   if (m_paramBlur) {
@@ -319,7 +311,7 @@ Effect& Effect::uniform(std::string name,
           name.c_str());
       return *this;
     }
-    m_bound.emplace_back(std::move(name), value);
+    m_bound.emplace_back(std::move(name), std::move(value));
     return *this;
   }
   if (m_effect) {
@@ -332,7 +324,7 @@ Effect& Effect::uniform(std::string name,
       warnUndeclaredEffectUniform("uniform", name);
       return *this;
     }
-    m_bound.emplace_back(std::move(name), value);
+    m_bound.emplace_back(std::move(name), std::move(value));
     return *this;
   }
   SkDebugf(
@@ -460,18 +452,19 @@ sk_sp<SkImageFilter> Effect::buildFilter(const PaintContext* ctx) const {
   if (m_paramBlur) {  // rebuild the pyramid from the parameter and the map
     float maxSigma = m_paramBlur->maxSigma;
     for (const auto& [name, out] : m_bound)
-      if (name == "maxSigma") maxSigma = out->value();
+      if (name == "maxSigma") maxSigma = motion::resolveFloatAt(nullptr, out);
     return makeParamBlur(maxSigma, childShaderFor("sigma", ctx));
   }
   if (m_dirBlur) {  // rebuild the sandwich from the bound parameters
     DirectionalBlur d = *m_dirBlur;
     for (const auto& [name, out] : m_bound) {
+      const float v = motion::resolveFloatAt(nullptr, out);
       if (name == "sigma")
-        d.sigma = out->value();
+        d.sigma = v;
       else if (name == "angle")
-        d.angleDeg = out->value();
+        d.angleDeg = v;
       else if (name == "across")
-        d.across = out->value();
+        d.across = v;
     }
     return makeDirectionalBlur(d.sigma, d.angleDeg, d.across);
   }
@@ -482,7 +475,8 @@ sk_sp<SkImageFilter> Effect::buildFilter(const PaintContext* ctx) const {
   for (const auto& [name, value] : m_uniforms4) builder.uniform(name) = value;
   for (const auto& [name, values] : m_uniformArrays)
     builder.uniform(name).set(values.data(), (int)values.size());
-  for (const auto& [name, out] : m_bound) builder.uniform(name) = out->value();
+  for (const auto& [name, out] : m_bound)
+    builder.uniform(name) = motion::resolveFloatAt(nullptr, out);
   for (const auto& [name, block] : m_blocks)
     builder.uniform(name).set(block->values().data(), (int)block->size());
   // The child slots, against the painting node's box (Material::child's

@@ -1294,8 +1294,10 @@ TEST(ComposeDerive, ABorrowOfAConnectorWrittenAfterItLandsOnTheFirstFrame) {
   host.composer.render(
       positioned()
           .inset(0, 0, 0, 0)
-          .child(box().absolute().inset(0, 0, 0, 0).foreground(
-              Decoration(BorrowedStroke{"wire"})))
+          .child(box()
+                     .absolute()
+                     .inset(0, 0, 0, 0)
+                     .foreground(Decoration(BorrowedStroke{"wire"})))
           .child(box().key("a").left(20).top(90).width(20).height(20))
           .child(box().key("b").left(160).top(90).width(20).height(20))
           .child(connector("a", "b").key("wire").absolute().inset(0, 0, 0, 0)));
@@ -1880,17 +1882,19 @@ TEST(ComposeEffects, AnUndeclaredEffectChildIsIgnoredNotBound) {
 }
 
 TEST(ComposeEffects, ADroppedUniformBindingIsLoudNotSilent) {
-  // The two drops the recipe-name guardrails do not reach: a filter() has
-  // no uniform to receive a binding at all, and a null Output has nothing
-  // to read at paint. Both must warn like the blur paths do — an author
-  // animating a filter() uniform otherwise gets neither motion nor
-  // diagnostic. Control first: a valid binding on a shader() stays silent.
+  // The drop the recipe-name guardrails do not reach: a filter() has no
+  // uniform to receive a binding at all. It must warn like the blur paths
+  // do — an author animating a filter() uniform otherwise gets neither
+  // motion nor diagnostic. Control first: a valid binding on a shader()
+  // stays silent. (The other drop this once covered, a null Output, can no
+  // longer be spelled: the parameter is an animatable, and the empty case
+  // of one is a plain number.)
   choreograph::Output<float> k{0.5f};
   ::testing::internal::CaptureStderr();
   (void)Effect::shader(ukEffect()).uniform("uK", &k);
   EXPECT_EQ(::testing::internal::GetCapturedStderr(), "")
       << "a valid binding must not warn";
-  // (a) uniform() on a filter(): warned and ignored, and still not live.
+  // uniform() on a filter(): warned and ignored, and still not live.
   ::testing::internal::CaptureStderr();
   Effect plain = Effect::filter(SkImageFilters::Blur(4, 4, nullptr));
   plain.uniform("uK", &k);
@@ -1898,14 +1902,6 @@ TEST(ComposeEffects, ADroppedUniformBindingIsLoudNotSilent) {
   EXPECT_NE(filterLog.find("Effect::uniform"), std::string::npos) << filterLog;
   EXPECT_NE(filterLog.find("uK"), std::string::npos) << filterLog;
   EXPECT_FALSE(plain.isAnimated());
-  // (b) a null value pointer, on an effect that could have bound it.
-  ::testing::internal::CaptureStderr();
-  Effect nulled = Effect::shader(ukEffect());
-  nulled.uniform("uK", nullptr);
-  const std::string nullLog = ::testing::internal::GetCapturedStderr();
-  EXPECT_NE(nullLog.find("Effect::uniform"), std::string::npos) << nullLog;
-  EXPECT_NE(nullLog.find("uK"), std::string::npos) << nullLog;
-  EXPECT_FALSE(nulled.isAnimated());
 }
 
 TEST(ComposeEffects, AnUndeclaredShaderUniformIsWarnedAndIgnored) {
