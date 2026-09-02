@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.16)
 
+# workaround: four vcpkg configs each flatten the same libraries into
+# their own link interface.
+#
 # Our third-party interfaces overlap heavily: skia, freetype (via harfbuzz),
 # OpenImageIO and OpenColorIO each flatten libpng/libz/libexpat/Imath into
 # their own link interface, so every executable named several archives twice
@@ -209,6 +212,9 @@ if(SPELLCIRCLE_SANITIZE)
       "-fno-sanitize-recover=undefined")
   endif()
   if("address" IN_LIST SPELLCIRCLE_SANITIZE)
+    # workaround: instrumented Abseil headers meeting an uninstrumented
+    # archive.
+    #
     # Abseil's swisstable headers turn on iterator-generation bookkeeping
     # in any translation unit compiled under ASan, which changes the
     # table layout and makes generation pointers load-bearing. The
@@ -221,6 +227,9 @@ if(SPELLCIRCLE_SANITIZE)
     # is Abseil's iterator-invalidation checking, which cannot work
     # against a prebuilt archive anyway.
     add_compile_definitions(NDEBUG_SANITIZER)
+    # workaround: instrumented Skia headers meeting an uninstrumented
+    # archive.
+    #
     # Skia's TArray grows a poisoning flag in any translation unit compiled
     # under ASan, which moves every member that follows an array inside a
     # header type — SkPathBuilder's fill type among them. Half of such an
@@ -265,6 +274,9 @@ include("${CMAKE_CURRENT_LIST_DIR}/docs/Docs.cmake")
 
 enable_testing()
 
+# workaround: the skia port names archives as paths where freetype names
+# them as targets.
+#
 # What the policies above cannot reach: vcpkg's exported configs disagree
 # about how to name the same archive. freetype pulls libpng and zlib through
 # the PNG::PNG / ZLIB::ZLIB imported targets, while unofficial-skia flattens
@@ -288,6 +300,8 @@ if(APPLE)
   find_library(FOUNDATION_FRAMEWORK Foundation REQUIRED)
   find_library(APPKIT_FRAMEWORK AppKit REQUIRED)
   find_library(CORE_GRAPHICS_FRAMEWORK CoreGraphics)
+  # workaround: Syphon has no vcpkg port, so the framework is probed by
+  # hand and its absence skips the target that needs it.
   find_library(SYPHON_FRAMEWORK Syphon)
 endif()
 

@@ -76,6 +76,9 @@ from buildtree import (
 #     are not, so a std::string or vector that crossed the dependency
 #     boundary reports false overflows. Every other ASan check is
 #     unaffected by mixed instrumentation and stays on.
+# workaround: detect_container_overflow=0, for the uninstrumented vcpkg
+# archives. detect_leaks=0 beside it is a platform limitation, not a
+# dependency one.
 ASAN_OPTIONS = "detect_leaks=0:detect_container_overflow=0"
 
 # Stacks on every UBSan line, not just the first frame; without this a

@@ -5,6 +5,9 @@
 # unable to judge, and only with the reason written down. A race in this
 # repository's own code is never suppressed — it is fixed.
 
+# workaround: oneTBB's lock-free scheduler lives in an archive this lane
+# did not compile.
+#
 # OpenUSD arrives as prebuilt, uninstrumented libraries, and its headers
 # define templates this tree instantiates as well. Those definitions are
 # weak, the linker coalesces them onto the instrumented copy, and USD's

@@ -6,6 +6,9 @@
 # adopts the device, queue and loader entry points it made, so there is
 # one device, one queue and one handle table under both APIs.
 #
+# workaround: the diligent-engine port expects a volk loader it does not
+# provide.
+#
 # VolkShim.c supplies the volk loader the diligent-engine port expects
 # (vendored under thirdparty/volk, MIT), with a Homebrew-aware
 # volkInitialize so /opt/homebrew MoltenVK installs work without DYLD
@@ -90,6 +93,9 @@ target_link_libraries(SigilWorldDiligent
   PRIVATE unofficial::diligent-engine::DiligentCore Vulkan::Headers
           slang::slang SigilMaterialKit)
 
+# workaround: volk emits the Metal/MoltenVK WSI entry points only under
+# the platform defines.
+#
 # The engine's Vulkan surface code references the Metal/MoltenVK WSI
 # entry points, which volk only emits when the platform extensions are
 # visible.

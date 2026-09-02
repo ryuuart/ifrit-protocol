@@ -63,6 +63,13 @@ reader who has never opened any other document.
 - **No history.** No dates, no "renamed", no "used to be", no campaign
   names. When a past attempt revealed a real constraint, state the
   constraint, never the attempt.
+- **One marker is allowed**, and only one: a comment line beginning
+  `workaround:` above a place where this repository compensates for a
+  defect or a gap in something it depends on. It names the defect in a
+  line or two and the prose beneath it explains as any other comment
+  does; it earns its exception because the set of such places has to be
+  enumerable — `grep -r 'workaround:'` is what says how much of the
+  build exists to absorb somebody else's packaging.
 - This applies to strings that ship too — assertion messages, runtime
   warnings, `#error` text.
 

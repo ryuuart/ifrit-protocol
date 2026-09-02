@@ -11,6 +11,7 @@ add_library(SigilGeometryMesh STATIC
 )
 target_compile_features(SigilGeometryMesh PUBLIC cxx_std_20)
 target_include_directories(SigilGeometryMesh PUBLIC ${SIGIL_GEOMETRY_INCLUDE_DIR})
+# workaround: the earcut-hpp port installs headers and exports no config.
 find_path(EARCUT_INCLUDE_DIR mapbox/earcut.hpp REQUIRED)
 target_include_directories(SigilGeometryMesh PRIVATE ${EARCUT_INCLUDE_DIR})
 target_link_libraries(SigilGeometryMesh PUBLIC SigilGeometryPath)

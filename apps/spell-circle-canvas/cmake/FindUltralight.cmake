@@ -1,3 +1,7 @@
+# workaround: the Ultralight SDK ships no CMake config, splits base-class
+# symbols across three dylibs, sets @rpath install names with no rpath,
+# and distributes its resources with the application.
+#
 # FindUltralight — locates the Ultralight 1.4 SDK (an ultra-light WebKit
 # renderer used by SigilScry for HTML/CSS layout on the scene canvases).
 #

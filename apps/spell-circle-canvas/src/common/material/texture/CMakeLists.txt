@@ -5,6 +5,8 @@
 # simdjson reads the sprite tools' JSON and stb packs the sheet, both
 # private: no consumer sees either.
 find_package(simdjson CONFIG REQUIRED)
+# workaround: the stb port ships a find module rather than a config
+# package, so it is found by module and reached by include directory.
 find_package(Stb REQUIRED)
 add_library(SigilMaterialTexture STATIC
   Atlas.cpp

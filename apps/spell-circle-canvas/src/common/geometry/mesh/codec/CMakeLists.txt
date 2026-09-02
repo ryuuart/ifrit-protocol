@@ -20,6 +20,7 @@ add_library(SigilGeometryMeshCodec STATIC
 )
 target_compile_features(SigilGeometryMeshCodec PUBLIC cxx_std_20)
 target_include_directories(SigilGeometryMeshCodec PUBLIC ${SIGIL_GEOMETRY_INCLUDE_DIR})
+# workaround: the cgltf port installs headers and exports no config.
 find_path(CGLTF_INCLUDE_DIR cgltf.h REQUIRED)
 target_include_directories(SigilGeometryMeshCodec PRIVATE ${CGLTF_INCLUDE_DIR})
 find_package(tinyobjloader CONFIG REQUIRED)

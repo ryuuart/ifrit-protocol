@@ -32,6 +32,9 @@ if(NOT SYPHON_FRAMEWORK)
   return()
 endif()
 
+# workaround: the skia port carries raw -framework strings in its link
+# interface.
+#
 # SHARED, deliberately: the Swift link runs through swift-driver, which
 # rejects the raw `-framework X` strings vcpkg's skia config carries in its
 # link interface. Absorbing the whole C++ world (scene core, Skia, SigilWeave,

@@ -106,6 +106,9 @@ def preset_environment(resolved: dict) -> dict:
     return environment
 
 
+# workaround: the shared vcpkg_installed/ this reuses is what makes the
+# sanitizer lanes' ABI pins and suppressions necessary — a secondary tree's
+# instrumented objects meet uninstrumented dependency archives.
 def configure_shared_tree(build_dir: Path, definitions: dict,
                           resolved: dict, environment: dict) -> None:
     """Configures a secondary tree, reusing the primary build's toolchain,

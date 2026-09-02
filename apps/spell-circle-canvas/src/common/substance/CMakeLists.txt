@@ -36,6 +36,8 @@ target_include_directories(SigilSubstance
   # internal header spelled by its subject directory.
   PRIVATE ${CMAKE_CURRENT_LIST_DIR})
 
+# workaround: the Substance engine dylib's install name is @rpath-relative.
+#
 # The framework is a static archive over one engine dylib; the dylib's
 # install name is @rpath-relative, so every executable linking this
 # library carries the SDK's bin/release in its runtime search path.

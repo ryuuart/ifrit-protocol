@@ -15,6 +15,8 @@
 #
 # The Skia codec set is guaranteed by the skia vcpkg features declared in
 # vcpkg.json (png/jpeg/webp are port defaults; avif is opted in there).
+# workaround: skia[avif] installs a libavif with no AV1 codec.
+#
 # vcpkg.json also requests libavif[dav1d] explicitly: skia[avif] alone
 # installs libavif with NO AV1 codec, which parses AVIF containers but
 # silently fails to decode any frames.
