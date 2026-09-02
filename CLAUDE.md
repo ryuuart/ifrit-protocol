@@ -110,6 +110,12 @@ and point work is a point operator. Motion primitives live in
 SigilMotion, the paragraph engine in SigilWeave: if either cannot
 express what a consumer needs, that library grows.
 
+**Several hands share one index.** Stage by explicit path and commit
+with `git commit --only -m <message> -- <paths>`; a bare commit takes whatever
+another pass left staged. Two concurrent builders per build tree at
+most; a third configures its own tree over the shared
+`vcpkg_installed/`.
+
 **Too integrated to change locally means split it.** A change that
 cannot be made without the whole tree re-verifying is a design signal,
 never a reason for more checking. Performance is designed in while
