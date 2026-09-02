@@ -670,13 +670,20 @@ inline void paintArrow(SkCanvas& canvas, int dir, int block1) {
     ink.px((float)(dir == 0 ? x : 31 - x), (float)y,
            replaceBlock(blk(0, step), 0, block1));
   };
-  // A left-pointing arrow, 11 x 7 original px: head then shaft. Sized off the
-  // reference, and the size is the point — a 32-px tile is only 32 px, so an
-  // arrow much larger than this covers half the ground it is marking.
+  // A left-pointing arrow, 11 x 7 original px: head then shaft. Sized off
+  // the reference, and the size is the point — a 32-px tile is only 32 px,
+  // so an arrow much larger than this covers half the ground it is
+  // marking.
+  //
+  // AND IT IS FLAT. ColorReplace recolours a block; it does not shade one,
+  // and the reference's markers are three flat blocks — green 4, yellow
+  // 10, red 3 — with no keyline and no lit leading edge. A bright rim and
+  // a darker shaft turn a marker into an icon, which at eleven pixels is
+  // the loudest thing on the ground it is marking.
   for (int k = 0; k < 4; ++k)
-    for (int y = 8 - k; y <= 8 + k; ++y) put(8 + k, y, k == 0 ? 0 : 2);
+    for (int y = 8 - k; y <= 8 + k; ++y) put(8 + k, y, 2);
   for (int x = 12; x < 19; ++x)
-    for (int y = 6; y <= 10; ++y) put(x, y, (y == 6 || y == 10) ? 4 : 1);
+    for (int y = 6; y <= 10; ++y) put(x, y, 2);
 }
 
 /** The 3D box selector — a 32x40 wireframe cube, one tile, block 2. Drawn at
@@ -1269,7 +1276,11 @@ struct XcomBattlescape : sketch::Sketch {
       //               y = screenPosition.y + 29.
       const float ox = tl.fX / PX + 16.0f - (v > 9 ? 5.0f : 3.0f);
       const float oy = tl.fY / PX + 29.0f;
-      pushNumber(*mapGlyphs, v, ox, oy, blk(pathBlock[i] - 1, 0), true);
+      // UNBOXED. The border is a lit pixel's eight neighbours in palette
+      // black, and around a 3x5 glyph that is a 5x7 dark block — the
+      // numeral then reads as a filled tile rather than as the tiny
+      // NumberText run the reference draws on the ground.
+      pushNumber(*mapGlyphs, v, ox, oy, blk(pathBlock[i] - 1, 0), false);
     }
     mapGlyphs->commit();
   }
