@@ -394,16 +394,25 @@ Targets: `SigilMotionBind`, `SigilMotionValues`, `SigilMotionClock`,
 `bind/`, `values/`, `clock/`, `schedule/` — each holding its sources, its
 `test/` and its `bench/`), `SigilMotion` (the umbrella), and one test per
 library: `motion_bind_test`, `motion_values_test`, `motion_clock_test`
-and `motion_schedule_test`, plus three
+and `motion_schedule_test`, plus four
 Google Benchmark binaries built by the `benches` target and run from a
 Release build through `scripts/bench_ledger.py`: `motion_bind_bench`
 (`BoundFloat::apply` per call under each envelope and the full chain, and
 the wiggle field by octave), `motion_values_bench` (the consumer's read
 of an `Animatable` lane per slot for each kind it can hold, and copying
-and constructing such a lane) and `motion_schedule_bench` (resolving a
-cascade for a frame's counts, and the per-unit local-time read). No GPU,
-no assets, no runtime requirements. Each test links only the library it
-exercises (plus the clock where a value is driven by the ticker) and
-GoogleTest, and fails the build if a compositing header becomes
-reachable from it — that is how the dependency boundary above stays
-honest.
+and constructing such a lane), `motion_clock_bench` (the frame clock's
+own step, the timeline stepped with N motions on it, and the derivation
+pass at N derived cells) and `motion_schedule_bench` (resolving a cascade
+for a frame's counts, and the per-unit local-time read). No GPU, no
+assets, no runtime requirements.
+
+Fixtures more than one test binary needs live in `test/support/` at the
+library root, and a test target adds that directory and includes
+`"support/<Name>.h"`. One header sits there: `StandsAlone.h`, which fails
+the build if a drawing library's headers become reachable from a motion
+test. That is the positive control under every "SigilMotion alone" claim
+— without it those tests would pass for the wrong reason on a machine
+where a compositing header happened to be on the include path — and it is
+how the dependency boundary above stays honest. Otherwise each test links
+only the library it exercises, plus the clock where a value is driven by
+the ticker, and GoogleTest.

@@ -11,33 +11,22 @@
 
 #include <algorithm>
 #include <cmath>
+#include <string>
+#include <utility>
 #include <vector>
 
-// POSITIVE CONTROL for the "SigilMotion alone" tests below. Those claim a
-// consumer can drive these values without linking a drawing library, and
-// the claim would pass for the wrong reason if a drawing library happened
-// to be on the include path anyway. This target links SigilMotion and
-// gtest only, so a rendering library's headers must be UNREACHABLE here.
-// If SigilMotion grows a link edge that drags them in, the build stops
-// rather than quietly hollowing the tests out.
-#if __has_include(<sigilcompose/Compose.h>)
-#error \
-    "motion_values_test can see a drawing library's headers — the tests \
-below no longer prove that SigilMotion stands alone."
-#endif
+#include "support/StandsAlone.h"
 
 using namespace sigil::motion;
 namespace ch = choreograph;
 using namespace std::chrono_literals;
 
 // ---------------------------------------------------------------------------
-// Animation values (<sigilmotion/values/Values.h>). These prove the values are
-// usable through SigilMotion ALONE: no drawing library, no layout engine
-// and no scene kernel is linked here, and the #error guard at the top of
-// this file keeps it that way. A consumer's own coverage — how it stores
-// these values and resolves them per frame — belongs in that consumer's
-// tests.
-TEST(AnimationValues, TransitionSurvivesAnEmptyEase) {
+// The values themselves: what a Transition, an animate() builder and an
+// Animatable<T> slot promise on their own. A consumer's own coverage —
+// how it stores these values and resolves them per frame — belongs in
+// that consumer's tests.
+TEST(Values, TransitionSurvivesAnEmptyEase) {
   // `{360ms, {}, 220ms}` — the obvious way to name a delay and keep the
   // house curve — leaves `ease` an EMPTY std::function. Reading it raw
   // throws bad_function_call on the first frame; easing() is the fix.
@@ -53,7 +42,7 @@ TEST(AnimationValues, TransitionSurvivesAnEmptyEase) {
   EXPECT_NEAR(spec.easing()(1.0f), 1.0f, 1e-5f);
 }
 
-TEST(AnimationValues, AnimateBuildersDescribeEntranceChangeAndPath) {
+TEST(Values, AnimateBuildersDescribeEntranceChangeAndPath) {
   const Transitioned<float> entrance = animate(from(0.0f).to(1.0f), {400ms});
   EXPECT_FLOAT_EQ(entrance.value, 1.0f);
   ASSERT_TRUE(entrance.from.has_value());
@@ -79,7 +68,7 @@ TEST(AnimationValues, AnimateBuildersDescribeEntranceChangeAndPath) {
   EXPECT_FLOAT_EQ(empty.value, 0.0f);
 }
 
-TEST(AnimationValues, QuantizeTimeIsTheCanonicalFloorArithmetic) {
+TEST(Values, QuantizeTimeIsTheCanonicalFloorArithmetic) {
   // motion::quantizeTime against the hand-written floor(t*N)/N it stands
   // in for, bit-exact in BOTH precisions — the template keeps each call
   // site's own type rather than promoting to double.
@@ -97,88 +86,14 @@ TEST(AnimationValues, QuantizeTimeIsTheCanonicalFloorArithmetic) {
   EXPECT_NE(quantizeTime(0.16, 6.0), quantizeTime(0.17, 6.0));
 }
 
-TEST(AnimationValues, TickerDrivesABoundChainWithNoRenderer) {
+TEST(Values, TheTickerDrivesABoundValueWithNothingElseLinked) {
   // The clock half and the value half of SigilMotion working together,
-  // with nothing else linked. A choreograph Output rides the Ticker; a
-  // shaped binding turns its [0,1] phase into pixels the way a property
-  // slot downstream would read it.
-  Ticker ticker;
-  ch::Output<float> phase = 0.0f;
-  const Transition spec{500ms, ease::outBack()};
-  ticker.timeline().apply(&phase).then<ch::RampTo>(
-      1.0f, (float)spec.duration.count() / 1000.0f, spec.easing());
-
-  const BoundFloat toPixels = bind(&phase).target(-70.f, 170.f).value();
-  EXPECT_NEAR(toPixels.apply(phase.value()), -70.f, 1e-3f);
-
-  ASSERT_TRUE(ticker.active());
-  ticker.tick(0.10);  // t = 0.2 — still climbing
-  const float early = toPixels.apply(phase.value());
-  EXPECT_GT(early, -70.f);
-  EXPECT_LT(early, 170.f);
-
-  ticker.tick(0.15);  // t = 0.5 — outBack is already past its target
-  EXPECT_GT(toPixels.apply(phase.value()), 170.f);
-
-  ticker.tick(0.40);  // past the end
-  EXPECT_NEAR(toPixels.apply(phase.value()), 170.f, 1e-3f);
-  EXPECT_FALSE(ticker.active());
-}
-
-TEST(AnimationValues, AnimatableHoldsAllFourFormsWithNoKernel) {
-  // Animatable<T>, the property SLOT: nothing here needs a reconciler, a
-  // canvas or a scene node.
-  ch::Output<float> live = 3.0f;
-
-  const Animatable<float> plain = 0.5f;
-  const Animatable<float> ramped = animate(from(0.0f).to(1.0f), {400ms});
-  const Animatable<float> bound = &live;
-  const Animatable<float> shaped = bind(&live).source(0, 10).target(-70, 170);
-
-  // The discriminant's numbering is public behaviour: a shaped binding
-  // sorts AFTER a bare one rather than taking its place.
-  EXPECT_EQ(plain.index(), 0);
-  EXPECT_EQ(ramped.index(), 1);
-  EXPECT_EQ(bound.index(), 2);
-  EXPECT_EQ(shaped.index(), 3);
-
-  ASSERT_NE(plain.plain(), nullptr);
-  EXPECT_FLOAT_EQ(*plain.plain(), 0.5f);
-  EXPECT_EQ(plain.transitioned(), nullptr);
-  EXPECT_EQ(plain.binding(), nullptr);
-  EXPECT_EQ(plain.boundMap(), nullptr);
-
-  ASSERT_NE(ramped.transitioned(), nullptr);
-  EXPECT_FLOAT_EQ(ramped.transitioned()->value, 1.0f);
-  EXPECT_EQ(ramped.plain(), nullptr);
-
-  // binding() answers for BOTH bound forms, so a consumer asking only
-  // "is this driven live?" reads one accessor; boundMap() tells the two
-  // apart when it matters.
-  EXPECT_EQ(bound.binding(), &live);
-  EXPECT_EQ(shaped.binding(), &live);
-  EXPECT_EQ(bound.boundMap(), nullptr);
-  ASSERT_NE(shaped.boundMap(), nullptr);
-  EXPECT_NEAR(shaped.boundMap()->apply(live.value()), -70.f + 0.3f * 240.f,
-              1e-3f);
-
-  // The out-of-line Extra block survives copies: copying a fat form must
-  // deep-copy, not alias.
-  Animatable<float> copy = shaped;
-  ASSERT_NE(copy.boundMap(), nullptr);
-  EXPECT_NE(copy.boundMap(), shaped.boundMap());
-  EXPECT_EQ(copy.index(), 3);
-  const Animatable<float> moved = std::move(copy);
-  ASSERT_NE(moved.boundMap(), nullptr);
-  EXPECT_EQ(moved.index(), 3);
-}
-
-TEST(AnimationValues, AnimatableDrivenByTheTickerWithNoKernel) {
-  // A CONSUMER-SIDE resolve, written here in five lines, to show the
-  // value type is enough on its own. A real consumer's resolution is
-  // context-aware — inherited transitions, staggering, mount entrances
-  // against its own frame state — which is why SigilMotion deliberately
-  // ships no resolve surface of its own.
+  // with nothing else linked: a choreograph Output rides the Ticker, and
+  // a shaped binding turns its phase into pixels the way a property slot
+  // downstream would read it. The read is written out here in five lines
+  // to show the value type is enough on its own — a real consumer's
+  // resolution is context-aware, which is why SigilMotion ships no
+  // resolve surface of its own.
   const auto readNow = [](const Animatable<float>& a, float fallback) {
     if (const float* p = a.plain()) return *p;
     if (const choreograph::Output<float>* out = a.binding())
@@ -187,18 +102,110 @@ TEST(AnimationValues, AnimatableDrivenByTheTickerWithNoKernel) {
   };
 
   Ticker ticker;
-  ch::Output<float> hp = 0.0f;
-  ticker.timeline().apply(&hp).then<ch::RampTo>(100.0f, 1.0f);
+  ch::Output<float> phase = 0.0f;
+  const Transition spec{500ms, ease::outBack()};
+  ticker.timeline().apply(&phase).then<ch::RampTo>(
+      1.0f, (float)spec.duration.count() / 1000.0f, spec.easing());
 
-  const Animatable<float> width = bind(&hp).source(0, 100).target(0, 240);
-  EXPECT_NEAR(readNow(width, -1.f), 0.f, 1e-3f);
+  const Animatable<float> toPixels = bind(&phase).target(-70.f, 170.f);
+  EXPECT_NEAR(readNow(toPixels, -1.f), -70.f, 1e-3f);
 
-  ticker.tick(0.5);
-  EXPECT_NEAR(readNow(width, -1.f), 120.f, 1e-2f);
+  ASSERT_TRUE(ticker.active());
+  ticker.tick(0.10);  // t = 0.2 — still climbing
+  const float early = readNow(toPixels, -1.f);
+  EXPECT_GT(early, -70.f);
+  EXPECT_LT(early, 170.f);
 
-  ticker.tick(0.6);  // past the end
-  EXPECT_NEAR(readNow(width, -1.f), 240.f, 1e-3f);
+  ticker.tick(0.15);  // t = 0.5 — outBack is already past its target
+  EXPECT_GT(readNow(toPixels, -1.f), 170.f);
+
+  ticker.tick(0.40);  // past the end
+  EXPECT_NEAR(readNow(toPixels, -1.f), 170.f, 1e-3f);
   EXPECT_FALSE(ticker.active());
 
   EXPECT_FLOAT_EQ(readNow(Animatable<float>{0.25f}, -1.f), 0.25f);
+}
+
+namespace {
+/** One of the four forms an Animatable<float> holds, its discriminant,
+ *  which accessors are entitled to answer for it, and the number the
+ *  entitled one answers with. */
+struct Form {
+  const char* name;
+  Animatable<float> slot;
+  int index;
+  bool plain, transitioned, binding, boundMap;
+  float read;
+};
+
+/** The live cell the two bound forms name. It outlives every parameter
+ *  because a binding holds the ADDRESS of a cell somebody else owns. */
+ch::Output<float>& live() {
+  static ch::Output<float> cell = 3.0f;
+  return cell;
+}
+
+std::string formName(const testing::TestParamInfo<Form>& info) {
+  return info.param.name;
+}
+
+struct Forms : testing::TestWithParam<Form> {};
+}  // namespace
+
+TEST_P(Forms, AnswerOnlyThroughTheAccessorsTheirDiscriminantAllows) {
+  // The discriminant's numbering is public behaviour — a shaped binding
+  // sorts AFTER a bare one rather than taking its place — and each
+  // accessor answers for its own form and returns null for the rest.
+  // binding() is the exception on purpose: it answers for BOTH bound
+  // forms, so a consumer asking only "is this driven live?" reads one
+  // accessor, and boundMap() tells the two apart when it matters.
+  const Form& form = GetParam();
+  EXPECT_EQ(form.slot.index(), form.index);
+  EXPECT_EQ(form.slot.plain() != nullptr, form.plain);
+  EXPECT_EQ(form.slot.transitioned() != nullptr, form.transitioned);
+  EXPECT_EQ(form.slot.binding() != nullptr, form.binding);
+  EXPECT_EQ(form.slot.boundMap() != nullptr, form.boundMap);
+
+  // Read back through the entitled accessor, in the reading order a
+  // consumer follows: a plain value, then a spec, then a live cell shaped
+  // by its map when it has one.
+  float got = 0.0f;
+  if (const float* p = form.slot.plain())
+    got = *p;
+  else if (const Transitioned<float>* t = form.slot.transitioned())
+    got = t->value;
+  else if (const ch::Output<float>* out = form.slot.binding())
+    got = form.slot.boundMap() ? form.slot.boundMap()->apply(out->value())
+                               : out->value();
+  EXPECT_NEAR(got, form.read, 1e-3f);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    Held, Forms,
+    testing::Values(
+        Form{"plain", Animatable<float>{0.5f}, 0, true, false, false, false,
+             0.5f},
+        Form{"transitioned",
+             Animatable<float>{animate(from(0.0f).to(1.0f), {400ms})}, 1, false,
+             true, false, false, 1.0f},
+        Form{"bound", Animatable<float>{&live()}, 2, false, false, true, false,
+             3.0f},
+        Form{"shaped",
+             Animatable<float>{bind(&live()).source(0, 10).target(-70, 170)}, 3,
+             false, false, true, true, -70.f + 0.3f * 240.f}),
+    formName);
+
+TEST(Values, CopyingAShapedSlotDeepCopiesItsOutOfLineBlock) {
+  // The fat forms keep their extra state out of line, so copying one must
+  // deep-copy rather than alias — two slots that shared a map would move
+  // together the first time either was reshaped.
+  ch::Output<float> cell = 3.0f;
+  const Animatable<float> shaped = bind(&cell).source(0, 10).target(-70, 170);
+  Animatable<float> copy = shaped;
+  ASSERT_NE(copy.boundMap(), nullptr);
+  EXPECT_NE(copy.boundMap(), shaped.boundMap());
+  EXPECT_EQ(copy.index(), 3);
+  const Animatable<float> moved = std::move(copy);
+  ASSERT_NE(moved.boundMap(), nullptr);
+  EXPECT_EQ(moved.index(), 3);
 }

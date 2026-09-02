@@ -16,5 +16,15 @@ target_link_libraries(SigilMotionClock PUBLIC
 # Links only the library it exercises, so a link edge that pulled a
 # drawing library in would show up as a build failure here.
 add_executable(motion_clock_test test/ClockTest.cpp)
+target_include_directories(motion_clock_test PRIVATE
+  ${SIGIL_MOTION_TEST_SUPPORT_DIR})
 target_link_libraries(motion_clock_test PRIVATE SigilMotionClock GTest::gtest_main)
 add_test(NAME motion_clock_test COMMAND motion_clock_test)
+
+# Google Benchmark (use a Release build), linking only what it measures.
+# Not a test: it builds through the `benches` target and runs through
+# scripts/bench_ledger.py.
+add_executable(motion_clock_bench bench/ClockBench.cpp)
+target_link_libraries(motion_clock_bench PRIVATE SigilMotionClock
+  benchmark::benchmark)
+add_dependencies(benches motion_clock_bench)

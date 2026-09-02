@@ -37,6 +37,8 @@ target_link_libraries(SigilMotionValues PUBLIC
 # as a build failure here.
 add_executable(motion_values_test test/ValuesTest.cpp test/AnimatedTest.cpp
   test/LanesTest.cpp)
+target_include_directories(motion_values_test PRIVATE
+  ${SIGIL_MOTION_TEST_SUPPORT_DIR})
 target_link_libraries(motion_values_test PRIVATE
   SigilMotionValues SigilMotionClock GTest::gtest_main)
 add_test(NAME motion_values_test COMMAND motion_values_test)

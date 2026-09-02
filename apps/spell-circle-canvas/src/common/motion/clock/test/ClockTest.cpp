@@ -13,18 +13,7 @@
 #include <cmath>
 #include <vector>
 
-// POSITIVE CONTROL for the "SigilMotion alone" tests below. Those claim a
-// consumer can drive these values without linking a drawing library, and
-// the claim would pass for the wrong reason if a drawing library happened
-// to be on the include path anyway. This target links SigilMotion and
-// gtest only, so a rendering library's headers must be UNREACHABLE here.
-// If SigilMotion grows a link edge that drags them in, the build stops
-// rather than quietly hollowing the tests out.
-#if __has_include(<sigilcompose/Compose.h>)
-#error \
-    "motion_clock_test can see a drawing library's headers — the tests \
-below no longer prove that SigilMotion stands alone."
-#endif
+#include "support/StandsAlone.h"
 
 using namespace sigil::motion;
 namespace ch = choreograph;
@@ -44,6 +33,19 @@ TEST(FrameClockTest, ClampsStallsAndScalesTime) {
 
   clock.setTimeScale(0.5);
   EXPECT_NEAR(clock.tick(5.1), 0.05, 1e-9);  // half speed
+}
+
+TEST(FrameClockTest, ABackwardReadingReportsNoTimeRatherThanRewinding) {
+  // Time in this library only goes forward, so a reading behind the last
+  // one is a zero-length frame — never a negative delta an animation
+  // would step backwards on. The clock still adopts the new reading, so
+  // the frame after it measures from there.
+  FrameClock clock;
+  clock.tick(10.0);
+  EXPECT_NEAR(clock.tick(10.1), 0.1, 1e-9);
+  EXPECT_EQ(clock.tick(10.05), 0.0);
+  EXPECT_NEAR(clock.elapsed(), 0.1, 1e-9);
+  EXPECT_NEAR(clock.tick(10.15), 0.1, 1e-9);
 }
 
 TEST(FrameClockTest, PauseFreezesElapsed) {
@@ -90,12 +92,9 @@ TEST(TickerTest, SteppablesReportAndRetire) {
 }
 
 // ---------------------------------------------------------------------------
-// Animation values (<sigilmotion/Animation.h>). These prove the values are
-// usable through SigilMotion ALONE: no drawing library, no layout engine
-// and no scene kernel is linked here, and the #error guard at the top of
-// this file keeps it that way. A consumer's own coverage — how it stores
-// these values and resolves them per frame — belongs in that consumer's
-// tests.
+// derive() — a cell recomputed every tick from another cell through a
+// bound chain, and the two-phase step that makes it current rather than
+// one frame late.
 
 TEST(TickerTest, ADerivationNeverReadsAStaleSource) {
   // THE STEPPING ORDER. The derivation is registered FIRST and its
@@ -120,22 +119,26 @@ TEST(TickerTest, ADerivationNeverReadsAStaleSource) {
          "contract is broken";
   ticker.tick(0.25);
   EXPECT_FLOAT_EQ(dst.value(), 0.5f);
+}
 
-  // The same contract for a TIMELINE-driven source: the timeline steps in
-  // phase one too.
-  Ticker ticker2;
+TEST(TickerTest, ATimelineDrivenSourceIsSteppedBeforeItsDerivation) {
+  // The timeline steps in phase one too, so a cell derived from a ramped
+  // Output reads this frame's ramp rather than last frame's.
+  Ticker ticker;
   ch::Output<float> ramped{0.0f}, shadow{0.0f};
-  ASSERT_TRUE(ticker2.derive(&shadow, bind(&ramped).scale(2.0f)));
-  ticker2.timeline().apply(&ramped).then<ch::RampTo>(1.0f, 1.0f);
-  ticker2.tick(0.5);
+  ASSERT_TRUE(ticker.derive(&shadow, bind(&ramped).scale(2.0f)));
+  ticker.timeline().apply(&ramped).then<ch::RampTo>(1.0f, 1.0f);
+  ticker.tick(0.5);
   EXPECT_NEAR(ramped.value(), 0.5f, 1e-4f);
   EXPECT_FLOAT_EQ(shadow.value(), ramped.value() * 2.0f);
+}
 
-  // …and registration is applied immediately, so a derived cell is
-  // correct BEFORE the first tick.
-  Ticker ticker3;
+TEST(TickerTest, ADerivedCellIsCorrectBeforeTheFirstTick) {
+  // The chain is applied once at registration, so a host that draws
+  // before it ticks draws the right number.
+  Ticker ticker;
   ch::Output<float> held{3.0f}, doubled{0.0f};
-  ASSERT_TRUE(ticker3.derive(&doubled, bind(&held).scale(2.0f)));
+  ASSERT_TRUE(ticker.derive(&doubled, bind(&held).scale(2.0f)));
   EXPECT_FLOAT_EQ(doubled.value(), 6.0f);
 }
 
@@ -197,21 +200,20 @@ TEST(TickerTest, DerivedOutputsComposeAndDoNotHoldTheTickerAwake) {
   EXPECT_FLOAT_EQ(trail.value(), 0.25f);
 }
 
-TEST(AnimationValues, WiggleRigShakesTwoAxesAroundRest) {
-  // A camera shake, the case that seeding exists for.
-  // `wiggle(&out, …)` is `bind(&out).scale(0).wiggle(…)` named, so the
-  // property sits at REST and only the noise moves it — the phase still
-  // comes from the schedule whose contribution was zeroed.
+TEST(Clock, AWiggleRigShakesOffASecondsOutputTheTickerRuns) {
+  // A camera shake driven by the clock rather than by a phase the caller
+  // steps: the seconds Output rides the ticker, and the rig reads it. The
+  // rig sits at REST — `wiggle(&out, …)` is `bind(&out).scale(0)
+  // .wiggle(…)` named — so what moves the property is only the noise.
   Ticker ticker;
   ch::Output<float> seconds = 0.0f;
   ticker.timeline().apply(&seconds).then<ch::RampTo>(2.0f, 2.0f);  // 1:1
 
   const BoundFloat shakeX = wiggle(&seconds, 12.f, 7.f, 1).value();
   const BoundFloat shakeY = wiggle(&seconds, 12.f, 7.f, 2).value();
-  EXPECT_EQ(wiggle(&seconds, 12.f, 7.f, 1).value().source, &seconds);
+  EXPECT_EQ(shakeX.source, &seconds);
 
-  float maxX = 0, maxY = 0, sameSign = 0;
-  int samples = 0;
+  float maxX = 0, maxY = 0;
   for (int frame = 0; frame < 120; ++frame) {
     ticker.tick(1.0 / 60.0);
     const float x = shakeX.apply(seconds.value());
@@ -220,21 +222,7 @@ TEST(AnimationValues, WiggleRigShakesTwoAxesAroundRest) {
     EXPECT_LE(std::fabs(y), 12.0f + 1e-3f);
     maxX = std::max(maxX, std::fabs(x));
     maxY = std::max(maxY, std::fabs(y));
-    if ((x > 0) == (y > 0)) ++sameSign;
-    ++samples;
   }
   EXPECT_GT(maxX, 6.0f) << "the rig never moved";
   EXPECT_GT(maxY, 6.0f);
-  // Not a diagonal: if the two axes shared a field they would agree in
-  // sign on every single frame.
-  EXPECT_LT(sameSign / (float)samples, 0.8f);
-
-  // .offset() parks the shake somewhere other than zero, and it composes
-  // in call order like any affine stage.
-  const BoundFloat parked = wiggle(&seconds, 3.f, 7.f, 1).offset(100.f).value();
-  EXPECT_NEAR(parked.apply(0.5f), 100.f + shakeX.apply(0.5f) / 4.0f, 1e-3f);
 }
-
-// ---------------------------------------------------------------------------
-// The ENVELOPE stage — pingPong / cosine / trapezoid, the three SHAPES a
-// one-way phase can take on its way through the chain.

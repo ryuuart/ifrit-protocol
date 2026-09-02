@@ -24,6 +24,8 @@ target_link_libraries(SigilMotionBind PUBLIC
 # Links only the library it exercises, so a link edge that pulled a
 # drawing library in would show up as a build failure here.
 add_executable(motion_bind_test test/BindTest.cpp)
+target_include_directories(motion_bind_test PRIVATE
+  ${SIGIL_MOTION_TEST_SUPPORT_DIR})
 target_link_libraries(motion_bind_test PRIVATE SigilMotionBind GTest::gtest_main)
 add_test(NAME motion_bind_test COMMAND motion_bind_test)
 

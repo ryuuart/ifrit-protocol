@@ -8,26 +8,16 @@
 
 #include <algorithm>
 #include <cmath>
+#include <string>
 #include <vector>
 
-// POSITIVE CONTROL for the "SigilMotion alone" tests below. Those claim a
-// consumer can drive these values without linking a drawing library, and
-// the claim would pass for the wrong reason if a drawing library happened
-// to be on the include path anyway. This target links SigilMotion and
-// gtest only, so a rendering library's headers must be UNREACHABLE here.
-// If SigilMotion grows a link edge that drags them in, the build stops
-// rather than quietly hollowing the tests out.
-#if __has_include(<sigilcompose/Compose.h>)
-#error \
-    "motion_bind_test can see a drawing library's headers — the tests \
-below no longer prove that SigilMotion stands alone."
-#endif
+#include "support/StandsAlone.h"
 
 using namespace sigil::motion;
 namespace ch = choreograph;
 using namespace std::chrono_literals;
 
-TEST(AnimationValues, BoundChainComposesInCallOrder) {
+TEST(Bind, StagesComposeInCallOrderAndReproduceTheirArithmeticBitExactly) {
   ch::Output<float> phase = 0.0f;
 
   const BoundFloat named = bind(&phase).source(0, 100).target(-70, 170).value();
@@ -55,11 +45,51 @@ TEST(AnimationValues, BoundChainComposesInCallOrder) {
   EXPECT_NEAR(bind(&phase).quantize(5).value().apply(0.31f), 0.25f, 1e-4f);
   EXPECT_NEAR(bind(&phase).invert().value().apply(0.25f), 0.75f, 1e-4f);
   EXPECT_NEAR(bind(&phase).clamp(0, 1).value().apply(4.0f), 1.0f, 1e-4f);
+
+  // …and each stage against the arithmetic it stands in for, compared
+  // BIT-EXACTLY: a caller replacing one with the other must see identical
+  // numbers, not merely close ones.
+  ch::Output<float> out = 0.0f;
+
+  // A trailing follower: the source value, offset back and clamped.
+  const BoundFloat penTip = bind(&out).offset(-0.008f).clamp(0.f, 1.f).value();
+  for (float g : {0.0f, 0.004f, 0.008f, 0.31f, 0.7431f, 0.999f, 1.0f})
+    EXPECT_EQ(penTip.apply(g), std::clamp(g - 0.008f, 0.0f, 1.0f));
+
+  // The affine chain, in call order: scale then offset.
+  const BoundFloat pulse = bind(&out).scale(1.12f).offset(-0.12f).value();
+  for (float u : {-1.0f, 0.0f, 0.31f, 0.5f, 0.99f, 1.0f, 2.5f})
+    EXPECT_EQ(pulse.apply(u), -0.12f + u * 1.12f);
+
+  // The looping phase, fmod(t * k, 1): scale into cycles, wrap at 1. For
+  // a positive schedule this is fmod bit for bit, both being exact
+  // operations on the same product.
+  const BoundFloat ring = bind(&out).scale(0.5f).wrap(1.0f).value();
+  for (float t : {0.0f, 0.7f, 1.9f, 2.0f, 13.37f, 400.25f})
+    EXPECT_EQ(ring.apply(t), std::fmod(t * 0.5f, 1.0f));
+
+  // The inverted sawtooth: invert() IS 1 − v.
+  const BoundFloat rev = bind(&out).invert().value();
+  for (float v : {0.0f, 0.25f, 0.61f, 1.0f}) EXPECT_EQ(rev.apply(v), 1.0f - v);
+
+  // window(a, b) is the clamp((t−a)/(b−a), 0, 1) idiom. The
+  // normalisation is stored as one multiply-add, so bit-identity holds
+  // on a dyadic grid where both spellings are exact; off it the two
+  // agree to float noise.
+  const BoundFloat win = bind(&out).window(0.25f, 0.75f).value();
+  for (int i = -8; i <= 72; ++i) {
+    const float t = (float)i / 64.0f;
+    EXPECT_EQ(win.apply(t), std::clamp((t - 0.25f) / 0.5f, 0.0f, 1.0f));
+  }
+  for (float t : {0.311f, 0.5002f, 0.7309f})
+    EXPECT_NEAR(win.apply(t), std::clamp((t - 0.25f) / 0.5f, 0.0f, 1.0f),
+                1e-6f);
 }
 
 // ---------------------------------------------------------------------------
 // wiggle() — the procedural noise stage, phased off the NORMALISED INPUT
-// rather than off a clock; see Bound::wiggle for what that buys.
+// rather than off a clock, so the shake belongs to the schedule and not
+// to whatever rate a host happens to draw at.
 
 namespace {
 /** Sample a shaped binding across a phase sweep — the trace every wiggle
@@ -75,9 +105,17 @@ float spread(const std::vector<float>& v) {
   return *std::max_element(v.begin(), v.end()) -
          *std::min_element(v.begin(), v.end());
 }
+/** How often a trace turns around — the metric that sees a fine tremble
+ *  riding on a drift, which total travel does not. */
+int reversals(const std::vector<float>& v) {
+  int n = 0;
+  for (size_t i = 2; i < v.size(); ++i)
+    if ((v[i] - v[i - 1] > 0) != (v[i - 1] - v[i - 2] > 0)) ++n;
+  return n;
+}
 }  // namespace
 
-TEST(AnimationValues, WiggleIsSmoothBoundedAndInOutputUnits) {
+TEST(Bind, WiggleIsSmoothBoundedAndInOutputUnits) {
   ch::Output<float> phase = 0.0f;
 
   // AMPLITUDE IS IN OUTPUT UNITS — the whole reason the stage sits after
@@ -122,7 +160,7 @@ TEST(AnimationValues, WiggleIsSmoothBoundedAndInOutputUnits) {
         plain.apply(v));
 }
 
-TEST(AnimationValues, WiggleIsDeterministicAndSeeded) {
+TEST(Bind, WiggleIsDeterministicAndSeeded) {
   ch::Output<float> phase = 0.0f;
   // PURE noise, no base contribution. A rig carrying `.target(-70, 170)`
   // would make every claim below a claim about the RAMP rather than about
@@ -189,7 +227,32 @@ TEST(AnimationValues, WiggleIsDeterministicAndSeeded) {
          "along a diagonal";
 }
 
-TEST(AnimationValues, WigglePhaseComesFromTheScheduleNotTheOutput) {
+TEST(Bind, TheWiggleBuilderIsAChainAtRestAndComposesLikeAnyOther) {
+  // `wiggle(&out, …)` is `bind(&out).scale(0).wiggle(…)` named: the
+  // property sits at REST and only the noise moves it, while the phase
+  // still comes from the schedule whose contribution was zeroed. It
+  // returns an ordinary chain, so the affine stages still compose — an
+  // offset parks the shake somewhere other than zero, and the amount
+  // scales the same field rather than reshaping it.
+  ch::Output<float> phase = 0.0f;
+  const BoundFloat named = wiggle(&phase, 12.f, 7.f, 1).value();
+  const BoundFloat spelled =
+      bind(&phase).scale(0.f).wiggle(12.f, 7.f, 1).value();
+  EXPECT_EQ(named.source, &phase);
+  for (int i = 0; i <= 200; ++i) {
+    const float v = (float)i / 100.0f;
+    EXPECT_FLOAT_EQ(named.apply(v), spelled.apply(v)) << "at " << v;
+  }
+
+  const BoundFloat parked = wiggle(&phase, 3.f, 7.f, 1).offset(100.f).value();
+  for (int i = 0; i <= 200; ++i) {
+    const float v = (float)i / 100.0f;
+    EXPECT_NEAR(parked.apply(v), 100.f + named.apply(v) / 4.0f, 1e-3f)
+        << "at " << v;
+  }
+}
+
+TEST(Bind, WigglePhaseComesFromTheScheduleNotTheOutput) {
   // The noise PHASE is read off the normalised input, so the affine chain
   // moves the wiggle's SIZE and never its TIMING. Two chains whose
   // outputs differ only by a factor of 10 must wiggle in step, not at ten
@@ -241,18 +304,10 @@ TEST(AnimationValues, WigglePhaseComesFromTheScheduleNotTheOutput) {
     EXPECT_LE(v, 1.0f);
   }
 
-  // OCTAVES change the TEXTURE, not the SIZE. The claim is that a fine
-  // tremble rides on the drift, so the honest metric is how often the
-  // trace turns around rather than how far it travels: at the default
-  // falloff each added octave carries about the same slope as the base,
-  // so total variation barely moves and the normaliser hides the change
-  // in step size entirely. Direction reversals see the tremble directly.
-  const auto reversals = [](const std::vector<float>& v) {
-    int n = 0;
-    for (size_t i = 2; i < v.size(); ++i)
-      if ((v[i] - v[i - 1] > 0) != (v[i - 1] - v[i - 2] > 0)) ++n;
-    return n;
-  };
+  // OCTAVES change the TEXTURE, not the SIZE. At the default falloff each
+  // added octave carries about the same slope as the base, so total
+  // variation barely moves and the normaliser hides the change in step
+  // size entirely; direction reversals see the tremble directly.
   const std::vector<float> one = trace(
       bind(&phase).scale(0.f).wiggle(10.f, 4.f, 8, 1).value(), 0, 4, 4001);
   const std::vector<float> three = trace(
@@ -269,7 +324,75 @@ TEST(AnimationValues, WigglePhaseComesFromTheScheduleNotTheOutput) {
   EXPECT_LE(spread(one), 20.0f + 1e-3f);    // promise survives the octaves
 }
 
-TEST(AnimationValues, PingPongRunsThereAndBackAcrossTheSpan) {
+namespace {
+/** One envelope in a chain that carries nothing else, and the name a
+ *  failing parameter reports itself by. The source is null because
+ *  apply() takes its input explicitly — no Output is ever read. */
+struct Shape {
+  const char* name;
+  BoundFloat map;
+};
+
+Bound unshaped() { return bind((const ch::Output<float>*)nullptr); }
+
+std::string shapeName(const testing::TestParamInfo<Shape>& info) {
+  return info.param.name;
+}
+
+struct Envelopes : testing::TestWithParam<Shape> {};
+struct PeriodicEnvelopes : testing::TestWithParam<Shape> {};
+}  // namespace
+
+TEST_P(Envelopes, StayInsideZeroToOneWhateverThePhase) {
+  // The stage cannot hand a curve or a target range a value outside
+  // [0,1], at any phase a schedule can reach — including one that never
+  // reached zero.
+  const BoundFloat& map = GetParam().map;
+  for (int i = -400; i <= 400; ++i) {
+    const float v = (float)i / 37.0f;
+    EXPECT_GE(map.apply(v), -1e-6f) << "at " << v;
+    EXPECT_LE(map.apply(v), 1.0f + 1e-6f) << "at " << v;
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    Shapes, Envelopes,
+    testing::Values(Shape{"pingPong", unshaped().pingPong().value()},
+                    Shape{"cosine", unshaped().cosine().value()},
+                    Shape{"trapezoid",
+                          unshaped().trapezoid(0.1f, 0.3f, 0.7f, 0.9f).value()},
+                    Shape{"square", unshaped().square(0.6f).value()}),
+    shapeName);
+
+TEST_P(PeriodicEnvelopes, DrawTheSameShapeOnEveryPeriod) {
+  // A monotonic seconds Output keeps breathing, bouncing or pulsing, and
+  // a descending one is drawn by the same repeat rather than running off.
+  // The phases are sixty-fourths so that shifting by a whole number of
+  // periods is exact in float and the two answers are comparable at all.
+  // The tolerance is for the one shape that repeats from the cosine
+  // itself instead of from a fold: its argument grows with the phase, so
+  // a shifted evaluation agrees to float noise on the angle rather than
+  // bit for bit.
+  const BoundFloat& map = GetParam().map;
+  for (int i = 0; i < 64; ++i) {
+    const float u = (float)i / 64.0f;
+    EXPECT_NEAR(map.apply(u + 3.0f), map.apply(u), 2e-5f) << "at " << u;
+    EXPECT_NEAR(map.apply(u - 2.0f), map.apply(u), 2e-5f) << "at " << u;
+  }
+}
+
+// trapezoid is absent on purpose: it names positions inside ONE pass and
+// stays dark past its last corner rather than drawing itself again.
+INSTANTIATE_TEST_SUITE_P(
+    Shapes, PeriodicEnvelopes,
+    testing::Values(
+        Shape{"pingPong", unshaped().pingPong().value()},
+        Shape{"cosine", unshaped().cosine().value()},
+        Shape{"square", unshaped().square(0.6f).value()},
+        Shape{"wave", unshaped().wave([](float u) { return u * u; }).value()}),
+    shapeName);
+
+TEST(Bind, PingPongRunsThereAndBackAcrossTheSpan) {
   ch::Output<float> phase = 0.0f;
   const BoundFloat pp = bind(&phase).pingPong().value();
 
@@ -287,24 +410,9 @@ TEST(AnimationValues, PingPongRunsThereAndBackAcrossTheSpan) {
     const float u = (float)i / 128.0f;
     EXPECT_NEAR(pp.apply(u), pp.apply(1.0f - u), 1e-6f) << "at " << u;
   }
-
-  // Periodic, so a phase that keeps climbing keeps bouncing rather than
-  // running off — and a descending one bounces too.
-  EXPECT_FLOAT_EQ(pp.apply(2.5f), 1.0f);
-  EXPECT_FLOAT_EQ(pp.apply(3.25f), 0.5f);
-  EXPECT_FLOAT_EQ(pp.apply(-0.25f), 0.5f);
-  EXPECT_FLOAT_EQ(pp.apply(-0.5f), 1.0f);
-
-  // Bounded whatever the phase does: the stage cannot hand a curve or a
-  // target range a value outside [0,1].
-  for (int i = -400; i <= 400; ++i) {
-    const float v = pp.apply((float)i / 37.0f);
-    EXPECT_GE(v, 0.0f);
-    EXPECT_LE(v, 1.0f);
-  }
 }
 
-TEST(AnimationValues, CosineIsTheRaisedCosineBreath) {
+TEST(Bind, CosineIsTheRaisedCosineBreath) {
   ch::Output<float> phase = 0.0f;
   const BoundFloat breath = bind(&phase).cosine().value();
 
@@ -316,8 +424,8 @@ TEST(AnimationValues, CosineIsTheRaisedCosineBreath) {
   EXPECT_NEAR(breath.apply(0.25f), 0.5f, 1e-6f);
   EXPECT_NEAR(breath.apply(0.75f), 0.5f, 1e-6f);
 
-  // It IS 0.5 − 0.5·cos(2πv), which is the arithmetic every hand-rolled
-  // breath in the corpus writes out.
+  // It IS 0.5 − 0.5·cos(2πv), the arithmetic a hand-written breath spells
+  // out.
   for (int i = 0; i <= 200; ++i) {
     const float v = (float)i / 100.0f;
     EXPECT_NEAR(breath.apply(v),
@@ -333,18 +441,9 @@ TEST(AnimationValues, CosineIsTheRaisedCosineBreath) {
   EXPECT_LT(std::fabs(breath.apply(d) - breath.apply(0.0f)),
             std::fabs(corner.apply(d) - corner.apply(0.0f)));
   EXPECT_LT(std::fabs(breath.apply(0.5f + d) - breath.apply(0.5f - d)), 1e-4f);
-
-  // Periodic and bounded, for the same reason: a monotonic seconds Output
-  // breathes for as long as it runs.
-  EXPECT_NEAR(breath.apply(2.5f), 1.0f, 1e-6f);
-  for (int i = -400; i <= 400; ++i) {
-    const float v = breath.apply((float)i / 37.0f);
-    EXPECT_GE(v, -1e-6f);
-    EXPECT_LE(v, 1.0f + 1e-6f);
-  }
 }
 
-TEST(AnimationValues, TrapezoidHoldsAtOneAndCutsWhileDark) {
+TEST(Bind, TrapezoidRampsToAHoldAtOneAndIsDarkOutsideItsCorners) {
   ch::Output<float> phase = 0.0f;
   const BoundFloat sheet =
       bind(&phase).trapezoid(0.1f, 0.3f, 0.7f, 0.9f).value();
@@ -367,6 +466,10 @@ TEST(AnimationValues, TrapezoidHoldsAtOneAndCutsWhileDark) {
   EXPECT_NEAR(sheet.apply(0.8f), 0.5f, 1e-6f);
   for (int i = 1; i < 40; ++i)
     EXPECT_FLOAT_EQ(sheet.apply(0.3f + 0.4f * (float)i / 40.0f), 1.0f);
+}
+
+TEST(Bind, TrapezoidCornersOutOfOrderCollapseRatherThanDivide) {
+  ch::Output<float> phase = 0.0f;
 
   // A ZERO-LENGTH SHOULDER is an instant cut, not a division by zero.
   const BoundFloat cut =
@@ -392,15 +495,19 @@ TEST(AnimationValues, TrapezoidHoldsAtOneAndCutsWhileDark) {
       bind(&phase).trapezoid(0.6f, 0.2f, 0.1f, 0.4f).value();
   for (int i = -100; i <= 200; ++i)
     EXPECT_FLOAT_EQ(nothing.apply((float)i / 100.0f), 0.0f);
+}
 
-  // NOT periodic, unlike the other two envelopes: it names positions
-  // inside ONE pass, and a phase past its last corner stays dark rather
-  // than starting the sheet again.
+TEST(Bind, TrapezoidStaysDarkPastItsLastCornerRatherThanRepeating) {
+  // The one envelope that is not periodic: it names positions inside ONE
+  // pass, so a repeating sheet rides a phase that already wraps.
+  ch::Output<float> phase = 0.0f;
+  const BoundFloat sheet =
+      bind(&phase).trapezoid(0.1f, 0.3f, 0.7f, 0.9f).value();
   EXPECT_FLOAT_EQ(sheet.apply(1.3f), 0.0f);
   EXPECT_FLOAT_EQ(sheet.apply(2.5f), 0.0f);
 }
 
-TEST(AnimationValues, SquarePulsesOnFirstAndPhaseZeroIsOn) {
+TEST(Bind, SquarePulsesOnFirstAndPhaseZeroIsOn) {
   ch::Output<float> phase = 0.0f;
   const BoundFloat pulse = bind(&phase).square(0.6f).value();
 
@@ -413,14 +520,8 @@ TEST(AnimationValues, SquarePulsesOnFirstAndPhaseZeroIsOn) {
   EXPECT_FLOAT_EQ(pulse.apply(0.6f), 0.0f);
   EXPECT_FLOAT_EQ(pulse.apply(0.99f), 0.0f);
 
-  // PERIODIC by the same fold pingPong uses: phase 1 is phase 0 — ON, not
-  // the trapezoid's dark-at-the-seam — and the pattern repeats on every
-  // period, negative phases included.
+  // Phase 1 is phase 0 — ON, where a trapezoid is dark at the seam.
   EXPECT_FLOAT_EQ(pulse.apply(1.0f), 1.0f);
-  EXPECT_FLOAT_EQ(pulse.apply(2.3f), 1.0f);
-  EXPECT_FLOAT_EQ(pulse.apply(3.7f), 0.0f);
-  EXPECT_FLOAT_EQ(pulse.apply(-0.5f), 1.0f);  // −0.5 folds to 0.5 < 0.6
-  EXPECT_FLOAT_EQ(pulse.apply(-0.3f), 0.0f);  // −0.3 folds to 0.7
 
   // The default duty is half the period.
   const BoundFloat half = bind(&phase).square().value();
@@ -448,7 +549,7 @@ TEST(AnimationValues, SquarePulsesOnFirstAndPhaseZeroIsOn) {
   EXPECT_FLOAT_EQ(caret.apply(1.07f), 1.0f);  // the next period is on again
 }
 
-TEST(AnimationValues, WaveEvaluatesTheCallersShapeOnTheFoldedPhase) {
+TEST(Bind, WaveEvaluatesTheCallersShapeOnTheFoldedPhase) {
   ch::Output<float> phase = 0.0f;
 
   // The caller's function sees u in [0,1) and its drawing repeats every
@@ -487,11 +588,11 @@ TEST(AnimationValues, WaveEvaluatesTheCallersShapeOnTheFoldedPhase) {
     EXPECT_TRUE(std::isfinite(empty.apply((float)i / 8.0f)));
 }
 
-TEST(AnimationValues, EnvelopesSitInTheFixedOrderWhateverTheCallOrder) {
+TEST(Bind, TheCallOrderOfTheStagesDoesNotChangeTheChain) {
   ch::Output<float> phase = 0.0f;
 
-  // THE FIXED ORDER, stage by stage. Each pair below names the same
-  // stages in a different order and must agree bit for bit.
+  // Each pair below names the same stages in a different order and must
+  // agree bit for bit.
   const auto same = [](const BoundFloat& a, const BoundFloat& b) {
     for (int i = -50; i <= 250; ++i) {
       const float v = (float)i / 100.0f;
@@ -513,25 +614,28 @@ TEST(AnimationValues, EnvelopesSitInTheFixedOrderWhateverTheCallOrder) {
   same(bind(&phase).cosine().clamp(0.f, 0.5f).value(),
        bind(&phase).clamp(0.f, 0.5f).cosine().value());
 
-  // ONE SHAPE PER BINDING: naming a second replaces the first, the way a
-  // second map() replaces the first curve.
+  // A binding carries ONE shape: naming a second replaces the first, the
+  // way a second map() replaces the first curve.
   same(bind(&phase).pingPong().cosine().value(), bind(&phase).cosine().value());
   same(bind(&phase).cosine().trapezoid(0.f, 0.25f, 0.75f, 1.f).value(),
        bind(&phase).trapezoid(0.f, 0.25f, 0.75f, 1.f).value());
+}
 
-  // AFTER source/window: the span the envelope shapes is the one source()
-  // named, so a beat on a longer timeline swells inside its own window
-  // and rests outside it.
+TEST(Bind, TheEnvelopeOccupiesOneFixedPlaceInTheChain) {
+  ch::Output<float> phase = 0.0f;
+
+  // The span it shapes is the one source() named, so a beat on a longer
+  // timeline swells inside its own window and rests outside it.
   const BoundFloat beat = bind(&phase).window(2.0f, 4.0f).cosine().value();
   EXPECT_NEAR(beat.apply(3.0f), 1.0f, 1e-6f);
   EXPECT_NEAR(beat.apply(2.5f), 0.5f, 1e-6f);
   EXPECT_NEAR(beat.apply(0.0f), 0.0f, 1e-6f);  // clamped to the span's start
   EXPECT_NEAR(beat.apply(9.0f), 0.0f, 1e-6f);  // …and to its end
 
-  // BEFORE map: the curve shapes what the envelope PRODUCED. Any curve
-  // through (0,0) and (1,1) therefore rounds a trapezoid's shoulders and
-  // leaves its hold at exactly 1 and its dark at exactly 0 — the property
-  // that makes the shoulder shape a separate decision from the corners.
+  // The curve then shapes what the envelope PRODUCED. Any curve through
+  // (0,0) and (1,1) therefore rounds a trapezoid's shoulders and leaves
+  // its hold at exactly 1 and its dark at exactly 0 — the property that
+  // makes the shoulder shape a separate decision from the corners.
   const BoundFloat eased = bind(&phase)
                                .trapezoid(0.1f, 0.3f, 0.7f, 0.9f)
                                .map(&ch::easeInOutQuad)
@@ -542,21 +646,21 @@ TEST(AnimationValues, EnvelopesSitInTheFixedOrderWhateverTheCallOrder) {
       eased.apply(0.15f),
       bind(&phase).trapezoid(0.1f, 0.3f, 0.7f, 0.9f).value().apply(0.15f));
 
-  // BEFORE the affine chain: the shape lands in the property's own units.
+  // The affine chain then lands the shape in the property's own units.
   const BoundFloat grad = bind(&phase).cosine().target(400.f, 880.f).value();
   EXPECT_NEAR(grad.apply(0.5f), 880.f, 1e-3f);
   EXPECT_NEAR(grad.apply(0.0f), 400.f, 1e-3f);
 
-  // COMPOSED WITH wrap, which is on the far side of the affine chain: the
-  // envelope shapes the phase, wrap folds the output.
+  // wrap sits on the far side of that chain: the envelope shapes the
+  // phase, wrap folds the output.
   const BoundFloat spun =
       bind(&phase).pingPong().scale(720.f).wrap(360.f).value();
   EXPECT_FLOAT_EQ(spun.apply(0.25f), 0.0f);  // 0.5 · 720 = 360 → 0
   EXPECT_FLOAT_EQ(spun.apply(0.125f), 180.f);
 
-  // AFTER the wiggle phase is read, for the same reason wrap is: the
-  // shake reads the SCHEDULE, so a ping-ponged phase does not retrace the
-  // identical shake on the way back.
+  // The wiggle phase is read before all of it, for the same reason wrap
+  // runs after: the shake reads the SCHEDULE, so a ping-ponged phase does
+  // not retrace the identical shake on the way back.
   const BoundFloat shaken =
       bind(&phase).pingPong().scale(0.f).wiggle(5.f, 4.f, 3).value();
   EXPECT_NE(shaken.apply(0.25f), shaken.apply(0.75f));
@@ -567,9 +671,9 @@ TEST(AnimationValues, EnvelopesSitInTheFixedOrderWhateverTheCallOrder) {
   }
 }
 
-TEST(AnimationValues, EnvelopeStagesReproduceTheHandRolledEnvelopes) {
-  // Against the arithmetic the studies wrote by hand, at the precision a
-  // migration needs.
+TEST(Bind, TheBreathAndTheSheetMatchTheArithmeticTheyStandInFor) {
+  // Against the arithmetic a caller writes by hand, at the precision
+  // replacing one spelling with the other needs.
   ch::Output<float> cycle = 0.0f;
 
   // The BREATH: a raised cosine over a 7.2 s period, peaking at 3.6 s.
@@ -599,12 +703,7 @@ TEST(AnimationValues, EnvelopeStagesReproduceTheHandRolledEnvelopes) {
   EXPECT_LT(sheet.apply(0.3f), 1.0f);
 }
 
-// ---------------------------------------------------------------------------
-// derive() — the bind() chain reaching an OUTPUT instead of a property
-// slot, plus the wrap stage it composes with and the stepping-order
-// contract that makes a derived cell current rather than one frame late.
-
-TEST(AnimationValues, WrapFoldsThePostAffineValueAtTheSeam) {
+TEST(Bind, WrapFoldsThePostAffineValueAtTheSeam) {
   ch::Output<float> phase = 0.0f;
 
   // The seam: a ramp through 1.0 folds back to 0, floor-convention.
@@ -639,47 +738,6 @@ TEST(AnimationValues, WrapFoldsThePostAffineValueAtTheSeam) {
   EXPECT_NEAR(beforeSeam, afterSeam, 0.05f)
       << "the noise repeated with the wrap — its phase must read the "
          "unwrapped schedule";
-}
-
-TEST(AnimationValues, ChainStagesReproduceTheCorpusIdiomsBitExactly) {
-  // Each stage against the hand-written arithmetic it replaces, compared
-  // BIT-EXACTLY: a caller replacing one with the other must see identical
-  // numbers, not merely close ones.
-  ch::Output<float> out = 0.0f;
-
-  // A trailing follower: the source value, offset back and clamped.
-  const BoundFloat penTip = bind(&out).offset(-0.008f).clamp(0.f, 1.f).value();
-  for (float g : {0.0f, 0.004f, 0.008f, 0.31f, 0.7431f, 0.999f, 1.0f})
-    EXPECT_EQ(penTip.apply(g), std::clamp(g - 0.008f, 0.0f, 1.0f));
-
-  // The affine chain, in call order: scale then offset.
-  const BoundFloat pulse = bind(&out).scale(1.12f).offset(-0.12f).value();
-  for (float u : {-1.0f, 0.0f, 0.31f, 0.5f, 0.99f, 1.0f, 2.5f})
-    EXPECT_EQ(pulse.apply(u), -0.12f + u * 1.12f);
-
-  // The looping phase, fmod(t * k, 1): scale into cycles, wrap at 1. For
-  // a positive schedule this is fmod bit for bit, both being exact
-  // operations on the same product.
-  const BoundFloat ring = bind(&out).scale(0.5f).wrap(1.0f).value();
-  for (float t : {0.0f, 0.7f, 1.9f, 2.0f, 13.37f, 400.25f})
-    EXPECT_EQ(ring.apply(t), std::fmod(t * 0.5f, 1.0f));
-
-  // The inverted sawtooth: invert() IS 1 − v.
-  const BoundFloat rev = bind(&out).invert().value();
-  for (float v : {0.0f, 0.25f, 0.61f, 1.0f}) EXPECT_EQ(rev.apply(v), 1.0f - v);
-
-  // window(a, b) is the clamp((t−a)/(b−a), 0, 1) idiom. The
-  // normalisation is stored as one multiply-add, so bit-identity holds
-  // on a dyadic grid where both spellings are exact; off it the two
-  // agree to float noise.
-  const BoundFloat win = bind(&out).window(0.25f, 0.75f).value();
-  for (int i = -8; i <= 72; ++i) {
-    const float t = (float)i / 64.0f;
-    EXPECT_EQ(win.apply(t), std::clamp((t - 0.25f) / 0.5f, 0.0f, 1.0f));
-  }
-  for (float t : {0.311f, 0.5002f, 0.7309f})
-    EXPECT_NEAR(win.apply(t), std::clamp((t - 0.25f) / 0.5f, 0.0f, 1.0f),
-                1e-6f);
 }
 
 // The noise field is reachable piecewise: a caller can evaluate one lattice

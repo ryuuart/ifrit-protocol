@@ -16,8 +16,12 @@
 # <feature>/, so a feature adds the root and spells its own directory.
 # <sigilmotion/Animation.h> is the umbrella header over the values and
 # bind features.
+#
+# Test fixtures every binary shares sit in test/support/; a feature's test
+# binary adds that directory and includes "support/<Name>.h".
 
 set(SIGIL_MOTION_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/include)
+set(SIGIL_MOTION_TEST_SUPPORT_DIR ${CMAKE_CURRENT_LIST_DIR}/test)
 
 # Dependencies point down this list.
 add_subdirectory(bind)
