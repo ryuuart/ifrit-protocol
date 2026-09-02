@@ -146,8 +146,6 @@
 //                                     on the glyph MASK, which Skia caches —
 //                                     15 sigmas x 2 passes (core + phosphor
 //                                     halo), and no layer at all
-//   TextPath{orient = Tangent}        `make me feel alright?` on the orbit's
-//                                     lower-left arc
 //   PathFormat dash + round cap       the broken ellipses (1.6 on 4.4)
 //   Composer::renderSlot              the wireframe turns at 6 Hz and the
 //                                     console scrolls at 4.5 Hz in two
@@ -541,10 +539,14 @@ inline const sk_sp<SkTypeface>& serifItalicFace() {
                                     700, SkFontStyle::kItalic_Slant);
   return f;
 }
-inline const sk_sp<SkTypeface>& markerFace() {
-  static sk_sp<SkTypeface> f =
-      face({"Marker Felt", "Noteworthy", "Bradley Hand", "Chalkboard"}, 400,
-           SkFontStyle::kUpright_Slant);
+/** THE ENGLISH PHRASES ARE TITLES. Layer 07 sets them upright, at large
+ *  size, in a plain grotesque — they read as cards over the picture, not
+ *  as handwriting on it. A casual script leaned nine degrees is a
+ *  different register and it made the one warm thing in the frame read as
+ *  a scribble. */
+inline const sk_sp<SkTypeface>& phraseFace() {
+  static sk_sp<SkTypeface> f = face({"Helvetica Neue", "Helvetica", "Arial"},
+                                    500, SkFontStyle::kUpright_Slant);
   return f;
 }
 
@@ -887,32 +889,15 @@ struct LainNavi : sketch::Sketch {
                 })
                 .foreground(add(2.4f, mul(kWire, 0.72f), 0.7f)));
 
-    // `make me feel alright?` rides the tilted orbit's lower-left arc,
-    // (185, 455) counter-clockwise up to (840, 215) — the run the conic was
-    // fitted through in the first place. onPath is a property of the TEXT
-    // LEAF, not of a wrapper: a wrapper takes the spec and quietly ignores
-    // it, and the run falls down the left margin as a wrapped column.
+    // `make me feel alright?` stands UPRIGHT beside the orbit's lower-left
+    // arc rather than riding it. A run laid on the conic is turned per
+    // glyph, and Layer 07's English is set as a title over the picture —
+    // upright, large, in a plain face — so the arc places it and does not
+    // shape it. The anchor is the run the conic was fitted through in the
+    // first place, (185, 455) up to (840, 215).
     g.child(text(u8"make me feel alright?",
-                 type(monoFace(), 31.0f, kAlright, 0.55f, 4.0f))
-                .rect(SkRect::MakeXYWH(0, 0, kW, kH))
-                .onPath(TextPath{.path =
-                                     [tilt2](SkSize) {
-                                       // REVERSED: solving the two traced
-                                       // endpoints back to the conic's own
-                                       // parameter gives t = 153 deg at
-                                       // (185, 455) and 17.7 deg at
-                                       // (840, 215) — DECREASING. A forward
-                                       // path puts the run in mirror order
-                                       // on the wrong arc.
-                                       return ellipsePath(kOrbit2C, kOrbit2A,
-                                                          kOrbit2B, tilt2,
-                                                          6.2831853f, 0.0f);
-                                     },
-                                 .at = 0.800f,
-                                 .align = TextPath::Align::Center,
-                                 .offset = 20.0f,
-                                 .autoFlip = false,
-                                 .orient = TextPath::Orient::Tangent})
+                 type(phraseFace(), 44.0f, kAlright, 1.2f))
+                .centerAt({455, 392})
                 .key("alright"));
     return g;
   }
@@ -1103,17 +1088,16 @@ struct LainNavi : sketch::Sketch {
     // ---- S4..S8, the Layer 07 strata over the window ------------------------
     root.child(slot("wire"));
 
-    // `COVer me` — soft brush, orange, the only warm thing in the frame.
-    // x 576..884, y 136..229 measured; it runs UPHILL to the right.
+    // `cover me` — the only warm thing in the frame, set upright as a
+    // title. x 576..884, y 136..229 measured.
     root.child(
         box()
             .centerAt({730, 182})
-            .rotate(-9.0f)
             .key("cover")
-            .child(text(u8"COVer me",
-                        type(markerFace(), 62, mul(kCover, 0.5f), 6.5f))
+            .child(text(u8"cover me",
+                        type(phraseFace(), 62, mul(kCover, 0.5f), 6.5f))
                        .centerAt({0, 0}))
-            .child(text(u8"COVer me", type(markerFace(), 62, kCover, 1.4f))));
+            .child(text(u8"cover me", type(phraseFace(), 62, kCover, 1.4f))));
 
     // the magenta streaks, x 466..869, y 483..639: horizontal smears, not
     // shapes — three bands of different length at different heights, blurred
