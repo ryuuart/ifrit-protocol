@@ -2254,7 +2254,13 @@ struct DunhuangStarChart : sketch::Sketch {
                  .key(fmt("map%d_%d", k, seg))
                  .opacity(gate(tFold0 - 0.4f, tFold0 + 1.1f));
 
-    // the ruled frame — a hand-drawn rectangle, brackets at the corners
+    // THE APPARATUS SITS UNDER THE INK. The paper has no frames at all —
+    // the twelve maps abut and are separated only by the text columns —
+    // so the frame, its corner brackets, the RA ladder and its numerals
+    // are this study's own scaffolding, carrying its argument about the
+    // 18° jump at every boundary. Scaffolding drawn at the weight of the
+    // brush competes with the thing it is scaffolding: every one of them
+    // is lighter than the faintest star mark on the map it encloses.
     g.child(box()
                 .left(0)
                 .top(0)
@@ -2266,10 +2272,10 @@ struct DunhuangStarChart : sketch::Sketch {
                                 .deviation = 1.1f,
                                 .seed = (uint32_t)(600 + k)})
                             .layer(lines::Line{
-                                .width = 1.25f,
-                                .fill = Fill::color(hex(0x4a3b28, 0.78f))}))
+                                .width = 1.0f,
+                                .fill = Fill::color(hex(0x8a7458, 0.42f))}))
                 .stroke(spans::corners(15.0f),
-                        brush::solid(2.0f, Fill::color(kInk))));
+                        brush::solid(1.4f, Fill::color(hex(0x6b573c, 0.52f)))));
 
     // the equator — the one line whose position the paper says varies ±5°
     const float yEq = (mapGcDec(k) + 45.0f) / kDecPerMm * kPxMm;
@@ -2300,18 +2306,18 @@ struct DunhuangStarChart : sketch::Sketch {
                   .left(x - 0.4f)
                   .top(0)
                   .width(Dim(0.9f))
-                  .height(Dim(big ? 9.0f : 5.0f))
-                  .fill(Fill::color(hex(0x4a3b28, 0.66f))));
+                  .height(Dim(big ? 8.0f : 4.5f))
+                  .fill(Fill::color(hex(0x8a7458, 0.40f))));
       g.child(box()
                   .left(x - 0.4f)
-                  .top(kFrameH - (big ? 9.0f : 5.0f))
+                  .top(kFrameH - (big ? 8.0f : 4.5f))
                   .width(Dim(0.9f))
-                  .height(Dim(big ? 9.0f : 5.0f))
-                  .fill(Fill::color(hex(0x4a3b28, 0.66f))));
+                  .height(Dim(big ? 8.0f : 4.5f))
+                  .fill(Fill::color(hex(0x8a7458, 0.40f))));
       if (big)
         g.child(text(toU8(fmt("%d", (int)std::lround(
                                         wrap360(mapCentre(k) + (float)t)))),
-                     type(faceMono, 7.4f, hex(0x5d4c37, 0.72f)))
+                     type(faceMono, 7.4f, hex(0x8a7458, 0.60f)))
                     .left(x - 11)
                     .top(kFrameH + 3)
                     .width(Dim(24))
@@ -2390,6 +2396,12 @@ struct DunhuangStarChart : sketch::Sketch {
       const float drift = std::sin((float)(k * 7 + c) * 1.31f) * 2.4f;
       const float cx = w - 4.0f - u * (w - 10.0f) + drift;
       const int glyphs = 20 + ((k * 5 + c * 3) % 11);
+      // The columns are drawn as MARKS, not as characters: a Tang column
+      // at this scale is a stack of squarish brush shapes, and the shape
+      // is what the eye reads at plate size. Setting the atlas's own
+      // asterism names here as vertical runs was tried and the runs do
+      // not reach the plate, which is a question about vertical text
+      // inside an absolutely-placed leaf rather than about this file.
       for (int gI = 0; gI < glyphs; ++gI) {
         const float gy =
             5.0f + (float)gI * 9.1f + std::sin((float)(c * 13 + gI * 5)) * 0.8f;
