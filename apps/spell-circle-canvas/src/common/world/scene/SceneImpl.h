@@ -236,6 +236,10 @@ struct Scene::Impl {
 
   std::unique_ptr<Instance> create(const Desc& desc, Instance* parent,
                                    size_t ordinal, size_t count);
+  /** The entrance delay this subtree's mount inherits, in seconds: the
+   *  sum of every ancestor cascade's start time for the branch being
+   *  walked. Live only for the depth of one create(); zero elsewhere. */
+  float mountDelayCarrySeconds = 0.0f;
   void onPatched(Instance& inst, const ElementNode* prev,
                  const ElementNode& next);
   void reorder(Instance& parent, bool structureChanged);

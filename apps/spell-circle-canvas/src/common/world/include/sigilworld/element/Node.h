@@ -12,6 +12,7 @@
  */
 
 #include <sigilcore/cache/Policy.h>
+#include <sigilmotion/schedule/Spread.h>
 #include <sigilmotion/values/Animatable.h>
 #include <sigilmotion/values/Transition.h>
 #include <sigilworld/element/Element.h>
@@ -89,6 +90,16 @@ struct ElementNode {
   std::optional<Camera> camera;
   core::Cache cachePolicy = core::Cache::Auto;
   std::optional<motion::Transition> nodeTransition;
+  /** THE CASCADE OVER THIS NODE'S CHILDREN AS THEY MOUNT: each child's
+   *  entrance is delayed by the start time the schedule gives its
+   *  ordinal, and that delay compounds down the subtree, so a set that
+   *  arrives arrives in an order rather than all at once.
+   *
+   *  It delays only children that actually MOUNT. The first describe
+   *  cascades the whole list; a child appended to a live list is the only
+   *  new mount in its patch and enters at once, and children already
+   *  standing never re-enter. */
+  std::optional<motion::Spread> childStagger;
   std::vector<Element> children;
   std::optional<Memo> memo;
 };

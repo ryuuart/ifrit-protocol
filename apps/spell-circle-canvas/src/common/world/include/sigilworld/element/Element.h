@@ -201,6 +201,13 @@ class Element {
   Element& cache(core::Cache c);
   /** The node's default transition, for the plain constants on it. */
   Element& transition(const motion::Transition& t);
+  /** CASCADES THE ENTRANCES of this node's children as they mount, on the
+   *  schedule SigilMotion speaks — an even ladder, a fixed total divided
+   *  across however many children there are, a cue table, an origin and a
+   *  distribution curve. The delay compounds down the subtree, so a
+   *  grandchild enters after its parent did. Only children that actually
+   *  mount are delayed. */
+  Element& staggerChildren(motion::Spread spread);
 
   // ---- integer-literal sugar --------------------------------------------
   // `rotateY(-8)` — an int does not convert into the Animatable variant on

@@ -10,17 +10,32 @@
  */
 
 #include <sigilmotion/clock/Ticker.h>
+#include <sigilmotion/schedule/Cascade.h>
 
 #include <span>
 #include <utility>
+#include <vector>
 
 #include "SceneImpl.h"
 
 namespace sigil::world {
 
 std::unique_ptr<Instance> Scene::Impl::create(const Desc& desc,
-                                              Instance* parent, size_t,
-                                              size_t) {
+                                              Instance* parent, size_t ordinal,
+                                              size_t count) {
+  // WHERE THIS CHILD SITS IN ITS PARENT'S CASCADE, in seconds, added to
+  // whatever its ancestors' cascades already delayed the subtree by. The
+  // carry is restored on the way out, so a sibling's delay never leaks
+  // into the next branch.
+  const float saved = mountDelayCarrySeconds;
+  if (parent && parent->desc && parent->desc->childStagger) {
+    // The whole schedule, not just its spacing: a set's children reach
+    // the amount division, the cue table and the distribution curve on
+    // the same terms a text's glyphs do, because it is the same body.
+    static thread_local motion::Cascade cascade;
+    cascade.build(*parent->desc->childStagger, (uint32_t)count, 0);
+    mountDelayCarrySeconds += cascade.startMs((uint32_t)ordinal, 0) * 0.001f;
+  }
   auto inst = std::make_unique<Instance>();
   inst->parent = parent;
   inst->entity = registry.create();
@@ -28,6 +43,7 @@ std::unique_ptr<Instance> Scene::Impl::create(const Desc& desc,
   // The first patch is the mount: it plays the entrances, marks the
   // geometry slot for resolution and walks the children.
   reconciler.patch(*inst, desc);
+  mountDelayCarrySeconds = saved;
   return inst;
 }
 
@@ -45,7 +61,7 @@ void Scene::Impl::onPatched(Instance& inst, const ElementNode* prev,
     for (const Lane& lane : laneScratch)
       if (lane.value)
         motion::mountEntrance(ticker, inst.anims[lane.slot.index], *lane.value,
-                              0.0f);
+                              mountDelayCarrySeconds);
   }
 
   // The geometry slot's value type is the node's kind, so a change of

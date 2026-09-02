@@ -277,6 +277,11 @@ Element& Element::transition(const motion::Transition& t) {
   return *this;
 }
 
+Element& Element::staggerChildren(motion::Spread spread) {
+  m_node->childStagger = std::move(spread);
+  return *this;
+}
+
 // ---- the memo --------------------------------------------------------------
 
 Element detail::makeMemo(
