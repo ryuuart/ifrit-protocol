@@ -18,7 +18,7 @@
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilmaterial/kit/Surface.h>
 #include <sigilmotion/clock/Ticker.h>
-#include <sigilskia/device/GpuDevice.h>
+#include <sigilcore/hardware/GpuDevice.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 #include <sigilskia/graphite/OffscreenSurface.h>
 #include <sigilworld/diligent/Device.h>
@@ -252,16 +252,16 @@ TEST(SurfaceSlots, WhiteIsTheNEUTRALEverySlotFallsBackTo) {
 TEST(SurfaceSlots, AnImportedNativeTextureLandsWhereARasterOneWould) {
   const OnDevice on = onDevice();
   if (!on) GTEST_SKIP() << on.error;
-  skia::GpuDevice* gpu = on.device->gpu();
+  core::hardware::GpuDevice* gpu = on.device->gpu();
   skia::GraphiteContext* graphite = on.device->graphite();
   if (!gpu || !graphite) GTEST_SKIP() << "2D on the 3D device is unavailable";
 
   // A texture painted with the graphics API on this very device, handed
   // back as the API's own object…
-  skia::TextureDesc desc;
+  core::hardware::TextureDesc desc;
   desc.width = desc.height = 16;
-  desc.format = skia::TextureFormat::RGBA8Unorm;
-  const skia::TextureHandle painted = gpu->createTexture(desc);
+  desc.format = core::hardware::TextureFormat::RGBA8Unorm;
+  const core::hardware::TextureHandle painted = gpu->createTexture(desc);
   ASSERT_TRUE((bool)painted);
   const SkColor4f colour{0.15f, 0.75f, 0.35f, 1.0f};
   {
@@ -271,7 +271,7 @@ TEST(SurfaceSlots, AnImportedNativeTextureLandsWhereARasterOneWould) {
     surface.canvas()->clear(colour);
     surface.submit();
   }
-  const skia::NativeTexture native = gpu->exportNative(painted);
+  const core::hardware::NativeTexture native = gpu->exportNative(painted);
   ASSERT_TRUE((bool)native);
 
   // …comes back in through the one door, as an ordinary texture value.
@@ -303,7 +303,7 @@ TEST(SurfaceSlots, AnImportedNativeTextureLandsWhereARasterOneWould) {
   // An import a device has no adopted GpuDevice for, or one the device
   // refuses, is an empty value rather than a texture that lies.
   EXPECT_FALSE(
-      world::diligent::importNative(*on.device, skia::NativeTexture{}).valid());
+      world::diligent::importNative(*on.device, core::hardware::NativeTexture{}).valid());
 }
 
 // ---- the environment map -------------------------------------------

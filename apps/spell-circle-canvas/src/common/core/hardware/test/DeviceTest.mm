@@ -1,23 +1,12 @@
-// The device feature on Metal: handles that go stale, destruction that
-// waits out the frames in flight, textures crossing the boundary in both
-// directions, fences as timelines, and Graphite standing up on a device
-// the host adopted.
+// The hardware feature on Metal and on Vulkan: handles that go stale,
+// destruction that waits out the frames in flight, textures crossing the
+// boundary in both directions, mip chains as deep as a size allows, and
+// fences as timelines.
 
 #import <Metal/Metal.h>
 
-#include <include/core/SkBitmap.h>
-#include <include/core/SkCanvas.h>
-#include <include/core/SkImage.h>
-#include <include/core/SkSurface.h>
-#include <include/gpu/graphite/Context.h>
-#include <include/gpu/graphite/Recorder.h>
-#include <include/gpu/graphite/Recording.h>
-#include <include/gpu/graphite/Surface.h>
-#include <sigilskia/device/GpuDevice.h>
-#include <sigilskia/device/Handle.h>
-#include <sigilskia/device/Pixels.h>
-#include <sigilskia/graphite/GraphiteContext.h>
-#include <sigilskia/graphite/OffscreenSurface.h>
+#include <sigilcore/hardware/GpuDevice.h>
+#include <sigilcore/hardware/Handle.h>
 
 #include <chrono>
 #include <cstring>
@@ -27,7 +16,7 @@
 
 #include <gtest/gtest.h>
 
-using namespace sigil::skia;
+using namespace sigil::core::hardware;
 
 namespace {
 
@@ -35,57 +24,20 @@ TextureDesc smallTexture() {
   TextureDesc desc;
   desc.width = 8;
   desc.height = 8;
-  desc.label = "sigilskia_device_test";
+  desc.label = "core_hardware_test";
   return desc;
-}
-
-/** Reads a Graphite surface back to CPU pixels: snap, insert, async read,
- *  then a synchronous submit and a spin until the callback lands. */
-SkBitmap readbackSurface(GraphiteContext &ctx, SkSurface *surface) {
-  SkBitmap bm;
-  const SkImageInfo info = surface->imageInfo();
-  if (auto recording = ctx.recorder()->snap()) {
-    skgpu::graphite::InsertRecordingInfo insert;
-    insert.fRecording = recording.get();
-    ctx.context()->insertRecording(insert);
-  }
-  struct Read {
-    std::unique_ptr<const SkImage::AsyncReadResult> result;
-    bool called = false;
-  } read;
-  ctx.context()->asyncRescaleAndReadPixels(
-      surface, info, SkIRect::MakeWH(info.width(), info.height()), SkImage::RescaleGamma::kSrc,
-      SkImage::RescaleMode::kNearest,
-      [](SkImage::ReadPixelsContext c, std::unique_ptr<const SkImage::AsyncReadResult> r) {
-        auto *out = static_cast<Read *>(c);
-        out->result = std::move(r);
-        out->called = true;
-      },
-      &read);
-  skgpu::graphite::SubmitInfo submitInfo;
-  submitInfo.fSync = skgpu::graphite::SyncToCpu::kYes;
-  ctx.context()->submit(submitInfo);
-  for (int spin = 0; spin < 5000 && !read.called; ++spin) ctx.context()->checkAsyncWorkCompletion();
-  if (!read.result) return bm;
-  bm.allocPixels(info);
-  const auto *src = static_cast<const uint8_t *>(read.result->data(0));
-  const size_t srcRowBytes = read.result->rowBytes(0);
-  for (int y = 0; y < info.height(); ++y)
-    std::memcpy(bm.pixmap().writable_addr(0, y), src + (size_t)y * srcRowBytes,
-                std::min(srcRowBytes, bm.rowBytes()));
-  return bm;
 }
 
 }  // namespace
 
-TEST(SigilSkiaHandle, NullHandleNamesNothing) {
+TEST(SigilCoreHardwareHandle, NullHandleNamesNothing) {
   HandleTable<int, TextureHandle> table;
   EXPECT_FALSE(table.contains(TextureHandle{}));
   EXPECT_EQ(table.find(TextureHandle{}), nullptr);
   EXPECT_EQ(table.release(TextureHandle{}), 0);
 }
 
-TEST(SigilSkiaHandle, ReusedSlotRejectsTheOldHandle) {
+TEST(SigilCoreHardwareHandle, ReusedSlotRejectsTheOldHandle) {
   HandleTable<int, TextureHandle> table;
   const TextureHandle first = table.allocate(1);
   ASSERT_TRUE(table.contains(first));
@@ -104,12 +56,12 @@ TEST(SigilSkiaHandle, ReusedSlotRejectsTheOldHandle) {
   EXPECT_TRUE(table.contains(second));
 }
 
-TEST(SigilSkiaHandle, TypedHandlesDoNotMix) {
+TEST(SigilCoreHardwareHandle, TypedHandlesDoNotMix) {
   static_assert(!std::is_convertible_v<TextureHandle, BufferHandle>);
   static_assert(!std::is_convertible_v<FenceHandle, TextureHandle>);
 }
 
-TEST(SigilSkiaHandle, DrainStalesEveryHandle) {
+TEST(SigilCoreHardwareHandle, DrainStalesEveryHandle) {
   HandleTable<int, BufferHandle> table;
   const BufferHandle a = table.allocate(1);
   const BufferHandle b = table.allocate(2);
@@ -120,7 +72,7 @@ TEST(SigilSkiaHandle, DrainStalesEveryHandle) {
   EXPECT_FALSE(table.contains(b));
 }
 
-TEST(SigilSkiaDevice, OwnedMetalDeviceHasAQueue) {
+TEST(SigilCoreHardware, OwnedMetalDeviceHasAQueue) {
   auto device = GpuDevice::createOwned(Backend::Metal);
   ASSERT_NE(device, nullptr) << "no Metal device";
   EXPECT_EQ(device->backend(), Backend::Metal);
@@ -129,7 +81,7 @@ TEST(SigilSkiaDevice, OwnedMetalDeviceHasAQueue) {
   EXPECT_EQ(device->frameIndex(), 0u);
 }
 
-TEST(SigilSkiaDevice, AdoptVulkanNeedsEveryHandle) {
+TEST(SigilCoreHardware, AdoptVulkanNeedsEveryHandle) {
   NativeDevice vulkan;
   vulkan.backend = Backend::Vulkan;
   std::string error;
@@ -137,14 +89,14 @@ TEST(SigilSkiaDevice, AdoptVulkanNeedsEveryHandle) {
   EXPECT_FALSE(error.empty());
 }
 
-TEST(SigilSkiaDevice, AdoptNeedsBothHandles) {
+TEST(SigilCoreHardware, AdoptNeedsBothHandles) {
   NativeDevice half;
   half.backend = Backend::Metal;
   half.mtlDevice = (void *)MTLCreateSystemDefaultDevice();
   EXPECT_EQ(GpuDevice::adopt(half), nullptr);
 }
 
-TEST(SigilSkiaDevice, DestroyedHandleIsStaleAtOnce) {
+TEST(SigilCoreHardware, DestroyedHandleIsStaleAtOnce) {
   auto device = GpuDevice::createOwned(Backend::Metal);
   ASSERT_NE(device, nullptr);
   const TextureHandle texture = device->createTexture(smallTexture());
@@ -162,7 +114,7 @@ TEST(SigilSkiaDevice, DestroyedHandleIsStaleAtOnce) {
   EXPECT_TRUE(device->isValid(next));
 }
 
-TEST(SigilSkiaDevice, DestroyRetiresAtFramePlusThree) {
+TEST(SigilCoreHardware, DestroyRetiresAtFramePlusThree) {
   auto device = GpuDevice::createOwned(Backend::Metal);
   ASSERT_NE(device, nullptr);
   device->beginFrame();
@@ -187,7 +139,7 @@ TEST(SigilSkiaDevice, DestroyRetiresAtFramePlusThree) {
   CFRelease((CFTypeRef)native);
 }
 
-TEST(SigilSkiaDevice, ImportExportRoundTrip) {
+TEST(SigilCoreHardware, ImportExportRoundTrip) {
   auto device = GpuDevice::createOwned(Backend::Metal);
   ASSERT_NE(device, nullptr);
   id<MTLDevice> mtl = (id<MTLDevice>)device->native().mtlDevice;
@@ -238,7 +190,7 @@ TEST(SigilSkiaDevice, ImportExportRoundTrip) {
   CFRelease((CFTypeRef)hostTexture);
 }
 
-TEST(SigilSkiaDevice, FenceSignalsAndWaits) {
+TEST(SigilCoreHardware, FenceSignalsAndWaits) {
   auto device = GpuDevice::createOwned(Backend::Metal);
   ASSERT_NE(device, nullptr);
   const FenceHandle fence = device->createFence();
@@ -287,65 +239,6 @@ TEST(SigilSkiaDevice, FenceSignalsAndWaits) {
   EXPECT_EQ(device->signal(fence), kFenceInitialValue);
   EXPECT_EQ(device->waitCpu(fence, 1), FenceWait::Invalid);
 }
-
-TEST(SigilSkiaDevice, GraphiteOnAnAdoptedDeviceClearsAndReadsBack) {
-  id<MTLDevice> mtl = MTLCreateSystemDefaultDevice();
-  id<MTLCommandQueue> mtlQueue = [mtl newCommandQueue];
-  // Both are released at the end of the test. The one path that skips
-  // those releases is a failed assertion, which ends the run.
-  // NOLINTNEXTLINE(clang-analyzer-osx.cocoa.RetainCount)
-  ASSERT_NE(mtl, nil);
-  NativeDevice native;
-  native.backend = Backend::Metal;
-  native.mtlDevice = (void *)mtl;
-  native.mtlCommandQueue = (void *)mtlQueue;
-  auto device = GpuDevice::adopt(native);
-  ASSERT_NE(device, nullptr);
-  EXPECT_EQ(device->native().mtlDevice, (void *)mtl);
-
-  std::unique_ptr<GraphiteContext> graphite = GraphiteContext::create(*device);
-  ASSERT_NE(graphite, nullptr);
-
-  TextureDesc desc = smallTexture();
-  desc.format = TextureFormat::BGRA8Unorm;
-  desc.cpuAccessible = true;
-  const TextureHandle texture = device->createTexture(desc);
-  ASSERT_TRUE(device->isValid(texture));
-  const NativeTexture nativeTexture = device->exportNative(texture);
-
-  OffscreenSurface surface(*graphite, nativeTexture.mtlTexture, nativeTexture.width,
-                           nativeTexture.height);
-  ASSERT_NE(surface.canvas(), nullptr);
-  surface.canvas()->clear(SkColorSetARGB(255, 0, 0, 255));
-  surface.submit();
-
-  // The fence is on the same queue as Graphite's submission, so reaching
-  // it means the clear has landed.
-  const FenceHandle fence = device->createFence();
-  const FenceValue done = device->signal(fence);
-  ASSERT_EQ(device->waitCpu(fence, done), FenceWait::Reached);
-
-  std::vector<uint8_t> bytes(size_t(desc.width) * desc.height * 4);
-  [(id<MTLTexture>)nativeTexture.mtlTexture getBytes:bytes.data()
-                                         bytesPerRow:size_t(desc.width) * 4
-                                          fromRegion:MTLRegionMake2D(0, 0, desc.width, desc.height)
-                                         mipmapLevel:0];
-  // BGRA, opaque blue.
-  EXPECT_EQ(bytes[0], 255);
-  EXPECT_EQ(bytes[1], 0);
-  EXPECT_EQ(bytes[2], 0);
-  EXPECT_EQ(bytes[3], 255);
-
-  device->destroyFence(fence);
-  device->destroy(texture);
-  graphite.reset();
-  device.reset();
-  // The adopted objects are still the host's.
-  EXPECT_NE(mtl, nil);
-  CFRelease((CFTypeRef)mtlQueue);
-  CFRelease((CFTypeRef)mtl);
-}
-
 // ---------------------------------------------------------------------------
 // The Vulkan backend. Every arm skips, naming why, on a machine without a
 // Vulkan loader and driver (on macOS: brew install molten-vk vulkan-loader).
@@ -363,7 +256,7 @@ GpuDevice *vulkanDevice(std::string *why) {
 // `var` names the variable the macro declares, and a declarator cannot
 // be parenthesised; every caller passes a plain identifier.
 // NOLINTBEGIN(bugprone-macro-parentheses)
-#define SIGILSKIA_NEED_VULKAN(var)             \
+#define SIGIL_NEED_VULKAN(var)             \
   std::string vulkanError;                     \
   GpuDevice *var = vulkanDevice(&vulkanError); \
   if (!(var)) GTEST_SKIP() << "no Vulkan device: " << vulkanError
@@ -371,8 +264,8 @@ GpuDevice *vulkanDevice(std::string *why) {
 
 }  // namespace
 
-TEST(SigilSkiaDeviceVulkan, OwnedDeviceHasEveryHandle) {
-  SIGILSKIA_NEED_VULKAN(device);
+TEST(SigilCoreHardwareVulkan, OwnedDeviceHasEveryHandle) {
+  SIGIL_NEED_VULKAN(device);
   EXPECT_EQ(device->backend(), Backend::Vulkan);
   const VulkanHandles &handles = device->native().vulkan;
   EXPECT_NE(handles.instance, nullptr);
@@ -383,8 +276,8 @@ TEST(SigilSkiaDeviceVulkan, OwnedDeviceHasEveryHandle) {
   EXPECT_NE(handles.apiVersion, 0u);
 }
 
-TEST(SigilSkiaDeviceVulkan, AdoptsItsOwnHandles) {
-  SIGILSKIA_NEED_VULKAN(owned);
+TEST(SigilCoreHardwareVulkan, AdoptsItsOwnHandles) {
+  SIGIL_NEED_VULKAN(owned);
   // The owned device's handles, adopted by a second device object that
   // never frees them: both name textures on one VkDevice.
   std::string error;
@@ -403,7 +296,7 @@ TEST(SigilSkiaDeviceVulkan, AdoptsItsOwnHandles) {
   EXPECT_NE(owned->native().vulkan.device, nullptr);
 }
 
-TEST(SigilSkiaDevice, AMipChainIsAsDeepAsTheSizeAllows) {
+TEST(SigilCoreHardware, AMipChainIsAsDeepAsTheSizeAllows) {
   // The rule has no backend in it, so it is checked without one.
   EXPECT_EQ(mipLevelsFor(1, 1), 1);
   EXPECT_EQ(mipLevelsFor(8, 8), 4);
@@ -413,7 +306,7 @@ TEST(SigilSkiaDevice, AMipChainIsAsDeepAsTheSizeAllows) {
   EXPECT_EQ(mipLevelsFor(1024, 2), 11);
 }
 
-TEST(SigilSkiaDevice, MetalTextureCarriesTheLevelsItWasAskedFor) {
+TEST(SigilCoreHardware, MetalTextureCarriesTheLevelsItWasAskedFor) {
   std::unique_ptr<GpuDevice> device = GpuDevice::createOwned(Backend::Metal);
   ASSERT_TRUE(device);
   TextureDesc desc = smallTexture();
@@ -438,44 +331,8 @@ TEST(SigilSkiaDevice, MetalTextureCarriesTheLevelsItWasAskedFor) {
   EXPECT_EQ(device->exportNative(flat).mipLevels, 1);
   device->destroy(flat);
 }
-
-TEST(SigilSkiaDevice, AFloatImageReadsBackAsHalvesWithItsRangeIntact) {
-  // The values above one are the whole reason a panorama is float, and a
-  // byte read would put every one of them at white.
-  const int w = 4, h = 2;
-  std::vector<float> px((size_t)w * h * 4);
-  for (size_t i = 0; i < (size_t)w * h; ++i) {
-    px[i * 4 + 0] = 6.5f;
-    px[i * 4 + 1] = 0.25f;
-    px[i * 4 + 2] = 0.5f;
-    px[i * 4 + 3] = 1.0f;
-  }
-  const SkImageInfo info =
-      SkImageInfo::Make(w, h, kRGBA_F32_SkColorType, kPremul_SkAlphaType);
-  sk_sp<SkImage> image = SkImages::RasterFromPixmapCopy(
-      {info, px.data(), (size_t)w * 4 * sizeof(float)});
-  ASSERT_TRUE(image);
-  EXPECT_TRUE(isFloatImage(image));
-
-  const std::vector<uint16_t> halves = halfFloatPixels(image);
-  ASSERT_EQ(halves.size(), (size_t)w * h * 4);
-  // Half 6.5 is 0x4680; a byte read of the same texel would say 255.
-  EXPECT_EQ(halves[0], 0x4680u);
-  const std::vector<uint8_t> bytes = bytePixels(image);
-  ASSERT_EQ(bytes.size(), (size_t)w * h * 4);
-  EXPECT_EQ(bytes[0], 255u);
-
-  // An ordinary 8-bit image is not float and reads back as itself.
-  SkBitmap flat;
-  flat.allocPixels(SkImageInfo::MakeN32Premul(2, 2));
-  flat.eraseColor(SK_ColorGREEN);
-  flat.setImmutable();
-  EXPECT_FALSE(isFloatImage(flat.asImage()));
-  EXPECT_EQ(bytePixels(flat.asImage()).size(), 16u);
-}
-
-TEST(SigilSkiaDeviceVulkan, TextureFormatsMapAndRetire) {
-  SIGILSKIA_NEED_VULKAN(device);
+TEST(SigilCoreHardwareVulkan, TextureFormatsMapAndRetire) {
+  SIGIL_NEED_VULKAN(device);
   const TextureFormat formats[] = {TextureFormat::RGBA8Unorm, TextureFormat::BGRA8Unorm,
                                    TextureFormat::RGBA16Float};
   const uint32_t expected[] = {37 /*R8G8B8A8_UNORM*/, 44 /*B8G8R8A8_UNORM*/,
@@ -517,8 +374,8 @@ TEST(SigilSkiaDeviceVulkan, TextureFormatsMapAndRetire) {
   device->destroy(panorama);
 }
 
-TEST(SigilSkiaDeviceVulkan, ImportExportRoundTrip) {
-  SIGILSKIA_NEED_VULKAN(device);
+TEST(SigilCoreHardwareVulkan, ImportExportRoundTrip) {
+  SIGIL_NEED_VULKAN(device);
   // A device-made image stands in for the host's: exported, imported
   // borrowed under a second name, exported again unchanged.
   const TextureHandle original = device->createTexture(smallTexture());
@@ -542,8 +399,8 @@ TEST(SigilSkiaDeviceVulkan, ImportExportRoundTrip) {
   EXPECT_FALSE(device->importNative(metal)) << "another API's texture";
 }
 
-TEST(SigilSkiaDeviceVulkan, TimelineFenceSignalsAndWaits) {
-  SIGILSKIA_NEED_VULKAN(device);
+TEST(SigilCoreHardwareVulkan, TimelineFenceSignalsAndWaits) {
+  SIGIL_NEED_VULKAN(device);
   const FenceHandle fence = device->createFence();
   ASSERT_TRUE(device->isValid(fence));
   EXPECT_EQ(device->completedValue(fence), kFenceInitialValue);
@@ -566,47 +423,4 @@ TEST(SigilSkiaDeviceVulkan, TimelineFenceSignalsAndWaits) {
   EXPECT_FALSE(device->isValid(fence));
   EXPECT_EQ(device->exportNative(fence), nullptr);
   EXPECT_EQ(device->waitCpu(fence, 1), FenceWait::Invalid);
-}
-
-TEST(SigilSkiaDeviceVulkan, GraphiteClearsAndReadsBack) {
-  SIGILSKIA_NEED_VULKAN(device);
-  std::unique_ptr<GraphiteContext> graphite = GraphiteContext::create(*device);
-  ASSERT_NE(graphite, nullptr) << "Graphite on the Vulkan device";
-
-  // A Graphite-owned target first: the context alone, no wrap. Every
-  // surface lives inside the context's lifetime — its memory is freed
-  // through the context — so each is scoped to go first.
-  SkBitmap pixels;
-  {
-    const SkImageInfo info = SkImageInfo::MakeN32Premul(8, 8);
-    sk_sp<SkSurface> target = SkSurfaces::RenderTarget(graphite->recorder(), info);
-    ASSERT_NE(target, nullptr);
-    target->getCanvas()->clear(SkColorSetARGB(255, 0, 255, 0));
-    pixels = readbackSurface(*graphite, target.get());
-    ASSERT_FALSE(pixels.empty());
-    EXPECT_EQ(pixels.getColor(3, 3), SkColorSetARGB(255, 0, 255, 0));
-  }
-
-  // Then a device-created VkImage wrapped as the surface.
-  TextureDesc desc = smallTexture();
-  desc.format = TextureFormat::RGBA8Unorm;
-  const TextureHandle texture = device->createTexture(desc);
-  {
-    const NativeTexture native = device->exportNative(texture);
-    VulkanImage image;
-    image.image = native.vkImage;
-    image.layout = native.vkLayout;
-    image.format = native.vkFormat;
-    image.width = native.width;
-    image.height = native.height;
-    OffscreenSurface surface(*graphite, image);
-    ASSERT_NE(surface.canvas(), nullptr);
-    surface.canvas()->clear(SkColorSetARGB(255, 0, 0, 255));
-    pixels = readbackSurface(*graphite, surface.surface());
-    ASSERT_FALSE(pixels.empty());
-    EXPECT_EQ(pixels.getColor(0, 0), SkColorSetARGB(255, 0, 0, 255));
-    EXPECT_EQ(pixels.getColor(7, 7), SkColorSetARGB(255, 0, 0, 255));
-  }
-  graphite.reset();
-  device->destroy(texture);
 }

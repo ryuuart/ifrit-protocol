@@ -3,7 +3,7 @@
 #include <Graphics/GraphicsEngine/interface/DeviceContext.h>
 #include <Graphics/GraphicsEngine/interface/RenderDevice.h>
 #include <Graphics/GraphicsEngineVulkan/interface/EngineFactoryVk.h>
-#include <sigilskia/device/GpuDevice.h>
+#include <sigilcore/hardware/GpuDevice.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 
 #include <Common/interface/RefCntAutoPtr.hpp>
@@ -22,7 +22,7 @@ struct Device::Impl {
    *  after the Diligent objects so they are torn down first: they borrow
    *  the Vulkan device and queue those own. Both are null when the
    *  adoption failed, which leaves the 3D side whole. */
-  std::unique_ptr<skia::GpuDevice> gpu;
+  std::unique_ptr<core::hardware::GpuDevice> gpu;
   std::unique_ptr<skia::GraphiteContext> graphite;
 };
 
@@ -109,7 +109,7 @@ std::unique_ptr<Device> Device::create(const DeviceConfig& config,
 
 Diligent::IRenderDevice* Device::renderDevice() const { return m_impl->device; }
 Diligent::IDeviceContext* Device::context() const { return m_impl->context; }
-skia::GpuDevice* Device::gpu() const { return m_impl->gpu.get(); }
+core::hardware::GpuDevice* Device::gpu() const { return m_impl->gpu.get(); }
 skia::GraphiteContext* Device::graphite() const {
   return m_impl->graphite.get();
 }

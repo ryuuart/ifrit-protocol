@@ -3114,7 +3114,7 @@
     "repetitions": 4
    }
   },
-  "sigilskia_device_bench": {
+  "core_hardware_bench": {
    "BM_HandleAllocateRelease": {
     "real_ns": 4.9716472011297785,
     "cpu_ns": 4.971520134497851,

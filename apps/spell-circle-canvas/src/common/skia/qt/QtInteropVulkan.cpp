@@ -33,7 +33,7 @@ std::unique_ptr<GraphiteContext> createGraphiteContext(QRhi* rhi) {
   QVulkanInstance* instance = nativeHandles->inst;
   if (!instance) return nullptr;
 
-  VulkanHandles handles;
+  core::hardware::VulkanHandles handles;
   handles.instance = instance->vkInstance();
   handles.physicalDevice = nativeHandles->physDev;
   handles.device = nativeHandles->dev;
@@ -46,7 +46,7 @@ std::unique_ptr<GraphiteContext> createGraphiteContext(QRhi* rhi) {
   // Qt-free path resolves every entry point without a Qt object in the
   // chain.
   handles.getInstanceProcAddr =
-      reinterpret_cast<VulkanHandles::GetInstanceProcAddr>(
+      reinterpret_cast<core::hardware::VulkanHandles::GetInstanceProcAddr>(
           instance->getInstanceProcAddr("vkGetInstanceProcAddr"));
   return GraphiteContext::createVulkan(handles);
 }

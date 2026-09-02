@@ -11,7 +11,7 @@
 
 #include "DeviceBackend.h"
 
-namespace sigil::skia {
+namespace sigil::core::hardware {
 
 namespace {
 
@@ -146,4 +146,4 @@ std::unique_ptr<GpuDevice::Backend_> createMetalBackend(const NativeDevice &nati
   return std::make_unique<MetalBackend>(resolved, owned);
 }
 
-}  // namespace sigil::skia
+}  // namespace sigil::core::hardware

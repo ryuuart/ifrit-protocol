@@ -26,7 +26,7 @@
 #include <dlfcn.h>
 #endif
 
-namespace sigil::skia {
+namespace sigil::core::hardware {
 
 namespace {
 
@@ -42,7 +42,7 @@ GetInstanceProcAddr openLoader(std::string* error) {
   static GetInstanceProcAddr cached = nullptr;
   if (cached) return cached;
   const char* candidates[] = {
-      std::getenv("SIGILSKIA_VULKAN_LIBRARY"),
+      std::getenv("SIGIL_VULKAN_LIBRARY"),
 #if defined(_WIN32)
       "vulkan-1.dll",
 #elif defined(__APPLE__)
@@ -94,7 +94,7 @@ GetInstanceProcAddr openLoader(std::string* error) {
   if (error)
     *error =
         "no Vulkan loader library (on macOS: brew install molten-vk "
-        "vulkan-loader; or point SIGILSKIA_VULKAN_LIBRARY at one)";
+        "vulkan-loader; or point SIGIL_VULKAN_LIBRARY at one)";
   return nullptr;
 }
 
@@ -150,47 +150,47 @@ struct Api {
 
   bool loadInstance(VkInstance instance) {
     auto gipa = getInstanceProcAddr;
-#define SIGILSKIA_VK_INSTANCE(field, name) \
+#define SIGIL_VK_INSTANCE(field, name) \
   field = instanceProc<decltype(field)>(gipa, instance, name)
-    SIGILSKIA_VK_INSTANCE(getDeviceProcAddr, "vkGetDeviceProcAddr");
-    SIGILSKIA_VK_INSTANCE(destroyInstance, "vkDestroyInstance");
-    SIGILSKIA_VK_INSTANCE(enumeratePhysicalDevices,
+    SIGIL_VK_INSTANCE(getDeviceProcAddr, "vkGetDeviceProcAddr");
+    SIGIL_VK_INSTANCE(destroyInstance, "vkDestroyInstance");
+    SIGIL_VK_INSTANCE(enumeratePhysicalDevices,
                           "vkEnumeratePhysicalDevices");
-    SIGILSKIA_VK_INSTANCE(getQueueFamilyProperties,
+    SIGIL_VK_INSTANCE(getQueueFamilyProperties,
                           "vkGetPhysicalDeviceQueueFamilyProperties");
-    SIGILSKIA_VK_INSTANCE(getMemoryProperties,
+    SIGIL_VK_INSTANCE(getMemoryProperties,
                           "vkGetPhysicalDeviceMemoryProperties");
-    SIGILSKIA_VK_INSTANCE(getPhysicalDeviceProperties,
+    SIGIL_VK_INSTANCE(getPhysicalDeviceProperties,
                           "vkGetPhysicalDeviceProperties");
-    SIGILSKIA_VK_INSTANCE(getPhysicalDeviceFeatures2,
+    SIGIL_VK_INSTANCE(getPhysicalDeviceFeatures2,
                           "vkGetPhysicalDeviceFeatures2");
-    SIGILSKIA_VK_INSTANCE(enumerateDeviceExtensions,
+    SIGIL_VK_INSTANCE(enumerateDeviceExtensions,
                           "vkEnumerateDeviceExtensionProperties");
-    SIGILSKIA_VK_INSTANCE(createDevice, "vkCreateDevice");
-#undef SIGILSKIA_VK_INSTANCE
+    SIGIL_VK_INSTANCE(createDevice, "vkCreateDevice");
+#undef SIGIL_VK_INSTANCE
     return getDeviceProcAddr && enumeratePhysicalDevices &&
            getQueueFamilyProperties && getMemoryProperties && createDevice;
   }
 
   bool loadDevice(VkDevice device) {
-#define SIGILSKIA_VK_DEVICE(field, name) \
+#define SIGIL_VK_DEVICE(field, name) \
   field = reinterpret_cast<decltype(field)>(getDeviceProcAddr(device, name))
-    SIGILSKIA_VK_DEVICE(destroyDevice, "vkDestroyDevice");
-    SIGILSKIA_VK_DEVICE(getDeviceQueue, "vkGetDeviceQueue");
-    SIGILSKIA_VK_DEVICE(deviceWaitIdle, "vkDeviceWaitIdle");
-    SIGILSKIA_VK_DEVICE(queueSubmit, "vkQueueSubmit");
-    SIGILSKIA_VK_DEVICE(createImage, "vkCreateImage");
-    SIGILSKIA_VK_DEVICE(destroyImage, "vkDestroyImage");
-    SIGILSKIA_VK_DEVICE(getImageMemoryRequirements,
+    SIGIL_VK_DEVICE(destroyDevice, "vkDestroyDevice");
+    SIGIL_VK_DEVICE(getDeviceQueue, "vkGetDeviceQueue");
+    SIGIL_VK_DEVICE(deviceWaitIdle, "vkDeviceWaitIdle");
+    SIGIL_VK_DEVICE(queueSubmit, "vkQueueSubmit");
+    SIGIL_VK_DEVICE(createImage, "vkCreateImage");
+    SIGIL_VK_DEVICE(destroyImage, "vkDestroyImage");
+    SIGIL_VK_DEVICE(getImageMemoryRequirements,
                         "vkGetImageMemoryRequirements");
-    SIGILSKIA_VK_DEVICE(allocateMemory, "vkAllocateMemory");
-    SIGILSKIA_VK_DEVICE(freeMemory, "vkFreeMemory");
-    SIGILSKIA_VK_DEVICE(bindImageMemory, "vkBindImageMemory");
-    SIGILSKIA_VK_DEVICE(createSemaphore, "vkCreateSemaphore");
-    SIGILSKIA_VK_DEVICE(destroySemaphore, "vkDestroySemaphore");
-    SIGILSKIA_VK_DEVICE(waitSemaphores, "vkWaitSemaphores");
-    SIGILSKIA_VK_DEVICE(getSemaphoreCounterValue, "vkGetSemaphoreCounterValue");
-#undef SIGILSKIA_VK_DEVICE
+    SIGIL_VK_DEVICE(allocateMemory, "vkAllocateMemory");
+    SIGIL_VK_DEVICE(freeMemory, "vkFreeMemory");
+    SIGIL_VK_DEVICE(bindImageMemory, "vkBindImageMemory");
+    SIGIL_VK_DEVICE(createSemaphore, "vkCreateSemaphore");
+    SIGIL_VK_DEVICE(destroySemaphore, "vkDestroySemaphore");
+    SIGIL_VK_DEVICE(waitSemaphores, "vkWaitSemaphores");
+    SIGIL_VK_DEVICE(getSemaphoreCounterValue, "vkGetSemaphoreCounterValue");
+#undef SIGIL_VK_DEVICE
     return queueSubmit && createImage && destroyImage && allocateMemory &&
            freeMemory && bindImageMemory && createSemaphore &&
            destroySemaphore && waitSemaphores && getSemaphoreCounterValue;
@@ -628,4 +628,4 @@ std::unique_ptr<GpuDevice::Backend_> createVulkanBackend(
   return std::make_unique<VulkanBackend>(api, resolved, owned);
 }
 
-}  // namespace sigil::skia
+}  // namespace sigil::core::hardware

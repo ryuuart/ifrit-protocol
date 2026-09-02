@@ -4,7 +4,7 @@
 #include <utility>
 #include <vector>
 
-namespace sigil::skia {
+namespace sigil::core::hardware {
 
 /**
  * A name for a device resource: a slot index and the generation of that
@@ -137,4 +137,4 @@ class HandleTable {
   size_t m_live = 0;
 };
 
-}  // namespace sigil::skia
+}  // namespace sigil::core::hardware

@@ -115,7 +115,7 @@ public API beyond `LogLevel`.
 
 **Two backends behind one API.** Leave `WebEngineConfig::gpuDevice` null
 and the CPU renderer paints straight into the `SkBitmap`-backed surface
-per view. Set it to the `sigil::skia::GpuDevice` your renderer draws with —
+per view. Set it to the `sigil::core::hardware::GpuDevice` your renderer draws with —
 owned or adopted, it is the one queue every draw rides — and Ultralight
 renders through its GPU pipeline instead: the Metal driver executes its
 command lists, blits each repaint into ping-pong publish textures named
@@ -182,7 +182,7 @@ and pass the handle to `updateTexture()`, or use `paint()`.
 ## Boundary
 
 Public dependencies: Skia and SigilSkia — every texture the engine hands
-out is a `sigil::skia::TextureHandle` on the host's `GpuDevice`, and the
+out is a `sigil::core::hardware::TextureHandle` on the host's `GpuDevice`, and the
 GPU driver draws over the host's `GraphiteContext`. Private:
 `Ultralight::Ultralight`, `Ultralight::AppCore` (the engine feature
 only), and Metal on Apple. No public header includes an Ultralight

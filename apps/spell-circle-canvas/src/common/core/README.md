@@ -20,7 +20,7 @@ paint caches, running motions — is the host's, reached through named
 operations the host implements on itself. That is the line both kernels
 draw: they own the DECISION, the host owns the THING.
 
-Under the kernels are two leaves, which libraries far from any
+Under the kernels are three leaves, which libraries far from any
 reconciler link on their own.
 
 **Comparable** — what a value needs before anything can decide it did not
@@ -35,7 +35,18 @@ accumulated with. The standard library is the whole of its dependencies,
 so a shader's CPU twin, a point cook, a text cache and a resource store
 all reach the same bodies.
 
-Namespace `sigil::core`. One target per directory:
+**Hardware** — the GPU device itself: one device and its one command
+queue, created here or adopted from a host that owns them, with the
+textures and fences living on it named by handles that go stale rather
+than dangle, and destruction that waits out the frames still in flight.
+It knows nothing about what draws — no Skia, no Diligent, no Qt — which
+is exactly why it sits here: a 2D backend and a 3D engine can stand on
+one device, name the same texture and read the same fence, and neither
+has to link the other. A host that holds one never spells a graphics
+API.
+
+Namespace `sigil::core`, with `sigil::core::hardware` for the device
+catalog. One target per directory:
 
 | target | directory | holds |
 |--------|-----------|-------|
@@ -43,19 +54,26 @@ Namespace `sigil::core`. One target per directory:
 | `SigilCoreCompute` | `compute/` | the seeded mixers, the identifying folds |
 | `SigilCoreReconcile` | `reconcile/` | the reconciler, its memo, the inherited-value channel, the animation lanes, the phase runner, the order declared reads imply |
 | `SigilCoreCache` | `cache/` | the cache policy, the settled-subtree proof, the stability release, the bake seam |
+| `SigilCoreHardware` | `hardware/` | the GPU device and its queue, owned or adopted; textures and fences by generation-checked handle; deferred destruction |
 
-The two leaves are header-only, so they are INTERFACE targets and produce
-no archive; the two kernels are static libraries. `SigilCoreComparable`
-takes the standard library and Boost.PFR, `SigilCoreCompute` the standard
-library alone — which is what lets any library link either without
-pulling a kernel, a device or a drawing library behind it.
+`SigilCoreComparable` and `SigilCoreCompute` are header-only, so they are
+INTERFACE targets and produce no archive; everything else is a static
+library. `SigilCoreComparable` takes the standard library and Boost.PFR,
+`SigilCoreCompute` the standard library alone — which is what lets any
+library link either without pulling a kernel, a device or a drawing
+library behind it. `SigilCoreHardware` is the one target here that takes
+more than the standard library: it takes the graphics API and nothing
+else, and only a consumer that needs a device links it, so the rest of
+SigilCore stays what it was.
 
 Every public header lives under `include/sigilcore/<feature>/` and is
 spelled `<sigilcore/comparable/X.h>`, `<sigilcore/compute/X.h>`,
 `<sigilcore/reconcile/X.h>` or `<sigilcore/cache/X.h>`;
 `<sigilcore/comparable/Comparable.h>`, `<sigilcore/compute/Compute.h>`,
 `<sigilcore/reconcile/Reconcile.h>` and `<sigilcore/cache/Cache.h>`
-include their own directory's headers.
+include their own directory's headers. The hardware feature's are
+`<sigilcore/hardware/GpuDevice.h>`, `<sigilcore/hardware/Handle.h>` and
+`<sigilcore/hardware/Fence.h>`.
 
 | header | holds |
 |--------|-------|
@@ -78,6 +96,9 @@ include their own directory's headers.
 | `cache/Volatility.h` | `NodeVolatility`, `SubtreeVerdict`, `ChildVolatility` and `foldSubtree` — the settled-subtree proof |
 | `cache/Settle.h` | `Settle<Values>` — the stability release: `observe`, `release`, `moved`, `frames`, `held`, `restart` |
 | `cache/Bake.h` | `BakeOps<Target>`, `Bake<Target>`, `BakeState`, `BakeAction`, `decideBake`, `runBake` — the bake seam |
+| `hardware/GpuDevice.h` | `GpuDevice`, `Backend`, `NativeDevice`, `VulkanHandles`, `NativeTexture`, `TextureDesc`, `TextureFormat`, `TextureUsage`, `mipLevelsFor` — the device, what it is made of, and what a texture on it is |
+| `hardware/Handle.h` | `Handle`, `TypedHandle<Tag>`, `TextureHandle`, `BufferHandle`, `FenceHandle`, `HandleTable<T, H>` — a name that goes stale, and the slot store behind it |
+| `hardware/Fence.h` | `FenceValue`, `FenceWait`, `kFenceInitialValue`, `kFenceDefaultTimeout` — a timeline and what waiting on one answers |
 
 ## Using it
 
@@ -328,9 +349,135 @@ the other. New code takes `pcgHash`. The same rule decides every
 candidate for this directory: a body that differs is a second function
 under its own name, never a merge.
 
+## The device
+
+A consumer that wants a GPU device — one it owns, or one an engine
+already created — takes `GpuDevice`, and names textures and fences by
+handle rather than holding the API's objects:
+
+```cpp
+#include <sigilcore/hardware/GpuDevice.h>
+using namespace sigil::core::hardware;
+
+// The system default device and a fresh queue — or adopt a host's:
+std::unique_ptr<GpuDevice> device = GpuDevice::createOwned(Backend::Metal);
+// NativeDevice native{Backend::Metal, mtlDevice, mtlCommandQueue};
+// device = GpuDevice::adopt(native);      // never frees them
+
+TextureDesc desc;
+desc.width = 1920;
+desc.height = 1080;
+desc.format = TextureFormat::BGRA8Unorm;
+TextureHandle target = device->createTexture(desc);
+
+FenceHandle fence = device->createFence();
+for (;;) {
+  device->beginFrame();          // retires destroys three frames old
+  drawSomehow(*device, target);  // whatever backend stands on this device
+  FenceValue done = device->signal(fence);  // behind everything submitted
+  // …later: device->waitCpu(fence, done) blocks; device->waitGpu(fence, done)
+  // holds later queue work instead.
+}
+device->destroy(target);         // stale at once, released at frame + 3
+```
+
+`device->exportNative(target)` hands the API's own object out, for a
+host that draws with the API directly or publishes the texture onwards.
+A texture the host made enters the same table through
+`importNative(nativeTexture)` — borrowed, so destroy only forgets it —
+or `importNative(nativeTexture, /*takeOwnership=*/true)`, after which the
+device releases it like one of its own.
+
+**A texture may carry a chain.** `TextureDesc::mipLevels` asks for one,
+level 0 at the description's size and each level after it half the last;
+`mipLevelsFor(width, height)` is how deep the size allows, and a count
+past it is clamped to it. A chain is not only a filtering aid here: a
+PREFILTERED ENVIRONMENT is a different image on every level, and the
+level a shader reads is the one its roughness picked, so the count has to
+be part of the description rather than something generated afterward from
+level 0. `exportNative` reports what the texture actually got.
+
+### Adopting a device an engine created
+
+Some 3D engines create the Vulkan device themselves and cannot attach to
+one that already exists. There the device is theirs and everything else
+joins it, rather than the other way round. What `adopt` wants is exactly
+what such an engine exposes: instance, physical device, device, queue and
+queue family, the API version, and the `vkGetInstanceProcAddr` the loader
+already in the process hands out. Three conditions come with it:
+
+- **Timeline semaphores must be enabled on that device.** A fence here is
+  one, and a device created without them cannot make one. Ask the engine
+  for the feature before it creates the device — Diligent spells it
+  `NativeFence` — because it cannot be turned on afterwards.
+- **The loader should be the engine's.** Leaving `getInstanceProcAddr`
+  null is legal and this library finds a loader itself, but then the two
+  APIs dispatch through separately opened copies of it.
+- **The queue is now shared, and sharing has a rule.** Every submission
+  goes into the one queue in submission order — that is what lets a
+  submit be asynchronous and still correct — but only while the streams
+  never interleave. Hold whatever lock the engine guards its queue with
+  around every foreign submit and around every `signal`, `waitGpu` and
+  `waitCpu` on this device.
+
+Nothing is freed by an adopted device: the instance, device and queue
+stay the engine's, and keeping them alive for as long as the `GpuDevice`
+lives is the caller's business.
+
+### How the device behaves
+
+**Handles are names, not pointers.** A `TextureHandle` or `FenceHandle`
+is a slot index plus the generation the slot had when the name was
+issued. Destroying a resource frees its slot and bumps the generation,
+so a handle kept past the destroy compares unequal to whatever later
+lives in that slot: `isValid` says no, `exportNative` returns empty,
+`signal` returns the initial value, and nothing reaches the wrong
+resource. The typed handles do not convert into each other.
+`HandleTable` is the store behind them and can name anything a host
+wants named the same way.
+
+**Destruction waits out the frames in flight.** `destroy(texture)` makes
+the handle stale at once but releases the native texture only when
+`beginFrame()` has advanced `kFramesInFlight` (three) frames past the one
+it was destroyed in — a frame that was recording when the destroy came in
+may still reference it on the GPU. A host that never calls `beginFrame()`
+never releases anything until the device is torn down, which releases
+everything.
+
+**A fence is a timeline.** Its value only ever grows; `signal` queues a
+raise to the next value behind everything submitted so far and returns
+that value, `waitGpu` holds every later submission until the value is
+reached, and `waitCpu` blocks for it with a timeout. On Metal a fence is
+an `MTLSharedEvent` and every wait and signal is a command buffer on the
+device's queue; a queue executes in order, so `waitGpu` is for a value
+that is already signalled or will be signalled from *another* queue —
+`exportNative(fence)` hands the event to one — and a signal queued on the
+same queue behind the wait can never run.
+
+**Every call is safe from any thread except `beginFrame()`**, which
+belongs to the one thread that counts frames. A device from
+`createOwned` releases its device and queue when it dies; one from
+`adopt` never does.
+
+**Two backends, one contract.** What each supports:
+
+| | Metal | Vulkan |
+|---|---|---|
+| `createOwned` | the system default device and a fresh queue | the loader (platform search, or `SIGIL_VULKAN_LIBRARY`), an instance with portability enumeration where offered, the first physical device with a graphics queue, a device with timeline semaphores enabled and the portability subset where required, that queue |
+| `adopt` | `mtlDevice` + `mtlCommandQueue` | instance, physical device, device, queue and family index; `getInstanceProcAddr` optional (the loader is found otherwise); the device must have timeline semaphores enabled |
+| texture | `id<MTLTexture>`; `cpuAccessible` is shared storage | `VkImage` + `VkDeviceMemory`, optimal tiling, sampled, colour-attachment, input-attachment and transfer usage (+ storage for `ShaderWrite`) — input attachment because a 2D backend reads a render target back through one; `cpuAccessible` prefers host-visible coherent memory and falls back to device-local; formats map to `R8G8B8A8_UNORM`, `B8G8R8A8_UNORM`, `R16G16B16A16_SFLOAT` |
+| import with ownership | retains the texture | destroys the `VkImage` and frees `vkMemory` when given |
+| fence | `MTLSharedEvent` | timeline `VkSemaphore`; `waitCpu` is `vkWaitSemaphores`, queue signal and wait are empty submissions |
+| loading | the framework | every entry point resolved from `vkGetInstanceProcAddr` at run time; nothing links Vulkan, and a machine without a loader or driver gets the reason from `createOwned` |
+
+Without a Vulkan runtime, `createOwned(Backend::Vulkan)` returns null and
+names the reason; on macOS the runtime is `brew install molten-vk
+vulkan-loader`, and the tests on that backend skip with the same message.
+
 ## What belongs here
 
-A function earns a place in one of the leaves when three things hold:
+A function earns a place in one of the two header-only leaves when three
+things hold:
 
 - **Two libraries need it identically.** Not "could share it" — actually
   compute the same number today, or have to agree with each other
@@ -362,7 +509,13 @@ without acquiring a kernel. SigilCoreReconcile links SigilCoreComparable
 values, the ticker, and the held motions a lane addresses) and
 SigilMeasure (the published counts), and nothing that draws, lays out or
 shapes text. SigilCoreCache
-links SigilCoreReconcile alone. What stays with a host: what a node
+links SigilCoreReconcile alone. SigilCoreHardware links nothing of this
+project's either: the platform's graphics API — Metal where there is one,
+the Vulkan loader resolved at run time everywhere — and no Skia, no
+Diligent, no Qt. That is what makes one device serviceable by two
+drawing libraries at once: SigilSkia stands Graphite on it, a Diligent
+renderer adopts it, and neither knows the other is there. What stays
+with a host: what a node
 retains, what a patch does to it, how children are ordered for drawing,
 which descriptions compare equal, which of its own values are volatile,
 and every artefact.
@@ -384,7 +537,7 @@ From `apps/spell-circle-canvas`:
 ```sh
 python3 scripts/setup.py --config Debug
 cmake --build build --config Debug
-ctest --test-dir build -C Debug -R sigilcore --output-on-failure
+ctest --test-dir build -C Debug -R 'sigilcore|core_hardware' --output-on-failure
 ```
 
 `sigilcore_comparable_test` (`comparable/test/`) covers the erased value
@@ -424,3 +577,13 @@ A fake host is the subject of a measurement as much as of a test, so
 each of those two benchmarks compiles with its own feature's `test/` on
 its include path and drives the host defined there — one definition, and
 the two binaries cannot disagree about what they are exercising.
+
+`core_hardware_test` (`hardware/test/`) needs a GPU, so it exists on
+Apple alone: it proves the handles go stale and a reused slot rejects the
+old name, that destruction retires at frame + 3, that a texture
+round-trips through import and export, that a mip chain is as deep as the
+size allows, and that a fence signals and holds — on Metal, and again on
+Vulkan where a runtime is installed, each Vulkan arm skipping with its
+reason when there is none. `core_hardware_bench` (`hardware/bench/`) is
+its benchmark, through the `benches` target and
+`scripts/bench_ledger.py`.

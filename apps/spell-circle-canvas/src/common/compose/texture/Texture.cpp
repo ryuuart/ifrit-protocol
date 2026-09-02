@@ -14,7 +14,7 @@
 #include <sigilmotion/clock/FrameClock.h>
 #include <sigilmotion/clock/Ticker.h>
 #ifdef SIGILCOMPOSE_TEXTURE_DEVICE
-#include <sigilskia/device/GpuDevice.h>
+#include <sigilcore/hardware/GpuDevice.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 #include <sigilskia/graphite/OffscreenSurface.h>
 #endif
@@ -44,9 +44,9 @@ struct TextureScene::Impl {
 #ifdef SIGILCOMPOSE_TEXTURE_DEVICE
   /** The device side: the texture the scene paints into and the context
    *  that wraps it. Both null on the raster path. */
-  skia::GpuDevice* device = nullptr;
+  core::hardware::GpuDevice* device = nullptr;
   skia::GraphiteContext* context = nullptr;
-  skia::TextureHandle handle;
+  core::hardware::TextureHandle handle;
 #endif
 
   sk_sp<SkImage> image;
@@ -105,17 +105,17 @@ std::shared_ptr<TextureScene> TextureScene::make(SkISize size,
 }
 
 #ifdef SIGILCOMPOSE_TEXTURE_DEVICE
-bool TextureScene::useDevice(skia::GpuDevice& device,
+bool TextureScene::useDevice(core::hardware::GpuDevice& device,
                              skia::GraphiteContext& context) {
   Impl& impl = *m_impl;
   // The usage left at its default is the one a scene needs: a shader
   // reads the texture and a canvas paints into it.
-  skia::TextureDesc desc;
+  core::hardware::TextureDesc desc;
   desc.width = impl.size.width();
   desc.height = impl.size.height();
-  desc.format = skia::TextureFormat::RGBA8Unorm;
+  desc.format = core::hardware::TextureFormat::RGBA8Unorm;
   desc.label = "compose scene";
-  const skia::TextureHandle handle = device.createTexture(desc);
+  const core::hardware::TextureHandle handle = device.createTexture(desc);
   if (!handle) return false;
   {
     const skia::OffscreenSurface probe(context, device, handle);
@@ -139,7 +139,7 @@ bool TextureScene::useDevice(skia::GpuDevice& device,
   return true;
 }
 #else
-bool TextureScene::useDevice(skia::GpuDevice&, skia::GraphiteContext&) {
+bool TextureScene::useDevice(core::hardware::GpuDevice&, skia::GraphiteContext&) {
   // This build carries no device feature, so there is no device to paint
   // on and the raster surface stands.
   return false;
@@ -175,7 +175,7 @@ material::DeviceImage TextureScene::deviceImage() const {
 #ifdef SIGILCOMPOSE_TEXTURE_DEVICE
   const Impl& impl = *m_impl;
   if (!impl.device || !impl.handle) return {};
-  const skia::NativeTexture native = impl.device->exportNative(impl.handle);
+  const core::hardware::NativeTexture native = impl.device->exportNative(impl.handle);
   if (!native) return {};
   material::DeviceImage out;
   out.device = impl.device;

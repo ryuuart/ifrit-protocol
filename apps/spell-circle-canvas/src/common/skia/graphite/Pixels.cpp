@@ -2,7 +2,7 @@
  * Reading an image out at the width a device texture wants it.
  */
 
-#include <sigilskia/device/Pixels.h>
+#include <sigilskia/graphite/Pixels.h>
 
 #include <include/core/SkColorType.h>
 #include <include/core/SkImageInfo.h>

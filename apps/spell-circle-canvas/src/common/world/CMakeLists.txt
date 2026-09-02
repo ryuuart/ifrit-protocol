@@ -37,15 +37,15 @@ add_subdirectory(graph)
 # runtime and executing a frame's passes on the runtime it carries.
 add_subdirectory(scene)
 
-# The device feature needs SigilSkia's, since the whole point of it is
-# that both APIs draw on one device. The light feature above stands
-# without it.
-if(TARGET SigilSkiaDevice)
+# The device feature needs Graphite on the shared device, since the whole
+# point of it is that both APIs draw on one. The light feature above
+# stands without it.
+if(TARGET SigilSkiaGraphite)
   add_subdirectory(diligent)
 else()
   message(STATUS
     "SigilWorldDiligent skipped: needs SPELLCIRCLE_ENABLE_SKIA_CANVAS "
-    "(SigilSkiaDevice)")
+    "(SigilSkiaGraphite)")
 endif()
 
 # The presets: elements composed out of the verbs above — a three-point

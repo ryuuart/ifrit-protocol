@@ -5,7 +5,7 @@
  * names Ultralight types, and Ultralight is private to the library.
  */
 
-#include <sigilskia/device/GpuDevice.h>
+#include <sigilcore/hardware/GpuDevice.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 
 #include <memory>
@@ -35,7 +35,7 @@ class MetalDriver final : public GpuDriver {
   /** @p device must be Metal and, with @p graphite, outlive the driver.
    *  Null when pipeline-state creation fails (broken shader compile). */
   static std::unique_ptr<MetalDriver> create(
-      sigil::skia::GpuDevice& device, sigil::skia::GraphiteContext& graphite);
+      sigil::core::hardware::GpuDevice& device, sigil::skia::GraphiteContext& graphite);
 
   // Defined where State is complete.
   // NOLINTNEXTLINE(performance-trivially-destructible)
@@ -66,23 +66,23 @@ class MetalDriver final : public GpuDriver {
 
   // GpuDriver
   std::unordered_set<uint32_t> flush() override;
-  sigil::skia::TextureHandle createPublishTexture(int width,
+  sigil::core::hardware::TextureHandle createPublishTexture(int width,
                                                   int height) override;
-  sigil::skia::TextureHandle createImageTexture(int width, int height) override;
-  void releaseTexture(sigil::skia::TextureHandle texture) override;
-  void copyTexture(uint32_t srcTextureId, sigil::skia::TextureHandle dst,
+  sigil::core::hardware::TextureHandle createImageTexture(int width, int height) override;
+  void releaseTexture(sigil::core::hardware::TextureHandle texture) override;
+  void copyTexture(uint32_t srcTextureId, sigil::core::hardware::TextureHandle dst,
                    int width, int height) override;
-  bool copyDeviceTexture(sigil::skia::TextureHandle src,
-                         sigil::skia::TextureHandle dst, int width,
+  bool copyDeviceTexture(sigil::core::hardware::TextureHandle src,
+                         sigil::core::hardware::TextureHandle dst, int width,
                          int height) override;
-  uint32_t registerExternalTexture(sigil::skia::TextureHandle texture) override;
+  uint32_t registerExternalTexture(sigil::core::hardware::TextureHandle texture) override;
   void unregisterExternalTexture(uint32_t textureId) override;
-  void uploadToTexture(sigil::skia::TextureHandle texture, const void* pixels,
+  void uploadToTexture(sigil::core::hardware::TextureHandle texture, const void* pixels,
                        int width, int height, size_t rowBytes) override;
-  bool paintTexture(sigil::skia::TextureHandle texture, int width, int height,
+  bool paintTexture(sigil::core::hardware::TextureHandle texture, int width, int height,
                     const std::function<void(SkCanvas&)>& painter) override;
   sk_sp<SkImage> wrapTexture(skgpu::graphite::Recorder* recorder,
-                             sigil::skia::TextureHandle texture, int width,
+                             sigil::core::hardware::TextureHandle texture, int width,
                              int height) override;
 
   struct State;

@@ -33,8 +33,11 @@ namespace sigil::weave {
 class FontContext;
 }
 
-namespace sigil::skia {
+namespace sigil::core::hardware {
 class GpuDevice;
+}  // namespace sigil::core::hardware
+
+namespace sigil::skia {
 class GraphiteContext;
 }  // namespace sigil::skia
 
@@ -80,7 +83,7 @@ class TextureScene : public std::enable_shared_from_this<TextureScene> {
    *  draws — when the device refuses the texture or the wrap fails.
    *  Whatever the scene has painted so far is dropped, because the
    *  pixels are somewhere else now. */
-  bool useDevice(sigil::skia::GpuDevice& device,
+  bool useDevice(sigil::core::hardware::GpuDevice& device,
                  sigil::skia::GraphiteContext& context);
 
   /** Reconciles @p root against the tree this scene already holds, at

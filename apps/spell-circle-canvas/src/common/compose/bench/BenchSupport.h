@@ -28,7 +28,7 @@
 #include <include/gpu/graphite/Recorder.h>
 #include <include/gpu/graphite/Recording.h>
 #include <include/gpu/graphite/Surface.h>
-#include <sigilskia/device/GpuDevice.h>
+#include <sigilcore/hardware/GpuDevice.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 #endif
 
@@ -84,9 +84,9 @@ inline Fill cellFill(int id, int changed = -1, int phase = 0) {
 
 /** The process's GPU device, created on first use; null where there is
  *  none. */
-inline sigil::skia::GpuDevice* gpuDevice() {
-  static std::unique_ptr<sigil::skia::GpuDevice> device =
-      sigil::skia::GpuDevice::createOwned(sigil::skia::Backend::Metal);
+inline sigil::core::hardware::GpuDevice* gpuDevice() {
+  static std::unique_ptr<sigil::core::hardware::GpuDevice> device =
+      sigil::core::hardware::GpuDevice::createOwned(sigil::core::hardware::Backend::Metal);
   return device.get();
 }
 
@@ -95,7 +95,7 @@ inline sigil::skia::GpuDevice* gpuDevice() {
  *  skip. */
 inline sigil::skia::GraphiteContext* graphite() {
   static std::unique_ptr<sigil::skia::GraphiteContext> ctx = [] {
-    sigil::skia::GpuDevice* device = gpuDevice();
+    sigil::core::hardware::GpuDevice* device = gpuDevice();
     return device ? sigil::skia::GraphiteContext::create(*device) : nullptr;
   }();
   return ctx.get();

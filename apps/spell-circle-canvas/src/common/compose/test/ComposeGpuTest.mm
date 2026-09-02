@@ -18,7 +18,7 @@
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
-#include <sigilskia/device/GpuDevice.h>
+#include <sigilcore/hardware/GpuDevice.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 
 #include <include/core/SkBitmap.h>
@@ -42,8 +42,8 @@ sigil::weave::FontContext &fonts() {
 }
 
 sigil::skia::GraphiteContext *graphite() {
-  static std::unique_ptr<sigil::skia::GpuDevice> device =
-      sigil::skia::GpuDevice::createOwned(sigil::skia::Backend::Metal);
+  static std::unique_ptr<sigil::core::hardware::GpuDevice> device =
+      sigil::core::hardware::GpuDevice::createOwned(sigil::core::hardware::Backend::Metal);
   static std::unique_ptr<sigil::skia::GraphiteContext> ctx =
       device ? sigil::skia::GraphiteContext::create(*device) : nullptr;
   return ctx.get();

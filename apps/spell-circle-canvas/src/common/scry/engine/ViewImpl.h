@@ -13,7 +13,7 @@
 #include <include/core/SkImage.h>
 #include <include/core/SkRect.h>
 #include <include/core/SkRefCnt.h>
-#include <sigilskia/device/Handle.h>
+#include <sigilcore/hardware/Handle.h>
 
 #include <atomic>
 #include <cstdint>
@@ -48,8 +48,8 @@ class WebView::Impl final : public ultralight::LoadListener,
   // expose publishedGpuTexture.
   mutable std::mutex frameMutex;
   sk_sp<SkImage> latestImage;
-  sigil::skia::TextureHandle publishedGpuTexture;
-  sigil::skia::TextureHandle spareGpuTexture;
+  sigil::core::hardware::TextureHandle publishedGpuTexture;
+  sigil::core::hardware::TextureHandle spareGpuTexture;
   int gpuTextureWidth = 0;
   int gpuTextureHeight = 0;
   SkIRect lastDirtyBounds = SkIRect::MakeEmpty();

@@ -5,14 +5,14 @@
 // and calls down here for the native work; each API implements this
 // once (GpuDeviceMetal.mm today).
 
-#include <sigilskia/device/Fence.h>
-#include <sigilskia/device/GpuDevice.h>
+#include <sigilcore/hardware/Fence.h>
+#include <sigilcore/hardware/GpuDevice.h>
 
 #include <chrono>
 #include <cstdint>
 #include <string>
 
-namespace sigil::skia {
+namespace sigil::core::hardware {
 
 /** The level count a description actually gets: what it asked for, held
  *  to at least one and to no more than the size can carry. Every backend
@@ -61,4 +61,4 @@ std::unique_ptr<GpuDevice::Backend_> createMetalBackend(
 std::unique_ptr<GpuDevice::Backend_> createVulkanBackend(
     const NativeDevice& native, bool owned, std::string* error);
 
-}  // namespace sigil::skia
+}  // namespace sigil::core::hardware

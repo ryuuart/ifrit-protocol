@@ -2,7 +2,7 @@
 #include <chrono>
 #include <cstdint>
 
-namespace sigil::skia {
+namespace sigil::core::hardware {
 
 /**
  * A fence is a timeline: a 64-bit value that only ever grows. Signalling
@@ -31,4 +31,4 @@ enum class FenceWait {
   Invalid,
 };
 
-}  // namespace sigil::skia
+}  // namespace sigil::core::hardware

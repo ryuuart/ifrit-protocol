@@ -1,7 +1,6 @@
 #pragma once
-#include <sigilskia/device/Fence.h>
-#include <sigilskia/device/Handle.h>
-#include <sigilskia/graphite/GraphiteContext.h>
+#include <sigilcore/hardware/Fence.h>
+#include <sigilcore/hardware/Handle.h>
 
 #include <chrono>
 #include <cstddef>
@@ -9,7 +8,32 @@
 #include <memory>
 #include <string>
 
-namespace sigil::skia {
+namespace sigil::core::hardware {
+
+/**
+ * The raw Vulkan handles a device is stood up on or adopted from. Every
+ * field is the Vulkan object bridged to an opaque pointer or integer, so
+ * this header pulls in no Vulkan header: `instance`, `physicalDevice`,
+ * `device` and `queue` are the dispatchable handles (pointers) as-is;
+ * `apiVersion` is packed the way Vulkan packs it (major, minor, patch);
+ * `getInstanceProcAddr` is the loader's `vkGetInstanceProcAddr`, from
+ * which every other entry point is resolved.
+ */
+struct VulkanHandles {
+  /** A function pointer as Vulkan's own loader returns one. */
+  using VoidFunction = void (*)();
+  /** The signature of `vkGetInstanceProcAddr` with the instance opaque. */
+  using GetInstanceProcAddr = VoidFunction (*)(void* instance,
+                                               const char* name);
+
+  void* instance = nullptr;
+  void* physicalDevice = nullptr;
+  void* device = nullptr;
+  void* queue = nullptr;
+  uint32_t queueFamilyIndex = 0;
+  uint32_t apiVersion = 0;
+  GetInstanceProcAddr getInstanceProcAddr = nullptr;
+};
 
 /** The graphics API behind a device. */
 enum class Backend { Metal, Vulkan };
@@ -118,7 +142,7 @@ class GpuDevice {
  public:
   /** A device this library owns. Metal: the system default device and a
    *  fresh queue on it. Vulkan: the loader found through the platform's
-   *  library search (or SIGILSKIA_VULKAN_LIBRARY), an instance, the first
+   *  library search (or SIGIL_VULKAN_LIBRARY), an instance, the first
    *  physical device with a graphics queue, a device on it with timeline
    *  semaphores enabled, and that queue. Null when the backend is not
    *  available here — no Metal off Apple, no Vulkan loader or driver —
@@ -210,4 +234,4 @@ class GpuDevice {
   std::unique_ptr<Impl> m_impl;
 };
 
-}  // namespace sigil::skia
+}  // namespace sigil::core::hardware

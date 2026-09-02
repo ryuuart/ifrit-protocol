@@ -9,7 +9,7 @@
  * on ramping when the geometry slot's value type changes underneath it.
  */
 
-#include <sigilcore/reconcile/Lanes.h>
+#include <sigilmotion/values/Lanes.h>
 #include <sigilworld/element/Node.h>
 
 #include <cstddef>
@@ -52,8 +52,8 @@ enum Slot : size_t {
   kLaneCount,
 };
 
-/** One lane of one node — SigilCore's, over this library's family. */
-using Lane = core::Lane<LaneFamily>;
+/** One lane of one node — SigilMotion's, over this library's family. */
+using Lane = motion::Lane<LaneFamily>;
 
 /** Fills @p out with @p node's lanes: always `kLaneCount` of them, in
  *  `Slot` order, with a null value on every row this description does

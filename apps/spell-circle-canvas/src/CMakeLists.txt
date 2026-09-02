@@ -17,6 +17,9 @@
 #                libraries, tests, benchmarks, and examples/ (gallery, demo)
 #   spellcircle/ the SpellCircle receiver product: shared/ core embedded by
 #                both the qt/ and mac/ executables
+# Core first: its hardware feature is the device every drawing library
+# below stands on.
+add_subdirectory(common/core)
 if(SPELLCIRCLE_ENABLE_SKIA_CANVAS)
   add_subdirectory(common/skia)
 endif()
@@ -28,7 +31,6 @@ if(SPELLCIRCLE_ENABLE_ULTRALIGHT)
 endif()
 add_subdirectory(common/measure)
 add_subdirectory(common/motion)
-add_subdirectory(common/core)
 add_subdirectory(common/geometry)
 add_subdirectory(common/material)
 add_subdirectory(common/world)

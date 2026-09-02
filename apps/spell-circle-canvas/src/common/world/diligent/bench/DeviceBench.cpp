@@ -24,7 +24,7 @@
 #include <sigilmaterial/core/Recipe.h>
 #include <sigilmeasure/time/Stopwatch.h>
 #include <sigilmotion/clock/Ticker.h>
-#include <sigilskia/device/GpuDevice.h>
+#include <sigilcore/hardware/GpuDevice.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 #include <sigilworld/diligent/Device.h>
 #include <sigilworld/diligent/Pop.h>
@@ -80,7 +80,7 @@ void BM_DeviceAdopt(benchmark::State& state) {
   state.counters["bringup_ms"] = bringUpMs;
 
   for ([[maybe_unused]] auto iteration : state) {
-    std::unique_ptr<skia::GpuDevice> gpu = diligent::adoptVulkanDevice(
+    std::unique_ptr<core::hardware::GpuDevice> gpu = diligent::adoptVulkanDevice(
         device->renderDevice(), device->context(), &error);
     std::unique_ptr<skia::GraphiteContext> graphite;
     if (gpu) graphite = skia::GraphiteContext::create(*gpu);

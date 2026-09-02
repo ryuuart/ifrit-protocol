@@ -13,8 +13,11 @@ struct IRenderDevice;
 struct IDeviceContext;
 }  // namespace Diligent
 
-namespace sigil::skia {
+namespace sigil::core::hardware {
 class GpuDevice;
+}  // namespace sigil::core::hardware
+
+namespace sigil::skia {
 class GraphiteContext;
 }  // namespace sigil::skia
 
@@ -63,7 +66,7 @@ class Device {
 
   /** The adopted device and Skia's Graphite context standing on it, for
    *  painting 2D into a texture a 3D pass reads. Both null together. */
-  skia::GpuDevice* gpu() const;
+  core::hardware::GpuDevice* gpu() const;
   skia::GraphiteContext* graphite() const;
 
   /** Holds the one command queue for as long as it lives.

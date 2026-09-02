@@ -13,8 +13,11 @@
 #include <memory>
 #include <string>
 
-namespace sigil::skia {
+namespace sigil::core::hardware {
 class GpuDevice;
+}  // namespace sigil::core::hardware
+
+namespace sigil::skia {
 class GraphiteContext;
 }  // namespace sigil::skia
 
@@ -80,7 +83,7 @@ struct WebEngineConfig {
    * The engine internals are backend-neutral: a Vulkan driver joins
    * here without touching the rest of the library.
    */
-  sigil::skia::GpuDevice* gpuDevice = nullptr;
+  sigil::core::hardware::GpuDevice* gpuDevice = nullptr;
 
   /**
    * The Graphite context the engine's own drawing shares with the host —

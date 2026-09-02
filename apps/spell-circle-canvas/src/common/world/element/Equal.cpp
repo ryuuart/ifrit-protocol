@@ -5,7 +5,7 @@
  */
 
 #include <sigilcore/comparable/Fields.h>
-#include <sigilcore/reconcile/Compare.h>
+#include <sigilmotion/values/Animatable.h>
 #include <sigilworld/element/Node.h>
 
 #include <optional>
@@ -14,7 +14,7 @@ namespace sigil::world {
 
 namespace {
 
-using core::propEqual;
+using motion::propEqual;
 
 static_assert(core::kFieldCount<Transform> == 15,
               "Transform gained or lost a field — rule on it in "
@@ -151,7 +151,7 @@ bool propsEqual(const ElementNode& a, const ElementNode& b) {
   if (a.nodeTransition.has_value() != b.nodeTransition.has_value())
     return false;
   if (a.nodeTransition &&
-      !core::transitionEqual(*a.nodeTransition, *b.nodeTransition))
+      !motion::transitionEqual(*a.nodeTransition, *b.nodeTransition))
     return false;
   // `memo` is compared earlier and more strictly by the reconciler, and
   // `children` are reconciled by key rather than compared.

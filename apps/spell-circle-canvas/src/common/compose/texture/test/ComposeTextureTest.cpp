@@ -5,7 +5,7 @@
 #include <sigilcompose/texture/Texture.h>
 
 #ifdef SIGILCOMPOSE_TEXTURE_DEVICE
-#include <sigilskia/device/GpuDevice.h>
+#include <sigilcore/hardware/GpuDevice.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 #endif
 
@@ -119,8 +119,8 @@ TEST(ComposeTexture, NoDeviceMeansNoDeviceImage) {
 TEST(ComposeTexture, ADeviceTakesTheSceneAndSaysWhereItStands) {
   namespace skia = sigil::skia;
   std::string error;
-  const std::unique_ptr<skia::GpuDevice> device =
-      skia::GpuDevice::createOwned(skia::Backend::Metal, &error);
+  const std::unique_ptr<core::hardware::GpuDevice> device =
+      core::hardware::GpuDevice::createOwned(core::hardware::Backend::Metal, &error);
   if (!device) GTEST_SKIP() << error;
   const std::unique_ptr<skia::GraphiteContext> context =
       skia::GraphiteContext::create(*device);

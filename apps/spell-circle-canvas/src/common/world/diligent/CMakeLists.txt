@@ -81,9 +81,9 @@ target_include_directories(SigilWorldDiligent
   PUBLIC ${SIGIL_WORLD_INCLUDE_DIR}
   PRIVATE ${CMAKE_CURRENT_LIST_DIR} ${SIGIL_SLANG_GENERATED_DIR})
 
-# SigilSkiaDevice is PUBLIC because Device.h hands out the GpuDevice and
-# the Graphite context standing on it, and a caller that uses either
-# needs their headers; SigilWorldScene is PUBLIC because the runtime
+# SigilCoreHardware and SigilSkiaGraphite are PUBLIC because Device.h
+# hands out the hardware device and the Graphite context standing on it,
+# and a caller that uses either needs their headers; SigilWorldScene is PUBLIC because the runtime
 # value this hands back is executed by a Scene. Diligent and Slang are
 # PRIVATE: the public headers name Diligent's two interfaces by forward
 # declaration only and Slang not at all.
@@ -92,7 +92,7 @@ target_include_directories(SigilWorldDiligent
 # dressing every surface is built with, which is what decides whether a
 # slot is bound or left reading one white texel.
 target_link_libraries(SigilWorldDiligent
-  PUBLIC SigilSkiaDevice SigilWorldScene
+  PUBLIC SigilCoreHardware SigilSkiaGraphite SigilWorldScene
   PRIVATE unofficial::diligent-engine::DiligentCore
           unofficial::diligent-engine::volk Vulkan::Headers
           slang::slang SigilMaterialKit)

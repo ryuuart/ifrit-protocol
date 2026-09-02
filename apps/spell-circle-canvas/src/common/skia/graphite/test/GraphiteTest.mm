@@ -13,13 +13,15 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkSurface.h>
+#include <include/core/SkImageInfo.h>
 #include <include/gpu/graphite/Context.h>
 #include <include/gpu/graphite/Recorder.h>
 #include <include/gpu/graphite/Recording.h>
 #include <include/gpu/graphite/Surface.h>
-#include <sigilskia/device/GpuDevice.h>
+#include <sigilcore/hardware/GpuDevice.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 #include <sigilskia/graphite/OffscreenSurface.h>
+#include <sigilskia/graphite/Pixels.h>
 
 #include <cstring>
 #include <string>
@@ -27,18 +29,21 @@
 
 #include <gtest/gtest.h>
 
-using sigil::skia::Backend;
-using sigil::skia::FenceHandle;
-using sigil::skia::FenceValue;
-using sigil::skia::FenceWait;
-using sigil::skia::GpuDevice;
+using sigil::core::hardware::Backend;
+using sigil::core::hardware::FenceHandle;
+using sigil::core::hardware::FenceValue;
+using sigil::core::hardware::FenceWait;
+using sigil::core::hardware::GpuDevice;
 using sigil::skia::GraphiteContext;
-using sigil::skia::kFenceInitialValue;
-using sigil::skia::NativeDevice;
+using sigil::skia::bytePixels;
+using sigil::skia::halfFloatPixels;
+using sigil::skia::isFloatImage;
+using sigil::core::hardware::kFenceInitialValue;
+using sigil::core::hardware::NativeDevice;
 using sigil::skia::OffscreenSurface;
-using sigil::skia::TextureDesc;
-using sigil::skia::TextureFormat;
-using sigil::skia::TextureHandle;
+using sigil::core::hardware::TextureDesc;
+using sigil::core::hardware::TextureFormat;
+using sigil::core::hardware::TextureHandle;
 
 namespace {
 
@@ -340,4 +345,91 @@ TEST(SigilSkiaGraphiteVulkan, SubmitSignalsAFence) {
 
   dev->destroyFence(fence);
   dev->destroy(handle);
+}
+
+TEST(SigilSkiaGraphite, StandsOnADeviceAdoptedFromTheHost) {
+  // The factory that reads a device rather than raw handles: the one
+  // entry point a host holding a hardware device needs, and the same one
+  // the Vulkan arms take.
+  GpuDevice *dev = adoptedDevice();
+  ASSERT_NE(dev, nullptr) << "no Metal device";
+  std::unique_ptr<GraphiteContext> ctx = GraphiteContext::create(*dev);
+  ASSERT_NE(ctx, nullptr);
+  EXPECT_EQ(dev->native().mtlDevice, (__bridge void *)device());
+
+  const TextureHandle handle = dev->createTexture(smallTarget());
+  ASSERT_TRUE(dev->isValid(handle));
+  OffscreenSurface surface(*ctx, *dev, handle);
+  ASSERT_NE(surface.canvas(), nullptr);
+  surface.canvas()->clear(SkColorSetARGB(255, 0, 0, 255));
+
+  // The fence is on the same queue as Graphite's submission, so reaching
+  // it means the clear has landed.
+  const FenceHandle fence = dev->createFence();
+  const FenceValue done = surface.submit(*dev, fence);
+  ASSERT_EQ(dev->waitCpu(fence, done), FenceWait::Reached);
+
+  // BGRA, opaque blue.
+  const std::vector<uint8_t> bytes = readMetalBytes(*dev, handle, 8);
+  EXPECT_EQ(bytes[0], 255);
+  EXPECT_EQ(bytes[1], 0);
+  EXPECT_EQ(bytes[2], 0);
+  EXPECT_EQ(bytes[3], 255);
+
+  dev->destroyFence(fence);
+  dev->destroy(handle);
+}
+
+TEST(SigilSkiaGraphiteVulkan, RenderTargetClearsAndReadsBack) {
+  std::string why;
+  GpuDevice *dev = vulkanDevice(&why);
+  if (!dev) GTEST_SKIP() << "no Vulkan device: " << why;
+  GraphiteContext *ctx = vulkanGraphite();
+  if (!ctx) GTEST_SKIP() << "this Skia carries no Vulkan backend";
+
+  // A Graphite-owned target: the context alone, no wrap. The surface
+  // lives inside the context's lifetime — its memory is freed through the
+  // context — so it is scoped to go first.
+  const SkImageInfo info = SkImageInfo::MakeN32Premul(8, 8);
+  sk_sp<SkSurface> target = SkSurfaces::RenderTarget(ctx->recorder(), info);
+  ASSERT_NE(target, nullptr);
+  target->getCanvas()->clear(SkColorSetARGB(255, 0, 255, 0));
+  const SkBitmap pixels = readback(*ctx, target.get());
+  ASSERT_FALSE(pixels.empty());
+  EXPECT_EQ(pixels.getColor(3, 3), SkColorSetARGB(255, 0, 255, 0));
+}
+
+TEST(SigilSkiaGraphite, AFloatImageReadsBackAsHalvesWithItsRangeIntact) {
+  // The values above one are the whole reason a panorama is float, and a
+  // byte read would put every one of them at white.
+  const int w = 4, h = 2;
+  std::vector<float> px((size_t)w * h * 4);
+  for (size_t i = 0; i < (size_t)w * h; ++i) {
+    px[i * 4 + 0] = 6.5f;
+    px[i * 4 + 1] = 0.25f;
+    px[i * 4 + 2] = 0.5f;
+    px[i * 4 + 3] = 1.0f;
+  }
+  const SkImageInfo info =
+      SkImageInfo::Make(w, h, kRGBA_F32_SkColorType, kPremul_SkAlphaType);
+  sk_sp<SkImage> image = SkImages::RasterFromPixmapCopy(
+      {info, px.data(), (size_t)w * 4 * sizeof(float)});
+  ASSERT_TRUE(image);
+  EXPECT_TRUE(isFloatImage(image));
+
+  const std::vector<uint16_t> halves = halfFloatPixels(image);
+  ASSERT_EQ(halves.size(), (size_t)w * h * 4);
+  // Half 6.5 is 0x4680; a byte read of the same texel would say 255.
+  EXPECT_EQ(halves[0], 0x4680u);
+  const std::vector<uint8_t> bytes = bytePixels(image);
+  ASSERT_EQ(bytes.size(), (size_t)w * h * 4);
+  EXPECT_EQ(bytes[0], 255u);
+
+  // An ordinary 8-bit image is not float and reads back as itself.
+  SkBitmap flat;
+  flat.allocPixels(SkImageInfo::MakeN32Premul(2, 2));
+  flat.eraseColor(SK_ColorGREEN);
+  flat.setImmutable();
+  EXPECT_FALSE(isFloatImage(flat.asImage()));
+  EXPECT_EQ(bytePixels(flat.asImage()).size(), 16u);
 }

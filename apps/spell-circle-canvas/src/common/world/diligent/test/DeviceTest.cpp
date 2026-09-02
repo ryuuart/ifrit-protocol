@@ -6,7 +6,7 @@
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
-#include <sigilskia/device/GpuDevice.h>
+#include <sigilcore/hardware/GpuDevice.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 #include <sigilskia/graphite/OffscreenSurface.h>
 
@@ -124,20 +124,20 @@ bool clearThroughDiligent(world::diligent::Device& device) {
 TEST(Device, GraphiteDrawsOnTheDeviceDiligentMade) {
   MAKE_DEVICE_OR_SKIP(d);
 
-  skia::GpuDevice* gpu = d->gpu();
+  core::hardware::GpuDevice* gpu = d->gpu();
   ASSERT_NE(gpu, nullptr) << "the Diligent device was not adopted";
   ASSERT_NE(d->graphite(), nullptr);
-  EXPECT_EQ(gpu->backend(), skia::Backend::Vulkan);
+  EXPECT_EQ(gpu->backend(), core::hardware::Backend::Vulkan);
   EXPECT_NE(gpu->native().vulkan.device, nullptr);
   EXPECT_NE(gpu->native().vulkan.queue, nullptr);
 
-  skia::TextureDesc desc;
+  core::hardware::TextureDesc desc;
   desc.width = 8;
   desc.height = 8;
-  desc.format = skia::TextureFormat::RGBA8Unorm;
-  const skia::TextureHandle texture = gpu->createTexture(desc);
+  desc.format = core::hardware::TextureFormat::RGBA8Unorm;
+  const core::hardware::TextureHandle texture = gpu->createTexture(desc);
   ASSERT_TRUE(gpu->isValid(texture));
-  const skia::FenceHandle fence = gpu->createFence();
+  const core::hardware::FenceHandle fence = gpu->createFence();
   ASSERT_TRUE(gpu->isValid(fence));
 
   const SkColor painted = SkColorSetARGB(255, 0, 0, 255);
@@ -148,9 +148,9 @@ TEST(Device, GraphiteDrawsOnTheDeviceDiligentMade) {
     skia::OffscreenSurface surface(*d->graphite(), *gpu, texture);
     ASSERT_NE(surface.canvas(), nullptr);
     surface.canvas()->clear(painted);
-    const skia::FenceValue done = surface.submit(*gpu, fence);
-    EXPECT_GT(done, skia::kFenceInitialValue);
-    EXPECT_EQ(gpu->waitCpu(fence, done), skia::FenceWait::Reached);
+    const core::hardware::FenceValue done = surface.submit(*gpu, fence);
+    EXPECT_GT(done, core::hardware::kFenceInitialValue);
+    EXPECT_EQ(gpu->waitCpu(fence, done), core::hardware::FenceWait::Reached);
     EXPECT_EQ(gpu->completedValue(fence), done);
     pixels = readGraphiteSurface(*d->graphite(), surface.surface());
   }

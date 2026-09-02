@@ -2,7 +2,7 @@
 // counter and the deferred-destroy queue. Every native operation goes
 // through the backend interface in DeviceBackend.h.
 
-#include <sigilskia/device/GpuDevice.h>
+#include <sigilcore/hardware/GpuDevice.h>
 
 #include <cstdio>
 #include <deque>
@@ -10,7 +10,7 @@
 
 #include "DeviceBackend.h"
 
-namespace sigil::skia {
+namespace sigil::core::hardware {
 
 int mipLevelsFor(int width, int height) {
   int levels = 1;
@@ -268,4 +268,4 @@ bool GpuDevice::isValid(FenceHandle handle) const {
   return m_impl->fences.contains(handle);
 }
 
-}  // namespace sigil::skia
+}  // namespace sigil::core::hardware

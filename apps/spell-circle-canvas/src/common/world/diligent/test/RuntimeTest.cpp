@@ -19,7 +19,7 @@
 #include <sigilmaterial/core/Recipe.h>
 #include <sigilmaterial/kit/Surface.h>
 #include <sigilmotion/clock/Ticker.h>
-#include <sigilskia/device/GpuDevice.h>
+#include <sigilcore/hardware/GpuDevice.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 #include <sigilskia/graphite/OffscreenSurface.h>
 #include <sigilworld/diligent/Device.h>
@@ -684,15 +684,15 @@ TEST(GpuRuntime, AnUnlitSurfaceIsItsOwnLightOnBothTiers) {
 TEST(GpuRuntime, AMapAlreadyOnThisDeviceIsBoundWhereItStands) {
   const OnDevice on = onDevice();
   if (!on) GTEST_SKIP() << "no Vulkan device: " << on.error;
-  skia::GpuDevice* gpu = on.device->gpu();
+  core::hardware::GpuDevice* gpu = on.device->gpu();
   skia::GraphiteContext* graphite = on.device->graphite();
   if (!gpu || !graphite) GTEST_SKIP() << "the device was not adopted";
 
   // 2D paints into a texture on the one shared device…
-  skia::TextureDesc desc;
+  core::hardware::TextureDesc desc;
   desc.width = desc.height = 16;
-  desc.format = skia::TextureFormat::RGBA8Unorm;
-  const skia::TextureHandle handle = gpu->createTexture(desc);
+  desc.format = core::hardware::TextureFormat::RGBA8Unorm;
+  const core::hardware::TextureHandle handle = gpu->createTexture(desc);
   ASSERT_TRUE((bool)handle);
   {
     const world::diligent::Device::QueueLock lock(*on.device);
@@ -701,7 +701,7 @@ TEST(GpuRuntime, AMapAlreadyOnThisDeviceIsBoundWhereItStands) {
     surface.canvas()->clear(SkColor4f{0.15f, 0.35f, 0.95f, 1.0f});
     surface.submit();
   }
-  const skia::NativeTexture native = gpu->exportNative(handle);
+  const core::hardware::NativeTexture native = gpu->exportNative(handle);
   ASSERT_TRUE((bool)native);
 
   material::DeviceImage where;

@@ -28,7 +28,7 @@
 namespace sigil::skia {
 
 std::unique_ptr<GraphiteContext> GraphiteContext::createVulkan(
-    const VulkanHandles& handles) {
+    const core::hardware::VulkanHandles& handles) {
   if (!handles.instance || !handles.physicalDevice || !handles.device ||
       !handles.queue || !handles.getInstanceProcAddr)
     return nullptr;
@@ -89,7 +89,7 @@ namespace sigil::skia {
 
 // A Skia without the Vulkan backend: nothing to stand up.
 std::unique_ptr<GraphiteContext> GraphiteContext::createVulkan(
-    const VulkanHandles&) {
+    const core::hardware::VulkanHandles&) {
   return nullptr;
 }
 

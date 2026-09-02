@@ -950,11 +950,11 @@ std::unique_ptr<world::diligent::Device> device =
     world::diligent::Device::create(config, &error);
 if (!device) return;  // no Vulkan runtime, for instance; `error` says why
 
-skia::GpuDevice& gpu = *device->gpu();
+core::hardware::GpuDevice& gpu = *device->gpu();
 skia::TextureDesc desc;
 desc.width = desc.height = 512;
 desc.format = skia::TextureFormat::RGBA8Unorm;
-const skia::TextureHandle texture = gpu.createTexture(desc);
+const core::hardware::TextureHandle texture = gpu.createTexture(desc);
 const skia::FenceHandle fence = gpu.createFence();
 
 // Paint 2D into a texture a 3D pass will sample. Everything that submits

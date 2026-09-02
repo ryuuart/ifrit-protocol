@@ -1,5 +1,6 @@
 #pragma once
-#include <cstdint>
+#include <sigilcore/hardware/GpuDevice.h>
+
 #include <memory>
 #include <mutex>
 
@@ -11,33 +12,6 @@ struct ContextOptions;
 }  // namespace skgpu::graphite
 
 namespace sigil::skia {
-
-class GpuDevice;
-
-/**
- * The raw Vulkan handles a Graphite context is stood up on. Every field
- * is the Vulkan object bridged to an opaque pointer or integer, so this
- * header pulls in no Vulkan header: `instance`, `physicalDevice`,
- * `device` and `queue` are the dispatchable handles (pointers) as-is;
- * `apiVersion` is packed the way Vulkan packs it (major, minor, patch);
- * `getInstanceProcAddr` is the loader's `vkGetInstanceProcAddr`, from
- * which every other entry point is resolved.
- */
-struct VulkanHandles {
-  /** A function pointer as Vulkan's own loader returns one. */
-  using VoidFunction = void (*)();
-  /** The signature of `vkGetInstanceProcAddr` with the instance opaque. */
-  using GetInstanceProcAddr = VoidFunction (*)(void* instance,
-                                               const char* name);
-
-  void* instance = nullptr;
-  void* physicalDevice = nullptr;
-  void* device = nullptr;
-  void* queue = nullptr;
-  uint32_t queueFamilyIndex = 0;
-  uint32_t apiVersion = 0;
-  GetInstanceProcAddr getInstanceProcAddr = nullptr;
-};
 
 /**
  * Owns the Skia Graphite Context + Recorder used to draw into offscreen
@@ -63,11 +37,11 @@ struct VulkanHandles {
 class GraphiteContext {
  public:
   /** Graphite on the device and queue behind @p device, whichever API it
-   *  is: the one entry point a host holding a GpuDevice needs. Returns
+   *  is: the one entry point a host holding a device needs. Returns
    *  null when the device's API has no bring-up in this build or
-   *  Context creation fails. Defined by the device feature, which every
-   *  holder of a GpuDevice already links. */
-  static std::unique_ptr<GraphiteContext> create(GpuDevice& device);
+   *  Context creation fails. */
+  static std::unique_ptr<GraphiteContext> create(
+      core::hardware::GpuDevice& device);
 
 #ifdef __APPLE__
   /** Metal bring-up: @p mtlDevice / @p mtlCommandQueue are id<MTLDevice> /
@@ -83,7 +57,7 @@ class GraphiteContext {
    *  this build's Skia carries no Vulkan backend, or when Context
    *  creation fails. */
   static std::unique_ptr<GraphiteContext> createVulkan(
-      const VulkanHandles& handles);
+      const core::hardware::VulkanHandles& handles);
 
   ~GraphiteContext();
 

@@ -8,7 +8,7 @@
  */
 
 #include <Ultralight/Ultralight.h>
-#include <sigilskia/device/Handle.h>
+#include <sigilcore/hardware/Handle.h>
 
 #include <cstdint>
 #include <string>
@@ -30,7 +30,7 @@ class WebImage::Impl {
   ultralight::RefPtr<ultralight::Bitmap> bitmap;  // CPU engines
 
   // GPU engines: immutable after creation, readable from any thread.
-  sigil::skia::TextureHandle gpuTexture;  // driver-owned, on the device
+  sigil::core::hardware::TextureHandle gpuTexture;  // driver-owned, on the device
   uint32_t gpuTextureId = 0;
 };
 

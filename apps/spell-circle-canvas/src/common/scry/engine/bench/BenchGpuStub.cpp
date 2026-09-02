@@ -7,7 +7,7 @@
 
 namespace sigil::scry::bench {
 
-sigil::skia::GpuDevice* gpuDevice() { return nullptr; }
-sigil::skia::TextureHandle makeSolidTexture(int, int) { return {}; }
+sigil::core::hardware::GpuDevice* gpuDevice() { return nullptr; }
+sigil::core::hardware::TextureHandle makeSolidTexture(int, int) { return {}; }
 
 }  // namespace sigil::scry::bench

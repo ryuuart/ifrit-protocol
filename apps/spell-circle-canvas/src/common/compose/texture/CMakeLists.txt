@@ -20,8 +20,9 @@ target_include_directories(SigilComposeTexture PUBLIC
   ${SIGIL_COMPOSE_INCLUDE_DIR})
 target_link_libraries(SigilComposeTexture PUBLIC
   SigilComposeCore SigilMaterialTexture)
-if(TARGET SigilSkiaDevice)
-  target_link_libraries(SigilComposeTexture PUBLIC SigilSkiaDevice)
+if(TARGET SigilSkiaGraphite)
+  target_link_libraries(SigilComposeTexture PUBLIC SigilSkiaGraphite
+    SigilCoreHardware)
   target_compile_definitions(SigilComposeTexture PUBLIC
     SIGILCOMPOSE_TEXTURE_DEVICE=1)
 endif()

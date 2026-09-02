@@ -6,7 +6,7 @@
 
 #include "Gpu.h"
 
-#include <sigilskia/device/Pixels.h>
+#include <sigilskia/graphite/Pixels.h>
 
 // clang-format off
 // ORDER IS LOAD-BEARING HERE, which is why the sorter is held off: the
@@ -19,7 +19,7 @@
 
 #include <include/core/SkBitmap.h>
 #include <include/core/SkImageInfo.h>
-#include <sigilskia/device/GpuDevice.h>
+#include <sigilcore/hardware/GpuDevice.h>
 
 #include <Graphics/GraphicsTools/interface/MapHelper.hpp>
 #include <algorithm>

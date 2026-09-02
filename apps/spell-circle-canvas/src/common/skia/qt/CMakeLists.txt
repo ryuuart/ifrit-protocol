@@ -2,8 +2,9 @@
 # translation unit per graphics API unwraps a QRhi's native handles and
 # forwards to the graphite feature — Metal on Apple, Vulkan elsewhere —
 # so exactly one API is served per build and any other QRhi backend gets
-# null. Links the graphite feature and Qt6::Core publicly, Qt6::GuiPrivate
-# for the QRhi API.
+# null. Links the graphite feature (and through it SigilCoreHardware,
+# whose Vulkan handle set the adapter fills) and Qt6::Core publicly,
+# Qt6::GuiPrivate for the QRhi API.
 if(APPLE)
   set(SIGIL_SKIA_QT_SOURCES QtInteropMetal.mm)
 else()

@@ -40,7 +40,7 @@ void lanesOf(const ElementNode& node, std::vector<Lane>& out) {
   out.reserve(kLaneCount);
   const auto push = [&out](Slot slot, const motion::Animatable<float>* value) {
     out.push_back(
-        Lane{value, core::LaneSlot<LaneFamily>{LaneFamily::Slot, (size_t)slot},
+        Lane{value, motion::LaneSlot<LaneFamily>{LaneFamily::Slot, (size_t)slot},
              standingValue(slot)});
   };
   const Transform& t = node.transform;
@@ -69,7 +69,7 @@ void lanesOf(const ElementNode& node, std::vector<Lane>& out) {
              float standing) {
         out.push_back(
             Lane{value && *value ? &**value : nullptr,
-                 core::LaneSlot<LaneFamily>{LaneFamily::Slot, (size_t)slot},
+                 motion::LaneSlot<LaneFamily>{LaneFamily::Slot, (size_t)slot},
                  standing});
       };
   // A node carries an emitter OR an environment map, and both read the
@@ -103,7 +103,7 @@ void lanesOf(const ElementNode& node, std::vector<Lane>& out) {
             dials ? &(dials->*member) : nullptr;
         out.push_back(
             Lane{value && *value ? &**value : nullptr,
-                 core::LaneSlot<LaneFamily>{LaneFamily::Slot, (size_t)slot},
+                 motion::LaneSlot<LaneFamily>{LaneFamily::Slot, (size_t)slot},
                  sky ? own : standingValue(slot)});
       };
   pushSky(kEnvironmentDiffuse, &SkyDials::diffuse, sky ? sky->diffuse : 1);

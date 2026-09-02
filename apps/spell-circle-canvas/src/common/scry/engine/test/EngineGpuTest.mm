@@ -13,7 +13,7 @@
 #include <sigilscry/engine/WebImage.h>
 #include <sigilscry/engine/WebView.h>
 
-#include <sigilskia/device/GpuDevice.h>
+#include <sigilcore/hardware/GpuDevice.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 
 #include <include/core/SkBitmap.h>
@@ -41,9 +41,9 @@ using namespace sigil::scry;
 namespace {
 
 /** The device this process owns, shared by the engine and every test. */
-sigil::skia::GpuDevice *sharedDevice() {
-  static std::unique_ptr<sigil::skia::GpuDevice> device =
-      sigil::skia::GpuDevice::createOwned(sigil::skia::Backend::Metal);
+sigil::core::hardware::GpuDevice *sharedDevice() {
+  static std::unique_ptr<sigil::core::hardware::GpuDevice> device =
+      sigil::core::hardware::GpuDevice::createOwned(sigil::core::hardware::Backend::Metal);
   return device.get();
 }
 
@@ -176,7 +176,7 @@ TEST(WebViewGpuTest, CompositesGraphiteContentIntoPage) {
   auto image = sharedEngine().createImage("gpu_swatch", 64, 64);
   ASSERT_NE(image, nullptr);
   ASSERT_TRUE(image->texture());
-  const sigil::skia::NativeTexture slot = sharedDevice()->exportNative(image->texture());
+  const sigil::core::hardware::NativeTexture slot = sharedDevice()->exportNative(image->texture());
   ASSERT_TRUE(slot);
 
   sigil::skia::GraphiteContext *graphite = sharedGraphite();
@@ -320,15 +320,15 @@ TEST(WebViewGpuTest, UpdatesSlotFromNativeTexture) {
 
   // The external texture enters the engine by being named on the shared
   // device — borrowed, so the test keeps it alive.
-  sigil::skia::NativeTexture native;
-  native.backend = sigil::skia::Backend::Metal;
+  sigil::core::hardware::NativeTexture native;
+  native.backend = sigil::core::hardware::Backend::Metal;
   native.mtlTexture = (__bridge void *)external;
   native.width = 16;
   native.height = 16;
-  const sigil::skia::TextureHandle externalHandle = sharedDevice()->importNative(native);
+  const sigil::core::hardware::TextureHandle externalHandle = sharedDevice()->importNative(native);
   ASSERT_TRUE(externalHandle);
   ASSERT_TRUE(image->updateTexture(externalHandle));
-  EXPECT_FALSE(image->updateTexture(sigil::skia::TextureHandle{})) << "a null handle";
+  EXPECT_FALSE(image->updateTexture(sigil::core::hardware::TextureHandle{})) << "a null handle";
 
   auto view = sharedEngine().createView(64, 64, {.transparent = false});
   ASSERT_NE(view, nullptr);

@@ -4,8 +4,8 @@
 // plain values with no device code behind them; the entry points here
 // that read one are defined by the device feature, so a caller of those
 // links it.
-#include <sigilskia/device/Fence.h>
-#include <sigilskia/device/Handle.h>
+#include <sigilcore/hardware/Fence.h>
+#include <sigilcore/hardware/Handle.h>
 
 #include <cstdint>
 
@@ -14,7 +14,6 @@ class SkSurface;
 
 namespace sigil::skia {
 
-class GpuDevice;
 class GraphiteContext;
 
 /**
@@ -68,9 +67,9 @@ class OffscreenSurface {
    *  in the layout the device last knew it to be in — undefined for one
    *  the device made and nothing has drawn into, which is to say its
    *  contents before the first draw are not preserved. Defined by the
-   *  device feature, which every holder of a GpuDevice already links. */
-  OffscreenSurface(GraphiteContext& context, GpuDevice& device,
-                   TextureHandle texture);
+   *  hardware feature's device value. */
+  OffscreenSurface(GraphiteContext& context, core::hardware::GpuDevice& device,
+                   core::hardware::TextureHandle texture);
 
   OffscreenSurface(OffscreenSurface&& other) noexcept;
   OffscreenSurface& operator=(OffscreenSurface&&) = delete;
@@ -97,7 +96,8 @@ class OffscreenSurface {
    *  drawing has landed. The wait for it belongs on another queue or on
    *  the CPU: a wait queued on this same queue ahead of the signal sits
    *  behind it and never passes. Defined by the device feature. */
-  FenceValue submit(GpuDevice& device, FenceHandle fence);
+  core::hardware::FenceValue submit(core::hardware::GpuDevice& device,
+                                   core::hardware::FenceHandle fence);
 
  private:
   GraphiteContext* m_context;

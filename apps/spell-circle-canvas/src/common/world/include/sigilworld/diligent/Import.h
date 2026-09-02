@@ -6,7 +6,7 @@
  */
 
 #include <sigilmaterial/texture/Texture.h>
-#include <sigilskia/device/GpuDevice.h>
+#include <sigilcore/hardware/GpuDevice.h>
 
 namespace sigil::world::diligent {
 
@@ -40,7 +40,7 @@ class Device;
  * texture is missing or belongs to another API.
  */
 ::sigil::material::Texture importNative(Device& device,
-                                        const skia::NativeTexture& native,
+                                        const core::hardware::NativeTexture& native,
                                         bool takeOwnership = false);
 
 }  // namespace sigil::world::diligent

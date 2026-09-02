@@ -15,9 +15,9 @@ struct IRenderDevice;
 struct IDeviceContext;
 }  // namespace Diligent
 
-namespace sigil::skia {
+namespace sigil::core::hardware {
 class GpuDevice;
-}  // namespace sigil::skia
+}  // namespace sigil::core::hardware
 
 namespace sigil::world::diligent {
 
@@ -37,7 +37,7 @@ namespace sigil::world::diligent {
  * when its queue cannot be reached, when it has no timeline semaphores,
  * or when the adoption itself fails.
  */
-std::unique_ptr<skia::GpuDevice> adoptVulkanDevice(
+std::unique_ptr<core::hardware::GpuDevice> adoptVulkanDevice(
     Diligent::IRenderDevice* device, Diligent::IDeviceContext* context,
     std::string* error);
 

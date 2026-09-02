@@ -1,10 +1,8 @@
 // The OffscreenSurface entry points that name a texture and a fence by
-// handle: declared by the graphite feature, defined here because a
-// GpuDevice is what they read and a host holding one links this feature
-// already. Dependencies keep pointing one way — the graphite feature
-// stays below the device.
+// handle. Dependencies point one way: Graphite stands on the hardware
+// device, and the hardware device knows nothing of Skia.
 
-#include <sigilskia/device/GpuDevice.h>
+#include <sigilcore/hardware/GpuDevice.h>
 #include <sigilskia/graphite/OffscreenSurface.h>
 
 namespace sigil::skia {
@@ -15,8 +13,8 @@ namespace {
  *  a handle. An empty export — what a stale or null handle yields — has
  *  no texture in it, so the wrap fails and `canvas()` stays null. */
 OffscreenSurface wrapNative(GraphiteContext& context,
-                            const NativeTexture& native) {
-  if (native.backend == Backend::Vulkan) {
+                            const core::hardware::NativeTexture& native) {
+  if (native.backend == core::hardware::Backend::Vulkan) {
     VulkanImage image;
     image.image = native.vkImage;
     image.layout = native.vkLayout;
@@ -37,11 +35,13 @@ OffscreenSurface wrapNative(GraphiteContext& context,
 
 }  // namespace
 
-OffscreenSurface::OffscreenSurface(GraphiteContext& context, GpuDevice& device,
-                                   TextureHandle texture)
+OffscreenSurface::OffscreenSurface(GraphiteContext& context,
+                                   core::hardware::GpuDevice& device,
+                                   core::hardware::TextureHandle texture)
     : OffscreenSurface(wrapNative(context, device.exportNative(texture))) {}
 
-FenceValue OffscreenSurface::submit(GpuDevice& device, FenceHandle fence) {
+core::hardware::FenceValue OffscreenSurface::submit(
+    core::hardware::GpuDevice& device, core::hardware::FenceHandle fence) {
   submit();
   return device.signal(fence);
 }

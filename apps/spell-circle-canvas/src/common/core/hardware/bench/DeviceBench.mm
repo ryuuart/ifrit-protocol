@@ -5,13 +5,13 @@
 #import <Metal/Metal.h>
 
 #include <benchmark/benchmark.h>
-#include <sigilskia/device/GpuDevice.h>
-#include <sigilskia/device/Handle.h>
+#include <sigilcore/hardware/GpuDevice.h>
+#include <sigilcore/hardware/Handle.h>
 
 #include <string>
 #include <vector>
 
-using namespace sigil::skia;
+using namespace sigil::core::hardware;
 
 namespace {
 
