@@ -1,8 +1,10 @@
 # The core feature: the value model with no renderer in it. glm for the
-# vector types a params struct holds, choreograph for the Output a float
-# field binds to, Boost.PFR (header-only, private: no consumer needs it to
-# read the model) for the reflection that turns a params struct into a
-# layout and its declarations. No Skia, no Slang: compilers arrive from
+# vector types a params struct holds, SigilMotion for the animatable a
+# float field binds to — so a shader uniform takes the same bind() chain
+# a node transform does, and the same rule decides whether it is moving —
+# Boost.PFR (header-only, private: no consumer needs it to read the
+# model) for the reflection that turns a params struct into a layout and
+# its declarations. No Skia, no Slang: compilers arrive from
 # the backend features through registerCompiler().
 find_package(boost_pfr CONFIG REQUIRED)
 add_library(SigilMaterialCore STATIC
@@ -29,7 +31,7 @@ target_include_directories(SigilMaterialCore PUBLIC ${SIGIL_MATERIAL_INCLUDE_DIR
 # consumer that instantiates schema<P>(); the target is header-only, and
 # nothing links.
 target_link_libraries(SigilMaterialCore
-  PUBLIC SigilGeometryPath SigilMotionBind Boost::pfr)
+  PUBLIC SigilGeometryPath SigilMotionValues Boost::pfr)
 
 # Links only the library it exercises, so a link edge that pulled a
 # renderer in would show up as a build failure here.

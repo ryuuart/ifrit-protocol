@@ -2,9 +2,9 @@
 
 /** @file
  * An `Animatable<float>` while it is MOVING: the held motion a ticker
- * runs for it, the value it reads as this frame, the retarget that bends
- * a running ramp onto a new endpoint, and the entrance it plays the
- * first time it appears.
+ * runs for it, the value it reads as this frame, whether it is moving at
+ * all, the retarget that bends a running ramp onto a new endpoint, and
+ * the entrance it plays the first time it appears.
  *
  * `Animatable<T>` is the value a description carries; `AnimatedFloat` is
  * what a consumer that retains state holds beside it while a motion is
@@ -91,5 +91,35 @@ bool transitionFloatAt(Ticker& ticker, std::unique_ptr<AnimatedFloat>& held,
  *  starts nothing. */
 void mountEntrance(Ticker& ticker, std::unique_ptr<AnimatedFloat>& held,
                    const Animatable<float>& v, float extraDelaySeconds);
+
+/** IS THIS VALUE MOVING RIGHT NOW? A slot with a live binding always is —
+ *  the host writes the Output every frame and nothing here can see when
+ *  it stops — and a slot with a ramp is moving while the ramp is
+ *  CONNECTED.
+ *
+ *  Connected, not started. `AnimatedFloat::started` says a motion was
+ *  begun and stays true for the rest of the value's life, so a reader
+ *  that asks it can never learn that an entrance has landed and a node
+ *  can cache again. `Output::isConnected()` is the fact: choreograph
+ *  disconnects the output when its motion finishes.
+ *
+ *  This is the DECLARED half of stillness, and it is the half a
+ *  description can answer on its own. What it cannot answer is whether a
+ *  connected motion is actually changing the number — a wave held at one
+ *  phase moves nothing — which is what `settled()` is for. */
+bool isLive(const AnimatedFloat* anim, const Animatable<float>& v);
+
+/** A SYNTHESIZED 0→1 PROGRESS: hold at 0 for the delay, then ramp to 1
+ *  over the transition's duration on its curve.
+ *
+ *  For the value a host has to interpolate ITSELF because the description
+ *  carries no float to point at — a colour crossfade, a shape morph, a
+ *  two-image dissolve. The host keeps the endpoints and reads this
+ *  progress between them, and because the ramp is authored here rather
+ *  than at each such site, the mount and the retarget of one cannot drift
+ *  apart. `extraDelaySeconds` is what the caller adds before the
+ *  transition's own delay, exactly as `mountEntrance` takes it. */
+void progressRamp(Ticker& ticker, std::unique_ptr<AnimatedFloat>& held,
+                  const Transition& spec, float extraDelaySeconds);
 
 }  // namespace sigil::motion

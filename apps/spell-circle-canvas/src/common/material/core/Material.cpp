@@ -6,6 +6,9 @@
 
 #include "sigilmaterial/core/Material.h"
 
+#include <sigilmotion/values/Animated.h>
+#include <sigilmotion/values/Time.h>
+
 #include <algorithm>
 #include <cmath>
 #include <cstring>
@@ -89,23 +92,25 @@ Material::Binding* Material::binding(std::string_view name) {
 }
 
 Material& Material::bind(std::string_view name,
-                         const choreograph::Output<float>* output) {
+                         motion::Animatable<float> value) {
   const Field* f = m_recipe->params().find(name);
   if (!f || f->kind != Kind::Float) {
     reportOnce("bind:" + m_recipe->name() + ":" + std::string(name),
                "recipe \"" + m_recipe->name() + "\" has no float field \"" +
-                   std::string(name) + "\" to bind an output to");
+                   std::string(name) + "\" to bind a value to");
     return *this;
   }
   if (Binding* b = binding(name)) {
-    b->output = output;
+    b->value = std::move(value);
     b->block = nullptr;
-    if (!output)
-      std::erase_if(m_bindings,
-                    [&](const Binding& x) { return x.name == name; });
     return *this;
   }
-  if (output) m_bindings.push_back({std::string(name), output, nullptr});
+  m_bindings.push_back({std::string(name), std::move(value), nullptr});
+  return *this;
+}
+
+Material& Material::unbind(std::string_view name) {
+  std::erase_if(m_bindings, [&](const Binding& x) { return x.name == name; });
   return *this;
 }
 
@@ -128,7 +133,7 @@ Material& Material::bind(std::string_view name,
     return *this;
   }
   if (Binding* b = binding(name)) {
-    b->output = nullptr;
+    b->value = 0.0f;
     b->block = std::move(block);
     if (!b->block)
       std::erase_if(m_bindings,
@@ -203,7 +208,11 @@ Material& Material::worldSpace(bool on) {
 }
 
 bool Material::isAnimated() const {
-  if (!m_bindings.empty()) return true;
+  // A bound BLOCK is live by construction — the host revises it — and a
+  // bound animatable is live exactly when SigilMotion says it is: a
+  // plain number written into a uniform every resolve moves nothing.
+  for (const Binding& b : m_bindings)
+    if (b.block || motion::isLive(nullptr, b.value)) return true;
   if (m_recipe->reads(FrameInput::Time) ||
       m_recipe->reads(FrameInput::ContentScale))
     return true;
@@ -234,7 +243,8 @@ bool Material::operator==(const Material& other) const {
     const Binding* b = nullptr;
     for (const Binding& x : other.m_bindings)
       if (x.name == a.name) b = &x;
-    if (!b || a.output != b->output || a.block != b->block) return false;
+    if (!b || !motion::propEqual(a.value, b->value) || a.block != b->block)
+      return false;
   }
   for (size_t i = 0; i < m_children.size(); ++i) {
     const auto& [slot, s] = m_children[i];
@@ -256,13 +266,16 @@ Material::Resolved Material::resolve(Target target, const FrameData& frame,
   for (const Binding& b : m_bindings) {
     const Field* f = m_recipe->params().find(b.name);
     if (!f) continue;
-    if (b.output) {
-      const float v = b.output->value();
-      std::memcpy(m_scratch.data() + f->offset, &v, sizeof(float));
-    } else if (b.block) {
+    if (b.block) {
       const std::span<const float> values = b.block->values();
       std::memcpy(m_scratch.data() + f->offset, values.data(),
                   values.size() * sizeof(float));
+    } else {
+      // No held motion: a material has no ticker, so what an animatable
+      // reads here is its binding (shaped, where the chain shapes it) or
+      // its plain number.
+      const float v = motion::resolveFloatAt(nullptr, b.value);
+      std::memcpy(m_scratch.data() + f->offset, &v, sizeof(float));
     }
   }
   const auto put = [&](FrameInput input, const void* floats, size_t count) {
@@ -270,9 +283,8 @@ Material::Resolved Material::resolve(Target target, const FrameData& frame,
     const Field* f = layout.find(uniformName(input));
     std::memcpy(m_scratch.data() + f->offset, floats, count * sizeof(float));
   };
-  float seconds = (float)frame.seconds;
-  if (m_quantizeHz > 0.0f)
-    seconds = std::floor(seconds * m_quantizeHz) / m_quantizeHz;
+  const float seconds = motion::quantizeTime((float)frame.seconds,
+                                             m_quantizeHz);
   put(FrameInput::Time, &seconds, 1);
   put(FrameInput::Resolution, &frame.resolution, 2);
   put(FrameInput::ContentScale, &frame.contentScale, 1);

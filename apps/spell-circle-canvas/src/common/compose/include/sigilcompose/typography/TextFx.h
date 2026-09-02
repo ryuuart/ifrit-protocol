@@ -58,19 +58,13 @@
 namespace sigil::compose::fx {
 
 namespace detail {
-inline float easeOutCubic(float t) {
-  const float u = 1 - t;
-  return 1 - u * u * u;
-}
-/** Ease-out-expo: 1 − 2^(−10t), the curve CSS spells
- *  cubic-bezier(0.16, 1, 0.3, 1). */
-inline float easeOutExpo(float t) {
-  return t >= 1.0f ? 1.0f : 1.0f - std::pow(2.0f, -10.0f * t);
-}
-inline float easeOutBack(float t, float s = 1.70158f) {
-  const float u = t - 1;
-  return 1 + (s + 1) * u * u * u + s * u * u;
-}
+// The three curves the presets below shape their glyphs with are
+// Choreograph's own — `easeOutCubic`, `easeOutExpo` and the
+// shape-parameterised `easeOutBack` — called directly here rather than
+// wrapped, because a preset shapes one float per glyph per frame and an
+// EaseFn through a std::function would put an indirect call in that
+// loop. `motion::ease::outBack` is the same curve in the form a
+// Transition holds.
 /** What a scale-only effect may push past the box: a glyph grown by
  *  `factor` about its own centre escapes by half the excess in each
  *  direction, and no effect here knows the font size at construction, so
@@ -87,7 +81,7 @@ inline constexpr float kNominalSizePx = 96.0f;
       "rise", {distancePx},
       [distancePx](const GlyphInfo&, float t, Rng&) {
         GlyphMod m;
-        m.dy = (1 - detail::easeOutExpo(t)) * distancePx;
+        m.dy = (1 - choreograph::easeOutExpo(t)) * distancePx;
         m.alpha = std::min(1.0f, t / 0.35f);
         return m;
       },
@@ -100,7 +94,7 @@ inline constexpr float kNominalSizePx = 96.0f;
       "slide", {distancePx},
       [distancePx](const GlyphInfo&, float t, Rng&) {
         GlyphMod m;
-        m.dx = (1 - detail::easeOutCubic(t)) * distancePx;
+        m.dx = (1 - choreograph::easeOutCubic(t)) * distancePx;
         m.alpha = std::min(1.0f, t * 1.7f);
         return m;
       },
@@ -117,7 +111,7 @@ inline constexpr float kNominalSizePx = 96.0f;
       [fromScale, overshoot](const GlyphInfo&, float t, Rng&) {
         GlyphMod m;
         m.scale =
-            fromScale + (1 - fromScale) * detail::easeOutBack(t, overshoot);
+            fromScale + (1 - fromScale) * choreograph::easeOutBack(t, overshoot);
         m.alpha = std::min(1.0f, t * 2.2f);
         return m;
       },
@@ -129,7 +123,7 @@ inline constexpr float kNominalSizePx = 96.0f;
   return TextEffect(
       "spinIn", {degrees, risePx},
       [degrees, risePx](const GlyphInfo&, float t, Rng&) {
-        const float e = detail::easeOutCubic(t);
+        const float e = choreograph::easeOutCubic(t);
         GlyphMod m;
         m.rotateDeg = (1 - e) * degrees;
         m.dy = (1 - e) * risePx;
@@ -186,7 +180,7 @@ inline constexpr float kNominalSizePx = 96.0f;
         const float dx = rng.signedUnit() * radiusPx;
         const float dy = rng.signedUnit() * radiusPx;
         const float lean = rng.signedUnit() * leanDeg;
-        const float e = detail::easeOutCubic(t);
+        const float e = choreograph::easeOutCubic(t);
         GlyphMod m;
         m.dx = (1 - e) * dx;
         m.dy = (1 - e) * dy;
@@ -252,7 +246,7 @@ inline constexpr float kNominalSizePx = 96.0f;
   return TextEffect(
       "tint", {from.fR, from.fG, from.fB, from.fA, to.fR, to.fG, to.fB, to.fA},
       [origin](const GlyphInfo&, float t, Rng&) {
-        const float e = t * t * (3.0f - 2.0f * t);
+        const float e = motion::ease::smoothstep(t);
         GlyphMod m;
         m.colorMul = {origin.fR + (1.0f - origin.fR) * e,
                       origin.fG + (1.0f - origin.fG) * e,

@@ -331,8 +331,8 @@ TEST(Material, EqualityIsByValueWithBindingsByIdentity) {
   choreograph::Output<float> other{0.5f};
   b.bind("uScale", &other);
   EXPECT_FALSE(a == b);
-  b.bind("uScale", static_cast<const choreograph::Output<float>*>(nullptr));
-  a.bind("uScale", static_cast<const choreograph::Output<float>*>(nullptr));
+  b.unbind("uScale");
+  a.unbind("uScale");
   EXPECT_TRUE(a == b);
   a.amount(0.5f);
   EXPECT_FALSE(a == b);

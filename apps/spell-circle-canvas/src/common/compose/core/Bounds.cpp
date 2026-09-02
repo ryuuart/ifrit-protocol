@@ -183,8 +183,8 @@ std::optional<std::pair<SkPoint, float>> Composer::Impl::motionPathSample(
   // another lap of whichever contour it landed in; the pose read below
   // then walks every contour as one arc-length coordinate.
   const auto walk = [&](float u) {
-    float w = cache.closed ? std::fmod(u, 1.0f) : std::clamp(u, 0.0f, 1.0f);
-    if (cache.closed && w < 0.0f) w += 1.0f;
+    const float w =
+        cache.closed ? motion::phase(u, 1.0) : std::clamp(u, 0.0f, 1.0f);
     return geometry::path::toSk(
         geometry::path::poseAlong(cache.contours, w * cache.total).position);
   };

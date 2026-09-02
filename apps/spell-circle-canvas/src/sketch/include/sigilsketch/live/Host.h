@@ -8,6 +8,7 @@
 #include <include/core/SkRefCnt.h>
 #include <sigilmeasure/stats/Samples.h>
 #include <sigilmeasure/time/Stopwatch.h>
+#include <sigilmotion/clock/FrameClock.h>
 #include <sigilsketch/core/Assets.h>
 #include <sigilsketch/core/Registry.h>
 #include <sigilsketch/core/Session.h>
@@ -185,7 +186,11 @@ class Host {
   bool m_everCompiled = false;
   int m_generation = 0;
   int m_frameIndex = -1;  // for the crash reporter's phase line
-  double m_elapsed = 0.0;
+  /** How long this host has been running, in its own time — stated
+   *  deltas under a fixed step, wall time when it is free-running. The
+   *  asset poll and the crash reporter's frame line read it, and both
+   *  want the same clock the session is stepped by. */
+  motion::FrameClock m_clock;
   double m_lastAssetPoll = 0.0;
   std::chrono::steady_clock::time_point m_compileStart;
   // Absent until the first presentation: there is no interval to measure

@@ -131,4 +131,22 @@ void mountEntrance(Ticker& ticker, std::unique_ptr<AnimatedFloat>& held,
       tr->spec.easing());
 }
 
+bool isLive(const AnimatedFloat* anim, const Animatable<float>& v) {
+  return v.binding() != nullptr || (anim && anim->value.isConnected());
+}
+
+void progressRamp(Ticker& ticker, std::unique_ptr<AnimatedFloat>& held,
+                  const Transition& spec, float extraDelaySeconds) {
+  if (!held) held = std::make_unique<AnimatedFloat>();
+  held->value = 0.0f;
+  held->started = true;
+  held->target = 1.0f;
+  auto ramp = ticker.timeline().apply(&held->value);
+  const float delay =
+      std::chrono::duration<float>(spec.delay).count() + extraDelaySeconds;
+  if (delay > 0) ramp.then<choreograph::Hold>(0.0f, delay);
+  ramp.then<choreograph::RampTo>(
+      1.0f, std::chrono::duration<float>(spec.duration).count(), spec.easing());
+}
+
 }  // namespace sigil::motion

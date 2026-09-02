@@ -52,18 +52,19 @@ class CanvasSession final : public Session {
 
   void frame(SkCanvas& canvas, double dt) override {
     m_laps.reset();
+    // A STATED step and a wall-clock one are the same clock: `advance`
+    // takes the caller's delta through the same pause, time scale and
+    // stall clamp `tick` puts a wall reading through, so a stepped run
+    // and a live one differ in where the number came from and in nothing
+    // else. Coming back to wall time, the clock's raw reading is rebased
+    // without advancing elapsed, or the first live frame after a sweep
+    // injects one whole maxDelta.
     double step = 0.0;
     if (dt >= 0.0) {
-      if (!m_stepping) {
-        m_clock.tick(0.0);  // seed, so the first synthetic step advances
-        m_stepping = true;
-      }
-      m_now += dt;
-      step = m_clock.tick(m_now);
+      m_stepping = true;
+      step = m_clock.advance(dt);
     } else {
       if (m_stepping) {
-        // Rebase the clock's raw time without advancing elapsed, or a
-        // stepped run followed by a live frame injects one maxDelta.
         const bool wasPaused = m_clock.paused();
         m_clock.setPaused(true);
         m_clock.tick();
@@ -209,8 +210,7 @@ class CanvasSession final : public Session {
   measure::Laps m_laps;
   std::array<Lane, 4> m_lanes{};
   SkSize m_applied = m_spec.size;  // what the composer was last told
-  double m_now = 0.0;              // the stepped timeline, when stepped
-  bool m_stepping = false;
+  bool m_stepping = false;  // the last frame took a stated step
   bool m_deterministic;
 };
 

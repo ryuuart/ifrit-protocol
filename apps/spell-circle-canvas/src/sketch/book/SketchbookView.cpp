@@ -19,6 +19,7 @@
 #include <include/core/SkSurface.h>
 #include <rhi/qrhi.h>
 #include <sigilmeasure/time/Stopwatch.h>
+#include <sigilmotion/clock/FrameClock.h>
 #include <sigilsketch/core/Registry.h>
 #include <sigilsketch/live/Host.h>
 #include <sigilweave/fonts/FontContext.h>
@@ -40,6 +41,7 @@
 #include <vector>
 
 namespace sketch = sigil::sketch;
+namespace motion = sigil::motion;
 
 std::filesystem::path SketchbookView::sketchDir;
 std::filesystem::path SketchbookView::assetsDir;
@@ -124,7 +126,13 @@ class SketchbookRenderer final : public QQuickRhiItemRenderer {
   bool m_metricsDirty = true;
   double m_timeScale = 1.0;
   double m_submitMsAverage = 0.0;
-  std::chrono::steady_clock::time_point m_lastFrame;
+  /** The clock the presented frame advances by. The pause and the time
+   *  scale are the view's published properties, pushed into it on every
+   *  synchronize; what the clock adds on top is the stall clamp, so
+   *  dragging the window or stopping in a debugger resumes at the next
+   *  frame instead of jumping every animation forward by the length of
+   *  the pause. */
+  motion::FrameClock m_clock;
 };
 
 void SketchbookRenderer::initialize(QRhiCommandBuffer* /*commandBuffer*/) {
@@ -166,6 +174,8 @@ void SketchbookRenderer::synchronize(QQuickRhiItem* item) {
   const bool pauseStarted = !m_paused && view->m_paused;
   m_paused = view->m_paused;
   m_timeScale = view->m_timeScale;
+  m_clock.setPaused(m_paused);
+  m_clock.setTimeScale(m_timeScale);
   m_requestedIndex = view->m_sketchIndex;
   m_pendingCaptures += view->m_captureRequests;
   view->m_captureRequests = 0;
@@ -221,7 +231,7 @@ void SketchbookRenderer::openSketch(int index) {
     m_submitMsAverage = 0.0;
   }
   m_metricsDirty = true;
-  m_lastFrame = {};
+  m_clock = motion::FrameClock{};  // a new sketch starts at its own zero
   const bool orbits = SketchbookView::host->session() &&
                       SketchbookView::host->session()->hasViewpoint();
   if (m_view) {
@@ -325,14 +335,9 @@ void SketchbookRenderer::drawSketch(SkCanvas& canvas, QSize pixelSize) {
   canvas.scale(scale, scale);
   canvas.clipRect(SkRect::MakeWH(size.width(), size.height()));
   canvas.clear(host->background().toSkColor());
-  // Wall time, scaled and pausable: the frame the reader sees advances
-  // by what actually elapsed, not by a nominal step.
-  const auto now = std::chrono::steady_clock::now();
-  double dt = 0.0;
-  if (m_lastFrame.time_since_epoch().count() != 0 && !m_paused)
-    dt = std::chrono::duration<double>(now - m_lastFrame).count() * m_timeScale;
-  m_lastFrame = now;
-  host->frame(canvas, dt);
+  // Wall time, scaled, pausable and stall-clamped: the frame the reader
+  // sees advances by what actually elapsed, not by a nominal step.
+  host->frame(canvas, m_clock.tick());
   canvas.restore();
   host->markPresented();
   if (++m_frameCount % 15 == 0) m_metricsDirty = true;

@@ -70,8 +70,7 @@ void collectGroupScalars(const Instance& inst, bool root,
                          std::vector<float>& out) {
   const ElementNode& node = *inst.desc;
   const auto push = [&](Instance::Slot slot, const Animatable<float>& v) {
-    if (v.binding() ||
-        (inst.anims[slot] && inst.anims[slot]->value.isConnected()))
+    if (motion::isLive(inst.anims[slot].get(), v))
       out.push_back(inst.resolveFloat(slot, v));
   };
   // Every slot the table can reach, in enum order (kSlotSpecs,
@@ -99,8 +98,7 @@ void collectGroupScalars(const Instance& inst, bool root,
       const auto pushGate = [&](const Animatable<float>& v) {
         const AnimatedFloat* a =
             slot < inst.maskAnims.size() ? inst.maskAnims[slot].get() : nullptr;
-        if (v.binding() || (a && a->value.isConnected()))
-          out.push_back(inst.resolveFloatAt(a, v));
+        if (motion::isLive(a, v)) out.push_back(inst.resolveFloatAt(a, v));
         ++slot;
       };
       if (m.with.kind == Gate::Kind::Spans)
@@ -121,8 +119,7 @@ void collectGroupScalars(const Instance& inst, bool root,
       const Animatable<float>& v = node.textData->tracks[i].progress;
       const AnimatedFloat* a =
           i < inst.trackAnims.size() ? inst.trackAnims[i].get() : nullptr;
-      if (v.binding() || (a && a->value.isConnected()))
-        out.push_back(inst.resolveFloatAt(a, v));
+      if (motion::isLive(a, v)) out.push_back(inst.resolveFloatAt(a, v));
     }
   // The kFillLerp row (SlotRole::Bespoke): a synthesized progress with no
   // Animatable in the description, so it is read straight off the motion.
@@ -209,8 +206,7 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
   const ElementNode& node = *inst.desc;
 
   auto boundOrRunning = [&](Instance::Slot slot, const Animatable<float>& v) {
-    if (v.binding()) return true;
-    return inst.anims[slot] && inst.anims[slot]->value.isConnected();
+    return motion::isLive(inst.anims[slot].get(), v);
   };
   // Span passes: an animated reveal rebuilds the pass's geometry, and an
   // animated brush repaints it. Both are CONTENT volatility, and both are
@@ -226,9 +222,10 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
       for (const Spans::Term& term : pass.where.terms)
         for (const Animatable<float>* v :
              {&term.begin, &term.end, &term.offset}) {
-          if (v->binding() ||
-              (slot < inst.spanAnims.size() && inst.spanAnims[slot] &&
-               inst.spanAnims[slot]->value.isConnected()))
+          if (motion::isLive(slot < inst.spanAnims.size()
+                                 ? inst.spanAnims[slot].get()
+                                 : nullptr,
+                             *v))
             live = true;
           ++slot;
         }
@@ -246,7 +243,7 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
     const auto live = [&](const Animatable<float>& v) {
       const AnimatedFloat* a =
           slot < inst.maskAnims.size() ? inst.maskAnims[slot].get() : nullptr;
-      if (v.binding() || (a && a->value.isConnected())) maskScalarLive = true;
+      if (motion::isLive(a, v)) maskScalarLive = true;
       ++slot;
     };
     for (const Mask& m : node.fxData->masks) {
@@ -393,7 +390,7 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
       const Animatable<float>& v = track.progress;
       const AnimatedFloat* a =
           i < inst.trackAnims.size() ? inst.trackAnims[i].get() : nullptr;
-      if (!(v.binding() || (a && a->value.isConnected()))) continue;
+      if (!motion::isLive(a, v)) continue;
       scalarContent = true;
       // …and the THIRD way a run's placement creeps: a live track whose
       // effect moves glyphs off their pen positions carries every addressed

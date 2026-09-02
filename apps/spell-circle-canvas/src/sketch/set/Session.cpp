@@ -5,6 +5,7 @@
 
 #include <include/core/SkCanvas.h>
 #include <sigilmeasure/time/Laps.h>
+#include <sigilmotion/clock/FrameClock.h>
 #include <sigilmotion/clock/Ticker.h>
 #include <sigilsketch/set/Set.h>
 #include <sigilworld/frame/Pass.h>
@@ -71,10 +72,15 @@ class SetSession final : public Session {
 
   void frame(SkCanvas& canvas, double dt) override {
     m_laps.reset();
-    const double step = dt >= 0.0 ? dt : 1.0 / 60.0;
+    // ONE CLOCK, whether the step is stated or read off the wall: a
+    // stated delta goes through `advance`, a live frame through `tick`,
+    // and both take the same pause, time scale and stall clamp. A host
+    // that kept its own accumulator here would drift from the ticker the
+    // first time either was paused.
+    const double step =
+        dt >= 0.0 ? m_clock.advance(dt) : m_clock.tick();
     m_ticker.tick(step);
-    m_seconds += step;
-    world::Frame frame = m_set->describe((float)m_seconds);
+    world::Frame frame = m_set->describe((float)m_clock.elapsed());
     // The plate's size and its viewpoint are the host's to state: a set
     // says what it is of, not where it lands. The size is the declared
     // canvas in the pixels this canvas actually has, so the frame is
@@ -204,7 +210,7 @@ class SetSession final : public Session {
   // lays cost no allocation inside the span they are timing.
   measure::Laps m_laps;
   std::array<Lane, 4> m_lanes{};
-  double m_seconds = 0.0;
+  motion::FrameClock m_clock;
 };
 
 }  // namespace

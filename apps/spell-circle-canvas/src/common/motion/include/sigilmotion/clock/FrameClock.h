@@ -1,8 +1,8 @@
 #pragma once
 
 /** @file
- * The frame clock: wall-clock time turned into pausable, time-scalable,
- * stall-clamped per-frame deltas.
+ * The frame clock: wall-clock time — or a delta a caller states outright
+ * — turned into pausable, time-scalable, stall-clamped per-frame deltas.
  */
 
 namespace sigil::motion {
@@ -17,7 +17,8 @@ namespace sigil::motion {
  *   break) yield at most maxDelta instead of a giant catch-up step.
  *
  * Call tick() once per rendered frame from whatever loop or event drives
- * drawing; feed the returned delta to a Ticker (or anything steppable).
+ * drawing, or advance() where the caller already knows the step; feed the
+ * returned delta to a Ticker (or anything steppable).
  */
 struct FrameClockOptions {
   /** Largest delta a single tick may report, in seconds. */
@@ -40,6 +41,20 @@ class FrameClock {
 
   /** Convenience overload using std::chrono::steady_clock. */
   double tick();
+
+  /** Steps by a delta the CALLER states, in seconds, and returns what the
+   *  clock made of it — the same pause, time scale and stall clamp tick()
+   *  applies, so a stepped clock and a wall clock are the same clock.
+   *
+   *  This is what a deterministic stepper needs: a plate sweep, a frame
+   *  export, a fixed-rate capture, a scrub. Without it such a caller keeps
+   *  its own accumulator beside the clock, and then the two disagree about
+   *  what "now" is the first time anything pauses one of them.
+   *
+   *  A negative delta is clamped to zero rather than rewinding: time in
+   *  this library only goes forward, and a caller that wants to go back
+   *  builds a new clock. */
+  double advance(double deltaSeconds);
 
   void setPaused(bool paused);
   bool paused() const { return m_paused; }

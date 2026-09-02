@@ -10,6 +10,7 @@
 #include <sigilmaterial/core/Combine.h>
 #include <sigilmaterial/kit/Surface.h>
 #include <sigilmotion/clock/Ticker.h>
+#include <sigilmotion/values/Animated.h>
 
 #include <cstdio>
 #include <cstring>
@@ -279,9 +280,12 @@ core::SubtreeVerdict Scene::Impl::foldVolatility(Instance& inst) {
   for (size_t i = 0; i < laneScratch.size(); ++i) {
     const Lane& lane = laneScratch[i];
     if (!lane.value) continue;
-    const bool live = lane.value->binding() != nullptr ||
-                      (inst.anims[i] && inst.anims[i]->started);
-    if (!live) continue;
+    // Whether this lane is MOVING, in SigilMotion's one spelling. It asks
+    // whether the held motion is CONNECTED, not whether one was ever
+    // started: a lane whose entrance has landed is still, and a lane that
+    // could never be told so would hold the whole subtree volatile for
+    // the rest of the scene's life.
+    if (!motion::isLive(inst.anims[i].get(), *lane.value)) continue;
     // A window drives what the node IS MADE OF; the emitter's dials
     // drive what the frame is LIT BY and nothing about any node; every
     // other lane drives only where the node stands.

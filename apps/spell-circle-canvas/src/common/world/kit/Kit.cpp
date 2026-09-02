@@ -6,6 +6,7 @@
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilmaterial/kit/Surface.h>
+#include <sigilmotion/values/Time.h>
 #include <sigilworld/kit/Kit.h>
 
 #include <cmath>
@@ -86,11 +87,10 @@ Element turntable(const Turntable& table, float seconds) {
   lens.target = {table.radius, -table.height, 0.0f};
   lens.fovYDeg = table.fovYDeg;
 
-  float travelled = 0.0f;
-  if (table.period > 0.0f) {
-    const float turns = seconds / table.period;
-    travelled = (turns - std::floor(turns)) * track.length();
-  }
+  // One turn per period, as a wrapping phase along the rail. A
+  // non-positive period is a still camera, which is what the phase
+  // answers 0 for.
+  const float travelled = motion::phase(seconds, table.period) * track.length();
   return Element().key("camera").along(track, travelled).camera(lens);
 }
 

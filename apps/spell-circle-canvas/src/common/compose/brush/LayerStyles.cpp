@@ -302,8 +302,8 @@ std::array<uint8_t, 256> glossRing(float center, float width) {
     const float a = (float)i / 255.0f;
     const float d = std::abs(a - center) / std::max(0.05f, width * 0.5f);
     const float peak = std::max(0.0f, 1.0f - d);
-    t[(size_t)i] = (uint8_t)std::lround(255.0f * peak * peak *
-                                        (3.0f - 2.0f * peak));  // smoothstep
+    t[(size_t)i] =
+        (uint8_t)std::lround(255.0f * motion::ease::smoothstep(peak));
   }
   return t;
 }

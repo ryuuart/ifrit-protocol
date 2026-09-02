@@ -308,8 +308,8 @@ void Host::poll() {
   }
 
   // Asset hot reload (twice a second is plenty for filesystem stats).
-  if (m_session && m_elapsed - m_lastAssetPoll > 0.5) {
-    m_lastAssetPoll = m_elapsed;
+  if (m_session && m_clock.elapsed() - m_lastAssetPoll > 0.5) {
+    m_lastAssetPoll = m_clock.elapsed();
     if (m_assets.poll()) {
       PhaseMark mark(Phase::Setup);
       m_session->redeclare();
@@ -320,8 +320,15 @@ void Host::poll() {
 bool Host::frame(SkCanvas& canvas, double fixedDt) {
   if (!m_session) return false;
   const measure::Stopwatch watch;
-  m_elapsed += fixedDt >= 0 ? fixedDt : 0.0;
-  noteFrame(++m_frameIndex, m_elapsed);
+  // A stated step and a wall-clock one are the same clock here as
+  // everywhere else. It matters beyond tidiness: the asset poll below
+  // measures its half-second against this reading, and a free-running
+  // host whose reading never moved would poll once and never again.
+  if (fixedDt >= 0)
+    m_clock.advance(fixedDt);
+  else
+    m_clock.tick();
+  noteFrame(++m_frameIndex, m_clock.elapsed());
   {
     PhaseMark mark(Phase::Update);
     m_session->frame(canvas, fixedDt);

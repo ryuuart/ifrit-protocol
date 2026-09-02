@@ -168,18 +168,8 @@ void Composer::Impl::applyMountTransitions(Instance& inst,
         tr->value.kind == Fill::Kind::Color && !(*tr->from == tr->value)) {
       inst.fillFrom = *tr->from;
       inst.fillTo = tr->value;
-      auto& anim = inst.anims[Instance::kFillLerp];
-      if (!anim) anim = std::make_unique<AnimatedFloat>();
-      anim->value = 0.0f;
-      anim->started = true;
-      auto motion = ticker.timeline().apply(&anim->value);
-      const float delay =
-          std::chrono::duration<float>(tr->spec.delay).count() +
-          mountDelayCarryMs / 1000.0f;  // staggerChildren() carry
-      if (delay > 0) motion.then<choreograph::Hold>(0.0f, delay);
-      motion.then<choreograph::RampTo>(
-          1.0f, std::chrono::duration<float>(tr->spec.duration).count(),
-          tr->spec.easing());
+      motion::progressRamp(ticker, inst.anims[Instance::kFillLerp], tr->spec,
+                           mountDelayCarryMs / 1000.0f);  // stagger carry
     }
   }
 }
@@ -269,17 +259,7 @@ void Composer::Impl::applyTransitions(Instance& inst, const ElementNode& prev,
       }
       inst.fillFrom = std::move(from);
       inst.fillTo = nextFill.target;
-      if (!anim) anim = std::make_unique<AnimatedFloat>();
-      anim->value = 0.0f;
-      anim->started = true;
-      auto motion = ticker.timeline().apply(&anim->value);
-      const float delay =
-          std::chrono::duration<float>(nextFill.transition->delay).count();
-      if (delay > 0) motion.then<choreograph::Hold>(0.0f, delay);
-      motion.then<choreograph::RampTo>(
-          1.0f,
-          std::chrono::duration<float>(nextFill.transition->duration).count(),
-          nextFill.transition->easing());
+      motion::progressRamp(ticker, anim, *nextFill.transition, 0.0f);
     }
   }
 }
