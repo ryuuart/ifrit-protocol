@@ -53,6 +53,7 @@
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
 #include <map>
+#include <optional>
 #include <string>
 #include <string_view>
 
@@ -304,10 +305,31 @@ Element cards() {
 namespace {
 
 struct MaterialLab final : sketch::Set {
+  /** The row and the floor it stands on, made once. Neither is a
+   *  function of the time — the five recipes are what the sketch is
+   *  about and the floor's two maps are generated pixel by pixel — so
+   *  building them per frame would generate the same images sixty times
+   *  a second to describe a picture that never changed. */
+  Element row;
+  std::optional<material::Material> floorSurface;
+
   void setup(sketch::SetContext& ctx) override {
     ctx.canvas(880, 520);
     ctx.background({0.035f, 0.038f, 0.05f, 1.0f});
     ctx.captureAt(1.1);
+    row = cards();
+    // The floor wears the set: a texture that repeats is what says how
+    // large the room is.
+    material::Material floor =
+        material::kit::surface(floorMaps(), {.baseColor = {1, 1, 1, 1}});
+    if (const material::Texture* map =
+            material::kit::map(floor, material::kit::kBaseColorSlot)) {
+      material::Texture tiled = *map;
+      tiled.tile(SkTileMode::kRepeat)
+          .uv(SkMatrix::Scale(1.0f / 5.0f, 1.0f / 5.0f));
+      floor.child(material::kit::kBaseColorSlot, std::move(tiled));
+    }
+    floorSurface = std::move(floor);
   }
 
   world::Frame describe(float seconds) override {
@@ -323,18 +345,7 @@ struct MaterialLab final : sketch::Set {
     set.rig.back = 0.5f;
     set.ground = 5.0f;
     set.drop = 0.5f;
-    // The floor wears the set: a texture that repeats is what says how
-    // large the room is.
-    material::Material floor =
-        material::kit::surface(floorMaps(), {.baseColor = {1, 1, 1, 1}});
-    if (const material::Texture* map =
-            material::kit::map(floor, material::kit::kBaseColorSlot)) {
-      material::Texture tiled = *map;
-      tiled.tile(SkTileMode::kRepeat)
-          .uv(SkMatrix::Scale(1.0f / 5.0f, 1.0f / 5.0f));
-      floor.child(material::kit::kBaseColorSlot, std::move(tiled));
-    }
-    set.surface = std::move(floor);
+    set.surface = floorSurface;
 
     set.table.radius = 760.0f;
     set.table.height = 420.0f;
@@ -344,7 +355,7 @@ struct MaterialLab final : sketch::Set {
     // at two bearings.
     set.table.period = 0.0f;
     set.table.fovYDeg = 46.0f;
-    return Frame(kit::litSet(cards(), set, seconds));
+    return Frame(kit::litSet(row, set, seconds));
   }
 };
 

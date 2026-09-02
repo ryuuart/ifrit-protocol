@@ -32,8 +32,8 @@
 //   .smooth(strength, iterations) — drop it and the star sweep kinks.
 
 #include <include/core/SkMatrix.h>
-#include <include/core/SkSurface.h>
 #include <sigilcompose/shape/Shapes.h>
+#include <sigilcompose/texture/Texture.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/curve/Curve.h>
@@ -42,6 +42,7 @@
 #include <sigilsketch/canvas/Sketch.h>
 
 #include <cmath>
+#include <memory>
 #include <vector>
 
 namespace sketch = sigil::sketch;
@@ -95,15 +96,16 @@ struct PopStamps final : sketch::Sketch {
   mesh::Mesh tube, plates, crown, glints, ribbon;
   glm::mat4 crownPlace{1.0f};
 
-  static sk_sp<SkImage> bake(const Element& tree, sigil::weave::FontContext& f,
-                             int side) {
-    const sk_sp<SkPicture> picture =
-        snapshot(box().child(tree), f, {(float)side, (float)side});
-    sk_sp<SkSurface> surface =
-        SkSurfaces::Raster(SkImageInfo::MakeN32Premul(side, side));
-    surface->getCanvas()->clear(SK_ColorTRANSPARENT);
-    if (picture) surface->getCanvas()->drawPicture(picture);
-    return surface->makeImageSnapshot();
+  /** The scene behind the sheet. A texture scene owns the surface its
+   *  image was taken from, so it is held for as long as the image is. */
+  std::shared_ptr<TextureScene> sheet;
+
+  /** An element tree painted to pixels, square, at a stated side. */
+  sk_sp<SkImage> bake(const Element& tree, sigil::weave::FontContext& f,
+                      int side) {
+    sheet = TextureScene::make({side, side}, f);
+    sheet->render(tree);
+    return sheet->image();
   }
 
   void draw(SkCanvas& canvas) const {
@@ -121,8 +123,7 @@ struct PopStamps final : sketch::Sketch {
 
     render::MeshStyle sprites;
     sprites.baseColor = {1, 1, 1, 1};
-    sprites.ambient = {0.85f, 0.85f, 0.9f, 1};
-    sprites.specular = 0;
+    sprites.lit = false;
     sprites.texture = atlas;
     render::drawMesh(canvas, plates, camera::place({330, 60, 0}, -16), view,
                      kCanvas, sprites);
@@ -133,8 +134,7 @@ struct PopStamps final : sketch::Sketch {
 
     render::MeshStyle glint;
     glint.baseColor = {1.0f, 0.95f, 0.8f, 1};
-    glint.ambient = {0.85f, 0.8f, 0.7f, 1};
-    glint.specular = 0;
+    glint.lit = false;
     render::drawMesh(canvas, glints, crownPlace, view, kCanvas, glint);
 
     render::MeshStyle jade = steel;

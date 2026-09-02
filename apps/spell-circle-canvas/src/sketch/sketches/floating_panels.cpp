@@ -26,14 +26,16 @@
 //                                   value the curved screen and a flat
 //                                   panel are the same picture.
 
-#include <include/core/SkSurface.h>
 #include <sigilcompose/shape/Shapes.h>
+#include <sigilcompose/texture/Texture.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/render/Painter.h>
 #include <sigilsketch/canvas/Sketch.h>
 
 #include <cmath>
+#include <memory>
+#include <vector>
 
 namespace sketch = sigil::sketch;
 
@@ -107,19 +109,18 @@ struct FloatingPanels final : sketch::Sketch {
   sk_sp<SkImage> cardA, cardB, cardC, screen;
   mesh::Mesh floor, curved;
 
-  /** An element tree baked to pixels at a stated size. The wrapping
-   *  box is not decoration: a snapshot takes its size from the root's
-   *  CHILDREN, so a sized root would be measured at its content size
-   *  and the dims quietly dropped. */
-  static sk_sp<SkImage> bake(const Element& tree, sigil::weave::FontContext& f,
-                             int w, int h) {
-    const sk_sp<SkPicture> picture =
-        snapshot(box().child(tree), f, {(float)w, (float)h});
-    sk_sp<SkSurface> surface =
-        SkSurfaces::Raster(SkImageInfo::MakeN32Premul(w, h));
-    surface->getCanvas()->clear(SK_ColorTRANSPARENT);
-    if (picture) surface->getCanvas()->drawPicture(picture);
-    return surface->makeImageSnapshot();
+  /** The scenes behind the pictures. A texture scene owns the surface
+   *  its image was taken from, so it is held for as long as the image
+   *  is. */
+  std::vector<std::shared_ptr<TextureScene>> scenes;
+
+  /** An element tree painted to pixels at a stated size. */
+  sk_sp<SkImage> bake(const Element& tree, sigil::weave::FontContext& f, int w,
+                      int h) {
+    const auto scene = TextureScene::make({w, h}, f);
+    scene->render(tree);
+    scenes.push_back(scene);
+    return scene->image();
   }
 
   void draw(SkCanvas& canvas) const {
@@ -149,14 +150,13 @@ struct FloatingPanels final : sketch::Sketch {
                            0.95f);
 
     // The curved sheet: the same kind of picture, mapped per triangle.
-    // Unlit on purpose — a screen emits, and a light term on it would
-    // read as a smear across the curve.
+    // Unlit on purpose — a screen is its own light, and a light term on
+    // it would read as a smear across the curve. One field says that:
+    // no ambient under the picture, no emitter, specular or rim over it.
     render::MeshStyle emissive;
     emissive.texture = screen;
     emissive.baseColor = {1, 1, 1, 1};
-    emissive.ambient = {0.9f, 0.9f, 0.9f, 1};
-    emissive.lights = {};
-    emissive.specular = 0;
+    emissive.lit = false;
     render::drawMesh(canvas, curved, camera::place({0, -160, 60}, 0, 10), view,
                      kCanvas, emissive);
   }

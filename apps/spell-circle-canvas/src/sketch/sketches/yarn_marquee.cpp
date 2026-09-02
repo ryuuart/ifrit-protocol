@@ -6,9 +6,12 @@
 //   THE PICTURE  a single compose column — a rule down each side, a
 //     heading, then numbered sectors with `grow()` boxes between them so
 //     the spacing distributes itself over whatever height the column is
-//     given. It is baked once and sliced into four tiles, each mirrored
-//     in x, because a swept ribbon charts u ACROSS the profile and the
-//     wall therefore samples it from the far side.
+//     given. It is baked ONCE, whole, and each arc cuts its own quarter
+//     out of it with `MeshStyle::uvTransform` — which also carries the
+//     mirror in x, because a swept ribbon charts u ACROSS the profile
+//     and the wall therefore samples it from the far side. Slicing the
+//     picture into four surfaces would say the same thing with four
+//     rasters and a canvas transform; a uv matrix says it with neither.
 //   THE RAIL     `curve::hangFrames` over one quarter of a closed
 //     spline, four windows covering it end to end. Hang frames put the
 //     binormal along world-down, so the band never rolls upside down
@@ -30,7 +33,8 @@
 //   the winding's lat/azi factors — how many times the yarn crosses
 //                itself, which is what makes the sort do any work.
 
-#include <include/core/SkSurface.h>
+#include <include/core/SkMatrix.h>
+#include <sigilcompose/texture/Texture.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/curve/Curve.h>
@@ -40,6 +44,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <memory>
 #include <vector>
 
 namespace sketch = sigil::sketch;
@@ -58,6 +63,10 @@ constexpr int kAcrossPx = 300;  // the column's pixel width
 constexpr int kTilePx = 4096;   // one tile's pixel height
 constexpr int kTiles = 4;       // arcs, and slices of the column
 constexpr int kSectors = 48;
+/** Where the winding is watched from. The arcs are sorted by how far
+ *  each one's bounds centre stands from it, so the sort and the camera
+ *  must be the same point. */
+constexpr glm::vec3 kEye{40, 140, 980};
 
 const SkColor4f kInk = {0.925f, 0.957f, 0.996f, 1};
 const SkColor4f kAccent = {0.455f, 0.878f, 0.745f, 1};
@@ -129,21 +138,30 @@ struct YarnMarquee final : sketch::Sketch {
     float depth = 0;
     int tile = 0;
   };
-  std::vector<sk_sp<SkImage>> tiles;
+  /** The scene behind the column, and the one picture it painted. The
+   *  scene owns the surface, so it is held for as long as the image. */
+  std::shared_ptr<TextureScene> column;
+  sk_sp<SkImage> banner;
   std::vector<Arc> arcs;
+
+  /** ONE ARC'S QUARTER OF THE COLUMN, in uv: mirrored in x, and the kth
+   *  of kTiles bands down the picture. */
+  static SkMatrix window(int k) {
+    return SkMatrix::Translate(1.0f, (float)k / (float)kTiles) *
+           SkMatrix::Scale(-1.0f, 1.0f / (float)kTiles);
+  }
 
   void draw(SkCanvas& canvas) const {
     camera::Camera view;
-    view.eye = {40, 140, 980};
+    view.eye = kEye;
     view.target = {0, 10, 0};
     view.fovYDeg = 46;
     for (const Arc& arc : arcs) {
       render::MeshStyle cloth;
-      cloth.texture = tiles.empty() ? nullptr : tiles[(size_t)arc.tile];
+      cloth.texture = banner;
+      cloth.uvTransform = window(arc.tile);
       cloth.baseColor = {1, 1, 1, 1};
-      cloth.ambient = {1, 1, 1, 1};
-      cloth.lights = {};
-      cloth.specular = 0;
+      cloth.lit = false;
       cloth.backfaceCull = false;
       render::drawMesh(canvas, arc.cloth, glm::mat4(1.0f), view, kCanvas,
                        cloth);
@@ -155,28 +173,15 @@ struct YarnMarquee final : sketch::Sketch {
     ctx.background({0.031f, 0.031f, 0.051f, 1});
     ctx.captureAt(1.0);
 
-    // The picture, once, then sliced. Mirroring in x is not a taste
-    // decision: the ribbon's u runs across the profile from the side the
-    // wall is read from, so an unmirrored tile reads backwards.
-    const float total = (float)kTiles * kTilePx;
+    // The picture, once and whole. What each arc shows is a window onto
+    // it, and the window is a uv matrix rather than a slice.
     if (ctx.fonts) {
-      const sk_sp<SkPicture> art = snapshot(
-          box().child(strip(total)), *ctx.fonts, {(float)kAcrossPx, total});
-      for (int k = 0; k < kTiles; ++k) {
-        sk_sp<SkSurface> surface =
-            SkSurfaces::Raster(SkImageInfo::MakeN32Premul(kAcrossPx, kTilePx));
-        SkCanvas* c = surface->getCanvas();
-        c->clear(SK_ColorTRANSPARENT);
-        c->translate((float)kAcrossPx, 0);
-        c->scale(-1, 1);
-        c->translate(0, -(float)k * kTilePx);
-        if (art) c->drawPicture(art);
-        tiles.push_back(surface->makeImageSnapshot());
-      }
+      column = TextureScene::make({kAcrossPx, kTiles * kTilePx}, *ctx.fonts);
+      column->render(strip((float)kTiles * kTilePx));
+      banner = column->image();
     }
 
     const curve::Spline3 yarn = winding();
-    const glm::vec3 eye = {40, 140, 980};
     for (int k = 0; k < kTiles; ++k) {
       Arc arc;
       arc.cloth = curve::sweep(
@@ -186,7 +191,7 @@ struct YarnMarquee final : sketch::Sketch {
           {.scale = kWidth, .normals = curve::SweepOptions::Normals::Frame});
       glm::vec3 lo, hi;
       arc.cloth.bounds(&lo, &hi);
-      arc.depth = glm::length((lo + hi) * 0.5f - eye);
+      arc.depth = glm::length((lo + hi) * 0.5f - kEye);
       arc.tile = k;
       arcs.push_back(std::move(arc));
     }

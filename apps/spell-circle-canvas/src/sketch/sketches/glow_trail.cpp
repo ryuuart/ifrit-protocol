@@ -15,14 +15,12 @@
  * three of them take turns on.
  */
 
-#include <sigilgeometry/mesh/curve/Curve.h>
 #include <sigilgeometry/mesh/pop/Pop.h>
+#include <sigilmaterial/kit/Surface.h>
 #include <sigilsketch/set/Set.h>
 
 #include <cmath>
 #include <glm/vec3.hpp>
-#include <glm/vec4.hpp>
-#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
@@ -43,26 +41,6 @@ constexpr float kRing = 190.0f;
 /** Where the set is watched from. The comet's flakes are turned onto it,
  *  so the same point is both the lens's station and their gaze. */
 constexpr glm::vec3 kEye{0.0f, 250.0f, 560.0f};
-
-struct Paint {
-  glm::vec4 baseColor{1, 1, 1, 1};
-};
-
-/** The study's own surface, one flat colour. It carries a body for every
- *  language a tier here compiles, so which tier drew a plate is a
- *  question about the pixels rather than about whether the material had
- *  anything to say. */
-constexpr char kPaintSlang[] = R"(
-float4 surface(float2 uv) { return baseColor; }
-)";
-
-material::Material paint(glm::vec4 colour) {
-  static const std::shared_ptr<const material::Recipe> recipe =
-      std::make_shared<const material::Recipe>(
-          material::Recipe::of<Paint>("world.study.paint")
-              .body(material::Target::Slang, kPaintSlang));
-  return material::Material(recipe, Paint{colour});
-}
 
 /** The loop the comet rides: a ring that rises and falls, so the tail
  *  reads as a curve in space rather than as an arc on a plane. */
@@ -107,7 +85,8 @@ Element set(float seconds) {
                  .at({0, -120, 0})
                  .rotateX(-90.0f)
                  .mesh(gm::quad(760, 760))
-                 .fill(paint({0.09f, 0.10f, 0.13f, 1.0f}))
+                 .fill(material::kit::surface(
+                     {.baseColor = {0.09f, 0.10f, 0.13f, 1.0f}}))
                  .tag("ground"));
 
   Element posts;
@@ -120,7 +99,8 @@ Element set(float seconds) {
             .at({kRing * std::cos(angle), -84.0f, kRing * std::sin(angle)})
             .rotateY(angle * 57.2957795f)
             .mesh(gm::superellipsoid({8.0f, 40.0f, 8.0f}, 6.0f, 10, 6))
-            .fill(paint({0.34f, 0.37f, 0.46f, 1.0f}))
+            .fill(material::kit::surface(
+                {.baseColor = {0.34f, 0.37f, 0.46f, 1.0f}}))
             .tag("lit"));
   }
   root.child(std::move(posts));
@@ -130,7 +110,8 @@ Element set(float seconds) {
                  .chain(comet)
                  .stamp(gm::quad(8.9f, 8.9f))
                  .window(head, 0.22f)
-                 .fill(paint({1.0f, 0.72f, 0.34f, 1.0f}))
+                 .fill(material::kit::surface(
+                     {.baseColor = {1.0f, 0.72f, 0.34f, 1.0f}}))
                  .tag("glow"));
   return root;
 }

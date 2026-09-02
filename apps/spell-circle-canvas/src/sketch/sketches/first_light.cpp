@@ -11,13 +11,12 @@
 #include <sigilgeometry/mesh/curve/Curve.h>
 #include <sigilgeometry/mesh/curve/Pose.h>
 #include <sigilgeometry/mesh/pop/Pop.h>
+#include <sigilmaterial/kit/Surface.h>
 #include <sigilsketch/set/Set.h>
 #include <sigilworld/kit/Kit.h>
 
 #include <cmath>
 #include <glm/vec3.hpp>
-#include <glm/vec4.hpp>
-#include <memory>
 #include <vector>
 
 namespace sketch = sigil::sketch;
@@ -35,26 +34,6 @@ constexpr float kTwoPi = 6.283185307179586f;
  *  is written in the rail's own frame and depends on both. */
 constexpr float kRailRadius = 470.0f;
 constexpr float kRailHeight = 190.0f;
-
-struct Paint {
-  glm::vec4 baseColor{1, 1, 1, 1};
-};
-
-/** The study's own surface, one flat colour. It carries a body for every
- *  language a tier here compiles, so which tier drew a plate is a
- *  question about the pixels rather than about whether the material had
- *  anything to say. */
-constexpr char kPaintSlang[] = R"(
-float4 surface(float2 uv) { return baseColor; }
-)";
-
-material::Material paint(glm::vec4 colour) {
-  static const std::shared_ptr<const material::Recipe> recipe =
-      std::make_shared<const material::Recipe>(
-          material::Recipe::of<Paint>("world.study.paint")
-              .body(material::Target::Slang, kPaintSlang));
-  return material::Material(recipe, Paint{colour});
-}
 
 /** The loop both the tube and the comet ride: a ring that rises and
  *  falls, so it reads as a curve in space rather than as a circle seen
@@ -143,19 +122,22 @@ struct FirstLight final : sketch::Set {
                    .at({0, -150, 0})
                    .rotateX(-90.0f)
                    .mesh(gm::quad(900, 900))
-                   .fill(paint({0.10f, 0.11f, 0.14f, 1.0f}))
+                   .fill(material::kit::surface(
+                       {.baseColor = {0.10f, 0.11f, 0.14f, 1.0f}}))
                    .tag("ground"))
         .child(Element()
                    .key("tube")
                    .mesh(tube)
-                   .fill(paint({0.62f, 0.66f, 0.74f, 1.0f}))
+                   .fill(material::kit::surface(
+                       {.baseColor = {0.62f, 0.66f, 0.74f, 1.0f}}))
                    .tag("lit"))
         .child(Element()
                    .key("comet")
                    .chain(comet)
                    .stamp(gm::quad(7.0f, 7.0f))
                    .window(head, 0.28f)
-                   .fill(paint({0.95f, 0.75f, 0.42f, 1.0f}))
+                   .fill(material::kit::surface(
+                       {.baseColor = {0.95f, 0.75f, 0.42f, 1.0f}}))
                    .tag("glow"));
   }
 };
