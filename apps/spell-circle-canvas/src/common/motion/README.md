@@ -18,15 +18,19 @@ what a consumer uses; every public header lives under
 | `SigilMotionBind`   | `bind/Bound.h`, `bind/BoundFloat.h`, `bind/WiggleNoise.h`; `bind/Bind.h` includes all three | `bind()`, `wiggle()` and the `Bound` chain builder; `BoundFloat` and `Envelope`, the evaluator; the wiggle noise field; `easeEqual()` and `boundMapEqual()` |
 | `SigilMotionValues` | `values/Transition.h`, `values/Keyframes.h`, `values/Animatable.h`, `values/Animated.h`, `values/Lanes.h`, `values/Time.h`; `values/Values.h` includes all six | `Transition`, `ease::`, `ramp()` and `transitionEqual()`; `Transitioned`, `animate()`/`from()`/`to()`/`through()`; `Animatable<T>` and `propEqual()`; `AnimatedFloat` and the operations on a held motion; `Lane`, `LaneSlot` and the retargets; `quantizeTime()` and `phase()` |
 | `SigilMotionClock`  | `clock/FrameClock.h`, `clock/Ticker.h` | the clock and the ticker |
+| `SigilMotionSchedule` | `schedule/Spread.h`, `schedule/Order.h`, `schedule/Cascade.h`; `schedule/Schedule.h` includes all three | `Spread`, the spec; `cascadeOrder()`, the five orderings; `Cascade` and `Beat`, a spread resolved against a frame's counts |
 
-`SigilMotion` is the umbrella target over all three, and
+`SigilMotion` is the umbrella target over all four, and
 `<sigilmotion/Animation.h>` is the umbrella header over every values and
 bind header, so a consumer that includes `Animation.h` and links
 `SigilMotion` sees every value and binding. Bind is the leaf: Values
-links it because `Animatable<T>` can hold a shaped binding, and Clock
-links it because `Ticker::derive` runs one. Values links Clock in turn,
-because an animatable that is MOVING is moving on a ticker — the values
-feature ships both the slot and the motion the slot runs as.
+links it because `Animatable<T>` can hold a shaped binding, Clock links
+it because `Ticker::derive` runs one, and Schedule links it because a
+spread's distribution curve compares under the same rule every other
+curve does. Values links Clock in turn, because an animatable that is
+MOVING is moving on a ticker — the values feature ships both the slot and
+the motion the slot runs as. Schedule links NEITHER the clock nor the
+values: see below.
 
 ## Using it
 
@@ -172,6 +176,52 @@ where the corners are and what shape the shoulders take are separate
 decisions. `square` has no shoulders to round, and its phase 0 is ON —
 a caret born at the start of its cycle is born visible.
 
+## Schedules: how N units share one progress
+
+A `Spread` says how a run of units divides one master progress between
+them — the delay between one and the next, the order they are dealt in,
+how long one unit's own motion lasts, and whether the whole thing loops.
+It says nothing about WHAT a unit is. `Cascade` resolves it against the
+counts a frame actually has, and then answers per index:
+
+```cpp
+Spread spec{.eachMs = 60, .durationMs = 420};
+spec.from = Spread::From::Center;
+
+Cascade cascade;                     // reused in place across frames
+cascade.build(spec, unitCount, 0);
+for (uint32_t i = 0; i < unitCount; ++i)
+  paint(i, cascade.localTime(master, i, 0));   // this unit's own 0→1
+```
+
+`master` is a float in [0, 1] the caller owns — a track's progress, a
+lane, a bare `phase()`. That is the whole interface, and it is why the
+schedule feature links no clock: nothing in it reads time, so a text
+engine, a set mounting its children, a feed's rows and a study's loop
+counter can all drive the same body from four different clocks.
+
+`spanMs()` is the DECLARE-TIME half: what a progress transition's
+duration has to be for the last beat to close exactly as the master
+arrives at 1, before any of the units exist. `Cascade::totalMs` is the
+same number off a resolved cascade, and the two agree because one body
+computes both.
+
+Four things a spread can be, in the order they override each other: an
+even ladder (`eachMs`), a fixed total divided across whatever the count
+turns out to be (`amountMs`), an irregular table of start times cut
+against a recording (`cueMs`, which replaces the ladder, the order and
+the distribution outright), and a second spread nested inside every beat
+of the first (`then()`, exactly one level deep). `loopMs` turns any of
+them into a wrapping beat: each unit re-opens on its own cycle, phase-
+offset by its start, and one sweep of the master 0→1 is one cycle.
+
+`Cascade::beat()` is the schedule read BACK rather than driven — start
+time, local time and whether the beat is running — for anything that has
+to travel with a cascade without being one of its units: a playhead, a
+travelling underline, a per-unit meter. Without it each of those restates
+`i · eachMs` and stops agreeing with the engine the moment the cascade
+nests or takes a table.
+
 ## Lanes: where a host's motions live
 
 A retained host holds one `AnimatedFloat` per animatable it lets move,
@@ -298,21 +348,24 @@ From `apps/spell-circle-canvas`:
 ```sh
 python3 scripts/setup.py --config Debug
 cmake --build build --config Debug \
-  --target motion_clock_test motion_values_test motion_bind_test
+  --target motion_clock_test motion_values_test motion_bind_test \
+           motion_schedule_test
 ctest --test-dir build -C Debug -R motion_ --output-on-failure
 ```
 
-Targets: `SigilMotionBind`, `SigilMotionValues`, `SigilMotionClock`
-(the libraries, one per feature directory — `bind/`, `values/`, `clock/`
-— each holding its sources, its `test/` and its `bench/`), `SigilMotion`
-(the umbrella), and one test per library:
-`motion_bind_test`, `motion_values_test` and `motion_clock_test`, plus two
+Targets: `SigilMotionBind`, `SigilMotionValues`, `SigilMotionClock`,
+`SigilMotionSchedule` (the libraries, one per feature directory —
+`bind/`, `values/`, `clock/`, `schedule/` — each holding its sources, its
+`test/` and its `bench/`), `SigilMotion` (the umbrella), and one test per
+library: `motion_bind_test`, `motion_values_test`, `motion_clock_test`
+and `motion_schedule_test`, plus three
 Google Benchmark binaries built by the `benches` target and run from a
 Release build through `scripts/bench_ledger.py`: `motion_bind_bench`
 (`BoundFloat::apply` per call under each envelope and the full chain, and
-the wiggle field by octave) and `motion_values_bench` (the consumer's read
+the wiggle field by octave), `motion_values_bench` (the consumer's read
 of an `Animatable` lane per slot for each kind it can hold, and copying
-and constructing such a lane). No GPU,
+and constructing such a lane) and `motion_schedule_bench` (resolving a
+cascade for a frame's counts, and the per-unit local-time read). No GPU,
 no assets, no runtime requirements. Each test links only the library it
 exercises (plus the clock where a value is driven by the ticker) and
 GoogleTest, and fails the build if a compositing header becomes
