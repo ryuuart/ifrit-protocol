@@ -183,11 +183,6 @@ constexpr double kSheen0 = 2.55, kSheenDur = 1.10;
 const double kGenAt[4] = {0.70, 1.55, 2.45, 3.35};
 
 inline float clamp01(double v) { return (float)std::clamp(v, 0.0, 1.0); }
-inline float easeOutBack(float p) {
-  const float c = 1.32f, c3 = c + 1, q = p - 1;
-  return 1 + c3 * q * q * q + c * q * q;
-}
-
 // ---------------------------------------------------------------------------
 // de Bruijn's pentagrid
 
@@ -501,8 +496,13 @@ struct Granite {
   float veinContrast;  // how hard the dark inclusions bite
 };
 
-const Granite kRoyalWhite{kWhiteBase, kWhiteLit, kWhiteVein, 0.56f,
-                          1.05f,      0.052f,    0.42f};
+// The two granites are photographed at one distance, and at that distance
+// both read as a fine even salt-and-pepper: the difference between them is
+// the SIZE of the dark inclusions, not the pitch of the field. A coarse
+// pitch on one and a fine one on the other reads as two materials rendered
+// at two resolutions.
+const Granite kRoyalWhite{kWhiteBase, kWhiteLit, kWhiteVein, 0.88f,
+                          1.05f,      0.030f,    0.42f};
 const Granite kKobraGrey{kGreyBase, kGreyLit, kGreyVein, 1.00f,
                          0.88f,     0.070f,   0.32f};
 
@@ -792,11 +792,18 @@ struct PenrosePaving : sketch::Sketch {
     const float gR = R + kBandW;
     const float inner = (R - kBandW * 0.5f) / gR;
     const float outer = (R + kBandW * 0.5f) / gR;
-    Fill band = radialGradient(c, gR,
-                               {kSteelEdge, kSteelEdge, kSteelSpec, kSteelBase,
-                                kSteelEdge, kSteelEdge},
-                               {0.0f, inner, inner + (outer - inner) * 0.26f,
-                                inner + (outer - inner) * 0.66f, outer, 1.0f});
+    // A POLISHED INSERT IS FLAT. The bevel is a rim, not a section: the
+    // face holds one tone across the middle three quarters of the band and
+    // the edge tone is confined to the two millimetres either side of it.
+    // Run across the whole width, the same ramp reads as piping with a
+    // dark core rather than as a broad flat ribbon.
+    const float rim = (outer - inner) * 0.12f;
+    Fill band =
+        radialGradient(c, gR,
+                       {kSteelEdge, kSteelEdge, kSteelBase, kSteelSpec,
+                        kSteelBase, kSteelEdge, kSteelEdge},
+                       {0.0f, inner, inner + rim, (inner + outer) * 0.5f,
+                        outer - rim, outer, 1.0f});
 
     return box()
         .left(bb.left() - parentOrg.x())
@@ -967,9 +974,11 @@ struct PenrosePaving : sketch::Sketch {
                        {{Material::solid(hex(0xFFFFFF)), SkBlendMode::kSrcOver},
                         {patterns::grain(0.0042f, 2, 91.0f, 0.62f, 1.15f),
                          SkBlendMode::kSoftLight}})))
-        // ---- daylight. One multiply pass carries both the sun's falloff
-        // across the plaza and the corner vignette; a plaza is not evenly lit
-        // and an evenly lit tiling is exactly what reads as a diagram.
+        // ---- daylight. One multiply pass carries the sun's falloff across
+        // the plaza. It is SHALLOW: the header calls this a plan view and
+        // the forecourt is photographed in flat daylight, so a key bright
+        // enough to be read as a studio light is reading as a light rather
+        // than as a floor.
         // Static, so it is baked: nothing here depends on the clock and the
         // gradient covers the whole canvas.
         .child(box()
