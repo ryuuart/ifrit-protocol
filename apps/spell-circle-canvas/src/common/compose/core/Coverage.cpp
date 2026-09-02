@@ -127,6 +127,12 @@ const SkPath& Composer::Impl::coverageOutline(Instance& inst, SkSize size,
   // The trace's canvas is an offscreen raster at a scale of its own, so
   // nothing pinned to a device rect may be baked inside it — the same
   // reason a picture recording refuses, and the same guard.
+  //
+  // At FULL OPACITY and the plain source blend, which is what the node's
+  // layer holds: its own opacity and blend mode are applied to the
+  // finished layer above this, and a silhouette that thinned as the node
+  // faded would walk a decoration's edge for a reason that has nothing to
+  // do with what was drawn.
   const Instance* outerTrace = coverageTrace;
   coverageTrace = &inst;
   ++recordingDepth;
