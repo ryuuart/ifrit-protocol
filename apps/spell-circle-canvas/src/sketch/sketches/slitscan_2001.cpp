@@ -284,12 +284,17 @@ constexpr SkColor4f kInk{0.047f, 0.039f, 0.031f, 1};      // #0C0A08
 constexpr SkColor4f kPanelBg{0.078f, 0.067f, 0.063f, 1};  // #141110
 constexpr SkColor4f kRule{0.133f, 0.114f, 0.102f, 1};     // #221D1A
 constexpr SkColor4f kType{0.929f, 0.910f, 0.874f, 1};     // #EDE8DF
-constexpr SkColor4f kType2{0.549f, 0.514f, 0.471f, 1};    // #8C8378
-constexpr SkColor4f kAmber{0.839f, 0.506f, 0.227f, 1};    // #D6813A
-constexpr SkColor4f kCold{0.918f, 0.949f, 1.0f, 1};       // #EAF2FF
-constexpr SkColor4f kRed{0.769f, 0.220f, 0.180f, 1};      // #C4382E
-constexpr SkColor4f kSolid{0.106f, 0.090f, 0.078f, 1};    // #1B1714
-constexpr SkColor4f kTick{0.361f, 0.329f, 0.294f, 1};     // #5C544B
+// THE SECONDARY REGISTER READS AT PLATE SCALE. At #8C8378 on
+// #100E0C a seven-point line is a texture rather than a
+// sentence, and the right column is nearly all seven-point
+// lines. The pair goes up a step each, which keeps the
+// hierarchy and makes the lower half of it legible.
+constexpr SkColor4f kType2{0.694f, 0.655f, 0.604f, 1};
+constexpr SkColor4f kAmber{0.839f, 0.506f, 0.227f, 1};  // #D6813A
+constexpr SkColor4f kCold{0.918f, 0.949f, 1.0f, 1};     // #EAF2FF
+constexpr SkColor4f kRed{0.769f, 0.220f, 0.180f, 1};    // #C4382E
+constexpr SkColor4f kSolid{0.106f, 0.090f, 0.078f, 1};  // #1B1714
+constexpr SkColor4f kTick{0.494f, 0.455f, 0.408f, 1};
 constexpr SkColor4f kBlack{0, 0, 0, 1};  // "the room was painted
                                          //  totally black" [C85]
 constexpr SkColor4f kWhite{1, 1, 1, 1};
@@ -701,20 +706,29 @@ struct SlitScan2001 : sketch::Sketch {
 
   static const Shot& shotAt(int i) {
     using namespace slit;
+    // THE TWO PLANES STAND ABOVE AND BELOW. Trumbull's "two seemingly
+    // infinite planes" are the walls of a CORRIDOR the camera flies down:
+    // on the Star Gate frame they fill the top and the bottom of a 2.20:1
+    // image and converge on a lit core between them. A pair set near the
+    // diagonal instead reads as two beams crossing an otherwise black
+    // frame — the same arithmetic, the wrong picture. Each shot leans its
+    // own few degrees off the vertical, which is the plate turning between
+    // takes and not a second idea.
     static const Shot k[4] = {
-        {"SEQ 29 · SH 04", kGelStraw, kGelCyan, 0.0f, 0.35f, 0,
+        {"SEQ 29 · SH 04", kGelStraw, kGelCyan, 86.0f, 0.35f, 0,
          "BACKLIT GRAPHIC SHAPES, FAST SCROLL [GE]"},
-        {"SEQ 29 · SH 08", kGelMag, kGelGreen, 34.0f, -0.50f, 1,
+        {"SEQ 29 · SH 08", kGelMag, kGelGreen, 76.0f, -0.50f, 1,
          "ABSTRACT SHAPES AND SPIRALS [GE]"},
-        {"SEQ 29 · SH 27", kGelRed, kGelAmber, 78.0f, 0.20f, 2,
+        {"SEQ 29 · SH 27", kGelRed, kGelAmber, 97.0f, 0.20f, 2,
          "POSTERISED CORAL / FLOWERS [GE]"},
-        {"SEQ 29 · SH 29", kGelViolet, kGelCyan, 12.0f, -0.35f, 2,
+        {"SEQ 29 · SH 29", kGelViolet, kGelCyan, 92.0f, -0.35f, 2,
          "MICROSCOPIC / BOTANICAL — SAME STRIP AS SH 27 [GE]"},
     };
     return k[(unsigned)i & 3u];
   }
 
   // The corridor banks; it does not sit still. Within +-96 x +-44 px.
+  ch::Output<float> coreX{0}, coreY{0};  ///< the convergence, bound
   SkPoint vp() const {
     return {
         slit::kFilmW * 0.5f + 96.0f * (float)std::sin(elapsed * 0.41),
@@ -728,6 +742,8 @@ struct SlitScan2001 : sketch::Sketch {
     using namespace slit;
     const Shot& s = shotAt(shot);
     const SkPoint c = vp();
+    coreX = c.fX;
+    coreY = c.fY;
     WallSpec A;
     A.vp = c;
     A.phiDeg = s.phi0 + plateDeg;
@@ -1082,6 +1098,37 @@ struct SlitScan2001 : sketch::Sketch {
     };
     Element accumulation =
         raw().effect(Effect::shader(transferCurve(), {{"k", transferK()}}));
+    // THE CORE. Where the two planes converge the camera is looking
+    // straight down the corridor, and every stamp in both exposures has
+    // been laid on top of every other: on the Star Gate frame the
+    // vanishing point is the brightest thing in it. The accumulation
+    // reaches it as a thin seam because a stamp's own width is finite, so
+    // the last few inches of the sweep are added here as the light they
+    // integrate to.
+    // The core RIDES the vanishing point rather than being placed at it.
+    // The frame is described once and the walls are rebuilt on the film
+    // clock, so a position read at describe time freezes while the
+    // convergence moves — and a core beside the convergence is worse than
+    // no core.
+    Element vanishing =
+        box()
+            .left(Dim(-150.0f))
+            .top(Dim(-150.0f))
+            .width(Dim(300.0f))
+            .height(Dim(300.0f))
+            .translateX(&coreX)
+            .translateY(&coreY)
+            // The core's own picture never changes — only where it is —
+            // so it is baked once and the binding moves the bake. A
+            // full-canvas kPlus radial re-evaluated per frame costs this
+            // scene more than the two exposures do.
+            .cache(Cache::Texture)
+            .fill(Material::glowUnit({0.5f, 0.5f}, 0.5f,
+                                     {{0.00f, {1.0f, 0.98f, 0.92f, 0.92f}},
+                                      {0.12f, {1.0f, 0.94f, 0.80f, 0.42f}},
+                                      {0.42f, {0.90f, 0.80f, 0.60f, 0.10f}},
+                                      {1.00f, {0.6f, 0.5f, 0.4f, 0.0f}}}))
+            .blend(SkBlendMode::kPlus);
     // HALATION. Film's own bloom: light scattering back off the base. The
     // SAME two pools read a second time, tone-curved softer, blurred and
     // added -- so it is still the accumulation, not a painted glow.
@@ -1119,6 +1166,7 @@ struct SlitScan2001 : sketch::Sketch {
         .mask(by::edge(0.0f, animate(from(0.0f).to(1.0f),
                                      {520ms, ch::easeOutCubic, 240ms})))
         .child(std::move(accumulation))
+        .child(std::move(vanishing))
         .child(std::move(halation))
         // The shutter bar -- the ONLY thing in the plate driven by
         // addFixed's interpolant, and the caption says why.
