@@ -63,6 +63,7 @@ struct SkyDials {
   std::optional<motion::Animatable<float>> specular;
   std::optional<motion::Animatable<float>> roughnessBias;
   std::optional<motion::Animatable<float>> crossfade;
+  std::optional<motion::Animatable<float>> exposure;
   std::optional<motion::Animatable<float>> backdrop;
   std::optional<motion::Animatable<float>> backdropBlur;
 };

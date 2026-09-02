@@ -61,6 +61,12 @@ struct Environment {
   float diffuse = 1;
   float specular = 1;
   float roughnessBias = 0;
+  /** THE EXPOSURE the whole picture is read at: what every radiance is
+   *  multiplied by before the tone curve compresses it. It stands even
+   *  where no panorama does — a set with no sky still shades a sum and
+   *  still ends at the curve — which is why it is a plain field and not
+   *  something `valid()` gates. */
+  float exposure = 1;
   /** THE SKY SHOWN behind the set, at this strength — zero draws none of
    *  it, so the dial is also the switch — and blurred by this much, in
    *  the same roughness units a reflection reads. */
@@ -145,6 +151,34 @@ inline glm::vec3 attenuate(glm::vec3 radiance, glm::vec3 absorb,
   const float t = std::max(thickness, 0.0f);
   return radiance * glm::vec3(std::exp(-absorb.x * t), std::exp(-absorb.y * t),
                               std::exp(-absorb.z * t));
+}
+
+/** How bright a colour reads, at the weights the three primaries carry
+ *  into a display's luminance. */
+inline float luminance(glm::vec3 color) {
+  return color.x * 0.212671f + color.y * 0.715160f + color.z * 0.072169f;
+}
+
+/** TONE MAPPING, Reinhard's operator on luminance: the radiance a
+ *  surface or a sky answers with, turned into a colour a display can
+ *  hold.
+ *
+ *  A panorama carries values far above one — that is what makes a sun a
+ *  sun rather than a white disc the same brightness as the sky beside
+ *  it. Cutting the lit sum off at one flattens every highlight to the
+ *  same white; dividing it by one plus its own luminance leaves zero at
+ *  zero, barely touches a dim surface, and lands a value a hundred times
+ *  over white just under it with its shape still readable.
+ *
+ *  @p exposure multiplies the radiance BEFORE the curve, which is where
+ *  an exposure belongs: it decides which part of the range the shoulder
+ *  falls on, and doubling it is one stop. The ratio is taken on
+ *  LUMINANCE rather than per channel, so hue and saturation survive the
+ *  compression. A fully saturated channel can still land above one, and
+ *  what holds it there is the surface it is written into. */
+inline glm::vec3 toneMap(glm::vec3 radiance, float exposure) {
+  const glm::vec3 scaled = glm::max(radiance * exposure, glm::vec3(0.0f));
+  return scaled / (1.0f + luminance(scaled));
 }
 
 /** The direction light takes entering a surface; the zero vector past

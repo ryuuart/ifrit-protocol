@@ -197,8 +197,13 @@ void drawBackdrop(SkCanvas& canvas, const Environment& environment,
       // zenith is and nothing about a smooth sky would show it.
       if (view.z > 0) view = -view;
       const glm::vec3 ray = worldFromView * view;
+      // THE SKY ENDS AT THE SAME CURVE A SURFACE DOES, at the same
+      // exposure: a panorama holds values far above one, and a backdrop
+      // cut off at one would be a flat white disc where a body standing
+      // in front of it shows a sun.
       const glm::vec3 radiance =
-          environmentRadiance(sky, ray, blur) * environment.backdrop;
+          toneMap(environmentRadiance(sky, ray, blur) * environment.backdrop,
+                  environment.exposure);
       const SkColor4f colour{std::clamp(radiance.x, 0.0f, 1.0f),
                              std::clamp(radiance.y, 0.0f, 1.0f),
                              std::clamp(radiance.z, 0.0f, 1.0f), 1.0f};

@@ -42,7 +42,9 @@ const std::string& source(Target target);
  *  opening the source: `lambert`, `blinn`, `specularColor`, `fresnel`,
  *  `fresnelRough`, `environmentBrdf`, `environmentSpecular`,
  *  `environmentReflection`, `refraction`, `absorption`, `emission`,
- *  `occlusion`, and the panorama's own geometry — `equirectUv`,
- *  `equirectDirection`, `roughnessLevel`, `atan2P`, `acosP`. */
+ *  `occlusion`, the display transform every lit sum ends at —
+ *  `luminance`, `toneMap` — and the panorama's own geometry:
+ *  `equirectUv`, `equirectDirection`, `roughnessLevel`, `atan2P`,
+ *  `acosP`. */
 
 }  // namespace sigil::material::kit::terms

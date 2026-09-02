@@ -139,9 +139,13 @@ TEST(SurfaceSlots, AnOcclusionMapDarkensWhereItIsDark) {
 
   const SkBitmap bare = photograph(card(plain), on.runtime);
   const SkBitmap dressed = photograph(card(occluded), on.runtime);
-  // The map's dark half darkens and its white half does not.
-  EXPECT_LT(luma(at(dressed, 0.35f, 0.5f)), luma(at(bare, 0.35f, 0.5f)) * 0.5f);
-  EXPECT_NEAR(luma(at(dressed, 0.65f, 0.5f)), luma(at(bare, 0.65f, 0.5f)),
+  // The map's dark half darkens and its white half does not. The two
+  // points sit at the OUTER edges and not either side of the middle: a
+  // two-texel map read linearly blends the halves across everything
+  // between their centres, so a point just past the middle carries some
+  // of the dark texel and darkens a little with it.
+  EXPECT_LT(luma(at(dressed, 0.15f, 0.5f)), luma(at(bare, 0.15f, 0.5f)) * 0.5f);
+  EXPECT_NEAR(luma(at(dressed, 0.85f, 0.5f)), luma(at(bare, 0.85f, 0.5f)),
               0.02f);
 }
 
@@ -211,12 +215,16 @@ TEST(SurfaceSlots, ANormalMapTiltsTheShading) {
 
   const SkBitmap bare = photograph(card(plain), on.runtime);
   const SkBitmap tilted = photograph(card(bumped), on.runtime);
-  // A flat card with no map shades alike across its whole face…
-  EXPECT_NEAR(luma(at(bare, 0.3f, 0.5f)), luma(at(bare, 0.7f, 0.5f)), 0.02f);
-  // …and with one, the two halves part company.
-  EXPECT_GT(
-      std::abs(luma(at(tilted, 0.3f, 0.5f)) - luma(at(tilted, 0.7f, 0.5f))),
-      0.05f);
+  // A flat card with no map shades ALMOST alike across its face — a
+  // light standing off to one side falls a little more steeply on one
+  // half than the other, which is the card's own falloff and not a map…
+  const float falloff =
+      std::abs(luma(at(bare, 0.3f, 0.5f)) - luma(at(bare, 0.7f, 0.5f)));
+  EXPECT_LT(falloff, 0.05f);
+  // …and with a map, the two halves part company by much more than that.
+  const float split =
+      std::abs(luma(at(tilted, 0.3f, 0.5f)) - luma(at(tilted, 0.7f, 0.5f)));
+  EXPECT_GT(split, falloff + 0.05f);
 }
 
 TEST(SurfaceSlots, WhiteIsTheNEUTRALEverySlotFallsBackTo) {

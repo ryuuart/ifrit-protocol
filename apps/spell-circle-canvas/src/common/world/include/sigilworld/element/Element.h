@@ -186,6 +186,12 @@ class Element {
    *  the second. Both are sampled and mixed, which is what lets a sky
    *  change while the frame is running. */
   Element& crossfade(motion::Animatable<float> v);
+  /** THE EXPOSURE THE SET IS READ AT: what every radiance is multiplied
+   *  by before the tone curve compresses it onto what a display can
+   *  hold. Doubling it is one stop. It is the one dial here that means
+   *  something in a set carrying no panorama at all, because a lit sum
+   *  ends at the curve either way. */
+  Element& exposure(motion::Animatable<float> v);
   /** THE SKY SHOWN behind the set, at this strength — zero draws none of
    *  it, so the dial is also the switch — blurred by @p blur in the same
    *  roughness units a reflection reads. */

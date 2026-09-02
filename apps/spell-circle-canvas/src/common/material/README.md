@@ -434,11 +434,27 @@ text holding each piece of shading arithmetic as a function with a closed
 form — `lambert`, `blinn`, `fresnel` and `fresnelRough`,
 `specularColor`, `environmentBrdf` and `environmentSpecular` (the split
 sum), `environmentReflection` (the additive one), `refraction`,
-`absorption`, `emission`, `occlusion` — beside the panorama's own
+`absorption`, `emission`, `occlusion` — beside the display transform
+every lit sum ends at, `luminance` and `toneMap`, and the panorama's own
 geometry, `equirectUv`, `equirectDirection` and `roughnessLevel`. No
 term is a whole shading model and none has to be physically complete to
 be useful: a surface calls the ones it needs, the way a shader graph in
 an authoring tool is a composition of nodes.
+
+`toneMap(radiance, exposure)` is Reinhard's operator on luminance: the
+radiance is multiplied by the exposure, then divided by one plus its own
+luminance. A panorama holds values far above one — that is what makes a
+sun a sun rather than a white disc the same brightness as the sky beside
+it — and cutting the lit sum off at one would flatten every highlight to
+the same white. This leaves zero at zero, barely touches a dim surface,
+and lands a value a hundred times over white just under it with its
+shape intact. The ratio is taken on luminance rather than per channel so
+that hue and saturation survive the compression; a fully saturated
+channel can still land above one, and what holds it there is the range of
+the surface it is written into. The exposure is AUTHORED and never
+measured — no average luminance, no adaptation — because a diagram that
+dimmed itself when its content grew brighter would be a different picture
+every frame.
 
 Every term is PURE — nothing samples a texture, because sampling is
 spelled differently in every shading language while arithmetic is not, so

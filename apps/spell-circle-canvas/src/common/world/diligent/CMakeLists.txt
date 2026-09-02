@@ -12,11 +12,11 @@ find_package(unofficial-diligent-engine CONFIG REQUIRED)
 # is appended to cannot be finished until the material exists.
 include(Slang)
 set(_shaders ${CMAKE_CURRENT_LIST_DIR}/shaders)
-# Every module here imports the portable subset, and Surface.slang the
-# material kit's shading terms as well, so slangc is pointed at the two
-# directories those files live in. At run time the same texts are loaded
-# into the compiler session by name, from the headers their own builds
-# generated.
+# Every module here imports the portable subset, and Surface.slang and
+# Painter.slang the material kit's shading terms as well, so slangc is
+# pointed at the two directories those files live in. At run time the
+# same texts are loaded into the compiler session by name, from the
+# headers their own builds generated.
 set(_imports ${_shaders} ${SIGIL_MATERIAL_SLANG_SHADER_DIR}
              ${SIGIL_MATERIAL_SHADER_DIR})
 set(_portable ${SIGIL_MATERIAL_SLANG_SHADER_DIR}/Portable.slang)
@@ -26,7 +26,7 @@ sigil_slang_module(NAME Surface SOURCE ${_shaders}/Surface.slang
   OUT_VAR SIGIL_WORLD_SURFACE_H)
 sigil_slang_module(NAME Painter SOURCE ${_shaders}/Painter.slang
   ENTRIES vsPaint fsPaint INCLUDE ${_imports}
-  DEPENDS ${_portable}
+  DEPENDS ${_portable} ${SIGIL_MATERIAL_SHADER_DIR}/Shading.slang
   OUT_VAR SIGIL_WORLD_PAINTER_H)
 sigil_slang_module(NAME Post SOURCE ${_shaders}/Post.slang
   ENTRIES vsFullscreen fsCopy fsBlur fsLevels fsMasked INCLUDE ${_imports}

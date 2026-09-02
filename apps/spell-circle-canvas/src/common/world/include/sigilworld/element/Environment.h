@@ -63,6 +63,16 @@ struct Environment {
   /** Added to a surface's roughness before it picks a prefiltered level,
    *  so a whole set can be softened without editing a material. */
   float roughnessBias = 0;
+  /** THE EXPOSURE THE SET IS READ AT: what every radiance is multiplied
+   *  by before the tone curve compresses it onto what a display can
+   *  hold. Doubling it is one stop, and it is the dial that decides
+   *  which part of the range the curve's shoulder falls on — a set lit
+   *  by a panorama with a sun in it wants a smaller one than a set lit
+   *  by a lamp.
+   *
+   *  It is the one dial here that stands where no panorama does: a lit
+   *  sum ends at the curve whether or not the set carries a sky. */
+  float exposure = 1;
 
   /** A SECOND MAP, crossfaded over the first: at 0 only `map` is read,
    *  at 1 only this one. Both sides are sampled and mixed rather than

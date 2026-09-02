@@ -237,3 +237,20 @@ the modifier should be the op's arithmetic applied directly.
 Assert once fixed: displace the same cloud through the modifier and
 through a one-op chain and compare the points bit for bit, for both
 verbs.
+
+## A variant re-draw is lit on the host tier and unlit on the device
+
+`world/frame/CpuGeometry.cpp`'s variant overlay sets `over.lit = true`
+and states in a comment that the pass's own lights are what the overlay
+stands under; `world/diligent/Geometry.cpp` draws the same overlay with
+`lit=false`, so the device shows a flat colour where the host shows a
+shaded one. The gap widens now that the lit sum ends at a tone curve:
+the host's overlay is curved and the device's is clipped.
+
+Intended: one answer on both tiers, and the comment says which — a
+variant surface is a colour laid over the bodies a selector names, and
+it stands under the pass's lights.
+
+Assert once fixed: render a Variant pass on both tiers over a body under
+one directional light and compare the two plates within the tier
+ceiling; the overlay's shading must agree, not just its coverage.

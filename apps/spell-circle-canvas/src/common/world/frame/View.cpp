@@ -67,6 +67,11 @@ SurfaceTerms surfaceTermsOf(const ::sigil::material::Material* material) {
     const Environment& environment, const glm::mat3& orientation) {
   namespace render = ::sigil::geometry::mesh::render;
   render::Environment out;
+  // THE EXPOSURE CROSSES FIRST, before the panorama is asked for: it is
+  // the one dial that means something in a set carrying no map at all,
+  // because a lit sum ends at the tone curve whether or not there is a
+  // sky over it.
+  out.exposure = environment.exposure;
   if (!environment.valid()) return out;
   // The chain and the convolution are baked once per panorama and kept
   // by the value, so asking for them every frame is a lookup.

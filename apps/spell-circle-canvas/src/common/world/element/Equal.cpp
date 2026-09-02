@@ -88,7 +88,7 @@ bool cameraEqual(const std::optional<Camera>& a,
          a->fovYDeg == b->fovYDeg && a->zNear == b->zNear && a->zFar == b->zFar;
 }
 
-static_assert(core::kFieldCount<SkyDials> == 6,
+static_assert(core::kFieldCount<SkyDials> == 7,
               "SkyDials gained or lost a field — rule on it in "
               "skyEqual() below, then bump this count.");
 bool skyEqual(const std::optional<SkyDials>& a,
@@ -103,6 +103,7 @@ bool skyEqual(const std::optional<SkyDials>& a,
   return dialEqual(a->diffuse, b->diffuse) &&
          dialEqual(a->specular, b->specular) &&
          dialEqual(a->roughnessBias, b->roughnessBias) &&
+         dialEqual(a->exposure, b->exposure) &&
          dialEqual(a->crossfade, b->crossfade) &&
          dialEqual(a->backdrop, b->backdrop) &&
          dialEqual(a->backdropBlur, b->backdropBlur);

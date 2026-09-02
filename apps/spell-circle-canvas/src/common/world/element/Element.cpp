@@ -250,6 +250,11 @@ Element& Element::crossfade(motion::Animatable<float> v) {
   return *this;
 }
 
+Element& Element::exposure(motion::Animatable<float> v) {
+  setSky(m_node->sky, &SkyDials::exposure, std::move(v));
+  return *this;
+}
+
 Element& Element::backdrop(motion::Animatable<float> intensity) {
   setSky(m_node->sky, &SkyDials::backdrop, std::move(intensity));
   return *this;

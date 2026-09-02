@@ -201,3 +201,44 @@ public float occlusion(float ao, float strength) {
   float s = min(max(strength, 0.0), 1.0);
   return 1.0 + (min(max(ao, 0.0), 1.0) - 1.0) * s;
 }
+
+// ---- the display transform ------------------------------------------
+
+/** HOW BRIGHT A COLOUR READS, at the weights the three primaries carry
+ *  into a display's luminance. The same three numbers the engine's own
+ *  tone mapper uses, so a picture curved here and one curved there agree
+ *  about which of two colours is the brighter. */
+public float luminance(float3 color) {
+  return color.x * 0.212671 + color.y * 0.715160 + color.z * 0.072169;
+}
+
+/** TONE MAPPING, Reinhard's operator on luminance: the radiance a
+ *  surface or a sky answers with, turned into a colour a display can
+ *  hold.
+ *
+ *  A panorama carries values far above one — that is what makes a sun a
+ *  sun rather than a white disc the same brightness as the sky beside
+ *  it — and a lit sum carries them through to the shaded colour. Cutting
+ *  that sum off at one flattens every highlight to the same white and
+ *  loses exactly the range the map was kept in floating point to hold.
+ *  This divides it by one plus its own luminance instead: zero stays
+ *  zero, a dim surface is barely touched, and a value a hundred times
+ *  over white lands just under it with its shape still readable.
+ *
+ *  @p exposure multiplies the radiance BEFORE the curve, which is where
+ *  an exposure belongs — it decides which part of the range the
+ *  shoulder falls on, and doubling it is one stop. It is AUTHORED and
+ *  never measured: no average luminance and no adaptation, because a
+ *  diagram that dimmed itself because its content grew brighter would be
+ *  a different picture every frame.
+ *
+ *  The ratio is taken on LUMINANCE rather than per channel, so hue and
+ *  saturation survive the compression; dividing each channel on its own
+ *  drags a bright colour toward white. A fully saturated channel can
+ *  still land above one after this, and what holds it there is the
+ *  target's own range — nothing clips it here, since clipping is what
+ *  this term exists to avoid. */
+public float3 toneMap(float3 radiance, float exposure) {
+  float3 scaled = max(radiance * exposure, float3(0.0, 0.0, 0.0));
+  return scaled / (1.0 + luminance(scaled));
+}

@@ -168,6 +168,29 @@ TEST(Terms, EachTermMeetsItsClosedForm) {
   // A roughness reads across the chain it was prefiltered into.
   EXPECT_NEAR(scalar("roughnessLevel(0.5, 9.0)"), 4.0f, 2e-3f);
   EXPECT_NEAR(scalar("roughnessLevel(1.0, 9.0)"), 8.0f, 2e-3f);
+
+  // LUMINANCE: the three weights sum to one, so a grey reads at its own
+  // value and a colour reads between its channels.
+  EXPECT_NEAR(scalar("luminance(float3(1.0, 1.0, 1.0))"), 1.0f, 2e-3f);
+  EXPECT_NEAR(scalar("luminance(float3(0.0, 1.0, 0.0))"), 0.715160f, 2e-3f);
+
+  // THE TONE CURVE. Black stays black, and a grey lands at its own value
+  // over one plus itself — white at a half.
+  EXPECT_NEAR(scalar("toneMap(float3(0.0, 0.0, 0.0), 1.0).r"), 0.0f, 2e-3f);
+  EXPECT_NEAR(scalar("toneMap(float3(1.0, 1.0, 1.0), 1.0).r"), 0.5f, 2e-3f);
+  EXPECT_NEAR(scalar("toneMap(float3(0.25, 0.25, 0.25), 1.0).r"), 0.2f, 2e-3f);
+  // The exposure multiplies the radiance BEFORE the curve, so twice the
+  // exposure over half the radiance is the same colour.
+  EXPECT_NEAR(scalar("toneMap(float3(0.5, 0.5, 0.5), 2.0).r"),
+              scalar("toneMap(float3(1.0, 1.0, 1.0), 1.0).r"), 2e-3f);
+  // NOTHING CLIPS: a radiance a hundred times over white lands just
+  // under one rather than flat on it, which is the whole point of the
+  // curve. And a negative radiance answers black rather than a negative
+  // colour.
+  EXPECT_NEAR(scalar("toneMap(float3(100.0, 100.0, 100.0), 1.0).r"),
+              100.0f / 101.0f, 2e-3f);
+  EXPECT_LT(scalar("toneMap(float3(100.0, 100.0, 100.0), 1.0).r"), 1.0f);
+  EXPECT_NEAR(scalar("toneMap(float3(-1.0, -1.0, -1.0), 1.0).r"), 0.0f, 2e-3f);
 }
 
 TEST(Surfaces, RecipesCompileAndShade) {

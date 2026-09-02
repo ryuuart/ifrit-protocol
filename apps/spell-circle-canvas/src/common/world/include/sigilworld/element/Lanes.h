@@ -47,6 +47,7 @@ enum Slot : size_t {
   kEnvironmentSpecular,
   kEnvironmentRoughness,
   kEnvironmentCrossfade,
+  kEnvironmentExposure,
   kBackdrop,
   kBackdropBlur,
   kLaneCount,
@@ -60,7 +61,7 @@ using Lane = motion::Lane<LaneFamily>;
  *  not carry the block for. A caller-owned vector so a per-frame walk
  *  allocates nothing after the first node.
  *
- *  The four EMITTER rows and the six ENVIRONMENT rows stand at their own
+ *  The four EMITTER rows and the seven ENVIRONMENT rows stand at their own
  *  value's fields rather than at the fixed defaults below: a light whose
  *  strength lane is dropped ramps back to the strength the light itself
  *  declares, which is what makes the lanes dials on the value instead of

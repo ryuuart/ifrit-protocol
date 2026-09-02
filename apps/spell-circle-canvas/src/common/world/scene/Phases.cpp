@@ -157,6 +157,7 @@ void Scene::Impl::sampleLanes(Instance& inst) {
   inst.envSpecular = read(kEnvironmentSpecular);
   inst.envRoughness = read(kEnvironmentRoughness);
   inst.envCrossfade = read(kEnvironmentCrossfade);
+  inst.envExposure = read(kEnvironmentExposure);
   inst.backdrop = read(kBackdrop);
   inst.backdropBlur = read(kBackdropBlur);
   for (std::unique_ptr<Instance>& child : inst.children) sampleLanes(*child);
@@ -294,8 +295,8 @@ core::SubtreeVerdict Scene::Impl::foldVolatility(Instance& inst) {
     } else if (i == kIntensity || i == kEmissionRed || i == kEmissionGreen ||
                i == kEmissionBlue || i == kEnvironmentDiffuse ||
                i == kEnvironmentSpecular || i == kEnvironmentRoughness ||
-               i == kEnvironmentCrossfade || i == kBackdrop ||
-               i == kBackdropBlur) {
+               i == kEnvironmentCrossfade || i == kEnvironmentExposure ||
+               i == kBackdrop || i == kBackdropBlur) {
       // The emitters are gathered on the walk below, which visits every
       // node every frame, and a bake holds a draw order and no light —
       // so a lamp that ramps stales nothing.
@@ -363,6 +364,7 @@ core::SubtreeVerdict Scene::Impl::foldVolatility(Instance& inst) {
       environment.specular = inst.envSpecular;
       environment.roughnessBias = inst.envRoughness;
       environment.crossfade = inst.envCrossfade;
+      environment.exposure = inst.envExposure;
       environment.backdrop.intensity = inst.backdrop;
       environment.backdrop.blur = inst.backdropBlur;
       // THE NODE'S TRANSFORM ORIENTS THE SKY. A panorama is sampled by

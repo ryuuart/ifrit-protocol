@@ -166,13 +166,16 @@ it once.
 
 **Lanes are addressed by where the motion lives.** One fixed row per lane
 per node — the nine placement lanes, the three origin lanes, the axis
-turn, the along-distance, the window's head and span, and the emitter's
-strength and three colour channels — so a ramp survives a patch that
-changed what the node holds. The four EMITTER rows stand at the
-emitter's own fields rather than at a fixed default: a light whose
-strength lane is dropped ramps back to the strength `light()` declared,
-which is what makes the lanes dials on a value rather than a second copy
-of it, and why `light::Light` itself carries no animation.
+turn, the along-distance, the window's head and span, the emitter's
+strength and three colour channels, and the environment's seven
+(`diffuse`, `specular`, `roughnessBias`, `crossfade`, `exposure`,
+`backdrop` and its blur) — so a ramp survives a patch that changed what
+the node holds. The four EMITTER rows and the seven ENVIRONMENT rows
+stand at their own value's fields rather than at a fixed default: a
+light whose strength lane is dropped ramps back to the strength
+`light()` declared, which is what makes the lanes dials on a value
+rather than a second copy of it, and why `light::Light` itself carries
+no animation.
 
 **There are exactly two write paths**: `Scene::render`, and the live
 values a description's lanes are bound to. Nothing writes onto a retained
@@ -549,6 +552,11 @@ per vertex, so:
   it. Nearest keeps a texel's edge hard and takes no mip level with it,
   because blending two levels is the same bleed arriving by the other
   door; linear reads between texels and between levels.
+- the lit sum ends at the same TONE CURVE the device's does, at the same
+  exposure, and so does the sky this tier paints. The curve is
+  transcribed here rather than shared, on the same terms as every other
+  shading term — one arithmetic, two spellings, each pinned by its own
+  test.
 - an ENVIRONMENT MAP reaches this tier in full, and its terms are the
   same arithmetic the device evaluates: the panorama's cosine
   convolution replaces the flat ambient, the split sum adds what the
@@ -887,6 +895,16 @@ and a rim term that nothing scales. So:
   and Fresnel decides how much of the light went that way. That is glass
   against the WORLD; what stands behind a body ON SCREEN is a backdrop
   pass and not a shading term, and there is none.
+- **the lit sum ends at a TONE CURVE, at the set's exposure.** A
+  panorama holds values far above one — that is what makes a sun a sun
+  rather than a white disc — and every lit sum carries them through, so
+  cutting it off at one would flatten every highlight to the same white
+  and lose exactly the range the map is kept in floating point to hold.
+  `kit::terms`' `toneMap` is what runs instead, on both tiers and on the
+  sky pass alike: the radiance times the environment's `exposure`,
+  divided by one plus its own luminance. A surface that is its own light
+  and a coverage mask are drawn with the unlit build and are not curved:
+  their colour is authored, not integrated.
 - **it is still not a path tracer's answer and this page does not call it
   one.** There is no importance sampling, no multiple scattering and no
   shadowing between bodies; the prefilter is nine box-blurred levels
@@ -905,15 +923,15 @@ and a rim term that nothing scales. So:
 
 Every feature the layout declares is built, and `diligent/` owes nothing
 the layout promised. Two things an environment map makes possible are
-NOT here, and both are frame-graph subjects rather than shading ones:
+NOT here:
 
-- **The sky is not drawn.** `Backdrop` carries the dials — a strength
-  that is also the switch, a blur in the same roughness units a
-  reflection reads, and a ground-projection radius that would treat the
-  panorama as a sphere standing on the ground rather than one at
-  infinity — and nothing reads them. A set with an environment map is
-  lit and reflected by it and stands against whatever the frame cleared
-  to.
+- **The sky stands at infinity.** `Backdrop`'s strength and blur are
+  drawn — one triangle over the target, each pixel reading the panorama
+  along the ray the eye looks through it, on both tiers — but its
+  ground-projection radius and centre are not: they would treat the
+  panorama as a sphere standing on the ground, so that a body moving
+  through the set saw the horizon shift the way it would outdoors, and
+  nothing reads them.
 - **Glass refracts the world and not what is behind it.** A refracted
   ray reads the panorama, which is right for a body with sky behind it
   and wrong for one with another body behind it. Screen-space refraction

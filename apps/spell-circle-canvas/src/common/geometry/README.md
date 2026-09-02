@@ -413,6 +413,21 @@ own repertoire here rather than inside whatever draws through it.
   tint are then the whole of what it shows; and `filter`, nearest for a
   map whose texel edges must stay hard, which takes no mip level with it
   because blending two levels is the same bleed by the other door.
+- **`mesh/render/Shading.h`** — the arithmetic a lit draw is composed of,
+  for a tier with no shading language: `Environment` (the prefiltered
+  chain a reflection reads, the cosine convolution a diffuse term reads,
+  the orientation, the dials and the backdrop), `equirectUv` and the two
+  polynomials under it, `specularColor`, `fresnelRough`,
+  `environmentBrdf` and `environmentSpecular`, `attenuate`,
+  `refraction`, and `luminance`/`toneMap`, the display transform every
+  lit sum ends at. Beside them `samplePanorama`, `environmentRadiance`,
+  `environmentIrradiance` and `drawBackdrop`, which paints the sky
+  itself. These are the SAME closed forms a device shader is composed of,
+  transcribed: two spellings of one arithmetic is what a host tier costs,
+  and each is pinned by its own test while the two tiers' pictures are
+  compared within a stated per-channel ceiling. Shading here is per
+  VERTEX, so a coarse mesh under a bright sky reads as facets where a
+  device reads as a curve.
 
 **`mesh/curve`** — `SigilGeometryMeshCurve`, needs `mesh` and
 `mesh/camera`. The spline and the rails read off it; what a rail

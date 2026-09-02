@@ -124,6 +124,10 @@ uniform float4x4 uInvProj;
  *  z: added to every surface's roughness; w: how many levels the chain
  *  has — and zero, which is a frame with no environment at all. */
 uniform float4 uEnvDials;
+/** x: THE EXPOSURE the whole picture is read at — what every radiance is
+ *  multiplied by before the tone curve. It stands whether or not the set
+ *  carries a panorama, because a lit sum ends at the curve either way. */
+uniform float4 uTone;
 #endif
 
 struct VSIn {
@@ -377,7 +381,17 @@ float4 shade(float4 surface, VSOut input) {
   if (gSurfacePerPixel || uEnvDials.w > 0.0)
     shadeAgain(input, straight.rgb, shadeMul, shadeAdd);
 #endif
+  // WHERE THE LIT SUM ENDS: a radiance, read at the set's exposure and
+  // compressed onto what a display can hold, rather than cut off at one.
+  // A panorama carries values far above one and a highlight is made of
+  // them; clipping would flatten every one of them to the same white.
+  // The unlit build has no radiance to compress — its colour is
+  // authored, not integrated — so it is clipped and not curved.
+#ifdef SIGIL_LIT
+  let shaded = toneMap(straight.rgb * shadeMul + shadeAdd, uTone.x);
+#else
   let shaded = saturateP(straight.rgb * shadeMul + shadeAdd);
+#endif
   let mapUv = mul(uBaseColorMapUv, float4(input.uv, 0.0, 1.0)).xy;
   let map = uBaseColorMap.Sample(mapUv);
   let rgb = shaded * map.rgb;
@@ -432,7 +446,10 @@ float4 fsBackdrop(BackdropOut input) : SV_Target {
   // The specular dial belongs to what a surface mirrors and not to what
   // the sky IS, so it is divided back out here.
   let scale = uEnvDials.y > 0.0 ? 1.0 / uEnvDials.y : 0.0;
-  let rgb = saturateP(sky * scale);
+  // …and the sky ends at the same curve at the same exposure a surface
+  // does, so a sun in the backdrop and the same sun reflected in a body
+  // standing in front of it are the same brightness.
+  let rgb = toneMap(sky * scale, uTone.x);
   return float4(rgb, 1.0);
 }
 #endif

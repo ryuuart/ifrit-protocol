@@ -112,6 +112,7 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   float envSpecular = 1.0f;
   float envRoughness = 0.0f;
   float envCrossfade = 0.0f;
+  float envExposure = 1.0f;
   float backdrop = 0.0f;
   float backdropBlur = 0.0f;
 

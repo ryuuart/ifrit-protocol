@@ -51,6 +51,11 @@ render::MeshStyle coverageStyle() {
   render::MeshStyle style;
   style.runtime = render::Runtime::cpu();
   style.lights.clear();
+  // A COVERAGE MASK IS NOT A PICTURE, so nothing shades it: no emitter
+  // reaches it, and the tone curve every lit sum ends at does not touch
+  // it either. Flat white is what a mask must be, and the device draws
+  // it with the scaffold's unlit build for the same reason.
+  style.lit = false;
   style.ambient = {1.0f, 1.0f, 1.0f, 1.0f};
   style.baseColor = {1.0f, 1.0f, 1.0f, 1.0f};
   style.specular = 0.0f;

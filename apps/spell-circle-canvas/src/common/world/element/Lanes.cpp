@@ -29,6 +29,9 @@ float standingValue(Slot slot) {
     // panorama placed with no dials on it means.
     case kEnvironmentDiffuse:
     case kEnvironmentSpecular:
+    // …and read at the exposure that leaves a radiance as it is, which
+    // is what a set that says nothing about its exposure means.
+    case kEnvironmentExposure:
       return 1.0f;
     default:
       return 0.0f;
@@ -94,7 +97,7 @@ void lanesOf(const ElementNode& node, std::vector<Lane>& out) {
               standing(kEmissionBlue, node.light ? node.light->color.b : 0,
                        sky ? sky->tint.z : 0));
 
-  // The environment's own six, standing where the environment stands.
+  // The environment's own seven, standing where the environment stands.
   const SkyDials* dials = node.sky ? &*node.sky : nullptr;
   const auto pushSky =
       [&](Slot slot, std::optional<motion::Animatable<float>> SkyDials::*member,
@@ -111,6 +114,7 @@ void lanesOf(const ElementNode& node, std::vector<Lane>& out) {
   pushSky(kEnvironmentRoughness, &SkyDials::roughnessBias,
           sky ? sky->roughnessBias : 0);
   pushSky(kEnvironmentCrossfade, &SkyDials::crossfade, sky ? sky->crossfade : 0);
+  pushSky(kEnvironmentExposure, &SkyDials::exposure, sky ? sky->exposure : 1);
   pushSky(kBackdrop, &SkyDials::backdrop, sky ? sky->backdrop.intensity : 0);
   pushSky(kBackdropBlur, &SkyDials::backdropBlur,
           sky ? sky->backdrop.blur : 0);

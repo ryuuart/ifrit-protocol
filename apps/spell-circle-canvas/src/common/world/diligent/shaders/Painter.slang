@@ -26,6 +26,7 @@
 // test measures, and neither is a shading disagreement.
 
 import Portable;
+import Shading;
 
 // ---- what one draw supplies ----------------------------------------
 // Every one of these is a global `uniform`, so they land in one uniform
@@ -55,6 +56,9 @@ uniform float4 uLightColor[8];
 /** x: specular strength; y: specular exponent; z: rim strength;
  *  w: how many emitters. */
 uniform float4 uShading;
+/** x: THE EXPOSURE the whole picture is read at — what the lit sum is
+ *  multiplied by before the tone curve compresses it. */
+uniform float4 uTone;
 /** x: 0 lit, 1 the normal buffer, 2 the uv ramp; y: 1 when the emitters
  *  reach this surface at all — a surface that is its own light shows its
  *  colour and its tint and nothing else. */
@@ -129,7 +133,11 @@ float4 shadeVertex(VSIn input) {
     let facing = 1.0 - max(dotP(n, v), 0.0);
     accum = accum + facing * facing * facing * uShading.z;
   }
-  return float4(saturateP(accum), saturateP(alpha));
+  // WHERE THE LIT SUM ENDS: a radiance, read at the set's exposure and
+  // compressed onto what a display can hold rather than cut off at one.
+  // The two buffer modes and a surface that is its own light returned
+  // above; none of the three is a radiance.
+  return float4(toneMap(accum, uTone.x), saturateP(alpha));
 }
 
 [shader("vertex")]

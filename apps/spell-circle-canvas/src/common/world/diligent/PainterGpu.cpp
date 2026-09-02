@@ -193,6 +193,9 @@ class PainterExecutor : public render::Executor {
     }
     uniforms.set("uShading", style.specular, style.shininess, style.rim,
                  (float)count);
+    // The exposure the lit sum is read at, which stands whether or not
+    // the style carries a panorama.
+    uniforms.set("uTone", style.environment.exposure, 0.0f, 0.0f, 0.0f);
     (void)program;
   }
 

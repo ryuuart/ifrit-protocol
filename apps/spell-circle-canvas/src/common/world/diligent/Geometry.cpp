@@ -167,6 +167,9 @@ void writeScaffold(material::slang::Uniforms& uniforms, const material::slang::C
   uniforms.set("uEnvDials", hasSky ? sky.diffuse : 0.0f,
                hasSky ? sky.specular : 0.0f, sky.roughnessBias,
                hasSky ? (float)levels : 0.0f);
+  // The exposure the lit sum is read at, which stands whether or not
+  // there is a panorama: a set with no sky still ends at the curve.
+  uniforms.set("uTone", sky.exposure, 0.0f, 0.0f, 0.0f);
   // The shading is written in view space and a panorama is of the world,
   // so a direction goes out through the view's inverse and then into the
   // frame the node that placed the sky put it in.
@@ -333,6 +336,7 @@ void drawBackdrop(Gpu& gpu, const View& view, const glm::mat4& projection,
                std::clamp(sky.crossfade, 0.0f, 1.0f));
   uniforms.set("uEnvDials", sky.diffuse, sky.specular, sky.roughnessBias,
                (float)panorama->GetDesc().MipLevels);
+  uniforms.set("uTone", sky.exposure, 0.0f, 0.0f, 0.0f);
   uniforms.set("uBackdrop", sky.backdrop.intensity,
                std::clamp(sky.backdrop.blur, 0.0f, 1.0f), 0.0f, 0.0f);
   uniforms.set("uEnvMatrix",

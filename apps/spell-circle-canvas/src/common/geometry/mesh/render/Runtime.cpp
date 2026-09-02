@@ -195,7 +195,12 @@ struct CpuExecutor : Executor {
                 style.rim;
             accum += glm::vec3{rim, rim, rim};
           }
-          shaded[i] = rgba(accum, alpha);
+          // WHERE THE LIT SUM ENDS: a radiance, read at the set's
+          // exposure and compressed onto what a display can hold. Only
+          // here — a surface that is its own light returned above with
+          // an authored colour, and the two buffer modes are not
+          // pictures at all.
+          shaded[i] = rgba(toneMap(accum, style.environment.exposure), alpha);
           break;
         }
       }
