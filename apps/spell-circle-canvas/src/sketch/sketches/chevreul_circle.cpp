@@ -515,6 +515,23 @@ struct ChevreulCircle : sketch::Sketch {
   static constexpr SkPoint kC{436, 500};
   static constexpr float kRColour = 292.0f;  // outer edge of the colour band
   static constexpr float kInner = 0.34f;     // the paper medallion
+  // The paper between two blades, in degrees of the 5 deg sector pitch.
+  static constexpr float kBladeGapDeg = 1.25f;
+  // How far the reconstruction is lifted toward the plate ON A WALL. The
+  // medians are read off one photograph with the paper divided out in
+  // linear light, which is a defensible reconstruction and reads a stop
+  // duller than the engraving does under gallery light; this is a chroma
+  // gain about each blade's own luminance, and it is the only place the
+  // measured numbers are departed from.
+  static constexpr float kWallLift = 1.22f;
+  // The three surface passes, as dials rather than as environment reads: a
+  // scene that describes itself differently depending on what is in the
+  // environment cannot be photographed reproducibly.
+  static constexpr bool kPlateTone = true;
+  static constexpr bool kLimb = true;
+  static constexpr bool kPaperGrain = true;
+  /// Re-describe every frame, to price what cannot prune.
+  static constexpr bool kRedescribe = false;
   static constexpr float kRLimbIn = 296.0f;
   static constexpr float kRLimbOut = 328.0f;
   static constexpr float kRSweepIn = 333.0f;  // the continuous-sweep ring
@@ -555,9 +572,21 @@ struct ChevreulCircle : sketch::Sketch {
   // ==================================================================
   // verification
 
+  /** The measured colour, lifted toward what the engraving looks like on
+   *  a wall: chroma scaled about the colour's own luminance, so the hue
+   *  and the value the medians establish are both left alone and only the
+   *  distance from grey changes. */
+  static SkColor4f wallLift(SkColor4f c) {
+    const float y = 0.2126f * c.fR + 0.7152f * c.fG + 0.0722f * c.fB;
+    const auto lift = [y](float v) {
+      return std::clamp(y + (v - y) * kWallLift, 0.0f, 1.0f);
+    };
+    return {lift(c.fR), lift(c.fG), lift(c.fB), c.fA};
+  }
+
   void computeColours() {
     for (int n = 0; n < 72; ++n) {
-      corrected[(size_t)n] = hex(kCorrectedHex[(size_t)n]);
+      corrected[(size_t)n] = wallLift(hex(kCorrectedHex[(size_t)n]));
       scanned[(size_t)n] = hex(kScannedHex[(size_t)n]);
       lab[(size_t)n] = toLab(corrected[(size_t)n]);
     }
@@ -1013,17 +1042,22 @@ struct ChevreulCircle : sketch::Sketch {
                           stroke(1.0f, Fill::color(kRule))));
 
     // ---- the 72 couleurs franches -----------------------------------
-    // Drawn with a 0.25 deg overlap: with no overlap the antialiased edges
-    // leave a paper-coloured seam at every boundary, which reads as a thin
-    // white radius — exactly what the plate has — and then DOUBLES the
-    // radialHatch separators. The hatch supplies all the white; check 11
-    // runs against the un-overlapped geometry.
+    // THE GAP IS ANGULAR, which is what makes it taper. On the engraving
+    // the paper between two blades is wide at the rim and closes toward
+    // the medallion: it is a constant fraction of the sector PITCH, so its
+    // width in pixels grows with the radius. A constant-width hairline —
+    // which is what a stroked separator gives — reads as one continuous
+    // ring of colour with rules drawn on it, and that is the difference
+    // between a measuring instrument and a colour wheel. kBladeGapDeg of
+    // the 5 deg pitch leaves a quarter of the pitch as paper at the rim.
+    // Check 11 runs against the un-gapped geometry, which is the pitch the
+    // plate is a statement about.
     for (int n = 0; n < 72; ++n) {
       const float lo = 0.005f + 0.0021f * (float)n;
       g.child(kit::disc(kC, kRColour)
                   .key("sector" + std::to_string(n))
-                  .shape(shapes::sector(sectorStart(n) - 0.125f,
-                                        kSectorDeg + 0.25f, kInner))
+                  .shape(shapes::sector(sectorStart(n) + kBladeGapDeg * 0.5f,
+                                        kSectorDeg - kBladeGapDeg, kInner))
                   .fill(Fill::color(corrected[(size_t)n]))
                   .transformOrigin(0.5f, 0.5f)
                   .opacity(bind(&demo).window(lo, lo + 0.010f))
@@ -1033,23 +1067,14 @@ struct ChevreulCircle : sketch::Sketch {
                              .target(0.86f, 1.0f)));
     }
 
-    // the plate's seventy-two white radii: ONE decoration, not 72 elements.
-    // rotateDeg puts the rules on the sector BOUNDARIES (92.5 deg mod 5).
-    {
-      lines::RadialHatch h = lines::radialHatch(Fill::color(kPaper), 72, 2.4f);
-      h.rotateDeg = 2.5f;
-      h.holeFraction = kInner * 0.70f;
-      g.child(kit::disc(kC, kRColour)
-                  .key("radii")
-                  .shape(shapes::annulus(kInner))
-                  .fill(Fill::none())
-                  .foreground(h)
-                  .opacity(bind(&demo).window(0.16f, 0.20f)));
-    }
+    // The plate's seventy-two white radii are the GAPS, not a decoration
+    // drawn over them: paper showing between blades, tapering with the
+    // pitch. A stroked radial family here would be a second, constant-width
+    // white on top of a tapering one.
 
     // plate tone: real intaglio leaves the whole printed area faintly
     // toned. Clipped to the wheel, cached as a texture.
-    if (!std::getenv("CHEVREUL_NOTONE"))
+    if (kPlateTone)
       g.child(kit::disc(kC, kRColour)
                   .shape(shapes::circle())
                   .fill(Fill::none())
@@ -1131,7 +1156,7 @@ struct ChevreulCircle : sketch::Sketch {
       const float f =
           (float)n / 72.0f;  // exact, by construction of rimBaseline
       const float lo = 0.20f + 0.0009f * (float)n;
-      static const bool kNoLimb = std::getenv("CHEVREUL_NOLIMB") != nullptr;
+      constexpr bool kNoLimb = !kLimb;
       auto run = [&](const std::string& s, const weave::TextStyle& st,
                      float offset, const std::string& key) {
         if (kNoLimb) return;
@@ -1469,13 +1494,21 @@ struct ChevreulCircle : sketch::Sketch {
   }
 
   // ------------------------------------------------------------------
+  /** One twenty-band ramp. @p graded puts the OCIO view on EACH BAND
+   *  rather than on the group: a group of absolutely-placed children has
+   *  no size of its own, so an effect there opens a layer the size of the
+   *  canvas and runs the LUT over every pixel of the plate every frame.
+   *  Twenty bounded layers of one band each are the same picture. */
   Element aStaircase(const std::array<SkColor4f, 20>& ramp, float y, float h,
-                     const char* keyBase, bool withGap) {
+                     const char* keyBase, bool withGap, bool graded = false) {
     Element g = box();
     for (int b = 0; b < kBandN; ++b) {
       Element band = at(kStairX + (float)b * kBandW, y, kBandW, h)
                          .key(fmt("%s%d", keyBase, b))
                          .fill(Fill::color(ramp[(size_t)b]));
+      if (graded)
+        band.effect(Effect::recipe(sigil::material::color::exponent(2.2f)))
+            .cache(Cache::Texture);
       if (withGap)
         band.translateX(bind(&demo)
                             .window(0.30f, 0.50f)
@@ -1514,9 +1547,7 @@ struct ChevreulCircle : sketch::Sketch {
 
     // the OCIO strip
     if (v.ocioAvailable) {
-      Element third = aStaircase(gamme, kStairYC, 28.0f, "sc", false);
-      third.effect(Effect::recipe(sigil::material::color::exponent(2.2f)));
-      g.child(std::move(third));
+      g.child(aStaircase(gamme, kStairYC, 28.0f, "sc", false, true));
       g.child(label(fmt("§164 ramp under ocio::exponent(2.2) — an OCIO-baked "
                         "LUT Effect: tone 10 %s measures %s through it",
                         hexOf(gamme[9]).c_str(), v.ocioSample.c_str()),
@@ -1636,7 +1667,7 @@ struct ChevreulCircle : sketch::Sketch {
 
     // the leaf: measured paper, its tooth, and the platemark
     root.child(at(0, 0, kW, kH).fill(Fill::color(kPaper)));
-    if (!std::getenv("CHEVREUL_NOGRAIN"))
+    if (kPaperGrain)
       root.child(
           at(0, 0, kW, kH)
               .fill(paperGrain)
@@ -1740,20 +1771,12 @@ struct ChevreulCircle : sketch::Sketch {
     // this piece cares about are picturesLive (72 static flat fills plus
     // 78 onPath runs) and paintMs, since a TextPath carries no operator==
     // and therefore cannot prune.
-    // CHEVREUL_REDESCRIBE=1 re-describes the whole plate every frame, which
-    // is what prices the un-prunable nodes: TextPath has no operator== by
-    // design, so the 78 limb runs re-record on every render(). Pair it with
-    // CHEVREUL_NOLIMB=1 for the other half of the comparison.
-    if (std::getenv("CHEVREUL_REDESCRIBE")) ctx.composer.render(describe(ctx));
+    // kRedescribe re-describes the whole plate every frame, which is what
+    // prices the un-prunable nodes: TextPath has no operator== by design,
+    // so the 78 limb runs re-record on every render(). Set kLimb false for
+    // the other half of the comparison.
+    if (kRedescribe) ctx.composer.render(describe(ctx));
     ++frames;
-    if (frames > 2 && frames < 7 && std::getenv("CHEVREUL_STATS")) {
-      const Composer::Stats& st = ctx.composer.stats();
-      SkDebugf(
-          "[chevreul] frame %d  instances %d  picturesLive %d  "
-          "reconcile %.2f  layout %.2f  volatile %.2f  paint %.2f ms\n",
-          frames, (int)st.instances, (int)st.picturesLive, st.reconcileMs,
-          st.layoutMs, st.volatileMs, st.paintMs);
-    }
 
     // The counting numbers of beat 2. Animatable covers floats, colours and
     // fills but not text, so a counter is a renderSlot() — done here rather
