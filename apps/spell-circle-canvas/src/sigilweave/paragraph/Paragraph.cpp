@@ -8,10 +8,10 @@
 
 #include "sigilweave/paragraph/Paragraph.h"
 
-#include <hb.h>
+#include <atomic>
+
 #include <include/core/SkFont.h>
 #include <include/core/SkFontMetrics.h>
-#include <unicode/uchar.h>
 
 #include <algorithm>
 #include <array>
@@ -54,24 +54,6 @@ std::u16string_view applyTextTransform(const ShapingStyle& shaping,
   return unicode::caseMap(text, mapping, shaping.languageTag, scratch)
              ? std::u16string_view(scratch)
              : text;
-}
-
-ScriptTag harfBuzzScriptFor(unicode::Script script) {
-  if (!unicode::isSpecificScript(script) || script >= unicode::scriptLimit())
-    return static_cast<ScriptTag>(HB_SCRIPT_COMMON);  // hb falls back to DFLT
-  // hb_script_from_string re-parses a 4-char tag every call; memoize the
-  // whole (small, dense) script-code space once.
-  static const auto scriptTable = [] {
-    std::vector<ScriptTag> scripts(static_cast<size_t>(unicode::scriptLimit()));
-    for (unicode::Script scriptIndex = 0; scriptIndex < unicode::scriptLimit();
-         ++scriptIndex) {
-      const char* name = unicode::scriptShortName(scriptIndex);
-      scripts[static_cast<size_t>(scriptIndex)] = static_cast<ScriptTag>(
-          name ? hb_script_from_string(name, -1) : HB_SCRIPT_COMMON);
-    }
-    return scripts;
-  }();
-  return scriptTable[static_cast<size_t>(script)];
 }
 
 // Placement form of one codepoint in a vertical paragraph: the span's
@@ -531,6 +513,13 @@ std::span<const uint32_t> Paragraph::sentenceStarts() const {
   return m_sentenceStarts;
 }
 
+uint64_t Paragraph::nextIdentity() {
+  // Monotone for the life of the process and never reused, which is the
+  // whole of what an identity has to be.
+  static std::atomic<uint64_t> counter{1};
+  return counter.fetch_add(1, std::memory_order_relaxed);
+}
+
 void Paragraph::setLineBreakLocale(std::string locale) {
   if (m_lineBreakLocale == locale) return;
   m_lineBreakLocale = std::move(locale);
@@ -581,8 +570,8 @@ void Paragraph::openPatternBreaks(std::vector<unicode::LineBreak>& boundaries,
       const std::u16string_view word(m_text.data() + segmentStart,
                                      static_cast<size_t>(length));
       size_t firstOffset = 0;
-      const bool capitalised = u_isupper(
-          static_cast<UChar32>(unicode::decodeAt(word, firstOffset)));
+      const bool capitalised =
+          unicode::isUpperCase(unicode::decodeAt(word, firstOffset));
       if (limits.capitalizedWords || !capitalised) {
         points.clear();
         const std::string& tag = m_spans.empty()
@@ -918,7 +907,7 @@ void Paragraph::shapeWordContent(FontContext& fontContext, Word& word) {
         segmentStart == static_cast<int32_t>(word.textBegin), transformScratch);
     ShapedWordRef shapedWord =
         shapeWord(fontContext, span.style.shaping, resolvedTypeface,
-                  segmentText, harfBuzzScriptFor(scriptRun.script),
+                  segmentText, unicode::shaperScript(scriptRun.script),
                   (bidiLevel & 1u) != 0 && !shapeVertical, shapeVertical);
     if (verticalMode && segmentForm == SegmentForm::kTateChuYoko) {
       // 縦中横 occupies its font height along the column; advanceOffset lands
@@ -951,7 +940,7 @@ void Paragraph::shapeWordContent(FontContext& fontContext, Word& word) {
         span.style.shaping.typeface, span.style.shaping.variations);
     word.hyphenGlyph =
         shapeWord(fontContext, span.style.shaping, typeface, u"-",
-                  static_cast<ScriptTag>(HB_SCRIPT_COMMON), false);
+                  unicode::shaperScript(unicode::kCommonScript), false);
   }
 
   // Trailing whitespace becomes justification glue. Hard-break characters
@@ -1000,7 +989,7 @@ void Paragraph::shapeWordContent(FontContext& fontContext, Word& word) {
             span.style.shaping.typeface, span.style.shaping.variations);
         ShapedWordRef shapedWhitespace = shapeWord(
             fontContext, span.style.shaping, whitespaceTypeface, whitespace,
-            static_cast<ScriptTag>(HB_SCRIPT_COMMON), false,
+            unicode::shaperScript(unicode::kCommonScript), false,
             /*vertical=*/m_writingMode == WritingMode::kVerticalRL);
         word.spaceWidth = shapedWhitespace->advance;
         m_cachedWhitespaceStyleIndex = styleIndex;

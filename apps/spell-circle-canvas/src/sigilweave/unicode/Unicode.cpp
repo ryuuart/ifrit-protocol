@@ -2,18 +2,23 @@
  * Every Unicode question the engine asks, answered through ICU: transcoding,
  * character properties, script itemization, case mapping, the line, word
  * and sentence segmenters, and bidirectional levels, over thread-local
- * scratch objects reused across calls.
+ * scratch objects reused across calls. The one question ICU does not
+ * answer alone is the shaper's script tag, which HarfBuzz's own bridge
+ * translates an ICU script code into.
  */
 
 #include "sigilweave/unicode/Unicode.h"
 
+#include <hb-icu.h>
 #include <unicode/ubidi.h>
 #include <unicode/ubrk.h>
 #include <unicode/uchar.h>
 #include <unicode/uscript.h>
+#include <unicode/uset.h>
 #include <unicode/ustring.h>
 #include <unicode/utf16.h>
 
+#include <initializer_list>
 #include <memory>
 
 namespace sigil::weave::unicode {
@@ -84,6 +89,41 @@ bool mapInto(std::u16string_view source, MapFunction&& mapFunction,
   if (U_FAILURE(status)) return false;
   out.resize(outOffset + static_cast<size_t>(written));
   return true;
+}
+
+// Every code point ICU gives one of `classes` as its UAX#14 line-break
+// class, ascending. ICU resolves each class into a set of its own, so the
+// listing is the property data rather than a transcription of it, and a
+// class Unicode adds a character to next year is covered without an edit.
+// A class ICU refuses yields nothing rather than a partial listing.
+std::vector<char32_t> codePointsInLineBreakClasses(
+    std::initializer_list<int32_t> classes) {
+  std::vector<char32_t> codePoints;
+  USet* everyClass = uset_openEmpty();
+  USet* one = uset_openEmpty();
+  UErrorCode status = U_ZERO_ERROR;
+  for (const int32_t lineBreakClass : classes) {
+    uset_applyIntPropertyValue(one, UCHAR_LINE_BREAK, lineBreakClass, &status);
+    if (U_FAILURE(status)) break;
+    uset_addAll(everyClass, one);
+  }
+  if (U_SUCCESS(status)) {
+    const int32_t rangeCount = uset_getRangeCount(everyClass);
+    for (int32_t range = 0; range < rangeCount; ++range) {
+      UChar32 first = 0;
+      UChar32 last = 0;
+      UErrorCode rangeStatus = U_ZERO_ERROR;
+      if (uset_getItem(everyClass, range, &first, &last, nullptr, 0,
+                       &rangeStatus) != 0 ||
+          U_FAILURE(rangeStatus))
+        continue;
+      for (UChar32 codePoint = first; codePoint <= last; ++codePoint)
+        codePoints.push_back(static_cast<char32_t>(codePoint));
+    }
+  }
+  uset_close(one);
+  uset_close(everyClass);
+  return codePoints;
 }
 
 }  // namespace
@@ -176,6 +216,14 @@ bool mayRequireBidi(char32_t codePoint) {
   }
 }
 
+bool isLetter(char32_t codePoint) {
+  return u_isalpha(static_cast<UChar32>(codePoint));
+}
+
+bool isUpperCase(char32_t codePoint) {
+  return u_isupper(static_cast<UChar32>(codePoint));
+}
+
 bool isFullWidth(char32_t codePoint) {
   const int32_t width = u_getIntPropertyValue(static_cast<UChar32>(codePoint),
                                               UCHAR_EAST_ASIAN_WIDTH);
@@ -214,6 +262,16 @@ const char* scriptShortName(Script script) noexcept {
   return uscript_getShortName(static_cast<UScriptCode>(script));
 }
 
+ShaperScript shaperScript(Script script) noexcept {
+  // A run of Common or Inherited text belongs to no script of its own, and
+  // HB_SCRIPT_COMMON is the tag a shaper reads as "apply the default
+  // rules".
+  if (!isSpecificScript(script) || script >= scriptLimit())
+    return static_cast<ShaperScript>(HB_SCRIPT_COMMON);
+  return static_cast<ShaperScript>(
+      hb_icu_script_to_script(static_cast<UScriptCode>(script)));
+}
+
 std::vector<ScriptRun> itemize(std::u16string_view text) {
   std::vector<ScriptRun> runs;
   itemize(text, runs);
@@ -240,6 +298,19 @@ void itemize(std::u16string_view text, std::vector<ScriptRun>& runs) {
     }
   }
   runs.push_back({static_cast<uint32_t>(textLength), currentScript});
+}
+
+// ── Line-break classes ─────────────────────────────────────────────────
+
+std::vector<char32_t> lineStartProhibited() {
+  return codePointsInLineBreakClasses(
+      {U_LB_CLOSE_PUNCTUATION, U_LB_CLOSE_PARENTHESIS, U_LB_NONSTARTER,
+       U_LB_CONDITIONAL_JAPANESE_STARTER, U_LB_EXCLAMATION,
+       U_LB_INFIX_NUMERIC});
+}
+
+std::vector<char32_t> lineEndProhibited() {
+  return codePointsInLineBreakClasses({U_LB_OPEN_PUNCTUATION});
 }
 
 // ── Case mapping ───────────────────────────────────────────────────────
@@ -291,6 +362,10 @@ std::u16string caseMapped(std::u16string_view text, Case mapping,
   std::u16string out;
   if (!caseMap(text, mapping, locale, out)) out.assign(text);
   return out;
+}
+
+char32_t lowerCased(char32_t codePoint) {
+  return static_cast<char32_t>(u_tolower(static_cast<UChar32>(codePoint)));
 }
 
 // ── Segmentation ───────────────────────────────────────────────────────

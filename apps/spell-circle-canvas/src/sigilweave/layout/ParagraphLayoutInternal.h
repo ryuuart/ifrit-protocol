@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <span>
 #include <vector>
 
 #include "sigilweave/fonts/Shaper.h"
@@ -48,7 +49,20 @@ struct Block {
   float ascent = 0;    // baseline offset below the band's near edge
   float lead = 0;      // air before this block's first band
   float gridStep = 0;  // > 0: bands land on multiples of this
+  // ROOM ADDED AFTER EACH WORD by the mojikumi table and by tsume, px,
+  // indexed from the TEXT'S first word so a block reads its own range out
+  // of one array. Empty when no table and no tsume were asked for, which
+  // is what every layout that says nothing about full-width spacing gets.
+  std::span<const float> mojikumiAfter;
 };
+
+// The room a mojikumi table and a tsume setting put after each word of the
+// text, px, resolved once per layout into `room` (cleared first) and read
+// by both breakers and by placement through the block's own span. Empty
+// when neither was asked for.
+void resolveMojikumi(const Paragraph& paragraph,
+                     const ParagraphLayoutOptions& options,
+                     std::vector<float>& room);
 
 // Flattens a FlowGeometry's lines into one ordered sequence of intervals,
 // fetched lazily. Both breakers consume geometry exclusively through this,
@@ -193,6 +207,95 @@ class IntervalSequence {
   bool m_geometryExhausted = false;
 };
 
+// ── The break store ────────────────────────────────────────────────────
+//
+// WHERE A BLOCK'S LINES ENDED, KEPT SO THE NEXT FRAME NEED NOT DECIDE IT
+// AGAIN. Break decisions are the expensive half of laying a paragraph out
+// and they are a function of four things: which words, in what setting, at
+// what measure, from which word. A moving text changes one of those at a
+// time — a measure that animates, a string that churns — so the answers to
+// the ones it did not change are still the answers.
+//
+// It is consulted only under ParagraphLayoutOptions::live and only for a
+// block set in a UNIFORM measure, because those are the two conditions
+// under which "the measure" is the whole of the geometry a break decision
+// reads. A settled layout, or one over a contour or an exclusion, decides
+// every break itself exactly as it always has.
+//
+// THE BOUND IS STATED AND SMALL: one store per thread, holding the most
+// recently answered blocks up to kBreakStoreEntries, each one a break list
+// as long as the block has lines. A width animating across a range of
+// pixels therefore keeps the pixels it has most recently crossed and
+// forgets the rest, and a story of many blocks keeps the blocks it is
+// still setting.
+struct BreakKey {
+  uint64_t paragraph = 0;  // which paragraph, told apart for its lifetime
+  uint64_t words = 0;      // what the paragraph's word list is
+  uint32_t firstWord = 0;  // where this block's fill began
+  uint32_t endWord = 0;
+  int32_t measure = 0;   // the uniform measure, whole pixels below it
+  uint64_t setting = 0;  // everything about the setting a break reads
+  bool operator==(const BreakKey&) const = default;
+};
+
+// One line's end: the word it ends at, and the interval the line occupied.
+using BreakList = std::vector<std::pair<uint32_t, uint32_t>>;
+
+inline constexpr size_t kBreakStoreEntries = 32;
+
+class BreakStore {
+ public:
+  /** The break list answered for `key`, or null. */
+  const BreakList* find(const BreakKey& key) {
+    for (size_t index = 0; index < m_entries.size(); ++index)
+      if (m_entries[index].first == key) {
+        promote(index);
+        return &m_entries.front().second;
+      }
+    return nullptr;
+  }
+  /** Records `breaks` under `key`, evicting the least recently answered. */
+  void store(const BreakKey& key, const BreakList& breaks) {
+    for (size_t index = 0; index < m_entries.size(); ++index)
+      if (m_entries[index].first == key) {
+        m_entries[index].second = breaks;
+        promote(index);
+        return;
+      }
+    if (m_entries.size() >= kBreakStoreEntries) m_entries.pop_back();
+    m_entries.insert(m_entries.begin(), {key, breaks});
+  }
+
+ private:
+  void promote(size_t index) {
+    if (index == 0) return;
+    std::rotate(m_entries.begin(), m_entries.begin() + (long)index,
+                m_entries.begin() + (long)index + 1);
+  }
+  std::vector<std::pair<BreakKey, BreakList>> m_entries;
+};
+
+/** The store this thread answers from. */
+BreakStore& breakStore();
+
+/** Everything about a block's setting that a BREAK DECISION reads, folded
+ *  into one number. Two blocks whose settings differ in any of it are two
+ *  different questions; two whose settings agree in all of it have one
+ *  answer between them. Placement settings are deliberately absent: where
+ *  a line ends does not depend on how it is then seated in its interval. */
+uint64_t breakSetting(const Block& block);
+
+/** The whole pixel below a measure — the width break decisions are kept
+ *  under, so a width that animates decides them once per pixel it crosses
+ *  and a line is never broken for a measure wider than it is set in. */
+int32_t quantisedMeasure(float measure);
+
+/** Places one line per entry of `breaks`, in the interval each names. */
+void placeBreaks(FontContext& fontContext, Paragraph& paragraph,
+                 IntervalSequence& intervalSequence, const Block& block,
+                 const BreakList& breaks, ParagraphLayout& result,
+                 size_t& lastIntervalUsed, uint32_t& overflowWord);
+
 // Natural (unjustified) width of a half-open word range on one line: content
 // widths plus inter-word glue, the last word's trailing space excluded.
 float naturalWidth(const std::vector<Word>& words, uint32_t firstWordIndex,
@@ -246,6 +349,13 @@ inline bool tabStopAhead(float penPosition,
   return false;
 }
 
+// The room after one word from the mojikumi table and tsume, or zero.
+inline float mojikumiAfter(const Block& block, uint32_t wordIndex) {
+  return wordIndex < block.mojikumiAfter.size()
+             ? block.mojikumiAfter[wordIndex]
+             : 0.0f;
+}
+
 inline float glueAfter(const Word& word, float penPosition,
                        const ParagraphLayoutOptions& options) {
   if (!word.tabAfter || !tabStopsActive(options)) return word.spaceWidth;
@@ -269,7 +379,8 @@ void placeWords(FontContext& fontContext, const Paragraph& paragraph,
                 uint32_t firstWordIndex, uint32_t endWordIndex,
                 const FlatInterval& interval, TextAlignment alignment,
                 bool lastLine, bool hyphenBreakTaken,
-                const ParagraphLayoutOptions& options, ParagraphLayout& out);
+                const ParagraphLayoutOptions& options, ParagraphLayout& out,
+                std::span<const float> mojikumiAfter = {});
 
 // Whether a non-final break before `endWordIndex` lands on a soft hyphen.
 inline bool hyphenTakenAt(const std::vector<Word>& words, uint32_t endWordIndex,
@@ -288,7 +399,8 @@ inline bool hyphenTakenAt(const std::vector<Word>& words, uint32_t endWordIndex,
 void knuthPlassBlock(FontContext& fontContext, Paragraph& paragraph,
                      IntervalSequence& intervalSequence, const Block& block,
                      size_t firstInterval, ParagraphLayout& result,
-                     size_t& lastIntervalUsed, uint32_t& overflowWord);
+                     size_t& lastIntervalUsed, uint32_t& overflowWord,
+                     bool& outOfBudget);
 
 }  // namespace detail
 }  // namespace sigil::weave

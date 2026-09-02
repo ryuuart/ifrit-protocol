@@ -11,10 +11,13 @@
 #include <benchmark/benchmark.h>
 #include <include/core/SkPathBuilder.h>
 
+#include <sigilweave/layout/Beside.h>
+
 #include <cmath>
 #include <numbers>
 #include <random>
 #include <string>
+#include <vector>
 
 #include "support/Corpus.h"
 #include "support/Layouts.h"
@@ -526,6 +529,193 @@ void BM_Confetti_Babel_2000(benchmark::State& state) {
   countWords(state, 2000);
 }
 BENCHMARK(BM_Confetti_Babel_2000)->Unit(benchmark::kMicrosecond);
+
+// ── The live composer ─────────────────────────────────────────────────────
+//
+// These are the arms the realtime half of the engine is judged on: a story
+// of the size a page holds, composed under an input that MOVES. The
+// measure animating and the content churning are the two ways text moves,
+// and both are answered by the same composer with the same precompute
+// behind it.
+
+ParagraphLayoutOptions liveComposer() {
+  ParagraphLayoutOptions options = knuthPlass();
+  options.live = true;
+  return options;
+}
+
+// A 600-word story at a measure that moves a pixel per frame: every frame
+// is a measure the break store has not seen, so every frame decides its
+// breaks. This is the composer's worst honest case.
+void BM_Live_Composer_AnimatingMeasure_600w(benchmark::State& state) {
+  Paragraph paragraph;
+  paragraph.appendText(makeText(600, /*mixed=*/false), style16());
+  const ParagraphLayoutOptions options = liveComposer();
+  float measure = 380.0f;
+  BlockFlow warm(SkRect::MakeWH(measure, 40000));
+  layoutParagraph(fontContext(), paragraph, warm, options);
+  int frame = 0;
+  for ([[maybe_unused]] auto iteration : state) {
+    BlockFlow flow(SkRect::MakeWH(measure + (float)(frame++ % 120), 40000));
+    ParagraphLayout layout =
+        layoutParagraph(fontContext(), paragraph, flow, options);
+    benchmark::DoNotOptimize(layout.runs.data());
+  }
+  countWords(state, 600);
+}
+BENCHMARK(BM_Live_Composer_AnimatingMeasure_600w)
+    ->Unit(benchmark::kMicrosecond);
+
+// The same story at a measure that returns to widths already seen: the
+// break store answers and the frame costs its fill alone.
+void BM_Live_Composer_SeenMeasure_600w(benchmark::State& state) {
+  Paragraph paragraph;
+  paragraph.appendText(makeText(600, /*mixed=*/false), style16());
+  const ParagraphLayoutOptions options = liveComposer();
+  BlockFlow flow(SkRect::MakeWH(380, 40000));
+  layoutParagraph(fontContext(), paragraph, flow, options);
+  for ([[maybe_unused]] auto iteration : state) {
+    ParagraphLayout layout =
+        layoutParagraph(fontContext(), paragraph, flow, options);
+    benchmark::DoNotOptimize(layout.runs.data());
+  }
+  countWords(state, 600);
+}
+BENCHMARK(BM_Live_Composer_SeenMeasure_600w)->Unit(benchmark::kMicrosecond);
+
+// A 600-word story with one word in twenty replaced every frame — a
+// scramble, a decode, a counter, a feed. The shape cache answers for the
+// words that did not change and the composer decides the whole story's
+// breaks again, because a word that moved moves every break after it.
+void BM_Live_Composer_ContentChurn_600w(benchmark::State& state) {
+  Paragraph paragraph;
+  paragraph.appendText(makeText(600, /*mixed=*/false), style16());
+  const ParagraphLayoutOptions options = liveComposer();
+  BlockFlow flow(SkRect::MakeWH(380, 40000));
+  layoutParagraph(fontContext(), paragraph, flow, options);
+  // Same-length replacements, so the churn moves glyphs and not offsets.
+  const char8_t* alternatives[] = {u8"aaaa", u8"bbbb", u8"cccc", u8"dddd"};
+  std::mt19937
+      randomEngine(  // NOLINT(bugprone-random-generator-seed): a fixed corpus
+          19);
+  std::vector<uint32_t> starts;
+  for (const Word& word : paragraph.words())
+    if (word.textEnd - word.textBegin == 4) starts.push_back(word.textBegin);
+  int frame = 0;
+  for ([[maybe_unused]] auto iteration : state) {
+    const size_t churn = starts.size() / 20;  // one word in twenty
+    for (size_t index = 0; index < churn && !starts.empty(); ++index)
+      paragraph.replaceText(starts[(size_t)(randomEngine() % starts.size())], 4,
+                            alternatives[(frame + (int)index) % 4]);
+    ++frame;
+    ParagraphLayout layout =
+        layoutParagraph(fontContext(), paragraph, flow, options);
+    benchmark::DoNotOptimize(layout.runs.data());
+  }
+  countWords(state, 600);
+}
+BENCHMARK(BM_Live_Composer_ContentChurn_600w)->Unit(benchmark::kMicrosecond);
+
+// A 600-word story refilled through a chain of six frames every frame —
+// the threaded case, where each fill resumes at the word the one before it
+// reported and the whole story is shaped once.
+void BM_Live_Story_Refill_600w_SixFrames(benchmark::State& state) {
+  Paragraph paragraph;
+  paragraph.appendText(makeText(600, /*mixed=*/false), style16());
+  const ParagraphLayoutOptions options = liveComposer();
+  for ([[maybe_unused]] auto iteration : state) {
+    uint32_t cursor = 0;
+    for (int frameIndex = 0; frameIndex < 6; ++frameIndex) {
+      BlockFlow flow(SkRect::MakeWH(380, 700));
+      ParagraphLayout layout =
+          layoutParagraph(fontContext(), paragraph, flow, options, cursor);
+      benchmark::DoNotOptimize(layout.runs.data());
+      if (!layout.overflowed()) break;
+      cursor = layout.firstUnplacedWord;
+    }
+  }
+  countWords(state, 600);
+}
+BENCHMARK(BM_Live_Story_Refill_600w_SixFrames)->Unit(benchmark::kMicrosecond);
+
+// ── The paragraph controls ────────────────────────────────────────────────
+
+// Twelve blocks under twelve paragraph styles — leading kinds, spacing,
+// the four indents, a baseline grid — against the same text set flat, so
+// what the block model costs is the difference between the two.
+void BM_Layout_ParagraphStyles_600w(benchmark::State& state) {
+  Paragraph paragraph;
+  for (int blockIndex = 0; blockIndex < 12; ++blockIndex) {
+    paragraph.appendText(makeText(50, /*mixed=*/false, 7u + (uint32_t)blockIndex),
+                         style16());
+    if (blockIndex + 1 < 12) paragraph.appendText(u8"\n", style16());
+  }
+  ParagraphLayoutOptions options;
+  for (int blockIndex = 0; blockIndex < 12; ++blockIndex) {
+    ParagraphStyle style;
+    style.leading = blockIndex % 3 == 0   ? Leading::multiple(1.4f)
+                    : blockIndex % 3 == 1 ? Leading::grid(24.0f)
+                                          : Leading::absolute(21.0f);
+    style.spaceBefore = 6.0f;
+    style.spaceAfter = 8.0f;
+    style.indent.firstLine = blockIndex % 2 == 0 ? 18.0f : -12.0f;
+    style.indent.start = 12.0f;
+    style.indent.end = 6.0f;
+    options.blocks.push_back(style);
+  }
+  BlockFlow flow(SkRect::MakeWH(420, 40000));
+  layoutParagraph(fontContext(), paragraph, flow, options);
+  for ([[maybe_unused]] auto iteration : state) {
+    ParagraphLayout layout =
+        layoutParagraph(fontContext(), paragraph, flow, options);
+    benchmark::DoNotOptimize(layout.runs.data());
+  }
+  countWords(state, 600);
+}
+BENCHMARK(BM_Layout_ParagraphStyles_600w)->Unit(benchmark::kMicrosecond);
+
+// Justification with all three passes open — word gaps, letter spacing and
+// glyph scaling — against the same text justified on gaps alone.
+void BM_Layout_JustificationRanges_600w(benchmark::State& state) {
+  Paragraph paragraph;
+  paragraph.appendText(makeText(600, /*mixed=*/false), style16());
+  ParagraphLayoutOptions options = knuthPlass();
+  options.justification.letterSpacingMinimum = -0.02f;
+  options.justification.letterSpacingMaximum = 0.06f;
+  options.justification.glyphScaleMinimum = 0.98f;
+  options.justification.glyphScaleMaximum = 1.03f;
+  options.justification.singleWord = JustificationOptions::SingleWord::kJustify;
+  BlockFlow flow(SkRect::MakeWH(420, 40000));
+  layoutParagraph(fontContext(), paragraph, flow, options);
+  for ([[maybe_unused]] auto iteration : state) {
+    ParagraphLayout layout =
+        layoutParagraph(fontContext(), paragraph, flow, options);
+    benchmark::DoNotOptimize(layout.runs.data());
+  }
+  countWords(state, 600);
+}
+BENCHMARK(BM_Layout_JustificationRanges_600w)->Unit(benchmark::kMicrosecond);
+
+// A reading reserved above every line: the band enters the strut before
+// anything is broken, so what it costs a layout is one wider pitch and
+// nothing chasing anything.
+void BM_Layout_ReservedBand_600w(benchmark::State& state) {
+  Paragraph paragraph;
+  paragraph.appendText(makeText(600, /*mixed=*/false), style16());
+  ParagraphLayoutOptions options;
+  TextStyle reading = style16();
+  reading.shaping.fontSize = 8.0f;
+  options.reserved.before = bandBeside(fontContext(), reading, 1.0f);
+  BlockFlow flow(SkRect::MakeWH(420, 40000));
+  layoutParagraph(fontContext(), paragraph, flow, options);
+  for ([[maybe_unused]] auto iteration : state) {
+    ParagraphLayout layout =
+        layoutParagraph(fontContext(), paragraph, flow, options);
+    benchmark::DoNotOptimize(layout.runs.data());
+  }
+  countWords(state, 600);
+}
+BENCHMARK(BM_Layout_ReservedBand_600w)->Unit(benchmark::kMicrosecond);
 
 }  // namespace
 

@@ -223,9 +223,21 @@ void visualOrder(const std::vector<Word>& words, uint32_t firstWordIndex,
   static thread_local std::vector<int32_t> indexMap;
   levels.clear();
   levels.reserve(static_cast<size_t>(count));
+  bool anyRightToLeft = false;
   for (uint32_t wordIndex = firstWordIndex; wordIndex < endWordIndex;
-       ++wordIndex)
+       ++wordIndex) {
     levels.push_back(static_cast<UBiDiLevel>(words[wordIndex].bidiLevel));
+    anyRightToLeft |= (words[wordIndex].bidiLevel & 1u) != 0;
+  }
+  if (!anyRightToLeft) {
+    // Rule L2 reverses runs at odd levels and there are none: the visual
+    // order IS the logical order, which is the whole of the answer for
+    // every line of a left-to-right text.
+    for (uint32_t wordIndex = firstWordIndex; wordIndex < endWordIndex;
+         ++wordIndex)
+      visualWordOrder.push_back(wordIndex);
+    return;
+  }
   indexMap.resize(static_cast<size_t>(count));
   ubidi_reorderVisual(levels.data(), count, indexMap.data());
   visualWordOrder.reserve(static_cast<size_t>(count));
@@ -234,6 +246,62 @@ void visualOrder(const std::vector<Word>& words, uint32_t firstWordIndex,
 }
 
 }  // namespace
+
+void resolveMojikumi(const Paragraph& paragraph,
+                     const ParagraphLayoutOptions& options,
+                     std::vector<float>& room) {
+  room.clear();
+  const bool tsume = options.tsume != 0;
+  if (options.mojikumi.empty() && !tsume) return;
+  const std::vector<Word>& words = paragraph.words();
+  const std::u16string_view text = paragraph.text();
+  room.assign(words.size(), 0.0f);
+  // The em the fraction is of is the SPAN's, not the shaped word's: the
+  // room a gap needs is settled before anything is shaped, so a text that
+  // overflows its frame pays for the gaps it sets and not for the rest.
+  size_t spanCursor = 0;
+  const auto emAt = [&](uint32_t offset) {
+    const std::vector<StyleSpan>& spans = paragraph.spans();
+    if (spans.empty()) return 0.0f;
+    while (spanCursor + 1 < spans.size() && spans[spanCursor].end <= offset)
+      ++spanCursor;
+    return spans[spanCursor].style.shaping.fontSize;
+  };
+  // The class of the character either side of each gap. A gap between two
+  // words is where two full-width characters meet across a break
+  // opportunity, which in a text set in full-width characters is nearly
+  // every gap it has.
+  const auto classAt = [&](uint32_t offset) {
+    if (offset >= text.size()) return MojikumiClass::kOther;
+    const MojikumiClass named = options.mojikumi.classOf(text[offset]);
+    if (named != MojikumiClass::kOther) return named;
+    size_t cursor = offset;
+    return unicode::isFullWidth(unicode::decodeAt(text, cursor))
+               ? MojikumiClass::kIdeograph
+               : MojikumiClass::kOther;
+  };
+  for (size_t index = 0; index + 1 < words.size(); ++index) {
+    const Word& word = words[index];
+    // Only a gap with nothing in it is the table's to set: a word that
+    // ends in whitespace has its own glue, and the face set it.
+    if (word.whitespaceEnd != word.textEnd || word.textEnd == 0) continue;
+    const MojikumiClass before = classAt(word.textEnd - 1);
+    const MojikumiClass after = classAt(words[index + 1].textBegin);
+    if (before == MojikumiClass::kOther || after == MojikumiClass::kOther)
+      continue;
+    float fraction =
+        options.mojikumi
+            .room[static_cast<size_t>(before)][static_cast<size_t>(after)];
+    // TSUME closes the gap after a full-width character the table gives no
+    // class of its own — the plain ones, whose side bearings are the
+    // face's own even spacing rather than a punctuation mark's air.
+    if (tsume && before == MojikumiClass::kIdeograph &&
+        after == MojikumiClass::kIdeograph)
+      fraction -= options.tsume;
+    if (fraction == 0) continue;
+    room[index] = fraction * emAt(word.textBegin);
+  }
+}
 
 float naturalWidth(const std::vector<Word>& words, uint32_t firstWordIndex,
                    uint32_t endWordIndex) {
@@ -346,10 +414,19 @@ void placeWords(FontContext& fontContext, const Paragraph& paragraph,
                 uint32_t firstWordIndex, uint32_t endWordIndex,
                 const FlatInterval& flatInterval, TextAlignment alignment,
                 bool lastLine, bool hyphenBreakTaken,
-                const ParagraphLayoutOptions& options,
-                ParagraphLayout& result) {
+                const ParagraphLayoutOptions& options, ParagraphLayout& result,
+                std::span<const float> mojikumiAfter) {
   const std::vector<Word>& words = paragraph.words();
   if (firstWordIndex >= endWordIndex) return;
+  // The room the mojikumi table and tsume put after a word, which the
+  // breakers fitted this line against and placement must spend. A layout
+  // that asked for neither answers the question once, here.
+  const bool spacedByTable = !mojikumiAfter.empty();
+  const auto roomAfter = [&](uint32_t wordIndex) {
+    return spacedByTable && wordIndex < mojikumiAfter.size()
+               ? mojikumiAfter[wordIndex]
+               : 0.0f;
+  };
 
   const float hyphenWidth =
       hyphenBreakTaken ? words[endWordIndex - 1].hyphenGlyph->advance : 0.0f;
@@ -374,7 +451,8 @@ void placeWords(FontContext& fontContext, const Paragraph& paragraph,
       pen += word.width;
       if (visualIndex + 1 < visualWordOrder.size()) {
         if (word.tabAfter) lastTabVisualIndex = static_cast<int>(visualIndex);
-        pen += glueAfter(word, pen, options);
+        pen += glueAfter(word, pen, options) +
+               roomAfter(visualWordOrder[visualIndex]);
       }
     }
     resolvedNaturalWidth = pen + hyphenWidth;
@@ -711,7 +789,8 @@ void placeWords(FontContext& fontContext, const Paragraph& paragraph,
           continue;
         }
       }
-      penPosition += glueAfter(word, penPosition - startOffset, options);
+      penPosition += glueAfter(word, penPosition - startOffset, options) +
+                     roomAfter(wordIndex);
       if (static_cast<int>(visualIndex) > lastTabVisualIndex) {
         switch (gapKind(words,
                         std::min(wordIndex, visualWordOrder[visualIndex + 1]),
@@ -1045,6 +1124,7 @@ size_t greedyBlock(FontContext& fontContext, Paragraph& paragraph,
   const ParagraphLayoutOptions& options = block.options;
   const float lastLineIndent = block.style.indent.lastLine;
 
+  const bool spacedByTable = !block.mojikumiAfter.empty();
   size_t intervalIndex = firstInterval;
   const FlatInterval* flatInterval = intervalSequence.intervalAt(intervalIndex);
   uint32_t firstWordIndex = block.firstWord;
@@ -1067,7 +1147,8 @@ size_t greedyBlock(FontContext& fontContext, Paragraph& paragraph,
           isLast ? withLastLineIndent(*flatInterval, lastLineIndent)
                  : *flatInterval;
       placeWords(fontContext, paragraph, firstWordIndex, endWordIndex, placed,
-                 options.alignment, isLast, hyphenated, options, result);
+                 options.alignment, isLast, hyphenated, options, result,
+                 block.mojikumiAfter);
       consecutiveHyphens = hyphenated ? consecutiveHyphens + 1 : 0;
       lastIntervalUsed = intervalIndex;
     }
@@ -1086,7 +1167,8 @@ size_t greedyBlock(FontContext& fontContext, Paragraph& paragraph,
     const Word& word = words[wordIndex];
     const float glue =
         wordIndex > firstWordIndex
-            ? glueAfter(words[wordIndex - 1], penPosition, options)
+            ? glueAfter(words[wordIndex - 1], penPosition, options) +
+                  (spacedByTable ? mojikumiAfter(block, wordIndex - 1) : 0.0f)
             : 0;
     // Soft-hyphen words reserve room for the hyphen so a break taken right
     // after them always fits.
@@ -1409,7 +1491,14 @@ ParagraphLayout layoutParagraph(FontContext& fontContext, Paragraph& paragraph,
   const std::vector<Word>& words = paragraph.words();
   if (words.empty()) return result;
 
+  // The room a mojikumi table and tsume put after each word, resolved once
+  // for the whole text and read by both breakers and by placement. Empty,
+  // and free, for a layout that asked for neither.
+  static thread_local std::vector<float> mojikumiRoom;
+  resolveMojikumi(paragraph, options, mojikumiRoom);
+
   std::vector<Block> blocks = resolveBlocks(fontContext, paragraph, options);
+  for (Block& block : blocks) block.mojikumiAfter = mojikumiRoom;
   // RESUMING: the blocks are numbered from the start of the text, so a
   // frame in the middle of a chain reads the same style for the same
   // block. What changes is where the fill begins — the blocks already
@@ -1475,10 +1564,36 @@ ParagraphLayout layoutParagraph(FontContext& fontContext, Paragraph& paragraph,
     uint32_t overflowWord = ~0u;
     size_t lastIntervalUsed = SIZE_MAX;
     const size_t firstRun = result.runs.size();
-    if (optimizing)
+    bool outOfBudget = false;
+    // A block whose lines this thread has already decided the ends of, for
+    // these words at this measure under this setting, is placed from that
+    // decision: deciding is the expensive half of composing a paragraph and
+    // a moving text asks for the same decision frame after frame.
+    const BreakList* kept = nullptr;
+    if (optimizing && options.live && intervalSequence.uniform()) {
+      const FlatInterval* first = intervalSequence.intervalAt(nextInterval);
+      if (first)
+        kept = breakStore().find(
+            BreakKey{paragraph.identity(), paragraph.wordRevision(),
+                     block.firstWord, block.endWord,
+                     quantisedMeasure(first->interval.length),
+                     breakSetting(block)});
+    }
+    if (kept) {
+      ++result.reusedBlocks;
+      placeBreaks(fontContext, paragraph, intervalSequence, block, *kept,
+                  result, lastIntervalUsed, overflowWord);
+    } else if (optimizing)
       knuthPlassBlock(fontContext, paragraph, intervalSequence, block,
-                      nextInterval, result, lastIntervalUsed, overflowWord);
-    else
+                      nextInterval, result, lastIntervalUsed, overflowWord,
+                      outOfBudget);
+    if (outOfBudget) {
+      // The composer ran out of budget on this block: it placed nothing,
+      // and the frame is set greedily rather than late.
+      ++result.degradedBlocks;
+      overflowWord = ~0u;
+    }
+    if ((!optimizing && !kept) || outOfBudget)
       lastIntervalUsed =
           greedyBlock(fontContext, paragraph, intervalSequence, block,
                       nextInterval, result, overflowWord);

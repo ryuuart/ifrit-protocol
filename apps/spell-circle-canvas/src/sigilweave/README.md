@@ -200,7 +200,7 @@ header tree; new code includes the feature headers it uses.
 
 **`unicode`** — `SigilWeaveUnicode`, the leaf: `unicode/Unicode.h`, every
 Unicode question the engine asks answered as plain values over UTF-16
-text, on ICU alone (its own section below).
+text (its own section below).
 
 **`style`** — `SigilWeaveStyle`, header-only over Skia's paint types:
 
@@ -308,15 +308,19 @@ README) and **`qt`** (`qt/SigilWeaveQt.h`, the Qt bridge).
 
 `<sigilweave/unicode/Unicode.h>` (target `SigilWeaveUnicode`, namespace
 `sigil::weave::unicode`) is every Unicode question the engine asks,
-answered as plain values over UTF-16 text and depending on ICU alone — no
-Skia, no other header of this library:
+answered as plain values over UTF-16 text — no Skia, no other header of
+this library. ICU answers all of it but one: the tag a shaper is told a
+run's script in is HarfBuzz's own translation of an ICU script code, so
+the leaf links HarfBuzz's ICU bridge as well and no feature above it opens
+either header:
 
 | Function | Answer |
 |---|---|
 | `toUtf16` / `toUtf8` / `decodeAt` | transcoding and code-point decoding |
-| `isWhitespace`, `isHardLineBreak`, `inheritsTypeface`, `mayRequireBidi`, `isFullWidth`, `verticalOrientation` | per-character properties, each one ICU's own answer for that character: what separates words, what forces a line end, what takes its neighbour's typeface, what can turn a paragraph bidirectional, what stands in a full-width cell (East Asian Width), how a character stands in a vertical column (UTR#50) |
-| `scriptOf`, `scriptShortName`, `itemize` | scripts, and the text split into `ScriptRun`s with Common and Inherited characters attached to their neighbours |
-| `caseMap` / `caseMapped` | locale-aware upper, lower and first-code-point title case |
+| `isWhitespace`, `isHardLineBreak`, `inheritsTypeface`, `mayRequireBidi`, `isLetter`, `isUpperCase`, `isFullWidth`, `verticalOrientation` | per-character properties, each one ICU's own answer for that character: what separates words, what forces a line end, what takes its neighbour's typeface, what can turn a paragraph bidirectional, what is a letter and what is an upper-case one, what stands in a full-width cell (East Asian Width), how a character stands in a vertical column (UTR#50) |
+| `scriptOf`, `scriptShortName`, `itemize`, `shaperScript` | scripts: a character's own, its four-letter ISO 15924 code, the text split into `ScriptRun`s with Common and Inherited characters attached to their neighbours, and the tag a shaper takes for a run |
+| `lineStartProhibited`, `lineEndProhibited` | the code points whose UAX#14 line-break class says a line may not begin, or may not end, with them — the property listing a prohibition table is derived from, not a decision about a line |
+| `caseMap` / `caseMapped`, `lowerCased` | locale-aware upper, lower and first-code-point title case over text, and the simple one-code-point lower-case mapping a table is matched under |
 | `lineBreaks`, `graphemeBoundaries`, `wordBoundaries`, `sentenceStarts` | UAX#14 break opportunities — each one a `LineBreak`, an offset and whether the text DEMANDS the break there — under an optional locale tailoring, and UAX#29 grapheme, word and sentence segmentation as ascending offsets |
 | `bidi` | UAX#9 embedding levels as `BidiRun`s against a chosen `BaseDirection` |
 
@@ -332,10 +336,10 @@ thread-local, so every function is safe from any thread.
 
 | Target | Contents | Beyond Skia |
 |---|---|---|
-| `SigilWeaveUnicode` | the Unicode leaf | ICU, private; no Skia |
+| `SigilWeaveUnicode` | the Unicode leaf | ICU and HarfBuzz's ICU bridge, private; no Skia |
 | `SigilWeaveStyle` | the style vocabulary, header-only | — |
 | `SigilWeaveFonts` | the font service and the shaper | HarfBuzz, abseil — private |
-| `SigilWeaveParagraph` | the document model | SigilWeaveUnicode, HarfBuzz, abseil — private |
+| `SigilWeaveParagraph` | the document model | SigilWeaveUnicode, abseil — private |
 | `SigilWeaveLayout` | flows, breakers, placement, metrics | SigilGeometryPath (public: `LineInterval::contour` is a `geometry::path::Contour`); ICU, abseil — private |
 | `SigilWeaveDecoration` | decoration bands | SigilCoreCompute (the stir the skip-ink cache keys with) — private |
 | `SigilWeavePaint` | `draw()` and `drawBatched()`, `paint/Paint.h` | — |
@@ -345,7 +349,7 @@ thread-local, so every function is safe from any thread.
 | `SigilWeave` | interface over every target above | — |
 | `SigilWeaveShaders` | `shaders/PaintShaders.h` — water, mesh gradient, sparkle, star nest, clouds, tunnel | SigilMaterialKit, SigilMaterialSkia — private; not in the export set |
 | `SigilWeavePorts` | `ports::systemFontManager()` — CoreText today; DirectWrite/Fontconfig slot into the same call | Skia platform ports |
-| `SigilWeaveKit` | consumer-side discipline: rebuild/layout guards, glyph bucketing, label shorthand, sample content (see `kit/README.md`) | — |
+| `SigilWeaveKit` | consumer-side discipline: rebuild/layout guards, glyph bucketing, label shorthand, sample content, the line-edge and hyphenation tables (see `kit/README.md`) | SigilWeaveUnicode — private |
 | `SigilWeaveQt` | interface target: `QFont` → `SkTypeface`, `QString` ↔ `Paragraph` with no transcoding | Qt6::Gui |
 
 Each feature links only the features beneath it — style, then fonts, then
@@ -488,6 +492,21 @@ set under, `"zh@lb=loose"` the loose Chinese one — and a tailored
 prohibition is a boundary that never opens, so nothing downstream learns a
 rule. A table is what a HOUSE adds on top of that.
 
+**The room between two full-width characters is a table.**
+`ParagraphLayoutOptions::mojikumi` gives each class of character its
+members and each ORDERED PAIR of classes the room between them, as a
+fraction of the em — negative closes the gap up, which is what nearly every
+entry of a real table does, since an opening bracket carries its ink in its
+right half and a closing bracket in its left. `tsume` closes the gap
+between two plain full-width characters by a fraction of the em on top of
+that. Both are applied where two characters meet ACROSS A BREAK
+OPPORTUNITY, which in a text set in full-width characters is nearly every
+gap it has; two characters shaped inside one word are set by the face and
+by the shaper, and no table moves them. Which characters are of which class
+is a house's decision and is therefore data; whether a character stands in
+a full-width cell at all is the character's own property and the engine
+answers it.
+
 **A line's two edges are tables.** `ParagraphLayoutOptions::kinsoku` says
 which characters may not open or close a line, and the prohibition is
 settled during SEGMENTATION — the boundary is simply never opened — so
@@ -496,7 +515,12 @@ character may stand OUTSIDE the measure, as a fraction of its own advance:
 a line that begins on a quote or ends in a comma then squares optically
 rather than on its advances, which is optical margin alignment down a page
 and burasagari down a column. Both are DATA; the kit ships stock tables
-(`kit/LineTables.h`) and a caller's own is a peer of them.
+(`kit/LineTables.h`) and a caller's own is a peer of them. The stock
+prohibition set is DERIVED rather than typed: the line-break class each
+character carries says what may not open or close a line, and the set is
+narrowed to the characters standing in a full-width cell, which is the
+punctuation of the ideographic grid and exactly what the convention is
+about.
 
 **Hyphenation is two decisions in two places.** WHERE a word may break is
 segmentation, so the whole layout shares it: the soft hyphens the author
@@ -509,8 +533,11 @@ enough for the eye — asked of the line WITHOUT the break, so a word broken
 to reach past a word that already ends inside the band is a hyphen neither
 breaker takes — and a word that is the whole line is still broken, having
 nothing else on the line to be measured against. The kit carries the
-pattern tables (see below); the engine decides nothing about where English
-breaks, because that is not a property of text layout.
+pattern engine and one pattern table (see below); the engine decides
+nothing about where a word breaks, because that is a fact about its
+language. Liang's method matches LETTERS, of any script, so a table
+published for any language loads into it and English is one language among
+them rather than the only one.
 
 ## What the engine covers
 
@@ -618,7 +645,7 @@ typesetter reaches for, not what a file format carries.
 | Leading: auto, multiple, absolute, baseline grid | done | `Leading` |
 | Leading: all above the line, or half above and half below | done | `ParagraphStyle::halfLeading` |
 | Keep: widows, orphans, with next, all lines together, start in next frame | done — enforced at the frame boundary by retracting lines into the next fill, under both breakers | `KeepOptions` |
-| Hyphenation: pattern dictionary | done | `HyphenationOptions::patterns`, `kit::PatternHyphenator` |
+| Hyphenation: pattern dictionary | done, for any language that has a pattern table — the engine matches letters of any script and a table declares the language it answers for; the kit carries English and a caller loads the rest | `HyphenationOptions::patterns`, `kit::PatternHyphenator`, `kit::patterns::english` |
 | Hyphenation: minimum word, letters before / after, capitalised words | done | `HyphenationLimits` |
 | Hyphenation: consecutive limit, last word of a block | done | `HyphenationOptions` |
 | Hyphenation: zone | done, both breakers | `HyphenationOptions::zone` |
@@ -634,7 +661,7 @@ typesetter reaches for, not what a file format carries.
 | Nested styles, GREP styles, line styles | exists | `sel::regex`, `sel::line`, `sel::style`, span restyling |
 | Character: size, tracking, horizontal scale | exists | `ShapingStyle` |
 | Character: metric kerning | exists (HarfBuzz) | shaping |
-| Character: optical kerning | **not started**. When it lands it will be an APPROXIMATION: optical kerning is a judgement about glyph shapes, and a pair table derived from outlines is a different answer from a designer's | — |
+| Character: optical kerning | **not started**, and the bounded shape it would take is stated so it is not designed twice: a per-glyph EDGE PROFILE (the first and last ink column of each band of the glyph's outline, taken once per glyph per face and kept), a pair's gap read as the smallest distance between the left glyph's right profile and the right glyph's left profile, and every pair closed to the gap the FACE'S OWN even pair leaves — so the library holds no opinion about how tight type should be, only that a pair should be as tight as that face's own rhythm. It would be an APPROXIMATION either way: optical kerning is a judgement about shapes, and a table derived from outlines is a different answer from a designer's | — |
 | Character: baseline shift | done | `PaintStyle::baselineShift` |
 | Character: skew | **not started** | — |
 | OpenType features, small caps, figures, sets | exists | `style/Features.h` |
@@ -656,16 +683,79 @@ typesetter reaches for, not what a file format carries.
 | CJK: tate-chu-yoko | exists | `VerticalForm::kTateChuYoko` |
 | CJK: ruby — mono, group, jukugo | done | `layout/Beside.h`; compose `Annotation`, `kit::ruby` |
 | CJK: kenten | done | `kit::kenten` |
-| CJK: kinsoku | done — ICU's own strict/loose tailoring under a locale, plus a table over the segmentation for a house's own additions | `Paragraph::setLineBreakLocale`, `KinsokuTable`, `kit::kinsoku` |
+| CJK: kinsoku | done — ICU's own strict/loose tailoring under a locale, plus a table over the segmentation for a house's own additions; the stock table is derived from the line-break class each character carries, narrowed to the full-width cell | `Paragraph::setLineBreakLocale`, `KinsokuTable`, `kit::kinsoku` |
 | CJK: burasagari | done — the hanging table, along the column | `HangingTable` |
-| CJK: mojikumi (per-class spacing) | **not started** | — |
-| CJK: tsume | **not started** | — |
-| CJK: warichu | **not started** | — |
+| CJK: mojikumi (per-class spacing) | done, as a table over the gaps between words — the class of each character is the table's, whether a character is full-width at all is Unicode's | `MojikumiTable`, `ParagraphLayoutOptions::mojikumi` |
+| CJK: tsume | done, as a fraction closed at every gap between two plain full-width characters. LIMIT: two characters shaped inside one word are set by the face and the shaper, and no fraction here moves them | `ParagraphLayoutOptions::tsume` |
+| CJK: warichu | done — the note is cut where its two lines come closest in length and stacked inside the slot the base reserved | `warichuSplit`, `layoutWarichu` |
 | Baseline grid | done | `Leading::grid` |
 | Frame grid (CJK cell grid) | **not started** | — |
 | Footnotes and endnotes | out of scope | — |
 | Tables | out of scope — a layout, not a text | — |
 | Text variables, cross-references, conditional text | out of scope — data, not typography | — |
+
+## What a frame costs: the live composer
+
+**Settled text is the special case here, not the moving kind.** A page that
+is laid out once and then read is the easy end of what this engine is for;
+the ordinary end is text whose measure animates, whose frame grows, whose
+CONTENT changes from one frame to the next — a scramble, a decode, a
+counter, a feed. So the optimizing breaker is designed to run every frame
+rather than to be avoided while something moves, and
+`ParagraphLayoutOptions::live` is how a caller says an input is moving.
+
+**What is precomputed, and where it lives.** Everything that depends on the
+TEXT and not on the frame is settled when a word is shaped and kept with
+the paragraph: the word's advance, its trailing glue, the shaped hyphen a
+discretionary break would render. Shaping is content-addressed and
+incremental, so a frame that changes one word in twenty re-shapes those
+words and reads the rest out of the cache. The composer builds nothing per
+frame that a word already knows.
+
+**What a frame does.** The break decisions, and then the fill. The
+decisions are a dynamic program over contiguous arrays the thread owns
+rather than allocates, with the active paths windowed — a path whose line
+is already overfull is retired where it is found, a uniform measure merges
+every path that reached one breakpoint into one, and a bounded window is
+the floor under a geometry that neither of those bounds. A block set in a
+uniform measure is broken against that measure alone and never walks the
+geometry while deciding, so the lines are asked for only as they are
+placed.
+
+**What a frame does not do twice.** Break decisions are kept per thread,
+keyed on the paragraph, its word revision, the block, the setting, and the
+measure taken to the whole pixel below it. A measure already seen is
+answered from that store and the frame costs its fill alone
+(`ParagraphLayout::reusedBlocks` says so); a frame that changes only in
+DEPTH changes which lines it holds and never where they break; a change of
+content misses, because the word revision moved. The store holds the most
+recently answered blocks and forgets the rest, so an animating width keeps
+the pixels it has just crossed.
+
+**Who decides that a text is settled.** Not this library. A layout is TOLD
+that an input is moving and REPORTS what it did about it — how many blocks
+it answered from break decisions it already had, how many it had to hand to
+the greedy breaker — and a host folds those facts into its own proof that a
+node is holding still, beside every other input that node has. There is one
+such proof in a runtime and this is not it: a second answer to "has this
+settled" is a second answer that can disagree.
+
+**The floor under a frame that cannot be composed in time.**
+`KnuthPlassOptions::budgetMicroseconds` is a degrade and not a policy: a
+block the composer cannot finish inside it is filled greedily for that
+frame and counted in `ParagraphLayout::degradedBlocks`. A layout that
+reports degrades every frame is asking for a longer budget or a shorter
+block, not for a different breaker.
+
+**The budget the arms hold.** `weave_layout_bench` carries one arm per
+mechanism — the paragraph controls, hyphenation, the justification ranges,
+a reserved band, a 600-word story re-filled through a chain of six frames,
+the live composer at an animating measure, at a measure it has already
+seen, and under one word in twenty churning every frame. The behavioural
+constant they are held to: a 600-word story's re-fill, and one frame of the
+live composer on it, each stay a small fraction of a 60 Hz frame on one
+thread, leaving the frame to the drawing. The numbers themselves live in
+the ledger, never here.
 
 ## The hard parts
 
@@ -714,9 +804,9 @@ shrink limit. Gaps at or before a line's last tab are rigid: stretching them
 would move the following tab stop and unpin the column, so only the gaps
 past the last tab absorb slack.
 
-**Hyphenation is discretionary only.** There is no dictionary and no Liang
-patterns in this library. Soft hyphens (U+00AD) must already be in the text;
-feed it through any hyphenator that inserts them. Both breakers then treat
+**The break inside a word is discretionary either way.** It reaches the
+breakers as a soft hyphen (U+00AD): the ones the author typed, and the ones
+a `Hyphenator` proposed during segmentation. Both breakers then treat
 them as break opportunities that are invisible unless a line actually breaks
 there, in which case a styled hyphen is rendered, and Knuth-Plass charges the
 configured penalty per hyphenated line. `hyphenation.enabled = false` removes

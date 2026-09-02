@@ -925,3 +925,146 @@ TEST(Balance, ABalancedBlockIsStillSetInItsWholeMeasure) {
   const float left = *std::min_element(centres.begin(), centres.end());
   EXPECT_NEAR(left, (260.0f - widths.front()) * 0.5f, 1.0f);
 }
+
+// ── A note set in two lines inside one ────────────────────────────────────
+
+TEST(Warichu, TheCutLeavesTwoLinesAsCloseInLengthAsTheBreaksAllow) {
+  FontContext& fonts = sharedContext();
+  Paragraph note = makeParagraph(u8"one two three four", 8.0f);
+  const WarichuSplit split = warichuSplit(fonts, note);
+  ASSERT_GT(split.cutWord, 0u);
+  ASSERT_LT(split.cutWord, note.words().size());
+  // Neither half is longer than the split says, and moving the cut either
+  // way makes the two halves less alike.
+  const std::vector<Word>& words = note.words();
+  const auto advanceOf = [&](uint32_t from, uint32_t to) {
+    float total = 0;
+    for (uint32_t index = from; index < to; ++index)
+      total += words[index].width + (index + 1 < to ? words[index].spaceWidth
+                                                    : 0.0f);
+    return total;
+  };
+  const float first = advanceOf(0, split.cutWord);
+  const float second =
+      advanceOf(split.cutWord, static_cast<uint32_t>(words.size()));
+  EXPECT_NEAR(split.advance, std::max(first, second), 0.01f);
+  const float chosen = std::abs(first - second);
+  for (uint32_t cut = 1; cut < words.size(); ++cut) {
+    if (cut == split.cutWord) continue;
+    const float other = std::abs(
+        advanceOf(0, cut) -
+        advanceOf(cut, static_cast<uint32_t>(words.size())));
+    EXPECT_LE(chosen, other + 0.01f);
+  }
+}
+
+TEST(Warichu, TheTwoLinesStackInsideTheSlotTheBaseReserved) {
+  FontContext& fonts = sharedContext();
+  Paragraph note = makeParagraph(u8"one two three four", 8.0f);
+  const WarichuSplit split = warichuSplit(fonts, note);
+  const SkRect slot = SkRect::MakeXYWH(100, 200, split.advance, split.band);
+  const ParagraphLayout layout =
+      layoutWarichu(fonts, note, slot, WritingMode::kHorizontal);
+  ASSERT_FALSE(layout.runs.empty());
+  std::vector<float> baselines;
+  for (const PositionedRun& run : layout.runs)
+    if (std::find(baselines.begin(), baselines.end(), run.origin.y()) ==
+        baselines.end())
+      baselines.push_back(run.origin.y());
+  EXPECT_EQ(baselines.size(), 2u);
+  for (const PositionedRun& run : layout.runs) {
+    EXPECT_GE(run.origin.x(), slot.left() - 0.01f);
+    EXPECT_LE(run.origin.y(), slot.bottom() + 0.01f);
+  }
+}
+
+TEST(Warichu, AColumnSetsItsTwoLinesSideBySideAcrossTheSlot) {
+  FontContext& fonts = sharedContext();
+  Paragraph note = makeParagraph(u8"\xe3\x81\xbb\xe3\x82\x93\xe3\x81\xa8", 8.0f);
+  const SkRect slot = SkRect::MakeXYWH(100, 200, 24, 60);
+  const ParagraphLayout layout =
+      layoutWarichu(fonts, note, slot, WritingMode::kVerticalRL);
+  ASSERT_FALSE(layout.runs.empty());
+  for (const PositionedRun& run : layout.runs)
+    EXPECT_LE(run.origin.x(), slot.right() + 0.01f);
+}
+
+// ── The room between two full-width characters ────────────────────────────
+
+namespace {
+
+/// A table that closes the gap between a closing and an opening bracket,
+/// which is the pair every real mojikumi table has an opinion about.
+MojikumiTable bracketTable(float room) {
+  MojikumiTable table;
+  table.members[static_cast<size_t>(MojikumiClass::kOpening)] = u"（「";
+  table.members[static_cast<size_t>(MojikumiClass::kClosing)] = u"）」";
+  table.room[static_cast<size_t>(MojikumiClass::kClosing)]
+            [static_cast<size_t>(MojikumiClass::kOpening)] = room;
+  return table;
+}
+
+/// The advance from the first placed run to the end of the last.
+float placedExtent(const Paragraph& paragraph, const ParagraphLayout& layout) {
+  if (layout.runs.empty()) return 0;
+  float left = layout.runs.front().origin.x();
+  float right = left;
+  for (const PositionedRun& run : layout.runs) {
+    left = std::min(left, run.origin.x());
+    right = std::max(right, runEnd(paragraph, run));
+  }
+  return right - left;
+}
+
+}  // namespace
+
+TEST(Mojikumi, ATableClosesTheGapItNamesAndLeavesEveryOtherGapAlone) {
+  FontContext& fonts = sharedContext();
+  const std::u8string text = u8"\xef\xbc\x89\xef\xbc\x88";  // ） （
+  const auto extentWith = [&](const MojikumiTable& table) {
+    Paragraph paragraph = makeParagraph(text, 20.0f);
+    BlockFlow flow(SkRect::MakeWH(400, 200));
+    ParagraphLayoutOptions options;
+    options.mojikumi = table;
+    const ParagraphLayout layout =
+        layoutParagraph(fonts, paragraph, flow, options);
+    return placedExtent(paragraph, layout);
+  };
+  const float plain = extentWith(MojikumiTable{});
+  const float closed = extentWith(bracketTable(-0.5f));
+  EXPECT_NEAR(closed, plain - 10.0f, 0.5f) << "half an em of a 20px face";
+  // A table with no opinion about this pair changes nothing.
+  EXPECT_NEAR(extentWith(bracketTable(0.0f)), plain, 0.01f);
+}
+
+TEST(Mojikumi, TsumeClosesTheGapBetweenTwoPlainFullWidthCharacters) {
+  FontContext& fonts = sharedContext();
+  const std::u8string text = u8"\xe6\x97\xa5\xe6\x9c\xac\xe8\xaa\x9e";  // 日本語
+  const auto extentWith = [&](float tsume) {
+    Paragraph paragraph = makeParagraph(text, 20.0f);
+    BlockFlow flow(SkRect::MakeWH(400, 200));
+    ParagraphLayoutOptions options;
+    options.tsume = tsume;
+    const ParagraphLayout layout =
+        layoutParagraph(fonts, paragraph, flow, options);
+    return placedExtent(paragraph, layout);
+  };
+  EXPECT_LT(extentWith(0.05f), extentWith(0.0f));
+}
+
+TEST(Mojikumi, TheBreakerFitsAgainstTheRoomTheTableAsked) {
+  FontContext& fonts = sharedContext();
+  // A measure that holds the characters only once the table has closed the
+  // gaps: the breaker must have fitted against the same widths placement
+  // spends, or the line ends somewhere else.
+  const std::u8string text = u8"\xe6\x97\xa5\xe6\x9c\xac\xe8\xaa\x9e\xe6\x96\x87";
+  const auto lineCountWith = [&](float tsume) {
+    Paragraph paragraph = makeParagraph(text, 20.0f);
+    BlockFlow flow(SkRect::MakeWH(70, 400));
+    ParagraphLayoutOptions options;
+    options.tsume = tsume;
+    return layoutParagraph(fonts, paragraph, flow, options).lineCount;
+  };
+  EXPECT_GT(lineCountWith(0.0f), 1);
+  EXPECT_LE(lineCountWith(0.2f), lineCountWith(0.0f));
+}

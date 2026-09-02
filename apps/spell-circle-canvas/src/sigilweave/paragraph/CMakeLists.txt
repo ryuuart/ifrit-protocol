@@ -1,8 +1,10 @@
 # The document model: styled UTF-16 text analysed into words through the
 # Unicode leaf and shaped lazily through the font service, with the edit
 # log external range trackers follow. The Unicode leaf is private — no
-# public header names one of its types — and the one abseil container
-# inside a Word hides behind opaque bytes in WordSegmentList.
+# public header names one of its types — and it is also where the tag a
+# shaper is told a run's script in comes from, so nothing here names a
+# HarfBuzz type. The one abseil container inside a Word hides behind opaque
+# bytes in WordSegmentList.
 add_library(SigilWeaveParagraph STATIC
   Paragraph.cpp
   WordSegmentList.cpp
@@ -19,7 +21,6 @@ target_link_libraries(SigilWeaveParagraph
     SigilWeaveFonts
   PRIVATE
     SigilWeaveUnicode
-    harfbuzz::harfbuzz
     absl::inlined_vector
 )
 

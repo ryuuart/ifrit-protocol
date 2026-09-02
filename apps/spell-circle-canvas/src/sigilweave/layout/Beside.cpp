@@ -64,6 +64,65 @@ ParagraphLayout layoutBeside(FontContext& fontContext, Paragraph& reading,
   return layoutParagraph(fontContext, reading, flow);
 }
 
+WarichuSplit warichuSplit(FontContext& fontContext, Paragraph& note) {
+  note.ensureShaped(fontContext);
+  const std::vector<Word>& words = note.words();
+  WarichuSplit split;
+  split.band = note.strut(fontContext).height * 2.0f;
+  if (words.empty()) return split;
+  split.cutWord = static_cast<uint32_t>(words.size());
+  // Every prefix of the note is a candidate first line; the one whose two
+  // halves differ least is the cut. A note that offers no interior break
+  // is one line, and its advance is its whole natural width.
+  float total = 0;
+  for (const Word& word : words) total += word.width + word.spaceWidth;
+  split.advance = note.naturalWidth(fontContext);
+  float running = 0;
+  float closest = split.advance;
+  for (size_t index = 0; index + 1 < words.size(); ++index) {
+    running += words[index].width + words[index].spaceWidth;
+    const float first = running - words[index].spaceWidth;
+    const float second = total - running;
+    const float difference = std::abs(first - second);
+    if (difference < closest) {
+      closest = difference;
+      split.cutWord = static_cast<uint32_t>(index + 1);
+      split.advance = std::max(first, second);
+    }
+  }
+  return split;
+}
+
+ParagraphLayout layoutWarichu(FontContext& fontContext, Paragraph& note,
+                              const SkRect& slot, WritingMode writingMode) {
+  note.setWritingMode(writingMode);
+  const WarichuSplit split = warichuSplit(fontContext, note);
+  const float pitch = note.strut(fontContext).height;
+  const float ascent = note.strut(fontContext).ascent;
+  if (split.advance <= 0) return {};
+  const bool column = writingMode == WritingMode::kVerticalRL;
+  // Two lines, each as long as the wider of the two halves, stacked across
+  // the slot: down the box in a horizontal setting, and across it from the
+  // right in a vertical one, which is the order a column is read in.
+  LineSetFlow flow;
+  constexpr float kRoom = 1.0f;
+  for (int line = 0; line < 2; ++line) {
+    LineInterval interval;
+    if (column) {
+      interval.origin = {slot.right() - pitch * (0.5f + (float)line),
+                         slot.top()};
+      interval.direction = {0, 1};
+    } else {
+      interval.origin = {slot.left(),
+                         slot.top() + ascent + pitch * (float)line};
+      interval.direction = {1, 0};
+    }
+    interval.length = split.advance + kRoom;
+    flow.lines().push_back({interval});
+  }
+  return layoutParagraph(fontContext, note, flow);
+}
+
 std::u16string shareOfReading(std::u16string_view reading, float here,
                               float next) {
   const float total = here + next;

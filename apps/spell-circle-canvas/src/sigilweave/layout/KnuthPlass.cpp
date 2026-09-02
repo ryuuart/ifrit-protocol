@@ -6,8 +6,11 @@
  */
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <limits>
+#include <optional>
+#include <type_traits>
 #include <span>
 #include <vector>
 
@@ -34,7 +37,60 @@ struct Node {
   int32_t previousNode = -1;  // arena index of the predecessor node
 };
 
+// Folds one more value into a running hash.
+template <typename T>
+void foldInto(uint64_t& hash, const T& value) {
+  static_assert(std::is_trivially_copyable_v<T>);
+  const auto* bytes = reinterpret_cast<const unsigned char*>(&value);
+  for (size_t index = 0; index < sizeof(T); ++index) {
+    hash ^= bytes[index];
+    hash *= 0x100000001B3ull;  // FNV-1a
+  }
+}
+
 }  // namespace
+
+BreakStore& breakStore() {
+  static thread_local BreakStore store;
+  return store;
+}
+
+uint64_t breakSetting(const Block& block) {
+  const ParagraphLayoutOptions& options = block.options;
+  uint64_t hash = 0xCBF29CE484222325ull;
+  foldInto(hash, options.alignment);
+  foldInto(hash, options.justification.wordSpacing);
+  foldInto(hash, options.justification.spaceStretch);
+  foldInto(hash, options.justification.spaceShrink);
+  foldInto(hash, options.justification.justifyLastLine);
+  foldInto(hash, options.justification.lastLineAlignment);
+  foldInto(hash, options.justification.expandIdeographicGaps);
+  foldInto(hash, options.hyphenation.enabled);
+  foldInto(hash, options.hyphenation.penalty);
+  foldInto(hash, options.hyphenation.consecutiveLimit);
+  foldInto(hash, options.hyphenation.zone);
+  foldInto(hash, options.hyphenation.lastWordOfBlock);
+  foldInto(hash, options.knuthPlass.tolerance);
+  foldInto(hash, options.knuthPlass.minimumIntervalWidth);
+  foldInto(hash, options.tabStops.interval);
+  for (const TabStop& stop : options.tabStops.stops) {
+    foldInto(hash, stop.position);
+    foldInto(hash, stop.align);
+    foldInto(hash, stop.alignOn);
+  }
+  foldInto(hash, block.style.balanceRaggedLines);
+  foldInto(hash, block.style.indent.lastLine);
+  return hash;
+}
+
+int32_t quantisedMeasure(float measure) {
+  // THE WHOLE PIXEL BELOW THE MEASURE, never the one above: a line broken
+  // to fit a narrower measure than it is set in cannot overflow the one it
+  // is set in. A width animating across a range therefore decides its
+  // breaks once per pixel it crosses, and the fraction of a pixel it is
+  // between two of them is spent where the alignment spends it.
+  return static_cast<int32_t>(std::floor(measure));
+}
 
 // Classic Knuth-Plass optimal line breaking over word boxes and glue, with
 // per-line (per-interval) widths from the flow geometry. Two robustness
@@ -55,8 +111,17 @@ struct Node {
 void knuthPlassBlock(FontContext& fontContext, Paragraph& paragraph,
                      IntervalSequence& intervalSequence, const Block& block,
                      size_t firstInterval, ParagraphLayout& result,
-                     size_t& lastIntervalUsed, uint32_t& overflowWord) {
+                     size_t& lastIntervalUsed, uint32_t& overflowWord,
+                     bool& outOfBudget) {
   const ParagraphLayoutOptions& options = block.options;
+  using Clock = std::chrono::steady_clock;
+  outOfBudget = false;
+  // The moment this block must be composed by, when a budget was set.
+  std::optional<Clock::time_point> budgetExpiry;
+  if (options.knuthPlass.budgetMicroseconds > 0)
+    budgetExpiry =
+        Clock::now() + std::chrono::microseconds(static_cast<int64_t>(
+                           options.knuthPlass.budgetMicroseconds));
   const std::vector<Word>& words = paragraph.words();
   const uint32_t base = block.firstWord;
   const uint32_t wordCount = block.endWord;
@@ -66,6 +131,20 @@ void knuthPlassBlock(FontContext& fontContext, Paragraph& paragraph,
     overflowWord = base;
     return;
   }
+  // WHAT A MOVING TEXT IS BROKEN AGAINST: its own measure, and not the
+  // frame's supply of lines. A block set in a uniform measure has one
+  // number for every line it could ever have, so the break decisions are a
+  // function of the words and that number alone — which is what makes them
+  // worth keeping between frames, and what makes a frame that changes only
+  // in DEPTH change which lines it holds without moving one of them. It
+  // also means the geometry is not walked at all while the breaks are
+  // being decided; the lines are asked for as they are placed.
+  std::optional<float> liveMeasure;
+  if (options.live && intervalSequence.uniform()) {
+    if (const FlatInterval* first = intervalSequence.intervalAt(firstInterval))
+      liveMeasure = first->interval.length;
+  }
+
   // BALANCED RAGGED LINES are the same optimization with one freedom
   // withdrawn: the last line of a block is scored like every other rather
   // than absorbing whatever slack is left, so the breaker has to spread the
@@ -87,6 +166,7 @@ void knuthPlassBlock(FontContext& fontContext, Paragraph& paragraph,
   prefixShrink.assign(1, 0);
   tabGapIndices.clear();
   const bool tabAware = tabStopsActive(options);
+  const bool spacedByTable = !block.mojikumiAfter.empty();
   // Every prefix array is indexed from the block's first word, so a block
   // in the middle of a text costs what IT holds and not what precedes it.
   const auto atWord = [&](uint32_t wordIndex) { return wordIndex - base; };
@@ -118,6 +198,12 @@ void knuthPlassBlock(FontContext& fontContext, Paragraph& paragraph,
         stretch = fontSize * 0.25f;
         shrink = fontSize * 0.03f;
       }
+      // The room a mojikumi table or tsume puts after this word is part of
+      // the gap and none of it is elastic: a table states a distance and a
+      // justified line spends its slack in the gaps the face gave it. A
+      // layout that asked for neither answers the question once, here,
+      // rather than once per word.
+      if (spacedByTable) glue += mojikumiAfter(block, wordIndex);
       prefixGlue.push_back(prefixGlue[atWord(wordIndex)] + glue);
       prefixStretch.push_back(prefixStretch[atWord(wordIndex)] + stretch);
       prefixShrink.push_back(prefixShrink[atWord(wordIndex)] + shrink);
@@ -190,12 +276,26 @@ void knuthPlassBlock(FontContext& fontContext, Paragraph& paragraph,
       (options.justification.justifyLastLine ||
        options.justification.lastLineAlignment == TextAlignment::kJustify);
 
-  std::vector<Node> arena;
-  std::vector<int32_t> active;
-  std::vector<int32_t> nextActive;
+  // THE DP'S WORKING MEMORY, HELD BY THE THREAD RATHER THAN THE CALL.
+  // The composer is meant to run on moving text, which means running every
+  // frame, and a breaker that allocates four vectors per block per frame
+  // spends its budget in the allocator. Cleared and refilled, never freed:
+  // after the first block of the first frame the capacity is the capacity
+  // the text needs.
+  static thread_local std::vector<Node> arena;
+  static thread_local std::vector<int32_t> active;
+  static thread_local std::vector<int32_t> nextActive;
   // Pairs are (next interval index, node arena index).
-  std::vector<std::pair<uint32_t, int32_t>> newNodes;
+  static thread_local std::vector<std::pair<uint32_t, int32_t>> newNodes;
   const bool uniform = intervalSequence.uniform();
+  // THE ACTIVE LIST IS WINDOWED. A path whose line is already overfull is
+  // retired where it is found, and on a uniform measure every path that
+  // reached one breakpoint faces one future and merges, so the list is
+  // bounded by the geometry rather than by the text. This is the floor
+  // under the case neither of those bounds: a geometry of many differently
+  // sized intervals, where the lowest-demerit candidates are kept and the
+  // rest dropped, so one frame's work cannot grow with the paragraph.
+  constexpr size_t kMaxActiveNodes = 64;
 
   // One full DP pass. Returns the best terminal arena index (-1 if nothing
   // could be placed), reports whether the lifeline ever had to force an
@@ -228,6 +328,14 @@ void knuthPlassBlock(FontContext& fontContext, Paragraph& paragraph,
 
     for (uint32_t breakIndex = base + 1;
          breakIndex <= wordCount && !active.empty(); ++breakIndex) {
+      // The budget is read every so many breakpoints rather than every one:
+      // the clock costs more than the breakpoint does.
+      constexpr uint32_t kBudgetCheckStride = 256;
+      if (budgetExpiry && (breakIndex - base) % kBudgetCheckStride == 0 &&
+          Clock::now() >= *budgetExpiry) {
+        outOfBudget = true;
+        return -1;
+      }
       // Shape only as the dynamic-programming frontier advances.
       paragraph.ensureShapedTo(fontContext, breakIndex);
       ensurePrefixSums(breakIndex);
@@ -244,14 +352,16 @@ void knuthPlassBlock(FontContext& fontContext, Paragraph& paragraph,
       for (const int32_t nodeIndex : active) {
         const Node& node = arena[nodeIndex];
         const FlatInterval* lineInterval =
-            intervalSequence.intervalAt(node.interval);
-        if (!lineInterval) {
+            liveMeasure ? nullptr : intervalSequence.intervalAt(node.interval);
+        if (!liveMeasure && !lineInterval) {
           // No geometry left for this path's next line: it ends here.
           considerEnd(nodeIndex);
           continue;
         }
         const uint32_t lineStart = node.breakAt;
-        const float measure = std::min(lineInterval->interval.length, measureCap);
+        const float measure = std::min(
+            liveMeasure ? *liveMeasure : lineInterval->interval.length,
+            measureCap);
         float natural = lineNatural(lineStart, breakIndex);
         float stretch = lineStretch(lineStart, breakIndex);
         float shrink = lineShrink(lineStart, breakIndex);
@@ -410,7 +520,16 @@ void knuthPlassBlock(FontContext& fontContext, Paragraph& paragraph,
       // geometry: the loop exits on the empty active list and the partial
       // result below stands.
 
-      active = nextActive;
+      if (nextActive.size() > kMaxActiveNodes) {
+        std::nth_element(nextActive.begin(),
+                         nextActive.begin() + (long)kMaxActiveNodes,
+                         nextActive.end(),
+                         [&](int32_t left, int32_t right) {
+                           return arena[left].demerits < arena[right].demerits;
+                         });
+        nextActive.resize(kMaxActiveNodes);
+      }
+      active.swap(nextActive);
     }
 
     int32_t best = -1;
@@ -427,14 +546,19 @@ void knuthPlassBlock(FontContext& fontContext, Paragraph& paragraph,
   };
 
   // A balanced block's own break list, when the search below found one.
-  std::vector<std::pair<uint32_t, uint32_t>> balancedBreaks;
+  BreakList balancedBreaks;
   bool forcedOverfull = false;
   uint32_t firstUnplacedWord = ~0u;
   int32_t best = runPass(false, forcedOverfull, firstUnplacedWord);
+  // A block the composer could not finish inside its budget is left where
+  // it stands: nothing is placed, and the caller fills it greedily for
+  // this frame.
+  if (outOfBudget) return;
   if (best < 0 || forcedOverfull) {
     bool stillOverfull = false;
     uint32_t retryFirstUnplacedWord = ~0u;
     const int32_t retry = runPass(true, stillOverfull, retryFirstUnplacedWord);
+    if (outOfBudget) return;
     if (retry >= 0) {
       best = retry;
       firstUnplacedWord = retryFirstUnplacedWord;
@@ -467,13 +591,13 @@ void knuthPlassBlock(FontContext& fontContext, Paragraph& paragraph,
       return lines;
     };
     const int target = lineCountOf(best);
-    float widest = 0;
+    float widest = liveMeasure.value_or(0.0f);
     for (const FlatInterval& flat : intervalSequence.flattened())
       widest = std::max(widest, flat.interval.length);
     if (target > 1 && widest > 0) {
       // The breaks the search will keep, remembered outside the arena the
       // next pass clears.
-      std::vector<std::pair<uint32_t, uint32_t>> keptBreaks;
+      BreakList keptBreaks;
       const auto rememberBreaks = [&](int32_t node) {
         keptBreaks.clear();
         for (int32_t index = node; index > 0; index = arena[index].previousNode)
@@ -519,7 +643,7 @@ void knuthPlassBlock(FontContext& fontContext, Paragraph& paragraph,
 
   // The chain, oldest first: each entry is where a line ends and which
   // interval the line before it occupied.
-  std::vector<std::pair<uint32_t, uint32_t>> breaks = balancedBreaks;
+  BreakList breaks = balancedBreaks;
   if (breaks.empty()) {
     for (int32_t nodeIndex = best; nodeIndex > 0;
          nodeIndex = arena[nodeIndex].previousNode)
@@ -529,7 +653,34 @@ void knuthPlassBlock(FontContext& fontContext, Paragraph& paragraph,
   }
 
   // ── Placement ─────────────────────────────────────────────────────────
-  uint32_t firstWordIndex = base;
+  // The break decisions are kept for the next frame before they are spent:
+  // a moving text asks the same question of the same words at the same
+  // measure again and again, and this is the answer to it.
+  if (liveMeasure && firstUnplacedWord == ~0u)
+    breakStore().store(BreakKey{paragraph.identity(), paragraph.wordRevision(),
+                                base,
+                                wordCount, quantisedMeasure(*liveMeasure),
+                                breakSetting(block)},
+                       breaks);
+  placeBreaks(fontContext, paragraph, intervalSequence, block, breaks, result,
+              lastIntervalUsed, overflowWord);
+}
+
+// One line per entry of `breaks`, in the interval each names — the half of
+// composing a block that is not deciding where its lines end, and the whole
+// of what a block whose breaks were already decided has left to do.
+void placeBreaks(FontContext& fontContext, Paragraph& paragraph,
+                 IntervalSequence& intervalSequence, const Block& block,
+                 const BreakList& breaks, ParagraphLayout& result,
+                 size_t& lastIntervalUsed, uint32_t& overflowWord) {
+  const ParagraphLayoutOptions& options = block.options;
+  const uint32_t wordCount = block.endWord;
+  // Placing is the one thing that needs the glyphs, so a block placed from
+  // break decisions made earlier pulls the shaping it needs and no more.
+  if (!breaks.empty())
+    paragraph.ensureShapedTo(fontContext, breaks.back().first);
+  const std::vector<Word>& words = paragraph.words();
+  uint32_t firstWordIndex = block.firstWord;
   int consecutiveHyphens = 0;
   for (size_t lineIndex = 0; lineIndex < breaks.size(); ++lineIndex) {
     const uint32_t lastWordIndex = breaks[lineIndex].first;
@@ -537,6 +688,8 @@ void knuthPlassBlock(FontContext& fontContext, Paragraph& paragraph,
     const FlatInterval* flatInterval =
         intervalSequence.intervalAt(intervalIndex);
     if (!flatInterval) {
+      // The frame ran out of lines before the block ran out of breaks,
+      // which is the ordinary end of a frame in a chain.
       overflowWord = std::min(overflowWord, firstWordIndex);
       break;
     }
@@ -559,7 +712,8 @@ void knuthPlassBlock(FontContext& fontContext, Paragraph& paragraph,
       placed.interval.length = std::max(0.0f, placed.interval.length - indent);
     }
     placeWords(fontContext, paragraph, firstWordIndex, lastWordIndex, placed,
-               options.alignment, lastLine, hyphenated, options, result);
+               options.alignment, lastLine, hyphenated, options, result,
+               block.mojikumiAfter);
     lastIntervalUsed = intervalIndex;
     firstWordIndex = lastWordIndex;
   }

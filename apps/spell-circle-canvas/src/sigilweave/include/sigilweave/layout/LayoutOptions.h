@@ -157,6 +157,18 @@ struct KnuthPlassOptions {
   /// Intervals narrower than this are ignored so the algorithm never has to
   /// force a word into exclusion-shape slivers.
   float minimumIntervalWidth = 0.0f;
+  /// The longest the optimizing breaker may spend on ONE BLOCK before it
+  /// gives up and lets the greedy breaker fill that block instead, in
+  /// microseconds; 0 lifts the limit, which is what a layout that says
+  /// nothing gets.
+  ///
+  /// It is a DEGRADE AND NOT A POLICY. The composer is meant to run on
+  /// moving text — that is what it is for — and this is the floor under a
+  /// frame that meets a block it cannot compose in time: one frame set
+  /// greedily, counted in ParagraphLayout::degradedBlocks, rather than a
+  /// frame that arrives late. A layout that reports degrades every frame
+  /// is asking for a longer budget or a shorter block.
+  float budgetMicroseconds = 0.0f;
   bool operator==(const KnuthPlassOptions&) const = default;
 };
 
@@ -278,6 +290,76 @@ struct FrameOptions {
   float extent = 0;
 
   bool operator==(const FrameOptions&) const = default;
+};
+
+/**
+ * WHICH KIND OF CHARACTER A MOJIKUMI RULE IS ABOUT.
+ *
+ * Japanese setting spaces full-width characters by the CLASS of the two
+ * either side of a gap rather than by the characters themselves: an
+ * opening bracket carries its ink in its right half and a closing bracket
+ * in its left, so two brackets back to back leave a full em of white
+ * between two marks that are each half air, and a page sets them closer.
+ *
+ * WHICH characters are of which class is a decision, so it is data — a
+ * house sets its own — with one exception the engine answers for itself:
+ * whether a character stands in a full-width cell at all is a property of
+ * the character, not an opinion about it.
+ */
+enum class MojikumiClass : uint8_t {
+  kOther,      ///< not full-width, or not a class the table names
+  kIdeograph,  ///< a full-width character the table gives no other class
+  kOpening,    ///< an opening bracket or quote
+  kClosing,    ///< a closing bracket or quote
+  kFullStop,   ///< a sentence mark
+  kComma,      ///< a reading mark
+  kMiddleDot,  ///< an interpunct
+  kCount
+};
+
+/**
+ * HOW MUCH ROOM STANDS BETWEEN TWO ADJACENT FULL-WIDTH CHARACTERS.
+ *
+ * `members` names the characters of each class, one character per entry,
+ * exactly as a kinsoku table names its prohibitions; a full-width
+ * character no entry names is kIdeograph, and everything else is kOther.
+ * `room` is then read by the class of the character BEFORE the gap and the
+ * class of the one after it, as a fraction of the em: negative closes the
+ * gap up, which is what nearly every entry of a real table does.
+ *
+ * It is applied where the two characters are adjacent across a BREAK
+ * OPPORTUNITY, which between full-width characters is nearly every gap
+ * there is; two characters shaped inside one word are set by the face and
+ * by the shaper, and no table moves them.
+ */
+struct MojikumiTable {
+  static constexpr size_t kClasses = static_cast<size_t>(MojikumiClass::kCount);
+  std::u16string members[kClasses];
+  float room[kClasses][kClasses] = {};
+
+  /** Returns whether any class has members. */
+  [[nodiscard]] bool empty() const {
+    for (const std::u16string& entry : members)
+      if (!entry.empty()) return false;
+    return true;
+  }
+  /** The class the table gives `character`, or kOther when it names none.
+   *  A full-width character the table does not name is kIdeograph, which
+   *  the caller decides by asking the character and not this table. */
+  [[nodiscard]] MojikumiClass classOf(char16_t character) const {
+    for (size_t index = 0; index < kClasses; ++index)
+      if (members[index].find(character) != std::u16string::npos)
+        return static_cast<MojikumiClass>(index);
+    return MojikumiClass::kOther;
+  }
+  bool operator==(const MojikumiTable& other) const {
+    for (size_t index = 0; index < kClasses; ++index) {
+      if (members[index] != other.members[index]) return false;
+      for (size_t column = 0; column < kClasses; ++column)
+        if (room[index][column] != other.room[index][column]) return false;
+    }
+    return true;
+  }
 };
 
 /**
@@ -504,6 +586,22 @@ class ParagraphStyleSet {
  * is set by them. `blocks` overrides them block by block.
  */
 struct ParagraphLayoutOptions {
+  /// AN INPUT OF THIS LAYOUT IS MOVING — a bound measure, an animating
+  /// frame, a text whose content changes frame to frame — so this layout
+  /// is one of a run of them rather than an answer someone asked for once.
+  ///
+  /// It changes two things and nothing else. The break decisions of a
+  /// block set in a UNIFORM measure are kept and reused, keyed on the words
+  /// and on the measure taken to the whole pixel below it, so a measure
+  /// already seen costs no break decision at all and a measure between two
+  /// seen ones is set in the narrower of them. And the block is broken
+  /// against the measure alone rather than against the frame's supply of
+  /// lines, so a frame that only grows or shrinks in DEPTH changes which
+  /// lines it holds and never where they break.
+  ///
+  /// A settled layout sets nothing here and is answered exactly as it has
+  /// always been answered.
+  bool live = false;
   TextAlignment alignment = TextAlignment::kStart;  ///< per-interval placement
   /// Greedy is the fast default; Knuth-Plass trades speed for even spacing.
   LineBreakStrategy lineBreakStrategy = LineBreakStrategy::kGreedy;
@@ -527,6 +625,18 @@ struct ParagraphLayoutOptions {
   /// alignment; burasagari down a column). Empty leaves every line squared
   /// on its advances, which is what a text that says nothing gets.
   HangingTable hanging;
+  /// How much room stands between two adjacent full-width characters, by
+  /// the class of each. Empty leaves every gap the width the shaper gave
+  /// it, which is what a text that says nothing gets — and costs nothing,
+  /// since a layout with no table asks no question about any gap.
+  MojikumiTable mojikumi;
+  /// How much of its own advance a full-width character gives up so it
+  /// sets closer to its neighbours — tsume, as a fraction of the em,
+  /// removed from the gap after every full-width character the mojikumi
+  /// table gives no class of its own. 0 leaves the face's own setting.
+  /// It is applied where mojikumi is applied and stops where that stops:
+  /// at the gaps between words.
+  float tsume = 0;
 
   /// One entry per BLOCK — the text between two mandatory breaks — in
   /// block order. A block past the end of this list, and every block when

@@ -58,6 +58,17 @@ struct ParagraphLayout {
   /// An overflow marker from ParagraphLayoutOptions::overflow was appended
   /// to the final placed line. Its run is the last in `runs`.
   bool ellipsized = false;
+  /// How many blocks the optimizing breaker ran out of budget on and left
+  /// to the greedy breaker (KnuthPlassOptions::budgetMicroseconds). Zero
+  /// whenever no budget was set, and the number a caller watches to know
+  /// its budget is too short for the text it is setting.
+  int degradedBlocks = 0;
+  /// How many blocks were set from break decisions this thread had already
+  /// made for the same words at the same measure, under
+  /// ParagraphLayoutOptions::live. It is what says a moving text is costing
+  /// only its fill: a frame that reports as many reused blocks as it holds
+  /// made no break decision at all.
+  int reusedBlocks = 0;
 
   /** Returns whether geometry ended before all paragraph words were placed. */
   [[nodiscard]] bool overflowed() const noexcept {

@@ -7,6 +7,8 @@
 #include <gtest/gtest.h>
 #include <sigilweave/unicode/Unicode.h>
 
+#include <algorithm>
+#include <iterator>
 #include <string>
 #include <vector>
 
@@ -99,6 +101,26 @@ TEST(Properties, RightToLeftDetection) {
   EXPECT_FALSE(mayRequireBidi(U'\u200E')) << "left-to-right mark";
 }
 
+TEST(Properties, UpperCaseIsAskedOfTheCodePointItself) {
+  EXPECT_TRUE(isUpperCase(U'A'));
+  EXPECT_TRUE(isUpperCase(U'Ü'));
+  EXPECT_FALSE(isUpperCase(U'a'));
+  EXPECT_FALSE(isUpperCase(U'中')) << "a script with no case has none";
+}
+
+TEST(Properties, LettersAndTheirLowerCaseFormsAreAskedPerCodePoint) {
+  EXPECT_TRUE(isLetter(U'a'));
+  EXPECT_TRUE(isLetter(U'ü'));
+  EXPECT_TRUE(isLetter(U'中')) << "a script with no case has letters too";
+  EXPECT_FALSE(isLetter(U'2'));
+  EXPECT_FALSE(isLetter(U'-'));
+  EXPECT_FALSE(isLetter(U' '));
+  EXPECT_EQ(lowerCased(U'Ü'), U'ü');
+  EXPECT_EQ(lowerCased(U'Λ'), U'λ');
+  EXPECT_EQ(lowerCased(U'ü'), U'ü');
+  EXPECT_EQ(lowerCased(U'中'), U'中') << "no lower-case form, returned as is";
+}
+
 TEST(Properties, VerticalOrientation) {
   EXPECT_EQ(verticalOrientation(U'中'), VerticalOrientation::kUpright);
   EXPECT_EQ(verticalOrientation(U'a'), VerticalOrientation::kRotated);
@@ -127,6 +149,24 @@ TEST(Scripts, ScriptOfAndNames) {
   EXPECT_GT(scriptLimit(), han);
   EXPECT_EQ(scriptShortName(scriptLimit()), nullptr);
   EXPECT_EQ(scriptShortName(-1), nullptr);
+}
+
+TEST(Scripts, TheShaperTagIsTheIsoCodePackedIntoFourBytes) {
+  const auto packed = [](char a, char b, char c, char d) {
+    return static_cast<ShaperScript>(
+        (static_cast<uint32_t>(static_cast<unsigned char>(a)) << 24) |
+        (static_cast<uint32_t>(static_cast<unsigned char>(b)) << 16) |
+        (static_cast<uint32_t>(static_cast<unsigned char>(c)) << 8) |
+        static_cast<uint32_t>(static_cast<unsigned char>(d)));
+  };
+  EXPECT_EQ(shaperScript(scriptOf(U'a')), packed('L', 'a', 't', 'n'));
+  EXPECT_EQ(shaperScript(scriptOf(U'中')), packed('H', 'a', 'n', 'i'));
+  EXPECT_EQ(shaperScript(scriptOf(U'א')), packed('H', 'e', 'b', 'r'));
+  const ShaperScript defaultTag = shaperScript(kCommonScript);
+  EXPECT_EQ(shaperScript(kInheritedScript), defaultTag)
+      << "text of no script of its own is shaped under the default rules";
+  EXPECT_EQ(shaperScript(scriptLimit()), defaultTag);
+  EXPECT_EQ(shaperScript(-1), defaultTag);
 }
 
 TEST(Properties, FullWidthIsACharacterPropertyAndNotAScriptOne) {
@@ -167,6 +207,43 @@ TEST(Scripts, ItemizeDegenerateInputs) {
   itemize(u"a\U0001F600b", reused);
   ASSERT_EQ(reused.size(), 1u) << "the emoji is Common and joins Latin";
   EXPECT_EQ(reused[0].end, 4u);
+}
+
+// ── Line-break classes ─────────────────────────────────────────────────
+
+TEST(LineBreakClasses, TheProhibitedListingsAreAscendingAndDisjoint) {
+  const std::vector<char32_t> start = lineStartProhibited();
+  const std::vector<char32_t> end = lineEndProhibited();
+  ASSERT_FALSE(start.empty());
+  ASSERT_FALSE(end.empty());
+  EXPECT_TRUE(std::is_sorted(start.begin(), start.end()));
+  EXPECT_TRUE(std::is_sorted(end.begin(), end.end()));
+  EXPECT_EQ(std::adjacent_find(start.begin(), start.end()), start.end())
+      << "a code point carries one line-break class, so it is listed once";
+  std::vector<char32_t> both;
+  std::set_intersection(start.begin(), start.end(), end.begin(), end.end(),
+                        std::back_inserter(both));
+  EXPECT_TRUE(both.empty()) << "nothing may neither open nor close a line";
+}
+
+TEST(LineBreakClasses, TheClassesAreTheMarksTheNameSays) {
+  const std::vector<char32_t> start = lineStartProhibited();
+  const std::vector<char32_t> end = lineEndProhibited();
+  const auto holds = [](const std::vector<char32_t>& listing, char32_t code) {
+    return std::binary_search(listing.begin(), listing.end(), code);
+  };
+  EXPECT_TRUE(holds(start, U'、')) << "ideographic comma, closing punctuation";
+  EXPECT_TRUE(holds(start, U'」')) << "closing bracket";
+  EXPECT_TRUE(holds(start, U')')) << "closing parenthesis";
+  EXPECT_TRUE(holds(start, U'ー')) << "prolonged sound mark, a nonstarter";
+  EXPECT_TRUE(holds(start, U'ぁ')) << "small kana, a Japanese starter";
+  EXPECT_TRUE(holds(start, U'!')) << "exclamation";
+  EXPECT_TRUE(holds(start, U':')) << "infix numeric separator";
+  EXPECT_TRUE(holds(end, U'(')) << "opening parenthesis";
+  EXPECT_TRUE(holds(end, U'「')) << "opening bracket";
+  EXPECT_FALSE(holds(start, U'a'));
+  EXPECT_FALSE(holds(end, U'a'));
+  EXPECT_FALSE(holds(start, U'中')) << "an ideograph opens a line freely";
 }
 
 // ── Case mapping ───────────────────────────────────────────────────────

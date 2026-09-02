@@ -74,6 +74,17 @@ namespace sigil::weave::unicode {
  */
 [[nodiscard]] bool mayRequireBidi(char32_t codePoint);
 
+/** Whether a code point is a LETTER — general category L, which is every
+ * script's letters and includes the ones that have no case at all.
+ */
+[[nodiscard]] bool isLetter(char32_t codePoint);
+
+/** Whether a code point is an UPPER-CASE LETTER — general category Lu.
+ * Title case (Lt) is not upper case: a digraph whose first letter alone is
+ * capitalised is a letter of its own.
+ */
+[[nodiscard]] bool isUpperCase(char32_t codePoint);
+
 /** Whether a code point is set in a FULL-WIDTH CELL — East Asian Width
  * Wide or Fullwidth. That is the property behind every question this
  * engine asks about "ideographic" text: a full-width character has no
@@ -125,6 +136,18 @@ inline constexpr Script kInheritedScript = 1;  ///< Zinh: takes its neighbours'
  */
 [[nodiscard]] const char* scriptShortName(Script script) noexcept;
 
+/// A SHAPER'S SCRIPT TAG: the four-letter ISO 15924 code packed one letter
+/// per byte, which is the form a shaping engine is told a run's script in.
+/// It is carried as an integer so no shaping header is needed to hold one.
+using ShaperScript = uint32_t;
+
+/** Returns the shaper's tag for a script code. Common, Inherited and any
+ * code outside [0, scriptLimit()) answer with the tag under which a shaper
+ * applies its default rules, which is what text belonging to no particular
+ * script wants.
+ */
+[[nodiscard]] ShaperScript shaperScript(Script script) noexcept;
+
 /// A maximal run of text in one script; `end` is exclusive, and the run
 /// starts where the previous one ended (0 for the first).
 struct ScriptRun {
@@ -143,6 +166,29 @@ struct ScriptRun {
  * re-itemizing every frame amortizes its allocation away.
  */
 void itemize(std::u16string_view text, std::vector<ScriptRun>& runs);
+
+// ── Line-break classes ─────────────────────────────────────────────────
+
+/** Every code point whose UAX#14 LINE-BREAK CLASS is one a line may not
+ * BEGIN with, ascending: the closing punctuation and the closing
+ * parentheses, the non-starters, the conditional Japanese starters, the
+ * exclamation and question marks, and the infix numeric separators.
+ *
+ * This is the CLASS a character carries, over the whole of Unicode, and
+ * not where a given text actually breaks — that is lineBreaks(), which
+ * resolves the classes against each other under its tailoring and already
+ * forbids most of what is listed here. A caller wanting a prohibition set
+ * narrows this to the characters it means: a convention about full-width
+ * punctuation makes no claim about ASCII.
+ */
+[[nodiscard]] std::vector<char32_t> lineStartProhibited();
+
+/** Every code point whose UAX#14 line-break class is one a line may not
+ * END with, ascending: the opening punctuation, which would otherwise
+ * close a line with nothing to open. It is a class listing under the same
+ * terms as lineStartProhibited().
+ */
+[[nodiscard]] std::vector<char32_t> lineEndProhibited();
 
 // ── Case mapping ───────────────────────────────────────────────────────
 
@@ -167,6 +213,15 @@ bool caseMap(std::u16string_view text, Case mapping, std::string_view locale,
  */
 [[nodiscard]] std::u16string caseMapped(std::u16string_view text, Case mapping,
                                         std::string_view locale = {});
+
+/** The SIMPLE lower-case form of ONE code point: one code point in, one
+ * out, under no locale. It is the mapping to match text against a table
+ * with, because the result stands where its input stood and an offset into
+ * it still names the character it came from — where caseMap()'s full
+ * mapping may lengthen the text and lose that correspondence. A code point
+ * with no lower-case form is returned unchanged.
+ */
+[[nodiscard]] char32_t lowerCased(char32_t codePoint);
 
 // ── Segmentation ───────────────────────────────────────────────────────
 

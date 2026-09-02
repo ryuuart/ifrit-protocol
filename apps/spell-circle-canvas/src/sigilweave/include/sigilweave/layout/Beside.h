@@ -81,4 +81,38 @@ struct Beside {
 [[nodiscard]] std::u16string shareOfReading(std::u16string_view reading,
                                             float here, float next);
 
+/** WHERE A NOTE SET IN TWO LINES INSIDE ONE LINE OF ITS BASE IS CUT, and
+ *  what room it then needs — warichu, the aside a text sets small and
+ *  doubled inside the line it interrupts rather than beside it.
+ *
+ *  The cut is the break opportunity that leaves the two lines CLOSEST IN
+ *  ADVANCE, because two lines of one length is what makes the note read as
+ *  one object rather than as a line with something under it. The note's
+ *  size is its own style's, as everything beside a base is: nothing here
+ *  halves anything.
+ */
+struct WarichuSplit {
+  float advance = 0;     ///< the wider of the two lines
+  float band = 0;        ///< the depth the two lines stack into
+  uint32_t cutWord = 0;  ///< the note's first word on the second line
+};
+
+/** The cut, the advance and the band a two-line note needs. A note of one
+ *  word is one line, and says so with `cutWord` past its last word. */
+[[nodiscard]] WarichuSplit warichuSplit(FontContext& fontContext,
+                                        Paragraph& note);
+
+/** Lays `note` out as two lines inside `slot` and returns where it landed.
+ *
+ *  `slot` is the inline box the note occupies in the base's flow — the
+ *  room a placeholder reserved for it — and the two lines stack across it,
+ *  down the box in a horizontal setting and across it in a vertical one,
+ *  in the note's own writing mode. A slot narrower than the split's
+ *  advance sets the note anyway: the note is the caller's to size.
+ */
+[[nodiscard]] ParagraphLayout layoutWarichu(FontContext& fontContext,
+                                            Paragraph& note,
+                                            const SkRect& slot,
+                                            WritingMode writingMode);
+
 }  // namespace sigil::weave

@@ -133,6 +133,26 @@ class Paragraph {
    * `ParagraphLayoutOptions::kinsoku` before it analyzes.
    */
   void setKinsoku(KinsokuTable table);
+  /** THIS PARAGRAPH, TOLD APART FROM EVERY OTHER — a number issued once
+   * when it is built and never issued again, so a cache keyed on it cannot
+   * be answered for a different paragraph that happens to stand where a
+   * freed one stood.
+   */
+  [[nodiscard]] uint64_t identity() const { return m_identity; }
+
+  /** A NUMBER THAT CHANGES WHENEVER THE WORD LIST CAN HAVE CHANGED — an
+   * edit, a restyle, a change of break settings. Anything that keeps an
+   * answer computed from this paragraph's WORDS keys on it, and a change
+   * of content is then a miss rather than a stale answer. It is not the
+   * text revision above, which counts edits alone and stands still while a
+   * style or a break setting moves every word in the paragraph.
+   *
+   * Shaping more of the text does NOT change it: a word's advance is
+   * settled when the word is shaped and never moves after, so an answer
+   * computed over the words a pass had shaped stays the answer.
+   */
+  [[nodiscard]] uint64_t wordRevision() const { return m_wordRevision; }
+
   /** Sets the TAILORING the line segmentation runs under: a BCP 47 tag,
    * optionally carrying ICU's line-break keyword — "ja@lb=strict" is the
    * strict Japanese rule set a printed page is set under, "zh@lb=loose"
@@ -288,7 +308,10 @@ class Paragraph {
   [[nodiscard]] float naturalWidth(FontContext& fontContext);
 
  private:
-  void markDirty() { m_dirty = true; }
+  void markDirty() {
+    m_dirty = true;
+    ++m_wordRevision;
+  }
   // Paint edits only move span boundaries: analysis (words, scripts, bidi)
   // stands and the shaped prefix just needs its segments re-derived.
   void markPaintDirty() {
@@ -320,6 +343,11 @@ class Paragraph {
   HyphenationLimits m_hyphenationLimits;
   KinsokuTable m_kinsoku;
   bool m_dirty = true;
+  // Changes with everything that can move a word; see wordRevision().
+  uint64_t m_wordRevision = 1;
+  // Issued once per paragraph and never reissued; see identity().
+  uint64_t m_identity = nextIdentity();
+  static uint64_t nextIdentity();
   bool m_paintDirty = false;
 
   // Itemization results analyze() leaves behind for lazy shaping
