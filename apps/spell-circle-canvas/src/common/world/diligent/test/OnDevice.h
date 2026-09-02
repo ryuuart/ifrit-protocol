@@ -77,8 +77,8 @@ inline OnDevice<::sigil::geometry::mesh::render::Runtime> onPainterDevice() {
 
 /** LOOKING DOWN ON A SET from above and in front, which is where a body
  *  standing on a plate has both of them in view. */
-inline Camera raisedEye() {
-  Camera camera;
+inline geometry::mesh::camera::Camera raisedEye() {
+  geometry::mesh::camera::Camera camera;
   camera.eye = {0, 90, 240};
   camera.target = {0, 0, 0};
   return camera;
@@ -86,8 +86,8 @@ inline Camera raisedEye() {
 
 /** SQUARE ON TO A CARD, so what varies across the card is the surface
  *  and not the angle it is seen at. */
-inline Camera levelEye() {
-  Camera camera;
+inline geometry::mesh::camera::Camera levelEye() {
+  geometry::mesh::camera::Camera camera;
   camera.eye = {0, 0, 200};
   camera.target = {0, 0, 0};
   return camera;
@@ -115,7 +115,8 @@ inline Frame card(const material::Material& surface, SkISize extent) {
  *  declaration and not of how long anything took. */
 inline SkBitmap photograph(const Frame& frame,
                            const ::sigil::world::Runtime& executor,
-                           SkISize extent, const Camera& camera) {
+                           SkISize extent,
+                           const geometry::mesh::camera::Camera& camera) {
   motion::Ticker ticker;
   Scene scene(ticker);
   Frame copy = frame;

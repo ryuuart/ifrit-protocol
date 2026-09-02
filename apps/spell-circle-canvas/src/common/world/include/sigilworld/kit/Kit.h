@@ -78,7 +78,7 @@ struct Turntable {
 
 /** THE RAIL a turntable rides: a closed loop of `stations` points round
  *  `at`, at the table's radius and height. */
-Spline3 rail(const Turntable& table);
+geometry::mesh::curve::Spline3 rail(const Turntable& table);
 
 /** THE CAMERA at scene time @p seconds, as one element riding that rail
  *  and looking at the subject from wherever it has reached.

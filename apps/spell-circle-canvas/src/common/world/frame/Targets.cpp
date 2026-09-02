@@ -91,17 +91,18 @@ sk_sp<SkImage> Targets::previous(std::string_view name) const {
   return it == m_previous.end() ? nullptr : it->second;
 }
 
-Cloud* Targets::points(std::string_view name) {
+geometry::mesh::Cloud* Targets::points(std::string_view name) {
   return &m_points[std::string(name)];
 }
 
-const Cloud* Targets::points(std::string_view name) const {
+const geometry::mesh::Cloud* Targets::points(std::string_view name) const {
   const auto it = m_points.find(std::string(name));
   return it == m_points.end() ? nullptr : &it->second;
 }
 
-const Mesh* Targets::stamped(const Cloud& cloud, const Mesh& stamp,
-                             uint64_t* key) {
+const geometry::mesh::Mesh* Targets::stamped(const geometry::mesh::Cloud& cloud,
+                                             const geometry::mesh::Mesh& stamp,
+                                             uint64_t* key) {
   if (cloud.positions.empty() || stamp.positions.empty()) return nullptr;
   const uint64_t folded = stampKey(cloud, stamp);
   if (key) *key = folded;

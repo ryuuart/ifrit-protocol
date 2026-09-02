@@ -25,15 +25,14 @@
 #include <utility>
 #include <vector>
 
-#include "Programs.h"
 #include "Gpu.h"
+#include "Programs.h"
 #include "sigilworld/diligent/Painter.h"
 
 namespace sigil::world::diligent {
 
 namespace {
 
-namespace render = ::sigil::geometry::mesh::render;
 namespace camera = ::sigil::geometry::mesh::camera;
 
 /** How many emitters one draw carries. It is the array the program
@@ -47,7 +46,7 @@ constexpr size_t kLights = 8;
  *  value is copyable and two styles carrying copies of one runtime
  *  compare equal while two separately made runtimes do not — they hold
  *  separate targets, separate pipelines and separate uploads. */
-class PainterExecutor : public render::Executor {
+class PainterExecutor : public geometry::mesh::render::Executor {
  public:
   explicit PainterExecutor(std::shared_ptr<Gpu> gpu) : m_gpu(std::move(gpu)) {}
 
@@ -55,9 +54,10 @@ class PainterExecutor : public render::Executor {
     return m_gpu == other.m_gpu;
   }
 
-  void drawMesh(SkCanvas& canvas, const Mesh& mesh, const glm::mat4& model,
-                const camera::Camera& cam, SkSize viewport,
-                const render::MeshStyle& style) const override {
+  void drawMesh(SkCanvas& canvas, const geometry::mesh::Mesh& mesh,
+                const glm::mat4& model, const camera::Camera& cam,
+                SkSize viewport,
+                const geometry::mesh::render::MeshStyle& style) const override {
     const SkISize extent{(int)std::ceil(viewport.width()),
                          (int)std::ceil(viewport.height())};
     if (extent.isEmpty()) return;
@@ -74,8 +74,9 @@ class PainterExecutor : public render::Executor {
     // THE PRIMITIVE LANE makes the vertices unshared, so it is read at
     // upload rather than at the draw. Only the lit mode carries one: the
     // normal and uv buffers would be corrupted by a tint.
-    const bool tinted = !style.primColorLane.empty() &&
-                        style.mode == render::MeshStyle::Mode::Lit;
+    const bool tinted =
+        !style.primColorLane.empty() &&
+        style.mode == geometry::mesh::render::MeshStyle::Mode::Lit;
     const MeshBuffers* buffers =
         gpu.stream(mesh, tinted ? style.primColorLane : std::string_view{});
     if (!buffers) {
@@ -158,9 +159,11 @@ class PainterExecutor : public render::Executor {
  private:
   /** Every field of the style the program reads, at the offsets the
    *  compiler reported for them. */
-  static void writeUniforms(material::slang::Uniforms& uniforms, const material::slang::Compiled& program,
+  static void writeUniforms(material::slang::Uniforms& uniforms,
+                            const material::slang::Compiled& program,
                             const glm::mat4& model, const camera::Camera& cam,
-                            SkISize extent, const render::MeshStyle& style) {
+                            SkISize extent,
+                            const geometry::mesh::render::MeshStyle& style) {
     const glm::mat4 view = cam.view();
     const glm::mat4 modelView = view * model;
     uniforms.set("uViewProj", clipFor(cam, extent));
@@ -174,15 +177,16 @@ class PainterExecutor : public render::Executor {
                  style.baseColor.fB, style.baseColor.fA);
     uniforms.set("uAmbient", style.ambient.fR, style.ambient.fG,
                  style.ambient.fB, style.ambient.fA);
-    const float mode = style.mode == render::MeshStyle::Mode::Uv        ? 2.0f
-                       : style.mode == render::MeshStyle::Mode::Normals ? 1.0f
-                                                                        : 0.0f;
+    const float mode =
+        style.mode == geometry::mesh::render::MeshStyle::Mode::Uv        ? 2.0f
+        : style.mode == geometry::mesh::render::MeshStyle::Mode::Normals ? 1.0f
+                                                                         : 0.0f;
     uniforms.set("uMode", mode, style.lit ? 1.0f : 0.0f, 0.0f, 0.0f);
     uniforms.set("uTextureUv", mapMatrix(style.uvTransform));
 
     const size_t count = std::min(style.lights.size(), kLights);
     for (size_t i = 0; i < count; ++i) {
-      const render::Light& light = style.lights[i];
+      const geometry::mesh::render::Light& light = style.lights[i];
       const float direction[4] = {light.direction.x, light.direction.y,
                                   light.direction.z, 0.0f};
       const float colour[4] = {light.color.fR * light.intensity,
@@ -204,9 +208,9 @@ class PainterExecutor : public render::Executor {
 
 }  // namespace
 
-render::Runtime painterRuntime(Device& device) {
+geometry::mesh::render::Runtime painterRuntime(Device& device) {
   installSlangCompiler();
-  return render::Runtime{PainterExecutor{makeGpu(device)}};
+  return geometry::mesh::render::Runtime{PainterExecutor{makeGpu(device)}};
 }
 
 }  // namespace sigil::world::diligent

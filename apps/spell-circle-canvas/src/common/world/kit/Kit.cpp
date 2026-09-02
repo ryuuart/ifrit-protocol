@@ -66,8 +66,8 @@ Element threePoint(const Rig& rig) {
           rig.color, rig.intensity * rig.back, reach));
 }
 
-Spline3 rail(const Turntable& table) {
-  Spline3 spline;
+geometry::mesh::curve::Spline3 rail(const Turntable& table) {
+  geometry::mesh::curve::Spline3 spline;
   const int stations = table.stations < 3 ? 3 : table.stations;
   const float turn = 6.283185307179586f / (float)stations;
   for (int i = 0; i < stations; ++i) {
@@ -81,8 +81,8 @@ Spline3 rail(const Turntable& table) {
 }
 
 Element turntable(const Turntable& table, float seconds) {
-  const Spline3 track = rail(table);
-  Camera lens;
+  const geometry::mesh::curve::Spline3 track = rail(table);
+  geometry::mesh::camera::Camera lens;
   lens.eye = {0.0f, 0.0f, 0.0f};
   lens.target = {table.radius, -table.height, 0.0f};
   lens.fovYDeg = table.fovYDeg;

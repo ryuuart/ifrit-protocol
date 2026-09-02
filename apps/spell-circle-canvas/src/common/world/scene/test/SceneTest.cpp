@@ -33,11 +33,13 @@ using namespace std::chrono_literals;
 namespace {
 
 /** A flat body @p size across each way, facing the camera. */
-Mesh card(float size) { return geometry::mesh::quad(size * 2.0f, size * 2.0f); }
+geometry::mesh::Mesh card(float size) {
+  return geometry::mesh::quad(size * 2.0f, size * 2.0f);
+}
 
 /** A closed loop and a chain of stamps riding a window of it — the same
  *  VALUE wherever it is built, which is what makes it shareable. */
-Chain cometChain() {
+geometry::mesh::pop::Chain cometChain() {
   std::vector<glm::vec3> loop = {
       {-80, 0, 0}, {0, 60, 0}, {80, 0, 0}, {0, -60, 0}};
   return geometry::mesh::pop::on(loop)
@@ -46,8 +48,8 @@ Chain cometChain() {
       .spread(6.0f);
 }
 
-Camera frontCamera() {
-  Camera camera;
+geometry::mesh::camera::Camera frontCamera() {
+  geometry::mesh::camera::Camera camera;
   camera.eye = {0, 0, 320};
   camera.target = {0, 0, 0};
   return camera;
@@ -105,7 +107,7 @@ TEST_F(WorldScene, AGeometrySlotChangeKeepsTheNodeAndItsLanes) {
   const auto describe = [&lift](bool asCloud) {
     Element body = Element().key("body").translateY(&lift);
     if (asCloud) {
-      Cloud points;
+      geometry::mesh::Cloud points;
       points.positions = {{-20, 0, 0}, {20, 0, 0}};
       body.cloud(points).stamp(card(4));
     } else {
@@ -135,7 +137,7 @@ TEST_F(WorldScene, AGeometrySlotChangeKeepsTheNodeAndItsLanes) {
 }
 
 TEST_F(WorldScene, TwoNodesDescribingOneChainShareOneCook) {
-  const Chain chain = cometChain();
+  const geometry::mesh::pop::Chain chain = cometChain();
   Element root;
   root.key("root")
       .child(Element().key("left").chain(chain).stamp(card(3)).at({-40, 0, 0}))
@@ -262,7 +264,7 @@ TEST_F(WorldScene, ADrawIsAFunctionOfTheDescriptionAlone) {
 }
 
 TEST_F(WorldScene, EmittersAndViewpointsRideTheirNodesPlacement) {
-  Camera declared;
+  geometry::mesh::camera::Camera declared;
   declared.eye = {0, 0, 100};
   scene.render(Element().key("root").child(
       Element()
@@ -271,7 +273,7 @@ TEST_F(WorldScene, EmittersAndViewpointsRideTheirNodesPlacement) {
           .child(Element().key("eye").camera(declared))
           .child(Element().key("lamp").light(point({0, 20, 0})))));
 
-  const std::optional<Camera> camera = scene.camera();
+  const std::optional<geometry::mesh::camera::Camera> camera = scene.camera();
   ASSERT_TRUE(camera.has_value());
   EXPECT_FLOAT_EQ(camera->eye.x, 50.0f);
   EXPECT_FLOAT_EQ(camera->eye.z, 100.0f);

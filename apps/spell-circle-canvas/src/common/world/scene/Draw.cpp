@@ -22,9 +22,9 @@ namespace {
 
 /** An emitter as the mesh painter takes it: the one directional reading
  *  every tier that shades without a per-pixel position works from. */
-render::Light painterLight(const Light& light) {
+geometry::mesh::render::Light painterLight(const Light& light) {
   const light::Directional value = light::directional(light);
-  render::Light out;
+  geometry::mesh::render::Light out;
   out.direction = value.direction;
   out.color = SkColor4f{value.color.r, value.color.g, value.color.b, 1.0f};
   out.intensity = value.intensity;
@@ -34,7 +34,7 @@ render::Light painterLight(const Light& light) {
 /** The map a body is dressed with and whether the emitters reach it, put
  *  on the style — and taken off it again for a body carrying neither,
  *  since one style is reused across the whole list. */
-void dress(render::MeshStyle& style, const Draw& body) {
+void dress(geometry::mesh::render::MeshStyle& style, const Draw& body) {
   const Sampling sampling =
       body.texture ? samplingOf(*body.texture) : Sampling{};
   style.texture = sampling.image;
@@ -49,8 +49,8 @@ void dress(render::MeshStyle& style, const Draw& body) {
 
 }  // namespace
 
-void Scene::draw(SkCanvas& canvas, const Camera& camera,
-                 const render::Runtime& runtime) {
+void Scene::draw(SkCanvas& canvas, const geometry::mesh::camera::Camera& camera,
+                 const geometry::mesh::render::Runtime& runtime) {
   Impl& impl = *m_impl;
   // A frame with passes has already been performed, from the viewpoint
   // the tree or the frame declared; presenting it is the whole of the
@@ -76,7 +76,7 @@ void Scene::draw(SkCanvas& canvas, const Camera& camera,
   const SkSize viewport =
       SkSize::Make((float)layer.width(), (float)layer.height());
 
-  render::MeshStyle style;
+  geometry::mesh::render::MeshStyle style;
   style.runtime = runtime;
   if (!impl.lights.empty()) {
     style.lights.clear();
@@ -88,8 +88,11 @@ void Scene::draw(SkCanvas& canvas, const Camera& camera,
 
   // THE SKY FIRST, where the set shows one: it stands behind every body
   // in the frame.
-  render::drawBackdrop(canvas, style.environment, camera.projection(viewport.width() > 0 ? viewport.width() / viewport.height() : 1.0f),
-                       camera.view(), viewport);
+  geometry::mesh::render::drawBackdrop(
+      canvas, style.environment,
+      camera.projection(
+          viewport.width() > 0 ? viewport.width() / viewport.height() : 1.0f),
+      camera.view(), viewport);
 
   std::vector<Draw> bodies;
   impl.collectBodies(camera, bodies);
@@ -97,12 +100,14 @@ void Scene::draw(SkCanvas& canvas, const Camera& camera,
     style.baseColor = SkColor4f{body.baseColor.r, body.baseColor.g,
                                 body.baseColor.b, body.baseColor.a};
     dress(style, body);
-    render::drawMesh(canvas, *body.mesh, body.world, camera, viewport, style);
+    geometry::mesh::render::drawMesh(canvas, *body.mesh, body.world, camera,
+                                     viewport, style);
   }
 }
 
-void Scene::draw(SkCanvas& canvas, const render::Runtime& runtime) {
-  const std::optional<Camera> declared = camera();
+void Scene::draw(SkCanvas& canvas,
+                 const geometry::mesh::render::Runtime& runtime) {
+  const std::optional<geometry::mesh::camera::Camera> declared = camera();
   draw(canvas, declared ? *declared : m_impl->frame.camera(), runtime);
 }
 

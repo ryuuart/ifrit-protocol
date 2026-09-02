@@ -48,8 +48,6 @@
 
 namespace sigil::compose::layouts {
 
-namespace arrange = sigil::geometry::arrange;
-
 namespace detail {
 inline SkRect centeredAt(SkPoint center, SkSize size) {
   return SkRect::MakeXYWH(center.x() - size.width() / 2,
@@ -92,15 +90,17 @@ struct Radial {
     // A full circle spaces n children evenly (endpoint excluded); a
     // partial sweep includes both endpoints. The test is made in degrees,
     // the unit the author stated the sweep in.
-    const arrange::Turn turn = std::abs(std::abs(sweepDeg) - 360.0f) < 1e-3f
-                                   ? arrange::Turn::Closed
-                                   : arrange::Turn::Open;
+    const geometry::arrange::Turn turn =
+        std::abs(std::abs(sweepDeg) - 360.0f) < 1e-3f
+            ? geometry::arrange::Turn::Closed
+            : geometry::arrange::Turn::Open;
     const float start = startDeg * geometry::path::kDegToRad;
     const float sweep = sweepDeg * geometry::path::kDegToRad;
     for (size_t i = 0; i < n; ++i) {
       const float r = frac(i);
       rects[i] = detail::centeredAt(
-          arrange::onRing(i, n, {cx, cy}, {cx * r, cy * r}, start, sweep, turn),
+          geometry::arrange::onRing(i, n, {cx, cy}, {cx * r, cy * r}, start,
+                                    sweep, turn),
           in.childSizes[i]);
     }
     return rects;
@@ -140,12 +140,12 @@ struct AlongPath {
     // does around a ring, so the same run arithmetic answers both.
     const bool loop = resolved.isLastContourClosed() && startFraction == 0.0f &&
                       endFraction == 1.0f;
-    const arrange::Turn turn =
-        loop ? arrange::Turn::Closed : arrange::Turn::Open;
+    const geometry::arrange::Turn turn =
+        loop ? geometry::arrange::Turn::Closed : geometry::arrange::Turn::Open;
     for (size_t i = 0; i < n; ++i) {
       SkPoint pos;
-      if (contour->getPosTan(arrange::along(d0, d1 - d0, i, n, turn), &pos,
-                             nullptr))
+      if (contour->getPosTan(geometry::arrange::along(d0, d1 - d0, i, n, turn),
+                             &pos, nullptr))
         rects[i] = detail::centeredAt(pos, in.childSizes[i]);
     }
     return rects;
@@ -185,20 +185,21 @@ struct ModularGrid {
   std::vector<SkRect> place(const LayoutInput& in) const {
     const int cols = std::max(columns, 1);
     const SkSize gap{gutter, gutter};
-    const SkSize module =
-        arrange::moduleSize(in.container, cols, std::max(rows, 1), gap);
+    const SkSize module = geometry::arrange::moduleSize(in.container, cols,
+                                                        std::max(rows, 1), gap);
     std::vector<SkRect> rects(in.childSizes.size());
     for (size_t i = 0; i < in.childSizes.size(); ++i) {
       Span s;
       if (i < spans.size()) {
         s = spans[i];
       } else {  // auto-flow the overflow, one module each
-        const arrange::Cell cell = arrange::cellAt(i - spans.size(), cols);
+        const geometry::arrange::Cell cell =
+            geometry::arrange::cellAt(i - spans.size(), cols);
         s.col = cell.column;
         s.row = cell.row;
       }
-      rects[i] = arrange::cellRect({s.col, s.row}, module, gap, {0, 0},
-                                   s.colSpan, s.rowSpan);
+      rects[i] = geometry::arrange::cellRect({s.col, s.row}, module, gap,
+                                             {0, 0}, s.colSpan, s.rowSpan);
     }
     return rects;
   }
@@ -293,14 +294,16 @@ struct Scatter {
     const int rows = (int)std::ceil((float)n / (float)cols);
     // The regular grid the jitter is measured against is the same grid a
     // modular layout lays down: gapless modules filling the container.
-    const SkSize module = arrange::moduleSize(in.container, cols, rows, {0, 0});
+    const SkSize module =
+        geometry::arrange::moduleSize(in.container, cols, rows, {0, 0});
     for (size_t i = 0; i < n; ++i) {
       const float jx = core::noise::hash(seed, (uint32_t)(i * 2)) * jitter *
                        module.width() / 2;
       const float jy = core::noise::hash(seed, (uint32_t)(i * 2 + 1)) * jitter *
                        module.height() / 2;
-      const SkPoint cell =
-          arrange::cellRect(arrange::cellAt(i, cols), module).center();
+      const SkPoint cell = geometry::arrange::cellRect(
+                               geometry::arrange::cellAt(i, cols), module)
+                               .center();
       SkRect r =
           detail::centeredAt({cell.fX + jx, cell.fY + jy}, in.childSizes[i]);
       // Clamp into the container so jitter never clips children away.

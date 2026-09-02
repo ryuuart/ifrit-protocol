@@ -30,8 +30,6 @@
 
 using namespace sigil;
 namespace gm = sigil::geometry::mesh;
-namespace render = sigil::geometry::mesh::render;
-
 namespace {
 
 constexpr SkISize kExtent{160, 120};
@@ -58,22 +56,25 @@ bool identical(const SkBitmap& a, const SkBitmap& b) {
  *  a uv lane for a texture to land on. */
 gm::Mesh body() { return gm::superellipsoid({50, 50, 50}, 2.0f, 28, 20); }
 
-render::MeshStyle litStyle() {
-  render::MeshStyle style;
+geometry::mesh::render::MeshStyle litStyle() {
+  geometry::mesh::render::MeshStyle style;
   style.baseColor = {0.8f, 0.6f, 0.3f, 1.0f};
   style.lights = {
-      render::Light{{-0.4f, -0.8f, -0.4f}, SkColors::kWhite, 1.0f},
-      render::Light{
+      geometry::mesh::render::Light{
+          {-0.4f, -0.8f, -0.4f}, SkColors::kWhite, 1.0f},
+      geometry::mesh::render::Light{
           {0.6f, -0.2f, 0.5f}, SkColor4f{0.4f, 0.6f, 1.0f, 1.0f}, 0.6f}};
   return style;
 }
 
-SkBitmap drawnWith(const render::Runtime& runtime, render::MeshStyle style) {
+SkBitmap drawnWith(const geometry::mesh::render::Runtime& runtime,
+                   geometry::mesh::render::MeshStyle style) {
   style.runtime = runtime;
   SkBitmap bitmap = plate();
   SkCanvas canvas(bitmap);
-  render::drawMesh(canvas, body(), glm::mat4(1.0f),
-                   world::diligent::raisedEye(), kViewport, style);
+  geometry::mesh::render::drawMesh(canvas, body(), glm::mat4(1.0f),
+                                   world::diligent::raisedEye(), kViewport,
+                                   style);
   return bitmap;
 }
 
@@ -83,9 +84,9 @@ TEST(Painter, TheRuntimeIsAValue) {
   const auto on = world::diligent::onPainterDevice();
   if (!on) GTEST_SKIP() << on.error;
   EXPECT_TRUE((bool)on.runtime);
-  EXPECT_EQ(on.runtime, render::Runtime(on.runtime))
+  EXPECT_EQ(on.runtime, geometry::mesh::render::Runtime(on.runtime))
       << "copies of one runtime are one value";
-  EXPECT_NE(on.runtime, render::Runtime::cpu());
+  EXPECT_NE(on.runtime, geometry::mesh::render::Runtime::cpu());
   // Two separate calls hold separate device state, which is what a
   // reconciler asking "did the runtime change" has to be told.
   EXPECT_NE(on.runtime, world::diligent::painterRuntime(*on.device));
@@ -95,13 +96,14 @@ TEST(Painter, ASurfaceThatIsItsOwnLightIsBrighterThanALitOne) {
   const auto on = world::diligent::onPainterDevice();
   if (!on) GTEST_SKIP() << on.error;
 
-  render::MeshStyle unlit = litStyle();
+  geometry::mesh::render::MeshStyle unlit = litStyle();
   unlit.lit = false;
   // A sun aimed away leaves a lit body at its ambient; an unlit one
   // stands at its base colour whatever the emitters do. The device must
   // read the same field of the style the host does.
-  render::MeshStyle shaded = litStyle();
-  shaded.lights = {render::Light{{0, 0, 1}, SkColors::kWhite, 1.0f}};
+  geometry::mesh::render::MeshStyle shaded = litStyle();
+  shaded.lights = {
+      geometry::mesh::render::Light{{0, 0, 1}, SkColors::kWhite, 1.0f}};
   shaded.specular = 0;
   shaded.rim = 0;
 
@@ -119,8 +121,9 @@ TEST(Painter, ASurfaceThatIsItsOwnLightIsBrighterThanALitOne) {
   EXPECT_GT(brightness(own), brightness(lit));
   // …and the host says the same, which is what makes it the style's
   // answer rather than this executor's.
-  EXPECT_GT(brightness(drawnWith(render::Runtime::cpu(), unlit)),
-            brightness(drawnWith(render::Runtime::cpu(), shaded)));
+  EXPECT_GT(
+      brightness(drawnWith(geometry::mesh::render::Runtime::cpu(), unlit)),
+      brightness(drawnWith(geometry::mesh::render::Runtime::cpu(), shaded)));
 }
 
 TEST(Painter, APanelIsTheSamePixelsOnBothExecutors) {
@@ -140,13 +143,15 @@ TEST(Painter, APanelIsTheSamePixelsOnBothExecutors) {
 
   SkBitmap host = plate();
   SkCanvas hostCanvas(host);
-  render::drawPanel(hostCanvas, model, world::diligent::raisedEye(), kViewport,
-                    content, render::Runtime::cpu());
+  geometry::mesh::render::drawPanel(
+      hostCanvas, model, world::diligent::raisedEye(), kViewport, content,
+      geometry::mesh::render::Runtime::cpu());
 
   SkBitmap device = plate();
   SkCanvas deviceCanvas(device);
-  render::drawPanel(deviceCanvas, model, world::diligent::raisedEye(),
-                    kViewport, content, on.runtime);
+  geometry::mesh::render::drawPanel(deviceCanvas, model,
+                                    world::diligent::raisedEye(), kViewport,
+                                    content, on.runtime);
 
   // NOT a tolerance: a panel's content is Skia's to rasterise on either
   // executor, so the two must be the same bytes.

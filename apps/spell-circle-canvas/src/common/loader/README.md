@@ -17,7 +17,7 @@ what a consumer uses; every public header lives under
 | target | headers | holds |
 |--------|---------|-------|
 | `SigilLoaderSource` | `source/Source.h`, `source/Sink.h` | header only, standard library only: `Bytes`, the `ByteSource`, `ResolvingByteSource` and `Decoder` concepts, `AnyByteSource` (the type-erased source value), and the other direction — the `ByteSink` concept and `writeBytes()`, the one place a path and a run of bytes become a file |
-| `SigilLoaderHub`    | `hub/Hub.h`, `hub/Network.h` | the `Hub`, `ResourceInfo` and `ImageOptions`; `NetworkPolicy` and `networkCacheKey()` |
+| `SigilLoaderHub`    | `hub/Hub.h`, `hub/Network.h` | the `Hub` and `ResourceInfo`; `NetworkPolicy` and `networkCacheKey()` |
 
 `SigilLoader` is the umbrella target over both, and
 `<sigilloader/Loader.h>` the umbrella header. The hub is a `ByteSource`;
@@ -177,7 +177,7 @@ SigilLoader owns **access**: URIs, mounts, caching, hot reload, network
 fetch, the disk cache, and the file write. SigilImage owns **meaning**:
 format sniffing, decode and encode backends, probing, layer and channel
 semantics. The hub adds zero format knowledge of its own —
-`ImageOptions` is an alias for SigilImage's `DecodeOptions`,
+every image ask takes SigilImage's own `DecodeOptions`,
 `ResourceInfo` carries SigilImage's `ImageProbe`, every decode is a
 delegation, and `write()` takes bytes somebody else encoded. The
 dependency runs one way only: SigilImage does not know the hub exists,

@@ -16,7 +16,8 @@ using detail::isNetworkUri;
 using detail::localPath;
 using detail::readFile;
 
-std::string Hub::cacheKey(std::string_view uri, const ImageOptions* options) {
+std::string Hub::cacheKey(std::string_view uri,
+                          const image::DecodeOptions* options) {
   std::string key(uri);
   // Each option component rides behind a '\0' separator. No URI that
   // names a real resource can contain that byte, so an option suffix
@@ -101,10 +102,10 @@ std::shared_ptr<const void> Hub::loadView(const std::string& key,
 }
 
 std::shared_ptr<const sigil::image::ImageAsset> Hub::image(
-    std::string_view uri, const ImageOptions& options) {
+    std::string_view uri, const image::DecodeOptions& options) {
   using sigil::image::ImageAsset;
   const std::type_index type(typeid(ImageAsset));
-  if (options == ImageOptions{})
+  if (options == image::DecodeOptions{})
     return std::static_pointer_cast<const ImageAsset>(
         loadView(cacheKey(uri, nullptr), uri, type, registeredDecoder(type)));
   // A layer or a size is a different decode: its own entry, with the

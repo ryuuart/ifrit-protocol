@@ -5,19 +5,19 @@
  * by name.
  */
 
+#include <sigilcore/compute/Noise.h>
+
 #include <algorithm>
 #include <cmath>
 #include <numeric>
 
 #include "sigilgeometry/mesh/Vec.h"
 #include "sigilgeometry/mesh/pop/Points.h"
-#include "sigilgeometry/path/Noise.h"
 
 namespace sigil::geometry::mesh {
 
 // The tier's other features this file stands on, pulled in so the code
 // below reads as one vocabulary.
-namespace noise = path::noise;
 using curve::Frame3;
 using curve::Spline3;
 
@@ -94,9 +94,9 @@ Cloud scatterBox(glm::vec3 lo, glm::vec3 hi, int count, uint32_t seed) {
   out.positions.reserve((size_t)count);
   for (int i = 0; i < count; ++i) {
     out.positions.emplace_back(
-        lo.x + (hi.x - lo.x) * noise::pcgUnitNext(state),
-        lo.y + (hi.y - lo.y) * noise::pcgUnitNext(state),
-        lo.z + (hi.z - lo.z) * noise::pcgUnitNext(state));
+        lo.x + (hi.x - lo.x) * core::noise::pcgUnitNext(state),
+        lo.y + (hi.y - lo.y) * core::noise::pcgUnitNext(state),
+        lo.z + (hi.z - lo.z) * core::noise::pcgUnitNext(state));
   }
   std::vector<float>& t = out.scalar("t");
   for (int i = 0; i < count; ++i)
@@ -126,14 +126,15 @@ Cloud onMesh(const Mesh& mesh, int count, uint32_t seed) {
   std::vector<glm::vec3> pickedNormals;
   pickedNormals.reserve((size_t)count);
   for (int i = 0; i < count; ++i) {
-    const double target = (double)noise::pcgUnitNext(state) * total;
+    const double target = (double)core::noise::pcgUnitNext(state) * total;
     const size_t t = (size_t)(std::upper_bound(cumulative.begin(),
                                                cumulative.end(), target) -
                               cumulative.begin()) -
                      1;
     const size_t tri = std::min(t, triangles - 1);
     // Uniform barycentric.
-    float u = noise::pcgUnitNext(state), v = noise::pcgUnitNext(state);
+    float u = core::noise::pcgUnitNext(state),
+          v = core::noise::pcgUnitNext(state);
     if (u + v > 1) {
       u = 1 - u;
       v = 1 - v;

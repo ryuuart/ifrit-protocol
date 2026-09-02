@@ -147,10 +147,12 @@ class Pass {
   Pass& clear(SkColor4f colour);
   /** The points a compute pass cooks, and the executor it cooks them
    *  on. They land in the pass's first written resource. */
-  Pass& chain(Chain c, PopRuntime runtime = PopRuntime::cpu());
+  Pass& chain(geometry::mesh::pop::Chain c,
+              geometry::mesh::pop::Runtime runtime =
+                  geometry::mesh::pop::Runtime::cpu());
   /** The body a geometry pass stands at every point of every point set
    *  it reads. */
-  Pass& stamp(Mesh body);
+  Pass& stamp(geometry::mesh::Mesh body);
   /** Soften what the pass reads. A pass carries ONE post op, so this
    *  replaces whatever `levels` or `composite` set. */
   Pass& blur(float sigma);
@@ -181,9 +183,13 @@ class Pass {
   }
   [[nodiscard]] Selection realisation() const { return m_realisation; }
   [[nodiscard]] SkColor4f clear() const { return m_clear; }
-  [[nodiscard]] const Chain& chain() const { return m_chain; }
-  [[nodiscard]] const PopRuntime& popRuntime() const { return m_popRuntime; }
-  [[nodiscard]] const Mesh& stamp() const { return m_stamp; }
+  [[nodiscard]] const geometry::mesh::pop::Chain& chain() const {
+    return m_chain;
+  }
+  [[nodiscard]] const geometry::mesh::pop::Runtime& popRuntime() const {
+    return m_popRuntime;
+  }
+  [[nodiscard]] const geometry::mesh::Mesh& stamp() const { return m_stamp; }
   [[nodiscard]] const PostOp& op() const { return m_op; }
   [[nodiscard]] const PassBody& body() const { return m_body; }
 
@@ -205,9 +211,10 @@ class Pass {
   std::optional<::sigil::material::Material> m_variant;
   Selection m_realisation = Selection::Auto;
   SkColor4f m_clear{0.0f, 0.0f, 0.0f, 0.0f};
-  Chain m_chain;
-  PopRuntime m_popRuntime = PopRuntime::cpu();
-  Mesh m_stamp;
+  geometry::mesh::pop::Chain m_chain;
+  geometry::mesh::pop::Runtime m_popRuntime =
+      geometry::mesh::pop::Runtime::cpu();
+  geometry::mesh::Mesh m_stamp;
   PostOp m_op;
   PassBody m_body;
 };

@@ -36,7 +36,7 @@ struct Spun : Set {
     ctx.canvas(160, 120);
     ctx.background({0.05f, 0.05f, 0.08f, 1});
     ctx.captureAt(0.5);
-    world::Camera lens;
+    sigil::geometry::mesh::camera::Camera lens;
     lens.eye = {0, 90, 260};
     lens.target = {0, 0, 0};
     ctx.camera(lens);
@@ -58,8 +58,8 @@ struct Spun : Set {
  *  fallback its host hands in, and looking at a point that is not the
  *  origin, so that a viewpoint pivoting on the wrong one of the two is
  *  visible. */
-world::Camera framedLens() {
-  world::Camera lens;
+sigil::geometry::mesh::camera::Camera framedLens() {
+  sigil::geometry::mesh::camera::Camera lens;
   lens.eye = {180, 150, 320};
   lens.target = {40, 30, -10};
   lens.fovYDeg = 52;
@@ -71,7 +71,7 @@ struct Framed : Set {
   void setup(SetContext& ctx) override {
     ctx.canvas(160, 120);
     ctx.background({0.05f, 0.05f, 0.08f, 1});
-    world::Camera fallback;
+    sigil::geometry::mesh::camera::Camera fallback;
     fallback.eye = {0, 0, 900};
     ctx.camera(fallback);
   }
@@ -254,10 +254,10 @@ TEST(SetSession, OffersAViewpointAHostCanMove) {
 TEST(Orbit, ReadsACameraBackAsTheOrbitThatMakesIt) {
   // The two are exact inverses, which is what lets a host seed a control
   // from a set's own lens: moving it by nothing gives that lens back.
-  const world::Camera lens = framedLens();
+  const sigil::geometry::mesh::camera::Camera lens = framedLens();
   const Orbit orbit = orbitOf(lens);
   EXPECT_NEAR(orbit.distance, glm::length(lens.eye - lens.target), 1e-3f);
-  const world::Camera back = cameraAt(lens, orbit);
+  const sigil::geometry::mesh::camera::Camera back = cameraAt(lens, orbit);
   EXPECT_NEAR(back.eye.x, lens.eye.x, 1e-3f);
   EXPECT_NEAR(back.eye.y, lens.eye.y, 1e-3f);
   EXPECT_NEAR(back.eye.z, lens.eye.z, 1e-3f);

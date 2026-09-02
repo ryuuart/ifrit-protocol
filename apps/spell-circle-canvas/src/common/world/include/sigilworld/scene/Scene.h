@@ -30,8 +30,6 @@ class Ticker;
 
 namespace sigil::world {
 
-namespace render = ::sigil::geometry::mesh::render;
-
 /** A 3D SCENE, retained.
  *
  *  An author builds a fresh Element tree every frame and hands it to
@@ -79,17 +77,18 @@ class Scene {
    *  this presents the resource they wrote — the camera and the runtime
    *  are the ones the passes already used, and these arguments do not
    *  enter into it. */
-  void draw(SkCanvas& canvas, const Camera& camera,
-            const render::Runtime& runtime = render::Runtime::cpu());
+  void draw(SkCanvas& canvas, const geometry::mesh::camera::Camera& camera,
+            const geometry::mesh::render::Runtime& runtime =
+                geometry::mesh::render::Runtime::cpu());
   /** …and from the viewpoint the tree declared, if it declared one. A
    *  tree with no `camera()` in it draws from the frame's, and a frame
    *  that named none from the default Camera. */
-  void draw(SkCanvas& canvas,
-            const render::Runtime& runtime = render::Runtime::cpu());
+  void draw(SkCanvas& canvas, const geometry::mesh::render::Runtime& runtime =
+                                  geometry::mesh::render::Runtime::cpu());
 
   /** The viewpoint the tree declared, carried by its node's placement —
    *  the first one in tree order when there are several. */
-  [[nodiscard]] std::optional<Camera> camera() const;
+  [[nodiscard]] std::optional<geometry::mesh::camera::Camera> camera() const;
   /** The emitters the tree declared, each carried by its node's
    *  placement. */
   [[nodiscard]] std::vector<Light> lights() const;

@@ -30,8 +30,8 @@ namespace {
 
 constexpr SkISize kExtent{80, 80};
 
-Camera frontCamera() {
-  Camera camera;
+geometry::mesh::camera::Camera frontCamera() {
+  geometry::mesh::camera::Camera camera;
   camera.eye = {0, 0, 260};
   camera.target = {0, 0, 0};
   return camera;
@@ -39,7 +39,7 @@ Camera frontCamera() {
 
 /** Two squares side by side, the right one tagged "glow". */
 struct Bodies {
-  Mesh mesh = geometry::mesh::quad(80.0f, 80.0f);
+  geometry::mesh::Mesh mesh = geometry::mesh::quad(80.0f, 80.0f);
   std::vector<std::string> none;
   std::vector<std::string> glow = {"glow"};
   std::vector<Draw> draws;
@@ -256,7 +256,7 @@ TEST(WorldFrame, AComputePassCooksItsChainIntoThePointSetItWrites) {
   const Pass cook = cookMotes();
   Runtime::cpu()->execute(workOf(cook), bodies.view(), targets);
 
-  const Cloud* motes = targets.points("motes");
+  const geometry::mesh::Cloud* motes = targets.points("motes");
   ASSERT_NE(motes, nullptr);
   EXPECT_EQ(motes->size(), 48u);
 }
@@ -302,7 +302,7 @@ TEST(WorldFrame, AStillPointSetIsStampedOnceHoweverManyFramesDrawIt) {
   // …and a set that HAS moved is a second stamping, which is what makes
   // the first assertion a statement about the content and not about the
   // cache never missing.
-  Cloud* motes = targets.points("motes");
+  geometry::mesh::Cloud* motes = targets.points("motes");
   ASSERT_NE(motes, nullptr);
   motes->positions.front().x += 1.0f;
   Runtime::cpu()->execute(workOf(beads), empty, targets);

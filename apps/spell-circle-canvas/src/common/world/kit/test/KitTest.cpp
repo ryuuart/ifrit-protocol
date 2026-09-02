@@ -110,7 +110,7 @@ TEST(WorldKit, TheRigIsStatedInTheSubjectsOwnExtents) {
 
 TEST(WorldKit, TheTurntableRidesOneClosedRail) {
   kit::Turntable table;
-  const Spline3 track = kit::rail(table);
+  const geometry::mesh::curve::Spline3 track = kit::rail(table);
   EXPECT_TRUE(track.closed);
   EXPECT_EQ((int)track.points.size(), table.stations);
 
@@ -190,7 +190,7 @@ TEST(WorldKit, ARailIsAClosedLoopHoweverFewStationsItIsAskedFor) {
   // handing back a curve a camera cannot ride.
   kit::Turntable few;
   few.stations = 1;
-  const Spline3 track = kit::rail(few);
+  const geometry::mesh::curve::Spline3 track = kit::rail(few);
   EXPECT_TRUE(track.closed);
   EXPECT_EQ((int)track.points.size(), 3);
   EXPECT_GT(track.length(), 0.0f);

@@ -15,6 +15,7 @@
  */
 
 #include <benchmark/benchmark.h>
+#include <sigilgeometry/device/Device.h>
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/pop/Pop.h>
@@ -22,8 +23,6 @@
 #include <sigilmaterial/core/Recipe.h>
 #include <sigilmeasure/time/Stopwatch.h>
 #include <sigilmotion/clock/Ticker.h>
-#include <sigilgeometry/device/Device.h>
-#include <sigilgeometry/mesh/pop/Pop.h>
 #include <sigilworld/diligent/Runtime.h>
 #include <sigilworld/scene/Scene.h>
 
@@ -131,7 +130,7 @@ void BM_FrameOnDevice(benchmark::State& state) {
             .tag("lit"));
   }
 
-  Camera camera;
+  geometry::mesh::camera::Camera camera;
   camera.eye = {0, 160, 320};
   Frame frame(set);
   frame.extent({640, 480})

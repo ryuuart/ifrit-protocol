@@ -25,20 +25,6 @@
 
 namespace sigil::world {
 
-// The geometry currency, under the names a tree spells it. These are
-// SigilGeometry's own types reached by a shorter word, not second copies
-// of them: `world::Mesh` and `geometry::mesh::Mesh` name one entity.
-/** The geometry library's formed mesh — points, triangles and lanes. */
-using Mesh = geometry::mesh::Mesh;
-/** The geometry library's point cloud — positions and their lanes, with
- *  no faces. */
-using Cloud = geometry::mesh::Cloud;
-/** The geometry library's point chain: the description of a cloud, not
- *  the cloud, until a runtime cooks it. */
-using Chain = geometry::mesh::pop::Chain;
-/** The executor a point chain cooks on, carried as a comparable value. */
-using PopRuntime = geometry::mesh::pop::Runtime;
-
 /** Points, and the body standing at each of them. The stamp is oriented
  *  by the cloud's "normal" lane, scaled by its "size" lane and tinted by
  *  its "tint" lane wherever those lanes exist — the names every point
@@ -46,8 +32,8 @@ using PopRuntime = geometry::mesh::pop::Runtime;
  *  draws nothing, which is a legitimate node: the points are what a
  *  later pass reads. */
 struct Stamped {
-  Cloud cloud;
-  Mesh stamp;
+  geometry::mesh::Cloud cloud;
+  geometry::mesh::Mesh stamp;
 
   bool operator==(const Stamped&) const = default;
 };
@@ -57,9 +43,9 @@ struct Stamped {
  *  produce the same cloud from the same chain. The stamp is the body at
  *  each cooked point, on the same terms as Stamped's. */
 struct Chained {
-  Chain chain;
-  PopRuntime runtime = PopRuntime::cpu();
-  Mesh stamp;
+  geometry::mesh::pop::Chain chain;
+  geometry::mesh::pop::Runtime runtime = geometry::mesh::pop::Runtime::cpu();
+  geometry::mesh::Mesh stamp;
 
   bool operator==(const Chained&) const = default;
 };
@@ -79,7 +65,7 @@ class GeneratorOps {
   [[nodiscard]] virtual std::string name() const = 0;
   /** Build the geometry. Called once per distinct generator value, and
    *  never again while that value is in the tree. */
-  [[nodiscard]] virtual Mesh cook() const = 0;
+  [[nodiscard]] virtual geometry::mesh::Mesh cook() const = 0;
 };
 
 /** A generator carried as a comparable value. A model with `==` declares
@@ -91,14 +77,14 @@ using Generator = core::Erased<GeneratorOps>;
 
 /** THE GEOMETRY SLOT. An empty slot draws nothing — a node that is only
  *  a placement for its children, an emitter or a viewpoint. */
-using Geometry =
-    std::variant<std::monostate, Mesh, Stamped, Chained, Generator>;
+using Geometry = std::variant<std::monostate, geometry::mesh::Mesh, Stamped,
+                              Chained, Generator>;
 
 /** What a geometry slot cooks to: the points it produced, when it
  *  produced any, and the triangles a draw uses. Both may be empty. */
 struct Cooked {
-  Cloud cloud;
-  Mesh mesh;
+  geometry::mesh::Cloud cloud;
+  geometry::mesh::Mesh mesh;
 };
 
 /** Evaluate @p geometry. A Mesh is already cooked; a Stamped instances
@@ -119,7 +105,8 @@ Cooked cook(const Geometry& geometry);
  *  which is why this reads the bytes. It costs one pass over the cloud
  *  against forming its whole stamped mesh, which is the point count
  *  times the stamp's vertices. */
-uint64_t stampKey(const Cloud& cloud, const Mesh& stamp);
+uint64_t stampKey(const geometry::mesh::Cloud& cloud,
+                  const geometry::mesh::Mesh& stamp);
 
 /** A cheap signature over @p geometry: equal values always share one,
  *  unequal values usually do not. It reads counts and kinds rather than

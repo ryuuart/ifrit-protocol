@@ -34,10 +34,11 @@ bool transformEqual(const Transform& a, const Transform& b) {
          propEqual(a.axisDegrees, b.axisDegrees);
 }
 
-static_assert(core::kFieldCount<Spline3> == 3,
+static_assert(core::kFieldCount<geometry::mesh::curve::Spline3> == 3,
               "Spline3 gained or lost a field — rule on it in "
               "splineEqual() below, then bump this count.");
-bool splineEqual(const Spline3& a, const Spline3& b) {
+bool splineEqual(const geometry::mesh::curve::Spline3& a,
+                 const geometry::mesh::curve::Spline3& b) {
   return a.points == b.points && a.type == b.type && a.closed == b.closed;
 }
 
@@ -77,11 +78,11 @@ bool emissionEqual(const std::optional<Emission>& a,
          dialEqual(a->green, b->green) && dialEqual(a->blue, b->blue);
 }
 
-static_assert(core::kFieldCount<Camera> == 6,
+static_assert(core::kFieldCount<geometry::mesh::camera::Camera> == 6,
               "Camera gained or lost a field — rule on it in "
               "cameraEqual() below, then bump this count.");
-bool cameraEqual(const std::optional<Camera>& a,
-                 const std::optional<Camera>& b) {
+bool cameraEqual(const std::optional<geometry::mesh::camera::Camera>& a,
+                 const std::optional<geometry::mesh::camera::Camera>& b) {
   if (a.has_value() != b.has_value()) return false;
   if (!a) return true;
   return a->eye == b->eye && a->target == b->target && a->up == b->up &&

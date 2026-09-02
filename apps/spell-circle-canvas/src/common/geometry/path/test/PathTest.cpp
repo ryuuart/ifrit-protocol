@@ -11,6 +11,7 @@
 #include <include/core/SkMatrix.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkRect.h>
+#include <sigilcore/compute/Noise.h>
 
 #include <algorithm>
 #include <cmath>
@@ -435,27 +436,27 @@ TEST(Numeric, WrapIsPeriodicAndNonNegative) {
 
 TEST(Noise, HashIsDeterministicBoundedAndSeedSensitive) {
   for (uint32_t i = 0; i < 1000; ++i) {
-    const float v = noise::hash(7, i);
+    const float v = sigil::core::noise::hash(7, i);
     EXPECT_GE(v, -1.0f);
     EXPECT_LE(v, 1.0f);
-    EXPECT_EQ(v, noise::hash(7, i));
+    EXPECT_EQ(v, sigil::core::noise::hash(7, i));
   }
-  EXPECT_NE(noise::hash(7, 3), noise::hash(8, 3));
+  EXPECT_NE(sigil::core::noise::hash(7, 3), sigil::core::noise::hash(8, 3));
 }
 
 TEST(Noise, PcgStreamAndStatelessHashAgree) {
   uint32_t state = 42;
-  const uint32_t first = noise::pcgNext(state);
-  EXPECT_EQ(first, noise::pcgHash(42));
-  EXPECT_EQ(state, noise::pcgAdvance(42));
-  EXPECT_LT(noise::pcgUnit(42u), 1.0f);
-  EXPECT_GE(noise::pcgUnit(42u), 0.0f);
+  const uint32_t first = sigil::core::noise::pcgNext(state);
+  EXPECT_EQ(first, sigil::core::noise::pcgHash(42));
+  EXPECT_EQ(state, sigil::core::noise::pcgAdvance(42));
+  EXPECT_LT(sigil::core::noise::pcgUnit(42u), 1.0f);
+  EXPECT_GE(sigil::core::noise::pcgUnit(42u), 0.0f);
 }
 
 TEST(Noise, Value3IsSmoothAndBounded) {
-  float prev = noise::value3({0.5f, 0.5f, 0.5f}, 1);
+  float prev = valueNoise({0.5f, 0.5f, 0.5f}, 1);
   for (int i = 1; i <= 100; ++i) {
-    const float v = noise::value3({0.5f + i * 0.01f, 0.5f, 0.5f}, 1);
+    const float v = valueNoise({0.5f + i * 0.01f, 0.5f, 0.5f}, 1);
     EXPECT_GE(v, -1.0f);
     EXPECT_LE(v, 1.0f);
     EXPECT_LT(std::abs(v - prev), 0.1f);  // 0.01 steps never jump
@@ -672,30 +673,34 @@ TEST(CrossingPatch, TheLensIsBoundedByTheKnotsOwnTerritory) {
   EXPECT_LE(far.getBounds().width(), 13.0f);
 }
 
-
 // ---------------------------------------------------------------------------
 // The two coordinate systems a figure is measured in.
 
 TEST(Frame, TheConventionIsCarriedByTheValueAndNotByTheCallSite) {
-  const Frame skiaLike{.centre = {100, 100}, .radius = 50, .zero = Zero::East,
+  const Frame skiaLike{.centre = {100, 100},
+                       .radius = 50,
+                       .zero = Zero::East,
                        .sense = Sense::CW};
-  const Frame plate{.centre = {100, 100}, .radius = 50, .zero = Zero::North,
+  const Frame plate{.centre = {100, 100},
+                    .radius = 50,
+                    .zero = Zero::North,
                     .sense = Sense::CW};
   // 0 degrees is due east in one and twelve o'clock in the other, and
   // that is the whole reason this is a value.
   EXPECT_FLOAT_EQ(skiaLike.skiaDeg(0), 0.0f);
   EXPECT_FLOAT_EQ(plate.skiaDeg(0), -90.0f);
   // A counter-clockwise plate turns the other way from the same zero.
-  const Frame widdershins{
-      .centre = {100, 100}, .radius = 50, .zero = Zero::North,
-      .sense = Sense::CCW};
+  const Frame widdershins{.centre = {100, 100},
+                          .radius = 50,
+                          .zero = Zero::North,
+                          .sense = Sense::CCW};
   EXPECT_FLOAT_EQ(widdershins.skiaDeg(90), -180.0f);
   EXPECT_FLOAT_EQ(plate.skiaDeg(90), 0.0f);
 }
 
 TEST(Frame, PolarPointsAndTheArcLengthFractionRoundTrip) {
-  const Frame f{.centre = {0, 0}, .radius = 100, .zero = Zero::North,
-                .sense = Sense::CW};
+  const Frame f{
+      .centre = {0, 0}, .radius = 100, .zero = Zero::North, .sense = Sense::CW};
   const SkPoint north = f.at(0, 1.0f);
   EXPECT_NEAR(north.fX, 0.0f, 1e-3f);
   EXPECT_NEAR(north.fY, -100.0f, 1e-3f);
@@ -712,8 +717,11 @@ TEST(Frame, PolarPointsAndTheArcLengthFractionRoundTrip) {
 }
 
 TEST(Frame, DerivedFramesKeepTheConventionTheyCameFrom) {
-  const Frame f{.centre = {10, 20}, .radius = 80, .zero = Zero::North,
-                .sense = Sense::CCW, .originDeg = 4.5f};
+  const Frame f{.centre = {10, 20},
+                .radius = 80,
+                .zero = Zero::North,
+                .sense = Sense::CCW,
+                .originDeg = 4.5f};
   EXPECT_FLOAT_EQ(f.scaled(0.5f).radius, 40.0f);
   EXPECT_EQ(f.scaled(0.5f).zero, f.zero);
   EXPECT_EQ(f.about({0, 0}).sense, f.sense);

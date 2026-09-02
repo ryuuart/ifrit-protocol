@@ -152,7 +152,8 @@ TEST(GpuRuntime, ACookedChainMatchesTheHostCook) {
   namespace gm = ::sigil::geometry::mesh;
   const std::vector<glm::vec3> path = {
       {-100, 0, 0}, {0, 60, 0}, {100, 0, 0}, {0, -60, 0}};
-  const Chain chain = gm::pop::on(path).count(200).spread(6.0f);
+  const geometry::mesh::pop::Chain chain =
+      gm::pop::on(path).count(200).spread(6.0f);
 
   const auto cooked = [&](const Runtime& runtime) {
     motion::Ticker ticker;
@@ -165,7 +166,7 @@ TEST(GpuRuntime, ACookedChainMatchesTheHostCook) {
         .pass(geometryPass("colour").reads("points").writes("colour").stamp(
             gm::superellipsoid({4, 4, 4}, 2.0f, 6, 4)));
     scene.render(frame);
-    const Cloud* points = scene.targets().points("points");
+    const geometry::mesh::Cloud* points = scene.targets().points("points");
     return points ? points->positions : std::vector<glm::vec3>{};
   };
 
@@ -338,8 +339,8 @@ constexpr SkColor4f kGround{1.0f, 0.0f, 1.0f, 1.0f};
 
 /** A card facing the camera squarely, and a camera square onto it, so
  *  what varies across the card is the surface and nothing else. */
-Camera squareOn() {
-  Camera camera;
+geometry::mesh::camera::Camera squareOn() {
+  geometry::mesh::camera::Camera camera;
   camera.eye = {0, 0, 240};
   camera.target = {0, 0, 0};
   return camera;

@@ -13,6 +13,7 @@
 #include <benchmark/benchmark.h>
 #include <include/core/SkPath.h>
 #include <include/core/SkPathBuilder.h>
+#include <sigilcore/compute/Noise.h>
 #include <sigilgeometry/path/Contour.h>
 #include <sigilgeometry/path/Noise.h>
 #include <sigilgeometry/path/Polyline.h>
@@ -171,7 +172,7 @@ void BM_NoiseHash(benchmark::State& state) {
   uint32_t i = 0;
   float sink = 0;
   for ([[maybe_unused]] auto iteration : state) {
-    sink += noise::hash(7u, i++);
+    sink += sigil::core::noise::hash(7u, i++);
     benchmark::DoNotOptimize(sink);
   }
   state.counters["calls/s"] =
@@ -182,7 +183,7 @@ BENCHMARK(BM_NoiseHash);
 void BM_NoisePcgHash(benchmark::State& state) {
   uint32_t i = 0, sink = 0;
   for ([[maybe_unused]] auto iteration : state) {
-    sink ^= noise::pcgHash(i++);
+    sink ^= sigil::core::noise::pcgHash(i++);
     benchmark::DoNotOptimize(sink);
   }
   state.counters["calls/s"] =
@@ -194,7 +195,7 @@ void BM_NoiseValue3(benchmark::State& state) {
   float t = 0, sink = 0;
   for ([[maybe_unused]] auto iteration : state) {
     t += 0.37f;
-    sink += noise::value3({t, t * 0.5f, -t}, 11u);
+    sink += valueNoise({t, t * 0.5f, -t}, 11u);
     benchmark::DoNotOptimize(sink);
   }
   state.counters["calls/s"] =

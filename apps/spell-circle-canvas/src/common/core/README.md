@@ -524,7 +524,7 @@ retains, what a patch does to it, how children are ordered for drawing,
 which descriptions compare equal, which of its own values are volatile,
 and every artefact.
 The leaves are linked from well outside this library: SigilGeometry's
-path leaf names the mixers as its own `noise::`, its mesh and
+path leaf builds its value-noise field on the mixers, its mesh and
 point-operator runtimes are erased values, SigilWorld's geometry
 signature is an FNV fold and its element comparator sits under the pin,
 and SigilWeave's intercept cache keys with the stir. SigilCompose is one

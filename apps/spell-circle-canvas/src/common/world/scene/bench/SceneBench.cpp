@@ -20,8 +20,8 @@ using namespace sigil::world;
 
 namespace {
 
-Mesh triangle() {
-  Mesh m;
+geometry::mesh::Mesh triangle() {
+  geometry::mesh::Mesh m;
   m.positions = {{-4, -4, 0}, {4, -4, 0}, {0, 4, 0}};
   m.normals = {{0, 0, 1}, {0, 0, 1}, {0, 0, 1}};
   m.uvs = {{0, 0}, {1, 0}, {0.5f, 1}};
@@ -31,7 +31,7 @@ Mesh triangle() {
 
 /** One geometry for the whole tree, so the store's dedup is what the
  *  ladder measures rather than the cook. */
-Element describeTree(int nodes, const Mesh& body, float phase) {
+Element describeTree(int nodes, const geometry::mesh::Mesh& body, float phase) {
   Element root;
   root.key("root");
   for (int i = 0; i < nodes; ++i) {
@@ -49,7 +49,7 @@ Element describeTree(int nodes, const Mesh& body, float phase) {
 
 void MountTree(benchmark::State& state) {
   const int nodes = (int)state.range(0);
-  const Mesh body = triangle();
+  const geometry::mesh::Mesh body = triangle();
   motion::Ticker ticker;
   for ([[maybe_unused]] auto iteration : state) {
     Scene scene(ticker);
@@ -63,7 +63,7 @@ BENCHMARK(MountTree)->Arg(64)->Arg(512)->Arg(2048);
 
 void SteadyFrame(benchmark::State& state) {
   const int nodes = (int)state.range(0);
-  const Mesh body = triangle();
+  const geometry::mesh::Mesh body = triangle();
   motion::Ticker ticker;
   Scene scene(ticker);
   scene.render(describeTree(nodes, body, 0.0f));
@@ -80,7 +80,7 @@ BENCHMARK(SteadyFrame)->Arg(64)->Arg(512)->Arg(2048);
 
 void PrunedFrame(benchmark::State& state) {
   const int nodes = (int)state.range(0);
-  const Mesh body = triangle();
+  const geometry::mesh::Mesh body = triangle();
   motion::Ticker ticker;
   Scene scene(ticker);
   const Element still = describeTree(nodes, body, 0.0f);
@@ -99,11 +99,11 @@ BENCHMARK(PrunedFrame)->Arg(64)->Arg(512)->Arg(2048);
  *  has work to do and the transients take turns on their surfaces. */
 void FramePasses(benchmark::State& state) {
   const int nodes = (int)state.range(0);
-  const Mesh body = triangle();
+  const geometry::mesh::Mesh body = triangle();
   motion::Ticker ticker;
   Scene scene(ticker);
   float phase = 0.0f;
-  Camera lens;
+  geometry::mesh::camera::Camera lens;
   lens.eye = {0, 0, 620};
   const auto describe = [&](float at) {
     Frame frame(describeTree(nodes, body, at));
@@ -130,14 +130,14 @@ BENCHMARK(FramePasses)->Arg(64)->Arg(512);
 
 void DrawFrame(benchmark::State& state) {
   const int nodes = (int)state.range(0);
-  const Mesh body = triangle();
+  const geometry::mesh::Mesh body = triangle();
   motion::Ticker ticker;
   Scene scene(ticker);
   scene.render(describeTree(nodes, body, 0.0f));
   SkBitmap bitmap;
   bitmap.allocPixels(SkImageInfo::MakeN32Premul(320, 240));
   SkCanvas canvas(bitmap);
-  Camera camera;
+  geometry::mesh::camera::Camera camera;
   camera.eye = {0, 0, 480};
   for ([[maybe_unused]] auto iteration : state) scene.draw(canvas, camera);
   state.SetItemsProcessed(state.iterations() * nodes);

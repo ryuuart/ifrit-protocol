@@ -52,7 +52,7 @@ struct Placement {
  *  their whole life; the id names the artefact across its life and is
  *  never given to another, which an address cannot promise. */
 struct Body {
-  const Mesh* mesh = nullptr;
+  const geometry::mesh::Mesh* mesh = nullptr;
   uint64_t id = 0;
 };
 
@@ -192,7 +192,7 @@ struct Scene::Impl {
   Environment environment;
   glm::mat3 environmentOrientation{1.0f};
   std::string environmentKey;
-  std::optional<Camera> camera;
+  std::optional<geometry::mesh::camera::Camera> camera;
 
   std::vector<Lane> laneScratch;
   std::vector<Lane> prevLaneScratch;
@@ -302,11 +302,12 @@ struct Scene::Impl {
 
   /** The viewpoint the passes execute from: the tree's, or the frame's
    *  where the tree declared none. */
-  [[nodiscard]] Camera viewpoint() const;
+  [[nodiscard]] geometry::mesh::camera::Camera viewpoint() const;
   /** The extracted bodies, sorted back to front by view depth from
    *  @p camera — stably, so two at one depth stand in tree order. It is
    *  the one place components become the values a draw reads. */
-  void collectBodies(const Camera& camera, std::vector<Draw>& into) const;
+  void collectBodies(const geometry::mesh::camera::Camera& camera,
+                     std::vector<Draw>& into) const;
   /** Hands over what the frame before read back. */
   void deliverReadbacks();
 };

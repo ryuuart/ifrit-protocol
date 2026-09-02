@@ -70,13 +70,14 @@ Pass& Pass::clear(SkColor4f colour) {
   return *this;
 }
 
-Pass& Pass::chain(Chain c, PopRuntime runtime) {
+Pass& Pass::chain(geometry::mesh::pop::Chain c,
+                  geometry::mesh::pop::Runtime runtime) {
   m_chain = std::move(c);
   m_popRuntime = std::move(runtime);
   return *this;
 }
 
-Pass& Pass::stamp(Mesh body) {
+Pass& Pass::stamp(geometry::mesh::Mesh body) {
   m_stamp = std::move(body);
   return *this;
 }

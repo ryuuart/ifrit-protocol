@@ -21,7 +21,7 @@ Frame& Frame::extent(SkISize size) {
   return *this;
 }
 
-Frame& Frame::camera(Camera c) {
+Frame& Frame::camera(geometry::mesh::camera::Camera c) {
   m_camera = c;
   return *this;
 }

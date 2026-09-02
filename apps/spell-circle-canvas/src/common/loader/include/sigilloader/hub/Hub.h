@@ -72,10 +72,6 @@ struct ResourceInfo {
   sigil::image::ImageProbe image;
 };
 
-/** Image decode options come from SigilImage — the loader adds no
- *  format knowledge of its own. */
-using ImageOptions = sigil::image::DecodeOptions;
-
 /**
  * The resource hub: mount prefixes, ask for resources by URI.
  *
@@ -189,7 +185,7 @@ class Hub {
    *  it answers whatever load<ImageAsset>() answers; with a layer or
    *  size named it is its own decode in its own entry. */
   std::shared_ptr<const sigil::image::ImageAsset> image(
-      std::string_view uri, const ImageOptions& options = {});
+      std::string_view uri, const image::DecodeOptions& options = {});
 
   /** The raw decoded color data — every channel the source carries
    *  (EXR layers included) as named float planes; null on failure.
@@ -272,7 +268,7 @@ class Hub {
    *  suffixes never collide with URI content. Keys are write-only:
    *  nothing parses one back (entries carry their own uri). */
   static std::string cacheKey(std::string_view uri,
-                              const ImageOptions* options);
+                              const image::DecodeOptions* options);
 
   std::vector<std::pair<std::string, std::filesystem::path>> m_mounts;
   std::map<std::string, Entry, std::less<>> m_entries;

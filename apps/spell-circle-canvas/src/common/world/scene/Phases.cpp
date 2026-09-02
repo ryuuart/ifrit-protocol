@@ -72,7 +72,8 @@ Light placeLight(Light light, const glm::mat4& world) {
 }
 
 /** The viewpoint, carried the same way. */
-Camera placeCamera(Camera camera, const glm::mat4& world) {
+geometry::mesh::camera::Camera placeCamera(
+    geometry::mesh::camera::Camera camera, const glm::mat4& world) {
   camera.eye = glm::vec3(world * glm::vec4(camera.eye, 1.0f));
   camera.target = glm::vec3(world * glm::vec4(camera.target, 1.0f));
   camera.up = glm::mat3(world) * camera.up;
@@ -382,7 +383,7 @@ core::SubtreeVerdict Scene::Impl::foldVolatility(Instance& inst) {
 void Scene::Impl::writeComponents(Instance& inst) {
   const ElementNode& node = *inst.desc;
   registry.get<component::Placement>(inst.entity).world = inst.world;
-  const Mesh* mesh =
+  const geometry::mesh::Mesh* mesh =
       inst.resource && !inst.resource->cooked.mesh.indices.empty()
           ? &inst.resource->cooked.mesh
           : nullptr;

@@ -12,6 +12,8 @@
  * class, and the operators whose definition calls for a library sine.
  */
 
+#include <sigilcore/compute/Noise.h>
+
 #include <algorithm>
 #include <cmath>
 #include <map>
@@ -21,13 +23,11 @@
 
 #include "sigilgeometry/mesh/pop/Kernel.h"
 #include "sigilgeometry/mesh/pop/Pop.h"
-#include "sigilgeometry/path/Noise.h"
 
 namespace sigil::geometry::mesh {
 
 // The tier's other features this file stands on, pulled in so the code
 // below reads as one vocabulary.
-namespace noise = path::noise;
 using curve::Spline3;
 
 namespace {
@@ -242,7 +242,7 @@ size_t pop::seedLanes(const pop::Chain& chain, pop::Lanes* lanes) {
       const uint32_t seed = scatter->seed;
       const float u0 = ((float)i + 0.5f) / (float)count;
       const float t = scatter->head - scatter->span + scatter->span * u0 +
-                      (noise::pcgUnit((uint32_t)i * 3u + seed) - 0.5f) *
+                      (core::noise::pcgUnit((uint32_t)i * 3u + seed) - 0.5f) *
                           (scatter->span / (float)count) * 4.0f;
       const glm::vec3 p = spline.position(wrap01(t));
       glm::vec3 tangent = spline.position(wrap01(t + 0.002f)) -
@@ -255,9 +255,9 @@ size_t pop::seedLanes(const pop::Chain& chain, pop::Lanes* lanes) {
       n0 = n0 * (1.0f / glm::length(n0));
       const glm::vec3 b0 = glm::cross(tangent, n0);
       const float ang =
-          noise::pcgUnit((uint32_t)i * 7u + seed + 2u) * 6.2831853f;
+          core::noise::pcgUnit((uint32_t)i * 7u + seed + 2u) * 6.2831853f;
       const float rad =
-          std::sqrt(noise::pcgUnit((uint32_t)i * 5u + seed + 3u)) *
+          std::sqrt(core::noise::pcgUnit((uint32_t)i * 5u + seed + 3u)) *
           scatter->radius;
       const glm::vec3 placed =
           p + (n0 * std::cos(ang) + b0 * std::sin(ang)) * rad;

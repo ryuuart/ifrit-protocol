@@ -32,8 +32,6 @@
 
 namespace sigil::compose::instancing::place {
 
-namespace arrange = sigil::geometry::arrange;
-
 /** Row-major grid of cell-sized slots from @p origin. */
 inline void grid(Pool& pool, size_t count, int columns, SkSize cell,
                  SkPoint origin = {0, 0}, SkSize gap = {0, 0});
@@ -64,9 +62,9 @@ inline void grid(Pool& pool, size_t count, int columns, SkSize cell,
   // An instance sits at the CENTRE of its slot; a laid-out child is given
   // the whole rect. Same cells either way.
   for (size_t i = 0; i < count; ++i)
-    positions[i] =
-        arrange::cellRect(arrange::cellAt(i, columns), cell, gap, origin)
-            .center();
+    positions[i] = geometry::arrange::cellRect(
+                       geometry::arrange::cellAt(i, columns), cell, gap, origin)
+                       .center();
   pool.commit();
 }
 
@@ -79,9 +77,9 @@ inline void ring(Pool& pool, size_t count, SkPoint center, float radius,
   // than doubling it.
   const float sweep = geometry::path::kTau;
   for (size_t i = 0; i < count; ++i) {
-    const float a =
-        arrange::along(startRadians, sweep, i, count, arrange::Turn::Closed);
-    positions[i] = arrange::onEllipse(center, {radius, radius}, a);
+    const float a = geometry::arrange::along(startRadians, sweep, i, count,
+                                             geometry::arrange::Turn::Closed);
+    positions[i] = geometry::arrange::onEllipse(center, {radius, radius}, a);
     // faceOut turns each instance to look along its own spoke.
     if (faceOut) rotations[i] = a + geometry::path::kPi / 2.0f;
   }

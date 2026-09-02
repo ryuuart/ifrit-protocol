@@ -17,13 +17,13 @@
 #include <Graphics/GraphicsEngineVulkan/interface/RenderDeviceVk.h>
 // clang-format on
 
+#include <Graphics/GraphicsTools/interface/CommonlyUsedStates.h>
 #include <include/core/SkBitmap.h>
 #include <include/core/SkImageInfo.h>
 #include <sigilcore/hardware/GpuDevice.h>
 
 #include <Graphics/GraphicsAccessories/interface/GraphicsAccessories.hpp>
 #include <Graphics/GraphicsEngine/interface/GraphicsTypesX.hpp>
-#include <Graphics/GraphicsTools/interface/CommonlyUsedStates.h>
 #include <Graphics/GraphicsTools/interface/MapHelper.hpp>
 #include <algorithm>
 #include <cstring>
@@ -57,8 +57,8 @@ struct Vertex {
  *  A PRIMITIVE lane makes the vertices unshared: its value belongs to a
  *  triangle, and a vertex two triangles meet at cannot hold two of them.
  *  Without one the mesh's own indices stand. */
-void fillVertices(const Mesh& mesh, std::string_view primColorLane,
-                  std::vector<Vertex>* vertices,
+void fillVertices(const geometry::mesh::Mesh& mesh,
+                  std::string_view primColorLane, std::vector<Vertex>* vertices,
                   std::vector<uint32_t>* indices) {
   const size_t n = mesh.vertexCount();
   const bool hasNormals = mesh.normals.size() == n;
@@ -432,7 +432,8 @@ void Gpu::endFrame() {
   }
 }
 
-const MeshBuffers* Gpu::upload(uint64_t artefact, const Mesh& mesh,
+const MeshBuffers* Gpu::upload(uint64_t artefact,
+                               const geometry::mesh::Mesh& mesh,
                                std::string_view primColorLane) {
   if (mesh.positions.empty() || mesh.indices.size() < 3) return nullptr;
   MeshBuffers& buffers = meshes[artefact];
@@ -466,7 +467,7 @@ const MeshBuffers* Gpu::upload(uint64_t artefact, const Mesh& mesh,
   return buffers.vertices && buffers.indices ? &buffers : nullptr;
 }
 
-const MeshBuffers* Gpu::stream(const Mesh& mesh,
+const MeshBuffers* Gpu::stream(const geometry::mesh::Mesh& mesh,
                                std::string_view primColorLane) {
   if (mesh.positions.empty() || mesh.indices.size() < 3) return nullptr;
   std::vector<Vertex> vertices;
@@ -602,7 +603,8 @@ const Pipeline* Gpu::pipeline(const PipelineKey& key) {
   return placed->second.state ? &placed->second : nullptr;
 }
 
-void bindAndCommit(Gpu& gpu, const Pipeline& pipeline, const material::slang::Compiled& program,
+void bindAndCommit(Gpu& gpu, const Pipeline& pipeline,
+                   const material::slang::Compiled& program,
                    const material::slang::Uniforms& values,
                    const std::vector<dg::ITexture*>& textures,
                    SkFilterMode filter, bool tile,
@@ -640,9 +642,8 @@ void bindAndCommit(Gpu& gpu, const Pipeline& pipeline, const material::slang::Co
     // way at all: its u axis is periodic where its v axis ends at the
     // poles, and its levels are prefiltered images a roughness reads
     // across rather than a filtering aid.
-    const bool panorama =
-        panoramaSlot && panoramaSlot(program.textures[i]) &&
-        gpu.shared.panoramaSampler() != nullptr;
+    const bool panorama = panoramaSlot && panoramaSlot(program.textures[i]) &&
+                          gpu.shared.panoramaSampler() != nullptr;
     view->SetSampler(panorama ? gpu.shared.panoramaSampler()
                               : gpu.shared.samplerFor(filter, tile));
     if (dg::IShaderResourceVariable* variable =

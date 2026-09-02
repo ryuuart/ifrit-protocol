@@ -101,7 +101,8 @@ Element& Element::transform(const glm::mat4& matrix) {
   m_node->transform.matrix = matrix;
   return *this;
 }
-Element& Element::along(Spline3 spline, motion::Animatable<float> distance) {
+Element& Element::along(geometry::mesh::curve::Spline3 spline,
+                        motion::Animatable<float> distance) {
   m_node->along = Along{std::move(spline), std::move(distance)};
   return *this;
 }
@@ -129,7 +130,7 @@ namespace {
 /** The stamp a slot is carrying, taken out of it — so `cloud()` and
  *  `chain()` can replace what holds it without dropping the body that
  *  was already declared. */
-Mesh takeStamp(Geometry& geometry) {
+geometry::mesh::Mesh takeStamp(Geometry& geometry) {
   if (auto* stamped = std::get_if<Stamped>(&geometry))
     return std::move(stamped->stamp);
   if (auto* chained = std::get_if<Chained>(&geometry))
@@ -139,26 +140,27 @@ Mesh takeStamp(Geometry& geometry) {
 
 }  // namespace
 
-Element& Element::mesh(Mesh m) {
+Element& Element::mesh(geometry::mesh::Mesh m) {
   m_node->geometry = std::move(m);
   return *this;
 }
 
-Element& Element::cloud(Cloud c) {
+Element& Element::cloud(geometry::mesh::Cloud c) {
   ElementNode* node = m_node.operator->();
-  Mesh stamp = takeStamp(node->geometry);
+  geometry::mesh::Mesh stamp = takeStamp(node->geometry);
   node->geometry = Stamped{std::move(c), std::move(stamp)};
   return *this;
 }
 
-Element& Element::chain(Chain c, PopRuntime runtime) {
+Element& Element::chain(geometry::mesh::pop::Chain c,
+                        geometry::mesh::pop::Runtime runtime) {
   ElementNode* node = m_node.operator->();
-  Mesh stamp = takeStamp(node->geometry);
+  geometry::mesh::Mesh stamp = takeStamp(node->geometry);
   node->geometry = Chained{std::move(c), std::move(runtime), std::move(stamp)};
   return *this;
 }
 
-Element& Element::stamp(Mesh s) {
+Element& Element::stamp(geometry::mesh::Mesh s) {
   ElementNode* node = m_node.operator->();
   Geometry& geometry = node->geometry;
   if (auto* stamped = std::get_if<Stamped>(&geometry))
@@ -265,7 +267,7 @@ Element& Element::backdropBlur(motion::Animatable<float> v) {
   return *this;
 }
 
-Element& Element::camera(Camera c) {
+Element& Element::camera(geometry::mesh::camera::Camera c) {
   m_node->camera = c;
   return *this;
 }

@@ -30,8 +30,9 @@ namespace sigil::sketch {
 struct SetContext {
   Assets& assets;
   weave::FontContext& fonts;
-  CanvasSpec* spec = nullptr;    ///< host-owned; written via the calls below
-  world::Camera* eye = nullptr;  ///< host-owned; the fallback viewpoint
+  CanvasSpec* spec = nullptr;  ///< host-owned; written via the calls below
+  geometry::mesh::camera::Camera* eye =
+      nullptr;  ///< host-owned; the fallback viewpoint
 
   /** Declare the plate's size in pixels. */
   void canvas(int width, int height) {
@@ -49,7 +50,7 @@ struct SetContext {
   /** The viewpoint, unless the tree declares one of its own — a set that
    *  puts a camera on a rail says so in its description and leaves this
    *  alone. */
-  void camera(const world::Camera& lens) {
+  void camera(const geometry::mesh::camera::Camera& lens) {
     if (eye) *eye = lens;
   }
 };
@@ -115,7 +116,7 @@ template <class SetType>
 
 /** THE ORBIT @p camera ALREADY STANDS AT: yaw and pitch in degrees about
  *  its target, and the distance from it. */
-[[nodiscard]] Orbit orbitOf(const world::Camera& camera);
+[[nodiscard]] Orbit orbitOf(const geometry::mesh::camera::Camera& camera);
 
 /** @p pivot moved onto @p orbit — the same target, the same up axis and
  *  the same lens, with the eye put where the yaw, the pitch and the
@@ -125,7 +126,8 @@ template <class SetType>
  *  hold of a set's own viewpoint rather than replacing it with one of
  *  its own: seeding a control from the set's camera and moving it by
  *  nothing gives back that camera. */
-[[nodiscard]] world::Camera cameraAt(const world::Camera& pivot, Orbit orbit);
+[[nodiscard]] geometry::mesh::camera::Camera cameraAt(
+    const geometry::mesh::camera::Camera& pivot, Orbit orbit);
 
 /** THE RUNTIME EVERY SET SESSION DRAWS THROUGH, for this process.
  *

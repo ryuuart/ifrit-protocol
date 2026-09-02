@@ -24,11 +24,11 @@ constexpr std::span<const std::string> kNoWords;
 
 }  // namespace
 
-Camera Scene::Impl::viewpoint() const {
+geometry::mesh::camera::Camera Scene::Impl::viewpoint() const {
   return camera ? *camera : frame.camera();
 }
 
-void Scene::Impl::collectBodies(const Camera& eye,
+void Scene::Impl::collectBodies(const geometry::mesh::camera::Camera& eye,
                                 std::vector<Draw>& into) const {
   into.clear();
   // Back to front by view depth, so a nearer body covers a farther one

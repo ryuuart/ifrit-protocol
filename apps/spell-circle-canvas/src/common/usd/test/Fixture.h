@@ -16,11 +16,11 @@
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilmaterial/kit/Surface.h>
 #include <sigilusd/runtime/Runtime.h>
+#include <unistd.h>
 
 #include <cstddef>
 #include <filesystem>
 #include <string>
-#include <unistd.h>
 #include <utility>
 #include <vector>
 

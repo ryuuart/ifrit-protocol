@@ -32,7 +32,7 @@ library that is not here.
 | `scene/` | `SigilWorldScene` | `sigil::world` | the retained side: the reconcile host, the entity store, the content-keyed resource store, the declared phases, the execution of a frame's passes, and the draw. |
 | `light/` | `SigilWorldLight` | `sigil::world::light` | emitters as plain comparable values over glm: a sun, a point light, a spot, their falloffs and the per-frame budget. |
 | `kit/` | `SigilWorldKit` | `sigil::world::kit` | presets that compose elements: a three-point rig, a turntable, and the lit set both make over a ground plane. Nothing here decides a look. |
-| `diligent/` | `SigilWorldDiligent` | `sigil::world::diligent` | the programs this backend draws with — the scaffold, the sky, the mesh painter and the post stages, compiled through SigilMaterial's Slang backend — and the two seam values that stand on that device: the `Runtime` that performs a frame's passes and the `render::Runtime` that draws a mesh onto a canvas — plus `importNative`, the door a foreign texture reaches a material slot by. The chain cook and the swept rings are SigilGeometry's own device executors, beside the CPU ones of the same seams. |
+| `diligent/` | `SigilWorldDiligent` | `sigil::world::diligent` | the programs this backend draws with — the scaffold, the sky, the mesh painter and the post stages, compiled through SigilMaterial's Slang backend — and the two seam values that stand on that device: the `Runtime` that performs a frame's passes and the `geometry::mesh::render::Runtime` that draws a mesh onto a canvas — plus `importNative`, the door a foreign texture reaches a material slot by. The chain cook and the swept rings are SigilGeometry's own device executors, beside the CPU ones of the same seams. |
 | — | `SigilWorld` | — | the umbrella: an interface target over every feature above, and `<sigilworld/World.h>`, which is their public headers in one include. A consumer of the whole library names only this; the device feature is in it where it was built. |
 
 ## Writing a scene
@@ -217,8 +217,8 @@ a tree prunes on a node.
 | `variant(Material)` | …drawn again in that surface |
 | `realise(Selection)` | override how the selection reaches the pixels |
 | `clear(SkColor4f)` | what a geometry pass clears its target to |
-| `chain(Chain, PopRuntime)` | the points a compute pass cooks, into the point set it writes |
-| `stamp(Mesh)` | the body a geometry pass stands at every point of every point set it reads |
+| `chain(geometry::mesh::pop::Chain, geometry::mesh::pop::Runtime)` | the points a compute pass cooks, into the point set it writes |
+| `stamp(geometry::mesh::Mesh)` | the body a geometry pass stands at every point of every point set it reads |
 | `blur(sigma)` / `levels(gain, lift, tint)` / `composite(mode, opacity)` | what a post pass does to what it reads |
 | `body(…)` | THE ESCAPE: a callable handed the extracted `View` and the frame's `Targets`, which runs instead of the stage's own work and keeps its declarations |
 
@@ -764,7 +764,7 @@ carries.
 otherwise.** A canvas does not name the texture behind it, so there is
 nothing to compare against this device to decide that the pixels could be
 bound where they stand — the zero-copy path SigilSkia offers needs a
-caller holding both the surface and the device, and a `render::Executor`
+caller holding both the surface and the device, and a `geometry::mesh::render::Executor`
 is handed neither.
 
 **Each mesh draw is a device frame of its own**, because the heap a

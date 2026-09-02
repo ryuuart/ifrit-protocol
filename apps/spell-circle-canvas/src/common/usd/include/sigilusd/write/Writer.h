@@ -14,8 +14,8 @@
  * custom metadata rather than baked.
  */
 
-#include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
+#include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/pop/Points.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilworld/element/Environment.h>

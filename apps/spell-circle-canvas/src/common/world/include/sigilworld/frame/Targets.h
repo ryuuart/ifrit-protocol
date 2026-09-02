@@ -62,8 +62,9 @@ class Targets {
   [[nodiscard]] sk_sp<SkImage> previous(std::string_view name) const;
 
   /** The point set @p name, made empty on the first ask. */
-  Cloud* points(std::string_view name);
-  [[nodiscard]] const Cloud* points(std::string_view name) const;
+  geometry::mesh::Cloud* points(std::string_view name);
+  [[nodiscard]] const geometry::mesh::Cloud* points(
+      std::string_view name) const;
 
   /** @p cloud STAMPED with @p stamp, formed once per distinct pair and
    *  kept while both stand. Null when there is nothing to stamp.
@@ -82,8 +83,9 @@ class Targets {
    *  @p key, when given, receives the number this stamping is held
    *  under — for a tier that keys an upload by the same one, so that the
    *  fold is paid once per frame and not twice. */
-  const Mesh* stamped(const Cloud& cloud, const Mesh& stamp,
-                      uint64_t* key = nullptr);
+  const geometry::mesh::Mesh* stamped(const geometry::mesh::Cloud& cloud,
+                                      const geometry::mesh::Mesh& stamp,
+                                      uint64_t* key = nullptr);
 
   /** How many stamped meshes have been FORMED here, over the store's
    *  whole life. A frame drawing a set that has not moved must not move
@@ -122,10 +124,10 @@ class Targets {
   std::map<std::string, sk_sp<SkSurface>> m_own;
   std::map<std::string, sk_sp<SkImage>> m_previous;
   std::set<std::string> m_kept;
-  std::map<std::string, Cloud> m_points;
+  std::map<std::string, geometry::mesh::Cloud> m_points;
   /** A formed stamping and the frame it was last asked for in. */
   struct Stamping {
-    Mesh mesh;
+    geometry::mesh::Mesh mesh;
     uint64_t used = 0;
   };
   std::map<uint64_t, Stamping> m_stamped;

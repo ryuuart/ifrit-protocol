@@ -5,20 +5,20 @@
 
 #include "sigilgeometry/path/Ops.h"
 
-#include <include/core/SkPaint.h>
 #include <include/core/SkContourMeasure.h>
+#include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkPathEffect.h>
 #include <include/core/SkPathUtils.h>
 #include <include/core/SkStrokeRec.h>
 #include <include/effects/SkCornerPathEffect.h>
 #include <include/pathops/SkPathOps.h>
+#include <sigilcore/compute/Noise.h>
 
 #include <algorithm>
 #include <cmath>
 #include <glm/geometric.hpp>
 
-#include "sigilgeometry/path/Noise.h"
 #include "sigilgeometry/path/Numeric.h"
 #include "sigilgeometry/path/Polyline.h"
 
@@ -113,7 +113,8 @@ SkPath Roughen::apply(const SkPath& path) const {
     const uint32_t base = seed + contourIndex++ * 7919u;
     for (size_t i = 0; i < samples.points.size(); ++i) {
       const glm::vec2 n = normalAt(samples.points, i, samples.closed);
-      samples.points[i] += n * (noise::hash(base, (uint32_t)i) * amplitude);
+      samples.points[i] +=
+          n * (core::noise::hash(base, (uint32_t)i) * amplitude);
     }
   });
 }
@@ -182,7 +183,6 @@ PathOp chain(std::vector<PathOp> steps) {
     return current;
   };
 }
-
 
 // ---------------------------------------------------------------------------
 // Corner and displacement treatments over a POLYLINE contour.

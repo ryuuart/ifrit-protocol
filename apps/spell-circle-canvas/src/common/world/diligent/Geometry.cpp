@@ -100,7 +100,8 @@ Surface surfaceOf(const material::Material* material, bool lit) {
   const material::Material::Resolved resolved = material->resolve(
       material::Target::Slang, material::FrameData{}, variant);
   const auto* program =
-      resolved.program ? resolved.program->as<material::slang::SlangProgram>() : nullptr;
+      resolved.program ? resolved.program->as<material::slang::SlangProgram>()
+                       : nullptr;
   if (!program) {
     // The cache has already reported the recipe and the target; the body
     // it would have painted is drawn in the colour the frame extracted,
@@ -120,7 +121,8 @@ Surface surfaceOf(const material::Material* material, bool lit) {
  *  A 3x3 is the one field whose bytes are not already in the order the
  *  shader reads them in: the params hold it column by column, the way
  *  glm does, and the program reads it row by row. */
-void writeMaterial(material::slang::Uniforms& uniforms, const Surface& surface) {
+void writeMaterial(material::slang::Uniforms& uniforms,
+                   const Surface& surface) {
   if (!surface.recipe) return;
   for (const material::Field& field : surface.recipe->layout().fields) {
     const size_t bytes = field.floats * sizeof(float);
@@ -140,7 +142,8 @@ void writeMaterial(material::slang::Uniforms& uniforms, const Surface& surface) 
 
 /** Everything a draw's scaffold needs: where the body stands, where the
  *  camera is, and what is shining on it. */
-void writeScaffold(material::slang::Uniforms& uniforms, const material::slang::Compiled& program,
+void writeScaffold(material::slang::Uniforms& uniforms,
+                   const material::slang::Compiled& program,
                    const glm::mat4& viewProj, const glm::mat4& view,
                    const glm::mat4& model, glm::vec4 baseColor,
                    std::span<const Light> lights, const Environment& sky,
@@ -175,10 +178,10 @@ void writeScaffold(material::slang::Uniforms& uniforms, const material::slang::C
   // The shading is written in view space and a panorama is of the world,
   // so a direction goes out through the view's inverse and then into the
   // frame the node that placed the sky put it in.
-  uniforms.set("uEnvMatrix",
-               glm::mat4(orientation * glm::transpose(
-                                           glm::mat3(glm::inverseTranspose(
-                                               glm::mat3(view))))));
+  uniforms.set(
+      "uEnvMatrix",
+      glm::mat4(orientation * glm::transpose(glm::mat3(
+                                  glm::inverseTranspose(glm::mat3(view))))));
   const size_t count = std::min(lights.size(), kLights);
   for (size_t i = 0; i < count; ++i) {
     const light::Directional value = light::directional(lights[i]);
@@ -195,11 +198,11 @@ void writeScaffold(material::slang::Uniforms& uniforms, const material::slang::C
 
 /** One body, drawn. @p map is the texture it is dressed with, or null. */
 void drawBody(Gpu& gpu, const glm::mat4& viewProj, const glm::mat4& view,
-              uint64_t artefact, const Mesh& mesh, const glm::mat4& model,
-              glm::vec4 baseColor, const material::Material* material,
-              const material::Texture* map, std::span<const Light> lights,
-              const Environment& sky, const glm::mat3& orientation, bool lit,
-              bool depthWrite) {
+              uint64_t artefact, const geometry::mesh::Mesh& mesh,
+              const glm::mat4& model, glm::vec4 baseColor,
+              const material::Material* material, const material::Texture* map,
+              std::span<const Light> lights, const Environment& sky,
+              const glm::mat3& orientation, bool lit, bool depthWrite) {
   const MeshBuffers* buffers = gpu.upload(artefact, mesh);
   if (!buffers) return;
   const Surface surface = surfaceOf(material, lit);
@@ -219,8 +222,7 @@ void drawBody(Gpu& gpu, const glm::mat4& viewProj, const glm::mat4& view,
   dg::ITexture* lobeNext = lit ? gpu.irradiance(sky.next) : nullptr;
   if (!panoramaNext) panoramaNext = panorama;
   if (!lobeNext) lobeNext = lobe;
-  const int levels =
-      panorama ? (int)panorama->GetDesc().MipLevels : 0;
+  const int levels = panorama ? (int)panorama->GetDesc().MipLevels : 0;
 
   material::slang::Uniforms uniforms(*surface.program);
   writeScaffold(uniforms, *surface.program, viewProj, view, model, baseColor,
@@ -350,10 +352,14 @@ void drawBackdrop(Gpu& gpu, const View& view, const glm::mat4& projection,
   std::vector<dg::ITexture*> textures(program.textures.size(), nullptr);
   for (size_t i = 0; i < program.textures.size(); ++i) {
     const std::string& slot = program.textures[i];
-    if (slot == kEnvironmentSlots[0]) textures[i] = panorama;
-    else if (slot == kEnvironmentSlots[1]) textures[i] = panoramaNext;
-    else if (slot == kEnvironmentSlots[2]) textures[i] = lobe;
-    else if (slot == kEnvironmentSlots[3]) textures[i] = lobeNext;
+    if (slot == kEnvironmentSlots[0])
+      textures[i] = panorama;
+    else if (slot == kEnvironmentSlots[1])
+      textures[i] = panoramaNext;
+    else if (slot == kEnvironmentSlots[2])
+      textures[i] = lobe;
+    else if (slot == kEnvironmentSlots[3])
+      textures[i] = lobeNext;
   }
 
   dg::IDeviceContext* context = gpu.device->context();
@@ -435,17 +441,18 @@ void paintGeometry(Gpu& gpu, const PassWork& work, const View& view,
     // therefore neither instanced again nor re-uploaded, however many
     // frames draw it.
     for (const std::string& name : pass.reads()) {
-      const Cloud* cloud = targets.points(name);
+      const geometry::mesh::Cloud* cloud = targets.points(name);
       if (!cloud || cloud->positions.empty()) continue;
       uint64_t key = 0;
-      const Mesh* stamped = targets.stamped(*cloud, pass.stamp(), &key);
+      const geometry::mesh::Mesh* stamped =
+          targets.stamped(*cloud, pass.stamp(), &key);
       if (!stamped || stamped->indices.empty()) continue;
       // The top bit is the half of the numbering these take, so the
       // store's key is carried in the rest of it.
       const uint64_t artefact = kStampArtefact | (key >> 1u);
-      drawBody(gpu, viewProj, viewMatrix, artefact, *stamped,
-               glm::mat4(1.0f), {0.9f, 0.9f, 0.95f, 1.0f}, nullptr, nullptr,
-               view.lights, view.environment, view.orientation,
+      drawBody(gpu, viewProj, viewMatrix, artefact, *stamped, glm::mat4(1.0f),
+               {0.9f, 0.9f, 0.95f, 1.0f}, nullptr, nullptr, view.lights,
+               view.environment, view.orientation,
                /*lit=*/true, /*depthWrite=*/true);
     }
   }

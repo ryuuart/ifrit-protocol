@@ -28,7 +28,7 @@ namespace sigil::world {
 /** A node's ride along a curve: the spline, and how far along it the
  *  node stands. */
 struct Along {
-  Spline3 spline;
+  geometry::mesh::curve::Spline3 spline;
   motion::Animatable<float> distance{0.0f};
 };
 
@@ -88,7 +88,7 @@ struct ElementNode {
   /** The panorama this node places, and its own dials. */
   std::optional<Environment> environment;
   std::optional<SkyDials> sky;
-  std::optional<Camera> camera;
+  std::optional<geometry::mesh::camera::Camera> camera;
   core::Cache cachePolicy = core::Cache::Auto;
   std::optional<motion::Transition> nodeTransition;
   /** THE CASCADE OVER THIS NODE'S CHILDREN AS THEY MOUNT: each child's

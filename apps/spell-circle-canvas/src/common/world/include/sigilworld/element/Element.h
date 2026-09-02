@@ -34,14 +34,7 @@ namespace sigil::world {
 
 struct ElementNode;
 
-// The rest of the currency, under the names a tree spells it — the same
-// entities their own libraries define, reached by a shorter word.
-/** The geometry library's camera value, unchanged — a viewpoint node
- *  carries one of these and not a world-side copy of it. */
-using Camera = geometry::mesh::camera::Camera;
-/** The geometry library's 3D spline, unchanged — what a node rides when
- *  it is placed along a curve. */
-using Spline3 = geometry::mesh::curve::Spline3;
+// The emitters, under the name a tree spells them.
 /** The emitter value, unchanged — `point`, `spot` and `sun` build one. */
 using Light = light::Light;
 /** The stock emitters, reached by the word a tree is written in. */
@@ -113,7 +106,8 @@ class Element {
    *  It replaces the translation lanes and the axis turn, and composes
    *  with the rest: the three rotation lanes, the scales and the origin
    *  still apply, inside the frame the curve put the node in. */
-  Element& along(Spline3 spline, motion::Animatable<float> distance);
+  Element& along(geometry::mesh::curve::Spline3 spline,
+                 motion::Animatable<float> distance);
 
   // ---- what it is made of ----
   /** The surface. */
@@ -123,15 +117,17 @@ class Element {
 
   // ---- geometry ----
   /** A formed mesh. */
-  Element& mesh(Mesh m);
+  Element& mesh(geometry::mesh::Mesh m);
   /** Points, with `stamp()` standing at each of them. */
-  Element& cloud(Cloud c);
+  Element& cloud(geometry::mesh::Cloud c);
   /** A point chain and the runtime that cooks it, with `stamp()`
    *  standing at each cooked point. */
-  Element& chain(Chain c, PopRuntime runtime = PopRuntime::cpu());
+  Element& chain(geometry::mesh::pop::Chain c,
+                 geometry::mesh::pop::Runtime runtime =
+                     geometry::mesh::pop::Runtime::cpu());
   /** The body standing at every point of a `cloud()` or a `chain()`. On
    *  a node whose slot holds neither, it is ignored. */
-  Element& stamp(Mesh s);
+  Element& stamp(geometry::mesh::Mesh s);
   /** A value that builds its own mesh. */
   Element& generate(Generator g);
   /** A WINDOW INTO A LOOP: the leading edge and the length trailing it,
@@ -201,7 +197,7 @@ class Element {
   /** A viewpoint standing where this node stands, on the same terms as
    *  `light()`: the camera's eye and target are carried by the node's
    *  transform. */
-  Element& camera(Camera c);
+  Element& camera(geometry::mesh::camera::Camera c);
 
   // ---- caching and transitions ----
   /** What the author asked of this node's cache. */

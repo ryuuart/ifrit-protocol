@@ -106,7 +106,8 @@ class SetSession final : public Session {
     // only read while the host has NOT taken hold: once it has, the
     // camera the tree carries is the host's own.
     if (!m_orbiting) {
-      const std::optional<world::Camera> declared = m_scene.camera();
+      const std::optional<geometry::mesh::camera::Camera> declared =
+          m_scene.camera();
       m_declared = declared ? *declared : m_camera;
     }
     m_timing.updateMs = m_laps.mark("update");
@@ -164,7 +165,7 @@ class SetSession final : public Session {
 
  private:
   /** The viewpoint a frame is described with. */
-  [[nodiscard]] const world::Camera& viewing() const {
+  [[nodiscard]] const geometry::mesh::camera::Camera& viewing() const {
     return m_orbiting ? m_orbit : m_declared;
   }
 
@@ -197,11 +198,11 @@ class SetSession final : public Session {
   CanvasSpec m_spec;
   /** The fallback the set was handed at setup, for a tree declaring no
    *  camera of its own. */
-  world::Camera m_camera;
+  geometry::mesh::camera::Camera m_camera;
   /** The viewpoint the last describe put the set at — the tree's own, or
    *  the fallback where it declared none. */
-  world::Camera m_declared;
-  world::Camera m_orbit;
+  geometry::mesh::camera::Camera m_declared;
+  geometry::mesh::camera::Camera m_orbit;
   bool m_orbiting = false;
   SkISize m_extent{1, 1};  // the pixels the frame standing was formed at
   Timing m_timing;
@@ -214,7 +215,7 @@ class SetSession final : public Session {
 
 }  // namespace
 
-Orbit orbitOf(const world::Camera& camera) {
+Orbit orbitOf(const geometry::mesh::camera::Camera& camera) {
   constexpr float kToDegrees = 180.0f / 3.14159265358979f;
   const glm::vec3 out = camera.eye - camera.target;
   const float distance = glm::length(out);
@@ -226,11 +227,12 @@ Orbit orbitOf(const world::Camera& camera) {
           distance};
 }
 
-world::Camera cameraAt(const world::Camera& pivot, Orbit orbit) {
+geometry::mesh::camera::Camera cameraAt(
+    const geometry::mesh::camera::Camera& pivot, Orbit orbit) {
   constexpr float kToRadians = 3.14159265358979f / 180.0f;
   const float yaw = orbit.yawDeg * kToRadians;
   const float pitch = orbit.pitchDeg * kToRadians;
-  world::Camera out = pivot;
+  geometry::mesh::camera::Camera out = pivot;
   out.eye = pivot.target +
             glm::vec3{orbit.distance * std::cos(pitch) * std::sin(yaw),
                       orbit.distance * std::sin(pitch),

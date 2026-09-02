@@ -19,8 +19,8 @@ namespace {
 
 constexpr SkISize kExtent{512, 512};
 
-Mesh triangle() {
-  Mesh m;
+geometry::mesh::Mesh triangle() {
+  geometry::mesh::Mesh m;
   m.positions = {{-6, -6, 0}, {6, -6, 0}, {0, 6, 0}};
   m.normals = {{0, 0, 1}, {0, 0, 1}, {0, 0, 1}};
   m.uvs = {{0, 0}, {1, 0}, {0.5f, 1}};
@@ -31,7 +31,7 @@ Mesh triangle() {
 /** The bodies a pass runs over, with every tenth of them tagged, and the
  *  storage their spans point into. */
 struct Bodies {
-  Mesh mesh = triangle();
+  geometry::mesh::Mesh mesh = triangle();
   std::vector<std::string> keys;
   std::vector<std::vector<std::string>> tags;
   std::vector<Draw> draws;

@@ -12,8 +12,8 @@
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkSamplingOptions.h>
 #include <include/core/SkSize.h>
-#include <sigilmaterial/texture/Texture.h>
 #include <sigilgeometry/mesh/render/Shading.h>
+#include <sigilmaterial/texture/Texture.h>
 #include <sigilworld/element/Element.h>
 #include <sigilworld/element/Environment.h>
 #include <sigilworld/element/Selector.h>
@@ -33,7 +33,7 @@ namespace sigil::world {
  *  stands for as long as the view does. */
 struct Draw {
   glm::mat4 world{1.0f};
-  const Mesh* mesh = nullptr;
+  const geometry::mesh::Mesh* mesh = nullptr;
   /** WHICH COOKED ARTEFACT those triangles are, named by a number no
    *  other artefact ever has. An executor that keeps something of its
    *  own per geometry — a device's uploaded buffers — keys on this and
@@ -121,7 +121,7 @@ struct View {
    *  ambient it always had. */
   Environment environment;
   glm::mat3 orientation{1.0f};
-  Camera camera;
+  geometry::mesh::camera::Camera camera;
   SkISize extent{0, 0};
 };
 

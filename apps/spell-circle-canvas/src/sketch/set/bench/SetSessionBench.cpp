@@ -36,7 +36,7 @@ Assets& assets() {
 struct Ring : Set {
   void setup(SetContext& ctx) override {
     ctx.canvas(480, 320);
-    world::Camera lens;
+    sigil::geometry::mesh::camera::Camera lens;
     lens.eye = {0, 200, 520};
     ctx.camera(lens);
   }

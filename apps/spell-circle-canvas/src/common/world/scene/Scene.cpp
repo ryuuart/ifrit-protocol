@@ -57,7 +57,9 @@ void Scene::render(const Frame& frame) {
   ++impl.frameIndex;
 }
 
-std::optional<Camera> Scene::camera() const { return m_impl->camera; }
+std::optional<geometry::mesh::camera::Camera> Scene::camera() const {
+  return m_impl->camera;
+}
 
 std::vector<Light> Scene::lights() const { return m_impl->lights; }
 

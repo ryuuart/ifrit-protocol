@@ -294,8 +294,8 @@ what sits above it in the tree — and each header includes what it needs,
 so including a deeper one pulls the shallower ones in.
 
 **`path`** — `SigilGeometryPath`, the leaf. Twelve headers that depend on
-nothing else in the library: Skia, glm, and SigilCoreCompute for the
-seeded mixers `noise::` names.
+nothing else in the library: Skia, glm, and SigilCoreCompute, whose
+seeded mixers the value-noise field is built on.
 
 - **`path/Polyline.h`** — the resampling core. `Polyline` and `flatten()`,
   `sample()` to walk a parametric curve evenly by arc length, `Sampled`
@@ -319,14 +319,12 @@ seeded mixers `noise::` names.
   comes round closed geometry), `poseAlong()` over one contour or over a
   list of them walked as ONE arc-length coordinate, and `totalLength()`
   and `closedThroughout()` over such a list.
-- **`path/Noise.h`** — namespace `noise`. `hash(seed, i)` to [-1, 1] for
-  per-index jitter; the PCG family `pcgAdvance`, `pcgMix`, `pcgHash`,
-  `pcgNext` (a stream over a carried state) and `pcgUnit` (either squeezed
-  to [0, 1)); and `value3()`, trilinear value noise over the integer
-  lattice. The mixers are SigilCoreCompute's bodies, named here because a
-  resource key and a text cache fold with the same arithmetic; `value3()`
-  is this library's, because it is read at a POSITION rather than at an
-  index.
+- **`path/Noise.h`** — `valueNoise()`, trilinear value noise over the
+  integer lattice in [-1, 1], seeded: this library's own field, read at a
+  POSITION rather than at an index. The per-index mixers it is built on —
+  `hash(seed, i)` and the PCG family — are SigilCoreCompute's, included
+  from `<sigilcore/compute/Noise.h>` and spelled `core::noise::`; a
+  resource key and a text cache fold with the same arithmetic.
 - **`path/Numeric.h`** — `kPi`, `kTau`, the degree/radian factors,
   `bisect()` over a predicate and `wrap()` into a period.
 - **`path/Arrange.h`** — namespace `arrange`. Where item i of n goes when

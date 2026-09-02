@@ -22,8 +22,8 @@ namespace {
 /** ONE TRIANGLE, and it has to stay one: a stamp is stood at every point
  *  of a cloud, so the triangle count of what that cooked to is the
  *  cloud's size times this. */
-Mesh triangle(float size) {
-  Mesh m;
+geometry::mesh::Mesh triangle(float size) {
+  geometry::mesh::Mesh m;
   m.positions = {{0, 0, 0}, {size, 0, 0}, {0, size, 0}};
   m.normals = {{0, 0, 1}, {0, 0, 1}, {0, 0, 1}};
   m.uvs = {{0, 0}, {1, 0}, {0, 1}};
@@ -98,9 +98,10 @@ TEST(WorldElement, EveryFieldADescriptionCarriesReachesThePrune) {
        [](Element e) { return e.tag("dim"); }},
       {"light", [](Element e) { return e.light(sun({0, -1, 0})); },
        [](Element e) { return e.light(sun({0, 1, 0})); }},
-      {"camera", [](Element e) { return e.camera(Camera{}); },
+      {"camera",
+       [](Element e) { return e.camera(geometry::mesh::camera::Camera{}); },
        [](Element e) {
-         Camera lens;
+         geometry::mesh::camera::Camera lens;
          lens.eye = {0, 0, 10};
          return e.camera(lens);
        }},
@@ -108,12 +109,12 @@ TEST(WorldElement, EveryFieldADescriptionCarriesReachesThePrune) {
        [](Element e) { return e.cache(core::Cache::Always); }},
       {"along",
        [](Element e) {
-         Spline3 spline;
+         geometry::mesh::curve::Spline3 spline;
          spline.points = {{0, 0, 0}, {100, 0, 0}, {100, 100, 0}};
          return e.along(spline, 10.0f);
        },
        [](Element e) {
-         Spline3 spline;
+         geometry::mesh::curve::Spline3 spline;
          spline.points = {{0, 0, 0}, {100, 0, 0}, {100, 100, 0}};
          return e.along(spline, 20.0f);
        }},
@@ -152,7 +153,8 @@ TEST(WorldElement, EveryFieldADescriptionCarriesReachesThePrune) {
 
 TEST(WorldElement, TheGeometrySlotsValueTypeIsTheKind) {
   Element mesh = Element().key("g").mesh(triangle(10));
-  Element cloud = Element().key("g").cloud(Cloud{}).stamp(triangle(10));
+  Element cloud =
+      Element().key("g").cloud(geometry::mesh::Cloud{}).stamp(triangle(10));
   EXPECT_FALSE(propsEqual(*mesh.node(), *cloud.node()));
 
   Element sameMesh = Element().key("g").mesh(triangle(10));
@@ -163,7 +165,7 @@ TEST(WorldElement, TheGeometrySlotsValueTypeIsTheKind) {
 }
 
 TEST(WorldElement, StampAndCloudReadInEitherOrder) {
-  Cloud points;
+  geometry::mesh::Cloud points;
   points.positions = {{0, 0, 0}, {5, 0, 0}};
   Element first = Element().stamp(triangle(2)).cloud(points);
   Element second = Element().cloud(points).stamp(triangle(2));
@@ -199,7 +201,7 @@ TEST(WorldElement, LanesAreOneFixedRowPerSlot) {
   EXPECT_FLOAT_EQ(lanes[kScaleX].standing, 1.0f);
   EXPECT_FLOAT_EQ(lanes[kTranslateX].standing, 0.0f);
 
-  Spline3 spline;
+  geometry::mesh::curve::Spline3 spline;
   spline.points = {{0, 0, 0}, {10, 0, 0}};
   lanesOf(*Element().along(spline, 3.0f).window(0.5f, 0.25f).node(), lanes);
   EXPECT_NE(lanes[kAlongDistance].value, nullptr);

@@ -20,12 +20,12 @@
 #include <include/core/SkMatrix.h>
 #include <include/core/SkSamplingOptions.h>
 #include <include/core/SkSize.h>
-#include <sigilgeometry/mesh/Mesh.h>
-#include <sigilgeometry/mesh/camera/Camera.h>
-#include <sigilmaterial/texture/EnvironmentMap.h>
-#include <sigilmaterial/texture/Texture.h>
 #include <sigilgeometry/device/Device.h>
 #include <sigilgeometry/device/Resources.h>
+#include <sigilgeometry/mesh/camera/Camera.h>
+#include <sigilgeometry/mesh/Mesh.h>
+#include <sigilmaterial/texture/EnvironmentMap.h>
+#include <sigilmaterial/texture/Texture.h>
 #include <sigilworld/frame/Pass.h>
 #include <sigilworld/frame/Targets.h>
 #include <sigilworld/frame/View.h>
@@ -191,7 +191,7 @@ struct Gpu {
    *  for. A frame cooking a mesh of its own — the stamps of a point set
    *  — has no artefact to name, and passes an id of its own that no
    *  frame after it repeats. */
-  const MeshBuffers* upload(uint64_t artefact, const Mesh& mesh,
+  const MeshBuffers* upload(uint64_t artefact, const geometry::mesh::Mesh& mesh,
                             std::string_view primColorLane = {});
   /** THE PANORAMA on the device: one texture whose levels are the map's
    *  prefiltered chain, uploaded once per map and kept. Null when the
@@ -202,7 +202,7 @@ struct Gpu {
   dg::ITexture* irradiance(const material::EnvironmentMap& map);
   /** @p mesh in the streaming buffers, overwriting whatever draw wrote
    *  them last. For a caller whose seam carries no artefact number. */
-  const MeshBuffers* stream(const Mesh& mesh,
+  const MeshBuffers* stream(const geometry::mesh::Mesh& mesh,
                             std::string_view primColorLane = {});
   /** The pipeline for @p key, built on the first ask. Null when the
    *  program is empty or the device refused it. */
@@ -241,7 +241,8 @@ struct Gpu {
  *  instead: one wrap on each axis, and linearly across the prefiltered
  *  levels. Every other slot in a draw shares one filter and one wrap,
  *  which is what a base-colour map's sampling decides for all of them. */
-void bindAndCommit(Gpu& gpu, const Pipeline& pipeline, const material::slang::Compiled& program,
+void bindAndCommit(Gpu& gpu, const Pipeline& pipeline,
+                   const material::slang::Compiled& program,
                    const material::slang::Uniforms& values,
                    const std::vector<dg::ITexture*>& textures,
                    SkFilterMode filter = SkFilterMode::kLinear,

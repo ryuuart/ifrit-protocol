@@ -37,10 +37,6 @@
 
 namespace sigil::compose {
 
-/** Draw ONE tile into [0,0 .. size); `seed` is the pattern's current seed —
- *  same seed, same tile (determinism is what makes regeneration a choice). */
-using PatternProgram = sigil::material::pattern::Program;
-
 /** A repeating fill built from one tile. The tile is regenerated on
  *  demand from the pattern's seed, so restyling every use of a pattern is
  *  a matter of changing the seed rather than rebuilding it. */
@@ -54,7 +50,7 @@ class Pattern {
       : m_tile(std::move(tile)) {}
 
   /** A generator tile (the procedural route). */
-  static Pattern tile(SkSize size, PatternProgram draw) {
+  static Pattern tile(SkSize size, sigil::material::pattern::Program draw) {
     return Pattern(sigil::material::pattern::Tile::of(size, std::move(draw)));
   }
 
