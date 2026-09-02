@@ -32,14 +32,16 @@ if(NOT SYPHON_FRAMEWORK)
   return()
 endif()
 
-# workaround: the skia port carries raw -framework strings in its link
-# interface.
+# workaround: Abseil's link interface carries a raw -Wl,-framework flag.
 #
 # SHARED, deliberately: the Swift link runs through swift-driver, which
-# rejects the raw `-framework X` strings vcpkg's skia config carries in its
-# link interface. Absorbing the whole C++ world (scene core, Skia, SigilWeave,
-# ICU, HarfBuzz, Syphon) into one dylib keeps those flags on the clang++
-# side; the Swift executable links only this library.
+# takes a framework named as a path or as `-Xlinker -framework` but rejects
+# `-Wl,-framework,CoreFoundation` — the spelling abseil's exported config
+# puts in its link interface on Apple platforms, and one CMake passes
+# through untouched as an opaque flag. Absorbing the whole C++ world (scene
+# core, Skia, SigilWeave, ICU, HarfBuzz, Abseil, Syphon) into one dylib
+# keeps that flag on the clang++ side; the Swift executable links only this
+# library.
 add_library(SpellCircleMacBridge SHARED
   bridge/SCKEngine.mm bridge/SCKEngine.h
   bridge/SCKCanvasView.mm bridge/SCKCanvasView.h
