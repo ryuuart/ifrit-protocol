@@ -9,10 +9,18 @@
  *              [--timing-json <path>]          plates, and the timing table
  *   Sketchbook <file.cpp> [--frame <png>] [--bench]
  *                                              a file, live or measured
+ *   Sketchbook <file.cpp>                      the app, on that file
+ *   … [--assets <dir>]                         where res:// mounts
  *
  * `--sketch` takes a case-insensitive substring and answers to a
  * sketch's filed name or its file stem, which is the loop for visual
  * iteration.
+ *
+ * A `.cpp` PATH IS TAKEN WHEREVER IT STANDS. The file joins the app's
+ * list under its own stem and opens there, and it is compiled and
+ * watched exactly as a sketch in this repository is. `--assets` names
+ * the directory that mounts at `res://`; without it a sketch reads
+ * `assets/` beside its own file.
  */
 
 #include <include/core/SkBitmap.h>
@@ -531,7 +539,11 @@ int main(int argc, char* argv[]) {
 
   // ---- one file, live or measured -------------------------------------
   const std::filesystem::path sketchDir = SIGIL_SKETCH_DIR;
-  if (sketchFile.empty() && chosen >= 0)
+  // Whether the file came from the command line or was derived from a
+  // registry selection: only the first is a sketch this binary was not
+  // built with, and only the first joins the app's list on its own.
+  const bool fileGiven = !sketchFile.empty();
+  if (!fileGiven && chosen >= 0)
     sketchFile = sketchDir / (std::string(sketch::registry()[chosen].key) +
                               std::string(".cpp"));
 
@@ -543,9 +555,12 @@ int main(int argc, char* argv[]) {
   // live host keeps its real numbers, which is where they are wanted.
   options.deterministic =
       deterministic.value_or(!capture.out.empty() && !capture.bench);
-  options.assetsDir = assetsOverride.empty()
-                          ? std::filesystem::path(SIGIL_SKETCH_ASSET_DIR)
-                          : assetsOverride;
+  // ASSETS STAND BESIDE THE SKETCH unless `--assets` says otherwise.
+  // Leaving this empty is what asks the host for that default, and it is
+  // the same answer for a sketch in this repository — whose assets stand
+  // beside it too — as for a file anywhere else on disk, which is what
+  // makes a directory outside this checkout a place to work.
+  options.assetsDir = assetsOverride;
   options.flagsFile = flagsFileNear(executableDir(argv[0]));
 
   if (!capture.out.empty() || capture.bench) {
@@ -589,6 +604,16 @@ int main(int argc, char* argv[]) {
   SketchbookView::sketchDir = sketchDir;
   SketchbookView::assetsDir = options.assetsDir;
   SketchbookView::flagsFile = options.flagsFile;
+  // A FILE ON THE COMMAND LINE OPENS THE WINDOW ON THAT FILE. The
+  // registry is the compiled-in table and settles the first time it is
+  // read, so the file joins a session-local list the app's own listing
+  // reads after it, under its own stem — the dylib a hot-loaded sketch
+  // exports carries neither key nor name.
+  int openAt = chosen;
+  if (fileGiven) {
+    SketchbookView::externals.push_back(std::filesystem::absolute(sketchFile));
+    openAt = (int)sketch::registry().size();
+  }
   sketch::installCrashReporter(sketchFile.empty() ? sketchDir : sketchFile);
 
   QGuiApplication application(argc, argv);
@@ -612,7 +637,7 @@ int main(int argc, char* argv[]) {
         view = child;
         break;
       }
-  if (view && chosen >= 0) view->setProperty("sketchIndex", chosen);
+  if (view && openAt >= 0) view->setProperty("sketchIndex", openAt);
 
   if (!shotPath.empty()) {
     if (!window || !view) {
@@ -628,11 +653,28 @@ int main(int argc, char* argv[]) {
     // panel keeps showing what it had before anything was activated.
     auto* warm = new QTimer(&application);
     auto framesLeft = std::make_shared<int>(90);
+    auto patience = std::make_shared<int>(900);
     warm->setInterval(16);
     QObject::connect(
         warm, &QTimer::timeout, &application,
-        [window, view, shotPath, warm, framesLeft] {
+        [window, view, shotPath, warm, framesLeft, patience] {
           if (auto* item = qobject_cast<QQuickItem*>(view)) item->update();
+          // A SKETCH THIS BINARY DOES NOT CARRY HAS TO BE BUILT TO BE
+          // SEEN, which takes longer than the warm-up does. So the
+          // warm-up does not begin until something is live: otherwise a
+          // grab of a file opened by path is always a picture of a
+          // window compiling. The patience is bounded, because a file
+          // that will never compile still has to be photographed —
+          // the error overlay is what there is to look at.
+          bool live = false;
+          {
+            QMutexLocker lock(&SketchbookView::hostMutex);
+            live = SketchbookView::host && SketchbookView::host->live();
+          }
+          if (!live && --*patience > 0) {
+            window->grabWindow();
+            return;
+          }
           if (--*framesLeft > 0) {
             window->grabWindow();
             return;

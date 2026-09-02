@@ -167,6 +167,7 @@ sketch's own execution rather than from its data.
 ```sh
 Sketchbook [--no-gpu]                       # the app
 Sketchbook --sketch <name>                  # the app, on that one
+Sketchbook <file.cpp>                       # the app, on that file
 Sketchbook --list [--kind canvas|set]       # the registry, one per line
 Sketchbook <file.cpp> --frame out.png [--at <sec>] [--scale <n>]
                                   [--frames <count>] [--fps <n>]
@@ -174,6 +175,7 @@ Sketchbook <file.cpp> --bench [--bench-frames <n>] [--jitter-dt [amp]]
 Sketchbook --headless <outdir> [--gpu] [--sketch <name>] [--kind <k>]
            [--ledger] [--no-promotion] [--capture-at <s>]
            [--timing-json <path>]
+… [--assets <dir>]                          # what mounts at res://
 ```
 
 `--sketch` takes a case-insensitive substring and answers to a sketch's
@@ -291,12 +293,57 @@ embedding a scripting language — so a sketch never leaves the real API.
 * A sketch this binary already carries opens **instantly**, and the file
   is watched from where it stands: an edit builds, an unedited file
   never does.
+* The watch covers the **headers standing beside the sketch** as well as
+  the sketch. A sketch is one translation unit and more than one file: a
+  helper beside it is reached by a quoted include, which resolves
+  relative to the including file and needs no include path — so saving
+  the header rebuilds, rather than leaving the code that stood before
+  the edit on screen with nothing saying so.
 * After rebuilding the framework itself, restart the host. The ABI
   version guards deliberate changes to the sketch surface; a separate
   guard refuses to compile while any repository header on the include
   path postdates the running binary, because a dylib built against newer
   headers loads into a host whose structs have the old layout and the
   crash points nowhere near the cause.
+
+### A workspace: sketches outside this repository
+
+A `.cpp` path is taken **wherever it stands**, and the app opens on it:
+
+```sh
+Sketchbook ~/sketches/my_experiment.cpp
+```
+
+The file joins the app's list under its own stem, filed under
+**Workspace** with the directory it came from beside the name, and it
+compiles, hot-swaps and captures exactly as a sketch in this repository
+does. The registry is the compiled-in table and settles the first time
+it is read, so the file cannot join it; it joins a session-local list
+the listing reads after it, which is why the stem is the name — the
+dylib a hot-loaded sketch exports carries neither key nor name of its
+own.
+
+So a workspace is just a directory:
+
+```
+~/sketches/
+  my_experiment.cpp     one sketch, opened by path
+  palette.h             a helper, reached by a quoted include
+  assets/               what mounts at res://
+  captures/             where the app's Capture writes
+```
+
+`assets/` beside the sketch is the default root, and `--assets <dir>`
+names another. Saving `palette.h` rebuilds the sketch that includes it.
+Compiling is what makes a workspace file visible, so the flags the build
+captured have to be there: the workspace and the `Sketchbook` it opens
+in are the same machine and the same checkout, and after rebuilding the
+framework the host is restarted like any other.
+
+What a workspace does not get: the plate sweep. `--headless` walks the
+registry, which is the compiled-in table — a workspace file is
+photographed with `--frame` and measured with `--bench`, one file at a
+time.
 
 ### The two lists that must agree
 
@@ -348,8 +395,10 @@ targets do.
 
 ## Assets
 
-A sketch reaches for what it did not generate through `ctx.assets`. The
-sketch assets directory mounts at `res://`; `image()` keeps the
+A sketch reaches for what it did not generate through `ctx.assets`.
+`assets/` **beside the sketch file** mounts at `res://`, and `--assets
+<dir>` names another directory instead — one root, whichever it is.
+`image()` keeps the
 forgiving contract a live-edited file wants — a magenta placeholder
 stands in for a missing or undecodable file and heals the moment one
 appears, re-running the sketch's declaration — and `hub()` opens the

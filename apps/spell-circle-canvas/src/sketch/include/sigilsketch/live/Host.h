@@ -15,6 +15,7 @@
 #include <functional>
 #include <future>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -141,6 +142,15 @@ class Host {
   void startCompile();
   void adopt(const std::filesystem::path& library);
   void openSession(const Kind& kind);
+  /** THE NEWEST WRITE ACROSS EVERYTHING THE SKETCH IS BUILT FROM, or
+   *  nothing when the sketch file itself is not there.
+   *
+   *  A sketch is one translation unit and more than one file: a helper
+   *  beside it is reached by a quoted include, which resolves relative
+   *  to the including file and needs no include path — so an edit to one
+   *  has to rebuild the sketch, or what stays on screen is the code that
+   *  stood before it. */
+  [[nodiscard]] std::optional<std::filesystem::file_time_type> sourceStamp();
 
   Options m_options;
   weave::FontContext& m_fonts;
@@ -153,6 +163,11 @@ class Host {
 
   std::future<CompileResult> m_compile;
   std::filesystem::file_time_type m_compiledMtime;
+  // The sibling headers' newest write, re-read on a slower cadence than
+  // the sketch itself: reading a directory is not per-frame work, and
+  // the file being typed into is where responsiveness is wanted.
+  std::filesystem::file_time_type m_siblingStamp;
+  std::chrono::steady_clock::time_point m_lastSiblingScan;
   bool m_everCompiled = false;
   int m_generation = 0;
   int m_frameIndex = -1;  // for the crash reporter's phase line

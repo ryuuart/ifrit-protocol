@@ -43,6 +43,7 @@ namespace sketch = sigil::sketch;
 std::filesystem::path SketchbookView::sketchDir;
 std::filesystem::path SketchbookView::assetsDir;
 std::filesystem::path SketchbookView::flagsFile;
+std::vector<std::filesystem::path> SketchbookView::externals;
 sketch::Host* SketchbookView::host = nullptr;
 // QMutex's constructor does not throw
 // NOLINTNEXTLINE(bugprone-throwing-static-initialization)
@@ -64,6 +65,23 @@ sigil::weave::FontContext& fonts() {
   static auto* context =
       new sigil::weave::FontContext(sigil::weave::ports::systemFontManager());
   return *context;
+}
+
+/** ONE INDEX OVER TWO LISTS: the registry first, the files this session
+ *  was pointed at after it. An index below the registry's size selects a
+ *  compiled-in sketch, one above it a file opened by path. */
+int externalAt(int index) { return index - (int)sketch::registry().size(); }
+
+/** What the sidebar and the metrics panel call the sketch at @p index —
+ *  a registry entry's filed name, or the stem of the file the session was
+ *  pointed at. Empty when the index selects neither. */
+std::string nameOf(int index) {
+  const auto& entries = sketch::registry();
+  if (index >= 0 && index < (int)entries.size()) return entries[index].name;
+  const int external = externalAt(index);
+  if (external >= 0 && external < (int)SketchbookView::externals.size())
+    return SketchbookView::externals[external].stem().string();
+  return {};
 }
 
 }  // namespace
@@ -165,14 +183,24 @@ void SketchbookRenderer::synchronize(QQuickRhiItem* item) {
 
 void SketchbookRenderer::openSketch(int index) {
   const auto& entries = sketch::registry();
-  if (index < 0 || index >= (int)entries.size()) return;
-  const sketch::Entry& entry = entries[index];
   sketch::Host::Options options;
-  options.sketchPath =
-      SketchbookView::sketchDir / (std::string(entry.key) + ".cpp");
+  if (index >= 0 && index < (int)entries.size()) {
+    // A sketch this binary carries opens instantly: the host starts from
+    // the compiled-in entry and builds only once the file changes.
+    options.compiledIn = &entries[index];
+    options.sketchPath =
+        SketchbookView::sketchDir / (std::string(entries[index].key) + ".cpp");
+  } else if (const int external = externalAt(index);
+             external >= 0 &&
+             external < (int)SketchbookView::externals.size()) {
+    // A file this binary does not carry has to be built to be seen, so
+    // it opens on the compiler rather than on an entry.
+    options.sketchPath = SketchbookView::externals[external];
+  } else {
+    return;
+  }
   options.assetsDir = SketchbookView::assetsDir;
   options.flagsFile = SketchbookView::flagsFile;
-  options.compiledIn = &entry;
   delete SketchbookView::host;
   SketchbookView::host = new sketch::Host(std::move(options), fonts());
   m_frameCount = 0;
@@ -192,13 +220,11 @@ void SketchbookRenderer::publishMetrics() {
   if (!m_view || !SketchbookView::host) return;
   sketch::Session* session = SketchbookView::host->session();
   if (!session) return;
-  const auto& entries = sketch::registry();
   const char* backend = g_backend.load() == 1 ? "Graphite GPU" : "CPU raster";
   QVariantMap metrics;
   metrics.insert(QStringLiteral("backend"), QLatin1String(backend));
-  if (m_index >= 0 && m_index < (int)entries.size())
-    metrics.insert(QStringLiteral("sketch"),
-                   QString::fromUtf8(entries[m_index].name));
+  if (const std::string name = nameOf(m_index); !name.empty())
+    metrics.insert(QStringLiteral("sketch"), QString::fromStdString(name));
   const SkSize size = session->canvas().size;
   metrics.insert(
       QStringLiteral("canvas"),
@@ -483,6 +509,28 @@ QVariantList SketchbookView::sketches() const {
     // A sketch also answers to its file stem — the thing you have open in
     // an editor when you want to find it here.
     item.insert(QStringLiteral("key"), QString::fromUtf8(entry.key));
+    // …and says where that file stands, because not every row's does.
+    item.insert(QStringLiteral("path"),
+                QString::fromStdString(
+                    (sketchDir / (std::string(entry.key) + ".cpp")).string()));
+    result.push_back(item);
+  }
+  // …and the files this session was pointed at, under their own stems,
+  // filed together so a row from outside this repository reads as one.
+  // Their directory is the line beside the name: two drafts may share a
+  // stem, and where they stand is the only thing that tells them apart.
+  for (int i = 0; i < (int)externals.size(); ++i) {
+    QVariantMap item;
+    const std::string stem = externals[i].stem().string();
+    item.insert(QStringLiteral("sketchIndex"), (int)entries.size() + i);
+    item.insert(QStringLiteral("name"),
+                QString::fromStdString(sketch::title(stem)));
+    item.insert(QStringLiteral("category"), QStringLiteral("Workspace"));
+    item.insert(QStringLiteral("tag"),
+                QString::fromStdString(externals[i].parent_path().string()));
+    item.insert(QStringLiteral("key"), QString::fromStdString(stem));
+    item.insert(QStringLiteral("path"),
+                QString::fromStdString(externals[i].string()));
     result.push_back(item);
   }
   return result;
@@ -490,7 +538,7 @@ QVariantList SketchbookView::sketches() const {
 
 void SketchbookView::setSketchIndex(int index) {
   if (index == m_sketchIndex || index < 0 ||
-      index >= (int)sketch::registry().size())
+      index >= (int)(sketch::registry().size() + externals.size()))
     return;
   m_sketchIndex = index;
   emit sketchIndexChanged();

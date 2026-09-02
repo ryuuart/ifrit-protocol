@@ -127,10 +127,10 @@ Host::Host(Options options, weave::FontContext& fonts)
   if (m_options.compiledIn && m_options.compiledIn->kind) {
     m_kind = m_options.compiledIn->kind();
     openSession(m_kind);
-    std::error_code ec;
-    m_compiledMtime =
-        std::filesystem::last_write_time(m_options.sketchPath, ec);
-    m_everCompiled = !ec;
+    if (const auto stamp = sourceStamp()) {
+      m_compiledMtime = *stamp;
+      m_everCompiled = true;
+    }
     m_status = "live · compiled in";
   }
 }
@@ -161,9 +161,37 @@ SkColor4f Host::background() const {
   return m_session ? m_session->canvas().background : kUnloaded.background;
 }
 
-void Host::startCompile() {
+std::optional<std::filesystem::file_time_type> Host::sourceStamp() {
   std::error_code ec;
-  m_compiledMtime = std::filesystem::last_write_time(m_options.sketchPath, ec);
+  const auto self = std::filesystem::last_write_time(m_options.sketchPath, ec);
+  if (ec) return std::nullopt;
+  // The headers standing beside the sketch are part of it — a quoted
+  // include resolves relative to the including file, so a directory of
+  // sketches shares helpers with none of them on the include path. They
+  // are re-read a few times a second rather than every poll: a directory
+  // read is cheap but it is not free, and a header is saved by hand
+  // while the sketch is saved by the same hand a moment later.
+  const auto now = std::chrono::steady_clock::now();
+  if (m_lastSiblingScan.time_since_epoch().count() == 0 ||
+      now - m_lastSiblingScan > std::chrono::milliseconds(250)) {
+    m_lastSiblingScan = now;
+    m_siblingStamp = {};
+    std::error_code scan;
+    for (auto it = std::filesystem::directory_iterator(
+             m_options.sketchPath.parent_path(), scan);
+         !scan && it != std::filesystem::directory_iterator(); ++it) {
+      const std::filesystem::path& p = it->path();
+      if (p.extension() != ".h" && p.extension() != ".hpp") continue;
+      std::error_code stat;
+      const auto t = std::filesystem::last_write_time(p, stat);
+      if (!stat && t > m_siblingStamp) m_siblingStamp = t;
+    }
+  }
+  return std::max(self, m_siblingStamp);
+}
+
+void Host::startCompile() {
+  m_compiledMtime = sourceStamp().value_or(std::filesystem::file_time_type{});
   m_everCompiled = true;
   m_compileStart = std::chrono::steady_clock::now();
 
@@ -272,10 +300,9 @@ void Host::poll() {
 
   // Source changed (or never built) → kick a compile.
   if (!m_compile.valid()) {
-    std::error_code ec;
-    const auto mtime =
-        std::filesystem::last_write_time(m_options.sketchPath, ec);
-    if (!ec && (!m_everCompiled || mtime != m_compiledMtime)) startCompile();
+    if (const auto stamp = sourceStamp();
+        stamp && (!m_everCompiled || *stamp != m_compiledMtime))
+      startCompile();
   }
 
   // Asset hot reload (twice a second is plenty for filesystem stats).

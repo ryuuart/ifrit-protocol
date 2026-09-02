@@ -102,12 +102,13 @@ ApplicationWindow {
             // While filtering, a collapsed folder would hide its own hits.
             const shut = needle.length === 0
                          && collapsedGroups[group] === true;
-            out.push({ header: true, name: group, tag: "", key: "",
+            out.push({ header: true, name: group, tag: "", key: "", path: "",
                        sketchIndex: -1, count: items.length, collapsed: shut });
             if (!shut)
                 for (let k = 0; k < items.length; ++k)
                     out.push({ header: false, name: items[k].name,
                                tag: items[k].tag, key: items[k].key,
+                               path: items[k].path,
                                sketchIndex: items[k].sketchIndex,
                                count: 0, collapsed: false });
         }
@@ -465,7 +466,7 @@ ApplicationWindow {
                             ToolTip.delay: 700
                             ToolTip.text: row.modelData.name + " — "
                                 + row.modelData.tag + "\n"
-                                + "sketches/" + row.modelData.key + ".cpp"
+                                + row.modelData.path
                         }
                     }
                 }
@@ -725,6 +726,17 @@ ApplicationWindow {
                             NumberAnimation { to: 1.0; duration: 350 }
                             onRunningChanged: if (!running) stateDot.opacity = 1
                         }
+                    }
+                    // WHAT IS RUNNING, beside how it is doing. The sidebar
+                    // says it too, but a list long enough to scroll can put
+                    // the selected row off screen, and the one line that
+                    // never moves is the one worth naming it on.
+                    Label {
+                        text: window.stats.sketch !== undefined
+                              ? window.stats.sketch : ""
+                        color: "#e8ecf8"
+                        font.pixelSize: 12
+                        visible: text.length > 0
                     }
                     Label {
                         text: view.status

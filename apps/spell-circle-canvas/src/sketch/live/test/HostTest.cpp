@@ -11,8 +11,10 @@
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
+#include <chrono>
 #include <filesystem>
 #include <fstream>
+#include <thread>
 
 namespace {
 
@@ -36,12 +38,23 @@ struct Square : Sketch {
 
 Kind squareKind() { return kindOf<Square>(); }
 
+/** A directory of its own for each watched file. The host watches the
+ *  headers standing beside a sketch as well as the sketch, so a file
+ *  dropped straight into the system temp directory would be watched
+ *  alongside whatever else happens to be there. */
+std::filesystem::path workspace(const std::string& name) {
+  const std::filesystem::path dir =
+      std::filesystem::temp_directory_path() / ("sigil_sketch_host_" + name);
+  std::filesystem::remove_all(dir);
+  std::filesystem::create_directories(dir);
+  return dir;
+}
+
 /** A file for the host to watch. It is never compiled here: what is
  *  under test is that a sketch this binary already carries opens without
  *  a build, which is what makes selecting one in a host instant. */
-std::filesystem::path watched() {
-  const std::filesystem::path path =
-      std::filesystem::temp_directory_path() / "sigil_sketch_host_test.cpp";
+std::filesystem::path watched(const std::string& name = "watched") {
+  const std::filesystem::path path = workspace(name) / "sketch.cpp";
   std::ofstream(path) << "// watched, never built\n";
   return path;
 }
@@ -57,7 +70,7 @@ Host::Options options(const Entry& entry, const std::filesystem::path& path) {
 
 TEST(SketchHost, OpensACompiledInSketchWithoutBuildingIt) {
   const Entry entry{"square", "square", "Test", "", &squareKind};
-  const std::filesystem::path path = watched();
+  const std::filesystem::path path = watched("unedited");
   Host host(options(entry, path), fonts());
   EXPECT_TRUE(host.live());
   EXPECT_FALSE(host.compiling());
@@ -93,6 +106,24 @@ TEST(SketchHost, WritesACaptureAtTheScaleItIsAsked) {
   std::filesystem::remove(out);
   EXPECT_TRUE(host.capture(out, 2.0f));
   EXPECT_TRUE(std::filesystem::exists(out));
+}
+
+TEST(SketchHost, RebuildsWhenAHeaderBesideTheSketchIsEdited) {
+  // A sketch is one translation unit and more than one file: a helper
+  // beside it is reached by a quoted include, which needs no include
+  // path, so an edit to one has to rebuild the sketch. Otherwise what
+  // stays on screen is the code that stood before the edit, and nothing
+  // says so.
+  const Entry entry{"square", "square", "Test", "", &squareKind};
+  const std::filesystem::path path = watched("sibling");
+  Host host(options(entry, path), fonts());
+  ASSERT_FALSE(host.compiling());
+  // The headers are re-read on a slower cadence than the sketch itself,
+  // so the edit has to stand for longer than that cadence to be seen.
+  std::this_thread::sleep_for(std::chrono::milliseconds(400));
+  std::ofstream(path.parent_path() / "palette.h") << "// a helper\n";
+  host.poll();
+  EXPECT_TRUE(host.compiling());
 }
 
 TEST(SketchHost, ReportsWaitingWhenNothingHasLoaded) {

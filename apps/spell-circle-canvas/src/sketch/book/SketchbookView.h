@@ -13,6 +13,7 @@
 #include <QtCore/QVariantMap>
 #include <QtQuick/QQuickRhiItem>
 #include <filesystem>
+#include <vector>
 
 namespace sigil::sketch {
 class Host;
@@ -86,8 +87,20 @@ class SketchbookView : public QQuickRhiItem {
   /** Where the live host finds the file behind a registry entry, and the
    *  compiler line the build captured. Set by main() before QML loads. */
   static std::filesystem::path sketchDir;
+  /** Where a sketch looks for what it did not generate. Empty means
+   *  `assets/` beside whichever file is open, which is what makes a
+   *  directory of sketches outside this repository a place to work. */
   static std::filesystem::path assetsDir;
   static std::filesystem::path flagsFile;
+  /** SKETCHES THIS BINARY DOES NOT CARRY, opened from a path.
+   *
+   *  The registry is the compiled-in table and settles the first time it
+   *  is read, so a file opened by path cannot join it. It joins this
+   *  list instead, which the listing reads after the registry — the two
+   *  cannot disagree, because an entry here is a file this binary was
+   *  never built with. Its name is the file's stem: the dylib a
+   *  hot-loaded sketch exports carries neither key nor name. */
+  static std::vector<std::filesystem::path> externals;
   /** The host the render thread draws and the GUI thread polls — every
    *  access on either side takes the mutex beside it. */
   static sigil::sketch::Host* host;
