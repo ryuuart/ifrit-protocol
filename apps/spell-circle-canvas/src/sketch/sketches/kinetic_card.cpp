@@ -22,6 +22,23 @@
 //
 // Loop phases are Outputs driven from a ticker lambda and re-zeroed in
 // setup(), because a scene can be activated more than once.
+//
+// THE ENTRANCES OVERLAP ON PURPOSE. Sequenced end to end, every element
+// is either not yet in or already landed at any one instant, and a still
+// of a piece of choreography then shows no choreography. The delays here
+// are set so the hero lines are still rising while the pop is mid-cascade
+// and the ticker is fading in, which is also what the declared moment
+// photographs.
+//
+// EDIT THESE FIRST
+//   kHeroSize          — the dominant move's size; the masked rise travels
+//                        1.26 of it.
+//   heroStagger        — amountMs is the whole cascade's spread and
+//                        durationMs one glyph's own rise, which is what
+//                        amount mode means.
+//   popStagger / fx::pop — the subline's overshoot: 0.35 of the glyph's
+//                        size, backed out at 1.70158.
+//   kTickerSpeed       — the crawl, in px/s. 50 to 120 stays readable.
 
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/brush/LayerStyles.h>
@@ -72,6 +89,10 @@ constexpr float kTickerGap = 56;      // between the two marquee copies
 constexpr float kWavePeriod = 1.6f;   // seconds per sine float cycle
 constexpr float kCometPeriod = 2.8f;  // seconds per comet lap of the rule
 constexpr float kRuleW = 380;
+constexpr float kFadeW = 64;  // the ticker's dissolve at each frame edge
+
+/// The same colour at zero alpha, for a ramp that fades to the ground.
+constexpr SkColor4f transparent(SkColor4f c) { return {c.fR, c.fG, c.fB, 0}; }
 
 }  // namespace kinetic_card
 
@@ -82,7 +103,12 @@ struct KineticCard final : sketch::Sketch {
 
   void setup(sketch::SketchContext& ctx) override {
     ctx.canvas(kSceneSize.fWidth, kSceneSize.fHeight);
-    ctx.captureAt(6.0);
+    // MID-ENTRANCE. The piece is choreography, and a still taken after
+    // the choreography has landed shows none of it: at 0.78 s the first
+    // hero line is settling while the second is still rising out of its
+    // mask, the per-character pop is a third of the way through its
+    // cascade, and the rule is still drawing itself on.
+    ctx.captureAt(0.78);
     ctx.background({0, 0, 0, 1});
     Composer& composer = ctx.composer;
     sigil::motion::Ticker& ticker = ctx.ticker;
@@ -98,9 +124,9 @@ struct KineticCard final : sketch::Sketch {
     ticker.add([this, t = 0.0](double dt) mutable {
       namespace kc = kinetic_card;
       t += dt;
-      wavePhase = (float)std::fmod(t / kc::kWavePeriod, 1.0);
-      cometPhase = (float)std::fmod(t / kc::kCometPeriod, 1.0);
-      tickX = -(float)std::fmod(t * kc::kTickerSpeed, (double)wrapLen);
+      wavePhase = motion::phase(t, kc::kWavePeriod);
+      cometPhase = motion::phase(t, kc::kCometPeriod);
+      tickX = -wrapLen * motion::phase(t * kc::kTickerSpeed / wrapLen, 1.0);
       return true;
     });
 
@@ -275,14 +301,29 @@ struct KineticCard final : sketch::Sketch {
                            .textAlign(sigil::weave::TextAlignment::kCenter)
                            .fx(std::move(waveFx))
                            .opacity(animate(from(0.0f).to(1.0f),
-                                            {560ms, &ch::easeOutQuad, 840ms}))
+                                            {560ms, &ch::easeOutQuad, 300ms}))
                            .margin(0, 22, 0, 0))
                 .child(box().grow(1)))
         .child(marquee(tickerContent(), &tickX, kc::kTickerGap)
                    .inset(0, kc::kH - kc::kTickerH, 0, 0)
                    .opacity(animate(from(0.0f).to(1.0f),
-                                    {560ms, &ch::easeOutQuad, 1040ms}))
-                   .foreground(shapes::onEdges(shapes::Edge::Top, hairline)));
+                                    {560ms, &ch::easeOutQuad, 380ms}))
+                   .foreground(shapes::onEdges(shapes::Edge::Top, hairline)))
+        // A ticker CUT at the frame reads as a broken caption; a ticker
+        // that dissolves into the edge reads as running past it. Two
+        // ramps in the ground's own foot colour, over each end.
+        .child(box()
+                   .inset(0, kc::kH - kc::kTickerH + 1, kc::kW - kc::kFadeW, 0)
+                   .fill(Material::linear(
+                       {0, 0}, {kc::kFadeW, 0},
+                       {{0.0f, kc::kInkFoot},
+                        {1.0f, kc::transparent(kc::kInkFoot)}})))
+        .child(
+            box()
+                .inset(kc::kW - kc::kFadeW, kc::kH - kc::kTickerH + 1, 0, 0)
+                .fill(Material::linear({0, 0}, {kc::kFadeW, 0},
+                                       {{0.0f, kc::transparent(kc::kInkFoot)},
+                                        {1.0f, kc::kInkFoot}})));
   }
 };
 
