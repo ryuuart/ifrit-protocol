@@ -1,8 +1,19 @@
-// Delegates reach outward — a row needs the window's row array, the list's
-// width, and the view's current sketch. Bound makes those captures explicit
-// and well-defined rather than resolved by scope-chain accident.
+// Delegates reach outward — a row needs the window's rows and its
+// selection. Bound makes those captures explicit and well-defined rather
+// than resolved by scope-chain accident.
 pragma ComponentBehavior: Bound
 
+// THE BROWSER STANDS BESIDE THE CANVAS, NEVER IN FRONT OF IT.
+//
+// Going through a registry this size is a matter of looking at one
+// sketch after another, and a browser that took the window would make
+// every look a round trip through a screen with no pictures on it. So
+// the canvas keeps presenting while the browser is read: SELECTION is a
+// look — it moves the inspector and nothing else — and ENTER is what
+// moves the canvas. The resident set is what makes that worth doing,
+// because a sketch already opened comes back without being built again.
+
+import QtCore
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
@@ -13,748 +24,636 @@ ApplicationWindow {
 
     width: 1440
     height: 920
-    minimumWidth: 760
-    minimumHeight: 560
+    minimumWidth: 900
+    minimumHeight: 600
     visible: true
     title: "Sketchbook"
-    color: "#0b0a14"
+    color: Theme.ground
 
-    // The Basic style paints its controls straight from the palette; without
-    // this a light-grey Button and Slider sit in the middle of a dark panel.
-    palette.window: "#12101e"
-    palette.windowText: "#e8ecf8"
+    // The Basic style paints its controls straight from the palette;
+    // without this a light-grey Button and Slider sit in the middle of a
+    // dark panel.
+    palette.window: Theme.panel
+    palette.windowText: Theme.text
     palette.button: "#241f3d"
-    palette.buttonText: "#e8ecf8"
+    palette.buttonText: Theme.text
     palette.mid: "#2f2951"
-    palette.midlight: "#3a3366"
-    palette.dark: "#0a0912"
-    palette.light: "#3a3366"
-    palette.highlight: "#5b4bb0"
-    palette.text: "#e8ecf8"
-    palette.base: "#0a0912"
+    palette.midlight: Theme.border
+    palette.dark: Theme.ground
+    palette.light: Theme.border
+    palette.highlight: Theme.accent
+    palette.text: Theme.text
+    palette.base: Theme.ground
 
-    readonly property var stats: view.metrics
+    // ---- What the window remembers between runs --------------------------
+    Settings {
+        id: settings
 
-    function showCapture(path) {
-        captureLabel.text = path.length > 0
-            ? "saved " + path.split("/").pop() : "capture failed";
-        captureLabel.opacity = 1;
-        captureHide.restart();
+        category: "browser"
+        property string viewMode: "list"
+        property bool inspectorOpen: true
+        property real browserWidth: 540
+        property string sortKey: "folder"
+        property bool sortAscending: true
     }
+
+    // ---- The browser's state ---------------------------------------------
+    property string viewMode: "list"
+    property bool inspectorOpen: true
+    property string sortKey: "folder"
+    property bool sortAscending: true
+    property string filterText: ""
+    property string folder: ""
+    /** The row the inspector shows. Not the row the canvas presents:
+     *  that is view.sketchIndex, and the two part company the moment
+     *  someone starts browsing. */
+    property int selectedIndex: -1
+    property var collapsedGroups: ({})
+    property var rows: []
+    property var cards: []
+    property var folders: []
+
+    onViewModeChanged: settings.viewMode = window.viewMode
+    onInspectorOpenChanged: settings.inspectorOpen = window.inspectorOpen
+    onSortKeyChanged: {
+        settings.sortKey = window.sortKey;
+        window.rebuild();
+    }
+    onSortAscendingChanged: {
+        settings.sortAscending = window.sortAscending;
+        window.rebuild();
+    }
+    onFilterTextChanged: window.rebuild()
+    onFolderChanged: window.rebuild()
+
+    /** Every field a row carries, empty — what a folder header stands
+     *  in with, so a delegate never reads a field off the wrong kind of
+     *  row and warns once per row per rebuild for nothing. */
+    readonly property var blankSketch: ({
+        sketchIndex: -1, name: "", key: "", folder: "", blurb: "", path: "",
+        kind: "", available: true, reason: "", lines: 0, subject: "",
+        editFirst: "", plate: "", canvas: "", background: "", moment: -1
+    })
+
+    readonly property var selectedSketch:
+        window.sketchAt(window.selectedIndex) ?? window.blankSketch
+
+    function sketchAt(index) {
+        const all = catalog.sketches;
+        for (let i = 0; i < all.length; ++i)
+            if (all[i].sketchIndex === index)
+                return all[i];
+        return undefined;
+    }
+
+    // ---- Filtering -------------------------------------------------------
+    //
+    // Free words narrow on everything a sketch is written down as; a
+    // `folder:` or `kind:` word narrows on that field alone. Every word
+    // has to match, so words accumulate into one question rather than
+    // widening it.
+
+    function parseFilter(text) {
+        let terms = { free: [], folder: [], kind: [] };
+        const words = text.trim().toLowerCase().split(/\s+/);
+        for (let i = 0; i < words.length; ++i) {
+            const word = words[i];
+            if (word.length === 0)
+                continue;
+            if (word.startsWith("folder:"))
+                terms.folder.push(word.substring(7));
+            else if (word.startsWith("kind:"))
+                terms.kind.push(word.substring(5));
+            else
+                terms.free.push(word);
+        }
+        return terms;
+    }
+
+    function matches(sketch, terms) {
+        const hay = (sketch.name + " " + sketch.folder + " " + sketch.blurb
+                     + " " + sketch.key).toLowerCase();
+        for (let i = 0; i < terms.free.length; ++i)
+            if (hay.indexOf(terms.free[i]) < 0)
+                return false;
+        for (let i = 0; i < terms.folder.length; ++i)
+            if (sketch.folder.toLowerCase().indexOf(terms.folder[i]) < 0)
+                return false;
+        for (let i = 0; i < terms.kind.length; ++i)
+            if (sketch.kind.toLowerCase().indexOf(terms.kind[i]) < 0)
+                return false;
+        return true;
+    }
+
+    // ---- Ordering --------------------------------------------------------
+    //
+    // Ordering by FOLDER is the grouped reading, and is the default; any
+    // other column is one flat run over the whole filtered set, because
+    // a column you asked to be ordered by is one you want to read down
+    // without folders interrupting it.
+
+    function sortValue(sketch, key) {
+        if (key === "folder")
+            return sketch.folder + " " + sketch.name;
+        if (key === "kind")
+            return sketch.kind + " " + sketch.name;
+        if (key === "lines")
+            return sketch.lines;
+        if (key === "moment")
+            return sketch.moment;
+        if (key === "canvas") {
+            const size = /^(\d+)x(\d+)$/.exec(sketch.canvas);
+            return size ? Number(size[1]) * Number(size[2]) : -1;
+        }
+        return sketch.name;
+    }
+
+    function compare(left, right) {
+        const a = window.sortValue(left, window.sortKey);
+        const b = window.sortValue(right, window.sortKey);
+        // A fact a session has not answered yet sorts to the end either
+        // way: it is not a small number, it is an unknown one.
+        if (typeof a === "number" && typeof b === "number") {
+            if (a < 0 && b >= 0) return 1;
+            if (b < 0 && a >= 0) return -1;
+            return window.sortAscending ? a - b : b - a;
+        }
+        return window.sortAscending ? a.localeCompare(b) : b.localeCompare(a);
+    }
+
+    // ---- The rows --------------------------------------------------------
+
+    function rebuild() {
+        const terms = window.parseFilter(window.filterText);
+        const all = catalog.sketches;
+        let found = [];
+        for (let i = 0; i < all.length; ++i)
+            if (window.matches(all[i], terms))
+                found.push(all[i]);
+
+        // The chips count what the TEXT left, so a chip says how many
+        // there are to switch to rather than how many are on screen.
+        let counts = ({});
+        let order = [];
+        for (let i = 0; i < found.length; ++i) {
+            if (counts[found[i].folder] === undefined) {
+                counts[found[i].folder] = 0;
+                order.push(found[i].folder);
+            }
+            ++counts[found[i].folder];
+        }
+        order.sort();
+        let chips = [{ folder: "", label: "All", count: found.length }];
+        for (let i = 0; i < order.length; ++i)
+            chips.push({ folder: order[i], label: order[i],
+                         count: counts[order[i]] });
+        window.folders = chips;
+
+        let kept = [];
+        for (let i = 0; i < found.length; ++i)
+            if (window.folder.length === 0 || found[i].folder === window.folder)
+                kept.push(found[i]);
+        kept.sort(window.compare);
+        window.cards = kept;
+
+        let out = [];
+        if (window.sortKey === "folder") {
+            let openFolder = "";
+            let shut = false;
+            for (let i = 0; i < kept.length; ++i) {
+                if (kept[i].folder !== openFolder) {
+                    openFolder = kept[i].folder;
+                    // While filtering, a collapsed folder would hide its
+                    // own hits — which is worse than no filter at all.
+                    shut = terms.free.length === 0
+                        && terms.folder.length === 0
+                        && terms.kind.length === 0
+                        && window.collapsedGroups[openFolder] === true;
+                    let count = 0;
+                    for (let k = i; k < kept.length
+                         && kept[k].folder === openFolder; ++k)
+                        ++count;
+                    out.push({ header: true, folder: openFolder, count: count,
+                               collapsed: shut, sketch: window.blankSketch });
+                }
+                if (!shut)
+                    out.push({ header: false, folder: kept[i].folder,
+                               count: 0, collapsed: false, sketch: kept[i] });
+            }
+        } else {
+            for (let i = 0; i < kept.length; ++i)
+                out.push({ header: false, folder: kept[i].folder, count: 0,
+                           collapsed: false, sketch: kept[i] });
+        }
+        window.rows = out;
+
+        // A selection nothing on screen shows is not a selection: it
+        // falls to the first row there is, which is the first row of the
+        // first OPEN folder rather than of the first folder.
+        if (window.rowForSketch(window.selectedIndex) < 0) {
+            window.selectedIndex = -1;
+            const showing = window.viewMode === "gallery" ? kept : out;
+            for (let i = 0; i < showing.length; ++i) {
+                const row = showing[i].header === undefined
+                    ? showing[i] : (showing[i].header ? null : showing[i].sketch);
+                if (row !== null) {
+                    window.selectedIndex = row.sketchIndex;
+                    break;
+                }
+            }
+        }
+    }
+
+    function toggleGroup(name) {
+        let next = ({});
+        for (const key in window.collapsedGroups)
+            next[key] = window.collapsedGroups[key];
+        next[name] = !(next[name] === true);
+        window.collapsedGroups = next;
+        window.rebuild();
+    }
+
+    /** Where the selected sketch sits in whichever view is on, or -1
+     *  when this one is not showing it. */
+    function rowForSketch(index) {
+        if (window.viewMode === "gallery") {
+            for (let i = 0; i < window.cards.length; ++i)
+                if (window.cards[i].sketchIndex === index)
+                    return i;
+            return -1;
+        }
+        for (let i = 0; i < window.rows.length; ++i)
+            if (!window.rows[i].header
+                && window.rows[i].sketch.sketchIndex === index)
+                return i;
+        return -1;
+    }
+
+    /** Moves the selection by @p step over what is actually on screen,
+     *  stepping over folder headers, and scrolls it into view. */
+    function step(delta) {
+        const here = window.rowForSketch(window.selectedIndex);
+        if (window.viewMode === "gallery") {
+            if (window.cards.length === 0)
+                return;
+            const to = Math.max(0, Math.min(window.cards.length - 1,
+                                            (here < 0 ? 0 : here + delta)));
+            window.selectedIndex = window.cards[to].sketchIndex;
+            gallery.positionAt(to);
+            return;
+        }
+        let i = here >= 0 ? here : (delta > 0 ? -1 : window.rows.length);
+        for (i += delta; i >= 0 && i < window.rows.length; i += delta) {
+            if (window.rows[i].header)
+                continue;
+            window.selectedIndex = window.rows[i].sketch.sketchIndex;
+            sketchList.positionAt(i);
+            return;
+        }
+    }
+
+    function select(index) {
+        window.selectedIndex = index;
+    }
+
+    /** Present it. The one action that moves the canvas. */
+    function activate(index) {
+        if (index >= 0)
+            view.sketchIndex = index;
+    }
+
+    /** Brings the selection into view — opening the folder holding it
+     *  first, because a selection inside a shut folder is one the list
+     *  cannot show and the next rebuild would move.
+     *
+     *  The scroll waits for the rows to have been handed over: a view
+     *  asked to hold an index it has not been given yet holds nothing,
+     *  and the selection stays off screen with no sign that it did. */
+    function reveal() {
+        const sketch = window.sketchAt(window.selectedIndex);
+        if (sketch === undefined)
+            return;
+        if (window.viewMode === "list"
+            && window.collapsedGroups[sketch.folder] === true)
+            window.toggleGroup(sketch.folder);
+        Qt.callLater(window.scrollToSelection);
+    }
+
+    function scrollToSelection() {
+        const at = window.rowForSketch(window.selectedIndex);
+        if (at < 0)
+            return;
+        if (window.viewMode === "gallery")
+            gallery.positionAt(at);
+        else
+            sketchList.positionAt(at);
+    }
+
+    function sortBy(key) {
+        if (window.sortKey === key)
+            window.sortAscending = !window.sortAscending;
+        else {
+            window.sortAscending = true;
+            window.sortKey = key;
+        }
+    }
+
+    // ---- Captures --------------------------------------------------------
+    property string captureLine: ""
     Timer {
         id: captureHide
+
         interval: 2500
-        onTriggered: captureLabel.opacity = 0
+        onTriggered: window.captureLine = ""
     }
+    function showCapture(path) {
+        window.captureLine = path.length > 0
+            ? "saved " + path.split("/").pop() : "capture failed";
+        captureHide.restart();
+    }
+
     Shortcut {
         // The plural form: Save is more than one binding on some
         // platforms, and binding the first silently drops the rest.
         sequences: [StandardKey.Save]
         onActivated: view.capture()
     }
-
-    // ---- Sidebar navigation model -----------------------------------------
-    //
-    // The registry is more entries than fit on screen, so the sidebar is
-    // FOLDERS — one group per category, collapsible, over a single flat row
-    // array that mixes headers and sketches. A flat array (rather than a
-    // nested view) keeps one ListView, one currentIndex, and working arrow
-    // keys.
-    //
-    // Filtering is the other half. Typing narrows on name, blurb, folder and
-    // file stem, and force-opens every group that still has a hit — a search
-    // that leaves matches hidden inside a collapsed folder is worse than no
-    // search.
-
-    property string filterText: ""
-    property var collapsedGroups: ({})
-    property var rows: []
-
-    function matches(sketch, needle) {
-        if (needle.length === 0)
-            return true;
-        return (sketch.name + " " + sketch.tag + " " + sketch.category + " "
-                + sketch.key).toLowerCase().indexOf(needle) >= 0;
+    Shortcut {
+        sequence: "/"
+        onActivated: topBar.focusFilter()
+    }
+    Shortcut {
+        sequences: [StandardKey.Find]
+        onActivated: topBar.focusFilter()
+    }
+    Shortcut {
+        sequence: "Ctrl+I"
+        onActivated: window.inspectorOpen = !window.inspectorOpen
     }
 
-    function rebuildRows() {
-        const needle = filterText.trim().toLowerCase();
-        const all = view.sketches;
-        let order = [];
-        let byGroup = ({});
-        for (let i = 0; i < all.length; ++i) {
-            const sketch = all[i];
-            if (!matches(sketch, needle))
-                continue;
-            if (byGroup[sketch.category] === undefined) {
-                byGroup[sketch.category] = [];
-                order.push(sketch.category);
-            }
-            byGroup[sketch.category].push(sketch);
-        }
-        // Headers and sketches get the SAME shape. A delegate reading a field
-        // the other kind lacks would evaluate `undefined` on every row of the
-        // wrong kind — a warning per row per rebuild, for nothing.
-        let out = [];
-        for (let g = 0; g < order.length; ++g) {
-            const group = order[g];
-            const items = byGroup[group];
-            // While filtering, a collapsed folder would hide its own hits.
-            const shut = needle.length === 0
-                         && collapsedGroups[group] === true;
-            out.push({ header: true, name: group, tag: "", key: "", path: "",
-                       sketchIndex: -1, count: items.length, collapsed: shut });
-            if (!shut)
-                for (let k = 0; k < items.length; ++k)
-                    out.push({ header: false, name: items[k].name,
-                               tag: items[k].tag, key: items[k].key,
-                               path: items[k].path,
-                               sketchIndex: items[k].sketchIndex,
-                               count: 0, collapsed: false });
-        }
-        rows = out;
+    // ---- Everything a sketch says about itself ----------------------------
+    SketchCatalog { id: catalog }
+
+    // A row that has just learned its canvas may belong under a
+    // different heading than the one it is under, so the rows are made
+    // again rather than patched in place.
+    Connections {
+        target: catalog
+        function onSketchesChanged() { window.rebuild(); }
     }
 
-    function toggleGroup(group) {
-        let next = ({});
-        for (const key in collapsedGroups)
-            next[key] = collapsedGroups[key];
-        next[group] = !(next[group] === true);
-        collapsedGroups = next;
-        rebuildRows();
-    }
-
-    function setAllCollapsed(shut) {
-        let next = ({});
-        const all = view.sketches;
-        for (let i = 0; i < all.length; ++i)
-            next[all[i].category] = shut;
-        collapsedGroups = next;
-        rebuildRows();
-    }
-
-    /** The row showing `sketchIndex`, or -1 when the filter hides it. */
-    function rowForSketch(sketchIndex) {
-        for (let i = 0; i < rows.length; ++i)
-            if (!rows[i].header && rows[i].sketchIndex === sketchIndex)
-                return i;
-        return -1;
-    }
-
-    /** Opens the folder holding the running sketch and scrolls to it. The
-     *  selection can change from outside the list, and a selection you
-     *  cannot see is not a selection. */
-    function revealCurrent() {
-        const sketch = view.sketches[view.sketchIndex];
-        if (sketch === undefined)
-            return;
-        if (collapsedGroups[sketch.category] === true)
-            toggleGroup(sketch.category);
-        const rowIndex = rowForSketch(view.sketchIndex);
-        if (rowIndex >= 0)
-            sketchList.positionViewAtIndex(rowIndex, ListView.Contain);
-    }
-
+    // A running session is the only thing that knows the canvas a sketch
+    // declared, the ground behind it and the moment it names — those are
+    // stated from inside its own setup. Every frame publishes them, and
+    // the catalog keeps the answer, so a row reads its canvas back long
+    // after the resident set has let the session go.
     Connections {
         target: view
-        function onSketchIndexChanged() { window.revealCurrent(); }
-    }
-
-    /** Arrow keys move between SKETCHES, stepping over folder headers — and
-     *  land somewhere sensible when the current one is filtered out. */
-    function selectDelta(step) {
-        const start = rowForSketch(view.sketchIndex);
-        let i = start >= 0 ? start : (step > 0 ? -1 : rows.length);
-        for (i += step; i >= 0 && i < rows.length; i += step) {
-            if (!rows[i].header) {
-                view.sketchIndex = rows[i].sketchIndex;
-                sketchList.positionViewAtIndex(i, ListView.Contain);
-                return;
-            }
+        function onMetricsChanged() {
+            const stats = view.metrics;
+            if (stats.sketchIndex !== undefined)
+                catalog.learn(stats.sketchIndex, stats.canvas ?? "",
+                              stats.moment ?? -1, stats.background ?? "");
+        }
+        function onSketchIndexChanged() {
+            window.selectedIndex = view.sketchIndex;
+            window.reveal();
         }
     }
 
-    onFilterTextChanged: rebuildRows()
-
-    // Open on the SHAPE of the registry, not on its first thirteen rows. The
-    // whole list expanded is several screens of scrolling before you have
-    // seen that a folder exists; the headers with the running sketch's folder
-    // open is one screen that says what is here.
     Component.onCompleted: {
-        const all = view.sketches;
-        const current = all[view.sketchIndex];
+        window.viewMode = settings.viewMode;
+        window.inspectorOpen = settings.inspectorOpen;
+        window.sortKey = settings.sortKey;
+        window.sortAscending = settings.sortAscending;
+        // Open on the SHAPE of the registry rather than on its first
+        // thirteen rows: every folder shut but the one holding what the
+        // canvas is presenting is one screen that says what is here.
+        const all = catalog.sketches;
+        const current = window.sketchAt(view.sketchIndex);
         let next = ({});
         for (let i = 0; i < all.length; ++i)
-            next[all[i].category] =
-                current === undefined || all[i].category !== current.category;
-        collapsedGroups = next;
-        rebuildRows();
-        revealCurrent();
+            next[all[i].folder] =
+                current === undefined || all[i].folder !== current.folder;
+        window.collapsedGroups = next;
+        window.selectedIndex = view.sketchIndex;
+        window.rebuild();
+        window.reveal();
     }
 
-    /** One "name   value" line that gives up width by eliding the name
-     *  rather than by painting past the panel. */
-    component Metric: RowLayout {
-        id: metricRow
-
-        required property string name
-        required property string value
-
-        spacing: 6
-        Label {
-            text: metricRow.name
-            color: "#767e99"
-            font.pixelSize: 11
-            elide: Text.ElideRight
-            Layout.fillWidth: true
-        }
-        Label {
-            text: metricRow.value
-            color: "#d3dbf0"
-            font.family: "Menlo"
-            font.pixelSize: 11
-        }
-    }
-
-    // Draggable split: the blurbs are long and the metric names are fixed, so
-    // how much of the window the sidebar deserves is the reader's call.
-    SplitView {
+    // ---- The window ------------------------------------------------------
+    ColumnLayout {
         anchors.fill: parent
-        orientation: Qt.Horizontal
+        spacing: 0
 
-        handle: Rectangle {
-            implicitWidth: 5
-            color: SplitHandle.pressed ? "#4a3d85"
-                                       : (SplitHandle.hovered ? "#2a2350"
-                                                              : "#181530")
+        TopBar {
+            id: topBar
+
+            Layout.fillWidth: true
+            total: catalog.sketches.length
+            shown: window.cards.length
+            viewMode: window.viewMode
+            inspectorOpen: window.inspectorOpen
+            onFilterTextChanged: window.filterText = topBar.filterText
+            onViewModeRequested: mode => {
+                window.viewMode = mode;
+                window.reveal();
+            }
+            onInspectorToggled: window.inspectorOpen = !window.inspectorOpen
+            onSteppedOut: {
+                if (window.viewMode === "gallery")
+                    gallery.focusRows();
+                else
+                    sketchList.focusRows();
+            }
         }
 
-        // ---- Sidebar: the registry, grouped by folder ----
-        Rectangle {
-            SplitView.preferredWidth: 320
-            SplitView.minimumWidth: 240
-            SplitView.maximumWidth: 520
-            color: "#12101e"
+        SplitView {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            orientation: Qt.Horizontal
 
-            ColumnLayout {
-                anchors.fill: parent
-                anchors.margins: 14
-                spacing: 10
+            handle: Rectangle {
+                implicitWidth: 5
+                color: SplitHandle.pressed ? "#4a3d85"
+                     : (SplitHandle.hovered ? "#2a2350" : Theme.rule)
+            }
 
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 8
-                    Label {
-                        text: "SKETCHBOOK"
-                        color: "#ffb46b"
-                        font.pixelSize: 15
-                        font.bold: true
-                        elide: Text.ElideRight
-                        Layout.fillWidth: true
-                    }
-                    Label {
-                        text: view.sketches.length + " sketches"
-                        color: "#5c6480"
-                        font.family: "Menlo"
-                        font.pixelSize: 10
-                    }
-                }
+            // ---- The browser ----
+            Rectangle {
+                id: browserPane
 
-                // ---- Filter ----
-                Rectangle {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 30
-                    radius: 8
-                    color: "#0a0912"
-                    border.width: 1
-                    border.color: filterField.activeFocus ? "#5b4bb0" : "#1e1a33"
+                SplitView.preferredWidth: settings.browserWidth
+                SplitView.minimumWidth: 330
+                SplitView.maximumWidth: 1000
+                color: Theme.panel
 
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.leftMargin: 9
-                        anchors.rightMargin: 5
-                        spacing: 4
+                // Remembered where it was LEFT, not wherever it passed
+                // through: a pane takes several widths while a window
+                // lays itself out, and any of those written down would
+                // be the width it opened at next time.
+                Component.onDestruction:
+                    settings.browserWidth = browserPane.width
 
-                        Label {
-                            text: "⌕"
-                            color: "#5c6480"
-                            font.pixelSize: 14
-                        }
-                        TextField {
-                            id: filterField
-
-                            Layout.fillWidth: true
-                            placeholderText: "filter — name, folder, blurb, file"
-                            color: "#e8ecf8"
-                            placeholderTextColor: "#4d5470"
-                            font.pixelSize: 12
-                            background: null
-                            padding: 0
-                            onTextChanged: window.filterText = text
-                            // Escape clears rather than losing focus: the
-                            // filter is a lens, and putting it down should be
-                            // one key, not select-all-delete.
-                            Keys.onEscapePressed: text = ""
-                            Keys.onDownPressed: {
-                                sketchList.forceActiveFocus();
-                                window.selectDelta(1);
-                            }
-                        }
-                        ToolButton {
-                            visible: filterField.text.length > 0
-                            text: "×"
-                            font.pixelSize: 15
-                            implicitWidth: 22
-                            implicitHeight: 22
-                            onClicked: filterField.text = ""
-                        }
-                        ToolButton {
-                            // One click to see the whole shape of the
-                            // registry, one to get back to browsing.
-                            visible: filterField.text.length === 0
-                            text: "≡"
-                            font.pixelSize: 14
-                            implicitWidth: 22
-                            implicitHeight: 22
-                            ToolTip.visible: hovered
-                            ToolTip.delay: 600
-                            ToolTip.text: "Collapse / expand all folders"
-                            onClicked: {
-                                let anyOpen = false;
-                                for (let i = 0; i < window.rows.length; ++i)
-                                    if (window.rows[i].header
-                                        && !window.rows[i].collapsed)
-                                        anyOpen = true;
-                                window.setAllCollapsed(anyOpen);
-                            }
-                        }
-                    }
-                }
-
-                ListView {
+                SketchList {
                     id: sketchList
+
+                    anchors.fill: parent
+                    visible: window.viewMode === "list"
+                    rows: window.rows
+                    selectedIndex: window.selectedIndex
+                    presentedIndex: view.sketchIndex
+                    sortKey: window.sortKey
+                    sortAscending: window.sortAscending
+                    onSelectRequested: index => window.select(index)
+                    onActivateRequested: index => window.activate(index)
+                    onGroupToggled: name => window.toggleGroup(name)
+                    onSortRequested: key => window.sortBy(key)
+                    onStepRequested: delta => window.step(delta)
+                }
+
+                SketchGallery {
+                    id: gallery
+
+                    anchors.fill: parent
+                    visible: window.viewMode === "gallery"
+                    cards: window.cards
+                    folders: window.folders
+                    folder: window.folder
+                    selectedIndex: window.selectedIndex
+                    presentedIndex: view.sketchIndex
+                    onSelectRequested: index => window.select(index)
+                    onActivateRequested: index => window.activate(index)
+                    onFolderRequested: name => window.folder = name
+                    onStepRequested: delta => window.step(delta)
+                }
+            }
+
+            // ---- The canvas, which keeps presenting while you browse ----
+            ColumnLayout {
+                SplitView.fillWidth: true
+                SplitView.minimumWidth: 300
+                spacing: 0
+
+                SketchbookView {
+                    id: view
 
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    // The metrics panel below is fixed-height; without a floor
-                    // here a short window would collapse the list to nothing.
-                    Layout.minimumHeight: 120
-                    clip: true
-                    focus: true
-                    model: window.rows
-                    // The list is folded and filtered, so a row's position
-                    // says nothing about which sketch it selects — the mapping
-                    // runs the other way, and is -1 when the filter has hidden
-                    // the running one.
-                    currentIndex: window.rowForSketch(view.sketchIndex)
-                    keyNavigationEnabled: false
-                    Keys.onUpPressed: window.selectDelta(-1)
-                    Keys.onDownPressed: window.selectDelta(1)
+                    // Captures run on the render thread; the saved path
+                    // (or an empty string on failure) arrives
+                    // asynchronously.
+                    onCaptureReady: path => window.showCapture(path)
 
-                    ScrollBar.vertical: ScrollBar { id: sketchScroll }
+                    // Orbit, for the sketches that have a viewpoint to
+                    // move. A drag is yaw and pitch; the wheel is
+                    // distance. A sketch with no viewpoint gets no
+                    // handler at all, so a drag over a drawn tree does
+                    // nothing rather than something invisible.
+                    //
+                    // EVERY GESTURE STARTS FROM WHERE THE SKETCH STANDS,
+                    // read off the view at the moment it begins, so an
+                    // untouched sketch is seen from the camera it
+                    // declared and the first drag moves that camera
+                    // rather than replacing it.
+                    property real yaw: 0
+                    property real pitch: 0
+                    property real distance: 0
 
-                    readonly property real rowWidth:
-                        sketchList.width
-                        - (sketchScroll.visible ? sketchScroll.width : 0)
-
-                    // One delegate, two faces. A Loader per row would have to
-                    // hand the row down through a required property after
-                    // construction, which is exactly what required properties
-                    // forbid; cheap Items cost less than that fight.
-                    delegate: Item {
-                        id: row
-
-                        required property var modelData
-
-                        width: sketchList.rowWidth
-                        height: row.modelData.header ? 28 : 42
-
-                        // ---- A folder ----
-                        Rectangle {
-                            anchors.fill: parent
-                            visible: row.modelData.header
-                            radius: 6
-                            color: headerHover.hovered ? "#181530"
-                                                       : "transparent"
-
-                            RowLayout {
-                                anchors.fill: parent
-                                anchors.leftMargin: 6
-                                anchors.rightMargin: 8
-                                spacing: 5
-
-                                Label {
-                                    // Fixed width so every folder name starts
-                                    // at the same x whichever way it points.
-                                    Layout.preferredWidth: 10
-                                    horizontalAlignment: Text.AlignHCenter
-                                    text: row.modelData.collapsed ? "▶"
-                                                                  : "▼"
-                                    color: "#79839f"
-                                    font.pixelSize: 8
-                                }
-                                Label {
-                                    text: row.modelData.name
-                                    color: "#8f98b2"
-                                    font.pixelSize: 11
-                                    font.capitalization: Font.AllUppercase
-                                    elide: Text.ElideRight
-                                    Layout.fillWidth: true
-                                }
-                                Label {
-                                    text: row.modelData.count
-                                    color: "#4d5470"
-                                    font.family: "Menlo"
-                                    font.pixelSize: 10
-                                }
-                            }
-
-                            HoverHandler { id: headerHover }
-                            TapHandler {
-                                onTapped: {
-                                    window.toggleGroup(row.modelData.name);
-                                    sketchList.forceActiveFocus();
-                                }
+                    DragHandler {
+                        enabled: view.orbitable
+                        target: null
+                        property real startYaw: 0
+                        property real startPitch: 0
+                        onActiveChanged: {
+                            if (active) {
+                                startYaw = view.orbitYaw;
+                                startPitch = view.orbitPitch;
+                                view.distance = view.orbitDistance;
                             }
                         }
-
-                        // ---- A sketch ----
-                        // Two lines, both elided: blurbs run well past what a
-                        // single-row layout can hold beside the name.
-                        Rectangle {
-                            anchors.fill: parent
-                            visible: !row.modelData.header
-                            radius: 7
-                            color: view.sketchIndex === row.modelData.sketchIndex
-                                 ? "#2c2456"
-                                 : sketchHover.hovered ? "#1b1730" : "transparent"
-
-                            ColumnLayout {
-                                anchors.fill: parent
-                                anchors.leftMargin: 21
-                                anchors.rightMargin: 10
-                                anchors.topMargin: 5
-                                anchors.bottomMargin: 5
-                                spacing: 1
-
-                                Label {
-                                    text: row.modelData.name
-                                    color: "#e8ecf8"
-                                    font.pixelSize: 13
-                                    elide: Text.ElideRight
-                                    Layout.fillWidth: true
-                                }
-                                Label {
-                                    text: row.modelData.tag
-                                    color: "#6fc9e0"
-                                    font.pixelSize: 10
-                                    elide: Text.ElideRight
-                                    Layout.fillWidth: true
-                                }
-                            }
-
-                            HoverHandler { id: sketchHover }
-                            TapHandler {
-                                onTapped: {
-                                    view.sketchIndex = row.modelData.sketchIndex;
-                                    sketchList.forceActiveFocus();
-                                }
-                            }
-                            // Every sketch says where it lives: the file you
-                            // would open to change what you are looking at.
-                            ToolTip.visible: sketchHover.hovered
-                            ToolTip.delay: 700
-                            ToolTip.text: row.modelData.name + " — "
-                                + row.modelData.tag + "\n"
-                                + row.modelData.path
+                        onTranslationChanged: {
+                            view.yaw = startYaw - translation.x * 0.4;
+                            view.pitch = startPitch + translation.y * 0.3;
+                            view.orbit(view.yaw, view.pitch, view.distance);
+                        }
+                    }
+                    WheelHandler {
+                        enabled: view.orbitable
+                        onWheel: event => {
+                            view.yaw = view.orbitYaw;
+                            view.pitch = view.orbitPitch;
+                            view.distance = Math.max(
+                                40,
+                                view.orbitDistance - event.angleDelta.y * 0.5);
+                            view.orbit(view.yaw, view.pitch, view.distance);
                         }
                     }
                 }
 
-                // ---- Clock controls ----
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 8
-                    Button {
-                        text: view.paused ? "Resume" : "Pause"
-                        Layout.fillWidth: true
-                        onClicked: view.paused = !view.paused
-                    }
-                    Button {
-                        text: "Capture"
-                        onClicked: view.capture()
-                    }
-                    Label {
-                        text: speed.value.toFixed(2) + "×"
-                        color: "#767e99"
-                        font.family: "Menlo"
-                        font.pixelSize: 11
-                    }
-                }
-                Slider {
-                    id: speed
-                    Layout.fillWidth: true
-                    from: 0.1
-                    to: 4.0
-                    value: 1.0
-                    onValueChanged: view.timeScale = value
-                }
-                Label {
-                    id: captureLabel
-                    color: "#5bd47a"
-                    font.pixelSize: 11
-                    opacity: 0
-                    Behavior on opacity { NumberAnimation { duration: 300 } }
-                }
-
-                // ---- Live frame metrics ----
+                // Compile-error overlay: the last good sketch keeps
+                // running underneath.
                 Rectangle {
                     Layout.fillWidth: true
-                    Layout.preferredHeight: metricsBody.implicitHeight + 24
-                    Layout.minimumHeight: metricsBody.implicitHeight + 24
-                    radius: 10
-                    color: "#0a0912"
-                    border.width: 1
-                    border.color: "#1e1a33"
-
-                    ColumnLayout {
-                        id: metricsBody
+                    visible: view.errorLog.length > 0
+                    color: "#2a0c12"
+                    Layout.preferredHeight: Math.min(
+                        errorText.implicitHeight + 20, window.height * 0.4)
+                    ScrollView {
+                        id: errorScroll
 
                         anchors.fill: parent
-                        anchors.margins: 12
-                        spacing: 8
+                        anchors.margins: 10
+                        Text {
+                            id: errorText
 
-                        RowLayout {
-                            Layout.fillWidth: true
-                            spacing: 10
-
-                            Label {
-                                text: window.stats.fps !== undefined
-                                      ? window.stats.fps.toFixed(0) : "—"
-                                color: "#7ee8ff"
-                                font.pixelSize: 30
-                                font.bold: true
-                            }
-                            ColumnLayout {
-                                Layout.fillWidth: true
-                                spacing: 0
-                                Label {
-                                    text: "fps presented"
-                                    color: "#767e99"
-                                    font.pixelSize: 11
-                                    elide: Text.ElideRight
-                                    Layout.fillWidth: true
-                                }
-                                Label {
-                                    text: window.stats.backend ?? ""
-                                    color: "#ffb46b"
-                                    font.pixelSize: 11
-                                    elide: Text.ElideRight
-                                    Layout.fillWidth: true
-                                }
-                            }
-                        }
-
-                        GridLayout {
-                            Layout.fillWidth: true
-                            columns: 2
-                            columnSpacing: 18
-                            rowSpacing: 3
-
-                            Metric {
-                                Layout.fillWidth: true
-                                name: "work"
-                                value: (window.stats.workMs ?? 0).toFixed(2)
-                            }
-                            Metric {
-                                Layout.fillWidth: true
-                                name: "p99"
-                                value: (window.stats.p99Ms ?? 0).toFixed(2)
-                            }
-                            Metric {
-                                Layout.fillWidth: true
-                                name: "submit"
-                                value: (window.stats.submitMs ?? 0).toFixed(2)
-                            }
-                            Metric {
-                                Layout.fillWidth: true
-                                name: "headroom"
-                                value: (window.stats.headroomFps ?? 0).toFixed(0)
-                            }
-                            Metric {
-                                Layout.fillWidth: true
-                                name: "canvas"
-                                value: window.stats.canvas ?? "—"
-                            }
-                        }
-
-                        // The runtime's own lanes, named by the runtime: a
-                        // drawn tree and a lit set do not spend a frame on
-                        // the same things, and pretending otherwise would
-                        // print zeros under a heading one of them cannot
-                        // fill.
-                        Repeater {
-                            model: window.stats.lanes ?? []
-                            Metric {
-                                required property var modelData
-                                Layout.fillWidth: true
-                                name: modelData.name
-                                value: modelData.ms.toFixed(2)
-                            }
-                        }
-
-                        Label {
-                            text: window.stats.counters ?? ""
-                            visible: text.length > 0
-                            color: "#767e99"
-                            font.family: "Menlo"
-                            font.pixelSize: 10
-                            wrapMode: Text.WordWrap
-                            Layout.fillWidth: true
+                            text: view.errorLog
+                            color: Theme.bad
+                            font.family: Theme.mono
+                            font.pixelSize: 12
+                            textFormat: Text.PlainText
+                            wrapMode: Text.WrapAnywhere
+                            width: errorScroll.width - 20
                         }
                     }
                 }
+            }
+
+            // ---- The inspector ----
+            Inspector {
+                id: inspector
+
+                SplitView.preferredWidth: 350
+                SplitView.minimumWidth: 280
+                SplitView.maximumWidth: 520
+                visible: window.inspectorOpen
+                sketch: window.selectedSketch
+                presented: window.selectedIndex === view.sketchIndex
+                metrics: view.metrics
+                taskLine: catalog.taskLine
+                taskRunning: catalog.taskRunning
+                onOpenRequested: window.activate(window.selectedIndex)
+                onFrameRequested: catalog.frame(window.selectedIndex)
+                onBenchRequested: catalog.bench(window.selectedIndex)
+                onRevealRequested: catalog.reveal(window.selectedIndex)
             }
         }
 
-        // ---- The sketch surface, with the live host's own status under it ----
-        ColumnLayout {
-            SplitView.fillWidth: true
-            spacing: 0
-
-            SketchbookView {
-                id: view
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                // Captures run on the render thread; the saved path (or an
-                // empty string on failure) arrives asynchronously.
-                onCaptureReady: path => window.showCapture(path)
-
-                // Orbit, for the sketches that have a viewpoint to move. A
-                // drag is yaw and pitch; the wheel is distance. A sketch with
-                // no viewpoint gets no handler at all, so a drag over a drawn
-                // tree does nothing rather than something invisible.
-                //
-                // EVERY GESTURE STARTS FROM WHERE THE SKETCH STANDS, read off
-                // the view at the moment it begins, so an untouched sketch is
-                // seen from the camera it declared and the first drag moves
-                // that camera rather than replacing it.
-                property real yaw: 0
-                property real pitch: 0
-                property real distance: 0
-
-                DragHandler {
-                    enabled: view.orbitable
-                    target: null
-                    property real startYaw: 0
-                    property real startPitch: 0
-                    onActiveChanged: {
-                        if (active) {
-                            startYaw = view.orbitYaw;
-                            startPitch = view.orbitPitch;
-                            view.distance = view.orbitDistance;
-                        }
-                    }
-                    onTranslationChanged: {
-                        view.yaw = startYaw - translation.x * 0.4;
-                        view.pitch = startPitch + translation.y * 0.3;
-                        view.orbit(view.yaw, view.pitch, view.distance);
-                    }
-                }
-                WheelHandler {
-                    enabled: view.orbitable
-                    onWheel: event => {
-                        view.yaw = view.orbitYaw;
-                        view.pitch = view.orbitPitch;
-                        view.distance = Math.max(
-                            40, view.orbitDistance - event.angleDelta.y * 0.5);
-                        view.orbit(view.yaw, view.pitch, view.distance);
-                    }
-                }
-            }
-
-            // Compile-error overlay: the last good sketch keeps running
-            // underneath.
-            Rectangle {
-                Layout.fillWidth: true
-                visible: view.errorLog.length > 0
-                color: "#2a0c12"
-                Layout.preferredHeight: Math.min(
-                    errorText.implicitHeight + 20, window.height * 0.4)
-                ScrollView {
-                    anchors.fill: parent
-                    anchors.margins: 10
-                    Text {
-                        id: errorText
-                        text: view.errorLog
-                        color: "#ff9aa4"
-                        font.family: "Menlo"
-                        font.pixelSize: 12
-                        textFormat: Text.PlainText
-                        wrapMode: Text.WrapAnywhere
-                        width: window.width - 20
-                    }
-                }
-            }
-
-            // Status bar: state dot + build status.
-            Rectangle {
-                Layout.fillWidth: true
-                Layout.preferredHeight: 30
-                color: "#12101e"
-                RowLayout {
-                    anchors.fill: parent
-                    anchors.leftMargin: 12
-                    anchors.rightMargin: 12
-                    spacing: 8
-
-                    // Green live, amber compiling (pulsing), red failed,
-                    // grey waiting.
-                    Rectangle {
-                        id: stateDot
-                        width: 10
-                        height: 10
-                        radius: 5
-                        color: view.state === "live" ? "#5bd47a"
-                             : view.state === "compiling" ? "#ffb46b"
-                             : view.state === "failed" ? "#ff5a6e"
-                             : "#5a5f73"
-                        SequentialAnimation on opacity {
-                            running: view.state === "compiling"
-                            loops: Animation.Infinite
-                            NumberAnimation { to: 0.25; duration: 350 }
-                            NumberAnimation { to: 1.0; duration: 350 }
-                            onRunningChanged: if (!running) stateDot.opacity = 1
-                        }
-                    }
-                    // WHAT IS RUNNING, beside how it is doing. The sidebar
-                    // says it too, but a list long enough to scroll can put
-                    // the selected row off screen, and the one line that
-                    // never moves is the one worth naming it on.
-                    Label {
-                        text: window.stats.sketch !== undefined
-                              ? window.stats.sketch : ""
-                        color: "#e8ecf8"
-                        font.pixelSize: 12
-                        visible: text.length > 0
-                    }
-                    Label {
-                        text: view.status
-                        color: view.state === "failed" ? "#ff9aa4"
-                             : view.state === "compiling" ? "#ffd9a0"
-                             : "#7ee8ff"
-                        font.pixelSize: 12
-                        elide: Text.ElideRight
-                        Layout.fillWidth: true
-                    }
-                    Label {
-                        text: view.orbitable ? "drag to orbit · save to reload"
-                                             : "save to reload"
-                        color: "#5a5f73"
-                        font.pixelSize: 12
-                    }
-                }
-            }
+        StatusStrip {
+            Layout.fillWidth: true
+            hostState: view.state
+            status: view.status
+            sketch: view.metrics.sketch ?? ""
+            path: window.sketchAt(view.sketchIndex)?.path ?? ""
+            hints: "↑↓ select · ⏎ open · / filter"
+                + (view.orbitable ? " · drag to orbit" : "")
+            paused: view.paused
+            timeScale: view.timeScale
+            metrics: view.metrics
+            capture: window.captureLine
+            onPauseToggled: view.paused = !view.paused
+            onCaptureRequested: view.capture()
+            onTimeScaleRequested: scale => view.timeScale = scale
         }
     }
 }

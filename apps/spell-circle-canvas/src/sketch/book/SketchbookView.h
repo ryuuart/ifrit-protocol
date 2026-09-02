@@ -31,7 +31,6 @@ class Host;
 class SketchbookView : public QQuickRhiItem {
   Q_OBJECT
   QML_ELEMENT
-  Q_PROPERTY(QVariantList sketches READ sketches CONSTANT)
   Q_PROPERTY(int sketchIndex READ sketchIndex WRITE setSketchIndex NOTIFY
                  sketchIndexChanged)
   Q_PROPERTY(bool paused READ paused WRITE setPaused NOTIFY pausedChanged)
@@ -66,7 +65,6 @@ class SketchbookView : public QQuickRhiItem {
   /** Moves the viewpoint of a sketch that has one. */
   Q_INVOKABLE void orbit(float yawDeg, float pitchDeg, float distance);
 
-  [[nodiscard]] QVariantList sketches() const;
   [[nodiscard]] int sketchIndex() const { return m_sketchIndex; }
   void setSketchIndex(int index);
   [[nodiscard]] bool paused() const { return m_paused; }

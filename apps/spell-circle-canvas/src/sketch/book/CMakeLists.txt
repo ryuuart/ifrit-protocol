@@ -20,14 +20,44 @@ set_target_properties(Sketchbook PROPERTIES
   MACOSX_BUNDLE TRUE
 )
 
+# A file kept in qml/ is imported by NAME, so it is aliased to the
+# module root beside the generated qmldir — which is what lets one of
+# these files reach the singleton below without importing its own
+# module. Both properties are read when the module is declared, so
+# they are set before it.
+foreach(sketchbook_qml IN ITEMS
+    Main TopBar SketchList SketchGallery PlateThumb Inspector StatusStrip
+    Theme)
+  set_source_files_properties(qml/${sketchbook_qml}.qml
+    PROPERTIES QT_RESOURCE_ALIAS ${sketchbook_qml}.qml)
+endforeach()
+# The palette is one object the whole window paints from, so it is
+# registered as a singleton rather than instantiated per panel.
+set_source_files_properties(qml/Theme.qml
+  PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
+
 qt_add_qml_module(Sketchbook
   URI Sigil.Sketchbook
   VERSION 1.0
-  QML_FILES qml/Main.qml
-  SOURCES SketchbookView.cpp SketchbookView.h
+  QML_FILES
+    qml/Main.qml
+    qml/TopBar.qml
+    qml/SketchList.qml
+    qml/SketchGallery.qml
+    qml/PlateThumb.qml
+    qml/Inspector.qml
+    qml/StatusStrip.qml
+    qml/Theme.qml
+  SOURCES
+    SketchbookView.cpp SketchbookView.h
+    SketchCatalog.cpp SketchCatalog.h
 )
-set_source_files_properties(qml/Main.qml
-  PROPERTIES QT_RESOURCE_ALIAS Main.qml)
+# WHERE THE BROWSER LOOKS FOR THE STILLS IT SHOWS: the quick tier's
+# baseline, which a plate sweep writes beside its manifest. A machine
+# that has never run one simply has no thumbnails, and `--plates <dir>`
+# names another directory.
+target_compile_definitions(Sketchbook PRIVATE
+  SIGILSKETCH_PLATES_DIR="${CMAKE_BINARY_DIR}/plate_baseline_quick_$<CONFIG>.plates")
 target_include_directories(Sketchbook PRIVATE ${CMAKE_CURRENT_LIST_DIR})
 target_link_libraries(Sketchbook PRIVATE
   SigilSketchLive SigilSketchPlate SigilSketches SigilMeasure SigilWeavePorts

@@ -255,10 +255,22 @@ void SketchbookRenderer::publishMetrics() {
   metrics.insert(QStringLiteral("backend"), QLatin1String(backend));
   if (const std::string name = nameOf(m_index); !name.empty())
     metrics.insert(QStringLiteral("sketch"), QString::fromStdString(name));
-  const SkSize size = session->canvas().size;
+  // WHAT THE BODY DECLARED, which is only knowable once it has run: a
+  // sketch states its size, its ground and the moment it is worth
+  // photographing from inside its own setup. The browser keeps what it
+  // is told here, so a row reads its canvas back after a look at
+  // something else.
+  metrics.insert(QStringLiteral("sketchIndex"), m_index);
+  const sketch::CanvasSpec& spec = session->canvas();
+  const SkSize size = spec.size;
   metrics.insert(
       QStringLiteral("canvas"),
       QStringLiteral("%1x%2").arg((int)size.width()).arg((int)size.height()));
+  metrics.insert(QStringLiteral("moment"), spec.captureSeconds);
+  const SkColor colour = spec.background.toSkColor();
+  metrics.insert(QStringLiteral("background"),
+                 QStringLiteral("#%1").arg((uint)(colour & 0x00ffffffU), 6, 16,
+                                           QLatin1Char('0')));
   // fps: what the window actually presents. headroom: what the frame's
   // work alone would allow — the number a frame-time floor is judged on.
   metrics.insert(QStringLiteral("fps"), SketchbookView::host->presentedFps());
@@ -522,50 +534,6 @@ SketchbookView::~SketchbookView() = default;
 
 QQuickRhiItemRenderer* SketchbookView::createRenderer() {
   return new SketchbookRenderer;
-}
-
-QVariantList SketchbookView::sketches() const {
-  QVariantList result;
-  const auto& entries = sketch::registry();
-  result.reserve((qsizetype)entries.size());
-  for (int i = 0; i < (int)entries.size(); ++i) {
-    const sketch::Entry& entry = entries[i];
-    QVariantMap item;
-    // The index travels with the row: the sidebar groups and filters, so
-    // a row's position says nothing about which sketch it selects.
-    item.insert(QStringLiteral("sketchIndex"), i);
-    item.insert(QStringLiteral("name"),
-                QString::fromStdString(sketch::title(entry.name)));
-    item.insert(QStringLiteral("category"), QString::fromUtf8(entry.category));
-    item.insert(QStringLiteral("tag"), QString::fromUtf8(entry.blurb));
-    // A sketch also answers to its file stem — the thing you have open in
-    // an editor when you want to find it here.
-    item.insert(QStringLiteral("key"), QString::fromUtf8(entry.key));
-    // …and says where that file stands, because not every row's does.
-    item.insert(QStringLiteral("path"),
-                QString::fromStdString(
-                    (sketchDir / (std::string(entry.key) + ".cpp")).string()));
-    result.push_back(item);
-  }
-  // …and the files this session was pointed at, under their own stems,
-  // filed together so a row from outside this repository reads as one.
-  // Their directory is the line beside the name: two drafts may share a
-  // stem, and where they stand is the only thing that tells them apart.
-  for (int i = 0; i < (int)externals.size(); ++i) {
-    QVariantMap item;
-    const std::string stem = externals[i].stem().string();
-    item.insert(QStringLiteral("sketchIndex"), (int)entries.size() + i);
-    item.insert(QStringLiteral("name"),
-                QString::fromStdString(sketch::title(stem)));
-    item.insert(QStringLiteral("category"), QStringLiteral("Workspace"));
-    item.insert(QStringLiteral("tag"),
-                QString::fromStdString(externals[i].parent_path().string()));
-    item.insert(QStringLiteral("key"), QString::fromStdString(stem));
-    item.insert(QStringLiteral("path"),
-                QString::fromStdString(externals[i].string()));
-    result.push_back(item);
-  }
-  return result;
 }
 
 void SketchbookView::setSketchIndex(int index) {

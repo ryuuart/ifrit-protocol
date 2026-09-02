@@ -14,6 +14,7 @@
  *              [--window-scale <n>] [--sketch <name>] [--kind <k>]
  *                                              the window's own frame rate
  *   … [--assets <dir>]                         where res:// mounts
+ *   … [--plates <dir>]                        the stills the browser shows
  *
  * `--sketch` takes a case-insensitive substring and answers to a
  * sketch's filed name or its file stem, which is the loop for visual
@@ -71,6 +72,7 @@
 #include <thread>
 #include <vector>
 
+#include "SketchCatalog.h"
 #include "SketchbookView.h"
 
 namespace sketch = sigil::sketch;
@@ -590,6 +592,8 @@ int main(int argc, char* argv[]) {
       shotPath = argv[++i];
     } else if (arg == "--assets" && i + 1 < argc) {
       assetsOverride = argv[++i];
+    } else if (arg == "--plates" && i + 1 < argc) {
+      SketchCatalog::platesDir = argv[++i];
     } else if (arg == "--window-bench") {
       // The stretch is optional: a bare flag takes the default, and only
       // a following token that reads as a number is consumed.
@@ -776,6 +780,12 @@ int main(int argc, char* argv[]) {
                  "[sketchbook] sets draw on the CPU mesh executor: a "
                  "surface reaches it as the colour extract read off it\n");
   SketchbookView::sketchDir = sketchDir;
+  // WHERE THE BROWSER'S THUMBNAILS COME FROM: the quick tier's baseline,
+  // unless the command line already named somewhere else.
+#ifdef SIGILSKETCH_PLATES_DIR
+  if (SketchCatalog::platesDir.empty())
+    SketchCatalog::platesDir = SIGILSKETCH_PLATES_DIR;
+#endif
   SketchbookView::assetsDir = options.assetsDir;
   SketchbookView::flagsFile = options.flagsFile;
   // A FILE ON THE COMMAND LINE OPENS THE WINDOW ON THAT FILE. The
@@ -807,7 +817,7 @@ int main(int argc, char* argv[]) {
   if (window)
     for (QObject* child : window->findChildren<QObject*>())
       if (child->property("sketchIndex").isValid() &&
-          child->property("sketches").isValid()) {
+          child->property("metrics").isValid()) {
         view = child;
         break;
       }
