@@ -51,6 +51,7 @@
 #include <sigilmaterial/kit/Surfaces.h>
 #include <sigilmaterial/skia/Draw.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
+#include <sigilmaterial/texture/EnvironmentMap.h>
 #include <sigilmaterial/texture/Surface.h>
 #include <sigilsketch/canvas/Sketch.h>
 
@@ -166,7 +167,7 @@ sk_sp<SkImage> fibonacciStrip(int width, int height) {
 struct CrossLibrary : sketch::Sketch {
   // Built once per (re)load: an outline recipe, a normal map and a
   // material program are all description, and a reload re-runs setup.
-  material::Environment studio;
+  material::EnvironmentMap studio;
   std::optional<material::Material> gold, chrome, glass, cooked;
   SkPath goldPath, chromePath, glassPath, cookedPath;
   sk_sp<SkImage> backdrop;
@@ -284,7 +285,7 @@ struct CrossLibrary : sketch::Sketch {
     ctx.captureAt(2.6);
 
     material::skia::install();
-    studio = material::Environment::studio();
+    studio = material::EnvironmentMap::studio();
 
     // The recipe, cooked once. A path operator chain is a DESCRIPTION —
     // the outline it produces is a constant of this file, and so is the

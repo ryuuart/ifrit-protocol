@@ -18,6 +18,7 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/core/Recipe.h>
+#include <sigilmaterial/texture/EnvironmentMap.h>
 #include <sigilmaterial/texture/Surface.h>
 #include <sigilmaterial/texture/Texture.h>
 
@@ -84,15 +85,15 @@ const std::shared_ptr<const Recipe>& glassRecipe();
 
 /** A gold surface over @p normals, reflecting @p env at the params'
  *  roughness. */
-Material gold(Texture normals, const Environment& env,
+Material gold(Texture normals, const EnvironmentMap& env,
               const GoldParams& params = {});
 /** A chrome surface over @p normals, reflecting @p env. */
-Material chrome(Texture normals, const Environment& env,
+Material chrome(Texture normals, const EnvironmentMap& env,
                 const ChromeParams& params = {});
 /** A glass surface over @p normals, refracting @p backdrop — an image of
  *  what sits behind the shape in the same device coordinates — and
  *  reflecting @p env. */
-Material glass(Texture normals, const Environment& env, Texture backdrop,
+Material glass(Texture normals, const EnvironmentMap& env, Texture backdrop,
                const GlassParams& params = {});
 
 }  // namespace sigil::material::kit

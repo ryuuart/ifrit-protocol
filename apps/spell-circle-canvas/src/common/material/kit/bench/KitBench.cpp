@@ -13,6 +13,7 @@
 #include <sigilmaterial/kit/Surfaces.h>
 #include <sigilmaterial/skia/Draw.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
+#include <sigilmaterial/texture/EnvironmentMap.h>
 #include <sigilmaterial/texture/Surface.h>
 
 #include <utility>
@@ -21,8 +22,8 @@ using namespace sigil::material;
 
 namespace {
 
-const Environment& studio() {
-  static const Environment env = Environment::studio(256);
+const EnvironmentMap& studio() {
+  static const EnvironmentMap env = EnvironmentMap::studio(256);
   return env;
 }
 

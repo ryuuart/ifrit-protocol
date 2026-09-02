@@ -1,6 +1,6 @@
 # The texture feature: an image and its sampling as a comparable leaf a
 # material tree holds, the tools' texture-set vocabulary, the environment
-# and bevel producers a reflective surface is shaded from, and the atlas
+# map and the bevel producer a reflective surface is shaded from, and the atlas
 # over a sheet. Links the core and SigilImage (an asset is a source);
 # simdjson reads the sprite tools' JSON and stb packs the sheet, both
 # private: no consumer sees either.
@@ -10,10 +10,12 @@ find_package(simdjson CONFIG REQUIRED)
 find_package(Stb REQUIRED)
 add_library(SigilMaterialTexture STATIC
   Atlas.cpp
+  EnvironmentMap.cpp
   Surface.cpp
   Texture.cpp
   TextureSet.cpp
   ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/texture/Atlas.h
+  ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/texture/EnvironmentMap.h
   ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/texture/ShaderLeaf.h
   ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/texture/Surface.h
   ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/texture/Texture.h

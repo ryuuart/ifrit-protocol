@@ -15,13 +15,16 @@
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/core/Recipe.h>
 #include <sigilmaterial/texture/Atlas.h>
+#include <sigilmaterial/texture/EnvironmentMap.h>
 #include <sigilmaterial/texture/Surface.h>
 #include <sigilmaterial/texture/Texture.h>
 #include <sigilmaterial/texture/TextureSet.h>
 
+#include <algorithm>
 #include <cstdio>
 #include <filesystem>
 #include <map>
+#include <vector>
 
 using namespace sigil::material;
 
@@ -33,6 +36,30 @@ sk_sp<SkImage> solid(SkColor color, int w, int h) {
   bm.eraseColor(color);
   bm.setImmutable();
   return bm.asImage();
+}
+
+/** A panorama of one colour, in F32 so a value above 1 survives. */
+sk_sp<SkImage> constantPanorama(int w, int h, SkColor4f color) {
+  std::vector<float> px((size_t)w * h * 4);
+  for (size_t i = 0; i < (size_t)w * h; ++i) {
+    px[i * 4 + 0] = color.fR;
+    px[i * 4 + 1] = color.fG;
+    px[i * 4 + 2] = color.fB;
+    px[i * 4 + 3] = color.fA;
+  }
+  const SkImageInfo info =
+      SkImageInfo::Make(w, h, kRGBA_F32_SkColorType, kPremul_SkAlphaType);
+  return SkImages::RasterFromPixmapCopy(
+      {info, px.data(), (size_t)w * 4 * sizeof(float)});
+}
+
+/** One texel of a float image, read back as four floats. */
+SkColor4f floatPixel(const sk_sp<SkImage>& image, int x, int y) {
+  float px[4] = {0, 0, 0, 0};
+  const SkImageInfo info =
+      SkImageInfo::Make(1, 1, kRGBA_F32_SkColorType, kPremul_SkAlphaType);
+  EXPECT_TRUE(image->readPixels(nullptr, SkPixmap(info, px, sizeof(px)), x, y));
+  return {px[0], px[1], px[2], px[3]};
 }
 
 SkColor pixelOf(const sk_sp<SkShader>& shader, int x, int y) {
@@ -237,7 +264,7 @@ TEST(TextureSet, DiscoversAndDecodesByRole) {
 }
 
 TEST(Surface, EnvironmentRoughnessBlursAndCaches) {
-  const Environment env = Environment::sunset(128);
+  const EnvironmentMap env = EnvironmentMap::sunset(128);
   ASSERT_TRUE(env.valid());
   sk_sp<SkImage> sharp = env.image(0);
   sk_sp<SkImage> rough = env.image(0.6f);
@@ -254,6 +281,164 @@ TEST(Surface, EnvironmentRoughnessBlursAndCaches) {
   EXPECT_EQ(t.tileX(), SkTileMode::kRepeat);
   EXPECT_EQ(t.tileY(), SkTileMode::kClamp);
   EXPECT_EQ(t.image().get(), rough.get());
+}
+
+TEST(EnvironmentMap, TheEquirectConventionRoundTrips) {
+  // A direction and a panorama coordinate are the same thing said twice,
+  // and every consumer of the value depends on them agreeing.
+  for (float u : {0.02f, 0.17f, 0.5f, 0.83f}) {
+    for (float v : {0.05f, 0.3f, 0.5f, 0.95f}) {
+      const SkV2 back = equirectUv(equirectDirection({u, v}));
+      EXPECT_NEAR(back.x, u, 1e-4f) << u << "," << v;
+      EXPECT_NEAR(back.y, v, 1e-4f) << u << "," << v;
+    }
+  }
+  // The azimuth is periodic: u = 0 and u = 1 are one direction, and the
+  // inverse answers whichever end of the turn it landed on.
+  const SkV2 seam = equirectUv(equirectDirection({0.0f, 0.5f}));
+  EXPECT_NEAR(std::min(seam.x, 1.0f - seam.x), 0.0f, 1e-4f);
+  // v = 0 is the zenith and u = 0.5 looks along -z.
+  const SkV3 up = equirectDirection({0.5f, 0.0f});
+  EXPECT_NEAR(up.y, 1.0f, 1e-5f);
+  const SkV3 forward = equirectDirection({0.5f, 0.5f});
+  EXPECT_NEAR(forward.z, -1.0f, 1e-5f);
+}
+
+TEST(EnvironmentMap, SixFacesResampleIntoOnePanorama) {
+  // +x -x +y -y +z -z, each its own colour, so where a face landed in the
+  // panorama is legible from the pixel.
+  const SkColor kFace[6] = {SK_ColorRED,     SK_ColorGREEN, SK_ColorBLUE,
+                            SK_ColorYELLOW,  SK_ColorCYAN,  SK_ColorMAGENTA};
+  EnvironmentMap::Faces faces;
+  for (int i = 0; i < 6; ++i) faces[i] = solid(kFace[i], 32, 32);
+  const EnvironmentMap env = EnvironmentMap::fromFaces(faces, 128);
+  ASSERT_TRUE(env.valid());
+  EXPECT_EQ(env.size(), SkISize::Make(128, 64));
+
+  // Sample the panorama where each face's centre direction lands. The
+  // faces are solid, so a bilinear tap well inside one is that colour
+  // exactly.
+  const sk_sp<SkImage> pano = env.image(0);
+  const auto colourAt = [&](SkV3 direction) {
+    const SkV2 uv = equirectUv(direction);
+    const int x = std::min((int)(uv.x * 128.0f), 127);
+    const int y = std::min((int)(uv.y * 64.0f), 63);
+    const SkColor4f c = floatPixel(pano, x, y);
+    return SkColor4f{c.fR, c.fG, c.fB, 1};
+  };
+  const SkV3 axes[6] = {{1, 0, 0}, {-1, 0, 0}, {0, 1, 0},
+                        {0, -1, 0}, {0, 0, 1}, {0, 0, -1}};
+  for (int i = 0; i < 6; ++i) {
+    const SkColor4f got = colourAt(axes[i]);
+    const SkColor4f want = SkColor4f::FromColor(kFace[i]);
+    EXPECT_NEAR(got.fR, want.fR, 0.02f) << "face " << i;
+    EXPECT_NEAR(got.fG, want.fG, 0.02f) << "face " << i;
+    EXPECT_NEAR(got.fB, want.fB, 0.02f) << "face " << i;
+  }
+}
+
+TEST(EnvironmentMap, ACubeSheetIsUnpackedByItsLayout) {
+  // A 6:1 row and a 1:6 column carry the faces in the order they are
+  // named, and both resolve to the same panorama.
+  SkBitmap row;
+  row.allocPixels(SkImageInfo::MakeN32Premul(6 * 16, 16));
+  SkBitmap column;
+  column.allocPixels(SkImageInfo::MakeN32Premul(16, 6 * 16));
+  const SkColor kFace[6] = {SK_ColorRED,     SK_ColorGREEN, SK_ColorBLUE,
+                            SK_ColorYELLOW,  SK_ColorCYAN,  SK_ColorMAGENTA};
+  for (int i = 0; i < 6; ++i) {
+    SkCanvas(row).clear(SK_ColorTRANSPARENT);
+    SkCanvas(column).clear(SK_ColorTRANSPARENT);
+  }
+  for (int i = 0; i < 6; ++i) {
+    SkPaint paint;
+    paint.setColor(kFace[i]);
+    SkCanvas(row).drawIRect(SkIRect::MakeXYWH(i * 16, 0, 16, 16), paint);
+    SkCanvas(column).drawIRect(SkIRect::MakeXYWH(0, i * 16, 16, 16), paint);
+  }
+  row.setImmutable();
+  column.setImmutable();
+  const EnvironmentMap fromRow = EnvironmentMap::fromCubeMap(row.asImage());
+  const EnvironmentMap fromColumn =
+      EnvironmentMap::fromCubeMap(column.asImage());
+  ASSERT_TRUE(fromRow.valid());
+  ASSERT_TRUE(fromColumn.valid());
+  EXPECT_EQ(fromRow.size(), fromColumn.size());
+  const SkColor4f a = floatPixel(fromRow.image(0), 32, 16);
+  const SkColor4f b = floatPixel(fromColumn.image(0), 32, 16);
+  EXPECT_NEAR(a.fR, b.fR, 1e-5f);
+  EXPECT_NEAR(a.fG, b.fG, 1e-5f);
+  EXPECT_NEAR(a.fB, b.fB, 1e-5f);
+}
+
+TEST(EnvironmentMap, IrradianceOfAConstantPanoramaIsTheConstant) {
+  // The cosine convolution is normalised by its own weights, so a sky of
+  // one radiance answers that radiance from every normal — which is what
+  // makes it the number a Lambertian body multiplies its albedo by.
+  const SkColor4f sky{0.2f, 0.55f, 0.9f, 1};
+  const EnvironmentMap env =
+      EnvironmentMap::fromEquirect(constantPanorama(64, 32, sky));
+  const sk_sp<SkImage> lobe = env.irradiance();
+  ASSERT_TRUE(lobe);
+  EXPECT_EQ(lobe->dimensions(), SkISize::Make(32, 16));
+  for (int y : {0, 8, 15}) {
+    for (int x : {0, 16, 31}) {
+      const SkColor4f got = floatPixel(lobe, x, y);
+      EXPECT_NEAR(got.fR, sky.fR, 1e-4f);
+      EXPECT_NEAR(got.fG, sky.fG, 1e-4f);
+      EXPECT_NEAR(got.fB, sky.fB, 1e-4f);
+    }
+  }
+  // And the flat fallback is that same constant.
+  const SkColor4f mean = env.average();
+  EXPECT_NEAR(mean.fR, sky.fR, 1e-4f);
+  EXPECT_NEAR(mean.fG, sky.fG, 1e-4f);
+  EXPECT_NEAR(mean.fB, sky.fB, 1e-4f);
+}
+
+TEST(EnvironmentMap, FloatSurvivesTheBucketsAndTheChain) {
+  // An HDRI's whole point is the values above one; a blur that clamped
+  // them would turn a sun into a white disc of the same brightness as
+  // the sky beside it.
+  const SkColor4f bright{6.0f, 3.0f, 1.5f, 1};
+  const EnvironmentMap env =
+      EnvironmentMap::fromEquirect(constantPanorama(64, 32, bright));
+  for (float roughness : {0.0f, 0.4f, 1.0f}) {
+    const SkColor4f got = floatPixel(env.image(roughness), 12, 7);
+    EXPECT_NEAR(got.fR, bright.fR, 1e-3f) << roughness;
+    EXPECT_NEAR(got.fG, bright.fG, 1e-3f) << roughness;
+    EXPECT_NEAR(got.fB, bright.fB, 1e-3f) << roughness;
+  }
+  const SkColor4f mean = env.average();
+  EXPECT_NEAR(mean.fR, bright.fR, 1e-3f);
+
+  // The chain is one mip pyramid: nine levels, each half the last, and
+  // level 0 at the prefilter size.
+  const EnvironmentMap sized = env.withPrefilterSize(256);
+  EXPECT_EQ(sized.prefilterSize(), 256);
+  const std::vector<sk_sp<SkImage>> levels = sized.chain();
+  ASSERT_EQ((int)levels.size(), EnvironmentMap::kLevels);
+  for (int i = 0; i < EnvironmentMap::kLevels; ++i) {
+    ASSERT_TRUE(levels[i]);
+    EXPECT_EQ(levels[i]->width(), std::max(256 >> i, 2)) << i;
+    EXPECT_EQ(levels[i]->height(), std::max((256 >> i) / 2, 1)) << i;
+  }
+  EXPECT_NEAR(floatPixel(levels[4], 4, 2).fR, bright.fR, 1e-3f);
+}
+
+TEST(EnvironmentMap, GroundColourReplacesTheLowerHemisphere) {
+  const EnvironmentMap sky = EnvironmentMap::sunset(128);
+  const EnvironmentMap floored = sky.withGround({0.05f, 0.05f, 0.05f, 1});
+  ASSERT_TRUE(floored.valid());
+  EXPECT_EQ(floored.size(), sky.size());
+  // Below the horizon is the colour asked for; above it the sky stands.
+  const SkColor4f below = floatPixel(floored.image(0), 64, 60);
+  EXPECT_NEAR(below.fR, 0.05f, 1e-3f);
+  EXPECT_NEAR(below.fB, 0.05f, 1e-3f);
+  const SkColor4f above = floatPixel(floored.image(0), 64, 4);
+  const SkColor4f original = floatPixel(sky.image(0), 64, 4);
+  EXPECT_NEAR(above.fR, original.fR, 1e-5f);
+  EXPECT_FALSE(floored == sky);
 }
 
 TEST(Surface, BevelNormalsFlatInteriorTiltedRim) {

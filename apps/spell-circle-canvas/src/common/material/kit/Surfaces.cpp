@@ -149,7 +149,7 @@ half4 main(float2 xy) {
 }
 )";
 
-glm::vec2 sizeOf(const Environment& env) {
+glm::vec2 sizeOf(const EnvironmentMap& env) {
   const SkISize s = env.size();
   return {(float)std::max(s.width(), 1), (float)std::max(s.height(), 1)};
 }
@@ -180,7 +180,7 @@ const std::shared_ptr<const Recipe>& glassRecipe() {
   return recipe;
 }
 
-Material gold(Texture normals, const Environment& env,
+Material gold(Texture normals, const EnvironmentMap& env,
               const GoldParams& params) {
   GoldParams p = params;
   p.envSize = sizeOf(env);
@@ -190,7 +190,7 @@ Material gold(Texture normals, const Environment& env,
   return m;
 }
 
-Material chrome(Texture normals, const Environment& env,
+Material chrome(Texture normals, const EnvironmentMap& env,
                 const ChromeParams& params) {
   ChromeParams p = params;
   p.envSize = sizeOf(env);
@@ -200,7 +200,7 @@ Material chrome(Texture normals, const Environment& env,
   return m;
 }
 
-Material glass(Texture normals, const Environment& env, Texture backdrop,
+Material glass(Texture normals, const EnvironmentMap& env, Texture backdrop,
                const GlassParams& params) {
   GlassParams p = params;
   p.envSize = sizeOf(env);

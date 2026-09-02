@@ -52,7 +52,7 @@ each a static archive that links only what sits beneath it:
 | target | holds | links |
 |--------|-------|-------|
 | `SigilMaterialCore` | the value model: `Target`, `Params`, `Recipe`, `Program` and the cache, `Material`, `Leaf`, `UniformBlock`, `FrameData`; and `over()`, the combinator that stacks one material on another through a mask | SigilGeometryPath, SigilMotionBind, Boost::pfr |
-| `SigilMaterialTexture` | `Texture` and its sources, `ShaderLeaf`, `textures::` (the tools' sets by role), `Environment` and `bevelNormals`, `Atlas` | SigilMaterialCore, SigilImageAsset, Skia; simdjson and stb privately |
+| `SigilMaterialTexture` | `Texture` and its sources, `ShaderLeaf`, `textures::` (the tools' sets by role), `EnvironmentMap` and `bevelNormals`, `Atlas` | SigilMaterialCore, SigilImageAsset, Skia; simdjson and stb privately |
 | `SigilMaterialColor` | `Color` (header-only, which the core's `Params.h` includes) and `color::` — the OCIO `viewTransform`, `convert`, `exponent` as LUT materials | SigilMaterialTexture; OpenColorIO privately, when found |
 | `SigilMaterialSdf` | `sdf::` — `Shape`, `Style`, `pad`, `material` | SigilMaterialCore |
 | `SigilMaterialPattern` | `pattern::Tile` and the stock tiles | SigilMaterialTexture |
@@ -124,9 +124,10 @@ A surface from the kit reads the same way, its slots filled with textures:
 ```cpp
 #include <sigilmaterial/kit/Surfaces.h>
 #include <sigilmaterial/skia/Draw.h>
+#include <sigilmaterial/texture/EnvironmentMap.h>
 #include <sigilmaterial/texture/Surface.h>
 
-const Environment studio = Environment::studio();
+const EnvironmentMap studio = EnvironmentMap::studio();
 kit::ChromeParams steel;
 steel.brushed = 0.6f;
 steel.roughness = 0.2f;
@@ -285,18 +286,40 @@ a `Decoder` returns an image for a path, and the caller supplies it. What
 a set MEANS to a renderer — which channel of a packed image feeds which
 slot — is the renderer's rule, not this library's.
 
-**A surface is shaded from two textures.** `Environment` is an
-equirectangular panorama (u = azimuth, v = 0 at the zenith) with
-roughness blurs cached per bucket; `studio()` and `sunset()` bake one
-with no assets, `fromEquirect()` wraps a loaded panorama, and
-`texture(roughness)` is the level a recipe's environment slot takes,
-repeating in azimuth and clamped at the poles. `bevelNormals(path,
-bevelPx)` blurs the outline's coverage into a height ramp, differentiates
-it, and encodes device-space normals (+y down, +z toward the viewer) as
-rgb = n * 0.5 + 0.5, flat across the interior and tilted along the rim —
-placed at the outline's bounds so device xy reads the normal beneath it.
-A normals pass a 3D painter rasterizes uses the same encoding and feeds
-the same slot.
+**A surface is shaded from two textures.** `EnvironmentMap` is the
+panorama a surface sees when it looks past the lights — equirectangular,
+u = azimuth, v = 0 at the zenith, with `equirectUv` and
+`equirectDirection` as the one convention every consumer shares. Sources
+resolve into that single form while the value is built: `studio()` and
+`sunset()` bake one with no assets, `fromEquirect()` wraps a loaded
+lat-long panorama, `fromFaces()` resamples six cube faces and
+`fromCubeMap()` unpacks one sheet — a 4:3 or 3:4 cross, a 6:1 row or a
+1:6 column — into the same. A cube map arrives as an ordinary image
+because that is what SigilImage decodes; DDS and KTX, the containers
+that hold six surfaces in one file, decode nowhere in this tree.
+
+Two readings hang off the panorama, cached with it and shared by every
+copy of the value. The SPECULAR side is `image(roughness)` — nine
+wrap-aware blurs a reflection picks by how rough the surface is — with
+`texture(roughness)` as the level a recipe's environment slot takes,
+repeating in azimuth and clamped at the poles, and `chain()` as the same
+nine levels shaped as a mip pyramid for a device that binds one texture
+and selects a level. `prefilterSize()` bounds how wide that pyramid's
+level 0 is built, since a panorama is often larger than a reflection can
+show. The DIFFUSE side is `irradiance()`, the panorama convolved with a
+cosine lobe at 32x16 — the value a Lambertian body multiplies its albedo
+by, which for a sky of one radiance IS that radiance — with `average()`
+as its single-colour fallback. `withGround(colour)` replaces everything
+below the horizon, which is what a photographed sky wants when its lower
+half is a tripod and a car park. Every reading is computed in F32, so a
+value above one survives the blur rather than being clipped to white.
+
+`bevelNormals(path, bevelPx)` blurs the outline's coverage into a height
+ramp, differentiates it, and encodes device-space normals (+y down, +z
+toward the viewer) as rgb = n * 0.5 + 0.5, flat across the interior and
+tilted along the rim — placed at the outline's bounds so device xy reads
+the normal beneath it. A normals pass a 3D painter rasterizes uses the
+same encoding and feeds the same slot.
 
 **An atlas is a sheet, its regions and its sequences.** `Atlas::grid`
 cuts equal cells; `fromTexturePacker` and `fromAseprite` read the JSON

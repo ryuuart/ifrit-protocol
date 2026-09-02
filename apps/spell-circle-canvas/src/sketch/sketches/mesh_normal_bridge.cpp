@@ -38,6 +38,7 @@
 #include <sigilmaterial/kit/Surfaces.h>
 #include <sigilmaterial/skia/Draw.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
+#include <sigilmaterial/texture/EnvironmentMap.h>
 #include <sigilmaterial/texture/Surface.h>
 #include <sigilsketch/canvas/Sketch.h>
 
@@ -57,7 +58,7 @@ constexpr SkSize kCanvas = {1240, 720};
 }  // namespace
 
 struct MeshNormalBridge final : sketch::Sketch {
-  material::Environment studio, sunset;
+  material::EnvironmentMap studio, sunset;
   mesh::Mesh blob, ring;
 
   /** The G-buffer pass: the body's normals, into an offscreen surface
@@ -125,8 +126,8 @@ struct MeshNormalBridge final : sketch::Sketch {
     ctx.background({0.051f, 0.051f, 0.075f, 1});
     ctx.captureAt(1.0);
     material::skia::install();
-    studio = material::Environment::studio();
-    sunset = material::Environment::sunset();
+    studio = material::EnvironmentMap::studio();
+    sunset = material::EnvironmentMap::sunset();
     blob = mesh::superellipsoid({170, 150, 90}, 2.6f, 64, 48);
     ring = mesh::torus(130, 46);
     ctx.composer.render(custom([this](SkCanvas& canvas, const PaintContext&) {
