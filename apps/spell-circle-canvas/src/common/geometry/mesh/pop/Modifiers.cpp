@@ -3,41 +3,55 @@
  * drifted by noise, a stamp mesh instanced at every point into one
  * merged mesh, and point lanes promoted onto the merged mesh's
  * primitive lanes.
+ *
+ * ONE VERB IS ONE FIELD. The two modifiers here are the chain
+ * operators of the same names with their arguments applied directly —
+ * `jitter` runs the operator's own kernel over the positions, and
+ * `displaceNoise` reads the field `Noise` displaces by — so a cloud
+ * perturbed with a chain and a cloud perturbed without one move by the
+ * same offsets. A second arithmetic under one name would mean nobody
+ * could say which of them a picture came from.
  */
 
 #include <algorithm>
 #include <cmath>
+#include <vector>
 
 #include "sigilgeometry/mesh/Vec.h"
+#include "sigilgeometry/mesh/pop/Kernel.h"
 #include "sigilgeometry/mesh/pop/Points.h"
-#include "sigilgeometry/path/Noise.h"
+#include "sigilgeometry/mesh/pop/Pop.h"
 
 namespace sigil::geometry::mesh {
-
-// The tier's other features this file stands on, pulled in so the code
-// below reads as one vocabulary.
-namespace noise = path::noise;
 
 using glm::cross;
 
 namespace points {
 
 void jitter(Cloud& cloud, float amplitude, uint32_t seed) {
-  uint32_t state = seed * 2654435761u + 101u;
-  for (glm::vec3& p : cloud.positions)
-    p += glm::vec3{(noise::pcgUnitNext(state) * 2 - 1) * amplitude,
-                   (noise::pcgUnitNext(state) * 2 - 1) * amplitude,
-                   (noise::pcgUnitNext(state) * 2 - 1) * amplitude};
+  const size_t n = cloud.size();
+  if (n == 0) return;
+  kernel::Dispatch work;
+  if (!kernel::describe(pop::Op{pop::Jitter{pop::Lane::P, amplitude, seed}}, n,
+                        &work))
+    return;
+  // The kernel reads and writes one four-wide lane; the positions are
+  // poured across it and back, which is the whole of what reaching the
+  // operator without a chain costs.
+  std::vector<glm::vec4> lane(n);
+  for (size_t i = 0; i < n; ++i)
+    lane[i] = {cloud.positions[i].x, cloud.positions[i].y,
+               cloud.positions[i].z, 0};
+  glm::vec4* const values = lane.data();
+  kernel::run(work, values, values, values, values, values);
+  for (size_t i = 0; i < n; ++i)
+    cloud.positions[i] = {lane[i].x, lane[i].y, lane[i].z};
 }
 
 void displaceNoise(Cloud& cloud, float amplitude, float frequency,
                    uint32_t seed) {
-  for (glm::vec3& p : cloud.positions) {
-    const glm::vec3 q = p * frequency;
-    p += glm::vec3{noise::value3(q, seed) * amplitude,
-                   noise::value3(q + glm::vec3{31.7f, 0, 0}, seed) * amplitude,
-                   noise::value3(q + glm::vec3{0, 47.3f, 0}, seed) * amplitude};
-  }
+  for (glm::vec3& p : cloud.positions)
+    p += pop::noiseField(p, frequency, (float)seed) * amplitude;
 }
 
 InstanceOptions stampOptions(const Cloud& cloud) {

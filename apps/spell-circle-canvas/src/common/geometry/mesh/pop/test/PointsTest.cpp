@@ -16,6 +16,7 @@
 #include "sigilgeometry/mesh/Mesh.h"
 #include "sigilgeometry/mesh/camera/Camera.h"
 #include "sigilgeometry/mesh/pop/Points.h"
+#include "sigilgeometry/mesh/pop/Pop.h"
 #include "sigilgeometry/mesh/render/Painter.h"
 #include <sigilgeometry/kit/Solids.h>
 
@@ -51,6 +52,31 @@ TEST(Points, GeneratorsWriteLanes) {
     EXPECT_GE(p.x, 0);
     EXPECT_LE(p.x, 10);
   }
+}
+
+// ONE VERB IS ONE FIELD. `jitter` and `displaceNoise` are the `Jitter`
+// and `Noise` operators reached for without a chain, so a cloud moved
+// each way has to land on the same floats — not near them. Two
+// arithmetics under one name would mean nobody could say which of them
+// a picture came from.
+TEST(Points, AModifierMovesPointsExactlyAsItsOperatorDoes) {
+  Cloud seeded = points::scatterBox({-60, -20, -40}, {60, 20, 40}, 250, 3);
+
+  Cloud jittered = seeded;
+  points::jitter(jittered, 14.0f, 21u);
+  const Cloud chained = pop::cook(
+      pop::Chain{pop::PointSet{seeded}, pop::Jitter{pop::Lane::P, 14.0f, 21u}});
+  ASSERT_EQ(chained.size(), jittered.size());
+  for (size_t i = 0; i < jittered.size(); ++i)
+    EXPECT_EQ(chained.positions[i], jittered.positions[i]) << "point " << i;
+
+  Cloud drifted = seeded;
+  points::displaceNoise(drifted, 9.0f, 0.02f, 5u);
+  const Cloud driftedChain = pop::cook(pop::Chain{
+      pop::PointSet{seeded}, pop::Noise{pop::Lane::P, 9.0f, 0.02f, 5.0f}});
+  ASSERT_EQ(driftedChain.size(), drifted.size());
+  for (size_t i = 0; i < drifted.size(); ++i)
+    EXPECT_EQ(driftedChain.positions[i], drifted.positions[i]) << "point " << i;
 }
 
 TEST(Points, OnMeshLandsOnSurface) {

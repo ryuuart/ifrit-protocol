@@ -788,6 +788,13 @@ struct pop {
    *  float, or nullopt when the operator has no such field. */
   static std::optional<float> getField(const Op& op, std::string_view field);
 
+  /** THE FIELD `Noise` DISPLACES BY, at @p p, in the units the operator
+   *  carries: a sum of library sines, returned before the amplitude
+   *  multiplies it. One function, so the operator and
+   *  `points::displaceNoise` — which is the same verb reached for
+   *  without a chain — answer with one field rather than two. */
+  static glm::vec3 noiseField(glm::vec3 p, float frequency, float seed);
+
   /** The frame a Deform runs in: its axis normalized, its bend direction
    *  made perpendicular to that axis and normalized (a direction parallel
    *  to the axis, or zero, falls back to a fixed perpendicular), and

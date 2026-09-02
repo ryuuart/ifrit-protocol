@@ -464,6 +464,14 @@ the decoration a compiled module needs before a driver may be handed it.
   mesh at every point into one merged mesh) and `promoteToPrims()`
   (`Modifiers.cpp`); and `drawBillboards()`, camera-facing sprites
   (`Billboards.cpp`).
+
+  **A modifier is its operator without a chain.** `jitter()` runs the
+  `Jitter` operator's own kernel over the positions and
+  `displaceNoise()` reads the field `Noise` displaces by
+  (`pop::noiseField`), so a cloud perturbed with a chain and a cloud
+  perturbed without one move by the same floats. One verb is one field:
+  a second arithmetic under one name would mean nobody could say which
+  of them a picture came from.
 - **`mesh/pop/Pop.h`** — the operator chain language and the runtime seam
   it executes through, both in the `pop` scope: `pop::on()` opens a chain,
   `pop::cook()` evaluates one on the `pop::Runtime` it is given,
@@ -861,6 +869,12 @@ is silently, plausibly wrong rather than obviously broken.
   desynchronizes the CPU reference from the GPU executor, and the failure
   appears as two renderers scattering points differently rather than as a
   build error.
+- **A verb spelled two ways is one field.** `points::jitter` and
+  `pop::Jitter`, `points::displaceNoise` and `pop::Noise` are the same
+  operator reached with and without a chain, and the pre-chain spelling
+  is written as a call into the operator's own arithmetic rather than as
+  a second copy of it. `geometry_mesh_pop_test` compares the two paths
+  bit for bit.
 - **The declaration order of `pop::Op`'s variant alternatives is ABI.**
   The variant *index* IS the operator number the kernel switches on, so
   one numbering serves the host and the device. New operators are

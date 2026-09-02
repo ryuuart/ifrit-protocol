@@ -32,16 +32,6 @@ using curve::Spline3;
 
 namespace {
 
-glm::vec3 drift(glm::vec3 p, float freq, float seed) {
-  const float sx = std::sin(p.y * freq * 6.1f + seed) +
-                   0.5f * std::sin(p.z * freq * 11.3f + seed * 1.7f);
-  const float sy = std::sin(p.z * freq * 5.3f + seed * 2.1f) +
-                   0.5f * std::sin(p.x * freq * 9.7f + seed);
-  const float sz = std::sin(p.x * freq * 7.9f + seed * 1.3f) +
-                   0.5f * std::sin(p.y * freq * 8.3f + seed * 2.6f);
-  return glm::vec3{sx, sy, sz} * 0.6667f;
-}
-
 float wrap01(float t) { return t - std::floor(t); }
 
 /** The attribute store: every attribute is a named float4 lane —
@@ -86,6 +76,16 @@ void runKernel(Attrs& attrs, const kernel::Dispatch& work) {
 }
 
 }  // namespace
+
+glm::vec3 pop::noiseField(glm::vec3 p, float freq, float seed) {
+  const float sx = std::sin(p.y * freq * 6.1f + seed) +
+                   0.5f * std::sin(p.z * freq * 11.3f + seed * 1.7f);
+  const float sy = std::sin(p.z * freq * 5.3f + seed * 2.1f) +
+                   0.5f * std::sin(p.x * freq * 9.7f + seed);
+  const float sz = std::sin(p.x * freq * 7.9f + seed * 1.3f) +
+                   0.5f * std::sin(p.y * freq * 8.3f + seed * 2.6f);
+  return glm::vec3{sx, sy, sz} * 0.6667f;
+}
 
 glm::vec4 pop::laneFill(std::string_view name) {
   if (name == "Scale" || name == "Color") return {1, 1, 1, 1};
@@ -469,7 +469,8 @@ Cloud cookOnCpu(const pop::Chain& chain) {
             };
             for (size_t i = 0; i < count; ++i) {
               const glm::vec3 dd =
-                  drift(attrs.p3(i), op.frequency, op.seed) * op.amplitude;
+                  pop::noiseField(attrs.p3(i), op.frequency, op.seed) *
+                  op.amplitude;
               const glm::vec4 old = attrs.load(op.lane.name, i);
               glm::vec4 v = old;
               v.x += dd.x;

@@ -98,10 +98,15 @@ Cloud scatterBox(glm::vec3 lo, glm::vec3 hi, int count, uint32_t seed = 1);
  *  (interpolated) and "t". */
 Cloud onMesh(const Mesh& mesh, int count, uint32_t seed = 1);
 
-/** Seeded uniform jitter of every position, +-amplitude per axis. */
+/** Seeded uniform jitter of every position, +-amplitude per axis — the
+ *  `pop::Jitter` operator reached for without a chain, and the same
+ *  offsets: it runs that operator's own kernel over the positions, so
+ *  the two spellings of the verb cannot answer differently. */
 void jitter(Cloud& cloud, float amplitude, uint32_t seed = 7);
 
-/** Smooth value-noise displacement (the organic drift). */
+/** Smooth sin-field displacement (the organic drift) — the `pop::Noise`
+ *  operator reached for without a chain, reading the same field through
+ *  `pop::noiseField`. */
 void displaceNoise(Cloud& cloud, float amplitude, float frequency,
                    uint32_t seed = 7);
 

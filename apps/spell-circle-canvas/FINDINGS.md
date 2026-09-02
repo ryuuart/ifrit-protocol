@@ -221,23 +221,6 @@ stamping kernel and through the host executor and compare the vertex
 buffers bit for bit, the way the chain cook and the swept rings already
 are.
 
-## Two authoring verbs each mean two different random fields
-
-`points::jitter` (`mesh/pop/Modifiers.cpp`) walks one stateful
-`pcgUnitNext` sequence; `pop::Jitter` (`kernels/Pop.slang`) is stateless
-and seeds per index. `points::displaceNoise` sums three taps of
-`noise::value3` (a trilinear lattice); `pop::Noise` (`mesh/pop/Cook.cpp`)
-sums six library sines. Each pair carries one verb's name and answers
-with a different field, and nothing marks either half superseded.
-
-Intended: one verb, one field. The chain op is the current spelling and
-the pre-chain modifier is what a caller reaches for without a chain, so
-the modifier should be the op's arithmetic applied directly.
-
-Assert once fixed: displace the same cloud through the modifier and
-through a one-op chain and compare the points bit for bit, for both
-verbs.
-
 ## A variant re-draw is lit on the host tier and unlit on the device
 
 `world/frame/CpuGeometry.cpp`'s variant overlay sets `over.lit = true`
