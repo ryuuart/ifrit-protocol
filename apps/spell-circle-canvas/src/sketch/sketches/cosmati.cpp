@@ -58,21 +58,28 @@ namespace cosmati {
 constexpr float kW = kSceneSize.fWidth, kH = kSceneSize.fHeight;
 
 // The quarry list, as stone rather than as decoration.
-constexpr SkColor4f kPorphyry = hex(0x6B2F3C);  // Mons Claudianus, purple
-constexpr SkColor4f kPorphyryLo = hex(0x3E1A24);
-constexpr SkColor4f kSerpentine = hex(0x35563C);  // lapis lacedaemonius
-constexpr SkColor4f kSerpentineLo = hex(0x1D3122);
-constexpr SkColor4f kGiallo = hex(0xC49A4E);  // yellow limestone
-constexpr SkColor4f kGialloLo = hex(0x8A6A2E);
-constexpr SkColor4f kMarble = hex(0xE4DED0);
-constexpr SkColor4f kMarbleLo = hex(0xBDB4A2);
-constexpr SkColor4f kOnyx = hex(0xD8C79B);
-constexpr SkColor4f kPurbeck = hex(0x4A4B46);  // the framework, not marble
-constexpr SkColor4f kPurbeckLo = hex(0x2C2D2A);
-constexpr SkColor4f kGlassRed = hex(0xA82A28);
-constexpr SkColor4f kGlassTurq = hex(0x2E8C8C);
-constexpr SkColor4f kGlassCobalt = hex(0x2A3E8C);
-constexpr SkColor4f kMortar = hex(0x191713);
+// THE PAVEMENT IS WORN STONE, not stained glass. Every quarry here is
+// read off the Great Pavement photographed flat: warm, dusty and
+// low-chroma — ochres, dull reds, greys, dull greens, creams, porphyry a
+// dark purple-brown. The header's own warning against rainbow terrazzo
+// applies to a saturated reading of the same list, and a black mortar
+// under it turns the Purbeck framework — which is the pavement's
+// STRONGEST structure — into void.
+constexpr SkColor4f kPorphyry = hex(0x74494A);  // Mons Claudianus, purple
+constexpr SkColor4f kPorphyryLo = hex(0x4C2F31);
+constexpr SkColor4f kSerpentine = hex(0x5B6552);  // lapis lacedaemonius
+constexpr SkColor4f kSerpentineLo = hex(0x3E4739);
+constexpr SkColor4f kGiallo = hex(0xC3AA76);  // yellow limestone
+constexpr SkColor4f kGialloLo = hex(0x9A8455);
+constexpr SkColor4f kMarble = hex(0xDED6C4);
+constexpr SkColor4f kMarbleLo = hex(0xB9B0A0);
+constexpr SkColor4f kOnyx = hex(0xCDBB94);
+constexpr SkColor4f kPurbeck = hex(0x77756B);  // the framework, not marble
+constexpr SkColor4f kPurbeckLo = hex(0x4F4E47);
+constexpr SkColor4f kGlassRed = hex(0x9A5348);
+constexpr SkColor4f kGlassTurq = hex(0x62867F);
+constexpr SkColor4f kGlassCobalt = hex(0x4E5A7E);
+constexpr SkColor4f kMortar = hex(0x6C695F);
 constexpr SkColor4f kInk = hex(0xE8E1CE);
 constexpr SkColor4f kInkDim = hex(0x9A9078);
 
@@ -327,7 +334,11 @@ struct Cosmati final : sketch::Sketch {
                     .opacity(animate(from(0.0f).to(1.0f),
                                      {420ms, &ch::easeOutQuad, delay}));
     q.child(box().inset(0).fill(Material::solid(cs::kMortar)));
-    const int cols = 11, rows = 11;
+    // The pavement's tesserae are an order of magnitude smaller than one
+    // coarse course: no interstitial area on the Great Pavement reads as
+    // a dozen triangles across, and at that size the field reads as a
+    // diagram of a tessellation rather than as a mosaic.
+    const int cols = 22, rows = 22;
     q.child(box()
                 .inset(0)
                 .shape(cs::triangleCourse(cols, rows, 0))
