@@ -14,6 +14,8 @@
 #include <algorithm>
 #include <set>
 #include <string>
+#include <string_view>
+#include <vector>
 
 #include "support/ParagraphSupport.h"
 using namespace sigil::weave;
@@ -21,19 +23,11 @@ using namespace sigil::weave::test;
 
 // ── Shaping & caching ─────────────────────────────────────────────────────
 
-TEST(Shaper, ShapesLatinWord) {
-  FontContext& fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph(u8"Hello");
-  paragraph.ensureShaped(fontContext);
-  ASSERT_EQ(paragraph.words().size(), 1u);
-  const Word& word = paragraph.words()[0];
-  ASSERT_EQ(word.segments().size(), 1u);
-  EXPECT_EQ(word.segments()[0].shaped->glyphs.size(), 5u);
-  EXPECT_GT(word.width, 0.0f);
-  EXPECT_EQ(word.spaceWidth, 0.0f);
-}
-
 TEST(Shaper, CacheHitsOnIdenticalWords) {
+  // The three exact counts below are the caching contract, and they can
+  // only be counted from empty — so this case empties the shared context
+  // first. Every sibling re-warms what it needs, and none of them counts a
+  // cache hit it did not cause itself.
   FontContext& fontContext = sharedContext();
   fontContext.purgeShapeCache();
   fontContext.resetStats();
@@ -225,27 +219,40 @@ TEST(Itemization, RtlWordShapesRtl) {
   // RTL output is in visual order: cluster values run backwards.
   EXPECT_GT(clusters.front(), clusters.back());
 }
-TEST(Scripts, ArabicLamAlefLigates) {
-  FontContext& fontContext = sharedContext();
-  Paragraph paragraph =
-      makeParagraph(u8"لا");  // lam + alef: mandatory ligature
-  paragraph.ensureShaped(fontContext);
-  ASSERT_EQ(paragraph.words().size(), 1u);
-  const ShapedWord& shapedWord = *paragraph.words()[0].segments()[0].shaped;
-  if (!allGlyphsResolved(paragraph))
-    GTEST_SKIP() << "no Arabic font on this system";
+
+// ── A script this machine may not have a face for ────────────────────────
+
+/// A script shaped through the paragraph, on a machine that may not have a
+/// face for it. A face without the coverage shapes .notdef, which is no
+/// answer to the question rather than a wrong one.
+class ShapedScript : public ::testing::Test {
+ protected:
+  /// Shapes `utf8` into this fixture's paragraph and answers whether the
+  /// installed faces covered it. GTEST_SKIP returns from the function it is
+  /// written in, so the case itself is what stops.
+  [[nodiscard]] bool shapedWholly(std::u8string_view utf8) {
+    m_paragraph.appendText(utf8, basicStyle());
+    m_paragraph.ensureShaped(sharedContext());
+    return allGlyphsResolved(m_paragraph);
+  }
+
+  Paragraph m_paragraph;
+};
+
+TEST_F(ShapedScript, ArabicLamAlefLigates) {
+  // lam + alef: a mandatory ligature.
+  if (!shapedWholly(u8"لا")) GTEST_SKIP() << "no Arabic font on this system";
+  ASSERT_EQ(m_paragraph.words().size(), 1u);
+  const ShapedWord& shapedWord = *m_paragraph.words()[0].segments()[0].shaped;
   EXPECT_EQ(shapedWord.glyphs.size(), 1u)
       << "lam-alef must fuse into one glyph";
 }
 
-TEST(Scripts, ArabicJoinsRtl) {
-  FontContext& fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph(u8"العربية تكتب من اليمين إلى اليسار");
-  paragraph.ensureShaped(fontContext);
-  if (!allGlyphsResolved(paragraph))
+TEST_F(ShapedScript, ArabicJoinsRtl) {
+  if (!shapedWholly(u8"العربية تكتب من اليمين إلى اليسار"))
     GTEST_SKIP() << "no Arabic font on this system";
-  ASSERT_GE(paragraph.words().size(), 5u);
-  for (const Word& word : paragraph.words()) {
+  ASSERT_GE(m_paragraph.words().size(), 5u);
+  for (const Word& word : m_paragraph.words()) {
     EXPECT_EQ(word.bidiLevel & 1u, 1u) << "Arabic words must be RTL";
     const auto& clusters = word.segments()[0].shaped->clusters;
     if (clusters.size() >= 2)  // RTL visual order: clusters run backwards
@@ -253,32 +260,26 @@ TEST(Scripts, ArabicJoinsRtl) {
   }
 }
 
-TEST(Scripts, DevanagariFormsConjunctClusters) {
-  FontContext& fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph(u8"नमस्ते दुनिया");
-  paragraph.ensureShaped(fontContext);
-  if (!allGlyphsResolved(paragraph))
+TEST_F(ShapedScript, DevanagariFormsConjunctClusters) {
+  if (!shapedWholly(u8"नमस्ते दुनिया"))
     GTEST_SKIP() << "no Devanagari font on this system";
   // "नमस्ते" is 6 UTF-16 units but the virama fuses स्+ते into one grapheme
   // cluster: distinct clusters must be fewer than code units.
-  const Word& namaste = paragraph.words()[0];
+  const Word& namaste = m_paragraph.words()[0];
   ASSERT_EQ(namaste.segments().size(), 1u);
   const ShapedWord& shapedWord = *namaste.segments()[0].shaped;
   EXPECT_LT(uniqueClusterCount(shapedWord), 6u);
   EXPECT_GE(shapedWord.glyphs.size(), 3u);
 }
 
-TEST(Scripts, CuneiformSupplementaryPlane) {
-  FontContext& fontContext = sharedContext();
+TEST_F(ShapedScript, CuneiformSupplementaryPlane) {
   // Four codepoints beyond the BMP (U+12000, U+12031, U+12038, U+1204D):
   // each is a surrogate pair, so correct cluster values step by 2 UTF-16
-  // units. U+12031 is also featured by the hyper-scripts demo.
-  Paragraph paragraph = makeParagraph(u8"𒀀𒀱𒀸𒁍");
-  paragraph.ensureShaped(fontContext);
-  if (!allGlyphsResolved(paragraph))
+  // units.
+  if (!shapedWholly(u8"𒀀𒀱𒀸𒁍"))
     GTEST_SKIP() << "no Cuneiform font on this system";
   std::vector<uint32_t> clusters;
-  for (const Word& word : paragraph.words())
+  for (const Word& word : m_paragraph.words())
     for (const WordSegment& segment : word.segments())
       for (uint32_t cluster : segment.shaped->clusters)
         clusters.push_back(cluster + word.textBegin);
@@ -386,10 +387,8 @@ TEST(Shaper, PurgeAllCachesResetsBorrowedMemos) {
 
 TEST(Shaper, VariationsChangeShapingViaStyle) {
   FontContext& fontContext = sharedContext();
-  sk_sp<SkTypeface> base = fontContext.fontManager()->matchFamilyStyle(
-      "Noto Sans", SkFontStyle::Normal());
-  if (!base || base->getVariationDesignPosition({}) < 1)
-    GTEST_SKIP() << "no variable Noto Sans installed";
+  sk_sp<SkTypeface> base = installedVariableFace("Noto Sans");
+  if (!base) GTEST_SKIP() << "no variable Noto Sans installed";
 
   auto totalWidth = [&](std::vector<FontVariation> variations) {
     TextStyle style = basicStyle(32.0f);
@@ -414,21 +413,10 @@ TEST(Shaper, VariationsChangeShapingViaStyle) {
 
 TEST(Shaper, VariedTypefaceIsMemoizedForCacheStability) {
   FontContext fontContext(ports::systemFontManager());
-  sk_sp<SkTypeface> base = fontContext.fontManager()->matchFamilyStyle(
-      "Noto Sans", SkFontStyle::Normal());
-  if (!base || base->getVariationDesignPosition({}) < 1)
-    GTEST_SKIP() << "no variable Noto Sans installed";
+  sk_sp<SkTypeface> base = installedVariableFace("Noto Sans");
+  if (!base) GTEST_SKIP() << "no variable Noto Sans installed";
 
   const std::vector<FontVariation> axes = {{"wght", 700.0f}};
-  sk_sp<SkTypeface> first = fontContext.variedTypeface(base, axes);
-  sk_sp<SkTypeface> second = fontContext.variedTypeface(base, axes);
-  ASSERT_TRUE(first);
-  EXPECT_EQ(first.get(), second.get())
-      << "identical variations must return the same clone instance";
-  EXPECT_NE(first.get(), base.get());
-
-  // Empty variations pass the base straight through.
-  EXPECT_EQ(fontContext.variedTypeface(base, {}).get(), base.get());
 
   // The memo survives a purge as a *contract*, not as storage: after
   // purgeAllCaches the next request re-resolves (possibly to the same

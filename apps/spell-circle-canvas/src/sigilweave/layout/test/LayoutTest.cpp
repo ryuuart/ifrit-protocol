@@ -87,7 +87,7 @@ TEST(ParagraphLayout, MandatoryBreakStartsNewLine) {
   EXPECT_LT(layout.runs[0].origin.y(), layout.runs[1].origin.y());
 }
 
-TEST(ParagraphLayout, CenterAndEndAlignment) {
+TEST(ParagraphLayout, CentringHalvesTheSlackAndEndAlignmentTakesItAll) {
   FontContext& fontContext = sharedContext();
   ParagraphLayoutOptions options;
 
@@ -123,14 +123,11 @@ TEST(ParagraphLayout, JustifiedLinesFillTheMeasure) {
   ASSERT_GT(layout.lineCount, 2);
 
   // Every line except the last must reach (near) the right edge.
-  std::vector<float> lineEnds(static_cast<size_t>(layout.lineCount), 0.0f);
-  for (const PositionedRun& run : layout.runs)
-    lineEnds[static_cast<size_t>(run.lineIndex)] = std::max(
-        lineEnds[static_cast<size_t>(run.lineIndex)], runEnd(paragraph, run));
+  const std::vector<float> ends = lineEnds(layout, paragraph);
   for (int line = 0; line + 1 < layout.lineCount; ++line)
-    EXPECT_NEAR(lineEnds[static_cast<size_t>(line)], 260.0f, 3.0f)
+    EXPECT_NEAR(ends[static_cast<size_t>(line)], 260.0f, 3.0f)
         << "line " << line << " not justified";
-  EXPECT_LT(lineEnds.back(), 260.0f);  // ragged last line
+  EXPECT_LT(ends.back(), 260.0f);  // ragged last line
 }
 
 TEST(ParagraphLayout, ExclusionShapeSplitsText) {
@@ -246,14 +243,9 @@ TEST(ParagraphLayout, AdvanceScaleTightensContourSpacing) {
       << "advanceScale should compress the arc the text subtends";
   EXPECT_NEAR(full, half * 2.0f, full * 0.25f);
 }
-// ── Typographic correctness ──────────────────────────────────────────────
-// Script- and font-level invariants that hold regardless of layout options:
-// variable axes reach the shaper, clusters cover the text, joining and
-// combining behave, kinsoku holds for CJK, non-breaking space does not
-// break. They are stated over this engine's word model, so each one is a
-// statement about Word / WordSegment rather than about raw shaper output.
+// ── Justification, bidi order, and an edit at a surrogate boundary ───────
 
-TEST(Correctness, JustifiedShrinkNeverCollapsesSpaces) {
+TEST(Justification, ShrinkNeverCollapsesASpacePastItsLimit) {
   FontContext& fontContext = sharedContext();
   Paragraph paragraph = makeParagraph(
       u8"several reasonably long words keep justification honest here", 18.0f);
@@ -282,7 +274,7 @@ TEST(Correctness, JustifiedShrinkNeverCollapsesSpaces) {
   }
 }
 
-TEST(Correctness, BidiVisualOrderForMixedDirections) {
+TEST(BidiOrder, AReorderedPairRendersInVisualOrderBetweenItsNeighbours) {
   FontContext& fontContext = sharedContext();
   Paragraph paragraph = makeParagraph(u8"aaa בבב גגג zzz", 16.0f);
   BlockFlow flow(SkRect::MakeWH(600, 60));  // one wide line
@@ -299,7 +291,7 @@ TEST(Correctness, BidiVisualOrderForMixedDirections) {
   EXPECT_LT(runOrigins[1], runOrigins[3]);
 }
 
-TEST(Correctness, EditAtSurrogateBoundaryIsSafe) {
+TEST(EditSafety, ACutThroughASurrogatePairLeavesEveryWordInsideTheText) {
   FontContext& fontContext = sharedContext();
   Paragraph paragraph = makeParagraph(u8"ab 𝕏𝕐 cd");  // 𝕏/𝕐 are surrogate pairs
   paragraph.ensureShaped(fontContext);

@@ -29,11 +29,11 @@ void BM_ShapeParagraph_Cold(benchmark::State& state) {
   state.SetLabel(state.range(1) ? "mixed" : "latin");
   for ([[maybe_unused]] auto iteration : state) {
     state.PauseTiming();
-    fontContext().purgeShapeCache();
+    sharedContext().purgeShapeCache();
     state.ResumeTiming();
     Paragraph paragraph;
-    paragraph.appendText(text, style16());
-    paragraph.ensureShaped(fontContext());
+    paragraph.appendText(text, basicStyle());
+    paragraph.ensureShaped(sharedContext());
     benchmark::DoNotOptimize(paragraph.words().data());
   }
   countWords(state, words);
@@ -51,13 +51,13 @@ void BM_ShapeParagraph_Warm(benchmark::State& state) {
   state.SetLabel(state.range(1) ? "mixed" : "latin");
   {
     Paragraph warmup;
-    warmup.appendText(text, style16());
-    warmup.ensureShaped(fontContext());
+    warmup.appendText(text, basicStyle());
+    warmup.ensureShaped(sharedContext());
   }
   for ([[maybe_unused]] auto iteration : state) {
     Paragraph paragraph;
-    paragraph.appendText(text, style16());
-    paragraph.ensureShaped(fontContext());
+    paragraph.appendText(text, basicStyle());
+    paragraph.ensureShaped(sharedContext());
     benchmark::DoNotOptimize(paragraph.words().data());
   }
   countWords(state, words);

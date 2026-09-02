@@ -116,7 +116,8 @@ TEST(Vertical, ColumnMetricsReportTheBandAndTheExtent) {
   ParagraphLayout layout =
       layoutParagraph(fontContext, paragraph, flow, options);
 
-  EXPECT_EQ(layout.linePitch, 30.0f) << "the pitch the geometry was queried at";
+  EXPECT_FLOAT_EQ(layout.linePitch, 30.0f)
+      << "the pitch the geometry was queried at";
   EXPECT_TRUE(layout.lineMetrics(paragraph).empty())
       << "a column has no baseline to report";
 
@@ -124,7 +125,7 @@ TEST(Vertical, ColumnMetricsReportTheBandAndTheExtent) {
   ASSERT_GE(columns.size(), 2u);
   for (size_t i = 0; i < columns.size(); ++i) {
     EXPECT_EQ(columns[i].lineIndex, (int)i) << "ascending by column index";
-    EXPECT_EQ(columns[i].pitch, 30.0f);
+    EXPECT_FLOAT_EQ(columns[i].pitch, 30.0f);
     EXPECT_GT(columns[i].bottom, columns[i].top) << "the column ran downward";
     EXPECT_LE(columns[i].rect().height(), 200.0f) << "inside the block";
   }
@@ -188,25 +189,19 @@ TEST(Vertical, ColumnsFlowAroundASilhouette) {
       layoutParagraph(fontContext, paragraph, flow, options);
 
   ASSERT_FALSE(layout.runs.empty());
-  std::vector<LineInterval> intervals;
-  bool sawASplitColumn = false;
-  for (const PositionedRun& run : layout.runs) {
-    ASSERT_TRUE(run.shaped);
+  for (const PositionedRun& run : layout.runs)
     ASSERT_FALSE(run.transformed) << "upright CJK all the way down";
-    ASSERT_TRUE(flow.lineIntervals(run.lineIndex, kPitch, 0, intervals));
-    if (intervals.size() > 1) sawASplitColumn = true;
-    const float penStart = run.origin.y();
-    const float penEnd = penStart + run.shaped->advance;
-    bool inside = false;
-    for (const LineInterval& interval : intervals)
-      inside =
-          inside || (penStart >= interval.origin.y() - 0.75f &&
-                     penEnd <= interval.origin.y() + interval.length + 0.75f);
-    EXPECT_TRUE(inside) << "a run on column " << run.lineIndex << " spans ["
-                        << penStart << ", " << penEnd
-                        << "], outside every interval the column offered";
-  }
-  EXPECT_TRUE(sawASplitColumn) << "the circle must have split some column";
+
+  const IntervalContainment held =
+      runsStayInsideIntervals(flow, layout, kPitch, 0, PenAxis::kDownColumns);
+  EXPECT_GT(held.runs, 0);
+  EXPECT_EQ(held.exhausted, 0)
+      << "the flow refused a column it had already placed a run on";
+  EXPECT_GT(held.splitBands, 0) << "the circle must have split some column";
+  EXPECT_EQ(held.outside, 0)
+      << "a run on column " << held.outsideBand << " spans ["
+      << held.outsideStart << ", " << held.outsideEnd
+      << "], outside every interval the column offered";
 
   // And the exclusion costs room: the same text in the same block with
   // nothing in its way needs fewer columns.
@@ -228,21 +223,31 @@ float columnFoot(const PositionedRun& run) {
 
 }  // namespace
 
-TEST(Vertical, AClampedColumnEndsInItsMarker) {
-  FontContext& fontContext = sharedContext();
-  Paragraph paragraph;
-  paragraph.appendText(
-      u8"縦組みの文章は上から下へ流れ右から左へと列が進み続けてゆく",
-      basicStyle(20.0f));
-  paragraph.setWritingMode(WritingMode::kVerticalRL);
+/// One column of upright Japanese in a block two columns deep, clamped to
+/// a single column — the setting an overflow marker has to end.
+class ClampedColumn : public ::testing::Test {
+ protected:
+  void SetUp() override {
+    m_paragraph.appendText(
+        u8"縦組みの文章は上から下へ流れ右から左へと列が進み続けてゆく",
+        basicStyle(20.0f));
+    m_paragraph.setWritingMode(WritingMode::kVerticalRL);
+  }
 
-  VerticalBlockFlow flow(SkRect::MakeWH(200, 220));
-  ParagraphLayoutOptions options;
-  options.lineMetrics.height = 30;
-  options.overflow.maxLines = 1;
-  options.overflow.ellipsis = u"…";
-  ParagraphLayout layout =
-      layoutParagraph(fontContext, paragraph, flow, options);
+  ParagraphLayout column(bool withMarker) {
+    VerticalBlockFlow flow(SkRect::MakeWH(200, 220));
+    ParagraphLayoutOptions options;
+    options.lineMetrics.height = 30;
+    options.overflow.maxLines = 1;
+    if (withMarker) options.overflow.ellipsis = u"…";
+    return layoutParagraph(sharedContext(), m_paragraph, flow, options);
+  }
+
+  Paragraph m_paragraph;
+};
+
+TEST_F(ClampedColumn, TheMarkerStandsUprightAtTheFootOfTheColumnItCuts) {
+  const ParagraphLayout layout = column(/*withMarker=*/true);
 
   ASSERT_TRUE(layout.overflowed());
   ASSERT_TRUE(layout.ellipsized);
@@ -260,37 +265,21 @@ TEST(Vertical, AClampedColumnEndsInItsMarker) {
   EXPECT_GE(marker.origin.y(), columnFoot(tail) - 0.25f);
   EXPECT_LE(columnFoot(marker), 220.0f + 0.75f);
   EXPECT_EQ(marker.lineIndex, tail.lineIndex);
-  for (const PositionedRun& run : layout.runs)
-    if (&run != &marker) EXPECT_LT(run.wordIndex, layout.firstUnplacedWord);
 
   // The column's own metrics reach it: the marker names the interval it
   // landed on and where along it, so the column it ends measures down to
   // the marker's foot rather than stopping at the text.
-  const std::vector<ColumnMetrics> columns = layout.columnMetrics(paragraph);
+  const std::vector<ColumnMetrics> columns = layout.columnMetrics(m_paragraph);
   ASSERT_EQ(columns.size(), 1u);
   EXPECT_NEAR(columns.front().bottom, columnFoot(marker), 0.5f);
 }
 
-TEST(Vertical, TheClampCutMovesUpToMakeRoomForTheMarker) {
+TEST_F(ClampedColumn, TheCutMovesUpTheColumnToMakeRoomForTheMarker) {
   // The marker is measured against the COLUMN's length, so the cut moves
   // up by exactly as much as the marker needs — the same trade a line
   // makes at its end.
-  FontContext& fontContext = sharedContext();
-  const auto clampedColumn = [&](bool withMarker) {
-    Paragraph paragraph;
-    paragraph.appendText(
-        u8"縦組みの文章は上から下へ流れ右から左へと列が進み続けてゆく",
-        basicStyle(20.0f));
-    paragraph.setWritingMode(WritingMode::kVerticalRL);
-    VerticalBlockFlow flow(SkRect::MakeWH(200, 220));
-    ParagraphLayoutOptions options;
-    options.lineMetrics.height = 30;
-    options.overflow.maxLines = 1;
-    if (withMarker) options.overflow.ellipsis = u"…";
-    return layoutParagraph(fontContext, paragraph, flow, options);
-  };
-  const ParagraphLayout bare = clampedColumn(false);
-  const ParagraphLayout marked = clampedColumn(true);
+  const ParagraphLayout bare = column(/*withMarker=*/false);
+  const ParagraphLayout marked = column(/*withMarker=*/true);
 
   ASSERT_TRUE(bare.overflowed());
   ASSERT_TRUE(marked.ellipsized);

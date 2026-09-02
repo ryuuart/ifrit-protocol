@@ -33,9 +33,10 @@ target_link_libraries(SigilWeaveLayout
 
 # Everything that places runs and reads where they landed: both breakers,
 # the flows, overflow and clamp, vertical writing, placeholders, relayout
-# locality, the typographic options the breakers read, text on a path, and
-# the large-paragraph stress cases. The stress case that restyles through
-# the query layer links it.
+# locality, the typographic options the breakers read, text on a path, the
+# paragraph controls one subject to a file, and the large-paragraph stress
+# cases. The stress case that restyles through the query layer links it,
+# and the files that read a stock table link the kit.
 add_executable(weave_layout_test
   test/LayoutTest.cpp
   test/KnuthPlassTest.cpp
@@ -46,7 +47,13 @@ add_executable(weave_layout_test
   test/PlaceholderTest.cpp
   test/IncrementalTest.cpp
   test/TypographyTest.cpp
-  test/ParagraphStyleTest.cpp
+  test/LeadingTest.cpp
+  test/TabStopTest.cpp
+  test/FrameTest.cpp
+  test/HyphenationTest.cpp
+  test/LineEdgesTest.cpp
+  test/BesideTest.cpp
+  test/MojikumiTest.cpp
   test/StressTest.cpp
 )
 target_include_directories(weave_layout_test PRIVATE ${SIGIL_WEAVE_TEST_SUPPORT_DIR})

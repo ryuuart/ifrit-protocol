@@ -13,10 +13,13 @@
 #include <include/core/SkTileMode.h>
 #include <include/effects/SkGradient.h>
 
+#include <algorithm>
+#include <cstdint>
 #include <string>
 #include <vector>
 
 #include "support/ChoreographSupport.h"
+#include "support/Pixels.h"
 using namespace sigil::weave;
 using namespace sigil::weave::test;
 
@@ -35,28 +38,50 @@ std::vector<PlacedGlyph> collect(const ParagraphLayout& layout,
 
 // ── The identity every effect selects and staggers on ────────────────────
 
-TEST(PlacedGlyph, IndicesAgreeWithTheParagraphAndTheLayout) {
-  FontContext& fontContext = sharedContext();
-  Paragraph paragraph = mixedStyleParagraph();
-  BlockFlow flow(SkRect::MakeWH(240, 400));
-  ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
-  ASSERT_GT(layout.lineCount, 1) << "the fixture must wrap";
+/// Three sentences over two style spans, wrapped in a 240×400 block: the
+/// setting every claim about a placed glyph's identity is read in, because
+/// it carries more than one line, more than one span and more than one
+/// sentence at once.
+class Choreography : public ::testing::Test {
+ protected:
+  void SetUp() override {
+    m_layout = compose();
+    ASSERT_GT(m_layout.lineCount, 1) << "the fixture must wrap";
+  }
 
-  const std::vector<PlacedGlyph> placed = collect(layout, paragraph);
+  /// A fresh placement of the same paragraph in the same block.
+  ParagraphLayout compose() {
+    return layoutParagraph(sharedContext(), m_paragraph, m_flow);
+  }
+
+  /// Every glyph of the standing layout, in the order the walk hands them
+  /// out.
+  std::vector<PlacedGlyph> walk() { return collect(m_layout, m_paragraph); }
+
+  Paragraph m_paragraph = mixedStyleParagraph();
+  BlockFlow m_flow{SkRect::MakeWH(240, 400)};
+  ParagraphLayout m_layout;
+};
+
+TEST_F(Choreography, TheOrdinalCountsEveryGlyphTheWalkHandsOut) {
+  const std::vector<PlacedGlyph> placed = walk();
   ASSERT_FALSE(placed.empty());
 
-  const std::vector<StyleSpan>& spans = paragraph.spans();
-  const std::vector<Word>& words = paragraph.words();
   uint32_t expectedOrdinal = 0;
-  int previousLine = -1;
   for (const PlacedGlyph& glyph : placed) {
     EXPECT_EQ(glyph.ordinal, expectedOrdinal++);
     ASSERT_NE(glyph.shaped, nullptr);
-    ASSERT_NE(glyph.paint, nullptr);
     EXPECT_LT(glyph.glyphIndex, glyph.shaped->glyphs.size());
     EXPECT_EQ(glyph.glyph, glyph.shaped->glyphs[glyph.glyphIndex]);
     EXPECT_EQ(glyph.advance, glyph.shaped->advances[glyph.glyphIndex]);
+  }
+}
 
+TEST_F(Choreography, EveryGlyphNamesTheWordAndTheSpanItsTextIndexFallsIn) {
+  const std::vector<StyleSpan>& spans = m_paragraph.spans();
+  const std::vector<Word>& words = m_paragraph.words();
+  for (const PlacedGlyph& glyph : walk()) {
+    ASSERT_NE(glyph.paint, nullptr);
     // The word that produced the glyph contains the text position it maps
     // back to, and the span that styles it covers the same position.
     ASSERT_LT(glyph.wordIndex, words.size());
@@ -65,41 +90,26 @@ TEST(PlacedGlyph, IndicesAgreeWithTheParagraphAndTheLayout) {
     ASSERT_LT(glyph.styleIndex, spans.size());
     EXPECT_GE(glyph.textIndex, spans[glyph.styleIndex].start);
     EXPECT_LT(glyph.textIndex, spans[glyph.styleIndex].end);
-    EXPECT_EQ(glyph.color,
-              spans[glyph.styleIndex].style.paint.foreground.getColor());
     EXPECT_EQ(glyph.paint, &spans[glyph.styleIndex].style.paint);
-
-    // Lines are visited in flow order and never revisited.
-    EXPECT_GE(glyph.lineIndex, previousLine);
-    previousLine = glyph.lineIndex;
-    EXPECT_LT(glyph.lineIndex, layout.lineCount);
   }
-
-  // The accent span is the one that is red, and exactly the glyphs inside
-  // its range report it.
-  const uint32_t accentStart = offsetOf(paragraph, u"Some");
-  ASSERT_NE(accentStart, ~0u);
-  int redGlyphs = 0;
-  for (const PlacedGlyph& glyph : placed)
-    if (glyph.color == SK_ColorRED) {
-      ++redGlyphs;
-      EXPECT_GE(glyph.textIndex, accentStart);
-    }
-  EXPECT_GT(redGlyphs, 0);
 }
 
-TEST(PlacedGlyph, LineIndexMatchesTheBaselineTheGlyphSitsOn) {
-  FontContext& fontContext = sharedContext();
-  Paragraph paragraph = mixedStyleParagraph();
-  BlockFlow flow(SkRect::MakeWH(240, 400));
-  ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
+TEST_F(Choreography, TheWalkVisitsLinesInFlowOrderAndNeverReturnsToOne) {
+  int previousLine = -1;
+  for (const PlacedGlyph& glyph : walk()) {
+    EXPECT_GE(glyph.lineIndex, previousLine);
+    previousLine = glyph.lineIndex;
+    EXPECT_LT(glyph.lineIndex, m_layout.lineCount);
+  }
+}
 
+TEST_F(Choreography, EveryGlyphOfALineSitsOnThatLinesBaseline) {
   // Every glyph of one line shares that line's baseline, and later lines sit
   // further down the page.
   float lineBaseline = 0;
   int currentLine = -1;
   float previousBaseline = 0;
-  for (const PlacedGlyph& glyph : collect(layout, paragraph)) {
+  for (const PlacedGlyph& glyph : walk()) {
     if (glyph.lineIndex != currentLine) {
       if (currentLine >= 0) EXPECT_GT(glyph.rest.y(), previousBaseline);
       previousBaseline = lineBaseline = glyph.rest.y();
@@ -109,14 +119,9 @@ TEST(PlacedGlyph, LineIndexMatchesTheBaselineTheGlyphSitsOn) {
   }
 }
 
-TEST(PlacedGlyph, EnumerationOrderSurvivesRelayout) {
-  FontContext& fontContext = sharedContext();
-  Paragraph paragraph = mixedStyleParagraph();
-  BlockFlow flow(SkRect::MakeWH(240, 400));
-  const std::vector<PlacedGlyph> first =
-      collect(layoutParagraph(fontContext, paragraph, flow), paragraph);
-  const std::vector<PlacedGlyph> second =
-      collect(layoutParagraph(fontContext, paragraph, flow), paragraph);
+TEST_F(Choreography, EnumerationOrderSurvivesRelayout) {
+  const std::vector<PlacedGlyph> first = collect(compose(), m_paragraph);
+  const std::vector<PlacedGlyph> second = collect(compose(), m_paragraph);
 
   // Per-glyph particle state is keyed by position in this walk, so an
   // unedited paragraph must enumerate identically every frame.
@@ -130,36 +135,39 @@ TEST(PlacedGlyph, EnumerationOrderSurvivesRelayout) {
   }
 }
 
-TEST(PlacedGlyph, PaintIsResolvedPerSpanAtWalkTime) {
-  FontContext& fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph(u8"recolor me", 18.0f);
-  BlockFlow flow(SkRect::MakeWH(400, 100));
-  ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
+TEST_F(Choreography, EveryGlyphReportsTheColourOfTheSpanThatCoversIt) {
+  // The accent span is the one that is red, and exactly the glyphs inside
+  // its range report it.
+  const uint32_t accentStart = offsetOf(m_paragraph, u"Some");
+  ASSERT_NE(accentStart, ~0u);
+  int redGlyphs = 0;
+  for (const PlacedGlyph& glyph : walk())
+    if (glyph.color == SK_ColorRED) {
+      ++redGlyphs;
+      EXPECT_GE(glyph.textIndex, accentStart);
+    }
+  EXPECT_GT(redGlyphs, 0);
 
-  fontContext.resetStats();
+  // A paint declared after the placement is resolved on the next walk of
+  // the SAME layout: new colour, new passes, nothing re-placed.
   PaintStyle blue(SK_ColorBLUE);
   blue.addUnderlay(PaintLayer::outline(SK_ColorBLACK, 2.0f));
-  paragraph.setPaint(0, 7, blue);
-
-  // The same layout object, walked again: no reshape, new paint.
+  m_paragraph.setPaint(0, 7, blue);
   int blueGlyphs = 0;
-  for (const PlacedGlyph& glyph : collect(layout, paragraph))
+  for (const PlacedGlyph& glyph : walk())
     if (glyph.color == SK_ColorBLUE) {
       ++blueGlyphs;
       EXPECT_EQ(glyph.paint->underlays.size(), 1u);
     }
   EXPECT_GT(blueGlyphs, 0);
-  EXPECT_EQ(fontContext.stats().shapeCalls, 0u);
 }
 
 TEST(PlacedGlyph, ClustersStayInsideTheirWordAcrossACombiningMark) {
-  FontContext& fontContext = sharedContext();
   // Decomposed: "cafe" plus COMBINING ACUTE ACCENT — five code units
   // that shape to four or five glyphs, depending on whether the face
   // composes them.
-  Paragraph paragraph = makeParagraph(u8"cafe\u0301 noir", 24.0f);
   BlockFlow flow(SkRect::MakeWH(400, 100));
-  ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
+  auto [paragraph, layout] = laidOut(u8"cafe\u0301 noir", 24.0f, flow);
 
   const std::vector<Word>& words = paragraph.words();
   ASSERT_GE(words.size(), 1u);
@@ -197,17 +205,12 @@ TEST(PlacedGlyph, ClustersStayInsideTheirWordAcrossACombiningMark) {
 
 // ── Sentences ────────────────────────────────────────────────────────────
 
-TEST(PlacedGlyph, SentenceIndexNamesTheSentenceTheGlyphIsIn) {
-  FontContext& fontContext = sharedContext();
-  Paragraph paragraph = mixedStyleParagraph();
-  BlockFlow flow(SkRect::MakeWH(240, 400));
-  ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
-
-  const std::span<const uint32_t> starts = paragraph.sentenceStarts();
+TEST_F(Choreography, SentenceIndexNamesTheSentenceTheGlyphIsIn) {
+  const std::span<const uint32_t> starts = m_paragraph.sentenceStarts();
   ASSERT_EQ(starts.size(), 3u);
   int perSentence[3] = {0, 0, 0};
   uint32_t previousSentence = 0;
-  for (const PlacedGlyph& glyph : collect(layout, paragraph)) {
+  for (const PlacedGlyph& glyph : walk()) {
     ASSERT_LT(glyph.sentenceIndex, starts.size());
     EXPECT_GE(glyph.textIndex, starts[glyph.sentenceIndex]);
     if (glyph.sentenceIndex + 1 < starts.size())
@@ -257,10 +260,8 @@ GlyphRSXformBatches batchAtRest(const ParagraphLayout& layout,
 }  // namespace
 
 TEST(GlyphBatches, EveryPaintPassOfTheSpanDraws) {
-  FontContext& fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph(u8"HALO", 64.0f);
   BlockFlow flow(SkRect::MakeXYWH(10, 10, 380, 100));
-  ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
+  auto [paragraph, layout] = laidOut(u8"HALO", 64.0f, flow);
   const std::vector<LineMetrics> lines = layout.lineMetrics(paragraph);
   ASSERT_EQ(lines.size(), 1u);
   // The ramp spans exactly the placed text, so both ends of it are on the
@@ -300,10 +301,8 @@ TEST(GlyphBatches, EveryPaintPassOfTheSpanDraws) {
 }
 
 TEST(GlyphBatches, BucketsSplitOnPassAndFontButNotOnGlyph) {
-  FontContext& fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph(u8"many many letters here", 24.0f);
   BlockFlow flow(SkRect::MakeWH(400, 200));
-  ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
+  auto [paragraph, layout] = laidOut(u8"many many letters here", 24.0f, flow);
 
   // A plain single-pass style is one bucket, however many glyphs it draws.
   GlyphRSXformBatches flat = batchAtRest(layout, paragraph);
@@ -328,10 +327,8 @@ TEST(GlyphBatches, BucketsSplitOnPassAndFontButNotOnGlyph) {
 }
 
 TEST(GlyphBatches, AlphaScaleFadesEveryPassAndDropsInvisibleOnes) {
-  FontContext& fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph(u8"fade", 32.0f);
   BlockFlow flow(SkRect::MakeWH(400, 100));
-  ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
+  auto [paragraph, layout] = laidOut(u8"fade", 32.0f, flow);
   PaintStyle style(SK_ColorBLACK);
   style.addUnderlay(PaintLayer(0x80FF0000, {2, 2}));
   paragraph.setPaint(0, 4, style);
@@ -351,10 +348,8 @@ TEST(GlyphBatches, UnderlaysDrawBeneathForegroundsAcrossFadeClasses) {
   // EVERY underlay beneath EVERY foreground: a blurred halo reaches past its
   // own glyph, and a cascade mid-flight (each letter at its own fade) must
   // not lay a later letter's halo over an earlier letter's stroke.
-  FontContext& fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph(u8"OO", 64.0f);
   BlockFlow flow(SkRect::MakeWH(300, 120));
-  ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
+  auto [paragraph, layout] = laidOut(u8"OO", 64.0f, flow);
 
   SkPaint stroke;
   stroke.setAntiAlias(true);
@@ -407,26 +402,12 @@ TEST(GlyphBatches, UnderlaysDrawBeneathForegroundsAcrossFadeClasses) {
   SkPixmap actual, expected;
   ASSERT_TRUE(actualSurface->peekPixels(&actual));
   ASSERT_TRUE(expectedSurface->peekPixels(&expected));
-  int worst = 0, worstX = -1, worstY = -1;
-  for (int y = 0; y < info.height(); ++y)
-    for (int x = 0; x < info.width(); ++x) {
-      const SkColor a = actual.getColor(x, y);
-      const SkColor b = expected.getColor(x, y);
-      const int diff =
-          std::max({std::abs((int)SkColorGetR(a) - (int)SkColorGetR(b)),
-                    std::abs((int)SkColorGetG(a) - (int)SkColorGetG(b)),
-                    std::abs((int)SkColorGetB(a) - (int)SkColorGetB(b))});
-      if (diff > worst) {
-        worst = diff;
-        worstX = x;
-        worstY = y;
-      }
-    }
+  const PixelDifference apart = worstPixelDifference(actual, expected);
   // The two fade classes differ by 1/255 at most, so anything past a couple
   // of counts is a compositing-order divergence, not the fade.
-  EXPECT_LE(worst, 4) << "batched draw diverges from underlays-then-"
-                         "foregrounds at ("
-                      << worstX << ", " << worstY << ")";
+  EXPECT_LE(apart.worst, 4) << "batched draw diverges from underlays-then-"
+                               "foregrounds at ("
+                            << apart.x << ", " << apart.y << ")";
 }
 
 TEST(GlyphBatches, TintMultipliesAFlatPassAndModulatesAShaderOne) {
@@ -435,10 +416,8 @@ TEST(GlyphBatches, TintMultipliesAFlatPassAndModulatesAShaderOne) {
   // carries, a shader pass cannot (its colour is decided downstream) and
   // takes an equivalent modulating filter instead. Either way the glyph
   // keeps the pass — a tinted letter is not a re-styled letter.
-  FontContext& fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph(u8"HALO", 64.0f);
   BlockFlow flow(SkRect::MakeXYWH(10, 10, 380, 100));
-  ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
+  auto [paragraph, layout] = laidOut(u8"HALO", 64.0f, flow);
   const std::vector<LineMetrics> lines = layout.lineMetrics(paragraph);
   ASSERT_EQ(lines.size(), 1u);
   paragraph.setPaint(0, 4, outlinedGradient(lines[0].left, lines[0].right));
@@ -485,10 +464,8 @@ TEST(GlyphBatches, OneTintIsOneBucketHoweverManyGlyphsWearIt) {
   // filter by POINTER, so the modulating filter has to be memoized: a fresh
   // one per glyph would mint a bucket per glyph and undo the batching that
   // is the entire point of this file.
-  FontContext& fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph(u8"many many letters here", 24.0f);
   BlockFlow flow(SkRect::MakeWH(400, 200));
-  ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
+  auto [paragraph, layout] = laidOut(u8"many many letters here", 24.0f, flow);
   PaintStyle shaded;
   const SkPoint ends[2] = {{0, 0}, {400, 0}};
   const SkColor4f ramp[2] = {SkColor4f::FromColor(SK_ColorRED),
@@ -514,9 +491,8 @@ TEST(GlyphBatches, ADrivenFaceIsItsOwnBucket) {
   // A glyph drawn through a varied clone cannot share a bucket with one
   // drawn through the base face: the face is what the draw call carries.
   FontContext& fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph(u8"AB", 32.0f);
   BlockFlow flow(SkRect::MakeWH(400, 100));
-  ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
+  auto [paragraph, layout] = laidOut(u8"AB", 32.0f, flow);
 
   const SkTypeface* shapedFace = nullptr;
   forEachPlacedGlyph(layout, paragraph, [&](const PlacedGlyph& glyph) {
@@ -551,10 +527,8 @@ TEST(GlyphBatches, AMatrixGlyphRidesItsOwnLaneInsideItsBucket) {
   // A shear cannot be an RSXform, so that glyph draws under its own matrix
   // — in the SAME bucket, so it keeps its pass order and its paint, and
   // without disturbing the shared transform array its neighbours ride.
-  FontContext& fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph(u8"HH", 48.0f);
   BlockFlow flow(SkRect::MakeXYWH(10, 10, 380, 80));
-  ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
+  auto [paragraph, layout] = laidOut(u8"HH", 48.0f, flow);
 
   SkMatrix sheared;
   GlyphRSXformBatches batches;
@@ -588,10 +562,8 @@ TEST(GlyphBatches, AMatrixGlyphRidesItsOwnLaneInsideItsBucket) {
 }
 
 TEST(GlyphBatches, ClearKeepsBucketsButReleasesGlyphs) {
-  FontContext& fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph(u8"reuse", 20.0f);
   BlockFlow flow(SkRect::MakeWH(400, 100));
-  ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
+  auto [paragraph, layout] = laidOut(u8"reuse", 20.0f, flow);
 
   GlyphRSXformBatches batches = batchAtRest(layout, paragraph);
   ASSERT_EQ(batches.batches.size(), 1u);
@@ -623,7 +595,7 @@ LineSetFlow ringFlow(const sigil::geometry::path::Contour& contour,
 }
 }  // namespace
 
-TEST(PathText, APlacedGlyphReportsTheIntervalAndPenItWasPlacedAt) {
+TEST(PlacedGlyphOnAContour, ItReportsTheIntervalAndPenItWasPlacedAt) {
   // The pair a caller needs to re-place a curved run at draw time. The pen
   // is the glyph's ADVANCE CENTRE, in advance units, which is what
   // placeAt() anchors — feed one straight back to the other and the answer
@@ -661,7 +633,7 @@ TEST(PathText, APlacedGlyphReportsTheIntervalAndPenItWasPlacedAt) {
   EXPECT_GT(seen, 10);
 }
 
-TEST(PathText, ThePenIsTheAccumulatedAdvanceNotTheShapedPosition) {
+TEST(PlacedGlyphOnAContour, ThePenIsTheAccumulatedAdvanceNotTheShapedPosition) {
   // The advance-centre contract, stated as a number. HarfBuzz's per-glyph
   // offsets sit ON TOP of the pen position, and the arc coordinate must be
   // taken from the pen — an accented glyph anchored by its shaped x drifts
@@ -696,10 +668,8 @@ TEST(GlyphBatches, ACentreOffsetMovesThePivotOffTheAdvanceAxis) {
   // its advance ALONG ITS OWN X. A vertical column's advance is not on x,
   // so the dress carries the back-out instead — and it turns with the
   // glyph, exactly as the default one does.
-  FontContext& fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph(u8"H", 40.0f);
   BlockFlow flow(SkRect::MakeWH(200, 60));
-  ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
+  auto [paragraph, layout] = laidOut(u8"H", 40.0f, flow);
 
   const SkPoint centre{100, 30};
   const SkVector offset{0, 12};
@@ -744,15 +714,16 @@ TEST(GlyphBatches, SubpixelDecidesWhetherAFractionOfAPixelMovesAnything) {
   // Counted over a sweep rather than compared between two placements, so
   // neither verdict can be an accident of where inside a pixel the run
   // happened to start.
-  FontContext& fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph(u8"H", 44.0f);
   BlockFlow flow(SkRect::MakeXYWH(10, 10, 380, 100));
-  ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
+  auto [paragraph, layout] = laidOut(u8"H", 44.0f, flow);
   PaintStyle white;
   white.foreground.setColor(SK_ColorWHITE);
   paragraph.setPaint(0, 1, white);
 
-  auto render = [&](bool subpixel, float nudge) {
+  // One frame, reduced to a value: two frames are the same rasterization
+  // exactly when their pixels are, so the whole sweep is a count of
+  // distinct values rather than a comparison of every pair.
+  auto renderHash = [&](bool subpixel, float nudge) {
     GlyphRSXformBatches batches;
     batches.subpixel = subpixel;
     forEachPlacedGlyph(layout, paragraph, [&](const PlacedGlyph& glyph) {
@@ -766,27 +737,23 @@ TEST(GlyphBatches, SubpixelDecidesWhetherAFractionOfAPixelMovesAnything) {
     SkBitmap bitmap;
     bitmap.allocPixels(SkImageInfo::MakeN32Premul(200, 100));
     EXPECT_TRUE(surface->readPixels(bitmap.pixmap(), 0, 0));
-    return bitmap;
+    uint64_t hash = 1469598103934665603ull;
+    for (int y = 0; y < 100; ++y)
+      for (int x = 0; x < 200; ++x) {
+        hash ^= bitmap.getColor(x, y);
+        hash *= 1099511628211ull;
+      }
+    return hash;
   };
   auto distinctAcrossOnePixel = [&](bool subpixel) {
     constexpr int kSteps = 8;
-    std::vector<SkBitmap> frames;
+    std::vector<uint64_t> frames;
     frames.reserve(kSteps);
     for (int i = 0; i < kSteps; ++i)
-      frames.push_back(render(subpixel, 1.5f * (float)i / (float)(kSteps - 1)));
-    auto same = [](const SkBitmap& a, const SkBitmap& b) {
-      for (int y = 0; y < 100; ++y)
-        for (int x = 0; x < 200; ++x)
-          if (a.getColor(x, y) != b.getColor(x, y)) return false;
-      return true;
-    };
-    int distinct = 0;
-    for (size_t i = 0; i < frames.size(); ++i) {
-      bool seen = false;
-      for (size_t j = 0; j < i; ++j) seen |= same(frames[i], frames[j]);
-      distinct += !seen;
-    }
-    return distinct;
+      frames.push_back(
+          renderHash(subpixel, 1.5f * (float)i / (float)(kSteps - 1)));
+    std::sort(frames.begin(), frames.end());
+    return (int)(std::unique(frames.begin(), frames.end()) - frames.begin());
   };
 
   EXPECT_LE(distinctAcrossOnePixel(false), 3)

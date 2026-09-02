@@ -1,14 +1,14 @@
 /** @file
  * The style vocabulary as plain values: the fluent variation sugar, the
- * paint-layer presets and their order, the feature preset tags, the
- * StyleSet registry's lookup, replacement and equality, and the
- * designated-init `Type` a call site names a style's numbers in.
+ * paint-layer presets and their order, the StyleSet registry's lookup,
+ * replacement and equality, and the designated-init `Type` a call site
+ * names a style's numbers in. The feature preset tags are settled by the
+ * compiler where they are declared, so nothing here asks about them.
  */
 
 #include <gtest/gtest.h>
 #include <include/core/SkBlendMode.h>
 #include <include/core/SkPaint.h>
-#include <sigilweave/style/Features.h>
 #include <sigilweave/style/Style.h>
 
 #include <memory>
@@ -16,7 +16,10 @@
 
 using namespace sigil::weave;
 
-TEST(ShaperVariations, TextStyleFluentSugarStaysOrderStable) {
+// The umbrella still spells every subject.
+static_assert(std::is_same_v<StyleSet::Entry::second_type, TextStyle>);
+
+TEST(TextStyleVariations, TextStyleFluentSugarStaysOrderStable) {
   // weight()/opticalSize()/variation() replace in place when the axis is
   // already present — repeated fluent chains keep one order (one memoized
   // varied-typeface identity), never accumulate duplicates.
@@ -37,7 +40,7 @@ TEST(ShaperVariations, TextStyleFluentSugarStaysOrderStable) {
   EXPECT_TRUE(style == same);
 }
 
-TEST(Typography, PaintLayersExposeCompletePaintAndExplicitOrder) {
+TEST(PaintStyle, PaintLayersExposeCompletePaintAndExplicitOrder) {
   PaintStyle style(SK_ColorWHITE);
   style.addUnderlay(PaintLayer::dropShadow(0x66000000, {3, 4}, 2.0f))
       .addUnderlay(PaintLayer::glow(0x550000FF, 5.0f))
@@ -67,20 +70,7 @@ TEST(Typography, PaintLayersExposeCompletePaintAndExplicitOrder) {
   EXPECT_FALSE(identical == style);
 }
 
-TEST(FeaturePresets, TagsAreConstexprAndWellFormed) {
-  static_assert(Features::tabularNumbers == FontFeature{"tnum", 1});
-  static_assert(Features::standardLigaturesOff == FontFeature{"liga", 0});
-  static_assert(Features::smallCaps == FontFeature{"smcp", 1});
-  static_assert(Features::stylisticSet(1) == FontFeature{"ss01", 1});
-  static_assert(Features::stylisticSet(20) == FontFeature{"ss20", 1});
-  static_assert(Features::stylisticSet(7) == FontFeature{"ss07", 1});
-  // Out-of-range indices clamp instead of producing bogus tags.
-  static_assert(Features::stylisticSet(0) == FontFeature{"ss01", 1});
-  static_assert(Features::stylisticSet(99) == FontFeature{"ss20", 1});
-  SUCCEED();
-}
-
-TEST(StyleSetTest, LookupAnswersEveryNameAndTheBaseAnswersTheUnknownOnes) {
+TEST(StyleSet, LookupAnswersEveryNameAndTheBaseAnswersTheUnknownOnes) {
   TextStyle base;
   base.shaping.fontSize = 12.0f;
   TextStyle alert;
@@ -107,7 +97,7 @@ TEST(StyleSetTest, LookupAnswersEveryNameAndTheBaseAnswersTheUnknownOnes) {
   EXPECT_TRUE(StyleSet{}["anything"] == TextStyle{});
 }
 
-TEST(StyleSetTest, SetReplacesInPlaceAndEqualityIsExactAndOrdered) {
+TEST(StyleSet, SetReplacesInPlaceAndEqualityIsExactAndOrdered) {
   TextStyle small;
   small.shaping.fontSize = 9.0f;
   TextStyle large;
@@ -144,7 +134,7 @@ TEST(StyleSetTest, SetReplacesInPlaceAndEqualityIsExactAndOrdered) {
 // A pass names its material by pointer: two passes sharing one instance are
 // one pass, and a pass with a material is not the pass without it, so a
 // restyle that attaches a material is seen by the draw-time comparison.
-TEST(Typography, PaintLayerMaterialComparesByIdentity) {
+TEST(PaintStyle, PaintLayerMaterialComparesByIdentity) {
   const auto shared = std::shared_ptr<const sigil::material::Material>();
   PaintLayer plain(SK_ColorRED);
   PaintLayer withMaterial(SK_ColorRED);
@@ -154,8 +144,6 @@ TEST(Typography, PaintLayerMaterialComparesByIdentity) {
   EXPECT_NE(plain, withMaterial);
   PaintLayer same = withMaterial;
   EXPECT_EQ(same, withMaterial);
-  // The umbrella still spells every subject.
-  static_assert(std::is_same_v<StyleSet::Entry::second_type, TextStyle>);
 }
 
 // ---------------------------------------------------------------------------

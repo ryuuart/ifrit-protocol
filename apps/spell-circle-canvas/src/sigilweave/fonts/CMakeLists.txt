@@ -40,6 +40,10 @@ target_link_libraries(weave_fonts_test PRIVATE
   GTest::gtest_main
 )
 add_test(NAME weave_fonts_test COMMAND weave_fonts_test)
+# The varied-clone and optical-kerning cases name an installed family and
+# skip without it. The label says so, so a runner that knows its own font
+# set can require them.
+set_tests_properties(weave_fonts_test PROPERTIES LABELS fonts)
 
 # The shaper per word, cold and warm. Built through `benches`, run through
 # scripts/bench_ledger.py from a Release build.

@@ -25,13 +25,10 @@ namespace {
 float raggedness(const Paragraph& paragraph, const ParagraphLayout& layout,
                  float measure) {
   if (layout.lineCount <= 1) return 0;
-  std::vector<float> lineEnds(static_cast<size_t>(layout.lineCount), 0.0f);
-  for (const PositionedRun& run : layout.runs)
-    lineEnds[static_cast<size_t>(run.lineIndex)] = std::max(
-        lineEnds[static_cast<size_t>(run.lineIndex)], runEnd(paragraph, run));
+  const std::vector<float> ends = lineEnds(layout, paragraph);
   float total = 0;
   for (int line = 0; line + 1 < layout.lineCount; ++line) {
-    const float slack = measure - lineEnds[static_cast<size_t>(line)];
+    const float slack = measure - ends[static_cast<size_t>(line)];
     total += slack * slack;
   }
   return total;
@@ -39,7 +36,7 @@ float raggedness(const Paragraph& paragraph, const ParagraphLayout& layout,
 
 }  // namespace
 
-TEST(KnuthPlass, ProducesValidLines) {
+TEST(KnuthPlass, EveryWordIsPlacedOnceAndInReadingOrder) {
   FontContext& fontContext = sharedContext();
   Paragraph paragraph = makeParagraph(
       u8"In olden times when wishing still helped one, there lived a king "
@@ -55,8 +52,6 @@ TEST(KnuthPlass, ProducesValidLines) {
 
   EXPECT_FALSE(layout.overflowed());
   EXPECT_GT(layout.lineCount, 3);
-  // Width containment is covered by LineWidthInvariant (LayoutTest.cpp)
-  // for both breakers; this test owns the ordering/validity assertions.
   // Words appear in order (logical == visual for pure-LTR text).
   std::vector<uint32_t> seen;
   seen.reserve(layout.runs.size());
@@ -90,7 +85,7 @@ TEST(KnuthPlass, NoWorseRaggednessThanGreedy) {
             raggedness(paragraph, greedyLayout, measure) * 1.05f);
 }
 
-TEST(KnuthPlass, JustifiedCjkParagraph) {
+TEST(KnuthPlass, AJustifiedCjkBlockKeepsEveryColumnInsideTheMeasure) {
   FontContext& fontContext = sharedContext();
   Paragraph paragraph = makeParagraph(
       u8"吾輩は猫である。名前はまだ無い。どこで生れたかとんと見当がつかぬ。"
@@ -124,7 +119,7 @@ std::vector<std::tuple<uint32_t, int, float, float>> placement(
 }
 
 /// The word each line ends at, ascending by line.
-std::vector<uint32_t> lineEnds(const ParagraphLayout& layout) {
+std::vector<uint32_t> lastWordPerLine(const ParagraphLayout& layout) {
   std::vector<uint32_t> ends;
   for (const PositionedRun& run : layout.runs) {
     if (ends.empty() || run.lineIndex != (int)ends.size() - 1)
@@ -143,85 +138,84 @@ ParagraphLayoutOptions liveComposer() {
 }
 
 std::u8string storyText() {
-  return makePooledText(std::array<const char8_t*, 8>{
-                            u8"measure", u8"and", u8"break", u8"the", u8"story",
-                            u8"across", u8"frames", u8"again"},
-                        200, 5);
+  return makePooledText(
+      std::array<const char8_t*, 8>{u8"measure", u8"and", u8"break", u8"the",
+                                    u8"story", u8"across", u8"frames",
+                                    u8"again"},
+      200, 5);
 }
 
 }  // namespace
 
-TEST(LiveComposer, AMeasureAlreadySeenIsNotDecidedAgain) {
-  FontContext& fonts = sharedContext();
-  Paragraph paragraph = makeParagraph(storyText(), 16.0f);
-  BlockFlow flow(SkRect::MakeWH(300, 4000));
-  const ParagraphLayoutOptions options = liveComposer();
-  const ParagraphLayout first = layoutParagraph(fonts, paragraph, flow, options);
-  const ParagraphLayout second =
-      layoutParagraph(fonts, paragraph, flow, options);
+/// The composer under an input that MOVES: a two-hundred-word story at
+/// sixteen points in a flow deep enough to hold every line of it.
+class LiveComposer : public ::testing::Test {
+ protected:
+  void SetUp() override { m_story.appendText(storyText(), basicStyle(16.0f)); }
+
+  ParagraphLayout compose(const ParagraphLayoutOptions& options) {
+    return layoutParagraph(sharedContext(), m_story, m_tall, options);
+  }
+
+  Paragraph m_story;
+  BlockFlow m_tall{SkRect::MakeWH(300, 4000)};
+};
+
+TEST_F(LiveComposer, AMeasureAlreadySeenIsNotDecidedAgain) {
+  const ParagraphLayout first = compose(liveComposer());
+  const ParagraphLayout second = compose(liveComposer());
   EXPECT_EQ(first.reusedBlocks, 0);
   EXPECT_EQ(second.reusedBlocks, 1);
   EXPECT_EQ(placement(first), placement(second));
 }
 
-TEST(LiveComposer, ALayoutThatSaysNothingDecidesEveryBreakItself) {
-  FontContext& fonts = sharedContext();
-  Paragraph paragraph = makeParagraph(storyText(), 16.0f);
-  BlockFlow flow(SkRect::MakeWH(300, 4000));
+TEST_F(LiveComposer, ALayoutThatSaysNothingDecidesEveryBreakItself) {
   ParagraphLayoutOptions settled;
   settled.lineBreakStrategy = LineBreakStrategy::kKnuthPlass;
-  layoutParagraph(fonts, paragraph, flow, settled);
-  const ParagraphLayout again = layoutParagraph(fonts, paragraph, flow, settled);
-  EXPECT_EQ(again.reusedBlocks, 0);
+  compose(settled);
+  EXPECT_EQ(compose(settled).reusedBlocks, 0);
 }
 
-TEST(LiveComposer, TheSameBreaksAsTheSettledComposerAtTheSameMeasure) {
+TEST_F(LiveComposer, TheSameBreaksAsTheSettledComposerAtTheSameMeasure) {
   FontContext& fonts = sharedContext();
-  Paragraph live = makeParagraph(storyText(), 16.0f);
+  // A second story of its own: a live fill writes what it decided onto the
+  // paragraph it read, so the settled answer has to come off a fresh one.
   Paragraph settled = makeParagraph(storyText(), 16.0f);
-  BlockFlow flowA(SkRect::MakeWH(300, 4000));
-  BlockFlow flowB(SkRect::MakeWH(300, 4000));
+  BlockFlow flow(SkRect::MakeWH(300, 4000));
   ParagraphLayoutOptions settledOptions;
   settledOptions.lineBreakStrategy = LineBreakStrategy::kKnuthPlass;
-  EXPECT_EQ(placement(layoutParagraph(fonts, live, flowA, liveComposer())),
-            placement(layoutParagraph(fonts, settled, flowB, settledOptions)));
+  EXPECT_EQ(placement(compose(liveComposer())),
+            placement(layoutParagraph(fonts, settled, flow, settledOptions)));
 }
 
-TEST(LiveComposer, AFrameThatChangesOnlyInDepthNeverMovesALineBreak) {
-  FontContext& fonts = sharedContext();
-  Paragraph paragraph = makeParagraph(storyText(), 16.0f);
+TEST_F(LiveComposer, AFrameThatChangesOnlyInDepthNeverMovesALineBreak) {
   const ParagraphLayoutOptions options = liveComposer();
-  BlockFlow tall(SkRect::MakeWH(300, 4000));
-  const std::vector<uint32_t> whole =
-      lineEnds(layoutParagraph(fonts, paragraph, tall, options));
+  const std::vector<uint32_t> whole = lastWordPerLine(compose(options));
   BlockFlow shallow(SkRect::MakeWH(300, 200));
   const ParagraphLayout cut =
-      layoutParagraph(fonts, paragraph, shallow, options);
-  const std::vector<uint32_t> held = lineEnds(cut);
+      layoutParagraph(sharedContext(), m_story, shallow, options);
+  const std::vector<uint32_t> held = lastWordPerLine(cut);
   ASSERT_FALSE(held.empty());
   ASSERT_LT(held.size(), whole.size());
   EXPECT_TRUE(std::equal(held.begin(), held.end(), whole.begin()));
   EXPECT_TRUE(cut.overflowed());
 }
 
-TEST(LiveComposer, AChangeOfContentIsAMissAndNotAStaleAnswer) {
-  FontContext& fonts = sharedContext();
-  Paragraph paragraph = makeParagraph(storyText(), 16.0f);
-  BlockFlow flow(SkRect::MakeWH(300, 4000));
+TEST_F(LiveComposer, AChangeOfContentIsAMissAndNotAStaleAnswer) {
   const ParagraphLayoutOptions options = liveComposer();
-  layoutParagraph(fonts, paragraph, flow, options);
-  paragraph.replaceText(0, 7, u8"lengthened measure of a word");
-  const ParagraphLayout after = layoutParagraph(fonts, paragraph, flow, options);
+  compose(options);
+  m_story.replaceText(0, 7, u8"lengthened measure of a word");
+  const ParagraphLayout after = compose(options);
   EXPECT_EQ(after.reusedBlocks, 0);
   EXPECT_FALSE(after.runs.empty());
 }
 
-TEST(LiveComposer, ABudgetTooShortLeavesTheBlockToTheGreedyBreaker) {
+TEST_F(LiveComposer, ABudgetTooShortLeavesTheBlockToTheGreedyBreaker) {
   FontContext& fonts = sharedContext();
   Paragraph paragraph = makeParagraph(
-      makePooledText(std::array<const char8_t*, 4>{u8"budget", u8"is", u8"a",
-                                                   u8"degrade"},
-                     4000, 3),
+      makePooledText(
+          std::array<const char8_t*, 4>{u8"budget", u8"is", u8"a", u8"degrade"},
+          4000, 3),
       16.0f);
   BlockFlow flow(SkRect::MakeWH(300, 200000));
   ParagraphLayoutOptions options;

@@ -20,13 +20,13 @@ target_link_libraries(SigilWeavePaint
     SigilWeaveDecoration
 )
 
-# Every test here puts pixels on a surface. The stress case paints through
-# the preset runtime shaders, and the material pass installs their
+# Every test here puts pixels on a surface, except the one that asks the
+# preset runtime shaders to resolve. The material pass installs their
 # resolver and shades with a kit paint, which is why both link here.
 add_executable(weave_paint_test
   test/PaintTest.cpp
   test/DecorationPaintTest.cpp
-  test/StressTest.cpp
+  test/ShaderPresetTest.cpp
 )
 target_include_directories(weave_paint_test PRIVATE ${SIGIL_WEAVE_TEST_SUPPORT_DIR})
 target_link_libraries(weave_paint_test PRIVATE

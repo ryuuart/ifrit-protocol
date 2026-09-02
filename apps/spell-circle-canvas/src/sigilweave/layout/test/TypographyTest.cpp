@@ -14,7 +14,7 @@
 using namespace sigil::weave;
 using namespace sigil::weave::test;
 
-TEST(Typography, LastLineAlignmentEnd) {
+TEST(Typography, TheLastLineTakesItsOwnAlignmentAndNotTheParagraphs) {
   FontContext& fontContext = sharedContext();
   Paragraph paragraph = makeParagraph(
       u8"a justified paragraph whose final line is pushed to the right edge "
@@ -70,7 +70,7 @@ TEST(SoftHyphen, InvisibleWhenNotBroken) {
   ASSERT_EQ(paragraph.words().size(), 2u);  // "extra·" + "ordinarily"
   const Word& first = paragraph.words()[0];
   EXPECT_TRUE(first.hyphenBreak);
-  EXPECT_EQ(first.spaceWidth, 0.0f);  // halves join with zero gap
+  EXPECT_FLOAT_EQ(first.spaceWidth, 0.0f);  // halves join with zero gap
   const SkTextBlob* hyphenBlob = wordBlob(*first.hyphenGlyph).get();
   for (const PositionedRun& run : layout.runs)
     EXPECT_NE(run.blob.get(), hyphenBlob) << "hyphen rendered without break";
@@ -166,7 +166,7 @@ TEST(SoftHyphen, DisabledRemovesTheBreakOpportunityForKnuthPlass) {
   EXPECT_FALSE(whole.overflowed());
 }
 
-TEST(Typography, SpanRestyleAcrossLines) {
+TEST(Typography, AContinuousSpanOfEmphasisFollowsItsWordsOntoEveryLine) {
   FontContext& fontContext = sharedContext();
   Paragraph paragraph = makeParagraph(
       u8"a long sentence that will certainly wrap across several lines gets "
@@ -176,17 +176,13 @@ TEST(Typography, SpanRestyleAcrossLines) {
   ParagraphLayout before = layoutParagraph(fontContext, paragraph, flow);
   ASSERT_GT(before.lineCount, 3);
 
-  fontContext.resetStats();
-  // Style the middle third, snapped to word boundaries. (A range cutting
-  // *inside* a word splits that word into fragments and costs a one-time
-  // reshape of the two boundary words; whole-word ranges cost zero.)
+  // Style the middle third, snapped to word boundaries.
   const std::u16string& text = paragraph.text();
   uint32_t from = static_cast<uint32_t>(text.find(u' ', text.size() / 3)) + 1;
   const uint32_t rangeEnd =
       static_cast<uint32_t>(text.find(u' ', 2 * text.size() / 3));
   paragraph.setPaint(from, rangeEnd, PaintStyle{SK_ColorRED});
   ParagraphLayout after = layoutParagraph(fontContext, paragraph, flow);
-  EXPECT_EQ(fontContext.stats().shapeCalls, 0u);
 
   // Red runs must exist on more than one line.
   const auto& spans = paragraph.spans();

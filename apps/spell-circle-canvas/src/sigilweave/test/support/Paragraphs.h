@@ -3,15 +3,36 @@
 /** @file
  * Paragraph construction helpers shared by every test binary that builds a
  * Paragraph: a default style at a size, a single-span paragraph over it, a
- * three-sentence two-span fixture, and an offset lookup into the text.
+ * deterministic text drawn from a word pool, a three-sentence two-span
+ * fixture, and an offset lookup into the text.
  */
 
 #include <sigilweave/paragraph/Paragraph.h>
 
+#include <cstdint>
+#include <iterator>
+#include <random>
 #include <string>
 #include <string_view>
 
 namespace sigil::weave::test {
+
+/// Deterministic text: `wordCount` words drawn from `pool` by an mt19937
+/// seeded with `seed`, each followed by `separator`. The pool is anything
+/// indexable and sized whose elements append to a u8string — a run of
+/// literals, or a vector of them.
+template <typename Pool>
+inline std::u8string makePooledText(const Pool& pool, int wordCount,
+                                    uint32_t seed,
+                                    std::u8string_view separator = u8" ") {
+  std::mt19937 randomEngine(seed);
+  std::u8string text;
+  for (int wordIndex = 0; wordIndex < wordCount; ++wordIndex) {
+    text += pool[randomEngine() % std::size(pool)];
+    text += separator;
+  }
+  return text;
+}
 
 /// A default TextStyle at the given size.
 inline TextStyle basicStyle(float fontSize = 16.0f) {

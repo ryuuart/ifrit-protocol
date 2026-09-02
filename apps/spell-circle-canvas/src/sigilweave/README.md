@@ -261,14 +261,21 @@ ctest --test-dir build -C Debug -R weave_ --output-on-failure
 
 The tests are one binary per feature, each under its feature's `test/`
 and linking that feature and what it rests on, so a test binary is also a
-statement of what its feature reaches:
+statement of what its feature reaches. A case asserts one behaviour the
+library promises through its public headers, and its name is that promise
+written as a sentence, so a failure reads as the claim that broke. Nothing
+here reads a clock or a stopwatch: what a thing costs is the benchmarks'
+to judge, and what a page looks like is the plate ledger's.
 
 - `weave_unicode_test` — the Unicode leaf, with no fonts at all.
 - `weave_style_test` — styles as plain values: fluent sugar, paint-layer
-  presets, feature preset tags, the `StyleSet` registry. No fonts either.
+  presets, the `StyleSet` registry. No fonts either, and no run-time case
+  for the feature preset tags: they are `static_assert`ed beside their own
+  declarations, where only editing them can falsify them.
 - `weave_fonts_test` — the font service on its own: the fallback memo, the
-  transient varied clone, and which vertical OpenType features a column
-  takes by itself against which a style must name.
+  transient varied clone, the pair a shaper sets by measuring outlines,
+  and which vertical OpenType features a column takes by itself against
+  which a style must name.
 - `weave_paragraph_test` — shaping as the paragraph drives it (the shape
   cache under edits and restyles, itemization, complex scripts), the
   document model, and typographic correctness: cluster coverage across
@@ -276,24 +283,45 @@ statement of what its feature reaches:
   must measure alike), kinsoku prohibitions, NBSP no-break, strut metrics,
   and the options that reach shaping.
 - `weave_layout_test` — both breakers, flows and exclusions, overflow and
-  clamp, vertical writing, placeholders, relayout locality, the options
-  the breakers read, text on a path, justification shrink limits, UAX#9
-  visual reordering, edit safety at surrogate boundaries, line metrics,
-  and the large-paragraph stress cases.
-- `weave_decoration_test` — bands resolved as geometry, without drawing.
+  clamp, vertical writing, placeholders, relayout locality, text on a
+  path, justification shrink limits, UAX#9 visual reordering, edit safety
+  at surrogate boundaries, line metrics, and the large-paragraph stress
+  cases. The paragraph controls are one file per subject beside those —
+  `LeadingTest`, `TabStopTest`, `FrameTest`, `HyphenationTest`,
+  `LineEdgesTest`, `BesideTest`, `MojikumiTest` — so a control's whole
+  statement is one file named for it.
+- `weave_decoration_test` — bands resolved as geometry, without drawing:
+  where each kind and side anchors its band, and the walk both draws run
+  over turning a paragraph's decorations into rectangles.
+- `weave_cache_test` — the single-line paragraph cache: what its key
+  discriminates, the size step two nearby sizes fall inside, and the two
+  promises its node-based storage makes about a reference it handed out.
 - `weave_paint_test` — everything that puts pixels on a surface: paint
   layers and shaders without a relayout, decorations as drawn, selection
-  bands, and a large paragraph through the runtime shaders.
+  bands, and the preset runtime shaders resolving.
 - `weave_choreograph_test` — the walk, the batches, and a glyph on a
   contour re-placed from its pen.
 - `weave_query_test` — the optional Query layer.
-- `weave_kit_test` — the SigilWeaveKit convenience layer.
+- `weave_kit_test` — the SigilWeaveKit convenience layer, including the
+  pattern hyphenator every table question is asked of.
+
+`weave_fonts_test` and `weave_paragraph_test` carry the ctest label
+`fonts`: some of their cases can only be asked on a machine that has the
+face for the script or the family they are about, and they skip when it
+does not. `ctest -L fonts` selects them, so a runner that knows its own
+font set can require what the rest of the tree lets pass.
 
 Fixtures live in `test/support/`: `Fonts.h` holds the one process-wide
-`FontContext` every binary shapes with, `Paragraphs.h` and `Layouts.h` the
-paragraph and layout fixtures, and each binary that needs more has a
-support header that includes exactly the headers its translation units
-use. `test/assets/` holds the constructed faces a question needs that no
+`FontContext` every binary shapes with and the two lookups a case makes
+before asking about a particular face, `Paragraphs.h` builds paragraphs
+and the deterministic texts drawn from a word pool, `Layouts.h` takes the
+readings off a finished layout — where each line ended, how wide it is,
+how many glyphs it placed, whether every run stayed inside an interval
+its band offered — and `Pixels.h` scans a rendered surface. `Layouts.h`
+calls no GoogleTest assertion, so the benchmarks include it and count
+what the tests count. Each binary that needs more has a support header
+that includes exactly the headers its translation units use.
+`test/assets/` holds the constructed faces a question needs that no
 installed font can answer — `VerticalFeatures.ttf`, where every vertical
 feature has its own visible consequence and none share one — each with
 the script that generates it beside it; `SIGILWEAVE_TEST_ASSET_DIR` names
@@ -308,7 +336,8 @@ against warm), `weave_layout_bench` (`layoutParagraph` per word, greedy
 and Knuth-Plass by length, and each kind of per-frame update against the
 same warm relayout) and `weave_paint_bench` (`draw` and `drawBatched` per
 glyph on a raster surface, with arms that differ in one paint feature).
-The corpus and font context they share sit in `bench/support/`. Build
+The corpus they share sits in `bench/support/`, over the same font
+context and the same layout readings the tests use. Build
 them Release through the `benches` target and run them through
 `scripts/bench_ledger.py` rather than trusting a number written down
 anywhere:

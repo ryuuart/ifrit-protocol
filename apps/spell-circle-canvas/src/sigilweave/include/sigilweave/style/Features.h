@@ -95,4 +95,17 @@ inline constexpr FontFeature verticalKerning{"vkrn", 1};
   return feature;
 }
 
+// The tags are the whole contract of this header, and they are decided at
+// compile time — so the compiler is what holds them to it. A wrong four-cc
+// or a stylistic set that does not clamp fails here rather than reaching a
+// shaper.
+static_assert(tabularNumbers == FontFeature{"tnum", 1});
+static_assert(standardLigaturesOff == FontFeature{"liga", 0});
+static_assert(smallCaps == FontFeature{"smcp", 1});
+static_assert(stylisticSet(1) == FontFeature{"ss01", 1});
+static_assert(stylisticSet(7) == FontFeature{"ss07", 1});
+static_assert(stylisticSet(20) == FontFeature{"ss20", 1});
+static_assert(stylisticSet(0) == FontFeature{"ss01", 1});
+static_assert(stylisticSet(99) == FontFeature{"ss20", 1});
+
 }  // namespace sigil::weave::Features

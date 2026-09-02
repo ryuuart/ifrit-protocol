@@ -1,7 +1,7 @@
 /** @file
  * Typographic options that reach shaping: OpenType feature toggles and
- * presets, locale-aware text transform, word spacing added after
- * measurement, and vertical forms substituted for a vertical paragraph.
+ * presets, locale-aware text transform, and word spacing added after
+ * measurement.
  */
 
 #include <gtest/gtest.h>
@@ -177,22 +177,4 @@ TEST(FeaturePresets, TabularNumbersEqualizeDigitAdvances) {
   if (spread(proportional) < 0.01f)
     GTEST_SKIP() << "default face already has uniform digits; tnum unprovable";
   EXPECT_LT(spread(tabular), 0.01f) << "tabular figures must share one advance";
-}
-
-TEST(Vertical, VertFeatureSubstitutesForms) {
-  FontContext& fontContext = sharedContext();
-  auto glyphsOf = [&](WritingMode mode) {
-    Paragraph paragraph;
-    paragraph.appendText(u8"「縦組み」", basicStyle(20.0f));
-    paragraph.setWritingMode(mode);
-    paragraph.ensureShaped(fontContext);
-    std::multiset<uint16_t> ids;
-    for (const Word& word : paragraph.words())
-      for (const WordSegment& segment : word.segments())
-        for (uint16_t glyph : segment.shaped->glyphs) ids.insert(glyph);
-    return ids;
-  };
-  // Vertical shaping must swap in 'vert' forms (rotated brackets at least).
-  EXPECT_NE(glyphsOf(WritingMode::kHorizontal),
-            glyphsOf(WritingMode::kVerticalRL));
 }

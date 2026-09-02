@@ -19,3 +19,19 @@ target_link_libraries(SigilWeaveCache
     absl::strings
     ICU::uc
 )
+
+# The key, the quantisation step, and the two promises the node-based
+# storage makes about a reference it handed out. Nothing here shapes, so
+# the port is linked only for the committed face the typeface half of the
+# key is varied with.
+add_executable(weave_cache_test
+  test/CacheTest.cpp
+)
+target_compile_definitions(weave_cache_test PRIVATE
+  SIGILWEAVE_TEST_ASSET_DIR="${SIGIL_WEAVE_TEST_ASSET_DIR}")
+target_link_libraries(weave_cache_test PRIVATE
+  SigilWeaveCache
+  SigilWeavePorts
+  GTest::gtest_main
+)
+add_test(NAME weave_cache_test COMMAND weave_cache_test)

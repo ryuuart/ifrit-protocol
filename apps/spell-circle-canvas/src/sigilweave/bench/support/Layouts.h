@@ -1,21 +1,14 @@
 #pragma once
 /** @file
  * The glyph count of a finished layout, for every benchmark that reports
- * its work per glyph placed.
+ * its work per glyph placed. It is the reading the tests take, so a
+ * benchmark's per-glyph rate counts what a test counts.
  */
 
-#include <sigilweave/layout/ParagraphLayout.h>
-
-#include <cstdint>
+#include "../../test/support/Layouts.h"
 
 namespace sigil::weave::bench {
 
-/** Glyphs a layout draws: the sum over its runs, placeholders excluded. */
-inline int64_t glyphCount(const ParagraphLayout& layout) {
-  int64_t glyphs = 0;
-  for (const PositionedRun& run : layout.runs)
-    if (run.shaped) glyphs += (int64_t)run.shaped->glyphs.size();
-  return glyphs;
-}
+using test::glyphCount;
 
 }  // namespace sigil::weave::bench

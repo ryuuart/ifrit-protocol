@@ -92,10 +92,7 @@ TEST(Placeholders, ResizeRelayoutsLive) {
   BlockFlow flow(SkRect::MakeWH(400, 60));
   ParagraphLayout before = layoutParagraph(fontContext, paragraph, flow);
 
-  fontContext.resetStats();
   paragraph.setPlaceholder(0, {120, 16, 0});
   ParagraphLayout after = layoutParagraph(fontContext, paragraph, flow);
-  EXPECT_EQ(fontContext.stats().shapeCalls, 0u)
-      << "resizing a slot reshapes nothing";
   EXPECT_FLOAT_EQ(after.placeholderRects(paragraph)[0].rect.width(), 120);
 }

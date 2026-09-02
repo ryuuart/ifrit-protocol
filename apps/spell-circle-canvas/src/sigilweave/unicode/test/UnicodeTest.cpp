@@ -24,7 +24,7 @@ TEST(Transcoding, Utf8ToUtf16RoundTripsAstralAndBmp) {
   EXPECT_TRUE(toUtf8(utf16) == utf8) << "UTF-8 round trip";
 }
 
-TEST(Transcoding, EmptyAndMalformedInput) {
+TEST(Transcoding, EmptyTextTranscodesEmptyAndALoneSurrogateSubstitutes) {
   EXPECT_TRUE(toUtf16(u8"").empty());
   EXPECT_TRUE(toUtf8(u"").empty());
   const char8_t truncated[] = {0xE4, 0xB8};  // the first two bytes of 中
@@ -70,17 +70,7 @@ TEST(Properties, HardLineBreaks) {
   EXPECT_FALSE(isHardLineBreak(u'\t'));
 }
 
-TEST(Properties, RightToLeftIsTheCharactersOwnClass) {
-  // The question is the character's bidirectional class, so a mark that
-  // only ever takes the direction of what it follows cannot force one,
-  // however right-to-left the block around it reads.
-  EXPECT_TRUE(mayRequireBidi(U'\u05D0')) << "Hebrew alef";
-  EXPECT_FALSE(mayRequireBidi(U'\u0591')) << "a Hebrew accent, a mark";
-  EXPECT_TRUE(mayRequireBidi(U'\U0001E900')) << "Adlam, beyond the BMP";
-  EXPECT_FALSE(mayRequireBidi(U'\u0000'));
-}
-
-TEST(Properties, TypefaceInheritance) {
+TEST(Properties, AFormatCharacterTakesTheTypefaceOfWhatItFollows) {
   EXPECT_TRUE(inheritsTypeface(U'\u200D')) << "zero width joiner";
   EXPECT_TRUE(inheritsTypeface(U'\uFE0F')) << "variation selector";
   EXPECT_TRUE(inheritsTypeface(U'\u0301')) << "combining acute";
@@ -91,14 +81,20 @@ TEST(Properties, TypefaceInheritance) {
   EXPECT_FALSE(inheritsTypeface(U'\U0001F600'));
 }
 
-TEST(Properties, RightToLeftDetection) {
+TEST(Properties, BidiIsNeededOnlyForACharacterWhoseOwnClassIsRightToLeft) {
+  // The question is the character's bidirectional class, so a mark that
+  // only ever takes the direction of what it follows cannot force one,
+  // however right-to-left the block around it reads.
   EXPECT_FALSE(mayRequireBidi(U'a'));
   EXPECT_FALSE(mayRequireBidi(U'中'));
+  EXPECT_FALSE(mayRequireBidi(U'\u0000'));
   EXPECT_TRUE(mayRequireBidi(U'\u05D0')) << "Hebrew alef";
+  EXPECT_FALSE(mayRequireBidi(U'\u0591')) << "a Hebrew accent, a mark";
   EXPECT_TRUE(mayRequireBidi(U'\u0627')) << "Arabic alef";
   EXPECT_TRUE(mayRequireBidi(U'\u200F')) << "right-to-left mark";
   EXPECT_TRUE(mayRequireBidi(U'\uFB1D')) << "Hebrew presentation form";
   EXPECT_FALSE(mayRequireBidi(U'\u200E')) << "left-to-right mark";
+  EXPECT_TRUE(mayRequireBidi(U'\U0001E900')) << "Adlam, beyond the BMP";
 }
 
 TEST(Properties, UpperCaseIsAskedOfTheCodePointItself) {
@@ -121,7 +117,7 @@ TEST(Properties, LettersAndTheirLowerCaseFormsAreAskedPerCodePoint) {
   EXPECT_EQ(lowerCased(U'中'), U'中') << "no lower-case form, returned as is";
 }
 
-TEST(Properties, VerticalOrientation) {
+TEST(Properties, EachCharacterSaysWhetherAColumnStandsItUprightOrTurnsIt) {
   EXPECT_EQ(verticalOrientation(U'中'), VerticalOrientation::kUpright);
   EXPECT_EQ(verticalOrientation(U'a'), VerticalOrientation::kRotated);
   EXPECT_EQ(verticalOrientation(U'\u3001'),
@@ -134,7 +130,7 @@ TEST(Properties, VerticalOrientation) {
 
 // ── Scripts ────────────────────────────────────────────────────────────
 
-TEST(Scripts, ScriptOfAndNames) {
+TEST(Scripts, ACodePointNamesItsScriptAndOnlyARealScriptHasAName) {
   const Script latin = scriptOf(U'a');
   const Script han = scriptOf(U'中');
   EXPECT_TRUE(isSpecificScript(latin));
@@ -248,7 +244,7 @@ TEST(LineBreakClasses, TheClassesAreTheMarksTheNameSays) {
 
 // ── Case mapping ───────────────────────────────────────────────────────
 
-TEST(CaseMapping, UpperLowerAndExpansion) {
+TEST(CaseMapping, AFullCaseMappingMayLengthenTheTextItMaps) {
   EXPECT_EQ(caseMapped(u"hello", Case::kUpper), u"HELLO");
   EXPECT_EQ(caseMapped(u"HeLLo", Case::kLower), u"hello");
   EXPECT_EQ(caseMapped(u"straße", Case::kUpper), u"STRASSE")

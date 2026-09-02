@@ -2,13 +2,15 @@
 
 /** @file
  * Support for weave_layout_test: the font context, paragraph helpers, the
- * layout API and run positions, and a deterministic large text.
+ * layout API and run positions, and the three readings the paragraph
+ * controls are checked through — where the baselines landed, where each
+ * line starts, and the two-block fixture a block rule needs a boundary in.
  */
 
-#include <cstdint>
-#include <random>
-#include <span>
+#include <algorithm>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include "Fonts.h"
 #include "Layouts.h"
@@ -16,17 +18,43 @@
 
 namespace sigil::weave::test {
 
-/// Deterministic large test text: `wordCount` words drawn from `pool` by an
-/// mt19937 seeded with `seed`, each followed by a single space.
-inline std::u8string makePooledText(std::span<const char8_t* const> pool,
-                                    int wordCount, uint32_t seed) {
-  std::mt19937 randomEngine(seed);
-  std::u8string text;
-  for (int wordIndex = 0; wordIndex < wordCount; ++wordIndex) {
-    text += pool[randomEngine() % pool.size()];
-    text += ' ';
+/// Ascending distinct baselines of the placed lines.
+inline std::vector<float> baselines(const ParagraphLayout& layout) {
+  std::vector<float> found;
+  for (const PositionedRun& run : layout.runs) {
+    if (run.transformed) continue;
+    if (std::find(found.begin(), found.end(), run.origin.y()) == found.end())
+      found.push_back(run.origin.y());
   }
-  return text;
+  std::sort(found.begin(), found.end());
+  return found;
+}
+
+/// Leftmost run origin on each line, ascending by line index.
+inline std::vector<float> lineStarts(const ParagraphLayout& layout) {
+  std::vector<std::pair<int, float>> byLine;
+  for (const PositionedRun& run : layout.runs) {
+    auto found = std::find_if(byLine.begin(), byLine.end(),
+                              [&](const std::pair<int, float>& entry) {
+                                return entry.first == run.lineIndex;
+                              });
+    if (found == byLine.end())
+      byLine.emplace_back(run.lineIndex, run.origin.x());
+    else
+      found->second = std::min(found->second, run.origin.x());
+  }
+  std::sort(byLine.begin(), byLine.end());
+  std::vector<float> starts;
+  for (const auto& [line, start] : byLine) starts.push_back(start);
+  return starts;
+}
+
+/// Two blocks, the second after a hard break.
+inline Paragraph twoBlocks() {
+  return makeParagraph(
+      u8"The first block runs on for several words so that it wraps.\n"
+      u8"The second block does the same and wraps as well.",
+      16.0f);
 }
 
 }  // namespace sigil::weave::test

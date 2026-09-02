@@ -169,8 +169,8 @@ TEST(SampleText, FillerIsDeterministicAndMultiSpan) {
 
 TEST(LineTables, TheStockProhibitionsAreTheFullWidthPunctuationOfTheGrid) {
   const KinsokuTable table = kit::kinsoku::japanese();
-  for (const char16_t character : {u'、', u'。', u'）', u'」', u'』',
-                                   u'！', u'？', u'ー', u'ぁ', u'ッ'})
+  for (const char16_t character :
+       {u'、', u'。', u'）', u'」', u'』', u'！', u'？', u'ー', u'ぁ', u'ッ'})
     EXPECT_NE(table.notLineStart.find(character), std::u16string::npos)
         << "may not open a line";
   for (const char16_t character : {u'（', u'「', u'『', u'【'})
@@ -230,6 +230,19 @@ TEST(Hyphenation, ExceptionSpellingsAndCommentsSurviveTheParse) {
   german.breakPoints(u"über", "de", breaks);
   EXPECT_TRUE(breaks.empty()) << "the exception spelling forbids the break";
   EXPECT_EQ(german.patternCount(), 1u) << "the comment held no pattern";
+}
+
+TEST(Hyphenation, PatternsOpenBreaksInsideWords) {
+  static const kit::PatternHyphenator hyphenator("en",
+                                                 kit::patterns::english());
+  EXPECT_GT(hyphenator.patternCount(), 100u);
+  std::vector<uint32_t> points;
+  hyphenator.breakPoints(u"hyphenation", "en-US", points);
+  EXPECT_FALSE(points.empty());
+  for (const uint32_t offset : points) {
+    EXPECT_GT(offset, 0u);
+    EXPECT_LT(offset, 11u);
+  }
 }
 
 }  // namespace

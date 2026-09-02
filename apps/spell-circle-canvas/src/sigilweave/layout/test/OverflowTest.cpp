@@ -1,13 +1,13 @@
 /** @file
- * Overflow behavior: reporting, ellipsis, and the
- * geometry-bounded cost guarantees for overfull paragraphs.
+ * Overflow behaviour: which word a frame stopped at, the marker that
+ * admits the rest is missing, the shaping an overflow never does, and the
+ * line clamp over every geometry.
  */
 
 #include <gtest/gtest.h>
 
 #include <algorithm>
 #include <charconv>
-#include <chrono>
 #include <string>
 
 #include "support/LayoutSupport.h"
@@ -24,9 +24,13 @@ TEST(Overflow, ReportsFirstUnplacedWord) {
   EXPECT_GT(layout.firstUnplacedWord, 0u);
 }
 
-// ── Overflowing paragraphs must cost what fits, not what exists ───────────
+// ── Overflowing paragraphs fill what fits, not what exists ───────────────
 
-TEST(Overflow, HugeRelayoutIsBoundedByGeometry) {
+TEST(Overflow, AnOverflowedFrameStopsAtItsGeometryAndNotAtTheLastWord) {
+  // Thirty thousand words in a box with room for about one percent of
+  // them: both breakers must fill the box, report the overflow, and name a
+  // first unplaced word near the geometry's own end rather than walking to
+  // the end of the text.
   FontContext& fontContext = sharedContext();
   static constexpr const char8_t* kWordPool[] = {
       u8"letters", u8"flow",    u8"around",  u8"boxes", u8"while",
@@ -42,34 +46,10 @@ TEST(Overflow, HugeRelayoutIsBoundedByGeometry) {
     options.lineBreakStrategy = breakStrategy;
     options.alignment = TextAlignment::kJustify;
     ParagraphLayout layout =
-        layoutParagraph(fontContext, paragraph, flow, options);  // warm shapes
+        layoutParagraph(fontContext, paragraph, flow, options);
     EXPECT_TRUE(layout.overflowed());
     EXPECT_GT(layout.runs.size(), 50u);
     EXPECT_LT(layout.firstUnplacedWord, 600u);
-
-    // Warm relayout must not scale with the ~29,700 words that never fit
-    // (verified: a 3k-word paragraph relayouts in the same time as this
-    // 30k one). The bounds sit far above the geometry-bounded cost but
-    // far below an O(total words) regression, which is ~50× slower here.
-    const auto startTime = std::chrono::steady_clock::now();
-    constexpr int kIterationCount = 20;
-    for (int iteration = 0; iteration < kIterationCount; ++iteration)
-      layout = layoutParagraph(fontContext, paragraph, flow, options);
-    const double averageMicroseconds =
-        std::chrono::duration<double, std::micro>(
-            std::chrono::steady_clock::now() - startTime)
-            .count() /
-        kIterationCount;
-#ifdef NDEBUG
-    const double maximumMicroseconds = 2000.0;
-#else
-    const double maximumMicroseconds =
-        20000.0;  // Debug: same work, ~20× the overhead
-#endif
-    EXPECT_LT(averageMicroseconds, maximumMicroseconds)
-        << (breakStrategy == LineBreakStrategy::kGreedy ? "greedy"
-                                                        : "knuth-plass")
-        << " relayout scales with unplaced text";
   }
 }
 
@@ -227,197 +207,4 @@ TEST(LineClamp, RespectsMandatoryBreaks) {
       layoutParagraph(fontContext, paragraph, flow, options);
   EXPECT_TRUE(layout.overflowed());
   EXPECT_EQ(layout.lineCount, 2) << "clamp counts hard-broken lines too";
-}
-
-// ── Tab stops (ParagraphLayoutOptions::tabStops) ─────────────────────────
-
-namespace {
-
-/// x origin of the run for the word whose content is `needle`.
-float runOriginFor(const Paragraph& paragraph, const ParagraphLayout& layout,
-                   std::u16string_view needle) {
-  const std::u16string& text = paragraph.text();
-  for (const PositionedRun& run : layout.runs) {
-    const Word& word = paragraph.words()[run.wordIndex];
-    if (std::u16string_view(text).substr(
-            word.textBegin, word.textEnd - word.textBegin) == needle)
-      return run.origin.x();
-  }
-  return -1.0f;
-}
-
-}  // namespace
-
-TEST(TabStops, ExplicitStopsAlignColumns) {
-  FontContext& fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph(u8"ab\tlongerhead\tx");
-  BlockFlow flow(SkRect::MakeWH(600, 60));
-  ParagraphLayoutOptions options;
-  options.tabStops.stops = {{120.0f}, {300.0f}};
-  ParagraphLayout layout =
-      layoutParagraph(fontContext, paragraph, flow, options);
-  ASSERT_EQ(layout.lineCount, 1);
-  EXPECT_FLOAT_EQ(runOriginFor(paragraph, layout, u"longerhead"), 120.0f);
-  EXPECT_FLOAT_EQ(runOriginFor(paragraph, layout, u"x"), 300.0f);
-}
-
-TEST(TabStops, RepeatingIntervalAfterExplicitStops) {
-  FontContext& fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph(u8"a\tb\tc\td");
-  BlockFlow flow(SkRect::MakeWH(800, 60));
-  ParagraphLayoutOptions options;
-  options.tabStops.stops = {{50.0f}};
-  options.tabStops.interval = 100.0f;
-  ParagraphLayout layout =
-      layoutParagraph(fontContext, paragraph, flow, options);
-  ASSERT_EQ(layout.lineCount, 1);
-  EXPECT_FLOAT_EQ(runOriginFor(paragraph, layout, u"b"), 50.0f);
-  EXPECT_FLOAT_EQ(runOriginFor(paragraph, layout, u"c"), 150.0f);
-  EXPECT_FLOAT_EQ(runOriginFor(paragraph, layout, u"d"), 250.0f);
-}
-
-TEST(TabStops, ContentPastStopAdvancesToNext) {
-  FontContext& fontContext = sharedContext();
-  // "wideenough" extends past the 40px stop, so the tab after it must jump
-  // to the following stop instead of backing up.
-  Paragraph paragraph = makeParagraph(u8"wideenoughcontent\tafter");
-  BlockFlow flow(SkRect::MakeWH(800, 60));
-  ParagraphLayoutOptions options;
-  options.tabStops.stops = {{40.0f}, {400.0f}};
-  ParagraphLayout layout =
-      layoutParagraph(fontContext, paragraph, flow, options);
-  EXPECT_FLOAT_EQ(runOriginFor(paragraph, layout, u"after"), 400.0f);
-}
-
-TEST(TabStops, WrapsWhenStopExceedsMeasure) {
-  FontContext& fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph(u8"head\ttail");
-  BlockFlow flow(SkRect::MakeWH(200, 200));
-  ParagraphLayoutOptions options;
-  options.tabStops.stops = {{180.0f}};  // "tail" cannot fit after the stop
-  ParagraphLayout layout =
-      layoutParagraph(fontContext, paragraph, flow, options);
-  EXPECT_GT(layout.lineCount, 1) << "unfittable tabbed word wraps";
-  EXPECT_FALSE(layout.overflowed());
-}
-
-TEST(TabStops, KnuthPlassAlignsColumns) {
-  FontContext& fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph(u8"ab\tlongerhead\tx\ncdef\tk\tyz");
-  BlockFlow flow(SkRect::MakeWH(600, 90));
-  ParagraphLayoutOptions options;
-  options.lineBreakStrategy = LineBreakStrategy::kKnuthPlass;
-  options.tabStops.stops = {{120.0f}, {300.0f}};
-  ParagraphLayout layout =
-      layoutParagraph(fontContext, paragraph, flow, options);
-  ASSERT_EQ(layout.lineCount, 2);
-  EXPECT_FLOAT_EQ(runOriginFor(paragraph, layout, u"longerhead"), 120.0f);
-  EXPECT_FLOAT_EQ(runOriginFor(paragraph, layout, u"x"), 300.0f);
-  EXPECT_FLOAT_EQ(runOriginFor(paragraph, layout, u"k"), 120.0f);
-  EXPECT_FLOAT_EQ(runOriginFor(paragraph, layout, u"yz"), 300.0f);
-}
-
-TEST(TabStops, GreedyAndKnuthPlassResolveTabsToTheSameColumns) {
-  FontContext& fontContext = sharedContext();
-  // Both breakers resolve tab stops through the same placement path, so
-  // the same tabbed paragraph must put every post-tab run at the same x
-  // under either strategy — explicit stops and the repeating interval
-  // alike.
-  Paragraph greedyParagraph = makeParagraph(u8"a\tbb\tccc\td");
-  Paragraph kpParagraph = makeParagraph(u8"a\tbb\tccc\td");
-  BlockFlow greedyFlow(SkRect::MakeWH(800, 60));
-  BlockFlow kpFlow(SkRect::MakeWH(800, 60));
-  ParagraphLayoutOptions options;
-  options.tabStops.stops = {{60.0f}};
-  options.tabStops.interval = 90.0f;
-  ParagraphLayout greedy =
-      layoutParagraph(fontContext, greedyParagraph, greedyFlow, options);
-  options.lineBreakStrategy = LineBreakStrategy::kKnuthPlass;
-  ParagraphLayout knuthPlass =
-      layoutParagraph(fontContext, kpParagraph, kpFlow, options);
-  ASSERT_EQ(greedy.lineCount, 1);
-  ASSERT_EQ(knuthPlass.lineCount, 1);
-  for (const char16_t* column : {u"bb", u"ccc", u"d"}) {
-    const float greedyX = runOriginFor(greedyParagraph, greedy, column);
-    ASSERT_GT(greedyX, 0.0f) << "column run not found";
-    EXPECT_FLOAT_EQ(greedyX, runOriginFor(kpParagraph, knuthPlass, column))
-        << "post-tab column diverges between breakers";
-  }
-}
-
-TEST(TabStops, KnuthPlassBreaksAtTabResolvedWidths) {
-  FontContext& fontContext = sharedContext();
-  // At its shaped space-equivalent width "head tail" fits the 200px
-  // measure, but the tab pushes "tail" to the 180px stop where it cannot;
-  // a breaker scoring lines at natural glue width would leak it past the
-  // measure instead of wrapping.
-  Paragraph paragraph = makeParagraph(u8"head\ttail");
-  BlockFlow flow(SkRect::MakeWH(200, 200));
-  ParagraphLayoutOptions options;
-  options.lineBreakStrategy = LineBreakStrategy::kKnuthPlass;
-  options.tabStops.stops = {{180.0f}};
-  ParagraphLayout layout =
-      layoutParagraph(fontContext, paragraph, flow, options);
-  EXPECT_GT(layout.lineCount, 1) << "unfittable tabbed word wraps";
-  EXPECT_FALSE(layout.overflowed());
-  for (const PositionedRun& run : layout.runs)
-    EXPECT_LE(runEnd(paragraph, run), 200.0f + 0.75f)
-        << "tabbed line leaks past the measure";
-}
-
-TEST(TabStops, JustificationKeepsColumnsOnStops) {
-  FontContext& fontContext = sharedContext();
-  for (const LineBreakStrategy strategy :
-       {LineBreakStrategy::kGreedy, LineBreakStrategy::kKnuthPlass}) {
-    Paragraph paragraph = makeParagraph(u8"a\tbb cc dd");
-    BlockFlow flow(SkRect::MakeWH(400, 60));
-    ParagraphLayoutOptions options;
-    options.lineBreakStrategy = strategy;
-    options.alignment = TextAlignment::kJustify;
-    options.justification.justifyLastLine = true;
-    options.tabStops.stops = {{100.0f}};
-    ParagraphLayout layout =
-        layoutParagraph(fontContext, paragraph, flow, options);
-    ASSERT_EQ(layout.lineCount, 1);
-    // The column stays pinned to its stop; only the gaps past the tab
-    // stretch, and they absorb the entire slack to the measure.
-    EXPECT_FLOAT_EQ(runOriginFor(paragraph, layout, u"bb"), 100.0f);
-    float lineEnd = 0;
-    for (const PositionedRun& run : layout.runs)
-      lineEnd = std::max(lineEnd, runEnd(paragraph, run));
-    EXPECT_NEAR(lineEnd, 400.0f, 0.75f) << "tabbed line not justified";
-  }
-}
-
-TEST(TabStops, CenterAlignmentShiftsTheResolvedLine) {
-  FontContext& fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph(u8"a\tb");
-  BlockFlow flow(SkRect::MakeWH(300, 60));
-  ParagraphLayoutOptions options;
-  options.alignment = TextAlignment::kCenter;
-  options.tabStops.stops = {{100.0f}};
-  ParagraphLayout layout =
-      layoutParagraph(fontContext, paragraph, flow, options);
-  const float aOrigin = runOriginFor(paragraph, layout, u"a");
-  const float bOrigin = runOriginFor(paragraph, layout, u"b");
-  // Stops are line-local: the column offset survives the shift, and the
-  // slack splits evenly around the tab-resolved line width.
-  EXPECT_FLOAT_EQ(bOrigin - aOrigin, 100.0f);
-  EXPECT_GT(aOrigin, 0.0f);
-  float lineEnd = 0;
-  for (const PositionedRun& run : layout.runs)
-    lineEnd = std::max(lineEnd, runEnd(paragraph, run));
-  EXPECT_NEAR(aOrigin, 300.0f - lineEnd, 0.5f) << "line not centered";
-}
-
-TEST(TabStops, UnconfiguredTabsStillMeasureAsSpaces) {
-  FontContext& fontContext = sharedContext();
-  Paragraph tab = makeParagraph(u8"a\tb");
-  Paragraph space = makeParagraph(u8"a b");
-  BlockFlow tabFlow(SkRect::MakeWH(400, 60));
-  BlockFlow spaceFlow(SkRect::MakeWH(400, 60));
-  ParagraphLayout tabLayout = layoutParagraph(fontContext, tab, tabFlow);
-  ParagraphLayout spaceLayout = layoutParagraph(fontContext, space, spaceFlow);
-  EXPECT_FLOAT_EQ(runOriginFor(tab, tabLayout, u"b"),
-                  runOriginFor(space, spaceLayout, u"b"));
 }

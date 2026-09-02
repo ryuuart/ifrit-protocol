@@ -1,6 +1,7 @@
 /** @file
- * The font service on its own: the fallback memo keyed by language, and
- * the transient varied clone that is built and never retained.
+ * The font service on its own: the fallback memo keyed by language, the
+ * transient varied clone that is built and never retained, and the pair a
+ * shaper sets by measuring outlines rather than reading metrics.
  */
 
 #include <gtest/gtest.h>
@@ -20,7 +21,7 @@
 using namespace sigil::weave;
 using namespace sigil::weave::test;
 
-TEST(Itemization, FallbackCacheIncludesLanguage) {
+TEST(FallbackMemo, AResolvedFallbackIsKeyedByTheLanguageItWasAskedFor) {
   sk_sp<SkFontMgr> fontManager = ports::systemFontManager();
   sk_sp<SkTypeface> primary =
       fontManager->matchFamilyStyle("Noto Sans", SkFontStyle());
@@ -65,17 +66,15 @@ TEST(Itemization, FallbackCacheIncludesLanguage) {
   EXPECT_EQ(resolverCalls, 2);
 }
 
-TEST(Shaper, TransientVariedTypefacesAreNotRetained) {
+TEST(VariedTypeface, TheTransientCloneIsNeverPutInThePermanentMemo) {
   // The memo has no cap and no eviction, so a coordinate that varies
   // continuously must not go into it: one retained clone per frame, forever,
   // is a leak whether or not the value ever repeats. The transient entry
   // point is what such a caller asks for, and the property it promises is
   // that the retained population does not move.
   FontContext fontContext(ports::systemFontManager());
-  sk_sp<SkTypeface> base = fontContext.fontManager()->matchFamilyStyle(
-      "Noto Sans", SkFontStyle::Normal());
-  if (!base || base->getVariationDesignPosition({}) < 1)
-    GTEST_SKIP() << "no variable Noto Sans installed";
+  sk_sp<SkTypeface> base = installedVariableFace("Noto Sans");
+  if (!base) GTEST_SKIP() << "no variable Noto Sans installed";
 
   EXPECT_EQ(fontContext.variedTypefaceCount(), 0u);
   for (int step = 0; step < 300; ++step) {
@@ -109,14 +108,23 @@ TEST(Shaper, TransientVariedTypefacesAreNotRetained) {
 
 // ── Optical kerning ───────────────────────────────────────────────────────
 
-TEST(Shaper, OpticalKerningSetsAPairByWhatItsOutlinesLeaveBetweenThem) {
-  FontContext fontContext(ports::systemFontManager());
-  sk_sp<SkTypeface> typeface = fontContext.fontManager()->matchFamilyStyle(
-      "Helvetica", SkFontStyle::Normal());
-  if (!typeface) GTEST_SKIP() << "no Helvetica installed";
+/// A face whose outlines are what optical kerning measures. Helvetica is
+/// the one asked for because its A and V lean into each other far enough
+/// for a measured pair to differ from a metric one.
+class OpticalKerning : public ::testing::Test {
+ protected:
+  void SetUp() override {
+    m_typeface = installedFace("Helvetica");
+    if (!m_typeface) GTEST_SKIP() << "no Helvetica installed";
+  }
 
+  FontContext m_fontContext{ports::systemFontManager()};
+  sk_sp<SkTypeface> m_typeface;
+};
+
+TEST_F(OpticalKerning, APairIsSetByWhatItsOutlinesLeaveBetweenThem) {
   ShapingStyle metric;
-  metric.typeface = typeface;
+  metric.typeface = m_typeface;
   metric.fontSize = 64.0f;
   ShapingStyle optical = metric;
   optical.opticalKerning = true;
@@ -126,9 +134,9 @@ TEST(Shaper, OpticalKerningSetsAPairByWhatItsOutlinesLeaveBetweenThem) {
   // measurement of the two edges closes them further than a face's even
   // pair sits.
   const ShapedWordRef byMetrics =
-      shapeWord(fontContext, metric, typeface, u"AV", 0, false, false);
+      shapeWord(m_fontContext, metric, m_typeface, u"AV", 0, false, false);
   const ShapedWordRef byOutlines =
-      shapeWord(fontContext, optical, typeface, u"AV", 0, false, false);
+      shapeWord(m_fontContext, optical, m_typeface, u"AV", 0, false, false);
   ASSERT_TRUE(byMetrics);
   ASSERT_TRUE(byOutlines);
   ASSERT_EQ(byMetrics->glyphs.size(), 2u);
@@ -142,25 +150,22 @@ TEST(Shaper, OpticalKerningSetsAPairByWhatItsOutlinesLeaveBetweenThem) {
   // The two answers are two cache entries, not one: a word shaped under one
   // must never be handed back for the other.
   EXPECT_NE(byMetrics.get(), byOutlines.get());
-  EXPECT_EQ(shapeWord(fontContext, optical, typeface, u"AV", 0, false, false)
-                .get(),
-            byOutlines.get());
+  EXPECT_EQ(
+      shapeWord(m_fontContext, optical, m_typeface, u"AV", 0, false, false)
+          .get(),
+      byOutlines.get());
 }
 
-TEST(Shaper, OpticalKerningLeavesAGlyphWithNoNeighbourAlone) {
-  FontContext fontContext(ports::systemFontManager());
-  sk_sp<SkTypeface> typeface = fontContext.fontManager()->matchFamilyStyle(
-      "Helvetica", SkFontStyle::Normal());
-  if (!typeface) GTEST_SKIP() << "no Helvetica installed";
+TEST_F(OpticalKerning, AGlyphWithNoNeighbourIsLeftAlone) {
   ShapingStyle style;
-  style.typeface = typeface;
+  style.typeface = m_typeface;
   style.fontSize = 32.0f;
   ShapingStyle optical = style;
   optical.opticalKerning = true;
   const ShapedWordRef plain =
-      shapeWord(fontContext, style, typeface, u"o", 0, false, false);
+      shapeWord(m_fontContext, style, m_typeface, u"o", 0, false, false);
   const ShapedWordRef kerned =
-      shapeWord(fontContext, optical, typeface, u"o", 0, false, false);
+      shapeWord(m_fontContext, optical, m_typeface, u"o", 0, false, false);
   ASSERT_TRUE(plain);
   ASSERT_TRUE(kerned);
   EXPECT_FLOAT_EQ(kerned->advance, plain->advance);

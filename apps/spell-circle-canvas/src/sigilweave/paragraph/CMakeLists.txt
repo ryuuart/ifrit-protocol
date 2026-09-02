@@ -41,6 +41,10 @@ target_link_libraries(weave_paragraph_test PRIVATE
   GTest::gtest_main
 )
 add_test(NAME weave_paragraph_test COMMAND weave_paragraph_test)
+# Several cases here can only be asked on a machine that has the face for
+# the script they are about, and they skip when it does not. The label says
+# so, so a runner that knows its own font set can require them.
+set_tests_properties(weave_paragraph_test PROPERTIES LABELS fonts)
 
 # A whole paragraph analysed and shaped, cold and warm. Built through
 # `benches`, run through scripts/bench_ledger.py from a Release build.

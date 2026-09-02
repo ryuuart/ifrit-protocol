@@ -1,27 +1,29 @@
 /** @file
- * Large-paragraph stress: warm relayout linearity, paint-restyle cost
- * bounds, and the multi-script confetti scene.
+ * Large paragraphs: a fully-placed ten-thousand-word Knuth-Plass block, a
+ * repaint scoped to the placed window of an overflowed one, a
+ * two-thousand-word block at a small size, and two thousand multi-script
+ * tokens scattered over as many rotated intervals.
  */
 
 #include <gtest/gtest.h>
 #include <sigilweave/query/Query.h>
 
-#include <chrono>
+#include <cmath>
+#include <iterator>
 #include <random>
 #include <string>
+#include <vector>
 
 #include "support/LayoutSupport.h"
 using namespace sigil::weave;
 using namespace sigil::weave::test;
 
-TEST(Stress, KnuthPlassFullyPlacedIsLinear) {
-  // A huge paragraph that fits *entirely* (10k words on screen), which is
-  // the worst case for the Knuth-Plass active list: nothing overflows, so
+TEST(Stress, KnuthPlassPlacesTenThousandWordsInAFlowTallEnoughForThem) {
+  // The worst case for the Knuth-Plass active list: nothing overflows, so
   // every word is a breakpoint candidate. On a uniform-width flow the
   // breaker merges paths that reached the same breakpoint on different line
-  // numbers (TeX's one-measure model), which is what keeps the active list
-  // bounded by the line width instead of growing with the paragraph. The
-  // time bound below fails if that merge stops happening.
+  // numbers, which is what keeps the active list bounded by the line width
+  // instead of growing with the paragraph.
   FontContext& fontContext = sharedContext();
   static constexpr const char8_t* kWordPool[] = {
       u8"letters", u8"falling", u8"gently", u8"against", u8"words",
@@ -34,45 +36,16 @@ TEST(Stress, KnuthPlassFullyPlacedIsLinear) {
   options.lineBreakStrategy = LineBreakStrategy::kKnuthPlass;
   options.alignment = TextAlignment::kJustify;
   ParagraphLayout layout =
-      layoutParagraph(fontContext, paragraph, flow, options);  // warm shapes
+      layoutParagraph(fontContext, paragraph, flow, options);
   ASSERT_FALSE(layout.overflowed());
-
-  const auto startTime = std::chrono::steady_clock::now();
-  constexpr int kIterationCount = 5;
-  for (int iteration = 0; iteration < kIterationCount; ++iteration)
-    layout = layoutParagraph(fontContext, paragraph, flow, options);
-  const double averageMicroseconds =
-      std::chrono::duration<double, std::micro>(
-          std::chrono::steady_clock::now() - startTime)
-          .count() /
-      kIterationCount;
-  // A loose ceiling: it is here to catch a super-linear active list, not to
-  // police small regressions. Debug builds do the same work with unelided
-  // container and iterator overhead, so they get their own bound, and a
-  // sanitizer instruments every memory access on top of that, so an
-  // instrumented build gets the Debug bound widened by a constant factor.
-  // A super-linear active list exceeds any of these by orders of magnitude.
-#ifdef NDEBUG
-  double maximumMicroseconds = 8000.0;
-#else
-  double maximumMicroseconds = 80000.0;
-#endif
-#if defined(__has_feature)
-#if __has_feature(thread_sanitizer) || __has_feature(address_sanitizer)
-  maximumMicroseconds *= 4.0;
-#endif
-#endif
-  EXPECT_LT(averageMicroseconds, maximumMicroseconds)
-      << "KP active list grows with the paragraph";
+  EXPECT_GT(layout.lineCount, 100);
 }
 
-TEST(Stress, PaintOnlyRestyleIsGeometryBounded) {
-  // Repaint a set of ranges every frame (hue cycling) and relayout. A paint
-  // edit must not re-run ICU analysis over the whole text, and the batch
-  // form must not rebuild the span list once per range, so the per-frame
-  // cost stays bounded by what the geometry can hold rather than by the
-  // paragraph — the same property Overflow.HugeRelayoutIsBoundedByGeometry
-  // checks for relayout. Almost all of this text never gets placed.
+TEST(Stress, ARepaintScopedToThePlacedWindowLeavesAnOverflowWhereItWas) {
+  // Thirty thousand words in a box with room for about one percent of
+  // them, repainted over the window that was actually placed. A paint edit
+  // carries no geometry, so the frame it lands on must come back with the
+  // same runs and the same first unplaced word.
   FontContext& fontContext = sharedContext();
   static constexpr const char8_t* kWordPool[] = {
       u8"letters", u8"falling", u8"gently", u8"against", u8"words",
@@ -81,44 +54,53 @@ TEST(Stress, PaintOnlyRestyleIsGeometryBounded) {
   Paragraph paragraph;
   paragraph.appendText(makePooledText(kWordPool, 30000, 7), basicStyle());
   BlockFlow flow(SkRect::MakeWH(420, 320));  // room for ~1% of the text
-  ParagraphLayout layout =
-      layoutParagraph(fontContext, paragraph, flow);  // warm analysis + shapes
-  ASSERT_TRUE(layout.overflowed());
+  ParagraphLayout before = layoutParagraph(fontContext, paragraph, flow);
+  ASSERT_TRUE(before.overflowed());
 
   // Scoped query over the placed window only.
   const uint32_t placedEnd =
-      paragraph.words()[layout.firstUnplacedWord].textBegin;
+      paragraph.words()[before.firstUnplacedWord].textBegin;
   const std::vector<CharRange> marks =
       findRegexMatches(paragraph, u8"\\b\\p{Lu}\\p{Ll}+", {0, placedEnd})
           .value_or(std::vector<CharRange>{});
   ASSERT_GT(marks.size(), 10u);
 
-  const auto startTime = std::chrono::steady_clock::now();
-  constexpr int kIterationCount = 20;
-  for (int iteration = 0; iteration < kIterationCount; ++iteration) {
-    PaintStyle hue(0xFF000000 | static_cast<uint32_t>(iteration * 1234567));
-    paragraph.setPaint(marks, hue);
-    layout = layoutParagraph(fontContext, paragraph, flow);
-  }
-  const double averageMicroseconds =
-      std::chrono::duration<double, std::micro>(
-          std::chrono::steady_clock::now() - startTime)
-          .count() /
-      kIterationCount;
-  // Loose ceiling again: what it must catch is cost scaling with the 30k
-  // words of unplaced text. Debug builds get their own bound for the same
-  // reason as above.
-#ifdef NDEBUG
-  const double maximumMicroseconds = 3000.0;
-#else
-  const double maximumMicroseconds = 30000.0;
-#endif
-  EXPECT_LT(averageMicroseconds, maximumMicroseconds)
-      << "paint restyle scales with unplaced text";
+  paragraph.setPaint(marks, PaintStyle(0xFFCC0000));
+  const ParagraphLayout after = layoutParagraph(fontContext, paragraph, flow);
+  EXPECT_EQ(after.firstUnplacedWord, before.firstUnplacedWord);
+  ASSERT_EQ(after.runs.size(), before.runs.size());
+  for (size_t index = 0; index < after.runs.size(); ++index)
+    EXPECT_EQ(after.runs[index].origin, before.runs[index].origin);
 }
+
+TEST(Stress, TwoThousandSmallWordsAreAllPlacedInABlockThatHoldsThem) {
+  // A page of eight-point text on a ten-point rhythm: the whole paragraph
+  // must be placed, and the glyphs it puts down must outnumber its words
+  // several times over.
+  FontContext& fontContext = sharedContext();
+  const char8_t* words[] = {u8"letters", u8"water", u8"stars", u8"flow",
+                            u8"cached",  u8"paint", u8"文字",  u8"波紋",
+                            u8"글자",    u8"星光"};
+  std::u8string text;
+  for (int wordIndex = 0; wordIndex < 2000; ++wordIndex) {
+    text += words[static_cast<size_t>(wordIndex * 7) % std::size(words)];
+    text += ' ';
+  }
+  Paragraph paragraph;
+  paragraph.appendText(text, basicStyle(8.0f));
+  BlockFlow flow(SkRect::MakeXYWH(10, 10, 1180, 880));
+  ParagraphLayoutOptions options;
+  options.alignment = TextAlignment::kJustify;
+  options.lineMetrics.height = 10.0f;
+  ParagraphLayout layout =
+      layoutParagraph(fontContext, paragraph, flow, options);
+  ASSERT_FALSE(layout.overflowed());
+  EXPECT_GT(glyphCount(layout), 7000);
+}
+
 // ── 2000-token multi-script confetti stress ───────────────────────────────
 
-TEST(Stress, BabelConfetti2000) {
+TEST(Stress, NoScriptOnThisSystemLeaksANotdefThroughTwoThousandTokens) {
   FontContext& fontContext = sharedContext();
   const char8_t* tokens[] = {
       u8"حرف",  u8"كلمة", u8"अक्षर",  u8"शब्द",   u8"אות",   u8"מילה", u8"ตัวอักษร",

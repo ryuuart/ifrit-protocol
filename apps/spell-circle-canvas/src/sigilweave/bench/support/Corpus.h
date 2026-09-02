@@ -1,25 +1,24 @@
 #pragma once
 /** @file
- * The corpus and font context every shaping, layout and paint benchmark
- * measures over. A system font manager enumerates the installed fonts
- * when built, so each process constructs the context exactly once, and
- * the word lists are fixed so a run is comparable with the last.
+ * The corpus every shaping, layout and paint benchmark measures over: two
+ * fixed word lists and the texts drawn from them, so a run is comparable
+ * with the last. The font context and the style the corpus is set in are
+ * the ones the tests use, so a benchmark and a test measure the same
+ * engine over the same inputs.
  */
-
-#include <sigilweave/fonts/FontContext.h>
-#include <sigilweave/ports/SystemFontManager.h>
-#include <sigilweave/style/Style.h>
 
 #include <random>
 #include <string>
 #include <vector>
 
+#include "../../test/support/Fonts.h"
+#include "../../test/support/Paragraphs.h"
+
 namespace sigil::weave::bench {
 
-inline FontContext& fontContext() {
-  static auto* instance = new FontContext(ports::systemFontManager());
-  return *instance;
-}
+using test::basicStyle;
+using test::makePooledText;
+using test::sharedContext;
 
 inline const std::vector<std::u8string>& latinWords() {
   static const std::vector<std::u8string> words = {
@@ -43,12 +42,15 @@ inline const std::vector<std::u8string>& cjkWords() {
 
 /** `wordCount` space-separated words, every third one CJK when `mixed`. */
 inline std::u8string makeText(int wordCount, bool mixed, uint32_t seed = 7) {
+  if (!mixed) return makePooledText(latinWords(), wordCount, seed);
+  // The mixed corpus draws twice per word — the pool and then the word —
+  // so its sequence is its own and not the single-pool generator's.
   std::mt19937 randomEngine(seed);
   const auto& latin = latinWords();
   const auto& cjk = cjkWords();
   std::u8string text;
   for (int wordIndex = 0; wordIndex < wordCount; ++wordIndex) {
-    if (mixed && (randomEngine() % 3 == 0))
+    if (randomEngine() % 3 == 0)
       text += cjk[randomEngine() % cjk.size()];
     else
       text += latin[randomEngine() % latin.size()];
@@ -61,18 +63,7 @@ inline std::u8string makeText(int wordCount, bool mixed, uint32_t seed = 7) {
  *  COLUMN is set in, where the break opportunities are between characters
  *  rather than at spaces, and every character stands upright. */
 inline std::u8string makeColumnText(int wordCount, uint32_t seed = 11) {
-  std::mt19937 randomEngine(seed);
-  const auto& cjk = cjkWords();
-  std::u8string text;
-  for (int wordIndex = 0; wordIndex < wordCount; ++wordIndex)
-    text += cjk[randomEngine() % cjk.size()];
-  return text;
-}
-
-inline TextStyle style16() {
-  TextStyle style;
-  style.shaping.fontSize = 16.0f;
-  return style;
+  return makePooledText(cjkWords(), wordCount, seed, u8"");
 }
 
 }  // namespace sigil::weave::bench

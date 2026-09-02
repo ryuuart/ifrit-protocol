@@ -30,7 +30,7 @@ TEST(Incremental, OneWordEditKeepsOtherWordBlobs) {
   EXPECT_GT(sharedBlobs, before.runs.size() / 2);
 }
 
-TEST(Incremental, MovingExclusionOnlyRepositions) {
+TEST(Incremental, MovingAnExclusionCostsNoCallToTheShaper) {
   FontContext& fontContext = sharedContext();
   Paragraph paragraph = makeParagraph(
       u8"the shape moves through the paragraph and every frame the words "

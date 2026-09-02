@@ -17,7 +17,7 @@ using namespace sigil::weave::test;
 
 // ── Flow geometry ─────────────────────────────────────────────────────────
 
-TEST(Flow, BlockFlowFillsRect) {
+TEST(Flow, ABlockHandsOutOneFullWidthBandPerLineUntilItRunsOut) {
   BlockFlow flow(SkRect::MakeXYWH(10, 20, 300, 100));
   std::vector<LineInterval> out;
   ASSERT_TRUE(flow.lineIntervals(0, 20, 15, out));
@@ -171,11 +171,11 @@ TEST(Flow, PathExclusionOffsetMovesWithoutReflatten) {
   }
 }
 
-TEST(Flow, RunsNeverEnterExclusionShapes) {
-  // The gallery scene, distilled: mixed Latin/CJK justified text flowing
-  // around a drifting donut and circle. Every placed run must stay inside
-  // one of its line's intervals — text ending up *inside* a shape means
-  // the breaker placed an overfull line into the gap beside it.
+TEST(Flow, NoRunEverSitsInsideAnExclusionShape) {
+  // Mixed Latin/CJK justified text flowing around a drifting donut and
+  // circle. Every placed run must stay inside one of its line's intervals —
+  // text ending up *inside* a shape means the breaker placed an overfull
+  // line into the gap beside it.
   FontContext& fontContext = sharedContext();
   Paragraph paragraph = makeParagraph(
       u8"Typography is the craft of arranging type, and glyphs flow around "
@@ -192,7 +192,10 @@ TEST(Flow, RunsNeverEnterExclusionShapes) {
   const SkPath donutPath = donutBuilder.detach();
 
   const float lineHeight = 26, lineAscent = 20;
-  for (int phase = 0; phase < 6; ++phase) {
+  // Two placements of the same obstacles: one where the donut's hole opens
+  // a second interval on a band, and one where the donut and the circle
+  // overlap, which splits more bands than either shape does alone.
+  for (int phase : {3, 4}) {
     ExclusionFlow flow(SkRect::MakeWH(760, 900));
     ExclusionFlow::Shape donut = ExclusionFlow::Shape::fromPath(donutPath, 8);
     donut.pathOffset = {60.0f * std::sin(static_cast<float>(phase) * 1.1f),
@@ -205,6 +208,8 @@ TEST(Flow, RunsNeverEnterExclusionShapes) {
 
     for (LineBreakStrategy breaker :
          {LineBreakStrategy::kGreedy, LineBreakStrategy::kKnuthPlass}) {
+      const char* breakerName =
+          breaker == LineBreakStrategy::kGreedy ? "greedy" : "knuth-plass";
       ParagraphLayoutOptions options;
       options.lineBreakStrategy = breaker;
       options.alignment = TextAlignment::kJustify;
@@ -214,25 +219,18 @@ TEST(Flow, RunsNeverEnterExclusionShapes) {
           layoutParagraph(fontContext, paragraph, flow, options);
       EXPECT_FALSE(layout.overflowed());
 
-      std::vector<LineInterval> intervals;
-      for (const PositionedRun& run : layout.runs) {
-        if (!run.shaped) continue;
-        ASSERT_TRUE(flow.lineIntervals(run.lineIndex, lineHeight, lineAscent,
-                                       intervals));
-        const float runStartX = run.origin.x();
-        const float runEndX = runStartX + run.shaped->advance;
-        bool inside = false;
-        for (const LineInterval& interval : intervals)
-          inside = inside ||
-                   (runStartX >= interval.origin.x() - 0.75f &&
-                    runEndX <= interval.origin.x() + interval.length + 0.75f);
-        EXPECT_TRUE(inside)
-            << "run on line " << run.lineIndex << " spans [" << runStartX
-            << ", " << runEndX << "] outside every interval (breaker "
-            << (breaker == LineBreakStrategy::kGreedy ? "greedy"
-                                                      : "knuth-plass")
-            << ", phase " << phase << ")";
-      }
+      const IntervalContainment held = runsStayInsideIntervals(
+          flow, layout, lineHeight, lineAscent, PenAxis::kAlongLines);
+      EXPECT_GT(held.runs, 0);
+      EXPECT_EQ(held.exhausted, 0)
+          << "the flow refused a band it had already placed a run on";
+      EXPECT_GT(held.splitBands, 0)
+          << "the shapes split no band at all (phase " << phase << ")";
+      EXPECT_EQ(held.outside, 0)
+          << "a run on line " << held.outsideBand << " spans ["
+          << held.outsideStart << ", " << held.outsideEnd
+          << "] outside every interval (breaker " << breakerName << ", phase "
+          << phase << ")";
     }
   }
 }
