@@ -100,9 +100,11 @@
 //     * `shape: streaked spherical` is per-instance NON-UNIFORM scale (a
 //       quad 0.5*|v| long by `size` wide: elongated at ejection, wider
 //       than it is long at apogee). `instancing::Pool::sizes()` carries
-//       exactly that lane; the main field is drawn instead by custom()
-//       plus one SkVertices list per 8,000 streaks — which is Reeves' own
-//       renderer, "merely antialiased lines".
+//       exactly that lane, and the sidebar's bench pool takes it; the main
+//       field is drawn instead by custom() plus one SkVertices list per
+//       8,000 streaks — which is Reeves' own renderer, "merely antialiased
+//       lines", with a per-vertex alpha ramp across the quad that no baked
+//       atlas cell carries.
 //     * `lifetime`, measured in frames, has no delay/progress lane, and
 //       the wall of fire IS a stagger. It lives in a parallel Site::t0.
 //   Everything else is the library: two CONTROL pools through
@@ -184,7 +186,10 @@ constexpr int kRampN[14] = {1, 2, 3, 4, 5, 8, 12, 16, 20, 28, 40, 60, 85, 111};
 // Geometry. The canvas size and the ink background are this sketch's own,
 // declared in setup(); nothing here inherits a host default.
 
-constexpr float kCanvasW = 1440, kCanvasH = 864;
+// The canvas is the stage's own 4:3 plus the header over it and the
+// caption band under it — a band declared outside the artefact needs
+// room outside the artefact.
+constexpr float kCanvasW = 1440, kCanvasH = 926;
 constexpr float kStageW = 888, kStageH = 666;  // 4:3 — the 500-line raster
 constexpr float kSideW = 448;
 
@@ -535,9 +540,12 @@ struct GenesisFire : sketch::Sketch {
                                : SkVector{0.0f, -1.0f};
         // streaked spherical: length 0.5*|v| but never less than half the
         // diameter, width `size`. So the quad is elongated at ejection and
-        // ends up wider than it is long once the particle slows at apogee —
-        // a per-instance NON-UNIFORM scale, which is exactly what SkRSXform
-        // (and therefore the instancing path) cannot express.
+        // ends up wider than it is long once the particle slows at apogee.
+        // The instancing path expresses that too, through Pool::sizes() —
+        // the sidebar's bench shows it — and the field is built by hand
+        // here for the other reason: Reeves' own renderer was "merely
+        // antialiased lines", and one SkVertices list per 8,000 streaks is
+        // that, with a per-vertex alpha ramp no atlas cell carries.
         const float len = std::max(p.size * 0.5f, speed * 0.5f);
         const SkPoint head = p.pos;
         const SkPoint tail{p.pos.fX - d.fX * len, p.pos.fY - d.fY * len};
@@ -603,24 +611,44 @@ struct GenesisFire : sketch::Sketch {
   /** The bench pool: ONE pool, read by two instances() leaves at two
    *  blend modes. Same data, two renderers — that is what makes it
    *  evidence rather than an assertion. */
+  /** THE BENCH POOL, WITH THE NON-UNIFORM LANE. Reeves' `shape: streaked
+   *  spherical` is a quad 0.5*|v| long by `size` wide: elongated at
+   *  ejection, wider than it is long once the particle slows at apogee.
+   *  An `SkRSXform` carries a rotation and ONE scale, so a pool asking for
+   *  two takes `sizes()` — an opt-in (x, y) multiplier on top of
+   *  `scales()` — and the stamp goes down the wider path. The cell is one
+   *  baked aspect and the lane stretches it per instance, which is the
+   *  whole of expressing a streak whose length tracks speed while its
+   *  width does not. */
   void writeBenchPool() {
     abPool->resize(kAbCount);
     auto p = abPool->positions();
     auto r = abPool->rotations();
     auto s = abPool->scales();
+    auto sz = abPool->sizes();
     auto tn = abPool->tints();
     auto fr = abPool->frames();
     for (size_t i = 0; i < kAbCount; ++i) {
       if (i < abParts.size()) {
         const Particle& q = abParts[i];
+        const float speed = q.vel.length();
+        // The same two numbers the field's own quads are built from, so
+        // the bench is a picture of the field's shape rather than of a
+        // second one.
+        const float len = std::max(q.size * 0.5f, speed * 0.5f);
         p[i] = q.pos;
         r[i] = std::atan2(q.vel.fY, q.vel.fX);
-        s[i] = std::max(0.25f, q.size / 2.3f);  // ONE uniform float
+        s[i] = 1.0f;
+        // The cell's own ink is 4.4 x 2.3, and the lane is a multiplier on
+        // it: the long axis takes the streak's length, the short one its
+        // diameter.
+        sz[i] = {std::max(0.12f, len / 4.4f), std::max(0.12f, q.size / 2.3f)};
         tn[i] = {std::min(1.0f, q.r), std::min(1.0f, q.g), std::min(1.0f, q.b),
                  1.0f};
         fr[i] = 0;
       } else {
         p[i] = {-999, -999};
+        sz[i] = {0.0f, 0.0f};
         tn[i] = {0, 0, 0, 0};
       }
     }
@@ -1073,12 +1101,16 @@ struct GenesisFire : sketch::Sketch {
                  mono(6.5f, kSteelDim, 0.2f)));
   }
 
+  /** THE CAPTION BAND. It states what the study proves — how many streaks
+   *  are alive, the raster the demo was computed for, and which light in
+   *  the picture is hand-placed — and it is declared OUTSIDE the stage,
+   *  because a plate of an artefact is a plate of the artefact. Nothing
+   *  here is a mark on the frame; it is a band under it. */
   Element stageCaption() {
     return box()
-        .right(16)
-        .bottom(14)
         .column()
         .gap(2)
+        .shrink(0)
         .opacity(
             animate(from(0.0f).to(1.0f), {.duration = 300ms, .delay = 1250ms}))
         .child(slot("fieldStat"))
@@ -1119,7 +1151,6 @@ struct GenesisFire : sketch::Sketch {
         .child(planInset().zIndex(6))
         .child(planCaption().zIndex(6))
         .child(blurCallout().zIndex(6))
-        .child(stageCaption().zIndex(6))
         .child(box()
                    .inset(0)
                    .stroke(spans::upTo(animate(from(0.0f).to(1.0f),
@@ -1329,10 +1360,10 @@ struct GenesisFire : sketch::Sketch {
         .child(box().grow(1))
         .child(t("SAME 700 PARTICLES, ONE POOL. LEFT AND CENTRE DIFFER ONLY "
                  "IN BLEND: kSrcOver CANNOT ACCUMULATE, SO ITS WHOLE PALETTE "
-                 "IS LUT ENTRY n=1. ONLY THE RIGHT CELL IS STREAKED "
-                 "SPHERICAL \xe2\x80\x94 LENGTH 0.5\xc2\xb7|v|, WIDTH size "
-                 "\xe2\x80\x94 SO ITS SLOW PARTICLES COLLAPSE TO DOTS AT "
-                 "APOGEE WHILE THE ATLAS HOLDS ONE BAKED ASPECT FOREVER.",
+                 "IS LUT ENTRY n=1. ALL THREE ARE STREAKED SPHERICAL "
+                 "\xe2\x80\x94 LENGTH 0.5\xc2\xb7|v|, WIDTH size. THE TWO "
+                 "POOLS TAKE IT FROM Pool::sizes(), THE OPT-IN NON-UNIFORM "
+                 "LANE THAT STRETCHES ONE BAKED CELL PER INSTANCE.",
                  mono(6.5f, kSteel, 0.2f))
                    .shrink(0));
   }
@@ -1402,18 +1433,22 @@ struct GenesisFire : sketch::Sketch {
 
   Element describe() {
     return box().column().padding(36).gap(24).fill(kInk).child(header()).child(
-        box().row().gap(32).grow(1).child(stage()).child(
-            box()
-                .column()
-                .width(kSideW)
-                .shrink(0)
-                .gap(8)
-                .staggerChildren(90ms)
-                .child(generationPanel())
-                .child(censusPanel())
-                .child(rampPanel())
-                .child(renderModelPanel())
-                .child(productionPanel())));
+        box()
+            .row()
+            .gap(32)
+            .grow(1)
+            .child(box().column().gap(10).child(stage()).child(stageCaption()))
+            .child(box()
+                       .column()
+                       .width(kSideW)
+                       .shrink(0)
+                       .gap(8)
+                       .staggerChildren(90ms)
+                       .child(generationPanel())
+                       .child(censusPanel())
+                       .child(rampPanel())
+                       .child(renderModelPanel())
+                       .child(productionPanel())));
   }
 
   /** The live census row. An Animatable carries no string, so a number that
@@ -1443,7 +1478,7 @@ struct GenesisFire : sketch::Sketch {
 
   /** The field's own live cost, printed on the stage. Same slot idiom as
    *  the census row: a number that ticks has no binding path. */
-  Element fieldStat() {
+  Element fieldStat(const sketch::SketchContext& ctx) {
     char buf[160];
     std::snprintf(buf, sizeof buf,
                   "FIELD: %zu,%03zu STREAKS \xc2\xb7 %zu,%03zu VERTS "
@@ -1453,23 +1488,23 @@ struct GenesisFire : sketch::Sketch {
                   vertCount % 1000, fieldChunks.size(),
                   // The one number on this canvas that measures the host
                   // rather than the artefact, so it differs between two
-                  // renders of the same frame. Pinned to zero under
-                  // --deterministic, which is what makes a captured still
-                  // comparable byte for byte.
-                  deterministic_ ? 0.0 : buildUs / 1000.0);
+                  // renders of the same frame. `ctx.measured` hands back
+                  // zero when the host is capturing for a diff, which is
+                  // what makes a captured still comparable byte for byte.
+                  ctx.measured(buildUs / 1000.0));
     return t(buf, mono(8.5f, hex(0xFFB672, 0.85f), 0.5f))
         .textAlign(sigil::weave::TextAlignment::kEnd);
   }
 
   // =========================================================================
 
-  bool deterministic_ = false;  // --deterministic: pin self-measurements
+  bool statDirty = false;  // the field readout is behind the simulation
 
   void setup(sketch::SketchContext& ctx) override {
     // 4.6 s into the 10 s loop: the wavefront is near the right edge, the
     // leftmost systems are burning out and the rightmost have just ignited.
     ctx.captureAt(4.6);
-    deterministic_ = ctx.deterministic;
+    statDirty = false;
     ctx.canvas((int)kCanvasW, (int)kCanvasH);
     ctx.background(kInk);
 
@@ -1532,7 +1567,7 @@ struct GenesisFire : sketch::Sketch {
         writeBenchPool();
         writePlanPool();
         composer.renderSlot("censusLive", liveRow());
-        composer.renderSlot("fieldStat", fieldStat());
+        statDirty = true;
       }
       // ONE phase Output. bind() derives the wavefront in px, the plan
       // ring's unit scale, and two piecewise alphas from it; without that
@@ -1547,10 +1582,18 @@ struct GenesisFire : sketch::Sketch {
 
     ctx.composer.render(describe());
     ctx.composer.renderSlot("censusLive", liveRow());
-    ctx.composer.renderSlot("fieldStat", fieldStat());
+    ctx.composer.renderSlot("fieldStat", fieldStat(ctx));
   }
 
-  void update(double, sketch::SketchContext&) override {}
+  /** The field readout carries a number this sketch measured about its own
+   *  execution, and the pin for such a number lives on the context — which
+   *  a ticker steppable does not have. So the slot is re-rendered here,
+   *  latched by the simulation. */
+  void update(double, sketch::SketchContext& ctx) override {
+    if (!statDirty) return;
+    statDirty = false;
+    ctx.composer.renderSlot("fieldStat", fieldStat(ctx));
+  }
 };
 
 SIGIL_SKETCH(
