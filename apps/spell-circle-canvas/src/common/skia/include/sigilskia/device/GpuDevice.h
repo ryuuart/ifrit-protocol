@@ -45,17 +45,30 @@ constexpr bool has(TextureUsage set, TextureUsage flag) {
   return (static_cast<uint32_t>(set) & static_cast<uint32_t>(flag)) != 0;
 }
 
-/** A texture to create: size, format, usage, and whether the CPU may
- *  read and write its bytes directly (shared storage). */
+/** A texture to create: size, format, usage, how many mip levels it
+ *  carries, and whether the CPU may read and write its bytes directly
+ *  (shared storage). */
 struct TextureDesc {
   int width = 0;
   int height = 0;
   TextureFormat format = TextureFormat::RGBA8Unorm;
   TextureUsage usage = TextureUsage::ShaderRead | TextureUsage::RenderTarget;
+  /** How many levels the texture holds, level 0 at `width` x `height`
+   *  and each one after it half the size of the last. One is a texture
+   *  with no chain. A count past what the size can carry is clamped to
+   *  what it can, since a level under one texel on a side does not
+   *  exist. A CHAIN IS NOT ONLY A FILTERING AID: a prefiltered
+   *  environment puts a different image on every level, and the level a
+   *  shader reads is what its roughness picked. */
+  int mipLevels = 1;
   bool cpuAccessible = false;
   /** A debug name the API shows in its tools; may be null. */
   const char* label = nullptr;
 };
+
+/** How many levels a chain over @p width x @p height can hold: one more
+ *  each time both sides can still be halved. */
+int mipLevelsFor(int width, int height);
 
 /**
  * A texture as the API's own object, bridged to an opaque value: an
@@ -75,6 +88,8 @@ struct NativeTexture {
   uint32_t vkFormat = 0;
   int width = 0;
   int height = 0;
+  /** Levels in the chain, level 0 at `width` x `height`. */
+  int mipLevels = 1;
 
   explicit operator bool() const {
     return mtlTexture != nullptr || vkImage != 0;

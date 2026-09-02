@@ -12,6 +12,17 @@
 
 namespace sigil::skia {
 
+int mipLevelsFor(int width, int height) {
+  int levels = 1;
+  int w = width, h = height;
+  while (w > 1 || h > 1) {
+    w = w > 1 ? w / 2 : 1;
+    h = h > 1 ? h / 2 : 1;
+    ++levels;
+  }
+  return width > 0 && height > 0 ? levels : 1;
+}
+
 namespace {
 
 struct TextureSlot {

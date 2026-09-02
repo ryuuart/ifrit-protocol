@@ -277,7 +277,8 @@ class VulkanBackend final : public GpuDevice::Backend_ {
     info.format = toVulkan(desc.format);
     info.extent = {static_cast<uint32_t>(desc.width),
                    static_cast<uint32_t>(desc.height), 1};
-    info.mipLevels = 1;
+    info.mipLevels =
+        static_cast<uint32_t>(clampedMipLevels(desc));
     info.arrayLayers = 1;
     info.samples = VK_SAMPLE_COUNT_1_BIT;
     info.tiling = VK_IMAGE_TILING_OPTIMAL;
@@ -325,6 +326,7 @@ class VulkanBackend final : public GpuDevice::Backend_ {
     out.vkFormat = info.format;
     out.width = desc.width;
     out.height = desc.height;
+    out.mipLevels = static_cast<int>(info.mipLevels);
     return out;
   }
 

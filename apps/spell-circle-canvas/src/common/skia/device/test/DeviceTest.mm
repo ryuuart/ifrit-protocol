@@ -15,6 +15,7 @@
 #include <include/gpu/graphite/Surface.h>
 #include <sigilskia/device/GpuDevice.h>
 #include <sigilskia/device/Handle.h>
+#include <sigilskia/device/Pixels.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 #include <sigilskia/graphite/OffscreenSurface.h>
 
@@ -402,6 +403,77 @@ TEST(SigilSkiaDeviceVulkan, AdoptsItsOwnHandles) {
   EXPECT_NE(owned->native().vulkan.device, nullptr);
 }
 
+TEST(SigilSkiaDevice, AMipChainIsAsDeepAsTheSizeAllows) {
+  // The rule has no backend in it, so it is checked without one.
+  EXPECT_EQ(mipLevelsFor(1, 1), 1);
+  EXPECT_EQ(mipLevelsFor(8, 8), 4);
+  EXPECT_EQ(mipLevelsFor(256, 128), 9);
+  // A chain runs until BOTH sides are one, so a wide panorama keeps
+  // levels after its height has bottomed out.
+  EXPECT_EQ(mipLevelsFor(1024, 2), 11);
+}
+
+TEST(SigilSkiaDevice, MetalTextureCarriesTheLevelsItWasAskedFor) {
+  std::unique_ptr<GpuDevice> device = GpuDevice::createOwned(Backend::Metal);
+  ASSERT_TRUE(device);
+  TextureDesc desc = smallTexture();
+  desc.width = 256;
+  desc.height = 128;
+  desc.mipLevels = 9;
+  const TextureHandle chained = device->createTexture(desc);
+  ASSERT_TRUE(device->isValid(chained));
+  EXPECT_EQ(device->exportNative(chained).mipLevels, 9);
+  id<MTLTexture> native = (__bridge id<MTLTexture>)device->exportNative(chained).mtlTexture;
+  EXPECT_EQ((int)native.mipmapLevelCount, 9);
+  device->destroy(chained);
+
+  // More levels than the size can carry is what the size can carry, and
+  // fewer than one is one.
+  desc.mipLevels = 40;
+  const TextureHandle clamped = device->createTexture(desc);
+  EXPECT_EQ(device->exportNative(clamped).mipLevels, mipLevelsFor(256, 128));
+  device->destroy(clamped);
+  desc.mipLevels = 0;
+  const TextureHandle flat = device->createTexture(desc);
+  EXPECT_EQ(device->exportNative(flat).mipLevels, 1);
+  device->destroy(flat);
+}
+
+TEST(SigilSkiaDevice, AFloatImageReadsBackAsHalvesWithItsRangeIntact) {
+  // The values above one are the whole reason a panorama is float, and a
+  // byte read would put every one of them at white.
+  const int w = 4, h = 2;
+  std::vector<float> px((size_t)w * h * 4);
+  for (size_t i = 0; i < (size_t)w * h; ++i) {
+    px[i * 4 + 0] = 6.5f;
+    px[i * 4 + 1] = 0.25f;
+    px[i * 4 + 2] = 0.5f;
+    px[i * 4 + 3] = 1.0f;
+  }
+  const SkImageInfo info =
+      SkImageInfo::Make(w, h, kRGBA_F32_SkColorType, kPremul_SkAlphaType);
+  sk_sp<SkImage> image = SkImages::RasterFromPixmapCopy(
+      {info, px.data(), (size_t)w * 4 * sizeof(float)});
+  ASSERT_TRUE(image);
+  EXPECT_TRUE(isFloatImage(image));
+
+  const std::vector<uint16_t> halves = halfFloatPixels(image);
+  ASSERT_EQ(halves.size(), (size_t)w * h * 4);
+  // Half 6.5 is 0x4680; a byte read of the same texel would say 255.
+  EXPECT_EQ(halves[0], 0x4680u);
+  const std::vector<uint8_t> bytes = bytePixels(image);
+  ASSERT_EQ(bytes.size(), (size_t)w * h * 4);
+  EXPECT_EQ(bytes[0], 255u);
+
+  // An ordinary 8-bit image is not float and reads back as itself.
+  SkBitmap flat;
+  flat.allocPixels(SkImageInfo::MakeN32Premul(2, 2));
+  flat.eraseColor(SK_ColorGREEN);
+  flat.setImmutable();
+  EXPECT_FALSE(isFloatImage(flat.asImage()));
+  EXPECT_EQ(bytePixels(flat.asImage()).size(), 16u);
+}
+
 TEST(SigilSkiaDeviceVulkan, TextureFormatsMapAndRetire) {
   SIGILSKIA_NEED_VULKAN(device);
   const TextureFormat formats[] = {TextureFormat::RGBA8Unorm, TextureFormat::BGRA8Unorm,
@@ -416,6 +488,7 @@ TEST(SigilSkiaDeviceVulkan, TextureFormatsMapAndRetire) {
     const NativeTexture native = device->exportNative(texture);
     EXPECT_EQ(native.vkFormat, expected[i]);
     EXPECT_EQ(native.width, 8);
+    EXPECT_EQ(native.mipLevels, 1);
     EXPECT_EQ(native.vkLayout, 0u) << "undefined until drawn";
     device->destroy(texture);
     EXPECT_FALSE(device->isValid(texture));
@@ -429,6 +502,19 @@ TEST(SigilSkiaDeviceVulkan, TextureFormatsMapAndRetire) {
   const TextureHandle hostVisible = device->createTexture(cpu);
   EXPECT_TRUE(device->isValid(hostVisible));
   device->destroy(hostVisible);
+
+  // A prefiltered environment is one image per level, so a Vulkan image
+  // has to be created with the whole chain rather than have one
+  // generated from level 0.
+  TextureDesc chained = smallTexture();
+  chained.width = 256;
+  chained.height = 128;
+  chained.format = TextureFormat::RGBA16Float;
+  chained.mipLevels = 9;
+  const TextureHandle panorama = device->createTexture(chained);
+  ASSERT_TRUE(device->isValid(panorama));
+  EXPECT_EQ(device->exportNative(panorama).mipLevels, 9);
+  device->destroy(panorama);
 }
 
 TEST(SigilSkiaDeviceVulkan, ImportExportRoundTrip) {

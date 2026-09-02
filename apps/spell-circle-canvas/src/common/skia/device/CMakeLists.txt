@@ -1,6 +1,8 @@
 # The device feature: a GPU device and its queue, owned or adopted, with
-# textures and fences named by generation-checked handles and a
-# destruction queue that waits out the frames in flight. The
+# textures and fences named by generation-checked handles, a mip chain
+# where a description asks for one, a destruction queue that waits out
+# the frames in flight, and the half-float read an F32 image needs before
+# a sampler that cannot filter it will. The
 # API-independent translation unit owns the tables and the queue; each
 # backend implements the private interface in DeviceBackend.h — Metal on
 # Apple, Vulkan everywhere, resolving its entry points from the loader at
@@ -21,10 +23,12 @@ add_library(SigilSkiaDevice STATIC
   GpuDeviceVulkan.cpp
   GraphiteOnDevice.cpp
   OffscreenSurfaceOnDevice.cpp
+  Pixels.cpp
   ${SIGIL_SKIA_DEVICE_NATIVE_SOURCES}
   ${SIGIL_SKIA_INCLUDE_DIR}/sigilskia/device/Fence.h
   ${SIGIL_SKIA_INCLUDE_DIR}/sigilskia/device/GpuDevice.h
   ${SIGIL_SKIA_INCLUDE_DIR}/sigilskia/device/Handle.h
+  ${SIGIL_SKIA_INCLUDE_DIR}/sigilskia/device/Pixels.h
 )
 target_compile_features(SigilSkiaDevice PUBLIC cxx_std_20)
 target_include_directories(SigilSkiaDevice PUBLIC ${SIGIL_SKIA_INCLUDE_DIR})

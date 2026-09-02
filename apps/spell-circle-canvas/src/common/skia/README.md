@@ -137,6 +137,25 @@ A texture the host made enters the same table through
 or `importNative(nativeTexture, /*takeOwnership=*/true)`, after which the
 device releases it like one of its own.
 
+**A texture may carry a chain.** `TextureDesc::mipLevels` asks for one,
+level 0 at the description's size and each level after it half the last;
+`mipLevelsFor(width, height)` is how deep the size allows, and a count
+past it is clamped to it. A chain is not only a filtering aid here: a
+PREFILTERED ENVIRONMENT is a different image on every level, and the
+level a shader reads is the one its roughness picked, so the count has to
+be part of the description rather than something generated afterward from
+level 0. `exportNative` reports what the texture actually got.
+
+**A float image needs a half-float copy to be sampled.** A decoded HDR
+panorama lands as 32-bit float RGBA, which keeps the range a sun needs
+and is not filterable on Apple GPUs — a sampler asked to interpolate
+between two F32 texels there answers nothing. `halfFloatPixels(image)`
+is the copy that makes it drawable, tightly packed four halves a texel,
+with `bytePixels(image)` beside it for the ordinary path and
+`isFloatImage(image)` to choose between them. The conversion lives here
+rather than beside the decoder because it is a property of the hardware
+the pixels are going to and not of the file they came from.
+
 ### Adopting a device an engine created
 
 Some 3D engines create the Vulkan device themselves and cannot attach to

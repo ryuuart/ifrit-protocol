@@ -54,11 +54,13 @@ class MetalBackend final : public GpuDevice::Backend_ {
   const NativeDevice &native() const override { return m_native; }
 
   NativeTexture createTexture(const TextureDesc &desc) override {
+    const int levels = clampedMipLevels(desc);
     MTLTextureDescriptor *descriptor =
         [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:toMetal(desc.format)
                                                            width:(NSUInteger)desc.width
                                                           height:(NSUInteger)desc.height
-                                                       mipmapped:NO];
+                                                       mipmapped:levels > 1];
+    descriptor.mipmapLevelCount = (NSUInteger)levels;
     descriptor.usage = toMetal(desc.usage);
     descriptor.storageMode = desc.cpuAccessible ? MTLStorageModeShared : MTLStorageModePrivate;
     id<MTLTexture> texture = [device() newTextureWithDescriptor:descriptor];
@@ -69,6 +71,7 @@ class MetalBackend final : public GpuDevice::Backend_ {
     out.mtlTexture = (void *)texture;  // +1 from newTexture…, owned by the device
     out.width = desc.width;
     out.height = desc.height;
+    out.mipLevels = levels;
     return out;
   }
 

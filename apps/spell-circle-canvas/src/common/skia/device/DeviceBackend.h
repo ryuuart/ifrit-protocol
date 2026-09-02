@@ -14,6 +14,17 @@
 
 namespace sigil::skia {
 
+/** The level count a description actually gets: what it asked for, held
+ *  to at least one and to no more than the size can carry. Every backend
+ *  needs the same number, so it is derived once here rather than twice
+ *  from two spellings of the same rule. */
+inline int clampedMipLevels(const TextureDesc& desc) {
+  const int possible = mipLevelsFor(desc.width, desc.height);
+  return desc.mipLevels < 1 ? 1
+                            : (desc.mipLevels > possible ? possible
+                                                         : desc.mipLevels);
+}
+
 class GpuDevice::Backend_ {
  public:
   virtual ~Backend_() = default;
