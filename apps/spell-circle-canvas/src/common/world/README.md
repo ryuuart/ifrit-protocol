@@ -820,9 +820,9 @@ arithmetic result, which the emitter does not put there; and
 `MVK_CONFIG_FAST_MATH_ENABLED` is set to 0 before the Vulkan instance
 exists, because this driver otherwise takes a square root as an
 approximation and a divide as a reciprocal and a multiply. Remove any one
-and the conformance test in `diligent/test/PopTest.cpp` — every supported
-chain cooked both ways and compared bit for bit — fails on the first
-expression of the shape `a + b * c`.
+and SigilGeometry's conformance test — every supported chain cooked both
+ways and compared bit for bit — fails on the first expression of the
+shape `a + b * c`.
 
 The last of the three is DEVICE-WIDE and it is not free: the graphics
 pipelines pay it too, and a frame that leans on the post stages is
@@ -1020,7 +1020,6 @@ as one dressed with nothing, and a texture painted with the graphics API
 on this device coming in through `importNative` and landing where a
 raster one of the same colour would — with no host image at all, so a
 picture carrying its colour cannot have come from a copy.
-`test/SweepTest.cpp` is the sweep's conformance, bit for bit.
 `test/RuntimeTest.cpp` covers the frame: a pipeline off a recipe's
 Slang body with its parameter at a reflected offset and the lit build
 carrying shading the unlit one does not, one scene rendered on both tiers
@@ -1034,14 +1033,13 @@ have come from a copy — a texture's filter honoured on both tiers, where
 nearest shows two colours and one edge and linear shows the gradient
 between them, and a surface that is its own light standing at its base
 colour on both tiers while a lit one of the same colour, under a sun
-aimed away, stands darker. `diligent/test/PopTest.cpp` is the point
-operators' CONFORMANCE: every chain the device runtime says it can cook,
-cooked both ways and compared BIT FOR BIT — not a distance and not a
-tolerance, because the operators are one piece of arithmetic compiled
-twice; plus each declined operator refused by name while the host still
-answers it. The program tests run anywhere; the ones that need a Vulkan
-runtime (`brew install molten-vk vulkan-loader`) *skip* rather than fail
-without one, so a machine with no GPU stays green.
+aimed away, stands darker. The conformance of the chain cook and the
+swept rings is not here: those executors are SigilGeometry's, and
+`geometry_mesh_pop_test` is where every chain and every sweep the device
+says it can do is done both ways and compared bit for bit. The program
+tests run anywhere; the ones that need a Vulkan runtime (`brew install
+molten-vk vulkan-loader`) *skip* rather than fail without one, so a
+machine with no GPU stays green.
 
 `world_frame_test` covers the declarations and the CPU executor without
 anything retained: a pass compares field by field, each realisation
