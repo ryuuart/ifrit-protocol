@@ -26,12 +26,7 @@
 // whatever N is, and "per letter" is uniform data rather than scene
 // structure. The dissolve threshold is noise plus a left-to-right bias
 // inside each unit, so the letter is eaten from seeded edges; the band where
-// the threshold is being crossed is drawn hot, which is the ember rim, and
-// it is read twice — once tight for the rim and once wide for the glow
-// around it. What the front has not reached is drawn as ASH rather than as
-// nothing, so the whole line is on the page before it lights and the burn
-// is something happening to a word rather than a word arriving out of the
-// dark.
+// the threshold is being crossed is drawn hot, which is the ember rim.
 //
 // WHAT THE ENGINE SUPPLIES:
 //  - the unit boxes and per-unit clocks arrive as `uUnitRect`/`uUnitPhase`,
@@ -68,7 +63,6 @@
 //       --frame /tmp/ember_decode.png
 
 #include <sigilcompose/core/Material.h>
-#include <sigilcompose/kit/Instruments.h>
 #include <sigilcompose/typography/TextFx.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilmaterial/core/Material.h>
@@ -89,7 +83,7 @@ using namespace sigil::compose;
 namespace {
 
 constexpr float kW = 1000.0f;
-constexpr float kH = 392.0f;
+constexpr float kH = 430.0f;
 
 // ---- the cycle -------------------------------------------------------------
 constexpr double kLoop = 9.6;     // one full decode + hold + burn-off
@@ -103,14 +97,13 @@ constexpr float kEachMs = 260;   // start-to-start, left to right
 constexpr float kUnitMs = 1000;  // one unit's own 0 -> 1
 
 // ---- the burn --------------------------------------------------------------
-constexpr float kSweep = 0.26f;  // the three threshold weights: they sum to 1
-constexpr float kSpeckle = 0.22f;
-constexpr float kPatch = 0.52f;
+constexpr float kSweep = 0.28f;  // the three threshold weights: they sum to 1
+constexpr float kSpeckle = 0.30f;
+constexpr float kPatch = 0.42f;
 
 const SkColor4f kPlate{0.027f, 0.024f, 0.031f, 1};
 const SkColor4f kInk{0.96f, 0.91f, 0.82f, 1};    // the resolved letter
 const SkColor4f kEmber{1.00f, 0.47f, 0.13f, 1};  // the crossing band
-const SkColor4f kAsh{0.38f, 0.28f, 0.24f, 1};    // the letter before it lights
 const SkColor4f kLabel{0.62f, 0.55f, 0.50f, 1};
 const SkColor4f kFaint{0.38f, 0.33f, 0.31f, 1};
 
@@ -142,49 +135,23 @@ half4 main(float2 xy) {
   }
   // The threshold this pixel has to clear: a fine speckle, a coarser
   // blotch, and a bias along the unit, all seeded so the churn is the
-  // same churn on every frame. The speckle is cut at the pixel and the
-  // blotch a few pixels across: a coarser cell than the type's own stems
-  // reads as a mosaic laid over the letter rather than as the letter
-  // burning.
-  float2 grain = floor(xy * 1.0) + seed;
+  // same churn on every frame.
+  float2 grain = floor(xy * 0.5) + seed;
   float speck = fract(sin(dot(grain, float2(12.9898, 78.233))) * 43758.5453);
-  float2 blot = floor(xy * 0.22) + seed;
+  float2 blot = floor(xy * 0.09) + seed;
   float patch = fract(sin(dot(blot, float2(39.3468, 11.135))) * 24634.6345);
   float thr = uWeights[0] * u + uWeights[1] * speck + uWeights[2] * patch;
   // d is how far this pixel's unit has run past the pixel's own
   // threshold: negative is unburnt, 0 is the crossing, positive resolved.
   float d = p - thr;
-  // ONE TRANSCENDENTAL for the three bands. The rim's falloff is the exp;
-  // the crossing inside it is that falloff cubed, which is a tighter band
-  // for two multiplies; and the glow around it is a rational falloff,
-  // which is wide and soft and costs a divide. Three exps here is three
-  // exps per pixel of the line's whole box, and this shader runs on the
-  // raster backend as well as on a device.
-  float on = smoothstep(0.0, 0.03, p);
-  float e = exp(-abs(d) * 5.0);
   float body = smoothstep(0.0, 0.055, d);
-  float front = 1.60 * e * on * (1.0 - 0.35 * body);
-  float glow = 0.85 * on * (1.0 - 0.55 * body) / (1.0 + 3.0 * abs(d));
-  float core = e * e * e * on;
-  // The glow bleeds PAST the letter: four taps of the layer around this
-  // pixel widen the coverage the ember terms are allowed to light, so a
-  // burning stem has a halo on the page and not only inside its own ink.
-  float spill = cover;
-  spill = max(spill, float(uContent.eval(xy + float2(4.0, 0.0)).a));
-  spill = max(spill, float(uContent.eval(xy - float2(4.0, 0.0)).a));
-  spill = max(spill, float(uContent.eval(xy + float2(0.0, 4.0)).a));
-  spill = max(spill, float(uContent.eval(xy - float2(0.0, 4.0)).a));
-  float halo = (spill - cover) * 0.6;
-  // ASH. What the front has not reached is a faint char, so the line's
-  // shape is on the page before it lights, but only just: the event is
-  // the front, and a letter that is already bright has nothing to burn.
-  float ash = (1.0 - body) * (0.10 + 0.08 * speck);
-  float a = clamp(cover * (body + front + glow + core + ash) +
-                      halo * (front + glow),
-                  0.0, 1.0);
-  float3 emit = min(uAsh.rgb * ash + uInk.rgb * body +
-                    uEmber.rgb * (front + glow) +
-                    float3(1.0, 0.92, 0.72) * core * 0.9,
+  float front = 1.25 * exp(-abs(d) * 9.0) * smoothstep(0.0, 0.03, p) *
+                (1.0 - 0.35 * body);
+  // A tighter band inside the ember one: the crossing itself, white-hot.
+  float core = exp(-abs(d) * 30.0) * smoothstep(0.0, 0.03, p);
+  float a = cover * clamp(body + front + core, 0.0, 1.0);
+  float3 emit = min(uInk.rgb * body + uEmber.rgb * front +
+                    float3(1.0, 0.92, 0.72) * core * 0.55,
                     float3(1.0));
   return half4(half3(emit * a), half(a));
 })";
@@ -194,7 +161,6 @@ half4 main(float2 xy) {
 struct BurnParams {
   sigil::material::Color uInk;
   sigil::material::Color uEmber;
-  sigil::material::Color uAsh;
   std::array<float, 3> uWeights;  // sweep, speckle, patch
 };
 
@@ -213,7 +179,6 @@ Material burnMaterial() {
   return Material::recipe(sigil::material::Material(burnRecipe()))
       .uniform("uInk", kInk)
       .uniform("uEmber", kEmber)
-      .uniform("uAsh", kAsh)
       .uniform("uWeights", std::vector<float>{kSweep, kSpeckle, kPatch});
 }
 
@@ -281,31 +246,38 @@ struct EmberDecode : sketch::Sketch {
                          "runtime compiled and cached one variant per "
                          "count"),
                     faint));
+    root.child(box().grow(1));
     root.child(text(toU8("one draw and one pass over each line's own box, "
                          "whatever N is \xc2\xb7 per-unit progress is "
                          "uniform DATA, not scene structure"),
                     faint));
 
-    // THE SCHEDULE, DRAWN, from the same query the pass agrees with: the
-    // kit's own instrument over each of the two tracks, its cells standing
-    // UNDER the beats rather than over them, because the letters are what
-    // this sheet is about and a cell laid on one hides the burn it reports.
-    // One language for both lines: same bed, same fill, same rule.
-    constexpr kit::MeterPlacement kUnder{
-        .where = kit::MeterPlacement::Where::Under,
-        .thickness = 3.0f,
-        .gap = 8.0f,
-        // Every finished cell butting its neighbour reads as one filled
-        // bar; trimmed, a run of beats stays a run of beats.
-        .trim = 4.0f};
+    // THE SCHEDULE, DRAWN, from the same query the pass agrees with: one
+    // bar per beat of the display track, at that beat's laid-out rect,
+    // filled to that beat's local time — no restated i * eachMs anywhere.
+    // beatsOf answers in the composer's space and the overlay spans the
+    // root from its origin, so the two frames line up.
     Element meter = positioned().absolute().inset(0).hitTestable(false);
     meter.key("meter");
-    meter.child(
-        kit::trackMeter(ctx.composer, "burn-display", 0, kEmber, kFaint, kUnder)
-            .key("meter-display"));
-    meter.child(
-        kit::trackMeter(ctx.composer, "burn-words", 0, kEmber, kFaint, kUnder)
-            .key("meter-words"));
+    const std::vector<Beat> beats = ctx.composer.beatsOf("burn-display", 0);
+    for (size_t i = 0; i < beats.size(); ++i) {
+      const SkRect& r = beats[i].rect;
+      const std::string cell = "beat" + std::to_string(i);
+      meter.child(box()
+                      .key(cell)
+                      .left(r.left())
+                      .top(r.bottom() + 6)
+                      .width(r.width())
+                      .height(3)
+                      .fill(Fill::color(kFaint))
+                      .child(box()
+                                 .key(cell + "-t")
+                                 .left(0)
+                                 .top(0)
+                                 .width(r.width() * beats[i].localT)
+                                 .height(3)
+                                 .fill(Fill::color(kEmber))));
+    }
     root.child(std::move(meter));  // appended last, so it paints over
     return root;
   }
@@ -318,16 +290,18 @@ struct EmberDecode : sketch::Sketch {
   }
 
   void update(double elapsed, sketch::SketchContext& ctx) override {
-    // The cascades' real spans, asked for rather than reconstructed:
-    // `cascadeSpanMs` is the whole ramp, and it answers after a draw has
-    // laid the text out, so these fill in on the first updated frame and
-    // then hold.
-    if (displayTotalMs <= 1.0f)
-      displayTotalMs =
-          std::max(1.0f, ctx.composer.cascadeSpanMs("burn-display", 0));
-    if (wordsTotalMs <= 1.0f)
-      wordsTotalMs =
-          std::max(1.0f, ctx.composer.cascadeSpanMs("burn-words", 0));
+    // The cascades' real spans, read off the schedule rather than
+    // restated: the last beat's start plus one beat's length is the whole
+    // ramp. beatsOf answers after the first draw has laid the text out,
+    // so this fills in on the first updated frame and then holds.
+    const auto span = [&](const char* key) {
+      float total = 1;
+      for (const Beat& b : ctx.composer.beatsOf(key, 0))
+        total = std::max(total, b.startMs + kUnitMs);
+      return total;
+    };
+    if (displayTotalMs <= 1.0f) displayTotalMs = span("burn-display");
+    if (wordsTotalMs <= 1.0f) wordsTotalMs = span("burn-words");
     const double t = motion::phase(elapsed, kLoop) * kLoop;
     display = masterAt(t, kInAt, displayTotalMs);
     words = masterAt(t, kWordsAt, wordsTotalMs);
