@@ -286,24 +286,29 @@ TEST(ComposeBand, ProfilesAreComparableAndReflexive) {
   // ProfileScheme), and a value that does not compare equal to itself
   // makes every description containing it patch forever — including the
   // default-constructed one, which is why the empty case is asserted.
-  EXPECT_TRUE(strand::offset(4) == strand::offset(4));
-  EXPECT_FALSE(strand::offset(4) == strand::offset(5));
-  EXPECT_FALSE(strand::offset(0) == strand::self());
-  EXPECT_TRUE(strand::self() == strand::self());
-  EXPECT_TRUE(Profile() == Profile()) << "two empty profiles are one nothing";
-  EXPECT_FALSE(Profile() == strand::self());
+  EXPECT_TRUE(geometry::path::profile::offset(4) ==
+              geometry::path::profile::offset(4));
+  EXPECT_FALSE(geometry::path::profile::offset(4) ==
+               geometry::path::profile::offset(5));
+  EXPECT_FALSE(geometry::path::profile::offset(0) ==
+               geometry::path::profile::self());
+  EXPECT_TRUE(geometry::path::profile::self() ==
+              geometry::path::profile::self());
+  EXPECT_TRUE(geometry::path::Profile() == geometry::path::Profile())
+      << "two empty profiles are one nothing";
+  EXPECT_FALSE(geometry::path::Profile() == geometry::path::profile::self());
   EXPECT_TRUE(across(6) == across(6));
   EXPECT_FALSE(across(6) == across(7));
 }
 
 TEST(ComposeBand, FormationsTakeTheDeclaredSide) {
-  auto draw = [](Formation f) {
+  auto draw = [](geometry::path::Formation f) {
     Host host(200, 200);
     Element b =
         band(rectSpine(), across(10)).rect(SkRect::MakeXYWH(20, 20, 100, 100));
-    if (f == Formation::Outward)
+    if (f == geometry::path::Formation::Outward)
       b.outward();
-    else if (f == Formation::Inward)
+    else if (f == geometry::path::Formation::Inward)
       b.inward();
     else
       b.centered();
@@ -311,13 +316,13 @@ TEST(ComposeBand, FormationsTakeTheDeclaredSide) {
     host.frame();
     return std::pair<SkColor, SkColor>{host.pixel(70, 16), host.pixel(70, 24)};
   };
-  const auto centred = draw(Formation::Centered);
+  const auto centred = draw(geometry::path::Formation::Centered);
   EXPECT_EQ(centred.first, SK_ColorRED) << "centered straddles the spine";
   EXPECT_EQ(centred.second, SK_ColorRED);
-  const auto out = draw(Formation::Outward);
+  const auto out = draw(geometry::path::Formation::Outward);
   EXPECT_EQ(out.first, SK_ColorRED);
   EXPECT_EQ(out.second, SK_ColorBLACK);
-  const auto in = draw(Formation::Inward);
+  const auto in = draw(geometry::path::Formation::Inward);
   EXPECT_EQ(in.first, SK_ColorBLACK);
   EXPECT_EQ(in.second, SK_ColorRED);
 }
@@ -443,8 +448,8 @@ TEST(ComposeCrossings, CoincidentStrandsNeverCross) {
   SkPathBuilder b;
   b.addRect(SkRect::MakeWH(80, 60));
   const SkPath rect = b.detach();
-  EXPECT_TRUE(discoverCrossings({rect, rect}).empty());
-  EXPECT_TRUE(discoverCrossings({rect, rect, rect}).empty());
+  EXPECT_TRUE(geometry::path::discoverCrossings({rect, rect}).empty());
+  EXPECT_TRUE(geometry::path::discoverCrossings({rect, rect, rect}).empty());
 }
 
 TEST(ComposeCrossings, SharedCornersAreMeetingsNotCrossings) {
@@ -455,13 +460,15 @@ TEST(ComposeCrossings, SharedCornersAreMeetingsNotCrossings) {
   a.addRect(SkRect::MakeWH(80, 60));
   SkPathBuilder c;
   c.addRect(SkRect::MakeXYWH(80, 60, 80, 60));  // touches at one point only
-  EXPECT_TRUE(discoverCrossings({a.detach(), c.detach()}).empty());
+  EXPECT_TRUE(
+      geometry::path::discoverCrossings({a.detach(), c.detach()}).empty());
 }
 
 TEST(ComposeCrossings, ProperCrossingsAreFoundAndNumberedAlongTheBoundary) {
   const SkPath down = diagonal({0, 0}, {100, 100});
   const SkPath up = diagonal({0, 100}, {100, 0});
-  const std::vector<Crossing> one = discoverCrossings({down, up});
+  const std::vector<geometry::path::Crossing> one =
+      geometry::path::discoverCrossings({down, up});
   ASSERT_EQ(one.size(), 1u);
   EXPECT_EQ(one[0].a, 0u);
   EXPECT_EQ(one[0].b, 1u);
@@ -472,8 +479,9 @@ TEST(ComposeCrossings, ProperCrossingsAreFoundAndNumberedAlongTheBoundary) {
   // Numbering is positional along the lowest-indexed strand, so a horizontal
   // strand crossed by two verticals numbers them left to right.
   const SkPath across = diagonal({0, 50}, {100, 50});
-  const std::vector<Crossing> two = discoverCrossings(
-      {across, diagonal({70, 0}, {70, 100}), diagonal({30, 0}, {30, 100})});
+  const std::vector<geometry::path::Crossing> two =
+      geometry::path::discoverCrossings(
+          {across, diagonal({70, 0}, {70, 100}), diagonal({30, 0}, {30, 100})});
   ASSERT_EQ(two.size(), 2u);
   EXPECT_LT(two[0].alongA, two[1].alongA);
   EXPECT_EQ(two[0].index, 0u);
@@ -482,7 +490,7 @@ TEST(ComposeCrossings, ProperCrossingsAreFoundAndNumberedAlongTheBoundary) {
 }
 
 TEST(ComposeCrossings, TheRuleLadderClimbs) {
-  Crossing c0, c1, c2;
+  geometry::path::Crossing c0, c1, c2;
   c0.index = 0;
   c0.a = 0;
   c0.b = 1;
@@ -494,30 +502,34 @@ TEST(ComposeCrossings, TheRuleLadderClimbs) {
   c2.b = 2;
 
   // Rung 0 — list order: the later strand is on top, so `a` is under.
-  EXPECT_EQ(CrossingRule{}.decide(c0), Order::Under);
+  EXPECT_EQ(geometry::path::CrossingRule{}.decide(c0),
+            geometry::path::Order::Under);
 
   // Rung 1 — alternate IS sequence({Over, Under}).
-  const CrossingRule alt = crossing::alternate();
-  EXPECT_EQ(alt, crossing::sequence({Order::Over, Order::Under}));
-  EXPECT_EQ(alt.decide(c0), Order::Over);
-  EXPECT_EQ(alt.decide(c1), Order::Under);
+  const geometry::path::CrossingRule alt = crossing::alternate();
+  EXPECT_EQ(alt, crossing::sequence({geometry::path::Order::Over,
+                                     geometry::path::Order::Under}));
+  EXPECT_EQ(alt.decide(c0), geometry::path::Order::Over);
+  EXPECT_EQ(alt.decide(c1), geometry::path::Order::Under);
 
   // Rung 2 — a generic repeating pattern.
-  const CrossingRule three =
-      crossing::sequence({Order::Over, Order::Over, Order::Under});
-  EXPECT_EQ(three.decide(c0), Order::Over);
-  EXPECT_EQ(three.decide(c1), Order::Over);
-  EXPECT_EQ(three.decide(c2), Order::Under);
+  const geometry::path::CrossingRule three = crossing::sequence(
+      {geometry::path::Order::Over, geometry::path::Order::Over,
+       geometry::path::Order::Under});
+  EXPECT_EQ(three.decide(c0), geometry::path::Order::Over);
+  EXPECT_EQ(three.decide(c1), geometry::path::Order::Over);
+  EXPECT_EQ(three.decide(c2), geometry::path::Order::Under);
 
   // Rung 3 — strand dominance, including a CYCLE (the Penrose case:
   // 0 over 1, 1 over 2, 2 over 0, which no layer order can express).
-  const CrossingRule cyclic = crossing::pairs({{0, 1}, {1, 2}, {2, 0}});
-  EXPECT_EQ(cyclic.decide(c0), Order::Over);  // 0 over 1
-  EXPECT_EQ(cyclic.decide(c2), Order::Over);  // 1 over 2
-  Crossing c20;
+  const geometry::path::CrossingRule cyclic =
+      crossing::pairs({{0, 1}, {1, 2}, {2, 0}});
+  EXPECT_EQ(cyclic.decide(c0), geometry::path::Order::Over);  // 0 over 1
+  EXPECT_EQ(cyclic.decide(c2), geometry::path::Order::Over);  // 1 over 2
+  geometry::path::Crossing c20;
   c20.a = 0;
   c20.b = 2;
-  EXPECT_EQ(cyclic.decide(c20), Order::Under);  // 2 over 0
+  EXPECT_EQ(cyclic.decide(c20), geometry::path::Order::Under);  // 2 over 0
 }
 
 namespace {
@@ -526,7 +538,9 @@ namespace {
  *  the REPAIR works, not which rule chose it. */
 struct EveryCrossingRedOnTop {
   bool operator==(const EveryCrossingRedOnTop&) const = default;
-  Order decide(const Crossing&) const { return Order::Over; }
+  geometry::path::Order decide(const geometry::path::Crossing&) const {
+    return geometry::path::Order::Over;
+  }
 };
 
 /** Rung 4: a user rule is a comparable value with the seam's one named
@@ -534,48 +548,53 @@ struct EveryCrossingRedOnTop {
 struct EverySecondStrandWins {
   size_t winner = 1;
   bool operator==(const EverySecondStrandWins&) const = default;
-  Order decide(const Crossing& c) const {
-    return c.a == winner ? Order::Over : Order::Under;
+  geometry::path::Order decide(const geometry::path::Crossing& c) const {
+    return c.a == winner ? geometry::path::Order::Over
+                         : geometry::path::Order::Under;
   }
 };
 
 }  // namespace
 
 TEST(ComposeCrossings, CustomRulesAreComparableValues) {
-  static_assert(CrossingScheme<EverySecondStrandWins>);
-  const CrossingRule mine = EverySecondStrandWins{1};
-  Crossing c;
+  static_assert(geometry::path::CrossingScheme<EverySecondStrandWins>);
+  const geometry::path::CrossingRule mine = EverySecondStrandWins{1};
+  geometry::path::Crossing c;
   c.a = 1;
   c.b = 2;
-  EXPECT_EQ(mine.decide(c), Order::Over);
-  EXPECT_TRUE(mine == CrossingRule(EverySecondStrandWins{1}));
-  EXPECT_FALSE(mine == CrossingRule(EverySecondStrandWins{2}));
+  EXPECT_EQ(mine.decide(c), geometry::path::Order::Over);
+  EXPECT_TRUE(mine == geometry::path::CrossingRule(EverySecondStrandWins{1}));
+  EXPECT_FALSE(mine == geometry::path::CrossingRule(EverySecondStrandWins{2}));
   EXPECT_FALSE(mine == crossing::alternate());
 }
 
 TEST(ComposeCrossings, PinsComposeOntoTheBaseRule) {
   // One .crossing field: a pin layers over whatever rule is already there
   // rather than becoming a second entry.
-  CrossingRule rule = crossing::alternate();
-  rule.except(0, Order::Under).except(3, Order::Over);
-  Crossing c;
+  geometry::path::CrossingRule rule = crossing::alternate();
+  rule.except(0, geometry::path::Order::Under)
+      .except(3, geometry::path::Order::Over);
+  geometry::path::Crossing c;
   c.a = 0;
   c.b = 1;
   c.index = 0;
-  EXPECT_EQ(rule.decide(c), Order::Under) << "pinned against alternate";
+  EXPECT_EQ(rule.decide(c), geometry::path::Order::Under)
+      << "pinned against alternate";
   c.index = 1;
-  EXPECT_EQ(rule.decide(c), Order::Under) << "base rule still runs";
+  EXPECT_EQ(rule.decide(c), geometry::path::Order::Under)
+      << "base rule still runs";
   c.index = 2;
-  EXPECT_EQ(rule.decide(c), Order::Over);
+  EXPECT_EQ(rule.decide(c), geometry::path::Order::Over);
   c.index = 3;
-  EXPECT_EQ(rule.decide(c), Order::Over) << "second pin";
+  EXPECT_EQ(rule.decide(c), geometry::path::Order::Over) << "second pin";
   // Re-pinning the same index REPLACES it (one answer per crossing).
-  rule.except(0, Order::Over);
+  rule.except(0, geometry::path::Order::Over);
   c.index = 0;
-  EXPECT_EQ(rule.decide(c), Order::Over);
+  EXPECT_EQ(rule.decide(c), geometry::path::Order::Over);
   // …and a pinned rule is still a comparable value.
-  CrossingRule same = crossing::alternate();
-  same.except(0, Order::Over).except(3, Order::Over);
+  geometry::path::CrossingRule same = crossing::alternate();
+  same.except(0, geometry::path::Order::Over)
+      .except(3, geometry::path::Order::Over);
   EXPECT_TRUE(rule == same);
   EXPECT_FALSE(rule == crossing::alternate());
 }
@@ -586,13 +605,16 @@ TEST(ComposeComposites, LayersIsWeaveWithCoincidentSelfStrands) {
   const brush::Weave stacked =
       brush::layers({brush::solid(8, red()), brush::solid(3, green())});
   ASSERT_EQ(stacked.strands.size(), 2u);
-  EXPECT_EQ(stacked.strands[0].path, StrandPath(strand::self()));
-  EXPECT_EQ(stacked.strands[1].path, StrandPath(strand::self()));
+  EXPECT_EQ(stacked.strands[0].path,
+            StrandPath(geometry::path::profile::self()));
+  EXPECT_EQ(stacked.strands[1].path,
+            StrandPath(geometry::path::profile::self()));
 
-  const brush::Weave woven =
-      brush::weave({brush::Strand{strand::self(), brush::solid(8, red())},
-                    brush::Strand{strand::self(), brush::solid(3, green())}},
-                   CrossingRule{});
+  const brush::Weave woven = brush::weave(
+      {brush::Strand{geometry::path::profile::self(), brush::solid(8, red())},
+       brush::Strand{geometry::path::profile::self(),
+                     brush::solid(3, green())}},
+      geometry::path::CrossingRule{});
 
   auto draw = [](const brush::Weave& w) {
     Host host(200, 200);
@@ -613,7 +635,7 @@ TEST(ComposeComposites, WeaveRepairsTheCrossingsTheRuleDisagreesWith) {
   // Two authored strands crossing once. Under list order the second is on
   // top; alternate() says the FIRST passes over at crossing 0, so the
   // repair patch must put strand 0's colour at the meeting.
-  auto draw = [](CrossingRule rule) {
+  auto draw = [](geometry::path::CrossingRule rule) {
     Host host(200, 200);
     brush::Weave w = brush::weave(
         {brush::Strand{strand::path(diagonal({20, 20}, {180, 180})),
@@ -625,10 +647,11 @@ TEST(ComposeComposites, WeaveRepairsTheCrossingsTheRuleDisagreesWith) {
     host.frame();
     return host.pixel(100, 100);
   };
-  EXPECT_EQ(draw(CrossingRule{}), SK_ColorGREEN) << "list order: later on top";
+  EXPECT_EQ(draw(geometry::path::CrossingRule{}), SK_ColorGREEN)
+      << "list order: later on top";
   EXPECT_EQ(draw(crossing::alternate()), SK_ColorRED) << "rule flipped it";
-  CrossingRule pinned = crossing::alternate();
-  pinned.except(0, Order::Under);
+  geometry::path::CrossingRule pinned = crossing::alternate();
+  pinned.except(0, geometry::path::Order::Under);
   EXPECT_EQ(draw(pinned), SK_ColorGREEN) << "the pin overrode the rule";
 }
 
@@ -702,11 +725,11 @@ TEST(ComposeComposites, CrossingCacheFollowsTheOutlineUnderRelativeStrands) {
   // seam (addCircle starts at 3 o'clock, and a knot AT the seam is
   // rejected by the transversality walk — a discovery property, not the
   // cache's).
-  brush::Weave w =
-      brush::weave({brush::Strand{strand::self(), brush::solid(6, red())},
-                    brush::Strand{strand::path(diagonal({100, 0}, {100, 200})),
-                                  brush::solid(6, green())}},
-                   CrossingRule(EveryCrossingRedOnTop{}));
+  brush::Weave w = brush::weave(
+      {brush::Strand{geometry::path::profile::self(), brush::solid(6, red())},
+       brush::Strand{strand::path(diagonal({100, 0}, {100, 200})),
+                     brush::solid(6, green())}},
+      geometry::path::CrossingRule(EveryCrossingRedOnTop{}));
   auto ring = [](float radius) {
     return [radius](SkSize) {
       SkPathBuilder p;
@@ -848,7 +871,7 @@ TEST(ComposeComposites, ReachReportsTheMarkWhereBleedReportsNothing) {
                      stroke(9, red(), PathFormat::Align::Inner)},
        brush::Strand{strand::path(circle(240, 200, 90)),
                      stroke(9, green(), PathFormat::Align::Inner)}},
-      CrossingRule(EveryCrossingRedOnTop{}));
+      geometry::path::CrossingRule(EveryCrossingRedOnTop{}));
   host.composer.render(stack().child(box().inset(0).stroke(w)));
   host.frame();
   // Walk the red circle's stroke band through the upper crossing region.
@@ -876,7 +899,7 @@ TEST(ComposeStrands, AbsoluteOnlyLeavesTheBoundaryUnpainted) {
           .stroke(brush::weave(
               {brush::Strand{strand::path(diagonal({0, 0}, {100, 0})),
                              brush::solid(6, red())}},
-              CrossingRule{}))));
+              geometry::path::CrossingRule{}))));
   host.frame();
   EXPECT_EQ(host.pixel(90, 40), SK_ColorRED) << "the authored strand paints";
   EXPECT_EQ(host.pixel(140, 90), SK_ColorBLACK)
@@ -890,12 +913,14 @@ TEST(ComposeStrands, RelativeStrandsRideTheBandsFrame) {
   SkPathBuilder b;
   b.addRect(SkRect::MakeWH(100, 100));
   const SkPath rect = b.detach();
-  const SkPath out = profileOffset(rect, strand::offset(10));
-  const SkPath in = profileOffset(rect, strand::offset(-10));
+  const SkPath out =
+      geometry::path::profileOffset(rect, geometry::path::profile::offset(10));
+  const SkPath in =
+      geometry::path::profileOffset(rect, geometry::path::profile::offset(-10));
   EXPECT_GT(out.getBounds().width(), rect.getBounds().width());
   EXPECT_LT(in.getBounds().width(), rect.getBounds().width());
   // self() is the boundary itself.
-  EXPECT_EQ(strand::self().max(), 0.0f);
+  EXPECT_EQ(geometry::path::profile::self().max(), 0.0f);
 }
 
 TEST(ComposeStrands, BorrowedStrandsRideTheDerivePass) {
@@ -908,7 +933,7 @@ TEST(ComposeStrands, BorrowedStrandsRideTheDerivePass) {
                   .rect(SkRect::MakeXYWH(20, 20, 160, 160))
                   .stroke(brush::weave({brush::Strand{strand::from("guide"),
                                                       brush::solid(6, red())}},
-                                       CrossingRule{}))));
+                                       geometry::path::CrossingRule{}))));
   host.frame();
   host.frame();  // derive resolves against the first layout
   // The guide's own box outline, painted in the host's local space.
@@ -951,7 +976,8 @@ TEST(ComposeComposites, ClosedStrandsWrapAtTheirSeam) {
                    crossing::alternate()))));
   host.frame();
 
-  const std::vector<Crossing> knots = discoverCrossings({big, small});
+  const std::vector<geometry::path::Crossing> knots =
+      geometry::path::discoverCrossings({big, small});
   ASSERT_EQ(knots.size(), 2u) << "the two rings meet twice";
   // alternate(): ordinal 0 puts strand 0 (red) over, ordinal 1 puts strand
   // 1 (green) over. Both knots one colour is the defect.
@@ -974,9 +1000,10 @@ TEST(ComposeComposites, CompositesNest) {
       box()
           .rect(SkRect::MakeXYWH(40, 40, 100, 100))
           .stroke(brush::weave(
-              {brush::Strand{strand::self(), inner},
-               brush::Strand{strand::offset(12), brush::solid(2, blue())}},
-              CrossingRule{}))));
+              {brush::Strand{geometry::path::profile::self(), inner},
+               brush::Strand{geometry::path::profile::offset(12),
+                             brush::solid(2, blue())}},
+              geometry::path::CrossingRule{}))));
   host.frame();
   EXPECT_EQ(host.pixel(90, 40), SK_ColorGREEN) << "the nested layers' top";
   EXPECT_EQ(host.pixel(90, 28), SK_ColorBLUE) << "the offset strand, outside";
@@ -1129,7 +1156,8 @@ TEST(ComposeR1Bound, WindowIsStillSourceThatClamps) {
 TEST(ComposeR1Ribbon, ProfileRibbonPaintsItsBand) {
   Host host(200, 200);
   brush::Ribbon r;
-  r.width = Profile(strand::offset(16.0f));  // constant 16px wide
+  r.width = geometry::path::Profile(
+      geometry::path::profile::offset(16.0f));  // constant 16px wide
   r.fill = Fill::color({1, 0, 0, 1});
   host.composer.render(
       stack().child(box()
@@ -1232,7 +1260,7 @@ TEST(ComposeWidthProfile, StraightRunsAgreeWithTheLaneTheyReplaced) {
     r.fill = Fill::color({1, 0, 0, 1});
     r.step = 2.0f;
     if (profiled)
-      r.width = Profile(TaperLaw{30.0f, 10.0f});
+      r.width = geometry::path::Profile(TaperLaw{30.0f, 10.0f});
     else {
       r.widthStart = 30.0f;
       r.widthEnd = 10.0f;
@@ -1273,9 +1301,9 @@ TEST(ComposeWidthProfile, APxKeyedLawStaysPutUnderAReveal) {
     brush::Ribbon r;
     r.fill = Fill::color({1, 0, 0, 1});
     if (pxKeyed)
-      r.width = Profile(PulseAtPx{});
+      r.width = geometry::path::Profile(PulseAtPx{});
     else
-      r.width = Profile(PulseAtFraction{});
+      r.width = geometry::path::Profile(PulseAtFraction{});
     // spans::upTo is the reveal; at 1.0 the whole spine is handed over.
     Element revealed = box()
                            .rect(SkRect::MakeXYWH(0, 0, 200, 200))
@@ -1329,29 +1357,33 @@ TEST(ComposeWidthProfile, TheLastNeverPruneRibbonsCanPruneNow) {
   // identical descriptions compare equal and the node prunes.
   brush::Ribbon a;
   a.fill = Fill::color({1, 0, 0, 1});
-  a.width = Profile(PulseAtPx{});
+  a.width = geometry::path::Profile(PulseAtPx{});
   brush::Ribbon b = a;
   EXPECT_TRUE(a == b) << "identical laws must compare equal — the prune";
-  b.width = Profile(PulseAtPx{.at = 41.0f});
+  b.width = geometry::path::Profile(PulseAtPx{.at = 41.0f});
   EXPECT_FALSE(a == b) << "…and a different law must NOT, or it reads stale";
 
   // The px key is part of the value's TYPE, so two laws that differ only in
   // how they are keyed can never silently compare equal.
   brush::Ribbon c = a;
-  c.width = Profile(PulseAtFraction{});
+  c.width = geometry::path::Profile(PulseAtFraction{});
   EXPECT_FALSE(a == c);
-  EXPECT_TRUE(Profile(PulseAtPx{}).keyedInPx());
-  EXPECT_FALSE(Profile(PulseAtFraction{}).keyedInPx());
+  EXPECT_TRUE(geometry::path::Profile(PulseAtPx{}).keyedInPx());
+  EXPECT_FALSE(geometry::path::Profile(PulseAtFraction{}).keyedInPx());
 
   // max() is honoured whichever key it is: the cull grows to the law's own
   // declared reach and nothing has to be told twice.
   EXPECT_FLOAT_EQ(a.bleed(), 24.0f);
-  EXPECT_FLOAT_EQ(Profile(PulseAtPx{.tall = 90.0f}).max(), 90.0f);
+  EXPECT_FLOAT_EQ(geometry::path::Profile(PulseAtPx{.tall = 90.0f}).max(),
+                  90.0f);
   // acrossAt is the consumer's call: a px law is evaluated at along*length,
   // a fraction law ignores the length entirely.
-  EXPECT_FLOAT_EQ(Profile(PulseAtPx{}).acrossAt(0.25f, 160.0f), 24.0f);
-  EXPECT_FLOAT_EQ(Profile(PulseAtPx{}).acrossAt(0.25f, 320.0f), 4.0f);
-  EXPECT_FLOAT_EQ(Profile(PulseAtFraction{}).acrossAt(0.4f, 160.0f), 24.0f);
+  EXPECT_FLOAT_EQ(geometry::path::Profile(PulseAtPx{}).acrossAt(0.25f, 160.0f),
+                  24.0f);
+  EXPECT_FLOAT_EQ(geometry::path::Profile(PulseAtPx{}).acrossAt(0.25f, 320.0f),
+                  4.0f);
+  EXPECT_FLOAT_EQ(
+      geometry::path::Profile(PulseAtFraction{}).acrossAt(0.4f, 160.0f), 24.0f);
 
   // And the prune OBSERVED, not inferred: an identical re-describe of a
   // profiled ribbon must record NOTHING. This is the absolute form rather
@@ -1363,7 +1395,7 @@ TEST(ComposeWidthProfile, TheLastNeverPruneRibbonsCanPruneNow) {
     auto tree = [] {
       brush::Ribbon r;
       r.fill = Fill::color({1, 0, 0, 1});
-      r.width = Profile(PulseAtPx{});
+      r.width = geometry::path::Profile(PulseAtPx{});
       return box().child(box()
                              .width(120)
                              .height(120)
@@ -1377,7 +1409,8 @@ TEST(ComposeWidthProfile, TheLastNeverPruneRibbonsCanPruneNow) {
     EXPECT_EQ(host.composer.stats().picturesRecorded, 0u)
         << "an identical profiled ribbon re-recorded — the prune is not real";
   }
-  EXPECT_FLOAT_EQ(Profile(PulseAtFraction{}).acrossAt(0.4f, 999.0f), 24.0f);
+  EXPECT_FLOAT_EQ(
+      geometry::path::Profile(PulseAtFraction{}).acrossAt(0.4f, 999.0f), 24.0f);
 }
 
 namespace {
@@ -1406,9 +1439,9 @@ TEST(ComposeWidthProfile, ANonFiniteSamplePinchesInsteadOfDeletingTheBand) {
     brush::Ribbon r;
     r.fill = Fill::color({1, 0, 0, 1});
     if (poisoned)
-      r.width = Profile(NanAtMidLaw{});
+      r.width = geometry::path::Profile(NanAtMidLaw{});
     else
-      r.width = Profile(TaperLaw{20.0f, 20.0f});
+      r.width = geometry::path::Profile(TaperLaw{20.0f, 20.0f});
     host.composer.render(stack().child(straightRun(std::move(r))));
     host.frame();
     std::vector<int> t;

@@ -82,11 +82,11 @@ class GeometryOp {
   /** Any shaper VALUE, directly — `restyle(shapers::Wave{...}, dec)`. The
    *  hop through Shaper cannot be implicit (two user-defined conversions
    *  do not chain), so it is spelled here once. */
-  template <ShaperScheme S>
+  template <geometry::path::ShaperScheme S>
   GeometryOp(S scheme)  // NOLINT: implicit by design
-      : GeometryOp(Shaper(std::move(scheme))) {}
+      : GeometryOp(geometry::path::Shaper(std::move(scheme))) {}
   /** A Shaper IS a geometry op — the seam value under its taught name. */
-  GeometryOp(Shaper s);  // NOLINT: implicit by design
+  GeometryOp(geometry::path::Shaper s);  // NOLINT: implicit by design
 
   SkPath apply(const SkPath& p) const { return m_apply ? m_apply(p) : p; }
   float bleed() const { return m_bleed; }

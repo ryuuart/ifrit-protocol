@@ -17,7 +17,7 @@
 #include <sigilmaterial/skia/SkiaCompiler.h>
 
 #include <algorithm>
-#include <cmath>   // std::isfinite — the profileOffset non-finite guard
+#include <cmath>  // std::isfinite — the geometry::path::profileOffset non-finite guard
 #include <cstdio>  // std::snprintf — variationDrive's effect key
 #include <set>
 

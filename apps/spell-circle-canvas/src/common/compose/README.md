@@ -330,9 +330,13 @@ sound model; nothing below them changes kernel semantics.
 - `core/Shape.h` — the comparable seam values `Shape` (with
   `ShapeScheme`), `MotionPath`, `TextPath`, `Decoration` and its
   declared-volatility concepts, and `LayerStyle`.
-- `core/Stroke.h` — the stroke grammar: `Spans` and `spans::`, `Profile`
-  and `strand::`, `Across`, `Around`, `Formation`, `Shaper`, `StrandPath`,
-  `Crossing`, `CrossingRule` and `crossing::`.
+- `core/Stroke.h` — the stroke grammar: `Spans` and `spans::`, `Across`,
+  `Around`, `StrandPath` and `strand::`. The path arithmetic under it is
+  SigilGeometry's — the width law `geometry::path::Profile` with
+  `geometry::path::profile::self` / `offset`, the deviation
+  `geometry::path::Shaper`, the band `geometry::path::bandRegion` on a
+  `geometry::path::Formation`, and `geometry::path::CrossingRule` with
+  `geometry::path::crossing::` deciding who passes over whom.
 - `core/Mask.h` — the masking family: `Region`, `parts::`, `by::`, `Gate`,
   `Mask`.
 - `core/Layout.h` — `Dim` and its literals, `Align`, `Justify`, `Echo`,
@@ -632,9 +636,10 @@ gate value by combining spans with `|`, never across masks.
 
 One coordinate convention, stated once and obeyed everywhere: **positive
 `across` is to the LEFT of travel**, which in screen space (y down) is
-outside a clockwise path. `bandPointAt`, `Profile::across`,
-`strand::offset`, `TextPath::offset` and the `lines::` family all mean the
-same side. Relatedly, **fraction 0 on a boundary is the bottom-left
+outside a clockwise path. `bandPointAt`, `TextPath::offset`, the
+`lines::` family and every signed distance in `geometry::path` — a
+`Profile`'s `across`, `geometry::path::profile::offset`,
+`geometry::path::parallel` — all mean the same side. Relatedly, **fraction 0 on a boundary is the bottom-left
 corner**, running up the left edge — so `spans::upTo(0.25f)` on a square is
 the left edge, not the top one.
 

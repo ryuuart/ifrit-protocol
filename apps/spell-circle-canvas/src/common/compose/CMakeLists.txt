@@ -147,6 +147,7 @@ add_custom_command(
           --include ${CMAKE_CURRENT_SOURCE_DIR}/../motion/include
           --include ${CMAKE_CURRENT_SOURCE_DIR}/../core/include
           --include ${CMAKE_CURRENT_SOURCE_DIR}/../geometry/include/sigilgeometry/kit
+          --include ${CMAKE_CURRENT_SOURCE_DIR}/../geometry/include/sigilgeometry/path
           --include ${CMAKE_CURRENT_SOURCE_DIR}/../../sigilweave/include
           --out ${COMPOSE_API_DOC_PROBES}
   DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/README.md

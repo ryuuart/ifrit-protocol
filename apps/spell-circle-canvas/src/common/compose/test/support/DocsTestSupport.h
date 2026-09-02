@@ -8,6 +8,11 @@
 // The one SigilWeave header no compose header pulls in and the README
 // still names: the OpenType feature presets a style spells by name.
 #include <sigilweave/style/Features.h>
+// The blend feature's header, for the same reason from the other side:
+// nothing here calls it, but `path::blend` declares types whose SIMPLE
+// names the documents also use, and the probe's candidate set spans every
+// type of a given name.
+#include <sigilgeometry/path/blend/Blend.h>
 // …and the one SigilCore header in the same position: a derivation
 // declares what it reads in core's vocabulary, and the declaration is
 // carried on a block only the library's own translation units see.

@@ -123,8 +123,9 @@ Element profiledRibbonGrid(int count) {
             .height(40)
             .shape(geometry::shapes::circle())
             .fill(Fill::none())
-            .stroke(brush::ribbon(Profile(WaveWidth{5.0f + (float)(id % 3)}),
-                                  Fill::color({0.92f, 0.45f, 0.22f, 1.0f})))
+            .stroke(brush::ribbon(
+                geometry::path::Profile(WaveWidth{5.0f + (float)(id % 3)}),
+                Fill::color({0.92f, 0.45f, 0.22f, 1.0f})))
             .cache(Cache::None));
   }
   return root;

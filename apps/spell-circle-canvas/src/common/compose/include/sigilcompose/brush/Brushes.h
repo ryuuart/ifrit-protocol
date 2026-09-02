@@ -102,7 +102,7 @@ struct Weave {
   /** How discovered crossings resolve. Default is list order — see
    *  CrossingRule. There is ONE of these; pins go on it via
    *  `.except(i, order)`, never as stacked entries. */
-  CrossingRule crossing;
+  geometry::path::CrossingRule crossing;
   /** Override the mark half-width the repair region is built from, in px.
    *  0 (the default) asks each strand's brush — `Decoration::reach()` —
    *  which is the right answer for everything that reports one.
@@ -154,7 +154,7 @@ struct Weave {
    *  costs time and never correctness. */
   struct CrossingCache {
     std::vector<SkPath> key;  ///< the resolved paths the answer belongs to
-    std::vector<Crossing> found;
+    std::vector<geometry::path::Crossing> found;
     bool valid = false;
     int computes = 0;  ///< how many discoveries actually ran; for tests to
                        ///< observe, never read by the paint itself
@@ -206,8 +206,9 @@ struct Weave {
 Weave layers(std::vector<Decoration> stack);
 /** PER-CROSSING order: strands that may trade sides, and a rule for who
  *  passes over whom where they meet. */
-Weave weave(std::vector<Strand> strands,
-            CrossingRule rule = crossing::alternate());
+Weave weave(
+    std::vector<Strand> strands,
+    geometry::path::CrossingRule rule = geometry::path::crossing::alternate());
 
 }  // namespace brush
 
@@ -234,20 +235,20 @@ struct Brush {
    *  riding its own offset shaper — instead of three stacked elements. */
   struct Layer {
     Decoration dec;
-    std::vector<Shaper> shapers;
+    std::vector<geometry::path::Shaper> shapers;
     bool operator==(const Layer& o) const {
       return dec == o.dec && shapers == o.shapers;
     }
   };
 
-  std::vector<Shaper> pipeline;
+  std::vector<geometry::path::Shaper> pipeline;
   std::vector<Layer> layers;
 
   /** Append to the shared geometry pipeline. A `Shaper` is any comparable
    *  value with `SkPath shape(const SkPath &) const`; the stock ones
    *  (`kit::brush::shapers::wave/jitter/offset`) are peers of anything you
    *  write, which is why there is no shorthand for them here. */
-  Brush& shaped(Shaper s) {
+  Brush& shaped(geometry::path::Shaper s) {
     pipeline.push_back(std::move(s));
     return *this;
   }
@@ -258,7 +259,7 @@ struct Brush {
    *  For a raw incomparable lambda, wrap this layer's decoration in
    *  `brush::restyle(op, dec)` instead — the one mechanism door, at the
    *  cost of pruning. */
-  Brush& layer(Decoration d, std::vector<Shaper> suffix = {}) {
+  Brush& layer(Decoration d, std::vector<geometry::path::Shaper> suffix = {}) {
     layers.push_back(Layer{std::move(d), std::move(suffix)});
     return *this;
   }
@@ -274,11 +275,11 @@ struct Brush {
   /** The widest mark any layer paints, plus the pipeline's own reach. */
   float reach() const {
     float shared = 0;
-    for (const Shaper& g : pipeline) shared += g.bleed();
+    for (const geometry::path::Shaper& g : pipeline) shared += g.bleed();
     float worst = 0;
     for (const Layer& l : layers) {
       float layerReach = l.dec.reach();
-      for (const Shaper& g : l.shapers) layerReach += g.bleed();
+      for (const geometry::path::Shaper& g : l.shapers) layerReach += g.bleed();
       worst = std::max(worst, layerReach);
     }
     return shared + worst;
@@ -293,12 +294,12 @@ struct Brush {
   }
   float bleed() const {
     float shared = 0;
-    for (const Shaper& g : pipeline)
+    for (const geometry::path::Shaper& g : pipeline)
       shared += g.bleed();  // pipeline reaches compound (offset THEN wave)
     float worst = 0;
     for (const Layer& l : layers) {
       float layerReach = l.dec.bleed();
-      for (const Shaper& g : l.shapers) layerReach += g.bleed();
+      for (const geometry::path::Shaper& g : l.shapers) layerReach += g.bleed();
       worst = std::max(worst, layerReach);
     }
     return shared + worst;
@@ -607,12 +608,12 @@ struct Ribbon {
    *
    *  Default-constructed means ABSENT: the nib, then the
    *  widthStart→widthEnd taper apply. */
-  Profile width;
+  geometry::path::Profile width;
 
   /** Is the profile seam in use? (A default-constructed Profile compares
    *  equal to itself — see Profile::operator== — so this is the honest
    *  presence test, and a zero-width profile paints nothing either way.) */
-  bool hasProfile() const { return !(width == Profile{}); }
+  bool hasProfile() const { return !(width == geometry::path::Profile{}); }
 
   float bleed() const {
     if (hasProfile()) return width.max();
@@ -690,7 +691,7 @@ namespace brush {
 /** A Ribbon built on the PROFILE seam — the constructor to prefer, since
  *  the profile is the half of a ribbon that shares a vocabulary with
  *  bands and strands. */
-Ribbon ribbon(Profile width, Fill fill);
+Ribbon ribbon(geometry::path::Profile width, Fill fill);
 }  // namespace brush
 
 }  // namespace sigil::compose

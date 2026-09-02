@@ -293,7 +293,7 @@ the library root instead, in `test/support/`. Features nest by dependency — a 
 what sits above it in the tree — and each header includes what it needs,
 so including a deeper one pulls the shallower ones in.
 
-**`path`** — `SigilGeometryPath`, the leaf. Seven headers that depend on
+**`path`** — `SigilGeometryPath`, the leaf. Eleven headers that depend on
 nothing else in the library: Skia, glm, and SigilCoreCompute for the
 seeded mixers `noise::` names.
 
@@ -356,6 +356,40 @@ seeded mixers `noise::` names.
   you apply on demand: `Roughen`, `Zigzag`, `PuckerBloat`, `Twirl`.
   `PathOp` and `chain()` compose them, `offsetBy()` adapts `offset` into a
   step.
+- **`path/Shaper.h`** — `Shaper`, the COMPARABLE `SkPath -> SkPath` value,
+  over the `ShaperScheme` concept (`shape()`, equality, an optional
+  `bleed()` declaring how far the deviation reaches). It bends one
+  continuous mark — a wave, a zigzag, a jitter, an offset. Comparable is
+  the point: a consumer that caches drawings proves two frames asked for
+  the same deviation and keeps the recording it has, which `ops::PathOp`
+  cannot answer.
+- **`path/Profile.h`** — `Profile`, the comparable WIDTH LAW, over the
+  `ProfileScheme` concept (`across(along)`, `max()`, equality). `max()`
+  is what every cull and bleed is sized from; equality is required
+  because a profile is read live. `PxKeyedProfileScheme` declares
+  `alongIsPx` for a law keyed in px of arc length rather than in a
+  fraction of it — which is what keeps a calligraphic pressure law from
+  sliding along a mark as a reveal grows — and `acrossAt(along, lengthPx)`
+  is the one call that converts. `profile::self()` and
+  `profile::offset(px)` are the two presets every other profile is
+  defined against.
+- **`path/Band.h`** — `profileOffset()` walks one rail of a width law;
+  `bandRegion()` walks both and closes them per contour, on
+  `Formation::Centered`, `Outward` or `Inward`. A constant profile
+  delegates to `parallel`, so corners get the real-vertex repair rather
+  than the spur a sample-and-displace walk leaves inside every rectangle.
+- **`path/Crossings.h`** — where a set of paths cross each other and who
+  is on top there. `discoverCrossings()` finds every PROPER crossing —
+  coincident paths and endpoint touches are meetings, not crossings —
+  and numbers them along the boundary. `CrossingRule` is the comparable
+  answer: list order by default, `crossing::alternate()`,
+  `crossing::sequence()`, `crossing::pairs()` for dominance (cycles
+  legal, which is the impossible braid), your own `CrossingScheme`, and
+  `except(i, order)` pinning one knot POSITIONALLY. `crossingPatch()` is
+  the region two marks actually overlap at one knot, bounded by a
+  `maxRadius` that is required for correctness rather than a margin:
+  without it neighbouring lenses merge and one strand owns half the
+  braid.
 
 **`path/blend`** — `SigilGeometryPathBlend`, needs `path`.
 

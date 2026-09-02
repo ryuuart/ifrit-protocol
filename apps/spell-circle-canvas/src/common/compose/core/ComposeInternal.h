@@ -323,7 +323,7 @@ struct DeriveData {
   Shape bandSpine;
   std::string bandAround;
   std::optional<Across> bandWidth;
-  Formation bandFormation = Formation::Centered;
+  geometry::path::Formation bandFormation = geometry::path::Formation::Centered;
   // spans::fit(key): the keyed boxes a stroke pass sizes its gap from,
   // resolved to this node's local space per frame (the flowAround
   // pattern applied to a boundary). Declared here rather than beside the

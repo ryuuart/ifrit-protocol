@@ -1,12 +1,14 @@
 /** @file
  * The path leaf alone: polylines, contours, the pose along one, the path
- * operators, noise and the numeric routines.
+ * operators, the shaper and profile seams with the band they cut, the
+ * crossings among a set of paths, noise and the numeric routines.
  */
 
 // SigilGeometryPath — polylines, contours, noise and the numeric routines
 // under them. Links the path leaf alone: a test here that needs a mesh,
 // an importer or a material is in the wrong binary.
 #include <gtest/gtest.h>
+#include <include/core/SkMatrix.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkRect.h>
 
@@ -17,12 +19,16 @@
 #include <utility>
 #include <vector>
 
+#include "sigilgeometry/path/Band.h"
 #include "sigilgeometry/path/Contour.h"
+#include "sigilgeometry/path/Crossings.h"
 #include "sigilgeometry/path/Noise.h"
 #include "sigilgeometry/path/Numeric.h"
 #include "sigilgeometry/path/Ops.h"
 #include "sigilgeometry/path/Polyline.h"
 #include "sigilgeometry/path/Pose.h"
+#include "sigilgeometry/path/Profile.h"
+#include "sigilgeometry/path/Shaper.h"
 #include "sigilgeometry/path/Skia.h"
 
 using namespace sigil::geometry::path;
@@ -454,6 +460,215 @@ TEST(Noise, Value3IsSmoothAndBounded) {
     EXPECT_LT(std::abs(v - prev), 0.1f);  // 0.01 steps never jump
     prev = v;
   }
+}
+
+// ---------------------------------------------------------------------------
+// The shaper seam.
+
+namespace {
+struct NudgeX {
+  float dx = 0;
+  float bleed() const { return std::abs(dx); }
+  SkPath shape(const SkPath& p) const {
+    return p.makeTransform(SkMatrix::Translate(dx, 0));
+  }
+  bool operator==(const NudgeX&) const = default;
+};
+struct Identity {
+  SkPath shape(const SkPath& p) const { return p; }
+  bool operator==(const Identity&) const = default;
+};
+}  // namespace
+
+TEST(Shaper, ComparesByTheHeldSchemeAndItsParameters) {
+  EXPECT_TRUE(Shaper(NudgeX{3}) == Shaper(NudgeX{3}));
+  EXPECT_FALSE(Shaper(NudgeX{3}) == Shaper(NudgeX{4}));
+  // Two different schemes are never equal, whatever they do.
+  EXPECT_FALSE(Shaper(NudgeX{0}) == Shaper(Identity{}));
+  // The empty shaper is reflexive, or every holder patches forever.
+  EXPECT_TRUE(Shaper() == Shaper());
+  EXPECT_FALSE(Shaper() == Shaper(Identity{}));
+}
+
+TEST(Shaper, BleedIsReadOffTheSchemeAndIsZeroWhenNotDeclared) {
+  EXPECT_FLOAT_EQ(Shaper(NudgeX{-5}).bleed(), 5.0f);
+  EXPECT_FLOAT_EQ(Shaper(Identity{}).bleed(), 0.0f);
+  // An empty shaper passes its path through untouched.
+  SkPathBuilder b;
+  b.addRect(SkRect::MakeWH(10, 10));
+  const SkPath src = b.detach();
+  EXPECT_EQ(Shaper().shape(src), src);
+  EXPECT_EQ(Shaper(NudgeX{2}).shape(src).getBounds().left(), 2.0f);
+}
+
+// ---------------------------------------------------------------------------
+// The profile seam.
+
+namespace {
+struct Taper {
+  float peak = 10;
+  float across(float along) const { return peak * (1.0f - along); }
+  float max() const { return peak; }
+  bool operator==(const Taper&) const = default;
+};
+struct PxTaper {
+  static constexpr bool alongIsPx = true;
+  float across(float alongPx) const { return alongPx * 0.1f; }
+  float max() const { return 100.0f; }
+  bool operator==(const PxTaper&) const = default;
+};
+}  // namespace
+
+TEST(Profile, TheTwoPresetsAreTheLawsEveryOtherIsDefinedAgainst) {
+  EXPECT_FLOAT_EQ(profile::self().across(0.5f), 0.0f);
+  EXPECT_FLOAT_EQ(profile::self().max(), 0.0f);
+  EXPECT_FLOAT_EQ(profile::offset(-7.0f).across(0.5f), -7.0f);
+  // max() is a REACH, so it is the magnitude — cull is sized from it.
+  EXPECT_FLOAT_EQ(profile::offset(-7.0f).max(), 7.0f);
+  EXPECT_TRUE(profile::offset(4) == profile::offset(4));
+  EXPECT_FALSE(profile::offset(4) == profile::offset(5));
+  EXPECT_FALSE(profile::offset(0) == profile::self());
+  EXPECT_TRUE(Profile() == Profile());
+  EXPECT_FALSE(Profile() == profile::self());
+}
+
+TEST(Profile, APxKeyedLawIsConvertedOnceByTheSeam) {
+  const Profile fraction = Taper{10};
+  const Profile px = PxTaper{};
+  EXPECT_FALSE(fraction.keyedInPx());
+  EXPECT_TRUE(px.keyedInPx());
+  // acrossAt is the one call a measured consumer makes: a fraction-keyed
+  // law ignores the length, a px-keyed one is handed along * length.
+  EXPECT_FLOAT_EQ(fraction.acrossAt(0.25f, 200.0f), 7.5f);
+  EXPECT_FLOAT_EQ(px.acrossAt(0.25f, 200.0f), 5.0f);
+}
+
+// ---------------------------------------------------------------------------
+// The band a width law cuts.
+
+TEST(Band, AConstantProfileRidesParallelsCornerRepair) {
+  SkPathBuilder b;
+  b.addRect(SkRect::MakeXYWH(0, 0, 100, 60));
+  const SkPath spine = b.detach();
+  // Positive across is LEFT of travel, which on Skia's clockwise rect is
+  // outside it: the rail's bounds grow by the offset on every side.
+  const SkPath out = profileOffset(spine, profile::offset(6.0f));
+  EXPECT_FALSE(out.isEmpty());
+  EXPECT_LE(out.getBounds().left(), -5.0f);
+  EXPECT_GE(out.getBounds().right(), 105.0f);
+  // A zero profile is the boundary itself, handed back untouched.
+  EXPECT_EQ(profileOffset(spine, profile::self()), spine);
+}
+
+TEST(Band, TheRegionIsBoundedByTheWidthAndEmptyWithoutOne) {
+  SkPathBuilder b;
+  b.moveTo(0, 50);
+  b.lineTo(200, 50);
+  const SkPath spine = b.detach();
+  const SkPath centred = bandRegion(spine, profile::offset(20.0f));
+  ASSERT_FALSE(centred.isEmpty());
+  // Centred: half the width each side of the spine.
+  EXPECT_NEAR(centred.getBounds().top(), 40.0f, 1.0f);
+  EXPECT_NEAR(centred.getBounds().bottom(), 60.0f, 1.0f);
+  // Outward puts the whole width on one side.
+  const SkPath outward =
+      bandRegion(spine, profile::offset(20.0f), Formation::Outward);
+  ASSERT_FALSE(outward.isEmpty());
+  EXPECT_NEAR(outward.getBounds().height(), 20.0f, 1.0f);
+  // A profile that is zero everywhere sweeps nothing.
+  EXPECT_TRUE(bandRegion(spine, profile::self()).isEmpty());
+}
+
+// ---------------------------------------------------------------------------
+// Crossings.
+
+namespace {
+SkPath segment(float x0, float y0, float x1, float y1) {
+  SkPathBuilder b;
+  b.moveTo(x0, y0);
+  b.lineTo(x1, y1);
+  return b.detach();
+}
+}  // namespace
+
+TEST(Crossings, OnlyProperCrossingsAreReported) {
+  // An X: one crossing, at the middle of both strands.
+  const std::vector<SkPath> x{segment(0, 0, 100, 100), segment(0, 100, 100, 0)};
+  const std::vector<Crossing> found = discoverCrossings(x);
+  ASSERT_EQ(found.size(), 1u);
+  EXPECT_EQ(found[0].a, 0u);
+  EXPECT_EQ(found[0].b, 1u);
+  EXPECT_NEAR(found[0].at.fX, 50.0f, 1.0f);
+  EXPECT_NEAR(found[0].alongA, 0.5f, 0.02f);
+
+  // A shared endpoint is a MEETING, not a crossing — otherwise every
+  // polygon corner would be a knot.
+  EXPECT_TRUE(
+      discoverCrossings({segment(0, 0, 50, 50), segment(50, 50, 100, 0)})
+          .empty());
+  // Coincident strands never cross: that is what a stack of layers is.
+  EXPECT_TRUE(discoverCrossings({segment(0, 0, 100, 0), segment(0, 0, 100, 0)})
+                  .empty());
+  // Fewer than two strands cannot cross.
+  EXPECT_TRUE(discoverCrossings({segment(0, 0, 100, 100)}).empty());
+}
+
+TEST(Crossings, TheyAreNumberedAlongTheLowerIndexedStrand) {
+  const std::vector<SkPath> ladder{segment(0, 50, 300, 50),
+                                   segment(200, 0, 200, 100),
+                                   segment(100, 0, 100, 100)};
+  const std::vector<Crossing> found = discoverCrossings(ladder);
+  ASSERT_EQ(found.size(), 2u);
+  // Sorted by position on strand 0, then numbered — so the crossing at
+  // x = 100 is index 0 even though its strand was added last.
+  EXPECT_EQ(found[0].index, 0u);
+  EXPECT_NEAR(found[0].at.fX, 100.0f, 1.0f);
+  EXPECT_EQ(found[1].index, 1u);
+  EXPECT_NEAR(found[1].at.fX, 200.0f, 1.0f);
+}
+
+TEST(CrossingRuleDecides, ListOrderAlternateSequencePairsAndPins) {
+  const auto knot = [](size_t index, size_t a, size_t b) {
+    Crossing c;
+    c.index = index;
+    c.a = a;
+    c.b = b;
+    return c;
+  };
+  // The default: `b` is later in the list, so `a` passes under.
+  EXPECT_EQ(CrossingRule().decide(knot(0, 0, 1)), Order::Under);
+  // alternate() IS sequence({Over, Under}) — two names, one machine.
+  EXPECT_TRUE(crossing::alternate() ==
+              crossing::sequence({Order::Over, Order::Under}));
+  EXPECT_EQ(crossing::alternate().decide(knot(0, 0, 1)), Order::Over);
+  EXPECT_EQ(crossing::alternate().decide(knot(1, 0, 1)), Order::Under);
+  // Dominance, cycles legal — the impossible braid.
+  const CrossingRule cyclic = crossing::pairs({{0, 1}, {1, 2}, {2, 0}});
+  EXPECT_EQ(cyclic.decide(knot(0, 0, 1)), Order::Over);
+  EXPECT_EQ(cyclic.decide(knot(0, 1, 2)), Order::Over);
+  EXPECT_EQ(cyclic.decide(knot(0, 0, 2)), Order::Under);
+  // A pin beats the rule beneath it, and re-pinning replaces rather than
+  // stacks — there is one `.crossing` field and this is how it takes
+  // exceptions.
+  CrossingRule pinned = crossing::alternate();
+  pinned.except(0, Order::Under).except(0, Order::Over);
+  EXPECT_EQ(pinned.decide(knot(0, 0, 1)), Order::Over);
+  EXPECT_FALSE(pinned == crossing::alternate());
+}
+
+TEST(CrossingPatch, TheLensIsBoundedByTheKnotsOwnTerritory) {
+  const SkPath a = segment(0, 50, 200, 50);
+  const SkPath b = segment(100, 0, 100, 100);
+  const SkPath lens = crossingPatch(a, 8.0f, b, 8.0f, {100, 50}, 20.0f);
+  ASSERT_FALSE(lens.isEmpty());
+  EXPECT_TRUE(lens.getBounds().contains(SkRect::MakeLTRB(99, 49, 101, 51)));
+  EXPECT_LE(lens.getBounds().width(), 41.0f);
+  // Non-overlapping input still answers: a disc at the point, inside the
+  // radius the caller allowed.
+  const SkPath far =
+      crossingPatch(a, 1.0f, segment(0, 900, 10, 900), 1.0f, {5, 900}, 6.0f);
+  EXPECT_FALSE(far.isEmpty());
+  EXPECT_LE(far.getBounds().width(), 13.0f);
 }
 
 }  // namespace

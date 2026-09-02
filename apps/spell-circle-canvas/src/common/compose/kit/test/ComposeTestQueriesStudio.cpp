@@ -34,18 +34,18 @@ TEST(ComposeBrushes, ARibbonsReachIsDERIVEDFromItsProfile) {
   EXPECT_FLOAT_EQ(plain.bleed(), 12.0f);
 
   brush::Ribbon flow = plain;
-  flow.width = Profile(FlowLaw{});
+  flow.width = geometry::path::Profile(FlowLaw{});
   EXPECT_FLOAT_EQ(flow.bleed(), 166.0f)
       << "the profile knows its own reach; nobody had to declare it";
 
   // A profile is not optional-with-a-fallback: once set it OWNS the reach,
   // so the fixed widths underneath it never inflate the cull either.
-  flow.width = Profile(FlowLaw{2.0f, 2.0f});
+  flow.width = geometry::path::Profile(FlowLaw{2.0f, 2.0f});
   EXPECT_FLOAT_EQ(flow.bleed(), 2.0f);
 
   // And it participates in equality, so changing the law repatches.
   brush::Ribbon a = plain, b = plain;
-  b.width = Profile(FlowLaw{});
+  b.width = geometry::path::Profile(FlowLaw{});
   EXPECT_FALSE(a == b);
 }
 

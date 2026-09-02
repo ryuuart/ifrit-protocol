@@ -16,7 +16,7 @@
 #include <include/pathops/SkPathOps.h>
 
 #include <algorithm>
-#include <cmath>   // std::isfinite — the profileOffset non-finite guard
+#include <cmath>  // std::isfinite — the geometry::path::profileOffset non-finite guard
 #include <cstdio>  // std::snprintf — variationDrive's effect key
 #include <set>
 
@@ -194,15 +194,17 @@ Element& Element::shape(Shape path) {
   return *this;
 }
 Element& Element::centered() {
-  m_node->deriveData.ensure().bandFormation = Formation::Centered;
+  m_node->deriveData.ensure().bandFormation =
+      geometry::path::Formation::Centered;
   return *this;
 }
 Element& Element::outward() {
-  m_node->deriveData.ensure().bandFormation = Formation::Outward;
+  m_node->deriveData.ensure().bandFormation =
+      geometry::path::Formation::Outward;
   return *this;
 }
 Element& Element::inward() {
-  m_node->deriveData.ensure().bandFormation = Formation::Inward;
+  m_node->deriveData.ensure().bandFormation = geometry::path::Formation::Inward;
   return *this;
 }
 Element& Element::clip(bool on) {

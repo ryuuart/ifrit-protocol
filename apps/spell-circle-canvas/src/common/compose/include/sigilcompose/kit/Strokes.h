@@ -136,8 +136,8 @@ struct Jitter {
  *
  *  **Positive is LEFT of travel.** That is the library-wide sign
  *  convention for an across-the-path offset, and it agrees exactly with
- *  `strand::offset(px)`; anything added here must match it, because a
- *  disagreement mirrors a drawing rather than erroring. */
+ *  `geometry::path::profile::offset(px)`; anything added here must match it,
+ * because a disagreement mirrors a drawing rather than erroring. */
 struct Offset {
   float px = 0.0f;
   float step = 4.0f;
@@ -233,15 +233,17 @@ inline Offset offset(float px, float step = 4.0f) { return Offset{px, step}; }
 
 namespace profile {
 /** The wave as a PROFILE value (`across`/`max`): a strand that trades
- *  sides. The library itself ships only `strand::self()` and
- *  `strand::offset()`; everything that oscillates lives here.
+ *  sides. The library itself ships only `geometry::path::profile::self()` and
+ *  `geometry::path::profile::offset()`; everything that oscillates lives here.
  *
  *  ZERO-MEAN, so this is a strand CENTRELINE and not a band width — as a
  *  width it goes negative half the time and inverts the band's rails. See
  *  `brush::shapers::Wave` for the composition an undulating band wants
  *  instead. */
-inline Profile wave(float amplitude, float wavelength, float phase = 0.0f) {
-  return Profile(brush::shapers::Wave{amplitude, wavelength, phase});
+inline geometry::path::Profile wave(float amplitude, float wavelength,
+                                    float phase = 0.0f) {
+  return geometry::path::Profile(
+      brush::shapers::Wave{amplitude, wavelength, phase});
 }
 }  // namespace profile
 

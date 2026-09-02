@@ -12,7 +12,8 @@ TEST(ComposeR3Brush, TheFoldIsOneNamespaceAndOneNamePerKind) {
   const brush::Ribbon taught = brush::taper(10, 2, red());
   EXPECT_FLOAT_EQ(taught.widthStart, 10.0f);
   // The taught constructor is the PROFILE one.
-  const brush::Ribbon profiled = brush::ribbon(strand::offset(9.0f), red());
+  const brush::Ribbon profiled =
+      brush::ribbon(geometry::path::profile::offset(9.0f), red());
   EXPECT_TRUE(profiled.hasProfile());
   EXPECT_FLOAT_EQ(profiled.bleed(), 9.0f);
   // The kinds are values under the taught spelling, nothing else.
