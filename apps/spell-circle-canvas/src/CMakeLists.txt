@@ -17,6 +17,12 @@
 #                libraries, tests, benchmarks, and examples/ (gallery, demo)
 #   spellcircle/ the SpellCircle receiver product: shared/ core embedded by
 #                both the qt/ and mac/ executables
+# Test support belonging to no library: a scratch directory on disk is
+# the standard library and nothing else, and every library's tests want
+# the same one. A test target that includes it adds this directory and
+# spells "ScratchDir.h".
+set(SIGIL_TEST_SUPPORT_DIR ${CMAKE_CURRENT_LIST_DIR}/test)
+
 # Core first: its hardware feature is the device every drawing library
 # below stands on.
 add_subdirectory(common/core)
