@@ -52,17 +52,25 @@ struct Node {
 // vastly overflows its flow costs what *fits*, not its total length —
 // otherwise every relayout of a huge paragraph in a small box would break
 // thousands of lines only for placement to discard them.
-ParagraphLayout knuthPlassLayout(FontContext& fontContext, Paragraph& paragraph,
-                                 IntervalSequence& intervalSequence,
-                                 const ParagraphLayoutOptions& options) {
-  ParagraphLayout result;
+void knuthPlassBlock(FontContext& fontContext, Paragraph& paragraph,
+                     IntervalSequence& intervalSequence, const Block& block,
+                     size_t firstInterval, ParagraphLayout& result,
+                     size_t& lastIntervalUsed, uint32_t& overflowWord) {
+  const ParagraphLayoutOptions& options = block.options;
   const std::vector<Word>& words = paragraph.words();
-  const uint32_t wordCount = static_cast<uint32_t>(words.size());
-  if (wordCount == 0) return result;
-  if (!intervalSequence.intervalAt(0)) {
-    result.firstUnplacedWord = 0;
-    return result;
+  const uint32_t base = block.firstWord;
+  const uint32_t wordCount = block.endWord;
+  lastIntervalUsed = SIZE_MAX;
+  if (base >= wordCount) return;
+  if (!intervalSequence.intervalAt(firstInterval)) {
+    overflowWord = base;
+    return;
   }
+  // BALANCED RAGGED LINES are the same optimization with one freedom
+  // withdrawn: the last line of a block is scored like every other rather
+  // than absorbing whatever slack is left, so the breaker has to spread the
+  // words instead of dumping the remainder on the final line.
+  const bool balance = block.style.balanceRaggedLines;
 
   // Prefix sums: content width, and glue width/stretch/shrink per gap
   // (gap i sits after word i; the last word's "gap" is never on a line).
@@ -79,10 +87,15 @@ ParagraphLayout knuthPlassLayout(FontContext& fontContext, Paragraph& paragraph,
   prefixShrink.assign(1, 0);
   tabGapIndices.clear();
   const bool tabAware = tabStopsActive(options);
+  // Every prefix array is indexed from the block's first word, so a block
+  // in the middle of a text costs what IT holds and not what precedes it.
+  const auto atWord = [&](uint32_t wordIndex) { return wordIndex - base; };
   auto ensurePrefixSums = [&](uint32_t endWordIndex) {
-    for (uint32_t wordIndex = static_cast<uint32_t>(prefixWidth.size()) - 1;
+    for (uint32_t wordIndex =
+             base + static_cast<uint32_t>(prefixWidth.size()) - 1;
          wordIndex < endWordIndex; ++wordIndex) {
-      prefixWidth.push_back(prefixWidth[wordIndex] + words[wordIndex].width);
+      prefixWidth.push_back(prefixWidth[atWord(wordIndex)] +
+                            words[wordIndex].width);
       float glue = 0;
       float stretch = 0;
       float shrink = 0;
@@ -91,7 +104,7 @@ ParagraphLayout knuthPlassLayout(FontContext& fontContext, Paragraph& paragraph,
         // width they'll actually take is resolved in lineNatural.
         tabGapIndices.push_back(wordIndex);
       } else if (words[wordIndex].spaceWidth > 0) {
-        glue = words[wordIndex].spaceWidth;
+        glue = words[wordIndex].spaceWidth * options.justification.wordSpacing;
         stretch = glue * options.justification.spaceStretch;
         shrink = glue * options.justification.spaceShrink;
       } else if (options.justification.expandIdeographicGaps &&
@@ -105,9 +118,9 @@ ParagraphLayout knuthPlassLayout(FontContext& fontContext, Paragraph& paragraph,
         stretch = fontSize * 0.25f;
         shrink = fontSize * 0.03f;
       }
-      prefixGlue.push_back(prefixGlue[wordIndex] + glue);
-      prefixStretch.push_back(prefixStretch[wordIndex] + stretch);
-      prefixShrink.push_back(prefixShrink[wordIndex] + shrink);
+      prefixGlue.push_back(prefixGlue[atWord(wordIndex)] + glue);
+      prefixStretch.push_back(prefixStretch[atWord(wordIndex)] + stretch);
+      prefixShrink.push_back(prefixShrink[atWord(wordIndex)] + shrink);
     }
   };
 
@@ -133,15 +146,16 @@ ParagraphLayout knuthPlassLayout(FontContext& fontContext, Paragraph& paragraph,
   // at their call site instead (nesting them here measurably de-inlined
   // the lot and cost ~10% on tab-free Knuth-Plass layouts).
   auto lineNatural = [&](uint32_t lineStart, uint32_t lineEnd) {
-    return (prefixWidth[lineEnd] - prefixWidth[lineStart]) +
-           (prefixGlue[lineEnd - 1] - prefixGlue[lineStart]) +
+    return (prefixWidth[atWord(lineEnd)] - prefixWidth[atWord(lineStart)]) +
+           (prefixGlue[atWord(lineEnd - 1)] - prefixGlue[atWord(lineStart)]) +
            hyphenWidthAt(lineEnd);
   };
   auto lineStretch = [&](uint32_t lineStart, uint32_t lineEnd) {
-    return prefixStretch[lineEnd - 1] - prefixStretch[lineStart];
+    return prefixStretch[atWord(lineEnd - 1)] -
+           prefixStretch[atWord(lineStart)];
   };
   auto lineShrink = [&](uint32_t lineStart, uint32_t lineEnd) {
-    return prefixShrink[lineEnd - 1] - prefixShrink[lineStart];
+    return prefixShrink[atWord(lineEnd - 1)] - prefixShrink[atWord(lineStart)];
   };
   // Natural width of a line that contains tab gaps: tab-separated segments
   // accumulate from the prefix sums (tab gaps contributed zero there); each
@@ -153,13 +167,16 @@ ParagraphLayout knuthPlassLayout(FontContext& fontContext, Paragraph& paragraph,
     float pen = 0;
     uint32_t segmentStart = lineStart;
     for (const uint32_t tabIndex : tabs) {
-      pen += (prefixWidth[tabIndex + 1] - prefixWidth[segmentStart]) +
-             (prefixGlue[tabIndex] - prefixGlue[segmentStart]);
+      pen += (prefixWidth[atWord(tabIndex + 1)] -
+              prefixWidth[atWord(segmentStart)]) +
+             (prefixGlue[atWord(tabIndex)] - prefixGlue[atWord(segmentStart)]);
       pen += glueAfter(words[tabIndex], pen, options);
       segmentStart = tabIndex + 1;
     }
-    return pen + (prefixWidth[lineEnd] - prefixWidth[segmentStart]) +
-           (prefixGlue[lineEnd - 1] - prefixGlue[segmentStart]) +
+    return pen +
+           (prefixWidth[atWord(lineEnd)] - prefixWidth[atWord(segmentStart)]) +
+           (prefixGlue[atWord(lineEnd - 1)] -
+            prefixGlue[atWord(segmentStart)]) +
            hyphenWidthAt(lineEnd);
   };
 
@@ -188,7 +205,7 @@ ParagraphLayout knuthPlassLayout(FontContext& fontContext, Paragraph& paragraph,
     forcedOverfull = false;
     firstUnplacedWord = ~0u;
     arena.clear();
-    arena.push_back({0, 0, 0, -1});
+    arena.push_back({base, static_cast<uint32_t>(firstInterval), 0, -1});
     active = {0};
 
     // The path that placed the most text before running out of geometry —
@@ -201,13 +218,14 @@ ParagraphLayout knuthPlassLayout(FontContext& fontContext, Paragraph& paragraph,
         bestEnd = nodeIndex;
     };
 
-    for (uint32_t breakIndex = 1; breakIndex <= wordCount && !active.empty();
-         ++breakIndex) {
+    for (uint32_t breakIndex = base + 1;
+         breakIndex <= wordCount && !active.empty(); ++breakIndex) {
       // Shape only as the dynamic-programming frontier advances.
       paragraph.ensureShapedTo(fontContext, breakIndex);
       ensurePrefixSums(breakIndex);
-      const bool forcedBreak =
-          breakIndex == wordCount || words[breakIndex - 1].mandatoryBreakAfter;
+      // Within a block the only forced break is its end: a mandatory break
+      // is what ends a block, so there is never one inside.
+      const bool forcedBreak = breakIndex == wordCount;
 
       nextActive.clear();
       newNodes.clear();
@@ -238,10 +256,10 @@ ParagraphLayout knuthPlassLayout(FontContext& fontContext, Paragraph& paragraph,
               tabGapsInLine(lineStart, breakIndex);
           if (!tabs.empty()) {
             natural = tabResolvedNatural(lineStart, breakIndex, tabs);
-            stretch =
-                prefixStretch[breakIndex - 1] - prefixStretch[tabs.back() + 1];
-            shrink =
-                prefixShrink[breakIndex - 1] - prefixShrink[tabs.back() + 1];
+            stretch = prefixStretch[atWord(breakIndex - 1)] -
+                      prefixStretch[atWord(tabs.back() + 1)];
+            shrink = prefixShrink[atWord(breakIndex - 1)] -
+                     prefixShrink[atWord(tabs.back() + 1)];
           }
         }
         stretch += useEmergencyStretch ? measure : 0.0f;
@@ -249,7 +267,7 @@ ParagraphLayout knuthPlassLayout(FontContext& fontContext, Paragraph& paragraph,
         float ratio;
         // The final arm repeats this one; the order of the tests is the point.
         // NOLINTNEXTLINE(bugprone-branch-clone)
-        if (forcedBreak && natural <= measure) {
+        if (forcedBreak && !balance && natural <= measure) {
           // Paragraph-final (and hard-break-final) lines end wherever they
           // end — TeX's \parfillskip absorbs the slack for free. Without
           // this, a stretch-free underfull last line scores kMaxBadness and
@@ -394,39 +412,55 @@ ParagraphLayout knuthPlassLayout(FontContext& fontContext, Paragraph& paragraph,
     }
   }
   if (best < 0) {
-    result.firstUnplacedWord = 0;
-    return result;
+    overflowWord = base;
+    return;
   }
-  if (firstUnplacedWord != ~0u) result.firstUnplacedWord = firstUnplacedWord;
+  if (firstUnplacedWord != ~0u) overflowWord = firstUnplacedWord;
 
-  std::vector<uint32_t> breaks;  // ascending word indices, ending at wordCount
+  // The chain, oldest first: each entry is where a line ends and which
+  // interval the line before it occupied.
+  std::vector<std::pair<uint32_t, uint32_t>> breaks;
   for (int32_t nodeIndex = best; nodeIndex > 0;
        nodeIndex = arena[nodeIndex].previousNode)
-    breaks.push_back(arena[nodeIndex].breakAt);
+    breaks.emplace_back(arena[nodeIndex].breakAt,
+                        arena[arena[nodeIndex].previousNode].interval);
   std::reverse(breaks.begin(), breaks.end());
 
   // ── Placement ─────────────────────────────────────────────────────────
-  uint32_t firstWordIndex = 0;
-  int lastLineUsed = -1;
+  uint32_t firstWordIndex = base;
+  int consecutiveHyphens = 0;
   for (size_t lineIndex = 0; lineIndex < breaks.size(); ++lineIndex) {
-    const uint32_t lastWordIndex = breaks[lineIndex];
-    const FlatInterval* flatInterval = intervalSequence.intervalAt(lineIndex);
+    const uint32_t lastWordIndex = breaks[lineIndex].first;
+    const size_t intervalIndex = breaks[lineIndex].second;
+    const FlatInterval* flatInterval =
+        intervalSequence.intervalAt(intervalIndex);
     if (!flatInterval) {
-      result.firstUnplacedWord =
-          std::min(result.firstUnplacedWord, firstWordIndex);
+      overflowWord = std::min(overflowWord, firstWordIndex);
       break;
     }
-    const bool lastLine = lineIndex + 1 == breaks.size() ||
-                          words[lastWordIndex - 1].mandatoryBreakAfter;
-    placeWords(words, firstWordIndex, lastWordIndex, *flatInterval,
-               options.alignment, lastLine,
-               hyphenTakenAt(words, lastWordIndex, lastLine, options), options,
-               result);
-    lastLineUsed = std::max(lastLineUsed, flatInterval->sourceLineIndex);
+    const bool lastLine = lineIndex + 1 == breaks.size();
+    bool hyphenated = hyphenTakenAt(words, lastWordIndex, lastLine, options);
+    if (hyphenated) {
+      if (!options.hyphenation.lastWordOfBlock && lastWordIndex + 1 >= wordCount)
+        hyphenated = false;
+      else if (options.hyphenation.consecutiveLimit > 0 &&
+               consecutiveHyphens >= options.hyphenation.consecutiveLimit)
+        hyphenated = false;
+    }
+    consecutiveHyphens = hyphenated ? consecutiveHyphens + 1 : 0;
+    FlatInterval placed = *flatInterval;
+    if (lastLine && block.style.indent.lastLine != 0 &&
+        !placed.interval.contour.valid()) {
+      const float indent = block.style.indent.lastLine;
+      placed.interval.origin += SkVector{placed.interval.direction.x() * indent,
+                                         placed.interval.direction.y() * indent};
+      placed.interval.length = std::max(0.0f, placed.interval.length - indent);
+    }
+    placeWords(fontContext, paragraph, firstWordIndex, lastWordIndex, placed,
+               options.alignment, lastLine, hyphenated, options, result);
+    lastIntervalUsed = intervalIndex;
     firstWordIndex = lastWordIndex;
   }
-  result.lineCount = lastLineUsed + 1;
-  return result;
 }
 
 }  // namespace detail

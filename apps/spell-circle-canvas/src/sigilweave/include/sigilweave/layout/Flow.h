@@ -114,6 +114,30 @@ struct LineInterval {
                SkVector* tangent) const;
 };
 
+/// ONE BAND ASKED OF A GEOMETRY, and everything about it the band's number
+/// alone does not say.
+///
+/// `bandStart` is the whole of why this is a value rather than three
+/// arguments. Bands used to stack at `index · lineHeight`, which is true
+/// only while every line of a passage is the same height; a text whose
+/// blocks lead differently, or which puts air between them, stacks its
+/// bands at distances the LAYOUT accumulates and a geometry could not work
+/// out from a line number. So the layout carries that cursor and the
+/// geometry answers what is available in the band that starts there.
+///
+/// The block context is for a geometry that wants it — a frame grid, a
+/// well cut for one block, a drop cap's notch. A geometry that does not
+/// care ignores it, which is every geometry below.
+struct LineRequest {
+  int index = 0;         ///< 0-based band ordinal, ascending without gaps
+  float bandStart = 0;   ///< the band's near edge, along the stacking axis,
+                         ///< from the flow's own start edge
+  float lineHeight = 0;  ///< the band's thickness across that axis
+  float ascent = 0;      ///< the baseline's offset below the near edge
+  int blockIndex = 0;    ///< which block of the text is being set here
+  int lineInBlock = 0;   ///< the band's 0-based place inside that block
+};
+
 /// Supplies the intervals available to each successive line. Implementations
 /// are queried per layout pass (they may depend on animated state like
 /// moving exclusion shapes); the layout never caches geometry between
@@ -122,14 +146,24 @@ class FlowGeometry {
  public:
   virtual ~FlowGeometry() = default;
 
-  /** Returns the intervals for line `index` (0-based), given the line's
-   * height and the baseline's offset below the line top. Returns false when
-   * the geometry is exhausted (no line `index` exists); an empty
-   * `intervals` with a true return means "this line has no room, try the
+  /** Returns the intervals available in `request`'s band. Returns false when
+   * the geometry is exhausted (the band lies past its end); an empty
+   * `intervals` with a true return means "this band has no room, try the
    * next one".
    */
-  virtual bool lineIntervals(int index, float lineHeight, float ascent,
+  virtual bool lineIntervals(const LineRequest& request,
                              std::vector<LineInterval>& intervals) = 0;
+
+  /** Sugar for a caller with no block model: bands stacked at
+   * `index · lineHeight`, which is where a passage of one pitch puts them.
+   */
+  bool lineIntervals(int index, float lineHeight, float ascent,
+                     std::vector<LineInterval>& intervals) {
+    return lineIntervals(LineRequest{index,
+                                     static_cast<float>(index) * lineHeight,
+                                     lineHeight, ascent, 0, index},
+                         intervals);
+  }
 
   /** Returns true when every line yields one interval of the same width
    * (TeX's model — BlockFlow and friends). Knuth-Plass uses this to merge
@@ -145,8 +179,9 @@ class BlockFlow : public FlowGeometry {
  public:
   /** Creates horizontal line bands inside `bounds`. */
   explicit BlockFlow(const SkRect& bounds) : m_bounds(bounds) {}
+  using FlowGeometry::lineIntervals;
   /** Returns the interval for a horizontal line band when it fits. */
-  bool lineIntervals(int index, float lineHeight, float ascent,
+  bool lineIntervals(const LineRequest& request,
                      std::vector<LineInterval>& intervals) override;
   /** Reports that every produced interval has the block width. */
   bool uniformIntervals() const override { return true; }
@@ -226,8 +261,9 @@ class ExclusionFlow : public FlowGeometry {
     m_minIntervalWidth = minimumWidth;
   }
 
+  using FlowGeometry::lineIntervals;
   /** Produces the remaining intervals of one line band or column. */
-  bool lineIntervals(int index, float lineHeight, float ascent,
+  bool lineIntervals(const LineRequest& request,
                      std::vector<LineInterval>& intervals) override;
 
  private:
@@ -252,8 +288,9 @@ class VerticalBlockFlow : public FlowGeometry {
  public:
   /** Creates top-to-bottom columns advancing right-to-left in `bounds`. */
   explicit VerticalBlockFlow(const SkRect& bounds) : m_bounds(bounds) {}
+  using FlowGeometry::lineIntervals;
   /** Returns the interval for one vertical column when it fits. */
-  bool lineIntervals(int index, float lineHeight, float ascent,
+  bool lineIntervals(const LineRequest& request,
                      std::vector<LineInterval>& intervals) override;
   /** Reports that every produced column has the block height. */
   bool uniformIntervals() const override { return true; }
@@ -277,8 +314,9 @@ class LineSetFlow : public FlowGeometry {
   /** Returns the mutable explicit line collection. */
   std::vector<std::vector<LineInterval>>& lines() { return m_lines; }
 
+  using FlowGeometry::lineIntervals;
   /** Copies the requested explicit line into `intervals`. */
-  bool lineIntervals(int index, float lineHeight, float ascent,
+  bool lineIntervals(const LineRequest& request,
                      std::vector<LineInterval>& intervals) override;
 
  private:
@@ -293,8 +331,9 @@ class PathFlow : public FlowGeometry {
   /** Appends every contour of another path as additional lines. */
   void addPath(const SkPath& path);
 
-  /** Returns the measured contour interval at `index`. */
-  bool lineIntervals(int index, float lineHeight, float ascent,
+  using FlowGeometry::lineIntervals;
+  /** Returns the measured contour interval at `request.index`. */
+  bool lineIntervals(const LineRequest& request,
                      std::vector<LineInterval>& intervals) override;
 
  private:

@@ -11,6 +11,7 @@
 
 #include "sigilweave/kit/CachedValue.h"
 #include "sigilweave/kit/GlyphBuckets.h"
+#include "sigilweave/kit/Hyphenation.h"
 #include "sigilweave/kit/Labels.h"
 #include "sigilweave/kit/LayoutGuard.h"
 #include "sigilweave/kit/Palette.h"

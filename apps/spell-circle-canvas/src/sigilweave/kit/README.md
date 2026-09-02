@@ -40,9 +40,41 @@ One header per utility under `include/sigilweave/kit/`, and
 | `SampleText.h` | `mixedScriptFiller()` | Every showcase growing subtly different stress content; timings stay comparable on a shared deterministic corpus. |
 | `Palette.h` | `palette::kInk`, `kPaper`, … | Every showcase picking its own near-black and off-white. |
 | `Timing.h` | `Stopwatch` / `toMicroseconds()` | Frame-timing brackets duplicated across targets. |
+| `Hyphenation.h` | `PatternHyphenator`, `patterns::english()` | The engine growing an opinion about where English words break. |
 
 `sigil::weave::SingleLineParagraphCache` (the engine's `cache` feature) is the companion for
 high-frequency short labels; `drawLabel()` documents when to graduate to it.
+
+## The tables: data the engine asks for and does not hold
+
+The engine asks exactly one question about where a word may break
+(`paragraph/Hyphenation.h`) and holds no answer, because where an English
+word may be broken is a fact about English rather than about text layout.
+`PatternHyphenator` answers it by Liang's pattern method — a word is
+padded, every substring is looked up in a loaded table, the odd values it
+collects are break points, and an explicit exception spelling overrides the
+lot:
+
+```cpp
+static const kit::PatternHyphenator english("en",
+                                            kit::patterns::english());
+ParagraphLayoutOptions options;
+options.hyphenation.patterns = &english;   // borrowed; outlives the layout
+```
+
+A table answers only for the language it was loaded for: a paragraph set in
+a tag that does not start with it gets no answer at all, because a word
+broken by the wrong language's rules is a misspelling and no answer is
+merely a ragged line. `load()` takes the standard pattern-file text, so any
+table in that format is a peer of the one here — a caller's own file, a
+different language, a house exception list.
+
+`patterns::english()` is a SUBSET of Liang's English (US) table, and it
+says so where it is defined, together with the terms the original travels
+under. A subset proposes fewer break points than the whole table, never a
+different one where the whole table would inhibit — which is why the
+exception spellings whose inhibitions matter most are carried with it. A
+document that needs the whole table loads the whole table.
 
 ## The shape of a well-behaved scene
 

@@ -44,11 +44,13 @@ add_executable(weave_layout_test
   test/PlaceholderTest.cpp
   test/IncrementalTest.cpp
   test/TypographyTest.cpp
+  test/ParagraphStyleTest.cpp
   test/StressTest.cpp
 )
 target_include_directories(weave_layout_test PRIVATE ${SIGIL_WEAVE_TEST_SUPPORT_DIR})
 target_link_libraries(weave_layout_test PRIVATE
   SigilWeaveLayout
+  SigilWeaveKit
   SigilWeaveQuery
   SigilWeavePorts
   absl::flat_hash_set

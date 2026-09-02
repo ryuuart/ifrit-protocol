@@ -99,10 +99,48 @@ sk_sp<SkTextBlob> buildTransformedBlob(const ShapedWord& shapedWord,
   return builder.make();
 }
 
+/** HOW A JUSTIFIED LINE SPENDS WHAT ITS WORD GAPS COULD NOT: extra advance
+ *  between the glyphs, and a horizontal scale on the glyphs themselves. The
+ *  default is neither, which is a shared word blob and the only path a text
+ *  that never asks for the other two ever takes. */
+struct LineFit {
+  float letterSpacing = 0;  ///< px added after each glyph
+  float glyphScale = 1.0f;  ///< horizontal scale on the glyphs
+  [[nodiscard]] bool plain() const {
+    return letterSpacing == 0 && glyphScale == 1.0f;
+  }
+  /** The advance `word` takes under this fit. */
+  [[nodiscard]] float advanceOf(const ShapedWord& word) const {
+    return word.advance * glyphScale +
+           letterSpacing * static_cast<float>(word.glyphs.size());
+  }
+};
+
+/** Per-glyph positioned blob for a run a justified line respaced or scaled:
+ *  the shared blob bakes one set of positions and this line needs another. */
+sk_sp<SkTextBlob> buildFittedBlob(const ShapedWord& shapedWord,
+                                  const LineFit& fit) {
+  SkTextBlobBuilder builder;
+  const SkFont font = makeFont(shapedWord.typeface, shapedWord.fontSize,
+                               shapedWord.scaleX * fit.glyphScale,
+                               shapedWord.aliased);
+  const int glyphCount = static_cast<int>(shapedWord.glyphs.size());
+  const auto& run = builder.allocRunPos(font, glyphCount);
+  for (int glyphIndex = 0; glyphIndex < glyphCount; ++glyphIndex) {
+    run.glyphs[glyphIndex] = shapedWord.glyphs[glyphIndex];
+    run.points()[glyphIndex] = {
+        shapedWord.positions[glyphIndex].x() * fit.glyphScale +
+            fit.letterSpacing * static_cast<float>(glyphIndex),
+        shapedWord.positions[glyphIndex].y()};
+  }
+  return builder.make();
+}
+
 /** Appends one shaped segment at its final straight or transformed position. */
 void emitSegment(ParagraphLayout& result, const FlatInterval& flatInterval,
                  const WordSegment& segment, uint32_t wordIndex,
-                 float penOffset, const ParagraphLayoutOptions& options) {
+                 float penOffset, const ParagraphLayoutOptions& options,
+                 const LineFit& fit = {}) {
   const ShapedWord& shapedWord = *segment.shaped;
   if (shapedWord.glyphs.empty()) return;
   PositionedRun run;
@@ -121,7 +159,11 @@ void emitSegment(ParagraphLayout& result, const FlatInterval& flatInterval,
                               flatInterval.interval.direction.x() == 0 &&
                               flatInterval.interval.direction.y() == 1;
   if (horizontal) {
-    run.blob = wordBlob(shapedWord);
+    // Respacing and scaling are a STRAIGHT HORIZONTAL answer: a column and
+    // a curve place per glyph already, and a second per-glyph rule on top
+    // of those would be two placements arguing over one run.
+    run.blob = fit.plain() ? wordBlob(shapedWord)
+                           : buildFittedBlob(shapedWord, fit);
     run.origin = flatInterval.interval.origin + SkVector{penOffset, 0};
   } else if (verticalColumn && segment.form == SegmentForm::kUpright) {
     // Vertical-shaped word: positions already stack down the column.
@@ -193,11 +235,104 @@ float naturalWidth(const std::vector<Word>& words, uint32_t firstWordIndex,
   return width;
 }
 
-void placeWords(const std::vector<Word>& words, uint32_t firstWordIndex,
-                uint32_t endWordIndex, const FlatInterval& flatInterval,
-                TextAlignment alignment, bool lastLine, bool hyphenBreakTaken,
+/** How much of the cell a tab opened stands BEFORE the first `alignOn` in
+ *  it — what a character-aligned stop pulls the cell back by. A cell with
+ *  no such character aligns on its end, which is what a table of figures
+ *  wants for a row that holds a whole number. */
+float widthBeforeAlignCharacter(const Paragraph& paragraph,
+                                const std::vector<Word>& words,
+                                const std::vector<uint32_t>& visualWordOrder,
+                                size_t tabVisualIndex, char16_t alignOn,
+                                float cellWidth) {
+  const std::u16string& text = paragraph.text();
+  float before = 0;
+  for (size_t visualIndex = tabVisualIndex + 1;
+       visualIndex < visualWordOrder.size(); ++visualIndex) {
+    const Word& word = words[visualWordOrder[visualIndex]];
+    const size_t found =
+        text.find(alignOn, word.textBegin) < word.textEnd
+            ? text.find(alignOn, word.textBegin)
+            : std::u16string::npos;
+    if (found != std::u16string::npos) {
+      const auto target = static_cast<uint32_t>(found);
+      for (const WordSegment& segment : word.segments()) {
+        const ShapedWord& shaped = *segment.shaped;
+        for (size_t glyphIndex = 0; glyphIndex < shaped.glyphs.size();
+             ++glyphIndex) {
+          if (segment.textBegin + shaped.clusters[glyphIndex] >= target)
+            return before;
+          before += shaped.advances[glyphIndex];
+        }
+      }
+      return before;
+    }
+    before += word.width;
+    if (word.tabAfter) break;  // the cell ends at the next tab
+    if (visualIndex + 1 < visualWordOrder.size()) before += word.spaceWidth;
+  }
+  return cellWidth;
+}
+
+/** Sets a stop's leader across the gap it opened: the string repeated as
+ *  many whole times as fit, BUTTED AGAINST THE STOP so the run of dots
+ *  meets the figure it leads to and the ragged end falls where the eye
+ *  starts rather than where it lands. Set in the style of the text before
+ *  the tab, and only along a straight horizontal line — a leader down a
+ *  column is a different convention and this is not it. */
+void emitLeader(FontContext& fontContext, const Paragraph& paragraph,
+                ParagraphLayout& result, const FlatInterval& flatInterval,
+                const Word& word, const TabStop& stop, float gapStart,
+                float gapEnd, const ParagraphLayoutOptions& options) {
+  static_cast<void>(options);
+  if (gapEnd - gapStart <= 0 || flatInterval.interval.contour.valid()) return;
+  if (flatInterval.interval.direction.x() != 1 ||
+      flatInterval.interval.direction.y() != 0)
+    return;
+  const uint32_t styleIndex =
+      word.segments().empty() ? 0 : word.segments().back().styleIndex;
+  if (styleIndex >= paragraph.spans().size()) return;
+  const StyleSpan& span = paragraph.spans()[styleIndex];
+  UChar32 firstCodepoint = 0;
+  {
+    size_t codeUnitIndex = 0;
+    U16_NEXT(stop.leader.data(), codeUnitIndex, stop.leader.size(),
+             firstCodepoint);
+  }
+  const char* languageTag = span.style.shaping.languageTag.empty()
+                                ? nullptr
+                                : span.style.shaping.languageTag.c_str();
+  sk_sp<SkTypeface> typeface = fontContext.resolveTypeface(
+      span.style.shaping.typeface, firstCodepoint, languageTag);
+  if (!typeface) typeface = fontContext.defaultTypeface();
+  const ShapedWordRef leader =
+      shapeWord(fontContext, span.style.shaping, typeface, stop.leader,
+                static_cast<ScriptTag>(HB_SCRIPT_COMMON), false, false);
+  if (!leader || leader->glyphs.empty() || leader->advance <= 0) return;
+  const auto repeats =
+      static_cast<int>(std::floor((gapEnd - gapStart) / leader->advance));
+  float pen = gapEnd - static_cast<float>(repeats) * leader->advance;
+  for (int repeat = 0; repeat < repeats; ++repeat) {
+    PositionedRun run;
+    run.blob = wordBlob(*leader);
+    run.shaped = leader;
+    run.styleIndex = styleIndex;
+    run.wordIndex = ~0u;
+    run.lineIndex = flatInterval.sourceLineIndex;
+    run.intervalIndex = flatInterval.index;
+    run.penOffset = pen;
+    run.origin = flatInterval.interval.origin + SkVector{pen, 0};
+    if (run.blob) result.runs.push_back(std::move(run));
+    pen += leader->advance;
+  }
+}
+
+void placeWords(FontContext& fontContext, const Paragraph& paragraph,
+                uint32_t firstWordIndex, uint32_t endWordIndex,
+                const FlatInterval& flatInterval, TextAlignment alignment,
+                bool lastLine, bool hyphenBreakTaken,
                 const ParagraphLayoutOptions& options,
                 ParagraphLayout& result) {
+  const std::vector<Word>& words = paragraph.words();
   if (firstWordIndex >= endWordIndex) return;
 
   const float hyphenWidth =
@@ -229,6 +364,27 @@ void placeWords(const std::vector<Word>& words, uint32_t firstWordIndex,
     resolvedNaturalWidth = pen + hyphenWidth;
   }
   const bool hasTab = lastTabVisualIndex >= 0;
+
+  // WIDTH OF THE CELL EACH TAB OPENS: the text from the tab to the next tab,
+  // or to the end of the line. Only a stop that aligns its cell somewhere
+  // other than its start reads it, but it costs one backward walk and the
+  // walk is over words already measured.
+  static thread_local std::vector<float> cellAfter;
+  cellAfter.assign(visualWordOrder.size(), 0.0f);
+  if (hasTab) {
+    float accumulated = 0;
+    for (size_t visualIndex = visualWordOrder.size(); visualIndex-- > 0;) {
+      const Word& cellWord = words[visualWordOrder[visualIndex]];
+      cellAfter[visualIndex] = accumulated;
+      accumulated = cellWord.tabAfter
+                        ? cellWord.width
+                        : cellWord.width +
+                              (visualIndex + 1 < visualWordOrder.size()
+                                   ? cellWord.spaceWidth
+                                   : 0.0f) +
+                              accumulated;
+    }
+  }
 
   // Gap census for justification (tabbed lines: only gaps past the last
   // tab), plus the measured glue behind the census for the shrink limit.
@@ -272,16 +428,36 @@ void placeWords(const std::vector<Word>& words, uint32_t firstWordIndex,
   const float naturalLineWidth =
       hasTab ? resolvedNaturalWidth
              : naturalWidth(words, firstWordIndex, endWordIndex) + hyphenWidth;
-  const float extraWidth = flatInterval.interval.length - naturalLineWidth;
+  const float extraWidthNatural =
+      flatInterval.interval.length - naturalLineWidth;
+  const float extraWidth = extraWidthNatural;
 
   TextAlignment resolvedAlignment = alignment;
   if (resolvedAlignment == TextAlignment::kJustify && lastLine &&
       !options.justification.justifyLastLine)
     resolvedAlignment = options.justification.lastLineAlignment;
 
+  // The three passes past the word gaps are asked for or they are not, and
+  // a line that does not ask for them takes the shared-blob path it always
+  // took. Every field here is at the value that means "leave it alone".
+  const JustificationOptions& justification = options.justification;
+  const bool spendsPastGaps =
+      justification.wordSpacing != 1.0f || justification.letterSpacing != 0 ||
+      justification.letterSpacingMinimum != 0 ||
+      justification.letterSpacingMaximum != 0 ||
+      justification.glyphScale != 1.0f ||
+      justification.glyphScaleMinimum != 1.0f ||
+      justification.glyphScaleMaximum != 1.0f ||
+      justification.singleWord == JustificationOptions::SingleWord::kJustify;
+  const bool extendedJustify =
+      resolvedAlignment == TextAlignment::kJustify && spendsPastGaps;
+  const float wordSpacingDelta =
+      extendedJustify ? justification.wordSpacing - 1.0f : 0.0f;
+
   float startOffset = 0;
   float spaceAdjustment = 0;
   float ideographicAdjustment = 0;
+  LineFit fit;
   switch (resolvedAlignment) {
     case TextAlignment::kStart:
       break;
@@ -292,6 +468,11 @@ void placeWords(const std::vector<Word>& words, uint32_t firstWordIndex,
       startOffset = std::max(0.0f, extraWidth);
       break;
     case TextAlignment::kJustify: {
+      // The desired word spacing widens the line before anything is fitted:
+      // it is what the gaps are AIMED at, and the elasticity is measured
+      // from there.
+      const float extraWidth =
+          extraWidthNatural - wordSpacingDelta * stretchableGlue;
       if (extraWidth > 0 && (spaceGapCount + ideographicGapCount) > 0) {
         const float ideographicExpansionLimit =
             options.justification.maxIdeographicExpansion *
@@ -318,7 +499,8 @@ void placeWords(const std::vector<Word>& words, uint32_t firstWordIndex,
         // a break the breaker deemed renderable never leaks past the measure.
         const float spaceShrinkLimit =
             spaceGapCount > 0
-                ? stretchableGlue / static_cast<float>(spaceGapCount) *
+                ? stretchableGlue * options.justification.wordSpacing /
+                      static_cast<float>(spaceGapCount) *
                       options.justification.spaceShrink
                 : 0;
         const float ideographicShrinkLimit =
@@ -332,6 +514,62 @@ void placeWords(const std::vector<Word>& words, uint32_t firstWordIndex,
           ideographicAdjustment = -shrinkFraction * ideographicShrinkLimit;
         }
       }
+      if (!extendedJustify) break;
+
+      // WHAT THE GAPS COULD NOT SPEND, spent in the two passes past them,
+      // in order and each on what the one before it left: letter spacing
+      // between the glyphs, then a horizontal scale on the glyphs. Each is
+      // measured from its own DESIRED value, which widened the line before
+      // any of this, and bounded by its own two limits.
+      int lineGlyphCount = 0;
+      float lineContentWidth = 0;
+      for (uint32_t wordIndex = firstWordIndex; wordIndex < endWordIndex;
+           ++wordIndex) {
+        lineContentWidth += words[wordIndex].width;
+        for (const WordSegment& segment : words[wordIndex].segments())
+          lineGlyphCount += static_cast<int>(segment.shaped->glyphs.size());
+      }
+      const float em = wordFontSize(words[firstWordIndex]);
+      const auto glyphGaps = static_cast<float>(std::max(lineGlyphCount - 1, 0));
+      float residual =
+          extraWidth -
+          (spaceAdjustment * static_cast<float>(spaceGapCount) +
+           ideographicAdjustment * static_cast<float>(ideographicGapCount));
+
+      float letterSpacing = justification.letterSpacing * em;
+      residual -= letterSpacing * glyphGaps;
+      const bool loneWord = spaceGapCount + ideographicGapCount == 0;
+      if (glyphGaps > 0 && loneWord &&
+          justification.singleWord ==
+              JustificationOptions::SingleWord::kJustify) {
+        // A LINE HOLDING ONE WORD has no gaps at all: asked to justify, it
+        // spends the whole measure between its letters and no limit could
+        // mean anything, because there is nothing else to spend it on.
+        letterSpacing += residual / glyphGaps;
+        residual = 0;
+        startOffset = 0;
+      } else if (glyphGaps > 0) {
+        const float wanted = letterSpacing + residual / glyphGaps;
+        const float bounded =
+            std::clamp(wanted,
+                       std::min(letterSpacing,
+                                justification.letterSpacingMinimum * em),
+                       std::max(letterSpacing,
+                                justification.letterSpacingMaximum * em));
+        residual -= (bounded - letterSpacing) * glyphGaps;
+        letterSpacing = bounded;
+      }
+
+      float glyphScale = justification.glyphScale;
+      residual -= (glyphScale - 1.0f) * lineContentWidth;
+      if (lineContentWidth > 0) {
+        const float wanted = glyphScale + residual / lineContentWidth;
+        const float bounded = std::clamp(
+            wanted, std::min(glyphScale, justification.glyphScaleMinimum),
+            std::max(glyphScale, justification.glyphScaleMaximum));
+        glyphScale = bounded;
+      }
+      fit = {letterSpacing, glyphScale};
       break;
     }
   }
@@ -341,9 +579,23 @@ void placeWords(const std::vector<Word>& words, uint32_t firstWordIndex,
        ++visualIndex) {
     const uint32_t wordIndex = visualWordOrder[visualIndex];
     const Word& word = words[wordIndex];
-    for (const WordSegment& segment : word.segments())
-      emitSegment(result, flatInterval, segment, wordIndex,
-                  penPosition + segment.advanceOffset, options);
+    float wordAdvance = word.width;
+    if (fit.plain()) {
+      for (const WordSegment& segment : word.segments())
+        emitSegment(result, flatInterval, segment, wordIndex,
+                    penPosition + segment.advanceOffset, options);
+    } else {
+      // Under a fit the segments' own offsets no longer hold: each one is
+      // as wide as the fit makes it, so the word's pen is walked here and
+      // its advance is what that walk reached.
+      float local = 0;
+      for (const WordSegment& segment : word.segments()) {
+        emitSegment(result, flatInterval, segment, wordIndex,
+                    penPosition + local, options, fit);
+        local += fit.advanceOf(*segment.shaped);
+      }
+      if (!word.segments().empty()) wordAdvance = local;
+    }
     if (word.placeholderIndex >= 0 && !flatInterval.interval.contour.valid()) {
       // Inline slot: report where it landed (blob-less run; draw() and
       // drawBatched() skip it, placeholderRects() surfaces it).
@@ -358,7 +610,7 @@ void placeWords(const std::vector<Word>& words, uint32_t firstWordIndex,
       run.placeholderIndex = word.placeholderIndex;
       result.runs.push_back(std::move(run));
     }
-    penPosition += word.width;
+    penPosition += wordAdvance;
     if (hyphenBreakTaken && wordIndex == endWordIndex - 1) {
       // Discretionary break taken: render the hyphen right after the word.
       const uint32_t styleIndex =
@@ -374,13 +626,49 @@ void placeWords(const std::vector<Word>& words, uint32_t firstWordIndex,
       // Stops resolve in line-local coordinates — the alignment offset
       // shifts the resolved line as a whole, keeping the line's width the
       // width the breaker and the census computed for it.
+      if (word.tabAfter && tabStopsActive(options)) {
+        // THE CELL THE TAB OPENS decides where the pen lands: a stop that
+        // starts its cell puts the pen on the stop, and one that ends,
+        // centres or pins a character in it pulls the pen back by as much
+        // of the cell as stands before that point. The pen never moves
+        // backwards — a cell too wide for its stop simply runs on.
+        ResolvedTabStop resolved;
+        if (tabStopAhead(penPosition - startOffset, options, resolved)) {
+          const float gapStart = penPosition;
+          const float stopPen = resolved.position + startOffset;
+          float target = stopPen;
+          if (resolved.stop) {
+            switch (resolved.stop->align) {
+              case TabStop::Align::kStart:
+                break;
+              case TabStop::Align::kEnd:
+                target = stopPen - cellAfter[visualIndex];
+                break;
+              case TabStop::Align::kCenter:
+                target = stopPen - cellAfter[visualIndex] * 0.5f;
+                break;
+              case TabStop::Align::kCharacter:
+                target = stopPen - widthBeforeAlignCharacter(
+                                       paragraph, words, visualWordOrder,
+                                       visualIndex, resolved.stop->alignOn,
+                                       cellAfter[visualIndex]);
+                break;
+            }
+          }
+          penPosition = std::max(penPosition, target);
+          if (resolved.stop && !resolved.stop->leader.empty())
+            emitLeader(fontContext, paragraph, result, flatInterval, word,
+                       *resolved.stop, gapStart, penPosition, options);
+          continue;
+        }
+      }
       penPosition += glueAfter(word, penPosition - startOffset, options);
       if (static_cast<int>(visualIndex) > lastTabVisualIndex) {
         switch (gapKind(words,
                         std::min(wordIndex, visualWordOrder[visualIndex + 1]),
                         options)) {
           case GapKind::kSpace:
-            penPosition += spaceAdjustment;
+            penPosition += wordSpacingDelta * word.spaceWidth + spaceAdjustment;
             break;
           case GapKind::kIdeographic:
             penPosition += ideographicAdjustment;
@@ -533,10 +821,11 @@ class LineLimitedGeometry final : public FlowGeometry {
   LineLimitedGeometry(FlowGeometry& inner, int maxLines)
       : m_inner(inner), m_maxLines(maxLines) {}
 
-  bool lineIntervals(int index, float lineHeight, float ascent,
+  using FlowGeometry::lineIntervals;
+  bool lineIntervals(const LineRequest& request,
                      std::vector<LineInterval>& intervals) override {
-    return index < m_maxLines &&
-           m_inner.lineIntervals(index, lineHeight, ascent, intervals);
+    return request.index < m_maxLines &&
+           m_inner.lineIntervals(request, intervals);
   }
   bool uniformIntervals() const override { return m_inner.uniformIntervals(); }
 
@@ -545,77 +834,131 @@ class LineLimitedGeometry final : public FlowGeometry {
   int m_maxLines;
 };
 
-}  // namespace detail
+namespace {
 
-ParagraphLayout layoutParagraph(FontContext& fontContext, Paragraph& paragraph,
-                                FlowGeometry& geometry,
-                                const ParagraphLayoutOptions& options) {
-  using namespace detail;
-
-  LineLimitedGeometry clampedGeometry(geometry, options.overflow.maxLines);
-  FlowGeometry& effectiveGeometry =
-      options.overflow.maxLines > 0
-          ? static_cast<FlowGeometry&>(clampedGeometry)
-          : geometry;
-
-  // Whether a soft hyphen is a break opportunity is decided during
-  // segmentation, so the option reaches the paragraph before it analyzes;
-  // disabled, the two halves fuse into one unbreakable word. Setting it to
-  // what the paragraph already holds is free.
-  paragraph.setSoftHyphenBreaks(options.hyphenation.enabled);
-
-  // Segmentation only; the breakers pull HarfBuzz shaping just ahead of
-  // their own frontier, so text past the geometry never shapes at all.
-  paragraph.ensureAnalyzed(fontContext);
-
-  const Paragraph::Strut strut = paragraph.strut(fontContext);
-  const float lineHeight = options.lineMetrics.height > 0
-                               ? options.lineMetrics.height
-                               : strut.height;
-  const float ascent = options.lineMetrics.ascent > 0
-                           ? options.lineMetrics.ascent
-                           : strut.ascent;
-
-  ParagraphLayout result;
+/** The BLOCKS of a text — the words between mandatory breaks — each with
+ *  its style resolved against the layout's own, its pitch resolved from its
+ *  own first span, and the air before it resolved by the one spacing rule:
+ *  THE GAP IS THE LARGER of the block before's `spaceAfter` and this
+ *  block's `spaceBefore`, everywhere, the head of the flow included. */
+std::vector<detail::Block> resolveBlocks(
+    FontContext& fontContext, const Paragraph& paragraph,
+    const ParagraphLayoutOptions& options) {
   const std::vector<Word>& words = paragraph.words();
-  if (words.empty()) return result;
+  std::vector<detail::Block> blocks;
+  uint32_t first = 0;
+  for (uint32_t wordIndex = 0; wordIndex < words.size(); ++wordIndex)
+    if (words[wordIndex].mandatoryBreakAfter) {
+      blocks.push_back(detail::Block{first, wordIndex + 1});
+      first = wordIndex + 1;
+    }
+  if (first < words.size() || blocks.empty())
+    blocks.push_back(detail::Block{first, static_cast<uint32_t>(words.size())});
 
-  IntervalSequence intervalSequence(
-      effectiveGeometry, lineHeight, ascent,
-      options.lineBreakStrategy == LineBreakStrategy::kKnuthPlass
-          ? options.knuthPlass.minimumIntervalWidth
-          : 0.0f);
+  const ParagraphStyle unstyled;
+  float previousSpaceAfter = 0;
+  for (size_t blockIndex = 0; blockIndex < blocks.size(); ++blockIndex) {
+    detail::Block& block = blocks[blockIndex];
+    const ParagraphStyle& style = blockIndex < options.blocks.size()
+                                      ? options.blocks[blockIndex]
+                                      : unstyled;
+    block.style = style;
+    block.options = options;
+    if (style.alignment) block.options.alignment = *style.alignment;
+    if (style.justification) block.options.justification = *style.justification;
+    if (style.hyphenation) block.options.hyphenation = *style.hyphenation;
+    if (style.tabStops) block.options.tabStops = *style.tabStops;
 
-  // The geometry a caller needs to re-place a transformed run at draw time:
-  // the intervals the layout actually consumed, in the numbering the runs
-  // report, plus the snapping the placement used. Recorded on the way out
-  // of every breaker, because "which interval" is only meaningful next to
-  // the interval list it indexes.
-  const auto recordGeometry = [&](ParagraphLayout& layout) {
-    layout.tangentRotationSteps = options.pathText.tangentRotationSteps;
-    layout.linePitch = lineHeight;
-    layout.intervals.reserve(intervalSequence.flattened().size());
-    for (const FlatInterval& flat : intervalSequence.flattened())
-      layout.intervals.push_back(flat.interval);
-  };
-
-  if (options.lineBreakStrategy == LineBreakStrategy::kKnuthPlass) {
-    ParagraphLayout result =
-        knuthPlassLayout(fontContext, paragraph, intervalSequence, options);
-    if (!options.overflow.ellipsis.empty() && result.overflowed())
-      applyEllipsis(fontContext, paragraph, intervalSequence, options, result);
-    recordGeometry(result);
-    return result;
+    const uint32_t textOffset =
+        block.firstWord < words.size() ? words[block.firstWord].textBegin : 0;
+    const Paragraph::Strut strut = paragraph.strutAt(fontContext, textOffset);
+    // A stated line metric overrides what the FACE reports; a stated leading
+    // overrides the pitch outright, and the extra it opens goes above the
+    // line, which is where leading has always gone.
+    const float faceHeight =
+        options.lineMetrics.height > 0 ? options.lineMetrics.height
+                                       : strut.height;
+    const float faceAscent =
+        options.lineMetrics.ascent > 0 ? options.lineMetrics.ascent
+                                       : strut.ascent;
+    float pitch = faceHeight;
+    float gridStep = 0;
+    switch (style.leading.kind) {
+      case Leading::Kind::kFace:
+        break;
+      case Leading::Kind::kMultiple:
+        pitch = faceHeight * style.leading.value;
+        break;
+      case Leading::Kind::kAbsolute:
+        pitch = style.leading.value;
+        break;
+      case Leading::Kind::kGrid:
+        gridStep = style.leading.value;
+        pitch = gridStep > 0 ? std::ceil(faceHeight / gridStep) * gridStep
+                             : faceHeight;
+        break;
+    }
+    block.pitch = pitch;
+    block.ascent = style.leading.kind == Leading::Kind::kFace
+                       ? faceAscent
+                       : faceAscent + (pitch - faceHeight);
+    block.gridStep = gridStep;
+    block.lead = blockIndex == 0
+                     ? style.spaceBefore
+                     : std::max(previousSpaceAfter, style.spaceBefore);
+    previousSpaceAfter = style.spaceAfter;
   }
+  return blocks;
+}
 
-  // ── Greedy breaker ───────────────────────────────────────────────────
-  size_t intervalIndex = 0;
+/** The interval a block's LAST line is placed in: the last-line indent adds
+ *  to the near end, exactly as the first-line one does on the first. */
+detail::FlatInterval withLastLineIndent(const detail::FlatInterval& flat,
+                                        float indent) {
+  if (indent == 0 || flat.interval.contour.valid()) return flat;
+  detail::FlatInterval shortened = flat;
+  shortened.interval.origin +=
+      SkVector{flat.interval.direction.x() * indent,
+               flat.interval.direction.y() * indent};
+  shortened.interval.length = std::max(0.0f, flat.interval.length - indent);
+  return shortened;
+}
+
+/** Whether a hyphen break at `endWordIndex` is one the block's limits allow
+ *  a line to take: the last word of a block, and a run of hyphenated lines
+ *  longer than the block permits, are break decisions rather than facts
+ *  about the word, so they are settled here and not in the analysis. */
+bool hyphenAllowedHere(const detail::Block& block,
+                       const std::vector<Word>& words, uint32_t endWordIndex,
+                       int consecutiveHyphens) {
+  const HyphenationOptions& hyphenation = block.options.hyphenation;
+  if (!hyphenation.lastWordOfBlock && endWordIndex + 1 >= block.endWord)
+    return false;
+  return hyphenation.consecutiveLimit <= 0 ||
+         consecutiveHyphens < hyphenation.consecutiveLimit;
+}
+
+/** Fills one block greedily from `firstInterval`, appending to `result`.
+ *  Returns the index of the last interval it placed anything in, or
+ *  SIZE_MAX when it placed nothing; sets `overflowWord` when the geometry
+ *  ran out before the block's words did. */
+size_t greedyBlock(FontContext& fontContext, Paragraph& paragraph,
+                   detail::IntervalSequence& intervalSequence,
+                   const detail::Block& block, size_t firstInterval,
+                   ParagraphLayout& result, uint32_t& overflowWord) {
+  using namespace detail;
+  const std::vector<Word>& words = paragraph.words();
+  const ParagraphLayoutOptions& options = block.options;
+  const float lastLineIndent = block.style.indent.lastLine;
+
+  size_t intervalIndex = firstInterval;
   const FlatInterval* flatInterval = intervalSequence.intervalAt(intervalIndex);
-  uint32_t firstWordIndex = 0;
-  uint32_t wordIndex = 0;
+  uint32_t firstWordIndex = block.firstWord;
+  uint32_t wordIndex = block.firstWord;
   float penPosition = 0;
   int skippedIntervalCount = 0;
-  int lastLineUsed = -1;
+  size_t lastIntervalUsed = SIZE_MAX;
+  int consecutiveHyphens = 0;
   // Widest interval passed over during the current skip run — the fallback
   // landing spot if the geometry runs out while a wide word keeps skipping.
   size_t widestSkippedIntervalIndex = SIZE_MAX;
@@ -623,19 +966,24 @@ ParagraphLayout layoutParagraph(FontContext& fontContext, Paragraph& paragraph,
 
   auto flushLine = [&](uint32_t endWordIndex, bool isLast) {
     if (flatInterval && firstWordIndex < endWordIndex) {
-      placeWords(words, firstWordIndex, endWordIndex, *flatInterval,
-                 options.alignment, isLast,
-                 hyphenTakenAt(words, endWordIndex, isLast, options), options,
-                 result);
-      lastLineUsed = std::max(lastLineUsed, flatInterval->sourceLineIndex);
+      const bool hyphenated =
+          hyphenTakenAt(words, endWordIndex, isLast, options) &&
+          hyphenAllowedHere(block, words, endWordIndex, consecutiveHyphens);
+      const FlatInterval placed =
+          isLast ? withLastLineIndent(*flatInterval, lastLineIndent)
+                 : *flatInterval;
+      placeWords(fontContext, paragraph, firstWordIndex, endWordIndex, placed,
+                 options.alignment, isLast, hyphenated, options, result);
+      consecutiveHyphens = hyphenated ? consecutiveHyphens + 1 : 0;
+      lastIntervalUsed = intervalIndex;
     }
     firstWordIndex = endWordIndex;
     penPosition = 0;
   };
 
-  while (wordIndex < static_cast<uint32_t>(words.size())) {
+  while (wordIndex < block.endWord) {
     if (!flatInterval) {
-      result.firstUnplacedWord = wordIndex;
+      overflowWord = wordIndex;
       break;
     }
     // Shape just ahead of the greedy frontier so overflowing tails remain
@@ -652,8 +1000,15 @@ ParagraphLayout layoutParagraph(FontContext& fontContext, Paragraph& paragraph,
         (options.hyphenation.enabled && word.hyphenBreak && word.hyphenGlyph)
             ? word.hyphenGlyph->advance
             : 0;
-    const bool fits = penPosition + glue + word.width + hyphenReserve <=
-                      flatInterval->interval.length + kFitEpsilon;
+    // The block's last line is set in its own measure, so the fit that
+    // decides whether the remaining words ARE the last line must ask about
+    // that measure and not the one every other line gets.
+    const bool couldBeLastLine = wordIndex + 1 >= block.endWord;
+    const float measure =
+        flatInterval->interval.length -
+        (couldBeLastLine ? std::max(0.0f, lastLineIndent) : 0.0f);
+    const bool fits =
+        penPosition + glue + word.width + hyphenReserve <= measure + kFitEpsilon;
     const bool intervalEmpty = (wordIndex == firstWordIndex);
 
     if (fits || (intervalEmpty && skippedIntervalCount >= kMaxIntervalSkips)) {
@@ -662,15 +1017,6 @@ ParagraphLayout layoutParagraph(FontContext& fontContext, Paragraph& paragraph,
       skippedIntervalCount = 0;
       widestSkippedIntervalIndex = SIZE_MAX;
       widestSkippedIntervalLength = -1;
-      if (word.mandatoryBreakAfter) {
-        const int lineIndex = flatInterval->sourceLineIndex;
-        flushLine(wordIndex, /*isLast=*/true);
-        lastLineUsed = std::max(lastLineUsed, lineIndex);
-        do {
-          flatInterval = intervalSequence.intervalAt(++intervalIndex);
-        } while (flatInterval && flatInterval->sourceLineIndex ==
-                                     lineIndex);  // Hard break skips a line.
-      }
       continue;
     }
 
@@ -702,10 +1048,206 @@ ParagraphLayout layoutParagraph(FontContext& fontContext, Paragraph& paragraph,
   }
 
   flushLine(wordIndex, /*isLast=*/true);
+  return lastIntervalUsed;
+}
+
+/** Once per process: the greedy breaker was handed keeps it cannot weigh. */
+void warnGreedyIgnoresKeeps() {
+  static bool warned = false;
+  if (warned) return;
+  warned = true;
+  SkDebugf(
+      "[weave] a block asks for widow, orphan or keep-with-next control and "
+      "the greedy breaker takes the first break that fits, so it has nothing "
+      "to weigh those against and ignores them. Ask for "
+      "LineBreakStrategy::kKnuthPlass, whose demerits can pay for a break it "
+      "would rather not take.\n");
+}
+
+/** WHERE THE FLOW'S FIRST BAND BEGINS, from the first-baseline rule: the
+ *  rule names where baseline 0 sits below the flow's near edge, and every
+ *  later baseline follows at its own block's pitch, so seating the passage
+ *  is one number applied once. */
+float firstBandStart(const FrameOptions& frame, const Paragraph::Strut& strut,
+                     float ascent, float pitch) {
+  float baseline = 0;
+  switch (frame.firstBaseline) {
+    case FrameOptions::FirstBaseline::kAscent:
+      baseline = ascent + frame.firstBaselineOffset;
+      break;
+    case FrameOptions::FirstBaseline::kCapHeight:
+      baseline = strut.capHeight + frame.firstBaselineOffset;
+      break;
+    case FrameOptions::FirstBaseline::kXHeight:
+      baseline = strut.xHeight + frame.firstBaselineOffset;
+      break;
+    case FrameOptions::FirstBaseline::kLeading:
+      baseline = pitch + frame.firstBaselineOffset;
+      break;
+    case FrameOptions::FirstBaseline::kFixed:
+      baseline = frame.firstBaselineOffset;
+      break;
+  }
+  return baseline - ascent;
+}
+
+/** Spends the room a frame has left over on the lines it holds: nothing,
+ *  half above, all above, or spread between them as extra leading.
+ *
+ *  A pure translation along the stacking axis, applied to the placed runs
+ *  and to the intervals they report landing on, so a caller re-placing a
+ *  run reads the geometry the glyphs are actually on. A run whose glyphs
+ *  were baked per-glyph — a path or a rotated column — carries its
+ *  placement inside its blob and cannot be moved, so a flow holding one is
+ *  left where it stands. */
+void distributeInFrame(const FrameOptions& frame, float usedDepth,
+                       int lineCount, ParagraphLayout& layout) {
+  if (frame.extent <= 0 || layout.runs.empty() || layout.intervals.empty())
+    return;
+  if (frame.distribute == FrameOptions::Distribute::kStart) return;
+  const float leftover = frame.extent - usedDepth;
+  if (leftover <= 0) return;
+  for (const PositionedRun& run : layout.runs)
+    if (run.transformed) return;
+  const SkVector direction = layout.intervals.front().direction;
+  SkVector stack{0, 1};  // lines stack down the page
+  if (direction.x() == 0 && direction.y() == 1)
+    stack = {-1, 0};  // columns advance right to left
+  else if (direction.x() != 1 || direction.y() != 0)
+    return;  // neither a line nor a column: nothing to distribute along
+
+  float shift = 0;
+  float perLine = 0;
+  switch (frame.distribute) {
+    case FrameOptions::Distribute::kStart:
+      return;
+    case FrameOptions::Distribute::kCenter:
+      shift = leftover * 0.5f;
+      break;
+    case FrameOptions::Distribute::kEnd:
+      shift = leftover;
+      break;
+    case FrameOptions::Distribute::kJustify:
+      if (lineCount < 2) return;
+      perLine = leftover / static_cast<float>(lineCount - 1);
+      if (frame.maximumInterlineSpacing > 0)
+        perLine = std::min(perLine, frame.maximumInterlineSpacing);
+      break;
+  }
+  const auto move = [&](SkPoint& point, int lineIndex) {
+    const float distance =
+        shift + perLine * static_cast<float>(std::max(lineIndex, 0));
+    point += SkVector{stack.x() * distance, stack.y() * distance};
+  };
+  for (PositionedRun& run : layout.runs) move(run.origin, run.lineIndex);
+  for (size_t index = 0; index < layout.intervals.size(); ++index)
+    move(layout.intervals[index].origin, static_cast<int>(index));
+}
+
+}  // namespace
+
+}  // namespace detail
+
+
+ParagraphLayout layoutParagraph(FontContext& fontContext, Paragraph& paragraph,
+                                FlowGeometry& geometry,
+                                const ParagraphLayoutOptions& options) {
+  using namespace detail;
+
+  LineLimitedGeometry clampedGeometry(geometry, options.overflow.maxLines);
+  FlowGeometry& effectiveGeometry =
+      options.overflow.maxLines > 0
+          ? static_cast<FlowGeometry&>(clampedGeometry)
+          : geometry;
+
+  // Whether a soft hyphen is a break opportunity is decided during
+  // segmentation, so the option reaches the paragraph before it analyzes;
+  // disabled, the two halves fuse into one unbreakable word. Where else
+  // inside a word a break may fall is the same kind of fact and reaches it
+  // the same way. Setting either to what the paragraph already holds is
+  // free.
+  paragraph.setSoftHyphenBreaks(options.hyphenation.enabled);
+  paragraph.setHyphenator(options.hyphenation.patterns,
+                          options.hyphenation.limits);
+
+  // Segmentation only; the breakers pull HarfBuzz shaping just ahead of
+  // their own frontier, so text past the geometry never shapes at all.
+  paragraph.ensureAnalyzed(fontContext);
+
+  ParagraphLayout result;
+  const std::vector<Word>& words = paragraph.words();
+  if (words.empty()) return result;
+
+  const std::vector<Block> blocks =
+      resolveBlocks(fontContext, paragraph, options);
+  const Paragraph::Strut strut = paragraph.strutAt(fontContext, 0);
+
+  IntervalSequence intervalSequence(
+      effectiveGeometry, blocks.front().pitch, blocks.front().ascent,
+      options.lineBreakStrategy == LineBreakStrategy::kKnuthPlass
+          ? options.knuthPlass.minimumIntervalWidth
+          : 0.0f);
+  intervalSequence.seatFirstBand(firstBandStart(
+      options.frame, strut, blocks.front().ascent, blocks.front().pitch));
+
+  // The geometry a caller needs to re-place a transformed run at draw time:
+  // the intervals the layout actually consumed, in the numbering the runs
+  // report, plus the snapping the placement used. Recorded on the way out,
+  // because "which interval" is only meaningful next to the interval list
+  // it indexes.
+  const auto recordGeometry = [&](ParagraphLayout& layout) {
+    layout.tangentRotationSteps = options.pathText.tangentRotationSteps;
+    layout.linePitch = blocks.front().pitch;
+    layout.intervals.reserve(intervalSequence.flattened().size());
+    for (const FlatInterval& flat : intervalSequence.flattened())
+      layout.intervals.push_back(flat.interval);
+  };
+
+  const bool optimizing =
+      options.lineBreakStrategy == LineBreakStrategy::kKnuthPlass;
+  size_t nextInterval = 0;
+  int lastLineUsed = -1;
+  for (size_t blockIndex = 0; blockIndex < blocks.size(); ++blockIndex) {
+    const Block& block = blocks[blockIndex];
+    if (block.firstWord >= block.endWord) continue;
+    if (!optimizing && block.style.keep != KeepOptions{})
+      warnGreedyIgnoresKeeps();
+    intervalSequence.openBlock(static_cast<int>(blockIndex), block.pitch,
+                               block.ascent, block.lead, block.gridStep,
+                               block.style.indent);
+    intervalSequence.setUniformBlocks(block.style.indent.firstLine == 0 &&
+                                      block.style.indent.lastLine == 0);
+    uint32_t overflowWord = ~0u;
+    size_t lastIntervalUsed = SIZE_MAX;
+    if (optimizing)
+      knuthPlassBlock(fontContext, paragraph, intervalSequence, block,
+                      nextInterval, result, lastIntervalUsed, overflowWord);
+    else
+      lastIntervalUsed =
+          greedyBlock(fontContext, paragraph, intervalSequence, block,
+                      nextInterval, result, overflowWord);
+    if (lastIntervalUsed != SIZE_MAX) {
+      const FlatInterval* used = intervalSequence.intervalAt(lastIntervalUsed);
+      if (used) lastLineUsed = std::max(lastLineUsed, used->sourceLineIndex);
+      // A block never shares a band with the one before it: whatever is
+      // left of the line this block ended on belongs to no one.
+      nextInterval = intervalSequence.pastSourceLine(lastIntervalUsed);
+    }
+    if (overflowWord != ~0u ||
+        (lastIntervalUsed == SIZE_MAX && !intervalSequence.intervalAt(
+                                             nextInterval))) {
+      result.firstUnplacedWord =
+          overflowWord != ~0u ? overflowWord : block.firstWord;
+      break;
+    }
+  }
+
   result.lineCount = lastLineUsed + 1;
   if (!options.overflow.ellipsis.empty() && result.overflowed())
     applyEllipsis(fontContext, paragraph, intervalSequence, options, result);
   recordGeometry(result);
+  distributeInFrame(options.frame, intervalSequence.bandCursor(),
+                    result.lineCount, result);
   return result;
 }
 

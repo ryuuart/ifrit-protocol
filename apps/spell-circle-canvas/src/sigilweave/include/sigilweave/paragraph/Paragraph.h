@@ -22,6 +22,7 @@
 #include <string_view>
 #include <vector>
 
+#include "sigilweave/paragraph/Hyphenation.h"
 #include "sigilweave/paragraph/Word.h"
 #include "sigilweave/style/Style.h"
 
@@ -103,6 +104,28 @@ class Paragraph {
   /** Returns whether a soft hyphen opens a break opportunity. */
   [[nodiscard]] bool softHyphenBreaks() const noexcept {
     return m_softHyphenBreaks;
+  }
+
+  /** Sets what is asked where INSIDE a word may break — see
+   * paragraph/Hyphenation.h.
+   *
+   * Null (the default) leaves the soft hyphens the author typed as the only
+   * discretionary opportunities. A hyphenator is consulted once per word
+   * during analysis, in the shaping style's own language tag, and the
+   * offsets it names become break opportunities carrying a hyphen glyph
+   * exactly as a typed soft hyphen does. Break opportunities are decided
+   * during analysis, so this belongs to the paragraph: changing it re-runs
+   * the segmentation. It has no effect while soft-hyphen breaks are off,
+   * because that setting is the switch for the whole discretionary idea.
+   *
+   * `layoutParagraph` sets this from `HyphenationOptions::patterns` before
+   * it analyzes, so callers who go through it never call this directly. The
+   * pointer is borrowed: it must outlive every layout of this paragraph.
+   */
+  void setHyphenator(const Hyphenator* hyphenator, HyphenationLimits limits);
+  /** Returns what is asked where inside a word may break, or null. */
+  [[nodiscard]] const Hyphenator* hyphenator() const noexcept {
+    return m_hyphenator;
   }
 
   // ── Inline placeholders (pills, icons, images in the flow) ────────────
@@ -208,14 +231,24 @@ class Paragraph {
    */
   [[nodiscard]] std::span<const uint32_t> sentenceStarts() const;
 
-  /// Line-height inputs from the first span's font (the "strut"): returns
-  /// {ascent (positive), height} for a default single-spaced line.
+  /// Line-height inputs from a span's font (the "strut"): the ascent and
+  /// height of a default single-spaced line, plus the two heights a frame
+  /// may seat its first baseline on.
   struct Strut {
     float ascent = 0;  ///< baseline distance below the line top, px (positive)
     float height = 0;  ///< default single-spaced line height, px
+    float capHeight = 0;  ///< distance from baseline to cap top, px
+    float xHeight = 0;    ///< distance from baseline to x-height, px
   };
   /** Returns positive ascent and default line height from the first span. */
   [[nodiscard]] Strut strut(FontContext& fontContext) const;
+  /** Returns the same, measured from the first span the UTF-16 offset
+   * `textOffset` falls in — A BLOCK'S OWN STRUT, which is what its pitch is
+   * measured from. A text of one style answers identically wherever it is
+   * asked, which is why a layout that says nothing about blocks lays out
+   * exactly as it always did. */
+  [[nodiscard]] Strut strutAt(FontContext& fontContext,
+                              uint32_t textOffset) const;
 
   /** Returns cache-hot unwrapped width without final trailing whitespace.
    *
@@ -235,6 +268,10 @@ class Paragraph {
                   uint32_t insertedLength);
   void normalizeSpans();
   void analyze(FontContext& fontContext);
+  // Splits every word of `boundaries` at the offsets the hyphenator names,
+  // under m_hyphenationLimits, marking the added boundaries in `isHyphen`.
+  void openPatternBreaks(std::vector<uint32_t>& boundaries,
+                         std::vector<uint8_t>& isHyphen) const;
   void reshapeShapedPrefix(FontContext& fontContext);
   void shapeWordContent(FontContext& fontContext, Word& word);
 
@@ -245,6 +282,10 @@ class Paragraph {
   WritingMode m_writingMode = WritingMode::kHorizontal;
   // Whether analyze() keeps the UAX#14 boundary a soft hyphen opens.
   bool m_softHyphenBreaks = true;
+  // Where inside a word analyze() opens further break opportunities;
+  // borrowed, and null for the typed soft hyphens alone.
+  const Hyphenator* m_hyphenator = nullptr;
+  HyphenationLimits m_hyphenationLimits;
   bool m_dirty = true;
   bool m_paintDirty = false;
 

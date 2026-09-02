@@ -11,6 +11,7 @@
 #include <hb.h>
 #include <include/core/SkFont.h>
 #include <include/core/SkFontMetrics.h>
+#include <unicode/uchar.h>
 
 #include <algorithm>
 #include <array>
@@ -162,6 +163,14 @@ void Paragraph::setWritingMode(WritingMode mode) {
 void Paragraph::setSoftHyphenBreaks(bool enabled) {
   if (m_softHyphenBreaks == enabled) return;
   m_softHyphenBreaks = enabled;
+  markDirty();  // break opportunities are decided in analyze()
+}
+
+void Paragraph::setHyphenator(const Hyphenator* hyphenator,
+                              HyphenationLimits limits) {
+  if (m_hyphenator == hyphenator && m_hyphenationLimits == limits) return;
+  m_hyphenator = hyphenator;
+  m_hyphenationLimits = limits;
   markDirty();  // break opportunities are decided in analyze()
 }
 
@@ -412,18 +421,47 @@ void Paragraph::setPaint(std::span<const CharRange> ranges,
   if (!sameSpanBoundaries(previousBoundaries, m_spans)) markPaintDirty();
 }
 
-Paragraph::Strut Paragraph::strut(FontContext& fontContext) const {
-  ShapingStyle shaping;
-  if (!m_spans.empty()) shaping = m_spans.front().style.shaping;
+namespace {
+
+/** The strut of one shaping style, which is the whole of what a strut is:
+ *  the face's own metrics at the size it is set. */
+Paragraph::Strut strutOfShaping(FontContext& fontContext,
+                                const ShapingStyle& shaping) {
   sk_sp<SkTypeface> typeface =
       fontContext.variedTypeface(shaping.typeface, shaping.variations);
   const SkFont font = makeFont(typeface, shaping.fontSize);
   SkFontMetrics metrics;
   font.getMetrics(&metrics);
-  Strut strut;
+  Paragraph::Strut strut;
   strut.ascent = -metrics.fAscent;
   strut.height = -metrics.fAscent + metrics.fDescent + metrics.fLeading;
+  strut.capHeight = metrics.fCapHeight;
+  strut.xHeight = metrics.fXHeight;
   return strut;
+}
+
+}  // namespace
+
+Paragraph::Strut Paragraph::strut(FontContext& fontContext) const {
+  ShapingStyle shaping;
+  if (!m_spans.empty()) shaping = m_spans.front().style.shaping;
+  return strutOfShaping(fontContext, shaping);
+}
+
+Paragraph::Strut Paragraph::strutAt(FontContext& fontContext,
+                                    uint32_t textOffset) const {
+  ShapingStyle shaping;
+  if (!m_spans.empty()) {
+    // The span the offset falls in; past the end, the last one, so a block
+    // that begins where the text does not still answers with real metrics.
+    shaping = m_spans.back().style.shaping;
+    for (const StyleSpan& span : m_spans)
+      if (textOffset < span.end) {
+        shaping = span.style.shaping;
+        break;
+      }
+  }
+  return strutOfShaping(fontContext, shaping);
 }
 
 float Paragraph::naturalWidth(FontContext& fontContext) {
@@ -493,6 +531,71 @@ std::span<const uint32_t> Paragraph::sentenceStarts() const {
   return m_sentenceStarts;
 }
 
+void Paragraph::openPatternBreaks(std::vector<uint32_t>& boundaries,
+                                  std::vector<uint8_t>& isHyphen) const {
+  const HyphenationLimits& limits = m_hyphenationLimits;
+  std::vector<uint32_t> merged;
+  std::vector<uint8_t> mergedFlags;
+  merged.reserve(boundaries.size());
+  mergedFlags.reserve(boundaries.size());
+  std::vector<uint32_t> points;
+  size_t spanCursor = 0;
+  int32_t segmentStart = 0;
+  for (const uint32_t breakOffset : boundaries) {
+    const auto boundary = static_cast<int32_t>(breakOffset);
+    if (boundary <= segmentStart) {
+      merged.push_back(breakOffset);
+      mergedFlags.push_back(0);
+      continue;
+    }
+    // The word's content: the trailing whitespace and any typed soft hyphen
+    // are the analysis's own business and never reach the hyphenator.
+    int32_t contentEnd = boundary;
+    while (contentEnd > segmentStart &&
+           (unicode::isHardLineBreak(m_text[contentEnd - 1]) ||
+            unicode::isWhitespace(m_text[contentEnd - 1])))
+      --contentEnd;
+    if (contentEnd > segmentStart && m_text[contentEnd - 1] == 0x00AD)
+      --contentEnd;
+    const auto length = static_cast<int32_t>(contentEnd - segmentStart);
+    const bool longEnough = length >= limits.minimumWordLength &&
+                            length > limits.minimumLettersBefore +
+                                         limits.minimumLettersAfter;
+    if (longEnough) {
+      while (spanCursor + 1 < m_spans.size() &&
+             m_spans[spanCursor].end <= static_cast<uint32_t>(segmentStart))
+        ++spanCursor;
+      const std::u16string_view word(m_text.data() + segmentStart,
+                                     static_cast<size_t>(length));
+      size_t firstOffset = 0;
+      const bool capitalised = u_isupper(
+          static_cast<UChar32>(unicode::decodeAt(word, firstOffset)));
+      if (limits.capitalizedWords || !capitalised) {
+        points.clear();
+        const std::string& tag = m_spans.empty()
+                                     ? std::string()
+                                     : m_spans[spanCursor].style.shaping.languageTag;
+        m_hyphenator->breakPoints(word, tag, points);
+        for (const uint32_t offset : points) {
+          const auto inside = static_cast<int32_t>(offset);
+          if (inside < limits.minimumLettersBefore ||
+              length - inside < limits.minimumLettersAfter)
+            continue;
+          const auto absolute = static_cast<uint32_t>(segmentStart + inside);
+          if (!merged.empty() && merged.back() >= absolute) continue;
+          merged.push_back(absolute);
+          mergedFlags.push_back(1);
+        }
+      }
+    }
+    merged.push_back(breakOffset);
+    mergedFlags.push_back(0);
+    segmentStart = boundary;
+  }
+  boundaries.swap(merged);
+  isHyphen.swap(mergedFlags);
+}
+
 void Paragraph::analyze(FontContext& fontContext) {
   static_cast<void>(fontContext);  // analysis reads only the text
   m_words.clear();
@@ -527,6 +630,17 @@ void Paragraph::analyze(FontContext& fontContext) {
       boundaries.push_back(static_cast<uint32_t>(textLength));
   }
 
+  // Pattern hyphenation: break opportunities INSIDE a word, which UAX #14
+  // never opens because where a word may be split is a fact about a
+  // language and not about Unicode. Each opportunity becomes its own
+  // boundary, so a hyphenated word is several Words that a breaker may end
+  // a line at exactly as it may end one at a typed soft hyphen — and the
+  // flag beside each boundary is what says which of them carry a hyphen.
+  static thread_local std::vector<uint8_t> patternBreak;
+  patternBreak.assign(boundaries.size(), 0);
+  if (m_hyphenator && m_softHyphenBreaks)
+    openPatternBreaks(boundaries, patternBreak);
+
   // ── Script runs ────────────────────────────────────────────────────────
   static thread_local std::vector<unicode::ScriptRun> scriptRuns;
   unicode::itemize(m_text, scriptRuns);
@@ -551,8 +665,10 @@ void Paragraph::analyze(FontContext& fontContext) {
   m_words.reserve(boundaries.size());
   int placeholdersSeen = 0;
   int32_t segmentStart = 0;
-  for (const uint32_t breakOffset : boundaries) {
-    const int32_t boundary = static_cast<int32_t>(breakOffset);
+  for (size_t boundaryIndex = 0; boundaryIndex < boundaries.size();
+       ++boundaryIndex) {
+    const int32_t boundary = static_cast<int32_t>(boundaries[boundaryIndex]);
+    const bool patternHyphen = patternBreak[boundaryIndex] != 0;
     if (boundary <= segmentStart) continue;
 
     // Object-replacement characters are placeholder slots (see
@@ -608,6 +724,10 @@ void Paragraph::analyze(FontContext& fontContext) {
       word.hyphenBreak = true;
       --whitespaceStart;
     }
+    // A pattern opportunity consumes no character: the word simply ends
+    // where the language says it may, and the hyphen is drawn only if a
+    // breaker takes the break.
+    if (patternHyphen) word.hyphenBreak = true;
     word.textEnd = static_cast<uint32_t>(whitespaceStart);
 
     // Tab-aware layouts (ParagraphLayoutOptions::tabStops) treat the glue

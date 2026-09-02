@@ -253,7 +253,7 @@ TEST(TabStops, ExplicitStopsAlignColumns) {
   Paragraph paragraph = makeParagraph(u8"ab\tlongerhead\tx");
   BlockFlow flow(SkRect::MakeWH(600, 60));
   ParagraphLayoutOptions options;
-  options.tabStops.positions = {120.0f, 300.0f};
+  options.tabStops.stops = {{120.0f}, {300.0f}};
   ParagraphLayout layout =
       layoutParagraph(fontContext, paragraph, flow, options);
   ASSERT_EQ(layout.lineCount, 1);
@@ -266,7 +266,7 @@ TEST(TabStops, RepeatingIntervalAfterExplicitStops) {
   Paragraph paragraph = makeParagraph(u8"a\tb\tc\td");
   BlockFlow flow(SkRect::MakeWH(800, 60));
   ParagraphLayoutOptions options;
-  options.tabStops.positions = {50.0f};
+  options.tabStops.stops = {{50.0f}};
   options.tabStops.interval = 100.0f;
   ParagraphLayout layout =
       layoutParagraph(fontContext, paragraph, flow, options);
@@ -283,7 +283,7 @@ TEST(TabStops, ContentPastStopAdvancesToNext) {
   Paragraph paragraph = makeParagraph(u8"wideenoughcontent\tafter");
   BlockFlow flow(SkRect::MakeWH(800, 60));
   ParagraphLayoutOptions options;
-  options.tabStops.positions = {40.0f, 400.0f};
+  options.tabStops.stops = {{40.0f}, {400.0f}};
   ParagraphLayout layout =
       layoutParagraph(fontContext, paragraph, flow, options);
   EXPECT_FLOAT_EQ(runOriginFor(paragraph, layout, u"after"), 400.0f);
@@ -294,7 +294,7 @@ TEST(TabStops, WrapsWhenStopExceedsMeasure) {
   Paragraph paragraph = makeParagraph(u8"head\ttail");
   BlockFlow flow(SkRect::MakeWH(200, 200));
   ParagraphLayoutOptions options;
-  options.tabStops.positions = {180.0f};  // "tail" cannot fit after the stop
+  options.tabStops.stops = {{180.0f}};  // "tail" cannot fit after the stop
   ParagraphLayout layout =
       layoutParagraph(fontContext, paragraph, flow, options);
   EXPECT_GT(layout.lineCount, 1) << "unfittable tabbed word wraps";
@@ -307,7 +307,7 @@ TEST(TabStops, KnuthPlassAlignsColumns) {
   BlockFlow flow(SkRect::MakeWH(600, 90));
   ParagraphLayoutOptions options;
   options.lineBreakStrategy = LineBreakStrategy::kKnuthPlass;
-  options.tabStops.positions = {120.0f, 300.0f};
+  options.tabStops.stops = {{120.0f}, {300.0f}};
   ParagraphLayout layout =
       layoutParagraph(fontContext, paragraph, flow, options);
   ASSERT_EQ(layout.lineCount, 2);
@@ -328,7 +328,7 @@ TEST(TabStops, GreedyAndKnuthPlassResolveTabsToTheSameColumns) {
   BlockFlow greedyFlow(SkRect::MakeWH(800, 60));
   BlockFlow kpFlow(SkRect::MakeWH(800, 60));
   ParagraphLayoutOptions options;
-  options.tabStops.positions = {60.0f};
+  options.tabStops.stops = {{60.0f}};
   options.tabStops.interval = 90.0f;
   ParagraphLayout greedy =
       layoutParagraph(fontContext, greedyParagraph, greedyFlow, options);
@@ -355,7 +355,7 @@ TEST(TabStops, KnuthPlassBreaksAtTabResolvedWidths) {
   BlockFlow flow(SkRect::MakeWH(200, 200));
   ParagraphLayoutOptions options;
   options.lineBreakStrategy = LineBreakStrategy::kKnuthPlass;
-  options.tabStops.positions = {180.0f};
+  options.tabStops.stops = {{180.0f}};
   ParagraphLayout layout =
       layoutParagraph(fontContext, paragraph, flow, options);
   EXPECT_GT(layout.lineCount, 1) << "unfittable tabbed word wraps";
@@ -375,7 +375,7 @@ TEST(TabStops, JustificationKeepsColumnsOnStops) {
     options.lineBreakStrategy = strategy;
     options.alignment = TextAlignment::kJustify;
     options.justification.justifyLastLine = true;
-    options.tabStops.positions = {100.0f};
+    options.tabStops.stops = {{100.0f}};
     ParagraphLayout layout =
         layoutParagraph(fontContext, paragraph, flow, options);
     ASSERT_EQ(layout.lineCount, 1);
@@ -395,7 +395,7 @@ TEST(TabStops, CenterAlignmentShiftsTheResolvedLine) {
   BlockFlow flow(SkRect::MakeWH(300, 60));
   ParagraphLayoutOptions options;
   options.alignment = TextAlignment::kCenter;
-  options.tabStops.positions = {100.0f};
+  options.tabStops.stops = {{100.0f}};
   ParagraphLayout layout =
       layoutParagraph(fontContext, paragraph, flow, options);
   const float aOrigin = runOriginFor(paragraph, layout, u"a");

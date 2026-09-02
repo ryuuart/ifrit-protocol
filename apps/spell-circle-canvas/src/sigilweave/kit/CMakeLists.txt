@@ -5,6 +5,7 @@
 # draw-call batching — explicit and reusable (see README.md here).
 # Qt-free; a label draws, so the kit rests on the paint feature.
 add_library(SigilWeaveKit STATIC
+  Hyphenation.cpp
   Labels.cpp
   SampleText.cpp
   ${SIGIL_WEAVE_INCLUDE_DIR}/sigilweave/kit/SigilWeaveKit.h
@@ -13,6 +14,7 @@ add_library(SigilWeaveKit STATIC
   ${SIGIL_WEAVE_INCLUDE_DIR}/sigilweave/kit/LayoutGuard.h
   ${SIGIL_WEAVE_INCLUDE_DIR}/sigilweave/kit/Quantize.h
   ${SIGIL_WEAVE_INCLUDE_DIR}/sigilweave/kit/GlyphBuckets.h
+  ${SIGIL_WEAVE_INCLUDE_DIR}/sigilweave/kit/Hyphenation.h
   ${SIGIL_WEAVE_INCLUDE_DIR}/sigilweave/kit/Labels.h
   ${SIGIL_WEAVE_INCLUDE_DIR}/sigilweave/kit/Palette.h
   ${SIGIL_WEAVE_INCLUDE_DIR}/sigilweave/kit/SampleText.h

@@ -279,22 +279,24 @@ const ExclusionFlow::FlatPath& ExclusionFlow::flattenedPathFor(
   return *cacheEntry->second;
 }
 
-bool BlockFlow::lineIntervals(int index, float lineHeight, float ascent,
+bool BlockFlow::lineIntervals(const LineRequest& request,
                               std::vector<LineInterval>& intervals) {
   intervals.clear();
-  const float top = m_bounds.top() + static_cast<float>(index) * lineHeight;
+  const float lineHeight = request.lineHeight;
+  const float top = m_bounds.top() + request.bandStart;
   if (top + lineHeight > m_bounds.bottom() + kEps) return false;
   LineInterval interval;
-  interval.origin = {m_bounds.left(), top + ascent};
+  interval.origin = {m_bounds.left(), top + request.ascent};
   interval.direction = {1, 0};
   interval.length = m_bounds.width();
   intervals.push_back(interval);
   return true;
 }
 
-bool ExclusionFlow::lineIntervals(int index, float lineHeight, float ascent,
+bool ExclusionFlow::lineIntervals(const LineRequest& request,
                                   std::vector<LineInterval>& intervals) {
   intervals.clear();
+  const float lineHeight = request.lineHeight;
   const FlowAxis axis = m_axis;
   const bool columns = axis == FlowAxis::kColumns;
 
@@ -307,15 +309,15 @@ bool ExclusionFlow::lineIntervals(int index, float lineHeight, float ascent,
   float bandEnd = 0;
   float penAxis = 0;
   if (columns) {
-    bandEnd = m_bounds.right() - static_cast<float>(index) * lineHeight;
+    bandEnd = m_bounds.right() - request.bandStart;
     bandStart = bandEnd - lineHeight;
     if (bandStart < m_bounds.left() - kEps) return false;
     penAxis = bandEnd - lineHeight * 0.5f;
   } else {
-    bandStart = m_bounds.top() + static_cast<float>(index) * lineHeight;
+    bandStart = m_bounds.top() + request.bandStart;
     bandEnd = bandStart + lineHeight;
     if (bandEnd > m_bounds.bottom() + kEps) return false;
-    penAxis = bandStart + ascent;
+    penAxis = bandStart + request.ascent;
   }
 
   std::vector<std::pair<float, float>> availableSpans = {
@@ -390,11 +392,11 @@ bool ExclusionFlow::lineIntervals(int index, float lineHeight, float ascent,
   return true;
 }
 
-bool VerticalBlockFlow::lineIntervals(int index, float lineHeight,
-                                      float /*ascent*/,
+bool VerticalBlockFlow::lineIntervals(const LineRequest& request,
                                       std::vector<LineInterval>& intervals) {
   intervals.clear();
-  const float right = m_bounds.right() - static_cast<float>(index) * lineHeight;
+  const float lineHeight = request.lineHeight;
+  const float right = m_bounds.right() - request.bandStart;
   if (right - lineHeight < m_bounds.left() - kEps) return false;
   LineInterval interval;
   interval.origin = {right - lineHeight * 0.5f, m_bounds.top()};
@@ -404,10 +406,10 @@ bool VerticalBlockFlow::lineIntervals(int index, float lineHeight,
   return true;
 }
 
-bool LineSetFlow::lineIntervals(int index, float /*lineHeight*/,
-                                float /*ascent*/,
+bool LineSetFlow::lineIntervals(const LineRequest& request,
                                 std::vector<LineInterval>& intervals) {
   intervals.clear();
+  const int index = request.index;
   if (index < 0 || static_cast<size_t>(index) >= m_lines.size()) return false;
   intervals = m_lines[static_cast<size_t>(index)];
   return true;
@@ -420,9 +422,10 @@ void PathFlow::addPath(const SkPath& path) {
     m_contours.push_back(std::move(contour));
 }
 
-bool PathFlow::lineIntervals(int index, float /*lineHeight*/, float /*ascent*/,
+bool PathFlow::lineIntervals(const LineRequest& request,
                              std::vector<LineInterval>& intervals) {
   intervals.clear();
+  const int index = request.index;
   if (index < 0 || static_cast<size_t>(index) >= m_contours.size())
     return false;
   LineInterval interval;

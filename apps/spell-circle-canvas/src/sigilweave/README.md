@@ -90,9 +90,10 @@ public:
   SingleContourFlow(geometry::path::Contour contour, float start)
       : m_contour(std::move(contour)), m_start(start) {}
 
-  bool lineIntervals(int index, float lineHeight, float ascent,
+  using FlowGeometry::lineIntervals;
+  bool lineIntervals(const LineRequest &request,
                      std::vector<LineInterval> &intervals) override {
-    if (index > 0)
+    if (request.index > 0)
       return false;              // one line only; false = geometry exhausted
     LineInterval interval;
     interval.contour = m_contour;
@@ -107,6 +108,17 @@ private:
   float m_start;
 };
 ```
+
+A `LineRequest` is the band being asked for, and the field that matters is
+`bandStart`: how far along the stacking axis the band's near edge sits,
+measured from the flow's own start edge. Bands do NOT stand at
+`index · lineHeight` — that holds only while one pitch serves the whole
+text, and a text whose blocks lead differently, or which puts air between
+them, stacks at distances the layout accumulates. So the layout carries
+that cursor and a geometry answers what is available in the band that
+starts there. `blockIndex` and `lineInBlock` come along for a geometry that
+wants them — a frame grid, a well cut for one block — and every geometry
+above ignores them.
 
 A contour interval carries a `geometry::path::Contour` from SigilGeometryPath —
 one sub-path addressed by arc length, built with `geometry::path::Contour::of(path)`.
@@ -363,6 +375,102 @@ Everything compiles as standard C++20 with extensions disabled. Public APIs
 use `std::span` views, concept-constrained callbacks, and
 `[[nodiscard("reason")]]` where ignoring a return silently corrupts caller
 state.
+
+## Paragraphs: what a BLOCK is set like
+
+A `Paragraph` is one styled string, and a hard break inside it separates
+**blocks** — the paragraphs a reader sees. A block is styled by telling the
+layout stage about it, not by carrying anything on the text:
+
+```cpp
+ParagraphStyle body;
+body.leading = Leading::multiple(1.45f);
+body.spaceAfter = 10.0f;
+body.indent.firstLine = 18.0f;
+
+ParagraphStyle heading;
+heading.leading = Leading::grid(24.0f);   // shares a rhythm with the body
+heading.spaceAfter = 16.0f;
+heading.alignment = TextAlignment::kCenter;
+heading.keep.withNext = true;
+
+ParagraphLayoutOptions options;
+options.blocks = {heading, body, body};   // one entry per block, in order
+```
+
+`ParagraphLayoutOptions`'s own `alignment`, `justification`, `hyphenation`
+and `tabStops` are the WHOLE LAYOUT'S answer; a block states its own by
+setting the matching optional and inherits it otherwise. A layout with no
+`blocks` lays out exactly as one that never heard of them.
+
+**Pitch is per block.** `Leading::face()` takes that block's first span's
+own line height — which is what a text that says nothing has always used —
+and `multiple`, `absolute` and `grid` state it otherwise. The extra a
+leading opens goes ABOVE the line, where leading has always gone.
+`Leading::grid(24)` rounds the block's own height up to a whole number of
+grid steps and snaps each band's near edge to one, so two blocks on the
+same grid share one rhythm however differently their faces are cut. In a
+vertical setting the pitch is the width of the block's columns, so two
+blocks of different pitch are two column sets one after the other.
+
+**One spacing rule.** The gap between two blocks is the LARGER of the
+first's `spaceAfter` and the second's `spaceBefore`. Everywhere, including
+at the head of the flow, with no exception to remember: neither CSS
+collapsing nor a suppression at the top of a frame.
+
+**Indents are geometry.** `IndentOptions` insets the intervals a geometry
+handed back — `start` and `end` on every line, `firstLine` and `lastLine`
+added to `start` on the first and last. A negative `firstLine` is the
+hanging indent a bullet or a number hangs into. Because it is arithmetic on
+the interval, an indent composes with exclusions and columns without either
+knowing about it: a line an exclusion cut into three is inset at its
+outermost ends and nowhere in the middle.
+
+**Keeps are a break decision.** `KeepOptions` — widows, orphans,
+keep-with-next, all-lines-together, start-in-next-frame — needs a breaker
+that can weigh a break it would rather not take, and a frame boundary to
+weigh it against. The greedy breaker takes the first break that fits and
+says once that it is ignoring them.
+
+**Justification spends in three passes.** The word gaps move first, from
+`wordSpacing` towards `spaceStretch` / `spaceShrink`; what they could not
+spend goes into letter spacing, bounded by
+`letterSpacingMinimum`/`Maximum` as fractions of the em; what is still left
+scales the glyphs across, bounded by `glyphScaleMinimum`/`Maximum`. A pass
+whose limits equal its desired value contributes nothing and costs nothing,
+which is why a caller who sets none of them gets word spacing alone and the
+shared word blobs that go with it. `singleWord` decides what a line holding
+one word does: align, or stretch across the measure on letter spacing.
+Respacing and scaling are a straight-horizontal answer — a column and a
+curve place per glyph already.
+
+**Tab stops align their cell.** A `TabStop` states a position, what it pins
+there (`kStart`, `kCenter`, `kEnd`, or `kCharacter` on a named character —
+the decimal column a table of figures wants), and an optional `leader`
+string set repeatedly across the gap it opened, butted against the stop so
+the dots meet the figure. The BREAKERS fit against the start rule, because
+every other alignment renders the same cell nearer its stop: a line that
+fits under one fits under all.
+
+**A frame seats what it holds.** `FrameOptions::firstBaseline` names where
+baseline 0 sits below the flow's near edge — the first line's ascent, its
+cap height, its x-height, its whole pitch, or a fixed offset — and every
+later baseline follows at its own block's pitch, so seating a passage is one
+number applied once. `distribute` spends the room left over: nothing,
+centred, against the far edge, or spread between the lines as extra
+leading. Both need `extent`, how deep the frame is, which a geometry knows
+and the layout does not; 0 leaves both alone. Neither applies to a flow
+whose intervals ride a contour, nor to runs whose glyphs are baked per
+glyph.
+
+**Hyphenation is two decisions in two places.** WHERE a word may break is
+segmentation, so the whole layout shares it: the soft hyphens the author
+typed, plus whatever a `Hyphenator` finds inside a word under
+`HyphenationOptions::limits` (minimum word length, letters before and
+after, capitalised words). WHICH of those a line takes is a break decision,
+so a block owns it: `consecutiveLimit`, `zone`, `lastWordOfBlock`. The kit
+carries the pattern tables (see below); the engine decides nothing about
+where English breaks, because that is not a property of text layout.
 
 ## What the engine covers
 

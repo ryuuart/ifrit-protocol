@@ -186,7 +186,7 @@ void sceneNewFeatures(FontContext& fontContext,
             rowTop);
   {
     ParagraphLayoutOptions options;
-    options.tabStops.positions = {180, 420, 640};
+    options.tabStops.stops = {{180}, {420}, {640}};
     const char8_t* tabRows[] = {u8"ledger\t128.50\tconfirmed\tA",
                                 u8"ink\t7.25\tpending\tB",
                                 u8"paper\t1024.00\tarchived\tC"};
