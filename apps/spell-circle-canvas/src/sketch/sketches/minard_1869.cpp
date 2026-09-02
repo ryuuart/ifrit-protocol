@@ -180,9 +180,20 @@ constexpr SkColor4f kDesk = hex(0x1b1a18);  // the table the sheet lies on
 constexpr SkColor4f kPaperShadow = hex(0xb9ad98);  // p10: edges, foxing
 constexpr SkColor4f kPaperBody = hex(0xcbbfab);    // p50: the sheet's ground
 constexpr SkColor4f kPaperLight = hex(0xd6cab6);   // p90
-constexpr SkColor4f kZoneDark = hex(0xa98674);
-constexpr SkColor4f kZone = hex(0xb08d7a);  // "le rouge"
-constexpr SkColor4f kZoneLight = hex(0xb79481);
+// "LE ROUGE", AS THE SHEET PRINTS IT. Minard names the advance zone red
+// and the 1869 lithograph lays it as a pale buff ochre — a warm cream a
+// shade off the paper, not a rose. A pinker, darker zone competes with
+// the black retreat band instead of sitting under it, which inverts the
+// sheet's whole reading: the black is the figure and the zone the ground.
+constexpr SkColor4f kZoneDark = hex(0xcfb890);
+constexpr SkColor4f kZone = hex(0xd8c39b);
+constexpr SkColor4f kZoneLight = hex(0xe0cda8);
+// The engraved strengths. They are what the band's WIDTH is for, so they
+// are set firm and black on the lithograph and have to be readable off
+// the plate at plate size; smaller than this and the sheet's own subject
+// cannot be checked against the drawing that carries it.
+constexpr float kNumSize = 11.4f;
+
 constexpr SkColor4f kInk = hex(0x25211d);  // p50 printed black
 constexpr SkColor4f kInkDeep = hex(0x0a0806);
 constexpr SkColor4f kInkThin = hex(0x4e4436);     // hairlines, hachures
@@ -1525,7 +1536,7 @@ struct Minard1869 : sketch::Sketch {
         if (i > 0 && st[i].men == st[i - 1].men) continue;
         const SkPoint a = stationPt(st[i]), b = stationPt(st[i + 1]);
         g.child(bandNumber({(a.x() + b.x()) * 0.5f, (a.y() + b.y()) * 0.5f},
-                           {b.x() - a.x(), b.y() - a.y()}, st[i].men, 8.6f,
+                           {b.x() - a.x(), b.y() - a.y()}, st[i].men, kNumSize,
                            tag + std::to_string(i), t0 + dt * (float)i));
       }
     };
@@ -1536,8 +1547,8 @@ struct Minard1869 : sketch::Sketch {
     numbersFor(kRetWest, "nE", tRet + 0.9f, 0.06f);
     numbersFor(kRetPolotzk, "nF", tRet + 0.8f, 0.05f);
     // what recrossed the Niemen
-    g.child(bandNumber({mapX(23.95f), mapY(54.4f)}, {1, 0}, 10000, 8.6f, "nG",
-                       tRet + 1.7f));
+    g.child(bandNumber({mapX(23.95f), mapY(54.4f)}, {1, 0}, 10000, kNumSize,
+                       "nG", tRet + 1.7f));
 
     // --- the place names --------------------------------------------------
     for (size_t i = 0; i < kCities.size(); ++i) {
