@@ -4,7 +4,7 @@
 // signed "Capieux. sculps. 1786." at the foot of the plate.
 //
 // REFERENCE
-//   Internet Archive item `entdeckungenuber00chla`, IIIF leaf $92, pulled
+//   Internet Archive item `entdeckungenuber00chla`, IIIF leaf $93, pulled
 //   at 1600x2072 (archive.org's copy of the 1787 first edition; ETH e-rara
 //   holds the same edition at doi 10.3931/e-rara-4235). Twelve numbered
 //   figures, 3 columns x 4 rows: each is a metal disc seen from above,
@@ -578,30 +578,31 @@ struct ChladniTab1 : sketch::Sketch {
       // painted back in paper colour on top. No boolean path ops needed —
       // z-order is the cutout.
       //
-      // The engraved tone inside each petal is a RADIAL FAN, and
-      // lines::hatch is a parallel lattice at one angle. The fan is built
-      // out of the shape kit instead — each petal is cut into ~9 degree
-      // sectors and each sector carries its own rotated hatch, so the
-      // rules turn with the bearing the way the burin did.
-      // `lines::radialHatch` rules from a point rather than across a
-      // wedge, which is a different field.
-      const int petals = (int)f.points;
-      const float sweep = 360.0f / (float)petals;
-      const int sub = std::max(8, (int)std::lround(sweep / 6.0f));
-      const float ssw = sweep / (float)sub;
-      for (int p = 0; p < petals; ++p)
-        for (int k = 0; k < sub; ++k) {
-          const float b0 = (float)p * sweep + (float)k * ssw;
-          const float bc = b0 + ssw * 0.5f;
-          root.child(
-              kit::disc(c, kR)
-                  .key(tag + "h" + std::to_string(p) + "_" + std::to_string(k))
-                  .shape(shapes::sector(b0 - 90.4f, ssw + 0.8f))
-                  .fill(Fill::none())
-                  .background(lines::hatch(Fill::color(hex(0x211c14, 0.52f)),
-                                           4.6f, 0.85f, bc - 90.0f))
-                  .opacity(bind(&settle[fi]).source(0.52f, 0.98f).clamp(0, 1)));
-        }
+      // The engraved tone inside each petal is a RADIAL FAN — long combed
+      // strokes ruled from the disc's own centre, dense and dark toward
+      // the rim — and that is one decoration, not a hundred wedges each
+      // carrying a rotated parallel lattice. A lattice cut into nine
+      // degree sectors approximates a fan and reads as what it is: short,
+      // broken and fuzzy, so figures 3 and 5 lose the ordered grain that
+      // is the only thing separating them from figures 2 and 4.
+      //
+      // The hole is the star's own trough radius, which is where the
+      // blank channel these two figures are measured by begins.
+      {
+        lines::RadialHatch fan = lines::radialHatch(
+            Fill::color(hex(0x211c14, 0.62f)), (int)f.points * 60, 0.85f);
+        fan.holeFraction = f.inner;
+        root.child(
+            kit::disc(c, kR)
+                .key(tag + "fan")
+                // The disc's own outline is the clip: a fan's spokes reach
+                // the box's half-diagonal, so on a square node they run out
+                // past the rim into the plate's paper.
+                .shape(shapes::circle())
+                .fill(Fill::none())
+                .background(fan)
+                .opacity(bind(&settle[fi]).source(0.52f, 0.98f).clamp(0, 1)));
+      }
       root.child(kit::disc(c, kR * 1.002f)
                      .key(tag + "mask")
                      .shape(shapes::star((int)f.points, f.inner))
