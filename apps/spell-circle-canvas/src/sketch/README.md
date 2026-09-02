@@ -175,6 +175,7 @@ Sketchbook <file.cpp> --bench [--bench-frames <n>] [--jitter-dt [amp]]
 Sketchbook --headless <outdir> [--gpu] [--sketch <name>] [--kind <k>]
            [--ledger] [--no-promotion] [--capture-at <s>]
            [--timing-json <path>]
+Sketchbook --window-bench [<sec>] [--window-size <WxH>] [--window-scale <n>]
 … [--assets <dir>]                          # what mounts at res://
 ```
 
@@ -239,6 +240,42 @@ scene's own period, so a cost that grows per distinct value reads as
 free. A wall-clock host never revisits a value. The sequence is a
 golden-ratio rotation — irrational, so it never repeats a step, and
 deterministic, so two runs measure the same frames.
+
+### `--window-bench`: the same frames, in the real window
+
+```sh
+Sketchbook --window-bench [<sec>] [--window-size <WxH>] [--window-scale <n>]
+           [--sketch <name>] [--kind canvas|set]
+```
+
+Opens the window at a stated size and device pixel ratio, presents each
+selected sketch for a stretch after a warm-up, and prints one
+machine-readable line each — prefixed `WINDOW`, the way `--bench`
+prefixes `BENCH` — carrying the presented rate, the frame's work mean
+and p99, its paint phase, the submit, and the headroom the work alone
+would allow. A sketch this machine cannot run is named `SKIPPED` with
+what is missing, and no line is written for it.
+
+**It measures what `--bench` cannot.** The gate renders onto a raster
+surface at the sketch's declared size and presents nothing, which is
+what makes it a gate: the sketch's own cost, isolated. Here the frame is
+drawn through the surface the window presents, at the window's pixels
+and its device pixel ratio, and the numbers carry the host's own
+overhead with them — the submit or texture upload that puts the frame on
+screen, and, for a set drawn on a device, the readback and blit its
+paint phase performs. Selection goes through the same property a click
+sets, so the resident set is in the measurement too.
+
+A presented rate is bounded by the compositor, which means by the
+display: a sketch comfortably inside its budget reads at the refresh
+rate and says nothing more. The interesting rows are the ones BELOW it,
+and the work beside them says how much of that frame was the sketch.
+
+`scripts/app_fps_ledger.py` drives it over the registry and judges each
+presented rate against `bench/app_fps_<config>.json` within a stated
+band, `--rebase` adopting. The baseline is per machine AND per display
+mode, so it records the window size and scale it was taken at and the
+run says so when they differ.
 
 ## Plates
 

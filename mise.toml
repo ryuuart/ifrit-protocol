@@ -204,6 +204,20 @@ cmake --build build --config Release --target Sketchbook
 python3 scripts/plate_ledger.py
 '''
 
+[tasks.fps]
+description = "Presented-frame-rate sweep in the real window (args go to app_fps_ledger.py)"
+dir = "apps/spell-circle-canvas"
+# Forwards like `ledger` does: `mise run fps -- --rebase`,
+# `mise run fps -- --kind set`. It opens a real window and presents each
+# sketch in it, so the machine has to be quiet AND the window has to be
+# able to present — a compositor busy with something else is measured
+# along with the sketch.
+run = '''
+set -e
+cmake --build build --config Release --target Sketchbook
+python3 scripts/app_fps_ledger.py
+'''
+
 [tasks.bench]
 description = "Timing sweep over the benchmark binaries (args go to bench_ledger.py)"
 dir = "apps/spell-circle-canvas"

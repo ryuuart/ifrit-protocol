@@ -151,6 +151,7 @@ void Host::openSession(const Kind& kind) {
     m_session = kind->open(m_fonts, m_assets, m_options.deterministic);
   }
   m_workMs.clear();  // fresh sketch, fresh numbers
+  m_drawMs.clear();
 }
 
 SkSize Host::canvasSize() const {
@@ -329,6 +330,8 @@ bool Host::frame(SkCanvas& canvas, double fixedDt) {
                         .count();
   if (m_workMs.size() >= 120) m_workMs.erase(m_workMs.begin());
   m_workMs.push_back(ms);
+  if (m_drawMs.size() >= 120) m_drawMs.erase(m_drawMs.begin());
+  m_drawMs.push_back(m_session->timing().drawMs);
   return true;
 }
 
@@ -337,6 +340,13 @@ double Host::workMsAverage() const {
   double sum = 0.0;
   for (double v : m_workMs) sum += v;
   return sum / (double)m_workMs.size();
+}
+
+double Host::drawMsAverage() const {
+  if (m_drawMs.empty()) return 0.0;
+  double sum = 0.0;
+  for (double v : m_drawMs) sum += v;
+  return sum / (double)m_drawMs.size();
 }
 
 double Host::workMsP99() const {

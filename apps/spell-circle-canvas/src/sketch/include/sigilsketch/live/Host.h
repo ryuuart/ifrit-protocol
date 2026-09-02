@@ -96,6 +96,12 @@ class Host {
    *  timed, presentation is what the host reports via markPresented(). */
   [[nodiscard]] double workMsAverage() const;
   [[nodiscard]] double workMsP99() const;
+  /** The session's own PAINT phase over the same rolling window. It is
+   *  inside the work above, and it is worth having on its own because
+   *  for a set drawn on a device it is where the readback and the blit
+   *  onto the canvas land — the host cost a frame-time gate rendering
+   *  onto a raster surface never pays. */
+  [[nodiscard]] double drawMsAverage() const;
   [[nodiscard]] double presentedFps() const;
   void markPresented();
   /** BEGINS PRESENTING AGAIN after a stretch in which something else
@@ -182,6 +188,7 @@ class Host {
   std::chrono::steady_clock::time_point m_compileStart;
   std::chrono::steady_clock::time_point m_lastPresent;
   std::vector<double> m_workMs;     // rolling frame-body cost window
+  std::vector<double> m_drawMs;     // …and the paint phase inside it
   std::vector<double> m_presentMs;  // rolling present-interval window
   std::string m_status = "waiting for first build";
   std::string m_errorLog;

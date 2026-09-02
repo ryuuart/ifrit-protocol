@@ -10,6 +10,9 @@
  *   Sketchbook <file.cpp> [--frame <png>] [--bench]
  *                                              a file, live or measured
  *   Sketchbook <file.cpp>                      the app, on that file
+ *   Sketchbook --window-bench [<sec>] [--window-size <WxH>]
+ *              [--window-scale <n>] [--sketch <name>] [--kind <k>]
+ *                                              the window's own frame rate
  *   … [--assets <dir>]                         where res:// mounts
  *
  * `--sketch` takes a case-insensitive substring and answers to a
@@ -81,6 +84,14 @@ constexpr double kFrameBudgetMs = 16.6;
  *  interval, which is the spread a windowed host delivers when it is
  *  comfortably inside its budget and the compositor is merely uneven. */
 constexpr double kDefaultJitter = 0.35;
+
+/** How long `--window-bench` measures each sketch, and how long it lets
+ *  one run before it starts. The measured stretch is longer than either
+ *  rolling window the readout comes from, so what it reports is entirely
+ *  frames from the measured stretch; the warm-up is what pays for the
+ *  first frames' program compiles, texture bakes and glyph atlases. */
+constexpr double kWindowBenchSeconds = 2.5;
+constexpr double kWindowBenchWarmupSeconds = 1.2;
 
 /** The compiler line the build captured, which lands beside the binaries
  *  rather than inside the bundle: a macOS application is a directory, and
@@ -406,6 +417,137 @@ int runFrames(sketch::Host& host, const CaptureOptions& options) {
   return 0;
 }
 
+// ---------------------------------------------------------------------------
+// The window's own frame-rate lane
+
+/** What `--window-bench` was asked for. */
+struct WindowBench {
+  double seconds = 0.0;  // above zero turns the lane on
+  int width = 1440;
+  int height = 900;
+  double scale = 0.0;  // zero leaves the screen's own device pixel ratio
+};
+
+/** THE LANE OVER THE REAL WINDOW: each selected sketch presented for a
+ *  stated stretch, one machine-readable line each.
+ *
+ *  What it measures that the frame-time gate cannot. `--bench` renders
+ *  onto a raster surface at the sketch's declared size and presents
+ *  nothing — it is the sketch's own cost and nothing else, which is what
+ *  makes it a gate. Here the frame is drawn through the surface the
+ *  window presents, at the window's pixels and its device pixel ratio,
+ *  and the numbers carry the host's own overhead with them: the submit
+ *  or texture upload that puts the frame on screen, and for a set the
+ *  device readback and blit that its paint phase performs. The presented
+ *  rate is the compositor's answer, so it is bounded by the display and
+ *  a sketch inside its budget reads at the refresh rate.
+ *
+ *  It drives the selection through the same property QML sets, so every
+ *  switch takes the same path a reader's click does — the resident set
+ *  included. False when there is nothing to present. */
+bool startWindowBench(QGuiApplication& application, QQuickWindow& window,
+                      QObject& view, const WindowBench& options,
+                      std::vector<int> selection) {
+  if (selection.empty()) {
+    std::fprintf(stderr, "--window-bench: nothing selected\n");
+    return false;
+  }
+  struct Run {
+    std::vector<int> selection;
+    size_t at = 0;
+    bool measuring = false;
+    std::chrono::steady_clock::time_point phaseStart;
+  };
+  auto run = std::make_shared<Run>();
+  run->selection = std::move(selection);
+  run->phaseStart = std::chrono::steady_clock::now();
+  view.setProperty("sketchIndex", run->selection[0]);
+
+  auto* timer = new QTimer(&application);
+  timer->setInterval(8);
+  QObject::connect(
+      timer, &QTimer::timeout, &application,
+      [&window, &view, options, run, timer] {
+        // Each tick asks the item for a frame. The window drives itself
+        // once it is presenting, and the ask costs nothing when it is
+        // already going — but a window a compositor has stopped giving
+        // frames to would otherwise be measured as a sketch that stopped
+        // drawing, which is a different finding entirely.
+        if (auto* item = qobject_cast<QQuickItem*>(&view)) item->update();
+        const auto now = std::chrono::steady_clock::now();
+        const double elapsed =
+            std::chrono::duration<double>(now - run->phaseStart).count();
+        if (!run->measuring) {
+          if (elapsed < kWindowBenchWarmupSeconds) return;
+          run->measuring = true;
+          run->phaseStart = now;
+          return;
+        }
+        if (elapsed < options.seconds) return;
+
+        const sketch::Entry& entry =
+            sketch::registry()[run->selection[run->at]];
+        {
+          QMutexLocker lock(&SketchbookView::hostMutex);
+          const sketch::Host* host = SketchbookView::host;
+          const QVariantMap metrics = view.property("metrics").toMap();
+          const sketch::Kind kind = entry.kind();
+          const std::string_view runtime = kind ? kind->runtime() : "?";
+          const SkSize canvas = host ? host->canvasSize() : SkSize::Make(0, 0);
+          const double work = host ? host->workMsAverage() : 0.0;
+          std::printf(
+              "WINDOW %s window=%dx%d@%g canvas=%dx%d kind=%.*s fps=%.1f "
+              "work=%.2fms p99=%.2fms draw=%.2fms submit=%.2fms "
+              "headroom=%.1f\n",
+              entry.name, window.width(), window.height(),
+              window.devicePixelRatio(), (int)canvas.width(),
+              (int)canvas.height(), (int)runtime.size(), runtime.data(),
+              host ? host->presentedFps() : 0.0, work,
+              host ? host->workMsP99() : 0.0,
+              host ? host->drawMsAverage() : 0.0,
+              metrics.value(QStringLiteral("submitMs")).toDouble(),
+              work > 0 ? 1000.0 / work : 0.0);
+          std::fflush(stdout);
+        }
+
+        if (++run->at >= run->selection.size()) {
+          timer->stop();
+          QCoreApplication::quit();
+          return;
+        }
+        view.setProperty("sketchIndex", run->selection[run->at]);
+        run->measuring = false;
+        run->phaseStart = now;
+      });
+  timer->start();
+  return true;
+}
+
+/** The registry entries `--window-bench` will present: the whole table,
+ *  or what `--sketch` and `--kind` narrow it to. A sketch this machine
+ *  cannot run is named as stood down and left out, exactly as the sweep
+ *  passes over it — a skip is not a failure and not a measurement. */
+std::vector<int> windowBenchSelection(int only, const std::string& kind) {
+  std::vector<int> selection;
+  const auto& entries = sketch::registry();
+  const int first = only >= 0 ? only : 0;
+  const int last = only >= 0 ? only + 1 : (int)entries.size();
+  for (int i = first; i < last && i < (int)entries.size(); ++i) {
+    if (!kind.empty()) {
+      const sketch::Kind entryKind = entries[i].kind();
+      if (!entryKind || entryKind->runtime() != kind) continue;
+    }
+    std::string why;
+    if (!entries[i].available(&why)) {
+      std::printf("WINDOW %s SKIPPED %s\n", entries[i].name, why.c_str());
+      continue;
+    }
+    selection.push_back(i);
+  }
+  std::fflush(stdout);
+  return selection;
+}
+
 }  // namespace
 
 // an uncaught exception ends the app with its message
@@ -416,6 +558,7 @@ int main(int argc, char* argv[]) {
   std::string selected, kind, shotPath;
   sketch::SweepOptions sweepOptions;
   CaptureOptions capture;
+  WindowBench windowBench;
   bool headless = false, list = false, gpu = false, noGpu = false;
   std::optional<bool> deterministic;
 
@@ -447,6 +590,29 @@ int main(int argc, char* argv[]) {
       shotPath = argv[++i];
     } else if (arg == "--assets" && i + 1 < argc) {
       assetsOverride = argv[++i];
+    } else if (arg == "--window-bench") {
+      // The stretch is optional: a bare flag takes the default, and only
+      // a following token that reads as a number is consumed.
+      windowBench.seconds = kWindowBenchSeconds;
+      if (i + 1 < argc) {
+        const std::string next = argv[i + 1];
+        if (!next.empty() &&
+            (std::isdigit((unsigned char)next[0]) || next[0] == '.')) {
+          windowBench.seconds = std::stod(next);
+          ++i;
+        }
+      }
+    } else if (arg == "--window-size" && i + 1 < argc) {
+      const std::string size = argv[++i];
+      const size_t by = size.find('x');
+      if (by == std::string::npos) {
+        std::fprintf(stderr, "--window-size wants WIDTHxHEIGHT\n");
+        return 2;
+      }
+      windowBench.width = std::max(1, std::stoi(size.substr(0, by)));
+      windowBench.height = std::max(1, std::stoi(size.substr(by + 1)));
+    } else if (arg == "--window-scale" && i + 1 < argc) {
+      windowBench.scale = std::stod(argv[++i]);
     } else if (arg == "--frame" && i + 1 < argc) {
       capture.out = argv[++i];
     } else if (arg == "--at" && i + 1 < argc) {
@@ -597,6 +763,14 @@ int main(int argc, char* argv[]) {
   // come up is not fatal here — there is no plate whose name would then
   // stand over two different pictures, only a window that says which
   // tier it is showing.
+  // The window's own frame-rate lane opens the window at a stated size
+  // and asks Qt for a stated scale, which it can only be told before the
+  // application exists.
+  if (windowBench.scale > 0.0) {
+    char factor[32];
+    std::snprintf(factor, sizeof factor, "%g", windowBench.scale);
+    setenv("QT_SCALE_FACTOR", factor, 1);
+  }
   if (noGpu || !useDevice())
     std::fprintf(stderr,
                  "[sketchbook] sets draw on the CPU mesh executor: a "
@@ -638,6 +812,19 @@ int main(int argc, char* argv[]) {
         break;
       }
   if (view && openAt >= 0) view->setProperty("sketchIndex", openAt);
+
+  if (windowBench.seconds > 0.0) {
+    if (!window || !view) {
+      std::fprintf(stderr, "--window-bench: no window to present in\n");
+      return 1;
+    }
+    window->resize(windowBench.width, windowBench.height);
+    window->raise();
+    window->requestActivate();
+    if (!startWindowBench(application, *window, *view, windowBench,
+                          windowBenchSelection(chosen, kind)))
+      return 1;
+  }
 
   if (!shotPath.empty()) {
     if (!window || !view) {

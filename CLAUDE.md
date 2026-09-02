@@ -204,9 +204,20 @@ build/bin/<config>/Sketchbook.app/Contents/MacOS/Sketchbook \
 which is the loop for visual iteration. `--list` prints the registry;
 `--kind` narrows it to the sketches drawn onto a canvas or the ones that
 light a set. `--shot <png>` captures the app itself rather than a sketch.
-Pointed at a file with no `--headless`, Sketchbook opens on it and
-hot-swaps the recompiled sketch on every save; `--frame out.png` renders
-one headlessly and `--bench` measures it against the 60 FPS gate.
+Pointed at a file with no `--headless`, Sketchbook opens on it — from
+anywhere on disk, listed under its own stem with `assets/` beside it —
+and hot-swaps the recompiled sketch on every save; `--frame out.png`
+renders one headlessly and `--bench` measures it against the 60 FPS
+gate.
+
+`--window-bench` is the other frame-rate lane: it presents each sketch in
+the REAL window at a stated size and device pixel ratio and prints what
+was presented, so the host's own overhead — readback, upload,
+presentation — is in the number, which `--bench` on a raster surface
+cannot see. `scripts/app_fps_ledger.py` (or `mise run fps`) sweeps the
+registry with it and judges each presented rate against
+`bench/app_fps_<config>.json`; `--rebase` adopts. Per machine and per
+display mode, and the baseline records which.
 
 Plate sweeps run through `scripts/plate_ledger.py` in four tiers, each
 with its own baseline and all through that one binary. The two that
