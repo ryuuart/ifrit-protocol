@@ -21,8 +21,8 @@ archive that links only what sits above it in the tree — so a text
 engine or a drawable component library walks an outline through
 **`SigilGeometryPath`** without linking meshes or importers, and a
 renderer takes **`SigilGeometryMeshPop`** without the codec.
-**`SigilGeometry`** is the umbrella, an interface over all nine, so a
-consumer of the whole library names only that.
+**`SigilGeometry`** is the umbrella, an interface over every one of
+them, so a consumer of the whole library names only that.
 
 **Directories, targets, headers and namespaces are the same outline.**
 A feature at `mesh/curve/` is target `SigilGeometryMeshCurve`, headers
@@ -39,8 +39,19 @@ mesh/          SigilGeometryMesh          sigil::geometry::mesh
   curve/       SigilGeometryMeshCurve     sigil::geometry::mesh::curve
   pop/         SigilGeometryMeshPop       sigil::geometry::mesh::pop
   codec/       SigilGeometryMeshCodec     sigil::geometry::mesh::codec
+device/        SigilGeometryDevice        sigil::geometry::device
 kit/           SigilGeometryKit           sigil::geometry::shapes
 ```
+
+`device/` is the GPU device itself, and it is here for one reason:
+**Diligent creates the Vulkan device and cannot attach to one that
+already exists**, so the single point where a device is made has to sit
+at or below every consumer of one. A point operator's device executor, a
+mesh painter's device draw and a frame runtime's passes all stand on the
+device this feature created and the hardware device adopted, and none of
+them can create it for the others. It is absent from a build without
+Skia's Graphite on the same device, since being one device for both APIs
+is the whole of what it is for.
 
 `kit/` is the one directory that does not sit in that dependency tree:
 it is the SHELF over the tiers, holding the stock values anybody could
@@ -496,8 +507,8 @@ language.
 
 **`mesh/codec`** — `SigilGeometryMeshCodec`, needs `mesh` and
 `mesh/pop`. Its parsers
-are private to the feature: tinyobjloader, cgltf and Alembic, with STL,
-PLY and `.geo` parsed by hand. One reader per translation unit —
+are private to the feature: tinyobjloader, cgltf, Alembic and simdjson
+(the JSON a `.geo` is), with STL and PLY parsed by hand. One reader per translation unit —
 `Obj.cpp`, `Gltf.cpp`, `Stl.cpp`, `PlyDecode.cpp`, `Geo.cpp`, `Alembic.cpp` —
 behind the dispatcher in `Model.cpp`, sharing only what `Internal.h`
 declares; `PlyEncode.cpp` is the writer.
@@ -598,6 +609,79 @@ equality, and a consumer that wants a plain path-over-size function gets
 one from the call operator. Your own generator written the same way has
 the same standing — the kit is stock, never privileged, and equal values
 must draw identical paths at every size.
+
+## The device
+
+`device::Device::create(config, &error)` brings the one GPU device up:
+Diligent creates a Vulkan device and its immediate context, and
+SigilCore's hardware device adopts the Vulkan device, queue and loader
+entry points it made, with Graphite recording onto that same queue. A
+texture named on `gpu()` is then an image both APIs reach — 2D drawing
+through `graphite()` lands in it and a 3D pass samples it, with no copy
+in either direction and one handle table naming both.
+
+```cpp
+#include <sigilgeometry/device/Device.h>
+
+using namespace sigil;
+
+geometry::device::DeviceConfig config;
+std::string error;
+std::unique_ptr<geometry::device::Device> device =
+    geometry::device::Device::create(config, &error);
+if (!device) return;  // no Vulkan runtime, for instance; `error` says why
+
+core::hardware::GpuDevice& gpu = *device->gpu();
+core::hardware::TextureDesc desc;
+desc.width = desc.height = 512;
+const core::hardware::TextureHandle texture = gpu.createTexture(desc);
+const core::hardware::FenceHandle fence = gpu.createFence();
+
+// Paint 2D into a texture a 3D pass will sample. Everything that submits
+// on the shared queue happens under the lock.
+geometry::device::Device::QueueLock lock(*device);
+skia::OffscreenSurface surface(*device->graphite(), gpu, texture);
+surface.canvas()->clear(SK_ColorBLUE);
+surface.submit(gpu, fence);
+```
+
+`renderDevice()` and `context()` are the Diligent side and are never
+null on a device that was created. `gpu()` and `graphite()` are the
+adopted side and are null together when the adoption failed — a driver
+without timeline semaphores, for instance, since that is what a hardware
+fence is. A failed adoption costs the shared 2D path and nothing else.
+
+**The queue is shared, and sharing has a rule.** Graphite's submissions
+and Diligent's passes go into one queue in submission order, which is
+what lets a submit stay asynchronous and still be correct — but only
+while the two streams never interleave. Every Graphite submit, and every
+fence signal or wait on `gpu()`, is made under a `QueueLock`. Diligent
+takes the same lock from inside its own submissions, which is why the
+lock does not nest: no Diligent call may be made while one is held.
+
+`device::Resources` is what every executor on that device stands on,
+made once and shared: the buffer a draw's uniforms go into, the samplers
+a map is read through (linear and nearest, clamped and tiled, plus the
+one a panorama needs — periodic in azimuth, clamped at the poles and
+linear ACROSS the prefiltered levels), the one white texel an unfilled
+sampled slot reads, and the staging copy `read()` brings a texture's
+pixels home through. None of it is a frame's; a frame's targets, meshes
+and pipelines belong to whatever draws frames.
+
+**The Vulkan loader is opened once**, by the volk shim in
+`device/VolkShim.c`, and the `vkGetInstanceProcAddr` it resolves is
+handed to the hardware device — which refuses an adoption without one,
+because dispatching through a second copy of the same library is what
+makes two APIs stop being one device. `SIGILWORLD_VULKAN_LIBRARY` names a
+Vulkan library to open ahead of the built-in candidates. There is no
+Metal path, because Diligent has no Metal backend: `create` fails on a
+machine with no Vulkan runtime and says so, and on macOS the runtime is
+`brew install molten-vk vulkan-loader`.
+
+`geometry_device_test` is therefore where the hardware device's Vulkan
+backend is exercised at all — the formats it maps, the import and export
+round trip, the timeline fence, and Graphite over a texture the device
+named — because a Vulkan device exists here and nowhere below.
 
 ## Conventions that will bite you
 
@@ -739,10 +823,17 @@ linking them acquires no kernel, no device and nothing that draws.
 Privately `mesh` uses the header-only earcut for cap triangulation, and
 `mesh/codec` uses
 tinyobjloader for OBJ, Alembic for `.abc` and the header-only cgltf for
-glTF; STL, PLY and `.geo` are parsed by hand. None of those reaches
+glTF, and simdjson for the JSON a `.geo` is; STL and PLY are parsed by
+hand. None of those reaches
 another feature, and none of them reaches a public header.
 
-It deliberately does not own a GPU device, a window, a Qt dependency, a
+`device` is the exception to all of that, and the one feature that
+brings a renderer's dependencies with it: Diligent Engine, SigilCore's
+hardware device and SigilSkia's Graphite. Nothing above it links it
+unless it wants a device, and no other feature here reaches down into
+it.
+
+It deliberately does not own a window, a Qt dependency, a
 component or scene kernel, an animation timeline, an image decoder, a
 resource-access layer, or text layout. Where one of those is needed —
 decoding a texture an importer handed you, or fetching an asset over the
@@ -776,8 +867,8 @@ cmake --build build --config Debug
 Targets: one static library per feature — `SigilGeometryPath`,
 `SigilGeometryPathBlend`, `SigilGeometryMesh`, `SigilGeometryMeshCamera`,
 `SigilGeometryMeshRender`, `SigilGeometryMeshCurve`,
-`SigilGeometryMeshPop`, `SigilGeometryMeshCodec`, `SigilGeometryKit` —
-the `SigilGeometry` umbrella over all of them, the tests, and one Google Benchmark binary
+`SigilGeometryMeshPop`, `SigilGeometryMeshCodec`, `SigilGeometryDevice`,
+`SigilGeometryKit` — the `SigilGeometry` umbrella over all of them, the tests, and one Google Benchmark binary
 per feature, built by the `benches` target and run from a Release build
 through `scripts/bench_ledger.py`:
 
@@ -791,6 +882,7 @@ through `scripts/bench_ledger.py`:
 | `geometry_mesh_curve_bench` | arc-length sampling and parallel-transport frames by count, the pose read over a held rail and over the spline that builds one, and the sweep by tessellation for a circle profile, a line profile and a line on a hung rail |
 | `geometry_mesh_pop_bench` | the pop cook per operator over a thousand points, whole chains by count and operator mix, and the runtime seam's dispatch against the same cook reached directly |
 | `geometry_mesh_codec_bench` | OBJ, GLB and `.geo` decoded from bytes in memory, per triangle or point |
+| `geometry_device_bench` | the way in, less the driver: the Vulkan handles read off Diligent's interfaces and adopted, with Graphite stood up on what comes back |
 | `geometry_kit_bench` | one silhouette generated from a value — analytic, sampled by density, seeded, wrapped — against the comparison a caching consumer prunes with; and the solids by output size, an extrusion against the outline it lifts and a lathe against the profile it turns |
 
 The tests are one binary per feature, named for the feature's path, each

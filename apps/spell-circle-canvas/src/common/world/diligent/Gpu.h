@@ -14,7 +14,6 @@
 #include <Graphics/GraphicsEngine/interface/DeviceContext.h>
 #include <Graphics/GraphicsEngine/interface/PipelineState.h>
 #include <Graphics/GraphicsEngine/interface/RenderDevice.h>
-#include <Graphics/GraphicsEngine/interface/Sampler.h>
 #include <Graphics/GraphicsEngine/interface/ShaderResourceBinding.h>
 #include <Graphics/GraphicsEngine/interface/Texture.h>
 #include <include/core/SkImage.h>
@@ -25,7 +24,8 @@
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilmaterial/texture/EnvironmentMap.h>
 #include <sigilmaterial/texture/Texture.h>
-#include <sigilworld/diligent/Device.h>
+#include <sigilgeometry/device/Device.h>
+#include <sigilgeometry/device/Resources.h>
 #include <sigilworld/frame/Pass.h>
 #include <sigilworld/frame/Targets.h>
 #include <sigilworld/frame/View.h>
@@ -44,14 +44,19 @@
 
 namespace sigil::world::diligent {
 
+// The device every executor here stands on is SigilGeometry's — it is
+// the one point in the tree that can create a Diligent device — and this
+// is the name it is spelled by in this feature's own sources.
+using ::sigil::geometry::device::Device;
+
 namespace dg = Diligent;
 
-/** THE COLOUR FORMAT every target here holds. One format for every
- *  resource is what lets two resources whose lives do not overlap be
- *  handed one texture, exactly as the ordering hands two names one
- *  surface. */
-inline constexpr dg::TEXTURE_FORMAT kColorFormat = dg::TEX_FORMAT_RGBA8_UNORM;
-inline constexpr dg::TEXTURE_FORMAT kDepthFormat = dg::TEX_FORMAT_D32_FLOAT;
+/** The formats every target here holds are the device's own — one format
+ *  for every resource is what lets two resources whose lives do not
+ *  overlap be handed one texture, exactly as the ordering hands two
+ *  names one surface. */
+using ::sigil::geometry::device::kColorFormat;
+using ::sigil::geometry::device::kDepthFormat;
 
 /** ONE NAMED IMAGE on the device: what this frame wrote, and what the
  *  frame before it wrote. `previous()` is answered from the second, and
@@ -118,10 +123,14 @@ struct Pipeline {
 /** THE EXECUTOR'S STATE, shared by every copy of the runtime value one
  *  call made. */
 struct Gpu {
-  explicit Gpu(Device& d) : device(&d) {}
+  explicit Gpu(Device& d) : device(&d), shared(d) {}
   ~Gpu();
 
   Device* device = nullptr;
+  /** What every executor on this device stands on — the uniform buffer,
+   *  the samplers, the white texel and the readback — which this one
+   *  holds rather than owns a second copy of. */
+  ::sigil::geometry::device::Resources shared;
   SkISize extent{0, 0};
   uint64_t frame = 0;
 
@@ -134,29 +143,6 @@ struct Gpu {
    *  these, and they are addressed by index so that two such stages in
    *  one pass cannot be handed the same one. */
   std::vector<dg::RefCntAutoPtr<dg::ITexture>> scratch;
-  /** Every draw's uniforms, discarded and rewritten per draw. */
-  dg::RefCntAutoPtr<dg::IBuffer> uniforms;
-  size_t uniformCapacity = 0;
-  /** HOW A MAP IS READ BETWEEN TEXELS, one sampler per answer. A
-   *  texture states which it wants and a body's draw picks; everything
-   *  with no texture to ask — a target a post stage reads, the one white
-   *  texel — takes the linear one. */
-  dg::RefCntAutoPtr<dg::ISampler> linearSampler;
-  dg::RefCntAutoPtr<dg::ISampler> nearestSampler;
-  /** …and the same two for a map that repeats outside its coordinates,
-   *  because wrapping is the sampler's answer and not the lookup's. */
-  dg::RefCntAutoPtr<dg::ISampler> linearTiled;
-  dg::RefCntAutoPtr<dg::ISampler> nearestTiled;
-  /** …and ONE MORE, for a panorama, which none of the four above can
-   *  read: an equirect map repeats in azimuth and clamps at the poles,
-   *  so its two axes want different wraps, and its prefiltered levels
-   *  are different images rather than a filtering aid, so it reads
-   *  linearly ACROSS them as well as within one. */
-  dg::RefCntAutoPtr<dg::ISampler> panoramaSampler;
-  /** What an unfilled sampled slot reads: one white texel, so a body
-   *  multiplied by a map it was not given is the body. */
-  dg::RefCntAutoPtr<dg::ITexture> white;
-
   std::map<uint64_t, MeshBuffers> meshes;
   /** THE ONE PAIR OF BUFFERS a mesh nobody can name is written into,
    *  grown to fit and overwritten by the next draw. A draw whose seam
@@ -217,8 +203,6 @@ struct Gpu {
   /** The pipeline for @p key, built on the first ask. Null when the
    *  program is empty or the device refused it. */
   const Pipeline* pipeline(const PipelineKey& key);
-  /** The uniform buffer, grown to hold at least @p bytes. */
-  dg::IBuffer* uniformBuffer(size_t bytes);
   /** Opens a frame: what the frame before wrote becomes what this one's
    *  `previous()` names, and the texture that held the frame before THAT
    *  is what this one writes into — so a resource costs two textures for
@@ -229,9 +213,6 @@ struct Gpu {
   /** @p name's pixels, read back through a staging texture. Null when
    *  nothing has written it. */
   sk_sp<SkImage> read(std::string_view name);
-  /** @p texture's pixels, read back through a staging texture of this
-   *  frame's size. Null when there is nothing to read. */
-  sk_sp<SkImage> readTexture(dg::ITexture* texture);
 
   /** THE MAP @p map IS, on this device.
    *
@@ -242,10 +223,6 @@ struct Gpu {
    *  and held under the image it came from. Null when the texture yields
    *  no image. */
   dg::ITexture* sample(const material::Texture& map);
-
-  /** The sampler @p filter asks for, wrapping outside the image when
-   *  @p tile. */
-  dg::ISampler* samplerFor(SkFilterMode filter, bool tile = false) const;
 
   /** A texture of this frame's size and format. */
   dg::RefCntAutoPtr<dg::ITexture> makeColor(const char* label);
@@ -267,9 +244,8 @@ void bindAndCommit(Gpu& gpu, const Pipeline& pipeline, const material::slang::Co
                    bool tile = false,
                    bool (*panoramaSlot)(std::string_view) = nullptr);
 
-/** THE DEVICE STATE every runtime here stands on: the samplers, the one
- *  white texel an unfilled slot reads, and the buffers a draw's uniforms
- *  go in. Every runtime makes one of these and shares it among the
+/** THE FRAME STATE every runtime here stands on, over the device's own
+ *  resources. Every runtime makes one of these and shares it among the
  *  copies of the value it hands back. */
 std::shared_ptr<Gpu> makeGpu(Device& device);
 

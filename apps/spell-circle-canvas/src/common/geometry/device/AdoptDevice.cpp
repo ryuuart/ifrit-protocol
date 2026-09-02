@@ -25,7 +25,7 @@
 #include <sigilcore/hardware/GpuDevice.h>
 // clang-format on
 
-namespace sigil::world::diligent {
+namespace sigil::geometry::device {
 
 std::unique_ptr<core::hardware::GpuDevice> adoptVulkanDevice(
     Diligent::IRenderDevice* device, Diligent::IDeviceContext* context,
@@ -86,4 +86,4 @@ std::unique_ptr<core::hardware::GpuDevice> adoptVulkanDevice(
   return core::hardware::GpuDevice::adopt(native, error);
 }
 
-}  // namespace sigil::world::diligent
+}  // namespace sigil::geometry::device

@@ -7,9 +7,11 @@
 
 #include <sigilgeometry/mesh/render/Runtime.h>
 
-namespace sigil::world::diligent {
-
+namespace sigil::geometry::device {
 class Device;
+}  // namespace sigil::geometry::device
+
+namespace sigil::world::diligent {
 
 /**
  * The `render::Runtime` whose executor draws on @p device.
@@ -54,6 +56,6 @@ class Device;
  * Two runtimes made by one call to this compare equal; two separate
  * calls do not, because they hold separate device state.
  */
-::sigil::geometry::mesh::render::Runtime painterRuntime(Device& device);
+::sigil::geometry::mesh::render::Runtime painterRuntime(::sigil::geometry::device::Device& device);
 
 }  // namespace sigil::world::diligent

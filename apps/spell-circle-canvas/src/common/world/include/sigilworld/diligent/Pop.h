@@ -7,9 +7,11 @@
 
 #include <sigilgeometry/mesh/pop/Pop.h>
 
-namespace sigil::world::diligent {
-
+namespace sigil::geometry::device {
 class Device;
+}  // namespace sigil::geometry::device
+
+namespace sigil::world::diligent {
 
 /**
  * The `pop::Runtime` that cooks a chain on @p device.
@@ -35,6 +37,6 @@ class Device;
  * Two runtimes made by one call to this compare equal; two separate
  * calls do not, because they hold separate device state.
  */
-::sigil::geometry::mesh::pop::Runtime popRuntime(Device& device);
+::sigil::geometry::mesh::pop::Runtime popRuntime(::sigil::geometry::device::Device& device);
 
 }  // namespace sigil::world::diligent

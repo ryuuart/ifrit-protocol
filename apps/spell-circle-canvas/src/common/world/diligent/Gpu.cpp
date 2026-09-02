@@ -113,9 +113,11 @@ constexpr uint64_t kMeshLifetime = 2;
 /** …and how long a map stays, on the same terms. */
 constexpr uint64_t kMapLifetime = 2;
 
-/** The description every map is given, whether it was uploaded or
- *  wrapped: a plain two-dimensional colour texture a shader reads. */
-dg::TextureDesc mapDesc(const char* label, int width, int height) {
+/** The description a WRAPPED map is given: a plain two-dimensional
+ *  colour texture a shader reads, at the one level the image someone
+ *  else painted actually has. A wrap describes what is there and cannot
+ *  ask for anything more. */
+dg::TextureDesc wrappedMapDesc(const char* label, int width, int height) {
   dg::TextureDesc desc;
   desc.Name = label;
   desc.Type = dg::RESOURCE_DIM_TEX_2D;
@@ -125,6 +127,22 @@ dg::TextureDesc mapDesc(const char* label, int width, int height) {
   desc.Format = kColorFormat;
   desc.BindFlags = dg::BIND_SHADER_RESOURCE;
   desc.Usage = dg::USAGE_DEFAULT;
+  return desc;
+}
+
+/** …and the description an UPLOADED one is given: the same texture with
+ *  a whole chain under it. A map is minified whenever the surface
+ *  wearing it is smaller on screen than the map is in texels, and a
+ *  sampler with one level to read then walks the texels of a shrinking
+ *  triangle and answers a different one every frame — which is what
+ *  aliasing is. `MipLevels = 0` is Diligent's word for the full chain;
+ *  the render-target bind and the generate flag are what let the device
+ *  fill the levels below zero, which nothing else here asks it for. */
+dg::TextureDesc uploadedMapDesc(const char* label, int width, int height) {
+  dg::TextureDesc desc = wrappedMapDesc(label, width, height);
+  desc.MipLevels = 0;
+  desc.BindFlags = dg::BIND_SHADER_RESOURCE | dg::BIND_RENDER_TARGET;
+  desc.MiscFlags = dg::MISC_TEXTURE_FLAG_GENERATE_MIPS;
   return desc;
 }
 
@@ -244,7 +262,7 @@ dg::ITexture* Gpu::sample(const material::Texture& map) {
       vk->CreateTextureFromVulkanImage(
           reinterpret_cast<VkImage>(  // NOLINT(performance-no-int-to-ptr)
               where.handle),
-          mapDesc("world sampled map", where.width, where.height),
+          wrappedMapDesc("world sampled map", where.width, where.height),
           dg::RESOURCE_STATE_SHADER_RESOURCE, &held.texture);
     }
     if (held.texture) return held.texture;
@@ -271,8 +289,13 @@ dg::ITexture* Gpu::sample(const material::Texture& map) {
   data.pSubResources = &level;
   data.NumSubresources = 1;
   device->renderDevice()->CreateTexture(
-      mapDesc("world sampled map", image->width(), image->height()), &data,
-      &held.texture);
+      uploadedMapDesc("world sampled map", image->width(), image->height()),
+      &data, &held.texture);
+  // The upload filled level zero; the rest of the chain is the device's
+  // to derive, once, on the frame the map first appears.
+  if (held.texture)
+    device->context()->GenerateMips(
+        held.texture->GetDefaultView(dg::TEXTURE_VIEW_SHADER_RESOURCE));
   return held.texture;
 }
 
@@ -462,21 +485,6 @@ const MeshBuffers* Gpu::stream(const Mesh& mesh,
   return &streamed;
 }
 
-dg::IBuffer* Gpu::uniformBuffer(size_t bytes) {
-  const size_t wanted = std::max<size_t>(bytes, 256);
-  if (uniforms && uniformCapacity >= wanted) return uniforms;
-  uniforms.Release();
-  dg::BufferDesc desc;
-  desc.Name = "world draw uniforms";
-  desc.Size = wanted;
-  desc.BindFlags = dg::BIND_UNIFORM_BUFFER;
-  desc.Usage = dg::USAGE_DYNAMIC;
-  desc.CPUAccessFlags = dg::CPU_ACCESS_WRITE;
-  device->renderDevice()->CreateBuffer(desc, nullptr, &uniforms);
-  uniformCapacity = uniforms ? wanted : 0;
-  return uniforms;
-}
-
 const Pipeline* Gpu::pipeline(const PipelineKey& key) {
   if (!key.program || key.program->empty()) return nullptr;
   const auto found = pipelines.find(key);
@@ -567,19 +575,13 @@ const Pipeline* Gpu::pipeline(const PipelineKey& key) {
   return placed->second.state ? &placed->second : nullptr;
 }
 
-dg::ISampler* Gpu::samplerFor(SkFilterMode filter, bool tile) const {
-  if (filter == SkFilterMode::kNearest)
-    return tile ? nearestTiled.RawPtr() : nearestSampler.RawPtr();
-  return tile ? linearTiled.RawPtr() : linearSampler.RawPtr();
-}
-
 void bindAndCommit(Gpu& gpu, const Pipeline& pipeline, const material::slang::Compiled& program,
                    const material::slang::Uniforms& values,
                    const std::vector<dg::ITexture*>& textures,
                    SkFilterMode filter, bool tile,
                    bool (*panoramaSlot)(std::string_view)) {
   dg::IDeviceContext* context = gpu.device->context();
-  dg::IBuffer* buffer = gpu.uniformBuffer(program.uniformBytes);
+  dg::IBuffer* buffer = gpu.shared.uniformBuffer(program.uniformBytes);
   if (buffer && !values.bytes().empty()) {
     dg::MapHelper<std::byte> mapped(context, buffer, dg::MAP_WRITE,
                                     dg::MAP_FLAG_DISCARD);
@@ -597,7 +599,7 @@ void bindAndCommit(Gpu& gpu, const Pipeline& pipeline, const material::slang::Co
 
   for (size_t i = 0; i < program.textures.size(); ++i) {
     dg::ITexture* texture = i < textures.size() ? textures[i] : nullptr;
-    if (!texture) texture = gpu.white;
+    if (!texture) texture = gpu.shared.white();
     if (!texture) continue;
     dg::ITextureView* view =
         texture->GetDefaultView(dg::TEXTURE_VIEW_SHADER_RESOURCE);
@@ -612,9 +614,10 @@ void bindAndCommit(Gpu& gpu, const Pipeline& pipeline, const material::slang::Co
     // poles, and its levels are prefiltered images a roughness reads
     // across rather than a filtering aid.
     const bool panorama =
-        panoramaSlot && panoramaSlot(program.textures[i]) && gpu.panoramaSampler;
-    view->SetSampler(panorama ? gpu.panoramaSampler.RawPtr()
-                              : gpu.samplerFor(filter, tile));
+        panoramaSlot && panoramaSlot(program.textures[i]) &&
+        gpu.shared.panoramaSampler() != nullptr;
+    view->SetSampler(panorama ? gpu.shared.panoramaSampler()
+                              : gpu.shared.samplerFor(filter, tile));
     if (dg::IShaderResourceVariable* variable =
             pipeline.binding->GetVariableByName(dg::SHADER_TYPE_PIXEL,
                                                 program.textures[i].c_str()))
@@ -627,64 +630,7 @@ void bindAndCommit(Gpu& gpu, const Pipeline& pipeline, const material::slang::Co
 sk_sp<SkImage> Gpu::read(std::string_view name) {
   dg::ITexture* texture = current(name);
   if (!texture) texture = previous(name);
-  return readTexture(texture);
-}
-
-sk_sp<SkImage> Gpu::readTexture(dg::ITexture* texture) {
-  if (!texture || extent.isEmpty()) return nullptr;
-
-  dg::TextureDesc desc;
-  desc.Name = "world readback";
-  desc.Type = dg::RESOURCE_DIM_TEX_2D;
-  desc.Width = (dg::Uint32)extent.width();
-  desc.Height = (dg::Uint32)extent.height();
-  desc.Format = kColorFormat;
-  desc.Usage = dg::USAGE_STAGING;
-  desc.CPUAccessFlags = dg::CPU_ACCESS_READ;
-  desc.BindFlags = dg::BIND_NONE;
-  dg::RefCntAutoPtr<dg::ITexture> staging;
-  device->renderDevice()->CreateTexture(desc, nullptr, &staging);
-  if (!staging) return nullptr;
-
-  // No queue lock here, and none anywhere in this executor: Diligent
-  // takes that lock from inside its own submissions, and this path only
-  // issues Diligent commands. The lock belongs to a caller mixing
-  // Graphite's submissions into the same stream.
-  dg::IDeviceContext* context = device->context();
-  {
-    dg::CopyTextureAttribs copy;
-    copy.pSrcTexture = texture;
-    copy.SrcTextureTransitionMode =
-        dg::RESOURCE_STATE_TRANSITION_MODE_TRANSITION;
-    copy.pDstTexture = staging;
-    copy.DstTextureTransitionMode =
-        dg::RESOURCE_STATE_TRANSITION_MODE_TRANSITION;
-    context->CopyTexture(copy);
-    context->WaitForIdle();
-  }
-
-  dg::MappedTextureSubresource mapped;
-  context->MapTextureSubresource(staging, 0, 0, dg::MAP_READ,
-                                 dg::MAP_FLAG_DO_NOT_WAIT, nullptr, mapped);
-  if (!mapped.pData) {
-    context->UnmapTextureSubresource(staging, 0, 0);
-    return nullptr;
-  }
-  SkBitmap bitmap;
-  // The device holds premultiplied RGBA, which is what the target's
-  // format says; the conversion to whatever a caller draws onto is
-  // Skia's.
-  bitmap.allocPixels(SkImageInfo::Make(extent.width(), extent.height(),
-                                       kRGBA_8888_SkColorType,
-                                       kPremul_SkAlphaType));
-  const auto* source = static_cast<const uint8_t*>(mapped.pData);
-  for (int y = 0; y < extent.height(); ++y)
-    std::memcpy(bitmap.pixmap().writable_addr(0, y),
-                source + (size_t)y * mapped.Stride,
-                std::min<size_t>(mapped.Stride, bitmap.rowBytes()));
-  context->UnmapTextureSubresource(staging, 0, 0);
-  bitmap.setImmutable();
-  return bitmap.asImage();
+  return shared.read(texture);
 }
 
 glm::mat4 clipFor(const ::sigil::geometry::mesh::camera::Camera& camera,
@@ -725,65 +671,7 @@ void openTarget(Gpu& gpu, dg::ITexture* colour, const float* clear,
 }
 
 std::shared_ptr<Gpu> makeGpu(Device& device) {
-  auto gpu = std::make_shared<Gpu>(device);
-
-  // ONE SAMPLER PER ANSWER, made once and picked per draw: a texture
-  // states how it wants to be read between texels and what lies outside
-  // it, and a map that asked for hard texel edges must not have them
-  // blended away.
-  const auto makeSampler = [&](dg::FILTER_TYPE type,
-                               dg::TEXTURE_ADDRESS_MODE address,
-                               dg::ISampler** into) {
-    dg::SamplerDesc desc;
-    desc.MinFilter = type;
-    desc.MagFilter = type;
-    desc.MipFilter = type;
-    desc.AddressU = address;
-    desc.AddressV = address;
-    desc.AddressW = address;
-    device.renderDevice()->CreateSampler(desc, into);
-  };
-  makeSampler(dg::FILTER_TYPE_LINEAR, dg::TEXTURE_ADDRESS_CLAMP,
-              &gpu->linearSampler);
-  makeSampler(dg::FILTER_TYPE_POINT, dg::TEXTURE_ADDRESS_CLAMP,
-              &gpu->nearestSampler);
-  makeSampler(dg::FILTER_TYPE_LINEAR, dg::TEXTURE_ADDRESS_WRAP,
-              &gpu->linearTiled);
-  makeSampler(dg::FILTER_TYPE_POINT, dg::TEXTURE_ADDRESS_WRAP,
-              &gpu->nearestTiled);
-  {
-    // THE PANORAMA'S SAMPLER, which none of the four above can be: an
-    // equirect map's u axis is periodic and its v axis ends at the
-    // poles, so the two want different wraps, and its levels are
-    // different prefiltered images rather than a filtering aid, so a
-    // roughness between two of them has to read across both.
-    dg::SamplerDesc desc;
-    desc.Name = "world panorama";
-    desc.MinFilter = dg::FILTER_TYPE_LINEAR;
-    desc.MagFilter = dg::FILTER_TYPE_LINEAR;
-    desc.MipFilter = dg::FILTER_TYPE_LINEAR;
-    desc.AddressU = dg::TEXTURE_ADDRESS_WRAP;
-    desc.AddressV = dg::TEXTURE_ADDRESS_CLAMP;
-    desc.AddressW = dg::TEXTURE_ADDRESS_CLAMP;
-    desc.MaxLOD = 32;
-    device.renderDevice()->CreateSampler(desc, &gpu->panoramaSampler);
-  }
-
-  // What an unfilled sampled slot reads: one white texel, so a body
-  // multiplied by a map it was not given is the body.
-  const uint32_t white = 0xFFFFFFFFu;
-  dg::TextureDesc desc;
-  desc.Name = "world white";
-  desc.Type = dg::RESOURCE_DIM_TEX_2D;
-  desc.Width = 1;
-  desc.Height = 1;
-  desc.Format = kColorFormat;
-  desc.BindFlags = dg::BIND_SHADER_RESOURCE;
-  desc.Usage = dg::USAGE_IMMUTABLE;
-  dg::TextureSubResData level{&white, sizeof(white)};
-  dg::TextureData data{&level, 1};
-  device.renderDevice()->CreateTexture(desc, &data, &gpu->white);
-  return gpu;
+  return std::make_shared<Gpu>(device);
 }
 
 }  // namespace sigil::world::diligent

@@ -8,9 +8,11 @@
 #include <sigilmaterial/texture/Texture.h>
 #include <sigilcore/hardware/GpuDevice.h>
 
-namespace sigil::world::diligent {
-
+namespace sigil::geometry::device {
 class Device;
+}  // namespace sigil::geometry::device
+
+namespace sigil::world::diligent {
 
 /**
  * @p native as a `material::Texture` on @p device.
@@ -39,8 +41,8 @@ class Device;
  * adopted `GpuDevice`, or when the import was refused because the
  * texture is missing or belongs to another API.
  */
-::sigil::material::Texture importNative(Device& device,
-                                        const core::hardware::NativeTexture& native,
-                                        bool takeOwnership = false);
+::sigil::material::Texture importNative(
+    ::sigil::geometry::device::Device& device,
+    const core::hardware::NativeTexture& native, bool takeOwnership = false);
 
 }  // namespace sigil::world::diligent

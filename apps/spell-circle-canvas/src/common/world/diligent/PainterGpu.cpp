@@ -125,7 +125,7 @@ class PainterExecutor : public render::Executor {
     draw.Flags = dg::DRAW_FLAG_VERIFY_ALL;
     context->DrawIndexed(draw);
 
-    const sk_sp<SkImage> painted = gpu.readTexture(colour);
+    const sk_sp<SkImage> painted = gpu.shared.read(colour);
     gpu.endFrame();
     if (!painted) return;
     // Onto the canvas as it stands: the image is premultiplied and the

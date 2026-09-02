@@ -5,12 +5,14 @@
 
 #include "sigilworld/diligent/Import.h"
 
-#include <sigilworld/diligent/Device.h>
+#include <sigilgeometry/device/Device.h>
 
 #include <memory>
 #include <utility>
 
 namespace sigil::world::diligent {
+
+using ::sigil::geometry::device::Device;
 
 namespace {
 

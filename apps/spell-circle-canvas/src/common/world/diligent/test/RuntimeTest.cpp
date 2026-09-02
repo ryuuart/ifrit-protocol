@@ -22,7 +22,7 @@
 #include <sigilcore/hardware/GpuDevice.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 #include <sigilskia/graphite/OffscreenSurface.h>
-#include <sigilworld/diligent/Device.h>
+#include <sigilgeometry/device/Device.h>
 #include <sigilworld/diligent/Runtime.h>
 #include <sigilworld/scene/Scene.h>
 
@@ -45,7 +45,7 @@ namespace {
  *  test that needs one SKIPS rather than fails without a Vulkan runtime,
  *  so a machine with no GPU stays green. */
 struct OnDevice {
-  std::unique_ptr<world::diligent::Device> device;
+  std::unique_ptr<geometry::device::Device> device;
   Runtime runtime;
   std::string error;
   explicit operator bool() const { return (bool)device; }
@@ -53,8 +53,8 @@ struct OnDevice {
 
 OnDevice onDevice() {
   OnDevice out;
-  const world::diligent::DeviceConfig config;
-  out.device = world::diligent::Device::create(config, &out.error);
+  const geometry::device::DeviceConfig config;
+  out.device = geometry::device::Device::create(config, &out.error);
   if (out.device) out.runtime = world::diligent::runtime(*out.device);
   return out;
 }
@@ -695,7 +695,7 @@ TEST(GpuRuntime, AMapAlreadyOnThisDeviceIsBoundWhereItStands) {
   const core::hardware::TextureHandle handle = gpu->createTexture(desc);
   ASSERT_TRUE((bool)handle);
   {
-    const world::diligent::Device::QueueLock lock(*on.device);
+    const geometry::device::Device::QueueLock lock(*on.device);
     skia::OffscreenSurface surface(*graphite, *gpu, handle);
     ASSERT_NE(surface.canvas(), nullptr);
     surface.canvas()->clear(SkColor4f{0.15f, 0.35f, 0.95f, 1.0f});

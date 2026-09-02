@@ -21,7 +21,7 @@
 #include <sigilcore/hardware/GpuDevice.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 #include <sigilskia/graphite/OffscreenSurface.h>
-#include <sigilworld/diligent/Device.h>
+#include <sigilgeometry/device/Device.h>
 #include <sigilworld/diligent/Import.h>
 #include <sigilworld/diligent/Runtime.h>
 #include <sigilmaterial/texture/EnvironmentMap.h>
@@ -41,7 +41,7 @@ namespace {
 constexpr SkISize kExtent{120, 120};
 
 struct OnDevice {
-  std::unique_ptr<world::diligent::Device> device;
+  std::unique_ptr<geometry::device::Device> device;
   Runtime runtime;
   std::string error;
   explicit operator bool() const { return (bool)device; }
@@ -49,8 +49,8 @@ struct OnDevice {
 
 OnDevice onDevice() {
   OnDevice out;
-  const world::diligent::DeviceConfig config;
-  out.device = world::diligent::Device::create(config, &out.error);
+  const geometry::device::DeviceConfig config;
+  out.device = geometry::device::Device::create(config, &out.error);
   if (out.device) out.runtime = world::diligent::runtime(*out.device);
   return out;
 }
@@ -265,7 +265,7 @@ TEST(SurfaceSlots, AnImportedNativeTextureLandsWhereARasterOneWould) {
   ASSERT_TRUE((bool)painted);
   const SkColor4f colour{0.15f, 0.75f, 0.35f, 1.0f};
   {
-    const world::diligent::Device::QueueLock lock(*on.device);
+    const geometry::device::Device::QueueLock lock(*on.device);
     skia::OffscreenSurface surface(*graphite, *gpu, painted);
     ASSERT_NE(surface.canvas(), nullptr);
     surface.canvas()->clear(colour);

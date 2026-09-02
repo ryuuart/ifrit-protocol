@@ -13,7 +13,7 @@
 #include <gtest/gtest.h>
 #include <sigilgeometry/mesh/pop/Kernel.h>
 #include <sigilgeometry/mesh/pop/Pop.h>
-#include <sigilworld/diligent/Device.h>
+#include <sigilgeometry/device/Device.h>
 #include <sigilworld/diligent/Pop.h>
 
 #include <bit>
@@ -33,7 +33,7 @@ namespace {
  *  Every test here SKIPS rather than fails without a Vulkan runtime, so
  *  a machine with no GPU stays green. */
 struct OnDevice {
-  std::unique_ptr<world::diligent::Device> device;
+  std::unique_ptr<geometry::device::Device> device;
   pop::Runtime runtime;
   std::string error;
   explicit operator bool() const { return (bool)device; }
@@ -41,8 +41,8 @@ struct OnDevice {
 
 OnDevice onDevice() {
   OnDevice out;
-  const world::diligent::DeviceConfig config;
-  out.device = world::diligent::Device::create(config, &out.error);
+  const geometry::device::DeviceConfig config;
+  out.device = geometry::device::Device::create(config, &out.error);
   if (out.device) out.runtime = world::diligent::popRuntime(*out.device);
   return out;
 }

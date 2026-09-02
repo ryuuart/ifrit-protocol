@@ -1,4 +1,4 @@
-#include "sigilworld/diligent/Device.h"
+#include <sigilgeometry/device/Device.h>
 
 #include <Graphics/GraphicsEngine/interface/DeviceContext.h>
 #include <Graphics/GraphicsEngine/interface/RenderDevice.h>
@@ -12,7 +12,7 @@
 
 #include "AdoptDevice.h"
 
-namespace sigil::world::diligent {
+namespace sigil::geometry::device {
 namespace dg = Diligent;
 
 struct Device::Impl {
@@ -121,4 +121,4 @@ Device::QueueLock::~QueueLock() {
   m_device->m_impl->context->UnlockCommandQueue();
 }
 
-}  // namespace sigil::world::diligent
+}  // namespace sigil::geometry::device

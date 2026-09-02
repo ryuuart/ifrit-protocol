@@ -32,7 +32,7 @@ library that is not here.
 | `scene/` | `SigilWorldScene` | `sigil::world` | the retained side: the reconcile host, the entity store, the content-keyed resource store, the declared phases, the execution of a frame's passes, and the draw. |
 | `light/` | `SigilWorldLight` | `sigil::world::light` | emitters as plain comparable values over glm: a sun, a point light, a spot, their falloffs and the per-frame budget. |
 | `kit/` | `SigilWorldKit` | `sigil::world::kit` | presets that compose elements: a three-point rig, a turntable, and the lit set both make over a ground plane. Nothing here decides a look. |
-| `diligent/` | `SigilWorldDiligent` | `sigil::world::diligent` | the one GPU device 2D and 3D share, the programs this backend draws with — the scaffold, the sky, the mesh painter and the post stages, compiled through SigilMaterial's Slang backend — and the four seam values that stand on that device: the `Runtime` that performs a frame's passes, the `pop::Runtime` that cooks a chain, the `curve::SweepRuntime` that forms a sweep's rings, and the `render::Runtime` that draws a mesh onto a canvas — plus `importNative`, the door a foreign texture reaches a material slot by. |
+| `diligent/` | `SigilWorldDiligent` | `sigil::world::diligent` | the programs this backend draws with — the scaffold, the sky, the mesh painter and the post stages, compiled through SigilMaterial's Slang backend — and the four seam values that stand on that device: the `Runtime` that performs a frame's passes, the `pop::Runtime` that cooks a chain, the `curve::SweepRuntime` that forms a sweep's rings, and the `render::Runtime` that draws a mesh onto a canvas — plus `importNative`, the door a foreign texture reaches a material slot by. |
 | — | `SigilWorld` | — | the umbrella: an interface target over every feature above, and `<sigilworld/World.h>`, which is their public headers in one include. A consumer of the whole library names only this; the device feature is in it where it was built. |
 
 ## Writing a scene
@@ -937,49 +937,34 @@ depending on it.
 
 ### The one device
 
-Diligent creates the Vulkan device and SigilSkia adopts it. That
-direction is forced: this build of Diligent cannot attach to a device
-that already exists and has no Metal backend, so standing a second device
-up beside it would mean two queues, two handle tables and a CPU round
-trip between 2D and 3D.
+**The device is not made here.** Diligent creates the Vulkan device and
+cannot attach to one that already exists, so the single point where a
+device is made has to sit at or below every consumer of one — which is
+SigilGeometry's `device` feature, and its README is canon for what a
+device is, how it is adopted and what the shared queue's lock rules are.
+This library takes one and executes a frame's passes on it:
 
 ```cpp
-#include <sigilworld/diligent/Device.h>
+#include <sigilgeometry/device/Device.h>
+#include <sigilworld/diligent/Runtime.h>
 
 using namespace sigil;
 
-world::diligent::DeviceConfig config;
+geometry::device::DeviceConfig config;
 std::string error;
-std::unique_ptr<world::diligent::Device> device =
-    world::diligent::Device::create(config, &error);
+std::unique_ptr<geometry::device::Device> device =
+    geometry::device::Device::create(config, &error);
 if (!device) return;  // no Vulkan runtime, for instance; `error` says why
 
-core::hardware::GpuDevice& gpu = *device->gpu();
-skia::TextureDesc desc;
-desc.width = desc.height = 512;
-desc.format = skia::TextureFormat::RGBA8Unorm;
-const core::hardware::TextureHandle texture = gpu.createTexture(desc);
-const skia::FenceHandle fence = gpu.createFence();
-
-// Paint 2D into a texture a 3D pass will sample. Everything that submits
-// on the shared queue happens under the lock.
-world::diligent::Device::QueueLock lock(*device);
-skia::OffscreenSurface surface(*device->graphite(), gpu, texture);
-surface.canvas()->clear(SK_ColorBLUE);
-surface.submit(gpu, fence);
+world::Scene scene(world::diligent::runtime(*device));
 ```
 
-`renderDevice()` and `context()` are the Diligent side, and are never
-null on a device that was created. `gpu()` and `graphite()` are the
-adopted side and are null together when the adoption failed — a driver
-without timeline semaphores, for instance, since that is what a SigilSkia
-fence is. A failed adoption costs the shared 2D path and nothing else.
-
-The Vulkan loader is opened once, by the volk shim in
-`diligent/VolkShim.c`, and the `vkGetInstanceProcAddr` it resolves is
-handed to SigilSkia, so both APIs dispatch through the same entry
-points. `SIGILWORLD_VULKAN_LIBRARY` names a Vulkan library to open ahead
-of the built-in candidates.
+`renderDevice()` and `context()` are the Diligent side of that device,
+and are never null on a device that was created. `gpu()` and
+`graphite()` are the adopted side and are null together when the
+adoption failed — a driver without timeline semaphores, for instance,
+since that is what a hardware fence is. A failed adoption costs the
+shared 2D path and nothing else.
 
 There is no Metal path here, because Diligent has no Metal backend:
 `create` fails on a machine with no Vulkan runtime, and the answer for

@@ -14,7 +14,7 @@
 #include <Graphics/GraphicsEngine/interface/PipelineState.h>
 #include <Graphics/GraphicsEngine/interface/RenderDevice.h>
 #include <Graphics/GraphicsEngine/interface/ShaderResourceBinding.h>
-#include <sigilworld/diligent/Device.h>
+#include <sigilgeometry/device/Device.h>
 
 #include <Common/interface/RefCntAutoPtr.hpp>
 #include <cstring>
@@ -27,6 +27,8 @@
 #include "sigilworld/diligent/Sweep.h"
 
 namespace sigil::world::diligent {
+
+using ::sigil::geometry::device::Device;
 
 namespace dg = Diligent;
 namespace curve = ::sigil::geometry::mesh::curve;

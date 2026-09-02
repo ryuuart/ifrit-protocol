@@ -20,7 +20,7 @@
 #include <sigilmaterial/kit/Mask.h>
 #include <sigilmaterial/kit/Surface.h>
 #include <sigilmotion/clock/Ticker.h>
-#include <sigilworld/diligent/Device.h>
+#include <sigilgeometry/device/Device.h>
 #include <sigilworld/diligent/Runtime.h>
 #include <sigilworld/scene/Scene.h>
 
@@ -35,7 +35,7 @@ namespace {
 constexpr SkISize kExtent{80, 80};
 
 struct OnDevice {
-  std::unique_ptr<world::diligent::Device> device;
+  std::unique_ptr<geometry::device::Device> device;
   Runtime runtime;
   std::string error;
   explicit operator bool() const { return (bool)device; }
@@ -43,8 +43,8 @@ struct OnDevice {
 
 OnDevice onDevice() {
   OnDevice out;
-  const world::diligent::DeviceConfig config;
-  out.device = world::diligent::Device::create(config, &out.error);
+  const geometry::device::DeviceConfig config;
+  out.device = geometry::device::Device::create(config, &out.error);
   if (out.device) out.runtime = world::diligent::runtime(*out.device);
   return out;
 }

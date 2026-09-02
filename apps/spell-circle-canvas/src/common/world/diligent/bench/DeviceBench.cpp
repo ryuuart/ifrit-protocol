@@ -1,19 +1,17 @@
 /** @file
- * world_diligent_bench — the way in and the frame: bringing the one
- * device up, turning a recipe's Slang body into a pipeline, and
- * executing a frame's passes on the device. Run a Release build; Debug
- * numbers say nothing. Needs a Vulkan runtime and reports a skip without
- * one.
+ * world_diligent_bench — the frame on the device: turning a recipe's
+ * Slang body into a pipeline, executing a frame's passes, and cooking a
+ * chain. Run a Release build; Debug numbers say nothing. Needs a Vulkan
+ * runtime and reports a skip without one.
  *
  * EVERY TIMED ARM HERE IS A PROPERTY OF THIS LIBRARY, because the bench
- * ledger judges every timed arm against a band. Two costs on the way to
- * a first frame are not: the driver's, which makes a Vulkan device more
- * slowly the more devices a process has already made, and the Slang
- * compiler's standard library, which a process loads once. Both are
- * measured outside every timed region and reported as COUNTERS, which
- * the ledger never judges. The counters on the chain cook are there for
- * the same reason from the other side: what the device schedules is
- * reported beside the arm rather than judged inside it.
+ * ledger judges every timed arm against a band. One cost on the way to a
+ * first frame is not: the Slang compiler's standard library, which a
+ * process loads once. It is measured outside every timed region and
+ * reported as a COUNTER, which the ledger never judges. The counters on
+ * the chain cook are there for the same reason from the other side: what
+ * the device schedules is reported beside the arm rather than judged
+ * inside it.
  */
 
 #include <benchmark/benchmark.h>
@@ -24,9 +22,7 @@
 #include <sigilmaterial/core/Recipe.h>
 #include <sigilmeasure/time/Stopwatch.h>
 #include <sigilmotion/clock/Ticker.h>
-#include <sigilcore/hardware/GpuDevice.h>
-#include <sigilskia/graphite/GraphiteContext.h>
-#include <sigilworld/diligent/Device.h>
+#include <sigilgeometry/device/Device.h>
 #include <sigilworld/diligent/Pop.h>
 #include <sigilworld/diligent/Runtime.h>
 #include <sigilworld/scene/Scene.h>
@@ -36,10 +32,6 @@
 #include <memory>
 #include <string>
 #include <vector>
-
-// The adoption itself, which is this library's own seam rather than a
-// public header of it.
-#include "AdoptDevice.h"
 
 using namespace sigil;
 using namespace sigil::world;
@@ -51,49 +43,6 @@ namespace {
  *  what this buys is a median wide enough that one repetition the device
  *  returned early cannot be it. */
 constexpr int kDeviceRepetitions = 9;
-
-/** THE WAY IN, less the driver: the Vulkan handles read off Diligent's
- *  interfaces, those handles and the loader entry point this process
- *  already opened handed to SigilSkia, and Graphite stood up on what
- *  comes back. That is the whole of what this library does to turn one
- *  device into a device both APIs draw on, and it is measured against a
- *  device that is already standing.
- *
- *  `bringup_ms` is the whole way in — the driver's device creation and
- *  this — for the one device the arm adopts, taken once per repetition
- *  and outside every timed region. Teardown is untimed. */
-void BM_DeviceAdopt(benchmark::State& state) {
-  const diligent::DeviceConfig config;
-  std::string error;
-  const measure::Stopwatch bringUp;
-  std::unique_ptr<diligent::Device> device =
-      diligent::Device::create(config, &error);
-  const double bringUpMs = bringUp.elapsedMs();
-  if (!device) {
-    state.SkipWithError(error);
-    return;
-  }
-  if (!device->gpu()) {
-    state.SkipWithError("the device was created but not adopted");
-    return;
-  }
-  state.counters["bringup_ms"] = bringUpMs;
-
-  for ([[maybe_unused]] auto iteration : state) {
-    std::unique_ptr<core::hardware::GpuDevice> gpu = diligent::adoptVulkanDevice(
-        device->renderDevice(), device->context(), &error);
-    std::unique_ptr<skia::GraphiteContext> graphite;
-    if (gpu) graphite = skia::GraphiteContext::create(*gpu);
-    benchmark::DoNotOptimize(graphite);
-    state.PauseTiming();
-    // Graphite borrows the adopted device, so it goes first; the adopted
-    // device frees none of the Vulkan objects Diligent owns.
-    graphite.reset();
-    gpu.reset();
-    state.ResumeTiming();
-  }
-}
-BENCHMARK(BM_DeviceAdopt)->Unit(benchmark::kMillisecond);
 
 struct Paint {
   glm::vec4 baseColor{1, 1, 1, 1};

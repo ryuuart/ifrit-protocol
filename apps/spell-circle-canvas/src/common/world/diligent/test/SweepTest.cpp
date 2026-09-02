@@ -13,7 +13,7 @@
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/curve/Curve.h>
 #include <sigilgeometry/mesh/curve/Sweep.h>
-#include <sigilworld/diligent/Device.h>
+#include <sigilgeometry/device/Device.h>
 #include <sigilworld/diligent/Sweep.h>
 
 #include <bit>
@@ -32,7 +32,7 @@ namespace {
  *  Every test that needs one SKIPS rather than fails without a Vulkan
  *  runtime, so a machine with no GPU stays green. */
 struct OnDevice {
-  std::unique_ptr<world::diligent::Device> device;
+  std::unique_ptr<geometry::device::Device> device;
   curve::SweepRuntime sweep;
   std::string error;
   explicit operator bool() const { return (bool)device; }
@@ -40,8 +40,8 @@ struct OnDevice {
 
 OnDevice onDevice() {
   OnDevice out;
-  const world::diligent::DeviceConfig config;
-  out.device = world::diligent::Device::create(config, &out.error);
+  const geometry::device::DeviceConfig config;
+  out.device = geometry::device::Device::create(config, &out.error);
   if (out.device) out.sweep = world::diligent::sweepRuntime(*out.device);
   return out;
 }

@@ -16,7 +16,7 @@
 #include <Graphics/GraphicsEngine/interface/RenderDevice.h>
 #include <Graphics/GraphicsEngine/interface/ShaderResourceBinding.h>
 #include <sigilgeometry/mesh/pop/Kernel.h>
-#include <sigilworld/diligent/Device.h>
+#include <sigilgeometry/device/Device.h>
 
 #include <Common/interface/RefCntAutoPtr.hpp>
 #include <cstring>
@@ -31,6 +31,8 @@
 #include "sigilworld/diligent/Pop.h"
 
 namespace sigil::world::diligent {
+
+using ::sigil::geometry::device::Device;
 
 namespace dg = Diligent;
 namespace gm = ::sigil::geometry::mesh;

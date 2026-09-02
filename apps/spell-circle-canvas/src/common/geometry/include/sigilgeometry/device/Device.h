@@ -21,7 +21,7 @@ namespace sigil::skia {
 class GraphiteContext;
 }  // namespace sigil::skia
 
-namespace sigil::world::diligent {
+namespace sigil::geometry::device {
 
 /** What a device is asked for when it is created. */
 struct DeviceConfig {
@@ -95,4 +95,4 @@ class Device {
   std::unique_ptr<Impl> m_impl;
 };
 
-}  // namespace sigil::world::diligent
+}  // namespace sigil::geometry::device

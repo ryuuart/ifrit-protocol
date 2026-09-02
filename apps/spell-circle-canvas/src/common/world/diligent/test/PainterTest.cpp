@@ -22,7 +22,7 @@
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/render/Painter.h>
-#include <sigilworld/diligent/Device.h>
+#include <sigilgeometry/device/Device.h>
 #include <sigilworld/diligent/Painter.h>
 
 #include <algorithm>
@@ -45,7 +45,7 @@ constexpr SkSize kViewport{(float)kExtent.width(), (float)kExtent.height()};
  *  test that needs one SKIPS rather than fails without a Vulkan runtime,
  *  so a machine with no GPU stays green. */
 struct OnDevice {
-  std::unique_ptr<world::diligent::Device> device;
+  std::unique_ptr<geometry::device::Device> device;
   render::Runtime painter;
   std::string error;
   explicit operator bool() const { return (bool)device; }
@@ -53,8 +53,8 @@ struct OnDevice {
 
 OnDevice onDevice() {
   OnDevice out;
-  const world::diligent::DeviceConfig config;
-  out.device = world::diligent::Device::create(config, &out.error);
+  const geometry::device::DeviceConfig config;
+  out.device = geometry::device::Device::create(config, &out.error);
   if (out.device) out.painter = world::diligent::painterRuntime(*out.device);
   return out;
 }

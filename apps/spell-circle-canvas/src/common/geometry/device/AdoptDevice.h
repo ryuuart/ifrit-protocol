@@ -19,7 +19,7 @@ namespace sigil::core::hardware {
 class GpuDevice;
 }  // namespace sigil::core::hardware
 
-namespace sigil::world::diligent {
+namespace sigil::geometry::device {
 
 /**
  * The Vulkan objects behind @p device and its immediate @p context —
@@ -41,4 +41,4 @@ std::unique_ptr<core::hardware::GpuDevice> adoptVulkanDevice(
     Diligent::IRenderDevice* device, Diligent::IDeviceContext* context,
     std::string* error);
 
-}  // namespace sigil::world::diligent
+}  // namespace sigil::geometry::device
