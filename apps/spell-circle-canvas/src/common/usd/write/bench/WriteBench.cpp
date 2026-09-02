@@ -61,7 +61,7 @@ void BM_Save(benchmark::State& state) {
 int main(int argc, char** argv) {  // NOLINT(bugprone-exception-escape): an
                                    // uncaught error ends the run
   std::string why;
-  if (usd::runtime::available(&why)) {
+  if (usd::available(&why)) {
     benchmark::RegisterBenchmark("BM_Mesh", BM_Mesh)
         ->Arg(128)
         ->Arg(2048)

@@ -9,7 +9,7 @@
 
 #include "ResourceDir.h"
 
-namespace sigil::scry::runtime {
+namespace sigil::scry {
 
 bool available(std::string* why) {
   const std::string dir = resolveResourceDir({});
@@ -31,4 +31,4 @@ bool available(std::string* why) {
   return false;
 }
 
-}  // namespace sigil::scry::runtime
+}  // namespace sigil::scry

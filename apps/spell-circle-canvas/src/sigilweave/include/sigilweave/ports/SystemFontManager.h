@@ -5,7 +5,7 @@
  *
  * Platform system-font-manager factory — the one place SigilWeave's tools,
  * tests, and consumers obtain an SkFontMgr wired to the host operating
- * system — and `pickFace`, the fallback chain resolved against it. Every
+ * system — and `pickTypeface`, the fallback chain resolved against it. Every
  * platform port hides behind the same call, so adding DirectWrite
  * (Windows) or Fontconfig (Linux) later touches only
  * SystemFontManager.cpp, never a call site.
@@ -42,8 +42,9 @@ sk_sp<SkFontMgr> systemFontManager();
  *
  *  `matchFamilyStyle` walks the system font list; hold the result in a
  *  `static` rather than calling this per frame. */
-inline sk_sp<SkTypeface> pickFace(std::initializer_list<const char*> families,
-                                  SkFontStyle style = SkFontStyle::Normal()) {
+inline sk_sp<SkTypeface> pickTypeface(
+    std::initializer_list<const char*> families,
+    SkFontStyle style = SkFontStyle::Normal()) {
   sk_sp<SkFontMgr> mgr = systemFontManager();
   if (!mgr) return nullptr;
   for (const char* family : families)
@@ -52,13 +53,13 @@ inline sk_sp<SkTypeface> pickFace(std::initializer_list<const char*> families,
   return mgr->matchFamilyStyle(nullptr, style);
 }
 
-/** `pickFace` spelled with a weight and a slant, for the (common) case
+/** `pickTypeface` spelled with a weight and a slant, for the (common) case
  *  where the caller has those two numbers and not an SkFontStyle. */
-inline sk_sp<SkTypeface> pickFace(
+inline sk_sp<SkTypeface> pickTypeface(
     std::initializer_list<const char*> families, int weight,
     SkFontStyle::Slant slant = SkFontStyle::kUpright_Slant) {
-  return pickFace(families,
-                  SkFontStyle(weight, SkFontStyle::kNormal_Width, slant));
+  return pickTypeface(families,
+                      SkFontStyle(weight, SkFontStyle::kNormal_Width, slant));
 }
 
 }  // namespace sigil::weave::ports

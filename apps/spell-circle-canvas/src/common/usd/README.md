@@ -20,7 +20,7 @@ a consumer uses; every public header lives under
 
 | target | headers | holds |
 |--------|---------|-------|
-| `SigilUsdRuntime` | `runtime/Runtime.h` | `runtime::available()` — whether the USD file-format plugins are present in this process |
+| `SigilUsdRuntime` | `runtime/Runtime.h` | `usd::available()` — whether the USD file-format plugins are present in this process |
 | `SigilUsdWrite`   | `write/Writer.h`    | `WriteOptions` and `Writer` — a stage built from values and saved |
 | `SigilUsdRead`    | `read/Reader.h`     | `ReadInfo` and `readModel()` — a stage read into a `Model`; `readLights()` and `readCameras()` — its emitters and cameras as values |
 
@@ -116,7 +116,7 @@ Point instancers come back as faceless parts with `size` from scales.
 **The runtime is a plugin registry.** USD's file formats are discovered
 on disk when the process first touches USD; a build whose libraries are
 present but whose `plugInfo.json` registry beside them is not will link,
-start, and open nothing. `runtime::available()` asks for the crate,
+start, and open nothing. `usd::available()` asks for the crate,
 ASCII and package formats by extension and creates one in-memory stage,
 and names what is missing. Every test and benchmark in this library
 skips through it rather than failing.

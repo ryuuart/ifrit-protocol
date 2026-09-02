@@ -108,7 +108,7 @@ the registration macro reads off the type:
 ```cpp
 struct WebPanelSketch final : sketch::Sketch {
   static bool available(std::string* why) {
-    return scry::runtime::available(why);
+    return scry::available(why);
   }
   …
 };

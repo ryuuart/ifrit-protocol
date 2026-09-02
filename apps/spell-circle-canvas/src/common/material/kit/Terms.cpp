@@ -6,7 +6,7 @@
 
 #include <sigilslang/Shading.h>
 
-namespace sigil::material::kit::terms {
+namespace sigil::material::kit {
 
 namespace {
 
@@ -34,7 +34,7 @@ std::string skSLSource() {
 
 }  // namespace
 
-const std::string& source(Target target) {
+const std::string& termsSource(Target target) {
   static const std::string kSlang = slangSource();
   static const std::string kSkSL = skSLSource();
   switch (target) {
@@ -46,4 +46,4 @@ const std::string& source(Target target) {
   return kSkSL;
 }
 
-}  // namespace sigil::material::kit::terms
+}  // namespace sigil::material::kit

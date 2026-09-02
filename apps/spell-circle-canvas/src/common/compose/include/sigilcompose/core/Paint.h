@@ -82,21 +82,26 @@ struct Fill {
 
 /** `0xRRGGBB` (+ alpha) as an SkColor4f, sRGB byte values divided by 255.
  *
- *  Named `hex` rather than `rgb`, because `rgb(0xRRGGBB)` reads as "three
- *  arguments" when there is only one, and rather than a single letter,
- *  which is unsearchable. constexpr, so palette constants stay constexpr. */
-constexpr SkColor4f hex(uint32_t rrggbb, float a = 1.0f) noexcept {
+ *  Not `rgb`, because `rgb(0xRRGGBB)` reads as "three arguments" when
+ *  there is only one. constexpr, so palette constants stay constexpr. */
+constexpr SkColor4f hexColor(uint32_t rrggbb, float a = 1.0f) noexcept {
   return {(float)((rrggbb >> 16u) & 0xffu) / 255.0f,
           (float)((rrggbb >> 8u) & 0xffu) / 255.0f,
           (float)(rrggbb & 0xffu) / 255.0f, a};
 }
 
+/** `hexColor` at palette density: a source palette is a list of hex
+ *  integers, and each one is written where it is used. */
+constexpr SkColor4f hex(uint32_t rrggbb, float a = 1.0f) noexcept {
+  return hexColor(rrggbb, a);
+}
+
 /** The same colour at a different alpha — `{c.fR, c.fG, c.fB, a}`.
  *
- *  Kept separate from mul() deliberately: replacing alpha and scaling the
- *  colour channels are different operations, and folding both into one
- *  signature would leave a defaulted argument deciding which the caller
- *  meant. */
+ *  Kept separate from scaleRgb() deliberately: replacing alpha and scaling
+ *  the colour channels are different operations, and folding both into
+ *  one signature would leave a defaulted argument deciding which the
+ *  caller meant. */
 constexpr SkColor4f alpha(SkColor4f c, float a) noexcept {
   return {c.fR, c.fG, c.fB, a};
 }
@@ -108,20 +113,20 @@ constexpr SkColor4f alpha(SkColor4f c, float a) noexcept {
  *  is legal (and meaningful under a wide-gamut or OCIO view); Skia clamps
  *  when it lands in an 8-bit surface. A caller who needs the clamped value
  *  is asking for a different operation and writes it at the call site. */
-constexpr SkColor4f mul(SkColor4f c, float k, float a = -1.0f) noexcept {
+constexpr SkColor4f scaleRgb(SkColor4f c, float k, float a = -1.0f) noexcept {
   return {c.fR * k, c.fG * k, c.fB * k, a < 0 ? c.fA : a};
 }
 
 /** The ladder upward: add @p k to each RGB channel, CLAMPED at 1, alpha
  *  kept — the highlight a bevel's lit edge is drawn with.
  *
- *  Clamping is what makes it a different operation from mul(), not an
- *  inconsistency with it. A scale keeps the hue of what it scales and has
- *  no ceiling to hit; an offset walks every channel toward white and
- *  saturates there, and a caller lifting a nearly-white base wants the
+ *  Clamping is what makes it a different operation from scaleRgb(), not
+ *  an inconsistency with it. A scale keeps the hue of what it scales and
+ *  has no ceiling to hit; an offset walks every channel toward white and
+ *  saturates there, and a caller lightening a nearly-white base wants the
  *  saturated answer rather than a channel above 1 that the next blend
  *  reads as glow. */
-constexpr SkColor4f lift(SkColor4f c, float k) noexcept {
+constexpr SkColor4f lighten(SkColor4f c, float k) noexcept {
   return {std::min(1.0f, c.fR + k), std::min(1.0f, c.fG + k),
           std::min(1.0f, c.fB + k), c.fA};
 }

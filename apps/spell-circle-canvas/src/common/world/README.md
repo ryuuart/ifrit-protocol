@@ -928,7 +928,7 @@ and a rim term that nothing scales. So:
   rather than a white disc — and every lit sum carries them through, so
   cutting it off at one would flatten every highlight to the same white
   and lose exactly the range the map is kept in floating point to hold.
-  `kit::terms`' `toneMap` is what runs instead, on both tiers and on the
+  `kit::termsSource`'s `toneMap` is what runs instead, on both tiers and on the
   sky pass alike: the radiance times the environment's `exposure`,
   divided by one plus its own luminance. A surface that is its own light
   and a coverage mask are drawn with the unlit build and are not curved:

@@ -7,9 +7,8 @@
  * name of theirs is spelled `::slang::` here.
  */
 
-#include <sigilmaterial/slang/SlangCompiler.h>
-
 #include <sigilmaterial/kit/Terms.h>
+#include <sigilmaterial/slang/SlangCompiler.h>
 #include <sigilslang/Portable.h>
 #include <slang-com-ptr.h>
 #include <slang.h>
@@ -79,7 +78,7 @@ class Compiler {
         std::string(slangmodule::Portable::kSource).c_str(),
         diagnostics.writeRef());
     slot->loadModuleFromSourceString("Shading", "Shading.slang",
-                                     kit::terms::source(Target::Slang).c_str(),
+                                     kit::termsSource(Target::Slang).c_str(),
                                      diagnostics.writeRef());
     return slot.get();
   }

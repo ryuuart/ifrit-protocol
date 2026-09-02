@@ -19,12 +19,12 @@
  * a caller loads the one its text is set in: read the file and hand its
  * text to `load()`.
  *
- * The patterns are therefore the caller's to choose. `patterns::english()`
- * is the one set this kit carries, because a corpus of tables is data
- * rather than code and belongs where a document's other assets are; a
- * loaded table is a peer of it, not a fallback behind it. Each set records
- * its licence beside it, since pattern tables are somebody's work and
- * travel under terms.
+ * The patterns are therefore the caller's to choose.
+ * `englishHyphenationPatterns()` is the one set this kit carries, because a
+ * corpus of tables is data rather than code and belongs where a document's
+ * other assets are; a loaded table is a peer of it, not a fallback behind it.
+ * Each set records its licence beside it, since pattern tables are somebody's
+ * work and travel under terms.
  *
  * What the method cannot express is a language whose break rewrites the
  * word — the spellings that gain or change a letter across the break. A
@@ -85,12 +85,9 @@ class PatternHyphenator final : public Hyphenator {
   std::unique_ptr<Table> m_table;
 };
 
-/** The pattern sets this kit carries. Each is the text a
- * PatternHyphenator loads, and each states its terms where it is defined. */
-namespace patterns {
-
-/** Liang's English (US) patterns, in the form TeX's `hyphen.tex`
- * distributes them.
+/** The one pattern set this kit carries — the text a PatternHyphenator
+ * loads — which states its terms where it is defined: Liang's English (US)
+ * patterns, in the form TeX's `hyphen.tex` distributes them.
  *
  * Terms: Donald Knuth's original file may be copied and redistributed
  * freely so long as it is unmodified; a modified table must not carry the
@@ -101,8 +98,6 @@ namespace patterns {
  * inhibitions matter most. A document that needs the whole table loads the
  * whole table.
  */
-[[nodiscard]] std::string_view english();
-
-}  // namespace patterns
+[[nodiscard]] std::string_view englishHyphenationPatterns();
 
 }  // namespace sigil::weave::kit

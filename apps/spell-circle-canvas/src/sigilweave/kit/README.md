@@ -41,7 +41,7 @@ One header per utility under `include/sigilweave/kit/`, and
 | `SampleText.h` | `mixedScriptFiller()` | Every showcase growing subtly different stress content; timings stay comparable on a shared deterministic corpus. |
 | `Palette.h` | `palette::kInk`, `kPaper`, … | Every showcase picking its own near-black and off-white. |
 | `Timing.h` | `Stopwatch` / `toMicroseconds()` | Frame-timing brackets duplicated across targets. |
-| `Hyphenation.h` | `PatternHyphenator`, `patterns::english()` | The engine growing an opinion about where a language's words break. |
+| `Hyphenation.h` | `PatternHyphenator`, `englishHyphenationPatterns()` | The engine growing an opinion about where a language's words break. |
 | `LineTables.h` | `kinsoku::japanese()`, `hanging::latin()`, `hanging::japanese()` | The engine growing an opinion about which marks may stand at a line's edge, and how far one may hang past it. |
 
 `sigil::weave::SingleLineParagraphCache` (the engine's `cache` feature) is the companion for
@@ -59,7 +59,7 @@ lot:
 
 ```cpp
 static const kit::PatternHyphenator english("en",
-                                            kit::patterns::english());
+                                            kit::englishHyphenationPatterns());
 ParagraphLayoutOptions options;
 options.hyphenation.patterns = &english;   // borrowed; outlives the layout
 ```
@@ -91,14 +91,14 @@ options.hyphenation.patterns = &german;    // one table per language tag
 
 The corpus itself is NOT in this repository: pattern tables are data a
 document ships with, they are large, and each travels under its own
-licence. `patterns::english()` is carried only because a kit with no table
+licence. `englishHyphenationPatterns()` is carried only because a kit with no table
 at all cannot be tried.
 
 What the method cannot express is a language whose break rewrites the word
 — the spellings that gain or change a letter across the break. A table
 proposes positions; it never respells.
 
-`patterns::english()` is a SUBSET of Liang's English (US) table, and it
+`englishHyphenationPatterns()` is a SUBSET of Liang's English (US) table, and it
 says so where it is defined, together with the terms the original travels
 under. A subset proposes fewer break points than the whole table, never a
 different one where the whole table would inhibit — which is why the

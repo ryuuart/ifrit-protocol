@@ -151,11 +151,11 @@ TEST(PaintStyle, PaintLayerMaterialComparesByIdentity) {
 // in, and the TextStyle it builds.
 
 TEST(Type, TheAggregatesNumbersLandOnTheStylesTwoHalves) {
-  const TextStyle s = type({.size = 10.5f,
-                            .color = {1, 0, 0, 1},
-                            .track = 1.2f,
-                            .condense = 0.8f,
-                            .aliased = true});
+  const TextStyle s = textStyle({.size = 10.5f,
+                                 .color = {1, 0, 0, 1},
+                                 .track = 1.2f,
+                                 .condense = 0.8f,
+                                 .aliased = true});
   EXPECT_FLOAT_EQ(s.shaping.fontSize, 10.5f);
   EXPECT_FLOAT_EQ(s.shaping.letterSpacing, 1.2f);
   EXPECT_FLOAT_EQ(s.shaping.scaleX, 0.8f);
@@ -168,7 +168,7 @@ TEST(Type, WeightAndSlantBecomeAxesAndTheExtraVariationsFollowThem) {
   t.weight = 700.0f;
   t.slant = -8.0f;
   t.variations = {FontVariation("wdth", 75.0f)};
-  const TextStyle s = type(t);
+  const TextStyle s = textStyle(t);
   ASSERT_EQ(s.shaping.variations.size(), 3u);
   EXPECT_EQ(s.shaping.variations[0], FontVariation("wght", 700));
   EXPECT_EQ(s.shaping.variations[1], FontVariation("slnt", -8));
@@ -177,7 +177,7 @@ TEST(Type, WeightAndSlantBecomeAxesAndTheExtraVariationsFollowThem) {
 
 TEST(Type, TheEightBitLadderQuantisesWhereTheFloatOneDoesNot) {
   const SkColor4f c{0.4f, 0.4f, 0.4f, 1};
-  EXPECT_EQ(type({.color = c}).paint.foreground.getColor4f(), c);
-  EXPECT_NE(type({.color = c, .color8 = true}).paint.foreground.getColor4f(),
-            c);
+  EXPECT_EQ(textStyle({.color = c}).paint.foreground.getColor4f(), c);
+  EXPECT_NE(
+      textStyle({.color = c, .color8 = true}).paint.foreground.getColor4f(), c);
 }

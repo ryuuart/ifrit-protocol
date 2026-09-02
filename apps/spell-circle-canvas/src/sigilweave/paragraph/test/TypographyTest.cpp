@@ -146,7 +146,7 @@ TEST(WordSpacingTest, WidensGlueWithoutReshaping) {
   EXPECT_FLOAT_EQ(paragraph.words()[0].spaceWidth, 0.0f);
 }
 
-// ── Features:: presets (style/Features.h)
+// ── features:: presets (style/Features.h)
 // ──────────────────────────────────────
 
 TEST(FeaturePresets, TabularNumbersEqualizeDigitAdvances) {
@@ -167,7 +167,7 @@ TEST(FeaturePresets, TabularNumbersEqualizeDigitAdvances) {
   };
 
   const std::vector<float> proportional = digitWidths({});
-  const std::vector<float> tabular = digitWidths({Features::tabularNumbers});
+  const std::vector<float> tabular = digitWidths({features::tabularNumbers});
 
   const auto spread = [](const std::vector<float>& widths) {
     const auto [minimum, maximum] =

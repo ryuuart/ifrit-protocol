@@ -9,7 +9,7 @@
 
 #include <string>
 
-namespace sigil::usd::runtime {
+namespace sigil::usd {
 
 /**
  * True when a stage can be created and the crate (`.usdc`), ASCII
@@ -19,4 +19,4 @@ namespace sigil::usd::runtime {
  */
 bool available(std::string* why = nullptr);
 
-}  // namespace sigil::usd::runtime
+}  // namespace sigil::usd

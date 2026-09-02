@@ -133,11 +133,11 @@ void authorSky(const std::filesystem::path& file) {
 
 TEST(UsdRuntime, ReportsAvailabilityWithAReason) {
   std::string why;
-  const bool ok = usd::runtime::available(&why);
+  const bool ok = usd::available(&why);
   if (!ok) GTEST_SKIP() << "USD runtime unavailable: " << why;
   EXPECT_TRUE(why.empty()) << "no reason when nothing is missing";
   // Idempotent: the plugin registry is discovered once per process.
-  EXPECT_TRUE(usd::runtime::available());
+  EXPECT_TRUE(usd::available());
 }
 
 TEST(UsdRead, UnweldsFansAndBakesTheXformIntoTheMeshItReads) {

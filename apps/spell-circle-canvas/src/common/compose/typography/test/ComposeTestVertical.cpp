@@ -721,8 +721,8 @@ TEST(TextVertical, AColumnStyleCanAskTheFaceForItsVerticalMetrics) {
     sigil::weave::TextStyle style = jp(24, SK_ColorWHITE);
     if (asked)
       style.shaping.fontFeatures = {
-          sigil::weave::Features::proportionalVerticalMetrics,
-          sigil::weave::Features::verticalKana};
+          sigil::weave::features::proportionalVerticalMetrics,
+          sigil::weave::features::verticalKana};
     return box().padding(10).child(
         text(u8"「縦組み」、ちょっと。", style)
             .width(60)

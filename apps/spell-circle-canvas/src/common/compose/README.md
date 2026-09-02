@@ -68,7 +68,7 @@ Element meter(const Channel &c) {
       .alignItems(Align::Center)
       // A mark on part of the boundary: L-brackets at every tangent break.
       .stroke(spans::corners(12), stroke(1.5f, Fill::color(ink)))
-      .child(text(c.label, weave::type({.size = 13, .color = ink})))
+      .child(text(c.label, weave::textStyle({.size = 13, .color = ink})))
       .child(box()
                  .grow()
                  .height(6)
@@ -466,9 +466,9 @@ built from a clipped strip and a wrapping phase. The effects the runtime
 evaluates by structure are declared with the kernel in `core/Text.h`:
 `fx::scramble`, the `fx::keys` keyframe table, the `fx::pass` shader pass,
 the `fx::seq`, `fx::mix` and `fx::hold` combinators, and the `fx::effect`
-door. A style's own numbers are SigilWeave's: `weave::type` builds a
+door. A style's own numbers are SigilWeave's: `weave::textStyle` builds a
 `weave::TextStyle` from the designated-init `weave::Type`
-(`<sigilweave/style/Type.h>`), and `weave::ports::pickFace` resolves the
+(`<sigilweave/style/Type.h>`), and `weave::ports::pickTypeface` resolves the
 first installed family of a fallback chain
 (`<sigilweave/ports/SystemFontManager.h>`). `kit/Legibility.h` ships with
 this tier.

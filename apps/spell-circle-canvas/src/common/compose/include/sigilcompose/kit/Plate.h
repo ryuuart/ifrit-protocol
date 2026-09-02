@@ -34,10 +34,10 @@ namespace sigil::compose::kit {
     const sk_sp<SkTypeface>& face, float size, SkColor4f base,
     std::vector<std::pair<std::string, SkColor4f>> named) {
   sigil::weave::StyleSet set(
-      weave::type({.face = face, .size = size, .color = base}));
+      weave::textStyle({.face = face, .size = size, .color = base}));
   for (auto& [name, color] : named)
     set.set(std::move(name),
-            weave::type({.face = face, .size = size, .color = color}));
+            weave::textStyle({.face = face, .size = size, .color = color}));
   return set;
 }
 

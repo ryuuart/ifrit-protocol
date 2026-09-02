@@ -423,11 +423,12 @@ TEST(KitChords, StepMakesStarPolygonsAndGcdDecidesTheRingCount) {
 namespace {
 
 sigil::weave::TextStyle pixelStyle(float size) {
-  return sigil::weave::type({.face = sigil::weave::ports::pickFace(
-                                 {"Menlo", "DejaVu Sans Mono", "Courier New"}),
-                             .size = size,
-                             .color = {1, 1, 1, 1},
-                             .aliased = true});
+  return sigil::weave::textStyle(
+      {.face = sigil::weave::ports::pickTypeface(
+           {"Menlo", "DejaVu Sans Mono", "Courier New"}),
+       .size = size,
+       .color = {1, 1, 1, 1},
+       .aliased = true});
 }
 
 }  // namespace
@@ -462,9 +463,9 @@ TEST(KitPixelType, InkReallyDoesOverhangTheAdvanceSoThePadIsLoadBearing) {
   for (const char* family : {"Helvetica", "Times New Roman", "Zapfino",
                              "Apple Chancery", "Snell Roundhand"}) {
     sk_sp<SkTypeface> face =
-        sigil::weave::ports::pickFace({family}, SkFontStyle::Italic());
+        sigil::weave::ports::pickTypeface({family}, SkFontStyle::Italic());
     if (!face) continue;
-    const auto style = sigil::weave::type(
+    const auto style = sigil::weave::textStyle(
         {.face = face, .size = 12.0f, .color = {1, 1, 1, 1}, .aliased = true});
     for (const char8_t* s : {u8"Wf", u8"of", u8"lift", u8"Ay"}) {
       const kit::Coverage tight =
@@ -645,7 +646,8 @@ TEST(KitLegibility, DrawHaloedPutsGroundColourAroundTheInk) {
     sk_sp<SkSurface> s =
         SkSurfaces::Raster(SkImageInfo::MakeN32Premul(160, 40));
     s->getCanvas()->clear(SkColorSetARGB(255, 128, 128, 128));
-    SkFont font(sigil::weave::ports::pickFace({"Menlo", "Courier New"}), 20.0f);
+    SkFont font(sigil::weave::ports::pickTypeface({"Menlo", "Courier New"}),
+                20.0f);
     if (halo)
       kit::drawHaloed(*s->getCanvas(), "HALO", {10, 28}, font,
                       SkColor4f{1, 1, 1, 1},

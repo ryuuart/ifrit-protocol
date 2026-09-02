@@ -127,14 +127,14 @@ text (its own section below).
   `style/StyleSet.h` (`StyleSet`, a small ordered registry of named
   styles, comparable by value, whose lookup always answers — an
   unregistered name resolves to the set's base entry).
-- **`style/Type.h`** — `Type` and `type()`: the parameters of a style as a
+- **`style/Type.h`** — `Type` and `textStyle()`: the parameters of a style as a
   designated-init aggregate (face, size, colour, tracking, condensation,
   weight, slant, aliasing, the 8-bit colour ladder, extra axes) and the
   `TextStyle` they build. It decides nothing — there is no type scale and
   no opinion about which face stands in for which. The face itself comes
-  from `ports::pickFace()`, which walks the system font manager.
+  from `ports::pickTypeface()`, which walks the system font manager.
 - **`style/Features.h`** — named OpenType presets
-  (`Features::tabularNumbers`, `smallCaps`, `stylisticSet(n)`, …) so
+  (`features::tabularNumbers`, `smallCaps`, `stylisticSet(n)`, …) so
   styles need not hand-spell four-cc tags, including the ones a COLUMN
   asks for: `verticalRotatedForms`, `verticalAlternates`,
   `proportionalVerticalMetrics`, `halfWidthVerticalMetrics`,
@@ -523,7 +523,7 @@ and the ones that name nothing say so.
 | Leading: auto, multiple, absolute, baseline grid | done | `Leading` | `ParagraphStyle::leading`, through `Element::paragraphs` |
 | Leading: all above the line, or half above and half below | done | `ParagraphStyle::halfLeading` | through `Element::paragraphs` |
 | Keep: widows, orphans, with next, all lines together, start in next frame | done — enforced at the frame boundary by retracting lines into the next fill, under both breakers | `KeepOptions` | `ParagraphStyle::keep`, through `Element::paragraphs` |
-| Hyphenation: pattern dictionary | done, for any language that has a pattern table — the engine matches letters of any script and a table declares the language it answers for; the kit carries English and a caller loads the rest | `HyphenationOptions::patterns`, `kit::PatternHyphenator`, `kit::patterns::english` | `Element::hyphenation` |
+| Hyphenation: pattern dictionary | done, for any language that has a pattern table — the engine matches letters of any script and a table declares the language it answers for; the kit carries English and a caller loads the rest | `HyphenationOptions::patterns`, `kit::PatternHyphenator`, `kit::englishHyphenationPatterns` | `Element::hyphenation` |
 | Hyphenation: minimum word, letters before / after, capitalised words | done | `HyphenationLimits` | `Element::hyphenation` |
 | Hyphenation: consecutive limit, last word of a block | done | `HyphenationOptions` | `Element::hyphenation`; per block through `Element::paragraphs` |
 | Hyphenation: zone | done, both breakers | `HyphenationOptions::zone` | `Element::hyphenation` |

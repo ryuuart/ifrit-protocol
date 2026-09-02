@@ -161,7 +161,7 @@ TEST(ScryPlatform, ResourceDirIsStagedNextToTheExecutable) {
   // gets the reason instead, which is what a caller shows in place of the
   // thing it cannot run.
   std::string why = "untouched";
-  EXPECT_TRUE(runtime::available(&why));
+  EXPECT_TRUE(available(&why));
   EXPECT_EQ(why, "untouched");
-  EXPECT_TRUE(runtime::available());
+  EXPECT_TRUE(available());
 }

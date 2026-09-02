@@ -19,8 +19,8 @@ using namespace sigil::weave::test;
 
 TEST(Hyphenation, PatternBreaksReachTheWordList) {
   FontContext& fonts = sharedContext();
-  static const kit::PatternHyphenator hyphenator("en",
-                                                 kit::patterns::english());
+  static const kit::PatternHyphenator hyphenator(
+      "en", kit::englishHyphenationPatterns());
   TextStyle style = basicStyle(16.0f);
   style.shaping.languageTag = "en-US";
   Paragraph paragraph;
@@ -47,8 +47,8 @@ int hyphenatedLines(const ParagraphLayout& layout, const Paragraph& paragraph) {
 
 TEST(Hyphenation, TheZoneLeavesALineThatIsAlreadySquareEnoughRagged) {
   FontContext& fonts = sharedContext();
-  static const kit::PatternHyphenator hyphenator("en",
-                                                 kit::patterns::english());
+  static const kit::PatternHyphenator hyphenator(
+      "en", kit::englishHyphenationPatterns());
   TextStyle style = basicStyle(16.0f);
   style.shaping.languageTag = "en-US";
   const auto fillWith = [&](float zone, LineBreakStrategy strategy) {
@@ -80,8 +80,8 @@ TEST(Hyphenation, TheZoneLeavesALineThatIsAlreadySquareEnoughRagged) {
 
 TEST(Hyphenation, TheZoneIsARaggedSettingRuleAndAJustifiedLineIgnoresIt) {
   FontContext& fonts = sharedContext();
-  static const kit::PatternHyphenator hyphenator("en",
-                                                 kit::patterns::english());
+  static const kit::PatternHyphenator hyphenator(
+      "en", kit::englishHyphenationPatterns());
   TextStyle style = basicStyle(16.0f);
   style.shaping.languageTag = "en-US";
   Paragraph paragraph;
@@ -101,8 +101,8 @@ TEST(Hyphenation, TheZoneIsARaggedSettingRuleAndAJustifiedLineIgnoresIt) {
 
 TEST(Hyphenation, TheMinimumWordLengthIsSettledInTheAnalysis) {
   FontContext& fonts = sharedContext();
-  static const kit::PatternHyphenator hyphenator("en",
-                                                 kit::patterns::english());
+  static const kit::PatternHyphenator hyphenator(
+      "en", kit::englishHyphenationPatterns());
   TextStyle style = basicStyle(16.0f);
   style.shaping.languageTag = "en-US";
   Paragraph paragraph;

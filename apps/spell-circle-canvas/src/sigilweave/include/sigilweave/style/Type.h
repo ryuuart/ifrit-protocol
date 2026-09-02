@@ -26,8 +26,8 @@ namespace sigil::weave {
  *  per call site. A positional helper cannot grow another parameter
  *  without breaking every existing call; an aggregate can.
  *
- *      type({.face = faceMono, .size = 10.5f, .color = kInk,
- *            .track = 1.2f})
+ *      textStyle({.face = faceMono, .size = 10.5f, .color = kInk,
+ *                 .track = 1.2f})
  *
  *  Anything not here is added to the RETURNED style — a mask-filter blur, a
  *  kPlus blend, a mandatory underlay. Those are per-artefact decisions and
@@ -73,7 +73,7 @@ struct Type {
 };
 
 /** Type{} → the TextStyle it names. */
-inline TextStyle type(const Type& t) {
+inline TextStyle textStyle(const Type& t) {
   TextStyle s;
   s.shaping.typeface = t.face;
   s.shaping.fontSize = t.size;
@@ -89,6 +89,13 @@ inline TextStyle type(const Type& t) {
   if (t.slant != 0) s.variation("slnt", t.slant);
   for (const FontVariation& v : t.variations) s.shaping.variations.push_back(v);
   return s;
+}
+
+/** The same call under a name that says nothing of what it builds;
+ *  `textStyle` is the spelling. */
+[[deprecated("the same call is textStyle")]] inline TextStyle type(
+    const Type& t) {
+  return textStyle(t);
 }
 
 }  // namespace sigil::weave

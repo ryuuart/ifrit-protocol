@@ -30,7 +30,7 @@
 #define SKIP_WITHOUT_USD()                                \
   do {                                                    \
     std::string why;                                      \
-    if (!sigil::usd::runtime::available(&why))            \
+    if (!sigil::usd::available(&why))                     \
       GTEST_SKIP() << "USD runtime unavailable: " << why; \
   } while (0)
 

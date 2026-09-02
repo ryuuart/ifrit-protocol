@@ -194,7 +194,7 @@ void sceneNewFeatures(FontContext& fontContext,
     for (const char8_t* rowText : tabRows) {
       // Tabular figures keep the numeric column rigid.
       TextStyle tabularStyle = style(18, kInk);
-      tabularStyle.shaping.fontFeatures = {Features::tabularNumbers};
+      tabularStyle.shaping.fontFeatures = {features::tabularNumbers};
       Paragraph tabbed;
       tabbed.appendText(rowText, tabularStyle);
       BlockFlow flow(SkRect::MakeXYWH(40, tabRowTop, 900, 26));

@@ -944,7 +944,7 @@ Setting a run down the page applies the `vert` forms by itself; the wider
 `vrt2` rotation set, punctuation recentred (`valt`) or fitted to its ink
 (`vpal`, `vhal`), kana cut for a column (`vkna`) and vertical kerning
 (`vkrn`) are named features, spelled as
-`sigil::weave::Features::verticalRotatedForms` and its siblings and set on
+`sigil::weave::features::verticalRotatedForms` and its siblings and set on
 `shaping.fontFeatures` like any other. They are part of shaping identity, so
 naming one re-shapes the runs it covers — and they are NOT gated on the
 writing direction, so a style carrying them and set along a line takes them

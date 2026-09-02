@@ -233,8 +233,8 @@ TEST(Hyphenation, ExceptionSpellingsAndCommentsSurviveTheParse) {
 }
 
 TEST(Hyphenation, PatternsOpenBreaksInsideWords) {
-  static const kit::PatternHyphenator hyphenator("en",
-                                                 kit::patterns::english());
+  static const kit::PatternHyphenator hyphenator(
+      "en", kit::englishHyphenationPatterns());
   EXPECT_GT(hyphenator.patternCount(), 100u);
   std::vector<uint32_t> points;
   hyphenator.breakPoints(u"hyphenation", "en-US", points);

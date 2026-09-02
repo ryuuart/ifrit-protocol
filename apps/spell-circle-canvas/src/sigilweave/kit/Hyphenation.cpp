@@ -91,9 +91,9 @@ void PatternHyphenator::load(std::string languagePrefix,
   // outside English needs and the only one that can spell them. Text that
   // is not valid UTF-8 loads as nothing, which costs break points and
   // never correctness.
-  const std::u16string text = unicode::toUtf16(std::u8string_view(
-      reinterpret_cast<const char8_t*>(patternFile.data()),
-      patternFile.size()));
+  const std::u16string text = unicode::toUtf16(
+      std::u8string_view(reinterpret_cast<const char8_t*>(patternFile.data()),
+                         patternFile.size()));
 
   bool inExceptions = false;
   bool inComment = false;
@@ -220,9 +220,7 @@ void PatternHyphenator::breakPoints(std::u16string_view word,
     if (points[index] & 1u) out.push_back(offsets[index - 1]);
 }
 
-namespace patterns {
-
-std::string_view english() {
+std::string_view englishHyphenationPatterns() {
   // A subset of Liang's English (US) table: the prefix, suffix and
   // consonant-cluster patterns that carry most of the work, plus the
   // exception spellings whose inhibitions a subset would otherwise lose.
@@ -634,7 +632,5 @@ std::string_view english() {
       "ref-or-ma-tion ret-ri-bu-tion ta-ble";
   return kPatterns;
 }
-
-}  // namespace patterns
 
 }  // namespace sigil::weave::kit

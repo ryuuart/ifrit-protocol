@@ -14,7 +14,7 @@ namespace {
 
 void BM_Available(benchmark::State& state) {
   for ([[maybe_unused]] auto _ : state)
-    benchmark::DoNotOptimize(sigil::usd::runtime::available());
+    benchmark::DoNotOptimize(sigil::usd::available());
 }
 
 }  // namespace
@@ -22,7 +22,7 @@ void BM_Available(benchmark::State& state) {
 int main(int argc, char** argv) {  // NOLINT(bugprone-exception-escape): an
                                    // uncaught error ends the run
   std::string why;
-  if (sigil::usd::runtime::available(&why))
+  if (sigil::usd::available(&why))
     benchmark::RegisterBenchmark("BM_Available", BM_Available);
   else
     std::fprintf(stderr, "usd_runtime_bench: nothing to run — %s\n",

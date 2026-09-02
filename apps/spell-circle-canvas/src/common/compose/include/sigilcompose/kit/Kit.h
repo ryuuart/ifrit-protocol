@@ -48,9 +48,9 @@
  * Already shipped elsewhere and deliberately NOT duplicated here:
  * `test::check` / `report` / `failures` (`testing/Checks.h`, the
  * SigilComposeTesting target) are the verification plate; `hex`
- * (`Paint.h`), `weave::type`, `weave::ports::pickFace` and `motion::ramp`
- * are the prelude; `stroke` (`Decorations.h`) is the value spelling. The
- * figure's own coordinate systems and its division ladders are
+ * (`Paint.h`), `weave::textStyle`, `weave::ports::pickTypeface` and
+ * `motion::ramp` are the prelude; `stroke` (`Decorations.h`) is the value
+ * spelling. The figure's own coordinate systems and its division ladders are
  * SigilGeometry's — `geometry::path::Frame`, `geometry::path::Grid`,
  * `geometry::path::centred`, `geometry::shapes::ticks` and
  * `geometry::shapes::chords`.

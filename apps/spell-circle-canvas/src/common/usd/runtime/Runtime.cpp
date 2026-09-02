@@ -10,7 +10,7 @@
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
-namespace sigil::usd::runtime {
+namespace sigil::usd {
 
 bool available(std::string* why) {
   std::string missing;
@@ -33,4 +33,4 @@ bool available(std::string* why) {
   return true;
 }
 
-}  // namespace sigil::usd::runtime
+}  // namespace sigil::usd

@@ -44,10 +44,9 @@ SkColor4f term(const std::string& expression) {
   static int serial = 0;
   const auto recipe = std::make_shared<const Recipe>(
       Recipe::of<NoParams>("term." + std::to_string(serial++))
-          .body(Target::SkSL,
-                kit::terms::source(Target::SkSL) +
-                    "half4 main(float2 xy) { return half4(" + expression +
-                    "); }"));
+          .body(Target::SkSL, kit::termsSource(Target::SkSL) +
+                                  "half4 main(float2 xy) { return half4(" +
+                                  expression + "); }"));
   sk_sp<SkShader> shader = skia::shader(Material(recipe, NoParams{}), {});
   EXPECT_TRUE(shader) << expression;
   if (!shader) return {0, 0, 0, 0};
@@ -85,12 +84,10 @@ TEST(Terms, EachTermMeetsItsClosedForm) {
                      "normalize(float3(1.0, 0.0, 1.0)))"),
               std::sqrt(0.5f), 2e-3f);
   // Head on, all of it; edge on, none.
-  EXPECT_NEAR(
-      scalar("lambert(float3(0.0, 0.0, 1.0), float3(0.0, 0.0, 1.0))"), 1.0f,
-      2e-3f);
-  EXPECT_NEAR(
-      scalar("lambert(float3(0.0, 0.0, 1.0), float3(1.0, 0.0, 0.0))"), 0.0f,
-      2e-3f);
+  EXPECT_NEAR(scalar("lambert(float3(0.0, 0.0, 1.0), float3(0.0, 0.0, 1.0))"),
+              1.0f, 2e-3f);
+  EXPECT_NEAR(scalar("lambert(float3(0.0, 0.0, 1.0), float3(1.0, 0.0, 0.0))"),
+              0.0f, 2e-3f);
 
   // BLINN with the light and the eye together: the half vector is the
   // normal and the highlight is at its peak whatever the exponent.
@@ -104,8 +101,7 @@ TEST(Terms, EachTermMeetsItsClosedForm) {
               std::pow(std::cos(3.14159265f / 8.0f), 4.0f), 3e-3f);
 
   // FRESNEL: a dielectric's four per cent head on, and white at the rim.
-  EXPECT_NEAR(scalar("fresnel(float3(0.04, 0.04, 0.04), 1.0).r"), 0.04f,
-              2e-3f);
+  EXPECT_NEAR(scalar("fresnel(float3(0.04, 0.04, 0.04), 1.0).r"), 0.04f, 2e-3f);
   EXPECT_NEAR(scalar("fresnel(float3(0.04, 0.04, 0.04), 0.0).r"), 1.0f, 2e-3f);
   // A metal's reflectance IS its base colour; a dielectric's is four
   // per cent whatever colour it is.
@@ -157,7 +153,8 @@ TEST(Terms, EachTermMeetsItsClosedForm) {
 
   // THE PANORAMA'S CONVENTION: u = 0.5 looks along -z, v = 0 is the
   // zenith, and a direction and a coordinate round trip.
-  const SkColor4f forward = term("equirectUv(float3(0.0, 0.0, -1.0)), 0.0, 1.0");
+  const SkColor4f forward =
+      term("equirectUv(float3(0.0, 0.0, -1.0)), 0.0, 1.0");
   EXPECT_NEAR(forward.fR, 0.5f, 2e-3f);
   EXPECT_NEAR(forward.fG, 0.5f, 2e-3f);
   EXPECT_NEAR(scalar("equirectUv(float3(0.0, 1.0, 0.0)).y"), 0.0f, 2e-3f);

@@ -92,7 +92,7 @@ void BM_ReadEmitters(benchmark::State& state) {
 int main(int argc, char** argv) {  // NOLINT(bugprone-exception-escape): an
                                    // uncaught error ends the run
   std::string why;
-  if (usd::runtime::available(&why)) {
+  if (usd::available(&why)) {
     benchmark::RegisterBenchmark("BM_ReadModel", BM_ReadModel)
         ->Arg(128)
         ->Arg(2048)

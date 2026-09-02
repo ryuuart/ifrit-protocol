@@ -5,14 +5,14 @@
  *
  * Named OpenType feature presets — CSS font-variant-* vocabulary as
  * ready-made FontFeature values, so styles read
- * `style.shaping.fontFeatures = {Features::tabularNumbers}` instead of
+ * `style.shaping.fontFeatures = {features::tabularNumbers}` instead of
  * hand-spelled four-cc tag lists. Header-only; every constant is a plain
  * FontFeature and combines freely with hand-rolled features.
  */
 
 #include "sigilweave/style/Style.h"
 
-namespace sigil::weave::Features {
+namespace sigil::weave::features {
 
 // ── Numerals (CSS font-variant-numeric) ──────────────────────────────────
 /// Equal-width figures for tables and timers ("tnum").
@@ -108,4 +108,4 @@ static_assert(stylisticSet(20) == FontFeature{"ss20", 1});
 static_assert(stylisticSet(0) == FontFeature{"ss01", 1});
 static_assert(stylisticSet(99) == FontFeature{"ss20", 1});
 
-}  // namespace sigil::weave::Features
+}  // namespace sigil::weave::features

@@ -13,7 +13,7 @@ header lives under `include/sigilscry/<feature>/` and is spelled
 
 | target | headers | holds |
 |--------|---------|-------|
-| `SigilScryPlatform` | `platform/LogLevel.h`, `platform/Runtime.h` | `LogLevel`, the severity every engine message carries; `runtime::available(why)`, whether the resource directory an engine would boot with holds the runtime data it needs. The rest of the feature — the `SkBitmap`-backed surface, the two-root file system, the logger bridge, the resource directory — is what Ultralight's `Platform` singleton is handed, and stays internal |
+| `SigilScryPlatform` | `platform/LogLevel.h`, `platform/Runtime.h` | `LogLevel`, the severity every engine message carries; `available(why)`, whether the resource directory an engine would boot with holds the runtime data it needs. The rest of the feature — the `SkBitmap`-backed surface, the two-root file system, the logger bridge, the resource directory — is what Ultralight's `Platform` singleton is handed, and stays internal |
 | `SigilScryGpu`      | — | Ultralight's GPU command lists executed on a SigilCoreHardware `GpuDevice`, and the texture interop the engine needs beyond that; the graphics-API-neutral contract and its Metal implementation are internal |
 | `SigilScryEngine`   | `engine/WebEngine.h`, `engine/WebView.h`, `engine/WebImage.h` | `WebEngineConfig`, `ViewOptions` and `WebEngine`; `WebView` and its `Frame`; `WebImage` |
 
@@ -294,7 +294,7 @@ them. At startup the engine resolves the resource directory in this order:
 3. the SDK location found at configure time, compiled in as a fallback.
 
 Missing resources are what an engine failing to boot usually means, and
-`runtime::available(&why)` in `<sigilscry/platform/Runtime.h>` answers
+`available(&why)` in `<sigilscry/platform/Runtime.h>` answers
 whether they are there BEFORE an engine exists — a process is allowed
 exactly one renderer, so a caller that wants to ask first must be able to
 ask without spending it.

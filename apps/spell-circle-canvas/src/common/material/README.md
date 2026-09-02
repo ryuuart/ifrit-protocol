@@ -67,7 +67,7 @@ each a static archive that links only what sits beneath it:
 | `SigilMaterialField` | `field::` — `halftoneRamp`, `noise`, `grain`, `ripple`, `crtOverlay` | SigilMaterialTexture, SigilMaterialColor |
 | `SigilMaterialSkia` | the SkSL compiler and `SkiaProgram`, whose builder uploads resolved bytes; `skia::builder` and `skia::shader` binding leaves into slots; `skia::fill`; the colour bridge `skia::toColor` / `skia::toSkColor` / `skia::toColors`; `skia::Paint`, the model as ONE shader; and `skia::Effect`, the post-processing recipe over a rendered layer | SigilMaterialTexture, SigilMaterialColor, SigilMotionValues |
 | `SigilMaterialSlang` | the Slang compiler: `slang::compileModule` to SPIR-V, `slang::Compiled` with the reflected `slang::UniformSlot` per uniform, `slang::SlangProgram`, and `slang::Uniforms`, the buffer one draw is written into; `Portable.slang`, the subset a host and a device answer alike, loaded into every session by name | SigilMaterialCore; SigilMaterialKit and Slang privately |
-| `SigilMaterialKit` | the presets: the metallic-roughness `kit::surface` and `kit::unlit` and the masks that stack them; `kit::gold`, `kit::chrome`, `kit::glass`; `kit::girih8` and its palettes; the gel and chrome tables with `kit::contourRing`; the text paints and chrome-type ramps; and `kit::terms`, the shading terms a surface is composed of | SigilMaterialPattern, SigilMaterialColor |
+| `SigilMaterialKit` | the presets: the metallic-roughness `kit::surface` and `kit::unlit` and the masks that stack them; `kit::gold`, `kit::chrome`, `kit::glass`; `kit::girih8` and its palettes; the gel and chrome tables with `kit::contourRing`; the text paints and chrome-type ramps; and `kit::termsSource`, the shading terms a surface is composed of | SigilMaterialPattern, SigilMaterialColor |
 
 `SigilMaterial` is the umbrella, an interface over all ten. Headers live
 under `include/sigilmaterial/<feature>/` and are spelled that way —
@@ -407,7 +407,7 @@ Every session carries two modules by name, so a shader's `import`
 resolves in memory and nothing is looked for on disk. `Portable` is the
 subset whose transcendentals a host and a device answer alike — a kernel
 compiled for both cannot afford two spellings of a square root.
-`Shading` is `kit::terms`' own text, so a renderer's shading and every
+`Shading` is `kit::termsSource`'s own text, so a renderer's shading and every
 material body compiled beside it call one definition of a term rather
 than a copy apiece.
 
@@ -432,7 +432,7 @@ share the `TextPaintParams` ABI of a run's origin and extent, the clock
 and a slow motion vector; `sunsetChromeText()` and `silverChromeText()`
 are the chrome-type ramps in unit space.
 
-**A surface is composed of TERMS.** `kit::terms::source(target)` is one
+**A surface is composed of TERMS.** `kit::termsSource(target)` is one
 text holding each piece of shading arithmetic as a function with a closed
 form — `lambert`, `blinn`, `fresnel` and `fresnelRough`,
 `specularColor`, `environmentBrdf` and `environmentSpecular` (the split
