@@ -38,28 +38,47 @@
 // is the 2ADVANCED.NET press logo's mark inside AUXILIARY PANEL. Do not
 // "correct" any of this from memory.
 //
-// The MAINFRAME hero was a real Cinema 4D composite (the site's own press
-// copy name-checks Maxon). There is no 3D here: flat SDF shapes, one
-// radial portal, an opacity-ramped skyline, three dome silhouettes with
-// gloss rim-light, a mirrored blurred reflection under a hard horizon
-// hairline, and a blurred kPlus bloom copy over the whole stack. Stacking
-// ORDER is what does the work, not any one layer.
+// THE MAINFRAME HERO IS A REAL 3D RENDER. The site's own press copy
+// name-checks Maxon and the reference is a Cinema 4D composite:
+// mechanical pods rising out of water in front of a teal city, with
+// depth, occlusion and a bright halo behind them. So the city, the water,
+// the pods and the halo are a world scene — lit bodies under a cold
+// backlight and a cool fill, rendered ONCE at setup into an image and
+// composited into the page like any other bitmap. What compose adds over
+// it is the atmosphere: a kPlus haze band at the horizon, the portal's
+// reaching glow, the orbital ring, the water's streaks and specular
+// column, the scanlines and the corner readouts.
 //
-// Two things the hero depends on that no reference image states:
-//  · the FOG RAMP runs toward the centre, not away from it: the near
-//    buildings are the hard silhouettes and the far ones dissolve. Keyed
-//    the other way — opacity to |x − cx| — the skyline reads as a bar
-//    chart. And none of it reads at all without a full-width kPlus haze
-//    band UNDER the skyline, because the outer thirds are otherwise
-//    black-on-black.
-//  · the reflection is sold by the specular COLUMN, not the blur. A
+// IT STAYS A CANVAS SKETCH. The page is a DOCUMENT — resolution-
+// independent, so its plate is re-rendered at the capture scale, and
+// every panel on it is 2D chrome. A set forms at one resolution and
+// would drag two thousand lines of chrome through a texture for the sake
+// of one panel. The hero is a picture INSIDE the page, so it is a
+// picture, and the bake is at twice the panel's pixels because a plate
+// is taken at up to twice the canvas.
+//
+// Three things the hero depends on that no reference image states:
+//  · THE FOG IS A VERTEX COLOUR. This renderer has no fog term, so the
+//    city's four ranks each carry their own tint, a step darker and
+//    bluer with distance. A single tint across the ranks reads as a
+//    cardboard cut-out.
+//  · none of it reads at all without a full-width kPlus haze band at the
+//    horizon, because the outer thirds are otherwise black-on-black.
+//  · the reflection is sold by the specular COLUMN, not by the blur. A
 //    vertically-smeared bar of glow under the portal reads as water from
 //    across the room; the mirrored blurred disc alone does not.
+//
+// THE EMPTY LOWER HALF IS PART OF THE DESIGN. The reference carries
+// MAINFRAME, FEATURE SYSTEM, AUXILIARY PANEL, PRESS UPDATES and SUB
+// SYSTEM, and then a large field of oxblood with nothing on it. Five
+// panels in the top two thirds and nothing under them is what makes the
+// page read as an interface rather than as a dashboard.
 
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkMaskFilter.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkString.h>
+#include <include/core/SkSurface.h>
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilcompose/brush/Decorations.h>
@@ -74,17 +93,25 @@
 #include <sigilcompose/shape/Shapes.h>
 #include <sigilcompose/typography/TextFx.h>
 #include <sigilcompose/typography/Type.h>
+#include <sigilgeometry/mesh/Mesh.h>
+#include <sigilmaterial/kit/Surface.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>
+#include <sigilworld/frame/Frame.h>
+#include <sigilworld/scene/Scene.h>
 
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstdint>
 #include <cstdio>
+#include <glm/vec3.hpp>
+#include <glm/vec4.hpp>
 #include <string>
 #include <vector>
 
 namespace sketch = sigil::sketch;
+namespace world = sigil::world;
 
 using namespace sigil::compose;
 // Absolute placement: this composition is pinned, so a node says
@@ -411,8 +438,6 @@ struct TwoAdvancedV4 : sketch::Sketch {
   ch::Output<float> portalGlow{54.0f};  // MAINFRAME portal glow radius
   ch::Output<float> pressScroll{0.0f};  // PRESS UPDATES auto-scroll
   float pressOverflow = 0;              // entry list minus well, measured once
-  ch::Output<float> wirePhase{0.0f};    // status-bus marquee phase
-  float wireW = 1;                      // measured once (compose::measure)
   ch::Output<float> vuLeft{0.4f}, vuRight{0.6f};
   std::array<ch::Output<float>, 21> dot{};  // 7 clusters × 3 dots
   std::array<ch::Output<float>, 3> gauge{};
@@ -449,6 +474,9 @@ struct TwoAdvancedV4 : sketch::Sketch {
   // --- instancing: the footer dock's chevron tick array ---
   std::shared_ptr<instancing::Atlas> dockAtlas;
   std::shared_ptr<instancing::Pool> dockPool;
+
+  /** The MAINFRAME hero, rendered once as a world scene and held. */
+  sk_sp<SkImage> heroPlate;
 
   int bootPct = 0;
   bool booted = false;
@@ -889,85 +917,6 @@ struct TwoAdvancedV4 : sketch::Sketch {
     return bar;
   }
 
-  /** The strip under the nav bar. The real index never left 584×150 of
-   *  gradient showing: five chamfered section thumbnails over a dark
-   *  readout ground, each with its own bracket set and index number. */
-  Element quickLaunch() {
-    using namespace tav;
-    static const char* secs[5] = {"PORTFOLIO", "SERVICES", "ACCOLADES",
-                                  "EXPERIMENTAL", "EQUIPMENT"};
-    static const char* nums[5] = {"01", "02", "03", "04", "05"};
-    Element chips = box().row().gap(6).height(64);
-    for (int i = 0; i < 5; ++i) {
-      const float g = 0.28f + 0.16f * (float)i;
-      chips.child(
-          box()
-              .grow(1)
-              .column()
-              .gap(3)
-              .child(
-                  box()
-                      .grow(1)
-                      .shape(shapes::chamfered(8, shapes::Corner::Diagonal))
-                      .fill(Material::linearUnit(
-                          {0, 0}, {0, 1},
-                          {{0.0f, hex(0x06232A)}, {1.0f, hex(0x01090B)}}))
-                      .stroke(stroke(1, Fill::color(alpha(kCyan, 0.35f)),
-                                     PathFormat::Align::Inner))
-                      .child(box().inset(0).fill(
-                          Material::radialUnit({0.5f, 0.92f}, 1.0f,
-                                               {{0.0f, alpha(kGlow, g)},
-                                                {1.0f, alpha(kGlow, 0.0f)}})))
-                      .child(at(box().fill(hex(0x010A0C)), 12, 16, 14, 26))
-                      .child(at(box().fill(hex(0x02171B)), 30, 8, 20, 34))
-                      .child(at(box().fill(hex(0x010A0C)), 54, 20, 16, 22))
-                      .child(at(box().fill(alpha(kGlow, 0.5f)), 0, 41, 200, 1))
-                      .foreground(Brackets{alpha(kCyan, 0.6f), 7, 1, 2,
-                                           shapes::Corner::All})
-                      .foreground(Scanlines{{0, 0, 0, 0.24f}, 3, 1})
-                      .child(box().left(Dim(4)).top(Dim(3)).child(
-                          t(nums[i], micro(9, alpha(kCyan, 0.9f), 140)))))
-              .child(t(secs[i], micro(9, i == 0 ? kCyan : kDust, 200))));
-    }
-
-    Element panel = singleBevel(
-        box().width(584).height(144).column().padding(8).gap(6), hex(0x3E1013));
-    panel.key("quick")
-        .translateY(
-            animate(from(40.0f).to(0.0f), {380ms, &ch::easeOutQuint, 2450ms}))
-        .opacity(
-            animate(from(0.0f).to(1.0f), {320ms, &ch::easeOutQuad, 2450ms}))
-        .foreground(
-            Brackets{alpha(kCyan, 0.55f), 12, 2, 4,
-                     shapes::Corner::BottomLeft | shapes::Corner::BottomRight})
-        .child(box()
-                   .row()
-                   .alignItems(Align::Center)
-                   .gap(8)
-                   .height(16)
-                   .child(t("QUICK", heavy(13, kNear, 40)))
-                   .child(t(" LAUNCH", type(arial(), 12, kHeadDim, 40, 0.95f)))
-                   .child(box().width(1).height(11).fill(alpha(kCyan, 0.4f)))
-                   .child(t("SELECT A SECTOR", micro(10, kDust, 260)))
-                   .child(box().grow(1))
-                   .child(tickDots(4))
-                   .child(box().width(60).height(9).foreground(TickRail{
-                       alpha(kCyan, 0.5f), 5, 3, 7, 1, 4, false, true})))
-        .child(chips)
-        .child(box()
-                   .height(16)
-                   .row()
-                   .alignItems(Align::Center)
-                   .gap(8)
-                   .padding(5, 0)
-                   .fill(alpha(kChrome, 0.85f))
-                   .child(t("\xe2\x96\xb8 INDEX", micro(9, kCyan, 200)))
-                   .child(box().grow(1).height(1).fill(alpha(kDust, 0.3f)))
-                   .child(t("05 SECTORS \xc2\xb7 42 PROJECTS",
-                            micro(9, kDustDim, 200))));
-    return panel;
-  }
-
   Element masthead() {
     using namespace tav;
     Element emblem =
@@ -1043,45 +992,204 @@ struct TwoAdvancedV4 : sketch::Sketch {
                                     micro(10, kDustDim, 200)))))
         // the glowing 2px cyan divider under the whole masthead panel
         .child(box().height(2).fill(kCyan).background(
-            styles::OuterGlow{alpha(kGlow, 0.55f), 10, 1}))
-        // …and the readout rail beneath it, so the masthead block ends on
-        // the same baseline as QUICK LAUNCH instead of leaving an L-void
-        .child(box()
-                   .height(50)
-                   .row()
-                   .alignItems(Align::Center)
-                   .padding(26, 0, 8, 0)
-                   .gap(12)
-                   .child(t("\xe2\x96\xb8 SESSION", micro(10, kCyan, 220)))
-                   .child(t("A4-1187-PRPH", micro(10, kDustDim, 200)))
-                   .child(box().width(1).height(12).fill(alpha(kDust, 0.3f)))
-                   .child(t("LOCALE", micro(10, kDustDim, 220)))
-                   .child(t("EN-US", micro(10, kDust, 200)))
-                   .child(box().width(1).height(12).fill(alpha(kDust, 0.3f)))
-                   .child(t("LOAD", micro(10, kDustDim, 220)))
-                   .child(box()
-                              .width(90)
-                              .height(6)
-                              .fill(hex(0x240607))
-                              .child(box()
-                                         .left(Dim(0))
-                                         .top(Dim(0))
-                                         .width(74)
-                                         .height(6)
-                                         .fill(alpha(kCyan, 0.8f))))
-                   .child(t("543 KB", micro(10, kDust, 200)))
-                   .child(box().grow(1))
-                   .child(tickDots(4, alpha(kCyan, 0.9f)))
-                   .child(box().width(120).height(10).foreground(TickRail{
-                       alpha(kDust, 0.5f), 6, 3, 8, 1, 4, false, true})));
+            styles::OuterGlow{alpha(kGlow, 0.55f), 10, 1}));
   }
 
   // ---- the hero -----------------------------------------------------------
 
-  /** Composite ORDER is what sells this. sky → skyline → portal →
-   *  ring → figures → water + reflection → horizon hairline.
-   *  `still` builds the same scene with no live material and no entrance,
-   *  so the bloom duplicate stays provably static and bakes ONCE. */
+  /** Composite ORDER is what sells this: the baked render → the horizon
+   *  haze → the portal's glow → the orbital ring → the water's light →
+   *  the horizon hairline. `still` builds the same scene with no live
+   *  material and no entrance, so the bloom duplicate stays provably
+   *  static and bakes ONCE. */
+  // =========================================================================
+  // THE MAINFRAME HERO IS A REAL 3D RENDER, BAKED ONCE.
+  //
+  // The site's own press copy name-checks Maxon, and the reference is a
+  // Cinema 4D composite: mechanical pods rising out of water in front of
+  // a teal city, with depth and a bright halo behind them. Flat SDF
+  // shapes could carry the vocabulary and not the depth, so the city and
+  // the pods are a world scene here — lit bodies, a real camera, real
+  // occlusion — rendered ONCE into an image at setup and composited into
+  // the page like any other bitmap.
+  //
+  // IT STAYS A CANVAS SKETCH and does not become a set. The page is a
+  // DOCUMENT: resolution-independent, so its plate is re-rendered at the
+  // capture scale, and every panel on it is 2D chrome. A set forms at one
+  // resolution and would drag two thousand lines of chrome through a
+  // texture for the sake of one panel. The hero is a picture INSIDE the
+  // page, so it is a picture.
+  //
+  // The bake is at twice the panel's pixels, because a plate is taken at
+  // up to twice the canvas and a hero resampled up is the one thing a
+  // rebuild of this page cannot afford.
+
+  /** A deterministic value in [0,1) — the skyline is the same skyline on
+   *  every machine and in every run. */
+  static float cityHash(int i, int salt) {
+    uint32_t h = (uint32_t)i * 2654435761u ^ (uint32_t)salt * 2246822519u;
+    h = (h ^ (h >> 15U)) * 2654435761u;
+    return (float)((h ^ (h >> 16U)) & 0xFFFFFFu) / 16777216.0f;
+  }
+
+  /** One axis-aligned block, five faces (nothing sees the underside),
+   *  flat normals, one colour in the vertex lane. */
+  static void cityBlock(sigil::geometry::mesh::Mesh& out, glm::vec3 lo,
+                        glm::vec3 hi, glm::vec4 tint) {
+    static const glm::vec3 kN[5] = {
+        {0, 0, 1}, {0, 0, -1}, {1, 0, 0}, {-1, 0, 0}, {0, 1, 0}};
+    const glm::vec3 c[8] = {{lo.x, lo.y, hi.z}, {hi.x, lo.y, hi.z},
+                            {hi.x, hi.y, hi.z}, {lo.x, hi.y, hi.z},
+                            {lo.x, lo.y, lo.z}, {hi.x, lo.y, lo.z},
+                            {hi.x, hi.y, lo.z}, {lo.x, hi.y, lo.z}};
+    static const int kFace[5][4] = {
+        {0, 1, 2, 3}, {5, 4, 7, 6}, {1, 5, 6, 2}, {4, 0, 3, 7}, {3, 2, 6, 7}};
+    for (int f = 0; f < 5; ++f) {
+      const uint32_t base = (uint32_t)out.positions.size();
+      const float side = f == 4 ? 1.0f : 0.74f;
+      for (int k = 0; k < 4; ++k) {
+        out.positions.push_back(c[kFace[f][k]]);
+        out.normals.push_back(kN[f]);
+        out.uvs.emplace_back(0.0f, 0.0f);
+        out.colors.emplace_back(tint.r * side, tint.g * side, tint.b * side,
+                                1.0f);
+      }
+      out.indices.insert(out.indices.end(),
+                         {base, base + 1, base + 2, base, base + 2, base + 3});
+    }
+  }
+
+  /** The city: four ranks of blocks receding from the water line, each
+   *  rank a step darker and bluer, which is the fog this renderer has —
+   *  a colour that is a function of distance, written into the vertices. */
+  static sigil::geometry::mesh::Mesh cityMesh() {
+    sigil::geometry::mesh::Mesh out;
+    for (int rank = 0; rank < 4; ++rank) {
+      const float z = -820.0f - (float)rank * 520.0f;
+      const float fade = 1.0f - 0.20f * (float)rank;
+      for (int i = 0; i < 26; ++i) {
+        const float x =
+            -1900.0f + (float)i * 150.0f + cityHash(i, rank) * 90.0f;
+        const float wdt = 48.0f + cityHash(i, rank + 40) * 62.0f;
+        const float hgt = 70.0f + cityHash(i, rank + 80) * 330.0f *
+                                      (0.55f + 0.45f * (float)rank / 3.0f);
+        const glm::vec4 tint{0.020f * fade, 0.128f * fade, 0.150f * fade, 1.0f};
+        cityBlock(out, {x, 0.0f, z - 60.0f}, {x + wdt, hgt, z + 60.0f}, tint);
+      }
+    }
+    return out;
+  }
+
+  /** The backdrop: one quad whose four corners carry the ramp, so the
+   *  sky is a body the scene sorts like any other. */
+  static sigil::geometry::mesh::Mesh skyMesh() {
+    sigil::geometry::mesh::Mesh m =
+        sigil::geometry::mesh::quad(22000.0f, 7000.0f);
+    m.colors.clear();
+    for (const glm::vec3& pos : m.positions) {
+      const float up = std::clamp(pos.y / 7000.0f + 0.5f, 0.0f, 1.0f);
+      m.colors.emplace_back(0.010f + 0.030f * (1.0f - up),
+                            0.056f + 0.174f * (1.0f - up),
+                            0.070f + 0.196f * (1.0f - up), 1.0f);
+    }
+    return m;
+  }
+
+  /** One pod: a dome on the water with a dark visor band and a lit maw. */
+  static world::Element pod(const std::string& key, float x, float z,
+                            float scale) {
+    namespace gm = sigil::geometry::mesh;
+    world::Element p = world::Element().key(key).at({x, 0.0f, z}).scale(scale);
+    p.child(world::Element()
+                .key(key + "-shell")
+                .at({0.0f, 66.0f, 0.0f})
+                .mesh(gm::superellipsoid({52.0f, 74.0f, 52.0f}, 2.6f, 28, 18))
+                .fill(sigil::material::kit::surface(
+                    {.baseColor = {0.070f, 0.086f, 0.098f, 1.0f},
+                     .metallic = 0.7f,
+                     .roughness = 0.28f})));
+    p.child(world::Element()
+                .key(key + "-visor")
+                .at({0.0f, 50.0f, 42.0f})
+                .mesh(gm::superellipsoid({18.0f, 14.0f, 16.0f}, 1.8f, 20, 14))
+                .fill(sigil::material::kit::unlit(
+                    {.baseColor = {0.42f, 0.055f, 0.045f, 1.0f},
+                     .emissive = {1.0f, 0.16f, 0.12f, 1.0f},
+                     .emissiveStrength = 1.4f})));
+    return p;
+  }
+
+  /** The hero's world, rendered once into an image @p w x @p h. */
+  sk_sp<SkImage> bakeHero(int w, int h, sigil::motion::Ticker& ticker) {
+    namespace gm = sigil::geometry::mesh;
+    using namespace tav;
+    world::Element scene = world::Element().key("mainframe");
+
+    // The lights: a cold key from behind the city, so the pods are read
+    // as silhouettes against the halo, and a dim fill from the front so
+    // their metal is not black.
+    scene.child(world::Element().key("key").light(world::sun(
+        {0.16f, -0.30f, 0.94f}, {0.36f, 0.86f, 0.92f, 1.0f}, 1.05f)));
+    scene.child(world::Element().key("fill").light(world::sun(
+        {-0.34f, -0.52f, -0.78f}, {0.44f, 0.72f, 0.82f, 1.0f}, 0.95f)));
+
+    // THE SKY is a body: one unlit backdrop far behind everything, with
+    // the ramp in its vertex colours. A gradient painted under the render
+    // would be a second picture the scene knows nothing about.
+    scene.child(
+        world::Element()
+            .key("sky")
+            .at({0.0f, 900.0f, -5200.0f})
+            .mesh(skyMesh())
+            .fill(sigil::material::kit::unlit({.baseColor = {1, 1, 1, 1}})));
+    scene.child(world::Element()
+                    .key("water")
+                    .rotateX(-90.0f)
+                    .mesh(gm::quad(9000.0f, 9000.0f))
+                    .fill(sigil::material::kit::surface(
+                        {.baseColor = {0.012f, 0.070f, 0.082f, 1.0f},
+                         .metallic = 0.9f,
+                         .roughness = 0.10f})));
+    scene.child(world::Element()
+                    .key("city")
+                    .mesh(cityMesh())
+                    .fill(sigil::material::kit::surface(
+                        {.baseColor = {1, 1, 1, 1}, .roughness = 0.85f})));
+    // THE HALO: a real ring behind the pods, which is what the reference
+    // reads as depth rather than as a drawn circle — the middle pod
+    // occludes it.
+    scene.child(world::Element()
+                    .key("halo")
+                    .at({0.0f, 150.0f, -760.0f})
+                    .rotateX(90.0f)
+                    .mesh(gm::torus(300.0f, 7.0f, 80, 8))
+                    .fill(sigil::material::kit::unlit(
+                        {.baseColor = {0.62f, 0.98f, 0.99f, 1.0f},
+                         .emissive = {0.62f, 0.98f, 0.99f, 1.0f},
+                         .emissiveStrength = 2.4f})));
+    scene.child(pod("pod-mid", 0.0f, -430.0f, 1.60f));
+    scene.child(pod("pod-left", -352.0f, -580.0f, 1.30f));
+    scene.child(pod("pod-right", 358.0f, -600.0f, 1.26f));
+
+    world::Camera lens;
+    lens.eye = {0.0f, 30.0f, 320.0f};
+    lens.target = {0.0f, 57.0f, 0.0f};
+    lens.up = {0.0f, 1.0f, 0.0f};
+    lens.fovYDeg = 30.0f;
+    lens.zNear = 4.0f;
+    lens.zFar = 12000.0f;
+
+    sk_sp<SkSurface> surface =
+        SkSurfaces::Raster(SkImageInfo::MakeN32Premul(w, h));
+    if (!surface) return nullptr;
+    surface->getCanvas()->clear(hex(0x02070A));
+
+    world::Scene world3d(ticker);
+    world3d.render(world::Frame(std::move(scene)));
+    world3d.draw(*surface->getCanvas(), lens);
+    return surface->makeImageSnapshot();
+  }
+
   Element heroScene(float w, float h, bool still) {
     using namespace tav;
     const float horizon = std::round(h * 0.66f);
@@ -1089,25 +1197,26 @@ struct TwoAdvancedV4 : sketch::Sketch {
 
     Element scene = stack().width(Dim(w)).height(Dim(h)).clip();
 
-    scene.child(
-        box().inset(0).fill(Material::linearUnit({0, 0}, {0, 0.66f},
-                                                 {{0.0f, hex(0x02070A)},
-                                                  {0.62f, hex(0x03181D)},
-                                                  {1.0f, hex(0x073038)}})));
+    // THE BAKED RENDER: sky, city, water and pods in one image, sized to
+    // the panel. A null bake (no raster surface) leaves the gradient
+    // alone, which is the same forgiving contract every other bitmap on
+    // this page keeps.
+    if (heroPlate)
+      scene.child(box().inset(0).fill(
+          Material::image(heroPlate, SkTileMode::kClamp, SkTileMode::kClamp,
+                          SkMatrix::Scale(w / (float)heroPlate->width(),
+                                          h / (float)heroPlate->height()),
+                          SkSamplingOptions(SkFilterMode::kLinear))));
+    else
+      scene.child(
+          box().inset(0).fill(Material::linearUnit({0, 0}, {0, 0.66f},
+                                                   {{0.0f, hex(0x02070A)},
+                                                    {0.62f, hex(0x03181D)},
+                                                    {1.0f, hex(0x073038)}})));
 
-    // the portal's wide halo, behind everything — LOW alpha; the disc
-    // itself is small and the exponential SDF glow does the reaching.
-    scene.child(
-        at(box().fill(Material::radialUnit({0.5f, 0.5f}, 1.0f,
-                                           {{0.00f, alpha(kGlow, 0.34f)},
-                                            {0.30f, alpha(kTealBar, 0.16f)},
-                                            {1.00f, alpha(kTealBar, 0.0f)}})),
-           cx - 330, horizon - 420, 660, 620)
-            .blend(SkBlendMode::kPlus));
-
-    // the horizon haze band, full width, UNDER the skyline. Without it the
-    // outer thirds are black-on-black and the silhouettes have nothing to
-    // read against; one kPlus ramp is the whole of the fix.
+    // the horizon haze band, full width. Without it the outer thirds are
+    // black-on-black and the silhouettes have nothing to read against;
+    // one kPlus ramp is the whole of the fix.
     scene.child(
         at(box().fill(Material::linearUnit({0, 0}, {0, 1},
                                            {{0.00f, alpha(kTealBar, 0.0f)},
@@ -1116,63 +1225,19 @@ struct TwoAdvancedV4 : sketch::Sketch {
            0, horizon - 132, w, 132)
             .blend(SkBlendMode::kPlus));
 
-    // skyline: flat slabs, opacity + tint ramped by |x−cx| (cheap fog)
-    static const float bx[13] = {30,  108, 186, 250, 320, 388, 446,
-                                 692, 748, 812, 884, 962, 1050};
-    static const float bw[13] = {62, 54, 48, 60, 50, 38, 52,
-                                 44, 56, 58, 46, 70, 64};
-    static const float bh[13] = {120, 168, 92,  146, 200, 110, 74,
-                                 86,  158, 118, 190, 96,  140};
-    for (int i = 0; i < 13; ++i) {
-      const float d = std::abs(bx[i] + bw[i] * 0.5f - cx) / (w * 0.5f);
-      const float o = 1.0f - 0.42f * d;
-      const SkColor4f tint = {0.004f + 0.012f * (1 - d),
-                              0.026f + 0.030f * (1 - d),
-                              0.034f + 0.036f * (1 - d), 1.0f};
-      Element slab =
-          at(box().fill(tint), bx[i], horizon - bh[i], bw[i], bh[i]).opacity(o);
-      slab.child(box()
-                     .left(Dim(bw[i] * 0.25f))
-                     .top(Dim(bh[i] * 0.22f))
-                     .width(3)
-                     .height(3)
-                     .fill(alpha(kGlow, 0.55f)));
-      slab.child(box()
-                     .left(Dim(bw[i] * 0.62f))
-                     .top(Dim(bh[i] * 0.48f))
-                     .width(3)
-                     .height(3)
-                     .fill(alpha(kGlow, 0.38f)));
-      scene.child(slab);
-      if (i % 3 == 1)
-        scene.child(at(box().fill(alpha(tint, o)), bx[i] + bw[i] * 0.22f,
-                       horizon - bh[i] - 30, bw[i] * 0.56f, 30));
-      if (i % 4 == 2)
-        scene.child(at(box().fill(alpha(tint, o)), bx[i] - 14,
-                       horizon - bh[i] * 0.55f, 14, bh[i] * 0.55f));
-      if (bh[i] > 150)
-        scene.child(at(box().fill(alpha(tint, o)), bx[i] + bw[i] * 0.5f - 1,
-                       horizon - bh[i] - 26, 2, 26));
-    }
-
-    // beacons over the far skyline
-    const float bl[5][2] = {
-        {132, 0.30f}, {318, 0.22f}, {826, 0.26f}, {968, 0.18f}, {1084, 0.30f}};
-    for (int i = 0; i < 5; ++i)
-      scene.child(
-          at(box().fill(alpha(i % 2 ? kGlow : hex(0xFF6A6A), bl[i][1] + 0.35f)),
-             bl[i][0], horizon - 210 - 24 * (float)i, 3, 3)
-              .blend(SkBlendMode::kPlus));
-
     // THE portal: one SDF circle. Its box must RESERVE sdf::pad() for the
     // glow — sdf::minBoxFor() is the only honest way to size it, since
     // pad eats into the half-size (a 300 box with glowRadius 54 leaves
     // almost no disc at all). 132 px of visible disc, reaching far.
-    sdf::Style ps{.fill = alpha(kGlow, 0.95f),
-                  .borderWidth = 3,
-                  .borderColor = {0.90f, 1.0f, 1.0f, 0.95f},
+    // The halo is a RING IN THE SCENE and the pods occlude it, so what
+    // this adds is the atmosphere around it: a low-alpha core under a
+    // reaching glow, screened over the render rather than pasted in front
+    // of it.
+    sdf::Style ps{.fill = alpha(kGlow, 0.07f),
+                  .borderWidth = 2,
+                  .borderColor = alpha({0.90f, 1.0f, 1.0f, 1.0f}, 0.35f),
                   .glowRadius = 54,
-                  .glowColor = alpha(kGlow, 0.75f)};
+                  .glowColor = alpha(kGlow, 0.42f)};
     const float pbox = sdf::minBoxFor(ps, 132);
     Material pm = sdf::material(sdf::circle(), ps);
     if (!still) pm.uniform("uGlowR", &portalGlow);  // ±8 % sine, period 4 s
@@ -1192,52 +1257,24 @@ struct TwoAdvancedV4 : sketch::Sketch {
     Element ring =
         at(box()
                .shape(shapes::arc(-125, 310))
-               .stroke(stroke(2, Fill::color(alpha(kCyanRing, 0.6f)))),
+               .stroke(stroke(2, Fill::color(alpha(kCyanRing, 0.34f)))),
            cx - 118, horizon - 226, 236, 236);
     if (!still)
       ring.mask(by::spans(spans::upTo(
           animate(from(0.0f).to(1.0f), {700ms, &ch::easeOutQuint, 2600ms}))));
     scene.child(ring);
 
-    // three helmeted figures, backlit: dome silhouette + gloss rim-light
-    const float fxs[3] = {cx - 205, cx, cx + 200};
-    const float fss[3] = {0.82f, 1.0f, 0.78f};
-    for (int i = 0; i < 3; ++i) {
-      const float dw = 66 * fss[i], dh = 100 * fss[i];
-      Element fig = at(box()
-                           .shape([](SkSize s) {
-                             SkPathBuilder b;
-                             b.moveTo(0, s.height());
-                             b.lineTo(0, s.width() * 0.5f);
-                             b.arcTo(SkRect::MakeWH(s.width(), s.width()), 180,
-                                     180, false);
-                             b.lineTo(s.width(), s.height());
-                             b.close();
-                             return b.detach();
-                           })
-                           .fill(hex(0x01080A)),
-                       fxs[i] - dw * 0.5f, horizon - dh + 14, dw, dh);
-      fig.foreground(styles::gloss(alpha(kCyanRing, 0.95f), dw * 0.09f,
-                                   {0, -dh * 0.15f}, 0.28f, 0.20f));
-      fig.foreground(shapes::onEdges(
-          shapes::Edge::Top, stroke(1.5f, Fill::color(alpha(kGlow, 0.85f)),
-                                    PathFormat::Align::Inner)));
-      fig.child(box()
-                    .left(Dim(dw * 0.22f))
-                    .top(Dim(dh * 0.30f))
-                    .width(Dim(dw * 0.56f))
-                    .height(3)
-                    .fill(alpha(kGlow, 0.55f)));
-      scene.child(fig);
-    }
-
     // water: streaks + a mirrored, blurred copy of the portal glow
+    // The water is the RENDER's water; what compose adds over it is the
+    // light on it. A fill here would paint out the one surface the bake
+    // reflects the halo in.
     Element water = at(box().clip(), 0, horizon, w, h - horizon);
-    if (still)
-      water.fill(Material::linearUnit(
-          {0, 0}, {0, 1}, {{0.0f, hex(0x001415)}, {1.0f, hex(0x011F21)}}));
-    else
-      water.fill(waterStreaks);
+    if (!still)
+      water.child(box()
+                      .inset(0)
+                      .fill(waterStreaks)
+                      .opacity(0.55f)
+                      .blend(SkBlendMode::kPlus));
     water.child(box()
                     .left(Dim(cx - 190))
                     .top(Dim(-72))
@@ -1928,229 +1965,6 @@ struct TwoAdvancedV4 : sketch::Sketch {
     return panel;
   }
 
-  /** The band the FWA screenshot leaves under AUXILIARY on the left
-   *  column. A 2Advanced page never left 300 px of gradient showing. */
-  Element transmissionLog() {
-    using namespace tav;
-    Element bars = box().row().gap(3).alignItems(Align::End).height(74);
-    for (int i = 0; i < 34; ++i) {
-      const float v = 0.18f + 0.80f * std::abs(std::sin(i * 0.73f) *
-                                               std::cos(i * 0.31f + 1.1f));
-      bars.child(
-          box()
-              .width(7)
-              .height(Dim(74 * v))
-              .shrink(0)
-              .fill(Material::linearUnit({0, 0}, {0, 1},
-                                         {{0.0f, alpha(kCyan, 0.95f)},
-                                          {1.0f, alpha(kTealBar, 0.3f)}})));
-    }
-
-    static const char* hexLines[12] = {
-        "0x0000  4A 10 0F 57 11 19 6A 1B  21 7B DA D6 95 C9 CC 8D",
-        "0x0010  77 77 2C 7B 80 01 D0 D5  57 97 97 84 B8 B6 3C 82",
-        "0x0020  82 70 00 00 B2 7E 82 F3  F3 F3 18 07 07 26 09 09",
-        "0x0030  37 0C 0D 40 0E 0F 4C 10  10 2A 00 00 1A 00 01 0A",
-        "0x0040  46 4C 41 53 48 49 4E 44  45 58 2E 53 57 46 00 00",
-        "0x0050  43 57 53 06 EC 45 08 00  78 9C 00 00 00 00 00 00",
-        "0x0060  50 52 4F 50 48 45 43 59  20 50 52 49 4D 45 00 00",
-        "0x0070  46 53 69 6E 67 6C 65 42  65 76 65 6C 50 61 6E 65",
-        "0x0080  6C 43 6C 61 73 73 00 46  44 6F 75 62 6C 65 42 65",
-        "0x0090  76 65 6C 50 61 6E 65 6C  43 6C 61 73 73 00 00 00",
-        "0x00A0  48 65 6C 76 65 74 69 63  61 20 39 35 20 42 6C 61",
-        "0x00B0  63 6B 00 41 72 69 61 6C  20 42 6C 61 63 6B 00 00",
-    };
-    Element hexRows = box().column().gap(2);
-    for (int i = 0; i < 12; ++i)
-      hexRows.child(
-          t(hexLines[i],
-            type(arial(), 11, alpha(kCyanRing, i < 7 ? 0.6f : 0.30f), 60)));
-
-    Element gauges = box().row().gap(10).alignItems(Align::Center);
-    for (int i = 0; i < 3; ++i)
-      gauges.child(
-          box()
-              .width(58)
-              .height(58)
-              .fill(sdf::material(sdf::circle(), {.fill = hex(0x140505),
-                                                  .borderWidth = 2,
-                                                  .borderColor = kChromeHi}))
-              .justify(Justify::Center)
-              .alignItems(Align::Center)
-              .child(radarSweep(i, kCyan, 0.34f))
-              .child(t(i == 0 ? "A" : (i == 1 ? "B" : "C"),
-                       micro(11, alpha(kCyan, 0.85f), 120))));
-
-    Element panel =
-        singleBevel(box().width(1180).height(236).column().padding(9).gap(7),
-                    hex(0x3E1013));
-    panel.key("txlog")
-        .translateY(
-            animate(from(56.0f).to(0.0f), {400ms, &ch::easeOutQuint, 3400ms}))
-        .opacity(
-            animate(from(0.0f).to(1.0f), {320ms, &ch::easeOutQuad, 3400ms}))
-        .foreground(Brackets{alpha(kCyan, 0.5f), 14, 2, 5,
-                             shapes::Corner::AntiDiagonal})
-        .child(box()
-                   .row()
-                   .alignItems(Align::Center)
-                   .gap(9)
-                   .height(20)
-                   .child(t("TRANSMISSION", heavy(15, kNear, 40)))
-                   .child(t(" LOG", type(arial(), 14, kHeadDim, 40, 0.95f)))
-                   .child(box().width(1).height(12).fill(alpha(kCyan, 0.4f)))
-                   .child(t("BUFFER 04 / 16 \xc2\xb7 UPLINK NOMINAL",
-                            micro(11, kDust, 240)))
-                   .child(box().grow(1))
-                   .child(tickDots(6))
-                   .child(box().width(120).height(10).foreground(TickRail{
-                       alpha(kCyan, 0.5f), 5, 3, 8, 1, 4, false, true})))
-        .child(
-            box()
-                .row()
-                .gap(10)
-                .grow(1)
-                .child(
-                    box()
-                        .width(380)
-                        .padding(8)
-                        .clip()
-                        .column()
-                        .gap(5)
-                        .fill(hex(0x180505))
-                        .foreground(InsetBevel{
-                            alpha(kChromeHi, 0.5f), {0, 0, 0, 0.5f}, 0, 1, 1})
-                        .foreground(Brackets{alpha(kCyan, 0.4f), 9, 2, 3,
-                                             shapes::Corner::All})
-                        .child(
-                            box()
-                                .row()
-                                .alignItems(Align::Center)
-                                .gap(6)
-                                .child(t("SPECTRUM 34CH",
-                                         micro(10, alpha(kCyan, 0.9f), 220)))
-                                .child(box().grow(1).height(1).fill(
-                                    alpha(kChromeHi, 0.9f)))
-                                .child(t("-12 dB", micro(10, kDustDim, 200))))
-                        .child(box().grow(1))
-                        .child(bars)
-                        .child(box().height(9).foreground(TickRail{
-                            alpha(kCyan, 0.4f), 10, 3, 7, 1, 4, false, false}))
-                        .child(box()
-                                   .row()
-                                   .justify(Justify::SpaceBetween)
-                                   .child(t("20", micro(9, kDustDim, 180)))
-                                   .child(t("400", micro(9, kDustDim, 180)))
-                                   .child(t("2K", micro(9, kDustDim, 180)))
-                                   .child(t("8K", micro(9, kDustDim, 180)))
-                                   .child(t("16K", micro(9, kDustDim, 180)))))
-                .child(
-                    box()
-                        .grow(1)
-                        .padding(8)
-                        .clip()
-                        .column()
-                        .gap(4)
-                        .fill(hex(0x140404))
-                        .foreground(InsetBevel{
-                            alpha(kChromeHi, 0.5f), {0, 0, 0, 0.5f}, 0, 1, 1})
-                        .child(
-                            box()
-                                .row()
-                                .alignItems(Align::Center)
-                                .gap(6)
-                                .child(t("PACKET DUMP \xc2\xb7 "
-                                         "flashindex.swf",
-                                         micro(10, alpha(kCyan, 0.85f), 220)))
-                                .child(box().grow(1).height(1).fill(
-                                    alpha(kChromeHi, 0.9f)))
-                                .child(
-                                    t("543,340 B", micro(10, kDustDim, 200))))
-                        .child(hexRows)
-                        .child(box().grow(1))
-                        .child(
-                            box()
-                                .row()
-                                .alignItems(Align::Center)
-                                .gap(6)
-                                .child(t("CRC 0x8E41", micro(9, kDustDim, 200)))
-                                .child(box().width(1).height(9).fill(
-                                    alpha(kDust, 0.3f)))
-                                .child(t("CWS \xc2\xb7 SWF6 \xc2\xb7 "
-                                         "ZLIB",
-                                         micro(9, kDustDim, 200)))
-                                .child(box().grow(1))
-                                .child(t("\xe2\x96\xb8 VERIFIED",
-                                         micro(9, alpha(kCyan, 0.8f), 200)))))
-                .child(
-                    box()
-                        .column()
-                        .gap(6)
-                        .alignItems(Align::Center)
-                        .padding(9, 6)
-                        .fill(hex(0x1B0607))
-                        .foreground(InsetBevel{
-                            alpha(kChromeHi, 0.5f), {0, 0, 0, 0.5f}, 0, 1, 1})
-                        .child(gauges)
-                        .child(
-                            t("EQUIPMENT STATUS", micro(10, kDustDim, 220)))));
-    return panel;
-  }
-
-  /** The wire ticker: the content of ONE marquee unit. Measured once in
-   *  setup() so the strip's wrap length is exact (marquee's
-   *  width-pinned overload — an unpinned strip wraps against the clip). */
-  Element wireContent() {
-    using namespace tav;
-    return box()
-        .row()
-        .alignItems(Align::Center)
-        .height(24)
-        .gap(14)
-        .child(t("\xe2\x96\xb8 UPLINK NOMINAL", micro(11, kCyan, 220)))
-        .child(t("\xc2\xb7", micro(11, kDustDim, 0)))
-        .child(t("RENDER FARM 08/08 ONLINE", micro(11, kDust, 220)))
-        .child(t("\xc2\xb7", micro(11, kDustDim, 0)))
-        .child(t("PROPHECY PRIME SKIN NOW SHIPPING", micro(11, kDust, 220)))
-        .child(t("\xc2\xb7", micro(11, kDustDim, 0)))
-        .child(t("FWA SITE OF THE MONTH \xe2\x80\x94 03.11.06",
-                 micro(11, kDust, 220)))
-        .child(t("\xc2\xb7", micro(11, kDustDim, 0)))
-        .child(t("SUBSCRIBE TO THE DISPATCH \xe2\x80\x94 41,208 STRONG",
-                 micro(11, kDust, 220)))
-        .child(t("\xc2\xb7", micro(11, kDustDim, 0)))
-        .child(t("BEST VIEWED AT 1024\xc3\x97"
-                 "768 \xc2\xb7 FLASH PLAYER 6",
-                 micro(11, kDustDim, 220)));
-  }
-
-  /** The full-width status bus between the panel grid and SUB SYSTEM. */
-  Element statusWire() {
-    using namespace tav;
-    Element strip = marquee(wireContent(), wireW, &wirePhase, 60);
-    strip.grow(1).height(24);
-    return singleBevel(box()
-                           .width(1892)
-                           .height(38)
-                           .row()
-                           .alignItems(Align::Center)
-                           .padding(12, 0)
-                           .gap(10),
-                       hex(0x3E1013))
-        .key("wire")
-        .opacity(
-            animate(from(0.0f).to(1.0f), {400ms, &ch::easeOutQuad, 3550ms}))
-        .foreground(TickRail{alpha(kDust, 0.3f), 8, 3, 6, 1, 4, false, true})
-        .child(t("STATUS BUS", heavy(12, kNear, 60)))
-        .child(box().width(1).height(16).fill(alpha(kCyan, 0.4f)))
-        .child(box().width(40).height(10).foreground(
-            TickRail{alpha(kCyan, 0.55f), 5, 3, 7, 1, 4, false, false}))
-        .child(strip)
-        .child(box().width(1).height(16).fill(alpha(kDust, 0.35f)))
-        .child(tickDots(5))
-        .child(t("LIVE", micro(11, alpha(kCyan, 0.9f), 220)));
-  }
-
   /** A tiny chamfered radio key — the SUB SYSTEM row's preference bank. */
   Element toggle(const char* lbl, bool on) {
     using namespace tav;
@@ -2671,6 +2485,13 @@ struct TwoAdvancedV4 : sketch::Sketch {
 
   // =========================================================================
 
+  /** THE PAGE, and what is NOT on it. The reference carries MAINFRAME,
+   *  FEATURE SYSTEM, AUXILIARY PANEL, PRESS UPDATES and SUB SYSTEM, and
+   *  then a large field of empty oxblood below the fold. That emptiness
+   *  is the composition: five panels in the top two thirds and nothing
+   *  under them is what makes the page read as an interface rather than
+   *  as a dashboard, and a panel invented to fill the space costs exactly
+   *  that. */
   Element describe() {
     using namespace tav;
     Element stage =
@@ -2678,34 +2499,40 @@ struct TwoAdvancedV4 : sketch::Sketch {
     stage.child(statusBar());
     stage.child(at(audioModule(), 0, 48, 596, 174));
     stage.child(at(navBar(), 604, 48, 584, 46));
-    stage.child(at(quickLaunch(), 604, 100, 584, 144));
     stage.child(at(masthead(), 1192, 8, 700, 236));
     stage.child(at(mainframe(), 0, 246, 1180, 350));
     stage.child(at(featureSystem(), 1196, 246, 696, 350));
     stage.child(at(auxiliary(), 0, 616, 1180, 168));
-    stage.child(at(transmissionLog(), 0, 790, 1180, 236));
     stage.child(at(pressUpdates(), 1196, 616, 696, 410));
-    stage.child(at(statusWire(), 0, 1038, 1892, 38));
     stage.child(at(subSystem(), 0, 1090, 1892, 96));
     stage.child(at(legalStrip(), 0, 1196, 1892, 96));
     stage.child(at(footerDock(), 0, 1310, 1892, 220));
 
-    // sitebackground.gif is a 1×1600 strip tiled across the page: the
-    // oxblood is only the top band, and it is nearly black by a third
-    // of the way down. When the real strip is loaded it IS the page —
-    // repeated in x, ×2 in y, clamped so the canvas shows the strip's
-    // top 780 rows exactly as a 780-CSS-px-tall page did. The fallback
-    // ramp keeps the same shape (a two-stop ramp reads as flat maroon
-    // and gets figure/ground backwards — the PANELS are the light thing
-    // on this page) and adds grain for the strip's vertical tooth.
+    // sitebackground.gif is a 1×1600 strip tiled across the page. When
+    // the real strip is loaded it IS the page — repeated in x, ×2 in y,
+    // clamped so the canvas shows the strip's top 780 rows exactly as a
+    // 780-CSS-px-tall page did. The fallback ramp is that same strip
+    // read back off a loaded run and written down as stops, plus grain
+    // for its vertical tooth, so a cold cache renders the same page a
+    // warm one does rather than a lighter cousin of it.
     Element page = stack();
     if (siteBgGif) {
       page.fill(stretchFill(siteBgGif, 1940, 3200, SkTileMode::kRepeat));
     } else {
+      // THE FALL-OFF IS READ OFF THE REAL STRIP, column by column, so
+      // the two paths draw one page rather than two: down the middle the
+      // loaded strip reads (87, 17, 25) for its top seventh — which is
+      // kChrome exactly — then (82, 15, 23) at 0.40, (71, 10, 18) at
+      // 0.55, (61, 6, 13) at 0.65, (37, 0, 2) at 0.80 and near black
+      // under the footer. A two-stop ramp reads as flat maroon and gets
+      // figure and ground backwards, because the PANELS are the light
+      // thing on this page.
       page.fill(Material::linearUnit({0, 0}, {0, 1},
-                                     {{0.00f, kBgTop},
-                                      {0.13f, hex(0x2E0808)},
-                                      {0.40f, hex(0x150202)},
+                                     {{0.00f, kChrome},
+                                      {0.40f, hex(0x520F17)},
+                                      {0.55f, hex(0x470A12)},
+                                      {0.65f, hex(0x3D060D)},
+                                      {0.80f, hex(0x250002)},
                                       {1.00f, kBgBot}}))
           .child(box().inset(0).fill(grain).opacity(0.07f).blend(
               SkBlendMode::kOverlay));
@@ -2723,6 +2550,10 @@ struct TwoAdvancedV4 : sketch::Sketch {
     using namespace tav;
     ctx.canvas(1940, 1560);
     ctx.background(hex(0x0A0000));
+
+    // The hero's world, baked at twice the panel's pixels because a plate
+    // is taken at up to twice the canvas.
+    heroPlate = bakeHero(2348, 632, ctx.ticker);
 
     // --- the production shell bitmaps, from the restoration host ----------
     // The loader's https path caches on disk (CacheFirst), so only the
@@ -2770,10 +2601,6 @@ struct TwoAdvancedV4 : sketch::Sketch {
 
     waterStreaks = Material::sksl(waterFx());
 
-    // measure the ticker's ONE unit so the marquee's wrap is exact
-    wireW = std::ceil(ctx.measure(wireContent()).width());
-    if (wireW < 1) wireW = 1;
-
     // measure the press entries at the well's own wrap width, so the
     // auto-scroll walks the REAL overflow rather than a guessed one
     pressOverflow = std::max(
@@ -2814,8 +2641,7 @@ struct TwoAdvancedV4 : sketch::Sketch {
     ctx.ticker.add([this, t = 0.0](double dt) mutable {
       t += dt;
       const float s = (float)t;
-      stripePan = s * 2.5f;  // 20 px / 8 s
-      wirePhase = -(float)std::fmod(t * 46.0, (double)(wireW + 60.0f));
+      stripePan = s * 2.5f;                               // 20 px / 8 s
       portalGlow = 54.0f + 4.4f * std::sin(s * 1.5708f);  // ±8 %, period 4 s
       vuLeft = 0.45f + 0.42f * std::abs(std::sin(s * 3.1f));
       vuRight = 0.40f + 0.45f * std::abs(std::sin(s * 2.3f + 1.1f));
