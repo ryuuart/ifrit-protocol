@@ -78,39 +78,33 @@ constexpr int kCols = 10, kRows = 4;
 constexpr float kGridW = kCols * kCell + (kCols - 1) * kGap;
 constexpr float kGridH = kRows * kCell + (kRows - 1) * kGap;
 
-constexpr SkColor4f C(uint32_t rgb, float a = 1.0f) noexcept {
-  return {(float)((rgb >> 16u) & 0xffu) / 255.0f,
-          (float)((rgb >> 8u) & 0xffu) / 255.0f, (float)(rgb & 0xffu) / 255.0f,
-          a};
-}
-
 // The panel: cold slate under bronze.
-constexpr SkColor4f kStoneHi = C(0x2A2723);
-constexpr SkColor4f kStoneLo = C(0x14120F);
-constexpr SkColor4f kWellHi = C(0x1C1A17);
-constexpr SkColor4f kWellLo = C(0x0B0A08);
-constexpr SkColor4f kBronze = C(0x8C7247);
-constexpr SkColor4f kBronzeLit = C(0xC9A96A);
-constexpr SkColor4f kBronzeDim = C(0x4A3B23);
-constexpr SkColor4f kParch = C(0xC8BC9A);
-constexpr SkColor4f kAsh = C(0x7A705C);
+constexpr SkColor4f kStoneHi = hex(0x2A2723);
+constexpr SkColor4f kStoneLo = hex(0x14120F);
+constexpr SkColor4f kWellHi = hex(0x1C1A17);
+constexpr SkColor4f kWellLo = hex(0x0B0A08);
+constexpr SkColor4f kBronze = hex(0x8C7247);
+constexpr SkColor4f kBronzeLit = hex(0xC9A96A);
+constexpr SkColor4f kBronzeDim = hex(0x4A3B23);
+constexpr SkColor4f kParch = hex(0xC8BC9A);
+constexpr SkColor4f kAsh = hex(0x7A705C);
 
 /** Diablo II's item-quality colours. */
 enum class Rarity { Normal, Magic, Rare, Unique, Set };
 inline SkColor4f rarityColor(Rarity r) {
   switch (r) {
     case Rarity::Magic:
-      return C(0x6969FF);
+      return hex(0x6969FF);
     case Rarity::Rare:
-      return C(0xFFFF64);
+      return hex(0xFFFF64);
     case Rarity::Unique:
-      return C(0xC7B377);
+      return hex(0xC7B377);
     case Rarity::Set:
-      return C(0x00FF00);
+      return hex(0x00FF00);
     case Rarity::Normal:
       break;
   }
-  return C(0xE8E4DC);
+  return hex(0xE8E4DC);
 }
 
 // ---------------------------------------------------------------------------
@@ -301,18 +295,18 @@ struct Item {
  *  dragged shield's footprint is 2x3, and a "fits" pose has to land on a
  *  run of cells that is really free or the green highlight is a lie. */
 inline constexpr Item kItems[] = {
-    {"Doomslinger", Art::Sword, 0, 0, 2, 4, Rarity::Unique, C(0xB9A06A)},
-    {"Sigil Plate", Art::Armour, 2, 0, 2, 3, Rarity::Set, C(0x6E8F63)},
-    {"Ashen Wand", Art::Wand, 4, 0, 1, 3, Rarity::Magic, C(0x6F79C4)},
-    {"Grave Helm", Art::Helm, 5, 0, 2, 2, Rarity::Rare, C(0x9AA0A6)},
-    {"Cinder Grips", Art::Gloves, 5, 2, 2, 2, Rarity::Normal, C(0x8A6A46)},
-    {"Band of Soot", Art::Ring, 7, 0, 1, 1, Rarity::Rare, C(0xC7A657)},
-    {"Ember Charm", Art::Amulet, 8, 0, 1, 1, Rarity::Unique, C(0xC7B377)},
-    {"Healing Draught", Art::Potion, 9, 0, 1, 1, Rarity::Normal, C(0xB03A3A)},
-    {"Healing Draught", Art::Potion, 4, 3, 1, 1, Rarity::Normal, C(0xB03A3A)},
-    {"Mana Draught", Art::Potion, 9, 1, 1, 1, Rarity::Normal, C(0x3A56B0)},
-    {"Mana Draught", Art::Potion, 9, 2, 1, 1, Rarity::Normal, C(0x3A56B0)},
-    {"Warden's Sabatons", Art::Boots, 2, 3, 2, 1, Rarity::Magic, C(0x7A6A55)},
+    {"Doomslinger", Art::Sword, 0, 0, 2, 4, Rarity::Unique, hex(0xB9A06A)},
+    {"Sigil Plate", Art::Armour, 2, 0, 2, 3, Rarity::Set, hex(0x6E8F63)},
+    {"Ashen Wand", Art::Wand, 4, 0, 1, 3, Rarity::Magic, hex(0x6F79C4)},
+    {"Grave Helm", Art::Helm, 5, 0, 2, 2, Rarity::Rare, hex(0x9AA0A6)},
+    {"Cinder Grips", Art::Gloves, 5, 2, 2, 2, Rarity::Normal, hex(0x8A6A46)},
+    {"Band of Soot", Art::Ring, 7, 0, 1, 1, Rarity::Rare, hex(0xC7A657)},
+    {"Ember Charm", Art::Amulet, 8, 0, 1, 1, Rarity::Unique, hex(0xC7B377)},
+    {"Healing Draught", Art::Potion, 9, 0, 1, 1, Rarity::Normal, hex(0xB03A3A)},
+    {"Healing Draught", Art::Potion, 4, 3, 1, 1, Rarity::Normal, hex(0xB03A3A)},
+    {"Mana Draught", Art::Potion, 9, 1, 1, 1, Rarity::Normal, hex(0x3A56B0)},
+    {"Mana Draught", Art::Potion, 9, 2, 1, 1, Rarity::Normal, hex(0x3A56B0)},
+    {"Warden's Sabatons", Art::Boots, 2, 3, 2, 1, Rarity::Magic, hex(0x7A6A55)},
 };
 inline constexpr int kItemCount = (int)(sizeof(kItems) / sizeof(kItems[0]));
 
@@ -595,7 +589,7 @@ struct LootGrid final : sketch::Sketch {
                    .alignItems(Align::Center)
                    .zIndex(7)
                    .child(lt::artwork(lt::Art::Shield, dw * 0.78f, dh * 0.62f,
-                                      lt::C(0x8895A2))));
+                                      hex(0x8895A2))));
 
     return stack()
         .width(Dim(lt::kGridW + 2 * pad))
@@ -655,11 +649,11 @@ struct LootGrid final : sketch::Sketch {
       SkColor4f tint;
     };
     static const Worn kWorn[] = {
-        {0, lt::Rarity::Rare, lt::C(0x9AA0A6)},
-        {2, lt::Rarity::Unique, lt::C(0xB9A06A)},
-        {3, lt::Rarity::Set, lt::C(0x6E8F63)},
-        {6, lt::Rarity::Magic, lt::C(0x7A6A55)},
-        {9, lt::Rarity::Normal, lt::C(0x7A6A55)},
+        {0, lt::Rarity::Rare, hex(0x9AA0A6)},
+        {2, lt::Rarity::Unique, hex(0xB9A06A)},
+        {3, lt::Rarity::Set, hex(0x6E8F63)},
+        {6, lt::Rarity::Magic, hex(0x7A6A55)},
+        {9, lt::Rarity::Normal, hex(0x7A6A55)},
     };
 
     Element body = stack().inset(0);
@@ -764,12 +758,12 @@ struct LootGrid final : sketch::Sketch {
                        .column()
                        .gap(4)
                        .child(statRow("DEFENCE", "1,884", lt::kParch))
-                       .child(statRow("FIRE RES", "+65%", lt::C(0xE07A3C)))
-                       .child(statRow("COLD RES", "+41%", lt::C(0x5AA6E0)))
+                       .child(statRow("FIRE RES", "+65%", hex(0xE07A3C)))
+                       .child(statRow("COLD RES", "+41%", hex(0x5AA6E0)))
                        .child(statRow("LIGHT RES",
                                       "\xe2\x88\x92"
                                       "35%",
-                                      lt::C(0xD04040)))));
+                                      hex(0xD04040)))));
 
     return stack()
         .width(Dim(pw))
@@ -834,7 +828,7 @@ struct LootGrid final : sketch::Sketch {
                                         {0.5f, {rc.fR, rc.fG, rc.fB, 0.5f}},
                                         {1.0f, {rc.fR, rc.fG, rc.fB, 0.0f}}})))
         .child(line("Required Strength: 189", lt::kAsh))
-        .child(line("Required Level: 63", lt::C(0xD04040)));
+        .child(line("Required Level: 63", hex(0xD04040)));
   }
 
   Element describe() {
@@ -842,10 +836,9 @@ struct LootGrid final : sketch::Sketch {
     char goldText[32];
     std::snprintf(goldText, sizeof(goldText), "%d", gold);
 
-    auto root = stack().fill(Material::linear({0, 0}, {0, lt::kH},
-                                              {{0.0f, lt::C(0x0D0C0A)},
-                                               {0.5f, lt::C(0x14120F)},
-                                               {1.0f, lt::C(0x080706)}}));
+    auto root = stack().fill(Material::linear(
+        {0, 0}, {0, lt::kH},
+        {{0.0f, hex(0x0D0C0A)}, {0.5f, hex(0x14120F)}, {1.0f, hex(0x080706)}}));
 
     // a faint speckled floor so the panels sit ON something
     root.child(box()
@@ -892,11 +885,11 @@ struct LootGrid final : sketch::Sketch {
                        .height(Dim(13.0f))
                        .corners({6.5f})
                        .fill(Material::radial({5, 4}, 9,
-                                              {{0.0f, lt::C(0xFFE9A8)},
-                                               {0.6f, lt::C(0xD8A93C)},
-                                               {1.0f, lt::C(0x7A5C15)}})))
+                                              {{0.0f, hex(0xFFE9A8)},
+                                               {0.6f, hex(0xD8A93C)},
+                                               {1.0f, hex(0x7A5C15)}})))
             .child(text(toU8(goldText), type({.size = 17,
-                                              .color = lt::C(0xD8B95C),
+                                              .color = hex(0xD8B95C),
                                               .track = 1.6f,
                                               .weight = 620})))
             .child(text(toU8("GOLD"),

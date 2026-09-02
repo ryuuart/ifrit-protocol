@@ -128,12 +128,6 @@ using namespace std::chrono_literals;
 
 namespace {
 
-constexpr SkColor4f rgb(uint32_t hex, float a = 1.0f) noexcept {
-  return {(float)((hex >> 16u) & 0xffu) / 255.0f,
-          (float)((hex >> 8u) & 0xffu) / 255.0f, (float)(hex & 0xffu) / 255.0f,
-          a};
-}
-
 // ---------------------------------------------------------------------------
 // Palette — representative matches for the NAMED granite products, not a
 // colorimeter reading of the installed slabs. Royal White is pulled a
@@ -141,21 +135,21 @@ constexpr SkColor4f rgb(uint32_t hex, float a = 1.0f) noexcept {
 // setts under an overcast sky, and because a φ²-weighted majority of the field
 // is fat rhombs: at the catalogue value the plaza blows out to paper.
 
-const SkColor4f kWhiteBase = rgb(0xBFBCB2);  // Royal White, weathered
-const SkColor4f kWhiteLit = rgb(0xD4D0C6);   // Royal White, sun side
-const SkColor4f kWhiteVein = rgb(0x2B2A28);  // black feather-vein inclusions
-const SkColor4f kGreyBase = rgb(0x82858A);   // Kobra grey
-const SkColor4f kGreyLit = rgb(0x969A9E);    // Kobra grey, sun side
-const SkColor4f kGreyVein = rgb(0x3E4042);   // Kobra's tighter speckle
+const SkColor4f kWhiteBase = hex(0xBFBCB2);  // Royal White, weathered
+const SkColor4f kWhiteLit = hex(0xD4D0C6);   // Royal White, sun side
+const SkColor4f kWhiteVein = hex(0x2B2A28);  // black feather-vein inclusions
+const SkColor4f kGreyBase = hex(0x82858A);   // Kobra grey
+const SkColor4f kGreyLit = hex(0x969A9E);    // Kobra grey, sun side
+const SkColor4f kGreyVein = hex(0x3E4042);   // Kobra's tighter speckle
 
-const SkColor4f kSteelBase = rgb(0xEEF1F2);      // polished stainless, overcast
-const SkColor4f kSteelSpec = rgb(0xFEFEFE);      // direct catch-light
-const SkColor4f kSteelEdge = rgb(0xC9CED1);      // the insert's chamfered lip
-const SkColor4f kGroove = rgb(0x5A5F63, 0.38f);  // occlusion in the milled slot
+const SkColor4f kSteelBase = hex(0xEEF1F2);      // polished stainless, overcast
+const SkColor4f kSteelSpec = hex(0xFEFEFE);      // direct catch-light
+const SkColor4f kSteelEdge = hex(0xC9CED1);      // the insert's chamfered lip
+const SkColor4f kGroove = hex(0x5A5F63, 0.38f);  // occlusion in the milled slot
 
-const SkColor4f kJointBed = rgb(0x33363A);  // saw-cut joint / bedding mortar
-const SkColor4f kNight = rgb(0x101112);
-const SkColor4f kCaption = rgb(0x9CA0A2);
+const SkColor4f kJointBed = hex(0x33363A);  // saw-cut joint / bedding mortar
+const SkColor4f kNight = hex(0x101112);
+const SkColor4f kCaption = hex(0x9CA0A2);
 
 // ---------------------------------------------------------------------------
 // Composition. The artefact is a PLAZA, so the paving runs full bleed: the
@@ -764,7 +758,7 @@ struct PenrosePaving : sketch::Sketch {
             .foreground(Decoration(PaintProgram(chamfer)))
             // the saw cut: a hairline of the joint's own colour just
             // inside the silhouette, so neighbouring setts never fuse
-            .stroke(stroke(0.7f, Fill::color(rgb(0x3D4043, 0.34f)),
+            .stroke(stroke(0.7f, Fill::color(hex(0x3D4043, 0.34f)),
                            PathFormat::Align::Inner))
             // one Output, two curves: the fade eases out cubic, the
             // seating overshoots — shaped at the property, not in
@@ -872,7 +866,7 @@ struct PenrosePaving : sketch::Sketch {
               .width(bb.width())
               .height(bb.height())
               .shape([p](SkSize) { return p; })
-              .fill(Fill::color(g.type == 1 ? rgb(0xB6B2A7) : rgb(0x76797E)))
+              .fill(Fill::color(g.type == 1 ? hex(0xB6B2A7) : hex(0x76797E)))
               // NO per-piece scale: scaling each half about its own
               // centre pulls a subdivision apart, and a deflation
               // diagram that shows gaps is saying the opposite of
@@ -893,7 +887,7 @@ struct PenrosePaving : sketch::Sketch {
                   p.setAntiAlias(true);
                   p.setStyle(SkPaint::kStroke_Style);
                   p.setStrokeWidth(1.0f);
-                  p.setColor4f(rgb(0x1B1D1E, 0.85f), nullptr);
+                  p.setColor4f(hex(0x1B1D1E, 0.85f), nullptr);
                   for (const Tri& g : edges) {
                     SkPathBuilder b;
                     b.moveTo(g.b);
@@ -914,15 +908,15 @@ struct PenrosePaving : sketch::Sketch {
         .top(r.top())
         .width(r.width())
         .height(r.height())
-        .fill(Fill::color(rgb(0x121517, 0.84f)))
-        .stroke(stroke(1.0f, Fill::color(rgb(0x5E6163, 0.55f)),
+        .fill(Fill::color(hex(0x121517, 0.84f)))
+        .stroke(stroke(1.0f, Fill::color(hex(0x5E6163, 0.55f)),
                        PathFormat::Align::Inner))
-        .background(styles::dropShadow(rgb(0x000000, 0.55f), {0, 6}, 22))
+        .background(styles::dropShadow(hex(0x000000, 0.55f), {0, 6}, 22))
         .child(
             text(toU8("DEFLATION \xc2\xb7 FAT \xe2\x86\x92 2 FAT + 1 THIN, "
                       "\xc3\x97"
                       "1/\xcf\x86"),
-                 type({.size = 10.5f, .color = rgb(0x8E9295), .track = 1.0f}))
+                 type({.size = 10.5f, .color = hex(0x8E9295), .track = 1.0f}))
                 .left(14)
                 .top(12))
         .child(box().left(10).top(34).width(kDiagW).height(kDiagH).child(
@@ -971,7 +965,7 @@ struct PenrosePaving : sketch::Sketch {
                    .opacity(0.42f)
                    .cache(Cache::Texture)
                    .fill(Material::blend(
-                       {{Material::solid(rgb(0xFFFFFF)), SkBlendMode::kSrcOver},
+                       {{Material::solid(hex(0xFFFFFF)), SkBlendMode::kSrcOver},
                         {patterns::grain(0.0042f, 2, 91.0f, 0.62f, 1.15f),
                          SkBlendMode::kSoftLight}})))
         // ---- daylight. One multiply pass carries both the sun's falloff
@@ -985,8 +979,8 @@ struct PenrosePaving : sketch::Sketch {
                    .cache(Cache::Texture)
                    .fill(radialGradient(
                        {470, 280}, 1280,
-                       {rgb(0xFAFAF8), rgb(0xE6E6E4), rgb(0xB2B4B8),
-                        rgb(0x74777C), rgb(0x42454A)},
+                       {hex(0xFAFAF8), hex(0xE6E6E4), hex(0xB2B4B8),
+                        hex(0x74777C), hex(0x42454A)},
                        {0.0f, 0.22f, 0.50f, 0.78f, 1.0f})))
         // the sun pool itself, added back — also static, baked for the same
         // reason as the pass above
@@ -997,8 +991,8 @@ struct PenrosePaving : sketch::Sketch {
                    .cache(Cache::Texture)
                    .fill(radialGradient(
                        {470, 280}, 1100,
-                       {rgb(0xFFF8E8, 0.13f), rgb(0xFFF3DA, 0.075f),
-                        rgb(0xFFF0D0, 0.025f), rgb(0x000000, 0.0f)},
+                       {hex(0xFFF8E8, 0.13f), hex(0xFFF3DA, 0.075f),
+                        hex(0xFFF0D0, 0.025f), hex(0x000000, 0.0f)},
                        {0.0f, 0.34f, 0.68f, 1.0f})))
         // wet-stone sheen — a broad, low raking band that sweeps once per
         // loop as the arcs finish, so the field reads as a wet surface
@@ -1009,8 +1003,8 @@ struct PenrosePaving : sketch::Sketch {
                 .blend(SkBlendMode::kScreen)
                 .opacity(&sheen)
                 .fill(linearGradient({180, 0}, {1500, 1200},
-                                     {rgb(0x000000, 0.0f), rgb(0xBFD2E0, 0.09f),
-                                      rgb(0x000000, 0.0f)},
+                                     {hex(0x000000, 0.0f), hex(0xBFD2E0, 0.09f),
+                                      hex(0x000000, 0.0f)},
                                      {0.30f, 0.50f, 0.72f})))
         .child(inset())
         // ---- the site plaque. A civic plaque sits on the paving, so give
@@ -1018,37 +1012,37 @@ struct PenrosePaving : sketch::Sketch {
         // speckled granite where it cannot be read at any exposure.
         .child(box().left(0).top(kH - 190).width(kW).height(190).fill(
             linearGradient({0, kH - 190}, {0, kH},
-                           {rgb(0x000000, 0.0f), rgb(0x08090A, 0.42f),
-                            rgb(0x08090A, 0.72f)},
+                           {hex(0x000000, 0.0f), hex(0x08090A, 0.42f),
+                            hex(0x08090A, 0.72f)},
                            {0.0f, 0.5f, 1.0f})))
         .child(box()
                    .left(56)
                    .top(1084)
                    .width(1010)
                    .height(96)
-                   .fill(Fill::color(rgb(0x101314, 0.90f)))
-                   .stroke(stroke(1.0f, Fill::color(rgb(0x676B6D, 0.45f)),
+                   .fill(Fill::color(hex(0x101314, 0.90f)))
+                   .stroke(stroke(1.0f, Fill::color(hex(0x676B6D, 0.45f)),
                                   PathFormat::Align::Inner))
                    .background(
-                       styles::dropShadow(rgb(0x000000, 0.5f), {0, 5}, 18)))
+                       styles::dropShadow(hex(0x000000, 0.5f), {0, 5}, 18)))
         .child(
             text(toU8("PENROSE TILING \xc2\xb7 P3 RHOMBI \xc2\xb7 ROYAL "
                       "WHITE & KOBRA GREY GRANITE \xc2\xb7 POLISHED 30 mm "
                       "STAINLESS INSERTS"),
-                 type({.size = 13.0f, .color = rgb(0xDCE0E2), .track = 1.9f}))
+                 type({.size = 13.0f, .color = hex(0xDCE0E2), .track = 1.9f}))
                 .left(76)
                 .top(1100)
                 .opacity(1.0f))
         .child(
             text(toU8("MATHEMATICAL INSTITUTE, ANDREW WILES BUILDING, "
                       "OXFORD \xc2\xb7 R. PENROSE 1974 / PAVING 2012"),
-                 type({.size = 11.5f, .color = rgb(0xA9AEB1), .track = 1.5f}))
+                 type({.size = 11.5f, .color = hex(0xA9AEB1), .track = 1.5f}))
                 .left(76)
                 .top(1126)
                 .opacity(1.0f))
         .child(
             text(toU8(spec),
-                 type({.size = 10.5f, .color = rgb(0x8E9598), .track = 1.3f}))
+                 type({.size = 10.5f, .color = hex(0x8E9598), .track = 1.3f}))
                 .left(76)
                 .top(1152)
                 .opacity(1.0f));

@@ -286,8 +286,6 @@ constexpr float kW = 1016.0f, kH = 720.0f;
 
 using sigil::compose::hex;  // the same four lines as twenty-three other files
 using sigil::compose::mix;
-// dim(c, k) was mul(c, k) with the alpha kept, which is mul's default.
-inline SkColor4f dim(SkColor4f c, float k) noexcept { return mul(c, k); }
 
 // ---------------------------------------------------------------------------
 // PALETTE — every entry is a CONTRIBUTION, i.e. what this stratum ADDS to the
@@ -361,12 +359,12 @@ inline shapes::OutlineFn barOutline(float shear) {
 inline Material barBevel(SkColor4f hi, SkColor4f lo, float bias) {
   auto at = [&](float k) { return mix(lo, hi, k); };
   return Material::linearUnit({0, 0}, {0, 1},
-                              {{0.00f, dim(at(0.05f), bias)},
-                               {0.13f, dim(at(1.00f), bias)},
-                               {0.30f, dim(at(0.32f), bias)},
-                               {0.62f, dim(at(0.28f), bias)},
-                               {0.87f, dim(at(1.00f), bias)},
-                               {1.00f, dim(at(0.02f), bias)}});
+                              {{0.00f, mul(at(0.05f), bias)},
+                               {0.13f, mul(at(1.00f), bias)},
+                               {0.30f, mul(at(0.32f), bias)},
+                               {0.62f, mul(at(0.28f), bias)},
+                               {0.87f, mul(at(1.00f), bias)},
+                               {1.00f, mul(at(0.02f), bias)}});
 }
 
 // ---------------------------------------------------------------------------
@@ -391,7 +389,7 @@ inline Material pedestal() {
   stops.reserve(20);
   for (int i = 0; i < 19; ++i)
     stops.push_back({kEyeAt[i] / 359.0f, mix(kBodyEdge, kBodyMid, kEyeK[i])});
-  stops.push_back({1.0f, dim(kBodyEdge, 0.55f)});
+  stops.push_back({1.0f, mul(kBodyEdge, 0.55f)});
   // radius01 is a fraction of the HALF-DIAGONAL (513 px for this body), so
   // 0.70 puts the last measured annulus (r=336) at its own radius.
   return Material::radialUnit({0.483f, 0.456f}, 0.70f, std::move(stops));
@@ -817,7 +815,7 @@ struct LainNavi : sketch::Sketch {
       auto place = [&](Element e) {
         return e.at({kTextX, y - monoSize * 0.98f});
       };
-      g.child(place(text(line, type(monoFace(), monoSize, dim(c, 0.40f),
+      g.child(place(text(line, type(monoFace(), monoSize, mul(c, 0.40f),
                                     sigma + 2.4f)))
                   .key("halo" + std::to_string(i)));
       g.child(place(text(line, type(monoFace(), monoSize, c, sigma)))
@@ -843,7 +841,7 @@ struct LainNavi : sketch::Sketch {
     g.child(box()
                 .inset(0)
                 .shape([phi](SkSize) { return generatrices(phi, 7); })
-                .foreground(add(1.5f, dim(kWire, 0.44f), 0.0f))
+                .foreground(add(1.5f, mul(kWire, 0.44f), 0.0f))
                 .key("ruling"));
 
     // the two rims and the waist — DOTTED, never solid (1.6 on 4.4 with a
@@ -867,9 +865,9 @@ struct LainNavi : sketch::Sketch {
     // tilted orbit is three concentric dotted rings and reads as a lampshade;
     // the plate shows arcs that leave frame and never close.
     ellArc({kAxis.fX, kAxis.fY - kHalfH}, kRim, kRim * kEcc, 0,
-           dim(kWire, 0.72f), 1.7f, 3.55f, 6.60f, "rimTop");
+           mul(kWire, 0.72f), 1.7f, 3.55f, 6.60f, "rimTop");
     ellArc({kAxis.fX, kAxis.fY + kHalfH}, kRim, kRim * kEcc, 0,
-           dim(kWire, 0.72f), 1.7f, 0.30f, 3.05f, "rimBot");
+           mul(kWire, 0.72f), 1.7f, 0.30f, 3.05f, "rimBot");
     ell(kAxis, waist, waist * kEcc, 0, kWire, 2.0f, "waist");
     ell(kOrbit2C, kOrbit2A, kOrbit2B, tilt2, kWire, 2.0f, "orbit2");
 
@@ -884,7 +882,7 @@ struct LainNavi : sketch::Sketch {
                   b.lineTo(503 + kWireShift.fX, 524 + kWireShift.fY);
                   return b.detach();
                 })
-                .foreground(add(2.4f, dim(kWire, 0.72f), 0.7f)));
+                .foreground(add(2.4f, mul(kWire, 0.72f), 0.7f)));
 
     // `make me feel alright?` rides the tilted orbit's lower-left arc,
     // (185, 455) counter-clockwise up to (840, 215) — the run the conic was
@@ -936,7 +934,7 @@ struct LainNavi : sketch::Sketch {
         k = (float)std::max(0.0, 1.0 - (u - p.hold) / 0.9);
       if (k <= 0.01f) continue;
       k = k * k * (3.0f - 2.0f * k);
-      const SkColor4f c = dim(kMinds, k);
+      const SkColor4f c = mul(kMinds, k);
       // the bloom is a second, blurred pass DECLARED FIRST so it paints under
       // the core; kPlus makes the order irrelevant for colour but not for the
       // core's own crispness
@@ -947,10 +945,10 @@ struct LainNavi : sketch::Sketch {
                   .centerAt(p.centre)
                   .key("ph" + std::to_string(i))
                   .child(text(std::u8string(p.text),
-                              type(serifFace(), p.size, dim(c, 0.42f), 6.5f))
+                              type(serifFace(), p.size, mul(c, 0.42f), 6.5f))
                              .inset(0))
                   .child(text(std::u8string(p.text),
-                              type(serifFace(), p.size, dim(c, 0.55f), 2.2f))
+                              type(serifFace(), p.size, mul(c, 0.55f), 2.2f))
                              .inset(0))
                   .child(text(std::u8string(p.text),
                               type(serifFace(), p.size, c, 0.7f))));
@@ -998,9 +996,9 @@ struct LainNavi : sketch::Sketch {
                    .rect(SkRect::MakeXYWH(178, 88, 304, 304))
                    .fill(Material::radialUnit({0.48f, 0.46f}, 0.95f,
                                               {{0.0f, kPanel},
-                                               {0.55f, dim(kPanel, 0.86f)},
-                                               {0.86f, dim(kPanel, 0.30f)},
-                                               {1.0f, dim(kPanel, 0.0f)}}))
+                                               {0.55f, mul(kPanel, 0.86f)},
+                                               {0.86f, mul(kPanel, 0.30f)},
+                                               {1.0f, mul(kPanel, 0.0f)}}))
                    .blend(SkBlendMode::kPlus)
                    .cache(Cache::Texture)
                    .key("panel"));
@@ -1098,7 +1096,7 @@ struct LainNavi : sketch::Sketch {
             .child(text(u8"Copland OS Enterprise",
                         type(serifItalicFace(), 34, kWordmark, 1.9f, 1.0f)))
             .child(text(u8"Produced By Tachibana Lab",
-                        type(serifItalicFace(), 16, dim(kWordmark, 0.7f), 1.6f,
+                        type(serifItalicFace(), 16, mul(kWordmark, 0.7f), 1.6f,
                              0.8f))));
 
     // ---- S4..S8, the Layer 07 strata over the window ------------------------
@@ -1112,7 +1110,7 @@ struct LainNavi : sketch::Sketch {
             .rotate(-9.0f)
             .key("cover")
             .child(text(u8"COVer me",
-                        type(markerFace(), 62, dim(kCover, 0.5f), 6.5f))
+                        type(markerFace(), 62, mul(kCover, 0.5f), 6.5f))
                        .centerAt({0, 0}))
             .child(text(u8"COVer me", type(markerFace(), 62, kCover, 1.4f))));
 
@@ -1137,10 +1135,10 @@ struct LainNavi : sketch::Sketch {
             box()
                 .rect(SkRect::MakeXYWH(b[0], b[1], b[2], 15))
                 .fill(Material::linearUnit({0, 0}, {1, 0},
-                                           {{0.0f, dim(kMagenta, 0.0f)},
-                                            {0.30f, dim(kMagenta, b[3])},
-                                            {0.68f, dim(kMagenta, b[3] * 0.8f)},
-                                            {1.0f, dim(kMagenta, 0.0f)}}))
+                                           {{0.0f, mul(kMagenta, 0.0f)},
+                                            {0.30f, mul(kMagenta, b[3])},
+                                            {0.68f, mul(kMagenta, b[3] * 0.8f)},
+                                            {1.0f, mul(kMagenta, 0.0f)}}))
                 .blend(SkBlendMode::kPlus)
                 .cache(Cache::Texture));
       root.child(std::move(g));

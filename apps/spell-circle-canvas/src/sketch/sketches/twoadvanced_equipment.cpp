@@ -64,19 +64,13 @@ namespace ch = choreograph;
 
 namespace teq {
 
-constexpr SkColor4f C(uint32_t rgb, float a = 1.0f) noexcept {
-  return {(float)((rgb >> 16u) & 0xffu) / 255.0f,
-          (float)((rgb >> 8u) & 0xffu) / 255.0f, (float)(rgb & 0xffu) / 255.0f,
-          a};
-}
-
 // The page's entire palette, straight from its attributes.
-constexpr SkColor4f kMaroon = C(0x7C252C);   // header rows, copy, links
-constexpr SkColor4f kRose = C(0xF0E7E8);     // description cells
-constexpr SkColor4f kWhite = C(0xFFFFFF);    // BODY bgColor
-constexpr SkColor4f kSbFace = C(0xBBC0C9);   // SCROLLBAR-FACE-COLOR
-constexpr SkColor4f kSbTrack = C(0xE4E6EA);  // SCROLLBAR-TRACK-COLOR
-constexpr SkColor4f kSbArrow = C(0x666666);  // SCROLLBAR-ARROW-COLOR
+constexpr SkColor4f kMaroon = hex(0x7C252C);   // header rows, copy, links
+constexpr SkColor4f kRose = hex(0xF0E7E8);     // description cells
+constexpr SkColor4f kWhite = hex(0xFFFFFF);    // BODY bgColor
+constexpr SkColor4f kSbFace = hex(0xBBC0C9);   // SCROLLBAR-FACE-COLOR
+constexpr SkColor4f kSbTrack = hex(0xE4E6EA);  // SCROLLBAR-TRACK-COLOR
+constexpr SkColor4f kSbArrow = hex(0x666666);  // SCROLLBAR-ARROW-COLOR
 
 inline sk_sp<SkTypeface> verdanaFace(bool bold) {
   auto mgr = sigil::weave::ports::systemFontManager();
@@ -248,7 +242,7 @@ struct TwoAdvancedEquipment : sketch::Sketch {
         box()
             .row()
             .child(box().width(13))
-            .child(img(p.thumb, 69, 52, C(0xD8D0D0)))
+            .child(img(p.thumb, 69, 52, hex(0xD8D0D0)))
             .child(box().width(3))
             .child(
                 box()
@@ -301,7 +295,7 @@ struct TwoAdvancedEquipment : sketch::Sketch {
               stroke(1, Fill::color(kWhite), PathFormat::Align::Inner)))
           .foreground(shapes::onEdges(
               shapes::Edge::Bottom | shapes::Edge::Right,
-              stroke(1, Fill::color(C(0x000000)), PathFormat::Align::Inner)))
+              stroke(1, Fill::color(hex(0x000000)), PathFormat::Align::Inner)))
           .justify(Justify::Center)
           .alignItems(Align::Center)
           .child(

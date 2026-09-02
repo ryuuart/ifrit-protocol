@@ -101,24 +101,18 @@ namespace tv3 {
 // ---------------------------------------------------------------------------
 // Palette — sampled from the studio's own 1920×1080 capture, never eyed.
 
-constexpr SkColor4f C(uint32_t rgb, float a = 1.0f) noexcept {
-  return {(float)((rgb >> 16u) & 0xffu) / 255.0f,
-          (float)((rgb >> 8u) & 0xffu) / 255.0f, (float)(rgb & 0xffu) / 255.0f,
-          a};
-}
-
-constexpr SkColor4f kPage = C(0x182337);    // outer page ground
-constexpr SkColor4f kPageHi = C(0x314361);  // page ground, top of ramp
-constexpr SkColor4f kDeep = C(0x1C283C);    // stage art darks
-constexpr SkColor4f kSeam = C(0x2E3C57);    // seams, scroll strip
-constexpr SkColor4f kNavbar = C(0x4A5972);  // navbar body
-constexpr SkColor4f kSteel = C(0x7886A6);   // the mid chrome steel
-constexpr SkColor4f kSteelDim = C(0x68758A);
-constexpr SkColor4f kSteelHi = C(0xC3CCD8);  // lifted chrome
-constexpr SkColor4f kNear = C(0xF1F4F8);     // titles, wordmark
-constexpr SkColor4f kBody = C(0xA8B2C0);     // module body copy
-constexpr SkColor4f kInk = C(0x202B3F);      // dark type on steel bars
-constexpr SkColor4f kHost = C(0xE8920A);     // the ONE saturated mark
+constexpr SkColor4f kPage = hex(0x182337);    // outer page ground
+constexpr SkColor4f kPageHi = hex(0x314361);  // page ground, top of ramp
+constexpr SkColor4f kDeep = hex(0x1C283C);    // stage art darks
+constexpr SkColor4f kSeam = hex(0x2E3C57);    // seams, scroll strip
+constexpr SkColor4f kNavbar = hex(0x4A5972);  // navbar body
+constexpr SkColor4f kSteel = hex(0x7886A6);   // the mid chrome steel
+constexpr SkColor4f kSteelDim = hex(0x68758A);
+constexpr SkColor4f kSteelHi = hex(0xC3CCD8);  // lifted chrome
+constexpr SkColor4f kNear = hex(0xF1F4F8);     // titles, wordmark
+constexpr SkColor4f kBody = hex(0xA8B2C0);     // module body copy
+constexpr SkColor4f kInk = hex(0x202B3F);      // dark type on steel bars
+constexpr SkColor4f kHost = hex(0xE8920A);     // the ONE saturated mark
 
 // ---------------------------------------------------------------------------
 // Type — Akzidenz-Grotesk substituted with what the platform ships.
@@ -446,9 +440,10 @@ struct TwoAdvancedV3 : sketch::Sketch {
         .alignItems(Align::Center)
         .padding(7, 0)
         .gap(8)
-        .fill(Material::linearUnit(
-            {0, 0}, {0, 1},
-            {{0.0f, C(0x8B98B2)}, {0.55f, C(0x64738F)}, {1.0f, C(0x4C5A73)}}))
+        .fill(Material::linearUnit({0, 0}, {0, 1},
+                                   {{0.0f, hex(0x8B98B2)},
+                                    {0.55f, hex(0x64738F)},
+                                    {1.0f, hex(0x4C5A73)}}))
         .foreground(shapes::onEdges(shapes::Edge::Bottom,
                                     stroke(1, Fill::color(alpha(kInk, 0.6f)),
                                            PathFormat::Align::Inner)))
@@ -499,7 +494,8 @@ struct TwoAdvancedV3 : sketch::Sketch {
   Element bevelBar() {
     using namespace tv3;
     return at(box().fill(Material::linearUnit(
-                  {0, 0}, {0, 1}, {{0.0f, C(0x98A3BA)}, {1.0f, C(0x66738F)}})),
+                  {0, 0}, {0, 1},
+                  {{0.0f, hex(0x98A3BA)}, {1.0f, hex(0x66738F)}})),
               kStageX, 0, kStageW, 8)
         .translateY(
             animate(from(-10.0f).to(0.0f), {300ms, &ch::easeOutQuint, 1450ms}));
@@ -516,7 +512,7 @@ struct TwoAdvancedV3 : sketch::Sketch {
           at(box().fill(stretchFill(topHeader, 1381, 77)), 0, 0, 1381, 77));
     } else {
       strip.fill(Material::linearUnit(
-          {0, 0}, {1, 0.4f}, {{0.0f, C(0x2E3F5D)}, {1.0f, C(0x25334C)}}));
+          {0, 0}, {1, 0.4f}, {{0.0f, hex(0x2E3F5D)}, {1.0f, hex(0x25334C)}}));
       strip.child(
           at(box().fill(diag.material()).opacity(0.18f), 0, 0, kStageW, 74));
     }
@@ -546,7 +542,7 @@ struct TwoAdvancedV3 : sketch::Sketch {
            kStageX, 82, kStageW, 86)
             .fill(Material::linearUnit(
                 {0, 0}, {0, 1},
-                {{0.0f, C(0x8C99B4)}, {0.6f, kSteel}, {1.0f, C(0x67748E)}}))
+                {{0.0f, hex(0x8C99B4)}, {0.6f, kSteel}, {1.0f, hex(0x67748E)}}))
             .foreground(shapes::onEdges(
                 shapes::Edge::Bottom, stroke(2, Fill::color(alpha(kInk, 0.5f)),
                                              PathFormat::Align::Inner)))
@@ -583,7 +579,7 @@ struct TwoAdvancedV3 : sketch::Sketch {
     else
       bar.fill(Material::linearUnit(
           {0, 0}, {0, 1},
-          {{0.0f, C(0x5A6A88)}, {0.5f, kNavbar}, {1.0f, C(0x3C4A63)}}));
+          {{0.0f, hex(0x5A6A88)}, {0.5f, kNavbar}, {1.0f, hex(0x3C4A63)}}));
 
     // Left: the section label window (dark, baked into the bitmap).
     bar.child(
@@ -594,7 +590,7 @@ struct TwoAdvancedV3 : sketch::Sketch {
             .alignItems(Align::Center)
             .padding(12, 0)
             .gap(7)
-            .fill(alpha(C(0x39445C), 0.92f))
+            .fill(alpha(hex(0x39445C), 0.92f))
             .foreground(shapes::onEdges(
                 shapes::Edge::Right, stroke(1, Fill::color(alpha(kInk, 0.8f)),
                                             PathFormat::Align::Inner)))
@@ -679,7 +675,7 @@ struct TwoAdvancedV3 : sketch::Sketch {
       art.fill(stretchFill(bg, kStageW, kArtH));
     else
       art.fill(Material::linearUnit({0, 0}, {0, 1},
-                                    {{0.0f, C(0x2A3A58)}, {1.0f, kDeep}}));
+                                    {{0.0f, hex(0x2A3A58)}, {1.0f, kDeep}}));
 
     if (sec < 0) {
       if (!clouds.empty() && gapMask) {
@@ -807,7 +803,7 @@ struct TwoAdvancedV3 : sketch::Sketch {
                   .alignItems(Align::Center)
                   .padding(10, 0)
                   .gap(6)
-                  .fill(C(0x4B5870))
+                  .fill(hex(0x4B5870))
                   .foreground(shapes::onEdges(
                       shapes::Edge::Top,
                       stroke(1, Fill::color(alpha(kSteelHi, 0.55f)),
@@ -833,7 +829,7 @@ struct TwoAdvancedV3 : sketch::Sketch {
         .child(moduleBar(glyph, barLabel, kPanelW))
         .child(box()
                    .grow(1)
-                   .fill(alpha(C(0x4A5872), 0.80f))
+                   .fill(alpha(hex(0x4A5872), 0.80f))
                    .stroke(stroke(1, Fill::color(alpha(kSteelHi, 0.55f)),
                                   PathFormat::Align::Inner))
                    .child(body.inset(0)))
@@ -859,7 +855,7 @@ struct TwoAdvancedV3 : sketch::Sketch {
         .child(
             box()
                 .height(8)
-                .fill(C(0x2A3550))
+                .fill(hex(0x2A3550))
                 .row()
                 .alignItems(Align::Center)
                 .padding(3, 0)
@@ -867,7 +863,7 @@ struct TwoAdvancedV3 : sketch::Sketch {
         .child(box()
                    .height(96)
                    .shape(chamfer(20, kTR))
-                   .fill(C(0x232E48))
+                   .fill(hex(0x232E48))
                    .stroke(stroke(1, Fill::color(alpha(kSteelHi, 0.5f)),
                                   PathFormat::Align::Inner))
                    .justify(Justify::Center)
@@ -876,7 +872,7 @@ struct TwoAdvancedV3 : sketch::Sketch {
         .child(box()
                    .height(22)
                    .shape(chamfer(14, kBL))
-                   .fill(C(0x313D5A))
+                   .fill(hex(0x313D5A))
                    .stroke(stroke(1, Fill::color(alpha(kSteelHi, 0.45f)),
                                   PathFormat::Align::Inner))
                    .justify(Justify::Center)
@@ -923,7 +919,7 @@ struct TwoAdvancedV3 : sketch::Sketch {
                                 "INFLUENTIAL FLASH WEBSITE OF THE DECADE\") "
                                 "USING THE RIVE INTERACTIVE ANIMATION PLATFORM "
                                 "IN COMBINATION WITH REACT JS",
-                                prose(12, C(0xC7D0DD)))));
+                                prose(12, hex(0xC7D0DD)))));
     return module("F", "FEATURED.PARTNER", std::move(body), 0);
   }
 
@@ -951,7 +947,7 @@ struct TwoAdvancedV3 : sketch::Sketch {
             .child(t("2ADVANCED IS BUILDING THE ULTIMATE INDUSTRY DISCORD "
                      "SPACE FOR REALTIME CREATIVE COLLABORATION, SHARING OF "
                      "INTERESTS AND BROAD PEER SUPPORT - JOIN US HERE.",
-                     prose(12, C(0xC7D0DD))))
+                     prose(12, hex(0xC7D0DD))))
             .child(box().grow(1))
             .child(box()
                        .row()
@@ -991,7 +987,7 @@ struct TwoAdvancedV3 : sketch::Sketch {
                              "ERIC JORDAN & TONY NOVAK SPEAK AT THE UPCOMING "
                              "DDD EVENT IN MILAN, ITALY OCT 6TH-8TH. GET YOUR "
                              "TICKETS BEFORE THEY'RE GONE!",
-                             prose(12, C(0xC7D0DD)))));
+                             prose(12, hex(0xC7D0DD)))));
     return module("U", "UPDATES", std::move(body), 2);
   }
 
@@ -1002,7 +998,7 @@ struct TwoAdvancedV3 : sketch::Sketch {
             .column()
             .padding(12, 8)
             .gap(6)
-            .child(t("ENTER EMAIL ADDRESS:", micro(11, C(0xC7D0DD), 100)))
+            .child(t("ENTER EMAIL ADDRESS:", micro(11, hex(0xC7D0DD), 100)))
             .child(box()
                        .row()
                        .gap(8)
@@ -1033,7 +1029,7 @@ struct TwoAdvancedV3 : sketch::Sketch {
           .gap(4)
           .alignItems(Align::Center)
           .child(t(head, micro(11, kNear, 60)))
-          .child(t(copy, prose(9, alpha(C(0xC7D0DD), 0.95f))))
+          .child(t(copy, prose(9, alpha(hex(0xC7D0DD), 0.95f))))
           .child(box().grow(1))
           .child(box()
                      .row()
@@ -1089,7 +1085,7 @@ struct TwoAdvancedV3 : sketch::Sketch {
                   .gap(8)
                   .fill(Material::linearUnit(
                       {0, 0}, {0, 1},
-                      {{0.0f, C(0x5A6880)}, {1.0f, C(0x49556C)}}))
+                      {{0.0f, hex(0x5A6880)}, {1.0f, hex(0x49556C)}}))
                   .child(t("(C) 2024 2ADVANCED STUDIOS", micro(9, kInk, 140)))
                   .child(t("//", micro(9, alpha(kInk, 0.5f), 0)))
                   .child(t("CONDITIONS OF USE", micro(9, kInk, 140)))
@@ -1111,7 +1107,7 @@ struct TwoAdvancedV3 : sketch::Sketch {
 
   Element bootOverlay() {
     using namespace tv3;
-    const SkColor4f kPreBg = C(0x2A3753), kPreInk = C(0x7183A5);
+    const SkColor4f kPreBg = hex(0x2A3753), kPreInk = hex(0x7183A5);
     Element lockup = box().width(197).height(94);
     if (pageLogo)
       // The bitmap is near-black art; the page shows it inverted. A
@@ -1142,7 +1138,7 @@ struct TwoAdvancedV3 : sketch::Sketch {
     using namespace tv3;
     char buf[8];
     std::snprintf(buf, sizeof buf, "%d", bootPct);
-    return t(buf, type(grot(), 150, C(0x7183A5), 0, 1.0f));
+    return t(buf, type(grot(), 150, hex(0x7183A5), 0, 1.0f));
   }
 
   ch::Output<float> beaconAlpha{1.0f};
@@ -1174,7 +1170,7 @@ struct TwoAdvancedV3 : sketch::Sketch {
       ground.fill(stretchFill(lowerPanelBg, kStageW, 400));
     else
       ground.fill(Material::linearUnit({0, 0}, {1, 1},
-                                       {{0.0f, C(0x22304A)}, {1.0f, kPage}}));
+                                       {{0.0f, hex(0x22304A)}, {1.0f, kPage}}));
     ground.opacity(
         animate(from(0.0f).to(1.0f), {380ms, &ch::easeOutQuad, 2250ms}));
     page.child(ground);
@@ -1183,7 +1179,7 @@ struct TwoAdvancedV3 : sketch::Sketch {
     mods.child(featuredPartner()).child(subData()).child(updates());
     page.child(mods);
     // the dark divider band that closes the module row
-    page.child(at(box().fill(alpha(C(0x26314A), 0.9f)), kStageX,
+    page.child(at(box().fill(alpha(hex(0x26314A), 0.9f)), kStageX,
                   kModY + kModH + 2, kStageW, 8)
                    .opacity(animate(from(0.0f).to(1.0f),
                                     {320ms, &ch::easeOutQuad, 2650ms})));

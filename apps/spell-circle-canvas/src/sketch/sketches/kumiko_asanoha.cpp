@@ -110,27 +110,21 @@ namespace {
 // ---------------------------------------------------------------------------
 // Palette — wood-tone matches by eye, not a colorimeter reading
 
-constexpr SkColor4f rgb(uint32_t hex, float a = 1.0f) noexcept {
-  return {(float)((hex >> 16u) & 0xffu) / 255.0f,
-          (float)((hex >> 8u) & 0xffu) / 255.0f, (float)(hex & 0xffu) / 255.0f,
-          a};
-}
-
 // Hinoki #E9D3A0 is the colour of the stock in daylight. This
 // panel is BACKLIT: the wood faces away from the lamp, so the body sits a
 // couple of stops under it and only the arris reaches the daylight value —
 // otherwise cream wood and cream light have no separation and the fretwork
 // stops silhouetting, which is the whole point of a ranma.
-const SkColor4f kHinoki = rgb(0xD6BC89);      // planed cypress, room-side
-const SkColor4f kHinokiLit = rgb(0xF5E6C4);   // #E9D3A0's daylight arris
-const SkColor4f kHinokiDark = rgb(0x8E6C3B);  // notch shadow
-const SkColor4f kKeyaki = rgb(0x76472A);      // zelkova frame
-const SkColor4f kKeyakiLit = rgb(0x9C6B3E);
-const SkColor4f kKeyakiDark = rgb(0x4B2A12);
-const SkColor4f kGlow = rgb(0xF4E3B8);  // the far room's lamp
-const SkColor4f kNight = rgb(0x0D0906);
-const SkColor4f kSeam = rgb(0x4A3620, 0.55f);
-const SkColor4f kCaption = rgb(0xD8C9A8, 0.60f);
+const SkColor4f kHinoki = hex(0xD6BC89);      // planed cypress, room-side
+const SkColor4f kHinokiLit = hex(0xF5E6C4);   // #E9D3A0's daylight arris
+const SkColor4f kHinokiDark = hex(0x8E6C3B);  // notch shadow
+const SkColor4f kKeyaki = hex(0x76472A);      // zelkova frame
+const SkColor4f kKeyakiLit = hex(0x9C6B3E);
+const SkColor4f kKeyakiDark = hex(0x4B2A12);
+const SkColor4f kGlow = hex(0xF4E3B8);  // the far room's lamp
+const SkColor4f kNight = hex(0x0D0906);
+const SkColor4f kSeam = hex(0x4A3620, 0.55f);
+const SkColor4f kCaption = hex(0xD8C9A8, 0.60f);
 
 // ---------------------------------------------------------------------------
 // Composition. The field is FIXED; the pitch is the free constant —
@@ -303,7 +297,7 @@ const Timber kHinokiTimber{kHinoki, kHinokiLit, kHinokiDark, 0.19f, 0.26f};
 const Timber kKeyakiTimber{kKeyaki, kKeyakiLit, kKeyakiDark, 0.055f, 0.38f};
 // The room-side members face AWAY from the far room's lamp, so the same
 // keyaki reads two stops down on the nageshi/kamoi and the posts.
-const Timber kKeyakiShade{rgb(0x33200F), rgb(0x54341B), rgb(0x140C05), 0.045f,
+const Timber kKeyakiShade{hex(0x33200F), hex(0x54341B), hex(0x140C05), 0.045f,
                           0.42f};
 
 // Materials are held so their identity is stable across re-describes, and
@@ -833,7 +827,7 @@ struct KumikoAsanoha : sketch::Sketch {
         .height(open.height())
         .clip(true)
         .opacity(&glow)
-        .background(styles::OuterGlow{rgb(0xF4E3B8, 0.34f), 70, 6})
+        .background(styles::OuterGlow{hex(0xF4E3B8, 0.34f), 70, 6})
         // A hot core fading out across the opening. The outer radius is
         // sized to the opening's diagonal, not to its half-width: a 520 px
         // stop leaves the field's corner cells black at this canvas size,
@@ -842,12 +836,12 @@ struct KumikoAsanoha : sketch::Sketch {
                    .inset(0, 0, 0, 0)
                    .fill(Material::radial(
                        {open.width() * 0.5f, open.height() * 0.5f}, 585,
-                       {{0.00f, rgb(0xFDEDC4, 0.95f)},
-                        {0.24f, rgb(0xF0DCA6, 0.91f)},
-                        {0.48f, rgb(0xCE9E5C, 0.68f)},
-                        {0.70f, rgb(0x88532A, 0.34f)},
-                        {0.87f, rgb(0x2E1C0C, 0.11f)},
-                        {1.00f, rgb(0x0D0906, 0.00f)}})));
+                       {{0.00f, hex(0xFDEDC4, 0.95f)},
+                        {0.24f, hex(0xF0DCA6, 0.91f)},
+                        {0.48f, hex(0xCE9E5C, 0.68f)},
+                        {0.70f, hex(0x88532A, 0.34f)},
+                        {0.87f, hex(0x2E1C0C, 0.11f)},
+                        {1.00f, hex(0x0D0906, 0.00f)}})));
   }
 
   Element beam(float y, float h, bool top) {
@@ -899,9 +893,9 @@ struct KumikoAsanoha : sketch::Sketch {
                 .blend(SkBlendMode::kPlus)
                 .fill(Material::radial(
                     {kRegOuter.width() * 0.5f, kRegOuter.height() * 0.5f}, 360,
-                    {{0.00f, rgb(0xFFF2D2, 0.13f)},
-                     {0.45f, rgb(0xE6BC7C, 0.07f)},
-                     {1.00f, rgb(0x000000, 0.00f)}})))
+                    {{0.00f, hex(0xFFF2D2, 0.13f)},
+                     {0.45f, hex(0xE6BC7C, 0.07f)},
+                     {1.00f, hex(0x000000, 0.00f)}})))
         .child(frame())
         // The mitred frame's keyline draws itself on around the perimeter —
         // one continuous reveal, the first beat of the assembly.
@@ -913,7 +907,7 @@ struct KumikoAsanoha : sketch::Sketch {
                    .stroke(spans::upTo(&frameTrim),
                            PathFormat{
                                .width = 2.2f,
-                               .strokeFill = Fill::color(rgb(0xC79A57, 0.60f)),
+                               .strokeFill = Fill::color(hex(0xC79A57, 0.60f)),
                                .align = PathFormat::Align::Center}))
         .child(post(0, 146))
         .child(post(kW - 146, 146))

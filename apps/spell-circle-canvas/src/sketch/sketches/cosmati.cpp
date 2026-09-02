@@ -57,30 +57,24 @@ namespace cosmati {
 
 constexpr float kW = kSceneSize.fWidth, kH = kSceneSize.fHeight;
 
-constexpr SkColor4f C(uint32_t rgb, float a = 1.0f) noexcept {
-  return {(float)((rgb >> 16u) & 0xffu) / 255.0f,
-          (float)((rgb >> 8u) & 0xffu) / 255.0f, (float)(rgb & 0xffu) / 255.0f,
-          a};
-}
-
 // The quarry list, as stone rather than as decoration.
-constexpr SkColor4f kPorphyry = C(0x6B2F3C);  // Mons Claudianus, purple
-constexpr SkColor4f kPorphyryLo = C(0x3E1A24);
-constexpr SkColor4f kSerpentine = C(0x35563C);  // lapis lacedaemonius
-constexpr SkColor4f kSerpentineLo = C(0x1D3122);
-constexpr SkColor4f kGiallo = C(0xC49A4E);  // yellow limestone
-constexpr SkColor4f kGialloLo = C(0x8A6A2E);
-constexpr SkColor4f kMarble = C(0xE4DED0);
-constexpr SkColor4f kMarbleLo = C(0xBDB4A2);
-constexpr SkColor4f kOnyx = C(0xD8C79B);
-constexpr SkColor4f kPurbeck = C(0x4A4B46);  // the framework, not marble
-constexpr SkColor4f kPurbeckLo = C(0x2C2D2A);
-constexpr SkColor4f kGlassRed = C(0xA82A28);
-constexpr SkColor4f kGlassTurq = C(0x2E8C8C);
-constexpr SkColor4f kGlassCobalt = C(0x2A3E8C);
-constexpr SkColor4f kMortar = C(0x191713);
-constexpr SkColor4f kInk = C(0xE8E1CE);
-constexpr SkColor4f kInkDim = C(0x9A9078);
+constexpr SkColor4f kPorphyry = hex(0x6B2F3C);  // Mons Claudianus, purple
+constexpr SkColor4f kPorphyryLo = hex(0x3E1A24);
+constexpr SkColor4f kSerpentine = hex(0x35563C);  // lapis lacedaemonius
+constexpr SkColor4f kSerpentineLo = hex(0x1D3122);
+constexpr SkColor4f kGiallo = hex(0xC49A4E);  // yellow limestone
+constexpr SkColor4f kGialloLo = hex(0x8A6A2E);
+constexpr SkColor4f kMarble = hex(0xE4DED0);
+constexpr SkColor4f kMarbleLo = hex(0xBDB4A2);
+constexpr SkColor4f kOnyx = hex(0xD8C79B);
+constexpr SkColor4f kPurbeck = hex(0x4A4B46);  // the framework, not marble
+constexpr SkColor4f kPurbeckLo = hex(0x2C2D2A);
+constexpr SkColor4f kGlassRed = hex(0xA82A28);
+constexpr SkColor4f kGlassTurq = hex(0x2E8C8C);
+constexpr SkColor4f kGlassCobalt = hex(0x2A3E8C);
+constexpr SkColor4f kMortar = hex(0x191713);
+constexpr SkColor4f kInk = hex(0xE8E1CE);
+constexpr SkColor4f kInkDim = hex(0x9A9078);
 
 // The field is square because the pavement is square.
 constexpr float kFieldSide = 556;
@@ -359,8 +353,7 @@ struct Cosmati final : sketch::Sketch {
     using namespace std::chrono_literals;
 
     auto root = stack().fill(Material::linear(
-        {0, 0}, {0, cs::kH},
-        {{0.0f, cosmati::C(0x14120F)}, {1.0f, cosmati::C(0x080706)}}));
+        {0, 0}, {0, cs::kH}, {{0.0f, hex(0x14120F)}, {1.0f, hex(0x080706)}}));
 
     // ---- the pavement ------------------------------------------------
     Element floorPlate = stack()

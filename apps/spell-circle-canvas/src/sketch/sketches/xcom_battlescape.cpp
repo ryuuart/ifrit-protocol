@@ -272,10 +272,7 @@ constexpr uint32_t kPal[256] = {
 
 /** Palette index -> colour. Index 0 is the chroma key and returns alpha 0. */
 inline SkColor4f C(int idx) noexcept {
-  const uint32_t v = kPal[(unsigned)idx & 255u];
-  return {(float)((v >> 16u) & 255u) / 255.0f,
-          (float)((v >> 8u) & 255u) / 255.0f, (float)(v & 255u) / 255.0f,
-          idx == 0 ? 0.0f : 1.0f};
+  return hex(kPal[(unsigned)idx & 255u], idx == 0 ? 0.0f : 1.0f);
 }
 constexpr int blk(int block, int step) { return block * 16 + step; }
 

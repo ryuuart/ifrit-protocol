@@ -65,40 +65,34 @@ namespace worldhud {
 
 constexpr float kW = kSceneSize.fWidth, kH = kSceneSize.fHeight;
 
-constexpr SkColor4f C(uint32_t rgb, float a = 1.0f) noexcept {
-  return {(float)((rgb >> 16u) & 0xffu) / 255.0f,
-          (float)((rgb >> 8u) & 0xffu) / 255.0f, (float)(rgb & 0xffu) / 255.0f,
-          a};
-}
-
 // voxygen/src/hud/mod.rs, verbatim.
-constexpr SkColor4f kHp = C(0x54A100);
-constexpr SkColor4f kLowHp = C(0xED9608);
-constexpr SkColor4f kCritHp = C(0xC9302B);
-constexpr SkColor4f kStamina = C(0x4A9EBF);
-constexpr SkColor4f kXp = C(0x9669AB);
-constexpr SkColor4f kPoise = C(0xB30099);
-constexpr SkColor4f kPoiseTick = C(0xB3E600);
-constexpr SkColor4f kEnemyHp = C(0xED1A4A);
-constexpr SkColor4f kBuff = C(0x10B01F);
-constexpr SkColor4f kDebuff = C(0xC9302B);
-constexpr SkColor4f kQualityLow = C(0x999999);
-constexpr SkColor4f kQualityCommon = C(0xC9FFFF);
-constexpr SkColor4f kQualityModerate = C(0x10B01F);
-constexpr SkColor4f kQualityHigh = C(0x2E52E6);
-constexpr SkColor4f kQualityEpic = C(0x944AED);
-constexpr SkColor4f kQualityLegendary = C(0xEBC200);
-constexpr SkColor4f kQualityArtifact = C(0xBD3D1C);
+constexpr SkColor4f kHp = hex(0x54A100);
+constexpr SkColor4f kLowHp = hex(0xED9608);
+constexpr SkColor4f kCritHp = hex(0xC9302B);
+constexpr SkColor4f kStamina = hex(0x4A9EBF);
+constexpr SkColor4f kXp = hex(0x9669AB);
+constexpr SkColor4f kPoise = hex(0xB30099);
+constexpr SkColor4f kPoiseTick = hex(0xB3E600);
+constexpr SkColor4f kEnemyHp = hex(0xED1A4A);
+constexpr SkColor4f kBuff = hex(0x10B01F);
+constexpr SkColor4f kDebuff = hex(0xC9302B);
+constexpr SkColor4f kQualityLow = hex(0x999999);
+constexpr SkColor4f kQualityCommon = hex(0xC9FFFF);
+constexpr SkColor4f kQualityModerate = hex(0x10B01F);
+constexpr SkColor4f kQualityHigh = hex(0x2E52E6);
+constexpr SkColor4f kQualityEpic = hex(0x944AED);
+constexpr SkColor4f kQualityLegendary = hex(0xEBC200);
+constexpr SkColor4f kQualityArtifact = hex(0xBD3D1C);
 
 // The frame material: Veloren's UI is carved bone over dark wood.
-constexpr SkColor4f kBoneHi = C(0xD8CBA8);
-constexpr SkColor4f kBone = C(0xA2947A);
-constexpr SkColor4f kBoneLo = C(0x584E3D);
-constexpr SkColor4f kWood = C(0x2A2118);
-constexpr SkColor4f kWoodLo = C(0x160F0A);
-constexpr SkColor4f kTrack = C(0x0B0906);
-constexpr SkColor4f kInk = C(0xEDE6D4);
-constexpr SkColor4f kInkDim = C(0x8C8271);
+constexpr SkColor4f kBoneHi = hex(0xD8CBA8);
+constexpr SkColor4f kBone = hex(0xA2947A);
+constexpr SkColor4f kBoneLo = hex(0x584E3D);
+constexpr SkColor4f kWood = hex(0x2A2118);
+constexpr SkColor4f kWoodLo = hex(0x160F0A);
+constexpr SkColor4f kTrack = hex(0x0B0906);
+constexpr SkColor4f kInk = hex(0xEDE6D4);
+constexpr SkColor4f kInkDim = hex(0x8C8271);
 
 // skillbar.rs dimensions, unscaled — the stage is wide enough to take
 // them, and scaling them would be the one thing that loses the study.
@@ -361,9 +355,9 @@ struct WorldHud final : sketch::Sketch {
                       .transformOrigin(0.0f, 0.5f)
                       .scaleX(&hp)
                       .fill(Material::linear({0, 0}, {0, wh::kHealthInnerH},
-                                             {{0.0f, worldhud::C(0x7FE000)},
+                                             {{0.0f, hex(0x7FE000)},
                                               {0.5f, wh::kHp},
-                                              {1.0f, worldhud::C(0x2F5C00)}})));
+                                              {1.0f, hex(0x2F5C00)}})));
     stackEl.child(box()
                       .left(wh::kBarX)
                       .top(wh::kBarY)
@@ -516,29 +510,29 @@ struct WorldHud final : sketch::Sketch {
         .width(Dim(d))
         .height(Dim(d))
         .opacity(animate(from(0.0f).to(1.0f), {420ms}))
-        .child(box()
-                   .inset(0)
-                   .corners({d * 0.5f})
-                   .clip()
-                   .fill(Material::solid(worldhud::C(0x2E4A2A)))
-                   .child(box()
-                              .inset(0)
-                              .fill(patterns::noise(0.014f, 5, 3.0f))
-                              .opacity(0.85f)
-                              .blend(SkBlendMode::kMultiply))
-                   .child(box().inset(0).fill(
-                       Material::radial({d * 0.5f, d * 0.5f}, d * 0.55f,
-                                        {{0.0f, {0, 0, 0, 0}},
-                                         {0.72f, {0, 0, 0, 0.25f}},
-                                         {1.0f, {0, 0, 0, 0.75f}}})))
-                   // the rivers Veloren's world always has
-                   .child(box()
-                              .inset(0)
-                              .fill(patterns::stripes(
-                                        2, 47, worldhud::C(0x2F6FA8, 0.30f))
-                                        .material())
-                              .rotate(24.0f)
-                              .opacity(0.7f)))
+        .child(
+            box()
+                .inset(0)
+                .corners({d * 0.5f})
+                .clip()
+                .fill(Material::solid(hex(0x2E4A2A)))
+                .child(box()
+                           .inset(0)
+                           .fill(patterns::noise(0.014f, 5, 3.0f))
+                           .opacity(0.85f)
+                           .blend(SkBlendMode::kMultiply))
+                .child(box().inset(0).fill(
+                    Material::radial({d * 0.5f, d * 0.5f}, d * 0.55f,
+                                     {{0.0f, {0, 0, 0, 0}},
+                                      {0.72f, {0, 0, 0, 0.25f}},
+                                      {1.0f, {0, 0, 0, 0.75f}}})))
+                // the rivers Veloren's world always has
+                .child(box()
+                           .inset(0)
+                           .fill(patterns::stripes(2, 47, hex(0x2F6FA8, 0.30f))
+                                     .material())
+                           .rotate(24.0f)
+                           .opacity(0.7f)))
         // compass rose, counter-rotating under the frame
         .child(box().inset(0).rotate(&compass).child(
             box()
@@ -552,7 +546,7 @@ struct WorldHud final : sketch::Sketch {
                    .width(Dim(8.0f))
                    .height(Dim(8.0f))
                    .shape(shapes::polygon(3))
-                   .fill(Material::solid(worldhud::C(0xFFE9A8))))
+                   .fill(Material::solid(hex(0xFFE9A8))))
         .child(box()
                    .left(d * 0.30f)
                    .top(d * 0.36f)
@@ -621,9 +615,9 @@ struct WorldHud final : sketch::Sketch {
               .corners({4})
               .opacity(animate(from(0.0f).to(1.0f), {320ms}))
               .translateY(animate(from(-10.0f).to(0.0f), {380ms}))
-              .fill(Material::linear({0, 0}, {0, 30},
-                                     {{0.0f, worldhud::C(0x2A2118)},
-                                      {1.0f, worldhud::C(0x120C08)}}))
+              .fill(Material::linear(
+                  {0, 0}, {0, 30},
+                  {{0.0f, hex(0x2A2118)}, {1.0f, hex(0x120C08)}}))
               .foreground(stroke(1.4f, Fill::color({p.color.fR, p.color.fG,
                                                     p.color.fB, 0.9f})))
               .alignItems(Align::Center)
@@ -721,9 +715,9 @@ struct WorldHud final : sketch::Sketch {
     using namespace std::chrono_literals;
 
     auto root = stack().fill(Material::linear({0, 0}, {0, wh::kH},
-                                              {{0.0f, worldhud::C(0x1B2B36)},
-                                               {0.55f, worldhud::C(0x24331F)},
-                                               {1.0f, worldhud::C(0x11170E)}}));
+                                              {{0.0f, hex(0x1B2B36)},
+                                               {0.55f, hex(0x24331F)},
+                                               {1.0f, hex(0x11170E)}}));
 
     // a coarse world under the HUD so the bars have something to be legible
     // against — the HUD is the subject, but a HUD over nothing is a lie
@@ -753,9 +747,9 @@ struct WorldHud final : sketch::Sketch {
           })
           .fill(Material::solid(color));
     };
-    root.child(ridge(268, 26, 0.0085f, 0.4f, worldhud::C(0x15201A)));
-    root.child(ridge(322, 18, 0.0135f, 2.1f, worldhud::C(0x0E1712)));
-    root.child(ridge(392, 12, 0.0210f, 4.4f, worldhud::C(0x080D09)));
+    root.child(ridge(268, 26, 0.0085f, 0.4f, hex(0x15201A)));
+    root.child(ridge(322, 18, 0.0135f, 2.1f, hex(0x0E1712)));
+    root.child(ridge(392, 12, 0.0210f, 4.4f, hex(0x080D09)));
     root.child(box().inset(0).fill(
         Material::radial({wh::kW * 0.5f, wh::kH * 0.42f}, wh::kW * 0.72f,
                          {{0.0f, {0, 0, 0, 0}}, {1.0f, {0, 0, 0, 0.65f}}})));

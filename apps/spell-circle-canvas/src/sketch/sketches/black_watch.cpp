@@ -113,24 +113,18 @@ namespace weave = sigil::weave;
 
 namespace {
 
-constexpr SkColor4f C(uint32_t hex, float a = 1.0f) noexcept {
-  return {(float)((hex >> 16u) & 0xffu) / 255.0f,
-          (float)((hex >> 8u) & 0xffu) / 255.0f, (float)(hex & 0xffu) / 255.0f,
-          a};
-}
-
 // ---------------------------------------------------------------------------
 // The card it is mounted on. Black Watch is a dark cloth, and it sits on
 // manila board, so this whole plate is light-on-dark inverted: pale ground,
 // dark ink. patterns::grain is built for exactly that — an opaque board with
 // tooth — rather than for glow over a dark field.
 
-constexpr SkColor4f kCard = C(0xE8E2D6);
-constexpr SkColor4f kWell = C(0xDCD4C4);
-constexpr SkColor4f kRule = C(0x8A8478);
-constexpr SkColor4f kInk = C(0x1A1815);
-constexpr SkColor4f kInk2 = C(0x5A554C);
-constexpr SkColor4f kRed = C(0x9A3324);
+constexpr SkColor4f kCard = hex(0xE8E2D6);
+constexpr SkColor4f kWell = hex(0xDCD4C4);
+constexpr SkColor4f kRule = hex(0x8A8478);
+constexpr SkColor4f kInk = hex(0x1A1815);
+constexpr SkColor4f kInk2 = hex(0x5A554C);
+constexpr SkColor4f kRed = hex(0x9A3324);
 
 // ---------------------------------------------------------------------------
 // The colours. Codes are the register's: K black, B blue, G green, Y yellow,
@@ -158,7 +152,7 @@ constexpr uint32_t kHexW = 0xE5DDD1;  // "White"
 
 using Shades = std::array<SkColor4f, 5>;
 inline Shades shadesOf(const Palette& p) {
-  return {C(p.k), C(p.b), C(p.g), C(kHexY), C(kHexW)};
+  return {hex(p.k), hex(p.b), hex(p.g), hex(kHexY), hex(kHexW)};
 }
 
 // ---------------------------------------------------------------------------
@@ -717,7 +711,7 @@ struct BlackWatch : sketch::Sketch {
     });
     gridMat = threadGrid.material();
     drawGrid =
-        patterns::gridLines(kDrawCell, 0.7f, C(0x8A8478, 0.6f)).material();
+        patterns::gridLines(kDrawCell, 0.7f, hex(0x8A8478, 0.6f)).material();
 
     // 4. WHOLE-CLOTH BAKES — one per palette family, 252 x 252 at one pixel
     //    per thread, magnified x2 with kNearest. Same 252 threads, same
@@ -825,7 +819,7 @@ struct BlackWatch : sketch::Sketch {
     Element panel =
         at(kClothX, kClothY, kClothW, kClothH)
             .clip(true)
-            .background(styles::dropShadow(C(0x3E3A33, 0.55f), {3, 4}, 10))
+            .background(styles::dropShadow(hex(0x3E3A33, 0.55f), {3, 4}, 10))
             .fill(kWell);
 
     // the warp on the beam: the whole design, in one dimension
@@ -1021,7 +1015,7 @@ struct BlackWatch : sketch::Sketch {
       const float b =
           kBeamEnd + (kWeaveEnd - kBeamEnd) * (float)(i + 1) / (float)kDrawN;
       g.child(at(tieX - 3, bodyY + (float)i * c, 4 * c + 6, c)
-                  .fill(C(0x9A3324, 0.30f))
+                  .fill(hex(0x9A3324, 0.30f))
                   .opacity(bind(&loom).source(a, b).map(plateau(0.35f))));
     }
     // drawdown — the cloth itself, at kDrawCell px per thread, kNearest
@@ -1109,11 +1103,11 @@ struct BlackWatch : sketch::Sketch {
       const float y = y0 + (float)r * rowH;
       const Palette& p = kPalettes[(size_t)r];
       g.child(label(p.name, mn(7.5f, kInk, 0.4f), kColX + 10, y + 1, 140));
-      const uint32_t hex[3] = {p.k, p.b, p.g};
+      const uint32_t shade[3] = {p.k, p.b, p.g};
       for (int i = 0; i < 3; ++i) {
         const float x = kColX + 150 + (float)i * 94;
-        g.child(at(x, y, 86, 14).fill(C(hex[i])));
-        g.child(label(fmt("%s #%06X", code[i], hex[i]), mn(7, kInk2, 0.2f), x,
+        g.child(at(x, y, 86, 14).fill(hex(shade[i])));
+        g.child(label(fmt("%s #%06X", code[i], shade[i]), mn(7, kInk2, 0.2f), x,
                       y + 16, 86));
       }
       auto mark = [&](float a, float b) {
@@ -1145,16 +1139,17 @@ struct BlackWatch : sketch::Sketch {
     for (int i = 0; i < 4; ++i) {
       const float x = kClothX + (float)i * (sw + gap);
       // the SAME crop of the SAME cloth, four times over
-      g.child(at(x, y0, sw, sh)
-                  .clip(true)
-                  .background(styles::dropShadow(C(0x3E3A33, 0.45f), {2, 3}, 7))
-                  .fill(swatchMat)
-                  .foreground(
-                      stroke(1, Fill::color(kRule), PathFormat::Align::Outer))
-                  .child(at(0, 0, sw, sh)
-                             .fill(gridMat)
-                             .blend(SkBlendMode::kMultiply)
-                             .opacity(0.85f)));
+      g.child(
+          at(x, y0, sw, sh)
+              .clip(true)
+              .background(styles::dropShadow(hex(0x3E3A33, 0.45f), {2, 3}, 7))
+              .fill(swatchMat)
+              .foreground(
+                  stroke(1, Fill::color(kRule), PathFormat::Align::Outer))
+              .child(at(0, 0, sw, sh)
+                         .fill(gridMat)
+                         .blend(SkBlendMode::kMultiply)
+                         .opacity(0.85f)));
       g.child(centred(kNames[i], ty(serifIt(), 13, kInk), x, y0 + sh + 6, sw)
                   .opacity(bind(&loom)
                                .source(0.63f + (float)i * 0.022f,
@@ -1174,7 +1169,7 @@ struct BlackWatch : sketch::Sketch {
     const float ax = kClothX + 4 * (sw + gap) + 12;
     g.child(at(ax, y0, sw, sh)
                 .clip(true)
-                .background(styles::dropShadow(C(0x3E3A33, 0.45f), {2, 3}, 7))
+                .background(styles::dropShadow(hex(0x3E3A33, 0.45f), {2, 3}, 7))
                 .fill(argyllMat)
                 .foreground(
                     stroke(1.5f, Fill::color(kRed), PathFormat::Align::Outer))
@@ -1244,7 +1239,7 @@ struct BlackWatch : sketch::Sketch {
       if (u < 3)
         g.child(at(x0 + barW * cum / (float)v.total - 0.5f, y0 - 3, 1,
                    2 * barH + 14)
-                    .fill(C(0x9A3324, 0.8f)));
+                    .fill(hex(0x9A3324, 0.8f)));
     }
     g.child(label(fmt("UNIT FRACTIONS AGREE TO %.2f %%  ·  IDENTICAL "
                       "STRUCTURE, RUN FOR RUN  ·  DIFFERENT NUMBERS  ·  "
@@ -1262,7 +1257,7 @@ struct BlackWatch : sketch::Sketch {
     g.child(label("VERIFIED AT STARTUP, NOT ASSERTED", mn(9, kInk, 0.5f), x0,
                   1030, kColW));
     g.child(at(x0 - 12, y0 - 8, 472, (float)verifyLines.size() * lh + 14)
-                .fill(C(0xDCD4C4, 0.8f))
+                .fill(hex(0xDCD4C4, 0.8f))
                 .foreground(
                     stroke(1, Fill::color(kRule), PathFormat::Align::Inner)));
     for (size_t i = 0; i < verifyLines.size(); ++i) {

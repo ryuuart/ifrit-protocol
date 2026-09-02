@@ -229,11 +229,6 @@ inline SkPoint centre(const SkRect& r) { return {r.centerX(), r.centerY()}; }
 
 inline Decoration prog(PaintProgram p) { return Decoration(std::move(p)); }
 
-inline SkColor4f rgb(uint32_t hex, float a = 1.0f) noexcept {
-  return {(float)((hex >> 16u) & 255u) / 255.0f,
-          (float)((hex >> 8u) & 255u) / 255.0f, (float)(hex & 255u) / 255.0f,
-          a};
-}
 /** Deterministic hash — every jitter, tear and speckle comes through here. */
 inline uint32_t hash3(int a, int b, int c) {
   return sigil::core::noise::lattice(0, a, b, c);
@@ -259,20 +254,20 @@ constexpr uint32_t kMortuus = 0x6A0005, kInstrumentum = 0x4040EE;
 }  // namespace aspect
 
 // Reconstructed ink/parchment.
-const SkColor4f kInkDeep = rgb(0x0E0A06);
-const SkColor4f kInkBody = rgb(0xEADCBC);
-const SkColor4f kPaper = rgb(0xA0865E);
-const SkColor4f kPaperLit = rgb(0xCDAE7B);
-const SkColor4f kPaperDark = rgb(0x2A2113);
-const SkColor4f kBrass = rgb(0x8A6E38);
-const SkColor4f kBrassLit = rgb(0xC9A860);
-const SkColor4f kBrassDark = rgb(0x2A200F);
+const SkColor4f kInkDeep = hex(0x0E0A06);
+const SkColor4f kInkBody = hex(0xEADCBC);
+const SkColor4f kPaper = hex(0xA0865E);
+const SkColor4f kPaperLit = hex(0xCDAE7B);
+const SkColor4f kPaperDark = hex(0x2A2113);
+const SkColor4f kBrass = hex(0x8A6E38);
+const SkColor4f kBrassLit = hex(0xC9A860);
+const SkColor4f kBrassDark = hex(0x2A200F);
 
 // Text colours, converted from the source's decimal literals.
-const SkColor4f kTextGold = rgb(0xFFAA00);    // §6
-const SkColor4f kTextRed = rgb(0xFF5555);     // §c
-const SkColor4f kTextYellow = rgb(0xFFFF55);  // §e
-const SkColor4f kTextWhite = rgb(0xFFFFFF);
+const SkColor4f kTextGold = hex(0xFFAA00);    // §6
+const SkColor4f kTextRed = hex(0xFF5555);     // §c
+const SkColor4f kTextYellow = hex(0xFFFF55);  // §e
+const SkColor4f kTextWhite = hex(0xFFFFFF);
 
 // ---------------------------------------------------------------------------
 // THE GRAPH — alchemy.json, all 22 entries, verbatim.
@@ -792,10 +787,10 @@ inline Element spikyOverlay(uint32_t seed) {
 // off the grid. The mod's textures are in no repo; these are reconstructions
 // named for the textures alchemy.json asks for.
 
-inline uint32_t mulHex(uint32_t hex, float k) {
-  const uint32_t r = (uint32_t)(((hex >> 16u) & 255u) * k);
-  const uint32_t gg = (uint32_t)(((hex >> 8u) & 255u) * k);
-  const uint32_t b = (uint32_t)((hex & 255u) * k);
+inline uint32_t mulHex(uint32_t word, float k) {
+  const uint32_t r = (uint32_t)(((word >> 16u) & 255u) * k);
+  const uint32_t gg = (uint32_t)(((word >> 8u) & 255u) * k);
+  const uint32_t b = (uint32_t)((word & 255u) * k);
   return (r << 16u) | (gg << 8u) | b;
 }
 
@@ -813,18 +808,18 @@ struct Ink {
 
 /** A stoppered phial/bottle silhouette shared by several icons. */
 inline void glassVessel(const Ink& k, SkColor4f liquid, float top = 4) {
-  k.r(6, top - 1, 4, 2, rgb(0x6B5030));  // cork
-  k.r(6, top + 1, 4, 1, rgb(0x8A8FA0));  // neck
-  k.r(5, top + 2, 6, 11 - (top - 4), rgb(0xB6C6D6, 0.35f));
-  k.r(5, top + 2, 1, 11 - (top - 4), rgb(0xE7F1F8, 0.55f));
+  k.r(6, top - 1, 4, 2, hex(0x6B5030));  // cork
+  k.r(6, top + 1, 4, 1, hex(0x8A8FA0));  // neck
+  k.r(5, top + 2, 6, 11 - (top - 4), hex(0xB6C6D6, 0.35f));
+  k.r(5, top + 2, 1, 11 - (top - 4), hex(0xE7F1F8, 0.55f));
   k.r(6, top + 6, 4, 7 - (top - 4), liquid);
-  k.r(5, 14, 6, 1, rgb(0x2A3240));
+  k.r(5, 14, 6, 1, hex(0x2A3240));
 }
 
 inline void drawGlyph(SkCanvas& canvas, int glyph, float alpha) {
   const Ink k{canvas};
-  auto a = [alpha](uint32_t hex, float mulA = 1.0f) {
-    return rgb(hex, alpha * mulA);
+  auto a = [alpha](uint32_t word, float mulA = 1.0f) {
+    return hex(word, alpha * mulA);
   };
   switch (glyph) {
     case gAspect: {  // cat_alchemy.png — the alkimia aspect medallion
@@ -1013,7 +1008,7 @@ inline Element researchBadge() {
       .shape(shapes::star(4, 0.30f, 0.55f))
       .fill(Material::radialUnit(
           {0.5f, 0.5f}, 0.9f,
-          {{0, rgb(0xFFF3C0)}, {0.45f, rgb(0xFFAA00)}, {1, rgb(0xFFAA00, 0)}}));
+          {{0, hex(0xFFF3C0)}, {0.45f, hex(0xFFAA00)}, {1, hex(0xFFAA00, 0)}}));
 }
 inline Element pageBadge() {
   Element e = box()
@@ -1030,9 +1025,9 @@ inline Element pageBadge() {
                     p.close();
                     return p.detach();
                   })
-                  .fill(Fill::color(rgb(0xD9E8C6)));
-  e.stroke(PathFormat{.width = g(1), .strokeFill = Fill::color(rgb(0x2A3A1E))});
-  e.overlay(lines::Hatch{.strokeFill = Fill::color(rgb(0x5A7A46, 0.75f)),
+                  .fill(Fill::color(hex(0xD9E8C6)));
+  e.stroke(PathFormat{.width = g(1), .strokeFill = Fill::color(hex(0x2A3A1E))});
+  e.overlay(lines::Hatch{.strokeFill = Fill::color(hex(0x5A7A46, 0.75f)),
                          .spacing = g(2.4f),
                          .width = g(0.8f),
                          .angleDeg = 0});
@@ -1057,9 +1052,9 @@ inline Element warpSwirl(const ch::Output<float>* spin, int strength) {
                   .height(g(44))
                   .shape(shapes::star(6, 0.50f, 0.62f))
                   .fill(Material::radialUnit({0.5f, 0.5f}, 1.0f,
-                                             {{0.0f, rgb(0xC060FF, a)},
-                                              {0.45f, rgb(0x7A0BA8, a * 0.8f)},
-                                              {1.0f, rgb(0x2A0038, 0)}}))
+                                             {{0.0f, hex(0xC060FF, a)},
+                                              {0.45f, hex(0x7A0BA8, a * 0.8f)},
+                                              {1.0f, hex(0x2A0038, 0)}}))
                   .blend(SkBlendMode::kPlus)
                   .rotate(bind(spin).scale(360.0f));
   return e;
@@ -1300,10 +1295,10 @@ struct Thaumonomicon : sketch::Sketch {
     const float w = g(kScreenX + 4 + 44), h = g(kScreenY + 4 + 44);
     Element e = box().left(g(-22)).top(g(-22)).width(w).height(h).fill(
         Material::radialUnit({0.44f, 0.38f}, 1.20f,
-                             {{0.0f, rgb(0x3E3220)},
-                              {0.40f, rgb(0x241B10)},
-                              {0.78f, rgb(0x140E07)},
-                              {1.0f, rgb(0x070402)}}));
+                             {{0.0f, hex(0x3E3220)},
+                              {0.40f, hex(0x241B10)},
+                              {0.78f, hex(0x140E07)},
+                              {1.0f, hex(0x070402)}}));
     // The painted plate under it: an alchemical wheel, a ruled margin, and
     // washes — the structure a photographed grimoire page carries and a noise
     // field never will.
@@ -1316,7 +1311,7 @@ struct Thaumonomicon : sketch::Sketch {
         const float x = (0.5f + 0.5f * noise1(i, 1, 5)) * in.size.width();
         const float y = (0.5f + 0.5f * noise1(i, 2, 5)) * in.size.height();
         const float r = g(22.0f + 58.0f * (0.5f + 0.5f * noise1(i, 3, 5)));
-        p.setColor4f(rgb(0x060402, 0.16f), nullptr);
+        p.setColor4f(hex(0x060402, 0.16f), nullptr);
         c.drawCircle(x, y, r, p);
       }
       p.setStyle(SkPaint::kStroke_Style);
@@ -1351,7 +1346,7 @@ struct Thaumonomicon : sketch::Sketch {
       }
       c.drawPath(t.detach(), p);
       // strata: long diagonal scrapes across the plate
-      p.setColor4f(rgb(0xD8C08A, 0.055f), nullptr);
+      p.setColor4f(hex(0xD8C08A, 0.055f), nullptr);
       SkPathBuilder s2;
       for (int i = 0; i < 22; ++i) {
         const float y0 = (0.5f + 0.5f * noise1(i, 9, 4)) * in.size.height();
@@ -1383,9 +1378,9 @@ struct Thaumonomicon : sketch::Sketch {
         .fill(Material::blend(
             {{patterns::grain(0.0075f, 4, 11.0f), SkBlendMode::kSrc},
              {Material::radialUnit({0.5f, 0.5f}, 1.0f,
-                                   {{0.0f, rgb(0xFFFFFF)},
-                                    {0.7f, rgb(0x808080)},
-                                    {1.0f, rgb(0x000000)}}),
+                                   {{0.0f, hex(0xFFFFFF)},
+                                    {0.7f, hex(0x808080)},
+                                    {1.0f, hex(0x000000)}}),
               SkBlendMode::kMultiply}}));
   }
 
@@ -1633,7 +1628,7 @@ struct Thaumonomicon : sketch::Sketch {
                          [cat, selected](SkCanvas& c, const PaintContext&) {
                            const Ink k{c};
                            const SkColor4f col =
-                               rgb(cat.aspect, selected ? 1.0f : 0.66f);
+                               hex(cat.aspect, selected ? 1.0f : 0.66f);
                            // seven distinct runes, one per category
                            switch (cat.rune) {
                              case 0:
@@ -1727,14 +1722,14 @@ struct Thaumonomicon : sketch::Sketch {
           // plus its 1 px shadow, which then cross the inner border.
           const SkRect r = SkRect::MakeLTRB(g(x - 4), g(y - 4), g(x + wd + 4),
                                             g(y + ht + 3));
-          p.setColor4f(rgb(0x100010, 0.94f), nullptr);
+          p.setColor4f(hex(0x100010, 0.94f), nullptr);
           c.drawRect(r, p);
           // the vanilla two-tone inner border
           p.setStyle(SkPaint::kStroke_Style);
           p.setStrokeWidth(g(1));
-          p.setColor4f(rgb(0x5000FF, 0.31f), nullptr);
+          p.setColor4f(hex(0x5000FF, 0.31f), nullptr);
           c.drawRect(r.makeInset(g(1), g(1)), p);
-          p.setColor4f(rgb(0x28007F, 0.31f), nullptr);
+          p.setColor4f(hex(0x28007F, 0.31f), nullptr);
           c.drawRect(r.makeInset(g(2), g(2)), p);
           blitText(c, a, x, y, kTextGold);
           blitText(c, b, x, y + 10, kTextRed);
@@ -1746,7 +1741,7 @@ struct Thaumonomicon : sketch::Sketch {
 
   void setup(sketch::SketchContext& ctx) override {
     ctx.canvas(kCanvasW, kCanvasH);
-    ctx.background(rgb(0x0B0906));
+    ctx.background(hex(0x0B0906));
 
     face = systemFace();
     if (ctx.fonts) {

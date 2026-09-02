@@ -274,12 +274,6 @@ inline SkColor4f hex(uint32_t v, float a = 1.0f) noexcept {
   return {(float)((v >> 16u) & 255u) / 255.0f,
           (float)((v >> 8u) & 255u) / 255.0f, (float)(v & 255u) / 255.0f, a};
 }
-/** Scale a colour's light. The portrait is a different plate at a different
- *  exposure and sits BEHIND this one; the anchor's own floor (37% of the frame
- *  below luma 12, p99 153, max 241) is what it has to stay under. */
-inline SkColor4f dim(SkColor4f c, float k) noexcept {
-  return {c.fR * k, c.fG * k, c.fB * k, c.fA};
-}
 
 // ---------------------------------------------------------------------------
 // PALETTE — HSV-class percentiles over the anchor. There is NO WHITE.
@@ -307,15 +301,15 @@ const SkColor4f kBgRule = hex(0x6E3228);  // the plate's dim diagonal furniture
 // The portrait's warm palette — a DIFFERENT plate, kept different on purpose.
 // Two palettes, one canvas; they share the orange, so the orange is the seam.
 constexpr float kBack = 0.42f;
-const SkColor4f kPBody = dim(hex(0x711B0F), kBack);
-const SkColor4f kPBodyHi = dim(hex(0xB63014), kBack);
-const SkColor4f kPRail = dim(hex(0x703912), kBack);
-const SkColor4f kPRailHi = dim(hex(0xE17B33), kBack);
-const SkColor4f kPRailDim = dim(hex(0xB05A20), kBack);
-const SkColor4f kPChart = dim(hex(0xB1CE3C), kBack);
-const SkColor4f kPPin = dim(hex(0xEFE033), kBack);
-const SkColor4f kPMagenta = dim(hex(0xAD5196), kBack);
-const SkColor4f kPViolet = dim(hex(0x4A3283), kBack);
+const SkColor4f kPBody = mul(hex(0x711B0F), kBack);
+const SkColor4f kPBodyHi = mul(hex(0xB63014), kBack);
+const SkColor4f kPRail = mul(hex(0x703912), kBack);
+const SkColor4f kPRailHi = mul(hex(0xE17B33), kBack);
+const SkColor4f kPRailDim = mul(hex(0xB05A20), kBack);
+const SkColor4f kPChart = mul(hex(0xB1CE3C), kBack);
+const SkColor4f kPPin = mul(hex(0xEFE033), kBack);
+const SkColor4f kPMagenta = mul(hex(0xAD5196), kBack);
+const SkColor4f kPViolet = mul(hex(0x4A3283), kBack);
 
 // ---------------------------------------------------------------------------
 // TYPE
@@ -1033,7 +1027,7 @@ struct EvaMagiInterior : sketch::Sketch {
         .width(174)
         .height(94)
         .opacity(&goldOn)
-        .fill(Material::solid(magi::hex(0x140A02)))
+        .fill(Material::solid(hex(0x140A02)))
         .style(decorations::doubleBorder(
             decorations::border(5.0f, Fill::color(magi::kGold), 0.0f),
             decorations::border(2.0f, Fill::color(magi::kGoldHot), 10.0f)))
@@ -1059,7 +1053,7 @@ struct EvaMagiInterior : sketch::Sketch {
             .width(220)
             .height(120)
             .shape(shapes::chamfered(22.0f, shapes::Corner::Diagonal))
-            .fill(Material::solid(magi::hex(0x0A0102)))
+            .fill(Material::solid(hex(0x0A0102)))
             .foreground(decorations::border(4.0f, Fill::color(ink), 3.0f))
             .child(text(carried ? u8"可決" : u8"否決", st)
                        .left(28)
@@ -1177,8 +1171,7 @@ struct EvaMagiInterior : sketch::Sketch {
                       0.0f, 6.2831853f, 240, true))
                   .fill(Fill::none())
                   .foreground(decorations::border(
-                      2.0f, Fill::color(
-                                magi::dim(magi::hex(0x5A1A0C), magi::kBack)))));
+                      2.0f, Fill::color(mul(hex(0x5A1A0C), magi::kBack)))));
 
     // 12 neuron somas at r 690..790, each trailing dendrites BACK toward the
     // centre — brush::Ribbon, tapered.
@@ -1203,11 +1196,11 @@ struct EvaMagiInterior : sketch::Sketch {
                   // must survive each return
                   // NOLINTNEXTLINE(performance-no-automatic-move)
                   .shape([dend](SkSize) { return dend; })
-                  .stroke(brush::Ribbon{.fill = Fill::color(magi::dim(
-                                            magi::hex(0x8A2412), magi::kBack)),
-                                        .widthStart = 8.0f,
-                                        .widthEnd = 1.0f,
-                                        .step = 6.0f}));
+                  .stroke(brush::Ribbon{
+                      .fill = Fill::color(mul(hex(0x8A2412), magi::kBack)),
+                      .widthStart = 8.0f,
+                      .widthEnd = 1.0f,
+                      .step = 6.0f}));
       g.child(box()
                   .left(kPCX + p.fX - d * 0.5f)
                   .top(kPCY + p.fY - d * 0.5f)
@@ -1218,10 +1211,9 @@ struct EvaMagiInterior : sketch::Sketch {
                       {0.5f, 0.5f}, 1.0f,
                       {{0.0f, magi::kPBodyHi},
                        {0.55f, magi::kPBody},
-                       {1.0f, magi::dim(magi::hex(0x3A0E06), magi::kBack)}}))
+                       {1.0f, mul(hex(0x3A0E06), magi::kBack)}}))
                   .foreground(lines::concentric(
-                      Fill::color(magi::dim(magi::hex(0xC03C18), magi::kBack)),
-                      4, 1.2f)));
+                      Fill::color(mul(hex(0xC03C18), magi::kBack)), 4, 1.2f)));
     }
 
     // 24 small hexagons at r 555..665, two lines of tiny text each
@@ -1230,8 +1222,7 @@ struct EvaMagiInterior : sketch::Sketch {
       const float r = ((k % 2) ? 610.0f : 560.0f) * S;
       const SkPoint p = polar(r, a);
       g.child(hexAt({kPCX + p.fX, kPCY + p.fY}, 48.0f * S, magi::kPRailHi, 1.4f,
-                    magi::dim(magi::hex(0x2A0C05), magi::kBack), "TYPE", "M-04",
-                    4.6f));
+                    mul(hex(0x2A0C05), magi::kBack), "TYPE", "M-04", 4.6f));
     }
 
     // the heavy arc the 12 big hexagons sit on, dressed with the bead and
@@ -1296,8 +1287,7 @@ struct EvaMagiInterior : sketch::Sketch {
       const float a = (float)k * 30.0f - 90.0f;
       const SkPoint p = polar(490.0f * S, a);
       g.child(hexAt({kPCX + p.fX, kPCY + p.fY}, 74.0f * S, magi::kPRailHi, 2.2f,
-                    magi::dim(magi::hex(0x351107), magi::kBack), "APS", "17",
-                    5.4f));
+                    mul(hex(0x351107), magi::kBack), "APS", "17", 5.4f));
     }
 
     // 12 pin combs at r ~300, plus the fan of fine hairlines out to the
@@ -1320,8 +1310,8 @@ struct EvaMagiInterior : sketch::Sketch {
                   // NOLINTNEXTLINE(performance-no-automatic-move)
                   .shape([fan](SkSize) { return fan; })
                   .stroke(PathFormat{.width = 0.8f,
-                                     .strokeFill = Fill::color(magi::dim(
-                                         magi::hex(0xD08A9A), magi::kBack))}));
+                                     .strokeFill = Fill::color(
+                                         mul(hex(0xD08A9A), magi::kBack))}));
       SkPathBuilder cb;
       const SkPoint base = polar(296.0f * S, a);
       const float m = std::hypot(base.fX, base.fY);
@@ -1365,14 +1355,12 @@ struct EvaMagiInterior : sketch::Sketch {
     // the 6-fold core: seven flat-top hexagons in a honeycomb
     const float hexA = 88.0f * S;
     g.child(hexAt({kPCX, kPCY}, hexA, magi::kPRailHi, 2.0f,
-                  magi::dim(magi::hex(0x4A140A), magi::kBack), "MAGI", "SYS",
-                  5.6f));
+                  mul(hex(0x4A140A), magi::kBack), "MAGI", "SYS", 5.6f));
     for (int k = 0; k < 6; ++k) {
       const float a = (float)k * 60.0f - 90.0f;
       const SkPoint p = polar(hexA * 0.90f, a);
       g.child(hexAt({kPCX + p.fX, kPCY + p.fY}, hexA, magi::kPRailHi, 1.8f,
-                    magi::dim(magi::hex(0x3E1108), magi::kBack), "TYPE", "0417",
-                    5.2f));
+                    mul(hex(0x3E1108), magi::kBack), "TYPE", "0417", 5.2f));
     }
     return g;
   }
@@ -1411,9 +1399,8 @@ struct EvaMagiInterior : sketch::Sketch {
                     .fill(Material::linearUnit(
                         {0, 0}, {1, 0},
                         {{0.0f, mag ? magi::kPMagenta : magi::kPViolet},
-                         {0.5f, magi::dim(mag ? magi::hex(0xC464A5)
-                                              : magi::hex(0x643D93),
-                                          magi::kBack)},
+                         {0.5f, mul(mag ? hex(0xC464A5) : hex(0x643D93),
+                                    magi::kBack)},
                          {1.0f, mag ? magi::kPMagenta : magi::kPViolet}})));
       }
     }
@@ -1500,21 +1487,20 @@ struct EvaMagiInterior : sketch::Sketch {
                     .width(Wd)
                     .height(Ht)
                     .shape(shapes::chamfered(22.0f, shapes::Corner::All))
-                    .fill(Material::solid(magi::hex(0x322A36)))
+                    .fill(Material::solid(hex(0x322A36)))
                     .clip(true)
                     .foreground(Border{.width = 13.0f,
-                                       .fill = Fill::color(magi::hex(0x090509)),
+                                       .fill = Fill::color(hex(0x090509)),
                                        .inset = 6.5f,
                                        .cornerAngleDeg = 20.0f});
     for (int k = 0; k < 4; ++k) {
       const float bx = ((unsigned)k & 1u) ? Wd - 25.0f : 25.0f;
       const float by = ((unsigned)k & 2u) ? Ht - 23.0f : 23.0f;
-      g.child(
-          kit::disc({bx, by}, 8.5f).fill(Material::solid(magi::hex(0x120A12))));
+      g.child(kit::disc({bx, by}, 8.5f).fill(Material::solid(hex(0x120A12))));
       g.child(kit::disc({bx - 2.0f, by - 2.0f}, 5.0f)
                   .fill(Fill::none())
-                  .foreground(decorations::border(
-                      1.8f, Fill::color(magi::hex(0x6E5E70)))));
+                  .foreground(
+                      decorations::border(1.8f, Fill::color(hex(0x6E5E70)))));
     }
     Element tissue =
         box()
@@ -1524,51 +1510,50 @@ struct EvaMagiInterior : sketch::Sketch {
             .height(Ht * 0.52f)
             .rotate(-9.0f)
             .fill(Material::radialUnit({0.44f, 0.40f}, 1.05f,
-                                       {{0.0f, magi::hex(0xDBC49A)},
-                                        {0.62f, magi::hex(0xC0A277)},
-                                        {1.0f, magi::hex(0x97785D)}}))
+                                       {{0.0f, hex(0xDBC49A)},
+                                        {0.62f, hex(0xC0A277)},
+                                        {1.0f, hex(0x97785D)}}))
             .overlay(lines::Line{.width = 2.0f,
-                                 .fill = Fill::color(magi::hex(0x4A2E1E)),
+                                 .fill = Fill::color(hex(0x4A2E1E)),
                                  .waveAmplitude = 3.2f,
                                  .waveLength = 16.0f})
-            .foreground(
-                decorations::border(1.8f, Fill::color(magi::hex(0x1A0F14))));
+            .foreground(decorations::border(1.8f, Fill::color(hex(0x1A0F14))));
     // THE SULCI. `overlay()` dresses a node's OUTLINE, and this node's
     // outline is its rectangle — so the wavy Line above deckles the tissue's
     // EDGE and lays nothing across it. The folds need geometry of their own
     // or the hatch shows a blank card instead of a brain; the ink and the
     // wave are the ones already chosen above.
-    tissue.child(
-        box()
-            .inset(0)
-            .shape([](SkSize s) {
-              const float w = s.width(), h = s.height();
-              SkPathBuilder b;
-              // the longitudinal fissure
-              b.moveTo(w * 0.54f, h * 0.03f);
-              b.quadTo(w * 0.39f, h * 0.30f, w * 0.55f, h * 0.53f);
-              b.quadTo(w * 0.71f, h * 0.77f, w * 0.49f, h * 0.97f);
-              // gyri, each stopping short of the fissure and of the rim
-              const float ys[3] = {0.24f, 0.52f, 0.79f};
-              for (float y : ys) {
-                b.moveTo(w * 0.06f, h * y);
-                b.quadTo(w * 0.24f, h * (y - 0.10f), w * 0.42f, h * y);
-                b.moveTo(w * 0.62f, h * (y + 0.05f));
-                b.quadTo(w * 0.80f, h * (y - 0.04f), w * 0.94f,
-                         h * (y + 0.07f));
-              }
-              return b.detach();
-            })
-            .stroke(lines::Line{.width = 1.6f,
-                                .fill = Fill::color(magi::hex(0x4A2E1E)),
-                                .waveAmplitude = 1.5f,
-                                .waveLength = 10.0f}));
+    tissue.child(box()
+                     .inset(0)
+                     .shape([](SkSize s) {
+                       const float w = s.width(), h = s.height();
+                       SkPathBuilder b;
+                       // the longitudinal fissure
+                       b.moveTo(w * 0.54f, h * 0.03f);
+                       b.quadTo(w * 0.39f, h * 0.30f, w * 0.55f, h * 0.53f);
+                       b.quadTo(w * 0.71f, h * 0.77f, w * 0.49f, h * 0.97f);
+                       // gyri, each stopping short of the fissure and of the
+                       // rim
+                       const float ys[3] = {0.24f, 0.52f, 0.79f};
+                       for (float y : ys) {
+                         b.moveTo(w * 0.06f, h * y);
+                         b.quadTo(w * 0.24f, h * (y - 0.10f), w * 0.42f, h * y);
+                         b.moveTo(w * 0.62f, h * (y + 0.05f));
+                         b.quadTo(w * 0.80f, h * (y - 0.04f), w * 0.94f,
+                                  h * (y + 0.07f));
+                       }
+                       return b.detach();
+                     })
+                     .stroke(lines::Line{.width = 1.6f,
+                                         .fill = Fill::color(hex(0x4A2E1E)),
+                                         .waveAmplitude = 1.5f,
+                                         .waveLength = 10.0f}));
     g.child(std::move(tissue));
     g.child(box()
                 .left(Wd * 0.31f)
                 .top(Ht * 0.63f)
                 .child(text(u8"MAGI", magi::type(magi::latin(), 28.0f,
-                                                 magi::hex(0x8C2A1E), 0.86f))));
+                                                 hex(0x8C2A1E), 0.86f))));
     for (int k = 0; k < 2; ++k)
       g.child(box()
                   .left(Wd * 0.24f)
@@ -1577,23 +1562,22 @@ struct EvaMagiInterior : sketch::Sketch {
                   .height(5.0f)
                   .rotate(k ? -34.0f : 34.0f)
                   .transformOrigin(0.0f, 0.5f)
-                  .fill(Material::solid(magi::hex(0x090509))));
+                  .fill(Material::solid(hex(0x090509))));
     g.child(
         box()
             .inset(0)
             .fill(Fill::none())
-            .child(
-                text(u8"CASPER", magi::type(magi::latin(), 32.0f,
-                                            magi::hex(0x0B060B), 0.88f, 3.0f))
-                    .inset(0)
-                    .onPath(TextPath{
-                        // the callable is invoked on every layout, so its
-                        // capture must survive each return
-                        // NOLINTNEXTLINE(performance-no-automatic-move)
-                        .path = [stencilArc](SkSize) { return stencilArc; },
-                        .at = 0.5f,
-                        .align = TextPath::Align::Center,
-                        .orient = TextPath::Orient::Tangent})));
+            .child(text(u8"CASPER", magi::type(magi::latin(), 32.0f,
+                                               hex(0x0B060B), 0.88f, 3.0f))
+                       .inset(0)
+                       .onPath(TextPath{
+                           // the callable is invoked on every layout, so its
+                           // capture must survive each return
+                           // NOLINTNEXTLINE(performance-no-automatic-move)
+                           .path = [stencilArc](SkSize) { return stencilArc; },
+                           .at = 0.5f,
+                           .align = TextPath::Align::Center,
+                           .orient = TextPath::Orient::Tangent})));
     return g;
   }
 

@@ -163,16 +163,11 @@ inline SkColor4f C5(uint32_t rgb, float a = 1.0f) noexcept {
 /** Raw, unsnapped — for the greyscale star tile, whose 8-bit greyscale
  *  palette does not sit on the 5-bit grid, and for the body text. Neither
  *  is nav art. */
-constexpr SkColor4f C(uint32_t rgb, float a = 1.0f) noexcept {
-  return {(float)((rgb >> 16u) & 0xffu) / 255.0f,
-          (float)((rgb >> 8u) & 0xffu) / 255.0f, (float)(rgb & 0xffu) / 255.0f,
-          a};
-}
 
 // Straight out of the shipped HTML:
 // <body bgcolor="#000000" text="#ff0000" link="#ff4c4c" ...>
-constexpr SkColor4f kPageBlack = C(0x000000);
-constexpr SkColor4f kBodyText = C(0xFF0000);
+constexpr SkColor4f kPageBlack = hex(0x000000);
+constexpr SkColor4f kBodyText = hex(0xFF0000);
 
 // The label treatment, pixel-sampled and identical on all twelve GIFs
 const SkColor4f kLabel = C5(0xFFFF00);
