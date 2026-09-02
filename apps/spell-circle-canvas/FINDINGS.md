@@ -212,3 +212,52 @@ it stands under the pass's lights.
 Assert once fixed: render a Variant pass on both tiers over a body under
 one directional light and compare the two plates within the tier
 ceiling; the overlay's shading must agree, not just its coverage.
+
+## weave_unicode_bench does not compile
+
+`BM_LineBreaks` declares `std::vector<uint32_t> breaks` and hands it to
+`unicode::lineBreaks`, whose out-parameter overload takes
+`std::vector<LineBreak>&`. Nothing else in the file uses the value, so
+the only consumer of the wrong type is the call that fails. The `benches`
+target therefore cannot build, and `bench_ledger.py` cannot run.
+
+Intended: every feature's bench builds through the `benches` target, so
+the ledger has a median to judge.
+
+Assert once fixed: `cmake --build build --config Release --target benches`
+succeeds, and `bench_ledger.py` reports a median for `BM_LineBreaks`.
+
+## The mesh painter's agreement with the host is asserted nowhere
+
+`world_diligent_test` compared a lit mesh and its normal buffer drawn on
+the host against the same drawn through `diligent::painterRuntime`,
+against a mean and a p99 chosen for those two cases with no baseline
+behind them. That comparison belongs to `plate_ledger.py --tier
+world-gpu`, which judges the same question against a committed baseline
+and a per-sketch tolerance — but no sketch in the registry draws through
+`painterRuntime`, so no tier renders it. The painter's own behaviour is
+still asserted (a panel is the same pixels on both executors, an unlit
+surface is brighter than a lit one); its whole-picture parity with the
+host is not.
+
+Intended: every claim a promoted case made is judged by the instrument it
+was promoted to.
+
+Assert once fixed: a set sketch stands a lit mesh through
+`painterRuntime`, and `--tier world-gpu` holds it against the CPU tier's
+plate within that sketch's stated tolerance.
+
+## The paragraph paint's whole-page render is judged by nothing
+
+`weave_paint_test` rendered two thousand words under three runtime
+shaders onto a 1200×900 surface and asserted that one pixel differed
+from the background. The layout half of that case and the
+preset-resolution half are now their own cases; the render left ctest,
+because byte identity of a rendered page is the plate ledger's verdict
+and not a unit test's. No sketch draws it yet, so nothing renders it.
+
+Intended: a picture a test used to compare is compared by the tier that
+owns pictures.
+
+Assert once fixed: a canvas sketch lays a long paragraph under the
+shader presets, and the full plate tier holds it byte for byte.
