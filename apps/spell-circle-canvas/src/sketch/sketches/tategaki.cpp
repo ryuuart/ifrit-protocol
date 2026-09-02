@@ -25,8 +25,8 @@
 #include <sigilcompose/shape/Shapes.h>
 #include <sigilcompose/typography/TextFx.h>
 #include <sigilsketch/canvas/Sketch.h>
-#include <sigilweave/fonts/FontContext.h>
-#include <sigilweave/ports/SystemFontManager.h>
+
+#include "VerticalSpecimen.h"
 
 namespace sketch = sigil::sketch;
 
@@ -35,68 +35,20 @@ using sigil::compose::toU8;
 using namespace std::chrono_literals;
 
 namespace {
-/** The fonts this piece measures with. Leaked deliberately: it owns
- *  Skia-backed state, and a static destructor racing Skia teardown is a
- *  class of crash worth not having. */
-sigil::weave::FontContext& fonts() {
-  static auto* context =
-      new sigil::weave::FontContext(sigil::weave::ports::systemFontManager());
-  return *context;
-}
 
-/** The canvas this piece was drawn against, which is also the default a
- *  sketch gets when it declares none. */
-constexpr SkSize kSceneSize = {900, 640};
+constexpr SkSize kSceneSize = vertical::kSceneSize;
 
 namespace tategaki {
-
-constexpr SkColor4f kSumi{0.055f, 0.051f, 0.047f, 1};  // ink ground
-constexpr SkColor4f kSumiLift{0.086f, 0.078f, 0.070f, 1};
-constexpr SkColor4f kGofun{0.921f, 0.906f, 0.870f, 1};  // shell white
-constexpr SkColor4f kAi{0.478f, 0.588f, 0.678f, 1};     // indigo
-constexpr SkColor4f kAka{0.847f, 0.294f, 0.216f, 1};    // vermilion
+// The chassis: the face, the two style registers and the specimen block,
+// plus this plate's inks — it is printed white on a sumi ground.
+using namespace vertical;
+using namespace vertical::ink;
 
 constexpr float kW = kSceneSize.fWidth, kH = kSceneSize.fHeight;
 constexpr float kBodySize = 30;
 constexpr float kColumnBlockW = 420;
 constexpr float kColumnBlockH = 436;
 constexpr float kColumnBlockRight = 56;
-
-/** The mincho face the plate is set in, or whatever the platform offers.
- *  Resolved once: matchFamilyStyle walks the system cascade. */
-inline sk_sp<SkTypeface> mincho() {
-  static sk_sp<SkTypeface> face = [] {
-    sk_sp<SkTypeface> matched = fonts().fontManager()->matchFamilyStyle(
-        "Hiragino Mincho ProN", SkFontStyle());
-    return matched ? matched : fonts().defaultTypeface();
-  }();
-  return face;
-}
-
-inline sigil::weave::TextStyle body(
-    float size, SkColor4f color,
-    sigil::weave::VerticalForm form = sigil::weave::VerticalForm::kAuto) {
-  sigil::weave::TextStyle s;
-  s.shaping.typeface = mincho();
-  s.shaping.fontSize = size;
-  s.shaping.languageTag = "ja";
-  s.shaping.verticalForm = form;
-  s.paint.foreground.setColor(color.toSkColor());
-  s.paint.foreground.setAntiAlias(true);
-  return s;
-}
-
-/** Latin captions, which stay horizontal — the plate labels itself in the
- *  other writing mode so the two are side by side. */
-inline sigil::weave::TextStyle label(float size, SkColor4f color,
-                                     float tracking = 0) {
-  sigil::weave::TextStyle s;
-  s.shaping.fontSize = size;
-  s.shaping.letterSpacing = tracking;
-  s.paint.foreground.setColor(color.toSkColor());
-  s.paint.foreground.setAntiAlias(true);
-  return s;
-}
 
 }  // namespace tategaki
 
@@ -117,14 +69,13 @@ struct Tategaki final : sketch::Sketch {
    *  vocabulary, side by side at a size where the difference reads. */
   Element specimen(const char* caption, RichText run) {
     namespace tg = tategaki;
-    return box()
-        .column()
-        .gap(12)
-        .child(text(toU8(caption), tg::label(12, tg::kAi, 2)))
-        .child(text(std::move(run))
-                   .width(Dim(46.0f))
-                   .height(Dim(140.0f))
-                   .writingMode(sigil::weave::WritingMode::kVerticalRL));
+    return tg::specimen(
+        caption, tg::label(12, tg::kAi, 2),
+        text(std::move(run))
+            .width(Dim(46.0f))
+            .height(Dim(140.0f))
+            .writingMode(sigil::weave::WritingMode::kVerticalRL),
+        0.0f, 12.0f);
   }
 
   Element describe() {

@@ -40,9 +40,9 @@
 #include <sigilcompose/shape/Shapes.h>
 #include <sigilcompose/typography/TextFx.h>
 #include <sigilsketch/canvas/Sketch.h>
-#include <sigilweave/fonts/FontContext.h>
-#include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Features.h>
+
+#include "VerticalSpecimen.h"
 
 namespace sketch = sigil::sketch;
 
@@ -51,52 +51,20 @@ using sigil::compose::toU8;
 using namespace std::chrono_literals;
 
 namespace {
-/** The fonts this piece measures with. Leaked deliberately: it owns
- *  Skia-backed state, and a static destructor racing Skia teardown is a
- *  class of crash worth not having. */
-sigil::weave::FontContext& fonts() {
-  static auto* context =
-      new sigil::weave::FontContext(sigil::weave::ports::systemFontManager());
-  return *context;
-}
 
-constexpr SkSize kSceneSize = {900, 640};
+constexpr SkSize kSceneSize = vertical::kSceneSize;
 
 namespace bousen {
-
-constexpr SkColor4f kKinari{0.937f, 0.918f, 0.878f, 1};  // unbleached paper
-constexpr SkColor4f kKinariLift{0.961f, 0.945f, 0.909f, 1};
-constexpr SkColor4f kSumi{0.114f, 0.106f, 0.098f, 1};  // ink
-constexpr SkColor4f kAka{0.741f, 0.196f, 0.153f, 1};   // vermilion
-constexpr SkColor4f kAi{0.192f, 0.302f, 0.404f, 1};    // indigo
-constexpr SkColor4f kUsu{0.612f, 0.588f, 0.545f, 1};   // pale ink
+// The chassis: the face, the two style registers and the specimen block,
+// plus this plate's inks — it is printed as ink on unbleached paper.
+using namespace vertical;
+using namespace vertical::paper;
 
 constexpr float kW = kSceneSize.fWidth, kH = kSceneSize.fHeight;
 constexpr float kBodySize = 27;
 constexpr float kBlockW = 300;
 constexpr float kBlockH = 430;
 constexpr float kBlockRight = 60;
-
-/** The mincho face the plate is set in, or whatever the platform offers.
- *  Resolved once: matchFamilyStyle walks the system cascade. */
-inline sk_sp<SkTypeface> mincho() {
-  static sk_sp<SkTypeface> face = [] {
-    sk_sp<SkTypeface> matched = fonts().fontManager()->matchFamilyStyle(
-        "Hiragino Mincho ProN", SkFontStyle());
-    return matched ? matched : fonts().defaultTypeface();
-  }();
-  return face;
-}
-
-inline sigil::weave::TextStyle body(float size, SkColor4f color) {
-  sigil::weave::TextStyle s;
-  s.shaping.typeface = mincho();
-  s.shaping.fontSize = size;
-  s.shaping.languageTag = "ja";
-  s.paint.foreground.setColor(color.toSkColor());
-  s.paint.foreground.setAntiAlias(true);
-  return s;
-}
 
 /** The same body style asking the face for the metrics and forms it keeps
  *  for a column: punctuation pulled onto the column axis, full-width marks
@@ -159,30 +127,26 @@ struct Bousen final : sketch::Sketch {
     namespace bs = bousen;
     sigil::weave::TextStyle style = bs::body(18, bs::kSumi);
     style.paint = bs::banded(bs::kSumi, kind, band, thickness);
-    return box()
-        .column()
-        .gap(8)
-        .child(text(toU8(caption), bs::label(9, bs::kUsu, 0.6f))
-                   .width(Dim(132.0f)))
-        .child(text(u8"\xe5\x82\x8d\xe7\xb7\x9a\xe4\xbe\x8b", style)
-                   .width(Dim(28.0f))
-                   .height(Dim(62.0f))
-                   .writingMode(sigil::weave::WritingMode::kVerticalRL));
+    return bs::specimen(
+        caption, bs::label(9, bs::kUsu, 0.6f),
+        text(u8"\xe5\x82\x8d\xe7\xb7\x9a\xe4\xbe\x8b", style)
+            .width(Dim(28.0f))
+            .height(Dim(62.0f))
+            .writingMode(sigil::weave::WritingMode::kVerticalRL),
+        132.0f, 8.0f);
   }
 
   /** One punctuation column, captioned: the same characters set twice,
    *  once as the face gives them and once as it gives them when asked. */
   Element specimen(const char* caption, const sigil::weave::TextStyle& style) {
     namespace bs = bousen;
-    return box()
-        .column()
-        .gap(10)
-        .child(
-            text(toU8(caption), bs::label(11, bs::kAi, 1.5f)).width(Dim(96.0f)))
-        .child(text(u8"「あっ」、。", style)
-                   .width(Dim(42.0f))
-                   .height(Dim(150.0f))
-                   .writingMode(sigil::weave::WritingMode::kVerticalRL));
+    return bs::specimen(
+        caption, bs::label(11, bs::kAi, 1.5f),
+        text(u8"「あっ」、。", style)
+            .width(Dim(42.0f))
+            .height(Dim(150.0f))
+            .writingMode(sigil::weave::WritingMode::kVerticalRL),
+        96.0f, 10.0f);
   }
 
   Element describe() {

@@ -25,8 +25,8 @@
 
 #include <sigilcompose/shape/Shapes.h>
 #include <sigilsketch/canvas/Sketch.h>
-#include <sigilweave/fonts/FontContext.h>
-#include <sigilweave/ports/SystemFontManager.h>
+
+#include "VerticalSpecimen.h"
 
 namespace sketch = sigil::sketch;
 
@@ -34,25 +34,14 @@ using namespace sigil::compose;
 using sigil::compose::toU8;
 
 namespace {
-/** The fonts this piece measures with. Leaked deliberately: it owns
- *  Skia-backed state, and a static destructor racing Skia teardown is a
- *  class of crash worth not having. */
-sigil::weave::FontContext& fonts() {
-  static auto* context =
-      new sigil::weave::FontContext(sigil::weave::ports::systemFontManager());
-  return *context;
-}
 
-constexpr SkSize kSceneSize = {900, 640};
+constexpr SkSize kSceneSize = vertical::kSceneSize;
 
 namespace mawari {
-
-constexpr SkColor4f kKinari{0.937f, 0.918f, 0.878f, 1};  // unbleached paper
-constexpr SkColor4f kKinariLift{0.961f, 0.945f, 0.909f, 1};
-constexpr SkColor4f kSumi{0.114f, 0.106f, 0.098f, 1};  // ink
-constexpr SkColor4f kAka{0.741f, 0.196f, 0.153f, 1};   // vermilion
-constexpr SkColor4f kAi{0.192f, 0.302f, 0.404f, 1};    // indigo
-constexpr SkColor4f kUsu{0.612f, 0.588f, 0.545f, 1};   // pale ink
+// The chassis: the face, the two style registers and the specimen block,
+// plus this plate's inks — it is printed as ink on unbleached paper.
+using namespace vertical;
+using namespace vertical::paper;
 
 constexpr float kW = kSceneSize.fWidth, kH = kSceneSize.fHeight;
 
@@ -61,39 +50,6 @@ constexpr float kW = kSceneSize.fWidth, kH = kSceneSize.fHeight;
 constexpr float kBlockLeft = 380, kBlockTop = 88;
 constexpr float kBlockW = 460, kBlockH = 470;
 constexpr float kDiscSize = 168, kSealSize = 104;
-
-/** The mincho face the plate is set in, or whatever the platform offers.
- *  Resolved once: matchFamilyStyle walks the system cascade. */
-inline sk_sp<SkTypeface> mincho() {
-  static sk_sp<SkTypeface> face = [] {
-    sk_sp<SkTypeface> matched = fonts().fontManager()->matchFamilyStyle(
-        "Hiragino Mincho ProN", SkFontStyle());
-    return matched ? matched : fonts().defaultTypeface();
-  }();
-  return face;
-}
-
-inline sigil::weave::TextStyle body(float size, SkColor4f color) {
-  sigil::weave::TextStyle s;
-  s.shaping.typeface = mincho();
-  s.shaping.fontSize = size;
-  s.shaping.languageTag = "ja";
-  s.paint.foreground.setColor(color.toSkColor());
-  s.paint.foreground.setAntiAlias(true);
-  return s;
-}
-
-/** Latin captions, which stay horizontal — the plate labels itself in the
- *  other writing mode so the two are side by side. */
-inline sigil::weave::TextStyle label(float size, SkColor4f color,
-                                     float tracking = 0) {
-  sigil::weave::TextStyle s;
-  s.shaping.fontSize = size;
-  s.shaping.letterSpacing = tracking;
-  s.paint.foreground.setColor(color.toSkColor());
-  s.paint.foreground.setAntiAlias(true);
-  return s;
-}
 
 }  // namespace mawari
 
@@ -110,17 +66,14 @@ struct Mawarikomi final : sketch::Sketch {
   Element specimen(const char* caption, const char8_t* text8,
                    const sigil::weave::TextStyle& style) {
     namespace mw = mawari;
-    return box()
-        .column()
-        .gap(8)
-        .child(text(toU8(caption), mw::label(10, mw::kAi, 1.4f))
-                   .width(Dim(150.0f)))
-        .child(text(text8, style)
-                   .width(Dim(46.0f))
-                   .height(Dim(216.0f))
-                   .writingMode(sigil::weave::WritingMode::kVerticalRL)
-                   .maxLines(1)
-                   .ellipsis(u8"…"));
+    return mw::specimen(caption, mw::label(10, mw::kAi, 1.4f),
+                        text(text8, style)
+                            .width(Dim(46.0f))
+                            .height(Dim(216.0f))
+                            .writingMode(sigil::weave::WritingMode::kVerticalRL)
+                            .maxLines(1)
+                            .ellipsis(u8"…"),
+                        150.0f, 8.0f);
   }
 
   Element describe() {
