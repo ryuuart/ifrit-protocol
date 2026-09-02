@@ -3,7 +3,7 @@
  * without one.
  */
 
-#include "sigilgeometry/mesh/Spirv.h"
+#include "sigilgeometry/mesh/pop/Spirv.h"
 
 namespace sigil::geometry::mesh {
 

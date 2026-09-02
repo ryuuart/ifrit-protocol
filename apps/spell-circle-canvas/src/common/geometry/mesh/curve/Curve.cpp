@@ -1,8 +1,8 @@
 /** @file
  * Splines and the rails read off them: evaluation, arc-length sampling,
  * the two rails (parallel-transport frames and the world-vertical hang),
- * the sweep over a spline, and projection to a 2D path under a camera.
- * What a rail carries is `Sweep.cpp`.
+ * and projection to a 2D path under a camera. What a rail CARRIES is the
+ * swept sink, which is a point operator and lives with them.
  */
 
 #include "sigilgeometry/mesh/curve/Curve.h"
@@ -258,13 +258,6 @@ std::vector<Frame3> hangFrames(const Spline3& spline, int sections, float head,
     out.push_back(frame);
   }
   return out;
-}
-
-Mesh sweep(const Spline3& spline, const path::Polyline& profile,
-           const SweepOptions& options) {
-  SweepOptions railed = options;
-  if (spline.closed) railed.caps = false;  // a loop has no ends to close
-  return sweep(frames(spline, options.segments, options.up), profile, railed);
 }
 
 SkPath project(const Spline3& spline, const camera::Camera& camera,

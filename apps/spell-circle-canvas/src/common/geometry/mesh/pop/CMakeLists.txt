@@ -1,7 +1,8 @@
 # Point operators and the clouds they act on: cloud storage, generators,
 # modifiers, instancing and the billboard rasterizer, plus the pop chain
 # language's field table, its CPU reference executor and the
-# mesh-forming sinks.
+# mesh-forming sinks — the swept operator among them, because carrying a
+# profile along a rail is GPU-focused mesh work like the rest of it.
 #
 # AND THE DEVICE EXECUTORS BESIDE THEM, in device/: the chain cooked by
 # dispatching its kernel, and the sweep's rings formed by dispatching
@@ -24,6 +25,15 @@ sigil_slang_module(NAME Pop
   SPIRV_VAR SIGIL_POP_KERNEL_SPV_H)
 sigil_slang_kernel_flags(${SIGIL_POP_KERNEL_CPP})
 
+# THE RING KERNEL, the swept operator's own, compiled the same two ways.
+sigil_slang_module(NAME Sweep
+  SOURCE ${CMAKE_CURRENT_LIST_DIR}/kernels/Sweep.slang
+  ENTRIES sigilSweepKernel
+  OUT_VAR SIGIL_SWEEP_KERNEL_H
+  CPP_VAR SIGIL_SWEEP_KERNEL_CPP
+  SPIRV_VAR SIGIL_SWEEP_KERNEL_SPV_H)
+sigil_slang_kernel_flags(${SIGIL_SWEEP_KERNEL_CPP})
+
 # The device half, present only where a device feature was built.
 if(TARGET SigilGeometryDevice)
   set(SIGIL_POP_DEVICE_SOURCES
@@ -44,13 +54,21 @@ add_library(SigilGeometryMeshPop STATIC
   Modifiers.cpp
   Sinks.cpp
   Spirv.cpp
+  Sweep.cpp
   ${SIGIL_POP_KERNEL_CPP}
   ${SIGIL_POP_KERNEL_H}
   ${SIGIL_POP_KERNEL_SPV_H}
+  ${SIGIL_SWEEP_KERNEL_CPP}
+  ${SIGIL_SWEEP_KERNEL_H}
+  ${SIGIL_SWEEP_KERNEL_SPV_H}
   ${CMAKE_CURRENT_LIST_DIR}/kernels/Pop.slang
+  ${CMAKE_CURRENT_LIST_DIR}/kernels/Sweep.slang
+  ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/mesh/curve/Sweep.h
   ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/mesh/pop/Kernel.h
   ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/mesh/pop/Points.h
   ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/mesh/pop/Pop.h
+  ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/mesh/pop/Spirv.h
+  ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/mesh/pop/Sweep.h
 )
 target_compile_features(SigilGeometryMeshPop PUBLIC cxx_std_20)
 # The generated headers are PUBLIC because a runtime that dispatches the
@@ -58,8 +76,8 @@ target_compile_features(SigilGeometryMeshPop PUBLIC cxx_std_20)
 # compiling the source a second time.
 target_include_directories(SigilGeometryMeshPop
   PUBLIC ${SIGIL_GEOMETRY_INCLUDE_DIR} ${SIGIL_SLANG_GENERATED_DIR})
-# The Runtime seam is a comparable erased value, which is
-# SigilCoreComparable's shape.
+# The Runtime seams — the cook's and the sweep's — are comparable erased
+# values, which is SigilCoreComparable's shape.
 target_link_libraries(SigilGeometryMeshPop PUBLIC SigilGeometryMeshCurve
   SigilCoreComparable)
 # The device executors dispatch the kernels this feature compiled, on the
@@ -83,6 +101,7 @@ add_executable(geometry_mesh_pop_test
   test/PointsTest.cpp
   test/PopTest.cpp
   test/RuntimeTest.cpp
+  test/SweepTest.cpp
 )
 target_include_directories(geometry_mesh_pop_test PRIVATE ${CMAKE_CURRENT_LIST_DIR}/../../test)
 target_link_libraries(geometry_mesh_pop_test PRIVATE SigilGeometryMeshPop

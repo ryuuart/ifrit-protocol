@@ -1,9 +1,13 @@
 #pragma once
 
 /** @file
- * The swept primitive: one 2D profile carried along a rail into a Mesh.
+ * The SWEPT OPERATOR: one 2D profile carried along a rail into a Mesh.
  * A circle makes a tube, a two-point line makes a ribbon, any flattened
  * outline makes an extrusion.
+ *
+ * It sits with the point operators because it is one: GPU-focused mesh
+ * work described as a value, performed by an executor, with a device
+ * executor beside the host one dispatching the same arithmetic.
  *
  * A sweep is two things, and only one of them is arithmetic. The RING
  * VERTICES are a pure function of one frame, one profile point and the
@@ -24,7 +28,6 @@
 
 #include <include/core/SkPath.h>
 #include <sigilcore/comparable/Erased.h>
-#include <sigilgeometry/kit/Solids.h>
 
 #include <cstdint>
 #include <functional>
@@ -34,6 +37,7 @@
 #include <vector>
 
 #include "sigilgeometry/mesh/Mesh.h"
+#include "sigilgeometry/mesh/curve/Curve.h"
 #include "sigilgeometry/mesh/curve/Frame.h"
 #include "sigilgeometry/path/Polyline.h"
 
@@ -204,14 +208,6 @@ struct SweepOptions {
 bool describe(const std::vector<Frame3>& rail, const path::Polyline& profile,
               const SweepOptions& options, kernel::Dispatch* out);
 
-/** Carry @p profile along @p rail into one Mesh. THE swept primitive:
- *  a circle profile forms a tube, a two-point line forms a ribbon or
- *  a banner, a flattened outline forms an extrusion along the curve.
- *  Each ring is the profile placed on one frame — x along the
- *  binormal, y against the normal — scaled by `scale` times `taper`
- *  at that frame's t. u runs across the profile and v is the frame's
- *  t. The ring vertices are formed on `options.runtime`; every executor
- *  writes exactly these vertices from the same rail. */
 /**
  * THE DEVICE EXECUTOR, beside the CPU one: the `SweepRuntime` that forms
  * a sweep's rings on @p device.
@@ -238,7 +234,21 @@ bool describe(const std::vector<Frame3>& rail, const path::Polyline& profile,
  */
 SweepRuntime deviceRuntime(::sigil::geometry::device::Device& device);
 
+/** Carry @p profile along @p rail into one Mesh. THE swept primitive:
+ *  a circle profile forms a tube, a two-point line forms a ribbon or
+ *  a banner, a flattened outline forms an extrusion along the curve.
+ *  Each ring is the profile placed on one frame — x along the
+ *  binormal, y against the normal — scaled by `scale` times `taper`
+ *  at that frame's t. u runs across the profile and v is the frame's
+ *  t. The ring vertices are formed on `options.runtime`; every executor
+ *  writes exactly these vertices from the same rail. */
 Mesh sweep(const std::vector<Frame3>& rail, const path::Polyline& profile,
+           const SweepOptions& options = {});
+
+/** The same sweep over a spline, whose parallel-transport frames are
+ *  the rail (`segments` of them, seeded by `up`). A closed spline has
+ *  no ends, so it drops `caps`. */
+Mesh sweep(const Spline3& spline, const path::Polyline& profile,
            const SweepOptions& options = {});
 
 }  // namespace sigil::geometry::mesh::curve

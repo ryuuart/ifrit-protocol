@@ -24,7 +24,7 @@
 #include <utility>
 #include <vector>
 
-#include <sigilgeometry/mesh/curve/Sweep.h>
+#include <sigilgeometry/mesh/pop/Sweep.h>
 
 namespace sigil::geometry::mesh::curve {
 

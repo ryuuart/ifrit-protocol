@@ -26,8 +26,8 @@
 #include <variant>
 #include <vector>
 
-#include "sigilgeometry/mesh/curve/Curve.h"
 #include "sigilgeometry/mesh/pop/Points.h"
+#include "sigilgeometry/mesh/pop/Sweep.h"
 
 namespace sigil::geometry::device {
 class Device;

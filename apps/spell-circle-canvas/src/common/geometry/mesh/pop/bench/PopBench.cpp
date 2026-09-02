@@ -1,6 +1,8 @@
 /** @file
- * Benchmarks of the pop cook: each operator over a thousand points, and
- * whole chains by count and operator mix.
+ * Benchmarks of the point operators: the cook, each operator over a
+ * thousand points, whole chains by count and operator mix, and the swept
+ * operator by tessellation and by profile — plus the ring seam a device
+ * executor replaces on its own.
  */
 
 // geometry_pop_bench — the CPU pop executor under load: what each
@@ -13,6 +15,7 @@
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/pop/Pop.h>
+#include <sigilgeometry/mesh/pop/Sweep.h>
 
 #include <cmath>
 #include <functional>
@@ -206,6 +209,119 @@ BENCHMARK(BM_PopRuntime_Direct)
     ->Arg(1)
     ->Arg(1000)
     ->Unit(benchmark::kMicrosecond);
+
+
+/** A closed trefoil: curvature that turns in all three axes, so a rail
+ *  read off it has inflections to carry through rather than a planar
+ *  arc. */
+curve::Spline3 knot(int knots) {
+  curve::Spline3 spline;
+  spline.closed = true;
+  for (int i = 0; i < knots; ++i) {
+    const float t = 2.0f * std::numbers::pi_v<float> * (float)i / (float)knots;
+    spline.points.emplace_back((std::sin(t) + 2.0f * std::sin(2 * t)) * 60.0f,
+                               (std::cos(t) - 2.0f * std::cos(2 * t)) * 60.0f,
+                               -std::sin(3 * t) * 60.0f);
+  }
+  return spline;
+}
+
+void countVertices(benchmark::State& state, const Mesh& m) {
+  state.counters["vertices/s"] = benchmark::Counter(
+      (double)m.vertexCount(), benchmark::Counter::kIsIterationInvariantRate);
+  state.counters["triangles"] = (double)m.triangleCount();
+}
+
+void BM_Sweep_Circle(benchmark::State& state) {
+  const curve::Spline3 spline = knot(9);
+  const path::Polyline profile = curve::profile::circle((int)state.range(1));
+  const curve::SweepOptions options{.segments = (int)state.range(0),
+                                    .scale = 6};
+  Mesh last;
+  for ([[maybe_unused]] auto iteration : state) {
+    last = curve::sweep(spline, profile, options);
+    benchmark::DoNotOptimize(last.positions.data());
+  }
+  countVertices(state, last);
+}
+BENCHMARK(BM_Sweep_Circle)
+    ->ArgsProduct({{32, 256, 1024}, {6, 24}})
+    ->ArgNames({"segments", "sides"})
+    ->Unit(benchmark::kMicrosecond)
+    ->Complexity(benchmark::oN);
+
+/** THE RING SEAM ALONE: what a rail and a profile become as a dispatch,
+ *  and the executor's own call over it, without the topology, the caps or
+ *  the pour into a mesh's lanes. It is the half a device replaces, so a
+ *  device executor's arm has a host number to stand beside. */
+void BM_Sweep_Rings(benchmark::State& state) {
+  const curve::Spline3 spline = knot(9);
+  const path::Polyline profile = curve::profile::circle(24);
+  const curve::SweepOptions options{.segments = (int)state.range(0),
+                                    .scale = 6};
+  const std::vector<curve::Frame3> rail =
+      curve::frames(spline, options.segments, options.up);
+  curve::kernel::Dispatch work;
+  curve::describe(rail, profile, options, &work);
+  std::vector<glm::vec4> positions(work.vertices());
+  std::vector<glm::vec4> normals(work.vertices());
+  for ([[maybe_unused]] auto iteration : state) {
+    options.runtime->rings(work, positions.data(), normals.data());
+    benchmark::DoNotOptimize(positions.data());
+  }
+  state.counters["vertices/s"] =
+      benchmark::Counter((double)state.iterations() * (double)work.vertices(),
+                         benchmark::Counter::kIsRate);
+}
+BENCHMARK(BM_Sweep_Rings)
+    ->Arg(32)
+    ->Arg(256)
+    ->Arg(1024)
+    ->Unit(benchmark::kMicrosecond)
+    ->Complexity(benchmark::oN);
+
+void BM_Sweep_Line(benchmark::State& state) {
+  const curve::Spline3 spline = knot(9);
+  const path::Polyline profile = curve::profile::line();
+  const curve::SweepOptions options{
+      .segments = (int)state.range(0),
+      .scale = 24,
+      .normals = curve::SweepOptions::Normals::Frame};
+  Mesh last;
+  for ([[maybe_unused]] auto iteration : state) {
+    last = curve::sweep(spline, profile, options);
+    benchmark::DoNotOptimize(last.positions.data());
+  }
+  countVertices(state, last);
+}
+BENCHMARK(BM_Sweep_Line)
+    ->RangeMultiplier(4)
+    ->Range(32, 2048)
+    ->Unit(benchmark::kMicrosecond)
+    ->Complexity(benchmark::oN);
+
+// The hung rail, which walks the loop in parameter rather than by arc
+// length and re-derives its own tangents: a different cost per section
+// from the transported rail above.
+void BM_Sweep_Hang(benchmark::State& state) {
+  const curve::Spline3 spline = knot(9);
+  const path::Polyline profile = curve::profile::line();
+  const curve::SweepOptions options{
+      .scale = 24, .normals = curve::SweepOptions::Normals::Frame};
+  const int sections = (int)state.range(0);
+  Mesh last;
+  for ([[maybe_unused]] auto iteration : state) {
+    last = curve::sweep(curve::hangFrames(spline, sections, 1, 0.4f), profile,
+                        options);
+    benchmark::DoNotOptimize(last.positions.data());
+  }
+  countVertices(state, last);
+}
+BENCHMARK(BM_Sweep_Hang)
+    ->RangeMultiplier(4)
+    ->Range(32, 2048)
+    ->Unit(benchmark::kMicrosecond)
+    ->Complexity(benchmark::oN);
 
 }  // namespace
 

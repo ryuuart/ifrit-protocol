@@ -11,7 +11,7 @@
  * about.
  */
 
-#include "sigilgeometry/mesh/curve/Sweep.h"
+#include "sigilgeometry/mesh/pop/Sweep.h"
 
 #include <sigilslang/Sweep.spv.h>
 
@@ -21,7 +21,7 @@
 #include <cstdint>
 #include <utility>
 
-#include "sigilgeometry/mesh/Spirv.h"
+#include "sigilgeometry/mesh/pop/Spirv.h"
 
 /** THE KERNEL ITSELF, as the build's C++ emitter names it. Its two
  *  opaque parameters are the group range and the global bindings, whose
@@ -262,6 +262,13 @@ Mesh sweep(const std::vector<Frame3>& rail, const path::Polyline& profile,
   }
   if (geometric) out.computeNormals();
   return out;
+}
+
+Mesh sweep(const Spline3& spline, const path::Polyline& profile,
+           const SweepOptions& options) {
+  SweepOptions railed = options;
+  if (spline.closed) railed.caps = false;  // a loop has no ends to close
+  return sweep(frames(spline, options.segments, options.up), profile, railed);
 }
 
 }  // namespace sigil::geometry::mesh::curve

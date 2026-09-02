@@ -11,10 +11,15 @@
 
 #include "sigilgeometry/mesh/pop/Kernel.h"
 
+#include <sigilslang/Pop.spv.h>
+
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <variant>
+#include <vector>
+
+#include "sigilgeometry/mesh/pop/Spirv.h"
 
 /** THE KERNEL ITSELF, as the build's C++ emitter names it. Its two
  *  opaque parameters are the group range and the global bindings, whose
@@ -200,6 +205,17 @@ void run(const Dispatch& dispatch, glm::vec4* dst, glm::vec4* a, glm::vec4* b,
   VaryingInput varying{
       {0, 0, 0}, {(uint32_t)((count + kGroupSize - 1) / kGroupSize), 1, 1}};
   sigilPopKernel(&varying, nullptr, &globals);
+}
+
+std::span<const uint32_t> spirv() {
+  // Decorated HERE, beside the kernel, rather than by whichever runtime
+  // dispatches it: a module that means one thing on one device and
+  // another on the next is not a single source, and a second backend
+  // would have to remember to do this.
+  static const std::vector<uint32_t> module = noContraction(
+      {slangmodule::Pop::kSpirv,
+       sizeof(slangmodule::Pop::kSpirv) / sizeof(slangmodule::Pop::kSpirv[0])});
+  return {module.data(), module.size()};
 }
 
 }  // namespace sigil::geometry::mesh::kernel

@@ -415,7 +415,8 @@ own repertoire here rather than inside whatever draws through it.
   because blending two levels is the same bleed by the other door.
 
 **`mesh/curve`** — `SigilGeometryMeshCurve`, needs `mesh` and
-`mesh/camera`.
+`mesh/camera`. The spline and the rails read off it; what a rail
+CARRIES is a point operator and lives in `mesh/pop`.
 
 - **`mesh/curve/Frame.h`** — `Frame3`, the moving frame every rail is a
   sequence of. Its own header because both the sweep and the pose stand
@@ -425,17 +426,57 @@ own repertoire here rather than inside whatever draws through it.
   `sampleArcLength()`; the two rails — `curve::frames()`, parallel-transport
   `Frame3`s that do not flip at inflections, and `curve::hangFrames()`, a
   window of a closed loop whose across-vector is held world-vertical; the
-  `curve::sweep()` overload over a spline; and `project()` to draw the
-  curve as a 2D path under a camera. It includes `Sweep.h`, so a
-  consumer that spells only this one reaches everything a sweep needs.
-- **`mesh/curve/Sweep.h`** — the swept primitive as a subject: the
+  and `project()` to draw the curve as a 2D path under a camera.
+- **`mesh/curve/Pose.h`** — the rail addressed by DISTANCE rather than by
+  index: `curve::poseAlong()` answers the `Frame3` at an arc length, over
+  a rail you hold or over a spline that builds one, under the same
+  `path::Wrap` policy the 2D side uses. A pose IS a rail frame — the same
+  type, measured a different way — so a camera flying a curve and a ring
+  of a sweep speak one vocabulary.
+
+**`mesh/pop`** — `SigilGeometryMeshPop`, needs `mesh/curve` (and through
+it `mesh` and `mesh/camera`); its generators draw from `path`'s noise.
+Point operators are the subject; the point cloud is what they operate
+on, so the cloud vocabulary lives in this feature beside the chain
+language — and so does every piece of GPU-focused mesh work the library
+has: the swept operator with its own kernel, both device executors, and
+the decoration a compiled module needs before a driver may be handed it.
+
+- **`mesh/pop/Points.h`** — `Cloud` and its lane accessors (`Cloud.cpp`);
+  the generators `onSpline()`, `grid()`, `ring()`, `scatterBox()` and
+  `onMesh()` (`Generators.cpp`); the modifiers `jitter()` and
+  `displaceNoise()`, the consumers `instance()` and `quads()` (stamp a
+  mesh at every point into one merged mesh) and `promoteToPrims()`
+  (`Modifiers.cpp`); and `drawBillboards()`, camera-facing sprites
+  (`Billboards.cpp`).
+- **`mesh/pop/Pop.h`** — the operator chain language and the runtime seam
+  it executes through, both in the `pop` scope: `pop::on()` opens a chain,
+  `pop::cook()` evaluates one on the `pop::Runtime` it is given,
+  `pop::Executor` is what a runtime supplies (`pop::Runtime` is an erased
+  value of SigilCoreComparable's shape) and `pop::opName()` names an
+  operator. The field table behind `pop::setField()`/`getField()` is
+  `Fields.cpp`; the built-in executor, the `Runtime::cpu()` value and the
+  `cook()` door that checks an executor's capability before dispatching
+  are `Cook.cpp`; the mesh-forming sinks `pop::cookMesh()` and
+  `cookSweep()` are `Sinks.cpp`.
+- **`mesh/pop/Kernel.h`** — the seam between the two ends of one piece of
+  arithmetic: `kernel::Args` (the argument block, every member a
+  four-component vector so its bytes stand at the same offsets in a
+  uniform buffer), `kernel::Dispatch` (which lane fills each binding
+  role), `has()`, `describe()`, `run()` and `spirv()`. `Kernel.cpp` packs
+  and calls; `Spirv.cpp` decorates the module.
+- **`mesh/pop/Sweep.h`** — the swept operator as a subject: the
   cross-sections `curve::profile::circle()`, `curve::profile::line()` and
   `curve::profile::fromPath()`; `SweepOptions` with `SweepNormals`; the
-  one swept former `curve::sweep()` over a rail; and the seam a device
-  replaces — `curve::SweepExecutor` (one call, `rings()`),
-  `curve::SweepRuntime` holding one, `curve::describe()` turning a rail
-  and a profile into a `curve::kernel::Dispatch`, and `kernel::run()` and
-  `kernel::spirv()` as the two ends of the one arithmetic.
+  two swept formers `curve::sweep()`, over a rail you built and over the
+  spline that builds one; and the seam a device replaces —
+  `curve::SweepExecutor` (one call, `rings()`), `curve::SweepRuntime`
+  holding one, `curve::describe()` turning a rail and a profile into a
+  `curve::kernel::Dispatch`, and `kernel::run()` and `kernel::spirv()` as
+  the two ends of the one arithmetic. `Sweep.cpp` holds the profiles, the
+  packing, the topology and the built-in executor; `device/Sweep.cpp` the
+  device one. `<sigilgeometry/mesh/curve/Sweep.h>` forwards to this
+  header.
 
   **There is one sweep, and the shape is a parameter.** `sweep()` carries
   a 2D `path::Polyline` along a rail: every ring is that contour placed on
@@ -462,48 +503,19 @@ own repertoire here rather than inside whatever draws through it.
   builds a transported rail of `segments` frames first. Both run on
   `SweepOptions::runtime`.
 
-- **`mesh/curve/Pose.h`** — the rail addressed by DISTANCE rather than by
-  index: `curve::poseAlong()` answers the `Frame3` at an arc length, over
-  a rail you hold or over a spline that builds one, under the same
-  `path::Wrap` policy the 2D side uses. A pose IS a rail frame — the same
-  type, measured a different way — so a camera flying a curve and a ring
-  of a sweep speak one vocabulary.
-
-**`mesh/pop`** — `SigilGeometryMeshPop`, needs `mesh/curve` (and through
-it `mesh` and `mesh/camera`); its generators draw from `path`'s noise.
-Point operators are the subject; the point cloud is what they operate
-on, so the cloud vocabulary lives in this feature beside the chain
-language.
-
-- **`mesh/pop/Points.h`** — `Cloud` and its lane accessors (`Cloud.cpp`);
-  the generators `onSpline()`, `grid()`, `ring()`, `scatterBox()` and
-  `onMesh()` (`Generators.cpp`); the modifiers `jitter()` and
-  `displaceNoise()`, the consumers `instance()` and `quads()` (stamp a
-  mesh at every point into one merged mesh) and `promoteToPrims()`
-  (`Modifiers.cpp`); and `drawBillboards()`, camera-facing sprites
-  (`Billboards.cpp`).
-- **`mesh/pop/Pop.h`** — the operator chain language and the runtime seam
-  it executes through, both in the `pop` scope: `pop::on()` opens a chain,
-  `pop::cook()` evaluates one on the `pop::Runtime` it is given,
-  `pop::Executor` is what a runtime supplies (`pop::Runtime` is an erased
-  value of SigilCoreComparable's shape) and `pop::opName()` names an
-  operator. The field table behind `pop::setField()`/`getField()` is
-  `Fields.cpp`; the built-in executor, the `Runtime::cpu()` value and the
-  `cook()` door that checks an executor's capability before dispatching
-  are `Cook.cpp`; the mesh-forming sinks `pop::cookMesh()` and
-  `cookSweep()` are `Sinks.cpp`.
-- **`mesh/pop/Kernel.h`** — the seam between the two ends of one piece of
-  arithmetic: `kernel::Args` (the argument block, every member a
-  four-component vector so its bytes stand at the same offsets in a
-  uniform buffer), `kernel::Dispatch` (which lane fills each binding
-  role), `has()`, `describe()`, `run()` and `spirv()`. `Kernel.cpp` packs
-  and calls; `Spirv.cpp` decorates the module.
-- **`mesh/pop/kernels/Pop.slang`** — the operators themselves, one entry
-  point with the operator chosen by a uniform: one dispatch runs one
+- **`mesh/pop/Spirv.h`** — `mesh::noContraction()`, a compiled module
+  given one `NoContraction` decoration per arithmetic result. It stands
+  here once rather than beside each kernel's own words, because a module
+  that means one thing in one feature and another in the next is not a
+  single source.
+- **`mesh/pop/kernels/Pop.slang`** — the point operators themselves, one
+  entry point with the operator chosen by a uniform: one dispatch runs one
   operator over every point, so the branch is uniform across it, and one
-  entry point is one pipeline and one generated function. `cmake/Slang.cmake`
-  compiles it (`sigil_slang_module` with `CPP_VAR` and `SPIRV_VAR`, and
-  `sigil_slang_kernel_flags` to pin the float model).
+  entry point is one pipeline and one generated function.
+  **`mesh/pop/kernels/Sweep.slang`** is the ring vertex, written the same
+  way. `cmake/Slang.cmake` compiles both (`sigil_slang_module` with
+  `CPP_VAR` and `SPIRV_VAR`, and `sigil_slang_kernel_flags` to pin the
+  float model).
 
 **`mesh/codec`** — `SigilGeometryMeshCodec`, needs `mesh` and
 `mesh/pop`. Its parsers
@@ -572,6 +584,64 @@ the mask on the filter just added — and the builder converts to a
 turn a chain into geometry: `cook()` to a `Cloud`, `cookMesh()` to one
 mesh of stamps, and `cookSweep()` reading the cooked points as the path
 `curve::sweep()` carries a profile along.
+
+
+### The pop family, and where each member runs
+
+Every member of the family is a described VALUE performed by an
+EXECUTOR, and the two columns say which executors there are for it. A
+"kernel" is one piece of Slang this feature compiles twice — to the C++
+the host executor calls, and to the SPIR-V a device executor dispatches
+— so the two tiers are held to bit identity rather than to a tolerance
+wherever the device column says yes. A *host-only* entry is a stated
+boundary and not a gap: the reason is in the operator's own doc comment
+and repeated in one word here, and a device runtime DECLINES such an
+operator by name rather than dropping it, so `pop::cook` stops with a
+message naming both the operator and the runtime.
+
+| Operator | Class | Host | Device | Why, where there is no kernel |
+| --- | --- | --- | --- | --- |
+| `SplineScatter` | generator | yes | seeded on the host, uploaded | a generator makes points rather than mapping over them |
+| `MeshScatter` | generator | yes | seeded on the host, uploaded | as above |
+| `PointSet` | generator | yes | seeded on the host, uploaded | as above |
+| `Jitter` | filter | kernel | kernel | |
+| `Noise` | filter | yes | declines | a field of library sines; a polynomial sine is a different function, not a rounding of one |
+| `Ramp` | filter | kernel | kernel | |
+| `Vary` | filter | kernel | kernel | |
+| `LookAt` | filter | kernel | kernel | |
+| `Math` | filter | kernel | kernel | |
+| `Relax` | filter | yes | declines | a point reads two it does not own, so one lane cannot be both what is read and what is written |
+| `Fill` | creator | kernel | kernel | |
+| `Atlas` | filter | kernel | kernel | |
+| `Promote` | primitive | yes | declines | addresses triangles a sink has not formed yet |
+| `Lookup` | filter | kernel | kernel | |
+| `Sort` | permutation | yes | declines | a permutation is a sorting network, not a per-point map |
+| `Select` | selector | kernel | kernel | |
+| `Affine` | filter | kernel | kernel | |
+| `Peak` | filter | kernel | kernel | |
+| `Deform` | filter | yes | declines | twist and bend turn on library trigonometry |
+| `Mix` | filter | kernel | kernel | |
+
+And the sinks, which stand on the cooked cloud:
+
+| Sink | What it forms | Host | Device |
+| --- | --- | --- | --- |
+| `cook()` | the `Cloud` itself | yes | the chain dispatched, read back once |
+| `cookMesh()` | the stamp placed at every point | yes | — |
+| `cookSweep()` / `curve::sweep()` | the profile carried along the cooked points | yes | the ring vertices dispatched, read back once |
+| `points::drawBillboards()` | camera-facing sprites on a canvas | yes | — |
+
+**Against TouchDesigner's POP set**, the operators above answer Noise,
+Transform, Math, Attribute Create, Attribute (blend and copy), Lookup and
+Ramp, Group, Sort, Attribute Promote, Twist/Bend/Taper, Smooth, Peak,
+Look At, Randomise and the texture cell pick; the generators answer Point
+Generator, Scatter, SOP to POP; the sinks answer Copy/Instance and
+Skin/Sweep. **Not present**: Ray (project points onto a surface along a
+direction), Limit (clamp a lane to a range — a `Lookup` with a flat table
+is the workaround), Trail (a point's history as a curve), Particle
+(integrate velocity and force per frame) and Texture Sampler (read an
+image at a point's uv into a lane; `Atlas` picks a cell, it does not
+sample).
 
 **`kit`** — `SigilGeometryKit`, the shelf. Stock values over the tiers
 beneath, in `sigil::geometry::shapes`.
@@ -905,8 +975,8 @@ through `scripts/bench_ledger.py`:
 | `geometry_mesh_bench` | the parametric sheet by vertex count, and the two whole-mesh rewrites: appending and unwelding a primitive colour lane |
 | `geometry_mesh_camera_bench` | the per-frame transform builds: view, view-projection, the matrix seam, and the two placement helpers |
 | `geometry_mesh_render_bench` | the built-in runtime by triangle count and by shading mode, the cost of the cull and the sort, and the panel concat |
-| `geometry_mesh_curve_bench` | arc-length sampling and parallel-transport frames by count, the pose read over a held rail and over the spline that builds one, and the sweep by tessellation for a circle profile, a line profile and a line on a hung rail |
-| `geometry_mesh_pop_bench` | the pop cook per operator over a thousand points, whole chains by count and operator mix, and the runtime seam's dispatch against the same cook reached directly |
+| `geometry_mesh_curve_bench` | arc-length sampling and parallel-transport frames by count, and the pose read over a held rail and over the spline that builds one |
+| `geometry_mesh_pop_bench` | the cook per operator over a thousand points, whole chains by count and operator mix, the runtime seam's dispatch against the same cook reached directly, and the swept operator by tessellation for a circle profile, a line profile and a line on a hung rail — with the ring seam measured on its own |
 | `geometry_mesh_codec_bench` | OBJ, GLB and `.geo` decoded from bytes in memory, per triangle or point |
 | `geometry_device_bench` | the way in, less the driver: the Vulkan handles read off Diligent's interfaces and adopted, with Graphite stood up on what comes back |
 | `geometry_kit_bench` | one silhouette generated from a value — analytic, sampled by density, seeded, wrapped — against the comparison a caching consumer prunes with; and the solids by output size, an extrusion against the outline it lifts and a lathe against the profile it turns |
@@ -925,8 +995,8 @@ recompiles one small file. All are registered with ctest and answer to
 | `geometry_kit_test` | `kit/test/SilhouettesTest.cpp`, `kit/test/SolidsTest.cpp` | the two shelves: every silhouette inscribed in its box, equal values drawing equal paths, the corner wrapper over any of them; and a path lifted with its hole intact, a profile lathed, the named surfaces closed and unit-normalled |
 | `geometry_mesh_camera_test` | `mesh/camera/test/CameraTest.cpp` | the view-projection carried through to viewport pixels, and the two placement transforms |
 | `geometry_mesh_render_test` | `mesh/render/test/PainterTest.cpp`, `mesh/render/test/RuntimeTest.cpp` | the mesh draw's pixels, the normals G-buffer's encoding and the primitive tint; and the runtime seam — the built-in value, comparison by model, and a substituted executor receiving the draw |
-| `geometry_mesh_curve_test` | `mesh/curve/test/CurveTest.cpp`, `mesh/curve/test/SweepTest.cpp` | splines, the two rails, the pose along them, and the sweep held vertex for vertex against independent reference bodies for a tube, a ribbon and a banner; and the ring seam — what a rail and a profile become as a dispatch, the taper resolved on the host, comparison by model, and a substituted executor forming the vertices |
-| `geometry_mesh_pop_test` | `mesh/pop/test/PointsTest.cpp`, `mesh/pop/test/PopTest.cpp`, `mesh/pop/test/RuntimeTest.cpp`, and where a device exists `mesh/pop/test/DeviceCookTest.cpp` and `mesh/pop/test/DeviceSweepTest.cpp` | point clouds, instancing, the agreement between an instanced facing lane and `faceCamera()`, and pop chains with their operators; and the cook's runtime seam — the built-in value, comparison by model, a substituted executor receiving the cook, and the message an unsupported operator produces; and the CONFORMANCE of the device executors, every chain and every sweep they say they can do compared with the host's bit for bit. Links the codec to seed chains from an imported model |
+| `geometry_mesh_curve_test` | `mesh/curve/test/CurveTest.cpp` | splines, the two rails, the pose along them, and the projection to a 2D path |
+| `geometry_mesh_pop_test` | `mesh/pop/test/PointsTest.cpp`, `mesh/pop/test/PopTest.cpp`, `mesh/pop/test/RuntimeTest.cpp`, `mesh/pop/test/SweepTest.cpp`, and where a device exists `mesh/pop/test/DeviceCookTest.cpp` and `mesh/pop/test/DeviceSweepTest.cpp` | point clouds, instancing, the agreement between an instanced facing lane and `faceCamera()`, and pop chains with their operators; and the cook's runtime seam — the built-in value, comparison by model, a substituted executor receiving the cook, and the message an unsupported operator produces; the swept operator held vertex for vertex against independent reference bodies for a tube, a ribbon and a banner, and its ring seam — what a rail and a profile become as a dispatch, the taper resolved on the host, comparison by model, and a substituted executor forming the vertices; and the CONFORMANCE of the device executors, every chain and every sweep they say they can do compared with the host's bit for bit. Links the codec to seed chains from an imported model |
 | `geometry_mesh_codec_test` | `mesh/codec/test/DecodeTest.cpp`, `mesh/codec/test/EncodeTest.cpp` | every reader, and the PLY writer's round trips; the only one linking Alembic |
 
 Helpers that more than one binary reads (`kCubeObj`, `splitQuad`) live in
