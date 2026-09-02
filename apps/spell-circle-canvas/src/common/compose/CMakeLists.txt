@@ -120,9 +120,11 @@ target_link_libraries(SigilCompose INTERFACE
 # ---------------------------------------------------------------------------
 # The cross-feature tests, which are the library's rather than one tier's.
 
-# The engine walkthroughs and the README's compile check.
-# Every API name the README spells, compiled against the headers that own
-# it. A hand-written guard only covers the sections someone remembered to
+# The engine walkthroughs and the compile check over the prose.
+# Every API name README.md and TYPOGRAPHY.md spell, compiled against the
+# headers that own it — both files, because the type chapter is the same
+# canon as the page that links it and prose nobody compiles is prose that
+# goes stale. A hand-written guard only covers the sections someone remembered to
 # transcribe, which is how documentation that does not compile reaches a
 # reader. This TU is GENERATED from the document on every build, so new
 # prose is covered the moment it is written and a rename the prose misses
@@ -139,6 +141,7 @@ add_custom_command(
   COMMAND ${Python3_EXECUTABLE}
           ${CMAKE_CURRENT_SOURCE_DIR}/test/docs/api_doc_probes.py
           --md ${CMAKE_CURRENT_SOURCE_DIR}/README.md
+          --md ${CMAKE_CURRENT_SOURCE_DIR}/TYPOGRAPHY.md
           --include ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose
           --include ${CMAKE_CURRENT_SOURCE_DIR}/testing/include/sigilcompose
           --include ${CMAKE_CURRENT_SOURCE_DIR}/../motion/include
@@ -146,6 +149,7 @@ add_custom_command(
           --include ${CMAKE_CURRENT_SOURCE_DIR}/../../sigilweave/include
           --out ${COMPOSE_API_DOC_PROBES}
   DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/README.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/TYPOGRAPHY.md
           ${CMAKE_CURRENT_SOURCE_DIR}/test/docs/api_doc_probes.py
           ${COMPOSE_PUBLIC_HEADERS}
   COMMENT "Extracting the README's documented names into compile probes"
@@ -198,6 +202,7 @@ sigil_add_docs(
   INPUT
         ${CMAKE_CURRENT_SOURCE_DIR}/include
         ${CMAKE_CURRENT_SOURCE_DIR}/README.md
+        ${CMAKE_CURRENT_SOURCE_DIR}/TYPOGRAPHY.md
   MAINPAGE ${CMAKE_CURRENT_SOURCE_DIR}/README.md
   STRIP
         ${CMAKE_CURRENT_SOURCE_DIR}/include)
