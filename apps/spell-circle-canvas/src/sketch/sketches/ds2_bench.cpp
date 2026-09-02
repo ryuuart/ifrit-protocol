@@ -643,8 +643,15 @@ struct Ds2Bench : sketch::Sketch {
   // backdrop: the blurred ship interior, implied not modeled
 
   void backdrop(Element& root) {
+    // ONE BAKED PLANE. The room is fourteen out-of-focus rectangles and
+    // every one of them carries a directional blur; nothing in it ever
+    // changes, so it is rasterised once and blitted after — uncached it
+    // re-runs fourteen blurs over the whole canvas on every frame, and it
+    // is behind a panel that is now translucent, so it is composited on
+    // every frame too.
+    Element room = box().key("room").inset(0).cache(Cache::Texture).zIndex(0);
     auto strut = [&](float x, float w, float a) {
-      root.child(box()
+      room.child(box()
                      .rect(SkRect::MakeXYWH(x, -40.0f, w, kH + 80))
                      .fill(Material::linear({0, 0}, {0, kH},
                                             {{0.0f, hex(0x16262F, a * 0.35f)},
@@ -670,7 +677,7 @@ struct Ds2Bench : sketch::Sketch {
     strut(902, 32, 0.28f);
     // A lit doorway behind the panel's left third — one warm rectangle is
     // what tells an eye the wall is a wall and not a backdrop.
-    root.child(box()
+    room.child(box()
                    .rect(SkRect::MakeXYWH(250.0f, 118.0f, 176.0f, 470.0f))
                    .fill(Material::linear({0, 0}, {0, 470},
                                           {{0.0f, hex(0x2A4A52, 0.34f)},
@@ -680,7 +687,7 @@ struct Ds2Bench : sketch::Sketch {
                    .zIndex(0));
     // …and a bank of pipes crossing the wall behind the right half.
     for (int i = 0; i < 5; ++i)
-      root.child(box()
+      room.child(box()
                      .rect(SkRect::MakeXYWH(560.0f, 150.0f + (float)i * 96.0f,
                                             560.0f, 13.0f))
                      .fill(Material::linear({0, 0}, {0, 13},
@@ -689,7 +696,7 @@ struct Ds2Bench : sketch::Sketch {
                                              {1.0f, hex(0x0A1218, 0.07f)}}))
                      .effect(Effect::directionalBlur(9, 0, 14))
                      .zIndex(0));
-    root.child(box()
+    room.child(box()
                    .rect(SkRect::MakeXYWH(-40.0f, 2.0f, kW + 80, 28.0f))
                    .fill(Material::linear({0, 0}, {0, 28},
                                           {{0.0f, hex(0x243B47, 0.5f)},
@@ -697,6 +704,7 @@ struct Ds2Bench : sketch::Sketch {
                    // 10 along the vertical, 7 across
                    .effect(Effect::directionalBlur(10, 90, 7))
                    .zIndex(0));
+    root.child(std::move(room));
   }
 
   // -------------------------------------------------------------------
