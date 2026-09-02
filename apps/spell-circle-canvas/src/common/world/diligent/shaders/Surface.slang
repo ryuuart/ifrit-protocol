@@ -45,6 +45,7 @@
 // picture it already was.
 
 import Portable;
+import Shading;
 
 // ---- what one draw supplies ----------------------------------------
 // Every one of these is a global `uniform`, so they land in one uniform
@@ -128,9 +129,26 @@ static float gSurfaceGloss = -1.0;
 /** How much of a metal this pixel is: it takes the light out of the
  *  diffuse term and puts the surface's own colour into the highlight. */
 static float gSurfaceMetal = 0.0;
-/** Did the body write any of the three? Nothing is re-evaluated until
- *  one is, so a body that asks for nothing costs nothing and changes
- *  nothing. */
+/** How rough, in [0, 1]; below zero is a body that did not say, and the
+ *  scaffold shades it as the mirror-less default. */
+static float gSurfaceRoughness = -1.0;
+/** How much of what is behind the surface comes through it, at what
+ *  index of refraction, through what thickness of a medium that takes
+ *  `gSurfaceAbsorption` out of the light per unit of it. */
+static float gSurfaceTransmission = 0.0;
+static float gSurfaceIor = 1.5;
+static float gSurfaceThickness = 0.0;
+static float3 gSurfaceAbsorption = float3(0.0, 0.0, 0.0);
+/** How the environment reaches this surface: below zero the split sum,
+ *  where the surface's own reflectance and its Fresnel decide; at or
+ *  above zero, that much environment added with neither. */
+static float gSurfaceReflection = -1.0;
+/** Did the body find a MAP that varies the surface across the face?
+ *  Nothing is re-evaluated until one does, so a body dressed with no
+ *  such map costs nothing and changes nothing. The values above are
+ *  stated either way: they are what the surface IS, and a renderer with
+ *  an environment to sample needs them from a body carrying no maps at
+ *  all. */
 static bool gSurfacePerPixel = false;
 
 [shader("vertex")]

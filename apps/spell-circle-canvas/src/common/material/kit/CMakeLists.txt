@@ -1,23 +1,43 @@
 # The kit: presets — the reflective surfaces over a normal map and an
-# environment, the girih panel, the gel and chrome colour tables, the text
-# paints. Bodies are SkSL text; the kit links the pattern feature for the
-# tile the panel bakes into and no renderer.
+# environment map, the girih panel, the gel and chrome colour tables, the
+# text paints, and the shading TERMS those surfaces are composed of.
+# Bodies are shader text; the kit links the pattern feature for the tile
+# the panel bakes into and no renderer.
+#
+# Shading.slang is compiled by slangc when this library is built — which
+# is what makes a mistake in a term a build failure — and its text is
+# generated into a header, because the source a term is prepended to
+# cannot be finished until the material exists. The same file is what a
+# renderer's own shaders import, so the directory holding it is named
+# here for their compilers to search.
+include(Slang)
+set(SIGIL_MATERIAL_SHADER_DIR "${CMAKE_CURRENT_LIST_DIR}/shaders"
+    CACHE INTERNAL "the material kit's shader modules")
+sigil_slang_module(NAME Shading SOURCE ${SIGIL_MATERIAL_SHADER_DIR}/Shading.slang
+  OUT_VAR SIGIL_MATERIAL_SHADING_H)
+
 add_library(SigilMaterialKit STATIC
   LayerStyles.cpp
   Mask.cpp
   Patterns.cpp
   Surface.cpp
   Surfaces.cpp
+  Terms.cpp
   TextPaint.cpp
+  ${SIGIL_MATERIAL_SHADING_H}
+  ${SIGIL_MATERIAL_SHADER_DIR}/Shading.slang
   ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/kit/LayerStyles.h
   ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/kit/Mask.h
   ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/kit/Patterns.h
   ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/kit/Surface.h
   ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/kit/Surfaces.h
+  ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/kit/Terms.h
   ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/kit/TextPaint.h
 )
 target_compile_features(SigilMaterialKit PUBLIC cxx_std_20)
-target_include_directories(SigilMaterialKit PUBLIC ${SIGIL_MATERIAL_INCLUDE_DIR})
+target_include_directories(SigilMaterialKit
+  PUBLIC ${SIGIL_MATERIAL_INCLUDE_DIR}
+  PRIVATE ${SIGIL_SLANG_GENERATED_DIR})
 target_link_libraries(SigilMaterialKit PUBLIC SigilMaterialPattern
   SigilMaterialColor)
 

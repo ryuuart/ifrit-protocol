@@ -58,7 +58,7 @@ each a static archive that links only what sits beneath it:
 | `SigilMaterialPattern` | `pattern::Tile` and the stock tiles | SigilMaterialTexture |
 | `SigilMaterialField` | `field::` — `halftoneRamp`, `noise`, `grain`, `ripple`, `crtOverlay` | SigilMaterialTexture |
 | `SigilMaterialSkia` | the SkSL compiler and `SkiaProgram`, whose builder uploads resolved bytes; `skia::builder` and `skia::shader` binding leaves into slots; `skia::fill` | SigilMaterialTexture |
-| `SigilMaterialKit` | the presets: the metallic-roughness `kit::surface` and `kit::unlit` and the masks that stack them; `kit::gold`, `kit::chrome`, `kit::glass`; `kit::girih8` and its palettes; the gel and chrome tables; the text paints and chrome-type ramps | SigilMaterialPattern, SigilMaterialColor |
+| `SigilMaterialKit` | the presets: the metallic-roughness `kit::surface` and `kit::unlit` and the masks that stack them; `kit::gold`, `kit::chrome`, `kit::glass`; `kit::girih8` and its palettes; the gel and chrome tables; the text paints and chrome-type ramps; and `kit::terms`, the shading terms a surface is composed of | SigilMaterialPattern, SigilMaterialColor |
 
 `SigilMaterial` is the umbrella, an interface over all eight. Headers live
 under `include/sigilmaterial/<feature>/` and are spelled that way —
@@ -385,11 +385,44 @@ share the `TextPaintParams` ABI of a run's origin and extent, the clock
 and a slow motion vector; `sunsetChromeText()` and `silverChromeText()`
 are the chrome-type ramps in unit space.
 
+**A surface is composed of TERMS.** `kit::terms::source(target)` is one
+text holding each piece of shading arithmetic as a function with a closed
+form — `lambert`, `blinn`, `fresnel` and `fresnelRough`,
+`specularColor`, `environmentBrdf` and `environmentSpecular` (the split
+sum), `environmentReflection` (the additive one), `refraction`,
+`absorption`, `emission`, `occlusion` — beside the panorama's own
+geometry, `equirectUv`, `equirectDirection` and `roughnessLevel`. No
+term is a whole shading model and none has to be physically complete to
+be useful: a surface calls the ones it needs, the way a shader graph in
+an authoring tool is a composition of nodes.
+
+Every term is PURE — nothing samples a texture, because sampling is
+spelled differently in every shading language while arithmetic is not, so
+a caller fetches the radiance and hands it in. `source(Target::Slang)` is
+a MODULE a device renderer loads into its compiler session under the name
+`Shading` and imports from its own shaders, which is what makes the
+renderer's shading and every material body compiled beside it call one
+definition of a term rather than a copy apiece;
+`source(Target::SkSL)` is the same text with the module line and the
+export qualifiers taken off. Nothing in it uses a construct the two
+languages spell differently, the transcendentals included, which are
+written out as polynomials for the reason a portable subset exists at
+all: a library `atan2` is two pieces of code on two targets, and an
+equirect lookup that disagreed between them would put a seam down the
+middle of a reflection.
+
 **The metallic-roughness surface** is `kit::SurfaceParams` — base
 colour, metallic, roughness, emission, the normal convention, the channel
-each packed map is read from, the cutout threshold and the glass terms —
+each packed map is read from, the cutout threshold and the glass terms,
+which are transmission, index of refraction, thickness and the
+Beer-Lambert absorption a medium takes out of what passes through it —
 under two recipes over the same ABI: `kit::surface()` takes light,
-`kit::unlit()` is its own light. Seven child slots, one per role
+`kit::unlit()` is its own light. `SurfaceParams::chrome()`, `gold()`,
+`metal(tint, roughness)`, `dielectric(colour, roughness)` and `glass()`
+are the compositions the kit ships. `Reflection` is how the environment
+reaches a lit surface — `SplitSum`, where the surface's own reflectance
+and its Fresnel decide, or `Additive` at `reflectionWeight`, with
+neither — and it is one recipe each, so no body carries a branch. Seven child slots, one per role
 (`kBaseColorSlot`, `kNormalSlot`, `kRoughnessSlot`, `kMetallicSlot`,
 `kOcclusionSlot`, `kEmissiveSlot`, `kOpacitySlot`), each dressed with a
 neutral one-pixel fill when it is built so no body ever evaluates an
@@ -408,11 +441,18 @@ bounded by what its renderer knows: there is no surface normal, no view
 vector and no light in a 2D paint, so metallic, roughness, the normal map
 and the glass terms have no effect on either body. `surface()` shades the
 albedo attenuated by occlusion plus its emission — the ambient-only
-evaluation of the model — and `unlit()` shades the albedo alone. A
-renderer that HAS the surface attributes reads the same params and slots:
-the 3D one puts its own lighting around what these return, so the
-difference between the two recipes there is whether the emitters reach
-the result at all.
+evaluation of the model — and `unlit()` shades the albedo alone.
+
+A renderer that HAS the surface attributes reads the same params and
+slots, and the lit Slang body tells it what the surface IS beyond its
+colour: how rough, how metallic, how much light passes through it at what
+index through what thickness of what medium, and how the environment
+should reach it. Those are stated whether or not a map varies them,
+because a mirror carrying no maps at all still has to reflect and only
+the surface knows how rough it is. A MAP that varies the normal, the
+roughness or the metallic across a face says one thing more and raises
+the per-pixel flag: that is the case a shading evaluated once per vertex
+cannot carry.
 
 A Slang body writes out the intrinsics whose two targets are two
 different pieces of code — a `lerp`, a `dot`, a `smoothstep` — because an

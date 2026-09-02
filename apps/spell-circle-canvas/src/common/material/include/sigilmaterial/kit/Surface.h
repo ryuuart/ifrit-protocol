@@ -20,14 +20,18 @@
  * plus its emission — the ambient-only evaluation of the model — and
  * `unlit()` shades the albedo alone.
  *
- * The Slang bodies read the same params and the same slots, and say one
- * thing more, because the renderer that compiles them shades: wherever a
- * MAP varies the normal, the roughness or the metallic across the
- * surface, the lit body hands that renderer a tangent normal, a Blinn
- * exponent and a metal weight to shade the pixel with. Where none of
- * those maps is present it says nothing, because a roughness that is one
- * number over the whole surface is already what a shading evaluated once
- * per vertex says it is. The glass terms reach neither body.
+ * The Slang bodies read the same params and the same slots, and say more
+ * than a colour, because the renderer that compiles them shades. Every
+ * lit body states its surface's whole PBR standing — roughness, metal,
+ * and the three glass terms — so a renderer with an environment map to
+ * sample has what it needs from a surface carrying no maps at all. A map
+ * that VARIES the normal, the roughness or the metallic across a face
+ * says one thing more, because that is the case a shading evaluated once
+ * per vertex cannot carry, and the renderer re-evaluates the pixel where
+ * it can be seen.
+ *
+ * The bodies are composed from the shading TERMS in `Terms.h`, so what a
+ * surface does can be read off the terms it calls.
  */
 
 #include <sigilmaterial/color/Color.h>
@@ -36,6 +40,7 @@
 #include <sigilmaterial/texture/Texture.h>
 #include <sigilmaterial/texture/TextureSet.h>
 
+#include <cstdint>
 #include <memory>
 #include <string_view>
 
@@ -91,16 +96,59 @@ struct SurfaceParams {
   float transmission = 0;
   float ior = 1.5f;
   float thickness = 40;
+  /** GLASS: what the medium takes out of the light per unit of
+   *  thickness, per channel — the Beer-Lambert coefficient. Zero is
+   *  water-clear; a little in red and blue is what makes thick glass
+   *  green at its edge and clear across its face. */
+  Color absorption = {0, 0, 0, 1};
+  /** How much environment an ADDITIVE reflection puts on the surface.
+   *  The split-sum composition ignores it: there the weight IS the
+   *  surface's reflectance and its Fresnel. */
+  float reflectionWeight = 1;
+
+  /** A polished mirror: metal, and rough enough to be a real object. */
+  static SurfaceParams chrome();
+  /** Warm metal at the reflectance gold actually has. */
+  static SurfaceParams gold();
+  /** A metal at @p roughness — the study between a mirror and a matte
+   *  casting. */
+  static SurfaceParams metal(Color tint, float roughness);
+  /** A dielectric: not a metal, so it reflects a few per cent head on
+   *  and much more at the rim, and keeps its colour in the diffuse. */
+  static SurfaceParams dielectric(Color baseColor, float roughness);
+  /** Clear glass: what is behind it, refracted, with a reflection over
+   *  the top. */
+  static SurfaceParams glass();
+};
+
+/** HOW THE ENVIRONMENT REACHES A SURFACE, which is a choice about the
+ *  model and not a dial on it, so it is one recipe each and no body
+ *  carries a branch. */
+enum class Reflection : uint8_t {
+  /** The split sum: prefiltered radiance times the surface's own
+   *  reflectance and its Fresnel, so a metal keeps its colour, a
+   *  dielectric picks up the sky at its rim, and a rough surface takes
+   *  less than a smooth one. What the metallic-roughness vocabulary was
+   *  written for. */
+  SplitSum,
+  /** The radiance at `reflectionWeight`, with no Fresnel and no energy
+   *  accounting. Wrong at a grazing angle and right wherever an author
+   *  wants to say how much sky is on a surface rather than be told. */
+  Additive,
 };
 
 /** The recipes, defined once. Both declare every map slot above. */
-const std::shared_ptr<const Recipe>& surfaceRecipe();
+const std::shared_ptr<const Recipe>& surfaceRecipe(
+    Reflection reflection = Reflection::SplitSum);
 /** The unlit half of that pair — the same params and the same slots, with
  *  no shading terms read. */
 const std::shared_ptr<const Recipe>& unlitRecipe();
 
-/** A lit metallic-roughness surface. */
-Material surface(const SurfaceParams& params = {});
+/** A lit metallic-roughness surface, composed from the shading terms:
+ *  occlusion over the albedo, emission added, and the surface's PBR
+ *  standing handed to whatever renderer shades it. */
+Material surface(const SurfaceParams& params = {},
+                 Reflection reflection = Reflection::SplitSum);
 /** A surface that is its own light: no shading, no shadow terms. */
 Material unlit(const SurfaceParams& params = {});
 

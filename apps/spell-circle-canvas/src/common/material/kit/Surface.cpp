@@ -6,11 +6,14 @@
 
 #include "sigilmaterial/kit/Surface.h"
 
+#include "sigilmaterial/kit/Terms.h"
+
 #include <include/core/SkCanvas.h>
 #include <include/core/SkColor.h>
 #include <include/core/SkSurface.h>
 
 #include <string>
+#include <string_view>
 #include <utility>
 
 namespace sigil::material::kit {
@@ -62,15 +65,16 @@ half4 main(float2 xy) {
  *  texture; the params, the slots and the channel conventions are the
  *  same ABI, because they are the same recipe.
  *
- *  A Slang renderer shades, and the lit body says three things about its
- *  surface that a colour cannot carry — `gSurfaceNormal` in tangent
- *  space, `gSurfaceGloss` as a Blinn exponent, `gSurfaceMetal` — and
- *  raises `gSurfacePerPixel` when it has. The renderer declares those
- *  four and reads them after the body has run. It writes them only where
- *  a MAP varies them across the surface: that is the case a shading
- *  evaluated once per vertex cannot carry, and a surface whose roughness
- *  and metallic are one number over the whole of it keeps the shading it
- *  already had. */
+ *  A Slang renderer shades, and the lit body tells it what this surface
+ *  IS beyond its colour: how rough, how metallic, and — for glass — how
+ *  much light passes through, at what index, through what thickness of
+ *  what medium. Those are the surface's standing whether or not a map
+ *  varies them, and a renderer with an environment map to sample cannot
+ *  shade a mirror without them. A MAP that varies the normal, the
+ *  roughness or the metallic across a face says one thing more, and
+ *  raises `gSurfacePerPixel`: that is the case a shading evaluated once
+ *  per vertex cannot carry, and a surface whose values are one number
+ *  over the whole of it keeps the shading it already had. */
 constexpr char kSlangPrelude[] = R"(
 float chanS(float4 c, float which) {
   return which < 0.5 ? c.r : which < 1.5 ? c.g : which < 2.5 ? c.b : c.a;
@@ -93,40 +97,50 @@ float cutS(float a) {
 bool dressedS(float4 c) { return c.r < 1.0 || c.g < 1.0 || c.b < 1.0; }
 )";
 
-constexpr char kSlangSurface[] = R"(
+/** What both lit Slang bodies do, which is everything but the line that
+ *  says how the environment reaches the surface. */
+constexpr char kSlangSurfaceBody[] = R"(
 float4 surface(float2 uv) {
   float4 c = baseColor * baseColorMap.Sample(uv);
-  float occ = mixS(1.0, chanS(occlusionMap.Sample(uv), occlusionChannel),
-                   clamp(occlusionStrength, 0.0, 1.0));
-  float3 rgb = c.rgb * occ + emissive.rgb * emissiveStrength *
-                                 emissiveMap.Sample(uv).rgb;
+  float occ = occlusion(chanS(occlusionMap.Sample(uv), occlusionChannel),
+                        occlusionStrength);
+  float3 rgb = c.rgb * occ + emission(emissive.rgb, emissiveStrength,
+                                      emissiveMap.Sample(uv).rgb);
   float a = cutS(c.a * chanS(opacityMap.Sample(uv), opacityChannel));
 
-  // THE HALF OF THE MODEL A COLOUR CANNOT CARRY, handed to the renderer
-  // that shades. Only a map reaches it: a surface whose roughness and
-  // metallic are one number over the whole of it is already what a
-  // per-vertex shading says it is.
-  float4 nm = normalMap.Sample(uv);
+  // WHAT THIS SURFACE IS, handed to the renderer that shades. Stated
+  // whether or not a map varies it: a mirror with no maps at all still
+  // has to reflect, and only the surface knows how rough it is.
   float4 rm = roughnessMap.Sample(uv);
   float4 mm = metallicMap.Sample(uv);
+  float rough = clamp(
+      roughness * (dressedS(rm) ? chanS(rm, roughnessChannel) : 1.0), 0.0, 1.0);
+  gSurfaceRoughness = rough;
+  gSurfaceMetal = clamp(
+      metallic * (dressedS(mm) ? chanS(mm, metallicChannel) : 1.0), 0.0, 1.0);
+  // ROUGHNESS AS A BLINN EXPONENT, for the highlight the emitters make:
+  // the mirror end of the range is a narrow highlight and the rough end
+  // is a wide one, squared so the smooth half of the range spends most
+  // of it. It is a mapping and not a microfacet distribution.
+  float smoothness = 1.0 - rough;
+  gSurfaceGloss = 2.0 + 254.0 * smoothness * smoothness;
+  gSurfaceTransmission = clamp(transmission, 0.0, 1.0);
+  gSurfaceIor = max(ior, 1.0);
+  gSurfaceThickness = max(thickness, 0.0);
+  gSurfaceAbsorption = absorption.rgb;
+  gSurfaceReflection = REFLECTION_WEIGHT;
+
+  // THE HALF NO PER-VERTEX SHADING CAN CARRY: a normal that turns
+  // under the pixel, or a roughness or a metallic that changes across
+  // the face. Where a map varies one, the emitter loop runs again where
+  // those values can be seen.
+  float4 nm = normalMap.Sample(uv);
   if (dressedS(nm) || dressedS(rm) || dressedS(mm)) {
     if (dressedS(nm)) {
       float3 tn = nm.rgb * 2.0 - 1.0;
       float ty = normalDirectX > 0.5 ? -tn.y : tn.y;
       gSurfaceNormal = float3(tn.x * normalScale, ty * normalScale, tn.z);
     }
-    float rough = clamp(
-        roughness * (dressedS(rm) ? chanS(rm, roughnessChannel) : 1.0),
-        0.0, 1.0);
-    // ROUGHNESS AS A BLINN EXPONENT: the mirror end of the range is a
-    // narrow highlight and the rough end is a wide one, squared so the
-    // smooth half of the range spends most of it. It is a mapping and
-    // not a microfacet distribution, which this model does not have.
-    float smoothness = 1.0 - rough;
-    gSurfaceGloss = 2.0 + 254.0 * smoothness * smoothness;
-    gSurfaceMetal = clamp(
-        metallic * (dressedS(mm) ? chanS(mm, metallicChannel) : 1.0),
-        0.0, 1.0);
     gSurfacePerPixel = true;
   }
   return float4(min(rgb, float3(a, a, a)), a);
@@ -141,7 +155,22 @@ float4 surface(float2 uv) {
 }
 )";
 
-Recipe define(std::string name, const char* body, const char* slangBody) {
+/** The lit body for @p reflection: the shared text with the one line
+ *  that says how the environment enters filled in. A negative weight is
+ *  the split sum — the surface's own reflectance and its Fresnel decide
+ *  — and a weight at or above zero is that much environment, added. */
+std::string slangSurface(Reflection reflection) {
+  std::string body = kSlangSurfaceBody;
+  const std::string_view mark = "REFLECTION_WEIGHT";
+  const size_t at = body.find(mark);
+  body.replace(at, mark.size(),
+               reflection == Reflection::SplitSum ? "-1.0"
+                                                  : "max(reflectionWeight, 0.0)");
+  return body;
+}
+
+Recipe define(std::string name, const char* body,
+              const std::string& slangBody) {
   return Recipe::of<SurfaceParams>(std::move(name))
       .child(std::string(kBaseColorSlot))
       .child(std::string(kNormalSlot))
@@ -151,6 +180,10 @@ Recipe define(std::string name, const char* body, const char* slangBody) {
       .child(std::string(kEmissiveSlot))
       .child(std::string(kOpacitySlot))
       .body(Target::SkSL, std::string(kPrelude) + body)
+      // THE TERMS ARE NOT PREPENDED HERE. A Slang renderer loads them
+      // once as the module `Shading` and imports it beside the body, so
+      // the renderer's own shading and every material compiled with it
+      // call one definition of each term rather than a copy apiece.
       .body(Target::Slang, std::string(kSlangPrelude) + slangBody);
 }
 
@@ -188,11 +221,14 @@ Material dress(Material m) {
 
 }  // namespace
 
-const std::shared_ptr<const Recipe>& surfaceRecipe() {
-  static const std::shared_ptr<const Recipe> recipe =
+const std::shared_ptr<const Recipe>& surfaceRecipe(Reflection reflection) {
+  static const std::shared_ptr<const Recipe> splitSum =
       std::make_shared<const Recipe>(
-          define("surface", kSurface, kSlangSurface));
-  return recipe;
+          define("surface", kSurface, slangSurface(Reflection::SplitSum)));
+  static const std::shared_ptr<const Recipe> additive =
+      std::make_shared<const Recipe>(define(
+          "surface.additive", kSurface, slangSurface(Reflection::Additive)));
+  return reflection == Reflection::SplitSum ? splitSum : additive;
 }
 
 const std::shared_ptr<const Recipe>& unlitRecipe() {
@@ -201,8 +237,8 @@ const std::shared_ptr<const Recipe>& unlitRecipe() {
   return recipe;
 }
 
-Material surface(const SurfaceParams& params) {
-  return dress(Material(surfaceRecipe(), params));
+Material surface(const SurfaceParams& params, Reflection reflection) {
+  return dress(Material(surfaceRecipe(reflection), params));
 }
 
 Material unlit(const SurfaceParams& params) {
@@ -210,10 +246,62 @@ Material unlit(const SurfaceParams& params) {
 }
 
 bool isSurface(const Material& m) {
-  return m.recipePtr() == surfaceRecipe() || m.recipePtr() == unlitRecipe();
+  return m.recipePtr() == surfaceRecipe(Reflection::SplitSum) ||
+         m.recipePtr() == surfaceRecipe(Reflection::Additive) ||
+         m.recipePtr() == unlitRecipe();
 }
 
 bool isUnlit(const Material& m) { return m.recipePtr() == unlitRecipe(); }
+
+SurfaceParams SurfaceParams::chrome() {
+  // Steel is not a mirror and not white: a slight cool bias and a
+  // roughness a hand-polished object actually has.
+  SurfaceParams p;
+  p.baseColor = {0.92f, 0.95f, 1.0f, 1};
+  p.metallic = 1;
+  p.roughness = 0.04f;
+  return p;
+}
+
+SurfaceParams SurfaceParams::gold() {
+  // The measured reflectance of gold, which is what a metal's base
+  // colour means.
+  SurfaceParams p;
+  p.baseColor = {1.0f, 0.766f, 0.336f, 1};
+  p.metallic = 1;
+  p.roughness = 0.18f;
+  return p;
+}
+
+SurfaceParams SurfaceParams::metal(Color tint, float roughness) {
+  SurfaceParams p;
+  p.baseColor = tint;
+  p.metallic = 1;
+  p.roughness = roughness;
+  return p;
+}
+
+SurfaceParams SurfaceParams::dielectric(Color baseColor, float roughness) {
+  SurfaceParams p;
+  p.baseColor = baseColor;
+  p.metallic = 0;
+  p.roughness = roughness;
+  return p;
+}
+
+SurfaceParams SurfaceParams::glass() {
+  SurfaceParams p;
+  p.baseColor = {1, 1, 1, 1};
+  p.metallic = 0;
+  p.roughness = 0.02f;
+  p.transmission = 1;
+  p.ior = 1.5f;
+  p.thickness = 0.35f;
+  // A faint green cast in a thick edge, which is what soda-lime glass
+  // does and what tells an eye it is glass rather than a hole.
+  p.absorption = {0.55f, 0.12f, 0.35f, 1};
+  return p;
+}
 
 const Texture* map(const Material& m, std::string_view slot) {
   const auto* texture = dynamic_cast<const Texture*>(m.leaf(slot));

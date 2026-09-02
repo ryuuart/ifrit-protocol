@@ -5,6 +5,7 @@
 
 #include "Compile.h"
 
+#include <sigilmaterial/kit/Terms.h>
 #include <sigilslang/Painter.h>
 #include <sigilslang/Portable.h>
 #include <sigilslang/Post.h>
@@ -75,13 +76,20 @@ class Compiler {
       if (error) *error = "the Slang session could not be created";
       return nullptr;
     }
-    // The portable subset is loaded into the session by name, so every
-    // module's `import Portable` resolves against what is in memory and
-    // nothing is looked for on disk.
+    // The portable subset and the shading terms are loaded into the
+    // session by name, so every module's `import` resolves against what
+    // is in memory and nothing is looked for on disk. The terms are the
+    // material kit's own text: the scaffold's shading and every material
+    // body compiled beside it call one definition of a term rather than
+    // a copy apiece.
     Slang::ComPtr<slang::IBlob> diagnostics;
     slot->loadModuleFromSourceString(
         "Portable", "Portable.slang",
         std::string(slangmodule::Portable::kSource).c_str(),
+        diagnostics.writeRef());
+    slot->loadModuleFromSourceString(
+        "Shading", "Shading.slang",
+        material::kit::terms::source(material::Target::Slang).c_str(),
         diagnostics.writeRef());
     return slot.get();
   }

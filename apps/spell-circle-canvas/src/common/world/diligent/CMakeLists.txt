@@ -29,9 +29,12 @@ include(Slang)
 set(_shaders ${CMAKE_CURRENT_LIST_DIR}/shaders)
 sigil_slang_module(NAME Portable SOURCE ${_shaders}/Portable.slang
   OUT_VAR SIGIL_WORLD_PORTABLE_H)
+# Surface.slang imports the material kit's shading terms, so slangc is
+# pointed at the directory that file lives in. At run time the same text
+# is loaded into the compiler session from the header the kit generated.
 sigil_slang_module(NAME Surface SOURCE ${_shaders}/Surface.slang
-  ENTRIES vsMain fsFlat INCLUDE ${_shaders}
-  DEPENDS ${_shaders}/Portable.slang
+  ENTRIES vsMain fsFlat INCLUDE ${_shaders} ${SIGIL_MATERIAL_SHADER_DIR}
+  DEPENDS ${_shaders}/Portable.slang ${SIGIL_MATERIAL_SHADER_DIR}/Shading.slang
   OUT_VAR SIGIL_WORLD_SURFACE_H)
 sigil_slang_module(NAME Painter SOURCE ${_shaders}/Painter.slang
   ENTRIES vsPaint fsPaint INCLUDE ${_shaders}

@@ -16,6 +16,7 @@
 #include <sigilmaterial/kit/Patterns.h>
 #include <sigilmaterial/kit/Surface.h>
 #include <sigilmaterial/kit/Surfaces.h>
+#include <sigilmaterial/kit/Terms.h>
 #include <sigilmaterial/kit/TextPaint.h>
 #include <sigilmaterial/skia/Draw.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
@@ -23,8 +24,151 @@
 #include <sigilmaterial/texture/Surface.h>
 
 #include <cmath>
+#include <string>
 
 using namespace sigil::material;
+
+namespace {
+
+/** ONE TERM, EVALUATED. The term source is prepended to a body that
+ *  returns the expression asked about, the material is compiled through
+ *  the Skia backend and drawn over one texel of a float surface, so what
+ *  comes back is what the term computed rather than what an 8-bit
+ *  channel could hold. */
+struct NoParams {
+  float unused = 0;
+};
+
+SkColor4f term(const std::string& expression) {
+  skia::install();
+  static int serial = 0;
+  const auto recipe = std::make_shared<const Recipe>(
+      Recipe::of<NoParams>("term." + std::to_string(serial++))
+          .body(Target::SkSL,
+                kit::terms::source(Target::SkSL) +
+                    "half4 main(float2 xy) { return half4(" + expression +
+                    "); }"));
+  sk_sp<SkShader> shader = skia::shader(Material(recipe, NoParams{}), {});
+  EXPECT_TRUE(shader) << expression;
+  if (!shader) return {0, 0, 0, 0};
+  sk_sp<SkSurface> surface = SkSurfaces::Raster(
+      SkImageInfo::Make(1, 1, kRGBA_F32_SkColorType, kPremul_SkAlphaType));
+  SkPaint paint;
+  paint.setShader(shader);
+  paint.setBlendMode(SkBlendMode::kSrc);
+  surface->getCanvas()->drawPaint(paint);
+  float px[4] = {0, 0, 0, 0};
+  const SkImageInfo one =
+      SkImageInfo::Make(1, 1, kRGBA_F32_SkColorType, kPremul_SkAlphaType);
+  EXPECT_TRUE(surface->readPixels(SkPixmap(one, px, sizeof(px)), 0, 0));
+  return {px[0], px[1], px[2], px[3]};
+}
+
+/** The red channel of a term that answers one number. */
+float scalar(const std::string& expression) {
+  return term(expression + ", 0.0, 0.0, 1.0").fR;
+}
+
+}  // namespace
+
+TEST(Terms, EachTermMeetsItsClosedForm) {
+  // The transcendentals are polynomials, so they are held to what a
+  // polynomial of their degree can do rather than to the library's.
+  EXPECT_NEAR(scalar("atan2P(1.0, 1.0)"), std::atan2(1.0f, 1.0f), 2e-3f);
+  EXPECT_NEAR(scalar("atan2P(1.0, -1.0)"), std::atan2(1.0f, -1.0f), 2e-3f);
+  EXPECT_NEAR(scalar("atan2P(-0.3, 0.7)"), std::atan2(-0.3f, 0.7f), 2e-3f);
+  EXPECT_NEAR(scalar("acosP(0.5)"), std::acos(0.5f), 2e-3f);
+  EXPECT_NEAR(scalar("acosP(-0.9)"), std::acos(-0.9f), 2e-3f);
+
+  // LAMBERT at 45 degrees is the cosine of 45 degrees.
+  EXPECT_NEAR(scalar("lambert(float3(0.0, 0.0, 1.0), "
+                     "normalize(float3(1.0, 0.0, 1.0)))"),
+              std::sqrt(0.5f), 2e-3f);
+  // Head on, all of it; edge on, none.
+  EXPECT_NEAR(
+      scalar("lambert(float3(0.0, 0.0, 1.0), float3(0.0, 0.0, 1.0))"), 1.0f,
+      2e-3f);
+  EXPECT_NEAR(
+      scalar("lambert(float3(0.0, 0.0, 1.0), float3(1.0, 0.0, 0.0))"), 0.0f,
+      2e-3f);
+
+  // BLINN with the light and the eye together: the half vector is the
+  // normal and the highlight is at its peak whatever the exponent.
+  EXPECT_NEAR(scalar("blinn(float3(0.0, 0.0, 1.0), float3(0.0, 0.0, 1.0), "
+                     "float3(0.0, 0.0, 1.0), 48.0)"),
+              1.0f, 2e-3f);
+  // Light at 45 degrees, eye head on: the half vector stands at 22.5.
+  EXPECT_NEAR(scalar("blinn(float3(0.0, 0.0, 1.0), "
+                     "normalize(float3(1.0, 0.0, 1.0)), "
+                     "float3(0.0, 0.0, 1.0), 4.0)"),
+              std::pow(std::cos(3.14159265f / 8.0f), 4.0f), 3e-3f);
+
+  // FRESNEL: a dielectric's four per cent head on, and white at the rim.
+  EXPECT_NEAR(scalar("fresnel(float3(0.04, 0.04, 0.04), 1.0).r"), 0.04f,
+              2e-3f);
+  EXPECT_NEAR(scalar("fresnel(float3(0.04, 0.04, 0.04), 0.0).r"), 1.0f, 2e-3f);
+  // A metal's reflectance IS its base colour; a dielectric's is four
+  // per cent whatever colour it is.
+  EXPECT_NEAR(scalar("specularColor(float3(0.9, 0.6, 0.3), 1.0).g"), 0.6f,
+              2e-3f);
+  EXPECT_NEAR(scalar("specularColor(float3(0.9, 0.6, 0.3), 0.0).g"), 0.04f,
+              2e-3f);
+
+  // THE SPLIT SUM at its one exact point: a mirror seen head on returns
+  // the radiance it was handed, scale plus bias summing to one.
+  EXPECT_NEAR(scalar("environmentSpecular(float3(1.0, 1.0, 1.0), "
+                     "float3(1.0, 1.0, 1.0), 0.0, 1.0).r"),
+              1.0f, 3e-3f);
+  // And a rough surface takes less of it than a smooth one.
+  EXPECT_LT(scalar("environmentSpecular(float3(1.0, 1.0, 1.0), "
+                   "float3(0.04, 0.04, 0.04), 1.0, 1.0).r"),
+            scalar("environmentSpecular(float3(1.0, 1.0, 1.0), "
+                   "float3(0.04, 0.04, 0.04), 0.0, 1.0).r"));
+
+  // ADDITIVE reflection is the radiance at its weight and nothing else.
+  EXPECT_NEAR(scalar("environmentReflection(float3(0.5, 0.5, 0.5), 0.6).r"),
+              0.3f, 2e-3f);
+
+  // BEER-LAMBERT over half a unit of a medium that takes one per unit.
+  EXPECT_NEAR(scalar("absorption(float3(1.0, 1.0, 1.0), "
+                     "float3(1.0, 1.0, 1.0), 0.5).r"),
+              std::exp(-0.5f), 2e-3f);
+  // Nothing absorbed is everything through.
+  EXPECT_NEAR(scalar("absorption(float3(0.8, 0.8, 0.8), "
+                     "float3(0.0, 0.0, 0.0), 100.0).r"),
+              0.8f, 2e-3f);
+
+  // OCCLUSION believed in full, and not at all.
+  EXPECT_NEAR(scalar("occlusion(0.5, 1.0)"), 0.5f, 2e-3f);
+  EXPECT_NEAR(scalar("occlusion(0.5, 0.0)"), 1.0f, 2e-3f);
+  // EMISSION is the colour times the map times the strength.
+  EXPECT_NEAR(
+      scalar("emission(float3(0.5, 0.5, 0.5), 2.0, float3(0.4, 0.4, 0.4)).r"),
+      0.4f, 2e-3f);
+
+  // REFRACTION through no change of index is the ray it was given.
+  EXPECT_NEAR(scalar("-refraction(float3(0.0, 0.0, -1.0), "
+                     "float3(0.0, 0.0, 1.0), 1.0).z"),
+              1.0f, 2e-3f);
+  // Past total internal reflection there is no refracted ray.
+  EXPECT_NEAR(scalar("length(refraction(normalize(float3(1.0, 0.0, -0.05)), "
+                     "float3(0.0, 0.0, 1.0), 1.6))"),
+              0.0f, 2e-3f);
+
+  // THE PANORAMA'S CONVENTION: u = 0.5 looks along -z, v = 0 is the
+  // zenith, and a direction and a coordinate round trip.
+  const SkColor4f forward = term("equirectUv(float3(0.0, 0.0, -1.0)), 0.0, 1.0");
+  EXPECT_NEAR(forward.fR, 0.5f, 2e-3f);
+  EXPECT_NEAR(forward.fG, 0.5f, 2e-3f);
+  EXPECT_NEAR(scalar("equirectUv(float3(0.0, 1.0, 0.0)).y"), 0.0f, 2e-3f);
+  EXPECT_NEAR(scalar("equirectDirection(equirectUv("
+                     "normalize(float3(0.3, 0.5, -0.8)))).y"),
+              0.5f / std::sqrt(0.09f + 0.25f + 0.64f), 4e-3f);
+
+  // A roughness reads across the chain it was prefiltered into.
+  EXPECT_NEAR(scalar("roughnessLevel(0.5, 9.0)"), 4.0f, 2e-3f);
+  EXPECT_NEAR(scalar("roughnessLevel(1.0, 9.0)"), 8.0f, 2e-3f);
+}
 
 TEST(Surfaces, RecipesCompileAndShade) {
   skia::install();

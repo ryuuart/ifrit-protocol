@@ -398,14 +398,22 @@ reaches one. So white IS "no map here", exactly and with no threshold to
 pick — which is what lets a body tell a dressed slot from an undressed
 one, and what keeps a surface nobody dressed the picture it already was.
 
+**A body states what its surface IS.** The scaffold declares a set of
+variables a body writes and it reads: `gSurfaceNormal` in tangent space,
+`gSurfaceGloss` as a Blinn exponent, `gSurfaceMetal`, `gSurfaceRoughness`,
+the three glass terms `gSurfaceTransmission`, `gSurfaceIor` and
+`gSurfaceThickness` with `gSurfaceAbsorption` beside them, and
+`gSurfaceReflection` for how an environment reaches the surface. Those
+are the surface's standing whether or not a map varies them — a mirror
+carrying no maps still has to reflect, and only the surface knows how
+rough it is.
+
 **A body may ask to be shaded again, per pixel.** The scaffold shades
 per VERTEX, and one thing cannot survive that: a MAP that varies the
-surface across a face. So the scaffold declares four variables a body may
-write — `gSurfaceNormal` in tangent space, `gSurfaceGloss` as a Blinn
-exponent, `gSurfaceMetal`, and `gSurfacePerPixel` to say it wrote any of
-them — and runs the emitter loop again where those values can be seen. A
-body that writes nothing keeps the terms the vertex stage interpolated,
-down to the bit. The tangent frame a normal map is authored against is
+surface across a face. A body dressed with one raises
+`gSurfacePerPixel`, and the emitter loop runs again where those values
+can be seen. A body that raises nothing keeps the terms the vertex stage
+interpolated, down to the bit. The tangent frame a normal map is authored against is
 read off the screen derivatives of the view position and the uv, because
 a mesh carries no tangent lane and every generator would have to fill
 one.
@@ -859,7 +867,14 @@ reports every uniform's offset.
 still answer once: arithmetic plus the operations IEEE 754 pins exactly,
 with `sqrt`, `dot`, `length`, `mix`, `smoothstep` and the trigonometric
 functions written out, because a library intrinsic is two different
-pieces of code on two targets. Slang emits no contraction decoration in
+pieces of code on two targets.
+
+`Shading` is not this library's module: it is the material kit's shading
+TERMS, which the scaffold imports and which are loaded into the compiler
+session from the kit's own text, so the scaffold's shading and every
+material body compiled beside it call one definition of a term rather
+than a copy apiece. The build-time compile finds the same file on disk,
+which is why `slangc` is pointed at the kit's shader directory. Slang emits no contraction decoration in
 its SPIR-V, so a driver is free to fuse a multiply-add inside a module
 compiled here; a kernel that needs the unfused answer has to reach the
 same result without depending on it.
