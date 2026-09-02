@@ -157,7 +157,14 @@ inline Coverage coverage(std::u8string_view run,
   const std::u8string text8(run);
   const SkSize sz = measure(box().child(text(text8, style)), fonts);
   out.advance = sz;
-  const int advW = std::max(1, (int)std::ceil(sz.width()));
+  // SLACK ON THE ADVANCE, because the scratch surface CONSTRAINS the run.
+  // `measure()` answers an unconstrained layout; laid out again inside
+  // exactly that width, a run can wrap its last word. A wrapped bake is
+  // not a clipped glyph — it is a second LINE — and the pad retry below
+  // cannot see it, because nothing touches an edge. The mask is cropped to
+  // its ink afterwards, so the slack costs a larger scratch surface and
+  // nothing in the output.
+  const int advW = std::max(1, (int)std::ceil(sz.width()) + 8);
   const int advH = std::max(1, (int)std::ceil(sz.height()));
 
   for (int attempt = 0;; ++attempt) {

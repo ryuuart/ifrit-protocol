@@ -150,6 +150,7 @@
 #include <sigilcompose/brush/Lines.h>
 #include <sigilcompose/core/Material.h>
 #include <sigilcompose/core/Patterns.h>
+#include <sigilcompose/kit/PixelType.h>
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilcompose/shape/Routers.h>
 #include <sigilcompose/shape/Shapes.h>
@@ -1177,10 +1178,13 @@ inline Element cornerPlate(SkColor4f tint) {
 // a real control if `aliased` goes false, and the antialiased-then-threshold
 // path opens e at every cutoff that also fills in m.
 
-struct PixText {
-  sk_sp<SkImage> mask;  // A8, one pixel per GUI px
-  int w = 0, h = 0;
-};
+/** The bake is `kit/PixelType.h`'s, which owns exactly this: shape a run
+ *  with antialiasing off, rasterise it, threshold it to a 1-bit A8 mask,
+ *  crop to the ink, and present it at an integer scale with nearest
+ *  sampling — down to Minecraft's own +1 px, x0.25 shadow defaults. The
+ *  pad-doubling retry there also fixes the trailing-glyph clip a fixed
+ *  slack only guesses at. */
+using PixText = ::sigil::compose::kit::Mask;
 
 /** The substitute face's size, in GUI px. See the note above: 9 closes every
  *  lowercase e and 11 fills in m. */
@@ -1194,65 +1198,18 @@ inline PixText bakeText(const std::string& s, weave::FontContext& fonts,
   st.shaping.aliased = true;
   st.paint.foreground.setColor(SK_ColorWHITE);
   const std::u8string u8(reinterpret_cast<const char8_t*>(s.c_str()));
-  Element tree = box().child(text(u8, st));
-  const SkSize sz = measure(box().child(text(u8, st)), fonts);
-  // The surface must be wider than the measurement. measure() gives the
-  // ADVANCE width, and the last glyph's ink can sit outside its own advance,
-  // so a surface sized to the advance ends INSIDE the final letter and the
-  // mask keeps only the part that fitted — a clipped trailing glyph, at every
-  // font size. The mask is cropped to its lit bbox two dozen lines below, so
-  // slack here costs nothing.
-  const int w = std::max(1, (int)std::ceil(sz.width()) + 8);
-  const int h = std::max(1, (int)std::ceil(sz.height()) + 4);
-  sk_sp<SkSurface> surf = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(w, h));
-  if (!surf) return {};
-  surf->getCanvas()->clear(SK_ColorTRANSPARENT);
-  if (sk_sp<SkPicture> pic = snapshot(tree, fonts))
-    surf->getCanvas()->drawPicture(pic);
-  SkBitmap read;
-  read.allocPixels(
-      SkImageInfo::Make(w, h, kRGBA_8888_SkColorType, kUnpremul_SkAlphaType));
-  if (!surf->readPixels(read.pixmap(), 0, 0)) return {};
-  SkBitmap out;
-  out.allocPixels(SkImageInfo::MakeA8(w, h));
-  out.eraseColor(SK_ColorTRANSPARENT);
-  int x0 = w, y0 = h, x1 = -1, y1 = -1;
-  for (int y = 0; y < h; ++y)
-    for (int x = 0; x < w; ++x) {
-      const bool lit = SkColorGetA(read.getColor(x, y)) >= 110;  // 1-bit
-      *out.getAddr8(x, y) = lit ? 255 : 0;
-      if (lit) {
-        x0 = std::min(x0, x);
-        y0 = std::min(y0, y);
-        x1 = std::max(x1, x);
-        y1 = std::max(y1, y);
-      }
-    }
-  if (x1 < 0) return {};
-  SkBitmap crop;
-  out.extractSubset(&crop, SkIRect::MakeLTRB(x0, y0, x1 + 1, y1 + 1));
-  SkBitmap owned;
-  owned.allocPixels(SkImageInfo::MakeA8(x1 - x0 + 1, y1 - y0 + 1));
-  crop.readPixels(owned.pixmap(), 0, 0);
-  owned.setImmutable();
-  return {owned.asImage(), x1 - x0 + 1, y1 - y0 + 1};
+  return ::sigil::compose::kit::bakeRun(u8, fonts, st);
 }
 
 /** Draw a baked mask at 2x, nearest, with the +1 GUI px 25% shadow. */
 inline void blitText(SkCanvas& c, const PixText& t, float x, float y,
                      SkColor4f col, bool shadow = true) {
-  if (!t.mask) return;
-  const SkRect dst = SkRect::MakeXYWH(g(x), g(y), g((float)t.w), g((float)t.h));
-  const SkSamplingOptions near(SkFilterMode::kNearest);
-  SkPaint p;
-  p.setAntiAlias(false);
-  if (shadow) {
-    p.setColor4f({col.fR * 0.25f, col.fG * 0.25f, col.fB * 0.25f, col.fA},
-                 nullptr);
-    c.drawImageRect(t.mask, dst.makeOffset(g(1), g(1)), near, &p);
-  }
-  p.setColor4f(col, nullptr);
-  c.drawImageRect(t.mask, dst, near, &p);
+  ::sigil::compose::kit::draw(
+      c, t, {g(x), g(y)},
+      {.colour = col,
+       .scale = g(1.0f),
+       .shadowOffset = shadow ? SkVector{g(1.0f), g(1.0f)} : SkVector{0, 0},
+       .shadowMul = 0.25f});
 }
 
 }  // namespace thaum
@@ -1294,11 +1251,17 @@ struct Thaumonomicon : sketch::Sketch {
   static Element backdropBase() {
     const float w = g(kScreenX + 4 + 44), h = g(kScreenY + 4 + 44);
     Element e = box().left(g(-22)).top(g(-22)).width(w).height(h).fill(
+        // THE BROWSER LOOKS INTO A NEBULA. The mod's own backdrop fills
+        // the inner area with cloud and star, and the two-plane parallax
+        // this file transcribes has nothing to carry over a flat brown
+        // ground — a 2.0 : 1.5 depth ratio only reads when the two planes
+        // hold structure the eye can follow.
         Material::radialUnit({0.44f, 0.38f}, 1.20f,
-                             {{0.0f, hex(0x3E3220)},
-                              {0.40f, hex(0x241B10)},
-                              {0.78f, hex(0x140E07)},
-                              {1.0f, hex(0x070402)}}));
+                             {{0.00f, hex(0x6E2A72)},
+                              {0.22f, hex(0x4A1A56)},
+                              {0.46f, hex(0x2A1036)},
+                              {0.74f, hex(0x140A1C)},
+                              {1.00f, hex(0x060309)}}));
     // The painted plate under it: an alchemical wheel, a ruled margin, and
     // washes — the structure a photographed grimoire page carries and a noise
     // field never will.
@@ -1307,12 +1270,25 @@ struct Thaumonomicon : sketch::Sketch {
       p.setAntiAlias(true);
       const SkPoint o{in.size.width() * 0.50f, in.size.height() * 0.47f};
       // washes first, so the linework sits on top of them
-      for (int i = 0; i < 30; ++i) {
+      // The cloud: warm lobes over the ramp and cold ones under it, so
+      // the field has structure rather than a single falloff.
+      for (int i = 0; i < 46; ++i) {
         const float x = (0.5f + 0.5f * noise1(i, 1, 5)) * in.size.width();
         const float y = (0.5f + 0.5f * noise1(i, 2, 5)) * in.size.height();
-        const float r = g(22.0f + 58.0f * (0.5f + 0.5f * noise1(i, 3, 5)));
-        p.setColor4f(hex(0x060402, 0.16f), nullptr);
+        const float r = g(26.0f + 72.0f * (0.5f + 0.5f * noise1(i, 3, 5)));
+        p.setColor4f(
+            (i % 2 != 0) ? hex(0xB03CC0, 0.055f) : hex(0x120618, 0.20f),
+            nullptr);
         c.drawCircle(x, y, r, p);
+      }
+      // …and the star field over it. Two magnitudes, seeded, so the near
+      // plane's drift is something to watch.
+      for (int i = 0; i < 260; ++i) {
+        const float x = (0.5f + 0.5f * noise1(i, 11, 7)) * in.size.width();
+        const float y = (0.5f + 0.5f * noise1(i, 12, 7)) * in.size.height();
+        const float m = 0.5f + 0.5f * noise1(i, 13, 7);
+        p.setColor4f(hex(0xF2E4FF, 0.16f + 0.60f * m * m), nullptr);
+        c.drawCircle(x, y, g(m > 0.86f ? 1.3f : 0.7f), p);
       }
       p.setStyle(SkPaint::kStroke_Style);
       // the wheel: four rules and three rings, plus a 72-tick limb
