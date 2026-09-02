@@ -766,6 +766,12 @@ struct pop {
     Mesh sweep(const path::Polyline& profile, bool closed = false,
                const curve::SweepOptions& options = {.segments = 160},
                const Runtime& runtime = Runtime::cpu()) const;
+    /** The chain cooked and splatted onto @p canvas as camera-facing
+     *  sprites — pop::cookBillboards on this builder's chain. */
+    void billboards(SkCanvas& canvas, const camera::Camera& camera,
+                    SkSize viewport,
+                    const points::BillboardStyle& style = {},
+                    const Runtime& runtime = Runtime::cpu()) const;
 
    private:
     static glm::vec4 componentWeight(int component) {
@@ -898,6 +904,17 @@ struct pop {
                         const curve::SweepOptions& options = {.segments = 160},
                         const Runtime& runtime = Runtime::cpu());
 
+  /** The splatting sink: the chain's cooked points drawn onto @p canvas
+   *  as camera-facing sprites — the one sink that forms no geometry,
+   *  because a billboard faces the eye and so is answered where the eye
+   *  is rather than in the world. Sizes come from the "size" lane and
+   *  tints from "tint" wherever @p style names them, the cook runs on
+   *  @p runtime, and the splatting stands on its cloud. */
+  static void cookBillboards(const Chain& chain, SkCanvas& canvas,
+                             const camera::Camera& camera, SkSize viewport,
+                             const points::BillboardStyle& style = {},
+                             const Runtime& runtime = Runtime::cpu());
+
   /** THE ONE TABLE between a Cloud's lane names and this language's
    *  attribute names, in each direction: `t`↔`T`, `size`↔`Scale`,
    *  `dir`↔`Dir`, `tint`↔`Color`, with `normal` also seeding `Dir`
@@ -948,6 +965,13 @@ inline Cloud pop::Builder::cloud(const Runtime& runtime) const {
 inline Mesh pop::Builder::stamps(const Mesh& stamp,
                                  const Runtime& runtime) const {
   return pop::cookMesh(m_chain, stamp, runtime);
+}
+inline void pop::Builder::billboards(SkCanvas& canvas,
+                                     const camera::Camera& camera,
+                                     SkSize viewport,
+                                     const points::BillboardStyle& style,
+                                     const Runtime& runtime) const {
+  pop::cookBillboards(m_chain, canvas, camera, viewport, style, runtime);
 }
 inline pop::Builder::Builder(const Chain& upstream)
     : Builder(pop::cook(upstream).positions) {}

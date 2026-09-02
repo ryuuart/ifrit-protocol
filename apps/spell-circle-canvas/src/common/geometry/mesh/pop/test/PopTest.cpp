@@ -5,7 +5,10 @@
  */
 
 #include <gtest/gtest.h>
+#include <include/core/SkBitmap.h>
+#include <include/core/SkCanvas.h>
 #include <include/core/SkPathBuilder.h>
+#include <include/core/SkSurface.h>
 
 #include <cmath>
 #include <glm/gtc/matrix_transform.hpp>
@@ -642,6 +645,33 @@ TEST(Pop, GroupWritesASelectionAndMasksTheNextFilter) {
 // survives is the value its own point carried, so a chain that deletes
 // and then reads a lane reads the right point's value and not its
 // neighbour's.
+// THE SPLATTING SINK is a member of the family like the forming ones: a
+// chain reaches it by its own verb, and the lanes the cook exports are
+// the ones the splat reads without the caller naming them again.
+TEST(Pop, TheBillboardSinkSplatsAChainsCookedPoints) {
+  const sk_sp<SkSurface> surface =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(160, 120));
+  ASSERT_TRUE(surface);
+  surface->getCanvas()->clear(SK_ColorBLACK);
+  camera::Camera camera;
+  camera.eye = {0, 0, 420};
+
+  pop::on(flatRing(12, 90))
+      .count(200)
+      .vary(0.5f, 1.4f)
+      .tint({1, 0.6f, 0.2f, 1})
+      .billboards(*surface->getCanvas(), camera, {160, 120}, {.size = 6});
+
+  SkBitmap shot;
+  shot.allocPixels(SkImageInfo::MakeN32Premul(160, 120));
+  ASSERT_TRUE(surface->makeImageSnapshot()->readPixels(shot.pixmap(), 0, 0));
+  int lit = 0;
+  for (int y = 0; y < shot.height(); ++y)
+    for (int x = 0; x < shot.width(); ++x)
+      if (shot.getColor(x, y) != SK_ColorBLACK) ++lit;
+  EXPECT_GT(lit, 200);
+}
+
 TEST(Pop, DeleteRemovesThePointsASelectionNames) {
   const std::vector<glm::vec3> loop = flatRing(12, 200);
   const auto selected = [&](int count) {

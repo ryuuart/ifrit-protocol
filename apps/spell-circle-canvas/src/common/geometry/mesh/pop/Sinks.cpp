@@ -1,8 +1,8 @@
 /** @file
- * The mesh-forming sinks: a cooked chain stamped into one mesh with its
- * promoted lanes, or treated as a path and swept with a profile. Both
- * stand on the cloud the runtime cooked; the forming itself is CPU code
- * over that cloud, because a Mesh is what they hand back.
+ * The sinks a chain ends at: stamped into one mesh with its promoted
+ * lanes, treated as a path and swept with a profile, or splatted onto a
+ * canvas as camera-facing sprites. Every one of them stands on the cloud
+ * the runtime cooked; what each does with it afterwards is its own.
  */
 
 #include <string>
@@ -53,6 +53,20 @@ Spline3 pathThrough(const pop::Chain& chain, bool closed,
 }
 
 }  // namespace
+
+void pop::cookBillboards(const pop::Chain& chain, SkCanvas& canvas,
+                         const camera::Camera& camera, SkSize viewport,
+                         const points::BillboardStyle& style,
+                         const pop::Runtime& runtime) {
+  // The size and tint lanes a cook exports are "size" and "tint"; a
+  // style that named neither takes them, so a chain that varied either
+  // shows it without the caller repeating the table.
+  points::BillboardStyle splat = style;
+  const Cloud cloud = cook(chain, runtime);
+  if (splat.sizeLane.empty() && cloud.scalarIf("size")) splat.sizeLane = "size";
+  if (splat.tintLane.empty() && cloud.colorIf("tint")) splat.tintLane = "tint";
+  points::drawBillboards(canvas, cloud, camera, viewport, splat);
+}
 
 Mesh pop::cookSweep(const pop::Chain& chain, const Polyline& profile,
                     bool closed, const curve::SweepOptions& options,

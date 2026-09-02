@@ -629,9 +629,13 @@ with the same expression.
 `taper`, `bend`, `mix`, `mixBy`, `copy`, `normal`, `op`) append operators — `masked()` sets
 the mask on the filter just added — and the builder converts to a
 `Chain`, so you can reach into any operator afterwards and re-cook. Sinks
-turn a chain into geometry: `cook()` to a `Cloud`, `cookMesh()` to one
-mesh of stamps, and `cookSweep()` reading the cooked points as the path
-`curve::sweep()` carries a profile along.
+end a chain: `cook()` to a `Cloud`, `cookMesh()` to one mesh of stamps,
+`cookSweep()` reading the cooked points as the path `curve::sweep()`
+carries a profile along, and `cookBillboards()` splatting them onto a
+canvas as camera-facing sprites — the one sink that forms no geometry,
+because a billboard faces the eye and so is answered where the eye is
+rather than in the world. The builder reaches all four as `cloud()`,
+`stamps()`, `sweep()` and `billboards()`.
 
 
 ### The pop family, and where each member runs
@@ -679,7 +683,7 @@ And the sinks, which stand on the cooked cloud:
 | `cook()` | the `Cloud` itself | yes | the chain dispatched, read back once |
 | `cookMesh()` / `points::instance()` | the stamp placed at every point | yes | the vertices dispatched, read back once |
 | `cookSweep()` / `curve::sweep()` | the profile carried along the cooked points | yes | the ring vertices dispatched, read back once |
-| `points::drawBillboards()` | camera-facing sprites on a canvas | yes | — |
+| `cookBillboards()` / `points::drawBillboards()` | camera-facing sprites on a canvas | yes | — |
 
 **Against TouchDesigner's POP set**, the operators above answer Noise,
 Transform, Math, Attribute Create, Attribute (blend and copy), Lookup and
