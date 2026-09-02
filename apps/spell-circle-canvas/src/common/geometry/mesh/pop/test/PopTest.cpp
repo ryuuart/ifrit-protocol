@@ -637,6 +637,72 @@ TEST(Pop, GroupWritesASelectionAndMasksTheNextFilter) {
   for (const glm::vec3& p : nobody.positions) EXPECT_NEAR(p.y, 0.0f, 1e-4f);
 }
 
+// DELETE is the other half of SELECT: the selector names a region and
+// this removes what it named. Only the count moves — every lane that
+// survives is the value its own point carried, so a chain that deletes
+// and then reads a lane reads the right point's value and not its
+// neighbour's.
+TEST(Pop, DeleteRemovesThePointsASelectionNames) {
+  const std::vector<glm::vec3> loop = flatRing(12, 200);
+  const auto selected = [&](int count) {
+    return pop::on(loop).count(count).select("east", {200, 0, 0}, 120);
+  };
+  const Cloud whole = pop::cook(selected(400));
+  const Cloud dropped = pop::cook(pop::Chain(selected(400).drop("east")));
+  const Cloud kept = pop::cook(pop::Chain(selected(400).keep("east")));
+
+  const std::vector<glm::vec4>* east = whole.colorIf("east");
+  ASSERT_TRUE(east);
+  size_t named = 0;
+  for (size_t i = 0; i < whole.size(); ++i)
+    if ((*east)[i].x >= 0.5f) ++named;
+  ASSERT_GT(named, 40u);
+  ASSERT_LT(named, whole.size());
+
+  EXPECT_EQ(kept.size(), named);
+  EXPECT_EQ(dropped.size(), whole.size() - named);
+  // Every lane travels with its point: the survivors are the same
+  // positions the whole cook produced, in the same order.
+  size_t at = 0;
+  for (size_t i = 0; i < whole.size(); ++i) {
+    if ((*east)[i].x < 0.5f) continue;
+    ASSERT_LT(at, kept.size());
+    EXPECT_EQ(kept.positions[at], whole.positions[i]);
+    ++at;
+  }
+  // A mask nothing names deletes nothing, which is what keeps an
+  // operator from emptying a set by omission.
+  EXPECT_EQ(pop::cook(pop::Chain(selected(400).drop(""))).size(), whole.size());
+}
+
+// NORMAL makes a direction lane a unit direction and gives every one of
+// them the same sense. A ring's outward is what stands its stamps up the
+// same way all the way round.
+TEST(Pop, NormalUnitsADirectionLaneAndGivesItOneSense) {
+  const std::vector<glm::vec3> loop = flatRing(12, 200);
+  const Cloud cooked = pop::cook(pop::Chain(pop::on(loop)
+                                                .count(120)
+                                                .fill(pop::Lane::Dir,
+                                                      {3, 0, 0, 0})
+                                                .normal(1.0f, {0, 0, 0})));
+  const std::vector<glm::vec3>* dir = cooked.vectorIf("dir");
+  ASSERT_TRUE(dir);
+  for (size_t i = 0; i < cooked.size(); ++i) {
+    EXPECT_NEAR(glm::length((*dir)[i]), 1.0f, 1e-5f) << "point " << i;
+    // +1 turns each direction away from the centre, so a point on the
+    // -x side of the ring must carry -x and not the +x it was filled
+    // with.
+    EXPECT_GE(glm::dot((*dir)[i], glm::normalize(cooked.positions[i])), 0.0f)
+        << "point " << i;
+  }
+  // A zero sense leaves the sense alone and only units the lane.
+  const Cloud plain = pop::cook(pop::Chain(
+      pop::on(loop).count(120).fill(pop::Lane::Dir, {3, 0, 0, 0}).normal()));
+  const std::vector<glm::vec3>* plainDir = plain.vectorIf("dir");
+  ASSERT_TRUE(plainDir);
+  for (const glm::vec3& d : *plainDir) EXPECT_EQ(d, glm::vec3(1, 0, 0));
+}
+
 TEST(Pop, TransformAndPeakMovePointsAlongTheirFrame) {
   const std::vector<glm::vec3> loop = flatRing(12, 100);
   // A pure translation on P is Math's move; a rotation is not, and Dir

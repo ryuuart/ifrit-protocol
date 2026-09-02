@@ -171,6 +171,9 @@ std::vector<Case> everySupportedChain() {
                   0.0f, pop::Select::Combine::Replace, true)
           .move({0, 40, 0})
           .masked("slab"));
+  add("Normal, unit and outward",
+      pop::on(loop()).count(n).fill(pop::Lane::Dir, {3, 0, 0, 0}).normal(
+          1.0f, {0, 0, 0}));
   add("Affine, as a placement", pop::on(loop()).count(n).affine(place));
   add("Affine, as a direction", pop::on(loop()).count(n).orient(place));
   add("Peak", pop::on(loop()).count(n).peak(18.0f));

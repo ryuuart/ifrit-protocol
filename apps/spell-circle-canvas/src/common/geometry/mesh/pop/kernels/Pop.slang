@@ -123,6 +123,7 @@ static const uint kSelect = 14u;
 static const uint kAffine = 15u;
 static const uint kPeak = 16u;
 static const uint kMix = 18u;
+static const uint kNormal = 21u;
 
 /** lane += a stable random cube offset per point. */
 void opJitter(uint i) {
@@ -287,6 +288,25 @@ void opMix(uint i) {
   storeMasked(i, va + (vb - va) * f);
 }
 
+/** A direction lane made unit length, and — with a sense — turned to
+ *  face out of a centre or into it. The fallback arrives already unit
+ *  length, so a direction too short to have one costs no second
+ *  division. */
+void opNormal(uint i) {
+  float4 v = srcA[i];
+  float len = lengthP(float3(v.x, v.y, v.z));
+  float3 n = len > 1e-6 ? float3(v.x / len, v.y / len, v.z / len)
+                        : float3(args.b.x, args.b.y, args.b.z);
+  float sense = args.a.w;
+  if (sense != 0.0) {
+    float4 p = srcB[i];
+    float3 d = float3(p.x - args.a.x, p.y - args.a.y, p.z - args.a.z);
+    float facing = (n.x * d.x + n.y * d.y + n.z * d.z) * sense;
+    if (facing < 0.0) n = float3(-n.x, -n.y, -n.z);
+  }
+  storeMasked(i, float4(n.x, n.y, n.z, v.w));
+}
+
 void popPoint(uint i) {
   if (i >= args.code.y) return;
   uint op = args.code.x;
@@ -314,6 +334,8 @@ void popPoint(uint i) {
     opPeak(i);
   } else if (op == kMix) {
     opMix(i);
+  } else if (op == kNormal) {
+    opNormal(i);
   }
 }
 

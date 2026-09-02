@@ -102,6 +102,13 @@ void eachField(OpRef& op, F&& f) {
           f("high", o.high);
         } else if constexpr (std::is_same_v<T, pop::Mix>) {
           f("factor", o.factor);
+        } else if constexpr (std::is_same_v<T, pop::Delete>) {
+          f("threshold", o.threshold);
+          f("keep", o.keep);
+        } else if constexpr (std::is_same_v<T, pop::Normal>) {
+          vec3("center", o.center);
+          f("sense", o.sense);
+          vec3("fallback", o.fallback);
         }
         // Promote and PointSet have no numeric fields.
       },
@@ -194,6 +201,10 @@ std::string_view pop::opName(const pop::Op& op) {
           return "Deform";
         else if constexpr (std::is_same_v<T, pop::Mix>)
           return "Mix";
+        else if constexpr (std::is_same_v<T, pop::Delete>)
+          return "Delete";
+        else if constexpr (std::is_same_v<T, pop::Normal>)
+          return "Normal";
         else
           return "PointSet";
       },

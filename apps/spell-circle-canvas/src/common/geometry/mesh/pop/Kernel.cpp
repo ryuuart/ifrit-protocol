@@ -14,6 +14,7 @@
 #include <sigilslang/Pop.spv.h>
 
 #include <algorithm>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <variant>
@@ -82,7 +83,7 @@ bool has(const pop::Op& op) {
                std::is_same_v<T, pop::Lookup> ||
                std::is_same_v<T, pop::Select> ||
                std::is_same_v<T, pop::Affine> || std::is_same_v<T, pop::Peak> ||
-               std::is_same_v<T, pop::Mix>;
+               std::is_same_v<T, pop::Mix> || std::is_same_v<T, pop::Normal>;
       },
       op);
 }
@@ -169,6 +170,20 @@ bool describe(const pop::Op& op, size_t count, Dispatch* out) {
           work.a = value.along.name;
           work.mask = value.mask;
           work.args.a = {value.distance, 0, 0, 0};
+        } else if constexpr (std::is_same_v<T, pop::Normal>) {
+          work.dst = work.a = value.lane.name;
+          work.b = value.from.name;
+          work.mask = value.mask;
+          // NORMALIZED HERE and nowhere else, so the kernel divides by a
+          // length it never has to check and a degenerate fallback lands
+          // on one answer rather than on whatever the caller wrote.
+          glm::vec3 fallback = value.fallback;
+          const float length = std::sqrt(fallback.x * fallback.x +
+                                         fallback.y * fallback.y +
+                                         fallback.z * fallback.z);
+          fallback = length > 1e-6f ? fallback / length : glm::vec3{0, 0, 1};
+          work.args.a = asVec4(value.center, value.sense);
+          work.args.b = asVec4(fallback, 0);
         } else if constexpr (std::is_same_v<T, pop::Mix>) {
           work.dst = value.to.name;
           work.a = value.a.name;

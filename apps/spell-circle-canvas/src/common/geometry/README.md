@@ -568,20 +568,23 @@ of it.
 
 ### The operators
 
-`pop::Op` is a variant over twenty operator values, and `pop::Chain` is
-a vector of them. Generators seed a chain: `SplineScatter` (points along a
+`pop::Op` is a variant over twenty-two operator values, and `pop::Chain`
+is a vector of them. Generators seed a chain: `SplineScatter` (points along a
 window of a closed loop), `MeshScatter` (points on a formed model's
 faces) and `PointSet` (an existing `Cloud` — an import's `asCloud()`, a
 previous cook — every lane riding in as an attribute, so a Houdini group
 arrives as a mask under its own name). Filters rewrite attributes in place: `Jitter`, `Noise`, `Ramp`,
 `Vary`, `LookAt`, `Math`, `Relax`, `Fill`, `Atlas`, `Lookup`, `Affine`
 (any `mat4` on a position or a direction lane), `Peak` (push along a
-direction lane), `Deform` (twist, taper or bend about an axis) and `Mix`
-(blend two lanes into a third by a constant or a lane). `Select` is the
-selector: it writes a mask lane from a sphere or box region, feathered at
-its edge and combined into what the lane already holds (replace, union,
-intersect, subtract). `Promote` and `Sort` are the primitive-class and
-permutation-class operators.
+direction lane), `Deform` (twist, taper or bend about an axis), `Mix`
+(blend two lanes into a third by a constant or a lane) and `Normal` (make
+a direction lane unit-length and give every one of them the same sense,
+outward from a centre or inward). `Select` is the selector: it writes a
+mask lane from a sphere or box region, feathered at its edge and combined
+into what the lane already holds (replace, union, intersect, subtract),
+and `Delete` is its other half — it drops the points a mask names, which
+is the one operator that changes the count. `Promote` and `Sort` are the
+primitive-class and permutation-class operators.
 
 Every operator addresses attributes by name through `pop::AttrRef`, with
 `"P"`, `"T"`, `"Dir"`, `"Scale"`, `"Color"` and `"Tex"` as the well-known
@@ -600,8 +603,8 @@ with the same expression.
 `Builder` whose chained verbs (`count`, `window`,
 `spread`, `seed`, `jitter`, `noise`, `vary`, `fade`, `tint`, `lookAt`,
 `move`, `fill`, `atlas`, `rampBy`, `order`, `orderBy`, `promote`, `smooth`,
-`select`, `masked`, `affine`, `orient`, `peak`, `twist`, `taper`,
-`bend`, `mix`, `mixBy`, `copy`, `op`) append operators — `masked()` sets
+`select`, `drop`, `keep`, `masked`, `affine`, `orient`, `peak`, `twist`,
+`taper`, `bend`, `mix`, `mixBy`, `copy`, `normal`, `op`) append operators — `masked()` sets
 the mask on the filter just added — and the builder converts to a
 `Chain`, so you can reach into any operator afterwards and re-cook. Sinks
 turn a chain into geometry: `cook()` to a `Cloud`, `cookMesh()` to one
@@ -644,6 +647,8 @@ message naming both the operator and the runtime.
 | `Peak` | filter | kernel | kernel | |
 | `Deform` | filter | yes | declines | twist and bend turn on library trigonometry |
 | `Mix` | filter | kernel | kernel | |
+| `Delete` | set | yes | declines | the count is what it changes, and a per-point map cannot change it |
+| `Normal` | filter | kernel | kernel | |
 
 And the sinks, which stand on the cooked cloud:
 
@@ -656,8 +661,8 @@ And the sinks, which stand on the cooked cloud:
 
 **Against TouchDesigner's POP set**, the operators above answer Noise,
 Transform, Math, Attribute Create, Attribute (blend and copy), Lookup and
-Ramp, Group, Sort, Attribute Promote, Twist/Bend/Taper, Smooth, Peak,
-Look At, Randomise and the texture cell pick; the generators answer Point
+Ramp, Group, Delete, Normal, Sort, Attribute Promote, Twist/Bend/Taper,
+Smooth, Peak, Look At, Randomise and the texture cell pick; the generators answer Point
 Generator, Scatter, SOP to POP; the sinks answer Copy/Instance and
 Skin/Sweep. **Not present**: Ray (project points onto a surface along a
 direction), Limit (clamp a lane to a range — a `Lookup` with a flat table
@@ -894,6 +899,12 @@ is silently, plausibly wrong rather than obviously broken.
   executor uploads exactly what it produces. `count()`, `window()`,
   `spread()` and `seed()` are inert on a point-set-led chain: the cloud
   is the count.
+- **`Delete` reads an empty mask the other way round.** Every filter
+  takes an empty mask name as "every point in full"; `Delete` takes it as
+  "no point at all", because an operator that emptied the set by omission
+  is not one anyone wants. It is also the only operator whose output has
+  a different count from its input, so a chain that deletes and then
+  addresses a point by index is addressing the compacted set.
 - **`Select` sizes are radii per axis in both shapes.** A box of `size`
   `{100, 20, 100}` spans 200 by 40 by 200; a sphere with unequal `size` is
   an ellipsoid. `feather` is a fraction of that extent, not a distance.

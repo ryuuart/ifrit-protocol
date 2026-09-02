@@ -363,12 +363,51 @@ struct pop {
     Cloud cloud;
     bool operator==(const PointSet&) const = default;
   };
+  /** Filter, SET class (TouchDesigner's Delete): drop the points a mask
+   *  lane names — the other half of `Select`, which can feather a
+   *  selection but not remove it. A point whose `mask` .x is at or above
+   *  `threshold` is SELECTED; the selected go, and `keep` inverts that
+   *  so only they remain. Every lane is compacted through one
+   *  permutation, so the store stays coherent and only the count moves.
+   *
+   *  An unnamed mask deletes nothing. That is the one place the mask
+   *  convention is read the other way round — elsewhere an empty name
+   *  means every point in full, and here it would mean the whole set,
+   *  which is not something an operator should do by omission.
+   *
+   *  Host-only, and a boundary rather than a gap: the count is what this
+   *  operator changes, and a per-point map cannot change it. A device
+   *  executor declines a chain holding one, the way it declines Sort. */
+  struct Delete {
+    std::string mask;
+    float threshold = 0.5f;
+    bool keep = false;
+    bool operator==(const Delete&) const = default;
+  };
+  /** Filter (TouchDesigner's Normal): make a direction lane a UNIT
+   *  direction, and give every one of them the same sense. `lane` is
+   *  normalized in place, a direction too short to have one taking
+   *  `fallback` instead; then, where `sense` is not zero, each is turned
+   *  to face away from `center` (+1) or toward it (-1), measured from
+   *  the point's own position in `from`. That is what makes a scattered
+   *  surface's directions agree across a seam, and what stands a
+   *  closed shape's stamps up the same way all over. */
+  struct Normal {
+    AttrRef lane = Lane::Dir;
+    AttrRef from = Lane::P;
+    glm::vec3 center = {0, 0, 0};
+    float sense = 0;
+    glm::vec3 fallback = {0, 0, 1};
+    std::string mask;
+    bool operator==(const Normal&) const = default;
+  };
   /** Variant ORDER IS ABI: SigilWorld maps each op's variant index to
    *  a compute PSO. New ops are APPENDED, never inserted. */
   using Op =
       std::variant<SplineScatter, Jitter, Noise, Ramp, Vary, LookAt, Math,
                    Relax, MeshScatter, Fill, Atlas, Promote, Lookup, Sort,
-                   Select, Affine, Peak, Deform, Mix, PointSet>;
+                   Select, Affine, Peak, Deform, Mix, PointSet, Delete,
+                   Normal>;
   using Chain = std::vector<Op>;
 
   /** The operator's own name — "Jitter", "Select", "PointSet" — for a
@@ -679,6 +718,30 @@ struct pop {
     /** Duplicate an attribute under another name. */
     Builder& copy(const AttrRef& from, AttrRef to) {
       m_chain.emplace_back(Mix{from, from, std::move(to), 0, {}});
+      return *this;
+    }
+    /** DELETE: drop the points @p mask names — `select` names them,
+     *  this removes them. A point's mask .x at or above @p threshold
+     *  counts as named. */
+    Builder& drop(std::string mask, float threshold = 0.5f) {
+      m_chain.emplace_back(Delete{std::move(mask), threshold, false});
+      return *this;
+    }
+    /** ...and its complement: keep only the points @p mask names. */
+    Builder& keep(std::string mask, float threshold = 0.5f) {
+      m_chain.emplace_back(Delete{std::move(mask), threshold, true});
+      return *this;
+    }
+    /** NORMAL: make a direction lane unit-length, and — with a nonzero
+     *  @p sense — turn every one of them away from @p center (+1) or
+     *  toward it (-1). */
+    Builder& normal(float sense = 0, glm::vec3 center = {0, 0, 0},
+                    AttrRef lane = Lane::Dir) {
+      Normal n;
+      n.lane = std::move(lane);
+      n.center = center;
+      n.sense = sense;
+      m_chain.emplace_back(std::move(n));
       return *this;
     }
     /** Escape hatch: any raw op joins the chain. */

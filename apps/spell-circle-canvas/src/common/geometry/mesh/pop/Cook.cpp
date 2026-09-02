@@ -314,7 +314,9 @@ Cloud cookOnCpu(const pop::Chain& chain) {
   Attrs attrs;
   attrs.count = pop::seedLanes(chain, &attrs.lanes);
   if (attrs.count == 0) return {};
-  const size_t count = attrs.count;
+  // Not const: the SET class changes how many points there are, and
+  // every operator after one of those addresses the new count.
+  size_t count = attrs.count;
 
   for (size_t opIndex = 1; opIndex < chain.size(); ++opIndex) {
     // THE KERNEL FIRST. An operator that has one is arithmetic this file
@@ -392,6 +394,26 @@ Cloud cookOnCpu(const pop::Chain& chain) {
               for (size_t i = 0; i < count; ++i) next[i] = lane[order[i]];
               lane = next;
             }
+          } else if constexpr (std::is_same_v<T, pop::Delete>) {
+            // The SET class, and the only operator that changes the
+            // count. Every lane is compacted through one permutation,
+            // so the store stays coherent and nothing but its length
+            // moves. An unnamed mask deletes nothing: an operator that
+            // emptied the set by omission is not one anybody wants.
+            if (op.mask.empty()) return;
+            std::vector<uint32_t> kept;
+            kept.reserve(count);
+            for (size_t i = 0; i < count; ++i) {
+              const bool named = attrs.load(op.mask, i).x >= op.threshold;
+              if (named == op.keep) kept.push_back((uint32_t)i);
+            }
+            for (auto& [name, lane] : attrs.lanes) {
+              std::vector<glm::vec4> next(kept.size());
+              for (size_t i = 0; i < kept.size(); ++i) next[i] = lane[kept[i]];
+              lane = std::move(next);
+            }
+            count = kept.size();
+            attrs.count = count;
           } else if constexpr (std::is_same_v<T, pop::Deform>) {
             // The frame: a unit axis, plus for Bend a unit direction
             // made perpendicular to it. Degenerate inputs (a zero
