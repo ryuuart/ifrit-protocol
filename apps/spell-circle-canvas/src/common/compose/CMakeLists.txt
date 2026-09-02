@@ -27,12 +27,15 @@
 #                                        schemes, the routers, and the
 #                                        instruments over Typography
 #   SigilCompose                         the whole-library convenience for
-#                                        an OUTSIDE consumer: Brush (which
-#                                        reaches Core) plus Typography;
+#                                        an OUTSIDE consumer: Kit, Brush and
+#                                        Typography, which reach Core;
 #                                        nothing in this tree links it
 #
 # Every public header lives under one include root, include/sigilcompose/
-# <feature>/, so a feature adds the root and spells its own directory;
+# <feature>/, so a feature adds the root and spells its own directory —
+# except the testing feature's read-back checks, which sit under a root of
+# their own (testing/include/) so that only a target that links
+# SigilComposeTesting can reach them;
 # <sigilcompose/Compose.h> at the root is the transitional umbrella over
 # the kernel and each feature has a <Feature>.h umbrella of its own. Test
 # fixtures every binary shares sit in test/support/ and the bench support
@@ -107,7 +110,8 @@ add_subdirectory(kit)
 # SigilCompose — the whole-library name, kept as a convenience for a
 # consumer OUTSIDE this tree, the way SigilWeave, SigilMotion and
 # SigilGeometry each keep one. It carries no code of its own; linking it is
-# exactly linking Brush (which reaches Shape and Core) plus Typography. Nothing in this repository links it: every consumer here —
+# exactly linking Kit, Brush and Typography, which between them reach Core.
+# Nothing in this repository links it: every consumer here —
 # the benches, the demos, the tests, and the sketch library above — names
 # the feature targets it draws with, which is what keeps a dependency on a
 # tier a stated fact rather than an accident of the umbrella. The instanced
@@ -115,7 +119,7 @@ add_subdirectory(kit)
 # consumers that stamp or browse with it.
 add_library(SigilCompose INTERFACE)
 target_link_libraries(SigilCompose INTERFACE
-  SigilComposeBrush SigilComposeTypography)
+  SigilComposeKit SigilComposeBrush SigilComposeTypography)
 
 # ---------------------------------------------------------------------------
 # The cross-feature tests, which are the library's rather than one tier's.
@@ -172,7 +176,7 @@ add_test(NAME compose_api_doc_probes_self_test
 
 _compose_test_binary(compose_docs_test
   LIBRARIES SigilComposeCore SigilComposeKit SigilComposeBrush
-            SigilComposeTypography SigilComposeKit SigilComposeInstances
+            SigilComposeTypography SigilComposeInstances
   SOURCES
     ${COMPOSE_API_DOC_PROBES}
     test/ComposeTestEngineDocs.cpp

@@ -22,6 +22,7 @@ namespace geometry = sigil::geometry;
 #include <sigilcompose/brush/Brushes.h>
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigilgeometry/kit/Silhouettes.h>
 
 namespace kit = sigil::compose::kit;
 
@@ -75,8 +76,8 @@ TEST(ComposeKitStrokes, BraidCrossesByConstruction) {
   const SkPath spine = b.detach();
 
   for (int n : {2, 3, 4}) {
-    const std::vector<brush::Strand> braid = kit::strands::braid(
-        n, 10, 60, brush::solid(2, Fill::color({1, 0, 0, 1})));
+    const std::vector<brush::Strand> braid =
+        kit::braid(n, 10, 60, brush::solid(2, Fill::color({1, 0, 0, 1})));
     ASSERT_EQ(braid.size(), (size_t)n);
     std::vector<SkPath> paths;
     paths.reserve(braid.size());
@@ -104,7 +105,7 @@ TEST(ComposeKitStrokes, BraidCrossesByConstruction) {
 
 TEST(ComposeKitStrokes, BraidSharesOneBrushAcrossItsStrands) {
   const Decoration ink = brush::solid(2, Fill::color({0, 1, 0, 1}));
-  const std::vector<brush::Strand> braid = kit::strands::braid(3, 8, 40, ink);
+  const std::vector<brush::Strand> braid = kit::braid(3, 8, 40, ink);
   for (const brush::Strand& s : braid) {
     EXPECT_TRUE(s.brush == ink)
         << "braid() is sugar for n offsets of ONE brush";
@@ -116,10 +117,10 @@ TEST(ComposeKitStrokes, BraidSharesOneBrushAcrossItsStrands) {
 }
 
 TEST(ComposeKitStrokes, ASpanCompositionIsNotANewKind) {
-  // kit::spans::brackets is a COMPOSITION of core terms, which is what a
+  // spans::brackets is a COMPOSITION of core terms, which is what a
   // kit span can be and why Spans stays a closed value.
-  EXPECT_TRUE(kit::spans::brackets(18) == spans::corners(18));
-  EXPECT_FALSE(kit::spans::brackets(18) == spans::corners(19));
+  EXPECT_TRUE(spans::brackets(18) == spans::corners(18));
+  EXPECT_FALSE(spans::brackets(18) == spans::corners(19));
 }
 
 TEST(ComposeKitStrokes, TheWaveProfileIsAKitValueOverACoreSeam) {
@@ -255,8 +256,8 @@ TEST(ComposeKitStrokes, BraidAlternatesAlongTheWholeRun) {
         brush::Strand{geometry::path::profile::wave(amp, wavelength, 0.5f),
                       brush::solid(inkWidth, strokeGreen())}};
     // Same phases braid() would hand out for n = 2.
-    const std::vector<brush::Strand> viaBraid = kit::strands::braid(
-        2, amp, wavelength, brush::solid(inkWidth, strokeRed()));
+    const std::vector<brush::Strand> viaBraid =
+        kit::braid(2, amp, wavelength, brush::solid(inkWidth, strokeRed()));
     EXPECT_EQ(viaBraid[0].path, strands[0].path);
     EXPECT_EQ(viaBraid[1].path, strands[1].path);
 
@@ -356,10 +357,10 @@ TEST(ComposeKitPresets, TheFourPresetsCameOutOfCoreUNCHANGED) {
   // Counting layers and spot-checking one width would keep passing on a
   // preset whose colours had all been halved, which is precisely the kind
   // of drift a shared preset suffers.
-  using kit::brush::presets::circuit;
-  using kit::brush::presets::filament;
-  using kit::brush::presets::pulse;
-  using kit::brush::presets::rope;
+  using brush::presets::circuit;
+  using brush::presets::filament;
+  using brush::presets::pulse;
+  using brush::presets::rope;
 
   const SkColor4f glow{0.435f, 0.847f, 1.0f, 1};
   const SkColor4f core{0.875f, 0.965f, 1.0f, 1};
@@ -432,13 +433,12 @@ TEST(ComposeKitPresets, TheDefaultArgumentsSurvivedTheMove) {
   // caller writing `rope(1)` must get the same brush as `rope(1, 1.0f)`.
   // Nothing else in the suite would notice a changed default, since every
   // other case passes all the arguments explicitly.
-  EXPECT_TRUE(kit::brush::presets::rope(1) ==
-              kit::brush::presets::rope(1, 1.0f));
+  EXPECT_TRUE(brush::presets::rope(1) == brush::presets::rope(1, 1.0f));
   const SkColor4f teal{0.2f, 0.9f, 0.8f, 1};
-  EXPECT_TRUE(kit::brush::presets::circuit(teal) ==
-              kit::brush::presets::circuit(teal, 1));
-  EXPECT_FALSE(kit::brush::presets::circuit(teal, 2) ==
-               kit::brush::presets::circuit(teal, 1));
+  EXPECT_TRUE(brush::presets::circuit(teal) ==
+              brush::presets::circuit(teal, 1));
+  EXPECT_FALSE(brush::presets::circuit(teal, 2) ==
+               brush::presets::circuit(teal, 1));
 }
 
 TEST(ComposeKitStrokes, ABleedIsADISTANCEAndNeverNegative) {

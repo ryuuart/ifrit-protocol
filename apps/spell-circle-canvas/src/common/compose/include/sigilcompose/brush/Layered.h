@@ -12,7 +12,6 @@
 #include <include/core/SkPicture.h>
 #include <sigilcompose/brush/Decorations.h>  // PathSample
 #include <sigilcompose/brush/Lines.h>        // lines::displace (the wave op)
-#include <sigilcompose/kit/Silhouettes.h>
 
 #include <any>
 #include <functional>
@@ -70,7 +69,7 @@ struct LayeredBrush {
 };
 
 // Ready-made stroke stacks — an additive filament glow, circuit traces, a
-// counter-dashed rope — are `kit::brush::presets::`, in
+// counter-dashed rope — are `brush::presets::`, in
 // <sigilcompose/kit/Strokes.h>. They are compositions of the values here
 // and need nothing this header does not already expose.
 

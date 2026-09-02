@@ -1,20 +1,20 @@
 #pragma once
 
 /** @file
- * The KIT's stroke-grammar values: shapers, profiles, strand sets, spans
- * and shapes, under the concept scopes they belong to.
+ * The KIT's stroke-grammar values, each under the catalog it is a member
+ * of: `kit::braid`, a strand set; `spans::brackets`, a span composition
+ * standing beside the kernel's own span terms; and `brush::presets::`,
+ * finished brushes with craft names.
  *
  * **This header is NOT reached by `sigilcompose/kit/Kit.h`.** The umbrella
  * include does not pull it in, so none of the names below exist unless you
  * include this file directly.
  *
  * These are VALUES, not machinery: each is a peer of something a caller
- * could write against the same public seam. That is enforced by the build
- * rather than by convention — the kit is its own CMake library whose only
- * include path is SigilCompose's public headers, so nothing here can reach
- * a library internal even by accident.
+ * could write against the same public seam, and every one of them is
+ * spelled over SigilCompose's public headers alone.
  *
- * PRESETS live at the bottom, under `kit::brush::presets::`, and they are a
+ * PRESETS live at the bottom, under `brush::presets::`, and they are a
  * different KIND from everything above them: a shaper is a word of
  * vocabulary, a preset is a finished drawing with a craft name. They are
  * scoped apart so the difference is visible at the call site. A preset
@@ -22,32 +22,21 @@
  * plain compositions instead.
  */
 
-#include <include/core/SkPathBuilder.h>
-#include <include/core/SkStrokeRec.h>
-#include <include/effects/SkCornerPathEffect.h>
-#include <include/effects/SkDiscretePathEffect.h>
+#include <include/core/SkBlendMode.h>
+#include <include/core/SkColor.h>
 #include <sigilcompose/brush/Brushes.h>
-#include <sigilcompose/brush/Lines.h>
-#include <sigilcompose/core/Derive.h>
 #include <sigilcompose/core/Stroke.h>
-#include <sigilcompose/kit/Routers.h>
-#include <sigilcompose/kit/Silhouettes.h>
 #include <sigilgeometry/kit/Shapers.h>
-#include <sigilgeometry/kit/Silhouettes.h>
 
-#include <cmath>
+#include <algorithm>
 #include <vector>
 
-#include "sigilgeometry/path/Contour.h"
-
-namespace sigil::compose::kit {
-
-
+namespace sigil::compose {
 
 // ---------------------------------------------------------------------------
-// kit::strands — strand SETS
+// kit::braid — a strand SET
 
-namespace strands {
+namespace kit {
 
 /** A BRAID: `n` wave strands at phase k/n, all sharing one brush.
  *
@@ -60,49 +49,44 @@ namespace strands {
  *  Pair it with a crossing rule to say who passes over whom:
  *  `crossing::alternate()` for a plain weave, `crossing::pairs(...)` with
  *  a cycle for an impossible braid. */
-inline std::vector<sigil::compose::brush::Strand> braid(int n, float amplitude,
-                                                        float wavelength,
-                                                        const Decoration& ink) {
-  // Fully qualified on purpose. Inside `sigil::compose::kit`, an
-  // unqualified `brush::` resolves to kit::brush — the shapers scope
-  // above — and NOT to the library's own brush namespace, so any name
-  // from the latter has to be spelled out in full here. The parameter is
-  // named `ink` rather than `brush` for the same reason.
-  std::vector<sigil::compose::brush::Strand> out;
+inline std::vector<brush::Strand> braid(int n, float amplitude,
+                                        float wavelength,
+                                        const Decoration& ink) {
+  std::vector<brush::Strand> out;
   const int count = std::max(1, n);
   out.reserve((size_t)count);
   for (int k = 0; k < count; ++k)
-    out.push_back(sigil::compose::brush::Strand{
-        geometry::path::profile::wave(amplitude, wavelength, (float)k / (float)count), ink});
+    out.push_back(
+        brush::Strand{geometry::path::profile::wave(amplitude, wavelength,
+                                                    (float)k / (float)count),
+                      ink});
   return out;
 }
 
-}  // namespace strands
+}  // namespace kit
 
 // ---------------------------------------------------------------------------
-// kit::spans — span values
+// spans::brackets — a span composition, beside the kernel's own terms
 
 namespace spans {
 /** The reticle: a window of `arm` px at every corner and nothing else.
  *  A composition of existing span terms rather than a new kind — `Spans`
  *  is a closed value, so a kit span can only ever be a composition. */
 inline Spans brackets(float arm = 18.0f, float angleDeg = 30.0f) {
-  return sigil::compose::spans::corners(arm, angleDeg);
+  return corners(arm, angleDeg);
 }
 }  // namespace spans
 
-
 // ---------------------------------------------------------------------------
-// kit::brush::presets — finished compositions with craft names
+// brush::presets — finished compositions with craft names
 //
 // Peers of the shapers in MECHANICS — free functions over the public API,
 // nothing reaching inside — and not peers of them in kind: a shaper is
 // vocabulary, a preset is a finished drawing. They are scoped apart so the
-// difference is visible at every call site: `geometry::shapes::wave` is
-// a word, `kit::brush::presets::rope` is a picture.
+// difference is visible at every call site: `geometry::shapers::wave` is
+// a word, `brush::presets::rope` is a picture.
 
-namespace brush {
-namespace presets {
+namespace brush::presets {
 
 /** An organic glowing filament: four strokes bottom-up — wide additive
  *  glow, mid glow, bright core, white centre. `scale` sets the envelope;
@@ -198,7 +182,6 @@ inline LayeredBrush pulse(SkColor4f halo = {1.0f, 0.79f, 0.44f, 0.35f},
   }};
 }
 
-}  // namespace presets
-}  // namespace brush
+}  // namespace brush::presets
 
-}  // namespace sigil::compose::kit
+}  // namespace sigil::compose

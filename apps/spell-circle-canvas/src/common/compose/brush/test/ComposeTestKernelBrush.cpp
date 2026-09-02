@@ -457,14 +457,13 @@ TEST(ComposeBrushes, FilamentGlowsAroundItsCore) {
   // off around it, built as a value brush on a rail rather than as a stack
   // of hand-placed nodes.
   Host host;
-  host.composer.render(
-      stack()
-          .child(station("a", 10, 90))
-          .child(station("b", 170, 90))
-          .child(rail({{"a"}, {"b"}})
-                     .absolute()
-                     .inset(0)
-                     .stroke(kit::brush::presets::filament())));
+  host.composer.render(stack()
+                           .child(station("a", 10, 90))
+                           .child(station("b", 170, 90))
+                           .child(rail({{"a"}, {"b"}})
+                                      .absolute()
+                                      .inset(0)
+                                      .stroke(brush::presets::filament())));
   host.frame();
   const SkColor core = host.pixel(100, 100);  // on the line (y=100)
   EXPECT_GT(SkColorGetR(core), 180u);         // near-white core

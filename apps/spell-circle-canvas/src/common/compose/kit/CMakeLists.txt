@@ -2,7 +2,7 @@
 #
 # The kit plugs public seams and changes no kernel semantics. This target
 # makes that STRUCTURAL rather than a convention: it links the kernel and
-# the Typography tier, so it sees their PUBLIC headers, and nothing adds
+# the Typography and Brush tiers, so it sees their PUBLIC headers, and nothing adds
 # the compose source root to its include path — so ComposeInternal.h and
 # ComposeRuntime.h are unreachable from kit code. BoundaryProbe.cpp is the
 # negative control for exactly that (expected to fail; see the file).
@@ -43,10 +43,12 @@ add_library(SigilComposeKit STATIC
 target_compile_features(SigilComposeKit PUBLIC cxx_std_20)
 
 # PUBLIC (not PRIVATE): anything that links the kit gets the tiers its values
-# are expressed in — the kernel, type styles, and the geometry library's
-# silhouette shelf — with it.
+# are expressed in — the kernel, type styles, the brush tier whose
+# decorations the era looks are built from, and the geometry library's
+# silhouette shelf — with it. The arrow points one way: this tier links
+# Brush, and Brush links nothing here.
 target_link_libraries(SigilComposeKit PUBLIC
-  SigilComposeCore SigilComposeTypography SigilGeometryKit)
+  SigilComposeCore SigilComposeTypography SigilComposeBrush SigilGeometryKit)
 
 # The negative control: a target that must FAIL to build, and a test that
 # builds it and demands the one message that says the boundary held. The

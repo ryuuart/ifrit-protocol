@@ -12,7 +12,6 @@
 #include <include/core/SkPicture.h>
 #include <sigilcompose/brush/Decorations.h>  // PathSample
 #include <sigilcompose/brush/Lines.h>        // lines::displace (the wave op)
-#include <sigilcompose/kit/Silhouettes.h>
 
 #include <any>
 #include <functional>
@@ -45,7 +44,7 @@ namespace ops {
  *  node wearing one re-records every render (memo the host, or keep it
  *  pointer-stable).
  *
- *  Reach for it only when no `kit::brush::shapers` value and no shaper you
+ *  Reach for it only when no `geometry::shapers` value and no shaper you
  *  could write yourself can say what you mean — a shaper is a comparable
  *  struct with `SkPath shape(const SkPath &) const` and writing one is
  *  four lines. Chain lambdas with chain(); apply to any decoration with

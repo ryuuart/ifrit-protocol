@@ -12,7 +12,6 @@
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/Compose.h>
 #include <sigilcompose/kit/Ornament.h>
-#include <sigilcompose/kit/Silhouettes.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 
 #include <string>

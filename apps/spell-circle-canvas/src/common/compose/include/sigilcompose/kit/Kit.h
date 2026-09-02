@@ -40,7 +40,7 @@
  * **`kit/Strokes.h` AND `kit/Plate.h` ARE NOT INCLUDED HERE, AND THIS
  * UMBRELLA DOES NOT GIVE YOU THEM.** Both are spelled in the Brush tier's
  * types and ship with it: `kit/Strokes.h` carries the stroke grammar —
- * `kit::strands`, `kit::spans` and the `kit::brush::presets` — and
+ * `kit::braid`, `spans::brackets` and the `brush::presets` — and
  * `kit/Plate.h` the
  * bordered feed plate (`kit::plate`, `kit::tinted`). Including this file
  * brings in none of those names; include either header directly.

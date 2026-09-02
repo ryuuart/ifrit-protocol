@@ -12,9 +12,10 @@
 # `by::` gates — reached by the kernel through the StrokeResolver and
 # MaskResolver values the verbs install, which is why `stroke(spans, …)`,
 # `background(spans, …)`, `across()` and every `by::` constructor are
-# defined here though the kernel declares them. Links the kit publicly: a
-# brush is applied to a silhouette, and the stroke grammar's corner cut is
-# the routers' own.
+# defined here though the kernel declares them. Links the kernel, the
+# typography tier and the geometry library's silhouette shelf publicly: a
+# brush is applied to a silhouette. The kit tier links this one, and
+# nothing here reaches up into the kit.
 add_library(SigilComposeBrush STATIC
   Decorations.cpp
   LayerStyles.cpp
@@ -48,14 +49,14 @@ target_compile_features(SigilComposeBrush PUBLIC cxx_std_20)
 target_include_directories(SigilComposeBrush
   PRIVATE ${CMAKE_CURRENT_LIST_DIR} ${CMAKE_CURRENT_LIST_DIR}/../core)
 target_link_libraries(SigilComposeBrush
-  PUBLIC SigilComposeKit SigilComposeTypography
+  PUBLIC SigilComposeCore SigilComposeTypography SigilGeometryKit
   PRIVATE yoga::yogacore)
 
 # Decorations, lines, rails, hatches, brushes, the stroke grammar (which is
 # what the authoring-grammar file exercises), the kit's stroke presets, the
 # brushed masks and the stamped and stroked slices of the other catalogs.
 _compose_test_binary(compose_brush_test
-  LIBRARIES SigilComposeBrush
+  LIBRARIES SigilComposeBrush SigilComposeKit
   SOURCES
     test/ComposeTestLines.cpp
     test/ComposeTestBrushes.cpp
@@ -73,7 +74,7 @@ _compose_test_binary(compose_brush_test
 # this tier's styles over SigilMaterial. Its own binary, so the paint
 # suites keep their name.
 _compose_test_binary(compose_paint_test
-  LIBRARIES SigilComposeBrush
+  LIBRARIES SigilComposeBrush SigilComposeKit
   SOURCES
     test/ComposeTestBrushesPaint.cpp
     test/ComposeTestContentPaint.cpp
@@ -88,7 +89,7 @@ _compose_test_binary(compose_paint_test
 # Masks, brushes, profiled and span strokes, stamps, warps, hatches and
 # the binding cost under stroked cells.
 _compose_bench(compose_brush_bench
-  LIBRARIES SigilComposeBrush
+  LIBRARIES SigilComposeBrush SigilComposeKit
   SOURCES bench/ComposeBrushBench.cpp)
 
 # Pattern bakes and fills, SDF materials against paths, layer-style shadows.

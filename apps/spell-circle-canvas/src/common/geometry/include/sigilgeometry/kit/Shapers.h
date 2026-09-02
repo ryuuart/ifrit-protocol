@@ -52,7 +52,7 @@ namespace sigil::geometry::shapers {
  *  with, so the PROFILE reading treats `wavelength` as px-per-cycle on a
  *  nominal 1000 px contour: on a spine much shorter or much longer than
  *  that, the wavelength you get is not the one you asked for. That is also
- *  why `strands::braid` takes its own phase count instead of deriving one.
+ *  why `kit::braid` takes its own phase count instead of deriving one.
  *  The SHAPER reading (`shape()`) has a real path and is exact.
  *
  *  The third member is `phase`, not a zigzag flag — the cornered
@@ -119,9 +119,7 @@ struct Offset {
   float step = 4.0f;
   bool operator==(const Offset&) const = default;
   float bleed() const { return std::abs(px); }
-  SkPath shape(const SkPath& p) const {
-    return path::parallel(p, px, step);
-  }
+  SkPath shape(const SkPath& p) const { return path::parallel(p, px, step); }
 };
 
 /** ROUND EVERY CORNER of the mark (SkCornerPathEffect). Not
@@ -221,8 +219,7 @@ namespace sigil::geometry::path::profile {
  *  width it goes negative half the time and inverts the band's rails.
  *  `Wave` above states the composition an undulating band wants
  *  instead. */
-inline Profile wave(float amplitude, float wavelength,
-                    float phase = 0.0f) {
+inline Profile wave(float amplitude, float wavelength, float phase = 0.0f) {
   return Profile(shapers::Wave{amplitude, wavelength, phase});
 }
 

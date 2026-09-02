@@ -99,17 +99,19 @@ TEST(ComposeDecorations, SliceDensityScalesTheFixedBandsOnly) {
  *  is the rule the stretch bands cannot express. */
 TEST(ComposeDecorations, SliceDensityLeavesTheStretchBandTheRemainder) {
   std::vector<float> src, dst;
-  skia::draw::detail::latticeEdges({8, 16}, 24.0f, 100.0f, src, dst, 2.0f);
+  sigil::skia::draw::detail::latticeEdges({8, 16}, 24.0f, 100.0f, src, dst,
+                                          2.0f);
   ASSERT_EQ(dst.size(), 4u);
   EXPECT_FLOAT_EQ(dst[1], 4.0f);    // 8 source px at 2 px per unit
   EXPECT_FLOAT_EQ(dst[2], 96.0f);   // the stretch band takes the rest
   EXPECT_FLOAT_EQ(dst[3], 100.0f);  // and the far corner is 4 again
 
-  skia::draw::detail::latticeEdges({8, 16}, 24.0f, 100.0f, src, dst, 1.0f);
+  sigil::skia::draw::detail::latticeEdges({8, 16}, 24.0f, 100.0f, src, dst,
+                                          1.0f);
   EXPECT_FLOAT_EQ(dst[1], 8.0f);  // the default is unchanged
   EXPECT_FLOAT_EQ(dst[2], 92.0f);
 
-  skia::draw::detail::latticeEdges({8, 16}, 24.0f, 6.0f, src, dst, 2.0f);
+  sigil::skia::draw::detail::latticeEdges({8, 16}, 24.0f, 6.0f, src, dst, 2.0f);
   EXPECT_FLOAT_EQ(dst[1], 3.0f);  // too small for either: split even
   EXPECT_FLOAT_EQ(dst[2], 3.0f);
 }

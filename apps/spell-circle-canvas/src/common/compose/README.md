@@ -311,7 +311,7 @@ the include spelling is the feature's: `<sigilcompose/core/Element.h>`,
 `<sigilcompose/kit/Silhouettes.h>`. The public include root is `include/`
 and nothing else — the internal headers beside each feature's sources are
 not reachable from outside it. Each feature has an umbrella named after
-it (`core/Core.h`, `kit/Kit.h`, `brush/Brush.h`, `paint/Paint.h`,
+it (`core/Core.h`, `kit/Kit.h`, `brush/Brush.h`,
 `typography/Typography.h`) over its public headers, and
 `<sigilcompose/Compose.h>` at the root is the transitional umbrella over
 the kernel — exactly `core/Core.h`. Each header stands on its own; include
@@ -509,8 +509,8 @@ rect, filled by its local time — `MeterPlacement` stands the cells over
 the beats or under them as a rule, for a track whose own letters are
 what is being watched) and `kit::restGhost` (the same word
 undeformed under the moving one) — and, shipped with the tiers whose
-types they are spelled in, `kit/Strokes.h`'s shapers, profiles and span
-compositions and `kit/Plate.h`'s bordered feed plate (Brush),
+types they are spelled in, `kit/Strokes.h`'s braid, bracket spans and brush
+presets and `kit/Plate.h`'s bordered feed plate (Brush),
 `kit/Legibility.h` (Typography) and `kit/Placers.h` (Instances). The kit
 is a **separate CMake library** (`SigilComposeKit`) whose only include
 path is compose's public headers, which is how the public/internal
@@ -650,9 +650,13 @@ the left edge, not the top one.
 
 ## Boundaries
 
-The library links `SigilCoreReconcile`, `SigilCoreCache`,
-`SigilGeometryPath`, `SigilImage`, `SigilMaterial`, `SigilMotion`,
-`SigilSkiaDraw`, `SigilWeave` and Skia publicly, and Yoga privately.
+The kernel links `SigilCoreReconcile`, `SigilCoreCache`,
+`SigilCoreComparable`, `SigilCoreCompute`, `SigilGeometryPath`,
+`SigilImage`, `SigilMaterial`, `SigilMeasure`, `SigilMotion`,
+`SigilSkiaDraw`, `SigilWeave` and Skia publicly, and Yoga privately. The
+brush tier adds `SigilGeometryKit`, the silhouette shelf a brush is
+applied to, and the kit tier links the brush tier — the arrow between
+those two points one way.
 
 **What compose IS, after all of those: the element runtime.** It
 reconciles a description against a retained tree, lays it out, paints it
@@ -750,8 +754,7 @@ SigilCore's reconciler),
 `SigilComposeTypography` (`typography/` — the text engine behind dressed
 type, with the type styles and the text-fx presets), `SigilComposeBrush`
 (`brush/` — decorations, lines, brushes, the stroke grammar's engine and
-the mask gates, with `kit/Strokes.h` and `kit/Plate.h`), `SigilComposePaint`
-(`paint/` — patterns, SDF materials, layer styles, OCIO),
+the mask gates, with `kit/Strokes.h` and `kit/Plate.h`),
 `SigilComposeInstances` (`instances/` — the instanced sprite leaf and the
 kit's placers, over Core), `SigilComposeTexture` (`texture/` — a scene
 painted into a surface and handed out as a texture value),
@@ -768,8 +771,8 @@ feature targets it draws with by name, so a dependency on a tier is a
 stated fact.
 `SigilCompose` remains as the whole-library name for a consumer outside
 this tree, the way `SigilWeave`, `SigilMotion` and `SigilGeometry` each
-keep one: it is Paint (which reaches Brush, Shape and Core) plus
-Typography, never the instanced leaf or the web leaf, and nothing here
+keep one: it is Kit, Brush and Typography, which between them reach
+Core, never the instanced leaf or the web leaf, and nothing here
 links it. From `apps/spell-circle-canvas`:
 
 ```sh

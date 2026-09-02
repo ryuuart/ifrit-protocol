@@ -114,9 +114,9 @@ TEST(ComposeDocs, EverySignatureInTheLineAndBorderDocsCompiles) {
   auto edges = onEdges(geometry::path::Edge::Top, stroke(2.0f, ink));
 
   auto glow =
-      kit::brush::presets::filament({0.4f, 0.8f, 1, 1}, {0.9f, 1, 1, 1}, 1.0f);
-  auto trace = kit::brush::presets::circuit({0.2f, 0.9f, 0.8f, 1}, 1);
-  auto cord = kit::brush::presets::rope(1, 1.0f);
+      brush::presets::filament({0.4f, 0.8f, 1, 1}, {0.9f, 1, 1, 1}, 1.0f);
+  auto trace = brush::presets::circuit({0.2f, 0.9f, 0.8f, 1}, 1);
+  auto cord = brush::presets::rope(1, 1.0f);
   // OP FIRST, decoration second. The two arguments read equally well in
   // either order in prose, which is why the call is spelled here.
   auto restyled = brush::restyle(geometry::shapers::Jitter{8.0f, 2.0f, 7},

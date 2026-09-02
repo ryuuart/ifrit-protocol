@@ -36,7 +36,6 @@
 #include <include/core/SkPicture.h>
 #include <sigilcompose/brush/Decorations.h>  // PathSample
 #include <sigilcompose/brush/Lines.h>        // lines::displace (the wave op)
-#include <sigilcompose/kit/Silhouettes.h>
 #include <sigilgeometry/kit/Shapers.h>
 
 #include <any>

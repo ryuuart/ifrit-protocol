@@ -93,7 +93,7 @@ struct SpanInput {
  *  convention — one named required member on a comparable value — governs
  *  shapers, profiles and crossing rules, whose whole point is that a user
  *  writes new ones. A span is an interval set instead: richer values such
- *  as `kit::spans::brackets` are COMPOSITIONS of these terms, not new
+ *  as `spans::brackets` are COMPOSITIONS of these terms, not new
  *  kinds, so the value stays trivially comparable and prunable. */
 class Spans {
  public:
