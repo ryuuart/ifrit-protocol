@@ -442,6 +442,34 @@ struct MaterialData {
   std::optional<material::skia::Paint> recipe;
 };
 
+/** THE DEPTH LANES — Element::rotateX/rotateY/translateZ/scaleZ, the view
+ *  a node declares for its children (Element::perspective and its origin),
+ *  the depth of the transform origin, and the two modes: whether this
+ *  node's children share its space (Element::preserve3d) and whether the
+ *  back of its plane is drawn (Element::backface). A block rather than
+ *  five more PaintProps lanes because a plane that never turns is what
+ *  nearly every node in a tree is, and Composer.cpp's size assertion is
+ *  the rule that keeps that plane paying one null pointer for the lanes.
+ *
+ *  The animatable lanes here are Instance::Slot rows exactly as the 2D
+ *  lanes are (kSlotSpecs reaches them through this block, answering null
+ *  on a node that has none), so they transition, mount, memoize and
+ *  declare volatility through the same four consumers. The frame is
+ *  CSS's: +z toward the viewer. */
+struct DepthData {
+  motion::Animatable<float> rotateX = 0.0f, rotateY = 0.0f;  // degrees
+  motion::Animatable<float> translateZ = 0.0f;               // px, +toward
+  motion::Animatable<float> scaleZ = 1.0f;
+  /// The viewer's distance in front of THIS node's plane, for its
+  /// children. 0 is no perspective: an orthographic projection.
+  motion::Animatable<float> perspective = 0.0f;
+  float perspectiveOriginX = 0.5f, perspectiveOriginY = 0.5f;  // fractions
+  /// The transform origin's depth, beside PaintProps::originX/originY.
+  float originZ = 0.0f;
+  bool preserve3d = false;
+  Backface backface = Backface::Visible;
+};
+
 /** The memo shell's payload: SigilCore's Memo, producing an Element. The
  *  reconciler compares its captured `env` and then its props against the
  *  memo the node was last described from, and runs `invoke` under that
@@ -488,6 +516,9 @@ struct ElementNode {
   // much on EVERY node in the tree for a property a handful of them use,
   // which is what Composer.cpp's size assertion exists to prevent.
   Box<MotionPath> motionData;
+  // The depth lanes (see DepthData): a plane that never turns carries
+  // none, for the same reason travel() is a block.
+  Box<DepthData> depthData;
 
   std::vector<Element> children;
 

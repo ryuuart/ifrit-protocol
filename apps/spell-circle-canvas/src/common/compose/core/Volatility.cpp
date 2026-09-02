@@ -86,7 +86,12 @@ void collectGroupScalars(const Instance& inst, bool root,
   // verdict; what would break the memo is an order that varies between
   // frames for the same tree.
   for (const SlotSpec& spec : kSlotSpecs) {
-    if (root && spec.role != SlotRole::Content) continue;
+    // The root's own transform and opacity are outside its bake; its
+    // content scalars and the VIEW it declares for its children (a
+    // Projection lane) are inside it, since the children are.
+    if (root &&
+        (spec.role == SlotRole::Opacity || spec.role == SlotRole::Geometric))
+      continue;
     if (const motion::Animatable<float>* v = slotValueOf(spec, node))
       push(spec.slot, *v);
   }
@@ -140,21 +145,44 @@ void collectGroupScalars(const Instance& inst, bool root,
  *  replays. Cheap by construction: released nodes are few and each check is
  *  a handful of float resolves. */
 // The node→root matrix, recomputed outside paint. The op sequence per level
-// — preTranslate(rect), preConcat(matrix()) — is EXACTLY the pair paint()
-// applies to curToRoot as it recurses, on the same resolved floats, so the
-// result is bit-identical to the paint-side accumulation. The settle
-// compare depends on that: an ulp of drift reads as motion, and the node
-// never releases.
+// — preTranslate(rect), preConcat(matrix()) for a flat node; preConcat of
+// the flattened 4x4 for a plane that has turned; the space's own plane
+// then preConcat for a node standing in a shared space — is EXACTLY the
+// sequence paint() applies to curToRoot as it recurses, on the same
+// resolved floats, so the result is bit-identical to the paint-side
+// accumulation. The settle compare depends on that: an ulp of drift reads
+// as motion, and the node never releases.
 SkMatrix Composer::Impl::worldMatrixOf(Instance& inst) {
   std::vector<Instance*> chain;
   for (Instance* i = &inst; i; i = i->parent) chain.push_back(i);
   SkMatrix m = SkMatrix::I();
+  std::optional<Space> space;  // the space the current link stands in
   for (Instance* link : std::views::reverse(chain)) {
     Instance& node = *link;
     const SkRect rect = instanceRect(node);
-    m.preTranslate(rect.left(), rect.top());
-    m.preConcat(transformOf(node).matrix({0, 0}, node.desc->paint, rect.width(),
-                                         rect.height()));
+    const NodeTransform tf = transformOf(node);
+    const SkMatrix plane = m;  // the parent's plane, before this link
+    const bool hosts = hostsSpace(node);
+    std::optional<SkM44> depth;
+    if (space || hosts || tf.spatial()) {
+      SkM44 d = depthMatrixOf(node, tf, rect);
+      if (space) d = SkM44(space->accum, d);
+      depth = d;
+    }
+    if (space) {
+      m = space->rootToPlane;
+      m.preConcat(depth->asM33());
+    } else if (depth) {
+      m.preConcat(depth->asM33());
+    } else {
+      m.preTranslate(rect.left(), rect.top());
+      m.preConcat(
+          tf.matrix({0, 0}, node.desc->paint, rect.width(), rect.height()));
+    }
+    if (hosts)
+      space = Space{*depth, space ? space->rootToPlane : plane};
+    else
+      space.reset();
   }
   return m;
 }
@@ -203,8 +231,9 @@ void Composer::Impl::scanReleasedScalars() {
 }
 
 core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
-                                                     bool movingAbove) {
+                                                     Above above) {
   const ElementNode& node = *inst.desc;
+  const bool movingAbove = above.moving;
 
   auto boundOrRunning = [&](Instance::Slot slot,
                             const motion::Animatable<float>& v) {
@@ -288,6 +317,7 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
   bool ownPaint = false;
   bool moving = false;
   bool scalarContent = false;
+  bool projecting = false;
   for (const SlotSpec& spec : kSlotSpecs) {
     const motion::Animatable<float>* v = slotValueOf(spec, node);
     if (!v) continue;  // this node does not carry the block that holds the slot
@@ -301,10 +331,25 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
       case SlotRole::Content:
         scalarContent |= boundOrRunning(spec.slot, *v);
         break;
+      case SlotRole::Projection:
+        // Lands on the CHILDREN: threaded down as `perspectiveLive`, where
+        // every child that projects reads it as its own motion. The node
+        // itself moves nothing of its own.
+        projecting |= boundOrRunning(spec.slot, *v);
+        break;
       case SlotRole::Bespoke:
         break;  // unreachable: slotValueOf answers nullptr for a Bespoke row
     }
   }
+  // A PLANE WHOSE PROJECTION MOVES is moving. A node standing in a shared
+  // space whose host turns, or a plane that has turned under a parent whose
+  // view is live, lands somewhere else next frame with no lane of its own
+  // connected — the same fact its own lane would declare, so it is
+  // declared the same way. A flat node under a live view is untouched by
+  // it (a point at z = 0 divides by 1) and stays still.
+  if ((above.spaceMoving || above.perspectiveLive) &&
+      (above.inSpace || (node.depthData && transformOf(inst).spatial())))
+    moving = true;
   inst.transformLive = moving;
   inst.placementUnderMotion = moving || movingAbove;
   ownPaint |= moving;
@@ -521,9 +566,15 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
   const bool ownContent = otherThanScalar || scalarContent;
 
   core::ChildVolatility kids;
-  for (auto& child : inst.children)
-    // A connected transform HERE moves every descendant's world matrix.
-    kids.add(computeVolatile(*child, movingAbove || moving));
+  // A connected transform HERE moves every descendant's world matrix; a
+  // host's motion moves the space its children stand in; and the view this
+  // node declares is the children's projection.
+  const bool hosts = hostsSpace(inst);
+  const Above below{.moving = movingAbove || moving,
+                    .spaceMoving = hosts && (moving || above.spaceMoving),
+                    .perspectiveLive = projecting,
+                    .inSpace = hosts};
+  for (auto& child : inst.children) kids.add(computeVolatile(*child, below));
   const bool childrenVolatile = kids.anyVolatile;
   // Does anything here composite against what is ALREADY on the canvas? If
   // so the subtree can never be baked into a transparent layer and blitted

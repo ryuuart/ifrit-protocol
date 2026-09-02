@@ -502,6 +502,9 @@ const char* Composer::promotionReason(Promotion p) {
       return "too large to bake, or over the bake budget";
     case Promotion::SplitBaked:
       return "own paint baked, volatile children painted live over the blit";
+    case Promotion::HostsSpace:
+      return "hosts a shared 3D space: its children are drawn on the plane "
+             "beneath it, so it has no layer of its own to bake";
   }
   return "";
 }

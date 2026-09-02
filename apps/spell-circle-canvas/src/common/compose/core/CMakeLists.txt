@@ -38,6 +38,7 @@ add_library(SigilComposeCore STATIC
   # the paint phase
   Volatility.cpp
   Bounds.cpp
+  Depth.cpp
   StackingPainter.cpp
   Coverage.cpp
   # text
@@ -111,6 +112,7 @@ _compose_test_binary(compose_core_test
     test/ComposeTestMask.cpp
     test/ComposeTestFieldPins.cpp
     test/ComposeTestContentCore.cpp
+    test/ComposeTestDepth.cpp
 )
 target_include_directories(compose_core_test PRIVATE ${CMAKE_CURRENT_LIST_DIR})
 target_link_libraries(compose_core_test PRIVATE yoga::yogacore)

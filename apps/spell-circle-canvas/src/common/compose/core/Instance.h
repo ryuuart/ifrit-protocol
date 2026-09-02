@@ -221,6 +221,14 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
     kScaleY,
     kMotionT,
     kTextPathAt,
+    // The depth lanes (DepthData): the plane's turn about its two in-plane
+    // axes, its depth, its depth scale, and the view it declares for its
+    // children.
+    kRotateX,
+    kRotateY,
+    kTranslateZ,
+    kScaleZ,
+    kPerspective,
     kSlots
   };
   std::unique_ptr<AnimatedFloat> anims[kSlots];

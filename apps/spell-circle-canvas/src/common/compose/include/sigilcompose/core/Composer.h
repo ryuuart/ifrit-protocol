@@ -366,6 +366,11 @@ class Composer {
      *  static self was being re-rasterized every frame to redraw a moving
      *  child on top of it. */
     SplitBaked,
+    /** The node hosts a shared 3D space (`Element::preserve3d`): its
+     *  children stand on planes of their own, drawn on the plane beneath
+     *  it, so it has no layer of its own to bake. It paints live and the
+     *  children keep their own caches. */
+    HostsSpace,
   };
   /** One node's share of the last frame, with the reason it was or was
    *  not promoted to a cached bake. This is the per-node companion to

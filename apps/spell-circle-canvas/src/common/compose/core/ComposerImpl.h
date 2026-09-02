@@ -278,8 +278,23 @@ struct Composer::Impl {
    *  because that matrix is six floats, so the recording survives between
    *  ticks and the flag releases when the motion settles. Threaded down the
    *  existing recursion; everything else ignores it. */
-  core::SubtreeVerdict computeVolatile(detail::Instance& inst,
-                                       bool movingAbove = false);
+  /** What the walk threads down to a child about the planes above it,
+   *  beside `movingAbove`: whether the shared space it stands in is
+   *  moving (its host's transform, or the host's own space), whether the
+   *  view its parent declares is live, and whether it stands in a space at
+   *  all — a node whose projection moves for any of those reasons is
+   *  moving exactly as one whose own lane is. */
+  struct Above {
+    bool moving = false;           ///< a connected transform on an ancestor
+    bool spaceMoving = false;      ///< the space this node stands in moves
+    bool perspectiveLive = false;  ///< the parent's perspective lane is live
+    bool inSpace = false;          ///< the parent hosts a shared space
+  };
+  core::SubtreeVerdict computeVolatile(detail::Instance& inst, Above above);
+  /** The root's walk: nothing stands above it. */
+  core::SubtreeVerdict computeVolatile(detail::Instance& inst) {
+    return computeVolatile(inst, Above{});
+  }
   /** The node→root matrix, recomputed OUTSIDE paint by walking the ancestor
    *  chain root-down through the same ops paint() accumulates —
    *  translate(rect), then NodeTransform::matrix. The result must be
@@ -377,6 +392,10 @@ struct Composer::Impl {
    *  hand-written copies could disagree. */
   struct NodeTransform {
     float tx = 0, ty = 0, rot = 0, scl = 1, sx = 1, sy = 1, skx = 0, sky = 0;
+    // The depth lanes: the plane's turn about x and y, its depth, and its
+    // depth scale. At rest they are exactly the identity, and a node at
+    // rest in all four is a 2D node in every consumer.
+    float rx = 0, ry = 0, tz = 0, sz = 1;
     /** Does anything past the translate need the origin pivot at all?
      *
      *  THE ONE DEFINITION, and every consumer asks it rather than writing
@@ -388,6 +407,12 @@ struct Composer::Impl {
     bool pivoted() const {
       return rot != 0 || scl != 1 || sx != 1 || sy != 1 || skx != 0 || sky != 0;
     }
+    /** Has a depth lane left rest? Then the node is a PLANE turned or moved
+     *  in depth, its matrix is the 4x4 of matrix44() flattened, and the
+     *  2D producers below are not asked. THE ONE DEFINITION, for the same
+     *  reason pivoted() is: a consumer that spells its own and omits a lane
+     *  draws a plane where it cannot be hit. */
+    bool spatial() const { return rx != 0 || ry != 0 || tz != 0 || sz != 1; }
     /** The matrix these lanes describe, prepended with `anchor` (the
      *  layout offset — pass {0, 0} for node-local): the translate lanes,
      *  then — gated on pivoted(), NOT a copy of it — the origin-pivoted
@@ -395,7 +420,10 @@ struct Composer::Impl {
      *  child union and hitInstance()'s inverse. The anchor folds into the
      *  FIRST translate rather than being post-concatenated, because the two
      *  associate their float multiplies differently and recordBounds()'s
-     *  results must stay bitwise stable. */
+     *  results must stay bitwise stable.
+     *
+     *  The 2D producer: a node whose depth lanes have left rest is placed
+     *  by matrix44() instead, and every consumer asks spatial() first. */
     SkMatrix matrix(SkPoint anchor, const detail::PaintProps& p, float w,
                     float h) const {
       SkMatrix m = SkMatrix::Translate(anchor.x() + tx, anchor.y() + ty);
@@ -407,6 +435,36 @@ struct Composer::Impl {
         if (skx != 0 || sky != 0)
           m.preSkew(std::tan(skx * 0.017453293f), std::tan(sky * 0.017453293f));
         m.preTranslate(-origin.x(), -origin.y());
+      }
+      return m;
+    }
+    /** The SAME stack as a 4x4, with the depth lanes in it: the translate
+     *  lanes (z included), then about the 3D origin the CSS rotation list
+     *  `rotateX · rotateY · rotateZ`, the scale with its depth factor, and
+     *  the skew. The 2D lanes sit in this product exactly where matrix()
+     *  puts them, so a node that turns about y keeps the rotate, scale and
+     *  skew it had while flat. THE ONE 4x4 PRODUCER: paint's flattening,
+     *  the bounds union, the hit test's inverse, the depth sort and the
+     *  node→root accumulation all read this, in this order of operations,
+     *  and the settle compare between two of them needs the products to
+     *  agree bit for bit. `depth` is the node's block, null on a node
+     *  without one (then the origin has no z). */
+    SkM44 matrix44(SkPoint anchor, const detail::PaintProps& p,
+                   const detail::DepthData* depth, float w, float h) const {
+      SkM44 m = SkM44::Translate(anchor.x() + tx, anchor.y() + ty, tz);
+      if (pivoted() || spatial()) {
+        const SkPoint origin = detail::resolveOrigin(p, w, h);
+        const float oz = depth ? depth->originZ : 0.0f;
+        m.preTranslate(origin.x(), origin.y(), oz);
+        if (rx != 0) m.preConcat(detail::rotateXMatrix(rx));
+        if (ry != 0) m.preConcat(detail::rotateYMatrix(ry));
+        if (rot != 0) m.preConcat(detail::rotateZMatrix(rot));
+        if (scl != 1 || sx != 1 || sy != 1 || sz != 1)
+          m.preScale(scl * sx, scl * sy, sz);
+        if (skx != 0 || sky != 0)
+          m.preConcat(detail::skewMatrix(std::tan(skx * 0.017453293f),
+                                         std::tan(sky * 0.017453293f)));
+        m.preTranslate(-origin.x(), -origin.y(), -oz);
       }
       return m;
     }
@@ -439,16 +497,69 @@ struct Composer::Impl {
      *  is a hand-written exhaustive list over these members, exactly like
      *  a comparator, and fails the same way: silently, by not noticing. */
     static void fieldPin(NodeTransform& v) {
-      auto& [tx, ty, rot, scl, sx, sy, skx, sky] = v;
-      static_assert(std::tuple_size_v<decltype(std::tie(tx, ty, rot, scl, sx,
-                                                        sy, skx, sky))> == 8,
-                    "NodeTransform gained or lost a lane — put it in "
-                    "pivoted() above (unless it is a pure translate), in "
-                    "matrix()'s build, and in transformOf()'s resolve, "
-                    "then bump this count.");
+      auto& [tx, ty, rot, scl, sx, sy, skx, sky, rx, ry, tz, sz] = v;
+      static_assert(
+          std::tuple_size_v<decltype(std::tie(tx, ty, rot, scl, sx, sy, skx,
+                                              sky, rx, ry, tz, sz))> == 12,
+          "NodeTransform gained or lost a lane — put it in pivoted() or "
+          "spatial() above (unless it is a pure translate), in matrix()'s "
+          "and matrix44()'s builds, and in transformOf()'s resolve, then "
+          "bump this count.");
     }
   };
   NodeTransform transformOf(detail::Instance& inst);
+
+  // ---- depth (Depth.cpp): the plane a node is, and the space it hosts ----
+  /** The node's 4x4 in the plane its PARENT paints on: the parent's
+   *  perspective, then the layout offset, then the node's own lanes about
+   *  its origin — `Persp(parent) · T(rect) · matrix44`. The parent's
+   *  perspective is the child's business and is folded here, once, so no
+   *  consumer composes it on its own. A node inside a shared space
+   *  prepends that space's accumulation to this. */
+  SkM44 depthMatrixOf(detail::Instance& inst, const NodeTransform& tf,
+                      const SkRect& rect);
+  /** Do this node's children share its space — preserve3d(), and none of
+   *  the grouping properties that flatten it (a clip, an opacity below 1,
+   *  a blend, an effect, a backdrop, a mask, a coverage boundary, an
+   *  explicit bake)? Asked by paint, the hit test, the bounds walk and the
+   *  volatility walk, and answered by ONE body, because the four must
+   *  agree about which plane a child is drawn on. */
+  bool hostsSpace(detail::Instance& inst);
+  /** THE DEPTH ORDER of a hosting node's children: its paint order (zIndex,
+   *  then declaration) stable-sorted by the depth of each child's centre
+   *  in the space — farthest first, so a nearer plane covers a farther
+   *  one wherever the two overlap. `space` is the host's own 4x4 in the
+   *  plane the space is drawn on, which every child's matrix begins with.
+   *  Planes are never intersected: a child crossing another is drawn
+   *  whole, in this order. */
+  void depthOrder(detail::Instance& host, const SkM44& space,
+                  std::vector<size_t>& out);
+  /** A SHARED SPACE, open while a hosting node's children are painted or
+   *  hit. The canvas stays at the plane the space is drawn on — the
+   *  hosting node concatenates nothing for its children — and every node
+   *  in the space places itself with `accum · depthMatrixOf` flattened,
+   *  relative to that plane. That is what makes the space free of any
+   *  inverse: a host turned edge-on has a singular plane of its own and
+   *  its children still stand where the space puts them. `rootToPlane` is
+   *  the node→root matrix of that plane, which a node in the space builds
+   *  its own node→root from. */
+  struct Space {
+    SkM44 accum;           ///< the plane the space is drawn on → the host
+    SkMatrix rootToPlane;  ///< …and that plane's own node→root
+  };
+  /** The space the node being painted stands in — set by its parent while
+   *  that parent hosts one, null otherwise. Saved and restored around each
+   *  paint() frame. */
+  const Space* curSpace = nullptr;
+  /** The plane a HOSTING node's own paint concatenates inside paintContent:
+   *  paint() leaves the canvas at the plane the space is drawn on, so the
+   *  children can place themselves, and the host's own marks, fill and
+   *  content are drawn under this instead. Absent for every other node. */
+  std::optional<SkMatrix> curOwnPlane;
+  /** …and whether that own plane is drawn at all: a host facing away with
+   *  its backface hidden, or turned edge-on, paints nothing of its own and
+   *  still paints the children its space holds. */
+  bool curOwnHidden = false;
   /** Where on its motion path this node sits, in its PARENT's space, and
    *  the auto-orient angle in degrees. Nullopt when no path is engaged
    *  (absent, empty, or resolving to no measurable length) — the
@@ -543,7 +654,12 @@ struct Composer::Impl {
    *  every frame a child moves, and a bake rect that changes every frame is
    *  a bake remade every frame. */
   SkRect ownPaintBounds(detail::Instance& inst);
-  SkRect recordBounds(detail::Instance& inst);
+  /** The rect a node's recording must cover — in its own local plane, or,
+   *  for a node hosting a shared space, in the plane that space is drawn
+   *  on, which is where its children stand. `space` is the accumulation of
+   *  the space the node itself stands in, null under a flat parent; a
+   *  hosting node nested in a space needs it to place its own plane. */
+  SkRect recordBounds(detail::Instance& inst, const SkM44* space = nullptr);
 
   // ---- hit testing / queries (Query.cpp) ----
   bool shapeContains(detail::Instance& inst, SkPoint local, SkSize size) const;

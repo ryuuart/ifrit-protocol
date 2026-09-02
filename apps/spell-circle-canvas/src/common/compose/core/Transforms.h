@@ -3,13 +3,145 @@
 /** @file
  * Internal to the kernel — the small transform arithmetic the phases share:
  * the largest local scale a matrix applies over a rect, a transform origin
- * resolved against a box, a corner set as a rounded rect, and the Yoga text
+ * resolved against a box, the 4x4 pieces the depth lanes compose and the
+ * two questions asked of a composed one (which side faces the viewer,
+ * where a rect lands), a corner set as a rounded rect, and the Yoga text
  * measure callbacks the reconciler installs.
  */
+
+#include <include/core/SkM44.h>
+
+#include <cmath>
+#include <optional>
 
 #include "Instance.h"
 
 namespace sigil::compose::detail {
+
+// ---------------------------------------------------------------------------
+// The depth frame
+//
+// The 4x4 a node composes is written in CSS's frame — x right, y down and
+// +z TOWARD the viewer — which is the frame the verbs are documented in and
+// the one every CSS transform reference states its matrices in. It is NOT
+// Skia's SkM44 frame, whose +z runs into the screen; none of Skia's own
+// rotation, look-at or perspective constructors are used here for that
+// reason, and nothing hands a 4x4 to the canvas either. What the canvas
+// draws is the FLATTENING of the 4x4 — the 3x3 with a perspective row that
+// remains when the z row and column are dropped, `SkM44::asM33()` — which
+// is frame-independent and keeps every consumer of a node's matrix (the
+// bakes, the local-scale estimate, the node→root accumulation, the hit
+// test) on the one matrix type they already read.
+
+constexpr float kDegreesToRadians = 0.017453293f;
+
+/** CSS `rotateX(deg)`: positive tips the bottom edge toward the viewer. */
+inline SkM44 rotateXMatrix(float degrees) {
+  const float r = degrees * kDegreesToRadians;
+  const float c = std::cos(r), s = std::sin(r);
+  return SkM44(1, 0, 0, 0,  //
+               0, c, -s, 0,  //
+               0, s, c, 0,   //
+               0, 0, 0, 1);
+}
+
+/** CSS `rotateY(deg)`: positive tips the left edge toward the viewer. */
+inline SkM44 rotateYMatrix(float degrees) {
+  const float r = degrees * kDegreesToRadians;
+  const float c = std::cos(r), s = std::sin(r);
+  return SkM44(c, 0, s, 0,   //
+               0, 1, 0, 0,   //
+               -s, 0, c, 0,  //
+               0, 0, 0, 1);
+}
+
+/** The rotation about the viewing axis — `rotate()`'s own, as a 4x4: the
+ *  same [cos −sin; sin cos] SkMatrix::setRotate writes, so the 2D lane
+ *  turns the same way whichever producer builds it. */
+inline SkM44 rotateZMatrix(float degrees) {
+  const float r = degrees * kDegreesToRadians;
+  const float c = std::cos(r), s = std::sin(r);
+  return SkM44(c, -s, 0, 0,  //
+               s, c, 0, 0,   //
+               0, 0, 1, 0,   //
+               0, 0, 0, 1);
+}
+
+/** The shear the 2D lanes apply, as a 4x4: `[1 kx; ky 1]`, the same two
+ *  tangents SkMatrix::preSkew takes. */
+inline SkM44 skewMatrix(float kx, float ky) {
+  return SkM44(1, kx, 0, 0,  //
+               ky, 1, 0, 0,  //
+               0, 0, 1, 0,   //
+               0, 0, 0, 1);
+}
+
+/** CSS `perspective(d)` about `origin`: the viewer stands `distance` in
+ *  front of the plane over that point, so a point at depth z is divided
+ *  by `1 − z/distance` — nearer grows, farther shrinks — and a point in
+ *  the plane itself is untouched. A non-positive distance is no
+ *  perspective: the identity, an orthographic projection. */
+inline SkM44 perspectiveMatrix(float distance, SkPoint origin) {
+  if (!(distance > 0)) return SkM44();
+  SkM44 m;  // identity
+  m.setRC(3, 2, -1.0f / distance);
+  return SkM44::Translate(origin.x(), origin.y()) * m *
+         SkM44::Translate(-origin.x(), -origin.y());
+}
+
+/** Is the viewer looking at the BACK of the plane this 4x4 places? The
+ *  plane's normal is the z axis carried through the matrix, and a normal
+ *  is carried by the inverse transpose, so its z component is the
+ *  inverse's (2, 2) entry: negative means the plane has turned away. That
+ *  entry is a cofactor over the determinant, which is what makes a 2D
+ *  mirror stay visible — `scaleX(−1)` negates both and the sign holds —
+ *  while a half turn about x or y flips exactly one. A matrix with no
+ *  inverse has no facing, and is reported as away: such a plane is edge-on
+ *  or collapsed and draws nothing either way. */
+inline bool facesAway(const SkM44& m) {
+  SkM44 inverse;
+  if (!m.invert(&inverse)) return true;
+  return inverse.rc(2, 2) < 0;
+}
+
+/** Where a local point lands in the plane a flattened 4x4 projects onto,
+ *  or nothing when the point is at or behind the viewer — a point whose
+ *  homogeneous w is not positive has no place on the plane, and dividing
+ *  by it would put one anywhere. */
+inline std::optional<SkPoint> projectPoint(const SkMatrix& flat, SkPoint p) {
+  const float w = flat.getPerspX() * p.x() + flat.getPerspY() * p.y() +
+                  flat.get(SkMatrix::kMPersp2);
+  if (!std::isfinite(w) || w <= 1e-8f) return std::nullopt;
+  const SkPoint q = flat.mapPoint(p);
+  if (!q.isFinite()) return std::nullopt;
+  return q;
+}
+
+/** The bounds of a local rect projected through a flattened 4x4: the box
+ *  around whichever of its four corners land in front of the viewer, or
+ *  an empty rect when none does. SkMatrix::mapRect maps corners behind
+ *  the viewer to arbitrary places, so a projected rect is taken corner by
+ *  corner instead. An affine matrix projects every corner and answers
+ *  exactly what mapRect would. */
+inline SkRect projectRect(const SkMatrix& flat, const SkRect& local) {
+  if (!flat.hasPerspective()) return flat.mapRect(local);
+  SkRect out = SkRect::MakeEmpty();
+  bool any = false;
+  for (SkPoint corner : {SkPoint{local.left(), local.top()},
+                         SkPoint{local.right(), local.top()},
+                         SkPoint{local.right(), local.bottom()},
+                         SkPoint{local.left(), local.bottom()}}) {
+    const std::optional<SkPoint> q = projectPoint(flat, corner);
+    if (!q) continue;
+    if (!any) {
+      out = SkRect::MakeXYWH(q->x(), q->y(), 0, 0);
+      any = true;
+    } else {
+      out.join(SkRect::MakeXYWH(q->x(), q->y(), 0, 0));
+    }
+  }
+  return out;
+}
 
 /** The matrix's true maximum geometric scale over `local` — how many device
  *  pixels one local unit can span, whatever the rotation.

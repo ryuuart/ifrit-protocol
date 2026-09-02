@@ -153,6 +153,18 @@ struct Corners {
   bool operator==(const Corners&) const = default;
 };
 
+/** WHICH SIDE OF A NODE'S PLANE IS DRAWN when a depth lane has turned it
+ *  — `Element::backface`. A node is a plane, and `rotateX` or `rotateY`
+ *  past a quarter turn shows the viewer its back: the same paint, mirrored.
+ *  `Hidden` draws nothing then, and answers no hit, which is what the two
+ *  faces of a flipping card need so the one facing away does not show
+ *  through the one facing the viewer. `Visible` is the default and what a
+ *  node with no depth lane always is: a plane that has not turned has no
+ *  back to hide. The side is decided by the node's whole projection — its
+ *  own lanes, every shared space above it and the perspective it is seen
+ *  through — never by a 2D mirror, so `scaleX(-1)` stays visible. */
+enum class Backface : uint8_t { Visible, Hidden };
+
 /** The one paint-program context: custom leaves (and, in extensions,
  *  decorations and contour walks) all receive this. `elapsedSeconds` is
  *  the Ticker's FrameClock time — pause/time-scale affect it. `fonts`

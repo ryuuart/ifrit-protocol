@@ -58,11 +58,11 @@ namespace sigil::compose::detail {
 // function's content terms are a heterogeneous bag of booleans (a bound
 // fill, an animated image frame, a live effect) with no enum behind them,
 // so the only thing that can hold them together is a single named
-// expression every consumer subtracts from. These twelve slots are an
+// expression every consumer subtracts from. These slots are an
 // ENUMERATED AXIS instead, and an enumerated axis can be counted by the
 // compiler.
 
-/** Which of the three questions a slot answers — the axis `computeVolatile`
+/** Which of the questions a slot answers — the axis `computeVolatile`
  *  already split on, named so the other three consumers can read it. */
 enum class SlotRole : uint8_t {
   /** Applied by paint()'s saveLayer, OUTSIDE the node's content: a fading
@@ -73,6 +73,14 @@ enum class SlotRole : uint8_t {
   Geometric,
   /** Rebuilds what the node RECORDS, so its own picture is invalidated. */
   Content,
+  /** Applied by the CHILDREN's matrices — the view this node declares for
+   *  the planes under it. It moves the device rect of every child that
+   *  projects, and the node's own bakes contain those children, so it is
+   *  refused like a moving transform; unlike one, it is INSIDE a group
+   *  root's bake rather than outside it, so a group root gathers it where
+   *  it skips its own transform. The node's own recording is guarded by
+   *  the children it projects, which are moving whenever it is. */
+  Projection,
   /** No `Animatable<float>` in the description AT ALL, so the table cannot
    *  reach it and every consumer keeps its own handling. Costs a written
    *  reason in `bespoke`, which the assert below enforces. */
@@ -144,6 +152,37 @@ inline constexpr SlotSpec kSlotSpecs[] = {
      [](const ElementNode& n) -> const motion::Animatable<float>* {
        return n.textData && n.textData->onPath ? &n.textData->onPath->at
                                                : nullptr;
+     },
+     0.0f, nullptr},
+    // The depth lanes (DepthData). The four that turn or move THIS plane
+    // are geometric exactly as rotate and translateX are: the plane's
+    // projected rect moves with them. A node with no depth block answers
+    // nullptr, so a plane that never turns costs the four consumers nothing.
+    {Instance::kRotateX, SlotRole::Geometric,
+     [](const ElementNode& n) -> const motion::Animatable<float>* {
+       return n.depthData ? &n.depthData->rotateX : nullptr;
+     },
+     0.0f, nullptr},
+    {Instance::kRotateY, SlotRole::Geometric,
+     [](const ElementNode& n) -> const motion::Animatable<float>* {
+       return n.depthData ? &n.depthData->rotateY : nullptr;
+     },
+     0.0f, nullptr},
+    {Instance::kTranslateZ, SlotRole::Geometric,
+     [](const ElementNode& n) -> const motion::Animatable<float>* {
+       return n.depthData ? &n.depthData->translateZ : nullptr;
+     },
+     0.0f, nullptr},
+    {Instance::kScaleZ, SlotRole::Geometric,
+     [](const ElementNode& n) -> const motion::Animatable<float>* {
+       return n.depthData ? &n.depthData->scaleZ : nullptr;
+     },
+     1.0f, nullptr},
+    // perspective(): the view the CHILDREN are seen through — the one
+    // lane whose motion lands on other nodes' device rects.
+    {Instance::kPerspective, SlotRole::Projection,
+     [](const ElementNode& n) -> const motion::Animatable<float>* {
+       return n.depthData ? &n.depthData->perspective : nullptr;
      },
      0.0f, nullptr},
 };

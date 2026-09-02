@@ -65,6 +65,8 @@ void perturb(Cache& v) { v = Cache::None; }
 
 void perturb(Boundary& v) { v = Boundary::Glyphs; }
 
+void perturb(Backface& v) { v = Backface::Hidden; }
+
 void perturb(SkBlendMode& v) { v = SkBlendMode::kMultiply; }
 
 void perturb(Corners& v) { v.topLeft += 1.0f; }
@@ -175,6 +177,28 @@ TEST(ComposeReconcile, EveryPaintPropsFieldParticipatesInEquality) {
         cd::ElementNode na, nb;
         na.paint = a;
         nb.paint = b;
+        return cd::propsEqual(na, nb);
+      },
+      kNames, kParticipates);
+}
+
+TEST(ComposeReconcile, EveryDepthDataFieldParticipatesInEquality) {
+  // The depth block is read live at paint exactly as PaintProps is: five
+  // lanes, the two origins, the transform origin's depth and the two
+  // modes. A lane left out keeps the plane at the turn it was recorded at;
+  // a mode left out keeps a space open, or a back drawn, that the author
+  // closed.
+  static const char* const kNames[] = {
+      "rotateX",   "rotateY",   "translateZ",         "scaleZ",
+      "perspective", "perspectiveOriginX", "perspectiveOriginY", "originZ",
+      "preserve3d", "backface"};
+  static const bool kParticipates[] = {true, true, true, true, true,
+                                       true, true, true, true, true};
+  walkFields<cd::DepthData>(
+      [](const cd::DepthData& a, const cd::DepthData& b) {
+        cd::ElementNode na, nb;
+        na.depthData.ensure() = a;
+        nb.depthData.ensure() = b;
         return cd::propsEqual(na, nb);
       },
       kNames, kParticipates);
@@ -293,12 +317,13 @@ TEST(ComposeReconcile, EveryElementNodeFieldParticipatesInEquality) {
       "hitTestable", "cacheMode",   "bakeScale",  "nodeTransition",
       "backgrounds", "foregrounds", "textData",   "imageData",
       "customData",  "deriveData",  "fxData",     "materialData",
-      "strokeData",  "memoData",    "motionData", "children"};
+      "strokeData",  "memoData",    "motionData", "depthData",
+      "children"};
   static const bool kParticipates[] = {
       true,  true, true, true, true, true, true, true, true, true, true,
       true,  true, true, true, true, true, true, true, true, true,
       false,  // memoData — resolveMemo owns it, and it never lands in desc
-      true,
+      true,  true,
       false,  // children — reconciled by key, never compared
   };
   walkFields<cd::ElementNode>(cd::propsEqual, kNames, kParticipates);
@@ -322,6 +347,7 @@ TEST(ComposeSlotPins, EverySlotRowReachesItsOwnFieldAtItsStandingDefault) {
   cd::ElementNode node;
   node.motionData.ensure();                 // travel(): carries kMotionT
   node.textData.ensure().onPath.emplace();  // onPath(): carries kTextPathAt
+  node.depthData.ensure();  // the depth lanes: kRotateX … kPerspective
 
   std::vector<const sigil::motion::Animatable<float>*> seen;
   int bespoke = 0, opacityRows = 0;

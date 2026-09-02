@@ -212,6 +212,15 @@ Composer::Impl::NodeTransform Composer::Impl::transformOf(Instance& inst) {
   out.sy = inst.resolveFloat(Instance::kScaleY, node.paint.scaleY);
   out.skx = inst.resolveFloat(Instance::kSkewX, node.paint.skewX);
   out.sky = inst.resolveFloat(Instance::kSkewY, node.paint.skewY);
+  // The depth lanes, on the nodes that carry the block; everyone else is
+  // at rest in all four and stays a 2D node in every consumer.
+  if (node.depthData) {
+    const DepthData& depth = *node.depthData;
+    out.rx = inst.resolveFloat(Instance::kRotateX, depth.rotateX);
+    out.ry = inst.resolveFloat(Instance::kRotateY, depth.rotateY);
+    out.tz = inst.resolveFloat(Instance::kTranslateZ, depth.translateZ);
+    out.sz = inst.resolveFloat(Instance::kScaleZ, depth.scaleZ);
+  }
 
   const SkRect rect = instanceRect(inst);
   // The curve is resolved in the frame the node MOVES in — its parent's
@@ -263,16 +272,55 @@ Composer::Impl::NodeTransform Composer::Impl::transformOf(Instance& inst) {
  *  Animated transforms are fine here: resolveFloat reads the record-time
  *  value, and a RUNNING transform makes the subtree volatile, so nothing
  *  records at all. A clipped node contributes only its own box, because its
- *  children cannot escape it. */
-SkRect Composer::Impl::recordBounds(Instance& inst) {
+ *  children cannot escape it.
+ *
+ *  A child that has turned in depth projects its own bounds through its
+ *  flattened 4x4 — the same producer paint flattens — and a corner behind
+ *  the viewer is left out of the box rather than mapped to nowhere. A
+ *  node HOSTING a shared space answers in the plane that space is drawn
+ *  on: its own box through its own plane, and every child in the space
+ *  through the child's full matrix there, so the layer or bake an ancestor
+ *  sizes from this holds the faces of a cube wherever they have turned. */
+SkRect Composer::Impl::recordBounds(Instance& inst, const SkM44* space) {
   const ElementNode& node = *inst.desc;
   SkRect local = ownPaintBounds(inst);
+  const bool hosts = hostsSpace(inst);
+  // The host's own 4x4 in the plane its space is drawn on — what every
+  // child's matrix begins with, and what the host's own box is seen
+  // through there.
+  std::optional<SkM44> own;
+  if (hosts) {
+    SkM44 m = depthMatrixOf(inst, transformOf(inst), instanceRect(inst));
+    if (space) m = SkM44(*space, m);
+    own = m;
+    local = projectRect(own->asM33(), local);
+  }
   if (node.clipContent) return local;
   for (auto& child : inst.children) {
     const ElementNode& cn = *child->desc;
     const SkRect crect = instanceRect(*child);
-    SkRect cb = recordBounds(*child);  // child-local
     const NodeTransform tf = transformOf(*child);
+    if (hosts) {
+      // In the space: a nested host answers in the same plane already; a
+      // flat child's own plane is projected there through its full matrix.
+      if (hostsSpace(*child)) {
+        local.join(recordBounds(*child, &*own));
+      } else {
+        const SkM44 m(*own, depthMatrixOf(*child, tf, crect));
+        local.join(projectRect(m.asM33(), recordBounds(*child)));
+      }
+      continue;
+    }
+    if (hostsSpace(*child)) {
+      // The space the child hosts is drawn on THIS plane.
+      local.join(recordBounds(*child));
+      continue;
+    }
+    SkRect cb = recordBounds(*child);  // child-local
+    if (tf.spatial()) {
+      local.join(projectRect(depthMatrixOf(*child, tf, crect).asM33(), cb));
+      continue;
+    }
     // The matrix comes from NodeTransform::matrix(), gate included, and not
     // from a copy of that build written here. One resolver, three consumers
     // — paint()'s matrix, this child union, and hitInstance()'s inverse —

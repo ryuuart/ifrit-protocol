@@ -514,6 +514,109 @@ class Element {
   Element& transformOriginPx(SkPoint p);
   Element& zIndex(int z);
 
+  // ---- depth: the CSS 3D model over the 2D tree ----
+  //
+  // A node is a PLANE. These lanes turn it and move it in depth, and the
+  // node projects its plane onto the one its parent paints on — one 4x4
+  // per node, flattened at paint, so tree order stays draw order and
+  // everything the node holds (its fill, its text, its children, its
+  // caches) lives in the plane exactly as it did before. Paint-only like
+  // the 2D lanes: animating one never relayouts, and a settled node's
+  // recording is taken in its own plane and replayed through the
+  // projection. The frame is CSS's: x right, y down, and +z TOWARD the
+  // viewer, so a positive `translateZ` under a `perspective` comes closer
+  // and grows.
+  //
+  // The three rotations compose as CSS's `rotateX() rotateY() rotateZ()`
+  // list — X outermost — and then scale and skew, about the transform
+  // origin, exactly where the 2D `rotate → scale → skew` stack stands.
+  // What none of this is: a scene. Two planes never intersect, nothing is
+  // lit, and a depth is not a position in a world — a set (SigilWorld) is
+  // where that lives.
+
+  /** Turn the plane about its horizontal axis, in degrees: positive tips
+   *  the bottom edge toward the viewer. */
+  Element& rotateX(motion::Animatable<float> degrees);
+  /** Turn the plane about its vertical axis, in degrees: positive tips the
+   *  left edge toward the viewer — the card-flip lane. */
+  Element& rotateY(motion::Animatable<float> degrees);
+  /** The rotation `rotate()` already is, under its 3D name — the SAME lane,
+   *  so `rotate(30).rotateZ(45)` is one setting made twice, not two turns. */
+  Element& rotateZ(motion::Animatable<float> degrees);
+  /** Move the plane along the viewing axis, in px: positive is toward the
+   *  viewer. Invisible without a `perspective` above it — an orthographic
+   *  projection drops z — and inside a shared space it is what puts a face
+   *  in front of another. */
+  Element& translateZ(motion::Animatable<float> px);
+  /** Scale along the viewing axis, about the transform origin. Nothing in
+   *  the node's own plane moves (its z is zero); what it scales is the
+   *  depth of the children it hosts in a shared space. */
+  Element& scaleZ(motion::Animatable<float> factor);
+  /** THE VIEW, declared on an ancestor: this node's children are seen from
+   *  a viewer `distancePx` in front of the plane, so a child turned or
+   *  moved in depth converges toward the perspective origin as it recedes.
+   *  Applies to the children, never to this node itself, as CSS's
+   *  `perspective` property does; 0 is no perspective — an orthographic
+   *  projection where a turned plane only narrows. A shared space carries
+   *  the view of the ancestor that declared it down to every plane in the
+   *  space. Bindable, so a dolly is a bound distance. */
+  Element& perspective(motion::Animatable<float> distancePx);
+  /** Where the viewer stands over the plane, as fractions of this node's
+   *  box — the vanishing point of the view `perspective()` declares. The
+   *  centre by default. */
+  Element& perspectiveOrigin(float fx, float fy);
+  /** The pivot the lanes turn about, with a depth: `fx, fy` are the
+   *  fractions `transformOrigin()` takes and `zPx` is a distance in front
+   *  of the plane (positive toward the viewer). A card that swings on a
+   *  hinge behind it turns about a negative z. */
+  Element& transformOrigin3d(float fx, float fy, float zPx);
+  /** THE SHARED SPACE: this node's children keep the depth their own
+   *  lanes give them — their planes compose with this node's rather than
+   *  flattening into it — and are painted back to front by the depth of
+   *  each child's centre, whatever order they were declared in. A cube is
+   *  six children of one such node. Nested `preserve3d()` compounds the
+   *  space; a child that does not declare it ends the space at its own
+   *  plane, and its children are flat inside it.
+   *
+   *  Two rules, both stated so they are not discovered: PLANES DO NOT
+   *  INTERSECT — a child crossing another is drawn whole, in the order
+   *  their centres sort — and a node that composites as a group cannot
+   *  host a space. A `clip()`, an opacity below 1, a blend that is not
+   *  source-over, an `effect()`, a `backdrop()`, a `mask()`, a coverage
+   *  boundary or an explicit `cache(Cache::Texture)` / `Cache::Group`
+   *  flattens the node exactly as CSS's grouping properties do: its
+   *  children are then projected one by one onto its plane, in tree
+   *  order, with no depth between them. The node's own paint stands at the
+   *  front of its own plane and is drawn before its children. */
+  Element& preserve3d(bool on = true);
+  /** Whether the back of this node's plane is drawn when a depth lane has
+   *  turned it away — see `Backface`. Visible by default. */
+  Element& backface(Backface facing);
+  template <std::integral T>
+  Element& rotateX(T deg) {
+    return rotateX(motion::Animatable<float>((float)deg));
+  }
+  template <std::integral T>
+  Element& rotateY(T deg) {
+    return rotateY(motion::Animatable<float>((float)deg));
+  }
+  template <std::integral T>
+  Element& rotateZ(T deg) {
+    return rotateZ(motion::Animatable<float>((float)deg));
+  }
+  template <std::integral T>
+  Element& translateZ(T px) {
+    return translateZ(motion::Animatable<float>((float)px));
+  }
+  template <std::integral T>
+  Element& scaleZ(T f) {
+    return scaleZ(motion::Animatable<float>((float)f));
+  }
+  template <std::integral T>
+  Element& perspective(T px) {
+    return perspective(motion::Animatable<float>((float)px));
+  }
+
   // ---- derive phase (inputs are resolved geometry) ----
   /** Text leaves only: flow this paragraph around the keyed node, with
    *  @p margin px of standoff.

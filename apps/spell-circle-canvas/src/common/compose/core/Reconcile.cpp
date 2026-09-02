@@ -321,6 +321,27 @@ bool materialEqual(const Box<MaterialData>& a, const Box<MaterialData>& b) {
   return true;  // ->recipe is handled with the fill compare in propsEqual
 }
 
+static_assert(kFieldCount<DepthData> == 10,
+              "DepthData gained or lost a field — rule on it in depthEqual() "
+              "below, then bump this count. Every field here is read live at "
+              "paint: a lane, an origin or a mode left out prunes into its "
+              "predecessor and the plane keeps the turn it was recorded at.");
+bool depthEqual(const Box<DepthData>& a, const Box<DepthData>& b) {
+  if ((bool)a != (bool)b) return false;
+  if (!a) return true;
+  // The five lanes compare as every animated slot does, through propEqual;
+  // the origins and the two modes are plain values.
+  return propEqual(a->rotateX, b->rotateX) &&
+         propEqual(a->rotateY, b->rotateY) &&
+         propEqual(a->translateZ, b->translateZ) &&
+         propEqual(a->scaleZ, b->scaleZ) &&
+         propEqual(a->perspective, b->perspective) &&
+         a->perspectiveOriginX == b->perspectiveOriginX &&
+         a->perspectiveOriginY == b->perspectiveOriginY &&
+         a->originZ == b->originZ && a->preserve3d == b->preserve3d &&
+         a->backface == b->backface;
+}
+
 }  // namespace
 
 /** A Spans value compares like any other description — and its animated
@@ -484,7 +505,7 @@ namespace detail {
  *  here, because `inst.desc` holds the memo's PRODUCED payload; and
  *  `children` are reconciled by key rather than compared — a node that
  *  prunes still walks them. */
-static_assert(kFieldCount<ElementNode> == 24 && kFieldCount<PaintProps> == 15 &&
+static_assert(kFieldCount<ElementNode> == 25 && kFieldCount<PaintProps> == 15 &&
                   kFieldCount<ImageData> == 3 && kFieldCount<CustomData> == 2 &&
                   kFieldCount<MotionPath> == 3 && kFieldCount<Fill> == 3,
               "A struct propsEqual() compares BY HAND gained or lost a "
@@ -584,6 +605,9 @@ bool propsEqual(const ElementNode& a, const ElementNode& b) {
                        !propEqual(a.motionData->t, b.motionData->t) ||
                        a.motionData->lookAhead != b.motionData->lookAhead))
     return false;
+  // The depth lanes, the view and the two modes: read live at paint
+  // exactly as the 2D lanes are, and pinned beside depthEqual().
+  if (!depthEqual(a.depthData, b.depthData)) return false;
   // Content.
   if (!textEqual(a, b)) return false;
   if ((bool)a.imageData != (bool)b.imageData) return false;
@@ -604,8 +628,10 @@ bool propsEqual(const ElementNode& a, const ElementNode& b) {
  *  this question and stales the world-space descendants by hand.
  *
  *  The lanes must mirror propsEqual's transform block plus travel(), which
- *  replaces the translate lanes and adds to rotate. A lane present there and
- *  missing here is a world-space material left on a stale W. */
+ *  replaces the translate lanes and adds to rotate, plus the depth block —
+ *  a re-described turn about y, a view or a space mode moves every
+ *  descendant's W as a 2D rotation does. A lane present there and missing
+ *  here is a world-space material left on a stale W. */
 bool describedTransformEqual(const ElementNode& a, const ElementNode& b) {
   const PaintProps &pa = a.paint, &pb = b.paint;
   if (!propEqual(pa.translateX, pb.translateX) ||
@@ -621,7 +647,7 @@ bool describedTransformEqual(const ElementNode& a, const ElementNode& b) {
                        !propEqual(a.motionData->t, b.motionData->t) ||
                        a.motionData->lookAhead != b.motionData->lookAhead))
     return false;
-  return true;
+  return depthEqual(a.depthData, b.depthData);
 }
 
 }  // namespace detail

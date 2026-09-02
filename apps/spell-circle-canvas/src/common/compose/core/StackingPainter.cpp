@@ -316,14 +316,31 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
   // both are opened and closed inside EACH phase, so the phases stay a pair
   // of skips over an otherwise untouched function; the granular mask scopes
   // below are each opened and closed inside the half they belong to.
-  const bool emitOwn = phase != Phase::ChildrenOnly;
+  // A node HOSTING A SHARED SPACE was left by paint() at the plane the
+  // space is drawn on: its own paint — both halves — concatenates its own
+  // plane here, and its children place themselves against the canvas as
+  // it stands. A host whose own plane is not drawn (facing away with its
+  // backface hidden, or edge-on) emits neither half of its own paint and
+  // still paints the children.
+  const std::optional<SkMatrix> ownPlane = curOwnPlane;
+  const bool ownVisible = !curOwnHidden;
+  const auto enterOwn = [&] {
+    if (ownPlane) {
+      canvas.save();
+      canvas.concat(*ownPlane);
+    }
+  };
+  const auto leaveOwn = [&] {
+    if (ownPlane) canvas.restore();
+  };
+  const bool emitOwn = phase != Phase::ChildrenOnly && ownVisible;
   const bool emitChildren = phase != Phase::OwnOnly;
   // A COVERAGE TRACE OF THIS NODE draws everything the node draws EXCEPT
   // its own marks: the marks are what dress the traced boundary, so a mark
   // inside the trace would be dressing itself. The node's children — and
   // their marks — are drawn, because they are part of what the node drew
   // and none of them reads this node's boundary.
-  const bool emitMarks = coverageTrace != &inst;
+  const bool emitMarks = coverageTrace != &inst && ownVisible;
   const SkRect ownRect = instanceRect(inst);
   const SkRect bounds = SkRect::MakeWH(ownRect.width(), ownRect.height());
   const SkRRect rrect = cornersRRect(bounds, node.corners);
@@ -746,6 +763,10 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
     if (granularPlane) leaveGates(saves, cover);
   };
 
+  // The own half stands on the node's own plane (a host's is entered here;
+  // every other node's is the canvas as paint() left it).
+  enterOwn();
+
   // Background decorations paint beneath the fill (the CSS box-shadow
   // ordering): shadow and pattern layers first, then the surface.
   // Decorations are NEVER clipped — they dress the outline, so shadows keep
@@ -965,14 +986,26 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
   if (granularPlane && emitOwn) leaveGates(contentSaves, contentCover);
 
   // Children in stacking order (each clean static child replays its own nested
-  // picture — ancestor re-records don't repaint clean subtrees).
+  // picture — ancestor re-records don't repaint clean subtrees). The
+  // children of a host stand in the space it opened: the canvas is left at
+  // the plane the space is drawn on, and they are painted back to front by
+  // the depth of their centres rather than in stacking order.
+  leaveOwn();
   const size_t kidsCover = coverStack.size();
   const int kidsSaves = granularPlane && emitChildren
                             ? enterGates(false, Parts::kChildren, {})
                             : -1;
-  if (emitChildren)
-    for (size_t index : inst.paintOrder) paint(*inst.children[index], canvas);
+  if (emitChildren) {
+    if (const Space* hosted = curSpace) {
+      std::vector<size_t> order;
+      depthOrder(inst, hosted->accum, order);
+      for (size_t index : order) paint(*inst.children[index], canvas);
+    } else {
+      for (size_t index : inst.paintOrder) paint(*inst.children[index], canvas);
+    }
+  }
   if (granularPlane && emitChildren) leaveGates(kidsSaves, kidsCover);
+  enterOwn();
 
   if (node.clipContent) canvas.restore();  // decorations below stay unclipped
 
@@ -991,6 +1024,7 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
   // boundary with no new vocabulary.
   if (emitChildren && emitMarks)
     paintSpanHalf(detail::StrokePass::Half::Foreground);
+  leaveOwn();
 
   leaveGates(hoistSaves, hoistCover);
 
@@ -1097,23 +1131,59 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
   // syncLayoutRects pass, which sees every relayout; paint() may never reach
   // a node whose ancestor replays a cached picture.)
 
-  canvas.save();
-  canvas.translate(rect.left(), rect.top());
-
   // ONE transform producer for the resolver's lanes: concatTo() is
   // matrix()'s op list applied as elementary canvas ops — byte-exactness
   // demands that sequence, see its comment — while recordBounds()'s child
   // union and hitInstance()'s inverse map and invert the composed matrix()
-  // itself.
+  // itself. A PLANE THAT HAS TURNED — a depth lane off rest, or a node
+  // standing in a shared space — is placed by the 4x4 instead, flattened:
+  // the 3x3 with a perspective row that Skia draws, one concat.
   const NodeTransform tf = transformOf(inst);
-  tf.concatTo(canvas, node.paint, rect.width(), rect.height());
+  const Space* space = curSpace;  // the space the parent hosts, if any
+  const bool spaceHost = hostsSpace(inst);
+  std::optional<SkM44> depth;  // the node's 4x4 in the plane it is drawn on
+  if (space || spaceHost || tf.spatial()) {
+    SkM44 m = depthMatrixOf(inst, tf, rect);
+    if (space) m = SkM44(space->accum, m);
+    depth = m;
+  }
+  // …and whether that plane is drawn at all. A plane with a singular
+  // flattening is edge-on or collapsed and has no pixels; one whose back
+  // faces the viewer with its backface hidden draws none either. A node
+  // hosting a space still paints the children the space holds — they
+  // stand on their own planes — so only a node with no space to host
+  // leaves here.
+  std::optional<SkMatrix> flat;
+  bool ownHidden = false;
+  if (depth) {
+    flat = depth->asM33();
+    ownHidden = !flat->invert(nullptr) ||
+                (node.depthData &&
+                 node.depthData->backface == Backface::Hidden &&
+                 facesAway(*depth));
+    if (ownHidden && !spaceHost) return;
+  }
+
+  canvas.save();
+  if (spaceHost) {
+    // The canvas STAYS at the plane the space is drawn on, so the children
+    // can place themselves against it; the host's own paint concatenates
+    // its plane inside paintContent (curOwnPlane below).
+  } else if (flat) {
+    canvas.concat(*flat);
+  } else {
+    canvas.translate(rect.left(), rect.top());
+    tf.concatTo(canvas, node.paint, rect.width(), rect.height());
+  }
 
   // Accumulate the node→root matrix alongside the canvas ops — the same
   // T(rect)·matrix() product hitInstance() inverts, so a world-space
   // material draws its field exactly where the hit test says the node is.
   // NOT canvas.getTotalMatrix(): that includes the HOST's transform and any
   // bake-layer offset, and this matrix must stop at the composer root. RAII
-  // because paint() returns from several places.
+  // because paint() returns from several places. The op sequence per case
+  // is worldMatrixOf's, exactly: the settle compare reads an ulp of drift
+  // between the two as motion.
   if (!inst.parent) rootLayoutSize = SkSize{rect.width(), rect.height()};
   struct ToRootScope {
     SkMatrix* slot;
@@ -1121,9 +1191,46 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
     explicit ToRootScope(SkMatrix* s) : slot(s), saved(*s) {}
     ~ToRootScope() { *slot = saved; }
   } toRootScope(&curToRoot);
-  curToRoot.preTranslate(rect.left(), rect.top());
-  curToRoot.preConcat(
-      tf.matrix({0, 0}, node.paint, rect.width(), rect.height()));
+  const SkMatrix plane = curToRoot;  // the parent's plane, before this node
+  if (space) {
+    curToRoot = space->rootToPlane;
+    curToRoot.preConcat(*flat);
+  } else if (flat) {
+    curToRoot.preConcat(*flat);
+  } else {
+    curToRoot.preTranslate(rect.left(), rect.top());
+    curToRoot.preConcat(
+        tf.matrix({0, 0}, node.paint, rect.width(), rect.height()));
+  }
+
+  // The space this node hosts for its children, and its own plane for
+  // paintContent; a node hosting none closes the one it stands in, since
+  // its children are flat in its plane. RAII for the same reason as above.
+  struct DepthScope {
+    Composer::Impl* impl;
+    const Space* savedSpace;
+    std::optional<SkMatrix> savedOwnPlane;
+    bool savedOwnHidden;
+    DepthScope(Composer::Impl* i, const Space* s, std::optional<SkMatrix> own,
+               bool hidden)
+        : impl(i),
+          savedSpace(i->curSpace),
+          savedOwnPlane(i->curOwnPlane),
+          savedOwnHidden(i->curOwnHidden) {
+      impl->curSpace = s;
+      impl->curOwnPlane = std::move(own);
+      impl->curOwnHidden = hidden;
+    }
+    ~DepthScope() {
+      impl->curSpace = savedSpace;
+      impl->curOwnPlane = savedOwnPlane;
+      impl->curOwnHidden = savedOwnHidden;
+    }
+  };
+  Space hosted;
+  if (spaceHost) hosted = Space{*depth, space ? space->rootToPlane : plane};
+  DepthScope depthScope(this, spaceHost ? &hosted : nullptr,
+                        spaceHost ? flat : std::nullopt, spaceHost && ownHidden);
 
   const material::skia::Effect* backdropFx = backdropEffectOf(node);
   sk_sp<SkImageFilter> backdropFilter;
@@ -1408,12 +1515,14 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
   if (rect.width() < 0.5f || rect.height() < 0.5f)
     flag(Prom::TooBig);  // degenerate, not large — same "cannot bake" bucket
   if (!upright) flag(Prom::Transformed);
+  if (spaceHost) flag(Prom::HostsSpace);
 
   // The PRIMARY verdict: the first refusal in the order an author should
   // address them (their own switches first, then content, then geometry).
   static constexpr Prom kRefusalOrder[] = {
-      Prom::OptedOut, Prom::Volatile,      Prom::Composited, Prom::Transformed,
-      Prom::Filtered, Prom::ReadsBackdrop, Prom::TooBig};
+      Prom::OptedOut,    Prom::HostsSpace, Prom::Volatile,
+      Prom::Composited,  Prom::Transformed, Prom::Filtered,
+      Prom::ReadsBackdrop, Prom::TooBig};
   Prom why = Prom::Cheap;
   for (Prom p : kRefusalOrder)
     if (refusals & (uint16_t)(1u << (unsigned)p)) {
@@ -1588,7 +1697,7 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
       !inst.children.empty() && !inst.ownReadsBackdrop &&
       !layerEffectOf(node) && leafBlend == SkBlendMode::kSrcOver &&
       leafOpacity >= 1.0f && rect.width() >= 0.5f && rect.height() >= 0.5f &&
-      recordingDepth == 0 && !inst.transformLive &&
+      recordingDepth == 0 && !inst.transformLive && !spaceHost &&
       // `upright` for the same reason promotion needs it, and it is the
       // SAME construction: an integer device offset concatenated onto the
       // node's matrix. Under rotation a shader's local coordinates come
@@ -2030,6 +2139,15 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
       }
     });
   } else if (!liveOnly && cacheHolds && node.cacheMode != Cache::None &&
+             // A node HOSTING A SHARED SPACE never records: its children
+             // are drawn on the plane beneath it, so a recording here
+             // would bake their projections and the view above — matrices
+             // that live on other nodes, whose patches would never reach
+             // it. It paints live, its children keep their own recordings,
+             // and every recording above it is dirtied by those nodes'
+             // own patches. The cost is one traversal shim and the host's
+             // own fill.
+             !spaceHost &&
              // A zero-sized node (auto-height layout() containers, spacer
              // shims) must NOT record. NOT because an empty cull rect
              // rejects ops — it does not, see the note on ownPaintBounds —

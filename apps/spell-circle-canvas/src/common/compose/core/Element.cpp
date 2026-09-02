@@ -395,6 +395,55 @@ Element& Element::zIndex(int z) {
   return *this;
 }
 
+// ---- depth ----------------------------------------------------------------
+
+Element& Element::rotateX(motion::Animatable<float> v) {
+  m_node->depthData.ensure().rotateX = std::move(v);
+  return *this;
+}
+Element& Element::rotateY(motion::Animatable<float> v) {
+  m_node->depthData.ensure().rotateY = std::move(v);
+  return *this;
+}
+Element& Element::rotateZ(motion::Animatable<float> v) {
+  // ONE lane: the 2D rotation IS the rotation about the viewing axis, and
+  // a second field for the same turn would be two settings of one thing.
+  return rotate(std::move(v));
+}
+Element& Element::translateZ(motion::Animatable<float> v) {
+  m_node->depthData.ensure().translateZ = std::move(v);
+  return *this;
+}
+Element& Element::scaleZ(motion::Animatable<float> v) {
+  m_node->depthData.ensure().scaleZ = std::move(v);
+  return *this;
+}
+Element& Element::perspective(motion::Animatable<float> v) {
+  m_node->depthData.ensure().perspective = std::move(v);
+  return *this;
+}
+Element& Element::perspectiveOrigin(float fx, float fy) {
+  detail::DepthData& depth = m_node->depthData.ensure();
+  depth.perspectiveOriginX = fx;
+  depth.perspectiveOriginY = fy;
+  return *this;
+}
+Element& Element::transformOrigin3d(float fx, float fy, float zPx) {
+  // The x and y ARE transformOrigin()'s fields, so the 2D pivot and the
+  // 3D one can never disagree about where the plane turns.
+  transformOrigin(fx, fy);
+  m_node->depthData.ensure().originZ = zPx;
+  return *this;
+}
+Element& Element::preserve3d(bool on) {
+  m_node->depthData.ensure().preserve3d = on;
+  return *this;
+}
+Element& Element::backface(Backface facing) {
+  m_node->depthData.ensure().backface = facing;
+  return *this;
+}
+
 // ---- identity, caching, transitions --------------------------------------
 
 Element& Element::key(std::string_view k) {
