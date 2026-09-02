@@ -76,6 +76,33 @@ class RectRecordingCanvas : public SkCanvas {
   }
 };
 
+/** One box's scene resolved and drawn: the placement resolveScene gave
+ *  it, and the bounds the renderer drew it at. */
+struct DrawnBox {
+  spellcircle::ResolvedBox box;
+  SkRect rect;
+};
+
+/** The one box of a scene whose anchor rides a radius-0 circle at
+ *  (@p anchorX, @p anchorY), decoded, resolved onto a 1000x1000 canvas
+ *  and drawn with @p style. */
+DrawnBox drawBox(float anchorX, float anchorY, const std::string& label,
+                 const spellcircle::SceneStyle& style) {
+  const SceneDocument document =
+      decodeScene(sceneWithBox(anchorX, anchorY, label));
+  const spellcircle::ResolvedScene resolved =
+      spellcircle::resolveScene(document, 1000.0f, 1000.0f);
+  EXPECT_EQ(resolved.boxes.size(), 1u);
+  spellcircle::SceneRenderer renderer;
+  RectRecordingCanvas canvas(1000, 1000);
+  renderer.draw(&canvas, resolved, style);
+  EXPECT_FALSE(canvas.rects.empty());
+  return DrawnBox{
+      resolved.boxes.empty() ? spellcircle::ResolvedBox{}
+                             : resolved.boxes.front(),
+      canvas.rects.empty() ? SkRect::MakeEmpty() : canvas.rects.front()};
+}
+
 }  // namespace
 
 // ── SceneModel ─────────────────────────────────────────────────────────────
@@ -228,43 +255,22 @@ TEST(SceneRendererBox, InnerEdgeSitsAtConfiguredDistance) {
   // Anchor at (800, 500) on a 1000x1000 canvas resolves the outward ray to
   // (1, 0), so the box's near face is its left edge and the anchor-to-edge
   // gap must equal boxDistance exactly.
-  const SceneDocument document = decodeScene(sceneWithBox(800.0f, 500.0f, "N"));
-  const spellcircle::ResolvedScene resolved =
-      spellcircle::resolveScene(document, 1000.0f, 1000.0f);
-  ASSERT_EQ(resolved.boxes.size(), 1u);
-  ASSERT_NEAR(resolved.boxes[0].direction.x, 1.0f, 1e-4f);
-  ASSERT_NEAR(resolved.boxes[0].direction.y, 0.0f, 1e-4f);
-
   spellcircle::SceneStyle style;
   style.boxDistance = 40.0f;
-  spellcircle::SceneRenderer renderer;
-  RectRecordingCanvas canvas(1000, 1000);
-  renderer.draw(&canvas, resolved, style);
-
-  ASSERT_FALSE(canvas.rects.empty());
-  EXPECT_NEAR(canvas.rects.front().left() - 800.0f, style.boxDistance, 0.01f);
+  const DrawnBox drawn = drawBox(800.0f, 500.0f, "N", style);
+  ASSERT_NEAR(drawn.box.direction.x, 1.0f, 1e-4f);
+  ASSERT_NEAR(drawn.box.direction.y, 0.0f, 1e-4f);
+  EXPECT_NEAR(drawn.rect.left() - 800.0f, style.boxDistance, 0.01f);
 }
 
 TEST(SceneRendererBox, GapIndependentOfLabelLength) {
   // The configured distance is a gap to the box's near face, so a label long
   // enough to widen the box past its minimum width must grow the box away
   // from its anchor, leaving the gap untouched.
-  spellcircle::SceneStyle style;
-  spellcircle::SceneRenderer renderer;
-
-  const auto boxRectFor = [&](const std::string& label) {
-    const SceneDocument document =
-        decodeScene(sceneWithBox(800.0f, 500.0f, label));
-    const spellcircle::ResolvedScene resolved =
-        spellcircle::resolveScene(document, 1000.0f, 1000.0f);
-    RectRecordingCanvas canvas(1000, 1000);
-    renderer.draw(&canvas, resolved, style);
-    EXPECT_FALSE(canvas.rects.empty());
-    return canvas.rects.empty() ? SkRect::MakeEmpty() : canvas.rects.front();
-  };
-
-  const SkRect shortRect = boxRectFor("N");
-  const SkRect longRect = boxRectFor(std::string(120, 'W'));
+  const spellcircle::SceneStyle style;
+  const SkRect shortRect = drawBox(800.0f, 500.0f, "N", style).rect;
+  const SkRect longRect =
+      drawBox(800.0f, 500.0f, std::string(120, 'W'), style).rect;
 
   // The long label must actually widen the box beyond the configured
   // minimum, or the invariance below would hold trivially.
@@ -278,22 +284,13 @@ TEST(SceneRendererBox, GapHoldsAlongDiagonalRay) {
   // the box clears the supporting line perpendicular to the ray at
   // boxDistance — the smallest projection of any corner onto the ray equals
   // the configured distance, continuously in the ray's direction.
-  const SceneDocument document =
-      decodeScene(sceneWithBox(800.0f, 800.0f, "SE"));
-  const spellcircle::ResolvedScene resolved =
-      spellcircle::resolveScene(document, 1000.0f, 1000.0f);
-  ASSERT_EQ(resolved.boxes.size(), 1u);
-  const spellcircle::Vec2 direction = resolved.boxes[0].direction;
-  ASSERT_NEAR(direction.x, direction.y, 1e-4f);  // 45 degrees outward
-
   spellcircle::SceneStyle style;
   style.boxDistance = 40.0f;
-  spellcircle::SceneRenderer renderer;
-  RectRecordingCanvas canvas(1000, 1000);
-  renderer.draw(&canvas, resolved, style);
-  ASSERT_FALSE(canvas.rects.empty());
-  const SkRect rect = canvas.rects.front();
+  const DrawnBox drawn = drawBox(800.0f, 800.0f, "SE", style);
+  const spellcircle::Vec2 direction = drawn.box.direction;
+  ASSERT_NEAR(direction.x, direction.y, 1e-4f);  // 45 degrees outward
 
+  const SkRect rect = drawn.rect;
   const auto projection = [&](float x, float y) {
     return direction.x * (x - 800.0f) + direction.y * (y - 800.0f);
   };
@@ -324,23 +321,11 @@ TEST(SceneLabels, CircleContoursStartAtThreeOClock) {
   EXPECT_GT(start->tangent.y, 0.9f);
 }
 
-TEST(RingLabelGeometryCache, DegenerateRadiusReturnsNullEveryTime) {
-  spellcircle::RingLabelGeometryCache cache;
+TEST(RingLabelGeometryCache, ADegenerateRadiusAnswersNothingAndOccupiesNoSlot) {
+  spellcircle::RingLabelGeometryCache cache(/*maximumEntries=*/4);
   EXPECT_FALSE(cache.ringForRadius(0.0f).valid());
   EXPECT_FALSE(cache.ringForRadius(0.0f).valid());
   EXPECT_FALSE(cache.ringForRadius(-5.0f).valid());
-}
-
-TEST(RingLabelGeometryCache, ValidRadiiShareOneMeasurement) {
-  spellcircle::RingLabelGeometryCache cache;
-  const sigil::geometry::path::Contour first = cache.ringForRadius(200.0f);
-  ASSERT_TRUE(first.valid());
-  EXPECT_EQ(cache.ringForRadius(200.0f), first);
-}
-
-TEST(RingLabelGeometryCache, DegenerateRequestsDoNotOccupySlots) {
-  spellcircle::RingLabelGeometryCache cache(/*maximumEntries=*/4);
-  EXPECT_FALSE(cache.ringForRadius(0.0f).valid());
 
   const float radii[] = {10.0f, 20.0f, 30.0f, 40.0f};
   sigil::geometry::path::Contour held[4];
@@ -349,11 +334,13 @@ TEST(RingLabelGeometryCache, DegenerateRequestsDoNotOccupySlots) {
     ASSERT_TRUE(held[i].valid());
   }
 
-  // Had the degenerate request been stored, it would have counted toward the
-  // four-entry capacity and inserting the fourth ring would have flushed the
-  // earlier ones; every radius still answering with the SAME measurement
-  // proves it occupied nothing. The held copies keep the originals alive,
-  // so a re-measure could not be mistaken for them.
+  // Every valid radius answers with the SAME measurement it first gave,
+  // which is two things at once. Had the degenerate requests been stored
+  // they would have counted toward the four-entry capacity and inserting
+  // the fourth ring would have flushed the earlier ones, so nothing would
+  // still match; and a radius asked for twice is measured once. The held
+  // copies keep the originals alive, so a re-measure could not be mistaken
+  // for them.
   for (int i = 0; i < 4; ++i) EXPECT_EQ(cache.ringForRadius(radii[i]), held[i]);
   EXPECT_FALSE(cache.ringForRadius(0.0f).valid());
 }
