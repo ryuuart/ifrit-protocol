@@ -1,7 +1,8 @@
 /** @file
- * SigilWeaveKit: rebuild guards, layout memoization, and glyph bucketing.
- * These tests pin the invalidation semantics the kit exists to make
- * explicit — which key changes fire a rebuild, and which must not.
+ * SigilWeaveKit: rebuild guards, layout memoization, glyph bucketing, and
+ * the tables the layout asks for. These tests pin the invalidation
+ * semantics the kit exists to make explicit — which key changes fire a
+ * rebuild, and which must not — and what the stock tables actually hold.
  */
 
 #include <gtest/gtest.h>
@@ -9,6 +10,7 @@
 
 #include <string>
 #include <tuple>
+#include <vector>
 
 #include "support/KitSupport.h"
 
@@ -161,6 +163,26 @@ TEST(SampleText, FillerIsDeterministicAndMultiSpan) {
   const Paragraph second = sigil::weave::kit::mixedScriptFiller(240, 16.0f);
   EXPECT_EQ(first.text(), second.text());
   EXPECT_GT(first.spans().size(), 1u);
+}
+
+// ── The tables ─────────────────────────────────────────────────────────
+
+TEST(LineTables, TheStockProhibitionsAreTheFullWidthPunctuationOfTheGrid) {
+  const KinsokuTable table = kit::kinsoku::japanese();
+  for (const char16_t character : {u'、', u'。', u'）', u'」', u'』',
+                                   u'！', u'？', u'ー', u'ぁ', u'ッ'})
+    EXPECT_NE(table.notLineStart.find(character), std::u16string::npos)
+        << "may not open a line";
+  for (const char16_t character : {u'（', u'「', u'『', u'【'})
+    EXPECT_NE(table.notLineEnd.find(character), std::u16string::npos)
+        << "may not close a line";
+  // A full-width cell is what the set is about: ASCII punctuation carries
+  // the same line-break classes and is the segmentation's business.
+  for (const char16_t character : {u',', u'.', u')', u'(', u'a'}) {
+    EXPECT_EQ(table.notLineStart.find(character), std::u16string::npos);
+    EXPECT_EQ(table.notLineEnd.find(character), std::u16string::npos);
+  }
+  EXPECT_EQ(kit::kinsoku::japanese(), table) << "one derivation, reused";
 }
 
 }  // namespace

@@ -23,20 +23,23 @@ namespace sigil::weave::kit {
 /** Prohibition sets — which characters may not stand at a line's edge. */
 namespace kinsoku {
 
-/** The Japanese set, in the shape most houses use: the closing brackets,
- *  the sentence marks, the small kana, the sound marks and the prolonged
- *  sound mark may not OPEN a line; the opening brackets may not close
- *  one. Every entry is a prohibition somebody would notice the absence of
- *  in a printed page — a comma alone at the head of a column reads as a
- *  mistake rather than as a comma.
+/** The Japanese set, DERIVED from the line-break class each character
+ *  carries rather than typed out: what may not OPEN a line is the closing
+ *  punctuation and parentheses, the non-starters, the conditional Japanese
+ *  starters, the exclamation and question marks and the infix numeric
+ *  separators; what may not CLOSE one is the opening punctuation. The set
+ *  is then narrowed to the characters SET IN A FULL-WIDTH CELL, which is
+ *  the punctuation of the ideographic grid and exactly what the convention
+ *  is about; ASCII punctuation is left to the segmentation.
  *
- *  MUCH OF IT IS ALREADY TRUE. The segmentation is UAX #14's, which
- *  forbids most of these on its own, so this table changes little on a
- *  plain Japanese passage and is not where its value is. Its value is that
- *  a table is the seam: a house that forbids one more character, a script
- *  with its own prohibitions, a document that must not break before a
- *  numeral — each is a table of its own, and this one is a peer of them
- *  rather than a rule the engine holds. */
+ *  A TAILORING COMES FIRST. Segmentation runs under a locale
+ *  (`Paragraph::setLineBreakLocale`), and a locale that names its
+ *  line-break rules — the strict Japanese ones a printed page is set under,
+ *  the loose Chinese ones — already refuses most of these boundaries, so
+ *  a script's own prohibitions are the segmentation's answer and not this
+ *  table's. A table is what a HOUSE adds on top: one more character it
+ *  forbids, a document that must not break before a numeral. This one is a
+ *  peer of a caller's own rather than a rule the engine holds. */
 [[nodiscard]] KinsokuTable japanese();
 
 }  // namespace kinsoku

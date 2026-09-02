@@ -5,28 +5,46 @@
 
 #include "sigilweave/kit/LineTables.h"
 
+#include "sigilweave/unicode/Unicode.h"
+
 namespace sigil::weave::kit {
+
+namespace {
+
+/** Appends a code point to a prohibition set when it is set in a
+ *  FULL-WIDTH CELL and one UTF-16 unit spells it.
+ *
+ *  A prohibition set is scanned one code unit at a time, so a character
+ *  outside the basic plane cannot be named in one; every mark a line-edge
+ *  convention is about is inside it, a full-width character outside it
+ *  being an ideograph, which no such convention names. The full-width test
+ *  is what makes the set the punctuation of the ideographic grid — the
+ *  marks that occupy a cell beside the kanji — and leaves ASCII
+ *  punctuation to the segmentation, which already knows it. */
+void appendIfSetInAFullWidthCell(char32_t codePoint, std::u16string& out) {
+  if (codePoint > 0xFFFF) return;
+  if (!unicode::isFullWidth(codePoint)) return;
+  out.push_back(static_cast<char16_t>(codePoint));
+}
+
+}  // namespace
 
 namespace kinsoku {
 
 KinsokuTable japanese() {
-  KinsokuTable table;
-  // May not OPEN a line: the closing brackets, the sentence marks, the
-  // small kana and the sound marks, the prolonged sound mark, and the
-  // repeat marks — every one of which reads as an error standing alone at
-  // the head of a column.
-  table.notLineStart =
-      u"、。，．｡､・･：；？"
-      u"！’”）〕］｝〉》」』"
-      u"】―‐／＼ぁぃぅぇぉっ"
-      u"ゃゅょゎァィゥェォッャ"
-      u"ュョヮヵヶー゛゜ゝゞヽ"
-      u"ヾ…‥";
-  // May not CLOSE one: the opening brackets, which would otherwise end a
-  // line with nothing to open.
-  table.notLineEnd =
-      u"‘“（〔［｛〈《「『【"
-      u"｢";
+  // DERIVED, not typed: which characters may not stand at a line's edge is
+  // a property Unicode carries as each character's line-break class, and a
+  // set typed out by hand is that property transcribed once and then left
+  // behind. The derivation runs on first use and the classes do not change
+  // under a running process.
+  static const KinsokuTable table = [] {
+    KinsokuTable derived;
+    for (const char32_t codePoint : unicode::lineStartProhibited())
+      appendIfSetInAFullWidthCell(codePoint, derived.notLineStart);
+    for (const char32_t codePoint : unicode::lineEndProhibited())
+      appendIfSetInAFullWidthCell(codePoint, derived.notLineEnd);
+    return derived;
+  }();
   return table;
 }
 

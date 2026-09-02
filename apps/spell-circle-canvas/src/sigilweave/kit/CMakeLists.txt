@@ -3,7 +3,9 @@
 # bucketing, label and style shorthand, and shared sample content. They
 # make the invisible parts of fast usage — cache invalidation keys,
 # draw-call batching — explicit and reusable (see README.md here).
-# Qt-free; a label draws, so the kit rests on the paint feature.
+# Qt-free; a label draws, so the kit rests on the paint feature, and it
+# asks the Unicode leaf the character questions its tables are derived from
+# rather than holding a copy of the answers.
 add_library(SigilWeaveKit STATIC
   Hyphenation.cpp
   Labels.cpp
@@ -31,6 +33,8 @@ target_link_libraries(SigilWeaveKit
   PUBLIC
     SigilWeavePaint
     unofficial::skia::skia
+  PRIVATE
+    SigilWeaveUnicode
 )
 
 # The invalidation semantics the kit exists to make explicit.

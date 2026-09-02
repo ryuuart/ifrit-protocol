@@ -3,7 +3,8 @@
 Companion utilities for SigilWeave consumers, distilled from the patterns the
 gallery, demo, and SpellCircle app kept hand-rolling. Core SigilWeave stays a
 layout engine; this layer packages the *usage discipline* that keeps animated
-text cheap. It is Qt-free, rests on the paint feature (a label draws) and Skia, and
+text cheap. It is Qt-free, rests on the paint feature (a label draws) and Skia,
+asks the Unicode leaf the character questions its tables are derived from, and
 ships as its own target (`sigil::weave::SigilWeaveKit`, the future vcpkg `Kit` component).
 
 ## Why this library exists
@@ -82,10 +83,25 @@ the characters that may not open or close a line, and the engine settles
 the prohibition by never opening that boundary; `hanging::` names how far
 a character may stand outside the measure, as a fraction of its own
 advance, which is optical margin alignment down a page and burasagari down
-a column. The Japanese prohibition set is largely already true — the
-segmentation is UAX #14's and forbids most of it on its own — and that is
-worth knowing rather than hiding: the table's value is that it is a table,
-so a house's own additions are a value rather than a patch.
+a column.
+
+`kinsoku::japanese()` is DERIVED, not typed. Which characters may not stand
+at a line's edge is already a property every character carries — its
+line-break class — so the set is read off that: the closing punctuation and
+parentheses, the non-starters, the conditional Japanese starters, the
+exclamation and question marks and the infix numeric separators may not
+open a line; the opening punctuation may not close one. It is then narrowed
+to the characters standing in a FULL-WIDTH CELL, which is the punctuation
+of the ideographic grid and exactly what the convention is about, leaving
+ASCII punctuation to the segmentation, which carries the same classes
+already.
+
+That the set is largely already true is worth knowing rather than hiding.
+The segmentation runs UAX #14 under a locale tailoring
+(`Paragraph::setLineBreakLocale`, "ja@lb=strict"), and the tailoring is
+where a script's own prohibitions come from FIRST; the table is what a
+HOUSE adds on top. Its value is that it is a table, so a house's own
+additions are a value rather than a patch.
 
 ## The shape of a well-behaved scene
 
