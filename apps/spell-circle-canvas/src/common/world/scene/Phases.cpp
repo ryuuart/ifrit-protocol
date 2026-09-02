@@ -195,14 +195,6 @@ void Scene::Impl::deriveInto(Instance& inst, const glm::mat4& parentWorld,
 
   const glm::mat4 world = parentWorld * local;
   if (world != inst.world) {
-    // THE RESCAN SIDE of the settle: a node the proof released has
-    // promised to re-declare the frame it moves, before anything holding
-    // its old reading replays.
-    if (inst.released) {
-      inst.released = false;
-      inst.settle.restart();
-      staleBakesUp(&inst);
-    }
     inst.world = world;
     *changed = true;
   }
@@ -214,6 +206,23 @@ bool Scene::Impl::phaseDerive() {
   bool changed = false;
   if (root) deriveInto(*root, glm::mat4(1.0f), &changed);
   return changed;
+}
+
+void Scene::Impl::rescanMoved() {
+  if (root) rescanMoved(*root);
+}
+
+void Scene::Impl::rescanMoved(Instance& inst) {
+  // The hold's own answer to "is this still the reading I am holding
+  // against": it restarts the warmup from the new placement and says
+  // whether the node must re-declare. Asking the SETTLE rather than
+  // comparing against the previous frame's matrix is what keeps the
+  // release and the re-declaration reading the same value.
+  if (inst.settle.moved(scalarsOf(inst.world))) {
+    inst.released = false;
+    staleBakesUp(&inst);
+  }
+  for (std::unique_ptr<Instance>& child : inst.children) rescanMoved(*child);
 }
 
 // ---- the geometry slot's resource -------------------------------------------

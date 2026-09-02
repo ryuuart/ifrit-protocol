@@ -229,6 +229,36 @@ TEST(WorldScene, ASettledSubtreeBakesOnceAndADrivenLaneBelowUnsettlesIt) {
   EXPECT_FALSE(scene.stats().drawn == 0);
 }
 
+TEST(WorldScene, AStillChildInsideAMovingRigIsDrawnWhereItNowStands) {
+  motion::Ticker ticker;
+  Scene scene(ticker);
+  choreograph::Output<float> pan = 0.0f;
+  const auto describe = [](choreograph::Output<float>* lane) {
+    return Element().key("root").child(
+        Element().key("rig").translateX(lane).child(
+            Element().key("body").mesh(triangle(20))));
+  };
+
+  // `body` declares no motion of its own, so its draw order is recorded on
+  // the first frame — before any hold has warmed up, and while `rig`, whose
+  // lane is live, is still painting live around it.
+  scene.render(describe(&pan));
+
+  // The lane is then assigned from OUTSIDE. Nothing about `body`'s own
+  // description changed — only the matrix above it — and the order it
+  // recorded carries the placement it was recorded with, so a replay draws
+  // it where it used to stand.
+  pan = 30.0f;
+  scene.render(describe(&pan));
+  EXPECT_EQ(scene.stats().replayed, 0);
+
+  // …and it lands where a scene that has held nothing draws it.
+  Scene fresh(ticker);
+  choreograph::Output<float> panned = 30.0f;
+  fresh.render(describe(&panned));
+  EXPECT_EQ(plate(scene), plate(fresh));
+}
+
 TEST(WorldScene, ADrawIsAFunctionOfTheDescriptionAlone) {
   motion::Ticker ticker;
   Scene first(ticker);

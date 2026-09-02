@@ -259,6 +259,20 @@ struct Scene::Impl {
   bool phaseGraph();
   bool phaseExecute();
 
+  /** THE HOLD'S RESCAN SIDE, run between the converging rounds: every
+   *  node whose placement now differs from the reading its hold is
+   *  against re-declares, before extract reads a single artefact.
+   *
+   *  It visits EVERY node, not only the ones the proof released, because
+   *  a bake here is decided on declarations alone: a node with no lane of
+   *  its own declares no placement motion and takes an artefact whether
+   *  or not its hold has warmed up, and an ancestor's lane can move it
+   *  afterwards. Skipping it would replay that artefact — the entities
+   *  AND the placement recorded with them — where the node used to
+   *  stand. */
+  void rescanMoved();
+  void rescanMoved(Instance& inst);
+
   /** Resolves @p inst's geometry slot against the store, dropping
    *  whatever it held. @p geometry is the slot with this frame's window
    *  applied. */

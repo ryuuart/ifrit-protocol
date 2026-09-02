@@ -487,6 +487,14 @@ moving": once a placement resolves identically for three frames the node
 stops declaring the motion, and the frame it moves again it re-declares
 before anything holding its old reading replays.
 
+That re-declaration is the hold's rescan side, and it runs in the phase
+runner's settle hook — between the converging rounds, so derive has
+written the new placements and extract has not yet read an artefact. It
+visits every node rather than only the ones the proof released, because
+a bake here is decided on declarations alone: a node with no lane of its
+own declares no placement motion and takes an artefact whether or not
+its hold has warmed up, and an ancestor's lane can move it afterwards.
+
 **The bake's one tier is a draw order**: the entities a settled subtree
 contributes, recorded once and replayed until something in it moves. The
 artefact carries each entity's placement, so it is asked for on

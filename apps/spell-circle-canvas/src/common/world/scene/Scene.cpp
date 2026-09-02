@@ -47,10 +47,12 @@ void Scene::render(const Frame& frame) {
   impl.pending = frame.scene();
   impl.stats.rounds = core::runPhases(
       impl, std::span<const core::Phase<Impl>>(kPhases), kConvergeRounds,
-      // Nothing settles between rounds: derive is the only converging
-      // pass, it is idempotent, and it reads only its own output and its
-      // parent's.
-      [] {});
+      // What settles between rounds is the stability hold: `derive` has
+      // just written new placements, and a node whose placement moved
+      // must re-declare here, while the phase list is still ahead of
+      // `extract`. A round that changed nothing moved no placement, so
+      // the runner not calling this is the same answer as calling it.
+      [&impl] { impl.rescanMoved(); });
   impl.stats.resources = (int64_t)impl.store.size();
   ++impl.frameIndex;
 }
