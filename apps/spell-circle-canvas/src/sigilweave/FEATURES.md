@@ -548,7 +548,7 @@ and the ones that name nothing say so.
 | Frame: first-baseline offset | done | `FrameOptions::firstBaseline` | `Element::firstBaseline` |
 | Frame: auto-size | exists | compose measure | a leaf given no width measures its own content |
 | Threading (in and out ports) | done | `layoutParagraph`'s resume word; the chain also states the next frame's measure through `ParagraphLayoutOptions::nextMeasure` | `Story`, `frame`, `Element::key` and `Element::thread` |
-| Story-wide addressing | done — a story's words, characters, sentences and named runs are the story's already, and the LINE is what a frame chain renumbers | — | `sel::line` addresses the story; `sel::inFrame` is the frame-local address beside it |
+| Story-wide addressing | done — a story's words, characters, sentences and named runs are the story's already, and the LINE is what a frame chain renumbers | — | `sel::line` addresses the story, `sel::inFrame` is the frame-local address beside it, and a cascade's beats span the chain on one master progress |
 | Text wrap: bounding box, object shape, offsets | exists | `ExclusionFlow`, compose `flowAround` | `Element::flowAround` |
 | Text wrap: jump object, wrap to one side | **not started** | — | — |
 | Anchored objects: inline | exists | `Placeholder`, `RichText::slot` | `rich().slot(name, size)` with `slot(name)` |
