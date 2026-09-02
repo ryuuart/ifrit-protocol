@@ -9,4 +9,5 @@
 
 #include "sigilloader/hub/Hub.h"
 #include "sigilloader/hub/Network.h"
+#include "sigilloader/source/Sink.h"
 #include "sigilloader/source/Source.h"

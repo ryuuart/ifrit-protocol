@@ -3,10 +3,12 @@
 A runtime resource hub. Application code asks for a resource by URI —
 `res://ui/logo.png` — instead of by filesystem path. URI prefixes mount
 onto directories, results are cached per resource, and `poll()` re-stats
-what has been loaded so edited files reload without a restart. `http://`
+what has been loaded so edited files reload without a restart. `write()`
+stores bytes back through the same mounts. `http://`
 and `https://` URIs fetch over libcurl behind an on-disk cache with a
-selectable policy; `file://` strips to a plain local path. Decoding is not
-its job: it hands bytes to registered decoders, SigilImage's by default.
+selectable policy; `file://` strips to a plain local path. What a byte
+MEANS is not its job in either direction: it hands bytes to registered
+decoders, SigilImage's by default, and takes already-encoded bytes back.
 
 Namespace `sigil::loader`. One feature library per directory, linked by
 what a consumer uses; every public header lives under
@@ -14,7 +16,7 @@ what a consumer uses; every public header lives under
 
 | target | headers | holds |
 |--------|---------|-------|
-| `SigilLoaderSource` | `source/Source.h` | header only, standard library only: `Bytes`, the `ByteSource`, `ResolvingByteSource` and `Decoder` concepts, and `AnyByteSource`, the type-erased source value |
+| `SigilLoaderSource` | `source/Source.h`, `source/Sink.h` | header only, standard library only: `Bytes`, the `ByteSource`, `ResolvingByteSource` and `Decoder` concepts, `AnyByteSource` (the type-erased source value), and the other direction — the `ByteSink` concept and `writeBytes()`, the one place a path and a run of bytes become a file |
 | `SigilLoaderHub`    | `hub/Hub.h`, `hub/Network.h` | the `Hub`, `ResourceInfo` and `ImageOptions`; `NetworkPolicy` and `networkCacheKey()` |
 
 `SigilLoader` is the umbrella target over both, and
@@ -55,6 +57,15 @@ hub.setNetworkCacheDir("/opt/myapp/assets/.netcache");
 hub.setNetworkPolicy(sigil::loader::NetworkPolicy::Offline);
 auto remote = hub.image("https://example.com/tex.png");
 
+// Bytes back out, through the same mount table they are read by. What
+// they are is the caller's business: an image is encoded first.
+sk_sp<SkData> png = sigil::image::encodeImage(*rendered,
+                                              sigil::image::Format::Png);
+hub.write("res://out/plate.png", png->data(), png->size());
+
+// A plain path, with no hub in reach — the sink half on its own.
+sigil::loader::writeBytes(outDir / "plate.png", png->data(), png->size());
+
 // Once per frame, or on a file-watch event.
 if (hub.poll())
   redraw();
@@ -83,6 +94,12 @@ registered `ImageAsset` decoder, so it and `load<ImageAsset>()` share one
 view. Every entry also remembers the URI it was asked by, which is
 what reloading goes back to — a URI is never re-derived from a key
 string, so no character a URI may contain is special.
+
+`write()` runs the read's resolution backwards: the URI resolves through
+the same longest-prefix mount table, the directories above the file are
+created, and every cached entry for that URI is dropped so the next ask
+reads the file back rather than serving what was there before. Entries are
+matched on the URI each one carries, never by parsing a key.
 
 Network URIs bypass the mount list entirely. A fetch goes through the disk
 cache directory, and the entry carries a sentinel timestamp so `poll()`
@@ -119,6 +136,15 @@ Failed lookups are deliberately not cached. A URI that resolves to a file
 which does not exist yet returns null now and loads as soon as the file
 appears.
 
+`write()` refuses a network URI. A hub writes where it mounts; the disk
+cache under an `http(s)://` entry belongs to the fetch, and writing into
+it would invent a resource the server never served.
+
+`writeBytes()` is true only when every byte reached the file and the
+stream closed clean, so a half-written file reads as a failure rather than
+as a shorter resource. A zero-length write still creates the file:
+emptiness is a value a resource may have.
+
 `networkCacheKey` builds its filename from `std::hash<std::string_view>`,
 which is implementation-defined. Cache directories are therefore not
 portable across standard library implementations — treat them as local
@@ -143,16 +169,19 @@ cache hit or failure.
 Dependencies: `SigilLoaderHub` links `SigilLoaderSource` and
 `SigilImageDecode` publicly and `CURL::libcurl` privately — private
 because it is pure transport, but a hard requirement to configure. `SigilLoaderSource` itself depends on
-nothing beyond the standard library, so a decoder library can speak the
-byte-source vocabulary without inheriting the hub, libcurl or any codec.
+nothing beyond the standard library, so a decoder or an encoder library
+can speak the byte vocabulary without inheriting the hub, libcurl or any
+codec.
 
 SigilLoader owns **access**: URIs, mounts, caching, hot reload, network
-fetch and the disk cache. SigilImage owns **meaning**: format sniffing,
-decode backends, probing, layer and channel semantics. The hub adds zero
-format knowledge of its own — `ImageOptions` is an alias for SigilImage's
-`DecodeOptions`, `ResourceInfo` carries SigilImage's `ImageProbe`, and
-every decode is a delegation. The dependency runs one way only: SigilImage
-does not know the hub exists.
+fetch, the disk cache, and the file write. SigilImage owns **meaning**:
+format sniffing, decode and encode backends, probing, layer and channel
+semantics. The hub adds zero format knowledge of its own —
+`ImageOptions` is an alias for SigilImage's `DecodeOptions`,
+`ResourceInfo` carries SigilImage's `ImageProbe`, every decode is a
+delegation, and `write()` takes bytes somebody else encoded. The
+dependency runs one way only: SigilImage does not know the hub exists,
+and does not open a file in either direction.
 
 ## Build and test
 
@@ -165,8 +194,9 @@ ctest --test-dir build -C Debug -R loader_ --output-on-failure
 ```
 
 Targets: `SigilLoaderSource` (header only, `source/`) with
-`loader_source_test`, which checks the concepts against a fixture source
-and a fixture decoder with no hub in the binary; `SigilLoaderHub` (static
+`loader_source_test`, which checks the concepts against a fixture source,
+a fixture decoder and a fixture sink with no hub in the binary, and
+`writeBytes` against a real scratch directory; `SigilLoaderHub` (static
 library, `hub/` — mounts, cache, network and the decoder registry one
 translation unit each behind the private `hub/Fetch.h`) with
 `loader_hub_test` and `loader_hub_bench` (Google Benchmark, built by the

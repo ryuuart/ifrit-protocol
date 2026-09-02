@@ -56,6 +56,7 @@
 #include <vector>
 
 #include "sigilloader/hub/Network.h"
+#include "sigilloader/source/Sink.h"
 #include "sigilloader/source/Source.h"
 
 namespace sigil::loader {
@@ -121,6 +122,20 @@ class Hub {
   /** The ByteSource spelling of blob(): the same bytes, the same cache
    *  entry. */
   std::shared_ptr<const Bytes> fetch(std::string_view uri) { return blob(uri); }
+
+  /** Stores @p size bytes under @p uri, through the same mount table a
+   *  read resolves by, creating the directories above the file. What
+   *  the bytes MEAN is nobody's business here: a caller with an image
+   *  encodes it first and hands the result over.
+   *
+   *  Every cached view of that URI is dropped, so the next ask reads
+   *  the file back rather than serving what was there before the write.
+   *  A network URI cannot be written and answers false — a hub writes
+   *  where it mounts. */
+  bool write(std::string_view uri, const void* bytes, size_t size);
+  bool write(std::string_view uri, const Bytes& bytes) {
+    return write(uri, bytes.bytes.data(), bytes.bytes.size());
+  }
 
   /** Registers how a T is decoded from bytes, so load<T>() can answer.
    *  `hint` is the resource's local path when it has one (the disk

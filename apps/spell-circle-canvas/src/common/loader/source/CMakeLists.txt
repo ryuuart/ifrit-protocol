@@ -1,9 +1,11 @@
-# The source leaf: the byte-source vocabulary — Bytes, the ByteSource,
-# ResolvingByteSource and Decoder concepts, and AnyByteSource, the
-# type-erased source value. Header only and standard library only, so a
-# decoder library can depend on it without inheriting the hub, libcurl,
-# or any codec.
+# The source leaf: the byte vocabulary in both directions — Bytes, the
+# ByteSource, ResolvingByteSource and Decoder concepts, AnyByteSource
+# (the type-erased source value), and the ByteSink concept with the
+# local-filesystem write behind it. Header only and standard library
+# only, so a decoder or an encoder can depend on it without inheriting
+# the hub, libcurl, or any codec.
 add_library(SigilLoaderSource INTERFACE
+  ${SIGIL_LOADER_INCLUDE_DIR}/sigilloader/source/Sink.h
   ${SIGIL_LOADER_INCLUDE_DIR}/sigilloader/source/Source.h
 )
 target_compile_features(SigilLoaderSource INTERFACE cxx_std_20)

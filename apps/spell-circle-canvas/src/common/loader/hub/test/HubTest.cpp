@@ -5,6 +5,7 @@
  */
 
 #include <include/core/SkBitmap.h>
+#include <include/core/SkData.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkPixmap.h>
 #include <include/core/SkStream.h>
@@ -294,6 +295,54 @@ TEST(LoaderHub, FileUrlsLoadAsLocalPaths) {
   auto bytes = hub.blob(url);
   ASSERT_NE(bytes, nullptr);
   EXPECT_EQ(bytes->bytes.size(), 15u);
+}
+
+TEST(LoaderHub, WriteStoresThroughTheMountItReadsBy) {
+  TempDir dir;
+  Hub hub;
+  hub.mount("res://", dir.path);
+  const std::string_view payload = "written through the mount";
+  ASSERT_TRUE(hub.write("res://out/note.txt", payload.data(), payload.size()));
+  EXPECT_TRUE(fs::exists(dir.path / "out" / "note.txt"));
+  auto text = hub.text("res://out/note.txt");
+  ASSERT_TRUE(text.has_value());
+  EXPECT_EQ(*text, payload);
+}
+
+TEST(LoaderHub, WriteReplacesWhatWasCached) {
+  TempDir dir;
+  dir.write("note.txt", "before");
+  Hub hub;
+  hub.mount("res://", dir.path);
+  ASSERT_EQ(hub.text("res://note.txt"), "before");
+  const std::string_view after = "after";
+  ASSERT_TRUE(hub.write("res://note.txt", after.data(), after.size()));
+  // The cached entry is gone rather than stale, so this reads the file.
+  EXPECT_EQ(hub.text("res://note.txt"), "after");
+}
+
+TEST(LoaderHub, WrittenImageBytesDecodeBackThroughTheHub) {
+  TempDir dir;
+  Hub hub;
+  hub.mount("res://", dir.path);
+  SkBitmap bitmap;
+  bitmap.allocPixels(SkImageInfo::MakeN32Premul(7, 7));
+  bitmap.eraseColor(SK_ColorMAGENTA);
+  SkDynamicMemoryWStream stream;
+  ASSERT_TRUE(SkPngEncoder::Encode(&stream, bitmap.pixmap(), {}));
+  const sk_sp<SkData> encoded = stream.detachAsData();
+  ASSERT_TRUE(
+      hub.write("res://made/tile.png", encoded->data(), encoded->size()));
+  auto image = hub.image("res://made/tile.png");
+  ASSERT_NE(image, nullptr);
+  EXPECT_EQ(image->width(), 7);
+}
+
+TEST(LoaderHub, NetworkUrisCannotBeWritten) {
+  Hub hub;
+  const std::string_view payload = "nope";
+  EXPECT_FALSE(
+      hub.write("https://example.com/x.txt", payload.data(), payload.size()));
 }
 
 TEST(LoaderNet, CacheKeyKeepsUrlExtension) {

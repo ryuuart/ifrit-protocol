@@ -25,16 +25,18 @@ set(SIGIL_IMAGE_TEST_ASSET_DIR ${CMAKE_CURRENT_LIST_DIR}/test/assets)
 # Dependencies point down this list.
 add_subdirectory(asset)
 add_subdirectory(decode)
+add_subdirectory(encode)
 
 add_library(SigilImage INTERFACE)
-target_link_libraries(SigilImage INTERFACE SigilImageAsset SigilImageDecode)
+target_link_libraries(SigilImage INTERFACE SigilImageAsset SigilImageDecode
+  SigilImageEncode)
 
 # Registers this library with the `docs` target (see cmake/Docs.cmake).
 # The README is the site's front page, so the generated pages open on the
 # same document that is canon for the library.
 sigil_add_docs(
   NAME SigilImage
-  BRIEF "Image decoding: encoded bytes in, Skia images out"
+  BRIEF "Image decoding and encoding: bytes in, Skia images out, and back"
   INPUT
         ${CMAKE_CURRENT_SOURCE_DIR}/include
         ${CMAKE_CURRENT_SOURCE_DIR}/README.md

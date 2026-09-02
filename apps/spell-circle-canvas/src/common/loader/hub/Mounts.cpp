@@ -1,11 +1,12 @@
 /** @file
  * Mounts and resolution: a URI prefix mapped onto a directory, the
  * longest-prefix resolve, the local path a non-network URI means, the
- * file read behind it, and the preamble that sends a network URI the
- * other way.
+ * file read and the file write behind it, and the preamble that sends a
+ * network URI the other way.
  */
 
 #include <fstream>
+#include <iterator>
 
 #include "Fetch.h"
 #include "sigilloader/hub/Hub.h"
@@ -66,6 +67,22 @@ void Hub::mount(std::string prefix, std::filesystem::path dir) {
       return;
     }
   m_mounts.emplace_back(std::move(prefix), std::move(dir));
+}
+
+bool Hub::write(std::string_view uri, const void* bytes, size_t size) {
+  // A network URI is fetched, never stored: the disk cache underneath
+  // it belongs to the fetch, and writing into it would invent a
+  // resource the server never served.
+  if (detail::isNetworkUri(uri)) return false;
+  const std::filesystem::path path = detail::localPath(*this, uri);
+  if (path.empty()) return false;
+  if (!writeBytes(path, bytes, size)) return false;
+  // Every entry for this URI goes, whatever decode options made it —
+  // matched on the uri each entry carries rather than on its key, since
+  // a key is never parsed back into the URI it was built from.
+  for (auto it = m_entries.begin(); it != m_entries.end();)
+    it = it->second.uri == uri ? m_entries.erase(it) : std::next(it);
+  return true;
 }
 
 std::filesystem::path Hub::resolve(std::string_view uri) const {
