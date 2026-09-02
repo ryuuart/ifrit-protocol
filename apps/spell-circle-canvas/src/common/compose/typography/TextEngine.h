@@ -124,8 +124,8 @@ GlyphMod lerpMod(const GlyphMod& a, const GlyphMod& b, float w);
 /** FIELD PIN for GlyphMod (see the FIELD PINS block above) — defined beside
  *  the two functions it guards, never called. */
 void glyphModFieldPin(GlyphMod& v);
-/** The seed an effect's Rng is constructed from — the glyph's identity plus
- *  the operand lane inside a composite. */
+/** The seed an effect's random stream is constructed from — the glyph's
+ * identity plus the operand lane inside a composite. */
 uint64_t glyphSeed(const GlyphInfo& g, uint32_t lane = 0);
 
 // ---------------------------------------------------------------------------

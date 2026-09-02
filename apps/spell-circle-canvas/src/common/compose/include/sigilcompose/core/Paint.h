@@ -2,8 +2,8 @@
 
 /** @file
  * SigilCompose paint values — Fill, Corners, the PaintContext a paint
- * program is handed, the instance-side StampCache, the caller-owned
- * UniformBlock, and Effect, the post-processing seam. These are the
+ * program is handed, the instance-side StampCache, and Effect, the
+ * post-processing seam. These are the
  * comparable values the paint stage reads; the polymorphic Material that
  * supersedes Fill as fill()'s authoring value is declared in
  * <sigilcompose/Material.h>.
@@ -18,9 +18,11 @@
 #include <include/core/SkShader.h>
 #include <include/core/SkSize.h>
 #include <include/core/SkTypes.h>
-#include <sigilcompose/core/Motion.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/core/UniformBlock.h>
+#include <sigilmotion/Animation.h>
+#include <sigilmotion/schedule/Schedule.h>
+#include <sigilmotion/values/Animated.h>
 
 #include <algorithm>
 #include <array>
@@ -256,11 +258,6 @@ class StampCache {
       m_entries;
 };
 
-/** The caller-owned, revisioned float buffer behind a live array
- *  uniform. SigilMaterial declares it; the paint stage spells it by this
- *  name. */
-using UniformBlock = sigil::material::UniformBlock;
-
 /**
  * Post-processing at stacking-context boundaries. `filter` wraps any
  * SkImageFilter (blur, displacement, lighting, compose chains);
@@ -398,14 +395,15 @@ class Effect {
   Effect& uniform(std::string name, std::array<float, 2> value);
   Effect& uniform(std::string name, std::array<float, 4> value);
   Effect& uniform(std::string name, std::vector<float> values);
-  /** A LIVE ARRAY — a `UniformBlock` the caller owns, writes and
+  /** A LIVE ARRAY — a `material::UniformBlock` the caller owns, writes and
    *  commit()s, read at every paint. Declares volatility exactly as a
    *  bound scalar Output does: the node paints live while the effect is
    *  attached, and no cache can freeze the table. The binding compares by
    *  block identity; the values belong to the system and never prune.
    *  Size-checked at store time against the declared array's total float
    *  count, because the builder refuses a partial array write. */
-  Effect& uniform(std::string name, std::shared_ptr<const UniformBlock> block);
+  Effect& uniform(std::string name,
+                  std::shared_ptr<const material::UniformBlock> block);
   /** Chain: apply `next` AFTER this effect (SkImageFilters::Compose) —
    *  e.g. the DWM glass formula: Effect::filter(Blur(3,3)).then(
    *  Effect::shader(colorize)). Static chains precompose once; a chain
@@ -471,9 +469,10 @@ class Effect {
   std::vector<std::pair<std::string, std::array<float, 4>>> m_uniforms4;
   std::vector<std::pair<std::string, std::vector<float>>> m_uniformArrays;
   std::vector<std::pair<std::string, motion::Animatable<float>>> m_bound;
-  // Live arrays: caller-owned UniformBlocks, read at every paint. Their
-  // presence makes the effect isAnimated(), like a bound scalar.
-  std::vector<std::pair<std::string, std::shared_ptr<const UniformBlock>>>
+  // Live arrays: caller-owned material::UniformBlocks, read at every paint.
+  // Their presence makes the effect isAnimated(), like a bound scalar.
+  std::vector<
+      std::pair<std::string, std::shared_ptr<const material::UniformBlock>>>
       m_blocks;
   std::optional<DirectionalBlur> m_dirBlur;  // directionalBlur()'s recipe
   std::optional<ParamBlur> m_paramBlur;      // blur()'s recipe

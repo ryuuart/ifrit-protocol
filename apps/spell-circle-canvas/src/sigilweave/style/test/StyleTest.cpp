@@ -1,7 +1,8 @@
 /** @file
  * The style vocabulary as plain values: the fluent variation sugar, the
- * paint-layer presets and their order, the feature preset tags, and the
- * StyleSet registry's lookup, replacement and equality.
+ * paint-layer presets and their order, the feature preset tags, the
+ * StyleSet registry's lookup, replacement and equality, and the
+ * designated-init `Type` a call site names a style's numbers in.
  */
 
 #include <gtest/gtest.h>
@@ -155,4 +156,40 @@ TEST(Typography, PaintLayerMaterialComparesByIdentity) {
   EXPECT_EQ(same, withMaterial);
   // The umbrella still spells every subject.
   static_assert(std::is_same_v<StyleSet::Entry::second_type, TextStyle>);
+}
+
+// ---------------------------------------------------------------------------
+// Type — the designated-init aggregate a call site names a style's numbers
+// in, and the TextStyle it builds.
+
+TEST(Type, TheAggregatesNumbersLandOnTheStylesTwoHalves) {
+  const TextStyle s = type({.size = 10.5f,
+                            .color = {1, 0, 0, 1},
+                            .track = 1.2f,
+                            .condense = 0.8f,
+                            .aliased = true});
+  EXPECT_FLOAT_EQ(s.shaping.fontSize, 10.5f);
+  EXPECT_FLOAT_EQ(s.shaping.letterSpacing, 1.2f);
+  EXPECT_FLOAT_EQ(s.shaping.scaleX, 0.8f);
+  EXPECT_TRUE(s.shaping.aliased);
+  EXPECT_EQ(s.paint.foreground.getColor4f(), (SkColor4f{1, 0, 0, 1}));
+}
+
+TEST(Type, WeightAndSlantBecomeAxesAndTheExtraVariationsFollowThem) {
+  Type t;
+  t.weight = 700.0f;
+  t.slant = -8.0f;
+  t.variations = {FontVariation("wdth", 75.0f)};
+  const TextStyle s = type(t);
+  ASSERT_EQ(s.shaping.variations.size(), 3u);
+  EXPECT_EQ(s.shaping.variations[0], FontVariation("wght", 700));
+  EXPECT_EQ(s.shaping.variations[1], FontVariation("slnt", -8));
+  EXPECT_EQ(s.shaping.variations[2], FontVariation("wdth", 75));
+}
+
+TEST(Type, TheEightBitLadderQuantisesWhereTheFloatOneDoesNot) {
+  const SkColor4f c{0.4f, 0.4f, 0.4f, 1};
+  EXPECT_EQ(type({.color = c}).paint.foreground.getColor4f(), c);
+  EXPECT_NE(type({.color = c, .color8 = true}).paint.foreground.getColor4f(),
+            c);
 }

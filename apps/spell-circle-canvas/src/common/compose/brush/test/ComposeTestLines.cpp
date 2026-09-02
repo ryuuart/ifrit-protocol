@@ -173,7 +173,7 @@ TEST(ComposeText, OnPathRidesTheBaselineItIsGiven) {
         .absolute()
         .left(0)
         .top(0)
-        .onPath({.path = shapes::arc(180.0f, 359.9f),
+        .onPath({.path = geometry::shapes::arc(180.0f, 359.9f),
                  .at = at,
                  .align = TextPath::Align::Center});
   };
@@ -226,7 +226,7 @@ TEST(ComposeText, OnPathWrapsTheSeamAndTheFlippedRunKeepsItsHalf) {
                       .absolute()
                       .left(0)
                       .top(0)
-                      .onPath({.path = shapes::arc(180.0f, 359.9f),
+                      .onPath({.path = geometry::shapes::arc(180.0f, 359.9f),
                                .at = 0.0f,
                                .align = TextPath::Align::Center})));
   seam.frame();
@@ -246,7 +246,7 @@ TEST(ComposeText, OnPathWrapsTheSeamAndTheFlippedRunKeepsItsHalf) {
         .absolute()
         .left(0)
         .top(0)
-        .onPath({.path = shapes::arc(0.0f, 359.9f),
+        .onPath({.path = geometry::shapes::arc(0.0f, 359.9f),
                  .at = 0.30f,
                  .align = TextPath::Align::Start,
                  .autoFlip = flip});
@@ -303,7 +303,7 @@ TEST(ComposeMotion, DelayStaggersTheEntrance) {
   Host host;
   auto card = [](float delaySec) {
     return box().width(60).height(30).fill(red()).opacity(
-        animate(from(0.0f).to(1.0f),
+        animate(motion::from(0.0f).to(1.0f),
                 {200ms, &choreograph::easeNone,
                  std::chrono::milliseconds((int)(delaySec * 1000))}));
   };
@@ -421,7 +421,7 @@ TEST(ComposeMotion, StaggerChildrenCascadesEntrances) {
   Host host;
   auto card = [] {
     return box().width(60).height(30).fill(red()).opacity(
-        animate(from(0.0f).to(1.0f), {200ms, &choreograph::easeNone}));
+        animate(motion::from(0.0f).to(1.0f), {200ms, &choreograph::easeNone}));
   };
   host.composer.render(
       box().column().gap(10).staggerChildren(400ms).child(card()).child(
@@ -565,7 +565,7 @@ TEST(ComposeLines, ConcentricPlacesARingAtAStatedRadius) {
     return box().child(box()
                            .absolute()
                            .inset(20, 20, 20, 20)
-                           .shape(shapes::circle())
+                           .shape(geometry::shapes::circle())
                            .stroke(std::move(hatch)));
   };
   Host stated, spaced;
@@ -870,7 +870,7 @@ TEST(ComposeLines, DottedCoreKeepsTheCasingContinuous) {
 }
 
 // ---------------------------------------------------------------------------
-// shapes::EdgeSlice equality — the adaptor that could never prune.
+// EdgeSlice equality — the adaptor that could never prune.
 
 TEST(ComposeDecorations, EdgeSlicePrunesWhenUnchanged) {
   // EdgeSlice had no operator==, so every re-render compared it unequal
@@ -880,8 +880,8 @@ TEST(ComposeDecorations, EdgeSlicePrunesWhenUnchanged) {
   // one.
   auto scene = [] {
     return box().child(box().width(100).height(100).fill(blue()).foreground(
-        shapes::onEdges(shapes::Edge::Top | shapes::Edge::Left,
-                        stroke(8, Fill::color({1, 1, 1, 1})))));
+        onEdges(geometry::path::Edge::Top | geometry::path::Edge::Left,
+                stroke(8, Fill::color({1, 1, 1, 1})))));
   };
   Host host;
   host.composer.render(scene());
@@ -891,9 +891,10 @@ TEST(ComposeDecorations, EdgeSlicePrunesWhenUnchanged) {
   host.frame();
   EXPECT_EQ(host.composer.stats().picturesRecorded, 0u);  // pruned
   // And it still compares UNEQUAL when the mask actually changes.
-  host.composer.render(box().child(
-      box().width(100).height(100).fill(blue()).foreground(shapes::onEdges(
-          shapes::Edge::Bottom, stroke(8, Fill::color({1, 1, 1, 1}))))));
+  host.composer.render(
+      box().child(box().width(100).height(100).fill(blue()).foreground(
+          onEdges(geometry::path::Edge::Bottom,
+                  stroke(8, Fill::color({1, 1, 1, 1}))))));
   host.frame();
   EXPECT_GT(host.composer.stats().picturesRecorded, 0u);
 }
@@ -1580,13 +1581,14 @@ Element gatedRing(Cache mode) {
                  .height(120)
                  .key("ring")
                  .cache(mode)
-                 .shape(shapes::circle())
+                 .shape(geometry::shapes::circle())
                  .stroke(stroke(6.0f, Fill::color({1, 1, 1, 1})))
                  .mask(by::spans(spans::upTo(
-                     animate(through({{std::chrono::milliseconds(0), 0.0f},
-                                      {std::chrono::milliseconds(200), 0.6f},
-                                      {std::chrono::milliseconds(600), 0.6f},
-                                      {std::chrono::milliseconds(800), 1.0f}}),
+                     animate(sigil::motion::through(
+                                 {{std::chrono::milliseconds(0), 0.0f},
+                                  {std::chrono::milliseconds(200), 0.6f},
+                                  {std::chrono::milliseconds(600), 0.6f},
+                                  {std::chrono::milliseconds(800), 1.0f}}),
                              &choreograph::easeNone)))));
 }
 
@@ -1810,7 +1812,7 @@ TEST(ComposeRouters, ChamferCutsTheCornerRoundingCannot) {
   EXPECT_GT(round.curves, 0);
   // The kit shaper is the same cut for any brush pipeline: a closed
   // 100x100 polyline square chamfered at 30 becomes the octagon
-  // shapes::chamfered() draws — 8 vertices, corners cut.
+  // geometry::shapes::chamfered() draws — 8 vertices, corners cut.
   SkPathBuilder sq;
   sq.moveTo(0, 0).lineTo(100, 0).lineTo(100, 100).lineTo(0, 100).close();
   const SkPath oct = kit::brush::shapers::chamfered(30).shape(sq.detach());
@@ -1921,7 +1923,7 @@ TEST(ComposeTextPath, ABoundPhaseWalksTheRunRoundAClosedBaseline) {
                       .absolute()
                       .left(0)
                       .top(0)
-                      .onPath({.path = shapes::circle(),
+                      .onPath({.path = geometry::shapes::circle(),
                                .at = &phase,
                                .align = TextPath::Align::Center})));
   host.frame();
@@ -1958,7 +1960,7 @@ TEST(ComposeTextPath, ThePhaseWrapsAcrossTheSeamWithNothingLost) {
                       .absolute()
                       .left(0)
                       .top(0)
-                      .onPath({.path = shapes::circle(),
+                      .onPath({.path = geometry::shapes::circle(),
                                .at = &phase,
                                .align = TextPath::Align::Center})));
   host.frame();
@@ -1983,15 +1985,15 @@ TEST(ComposeTextPath, ASettledPhaseStopsPaintingLiveAndCaches) {
   // content volatility. Driving it again re-declares in the same frame.
   choreograph::Output<float> phase{0.0f};
   Host host(240, 240);
-  host.composer.render(
-      box().child(text(u8"HELD", whiteStyle(20))
-                      .key("ring")
-                      .width(240)
-                      .height(240)
-                      .absolute()
-                      .left(0)
-                      .top(0)
-                      .onPath({.path = shapes::circle(), .at = &phase})));
+  host.composer.render(box().child(
+      text(u8"HELD", whiteStyle(20))
+          .key("ring")
+          .width(240)
+          .height(240)
+          .absolute()
+          .left(0)
+          .top(0)
+          .onPath({.path = geometry::shapes::circle(), .at = &phase})));
   for (int frame = 0; frame < 20; ++frame) host.frame();
   EXPECT_FALSE(host.composer.dirty())
       << "a phase that never moves keeps repainting";
@@ -2019,11 +2021,12 @@ TEST(ComposeTextPath, ATrackDeviatesInTheBaselinesOwnFrame) {
   // A bare offset, so the assertion is about DIRECTION and nothing else —
   // a preset that also fades would cull the glyphs it is being asked about.
   const TextEffect lift =
-      fx::effect("test.pathframe.lift", [](const GlyphInfo&, float t, Rng&) {
-        GlyphMod mod;
-        mod.dy = -40.0f * (1.0f - t);
-        return mod;
-      });
+      fx::effect("test.pathframe.lift",
+                 [](const GlyphInfo&, float t, core::noise::Mix64Stream&) {
+                   GlyphMod mod;
+                   mod.dy = -40.0f * (1.0f - t);
+                   return mod;
+                 });
   auto scene = [&](bool onPath, float progress) {
     Element t = text(u8"LIFT", whiteStyle(18))
                     .key("t")
@@ -2095,15 +2098,16 @@ TEST(ComposeTextPath, ATrackAndABaselineBothRunRatherThanOneWinning) {
                     .absolute()
                     .left(40)
                     .top(40)
-                    .onPath({.path = shapes::circle(),
+                    .onPath({.path = geometry::shapes::circle(),
                              .align = TextPath::Align::Center});
     if (withTrack)
-      t.fx({.effect = fx::effect("test.pathframe.out",
-                                 [](const GlyphInfo&, float, Rng&) {
-                                   GlyphMod mod;
-                                   mod.dy = -22.0f;
-                                   return mod;
-                                 }),
+      t.fx({.effect = fx::effect(
+                "test.pathframe.out",
+                [](const GlyphInfo&, float, core::noise::Mix64Stream&) {
+                  GlyphMod mod;
+                  mod.dy = -22.0f;
+                  return mod;
+                }),
             .progress = 1.0f});
     return box().child(std::move(t));
   };

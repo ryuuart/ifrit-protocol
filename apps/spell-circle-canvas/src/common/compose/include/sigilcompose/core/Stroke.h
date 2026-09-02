@@ -14,9 +14,11 @@
 #include <include/core/SkPath.h>
 #include <include/core/SkPoint.h>
 #include <include/core/SkRect.h>
-#include <sigilcompose/core/Erased.h>
-#include <sigilcompose/core/Motion.h>
+#include <sigilcore/comparable/Erased.h>
 #include <sigilgeometry/path/Contour.h>
+#include <sigilmotion/Animation.h>
+#include <sigilmotion/schedule/Schedule.h>
+#include <sigilmotion/values/Animated.h>
 
 #include <any>
 #include <cmath>
@@ -100,7 +102,7 @@ class Spans {
    *  meaningful; the rest keep their defaults so the value compares. */
   struct Term {
     Rule rule = Rule::Range;
-    Animatable<float> begin = 0.0f, end = 1.0f;
+    motion::Animatable<float> begin = 0.0f, end = 1.0f;
     /** Added to BOTH endpoints before the interval is read. Read by Range
      *  and Wrap only; other rules ignore it.
      *
@@ -108,7 +110,7 @@ class Spans {
      *  window whose ENDS are driven by one Output and whose POSITION is
      *  driven by another. A bound endpoint holds exactly one source
      *  pointer, and summing two live values into one number needs two. */
-    Animatable<float> offset = 0.0f;
+    motion::Animatable<float> offset = 0.0f;
     float arm = 0.0f;          ///< Corners/Edges: px of arc length
     float angleDeg = 30.0f;    ///< Corners/Edges: the tangent break that counts
     float duty = 1.0f;         ///< Every: fraction of each slot claimed
@@ -139,7 +141,7 @@ class Spans {
    *    ignores it);
    *  - on an empty value it does nothing, silently — there is no term to
    *    carry the offset and nothing to warn about. */
-  Spans& offset(Animatable<float> by);
+  Spans& offset(motion::Animatable<float> by);
 
   /** Structural equality. Declared here and defined beside the
    *  reconciler's own property comparator, so an animated endpoint
@@ -185,7 +187,7 @@ void warnIfNoCorners(const SkPath& path, float angleDeg);
 namespace spans {
 /** `[begin, end]` of the boundary's arc length. Both ends take the full
  *  Animatable treatment (constant, `animate(...)`, or a bound Output). */
-Spans range(Animatable<float> begin, Animatable<float> end);
+Spans range(motion::Animatable<float> begin, motion::Animatable<float> end);
 /** THE SEAM-CROSSING RANGE: the boundary read as a CYCLE, so a window
  *  whose `begin` is past its `end` claims [begin,1] AND [0,end] — the
  *  marching-ants and orbiting-comet idiom.
@@ -210,12 +212,12 @@ Spans range(Animatable<float> begin, Animatable<float> end);
  *  seam itself (fraction 0) is the outline's own start point, and a
  *  seam-crossing claim is stitched into ONE contour so caps and additive
  *  brushes never double-hit there. */
-Spans wrap(Animatable<float> begin, Animatable<float> end);
+Spans wrap(motion::Animatable<float> begin, motion::Animatable<float> end);
 /** THE REVEAL: `range(0, end)`. `spans::upTo(animate(from(0.f).to(1.f),
  *  {600ms}))` is a stroke that DRAWS ON, and a bound Output scrubs it.
  *  Works the same way under every brush, because it claims a run of the
  *  boundary rather than modifying the mark. */
-Spans upTo(Animatable<float> end);
+Spans upTo(motion::Animatable<float> end);
 /** A window of `arm` px of arc length either side of every tangent break
  *  — the four corner L's, and the reticle bracket vocabulary. Follows any
  *  silhouette: chamfer the shape and the marks move to the chamfers.
@@ -387,7 +389,7 @@ struct Across {
   Profile profile;
   /** The brush engine that sweeps the profile into a region — installed by
    *  `across()`, excluded from equality. */
-  Erased<StrokeResolverOps> resolver;
+  core::Erased<StrokeResolverOps> resolver;
   bool operator==(const Across& o) const { return profile == o.profile; }
   /** FIELD PIN: a member added here must be ruled on in operator== above,
    *  then this count bumped. `resolver` is excluded on purpose. */
@@ -458,7 +460,7 @@ class StrokeResolverOps : public SpanArithmeticOps {
 
 /** The resolver as a description carries it — on its stroke passes and on
  *  a band's width — excluded from structural equality. */
-using StrokeResolver = Erased<StrokeResolverOps>;
+using StrokeResolver = core::Erased<StrokeResolverOps>;
 
 /** A band spine borrowed from another element's resolved shape, through
  *  the derive phase: `band(around("dial"), across(14))`. */

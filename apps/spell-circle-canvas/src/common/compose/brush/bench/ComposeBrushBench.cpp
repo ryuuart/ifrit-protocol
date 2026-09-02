@@ -14,6 +14,7 @@
 #include <sigilcompose/brush/Lines.h>
 #include <sigilcompose/brush/Rails.h>
 #include <sigilcompose/kit/Silhouettes.h>
+#include <sigilgeometry/kit/Silhouettes.h>
 
 #include <cmath>
 #include <cstdio>
@@ -25,6 +26,8 @@
 #include "BenchSupport.h"
 
 using namespace sigil::compose;
+
+namespace geometry = sigil::geometry;
 using sigil::compose::bench::cellFill;
 using sigil::compose::bench::Host;
 using sigil::compose::bench::reportNodes;
@@ -47,7 +50,7 @@ Element maskedGrid(int count, MaskKind kind,
             .top((float)row * 25.0f)
             .width(22)
             .height(22)
-            .shape(shapes::circle())
+            .shape(geometry::shapes::circle())
             .fill(Fill::color({0.22f, 0.72f, 0.92f, 0.9f}))
             .stroke(brush::solid(2.0f, Fill::color({1.0f, 0.9f, 0.4f, 1.0f})))
             .cache(Cache::None);
@@ -118,7 +121,7 @@ Element profiledRibbonGrid(int count) {
             .top((float)row * 48.0f)
             .width(40)
             .height(40)
-            .shape(shapes::circle())
+            .shape(geometry::shapes::circle())
             .fill(Fill::none())
             .stroke(brush::ribbon(Profile(WaveWidth{5.0f + (float)(id % 3)}),
                                   Fill::color({0.92f, 0.45f, 0.22f, 1.0f})))
@@ -157,9 +160,10 @@ Element spanStrokeGrid(int passCount, choreograph::Output<float>& phase) {
       const float base = (float)p * slot;
       const SkColor4f color = p % 2 == 0 ? SkColor4f{0.95f, 0.55f, 0.25f, 1.0f}
                                          : SkColor4f{0.25f, 0.65f, 0.95f, 1.0f};
-      leaf.stroke(spans::wrap(bind(&phase).offset(base),
-                              bind(&phase).offset(base + 0.6f * slot)),
-                  brush::solid(3.0f, Fill::color(color)));
+      leaf.stroke(
+          spans::wrap(sigil::motion::bind(&phase).offset(base),
+                      sigil::motion::bind(&phase).offset(base + 0.6f * slot)),
+          brush::solid(3.0f, Fill::color(color)));
     }
     root.child(std::move(leaf));
   }
@@ -344,7 +348,7 @@ ContourWalk starVine() {
   vine.stamp = box()
                    .width(14)
                    .height(14)
-                   .shape(shapes::star(4, 0.45f))
+                   .shape(geometry::shapes::star(4, 0.45f))
                    .fill(Fill::color({1, 0.7f, 0.4f, 1}));
   return vine;
 }
@@ -376,16 +380,16 @@ BENCHMARK(BM_Draw_StampBorder_Cached);
 static void BM_Draw_SpinningStamped_TransformReplay(benchmark::State& state) {
   Host host(800, 600);
   choreograph::Output<float> spin{0.0f};
-  host.composer.render(
-      box().child(box()
-                      .width(300)
-                      .height(300)
-                      .inset(250, 150, 250, 150)
-                      .absolute()
-                      .shape(shapes::rounded(shapes::star(7, 0.6f), 10))
-                      .fill(Fill::color({0.9f, 0.4f, 0.3f, 1}))
-                      .rotate(&spin)
-                      .foreground(starVine())));
+  host.composer.render(box().child(
+      box()
+          .width(300)
+          .height(300)
+          .inset(250, 150, 250, 150)
+          .absolute()
+          .shape(geometry::shapes::rounded(geometry::shapes::star(7, 0.6f), 10))
+          .fill(Fill::color({0.9f, 0.4f, 0.3f, 1}))
+          .rotate(&spin)
+          .foreground(starVine())));
   host.draw();
   float angle = 0;
   for ([[maybe_unused]] auto iteration : state) {
@@ -430,7 +434,7 @@ static void BM_Draw_Hatch_Live(benchmark::State& state) {
           .width(400)
           .height(400)
           .centerAt({450, 320})
-          .shape(shapes::blob(5, 0.2f))
+          .shape(geometry::shapes::blob(5, 0.2f))
           .background(lines::hatch(Fill::color({1, 1, 1, 0.5f}), 7, 1.2f))
           .cache(Cache::None)));
   host.draw();
@@ -475,7 +479,7 @@ Element slowThemedPanel(int count, AccentFill mode,
                   .key("c" + std::to_string(id))
                   .width(26)
                   .height(26)
-                  .shape(shapes::star(5 + id % 3, 0.45f, 0.08f))
+                  .shape(geometry::shapes::star(5 + id % 3, 0.45f, 0.08f))
                   .fill(cellFill(id))
                   .stroke(brush::solid(
                       1.5f, Fill::color({0.95f, 0.86f, 0.55f, 1.0f}))));
@@ -484,10 +488,10 @@ Element slowThemedPanel(int count, AccentFill mode,
           .key("accent")
           .width(26)
           .height(26)
-          .shape(shapes::star(7, 0.45f, 0.08f))
+          .shape(geometry::shapes::star(7, 0.45f, 0.08f))
           .stroke(brush::solid(1.5f, Fill::color({0.10f, 0.10f, 0.12f, 1.0f})));
   if (mode == AccentFill::Bound)
-    accent.fill(Animatable<Fill>(bound));
+    accent.fill(sigil::motion::Animatable<Fill>(bound));
   else
     accent.fill(Fill::color(plain));
   row.child(std::move(accent));

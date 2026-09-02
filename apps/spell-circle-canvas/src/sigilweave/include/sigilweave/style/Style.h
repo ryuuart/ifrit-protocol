@@ -22,8 +22,9 @@
  * the axis leaves advances alone.
  *
  * TextStyle.h holds the two halves together; StyleSet.h the named registry
- * of them. Attach styles to text through Paragraph / ParagraphBuilder
- * (Paragraph.h).
+ * of them; Type.h the designated-init aggregate a call site names a
+ * style's numbers in. Attach styles to text through Paragraph /
+ * ParagraphBuilder (Paragraph.h).
  */
 
 #include "sigilweave/style/Decoration.h"
@@ -32,3 +33,4 @@
 #include "sigilweave/style/ShapingStyle.h"
 #include "sigilweave/style/StyleSet.h"
 #include "sigilweave/style/TextStyle.h"
+#include "sigilweave/style/Type.h"

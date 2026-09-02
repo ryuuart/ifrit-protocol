@@ -147,3 +147,37 @@ TEST(Noise, XorshiftUnitIsPinnedToItsExactFloats) {
     EXPECT_LT(u, 1.0f);
   }
 }
+
+TEST(Noise, TheMix64StreamIsTheCounterSteppedByTheGammaAndAvalanched) {
+  noise::Mix64Stream stream(42u);
+  // The first word IS mix64(seed + gamma)'s high half: the stream adds
+  // before it mixes, so the seed itself is never handed out.
+  EXPECT_EQ(stream.bits(),
+            (uint32_t)(noise::mix64(42u + noise::kMix64Gamma) >> 32u));
+  EXPECT_EQ(stream.bits(), 0x28efe333u);
+  EXPECT_EQ(stream.bits(), 0x47526757u);
+}
+
+TEST(Noise, TheMix64StreamsUnitFloatsArePinnedAndStayInRange) {
+  noise::Mix64Stream stream(42u);
+  EXPECT_EQ(bits(stream.unit()), 0x3f3dd732u);
+  EXPECT_EQ(bits(stream.unit()), 0x3e23bf8cu);
+  EXPECT_EQ(bits(stream.unit()), 0x3e8ea4ceu);
+  noise::Mix64Stream walk(1u);
+  for (int draw = 0; draw < 4096; ++draw) {
+    const float u = walk.unit();
+    EXPECT_GE(u, 0.0f);
+    EXPECT_LT(u, 1.0f);
+    const float s = walk.signedUnit();
+    EXPECT_GE(s, -1.0f);
+    EXPECT_LT(s, 1.0f);
+    const float r = walk.range(-3.0f, 5.0f);
+    EXPECT_GE(r, -3.0f);
+    EXPECT_LT(r, 5.0f);
+  }
+}
+
+TEST(Noise, TwoMix64StreamsOnOneSeedDrawTheSameSequence) {
+  noise::Mix64Stream a(0xdeadbeefcafef00dull), b(0xdeadbeefcafef00dull);
+  for (int draw = 0; draw < 64; ++draw) EXPECT_EQ(a.bits(), b.bits());
+}

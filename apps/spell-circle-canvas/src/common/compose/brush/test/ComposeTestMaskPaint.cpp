@@ -41,7 +41,7 @@ Element pannedPanel(Pattern& pat) {
     row.child(box()
                   .width(26)
                   .height(26)
-                  .shape(shapes::star(5 + id % 3, 0.45f, 0.08f))
+                  .shape(geometry::shapes::star(5 + id % 3, 0.45f, 0.08f))
                   .fill(blue())
                   .stroke(stroke(1.5f, green())));
   row.child(box().key("accent").width(26).height(26).fill(pat.material()));

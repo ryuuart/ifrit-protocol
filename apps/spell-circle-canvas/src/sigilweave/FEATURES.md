@@ -127,6 +127,12 @@ text (its own section below).
   `style/StyleSet.h` (`StyleSet`, a small ordered registry of named
   styles, comparable by value, whose lookup always answers — an
   unregistered name resolves to the set's base entry).
+- **`style/Type.h`** — `Type` and `type()`: the parameters of a style as a
+  designated-init aggregate (face, size, colour, tracking, condensation,
+  weight, slant, aliasing, the 8-bit colour ladder, extra axes) and the
+  `TextStyle` they build. It decides nothing — there is no type scale and
+  no opinion about which face stands in for which. The face itself comes
+  from `ports::pickFace()`, which walks the system font manager.
 - **`style/Features.h`** — named OpenType presets
   (`Features::tabularNumbers`, `smallCaps`, `stylisticSet(n)`, …) so
   styles need not hand-spell four-cc tags, including the ones a COLUMN

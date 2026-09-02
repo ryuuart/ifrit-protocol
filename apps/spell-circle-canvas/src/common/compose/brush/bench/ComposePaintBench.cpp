@@ -6,8 +6,10 @@
 #include <include/core/SkCanvas.h>
 #include <sigilcompose/Compose.h>
 #include <sigilcompose/brush/LayerStyles.h>
-#include <sigilcompose/core/Patterns.h>
-#include <sigilcompose/core/Sdf.h>
+#include <sigilcompose/core/Pattern.h>
+#include <sigilmaterial/pattern/Patterns.h>
+#include <sigilmaterial/sdf/Sdf.h>
+#include <sigilmaterial/skia/Color.h>
 
 #include <string>
 #include <utility>
@@ -15,6 +17,8 @@
 #include "BenchSupport.h"
 
 using namespace sigil::compose;
+
+namespace material = sigil::material;
 using sigil::compose::bench::Host;
 
 // ---- patterns: the bake, then the fill ------------------------------------
@@ -36,7 +40,8 @@ static void BM_Bake_Pattern_Halftone(benchmark::State& state) {
   const float pitch = (float)state.range(0);
   for ([[maybe_unused]] auto iteration : state) {
     Material material =
-        patterns::halftone(pitch, pitch * 0.35f, {0.1f, 0.1f, 0.12f, 1})
+        Pattern(material::pattern::halftone(pitch, pitch * 0.35f,
+                                            {0.1f, 0.1f, 0.12f, 1}))
             .material();
     benchmark::DoNotOptimize(material);
   }
@@ -50,8 +55,9 @@ static void BM_Bake_Pattern_Speckle(benchmark::State& state) {
   const int count = (int)state.range(0);
   for ([[maybe_unused]] auto iteration : state) {
     Material material =
-        patterns::speckle(128.0f, count, 0.5f, 1.5f,
-                          {{0.9f, 0.9f, 0.85f, 1}, {0.6f, 0.6f, 0.55f, 1}})
+        Pattern(material::pattern::speckle(
+                    128.0f, count, 0.5f, 1.5f,
+                    {{0.9f, 0.9f, 0.85f, 1}, {0.6f, 0.6f, 0.55f, 1}}))
             .material();
     benchmark::DoNotOptimize(material);
   }
@@ -69,9 +75,9 @@ BENCHMARK(BM_Bake_Pattern_Speckle)
 static void BM_Draw_Pattern_Fill_Live(benchmark::State& state) {
   const float pitch = (float)state.range(0);
   Host host(800, 800);
-  Material halftone =
-      patterns::halftone(pitch, pitch * 0.35f, {0.1f, 0.1f, 0.12f, 1})
-          .material();
+  Material halftone = Pattern(material::pattern::halftone(
+                                  pitch, pitch * 0.35f, {0.1f, 0.1f, 0.12f, 1}))
+                          .material();
   host.composer.render(
       box().child(box().inset(0).fill(halftone).cache(Cache::None)));
   host.draw();
@@ -85,7 +91,8 @@ BENCHMARK(BM_Draw_Pattern_Fill_Live)->Apply(pitchLadder);
  *  promises and this arm prices. */
 static void BM_Draw_Pattern_Rotate_Live(benchmark::State& state) {
   Host host(800, 800);
-  Pattern stripes = patterns::stripes(6, 6, {0.2f, 0.2f, 0.25f, 1});
+  Pattern stripes =
+      Pattern(material::pattern::stripes(6, 6, {0.2f, 0.2f, 0.25f, 1}));
   float angle = 0;
   auto describe = [&] {
     return box().child(box()
@@ -114,24 +121,27 @@ enum class CardPaint { Sdf, Path };
 
 Element cardGrid(int count, float side, CardPaint paint) {
   auto root = box().row().wrapLines().gap(6).padding(6);
-  sdf::Style style;
+  material::sdf::Style style;
   style.fill = {0.18f, 0.22f, 0.32f, 1};
   style.borderWidth = 2;
   style.borderColor = {0.9f, 0.8f, 0.5f, 1};
   style.glowRadius = 6;
   style.glowColor = {0.4f, 0.7f, 1.0f, 0.6f};
-  const float padded = sdf::minBoxFor(style, side);
+  const float padded = material::sdf::minBoxFor(style, side);
   for (int id = 0; id < count; ++id) {
     Element card = box().key("card" + std::to_string(id));
     if (paint == CardPaint::Sdf) {
       card.width(padded).height(padded).fill(
-          sdf::material(sdf::roundBox(side * 0.2f), style));
+          Material::recipe(material::sdf::material(
+              material::sdf::roundBox(side * 0.2f), style)));
     } else {
       card.width(side)
           .height(side)
           .corners({side * 0.2f})
-          .fill(Fill::color(style.fill))
-          .stroke(stroke(style.borderWidth, Fill::color(style.borderColor)));
+          .fill(Fill::color(material::skia::toSkColor(style.fill)))
+          .stroke(stroke(
+              style.borderWidth,
+              Fill::color(material::skia::toSkColor(style.borderColor))));
     }
     root.child(std::move(card));
   }

@@ -38,7 +38,7 @@ TEST(ComposeFeed, ATypedOnRowPaintsLiveThenCachesWhenItsTrackSettles) {
     return feed::textRow(row, options.styles)
         .fx({.effect = fx::typeOn(),
              .stagger = {.eachMs = 12, .durationMs = 40},
-             .progress = animate(from(0.0f).to(1.0f),
+             .progress = animate(motion::from(0.0f).to(1.0f),
                                  {300ms, &choreograph::easeNone})});
   };
   Host host(240, 120);
@@ -95,7 +95,7 @@ TEST(ComposeFeed, AStructuredRowAppendsAtItsOwnConstantCost) {
         .child(text(std::move(line))
                    .fx({.effect = fx::typeOn(),
                         .stagger = {.eachMs = 5, .durationMs = 30},
-                        .progress = animate(from(0.0f).to(1.0f),
+                        .progress = animate(motion::from(0.0f).to(1.0f),
                                             {200ms, &choreograph::easeNone})}));
   };
   constexpr size_t kRowNodes = 3;  // the row box, the stripe, the text leaf
@@ -196,11 +196,12 @@ TEST(TextLayout, ParagraphOverloadPaintsMixedSpans) {
 TEST(Shape, BlobIsDeterministicOrganicAndBounded) {
   auto probe = [](uint32_t seed) {
     Host host;
-    host.composer.render(box().child(box()
-                                         .width(120)
-                                         .height(120)
-                                         .shape(shapes::blob(seed, 0.3f, 9))
-                                         .fill(red())));
+    host.composer.render(
+        box().child(box()
+                        .width(120)
+                        .height(120)
+                        .shape(geometry::shapes::blob(seed, 0.3f, 9))
+                        .fill(red())));
     host.frame();
     std::vector<SkColor> px;
     for (int y = 0; y < 130; y += 4)
@@ -212,11 +213,12 @@ TEST(Shape, BlobIsDeterministicOrganicAndBounded) {
   EXPECT_NE(a1, b);   // different seed → different blob
 
   Host host;
-  host.composer.render(box().child(box()
-                                       .width(120)
-                                       .height(120)
-                                       .shape(shapes::blob(7, 0.3f, 9))
-                                       .fill(red())));
+  host.composer.render(
+      box().child(box()
+                      .width(120)
+                      .height(120)
+                      .shape(geometry::shapes::blob(7, 0.3f, 9))
+                      .fill(red())));
   host.frame();
   EXPECT_EQ(host.pixel(60, 60), SK_ColorRED);  // center always covered
   int outside = 0;
@@ -231,7 +233,7 @@ TEST(ComposeKinetic, StaggeredRiseRevealsInOrder) {
   // while the late ones haven't started — the canonical staggered reveal,
   // rendered through batched RSXform draws.
   Host host;
-  auto tree = [](Animatable<float> progress) {
+  auto tree = [](sigil::motion::Animatable<float> progress) {
     return box().padding(10).child(
         text(u8"IIIIIIIIIIII", whiteStyle(32))
             .key("k")
@@ -334,7 +336,7 @@ TEST(ComposeKinetic, TransitionedProgressPaintsLive) {
   // The master progress takes the full Animatable treatment: a with()
   // transition animates the reveal and the node paints live while moving.
   Host host;
-  auto tree = [](Animatable<float> progress) {
+  auto tree = [](sigil::motion::Animatable<float> progress) {
     return box().padding(10).child(
         text(u8"POP", whiteStyle(40))
             .key("k")
@@ -345,7 +347,7 @@ TEST(ComposeKinetic, TransitionedProgressPaintsLive) {
   host.composer.render(tree(0.001f));
   host.frame();
   host.composer.render(
-      tree(animate(to(1.0f), {400ms, &choreograph::easeNone})));
+      tree(animate(sigil::motion::to(1.0f), {400ms, &choreograph::easeNone})));
   host.frame(0.2);                                    // mid-ramp
   EXPECT_GT(host.composer.stats().nodesPainted, 0u);  // live while animating
   host.frame(0.3);                                    // settle
@@ -408,7 +410,8 @@ struct FxSample {
  *  samples one frame collects, without reading a single pixel. */
 TextEffect probe(std::string key, std::vector<FxSample>* into) {
   return fx::effect(std::move(key),
-                    [into](const GlyphInfo& g, float t, Rng& rng) {
+                    [into](const GlyphInfo& g, float t,
+                           sigil::core::noise::Mix64Stream& rng) {
                       into->push_back({g, t, rng.unit()});
                       return GlyphMod{};
                     });
@@ -424,7 +427,8 @@ std::vector<size_t> addressed(const std::vector<FxSample>& samples) {
 
 /** A track whose effect records, over the whole text unless told otherwise. */
 Track probeTrack(std::vector<FxSample>* into, Selector where = {},
-                 motion::Spread cascade = {.eachMs = 0, .durationMs = 100},
+                 sigil::motion::Spread cascade = {.eachMs = 0,
+                                                  .durationMs = 100},
                  float progress = 1.0f, Unit over = Unit::Cluster) {
   return Track{.where = std::move(where),
                .effect = probe("probe", into),
@@ -549,7 +553,8 @@ TEST(ComposeTextFx, TextFillAndTextStrokeTravelWithAMovingGlyph) {
                     .key("k")
                     .textFill(Material::solid({0, 1, 0, 1}));
     if (moving)
-      t.fx({.effect = fx::effect("still", [](const GlyphInfo&, float, Rng&) {
+      t.fx({.effect = fx::effect("still", [](const GlyphInfo&, float,
+                                             sigil::core::noise::Mix64Stream&) {
               return GlyphMod{};
             })});
     return box().padding(10).child(std::move(t));
@@ -657,7 +662,7 @@ TEST(ComposeTextFx, RandomOriginIsAStableScatterAcrossFrames) {
             .fx(probeTrack(into, {},
                            {.eachMs = 100,
                             .durationMs = 100,
-                            .from = motion::Spread::From::Random},
+                            .from = sigil::motion::Spread::From::Random},
                            0.5f)));
   };
   // TWO HOSTS, one paint each: re-describing the same tracks into one host
@@ -678,7 +683,7 @@ TEST(ComposeTextFx, RandomOriginIsAStableScatterAcrossFrames) {
   for (size_t i = 1; i < first.size(); ++i)
     if (first[i].t > first[i - 1].t) anyOutOfOrder = true;
   EXPECT_TRUE(anyOutOfOrder) << "Random produced the Start ordering";
-  // The Rng an effect draws from is seeded per glyph and is stable too.
+  // The stream an effect draws from is seeded per glyph and is stable too.
   for (size_t i = 0; i < first.size(); ++i)
     EXPECT_FLOAT_EQ(first[i].random, second[i].random);
 }
@@ -691,8 +696,9 @@ TEST(ComposeTextFx, RandomSeedDealsItsOwnScatterAndZeroKeepsTheDefault) {
   // a different permutation, and two nonzero seeds deal independently.
   const auto ranksOf = [](uint32_t seed) {
     Host host(300, 120);
-    motion::Spread scatter{
-        .eachMs = 100, .durationMs = 100, .from = motion::Spread::From::Random};
+    sigil::motion::Spread scatter{.eachMs = 100,
+                                  .durationMs = 100,
+                                  .from = sigil::motion::Spread::From::Random};
     scatter.seed = seed;
     host.composer.render(box().padding(10).child(
         text(u8"AAA BBB CCC", whiteStyle(20))
@@ -720,8 +726,8 @@ TEST(ComposeTextFx, RandomSeedDealsItsOwnScatterAndZeroKeepsTheDefault) {
   EXPECT_EQ(sorted, ladder) << "a seeded scatter dropped or doubled a rank";
   // A different seed is a different cascade to the reconciler, or a
   // re-described field would prune onto the old scatter and keep it.
-  motion::Spread a{.from = motion::Spread::From::Random},
-      b{.from = motion::Spread::From::Random};
+  sigil::motion::Spread a{.from = sigil::motion::Spread::From::Random},
+      b{.from = sigil::motion::Spread::From::Random};
   b.seed = 42;
   EXPECT_FALSE(a == b);
   a.seed = 42;
@@ -733,7 +739,7 @@ TEST(ComposeTextFx, NestedStaggerDelaysGlyphsInsideTheirWordsBeat) {
   // glyph gets its own start. Two ladders, one master progress.
   Host host(300, 120);
   std::vector<FxSample> samples;
-  motion::Spread cascade{.eachMs = 200, .durationMs = 100};
+  sigil::motion::Spread cascade{.eachMs = 200, .durationMs = 100};
   cascade.then({.eachMs = 50, .durationMs = 100});
   // A beat is 100 + 50·2 = 200 ms and the whole cascade spans 400; 0.3 of
   // that lands inside the first word's beat, where the two ladders are
@@ -759,7 +765,7 @@ TEST(ComposeTextFx, TwoTracksComposeByAddingOffsets) {
   const auto shove = [](float dx) {
     return fx::effect(
         "shove" + std::to_string((int)dx),
-        [dx](const GlyphInfo&, float, Rng&) {
+        [dx](const GlyphInfo&, float, sigil::core::noise::Mix64Stream&) {
           GlyphMod m;
           m.dx = dx;
           return m;
@@ -791,7 +797,7 @@ TEST(ComposeTextFx, ATrackReachKeepsAWideThrowInsideTheCull) {
   const auto drop = [](float reach) {
     Track t{.effect = fx::effect(
                 "drop",
-                [](const GlyphInfo&, float, Rng&) {
+                [](const GlyphInfo&, float, sigil::core::noise::Mix64Stream&) {
                   GlyphMod m;
                   m.dy = 60;
                   return m;
@@ -841,7 +847,8 @@ TEST(ComposeTextFx, EqualTrackListsPruneAndAKeyedLambdaComparesByKey) {
 
   // A keyed lambda compares by its KEY: same key prunes, different key does
   // not. That is the whole contract fx::effect() asks of its caller.
-  const auto body = [](const GlyphInfo&, float, Rng&) { return GlyphMod{}; };
+  const auto body = [](const GlyphInfo&, float,
+                       sigil::core::noise::Mix64Stream&) { return GlyphMod{}; };
   host.composer.render(tree(fx::effect("mine", body)));
   host.frame();
   host.composer.render(tree(fx::effect("mine", body)));
@@ -891,17 +898,19 @@ namespace {
 /** An effect that reports a constant dy, so a composition's arithmetic is
  *  readable straight off the returned GlyphMod. */
 TextEffect constantDy(float dy) {
-  return fx::effect("constantDy" + std::to_string((int)dy),
-                    [dy](const GlyphInfo&, float, Rng&) {
-                      GlyphMod m;
-                      m.dy = dy;
-                      return m;
-                    });
+  return fx::effect(
+      "constantDy" + std::to_string((int)dy),
+      [dy](const GlyphInfo&, float, sigil::core::noise::Mix64Stream&) {
+        GlyphMod m;
+        m.dy = dy;
+        return m;
+      });
 }
 
 /** An effect that reports the local time it was handed. */
 TextEffect reportT() {
-  return fx::effect("reportT", [](const GlyphInfo&, float t, Rng&) {
+  return fx::effect("reportT", [](const GlyphInfo&, float t,
+                                  sigil::core::noise::Mix64Stream&) {
     GlyphMod m;
     m.dy = t;
     return m;
@@ -910,7 +919,7 @@ TextEffect reportT() {
 
 GlyphMod evaluate(const TextEffect& effect, float t) {
   GlyphInfo g;
-  Rng rng(1);
+  sigil::core::noise::Mix64Stream rng(1);
   return effect(g, t, rng);
 }
 
@@ -948,13 +957,14 @@ TEST(ComposeTextFx, MixEvaluatesBothAndComposesByTheTrackAlgebra) {
   const TextEffect both = fx::mix(constantDy(10), constantDy(4));
   EXPECT_FLOAT_EQ(evaluate(both, 0.5f).dy, 14.0f);  // offsets add
   const auto half = [](float scale) {
-    return fx::effect("half" + std::to_string((int)(scale * 10)),
-                      [scale](const GlyphInfo&, float, Rng&) {
-                        GlyphMod m;
-                        m.scale = scale;
-                        m.alpha = scale;
-                        return m;
-                      });
+    return fx::effect(
+        "half" + std::to_string((int)(scale * 10)),
+        [scale](const GlyphInfo&, float, sigil::core::noise::Mix64Stream&) {
+          GlyphMod m;
+          m.scale = scale;
+          m.alpha = scale;
+          return m;
+        });
   };
   const TextEffect scaled = fx::mix(half(0.5f), half(0.5f));
   EXPECT_FLOAT_EQ(evaluate(scaled, 0.5f).scale, 0.25f);  // scale multiplies
@@ -1035,7 +1045,8 @@ TEST(ComposeTextFx, EveryEffectAnswersWhetherItMovesItsGlyphs) {
           .displaces());
 
   // THE OPAQUE DOOR assumes motion, and takes the author's word otherwise.
-  const GlyphModFn still = [](const GlyphInfo&, float, Rng&) {
+  const GlyphModFn still = [](const GlyphInfo&, float,
+                              sigil::core::noise::Mix64Stream&) {
     GlyphMod m;
     m.alpha = 0.5f;
     return m;
@@ -1197,7 +1208,10 @@ namespace {
  *  to drive a single GlyphMod field from a test. */
 TextEffect fixed(std::string key, GlyphMod mod) {
   return fx::effect(
-      std::move(key), [mod](const GlyphInfo&, float, Rng&) { return mod; },
+      std::move(key),
+      [mod](const GlyphInfo&, float, sigil::core::noise::Mix64Stream&) {
+        return mod;
+      },
       /*reach=*/120.0f);
 }
 
@@ -1497,7 +1511,7 @@ TEST(ComposeTextFx, ScrambleChurnsDeterministicallyAndResolvesAtOne) {
   glyph.index = 3;
   glyph.textIndex = 3;
   const auto at = [&](float t) {
-    Rng rng(90210);  // one glyph's stream, replayed
+    sigil::core::noise::Mix64Stream rng(90210);  // one glyph's stream, replayed
     return churn(glyph, t, rng).codepoint;
   };
   EXPECT_EQ(at(0.1f), at(0.1f)) << "the same moment gave two characters";
@@ -1868,7 +1882,7 @@ TEST(ComposeTextFx, PartitioningTracksShareOneClockOnlyUnderBeatsText) {
   // count the paragraph's words, so word three is beat three in both.
   const auto beatsUnder = [](Beats numbering) {
     Host host(400, 120);
-    const motion::Spread spec{.eachMs = 100, .durationMs = 100};
+    const sigil::motion::Spread spec{.eachMs = 100, .durationMs = 100};
     host.composer.render(box().padding(6).child(
         text(u8"AA BB CC DD", whiteStyle(16))
             .key("p")
@@ -1922,7 +1936,9 @@ TEST(ComposeTextFx, ACueTableStartsUnitKAtItsOwnTime) {
           .key("p")
           .width(360)
           .fx({.effect = fx::rise(6),
-               .stagger = cues(table, {.eachMs = 999, .durationMs = 180}),
+               .stagger =
+                   sigil::motion::Spread{.eachMs = 999, .durationMs = 180}.cues(
+                       table),
                .over = unit::Word})));
   host.frame();
   const std::vector<Beat> beats = host.composer.beatsOf("p", 0);
@@ -1935,9 +1951,11 @@ TEST(ComposeTextFx, ACueTableStartsUnitKAtItsOwnTime) {
   // cues() answers a spread, so it compares like one — and a different table is
   // a different cascade, or a re-described track would prune onto the old
   // schedule and keep singing the previous line's timing.
-  EXPECT_TRUE(cues(table) == cues(table));
-  EXPECT_FALSE(cues(table) == cues({0.0f, 340.0f, 720.0f}));
-  EXPECT_FALSE(cues(table) == motion::Spread{});
+  EXPECT_TRUE(sigil::motion::Spread{}.cues(table) ==
+              sigil::motion::Spread{}.cues(table));
+  EXPECT_FALSE(sigil::motion::Spread{}.cues(table) ==
+               sigil::motion::Spread{}.cues({0.0f, 340.0f, 720.0f}));
+  EXPECT_FALSE(sigil::motion::Spread{}.cues(table) == sigil::motion::Spread{});
 }
 
 TEST(ComposeTextFx, AShortCueTablePilesItsTailAndWarnsOnce) {
@@ -1951,7 +1969,8 @@ TEST(ComposeTextFx, AShortCueTablePilesItsTailAndWarnsOnce) {
           .key("p")
           .width(360)
           .fx({.effect = fx::rise(6),
-               .stagger = cues({0.0f, 200.0f}, {.durationMs = 100}),
+               .stagger = sigil::motion::Spread{.durationMs = 100}.cues(
+                   {0.0f, 200.0f}),
                .over = unit::Word})));
   host.frame();
   const std::string log = ::testing::internal::GetCapturedStderr();
@@ -2083,7 +2102,7 @@ TEST(ComposeTextFx, BeatsOfCompoundsANestedCascade) {
   // times. Word w's letter i opens at w·outerEach + i·innerEach, and the
   // read-back is the only place that is true without being retyped.
   Host host(400, 120);
-  motion::Spread cascade{.eachMs = 300};
+  sigil::motion::Spread cascade{.eachMs = 300};
   cascade.then({.eachMs = 40, .durationMs = 100});
   host.composer.render(
       box().padding(6).child(text(u8"AB CD", whiteStyle(16))
@@ -2125,7 +2144,7 @@ TEST(ComposeTextFx, CascadeSpanMsIsWhatTheMasterProgressMapsOnto) {
   // last beat's start plus one beat's own duration — checked against the
   // beats themselves, so the two read-backs cannot drift apart — and the
   // declare-time form answers the same number from the counts alone.
-  const motion::Spread spec{.eachMs = 100, .durationMs = 200};
+  const sigil::motion::Spread spec{.eachMs = 100, .durationMs = 200};
   Host host(400, 120);
   host.composer.render(box().padding(6).child(
       text(u8"AA BB CC DD", whiteStyle(16))
@@ -2147,7 +2166,7 @@ TEST(ComposeTextFx, CascadeSpanMsIsWhatTheMasterProgressMapsOnto) {
 
   // Amount-mode is count-independent past one unit — the amount IS the
   // spread — and one unit (or none) is a bare beat.
-  const motion::Spread amount{.amountMs = 700, .durationMs = 420};
+  const sigil::motion::Spread amount{.amountMs = 700, .durationMs = 420};
   EXPECT_FLOAT_EQ(amount.spanMs(2), 1120.0f);
   EXPECT_FLOAT_EQ(amount.spanMs(9), 1120.0f);
   EXPECT_FLOAT_EQ(amount.spanMs(1), 420.0f);
@@ -2159,7 +2178,7 @@ TEST(ComposeTextFx, CascadeSpanMsCompoundsNestingAndReadsTheTable) {
   // span compounds — the latest outer start, plus the latest inner start,
   // plus one INNER duration (the outer durationMs is ignored, as always
   // under then()).
-  motion::Spread nested{.eachMs = 300, .durationMs = 999};
+  sigil::motion::Spread nested{.eachMs = 300, .durationMs = 999};
   nested.then({.eachMs = 40, .durationMs = 100});
   {
     Host host(400, 120);
@@ -2185,7 +2204,8 @@ TEST(ComposeTextFx, CascadeSpanMsCompoundsNestingAndReadsTheTable) {
   // reads plus the duration — a max, not the final entry, because a table
   // is not required to ascend.
   const std::vector<float> table{0.0f, 340.0f, 720.0f, 1180.0f};
-  const motion::Spread cued = cues(table, {.durationMs = 180});
+  const sigil::motion::Spread cued =
+      sigil::motion::Spread{.durationMs = 180}.cues(table);
   {
     Host host(400, 120);
     host.composer.render(box().padding(6).child(
@@ -2198,7 +2218,9 @@ TEST(ComposeTextFx, CascadeSpanMsCompoundsNestingAndReadsTheTable) {
     EXPECT_FLOAT_EQ(span, 1360.0f) << "the table's last time plus one beat";
     EXPECT_FLOAT_EQ(cued.spanMs(4), span);
   }
-  EXPECT_FLOAT_EQ(cues({0.0f, 900.0f, 300.0f}, {.durationMs = 100}).spanMs(3),
+  EXPECT_FLOAT_EQ(sigil::motion::Spread{.durationMs = 100}
+                      .cues({0.0f, 900.0f, 300.0f})
+                      .spanMs(3),
                   1000.0f)
       << "an out-of-order table spans to its LATEST time, not its last entry";
 }
@@ -2278,7 +2300,8 @@ TEST(ComposeTextFx, ALoopingCascadeReopensEachUnitOnItsOwnCycle) {
   // The period is what the master maps onto, so the span queries answer it
   // — mounted and at declare time alike.
   EXPECT_FLOAT_EQ(host.composer.cascadeSpanMs("p", 0), 400.0f);
-  const motion::Spread looping{.eachMs = 100, .durationMs = 200, .loopMs = 400};
+  const sigil::motion::Spread looping{
+      .eachMs = 100, .durationMs = 200, .loopMs = 400};
   EXPECT_FLOAT_EQ(looping.spanMs(3), 400.0f);
 
   // A start PAST the period folds mod it — the beat still re-opens once
@@ -2306,13 +2329,14 @@ TEST(ComposeTextFx, LoopMsZeroIsTheOneShotCascade) {
   // 0 — the default — is the one-shot path: a spelled-out zero is the same
   // value, the same schedule and the same bytes as never mentioning it,
   // and a unit short of its start WAITS at 0 rather than resting at 1.
-  EXPECT_TRUE((motion::Spread{.eachMs = 100, .durationMs = 200}) ==
-              (motion::Spread{.eachMs = 100, .durationMs = 200, .loopMs = 0}));
+  EXPECT_TRUE(
+      (sigil::motion::Spread{.eachMs = 100, .durationMs = 200}) ==
+      (sigil::motion::Spread{.eachMs = 100, .durationMs = 200, .loopMs = 0}));
   EXPECT_FALSE(
-      (motion::Spread{.eachMs = 100, .durationMs = 200}) ==
-      (motion::Spread{.eachMs = 100, .durationMs = 200, .loopMs = 400}));
+      (sigil::motion::Spread{.eachMs = 100, .durationMs = 200}) ==
+      (sigil::motion::Spread{.eachMs = 100, .durationMs = 200, .loopMs = 400}));
 
-  const auto render = [](motion::Spread cascade) {
+  const auto render = [](sigil::motion::Spread cascade) {
     Host host(400, 120);
     host.composer.render(
         box().padding(6).child(text(u8"AA BB CC", whiteStyle(16))
@@ -2417,7 +2441,7 @@ TEST(ComposeTextFx, ALoopingCascadeOnAWrappingPhaseNeverSettles) {
           .fx({.effect = fx::rise(24),
                .stagger = {.eachMs = 100, .durationMs = 200},
                .over = unit::Cluster,
-               .progress = animate(from(0.0f).to(1.0f),
+               .progress = animate(motion::from(0.0f).to(1.0f),
                                    {200ms, &choreograph::easeNone})})));
   for (int i = 0; i < 24; ++i) still.frame(0.016);
   unsigned settledPaints = 0;
@@ -2588,7 +2612,7 @@ TEST(TextRich, NamedRunsResolveThroughAStyleSet) {
   EXPECT_TRUE(supplied == suppliedFirst);
 
   {
-    env::Provide<sigil::weave::StyleSet> ambient(reds);
+    core::env::Provide<sigil::weave::StyleSet> ambient(reds);
     const RichText inherited = rich(base).add(u8"x", "accent");
     EXPECT_EQ(colorOf(inherited, 0), SK_ColorRED) << "the env set was ignored";
     const RichText overridden = rich(base).add(u8"x", "accent").styles(greens);
@@ -3403,7 +3427,7 @@ TEST(ComposeTextFx, TintRampsColorMulBetweenTheTwoColoursInTimeOrder) {
   const SkColor4f sung{0.3f, 0.6f, 0.8f, 1};
   const TextEffect ramp = fx::tint(pale, sung);
   GlyphInfo glyph;
-  Rng rng(1);
+  sigil::core::noise::Mix64Stream rng(1);
   const GlyphMod start = ramp(glyph, 0.0f, rng);
   const GlyphMod end = ramp(glyph, 1.0f, rng);
   const GlyphMod middle = ramp(glyph, 0.5f, rng);
@@ -3575,7 +3599,7 @@ TEST(ComposeTextFx, MarkOnAPathRunStandsOnTheCurve) {
           .key("ring")
           .width(180)
           .height(180)
-          .onPath({.path = shapes::circle()})
+          .onPath({.path = geometry::shapes::circle()})
           .fx({.effect = fx::rise(4), .over = unit::Word})
           .mark(sel::word(2), box().key("caret").fill(green()))));
   host.frame();
@@ -3738,7 +3762,7 @@ TEST(ComposeShapeValues, TextOnAComparableBaselinePrunes) {
         .absolute()
         .left(0)
         .top(0)
-        .onPath({.path = shapes::arc(180.0f, 359.9f),
+        .onPath({.path = geometry::shapes::arc(180.0f, 359.9f),
                  .at = at,
                  .align = TextPath::Align::Center});
   };

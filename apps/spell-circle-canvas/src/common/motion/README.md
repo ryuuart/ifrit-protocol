@@ -210,7 +210,8 @@ Four things a spread can be, in the order they override each other: an
 even ladder (`eachMs`), a fixed total divided across whatever the count
 turns out to be (`amountMs`), an irregular table of start times cut
 against a recording (`cueMs`, which replaces the ladder, the order and
-the distribution outright), and a second spread nested inside every beat
+the distribution outright, and which `Spread::cues()` sets on a spread
+already in hand), and a second spread nested inside every beat
 of the first (`then()`, exactly one level deep). `loopMs` turns any of
 them into a wrapping beat: each unit re-opens on its own cycle, phase-
 offset by its start, and one sweep of the master 0→1 is one cycle.

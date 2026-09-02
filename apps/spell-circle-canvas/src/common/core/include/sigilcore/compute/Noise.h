@@ -49,6 +49,42 @@ inline uint64_t mix64(uint64_t z) {
   return z ^ (z >> 31u);
 }
 
+/** A SPLITMIX64 STREAM: a 64-bit counter stepped by the gamma and read
+ *  through `mix64`, with the unit floats squeezed out of it.
+ *
+ *  This is the stream form of `mix64`, and it is a different function
+ *  from `pcgNext` and `xorshiftNext` in the way the top of this file
+ *  states: seeded work compared byte-for-byte against a stored render
+ *  cannot swap one for another. What this one buys over those two is the
+ *  64-bit counter — a caller with two integers to fold into a seed (a
+ *  glyph's index within its run, and the run's within its text) packs
+ *  them into one word with no mixing of its own.
+ *
+ *  Every draw takes the HIGH half of the avalanche, which is the half a
+ *  splitmix64 mixes best. Not a cryptographic generator and not a
+ *  substitute for one. */
+class Mix64Stream {
+ public:
+  explicit Mix64Stream(uint64_t seed) : m_state(seed) {}
+
+  /** The next 32 bits: the counter steps by the gamma and the stepped
+   *  value goes through the avalanche, whose high half is handed back. */
+  uint32_t bits() {
+    m_state += kMix64Gamma;
+    return (uint32_t)(mix64(m_state) >> 32u);
+  }
+  /** The next value in [0, 1), through the 24 mantissa bits a float
+   *  holds exactly. */
+  float unit() { return (float)(bits() >> 8u) * (1.0f / 16777216.0f); }
+  /** The next value in [-1, 1). */
+  float signedUnit() { return unit() * 2.0f - 1.0f; }
+  /** The next value in [lo, hi). */
+  float range(float lo, float hi) { return lo + unit() * (hi - lo); }
+
+ private:
+  uint64_t m_state;
+};
+
 /** Hash of (seed, i) to [-1, 1]: `mix64` over the pair, packed into one
  *  word. Successive `i` for one seed read as an uncorrelated sequence,
  *  which is what a per-stamp or per-vertex jitter wants. */

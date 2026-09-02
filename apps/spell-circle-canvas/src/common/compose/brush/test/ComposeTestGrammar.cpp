@@ -45,7 +45,7 @@ TEST(ComposeShapeRename, ShapeOverridesTheBox) {
   // intersected with the shape, it is discarded.
   Host host(200, 200);
   Element e = box().rect(SkRect::MakeXYWH(20, 20, 100, 100)).fill(red());
-  e.shape(shapes::circle());
+  e.shape(geometry::shapes::circle());
   host.composer.render(stack().child(std::move(e)));
   host.frame();
   EXPECT_EQ(host.pixel(70, 70), SK_ColorRED) << "inside the circle";
@@ -223,7 +223,7 @@ TEST(ComposeSpans, AnimatedRevealDrawsOnAndDeclaresVolatility) {
   host.composer.render(stack().child(
       box()
           .rect(SkRect::MakeXYWH(20, 20, 100, 100))
-          .stroke(spans::upTo(animate(from(0.0f).to(1.0f), {400ms})),
+          .stroke(spans::upTo(animate(motion::from(0.0f).to(1.0f), {400ms})),
                   stroke(6, red()))));
   host.frame(0.02);
   auto inked = [&] {
@@ -985,8 +985,8 @@ TEST(ComposeComposites, CompositesNest) {
 // ---------------------------------------------------------------------------
 // The authoring spellings, each checked against the mechanism it is sugar
 // for. These say what a word MEANS — animate(to()) ramps where a bare value
-// snaps, from().to() is a mount entrance, a bound source/target pair is two
-// explicit stages — because the words are close enough that a wrong one
+// snaps, motion::from().to() is a mount entrance, a bound source/target pair is
+// two explicit stages — because the words are close enough that a wrong one
 // produces a plausible picture rather than an error.
 
 // ---- 1. animate(to(v), spec) ----------------------------------------------
@@ -1003,7 +1003,7 @@ TEST(ComposeR1Animate, AnimateToIsTheChangeRamp) {
       if (plain)
         inner.opacity(opacity);
       else
-        inner.opacity(animate(to(opacity), {200ms}));
+        inner.opacity(animate(sigil::motion::to(opacity), {200ms}));
       return stack().child(std::move(inner));
     };
     host.composer.render(describe(1.0f));
@@ -1024,20 +1024,22 @@ TEST(ComposeR1Animate, AnimateToIsTheChangeRamp) {
 
 TEST(ComposeR1Animate, ToAloneHasNoEntranceAndFromToDoes) {
   // The whole distinction between the two, as pixels: to() mounts already
-  // holding its value, and from().to() plays a path on first appearance.
+  // holding its value, and motion::from().to() plays a path on first
+  // appearance.
   auto mountedOpacity = [](bool withEntrance) {
     Host host(200, 200);
     Element inner = box().width(100).height(100).fill(red());
     if (withEntrance)
-      inner.opacity(animate(from(0.0f).to(1.0f), {400ms}));
+      inner.opacity(animate(motion::from(0.0f).to(1.0f), {400ms}));
     else
-      inner.opacity(animate(to(1.0f), {400ms}));
+      inner.opacity(animate(sigil::motion::to(1.0f), {400ms}));
     host.composer.render(stack().child(std::move(inner)));
     host.frame(0.001);
     return (int)SkColorGetR(host.pixel(50, 50));
   };
   EXPECT_GT(mountedOpacity(false), 240) << "to() alone must not fade in";
-  EXPECT_LT(mountedOpacity(true), 60) << "from().to() is a mount entrance";
+  EXPECT_LT(mountedOpacity(true), 60)
+      << "motion::from().to() is a mount entrance";
 }
 
 namespace {
@@ -1098,12 +1100,13 @@ TEST(ComposeR3Volatility, LibrarySchemesDeclareWithTheOneWord) {
 TEST(ComposeR1Bound, SourceAndTargetAreTheOldStagesRenamed) {
   choreograph::Output<float> hp;
   hp = 25.0f;
-  const BoundFloat named = bind(&hp).source(0, 100).target(-70, 170).value();
+  const sigil::motion::BoundFloat named =
+      motion::bind(&hp).source(0, 100).target(-70, 170).value();
   // target(lo, hi) is sugar: the same mapping written as an explicit scale
   // and offset must agree with it everywhere, including outside the source
   // range, since neither form clamps.
-  const BoundFloat manual =
-      bind(&hp).source(0, 100).scale(240).offset(-70).value();
+  const sigil::motion::BoundFloat manual =
+      motion::bind(&hp).source(0, 100).scale(240).offset(-70).value();
   for (float v : {0.0f, 25.0f, 50.0f, 100.0f, 137.0f})
     EXPECT_FLOAT_EQ(named.apply(v), manual.apply(v)) << "at " << v;
   EXPECT_FLOAT_EQ(named.apply(0.0f), -70.0f);
@@ -1112,8 +1115,10 @@ TEST(ComposeR1Bound, SourceAndTargetAreTheOldStagesRenamed) {
 
 TEST(ComposeR1Bound, WindowIsStillSourceThatClamps) {
   choreograph::Output<float> t;
-  const BoundFloat w = bind(&t).window(0.2f, 0.4f).value();
-  const BoundFloat s = bind(&t).source(0.2f, 0.4f).value();
+  const sigil::motion::BoundFloat w =
+      motion::bind(&t).window(0.2f, 0.4f).value();
+  const sigil::motion::BoundFloat s =
+      motion::bind(&t).source(0.2f, 0.4f).value();
   EXPECT_FLOAT_EQ(w.apply(0.3f), s.apply(0.3f));
   EXPECT_FLOAT_EQ(w.apply(0.9f), 1.0f) << "window clamps";
   EXPECT_GT(s.apply(0.9f), 1.0f) << "source does not";
@@ -1359,8 +1364,11 @@ TEST(ComposeWidthProfile, TheLastNeverPruneRibbonsCanPruneNow) {
       brush::Ribbon r;
       r.fill = Fill::color({1, 0, 0, 1});
       r.width = Profile(PulseAtPx{});
-      return box().child(
-          box().width(120).height(120).shape(shapes::circle()).stroke(r));
+      return box().child(box()
+                             .width(120)
+                             .height(120)
+                             .shape(geometry::shapes::circle())
+                             .stroke(r));
     };
     host.composer.render(tree());
     host.frame();
@@ -1528,7 +1536,7 @@ TEST(ComposeR1Wrap, MarchingAntsMatchTrimAtEveryPhaseIncludingMidSeam) {
 
   Host spanned(200, 200);
   spanned.composer.render(stack().child(revealBox().stroke(
-      spans::wrap(bind(&phase), bind(&phase).offset(kWindow)),
+      spans::wrap(motion::bind(&phase), motion::bind(&phase).offset(kWindow)),
       stroke(6, red()))));
 
   for (float p : {0.0f, 0.12f, 0.37f, 0.5f, 0.66f, 0.80f, 0.90f, 0.97f}) {
@@ -1552,12 +1560,14 @@ TEST(ComposeR1Wrap, AnimatedEndpointsMarchAcrossTheSeamAndMatchTrim) {
     auto h = std::make_unique<Host>(200, 200);
     Element e = revealBox();
     if (useLegacyTrim)
-      e.mask(by::spans(spans::wrap(0.0f, kWindow)
-                           .offset(animate(from(0.0f).to(1.0f), {1000ms}))))
+      e.mask(by::spans(
+                 spans::wrap(0.0f, kWindow)
+                     .offset(animate(motion::from(0.0f).to(1.0f), {1000ms}))))
           .stroke(stroke(6, red()));
     else
-      e.stroke(spans::wrap(animate(from(0.0f).to(1.0f), {1000ms}),
-                           animate(from(kWindow).to(1.0f + kWindow), {1000ms})),
+      e.stroke(spans::wrap(
+                   animate(motion::from(0.0f).to(1.0f), {1000ms}),
+                   animate(motion::from(kWindow).to(1.0f + kWindow), {1000ms})),
                stroke(6, red()));
     h->composer.render(stack().child(std::move(e)));
     return h;
@@ -1722,9 +1732,10 @@ TEST(ComposeR1TrimParity, BoundEndpointsScrubTheSameWindow) {
 
 TEST(ComposeR1TrimParity, TheOffsetArgumentIsEndpointArithmetic) {
   // The gate's third argument. A CONSTANT offset is just addition at the
-  // call site; a BOUND offset over constant ends is `bind(&off).offset(k)`
-  // on each end. Both are checked against the gate carrying the offset
-  // itself, which is what makes them spellings rather than approximations.
+  // call site; a BOUND offset over constant ends is
+  // `motion::bind(&off).offset(k)` on each end. Both are checked against the
+  // gate carrying the offset itself, which is what makes them spellings rather
+  // than approximations.
   choreograph::Output<float> off;
   Host constTrim(200, 200), constSpan(200, 200);
   constTrim.composer.render(
@@ -1744,7 +1755,8 @@ TEST(ComposeR1TrimParity, TheOffsetArgumentIsEndpointArithmetic) {
                         .mask(by::spans(spans::upTo(0.3f).offset(&off)))
                         .stroke(stroke(6, red()))));
   boundSpan.composer.render(stack().child(revealBox().stroke(
-      spans::range(bind(&off), bind(&off).offset(0.3f)), stroke(6, red()))));
+      spans::range(motion::bind(&off), motion::bind(&off).offset(0.3f)),
+      stroke(6, red()))));
   for (float v : {0.0f, 0.17f, 0.42f, 0.61f}) {
     off = v;
     boundTrim.frame();
@@ -1761,10 +1773,11 @@ TEST(ComposeR1TrimParity, AnimatedEndpointsRampTheSameWindow) {
     auto h = std::make_unique<Host>(200, 200);
     Element e = revealBox();
     if (useLegacyTrim)
-      e.mask(by::spans(spans::upTo(animate(from(0.0f).to(1.0f), {800ms}))))
+      e.mask(by::spans(
+                 spans::upTo(animate(motion::from(0.0f).to(1.0f), {800ms}))))
           .stroke(stroke(6, red()));
     else
-      e.stroke(spans::upTo(animate(from(0.0f).to(1.0f), {800ms})),
+      e.stroke(spans::upTo(animate(motion::from(0.0f).to(1.0f), {800ms})),
                stroke(6, red()));
     h->composer.render(stack().child(std::move(e)));
     return h;

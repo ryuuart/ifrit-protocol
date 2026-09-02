@@ -56,16 +56,16 @@ struct LayoutProps {
 };
 
 struct PaintProps {
-  std::optional<Animatable<Fill>> fill;
-  Animatable<float> opacity = 1.0f;
+  std::optional<motion::Animatable<Fill>> fill;
+  motion::Animatable<float> opacity = 1.0f;
   SkBlendMode blendMode = SkBlendMode::kSrcOver;
-  Animatable<float> translateX = 0.0f, translateY = 0.0f;
-  Animatable<float> rotate = 0.0f, scale = 1.0f;
+  motion::Animatable<float> translateX = 0.0f, translateY = 0.0f;
+  motion::Animatable<float> rotate = 0.0f, scale = 1.0f;
   // Per-axis scale, multiplied INTO `scale`. Bars, wipes, meters,
   // cooldown sweeps and drain rings are the most common animated
   // primitive in a UI and none of them are uniform.
-  Animatable<float> scaleX = 1.0f, scaleY = 1.0f;
-  Animatable<float> skewX = 0.0f, skewY = 0.0f;  // degrees (shear)
+  motion::Animatable<float> scaleX = 1.0f, scaleY = 1.0f;
+  motion::Animatable<float> skewX = 0.0f, skewY = 0.0f;  // degrees (shear)
   float originX = 0.5f, originY = 0.5f;
   bool originPx = false;  // origin in node-local px instead of fractions
   int zIndex = 0;
@@ -468,7 +468,7 @@ struct ElementNode {
   bool hitTestable = true;
   Cache cacheMode = Cache::Auto;
   float bakeScale = 1.0f;  // Texture-bake resolution multiplier (see Element)
-  std::optional<Transition> nodeTransition;
+  std::optional<motion::Transition> nodeTransition;
 
   // Decoration layers (kernel seam; primitives live in Decorations.h)
   std::vector<Decoration> backgrounds;
@@ -586,7 +586,8 @@ bool describedTransformEqual(const ElementNode& a, const ElementNode& b);
 std::u16string toUtf16(std::u8string_view utf8);
 
 /** The stateless splitmix64 of one key — the avalanche over the key
- *  offset by the gamma, which is the same mixer `Rng` steps, used to
+ *  offset by the gamma, which is the same mixer an effect's stream
+ *  steps, used to
  *  order units rather than to shape a glyph. */
 inline uint64_t mix64Value(uint64_t z) {
   return core::noise::mix64(z + core::noise::kMix64Gamma);

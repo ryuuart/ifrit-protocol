@@ -13,6 +13,7 @@
 #include <sigilcompose/Compose.h>
 #include <sigilcompose/kit/Ornament.h>
 #include <sigilcompose/kit/Silhouettes.h>
+#include <sigilgeometry/kit/Silhouettes.h>
 
 #include <string>
 #include <vector>
@@ -35,8 +36,6 @@ struct FlourishStyle {
   SkColor4f rubric{0.560f, 0.150f, 0.130f, 1};
 };
 
-inline SkColor toSk(SkColor4f c) { return c.toSkColor(); }
-
 /** The ornament palette this style is, for the pieces that take one. */
 inline Palette toOrnamentPalette(const FlourishStyle& s) {
   return {s.parchment, s.ink, s.bronze, s.leaf, s.goldBright};
@@ -51,16 +50,16 @@ inline Fill flourishParchment(const FlourishStyle& s, float freq = 0.04f) {
   sk_sp<SkShader> muted = SkShaders::Blend(
       SkBlendMode::kLuminosity,
       SkShaders::Color(SkColorSetARGB(255, 128, 128, 128)), std::move(noise));
-  return Fill::shader(SkShaders::Blend(SkBlendMode::kSoftLight,
-                                       SkShaders::Color(toSk(s.parchment)),
-                                       std::move(muted)));
+  return Fill::shader(SkShaders::Blend(
+      SkBlendMode::kSoftLight, SkShaders::Color(s.parchment.toSkColor()),
+      std::move(muted)));
 }
 
 // ---------------------------------------------------------------------------
 // The acanthus leaf stamp — a pointed leaf whose own contour is walked with
 // gilt beads (recursion level 2) and split by a gilt midrib.
 
-inline ::sigil::compose::shapes::OutlineFn leafOutline() {
+inline ::sigil::geometry::shapes::OutlineFn leafOutline() {
   return [](SkSize s) {
     const float w = s.width(), h = s.height();
     SkPathBuilder b;

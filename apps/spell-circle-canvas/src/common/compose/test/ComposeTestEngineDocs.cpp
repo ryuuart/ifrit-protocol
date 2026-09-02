@@ -106,10 +106,12 @@ TEST(ComposeDocs, EverySignatureInTheLineAndBorderDocsCompiles) {
                                     .dash = {0.01f, 9.4f},
                                     .cap = SkPaint::kRound_Cap}});
 
-  auto ngon = shapes::polygon(20, -90.0f);
-  auto chamfer = shapes::chamfered(22.0f, shapes::Corner::All);
-  auto notch = shapes::notched(26.0f, 9.0f, shapes::Corner::Diagonal);
-  auto edges = shapes::onEdges(shapes::Edge::Top, stroke(2.0f, ink));
+  auto ngon = geometry::shapes::polygon(20, -90.0f);
+  auto chamfer =
+      geometry::shapes::chamfered(22.0f, geometry::shapes::Corner::All);
+  auto notch = geometry::shapes::notched(26.0f, 9.0f,
+                                         geometry::shapes::Corner::Diagonal);
+  auto edges = onEdges(geometry::path::Edge::Top, stroke(2.0f, ink));
 
   auto glow =
       kit::brush::presets::filament({0.4f, 0.8f, 1, 1}, {0.9f, 1, 1, 1}, 1.0f);
@@ -287,16 +289,18 @@ TEST(ComposeDocs, EverySignatureInTheDecorationAndLayoutDocsCompiles) {
   auto shadow = sigil::compose::shadow({0, 0, 0, 0.5f}, {0, 2}, 8.0f);
 
   // ---- shapes, exactly as the "shapes" block spells them -----------------
-  auto circle = shapes::circle();
-  auto annulus = shapes::annulus(0.6f);
-  auto sector = shapes::sector(0.0f, 90.0f, 0.4f);
-  auto arrow = shapes::arrow(0.6f, 0.3f);
-  auto poly = shapes::polygon(6, -90.0f);
-  auto star = shapes::star(5, 0.45f, 0.2f);
-  auto chamfer = shapes::chamfered(10.0f, shapes::Corner::All);
-  auto notched = shapes::notched(10.0f, 4.0f, shapes::Corner::Diagonal);
-  auto onEdges = shapes::onEdges(shapes::Edge::Top, plain);
-  auto inset = shapes::inset(6.0f, Decoration(plain));
+  auto circle = geometry::shapes::circle();
+  auto annulus = geometry::shapes::annulus(0.6f);
+  auto sector = geometry::shapes::sector(0.0f, 90.0f, 0.4f);
+  auto arrow = geometry::shapes::arrow(0.6f, 0.3f);
+  auto poly = geometry::shapes::polygon(6, -90.0f);
+  auto star = geometry::shapes::star(5, 0.45f, 0.2f);
+  auto chamfer =
+      geometry::shapes::chamfered(10.0f, geometry::shapes::Corner::All);
+  auto notched = geometry::shapes::notched(10.0f, 4.0f,
+                                           geometry::shapes::Corner::Diagonal);
+  auto edgeSlice = onEdges(geometry::path::Edge::Top, plain);
+  auto insetSlice = inset(6.0f, Decoration(plain));
 
   // ---- EVERY layout scheme in Layouts.h, not only the documented ones ----
   layouts::Radial radial;
@@ -311,20 +315,22 @@ TEST(ComposeDocs, EverySignatureInTheDecorationAndLayoutDocsCompiles) {
        {TextPath::Orient::Tangent, TextPath::Orient::Radial,
         TextPath::Orient::Upright}) {
     TextPath spec;
-    spec.path = [](SkSize s) { return shapes::circle()(s); };
+    spec.path = [](SkSize s) { return geometry::shapes::circle()(s); };
     spec.at = 0.25f;
     spec.orient = o;
     (void)box().child(text(u8"ring", styleAt(12)).onPath(spec));
   }
 
   // ---- patterns: grain's FIVE parameters --------------------------------
-  (void)patterns::grain(0.02f, 4, 7.0f);              // the documented three
-  (void)patterns::grain(0.02f, 4, 7.0f, 1.6f, 3.0f);  // contrast + stretch
+  (void)Material::recipe(
+      material::field::grain(0.02f, 4, 7.0f));  // the documented three
+  (void)Material::recipe(material::field::grain(0.02f, 4, 7.0f, 1.6f,
+                                                3.0f));  // contrast + stretch
   // The last parameter is a BOOL selecting fractal or turbulence mode, not
   // an amount. Passing a float compiles — it converts silently to `true` —
   // so a documented call that reads like `noise(…, 0.5f)` is wrong in a way
   // only a human reader can catch. Spelled correctly here, once.
-  (void)patterns::noise(0.02f, 4, 1.0f, true);
+  (void)Material::recipe(material::field::noise(0.02f, 4, 1.0f, true));
 
   (void)plain;
   (void)dashed;
@@ -591,4 +597,4 @@ bool faceDeclaresAxis(const sk_sp<SkTypeface>& face, SkFourByteTag tag) {
 }  // namespace
 
 // ---------------------------------------------------------------------------
-// Shaped bindings — bind(&out).from().map().to().clamp()
+// Shaped bindings — motion::bind(&out).from().map().to().clamp()

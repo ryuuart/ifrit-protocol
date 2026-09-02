@@ -8,8 +8,8 @@
  */
 
 #include <sigilcore/cache/Settle.h>
-#include <sigilmotion/values/Lanes.h>
 #include <sigilcore/reconcile/Node.h>
+#include <sigilmotion/values/Lanes.h>
 #include <yoga/Yoga.h>
 
 #include "ComposeInternal.h"
@@ -169,8 +169,8 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // walk knows it. A cascade numbered over the story needs the story's own
   // count, and no single fill has it.
   uint32_t threadStoryLines = 0;
-  uint32_t contentRev = 0;        // bumped on text/exclusion change
-  uint32_t measuredRev = ~0u;     // rev the cached measurement belongs to
+  uint32_t contentRev = 0;     // bumped on text/exclusion change
+  uint32_t measuredRev = ~0u;  // rev the cached measurement belongs to
   // rich().slot(): the slot names in the order the content declares them —
   // which is the order weave matches its placeholder records in — and where
   // the finished layout put each one, in this node's own space. A child
@@ -589,12 +589,13 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   std::unique_ptr<MotionCache> motion;
 
   ~Instance();
-  float resolveFloat(Instance::Slot slot, const Animatable<float>& v) const;
+  float resolveFloat(Instance::Slot slot,
+                     const motion::Animatable<float>& v) const;
   /** The same resolution over an explicitly-held motion — the span
    *  endpoints, whose count the description decides. One body: a bound
    *  Output wins, then a running ramp, then the plain value. */
   float resolveFloatAt(const AnimatedFloat* anim,
-                       const Animatable<float>& v) const;
+                       const motion::Animatable<float>& v) const;
   /** Resolve every mask gate's animatable floats for this frame, in the
    *  order maskAnims indexes them (and ContentScalars::gates stores
    *  them) — every value, live or settled, because the memo compares what

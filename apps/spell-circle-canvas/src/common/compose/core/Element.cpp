@@ -232,7 +232,7 @@ Element& Element::mask(Parts what, Gate with) {
 
 // ---- paint ----------------------------------------------------------------
 
-Element& Element::fill(Animatable<Fill> f) {
+Element& Element::fill(motion::Animatable<Fill> f) {
   m_node->paint.fill = std::move(f);
   // Symmetric with fill(Material): the fill setters are last-wins — a plain
   // fill after a live-material fill must actually take effect (and release
@@ -324,7 +324,7 @@ Element& Element::backdrop(Effect e) {
   m_node->fxData.ensure().backdropEffect = std::move(e);
   return *this;
 }
-Element& Element::opacity(Animatable<float> o) {
+Element& Element::opacity(motion::Animatable<float> o) {
   m_node->paint.opacity = std::move(o);
   return *this;
 }
@@ -332,11 +332,11 @@ Element& Element::blend(SkBlendMode mode) {
   m_node->paint.blendMode = mode;
   return *this;
 }
-Element& Element::translateX(Animatable<float> v) {
+Element& Element::translateX(motion::Animatable<float> v) {
   m_node->paint.translateX = std::move(v);
   return *this;
 }
-Element& Element::translateY(Animatable<float> v) {
+Element& Element::translateY(motion::Animatable<float> v) {
   m_node->paint.translateY = std::move(v);
   return *this;
 }
@@ -344,11 +344,11 @@ Element& Element::travel(MotionPath along) {
   m_node->motionData.ensure() = std::move(along);
   return *this;
 }
-Element& Element::rotate(Animatable<float> v) {
+Element& Element::rotate(motion::Animatable<float> v) {
   m_node->paint.rotate = std::move(v);
   return *this;
 }
-Element& Element::scale(Animatable<float> v) {
+Element& Element::scale(motion::Animatable<float> v) {
   m_node->paint.scale = std::move(v);
   return *this;
 }
@@ -360,19 +360,19 @@ Element& Element::textStroke(float width, Fill fill) {
   return *this;
 }
 
-Element& Element::scaleX(Animatable<float> v) {
+Element& Element::scaleX(motion::Animatable<float> v) {
   m_node->paint.scaleX = std::move(v);
   return *this;
 }
-Element& Element::scaleY(Animatable<float> v) {
+Element& Element::scaleY(motion::Animatable<float> v) {
   m_node->paint.scaleY = std::move(v);
   return *this;
 }
-Element& Element::skewX(Animatable<float> v) {
+Element& Element::skewX(motion::Animatable<float> v) {
   m_node->paint.skewX = std::move(v);
   return *this;
 }
-Element& Element::skewY(Animatable<float> v) {
+Element& Element::skewY(motion::Animatable<float> v) {
   m_node->paint.skewY = std::move(v);
   return *this;
 }
@@ -423,7 +423,7 @@ Element& Element::bakeScale(float factor) {
   m_node->bakeScale = std::clamp(factor, 0.1f, 1.0f);
   return *this;
 }
-Element& Element::transition(Transition t) {
+Element& Element::transition(motion::Transition t) {
   m_node->nodeTransition = std::move(t);
   return *this;
 }
@@ -579,7 +579,7 @@ Element& Element::paragraphs(std::span<const std::string_view> names) {
   // named character run reads its own: the finished description then holds
   // real styles and depends on no scope that has since ended.
   const sigil::weave::ParagraphStyleSet* set =
-      env::inherited<sigil::weave::ParagraphStyleSet>();
+      core::env::inherited<sigil::weave::ParagraphStyleSet>();
   std::vector<sigil::weave::ParagraphStyle> resolved;
   resolved.reserve(names.size());
   for (const std::string_view name : names) {
@@ -781,7 +781,7 @@ RichText& RichText::add(std::u8string_view utf8, std::string_view styleName) {
   // round the two are written.
   if (!m_hasStyles && !m_stylesExplicit) {
     if (const sigil::weave::StyleSet* ambient =
-            env::inherited<sigil::weave::StyleSet>()) {
+            core::env::inherited<sigil::weave::StyleSet>()) {
       m_styles = *ambient;
       m_hasStyles = true;
     }
@@ -894,7 +894,9 @@ TextEffect TextEffect::pass(Material material) {
   // The identity body keeps the value truthy (a track with an empty effect
   // is skipped) and keeps a pass harmless as a seq/mix/hold operand, where
   // only the deviation is consulted.
-  state->fn = [](const GlyphInfo&, float, Rng&) { return GlyphMod{}; };
+  state->fn = [](const GlyphInfo&, float, core::noise::Mix64Stream&) {
+    return GlyphMod{};
+  };
   // A pass paints where its material says it does; the material's declared
   // reserve is the effect's reach, and Track::reach overrides as ever.
   state->reach = material.bleed();
@@ -1085,14 +1087,6 @@ Selector each(Unit granularity) {
 }
 }  // namespace sel
 
-// ---------------------------------------------------------------------------
-// The cascade over text
-
-motion::Spread cues(std::vector<float> startMs, motion::Spread spec) {
-  spec.cueMs = std::move(startMs);
-  return spec;
-}
-
 namespace {
 const TextPainterOps*& textEngineSlot() {
   static const TextPainterOps* engine = nullptr;
@@ -1194,7 +1188,7 @@ TextEffect TextEffect::variableAxis(const char (&tag)[5], float value) {
       "variableAxis",
       {(float)(unsigned char)tag[0], (float)(unsigned char)tag[1],
        (float)(unsigned char)tag[2], (float)(unsigned char)tag[3], value},
-      [coordinate](const GlyphInfo&, float, Rng&) {
+      [coordinate](const GlyphInfo&, float, core::noise::Mix64Stream&) {
         GlyphMod m;
         m.axis = coordinate;
         return m;
@@ -1259,7 +1253,7 @@ Element makeMemo(std::any props,
   memo.invoke = std::move(invoke);
   // Captured HERE, in the author's scope — the whole point. By the time
   // the reconciler decides whether to call `invoke`, this stack is gone.
-  memo.env = envStack();
+  memo.env = core::detail::envStack();
   return e;
 }
 

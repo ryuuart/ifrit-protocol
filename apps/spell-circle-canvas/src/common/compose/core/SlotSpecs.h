@@ -87,7 +87,7 @@ struct SlotSpec {
    *  when the node does not carry the block that holds it (a node with no
    *  `travel()` has no `t`). Null for a Bespoke row — call it through
    *  slotValueOf(), which answers nullptr for those. */
-  const Animatable<float>* (*of)(const ElementNode&);
+  const motion::Animatable<float>* (*of)(const ElementNode&);
   /** The standing endpoint a PATCH ramps from or to when `of` answers
    *  nullptr on one side of the diff — a node that GAINS or LOSES the block
    *  has no previous/next value, so the field's OWN DEFAULT is the
@@ -130,7 +130,7 @@ inline constexpr SlotSpec kSlotSpecs[] = {
     // travel(): the `t` lane moves the node exactly as tx/ty do, so it is
     // the GEOMETRIC half and a device-space bake is refused while it runs.
     {Instance::kMotionT, SlotRole::Geometric,
-     [](const ElementNode& n) -> const Animatable<float>* {
+     [](const ElementNode& n) -> const motion::Animatable<float>* {
        return n.motionData ? &n.motionData->t : nullptr;
      },
      0.0f, nullptr},
@@ -141,7 +141,7 @@ inline constexpr SlotSpec kSlotSpecs[] = {
     // joins ContentScalars so a marquee that stops running releases like any
     // other settled scalar.
     {Instance::kTextPathAt, SlotRole::Content,
-     [](const ElementNode& n) -> const Animatable<float>* {
+     [](const ElementNode& n) -> const motion::Animatable<float>* {
        return n.textData && n.textData->onPath ? &n.textData->onPath->at
                                                : nullptr;
      },
@@ -179,8 +179,8 @@ static_assert(slotTableWellFormed(),
 /** The row's animatable on this node, or nullptr. A Bespoke row always
  *  answers nullptr, so a consumer that walks the table without special-casing
  *  one is INERT for it rather than dereferencing a null function pointer. */
-inline const Animatable<float>* slotValueOf(const SlotSpec& spec,
-                                            const ElementNode& node) {
+inline const motion::Animatable<float>* slotValueOf(const SlotSpec& spec,
+                                                    const ElementNode& node) {
   return spec.of ? spec.of(node) : nullptr;
 }
 

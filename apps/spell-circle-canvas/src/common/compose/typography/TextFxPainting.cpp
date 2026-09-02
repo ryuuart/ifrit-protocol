@@ -252,7 +252,7 @@ SkRect glyphBox(const sigil::weave::PlacedGlyph& placed, const RestPose& pose,
  *  numbering — so it is the same seed on every frame and after every
  *  relayout, which is what lets a seeded dissolve settle and cache. */
 float passUnitSeed(uint32_t outer, uint32_t inner) {
-  Rng rng(((uint64_t)outer << 32u) | (uint64_t)inner);
+  core::noise::Mix64Stream rng(((uint64_t)outer << 32u) | (uint64_t)inner);
   return 1.0f + rng.unit() * 255.0f;
 }
 
@@ -467,7 +467,7 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
           const float t =
               rc.cascade.localTime(r.master, rc.outerUnit[g],
                                    rc.innerUnit.empty() ? 0u : rc.innerUnit[g]);
-          Rng rng(detail::glyphSeed(info));
+          core::noise::Mix64Stream rng(detail::glyphSeed(info));
           detail::compose(mod, r.track->effect(info, t, rng));
           continuous |= r.track->continuous;
         }

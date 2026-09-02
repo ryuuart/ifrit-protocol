@@ -139,16 +139,17 @@ TEST(ComposeVariationDrive, TheAxisDrivesOnAPathRunToo) {
   sigil::weave::TextStyle style = styleAt(26);
   style.shaping.typeface = ui;
   style.paint.foreground.setColor(SK_ColorWHITE);
-  host.composer.render(box().child(
-      text(u8"GRADED RING", style)
-          .key("ring")
-          .width(200)
-          .height(200)
-          .absolute()
-          .left(20)
-          .top(20)
-          .onPath({.path = shapes::circle(), .align = TextPath::Align::Center})
-          .variationDrive("GRAD", &grade)));
+  host.composer.render(
+      box().child(text(u8"GRADED RING", style)
+                      .key("ring")
+                      .width(200)
+                      .height(200)
+                      .absolute()
+                      .left(20)
+                      .top(20)
+                      .onPath({.path = geometry::shapes::circle(),
+                               .align = TextPath::Align::Center})
+                      .variationDrive("GRAD", &grade)));
   host.frame();
   SkBitmap lo;
   lo.allocPixels(SkImageInfo::MakeN32Premul(240, 240));

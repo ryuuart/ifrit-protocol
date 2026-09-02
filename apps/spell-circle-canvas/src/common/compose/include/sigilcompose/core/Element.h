@@ -16,11 +16,13 @@
 #include <include/core/SkSize.h>
 #include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/Mask.h>
-#include <sigilcompose/core/Motion.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/Shape.h>
 #include <sigilcompose/core/Stroke.h>
 #include <sigilcompose/core/Text.h>
+#include <sigilmotion/Animation.h>
+#include <sigilmotion/schedule/Schedule.h>
+#include <sigilmotion/values/Animated.h>
 #include <sigilweave/layout/ParagraphLayout.h>
 #include <sigilweave/style/Style.h>
 
@@ -242,14 +244,14 @@ class Element {
    *  site: `fill(bind(&level).map(ramp))` does not compile, because the
    *  shaping chain maps floats to floats. Compute the Fill in the
    *  steppable, as above. */
-  Element& fill(Animatable<Fill> f);
+  Element& fill(motion::Animatable<Fill> f);
   /** Fill with a Material (gradient ramp, blend stack, sprite, SkSL) — the
    *  richer authoring value. A static Material collapses to a Fill, so it
    *  caches and prunes on the same path. See <sigilcompose/Material.h>. */
   Element& fill(Material m);
   /** Solid-color sugar: fill({r,g,b,a}) without the Fill:: ceremony. */
   Element& fill(SkColor4f color) {
-    return fill(Animatable<Fill>{Fill::color(color)});
+    return fill(motion::Animatable<Fill>{Fill::color(color)});
   }
   /** How an image() leaf samples its source. Defaults to linear, which is
    *  right for photographs and wrong for every pixel grid: art, tilemaps,
@@ -423,10 +425,10 @@ class Element {
    *  Cache::Texture (the backdrop depends on the live destination);
    *  such nodes fall back to picture caching. */
   Element& backdrop(Effect e);
-  Element& opacity(Animatable<float> o);
+  Element& opacity(motion::Animatable<float> o);
   Element& blend(SkBlendMode mode);
-  Element& translateX(Animatable<float> v);
-  Element& translateY(Animatable<float> v);
+  Element& translateX(motion::Animatable<float> v);
+  Element& translateY(motion::Animatable<float> v);
   /** Ride a CURVE instead of two lanes — the motion path (see MotionPath
    *  for the six rules). Paint-only like the lanes it outranks; the
    *  node's transform origin is the point that lands on the curve, and
@@ -437,8 +439,8 @@ class Element {
    *               .lookAhead = 0.02f})   // auto-orient along the tangent
    */
   Element& travel(MotionPath along);
-  Element& rotate(Animatable<float> degrees);
-  Element& scale(Animatable<float> factor);
+  Element& rotate(motion::Animatable<float> degrees);
+  Element& scale(motion::Animatable<float> factor);
   /** Per-axis scale about the transform origin, multiplied INTO scale().
    *  Paint-only like scale(): animating one never relayouts, and the
    *  content picture replays under the new transform.
@@ -451,8 +453,8 @@ class Element {
    *  the OTHER axis. Set transformOrigin() to pin the growing edge —
    *  `transformOrigin(0, 0.5f).scaleX(&fraction)` grows a bar rightward
    *  from its left edge. */
-  Element& scaleX(Animatable<float> factor);
-  Element& scaleY(Animatable<float> factor);
+  Element& scaleX(motion::Animatable<float> factor);
+  Element& scaleY(motion::Animatable<float> factor);
   /** Shear, in degrees, about the transform origin. Paint-only like
    *  rotate/scale: animating a skew never relayouts, and content pictures
    *  replay under the new transform.
@@ -461,48 +463,49 @@ class Element {
    *  screen-space, y down: a POSITIVE skewX shifts points further down the
    *  node further right, so the shape's top leans LEFT — the italic
    *  forward lean is a NEGATIVE skewX. */
-  Element& skewX(Animatable<float> degrees);
-  Element& skewY(Animatable<float> degrees);
+  Element& skewX(motion::Animatable<float> degrees);
+  Element& skewY(motion::Animatable<float> degrees);
   // Integer-literal sugar (rotate(-8) etc. — int doesn't convert into the
   // Animatable variant on its own, and the resulting error is unreadable).
   // std::integral-constrained so FLOAT calls can never land here (a plain
   // int overload would capture them via the standard float→int conversion
-  // and recurse); Animatable is constructed explicitly for the same reason.
+  // and recurse); the Animatable is constructed explicitly for the same
+  // reason.
   template <std::integral T>
   Element& opacity(T v) {
-    return opacity(Animatable<float>((float)v));
+    return opacity(motion::Animatable<float>((float)v));
   }
   template <std::integral T>
   Element& translateX(T v) {
-    return translateX(Animatable<float>((float)v));
+    return translateX(motion::Animatable<float>((float)v));
   }
   template <std::integral T>
   Element& translateY(T v) {
-    return translateY(Animatable<float>((float)v));
+    return translateY(motion::Animatable<float>((float)v));
   }
   template <std::integral T>
   Element& rotate(T deg) {
-    return rotate(Animatable<float>((float)deg));
+    return rotate(motion::Animatable<float>((float)deg));
   }
   template <std::integral T>
   Element& scale(T f) {
-    return scale(Animatable<float>((float)f));
+    return scale(motion::Animatable<float>((float)f));
   }
   template <std::integral T>
   Element& scaleX(T f) {
-    return scaleX(Animatable<float>((float)f));
+    return scaleX(motion::Animatable<float>((float)f));
   }
   template <std::integral T>
   Element& scaleY(T f) {
-    return scaleY(Animatable<float>((float)f));
+    return scaleY(motion::Animatable<float>((float)f));
   }
   template <std::integral T>
   Element& skewX(T deg) {
-    return skewX(Animatable<float>((float)deg));
+    return skewX(motion::Animatable<float>((float)deg));
   }
   template <std::integral T>
   Element& skewY(T deg) {
-    return skewY(Animatable<float>((float)deg));
+    return skewY(motion::Animatable<float>((float)deg));
   }
   Element& transformOrigin(float fx, float fy);
   /** Pixel-valued transform origin (node-local px) — for pivots that
@@ -973,7 +976,8 @@ class Element {
    *  resample. Sharp text and 1 px hairlines never belong under a reduced
    *  bake. */
   Element& bakeScale(float factor);
-  Element& transition(Transition t);  // node default for plain constants
+  Element& transition(
+      motion::Transition t);  // node default for plain constants
   /** Container stagger: child i's subtree enters with an EXTRA
    *  order·each delay on all its animate() mount transitions, compounding
    *  through nested staggered containers. `from` picks the origin — Start

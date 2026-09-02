@@ -5,13 +5,14 @@
 #include "support/PaintTestSupport.h"
 
 TEST(ComposePatterns, GrainIsMonochromeAndVaries) {
-  // patterns::noise() is fractal RGB noise — its channels are independent
-  // fields, so overlaying it on a coloured surface hue-shifts rather than
-  // shades. grain() is the luminance one: equal channels, real variation.
+  // Material::recipe(material::field::noise()) is fractal RGB noise — its
+  // channels are independent fields, so overlaying it on a coloured surface
+  // hue-shifts rather than shades. grain() is the luminance one: equal
+  // channels, real variation.
   Host host(120, 120);
   host.composer.render(
       box().child(box().width(120).height(120).absolute().inset(0).fill(
-          patterns::grain(0.08f, 4, 3.0f))));
+          Material::recipe(material::field::grain(0.08f, 4, 3.0f)))));
   host.frame();
   int lo = 255, hi = 0;
   for (int y = 4; y < 116; y += 3)
@@ -33,7 +34,8 @@ TEST(ComposeMaterial, BlendWithSdfLayerResolvesGeometry) {
   // build time bakes a zero resolution and renders a degenerate speck.
   Material m = Material::blend({
       {Material::solid({0, 0, 0, 1}), SkBlendMode::kSrcOver},
-      {sdf::material(sdf::circle(), {.fill = {1, 0, 0, 1}}),
+      {Material::recipe(material::sdf::material(material::sdf::circle(),
+                                                {.fill = {1, 0, 0, 1}})),
        SkBlendMode::kPlus},
   });
   EXPECT_TRUE(m.geometryDependent());  // inherited from the SDF layer
@@ -56,7 +58,8 @@ TEST(ComposeSdf, StarFillsCenterMissesCorners) {
           .height(100)
           .inset(0, 0, 100, 100)
           .absolute()
-          .fill(sdf::material(sdf::star(5, 2.4f), {.fill = {1, 0, 0, 1}}))));
+          .fill(Material::recipe(material::sdf::material(
+              material::sdf::star(5, 2.4f), {.fill = {1, 0, 0, 1}})))));
   host.frame();
   EXPECT_GT(SkColorGetR(host.pixel(50, 50)), 200u);  // body
   const SkColor corner = host.pixel(4, 4);           // outside the arms
@@ -71,8 +74,9 @@ TEST(ComposeSdf, GeometryStaticCachesAndPrunes) {
   // per-kind effect pointer, equal constants).
   Host host;
   auto tree = [] {
-    return box().child(box().width(80).height(60).fill(sdf::material(
-        sdf::roundBox(12), {.fill = {0, 1, 0, 1}, .borderWidth = 3})));
+    return box().child(box().width(80).height(60).fill(Material::recipe(
+        material::sdf::material(material::sdf::roundBox(12),
+                                {.fill = {0, 1, 0, 1}, .borderWidth = 3}))));
   };
   host.composer.render(tree());
   host.frame();  // records
@@ -88,8 +92,9 @@ TEST(ComposeSdf, ResizeReResolvesGeometry) {
   // uResolution bakes into the recording; a size change must re-resolve —
   // the materialSize invalidation, without any prop change.
   Host host;  // 200x200 surface
-  host.composer.render(box().child(box().grow(1).fill(
-      sdf::material(sdf::circle(), {.fill = {1, 0, 0, 1}}))));
+  host.composer.render(
+      box().child(box().grow(1).fill(Material::recipe(material::sdf::material(
+          material::sdf::circle(), {.fill = {1, 0, 0, 1}})))));
   host.frame();  // circle c=(100,100) r≈99
   host.composer.setSize({120, 120});
   host.frame();  // circle c=(60,60) r≈59
@@ -104,7 +109,7 @@ TEST(ComposeSdf, BoundGlowAnimatesWithinReserve) {
   // the glow breathes with the Output, no render() calls. The style's
   // glowRadius reserves the pad; the binding animates within it.
   choreograph::Output<float> glow{0.01f};
-  const sdf::Style style{
+  const material::sdf::Style style{
       .fill = {1, 0, 0, 1}, .glowRadius = 12, .glowColor = {1, 1, 1, 1}};
   Host host;
   host.composer.render(box().child(
@@ -113,11 +118,13 @@ TEST(ComposeSdf, BoundGlowAnimatesWithinReserve) {
           .height(100)
           .inset(0, 0, 100, 100)
           .absolute()
-          .fill(sdf::material(sdf::circle(), style).uniform("uGlowR", &glow))));
+          .fill(Material::recipe(
+                    material::sdf::material(material::sdf::circle(), style))
+                    .uniform("uGlowR", &glow))));
   host.frame();
   // Size the probe from the PUBLIC pad helper (no hand-copied formula):
   // circle radius = 50 − pad; sample 6px outside the edge.
-  const int probeX = (int)(50.0f + (50.0f - sdf::pad(style)) + 6.0f);
+  const int probeX = (int)(50.0f + (50.0f - material::sdf::pad(style)) + 6.0f);
   const uint32_t dim = SkColorGetR(host.pixel(probeX, 50));
   glow = 12.0f;  // brighten the falloff — no re-render
   host.frame();
@@ -127,41 +134,46 @@ TEST(ComposeSdf, BoundGlowAnimatesWithinReserve) {
 }
 
 TEST(ComposeSdf, PadSwallowingTheBoxWarnsOnceNamingMinBoxFor) {
-  // sdf::pad() is reserved INSIDE the node's box, so a small box with a
-  // large glow radius leaves almost no room for the shape and renders a
-  // speck. sdf::minBoxFor() gives the size that would fit, but an author who
-  // does not already know it exists has no way to find it — so the warning
-  // fires where the two numbers first meet, at resolve, and names it.
-  const sdf::Style style{
+  // material::sdf::pad() is reserved INSIDE the node's box, so a small box with
+  // a large glow radius leaves almost no room for the shape and renders a
+  // speck. material::sdf::minBoxFor() gives the size that would fit, but an
+  // author who does not already know it exists has no way to find it — so the
+  // warning fires where the two numbers first meet, at resolve, and names it.
+  const material::sdf::Style style{
       .fill = {1, 0, 0, 1}, .glowRadius = 20, .glowColor = {1, 1, 1, 1}};
-  ASSERT_GE(sdf::pad(style), 30.0f);  // the premise: pad >= half of 60
+  ASSERT_GE(material::sdf::pad(style),
+            30.0f);  // the premise: pad >= half of 60
   ::testing::internal::CaptureStderr();
   {
     Host host;
-    host.composer.render(box().child(
-        box().width(60).height(60).fill(sdf::material(sdf::circle(), style))));
+    host.composer.render(
+        box().child(box().width(60).height(60).fill(Material::recipe(
+            material::sdf::material(material::sdf::circle(), style)))));
     host.frame();
   }
   const std::string first = ::testing::internal::GetCapturedStderr();
-  EXPECT_NE(first.find("sdf::minBoxFor"), std::string::npos) << first;
+  EXPECT_NE(first.find("material::sdf::minBoxFor"), std::string::npos) << first;
   // Warned ONCE, process-wide: a second offender stays silent — the house
   // diagnostic contract (renderSlot's unknown-name warning), not a
   // per-frame log.
   ::testing::internal::CaptureStderr();
   {
     Host host;
-    host.composer.render(box().child(
-        box().width(50).height(50).fill(sdf::material(sdf::circle(), style))));
+    host.composer.render(
+        box().child(box().width(50).height(50).fill(Material::recipe(
+            material::sdf::material(material::sdf::circle(), style)))));
     host.frame();
   }
-  EXPECT_EQ(::testing::internal::GetCapturedStderr().find("sdf::minBoxFor"),
-            std::string::npos);
+  EXPECT_EQ(
+      ::testing::internal::GetCapturedStderr().find("material::sdf::minBoxFor"),
+      std::string::npos);
 }
 
 TEST(ComposePattern, CheckerTilesSeamlessly) {
   // A stock generator baked once and repeated: cells land where the tile
   // math says, across tile boundaries.
-  Pattern bg = patterns::checker(10, {1, 0, 0, 1}, {0, 0, 1, 1});
+  Pattern bg =
+      Pattern(material::pattern::checker(10, {1, 0, 0, 1}, {0, 0, 1, 1}));
   Host host;
   host.composer.render(box().child(box()
                                        .width(60)
@@ -180,7 +192,8 @@ TEST(ComposePattern, HeldPatternPrunesReseedRegenerates) {
   // The identity contract: a HELD pattern re-described is pointer-equal
   // (prunes, no rebake); .seed(n) drops the bake and shows up as exactly
   // one changed recipe.
-  Pattern grain = patterns::speckle(64, 40, 1, 3, {{1, 1, 1, 1}});
+  Pattern grain =
+      Pattern(material::pattern::speckle(64, 40, 1, 3, {{1, 1, 1, 1}}));
   Host host;
   auto tree = [&] {
     return box().child(box().width(80).height(80).fill(grain.material()));
@@ -202,7 +215,8 @@ TEST(ComposePattern, ReseedingACopyLeavesTheOriginalAlone) {
   // copy on write: editing it in place would drop the original's bake and
   // regenerate every element still drawing the old tile. Same aliasing
   // hazard, and same answer, as binding a uniform on a copied Material.
-  Pattern base = patterns::speckle(64, 40, 1, 3, {{1, 1, 1, 1}});
+  Pattern base =
+      Pattern(material::pattern::speckle(64, 40, 1, 3, {{1, 1, 1, 1}}));
   base.seed(11);
   auto plate = [&] {
     Host host(64, 64);
@@ -249,8 +263,8 @@ TEST(ComposePattern, Girih8IsTheRealStarAndCross) {
   // cross ground at the flanks of each edge midpoint, and the strap ribbon
   // running along the khatam chord. The pixel probes below name those three
   // places, so a pattern that merely looks ornamental will not pass.
-  patterns::GirihPalette pal = patterns::fezPalette();
-  Pattern zellige = patterns::girih8(24, pal);
+  material::kit::GirihPalette pal = material::kit::fezPalette();
+  Pattern zellige = material::kit::girih8(24, pal);
   const float s = 24 * (1 + 1.41421356f);  // tile spacing ≈ 57.9
   Host host;
   host.composer.render(box().child(box()
@@ -378,17 +392,17 @@ TEST(ComposePatterns, SequencePaintsColouredRunsAndPhaseSlides) {
   // hand-written pattern program each time.
   auto sample = [](float phase, int x) {
     Host host;
-    host.composer.render(
-        box().child(box()
-                        .width(120)
-                        .height(40)
-                        .inset(0, 0, 80, 160)
-                        .absolute()
-                        .fill(patterns::sequence({{10, {1, 0, 0, 1}},
-                                                  {10, {0, 1, 0, 1}},
-                                                  {10, {0, 0, 1, 1}}},
-                                                 phase)
-                                  .material())));
+    host.composer.render(box().child(
+        box()
+            .width(120)
+            .height(40)
+            .inset(0, 0, 80, 160)
+            .absolute()
+            .fill(Pattern(material::pattern::sequence({{10, {1, 0, 0, 1}},
+                                                       {10, {0, 1, 0, 1}},
+                                                       {10, {0, 0, 1, 1}}},
+                                                      phase))
+                      .material())));
     host.frame();
     return host.pixel(x, 20);
   };

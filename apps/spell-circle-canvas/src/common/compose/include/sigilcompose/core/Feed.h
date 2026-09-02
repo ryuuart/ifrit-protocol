@@ -29,9 +29,9 @@
  */
 
 #include <sigilcompose/core/Element.h>
-#include <sigilcompose/core/Env.h>
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/core/Measure.h>
+#include <sigilcore/reconcile/Env.h>
 
 #include <chrono>
 #include <cmath>
@@ -253,7 +253,7 @@ struct TextOptions {
  *  have to decide what a token IS for every component, and this library
  *  deliberately leaves that to the composition. */
 [[nodiscard]] inline Element feed(const TextRing& ring) {
-  return feed(ring, env::inheritedOr(TextOptions{}));
+  return feed(ring, core::env::inheritedOr(TextOptions{}));
 }
 
 /** How tall a text feed of @p rows rows is — `height()` with the base style

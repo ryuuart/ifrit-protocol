@@ -11,6 +11,7 @@
 #include <sigilcompose/instances/Instances.h>
 #include <sigilcompose/kit/Silhouettes.h>
 #include <sigilcompose/typography/TextFx.h>
+#include <sigilgeometry/kit/Silhouettes.h>
 
 #include <sigilmaterial/core/Material.h>
 
@@ -33,6 +34,8 @@
 #include <gtest/gtest.h>
 
 using namespace sigil::compose;
+
+namespace geometry = sigil::geometry;
 
 namespace {
 
@@ -449,11 +452,12 @@ TEST(ComposeGpu, TextPassReachKeepsContentInPlaceOnGraphite) {
   sigil::weave::TextStyle style;
   style.shaping.fontSize = 34.0f;
   style.paint.foreground.setColor(SK_ColorWHITE);
-  const TextEffect lift = fx::effect("gpu-lift", [](const GlyphInfo &, float, Rng &) {
-    GlyphMod m;
-    m.dy = -14.0f;
-    return m;
-  });
+  const TextEffect lift =
+      fx::effect("gpu-lift", [](const GlyphInfo &, float, sigil::core::noise::Mix64Stream &) {
+        GlyphMod m;
+        m.dy = -14.0f;
+        return m;
+      });
   struct NoParams {};
   const auto identity = std::make_shared<const sigil::material::Recipe>(
       sigil::material::Recipe::of<NoParams>("gpu.identity-pass")
@@ -540,15 +544,16 @@ TEST(ComposeGpu, ATurningRingAdvancesSmoothly) {
     std::vector<SkPoint> track;
     for (int i = 0; i < kFrames; ++i) {
       phase = 0.05f + kPhaseStep * (float)i;
-      composer.render(box().child(
-          text(u8"H", style)
-              .key("ring")
-              .width(kField)
-              .height(kField)
-              .absolute()
-              .left(0)
-              .top(0)
-              .onPath({.path = shapes::circle(), .at = &phase, .align = TextPath::Align::Center})));
+      composer.render(box().child(text(u8"H", style)
+                                      .key("ring")
+                                      .width(kField)
+                                      .height(kField)
+                                      .absolute()
+                                      .left(0)
+                                      .top(0)
+                                      .onPath({.path = sigil::geometry::shapes::circle(),
+                                               .at = &phase,
+                                               .align = TextPath::Align::Center})));
       SkBitmap bm = drawOnGpu(composer, kField, kField);
       ASSERT_FALSE(bm.isNull());
       double sx = 0, sy = 0, sw = 0;

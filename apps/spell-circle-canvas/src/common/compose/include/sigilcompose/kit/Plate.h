@@ -33,10 +33,11 @@ namespace sigil::compose::kit {
 [[nodiscard]] inline sigil::weave::StyleSet tinted(
     const sk_sp<SkTypeface>& face, float size, SkColor4f base,
     std::vector<std::pair<std::string, SkColor4f>> named) {
-  sigil::weave::StyleSet set(type({.face = face, .size = size, .color = base}));
+  sigil::weave::StyleSet set(
+      weave::type({.face = face, .size = size, .color = base}));
   for (auto& [name, color] : named)
     set.set(std::move(name),
-            type({.face = face, .size = size, .color = color}));
+            weave::type({.face = face, .size = size, .color = color}));
   return set;
 }
 

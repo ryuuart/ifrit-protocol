@@ -6,6 +6,7 @@
 #include <sigilcompose/Compose.h>
 #include <sigilcompose/kit/Layouts.h>
 #include <sigilcompose/kit/Silhouettes.h>
+#include <sigilgeometry/kit/Silhouettes.h>
 
 #include <cstdint>
 #include <string>
@@ -14,6 +15,8 @@
 #include "BenchSupport.h"
 
 using namespace sigil::compose;
+
+namespace geometry = sigil::geometry;
 using sigil::compose::bench::cellFill;
 using sigil::compose::bench::Host;
 using sigil::compose::bench::nodeLadder;
@@ -24,8 +27,8 @@ namespace {
 enum class ShapeIdentity { Comparable, RawCallable };
 
 /** A grid of shaped leaves whose silhouette is spelled either as a
- *  comparable `shapes::` value or as a bare callable, which the reconciler
- *  can never prove equal to the one it replaces. */
+ *  comparable `geometry::shapes::` value or as a bare callable, which the
+ * reconciler can never prove equal to the one it replaces. */
 Element shapedGrid(int count, ShapeIdentity identity) {
   auto root = box().row().wrapLines();
   for (int id = 0; id < count; ++id) {
@@ -35,7 +38,7 @@ Element shapedGrid(int count, ShapeIdentity identity) {
                        .height(24)
                        .fill(cellFill(id));
     if (identity == ShapeIdentity::Comparable) {
-      leaf.shape(shapes::star(5 + id % 3, 0.45f, 0.08f));
+      leaf.shape(geometry::shapes::star(5 + id % 3, 0.45f, 0.08f));
     } else {
       leaf.shape([](SkSize size) {
         SkPathBuilder path;
@@ -81,7 +84,7 @@ static void BM_HitTest_ShapedTree(benchmark::State& state) {
                       .key("blob" + std::to_string(i))
                       .width(60)
                       .height(60)
-                      .shape(shapes::blob((uint32_t)i, 0.3f, 7))
+                      .shape(geometry::shapes::blob((uint32_t)i, 0.3f, 7))
                       .rotate((float)i * 7.0f)
                       .fill(Fill::color({0.5f, 0.3f, 0.4f, 1})));
   host.composer.render(box().child(scatter));
@@ -111,7 +114,7 @@ static void BM_Draw_BlendField_Blobs(benchmark::State& state) {
     scatter.child(box()
                       .width(70)
                       .height(60)
-                      .shape(shapes::blob((uint32_t)(i + 1), 0.3f, 6))
+                      .shape(geometry::shapes::blob((uint32_t)(i + 1), 0.3f, 6))
                       .fill(Fill::color({0.4f, 0.2f, 0.4f, 0.5f}))
                       .blend(SkBlendMode::kPlus));
   host.composer.render(box().child(scatter));

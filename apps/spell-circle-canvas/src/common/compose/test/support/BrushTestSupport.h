@@ -11,6 +11,7 @@
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilcompose/typography/TextFx.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigilgeometry/kit/Silhouettes.h>
 
 #include "ShapeTestSupport.h"
 

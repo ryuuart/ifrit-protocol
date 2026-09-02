@@ -30,27 +30,13 @@
 #include <sigilcompose/brush/Decorations.h>  // PathFormat keylines in the presets
 #include <sigilcompose/core/Material.h>
 #include <sigilmaterial/kit/LayerStyles.h>
+#include <sigilmaterial/skia/Color.h>
 
 #include <array>
 
 #include "sigilcompose/Compose.h"
 
 namespace sigil::compose::styles {
-
-namespace detail {
-/** 0xRRGGBB → SkColor4f (straight alpha). */
-inline SkColor4f rgb(uint32_t hex, float a = 1.0f) {
-  return {(float)((hex >> 16u) & 0xffu) / 255.0f,
-          (float)((hex >> 8u) & 0xffu) / 255.0f, (float)(hex & 0xffu) / 255.0f,
-          a};
-}
-/** A SigilMaterial colour as Skia spells it. */
-inline SkColor4f sk(sigil::material::Color c) { return {c.r, c.g, c.b, c.a}; }
-/** A Skia colour as SigilMaterial spells it. */
-inline sigil::material::Color mat(SkColor4f c) {
-  return {c.fR, c.fG, c.fB, c.fA};
-}
-}  // namespace detail
 
 /** Drop shadow — `shadow` under the name it has in this family.
  *  Attach as the FIRST background, so everything else paints over it. */
@@ -186,7 +172,7 @@ using AquaGelOptions = sigil::material::kit::AquaGelOptions;
  *  dresses a pill of any dimensions; because it is value-comparable, a
  *  static button wearing it prunes without a memo. */
 struct AquaBody {
-  SkColor4f tint = detail::rgb(0x1E8FFF);
+  SkColor4f tint = hex(0x1E8FFF);
   AquaGelOptions opts;
 
   bool operator==(const AquaBody&) const = default;
@@ -220,14 +206,13 @@ struct AquaGloss {
  *  recess: `AquaGelOptions{.topBand = 1.0f}` is the deep cut, where the
  *  band under the top edge ends in a line and the lens reads as a second
  *  object laid on the pill. */
-LayerStyle aquaGel(SkColor4f tint = detail::rgb(0x1E8FFF),
-                   AquaGelOptions opts = {});
+LayerStyle aquaGel(SkColor4f tint = hex(0x1E8FFF), AquaGelOptions opts = {});
 
 /** The sphere-tuned bundle: a domed lens inset further from the edges and
  *  confined to the upper half, over a hotter bottom glow — what reads as
  *  round rather than as a pill. Pass the diameter so the halo reserves the
  *  right cull reach. */
-LayerStyle aquaOrb(SkColor4f tint = detail::rgb(0x1E8FFF),
+LayerStyle aquaOrb(SkColor4f tint = hex(0x1E8FFF),
                    float expectedDiameter = 128.0f);
 
 /** Which chrome the bundle wears — the kit's options: `palette`,

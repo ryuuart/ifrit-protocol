@@ -118,8 +118,8 @@ TEST(ComposeDecorations, EdgeSliceStrokesSelectedEdgesOnly) {
   Host host;
   host.composer.render(
       box().child(box().width(100).height(100).fill(blue()).foreground(
-          shapes::onEdges(shapes::Edge::Top | shapes::Edge::Left,
-                          stroke(8, Fill::color({1, 1, 1, 1}))))));
+          onEdges(geometry::path::Edge::Top | geometry::path::Edge::Left,
+                  stroke(8, Fill::color({1, 1, 1, 1}))))));
   host.frame();
   EXPECT_EQ(host.pixel(50, 1), SK_ColorWHITE);  // top edge stroked
   EXPECT_EQ(host.pixel(1, 50), SK_ColorWHITE);  // left edge stroked
@@ -134,8 +134,8 @@ TEST(ComposeDecorations, EdgesSplitRoundedCornersDiagonally) {
   Host host;
   host.composer.render(box().child(
       box().width(100).height(100).corners({30}).fill(blue()).foreground(
-          shapes::onEdges(shapes::Edge::Top,
-                          stroke(8, Fill::color({1, 1, 1, 1}))))));
+          onEdges(geometry::path::Edge::Top,
+                  stroke(8, Fill::color({1, 1, 1, 1}))))));
   host.frame();
   EXPECT_EQ(host.pixel(50, 1), SK_ColorWHITE);  // top run center
   EXPECT_EQ(host.pixel(1, 50), SK_ColorBLUE);   // left flank untouched
@@ -599,7 +599,7 @@ TEST(ComposeShapeValues, ABandWithAComparableSpinePrunes) {
   // rather than refusing any authored spine outright.
   Host host;
   auto tree = [] {
-    return box().child(band(shapes::circle(), across(8.0f))
+    return box().child(band(geometry::shapes::circle(), across(8.0f))
                            .width(100)
                            .height(100)
                            .fill(red()));

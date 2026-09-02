@@ -32,6 +32,7 @@
 #include <sigilcompose/core/Stroke.h>
 #include <sigilcompose/kit/Routers.h>
 #include <sigilcompose/kit/Silhouettes.h>
+#include <sigilgeometry/kit/Silhouettes.h>
 
 #include <cmath>
 #include <vector>
@@ -298,8 +299,8 @@ namespace shapes {
 /** A RING: the area between two concentric circles, under the plain name.
  *  Returns the annulus value itself, so it is comparable and a ring node
  *  prunes like any other shaped node. */
-inline sigil::compose::shapes::Annulus ring(float innerRatio = 0.6f) {
-  return sigil::compose::shapes::annulus(innerRatio);
+inline sigil::geometry::shapes::Annulus ring(float innerRatio = 0.6f) {
+  return sigil::geometry::shapes::annulus(innerRatio);
 }
 }  // namespace shapes
 

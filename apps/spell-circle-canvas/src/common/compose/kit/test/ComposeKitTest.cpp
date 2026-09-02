@@ -5,8 +5,8 @@
 //
 // Every case here is written to FAIL WITHOUT THE COMPONENT. Where the
 // component's claim is about agreement with the library (the arc-length
-// fraction of shapes::circle(), the per-side coordinate TextPath walks),
-// the test measures the LIBRARY'S OWN PATH rather than restating the
+// fraction of geometry::shapes::circle(), the per-side coordinate TextPath
+// walks), the test measures the LIBRARY'S OWN PATH rather than restating the
 // component's arithmetic — a test that recomputes the formula it is
 // checking proves only that the compiler is deterministic.
 //
@@ -22,6 +22,7 @@
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkSurface.h>
 #include <sigilcompose/kit/Kit.h>
+#include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
@@ -31,7 +32,9 @@
 
 using namespace sigil::compose;
 
+namespace geometry = sigil::geometry;
 namespace kit = sigil::compose::kit;
+namespace weave = sigil::weave;
 
 namespace {
 
@@ -129,12 +132,12 @@ TEST(KitFrame, EastAndCounterClockwiseAreTheOtherConventions) {
 TEST(KitFrame, FractionAgreesWithTheLibrarysOwnCircleContour) {
   // Frame::fraction() converts an angle in the frame's convention into the
   // arc-length fraction TextPath wants, and it can only be right if it knows
-  // where shapes::circle()'s contour starts — due east, not due north, so
-  // the conversion carries a −90° term. Asserting that against the path
-  // Shapes.h actually builds means a change to circle()'s start point fails
-  // here rather than silently rotating every label on a ring.
+  // where geometry::shapes::circle()'s contour starts — due east, not due
+  // north, so the conversion carries a −90° term. Asserting that against the
+  // path Shapes.h actually builds means a change to circle()'s start point
+  // fails here rather than silently rotating every label on a ring.
   const SkSize size{200, 200};
-  const SkPath circle = shapes::circle()(size);
+  const SkPath circle = sigil::geometry::shapes::circle()(size);
   const kit::Frame f{.centre = {100, 100}, .radius = 100};
   for (float th : {0.0f, 45.0f, 90.0f, 137.0f, 180.0f, 300.0f})
     EXPECT_TRUE(near(atFraction(circle, f.fraction(th)), f.at(th, 1.0f), 0.25f))
@@ -144,12 +147,14 @@ TEST(KitFrame, FractionAgreesWithTheLibrarysOwnCircleContour) {
 TEST(KitFrame, TheBaselinesDirectionIsNotTheFramesSense) {
   // A frame's `sense` and the winding of the path it labels are independent
   // facts, which is why fraction() takes the path direction as a separate
-  // argument rather than reading it off the frame. shapes::circle(kCCW)
-  // still STARTS due east — only the travel direction flips — so f = 0.25
-  // is 12 o'clock on the CCW contour and 6 o'clock on the CW one.
+  // argument rather than reading it off the frame.
+  // geometry::shapes::circle(kCCW) still STARTS due east — only the travel
+  // direction flips — so f = 0.25 is 12 o'clock on the CCW contour and 6
+  // o'clock on the CW one.
   const SkSize size{200, 200};
-  const SkPath cw = shapes::circle(SkPathDirection::kCW)(size);
-  const SkPath ccw = shapes::circle(SkPathDirection::kCCW)(size);
+  const SkPath cw = sigil::geometry::shapes::circle(SkPathDirection::kCW)(size);
+  const SkPath ccw =
+      sigil::geometry::shapes::circle(SkPathDirection::kCCW)(size);
   EXPECT_TRUE(near(atFraction(cw, 0.0f), atFraction(ccw, 0.0f), 0.25f))
       << "both contours start due east";
   EXPECT_FALSE(near(atFraction(cw, 0.25f), atFraction(ccw, 0.25f), 1.0f))
@@ -212,8 +217,9 @@ TEST(KitFrame, BoxIsTheSquareShapesInscribeIn) {
   EXPECT_FLOAT_EQ(b.centerX(), 50);
   EXPECT_FLOAT_EQ(b.centerY(), 60);
   // The circle inscribed in that box passes through at(θ, 0.5) — which is
-  // what makes `.rect(f.box(k))` + `shapes::circle()` correct.
-  const SkPath c = shapes::circle()(SkSize{b.width(), b.height()});
+  // what makes `.rect(f.box(k))` + `geometry::shapes::circle()` correct.
+  const SkPath c =
+      sigil::geometry::shapes::circle()(SkSize{b.width(), b.height()});
   SkPoint p = atFraction(c, f.fraction(0.0f));
   p.offset(b.fLeft, b.fTop);
   EXPECT_TRUE(near(p, f.at(0.0f, 0.5f), 0.2f));
@@ -333,7 +339,8 @@ TEST(KitTicks, ClosedAddsTheEndMarkAndSweepScopesTheLadder) {
 TEST(KitTicks, OutlineFormTakesHalfTheShorterSide) {
   // A non-square box must still produce a CIRCULAR ladder, or
   // Frame::fraction stops matching and every label on it slides.
-  const shapes::OutlineFn fn = kit::ticks({.divisions = 4, .mark = {0, 1}});
+  const sigil::geometry::shapes::OutlineFn fn =
+      kit::ticks({.divisions = 4, .mark = {0, 1}});
   const SkPath p = fn(SkSize{400, 100});
   const Contours c = walk(p);
   ASSERT_EQ(c.pieces.size(), 4u);
@@ -373,10 +380,10 @@ TEST(KitChords, SideKsMidpointIsAtExactlyKPlusHalfOverN) {
 }
 
 TEST(KitChords, PolygonCannotDoThat) {
-  // The positive control's negative half: shapes::polygon emits ONE closed
-  // contour, so a per-side coordinate does not exist on it. If this ever
+  // The positive control's negative half: geometry::shapes::polygon emits ONE
+  // closed contour, so a per-side coordinate does not exist on it. If this ever
   // starts passing, chords() has become redundant and should be deleted.
-  const SkPath poly = shapes::polygon(7)(SkSize{200, 200});
+  const SkPath poly = sigil::geometry::shapes::polygon(7)(SkSize{200, 200});
   EXPECT_EQ(walk(poly).pieces.size(), 1u);
 }
 
@@ -408,12 +415,11 @@ TEST(KitChords, StepMakesStarPolygonsAndGcdDecidesTheRingCount) {
 namespace {
 
 sigil::weave::TextStyle pixelStyle(float size) {
-  return sigil::compose::type(
-      {.face = sigil::compose::pickFace(
-           {"Menlo", "DejaVu Sans Mono", "Courier New"}),
-       .size = size,
-       .color = {1, 1, 1, 1},
-       .aliased = true});
+  return sigil::weave::type({.face = sigil::weave::ports::pickFace(
+                                 {"Menlo", "DejaVu Sans Mono", "Courier New"}),
+                             .size = size,
+                             .color = {1, 1, 1, 1},
+                             .aliased = true});
 }
 
 }  // namespace
@@ -448,9 +454,9 @@ TEST(KitPixelType, InkReallyDoesOverhangTheAdvanceSoThePadIsLoadBearing) {
   for (const char* family : {"Helvetica", "Times New Roman", "Zapfino",
                              "Apple Chancery", "Snell Roundhand"}) {
     sk_sp<SkTypeface> face =
-        sigil::compose::pickFace({family}, SkFontStyle::Italic());
+        sigil::weave::ports::pickFace({family}, SkFontStyle::Italic());
     if (!face) continue;
-    const auto style = sigil::compose::type(
+    const auto style = sigil::weave::type(
         {.face = face, .size = 12.0f, .color = {1, 1, 1, 1}, .aliased = true});
     for (const char8_t* s : {u8"Wf", u8"of", u8"lift", u8"Ay"}) {
       const kit::Coverage tight =
@@ -631,7 +637,7 @@ TEST(KitLegibility, DrawHaloedPutsGroundColourAroundTheInk) {
     sk_sp<SkSurface> s =
         SkSurfaces::Raster(SkImageInfo::MakeN32Premul(160, 40));
     s->getCanvas()->clear(SkColorSetARGB(255, 128, 128, 128));
-    SkFont font(sigil::compose::pickFace({"Menlo", "Courier New"}), 20.0f);
+    SkFont font(sigil::weave::ports::pickFace({"Menlo", "Courier New"}), 20.0f);
     if (halo)
       kit::drawHaloed(*s->getCanvas(), "HALO", {10, 28}, font,
                       SkColor4f{1, 1, 1, 1},

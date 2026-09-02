@@ -20,12 +20,12 @@ namespace sigil::compose {
 using namespace detail;
 
 float detail::Instance::resolveFloat(Slot slot,
-                                     const Animatable<float>& v) const {
+                                     const motion::Animatable<float>& v) const {
   return motion::resolveFloatAt(anims[slot].get(), v);
 }
 
-float detail::Instance::resolveFloatAt(const AnimatedFloat* anim,
-                                       const Animatable<float>& v) const {
+float detail::Instance::resolveFloatAt(
+    const AnimatedFloat* anim, const motion::Animatable<float>& v) const {
   return motion::resolveFloatAt(anim, v);
 }
 
@@ -132,7 +132,7 @@ void Composer::Impl::applyMountTransitions(Instance& inst,
   // node holds for, in seconds.
   const float carrySeconds = mountDelayCarryMs / 1000.0f;
   auto entranceAt = [&](std::unique_ptr<AnimatedFloat>& slotAnim,
-                        const Animatable<float>& v) {
+                        const motion::Animatable<float>& v) {
     motion::mountEntrance(ticker, slotAnim, v, carrySeconds);
   };
   // Every lane the node carries. A mount entrance asks nothing of a slot's
@@ -163,7 +163,7 @@ void Composer::Impl::applyMountTransitions(Instance& inst,
   // 0→1 progress, because the description holds an Animatable<Fill> and no
   // float for the table to point at.
   if (node.paint.fill) {
-    const Transitioned<Fill>* tr = node.paint.fill->transitioned();
+    const motion::Transitioned<Fill>* tr = node.paint.fill->transitioned();
     if (tr && tr->from && tr->from->kind == Fill::Kind::Color &&
         tr->value.kind == Fill::Kind::Color && !(*tr->from == tr->value)) {
       inst.fillFrom = *tr->from;
@@ -275,7 +275,7 @@ std::vector<float> detail::Instance::resolveGateValues() const {
   const ElementNode& node = *desc;
   if (!node.hasMasks()) return values;
   size_t slot = 0;
-  const auto push = [&](const Animatable<float>& v) {
+  const auto push = [&](const motion::Animatable<float>& v) {
     const AnimatedFloat* a =
         slot < maskAnims.size() ? maskAnims[slot].get() : nullptr;
     values.push_back(resolveFloatAt(a, v));

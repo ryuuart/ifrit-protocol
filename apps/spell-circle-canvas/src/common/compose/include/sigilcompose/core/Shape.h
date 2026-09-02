@@ -11,8 +11,10 @@
 
 #include <include/core/SkPath.h>
 #include <include/core/SkSize.h>
-#include <sigilcompose/core/Motion.h>
 #include <sigilcompose/core/Paint.h>
+#include <sigilmotion/Animation.h>
+#include <sigilmotion/schedule/Schedule.h>
+#include <sigilmotion/values/Animated.h>
 
 #include <any>
 #include <concepts>
@@ -194,7 +196,7 @@ struct MotionPath {
   Shape path;
   /** WHERE along it, as a fraction of total arc length. One float, so
    *  every `bind()`/`animate()` verb still applies. */
-  Animatable<float> t = 0.0f;
+  motion::Animatable<float> t = 0.0f;
   /** Auto-orient: how far ahead the node looks, in the same units as
    *  @ref t. Non-zero adds `atan2` of the chord `position(t + lookAhead)
    *  - position(t)` to `rotate()`, so a negative value faces BACK down
@@ -244,7 +246,7 @@ struct TextPath {
    *  content volatility all the same — the glyphs move inside the node's
    *  own box — so the node's recording is refused while the phase runs and
    *  taken again once it provably holds still. */
-  Animatable<float> at = 0.0f;
+  motion::Animatable<float> at = 0.0f;
   enum class Align { Start, Center, End };
   Align align = Align::Start;
   /** Perpendicular offset in px, positive to the LEFT of travel — which on

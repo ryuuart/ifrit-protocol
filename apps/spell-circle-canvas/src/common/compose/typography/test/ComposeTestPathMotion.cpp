@@ -67,7 +67,7 @@ constexpr float kPhaseStep = 1.0f / 2400.0f;
 
 constexpr int kFrames = 90;
 
-Element ringAt(Animatable<float> at, float pixelSize) {
+Element ringAt(sigil::motion::Animatable<float> at, float pixelSize) {
   return box().child(text(u8"H", whiteStyle(pixelSize))
                          .key("ring")
                          .width(kField)
@@ -75,7 +75,7 @@ Element ringAt(Animatable<float> at, float pixelSize) {
                          .absolute()
                          .left(0)
                          .top(0)
-                         .onPath({.path = shapes::circle(),
+                         .onPath({.path = geometry::shapes::circle(),
                                   .at = std::move(at),
                                   .align = TextPath::Align::Center}));
 }
@@ -108,7 +108,7 @@ Element ringWith(float at, float pixelSize, Track track) {
                          .absolute()
                          .left(0)
                          .top(0)
-                         .onPath({.path = shapes::circle(),
+                         .onPath({.path = geometry::shapes::circle(),
                                   .at = at,
                                   .align = TextPath::Align::Center})
                          .fx(std::move(track)));
@@ -367,7 +367,7 @@ TEST(ComposePathMotion, ATrackRotationTurnsOnTheSameLadderAsTheBaseline) {
     const float sweep = (float)kSteps * 360.0f / (16.0f * size);
     const TextEffect turn(
         "turn", {},
-        [sweep](const GlyphInfo&, float t, sigil::compose::Rng&) {
+        [sweep](const GlyphInfo&, float t, sigil::core::noise::Mix64Stream&) {
           GlyphMod m;
           m.rotateDeg = sweep * t;
           return m;
@@ -388,7 +388,7 @@ TEST(ComposePathMotion, ATrackRotationTurnsOnTheSameLadderAsTheBaseline) {
                           .absolute()
                           .left(0)
                           .top(0)
-                          .onPath({.path = shapes::circle(),
+                          .onPath({.path = geometry::shapes::circle(),
                                    .at = &phase,
                                    .align = TextPath::Align::Center})
                           .fx({.effect = turn, .progress = &progress})));

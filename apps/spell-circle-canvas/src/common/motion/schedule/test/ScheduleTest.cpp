@@ -204,3 +204,11 @@ TEST(Spread, EveryFieldParticipatesInEquality) {
      ...);
   }(std::make_index_sequence<sigil::core::kFieldCount<Spread>>{});
 }
+
+TEST(Spread, CuesSetsTheTableOnASpreadAlreadyInHand) {
+  Spread spec = Spread{.durationMs = 180}.cues({0, 340, 720});
+  EXPECT_EQ(spec.cueMs, (std::vector<float>{0, 340, 720}));
+  EXPECT_FLOAT_EQ(spec.durationMs, 180.0f);
+  // Same value as writing the field, which is what makes it sugar.
+  EXPECT_EQ(spec, (Spread{.cueMs = {0, 340, 720}, .durationMs = 180}));
+}

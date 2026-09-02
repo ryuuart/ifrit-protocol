@@ -121,8 +121,8 @@ void GlyphStructure::build(const sigil::weave::ParagraphLayout& layout,
     storyUnitCounts[(size_t)Unit::Sentence] =
         (uint32_t)paragraph.sentenceStarts().size();
     storyUnitCounts[(size_t)Unit::Line] = textScope.storyLines
-                                             ? textScope.storyLines
-                                             : unitCounts[(size_t)Unit::Line];
+                                              ? textScope.storyLines
+                                              : unitCounts[(size_t)Unit::Line];
   }
 
   // The two per-word facts an effect reads (which letter of its word, of
@@ -742,7 +742,7 @@ TextEffect seq(std::vector<Phase> phases) {
   const bool displaces = anyDisplaces(operands);
   return TextEffect::composite(
       "seq", params, operands,
-      [phases](const GlyphInfo& g, float t, Rng&) {
+      [phases](const GlyphInfo& g, float t, core::noise::Mix64Stream&) {
         // Which window `t` falls in, and where inside it.
         const auto windowAt = [&](size_t i) {
           const float begin = i == 0 ? 0.0f : phases[i - 1].endsAt();
@@ -759,7 +759,8 @@ TextEffect seq(std::vector<Phase> phases) {
         const float width = end - begin;
         const float local =
             width > 0 ? std::clamp((t - begin) / width, 0.0f, 1.0f) : 1.0f;
-        Rng own(compose::detail::glyphSeed(g, (uint32_t)index));
+        core::noise::Mix64Stream own(
+            compose::detail::glyphSeed(g, (uint32_t)index));
         GlyphMod mod = phases[index].effect()(g, local, own);
         // The crossfade window sits at the END of this phase, so at the
         // joint the blend has already reached the next phase's own start.
@@ -767,7 +768,8 @@ TextEffect seq(std::vector<Phase> phases) {
         if (overlap > 0 && index + 1 < phases.size() && t > end - overlap) {
           const float w =
               std::clamp((t - (end - overlap)) / overlap, 0.0f, 1.0f);
-          Rng nextRng(compose::detail::glyphSeed(g, (uint32_t)index + 1));
+          core::noise::Mix64Stream nextRng(
+              compose::detail::glyphSeed(g, (uint32_t)index + 1));
           const GlyphMod next = phases[index + 1].effect()(g, 0.0f, nextRng);
           mod = compose::detail::lerpMod(mod, next, w);
         }
@@ -872,8 +874,8 @@ TextEffect keys(std::vector<Key> table, choreograph::EaseFn ease) {
   const bool displaces = keysDisplace(table);
   return TextEffect(
       "keys", std::move(params),
-      [table = std::move(table), ease = std::move(ease)](const GlyphInfo&,
-                                                         float t, Rng&) {
+      [table = std::move(table), ease = std::move(ease)](
+          const GlyphInfo&, float t, core::noise::Mix64Stream&) {
         t = std::clamp(t, 0.0f, 1.0f);
         if (t <= table.front().at) return table.front().mod;
         for (size_t i = 1; i < table.size(); ++i) {
@@ -903,7 +905,8 @@ TextEffect hold(TextEffect effect) {
   std::vector<TextEffect> operands{effect};
   return TextEffect::composite(
       "hold", {}, std::move(operands),
-      [effect = std::move(effect)](const GlyphInfo& g, float t, Rng& rng) {
+      [effect = std::move(effect)](const GlyphInfo& g, float t,
+                                   core::noise::Mix64Stream& rng) {
         // Local time is CLAMPED at both ends, so a unit whose beat has not
         // opened is handed 0 and one whose beat is over is handed 1 — which
         // makes t at its floor the whole signal there is that a beat is
@@ -937,7 +940,7 @@ TextEffect scramble(std::u32string charset, int steps) {
   return TextEffect(
       "scramble", std::move(params),
       [charset = std::move(charset), ticks](const GlyphInfo&, float t,
-                                            Rng& rng) {
+                                            core::noise::Mix64Stream& rng) {
         GlyphMod mod;
         if (charset.empty()) return mod;
         // ONE draw from the glyph's own stream, and everything below is
@@ -972,10 +975,12 @@ TextEffect mix(std::vector<TextEffect> effects) {
   std::vector<TextEffect> operands = effects;
   return TextEffect::composite(
       "mix", {}, std::move(operands),
-      [effects = std::move(effects)](const GlyphInfo& g, float t, Rng&) {
+      [effects = std::move(effects)](const GlyphInfo& g, float t,
+                                     core::noise::Mix64Stream&) {
         GlyphMod out;
         for (size_t i = 0; i < effects.size(); ++i) {
-          Rng own(compose::detail::glyphSeed(g, (uint32_t)i));
+          core::noise::Mix64Stream own(
+              compose::detail::glyphSeed(g, (uint32_t)i));
           compose::detail::compose(out, effects[i](g, t, own));
         }
         return out;

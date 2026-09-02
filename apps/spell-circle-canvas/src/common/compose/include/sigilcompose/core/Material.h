@@ -386,7 +386,7 @@ class Material {
    *  hold the block beside your model, not in the describe. Size-checked
    *  at store against the declared array's total float count. */
   Material& uniform(std::string name,
-                    std::shared_ptr<const UniformBlock> block);
+                    std::shared_ptr<const material::UniformBlock> block);
   /** A LIVE SCALAR: the value is read at every paint, so the material is
    *  live and its node volatile for as long as the binding is attached.
    *  An animatable, so the arithmetic that shapes the number — a wrapped

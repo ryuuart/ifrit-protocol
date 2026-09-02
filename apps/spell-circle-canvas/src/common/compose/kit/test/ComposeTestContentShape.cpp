@@ -81,7 +81,7 @@ TEST(ComposeDerive, FlowAroundFollowsACircleSilhouette) {
   Host boxed(360, 460), disc(360, 460);
   boxed.composer.render(flowScene(obstacleBox({}), 6));
   boxed.frame();
-  disc.composer.render(flowScene(obstacleBox(shapes::circle()), 6));
+  disc.composer.render(flowScene(obstacleBox(geometry::shapes::circle()), 6));
   disc.frame();
 
   EXPECT_LT(flowedHeight(disc, "body"), flowedHeight(boxed, "body"));
@@ -100,7 +100,7 @@ TEST(ComposeDerive, FlowAroundFollowsAStarSilhouette) {
   Host boxed(360, 460), star(360, 460);
   boxed.composer.render(flowScene(obstacleBox({}), 6));
   boxed.frame();
-  star.composer.render(flowScene(obstacleBox(shapes::star(5)), 6));
+  star.composer.render(flowScene(obstacleBox(geometry::shapes::star(5)), 6));
   star.frame();
 
   EXPECT_LT(flowedHeight(star, "body"), flowedHeight(boxed, "body"));
@@ -118,9 +118,9 @@ TEST(ComposeDerive, FlowAroundMarginHoldsOffTheSilhouette) {
   // standoff from whatever edge is being subtracted. A wider one buys the
   // paragraph less room, never more.
   Host tight(360, 460), wide(360, 460);
-  tight.composer.render(flowScene(obstacleBox(shapes::circle()), 2));
+  tight.composer.render(flowScene(obstacleBox(geometry::shapes::circle()), 2));
   tight.frame();
-  wide.composer.render(flowScene(obstacleBox(shapes::circle()), 26));
+  wide.composer.render(flowScene(obstacleBox(geometry::shapes::circle()), 26));
   wide.frame();
   EXPECT_LT(flowedHeight(tight, "body"), flowedHeight(wide, "body"));
 }
@@ -135,7 +135,7 @@ TEST(ComposeDerive, FlowAroundSilhouetteTracksAMovingTarget) {
                    .height(160)
                    .left(left)
                    .top(40)
-                   .shape(shapes::circle())
+                   .shape(geometry::shapes::circle())
                    .fill(Fill::color({0, 0.4f, 0, 1})))
         .child(box()
                    .inset(0)
@@ -188,18 +188,22 @@ TEST(Shape, RoundedOutlineCutsSharpCorners) {
   };
   // Nested (the root always fills the viewport); radius 20 pulls the
   // 100x100 diamond's top vertex from y=0 down to y≈7.
-  host.composer.render(box().child(box()
-                                       .width(100)
-                                       .height(100)
-                                       .shape(shapes::rounded(diamond, 20))
-                                       .fill(red())));
+  host.composer.render(
+      box().child(box()
+                      .width(100)
+                      .height(100)
+                      .shape(geometry::shapes::rounded(diamond, 20))
+                      .fill(red())));
   host.frame();
   EXPECT_EQ(host.pixel(50, 50), SK_ColorRED);   // body intact
   EXPECT_EQ(host.pixel(50, 3), SK_ColorBLACK);  // sharp tip rounded away
   EXPECT_EQ(host.pixel(50, 12), SK_ColorRED);   // rounded apex below y≈7
 
-  host.composer.render(box().child(
-      box().width(100).height(100).shape(shapes::star(5)).fill(red())));
+  host.composer.render(box().child(box()
+                                       .width(100)
+                                       .height(100)
+                                       .shape(geometry::shapes::star(5))
+                                       .fill(red())));
   host.frame();
   EXPECT_EQ(host.pixel(50, 50), SK_ColorRED);    // star body
   EXPECT_NE(host.pixel(50, 3), SK_ColorBLACK);   // sharp top point present
@@ -222,16 +226,18 @@ TEST(Shape, PerCornerRadiiIndependent) {
 
 TEST(Shape, PolygonAndSquircleSilhouettes) {
   Host host;
-  host.composer.render(
-      box()
-          .row()
-          .child(
-              box().width(90).height(90).shape(shapes::polygon(6)).fill(red()))
-          .child(box()
-                     .width(90)
-                     .height(90)
-                     .shape(shapes::squircle(4))
-                     .fill(green())));
+  host.composer.render(box()
+                           .row()
+                           .child(box()
+                                      .width(90)
+                                      .height(90)
+                                      .shape(geometry::shapes::polygon(6))
+                                      .fill(red()))
+                           .child(box()
+                                      .width(90)
+                                      .height(90)
+                                      .shape(geometry::shapes::squircle(4))
+                                      .fill(green())));
   host.frame();
   EXPECT_EQ(host.pixel(45, 45), SK_ColorRED);     // hexagon body
   EXPECT_EQ(host.pixel(2, 2), SK_ColorBLACK);     // hexagon corner cut
@@ -257,7 +263,7 @@ TEST(ComposeShapeValues, AStockGeneratorShapePrunes) {
     return box().child(box()
                            .width(100)
                            .height(100)
-                           .shape(shapes::star(5, 0.5f, 0.12f))
+                           .shape(geometry::shapes::star(5, 0.5f, 0.12f))
                            .fill(red()));
   };
   host.composer.render(tree());
@@ -276,8 +282,11 @@ TEST(ComposeShapeValues, AChangedParameterPatchesAndMovesPixels) {
   // different parameter is a different value, patches, and redraws.
   Host host;
   auto tree = [](int sides) {
-    return box().child(
-        box().width(100).height(100).shape(shapes::polygon(sides)).fill(red()));
+    return box().child(box()
+                           .width(100)
+                           .height(100)
+                           .shape(geometry::shapes::polygon(sides))
+                           .fill(red()));
   };
   host.composer.render(tree(4));  // diamond: box corners empty
   host.frame();
@@ -339,50 +348,56 @@ TEST(ComposeShapeValues, CopiesOfOneShapeCompareEqualEvenWhenRaw) {
 TEST(ComposeShapeValues, WrappersAreComparableWhenTheirInnerIs) {
   // rounded() composes: value in, value out. Wrapping the escape hatch
   // stays the escape hatch.
-  EXPECT_TRUE(Shape(shapes::rounded(shapes::star(5), 8)) ==
-              Shape(shapes::rounded(shapes::star(5), 8)));
-  EXPECT_FALSE(Shape(shapes::rounded(shapes::star(5), 8)) ==
-               Shape(shapes::rounded(shapes::star(5), 9)));
-  EXPECT_FALSE(Shape(shapes::rounded(shapes::star(5), 8)) ==
-               Shape(shapes::rounded(shapes::star(6), 8)));
+  EXPECT_TRUE(Shape(geometry::shapes::rounded(geometry::shapes::star(5), 8)) ==
+              Shape(geometry::shapes::rounded(geometry::shapes::star(5), 8)));
+  EXPECT_FALSE(Shape(geometry::shapes::rounded(geometry::shapes::star(5), 8)) ==
+               Shape(geometry::shapes::rounded(geometry::shapes::star(5), 9)));
+  EXPECT_FALSE(Shape(geometry::shapes::rounded(geometry::shapes::star(5), 8)) ==
+               Shape(geometry::shapes::rounded(geometry::shapes::star(6), 8)));
   auto lambda = [](SkSize s) {
     SkPathBuilder b;
     b.addRect(SkRect::MakeWH(s.width(), s.height()));
     return b.detach();
   };
-  EXPECT_FALSE(Shape(shapes::rounded(lambda, 8)) ==
-               Shape(shapes::rounded(lambda, 8)));
+  EXPECT_FALSE(Shape(geometry::shapes::rounded(lambda, 8)) ==
+               Shape(geometry::shapes::rounded(lambda, 8)));
 }
 
 TEST(ComposeShapeValues, SvgShapesAreValuesNow) {
   // svg() parses its d-string once into an SkPath, and SkPath has structural
   // equality — so an svg() silhouette compares by geometry and prunes,
   // unlike the raw-callable hatch above.
-  EXPECT_TRUE(Shape(shapes::svg("M0 0L10 0L10 10Z")) ==
-              Shape(shapes::svg("M0 0L10 0L10 10Z")));
-  EXPECT_FALSE(Shape(shapes::svg("M0 0L10 0L10 10Z")) ==
-               Shape(shapes::svg("M0 0L10 0L5 10Z")));
+  EXPECT_TRUE(Shape(geometry::shapes::svg("M0 0L10 0L10 10Z")) ==
+              Shape(geometry::shapes::svg("M0 0L10 0L10 10Z")));
+  EXPECT_FALSE(Shape(geometry::shapes::svg("M0 0L10 0L10 10Z")) ==
+               Shape(geometry::shapes::svg("M0 0L10 0L5 10Z")));
 }
 
 TEST(ComposeShapeValues, KeyedParametricIsAValueUnkeyedIsNot) {
   auto fig8 = [](float t) { return SkPoint{std::sin(2 * t), std::sin(t)}; };
   // Unkeyed: the callable is the identity and cannot compare.
-  EXPECT_FALSE(Shape(shapes::parametric(fig8, 0, 6.2832f, 720)) ==
-               Shape(shapes::parametric(fig8, 0, 6.2832f, 720)));
+  EXPECT_FALSE(Shape(geometry::shapes::parametric(fig8, 0, 6.2832f, 720)) ==
+               Shape(geometry::shapes::parametric(fig8, 0, 6.2832f, 720)));
   // Keyed: (key, window, samples) is the identity — the author's contract
   // that one key names one curve.
-  EXPECT_TRUE(Shape(shapes::parametric("fig8", fig8, 0, 6.2832f, 720)) ==
-              Shape(shapes::parametric("fig8", fig8, 0, 6.2832f, 720)));
-  EXPECT_FALSE(Shape(shapes::parametric("fig8", fig8, 0, 6.2832f, 720)) ==
-               Shape(shapes::parametric("fig8", fig8, 0, 6.2832f, 360)));
-  EXPECT_FALSE(Shape(shapes::parametric("fig8", fig8, 0, 6.2832f, 720)) ==
-               Shape(shapes::parametric("orbit", fig8, 0, 6.2832f, 720)));
+  EXPECT_TRUE(
+      Shape(geometry::shapes::parametric("fig8", fig8, 0, 6.2832f, 720)) ==
+      Shape(geometry::shapes::parametric("fig8", fig8, 0, 6.2832f, 720)));
+  EXPECT_FALSE(
+      Shape(geometry::shapes::parametric("fig8", fig8, 0, 6.2832f, 720)) ==
+      Shape(geometry::shapes::parametric("fig8", fig8, 0, 6.2832f, 360)));
+  EXPECT_FALSE(
+      Shape(geometry::shapes::parametric("fig8", fig8, 0, 6.2832f, 720)) ==
+      Shape(geometry::shapes::parametric("orbit", fig8, 0, 6.2832f, 720)));
   // The named families carry their identity in their parameters.
-  EXPECT_TRUE(Shape(shapes::lissajous(3, 2)) == Shape(shapes::lissajous(3, 2)));
-  EXPECT_FALSE(Shape(shapes::lissajous(3, 2)) ==
-               Shape(shapes::lissajous(5, 4)));
-  EXPECT_TRUE(Shape(shapes::rose(3)) == Shape(shapes::rose(3)));
-  EXPECT_FALSE(Shape(shapes::spiral(3.0f)) == Shape(shapes::spiral(4.0f)));
+  EXPECT_TRUE(Shape(geometry::shapes::lissajous(3, 2)) ==
+              Shape(geometry::shapes::lissajous(3, 2)));
+  EXPECT_FALSE(Shape(geometry::shapes::lissajous(3, 2)) ==
+               Shape(geometry::shapes::lissajous(5, 4)));
+  EXPECT_TRUE(Shape(geometry::shapes::rose(3)) ==
+              Shape(geometry::shapes::rose(3)));
+  EXPECT_FALSE(Shape(geometry::shapes::spiral(3.0f)) ==
+               Shape(geometry::shapes::spiral(4.0f)));
 }
 
 TEST(ComposeShapeValues, TheChevreulScenarioKeepsItsBake) {
@@ -396,7 +411,7 @@ TEST(ComposeShapeValues, TheChevreulScenarioKeepsItsBake) {
     return box().child(box()
                            .width(120)
                            .height(120)
-                           .shape(shapes::circle())
+                           .shape(geometry::shapes::circle())
                            .fill(red())
                            .cache(Cache::Texture));
   };
@@ -418,7 +433,7 @@ TEST(ComposeQueries, HitTestHonorsShapeAndRotation) {
                                       .key("star")
                                       .width(100)
                                       .height(100)
-                                      .shape(shapes::star(5))
+                                      .shape(geometry::shapes::star(5))
                                       .fill(red()))
                            .child(box()
                                       .key("spun")
@@ -477,7 +492,7 @@ TEST(ComposeLayouts, AlongPathFollowsAStarContour) {
     beads.push_back(
         box().width(6).height(6).fill(green()).key("b" + std::to_string(i)));
   host.composer.render(
-      box().child(layout(layouts::AlongPath{.path = shapes::star(5)})
+      box().child(layout(layouts::AlongPath{.path = geometry::shapes::star(5)})
                       .width(180)
                       .height(180)
                       .children(beads)));

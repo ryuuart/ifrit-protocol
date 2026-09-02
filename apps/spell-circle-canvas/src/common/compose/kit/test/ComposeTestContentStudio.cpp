@@ -17,7 +17,8 @@ namespace {
  *  to drive a single GlyphMod field from a test. */
 TextEffect fixed(std::string key, GlyphMod mod) {
   return fx::effect(
-      std::move(key), [mod](const GlyphInfo&, float, Rng&) { return mod; },
+      std::move(key),
+      [mod](const GlyphInfo&, float, core::noise::Mix64Stream&) { return mod; },
       /*reach=*/120.0f);
 }
 

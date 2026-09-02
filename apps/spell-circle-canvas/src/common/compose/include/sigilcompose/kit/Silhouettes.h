@@ -1,43 +1,34 @@
 #pragma once
 
 /** @file
- * The silhouette shelf, spelled where compose spells it: the geometry
- * kit's stock generators under `shapes::`, plus the two adaptors that
- * only mean anything against a node — the ones that REPLACE the outline a
- * decoration runs on.
+ * The two outline adaptors: the ones that REPLACE the outline a
+ * decoration runs on, which is the only thing about a silhouette that
+ * needs a node.
  *
- *     .shape(shapes::star(5))
- *     .decorate(shapes::onEdges(Edge::Top, PathFormat{…}))
+ *     .shape(geometry::shapes::star(5))
+ *     .decorate(onEdges(geometry::path::Edge::Top, PathFormat{…}))
  *
- * The generators themselves know nothing of a node: they are values with
- * `path(SkSize)` and `operator==`, and `Element::shape()` takes any of
- * them, or any of yours built the same way. What lives here instead of in
- * geometry is what reads a PaintContext.
+ * The silhouettes themselves are SigilGeometry's
+ * (`<sigilgeometry/kit/Silhouettes.h>`): values with `path(SkSize)` and
+ * `operator==`, which `Element::shape()` takes, as it takes any of yours
+ * built the same way. What lives here instead is what reads a
+ * PaintContext.
  */
 
 #include <sigilcompose/Compose.h>
-#include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Edges.h>
 
 #include <string>
 #include <utility>
 #include <vector>
 
-namespace sigil::compose::shapes {
-
-/** The stock catalog, which is the geometry library's — every generator,
- *  curve and corner treatment, comparable and callable over a size. */
-using namespace ::sigil::geometry::shapes;
-
-/** Which box edges a per-edge treatment applies to. */
-using Edge = geometry::path::Edge;
-using geometry::path::has;
+namespace sigil::compose {
 
 /** Decoration adaptor: runs @p inner with the PaintContext outline
  *  replaced by the selected edges — any primitive (PathFormat,
  *  ContourWalk, custom programs) becomes a per-edge treatment. */
 struct EdgeSlice {
-  Edge mask = Edge::All;
+  geometry::path::Edge mask = geometry::path::Edge::All;
   Decoration inner{PaintProgram{}};
   float step = 3.0f;
 
@@ -59,7 +50,8 @@ struct EdgeSlice {
   }
 };
 
-inline EdgeSlice onEdges(Edge mask, Decoration inner, float step = 3.0f) {
+inline EdgeSlice onEdges(geometry::path::Edge mask, Decoration inner,
+                         float step = 3.0f) {
   return EdgeSlice{mask, std::move(inner), step};
 }
 
@@ -93,9 +85,4 @@ inline Inset inset(float px, Decoration inner) {
   return Inset{px, std::move(inner)};
 }
 
-/** The sub-contours of a resolved outline that face the selected box
- *  edges — the arithmetic `onEdges` runs, for a consumer that wants the
- *  path rather than the decoration. */
-using geometry::path::edges;
-
-}  // namespace sigil::compose::shapes
+}  // namespace sigil::compose

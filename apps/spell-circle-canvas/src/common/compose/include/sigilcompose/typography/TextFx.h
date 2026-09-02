@@ -79,7 +79,7 @@ inline constexpr float kNominalSizePx = 96.0f;
 [[nodiscard]] inline TextEffect rise(float distancePx = 26) {
   return TextEffect(
       "rise", {distancePx},
-      [distancePx](const GlyphInfo&, float t, Rng&) {
+      [distancePx](const GlyphInfo&, float t, core::noise::Mix64Stream&) {
         GlyphMod m;
         m.dy = (1 - choreograph::easeOutExpo(t)) * distancePx;
         m.alpha = std::min(1.0f, t / 0.35f);
@@ -92,7 +92,7 @@ inline constexpr float kNominalSizePx = 96.0f;
 [[nodiscard]] inline TextEffect slide(float distancePx = -32) {
   return TextEffect(
       "slide", {distancePx},
-      [distancePx](const GlyphInfo&, float t, Rng&) {
+      [distancePx](const GlyphInfo&, float t, core::noise::Mix64Stream&) {
         GlyphMod m;
         m.dx = (1 - choreograph::easeOutCubic(t)) * distancePx;
         m.alpha = std::min(1.0f, t * 1.7f);
@@ -108,7 +108,8 @@ inline constexpr float kNominalSizePx = 96.0f;
   const float peak = 1.0f + std::max(overshoot, 0.0f) * 0.1f;
   return TextEffect(
       "pop", {fromScale, overshoot},
-      [fromScale, overshoot](const GlyphInfo&, float t, Rng&) {
+      [fromScale, overshoot](const GlyphInfo&, float t,
+                             core::noise::Mix64Stream&) {
         GlyphMod m;
         m.scale = fromScale +
                   (1 - fromScale) * choreograph::easeOutBack(t, overshoot);
@@ -122,7 +123,7 @@ inline constexpr float kNominalSizePx = 96.0f;
 [[nodiscard]] inline TextEffect spinIn(float degrees = 70, float risePx = 14) {
   return TextEffect(
       "spinIn", {degrees, risePx},
-      [degrees, risePx](const GlyphInfo&, float t, Rng&) {
+      [degrees, risePx](const GlyphInfo&, float t, core::noise::Mix64Stream&) {
         const float e = choreograph::easeOutCubic(t);
         GlyphMod m;
         m.rotateDeg = (1 - e) * degrees;
@@ -140,7 +141,7 @@ inline constexpr float kNominalSizePx = 96.0f;
 [[nodiscard]] inline TextEffect typeOn() {
   return TextEffect(
       "typeOn", {},
-      [](const GlyphInfo&, float t, Rng&) {
+      [](const GlyphInfo&, float t, core::noise::Mix64Stream&) {
         GlyphMod m;
         m.alpha = t >= 0.5f ? 1.0f : 0.0f;
         return m;
@@ -159,7 +160,8 @@ inline constexpr float kNominalSizePx = 96.0f;
                                          float phaseRadPerGlyph = 0.5f) {
   return TextEffect(
       "waveLoop", {amplitudeEm, phaseRadPerGlyph},
-      [amplitudeEm, phaseRadPerGlyph](const GlyphInfo& g, float t, Rng&) {
+      [amplitudeEm, phaseRadPerGlyph](const GlyphInfo& g, float t,
+                                      core::noise::Mix64Stream&) {
         GlyphMod m;
         m.dy = std::sin(t * 6.2831853f - (float)g.index * phaseRadPerGlyph) *
                amplitudeEm * (g.fontSize > 0 ? g.fontSize : 16.0f);
@@ -170,13 +172,15 @@ inline constexpr float kNominalSizePx = 96.0f;
 
 /** Seeded scatter: every glyph flies in from its own random offset inside
  *  a `radiusPx` disc, with its own random lean. The draw is stable across
- *  frames and relayouts (Rng is seeded from the glyph's identity), which
+ *  frames and relayouts (the stream is seeded from the glyph's
+ *  identity), which
  *  is what lets a settled scatter cache instead of jittering forever. */
 [[nodiscard]] inline TextEffect scatter(float radiusPx = 40,
                                         float leanDeg = 24) {
   return TextEffect(
       "scatter", {radiusPx, leanDeg},
-      [radiusPx, leanDeg](const GlyphInfo&, float t, Rng& rng) {
+      [radiusPx, leanDeg](const GlyphInfo&, float t,
+                          core::noise::Mix64Stream& rng) {
         const float dx = rng.signedUnit() * radiusPx;
         const float dy = rng.signedUnit() * radiusPx;
         const float lean = rng.signedUnit() * leanDeg;
@@ -202,7 +206,8 @@ inline constexpr float kNominalSizePx = 96.0f;
       "variableAxisSweep",
       {(float)(unsigned char)tag[0], (float)(unsigned char)tag[1],
        (float)(unsigned char)tag[2], (float)(unsigned char)tag[3], from, to},
-      [coordinate, from, to](const GlyphInfo&, float t, Rng&) {
+      [coordinate, from, to](const GlyphInfo&, float t,
+                             core::noise::Mix64Stream&) {
         GlyphMod m;
         sigil::weave::FontVariation driven = coordinate;
         driven.value = from + (to - from) * std::clamp(t, 0.0f, 1.0f);
@@ -245,7 +250,7 @@ inline constexpr float kNominalSizePx = 96.0f;
                          to.fB > 0 ? from.fB / to.fB : 1.0f, 1.0f};
   return TextEffect(
       "tint", {from.fR, from.fG, from.fB, from.fA, to.fR, to.fG, to.fB, to.fA},
-      [origin](const GlyphInfo&, float t, Rng&) {
+      [origin](const GlyphInfo&, float t, core::noise::Mix64Stream&) {
         const float e = motion::ease::smoothstep(t);
         GlyphMod m;
         m.colorMul = {origin.fR + (1.0f - origin.fR) * e,

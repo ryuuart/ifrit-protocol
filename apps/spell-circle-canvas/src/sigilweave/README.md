@@ -176,7 +176,7 @@ every frame.
 | Target | Contents | Beyond Skia |
 |---|---|---|
 | `SigilWeaveUnicode` | the Unicode leaf | ICU and HarfBuzz's ICU bridge, private; no Skia |
-| `SigilWeaveStyle` | the style vocabulary, header-only | — |
+| `SigilWeaveStyle` | the style vocabulary, header-only, with `Type` and `type()` — the designated-init aggregate a call site names a style's numbers in | — |
 | `SigilWeaveFonts` | the font service and the shaper | HarfBuzz, abseil — private |
 | `SigilWeaveParagraph` | the document model | SigilWeaveUnicode, abseil — private |
 | `SigilWeaveLayout` | flows, breakers, placement, metrics | SigilGeometryPath (public: `LineInterval::contour` is a `geometry::path::Contour`); ICU, abseil — private |
@@ -187,7 +187,7 @@ every frame.
 | `SigilWeaveCache` | the label cache | abseil, ICU — private |
 | `SigilWeave` | interface over every target above | — |
 | `SigilWeaveShaders` | `shaders/PaintShaders.h` — water, mesh gradient, sparkle, star nest, clouds, tunnel | SigilMaterialKit, SigilMaterialSkia — private; not in the export set |
-| `SigilWeavePorts` | `ports::systemFontManager()` — CoreText today; DirectWrite/Fontconfig slot into the same call | Skia platform ports |
+| `SigilWeavePorts` | `ports::systemFontManager()` — CoreText today; DirectWrite/Fontconfig slot into the same call — and `ports::pickFace()`, the first installed family of a fallback chain | Skia platform ports |
 | `SigilWeaveKit` | consumer-side discipline: rebuild/layout guards, glyph bucketing, label shorthand, sample content, the line-edge and hyphenation tables (see `kit/README.md`) | SigilWeaveUnicode — private |
 | `SigilWeaveQt` | interface target: `QFont` → `SkTypeface`, `QString` ↔ `Paragraph` with no transcoding | Qt6::Gui |
 

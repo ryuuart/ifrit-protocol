@@ -4,29 +4,34 @@ TEST(ComposeBindings, TheAffineChainComposesInCallOrder) {
   // Reading order IS evaluation order for the affine ops, so the two
   // spellings below are genuinely different and each does what it looks
   // like. (An "order doesn't matter" accumulate would collapse them.)
-  EXPECT_FLOAT_EQ(bind(nullptr).scale(240).offset(-70).value().apply(0.5f),
-                  0.5f * 240 - 70);
-  EXPECT_FLOAT_EQ(bind(nullptr).offset(-70).scale(240).value().apply(0.5f),
-                  (0.5f - 70) * 240);
-  // to(lo,hi) is the [0,1] → range spelling…
-  EXPECT_FLOAT_EQ(bind(nullptr).target(20, 60).value().apply(0.25f), 30.0f);
-  // …from(lo,hi) the other direction, and they compose.
   EXPECT_FLOAT_EQ(
-      bind(nullptr).source(0, 200).target(0, 1).value().apply(50.0f), 0.25f);
+      motion::bind(nullptr).scale(240).offset(-70).value().apply(0.5f),
+      0.5f * 240 - 70);
+  EXPECT_FLOAT_EQ(
+      motion::bind(nullptr).offset(-70).scale(240).value().apply(0.5f),
+      (0.5f - 70) * 240);
+  // to(lo,hi) is the [0,1] → range spelling…
+  EXPECT_FLOAT_EQ(motion::bind(nullptr).target(20, 60).value().apply(0.25f),
+                  30.0f);
+  // …motion::from(lo,hi) the other direction, and they compose.
+  EXPECT_FLOAT_EQ(
+      motion::bind(nullptr).source(0, 200).target(0, 1).value().apply(50.0f),
+      0.25f);
   // invert composes with what came before rather than resetting it.
-  EXPECT_FLOAT_EQ(bind(nullptr).invert().value().apply(0.25f), 0.75f);
-  EXPECT_FLOAT_EQ(bind(nullptr).target(0, 2).invert().value().apply(0.25f),
-                  1.0f - 0.5f);
+  EXPECT_FLOAT_EQ(motion::bind(nullptr).invert().value().apply(0.25f), 0.75f);
+  EXPECT_FLOAT_EQ(
+      motion::bind(nullptr).target(0, 2).invert().value().apply(0.25f),
+      1.0f - 0.5f);
   // the curve runs BEFORE the affine, on the normalised value…
-  EXPECT_FLOAT_EQ(bind(nullptr)
+  EXPECT_FLOAT_EQ(motion::bind(nullptr)
                       .map(&choreograph::easeNone)
                       .target(0, 10)
                       .value()
                       .apply(0.4f),
                   4.0f);
   // …and the clamp always runs last, whenever it is written.
-  EXPECT_FLOAT_EQ(bind(nullptr).clamp(0, 1).target(0, 4).value().apply(0.5f),
-                  1.0f);
+  EXPECT_FLOAT_EQ(
+      motion::bind(nullptr).clamp(0, 1).target(0, 4).value().apply(0.5f), 1.0f);
 }
 
 TEST(ComposeBindings, AShapedBindingDrivesThePropertyInPixels) {
@@ -44,7 +49,7 @@ TEST(ComposeBindings, AShapedBindingDrivesThePropertyInPixels) {
                       .left(0)
                       .top(90)
                       .fill(red())
-                      .translateX(bind(&phase).target(0, 160))));
+                      .translateX(motion::bind(&phase).target(0, 160))));
   auto redAt = [&](int x) { return SkColorGetR(host.pixel(x, 100)) > 180; };
 
   host.frame();
@@ -75,7 +80,7 @@ TEST(ComposeBindings, AChangedShapeRepatchesRatherThanPruning) {
                            .left(0)
                            .top(90)
                            .fill(red())
-                           .translateX(bind(&phase).target(0, far)));
+                           .translateX(motion::bind(&phase).target(0, far)));
   };
   host.composer.render(tree(40.0f));
   host.frame();
@@ -95,16 +100,17 @@ TEST(ComposeText, OnPathReDescribeDoesNotKeepTheOldBaseline) {
   // deleted, so the omission produces no error anywhere.
   Host host(240, 240);
   auto ring = [](float at) {
-    return box().child(text(u8"HHHHHHHHHH", whiteStyle(22))
-                           .key("ring")
-                           .width(240)
-                           .height(240)
-                           .absolute()
-                           .left(0)
-                           .top(0)
-                           .onPath({.path = shapes::arc(180.0f, 359.9f),
-                                    .at = at,
-                                    .align = TextPath::Align::Center}));
+    return box().child(
+        text(u8"HHHHHHHHHH", whiteStyle(22))
+            .key("ring")
+            .width(240)
+            .height(240)
+            .absolute()
+            .left(0)
+            .top(0)
+            .onPath({.path = geometry::shapes::arc(180.0f, 359.9f),
+                     .at = at,
+                     .align = TextPath::Align::Center}));
   };
   auto lit = [&](int y0, int y1) {
     int count = 0;
@@ -124,28 +130,29 @@ TEST(ComposeText, OnPathReDescribeDoesNotKeepTheOldBaseline) {
 }
 
 TEST(ComposeMotion, AnEmptyEasingMeansTheDefaultRatherThanACrash) {
-  // Transition is an aggregate, so `{360ms, {}, 220ms}` — the obvious way to
-  // write "default curve, but I need to name the delay" — initialises `ease`
-  // to an EMPTY std::function. It compiles, so the only options are throwing
-  // bad_function_call on the first frame or treating empty as "the default
-  // curve". It is the latter.
+  // motion::Transition is an aggregate, so `{360ms, {}, 220ms}` — the obvious
+  // way to write "default curve, but I need to name the delay" — initialises
+  // `ease` to an EMPTY std::function. It compiles, so the only options are
+  // throwing bad_function_call on the first frame or treating empty as "the
+  // default curve". It is the latter.
   Host host(200, 200);
-  host.composer.render(box().child(
-      box()
-          .width(40)
-          .height(40)
-          .absolute()
-          .left(0)
-          .top(80)
-          .fill(red())
-          .translateX(animate(from(0.0f).to(120.0f), {200ms, {}, 0ms}))));
+  host.composer.render(
+      box().child(box()
+                      .width(40)
+                      .height(40)
+                      .absolute()
+                      .left(0)
+                      .top(80)
+                      .fill(red())
+                      .translateX(animate(motion::from(0.0f).to(120.0f),
+                                          {200ms, {}, 0ms}))));
   host.frame();     // would throw here
   host.frame(0.4);  // land the entrance
   EXPECT_TRUE(SkColorGetR(host.pixel(130, 100)) > 180);
 
   // and it still prunes against an explicitly-defaulted curve
-  Transition blank{200ms, {}, 0ms};
-  Transition spelled{200ms, &choreograph::easeOutQuad, 0ms};
+  sigil::motion::Transition blank{200ms, {}, 0ms};
+  sigil::motion::Transition spelled{200ms, &choreograph::easeOutQuad, 0ms};
   EXPECT_EQ(blank.easing().target<float (*)(float)>() != nullptr,
             spelled.easing().target<float (*)(float)>() != nullptr);
 }
@@ -157,7 +164,7 @@ TEST(ComposeShapes, ParametricCurvesEvaluateInTheUnitFrame) {
   const SkSize box{200, 100};  // deliberately non-square: unit → half-extents
 
   // A 1:1 Lissajous with a quarter-turn phase IS the inscribed ellipse.
-  const SkPath ellipse = shapes::lissajous(1, 1, 90.0f)(box);
+  const SkPath ellipse = geometry::shapes::lissajous(1, 1, 90.0f)(box);
   const SkRect bounds = ellipse.getBounds();
   EXPECT_NEAR(bounds.width(), 200.0f, 1.5f);
   EXPECT_NEAR(bounds.height(), 100.0f, 1.5f);
@@ -169,7 +176,8 @@ TEST(ComposeShapes, ParametricCurvesEvaluateInTheUnitFrame) {
   // pendulum figure spirals inward instead of retracing one rosette. Both
   // ends sit AT the centre (sin 0 = 0), so the honest measurement is the
   // reach of each half.
-  const SkPath damped = shapes::harmonograph(3, 2, 0, 0.25f, 0, 6.0f)(box);
+  const SkPath damped =
+      geometry::shapes::harmonograph(3, 2, 0, 0.25f, 0, 6.0f)(box);
   const SkPoint centre = SkPoint{100, 50};
   const int pts = damped.countPoints();
   ASSERT_GT(pts, 100);
@@ -185,7 +193,7 @@ TEST(ComposeShapes, ParametricCurvesEvaluateInTheUnitFrame) {
   // centred on the box — r = cos(5θ) puts tips at θ = 0, 2π/5, … so the
   // bounds sit off to one side, and asserting otherwise would be
   // asserting a bug into existence.
-  const SkPath five = shapes::rose(5)(box);
+  const SkPath five = geometry::shapes::rose(5)(box);
   EXPECT_GT(five.countPoints(), 100);
   int tips = 0;
   for (int i = 0; i < five.countPoints(); ++i)
@@ -193,7 +201,7 @@ TEST(ComposeShapes, ParametricCurvesEvaluateInTheUnitFrame) {
   EXPECT_GT(tips, 5);
 
   // Spirals start at the centre and end at the rim.
-  const SkPath coil = shapes::spiral(3)(box);
+  const SkPath coil = geometry::shapes::spiral(3)(box);
   EXPECT_NEAR(SkPoint::Distance(coil.getPoint(0), centre), 0.0f, 1.0f);
   EXPECT_GT(SkPoint::Distance(coil.getPoint(coil.countPoints() - 1), centre),
             40.0f);
@@ -358,7 +366,7 @@ TEST(ComposeText, AutoFlipIsOnePerRunDecisionSampledAcrossTheRun) {
                            .absolute()
                            .left(0)
                            .top(0)
-                           .onPath({.path = shapes::circle(),
+                           .onPath({.path = geometry::shapes::circle(),
                                     .at = at,
                                     .align = TextPath::Align::Center,
                                     .offset = 4.0f,
@@ -401,7 +409,8 @@ TEST(ComposeBindings, QuantizeSnapsBeforeTheAffineChain) {
   // The quantisation is part of the design, so it belongs in the binding,
   // where it composes with the rest of the shaping map.
   auto q = [](float v) {
-    return bind(nullptr).quantize(5).value().apply(v);  // levels 0,.25,.5,.75,1
+    return motion::bind(nullptr).quantize(5).value().apply(
+        v);  // levels 0,.25,.5,.75,1
   };
   EXPECT_FLOAT_EQ(q(0.0f), 0.00f);
   EXPECT_FLOAT_EQ(q(0.10f), 0.00f);
@@ -409,12 +418,16 @@ TEST(ComposeBindings, QuantizeSnapsBeforeTheAffineChain) {
   EXPECT_FLOAT_EQ(q(0.60f), 0.50f);
   EXPECT_FLOAT_EQ(q(1.0f), 1.00f);
   // It runs BEFORE the affine chain, so the steps land on round pixels.
-  EXPECT_FLOAT_EQ(bind(nullptr).quantize(5).target(0, 80).value().apply(0.6f),
-                  40.0f);
-  // …and after the curve, so an eased value still lands on a step.
   EXPECT_FLOAT_EQ(
-      bind(nullptr).map(&choreograph::easeNone).quantize(5).value().apply(0.9f),
-      1.0f);
+      motion::bind(nullptr).quantize(5).target(0, 80).value().apply(0.6f),
+      40.0f);
+  // …and after the curve, so an eased value still lands on a step.
+  EXPECT_FLOAT_EQ(motion::bind(nullptr)
+                      .map(&choreograph::easeNone)
+                      .quantize(5)
+                      .value()
+                      .apply(0.9f),
+                  1.0f);
 }
 
 TEST(ComposeBindings, AFillCanBeBoundLive) {
@@ -451,9 +464,9 @@ TEST(ComposeShapes, StarArmsCanBeWaisted) {
     return c.samples - c.uncovered;
   };
 
-  const SkPath straight = shapes::star(6, 0.35f, 0.0f)(box);
-  const SkPath waisted = shapes::star(6, 0.35f, 0.22f)(box);
-  const SkPath bulged = shapes::star(6, 0.35f, -0.22f)(box);
+  const SkPath straight = geometry::shapes::star(6, 0.35f, 0.0f)(box);
+  const SkPath waisted = geometry::shapes::star(6, 0.35f, 0.22f)(box);
+  const SkPath bulged = geometry::shapes::star(6, 0.35f, -0.22f)(box);
 
   // The tips are unmoved — the waist pinches the EDGES, not the points.
   EXPECT_NEAR(straight.getBounds().height(), waisted.getBounds().height(),
@@ -589,10 +602,10 @@ TEST(ComposeMotion, AddFixedRunsAtItsOwnRateWhateverTheHostDraws) {
 TEST(ComposeMaterials, GlowUnitReachesTheInscribedCircleNotTheCorners) {
   // radialUnit's radius is a fraction of the box's HALF-DIAGONAL, so a soft
   // round light authored at radius 1 has not finished falling off where the
-  // INSCRIBED circle is — and on a node also carrying shapes::circle() the
-  // remaining alpha becomes a visible hard rim. glowUnit is radialUnit
-  // scaled to the inscribed circle instead, so radius 1 reaches zero exactly
-  // at the edge that gets clipped.
+  // INSCRIBED circle is — and on a node also carrying
+  // geometry::shapes::circle() the remaining alpha becomes a visible hard rim.
+  // glowUnit is radialUnit scaled to the inscribed circle instead, so radius 1
+  // reaches zero exactly at the edge that gets clipped.
   const std::vector<Stop> ramp = {{0.0f, {1, 1, 1, 1}}, {1.0f, {0, 0, 0, 1}}};
   auto edgeValue = [&](Material m) {
     Host host(200, 200);
@@ -629,7 +642,7 @@ TEST(ComposeText, OnPathCanOrientGlyphsRadiallyForADial) {
   // exactly where fraction 0.25 is: t runs from 3 o'clock, and with y
   // down a quarter turn lands at the BOTTOM.
   auto ring = [](TextPath::Orient orient) {
-    auto circle = shapes::parametric(
+    auto circle = geometry::shapes::parametric(
         [](float t) { return SkPoint{std::cos(t), std::sin(t)}; }, 0.0f,
         2.0f * SK_FloatPI, 360, true);
     // ONE tall glyph: a run spread along the arc keeps a wide footprint
@@ -711,16 +724,16 @@ TEST(ComposeMotion, AddFixedPublishesTheRenderInterpolant) {
 }
 
 TEST(ComposeBindings, WindowClampsBeforeTheCurveSoEasingsStayInDomain) {
-  // from(lo,hi) normalises and the curve runs after it, so on a
+  // motion::from(lo,hi) normalises and the curve runs after it, so on a
   // multi-beat timeline an Output outside the window feeds the easing a
-  // value outside its domain — and none of ease:: is total. Every curve
+  // value outside its domain — and none of motion::ease:: is total. Every curve
   // in the tartan study had to clamp its own input first.
-  auto plain = bind(nullptr).source(0.4f, 0.6f);
-  auto windowed = bind(nullptr).window(0.4f, 0.6f);
+  auto plain = motion::bind(nullptr).source(0.4f, 0.6f);
+  auto windowed = motion::bind(nullptr).window(0.4f, 0.6f);
 
   // Inside the window they agree exactly.
   EXPECT_FLOAT_EQ(plain.value().apply(0.5f), windowed.value().apply(0.5f));
-  // Outside it, from() keeps running past the ends…
+  // Outside it, motion::from() keeps running past the ends…
   EXPECT_LT(plain.value().apply(0.0f), -1.0f);
   EXPECT_GT(plain.value().apply(1.0f), 2.0f);
   // …and window() holds at the ends, which is what "this beat" means.
@@ -729,8 +742,11 @@ TEST(ComposeBindings, WindowClampsBeforeTheCurveSoEasingsStayInDomain) {
 
   // And the clamp lands BEFORE the curve: an overshoot easing evaluated
   // at 1 returns exactly 1, rather than being run far past its domain.
-  const float overshoot =
-      bind(nullptr).window(0.4f, 0.6f).map(ease::outBack()).value().apply(5.0f);
+  const float overshoot = motion::bind(nullptr)
+                              .window(0.4f, 0.6f)
+                              .map(motion::ease::outBack())
+                              .value()
+                              .apply(5.0f);
   EXPECT_NEAR(overshoot, 1.0f, 1e-4f);
 }
 

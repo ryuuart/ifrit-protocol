@@ -122,7 +122,7 @@ TEST(ComposeKitStrokes, SpansAndShapesAreCompositionsNotNewKinds) {
   // shape — same path, so a figure can use either spelling.
   const SkPath ring = kit::shapes::ring(0.6f)({100, 100});
   EXPECT_FALSE(ring.isEmpty());
-  EXPECT_EQ(ring, shapes::annulus(0.6f)({100, 100}));
+  EXPECT_EQ(ring, sigil::geometry::shapes::annulus(0.6f)({100, 100}));
 }
 
 TEST(ComposeKitStrokes, TheWaveProfileIsAKitValueOverACoreSeam) {
@@ -136,7 +136,8 @@ TEST(ComposeKitStrokes, TheWaveProfileIsAKitValueOverACoreSeam) {
   EXPECT_FALSE(undulating == strand::offset(9));
 
   // A band takes it, because a band's taper and a strand's path are one value.
-  Element undulatingBand = band(shapes::circle(), across(undulating));
+  Element undulatingBand =
+      band(sigil::geometry::shapes::circle(), across(undulating));
   EXPECT_TRUE(undulatingBand.node() != nullptr);
 }
 

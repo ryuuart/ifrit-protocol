@@ -173,8 +173,8 @@ TEST(ComposeTransitions, RampsAndRetargetsFromCurrent) {
   Host host;
   auto at = [&](float target) {
     return box().child(
-        box().key("m").width(50).height(50).fill(red()).translateX(
-            animate(to(target), {400ms, &choreograph::easeNone})));
+        box().key("m").width(50).height(50).fill(red()).translateX(animate(
+            sigil::motion::to(target), {400ms, &choreograph::easeNone})));
   };
   host.composer.render(at(0.0f));
   host.frame();
@@ -197,11 +197,11 @@ TEST(ComposeTransitions, UnmountCancelsMotions) {
   Host host;
   host.composer.render(
       box().child(box().key("gone").width(10).height(10).translateX(
-          animate(to(500.0f), {1000ms}))));
+          animate(sigil::motion::to(500.0f), {1000ms}))));
   host.frame();
   host.composer.render(
       box().child(box().key("gone").width(10).height(10).translateX(
-          animate(to(0.0f), {1000ms}))));
+          animate(sigil::motion::to(0.0f), {1000ms}))));
   host.frame(0.1);
   EXPECT_TRUE(host.ticker.active());
   host.composer.render(box());  // unmount mid-flight
@@ -421,25 +421,26 @@ TEST(ComposeMotion, EaseAdaptersBindTheShapeParameter) {
   // default, so &choreograph::easeOutBack does not convert to an EaseFn.
   // These adapters bind it — and outBack must actually OVERSHOOT, which
   // is the only reason to reach for it.
-  const choreograph::EaseFn back = ease::outBack();
+  const choreograph::EaseFn back = motion::ease::outBack();
   float peak = 0.0f;
   for (int i = 0; i <= 100; ++i) peak = std::max(peak, back((float)i / 100.0f));
   EXPECT_GT(peak, 1.05f) << "outBack did not overshoot";
   EXPECT_NEAR(back(0.0f), 0.0f, 1e-4f);
   EXPECT_NEAR(back(1.0f), 1.0f, 1e-4f);
 
-  // and it is usable where the papercut was: inside a Transition.
+  // and it is usable where the papercut was: inside a motion::Transition.
   Host host(100, 100);
-  host.composer.render(box().child(
-      box()
-          .width(40)
-          .height(40)
-          .absolute()
-          .left(30)
-          .top(30)
-          .scale(animate(from(0.5f).to(1.0f),
-                         {std::chrono::milliseconds(200), ease::outBack()}))
-          .fill(Material::solid({1, 1, 1, 1}))));
+  host.composer.render(
+      box().child(box()
+                      .width(40)
+                      .height(40)
+                      .absolute()
+                      .left(30)
+                      .top(30)
+                      .scale(animate(motion::from(0.5f).to(1.0f),
+                                     {std::chrono::milliseconds(200),
+                                      motion::ease::outBack()}))
+                      .fill(Material::solid({1, 1, 1, 1}))));
   host.frame();
   SUCCEED();
 }
@@ -1333,7 +1334,7 @@ TEST(ComposeTransitions, PlainSnapAfterTransitionLands) {
   // disconnects it the ramp shadows the description for as long as it lives
   // — and a settled ramp holds its target forever.
   Host host;
-  auto at = [](Animatable<float> x) {
+  auto at = [](sigil::motion::Animatable<float> x) {
     return box().child(
         box().key("m").width(50).height(50).fill(red()).translateX(
             std::move(x)));
@@ -1341,7 +1342,7 @@ TEST(ComposeTransitions, PlainSnapAfterTransitionLands) {
   host.composer.render(at(0.0f));
   host.frame();
   host.composer.render(
-      at(animate(to(100.0f), {400ms, &choreograph::easeNone})));
+      at(animate(sigil::motion::to(100.0f), {400ms, &choreograph::easeNone})));
   host.frame(0.2);  // mid-ramp, box around x=50..100
   EXPECT_EQ(host.pixel(75, 25), SK_ColorRED);
   host.composer.render(at(0.0f));  // PLAIN: must snap home
@@ -2162,7 +2163,7 @@ struct EnvPalette {
  *  and reading the environment — the `feed::`/decoration case. */
 Element envThemedChip() {
   return box().width(20).height(20).fill(
-      Fill::color(env::inheritedOr(EnvPalette{}).surface));
+      Fill::color(core::env::inheritedOr(EnvPalette{}).surface));
 }
 
 /** Its sibling, which reads nothing and must never repatch for a theme. */
@@ -2179,7 +2180,7 @@ Element envLevel1() { return box().child(envLevel2()); }
 /** Describe under a binding, and hand back a tree the binding no longer
  *  touches — the whole design in three lines. */
 Element envDescribeWith(EnvPalette p) {
-  env::Provide<EnvPalette> theme(p);
+  core::env::Provide<EnvPalette> theme(p);
   return box().child(envLevel1());
 }
 
@@ -2188,8 +2189,9 @@ Element envDescribeWith(EnvPalette p) {
 TEST(ComposeEnv, InheritedValueReachesAComponentNobodyHandedIt) {
   Host host;
   Element tree = envDescribeWith(EnvPalette{{0, 0, 1, 1}, {1, 1, 0, 1}});
-  EXPECT_FALSE(env::bound<EnvPalette>());  // the scope ended; the VALUE is
-  host.composer.render(tree);              // already baked into the tree
+  EXPECT_FALSE(
+      core::env::bound<EnvPalette>());  // the scope ended; the VALUE is
+  host.composer.render(tree);           // already baked into the tree
   host.frame();
   EXPECT_EQ(host.pixel(5, 5), SK_ColorBLUE);   // the themed chip
   EXPECT_EQ(host.pixel(5, 25), SK_ColorBLUE);  // its plain sibling
@@ -2199,7 +2201,7 @@ TEST(ComposeEnv, InheritedValueReachesAComponentNobodyHandedIt) {
   bare.composer.render(box().child(envLevel1()));
   bare.frame();
   EXPECT_EQ(bare.pixel(5, 5), SK_ColorRED);
-  EXPECT_FALSE(env::bound<EnvPalette>());  // and the scope unwound
+  EXPECT_FALSE(core::env::bound<EnvPalette>());  // and the scope unwound
 }
 
 TEST(ComposeEnv, UnchangedEnvironmentStillPrunes) {
@@ -2256,7 +2258,7 @@ TEST(ComposeEnv, MemoIsAPureFunctionOfPropsAndEnvironment) {
   auto component = [](const Props&) {
     ++describeCalls;
     return box().width(20).height(20).fill(
-        Fill::color(env::inheritedOr(EnvPalette{}).surface));
+        Fill::color(core::env::inheritedOr(EnvPalette{}).surface));
   };
 
   Host host;
@@ -2265,12 +2267,13 @@ TEST(ComposeEnv, MemoIsAPureFunctionOfPropsAndEnvironment) {
   // Provide below has been destroyed. Building the tree and handing it to
   // the composer are two statements, deliberately.
   auto describeWith = [&component](EnvPalette p) {
-    env::Provide<EnvPalette> theme(p);
+    core::env::Provide<EnvPalette> theme(p);
     return box().child(memo(Props{1}, component).key("m"));
   };
   auto renderWith = [&](EnvPalette p) {
     Element tree = describeWith(p);
-    ASSERT_FALSE(env::bound<EnvPalette>());  // the binding is gone by here
+    ASSERT_FALSE(
+        core::env::bound<EnvPalette>());  // the binding is gone by here
     host.composer.render(tree);
   };
 
@@ -2295,18 +2298,21 @@ TEST(ComposeEnv, InnerProvideShadowsAndUnwinds) {
     int v = 0;
     bool operator==(const EnvOther&) const = default;
   };
-  env::Provide<EnvPalette> outer(EnvPalette{{1, 0, 0, 1}, {}});
-  ASSERT_TRUE(env::bound<EnvPalette>());
-  EXPECT_TRUE(env::inherited<EnvPalette>()->surface == SkColor4f({1, 0, 0, 1}));
+  core::env::Provide<EnvPalette> outer(EnvPalette{{1, 0, 0, 1}, {}});
+  ASSERT_TRUE(core::env::bound<EnvPalette>());
+  EXPECT_TRUE(core::env::inherited<EnvPalette>()->surface ==
+              SkColor4f({1, 0, 0, 1}));
   {
-    env::Provide<EnvPalette> inner(EnvPalette{{0, 0, 1, 1}, {}});
-    env::Provide<EnvOther> other(EnvOther{7});
-    EXPECT_TRUE(env::inherited<EnvPalette>()->surface ==
+    core::env::Provide<EnvPalette> inner(EnvPalette{{0, 0, 1, 1}, {}});
+    core::env::Provide<EnvOther> other(EnvOther{7});
+    EXPECT_TRUE(core::env::inherited<EnvPalette>()->surface ==
                 SkColor4f({0, 0, 1, 1}));
-    EXPECT_EQ(env::inherited<EnvOther>()->v, 7);  // keyed by TYPE, no crosstalk
+    EXPECT_EQ(core::env::inherited<EnvOther>()->v,
+              7);  // keyed by TYPE, no crosstalk
   }
-  EXPECT_TRUE(env::inherited<EnvPalette>()->surface == SkColor4f({1, 0, 0, 1}));
-  EXPECT_FALSE(env::bound<EnvOther>());
+  EXPECT_TRUE(core::env::inherited<EnvPalette>()->surface ==
+              SkColor4f({1, 0, 0, 1}));
+  EXPECT_FALSE(core::env::bound<EnvOther>());
 }
 
 TEST(ComposeEnv, OutOfOrderDestructionCannotUnbindASibling) {
@@ -2315,10 +2321,10 @@ TEST(ComposeEnv, OutOfOrderDestructionCannotUnbindASibling) {
   // remove a SIBLING's binding when scopes die out of order, corrupting an
   // environment the sibling still believes it provides. Heap providers
   // force the wrong order deliberately.
-  auto outer =
-      std::make_unique<env::Provide<EnvPalette>>(EnvPalette{{1, 0, 0, 1}, {}});
-  auto inner =
-      std::make_unique<env::Provide<EnvPalette>>(EnvPalette{{0, 0, 1, 1}, {}});
+  auto outer = std::make_unique<core::env::Provide<EnvPalette>>(
+      EnvPalette{{1, 0, 0, 1}, {}});
+  auto inner = std::make_unique<core::env::Provide<EnvPalette>>(
+      EnvPalette{{0, 0, 1, 1}, {}});
   ::testing::internal::CaptureStderr();
   outer.reset();  // destroyed FIRST, from under the inner scope
   EXPECT_NE(::testing::internal::GetCapturedStderr().find("env::Provide"),
@@ -2326,7 +2332,7 @@ TEST(ComposeEnv, OutOfOrderDestructionCannotUnbindASibling) {
       << "the misuse must be loud";
   // The surviving scope's binding still resolves — the misused destructor
   // removed its own entry, not the top of the stack.
-  const EnvPalette* survivor = env::inherited<EnvPalette>();
+  const EnvPalette* survivor = core::env::inherited<EnvPalette>();
   ASSERT_NE(survivor, nullptr);
   EXPECT_TRUE(survivor->surface == SkColor4f({0, 0, 1, 1}));
   // The inner scope's own destruction is now below its recorded depth, so
@@ -2334,7 +2340,7 @@ TEST(ComposeEnv, OutOfOrderDestructionCannotUnbindASibling) {
   ::testing::internal::CaptureStderr();
   inner.reset();
   (void)::testing::internal::GetCapturedStderr();
-  EXPECT_FALSE(env::bound<EnvPalette>());
+  EXPECT_FALSE(core::env::bound<EnvPalette>());
 }
 
 TEST(ComposeEnv, ALibraryComponentReadsTheEnvironmentByItsOwnPropsType) {
@@ -2350,10 +2356,10 @@ TEST(ComposeEnv, ALibraryComponentReadsTheEnvironmentByItsOwnPropsType) {
   themed.window.gap = 7.0f;
 
   Element tree = [&] {
-    env::Provide<feed::TextOptions> style(themed);
+    core::env::Provide<feed::TextOptions> style(themed);
     return box().padding(4).child(box().child(feed::feed(ring)));
   }();
-  ASSERT_FALSE(env::bound<feed::TextOptions>());
+  ASSERT_FALSE(core::env::bound<feed::TextOptions>());
 
   Host host;
   host.composer.render(tree);
@@ -2396,7 +2402,7 @@ TEST(ComposeReconcile, WiggledBindingsPruneOnlyWhenEveryParameterMatches) {
   auto tree = [](Rig r) {
     return box().child(
         box().key("shaken").width(40).height(40).fill(red()).translateX(
-            bind(&phase)
+            motion::bind(&phase)
                 .target(-70.0f, 170.0f)
                 .wiggle(r.amount, r.frequency, r.seed, r.octaves, r.falloff)));
   };
@@ -2448,14 +2454,16 @@ TEST(ComposeReconcile, TwoSeedsShakeIndependentlyOnScreen) {
                    .width(8)
                    .height(8)
                    .fill(red())
-                   .translateX(wiggle(&t, 40.0f, 3.0f, 1).offset(100.0f))
+                   .translateX(
+                       sigil::motion::wiggle(&t, 40.0f, 3.0f, 1).offset(100.0f))
                    .translateY(30.0f))
         .child(box()
                    .key("y")
                    .width(8)
                    .height(8)
                    .fill(green())
-                   .translateX(wiggle(&t, 40.0f, 3.0f, 2).offset(100.0f))
+                   .translateX(
+                       sigil::motion::wiggle(&t, 40.0f, 3.0f, 2).offset(100.0f))
                    .translateY(90.0f));
   };
   host.composer.render(tree());

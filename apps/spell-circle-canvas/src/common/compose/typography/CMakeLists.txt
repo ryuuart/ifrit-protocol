@@ -6,9 +6,8 @@
 # TextPainter value the text verbs install on a description, which is why
 # those verbs (`fx`, `onPath`, `mark`, `spanStyle`, `spanPaint`,
 # `variationDrive`) are defined here though the kernel declares them.
-# With it the header-only vocabulary: `type()` and `pickFace()` (Type.h),
-# the stock text effects and the marquee (TextFx.h), and the kit's
-# legibility helpers (kit/Legibility.h).
+# With it the header-only vocabulary: the stock text effects and the
+# marquee (TextFx.h), and the kit's legibility helpers (kit/Legibility.h).
 #
 # Sees the kernel's source directory PRIVATELY: the engine reads the
 # retained Instance and Composer::Impl the way a kernel phase does, because
@@ -25,7 +24,6 @@ add_library(SigilComposeTypography STATIC
   TextEngine.h
   TextPose.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/typography/TextFx.h
-  ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/typography/Type.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/typography/Typography.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/kit/Legibility.h
 )

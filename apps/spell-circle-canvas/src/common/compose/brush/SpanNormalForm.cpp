@@ -266,7 +266,7 @@ SkPath spanPath(const SkPath& src, const std::vector<Span>& spans) {
 
 }  // namespace detail
 
-Spans& Spans::offset(Animatable<float> by) {
+Spans& Spans::offset(motion::Animatable<float> by) {
   for (size_t i = 0; i + 1 < terms.size(); ++i) terms[i].offset = by;
   if (!terms.empty()) terms.back().offset = std::move(by);
   return *this;
@@ -362,7 +362,7 @@ std::vector<Span> Spans::resolve(const SpanInput& in) const {
 
 namespace spans {
 
-Spans range(Animatable<float> begin, Animatable<float> end) {
+Spans range(motion::Animatable<float> begin, motion::Animatable<float> end) {
   Spans s;
   Spans::Term t;
   t.rule = Spans::Rule::Range;
@@ -371,7 +371,7 @@ Spans range(Animatable<float> begin, Animatable<float> end) {
   s.terms.push_back(std::move(t));
   return s;
 }
-Spans wrap(Animatable<float> begin, Animatable<float> end) {
+Spans wrap(motion::Animatable<float> begin, motion::Animatable<float> end) {
   Spans s;
   Spans::Term t;
   t.rule = Spans::Rule::Wrap;
@@ -380,7 +380,9 @@ Spans wrap(Animatable<float> begin, Animatable<float> end) {
   s.terms.push_back(std::move(t));
   return s;
 }
-Spans upTo(Animatable<float> end) { return range(0.0f, std::move(end)); }
+Spans upTo(motion::Animatable<float> end) {
+  return range(0.0f, std::move(end));
+}
 Spans corners(float arm, float angleDeg) {
   Spans s;
   Spans::Term t;

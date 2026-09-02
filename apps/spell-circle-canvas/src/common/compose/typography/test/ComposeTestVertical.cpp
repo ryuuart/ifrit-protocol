@@ -377,7 +377,7 @@ TEST(TextVertical, OnPathIgnoresWritingModeAndSaysSoOnce) {
                       .height(200)
                       .centerAt({120, 120})
                       .writingMode(sigil::weave::WritingMode::kVerticalRL)
-                      .onPath({.path = shapes::circle()})
+                      .onPath({.path = geometry::shapes::circle()})
                       .key("t")));
   host.frame();
   const std::string first = ::testing::internal::GetCapturedStderr();
@@ -415,7 +415,7 @@ TEST(TextVertical, AnUprightGlyphTurnsAboutItsColumnAxis) {
     if (shrunk)
       t.fx({.effect = fx::effect(
                 "quarter",
-                [](const GlyphInfo&, float, Rng&) {
+                [](const GlyphInfo&, float, sigil::core::noise::Mix64Stream&) {
                   GlyphMod m;
                   m.scale = 0.25f;
                   return m;
@@ -538,7 +538,8 @@ TEST(TextVertical, ASubstitutionIsGatedOnTheAxisItsRunAdvancesOn) {
             .writingMode(mode)
             .fx({.effect = fx::effect(
                      point ? "sub" : "rest",
-                     [mod](const GlyphInfo&, float, Rng&) { return mod; },
+                     [mod](const GlyphInfo&, float,
+                           sigil::core::noise::Mix64Stream&) { return mod; },
                      /*reach=*/120.0f)})));
     host.frame();
   };
@@ -906,7 +907,7 @@ TEST(TextVertical, ColumnsFlowAroundASilhouette) {
                    .height(90)
                    .left(90)
                    .top(110)
-                   .shape(shapes::circle())
+                   .shape(geometry::shapes::circle())
                    .fill(Fill::color({0, 0.4f, 0, 1})))
         .child(box().inset(0).child(std::move(leaf)).zIndex(1));
   };

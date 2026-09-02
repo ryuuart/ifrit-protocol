@@ -9,8 +9,8 @@
 TEST(ComposeDecorations, RadialHatchFansOutOfAPointAndRingsRoundIt) {
   // lines::hatch is a parallel lattice at one fixed angle, which is the
   // wrong field for anything engraved out of a point. The Chladni study
-  // built its radial fan from 120 shapes::sector sub-wedges each carrying
-  // a rotated Hatch — correct, and 120 nodes for one field.
+  // built its radial fan from 120 geometry::shapes::sector sub-wedges each
+  // carrying a rotated Hatch — correct, and 120 nodes for one field.
   auto lit = [](Host& host, int x0, int y0, int x1, int y1) {
     int n = 0;
     for (int y = y0; y < y1; ++y)
@@ -23,7 +23,7 @@ TEST(ComposeDecorations, RadialHatchFansOutOfAPointAndRingsRoundIt) {
       box().child(box()
                       .absolute()
                       .inset(20)
-                      .shape(shapes::circle())
+                      .shape(geometry::shapes::circle())
                       .background(lines::radialHatch(Fill::color({1, 1, 1, 1}),
                                                      32, 1.5f))));
   fan.frame();
@@ -40,7 +40,7 @@ TEST(ComposeDecorations, RadialHatchFansOutOfAPointAndRingsRoundIt) {
       box()
           .absolute()
           .inset(20)
-          .shape(shapes::circle())
+          .shape(geometry::shapes::circle())
           .background(lines::concentric(Fill::color({1, 1, 1, 1}), 8, 1.5f))));
   rings.frame();
   EXPECT_GT(lit(rings, 20, 20, 180, 180), 800);

@@ -43,7 +43,8 @@ struct Material::Live {
   std::vector<std::pair<std::string, motion::Animatable<float>>> binds;
   // Live arrays: caller-owned blocks, read per resolve. Any entry makes
   // the material LIVE, like a bind; the resolve memo digests revisions.
-  std::vector<std::pair<std::string, std::shared_ptr<const UniformBlock>>>
+  std::vector<
+      std::pair<std::string, std::shared_ptr<const material::UniformBlock>>>
       blocks;
   // child(): `uniform shader NAME` slots, filled with whole Materials.
   // They are recipe (they participate in equality) AND volatility: the
@@ -460,8 +461,9 @@ sk_sp<SkShader> Material::build(const Live& live, const PaintContext* ctx,
               "[compose] sdf material: pad %.1f px >= half of the "
               "%.0fx%.0f box — the style's reserve (glow/shadow/border) "
               "eats the whole interior and the visible shape is ~%.1f px "
-              "across. Size the node with sdf::minBoxFor(style, "
-              "contentPx) = content + 2*sdf::pad(style). (warned once)\n",
+              "across. Size the node with material::sdf::minBoxFor(style, "
+              "contentPx) = content + 2*material::sdf::pad(style). (warned "
+              "once)\n",
               value, ctx->size.width(), ctx->size.height(),
               std::max(1.0f, std::min(ctx->size.width(), ctx->size.height()) -
                                  2 * value));
@@ -572,8 +574,9 @@ sk_sp<SkShader> Material::buildBacked(const PaintContext* ctx) const {
             "[compose] sdf material: pad %.1f px >= half of the "
             "%.0fx%.0f box — the style's reserve (glow/shadow/border) "
             "eats the whole interior and the visible shape is ~%.1f px "
-            "across. Size the node with sdf::minBoxFor(style, "
-            "contentPx) = content + 2*sdf::pad(style). (warned once)\n",
+            "across. Size the node with material::sdf::minBoxFor(style, "
+            "contentPx) = content + 2*material::sdf::pad(style). (warned "
+            "once)\n",
             pad, ctx->size.width(), ctx->size.height(),
             std::max(1.0f, std::min(ctx->size.width(), ctx->size.height()) -
                                2 * pad));
@@ -1240,8 +1243,8 @@ Material& Material::uniform(std::string name, std::vector<float> values) {
   return *this;
 }
 
-Material& Material::uniform(std::string name,
-                            std::shared_ptr<const UniformBlock> block) {
+Material& Material::uniform(
+    std::string name, std::shared_ptr<const material::UniformBlock> block) {
   if (m_backed) {
     detachBacked();
     m_backed->material.bind(name, std::move(block));
@@ -1436,7 +1439,7 @@ Element& Element::fill(Material m) {
     m_node->paint.fill.reset();
     slots.recipe.reset();
   } else {
-    m_node->paint.fill = Animatable<Fill>{m.toFill()};
+    m_node->paint.fill = motion::Animatable<Fill>{m.toFill()};
     slots.recipe = std::move(m);  // the prune signature
     slots.live.reset();
   }

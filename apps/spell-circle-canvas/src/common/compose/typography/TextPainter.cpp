@@ -61,8 +61,7 @@ struct TextEngine final : TextPainterOps {
     resolveTextAnnotations(*inst.owner, inst);
   }
   sigil::weave::ReservedBand reservedBand(
-      Instance& inst,
-      std::span<const Annotation> annotations) const override {
+      Instance& inst, std::span<const Annotation> annotations) const override {
     return reservedBandOf(*inst.owner, annotations);
   }
   std::vector<Beat> beats(Instance& inst, size_t trackIndex) const override {
@@ -156,7 +155,7 @@ Element& Element::variationDrive(const char (&tag)[5],
   Track track;
   track.effect = TextEffect(
       key, {},
-      [coordinate, value](const GlyphInfo&, float, Rng&) {
+      [coordinate, value](const GlyphInfo&, float, core::noise::Mix64Stream&) {
         GlyphMod mod;
         if (!value) return mod;
         sigil::weave::FontVariation driven = coordinate;

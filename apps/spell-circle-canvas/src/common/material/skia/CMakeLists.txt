@@ -1,11 +1,13 @@
 # The Skia backend: the SkSL compiler the core's program cache runs, the
 # builder that uploads resolved bytes into an SkRuntimeEffect, the leaf
-# binding of a texture into a child slot, and the draw of a material over
-# a path. Links the texture feature (and through it the core and Skia),
+# binding of a texture into a child slot, the draw of a material over a
+# path, and the one colour bridge between SkColor4f and this library's
+# Color. Links the texture feature (and through it the core and Skia),
 # nothing else.
 add_library(SigilMaterialSkia STATIC
   Draw.cpp
   SkiaCompiler.cpp
+  ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/skia/Color.h
   ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/skia/Draw.h
   ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/skia/SkiaCompiler.h
 )

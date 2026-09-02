@@ -75,7 +75,9 @@ void perturb(Shape& v) {
   v = Shape([](SkSize) { return SkPath(); });  // the raw-callable escape hatch
 }
 
-void perturb(std::optional<Transition>& v) { v = Transition{}; }
+void perturb(std::optional<sigil::motion::Transition>& v) {
+  v = motion::Transition{};
+}
 
 void perturb(choreograph::EaseFn& v) { v = &choreograph::easeInQuad; }
 
@@ -88,12 +90,12 @@ void perturb(const choreograph::Output<float>*& v) {
   v = &other;
 }
 
-void perturb(Animatable<float>& v) {
+void perturb(sigil::motion::Animatable<float>& v) {
   v = (v.plain() ? *v.plain() : 0.0f) + 1.0f;
 }
 
-void perturb(std::optional<Animatable<Fill>>& v) {
-  v = Animatable<Fill>(Fill::color(SkColor4f{1, 0, 0, 1}));
+void perturb(std::optional<sigil::motion::Animatable<Fill>>& v) {
+  v = sigil::motion::Animatable<Fill>(Fill::color(SkColor4f{1, 0, 0, 1}));
 }
 
 void perturb(std::vector<Decoration>& v) {
@@ -237,7 +239,8 @@ TEST(ComposeReconcile, EveryBoundFloatFieldParticipatesInEquality) {
   static const bool kParticipates[] = {
       true, true, true, true, true, true, true, true, true, true, true, true,
       true, true, true, true, true, true, true, true, true, true, true, true};
-  walkFields<BoundFloat>(cd::boundMapEqual, kNames, kParticipates);
+  walkFields<sigil::motion::BoundFloat>(cd::boundMapEqual, kNames,
+                                        kParticipates);
 }
 
 TEST(ComposePaintBounds, PerAxisScaleReachesTheParentsChildBoundsUnion) {
@@ -319,7 +322,7 @@ TEST(ComposeSlotPins, EverySlotRowReachesItsOwnFieldAtItsStandingDefault) {
   node.motionData.ensure();                 // travel(): carries kMotionT
   node.textData.ensure().onPath.emplace();  // onPath(): carries kTextPathAt
 
-  std::vector<const Animatable<float>*> seen;
+  std::vector<const sigil::motion::Animatable<float>*> seen;
   int bespoke = 0, opacityRows = 0;
   for (const cd::SlotSpec& spec : cd::kSlotSpecs) {
     const int index = (int)spec.slot;
@@ -336,7 +339,7 @@ TEST(ComposeSlotPins, EverySlotRowReachesItsOwnFieldAtItsStandingDefault) {
       continue;
     }
     if (spec.role == cd::SlotRole::Opacity) ++opacityRows;
-    const Animatable<float>* v = cd::slotValueOf(spec, node);
+    const sigil::motion::Animatable<float>* v = cd::slotValueOf(spec, node);
     ASSERT_NE(v, nullptr) << "slot " << index
                           << "'s accessor reaches nothing "
                              "on a node carrying every block";

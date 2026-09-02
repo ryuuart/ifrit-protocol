@@ -11,6 +11,7 @@
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilcompose/Compose.h>
 #include <sigilcompose/core/Material.h>
+#include <sigilcore/reconcile/Env.h>
 #include <sigilweave/paragraph/Paragraph.h>
 
 #include <cmath>
@@ -22,6 +23,8 @@
 #include "BenchSupport.h"
 
 using namespace sigil::compose;
+
+namespace core = sigil::core;
 using sigil::compose::bench::cellFill;
 using sigil::compose::bench::fonts;
 using sigil::compose::bench::Host;
@@ -246,11 +249,11 @@ struct MemoCellProps {
 };
 
 Element memoGridUnder(int count, const BenchPalette& palette) {
-  env::Provide<BenchPalette> theme(palette);
+  core::env::Provide<BenchPalette> theme(palette);
   auto root = box().row().wrapLines().gap(1);
   for (int id = 0; id < count; ++id)
     root.child(memo(MemoCellProps{id}, [](const MemoCellProps& props) {
-                 // Deliberately never reads env::inherited: this memo
+                 // Deliberately never reads core::env::inherited: this memo
                  // has no reason to miss when the theme changes.
                  return box().width(19).height(19).fill(cellFill(props.id));
                }).key("m" + std::to_string(id)));

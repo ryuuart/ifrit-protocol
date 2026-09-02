@@ -9,19 +9,21 @@ TEST(ComposeShapes, CircleInsetStandsConcentricallyInsideTheBox) {
   // the same concentric geometry, pulled in by px, so glyphs straddling
   // the circle keep both halves inside whatever clips at the box.
   const SkSize size{200, 200};
-  const SkRect inscribed = shapes::circle()(size).getBounds();
-  const SkRect drawn = shapes::circle(24.0f)(size).getBounds();
+  const SkRect inscribed = geometry::shapes::circle()(size).getBounds();
+  const SkRect drawn = geometry::shapes::circle(24.0f)(size).getBounds();
   EXPECT_FLOAT_EQ(drawn.left(), inscribed.left() + 24.0f);
   EXPECT_FLOAT_EQ(drawn.top(), inscribed.top() + 24.0f);
   EXPECT_FLOAT_EQ(drawn.right(), inscribed.right() - 24.0f);
   EXPECT_FLOAT_EQ(drawn.bottom(), inscribed.bottom() - 24.0f);
   // Zero inset IS the inscribed circle, byte for byte, and the value form
   // compares by its parameters — the prune contract every generator keeps.
-  EXPECT_EQ(shapes::circle()(size), shapes::circle(0.0f)(size));
-  EXPECT_TRUE(shapes::circle() == shapes::circle(0.0f));
-  EXPECT_FALSE(shapes::circle() == shapes::circle(24.0f));
+  EXPECT_EQ(geometry::shapes::circle()(size),
+            geometry::shapes::circle(0.0f)(size));
+  EXPECT_TRUE(geometry::shapes::circle() == geometry::shapes::circle(0.0f));
+  EXPECT_FALSE(geometry::shapes::circle() == geometry::shapes::circle(24.0f));
   // The oriented overload carries the same trailing inset.
-  EXPECT_EQ(shapes::circle(SkPathDirection::kCCW, 1, 24.0f)(size).getBounds(),
+  EXPECT_EQ(geometry::shapes::circle(SkPathDirection::kCCW, 1, 24.0f)(size)
+                .getBounds(),
             drawn);
 }
 
@@ -33,7 +35,7 @@ TEST(ComposeShapes, ArrowPointsAlongPositiveX) {
                                        .absolute()
                                        .left(0)
                                        .top(0)
-                                       .shape(shapes::arrow())
+                                       .shape(geometry::shapes::arrow())
                                        .fill(Material::solid({0, 1, 0, 1}))));
   host.frame();
   EXPECT_GT(SkColorGetG(host.pixel(20, 30)), 200u);  // shaft on the axis
@@ -43,8 +45,8 @@ TEST(ComposeShapes, ArrowPointsAlongPositiveX) {
 }
 
 TEST(ComposeShapes, SectorIsClosedAndFillable) {
-  // shapes::arc() is open by contract; a pie wedge needs a closed path.
-  // A 90-degree sector starting at 0 (Skia: 0 = +x, clockwise) fills the
+  // geometry::shapes::arc() is open by contract; a pie wedge needs a closed
+  // path. A 90-degree sector starting at 0 (Skia: 0 = +x, clockwise) fills the
   // lower-right quadrant of its box and nothing else.
   Host host(200, 200);
   host.composer.render(box().child(box()
@@ -52,7 +54,7 @@ TEST(ComposeShapes, SectorIsClosedAndFillable) {
                                        .height(200)
                                        .absolute()
                                        .inset(0)
-                                       .shape(shapes::sector(0, 90))
+                                       .shape(geometry::shapes::sector(0, 90))
                                        .fill(Material::solid({1, 0, 0, 1}))));
   host.frame();
   EXPECT_GT(SkColorGetR(host.pixel(130, 130)), 200u);  // inside the wedge
@@ -61,13 +63,14 @@ TEST(ComposeShapes, SectorIsClosedAndFillable) {
 
   // innerRatio carves the donut hole out of the middle.
   Host donut(200, 200);
-  donut.composer.render(box().child(box()
-                                        .width(200)
-                                        .height(200)
-                                        .absolute()
-                                        .inset(0)
-                                        .shape(shapes::sector(0, 350, 0.6f))
-                                        .fill(Material::solid({1, 0, 0, 1}))));
+  donut.composer.render(
+      box().child(box()
+                      .width(200)
+                      .height(200)
+                      .absolute()
+                      .inset(0)
+                      .shape(geometry::shapes::sector(0, 350, 0.6f))
+                      .fill(Material::solid({1, 0, 0, 1}))));
   donut.frame();
   EXPECT_GT(SkColorGetR(donut.pixel(180, 100)), 200u);  // on the ring
   EXPECT_LT(SkColorGetR(donut.pixel(100, 100)), 60u);   // through the hole
@@ -84,7 +87,7 @@ TEST(ComposeMaterial, LiveMaterialOnOutlineShapeFillsTheShape) {
                       .height(100)
                       .inset(0, 0, 100, 100)
                       .absolute()
-                      .shape(shapes::star(4, 0.3f))
+                      .shape(geometry::shapes::star(4, 0.3f))
                       .fill(Material::sksl(ukEffect()).uniform("uK", &k))));
   host.frame();
   EXPECT_GT(SkColorGetR(host.pixel(50, 50)), 200u);  // star body
@@ -162,7 +165,7 @@ TEST(ComposeTravel, PlacesTheTransformOriginOnTheParentSizedCurve) {
   Host host(200, 200);
   choreograph::Output<float> t{0};
   const auto describe = [&] {
-    return travelFrame(rider({.path = shapes::circle(), .t = &t}));
+    return travelFrame(rider({.path = geometry::shapes::circle(), .t = &t}));
   };
 
   // Skia's addOval(dir=kCW, startIndex=1) begins at the RIGHT extreme and
@@ -181,8 +184,9 @@ TEST(ComposeTravel, PlacesTheTransformOriginOnTheParentSizedCurve) {
   // …and the point that rides is the TRANSFORM ORIGIN, so moving the origin
   // to the rider's top-left offsets the whole ink by half its box.
   t = 0.0f;
-  host.composer.render(travelFrame(
-      rider({.path = shapes::circle(), .t = &t}).transformOrigin(0, 0)));
+  host.composer.render(
+      travelFrame(rider({.path = geometry::shapes::circle(), .t = &t})
+                      .transformOrigin(0, 0)));
   host.frame();
   const SkPoint pinned = inkCentroid(host, SK_ColorRED, 200, 200);
   EXPECT_NEAR(pinned.x(), 184.0f, 1.5f)
@@ -202,13 +206,13 @@ TEST(ComposeTravel, WrapsOnAClosedCurveAndClampsOnAnOpenOne) {
   };
 
   // Closed: a lap and a quarter is a quarter, and negative runs backwards.
-  const SkPoint quarter = atT(shapes::circle(), 0.25f);
-  const SkPoint lapAndAQuarter = atT(shapes::circle(), 1.25f);
+  const SkPoint quarter = atT(geometry::shapes::circle(), 0.25f);
+  const SkPoint lapAndAQuarter = atT(geometry::shapes::circle(), 1.25f);
   EXPECT_NEAR(lapAndAQuarter.x(), quarter.x(), 1.0f) << "a closed curve did "
                                                         "not WRAP";
   EXPECT_NEAR(lapAndAQuarter.y(), quarter.y(), 1.0f);
-  const SkPoint back = atT(shapes::circle(), -0.25f);
-  const SkPoint threeQuarters = atT(shapes::circle(), 0.75f);
+  const SkPoint back = atT(geometry::shapes::circle(), -0.25f);
+  const SkPoint threeQuarters = atT(geometry::shapes::circle(), 0.75f);
   EXPECT_NEAR(back.x(), threeQuarters.x(), 1.0f);
   EXPECT_NEAR(back.y(), threeQuarters.y(), 1.0f);
 
@@ -229,9 +233,10 @@ TEST(ComposeTravel, OutranksTheTranslateLanesAndHandsThemBack) {
   Host host(200, 200);
   choreograph::Output<float> t{0.25f};
   // A path and a contradicting lane on the same node: the path wins whole.
-  host.composer.render(travelFrame(rider({.path = shapes::circle(), .t = &t})
-                                       .translateX(-60)
-                                       .translateY(-60)));
+  host.composer.render(
+      travelFrame(rider({.path = geometry::shapes::circle(), .t = &t})
+                      .translateX(-60)
+                      .translateY(-60)));
   host.frame();
   SkPoint ink = inkCentroid(host, SK_ColorRED, 200, 200);
   EXPECT_NEAR(ink.x(), 100.0f, 1.5f) << "the lanes were blended into the path";
@@ -256,14 +261,14 @@ TEST(ComposeTravel, AutoOrientAddsToRotateAndHoldsTheLastGoodChord) {
   Host host(200, 200);
   choreograph::Output<float> t{0};
   const auto bar = [&](float lookAhead, std::optional<float> spin) {
-    Element e =
-        box()
-            .key("dot")
-            .absolute()
-            .rect(SkRect::MakeXYWH(0, 0, 40, 4))
-            .fill(red())
-            .travel(
-                {.path = shapes::circle(), .t = &t, .lookAhead = lookAhead});
+    Element e = box()
+                    .key("dot")
+                    .absolute()
+                    .rect(SkRect::MakeXYWH(0, 0, 40, 4))
+                    .fill(red())
+                    .travel({.path = geometry::shapes::circle(),
+                             .t = &t,
+                             .lookAhead = lookAhead});
     if (spin) e.rotate(*spin);
     return travelFrame(std::move(e));
   };
@@ -324,22 +329,27 @@ TEST(ComposeTravel, PrunesOnlyWhenEveryFieldOfThePathMatches) {
     return host.composer.stats().patchedNodes;
   };
 
-  renderAndCount({.path = shapes::circle(), .t = 0.25f, .lookAhead = 0.02f});
-  EXPECT_EQ(renderAndCount(
-                {.path = shapes::circle(), .t = 0.25f, .lookAhead = 0.02f}),
-            0u)
+  renderAndCount(
+      {.path = geometry::shapes::circle(), .t = 0.25f, .lookAhead = 0.02f});
+  EXPECT_EQ(
+      renderAndCount(
+          {.path = geometry::shapes::circle(), .t = 0.25f, .lookAhead = 0.02f}),
+      0u)
       << "an identical comparable scheme did not prune";
 
-  EXPECT_EQ(renderAndCount(
-                {.path = shapes::polygon(6), .t = 0.25f, .lookAhead = 0.02f}),
+  EXPECT_EQ(renderAndCount({.path = geometry::shapes::polygon(6),
+                            .t = 0.25f,
+                            .lookAhead = 0.02f}),
             1u)
       << "the path FIELD does not participate in equality";
-  EXPECT_EQ(renderAndCount(
-                {.path = shapes::polygon(6), .t = 0.60f, .lookAhead = 0.02f}),
+  EXPECT_EQ(renderAndCount({.path = geometry::shapes::polygon(6),
+                            .t = 0.60f,
+                            .lookAhead = 0.02f}),
             1u)
       << "the t FIELD does not participate in equality";
-  EXPECT_EQ(renderAndCount(
-                {.path = shapes::polygon(6), .t = 0.60f, .lookAhead = 0.05f}),
+  EXPECT_EQ(renderAndCount({.path = geometry::shapes::polygon(6),
+                            .t = 0.60f,
+                            .lookAhead = 0.05f}),
             1u)
       << "the lookAhead FIELD does not participate in equality";
 
@@ -379,11 +389,12 @@ TEST(ComposeTravel, IsPaintOnlyAndAResizedFrameKeepsT) {
   Host host(200, 200);
   choreograph::Output<float> t{0};
   const auto describe = [&](float frameSize) {
-    return box().child(box()
-                           .key("frame")
-                           .absolute()
-                           .rect(SkRect::MakeXYWH(20, 20, frameSize, frameSize))
-                           .child(rider({.path = shapes::circle(), .t = &t})));
+    return box().child(
+        box()
+            .key("frame")
+            .absolute()
+            .rect(SkRect::MakeXYWH(20, 20, frameSize, frameSize))
+            .child(rider({.path = geometry::shapes::circle(), .t = &t})));
   };
   host.composer.render(describe(160));
   host.frame();
@@ -419,7 +430,7 @@ TEST(ComposeTravel, TheHitTestUndoesTheSameMatrixPaintApplied) {
   Host host(200, 200);
   choreograph::Output<float> t{0.25f};
   host.composer.render(
-      travelFrame(rider({.path = shapes::circle(), .t = &t}, 20)));
+      travelFrame(rider({.path = geometry::shapes::circle(), .t = &t}, 20)));
   host.frame();
   // The rider is laid out at the frame's top-left and painted at the
   // circle's bottom. Only the painted place may hit.

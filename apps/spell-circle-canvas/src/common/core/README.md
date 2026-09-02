@@ -79,7 +79,7 @@ include their own directory's headers. The hardware feature's are
 |--------|-------|
 | `comparable/Erased.h` | `Erased<Ops>` — comparable type erasure: a set of operations carried on the value that implements them |
 | `comparable/Fields.h` | `kFieldCount<T>` — how many direct non-static data members an aggregate has, and the pin a hand-written comparator sits under |
-| `compute/Noise.h` | `noise::hash` (a per-index float in [-1, 1]), and the PCG family `noise::pcgAdvance`, `noise::pcgMix`, `noise::pcgHash`, `noise::pcgNext`, `noise::pcgUnit`, `noise::pcgUnitNext`, and the xorshift stream `noise::xorshiftNext`/`noise::xorshiftUnitNext` |
+| `compute/Noise.h` | `noise::hash` (a per-index float in [-1, 1]), the 64-bit avalanche `noise::mix64` with its `noise::kMix64Gamma` and the `noise::Mix64Stream` that walks it (`bits`, `unit`, `signedUnit`, `range`), the PCG family `noise::pcgAdvance`, `noise::pcgMix`, `noise::pcgHash`, `noise::pcgNext`, `noise::pcgUnit`, `noise::pcgUnitNext`, the xorshift stream `noise::xorshiftNext`/`noise::xorshiftUnitNext`, and the grid mixer `noise::lattice` |
 | `compute/Hash.h` | `hash::kFnvOffset`, `hash::kFnvPrime`, `hash::fnv1a` over a word or over text, and `hash::combine` — the stir that folds one more word into a hash in hand |
 | `reconcile/Reconciler.h` | `Reconciler<Host, Node, Desc>` — `render()`, `replaceContent()`, `patch()`, `patchChildren()`, `resolveMemo()`, `keyOf()`, `matchKeyOf()`, `indexKeys()`, `stats()`, `frame()`, and its `KeyIndex` |
 | `reconcile/Host.h` | the `ReconcileHost` concept — the operations a host implements — and `DescValue` |
@@ -336,6 +336,13 @@ work compared byte-for-byte against stored renders, so neither can become
 the other. New code takes `pcgHash`. The same rule decides every
 candidate for this directory: a body that differs is a second function
 under its own name, never a merge.
+
+The same rule holds for the STREAMS. `noise::Mix64Stream`,
+`noise::pcgNext` and `noise::xorshiftNext` walk three different mixers,
+and a caller already keyed to one draws a different sequence from the
+others. What the splitmix stream buys over the other two is its 64-bit
+counter: a caller with two integers to fold into one seed packs them into
+a word and does no mixing of its own.
 
 ## The device
 

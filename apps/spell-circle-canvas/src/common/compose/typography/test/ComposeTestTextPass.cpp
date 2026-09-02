@@ -214,11 +214,12 @@ TEST(TextPass, ReachGrowsBoundsWithoutMovingContent) {
   // deviation stands each glyph's top proud of the box, so the box edge
   // separates the two assertions cleanly.
   const TextEffect lift =
-      fx::effect("test-lift", [](const GlyphInfo&, float, Rng&) {
-        GlyphMod m;
-        m.dy = -14.0f;
-        return m;
-      });
+      fx::effect("test-lift",
+                 [](const GlyphInfo&, float, sigil::core::noise::Mix64Stream&) {
+                   GlyphMod m;
+                   m.dy = -14.0f;
+                   return m;
+                 });
   const auto describe = [&](float reach) {
     return box().padding(60).child(
         text(u8"HOIST", whiteStyle(34))
@@ -277,8 +278,8 @@ TEST(TextPass, ProgressAdvancesWithCascadeAndSettles) {
             .fx({.effect = fx::pass(passOver(kPhaseProbeSksl)),
                  .stagger = {.eachMs = 60, .durationMs = 200},
                  .over = unit::Cluster,
-                 .progress =
-                     animate(to(target), Transition{.duration = 200ms})}));
+                 .progress = animate(sigil::motion::to(target),
+                                     motion::Transition{.duration = 200ms})}));
   };
   host.composer.render(describe(0.0f));
   host.frame();
@@ -301,11 +302,12 @@ TEST(TextPass, ComposesDownstreamOfDeviationTracks) {
   // alpha-zero deviation empties the layer, so the identity pass shows
   // nothing — where without the deviation it shows the letters.
   const TextEffect hide =
-      fx::effect("test-hide", [](const GlyphInfo&, float, Rng&) {
-        GlyphMod m;
-        m.alpha = 0.0f;
-        return m;
-      });
+      fx::effect("test-hide",
+                 [](const GlyphInfo&, float, sigil::core::noise::Mix64Stream&) {
+                   GlyphMod m;
+                   m.alpha = 0.0f;
+                   return m;
+                 });
   Host hidden;
   hidden.composer.render(box().padding(30).child(
       text(u8"GONE", whiteStyle(40))
@@ -341,7 +343,7 @@ TEST(TextPass, RestsAtSkipsTheShaderWhenEveryUnitSitsOnADeclaredPhase) {
   // what makes the skip observable: at a phase covered by the declaration
   // the batches draw directly and the letters show, while any phase off
   // the declaration still runs the shader and erases them.
-  const auto lettersShow = [](TextEffect effect, motion::Spread cascade,
+  const auto lettersShow = [](TextEffect effect, sigil::motion::Spread cascade,
                               float master) {
     Host host;
     host.composer.render(
@@ -354,7 +356,7 @@ TEST(TextPass, RestsAtSkipsTheShaderWhenEveryUnitSitsOnADeclaredPhase) {
     host.frame();
     return anyWhiteIn(host, SkIRect::MakeXYWH(10, 10, 180, 180));
   };
-  const motion::Spread oneShot{.eachMs = 60, .durationMs = 200};
+  const sigil::motion::Spread oneShot{.eachMs = 60, .durationMs = 200};
   const TextEffect erase = fx::pass(passOver(kEraseSksl));
 
   // Undeclared: the pass runs at every phase, both ends included.
@@ -376,7 +378,7 @@ TEST(TextPass, RestsAtSkipsTheShaderWhenEveryUnitSitsOnADeclaredPhase) {
   // A LOOPING cascade: units genuinely rest at exactly 1 between beats, so
   // restsAt(1) engages whenever no beat is mid-cycle — and does not while
   // any unit is mid-beat.
-  motion::Spread loop{.eachMs = 60, .durationMs = 100};
+  sigil::motion::Spread loop{.eachMs = 60, .durationMs = 100};
   loop.loopMs = 1000;
   EXPECT_TRUE(lettersShow(erase.restsAt(1.0f), loop, 0.5f));
   EXPECT_FALSE(lettersShow(erase.restsAt(1.0f), loop, 0.05f));
@@ -412,7 +414,7 @@ TEST(TextPass, RidesAPathBaseline) {
           .key("ring")
           .width(180)
           .height(180)
-          .onPath({.path = shapes::circle()})
+          .onPath({.path = geometry::shapes::circle()})
           .fx({.effect = fx::pass(passOver(kIdentitySksl))})));
   host.frame();
   // The identity pass hands back the curved lettering it was given.
@@ -499,13 +501,13 @@ TEST(TextPass, EffectConstantLanesParticipateInEquality) {
 }
 
 TEST(TextPass, UniformBlockIsLiveAndReadsOnCommit) {
-  auto block = std::make_shared<UniformBlock>(4);
+  auto block = std::make_shared<sigil::material::UniformBlock>(4);
   Material live = Material::sksl(wideUniformEffect()).uniform("uVals", block);
   // The binding declares volatility — the node paints live, no cache can
   // freeze the table — exactly as a bound scalar Output does.
   EXPECT_TRUE(live.isAnimated());
   // A block at the wrong size is refused and declares nothing.
-  auto wrong = std::make_shared<UniformBlock>(3);
+  auto wrong = std::make_shared<sigil::material::UniformBlock>(3);
   EXPECT_FALSE(
       Material::sksl(wideUniformEffect()).uniform("uVals", wrong).isAnimated());
 

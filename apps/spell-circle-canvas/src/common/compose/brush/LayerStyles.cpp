@@ -39,7 +39,7 @@ sk_sp<SkShader> vRamp(float y0, float y1,
   std::vector<SkColor4f> colors;
   std::vector<float> stops;
   for (const auto& s : ramp) {
-    colors.push_back(sk(s.color));
+    colors.push_back(material::skia::toSkColor(s.color));
     stops.push_back(s.pos);
   }
   return vRamp(y0, y1, std::move(colors), std::move(stops));
@@ -48,7 +48,8 @@ sk_sp<SkShader> vRamp(float y0, float y1,
 Material unitRamp(const std::vector<sigil::material::kit::RampStop>& ramp) {
   std::vector<Stop> stops;
   stops.reserve(ramp.size());
-  for (const auto& s : ramp) stops.push_back({s.pos, sk(s.color)});
+  for (const auto& s : ramp)
+    stops.push_back({s.pos, material::skia::toSkColor(s.color)});
   return Material::linear({0, 0}, {0, 1}, std::move(stops));
 }
 }  // namespace
@@ -136,10 +137,11 @@ Effect ripple(float amplitudePx, float wavelengthPx, float phase,
 
 void AquaBody::paint(SkCanvas& c, const PaintContext& ctx) const {
   const float H = ctx.size.height();
-  const sigil::material::Color t = detail::mat(tint);
+  const sigil::material::Color t = material::skia::toColor(tint);
   if (opts.halo) {  // a lightened, half-transparent cast of the tint
-    Shadow{detail::sk(kit::aquaHalo(t)), {0, H * 0.25f}, H * 0.40f}.paint(c,
-                                                                          ctx);
+    Shadow{
+        material::skia::toSkColor(kit::aquaHalo(t)), {0, H * 0.25f}, H * 0.40f}
+        .paint(c, ctx);
   }
   SkPaint body;  // deep at the top, saturated in the middle, light below
   body.setAntiAlias(true);
@@ -148,7 +150,8 @@ void AquaBody::paint(SkCanvas& c, const PaintContext& ctx) const {
   if (opts.topBand > 0) {  // the recess under the top edge
     sigil::material::Color band = kit::aquaTopBand(t);
     band.a *= opts.topBand;
-    InnerShadow{detail::sk(band), {0, H * 0.08f}, H * 0.25f}.paint(c, ctx);
+    InnerShadow{material::skia::toSkColor(band), {0, H * 0.08f}, H * 0.25f}
+        .paint(c, ctx);
   }
   if (opts.bottomGlow > 0) {  // screen-blended, fading out by mid-height
     SkPaint glow;
@@ -184,8 +187,8 @@ void AquaGloss::paint(SkCanvas& c, const PaintContext& ctx) const {
 LayerStyle aquaGel(SkColor4f tint, AquaGelOptions opts) {
   PathFormat hairline;
   hairline.width = 1.0f;
-  hairline.strokeFill =
-      Fill::color(detail::sk(kit::aquaHairline(detail::mat(tint))));
+  hairline.strokeFill = Fill::color(material::skia::toSkColor(
+      kit::aquaHairline(material::skia::toColor(tint))));
   hairline.align = PathFormat::Align::Inner;
   return LayerStyle{
       {Decoration(AquaBody{tint, opts})},
@@ -245,7 +248,7 @@ void ChromeSliver::paint(SkCanvas& c, const PaintContext& ctx) const {
 LayerStyle y2kChrome(ChromeOptions opts) {
   PathFormat keyline;
   keyline.width = opts.keylineWidth;
-  keyline.strokeFill = Fill::color(detail::sk(opts.keyline));
+  keyline.strokeFill = Fill::color(material::skia::toSkColor(opts.keyline));
   keyline.align = PathFormat::Align::Outer;
   LayerStyle bundle;
   bundle.under = {Decoration(Shadow{{0, 0, 0, 0.45f}, {0, 6}, 10}),
@@ -255,8 +258,8 @@ LayerStyle y2kChrome(ChromeOptions opts) {
   // height reads as a strikethrough instead of as a sheen on the plate.
   if (opts.horizonSliver) bundle.under.emplace_back(ChromeSliver{});
   if (opts.palette == ChromeOptions::Palette::Steel)
-    bundle.over.emplace_back(
-        InnerShadow{detail::sk(kit::chromeSteelTopBand()), {0, 3}, 4});
+    bundle.over.emplace_back(InnerShadow{
+        material::skia::toSkColor(kit::chromeSteelTopBand()), {0, 3}, 4});
   bundle.over.emplace_back(BevelEmboss{
       opts.bevelDepth, opts.bevelSize, 120, {1, 1, 1, 0.5f}, {0, 0, 0, 0.65f}});
   if (opts.keylineWidth > 0) bundle.over.emplace_back(keyline);

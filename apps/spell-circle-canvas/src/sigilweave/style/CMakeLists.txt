@@ -1,7 +1,8 @@
 # The style vocabulary every other feature speaks, one header per subject:
 # a TextStyle's shaping half (the shape-cache key) and paint half (resolved
-# at draw time), paint layers, decorations, the named-style registry, and
-# the OpenType feature presets, with Style.h the umbrella over them.
+# at draw time), paint layers, decorations, the named-style registry, the
+# OpenType feature presets, and the designated-init `Type` a call site
+# names a style's numbers in, with Style.h the umbrella over them.
 # Header-only over Skia's paint and typeface types; a paint layer names a
 # SigilMaterial instance by pointer and links nothing for it.
 add_library(SigilWeaveStyle INTERFACE
@@ -12,6 +13,7 @@ add_library(SigilWeaveStyle INTERFACE
   ${SIGIL_WEAVE_INCLUDE_DIR}/sigilweave/style/ShapingStyle.h
   ${SIGIL_WEAVE_INCLUDE_DIR}/sigilweave/style/Style.h
   ${SIGIL_WEAVE_INCLUDE_DIR}/sigilweave/style/StyleSet.h
+  ${SIGIL_WEAVE_INCLUDE_DIR}/sigilweave/style/Type.h
   ${SIGIL_WEAVE_INCLUDE_DIR}/sigilweave/style/TextStyle.h
 )
 target_compile_features(SigilWeaveStyle INTERFACE cxx_std_20)

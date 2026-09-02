@@ -11,9 +11,11 @@
 #include <include/core/SkPoint.h>
 #include <include/core/SkRect.h>
 #include <include/core/SkSize.h>
-#include <sigilcompose/core/Erased.h>
-#include <sigilcompose/core/Motion.h>
+#include <sigilcore/comparable/Erased.h>
 #include <sigilcore/compute/Noise.h>
+#include <sigilmotion/Animation.h>
+#include <sigilmotion/schedule/Schedule.h>
+#include <sigilmotion/values/Animated.h>
 #include <sigilweave/layout/LayoutOptions.h>
 #include <sigilweave/layout/PositionedRun.h>
 #include <sigilweave/paragraph/Paragraph.h>
@@ -79,38 +81,6 @@ inline constexpr Unit Word = Unit::Word;
 inline constexpr Unit Line = Unit::Line;
 inline constexpr Unit Sentence = Unit::Sentence;
 }  // namespace unit
-
-/** A deterministic generator, handed to every effect.
- *
- *  Seeded from the GLYPH's identity, so the same letter of the same text
- *  draws the same random numbers on every frame and across every
- *  relayout — a scatter that is stable is a scatter that can be cached,
- *  and one reseeded per frame would jitter forever and never settle.
- *  Reseeded fresh for each glyph, so an effect may draw as many values as
- *  it likes without the sequence depending on how many its neighbours
- *  drew.
- *
- *  Not a cryptographic generator and not a substitute for one. */
-class Rng {
- public:
-  explicit Rng(uint64_t seed) : m_state(seed) {}
-  /** The next 32 bits: a splitmix64 stream — the counter steps by the
-   *  gamma and the stepped value goes through the avalanche, whose HIGH
-   *  half is the word handed back. */
-  uint32_t bits() {
-    m_state += core::noise::kMix64Gamma;
-    return (uint32_t)(core::noise::mix64(m_state) >> 32u);
-  }
-  /** The next value in [0, 1). */
-  float unit() { return (float)(bits() >> 8u) * (1.0f / 16777216.0f); }
-  /** The next value in [-1, 1). */
-  float signedUnit() { return unit() * 2.0f - 1.0f; }
-  /** The next value in [lo, hi). */
-  float range(float lo, float hi) { return lo + unit() * (hi - lo); }
-
- private:
-  uint64_t m_state;
-};
 
 /** What an effect sees for one glyph.
  *
@@ -227,10 +197,19 @@ struct GlyphMod {
   char32_t codepoint = 0;
 };
 
-/** The raw callable behind an effect: (glyph, local progress, rng) →
- *  deviation. Wrap one in a named `TextEffect` — the seam never holds a
- *  bare function, because a bare function cannot be compared. */
-using GlyphModFn = std::function<GlyphMod(const GlyphInfo&, float, Rng&)>;
+/** The raw callable behind an effect: (glyph, local progress, random
+ *  stream) → deviation. Wrap one in a named `TextEffect` — the seam never
+ *  holds a bare function, because a bare function cannot be compared.
+ *
+ *  THE STREAM IS SEEDED FROM THE GLYPH'S IDENTITY, so the same letter of
+ *  the same text draws the same numbers on every frame and across every
+ *  relayout — a scatter that is stable is a scatter that can be cached,
+ *  and one reseeded per frame would jitter forever and never settle. It
+ *  is reseeded fresh for each glyph, so an effect may draw as many values
+ *  as it likes without the sequence depending on how many its neighbours
+ *  drew. */
+using GlyphModFn =
+    std::function<GlyphMod(const GlyphInfo&, float, core::noise::Mix64Stream&)>;
 
 /** THE EFFECT, as a comparable value: a name, its parameters, and any
  *  operand effects it was built from.
@@ -280,7 +259,8 @@ class TextEffect {
   static TextEffect variableAxis(const char (&tag)[5], float value);
 
   /** Evaluates the deviation. An empty effect answers the identity. */
-  GlyphMod operator()(const GlyphInfo& g, float t, Rng& rng) const {
+  GlyphMod operator()(const GlyphInfo& g, float t,
+                      core::noise::Mix64Stream& rng) const {
     return m_state && m_state->fn ? m_state->fn(g, t, rng) : GlyphMod{};
   }
   explicit operator bool() const { return m_state && (bool)m_state->fn; }
@@ -830,22 +810,6 @@ inline constexpr Beats Selection = Beats::Selection;
 inline constexpr Beats Text = Beats::Text;
 }  // namespace beats
 
-/** THE PER-UNIT TIME REMAP over a run of text, from a table of start
- *  times in ms: `cues({0, 340, 720, 1180, 1600}, {.durationMs = 180})`.
- *
- *  Caption, lyric and lip-sync timing is a table cut against a recording,
- *  and no even spread is a substitute for one. Sugar for setting
- *  `motion::Spread::cueMs`, whose documentation states what a table
- *  shorter or longer than the unit list does; everything else a spread
- *  says (how long one unit's motion lasts, whether a second cascade nests
- *  inside each beat) is orthogonal and still wanted, which is why this
- *  answers a whole spread and not a table.
- *
- *  WHAT a unit is stays on the track — `Track::over` — because it is the
- *  one part of a cascade over text that is about the text. */
-[[nodiscard]] motion::Spread cues(std::vector<float> startMs,
-                                  motion::Spread spec = {});
-
 /** ONE TRACK: which glyphs, what deviation, how the beats spread, and the
  *  master progress that drives it.
  *
@@ -884,7 +848,7 @@ struct Track {
    *  share a clock. ONE setting governs both levels of a nested cascade,
    *  as one `loopMs` governs both periods. */
   Beats beatsOver = Beats::Selection;
-  Animatable<float> progress = 1.0f;
+  motion::Animatable<float> progress = 1.0f;
   /** Pixels beyond the element's box this track may paint, which the
    *  recording cull grows by. Negative means "ask the effect", which is
    *  what every preset answers for itself; set it when a keyed lambda
@@ -1422,7 +1386,7 @@ class TextPainterOps {
 /** The painter as a description carries it: a comparable value, excluded
  *  from structural equality because it is the same engine on every text
  *  that has one. */
-using TextPainter = Erased<TextPainterOps>;
+using TextPainter = core::Erased<TextPainterOps>;
 
 namespace detail {
 /** THE ENGINE WITHOUT A DESCRIPTION TO CARRY IT. A text leaf installs the

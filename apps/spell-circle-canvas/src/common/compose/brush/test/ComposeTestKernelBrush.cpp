@@ -191,7 +191,7 @@ TEST(ComposeShapes, InsetRunsADecorationAgainstAShrunkOutline) {
   Host host(120, 120);
   host.composer.render(box().child(
       box().width(120).height(120).absolute().left(0).top(0).foreground(
-          shapes::inset(12.0f, stroke(4.0f, Fill::color({1, 0, 0, 1}))))));
+          inset(12.0f, stroke(4.0f, Fill::color({1, 0, 0, 1}))))));
   host.frame();
   EXPECT_GT(SkColorGetR(host.pixel(60, 12)), 150u);  // the inset rule
   EXPECT_LT(SkColorGetR(host.pixel(60, 1)), 60u);    // the edge is bare
@@ -408,7 +408,7 @@ TEST(ComposeMask, TransitionDrawsOn) {
   // The draw-on border: a span gate's end transitioned 0 → 1 reveals the
   // perimeter over time (retarget-safe like every transitioned prop).
   Host host;
-  auto tree = [](Animatable<float> end) {
+  auto tree = [](motion::Animatable<float> end) {
     return box().child(box()
                            .key("b")
                            .width(100)
@@ -422,7 +422,7 @@ TEST(ComposeMask, TransitionDrawsOn) {
   host.frame();
   EXPECT_EQ(host.pixel(50, 99), SK_ColorBLACK);
   host.composer.render(
-      tree(animate(to(1.0f), {400ms, &choreograph::easeNone})));
+      tree(animate(sigil::motion::to(1.0f), {400ms, &choreograph::easeNone})));
   host.frame(0.2);  // ~50%: left + top revealed, bottom still bare
   EXPECT_EQ(host.pixel(50, 1), SK_ColorGREEN);
   EXPECT_EQ(host.pixel(50, 99), SK_ColorBLACK);

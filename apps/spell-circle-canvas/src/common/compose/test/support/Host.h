@@ -28,6 +28,19 @@
 using namespace sigil::compose;
 using namespace std::chrono_literals;
 
+// The libraries compose hands values from, each spelled at its own
+// origin: a schedule and an animatable are SigilMotion's, a silhouette
+// SigilGeometry's, a colour or a pattern SigilMaterial's, a style
+// SigilWeave's, an erased value or an env binding SigilCore's. Aliases
+// rather than using-directives, because `sigil::image` and
+// `sigil::measure` are namespaces that collide with compose's own
+// `image()` and `measure()` verbs.
+namespace core = sigil::core;
+namespace geometry = sigil::geometry;
+namespace material = sigil::material;
+namespace motion = sigil::motion;
+namespace weave = sigil::weave;
+
 namespace {
 
 sigil::weave::FontContext& fonts() {

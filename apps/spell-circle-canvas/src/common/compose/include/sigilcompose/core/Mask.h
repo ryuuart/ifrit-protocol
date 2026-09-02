@@ -9,11 +9,13 @@
 #include <include/core/SkPath.h>
 #include <include/core/SkRect.h>
 #include <include/core/SkSize.h>
-#include <sigilcompose/core/Erased.h>
-#include <sigilcompose/core/Motion.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/Shape.h>
 #include <sigilcompose/core/Stroke.h>
+#include <sigilcore/comparable/Erased.h>
+#include <sigilmotion/Animation.h>
+#include <sigilmotion/schedule/Schedule.h>
+#include <sigilmotion/values/Animated.h>
 
 #include <cassert>
 #include <cstdint>
@@ -214,7 +216,7 @@ Gate spans(Spans where);
  *  that reveals a filled surface by EXTENDING it — an arc-length window
  *  walks the perimeter instead, and scaleX/scaleY squash rather than
  *  reveal. */
-Gate edge(float angleDeg, Animatable<float> fraction);
+Gate edge(float angleDeg, motion::Animatable<float> fraction);
 /** A REGION of the node's local space, kept. `by::shape(Region::own())` is
  *  what `clip()` does. */
 Gate shape(Region r);
@@ -270,10 +272,10 @@ class Gate {
    *  See `by::alpha` / `by::luma` for the law each names. */
   enum class Channel : uint8_t { Alpha, Luma };
   Kind kind = Kind::Spans;
-  Spans where;                        ///< Spans
-  float angleDeg = 0.0f;              ///< Edge
-  Animatable<float> fraction = 1.0f;  ///< Edge
-  Region region;                      ///< Shape
+  Spans where;                                ///< Spans
+  float angleDeg = 0.0f;                      ///< Edge
+  motion::Animatable<float> fraction = 1.0f;  ///< Edge
+  Region region;                              ///< Shape
   /** Shape AND Coverage: keep the COMPLEMENT of what this gate names —
    *  `by::outside`, `by::alphaOut`, `by::lumaOut`. One field because it is
    *  one question ("which side of the show set?"), asked of two kinds. */
@@ -293,7 +295,7 @@ class Gate {
    *  Region is static and a Material animates itself). */
   /** The brush engine that reads this gate — installed by every `by::`
    *  constructor, excluded from equality. */
-  Erased<MaskResolverOps> resolver;
+  core::Erased<MaskResolverOps> resolver;
 
   /** How many animatable floats this gate carries, in the order the
    *  instance's mask slots index them: three per Spans term, one per Edge
@@ -345,6 +347,6 @@ class MaskResolverOps : public SpanArithmeticOps {
 };
 
 /** The resolver as a gate carries it, excluded from structural equality. */
-using MaskResolver = Erased<MaskResolverOps>;
+using MaskResolver = core::Erased<MaskResolverOps>;
 
 }  // namespace sigil::compose

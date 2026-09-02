@@ -137,6 +137,18 @@ struct Spread {
    *  computes both. */
   [[nodiscard]] float spanMs(uint32_t count, uint32_t innerCount = 1) const;
 
+  /** The cue table, set on a spread already in hand:
+   *  `Spread{.durationMs = 180}.cues({0, 340, 720, 1180, 1600})`.
+   *
+   *  It answers a whole spread rather than a bare table because
+   *  everything else a spread says — how long one unit's own motion
+   *  lasts, whether a second cascade nests inside each beat — is
+   *  orthogonal to the times and still wanted. */
+  Spread& cues(std::vector<float> startMs) {
+    cueMs = std::move(startMs);
+    return *this;
+  }
+
   bool operator==(const Spread& other) const;
 };
 

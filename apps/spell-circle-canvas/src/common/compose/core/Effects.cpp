@@ -398,7 +398,7 @@ Effect& Effect::uniform(std::string name, std::vector<float> values) {
 }
 
 Effect& Effect::uniform(std::string name,
-                        std::shared_ptr<const UniformBlock> block) {
+                        std::shared_ptr<const material::UniformBlock> block) {
   if (!block) {
     SkDebugf(
         "[compose] Effect::uniform(\"%s\", block): null UniformBlock — "

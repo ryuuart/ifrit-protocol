@@ -85,17 +85,18 @@ each field its own nonzero seed for independent scatters.
 and `motion::Spread::then` nests a second cascade inside every beat of the
 first — `Track::innerOver` says what a unit is at that second level.
 
-**Irregular timing.** `cues` replaces the even spread with a TABLE — one
-start time per unit, in ms — which is what caption, lyric and lip-sync
-timing actually is:
+**Irregular timing.** `motion::Spread::cues` replaces the even spread with
+a TABLE — one start time per unit, in ms — which is what caption, lyric
+and lip-sync timing actually is:
 
 ```cpp
 text(lyric).fx({.effect = fx::rise(12),
-                .stagger = cues({0, 340, 720, 1180}, {.durationMs = 180}),
+                .stagger = motion::Spread{.durationMs = 180}
+                               .cues({0, 340, 720, 1180}),
                 .over = unit::Word});
 ```
 
-It returns a `motion::Spread`, so it goes anywhere one goes and compares
+It answers the spread itself, so it goes anywhere one goes and compares
 like one. A table says only *when unit k starts*; `durationMs` and `then`
 are untouched by it, while `eachMs`, `amountMs`, `from` and `distribution`
 have nothing left to say and are ignored. A unit past the end of
@@ -180,7 +181,7 @@ phase** — an `Output` stepped mod 1, the clock `fx::waveLoop` already reads
 — drives it seamlessly forever:
 
 ```cpp
-motion::Spread cascade = cues(columnStartsMs);
+motion::Spread cascade = motion::Spread{}.cues(columnStartsMs);
 cascade.then({.eachMs = 80, .durationMs = 1400});
 cascade.loopMs = 5000;  // every column re-drops on its own cue, forever
 text(field, rain).fx({.effect = streak, .stagger = cascade,
@@ -289,9 +290,10 @@ leaves it nothing to veto — every unit is always somewhere in its cycle —
 so there an effect gates its own arrival instead (the looping-cascade
 passage above).
 
-**Effects get an `Rng`**, seeded from the glyph's identity, so a scatter is
-the same scatter on every frame and after every relayout — which is what
-lets it settle and cache instead of jittering forever.
+**Effects get a `core::noise::Mix64Stream`**, seeded from the glyph's
+identity, so a scatter is the same scatter on every frame and after every
+relayout — which is what lets it settle and cache instead of jittering
+forever.
 
 **A shader per letter is one pass.** `fx::pass` makes a track's effect a
 PASS rather than a per-glyph deviation: the runtime renders the units the
@@ -453,7 +455,7 @@ them in order.
 ```cpp
 text(u8"SIGILLVM · DEI · AEMETH", inscription)
     .width(320).height(320)
-    .onPath({.path = shapes::circle(),
+    .onPath({.path = geometry::shapes::circle(),
              .at = &phase,                       // the marquee
              .align = TextPath::Align::Center,
              .orient = TextPath::Orient::Tangent})
@@ -599,7 +601,7 @@ could not place is silent, like every other word that did not fit.
 `RichText::add` takes a run in the base style, a run in its own
 `sigil::weave::TextStyle`, or a run under a NAME resolved through a
 `sigil::weave::StyleSet` — supplied by `RichText::styles` or inherited
-through `env::Provide`. An explicit set beats the inherited one whichever
+through `core::env::Provide`. An explicit set beats the inherited one whichever
 order the two are written in, and a name the set does not register resolves
 to the base `rich()` was given, so a misspelling shows as content set in
 the default rather than as content that did not draw. `RichText::runs` and

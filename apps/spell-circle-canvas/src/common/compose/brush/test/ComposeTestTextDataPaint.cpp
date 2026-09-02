@@ -48,7 +48,8 @@ TEST(ComposePatterns, GridLinesTakeATwoAxisPitch) {
   // panel's is 5 x 2 — and gridLines took one `spacing`.
   Host host(120, 120);
   host.composer.render(box().child(box().absolute().inset(0).fill(
-      patterns::gridLines(20.0f, 8.0f, 2.0f, {1, 1, 1, 1}).material())));
+      Pattern(material::pattern::gridLines(20.0f, 8.0f, 2.0f, {1, 1, 1, 1}))
+          .material())));
   host.frame();
   auto rules = [&](bool vertical) {
     int runs = 0;

@@ -62,7 +62,7 @@ each a static archive that links only what sits beneath it:
 | `SigilMaterialSdf` | `sdf::` — `Shape`, `Style`, `pad`, `material` | SigilMaterialCore |
 | `SigilMaterialPattern` | `pattern::Tile` and the stock tiles | SigilMaterialTexture |
 | `SigilMaterialField` | `field::` — `halftoneRamp`, `noise`, `grain`, `ripple`, `crtOverlay` | SigilMaterialTexture |
-| `SigilMaterialSkia` | the SkSL compiler and `SkiaProgram`, whose builder uploads resolved bytes; `skia::builder` and `skia::shader` binding leaves into slots; `skia::fill` | SigilMaterialTexture |
+| `SigilMaterialSkia` | the SkSL compiler and `SkiaProgram`, whose builder uploads resolved bytes; `skia::builder` and `skia::shader` binding leaves into slots; `skia::fill`; and the colour bridge `skia::toColor` / `skia::toSkColor` / `skia::toColors` | SigilMaterialTexture |
 | `SigilMaterialSlang` | the Slang compiler: `slang::compileModule` to SPIR-V, `slang::Compiled` with the reflected `slang::UniformSlot` per uniform, `slang::SlangProgram`, and `slang::Uniforms`, the buffer one draw is written into; `Portable.slang`, the subset a host and a device answer alike, loaded into every session by name | SigilMaterialCore; SigilMaterialKit and Slang privately |
 | `SigilMaterialKit` | the presets: the metallic-roughness `kit::surface` and `kit::unlit` and the masks that stack them; `kit::gold`, `kit::chrome`, `kit::glass`; `kit::girih8` and its palettes; the gel and chrome tables; the text paints and chrome-type ramps; and `kit::terms`, the shading terms a surface is composed of | SigilMaterialPattern, SigilMaterialColor |
 
@@ -552,6 +552,15 @@ float4; `rgb(0xRRGGBB)` is its packed spelling. `Color.h` also holds the
 sRGB transfer function both ways and the OKLab round trip — `toOklab`,
 `fromOklab`, `lerpOklab` — which every perceptual interpolation in the
 codebase runs through.
+
+**A Skia colour crosses at one place.** `SkColor4f` holds the same four
+straight sRGB floats in the same order, so `skia::toColor`,
+`skia::toSkColor` and the palette form `skia::toColors`
+(`<sigilmaterial/skia/Color.h>`) are a field-for-field copy — no transfer
+function, no premultiply, no clamp, so a channel above 1 survives. They
+live in one header rather than at each call site because a hand-written
+copy is a place where a channel order or an alpha convention drifts
+silently.
 
 **A view transform is a LUT material with one open slot.** OpenColorIO's
 GPU codegen never emits SkSL, so `color::viewTransform(config, display,

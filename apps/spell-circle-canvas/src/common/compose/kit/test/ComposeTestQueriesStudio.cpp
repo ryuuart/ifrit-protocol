@@ -119,9 +119,9 @@ TEST(ComposeText, RingWindingDecidesWhichWayTheGlyphsFace) {
     return n;
   };
 
-  auto cw = render(shapes::circle(SkPathDirection::kCW));
-  auto ccw = render(shapes::circle(SkPathDirection::kCCW));
-  auto plain = render(shapes::circle());
+  auto cw = render(geometry::shapes::circle(SkPathDirection::kCW));
+  auto ccw = render(geometry::shapes::circle(SkPathDirection::kCCW));
+  auto plain = render(geometry::shapes::circle());
 
   ASSERT_GT(inked(*cw), 300);
   ASSERT_GT(inked(*ccw), 300);
@@ -542,13 +542,13 @@ TEST(ComposeStudio, TypeCarriesWhatTheShippedPositionalHelperCouldNot) {
   // test asserts exactly the fields a positional two-argument helper could
   // not reach; if it ever shrinks to size+colour, the extraction has failed
   // the same way its predecessor did.
-  const sigil::weave::TextStyle s = type({.size = 18.0f,
-                                          .color = {0.2f, 0.4f, 0.6f, 1},
-                                          .track = 1.25f,
-                                          .condense = 0.94f,
-                                          .weight = 650.0f,
-                                          .slant = -10.0f,
-                                          .aliased = true});
+  const sigil::weave::TextStyle s = weave::type({.size = 18.0f,
+                                                 .color = {0.2f, 0.4f, 0.6f, 1},
+                                                 .track = 1.25f,
+                                                 .condense = 0.94f,
+                                                 .weight = 650.0f,
+                                                 .slant = -10.0f,
+                                                 .aliased = true});
   EXPECT_FLOAT_EQ(s.shaping.fontSize, 18.0f);
   EXPECT_FLOAT_EQ(s.shaping.letterSpacing, 1.25f);
   EXPECT_FLOAT_EQ(s.shaping.scaleX, 0.94f);
@@ -562,7 +562,7 @@ TEST(ComposeStudio, TypeCarriesWhatTheShippedPositionalHelperCouldNot) {
 
   // Defaults leave design space alone — an unvaried style must not carry a
   // wght entry, or every default style occupies its own varied-face memo.
-  EXPECT_TRUE(type({.size = 12}).shaping.variations.empty());
+  EXPECT_TRUE(weave::type({.size = 12}).shaping.variations.empty());
 
   // It equals a hand-built style, so a study migrating to it prunes.
   sigil::weave::TextStyle byHand;
@@ -578,7 +578,8 @@ TEST(ComposeStudio, TypeCarriesWhatTheShippedPositionalHelperCouldNot) {
 
   // And it actually lays out — a TextStyle that measures to nothing would
   // satisfy every field assertion above.
-  const SkSize measured = measure(text(u8"Wm", type({.size = 40})), fonts());
+  const SkSize measured =
+      measure(text(u8"Wm", weave::type({.size = 40})), fonts());
   EXPECT_GT(measured.width(), 10.0f);
   EXPECT_GT(measured.height(), 10.0f);
 }
@@ -593,7 +594,7 @@ TEST(ComposeFeed, PlateIsTheBorderedStripSevenStudiesBuiltByHand) {
   b.append({u8"beta"});
 
   feed::TextOptions style;
-  style.styles.base(type({.size = 9, .color = {1, 1, 1, 1}}));
+  style.styles.base(weave::type({.size = 9, .color = {1, 1, 1, 1}}));
   style.window.gap = 1.0f;
 
   auto strip = [&] {
@@ -677,7 +678,7 @@ TEST(ComposeFeed, VisibleRowsHaveAHeightAndThreeFeedsFitOnePlate) {
   // count. feed::height() is that number, and the plate below is built
   // from it with no slack at all.
   feed::TextOptions st;
-  st.styles.base(type({.size = 9.2f, .color = {1, 1, 1, 1}}));
+  st.styles.base(weave::type({.size = 9.2f, .color = {1, 1, 1, 1}}));
   st.window.gap = 1.0f;
   st.window.visible = 12;
 
@@ -749,8 +750,8 @@ TEST(ComposeFeed, TheRowFactoryDeclaresTheEntranceAndTheColumnIsPlainKernel) {
   // patched, and an author who needs something the options do not carry can
   // write that column themselves without losing the identity discipline.
   feed::TextOptions st;
-  st.styles.base(type({.size = 20, .color = {1, 1, 1, 1}}))
-      .set("alert", type({.size = 20, .color = {1, 0, 0, 1}}));
+  st.styles.base(weave::type({.size = 20, .color = {1, 1, 1, 1}}))
+      .set("alert", weave::type({.size = 20, .color = {1, 0, 0, 1}}));
   st.window.gap = 4.0f;
   feed::TextRing ring;
   ring.append({u8"AAAA"});
@@ -766,8 +767,8 @@ TEST(ComposeFeed, TheRowFactoryDeclaresTheEntranceAndTheColumnIsPlainKernel) {
       Element row = feed::textRow(r.value, st.styles);
       row.key(feed::rowKey(r.seq));
       if (staggered)
-        row.opacity(
-            animate(from(0.0f).to(1.0f), {200ms, &choreograph::easeNone}));
+        row.opacity(animate(motion::from(0.0f).to(1.0f),
+                            {200ms, &choreograph::easeNone}));
       column.child(std::move(row));
     }
     return box().child(std::move(column));

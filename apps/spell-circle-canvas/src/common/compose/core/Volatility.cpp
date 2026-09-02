@@ -69,7 +69,8 @@ using namespace detail;
 void collectGroupScalars(const Instance& inst, bool root,
                          std::vector<float>& out) {
   const ElementNode& node = *inst.desc;
-  const auto push = [&](Instance::Slot slot, const Animatable<float>& v) {
+  const auto push = [&](Instance::Slot slot,
+                        const motion::Animatable<float>& v) {
     if (motion::isLive(inst.anims[slot].get(), v))
       out.push_back(inst.resolveFloat(slot, v));
   };
@@ -86,7 +87,7 @@ void collectGroupScalars(const Instance& inst, bool root,
   // frames for the same tree.
   for (const SlotSpec& spec : kSlotSpecs) {
     if (root && spec.role != SlotRole::Content) continue;
-    if (const Animatable<float>* v = slotValueOf(spec, node))
+    if (const motion::Animatable<float>* v = slotValueOf(spec, node))
       push(spec.slot, *v);
   }
   // Mask gates: the same argument, over the per-mask vector. Only LIVE
@@ -95,7 +96,7 @@ void collectGroupScalars(const Instance& inst, bool root,
   if (node.hasMasks()) {
     size_t slot = 0;
     for (const Mask& m : node.fxData->masks) {
-      const auto pushGate = [&](const Animatable<float>& v) {
+      const auto pushGate = [&](const motion::Animatable<float>& v) {
         const AnimatedFloat* a =
             slot < inst.maskAnims.size() ? inst.maskAnims[slot].get() : nullptr;
         if (motion::isLive(a, v)) out.push_back(inst.resolveFloatAt(a, v));
@@ -116,7 +117,7 @@ void collectGroupScalars(const Instance& inst, bool root,
   // carries a track's motion connecting or disconnecting.
   if (node.textData)
     for (size_t i = 0; i < node.textData->tracks.size(); ++i) {
-      const Animatable<float>& v = node.textData->tracks[i].progress;
+      const motion::Animatable<float>& v = node.textData->tracks[i].progress;
       const AnimatedFloat* a =
           i < inst.trackAnims.size() ? inst.trackAnims[i].get() : nullptr;
       if (motion::isLive(a, v)) out.push_back(inst.resolveFloatAt(a, v));
@@ -205,7 +206,8 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
                                                      bool movingAbove) {
   const ElementNode& node = *inst.desc;
 
-  auto boundOrRunning = [&](Instance::Slot slot, const Animatable<float>& v) {
+  auto boundOrRunning = [&](Instance::Slot slot,
+                            const motion::Animatable<float>& v) {
     return motion::isLive(inst.anims[slot].get(), v);
   };
   // Span passes: an animated reveal rebuilds the pass's geometry, and an
@@ -220,7 +222,7 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
     for (const StrokePass& pass : node.strokeData->passes) {
       live |= pass.what.isAnimated();
       for (const Spans::Term& term : pass.where.terms)
-        for (const Animatable<float>* v :
+        for (const motion::Animatable<float>* v :
              {&term.begin, &term.end, &term.offset}) {
           if (motion::isLive(slot < inst.spanAnims.size()
                                  ? inst.spanAnims[slot].get()
@@ -240,7 +242,7 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
   bool maskScalarLive = false, maskOpaque = false;
   if (node.hasMasks()) {
     size_t slot = 0;
-    const auto live = [&](const Animatable<float>& v) {
+    const auto live = [&](const motion::Animatable<float>& v) {
       const AnimatedFloat* a =
           slot < inst.maskAnims.size() ? inst.maskAnims[slot].get() : nullptr;
       if (motion::isLive(a, v)) maskScalarLive = true;
@@ -287,7 +289,7 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
   bool moving = false;
   bool scalarContent = false;
   for (const SlotSpec& spec : kSlotSpecs) {
-    const Animatable<float>* v = slotValueOf(spec, node);
+    const motion::Animatable<float>* v = slotValueOf(spec, node);
     if (!v) continue;  // this node does not carry the block that holds the slot
     switch (spec.role) {
       case SlotRole::Opacity:
@@ -387,7 +389,7 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
   if (node.textData)
     for (size_t i = 0; i < node.textData->tracks.size(); ++i) {
       const Track& track = node.textData->tracks[i];
-      const Animatable<float>& v = track.progress;
+      const motion::Animatable<float>& v = track.progress;
       const AnimatedFloat* a =
           i < inst.trackAnims.size() ? inst.trackAnims[i].get() : nullptr;
       if (!motion::isLive(a, v)) continue;

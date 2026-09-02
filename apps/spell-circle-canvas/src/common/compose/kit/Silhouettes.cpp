@@ -5,7 +5,7 @@
 
 #include <sigilcompose/kit/Silhouettes.h>
 
-namespace sigil::compose::shapes {
+namespace sigil::compose {
 
 void EdgeSlice::paint(SkCanvas& canvas, const PaintContext& ctx) const {
   PaintContext local = ctx;
@@ -19,4 +19,4 @@ void Inset::paint(SkCanvas& canvas, const PaintContext& ctx) const {
   inner.paint(canvas, local);
 }
 
-}  // namespace sigil::compose::shapes
+}  // namespace sigil::compose

@@ -3,5 +3,6 @@
 // instruments that read a cascade back — the kit over the brush support.
 
 #include <sigilcompose/kit/Kit.h>
+#include <sigilgeometry/kit/Silhouettes.h>
 
 #include "BrushTestSupport.h"

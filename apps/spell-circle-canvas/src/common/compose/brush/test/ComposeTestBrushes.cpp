@@ -72,8 +72,9 @@ TEST(ComposeBorders, BracketsFollowAChamferedSilhouette) {
   // brackets land on whatever corners the SHAPE has. A 30 px chamfer turns
   // four corners into eight, and the chamfer face itself gets marked.
   Host host;
-  host.composer.render(shapedSpanPanel(
-      shapes::chamfered(30), spans::corners(10), brush::solid(6, white())));
+  host.composer.render(shapedSpanPanel(geometry::shapes::chamfered(30),
+                                       spans::corners(10),
+                                       brush::solid(6, white())));
   host.frame();
   // (74, 4) sits ON the top-right chamfer face, ~5 px from its upper end.
   EXPECT_EQ(host.pixel(74, 4), SK_ColorWHITE);
@@ -145,12 +146,13 @@ TEST(ComposeBorders, DoubleBorderStacksTwoIndependentInsets) {
 }
 
 // ---------------------------------------------------------------------------
-// shapes::chamfered / shapes::notched — the two corner cuts the kernel's
-// corners() (which only rounds) could not express.
+// geometry::shapes::chamfered / geometry::shapes::notched — the two corner cuts
+// the kernel's corners() (which only rounds) could not express.
 
 TEST(ComposeShapes, ChamferCutsTheCornerAtFortyFiveDegrees) {
   Host host;
-  host.composer.render(shapedPanel(shapes::chamfered(30), PathFormat{}));
+  host.composer.render(
+      shapedPanel(geometry::shapes::chamfered(30), PathFormat{}));
   host.frame();
   EXPECT_EQ(host.pixel(5, 5), SK_ColorBLACK);   // corner cut away
   EXPECT_EQ(host.pixel(50, 50), SK_ColorBLUE);  // body intact
@@ -160,7 +162,8 @@ TEST(ComposeShapes, ChamferCutsTheCornerAtFortyFiveDegrees) {
 TEST(ComposeShapes, ChamferMaskCutsOnlyTheSelectedCorners) {
   Host host;
   host.composer.render(shapedPanel(
-      shapes::chamfered(30, shapes::Corner::Diagonal), PathFormat{}));
+      geometry::shapes::chamfered(30, geometry::shapes::Corner::Diagonal),
+      PathFormat{}));
   host.frame();
   EXPECT_EQ(host.pixel(5, 5), SK_ColorBLACK);    // top-left cut
   EXPECT_EQ(host.pixel(95, 95), SK_ColorBLACK);  // bottom-right cut
@@ -171,7 +174,8 @@ TEST(ComposeShapes, ChamferMaskCutsOnlyTheSelectedCorners) {
 TEST(ComposeShapes, NotchBitesARectangleOutOfTheCorner) {
   Host host;
   host.composer.render(shapedPanel(
-      shapes::notched(20, 10, shapes::Corner::TopLeft), PathFormat{}));
+      geometry::shapes::notched(20, 10, geometry::shapes::Corner::TopLeft),
+      PathFormat{}));
   host.frame();
   EXPECT_EQ(host.pixel(5, 5), SK_ColorBLACK);  // inside the bite
   EXPECT_EQ(host.pixel(5, 15), SK_ColorBLUE);  // below it
@@ -277,7 +281,7 @@ TEST(ComposeSeams, SvgOutlineTracesThePathData) {
       box().child(box()
                       .absolute()
                       .inset(50, 50, 50, 50)
-                      .shape(shapes::svg("M0 0 L100 0 L100 100 Z"))
+                      .shape(geometry::shapes::svg("M0 0 L100 0 L100 100 Z"))
                       .fill(red())));
   host.frame();
   EXPECT_EQ(host.pixel(140, 70), SK_ColorRED);    // inside the hypotenuse
@@ -287,7 +291,7 @@ TEST(ComposeSeams, SvgOutlineTracesThePathData) {
       box().child(box()
                       .absolute()
                       .inset(50, 50, 50, 50)
-                      .shape(shapes::svg("M0 0 L100 0 L100 100 Z"))
+                      .shape(geometry::shapes::svg("M0 0 L100 0 L100 100 Z"))
                       .fill(red())
                       .key("tri")));
   host.frame();
@@ -355,7 +359,7 @@ TEST(ComposeMotion, StaggerFromEndRunsBottomUp) {
   Host host;
   auto card = [] {
     return box().width(60).height(30).fill(red()).opacity(
-        animate(from(0.0f).to(1.0f), {200ms, &choreograph::easeNone}));
+        animate(motion::from(0.0f).to(1.0f), {200ms, &choreograph::easeNone}));
   };
   host.composer.render(box()
                            .column()
@@ -408,10 +412,11 @@ TEST(ComposeMotion, KeyframesPlayTheMountPath) {
           .absolute()
           .inset(100, 80, 60, 80)
           .fill(red())
-          .translateX(animate(through({{std::chrono::milliseconds(0), 40.0f},
-                                       {std::chrono::milliseconds(200), -20.0f},
-                                       {std::chrono::milliseconds(400), 0.0f}}),
-                              &choreograph::easeNone))));
+          .translateX(animate(
+              sigil::motion::through({{std::chrono::milliseconds(0), 40.0f},
+                                      {std::chrono::milliseconds(200), -20.0f},
+                                      {std::chrono::milliseconds(400), 0.0f}}),
+              &choreograph::easeNone))));
   host.frame();
   EXPECT_EQ(host.pixel(145, 100), SK_ColorRED);  // starts at +40
   EXPECT_EQ(host.pixel(105, 100), SK_ColorBLACK);
@@ -427,10 +432,11 @@ TEST(ComposeMotion, KeyframesPlayTheMountPath) {
           .absolute()
           .inset(100, 80, 60, 80)
           .fill(red())
-          .translateX(animate(through({{std::chrono::milliseconds(0), 40.0f},
-                                       {std::chrono::milliseconds(200), -20.0f},
-                                       {std::chrono::milliseconds(400), 0.0f}}),
-                              &choreograph::easeNone))));
+          .translateX(animate(
+              sigil::motion::through({{std::chrono::milliseconds(0), 40.0f},
+                                      {std::chrono::milliseconds(200), -20.0f},
+                                      {std::chrono::milliseconds(400), 0.0f}}),
+              &choreograph::easeNone))));
   EXPECT_EQ(host.composer.stats().patchedNodes, 0u);
 }
 
@@ -481,7 +487,7 @@ TEST(ComposeMotion, UnrelatedPatchDoesNotRestartAnEntrance) {
                            .width(80)
                            .height(80)
                            .fill(std::move(f))
-                           .opacity(animate(from(0.0f).to(1.0f),
+                           .opacity(animate(motion::from(0.0f).to(1.0f),
                                             {std::chrono::milliseconds(400),
                                              &choreograph::easeNone,
                                              std::chrono::milliseconds(300)})));
@@ -628,7 +634,7 @@ TEST(ComposeCache, SettledOpacityRebakesTheLeaf) {
   // strength. The second frame() draws only from caches, which is where a
   // missed re-bake shows up.
   Host host;
-  auto tree = [](Animatable<float> op) {
+  auto tree = [](motion::Animatable<float> op) {
     return box().child(box()
                            .width(80)
                            .height(80)
@@ -637,8 +643,9 @@ TEST(ComposeCache, SettledOpacityRebakesTheLeaf) {
   };
   host.composer.render(tree(1.0f));
   host.frame();
-  host.composer.render(tree(animate(
-      to(0.4f), {std::chrono::milliseconds(100), &choreograph::easeNone})));
+  host.composer.render(
+      tree(animate(sigil::motion::to(0.4f),
+                   {std::chrono::milliseconds(100), &choreograph::easeNone})));
   host.frame(0.5);  // settled at 0.4
   host.frame();     // draw again from caches
   const SkColor c = host.pixel(40, 40);
@@ -694,7 +701,7 @@ Element splitPlane(bool clipped, SkBlendMode childBlend) {
                   .height(50)
                   .fill(Fill::color({1.0f, 0.35f, 0.1f, 0.85f}))
                   .blend(childBlend)
-                  .translateX(bind(&splitSweep()).scale(130.0f)));
+                  .translateX(motion::bind(&splitSweep()).scale(130.0f)));
   return profiledUnder(std::move(plane));
 }
 
@@ -921,7 +928,7 @@ TEST(ComposeCache, ARefusalNamesEveryReasonAndNotJustTheFirst) {
               .width(20)
               .height(20)
               .fill(red())
-              .translateX(bind(&splitSweep()).scale(40.0f)))));
+              .translateX(motion::bind(&splitSweep()).scale(40.0f)))));
   for (int i = 0; i < 24; ++i) {
     splitSweep() = (float)i / 24.0f;
     host.frame();
@@ -970,7 +977,7 @@ TEST(ComposeMotion, AppendedItemEntersWithoutInheritedDelay) {
   Host host;
   auto card = [](std::string_view key) {
     return box().width(60).height(20).fill(red()).key(key).opacity(
-        animate(from(0.0f).to(1.0f),
+        animate(motion::from(0.0f).to(1.0f),
                 {std::chrono::milliseconds(100), &choreograph::easeNone}));
   };
   host.composer.render(box()

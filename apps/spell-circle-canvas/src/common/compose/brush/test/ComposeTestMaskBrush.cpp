@@ -106,8 +106,8 @@ TEST(ComposeR4Mask, S3TheGateRetargetsAcrossAnIfElseInsteadOfMounting) {
     if (phase == 0)
       e.mask(by::spans(spans::upTo(0.8f)));
     else
-      e.mask(by::spans(
-          spans::upTo(animate(to(0.5f), {400ms, &choreograph::easeNone}))));
+      e.mask(by::spans(spans::upTo(
+          animate(sigil::motion::to(0.5f), {400ms, &choreograph::easeNone}))));
     return stack().child(std::move(e));
   };
   Host host(200, 200);
@@ -339,14 +339,15 @@ TEST(ComposeR4Mask, AGatedNodeKeepsTheScalarMemoAndPrunes) {
                    .width(120)
                    .height(120)
                    .key("ring")
-                   .shape(shapes::circle())
+                   .shape(geometry::shapes::circle())
                    .stroke(stroke(6.0f, Fill::color({1, 1, 1, 1})))
-                   .mask(by::spans(spans::upTo(animate(
-                       through({{std::chrono::milliseconds(0), 0.0f},
-                                {std::chrono::milliseconds(200), 0.6f},
-                                {std::chrono::milliseconds(600), 0.6f},
-                                {std::chrono::milliseconds(800), 1.0f}}),
-                       &choreograph::easeNone)))));
+                   .mask(by::spans(spans::upTo(
+                       animate(sigil::motion::through(
+                                   {{std::chrono::milliseconds(0), 0.0f},
+                                    {std::chrono::milliseconds(200), 0.6f},
+                                    {std::chrono::milliseconds(600), 0.6f},
+                                    {std::chrono::milliseconds(800), 1.0f}}),
+                               &choreograph::easeNone)))));
   };
   Host host;
   host.composer.render(ring());
@@ -552,11 +553,11 @@ Element settledFillPanel(const choreograph::Output<Fill>* tint) {
     row.child(box()
                   .width(26)
                   .height(26)
-                  .shape(shapes::star(5 + id % 3, 0.45f, 0.08f))
+                  .shape(geometry::shapes::star(5 + id % 3, 0.45f, 0.08f))
                   .fill(blue())
                   .stroke(stroke(1.5f, green())));
-  row.child(
-      box().key("accent").width(26).height(26).fill(Animatable<Fill>(tint)));
+  row.child(box().key("accent").width(26).height(26).fill(
+      motion::Animatable<Fill>(tint)));
   return box()
       .key("root")
       .cache(Cache::Texture)
@@ -707,10 +708,10 @@ TEST(ComposeR4Mask, S6TheEdgeGateReachesTheChildren) {
 
 TEST(ComposeR4Mask, S7TheShapeGateAndItsComplementAreBothTerms) {
   // A portrait masked to a wax-seal silhouette. Nothing in the tree could
-  // express this: a study reached for `clipOut()` and `shapes::subtract` BY
-  // NAME, found neither, and dropped below the Compose seam to a raw
-  // SkPathOp. Both halves are terms here, and two masks INTERSECT — so a
-  // set difference is one node and two lines.
+  // express this: a study reached for `clipOut()` and
+  // `geometry::shapes::subtract` BY NAME, found neither, and dropped below the
+  // Compose seam to a raw SkPathOp. Both halves are terms here, and two masks
+  // INTERSECT — so a set difference is one node and two lines.
   const SkRect seal = SkRect::MakeXYWH(20, 20, 60, 60);
   Host inside(200, 200), outside(200, 200), diff(200, 200);
   const auto plate = [] {

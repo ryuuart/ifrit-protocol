@@ -68,7 +68,7 @@ Element meter(const Channel &c) {
       .alignItems(Align::Center)
       // A mark on part of the boundary: L-brackets at every tangent break.
       .stroke(spans::corners(12), stroke(1.5f, Fill::color(ink)))
-      .child(text(c.label, type({.size = 13, .color = ink})))
+      .child(text(c.label, weave::type({.size = 13, .color = ink})))
       .child(box()
                  .grow()
                  .height(6)
@@ -321,16 +321,9 @@ translation unit links.
 **Kernel — `core/`.** A user who reads these headers has a complete and
 sound model; nothing below them changes kernel semantics.
 
-- `core/Motion.h` — the re-exports of SigilMotion's animation vocabulary
-  (`Animatable`, `Transition`, `animate`, `bind`, `ease::`,
-  `quantizeTime`), so authoring never has to name a second library. What
-  it deliberately does NOT re-export is the SCHEDULE: a cascade over
-  glyphs is the same value as a cascade over a set's children or a feed's
-  rows, so it is spelled `motion::Spread` at every site and what compose
-  adds to it — what a unit IS — sits beside it on the track.
 - `core/Paint.h` — the paint values: `Fill`, `Corners`, `PaintContext`,
-  `StampCache`, `UniformBlock`, `Effect`, and the colour spellings `hex`,
-  `alpha`, `mul`, `mix`.
+  `StampCache`, `Effect`, and the colour spellings `hex`, `alpha`, `mul`,
+  `lift`, `mix` over `SkColor4f`.
 - `core/Text.h` — the text model: `Unit`, `Selector` and `sel::`,
   `TextEffect`, `Track`, `Beat`, the mixed-text value `rich` /
   `RichText`, and `toU8`.
@@ -354,14 +347,12 @@ sound model; nothing below them changes kernel semantics.
   of tile-sized rasters.
 - `core/Derive.h` — `connector`, `rail`, `Anchor`, `band`, `bandPointAt`,
   and the `derive::` namespace that gathers the family.
-- `core/Env.h` — the `env::` inherited-value channel, SigilCore's under
-  the compose name.
 - `core/Composer.h` — `Composer`.
 - `core/Material.h` — the polymorphic paint value that supersedes a flat
   `Fill` — gradients, images, raw SkSL with live uniforms (float, float2,
   float4 and whole arrays, constant or live: a scalar binds an `Output`,
-  an array binds a caller-owned `UniformBlock` whose `commit()` publishes
-  an edit), SkSL as source compiled and cached by the library, blend
+  an array binds a caller-owned `material::UniformBlock` whose `commit()`
+  publishes an edit), SkSL as source compiled and cached by the library, blend
   stacks that compile to one shader, world-space anchoring — and the
   one-line gradient `Fill`s, `linearGradient` and `radialGradient`.
   `Effect::uniform` takes the same shapes on the post-processing seam.
@@ -376,24 +367,40 @@ sound model; nothing below them changes kernel semantics.
 - `core/GpuImage.h` — `gpuimg::drawLattice` and `gpuimg::drawSpriteAtlas`,
   which are mandatory rather than convenient (see the traps).
 
-The time helpers a scene reaches for — `motion::ramp`, a delayed eased
-`Transition` in float milliseconds; `motion::phase`, a wrapping `[0, 1)`
-over a period; `motion::quantizeTime` and its integer counterpart
-`motion::stepIndex`; `motion::decay`, the open-ended settle a duration-
-based curve cannot be — are SigilMotion's, in `<sigilmotion/Animation.h>`.
-So is the whole of "is this value moving": `motion::isLive` is the one
-body every volatility walk in this library asks, and what it can and
-cannot say is stated in that library's README.
+**The animation vocabulary is SigilMotion's and is spelled that way.**
+`motion::Animatable` is the property slot every setter here takes,
+`motion::Transition` the eased change, `motion::animate` the keyframe
+builder, `motion::bind` the shaped binding of a live `Output`, and
+`motion::ease::` the curves — all from `<sigilmotion/Animation.h>`. The
+SCHEDULE is the same value wherever it runs: a cascade over glyphs, over
+a set's children or over a feed's rows is one `motion::Spread`, and what
+compose adds to it — what a unit IS — sits beside it on the track. The
+time helpers a scene reaches for are there too: `motion::ramp`, a delayed
+eased transition in float milliseconds; `motion::phase`, a wrapping
+`[0, 1)` over a period; `motion::quantizeTime` and its integer
+counterpart `motion::stepIndex`; `motion::decay`, the open-ended settle a
+duration-based curve cannot be. So is the whole of "is this value
+moving": `motion::isLive` is the one body every volatility walk in this
+library asks, and what it can and cannot say is stated in that library's
+README.
 
-**Geometry — `kit/`.** `kit/Silhouettes.h` puts the silhouette and curve
-catalog under `shapes::` — the generators themselves are SigilGeometry's
-(`<sigilgeometry/kit/Silhouettes.h>`), because a comparable
-`path(SkSize)` value needs nothing of a component tree, and every one of
-them prunes a shaped node exactly as an unshaped one prunes. The header
-adds the two things that DO need a node: `shapes::onEdges`, which runs an
-inner decoration against only the sub-contours facing chosen box edges,
-and `shapes::inset`, which runs it against a concentric copy of the
-outline. `kit/Layouts.h` holds the placement schemes for the `layout()`
+What compose OWNS is resolution, not the value. An `Animatable` is
+resolved against a `PaintContext`, taking node transitions, stagger,
+mount entrances and the per-frame composer state into account; SigilMotion
+supplies the value and compose decides what a described change means to a
+node. That is also why a bound `Output<T>*` compares BY IDENTITY — the
+pointer, not the number behind it — so a node holding one is declared
+volatile and does not cache, and handing back a freshly constructed
+Output at a new address breaks pruning even when the value is unchanged.
+
+**Geometry — `kit/`.** The silhouette and curve catalog is
+SigilGeometry's, spelled `geometry::shapes::` from
+`<sigilgeometry/kit/Silhouettes.h>`: a comparable `path(SkSize)` value
+needs nothing of a component tree, and every one of them prunes a shaped
+node exactly as an unshaped one prunes. `kit/Silhouettes.h` holds only
+the two things that DO need a node: `onEdges`, which runs an inner
+decoration against only the sub-contours facing chosen box edges, and
+`inset`, which runs it against a concentric copy of the outline. `kit/Layouts.h` holds the placement schemes for the `layout()`
 seam (`layouts::Radial`, `AlongPath`, `ModularGrid`, `Diagonal`,
 `BaselineGrid`, `Scatter`). `kit/Routers.h` holds the stock connector and
 rail routers (`routers::straight`, `orthogonal`, `polyline`,
@@ -451,10 +458,12 @@ built from a clipped strip and a wrapping phase. The effects the runtime
 evaluates by structure are declared with the kernel in `core/Text.h`:
 `fx::scramble`, the `fx::keys` keyframe table, the `fx::pass` shader pass,
 the `fx::seq`, `fx::mix` and `fx::hold` combinators, and the `fx::effect`
-door. `typography/Type.h` is the compose-side spelling of a text style:
-`type` builds a `sigil::weave::TextStyle` from a designated-init `Type`,
-and `pickFace` resolves the first installed family of a fallback chain.
-`kit/Legibility.h` ships with this tier.
+door. A style's own numbers are SigilWeave's: `weave::type` builds a
+`weave::TextStyle` from the designated-init `weave::Type`
+(`<sigilweave/style/Type.h>`), and `weave::ports::pickFace` resolves the
+first installed family of a fallback chain
+(`<sigilweave/ports/SystemFontManager.h>`). `kit/Legibility.h` ships with
+this tier.
 
 **Leaves with their own targets.** `instances/Instances.h` renders
 thousands of sprites as one leaf, with the pool on your side of the seam;
@@ -596,10 +605,10 @@ compare equal to a separately constructed one, so their nodes re-patch on
 every describe. The fix is to hold the value rather than re-minting it,
 or to wrap the node in `memo()`. Two spellings avoid the problem outright:
 `custom(key, program)` makes the key the program's identity, and every
-`shapes::` generator is a comparable value.
+`geometry::shapes::` generator is a comparable value.
 
 This matters more than it sounds. An inherited value carried through
-`env::` that holds a `std::function` is incomparable, and that turns every
+`core::env::` that holds a `std::function` is incomparable, and that turns every
 `memo` below it into a permanent miss. Materialise derived values *into*
 the type: run the function, store the result.
 
@@ -636,8 +645,8 @@ the left edge, not the top one.
 The library links `SigilCoreReconcile`, `SigilCoreCache`,
 `SigilGeometryPath`, `SigilImage`, `SigilMotion`, `SigilWeave` and Skia
 publicly, and Yoga privately. `SigilCoreReconcile` is the reconciler: the
-keyed and positional match, the memo, the identity prune, the `env::`
-channel and the animation lane operations are its, and `Composer` is its
+keyed and positional match, the memo, the identity prune, the
+`core::env::` channel and the animation lane operations are its, and `Composer` is its
 host — the description comparators, Yoga, text and paint stay here.
 `SigilCoreCache` is the caching kernel, and `Composer` is its host too:
 the three-valued cache policy (`cachePolicy` maps this library's
