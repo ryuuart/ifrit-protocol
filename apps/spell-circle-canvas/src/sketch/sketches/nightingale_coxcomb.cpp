@@ -93,17 +93,22 @@ namespace {
 // palette — sampled from the scan (patch means + the darkest/lightest
 // deciles, which separate "ink dot" from "paper showing through")
 
-constexpr SkColor4f kPaper = hex(0xf1e4e0);  // aged ivory, pink undertone
+constexpr SkColor4f kPaper = hex(0xf2e9d9);  // aged ivory, WARM CREAM
 constexpr SkColor4f kInk = hex(0x241c15);    // engraver's warm black-brown
 constexpr SkColor4f kInkSoft = hex(0x241c15, 0.55f);
 constexpr SkColor4f kFox = hex(0xc9a688, 0.10f);
 
 // per band: the paper-side wash and the ink dot laid over it
-constexpr SkColor4f kBlueWash = hex(0xc6d1d5);
-constexpr SkColor4f kBlueInk = hex(0x527a88);
-constexpr SkColor4f kRoseWash = hex(0xedd3ca);
-constexpr SkColor4f kRoseInk = hex(0xb26d5b);
-constexpr SkColor4f kGreyWash = hex(0xdfd5ce);
+// Read off the lithograph rather than off a modern chart of it: the blue
+// is a POWDER blue, the pink a pale greyish rose, and both sit on warm
+// cream. A saturated teal and a salmon on a pink-lilac ground are the
+// same data a stop or two too strong, and at that strength the sheet
+// stops looking like a stone-printed diagram.
+constexpr SkColor4f kBlueWash = hex(0xccd9e0);
+constexpr SkColor4f kBlueInk = hex(0x5d7f8c);
+constexpr SkColor4f kRoseWash = hex(0xe6cec6);
+constexpr SkColor4f kRoseInk = hex(0xb07a6a);
+constexpr SkColor4f kGreyWash = hex(0xd9d0c8);
 constexpr SkColor4f kGreyInk = hex(0x241f19);
 
 // ---------------------------------------------------------------------------
@@ -112,6 +117,13 @@ constexpr SkColor4f kGreyInk = hex(0x241f19);
 constexpr float kW = 1900.0f;
 constexpr float kH = 1032.0f;
 constexpr float kK = 17.0f;  // px per sqrt(rate); ONE scale for both wheels
+// The paper sliver between two blue wedges, in degrees of the 30 deg pitch.
+constexpr float kBlueGapDeg = 0.9f;
+// How far a radial runs, as a fraction of the wheel's own rim. On the
+// lithograph the faint radials live INSIDE the central cluster and stop
+// there; run to the rim they cross the blue, which nothing on the stone
+// does.
+constexpr float kSpokeReach = 0.24f;
 constexpr SkPoint kC1{1397, 386};  // Diagram 1 (right) — Apr 1854..Mar 1855
 constexpr SkPoint kC2{430, 384};   // Diagram 2 (left)  — Apr 1855..Mar 1856
 constexpr float kR1 = 543.7f;      // kK * sqrt(1022.8), Jan 1855 disease
@@ -342,7 +354,8 @@ struct NightingaleCoxcomb : sketch::Sketch {
       return kK * std::sqrt(std::max({d.disease, d.wounds, d.other, 0.1f}));
     };
     for (int i = 0; i < 12; ++i) {
-      const float len = std::min(rimOf(i - 1), rimOf(i)) * 0.98f;
+      const float len =
+          std::min({rimOf(i - 1), rimOf(i), rMax * kSpokeReach}) * 0.98f;
       if (len < 4.0f) continue;
       wheelBox.child(
           box()
@@ -376,12 +389,22 @@ struct NightingaleCoxcomb : sketch::Sketch {
       for (const Band& band : bands) {
         if (band.rate <= 0.0f) continue;
         const float r = kK * std::sqrt(band.rate);
-        wheelBox.child(
+        // THE BLUE WEDGES CARRY NO BORDER. On the stone the tint simply
+        // stops, and adjacent blue wedges are parted by a sliver of paper
+        // at their outer ends — an ANGULAR gap, so it opens toward the
+        // rim. Only the inner black and pink wedges are outlined, and a
+        // hairline round every wedge is the one decision that makes the
+        // sheet read as a modern vector chart.
+        const bool outer = band.mat == &blueMat;
+        const float gap = outer ? kBlueGapDeg : 0.0f;
+        Element wedge =
             discBox(local, r)
                 .key(std::string(tag) + band.name + std::to_string(m))
-                .shape(shapes::sector(skia0, 30.0f))
-                .fill(*band.mat)
-                .stroke(stroke(1.0f, Fill::color(kInk)))
+                .shape(shapes::sector(skia0 + gap * 0.5f, 30.0f - gap))
+                .fill(*band.mat);
+        if (!outer) wedge.stroke(stroke(1.0f, Fill::color(kInk)));
+        wheelBox.child(
+            std::move(wedge)
                 .transformOrigin(0.5f, 0.5f)
                 .scale(animate(from(0.002f).to(1.0f),
                                ramp(delay, 620.0f, ch::easeOutExpo)))
@@ -704,10 +727,18 @@ struct NightingaleCoxcomb : sketch::Sketch {
     // separates a stone-printed tint from a flat vector fill.
     auto band = [](SkColor4f wash, SkColor4f ink, int fine, int coarse,
                    uint32_t seed, Pattern& grainOut) {
-      grainOut = patterns::speckle(40, fine, 0.25f, 0.66f, {ink});
+      // THE TILE HAS TO BE BIGGER THAN THE EYE'S PATCH. A forty-pixel
+      // stipple repeats a dozen times across a wheel, and at that pitch
+      // the tile's own little clusters read as an ordered motif — which
+      // an aquatint stipple never is. At this tile it repeats three or
+      // four times across the same wheel and the repeat stops being
+      // findable; the mark count rises with the area so the density is
+      // the density it was.
+      grainOut = patterns::speckle(128, fine * 10, 0.25f, 0.66f, {ink});
       grainOut.seed(seed);
-      Pattern blot = patterns::speckle(
-          110, coarse, 1.8f, 5.0f, {SkColor4f{ink.fR, ink.fG, ink.fB, 0.12f}});
+      Pattern blot =
+          patterns::speckle(320, coarse * 8, 1.8f, 5.0f,
+                            {SkColor4f{ink.fR, ink.fG, ink.fB, 0.12f}});
       blot.seed(seed * 7 + 3);
       return Material::blend(
           {{Material::solid(wash), SkBlendMode::kSrc},
