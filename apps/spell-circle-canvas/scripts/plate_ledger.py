@@ -143,14 +143,20 @@ per-frame cost, which load can tip either way, so it is the one renderer
 feature a byte-identity gate must hold off — with it off, hashes are
 load-immune.
 
+EVERY SCENE PRINTS ONE LINE AS IT FINISHES — its running count, how it
+stands against the baseline, its name and what it took — in COMPLETION
+order, so the scene the sweep is still waiting on is the one that has not
+printed yet. The summary and the VERDICT below them are the report; the
+per-scene lines are the sweep saying what it is doing while it does it.
+
 Every scene render runs under a per-scene ceiling (--timeout-seconds,
 default 300 s). A scene still running at the ceiling is killed and
 reported FAILED-TIMEOUT by name while the rest of the sweep continues:
 one runaway scene must not hang the gate that protects everything else.
-SCENE_TIMEOUT_OVERRIDES raises the ceiling for scenes that are honestly
-that expensive — a declared capture moment late in a costly animation is
-content, not a defect, and gets its budget by name instead of inflating
-everyone's.
+SCENE_TIMEOUT_OVERRIDES raises that ceiling per scene and is EMPTY — a
+scene over the budget fails by name, and an entry there asserts that one
+scene's cost cannot be reduced, which a declared cache and an earlier
+settled capture moment almost always disprove.
 
 A SKETCH THIS MACHINE CANNOT RENDER IS SKIPPED BY NAME. A sketch written
 over an optional SDK is only compiled in where that SDK was found, and
@@ -214,7 +220,7 @@ it on a quiet machine; there is no known-flapper list here — a load spike
 is YOUR machine, rerun the scene.
 """
 
-import argparse, atexit, concurrent.futures, hashlib, json, os, shutil, struct, subprocess, sys, tempfile, zlib
+import argparse, atexit, concurrent.futures, hashlib, json, os, shutil, struct, subprocess, sys, tempfile, time, zlib
 
 # WHAT EACH TIER RENDERS WITH. A tier names its own binary, the flags that
 # define its capture, how it lists its registry, how it selects one entry
@@ -330,17 +336,28 @@ GPU_TOLERANCE = {
 # any scene's picture.
 QUICK_TOLERANCE = (0.005, 0)
 
-# Scenes whose honest render exceeds the default ceiling. chaucer_astrolabe
-# declares its capture moment at 23 s into an animation whose every frame
-# rasterizes a full-canvas noise shader on the CPU (the ledger's own
-# --no-promotion forbids the bake that would amortize it), so its ledger
-# render is ~30 minutes of legitimate work. The value is the measured cost
-# plus headroom; a scene here still times out, just at its own ceiling.
-SCENE_TIMEOUT_OVERRIDES = {"chaucer_astrolabe": 2400.0}
+# Scenes whose honest render exceeds the default ceiling, and nothing is
+# entitled to be here. A scene over the per-scene budget FAILS by name; the
+# sweep waits for nothing. An entry is a statement that one scene's cost is
+# irreducible, which a declared cache and an earlier settled moment almost
+# always disprove — fix the scene rather than widen its ceiling.
+SCENE_TIMEOUT_OVERRIDES = {}
 
 
 def timeout_for(scene, default):
     return SCENE_TIMEOUT_OVERRIDES.get(scene, default)
+
+
+def read_manifest(path):
+    """scene -> digest for a baseline manifest, empty when there is none."""
+    baseline = {}
+    if os.path.exists(path):
+        with open(path) as f:
+            for line in f:
+                digest, _, scene = line.strip().partition("  ")
+                if scene:
+                    baseline[scene] = digest
+    return baseline
 
 
 def sha256(path):
@@ -378,10 +395,16 @@ def registry(binary, kind):
 
 
 def render_scene(profile, binary, scene, outdir, timeout, extra_args=()):
+    """Render one scene; returns (scene, digest, error, elapsed seconds).
+
+    The elapsed time is reported for every outcome, so a sweep can name
+    what it is still waiting on rather than going quiet behind its
+    slowest scene."""
     # The per-scene timeout overrides budget the FULL tier's declared-moment
     # renders; the tiers that do not pay that cost say so in their profile.
     if profile["honor_overrides"]:
         timeout = timeout_for(scene, timeout)
+    started = time.monotonic()
     try:
         r = subprocess.run(
             [
@@ -410,11 +433,13 @@ def render_scene(profile, binary, scene, outdir, timeout, extra_args=()):
                 f"--timeout-seconds if the scene is merely "
                 f"slow)"
             ),
+            time.monotonic() - started,
         )
+    elapsed = time.monotonic() - started
     plate = os.path.join(outdir, f"{PLATE_PREFIX}{scene}.png")
     if r.returncode != 0 or not os.path.exists(plate):
-        return scene, None, (r.stderr or r.stdout).strip()[-300:]
-    return scene, sha256(plate), None
+        return scene, None, (r.stderr or r.stdout).strip()[-300:], elapsed
+    return scene, sha256(plate), None, elapsed
 
 
 def read_png(path):
@@ -576,10 +601,15 @@ def gpu_sweep(profile, binary, scenes, timeout, jobs):
             ("cpu", host_dir, host_profile),
             ("gpu", device_dir, profile),
         ):
-            for scene, digest, err in pool.map(
+            for scene, digest, err, elapsed in pool.map(
                 lambda s, o=outdir, p=prof: render_scene(p, binary, s, o, timeout),
                 scenes,
             ):
+                print(
+                    f"  [{which}] {'FAILED' if digest is None else 'rendered':<8} "
+                    f"{scene:<24} {elapsed:6.1f}s",
+                    flush=True,
+                )
                 if digest is None:
                     errors[f"{scene} ({which})"] = err
     for scene, err in sorted(errors.items()):
@@ -891,19 +921,49 @@ def main():
             f"gate before trusting a byte-neutral verdict."
         )
 
+    # Read BEFORE the sweep so a scene can be judged the moment it lands.
+    baseline = read_manifest(manifest)
+
     outdir = discard_later(tempfile.mkdtemp(prefix="plate_ledger_"))
     results, errors = {}, {}
+    # ONE LINE PER SCENE, AS IT FINISHES, and in completion order — which is
+    # what makes the tail legible: the scene everything is waiting on is the
+    # one that has not printed. Submitted rather than mapped, because map
+    # yields in submission order and would hold every finished scene's line
+    # behind an unfinished earlier one. The counted, judged, timed line here
+    # says everything the summary below says about that scene; the summary
+    # and the verdict remain the report.
     with concurrent.futures.ThreadPoolExecutor(args.jobs) as pool:
-        for scene, digest, err in pool.map(
-            lambda s: render_scene(
-                profile, binary, s, outdir, args.timeout_seconds, tier_args
-            ),
-            scenes,
-        ):
+        pending = [
+            pool.submit(
+                render_scene,
+                profile,
+                binary,
+                scene,
+                outdir,
+                args.timeout_seconds,
+                tier_args,
+            )
+            for scene in scenes
+        ]
+        for done, future in enumerate(concurrent.futures.as_completed(pending), 1):
+            scene, digest, err, elapsed = future.result()
             if digest is None:
                 errors[scene] = err
+                standing = "FAILED"
             else:
                 results[scene] = digest
+                if args.rebase or scene not in baseline:
+                    standing = "rendered"
+                elif baseline[scene] == digest:
+                    standing = "identical"
+                else:
+                    standing = "hash miss"
+            print(
+                f"  [{done:>3}/{len(scenes)}] {standing:<9} "
+                f"{scene:<24} {elapsed:6.1f}s",
+                flush=True,
+            )
     for scene, err in sorted(errors.items()):
         print(f"RENDER FAILED  {scene}: {err}")
 
@@ -921,12 +981,8 @@ def main():
         # machine could not ask them anything, so it has nothing to say
         # about their baselines either.
         merged = {}
-        if (args.scenes or skipped) and os.path.exists(manifest):
-            with open(manifest) as f:
-                for line in f:
-                    digest, _, scene = line.rstrip("\n").partition("  ")
-                    if scene:
-                        merged[scene] = digest
+        if args.scenes or skipped:
+            merged = dict(baseline)
             if not args.scenes:
                 merged = {s: d for s, d in merged.items() if s in skipped}
         merged.update(results)
@@ -940,11 +996,6 @@ def main():
         if quick and results:
             store_quick_plates(plate_store, outdir, results, not args.scenes)
         return 0 if not errors else 1
-
-    baseline = {}
-    for line in open(manifest):
-        digest, _, scene = line.strip().partition("  ")
-        baseline[scene] = digest
 
     movers, missing = [], []
     for scene, digest in sorted(results.items()):
@@ -975,7 +1026,7 @@ def main():
         if args.stability > 0:
             rerenders = {results[scene]}
             for _ in range(args.stability):
-                _, digest, err = render_scene(
+                _, digest, err, _ = render_scene(
                     profile,
                     binary,
                     scene,

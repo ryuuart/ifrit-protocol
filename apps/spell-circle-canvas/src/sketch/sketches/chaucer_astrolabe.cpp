@@ -97,6 +97,17 @@
 //                         thorn tip is a piece that falls out of the object
 //   brush::taper        the star thorns
 //   feed::TextRing        four panels of checks, printed as they run
+//   Cache::Texture        the nine big passes whose CONTENT never changes —
+//                         vellum grain, vignette, contact shadow, the mater's
+//                         brass field, sheen, turning and grain, the plate's
+//                         verdigris and its recess. Each is a procedural
+//                         field or a filter over a disc or the whole canvas,
+//                         with an entrance that only fades the finished image
+//                         in, so each is rasterised once and blitted after
+//                         and the ramp rides the blit. Declared rather than
+//                         left to promotion, because promotion is a per-frame
+//                         cost estimate and the sweep that photographs this
+//                         sketch runs with it switched off
 //
 // THE PROOFS RUN IN DOUBLE, THE PLATE IS DRAWN IN FLOAT, and the two cannot
 // be the same code. Residuals at the 1e-16 R / 1e-14° level are below what a
@@ -108,11 +119,17 @@
 // Run:
 //   ./build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
 //       src/sketch/sketches/chaucer_astrolabe.cpp \
-//       --frame /tmp/chaucer_astrolabe.png --at 23.0
+//       --frame /tmp/chaucer_astrolabe.png --at 22.1
 //
-// 23.0 s is CHAUCER'S MOMENT: 12 March 1391, the sun's declination circle and
-// the 25.5° almucantar both lit in #2f6f9c, their two intersections crossed,
-// the label laid on the morning root and the limb letter X illuminated.
+// 22.1 s IS CHAUCER'S MOMENT, TAKEN AT THE INSTANT IT SETTLES: 12 March 1391,
+// the sun's declination circle and the 25.5° almucantar both lit in #2f6f9c,
+// their two intersections crossed, the label laid on the morning root and the
+// limb letter X illuminated. The state begins at 21.0 s; the trace reaches
+// full opacity at 21.9 and the last thing in it still moving — the alidade,
+// swinging to 25° 30′ — lands at 22.1, which is therefore the earliest frame
+// that shows the whole of it. A still is stepped to from zero one frame at a
+// time, so a tenth of a second of declared moment is six more full-canvas
+// frames nobody ever sees, and naming a later one buys nothing.
 //   5.0 s  the plate half-built, 45 almucantars growing out of the zenith
 //   8.2 s  the rete assembling — rim, bars, foils, the ecliptic ring
 //  14.0 s  local noon, the rete turning: hour angle 0, letter & (24th)
@@ -764,6 +781,10 @@ constexpr float tPin = 9.00f;
 constexpr float tDay = 10.00f;
 constexpr float tYear = 18.00f;
 constexpr float tChaucer = 21.00f;
+// The declared still: tChaucer plus the 200 ms hold and the 900 ms swing the
+// alidade takes to reach 25° 30′, which is the last motion in the state — so
+// nothing on the canvas is moving at it.
+constexpr float tStill = 22.10f;
 constexpr float tLoop = 26.00f;
 
 }  // namespace
@@ -872,20 +893,26 @@ struct ChaucerAstrolabe : sketch::Sketch {
     // Wear: brass handled for 700 years is bright on the high edges and dark
     // in the cuts, and an unpolished latten greens in its recesses first. A
     // very low-amplitude speckle, only over the engraved field.
+    // The speckle is SEEDED, so it is the same field every run and every
+    // frame: baked over the plate disc, and the growth is the blit's alpha.
     g.child(
         box()
             .inset(0)
             .key("verdigris")
             .shape(shapes::circle())
+            .cache(Cache::Texture)
             .fill(verdigris.material())
             .opacity(animate(from(0.0f).to(1.0f), ramp(tTropics * 1000, 900))));
 
-    // the recess: the plate sits one millimetre below the limb
+    // the recess: the plate sits one millimetre below the limb. A filter
+    // over the whole disc with nothing behind it that changes — baked, on
+    // the same rule as the mater's four passes.
     g.child(
         box()
             .inset(0)
             .key("recess")
             .shape(shapes::circle())
+            .cache(Cache::Texture)
             .fill(Fill::none())
             .foreground(styles::InnerShadow{hex(0x2a1d08, 0.55f), {0, 3}, 9}));
 
@@ -1562,11 +1589,21 @@ struct ChaucerAstrolabe : sketch::Sketch {
   Element limb() {
     auto g = box().rect(SkRect::MakeXYWH(0, 0, kW, kH)).key("limb");
 
+    // THE MATER IS FOUR FULL-DISC PASSES OVER 1086 px, and every one of them
+    // is the same kind of thing: a field or a filter whose CONTENT is fixed
+    // and whose entrance only fades the finished image in. Each declares its
+    // bake, so the pass is rasterised once and the ramp costs one image draw
+    // — the opacity rides the blit, outside the bake. Nothing here can be
+    // left to automatic promotion: promotion is a per-frame cost estimate,
+    // and the sweep that photographs this sketch runs with it switched off,
+    // because a hash must not depend on how loaded the machine was.
+
     // the mater's brass field
     g.child(
         kit::disc({kCx, kCy}, kMaterR)
             .key("mater")
             .shape(shapes::circle())
+            .cache(Cache::Texture)
             .fill(brassDisc({kCx, kCy}, kMaterR, 0.50f))
             .background(shadow(hex(0x05070c, 0.62f), {8, 12}, 26))
             .foreground(styles::BevelEmboss{.depth = 3,
@@ -1583,6 +1620,7 @@ struct ChaucerAstrolabe : sketch::Sketch {
     g.child(kit::disc({kCx, kCy}, kMaterR)
                 .key("sheen")
                 .shape(shapes::circle())
+                .cache(Cache::Texture)
                 .fill(Material::glowUnit({0.40f, 0.30f}, 0.95f,
                                          {{0.0f, hex(0xfff3cf, 0.30f)},
                                           {0.55f, hex(0xffdc8b, 0.10f)},
@@ -1591,17 +1629,22 @@ struct ChaucerAstrolabe : sketch::Sketch {
                 .opacity(animate(from(0.0f).to(1.0f),
                                  ramp(tMater * 1000 + 200, 700))));
 
-    // brass is TOOLED, and the tool marks are fine concentric turning
+    // brass is TOOLED, and the tool marks are fine concentric turning —
+    // 120 stroked circles, which a picture would REPLAY by re-stroking
+    // all 120. An image blits.
     g.child(kit::disc({kCx, kCy}, kMaterR)
                 .key("turning")
                 .shape(shapes::circle())
+                .cache(Cache::Texture)
                 .background(lines::concentric(
                     Fill::color(hex(0x6b4d18, 0.055f)), 120, 0.9f))
                 .opacity(animate(from(0.0f).to(1.0f),
                                  ramp(tMater * 1000 + 300, 600))));
+    // …and the tooling's own tooth, over the whole mater
     g.child(kit::disc({kCx, kCy}, kMaterR)
                 .key("brassgrain")
                 .shape(shapes::circle())
+                .cache(Cache::Texture)
                 .fill(brassGrain)
                 .blend(SkBlendMode::kOverlay)
                 .opacity(animate(from(0.0f).to(0.30f),
@@ -2507,10 +2550,17 @@ struct ChaucerAstrolabe : sketch::Sketch {
   Element describe(sketch::SketchContext&) {
     auto root = stack().fill(Fill::color(kVellum));
 
-    // vellum: grain at very low contrast, and a soft warm falloff
+    // vellum: grain at very low contrast, and a soft warm falloff.
+    // A fBm field over the WHOLE canvas, on the same bake rule as the
+    // mater's passes — and the one that needs it most, because a bare fill
+    // leaf records no picture at all (one drawRect is cheaper than a nested
+    // recording), so undeclared this evaluates the noise across 2400x1600
+    // every frame. Texture, not Picture: replaying a picture re-runs the
+    // shader; an image blits.
     root.child(box()
                    .inset(0)
                    .key("vgrain")
+                   .cache(Cache::Texture)
                    .fill(vellumGrain)
                    .opacity(0.13f)
                    .blend(SkBlendMode::kSoftLight));
@@ -2528,6 +2578,7 @@ struct ChaucerAstrolabe : sketch::Sketch {
             .rect(SkRect::MakeXYWH(56, 140, 1132, 1258))
             .key("vignette")
             .corners({3})
+            .cache(Cache::Texture)
             .fill(Material::glowUnit({0.50f, 0.46f}, 1.05f,
                                      {{0.0f, hex(0x33405a, 0.55f)},
                                       {0.62f, hex(0x1d222d, 0.0f)},
@@ -2540,6 +2591,7 @@ struct ChaucerAstrolabe : sketch::Sketch {
                                    kMaterR * 2.04f, kMaterR * 0.30f))
             .key("contact")
             .shape(shapes::circle())
+            .cache(Cache::Texture)
             .fill(Material::glowUnit(
                 {0.5f, 0.5f}, 1.0f,
                 {{0.0f, hex(0x05070c, 0.75f)}, {1.0f, hex(0x05070c, 0.0f)}}))
@@ -2971,10 +3023,13 @@ struct ChaucerAstrolabe : sketch::Sketch {
     ctx.canvas(kW, kH);
     ctx.background(kVellum);
     // The still has to name its moment: this is a 26 s loop of named states,
-    // and 23.0 s is CHAUCER'S MOMENT — the 12 March 1391 trace at full
+    // and tStill is CHAUCER'S MOMENT — the 12 March 1391 trace at full
     // opacity [21.9, 24.8]. Any other state asserts a different date, and an
     // undeclared capture lands mid-assembly, with the rete not yet there.
-    ctx.captureAt(23.0);
+    // The EARLIEST frame of that state at which nothing is still moving,
+    // because a still is stepped to frame by frame and every later one is
+    // paid for in full canvases.
+    ctx.captureAt(tStill);
 
     auto family = [&](const char* name, SkFontStyle st) -> sk_sp<SkTypeface> {
       if (!ctx.fonts || !ctx.fonts->fontManager()) return nullptr;
@@ -3105,7 +3160,14 @@ struct ChaucerAstrolabe : sketch::Sketch {
       }
 
       signMark = std::floor(lam / 30.0f);
-      projDec = kEps * std::sin((float)now * 0.75f);
+      // The projection demonstration is the one thing on the canvas that
+      // never settles: P walks the meridian for as long as the sketch runs.
+      // ANCHORED ON THE STILL, so the still catches it at the far end of the
+      // swing, δ = −ε, where the ray lands on the Tropic of Capricorn — the
+      // plate's own outer circle, r = R_cap. That end reads as a statement
+      // rather than as a moment caught anywhere along the way, and it is an
+      // identity: tan((90+ε)/2) is the reciprocal of R_eq, so r there is 1 R.
+      projDec = -kEps * std::cos(((float)now - tStill) * 0.75f);
       return true;
     });
 
