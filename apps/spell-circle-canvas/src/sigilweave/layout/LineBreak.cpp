@@ -1124,17 +1124,144 @@ size_t greedyBlock(FontContext& fontContext, Paragraph& paragraph,
   return lastIntervalUsed;
 }
 
-/** Once per process: the greedy breaker was handed keeps it cannot weigh. */
-void warnGreedyIgnoresKeeps() {
-  static bool warned = false;
-  if (warned) return;
-  warned = true;
-  SkDebugf(
-      "[weave] a block asks for widow, orphan or keep-with-next control and "
-      "the greedy breaker takes the first break that fits, so it has nothing "
-      "to weigh those against and ignores them. Ask for "
-      "LineBreakStrategy::kKnuthPlass, whose demerits can pay for a break it "
-      "would rather not take.\n");
+/** WHAT ONE BLOCK PUT IN THIS FRAME — the record the keeps are settled
+ *  against once the fill has stopped. */
+struct PlacedBlock {
+  const detail::Block* block = nullptr;
+  size_t firstRun = 0;  ///< half-open range in ParagraphLayout::runs
+  size_t endRun = 0;
+  int lines = 0;  ///< distinct flow lines the block's runs landed on
+};
+
+/** How many lines the words in `[first, end)` would take at `measure`,
+ *  counted no further than `cap`.
+ *
+ *  It is a greedy fit at ONE measure and nothing else: the frame that will
+ *  hold these words is not this fill's to ask, so the count is taken at the
+ *  measure the last line of THIS frame was set in. Two frames of the same
+ *  width — the ordinary chain — count the same either way; a chain that
+ *  narrows counts a line or two short. Counting stops at `cap` because
+ *  every caller only asks whether the remainder REACHES a number, and
+ *  stopping there is what keeps the tail of a long block unshaped. */
+int remainderLines(FontContext& fontContext, Paragraph& paragraph,
+                   uint32_t first, uint32_t end, float measure, int cap) {
+  if (first >= end || measure <= 0 || cap <= 0) return 0;
+  const std::vector<Word>& words = paragraph.words();
+  int lines = 1;
+  float pen = 0;
+  for (uint32_t wordIndex = first; wordIndex < end && wordIndex < words.size();
+       ++wordIndex) {
+    paragraph.ensureShapedTo(fontContext, wordIndex + 1);
+    const Word& word = words[wordIndex];
+    const float glue = wordIndex > first ? words[wordIndex - 1].spaceWidth : 0;
+    if (pen > 0 && pen + glue + word.width > measure + kFitEpsilon) {
+      if (++lines >= cap) return cap;
+      pen = word.width;
+    } else {
+      pen += glue + word.width;
+    }
+  }
+  return lines;
+}
+
+/** ENFORCES THE KEEPS AT THE FRAME BOUNDARY: lines the block may not leave
+ *  behind are taken out of this fill and reported as overflow, so the next
+ *  frame of the chain gets them.
+ *
+ *  A keep is a statement about a BOUNDARY — a widow stands at the head of
+ *  the next frame, an orphan at the foot of this one, a kept-together pair
+ *  straddles the join — so it is settled where the boundary is, once the
+ *  fill has stopped, by moving lines forward. Nothing is weighed against
+ *  spacing and no break is re-decided, which is why both breakers obey
+ *  these identically: retracting a line is not a break decision.
+ *
+ *  A KEEP NEVER EMPTIES A FRAME. A retraction that would leave the fill
+ *  with nothing is dropped, because the text it moved would arrive at the
+ *  next frame in exactly the state that emptied this one and the chain
+ *  would never advance.
+ *
+ *  Returns the depth the retracted lines had occupied, which the frame's
+ *  vertical distribution must not spend. */
+float enforceKeeps(FontContext& fontContext, Paragraph& paragraph,
+                   const std::vector<PlacedBlock>& placed, float lastMeasure,
+                   ParagraphLayout& result) {
+  if (!result.overflowed() || placed.empty()) return 0;
+
+  float depthFreed = 0;
+  // Retracts every run from `runIndex` on, reporting the first word of
+  // them as where this frame ran out.
+  const auto retractFrom = [&](size_t runIndex) {
+    if (runIndex == 0 || runIndex >= result.runs.size()) return false;
+    result.firstUnplacedWord =
+        std::min(result.firstUnplacedWord, result.runs[runIndex].wordIndex);
+    result.runs.erase(result.runs.begin() + (long)runIndex, result.runs.end());
+    result.ellipsized = false;
+    return true;
+  };
+  // The run each of a block's last `count` lines begins at.
+  const auto runStartingLastLines = [&](const PlacedBlock& entry, int count) {
+    size_t runIndex = entry.endRun;
+    int lines = 0;
+    while (runIndex > entry.firstRun && lines < count) {
+      const int line = result.runs[runIndex - 1].lineIndex;
+      while (runIndex > entry.firstRun &&
+             result.runs[runIndex - 1].lineIndex == line)
+        --runIndex;
+      ++lines;
+    }
+    return runIndex;
+  };
+
+  size_t entryIndex = placed.size() - 1;
+  const PlacedBlock& last = placed[entryIndex];
+  const KeepOptions& keep = last.block->style.keep;
+  const bool split = result.firstUnplacedWord < last.block->endWord &&
+                     result.firstUnplacedWord > last.block->firstWord;
+
+  int retractLines = 0;
+  bool wholeBlock = false;
+  if (split) {
+    if (keep.allLinesTogether) {
+      wholeBlock = true;
+    } else if (keep.orphanLines > 0 && last.lines < keep.orphanLines) {
+      wholeBlock = true;
+    } else if (keep.widowLines > 0) {
+      const int carried =
+          remainderLines(fontContext, paragraph, result.firstUnplacedWord,
+                         last.block->endWord, lastMeasure, keep.widowLines);
+      retractLines = keep.widowLines - carried;
+      // Every line pulled back out of this frame is a line the next frame
+      // gains, so what the block keeps here must still satisfy its own
+      // orphan rule; when it cannot, the block goes over whole.
+      if (retractLines > 0 &&
+          last.lines - retractLines < std::max(keep.orphanLines, 1))
+        wholeBlock = true;
+    }
+  } else if (keep.withNext && last.block->endWord <= result.firstUnplacedWord) {
+    // The block ended in this frame and the one after it begins in the
+    // next: the pair the caller asked to keep together is exactly the pair
+    // the boundary fell between.
+    wholeBlock = true;
+  }
+
+  // Whole-block retractions cascade backwards: a block that leaves takes
+  // the frame's boundary with it, and the block before it that asked to
+  // keep with the next now sits against that boundary.
+  while (wholeBlock || retractLines > 0) {
+    const PlacedBlock& entry = placed[entryIndex];
+    const int lines =
+        wholeBlock ? entry.lines : std::min(retractLines, entry.lines);
+    if (!retractFrom(wholeBlock ? entry.firstRun
+                                : runStartingLastLines(entry, lines)))
+      break;
+    depthFreed += entry.block->pitch * static_cast<float>(lines);
+    if (!wholeBlock) break;
+    depthFreed += entry.block->lead;
+    if (entryIndex == 0) break;
+    --entryIndex;
+    if (!placed[entryIndex].block->style.keep.withNext) break;
+  }
+  return depthFreed;
 }
 
 /** WHERE THE FLOW'S FIRST BAND BEGINS, from the first-baseline rule: the
@@ -1301,17 +1428,24 @@ ParagraphLayout layoutParagraph(FontContext& fontContext, Paragraph& paragraph,
       options.lineBreakStrategy == LineBreakStrategy::kKnuthPlass;
   size_t nextInterval = 0;
   int lastLineUsed = -1;
+  std::vector<PlacedBlock> placedBlocks;
+  float lastMeasure = 0;
   for (size_t blockIndex = 0; blockIndex < blocks.size(); ++blockIndex) {
     const Block& block = blocks[blockIndex];
     if (block.firstWord >= block.endWord) continue;
-    if (!optimizing && block.style.keep != KeepOptions{})
-      warnGreedyIgnoresKeeps();
+    // A block that must start a frame ends one it did not start: the fill
+    // stops here and the block arrives at the head of the next.
+    if (block.style.keep.startInNextFrame && !result.runs.empty()) {
+      result.firstUnplacedWord = block.firstWord;
+      break;
+    }
     intervalSequence.openBlock(block.index, block.pitch, block.ascent,
                                block.lead, block.gridStep, block.style.indent);
     intervalSequence.setUniformBlocks(block.style.indent.firstLine == 0 &&
                                       block.style.indent.lastLine == 0);
     uint32_t overflowWord = ~0u;
     size_t lastIntervalUsed = SIZE_MAX;
+    const size_t firstRun = result.runs.size();
     if (optimizing)
       knuthPlassBlock(fontContext, paragraph, intervalSequence, block,
                       nextInterval, result, lastIntervalUsed, overflowWord);
@@ -1319,9 +1453,21 @@ ParagraphLayout layoutParagraph(FontContext& fontContext, Paragraph& paragraph,
       lastIntervalUsed =
           greedyBlock(fontContext, paragraph, intervalSequence, block,
                       nextInterval, result, overflowWord);
+    if (result.runs.size() > firstRun) {
+      PlacedBlock entry{&block, firstRun, result.runs.size(), 1};
+      for (size_t runIndex = firstRun + 1; runIndex < result.runs.size();
+           ++runIndex)
+        if (result.runs[runIndex].lineIndex !=
+            result.runs[runIndex - 1].lineIndex)
+          ++entry.lines;
+      placedBlocks.push_back(entry);
+    }
     if (lastIntervalUsed != SIZE_MAX) {
       const FlatInterval* used = intervalSequence.intervalAt(lastIntervalUsed);
-      if (used) lastLineUsed = std::max(lastLineUsed, used->sourceLineIndex);
+      if (used) {
+        lastLineUsed = std::max(lastLineUsed, used->sourceLineIndex);
+        lastMeasure = used->interval.length;
+      }
       // A block never shares a band with the one before it: whatever is
       // left of the line this block ended on belongs to no one.
       nextInterval = intervalSequence.pastSourceLine(lastIntervalUsed);
@@ -1335,11 +1481,19 @@ ParagraphLayout layoutParagraph(FontContext& fontContext, Paragraph& paragraph,
     }
   }
 
+  const float depthFreed =
+      enforceKeeps(fontContext, paragraph, placedBlocks, lastMeasure, result);
   result.lineCount = lastLineUsed + 1;
+  if (depthFreed > 0) {
+    int highestLine = -1;
+    for (const PositionedRun& run : result.runs)
+      highestLine = std::max(highestLine, run.lineIndex);
+    result.lineCount = std::min(result.lineCount, highestLine + 1);
+  }
   if (!options.overflow.ellipsis.empty() && result.overflowed())
     applyEllipsis(fontContext, paragraph, intervalSequence, options, result);
   recordGeometry(result);
-  distributeInFrame(options.frame, intervalSequence.bandCursor(),
+  distributeInFrame(options.frame, intervalSequence.bandCursor() - depthFreed,
                     result.lineCount, result);
   return result;
 }

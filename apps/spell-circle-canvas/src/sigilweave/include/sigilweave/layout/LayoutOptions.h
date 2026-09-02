@@ -354,11 +354,23 @@ struct IndentOptions {
 /**
  * Which of a block's lines refuse to be parted from each other.
  *
- * These are properties of a BREAK DECISION, so only the optimizing breaker
- * honours them: it can weigh a break it would rather not take against the
- * spacing that avoiding it costs. The greedy breaker takes the first break
- * that fits and has nothing to weigh, so it ignores every field here and
- * says so once.
+ * Every one of these is a statement about a FRAME BOUNDARY — a widow
+ * stands at the head of the next frame, an orphan at the foot of this one,
+ * a kept-together pair straddles the join — so they are settled where the
+ * boundary is: the fill runs, and lines the block may not leave behind are
+ * taken back out of it and reported as overflow, which is how they reach
+ * the next frame of the chain. No break is re-decided and nothing is
+ * weighed against spacing, so BOTH BREAKERS obey these identically.
+ *
+ * A keep never empties a frame. A retraction that would leave the fill
+ * with nothing is dropped: the text would arrive at the next frame in
+ * exactly the state that emptied this one, and the chain would never
+ * advance.
+ *
+ * `widowLines` is the one that asks about a frame this fill cannot see, so
+ * it counts the carried lines at the measure THIS frame's last line was
+ * set in. A chain of equal frames — the ordinary one — counts exactly; a
+ * chain that changes width counts the carried lines at the wrong measure.
  */
 struct KeepOptions {
   /// Fewest lines of the block that may stand alone at the START of a

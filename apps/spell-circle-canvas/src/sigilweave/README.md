@@ -426,11 +426,17 @@ the interval, an indent composes with exclusions and columns without either
 knowing about it: a line an exclusion cut into three is inset at its
 outermost ends and nowhere in the middle.
 
-**Keeps are a break decision.** `KeepOptions` — widows, orphans,
-keep-with-next, all-lines-together, start-in-next-frame — needs a breaker
-that can weigh a break it would rather not take, and a frame boundary to
-weigh it against. The greedy breaker takes the first break that fits and
-says once that it is ignoring them.
+**Keeps are settled at the frame boundary.** `KeepOptions` — widows,
+orphans, keep-with-next, all-lines-together, start-in-next-frame — is a
+statement about a JOIN between two frames, so the fill runs and then the
+lines a block may not leave behind are taken back out of it and reported as
+overflow, which is how they reach the next frame of the chain. No break is
+re-decided and nothing is weighed against spacing, so both breakers obey
+them identically. A retraction that would leave the frame empty is dropped:
+the text would arrive at the next frame in exactly the state that emptied
+this one. `widowLines` counts the lines the next frame would get at the
+measure THIS frame's last line was set in, which is exact for a chain of
+equal frames and off by the difference for one that changes width.
 
 **Justification spends in three passes.** The word gaps move first, from
 `wordSpacing` towards `spaceStretch` / `spaceShrink`; what they could not
@@ -599,7 +605,7 @@ typesetter reaches for, not what a file format carries.
 | Space before / after | done, larger-of | `ParagraphStyle::spaceBefore`, `spaceAfter` |
 | Leading: auto, multiple, absolute, baseline grid | done | `Leading` |
 | Leading: all above the line, or half above and half below | done | `ParagraphStyle::halfLeading` |
-| Keep: widows, orphans, with next, all lines together, start in next frame | **partial** — the value is stated and carried; the frame fill does not enforce it yet, and the greedy breaker says once that it ignores it | `KeepOptions` |
+| Keep: widows, orphans, with next, all lines together, start in next frame | done — enforced at the frame boundary by retracting lines into the next fill, under both breakers | `KeepOptions` |
 | Hyphenation: pattern dictionary | done | `HyphenationOptions::patterns`, `kit::PatternHyphenator` |
 | Hyphenation: minimum word, letters before / after, capitalised words | done | `HyphenationLimits` |
 | Hyphenation: consecutive limit, last word of a block | done | `HyphenationOptions` |
