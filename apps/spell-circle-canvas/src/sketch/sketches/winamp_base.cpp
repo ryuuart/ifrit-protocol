@@ -443,16 +443,22 @@ struct WinampBase : sketch::Sketch {
 
   void buildMaterials() {
     using namespace wa;
-    // THE brushed body. One recipe, three windows, two sizes — the unit
-    // square is what makes 275x116 and 400x377 share it. The anisotropic
-    // grain is the whole "brushed, not painted" argument: stretch divides
-    // the frequency in x and multiplies it in y, so the field becomes long
-    // horizontal streaks rather than speckle.
+    // THE BODY IS SPECKLE, NOT BRUSH. Read off MAIN.BMP the surface is a
+    // fine isotropic speckle with a soft radial lightening toward the
+    // middle-left, and at viewing size it is essentially flat. A stretch
+    // of five turns the same grain into long striations across every
+    // window, which is then the loudest texture in the picture and is not
+    // in the skin. One recipe, three windows, two sizes — the unit square
+    // is what makes 275x116 and 400x377 share it.
     steel = Material::blend(
         {{Material::linearUnit({0, 0}, {0, 1},
                                {{0.0f, kBodyTop}, {1.0f, kBodyBot}}),
           SkBlendMode::kSrcOver},
-         {patterns::grain(0.075f, 2, 7.0f, 0.26f, 5.0f),
+         {Material::radialUnit(
+              {0.34f, 0.42f}, 1.15f,
+              {{0.0f, {1, 1, 1, 0.055f}}, {1.0f, {1, 1, 1, 0.0f}}}),
+          SkBlendMode::kSrcOver},
+         {patterns::grain(0.34f, 2, 3.0f, 0.20f, 1.0f),
           SkBlendMode::kOverlay}});
 
     // The desktop: flat teal plus ONE low-octave dither, baked once.
@@ -468,14 +474,41 @@ struct WinampBase : sketch::Sketch {
                                                 {1.0f, hex(0x2A2A46, 0.0f)}}),
                           SkBlendMode::kSrcOver}});
 
-    // ONE fader-track value shared by all eleven faders (preamp + 10 bands).
-    faderTrack = Material::linearUnit(
-        {0, 0}, {0, 1}, {{0.0f, kEqTop}, {0.46f, kEqMid}, {1.0f, kEqBot}});
+    // ONE fader-track value shared by all eleven faders (preamp + 10
+    // bands), and it is a LADDER rather than a ramp. EQMAIN.BMP carries
+    // twenty-eight slider frames and each one is a SINGLE colour picked
+    // off the green-yellow-orange-red run by position; a continuous
+    // gradient is the one thing a sprite sheet of flat frames cannot be,
+    // and this file already quantises the volume slider for exactly that
+    // reason. Hard stops at each twenty-eighth make the same picture the
+    // sheet does.
+    {
+      std::vector<Stop> steps;
+      constexpr int kFrames = 28;
+      const auto lerp = [](SkColor4f a, SkColor4f b, float u) {
+        return SkColor4f{a.fR + (b.fR - a.fR) * u, a.fG + (b.fG - a.fG) * u,
+                         a.fB + (b.fB - a.fB) * u, 1.0f};
+      };
+      const auto ramp = [&lerp](float u) {
+        return u < 0.46f ? lerp(kEqTop, kEqMid, u / 0.46f)
+                         : lerp(kEqMid, kEqBot, (u - 0.46f) / 0.54f);
+      };
+      for (int i = 0; i < kFrames; ++i) {
+        const float lo = (float)i / (float)kFrames;
+        const float hi = (float)(i + 1) / (float)kFrames;
+        const SkColor4f c = ramp((lo + hi) * 0.5f);
+        steps.push_back({lo, c});
+        steps.push_back({hi, c});
+      }
+      faderTrack = Material::linearUnit({0, 0}, {0, 1}, steps);
+    }
 
     graphMat = Material::solid(kGraph);
 
     // The title-bar grip: horizontal hairlines, as a rotated stripe tile.
-    gripTile = patterns::stripes(n(1), n(1), hex(0x4C4C74)).rotate(90.0f);
+    // TITLEBAR.BMP's grip rails are CREAM, not the body's blue-grey — the
+    // one warm thing on an otherwise cold window.
+    gripTile = patterns::stripes(n(1), n(1), hex(0xC8BC98)).rotate(90.0f);
     // The visualiser well's baked dot grid (MAIN.BMP paints these under the
     // bars, in VISCOLOR's own "grey for dots").
     visDots = patterns::halftone(n(2), n(0.5f), kUnlit, false);
@@ -745,7 +778,9 @@ struct WinampBase : sketch::Sketch {
                 .shape(bolt())
                 .fill(Material::linearUnit(
                     {0, 0}, {0, 1},
-                    {{0.0f, hex(0xFFD24A)}, {1.0f, hex(0xC05C08)}})));
+                    // MAIN.BMP's bolt is a muted orange-brown, not the
+                    // bright yellow a lightning glyph wants to be.
+                    {{0.0f, hex(0xC98A32)}, {1.0f, hex(0x7A4208)}})));
     return w;
   }
 
