@@ -196,22 +196,6 @@ Assert once fixed: photograph one set from two camera positions a
 radius apart with `groundRadius` set, and the horizon must land at two
 different heights in the frame; with it at zero the two must agree.
 
-## A bound pattern pan never returns
-
-`compose_paint_test` runs `ComposePatternPan.ABoundPanMovesThePatternWithNoRedescribe`
-and does not finish: the process sits in that test with no output and no
-failure, past any timeout a suite can give it. `compose_brush_test`, which
-holds the same source file, passes.
-
-Intended: assigning the bound `Output<float>` the pattern's offset reads
-moves the repeat on the next frame, and the test asserts three phases of
-it and returns.
-
-Assert once fixed: the test as written must complete — the three pixel
-assertions at pan 0, half a tile and a full tile — and the whole binary
-must run to its summary line inside the time every other compose test
-binary takes.
-
 ## A pass's stamps are cooked inside the draw, every frame, on both tiers
 
 `world/frame/CpuGeometry.cpp`'s `drawStamps` and
