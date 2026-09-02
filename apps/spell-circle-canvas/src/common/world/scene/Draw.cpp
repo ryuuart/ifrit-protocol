@@ -42,6 +42,9 @@ void dress(render::MeshStyle& style, const Draw& body) {
   style.tileTexture = sampling.tile;
   style.filter = sampling.filter;
   style.lit = body.lit;
+  const SurfaceTerms terms = surfaceTermsOf(body.material);
+  style.metallic = terms.metallic;
+  style.roughness = terms.roughness;
 }
 
 }  // namespace
@@ -80,6 +83,8 @@ void Scene::draw(SkCanvas& canvas, const Camera& camera,
     for (const Light& light : impl.lights)
       style.lights.push_back(painterLight(light));
   }
+  style.environment =
+      paintedEnvironment(impl.environment, impl.environmentOrientation);
 
   std::vector<Draw> bodies;
   impl.collectBodies(camera, bodies);

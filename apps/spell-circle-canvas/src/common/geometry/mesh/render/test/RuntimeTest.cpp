@@ -1,7 +1,9 @@
 /** @file
  * The runtime seam: the built-in value is one value however it is
  * reached, a style carries it by default, and a substituted executor
- * receives the draw instead.
+ * receives the draw instead. Plus the shading terms this tier
+ * evaluates, each against the closed form a device shader's own
+ * spelling of it is held to.
  */
 
 #include <gtest/gtest.h>
@@ -9,9 +11,11 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
 
+#include <cmath>
 #include <glm/glm.hpp>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "sigilgeometry/mesh/render/Painter.h"
 
@@ -92,4 +96,95 @@ TEST(Runtime, PanelRoutesToTheRuntimeItIsGiven) {
       [&](SkCanvas&) { ++drawn; }, runtime);
   EXPECT_EQ(drawn, 0);
   EXPECT_EQ(static_cast<const Recorder*>(runtime.get())->panels, 1);
+}
+
+// ---- the shading terms this tier evaluates ---------------------------
+// The same closed forms a device shader's terms are pinned to, so the
+// two transcriptions of one arithmetic cannot part company silently.
+
+TEST(Shading, TheTermsMeetTheirClosedForms) {
+  using namespace sigil::geometry::mesh::render;
+  EXPECT_NEAR(atan2P(1.0f, 1.0f), std::atan2(1.0f, 1.0f), 2e-3f);
+  EXPECT_NEAR(atan2P(-0.3f, 0.7f), std::atan2(-0.3f, 0.7f), 2e-3f);
+  EXPECT_NEAR(acosP(0.5f), std::acos(0.5f), 2e-3f);
+  EXPECT_NEAR(acosP(-0.9f), std::acos(-0.9f), 2e-3f);
+
+  // u = 0.5 looks along -z; v = 0 is the zenith.
+  const glm::vec2 forward = equirectUv({0, 0, -1});
+  EXPECT_NEAR(forward.x, 0.5f, 2e-3f);
+  EXPECT_NEAR(forward.y, 0.5f, 2e-3f);
+  EXPECT_NEAR(equirectUv({0, 1, 0}).y, 0.0f, 2e-3f);
+
+  // A metal's reflectance is its base colour; a dielectric's is four
+  // per cent whatever colour it is.
+  EXPECT_NEAR(specularColor({0.9f, 0.6f, 0.3f}, 1.0f).y, 0.6f, 1e-5f);
+  EXPECT_NEAR(specularColor({0.9f, 0.6f, 0.3f}, 0.0f).y, 0.04f, 1e-5f);
+  // Fresnel head on is the reflectance itself.
+  EXPECT_NEAR(fresnelRough(glm::vec3(0.04f), 1.0f, 0.0f).x, 0.04f, 1e-5f);
+  EXPECT_NEAR(fresnelRough(glm::vec3(0.04f), 0.0f, 0.0f).x, 1.0f, 1e-5f);
+
+  // The split sum at its one exact point: a mirror head on returns the
+  // radiance it was handed.
+  EXPECT_NEAR(environmentSpecular(glm::vec3(1.0f), glm::vec3(1.0f), 0.0f, 1.0f).x,
+              1.0f, 3e-3f);
+  // A rough surface takes less of it than a smooth one.
+  EXPECT_LT(environmentSpecular(glm::vec3(1.0f), glm::vec3(0.04f), 1.0f, 1.0f).x,
+            environmentSpecular(glm::vec3(1.0f), glm::vec3(0.04f), 0.0f, 1.0f).x);
+
+  // Beer-Lambert over half a unit of a medium that takes one per unit.
+  EXPECT_NEAR(absorption(glm::vec3(1.0f), glm::vec3(1.0f), 0.5f).x,
+              std::exp(-0.5f), 1e-5f);
+  // Refraction through no change of index is the ray it was given.
+  EXPECT_NEAR(refraction({0, 0, -1}, {0, 0, 1}, 1.0f).z, -1.0f, 1e-5f);
+  // Past total internal reflection there is none.
+  EXPECT_NEAR(glm::length(refraction(glm::normalize(glm::vec3(1, 0, -0.05f)),
+                                     {0, 0, 1}, 1.6f)),
+              0.0f, 1e-5f);
+}
+
+TEST(Shading, AConstantPanoramaAnswersItsConstantFromEveryDirection) {
+  using namespace sigil::geometry::mesh::render;
+  // A sky of one radiance is the one panorama whose reading is known
+  // without integrating it, on either tier.
+  const int w = 32, h = 16;
+  std::vector<float> px((size_t)w * h * 4);
+  for (size_t i = 0; i < (size_t)w * h; ++i) {
+    px[i * 4 + 0] = 0.25f;
+    px[i * 4 + 1] = 0.5f;
+    px[i * 4 + 2] = 0.75f;
+    px[i * 4 + 3] = 1.0f;
+  }
+  const SkImageInfo info =
+      SkImageInfo::Make(w, h, kRGBA_F32_SkColorType, kPremul_SkAlphaType);
+  sk_sp<SkImage> flat = SkImages::RasterFromPixmapCopy(
+      {info, px.data(), (size_t)w * 4 * sizeof(float)});
+  ASSERT_TRUE(flat);
+
+  Environment sky;
+  sky.levels = {flat, flat};
+  sky.irradiance = flat;
+  EXPECT_TRUE(sky.valid());
+  for (glm::vec3 direction : {glm::vec3{0, 1, 0}, glm::vec3{0, 0, -1},
+                              glm::vec3{0.6f, -0.5f, 0.4f}}) {
+    const glm::vec3 mirrored =
+        environmentRadiance(sky, glm::normalize(direction), 0.3f);
+    EXPECT_NEAR(mirrored.x, 0.25f, 1e-4f);
+    EXPECT_NEAR(mirrored.z, 0.75f, 1e-4f);
+    const glm::vec3 received =
+        environmentIrradiance(sky, glm::normalize(direction));
+    EXPECT_NEAR(received.y, 0.5f, 1e-4f);
+  }
+
+  // The dials scale the two sides apart, which is the whole reason they
+  // are two dials.
+  sky.specular = 2.0f;
+  sky.diffuse = 0.5f;
+  EXPECT_NEAR(environmentRadiance(sky, {0, 0, -1}, 0.0f).x, 0.5f, 1e-4f);
+  EXPECT_NEAR(environmentIrradiance(sky, {0, 0, -1}).y, 0.25f, 1e-4f);
+
+  // And an environment with nothing in it is no environment: a surface
+  // keeps the flat ambient it always had.
+  const Environment none;
+  EXPECT_FALSE(none.valid());
+  EXPECT_EQ(environmentRadiance(none, {0, 0, -1}, 0).x, 0.0f);
 }

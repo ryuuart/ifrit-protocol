@@ -13,6 +13,7 @@
 #include <include/core/SkSamplingOptions.h>
 #include <include/core/SkSize.h>
 #include <sigilmaterial/texture/Texture.h>
+#include <sigilgeometry/mesh/render/Shading.h>
 #include <sigilworld/element/Element.h>
 #include <sigilworld/element/Environment.h>
 #include <sigilworld/element/Selector.h>
@@ -80,6 +81,27 @@ struct Sampling {
 /** @p texture as a mesh samples it. An empty texture answers an empty
  *  Sampling, whose null image is a body that is simply not dressed. */
 Sampling samplingOf(const ::sigil::material::Texture& texture);
+
+/** WHAT A SURFACE IS BEYOND ITS COLOUR, as an executor reads it: how
+ *  metallic, how rough, and the three glass terms. Read off the
+ *  material's params by name, so a material built from some other recipe
+ *  answers the values that leave the shading where it was. */
+struct SurfaceTerms {
+  float metallic = 0;
+  float roughness = 0.5f;
+  float transmission = 0;
+  float ior = 1.5f;
+  float thickness = 0;
+  glm::vec3 absorption{0, 0, 0};
+};
+SurfaceTerms surfaceTermsOf(const ::sigil::material::Material* material);
+
+/** THE ENVIRONMENT AS A MESH PAINTER TAKES IT: the prefiltered chain,
+ *  the cosine convolution, and the orientation that carries a world
+ *  direction into the panorama's frame. An invalid environment answers
+ *  an empty one, which is a surface keeping the flat ambient it had. */
+::sigil::geometry::mesh::render::Environment paintedEnvironment(
+    const Environment& environment, const glm::mat3& orientation);
 
 /** WHAT ONE FRAME EXTRACTED, handed to every pass that runs over it.
  *

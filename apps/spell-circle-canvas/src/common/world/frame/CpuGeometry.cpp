@@ -38,6 +38,10 @@ render::MeshStyle litStyle(const View& view) {
     for (const Light& light : view.lights)
       style.lights.push_back(painterLight(light));
   }
+  // THE SET'S PANORAMA, once for the whole list: it is a property of the
+  // frame and not of a body, and building it per draw would re-copy the
+  // chain for every triangle set in the scene.
+  style.environment = paintedEnvironment(view.environment, view.orientation);
   return style;
 }
 
@@ -75,6 +79,9 @@ void dress(render::MeshStyle& style, const Draw& draw) {
   style.tileTexture = sampling.tile;
   style.filter = sampling.filter;
   style.lit = draw.lit;
+  const SurfaceTerms terms = surfaceTermsOf(draw.material);
+  style.metallic = terms.metallic;
+  style.roughness = terms.roughness;
 }
 
 void drawSelection(SkCanvas& canvas, const View& view, const Selector& selector,

@@ -1,8 +1,11 @@
 /** @file
- * A body as a selector reads it.
+ * A body as a selector reads it, what its surface is beyond its colour,
+ * and the environment as a mesh painter takes it.
  */
 
 #include <sigilworld/frame/View.h>
+
+#include <sigilmaterial/core/Recipe.h>
 
 namespace sigil::world {
 
@@ -35,6 +38,47 @@ Sampling samplingOf(const material::Texture& texture) {
 
 Subject subjectOf(const Draw& draw) {
   return Subject{draw.key, draw.tags, draw.ancestors, draw.material};
+}
+
+
+SurfaceTerms surfaceTermsOf(const ::sigil::material::Material* material) {
+  SurfaceTerms terms;
+  if (!material) return terms;
+  const material::Schema& params = material->recipe().params();
+  const auto scalar = [&](std::string_view name, float& into) {
+    const material::Field* field = params.find(name);
+    if (field && field->kind == material::Kind::Float)
+      into = material->get<float>(name);
+  };
+  scalar("metallic", terms.metallic);
+  scalar("roughness", terms.roughness);
+  scalar("transmission", terms.transmission);
+  scalar("ior", terms.ior);
+  scalar("thickness", terms.thickness);
+  const material::Field* absorb = params.find("absorption");
+  if (absorb && absorb->kind == material::Kind::Color) {
+    const glm::vec4 value = material->get<glm::vec4>("absorption");
+    terms.absorption = {value.r, value.g, value.b};
+  }
+  return terms;
+}
+
+::sigil::geometry::mesh::render::Environment paintedEnvironment(
+    const Environment& environment, const glm::mat3& orientation) {
+  namespace render = ::sigil::geometry::mesh::render;
+  render::Environment out;
+  if (!environment.valid()) return out;
+  // The chain and the convolution are baked once per panorama and kept
+  // by the value, so asking for them every frame is a lookup.
+  out.levels = environment.map.chain();
+  out.irradiance = environment.map.irradiance();
+  out.orientation = orientation;
+  out.tint = environment.tint;
+  out.intensity = environment.intensity;
+  out.diffuse = environment.diffuse;
+  out.specular = environment.specular;
+  out.roughnessBias = environment.roughnessBias;
+  return out;
 }
 
 }  // namespace sigil::world

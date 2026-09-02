@@ -37,6 +37,7 @@
 #include "sigilgeometry/mesh/Mesh.h"
 #include "sigilgeometry/mesh/camera/Camera.h"
 #include "sigilgeometry/mesh/render/Runtime.h"
+#include "sigilgeometry/mesh/render/Shading.h"
 
 namespace sigil::geometry::mesh::render {
 
@@ -71,6 +72,18 @@ struct MeshStyle {
   SkColor4f baseColor = {0.8f, 0.8f, 0.85f, 1};
   std::vector<Light> lights = {{}};
   SkColor4f ambient = {0.12f, 0.12f, 0.15f, 1};
+  /** THE PANORAMA THE SURFACE SEES PAST THE LIGHTS. Carrying one
+   *  replaces the flat `ambient` above with what actually falls on the
+   *  surface from each direction, and gives it something to mirror; an
+   *  empty one leaves the constant standing, which is what keeps a set
+   *  described without a sky the picture it already was. */
+  Environment environment;
+  /** How much of a metal the surface is, and how rough — the two the
+   *  environment terms need that a Blinn highlight had no use for. Both
+   *  are one number over the whole surface here: this tier has no map
+   *  and no per-pixel half. */
+  float metallic = 0;
+  float roughness = 0.5f;
   float specular = 0.5f;  ///< Blinn specular strength
   float shininess = 48;   ///< Blinn exponent
   float rim = 0.25f;      ///< rim light strength

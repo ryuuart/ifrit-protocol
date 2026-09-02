@@ -35,6 +35,12 @@ struct Mat3 {
             m[3] * v.x + m[4] * v.y + m[5] * v.z,
             m[6] * v.x + m[7] * v.y + m[8] * v.z};
   }
+
+  /** The transpose, which for the rotation part of a rigid placement is
+   *  its inverse — how a direction gets back out of view space. */
+  Mat3 transposed() const {
+    return {{m[0], m[3], m[6], m[1], m[4], m[7], m[2], m[5], m[8]}};
+  }
 };
 
 Mat3 normalMatrix(const SkM44& src) {
@@ -100,6 +106,14 @@ struct CpuExecutor : Executor {
     full.preConcat(toSkM44(model));
     const Mat3 normalM = normalMatrix(viewModel);
     const Mat3 lightM = normalMatrix(toSkM44(camera.view()));
+    // The shading is written in view space and an environment map is a
+    // panorama of the WORLD, so a direction goes back out through the
+    // inverse of the rotation that brought it in.
+    const Mat3 worldM = lightM.transposed();
+    const Environment& environment = style.environment;
+    const bool sky = environment.valid();
+    const float metal = std::clamp(style.metallic, 0.0f, 1.0f);
+    const float rough = std::clamp(style.roughness, 0.0f, 1.0f);
 
     // Project + shade every vertex once.
     std::vector<SkPoint> screen(n);
@@ -161,9 +175,21 @@ struct CpuExecutor : Executor {
             shaded[i] = toColor(base, alpha);
             break;
           }
-          glm::vec3 accum = {style.ambient.fR * base.x,
-                             style.ambient.fG * base.y,
-                             style.ambient.fB * base.z};
+          // WHAT A METAL IS: the light stops reaching the diffuse and
+          // the highlight takes the surface's own colour. At metal zero
+          // — every surface that says nothing — this is the arithmetic
+          // that was already here, term for term.
+          const glm::vec3 albedo = base * (1.0f - metal);
+          const glm::vec3 f0 = specularColor(base, metal);
+          const glm::vec3 highlight = glm::vec3(1.0f) + (base - glm::vec3(1.0f)) * metal;
+          // THE AMBIENT TERM IS THE ENVIRONMENT where there is one: what
+          // actually falls on a surface facing this way from every
+          // direction, rather than one constant for the whole set.
+          const glm::vec3 ambient =
+              sky ? environmentIrradiance(environment, worldM.apply(N))
+                  : glm::vec3{style.ambient.fR, style.ambient.fG,
+                              style.ambient.fB};
+          glm::vec3 accum = albedo * ambient;
           for (const Light& light : style.lights) {
             const glm::vec3 L =
                 normalized(lightM.apply(light.direction * -1.0f));
@@ -171,15 +197,23 @@ struct CpuExecutor : Executor {
             const glm::vec3 lc = {light.color.fR * light.intensity,
                                   light.color.fG * light.intensity,
                                   light.color.fB * light.intensity};
-            accum += glm::vec3{base.x * lc.x * diff, base.y * lc.y * diff,
-                               base.z * lc.z * diff};
+            accum += albedo * lc * diff;
             if (style.specular > 0 && diff > 0) {
               const glm::vec3 H = normalized(L + V);
               const float spec =
                   std::pow(std::max(glm::dot(N, H), 0.0f), style.shininess) *
                   style.specular;
-              accum += lc * spec;
+              accum += lc * spec * highlight;
             }
+          }
+          // …and what the surface MIRRORS, off the reflected view
+          // vector, at the level its roughness picks.
+          if (sky) {
+            const float nDotV = std::max(glm::dot(N, V), 0.0f);
+            const glm::vec3 R = N * (2.0f * nDotV) - V;
+            accum += environmentSpecular(
+                environmentRadiance(environment, worldM.apply(R), rough), f0,
+                rough, nDotV);
           }
           if (style.rim > 0) {
             const float rim =

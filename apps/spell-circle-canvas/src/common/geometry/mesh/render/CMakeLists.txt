@@ -5,8 +5,10 @@
 add_library(SigilGeometryMeshRender STATIC
   Painter.cpp
   Runtime.cpp
+  Shading.cpp
   ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/mesh/render/Painter.h
   ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/mesh/render/Runtime.h
+  ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/mesh/render/Shading.h
 )
 target_compile_features(SigilGeometryMeshRender PUBLIC cxx_std_20)
 target_include_directories(SigilGeometryMeshRender PUBLIC ${SIGIL_GEOMETRY_INCLUDE_DIR})
