@@ -33,12 +33,22 @@
 //
 // The page is STATIC; its only behaviours are the JS rollovers and the
 // frame's scrollbar, so those are the only motion here: a simulated
-// pointer walks the four top buttons (swapping in the real -on.gif
-// states), and the content frame auto-scrolls its overflow, thumb
-// tracking in the styled scrollbar. Frame is drawn at ×2 of the 790×580
+// pointer walks the four top buttons, and the content frame auto-scrolls
+// its overflow with the thumb tracking in the styled scrollbar. The
+// rollover is a LIFT over the -off bitmap rather than a swap, because
+// the -on.gif files were only ever fetched on hover and the archive
+// therefore never captured one. Frame is drawn at ×2 of the 790×580
 // page: 1580×1160.
+//
+// EDIT THESE FIRST
+//   the 14 s scroll envelope's four corners — hold, glide, hold, glide
+//                       back. The declared moment sits in the first hold.
+//   the 8 s hover cycle and its 1 s dwell — when each of the four
+//                       buttons lights, and for how long.
+//   kProducts           — the seven rows. Everything below the header is
+//                       laid out from them.
+//   the palette block   — the page's own attribute colours.
 
-#include <include/core/SkFontMgr.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Material.h>
 #include <sigilcompose/kit/Frame.h>
@@ -59,7 +69,6 @@ using namespace sigil::compose;
 // Absolute placement: this composition is pinned, so a node says
 // where it goes rather than a layout deciding.
 using sigil::compose::kit::at;
-using namespace std::chrono_literals;
 namespace ch = choreograph;
 
 namespace teq {
@@ -86,6 +95,15 @@ constexpr float kTopH = 103, kBottomH = 15;
 constexpr float kLeftW = 262;
 constexpr float kContentH = kPageH - kTopH - kBottomH;  // the * row
 constexpr float kSbW = 16;                              // IE scrollbar
+
+// The two behaviours, as the numbers they are made of.
+constexpr float kHoverCycle = 8.0f;    // the pointer's round of the four
+constexpr float kHoverFirst = 2.0f;    // when the first button lights
+constexpr float kHoverStep = 1.2f;     // and how far behind the next one is
+constexpr float kHoverDwell = 1.0f;    // how long each stays lit
+constexpr float kScrollCycle = 14.0f;  // hold, glide down, hold, glide back
+constexpr float kScrollRise = 3.0f, kScrollHold = 8.0f;
+constexpr float kScrollFall = 9.0f, kScrollRest = 13.0f;
 
 struct Product {
   const char* name;
@@ -129,30 +147,46 @@ struct TwoAdvancedEquipment : sketch::Sketch {
   // Keyed by file name under equipment/index_files/.
   std::map<std::string, ImagePtr, std::less<>> art;
 
-  ch::Output<float> scrollY{0.0f};           // content translate (negative)
-  ch::Output<float> thumbY{0.0f};            // scrollbar thumb offset
-  std::array<ch::Output<float>, 4> hover{};  // top button -on states
+  /** THE ONLY THING THE CLOCK WRITES. Both of the page's behaviours are
+   *  periodic shapes of the elapsed seconds, so each is declared as a
+   *  bound envelope off this one Output and nothing per-frame computes a
+   *  position. */
+  ch::Output<float> clock{0.0f};
 
   float contentOverflow = 0;
 
-  static Material imageFill(const ImagePtr& asset, float w, float h) {
-    const sk_sp<SkImage>& img = asset->frames()[0].image;
-    return Material::image(
-        img, SkTileMode::kClamp, SkTileMode::kClamp,
-        SkMatrix::Scale(w / (float)img->width(), h / (float)img->height()),
-        SkSamplingOptions(SkFilterMode::kLinear));
+  /** THE THUMB'S LENGTH, which is the frame's share of what it scrolls —
+   *  stated once, because the scrollbar draws it and the clock places it
+   *  and the two disagreeing is a thumb that slides off its own track. */
+  /** THE PAGE'S SCROLL, as one envelope: flat at the top, a glide down
+   *  over five seconds, a beat at the bottom, and four seconds back. The
+   *  corners are positions in the cycle; the quadratic ease rounds both
+   *  shoulders without moving them. */
+  motion::Bound scrollEnvelope() const {
+    using namespace teq;
+    return motion::bind(&clock)
+        .source(0.0f, kScrollCycle)
+        .trapezoid(kScrollRise / kScrollCycle, kScrollHold / kScrollCycle,
+                   kScrollFall / kScrollCycle, kScrollRest / kScrollCycle)
+        .map(ch::easeInOutQuad);
   }
 
-  /** The bitmap at its own HTML display size, or a flat stand-in. */
+  float thumbHeight() const {
+    using namespace teq;
+    return (kContentH - 2 * kSbW) * kContentH /
+           (kContentH + std::max(contentOverflow, 1.0f));
+  }
+
+  /** The bitmap at its own HTML display size, or a flat stand-in. An
+   *  IMG with WIDTH and HEIGHT stretches to them — the page states both
+   *  on every one of its bitmaps, and half of them are stated at
+   *  something other than the file's own size. */
   Element img(const char* name, float w, float h,
               SkColor4f fallback = teq::kMaroon) {
-    Element e = box().width(Dim(w)).height(Dim(h)).shrink(0);
     auto it = art.find(name);
-    if (it != art.end() && it->second)
-      e.fill(imageFill(it->second, w, h));
-    else
-      e.fill(fallback);
-    return e;
+    if (it == art.end() || !it->second)
+      return box().width(Dim(w)).height(Dim(h)).shrink(0).fill(fallback);
+    return image(it->second).width(Dim(w)).height(Dim(h)).shrink(0);
   }
 
   // ---- the three frames ---------------------------------------------------
@@ -174,8 +208,13 @@ struct TwoAdvancedEquipment : sketch::Sketch {
     for (int i = 0; i < 4; ++i) {
       const float w = i == 3 ? 105.0f : 92.0f;
       f.child(at(img(offs[i], w, 11), x, 82, w, 11));
+      // The dwell: one second lit out of every eight, the four starting
+      // 1.2 s apart, so the pointer walks the row.
+      const float on0 = teq::kHoverFirst + (float)i * teq::kHoverStep;
       f.child(at(box().fill(alpha(kWhite, 0.4f)), x, 82, w, 11)
-                  .opacity(&hover[(size_t)i]));
+                  .opacity(motion::bind(&clock)
+                               .source(on0, on0 + teq::kHoverCycle)
+                               .square(teq::kHoverDwell / teq::kHoverCycle)));
       x += w;
     }
     return f;
@@ -260,7 +299,7 @@ struct TwoAdvancedEquipment : sketch::Sketch {
                    .alignItems(Align::Center)
                    .child(box().grow(1))
                    .child(img("ecom-copyright.gif", 165, 11, kWhite)));
-    list.translateY(&scrollY);
+    list.translateY(scrollEnvelope().target(0.0f, -contentOverflow));
 
     // The styled IE scrollbar: two arrow buttons and a proportional
     // thumb, in exactly the BODY's SCROLLBAR-* colours.
@@ -281,8 +320,7 @@ struct TwoAdvancedEquipment : sketch::Sketch {
               t(up ? "\xe2\x96\xb4" : "\xe2\x96\xbe", verdana(kSbArrow, true)));
     };
     const float trackH = kContentH - 2 * kSbW;
-    const float thumbH =
-        trackH * kContentH / (kContentH + std::max(contentOverflow, 1.0f));
+    const float thumbH = thumbHeight();
     Element scrollbar =
         box()
             .width(Dim(kSbW))
@@ -294,7 +332,8 @@ struct TwoAdvancedEquipment : sketch::Sketch {
                                        stroke(1, Fill::color(kWhite),
                                               PathFormat::Align::Inner))),
                    0, 0, kSbW, thumbH)
-                    .translateY(&thumbY)))
+                    .translateY(
+                        scrollEnvelope().target(0.0f, trackH - thumbH))))
             .child(sbButton(false));
 
     return at(box().fill(kWhite), kLeftW, kTopH, kPageW - kLeftW, kContentH)
@@ -364,36 +403,12 @@ struct TwoAdvancedEquipment : sketch::Sketch {
 
     contentOverflow = std::max(0.0f, kListH - kContentH);
 
-    // --- the page's two behaviours, on the clock -------------------------
+    // --- the clock ---------------------------------------------------
+    // Both behaviours are shapes of it, declared where they are drawn, so
+    // this is the whole per-frame side of the page.
     ctx.ticker.add([this, tt = 0.0](double dt) mutable {
-      using namespace teq;
       tt += dt;
-      const float s = (float)tt;
-      // The simulated pointer: rests, then dwells ~1 s on each of the
-      // four top buttons in order, swapping in the -on bitmaps.
-      const float cyc = std::fmod(s, 8.0f);
-      for (int i = 0; i < 4; ++i) {
-        const float on0 = 2.0f + (float)i * 1.2f;
-        hover[(size_t)i] = (cyc >= on0 && cyc < on0 + 1.0f) ? 1.0f : 0.0f;
-      }
-      // The frame's auto-scroll: hold the top, glide to the bottom of
-      // the overflow, hold, glide back — period 14 s.
-      const float sc = std::fmod(s, 14.0f);
-      float f = 0.0f;
-      if (sc < 3.0f)
-        f = 0.0f;
-      else if (sc < 8.0f)
-        f = (sc - 3.0f) / 5.0f;
-      else if (sc < 9.0f)
-        f = 1.0f;
-      else if (sc < 13.0f)
-        f = 1.0f - (sc - 9.0f) / 4.0f;
-      f = f < 0.5f ? 2 * f * f : 1 - 2 * (1 - f) * (1 - f);
-      scrollY = -contentOverflow * f;
-      const float trackH = kContentH - 2 * kSbW;
-      const float thumbH =
-          trackH * kContentH / (kContentH + std::max(contentOverflow, 1.0f));
-      thumbY = (trackH - thumbH) * f;
+      clock = (float)tt;
       return true;
     });
 

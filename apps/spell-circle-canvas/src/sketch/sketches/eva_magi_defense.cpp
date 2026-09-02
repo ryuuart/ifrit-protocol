@@ -141,9 +141,20 @@
 //   0.3 -> 2.3 s  Beijing, Berlin, Massachusetts, Hamburg, Matsushiro fall,
 //          in the order the script names them, 180 ms snap 450 ms apart
 //   3.0 -> 17 s   the front advances: the whole hue field climbs the plate
+//
+// EDIT THESE FIRST
+//   kRoll    — the photographed tube is not square, and every measured
+//              coordinate carries this roll. Zero it and the plate stands
+//              upright, and stops agreeing with the frame.
+//   kDiag    — the funnel wall's measured dx:dy. The trunks are authored
+//              square and the camera puts the roll back, so this is the
+//              ratio the drawn wall lands on rather than the one typed.
+//   kSites   — the six installations: where each stands, which way its
+//              stem points, and the second it falls.
+//   the front's 3 s / 14 s window in update() — when the hue field starts
+//              climbing and how long it takes.
 // =============================================================================
 
-#include <include/core/SkFontMgr.h>
 #include <include/core/SkFontStyle.h>
 #include <include/core/SkMaskFilter.h>
 #include <include/core/SkPaint.h>
@@ -196,10 +207,6 @@ constexpr SkPoint kWallBend{511.9f, 867.5f};
 constexpr float kBand = 45.0f;   // ribbon width, measured 44-46
 constexpr float kRoll = -0.45f;  // the photographed CRT is not square
 
-inline SkColor4f hex(uint32_t v, float a = 1.0f) noexcept {
-  return {(float)((v >> 16u) & 255u) / 255.0f,
-          (float)((v >> 8u) & 255u) / 255.0f, (float)(v & 255u) / 255.0f, a};
-}
 inline float mirrorX(float x) { return 2.0f * kAxis - x; }
 inline SkPoint mirrorP(SkPoint p) { return {mirrorX(p.fX), p.fY}; }
 
@@ -258,20 +265,9 @@ constexpr int kRampN = (int)(sizeof(kRamp) / sizeof(kRamp[0]));
 // ---------------------------------------------------------------------------
 // TYPE. Helvetica Bold, condensed per label to the measured width.
 
-inline sk_sp<SkTypeface> face(const char* family, int weight, int width,
-                              const char* fallback) {
-  auto mgr = weave::ports::systemFontManager();
-  sk_sp<SkTypeface> f = mgr->matchFamilyStyle(
-      family, SkFontStyle(weight, width, SkFontStyle::kUpright_Slant));
-  if (!f && fallback)
-    f = mgr->matchFamilyStyle(
-        fallback, SkFontStyle(weight, width, SkFontStyle::kUpright_Slant));
-  if (!f) f = mgr->matchFamilyStyle(nullptr, SkFontStyle::Bold());
-  return f;
-}
 inline const sk_sp<SkTypeface>& boldFace() {
-  static sk_sp<SkTypeface> f = face("Helvetica", SkFontStyle::kBold_Weight,
-                                    SkFontStyle::kNormal_Width, "Arial");
+  static const sk_sp<SkTypeface> f = sigil::compose::pickFace(
+      {"Helvetica", "Arial"}, SkFontStyle::kBold_Weight);
   return f;
 }
 
@@ -634,7 +630,10 @@ inline Material rampMaterial(float front) {
 
 // ---------------------------------------------------------------------------
 
-/** A quarter-turn defeats Cache::Texture (see art()); everything else bakes. */
+/** WHICH MARKS MAY BE BAKED. A node standing at a quarter-turn comes back
+ *  from a texture bake non-uniformly resampled — on a 196x33 pill the type
+ *  is destroyed — while 0, 45 and 180 are clean, so the guard is exactly
+ *  the quarter-turn and everything else is promoted. */
 inline bool bakeable(float rotationDeg) {
   const float q = std::fmod(std::fabs(rotationDeg), 180.0f);
   return std::fabs(q - 90.0f) > 1.0f;
@@ -1056,8 +1055,7 @@ struct EvaMagiDefense : sketch::Sketch {
       if (site.fallAt >= 0 && elapsed >= site.fallAt) ++now;
     const double sweep = (elapsed - 3.0) / 14.0;
     const double k = sweep <= 0 ? 0.0 : (sweep >= 1 ? 1.0 : sweep);
-    const double eased =
-        k < 0.5 ? 2 * k * k : 1 - std::pow(-2 * k + 2, 2) / 2;  // easeInOutQuad
+    const double eased = choreograph::easeInOutQuad((float)k);
     const int step = (int)std::lround(eased * 84.0);
     if (now == fallCount && step == frontStep) return;
     const bool fell = now != fallCount;

@@ -1,17 +1,18 @@
 /** @file
  * daemon console — a log feed that scrolls itself: generated rows fed
- * into a text ring, with severity dressing and a cursor that keeps up.
+ * into a ring of STRUCTURED rows, with severity dressing and a cursor
+ * that keeps up.
  */
 
 // A security-operations console — WARDNET, the ward-perimeter watch — built
 // entirely out of composition. One panel carries four registers of type and
 // three panes of chrome, and the whole surface is priced by the feed idiom:
 //
-//   scrollback ..... feed::Ring<LogRow> + feed(). Rows are keyed by sequence
-//                    id, so an append reconciles as ONE row mount and every
-//                    row already on screen keeps its cached picture. The
-//                    ComposeFeed tests pin that property, including for
-//                    structured rows like these.
+//   scrollback ..... feed::Ring<LogRow> + feed(). A row is a value with
+//                    fields, not a line of text, and rows are keyed by
+//                    sequence id — so an append reconciles as ONE row mount
+//                    and every row already on screen keeps its cached
+//                    picture, whatever the ring's capacity.
 //   rows ........... each row is a stripe, a chip band and ONE rich() text
 //                    leaf: tabular-timestamp, channel tag and payload each in
 //                    their own named style, with an optional cipher field.
@@ -43,6 +44,16 @@
 // reconciliation touches a constant handful of nodes for each: the new row's
 // mount plus the few chrome leaves whose text actually changed. The retained
 // instance tree is what makes that work; there is no virtualizer.
+//
+// EDIT THESE FIRST
+//   the Ring's capacity  — how much scrollback is retained. Rows past it
+//                          leave; nothing on screen is re-patched when
+//                          they do.
+//   LogGen's roll table  — the mix of severities, and therefore which
+//                          entrances the page is a specimen of.
+//   kCommands            — what the console types at its own prompt.
+//   the palette block    — the whole surface is dressed out of it, and
+//                          severity is encoded in ink as well as in form.
 
 #include <sigilcompose/core/Feed.h>
 #include <sigilcompose/core/Material.h>

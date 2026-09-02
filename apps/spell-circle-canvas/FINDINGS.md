@@ -106,3 +106,36 @@ pixel to answer it.
 Assert once fixed: `--bench --sketch blur_falloff` verdicts PASS, and
 the rack panel's per-frame cost tracks the panel's area rather than its
 area times the sigma.
+
+## daemon_console does not hold 60 FPS at its own canvas
+
+`--bench` reports p50 ≈ 32.8 ms at 900×640, and the frame is drawing
+rather than describing: the full-screen scanline-and-refresh-band overlay
+is one live SkSL shader over every pixel of the canvas, re-run each
+frame, and it is the only node in the sketch that costs anything like
+that. The rest of the console — the feed's row mounts, the bound meters,
+the caret — prices in fractions of a millisecond, exactly as its own
+header claims.
+
+Intended: a sketch holds 60 FPS at the canvas it declares, and a scanline
+overlay whose only per-frame input is a phase is a texture crept by a
+bound translate rather than a per-pixel program. The sketch already does
+that for its CRT vignette.
+
+Assert once fixed: `--bench --sketch daemon_console` verdicts PASS, and
+no node in the report is a full-canvas live paint.
+
+## eva_magi_defense spikes past the budget on its re-describe frames
+
+`--bench` reports p50 2.8 ms and p99 22.9 ms at 1920×1080 — a frame in
+twenty costs eight times the median. The front advances by re-describing
+the funnel slot six times a second, and that re-describe re-records the
+funnel's ribbons and re-bakes what stood under them, which lands whole
+inside one frame.
+
+Intended: a sketch holds 60 FPS at the canvas it declares, and work
+scheduled at a fixed rate is spread or made cheap rather than paid in one
+frame.
+
+Assert once fixed: `--bench --sketch eva_magi_defense` verdicts PASS,
+with p99 inside the budget rather than the median alone.
