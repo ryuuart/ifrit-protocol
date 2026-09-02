@@ -35,6 +35,7 @@
 #include <vector>
 
 #include "Distance.h"
+#include "Gpu.h"
 #include "Programs.h"
 
 using namespace sigil;
@@ -352,6 +353,32 @@ TEST(GpuRuntime, TheMapABodyIsDressedWithReachesBothTiers) {
   const Distance distance = distanceOf(host, graphics);
   EXPECT_LT(distance.mean, 6.0);
   EXPECT_LT(distance.p99, 64);
+}
+
+TEST(GpuRuntime, AMapTOOSMALLForAChainAsksForNoneAtAll) {
+  const OnDevice on = onDevice();
+  if (!on) GTEST_SKIP() << "no Vulkan device: " << on.error;
+  const std::shared_ptr<diligent::Gpu> gpu = diligent::makeGpu(*on.device);
+
+  // A map wider than one texel wears the whole chain and is described
+  // as generating it, because a surface smaller on screen than its map
+  // is in texels aliases without one…
+  Diligent::ITexture* many = gpu->sample(flatMap({0.2f, 0.8f, 0.35f, 1.0f}, 8));
+  ASSERT_NE(many, nullptr);
+  EXPECT_EQ(many->GetDesc().MipLevels, 4u);
+  EXPECT_TRUE(many->GetDesc().MiscFlags &
+              Diligent::MISC_TEXTURE_FLAG_GENERATE_MIPS);
+
+  // …and a ONE-TEXEL map — how a constant slot such as an emissive tint
+  // is spelled — has one level, since halving a single texel arrives
+  // nowhere, and must therefore not be described as generating a chain:
+  // a device handed a view with one level in it and told to fill the
+  // levels below has nowhere to put them, and refuses.
+  Diligent::ITexture* one = gpu->sample(flatMap({0.9f, 0.2f, 0.2f, 1.0f}, 1));
+  ASSERT_NE(one, nullptr);
+  EXPECT_EQ(one->GetDesc().MipLevels, 1u);
+  EXPECT_FALSE(one->GetDesc().MiscFlags &
+               Diligent::MISC_TEXTURE_FLAG_GENERATE_MIPS);
 }
 
 // ---- what a texture and a surface each say about themselves ----------------

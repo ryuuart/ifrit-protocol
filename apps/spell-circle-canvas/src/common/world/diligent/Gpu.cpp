@@ -21,6 +21,7 @@
 #include <include/core/SkImageInfo.h>
 #include <sigilcore/hardware/GpuDevice.h>
 
+#include <Graphics/GraphicsAccessories/interface/GraphicsAccessories.hpp>
 #include <Graphics/GraphicsEngine/interface/GraphicsTypesX.hpp>
 #include <Graphics/GraphicsTools/interface/CommonlyUsedStates.h>
 #include <Graphics/GraphicsTools/interface/MapHelper.hpp>
@@ -137,14 +138,26 @@ dg::TextureDesc wrappedMapDesc(const char* label, int width, int height) {
  *  wearing it is smaller on screen than the map is in texels, and a
  *  sampler with one level to read then walks the texels of a shrinking
  *  triangle and answers a different one every frame — which is what
- *  aliasing is. `MipLevels = 0` is Diligent's word for the full chain;
- *  the render-target bind and the generate flag are what let the device
- *  fill the levels below zero, which nothing else here asks it for. */
+ *  aliasing is. The render-target bind and the generate flag are what
+ *  let the device fill the levels below zero, which nothing else here
+ *  asks it for.
+ *
+ *  A MAP CAN BE TOO SMALL TO HAVE A CHAIN. Halving one texel arrives
+ *  nowhere, so a flat colour handed over as a single texel — which is
+ *  how an emissive tint or any other constant slot is spelled — is the
+ *  whole texture at its one level. The count is stated rather than left
+ *  to the device to work out, so that the same arithmetic decides both
+ *  what is asked for here and whether there is anything to derive: a
+ *  device asked to generate mips into a view with one level in it has
+ *  nowhere to put them, and says so. */
 dg::TextureDesc uploadedMapDesc(const char* label, int width, int height) {
   dg::TextureDesc desc = wrappedMapDesc(label, width, height);
-  desc.MipLevels = 0;
-  desc.BindFlags = dg::BIND_SHADER_RESOURCE | dg::BIND_RENDER_TARGET;
-  desc.MiscFlags = dg::MISC_TEXTURE_FLAG_GENERATE_MIPS;
+  desc.MipLevels =
+      dg::ComputeMipLevelsCount((dg::Uint32)width, (dg::Uint32)height);
+  if (desc.MipLevels > 1) {
+    desc.BindFlags = dg::BIND_SHADER_RESOURCE | dg::BIND_RENDER_TARGET;
+    desc.MiscFlags = dg::MISC_TEXTURE_FLAG_GENERATE_MIPS;
+  }
   return desc;
 }
 
@@ -290,8 +303,8 @@ dg::ITexture* Gpu::sample(const material::Texture& map) {
 
   // NO INITIAL DATA: a texture is created with as many subresources as
   // it has levels or the device refuses it, and only level zero is
-  // known here. It is written after the fact and the levels under it
-  // derived from it, once, on the frame the map first appears.
+  // known here. It is written after the fact and whatever levels stand
+  // under it derived from it, once, on the frame the map first appears.
   device->renderDevice()->CreateTexture(
       uploadedMapDesc("world sampled map", image->width(), image->height()),
       nullptr, &held.texture);
@@ -307,8 +320,9 @@ dg::ITexture* Gpu::sample(const material::Texture& map) {
   context->UpdateTexture(held.texture, 0, 0, whole, level,
                          dg::RESOURCE_STATE_TRANSITION_MODE_TRANSITION,
                          dg::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
-  context->GenerateMips(
-      held.texture->GetDefaultView(dg::TEXTURE_VIEW_SHADER_RESOURCE));
+  if (held.texture->GetDesc().MipLevels > 1)
+    context->GenerateMips(
+        held.texture->GetDefaultView(dg::TEXTURE_VIEW_SHADER_RESOURCE));
   return held.texture;
 }
 
