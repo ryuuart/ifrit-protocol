@@ -444,8 +444,12 @@ struct NightNetwork final : sketch::Sketch {
         .child(nn::pin("tw_w", 366, 610))
         .child(nn::pin("tw1", 633, 610))
         .child(nn::pin("tw_e", 830, 589))
-        .child(nn::pin("cb_w", 302, 96))
-        .child(nn::pin("cb_e", 492, 48))
+        // The cableway ran from (302, 96) to (492, 48), which is through
+        // the legend panel: its cable and its station rings crossed the
+        // TWIN SERVICE and CABLEWAY rows and collided with their type. It
+        // spans the clear band above the carto railway instead.
+        .child(nn::pin("cb_w", 508, 56))
+        .child(nn::pin("cb_e", 842, 34))
         .child(nn::pin("ck_m", 579, 412))
         .child(nn::pin("ck1", 636, 412))
         .child(nn::pin("ck2", 676, 372))
