@@ -13,6 +13,7 @@
 #include <sigilcompose/core/Shape.h>
 #include <sigilcompose/core/Stroke.h>
 #include <sigilcore/comparable/Erased.h>
+#include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/Animation.h>
 #include <sigilmotion/schedule/Schedule.h>
 #include <sigilmotion/values/Animated.h>
@@ -30,8 +31,6 @@ namespace sigil::compose {
 namespace detail {
 struct Instance;
 }  // namespace detail
-
-class Material;
 
 // ---------------------------------------------------------------------------
 // THE MASKING FAMILY — `mask(by::…)` and `mask(parts::…, by::…)`
@@ -229,13 +228,13 @@ Gate outside(Region r);
  *
  *  Costs a `saveLayer` per masked group, so it is the expensive member of
  *  the family; `spans`, `edge` and `shape` ride path effects and clips. */
-Gate alpha(Material coverage);
+Gate alpha(material::skia::Paint coverage);
 /** …and its complement, a term of its own exactly as `outside` is: the
  *  selected paint keeps what the Material does NOT cover. After Effects'
  *  Alpha Inverted Matte. Costs nothing beyond `alpha` — the coverage layer
  *  composites with `kDstOut` instead of `kDstIn`, which is `1 - a` exactly
  *  and needs no shader. */
-Gate alphaOut(Material coverage);
+Gate alphaOut(material::skia::Paint coverage);
 /** The other coverage source: the selected paint keeps the Material's
  *  LUMA. After Effects' Luma Matte — paint a matte in greys (or in
  *  anything) and its brightness is the coverage.
@@ -254,10 +253,10 @@ Gate alphaOut(Material coverage);
  *  Same cost as `alpha` plus one SkSL pass over the coverage layer, and
  *  none at all when the Material resolves to a colour, where the
  *  weighting is one dot product in C++. */
-Gate luma(Material coverage);
+Gate luma(material::skia::Paint coverage);
 /** …and ITS complement: the selected paint keeps what the Material's luma
  *  leaves DARK. After Effects' Luma Inverted Matte. */
-Gate lumaOut(Material coverage);
+Gate lumaOut(material::skia::Paint coverage);
 }  // namespace by
 
 /** HOW paint arrives past a mask — a comparable value built by the `by::`
@@ -283,7 +282,7 @@ class Gate {
   Channel channel = Channel::Alpha;  ///< Coverage
   /** Coverage. Held out of line because Material is declared in its own
    *  header, which includes this one. */
-  std::shared_ptr<const Material> coverage;
+  std::shared_ptr<const material::skia::Paint> coverage;
 
   /** Structural equality. Declared here and defined beside the
    *  reconciler's own property comparator, so an animated fraction

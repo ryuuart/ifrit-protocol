@@ -414,7 +414,7 @@ TEST(ComposeLayoutScheme, GridPlacesAndSizesCells) {
   EXPECT_EQ(host.pixel(145, 55), SK_ColorGREEN);
 }
 
-#include <sigilcompose/core/Material.h>
+#include <sigilmaterial/skia/Paint.h>
 
 TEST(ComposeMotion, EaseAdaptersBindTheShapeParameter) {
   // choreograph's back/elastic/bounce take a shape parameter with a
@@ -440,7 +440,7 @@ TEST(ComposeMotion, EaseAdaptersBindTheShapeParameter) {
                       .scale(animate(motion::from(0.5f).to(1.0f),
                                      {std::chrono::milliseconds(200),
                                       motion::ease::outBack()}))
-                      .fill(Material::solid({1, 1, 1, 1}))));
+                      .fill(material::skia::Paint::solid({1, 1, 1, 1}))));
   host.frame();
   SUCCEED();
 }
@@ -452,15 +452,16 @@ TEST(ComposeTransform, ScaleXGrowsFromItsOrigin) {
   // workaround is only correct for gradients along the other axis).
   Host host(200, 40);
   choreograph::Output<float> fraction{0.25f};
-  host.composer.render(box().child(box()
-                                       .width(200)
-                                       .height(40)
-                                       .absolute()
-                                       .left(0)
-                                       .top(0)
-                                       .transformOrigin(0.0f, 0.5f)
-                                       .scaleX(&fraction)
-                                       .fill(Material::solid({1, 0, 0, 1}))));
+  host.composer.render(
+      box().child(box()
+                      .width(200)
+                      .height(40)
+                      .absolute()
+                      .left(0)
+                      .top(0)
+                      .transformOrigin(0.0f, 0.5f)
+                      .scaleX(&fraction)
+                      .fill(material::skia::Paint::solid({1, 0, 0, 1}))));
   host.frame();
   EXPECT_GT(SkColorGetR(host.pixel(20, 20)), 200u);  // inside the quarter
   EXPECT_LT(SkColorGetR(host.pixel(80, 20)), 60u);   // past it
@@ -472,16 +473,17 @@ TEST(ComposeTransform, ScaleXGrowsFromItsOrigin) {
 
 TEST(ComposeTransform, ScaleYIsIndependentOfScaleX) {
   Host host(200, 200);
-  host.composer.render(box().child(box()
-                                       .width(200)
-                                       .height(200)
-                                       .absolute()
-                                       .left(0)
-                                       .top(0)
-                                       .transformOrigin(0.0f, 0.0f)
-                                       .scaleX(0.25f)
-                                       .scaleY(0.75f)
-                                       .fill(Material::solid({0, 1, 0, 1}))));
+  host.composer.render(
+      box().child(box()
+                      .width(200)
+                      .height(200)
+                      .absolute()
+                      .left(0)
+                      .top(0)
+                      .transformOrigin(0.0f, 0.0f)
+                      .scaleX(0.25f)
+                      .scaleY(0.75f)
+                      .fill(material::skia::Paint::solid({0, 1, 0, 1}))));
   host.frame();
   EXPECT_GT(SkColorGetG(host.pixel(10, 10)), 200u);   // inside both
   EXPECT_LT(SkColorGetG(host.pixel(90, 10)), 60u);    // past x, inside y
@@ -495,8 +497,8 @@ TEST(ComposeMaterial, UnitRampFollowsTheBoxItLandsIn) {
   // material reads correctly at two different sizes.
   auto card = [](float w, float h) {
     return box().width(w).height(h).absolute().left(0).top(0).fill(
-        Material::linearUnit({0, 0}, {0, 1},
-                             {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}}));
+        material::skia::Paint::linearUnit(
+            {0, 0}, {0, 1}, {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}}));
   };
   Host small(80, 40);
   small.composer.render(box().child(card(80, 40)));
@@ -525,7 +527,7 @@ TEST(ComposeMaterial, LinearGradientFillPaints) {
                       .height(20)
                       .inset(0, 0, 100, 180)
                       .absolute()
-                      .fill(Material::linear(
+                      .fill(material::skia::Paint::linear(
                           {0, 0}, {100, 0},
                           {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}}))));
   host.frame();
@@ -544,14 +546,15 @@ TEST(ComposeMaterial, ConicalMovesTheHighlightWithoutMovingTheFalloff) {
   // (SkShaders::TwoPointConicalGradient) keeps the outer circle put and
   // moves only the focus, which is the sphere-shading primitive.
   const auto sphere = [](SkPoint focus) {
-    return box().child(box()
-                           .width(120)
-                           .height(120)
-                           .inset(40, 40, 40, 40)
-                           .absolute()
-                           .fill(Material::conical(focus, 0.0f, {60, 60}, 60.0f,
-                                                   {{0.0f, {1, 1, 1, 1}},
-                                                    {1.0f, {0, 0, 0.2f, 1}}})));
+    return box().child(
+        box()
+            .width(120)
+            .height(120)
+            .inset(40, 40, 40, 40)
+            .absolute()
+            .fill(material::skia::Paint::conical(
+                focus, 0.0f, {60, 60}, 60.0f,
+                {{0.0f, {1, 1, 1, 1}}, {1.0f, {0, 0, 0.2f, 1}}})));
   };
   Host centered, offset;
   centered.composer.render(sphere({60, 60}));
@@ -571,13 +574,17 @@ TEST(ComposeMaterial, ConicalMovesTheHighlightWithoutMovingTheFalloff) {
   // And the recipe is comparable: identical conicals prune-equal, a moved
   // focus does not (it would freeze the highlight forever), and the
   // conical never aliases the radial it displaces.
-  const std::vector<Stop> stops{{0.0f, {1, 1, 1, 1}}, {1.0f, {0, 0, 0.2f, 1}}};
-  EXPECT_TRUE(Material::conical({35, 35}, 0, {60, 60}, 60, stops) ==
-              Material::conical({35, 35}, 0, {60, 60}, 60, stops));
-  EXPECT_FALSE(Material::conical({35, 35}, 0, {60, 60}, 60, stops) ==
-               Material::conical({36, 35}, 0, {60, 60}, 60, stops));
-  EXPECT_FALSE(Material::conical({60, 60}, 0, {60, 60}, 60, stops) ==
-               Material::radial({60, 60}, 60, stops));
+  const std::vector<material::skia::Stop> stops{{0.0f, {1, 1, 1, 1}},
+                                                {1.0f, {0, 0, 0.2f, 1}}};
+  EXPECT_TRUE(
+      material::skia::Paint::conical({35, 35}, 0, {60, 60}, 60, stops) ==
+      material::skia::Paint::conical({35, 35}, 0, {60, 60}, 60, stops));
+  EXPECT_FALSE(
+      material::skia::Paint::conical({35, 35}, 0, {60, 60}, 60, stops) ==
+      material::skia::Paint::conical({36, 35}, 0, {60, 60}, 60, stops));
+  EXPECT_FALSE(
+      material::skia::Paint::conical({60, 60}, 0, {60, 60}, 60, stops) ==
+      material::skia::Paint::radial({60, 60}, 60, stops));
 }
 
 TEST(ComposeMaterial, SweepWarnsWhenTheWindowLeavesTheCircle) {
@@ -589,16 +596,17 @@ TEST(ComposeMaterial, SweepWarnsWhenTheWindowLeavesTheCircle) {
   // Control first (a legal window must stay silent), then the trap arm. The
   // warning fires once per process, so this must be the only place that
   // triggers it and the order within the test matters.
-  const std::vector<Stop> stops{{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}};
+  const std::vector<material::skia::Stop> stops{{0.0f, {1, 0, 0, 1}},
+                                                {1.0f, {0, 0, 1, 1}}};
   ::testing::internal::CaptureStderr();
-  (void)Material::sweep({50, 50}, stops, 0.0f, 360.0f);
-  (void)Material::sweep({50, 50}, stops, 90.0f, 270.0f);
+  (void)material::skia::Paint::sweep({50, 50}, stops, 0.0f, 360.0f);
+  (void)material::skia::Paint::sweep({50, 50}, stops, 90.0f, 270.0f);
   EXPECT_EQ(::testing::internal::GetCapturedStderr(), "")
       << "a window inside the circle must not warn";
   ::testing::internal::CaptureStderr();
-  (void)Material::sweep({50, 50}, stops, 90.0f, 450.0f);
+  (void)material::skia::Paint::sweep({50, 50}, stops, 90.0f, 450.0f);
   const std::string log = ::testing::internal::GetCapturedStderr();
-  EXPECT_NE(log.find("Material::sweep"), std::string::npos) << log;
+  EXPECT_NE(log.find("skia::Paint::sweep"), std::string::npos) << log;
   EXPECT_NE(log.find("wrap"), std::string::npos) << log;
 }
 
@@ -609,13 +617,13 @@ TEST(ComposeMaterial, ANullSkslEffectIsLoudAtBuild) {
   // compile error long scrolled away. Control first: a valid effect stays
   // silent; the null build warns once, at build, not at draw.
   ::testing::internal::CaptureStderr();
-  (void)Material::sksl(ukEffect(), {{"uK", 1.0f}});
+  (void)material::skia::Paint::sksl(ukEffect(), {{"uK", 1.0f}});
   EXPECT_EQ(::testing::internal::GetCapturedStderr(), "")
       << "a valid effect must not warn";
   ::testing::internal::CaptureStderr();
-  (void)Material::sksl(sk_sp<SkRuntimeEffect>(nullptr));
+  (void)material::skia::Paint::sksl(sk_sp<SkRuntimeEffect>(nullptr));
   const std::string log = ::testing::internal::GetCapturedStderr();
-  EXPECT_NE(log.find("Material::sksl"), std::string::npos) << log;
+  EXPECT_NE(log.find("skia::Paint::sksl"), std::string::npos) << log;
   EXPECT_NE(log.find("nothing"), std::string::npos) << log;
 }
 
@@ -675,10 +683,10 @@ TEST(ComposeComposer, DeclaredInputSpaceIsALoudDeclarationAndNothingElse) {
     Host h;
     h.composer.declareInputSpace(space);
     h.composer.render(box().child(box().width(160).height(120).fill(
-        Material::linear({0, 0}, {160, 120},
-                         {{0.0f, {1, 0, 0, 1}},
-                          {0.5f, {0.25f, 0.5f, 0.25f, 0.8f}},
-                          {1.0f, {0, 0, 1, 1}}}))));
+        material::skia::Paint::linear({0, 0}, {160, 120},
+                                      {{0.0f, {1, 0, 0, 1}},
+                                       {0.5f, {0.25f, 0.5f, 0.25f, 0.8f}},
+                                       {1.0f, {0, 0, 1, 1}}}))));
     h.frame();
     SkBitmap bm;
     bm.allocPixels(SkImageInfo::MakeN32Premul(200, 200));
@@ -703,9 +711,10 @@ TEST(ComposeMaterial, BlendStackCompositesToOneShader) {
           .height(40)
           .inset(0, 0, 160, 160)
           .absolute()
-          .fill(Material::blend({
-              {Material::solid({1, 0, 0, 1}), SkBlendMode::kSrcOver},
-              {Material::solid({0, 1, 0, 1}), SkBlendMode::kPlus},
+          .fill(material::skia::Paint::blend({
+              {material::skia::Paint::solid({1, 0, 0, 1}),
+               SkBlendMode::kSrcOver},
+              {material::skia::Paint::solid({0, 1, 0, 1}), SkBlendMode::kPlus},
           }))));
   host.frame();
   const SkColor c = host.pixel(20, 20);
@@ -721,7 +730,7 @@ TEST(ComposeMaterial, StaticMaterialCollapsesToFillAndCaches) {
   // StaticMaterialPrunesAcrossRerender.)
   Host host;
   host.composer.render(
-      box().child(box().width(60).height(60).fill(Material::radial(
+      box().child(box().width(60).height(60).fill(material::skia::Paint::radial(
           {30, 30}, 30, {{0.0f, {1, 1, 1, 1}}, {1.0f, {0, 0, 0, 1}}}))));
   host.frame();  // records
   EXPECT_GE(host.composer.stats().picturesLive, 1u);
@@ -743,13 +752,13 @@ TEST(ComposeMaterial, LiveUniformAnimatesAndDeclaresVolatility) {
   ASSERT_TRUE(effect) << err.c_str();
   choreograph::Output<float> k{0.0f};
   Host host;
-  host.composer.render(
-      box().child(box()
-                      .width(40)
-                      .height(40)
-                      .inset(0, 0, 160, 160)
-                      .absolute()
-                      .fill(Material::sksl(effect).uniform("uK", &k))));
+  host.composer.render(box().child(
+      box()
+          .width(40)
+          .height(40)
+          .inset(0, 0, 160, 160)
+          .absolute()
+          .fill(material::skia::Paint::sksl(effect).uniform("uK", &k))));
   host.frame();
   const SkColor c0 = host.pixel(20, 20);
   k = 1.0f;      // change the bound uniform — NO re-render
@@ -763,7 +772,8 @@ TEST(ComposeMaterial, LiveUniformAnimatesAndDeclaresVolatility) {
 TEST(ComposeMaterial, UniformOnNonShaderMaterialIsNoOp) {
   // uniform() on a material with no named uniforms (a solid) has nothing to
   // hook against: it is ignored, the material stays static and non-live.
-  Material m = Material::solid({0, 1, 0, 1}).uniform("uK", 0.5f);
+  material::skia::Paint m =
+      material::skia::Paint::solid({0, 1, 0, 1}).uniform("uK", 0.5f);
   EXPECT_FALSE(m.isAnimated());
   EXPECT_TRUE(m.isSolid());
 }
@@ -773,11 +783,11 @@ TEST(ComposeMaterial, UniformCopiesOnWriteNeverAlias) {
   // the base or its sibling copies. The shape that catches this is a shared
   // base material bound to two different Outputs — with aliasing, both
   // copies read whichever binding was applied last.
-  Material base = Material::sksl(ukEffect());
+  material::skia::Paint base = material::skia::Paint::sksl(ukEffect());
   choreograph::Output<float> low{0.2f}, high{1.0f};
-  Material a = base;
+  material::skia::Paint a = base;
   a.uniform("uK", &low);
-  Material b = base;
+  material::skia::Paint b = base;
   b.uniform("uK", &high);
   EXPECT_FALSE(base.isAnimated());  // base untouched
   EXPECT_TRUE(a.isAnimated());
@@ -809,14 +819,15 @@ TEST(ComposeMaterial, LaterPlainFillReplacesLiveMaterial) {
   // plain fill is silently ignored.
   choreograph::Output<float> k{1.0f};
   Host host;
-  host.composer.render(box().child(
-      box()
-          .width(40)
-          .height(40)
-          .inset(0, 0, 160, 160)
-          .absolute()
-          .fill(Material::sksl(ukEffect()).uniform("uK", &k))  // live red
-          .fill(Fill::color({0, 1, 0, 1}))));  // then plain green
+  host.composer.render(
+      box().child(box()
+                      .width(40)
+                      .height(40)
+                      .inset(0, 0, 160, 160)
+                      .absolute()
+                      .fill(material::skia::Paint::sksl(ukEffect())
+                                .uniform("uK", &k))        // live red
+                      .fill(Fill::color({0, 1, 0, 1}))));  // then plain green
   host.frame();
   const SkColor c = host.pixel(20, 20);
   EXPECT_GT(SkColorGetG(c), 200u);  // green won
@@ -829,9 +840,10 @@ TEST(ComposeMaterial, BlendWithLiveLayerTracksOutputs) {
   // Output. Flattening the stack eagerly at build time instead would bake
   // the shader's default uniform values in permanently.
   choreograph::Output<float> k{0.8f};
-  Material m = Material::blend({
-      {Material::solid({0, 0, 0, 1}), SkBlendMode::kSrcOver},
-      {Material::sksl(ukEffect()).uniform("uK", &k), SkBlendMode::kPlus},
+  material::skia::Paint m = material::skia::Paint::blend({
+      {material::skia::Paint::solid({0, 0, 0, 1}), SkBlendMode::kSrcOver},
+      {material::skia::Paint::sksl(ukEffect()).uniform("uK", &k),
+       SkBlendMode::kPlus},
   });
   EXPECT_TRUE(m.isAnimated());  // inherited from the bound layer
   Host host;
@@ -855,14 +867,15 @@ TEST(ComposeMaterial, NestedBlendAsShaderFoldsItsLiveLayersPerCall) {
   // a shader as it is constructed: building `outer` below is the moment it
   // happens, before anything is painted.
   choreograph::Output<float> k{0.8f};
-  Material inner = Material::blend({
-      {Material::solid({0, 0, 0, 1}), SkBlendMode::kSrcOver},
-      {Material::sksl(ukEffect()).uniform("uK", &k), SkBlendMode::kPlus},
+  material::skia::Paint inner = material::skia::Paint::blend({
+      {material::skia::Paint::solid({0, 0, 0, 1}), SkBlendMode::kSrcOver},
+      {material::skia::Paint::sksl(ukEffect()).uniform("uK", &k),
+       SkBlendMode::kPlus},
   });
   ASSERT_TRUE(inner.isAnimated());  // inherited from the bound layer
-  Material outer = Material::blend({
+  material::skia::Paint outer = material::skia::Paint::blend({
       {inner, SkBlendMode::kSrcOver},  // <- the null deref was HERE
-      {Material::solid({0, 0, 0, 1}), SkBlendMode::kPlus},
+      {material::skia::Paint::solid({0, 0, 0, 1}), SkBlendMode::kPlus},
   });
   ASSERT_TRUE(outer.isAnimated());  // liveness survives one more nesting
 
@@ -870,7 +883,7 @@ TEST(ComposeMaterial, NestedBlendAsShaderFoldsItsLiveLayersPerCall) {
   // fall through to m_shader — blend()'s eager snapshot, built once at
   // construction — which is the stale-snapshot defect asShader()'s live
   // branch exists to prevent; it would answer 0.8 forever.
-  auto sampleR = [](const Material& m) -> uint32_t {
+  auto sampleR = [](const material::skia::Paint& m) -> uint32_t {
     sk_sp<SkShader> s = m.asShader();
     EXPECT_TRUE(s);
     sk_sp<SkSurface> surf =
@@ -899,7 +912,7 @@ TEST(ComposeMaterial, DeclaringUTimeMakesMaterialLive) {
       "uniform float uTime;"
       "half4 main(float2 p) { return half4(fract(uTime), 0, 0, 1); }"));
   ASSERT_TRUE(effect) << err.c_str();
-  Material m = Material::sksl(effect);
+  material::skia::Paint m = material::skia::Paint::sksl(effect);
   EXPECT_TRUE(m.isAnimated());
 
   sigil::motion::FrameClock clock;
@@ -930,13 +943,15 @@ TEST(ComposeMaterial, LiveMaterialUnderLeafDirectBlend) {
                      .inset(0, 0, 160, 160)
                      .absolute()
                      .fill(Fill::color({0, 1, 0, 1})))  // green under
-          .child(box()
-                     .width(40)
-                     .height(40)
-                     .inset(0, 0, 160, 160)
-                     .absolute()
-                     .fill(Material::sksl(ukEffect()).uniform("uK", &k))
-                     .blend(SkBlendMode::kPlus)));
+          .child(
+              box()
+                  .width(40)
+                  .height(40)
+                  .inset(0, 0, 160, 160)
+                  .absolute()
+                  .fill(
+                      material::skia::Paint::sksl(ukEffect()).uniform("uK", &k))
+                  .blend(SkBlendMode::kPlus)));
   host.frame();
   const SkColor c = host.pixel(20, 20);  // red + green = yellow
   EXPECT_GT(SkColorGetR(c), 200u);
@@ -950,7 +965,7 @@ TEST(ComposeMaterial, SnapshotSamplesLiveMaterialNow) {
   choreograph::Output<float> k{1.0f};
   sk_sp<SkPicture> pic =
       snapshot(box().width(60).height(60).fill(
-                   Material::sksl(ukEffect()).uniform("uK", &k)),
+                   material::skia::Paint::sksl(ukEffect()).uniform("uK", &k)),
                fonts());
   ASSERT_TRUE(pic);
   Host host;
@@ -965,9 +980,9 @@ TEST(ComposeMaterial, RenderSlotHostsLiveMaterial) {
   choreograph::Output<float> k{0.0f};
   Host host;
   host.composer.render(box().child(slot("s").width(40).height(40)));
-  host.composer.renderSlot("s",
-                           box().width(40).height(40).fill(
-                               Material::sksl(ukEffect()).uniform("uK", &k)));
+  host.composer.renderSlot(
+      "s", box().width(40).height(40).fill(
+               material::skia::Paint::sksl(ukEffect()).uniform("uK", &k)));
   host.frame();
   EXPECT_LT(SkColorGetR(host.pixel(20, 20)), 30u);  // k=0
   k = 1.0f;                                         // no render, no renderSlot
@@ -983,12 +998,12 @@ TEST(ComposeMaterial, StaticMaterialPrunesAcrossRerender) {
   Host host;
   auto tree = [] {
     return box()
-        .child(box().width(60).height(60).fill(Material::linear(
+        .child(box().width(60).height(60).fill(material::skia::Paint::linear(
             {0, 0}, {60, 0}, {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}})))
-        .child(box().width(40).height(40).fill(Material::blend({
-            {Material::solid({0, 0, 0, 1}), SkBlendMode::kSrcOver},
-            {Material::radial({20, 20}, 20,
-                              {{0.0f, {0, 1, 0, 1}}, {1.0f, {0, 0, 0, 1}}}),
+        .child(box().width(40).height(40).fill(material::skia::Paint::blend({
+            {material::skia::Paint::solid({0, 0, 0, 1}), SkBlendMode::kSrcOver},
+            {material::skia::Paint::radial(
+                 {20, 20}, 20, {{0.0f, {0, 1, 0, 1}}, {1.0f, {0, 0, 0, 1}}}),
              SkBlendMode::kPlus},
         })));
   };
@@ -1006,8 +1021,9 @@ TEST(ComposeMaterial, ChangedRecipeStillInvalidates) {
   // patches and repaints.
   Host host;
   auto tree = [](SkColor4f c) {
-    return box().child(box().key("g").width(60).height(60).fill(
-        Material::linear({0, 0}, {60, 0}, {{0.0f, c}, {1.0f, c}})));
+    return box().child(
+        box().key("g").width(60).height(60).fill(material::skia::Paint::linear(
+            {0, 0}, {60, 0}, {{0.0f, c}, {1.0f, c}})));
   };
   host.composer.render(tree({1, 0, 0, 1}));
   host.frame();
@@ -1084,16 +1100,16 @@ const sk_sp<SkImage>& flatWhitePalette() {
  *  20 px each so a node pixel lands unambiguously inside one cell. NEAREST
  *  everywhere — an index sampled at kLinear is a blend of two unrelated
  *  palette entries, which is the trap this whole texture kind carries. */
-Material indexSource() {
-  return Material::image(indexImage(), SkTileMode::kClamp, SkTileMode::kClamp,
-                         SkMatrix::Scale(20, 20),
-                         SkSamplingOptions(SkFilterMode::kNearest));
+material::skia::Paint indexSource() {
+  return material::skia::Paint::image(
+      indexImage(), SkTileMode::kClamp, SkTileMode::kClamp,
+      SkMatrix::Scale(20, 20), SkSamplingOptions(SkFilterMode::kNearest));
 }
 
-Material paletteSource(const sk_sp<SkImage>& lut) {
-  return Material::image(lut, SkTileMode::kClamp, SkTileMode::kClamp,
-                         SkMatrix::I(),
-                         SkSamplingOptions(SkFilterMode::kNearest));
+material::skia::Paint paletteSource(const sk_sp<SkImage>& lut) {
+  return material::skia::Paint::image(
+      lut, SkTileMode::kClamp, SkTileMode::kClamp, SkMatrix::I(),
+      SkSamplingOptions(SkFilterMode::kNearest));
 }
 
 }  // namespace
@@ -1104,7 +1120,7 @@ TEST(ComposeMaterial, AChildSlotSamplesAnIndexTextureThroughAPalette) {
   // child) — they are sources the material brings with it.
   Host host(80, 20);
   host.composer.render(stack().child(box().absolute().inset(0).fill(
-      Material::sksl(paletteEffect(), {{"uShade", 0.0f}})
+      material::skia::Paint::sksl(paletteEffect(), {{"uShade", 0.0f}})
           .child("uIndex", indexSource())
           .child("uPalette", paletteSource(rampPalette())))));
   host.frame();
@@ -1117,7 +1133,7 @@ TEST(ComposeMaterial, AChildSlotSamplesAnIndexTextureThroughAPalette) {
   // without touching the index texture — the paletted-shading trick itself.
   Host swapped(80, 20);
   swapped.composer.render(stack().child(box().absolute().inset(0).fill(
-      Material::sksl(paletteEffect(), {{"uShade", 0.0f}})
+      material::skia::Paint::sksl(paletteEffect(), {{"uShade", 0.0f}})
           .child("uIndex", indexSource())
           .child("uPalette", paletteSource(reversedPalette())))));
   swapped.frame();
@@ -1128,7 +1144,7 @@ TEST(ComposeMaterial, AChildSlotSamplesAnIndexTextureThroughAPalette) {
   // every cell moves one entry down the palette and the last one sticks.
   Host shaded(80, 20);
   shaded.composer.render(stack().child(box().absolute().inset(0).fill(
-      Material::sksl(paletteEffect(), {{"uShade", 1.0f}})
+      material::skia::Paint::sksl(paletteEffect(), {{"uShade", 1.0f}})
           .child("uIndex", indexSource())
           .child("uPalette", paletteSource(rampPalette())))));
   shaded.frame();
@@ -1142,13 +1158,17 @@ TEST(ComposeMaterial, TheChildRidesThePruneSignature) {
   // reconciler equality. A child that does not leaves a pruned node sampling
   // the OLD palette forever, with no diagnostic and a picture that looks
   // deliberate.
-  const Material a = Material::sksl(paletteEffect())
-                         .child("uPalette", paletteSource(rampPalette()));
-  const Material b = Material::sksl(paletteEffect())
-                         .child("uPalette", paletteSource(rampPalette()));
-  const Material c = Material::sksl(paletteEffect())
-                         .child("uPalette", paletteSource(flatWhitePalette()));
-  const Material bare = Material::sksl(paletteEffect());
+  const material::skia::Paint a =
+      material::skia::Paint::sksl(paletteEffect())
+          .child("uPalette", paletteSource(rampPalette()));
+  const material::skia::Paint b =
+      material::skia::Paint::sksl(paletteEffect())
+          .child("uPalette", paletteSource(rampPalette()));
+  const material::skia::Paint c =
+      material::skia::Paint::sksl(paletteEffect())
+          .child("uPalette", paletteSource(flatWhitePalette()));
+  const material::skia::Paint bare =
+      material::skia::Paint::sksl(paletteEffect());
   EXPECT_TRUE(a == b) << "same effect, same child recipe → prunes";
   EXPECT_FALSE(a == c) << "a different palette is a different material";
   EXPECT_FALSE(a == bare) << "a filled slot is not an empty one";
@@ -1158,7 +1178,7 @@ TEST(ComposeMaterial, TheChildRidesThePruneSignature) {
   Host host(80, 20);
   auto tree = [](const sk_sp<SkImage>& lut) {
     return stack().child(box().key("lut").absolute().inset(0).fill(
-        Material::sksl(paletteEffect(), {{"uShade", 0.0f}})
+        material::skia::Paint::sksl(paletteEffect(), {{"uShade", 0.0f}})
             .child("uIndex", indexSource())
             .child("uPalette", paletteSource(lut))));
   };
@@ -1190,12 +1210,13 @@ TEST(ComposeMaterial, ALiveChildMakesTheParentLive) {
   }();
   ASSERT_TRUE(passthrough);
   choreograph::Output<float> k{0.0f};
-  const Material live =
-      Material::sksl(passthrough)
-          .child("uSrc", Material::sksl(ukEffect()).uniform("uK", &k));
+  const material::skia::Paint live =
+      material::skia::Paint::sksl(passthrough)
+          .child("uSrc",
+                 material::skia::Paint::sksl(ukEffect()).uniform("uK", &k));
   EXPECT_TRUE(live.isAnimated()) << "the child's volatility is the parent's";
-  EXPECT_FALSE(Material::sksl(passthrough)
-                   .child("uSrc", Material::solid({0, 1, 0, 1}))
+  EXPECT_FALSE(material::skia::Paint::sksl(passthrough)
+                   .child("uSrc", material::skia::Paint::solid({0, 1, 0, 1}))
                    .isAnimated())
       << "…and a static child leaves the parent static";
 
@@ -1228,8 +1249,9 @@ TEST(ComposeMaterial, AGeometryChildPropagatesTheGeometryTier) {
     return fx;
   }();
   ASSERT_TRUE(passthrough && unitRamp);
-  const Material m =
-      Material::sksl(passthrough).child("uSrc", Material::sksl(unitRamp));
+  const material::skia::Paint m =
+      material::skia::Paint::sksl(passthrough)
+          .child("uSrc", material::skia::Paint::sksl(unitRamp));
   EXPECT_TRUE(m.geometryDependent()) << "the child's tier is the parent's";
   EXPECT_FALSE(m.isAnimated()) << "geometry is not live";
 
@@ -1248,17 +1270,19 @@ TEST(ComposeMaterial, AnUndeclaredChildNameIsIgnored) {
   // declare SkDEBUGFAILs, which would kill the hot-reload host over one
   // typo. Warn, ignore, keep painting.
   Host host(80, 20);
-  Material m = Material::sksl(paletteEffect(), {{"uShade", 0.0f}})
-                   .child("uIndex", indexSource())
-                   .child("uPalette", paletteSource(rampPalette()))
-                   .child("uNoSuchSlot", Material::solid({1, 1, 1, 1}));
+  material::skia::Paint m =
+      material::skia::Paint::sksl(paletteEffect(), {{"uShade", 0.0f}})
+          .child("uIndex", indexSource())
+          .child("uPalette", paletteSource(rampPalette()))
+          .child("uNoSuchSlot", material::skia::Paint::solid({1, 1, 1, 1}));
   EXPECT_FALSE(m.isAnimated());
   host.composer.render(stack().child(box().absolute().inset(0).fill(m)));
   host.frame();
   EXPECT_EQ(host.pixel(10, 10), SK_ColorRED) << "the declared slots still ran";
 
   // And on a material with no slots at all it is a no-op, like uniform().
-  Material solid = Material::solid({0, 1, 0, 1}).child("uSrc", indexSource());
+  material::skia::Paint solid =
+      material::skia::Paint::solid({0, 1, 0, 1}).child("uSrc", indexSource());
   EXPECT_TRUE(solid.isSolid());
   EXPECT_FALSE(solid.isAnimated());
 }
@@ -1358,7 +1382,7 @@ TEST(ComposeMaterial, ContentScaleDeclaringMaterialIsLive) {
       SkString("uniform float uContentScale;"
                "half4 main(float2 p) { return half4(1, 0, 0, 1); }"));
   ASSERT_TRUE(effect) << err.c_str();
-  EXPECT_TRUE(Material::sksl(effect).isAnimated());
+  EXPECT_TRUE(material::skia::Paint::sksl(effect).isAnimated());
 }
 
 // ---- Pattern: runtime-procedural regenerable tiles --------------------------
@@ -1387,7 +1411,7 @@ TEST(ComposeMaterial, DeclaredBleedGrowsTheRecordingCull) {
             .height(40)
             .cache(Cache::Texture)
             .shape(overflowShape)
-            .fill(Material::solid({1, 0, 0, 1}).bleed(24))));
+            .fill(material::skia::Paint::solid({1, 0, 0, 1}).bleed(24))));
     host.frame();
     host.frame();  // the cached replay is where a small cull would bite
     // Node spans y∈[40,80); 14px below is inside the disc's overflow.
@@ -1401,8 +1425,8 @@ TEST(ComposeMaterial, DeclaredBleedGrowsTheRecordingCull) {
             .height(40)
             .cache(Cache::Texture)
             .shape(overflowShape)
-            .fill(Material::linearUnit({0, 0}, {1, 1},
-                                       {{0, {1, 0, 0, 1}}, {1, {1, 0, 0, 1}}})
+            .fill(material::skia::Paint::linearUnit(
+                      {0, 0}, {1, 1}, {{0, {1, 0, 0, 1}}, {1, {1, 0, 0, 1}}})
                       .bleed(24))));
     host.frame();
     host.frame();
@@ -1410,11 +1434,11 @@ TEST(ComposeMaterial, DeclaredBleedGrowsTheRecordingCull) {
   }
   // The reserve is recipe: it participates in equality, so a changed
   // bleed re-records instead of replaying a stale, smaller cull.
-  Material a = Material::solid({1, 0, 0, 1});
-  Material b = Material::solid({1, 0, 0, 1});
+  material::skia::Paint a = material::skia::Paint::solid({1, 0, 0, 1});
+  material::skia::Paint b = material::skia::Paint::solid({1, 0, 0, 1});
   b.bleed(24);
   EXPECT_FALSE(a == b);
-  EXPECT_TRUE(a == Material::solid({1, 0, 0, 1}));
+  EXPECT_TRUE(a == material::skia::Paint::solid({1, 0, 0, 1}));
   EXPECT_FLOAT_EQ(b.bleed(), 24.0f);
 }
 
@@ -1637,7 +1661,7 @@ namespace {
  *  space. Blur is measured as the loss of stripe contrast, and stripes
  *  make that loss readable at a pixel pair instead of over an edge
  *  profile. Static (no uniforms), so it never perturbs volatility. */
-Material stripeFill() {
+material::skia::Paint stripeFill() {
   static const sk_sp<SkRuntimeEffect> fx = [] {
     auto [effect, error] = SkRuntimeEffect::MakeForShader(
         SkString("half4 main(float2 p) {"
@@ -1646,15 +1670,15 @@ Material stripeFill() {
                  "}"));
     return effect;
   }();
-  return Material::sksl(fx);
+  return material::skia::Paint::sksl(fx);
 }
 
 /** THE PARAMETER: 0 at the node's left edge, 1 at its right, authored in
  *  the UNIT SQUARE — which is the point of using a Material as the
  *  carrier, because the box here is decided by the layout. */
-Material focalRamp() {
-  return Material::linearUnit({0, 0}, {1, 0},
-                              {{0.0f, {0, 0, 0, 1}}, {1.0f, {1, 1, 1, 1}}});
+material::skia::Paint focalRamp() {
+  return material::skia::Paint::linearUnit(
+      {0, 0}, {1, 0}, {{0.0f, {0, 0, 0, 1}}, {1.0f, {1, 1, 1, 1}}});
 }
 
 /** Local stripe contrast at canvas x (a stripe centre) — 0 is fully
@@ -1719,7 +1743,7 @@ TEST(ComposeEffects, AStaticParamBlurPrunesByRecipeAndByItsMap) {
   // too: a parameter read live but excluded from the comparison leaves a
   // pruned node sampling last frame's map forever.
   Host host;
-  auto tree = [&](float maxSigma, Material map) {
+  auto tree = [&](float maxSigma, material::skia::Paint map) {
     return box().child(box().width(60).height(60).fill(green()).effect(
         Effect::blur(std::move(map), maxSigma)));
   };
@@ -1734,7 +1758,7 @@ TEST(ComposeEffects, AStaticParamBlurPrunesByRecipeAndByItsMap) {
   EXPECT_GE(host.composer.stats().patchedNodes, 1u);
   host.frame();
   // …and so is a different MAP at the same range.
-  const Material flipped = Material::linearUnit(
+  const material::skia::Paint flipped = material::skia::Paint::linearUnit(
       {0, 0}, {1, 0}, {{0.0f, {1, 1, 1, 1}}, {1.0f, {0, 0, 0, 1}}});
   host.composer.render(tree(14, flipped));
   EXPECT_GE(host.composer.stats().patchedNodes, 1u)
@@ -1751,7 +1775,8 @@ TEST(ComposeEffects, ALiveSigmaMapMakesTheWholeEffectLive) {
                "half4 main(float2 p) { return half4(half(uK), 0, 0, 1); }"));
   ASSERT_TRUE(fx) << err.c_str();
   choreograph::Output<float> k{0.0f};
-  const Material liveMap = Material::sksl(fx).uniform("uK", &k);
+  const material::skia::Paint liveMap =
+      material::skia::Paint::sksl(fx).uniform("uK", &k);
   EXPECT_TRUE(Effect::blur(liveMap, 16).isAnimated());
   EXPECT_FALSE(Effect::blur(focalRamp(), 16).isAnimated())
       << "a static map must NOT declare volatility (the control)";
@@ -1815,15 +1840,15 @@ TEST(ComposeEffects, AnEffectChildFillsASecondDeclaredShaderSlot) {
   // a mistake at store time is invisible. A solid never needs a context, so
   // it appears in the filter only if child() actually rebuilt the snapshot.
   Host flat;
-  flat.composer.render(
-      box().child(box()
-                      .width(120)
-                      .height(120)
-                      .inset(40, 40, 40, 40)
-                      .absolute()
-                      .fill(green())
-                      .effect(Effect::shader(fx).child(
-                          "param", Material::solid({0.5f, 0.5f, 0.5f, 1})))));
+  flat.composer.render(box().child(
+      box()
+          .width(120)
+          .height(120)
+          .inset(40, 40, 40, 40)
+          .absolute()
+          .fill(green())
+          .effect(Effect::shader(fx).child(
+              "param", material::skia::Paint::solid({0.5f, 0.5f, 0.5f, 1})))));
   flat.frame();
   EXPECT_NEAR((int)SkColorGetG(flat.pixel(60, 100)), 128, 24);
   EXPECT_NEAR((int)SkColorGetG(flat.pixel(140, 100)), 128, 24);
@@ -1839,7 +1864,8 @@ TEST(ComposeEffects, AnUndeclaredEffectChildIsIgnoredNotBound) {
                "half4 main(float2 p) { return half4(half(uK), 0, 0, 1); }"));
   ASSERT_TRUE(fx) << err.c_str();
   choreograph::Output<float> k{1.0f};
-  const Material liveMap = Material::sksl(fx).uniform("uK", &k);
+  const material::skia::Paint liveMap =
+      material::skia::Paint::sksl(fx).uniform("uK", &k);
 
   // (a) filter() has no child to fill, exactly as it has no uniform.
   const sk_sp<SkImageFilter> raw = SkImageFilters::Blur(4, 4, nullptr);
@@ -1989,9 +2015,10 @@ TEST(ComposeMaterial, ABlendLayerCompositesAtItsAmount) {
             .height(60)
             .inset(0, 0, 140, 140)
             .absolute()
-            .fill(Material::blend(
-                {{Material::solid({1, 0, 0, 1}), SkBlendMode::kSrcOver},
-                 {Material::solid({1, 1, 1, 1}).amount(amt),
+            .fill(material::skia::Paint::blend(
+                {{material::skia::Paint::solid({1, 0, 0, 1}),
+                  SkBlendMode::kSrcOver},
+                 {material::skia::Paint::solid({1, 1, 1, 1}).amount(amt),
                   SkBlendMode::kSrcOver}}))));
     host.frame();
     return host.pixel(30, 30);
@@ -2004,9 +2031,12 @@ TEST(ComposeMaterial, ABlendLayerCompositesAtItsAmount) {
   EXPECT_GT(SkColorGetR(none), 240u);
 
   // The amount is recipe: equal amounts prune, different amounts patch.
-  const Material a = Material::solid({1, 1, 1, 1}).amount(0.3f);
-  const Material b = Material::solid({1, 1, 1, 1}).amount(0.3f);
-  const Material c = Material::solid({1, 1, 1, 1}).amount(0.7f);
+  const material::skia::Paint a =
+      material::skia::Paint::solid({1, 1, 1, 1}).amount(0.3f);
+  const material::skia::Paint b =
+      material::skia::Paint::solid({1, 1, 1, 1}).amount(0.3f);
+  const material::skia::Paint c =
+      material::skia::Paint::solid({1, 1, 1, 1}).amount(0.7f);
   EXPECT_TRUE(a == b);
   EXPECT_FALSE(a == c);
 }
@@ -2078,7 +2108,7 @@ TEST(ComposeMaterial, ABufferPrunesBetweenCommitsAndPatchesOnCommit) {
   // this seam, anything with STATE — a simulation, a video frame, a
   // scrollback — fell to custom() + Cache::None and forfeited every
   // cache and decoration slot on the node.
-  auto src = std::make_shared<PixelBuffer>(40, 40);
+  auto src = std::make_shared<sigil::material::skia::PixelBuffer>(40, 40);
   src->canvas().clear(SkColorSetARGB(255, 255, 0, 0));  // red frame
   src->commit();
   Host host;
@@ -2088,7 +2118,7 @@ TEST(ComposeMaterial, ABufferPrunesBetweenCommitsAndPatchesOnCommit) {
                            .height(100)
                            .inset(0, 0, 100, 100)
                            .absolute()
-                           .fill(Material::buffer(src)));
+                           .fill(material::skia::Paint::buffer(src)));
   };
   host.composer.render(tree());
   host.frame();
@@ -2690,11 +2720,12 @@ SkPoint brightestPixel(Host& host) {
 /** One light over the whole canvas — a radial highlight authored at CANVAS
  *  (70,70). Flagged, it is authored once; unflagged, it is hand-converted
  *  into the node's local px exactly as chaucer_astrolabe's brass() does. */
-Material canvasLight(bool flagged, SkPoint nodeOriginForHandConversion) {
+material::skia::Paint canvasLight(bool flagged,
+                                  SkPoint nodeOriginForHandConversion) {
   const SkPoint c = flagged ? SkPoint{70, 70}
                             : SkPoint{70 - nodeOriginForHandConversion.x(),
                                       70 - nodeOriginForHandConversion.y()};
-  Material m = Material::radial(
+  material::skia::Paint m = material::skia::Paint::radial(
       c, 70, {{0.0f, {1, 1, 1, 1}}, {1.0f, {0.1f, 0.05f, 0, 1}}});
   if (flagged) m.worldSpace();
   return m;
@@ -2767,7 +2798,7 @@ TEST(ComposeWorldSpace, ARotatedNodeSamplesTheWorldFieldThroughItsRotation) {
 // jumps, which is the control.
 TEST(ComposeWorldSpace, TwoSiblingsShareOneContinuousField) {
   const auto scene = [](bool flagged) {
-    Material ramp = Material::linear(
+    material::skia::Paint ramp = material::skia::Paint::linear(
         {0, 0}, {200, 0}, {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}});
     if (flagged) ramp.worldSpace();
     return box()
@@ -2813,7 +2844,7 @@ TEST(ComposeWorldSpace, TheLayoutOffsetAlignsTheFieldAndIdentityDegrades) {
   // node's offset it sits at canvas (110,110), a (40,40) shift.
   PaintContext bare;
   bare.size = {120, 120};
-  const Fill f = canvasLight(true, {0, 0}).resolve(bare);
+  const Fill f = resolveFill(canvasLight(true, {0, 0}), bare);
   ASSERT_EQ(f.kind, Fill::Kind::Shader);
   Host raw;
   SkPaint p;
@@ -2833,9 +2864,9 @@ TEST(ComposeWorldSpace, TheLayoutOffsetAlignsTheFieldAndIdentityDegrades) {
 // world matrix moved. No other phase sees this.
 TEST(ComposeWorldSpace, ALayoutMoveLeavesTheFieldAnchored) {
   const auto scene = [](float spacer) {
-    Material light =
-        Material::radial({100, 100}, 70,
-                         {{0.0f, {1, 1, 1, 1}}, {1.0f, {0.1f, 0.05f, 0, 1}}})
+    material::skia::Paint light =
+        material::skia::Paint::radial(
+            {100, 100}, 70, {{0.0f, {1, 1, 1, 1}}, {1.0f, {0.1f, 0.05f, 0, 1}}})
             .worldSpace();
     // The corner child makes the panel RECORD (a childless leaf paints
     // live and would re-resolve on every reach, hiding the stale-W hole
@@ -2864,9 +2895,9 @@ TEST(ComposeWorldSpace, ALayoutMoveLeavesTheFieldAnchored) {
 // down the walk.
 TEST(ComposeWorldSpace, AnAncestorsMoveReanchorsTheDescendant) {
   const auto scene = [](float spacerH) {
-    Material light =
-        Material::radial({100, 100}, 70,
-                         {{0.0f, {1, 1, 1, 1}}, {1.0f, {0.1f, 0.05f, 0, 1}}})
+    material::skia::Paint light =
+        material::skia::Paint::radial(
+            {100, 100}, 70, {{0.0f, {1, 1, 1, 1}}, {1.0f, {0.1f, 0.05f, 0, 1}}})
             .worldSpace();
     // column: spacer, then a group whose panel child is absolutely inset —
     // the group MOVES, the panel's rect relative to the group does not.
@@ -2937,13 +2968,17 @@ TEST(ComposeWorldSpace, ABoundTransformKeepsTheFieldAnchoredPerFrame) {
 // it set prunes, and flipping it patches. Leave it out of Material equality
 // and a node that stops being world-space keeps the old anchoring forever.
 TEST(ComposeWorldSpace, TheFlagRidesThePruneSignature) {
-  const std::vector<Stop> stops{{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}};
-  EXPECT_TRUE(Material::linear({0, 0}, {200, 0}, stops).worldSpace() ==
-              Material::linear({0, 0}, {200, 0}, stops).worldSpace());
-  EXPECT_FALSE(Material::linear({0, 0}, {200, 0}, stops).worldSpace() ==
-               Material::linear({0, 0}, {200, 0}, stops));
+  const std::vector<material::skia::Stop> stops{{0.0f, {1, 0, 0, 1}},
+                                                {1.0f, {0, 0, 1, 1}}};
+  EXPECT_TRUE(
+      material::skia::Paint::linear({0, 0}, {200, 0}, stops).worldSpace() ==
+      material::skia::Paint::linear({0, 0}, {200, 0}, stops).worldSpace());
+  EXPECT_FALSE(
+      material::skia::Paint::linear({0, 0}, {200, 0}, stops).worldSpace() ==
+      material::skia::Paint::linear({0, 0}, {200, 0}, stops));
   const auto scene = [&](bool flagged) {
-    Material m = Material::linear({0, 0}, {200, 0}, stops);
+    material::skia::Paint m =
+        material::skia::Paint::linear({0, 0}, {200, 0}, stops);
     if (flagged) m.worldSpace();
     return box().child(box().width(100).height(100).key("panel").fill(m));
   };
@@ -2975,7 +3010,7 @@ TEST(ComposeWorldSpace, TheResolveDigestSeesTheNodeMove) {
                "}"));
   ASSERT_TRUE(fx) << err.c_str();
   ch::Output<float> drive{0};  // bound and HELD — the digest's other input
-  Material m = Material::sksl(fx);
+  material::skia::Paint m = material::skia::Paint::sksl(fx);
   m.uniform("uDrive", &drive);
   m.worldSpace();
   Host host;

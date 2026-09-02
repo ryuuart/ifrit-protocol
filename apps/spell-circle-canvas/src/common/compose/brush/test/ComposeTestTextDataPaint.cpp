@@ -24,7 +24,7 @@ TEST(ComposePattern, ARepeatCanBePanned) {
     p.offset(pan).sampling(SkSamplingOptions(SkFilterMode::kNearest));
     return p.material();
   };
-  auto colourAt = [](Material m, int x) {
+  auto colourAt = [](material::skia::Paint m, int x) {
     Host host(64, 64);
     host.composer.render(
         box().child(box().absolute().inset(0).fill(std::move(m))));

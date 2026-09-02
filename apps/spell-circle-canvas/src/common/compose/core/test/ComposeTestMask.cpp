@@ -225,7 +225,7 @@ TEST(ComposeCache, ALiveEffectMovingOverAHeldMaterialRepaints) {
   Host host(200, 200);
   host.composer.render(box().child(
       maskBox()
-          .fill(Material::sksl(matfx).uniform("lift", &lift))
+          .fill(material::skia::Paint::sksl(matfx).uniform("lift", &lift))
           .effect(Effect::shader(fx, {{"amt", 1.0f}}).uniform("amt", &amt))));
   host.frame();
   for (int i = 0; i < 4; ++i) host.frame(0.016);
@@ -270,14 +270,14 @@ TEST(ComposeBoundary, CoverageDressesWhatTheSubtreeDrewAndNotTheNodesBox) {
   // default boundary its decoration floods the whole box; on the coverage
   // boundary it floods where the child drew and nowhere else.
   const auto describe = [](Boundary boundary) {
-    Element node = positioned()
-                       .left(20)
-                       .top(20)
-                       .width(100)
-                       .height(100)
-                       .child(box().left(0).top(0).width(100).height(40).fill(
-                           red()))
-                       .foreground(flooding(SK_ColorGREEN));
+    Element node =
+        positioned()
+            .left(20)
+            .top(20)
+            .width(100)
+            .height(100)
+            .child(box().left(0).top(0).width(100).height(40).fill(red()))
+            .foreground(flooding(SK_ColorGREEN));
     if (boundary != Boundary::Auto) node.boundary(boundary);
     return positioned().inset(0, 0, 0, 0).child(std::move(node));
   };
@@ -314,7 +314,7 @@ TEST(ComposeBoundary, CoverageFollowsAnImagesAlphaCutOut) {
   drawn.composer.render(describe(Boundary::Coverage));
   drawn.frame();
 
-  EXPECT_EQ(boxed.pixel(40, 40), SK_ColorGREEN);   // the opaque quarter
+  EXPECT_EQ(boxed.pixel(40, 40), SK_ColorGREEN);  // the opaque quarter
   EXPECT_EQ(drawn.pixel(40, 40), SK_ColorGREEN);
   EXPECT_EQ(boxed.pixel(100, 100), SK_ColorGREEN);  // the cut-out
   EXPECT_NE(drawn.pixel(100, 100), SK_ColorGREEN);
@@ -325,14 +325,15 @@ TEST(ComposeBoundary, ANodeThatDrewNothingKeepsItsShapeUnderCoverage) {
   // the marks are what dress the boundary and are never in it — so the
   // boundary falls back to the node's shape rather than vanishing.
   Host host;
-  host.composer.render(positioned().inset(0, 0, 0, 0).child(
-      positioned()
-          .left(20)
-          .top(20)
-          .width(100)
-          .height(100)
-          .boundary(Boundary::Coverage)
-          .foreground(flooding(SK_ColorGREEN))));
+  host.composer.render(positioned()
+                           .inset(0, 0, 0, 0)
+                           .child(positioned()
+                                      .left(20)
+                                      .top(20)
+                                      .width(100)
+                                      .height(100)
+                                      .boundary(Boundary::Coverage)
+                                      .foreground(flooding(SK_ColorGREEN))));
   host.frame();
   EXPECT_EQ(host.pixel(70, 70), SK_ColorGREEN);
   EXPECT_NE(host.pixel(10, 10), SK_ColorGREEN);

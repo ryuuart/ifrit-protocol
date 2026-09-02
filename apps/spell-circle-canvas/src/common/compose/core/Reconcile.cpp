@@ -543,11 +543,11 @@ bool propsEqual(const ElementNode& a, const ElementNode& b) {
   // though each describe minted a fresh SkShader, so a re-described gradient
   // prunes instead of being defeated by pointer inequality. Everything else
   // falls through to the plain fill compare (colour values, shader pointers).
-  const Material* recipeA =
+  const material::skia::Paint* recipeA =
       a.materialData
           ? (a.materialData->recipe ? &*a.materialData->recipe : nullptr)
           : nullptr;
-  const Material* recipeB =
+  const material::skia::Paint* recipeB =
       b.materialData
           ? (b.materialData->recipe ? &*b.materialData->recipe : nullptr)
           : nullptr;

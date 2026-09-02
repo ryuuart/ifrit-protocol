@@ -506,14 +506,16 @@ TEST(ComposeCrossings, TheRuleLadderClimbs) {
             geometry::path::Order::Under);
 
   // Rung 1 — alternate IS sequence({Over, Under}).
-  const geometry::path::CrossingRule alt = crossing::alternate();
-  EXPECT_EQ(alt, crossing::sequence({geometry::path::Order::Over,
-                                     geometry::path::Order::Under}));
+  const geometry::path::CrossingRule alt =
+      geometry::path::crossing::alternate();
+  EXPECT_EQ(alt,
+            geometry::path::crossing::sequence(
+                {geometry::path::Order::Over, geometry::path::Order::Under}));
   EXPECT_EQ(alt.decide(c0), geometry::path::Order::Over);
   EXPECT_EQ(alt.decide(c1), geometry::path::Order::Under);
 
   // Rung 2 — a generic repeating pattern.
-  const geometry::path::CrossingRule three = crossing::sequence(
+  const geometry::path::CrossingRule three = geometry::path::crossing::sequence(
       {geometry::path::Order::Over, geometry::path::Order::Over,
        geometry::path::Order::Under});
   EXPECT_EQ(three.decide(c0), geometry::path::Order::Over);
@@ -523,7 +525,7 @@ TEST(ComposeCrossings, TheRuleLadderClimbs) {
   // Rung 3 — strand dominance, including a CYCLE (the Penrose case:
   // 0 over 1, 1 over 2, 2 over 0, which no layer order can express).
   const geometry::path::CrossingRule cyclic =
-      crossing::pairs({{0, 1}, {1, 2}, {2, 0}});
+      geometry::path::crossing::pairs({{0, 1}, {1, 2}, {2, 0}});
   EXPECT_EQ(cyclic.decide(c0), geometry::path::Order::Over);  // 0 over 1
   EXPECT_EQ(cyclic.decide(c2), geometry::path::Order::Over);  // 1 over 2
   geometry::path::Crossing c20;
@@ -565,13 +567,13 @@ TEST(ComposeCrossings, CustomRulesAreComparableValues) {
   EXPECT_EQ(mine.decide(c), geometry::path::Order::Over);
   EXPECT_TRUE(mine == geometry::path::CrossingRule(EverySecondStrandWins{1}));
   EXPECT_FALSE(mine == geometry::path::CrossingRule(EverySecondStrandWins{2}));
-  EXPECT_FALSE(mine == crossing::alternate());
+  EXPECT_FALSE(mine == geometry::path::crossing::alternate());
 }
 
 TEST(ComposeCrossings, PinsComposeOntoTheBaseRule) {
   // One .crossing field: a pin layers over whatever rule is already there
   // rather than becoming a second entry.
-  geometry::path::CrossingRule rule = crossing::alternate();
+  geometry::path::CrossingRule rule = geometry::path::crossing::alternate();
   rule.except(0, geometry::path::Order::Under)
       .except(3, geometry::path::Order::Over);
   geometry::path::Crossing c;
@@ -592,11 +594,11 @@ TEST(ComposeCrossings, PinsComposeOntoTheBaseRule) {
   c.index = 0;
   EXPECT_EQ(rule.decide(c), geometry::path::Order::Over);
   // …and a pinned rule is still a comparable value.
-  geometry::path::CrossingRule same = crossing::alternate();
+  geometry::path::CrossingRule same = geometry::path::crossing::alternate();
   same.except(0, geometry::path::Order::Over)
       .except(3, geometry::path::Order::Over);
   EXPECT_TRUE(rule == same);
-  EXPECT_FALSE(rule == crossing::alternate());
+  EXPECT_FALSE(rule == geometry::path::crossing::alternate());
 }
 
 TEST(ComposeComposites, LayersIsWeaveWithCoincidentSelfStrands) {
@@ -649,8 +651,9 @@ TEST(ComposeComposites, WeaveRepairsTheCrossingsTheRuleDisagreesWith) {
   };
   EXPECT_EQ(draw(geometry::path::CrossingRule{}), SK_ColorGREEN)
       << "list order: later on top";
-  EXPECT_EQ(draw(crossing::alternate()), SK_ColorRED) << "rule flipped it";
-  geometry::path::CrossingRule pinned = crossing::alternate();
+  EXPECT_EQ(draw(geometry::path::crossing::alternate()), SK_ColorRED)
+      << "rule flipped it";
+  geometry::path::CrossingRule pinned = geometry::path::crossing::alternate();
   pinned.except(0, geometry::path::Order::Under);
   EXPECT_EQ(draw(pinned), SK_ColorGREEN) << "the pin overrode the rule";
 }
@@ -689,7 +692,7 @@ TEST(ComposeComposites, CrossingCacheRecomputesWhenAuthoredGeometryChanges) {
                                   brush::solid(9, green())},
                     brush::Strand{strand::path(diagonal({140, 0}, {140, 200})),
                                   brush::solid(9, green())}},
-                   crossing::alternate());
+                   geometry::path::crossing::alternate());
   Host host(240, 240);
   host.composer.render(
       stack().child(box().inset(0).stroke(w).cache(Cache::None)));
@@ -773,7 +776,7 @@ TEST(ComposeComposites, CrossingCacheIsByteNeutral) {
                        brush::solid(9, red())},
          brush::Strand{strand::path(diagonal({20, 180}, {180, 20})),
                        brush::solid(9, green())}},
-        crossing::alternate());
+        geometry::path::crossing::alternate());
   };
   brush::Weave w = weaveX();
   Host host(240, 240);
@@ -826,7 +829,8 @@ TEST(ComposeComposites, TheRepairCoversShallowCrossings) {
     brush::Weave w = brush::weave(
         {brush::Strand{strand::path(through(dirA)), stroke(9, red())},
          brush::Strand{strand::path(through(dirB)), stroke(9, green())}},
-        crossing::alternate());  // strand 0 (red) passes OVER at crossing 0
+        geometry::path::crossing::alternate());  // strand 0 (red) passes OVER
+                                                 // at crossing 0
     host.composer.render(stack().child(box().inset(0).stroke(w)));
     host.frame();
     int wrong = 0;
@@ -973,7 +977,7 @@ TEST(ComposeComposites, ClosedStrandsWrapAtTheirSeam) {
   host.composer.render(stack().child(box().inset(0).stroke(
       brush::weave({brush::Strand{strand::path(big), stroke(6, red())},
                     brush::Strand{strand::path(small), stroke(6, green())}},
-                   crossing::alternate()))));
+                   geometry::path::crossing::alternate()))));
   host.frame();
 
   const std::vector<geometry::path::Crossing> knots =
@@ -1118,7 +1122,7 @@ TEST(ComposeR3Volatility, LibrarySchemesDeclareWithTheOneWord) {
 
   // A Material answers the same question in the same word as every other
   // scheme, so a consumer never has to know which kind it is holding.
-  const Material stat = Material::solid({1, 0, 0, 1});
+  const material::skia::Paint stat = material::skia::Paint::solid({1, 0, 0, 1});
   EXPECT_FALSE(stat.isAnimated());
 }
 
@@ -2131,7 +2135,7 @@ TEST(ComposeR2Volatility, ALiveMaterialOnASpanPassDeclaresItself) {
   auto paintedPerFrame = [](bool live) {
     Host host(200, 200);
     PathFormat mark = stroke(8, red());
-    mark.strokeMaterial = Material::sksl(heavyEffect(live));
+    mark.strokeMaterial = material::skia::Paint::sksl(heavyEffect(live));
     host.composer.render(
         stack().child(revealBox().stroke(spans::upTo(0.6f), std::move(mark))));
     host.frame();

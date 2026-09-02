@@ -186,7 +186,8 @@ TEST(ComposeMaterial, UnknownUniformNamesWarnAndIgnore) {
   // A typo'd uniform name must never abort (SkDEBUGFAIL kills the sketch
   // host in debug): unknown names are warned and dropped, at sksl() and at
   // uniform(), constant and bound alike.
-  Material m = Material::sksl(ukEffect(), {{"uTypo", 1.0f}});
+  material::skia::Paint m =
+      material::skia::Paint::sksl(ukEffect(), {{"uTypo", 1.0f}});
   choreograph::Output<float> o{1.0f};
   m.uniform("uAlsoMissing", &o);  // dropped → still not live
   EXPECT_FALSE(m.isAnimated());

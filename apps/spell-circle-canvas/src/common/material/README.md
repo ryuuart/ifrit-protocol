@@ -62,7 +62,7 @@ each a static archive that links only what sits beneath it:
 | `SigilMaterialSdf` | `sdf::` — `Shape`, `Style`, `pad`, `material` | SigilMaterialCore |
 | `SigilMaterialPattern` | `pattern::Tile` and the stock tiles | SigilMaterialTexture |
 | `SigilMaterialField` | `field::` — `halftoneRamp`, `noise`, `grain`, `ripple`, `crtOverlay` | SigilMaterialTexture |
-| `SigilMaterialSkia` | the SkSL compiler and `SkiaProgram`, whose builder uploads resolved bytes; `skia::builder` and `skia::shader` binding leaves into slots; `skia::fill`; and the colour bridge `skia::toColor` / `skia::toSkColor` / `skia::toColors` | SigilMaterialTexture |
+| `SigilMaterialSkia` | the SkSL compiler and `SkiaProgram`, whose builder uploads resolved bytes; `skia::builder` and `skia::shader` binding leaves into slots; `skia::fill`; the colour bridge `skia::toColor` / `skia::toSkColor` / `skia::toColors`; and `skia::Paint`, the model as ONE shader | SigilMaterialTexture, SigilMotionValues |
 | `SigilMaterialSlang` | the Slang compiler: `slang::compileModule` to SPIR-V, `slang::Compiled` with the reflected `slang::UniformSlot` per uniform, `slang::SlangProgram`, and `slang::Uniforms`, the buffer one draw is written into; `Portable.slang`, the subset a host and a device answer alike, loaded into every session by name | SigilMaterialCore; SigilMaterialKit and Slang privately |
 | `SigilMaterialKit` | the presets: the metallic-roughness `kit::surface` and `kit::unlit` and the masks that stack them; `kit::gold`, `kit::chrome`, `kit::glass`; `kit::girih8` and its palettes; the gel and chrome tables; the text paints and chrome-type ramps; and `kit::terms`, the shading terms a surface is composed of | SigilMaterialPattern, SigilMaterialColor |
 
@@ -602,6 +602,47 @@ resamples its `content` child through a sine displacement; `crtOverlay`
 is the tube laid over a picture — hard scanlines and a corner falloff, in
 black, with the alpha carrying both — and reads the resolution.
 
+## The Skia paint
+
+`skia::Paint` is the model as ONE `sk_sp<SkShader>`. A small tree of
+paint nodes — a solid, an N-stop `linear`/`radial`/`conical`/`sweep`
+ramp, an `image` or a caller-owned `buffer`, a raw `sksl` effect, a
+`blend` stack, or `recipe` over a `Material` instance — that compiles to
+a single shader through nested `SkShaders::Blend`, never a stack of
+saveLayers. Its children nest and still compile to one shader.
+
+**A paint declares its own volatility, and the declaration is what it
+READS.** Three tiers, and nothing chooses between them by hand:
+
+- STATIC — a solid, a ramp, an image, a blend of those, or an `sksl`
+  effect with only constant uniforms. It resolves eagerly, so
+  `isSolid()`/`solidColor()` or `staticShader()` answer with no frame at
+  all and a consumer caches and prunes it like any other value.
+- GEOMETRY — an effect declaring `uResolution`, or a `worldSpace()` flag.
+  It depends on the box, not on the clock: `geometryDependent()` is true,
+  and `shaderFor(frame)` answers against the box the frame names.
+- LIVE — an effect with a uniform bound to an `Output`, or one reading
+  `uTime` or `uContentScale`. `isAnimated()` is true and the paint is
+  rebuilt every draw; a live CHILD or blend layer makes its parent live,
+  which is what stops a cache from freezing the parameter.
+
+`PaintFrame` is what one draw supplies and no author sets: the box, the
+root's size, the box→root matrix, the clock and the device scale. A
+`worldSpace()` paint anchors to that matrix — the field is authored once
+against the root and every flagged box samples it where it actually sits,
+through its own transform — and with an identity matrix it degrades to
+box-local rather than answering wrongly.
+
+**Equality is the RECIPE, and it is load-bearing.** Two paints built from
+the same values compare equal though each minted a fresh `SkShader`,
+which is what lets a consumer prune across rebuilds; children and blend
+layers ride the signature, because a child left out of it would let a
+holder prune while its second source had changed. An `sksl` paint
+compares by EFFECT POINTER, so a helper that compiles a fresh
+`SkRuntimeEffect` per call never compares equal to itself — compile once
+and hold the paint. Every mutation is copy-on-write, so binding on a copy
+never reaches the value it was copied from.
+
 ## Boundaries
 
 The core links no renderer; the texture feature links Skia because a
@@ -612,7 +653,8 @@ door that needs pixels takes them or takes a decoder. SigilGeometry draws
 the normals passes and outlines a surface is shaded over and links
 nothing here; SigilWorld's renderer is one executor of the surface the
 kit defines and adds no shading model of its own; SigilCompose places
-what a material paints.
+what a material paints — it takes a `skia::Paint` as a node's fill and
+routes it, and holds no paint model of its own.
 
 ## Building and testing
 

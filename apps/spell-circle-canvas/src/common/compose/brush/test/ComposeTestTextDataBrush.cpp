@@ -256,8 +256,9 @@ TEST(ComposeDecorations, WashFloodsTheOutlineWithAMaterialAndPrunes) {
             .inset(0)
             .fill(Fill::color({0, 0, 0, 1}))
             .child(box().absolute().inset(40).fill(Fill::color({0, 0, 1, 1})))
-            .foreground(decorations::wash(Material::solid({1, 0, 0, 1}),
-                                          SkBlendMode::kPlus, amount)));
+            .foreground(
+                decorations::wash(material::skia::Paint::solid({1, 0, 0, 1}),
+                                  SkBlendMode::kPlus, amount)));
   };
   Host full(120, 120), half(120, 120), none(120, 120);
   full.composer.render(build(1.0f));
@@ -276,12 +277,12 @@ TEST(ComposeDecorations, WashFloodsTheOutlineWithAMaterialAndPrunes) {
   EXPECT_EQ(SkColorGetR(none.pixel(60, 60)), 0);
 
   // And it is a comparable VALUE, so a static wash prunes.
-  EXPECT_TRUE(decorations::wash(Material::solid({1, 0, 0, 1}),
+  EXPECT_TRUE(decorations::wash(material::skia::Paint::solid({1, 0, 0, 1}),
                                 SkBlendMode::kPlus, 0.5f) ==
-              decorations::wash(Material::solid({1, 0, 0, 1}),
+              decorations::wash(material::skia::Paint::solid({1, 0, 0, 1}),
                                 SkBlendMode::kPlus, 0.5f));
-  EXPECT_FALSE(decorations::wash(Material::solid({1, 0, 0, 1})) ==
-               decorations::wash(Material::solid({0, 1, 0, 1})));
+  EXPECT_FALSE(decorations::wash(material::skia::Paint::solid({1, 0, 0, 1})) ==
+               decorations::wash(material::skia::Paint::solid({0, 1, 0, 1})));
 }
 
 TEST(ComposeDecorations, PathFormatCarriesStrokeCapAndJoin) {
@@ -317,7 +318,7 @@ TEST(ComposeDecorations, AStrokeCanTakeAMaterial) {
   // whose surfaces are mostly STROKES, that meant writing the same brass
   // twice, once per return type.
   PathFormat f = stroke(30, Fill::color({1, 1, 1, 1}));
-  f.strokeMaterial = Material::linearUnit(
+  f.strokeMaterial = material::skia::Paint::linearUnit(
       {0, 0}, {1, 0}, {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}});
   Host host(200, 200);
   host.composer.render(

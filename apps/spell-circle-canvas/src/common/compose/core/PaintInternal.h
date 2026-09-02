@@ -22,11 +22,11 @@ using namespace detail;
 // ---------------------------------------------------------------------------
 // Null-safe views into ElementNode's rare-field blocks (see ComposeInternal.h)
 
-inline const Material* liveMaterialOf(const ElementNode& n) {
+inline const material::skia::Paint* liveMaterialOf(const ElementNode& n) {
   return n.materialData && n.materialData->live ? &*n.materialData->live
                                                 : nullptr;
 }
-inline const Material* metricFillOf(const ElementNode& n) {
+inline const material::skia::Paint* metricFillOf(const ElementNode& n) {
   return n.textData && n.textData->metricFill ? &*n.textData->metricFill
                                               : nullptr;
 }

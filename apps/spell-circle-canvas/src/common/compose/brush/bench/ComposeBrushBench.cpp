@@ -97,7 +97,8 @@ Element weaveScene(int strandCount) {
   return stack().child(
       box()
           .inset(0)
-          .stroke(brush::weave(std::move(strands), crossing::alternate()))
+          .stroke(brush::weave(std::move(strands),
+                               geometry::path::crossing::alternate()))
           .cache(Cache::None));
 }
 

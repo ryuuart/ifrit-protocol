@@ -330,7 +330,7 @@ std::array<float, 2> detail::Instance::resolvePatternOffset() const {
   // animatedBeyondBoundOffset — and never reaches this lane. All-zero when
   // unbound, matching the ContentScalars guard, so a node without the
   // channel compares equal to itself forever.
-  const Material* m = liveMaterialOf(*desc);
+  const material::skia::Paint* m = liveMaterialOf(*desc);
   if (!m || !m->hasBoundOffset()) return {};
   const SkPoint pan = m->boundOffsetValue();
   return {pan.x(), pan.y()};

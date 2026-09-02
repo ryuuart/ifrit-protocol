@@ -45,12 +45,13 @@ sk_sp<SkShader> vRamp(float y0, float y1,
   return vRamp(y0, y1, std::move(colors), std::move(stops));
 }
 /** The kit's unit-space ramp as a compose gradient. */
-Material unitRamp(const std::vector<sigil::material::kit::RampStop>& ramp) {
-  std::vector<Stop> stops;
+material::skia::Paint unitRamp(
+    const std::vector<sigil::material::kit::RampStop>& ramp) {
+  std::vector<material::skia::Stop> stops;
   stops.reserve(ramp.size());
   for (const auto& s : ramp)
     stops.push_back({s.pos, material::skia::toSkColor(s.color)});
-  return Material::linear({0, 0}, {0, 1}, std::move(stops));
+  return material::skia::Paint::linear({0, 0}, {0, 1}, std::move(stops));
 }
 }  // namespace
 }  // namespace detail
@@ -266,11 +267,11 @@ LayerStyle y2kChrome(ChromeOptions opts) {
   return bundle;
 }
 
-Material sunsetChromeText() {
+material::skia::Paint sunsetChromeText() {
   return detail::unitRamp(kit::sunsetChromeText());
 }
 
-Material silverChromeText() {
+material::skia::Paint silverChromeText() {
   return detail::unitRamp(kit::silverChromeText());
 }
 

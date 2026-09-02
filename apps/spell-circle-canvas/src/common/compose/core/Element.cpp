@@ -874,7 +874,7 @@ std::span<const TextEffect> TextEffect::operands() const {
                  : std::span<const TextEffect>();
 }
 
-TextEffect TextEffect::pass(Material material) {
+TextEffect TextEffect::pass(material::skia::Paint material) {
   const sigil::material::Material* backing = material.recipeMaterial();
   if (!backing || !backing->recipe().has(sigil::material::Target::SkSL)) {
     // Once per process: the door takes only the recipe-backed form,
@@ -886,7 +886,8 @@ TextEffect TextEffect::pass(Material material) {
       SkDebugf(
           "[compose] fx::pass: the material carries no SkSL recipe — a "
           "pass is compiled per unit count, which needs "
-          "Material::recipe(...) over a recipe with an SkSL body. The "
+          "material::skia::Paint::recipe(...) over a recipe with an SkSL body. "
+          "The "
           "effect is empty and the track draws its glyphs at rest.\n");
     }
     return {};
@@ -909,13 +910,14 @@ TextEffect TextEffect::pass(Material material) {
   // population for letters that are provably standing still. Whatever the
   // pass does with them, the layer is re-rendered every frame it runs.
   state->displaces = false;
-  state->pass = std::make_shared<const Material>(std::move(material));
+  state->pass =
+      std::make_shared<const material::skia::Paint>(std::move(material));
   TextEffect out;
   out.m_state = std::move(state);
   return out;
 }
 
-const Material* TextEffect::passMaterial() const {
+const material::skia::Paint* TextEffect::passMaterial() const {
   return m_state ? m_state->pass.get() : nullptr;
 }
 

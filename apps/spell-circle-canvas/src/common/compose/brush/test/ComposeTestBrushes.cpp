@@ -381,12 +381,13 @@ TEST(ComposeMaterials, QuantizeTimeStepsTheClock) {
       SkString("uniform float uTime; half4 main(float2 p) {"
                "  return half4(fract(uTime), 0, 0, 1); }"));
   ASSERT_TRUE(fx) << err.c_str();
-  Material stepped = Material::sksl(fx).quantizeTime(2.0f);
-  auto sampleAt = [&](Material& m, double seconds) {
+  material::skia::Paint stepped =
+      material::skia::Paint::sksl(fx).quantizeTime(2.0f);
+  auto sampleAt = [&](material::skia::Paint& m, double seconds) {
     PaintContext ctx;
     ctx.size = {8, 8};
     ctx.elapsedSeconds = seconds;
-    Fill f = m.resolve(ctx);
+    Fill f = resolveFill(m, ctx);
     sk_sp<SkSurface> s = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(4, 4));
     SkPaint p;
     p.setShader(f.shaderValue);
@@ -398,7 +399,7 @@ TEST(ComposeMaterials, QuantizeTimeStepsTheClock) {
   };
   EXPECT_EQ(sampleAt(stepped, 0.6), sampleAt(stepped, 0.9));  // same step
   EXPECT_NE(sampleAt(stepped, 0.6), sampleAt(stepped, 1.1));  // next step
-  Material continuous = Material::sksl(fx);
+  material::skia::Paint continuous = material::skia::Paint::sksl(fx);
   EXPECT_NE(sampleAt(continuous, 0.6), sampleAt(continuous, 0.9));
 }
 
@@ -689,7 +690,7 @@ Element splitPlane(bool clipped, SkBlendMode childBlend) {
           .width(200)
           .height(200)
           .background(stroke(6.0f, Fill::color({0.2f, 0.4f, 0.9f, 0.6f})))
-          .fill(Material::sksl(sharedHeavyEffect()))
+          .fill(material::skia::Paint::sksl(sharedHeavyEffect()))
           .overlay(stroke(3.0f, Fill::color({1.0f, 0.9f, 0.2f, 0.45f})))
           .foreground(stroke(1.5f, Fill::color({1, 1, 1, 0.5f})));
   if (clipped) plane.clip(true);
@@ -845,7 +846,7 @@ TEST(ComposeCache, TheVOLATILECHILDIsWhatCausesTheSplit) {
             .width(200)
             .height(200)
             .background(stroke(6.0f, Fill::color({0.2f, 0.4f, 0.9f, 0.6f})))
-            .fill(Material::sksl(sharedHeavyEffect()))
+            .fill(material::skia::Paint::sksl(sharedHeavyEffect()))
             .overlay(stroke(3.0f, Fill::color({1.0f, 0.9f, 0.2f, 0.45f})))
             .foreground(stroke(1.5f, Fill::color({1, 1, 1, 0.5f})))
             .child(box()

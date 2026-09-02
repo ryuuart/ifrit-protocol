@@ -12,7 +12,8 @@ TEST(ComposePatterns, GrainIsMonochromeAndVaries) {
   Host host(120, 120);
   host.composer.render(
       box().child(box().width(120).height(120).absolute().inset(0).fill(
-          Material::recipe(material::field::grain(0.08f, 4, 3.0f)))));
+          material::skia::Paint::recipe(
+              material::field::grain(0.08f, 4, 3.0f)))));
   host.frame();
   int lo = 255, hi = 0;
   for (int y = 4; y < 116; y += 3)
@@ -32,10 +33,10 @@ TEST(ComposeMaterial, BlendWithSdfLayerResolvesGeometry) {
   // A blend containing a geometry-dependent (SDF) layer must defer its
   // flatten to resolve time, when the node's size is known. Flattening at
   // build time bakes a zero resolution and renders a degenerate speck.
-  Material m = Material::blend({
-      {Material::solid({0, 0, 0, 1}), SkBlendMode::kSrcOver},
-      {Material::recipe(material::sdf::material(material::sdf::circle(),
-                                                {.fill = {1, 0, 0, 1}})),
+  material::skia::Paint m = material::skia::Paint::blend({
+      {material::skia::Paint::solid({0, 0, 0, 1}), SkBlendMode::kSrcOver},
+      {material::skia::Paint::recipe(material::sdf::material(
+           material::sdf::circle(), {.fill = {1, 0, 0, 1}})),
        SkBlendMode::kPlus},
   });
   EXPECT_TRUE(m.geometryDependent());  // inherited from the SDF layer
@@ -58,7 +59,7 @@ TEST(ComposeSdf, StarFillsCenterMissesCorners) {
           .height(100)
           .inset(0, 0, 100, 100)
           .absolute()
-          .fill(Material::recipe(material::sdf::material(
+          .fill(material::skia::Paint::recipe(material::sdf::material(
               material::sdf::star(5, 2.4f), {.fill = {1, 0, 0, 1}})))));
   host.frame();
   EXPECT_GT(SkColorGetR(host.pixel(50, 50)), 200u);  // body
@@ -74,9 +75,10 @@ TEST(ComposeSdf, GeometryStaticCachesAndPrunes) {
   // per-kind effect pointer, equal constants).
   Host host;
   auto tree = [] {
-    return box().child(box().width(80).height(60).fill(Material::recipe(
-        material::sdf::material(material::sdf::roundBox(12),
-                                {.fill = {0, 1, 0, 1}, .borderWidth = 3}))));
+    return box().child(box().width(80).height(60).fill(
+        material::skia::Paint::recipe(material::sdf::material(
+            material::sdf::roundBox(12),
+            {.fill = {0, 1, 0, 1}, .borderWidth = 3}))));
   };
   host.composer.render(tree());
   host.frame();  // records
@@ -92,8 +94,8 @@ TEST(ComposeSdf, ResizeReResolvesGeometry) {
   // uResolution bakes into the recording; a size change must re-resolve —
   // the materialSize invalidation, without any prop change.
   Host host;  // 200x200 surface
-  host.composer.render(
-      box().child(box().grow(1).fill(Material::recipe(material::sdf::material(
+  host.composer.render(box().child(
+      box().grow(1).fill(material::skia::Paint::recipe(material::sdf::material(
           material::sdf::circle(), {.fill = {1, 0, 0, 1}})))));
   host.frame();  // circle c=(100,100) r≈99
   host.composer.setSize({120, 120});
@@ -118,7 +120,7 @@ TEST(ComposeSdf, BoundGlowAnimatesWithinReserve) {
           .height(100)
           .inset(0, 0, 100, 100)
           .absolute()
-          .fill(Material::recipe(
+          .fill(material::skia::Paint::recipe(
                     material::sdf::material(material::sdf::circle(), style))
                     .uniform("uGlowR", &glow))));
   host.frame();
@@ -146,8 +148,8 @@ TEST(ComposeSdf, PadSwallowingTheBoxWarnsOnceNamingMinBoxFor) {
   ::testing::internal::CaptureStderr();
   {
     Host host;
-    host.composer.render(
-        box().child(box().width(60).height(60).fill(Material::recipe(
+    host.composer.render(box().child(
+        box().width(60).height(60).fill(material::skia::Paint::recipe(
             material::sdf::material(material::sdf::circle(), style)))));
     host.frame();
   }
@@ -159,8 +161,8 @@ TEST(ComposeSdf, PadSwallowingTheBoxWarnsOnceNamingMinBoxFor) {
   ::testing::internal::CaptureStderr();
   {
     Host host;
-    host.composer.render(
-        box().child(box().width(50).height(50).fill(Material::recipe(
+    host.composer.render(box().child(
+        box().width(50).height(50).fill(material::skia::Paint::recipe(
             material::sdf::material(material::sdf::circle(), style)))));
     host.frame();
   }

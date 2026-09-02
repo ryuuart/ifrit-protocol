@@ -115,13 +115,19 @@ NS_EXTERNAL = {
     "SkShaders",
     "SkImages",
     "SkPathEffects",
-    # SigilMaterial, whose include path is deliberately NOT given: scanning
-    # it would put every type it declares into the candidate set a member
-    # probe ORs over, and one of those (`ProgramCache::Key`) is a PRIVATE
-    # nested type, which this scanner cannot see and which is a hard error
-    # the moment it is named.  The documents spell only namespace-scope
-    # names from it, and those probe correctly from here.
+    # SigilMaterial's root and its feature namespaces, whose include paths
+    # are deliberately NOT all given: scanning the core would put every
+    # type it declares into the candidate set a member probe ORs over, and
+    # one of those (`ProgramCache::Key`) is a PRIVATE nested type, which
+    # this scanner cannot see and which is a hard error the moment it is
+    # named.  Only the Skia feature's headers are scanned, for the paint
+    # value the documents name members of; the rest are listed here so a
+    # document naming one bare is passed over rather than probed as a
+    # type.
     "material",
+    "sdf",
+    "pattern",
+    "field",
 }
 
 # Skia's static-factory aggregates that READ like namespaces but are CLASSES

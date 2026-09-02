@@ -18,8 +18,10 @@
 #include <include/core/SkShader.h>
 #include <include/core/SkSize.h>
 #include <include/core/SkTypes.h>
+#include <include/effects/SkGradient.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/core/UniformBlock.h>
+#include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/Animation.h>
 #include <sigilmotion/schedule/Schedule.h>
 #include <sigilmotion/values/Animated.h>
@@ -52,10 +54,6 @@ namespace sigil::compose {
 namespace detail {
 struct ElementNode;
 }  // namespace detail
-
-// The polymorphic paint value (<sigilcompose/Material.h>) — supersedes Fill as
-// the authoring value for fill(); a static Material collapses to a Fill.
-class Material;
 
 // ---------------------------------------------------------------------------
 // Paint values
@@ -215,6 +213,26 @@ struct PaintContext {
 
 using PaintProgram = std::function<void(SkCanvas&, const PaintContext&)>;
 
+// ---------------------------------------------------------------------------
+// A paint as a node's fill — the adapter between SigilMaterial's Skia
+// paint value and the slot the reconciler stores.
+
+/** The frame @p ctx supplies a paint: the node's box, the root's size and
+ *  the node→root matrix a world-space paint anchors against, the clock and
+ *  the device scale. Outside a composer the matrix is identity and the
+ *  root size empty, which degrades a world-space paint to a node-local
+ *  one rather than answering wrongly. */
+material::skia::PaintFrame frameOf(const PaintContext& ctx);
+
+/** The STATIC collapse a non-live paint stores, so it rides the fill
+ *  caching and prune path unchanged. */
+Fill toFill(const material::skia::Paint& paint);
+
+/** The current-frame fill: for a live paint, the shader rebuilt from the
+ *  bound Outputs and @p ctx; for a static one, exactly `toFill`. What the
+ *  painter calls for a live fill. */
+Fill resolveFill(const material::skia::Paint& paint, const PaintContext& ctx);
+
 /** The INSTANCE-SIDE bake store for stamped brushes: tile bakes live with
  *  the NODE, not inside the brush value. A brush value constructed fresh
  *  by every describe would otherwise re-rasterize its art each time — the
@@ -334,7 +352,7 @@ class Effect {
    *  uniform, uTime) makes the whole effect isAnimated() by tier
    *  inheritance — so a bake can never sample the map once and freeze it.
    *  `child("sigma", otherMap)` re-aims the map on an existing blur. */
-  static Effect blur(Material sigmaMap, float maxSigma);
+  static Effect blur(material::skia::Paint sigmaMap, float maxSigma);
   /** THE CHILD SLOT — `Material::child` on the effect seam: same name,
    *  same shape, same semantics. The effect declares `uniform shader
    *  NAME;` and this fills it with a Material, so the SkSL can read a
@@ -357,7 +375,7 @@ class Effect {
    *  already-built SkImageFilter, or a bare `directionalBlur()` — the call
    *  is a no-op with a warning, exactly as uniform() is there. On a
    *  blur() the one fillable name is "sigma", its sigma map. */
-  Effect& child(std::string name, Material source);
+  Effect& child(std::string name, material::skia::Paint source);
   /** A LIVE float uniform — Material's contract, on the effect seam. The
    *  value is read from the Output at every paint, and the node repaints
    *  every frame while the effect is attached: a bound uniform declares
@@ -481,7 +499,8 @@ class Effect {
   // includes this header, so it cannot be included back) — the surface is
   // still child(name, Material) by value, and a copied Effect never
   // mutates a shared child, it replaces the pointer.
-  std::vector<std::pair<std::string, std::shared_ptr<const Material>>>
+  std::vector<
+      std::pair<std::string, std::shared_ptr<const material::skia::Paint>>>
       m_children;
   // then()-chain retained only when a side is live (static chains
   // precompose into m_filter and carry no nodes).
@@ -519,5 +538,31 @@ class Effect {
                   "live chain, ditto.)");
   }
 };
+
+// ---------------------------------------------------------------------------
+// Gradient Fills — the flat-value spelling, one line over Fill::shader.
+
+/** Linear gradient Fill — one line over Fill::shader + SkShaders. */
+inline Fill linearGradient(SkPoint from, SkPoint to,
+                           std::vector<SkColor4f> colors,
+                           std::vector<float> stops = {}) {
+  SkPoint pts[2] = {from, to};
+  return Fill::shader(
+      SkShaders::LinearGradient(pts, SkGradient({{colors.data(), colors.size()},
+                                                 {stops.data(), stops.size()},
+                                                 SkTileMode::kClamp},
+                                                {})));
+}
+
+inline Fill radialGradient(SkPoint center, float radius,
+                           std::vector<SkColor4f> colors,
+                           std::vector<float> stops = {}) {
+  return Fill::shader(
+      SkShaders::RadialGradient(center, radius,
+                                SkGradient({{colors.data(), colors.size()},
+                                            {stops.data(), stops.size()},
+                                            SkTileMode::kClamp},
+                                           {})));
+}
 
 }  // namespace sigil::compose

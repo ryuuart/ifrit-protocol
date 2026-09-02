@@ -699,15 +699,16 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
       phases.push_back(lane->locals[i]);
       phases.push_back(passUnitSeed(lane->keys[i].first, lane->keys[i].second));
     }
-    detail::TextPassInputs inputs;
+    material::skia::detail::PassInputs inputs;
     const SkMatrix toTile = SkMatrix::Translate(-reach, -reach);
     inputs.content = layer->makeShader(SkTileMode::kDecal, SkTileMode::kDecal,
                                        SkFilterMode::kLinear, &toTile, &tile);
     inputs.rects = rects.data();
     inputs.phases = phases.data();
     inputs.units = n;
-    const Material* material = lane->source->track->effect.passMaterial();
-    sk_sp<SkShader> pass = material->resolvePass(inputs, ctx);
+    const material::skia::Paint* passPaint =
+        lane->source->track->effect.passMaterial();
+    sk_sp<SkShader> pass = passPaint->resolvePass(inputs, frameOf(ctx));
     if (!pass) {
       // The refusal already said why (no source, or it does not compile):
       // show resting letters rather than nothing, so the text survives

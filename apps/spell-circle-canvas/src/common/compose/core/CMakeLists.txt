@@ -43,7 +43,7 @@ add_library(SigilComposeCore STATIC
   # text
   TextAtRest.cpp
   # paint values
-  Material.cpp
+  Fills.cpp
   # internal headers
   ComposeInternal.h
   ComposeRuntime.h
@@ -64,7 +64,6 @@ add_library(SigilComposeCore STATIC
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/core/GpuImage.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/core/Layout.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/core/Mask.h
-  ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/core/Material.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/core/Measure.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/core/Paint.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/core/Pattern.h

@@ -44,7 +44,7 @@ TEST(ComposeBrushes, PatternCornerTileSitsOnTheBend) {
 TEST(ComposeSeams, PerlinNoiseFillsWithVariation) {
   Host host(100, 100);
   host.composer.render(box().child(box().width(100).height(100).fill(
-      Material::recipe(material::field::noise(0.05f, 4, 2.0f)))));
+      material::skia::Paint::recipe(material::field::noise(0.05f, 4, 2.0f)))));
   host.frame();
   std::set<SkColor> distinct;
   for (int y = 10; y < 90; y += 8)
@@ -151,7 +151,7 @@ Element board(int i) {
       .height(11)
       .rotate(ang)
       .shape([shape](SkSize) { return shape; })
-      .fill(Material::sksl(boardGrain()))
+      .fill(material::skia::Paint::sksl(boardGrain()))
       .foreground(styles::BevelEmboss{0.8f,
                                       1.2f,
                                       120.0f + ang,
@@ -509,8 +509,8 @@ TEST(ComposeCache, GroupRefusesWhatItsMemoCannotSee) {
   // A LIVE MATERIAL. uTime moves pixels every frame with no float anywhere in
   // the tree to compare, so a group holding a bake across one would blit last
   // second's picture forever.
-  EXPECT_FALSE(
-      groupBakesWith(plainExtra().fill(Material::sksl(heavyEffect(true)))))
+  EXPECT_FALSE(groupBakesWith(
+      plainExtra().fill(material::skia::Paint::sksl(heavyEffect(true)))))
       << "a group baked over a live material";
 
   // A NON-SRCOVER BLEND below the root: inside the bake it resolves against

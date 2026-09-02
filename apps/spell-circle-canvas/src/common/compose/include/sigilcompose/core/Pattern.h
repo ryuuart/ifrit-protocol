@@ -26,8 +26,8 @@
 #include <include/core/SkImage.h>
 #include <include/core/SkMatrix.h>
 #include <include/core/SkPicture.h>
-#include <sigilcompose/core/Material.h>
 #include <sigilmaterial/pattern/Tile.h>
+#include <sigilmaterial/skia/Paint.h>
 
 #include <memory>
 #include <optional>
@@ -139,15 +139,15 @@ class Pattern {
   /** Bake-once + wrap as a repeating Material. PROGRAM TILES ONLY: an
    *  element-tile Pattern has no font context here, so it draws nothing
    *  and returns an EMPTY material — use the overload below. */
-  Material material() const { return bake(nullptr); }
+  material::skia::Paint material() const { return bake(nullptr); }
   /** Element-tile overload, and the required one for element tiles: the
    *  tree is laid out and shaped during the bake, which needs the fonts. */
-  Material material(sigil::weave::FontContext& fonts) const {
+  material::skia::Paint material(sigil::weave::FontContext& fonts) const {
     return bake(&fonts);
   }
 
  private:
-  Material bake(sigil::weave::FontContext* fonts) const {
+  material::skia::Paint bake(sigil::weave::FontContext* fonts) const {
     if (!m_tile.valid()) return {};
     if (m_tree && !m_tile.baked()) {
       if (!fonts) {
@@ -168,12 +168,13 @@ class Pattern {
     }
     sk_sp<SkImage> baked = m_tile.image();
     if (!baked) return {};
-    Material m =
-        Material::image(std::move(baked), SkTileMode::kRepeat,
-                        SkTileMode::kRepeat, m_tile.mapping(), m_sampling);
+    material::skia::Paint m = material::skia::Paint::image(
+        std::move(baked), SkTileMode::kRepeat, SkTileMode::kRepeat,
+        m_tile.mapping(), m_sampling);
     if (m_boundX || m_boundY)
-      m.offset(m_boundX, m_boundY);  // the live pan rides Material's
-                                     // bound-matrix channel
+      m.offset(m_boundX,
+               m_boundY);  // the live pan rides material::skia::Paint's
+                           // bound-matrix channel
     return m;
   }
 

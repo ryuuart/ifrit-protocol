@@ -748,7 +748,7 @@ TEST(ComposeR4Mask, S7bTheAlphaGateTakesItsCoverageFromAMaterial) {
   Host host(200, 200);
   host.composer.render(stack().child(
       box().absolute().left(20).top(20).width(160).height(160).fill(red()).mask(
-          by::alpha(Material::linear(
+          by::alpha(material::skia::Paint::linear(
               {0, 0}, {160, 0},
               {{0.0f, {1, 1, 1, 1}}, {1.0f, {1, 1, 1, 0}}})))));
   host.frame();
@@ -813,11 +813,11 @@ TEST(ComposeR4Mask, S7cTheLumaGateIsRec601OnEncodedPremultipliedValues) {
   // black, the way After Effects' luma matte does.
   Host host(200, 200);
   host.composer.render(coveragePlates({
-      by::luma(Material::solid({1, 0, 0, 1})),
-      by::luma(Material::solid({0, 1, 0, 1})),
-      by::luma(Material::solid({0, 0, 1, 1})),
-      by::luma(Material::solid({0.5f, 0.5f, 0.5f, 1})),
-      by::luma(Material::solid({1, 1, 1, 0.5f})),
+      by::luma(material::skia::Paint::solid({1, 0, 0, 1})),
+      by::luma(material::skia::Paint::solid({0, 1, 0, 1})),
+      by::luma(material::skia::Paint::solid({0, 0, 1, 1})),
+      by::luma(material::skia::Paint::solid({0.5f, 0.5f, 0.5f, 1})),
+      by::luma(material::skia::Paint::solid({1, 1, 1, 0.5f})),
   }));
   host.frame();
   EXPECT_NEAR(plateByte(host, 0), 76, 2) << "red is 0.299, not 0.2126 (Rec.709 "
@@ -849,7 +849,7 @@ TEST(ComposeR4Mask, S7cTheLumaLawIsTheSameThroughAShader) {
                         .width(160)
                         .height(160)
                         .fill(Fill::color({1, 1, 1, 1}))
-                        .mask(by::luma(Material::linear(
+                        .mask(by::luma(material::skia::Paint::linear(
                             {0, 0}, {160, 0},
                             {{0.0f, {0, 1, 0, 1}}, {1.0f, {0, 0, 1, 1}}})))));
   host.frame();
@@ -865,7 +865,8 @@ TEST(ComposeR4Mask, S7dEachCoverageGateHasItsComplementAsItsOwnTerm) {
   // Mechanically it is kDstOut instead of kDstIn, which is dst·(1-a): the
   // pair of plates must sum to 255 at every sample, not merely differ.
   Host host(200, 200);
-  const Material ramp = Material::solid({0.5f, 0.5f, 0.5f, 0.25f});
+  const material::skia::Paint ramp =
+      material::skia::Paint::solid({0.5f, 0.5f, 0.5f, 0.25f});
   host.composer.render(coveragePlates({
       by::alpha(ramp),     // 0.25            ->  64
       by::alphaOut(ramp),  // 1 - 0.25        -> 191
@@ -892,7 +893,8 @@ TEST(ComposeR4Mask, ACoverageGatesChannelAndSenseReachTheComparator) {
   // arm already, so the compile-time field pin cannot notice the Coverage
   // arm ignoring it — and a matte that compares equal to its own INVERSE
   // prunes and stays showing the wrong half for as long as the node lives.
-  const Material m = Material::solid({0.5f, 0.5f, 0.5f, 1});
+  const material::skia::Paint m =
+      material::skia::Paint::solid({0.5f, 0.5f, 0.5f, 1});
   // Gate::operator== IS the arm the structural prune reads for a mask, so
   // the value is compared where the comparator lives.
   const auto same = [&](const Gate& a, const Gate& b) { return a == b; };

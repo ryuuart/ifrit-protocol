@@ -119,11 +119,11 @@ TEST(ComposeText, TextFillMapsUnitRampToCapBand) {
   Host host(300, 120);
   host.composer.render(box().padding(20).child(
       text(u8"HHH", whiteStyle(64))
-          .textFill(Material::linear({0, 0}, {0, 1},
-                                     {{0.0f, {1, 0, 0, 1}},
-                                      {0.499f, {1, 0, 0, 1}},
-                                      {0.501f, {0, 0, 1, 1}},
-                                      {1.0f, {0, 0, 1, 1}}}))));
+          .textFill(material::skia::Paint::linear({0, 0}, {0, 1},
+                                                  {{0.0f, {1, 0, 0, 1}},
+                                                   {0.499f, {1, 0, 0, 1}},
+                                                   {0.501f, {0, 0, 1, 1}},
+                                                   {1.0f, {0, 0, 1, 1}}}))));
   host.frame();
   // Find the lit band first, then judge its top vs bottom thirds — the
   // ramp midline lives at the CAP BAND's middle, not the canvas's.
@@ -282,7 +282,8 @@ TEST(ComposeText, TextFillKeepsTheStylesOtherPasses) {
     return s;
   }();
   host.composer.render(box().padding(20).child(
-      text(u8"HHH", styled).textFill(Material::solid({1, 0, 0, 1}))));
+      text(u8"HHH", styled)
+          .textFill(material::skia::Paint::solid({1, 0, 0, 1}))));
   host.frame();
   int red = 0, green = 0;
   for (int y = 0; y < 120; ++y)
@@ -1204,7 +1205,7 @@ namespace {
  *  is exactly what perspective refuses). */
 Element rampPanel(bool cached) {
   Element p = box().width(180).height(120).absolute().left(60).top(90).fill(
-      Material::linearUnit(
+      material::skia::Paint::linearUnit(
           {0, 0}, {1, 1},
           {{0.0f, {0.9f, 0.3f, 0.1f, 1}}, {1.0f, {0.1f, 0.4f, 0.9f, 1}}}));
   for (int i = 0; i < 4; ++i)
@@ -1419,7 +1420,7 @@ namespace {
 
 Element heavyLeaf(const char* key) {
   return profiledUnder(box().width(400).height(400).key(key).fill(
-      Material::sksl(heavyEffect(false))));
+      material::skia::Paint::sksl(heavyEffect(false))));
 }
 
 }  // namespace
@@ -1464,7 +1465,7 @@ TEST(ComposeCache, ARefusalSaysWhy) {
                         .width(400)
                         .height(400)
                         .key("wash")
-                        .fill(Material::sksl(heavyEffect(false)))
+                        .fill(material::skia::Paint::sksl(heavyEffect(false)))
                         .opacity(0.4f)));
   for (int i = 0; i < 24; ++i) host.frame();
   const Composer::NodeCost* row = requireRow(host.composer, "wash");
@@ -1506,7 +1507,7 @@ struct ClockedHost {
 };
 
 Element timedLeaf(float quantizeHz) {
-  Material m = Material::sksl(heavyEffect(true));
+  material::skia::Paint m = material::skia::Paint::sksl(heavyEffect(true));
   if (quantizeHz > 0) m.quantizeTime(quantizeHz);
   return box().child(
       box().width(400).height(400).key("plasma").fill(std::move(m)));

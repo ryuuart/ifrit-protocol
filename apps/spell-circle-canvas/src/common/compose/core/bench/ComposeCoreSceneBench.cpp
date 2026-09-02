@@ -13,9 +13,9 @@
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilcompose/Compose.h>
-#include <sigilcompose/core/Material.h>
 #include <sigilcompose/instances/Instances.h>
 #include <sigilimage/asset/ImageAsset.h>
+#include <sigilmaterial/skia/Paint.h>
 
 #include <cmath>
 #include <entt/entt.hpp>
@@ -246,7 +246,7 @@ constexpr int kVaryPanelRaster = 96;  // the naive kernel is O(σ²) on the CPU
 constexpr int kVaryPanelGpu = 256;
 
 /** Hard 8px stripes in node-local space — detail for the blur to destroy. */
-Material stripeTarget() {
+sigil::material::skia::Paint stripeTarget() {
   static const sk_sp<SkRuntimeEffect> fx = [] {
     auto [effect, error] = SkRuntimeEffect::MakeForShader(
         SkString("half4 main(float2 p) {"
@@ -255,13 +255,13 @@ Material stripeTarget() {
                  "}"));
     return effect;
   }();
-  return Material::sksl(fx);
+  return sigil::material::skia::Paint::sksl(fx);
 }
 
 /** The parameter: 0 at the node's left edge, 1 at its right. */
-Material sigmaRamp() {
-  return Material::linearUnit({0, 0}, {1, 0},
-                              {{0.0f, {0, 0, 0, 1}}, {1.0f, {1, 1, 1, 1}}});
+sigil::material::skia::Paint sigmaRamp() {
+  return sigil::material::skia::Paint::linearUnit(
+      {0, 0}, {1, 0}, {{0.0f, {0, 0, 0, 1}}, {1.0f, {1, 1, 1, 1}}});
 }
 
 /** THE WORKAROUND, written the way an author has to write it: the loop

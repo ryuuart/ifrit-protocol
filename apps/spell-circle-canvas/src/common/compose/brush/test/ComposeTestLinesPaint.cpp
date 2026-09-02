@@ -95,8 +95,8 @@ TEST(ComposeStyles, AquaGelEdgesRunFromNoneToTheDeepCut) {
 
 TEST(ComposePatterns, HalftoneRampSwellsDownward) {
   Host host(100, 100);
-  host.composer.render(
-      box().child(box().width(100).height(100).fill(Material::recipe(
+  host.composer.render(box().child(
+      box().width(100).height(100).fill(material::skia::Paint::recipe(
           material::field::halftoneRamp(10, 1.0f, 4.0f, {1, 1, 1, 1})))));
   host.frame();
   int top = 0, bottom = 0;
@@ -119,7 +119,7 @@ TEST(ComposePatterns, HalftoneRampBandRemaps) {
   // half, the top half stays at rMin everywhere.
   Host host(100, 100);
   host.composer.render(box().child(box().width(100).height(100).fill(
-      Material::recipe(material::field::halftoneRamp(
+      material::skia::Paint::recipe(material::field::halftoneRamp(
           10, 0.8f, 4.0f, {1, 1, 1, 1}, 0.0f, 0.5f, 1.0f)))));
   host.frame();
   int band20 = 0, band45 = 0;

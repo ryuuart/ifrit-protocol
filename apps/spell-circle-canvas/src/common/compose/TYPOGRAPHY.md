@@ -307,13 +307,13 @@ plus one pass whatever the unit count is:
 ```cpp
 // emberDissolve is a SigilMaterial recipe over the params struct Burn,
 // carrying the pass body as its SkSL.
-auto burn = Material::recipe(sigil::material::Material(emberDissolve,
-                                                       Burn{ink}));
+auto burn = material::skia::Paint::recipe(
+    sigil::material::Material(emberDissolve, Burn{ink}));
 text(u8"EMBER DECODE", display)
     .fx({.effect = fx::pass(burn), .stagger = {.eachMs = 260}});
 ```
 
-The material must be RECIPE-BACKED — `Material::recipe` over a recipe
+The paint must be RECIPE-BACKED — `material::skia::Paint::recipe` over a recipe
 carrying an SkSL body — because the unit count is baked into the compiled
 shader: a runtime effect's array size is fixed at compile and SkSL has no
 uniform-bounded loop, so the runtime holds a specialization of that recipe

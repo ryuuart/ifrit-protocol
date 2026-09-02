@@ -29,14 +29,15 @@ TEST(ComposeShapes, CircleInsetStandsConcentricallyInsideTheBox) {
 
 TEST(ComposeShapes, ArrowPointsAlongPositiveX) {
   Host host(120, 60);
-  host.composer.render(box().child(box()
-                                       .width(120)
-                                       .height(60)
-                                       .absolute()
-                                       .left(0)
-                                       .top(0)
-                                       .shape(geometry::shapes::arrow())
-                                       .fill(Material::solid({0, 1, 0, 1}))));
+  host.composer.render(
+      box().child(box()
+                      .width(120)
+                      .height(60)
+                      .absolute()
+                      .left(0)
+                      .top(0)
+                      .shape(geometry::shapes::arrow())
+                      .fill(material::skia::Paint::solid({0, 1, 0, 1}))));
   host.frame();
   EXPECT_GT(SkColorGetG(host.pixel(20, 30)), 200u);  // shaft on the axis
   EXPECT_LT(SkColorGetG(host.pixel(20, 6)), 60u);    // and not above it
@@ -49,13 +50,14 @@ TEST(ComposeShapes, SectorIsClosedAndFillable) {
   // path. A 90-degree sector starting at 0 (Skia: 0 = +x, clockwise) fills the
   // lower-right quadrant of its box and nothing else.
   Host host(200, 200);
-  host.composer.render(box().child(box()
-                                       .width(200)
-                                       .height(200)
-                                       .absolute()
-                                       .inset(0)
-                                       .shape(geometry::shapes::sector(0, 90))
-                                       .fill(Material::solid({1, 0, 0, 1}))));
+  host.composer.render(
+      box().child(box()
+                      .width(200)
+                      .height(200)
+                      .absolute()
+                      .inset(0)
+                      .shape(geometry::shapes::sector(0, 90))
+                      .fill(material::skia::Paint::solid({1, 0, 0, 1}))));
   host.frame();
   EXPECT_GT(SkColorGetR(host.pixel(130, 130)), 200u);  // inside the wedge
   EXPECT_LT(SkColorGetR(host.pixel(70, 130)), 60u);    // lower-left: outside
@@ -70,7 +72,7 @@ TEST(ComposeShapes, SectorIsClosedAndFillable) {
                       .absolute()
                       .inset(0)
                       .shape(geometry::shapes::sector(0, 350, 0.6f))
-                      .fill(Material::solid({1, 0, 0, 1}))));
+                      .fill(material::skia::Paint::solid({1, 0, 0, 1}))));
   donut.frame();
   EXPECT_GT(SkColorGetR(donut.pixel(180, 100)), 200u);  // on the ring
   EXPECT_LT(SkColorGetR(donut.pixel(100, 100)), 60u);   // through the hole
@@ -81,14 +83,14 @@ TEST(ComposeMaterial, LiveMaterialOnOutlineShapeFillsTheShape) {
   // fill the SHAPE (drawPath), not the box, and track the Output.
   choreograph::Output<float> k{1.0f};
   Host host;
-  host.composer.render(
-      box().child(box()
-                      .width(100)
-                      .height(100)
-                      .inset(0, 0, 100, 100)
-                      .absolute()
-                      .shape(geometry::shapes::star(4, 0.3f))
-                      .fill(Material::sksl(ukEffect()).uniform("uK", &k))));
+  host.composer.render(box().child(
+      box()
+          .width(100)
+          .height(100)
+          .inset(0, 0, 100, 100)
+          .absolute()
+          .shape(geometry::shapes::star(4, 0.3f))
+          .fill(material::skia::Paint::sksl(ukEffect()).uniform("uK", &k))));
   host.frame();
   EXPECT_GT(SkColorGetR(host.pixel(50, 50)), 200u);  // star body
   EXPECT_LT(SkColorGetR(host.pixel(8, 8)), 30u);     // outside the arms

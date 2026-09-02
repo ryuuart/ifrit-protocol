@@ -606,8 +606,9 @@ TEST(ComposeMaterials, GlowUnitReachesTheInscribedCircleNotTheCorners) {
   // geometry::shapes::circle() the remaining alpha becomes a visible hard rim.
   // glowUnit is radialUnit scaled to the inscribed circle instead, so radius 1
   // reaches zero exactly at the edge that gets clipped.
-  const std::vector<Stop> ramp = {{0.0f, {1, 1, 1, 1}}, {1.0f, {0, 0, 0, 1}}};
-  auto edgeValue = [&](Material m) {
+  const std::vector<material::skia::Stop> ramp = {{0.0f, {1, 1, 1, 1}},
+                                                  {1.0f, {0, 0, 0, 1}}};
+  auto edgeValue = [&](material::skia::Paint m) {
     Host host(200, 200);
     host.composer.render(
         box().child(box().absolute().inset(0).fill(std::move(m))));
@@ -619,12 +620,17 @@ TEST(ComposeMaterials, GlowUnitReachesTheInscribedCircleNotTheCorners) {
 
   // radialUnit(…, 1.0) is still bright at the inscribed circle, because
   // its ramp does not reach black until the corners.
-  EXPECT_GT(edgeValue(Material::radialUnit({0.5f, 0.5f}, 1.0f, ramp)), 40);
+  EXPECT_GT(
+      edgeValue(material::skia::Paint::radialUnit({0.5f, 0.5f}, 1.0f, ramp)),
+      40);
   // glowUnit(…, 1.0) has landed by then. That is the whole difference.
-  EXPECT_LT(edgeValue(Material::glowUnit({0.5f, 0.5f}, 1.0f, ramp)), 8);
+  EXPECT_LT(
+      edgeValue(material::skia::Paint::glowUnit({0.5f, 0.5f}, 1.0f, ramp)), 8);
   // And the old spelling of the same thing still works, which is what
   // makes this a convenience rather than a behaviour change.
-  EXPECT_LT(edgeValue(Material::radialUnit({0.5f, 0.5f}, 0.7071f, ramp)), 8);
+  EXPECT_LT(
+      edgeValue(material::skia::Paint::radialUnit({0.5f, 0.5f}, 0.7071f, ramp)),
+      8);
 }
 
 TEST(ComposeText, OnPathCanOrientGlyphsRadiallyForADial) {
@@ -783,7 +789,7 @@ TEST(ComposeText, TextFillWorksWithTheUnitRamps) {
   Host host(320, 160);
   host.composer.render(box().padding(20).child(
       text(u8"HH", whiteStyle(96))
-          .textFill(Material::linearUnit(
+          .textFill(material::skia::Paint::linearUnit(
               {0, 0}, {0, 1}, {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}}))));
   host.frame();
 
@@ -852,7 +858,7 @@ TEST(ComposeText, TextStrokeComposesWithTextFill) {
   host.composer.render(box().padding(20).child(
       text(u8"HH", whiteStyle(96))
           .textStroke(9.0f, Fill::color({0, 1, 0, 1}))
-          .textFill(Material::linearUnit(
+          .textFill(material::skia::Paint::linearUnit(
               {0, 0}, {0, 1}, {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}}))));
   host.frame();
   int green = 0, ramp = 0;
@@ -957,7 +963,7 @@ TEST(ComposeMaterials, UnitRampsTakeAnyNumberOfStops) {
   // shader source instead, with one effect cached per count, which is the
   // same rule the noise generators follow for octaves.
   auto sweep = [](int n) {
-    std::vector<Stop> stops;
+    std::vector<material::skia::Stop> stops;
     for (int i = 0; i < n; ++i) {
       const float t = (float)i / (float)(n - 1);
       // A sawtooth the six-stop version could not have represented:
@@ -967,7 +973,7 @@ TEST(ComposeMaterials, UnitRampsTakeAnyNumberOfStops) {
     }
     Host host(256, 32);
     host.composer.render(box().child(box().absolute().inset(0).fill(
-        Material::linearUnit({0, 0}, {1, 0}, stops))));
+        material::skia::Paint::linearUnit({0, 0}, {1, 0}, stops))));
     host.frame();
     // Count the light/dark transitions across the middle scanline.
     int flips = 0;
@@ -988,8 +994,9 @@ TEST(ComposeMaterials, UnitRampsTakeAnyNumberOfStops) {
 
   // Degenerate counts still behave.
   Host one(64, 64);
-  one.composer.render(box().child(box().absolute().inset(0).fill(
-      Material::linearUnit({0, 0}, {1, 0}, {{0.0f, {1, 0, 0, 1}}}))));
+  one.composer.render(box().child(
+      box().absolute().inset(0).fill(material::skia::Paint::linearUnit(
+          {0, 0}, {1, 0}, {{0.0f, {1, 0, 0, 1}}}))));
   one.frame();
   EXPECT_GT(SkColorGetR(one.pixel(32, 32)), 200);
 }

@@ -257,7 +257,7 @@ TEST(ComposeDocs, EverySignatureInTheDecorationAndLayoutDocsCompiles) {
   PathFormat inner = stroke(2.0f, ink, PathFormat::Align::Inner);
   PathFormat outer = stroke(2.0f, ink, PathFormat::Align::Outer);
   PathFormat material{.width = 2.0f};
-  material.strokeMaterial = Material::solid({0.7f, 0.6f, 0.3f, 1});
+  material.strokeMaterial = material::skia::Paint::solid({0.7f, 0.6f, 0.3f, 1});
   PathFormat stamped{.width = 1.0f, .strokeFill = ink};
   stamped.stampPath = SkPath::Circle(0, 0, 3);
   stamped.stampAdvance = 12.0f;
@@ -283,7 +283,7 @@ TEST(ComposeDocs, EverySignatureInTheDecorationAndLayoutDocsCompiles) {
   stampWalk.stamp = box().width(4).height(4).fill(ink);
 
   // ---- the documented decoration constructors ---------------------------
-  auto wash = decorations::wash(Material::solid({1, 1, 1, 0.2f}),
+  auto wash = decorations::wash(material::skia::Paint::solid({1, 1, 1, 0.2f}),
                                 SkBlendMode::kOverlay, 0.5f);
   // shadow(color, OFFSET, blur) — the offset is the second argument.
   auto shadow = sigil::compose::shadow({0, 0, 0, 0.5f}, {0, 2}, 8.0f);
@@ -322,15 +322,17 @@ TEST(ComposeDocs, EverySignatureInTheDecorationAndLayoutDocsCompiles) {
   }
 
   // ---- patterns: grain's FIVE parameters --------------------------------
-  (void)Material::recipe(
+  (void)material::skia::Paint::recipe(
       material::field::grain(0.02f, 4, 7.0f));  // the documented three
-  (void)Material::recipe(material::field::grain(0.02f, 4, 7.0f, 1.6f,
-                                                3.0f));  // contrast + stretch
+  (void)material::skia::Paint::recipe(
+      material::field::grain(0.02f, 4, 7.0f, 1.6f,
+                             3.0f));  // contrast + stretch
   // The last parameter is a BOOL selecting fractal or turbulence mode, not
   // an amount. Passing a float compiles — it converts silently to `true` —
   // so a documented call that reads like `noise(…, 0.5f)` is wrong in a way
   // only a human reader can catch. Spelled correctly here, once.
-  (void)Material::recipe(material::field::noise(0.02f, 4, 1.0f, true));
+  (void)material::skia::Paint::recipe(
+      material::field::noise(0.02f, 4, 1.0f, true));
 
   (void)plain;
   (void)dashed;
@@ -368,21 +370,26 @@ TEST(ComposeDocs, EverySignatureInTheMaterialDocsCompiles) {
   // two of their names are exactly the ones a reader guesses wrongly: `Stop`
   // is a free struct in the namespace rather than a Material member, and the
   // flat-colour factory is `solid`, not `color`.
-  auto stops = std::vector<Stop>{
+  auto stops = std::vector<material::skia::Stop>{
       {0.0f, {1, 0, 0, 1}}, {0.5f, {0, 1, 0, 1}}, {1.0f, {0, 0, 1, 1}}};
-  Material flat = Material::solid({0.2f, 0.3f, 0.4f, 1});
-  Material lin = Material::linear({0, 0}, {100, 0}, stops);
-  Material rad = Material::radial({50, 50}, 40.0f, stops);
-  Material sweep = Material::sweep({50, 50}, stops);
+  material::skia::Paint flat =
+      material::skia::Paint::solid({0.2f, 0.3f, 0.4f, 1});
+  material::skia::Paint lin =
+      material::skia::Paint::linear({0, 0}, {100, 0}, stops);
+  material::skia::Paint rad =
+      material::skia::Paint::radial({50, 50}, 40.0f, stops);
+  material::skia::Paint sweep = material::skia::Paint::sweep({50, 50}, stops);
   // The Unit forms take node-relative coordinates, so they are the only
   // ones an author can write for a box whose size is decided by its
   // content — absolute coordinates would have to be guessed.
-  Material linU = Material::linearUnit({0, 0}, {1, 0}, stops);
-  Material radU = Material::radialUnit({0.5f, 0.5f}, 0.7f, stops);
-  Material glowU = Material::glowUnit(
+  material::skia::Paint linU =
+      material::skia::Paint::linearUnit({0, 0}, {1, 0}, stops);
+  material::skia::Paint radU =
+      material::skia::Paint::radialUnit({0.5f, 0.5f}, 0.7f, stops);
+  material::skia::Paint glowU = material::skia::Paint::glowUnit(
       {0.5f, 0.5f}, 1.0f, {{0.0f, {1, 1, 1, 1}}, {1.0f, {1, 1, 1, 0}}});
-  Material sksl = Material::sksl(sharedHeavyEffect());
-  Material blended = Material::blend(
+  material::skia::Paint sksl = material::skia::Paint::sksl(sharedHeavyEffect());
+  material::skia::Paint blended = material::skia::Paint::blend(
       {{flat, SkBlendMode::kSrc}, {lin, SkBlendMode::kOverlay}});
 
   // The liveness contract the cost model rests on: a material is "live"
@@ -390,7 +397,7 @@ TEST(ComposeDocs, EverySignatureInTheMaterialDocsCompiles) {
   // makes a live one cacheable between its ticks.
   EXPECT_FALSE(flat.isAnimated());
   EXPECT_FALSE(lin.isAnimated());
-  Material timed = Material::sksl(heavyEffect(true));
+  material::skia::Paint timed = material::skia::Paint::sksl(heavyEffect(true));
   EXPECT_TRUE(timed.isAnimated())
       << "liveness is read off the DECLARATION of "
          "uTime, not off whether anything drives it";
@@ -401,17 +408,18 @@ TEST(ComposeDocs, EverySignatureInTheMaterialDocsCompiles) {
   // That comparison is load-bearing for every cache in the library — a
   // material rebuilt from equal values must compare equal, or its node is
   // dirtied on every describe and no bake of any kind can hold.
-  (void)flat.toFill();
-  EXPECT_TRUE(flat == Material::solid({0.2f, 0.3f, 0.4f, 1}));
+  (void)toFill(flat);
+  EXPECT_TRUE(flat == material::skia::Paint::solid({0.2f, 0.3f, 0.4f, 1}));
   EXPECT_FALSE(flat == lin);
-  EXPECT_TRUE(lin == Material::linear({0, 0}, {100, 0}, stops));
+  EXPECT_TRUE(lin == material::skia::Paint::linear({0, 0}, {100, 0}, stops));
 
   // Every place a Material is accepted, spelled once each.
   (void)box().fill(flat);
   (void)box().textFill(linU);
   (void)stroke(2.0f, Fill::color({1, 1, 1, 1}));
   PathFormat stroked = stroke(2.0f, Fill::color({1, 1, 1, 1}));
-  stroked.strokeMaterial = radU;  // a stroke takes a Material, not only a Fill
+  stroked.strokeMaterial =
+      radU;  // a stroke takes a material::skia::Paint, not only a Fill
   (void)decorations::wash(glowU, SkBlendMode::kOverlay, 0.5f);
 
   (void)sweep;
@@ -432,7 +440,7 @@ TEST(ComposeMaterials, StableLiveResolveReplaysThePicture) {
   Host host;
   choreograph::Output<float> phase{0.25f};
   host.composer.render(box().child(box().width(100).height(100).fill(
-      Material::sksl(fx).uniform("uPhase", &phase))));
+      material::skia::Paint::sksl(fx).uniform("uPhase", &phase))));
   host.frame();  // records once
   const SkColor before = host.pixel(50, 50);
   host.frame();  // same phase → stable resolve → pure replay
@@ -453,11 +461,12 @@ TEST(ComposeMaterials, BoundUniformOwnsItsSlotOverInjection) {
                "  return half4(fract(uTime), 0, 0, 1); }"));
   ASSERT_TRUE(fx) << err.c_str();
   choreograph::Output<float> stepped{0.5f};
-  Material m = Material::sksl(fx).uniform("uTime", &stepped);
+  material::skia::Paint m =
+      material::skia::Paint::sksl(fx).uniform("uTime", &stepped);
   PaintContext ctx;
   ctx.size = {4, 4};
   ctx.elapsedSeconds = 123.789;  // continuous clock — must be IGNORED
-  Fill f = m.resolve(ctx);
+  Fill f = resolveFill(m, ctx);
   sk_sp<SkSurface> s = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(2, 2));
   SkPaint p;
   p.setShader(f.shaderValue);
@@ -507,7 +516,8 @@ TEST(ComposeMaterials, StableLiveResolveBlitsTheTexture) {
                      .width(100)
                      .height(100)
                      .cache(Cache::Texture)
-                     .fill(Material::sksl(fx).uniform("uPhase", &phase)))
+                     .fill(material::skia::Paint::sksl(fx).uniform("uPhase",
+                                                                   &phase)))
           // An always-animating sibling keeps the ROOT live, which is the
           // ordinary case in a real scene: the shader-filled node must still
           // blit even though the frame as a whole is repainting.

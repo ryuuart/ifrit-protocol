@@ -13,6 +13,7 @@
 #include <include/core/SkSize.h>
 #include <sigilcore/comparable/Erased.h>
 #include <sigilcore/compute/Noise.h>
+#include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/Animation.h>
 #include <sigilmotion/schedule/Schedule.h>
 #include <sigilmotion/values/Animated.h>
@@ -40,7 +41,6 @@ class SkCanvas;
 
 namespace sigil::compose {
 
-class Material;
 struct PaintContext;
 struct TextPath;
 namespace detail {
@@ -291,10 +291,10 @@ class TextEffect {
    *  count into a specialization of that recipe; any other material warns
    *  once and returns an EMPTY effect, so the track draws its glyphs at
    *  rest. */
-  static TextEffect pass(Material material);
+  static TextEffect pass(material::skia::Paint material);
   /** The pass material, or null for every per-glyph effect — what the
    *  runtime dispatches on. */
-  [[nodiscard]] const Material* passMaterial() const;
+  [[nodiscard]] const material::skia::Paint* passMaterial() const;
 
   /** DECLARES A PHASE WHERE THIS PASS IS AN EXACT PASS-THROUGH — an
    *  author's promise the runtime spends but cannot verify, in the same
@@ -360,7 +360,7 @@ class TextEffect {
     /** Set only by pass(): the material run over the units' layer. Held by
      *  pointer because Material is declared below this class; it rides
      *  equality by VALUE (Material::operator==), like an Effect child. */
-    std::shared_ptr<const Material> pass;
+    std::shared_ptr<const material::skia::Paint> pass;
   };
   /** restsAt()'s one body: appends the phases to the pass's params — a
    *  pass carries no other parameters, so its params slot IS the rest
@@ -514,7 +514,7 @@ namespace fx {
  *  no beat is mid-cycle. Undeclared, a pass always runs. The declaration
  *  rides the effect's comparable params, so two passes differing only in
  *  their rests compare unequal and re-patch. */
-[[nodiscard]] TextEffect pass(Material material);
+[[nodiscard]] TextEffect pass(material::skia::Paint material);
 
 /** THE ESCAPE HATCH: an ad-hoc effect body under an author-given key.
  *

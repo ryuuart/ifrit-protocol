@@ -104,7 +104,8 @@ Effect Effect::shader(sk_sp<SkRuntimeEffect> effect,
   // the entry here instead, loudly, and keep the recipe free of anything
   // buildFilter would have to re-check.
   std::erase_if(uniforms, [&](const std::pair<std::string, float>& entry) {
-    if (detail::declaresUniform(effect, entry.first, sizeof(float)))
+    if (material::skia::detail::declaresUniform(effect, entry.first,
+                                                sizeof(float)))
       return false;
     warnUndeclaredEffectUniform("shader", entry.first);
     return true;
@@ -207,11 +208,12 @@ sk_sp<SkImageFilter> makeParamBlur(float maxSigma, sk_sp<SkShader> sigmaMap) {
 }
 }  // namespace
 
-Effect Effect::blur(Material sigmaMap, float maxSigma) {
+Effect Effect::blur(material::skia::Paint sigmaMap, float maxSigma) {
   Effect e;
   e.m_paramBlur = ParamBlur{maxSigma};
   e.m_children.emplace_back(
-      "sigma", std::make_shared<const Material>(std::move(sigmaMap)));
+      "sigma",
+      std::make_shared<const material::skia::Paint>(std::move(sigmaMap)));
   // The static snapshot, built context-free exactly as Material::child
   // refreshes m_shader at store time; a context-needing map rebuilds this
   // per paint in resolvedImageFilter().
@@ -219,7 +221,7 @@ Effect Effect::blur(Material sigmaMap, float maxSigma) {
   return e;
 }
 
-Effect& Effect::child(std::string name, Material source) {
+Effect& Effect::child(std::string name, material::skia::Paint source) {
   // Which names this effect kind can fill — Material::child's structure,
   // one branch per kind, warn-and-ignore everywhere else.
   if (m_paramBlur) {
@@ -237,7 +239,7 @@ Effect& Effect::child(std::string name, Material source) {
           "is the node's own rendered layer, filled by the library\n");
       return *this;
     }
-    if (!detail::declaresShaderChild(m_effect, name)) {
+    if (!material::skia::detail::declaresShaderChild(m_effect, name)) {
       SkDebugf(
           "[compose] Effect::child: \"%s\" is not declared by the effect "
           "as `uniform shader` — ignored\n",
@@ -251,7 +253,7 @@ Effect& Effect::child(std::string name, Material source) {
         name.c_str());
     return *this;
   }
-  auto held = std::make_shared<const Material>(std::move(source));
+  auto held = std::make_shared<const material::skia::Paint>(std::move(source));
   // Last write wins on a name, like Material::child: re-filling a slot
   // replaces rather than stacking two entries the builder would both
   // assign.
@@ -281,8 +283,13 @@ bool Effect::anyChildNeedsContext() const {
 
 sk_sp<SkShader> Effect::childShaderFor(std::string_view name,
                                        const PaintContext* ctx) const {
+  const material::skia::PaintFrame frame =
+      ctx ? frameOf(*ctx) : material::skia::PaintFrame{};
   for (const auto& [slot, child] : m_children)
-    if (slot == name) return child ? detail::childShader(*child, ctx) : nullptr;
+    if (slot == name)
+      return child ? material::skia::detail::childShader(*child,
+                                                         ctx ? &frame : nullptr)
+                   : nullptr;
   return nullptr;
 }
 
@@ -307,7 +314,7 @@ Effect& Effect::uniform(std::string name, motion::Animatable<float> value) {
       SkDebugf(
           "[compose] Effect::uniform(\"%s\") on a blur() — its one "
           "parameter is \"maxSigma\" (the MAP is child(\"sigma\", "
-          "Material)); ignored\n",
+          "material::skia::Paint)); ignored\n",
           name.c_str());
       return *this;
     }
@@ -320,7 +327,8 @@ Effect& Effect::uniform(std::string name, motion::Animatable<float> value) {
     // all, which also means it declares no volatility: an ignored binding
     // that still marked the node live would cost a repaint every frame
     // forever, for a value nothing reads.
-    if (!detail::declaresUniform(m_effect, name, sizeof(float))) {
+    if (!material::skia::detail::declaresUniform(m_effect, name,
+                                                 sizeof(float))) {
       warnUndeclaredEffectUniform("uniform", name);
       return *this;
     }
@@ -351,7 +359,7 @@ bool effectTakesConstant(const sk_sp<SkRuntimeEffect>& effect,
         name.c_str());
     return false;
   }
-  if (!detail::declaresUniform(effect, name, bytes)) {
+  if (!material::skia::detail::declaresUniform(effect, name, bytes)) {
     warnUndeclaredEffectUniform("uniform", name);
     return false;
   }
@@ -479,11 +487,15 @@ sk_sp<SkImageFilter> Effect::buildFilter(const PaintContext* ctx) const {
     builder.uniform(name) = motion::resolveFloatAt(nullptr, out);
   for (const auto& [name, block] : m_blocks)
     builder.uniform(name).set(block->values().data(), (int)block->size());
-  // The child slots, against the painting node's box (Material::child's
-  // contract: a child sees the SAME PaintContext, because there is one
-  // node). "content" is the library's and is filled by the factory below.
+  // The child slots, against the painting node's box (Paint::child's
+  // contract: a child sees the SAME frame, because there is one node).
+  // "content" is the library's and is filled by the factory below.
+  const material::skia::PaintFrame frame =
+      ctx ? frameOf(*ctx) : material::skia::PaintFrame{};
   for (const auto& [name, child] : m_children)
-    if (child) builder.child(name) = detail::childShader(*child, ctx);
+    if (child)
+      builder.child(name) =
+          material::skia::detail::childShader(*child, ctx ? &frame : nullptr);
   return SkImageFilters::RuntimeShader(builder, "content", nullptr);
 }
 
@@ -518,9 +530,10 @@ bool Effect::usesWorldSpace() const {
  *  participate in reconciler equality would leave a pruned node sampling
  *  the parameter its recording was made with. */
 static bool childrenEqual(
-    const std::vector<std::pair<std::string, std::shared_ptr<const Material>>>&
-        a,
-    const std::vector<std::pair<std::string, std::shared_ptr<const Material>>>&
+    const std::vector<std::pair<
+        std::string, std::shared_ptr<const material::skia::Paint>>>& a,
+    const std::vector<
+        std::pair<std::string, std::shared_ptr<const material::skia::Paint>>>&
         b) {
   if (a.size() != b.size()) return false;
   for (size_t i = 0; i < a.size(); ++i) {

@@ -57,7 +57,7 @@ struct NoParams {};
  *  definition compare equal, which is what the equality assertions below
  *  rest on, and a fresh definition per call would compile a fresh program
  *  every time. */
-Material passOver(const char* source) {
+material::skia::Paint passOver(const char* source) {
   struct Held {
     const char* source;
     std::shared_ptr<const sigil::material::Recipe> recipe;
@@ -65,12 +65,12 @@ Material passOver(const char* source) {
   static std::vector<Held> held;
   for (const Held& h : held)
     if (h.source == source)
-      return Material::recipe(sigil::material::Material(h.recipe));
+      return material::skia::Paint::recipe(sigil::material::Material(h.recipe));
   auto recipe = std::make_shared<const sigil::material::Recipe>(
       sigil::material::Recipe::of<NoParams>("test.pass")
           .body(sigil::material::Target::SkSL, source));
   held.push_back({source, recipe});
-  return Material::recipe(sigil::material::Material(recipe));
+  return material::skia::Paint::recipe(sigil::material::Material(recipe));
 }
 
 }  // namespace
@@ -79,7 +79,7 @@ TEST(TextPass, SpecializationIsOneRecipePerUnitCount) {
   const std::shared_ptr<const sigil::material::Recipe> authored =
       passOver(kFloodSksl).recipeMaterial()->recipePtr();
   const std::shared_ptr<const sigil::material::Recipe> three =
-      detail::passRecipeFor(authored, 3);
+      material::skia::detail::passRecipeFor(authored, 3);
   ASSERT_TRUE(three);
   // The specialization keeps the author's ABI and prepends the runtime's
   // declarations at the count asked for.
@@ -88,20 +88,20 @@ TEST(TextPass, SpecializationIsOneRecipePerUnitCount) {
             std::string::npos);
   // One definition per (recipe, count): asking again returns the SAME one,
   // so the program cache holds one program for it however many draws ask.
-  EXPECT_EQ(three, detail::passRecipeFor(authored, 3));
+  EXPECT_EQ(three, material::skia::detail::passRecipeFor(authored, 3));
   // Another count is another definition, compiled and cached apart.
   const std::shared_ptr<const sigil::material::Recipe> five =
-      detail::passRecipeFor(authored, 5);
+      material::skia::detail::passRecipeFor(authored, 5);
   ASSERT_TRUE(five);
   EXPECT_NE(three, five);
-  EXPECT_EQ(five, detail::passRecipeFor(authored, 5));
+  EXPECT_EQ(five, material::skia::detail::passRecipeFor(authored, 5));
 }
 
 TEST(TextPass, RecipeMaterialsCompareByDefinition) {
   // Two materials over one recipe compare EQUAL — a helper may rebuild its
   // material every describe and still prune.
-  const Material a = passOver(kFloodSksl);
-  const Material b = passOver(kFloodSksl);
+  const material::skia::Paint a = passOver(kFloodSksl);
+  const material::skia::Paint b = passOver(kFloodSksl);
   EXPECT_TRUE(a == b);
   EXPECT_FALSE(a == passOver(kIdentitySksl));
   // And so do the pass effects wrapping them.
@@ -114,7 +114,7 @@ TEST(TextPass, NonRecipeMaterialRefusedAndGlyphsSurvive) {
   // recipe per unit count). A compiled-effect material is refused: the
   // effect is EMPTY, the track is skipped, and the text draws at rest
   // rather than vanishing.
-  const TextEffect refused = fx::pass(Material::sksl(ukEffect()));
+  const TextEffect refused = fx::pass(material::skia::Paint::sksl(ukEffect()));
   EXPECT_FALSE(refused);
 
   Host host;
@@ -389,7 +389,7 @@ TEST(TextPass, RestDeclarationRidesEqualityAndNeedsAPass) {
   // only in their rests must compare unequal, or a re-described track
   // would prune onto the old declaration and keep (or keep skipping) a
   // shader the author changed their mind about.
-  const Material m = passOver(kEraseSksl);
+  const material::skia::Paint m = passOver(kEraseSksl);
   EXPECT_FALSE(fx::pass(m).restsAt(0.0f) == fx::pass(m));
   EXPECT_TRUE(fx::pass(m).restsAt(0.0f, 1.0f) ==
               fx::pass(m).restsAt(0.0f, 1.0f));
@@ -462,7 +462,7 @@ sk_sp<SkRuntimeEffect> wideUniformEffect() {
 TEST(TextPass, WideAndArrayUniformsBindByDeclaredSize) {
   Host host;
   host.composer.render(box().child(box().width(60).height(60).fill(
-      Material::sksl(wideUniformEffect())
+      material::skia::Paint::sksl(wideUniformEffect())
           .uniform("uPair", std::array<float, 2>{1, 0})
           .uniform("uQuad", std::array<float, 4>{0, 1, 0, 0})
           .uniform("uVals", std::vector<float>{0, 0, 1, 0}))));
@@ -474,8 +474,10 @@ TEST(TextPass, MisSizedUniformsWarnOnceAndAreIgnored) {
   // An undeclared name, and a declared one at the wrong TOTAL size, are
   // both dropped at the door — so the material still equals one that never
   // made the call, and nothing was stored for the builder to refuse.
-  const Material base = Material::sksl(wideUniformEffect());
-  Material wrong = Material::sksl(wideUniformEffect());
+  const material::skia::Paint base =
+      material::skia::Paint::sksl(wideUniformEffect());
+  material::skia::Paint wrong =
+      material::skia::Paint::sksl(wideUniformEffect());
   wrong.uniform("uVals", std::vector<float>{1, 2, 3});       // [4] wants 4
   wrong.uniform("uNothing", std::vector<float>{1, 2, 3});    // undeclared
   wrong.uniform("uPair", std::array<float, 4>{1, 2, 3, 4});  // float2 slot
@@ -502,14 +504,16 @@ TEST(TextPass, EffectConstantLanesParticipateInEquality) {
 
 TEST(TextPass, UniformBlockIsLiveAndReadsOnCommit) {
   auto block = std::make_shared<sigil::material::UniformBlock>(4);
-  Material live = Material::sksl(wideUniformEffect()).uniform("uVals", block);
+  material::skia::Paint live =
+      material::skia::Paint::sksl(wideUniformEffect()).uniform("uVals", block);
   // The binding declares volatility — the node paints live, no cache can
   // freeze the table — exactly as a bound scalar Output does.
   EXPECT_TRUE(live.isAnimated());
   // A block at the wrong size is refused and declares nothing.
   auto wrong = std::make_shared<sigil::material::UniformBlock>(3);
-  EXPECT_FALSE(
-      Material::sksl(wideUniformEffect()).uniform("uVals", wrong).isAnimated());
+  EXPECT_FALSE(material::skia::Paint::sksl(wideUniformEffect())
+                   .uniform("uVals", wrong)
+                   .isAnimated());
 
   Host host;
   host.composer.render(

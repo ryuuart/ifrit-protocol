@@ -15,6 +15,7 @@
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/Text.h>
+#include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/clock/FrameClock.h>
 #include <sigilmotion/clock/Ticker.h>
 
@@ -36,8 +37,6 @@ namespace sigil::compose {
 namespace detail {
 struct Instance;
 }  // namespace detail
-
-class Material;
 
 // ---------------------------------------------------------------------------
 // Composer — the retained side; a guest in the host's canvas

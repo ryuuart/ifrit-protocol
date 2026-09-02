@@ -35,8 +35,8 @@
 #include <include/core/SkPicture.h>
 #include <sigilcompose/brush/Lines.h>  // insetOutline, cornerBrackets, cornerGaps
 #include <sigilcompose/core/GpuImage.h>
-#include <sigilcompose/core/Material.h>  // Wash — the material-valued decoration
 #include <sigilimage/asset/ImageAsset.h>
+#include <sigilmaterial/skia/Paint.h>  // Wash — the material-valued decoration
 
 #include <algorithm>
 #include <optional>
@@ -71,7 +71,7 @@ struct PathFormat {
    *  by shader pointer. On an object whose surfaces are mostly strokes,
    *  using `Fill` means writing the same material twice and converting
    *  coordinates by hand in both. */
-  std::optional<Material> strokeMaterial;
+  std::optional<material::skia::Paint> strokeMaterial;
   /** Stroke cap and join on the paint itself. The defaults are Skia's —
    *  butt caps and mitred joins — which end open contours square; line art
    *  built from many short open contours usually wants round for both.
@@ -350,7 +350,7 @@ struct ContourWalk {
  *                                    SkBlendMode::kSoftLight, 0.35f))
  */
 struct Wash {
-  Material material;
+  material::skia::Paint material;
   SkBlendMode blend = SkBlendMode::kSrcOver;
   /** Strength, 0..1, applied as alpha on the pass. Clamped at paint; 0
    *  paints nothing at all. */
@@ -448,7 +448,8 @@ struct Border {
 };
 
 namespace decorations {
-inline Wash wash(Material material, SkBlendMode blend = SkBlendMode::kSrcOver,
+inline Wash wash(material::skia::Paint material,
+                 SkBlendMode blend = SkBlendMode::kSrcOver,
                  float amount = 1.0f) {
   return Wash{std::move(material), blend, amount};
 }

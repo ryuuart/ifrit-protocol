@@ -464,12 +464,12 @@ TEST(ComposeGpu, TextPassReachKeepsContentInPlaceOnGraphite) {
           .body(sigil::material::Target::SkSL,
                 "half4 main(float2 xy) { return uContent.eval(xy); }"));
   const auto describe = [&](float reach) {
-    return box().padding(60).child(
-        text(u8"HOIST", style)
-            .key("hoist")
-            .fx({.effect = lift})
-            .fx({.effect = fx::pass(Material::recipe(sigil::material::Material(identity))),
-                 .reach = reach}));
+    return box().padding(60).child(text(u8"HOIST", style)
+                                       .key("hoist")
+                                       .fx({.effect = lift})
+                                       .fx({.effect = fx::pass(sigil::material::skia::Paint::recipe(
+                                                sigil::material::Material(identity))),
+                                            .reach = reach}));
   };
   const int w = 200, h = 200;
   sigil::motion::Ticker snugTicker;

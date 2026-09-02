@@ -5,10 +5,10 @@
  * the element builders (Element.cpp and its siblings) and the reconciler.
  */
 
-#include <sigilcompose/core/Material.h>
 #include <sigilcore/compute/Noise.h>
 #include <sigilcore/reconcile/Memo.h>
 #include <sigilcore/reconcile/Reads.h>
+#include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/values/Animated.h>
 #include <sigilweave/paragraph/Paragraph.h>
 
@@ -252,7 +252,7 @@ struct TextData {
   // textFill(): glyph paint in text-metric space (unit square → cap band).
   // Resolved at paint from the line metrics; live materials re-resolve per
   // frame; static ones compare by recipe for the prune.
-  std::optional<Material> metricFill;
+  std::optional<material::skia::Paint> metricFill;
   // onPath(): the run's baseline IS a path. Resolved at paint against the
   // node's box, walked with SkContourMeasure, one RSXform per glyph.
   std::optional<TextPath> onPath;
@@ -435,11 +435,11 @@ struct MaterialData {
   // Live material fill: a Material with a ch::Output-bound uniform, resolved
   // per frame. Supersedes paint.fill when present (a static Material
   // collapses to paint.fill instead). Declares the node volatile.
-  std::optional<Material> live;
+  std::optional<material::skia::Paint> live;
   // The comparable recipe behind paint.fill when it was set via
   // fill(Material): propsEqual compares this structurally, so a re-described
   // material fill prunes even though each describe minted a fresh shader.
-  std::optional<Material> recipe;
+  std::optional<material::skia::Paint> recipe;
 };
 
 /** The memo shell's payload: SigilCore's Memo, producing an Element. The

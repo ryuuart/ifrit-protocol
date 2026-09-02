@@ -1,20 +1,25 @@
 # The Skia backend: the SkSL compiler the core's program cache runs, the
 # builder that uploads resolved bytes into an SkRuntimeEffect, the leaf
 # binding of a texture into a child slot, the draw of a material over a
-# path, and the one colour bridge between SkColor4f and this library's
-# Color. Links the texture feature (and through it the core and Skia),
-# nothing else.
+# path, the one colour bridge between SkColor4f and this library's Color,
+# and Paint — the model as ONE Skia shader, with the gradients, the image
+# and buffer sources, the SkSL leaf with its live uniforms and child
+# slots, the blend stack, and the door onto a recipe instance. Links the
+# texture feature (and through it the core and Skia) and SigilMotion, for
+# the animatable a live uniform and a bound pan hold.
 add_library(SigilMaterialSkia STATIC
   Draw.cpp
+  Paint.cpp
   SkiaCompiler.cpp
   ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/skia/Color.h
   ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/skia/Draw.h
+  ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/skia/Paint.h
   ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/skia/SkiaCompiler.h
 )
 target_compile_features(SigilMaterialSkia PUBLIC cxx_std_20)
 target_include_directories(SigilMaterialSkia PUBLIC ${SIGIL_MATERIAL_INCLUDE_DIR})
 target_link_libraries(SigilMaterialSkia
-  PUBLIC SigilMaterialTexture unofficial::skia::skia)
+  PUBLIC SigilMaterialTexture SigilMotionValues unofficial::skia::skia)
 
 add_executable(material_skia_test test/SkiaTest.cpp)
 target_link_libraries(material_skia_test PRIVATE SigilMaterialSkia

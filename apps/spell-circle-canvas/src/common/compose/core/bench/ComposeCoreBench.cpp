@@ -10,8 +10,8 @@
 #include <include/core/SkSurface.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilcompose/Compose.h>
-#include <sigilcompose/core/Material.h>
 #include <sigilcore/reconcile/Env.h>
+#include <sigilmaterial/skia/Paint.h>
 #include <sigilweave/paragraph/Paragraph.h>
 
 #include <cmath>
@@ -91,7 +91,7 @@ Element groupScene(int count, Cache mode) {
                     .width(64)
                     .height(13)
                     .rotate((float)(id % 7) * 6.0f - 18.0f)
-                    .fill(Material::sksl(groupShader())));
+                    .fill(sigil::material::skia::Paint::sksl(groupShader())));
   }
   // Keep the parent live so it calls into the group every frame. An Auto
   // parent would cache one picture containing the first-frame traversal and

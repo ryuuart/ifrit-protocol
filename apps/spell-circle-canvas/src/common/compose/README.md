@@ -352,14 +352,15 @@ sound model; nothing below them changes kernel semantics.
 - `core/Derive.h` — `connector`, `rail`, `Anchor`, `band`, `bandPointAt`,
   and the `derive::` namespace that gathers the family.
 - `core/Composer.h` — `Composer`.
-- `core/Material.h` — the polymorphic paint value that supersedes a flat
-  `Fill` — gradients, images, raw SkSL with live uniforms (float, float2,
-  float4 and whole arrays, constant or live: a scalar binds an `Output`,
-  an array binds a caller-owned `material::UniformBlock` whose `commit()`
-  publishes an edit), SkSL as source compiled and cached by the library, blend
-  stacks that compile to one shader, world-space anchoring — and the
-  one-line gradient `Fill`s, `linearGradient` and `radialGradient`.
-  `Effect::uniform` takes the same shapes on the post-processing seam.
+- `core/Paint.h` — beside `Fill` and `PaintContext`: `frameOf`, `toFill`
+  and `resolveFill`, the three lines that put SigilMaterial's
+  `material::skia::Paint` on a node. The paint model itself is that
+  library's — gradients, images, raw SkSL with live uniforms, blend
+  stacks, world-space anchoring — and what is compose's is the routing: a
+  static paint collapses to a `Fill` and rides the caching and prune path,
+  a live or geometry-dependent one is kept whole on the node so the
+  painter resolves it against the frame it is drawn at. The one-line
+  gradient `Fill`s, `linearGradient` and `radialGradient`, are here too.
 - `core/Feed.h` — the streaming collection: a `feed::Ring` of rows,
   windowed to the newest `feed::Options::visible` and keyed by sequence
   id, so an append costs one mount and every surviving row keeps its
@@ -442,15 +443,17 @@ strokes where every rail is its own line; and `brush/Hatches.h`, the
 parallel, radial and concentric hatches. `kit/Strokes.h` and
 `kit/Plate.h` ship with this tier because they are spelled in its types.
 
-**Fills.** The paint vocabulary is SigilMaterial's, spelled as compose
-values. `brush/LayerStyles.h` is the Photoshop route to rich surfaces:
-bevels, sheens, inner shadows built from gradients and blurs rather than
-shaders, and the gel and chrome bundles over the kit's colour tables.
-`core/Sdf.h` gets shape, border, glow and soft shadow out of a single
-shader pass. `core/Pattern.h` and `core/Patterns.h` bake tile recipes
-once into repeating materials, plus stock generators. A material recipe
-is a `Material` through `Material::recipe`, an effect through
-`Effect::recipe`, and an output-stage view transform for
+**Fills.** The paint vocabulary is SigilMaterial's and is spelled there:
+`material::skia::Paint` is what `Element::fill` takes, and
+`material::sdf`, `material::pattern` and `material::field` are where the
+signed-distance surfaces, the tiles and the fields come from.
+`brush/LayerStyles.h` is the Photoshop route to rich surfaces: bevels,
+sheens, inner shadows built from gradients and blurs rather than shaders,
+and the gel and chrome bundles over the kit's colour tables.
+`core/Pattern.h` adds the one thing a tile cannot do for itself — an
+element tree AS the tile, baked through `snapshot()`. A recipe instance
+becomes a paint through `material::skia::Paint::recipe`, an effect
+through `Effect::recipe`, and an output-stage view transform for
 `Composer::setView` is SigilMaterial's colour transform, compiled only
 when the build finds OpenColorIO.
 
@@ -536,8 +539,8 @@ find out.
   library cannot see) must declare `.cache(Cache::None)`. It is the
   immediate-mode floor and it costs a repaint per frame, which is the
   point.
-- A `Material` that reads `uTime` or carries a uniform bound to an
-  `Output` is live by construction and declares itself; so is an `Effect`
+- A `material::skia::Paint` that reads `uTime` or carries a uniform bound
+  to an `Output` is live by construction and declares itself; so is an `Effect`
   with a bound uniform or a live child. Tier inheritance is real: a live
   child makes the parent effect live, so no cache can freeze the
   parameter.

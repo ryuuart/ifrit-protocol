@@ -328,7 +328,7 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
   const bool fillLerp = inst.anims[Instance::kFillLerp] &&
                         inst.anims[Instance::kFillLerp]->value.isConnected();
   const bool boundFill = node.paint.fill && node.paint.fill->binding();
-  const Material* nodeLiveMat = liveMaterialOf(node);
+  const material::skia::Paint* nodeLiveMat = liveMaterialOf(node);
   // A fill material whose ONLY animation is its own bound tile pan is NOT
   // the live-material lane — it is two floats, resolvable outside paint by
   // a pointer dereference, so it rides the memoized scalar lane exactly as
@@ -343,7 +343,7 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
   // truly live (bound/uTime) — geometry-dependent materials resolve at
   // record time and stay cacheable
   const bool liveMat = liveMatAnimated && !patternPan;
-  const Material* mfLive = metricFillOf(node);
+  const material::skia::Paint* mfLive = metricFillOf(node);
   const bool metricLive = mfLive && mfLive->isAnimated();  // chrome type
   const bool cacheNone = node.cacheMode == Cache::None;
   const bool decorLive = [&] {
@@ -371,7 +371,7 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
   const bool passLive = [&] {
     for (const Track& t : tracksOf(node))
       if (t.effect)
-        if (const Material* pm = t.effect.passMaterial())
+        if (const material::skia::Paint* pm = t.effect.passMaterial())
           if (pm->isAnimated()) return true;
     return false;
   }();

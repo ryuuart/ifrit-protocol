@@ -20,6 +20,7 @@
 #include <sigilcompose/core/Shape.h>
 #include <sigilcompose/core/Stroke.h>
 #include <sigilcompose/core/Text.h>
+#include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/Animation.h>
 #include <sigilmotion/schedule/Schedule.h>
 #include <sigilmotion/values/Animated.h>
@@ -54,7 +55,6 @@ struct Instance;
 }  // namespace detail
 
 class Composer;
-class Material;
 
 // ---------------------------------------------------------------------------
 // Element — a cheap value description
@@ -248,7 +248,7 @@ class Element {
   /** Fill with a Material (gradient ramp, blend stack, sprite, SkSL) — the
    *  richer authoring value. A static Material collapses to a Fill, so it
    *  caches and prunes on the same path. See <sigilcompose/Material.h>. */
-  Element& fill(Material m);
+  Element& fill(material::skia::Paint m);
   /** Solid-color sugar: fill({r,g,b,a}) without the Fill:: ceremony. */
   Element& fill(SkColor4f color) {
     return fill(motion::Animatable<Fill>{Fill::color(color)});
@@ -927,7 +927,7 @@ class Element {
    *  per frame. COMBINES with `fx()`: a letter in flight is painted with
    *  the metric material exactly as a resting one is, so a chrome
    *  wordmark can also be a staggered entrance. */
-  Element& textFill(Material m);
+  Element& textFill(material::skia::Paint m);
 
   /** Strokes the GLYPHS, under the fill — engraved display type, an
    *  outlined label, a caption that has to survive over an image.

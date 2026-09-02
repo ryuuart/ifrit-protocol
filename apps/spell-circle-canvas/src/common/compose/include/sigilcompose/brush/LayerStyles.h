@@ -28,9 +28,9 @@
 
 #include <include/core/SkCanvas.h>
 #include <sigilcompose/brush/Decorations.h>  // PathFormat keylines in the presets
-#include <sigilcompose/core/Material.h>
 #include <sigilmaterial/kit/LayerStyles.h>
 #include <sigilmaterial/skia/Color.h>
+#include <sigilmaterial/skia/Paint.h>
 
 #include <array>
 
@@ -112,7 +112,7 @@ struct BevelEmboss {
  *  Use `decorations::wash` for either — it declares its animation and
  *  resolves against the real context. */
 struct Overlay {
-  Material material;
+  material::skia::Paint material;
   SkBlendMode blend = SkBlendMode::kSrcOver;
   float opacity = 1.0f;
 
@@ -124,9 +124,9 @@ struct Overlay {
 inline Overlay colorOverlay(SkColor4f color,
                             SkBlendMode blend = SkBlendMode::kSrcOver,
                             float opacity = 1.0f) {
-  return Overlay{Material::solid(color), blend, opacity};
+  return Overlay{material::skia::Paint::solid(color), blend, opacity};
 }
-inline Overlay gradientOverlay(Material gradient,
+inline Overlay gradientOverlay(material::skia::Paint gradient,
                                SkBlendMode blend = SkBlendMode::kSrcOver,
                                float opacity = 1.0f) {
   return Overlay{std::move(gradient), blend, opacity};
@@ -264,10 +264,10 @@ LayerStyle y2kChrome(ChromeOptions opts = {});
  *  the size —
  *  `text(u8"CHROME", display).textFill(styles::sunsetChromeText())`.
  *  The kit's stops as a linear gradient. */
-Material sunsetChromeText();
+material::skia::Paint sunsetChromeText();
 
 /** The silver-chrome ramp in unit space, for textFill(). */
-Material silverChromeText();
+material::skia::Paint silverChromeText();
 
 // ---------------------------------------------------------------------------
 // Gloss contour — the satin band that follows the shape

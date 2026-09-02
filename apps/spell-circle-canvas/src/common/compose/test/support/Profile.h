@@ -5,7 +5,7 @@
 // panel those are usually pointed at is stroked, so it lives with the brush
 // support (BrushTestSupport.h).
 
-#include <sigilcompose/core/Material.h>
+#include <sigilmaterial/skia/Paint.h>
 
 #include <vector>
 

@@ -201,7 +201,7 @@ const SkPath& Composer::Impl::resolveOutline(Instance& inst,
 std::optional<sigil::weave::PaintStyle> Composer::Impl::metricTextStyle(
     Instance& inst, const PaintContext& paintCtx) {
   const ElementNode& node = *inst.desc;
-  const Material* metricMat = metricFillOf(node);
+  const material::skia::Paint* metricMat = metricFillOf(node);
   const bool stroked = node.textData && node.textData->hasTextStroke;
   if (!metricMat && !stroked) return std::nullopt;
   if (!inst.paragraph.has_value()) return std::nullopt;
@@ -252,8 +252,8 @@ std::optional<sigil::weave::PaintStyle> Composer::Impl::metricTextStyle(
   PaintContext metricCtx = paintCtx;
   metricCtx.size = {1.0f, 1.0f};
   const Fill f = (metricMat->isAnimated() || metricMat->geometryDependent())
-                     ? metricMat->resolve(metricCtx)
-                     : metricMat->toFill();
+                     ? resolveFill(*metricMat, metricCtx)
+                     : toFill(*metricMat);
   if (f.kind == Fill::Kind::Shader && f.shaderValue && !inst.columns.empty()) {
     // A VERTICAL passage has no cap band to hang the ramp on: a column's
     // glyphs centre across its axis rather than standing on a baseline. The
@@ -471,8 +471,8 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
     }
     if (!inst.glyphOutline.isEmpty()) decorationBase = &inst.glyphOutline;
   } else if (node.boundary == Boundary::Coverage && emitMarks) {
-    const SkPath& traced = coverageOutline(
-        inst, {bounds.width(), bounds.height()}, contentScale);
+    const SkPath& traced =
+        coverageOutline(inst, {bounds.width(), bounds.height()}, contentScale);
     if (!traced.isEmpty()) decorationBase = &traced;
   }
   SkPath marksPath = !marksShow ? *decorationBase
@@ -781,9 +781,9 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
     // wrappers above are recomputed rather than skipped — they are cheap,
     // they must stay balanced against their restores below, and the
     // foregrounds still trace the outline.)
-  } else if (const Material* live = liveMaterialOf(node)) {
+  } else if (const material::skia::Paint* live = liveMaterialOf(node)) {
     resolvedFill = inst.hasPendingLiveFill ? inst.pendingLiveFill
-                                           : live->resolve(paintCtx);
+                                           : resolveFill(*live, paintCtx);
   } else if (node.paint.fill) {
     Fill fill;
     if (const choreograph::Output<Fill>* binding = node.paint.fill->binding())
@@ -1181,7 +1181,7 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
                        nullptr,
                        curToRoot,  // so the memo digest sees this move
                        rootLayoutSize};
-    inst.pendingLiveFill = liveMaterialOf(node)->resolve(probe);
+    inst.pendingLiveFill = resolveFill(*liveMaterialOf(node), probe);
     inst.hasPendingLiveFill = true;
     liveStable = (inst.picture || inst.textureImage) && !inst.paintDirty &&
                  inst.pendingLiveFill.shaderValue == inst.bakedLiveShader;

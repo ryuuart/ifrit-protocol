@@ -988,7 +988,7 @@ TextEffect mix(std::vector<TextEffect> effects) {
       reach, displaces);
 }
 
-TextEffect pass(Material material) {
+TextEffect pass(material::skia::Paint material) {
   return TextEffect::pass(std::move(material));
 }
 

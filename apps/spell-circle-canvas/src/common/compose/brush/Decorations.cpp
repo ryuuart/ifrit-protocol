@@ -25,7 +25,7 @@ void PathFormat::paint(SkCanvas& canvas, const PaintContext& ctx) const {
   p.setStrokeCap(cap);
   p.setStrokeJoin(join);
   const Fill stroke =
-      strokeMaterial ? strokeMaterial->resolve(ctx) : strokeFill;
+      strokeMaterial ? resolveFill(*strokeMaterial, ctx) : strokeFill;
   if (stroke.kind == Fill::Kind::Color)
     p.setColor4f(stroke.colorValue, nullptr);
   else if (stroke.kind == Fill::Kind::Shader)
@@ -145,7 +145,7 @@ void ContourWalk::paint(SkCanvas& canvas, const PaintContext& ctx) const {
 void Wash::paint(SkCanvas& canvas, const PaintContext& ctx) const {
   const float a = amount < 0.0f ? 0.0f : (amount > 1.0f ? 1.0f : amount);
   if (a <= 0.0f) return;
-  const Fill fill = material.resolve(ctx);
+  const Fill fill = resolveFill(material, ctx);
   SkPaint p;
   p.setAntiAlias(true);
   p.setBlendMode(blend);

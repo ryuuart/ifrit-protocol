@@ -551,7 +551,7 @@ TEST(ComposeTextFx, TextFillAndTextStrokeTravelWithAMovingGlyph) {
   const auto tree = [](bool moving) {
     Element t = text(u8"II", whiteStyle(48))
                     .key("k")
-                    .textFill(Material::solid({0, 1, 0, 1}));
+                    .textFill(material::skia::Paint::solid({0, 1, 0, 1}));
     if (moving)
       t.fx({.effect = fx::effect("still", [](const GlyphInfo&, float,
                                              sigil::core::noise::Mix64Stream&) {
@@ -1040,9 +1040,9 @@ TEST(ComposeTextFx, EveryEffectAnswersWhetherItMovesItsGlyphs) {
       sigil::material::Recipe::of<NoParams>("test.identity-pass")
           .body(sigil::material::Target::SkSL,
                 "half4 main(float2 xy) { return uContent.eval(xy); }"));
-  EXPECT_FALSE(
-      fx::pass(Material::recipe(sigil::material::Material(identityPass)))
-          .displaces());
+  EXPECT_FALSE(fx::pass(material::skia::Paint::recipe(
+                            sigil::material::Material(identityPass)))
+                   .displaces());
 
   // THE OPAQUE DOOR assumes motion, and takes the author's word otherwise.
   const GlyphModFn still = [](const GlyphInfo&, float,

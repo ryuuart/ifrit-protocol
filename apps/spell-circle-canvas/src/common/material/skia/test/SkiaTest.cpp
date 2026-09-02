@@ -14,10 +14,13 @@
 #include <include/core/SkSurface.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilmaterial/skia/Color.h>
+#include <sigilmaterial/skia/Paint.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
 
 #include <cstring>
 #include <memory>
+#include <utility>
+#include <vector>
 
 using namespace sigil::material;
 
@@ -137,4 +140,132 @@ TEST(SkiaColor, APaletteConvertsInOrder) {
   ASSERT_EQ(out.size(), 2u);
   EXPECT_EQ(out[0], (Color{1, 0, 0, 1}));
   EXPECT_EQ(out[1], (Color{0, 1, 0, 1}));
+}
+
+// ---------------------------------------------------------------------------
+// The paint value: the three volatility tiers, the prune signature, and
+// what a frame changes.
+
+namespace {
+
+sk_sp<SkRuntimeEffect> effectFor(const char* src) {
+  auto [effect, error] = SkRuntimeEffect::MakeForShader(SkString(src));
+  return effect;
+}
+
+/** A constants-only effect: nothing about it changes between draws. */
+sk_sp<SkRuntimeEffect> constantEffect() {
+  static sk_sp<SkRuntimeEffect> fx = effectFor(
+      "uniform float uK;\n"
+      "half4 main(float2 p) { return half4(half(uK), 0, 0, 1); }");
+  return fx;
+}
+
+/** One that reads the clock, which is the LIVE declaration. */
+sk_sp<SkRuntimeEffect> timeEffect() {
+  static sk_sp<SkRuntimeEffect> fx = effectFor(
+      "uniform float uTime;\n"
+      "half4 main(float2 p) { return half4(half(uTime), 0, 0, 1); }");
+  return fx;
+}
+
+/** One that reads the box, which is the GEOMETRY declaration. */
+sk_sp<SkRuntimeEffect> resolutionEffect() {
+  static sk_sp<SkRuntimeEffect> fx = effectFor(
+      "uniform float2 uResolution;\n"
+      "half4 main(float2 p) { return half4(half(p.x / uResolution.x), 0, 0, "
+      "1); }");
+  return fx;
+}
+
+}  // namespace
+
+TEST(SkiaPaint, TheThreeTiersAreDeclaredByWhatTheEffectReads) {
+  const skia::Paint flat = skia::Paint::solid({1, 0, 0, 1});
+  EXPECT_FALSE(flat.isAnimated());
+  EXPECT_FALSE(flat.geometryDependent());
+  EXPECT_TRUE(flat.isSolid());
+
+  skia::Paint constants = skia::Paint::sksl(constantEffect(), {{"uK", 1.0f}});
+  EXPECT_FALSE(constants.isAnimated());
+  EXPECT_FALSE(constants.geometryDependent());
+  // A constants-only sksl paint has resolved already, so it answers a
+  // shader with no frame at all.
+  EXPECT_NE(constants.staticShader(), nullptr);
+
+  EXPECT_TRUE(skia::Paint::sksl(timeEffect()).isAnimated());
+  const skia::Paint sized = skia::Paint::sksl(resolutionEffect());
+  EXPECT_FALSE(sized.isAnimated());
+  EXPECT_TRUE(sized.geometryDependent());
+  // Geometry-dependent means the frame decides: the box-less snapshot is
+  // not what a consumer paints with, and the framed answer is a different
+  // shader.
+  EXPECT_NE(sized.shaderFor(skia::PaintFrame{.size = {100, 40}}),
+            sized.staticShader());
+}
+
+TEST(SkiaPaint, ChildAndBlendInheritTheirLayersTier) {
+  skia::Paint parent = skia::Paint::sksl(
+      effectFor("uniform shader uSrc;\n"
+                "half4 main(float2 p) { return uSrc.eval(p); }"));
+  EXPECT_FALSE(parent.isAnimated());
+  parent.child("uSrc", skia::Paint::sksl(timeEffect()));
+  EXPECT_TRUE(parent.isAnimated());
+
+  const skia::Paint stack = skia::Paint::blend(
+      {{skia::Paint::solid({0, 0, 0, 1}), SkBlendMode::kSrc},
+       {skia::Paint::sksl(resolutionEffect()), SkBlendMode::kPlus}});
+  EXPECT_FALSE(stack.isAnimated());
+  EXPECT_TRUE(stack.geometryDependent());
+}
+
+TEST(SkiaPaint, EqualityIsTheRecipeSoARebuiltPaintPrunes) {
+  const std::vector<skia::Stop> stops{{0, {1, 0, 0, 1}}, {1, {0, 0, 1, 1}}};
+  EXPECT_TRUE(skia::Paint::solid({1, 0, 0, 1}) ==
+              skia::Paint::solid({1, 0, 0, 1}));
+  EXPECT_FALSE(skia::Paint::solid({1, 0, 0, 1}) ==
+               skia::Paint::solid({1, 0, 0.5f, 1}));
+  // Two separately built gradients over the same recipe are equal even
+  // though each minted its own SkShader — that is what lets a node prune
+  // across describes.
+  EXPECT_TRUE(skia::Paint::linear({0, 0}, {10, 0}, stops) ==
+              skia::Paint::linear({0, 0}, {10, 0}, stops));
+  EXPECT_FALSE(skia::Paint::linear({0, 0}, {10, 0}, stops) ==
+               skia::Paint::linear({0, 0}, {20, 0}, stops));
+  // The empty paint is reflexive; a holder that compared unequal to itself
+  // would patch forever.
+  EXPECT_TRUE(skia::Paint() == skia::Paint{});
+  EXPECT_FALSE(skia::Paint{} == skia::Paint::solid({0, 0, 0, 0}));
+  // A child is part of the signature: two paints with different second
+  // sources must never prune onto each other.
+  skia::Paint a = skia::Paint::sksl(
+      effectFor("uniform shader uSrc;\n"
+                "half4 main(float2 p) { return uSrc.eval(p); }"));
+  skia::Paint b = a;
+  a.child("uSrc", skia::Paint::solid({1, 0, 0, 1}));
+  b.child("uSrc", skia::Paint::solid({0, 1, 0, 1}));
+  EXPECT_FALSE(a == b);
+}
+
+TEST(SkiaPaint, AWorldSpacePaintDegradesToBoxLocalWithoutAMatrix) {
+  skia::Paint anchored = skia::Paint::sksl(resolutionEffect());
+  anchored.worldSpace();
+  // The reader is the CONST overload; on a mutable value the same
+  // spelling is the setter.
+  EXPECT_TRUE(std::as_const(anchored).worldSpace());
+  EXPECT_TRUE(anchored.usesWorldSpace());
+  // An identity toRoot is the honest answer outside a composite: the
+  // paint resolves, and it resolves box-locally.
+  EXPECT_NE(anchored.shaderFor(skia::PaintFrame{.size = {64, 64}}), nullptr);
+  // The flag is part of the recipe, so it cannot prune onto the unflagged
+  // paint it was copied from.
+  EXPECT_FALSE(anchored == skia::Paint::sksl(resolutionEffect()));
+}
+
+TEST(SkiaPaint, CopyOnWriteKeepsAMutationOffTheValueItWasCopiedFrom) {
+  skia::Paint base = skia::Paint::sksl(constantEffect(), {{"uK", 1.0f}});
+  skia::Paint copy = base;
+  copy.uniform("uK", 0.25f);
+  EXPECT_FALSE(base == copy);
+  EXPECT_TRUE(base == skia::Paint::sksl(constantEffect(), {{"uK", 1.0f}}));
 }
