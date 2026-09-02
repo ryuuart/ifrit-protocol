@@ -72,6 +72,7 @@
 #include "sigilweave/decoration/Decoration.h"
 #include "sigilweave/fonts/FontContext.h"
 #include "sigilweave/fonts/Shaper.h"
+#include "sigilweave/layout/Beside.h"
 #include "sigilweave/layout/Flow.h"
 #include "sigilweave/layout/ParagraphLayout.h"
 #include "sigilweave/paint/Paint.h"

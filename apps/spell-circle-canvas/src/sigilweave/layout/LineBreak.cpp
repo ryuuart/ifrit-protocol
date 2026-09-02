@@ -158,7 +158,7 @@ sk_sp<SkTextBlob> buildFittedBlob(const ShapedWord& shapedWord,
 void emitSegment(ParagraphLayout& result, const FlatInterval& flatInterval,
                  const WordSegment& segment, uint32_t wordIndex,
                  float penOffset, const ParagraphLayoutOptions& options,
-                 const LineFit& fit = {}) {
+                 const LineFit& fit = {}, float baselineShift = 0) {
   const ShapedWord& shapedWord = *segment.shaped;
   if (shapedWord.glyphs.empty()) return;
   PositionedRun run;
@@ -182,7 +182,11 @@ void emitSegment(ParagraphLayout& result, const FlatInterval& flatInterval,
     // of those would be two placements arguing over one run.
     run.blob = fit.plain() ? wordBlob(shapedWord)
                            : buildFittedBlob(shapedWord, fit);
-    run.origin = flatInterval.interval.origin + SkVector{penOffset, 0};
+    // A BASELINE SHIFT lifts the span off its line's baseline and changes
+    // nothing else: the advances are the face's own, so the pen is where
+    // it was and the shaped run is the shared one.
+    run.origin =
+        flatInterval.interval.origin + SkVector{penOffset, -baselineShift};
   } else if (verticalColumn && segment.form == SegmentForm::kUpright) {
     // Vertical-shaped word: positions already stack down the column.
     run.blob = wordBlob(shapedWord);
@@ -629,10 +633,16 @@ void placeWords(FontContext& fontContext, const Paragraph& paragraph,
     const uint32_t wordIndex = visualWordOrder[visualIndex];
     const Word& word = words[wordIndex];
     float wordAdvance = word.width;
+    const auto shiftOf = [&](const WordSegment& segment) {
+      return segment.styleIndex < paragraph.spans().size()
+                 ? paragraph.spans()[segment.styleIndex].style.paint.baselineShift
+                 : 0.0f;
+    };
     if (fit.plain()) {
       for (const WordSegment& segment : word.segments())
         emitSegment(result, flatInterval, segment, wordIndex,
-                    penPosition + segment.advanceOffset, options);
+                    penPosition + segment.advanceOffset, options, {},
+                    shiftOf(segment));
     } else {
       // Under a fit the segments' own offsets no longer hold: each one is
       // as wide as the fit makes it, so the word's pen is walked here and
@@ -640,7 +650,7 @@ void placeWords(FontContext& fontContext, const Paragraph& paragraph,
       float local = 0;
       for (const WordSegment& segment : word.segments()) {
         emitSegment(result, flatInterval, segment, wordIndex,
-                    penPosition + local, options, fit);
+                    penPosition + local, options, fit, shiftOf(segment));
         local += fit.advanceOf(*segment.shaped);
       }
       if (!word.segments().empty()) wordAdvance = local;
@@ -957,9 +967,13 @@ std::vector<detail::Block> resolveBlocks(
         options.reserved.before + style.reserved.before;
     const float reservedAfter = options.reserved.after + style.reserved.after;
     block.pitch = pitch + reservedBefore + reservedAfter;
+    // WHERE THE LEADING GOES. All of it above the line is the setting
+    // convention; half above and half below is the web's, and a passage
+    // that must sit optically centred in its own band wants that one.
+    const float opened = pitch - faceHeight;
     block.ascent = (style.leading.kind == Leading::Kind::kFace
                         ? faceAscent
-                        : faceAscent + (pitch - faceHeight)) +
+                        : faceAscent + opened * (style.halfLeading ? 0.5f : 1.0f)) +
                    reservedBefore;
     block.gridStep = gridStep;
     block.lead = blockIndex == 0

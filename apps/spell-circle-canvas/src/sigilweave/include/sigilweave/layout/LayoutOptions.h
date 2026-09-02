@@ -391,7 +391,11 @@ struct KeepOptions {
  * One rule, no exceptions to hold in the head.
  */
 struct ParagraphStyle {
-  Leading leading;        ///< the block's pitch
+  Leading leading;  ///< the block's pitch
+  /// Where the room a leading opened goes: all of it ABOVE the line (the
+  /// setting convention, and the default), or half above and half below,
+  /// which sits the type optically centred in its own band.
+  bool halfLeading = false;
   float spaceBefore = 0;  ///< px of air before the block
   float spaceAfter = 0;   ///< px of air after it
   /// Added to whatever the whole layout reserved (see ReservedBand).

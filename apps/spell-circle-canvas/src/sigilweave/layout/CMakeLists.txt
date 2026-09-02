@@ -4,11 +4,13 @@
 # metrics derived from the placed runs. SigilGeometryPath is public — a
 # contour interval carries a geometry::path::Contour.
 add_library(SigilWeaveLayout STATIC
+  Beside.cpp
   Flow.cpp
   LineBreak.cpp
   KnuthPlass.cpp
   LayoutMetrics.cpp
   ParagraphLayoutInternal.h
+  ${SIGIL_WEAVE_INCLUDE_DIR}/sigilweave/layout/Beside.h
   ${SIGIL_WEAVE_INCLUDE_DIR}/sigilweave/layout/Flow.h
   ${SIGIL_WEAVE_INCLUDE_DIR}/sigilweave/layout/LayoutOptions.h
   ${SIGIL_WEAVE_INCLUDE_DIR}/sigilweave/layout/PositionedRun.h

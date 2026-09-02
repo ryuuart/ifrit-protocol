@@ -360,6 +360,9 @@ struct Composer::Impl {
   /** Walks every frame chain in order, handing each frame the cursor the
    *  one before it left. True when a cursor moved. */
   bool resolveThreads();
+  /** Sorts the derive lists into the order their declared reads imply —
+   *  stable, so a list whose members read none of each other is untouched. */
+  void orderDerivedByReads();
   void deriveRoute(detail::Instance& inst);
 
   // ---- the node's paint transform, resolved once (Bounds.cpp) ----

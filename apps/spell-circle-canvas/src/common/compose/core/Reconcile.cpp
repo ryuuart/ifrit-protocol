@@ -24,6 +24,8 @@
  * Memoization is the tool for those.
  */
 
+#include <sigilcore/reconcile/Reads.h>
+
 #include <algorithm>
 #include <cstring>
 #include <span>
@@ -988,6 +990,67 @@ void Composer::Impl::rebuildKeyIndex() {
     });
   hasDerived = !routedInstances.empty() || !flowInstances.empty() ||
                !threadedInstances.empty();
+  orderDerivedByReads();
+}
+
+/** THE ORDER THE DECLARED READS IMPLY.
+ *
+ *  A derived node is one whose answer is a function of another node's
+ *  finished answer, and tree order is only the right order to resolve them
+ *  in while none of them reads another. One that does — a rail anchored on
+ *  a connector's own box, a frame threaded from a frame written later — is
+ *  a pass behind for as long as the order is the order it was written in.
+ *
+ *  So each list declares what it reads and `core::orderByReads` says which
+ *  order to walk it in. It is STABLE: a list whose members read none of
+ *  each other comes back exactly as it went in, which is every list on
+ *  nearly every tree, so adopting it moved nothing. */
+void Composer::Impl::orderDerivedByReads() {
+  const auto reorder = [](std::vector<Instance*>& list) {
+    if (list.size() < 2) return;
+    std::vector<std::string> keys;
+    std::vector<std::vector<sigil::core::Read>> reads;
+    keys.reserve(list.size());
+    reads.reserve(list.size());
+    for (const Instance* inst : list) {
+      keys.push_back(inst->desc ? inst->desc->key : std::string());
+      std::vector<sigil::core::Read> declared;
+      if (inst->desc && inst->desc->deriveData) {
+        const DeriveData& derive = *inst->desc->deriveData;
+        // A flow reads a silhouette or a box; a band, a fit and a strand
+        // read an outline; a connector and a rail read two boxes.
+        for (const std::string& key : derive.flowAroundKeys)
+          declared.push_back({key, sigil::core::Facet::Outline});
+        if (!derive.bandAround.empty())
+          declared.push_back({derive.bandAround, sigil::core::Facet::Outline});
+        for (const std::string& key : derive.spanFitKeys)
+          declared.push_back({key, sigil::core::Facet::Bounds});
+        for (const std::string& key : derive.borrowedPathKeys)
+          declared.push_back({key, sigil::core::Facet::Outline});
+        if (!derive.connectFrom.empty())
+          declared.push_back({derive.connectFrom, sigil::core::Facet::Bounds});
+        if (!derive.connectTo.empty())
+          declared.push_back({derive.connectTo, sigil::core::Facet::Bounds});
+        for (const Anchor& anchor : derive.railAnchors)
+          declared.push_back({anchor.nodeKey, sigil::core::Facet::Bounds});
+      }
+      // A frame reads the UNITS of the frame it threads into — the finest
+      // answer a text produces, and the one a chain is cut by.
+      if (inst->desc && inst->desc->textData &&
+          !inst->desc->textData->threadTo.empty())
+        declared.push_back(
+            {inst->desc->textData->threadTo, sigil::core::Facet::Units});
+      reads.push_back(std::move(declared));
+    }
+    const std::vector<uint32_t> order = sigil::core::orderByReads(keys, reads);
+    std::vector<Instance*> sorted;
+    sorted.reserve(list.size());
+    for (const uint32_t index : order) sorted.push_back(list[index]);
+    list.swap(sorted);
+  };
+  reorder(flowInstances);
+  reorder(routedInstances);
+  reorder(threadedInstances);
 }
 
 }  // namespace sigil::compose

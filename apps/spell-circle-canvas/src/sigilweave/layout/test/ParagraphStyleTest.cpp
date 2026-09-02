@@ -9,6 +9,7 @@
 #include <gtest/gtest.h>
 #include <sigilweave/kit/Hyphenation.h>
 #include <sigilweave/kit/LineTables.h>
+#include <sigilweave/layout/Beside.h>
 
 #include <algorithm>
 #include <cmath>
@@ -484,4 +485,104 @@ TEST(LineEdges, KinsokuDropsTheBoundaryBeforeAProhibitedCharacter) {
   for (const Word& word : ruled.words())
     if (word.textBegin > 0)
       EXPECT_NE(ruled.text()[word.textBegin], u'\u6587');
+}
+
+TEST(ParagraphStyle, HalfLeadingPutsHalfTheOpenedRoomUnderTheLine) {
+  FontContext& fonts = sharedContext();
+  Paragraph above = makeParagraph(u8"one two three four five six seven");
+  Paragraph split = makeParagraph(u8"one two three four five six seven");
+  BlockFlow flowA(SkRect::MakeWH(120, 900));
+  BlockFlow flowB(SkRect::MakeWH(120, 900));
+  ParagraphStyle style;
+  style.leading = Leading::multiple(2.0f);
+  ParagraphLayoutOptions allAbove;
+  allAbove.blocks = {style};
+  ParagraphStyle halved = style;
+  halved.halfLeading = true;
+  ParagraphLayoutOptions halfOptions;
+  halfOptions.blocks = {halved};
+  const std::vector<float> high =
+      baselines(layoutParagraph(fonts, above, flowA, allAbove));
+  const std::vector<float> centred =
+      baselines(layoutParagraph(fonts, split, flowB, halfOptions));
+  ASSERT_GE(high.size(), 2u);
+  ASSERT_EQ(high.size(), centred.size());
+  const Paragraph::Strut strut = above.strutAt(fonts, 0);
+  // The pitch is the same; only where the type sits inside it moves, by
+  // exactly half the room the leading opened.
+  EXPECT_NEAR(high[1] - high[0], centred[1] - centred[0], 0.01f);
+  EXPECT_NEAR(high[0] - centred[0], strut.height * 0.5f, 0.01f);
+}
+
+TEST(ParagraphStyle, ABaselineShiftLiftsASpanAndCostsNoReshape) {
+  FontContext& fonts = sharedContext();
+  TextStyle base = basicStyle(16.0f);
+  TextStyle lifted = base;
+  lifted.paint.baselineShift = 6.0f;
+  Paragraph paragraph;
+  paragraph.appendText(u8"level ", base);
+  paragraph.appendText(u8"lifted", lifted);
+  BlockFlow flow(SkRect::MakeWH(400, 200));
+  const ParagraphLayout layout = layoutParagraph(fonts, paragraph, flow);
+  ASSERT_GE(layout.runs.size(), 2u);
+  float levelBaseline = 0;
+  float liftedBaseline = 0;
+  for (const PositionedRun& run : layout.runs) {
+    const uint32_t begin = paragraph.words()[run.wordIndex].textBegin;
+    if (begin == 0) levelBaseline = run.origin.y();
+    if (begin >= 6) liftedBaseline = run.origin.y();
+  }
+  EXPECT_NEAR(levelBaseline - liftedBaseline, 6.0f, 0.01f);
+  // The advances are the face's own either way, so the two spans share
+  // every shaped entry a shift-free text would have produced.
+  EXPECT_TRUE(allGlyphsResolved(paragraph));
+}
+
+// ── A reading set beside a base ───────────────────────────────────────────
+
+TEST(Beside, TheBandAReadingNeedsIsItsOwnStrutPlusTheGap) {
+  FontContext& fonts = sharedContext();
+  const float small = bandBeside(fonts, basicStyle(8.0f), 0.0f);
+  const float large = bandBeside(fonts, basicStyle(24.0f), 0.0f);
+  EXPECT_GT(large, small * 2.0f);
+  EXPECT_NEAR(bandBeside(fonts, basicStyle(8.0f), 5.0f), small + 5.0f, 0.01f);
+}
+
+TEST(Beside, AReadingStandsCentredOnItsBaseAndClearOfIt) {
+  FontContext& fonts = sharedContext();
+  Paragraph reading = makeParagraph(u8"note", 9.0f);
+  const SkRect base = SkRect::MakeXYWH(100, 200, 60, 20);
+  const ParagraphLayout above =
+      layoutBeside(fonts, reading, {.base = base,
+                                    .writingMode = WritingMode::kHorizontal,
+                                    .side = Beside::Side::Before,
+                                    .gap = 3.0f});
+  ASSERT_FALSE(above.runs.empty());
+  const float width = reading.naturalWidth(fonts);
+  EXPECT_NEAR(above.runs.front().origin.x(), base.centerX() - width * 0.5f,
+              0.5f);
+  EXPECT_NEAR(above.runs.front().origin.y(), base.top() - 3.0f, 0.5f);
+}
+
+TEST(Beside, AColumnReadsItsFurnitureOnTheRight) {
+  FontContext& fonts = sharedContext();
+  Paragraph reading = makeParagraph(u8"\xe3\x81\xbb", 9.0f);
+  const SkRect base = SkRect::MakeXYWH(100, 200, 24, 60);
+  const ParagraphLayout beside =
+      layoutBeside(fonts, reading, {.base = base,
+                                    .writingMode = WritingMode::kVerticalRL,
+                                    .side = Beside::Side::Before,
+                                    .gap = 2.0f});
+  ASSERT_FALSE(beside.runs.empty());
+  EXPECT_GT(beside.runs.front().origin.x(), base.right());
+}
+
+TEST(Beside, ABrokenBaseSharesItsReadingByAdvance) {
+  // Half the advance either side takes half the reading; all of it on one
+  // side takes all of it; and no advance at all leaves the reading whole
+  // rather than empty.
+  EXPECT_EQ(shareOfReading(u"abcd", 1.0f, 1.0f), u"ab");
+  EXPECT_EQ(shareOfReading(u"abcd", 3.0f, 1.0f), u"abc");
+  EXPECT_EQ(shareOfReading(u"abcd", 1.0f, 0.0f), u"abcd");
+  EXPECT_EQ(shareOfReading(u"abcd", 0.0f, 0.0f), u"abcd");
 }

@@ -10,6 +10,7 @@
 add_library(SigilCoreReconcile STATIC
   Compare.cpp
   Env.cpp
+  Reads.cpp
   ${SIGIL_CORE_INCLUDE_DIR}/sigilcore/reconcile/Compare.h
   ${SIGIL_CORE_INCLUDE_DIR}/sigilcore/reconcile/Env.h
   ${SIGIL_CORE_INCLUDE_DIR}/sigilcore/reconcile/Erased.h
@@ -18,6 +19,7 @@ add_library(SigilCoreReconcile STATIC
   ${SIGIL_CORE_INCLUDE_DIR}/sigilcore/reconcile/Memo.h
   ${SIGIL_CORE_INCLUDE_DIR}/sigilcore/reconcile/Node.h
   ${SIGIL_CORE_INCLUDE_DIR}/sigilcore/reconcile/Phases.h
+  ${SIGIL_CORE_INCLUDE_DIR}/sigilcore/reconcile/Reads.h
   ${SIGIL_CORE_INCLUDE_DIR}/sigilcore/reconcile/Reconcile.h
   ${SIGIL_CORE_INCLUDE_DIR}/sigilcore/reconcile/Reconciler.h
   ${SIGIL_CORE_INCLUDE_DIR}/sigilcore/reconcile/Stats.h
@@ -36,6 +38,7 @@ add_executable(sigilcore_reconcile_test
   test/EnvTest.cpp
   test/LanesTest.cpp
   test/PhasesTest.cpp
+  test/ReadsTest.cpp
 )
 target_link_libraries(sigilcore_reconcile_test PRIVATE
   SigilCoreReconcile GTest::gtest_main)

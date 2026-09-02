@@ -38,6 +38,17 @@ struct PaintStyle {
   /// vs per-word spanning, and the straight-horizontal-runs-only scope.
   std::vector<Decoration> decorations;
 
+  /// How far this span's glyphs sit ABOVE their line's baseline, px —
+  /// negative sinks them below it. Superscripts, subscripts, an inline
+  /// symbol lifted onto the x-height.
+  ///
+  /// It is placement rather than shaping: the advances are the face's own
+  /// either way, so a shifted span costs no re-shape and shares every
+  /// cache entry with an unshifted one. Straight horizontal runs only —
+  /// down a column the same idea is a step ACROSS the axis, which is what
+  /// `Decoration::offset` already means there.
+  float baselineShift = 0;
+
   /** Constructs a single anti-aliased black foreground. */
   PaintStyle() { foreground.setAntiAlias(true); }
 
@@ -68,7 +79,8 @@ struct PaintStyle {
   /** Compares complete paints, layer order, offsets, and decorations. */
   bool operator==(const PaintStyle& other) const {
     return foreground == other.foreground && underlays == other.underlays &&
-           overlays == other.overlays && decorations == other.decorations;
+           overlays == other.overlays && decorations == other.decorations &&
+           baselineShift == other.baselineShift;
   }
 };
 

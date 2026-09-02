@@ -463,6 +463,18 @@ and the layout does not; 0 leaves both alone. Neither applies to a flow
 whose intervals ride a contour, nor to runs whose glyphs are baked per
 glyph.
 
+**A reading beside the type is the engine's placement.** `layout/Beside.h`
+answers the three questions setting one is made of: `bandBeside` is the
+room a reading of a given type needs beside a line, which is what a block
+reserves BEFORE anything is broken; `layoutBeside` sets the reading on one
+line — or one column — centred on the extent its base occupied and clear
+of its band, on the side that writing mode reads its furniture on; and
+`shareOfReading` cuts a reading in the proportion a broken base's pieces
+carry. None of them knows what a ruby IS, or which unit somebody
+annotated, or how big a reading should be beside its base: a reading's
+size is its own style's, and there is no fraction of anything in that
+header.
+
 **A line's two edges are tables.** `ParagraphLayoutOptions::kinsoku` says
 which characters may not open or close a line, and the prohibition is
 settled during SEGMENTATION — the boundary is simply never opened — so
@@ -586,6 +598,7 @@ typesetter reaches for, not what a file format carries.
 | Left / right / first-line / last-line indent | done | `IndentOptions` |
 | Space before / after | done, larger-of | `ParagraphStyle::spaceBefore`, `spaceAfter` |
 | Leading: auto, multiple, absolute, baseline grid | done | `Leading` |
+| Leading: all above the line, or half above and half below | done | `ParagraphStyle::halfLeading` |
 | Keep: widows, orphans, with next, all lines together, start in next frame | **partial** — the value is stated and carried; the frame fill does not enforce it yet, and the greedy breaker says once that it ignores it | `KeepOptions` |
 | Hyphenation: pattern dictionary | done | `HyphenationOptions::patterns`, `kit::PatternHyphenator` |
 | Hyphenation: minimum word, letters before / after, capitalised words | done | `HyphenationLimits` |
@@ -604,7 +617,8 @@ typesetter reaches for, not what a file format carries.
 | Character: size, tracking, horizontal scale | exists | `ShapingStyle` |
 | Character: metric kerning | exists (HarfBuzz) | shaping |
 | Character: optical kerning | **not started**. When it lands it will be an APPROXIMATION: optical kerning is a judgement about glyph shapes, and a pair table derived from outlines is a different answer from a designer's | — |
-| Character: baseline shift, skew | **not started** | — |
+| Character: baseline shift | done | `PaintStyle::baselineShift` |
+| Character: skew | **not started** | — |
 | OpenType features, small caps, figures, sets | exists | `style/Features.h` |
 | Underline / strikethrough / overline / highlight options | exists | `Decoration` |
 | Frame: columns, gutter | done as compose kit — a Western column is a FRAME | `kit::columns` |
@@ -622,7 +636,7 @@ typesetter reaches for, not what a file format carries.
 | Type on a path: orient, flip, start / end, align | exists | `PathFlow`, compose `onPath` |
 | Type on a path: effects (skew, stair, gravity) | **not started** | — |
 | CJK: tate-chu-yoko | exists | `VerticalForm::kTateChuYoko` |
-| CJK: ruby — mono, group, jukugo | done | compose `Annotation`, `kit::ruby` |
+| CJK: ruby — mono, group, jukugo | done | `layout/Beside.h`; compose `Annotation`, `kit::ruby` |
 | CJK: kenten | done | `kit::kenten` |
 | CJK: kinsoku | done, as a table over the segmentation | `KinsokuTable`, `kit::kinsoku` |
 | CJK: burasagari | done — the hanging table, along the column | `HangingTable` |

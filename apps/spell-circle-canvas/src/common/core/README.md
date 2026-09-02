@@ -41,7 +41,7 @@ Namespace `sigil::core`. One target per directory:
 |--------|-----------|-------|
 | `SigilCoreComparable` | `comparable/` | comparable type erasure, the field pin |
 | `SigilCoreCompute` | `compute/` | the seeded mixers, the identifying folds |
-| `SigilCoreReconcile` | `reconcile/` | the reconciler, its memo, the inherited-value channel, the animation lanes, the phase runner |
+| `SigilCoreReconcile` | `reconcile/` | the reconciler, its memo, the inherited-value channel, the animation lanes, the phase runner, the order declared reads imply |
 | `SigilCoreCache` | `cache/` | the cache policy, the settled-subtree proof, the stability release, the bake seam |
 
 The two leaves are header-only, so they are INTERFACE targets and produce
@@ -72,6 +72,7 @@ include their own directory's headers.
 | `reconcile/Compare.h` | `easeEqual`, `transitionEqual`, `boundMapEqual`, `propEqual`, their field pins, and `detail::fields` — the animation values decomposed member by member |
 | `reconcile/Lanes.h` | `LaneSlot<Family>`, `Lane<Family>`, `familyLanes`, `retargetSlots`, `retargetFamily` — the ADDRESSING of a node's animation lanes; the motions they ramp are SigilMotion's `AnimatedFloat` and its operations |
 | `reconcile/Phases.h` | `Phase<Impl>` and `runPhases` — a host's declared pass list with its converging group |
+| `reconcile/Reads.h` | `Facet`, `Read`, `orderByReads` — what one node reads off another, and the order that puts every reader after what it read |
 | `reconcile/Stats.h` | `ReconcileStats` — the pass counts, and `report()` into `sigil::measure::Counters` |
 | `cache/Policy.h` | `Cache` — the three-valued cache policy: `Auto`, `Always`, `Never` |
 | `cache/Volatility.h` | `NodeVolatility`, `SubtreeVerdict`, `ChildVolatility` and `foldSubtree` — the settled-subtree proof |
@@ -168,6 +169,28 @@ rebuilds what the new kind cannot carry over, while the handle and the
 lanes on it survive. The one exception is the host's own: a property
 fixed at mount, which `remountRequired` names, retires the match and
 mounts afresh.
+
+**A reader declares what it reads, and the order follows.** Most of what
+a settling pass does depends on the node it is looking at; some of it
+does not. A label placed at a word, a rule cut to a block, a connector
+between two boxes, a light aimed at a mesh — each is a node whose answer
+is a function of ANOTHER node's finished answer, and until it says which
+node, the only order a host can run them in is the order they were
+written in. A reader written before what it reads is then one pass
+behind, every frame.
+
+A `Read` is that declaration — a key, and which facet of that key's node
+is read (`Bounds`, `Outline`, `Coverage`, `Units`) — and `orderByReads`
+turns a set of them into the order the readers must run in. It knows
+nothing of what a facet MEANS or how a key resolves; both are the host's.
+
+It is STABLE, which is the property that makes adopting it free: readers
+that read none of each other come out exactly as they went in, so a host
+whose readers are independent runs them in the order it always did, and
+only a real edge moves anything. A cycle is broken where it closes — the
+readers caught in one keep their declaration order — so a cyclic
+declaration is a slightly-off pass rather than a hang, which is the same
+bargain the convergence cap makes.
 
 **A memo is a pure function of (props, environment).** A description can
 be a memo shell: props, a comparison over them, and a deferred describe.
