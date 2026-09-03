@@ -42,12 +42,21 @@
 // BUILT FROM (the library, not by hand):
 //   shapes::sector()      all 72 petals — one call each, no path building
 //   patterns::speckle()   the litho stipple, per band, over a colour wash
-//   patterns::grain()     plate tone + the ink-density wander inside a band
-//   Material::blend()     wash + stipple + blot + density, one fill value
+//   field::grain()     plate tone + the ink-density wander inside a band
+//   Paint::blend()     wash + stipple + blot + density, one fill value
 //   fx::typeOn()          the pen writing the title and the legend
 //   spans::upTo / scale / animate  the whole 13.6 s reading order
-//   text() x ~230         the ring labels, ONE ELEMENT PER GLYPH: each
-//                         glyph is placed and rotated on its own bearing
+//   Element::onPath       every label — ONE LEAF EACH, shaped once with
+//                         real kerning and placed by arc length. The months
+//                         ride a clockwise ring beginning at 12 o'clock, so
+//                         a label's bearing over 360 IS the fraction it
+//                         sits at; glyph-up points radially outward and
+//                         autoFlip is off, so the lower half reads upside
+//                         down as it is printed
+//   shapes::ticks         the two campaign annotations' baseline: one tick
+//                         of a one-division ladder IS a straight spoke,
+//                         and a comparable value, so BULGARIA and CRIMEA
+//                         run outward along the radius as they are set
 //
 // Run:
 //   ./build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
@@ -61,19 +70,27 @@
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkFontStyle.h>
 #include <include/core/SkPathBuilder.h>
-#include <include/core/SkTextBlob.h>
 #include <include/core/SkTypeface.h>
 #include <sigilcompose/brush/LayerStyles.h>
-#include <sigilcompose/core/Material.h>
-#include <sigilcompose/core/Patterns.h>
-#include <sigilcompose/kit/Divisions.h>
+#include <sigilcompose/core/Core.h>
+#include <sigilcompose/core/Pattern.h>
 #include <sigilcompose/kit/Frame.h>
+#include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/kit/Legibility.h>
-#include <sigilcompose/kit/Silhouettes.h>
-#include <sigilcompose/typography/TextFx.h>
-#include <sigilcompose/typography/Type.h>
+#include <sigilcompose/typography/Typography.h>
+#include <sigilgeometry/kit/Divisions.h>
+#include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilgeometry/path/Frame.h>
+#include <sigilmaterial/field/Field.h>
+#include <sigilmaterial/pattern/Patterns.h>
+#include <sigilmaterial/skia/Color.h>
+#include <sigilmaterial/skia/Paint.h>
+#include <sigilmotion/Animation.h>
+#include <sigilmotion/schedule/Spread.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/fonts/FontContext.h>
+#include <sigilweave/ports/SystemFontManager.h>
+#include <sigilweave/style/Type.h>
 
 #include <algorithm>
 #include <array>
@@ -82,8 +99,19 @@
 #include <vector>
 
 namespace sketch = sigil::sketch;
+namespace field = sigil::material::field;
+namespace motion = sigil::motion;
+namespace patterns = sigil::material::pattern;
+namespace path = sigil::geometry::path;
+namespace shapes = sigil::geometry::shapes;
+namespace weave = sigil::weave;
+
+namespace skia = sigil::material::skia;
 
 using namespace sigil::compose;
+using namespace sigil::motion;
+using sigil::material::skia::Paint;
+using sigil::weave::ports::pickTypeface;
 using namespace std::chrono_literals;
 namespace ch = choreograph;
 
@@ -209,20 +237,48 @@ constexpr float kDeg = 3.14159265358979f / 180.0f;
 // bearings run clockwise, because the 1858 coxcomb starts its year at the
 // top and reads round to the right. `radius` is 1 so px radii can be passed
 // straight to `px()`; every wheel makes its own frame with `about()`.
-constexpr kit::Frame kPlate{.centre = {0, 0},
+constexpr path::Frame kPlate{.centre = {0, 0},
                             .radius = 1.0f,
-                            .zero = kit::Zero::North,
-                            .sense = kit::Sense::CW};
+                            .zero = path::Zero::North,
+                            .sense = path::Sense::CW};
 
 /** Bearing (deg clockwise from 12 o'clock) + radius -> canvas point. */
 SkPoint polar(SkPoint c, float radius, float bearingDeg) {
   return kPlate.about(c).px(bearingDeg, radius);
 }
 
+/** THE PLATE'S OWN BASELINE: a clockwise ring beginning at 12 o'clock, so
+ *  the arc-length fraction a run is placed at IS its bearing over 360 and
+ *  no conversion stands between the plate's coordinate and the library's.
+ *  Clockwise is what puts glyph-up radially OUTWARD, which is the
+ *  engraver's one convention on this sheet — with `autoFlip` off,
+ *  DECEMBER, JANUARY, FEBRUARY and the left wheel's 1856 come out
+ *  genuinely upside down, as they are printed. */
+inline shapes::Circle rimBaseline() {
+  return shapes::circle(SkPathDirection::kCW, 0);
+}
+
+/** THE SPOKE a campaign annotation is lettered along: one tick of a
+ *  one-division ladder at @p bearing, running from @p inner to @p outer of
+ *  the node's own radius. A straight baseline AND a comparable value, so
+ *  the run prunes.
+ *
+ *  It is not `Orient::Radial`. That turns each glyph off the tangent while
+ *  the run still advances round the arc, which is right for a numeral on a
+ *  dial and wrong for a word: BULGARIA laid out that way spreads its eight
+ *  letters across the top of the wheel. The plate sets both annotations
+ *  ALONG their spoke, so the baseline is the spoke and the orientation is
+ *  the ordinary tangent. */
+inline shapes::TicksShape spokeBaseline(float bearing, float inner,
+                                        float outer) {
+  return shapes::ticks(
+      {.divisions = 1, .from = bearing, .mark = {inner, outer}}, kPlate);
+}
+
 /** A square box of radius @p r centred on @p c, in the parent's space —
  *  the frame every shapes::sector / shapes::arc wedge is inscribed in. */
 Element discBox(SkPoint c, float r) {
-  return box().rect(kit::Frame{.centre = c, .radius = r}.box());
+  return box().rect(path::Frame{.centre = c, .radius = r}.box());
 }
 
 /** A straight spoke from the box centre out to radiusFraction. One tick of
@@ -232,7 +288,7 @@ Element discBox(SkPoint c, float r) {
  *  delay, and a single multi-tick path would own one animation for all
  *  twelve and lose the stagger. */
 std::function<SkPath(SkSize)> spoke(float radiusFraction, float bearing) {
-  return kit::ticks(
+  return shapes::ticks(
       {.divisions = 1, .from = bearing, .mark = {0.0f, radiusFraction}},
       kPlate);
 }
@@ -266,67 +322,58 @@ struct NightingaleCoxcomb : sketch::Sketch {
 
   // held so their identity (and the speckle bake) survives re-describes
   Pattern blueGrain, roseGrain, greyGrain, foxing;
-  Material blueMat, roseMat, greyMat, paperMat;
+  Paint blueMat, roseMat, greyMat, paperMat;
 
   sk_sp<SkTypeface> faceDisplay, faceGrotesque, faceLabel, faceScript;
 
   // ------------------------------------------------------------------
-  // per-glyph text on a circle. `Element::onPath` runs a whole text leaf
-  // along one path; these labels need a bearing per glyph in two
-  // different registers, and layouts::AlongPath throws the tangent away
-  // (it passes nullptr to getPosTan), so every glyph is placed and
-  // rotated by hand.
-  //
-  //   tangential: glyph-up points radially outward, advance follows the
-  //               clockwise tangent  -> rotation = bearing
-  //   radial:     advance runs outward along the spoke
-  //               -> rotation = bearing - 90
-  void arcRun(std::vector<Element>& out, sketch::SketchContext& ctx,
-              const sigil::weave::TextStyle& style, SkPoint centre,
-              const std::string& content, float bearingDeg, float radius,
-              bool radial, float tracking, float delayMs,
-              const std::string& keyBase) {
-    if (content.empty() || radius <= 1.0f) return;
+  /** ONE LABEL ON A RING. The run is shaped ONCE — real kerning, real
+   *  ligatures, real advances — and every glyph is placed by arc length
+   *  and turned to its bearing through one batched RSXform draw. The
+   *  baseline resolves against the TEXT NODE'S OWN box, which is why the
+   *  leaf carries the ring's diameter and stands at the wheel's centre;
+   *  wrapping it in a sized parent collapses the whole run onto a point.
+   *
+   *  `Tangent` is the months' running lettering, glyph-up outward.
+   *  `Radial` runs the baseline along the radius instead, which is how the
+   *  two campaign annotations are set — along their spoke, and the one
+   *  thing on this plate that genuinely radiates. */
+  Element ringRun(const weave::TextStyle& style, SkPoint centre,
+                  const std::string& content, float bearingDeg, float radius,
+                  float delayMs, const std::string& key) {
+    return text(std::u8string(content.begin(), content.end()), style)
+        .key(key)
+        .width(Dim(2 * radius))
+        .height(Dim(2 * radius))
+        .centerAt(centre)
+        .onPath(TextPath{.path = rimBaseline(),
+                         .at = bearingDeg / 360.0f,
+                         .align = TextPath::Align::Center,
+                         .autoFlip = false,
+                         .orient = TextPath::Orient::Tangent})
+        .opacity(animate(from(0.0f).to(1.0f), ramp(delayMs, 260.0f)));
+  }
 
-    std::vector<float> widths;
-    widths.reserve(content.size());
-    float total = 0;
-    for (char c : content) {
-      float w =
-          (c == ' ')
-              ? style.shaping.fontSize * 0.30f
-              : ctx.measure(text(std::u8string(1, (char8_t)c), style)).width();
-      widths.push_back(w);
-      total += w;
-    }
-    total += tracking * (float)(content.size() - 1);
-
-    float cum = 0;
-    for (size_t i = 0; i < content.size(); ++i) {
-      const float w = widths[i];
-      const float along = cum + w * 0.5f - total * 0.5f;
-      cum += w + tracking;
-      if (content[i] == ' ') continue;
-
-      SkPoint at;
-      float rotate = 0;
-      if (radial) {
-        at = polar(centre, radius + along, bearingDeg);
-        rotate = bearingDeg - 90.0f;
-      } else {
-        const float b = bearingDeg + (along / radius) / kDeg;
-        at = polar(centre, radius, b);
-        rotate = b;
-      }
-      out.push_back(
-          text(std::u8string(1, (char8_t)content[i]), style)
-              .key(keyBase + std::to_string(i))
-              .centerAt(at)
-              .rotate(rotate)
-              .transformOrigin(0.5f, 0.5f)
-              .opacity(animate(from(0.0f).to(1.0f),
-                               ramp(delayMs + (float)i * 16.0f, 180.0f))));
-    }
+  /** A CAMPAIGN ANNOTATION, set along its spoke: the same one-leaf run on
+   *  a straight radial baseline, centred at @p radius from the hub. */
+  Element spokeRun(const weave::TextStyle& style, SkPoint centre,
+                   const std::string& content, float bearingDeg, float radius,
+                   float delayMs, const std::string& key) {
+    const float half = 120.0f;  // half the reach the run is given, px
+    const float box = radius + half;
+    return text(std::u8string(content.begin(), content.end()), style)
+        .key(key)
+        .width(Dim(2 * box))
+        .height(Dim(2 * box))
+        .centerAt(centre)
+        .onPath(TextPath{.path = spokeBaseline(bearingDeg,
+                                               (radius - half) / box,
+                                               (radius + half) / box),
+                         .at = 0.5f,
+                         .align = TextPath::Align::Center,
+                         .autoFlip = false,
+                         .orient = TextPath::Orient::Tangent})
+        .opacity(animate(from(0.0f).to(1.0f), ramp(delayMs, 260.0f)));
   }
 
   // ------------------------------------------------------------------
@@ -368,7 +415,7 @@ struct NightingaleCoxcomb : sketch::Sketch {
       // shows its own colour with no stacking arithmetic anywhere.
       struct Band {
         float rate;
-        const Material* mat;
+        const Paint* mat;
         const char* name;
       };
       std::array<Band, 3> bands = {{{mo.disease, &blueMat, "b"},
@@ -400,7 +447,7 @@ struct NightingaleCoxcomb : sketch::Sketch {
                 .transformOrigin(0.5f, 0.5f)
                 .scale(animate(from(0.002f).to(1.0f),
                                ramp(delay, 620.0f, ch::easeOutExpo)))
-                // Each band's litho fill is a Material::blend of four
+                // Each band's litho fill is a Paint::blend of four
                 // shaders (wash + speckle + blot + grain) over an area that
                 // never changes. Uncached, every one of those shaders re-runs
                 // on every frame for all ~24 bands. The content is static —
@@ -507,10 +554,10 @@ struct NightingaleCoxcomb : sketch::Sketch {
 
     // ---- title block -------------------------------------------------
     const auto title1 = kit::emboldened(
-        type({.face = faceDisplay, .size = 39, .color = kInk, .track = 0.8f}),
+        weave::textStyle({.face = faceDisplay, .size = 39, .color = kInk, .track = 0.8f}),
         2.0f, kInk);
     const auto title2 = kit::emboldened(
-        type({.face = faceGrotesque, .size = 27, .color = kInk, .track = 0.4f}),
+        weave::textStyle({.face = faceGrotesque, .size = 27, .color = kInk, .track = 0.4f}),
         0.9f, kInk);
 
     Track t1{.effect = fx::typeOn(),
@@ -548,9 +595,9 @@ struct NightingaleCoxcomb : sketch::Sketch {
 
     // ---- the two diagram captions -----------------------------------
     const auto capNum =
-        type({.face = faceGrotesque, .size = 24, .color = kInk});
+        weave::textStyle({.face = faceGrotesque, .size = 24, .color = kInk});
     const auto capText =
-        type({.face = faceGrotesque, .size = 21, .color = kInk, .track = 0.4f});
+        weave::textStyle({.face = faceGrotesque, .size = 21, .color = kInk, .track = 0.4f});
     auto caption = [&](const char* num, const char* label, float cx, float numX,
                        float startSec, const char* key) {
       root.child(text(toU8(num), capNum)
@@ -583,12 +630,15 @@ struct NightingaleCoxcomb : sketch::Sketch {
 
     // ---- the ring labels: each hugging its own wedge's rim ----------
     const auto labelStyle = kit::emboldened(
-        type({.face = faceLabel, .size = 20, .color = kInk, .track = 0.4f}),
+        weave::textStyle({.face = faceLabel, .size = 20, .color = kInk, .track = 0.4f}),
         0.35f, kInk);
     const auto smallLabel =
-        type({.face = faceLabel, .size = 12, .color = kInk, .track = 0.0f});
-    const auto campaign =
-        type({.face = faceLabel, .size = 16, .color = kInk, .track = 0.4f});
+        weave::textStyle({.face = faceLabel, .size = 12, .color = kInk, .track = 0.0f});
+    // The two campaign annotations are tracked wider than the months.
+    // A run on a path is shaped once, so tracking is part of the shaping
+    // and belongs to the style rather than to the call.
+    const auto campaign = weave::textStyle(
+        {.face = faceLabel, .size = 16, .color = kInk, .track = 1.9f});
     std::vector<Element> labels;
 
     // The floor is not decoration: twelve labels must fit the circumference
@@ -596,9 +646,9 @@ struct NightingaleCoxcomb : sketch::Sketch {
     // / 2pi. That is why the plate sets the small left wheel in a smaller
     // face — the same constraint, solved the same way.
     auto ringLabels = [&](const std::array<Month, 12>& data, SkPoint centre,
-                          float rMax, float floorR,
-                          const sigil::weave::TextStyle& style, float gap,
-                          float step, float startSec, const char* tag) {
+                          float floorR, const weave::TextStyle& style,
+                          float gap, float step, float startSec,
+                          const char* tag) {
       for (int m = 0; m < 12; ++m) {
         const Month& mo = data[m];
         const float rim =
@@ -607,27 +657,29 @@ struct NightingaleCoxcomb : sketch::Sketch {
         const float bearing = (float)m * 30.0f + 15.0f;
         const float delay = (startSec + (float)m * 0.028f) * 1000.0f;
         const bool twoLines = mo.line2[0] != '\0';
-        arcRun(labels, ctx, style, centre, mo.label, bearing,
-               base + (twoLines ? step : 0.0f), false, 0.5f, delay,
-               std::string(tag) + "L" + std::to_string(m) + "a");
+        labels.push_back(ringRun(style, centre, mo.label, bearing,
+                                 base + (twoLines ? step : 0.0f), delay,
+                                 std::string(tag) + "L" + std::to_string(m) +
+                                     "a"));
         if (twoLines)
-          arcRun(labels, ctx, style, centre, mo.line2, bearing, base, false,
-                 0.5f, delay + 60.0f,
-                 std::string(tag) + "L" + std::to_string(m) + "b");
+          labels.push_back(ringRun(style, centre, mo.line2, bearing, base,
+                                   delay + 60.0f,
+                                   std::string(tag) + "L" +
+                                       std::to_string(m) + "b"));
       }
     };
-    ringLabels(kD1, kC1, kR1, 172.0f, labelStyle, 26.0f, 24.0f, tLabel1, "a");
-    ringLabels(kD2, kC2, kR2, 160.0f, smallLabel, 14.0f, 14.0f, tLabel2, "b");
+    ringLabels(kD1, kC1, 172.0f, labelStyle, 26.0f, 24.0f, tLabel1, "a");
+    ringLabels(kD2, kC2, 160.0f, smallLabel, 14.0f, 14.0f, tLabel2, "b");
 
     // the campaign annotations — set RADIALLY along their spoke
-    arcRun(labels, ctx, campaign, kC1, "BULGARIA", 358.0f, 150.0f, true, 2.0f,
-           tLabel1 * 1000 + 380, "bulg");
-    arcRun(labels, ctx, campaign, kC1, "CRIMEA", 94.0f, 268.0f, true, 1.8f,
-           tLabel1 * 1000 + 460, "crim");
+    labels.push_back(spokeRun(campaign, kC1, "BULGARIA", 358.0f, 150.0f,
+                              tLabel1 * 1000 + 380, "bulg"));
+    labels.push_back(spokeRun(campaign, kC1, "CRIMEA", 94.0f, 268.0f,
+                              tLabel1 * 1000 + 460, "crim"));
     // the left wheel's year marker, upside down at 6 o'clock — which is
     // simply the outward-up rule arriving at the bottom of the circle
-    arcRun(labels, ctx, smallLabel, kC2, "1856", 180.0f, 134.0f, false, 0.6f,
-           tLabel2 * 1000 + 300, "y1856");
+    labels.push_back(ringRun(smallLabel, kC2, "1856", 180.0f, 134.0f,
+                             tLabel2 * 1000 + 300, "y1856"));
 
     for (Element& e : labels) root.child(std::move(e));
 
@@ -657,8 +709,8 @@ struct NightingaleCoxcomb : sketch::Sketch {
     // the SCHEDULE rides the engine. The container's staggerChildren is
     // the 200 ms per-line ladder, and each line's pen runs for exactly
     // its cascade's span, so the writing speed is the cascade's own.
-    const auto script = type({.face = faceScript, .size = 27, .color = kInk});
-    const Stagger penStagger{.amountMs = 620, .durationMs = 30};
+    const auto script = weave::textStyle({.face = faceScript, .size = 27, .color = kInk});
+    const motion::Spread penStagger{.amountMs = 620, .durationMs = 30};
     Element legend = stack().inset(0).staggerChildren(200ms);
     for (size_t i = 0; i < kLegendText.size(); ++i) {
       Track pen{.effect = fx::typeOn(),
@@ -676,7 +728,7 @@ struct NightingaleCoxcomb : sketch::Sketch {
 
     // ---- printer's imprint ------------------------------------------
     root.child(text(toU8("Harrison & Sons, St. Martin's Lane."),
-                    type({.face = faceScript, .size = 20, .color = kInkSoft}))
+                    weave::textStyle({.face = faceScript, .size = 20, .color = kInkSoft}))
                    .key("imprint")
                    .centerAt({1712, 1004})
                    .opacity(animate(from(0.0f).to(1.0f),
@@ -709,13 +761,13 @@ struct NightingaleCoxcomb : sketch::Sketch {
     // library's own walk: the first installed family wins, and a machine
     // with none of them gets the default face AT THE WEIGHT ASKED FOR
     // rather than silently at Normal.
-    faceDisplay = pickFace({"Academy Engraved LET"}, SkFontStyle::Normal());
+    faceDisplay = pickTypeface({"Academy Engraved LET"}, SkFontStyle::Normal());
     if (!faceDisplay)
-      faceDisplay = pickFace({"Bodoni 72"}, SkFontStyle::kBold_Weight);
+      faceDisplay = pickTypeface({"Bodoni 72"}, SkFontStyle::kBold_Weight);
     faceGrotesque =
-        pickFace({"Copperplate", "Helvetica Neue"}, SkFontStyle::kBold_Weight);
-    faceLabel = pickFace({"Copperplate", "Helvetica Neue"});
-    faceScript = pickFace({"Snell Roundhand", "Apple Chancery"});
+        pickTypeface({"Copperplate", "Helvetica Neue"}, SkFontStyle::kBold_Weight);
+    faceLabel = pickTypeface({"Copperplate", "Helvetica Neue"});
+    faceScript = pickTypeface({"Snell Roundhand", "Apple Chancery"});
 
     // The litho tint: a paper-side wash with the ink dot field over it.
     // Two speckle layers per band — a fine one for the tint itself and a
@@ -730,26 +782,28 @@ struct NightingaleCoxcomb : sketch::Sketch {
       // four times across the same wheel and the repeat stops being
       // findable; the mark count rises with the area so the density is
       // the density it was.
-      grainOut = patterns::speckle(128, fine * 10, 0.25f, 0.66f, {ink});
+      grainOut = patterns::speckle(128, fine * 10, 0.25f, 0.66f, {skia::toColor(ink)});
       grainOut.seed(seed);
       Pattern blot =
           patterns::speckle(320, coarse * 8, 1.8f, 5.0f,
-                            {SkColor4f{ink.fR, ink.fG, ink.fB, 0.12f}});
+                            {skia::toColor(
+                                SkColor4f{ink.fR, ink.fG, ink.fB, 0.12f})});
       blot.seed(seed * 7 + 3);
-      return Material::blend(
-          {{Material::solid(wash), SkBlendMode::kSrc},
+      return Paint::blend(
+          {{Paint::solid(wash), SkBlendMode::kSrc},
            {grainOut.material(), SkBlendMode::kSrcOver},
            {blot.material(), SkBlendMode::kSrcOver},
            // ink density wanders across the stone: LUMINANCE noise, so it
            // reads as light on the tint instead of hue-shifting it
-           {patterns::grain(0.010f, 3, (float)seed), SkBlendMode::kSoftLight}});
+           {Paint::recipe(field::grain(0.010f, 3, (float)seed)),
+            SkBlendMode::kSoftLight}});
     };
     blueMat = band(kBlueWash, kBlueInk, 1150, 14, 11, blueGrain);
     roseMat = band(kRoseWash, kRoseInk, 900, 10, 23, roseGrain);
     greyMat = band(kGreyWash, kGreyInk, 900, 18, 37, greyGrain);
 
-    paperMat = patterns::grain(0.011f, 4, 5.0f);
-    foxing = patterns::speckle(190, 4, 1.5f, 6.5f, {kFox});
+    paperMat = Paint::recipe(field::grain(0.011f, 4, 5.0f));
+    foxing = patterns::speckle(190, 4, 1.5f, 6.5f, {skia::toColor(kFox)});
     foxing.seed(91);
 
     // The needles and the rim flashes they ring.
