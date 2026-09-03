@@ -13,7 +13,7 @@
 #include <sigilcompose/brush/Hatches.h>
 #include <sigilcompose/brush/Lines.h>
 #include <sigilcompose/brush/Rails.h>
-#include <sigilcompose/kit/Silhouettes.h>
+#include <sigilcompose/brush/Adaptors.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 
 #include <cmath>

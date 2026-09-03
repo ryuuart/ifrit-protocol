@@ -116,15 +116,4 @@ Rails rails(std::vector<Rail> set);
  *  up in a completion list. */
 Rails quad(float width, const Fill& fill, float gap = 4.0f);
 
-/** The engraver's asymmetric parallel rule: HEAVY / hair / HEAVY — the
- *  commonest printed rule after the plain one. */
-Rails heavyHairHeavy(float heavy, float hair, const Fill& fill,
-                     float gap = 5.0f);
-
-/** Solid casing with a DOTTED core — the map convention for a road under
- *  construction, a proposed route, a disused rail. `dotGap` is the spacing
- *  of the core's dots; the casing stays continuous. */
-Rails dottedCore(float outer, float core, const Fill& fill, float gap = 5.0f,
-                 float dotGap = 6.0f);
-
 }  // namespace sigil::compose::lines

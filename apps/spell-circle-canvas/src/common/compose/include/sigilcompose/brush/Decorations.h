@@ -501,7 +501,7 @@ inline LayerStyle doubleBorder(Border outer, Border inner) {
  *
  *  The whole brush vocabulary — `PathFormat` with its stroke alignment,
  *  dashes, stamps and its own trim window; `lines::Line`; `Brush`;
- *  `shapes::inset` — reads only `PaintContext::outline`. So none of it
+ *  `inset` — reads only `PaintContext::outline`. So none of it
  *  is actually restricted to a node's own shape, and geometry that
  *  changes per frame (a simulated rope, a live EQ curve, a plotted
  *  signal) can wear all of it:

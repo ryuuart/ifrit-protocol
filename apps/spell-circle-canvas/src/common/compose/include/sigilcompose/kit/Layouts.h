@@ -35,9 +35,9 @@
  */
 
 #include <include/core/SkContourMeasure.h>
-#include <sigilcompose/kit/Silhouettes.h>
 #include <sigilcore/compute/Noise.h>
 #include <sigilgeometry/path/Arrange.h>
+#include <sigilgeometry/path/Frame.h>
 #include <sigilgeometry/path/Numeric.h>
 
 #include <algorithm>
@@ -47,14 +47,6 @@
 #include "sigilcompose/Compose.h"
 
 namespace sigil::compose::layouts {
-
-namespace detail {
-inline SkRect centeredAt(SkPoint center, SkSize size) {
-  return SkRect::MakeXYWH(center.x() - size.width() / 2,
-                          center.y() - size.height() / 2, size.width(),
-                          size.height());
-}
-}  // namespace detail
 
 /** Children on a ring. Child i centers at startDeg + i·(sweepDeg/n), at
  *  `radiusFraction` of the container's half-extent — applied per axis, so
@@ -98,7 +90,7 @@ struct Radial {
     const float sweep = sweepDeg * geometry::path::kDegToRad;
     for (size_t i = 0; i < n; ++i) {
       const float r = frac(i);
-      rects[i] = detail::centeredAt(
+      rects[i] = geometry::path::centred(
           geometry::arrange::onRing(i, n, {cx, cy}, {cx * r, cy * r}, start,
                                     sweep, turn),
           in.childSizes[i]);
@@ -146,7 +138,7 @@ struct AlongPath {
       SkPoint pos;
       if (contour->getPosTan(geometry::arrange::along(d0, d1 - d0, i, n, turn),
                              &pos, nullptr))
-        rects[i] = detail::centeredAt(pos, in.childSizes[i]);
+        rects[i] = geometry::path::centred(pos, in.childSizes[i]);
     }
     return rects;
   }
@@ -304,8 +296,8 @@ struct Scatter {
       const SkPoint cell = geometry::arrange::cellRect(
                                geometry::arrange::cellAt(i, cols), module)
                                .center();
-      SkRect r =
-          detail::centeredAt({cell.fX + jx, cell.fY + jy}, in.childSizes[i]);
+      SkRect r = geometry::path::centred({cell.fX + jx, cell.fY + jy},
+                                         in.childSizes[i]);
       // Clamp into the container so jitter never clips children away.
       r.offset(std::max(0.0f, -r.left()) -
                    std::max(0.0f, r.right() - in.container.width()),

@@ -4,7 +4,7 @@
 
 #include <sigilcompose/kit/Layouts.h>
 #include <sigilcompose/kit/Routers.h>
-#include <sigilcompose/kit/Silhouettes.h>
+#include <sigilcompose/brush/Adaptors.h>
 #include <sigilgeometry/kit/Shapers.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 

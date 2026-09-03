@@ -633,12 +633,12 @@ TEST(ComposeLines, RailsCarryPerRailWidthFillAndDash) {
 }
 
 TEST(ComposeLines, RailsSpanAndBleedReportTheSetsReach) {
-  const lines::Rails r = lines::heavyHairHeavy(4, 1, green(), 6);
+  const lines::Rails r = brush::presets::heavyHairHeavy(4, 1, green(), 6);
   EXPECT_FLOAT_EQ(r.span(), 12.0f);      // -6 → +6, centre to centre
   EXPECT_FLOAT_EQ(r.bleed(), 6 + 2.0f);  // outermost offset + half its width
   // Comparable, so a static rail set prunes without a memo.
-  EXPECT_EQ(r, lines::heavyHairHeavy(4, 1, green(), 6));
-  EXPECT_NE(r, lines::heavyHairHeavy(4, 1, green(), 7));
+  EXPECT_EQ(r, brush::presets::heavyHairHeavy(4, 1, green(), 6));
+  EXPECT_NE(r, brush::presets::heavyHairHeavy(4, 1, green(), 7));
 }
 
 namespace {
@@ -851,7 +851,7 @@ TEST(ComposeLines, RailsCountIsArbitrary) {
 
 TEST(ComposeLines, DottedCoreKeepsTheCasingContinuous) {
   Host host;
-  host.composer.render(straightRun(lines::dottedCore(3, 2, green(), 8, 6)));
+  host.composer.render(straightRun(brush::presets::dottedCore(3, 2, green(), 8, 6)));
   host.frame();
   // Casing: solid the whole way along, both sides.
   for (int x = 40; x < 160; x += 10) {

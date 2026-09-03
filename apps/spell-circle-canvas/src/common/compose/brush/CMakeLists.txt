@@ -1,6 +1,7 @@
 # SigilComposeBrush — what draws along an outline.
 #
-# Decorations (strokes, shadows, washes, contour walks), the line vocabulary
+# Decorations (strokes, shadows, washes, contour walks) and the two
+# adaptors that run one on another outline, the line vocabulary
 # (`lines::` as lines, rails and hatches), the brush engine (the layered
 # stack, the geometry ops and the `brush::` kinds) and the layer styles
 # (`styles::` — inner shadows, glows, bevels and the gel and chrome
@@ -18,6 +19,7 @@
 # headers include. The kit tier links this one, and nothing here reaches
 # up into the kit.
 add_library(SigilComposeBrush STATIC
+  Adaptors.cpp
   Decorations.cpp
   LayerStyles.cpp
   Lines.cpp
@@ -30,6 +32,7 @@ add_library(SigilComposeBrush STATIC
   Masks.cpp
   SpanArithmetic.h
   SpanContours.h
+  ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/brush/Adaptors.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/brush/Brush.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/brush/Brushes.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/brush/Decorations.h

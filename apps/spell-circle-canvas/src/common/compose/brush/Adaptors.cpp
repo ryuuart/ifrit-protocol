@@ -3,7 +3,7 @@
  * edges a mask selects, and against a concentric copy of the outline.
  */
 
-#include <sigilcompose/kit/Silhouettes.h>
+#include <sigilcompose/brush/Adaptors.h>
 
 namespace sigil::compose {
 

@@ -10,11 +10,9 @@
 # The shelves of stock values are here: WHERE a child lands (`layouts::`),
 # WHAT JOINS two of them (`routers::`), HOW a glyph deviates from rest
 # (the `fx::` presets over the typography tier's effect seam, with the
-# marquee, in kit/Kinetic.h), and the two outline adaptors that only mean
-# anything against a node (`shapes::onEdges`, `shapes::inset`).
-# The silhouette generators themselves are the geometry library's, spelled
-# under `shapes::` by `kit/Silhouettes.h`, because a `path(SkSize)` value
-# needs nothing of a component tree.
+# marquee, in kit/Kinetic.h), and HOW a pool is filled (the placers). The
+# silhouette generators are the geometry library's, because a
+# `path(SkSize)` value needs nothing of a component tree.
 #
 # Five kit headers live with other tiers instead, because their values are
 # spelled in those tiers' types: `kit/Strokes.h` (the stroke grammar),
@@ -25,7 +23,6 @@ add_library(SigilComposeKit STATIC
   Eras.cpp
   Kit.cpp
   Routers.cpp
-  Silhouettes.cpp
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/kit/Chrome.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/kit/Frame.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/kit/Gel.h
@@ -39,7 +36,6 @@ add_library(SigilComposeKit STATIC
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/kit/PixelType.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/kit/Placers.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/kit/Routers.h
-  ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/kit/Silhouettes.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/kit/Sprites.h
 )
 

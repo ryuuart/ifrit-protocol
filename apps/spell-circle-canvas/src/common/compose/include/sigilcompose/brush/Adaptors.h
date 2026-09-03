@@ -1,18 +1,19 @@
 #pragma once
 
 /** @file
- * The two outline adaptors: the ones that REPLACE the outline a
- * decoration runs on, which is the only thing about a silhouette that
- * needs a node.
+ * SigilCompose decoration adaptors — the two mechanisms that run a
+ * decoration on ANOTHER OUTLINE than the node's own: `onEdges`, against
+ * only the sub-contours facing chosen box edges, and `inset`, against a
+ * concentric copy of the outline. Each rewrites `PaintContext::outline`
+ * and delegates, so any primitive — a PathFormat, a ContourWalk, a
+ * custom program — becomes a per-edge or a nested treatment.
  *
  *     .shape(geometry::shapes::star(5))
- *     .decorate(onEdges(geometry::path::Edge::Top, PathFormat{…}))
+ *     .foreground(onEdges(geometry::path::Edge::Top, PathFormat{…}))
  *
  * The silhouettes themselves are SigilGeometry's
  * (`<sigilgeometry/kit/Silhouettes.h>`): values with `path(SkSize)` and
- * `operator==`, which `Element::shape()` takes, as it takes any of yours
- * built the same way. What lives here instead is what reads a
- * PaintContext.
+ * `operator==`, which `Element::shape()` takes.
  */
 
 #include <sigilcompose/Compose.h>

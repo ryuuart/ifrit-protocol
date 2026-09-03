@@ -10,7 +10,7 @@
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Instances.h>
 #include <sigilcompose/kit/Kinetic.h>
-#include <sigilcompose/kit/Silhouettes.h>
+#include <sigilcompose/brush/Adaptors.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 

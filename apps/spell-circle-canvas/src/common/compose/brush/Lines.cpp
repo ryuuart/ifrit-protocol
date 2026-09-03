@@ -357,17 +357,6 @@ Line railway(float width, Fill fill, float tieSpacing, float tieLength) {
   return l;
 }
 
-LayerStyle railwayCarto(float scale, SkColor4f dark, SkColor4f light) {
-  Line base;
-  base.width = 3.0f * scale;
-  base.fill = Fill::color(dark);
-  Line dashes;
-  dashes.width = 1.0f * scale;
-  dashes.fill = Fill::color(light);
-  dashes.dashIntervals = {8.0f * scale, 8.0f * scale};
-  return LayerStyle{{}, {Decoration(base), Decoration(dashes)}};
-}
-
 Line wavy(float width, Fill fill, float amplitude, float wavelength) {
   Line l;
   l.width = width;
@@ -447,23 +436,6 @@ Rails rails(std::vector<Rail> set) {
 
 Rails quad(float width, const Fill& fill, float gap) {
   return rails(4, width, fill, gap);
-}
-
-Rails heavyHairHeavy(float heavy, float hair, const Fill& fill, float gap) {
-  return rails({{.across = -gap, .width = heavy, .fill = fill},
-                {.across = 0, .width = hair, .fill = fill},
-                {.across = gap, .width = heavy, .fill = fill}});
-}
-
-Rails dottedCore(float outer, float core, const Fill& fill, float gap,
-                 float dotGap) {
-  return rails({{.across = -gap, .width = outer, .fill = fill},
-                {.across = 0,
-                 .width = core,
-                 .fill = fill,
-                 .dash = {0.01f, dotGap},
-                 .cap = SkPaint::kRound_Cap},
-                {.across = gap, .width = outer, .fill = fill}});
 }
 
 void Hatch::paint(SkCanvas& c, const PaintContext& ctx) const {

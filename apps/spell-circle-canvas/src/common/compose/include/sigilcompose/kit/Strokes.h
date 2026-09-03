@@ -25,6 +25,8 @@
 #include <include/core/SkBlendMode.h>
 #include <include/core/SkColor.h>
 #include <sigilcompose/brush/Brushes.h>
+#include <sigilcompose/brush/Lines.h>
+#include <sigilcompose/brush/Rails.h>
 #include <sigilcompose/core/Stroke.h>
 #include <sigilgeometry/kit/Shapers.h>
 
@@ -180,6 +182,46 @@ inline LayeredBrush pulse(SkColor4f halo = {1.0f, 0.79f, 0.44f, 0.35f},
       {5 * scale, body, 2 * scale, {}, 0, SkBlendMode::kPlus},
       {2 * scale, core},
   }};
+}
+
+/** The cartographic railway: a dark line under a white dash overlay at
+ *  about a third of its width, on a 50% duty cycle — the map convention,
+ *  which uses no ties at all. Two decorations as one LayerStyle, so attach
+ *  with `Element::style()`. */
+inline LayerStyle railwayCarto(float scale = 1.0f,
+                               SkColor4f dark = {0.439f, 0.439f, 0.439f, 1},
+                               SkColor4f light = {1, 1, 1, 1}) {
+  lines::Line base;
+  base.width = 3.0f * scale;
+  base.fill = Fill::color(dark);
+  lines::Line dashes;
+  dashes.width = 1.0f * scale;
+  dashes.fill = Fill::color(light);
+  dashes.dashIntervals = {8.0f * scale, 8.0f * scale};
+  return LayerStyle{{}, {Decoration(base), Decoration(dashes)}};
+}
+
+/** The engraver's asymmetric parallel rule: HEAVY / hair / HEAVY — the
+ *  commonest printed rule after the plain one. */
+inline lines::Rails heavyHairHeavy(float heavy, float hair, const Fill& fill,
+                                   float gap = 5.0f) {
+  return lines::rails({{.across = -gap, .width = heavy, .fill = fill},
+                       {.across = 0, .width = hair, .fill = fill},
+                       {.across = gap, .width = heavy, .fill = fill}});
+}
+
+/** Solid casing with a DOTTED core — the map convention for a road under
+ *  construction, a proposed route, a disused rail. `dotGap` is the spacing
+ *  of the core's dots; the casing stays continuous. */
+inline lines::Rails dottedCore(float outer, float core, const Fill& fill,
+                               float gap = 5.0f, float dotGap = 6.0f) {
+  return lines::rails({{.across = -gap, .width = outer, .fill = fill},
+                       {.across = 0,
+                        .width = core,
+                        .fill = fill,
+                        .dash = {0.01f, dotGap},
+                        .cap = SkPaint::kRound_Cap},
+                       {.across = gap, .width = outer, .fill = fill}});
 }
 
 }  // namespace brush::presets

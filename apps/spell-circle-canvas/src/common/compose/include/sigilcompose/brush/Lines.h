@@ -33,8 +33,6 @@
 
 namespace sigil::compose::lines {
 
-namespace detail {}  // namespace detail
-
 /** Convert a path into its DASHED GEOMETRY — the dash segments as real
  *  contours, rather than a paint-time effect. The building block for any
  *  construction that has to dash BEFORE it does something else to the
@@ -217,14 +215,6 @@ Line arrow(float width, Fill fill, float headSize = 10.0f);
 /** Railway: body + perpendicular ties. */
 Line railway(float width, Fill fill, float tieSpacing = 12.0f,
              float tieLength = 10.0f);
-
-/** The cartographic railway: a dark line under a white dash overlay at
- *  about a third of its width, on a 50% duty cycle — the map convention,
- *  which uses no ties at all. Two decorations as one LayerStyle, so attach
- *  with `Element::style()`. */
-LayerStyle railwayCarto(float scale = 1.0f,
-                        SkColor4f dark = {0.439f, 0.439f, 0.439f, 1},
-                        SkColor4f light = {1, 1, 1, 1});
 
 /** The squiggle (sine) — set `zigzag` on the returned value for vertices. */
 Line wavy(float width, Fill fill, float amplitude = 4.0f,
