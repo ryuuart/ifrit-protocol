@@ -28,8 +28,12 @@
 #include <sigilcompose/kit/Ornament.h>
 #include <sigilcompose/kit/Layouts.h>
 #include <sigilcompose/kit/Routers.h>
-#include <sigilcompose/kit/Silhouettes.h>
+#include <sigilcompose/brush/Adaptors.h>
+#include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilgeometry/path/Edges.h>
+#include <sigilmaterial/skia/Effect.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilweave/style/Type.h>
 
 #include <algorithm>
 #include <cmath>
@@ -37,6 +41,10 @@
 #include <vector>
 
 namespace sketch = sigil::sketch;
+namespace weave = sigil::weave;
+namespace shapes = sigil::geometry::shapes;
+namespace path = sigil::geometry::path;
+namespace motion = sigil::motion;
 
 using namespace sigil::compose;
 using sigil::compose::toU8;
@@ -82,12 +90,7 @@ struct Flourish final : sketch::Sketch {
 
   static sigil::weave::TextStyle glyphs(float size, SkColor4f color,
                                         float tracking = 0.0f) {
-    sigil::weave::TextStyle s;
-    s.shaping.fontSize = size;
-    s.shaping.letterSpacing = tracking;
-    s.paint.foreground.setColor(toSk(color));
-    s.paint.foreground.setAntiAlias(true);
-    return s;
+    return weave::textStyle({.size = size, .color = color, .track = tracking});
   }
 
   static sk_sp<SkRuntimeEffect> makeHatch() {
@@ -163,7 +166,7 @@ struct Flourish final : sketch::Sketch {
         .background(sigil::compose::shadow({0, 0, 0, 0.55f}, {0, 5}, 16))
         .foreground(sigil::compose::stroke(2.6f, Fill::color(st.gold)))
         .foreground(flourishVine(st, 17.0f, 24.0f, 17.0f))
-        .foreground(shapes::onEdges(shapes::Edge::Top | shapes::Edge::Bottom,
+        .foreground(onEdges(path::Edge::Top | path::Edge::Bottom,
                                     Decoration(crestWalk)))
         .cache(Cache::Texture)
         .child(box()
@@ -331,7 +334,7 @@ struct Flourish final : sketch::Sketch {
                    .key(bloom ? "titleBloom" : "title")
                    .opacity(&titleFade);
       if (bloom)
-        t.effect(Effect::filter(SkImageFilters::Blur(6, 6, nullptr)))
+        t.effect(sigil::material::skia::Effect::filter(SkImageFilters::Blur(6, 6, nullptr)))
             .blend(SkBlendMode::kPlus);
       else
         t.translateY(&titleDrop);
@@ -349,7 +352,7 @@ struct Flourish final : sketch::Sketch {
         .corners({16})
         .zIndex(3)
         .clip()
-        .backdrop(Effect::filter(SkImageFilters::Blur(8, 8, nullptr)))
+        .backdrop(sigil::material::skia::Effect::filter(SkImageFilters::Blur(8, 8, nullptr)))
         .background(sigil::compose::shadow({0, 0, 0, 0.5f}, {0, 6}, 16))
         .fill(flourishParchment(st))
         .background(hatchDeco)
@@ -380,7 +383,7 @@ struct Flourish final : sketch::Sketch {
                 .transformOrigin(0.5f, 0.5f)
                 .scale(&sealBreathe)
                 .shape(shapes::star(12, 0.66f))
-                .fill(animate(to(Fill::color(accent ? st.rubric : st.bronze)),
+                .fill(animate(motion::to(Fill::color(accent ? st.rubric : st.bronze)),
                               {600ms}))
                 .foreground(
                     sigil::compose::stroke(1.4f, Fill::color(st.goldBright))))
@@ -626,4 +629,5 @@ struct Flourish final : sketch::Sketch {
 
 SIGIL_SKETCH_AS(
     Flourish, "flourish", "Catalog \xc2\xb7 Generative",
-    "an ornamental border reaching across the whole compose surface")
+    "the integration piece \xe2\x80\x94 one ornamental border reaching "
+    "across the whole compose surface")
