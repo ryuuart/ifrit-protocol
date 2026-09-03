@@ -64,6 +64,19 @@ class SketchbookView : public QQuickRhiItem {
   Q_INVOKABLE void capture();
   /** Moves the viewpoint of a sketch that has one. */
   Q_INVOKABLE void orbit(float yawDeg, float pitchDeg, float distance);
+  /** WHERE THE POINTER STANDS over this item, in its own coordinates,
+   *  and whether its button is down. The item puts the point into the
+   *  sketch's canvas units through the same fit the frame is drawn
+   *  with, so a sketch reads the pointer on the canvas it declared
+   *  whatever the window did to that canvas. */
+  Q_INVOKABLE void pointer(qreal x, qreal y, bool pressed);
+  /** A KEY GOING DOWN OR UP, as Qt reports it: its key and the text it
+   *  types. The sketch is handed the name a keyboard spells it by —
+   *  "a", "ArrowLeft", "Enter" — and the code p5 gives it, so a sketch
+   *  pasted from p5 compares against the numbers it already knows. A
+   *  key held down repeats, which the runtimes coalesce: a key already
+   *  down stays down and the press is one event a frame. */
+  Q_INVOKABLE void key(int qtKey, const QString& text, bool pressed);
 
   [[nodiscard]] int sketchIndex() const { return m_sketchIndex; }
   void setSketchIndex(int index);

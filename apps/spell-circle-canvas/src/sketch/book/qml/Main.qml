@@ -589,6 +589,47 @@ ApplicationWindow {
                             view.orbit(view.yaw, view.pitch, view.distance);
                         }
                     }
+
+                    // The pointer and the keys, for the sketches that
+                    // read them. Neither handler takes the grab, so the
+                    // orbit above still drags a set; a sketch with
+                    // nothing for a pointer to do ignores what arrives.
+                    // The hover reports where the pointer stands with
+                    // no button down, the point handler while one is,
+                    // and a click gives this canvas the keyboard — so
+                    // the keys go to the sketch after it is clicked and
+                    // back to the list when the list is.
+                    HoverHandler {
+                        id: hover
+                        onPointChanged: {
+                            if (!press.active)
+                                view.pointer(point.position.x,
+                                             point.position.y, false);
+                        }
+                    }
+                    PointHandler {
+                        id: press
+                        acceptedButtons: Qt.LeftButton
+                        onActiveChanged: view.pointer(point.position.x,
+                                                      point.position.y,
+                                                      active)
+                        onPointChanged: {
+                            if (active)
+                                view.pointer(point.position.x,
+                                             point.position.y, true);
+                        }
+                    }
+                    TapHandler {
+                        onTapped: view.forceActiveFocus()
+                    }
+                    Keys.onPressed: event => {
+                        view.key(event.key, event.text, true);
+                        event.accepted = true;
+                    }
+                    Keys.onReleased: event => {
+                        view.key(event.key, event.text, false);
+                        event.accepted = true;
+                    }
                 }
 
                 // Compile-error overlay: the last good sketch keeps
@@ -647,6 +688,7 @@ ApplicationWindow {
             path: window.sketchAt(view.sketchIndex)?.path ?? ""
             hints: "↑↓ select · ⏎ open · / filter"
                 + (view.orbitable ? " · drag to orbit" : "")
+                + (view.activeFocus ? " · keys go to the sketch" : "")
             paused: view.paused
             timeScale: view.timeScale
             metrics: view.metrics

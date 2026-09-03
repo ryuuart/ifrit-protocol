@@ -485,6 +485,12 @@ after another, so the two questions are kept apart:
   inspector's Open. This is the only thing that changes what is drawn —
   and the resident set is what makes it cheap, because a sketch already
   opened comes back without being built again.
+* **A click on the canvas gives it the keyboard.** The pointer over the
+  canvas and the keys while it holds focus reach the running session in
+  the sketch's own canvas units, through `Session::pointer` and
+  `Session::key`, for a sketch that reads them; a click on the list takes
+  the arrows back. A sketch with nothing for a pointer to do ignores what
+  arrives, and a drag over a set still orbits it.
 
 Two views over the same rows, and the toggle is in the top bar:
 

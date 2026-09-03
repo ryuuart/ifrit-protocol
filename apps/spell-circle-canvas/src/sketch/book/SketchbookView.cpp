@@ -30,6 +30,7 @@
 #include <QtCore/QMetaObject>
 #include <QtCore/QMutexLocker>
 #include <QtCore/QSize>
+#include <QtGui/QKeySequence>
 #include <algorithm>
 #include <atomic>
 #include <chrono>
@@ -38,7 +39,9 @@
 #include <cstdio>
 #include <cstring>
 #include <memory>
+#include <string>
 #include <thread>
+#include <utility>
 #include <vector>
 
 namespace sketch = sigil::sketch;
@@ -88,6 +91,79 @@ std::string nameOf(int index) {
   if (external >= 0 && external < (int)SketchbookView::externals.size())
     return SketchbookView::externals[external].stem().string();
   return {};
+}
+
+/** HOW A CANVAS IS FITTED INTO A SURFACE: the scale that letterboxes a
+ *  canvas of @p size into @p width by @p height, and where its top-left
+ *  corner lands. The frame is drawn through this and a pointer is read
+ *  back through its inverse, so it is written once. */
+struct Fit {
+  float scale = 1.0f;
+  float x = 0.0f;
+  float y = 0.0f;
+};
+Fit fitOf(SkSize size, float width, float height) {
+  Fit fit;
+  fit.scale = std::min(width / size.width(), height / size.height());
+  fit.x = (width - size.width() * fit.scale) / 2;
+  fit.y = (height - size.height() * fit.scale) / 2;
+  return fit;
+}
+
+/** THE KEY AS A SKETCH READS IT: the name a keyboard spells it by, and
+ *  the code p5 gives it. The keys p5 names get p5's numbers — the
+ *  arrows, Enter, Escape, Backspace, Delete, Tab, the modifiers, the
+ *  function keys — a key that types a character is that character, with
+ *  a letter's code its upper-case ASCII the way p5 reports it, and any
+ *  other key keeps Qt's name and number.
+ *
+ *  The modifiers are Qt's, which on macOS reports the Command key as
+ *  Control: the key a shortcut is SPELLED with rather than the one the
+ *  keyboard is engraved with. A sketch comparing against p5's numbers is
+ *  comparing against the same key it would press to save a file. */
+std::pair<std::string, int> keyAs(int qtKey, const QString& text) {
+  switch (qtKey) {
+    case Qt::Key_Left: return {"ArrowLeft", 37};
+    case Qt::Key_Up: return {"ArrowUp", 38};
+    case Qt::Key_Right: return {"ArrowRight", 39};
+    case Qt::Key_Down: return {"ArrowDown", 40};
+    case Qt::Key_Return:
+    case Qt::Key_Enter: return {"Enter", 13};
+    case Qt::Key_Escape: return {"Escape", 27};
+    case Qt::Key_Backspace: return {"Backspace", 8};
+    case Qt::Key_Delete: return {"Delete", 46};
+    case Qt::Key_Tab: return {"Tab", 9};
+    case Qt::Key_Space: return {" ", 32};
+    case Qt::Key_Shift: return {"Shift", 16};
+    case Qt::Key_Control: return {"Control", 17};
+    case Qt::Key_Alt: return {"Alt", 18};
+    case Qt::Key_Meta: return {"Meta", 91};
+    case Qt::Key_Home: return {"Home", 36};
+    case Qt::Key_End: return {"End", 35};
+    case Qt::Key_PageUp: return {"PageUp", 33};
+    case Qt::Key_PageDown: return {"PageDown", 34};
+    case Qt::Key_Insert: return {"Insert", 45};
+    default: break;
+  }
+  if (qtKey >= Qt::Key_F1 && qtKey <= Qt::Key_F12)
+    return {"F" + std::to_string(qtKey - Qt::Key_F1 + 1),
+            112 + (qtKey - Qt::Key_F1)};
+  // The character it types — but only when it typed one a reader would
+  // recognise: a chord over a letter types a control character, and a
+  // sketch asked to compare against \x01 has been told which key was
+  // pressed in a way it cannot use. Qt's own key is that letter.
+  if (!text.isEmpty() && text.at(0).unicode() >= 0x20) {
+    const QChar first = text.at(0);
+    const int code = first.isLetter() ? first.toUpper().unicode()
+                                      : (int)first.unicode();
+    return {text.toStdString(), code};
+  }
+  if (qtKey >= 0x20 && qtKey <= 0x7e) {
+    const QChar typed = QChar(qtKey);
+    return {QString(typed.toLower()).toStdString(),
+            (int)typed.toUpper().unicode()};
+  }
+  return {QKeySequence(qtKey).toString().toStdString(), qtKey};
 }
 
 }  // namespace
@@ -330,12 +406,10 @@ void SketchbookRenderer::drawSketch(SkCanvas& canvas, QSize pixelSize) {
   canvas.clear(SkColorSetRGB(0x0b, 0x0a, 0x14));
   if (!host || !host->live()) return;
   const SkSize size = host->canvasSize();
-  const float scale =
-      std::min((float)width / size.width(), (float)height / size.height());
+  const Fit fit = fitOf(size, (float)width, (float)height);
   canvas.save();
-  canvas.translate((width - size.width() * scale) / 2,
-                   (height - size.height() * scale) / 2);
-  canvas.scale(scale, scale);
+  canvas.translate(fit.x, fit.y);
+  canvas.scale(fit.scale, fit.scale);
   canvas.clipRect(SkRect::MakeWH(size.width(), size.height()));
   canvas.clear(host->background().toSkColor());
   // Wall time, scaled, pausable and stall-clamped: the frame the reader
@@ -580,4 +654,29 @@ void SketchbookView::orbit(float yawDeg, float pitchDeg, float distance) {
   m_distance = distance;
   m_orbitDirty = true;
   update();
+}
+
+void SketchbookView::pointer(qreal x, qreal y, bool pressed) {
+  // Under the same lock the render thread draws under, the way the poll
+  // is: the session is one object, and the frame it is drawing is not
+  // interrupted by a point arriving.
+  QMutexLocker lock(&hostMutex);
+  if (!host || !host->live()) return;
+  sketch::Session* session = host->session();
+  if (!session) return;
+  // THE SAME FIT THE FRAME IS DRAWN WITH, in this item's own units: the
+  // canvas letterboxed into the item, so a point on the item is a point
+  // on the declared canvas by the inverse of that fit.
+  const SkSize size = host->canvasSize();
+  const auto fit = fitOf(size, (float)width(), (float)height());
+  session->pointer(((float)x - fit.x) / fit.scale,
+                   ((float)y - fit.y) / fit.scale, pressed);
+}
+
+void SketchbookView::key(int qtKey, const QString& text, bool pressed) {
+  const auto [name, code] = keyAs(qtKey, text);
+  QMutexLocker lock(&hostMutex);
+  if (!host || !host->live()) return;
+  if (sketch::Session* session = host->session())
+    session->key(name, code, pressed);
 }
