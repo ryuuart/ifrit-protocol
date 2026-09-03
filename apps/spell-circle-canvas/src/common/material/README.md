@@ -737,6 +737,22 @@ READS.** Three tiers, and nothing chooses between them by hand:
   rebuilt every draw; a live CHILD or blend layer makes its parent live,
   which is what stops a cache from freezing the parameter.
 
+**A TABLE AND A SECOND SOURCE ARE BOTH DOORS ON `sksl`.**
+`child(name, Paint)` fills a `uniform shader NAME` slot with another whole
+paint — an index texture, a mask, a noise field, a second gradient — and
+`uniform(name, std::vector<float>)` fills a declared array, matched
+against its TOTAL float count, so 1024 floats fill `float4 uPal[256]` and
+a count that is not the declaration's is refused whole rather than
+written partly. `uniform(name, shared_ptr<const UniformBlock>)` is the
+live form of the same array, re-read every paint. Together they are what
+a FIXED PALETTE needs: the picture is one channel of indices and the
+table is one uniform array, or — when the lookup is dynamic, which is the
+usual case, since the index is a pixel value — one 256 x 1 child image
+sampled nearest at the texel centre. Neither door asks for a variant
+baked per palette. A child rides the volatility tier and the prune
+signature: a live child makes the parent live, and two paints with
+different children never compare equal.
+
 **A PASS body is not a shader of its own.** A material handed to a text
 runtime's pass is written against declarations that runtime prepends once
 it knows the track's unit count — `uContent`, `uUnitRect[N]`,

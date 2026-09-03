@@ -8,16 +8,23 @@
 #include <gtest/gtest.h>
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
+#include <include/core/SkImage.h>
+#include <include/core/SkImageInfo.h>
 #include <include/core/SkM44.h>
 #include <include/core/SkPaint.h>
+#include <include/core/SkSamplingOptions.h>
 #include <include/core/SkString.h>
 #include <include/core/SkSurface.h>
+#include <include/core/SkTileMode.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Effect.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
 
+#include <algorithm>
+#include <cmath>
+#include <cstdint>
 #include <cstring>
 #include <memory>
 #include <utility>
@@ -346,4 +353,102 @@ TEST(SkiaEffect, ChainingPrecomposesAndAnEmptySideIsTheOther) {
   // needs no branch at the call site.
   EXPECT_TRUE(blur.then(skia::Effect{}) == blur);
   EXPECT_TRUE(skia::Effect{}.then(blur) == blur);
+}
+
+// ---------------------------------------------------------------------------
+// A FIXED PALETTE THROUGH AN EFFECT. An indexed picture — a 1994 sprite
+// sheet, a datashader's category ramp — is one channel of indices and one
+// 256-entry table; both doors an effect has for that table are here, so a
+// consumer never has to bake one sprite per palette.
+
+namespace {
+
+/** Entry i is (i/255, 1 - i/255, 0, 1): the index and its colour are the
+ *  same fact stated twice, so a wrong lookup is visible in the pixel. */
+std::vector<SkColor4f> paletteTable() {
+  std::vector<SkColor4f> pal((size_t)256);
+  for (int i = 0; i < 256; ++i)
+    pal[(size_t)i] = {(float)i / 255.0f, 1.0f - (float)i / 255.0f, 0.0f, 1.0f};
+  return pal;
+}
+
+/** The same table as the 256 x 1 unpremultiplied image a child slot takes. */
+sk_sp<SkImage> paletteImage(const std::vector<SkColor4f>& pal) {
+  SkBitmap bm;
+  bm.allocPixels(SkImageInfo::Make(256, 1, kRGBA_8888_SkColorType,
+                                   kUnpremul_SkAlphaType));
+  for (int i = 0; i < 256; ++i) {
+    const SkColor4f c = pal[(size_t)i];
+    auto b = [](float v) {
+      return (uint32_t)std::lround(std::clamp(v, 0.0f, 1.0f) * 255.0f);
+    };
+    *bm.getAddr32(i, 0) =
+        b(c.fR) | (b(c.fG) << 8) | (b(c.fB) << 16) | (b(c.fA) << 24);
+  }
+  bm.setImmutable();
+  return bm.asImage();
+}
+
+}  // namespace
+
+TEST(SkiaPaint, APaletteReachesAnEffectAsOneChildImage) {
+  const std::vector<SkColor4f> pal = paletteTable();
+  // The lookup a fixed-palette picture needs is DYNAMIC — the index is a
+  // pixel value, not a literal — and a sampled 256 x 1 strip is the form
+  // that takes: nearest, at the texel centre, so entry 200 is entry 200
+  // and not a blend of two unrelated ones.
+  skia::Paint lut = skia::Paint::sksl(effectFor(
+      "uniform shader uPalette;\n"
+      "uniform float uIndex;\n"
+      "half4 main(float2 p) {\n"
+      "  return uPalette.eval(float2(uIndex + 0.5, 0.5));\n"
+      "}"));
+  lut.uniform("uIndex", 200.0f);
+  lut.child("uPalette",
+            skia::Paint::image(paletteImage(pal), SkTileMode::kClamp,
+                               SkTileMode::kClamp, SkMatrix::I(),
+                               SkSamplingOptions(SkFilterMode::kNearest)));
+  // One child, one uniform: the whole table is in the shader and nothing
+  // was baked per entry.
+  sk_sp<SkShader> shader = lut.staticShader();
+  ASSERT_NE(shader, nullptr);
+  const SkBitmap bm = render(shader);
+  const SkColor got = bm.getColor(1, 1);
+  EXPECT_EQ(SkColorGetR(got), 200u);
+  EXPECT_EQ(SkColorGetG(got), 55u);
+  EXPECT_EQ(SkColorGetB(got), 0u);
+  EXPECT_EQ(SkColorGetA(got), 255u);
+}
+
+TEST(SkiaPaint, APaletteReachesAnEffectAsOneUniformArray) {
+  const std::vector<SkColor4f> pal = paletteTable();
+  std::vector<float> flat;
+  flat.reserve(pal.size() * 4);
+  for (const SkColor4f& c : pal) {
+    flat.push_back(c.fR);
+    flat.push_back(c.fG);
+    flat.push_back(c.fB);
+    flat.push_back(c.fA);
+  }
+  ASSERT_EQ(flat.size(), 1024u);
+
+  // The array door: 1024 floats fill `float4 uPalette[256]`, because the
+  // builder matches the DECLARED TOTAL float count and nothing finer.
+  skia::Paint lut = skia::Paint::sksl(
+      effectFor("uniform float4 uPalette[256];\n"
+                "half4 main(float2 p) { return half4(uPalette[200]); }"));
+  lut.uniform("uPalette", flat);
+  sk_sp<SkShader> shader = lut.staticShader();
+  ASSERT_NE(shader, nullptr);
+  const SkBitmap bm = render(shader);
+  const SkColor got = bm.getColor(1, 1);
+  EXPECT_EQ(SkColorGetR(got), 200u);
+  EXPECT_EQ(SkColorGetG(got), 55u);
+
+  // A count that is not the declaration's is refused whole rather than
+  // written partly: the paint keeps the table it had.
+  skia::Paint partial = lut;
+  partial.uniform("uPalette", std::vector<float>(8, 1.0f));
+  const SkBitmap same = render(partial.staticShader());
+  EXPECT_TRUE(identical(bm, same));
 }
