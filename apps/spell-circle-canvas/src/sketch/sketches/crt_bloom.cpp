@@ -151,13 +151,20 @@ struct CrtBloom final : sketch::Sketch {
     // a raw Skia filter: at 0° it IS a Gaussian blur, and it carries a
     // comparable recipe, so a re-described equal blur prunes where a
     // built filter can only compare by pointer.
+    // The blurred copy is given the WHOLE panel to spread in. A blur is
+    // clipped by its own node's box, so putting the effect on the tight
+    // text node would cut the halo off square at the letters' bounds.
     Element built =
         panel(stack()
                   .alignItems(Align::Center)
                   .justify(Justify::Center)
-                  .child(headline(kHalo)
+                  .child(box()
                              .absolute()
+                             .inset(0)
+                             .alignItems(Align::Center)
+                             .justify(Justify::Center)
                              .zIndex(1)
+                             .child(headline(kHalo))
                              .effect(mskia::Effect::directionalBlur(
                                  kSigma, 0.0f, kSigma))
                              .blend(SkBlendMode::kPlus)

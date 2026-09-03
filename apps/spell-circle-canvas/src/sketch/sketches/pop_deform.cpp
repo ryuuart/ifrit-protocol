@@ -55,7 +55,7 @@ constexpr float kBendDeg = 80.0f;
 constexpr float kPeak = 70.0f;
 constexpr float kPanel = 180.0f;
 constexpr float kHeight = 300.0f;  // the column: y in [-150, 150]
-constexpr float kLead = 374.0f;    // the second row's leading note
+constexpr float kLead = 374.0f;    // two panels and the gap between them
 
 const SkColor4f kGround{0.055f, 0.06f, 0.085f, 1};
 const SkColor4f kInk{0.90f, 0.93f, 0.97f, 1};
@@ -116,13 +116,17 @@ Element splat(geometry::mesh::Cloud cloud) {
 }
 
 Element panel(const char* title, const char* note, Element inner) {
+  // The cell is held to the picture's width: a call longer than its own
+  // panel would otherwise widen the cell and the two rows would stop
+  // lining up column for column.
   return kit::cell(voice(kPanel), toU8(title), toU8(note),
                    box()
                        .width(kPanel)
                        .height(kPanel * 1.6f)
                        .clip()
                        .stroke(stroke(1.0f, Fill::color(kFrame)))
-                       .child(std::move(inner)));
+                       .child(std::move(inner)))
+      .width(Dim(kPanel));
 }
 
 /** The shared head of every chain: the column, spread, sized, and a

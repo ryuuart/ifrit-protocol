@@ -33,8 +33,8 @@
  *     outlined in its tier's colour, so the sheet is a map of its own
  *     cache.
  *   THE SPLIT. Every node whose refusal mask carries `Volatile` is counted
- *     against every node that reached a bake. That count is the sentence
- *     the header used to assert.
+ *     against every node that reached a bake. That count is the claim
+ *     above, as a number rather than as a sentence.
  *   THE FRAME. `Composer::stats()` — nodes described, memo hits, pictures
  *     and textures live, recordings and bakes made, nodes painted, and the
  *     four phase times — printed as a block.
@@ -92,7 +92,7 @@ namespace {
 
 constexpr int kCards = 300;         // static, cached, never repainted
 constexpr int kMovers = 24;         // bound, volatile, painted every frame
-constexpr int kCells = 512;         // enough cells for picture replay to hurt
+constexpr int kCells = 417;         // enough cells for picture replay to hurt
 constexpr double kRepaintHz = 0.0;  // 0 = the bound colour never moves
 constexpr double kSnapAt = 2.0;     // when the reading is taken, seconds
 constexpr int kRows = 12;           // costliest nodes listed
@@ -180,7 +180,14 @@ Element cells(const choreograph::Output<Fill>* tint) {
                 .fill(Animatable<Fill>(tint))
                 .stroke(brush::solid(
                     1.5f, Fill::color({0.10f, 0.10f, 0.12f, 1.0f}))));
-  return box().key("cellPanel").column().child(std::move(row));
+  // The panel is held to the field's box so the two stand the same
+  // height and the readout below them starts on one line.
+  return box()
+      .key("cellPanel")
+      .column()
+      .width(kCellsWidth)
+      .height(kFieldHeight)
+      .child(std::move(row));
 }
 
 }  // namespace
@@ -202,6 +209,7 @@ struct VolatilityCost final : sketch::Sketch {
   Composer::Stats frame;
   int volatileNodes = 0;
   int bakedNodes = 0;
+  size_t profiled = 0;
 
   /** The movers' outputs and the one lambda per output that drives them,
    *  made ONCE. The tree below is described twice — once at setup and
@@ -313,9 +321,12 @@ struct VolatilityCost final : sketch::Sketch {
           .child(text(toU8(name), label(11, kDim)).width(Dim(168)))
           .child(text(toU8(value), label(11, kInk)));
     };
-    const auto count = [&](size_t v) {
-      return std::to_string((long long)ctx.measured((double)v, 0.0));
-    };
+    // A COUNT IS A FUNCTION OF THE DESCRIPTION and is printed as it is;
+    // a TIME is a function of the machine and is pinned when the host is
+    // capturing for a diff, so a plate carries the shape and not the
+    // stopwatch.
+    const auto count = [](size_t v) { return std::to_string(v); };
+    (void)ctx;
     Element column = box().column().gap(3);
     column.child(text(toU8("Composer::stats()"), label(12.5f, kInk, 0.8f))
                      .margin(0, 0, 0, 4));
@@ -337,6 +348,7 @@ struct VolatilityCost final : sketch::Sketch {
                      .margin(0, 0, 0, 4));
     column.child(line("refused: Volatile", count((size_t)volatileNodes)));
     column.child(line("reached a bake", count((size_t)bakedNodes)));
+    column.child(line("nodes profiled", count(profiled)));
     return column;
   }
 
@@ -423,7 +435,7 @@ struct VolatilityCost final : sketch::Sketch {
   }
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(1320, 900);
+    ctx.canvas(1320, 980);
     ctx.background(kGround);
     ctx.captureAt(kSnapAt + 0.5);  // the reading is taken and frozen by then
     movers.clear();
@@ -465,9 +477,13 @@ struct VolatilityCost final : sketch::Sketch {
           row.cacheState == Composer::CacheState::Promoted ||
           row.cacheState == Composer::CacheState::Group)
         ++bakedNodes;
-      if (const std::optional<SkRect> rect = composer.bounds(row.label))
+      // A profile row's label is the node's key followed by its kind and
+      // size, so the key is what stands before the first space.
+      const std::string key = row.label.substr(0, row.label.find(' '));
+      if (const std::optional<SkRect> rect = composer.bounds(key))
         marks.push_back({*rect, row.cacheState});
     }
+    profiled = rows.size();
     worst.assign(rows.begin(),
                  rows.begin() + (long)std::min<size_t>(kRows, rows.size()));
     snapped = true;

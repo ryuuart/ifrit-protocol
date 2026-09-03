@@ -134,7 +134,7 @@ const char* kHeartD =
 
 struct ShapeShelf final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(1120, 900);
+    ctx.canvas(1120, 840);
     ctx.background(kGround);
     // A generator is a pure function of its parameters and the box.
     ctx.captureAt(0.05);

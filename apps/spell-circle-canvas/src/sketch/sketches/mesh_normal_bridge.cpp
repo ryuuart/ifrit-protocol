@@ -40,9 +40,10 @@
  * EDIT THESE FIRST
  *   the superellipsoid's exponent — rounder bodies sweep more of the
  *                 environment across the silhouette.
- *   kBevelPx      — the shoulder's width on the third panel. Wide enough
- *                 and the squircle reads as the same kind of body the
- *                 mesh on the left is.
+ *   kBevelPx      — the shoulder's width on the third panel, px. Wide
+ *                 enough and the squircle reads as the same kind of body
+ *                 the mesh on the left is; narrow, and its interior is a
+ *                 flat face sampling the sky at one point.
  *   the environments — studio and sunset are differently coloured skies,
  *                 and chrome shows the difference hardest.
  */
@@ -77,9 +78,9 @@ namespace {
 
 constexpr SkSize kCanvas = {1320, 720};
 /** The bevelled panel's shoulder, px. */
-constexpr float kBevelPx = 54.0f;
+constexpr float kBevelPx = 118.0f;
 /** Where the three bodies stand across the canvas. */
-constexpr float kStations[3] = {-430, 0, 430};
+constexpr float kStations[3] = {-320, 0, 380};
 
 constexpr SkColor4f kInk{0.90f, 0.93f, 0.97f, 1};
 constexpr SkColor4f kDim{0.56f, 0.61f, 0.72f, 1};
@@ -217,7 +218,7 @@ struct MeshNormalBridge final : sketch::Sketch {
                            "the same bridge, another recipe and another "
                            "environment",
                            kStations[1]))
-            .child(caption("bevelNormals(path, 54) \xe2\x86\x92 kit::chrome",
+            .child(caption("bevelNormals(path, 118) \xe2\x86\x92 kit::chrome",
                            "no mesh at all \xe2\x80\x94 a shoulder derived "
                            "from a flat path's coverage, under the same "
                            "recipe and the same sky",
