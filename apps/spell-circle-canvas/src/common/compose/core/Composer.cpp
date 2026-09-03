@@ -281,7 +281,10 @@ void Composer::render(const Element& root) {
   Impl& impl = *m_impl;
   const sigil::measure::Stopwatch reconcile;
   impl.reconciler.render(impl.root, root.node());
-  impl.volatileDirty = true;  // transitions may have started
+  // A patch may have started or stopped a transition, so its volatility
+  // must be recomputed. An identical retained description does not: keeping
+  // this false lets active() poll a released external binding before draw.
+  if (impl.contentDirty || impl.needsLayout) impl.volatileDirty = true;
   impl.rebuildKeyIndex();
   impl.reconcileAccumMs += reconcile.elapsedMs();
 }
@@ -327,6 +330,16 @@ void Composer::renderSlot(std::string_view name, const Element& content) {
 
 bool Composer::dirty() const {
   return m_impl->contentDirty || m_impl->needsLayout;
+}
+
+bool Composer::active() const {
+  Impl& impl = *m_impl;
+  // A settled external binding has no reconciliation event to wake the
+  // composer. Poll its retained value here, before a texture scene decides
+  // that drawing can be skipped.
+  impl.scanReleasedScalars();
+  return impl.contentDirty || impl.needsLayout || impl.volatileDirty ||
+         impl.ticker.active() || impl.rootVolatile;
 }
 
 void Composer::draw(SkCanvas& canvas) {
@@ -406,7 +419,7 @@ void Composer::draw(SkCanvas& canvas) {
   const bool active = impl.ticker.active();
   if (impl.volatileDirty || active || impl.tickerWasActive) {
     impl.releasedScalars.clear();  // the walk re-registers what stays released
-    impl.computeVolatile(*impl.root);
+    impl.rootVolatile = impl.computeVolatile(*impl.root).volatileAbove;
     impl.volatileDirty = false;
   }
   impl.tickerWasActive = active;

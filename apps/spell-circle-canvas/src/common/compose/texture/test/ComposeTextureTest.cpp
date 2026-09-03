@@ -52,6 +52,27 @@ TEST(ComposeTexture, ADescriptionThatChangedPaintsAgain) {
   EXPECT_EQ(scene->version(), painted + 1);
 }
 
+TEST(ComposeTexture, ARetainedBindingPaintsWhenItsOutputMoves) {
+  choreograph::Output<float> alpha{1.0f};
+  const std::shared_ptr<TextureScene> scene =
+      TextureScene::make({32, 32}, fonts());
+  const Element retained = plate(SkColors::kRed).opacity(&alpha);
+
+  scene->render(retained);
+  const uint64_t painted = scene->version();
+  ASSERT_TRUE(scene->active());
+
+  alpha = 0.0f;
+  scene->render(retained, 1.0 / 60.0);
+  EXPECT_EQ(scene->version(), painted + 1)
+      << "the unchanged description hid its moved binding";
+
+  SkBitmap read;
+  read.allocPixels(SkImageInfo::MakeN32Premul(32, 32));
+  ASSERT_TRUE(scene->image()->readPixels(nullptr, read.pixmap(), 0, 0));
+  EXPECT_EQ(read.getColor(16, 16), SK_ColorTRANSPARENT);
+}
+
 TEST(ComposeTexture, TheMaterialComparesEqualAcrossAStillFrame) {
   const std::shared_ptr<TextureScene> scene =
       TextureScene::make({32, 32}, fonts());

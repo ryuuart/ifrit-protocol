@@ -139,7 +139,8 @@ bool TextureScene::useDevice(core::hardware::GpuDevice& device,
   return true;
 }
 #else
-bool TextureScene::useDevice(core::hardware::GpuDevice&, skia::GraphiteContext&) {
+bool TextureScene::useDevice(core::hardware::GpuDevice&,
+                             skia::GraphiteContext&) {
   // This build carries no device feature, so there is no device to paint
   // on and the raster surface stands.
   return false;
@@ -157,7 +158,7 @@ void TextureScene::render(const Element& root, double seconds) {
   // and no transition in flight means the pixels standing in the surface
   // are already the answer, and a consumer must be able to tell that
   // from the value alone.
-  if (impl.painted && !impl.composer->dirty() && !impl.ticker.active()) return;
+  if (impl.painted && !impl.composer->active()) return;
   impl.paint();
   impl.painted = true;
   ++impl.version;
@@ -175,7 +176,8 @@ material::DeviceImage TextureScene::deviceImage() const {
 #ifdef SIGILCOMPOSE_TEXTURE_DEVICE
   const Impl& impl = *m_impl;
   if (!impl.device || !impl.handle) return {};
-  const core::hardware::NativeTexture native = impl.device->exportNative(impl.handle);
+  const core::hardware::NativeTexture native =
+      impl.device->exportNative(impl.handle);
   if (!native) return {};
   material::DeviceImage out;
   out.device = impl.device;
@@ -191,9 +193,7 @@ material::DeviceImage TextureScene::deviceImage() const {
 #endif
 }
 
-bool TextureScene::active() const {
-  return m_impl->composer->dirty() || m_impl->ticker.active();
-}
+bool TextureScene::active() const { return m_impl->composer->active(); }
 
 const Composer& TextureScene::composer() const { return *m_impl->composer; }
 

@@ -162,6 +162,12 @@ class Composer {
    *  dirty() || ticker.active(). */
   bool dirty() const;
 
+  /** Whether another draw can produce different pixels: a description or
+   *  layout is dirty, a ticker motion is running, or a retained binding can
+   *  change without another render(). Unlike dirty(), this also polls
+   *  externally-driven bindings that previously settled. */
+  bool active() const;
+
   /** Lays out if needed and paints at the canvas's current matrix/clip.
    *  Provably-static subtrees replay their auto-recorded pictures. */
   void draw(SkCanvas& canvas);

@@ -101,6 +101,10 @@ struct Composer::Impl {
       routesByAnchor;
   bool volatileDirty = true;  // recompute needed (render or animation)
   bool tickerWasActive = false;
+  // The root verdict's volatileAbove bit: unlike Instance::subtreeVolatile,
+  // this includes the root's own opacity and transform, which can change the
+  // composited pixels without invalidating any content cache below it.
+  bool rootVolatile = false;
   // Instances whose scalar volatility is RELEASED (settled bound gates,
   // glyph progress and the other memoized scalar lanes). Rebuilt by every
   // computeVolatile walk, and scanned once per draw so an EXTERNALLY-driven
