@@ -715,10 +715,14 @@ embedding a scripting language — so a sketch never leaves the real API.
   one of them is nothing to this one.
 * After rebuilding the framework itself, restart the host. The ABI
   version guards deliberate changes to the sketch surface; a separate
-  guard refuses to compile while any repository header on the include
-  path postdates the running binary, because a dylib built against newer
-  headers loads into a host whose structs have the old layout and the
-  crash points nowhere near the cause.
+  guard refuses to compile while ANY of the framework libraries' public
+  headers postdates the running binary, because a dylib built against
+  newer headers loads into a host whose structs have the old layout and
+  the crash points nowhere near the cause. Every one of those headers
+  counts, whatever it happens to declare: a sketch fills a pool the host
+  then resizes and builds an element the host then reconciles, so a
+  layout read one way on each side corrupts wherever the object is next
+  touched.
 
 ### A workspace: sketches outside this repository
 

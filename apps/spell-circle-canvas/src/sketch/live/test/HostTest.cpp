@@ -141,6 +141,38 @@ TEST(SketchHost, RebuildsWhenTheSharedLayerIsEdited) {
   EXPECT_TRUE(host.compiling());
 }
 
+TEST(SketchHost, RefusesToBuildAgainstAFrameworkHeaderNewerThanTheHost) {
+  // A sketch dylib compiled against a framework header the host binary
+  // predates has ONE side's idea of a layout: the sketch fills a pool the
+  // host then resizes, and the corruption surfaces wherever the object is
+  // next touched rather than where it was caused. Every public header of a
+  // framework library is such a header, whatever it happens to declare, so
+  // the build is refused rather than risked.
+  const Watched file("sigil_sketch_host_skew");
+  const std::filesystem::path root =
+      file.dir.path / "src" / "common" / "compose" / "include";
+  const std::filesystem::path header =
+      root / "sigilcompose" / "core" / "Instances.h";
+  std::filesystem::create_directories(header.parent_path());
+  std::ofstream(header) << "#pragma once\n";
+  std::filesystem::last_write_time(
+      header,
+      std::filesystem::file_time_type::clock::now() + std::chrono::hours(1));
+  const std::filesystem::path flags = file.dir.path / "flags.rsp";
+  std::ofstream(flags) << "-I" << root.generic_string() << "\n";
+
+  Host::Options opts = options(file.path);
+  opts.flagsFile = flags;
+  opts.siblingScanInterval = std::chrono::milliseconds(0);
+  Host host(std::move(opts), fonts());
+  ASSERT_FALSE(host.compiling());
+  std::ofstream(file.dir.path / "palette.h") << "// a helper\n";
+  host.poll();
+  EXPECT_FALSE(host.compiling());
+  EXPECT_NE(host.errorLog().find("Instances.h"), std::string::npos)
+      << host.errorLog();
+}
+
 TEST(SketchHost, ReportsWaitingWhenNothingHasLoaded) {
   Host::Options opts;
   opts.sketchPath = std::filesystem::temp_directory_path() / "absent.cpp";

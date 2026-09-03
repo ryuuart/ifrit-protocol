@@ -108,20 +108,18 @@ std::filesystem::file_time_type hostBinaryTime() {
 }
 
 /** True when @p p is an ABI-BOUNDARY header: one whose types cross the
- *  host/dylib line. Extension headers compile fresh into every dylib and
- *  stay self-contained — the host often does not even link them, so
- *  their mtimes must not wedge the guard. */
+ *  host/dylib line.
+ *
+ *  EVERY PUBLIC HEADER OF A FRAMEWORK LIBRARY IS ONE, and the line is
+ *  drawn there rather than at a list of file names. A sketch constructs
+ *  the libraries' objects and the host mutates them — a pool filled in the
+ *  dylib and resized by the host, an element built in the dylib and
+ *  reconciled by the host — so any header that changes a layout either
+ *  side reads changes it on ONE side only, and the corruption surfaces
+ *  wherever the object is next touched rather than where it was caused. A
+ *  header believed harmless is exactly the header that gets one wrong. */
 bool abiBoundaryHeader(const std::filesystem::path& p) {
-  const std::string s = p.generic_string();
-  if (s.find("include/sigilsketch/") != std::string::npos) return true;
-  if (s.find("include/sigilweave/") != std::string::npos) return true;
-  if (s.find("include/sigilmotion/") != std::string::npos) return true;
-  if (s.find("include/sigilworld/") != std::string::npos) return true;
-  if (s.find("include/sigilcompose/") != std::string::npos) {
-    const std::string name = p.filename().string();
-    return name == "Compose.h" || name == "Material.h";
-  }
-  return false;
+  return p.generic_string().find("/include/sigil") != std::string::npos;
 }
 
 /** The first ABI-boundary repository header on the flags file's -I paths
