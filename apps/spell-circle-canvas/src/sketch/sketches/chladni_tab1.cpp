@@ -85,7 +85,7 @@
 //   instancing::Pool     9,580 sand grains, ONE atlas stamp, Mode::Live
 //   bind()               one settle Output per figure, shaped three ways
 //   PathFormat::trim*    the bow's travelling contact arc
-//   patterns::grain/speckle  plate tone and foxing
+//   field::grain / patterns::speckle  plate tone and foxing
 //   spans::upTo/animate  the frame, the rims, the reading order
 //
 // Run:
@@ -104,15 +104,22 @@
 #include <include/core/SkTypeface.h>
 #include <sigilcompose/brush/Hatches.h>
 #include <sigilcompose/brush/Lines.h>
-#include <sigilcompose/core/Material.h>
-#include <sigilcompose/core/Patterns.h>
-#include <sigilcompose/instances/Instances.h>
+#include <sigilcompose/core/Core.h>
+#include <sigilcompose/core/Pattern.h>
 #include <sigilcompose/kit/Frame.h>
-#include <sigilcompose/kit/Silhouettes.h>
-#include <sigilcompose/typography/TextFx.h>
-#include <sigilcompose/typography/Type.h>
+#include <sigilcompose/kit/Kinetic.h>
+#include <sigilcompose/typography/Typography.h>
+#include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilgeometry/path/Frame.h>
+#include <sigilmaterial/field/Field.h>
+#include <sigilmaterial/pattern/Patterns.h>
+#include <sigilmaterial/skia/Color.h>
+#include <sigilmaterial/skia/Paint.h>
+#include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/fonts/FontContext.h>
+#include <sigilweave/ports/SystemFontManager.h>
+#include <sigilweave/style/Type.h>
 
 #include <algorithm>
 #include <array>
@@ -121,8 +128,18 @@
 #include <vector>
 
 namespace sketch = sigil::sketch;
+namespace field = sigil::material::field;
+namespace patterns = sigil::material::pattern;
+namespace path = sigil::geometry::path;
+namespace shapes = sigil::geometry::shapes;
+namespace weave = sigil::weave;
+
+namespace skia = sigil::material::skia;
 
 using namespace sigil::compose;
+using namespace sigil::motion;
+using sigil::material::skia::Paint;
+using sigil::weave::ports::pickTypeface;
 using namespace std::chrono_literals;
 namespace ch = choreograph;
 
@@ -162,10 +179,10 @@ constexpr float kRuleGap = 11 * kScale;
 // run clockwise, which is how every one of Chladni's twelve figures gives
 // the bearing of its Linien. `kUnit` has radius 1, so `at()` takes a
 // FRACTION of the disc and `about(c).px()` takes canvas px.
-constexpr kit::Frame kUnit{.centre = {0, 0},
+constexpr path::Frame kUnit{.centre = {0, 0},
                            .radius = 1.0f,
-                           .zero = kit::Zero::North,
-                           .sense = kit::Sense::CW};
+                           .zero = path::Zero::North,
+                           .sense = path::Sense::CW};
 
 SkPoint polar(SkPoint c, float radius, float bearingDeg) {
   return kUnit.about(c).px(bearingDeg, radius);
@@ -384,7 +401,7 @@ struct Xorshift {
 // plate has one type signature and names its own four parameters over it.
 sigil::weave::TextStyle type(sk_sp<SkTypeface> face, float size,
                              SkColor4f color, float tracking = 0) {
-  return sigil::compose::type({.face = std::move(face),
+  return weave::textStyle({.face = std::move(face),
                                .size = size,
                                .color = color,
                                .track = tracking});
@@ -426,7 +443,7 @@ struct ChladniTab1 : sketch::Sketch {
   std::shared_ptr<instancing::Pool> pool;
 
   Pattern foxing, foxingLL;
-  Material inkMat, paperMat;
+  Paint inkMat, paperMat;
   sk_sp<SkTypeface> faceNumeral, faceLabel, faceSwash;
   ch::EaseFn settleEase;
 
@@ -771,22 +788,23 @@ struct ChladniTab1 : sketch::Sketch {
     // library's own walk: the first installed family wins, and a machine
     // with none of them gets the default face AT THE WEIGHT ASKED FOR
     // rather than silently at Normal.
-    faceNumeral = pickFace({"Didot", "Bodoni 72"});
-    faceLabel = pickFace({"Didot", "Baskerville"}, SkFontStyle::Italic());
-    faceSwash = pickFace({"Apple Chancery", "Snell Roundhand", "Baskerville"});
+    faceNumeral = pickTypeface({"Didot", "Bodoni 72"});
+    faceLabel = pickTypeface({"Didot", "Baskerville"}, SkFontStyle::Italic());
+    faceSwash = pickTypeface({"Apple Chancery", "Snell Roundhand", "Baskerville"});
 
-    paperMat = patterns::grain(0.013f, 4, 9.0f);
+    paperMat = Paint::recipe(field::grain(0.013f, 4, 9.0f));
     // Sparse, and NOT on a grid you can see: the tile has to be big
     // enough that its repeat is not the strongest mark on the page.
-    foxing = patterns::speckle(640, 22, 1.4f, 5.0f, {kFox});
+    foxing = patterns::speckle(640, 22, 1.4f, 5.0f, {skia::toColor(kFox)});
     foxing.seed(17);
-    foxingLL = patterns::speckle(520, 14, 2.0f, 7.0f, {hex(0x94764c, 0.09f)});
+    foxingLL = patterns::speckle(520, 14, 2.0f, 7.0f, {skia::toColor(hex(0x94764c, 0.09f))});
     foxingLL.seed(53);
     // Ink on rag paper is never flat: luminance noise, so it shades the
     // fill rather than hue-shifting it.
-    inkMat = Material::blend(
-        {{Material::solid(kInk), SkBlendMode::kSrc},
-         {patterns::grain(0.09f, 3, 4.0f, 0.35f), SkBlendMode::kSoftLight}});
+    inkMat = Paint::blend(
+        {{Paint::solid(kInk), SkBlendMode::kSrc},
+         {Paint::recipe(field::grain(0.09f, 3, 4.0f, 0.35f)),
+          SkBlendMode::kSoftLight}});
 
     settleEase = ease::outBounce();
 
