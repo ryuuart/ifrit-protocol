@@ -1,17 +1,22 @@
 /** @file
- * first_light — the first thing this library drew.
+ * first_light — one of everything a description can hold.
  *
- * A lit set with one of everything the description can hold: a tube
- * SWEPT along a closed loop, a comet of STAMPS riding a moving window of
- * that same loop, a plate under both, a sun and a lamp, and a CAMERA on
- * a rail of its own. Everything is a function of the scene time, so the
- * plate is a function of the declared moment.
+ * A lit set: a tube SWEPT along a closed loop, a comet of STAMPS riding
+ * a moving window of that same loop, a plate under both, a sun and a
+ * lamp, and a CAMERA on a rail of its own. The two curves are the
+ * world kit's — `kit::wave` for the loop that rises and falls,
+ * `kit::turntable` for the camera that circles the set and looks
+ * inward — so what this file states is the arrangement and nothing
+ * else. Everything is a function of the scene time, so the plate is a
+ * function of the declared moment.
  */
 
+#include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/curve/Curve.h>
 #include <sigilgeometry/mesh/curve/Pose.h>
 #include <sigilgeometry/mesh/pop/Pop.h>
 #include <sigilmaterial/kit/Surface.h>
+#include <sigilmotion/values/Time.h>
 #include <sigilsketch/set/Set.h>
 #include <sigilworld/kit/Kit.h>
 
@@ -22,45 +27,22 @@
 namespace sketch = sigil::sketch;
 namespace world = sigil::world;
 namespace material = sigil::material;
-
-using namespace sigil::world;
-
-namespace {
-
-namespace gm = ::sigil::geometry::mesh;
-
-constexpr float kTwoPi = 6.283185307179586f;
-/** How far out the camera's rail stands, and how high. The lens's target
- *  is written in the rail's own frame and depends on both. */
-constexpr float kRailRadius = 470.0f;
-constexpr float kRailHeight = 190.0f;
-
-/** The loop both the tube and the comet ride: a ring that rises and
- *  falls, so it reads as a curve in space rather than as a circle seen
- *  at an angle. */
-Spline3 ribbon() {
-  Spline3 spline;
-  for (int i = 0; i < 6; ++i) {
-    const float angle = (float)i * kTwoPi / 6.0f;
-    const float radius = (i % 2 == 0) ? 210.0f : 130.0f;
-    const float height = (i % 2 == 0) ? 80.0f : -60.0f;
-    spline.points.emplace_back(radius * std::cos(angle), height,
-                               radius * std::sin(angle));
-  }
-  spline.closed = true;
-  return spline;
-}
-
-/** …and the rail the camera rides, which is the kit's: a closed loop of
- *  stations round the set at one radius and one height. */
-Spline3 rail() {
-  return kit::rail(
-      {.radius = kRailRadius, .height = kRailHeight, .stations = 8});
-}
-
-}  // namespace
+namespace motion = sigil::motion;
+namespace gm = sigil::geometry::mesh;
 
 namespace {
+
+/** The camera's rail, and the seconds it takes to go round once. The
+ *  lens's target is written in the rail's own frame, so the aim depends
+ *  on the radius and the height rather than on where the camera has
+ *  got to. */
+constexpr world::kit::Turntable kTable{
+    .radius = 470.0f, .height = 190.0f, .period = 16.5f, .stations = 8};
+
+/** The loop both the tube and the comet ride: the kit's wave at its own
+ *  stations, which is a ring that stands high and low by turns, so it
+ *  reads as a curve in space rather than as a circle seen at an angle. */
+gm::curve::Spline3 ribbon() { return world::kit::wave({}); }
 
 struct FirstLight final : sketch::Set {
   void setup(sketch::SetContext& ctx) override {
@@ -70,8 +52,8 @@ struct FirstLight final : sketch::Set {
   }
 
   world::Frame describe(float seconds) override {
-    const Spline3 loop = ribbon();
-    const Spline3 track = rail();
+    const gm::curve::Spline3 loop = ribbon();
+    const gm::curve::Spline3 track = world::kit::rail(kTable);
 
     const gm::Mesh tube =
         gm::curve::sweep(loop, gm::curve::profile::circle(16),
@@ -80,17 +62,19 @@ struct FirstLight final : sketch::Set {
                           .normals = gm::curve::SweepOptions::Normals::Radial});
 
     const std::vector<glm::vec3> path = loop.sampleArcLength(96);
-    const float head = std::fmod(seconds * 0.35f, 1.0f);
-    const float travelled = seconds * 0.06f * track.length();
-    // Where the lens stands: its node carries it, so the pose the rail
-    // puts that node in at the distance it has travelled IS the eye.
+    const float head = motion::phase(seconds, 1.0 / 0.35);
+    // Where the lens stands: the turntable's node carries it, so the
+    // pose the rail puts that node in at the distance it has travelled
+    // IS the eye, and the comet is turned onto the same point.
+    const float travelled = motion::phase(seconds, kTable.period)
+                            * track.length();
     const glm::vec3 eye = gm::curve::poseAlong(track, travelled).position;
     // What stands at every point of the comet is a FLAKE, and a flat
     // body reads as the bead it draws only while it faces the viewer —
     // so the direction lane the loop seeded with its tangent is
     // replaced by the gaze, and the square covers the area the bead's
     // disc did.
-    const Chain comet =
+    const gm::pop::Chain comet =
         gm::pop::on(path)
             .count(1200)
             .spread(13.0f)
@@ -98,26 +82,17 @@ struct FirstLight final : sketch::Set {
             .fade({1.0f, 0.72f, 0.35f, 1.0f}, {0.25f, 0.55f, 1.0f, 1.0f})
             .lookAt(eye);
 
-    // The camera's node rides the rail, so its eye and its target are
-    // written in the rail's own moving frame: the binormal points inward
-    // at every station, so the set's centre is one rail radius along it
-    // and one rail height down, whatever the node has travelled.
-    Camera lens;
-    lens.eye = {0.0f, 0.0f, 0.0f};
-    lens.target = {kRailRadius, -kRailHeight, 0.0f};
-    lens.fovYDeg = 44.0f;
-
-    return Element()
+    return world::Element()
         .key("set")
-        .child(Element().key("sun").light(
-            sun({-0.45f, -0.8f, -0.4f}, {1.0f, 0.96f, 0.9f, 1.0f}, 0.95f)))
-        .child(Element()
+        .child(world::Element().key("sun").light(world::sun(
+            {-0.45f, -0.8f, -0.4f}, {1.0f, 0.96f, 0.9f, 1.0f}, 0.95f)))
+        .child(world::Element()
                    .key("lamp")
                    .at({180, 150, 220})
-                   .light(point({0, 0, 0}, {0.45f, 0.6f, 1.0f, 1.0f}, 0.9f,
-                                900.0f)))
-        .child(Element().key("camera").along(track, travelled).camera(lens))
-        .child(Element()
+                   .light(world::point({0, 0, 0}, {0.45f, 0.6f, 1.0f, 1.0f},
+                                       0.9f, 900.0f)))
+        .child(world::kit::turntable(kTable, seconds))
+        .child(world::Element()
                    .key("plate")
                    .at({0, -150, 0})
                    .rotateX(-90.0f)
@@ -125,13 +100,13 @@ struct FirstLight final : sketch::Set {
                    .fill(material::kit::surface(
                        {.baseColor = {0.10f, 0.11f, 0.14f, 1.0f}}))
                    .tag("ground"))
-        .child(Element()
+        .child(world::Element()
                    .key("tube")
                    .mesh(tube)
                    .fill(material::kit::surface(
                        {.baseColor = {0.62f, 0.66f, 0.74f, 1.0f}}))
                    .tag("lit"))
-        .child(Element()
+        .child(world::Element()
                    .key("comet")
                    .chain(comet)
                    .stamp(gm::quad(7.0f, 7.0f))
@@ -147,5 +122,5 @@ struct FirstLight final : sketch::Set {
 SIGIL_SKETCH(
     FirstLight, "Set",
     "A lit set with one of everything a description can hold \xe2\x80\x94 a "
-    "tube swept along a closed loop, a comet of stamps riding a "
-    "window of it, and a camera on a rail of its own")
+    "tube swept along the kit's wave, a comet of stamps riding a "
+    "window of it, and a turntable camera on a rail of its own")
