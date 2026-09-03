@@ -29,9 +29,12 @@
  * The swell is run on a composer of its own, one whole pixel at a time
  * across the range, and the reports are read after it — so the numbers
  * are the numbers a real swell produces and not a description of them.
- * What those numbers are here: the report answers `live`, and `reused`
- * and `degraded` are zero at either end of the range and under a budget
- * of one microsecond alike.
+ * What those numbers are here: at either end of the range the block
+ * comes back out of the store, so the report answers `reused` 1 and the
+ * frame costs no break decision; the passage that never declared itself
+ * live answers `live` false and `reused` 0, having decided its breaks
+ * again every frame; and under a floor of one microsecond the block is
+ * filled greedily and the report answers `degraded` 1.
  *
  * EDIT THESE FIRST
  *   kNarrow, kWide — the measure the swell runs between, px.
@@ -184,8 +187,8 @@ struct LiveSettling final : sketch::Sketch {
                 {.cells =
                      {cell("live(true, 4000) \xc2\xb7 at the narrow end",
                            "the swell has crossed this measure before "
-                           "\xc2\xb7 the report comes back with live set "
-                           "and both counters at zero",
+                           "\xc2\xb7 the block comes back out of the store, "
+                           "so this frame costs no break decision at all",
                            kNarrow, true, kBudget, reports[0]),
                       cell("live(true, 4000) \xc2\xb7 at the wide end",
                            "the other end of the range, reached from "
@@ -200,8 +203,9 @@ struct LiveSettling final : sketch::Sketch {
                            kWide, false, 0, reports[2]),
                       cell("live(true, 1)",
                            "a floor no optimizing break can meet "
-                           "\xc2\xb7 a degraded frame is filled greedily "
-                           "and counted, and this run counts none",
+                           "\xc2\xb7 the block is filled greedily for this "
+                           "frame and counted, and the setting comes back "
+                           "the frame the budget is met",
                            kWide, true, kStarved, reports[3])},
                  .gap = 14}))
             .absolute()
