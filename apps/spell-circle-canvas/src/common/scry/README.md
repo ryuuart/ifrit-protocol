@@ -81,7 +81,10 @@ gauge->paint([](SkCanvas &canvas) { /* draw with Skia */ });
 
 Pages also take input (`mouseMove`, `mouseDown`, `mouseUp`, `scroll`, all in
 view pixels) and script (`evaluateScript`, with an optional callback
-receiving the stringified result).
+receiving the stringified result). A scroll delta is what the CONTENT
+moves by, the way a wheel event states it, so walking down a page is
+negative: `scroll(0, -120)` lifts the content and shows what stood below
+it.
 
 ## The mental model
 

@@ -108,6 +108,32 @@ TEST(WebViewTest, DrawsThePageIntoTheRectItIsGiven) {
   EXPECT_EQ(composite.getColor(8, 8), SK_ColorGREEN);
 }
 
+TEST(WebViewTest, TheScrollDeltaIsWhatTheContentMovesBy) {
+  auto view = sharedEngine().createView(64, 64, {.transparent = false});
+  ASSERT_NE(view, nullptr);
+
+  // Two bands, each the height of the view: red standing where the view
+  // is, blue waiting below it. Which band the centre reads says which
+  // way the page went.
+  view->loadHTML(
+      "<html><body style='margin:0'>"
+      "<div style='height:64px;background:#ff0000'></div>"
+      "<div style='height:64px;background:#0000ff'></div>"
+      "</body></html>");
+  ASSERT_TRUE(waitForFrame(*view, 0));
+  ASSERT_TRUE(waitForCentre(*view, SK_ColorRED));
+
+  // NEGATIVE WALKS DOWN THE PAGE. The delta is what the CONTENT moves
+  // by, the way a wheel event states it, so reaching the band below
+  // means moving the content up.
+  view->scroll(0, -64);
+  EXPECT_TRUE(waitForCentre(*view, SK_ColorBLUE));
+
+  // …and back, which is the same statement from the other side.
+  view->scroll(0, 64);
+  EXPECT_TRUE(waitForCentre(*view, SK_ColorRED));
+}
+
 TEST(WebViewTest, AnswersTheValueAScriptEvaluatesTo) {
   auto view = sharedEngine().createView(32, 32);
   ASSERT_NE(view, nullptr);

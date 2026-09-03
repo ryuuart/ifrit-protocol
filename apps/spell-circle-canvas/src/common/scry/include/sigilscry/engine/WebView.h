@@ -154,7 +154,15 @@ class WebView {
   /** The release that completes a press. */
   void mouseUp(int x, int y, MouseButton button = MouseButton::Left);
 
-  /** Scrolls by @p dx / @p dy pixels. */
+  /** A wheel of @p dx / @p dy pixels, exactly as an input device
+   *  delivers one.
+   *
+   *  THE DELTA IS WHAT THE CONTENT MOVES BY, not where the viewport goes
+   *  — so WALKING DOWN A PAGE IS NEGATIVE: `scroll(0, -120)` lifts the
+   *  content 120 pixels and shows what stood below it, the way a wheel
+   *  rolled away from the reader does. Positive brings the page back
+   *  down toward its top. `dx` is the same statement sideways: negative
+   *  reveals what stood to the right. */
   void scroll(int dx, int dy);
 
   class Impl;
