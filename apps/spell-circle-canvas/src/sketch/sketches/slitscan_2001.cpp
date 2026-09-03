@@ -201,16 +201,20 @@
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/brush/Hatches.h>
 #include <sigilcompose/brush/Lines.h>
-#include <sigilcompose/core/Material.h>
+#include <sigilcompose/core/Core.h>
 #include <sigilcompose/core/Pattern.h>
-#include <sigilcompose/core/Patterns.h>
-#include <sigilcompose/instances/Instances.h>
+#include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/kit/Legibility.h>
-#include <sigilcompose/kit/Silhouettes.h>
-#include <sigilcompose/typography/TextFx.h>
-#include <sigilcompose/typography/Type.h>
+#include <sigilcompose/typography/Typography.h>
+#include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilmaterial/pattern/Patterns.h>
+#include <sigilmaterial/skia/Color.h>
+#include <sigilmaterial/skia/Effect.h>
+#include <sigilmaterial/skia/Paint.h>
+#include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>
+#include <sigilweave/style/Type.h>
 
 #include <algorithm>
 #include <array>
@@ -225,9 +229,17 @@
 #include <vector>
 
 namespace sketch = sigil::sketch;
+namespace patterns = sigil::material::pattern;
+namespace shapes = sigil::geometry::shapes;
+namespace weave = sigil::weave;
 
 using namespace sigil::compose;
+using namespace sigil::motion;
 using namespace std::chrono_literals;
+using sigil::material::skia::Effect;
+using sigil::material::skia::Paint;
+using sigil::material::skia::toColor;
+using sigil::weave::ports::pickTypeface;
 namespace ch = choreograph;
 
 namespace slit {
@@ -331,7 +343,7 @@ constexpr float kPanelStripW = 432;  // 144 in at 3.0 px/in, exact
 // Type
 
 sk_sp<SkTypeface> face(const char* family, SkFontStyle style) {
-  return sigil::compose::pickFace({family}, style);
+  return pickTypeface({family}, style);
 }
 sk_sp<SkTypeface> uiFace() {
   static sk_sp<SkTypeface> f = face("Helvetica Neue", SkFontStyle::Normal());
@@ -350,31 +362,31 @@ sk_sp<SkTypeface> monoBoldFace() {
   return f;
 }
 
-sigil::weave::TextStyle type(sk_sp<SkTypeface> tf, float size, SkColor4f color,
+weave::TextStyle faced(sk_sp<SkTypeface> tf, float size, SkColor4f color,
                              float track = 0.0f) {
-  return sigil::compose::type(
+  return weave::textStyle(
       {.face = std::move(tf), .size = size, .color = color, .track = track});
 }
-sigil::weave::TextStyle ui(float s, SkColor4f c, float tr = 0) {
-  return type(uiFace(), s, c, tr);
+weave::TextStyle ui(float s, SkColor4f c, float tr = 0) {
+  return faced(uiFace(), s, c, tr);
 }
-sigil::weave::TextStyle uiB(float s, SkColor4f c, float tr = 0) {
-  return type(uiBoldFace(), s, c, tr);
+weave::TextStyle uiB(float s, SkColor4f c, float tr = 0) {
+  return faced(uiBoldFace(), s, c, tr);
 }
-sigil::weave::TextStyle mono(float s, SkColor4f c, float tr = 0) {
-  return type(monoFace(), s, c, tr);
+weave::TextStyle mono(float s, SkColor4f c, float tr = 0) {
+  return faced(monoFace(), s, c, tr);
 }
-sigil::weave::TextStyle monoB(float s, SkColor4f c, float tr = 0) {
-  return type(monoBoldFace(), s, c, tr);
+weave::TextStyle monoB(float s, SkColor4f c, float tr = 0) {
+  return faced(monoBoldFace(), s, c, tr);
 }
 /** The quotation register: condensed 0.94 with 0.4 of tracking. */
-sigil::weave::TextStyle quo(float s, SkColor4f c) {
-  sigil::weave::TextStyle st = type(uiFace(), s, c, 0.4f);
+weave::TextStyle quo(float s, SkColor4f c) {
+  weave::TextStyle st = faced(uiFace(), s, c, 0.4f);
   st.condense(0.94f);
   return st;
 }
 
-Element t(const std::string& s, sigil::weave::TextStyle st) {
+Element t(const std::string& s, weave::TextStyle st) {
   return text(toU8(s), std::move(st));
 }
 
@@ -978,7 +990,7 @@ struct SlitScan2001 : sketch::Sketch {
 
     auto one = std::make_shared<instancing::Atlas>(1.0f);
     one->filter(SkFilterMode::kNearest);
-    one->cell(box().fill(Material::image(
+    one->cell(box().fill(Paint::image(
                   S.image, SkTileMode::kClamp, SkTileMode::kClamp,
                   SkMatrix::Scale(kCellW / (float)S.w, kCellH / (float)S.h),
                   SkSamplingOptions())),
@@ -1123,7 +1135,7 @@ struct SlitScan2001 : sketch::Sketch {
             // full-canvas kPlus radial re-evaluated per frame costs this
             // scene more than the two exposures do.
             .cache(Cache::Texture)
-            .fill(Material::glowUnit({0.5f, 0.5f}, 0.5f,
+            .fill(Paint::glowUnit({0.5f, 0.5f}, 0.5f,
                                      {{0.00f, {1.0f, 0.98f, 0.92f, 0.92f}},
                                       {0.12f, {1.0f, 0.94f, 0.80f, 0.42f}},
                                       {0.42f, {0.90f, 0.80f, 0.60f, 0.10f}},
@@ -1281,7 +1293,7 @@ struct SlitScan2001 : sketch::Sketch {
    *  otherwise squash a text leaf below its measured height and the run
    *  silently overlaps its neighbour. This is the height-axis form of the
    *  same rule that lets a fixed width() flex child still shrink. */
-  Element pl(const std::string& str, sigil::weave::TextStyle st) {
+  Element pl(const std::string& str, weave::TextStyle st) {
     return slit::t(str, std::move(st)).shrink(0);
   }
 
@@ -1967,10 +1979,10 @@ void SlitScan2001::setup(sketch::SketchContext& ctx) {
   // never mutated afterwards, so they are plain baked SkImages; a live
   // pixel buffer would only be needed if something wrote into them later.
   const double b0 = (double)std::clock() / CLOCKS_PER_SEC;
-  gridPat = patterns::gridLines(37.0f, 23.0f, 2.0f, kWhite);
+  gridPat = patterns::gridLines(37.0f, 23.0f, 2.0f, toColor(kWhite));
   // patterns::speckle's tile IS the repeat, so it has to be large or the
   // speckle reads as a visibly repeating stamp.
-  spekPat = patterns::speckle(492.0f, 84, 5.0f, 21.0f, {kWhite});
+  spekPat = patterns::speckle(492.0f, 84, 5.0f, 21.0f, {toColor(kWhite)});
   if (ctx.fonts) {
     strips[0] =
         bakeStrip(artOpArt(), *ctx.fonts, (int)kCellW, (int)kCellH, 0.30f, -1);
@@ -1988,7 +2000,7 @@ void SlitScan2001::setup(sketch::SketchContext& ctx) {
   atlas->filter(SkFilterMode::kNearest);  // 1-bit artwork
   for (int i = 0; i < 3; ++i) {
     const Strip& S = strips[(size_t)i];
-    atlas->cell(box().fill(Material::image(
+    atlas->cell(box().fill(Paint::image(
                     S.image, SkTileMode::kClamp, SkTileMode::kClamp,
                     SkMatrix::Scale(kCellW / (float)std::max(S.w, 1),
                                     kCellH / (float)std::max(S.h, 1)),
