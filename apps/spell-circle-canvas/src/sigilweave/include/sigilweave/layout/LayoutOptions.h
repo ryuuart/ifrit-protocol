@@ -123,12 +123,11 @@ struct JustificationOptions {
   /// pass's DESIRED value widens the line before any of them is fitted, and
   /// its two limits bound what it may add on top of that.
   ///
-  /// A LINE THAT ASKS FOR NONE OF THE PASSES PAST THE GAPS is fitted on its
-  /// gaps alone and its gaps are unbounded, because the alternative there
-  /// is a loose right margin with nothing able to close it. Change any
-  /// field below from its stock value and the whole three-pass fit runs,
-  /// bounds included — which is what makes a line that has reached every
-  /// limit stand short of the measure rather than open a hole.
+  /// THE GAPS ARE BOUNDED BY `spaceStretch` ONLY WHERE A LATER PASS CAN
+  /// SPEND WHAT THEY MAY NOT — where the letter or glyph limits leave room
+  /// past what those passes were asked for. With both shut, a bound on the
+  /// gaps would open a hole at the right margin that nothing in the line is
+  /// allowed to close, and a hole is worse than a wide gap.
 
   /// The width a justified word gap is AIMED at, as a multiple of the
   /// shaped space width; the elasticity below is measured from it, so the

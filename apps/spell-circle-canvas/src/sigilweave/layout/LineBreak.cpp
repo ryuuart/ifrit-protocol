@@ -567,7 +567,6 @@ void placeWords(FontContext& fontContext, const Paragraph& paragraph,
       justification.glyphScale != 1.0f ||
       justification.glyphScaleMinimum != 1.0f ||
       justification.glyphScaleMaximum != 1.0f ||
-      justification.spaceStretch != JustificationOptions{}.spaceStretch ||
       justification.singleWord == JustificationOptions::SingleWord::kJustify;
   const bool extendedJustify =
       resolvedAlignment == TextAlignment::kJustify && spendsPastGaps;
@@ -602,6 +601,19 @@ void placeWords(FontContext& fontContext, const Paragraph& paragraph,
   const float desiredGlyphWidening =
       extendedJustify ? (justification.glyphScale - 1.0f) * lineShapedWidth
                       : 0.0f;
+  // WHETHER THE GAPS ARE BOUNDED AT ALL. They open to their stretch limit
+  // only where a later pass can spend what they may not; with both of
+  // those shut — their limits equal to what they were asked for — a bound
+  // on the gaps would leave a hole at the right margin that nothing in the
+  // line is allowed to close, and a hole is worse than a wide gap. So a
+  // caller who asks only for a rule about lone-word lines, or only for a
+  // wider gap to aim at, still gets every other line filled.
+  const bool laterPassesHaveRoom =
+      extendedJustify &&
+      (justification.letterSpacingMinimum * em < desiredLetterSpacing ||
+       justification.letterSpacingMaximum * em > desiredLetterSpacing ||
+       justification.glyphScaleMinimum < justification.glyphScale ||
+       justification.glyphScaleMaximum > justification.glyphScale);
 
   float startOffset = 0;
   float spaceAdjustment = 0;
@@ -648,11 +660,7 @@ void placeWords(FontContext& fontContext, const Paragraph& paragraph,
         // letter and glyph passes are for, and this is the only thing that
         // ever leaves them anything: a line whose gaps could take
         // everything leaves the two passes past them nothing to do.
-        //
-        // A line that asked for none of those passes is fitted on its gaps
-        // alone and this never runs, because the alternative there is a
-        // loose right margin with nothing able to close it.
-        if (extendedJustify && spaceGapCount > 0) {
+        if (laterPassesHaveRoom && spaceGapCount > 0) {
           const float spaceStretchLimit =
               stretchableGlue * options.justification.wordSpacing /
               static_cast<float>(spaceGapCount) *
