@@ -466,3 +466,52 @@ TEST(ComposeKitStrokes, ABleedIsADISTANCEAndNeverNegative) {
   const SkPath line = b.detach();
   EXPECT_FALSE(kitWave.shape(line).isEmpty());
 }
+
+// ---------------------------------------------------------------------------
+// kit::groove — the engraved cut across a disc's stroke.
+
+#include <include/core/SkPicture.h>
+#include <sigilcompose/kit/Frame.h>
+
+TEST(ComposeKitStrokes, TheGrooveIsDarkOnTheInnerWallAndLitOnTheOuter) {
+  const SkColor4f dark{0.2f, 0.1f, 0.0f, 1};
+  const SkColor4f lite{1.0f, 0.9f, 0.6f, 1};
+  // A disc of radius 30 about (50, 50), its outline cut 8 px wide.
+  Element disc = kit::disc(SkPoint{50, 50}, 30)
+                     .shape(geometry::shapes::circle())
+                     .fill(Fill::none())
+                     .stroke(kit::groove(30, 8, dark, lite));
+  const sk_sp<SkPicture> picture = snapshot(
+      box().width(100).height(100).child(std::move(disc)), fonts(),
+      {100, 100});
+  ASSERT_TRUE(picture);
+  sk_sp<SkSurface> surface =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(100, 100));
+  surface->getCanvas()->clear(SK_ColorBLACK);
+  surface->getCanvas()->drawPicture(picture);
+  const auto pixel = [&](int x, int y) {
+    SkBitmap bm;
+    bm.allocPixels(SkImageInfo::MakeN32Premul(1, 1));
+    surface->readPixels(bm.pixmap(), x, y);
+    return bm.getColor(0, 0);
+  };
+  // Three pixels inside the outline the wall is dark; two outside it is
+  // lit — the two tones, not a blend of them, since the shoulder is a
+  // fifth of the width.
+  const SkColor innerEast = pixel(77, 50);
+  const SkColor outerEast = pixel(82, 50);
+  EXPECT_NEAR((int)SkColorGetR(innerEast), 51, 3);
+  EXPECT_NEAR((int)SkColorGetG(innerEast), 26, 3);
+  EXPECT_NEAR((int)SkColorGetR(outerEast), 255, 3);
+  EXPECT_NEAR((int)SkColorGetG(outerEast), 230, 3);
+  // Constant ALONG the groove: the north reads exactly as the east.
+  EXPECT_EQ(pixel(50, 22), innerEast);
+  EXPECT_EQ(pixel(50, 17), outerEast);
+  // Nothing beyond the cut's width, either side.
+  EXPECT_EQ(pixel(50, 50), SK_ColorBLACK);
+  EXPECT_EQ(pixel(95, 50), SK_ColorBLACK);
+  // A comparable value: the same cut twice is one stroke, so a plate of
+  // seventy grooves prunes.
+  EXPECT_EQ(kit::groove(30, 8, dark, lite), kit::groove(30, 8, dark, lite));
+  EXPECT_FALSE(kit::groove(30, 8, dark, lite) == kit::groove(31, 8, dark, lite));
+}

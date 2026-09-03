@@ -657,8 +657,12 @@ them along one axis with a hairline between neighbours, and
 footer off from the content between them; every face, size and distance
 is the `Caption`'s and the `Sheet`'s, so the kit decides no look — and,
 shipped with the tiers whose
-types they are spelled in, `kit/Strokes.h`'s braid, bracket spans and brush
-presets and `kit/Plate.h`'s bordered feed plate (Brush), and
+types they are spelled in, `kit/Strokes.h`'s braid, bracket spans, brush
+presets and `kit::groove` — the engraved cut across a disc's stroke, a
+radial ramp concentric with the circle so it is dark on the inner wall
+and lit on the outer, as the comparable `kit::grooveRamp` paint or the
+`PathFormat` that wears it — and `kit/Plate.h`'s bordered feed plate
+(Brush), and
 `kit/Legibility.h` (Typography). The kit
 is a **separate CMake library** (`SigilComposeKit`) whose only include
 path is compose's public headers, which is how the public/internal

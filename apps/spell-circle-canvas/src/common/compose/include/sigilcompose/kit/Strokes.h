@@ -25,10 +25,12 @@
 #include <include/core/SkBlendMode.h>
 #include <include/core/SkColor.h>
 #include <sigilcompose/brush/Brushes.h>
+#include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/brush/Lines.h>
 #include <sigilcompose/brush/Rails.h>
 #include <sigilcompose/core/Stroke.h>
 #include <sigilgeometry/kit/Shapers.h>
+#include <sigilmaterial/skia/Paint.h>
 
 #include <algorithm>
 #include <vector>
@@ -63,6 +65,46 @@ inline std::vector<brush::Strand> braid(int n, float amplitude,
                                                     (float)k / (float)count),
                       ink});
   return out;
+}
+
+/** THE ENGRAVED GROOVE across a circle's stroke, as the ramp it is
+ *  painted with: a radial ramp centred on the circle's own centre, dark
+ *  on the inner wall and lit on the outer, so the mark reads as a cut
+ *  with a shadowed wall and a lit wall — a CROSS-SECTION, which is the
+ *  one paint a stroke's own colour cannot carry. It is constant along the
+ *  groove and varies across it for one reason: the ramp is concentric
+ *  with the circle. On any path that is not a circle about the ramp's
+ *  centre the trick falls apart.
+ *
+ *  NODE-LOCAL, in px: the centre is `{radius, radius}`, which is where
+ *  `kit::disc(centre, radius)` puts the circle in its box, so the ramp is
+ *  right on a disc and on nothing else. `shoulder` is how much of the
+ *  width the two walls take to meet, as a fraction of it — 0 a hard step
+ *  at the floor, 0.5 a ramp the whole width across. The tones carry their
+ *  own alpha, which is what sets how deep the cut reads over the surface
+ *  beneath. A comparable paint, so a plate of seventy grooves prunes;
+ *  `toFill` turns it into the `Fill` a `lines::Rail` takes. */
+inline material::skia::Paint grooveRamp(float radius, float width,
+                                        SkColor4f dark, SkColor4f lite,
+                                        float shoulder = 0.22f) {
+  const float reach = radius + width;
+  const float inner = (radius - width * 0.5f) / reach;
+  const float outer = (radius + width * 0.5f) / reach;
+  const float mid = (inner + outer) * 0.5f;
+  const float half = (outer - inner) * std::clamp(shoulder, 0.0f, 0.5f);
+  return material::skia::Paint::radial(
+      {radius, radius}, reach,
+      {{0.0f, dark}, {mid - half, dark}, {mid + half, lite}, {1.0f, lite}});
+}
+
+/** The groove as the stroke a disc's outline wears: @p width px centred
+ *  on the outline, painted with `grooveRamp`. */
+inline PathFormat groove(float radius, float width, SkColor4f dark,
+                         SkColor4f lite, float shoulder = 0.22f) {
+  PathFormat cut;
+  cut.width = width;
+  cut.strokeMaterial = grooveRamp(radius, width, dark, lite, shoulder);
+  return cut;
 }
 
 }  // namespace kit
