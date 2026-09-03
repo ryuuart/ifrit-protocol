@@ -76,11 +76,13 @@
 //   The hop, frame by frame:  --at 1.20 --frames 10 --fps 12
 
 #include <sigilcompose/brush/Decorations.h>
-#include <sigilcompose/core/Material.h>
-#include <sigilcompose/typography/TextFx.h>
+#include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigilmotion/schedule/Spread.h>
 #include <sigilmotion/values/Time.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilweave/ports/SystemFontManager.h>
+#include <sigilweave/style/Type.h>
 
 #include <algorithm>
 #include <cmath>
@@ -88,6 +90,7 @@
 #include <vector>
 
 namespace sketch = sigil::sketch;
+namespace weave = sigil::weave;
 namespace motion = sigil::motion;
 
 using namespace sigil::compose;
@@ -153,10 +156,15 @@ constexpr float kHopHeight = 44.0f;   // the 1924 arc
  *  of 0 would make it slide continuously and name nothing. */
 constexpr float kBallHold = 0.62f;
 
-/** THE CASCADE: the sung times per word, the letters swept inside each. */
-Stagger wipeCascade() {
-  Stagger cascade = stagger(unit::Word, cues(wordCues()));
-  cascade.then(unit::Cluster, {.eachMs = kEachMs, .durationMs = kSwitchMs});
+/** THE CASCADE: the sung times per word, the letters swept inside each.
+ *
+ *  What a unit IS lives on the TRACK — `over = unit::Word`, `innerOver =
+ *  unit::Cluster` — because a spread is SigilMotion's and says nothing
+ *  about text. All this value carries is the table and the inner step. */
+sigil::motion::Spread wipeCascade() {
+  sigil::motion::Spread cascade;
+  cascade.cues(wordCues());
+  cascade.then({.eachMs = kEachMs, .durationMs = kSwitchMs});
   return cascade;
 }
 
@@ -221,8 +229,10 @@ struct KaraokeWipe : sketch::Sketch {
         .key("line1")
         .fx({.effect = fx::tint(kPale, kSung),
              .stagger = wipeCascade(),
-             .progress = bind(&cycle).window((float)kLeadIn,
-                                             (float)(kLeadIn + kLineSeconds))});
+             .over = unit::Word,
+             .innerOver = unit::Cluster,
+             .progress = motion::bind(&cycle).window(
+                 (float)kLeadIn, (float)(kLeadIn + kLineSeconds))});
   }
 
   /** The ruler: one tick per BEAT, at the rect the engine placed it in, and
@@ -256,10 +266,10 @@ struct KaraokeWipe : sketch::Sketch {
   }
 
   [[nodiscard]] Element describe() const {
-    const sigil::weave::TextStyle small =
-        type({.face = face, .size = 11.5f, .color = kLabel, .track = 2.4f});
-    const sigil::weave::TextStyle note =
-        type({.face = face, .size = 11.5f, .color = kFaint, .track = 0.5f});
+    const sigil::weave::TextStyle small = weave::textStyle(
+        {.face = face, .size = 11.5f, .color = kLabel, .track = 2.4f});
+    const sigil::weave::TextStyle note = weave::textStyle(
+        {.face = face, .size = 11.5f, .color = kFaint, .track = 0.5f});
 
     Element stage =
         box()
@@ -287,30 +297,31 @@ struct KaraokeWipe : sketch::Sketch {
                                   .translateY(&ballY)))
             .child(lyricLine())
             .child(ruler().margin(0, 12, 0, 0))
-            .child(text(toU8(kLine2), type({.face = face,
-                                            .size = kLyricSize * 0.78f,
-                                            .color = kNext,
-                                            .track = kTrack,
-                                            .aliased = kAliased,
-                                            .antiAlias = false}))
-                       .key("line2")
-                       .margin(0, 22, 0, 0));
+            .child(
+                text(toU8(kLine2), weave::textStyle({.face = face,
+                                                     .size = kLyricSize * 0.78f,
+                                                     .color = kNext,
+                                                     .track = kTrack,
+                                                     .aliased = kAliased,
+                                                     .antiAlias = false}))
+                    .key("line2")
+                    .margin(0, 22, 0, 0));
 
     return box()
         .column()
         .padding(46, 38)
         .gap(26)
-        .fill(Material::linear({0, 0}, {0, kH},
-                               {{0.0f, kStage}, {0.5f, kBand}, {1.0f, kStage}}))
+        .fill(linearGradient({0, 0}, {0, kH}, {kStage, kBand, kStage},
+                             {0.0f, 0.5f, 1.0f}))
         .child(box()
                    .row()
                    .alignItems(Align::End)
                    .child(text(toU8("FOLLOW THE BOUNCING BALL"), small).grow(1))
                    .child(text(toU8("FLEISCHER 1924 \xc2\xb7 CD+G 1985"),
-                               type({.face = face,
-                                     .size = 11.5f,
-                                     .color = kNext,
-                                     .track = 2.4f}))))
+                               weave::textStyle({.face = face,
+                                                 .size = 11.5f,
+                                                 .color = kNext,
+                                                 .track = 2.4f}))))
         .child(box().height(1).fill(Fill::color(kFaint)))
         .child(box().grow(1))
         .child(box().alignItems(Align::Center).child(std::move(stage)))
@@ -332,13 +343,14 @@ struct KaraokeWipe : sketch::Sketch {
     ctx.background(kStage);
     if (!ctx.fonts) return;
 
-    face = pickFace({"Avenir Next", "Futura", "Helvetica Neue"}, 600);
-    lyric = type({.face = face,
-                  .size = kLyricSize,
-                  .color = kSung,
-                  .track = kTrack,
-                  .aliased = kAliased,
-                  .antiAlias = false});
+    face = weave::ports::pickTypeface(
+        {"Avenir Next", "Futura", "Helvetica Neue"}, 600);
+    lyric = weave::textStyle({.face = face,
+                              .size = kLyricSize,
+                              .color = kSung,
+                              .track = kTrack,
+                              .aliased = kAliased,
+                              .antiAlias = false});
     // The keyline: a black pass under the glyphs, which is what keeps a
     // caption legible over a picture it does not own.
     sigil::weave::PaintLayer key;
