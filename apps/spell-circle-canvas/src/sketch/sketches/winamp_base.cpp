@@ -33,14 +33,15 @@
 //   · eeggs.com + TITLEBAR.BMP itself: "IT REALLY WHIPS THE LLAMA'S ASS!"
 //     is a real baked title-bar state, not a joke I invented.
 //
-// THIS IS A SKIN, so the original is bitmaps. Everything here is generated:
-// the brushed body is Material::linearUnit + patterns::grain(stretch),
-// the bevels are shapes::onEdges/shapes::inset stroke pairs, the LEDs are
-// an instancing Atlas+Pool, the fader tracks are one shared 3-stop
-// Material, the title-bar grip is a rotated patterns::stripes tile.
+// THIS IS A SKIN, so the original is bitmaps. Everything here is
+// generated: the brushed body is a `Paint::linearUnit` under a stretched
+// `field::grain`, every bevel is one `styles::BevelPair` — raised, or the
+// same value sunken — the LEDs are an instancing Atlas + Pool, the fader
+// track is one 28-step ladder ramp, and the title-bar grip is a rotated
+// `pattern::stripes` tile.
 //
 // FIVE THINGS THE RENDER DECIDES, WHICH NO MEASUREMENT OF THE SKIN SETTLES:
-//  · patterns::grain's freq is features-per-PIXEL, so it has to be read
+//  · field::grain's freq is features-per-PIXEL, so it has to be read
 //    against the scale factor. At x3, brushed aluminium wants freq≈0.075
 //    with stretch=5 — uFreq = (0.015, 0.375), features ~65 px long and ~3 px
 //    apart. Anything in the units-digit range (6.0 with stretch=6 asks for
@@ -71,15 +72,24 @@
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/brush/LayerStyles.h>
-#include <sigilcompose/core/Material.h>
+#include <sigilcompose/brush/Adaptors.h>
+#include <sigilcompose/brush/PixelStyles.h>
+#include <sigilcompose/core/Instances.h>
+#include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/Pattern.h>
-#include <sigilcompose/core/Patterns.h>
-#include <sigilcompose/instances/Instances.h>
 #include <sigilcompose/kit/Frame.h>
-#include <sigilcompose/kit/Silhouettes.h>
-#include <sigilcompose/typography/TextFx.h>
-#include <sigilcompose/typography/Type.h>
+#include <sigilcompose/kit/Kinetic.h>
+#include <sigilcompose/typography/Typography.h>
 #include <sigilcore/compute/Noise.h>
+#include <sigilgeometry/kit/Generators.h>
+#include <sigilgeometry/path/Edges.h>
+#include <sigilmaterial/field/Field.h>
+#include <sigilmaterial/pattern/Patterns.h>
+#include <sigilmaterial/skia/Color.h>
+#include <sigilmaterial/skia/Paint.h>
+#include <sigilmotion/bind/Bind.h>
+#include <sigilmotion/values/Keyframes.h>
+#include <sigilmotion/values/Time.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/layout/ParagraphLayout.h>
 #include <sigilweave/paragraph/Paragraph.h>
@@ -95,6 +105,12 @@
 #include <vector>
 
 namespace sketch = sigil::sketch;
+namespace field = sigil::material::field;
+namespace mskia = sigil::material::skia;
+namespace motion = sigil::motion;
+namespace path = sigil::geometry::path;
+namespace patterns = sigil::material::pattern;
+namespace weave = sigil::weave;
 
 using namespace sigil::compose;
 using namespace std::chrono_literals;
@@ -108,9 +124,9 @@ namespace wa {
 constexpr float kScale = 3.0f;
 constexpr float n(float v) { return v * kScale; }
 
-/** The shadow tone: the complement spelling of `mul()`, because a bevel
+/** The shadow tone: the complement spelling of `scaleRgb()`, because a bevel
  *  is authored as "how much darker" rather than as a surviving fraction. */
-inline SkColor4f dark(SkColor4f c, float k) { return mul(c, 1 - k); }
+inline SkColor4f dark(SkColor4f c, float k) { return scaleRgb(c, 1 - k); }
 
 // ---------------------------------------------------------------------------
 // Palette — sampled from the extracted BMPs, or quoted from the skin's own
@@ -194,7 +210,7 @@ inline const sk_sp<SkTypeface>& arial() {
 inline sigil::weave::TextStyle type(const sk_sp<SkTypeface>& tf, float size,
                                     SkColor4f color, float track = 0,
                                     float condense = 1.0f) {
-  return sigil::compose::type({.face = tf,
+  return weave::textStyle({.face = tf,
                                .size = size,
                                .color = color,
                                .track = track,
@@ -240,29 +256,29 @@ inline Element at(Element e, float x, float y, float w, float h) {
   return kit::at(std::move(e), n(x), n(y), n(w), n(h));
 }
 
-/** The raised bevel: 1 native px light top/left, 1 native px dark
- *  bottom/right, drawn inside the node's own edge. Twenty-odd controls
- *  across the three windows wear exactly this, so it is spelled once. */
+/** The raised bevel: 1 native px light on the top and left, 1 native px
+ *  dark on the bottom and right, inside the node's own edge. Twenty-odd
+ *  controls across the three windows wear exactly this.
+ *
+ *  RAISED AND SUNKEN ARE ONE VALUE and not two drawings — the same two
+ *  tones on the far edges instead of the near ones, which is what a
+ *  well, a trough and a pressed button have always been. The library's
+ *  `styles::BevelPair` carries that as one bool, so this file states the
+ *  skin's tones and nothing about how a bevel is drawn.
+ *
+ *  It goes in `.overlay()`: over the fill, under the content and the
+ *  children. A bevel in `.background()` is painted and then covered by
+ *  the surface it was meant to sit on. */
 inline Element& raised(Element& e, SkColor4f hi = kBtnHi, SkColor4f lo = kBtnLo,
                        float w = 1.0f) {
-  e.foreground(
-      shapes::onEdges(shapes::Edge::Top | shapes::Edge::Left,
-                      stroke(n(w), Fill::color(hi), PathFormat::Align::Inner)));
-  e.foreground(
-      shapes::onEdges(shapes::Edge::Bottom | shapes::Edge::Right,
-                      stroke(n(w), Fill::color(lo), PathFormat::Align::Inner)));
+  e.overlay(styles::BevelPair{hi, lo, n(w), n(w)});
   return e;
 }
-/** The sunken bevel — the same pair with the light swapped to the far
- *  edges. Every LCD well, trough and list frame in the skin. */
+/** The same pair the other way up. Every LCD well, trough and list frame
+ *  in the skin. */
 inline Element& sunken(Element& e, SkColor4f hi = alpha(hex(0x5C5C86), 0.9f),
                        SkColor4f lo = hex(0x101018), float w = 1.0f) {
-  e.foreground(
-      shapes::onEdges(shapes::Edge::Top | shapes::Edge::Left,
-                      stroke(n(w), Fill::color(lo), PathFormat::Align::Inner)));
-  e.foreground(
-      shapes::onEdges(shapes::Edge::Bottom | shapes::Edge::Right,
-                      stroke(n(w), Fill::color(hi), PathFormat::Align::Inner)));
+  e.overlay(styles::BevelPair{hi, lo, n(w), n(w), true});
   return e;
 }
 
@@ -351,8 +367,8 @@ struct WinampBase : sketch::Sketch {
   std::array<Out, 25> rowIn{};  // playlist row reveal, in bands of four
 
   // ---- generated materials, held so their identity prunes ----
-  Material steel, deskMat, lcdMat, faderTrack, graphMat;
-  Pattern gripTile, visDots, graphGrid;
+  mskia::Paint steel, deskMat, lcdMat, faderTrack, graphMat;
+  Pattern gripTile, visDots, graphGrid, previewCheck;
 
   // ---- instancing: the spectrum analyser LEDs and the playlist rows ----
   static constexpr int kCols = 19;  // 19 bars x (3 px bar + 1 px gap) = 76
@@ -362,7 +378,7 @@ struct WinampBase : sketch::Sketch {
   std::shared_ptr<instancing::Atlas> rowAtlas;
   std::shared_ptr<instancing::Pool> rowPool;
   std::array<float, kCols> colLevel{}, colPeak{};
-  double lastRoll = -1.0;
+  long long lastRoll = -1;
 
   // ---- discrete state, the describe path ----
   int volSprite = -1, balSprite = -1;
@@ -450,26 +466,26 @@ struct WinampBase : sketch::Sketch {
     // window, which is then the loudest texture in the picture and is not
     // in the skin. One recipe, three windows, two sizes — the unit square
     // is what makes 275x116 and 400x377 share it.
-    steel = Material::blend(
-        {{Material::linearUnit({0, 0}, {0, 1},
+    steel = mskia::Paint::blend(
+        {{mskia::Paint::linearUnit({0, 0}, {0, 1},
                                {{0.0f, kBodyTop}, {1.0f, kBodyBot}}),
           SkBlendMode::kSrcOver},
-         {Material::radialUnit(
+         {mskia::Paint::radialUnit(
               {0.34f, 0.42f}, 1.15f,
               {{0.0f, {1, 1, 1, 0.055f}}, {1.0f, {1, 1, 1, 0.0f}}}),
           SkBlendMode::kSrcOver},
-         {patterns::grain(0.34f, 2, 3.0f, 0.20f, 1.0f),
+         {mskia::Paint::recipe(field::grain(0.34f, 2, 3.0f, 0.20f, 1.0f)),
           SkBlendMode::kOverlay}});
 
     // The desktop: flat teal plus ONE low-octave dither, baked once.
-    deskMat = Material::blend({{Material::solid(kDesk), SkBlendMode::kSrcOver},
-                               {patterns::grain(0.45f, 1, 3.0f, 0.055f, 1.0f),
+    deskMat = mskia::Paint::blend({{mskia::Paint::solid(kDesk), SkBlendMode::kSrcOver},
+                               {mskia::Paint::recipe(field::grain(0.45f, 1, 3.0f, 0.055f, 1.0f)),
                                 SkBlendMode::kOverlay}});
 
     // CRT glass: the flat screen colour plus a soft off-centre catch-light.
     lcdMat =
-        Material::blend({{Material::solid(kLcd), SkBlendMode::kSrcOver},
-                         {Material::radialUnit({0.28f, 0.22f}, 1.25f,
+        mskia::Paint::blend({{mskia::Paint::solid(kLcd), SkBlendMode::kSrcOver},
+                         {mskia::Paint::radialUnit({0.28f, 0.22f}, 1.25f,
                                                {{0.0f, hex(0x2A2A46, 0.75f)},
                                                 {1.0f, hex(0x2A2A46, 0.0f)}}),
                           SkBlendMode::kSrcOver}});
@@ -483,7 +499,7 @@ struct WinampBase : sketch::Sketch {
     // reason. Hard stops at each twenty-eighth make the same picture the
     // sheet does.
     {
-      std::vector<Stop> steps;
+      std::vector<mskia::Stop> steps;
       constexpr int kFrames = 28;
       const auto lerp = [](SkColor4f a, SkColor4f b, float u) {
         return SkColor4f{a.fR + (b.fR - a.fR) * u, a.fG + (b.fG - a.fG) * u,
@@ -500,18 +516,22 @@ struct WinampBase : sketch::Sketch {
         steps.push_back({lo, c});
         steps.push_back({hi, c});
       }
-      faderTrack = Material::linearUnit({0, 0}, {0, 1}, steps);
+      faderTrack = mskia::Paint::linearUnit({0, 0}, {0, 1}, steps);
     }
 
-    graphMat = Material::solid(kGraph);
+    graphMat = mskia::Paint::solid(kGraph);
 
     // The title-bar grip: horizontal hairlines, as a rotated stripe tile.
     // TITLEBAR.BMP's grip rails are CREAM, not the body's blue-grey — the
     // one warm thing on an otherwise cold window.
-    gripTile = patterns::stripes(n(1), n(1), hex(0xC8BC98)).rotate(90.0f);
+    gripTile = patterns::stripes(n(1), n(1), mskia::toColor(hex(0xC8BC98)));
+    gripTile.rotate(90.0f);
+    // The preview-visualiser swatch's default checkerboard art.
+    previewCheck = patterns::checker(n(2), mskia::toColor(hex(0x2B2B44)),
+                                     mskia::toColor(hex(0x14141F)));
     // The visualiser well's baked dot grid (MAIN.BMP paints these under the
     // bars, in VISCOLOR's own "grey for dots").
-    visDots = patterns::halftone(n(2), n(0.5f), kUnlit, false);
+    visDots = patterns::halftone(n(2), n(0.5f), mskia::toColor(kUnlit), false);
     // The EQ graph's dashed rules.
     graphGrid = Pattern::tile({n(4), n(4)}, [](SkCanvas& c, SkSize, uint32_t) {
       SkPaint p;
@@ -528,16 +548,16 @@ struct WinampBase : sketch::Sketch {
   Element key(float x, float y, float w, float h, Element glyph) {
     using namespace wa;
     Element e = at(box(), x, y, w, h);
-    e.fill(Material::linearUnit({0, 0}, {0, 1},
-                                {{0.0f, lift(kBtnFace, 0.10f)},
+    e.fill(mskia::Paint::linearUnit({0, 0}, {0, 1},
+                                {{0.0f, lighten(kBtnFace, 0.10f)},
                                  {0.55f, kBtnFace},
                                  {1.0f, dark(kBtnFace, 0.22f)}}));
     raised(e);
     // The second keyline, one native px in — shapes::inset is literally
     // "the same bevel again, N px further in", which is Winamp's doubled
     // button edge without a second element.
-    e.foreground(shapes::inset(
-        n(1), shapes::onEdges(shapes::Edge::Bottom | shapes::Edge::Right,
+    e.foreground(inset(
+        n(1), onEdges(path::Edge::Bottom | path::Edge::Right,
                               stroke(n(1), Fill::color(alpha(kBtnLo, 0.45f)),
                                      PathFormat::Align::Inner))));
     e.child(std::move(glyph));
@@ -573,9 +593,9 @@ struct WinampBase : sketch::Sketch {
                    float hN = 14.0f) {
     using namespace wa;
     Element bar = at(box(), 0, 0, wN, hN);
-    bar.fill(Material::linearUnit(
+    bar.fill(mskia::Paint::linearUnit(
         {0, 0}, {0, 1},
-        {{0.0f, lift(kTitle, 0.06f)}, {1.0f, dark(kTitle, 0.25f)}}));
+        {{0.0f, lighten(kTitle, 0.06f)}, {1.0f, dark(kTitle, 0.25f)}}));
     raised(bar, alpha(hex(0x5A5A82), 0.85f), hex(0x101018));
 
     // grip hairlines either side of the wordmark
@@ -590,7 +610,7 @@ struct WinampBase : sketch::Sketch {
                        .justify(Justify::Center)
                        .alignItems(Align::Center);
     mark.child(
-        t(label, pix(6.6f, kGold, true, 1.7f)).opacity(bind(&llama).invert()));
+        t(label, pix(6.6f, kGold, true, 1.7f)).opacity(motion::bind(&llama).invert()));
     bar.child(mark);
     Element egg = at(box(), 0, (hN - 8) * 0.5f, wN, 8)
                       .justify(Justify::Center)
@@ -652,8 +672,8 @@ struct WinampBase : sketch::Sketch {
         at(box(), 0, 0, 8, 6)
             .fill(hex(0xCFE4FF, 0.55f))
             .blend(SkBlendMode::kPlus)
-            .translateY(bind(&glint).target(-n(6), n(43)))
-            .opacity(bind(&glint).offset(-0.5f).scale(2.0f).invert().clamp(
+            .translateY(motion::bind(&glint).target(-n(6), n(43)))
+            .opacity(motion::bind(&glint).offset(-0.5f).scale(2.0f).invert().clamp(
                 0.0f, 0.75f)));
     w.child(clutter);
 
@@ -683,7 +703,7 @@ struct WinampBase : sketch::Sketch {
     Element titleWell = at(box(), 109, 22, 158, 11).fill(hex(0x101020));
     sunken(titleWell, alpha(hex(0x4A4A70), 0.5f), hex(0x08080E));
     Element title = at(box(), 2, 1, 154, 9).clip();
-    title.child(marquee(t(marqueeText(), pix(5, hex(0x00E000))), marqueeW,
+    title.child(kit::marquee(t(marqueeText(), pix(5, hex(0x00E000))), marqueeW,
                         &marqueePhase, n(40)));
     titleWell.child(title);
     w.child(titleWell);
@@ -730,7 +750,7 @@ struct WinampBase : sketch::Sketch {
     // is a hard cut — old displays do not fade in.
     w.child(at(box(), 0, 21, 275, 37)
                 .fill(hex(0x090911))
-                .opacity(animate(through({{0ms, 1.0f},
+                .opacity(animate(motion::through({{0ms, 1.0f},
                                           {300ms, 1.0f},
                                           {310ms, 0.0f},
                                           {360ms, 0.0f},
@@ -760,10 +780,10 @@ struct WinampBase : sketch::Sketch {
     // … and the thumb, in pixels.
     Element thumb =
         at(box(), 1, 0, 29, 10)
-            .fill(Material::linearUnit(
+            .fill(mskia::Paint::linearUnit(
                 {0, 0}, {0, 1},
-                {{0.0f, lift(kBtnFace, 0.12f)}, {1.0f, dark(kBtnFace, 0.28f)}}))
-            .translateX(bind(&playPos).target(0, n(248 - 31)));
+                {{0.0f, lighten(kBtnFace, 0.12f)}, {1.0f, dark(kBtnFace, 0.28f)}}))
+            .translateX(motion::bind(&playPos).target(0, n(248 - 31)));
     raised(thumb);
     thumb.child(at(box(), 13, 2, 1, 6).fill(alpha(kBtnLo, 0.8f)));
     thumb.child(at(box(), 15, 2, 1, 6).fill(alpha(kBtnHi, 0.7f)));
@@ -776,7 +796,7 @@ struct WinampBase : sketch::Sketch {
     // the baked Nullsoft bolt, bottom right
     w.child(at(box(), 253, 91, 13, 15)
                 .shape(bolt())
-                .fill(Material::linearUnit(
+                .fill(mskia::Paint::linearUnit(
                     {0, 0}, {0, 1},
                     // MAIN.BMP's bolt is a muted orange-brown, not the
                     // bright yellow a lightning glyph wants to be.
@@ -858,9 +878,9 @@ struct WinampBase : sketch::Sketch {
     r.child(at(box(), 0, 0, 8, 18)
                 .fill(hex(0xE8F4FF, 0.55f))
                 .blend(SkBlendMode::kPlus)
-                .translateX(animate(through({{600ms, n(10)}, {750ms, n(162)}}),
+                .translateX(animate(motion::through({{600ms, n(10)}, {750ms, n(162)}}),
                                     &ch::easeNone))
-                .opacity(animate(through({{590ms, 0.0f},
+                .opacity(animate(motion::through({{590ms, 0.0f},
                                           {600ms, 1.0f},
                                           {735ms, 1.0f},
                                           {750ms, 0.0f}}),
@@ -886,9 +906,9 @@ struct WinampBase : sketch::Sketch {
     track.child(at(box(), 1, 9, 66, 2).fill(dark(volColor, 0.65f)));
     Element vt =
         at(box(), 0, 1, 14, 11)
-            .fill(Material::linearUnit(
+            .fill(mskia::Paint::linearUnit(
                 {0, 0}, {0, 1},
-                {{0.0f, lift(kBtnFace, 0.12f)}, {1.0f, dark(kBtnFace, 0.30f)}}))
+                {{0.0f, lighten(kBtnFace, 0.12f)}, {1.0f, dark(kBtnFace, 0.30f)}}))
             .translateX(n((68.0f - 14.0f) * (float)vol / 28.0f));
     raised(vt);
     vt.child(at(box(), 6, 2, 1, 7).fill(alpha(kBtnLo, 0.85f)));
@@ -905,9 +925,9 @@ struct WinampBase : sketch::Sketch {
     btr.child(at(box(), 18, 1, 2, 11).fill(alpha(balColor, 0.9f)));
     Element bt =
         at(box(), 0, 1, 14, 11)
-            .fill(Material::linearUnit(
+            .fill(mskia::Paint::linearUnit(
                 {0, 0}, {0, 1},
-                {{0.0f, lift(kBtnFace, 0.12f)}, {1.0f, dark(kBtnFace, 0.30f)}}))
+                {{0.0f, lighten(kBtnFace, 0.12f)}, {1.0f, dark(kBtnFace, 0.30f)}}))
             .translateX(n((38.0f - 14.0f) * (float)bal / 28.0f));
     raised(bt);
     bt.child(at(box(), 6, 2, 1, 7).fill(alpha(kBtnLo, 0.85f)));
@@ -1000,10 +1020,10 @@ struct WinampBase : sketch::Sketch {
       // straight into pixels — no second Output in slider units.
       Element th =
           at(box(), 1, 0, 12, 11)
-              .fill(Material::linearUnit({0, 0}, {0, 1},
-                                         {{0.0f, lift(kBtnFace, 0.14f)},
+              .fill(mskia::Paint::linearUnit({0, 0}, {0, 1},
+                                         {{0.0f, lighten(kBtnFace, 0.14f)},
                                           {1.0f, dark(kBtnFace, 0.32f)}}))
-              .translateY(bind(&gain[(size_t)i])
+              .translateY(motion::bind(&gain[(size_t)i])
                               .source(-1.0f, 1.0f)
                               .target(n(52), n(0)));
       raised(th);
@@ -1192,8 +1212,7 @@ struct WinampBase : sketch::Sketch {
     // the preview-visualiser swatch (default checkerboard art)
     Element sw = at(box(), W - 88, 20, 38, 14).fill(hex(0x000000));
     sunken(sw, alpha(hex(0x4A4A70), 0.5f), hex(0x08080E));
-    sw.child(box().inset(0).fill(
-        patterns::checker(n(2), hex(0x2B2B44), hex(0x14141F)).material()));
+    sw.child(box().inset(0).fill(previewCheck.material()));
     bottom.child(sw);
     w.child(bottom);
     return w;
@@ -1232,7 +1251,7 @@ struct WinampBase : sketch::Sketch {
       // Rows reveal in bands of four: 25 rows on an even stagger reads as 25
       // separate animations, where batching reads as a list populating.
       r.opacity(&rowIn[(size_t)i]);
-      r.translateY(bind(&rowIn[(size_t)i]).invert().scale(n(2)));
+      r.translateY(motion::bind(&rowIn[(size_t)i]).invert().scale(n(2)));
       col.child(r);
     }
     return col;
@@ -1267,30 +1286,30 @@ struct WinampBase : sketch::Sketch {
                    .left(Dim(60))
                    .top(Dim(60))
                    .transformOrigin(0.5f, 0.5f)
-                   .scale(animate(from(0.9f).to(1.0f),
-                                  {200ms, ease::outBack(), 100ms}))
+                   .scale(animate(motion::from(0.9f).to(1.0f),
+                                  {200ms, motion::ease::outBack(), 100ms}))
                    .opacity(animate(
-                       through({{0ms, 0.0f}, {99ms, 0.0f}, {100ms, 1.0f}}),
+                       motion::through({{0ms, 0.0f}, {99ms, 0.0f}, {100ms, 1.0f}}),
                        &ch::easeNone)));
 
     // Equalizer — docking snap from 60 px above, the same outBack value.
     root.child(eqWindow()
                    .left(Dim(60))
                    .top(Dim(408))
-                   .translateY(animate(from(-60.0f).to(0.0f),
-                                       {250ms, ease::outBack(), 900ms}))
+                   .translateY(animate(motion::from(-60.0f).to(0.0f),
+                                       {250ms, motion::ease::outBack(), 900ms}))
                    .opacity(animate(
-                       through({{0ms, 0.0f}, {899ms, 0.0f}, {900ms, 1.0f}}),
+                       motion::through({{0ms, 0.0f}, {899ms, 0.0f}, {900ms, 1.0f}}),
                        &ch::easeNone)));
 
     // Playlist — same snap, 1.25 s later.
     root.child(playlistWindow()
                    .left(Dim(60))
                    .top(Dim(756))
-                   .translateY(animate(from(-60.0f).to(0.0f),
-                                       {250ms, ease::outBack(), 2150ms}))
+                   .translateY(animate(motion::from(-60.0f).to(0.0f),
+                                       {250ms, motion::ease::outBack(), 2150ms}))
                    .opacity(animate(
-                       through({{0ms, 0.0f}, {2149ms, 0.0f}, {2150ms, 1.0f}}),
+                       motion::through({{0ms, 0.0f}, {2149ms, 0.0f}, {2150ms, 1.0f}}),
                        &ch::easeNone)));
     return root;
   }
@@ -1464,9 +1483,10 @@ struct WinampBase : sketch::Sketch {
 
     // ---- the analyser: hard 12 Hz steps, no easing anywhere ------------
     if (t >= 3.2) {
-      // A step INDEX (edge detector against lastRoll), not a requantized
-      // time — deliberately not motion::quantizeTime, which re-emits t.
-      const double stepT = std::floor(t * 12.0);
+      // WHICH step, not the held seconds: the levels are reseeded once
+      // per tick and the seed is the tick's own number, so `stepIndex` is
+      // the verb and `quantizeTime` — which re-emits t — is not.
+      const long long stepT = motion::stepIndex(t, 12.0);
       if (stepT != lastRoll) {
         lastRoll = stepT;
         for (int c = 0; c < kCols; ++c) {
