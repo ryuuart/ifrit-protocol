@@ -65,7 +65,15 @@
 //   * THE INDEX RING inside the colour band is not on the plate. It is
 //     added so the +36 rule is checkable by eye, and labelled as such.
 //   * EVERY NUMBER IN THE VERIFICATION BLOCK is recomputed by verify() at
-//     startup from the arrays in this file. None is asserted.
+//     startup from the arrays in this file. None is asserted: each row is a
+//     `measure::Check` whose printed line is COMPUTED from the two values
+//     it reports, so the sentence and the measurement cannot drift apart.
+//     Three rows are FINDINGS rather than claims — the hue does not
+//     advance at every one of the seventy-two steps, one of Chevreul's
+//     four complementary statements misses, and his §160 claim that blue
+//     is darker than red does not hold on his own plate. A finding's
+//     verdict is printed and never counted against the run, because its
+//     failing IS the result.
 //
 // THE LIMB IS SET TANGENTIALLY, NOT RADIALLY, and it is worth checking
 // against the plate before "correcting" it. Rotating rim crops into the
@@ -84,7 +92,7 @@
 //   CHEVREUL_STATS=1 dumps Composer::stats(). In steady state there is one
 //       render() and everything else is a binding.
 //   CHEVREUL_REDESCRIBE=1 re-describes the whole plate every frame. What
-//       that exposes is ONE node: the plate-tone wash, a patterns::grain
+//       that exposes is ONE node: the plate-tone wash, a field::grain
 //       under .cache(Cache::Texture) whose shape is an
 //       `.shape(shapes::circle())` LAMBDA. An outline() callable can never
 //       compare equal, so its Texture bake is thrown away and redone every
@@ -100,22 +108,24 @@
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkFontStyle.h>
 #include <include/core/SkPathBuilder.h>
-#include <include/core/SkPixmap.h>
-#include <include/core/SkSurface.h>
 #include <include/core/SkTypeface.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/brush/Hatches.h>
 #include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/brush/Lines.h>
-#include <sigilcompose/core/Material.h>
-#include <sigilcompose/core/Patterns.h>
-#include <sigilcompose/instances/Instances.h>
+#include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Frame.h>
-#include <sigilcompose/kit/Silhouettes.h>
+#include <sigilcompose/kit/Layouts.h>
 #include <sigilcompose/testing/Checks.h>
-#include <sigilcompose/typography/Type.h>
+#include <sigilcompose/typography/Typography.h>
+#include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/color/Ocio.h>
+#include <sigilmaterial/field/Field.h>
+#include <sigilmaterial/ocio/Ocio.h>
+#include <sigilmaterial/skia/Effect.h>
+#include <sigilmaterial/skia/Paint.h>
+#include <sigilmeasure/check/Check.h>
+#include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/paragraph/Paragraph.h>
@@ -131,11 +141,19 @@
 #include <vector>
 
 namespace sketch = sigil::sketch;
+namespace field = sigil::material::field;
+namespace measure = sigil::measure;
+namespace ocio = sigil::material::ocio;
+namespace shapes = sigil::geometry::shapes;
 
 using namespace sigil::compose;
+using namespace sigil::motion;
+using sigil::material::skia::Effect;
+using sigil::material::skia::Paint;
+using sigil::weave::ports::pickTypeface;
 // The whole composition is pinned: an engraved plate has no layout.
 using sigil::compose::kit::at;
-using sigil::compose::kit::centred;
+using sigil::geometry::path::centred;
 using namespace std::chrono_literals;
 namespace ch = choreograph;
 namespace weave = sigil::weave;
@@ -343,7 +361,7 @@ inline SkColor4f predicted(SkColor4f self, int neighbourSector,
 
 inline sk_sp<SkTypeface> face(const char* family, SkFontStyle style,
                               const char* fallback) {
-  return sigil::compose::pickFace({family, fallback}, style);
+  return pickTypeface({family, fallback}, style);
 }
 inline const sk_sp<SkTypeface>& serif() {
   static sk_sp<SkTypeface> f =
@@ -369,16 +387,16 @@ inline const sk_sp<SkTypeface>& mono() {
 // The plate's four registers, each one library `type()` call: the roman it
 // is set in, its bold, its italic, and the mono the numbers run in.
 inline weave::TextStyle sr(float sz, SkColor4f c, float tr = 0) {
-  return type({.face = serif(), .size = sz, .color = c, .track = tr});
+  return weave::textStyle({.face = serif(), .size = sz, .color = c, .track = tr});
 }
 inline weave::TextStyle sbd(float sz, SkColor4f c, float tr = 0) {
-  return type({.face = serifBold(), .size = sz, .color = c, .track = tr});
+  return weave::textStyle({.face = serifBold(), .size = sz, .color = c, .track = tr});
 }
 inline weave::TextStyle it(float sz, SkColor4f c, float tr = 0) {
-  return type({.face = serifIt(), .size = sz, .color = c, .track = tr});
+  return weave::textStyle({.face = serifIt(), .size = sz, .color = c, .track = tr});
 }
 inline weave::TextStyle mn(float sz, SkColor4f c, float tr = 0) {
-  return type({.face = mono(), .size = sz, .color = c, .track = tr});
+  return weave::textStyle({.face = mono(), .size = sz, .color = c, .track = tr});
 }
 
 inline std::u8string U(const std::string& s) { return toU8(s); }
@@ -557,12 +575,11 @@ struct ChevreulCircle : sketch::Sketch {
 
   ch::Output<float> demo{0};
   Verdict v;
-  std::vector<std::string> verifyLines;
-  std::vector<bool> verifyFail;
+  measure::Table verdict;
   std::string derivation1, derivation2;
   std::string counterText;
 
-  Material paperGrain, plateTone, sweepRing, medallionGlow;
+  Paint paperGrain, plateTone, sweepRing, medallionGlow;
   std::shared_ptr<weave::Paragraph> lawPara;
 
   std::shared_ptr<instancing::Atlas> quadAtlas;
@@ -571,6 +588,12 @@ struct ChevreulCircle : sketch::Sketch {
 
   // ==================================================================
   // verification
+
+  /** An unpremultiplied channel as the 8-bit code a screen is handed —
+   *  what every read-back claim on this plate is stated in. */
+  static int code(float v) {
+    return (int)std::lround(std::clamp(v, 0.0f, 1.0f) * 255.0f);
+  }
 
   /** The measured colour, lifted toward what the engraving looks like on
    *  a wall: chroma scaled about the colour's own luminance, so the hue
@@ -769,42 +792,39 @@ struct ChevreulCircle : sketch::Sketch {
                         .height(Dim(32))
                         .shrink(0)
                         .fill(Fill::color(gamme[(size_t)b])));
-      sk_sp<SkPicture> pic = snapshot(strip, *ctx.fonts);
-      sk_sp<SkSurface> surf = SkSurfaces::Raster(
-          SkImageInfo::MakeN32Premul((int)(kBandW * kBandN), 32));
-      if (pic && surf) {
-        surf->getCanvas()->clear(SK_ColorTRANSPARENT);
-        surf->getCanvas()->drawPicture(pic.get());
-        SkPixmap pm;
-        if (surf->peekPixels(&pm)) {
-          for (int b = 0; b < kBandN; ++b) {
-            const int x0 = (int)(b * kBandW);
-            const SkColor want = gamme[(size_t)b].toSkColor();
-            int dev = 0;
-            // interior only: the band edges are antialiased and a 1 px
-            // blend seam there is correct behaviour, not a defect.
-            double sum = 0, sum2 = 0;
-            int cnt = 0;
-            for (int x = x0 + 6; x < x0 + (int)kBandW - 6; x += 2)
-              for (int y = 6; y < 26; y += 2) {
-                const SkColor got = pm.getColor(x, y);
-                dev = std::max(
-                    {dev,
-                     std::abs((int)SkColorGetR(got) - (int)SkColorGetR(want)),
-                     std::abs((int)SkColorGetG(got) - (int)SkColorGetG(want)),
-                     std::abs((int)SkColorGetB(got) - (int)SkColorGetB(want))});
-                const double lum = SkColorGetG(got);
-                sum += lum;
-                sum2 += lum * lum;
-                ++cnt;
-              }
-            const double mean = cnt ? sum / cnt : 0.0;
-            const double var =
-                cnt ? std::max(0.0, sum2 / cnt - mean * mean) : 0.0;
-            v.bandSigmaMax = std::max(v.bandSigmaMax, (float)std::sqrt(var));
-            v.bandMaxDev = std::max(v.bandMaxDev, dev);
-            if (dev == 0) ++v.bandsExact;
-          }
+      // test::rasterize is the read-back: it wraps the tree in the shell
+      // snapshot() needs, draws it at an explicit canvas size and hands the
+      // pixels over. N32 rather than the float default, because the claim
+      // is about the 8-bit value a viewer's screen is handed.
+      const test::Raster r = test::rasterize(
+          std::move(strip), *ctx.fonts, {(int)(kBandW * kBandN), 32},
+          kN32_SkColorType);
+      if (r.valid()) {
+        for (int b = 0; b < kBandN; ++b) {
+          const int x0 = (int)(b * kBandW);
+          const SkColor4f want = gamme[(size_t)b];
+          int dev = 0;
+          // interior only: the band edges are antialiased and a 1 px
+          // blend seam there is correct behaviour, not a defect.
+          double sum = 0, sum2 = 0;
+          int cnt = 0;
+          for (int x = x0 + 6; x < x0 + (int)kBandW - 6; x += 2)
+            for (int y = 6; y < 26; y += 2) {
+              const SkColor4f got = r.at(x, y);
+              dev = std::max({dev, std::abs(code(got.fR) - code(want.fR)),
+                              std::abs(code(got.fG) - code(want.fG)),
+                              std::abs(code(got.fB) - code(want.fB))});
+              const double lum = code(got.fG);
+              sum += lum;
+              sum2 += lum * lum;
+              ++cnt;
+            }
+          const double mean = cnt ? sum / cnt : 0.0;
+          const double var =
+              cnt ? std::max(0.0, sum2 / cnt - mean * mean) : 0.0;
+          v.bandSigmaMax = std::max(v.bandSigmaMax, (float)std::sqrt(var));
+          v.bandMaxDev = std::max(v.bandMaxDev, dev);
+          if (dev == 0) ++v.bandsExact;
         }
       }
     }
@@ -852,27 +872,21 @@ struct ChevreulCircle : sketch::Sketch {
       const float gh = 20 * (kQCellH + kQGapY) - kQGapY;
       Element probe = box().width(Dim(gw)).height(Dim(gh)).child(
           instancing::instances(quadAtlas, quadPool, instancing::Mode::Data));
-      sk_sp<SkPicture> pic = snapshot(probe, *ctx.fonts);
-      sk_sp<SkSurface> surf = SkSurfaces::Raster(
-          SkImageInfo::MakeN32Premul((int)std::ceil(gw), (int)std::ceil(gh)));
-      if (pic && surf) {
-        surf->getCanvas()->clear(SK_ColorTRANSPARENT);
-        surf->getCanvas()->drawPicture(pic.get());
-        SkPixmap pm;
-        if (surf->peekPixels(&pm)) {
-          const auto pos = quadPool->positions();
-          const auto tints = quadPool->tints();
-          for (size_t i = 0; i < pos.size(); ++i) {
-            const SkColor got = pm.getColor((int)pos[i].fX, (int)pos[i].fY);
-            const SkColor want = tints[i].toSkColor();
-            const int dev = std::max(
-                {std::abs((int)SkColorGetR(got) - (int)SkColorGetR(want)),
-                 std::abs((int)SkColorGetG(got) - (int)SkColorGetG(want)),
-                 std::abs((int)SkColorGetB(got) - (int)SkColorGetB(want))});
-            ++v.tintCells;
-            v.tintMaxDev = std::max(v.tintMaxDev, dev);
-            if (dev == 0) ++v.tintExact;
-          }
+      const test::Raster r = test::rasterize(
+          std::move(probe), *ctx.fonts,
+          {(int)std::ceil(gw), (int)std::ceil(gh)}, kN32_SkColorType);
+      if (r.valid()) {
+        const auto pos = quadPool->positions();
+        const auto tints = quadPool->tints();
+        for (size_t i = 0; i < pos.size(); ++i) {
+          const SkColor4f got = r.at((int)pos[i].fX, (int)pos[i].fY);
+          const SkColor4f want = tints[i];
+          const int dev = std::max({std::abs(code(got.fR) - code(want.fR)),
+                                    std::abs(code(got.fG) - code(want.fG)),
+                                    std::abs(code(got.fB) - code(want.fB))});
+          ++v.tintCells;
+          v.tintMaxDev = std::max(v.tintMaxDev, dev);
+          if (dev == 0) ++v.tintExact;
         }
       }
     }
@@ -883,30 +897,25 @@ struct ChevreulCircle : sketch::Sketch {
     //     §164 gamme (#C0C0C0) through ocio::exponent(2.2) and read it back
     //     off a raster surface, exactly the way check 10 reads the
     //     staircase — so "the seam works" is a number on the plate.
-    v.ocioAvailable = sigil::material::color::available();
+    v.ocioAvailable = ocio::available();
     if (v.ocioAvailable && ctx.fonts) {
-      // snapshot() sizes by the ROOT'S CHILDREN, not the root's own dims,
-      // so the probe needs a shell — the same rule Instances.h's atlas bake
-      // states and nothing else does. Without it the effect lands on an
-      // empty root and reads back a value that is not what gets drawn.
-      Element probe = box().child(
+      // test::rasterize draws a described tree and hands back the PIXELS,
+      // shell and canvas size included — the read-back this probe needs,
+      // and the same one check 10 makes against the staircase. N32 rather
+      // than the float default: the claim is about the 8-bit value a
+      // viewer's screen is handed.
+      const test::Raster r = test::rasterize(
           box()
               .width(Dim(32))
               .height(Dim(32))
               .fill(Fill::color(gamme[9]))
-              .effect(Effect::recipe(sigil::material::color::exponent(2.2f))));
-      sk_sp<SkPicture> pic = snapshot(probe, *ctx.fonts);
-      sk_sp<SkSurface> surf =
-          SkSurfaces::Raster(SkImageInfo::MakeN32Premul(32, 32));
-      if (pic && surf) {
-        surf->getCanvas()->clear(SK_ColorTRANSPARENT);
-        surf->getCanvas()->drawPicture(pic.get());
-        SkPixmap pm;
-        if (surf->peekPixels(&pm)) {
-          const SkColor got = pm.getColor(16, 16);
-          v.ocioSample = fmt("#%02X%02X%02X", SkColorGetR(got),
-                             SkColorGetG(got), SkColorGetB(got));
-        }
+              .effect(Effect::recipe(ocio::exponent(2.2f))),
+          *ctx.fonts, {32, 32}, kN32_SkColorType);
+      if (r.valid()) {
+        const SkColor4f got = r.at(16, 16);
+        v.ocioSample = fmt("#%02X%02X%02X", (int)std::lround(got.fR * 255.0f),
+                           (int)std::lround(got.fG * 255.0f),
+                           (int)std::lround(got.fB * 255.0f));
       }
     }
   }
@@ -933,53 +942,67 @@ struct ChevreulCircle : sketch::Sketch {
     quadPool->commit();
   }
 
-  void buildVerifyLines() {
-    auto ok = [](bool b) { return b ? "OK" : "FAIL"; };
-    verifyLines.clear();
-    verifyFail.clear();
-    auto add = [&](const std::string& s, bool fail) {
-      verifyLines.push_back(s);
-      verifyFail.push_back(fail);
-    };
-    add(fmt("CIRCLE CLOSES     %d named x %d = %d      3 + 3x23 = %d", v.named,
-            v.perNamed, v.closes1, v.closes2),
-        v.closes1 != 72 || v.closes2 != 72);
-    add(fmt("SYSTEM TOTAL      72 x 20 x 10 + 20 grey = %ld", v.total),
-        v.total != 14420);
-    add(fmt("PLATE DIAMETER    ROUGE %.1f  VERT %.1f  delta %.2f", kScanRouge,
-            kScanVert, v.plateDelta),
-        std::fabs(v.plateDelta - 180.0f) > 0.005f);
-    add(fmt("SEVENTEEN         C(7,2)=%d - 4 named complementary = %d",
-            v.pairs21, v.byName),
-        v.byName != 17 || !v.nameSetMatches);
-    add(fmt("  by geometry     sep==36 -> %d ;  sep>=30 -> %d", v.byStrict,
-            v.byLoose),
-        true);
-    add(fmt("HUE WINDS ONCE    sum %.2f deg   %d/72 steps > 0", v.hueSum,
-            v.huePositive),
-        v.huePositive != 72);
-    add(fmt("EQUAL SECTORS     hue step mean %.2f sd %.2f min %.2f max %.2f",
-            v.hueMean, v.hueSd, v.hueMin, v.hueMax),
-        false);
-    add(fmt("DIAMETERS         miss: origin %.2f   centroid %.2f  (%.1f%%)",
-            v.missOrigin, v.missCentroid, v.missPercent),
-        false);
-    add(fmt("COMPLEMENTARIES   %d of 4 exact;  greenish-yellow/violet off "
-            "%.0f deg",
-            v.compExact, v.compWorstDeg),
-        v.compOff != 0);
-    add(fmt("LUMINOSITY (160)  jaune %.4f highest;  bleu %.4f > rouge %.4f",
-            v.yJaune, v.yBleu, v.yRouge),
-        !v.bleuDarker);
-    add(fmt("STAIRCASE         %d bands, sigma %.2f, %d/%d hexes exact",
-            v.bands, v.bandSigmaMax, v.bandsExact, v.bands),
-        v.bandsExact != v.bands || v.bandSigmaMax != 0.0f);
-    add(fmt("EXACT COVER       %d uncovered / %d doubled of %d", v.covUncovered,
-            v.covDoubled, v.covSamples),
-        v.covUncovered != 0 || v.covDoubled != 0);
-    add(fmt("INSTANCE TINTS    %d/%d cells exact, max channel dev %d",
-            v.tintExact, v.tintCells, v.tintMaxDev),
-        v.tintExact != v.tintCells);
+  /** THE VERIFICATION, as one table. Every row's printed line is COMPUTED
+   *  from the two values it reports, so a claim and its evidence cannot
+   *  drift apart the way a hand-typed "OK" can. The rows that state
+   *  something about CHEVREUL rather than about this reconstruction — his
+   *  §160 luminosity claim, his §6 complementaries against his own §161
+   *  construction — are findings: their verdict is printed and never
+   *  counted against the run, because a finding that fails is the result.
+   *  The one row that is a measurement with nothing to judge is a
+   *  reading. */
+  void buildVerifyTable() {
+    verdict = {};
+    verdict
+        .add(measure::check("CIRCLE CLOSES     12 named \xc3\x97 6", 72,
+                            v.closes1))
+        .add(measure::check("                  3 + 3\xc3\x97" "23", 72,
+                            v.closes2))
+        .add(measure::check("SYSTEM TOTAL      72\xc3\x97" "20\xc3\x97"
+                            "10 + 20 grey",
+                            14420L, v.total))
+        .add(measure::check("PLATE DIAMETER    ROUGE\xe2\x86\x92VERT, deg",
+                            180.0, (double)v.plateDelta, 0.005))
+        .add(measure::check("SEVENTEEN         C(7,2)=21 \xe2\x88\x92 4 named",
+                            17, v.byName))
+        .add(measure::check("                  and they are HIS seventeen",
+                            v.nameSetMatches))
+        .add(measure::reading("  by geometry     sep==36 / sep>=30",
+                              fmt("%d / %d", v.byStrict, v.byLoose)))
+        // A statement about the 161-year-old PRINT, not about this
+        // reconstruction: whether the measured hue really advances at every
+        // one of the seventy-two steps.
+        .add(measure::finding(measure::check(
+            "HUE WINDS ONCE    steps > 0, of 72", 72, v.huePositive)))
+        .add(measure::reading(
+            "EQUAL SECTORS     step mean / sd",
+            fmt("%.2f / %.2f", (double)v.hueMean, (double)v.hueSd)))
+        .add(measure::reading(
+            "DIAMETERS         miss: origin / centroid",
+            fmt("%.2f / %.2f", (double)v.missOrigin, (double)v.missCentroid)))
+        // \xc2\xa7" "6's four complementary statements against \xc2\xa7" "161's
+        // own construction. Three land on the nose; greenish-yellow/violet
+        // does not, and that is Chevreul's, not the reconstruction's.
+        .add(measure::finding(measure::check(
+            "COMPLEMENTARIES   \xc2\xa7" "6 pairs exact, of 4", 4,
+            v.compExact)))
+        // \xc2\xa7" "160: yellow lighter and blue darker than red, measured
+        // off the plate's own medians.
+        .add(measure::finding(measure::check(
+            "LUMINOSITY \xc2\xa7" "160  jaune is the lightest",
+            v.jauneHighest)))
+        .add(measure::finding(measure::check(
+            "                  bleu darker than rouge", v.bleuDarker)))
+        .add(measure::check("STAIRCASE         hexes exact, of 20", v.bands,
+                            v.bandsExact))
+        .add(measure::check("                  max within-band \xcf\x83", 0.0,
+                            (double)v.bandSigmaMax, 0.0))
+        .add(measure::check("EXACT COVER       uncovered", 0, v.covUncovered))
+        .add(measure::check("                  doubled", 0, v.covDoubled))
+        .add(measure::check("INSTANCE TINTS    cells exact", v.tintCells,
+                            v.tintExact))
+        .add(measure::check("                  max channel deviation", 0,
+                            v.tintMaxDev));
   }
 
   void buildLaw() {
@@ -1097,7 +1120,7 @@ struct ChevreulCircle : sketch::Sketch {
     const float rMed = kRColour * kInner;
     g.child(kit::disc(kC, rMed + 3)
                 .shape(shapes::circle())
-                .fill(Material::glowUnit({0.5f, 0.5f}, 1.0f,
+                .fill(Paint::glowUnit({0.5f, 0.5f}, 1.0f,
                                          {{0.0f, hex(0x8C8578, 0.0f)},
                                           {0.72f, hex(0x8C8578, 0.0f)},
                                           {1.0f, hex(0x8C8578, 0.22f)}})));
@@ -1507,7 +1530,7 @@ struct ChevreulCircle : sketch::Sketch {
                          .key(fmt("%s%d", keyBase, b))
                          .fill(Fill::color(ramp[(size_t)b]));
       if (graded)
-        band.effect(Effect::recipe(sigil::material::color::exponent(2.2f)))
+        band.effect(Effect::recipe(ocio::exponent(2.2f)))
             .cache(Cache::Texture);
       if (withGap)
         band.translateX(bind(&demo)
@@ -1635,29 +1658,34 @@ struct ChevreulCircle : sketch::Sketch {
     if (lawPara)
       g.child(at(x0, y0, 380, 96).child(text(lawPara, o).width(Dim(380))));
 
-    const float ty0 = y0 + 96, lh = 13.2f;
-    g.child(at(x0 - 8, ty0 - 8, W - 4, (float)verifyLines.size() * lh + 16)
+    // Each row of the table, revealed on its own beat. The LINE is the
+    // table's — computed from the two values the row reports — and it
+    // carries its own verdict, so there is no second hand-typed one beside
+    // it. What the plate adds is the INK: a claim that failed is set in
+    // red, a finding that failed in red too (its failing is Chevreul's, and
+    // the summary counts the two apart), a reading in the quiet grey.
+    const float ty0 = y0 + 88, lh = 11.0f;
+    const size_t rows = verdict.rows.size();
+    g.child(at(x0 - 8, ty0 - 8, W - 4, (float)rows * lh + 16)
                 .fill(Fill::color(kWell))
                 .foreground(
                     stroke(1, Fill::color(kRule), PathFormat::Align::Inner)));
     g.child(label("VERIFIED AT STARTUP, NOT ASSERTED", mn(7.5f, kInk2, 0.5f),
                   x0, ty0 - 22, W));
-    for (size_t i = 0; i < verifyLines.size(); ++i) {
-      const float lo = 0.30f + 0.050f * (float)i;
-      Element row = at(x0, ty0 + (float)i * lh, W - 20, lh)
-                        .key("vr" + std::to_string(i))
-                        .opacity(bind(&demo).window(lo, lo + 0.012f));
-      row.child(text(U(verifyLines[i]), mn(8.4f, kInk, 0.05f)));
-      const bool fail = verifyFail[i];
-      row.child(rightAt(i == 4 ? "" : (fail ? "FAIL" : "OK"),
-                        fail ? mn(8.4f, kRed, 0.6f) : mn(8.4f, kRed, 0.2f), 0,
-                        0, W - 24));
-      g.child(std::move(row));
+    for (size_t i = 0; i < rows; ++i) {
+      const measure::Check& c = verdict.rows[i];
+      const SkColor4f ink =
+          !c.judged() ? kInk2 : (c.pass ? kInk : kRed);
+      const float lo = 0.30f + 0.034f * (float)i;
+      g.child(at(x0, ty0 + (float)i * lh, W - 20, lh)
+                  .key("vr" + std::to_string(i))
+                  .opacity(bind(&demo).window(lo, lo + 0.012f))
+                  .child(text(U(c.line(38, 8)), mn(8.0f, ink, 0.05f))));
     }
     g.child(label(
         "§38: “do we know, at the present day, of two coloured "
         "bodies … Certainly not!”",
-        it(8.5f, kInk2), x0, ty0 + (float)verifyLines.size() * lh + 12, W));
+        it(8.5f, kInk2), x0, ty0 + (float)rows * lh + 12, W));
     return g;
   }
 
@@ -1693,7 +1721,7 @@ struct ChevreulCircle : sketch::Sketch {
         "PL. V, 2880×3789 · PAPER WHITE #EFE8D9 DIVIDED OUT IN LINEAR LIGHT · "
         "CONSTRUCTION AFTER CHEVREUL §6, §16, §160–§165 · TRANS. C. MARTEL · "
         "NO OUTPUT VIEW TRANSFORM IS SET, DELIBERATELY",
-        mn(8.0f, kInk2, 0.55f), 56, 1130, 1690));
+        mn(8.0f, kInk2, 0.55f), 56, 1168, 1690));
     return root;
   }
 
@@ -1710,8 +1738,8 @@ struct ChevreulCircle : sketch::Sketch {
     computeColours();
 
     // materials held as members so their identity survives re-describes
-    paperGrain = patterns::grain(0.013f, 4, 11.0f, 0.32f);
-    plateTone = patterns::grain(0.085f, 3, 5.0f, 0.45f);
+    paperGrain = Paint::recipe(field::grain(0.013f, 4, 11.0f, 0.32f));
+    plateTone = Paint::recipe(field::grain(0.085f, 3, 5.0f, 0.45f));
 
     // the 72 measured values as ONE gradient: 144 stops, doubled so the
     // steps stay franches rather than blending into each other.
@@ -1722,7 +1750,7 @@ struct ChevreulCircle : sketch::Sketch {
       // Sector n spans screen angles [90 − 5(n+0.5), 90 − 5(n−0.5)], so the
       // band boundaries land at (2.5 + 5j)/360 and the band below boundary j
       // is sector (18 − j) mod 72.
-      std::vector<Stop> stops;
+      std::vector<sigil::material::skia::Stop> stops;
       stops.reserve(146);
       auto C = [&](int n) { return corrected[(size_t)(((n % 72) + 72) % 72)]; };
       stops.push_back({0.0f, C(18)});
@@ -1732,12 +1760,12 @@ struct ChevreulCircle : sketch::Sketch {
         stops.push_back({p, C(17 - j)});
       }
       stops.push_back({1.0f, C(18)});
-      sweepRing = Material::sweep({kRSweepOut, kRSweepOut}, std::move(stops),
+      sweepRing = Paint::sweep({kRSweepOut, kRSweepOut}, std::move(stops),
                                   0.0f, 360.0f);
     }
 
     verify(ctx);
-    buildVerifyLines();
+    buildVerifyTable();
     buildLaw();
 
     // one Output, 0 -> 1 over 13.0 s, then a 1.0 s hold, then loop.
