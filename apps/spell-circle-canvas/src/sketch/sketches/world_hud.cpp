@@ -44,7 +44,7 @@
  *
  * Veloren's own art is hand-painted wood and bone. Nothing here is an
  * image: the frames are ramps under noise inside a bevel, the minimap's
- * terrain is patterns::noise thresholded into bands, the item glyphs are
+ * terrain is mpattern::noise thresholded into bands, the item glyphs are
  * paths, and the valley behind is one merged mesh of voxel columns whose
  * colour is a vertex lane.
  *
@@ -62,15 +62,19 @@
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/brush/Brushes.h>
 #include <sigilcompose/brush/LayerStyles.h>
-#include <sigilcompose/core/Material.h>
-#include <sigilcompose/core/Patterns.h>
-#include <sigilcompose/instances/Instances.h>
-#include <sigilcompose/kit/Silhouettes.h>
+#include <sigilmaterial/skia/Color.h>
+#include <sigilmaterial/skia/Paint.h>
+#include <sigilcompose/core/Pattern.h>
+#include <sigilmaterial/pattern/Patterns.h>
+#include <sigilcompose/core/Instances.h>
+#include <sigilcompose/brush/Adaptors.h>
 #include <sigilcompose/texture/Texture.h>
-#include <sigilcompose/typography/Type.h>
+#include <sigilweave/style/Type.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilmaterial/kit/Surface.h>
+#include <sigilmaterial/field/Field.h>
+#include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilsketch/set/Set.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilworld/kit/Kit.h>
@@ -87,12 +91,18 @@
 #include <vector>
 
 namespace sketch = sigil::sketch;
+namespace shapes = sigil::geometry::shapes;
+namespace mpattern = sigil::material::pattern;
+namespace field = sigil::material::field;
 namespace world = sigil::world;
 namespace material = sigil::material;
 namespace compose = sigil::compose;
 namespace weave = sigil::weave;
+namespace mskia = sigil::material::skia;
+namespace motion = sigil::motion;
 
 using namespace sigil::compose;
+using sigil::material::skia::Paint;
 using sigil::compose::toU8;
 using namespace std::chrono_literals;
 
@@ -152,7 +162,7 @@ constexpr float kSlotsX = (kW - kSlotsW) * 0.5f;
 
 inline sigil::weave::TextStyle type(float size, SkColor4f color,
                                     float tracking = 0, float weight = 0) {
-  sigil::weave::TextStyle s = sigil::compose::type(
+  sigil::weave::TextStyle s = sigil::weave::textStyle(
       {.size = size, .color = color, .track = tracking, .weight = weight});
   // Veloren draws every HUD string twice: black underneath, then the
   // colour on top. At 10px over terrain that is the whole legibility
@@ -170,7 +180,7 @@ inline Element track(float w, float h) {
   return box()
       .width(Dim(w))
       .height(Dim(h))
-      .fill(Material::solid(kTrack))
+      .fill(Paint::solid(kTrack))
       .foreground(styles::InnerShadow{{0, 0, 0, 0.85f}, {0, 2}, 3});
 }
 
@@ -180,7 +190,7 @@ inline Element boneFrame(float w, float h, float radius = 3) {
       .width(Dim(w))
       .height(Dim(h))
       .corners({radius})
-      .fill(Material::linear(
+      .fill(Paint::linear(
           {0, 0}, {0, h}, {{0.0f, kBoneHi}, {0.45f, kBone}, {1.0f, kBoneLo}}))
       // The grain: Veloren's frames are carved, and a ramp with no noise
       // in it is a plastic one. It rides UNDER the bevel, so the carve
@@ -188,7 +198,7 @@ inline Element boneFrame(float w, float h, float radius = 3) {
       .child(box()
                  .inset(0)
                  .corners({radius})
-                 .fill(patterns::noise(0.36f, 3, 1.0f))
+                 .fill(Paint::recipe(field::noise(0.36f, 3, 1.0f)))
                  .opacity(0.38f)
                  .blend(SkBlendMode::kMultiply))
       .foreground(styles::BevelEmboss{
@@ -211,7 +221,7 @@ inline Element bar(float frameW, float frameH, float innerW, float innerH,
                 .top(padY)
                 .width(Dim(innerW * decay))
                 .height(Dim(innerH))
-                .fill(Material::solid({kQualityEpic.fR, kQualityEpic.fG,
+                .fill(Paint::solid({kQualityEpic.fR, kQualityEpic.fG,
                                        kQualityEpic.fB, 0.55f})));
   e.child(
       box()
@@ -219,7 +229,7 @@ inline Element bar(float frameW, float frameH, float innerW, float innerH,
           .top(padY)
           .width(Dim(innerW * fraction))
           .height(Dim(innerH))
-          .fill(Material::linear(
+          .fill(Paint::linear(
               {0, 0}, {0, innerH},
               {{0.0f,
                 {std::min(1.0f, color.fR * 1.45f + 0.06f),
@@ -443,18 +453,21 @@ struct WorldHud final : sketch::Set {
   std::shared_ptr<instancing::Atlas> slotAtlas;
   std::shared_ptr<instancing::Pool> slotPool;
 
-  weave::FontContext* fonts = nullptr;
+  /** The HUD's own scene, asked of the session once and held by it: a
+   *  scene standing on a device destroys the texture it painted into
+   *  when it goes, and one asked for per frame would be one held per
+   *  frame. */
   std::shared_ptr<compose::TextureScene> overlay;
   Element retained;
-  float lastSeconds = -1.0f;
-  world::Camera lens;
+  worldhud::gm::camera::Camera lens;
 
   void setup(sketch::SetContext& ctx) override {
     namespace wh = worldhud;
     ctx.canvas((int)kSceneSize.fWidth, (int)kSceneSize.fHeight);
     ctx.captureAt(6.0);
     ctx.background({0.086f, 0.118f, 0.165f, 1.0f});
-    fonts = &ctx.fonts;
+    overlay = ctx.textureScene({(int)kSceneSize.fWidth,
+                                (int)kSceneSize.fHeight});
 
     lens.eye = wh::kEye;
     lens.target = wh::kLook;
@@ -558,10 +571,6 @@ struct WorldHud final : sketch::Set {
                         {.baseColor = {1, 1, 1, 1}, .roughness = 0.92f}))
                     .tag("terrain"));
 
-    if (!overlay || seconds <= lastSeconds)
-      overlay = compose::TextureScene::make(
-          {(int)kSceneSize.fWidth, (int)kSceneSize.fHeight}, *fonts);
-    lastSeconds = seconds;
     // THE HUD IS DESCRIBED ONCE. Every bar on it is a bound Output on a
     // retained node, so the frames after the first cost a reconcile
     // against a tree that did not change — re-describing a hundred nodes
@@ -590,7 +599,7 @@ struct WorldHud final : sketch::Set {
                       .height(Dim(wh::kHealthInnerH))
                       .transformOrigin(0.0f, 0.5f)
                       .scaleX(&hp)
-                      .fill(Material::linear({0, 0}, {0, wh::kHealthInnerH},
+                      .fill(Paint::linear({0, 0}, {0, wh::kHealthInnerH},
                                              {{0.0f, hex(0x7FE000)},
                                               {0.5f, wh::kHp},
                                               {1.0f, hex(0x2F5C00)}})));
@@ -600,7 +609,7 @@ struct WorldHud final : sketch::Set {
                       .width(Dim(wh::kHealthW))
                       .height(Dim(wh::kHealthH))
                       .corners({2})
-                      .fill(Material::solid({wh::kCritHp.fR, wh::kCritHp.fG,
+                      .fill(Paint::solid({wh::kCritHp.fR, wh::kCritHp.fG,
                                              wh::kCritHp.fB, 0.55f}))
                       .opacity(&lowPulse)
                       .blend(SkBlendMode::kPlus));
@@ -623,7 +632,7 @@ struct WorldHud final : sketch::Set {
                       .height(Dim(wh::kEnergyInnerH))
                       .transformOrigin(0.0f, 0.5f)
                       .scaleX(&energy)
-                      .fill(Material::solid(wh::kStamina)));
+                      .fill(Paint::solid(wh::kStamina)));
 
     // poise, with skillbar.rs's 3x10 ticks along it
     stackEl.child(
@@ -639,14 +648,14 @@ struct WorldHud final : sketch::Set {
                       .height(Dim(wh::kEnergyInnerH))
                       .transformOrigin(0.0f, 0.5f)
                       .scaleX(&poise)
-                      .fill(Material::solid(wh::kPoise)));
+                      .fill(Paint::solid(wh::kPoise)));
     for (int i = 1; i < 6; ++i)
       stackEl.child(box()
                         .left(ex + 2 + wh::kEnergyInnerW * (float)i / 6.0f)
                         .top(wh::kPoiseY + 3)
                         .width(Dim(3.0f))
                         .height(Dim(10.0f))
-                        .fill(Material::solid(wh::kPoiseTick)));
+                        .fill(Paint::solid(wh::kPoiseTick)));
     return stackEl;
   }
 
@@ -681,7 +690,7 @@ struct WorldHud final : sketch::Set {
                 .width(Dim(24.0f))
                 .height(Dim(24.0f))
                 .shape(wh::glyphPath(kSlots[i].glyph))
-                .fill(Material::linear(
+                .fill(Paint::linear(
                     {0, 0}, {0, 24}, {{0.0f, wh::kBoneHi}, {1.0f, wh::kBone}}))
                 // several glyphs are line-only (frost, dash, bow):
                 // a fill alone leaves them invisible
@@ -698,7 +707,7 @@ struct WorldHud final : sketch::Set {
                        .height(Dim(wh::kSlot - 4))
                        .transformOrigin(0.5f, 0.0f)
                        .scaleY(&cooldown[(size_t)i - 1])
-                       .fill(Material::linear(
+                       .fill(Paint::linear(
                            {0, 0}, {0, wh::kSlot - 4},
                            {{0.0f, {0.06f, 0.10f, 0.16f, 0.86f}},
                             {1.0f, {0.10f, 0.16f, 0.24f, 0.72f}}})));
@@ -718,7 +727,7 @@ struct WorldHud final : sketch::Set {
                               .top(20)
                               .width(Dim(28.0f))
                               .height(Dim(6.0f))
-                              .fill(Material::solid(worldhud::kTrack))
+                              .fill(Paint::solid(worldhud::kTrack))
                               .child(box()
                                          .left(0)
                                          .top(0)
@@ -726,7 +735,7 @@ struct WorldHud final : sketch::Set {
                                          .height(Dim(6.0f))
                                          .transformOrigin(0.0f, 0.5f)
                                          .scaleX(&xp)
-                                         .fill(Material::solid(worldhud::kXp))))
+                                         .fill(Paint::solid(worldhud::kXp))))
                    .child(text(toU8("34"), wh::type(13, wh::kInk, 0.4f, 640))
                               .left(9)
                               .top(3)));
@@ -745,16 +754,16 @@ struct WorldHud final : sketch::Set {
         .top(28)
         .width(Dim(d))
         .height(Dim(d))
-        .opacity(animate(from(0.0f).to(1.0f), {420ms}))
+        .opacity(animate(motion::from(0.0f).to(1.0f), {420ms}))
         .child(
             box()
                 .inset(0)
                 .corners({d * 0.5f})
                 .clip()
-                .fill(Material::solid(hex(0x2E4A2A)))
+                .fill(Paint::solid(hex(0x2E4A2A)))
                 .child(box()
                            .inset(0)
-                           .fill(patterns::noise(0.014f, 5, 3.0f))
+                           .fill(Paint::recipe(field::noise(0.014f, 5, 3.0f)))
                            .opacity(0.85f)
                            .blend(SkBlendMode::kMultiply))
                 // the height BANDS: three thresholds of one noise field,
@@ -762,23 +771,26 @@ struct WorldHud final : sketch::Set {
                 // as a texture
                 .child(box()
                            .inset(0)
-                           .fill(patterns::noise(0.030f, 4, 2.0f))
+                           .fill(Paint::recipe(field::noise(0.030f, 4, 2.0f)))
                            .opacity(0.55f)
                            .blend(SkBlendMode::kOverlay))
                 .child(box()
                            .inset(0)
-                           .fill(patterns::noise(0.070f, 2, 5.0f))
+                           .fill(Paint::recipe(field::noise(0.070f, 2, 5.0f)))
                            .opacity(0.30f)
                            .blend(SkBlendMode::kMultiply))
                 .child(box().inset(0).fill(
-                    Material::radial({d * 0.5f, d * 0.5f}, d * 0.55f,
+                    Paint::radial({d * 0.5f, d * 0.5f}, d * 0.55f,
                                      {{0.0f, {0, 0, 0, 0}},
                                       {0.72f, {0, 0, 0, 0.25f}},
                                       {1.0f, {0, 0, 0, 0.75f}}})))
                 // the rivers Veloren's world always has
                 .child(box()
                            .inset(0)
-                           .fill(patterns::stripes(2, 47, hex(0x2F6FA8, 0.30f))
+                           .fill(Pattern(mpattern::stripes(
+                                             2, 47,
+                                             mskia::toColor(
+                                                 hex(0x2F6FA8, 0.30f))))
                                      .material())
                            .rotate(24.0f)
                            .opacity(0.7f)))
@@ -794,13 +806,13 @@ struct WorldHud final : sketch::Set {
                    .child(box()
                               .inset(0)
                               .shape(shapes::star(8, 0.34f))
-                              .fill(Material::solid({wh::kBoneHi.fR,
+                              .fill(Paint::solid({wh::kBoneHi.fR,
                                                      wh::kBoneHi.fG,
                                                      wh::kBoneHi.fB, 0.30f})))
                    .child(box()
                               .inset(9)
                               .shape(shapes::star(4, 0.22f))
-                              .fill(Material::solid({wh::kBoneHi.fR,
+                              .fill(Paint::solid({wh::kBoneHi.fR,
                                                      wh::kBoneHi.fG,
                                                      wh::kBoneHi.fB, 0.62f}))))
         .child(box()
@@ -809,21 +821,21 @@ struct WorldHud final : sketch::Set {
                    .width(Dim(8.0f))
                    .height(Dim(8.0f))
                    .shape(shapes::polygon(3))
-                   .fill(Material::solid(hex(0xFFE9A8))))
+                   .fill(Paint::solid(hex(0xFFE9A8))))
         .child(box()
                    .left(d * 0.30f)
                    .top(d * 0.36f)
                    .width(Dim(6.0f))
                    .height(Dim(6.0f))
                    .corners({3})
-                   .fill(Material::solid(wh::kQualityLegendary)))
+                   .fill(Paint::solid(wh::kQualityLegendary)))
         .child(box()
                    .left(d * 0.68f)
                    .top(d * 0.62f)
                    .width(Dim(6.0f))
                    .height(Dim(6.0f))
                    .corners({3})
-                   .fill(Material::solid(wh::kEnemyHp)))
+                   .fill(Paint::solid(wh::kEnemyHp)))
         // the ring
         .child(box()
                    .inset(0)
@@ -885,9 +897,9 @@ struct WorldHud final : sketch::Set {
               .width(Dim(30.0f))
               .height(Dim(30.0f))
               .corners({4})
-              .opacity(animate(from(0.0f).to(1.0f), {320ms}))
-              .translateY(animate(from(-10.0f).to(0.0f), {380ms}))
-              .fill(Material::linear(
+              .opacity(animate(motion::from(0.0f).to(1.0f), {320ms}))
+              .translateY(animate(motion::from(-10.0f).to(0.0f), {380ms}))
+              .fill(Paint::linear(
                   {0, 0}, {0, 30},
                   {{0.0f, hex(0x2A2118)}, {1.0f, hex(0x120C08)}}))
               .foreground(stroke(1.4f, Fill::color({p.color.fR, p.color.fG,
@@ -905,7 +917,7 @@ struct WorldHud final : sketch::Set {
                          .bottom(0)
                          .width(Dim(30.0f))
                          .height(Dim(30.0f * (1.0f - p.left)))
-                         .fill(Material::solid({0, 0, 0, 0.62f}))
+                         .fill(Paint::solid({0, 0, 0, 0.62f}))
                          .zIndex(1))
               .child(text(toU8(p.label), wh::type(9, p.color, 0.6f, 640))
                          .zIndex(2)));
@@ -940,13 +952,13 @@ struct WorldHud final : sketch::Set {
                      .row()
                      .alignItems(Align::Center)
                      .gap(7)
-                     .opacity(animate(from(0.0f).to(1.0f), {420ms}))
-                     .translateX(animate(from(-24.0f).to(0.0f), {480ms}))
+                     .opacity(animate(motion::from(0.0f).to(1.0f), {420ms}))
+                     .translateX(animate(motion::from(-24.0f).to(0.0f), {480ms}))
                      .child(box()
                                 .width(Dim(16.0f))
                                 .height(Dim(16.0f))
                                 .corners({2})
-                                .fill(Material::solid({l.color.fR * 0.28f,
+                                .fill(Paint::solid({l.color.fR * 0.28f,
                                                        l.color.fG * 0.28f,
                                                        l.color.fB * 0.28f, 1}))
                                 .foreground(stroke(1.0f, Fill::color(l.color))))
@@ -966,7 +978,7 @@ struct WorldHud final : sketch::Set {
         .right(0)
         .top(96)
         .zIndex(6)
-        .opacity(animate(from(0.0f).to(1.0f),
+        .opacity(animate(motion::from(0.0f).to(1.0f),
                          {360ms, &choreograph::easeOutQuad, 220ms}))
         .child(text(toU8("CAVE TROLL"), wh::type(15, wh::kInk, 1.6f, 640)))
         .child(text(toU8("Lv 27"), wh::type(10, wh::kInkDim, 1.4f))
@@ -974,7 +986,7 @@ struct WorldHud final : sketch::Set {
         .child(box()
                    .width(Dim(168.0f))
                    .height(Dim(9.0f))
-                   .fill(Material::solid(worldhud::kTrack))
+                   .fill(Paint::solid(worldhud::kTrack))
                    .foreground(
                        stroke(1.0f, Fill::color({0.05f, 0.04f, 0.03f, 0.9f})))
                    .child(box()
@@ -984,7 +996,7 @@ struct WorldHud final : sketch::Set {
                               .height(Dim(7.0f))
                               .transformOrigin(0.0f, 0.5f)
                               .scaleX(&enemyHp)
-                              .fill(Material::solid(wh::kEnemyHp))));
+                              .fill(Paint::solid(wh::kEnemyHp))));
   }
 
   /** The HUD itself: everything Veloren draws over the world. */
