@@ -16,7 +16,7 @@ what a consumer uses; every public header lives under
 | target | headers | holds |
 |--------|---------|-------|
 | `SigilMotionBind`   | `bind/Bound.h`, `bind/BoundFloat.h`, `bind/WiggleNoise.h`; `bind/Bind.h` includes all three | `bind()`, `wiggle()` and the `Bound` chain builder; `BoundFloat` and `Envelope`, the evaluator; the wiggle noise field; `easeEqual()` and `boundMapEqual()` |
-| `SigilMotionValues` | `values/Transition.h`, `values/Keyframes.h`, `values/Animatable.h`, `values/Animated.h`, `values/Lanes.h`, `values/Time.h`; `values/Values.h` includes all six | `Transition`, `ease::`, `ramp()`, `clamp01()` and `transitionEqual()`; `Transitioned`, `animate()`/`from()`/`to()`/`through()`; `Animatable<T>` and `propEqual()`; `AnimatedFloat`, the operations on a held motion, `isLive()` and `progressRamp()`; `Lane`, `LaneSlot` and the retargets; `quantizeTime()`, `stepIndex()`, `phase()` and `decay()` |
+| `SigilMotionValues` | `values/Transition.h`, `values/Keyframes.h`, `values/Animatable.h`, `values/Animated.h`, `values/Lanes.h`, `values/Spring.h`, `values/Time.h`; `values/Values.h` includes all seven | `Transition`, `ease::`, `ramp()`, `clamp01()` and `transitionEqual()`; `Transitioned`, `animate()`/`from()`/`to()`/`through()`; `Animatable<T>` and `propEqual()`; `AnimatedFloat`, the operations on a held motion, `isLive()` and `progressRamp()`; `Lane`, `LaneSlot` and the retargets; `quantizeTime()`, `stepIndex()`, `phase()` and `decay()`; `Spring`, `spring()` and `springMoving()` |
 | `SigilMotionClock`  | `clock/FrameClock.h`, `clock/Ticker.h` | the clock and the ticker |
 | `SigilMotionSchedule` | `schedule/Spread.h`, `schedule/Order.h`, `schedule/Cascade.h`; `schedule/Schedule.h` includes all three | `Spread`, the spec; `cascadeOrder()`, the five orderings; `Cascade` and `Beat`, a spread resolved against a frame's counts |
 
@@ -175,6 +175,50 @@ shoulders while leaving its hold at exactly 1 and its dark at exactly 0 —
 where the corners are and what shape the shoulders take are separate
 decisions. `square` has no shoulders to round, and its phase 0 is ON —
 a caret born at the start of its cycle is born visible.
+
+## The spring: the one value that carries its own velocity
+
+Every other value here is a function of a progress or a clock reading.
+A **spring** is not: it is a position and a velocity, stepped towards a
+target that is allowed to move.
+
+```cpp
+Spring cursor;                                   // value 0, at rest
+SpringParams p{.periodSeconds = 0.39f, .damping = 0.22f};
+cursor = spring(cursor, selectedX, dt, p);       // every frame
+if (!springMoving(cursor, selectedX)) sleep();   // done, to within a pixel
+```
+
+`periodSeconds` is the period the spring would ring at with no damping —
+how fast — and `damping` is the ratio: under 1 it overshoots and rings,
+at 1 it arrives as fast as it can without ever crossing, over 1 it crawls
+in from one side. The two are independent, which is the reason they are
+the pair named: re-timing a bounce leaves its shape, reshaping it leaves
+its timing. Successive extremes shrink by `exp(-ζπ/√(1-ζ²))`, so a
+damping is picked from the overshoot a designer can see rather than from
+a stiffness nobody can.
+
+The target is an argument to the step and not a member of the spring,
+because a target that moves mid-flight is the whole reason to reach for
+one. An `ease::` curve runs between two fixed endpoints and can only
+restart when one of them moves; `transitionFloatAt` bends by starting a
+new ramp from where the value is, which loses the speed it had. A spring
+keeps that speed and turns.
+
+It is solved in closed form rather than integrated, so **one step of any
+size is exact**: fifty steps of a frame and one step of fifty frames land
+on the same value. That is what makes it safe on the delta a frame clock
+actually hands over — the clock's clamped quarter-second is a big step
+and not an explosion — and it takes no substepping to keep it there. It
+is also why a caller with no state to keep can have the closed form for
+free, stepping a spring at rest by the age of the thing it animates,
+exactly as `decay` is read.
+
+`springMoving` is the *running* question asked of a spring. An
+exponential approach never exactly arrives, so rest is a tolerance rather
+than a fact, and it is stated once as a distance and a rate together: a
+value sitting on its target at speed is passing through it, not resting
+on it.
 
 ## Schedules: how N units share one progress
 

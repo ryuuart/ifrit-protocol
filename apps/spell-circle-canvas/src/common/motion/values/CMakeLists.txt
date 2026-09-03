@@ -21,6 +21,7 @@ add_library(SigilMotionValues STATIC
   ${SIGIL_MOTION_INCLUDE_DIR}/sigilmotion/values/Animated.h
   ${SIGIL_MOTION_INCLUDE_DIR}/sigilmotion/values/Keyframes.h
   ${SIGIL_MOTION_INCLUDE_DIR}/sigilmotion/values/Lanes.h
+  ${SIGIL_MOTION_INCLUDE_DIR}/sigilmotion/values/Spring.h
   ${SIGIL_MOTION_INCLUDE_DIR}/sigilmotion/values/Time.h
   ${SIGIL_MOTION_INCLUDE_DIR}/sigilmotion/values/Transition.h
   ${SIGIL_MOTION_INCLUDE_DIR}/sigilmotion/values/Values.h
@@ -36,7 +37,7 @@ target_link_libraries(SigilMotionValues PUBLIC
 # draws, so a link edge that pulled a drawing library in would show up
 # as a build failure here.
 add_executable(motion_values_test test/ValuesTest.cpp test/AnimatedTest.cpp
-  test/LanesTest.cpp)
+  test/LanesTest.cpp test/SpringTest.cpp)
 target_include_directories(motion_values_test PRIVATE
   ${SIGIL_MOTION_TEST_SUPPORT_DIR})
 target_link_libraries(motion_values_test PRIVATE
