@@ -27,6 +27,8 @@
 #include <sigilcompose/kit/Legibility.h>
 #include <sigilcompose/kit/Ornament.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/skia/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/style/Type.h>
 
@@ -36,6 +38,7 @@
 #include <random>
 
 namespace sketch = sigil::sketch;
+namespace material = sigil::material;
 namespace weave = sigil::weave;
 
 using namespace sigil::compose;
@@ -82,35 +85,16 @@ struct UiParticles final : sketch::Sketch {
   struct ChipTheme {
     SkColor4f fill, edge, ink;
   };
-  static SkColor4f hsv(float h, float s, float v) {
-    const float c = v * s;
-    const float x = c * (1 - std::fabs(std::fmod(h / 60.0f, 2.0f) - 1));
-    const float m = v - c;
-    float r = 0, g = 0, b = 0;
-    if (h < 60) {
-      r = c;
-      g = x;
-    } else if (h < 120) {
-      r = x;
-      g = c;
-    } else if (h < 180) {
-      g = c;
-      b = x;
-    } else if (h < 240) {
-      g = x;
-      b = c;
-    } else if (h < 300) {
-      r = x;
-      b = c;
-    } else {
-      r = c;
-      b = x;
-    }
-    return {r + m, g + m, b + m, 1};
-  }
+  /** One chip's skin, read off the wheel: the hue is walked rather than
+   *  authored, so the fill, the edge and the ink are one hue at three
+   *  points of its own tone ladder. */
   static ChipTheme chipTheme(float hueDegrees, bool darkInk) {
-    return {hsv(hueDegrees, 0.62f, 0.94f), hsv(hueDegrees, 0.80f, 0.45f),
-            darkInk ? hsv(hueDegrees, 0.85f, 0.22f) : SkColor4f{1, 1, 1, 1}};
+    const auto tone = [hueDegrees](float saturation, float value) {
+      return material::skia::toSkColor(
+          material::hsv(hueDegrees, saturation, value));
+    };
+    return {tone(0.62f, 0.94f), tone(0.80f, 0.45f),
+            darkInk ? tone(0.85f, 0.22f) : SkColor4f{1, 1, 1, 1}};
   }
 
   Element pill(const ChipTheme& t, std::u8string label) {
@@ -204,7 +188,8 @@ struct UiParticles final : sketch::Sketch {
     // NOLINTNEXTLINE(bugprone-random-generator-seed)
     std::mt19937 rng{23};
     for (int i = 0; i < kVariants; ++i) {
-      const float hue = std::fmod((float)i * 137.5f, 360.0f);
+      // the golden-angle walk, unfolded: hsv() wraps the hue itself
+      const float hue = (float)i * 137.5f;
       const ChipTheme theme = chipTheme(hue, (i % 3) != 0);
       Element content = [&]() -> Element {
         switch (i % 5) {
