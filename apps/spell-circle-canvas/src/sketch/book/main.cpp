@@ -50,7 +50,7 @@
 #include <QtQuick/QQuickWindow>
 
 #ifndef SIGILSKETCH_NO_DEVICE
-#include <sigilworld/diligent/Device.h>
+#include <sigilgeometry/device/Device.h>
 #include <sigilworld/diligent/Runtime.h>
 #endif
 
@@ -133,7 +133,7 @@ sketch::Assets& assets() {
 #ifndef SIGILSKETCH_NO_DEVICE
 /** Held for the run: the runtime borrows the device, and every texture
  *  and pipeline it made goes when the device does. */
-std::unique_ptr<sigil::world::diligent::Device> g_device;
+std::unique_ptr<sigil::geometry::device::Device> g_device;
 
 /** Puts every set sketch on the device, and says whether it could. The
  *  sweep treats a false answer as fatal because drawing the CPU's
@@ -142,8 +142,8 @@ std::unique_ptr<sigil::world::diligent::Device> g_device;
  *  a window can say which tier it is showing. */
 bool useDevice() {
   std::string error;
-  const sigil::world::diligent::DeviceConfig config;
-  g_device = sigil::world::diligent::Device::create(config, &error);
+  const sigil::geometry::device::DeviceConfig config;
+  g_device = sigil::geometry::device::Device::create(config, &error);
   if (!g_device) {
     std::fprintf(stderr, "no device runtime (%s)\n", error.c_str());
     return false;
