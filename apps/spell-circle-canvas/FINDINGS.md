@@ -309,3 +309,13 @@ message is dead on the only registered compiler: a recipe reading neither
 of two declared fields prints nothing. The check evidently intends to
 name a field the body never reads. A test should compile a body that
 ignores a declared field and assert the report names it.
+
+
+## A memo subtree under Cache::Picture reports no picture recorded
+
+`Composer::Stats::picturesRecorded` stayed 0 for a memo subtree marked
+`Cache::Picture` while its props changed every frame and it was
+repainted each time; either the explicit cache is not honoured on a memo
+node or the counter misses that write. The stat evidently intends to
+count every picture the composer records. A test should mutate a memo
+node under `Cache::Picture` and assert `picturesRecorded` advances.
