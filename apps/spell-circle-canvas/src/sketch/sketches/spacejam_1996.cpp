@@ -51,8 +51,8 @@
 //     The art was authored at 15 bit and reduced to GIF; the web-safe cube
 //     was a property of the USER'S SCREEN. So `C5()` snaps every authored
 //     colour to the 5-bit grid at describe time, and `Composer::setView()`
-//     carries a 216-colour + Bayer-4×4 ordered dither over the whole
-//     output.
+//     rounds the whole finished frame to the 216-colour cube — a snap and
+//     not a dither, for the reason stated at `viewEffect()`.
 //
 //  3. TIME IS A TRANSPORT PROPERTY. The sixteen files total 59,689 bytes,
 //     fed through four connections at 3.0 KB/s effective — a schedule
@@ -76,7 +76,7 @@
 //     where instancing is the wrong answer — the stars are not scattered
 //     over the page, they are one `Pattern::tile` bake shown many times.
 //   · Only ONE thing on this page ever moves: fastbreak.gif, 40×40, six
-//     frames, `duration=100` on every one. `Material::quantizeTime(10.0f)`
+//     frames, `duration=100` on every one. `Paint::quantizeTime(10.0f)`
 //     is that GIF's frame rate, exactly. Nothing else drifts, twinkles or
 //     parallaxes, and the restraint is the reference.
 //   · The page has NO DOCTYPE, so it renders in quirks mode — which is why
@@ -87,14 +87,13 @@
 //     with none, all twelve images land. (Netscape 3 had no standards mode
 //     at all, so quirks IS the 1996 behaviour.)
 //
-// TWO PROPERTIES OF THE FINISHED FRAME, which are what make it a study of
-// this page and not a moving picture of it:
-//   · the view transform's dither cell is quantised by `uScale`, so it is
-//     locked to the 1996 pixel grid and does not swim when anything under
-//     it moves;
-//   · exactly one thing moves after the load: the basketball, stepping at
-//     10 Hz. The rest of the tree settles to cached pictures, so the page
-//     really does go static once loaded, the way the artefact does.
+// ONE PROPERTY OF THE FINISHED FRAME, which is what makes it a study of
+// this page and not a moving picture of it: exactly one thing moves after
+// the load — the basketball, stepping at 10 Hz. The rest of the tree
+// settles to cached pictures, so the page really does go static once
+// loaded, the way the artefact does. The view transform is a pure
+// per-pixel round with no lattice and no time in it, so it adds nothing
+// that moves either.
 //
 // AND ONE THING THE TABLE ALGORITHM ITSELF ASKS FOR: column surplus is
 // distributed PROPORTIONALLY across the columns, but a rowspan's height
@@ -110,11 +109,15 @@
 #include <include/core/SkString.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilcompose/brush/Decorations.h>
-#include <sigilcompose/core/Material.h>
+#include <sigilcompose/core/Paint.h>
+#include <sigilmotion/bind/Bind.h>
+#include <sigilgeometry/kit/Generators.h>
+#include <sigilmaterial/skia/Effect.h>
+#include <sigilmaterial/skia/Paint.h>
 #include <sigilcompose/core/Pattern.h>
-#include <sigilcompose/core/Patterns.h>
+#include <sigilmaterial/kit/Patterns.h>
 #include <sigilcompose/kit/Frame.h>
-#include <sigilcompose/kit/Silhouettes.h>
+#include <sigilcompose/brush/Adaptors.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
@@ -125,6 +128,10 @@
 #include <vector>
 
 namespace sketch = sigil::sketch;
+namespace mskia = sigil::material::skia;
+namespace motion = sigil::motion;
+namespace shapes = sigil::geometry::shapes;
+namespace weave = sigil::weave;
 
 using namespace sigil::compose;
 using namespace std::chrono_literals;
@@ -236,7 +243,7 @@ inline Element rect(float x, float y, float w, float h) {
 
 /** A shaded sphere: a circle-outlined box of 2r centred on c. Every planet
  *  here is flat-shaded with a hard limb — two stops and a dark edge. */
-inline Element sphere(SkPoint c, float r, Material m) {
+inline Element sphere(SkPoint c, float r, mskia::Paint m) {
   return kit::disc(c, r).shape(shapes::circle()).fill(std::move(m));
 }
 
@@ -303,11 +310,11 @@ half4 main(float2 xy) {
   return effect;
 }
 
-inline Material ballMaterial(bool live, SkColor4f hi, SkColor4f lo,
+inline mskia::Paint ballMaterial(bool live, SkColor4f hi, SkColor4f lo,
                              SkColor4f seam, float seamW) {
   sk_sp<SkRuntimeEffect> fx = ballEffect(live);
-  if (!fx) return Material::solid(hi);
-  Material m = Material::sksl(fx, {{"uSeamW", seamW}});
+  if (!fx) return mskia::Paint::solid(hi);
+  mskia::Paint m = mskia::Paint::sksl(fx, {{"uSeamW", seamW}});
   m.uniform("uHi", hi);
   m.uniform("uLo", lo);
   m.uniform("uSeam", seam);
@@ -439,12 +446,12 @@ inline Element starTile() {
 
   // Three very faint lens-flare ghosts, at the sampled centres and radii
   // (page px, 15-26). They are what stops the field reading as pure noise.
-  // At this luminance the view transform's dither turns them into sparse
-  // single-level dots, which is exactly what an 8-bit screen did to them.
+  // At this luminance the view transform's round collapses them to one or
+  // two levels, which is exactly what an 8-bit screen did to them.
   const float ring[3][3] = {{14, 16, 26}, {17, 52, 19}, {80, 74, 15}};
   for (auto& g : ring)
-    tile.child(kit::disc({S(g[0]), S(g[1])}, S(g[2]))
-                   .fill(Material::glowUnit({0.5f, 0.5f}, 1.0f,
+    tile.child(kit::disc(SkPoint{S(g[0]), S(g[1])}, S(g[2]))
+                   .fill(mskia::Paint::glowUnit({0.5f, 0.5f}, 1.0f,
                                             {{0.0f, {1, 1, 1, 0.0f}},
                                              {0.74f, {1, 1, 1, 0.0f}},
                                              {0.89f, {1, 1, 1, 0.030f}},
@@ -463,8 +470,8 @@ inline Element starTile() {
     // into a grey haze the artefact does not have.
     const float hr = 0.85f + 2.6f * L * L;
     const float R = S(2.7f * hr);
-    tile.child(kit::disc({S((float)s.x), S((float)s.y)}, R)
-                   .fill(Material::glowUnit({0.5f, 0.5f}, 1.0f,
+    tile.child(kit::disc(SkPoint{S((float)s.x), S((float)s.y)}, R)
+                   .fill(mskia::Paint::glowUnit({0.5f, 0.5f}, 1.0f,
                                             {{0.0f, {L, L, L, 1.0f}},
                                              {0.24f, {L, L, L, 0.66f}},
                                              {0.44f, {L, L, L, 0.26f}},
@@ -482,7 +489,7 @@ inline Element starTile() {
       const int pts = eight ? 8 : 4;
       const float waist = eight ? 0.15f : 0.12f;
       const float len = S(eight ? 4.8f + 6.6f * L : 4.2f + 6.0f * L);
-      Element sp = kit::disc({S((float)s.x), S((float)s.y)}, len)
+      Element sp = kit::disc(SkPoint{S((float)s.x), S((float)s.y)}, len)
                        .shape(shapes::star(pts, 0.035f, waist))
                        .fill(Fill::color({1, 1, 1, 0.38f + 0.42f * L}))
                        .blend(SkBlendMode::kPlus);
@@ -533,7 +540,7 @@ inline Element navLabel(sigil::weave::FontContext& fonts, const char* s,
 
 /** A ring seen edge-on: an annulus on a squashed, rotated box. */
 inline Element ring(SkPoint c, float rx, float ry, float rotDeg,
-                    float innerRatio, Material m) {
+                    float innerRatio, mskia::Paint m) {
   return rect(c.fX - rx, c.fY - ry, rx * 2, ry * 2)
       .shape(shapes::annulus(innerRatio))
       .fill(std::move(m))
@@ -550,7 +557,7 @@ inline Element artSouvenirs(sigil::weave::FontContext& f) {
   const float W = S(83), H = S(83);
   return artBox(W, H)
       .child(sphere({S(41.5f), S(47.5f)}, S(35),
-                    Material::glowUnit({0.5f, 0.5f}, 1.0f,
+                    mskia::Paint::glowUnit({0.5f, 0.5f}, 1.0f,
                                        {{0.0f, C5(0xEFEFEF)},
                                         {0.16f, C5(0xDEEFEF)},
                                         {0.52f, C5(0x29EFEF)},
@@ -566,7 +573,7 @@ inline Element artJump(sigil::weave::FontContext& f) {
   const float W = S(58), H = S(52);
   return artBox(W, H)
       .child(sphere({S(28.5f), S(30.0f)}, S(21),
-                    Material::glowUnit({0.46f, 0.60f}, 1.0f,
+                    mskia::Paint::glowUnit({0.46f, 0.60f}, 1.0f,
                                        {{0.0f, C5(0xFFFFFF)},
                                         {0.22f, C5(0xADF7A5)},
                                         {0.52f, C5(0x39D631)},
@@ -581,7 +588,7 @@ inline Element artJump(sigil::weave::FontContext& f) {
 inline Element artBball(sigil::weave::FontContext& f) {
   const float W = S(62), H = S(62);
   return artBox(W, H)
-      .child(kit::disc({S(31), S(37.5f)}, S(25.5f))
+      .child(kit::disc(SkPoint{S(31), S(37.5f)}, S(25.5f))
                  .shape(shapes::circle())
                  .fill(ballMaterial(false, C5(0xFF9C10), C5(0xC66300),
                                     C5(0x843900), 0.055f))
@@ -596,7 +603,7 @@ inline Element artJamCentral(sigil::weave::FontContext& f) {
   const SkPoint c{S(27.5f), S(40)};
   const float r = S(26);
   Element globe = sphere(c, r,
-                         Material::glowUnit({0.34f, 0.28f}, 1.32f,
+                         mskia::Paint::glowUnit({0.34f, 0.28f}, 1.32f,
                                             {{0.0f, C5(0xA542DE)},
                                              {0.30f, C5(0x8418CE)},
                                              {0.62f, C5(0x7B10C6)},
@@ -632,11 +639,11 @@ inline Element artJamCentral(sigil::weave::FontContext& f) {
 inline Element gasGiant(SkPoint c, float r, SkColor4f body, SkColor4f limb,
                         SkColor4f hi, Bands bands) {
   Element d =
-      sphere(c, r, Material::solid(body))
+      sphere(c, r, mskia::Paint::solid(body))
           .clip(true)
           .overlay(std::move(bands))
           .stroke(stroke(S(1.5f), Fill::color(limb), PathFormat::Align::Inner));
-  d.child(box().inset(0).fill(Material::glowUnit({0.34f, 0.28f}, 1.35f,
+  d.child(box().inset(0).fill(mskia::Paint::glowUnit({0.34f, 0.28f}, 1.35f,
                                                  {{0.0f, alpha(hi, 0.42f)},
                                                   {0.34f, alpha(hi, 0.10f)},
                                                   {0.62f, {0, 0, 0, 0}},
@@ -704,7 +711,7 @@ inline Element artLunarTunes(sigil::weave::FontContext& f) {
   const float W = S(95), H = S(77);
   const SkPoint c{S(48), S(46)};
   auto ringMat = [] {
-    return Material::linearUnit({0, 0}, {0, 1},
+    return mskia::Paint::linearUnit({0, 0}, {0, 1},
                                 {{0.0f, C5(0xF71018)},
                                  {0.38f, C5(0xF773A5)},
                                  {0.62f, C5(0xF71818)},
@@ -713,7 +720,7 @@ inline Element artLunarTunes(sigil::weave::FontContext& f) {
   return artBox(W, H)
       .child(ring(c, S(47), S(16), -20, 0.62f, ringMat()).zIndex(0))
       .child(sphere(c, S(30),
-                    Material::glowUnit({0.34f, 0.28f}, 1.32f,
+                    mskia::Paint::glowUnit({0.34f, 0.28f}, 1.32f,
                                        {{0.0f, C5(0x0073E7)},
                                         {0.30f, C5(0x006BD6)},
                                         {0.66f, C5(0x0052AD)},
@@ -735,7 +742,7 @@ inline Element artLineup(sigil::weave::FontContext& f) {
   const float W = S(63), H = S(52);
   const SkPoint c{S(33), S(31)};
   auto ringMat = [] {
-    return Material::linearUnit({0, 0}, {0, 1},
+    return mskia::Paint::linearUnit({0, 0}, {0, 1},
                                 {{0.0f, C5(0x21FFFF)},
                                  {0.45f, C5(0x9CFFFF)},
                                  {0.75f, C5(0x21FFFF)},
@@ -744,7 +751,7 @@ inline Element artLineup(sigil::weave::FontContext& f) {
   return artBox(W, H)
       .child(ring(c, S(29), S(15), -22, 0.60f, ringMat()).zIndex(0))
       .child(sphere({S(38), S(32)}, S(17),
-                    Material::glowUnit({0.34f, 0.30f}, 1.30f,
+                    mskia::Paint::glowUnit({0.34f, 0.30f}, 1.30f,
                                        {{0.0f, C5(0xFF4A6B)},
                                         {0.28f, C5(0xFF425A)},
                                         {0.62f, C5(0xF71818)},
@@ -784,7 +791,7 @@ inline Element artSitemap(sigil::weave::FontContext& f) {
   // they were authored.
   Element vortex = rect(c.fX - S(35), c.fY - S(17), S(70), S(34))
                        .shape(shapes::annulus(0.30f))
-                       .fill(Material::glowUnit({0.5f, 0.5f}, 1.0f,
+                       .fill(mskia::Paint::glowUnit({0.5f, 0.5f}, 1.0f,
                                                 {{0.0f, C5(0xFFFF00)},
                                                  {0.34f, C5(0xFFEF00)},
                                                  {0.52f, C5(0xFFAD42)},
@@ -838,7 +845,7 @@ inline Element artPressBox(sigil::weave::FontContext& f) {
   // dorsal fin, swept back from mid-body
   ship.child(rect(S(38), S(6), S(52), S(20))
                  .shape(tri(1.0f, 1.0f, 0.86f, 0.0f, 0.0f, 1.0f))
-                 .fill(Material::linearUnit(
+                 .fill(mskia::Paint::linearUnit(
                      {0, 0}, {0, 1}, {{0.0f, C5(0xF71039)}, {1.0f, hullLo}})));
   // ventral fin
   ship.child(rect(S(58), S(36), S(40), S(15))
@@ -847,13 +854,13 @@ inline Element artPressBox(sigil::weave::FontContext& f) {
   // rear nacelle
   ship.child(rect(S(4), S(25), S(36), S(14))
                  .shape(shapes::squircle(2.6f))
-                 .fill(Material::linearUnit(
+                 .fill(mskia::Paint::linearUnit(
                      {0, 0}, {0, 1},
                      {{0.0f, C5(0x8CDE73)}, {0.42f, grn}, {1.0f, grnLo}})));
   // fuselage
   ship.child(rect(S(16), S(23), S(100), S(17))
                  .shape(shapes::squircle(2.2f))
-                 .fill(Material::linearUnit({0, 0}, {0, 1},
+                 .fill(mskia::Paint::linearUnit({0, 0}, {0, 1},
                                             {{0.0f, hullHi},
                                              {0.26f, hull},
                                              {0.68f, hullLo},
@@ -891,7 +898,7 @@ inline Element artLogo(sigil::weave::FontContext& fonts) {
     // glowUnit again, for the reason artSitemap() gives: on this 1.4:1 box
     // radialUnit would put the whole rainbow inside t < 0.71 and the outer
     // band would never draw.
-    return Material::glowUnit({0.5f, 0.5f}, 1.0f,
+    return mskia::Paint::glowUnit({0.5f, 0.5f}, 1.0f,
                               {{0.0f, C5(0x101831)},
                                {0.44f, C5(0x21103A)},
                                {0.56f, C5(0xFFEF00)},
@@ -924,7 +931,7 @@ inline Element artLogo(sigil::weave::FontContext& fonts) {
                      float capTopY, float lean) {
     const float size = capPx / 0.72f;
     Element t = text(U(s), ty(display(), size, C5(0x2FA9A0), 0));
-    t.textFill(Material::linear({0, 0}, {0, 1},
+    t.textFill(mskia::Paint::linear({0, 0}, {0, 1},
                                 {{0.0f, C5(0x006BA5)},
                                  {0.22f, C5(0x007BAD)},
                                  {0.52f, C5(0x00A584)},
@@ -1177,25 +1184,27 @@ struct TableScheme {
 };
 
 // ---------------------------------------------------------------------------
-// The display quantisation — 216 colours + Bayer 4x4, in setView().
+// The display quantisation — the 216-colour web cube, in setView().
 //
-// Monolithic, one expression for the Bayer index (the recursive matrix's
-// closed form), because a shader authored in a sketch and compiled by the
-// host's Skia cannot carry user-defined functions. `pos` is quantised by
-// THE SNAP CARRIES NO SCREEN. The page's palette is the 216-colour web
-// cube and the view transform quantises to it, but an ORDERED dither over
-// the whole frame lays a regular 4x4 lattice across every disc — and the
-// shipped GIFs carry no lattice at all: p-souvenirs.gif is a smooth cyan
-// radial with a white core, p-lunartunes.gif is flat blue with a hard
-// pink ring. A 1996 encoder that dithered at all dithered by error
+// THE SNAP CARRIES NO SCREEN, and that is a finding rather than a saving.
+// The page's palette is the 216-colour cube and the view transform rounds
+// to it; an ORDERED dither would lay a regular 4x4 lattice across every
+// disc, and the shipped GIFs carry no lattice at all — p-souvenirs.gif is
+// a smooth cyan radial with a white core, p-lunartunes.gif flat blue with
+// a hard pink ring. A 1996 encoder that dithered at all dithered by error
 // diffusion, which is scattered; a lattice is the one thing the reference
-// definitely does not have. So the quantisation rounds.
+// definitely does not have. So the shader ROUNDS: each component to the
+// nearest sixth, with no position, no cell and no time in it.
+//
+// One expression and no helper function, because a shader authored in a
+// sketch and compiled by the host's Skia cannot carry user-defined ones.
+// Unpremultiply, round, re-premultiply — rounding premultiplied colour
+// would quantise each channel against a different scale.
 
-inline sk_sp<SkRuntimeEffect> ditherEffect() {
+inline sk_sp<SkRuntimeEffect> viewEffect() {
   static sk_sp<SkRuntimeEffect> fx = [] {
     static constexpr char kSrc[] = R"(
 uniform shader content;
-uniform float uScale;
 
 half4 main(float2 pos) {
   half4 src = content.eval(pos);
@@ -1207,7 +1216,7 @@ half4 main(float2 pos) {
 }
 )";
     auto [effect, error] = SkRuntimeEffect::MakeForShader(SkString(kSrc));
-    if (!effect) SkDebugf("spacejam dither: %s\n", error.c_str());
+    if (!effect) SkDebugf("spacejam view: %s\n", error.c_str());
     return effect;
   }();
   return fx;
@@ -1238,7 +1247,7 @@ struct SpaceJam1996 : sketch::Sketch {
   float artH[sj::kAssetCount] = {};
 
   Pattern stars;
-  Material starsMat;
+  mskia::Paint starsMat;
   sj::TableScheme table;
 
   // ---- the reveal --------------------------------------------------------
@@ -1301,7 +1310,7 @@ struct SpaceJam1996 : sketch::Sketch {
     Element field = box()
                         .inset(0)
                         .fill(starsMat)
-                        .opacity(bind(&got[kStars])
+                        .opacity(motion::bind(&got[kStars])
                                      .scale(1000.0f)
                                      .offset(-999.0f)
                                      .clamp(0.0f, 1.0f))
@@ -1543,10 +1552,10 @@ struct SpaceJam1996 : sketch::Sketch {
     stars = Pattern::tile({S(111), S(111)}, starTile());
     starsMat = stars.material(*ctx.fonts);
 
-    // The 216-colour ordered dither, over the finished frame. It is a
-    // property of the SCREEN, not of the artwork — which is exactly why it
-    // lives here and the RGB555 snap lives in the materials.
-    ctx.composer.setView(Effect::shader(ditherEffect(), {{"uScale", kScale}}));
+    // The 216-colour round, over the finished frame. It is a property of
+    // the SCREEN, not of the artwork — which is exactly why it lives here
+    // and the RGB555 snap lives in the materials.
+    ctx.composer.setView(mskia::Effect::shader(viewEffect()));
 
     for (int i = 0; i < kAssetCount; ++i) {
       gotBytes[i] = 0;
