@@ -247,3 +247,16 @@ owns pictures.
 
 Assert once fixed: a canvas sketch lays a long paragraph under the
 shader presets, and the full plate tier holds it byte for byte.
+
+## Three READMEs name sketches the registry does not have
+
+`src/common/geometry/README.md` names `blend_keys`, `blend_smooth_color`,
+`mesh_primitives`, `spline_stations`, `pop_lanes` and `easel_playground`
+as the studies that exercise it; `src/common/material/README.md` names
+`easel_playground`; `src/common/world/README.md` names `woven_card` and
+`panel_console`, counts "ten" studies, and omits `reflection_lab`, which
+exists. None of the named stems is a file under `src/sketch/sketches/`.
+Each README evidently intends to point a reader at the sketch that draws
+the feature beside it. A test (or the docs build) should resolve every
+sketch stem a README names against the registry and fail on a stem with
+no file — the same check the compose README already gets for API names.
