@@ -37,14 +37,16 @@
 //   kSplitHeight          — how deep the split column is, which is what
 //                           decides where the base breaks.
 
-#include <sigilsketch/canvas/Sketch.h>
-
+#include <shared/VerticalSpecimen.h>
+#include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/kit/Typeset.h>
+#include <sigilcompose/typography/Typography.h>
+#include <sigilsketch/canvas/Sketch.h>
+#include <sigilweave/style/Type.h>
 
 #include <string>
+#include <utility>
 #include <vector>
-
-#include "VerticalSpecimen.h"
 
 namespace sketch = sigil::sketch;
 
@@ -73,19 +75,25 @@ constexpr float kSplitHeight = 120;
  *  that labelled itself vertically would be arguing its case in the same
  *  breath as showing it. */
 inline weave::TextStyle label(float size, SkColor4f colour, float track = 0) {
-  return type({.size = size, .color = colour, .track = track});
+  return weave::textStyle({.size = size, .color = colour, .track = track});
+}
+
+/** The one voice every column on this sheet is captioned in: the unit
+ *  named, then what it does, both above the setting they describe and
+ *  centred over it. */
+inline kit::Caption voice() {
+  return {.where = kit::Caption::Where::Above,
+          .label = label(9.5f, kAka, 1.6f),
+          .note = label(8.5f, kUsu, 0.2f),
+          .gap = 13,
+          .noteGap = 7,
+          .noteMeasure = 112.0f,
+          .align = Align::Center};
 }
 
 /** A captioned column: the caption over it, the specimen under it. */
 inline Element column(const char* caption, const char* note, Element specimen) {
-  return box()
-      .column()
-      .gap(7)
-      .alignItems(Align::Center)
-      .child(text(toU8(caption), label(9.5f, kAka, 1.6f)))
-      .child(text(toU8(note), label(8.5f, kUsu, 0.2f)).width(Dim(112.0f)))
-      .child(box().height(6))
-      .child(std::move(specimen));
+  return kit::cell(voice(), toU8(caption), toU8(note), std::move(specimen));
 }
 
 }  // namespace furigana
@@ -118,27 +126,30 @@ struct RubyKenten final : sketch::Sketch {
 
     // MONO — one reading per character.
     Element mono =
-        passage(u8"\xe6\x97\xa5\xe6\x9c\xac\xe8\xaa\x9e\xe3\x81\xae"
-                u8"\xe6\x9b\xb8\xe7\x89\xa9\xe3\x80\x82")
-            .annotate(kit::ruby(sel::text(u8"\xe6\x97\xa5\xe6\x9c\xac\xe8\xaa\x9e"),
-                                unit::Cluster,
-                                {u8"\xe3\x81\xab", u8"\xe3\x81\xbb",
-                                 u8"\xe3\x81\x94"},
-                                rubyType(), 1.0f));
+        passage(
+            u8"\xe6\x97\xa5\xe6\x9c\xac\xe8\xaa\x9e\xe3\x81\xae"
+            u8"\xe6\x9b\xb8\xe7\x89\xa9\xe3\x80\x82")
+            .annotate(kit::ruby(
+                sel::text(u8"\xe6\x97\xa5\xe6\x9c\xac\xe8\xaa\x9e"),
+                unit::Cluster,
+                {u8"\xe3\x81\xab", u8"\xe3\x81\xbb", u8"\xe3\x81\x94"},
+                rubyType(), 1.0f));
 
     // GROUP — one reading over the whole compound.
-    Element group =
-        passage(u8"\xe6\x97\xa5\xe6\x9c\xac\xe8\xaa\x9e\xe3\x81\xae"
-                u8"\xe6\x9b\xb8\xe7\x89\xa9\xe3\x80\x82")
-            .annotate(kit::ruby(sel::text(u8"\xe6\x9b\xb8\xe7\x89\xa9"),
-                                unit::Word, {u8"\xe3\x81\x97\xe3\x82\x87"
-                                             u8"\xe3\x82\x82\xe3\x81\xa4"},
-                                rubyType(), 1.0f));
+    Element group = passage(
+                        u8"\xe6\x97\xa5\xe6\x9c\xac\xe8\xaa\x9e\xe3\x81\xae"
+                        u8"\xe6\x9b\xb8\xe7\x89\xa9\xe3\x80\x82")
+                        .annotate(kit::ruby(
+                            sel::text(u8"\xe6\x9b\xb8\xe7\x89\xa9"), unit::Word,
+                            {u8"\xe3\x81\x97\xe3\x82\x87"
+                             u8"\xe3\x82\x82\xe3\x81\xa4"},
+                            rubyType(), 1.0f));
 
     // JUKUGO — the compound per cluster, each character its own reading.
     Element jukugo =
-        passage(u8"\xe5\x9b\xbd\xe8\xaa\x9e\xe8\xbe\x9e\xe5\x85\xb8"
-                u8"\xe3\x82\x92\xe5\xbc\x95\xe3\x81\x8f\xe3\x80\x82")
+        passage(
+            u8"\xe5\x9b\xbd\xe8\xaa\x9e\xe8\xbe\x9e\xe5\x85\xb8"
+            u8"\xe3\x82\x92\xe5\xbc\x95\xe3\x81\x8f\xe3\x80\x82")
             .annotate(kit::ruby(
                 sel::text(u8"\xe5\x9b\xbd\xe8\xaa\x9e\xe8\xbe\x9e\xe5\x85\xb8"),
                 unit::Cluster,
@@ -149,10 +160,11 @@ struct RubyKenten final : sketch::Sketch {
     // SPLIT — a column short enough that the base breaks inside the
     // compound; its reading breaks with it.
     Element split =
-        passage(u8"\xe5\xba\x8f\xe6\x96\x87\xe3\x81\xae\xe3\x81\x82\xe3\x81\xa8"
-                u8"\xe3\x81\xab\xe5\x9b\xbd\xe8\xaa\x9e\xe8\xbe\x9e\xe5\x85\xb8"
-                u8"\xe3\x81\x8c\xe7\xab\x8b\xe3\x81\xa4\xe3\x80\x82",
-                f::kSplitHeight)
+        passage(
+            u8"\xe5\xba\x8f\xe6\x96\x87\xe3\x81\xae\xe3\x81\x82\xe3\x81\xa8"
+            u8"\xe3\x81\xab\xe5\x9b\xbd\xe8\xaa\x9e\xe8\xbe\x9e\xe5\x85\xb8"
+            u8"\xe3\x81\x8c\xe7\xab\x8b\xe3\x81\xa4\xe3\x80\x82",
+            f::kSplitHeight)
             .width(Dim(f::kColumnW * 2.2f))
             .annotate(kit::ruby(
                 sel::text(u8"\xe5\x9b\xbd\xe8\xaa\x9e\xe8\xbe\x9e\xe5\x85\xb8"),
@@ -163,16 +175,16 @@ struct RubyKenten final : sketch::Sketch {
 
     // KENTEN — one sesame beside each character, reserving nothing.
     Element kenten =
-        passage(u8"\xe3\x81\x93\xe3\x81\x93\xe3\x81\xa0\xe3\x81\x91"
-                u8"\xe3\x81\xaf\xe8\xa6\x8b\xe9\x80\x83\xe3\x81\x99"
-                u8"\xe3\x81\xaa\xe3\x80\x82")
-            .annotate(kit::kenten(
-                sel::text(u8"\xe8\xa6\x8b\xe9\x80\x83\xe3\x81\x99"), marks,
-                u8"\xef\xb9\x85", 1.0f));
+        passage(
+            u8"\xe3\x81\x93\xe3\x81\x93\xe3\x81\xa0\xe3\x81\x91"
+            u8"\xe3\x81\xaf\xe8\xa6\x8b\xe9\x80\x83\xe3\x81\x99"
+            u8"\xe3\x81\xaa\xe3\x80\x82")
+            .annotate(
+                kit::kenten(sel::text(u8"\xe8\xa6\x8b\xe9\x80\x83\xe3\x81\x99"),
+                            marks, u8"\xef\xb9\x85", 1.0f));
 
     return box()
-        .fill(Material::linear({0, 0}, {0, f::kH},
-                               {{0.0f, f::kKinariLift}, {1.0f, f::kKinari}}))
+        .fill(linearGradient({0, 0}, {0, f::kH}, {f::kKinariLift, f::kKinari}))
         .child(box()
                    .absolute()
                    .inset(52, 44, 0, 0)
@@ -211,21 +223,19 @@ struct RubyKenten final : sketch::Sketch {
                                     "one reading a character; the pitch "
                                     "opens to hold it",
                                     std::move(mono))))
-        .child(box()
+        .child(kit::cell({.where = kit::Caption::Where::Above,
+                          .label = f::label(9.5f, f::kAka, 1.6f),
+                          .note = f::label(9.0f, f::kUsu, 0.2f),
+                          .gap = 13,
+                          .noteGap = 7,
+                          .noteMeasure = 300.0f},
+                         toU8("SPLIT \xc2\xb7 ACROSS A COLUMN BREAK"),
+                         toU8("the base breaks inside the compound, so its "
+                              "reading breaks with it, in proportion to the "
+                              "base's advance either side"),
+                         std::move(split))
                    .absolute()
-                   .inset(52, 320, 0, 0)
-                   .column()
-                   .gap(7)
-                   .child(text(toU8("SPLIT \xc2\xb7 ACROSS A COLUMN BREAK"),
-                               f::label(9.5f, f::kAka, 1.6f)))
-                   .child(text(toU8("the base breaks inside the compound, so "
-                                    "its reading breaks with it, in "
-                                    "proportion\nto the base's advance either "
-                                    "side"),
-                               f::label(9.0f, f::kUsu, 0.2f))
-                              .width(Dim(300.0f)))
-                   .child(box().height(6))
-                   .child(std::move(split)))
+                   .inset(52, 320, 0, 0))
         .child(text(toU8("mono \xc2\xb7 group \xc2\xb7 jukugo are the UNIT "
                          "and nothing else \xe2\x80\x94 the reading's size is "
                          "its own type's, never a fraction of the base's"),
@@ -237,6 +247,6 @@ struct RubyKenten final : sketch::Sketch {
 
 }  // namespace
 
-SIGIL_SKETCH_AS(RubyKenten, "ruby_kenten", "Catalog \xc2\xb7 Type & grid",
+SIGIL_SKETCH_AS(RubyKenten, "ruby_kenten", "Catalog \xc2\xb7 Type",
                 "readings beside the type \xe2\x80\x94 mono, group, jukugo, "
                 "kenten")
