@@ -102,7 +102,7 @@ if(APPLE)
   foreach(sketch_dep IN ITEMS
       SigilSketchCore SigilSketchCanvas SigilSketchSet SigilSketchLive
       SigilComposeCore SigilComposeKit SigilComposeBrush
-      SigilComposeTypography SigilComposeInstances SigilComposeKit
+      SigilComposeTypography
       SigilComposeTexture
       SigilImageAsset SigilImageDecode SigilLoaderHub
       SigilMotionClock SigilMotionBind

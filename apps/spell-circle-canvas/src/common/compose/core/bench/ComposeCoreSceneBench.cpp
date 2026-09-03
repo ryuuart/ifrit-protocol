@@ -13,7 +13,7 @@
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilcompose/Compose.h>
-#include <sigilcompose/instances/Instances.h>
+#include <sigilcompose/core/Instances.h>
 #include <sigilimage/asset/ImageAsset.h>
 #include <sigilmaterial/skia/Paint.h>
 

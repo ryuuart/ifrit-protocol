@@ -13,7 +13,7 @@ target_compile_features(SigilSketchCanvas PUBLIC cxx_std_20)
 target_link_libraries(SigilSketchCanvas PUBLIC
   SigilSketchCore
   SigilComposeCore SigilComposeKit SigilComposeBrush
-  SigilComposeTypography SigilComposeInstances SigilComposeKit
+  SigilComposeTypography
   SigilComposeTexture
   # Header-only, so it costs nothing at link time: a sketch that reports
   # its own checks reads the testing surface.

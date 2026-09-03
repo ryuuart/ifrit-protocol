@@ -16,12 +16,11 @@
 # under `shapes::` by `kit/Silhouettes.h`, because a `path(SkSize)` value
 # needs nothing of a component tree.
 #
-# Six kit headers live with other tiers instead, because their values are
+# Five kit headers live with other tiers instead, because their values are
 # spelled in those tiers' types: `kit/Strokes.h` (the stroke grammar),
 # `kit/Plate.h` (the bordered feed plate), `kit/Ornament.h` and
 # `kit/Flourish.h` (the pieces a manuscript border is made of) with Brush,
-# `kit/Legibility.h` with Typography and `kit/Placers.h` with Instances.
-# Include them directly.
+# and `kit/Legibility.h` with Typography. Include them directly.
 add_library(SigilComposeKit STATIC
   Eras.cpp
   Kit.cpp
@@ -38,6 +37,7 @@ add_library(SigilComposeKit STATIC
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/kit/Kit.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/kit/Layouts.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/kit/PixelType.h
+  ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/kit/Placers.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/kit/Routers.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/kit/Silhouettes.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/kit/Sprites.h
@@ -94,13 +94,15 @@ _compose_test_binary(compose_studio_test
 )
 
 # Silhouettes over the kernel's shape seam, the layout schemes, the
-# routers, rails and travel along a path — the shelves this tier adds.
+# routers, the placers that fill an instanced leaf's pool, rails and
+# travel along a path — the shelves this tier adds.
 _compose_test_binary(compose_shape_test
   LIBRARIES SigilComposeKit SigilComposeBrush
   SOURCES
     test/ComposeTestContentShape.cpp
     test/ComposeTestKernelShape.cpp
     test/ComposeTestLinesShape.cpp
+    test/ComposeTestPlacers.cpp
 )
 
 # Comparable silhouettes, hit testing and blended shaped leaves.

@@ -1,7 +1,7 @@
 #pragma once
 
 /** @file
- * SigilCompose instances — thousands of repeated sprites as ONE leaf: an
+ * SigilCompose instanced leaf — thousands of repeated sprites as ONE leaf: an
  * ATLAS baked once from element trees, a user-owned struct-of-arrays POOL,
  * and one atlas draw per frame. Node-graph ports, inventory cells, confetti,
  * tick arrays, radial menus — things that would otherwise be N Yoga
@@ -42,7 +42,10 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkColor.h>
 #include <include/core/SkImage.h>
-#include <sigilcompose/Compose.h>
+#include <sigilcompose/core/Element.h>
+#include <sigilcompose/core/Factories.h>
+#include <sigilcompose/core/Layout.h>
+#include <sigilcompose/core/Paint.h>
 #include <sigilskia/draw/Direct.h>
 
 #include <algorithm>

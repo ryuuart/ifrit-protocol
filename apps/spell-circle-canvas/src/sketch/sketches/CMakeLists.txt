@@ -130,13 +130,13 @@ add_library(SigilSketches OBJECT
 #
 # Every library a sketch includes is named here, by its umbrella where
 # the library has one and by feature target where the umbrella leaves a
-# feature out (compose's instanced, texture and testing leaves; weave's
+# feature out (compose's texture and testing leaves; weave's
 # kit and ports) or would bring a device with it (world's diligent
 # feature, which only the app installs). A sketch reaches no library
 # through a neighbour's link line.
 target_link_libraries(SigilSketches PUBLIC
   SigilSketchCanvas SigilSketchSet
-  SigilCompose SigilComposeInstances SigilComposeTexture SigilComposeTesting
+  SigilCompose SigilComposeTexture SigilComposeTesting
   SigilGeometry SigilMaterial
   SigilWeave SigilWeaveKit SigilWeavePorts
   SigilWorldElement SigilWorldFrame SigilWorldScene SigilWorldKit

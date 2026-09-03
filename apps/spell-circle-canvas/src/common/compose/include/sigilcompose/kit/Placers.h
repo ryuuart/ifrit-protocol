@@ -5,8 +5,9 @@
  * a grid, a ring or a repeat chain. Data-level, O(count), no Yoga: each
  * writes only the lanes its parameters speak to and commits the pool, so a
  * pool filled by hand and then arranged here keeps its tints and frames.
- * Shipped with the instances tier because every signature is spelled in
- * its Pool.
+ * The pool is the kernel's instanced leaf's
+ * (<sigilcompose/core/Instances.h>); what a placer owns is which of its
+ * lanes a parameter speaks to.
  *
  * WHAT A PLACER MAY NOT SPELL ITSELF. Where item i of n falls on a ring,
  * and which cell of a grid of modules it occupies, belong to nothing here
@@ -22,7 +23,7 @@
 
 #include <include/core/SkPoint.h>
 #include <include/core/SkSize.h>
-#include <sigilcompose/instances/Instances.h>
+#include <sigilcompose/core/Instances.h>
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilgeometry/path/Numeric.h>
 

@@ -8,7 +8,8 @@
 #
 #   SigilComposeCore        core/        the kernel — element values, the
 #                                        reconciler, layout, paint,
-#                                        transitions, text at rest
+#                                        transitions, text at rest, the
+#                                        instanced sprite leaf
 #   SigilComposeTypography  typography/  the text engine (fx tracks, path
 #                                        text, marks), type styles and the
 #                                        text-fx presets
@@ -16,15 +17,14 @@
 #                                        styles, the stroke grammar's engine
 #                                        and the mask gates
 #   SigilComposeTesting     testing/     the read-back checks (headers)
-#   SigilComposeInstances   instances/   the instanced sprite leaf, with the
-#                                        kit's placers
 #   SigilComposeTexture     texture/     a scene painted into a surface and
 #                                        handed over as a material texture
 #   SigilComposeWeb         web/         the Ultralight leaf (headers; only
 #                                        with SigilScry)
 #   SigilComposeKit         kit/         the kit tier: the silhouette shelf
 #                                        spelled for a node, the layout
-#                                        schemes, the routers, and the
+#                                        schemes, the routers, the placers,
+#                                        the kinetic type presets and the
 #                                        instruments over Typography
 #   SigilCompose                         the whole-library convenience for
 #                                        an OUTSIDE consumer: Kit, Brush and
@@ -96,12 +96,11 @@ function(_compose_bench name)
 endfunction()
 
 # Dependencies point down this list. testing/ precedes the features whose
-# test binaries link it; kit/ and instances/ link the tiers above them.
+# test binaries link it; kit/ links the tiers above it.
 add_subdirectory(core)
 add_subdirectory(testing)
 add_subdirectory(typography)
 add_subdirectory(brush)
-add_subdirectory(instances)
 add_subdirectory(texture)
 add_subdirectory(web)
 add_subdirectory(kit)
@@ -114,9 +113,9 @@ add_subdirectory(kit)
 # Nothing in this repository links it: every consumer here —
 # the benches, the demos, the tests, and the sketch library above — names
 # the feature targets it draws with, which is what keeps a dependency on a
-# tier a stated fact rather than an accident of the umbrella. The instanced
-# leaf and the web leaf are deliberately NOT here: each is linked by the
-# consumers that stamp or browse with it.
+# tier a stated fact rather than an accident of the umbrella. The web leaf
+# is deliberately NOT here: it is linked by the consumers that browse with
+# it.
 add_library(SigilCompose INTERFACE)
 target_link_libraries(SigilCompose INTERFACE
   SigilComposeKit SigilComposeBrush SigilComposeTypography)
@@ -177,7 +176,7 @@ add_test(NAME compose_api_doc_probes_self_test
 
 _compose_test_binary(compose_docs_test
   LIBRARIES SigilComposeCore SigilComposeKit SigilComposeBrush
-            SigilComposeTypography SigilComposeInstances
+            SigilComposeTypography
   SOURCES
     ${COMPOSE_API_DOC_PROBES}
     test/ComposeTestEngineDocs.cpp
@@ -197,7 +196,7 @@ if(APPLE AND TARGET SigilSkia)
     ${SIGIL_COMPOSE_TEST_SUPPORT_DIR})
   target_link_libraries(compose_gpu_test PRIVATE
     SigilComposeKit SigilComposeBrush SigilComposeTypography
-    SigilComposeInstances SigilWeavePorts SigilSkia
+    SigilWeavePorts SigilSkia
     GTest::gtest_main)
   add_test(NAME compose_gpu_test COMMAND compose_gpu_test)
 endif()

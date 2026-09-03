@@ -3,7 +3,8 @@
 # Holds the element value and its authoring grammar, the keyed reconciler,
 # Yoga layout with SigilWeave-measured text, stacking paint with automatic
 # picture caching of provably-static subtrees, transitions and bindings, the
-# composer's queries, the material value and the streaming feed. Dressed
+# composer's queries, the material value, the streaming feed and the
+# instanced sprite leaf. Dressed
 # type, the stroke grammar and the mask gates reach the kernel through the
 # seam values a description carries (TextPainter, StrokeResolver,
 # MaskResolver); their engines are the typography and brush tiers'. The
@@ -11,8 +12,9 @@
 # settled-subtree proof its caches turn on is SigilCoreCache's, with this
 # target as the host of both. Links SigilCoreCache, SigilCoreComparable,
 # SigilCoreCompute, SigilCoreReconcile, SigilGeometryPath, SigilImage,
-# SigilMotion, SigilWeave and Skia publicly, because those types appear in
-# its headers — the seam value's erasure and the glyph mixer among them,
+# SigilMotion, SigilSkiaDraw, SigilWeave and Skia publicly, because those
+# types appear in its headers — the seam value's erasure, the glyph mixer
+# and the direct atlas draw the instanced leaf stamps through among them,
 # each named by the header that spells it rather than reached through a
 # neighbour that happens to link it; Yoga is private, because no header
 # spells it.
@@ -44,6 +46,8 @@ add_library(SigilComposeCore STATIC
   # text
   TextAtRest.cpp
   TextPainter.cpp
+  # the instanced leaf
+  Instances.cpp
   # paint values
   Fills.cpp
   # internal headers
@@ -63,7 +67,8 @@ add_library(SigilComposeCore STATIC
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/core/Element.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/core/Factories.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/core/Feed.h
-    ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/core/Layout.h
+  ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/core/Instances.h
+  ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/core/Layout.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/core/Mask.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/core/Measure.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/core/Paint.h
@@ -89,6 +94,7 @@ target_link_libraries(SigilComposeCore
     SigilMaterial
     SigilMeasure
     SigilMotion
+    SigilSkiaDraw
     SigilWeave
     unofficial::skia::skia
   PRIVATE
@@ -96,7 +102,8 @@ target_link_libraries(SigilComposeCore
 )
 
 # The kernel: elements, the reconciler, layout, paint, transitions, text,
-# the feed, masks and the field walks. Links Core ALONE, which is the proof
+# the feed, the instanced leaf, masks and the field walks. Links Core
+# ALONE, which is the proof
 # that the kernel stands without its catalogs. The field walks include
 # ComposeInternal.h AND ComposeRuntime.h (the only test TU that does
 # either) so the equality comparators and the kSlotSpecs table can be
@@ -113,6 +120,7 @@ _compose_test_binary(compose_core_test
     test/ComposeTestFieldPins.cpp
     test/ComposeTestContentCore.cpp
     test/ComposeTestDepth.cpp
+    test/ComposeTestInstances.cpp
 )
 target_include_directories(compose_core_test PRIVATE ${CMAKE_CURRENT_LIST_DIR})
 target_link_libraries(compose_core_test PRIVATE yoga::yogacore)
@@ -129,5 +137,5 @@ add_test(NAME compose_spike_test COMMAND compose_spike_test)
 # The kernel: describe, reconcile, layout, query, caching, and the
 # whole-scene scoreboard, blur, instances and particle arms.
 _compose_bench(compose_core_bench GPU
-  LIBRARIES SigilComposeCore SigilComposeInstances EnTT::EnTT
+  LIBRARIES SigilComposeCore EnTT::EnTT
   SOURCES bench/ComposeCoreBench.cpp bench/ComposeCoreSceneBench.cpp)

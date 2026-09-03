@@ -11,6 +11,7 @@
 #include "sigilcompose/core/Derive.h"
 #include "sigilcompose/core/Element.h"
 #include "sigilcompose/core/Factories.h"
+#include "sigilcompose/core/Instances.h"
 #include "sigilcompose/core/Layout.h"
 #include "sigilcompose/core/Mask.h"
 #include "sigilcompose/core/Measure.h"

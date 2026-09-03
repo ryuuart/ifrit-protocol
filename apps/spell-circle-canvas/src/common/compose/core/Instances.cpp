@@ -8,7 +8,8 @@
 #include <include/core/SkPicture.h>
 #include <include/core/SkRSXform.h>
 #include <include/core/SkSurface.h>
-#include <sigilcompose/instances/Instances.h>
+#include <sigilcompose/core/Instances.h>
+#include <sigilcompose/core/Measure.h>
 
 #include <cmath>
 

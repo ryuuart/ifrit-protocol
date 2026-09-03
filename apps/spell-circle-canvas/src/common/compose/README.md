@@ -448,6 +448,12 @@ sound model; nothing below them changes kernel semantics.
   composer: `snapshot`, `measure`, `metrics`, `measureRun`, `runPens`.
 - `core/Tiles.h` — `tiles::`, the slicing of one baked picture into a run
   of tile-sized rasters.
+- `core/Instances.h` — the instanced sprite leaf: `instancing::Pool`,
+  the struct-of-arrays store on your side of the seam; `instancing::Atlas`,
+  the cells baked once from element trees; `instancing::instances`, the
+  leaf that stamps the pool in one draw; and `instancing::pick`, the
+  inverse of the stamp. The fillers that arrange a pool are the kit's
+  (`kit/Placers.h`).
 - `core/Derive.h` — `connector`, `rail`, `Anchor`, `band`, `bandPointAt`,
   and the `derive::` namespace that gathers the family.
 - `core/Composer.h` — `Composer`, and `TextSettling`, what
@@ -587,13 +593,7 @@ first installed family of a fallback chain
 (`<sigilweave/ports/SystemFontManager.h>`). `kit/Legibility.h` ships with
 this tier.
 
-**Leaves with their own targets.** `instances/Instances.h` renders
-thousands of sprites as one leaf, with the pool on your side of the seam;
-it is its own target, `SigilComposeInstances`, linked only by what stamps
-with it, and the kit's `kit/Placers.h` (the `place::grid`, `place::ring`
-and `place::repeat` pool fillers) ships with it — the first two over the
-same ring and grid arithmetic the layout schemes use, which is
-SigilGeometry's. `web/Web.h` makes a live
+**Leaves with their own targets.** `web/Web.h` makes a live
 Ultralight page a leaf; it is a header-only adapter and the library does
 not link SigilScry, so include it only in targets that do.
 `texture/Texture.h` is the door OUT of this library: a scene painted into
@@ -622,16 +622,19 @@ halo/shade legibility helpers, the stock text effects over the
 `fx::pop`, `fx::spinIn`, `fx::typeOn`, `fx::waveLoop`, `fx::scatter`,
 `fx::variableAxisSweep` and `fx::tint`, each a comparable `TextEffect`
 built from the constructor any caller may use — with `kit::marquee`,
-the seamless ticker built from a clipped strip and a wrapping phase, the
-two instruments for text in motion —
+the seamless ticker built from a clipped strip and a wrapping phase,
+`kit/Placers.h`'s `place::grid`, `place::ring` and `place::repeat`, the
+fillers of an instanced leaf's pool — the first two over the same ring
+and grid arithmetic the layout schemes use, which is SigilGeometry's —
+the two instruments for text in motion —
 `kit::trackMeter` (a cascade's schedule drawn, one cell per beat at its
 rect, filled by its local time — `MeterPlacement` stands the cells over
 the beats or under them as a rule, for a track whose own letters are
 what is being watched) and `kit::restGhost` (the same word
 undeformed under the moving one) — and, shipped with the tiers whose
 types they are spelled in, `kit/Strokes.h`'s braid, bracket spans and brush
-presets and `kit/Plate.h`'s bordered feed plate (Brush),
-`kit/Legibility.h` (Typography) and `kit/Placers.h` (Instances). The kit
+presets and `kit/Plate.h`'s bordered feed plate (Brush), and
+`kit/Legibility.h` (Typography). The kit
 is a **separate CMake library** (`SigilComposeKit`) whose only include
 path is compose's public headers, which is how the public/internal
 boundary is proven rather than asserted. Note that `kit/Kit.h` does not
@@ -773,10 +776,10 @@ the left edge, not the top one.
 The kernel links `SigilCoreReconcile`, `SigilCoreCache`,
 `SigilCoreComparable`, `SigilCoreCompute`, `SigilGeometryPath`,
 `SigilImage`, `SigilMaterial`, `SigilMeasure`, `SigilMotion`,
+`SigilSkiaDraw` (the direct draws the instanced leaf stamps through),
 `SigilWeave` and Skia publicly, and Yoga privately. The brush tier adds
-`SigilGeometryKit`, the silhouette shelf a brush is applied to, and
-`SigilSkiaDraw`, the direct draws it and the instanced leaf stamp
-through; the kit tier links the brush tier — the arrow between
+`SigilGeometryKit`, the silhouette shelf a brush is applied to; the kit
+tier links the brush tier — the arrow between
 those two points one way. Each tier also names, on its own link line,
 every library its headers include, so no tier reaches a library through
 the kernel's.
@@ -876,14 +879,13 @@ What it refuses to be:
 
 The library is one feature target per directory, and a consumer links the
 tier it draws with: `SigilComposeCore` (`core/` — the kernel: elements,
-layout, paint, transitions, text and the feed, as the host of
-SigilCore's reconciler),
+layout, paint, transitions, text, the feed and the instanced leaf, as
+the host of SigilCore's reconciler),
 `SigilComposeTypography` (`typography/` — the text vocabulary and the
 engine behind dressed type), `SigilComposeBrush`
 (`brush/` — decorations, lines, brushes, the stroke grammar's engine and
 the mask gates, with `kit/Strokes.h` and `kit/Plate.h`),
-`SigilComposeInstances` (`instances/` — the instanced sprite leaf and the
-kit's placers, over Core), `SigilComposeTexture` (`texture/` — a scene
+`SigilComposeTexture` (`texture/` — a scene
 painted into a surface and handed out as a texture value),
 `SigilComposeWeb` (`web/` — header-only, present only with SigilScry),
 `SigilComposeTesting` (`testing/`) and `SigilComposeKit` (`kit/` — the
@@ -899,7 +901,7 @@ stated fact.
 `SigilCompose` remains as the whole-library name for a consumer outside
 this tree, the way `SigilWeave`, `SigilMotion` and `SigilGeometry` each
 keep one: it is Kit, Brush and Typography, which between them reach
-Core, never the instanced leaf or the web leaf, and nothing here
+Core, never the web leaf, and nothing here
 links it. From `apps/spell-circle-canvas`:
 
 ```sh
@@ -911,14 +913,14 @@ ctest --test-dir build -C Debug --output-on-failure
 Registered tests, one binary per feature target so that each links only
 the target it exercises and a test reaching past its tier fails to link:
 `compose_core_test` (the kernel — elements, the reconciler, layout, paint,
-transitions, text, the feed, masks and the field walks; links
-`SigilComposeCore` alone), `compose_shape_test` (silhouettes, layouts,
-routers, rails, travel), `compose_text_test` (text data, the text pass,
+transitions, text, the feed, the instanced leaf, masks and the field
+walks; links `SigilComposeCore` alone), `compose_shape_test`
+(silhouettes, layouts, routers, placers, rails, travel),
+`compose_text_test` (text data, the text pass,
 vertical writing, motion along paths, the text-fx presets, rich spans),
 `compose_brush_test` (decorations, lines, brushes, the stroke grammar,
 the kit's stroke presets), `compose_paint_test` (patterns, SDF materials,
-layer styles, colour management), `compose_instances_test` (the pool,
-the atlas, the stamp, the pick and the placers), `compose_kit_test` and
+layer styles, colour management), `compose_kit_test` and
 `compose_studio_test` (the kit, and the queries, the studio and the
 instruments over it), `compose_spike_test` (the Yoga+SigilWeave
 measurement contract, with `core/`), and the library's own:
