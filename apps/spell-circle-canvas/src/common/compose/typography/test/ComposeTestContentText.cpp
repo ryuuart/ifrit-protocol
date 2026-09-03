@@ -3312,6 +3312,35 @@ Element pillCaption(const std::string& childKey, float width,
 
 }  // namespace
 
+TEST(TextSlot, ASlotTallerThanTheTypeOpensTheLinesItSitsIn) {
+  // The reserved box is one unbreakable word of the flow, so a box that
+  // reaches further above the baseline than the face does is a fact about
+  // the strut: the band is deep enough BEFORE a break is decided, and the
+  // pill has room rather than being drawn over the line above it.
+  const auto baselinesWithSlot = [](SkSize size) {
+    Host host(300, 260);
+    host.composer.render(pillCaption("pill", 280, size));
+    host.frame();
+    std::vector<float> found;
+    for (const TextUnit& line :
+         host.composer.units("caption", sel::each(unit::Line), unit::Line))
+      found.push_back(line.axis);
+    return found;
+  };
+  const std::vector<float> small = baselinesWithSlot({34, 16});
+  ASSERT_GE(small.size(), 2u);
+  const std::vector<float> tall = baselinesWithSlot({34, 60});
+  ASSERT_EQ(tall.size(), small.size());
+  const float smallPitch = small[1] - small[0];
+  const float tallPitch = tall[1] - tall[0];
+  EXPECT_GT(tallPitch, smallPitch + 20.0f)
+      << "a 60 px box in an 18 px face left the pitch where it was";
+  // The room goes where the box needs it: the box's bottom sits 4 px below
+  // the baseline, so all of the rest is above it and the first baseline
+  // moves down by what the box asked for.
+  EXPECT_GT(tall.front(), small.front() + 20.0f);
+}
+
 TEST(TextSlot, AChildPaintsInsideTheReservedRect) {
   Host host(300, 200);
   host.composer.render(pillCaption("pill", 280));

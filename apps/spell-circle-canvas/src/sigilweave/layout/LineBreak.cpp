@@ -1046,12 +1046,37 @@ std::vector<detail::Block> resolveBlocks(
     // A stated line metric overrides what the FACE reports; a stated leading
     // overrides the pitch outright, and the extra it opens goes above the
     // line, which is where leading has always gone.
-    const float faceHeight =
+    float faceHeight =
         options.lineMetrics.height > 0 ? options.lineMetrics.height
                                        : strut.height;
-    const float faceAscent =
+    float faceAscent =
         options.lineMetrics.ascent > 0 ? options.lineMetrics.ascent
                                        : strut.ascent;
+    // AN INLINE SLOT TALLER THAN THE TYPE OPENS THE LINES IT SITS IN. The
+    // reserved box is one unbreakable word of the flow, and a word that
+    // reaches further above the baseline than the face does — or further
+    // below it — is a fact about the strut the block is set on. Nothing
+    // chases it afterwards: the band is deep enough before a single break
+    // is decided, which is the only order in which a box can be woven into
+    // a line rather than drawn over it.
+    //
+    // The strut is the BLOCK's, so a slot opens every line of its own
+    // block: bands are asked of the geometry before anyone knows which
+    // words land on them, and a depth that varied line by line would have
+    // to be decided after the break it decides.
+    const std::vector<Placeholder>& placeholders = paragraph.placeholders();
+    if (!placeholders.empty()) {
+      float faceDescent = faceHeight - faceAscent;
+      for (uint32_t wordIndex = block.firstWord;
+           wordIndex < block.endWord && wordIndex < words.size(); ++wordIndex) {
+        const int slot = words[wordIndex].placeholderIndex;
+        if (slot < 0 || (size_t)slot >= placeholders.size()) continue;
+        const Placeholder& box = placeholders[(size_t)slot];
+        faceAscent = std::max(faceAscent, box.height - box.baselineDrop);
+        faceDescent = std::max(faceDescent, box.baselineDrop);
+      }
+      faceHeight = std::max(faceHeight, faceAscent + faceDescent);
+    }
     float pitch = faceHeight;
     float gridStep = 0;
     switch (style.leading.kind) {

@@ -105,7 +105,11 @@ class RichText {
    *          .child(box().key("key").fill(ink).corners({4}))
    *
    *  The reserved box is ONE UNBREAKABLE WORD: a line never breaks inside
-   *  it, and it moves the line's height when it is taller than the type.
+   *  it, and a box taller than the type opens the lines of its BLOCK. The
+   *  room is in the strut before anything is broken, because bands are
+   *  asked of the geometry before anyone knows which words land on them —
+   *  a depth found afterwards would be a depth decided after the break it
+   *  decides.
    *  `baselineDrop` is how far the box's BOTTOM sits below the baseline —
    *  0 stands it on the baseline like an inline image, and about the face's
    *  descent centres a pill on the x-height.

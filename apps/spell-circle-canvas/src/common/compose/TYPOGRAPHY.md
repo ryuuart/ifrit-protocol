@@ -606,8 +606,10 @@ text(rich(body).add(u8"press ").slot("key", {28, 18}).add(u8" to continue"))
     .child(box().key("key").fill(ink).corners({4}));
 ```
 
-The reserved box is one UNBREAKABLE word: no line breaks inside it, and it
-opens its line when it is taller than the type. The child is an ordinary
+The reserved box is one UNBREAKABLE word: no line breaks inside it, and a
+box taller than the type opens the lines of its BLOCK — bands are asked of
+the geometry before anyone knows which words land on them, so the room is
+in the strut before a break is decided rather than found afterwards. The child is an ordinary
 subtree — it animates, caches and hit-tests like any other element — and it
 re-lands wherever the placeholder lands when the text reflows. It is a
 POSITIONED subtree: the placeholder rect is its box, so flex layout does not
