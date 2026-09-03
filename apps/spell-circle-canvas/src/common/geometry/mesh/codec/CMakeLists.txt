@@ -1,5 +1,5 @@
 # Model interchange: one reader per format into the Mesh and Cloud
-# currencies, and the PLY writer back out. The parsers are private
+# currencies, and the PLY and .geo writers back out. The parsers are private
 # plumbing — tinyobjloader for OBJ, header-only cgltf for glTF/GLB,
 # Alembic (Ogawa only; the hdf5 feature stays off and legacy archives
 # return nullopt), simdjson for the JSON a `.geo` is; STL and PLY are
@@ -7,6 +7,7 @@
 add_library(SigilGeometryMeshCodec STATIC
   Alembic.cpp
   Geo.cpp
+  GeoEncode.cpp
   Gltf.cpp
   Internal.h
   Model.cpp

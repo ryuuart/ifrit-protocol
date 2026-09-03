@@ -624,7 +624,7 @@ are private to the feature: tinyobjloader, cgltf, Alembic and simdjson
 (the JSON a `.geo` is), with STL and PLY parsed by hand. One reader per translation unit —
 `Obj.cpp`, `Gltf.cpp`, `Stl.cpp`, `PlyDecode.cpp`, `Geo.cpp`, `Alembic.cpp` —
 behind the dispatcher in `Model.cpp`, sharing only what `Internal.h`
-declares; `PlyEncode.cpp` is the writer.
+declares; `PlyEncode.cpp` and `GeoEncode.cpp` are the writers.
 
 - **`mesh/codec/Model.h`** — what every reader produces: `Part` (one draw
   unit: a mesh in model space, its material factors and texture
@@ -641,8 +641,23 @@ declares; `PlyEncode.cpp` is the writer.
   or from a URL path ending in nothing — falls through to a sniff, and the
   sniff covers every one of those but OBJ, which has no signature to be
   known by.
-- **`mesh/codec/Encode.h`** — the door out: `encode::ply()` over a `Cloud` or a
-  `Mesh`, ascii by default or binary via `PlyOptions`.
+- **`mesh/codec/Encode.h`** — the doors out: `encode::ply()` over a `Cloud` or a
+  `Mesh`, ascii by default or binary via `PlyOptions`; and `encode::geo()`
+  over the same two, the exact return leg of the `.geo` reader.
+
+`encode::geo` is the one to reach for when the destination IS Houdini:
+the same lanes travel under the names that side already knows them by,
+with no suffix folding to arrange between two spellings, and the v axis
+of a `uv` is flipped back to the file's convention on the way out. It
+writes everything the reader understands and nothing it does not — which
+is why a group leaves as a scalar lane rather than as a group: the reader
+turns a group INTO a 0/1 scalar, and nothing on this side can tell such a
+lane from any other scalar. A mesh comes back UNWELDED, and that is the
+format rather than the writer: a `.geo` addresses a polygon's corners
+through a vertex list, and the reader gives every corner its own mesh
+vertex so a per-corner uv or normal survives a seam, so a cube written
+with 8 shared positions returns with 36 — same positions, same winding,
+same attribute values, a different vertex count.
 
 **`Geometry.h`** at the root of the include tree includes every public
 header, for a consumer that takes the whole library rather than a tier
@@ -1153,7 +1168,7 @@ recompiles one small file. All are registered with ctest and answer to
 | `geometry_mesh_render_test` | `mesh/render/test/PainterTest.cpp`, `mesh/render/test/RuntimeTest.cpp` | the mesh draw's pixels, the normals G-buffer's encoding and the primitive tint; and the runtime seam — the built-in value, comparison by model, and a substituted executor receiving the draw |
 | `geometry_mesh_curve_test` | `mesh/curve/test/CurveTest.cpp` | splines, the two rails, the pose along them, and the projection to a 2D path |
 | `geometry_mesh_pop_test` | `mesh/pop/test/PointsTest.cpp`, `mesh/pop/test/PopTest.cpp`, `mesh/pop/test/RuntimeTest.cpp`, `mesh/pop/test/SweepTest.cpp`, and where a device exists `mesh/pop/test/DeviceCookTest.cpp`, `mesh/pop/test/DeviceStampTest.cpp` and `mesh/pop/test/DeviceSweepTest.cpp` | point clouds, instancing, the agreement between an instanced facing lane and `faceCamera()`, and pop chains with their operators; and the cook's runtime seam — the built-in value, comparison by model, a substituted executor receiving the cook, and the message an unsupported operator produces; the swept operator held vertex for vertex against independent reference bodies for a tube, a ribbon and a banner, and its ring seam — what a rail and a profile become as a dispatch, the taper resolved on the host, comparison by model, and a substituted executor forming the vertices; and the CONFORMANCE of the device executors, every chain, every stamping and every sweep they say they can do compared with the host's bit for bit. Links the codec to seed chains from an imported model |
-| `geometry_mesh_codec_test` | `mesh/codec/test/DecodeTest.cpp`, `mesh/codec/test/EncodeTest.cpp` | every reader, and the PLY writer's round trips; the only one linking Alembic |
+| `geometry_mesh_codec_test` | `mesh/codec/test/DecodeTest.cpp`, `mesh/codec/test/EncodeTest.cpp` | every reader, and both writers' round trips; the only one linking Alembic |
 
 Helpers that more than one binary reads (`kCubeObj`, `splitQuad`) live in
 `test/support/GeometrySupport.h` at the library root — the one shared

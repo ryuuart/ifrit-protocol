@@ -22,6 +22,13 @@
  * exactly instead of through a decimal spelling, the file carries no
  * token text, and neither writer nor reader formats or parses numbers.
  *
+ * Houdini's JSON `.geo` is the second carrier, and it is the one to reach
+ * for when the destination IS Houdini: the same lanes travel, under the
+ * names that side already knows them by, with no suffix folding to
+ * arrange between the two spellings. It is the exact return leg of the
+ * `.geo` reader in Decode.h — everything that reader understands, and
+ * nothing it does not.
+ *
  * A typical use: World::readChain() a GPU-cooked pop surface and
  * encode::ply() it — compute-shader geometry, attributes and all,
  * opened in Houdini or Blender.
@@ -50,6 +57,33 @@ std::string ply(const Cloud& cloud, const PlyOptions& options = {});
 /** The Mesh as a PLY with faces. Empty geometry declines likewise. */
 std::string ply(const Mesh& mesh, const PlyOptions& options = {});
 
+/** The Cloud as Houdini's JSON `.geo`: the points, `P`, and every lane —
+ *  `normal` as N, `uv` as uv with its v axis flipped back to the file's
+ *  convention, `tint` as a four-component Cd so the alpha rides in it,
+ *  and every other lane under its own name at the width that brings it
+ *  back as the same kind of lane. Empty geometry declines with an empty
+ *  string, as the PLY writer does.
+ *
+ *  A GROUP IS NOT WRITTEN AS A GROUP. The reader turns a `.geo` group
+ *  into a 0/1 scalar lane and nothing here can tell such a lane from any
+ *  other scalar, so a lane that arrived as a group leaves as the
+ *  attribute it became — which is what round-trips, and what a mask reads
+ *  as either way. */
+std::string geo(const Cloud& cloud);
+
+/** The Mesh as a `.geo` of closed polygons, one per triangle, with the
+ *  vertex attributes on the points and every `Mesh::prims` lane as a
+ *  four-component primitive attribute. A mesh with no faces is a point
+ *  cloud and is written as one.
+ *
+ *  IT COMES BACK UNWELDED, and that is the format rather than the writer:
+ *  a `.geo` addresses a polygon's corners through a vertex list, and the
+ *  reader gives every corner its own mesh vertex so that a per-corner uv
+ *  or normal survives a seam. A cube written with 8 shared positions
+ *  returns with 36. The positions, the winding and every attribute value
+ *  are the same; the vertex COUNT is not. */
+std::string geo(const Mesh& mesh);
+
 /** File conveniences; false when the geometry is empty or the file
  *  cannot be written. */
 bool ply(const std::filesystem::path& file, const Cloud& cloud,
@@ -57,5 +91,8 @@ bool ply(const std::filesystem::path& file, const Cloud& cloud,
 /** The mesh conveniences, declining on the same terms. */
 bool ply(const std::filesystem::path& file, const Mesh& mesh,
          const PlyOptions& options = {});
+/** The `.geo` conveniences, declining on the same terms. */
+bool geo(const std::filesystem::path& file, const Cloud& cloud);
+bool geo(const std::filesystem::path& file, const Mesh& mesh);
 
 }  // namespace sigil::geometry::mesh::codec::encode

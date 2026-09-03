@@ -278,3 +278,115 @@ TEST(Save, WhatIsWrittenIsSniffableWithNoExtensionToGoOn) {
     }
   }
 }
+
+TEST(Save, GeoRoundTripsACloudLaneForLane) {
+  // The writer is the reader's return leg, so the assertion is that a
+  // cloud comes back as itself: the conventional lanes under the names
+  // that side knows them by, and every other lane at the width that
+  // brings it back as the same KIND of lane.
+  mesh::Cloud cloud;
+  cloud.positions = {{0, 0, 0}, {1, 2, 3}, {-4.5f, 0.25f, 7}};
+  cloud.vector("normal") = {{0, 1, 0}, {1, 0, 0}, {0, 0, 1}};
+  cloud.color("tint") = {{1, 0, 0, 1}, {0, 1, 0, 0.5f}, {0, 0, 1, 0.25f}};
+  cloud.color("uv") = {{0, 0, 0, 0}, {0.5f, 0.25f, 0, 0}, {1, 1, 0, 0}};
+  cloud.scalar("ring") = {0, 1, 1};
+  cloud.vector("velocity") = {{1, 1, 1}, {2, 0, 0}, {0, -3, 0}};
+
+  const std::string text = codec::encode::geo(cloud);
+  ASSERT_FALSE(text.empty());
+  const auto back = codec::decode::model(text.data(), text.size(), "out.geo");
+  ASSERT_TRUE(back.has_value());
+  ASSERT_EQ(back->parts.size(), 1u);
+  const mesh::Cloud again = back->parts.front().asCloud();
+
+  ASSERT_EQ(again.size(), cloud.size());
+  for (size_t i = 0; i < cloud.size(); ++i) {
+    EXPECT_NEAR(again.positions[i].x, cloud.positions[i].x, 1e-5f);
+    EXPECT_NEAR(again.positions[i].z, cloud.positions[i].z, 1e-5f);
+  }
+  const std::vector<glm::vec3>* normal = again.vectorIf("normal");
+  ASSERT_NE(normal, nullptr);
+  EXPECT_NEAR((*normal)[0].y, 1.0f, 1e-5f);
+  const std::vector<glm::vec4>* tint = again.colorIf("tint");
+  ASSERT_NE(tint, nullptr);
+  EXPECT_NEAR((*tint)[1].y, 1.0f, 1e-5f);
+  EXPECT_NEAR((*tint)[2].w, 0.25f, 1e-5f) << "the alpha rides in Cd";
+  const std::vector<glm::vec4>* uv = again.colorIf("uv");
+  ASSERT_NE(uv, nullptr);
+  EXPECT_NEAR((*uv)[1].x, 0.5f, 1e-5f);
+  EXPECT_NEAR((*uv)[1].y, 0.25f, 1e-5f) << "the v flip is undone on the way out";
+  // A lane that arrived as a group leaves as the scalar it became, which
+  // is what a mask reads either way.
+  const std::vector<float>* ring = again.scalarIf("ring");
+  ASSERT_NE(ring, nullptr);
+  EXPECT_EQ(ring->size(), 3u);
+  EXPECT_NEAR((*ring)[1], 1.0f, 1e-5f);
+  const std::vector<glm::vec3>* velocity = again.vectorIf("velocity");
+  ASSERT_NE(velocity, nullptr);
+  EXPECT_NEAR((*velocity)[2].y, -3.0f, 1e-5f);
+
+  // An empty cloud declines, on the same terms the PLY writer declines.
+  EXPECT_TRUE(codec::encode::geo(mesh::Cloud{}).empty());
+}
+
+TEST(Save, GeoRoundTripsAMeshUnweldedWithItsPrimitiveLanes) {
+  Mesh mesh = splitQuad();
+  mesh.prim("Color") = {{1, 0, 0, 1}, {0, 0.25f, 0, 1}};
+  mesh.prim("Charge") = {{7, 0, 0, 0}, {-2, 0, 0, 0}};
+
+  const std::string text = codec::encode::geo(mesh);
+  ASSERT_FALSE(text.empty());
+  const auto back = codec::decode::model(text.data(), text.size(), "out.geo");
+  ASSERT_TRUE(back.has_value());
+  ASSERT_EQ(back->parts.size(), 1u);
+  const Mesh& again = back->parts.front().mesh;
+
+  // The faces and the shape survive; the vertex COUNT does not, and that
+  // is the format: a .geo addresses a polygon's corners through a vertex
+  // list, and every corner gets its own mesh vertex so a per-corner uv or
+  // normal can survive a seam.
+  EXPECT_EQ(again.triangleCount(), mesh.triangleCount());
+  EXPECT_EQ(again.vertexCount(), mesh.triangleCount() * 3);
+  for (size_t t = 0; t < again.triangleCount(); ++t)
+    for (int c = 0; c < 3; ++c) {
+      const glm::vec3 was = mesh.positions[mesh.indices[t * 3 + (size_t)c]];
+      const glm::vec3 is = again.positions[again.indices[t * 3 + (size_t)c]];
+      EXPECT_NEAR(was.x, is.x, 1e-5f);
+      EXPECT_NEAR(was.y, is.y, 1e-5f);
+      EXPECT_NEAR(was.z, is.z, 1e-5f);
+    }
+
+  const std::vector<glm::vec4>* colour = again.primIf("Color");
+  ASSERT_NE(colour, nullptr);
+  EXPECT_NEAR((*colour)[1].y, 0.25f, 1e-5f);
+  // Four components under its own name, so a lane the reader has no
+  // convention for still comes back whole rather than splatted.
+  const std::vector<glm::vec4>* charge = again.primIf("Charge");
+  ASSERT_NE(charge, nullptr);
+  EXPECT_NEAR((*charge)[0].x, 7.0f, 1e-5f);
+  EXPECT_NEAR((*charge)[1].x, -2.0f, 1e-5f);
+
+  // A mesh with no faces IS a point cloud, and there is one spelling of
+  // that here rather than two.
+  Mesh bare;
+  bare.positions = mesh.positions;
+  const std::string cloudText = codec::encode::geo(bare);
+  const auto asCloud =
+      codec::decode::model(cloudText.data(), cloudText.size(), "bare.geo");
+  ASSERT_TRUE(asCloud.has_value());
+  EXPECT_EQ(asCloud->parts.front().mesh.vertexCount(), bare.vertexCount());
+  EXPECT_EQ(asCloud->parts.front().mesh.triangleCount(), 0u);
+}
+
+TEST(Save, WhatTheGeoWriterMakesIsSniffableToo) {
+  // Same claim as the PLY one: a format the library writes has to be
+  // recognisable from its bytes, or every blob that arrives without an
+  // extension is unreachable.
+  const Mesh mesh = splitQuad();
+  const std::string text = codec::encode::geo(mesh);
+  for (const char* hint : {"", "download", "blob.dat"}) {
+    const auto back = codec::decode::model(text.data(), text.size(), hint);
+    ASSERT_TRUE(back.has_value()) << "under hint '" << hint << "'";
+    EXPECT_EQ(back->parts.front().mesh.triangleCount(), mesh.triangleCount());
+  }
+}
