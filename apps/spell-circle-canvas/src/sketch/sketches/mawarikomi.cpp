@@ -33,12 +33,13 @@
 //                               crosses hands back no foot at all, which
 //                               is the interesting edge of the parting.
 
-#include <sigilcompose/kit/Silhouettes.h>
+#include <shared/VerticalSpecimen.h>
+#include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilsketch/canvas/Sketch.h>
 
-#include "VerticalSpecimen.h"
-
 namespace sketch = sigil::sketch;
+
+namespace shapes = sigil::geometry::shapes;
 
 using namespace sigil::compose;
 using sigil::compose::toU8;
@@ -89,8 +90,8 @@ struct Mawarikomi final : sketch::Sketch {
   Element describe() {
     namespace mw = mawari;
 
-    Material ground = Material::linear(
-        {0, 0}, {0, mw::kH}, {{0.0f, mw::kKinariLift}, {1.0f, mw::kKinari}});
+    Fill ground =
+        linearGradient({0, 0}, {0, mw::kH}, {mw::kKinariLift, mw::kKinari});
 
     return box()
         .fill(std::move(ground))
@@ -188,5 +189,5 @@ struct Mawarikomi final : sketch::Sketch {
 
 }  // namespace
 
-SIGIL_SKETCH_AS(Mawarikomi, "mawarikomi", "Catalog \xc2\xb7 Type & grid",
+SIGIL_SKETCH_AS(Mawarikomi, "mawarikomi", "Catalog \xc2\xb7 Type",
                 "columns around a silhouette, and a clamped column's marker")
