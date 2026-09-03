@@ -731,8 +731,28 @@ void placeWords(FontContext& fontContext, const Paragraph& paragraph,
         const float bounded = std::clamp(
             wanted, std::min(glyphScale, justification.glyphScaleMinimum),
             std::max(glyphScale, justification.glyphScaleMaximum));
+        residual -= (bounded - glyphScale) * lineShapedWidth;
         glyphScale = bounded;
       }
+
+      // WHAT NO PASS COULD SPEND GOES BACK TO THE GAPS. The bound on them
+      // rests on ONE claim — that what they may not take, a later pass
+      // takes — and a pass standing at its own limit does not take it.
+      // Held at their limit anyway, the gaps leave a hole at the right
+      // margin with nothing in the line allowed to close it, which is the
+      // one thing the bound exists to prevent; so the claim's failure
+      // lifts the bound rather than being paid for. A line whose passes
+      // all ran out is then set exactly as the gaps alone would have set
+      // it, which is what a line with no later pass gets.
+      //
+      // The IDEOGRAPHIC gaps take none of it: their ceiling is a rule
+      // about how far a full-width gap may open and not a claim about
+      // another pass, so it stands whatever the passes did — and a line
+      // with no space gaps to absorb the rest stays underfull, exactly as
+      // it does when the first pass cannot place it.
+      if (residual > 0 && spaceGapCount > 0)
+        spaceAdjustment += residual / static_cast<float>(spaceGapCount);
+
       fit = {letterSpacing, glyphScale};
       break;
     }

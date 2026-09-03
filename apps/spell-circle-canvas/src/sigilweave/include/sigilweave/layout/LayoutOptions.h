@@ -127,7 +127,20 @@ struct JustificationOptions {
   /// SPEND WHAT THEY MAY NOT — where the letter or glyph limits leave room
   /// past what those passes were asked for. With both shut, a bound on the
   /// gaps would open a hole at the right margin that nothing in the line is
-  /// allowed to close, and a hole is worse than a wide gap.
+  /// allowed to close, and a hole is worse than a wide gap. What a later
+  /// pass then FAILS to spend — because it reached its own limit — goes
+  /// back to the gaps for the same reason: the bound stood on the claim
+  /// that a later pass takes what the gaps drop, and where that claim
+  /// fails the bound goes with it. So a justified line reaches its measure
+  /// whatever the limits are, and the limits decide only how much of the
+  /// fit stands between the words and how much between the letters.
+  ///
+  /// ROOM ABOVE A DESIRED VALUE IS ROOM THE FIT SPENDS. A glyph scale of
+  /// 0.92 with the limits left at 1 is a scale of 1 on every line that
+  /// needed widening, because the pass reaches through its range before
+  /// the gaps take anything back. A value meant to HOLD says so with its
+  /// limits: pin them either side of it and it is what every justified
+  /// line is set at.
 
   /// The width a justified word gap is AIMED at, as a multiple of the
   /// shaped space width; the elasticity below is measured from it, so the

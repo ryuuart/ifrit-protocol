@@ -301,27 +301,3 @@ Assert once fixed: at a moment inside the drag phase, the distance
 between `drawn(rig, LHA)` and `toStage(dragTarget)` is greater than the
 casing's width, and the plate at that moment carries accent pixels
 outside the target ring.
-
-## The letter and glyph passes stop short of the measure
-
-`JustificationOptions` bounds the word gaps at their stretch limit as soon
-as the letter or glyph limits leave room past what those passes were asked
-for, so what the gaps may not take is what the later passes spend. They do
-not spend all of it. In `spacing_passes` — one passage, a 130 px measure,
-`kKnuthPlass` — the cells that open the second and third passes set their
-justified lines 5 to 17 px short of the measure, and raising
-`letterSpacingMaximum` from 0.10 through 0.2, 0.3 and 0.6 em moves the
-right edge to one fixed position (three lines at 133, 138 and 135 px) and
-no further; adding the glyph pass on top of a letter pass with room to
-spare moves it not at all. The bound is therefore paid for without the
-later passes closing what it opens, which is the hole at the right margin
-the bound's own rule exists to avoid.
-
-Intended: with a later pass open, a justified line reaches its measure
-whenever that pass's limits can cover what the gaps dropped.
-
-Assert once fixed: a paragraph justified in a narrow measure with
-`letterSpacing = 0`, `letterSpacingMaximum = 0.6` has every justified
-line's advance equal to the measure, and the same paragraph under a
-maximum too small to cover the residual comes up short by exactly the
-amount the limit left unspent.

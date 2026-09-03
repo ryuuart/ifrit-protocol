@@ -322,7 +322,14 @@ spend goes into letter spacing, bounded by
 scales the glyphs across, bounded by `glyphScaleMinimum`/`Maximum`. A pass
 whose limits equal its desired value contributes nothing and costs nothing,
 which is why a caller who sets none of them gets word spacing alone and the
-shared word blobs that go with it. `singleWord` decides what a line holding
+shared word blobs that go with it. The gaps are bounded at their stretch
+limit only where a later pass has room to spend what they drop, and
+whatever that pass then FAILS to spend — because it reached its own limit —
+goes back to the gaps: a justified line reaches its measure whatever the
+limits are, and the limits decide only how much of the fit stands between
+the words and how much between the letters. Room above a desired value is
+room the fit spends, so a value meant to hold is pinned either side of it.
+`singleWord` decides what a line holding
 one word does: align, or stretch across the measure on letter spacing.
 Respacing and scaling are a straight-horizontal answer — a column and a
 curve place per glyph already.
