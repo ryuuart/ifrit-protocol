@@ -647,7 +647,7 @@ presets and `kit/Plate.h`'s bordered feed plate (Brush), and
 is a **separate CMake library** (`SigilComposeKit`) whose only include
 path is compose's public headers, which is how the public/internal
 boundary is proven rather than asserted. Note that `kit/Kit.h` does not
-pull in the four headers shipped with other tiers; include them directly.
+pull in the headers shipped with other tiers; include them directly.
 
 ---
 
