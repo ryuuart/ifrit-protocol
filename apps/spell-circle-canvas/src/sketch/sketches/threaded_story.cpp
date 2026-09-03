@@ -19,9 +19,11 @@
 //     (kit::columns writes them). Every frame but the last stops where
 //     its geometry stops and hands the remainder on, drawing no marker,
 //     which is what makes the cut invisible. THE LAST FRAME THREADS
-//     NOWHERE, so what it cannot hold has nowhere to go and it draws it
-//     anyway; the card clips that, because kit::columns takes no
-//     ellipsis to end the chain on.
+//     NOWHERE, so what it cannot hold has nowhere to go: kit::columns'
+//     last argument is the ellipsis that ends the chain, and it lands on
+//     that column's last line only. A marker at every cut would read as
+//     three separate texts rather than one story threaded through three
+//     frames.
 //
 // THE CUT IS SHOWN BY SHOWING IT TWICE. The page carries the SAME chain
 // at two measures, one narrow and one wide, and the words the columns
@@ -197,11 +199,9 @@ struct ThreadedStory final : sketch::Sketch {
                    .padding(14)
                    .width(Dim(measure + 28))
                    .height(Dim(s::kFrameH + 96))
-                   // The card cuts what the last frame of the chain had
-                   // nowhere to pass on.
-                   .clip()
                    .child(kit::columns(article, 2, s::kColumnGutter, measure,
-                                       s::kFrameH + 68, column)));
+                                       s::kFrameH + 68, column,
+                                       u8"\u2026")));
   }
 
   Element describe() {
