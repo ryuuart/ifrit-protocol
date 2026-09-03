@@ -13,6 +13,7 @@
 #include <sigilloader/source/Sink.h>
 #include <sigilmeasure/time/Stopwatch.h>
 #include <sigilsketch/core/Assets.h>
+#include <sigilsketch/core/Crash.h>
 #include <sigilsketch/core/Registry.h>
 #include <sigilsketch/core/Session.h>
 #include <sigilsketch/plate/FrameStats.h>
@@ -165,6 +166,10 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
   const std::vector<Entry>& entries = registry();
   bool anyShortened = false;
   size_t skipped = 0;
+  // How far the run got, for the crash reporter: a fault at plate 3 and a
+  // fault at plate 130 are different problems, and only one of them can
+  // be narrowed with --sketch on the next run.
+  size_t plates = 0;
   for (int index : chosen) {
     const Entry& entry = entries[index];
     // A SKETCH THIS MACHINE CANNOT DRAW IS SKIPPED RATHER THAN FAILED,
@@ -193,7 +198,18 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
     // flag because the two modes must photograph the same picture: the
     // benchmark phases decide how a machine spends its time, never what
     // the capture contains.
-    std::unique_ptr<Session> session = kind->open(fonts, assets, true);
+    // NAME THE ENTRY BEFORE ANYTHING RUNS IN IT. A sweep opens a hundred
+    // sketches in one process, so a fault inside one is a fault inside
+    // this process, and the only thing that says which sketch it was is
+    // this — the last line on stderr is whatever the sketch BEFORE it
+    // printed, and a run of a hundred is where that costs the most.
+    noteSketch(entry.name);
+    notePlates((int)plates);
+    std::unique_ptr<Session> session;
+    {
+      PhaseMark mark(Phase::Setup);
+      session = kind->open(fonts, assets, true);
+    }
     if (options.noPromotion) session->setAutoPromotion(false);
     SkDebugf("=== sketch %s\n", entry.name);
 
@@ -229,6 +245,7 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
       // frame and differ only in whether the backend drain is inside.
       const measure::Stopwatch watch;
       target.getCanvas()->clear(clearColor);
+      PhaseMark mark(Phase::Draw);
       session->frame(*target.getCanvas(), kStep);
       stats.addWork(watch.elapsedMs());
       if (flushHook) flushHook();
@@ -418,6 +435,7 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
                     src + (size_t)y * srcRowBytes,
                     std::min(srcRowBytes, bitmap.rowBytes()));
       writePlate(bitmap.pixmap(), path);
+      ++plates;
       continue;
     }
 #endif
@@ -430,6 +448,7 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
       if (timingJson) std::fclose(timingJson);
       return 1;
     }
+    ++plates;
   }
 
   if (anyShortened)

@@ -79,6 +79,16 @@ baseline for the active tier, merging atomically when given `--scenes`;
 is a separate serial lane. Progress prints one line per scene as it
 finishes.
 
+**A sketch that FAULTS names itself.** The sweep opens every sketch in
+one process, so a bad draw takes the whole run down — and it used to die
+with a bare signal, leaving the last `=== sketch <name>` marker on
+unbuffered stderr as the only clue. The crash reporter is now installed
+on this lane too: the report names the entry it was on, how many plates
+finished before it, the phase (setup, draw, capture), and the stack. The
+ledger's verdict is unchanged — a faulting run is still a failed run —
+but the next run can be narrowed to the sketch the report names with
+`--sketch`.
+
 ## Frame rates — `app_fps_ledger.py` and `bench_ledger.py`
 
 `app_fps_ledger.py` (`mise run fps`) presents each sketch in the real

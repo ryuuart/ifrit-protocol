@@ -37,7 +37,7 @@
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/core/Registry.h>
 #include <sigilsketch/core/Sources.h>
-#include <sigilsketch/live/Crash.h>
+#include <sigilsketch/core/Crash.h>
 #include <sigilsketch/live/Host.h>
 #include <sigilsketch/plate/Sweep.h>
 #include <sigilsketch/set/Set.h>
@@ -743,6 +743,12 @@ int main(int argc, char* argv[]) {
     // here whatever the flag says: a plate is hashed from that executor,
     // and the two rasterise the same picture but not the same bytes.
     if (gpu && selectionNeedsDevice(chosen, kind) && !useDevice()) return 1;
+    // A SWEEP HAS A GUEST TOO, and it has a hundred of them in one
+    // process: without the reporter a faulting sketch takes the run down
+    // with a bare signal, and the only thing left saying which sketch it
+    // was is whatever the one before it happened to print. There is no
+    // one file to name here — the sweep names the entry it is on.
+    sketch::installCrashReporter({});
     const int result = sweep(sweepOptions, fonts(), assets());
     releaseDevice();
     return result;

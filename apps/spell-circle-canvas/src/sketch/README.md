@@ -794,11 +794,11 @@ to see it.
 
 ```
 src/sketch/
-  core/       what a sketch is, what it declares, the registry, the kind seam
+  core/       what a sketch is, what it declares, the registry, the kind seam, the crash reporter
   canvas/     the 2D runtime: a clock, a ticker and a Composer
   set/        the 3D runtime: a ticker and a retained Scene
   draw/       the immediate-mode runtime: a clock, a ticker, a pen and a surface that persists
-  live/       the reload engine, the resident set, and the crash reporter
+  live/       the reload engine and the resident set
   plate/      the headless sweep
   book/       Sketchbook: the app, and the headless entry point
   sketches/   every sketch, one file or one directory each; shared/ beside them
@@ -813,6 +813,17 @@ targets do.
 
 * **`core` draws nothing.** A consumer that only wants to know what
   sketches exist links it alone; it could not paint a pixel.
+* **Every host has a guest, so the crash reporter is core's.** The live
+  host calls into a dylib it just loaded; the sweep opens a hundred
+  sketches in one process and calls into each. A fault inside one is a
+  fault inside the host either way, and without a handler the process
+  dies with a bare signal and says nothing — on a sweep, the last line
+  another sketch happened to print is then the only evidence of which one
+  it was. `installCrashReporter` names the file a host watches,
+  `noteSketch` the entry a walking host is on, `notePlates` how far the
+  run got, and `PhaseMark` what the host was doing. The handlers write
+  with `write(2)` and `backtrace_symbols_fd(3)` alone and read only
+  buffers filled before any fault could land.
 * **The runtimes do not know each other's bodies.** `canvas` links
   compose, `set` links world, `draw` links SigilDraw, and none describes
   through another's runtime. What crosses between them is a picture,

@@ -22,7 +22,7 @@
 #include <sstream>
 #include <thread>
 
-#include "sigilsketch/live/Crash.h"
+#include "sigilsketch/core/Crash.h"
 
 namespace sigil::sketch {
 

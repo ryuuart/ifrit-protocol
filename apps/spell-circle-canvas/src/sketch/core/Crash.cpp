@@ -3,7 +3,7 @@
  * was on, and the stack — written with nothing that can itself fault.
  */
 
-#include "sigilsketch/live/Crash.h"
+#include "sigilsketch/core/Crash.h"
 
 #include <array>
 #include <atomic>
@@ -23,7 +23,12 @@ namespace {
 // no printf — a handler that itself faults tells you nothing.
 constexpr size_t kPathMax = 1024;
 char g_sketchPath[kPathMax] = {0};
+// …and the ENTRY a walking host is on, which supersedes the path: a
+// sweep has one path and a hundred sketches.
+constexpr size_t kNameMax = 256;
+char g_sketchName[kNameMax] = {0};
 volatile std::sig_atomic_t g_phase = (int)Phase::Host;
+volatile std::sig_atomic_t g_plates = -1;
 volatile std::sig_atomic_t g_frame = -1;
 volatile std::sig_atomic_t g_millis = 0;  // elapsed ms, for the phase line
 volatile std::sig_atomic_t g_installed = 0;
@@ -95,7 +100,19 @@ void handler(int number) {
   emit("\n=== the sketch crashed ===\n  signal: ");
   emit(signalName(number));
   emit("\n  sketch: ");
-  emit(g_sketchPath[0] ? g_sketchPath : "<unknown>");
+  emit(g_sketchName[0]   ? g_sketchName
+       : g_sketchPath[0] ? g_sketchPath
+                         : "<unknown>");
+  if (g_sketchName[0] && g_sketchPath[0]) {
+    emit("   (in ");
+    emit(g_sketchPath);
+    emit(")");
+  }
+  if (g_plates >= 0) {
+    emit("\n  plates: ");
+    emitNumber((long)g_plates);
+    emit(" finished before it");
+  }
   emit("\n  phase:  ");
   emit(phaseName((int)g_phase));
   if (g_frame >= 0) {
@@ -148,6 +165,17 @@ PhaseMark::PhaseMark(Phase phase) : m_previous((Phase)(int)g_phase) {
   g_phase = (int)phase;
 }
 PhaseMark::~PhaseMark() { g_phase = (int)m_previous; }
+
+void noteSketch(std::string_view name) {
+  const size_t length =
+      name.size() < kNameMax - 1 ? name.size() : kNameMax - 1;
+  // The terminator FIRST: a handler landing mid-copy then reads a name
+  // that is stale rather than one that runs off the end of the buffer.
+  g_sketchName[length] = '\0';
+  std::memcpy(g_sketchName, name.data(), length);
+}
+
+void notePlates(int count) { g_plates = count; }
 
 void noteFrame(int index, double elapsedSeconds) {
   g_frame = index;

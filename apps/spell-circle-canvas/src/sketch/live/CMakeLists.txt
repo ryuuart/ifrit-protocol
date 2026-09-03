@@ -3,10 +3,8 @@
 # the build captured, dlopens the result and swaps the running session,
 # keeping the previous one alive while a build is broken.
 add_library(SigilSketchLive STATIC
-  Crash.cpp
   Host.cpp
   Residency.cpp
-  ${SIGIL_SKETCH_INCLUDE_DIR}/sigilsketch/live/Crash.h
   ${SIGIL_SKETCH_INCLUDE_DIR}/sigilsketch/live/Host.h
   ${SIGIL_SKETCH_INCLUDE_DIR}/sigilsketch/live/Residency.h
 )
