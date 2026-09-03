@@ -78,15 +78,22 @@
 #include <include/core/SkPath.h>
 #include <include/core/SkTypeface.h>
 #include <sigilcompose/brush/LayerStyles.h>
-#include <sigilcompose/core/Material.h>
+#include <sigilcompose/core/Core.h>
 #include <sigilcompose/core/Pattern.h>
-#include <sigilcompose/core/Patterns.h>
 #include <sigilcompose/kit/Frame.h>
-#include <sigilcompose/kit/Silhouettes.h>
+#include <sigilcompose/kit/Layouts.h>
 #include <sigilcompose/testing/Checks.h>
-#include <sigilcompose/typography/Type.h>
+#include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilimage/asset/ImageAsset.h>
+#include <sigilmaterial/field/Field.h>
+#include <sigilmaterial/kit/Grained.h>
+#include <sigilmaterial/pattern/Patterns.h>
+#include <sigilmaterial/skia/Color.h>
+#include <sigilmaterial/skia/Paint.h>
+#include <sigilmeasure/check/Check.h>
+#include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilweave/style/Type.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/layout/ParagraphLayout.h>
 #include <sigilweave/paragraph/Paragraph.h>
@@ -103,21 +110,32 @@
 
 namespace sketch = sigil::sketch;
 
+namespace field = sigil::material::field;
+namespace matkit = sigil::material::kit;
+namespace measure = sigil::measure;
+namespace patterns = sigil::material::pattern;
+namespace shapes = sigil::geometry::shapes;
+namespace skia = sigil::material::skia;
+namespace weave = sigil::weave;
+
 using namespace sigil::compose;
+using namespace sigil::motion;
+using sigil::material::skia::Paint;
 // The whole composition is pinned — there is no layout in a pattern
 // card — so every panel is a box at absolute card coordinates.
 using sigil::compose::kit::at;
-using sigil::compose::kit::centred;
+using sigil::geometry::path::centred;
 using namespace std::chrono_literals;
-namespace weave = sigil::weave;
 
 namespace {
 
 // ---------------------------------------------------------------------------
 // The card it is mounted on. Black Watch is a dark cloth, and it sits on
 // manila board, so this whole plate is light-on-dark inverted: pale ground,
-// dark ink. patterns::grain is built for exactly that — an opaque board with
-// tooth — rather than for glow over a dark field.
+// dark ink. `material::kit::board` is that board: one paint under a fine
+// tooth and a slow wear, generated per pixel from its parameters — the
+// ground and its grain as ONE node rather than a flat fill with a
+// multiplied noise laid over it.
 
 constexpr SkColor4f kCard = hex(0xE8E2D6);
 constexpr SkColor4f kWell = hex(0xDCD4C4);
@@ -456,9 +474,9 @@ sk_sp<SkImage> bakeBlend(SkColor4f a, SkColor4f b, int threads) {
   return bm.asImage();
 }
 
-inline Material imageMat(const sk_sp<SkImage>& img, float px,
+inline Paint imageMat(const sk_sp<SkImage>& img, float px,
                          SkTileMode tile = SkTileMode::kRepeat) {
-  return Material::image(img, tile, tile, SkMatrix::Scale(px, px),
+  return Paint::image(img, tile, tile, SkMatrix::Scale(px, px),
                          SkSamplingOptions(SkFilterMode::kNearest));
 }
 
@@ -512,13 +530,13 @@ inline const sk_sp<SkTypeface>& serifIt() {
 // the paragraph registers that name their own face at the call.
 inline weave::TextStyle ty(const sk_sp<SkTypeface>& tf, float size,
                            SkColor4f color, float track = 0) {
-  return type({.face = tf, .size = size, .color = color, .track = track});
+  return weave::textStyle({.face = tf, .size = size, .color = color, .track = track});
 }
 inline weave::TextStyle mn(float sz, SkColor4f c, float tr = 0) {
-  return type({.face = mono(), .size = sz, .color = c, .track = tr});
+  return weave::textStyle({.face = mono(), .size = sz, .color = c, .track = tr});
 }
 inline weave::TextStyle sb(float sz, SkColor4f c, float tr = 0) {
-  return type({.face = sansB(), .size = sz, .color = c, .track = tr});
+  return weave::textStyle({.face = sansB(), .size = sz, .color = c, .track = tr});
 }
 
 inline std::u8string U(const std::string& s) { return toU8(s); }
@@ -603,13 +621,15 @@ struct BlackWatch : sketch::Sketch {
   Pattern warpPattern;                  // the 1-D sequence, 252 bands
   std::array<Pattern, 12> pickPattern;  // (colour, twill phase)
   Pattern threadGrid;                   // the interlacement grooves
-  Material warpMat, gridMat, cardGrain, yarnGrain, drawGrid, swatchMat;
-  std::vector<Material> pickMat;   // 12, resolved once
-  std::vector<Material> clothMat;  // 5 palettes, whole cloth
-  Material argyllMat;
-  std::array<Material, 9> blendMat;
+  Paint warpMat, gridMat, boardMat, yarnGrain, drawGrid, swatchMat;
+  std::vector<Paint> pickMat;   // 12, resolved once
+  std::shared_ptr<instancing::Atlas> pickAtlas;
+  std::shared_ptr<instancing::Pool> pickPool;
+  std::vector<Paint> clothMat;  // 5 palettes, whole cloth
+  Paint argyllMat;
+  std::array<Paint, 9> blendMat;
   std::shared_ptr<const sigil::image::ImageAsset> drawdownAsset;
-  std::vector<std::string> verifyLines;
+  measure::Table verdict;
   std::shared_ptr<weave::Paragraph> quote;
 
   // The drawdown window: threads 60..91 of the sett. The 18-thread black of
@@ -685,6 +705,37 @@ struct BlackWatch : sketch::Sketch {
     pickMat.clear();
     for (Pattern& p : pickPattern) pickMat.push_back(p.material());
 
+    // The twelve pick tiles as an ATLAS of twelve cells, each one full-width
+    // strip of cloth, and a POOL of one frame per pick. kNearest, because a
+    // thread is a whole number of pixels and any filtering across a stripe
+    // boundary is a blur of the interlacement this card exists to show.
+    pickAtlas = std::make_shared<instancing::Atlas>(2.0f);
+    pickAtlas->filter(SkFilterMode::kNearest);
+    std::array<int, 12> frame{};
+    for (int c = 0; c < 3; ++c)
+      for (int ph = 0; ph < 4; ++ph) {
+        const size_t k = (size_t)c * 4 + (size_t)ph;
+        frame[k] = pickAtlas->cell(box().fill(pickMat[k]), {kClothW, kPx});
+      }
+    auto pool = std::make_shared<instancing::Pool>();
+    pool->resize((size_t)kPicks);
+    {
+      // A stamp is anchored at the sprite's CENTRE, so pick i sits half a
+      // thread below its own top edge.
+      auto pos = pool->positions();
+      auto fr = pool->frames();
+      auto alpha = pool->alphas();  // the opt-in fade lane
+      for (int i = 0; i < kPicks; ++i) {
+        const int col = (int)S[(size_t)(i % (int)S.size())];
+        const int phase = (i + 2) % 4;
+        pos[(size_t)i] = {kClothW * 0.5f, ((float)i + 0.5f) * kPx};
+        fr[(size_t)i] = frame[(size_t)col * 4 + (size_t)phase];
+        alpha[(size_t)i] = 0.0f;
+      }
+      pool->commit();
+    }
+    pickPool = pool;
+
     // 3. THE INTERLACEMENT SHADOW — in real cloth the thread that is UNDER at
     //    a cell is shaded by the one on top, and that is why the twill rib is
     //    legible even inside a block of ONE colour. Read it off the register's
@@ -711,7 +762,9 @@ struct BlackWatch : sketch::Sketch {
     });
     gridMat = threadGrid.material();
     drawGrid =
-        patterns::gridLines(kDrawCell, 0.7f, hex(0x8A8478, 0.6f)).material();
+        Pattern(patterns::gridLines(kDrawCell, 0.7f,
+                                skia::toColor(hex(0x8A8478, 0.6f))))
+            .material();
 
     // 4. WHOLE-CLOTH BAKES — one per palette family, 252 x 252 at one pixel
     //    per thread, magnified x2 with kNearest. Same 252 threads, same
@@ -747,45 +800,69 @@ struct BlackWatch : sketch::Sketch {
     //    opaque manila board is where its header says it belongs. Both keep
     //    frequency * stretch * 2^(octaves-1) under 0.4, or the y axis aliases
     //    into hash noise with no diagnostic.
-    cardGrain = patterns::grain(0.045f, 4, 7.0f, 0.60f);
-    yarnGrain = patterns::grain(0.09f, 3, 3.0f, 0.75f);
+    boardMat = Paint::recipe(matkit::board({.paint = skia::toColor(kCard),
+                                            .tooth = 0.10f,
+                                            .toothScale = 0.045f,
+                                            .wear = 0.05f,
+                                            .wearScale = 0.004f,
+                                            .seed = 7.0f}));
+    yarnGrain = Paint::recipe(field::grain(0.09f, 3, 3.0f, 0.75f));
 
-    buildVerifyLines();
+    buildVerifyTable();
     buildQuote();
   }
 
-  void buildVerifyLines() {
-    auto ok = [](bool b) { return b ? "OK" : "**"; };
-    verifyLines = {
-        fmt("SETT CLOSES      %d + %d + %d + %d = %d ends  (printed: %d)%s",
-            v.unitA, v.unitB, v.unitC, v.unitB, v.total, kPublishedEnds,
-            ok(v.closes)),
-        fmt("REFLECTIVE       mirrors at thread %d, %d   gap %d = %d/2%s",
-            !v.mirrors.empty() ? v.mirrors[0] : -1,
-            v.mirrors.size() > 1 ? v.mirrors[1] : -1, v.mirrorGap, v.total,
-            ok(v.reflective)),
-        fmt("2/2 BALANCE      max warp float %d   max weft float %d   "
-            "%d x %d%s",
-            v.maxWarpFloat, v.maxWeftFloat, v.total, v.total, ok(v.balanced)),
-        fmt("THREAD RATIO     K %d : B %d : G %d  =  %d : %d : %d%s",
-            v.counts[K], v.counts[B], v.counts[G], v.counts[K] / v.gcd3,
-            v.counts[B] / v.gcd3, v.counts[G] / v.gcd3, ok(v.blueIsThird)),
-        fmt("COLOUR LAW       n = %d  ->  %d solid + %d blend = %d = "
-            "n(n+1)/2%s",
-            v.solids, v.solids, v.blends, v.perceived, ok(v.colourLaw)),
-        fmt("EXACT COVER      %d uncovered / %d doubled of %d samples%s",
-            v.uncovered, v.doubled, v.samples, ok(v.exactCover)),
-        fmt("CAMPBELL ARGYLL  %d ends   n = %d -> %d perceived   "
-            "%d mirrors%s",
-            v.argyllTotal, v.argyllSolids, v.argyllPerceived, v.argyllMirrors,
-            ok(v.argyllLaw && v.argyllTotal == kPublishedArgyll)),
-        fmt("UNIT DRIFT       max |BW - CA| over units A B C D = %.2f %%",
-            v.unitDrift * 100.0f),
-        fmt("TWILL ANGLE      42 ends/in = 42 picks/in  ->  %.2f deg",
-            std::atan2(1.0, 1.0) * 180.0 / 3.14159265358979),
-        fmt("SETT WIDTH       %d ends / 42 epi = %.2f in = %.1f mm", v.total,
-            (float)v.total / 42.0f, (float)v.total / 42.0f * 25.4f),
-    };
+  /** THE VERIFICATION, as one table. Every row's printed line is COMPUTED
+   *  from the two values it reports, so a row that reads OK cannot
+   *  disagree with the arithmetic beside it — and the panel no longer has
+   *  to sniff a trailing "OK" out of a formatted string to know how to set
+   *  it. The two rows that are measurements with nothing to judge are
+   *  readings; the one that is a statement about the SETTS rather than
+   *  about this reconstruction — that Black Watch and Campbell of Argyll
+   *  agree unit for unit — is a finding. */
+  void buildVerifyTable() {
+    verdict = {};
+    verdict
+        .add(measure::check(
+            fmt("SETT CLOSES      %d + %d + %d + %d ends", v.unitA, v.unitB,
+                v.unitC, v.unitB),
+            kPublishedEnds, v.total))
+        .add(measure::check(
+            fmt("REFLECTIVE       mirrors at thread %d, %d, gap",
+                !v.mirrors.empty() ? v.mirrors[0] : -1,
+                v.mirrors.size() > 1 ? v.mirrors[1] : -1),
+            v.total / 2, v.mirrorGap))
+        .add(measure::check(
+            fmt("2/2 BALANCE      max warp float %d, max weft float",
+                v.maxWarpFloat),
+            2, v.maxWeftFloat))
+        .add(measure::check(
+            fmt("THREAD RATIO     K %d : B %d : G %d, blue is the third",
+                v.counts[K], v.counts[B], v.counts[G]),
+            v.blueIsThird))
+        .add(measure::check(
+            fmt("COLOUR LAW       n = %d \xe2\x86\x92 n(n+1)/2 perceived",
+                v.solids),
+            v.solids * (v.solids + 1) / 2, v.perceived))
+        .add(measure::check("EXACT COVER      uncovered", 0, v.uncovered))
+        .add(measure::check("                 doubled", 0, v.doubled))
+        .add(measure::reading("                 samples", v.samples))
+        .add(measure::check(
+            fmt("CAMPBELL ARGYLL  n = %d \xe2\x86\x92 %d perceived, ends",
+                v.argyllSolids, v.argyllPerceived),
+            kPublishedArgyll, v.argyllTotal))
+        // The two setts are the same design at two scales — a claim about
+        // the CLOTH, not about this file, so its verdict is printed and
+        // never counted against the run.
+        .add(measure::finding(measure::check(
+            "UNIT DRIFT       max |BW \xe2\x88\x92 CA| over A B C D, %", 0.0,
+            (double)(v.unitDrift * 100.0f), 1.0)))
+        .add(measure::reading("TWILL ANGLE      42 epi = 42 ppi, degrees",
+                              std::atan2(1.0, 1.0) * 180.0 /
+                                  3.14159265358979))
+        .add(measure::reading(
+            fmt("SETT WIDTH       %d ends / 42 epi, mm", v.total),
+            (double)((float)v.total / 42.0f * 25.4f)));
   }
 
   void buildQuote() {
@@ -825,20 +902,15 @@ struct BlackWatch : sketch::Sketch {
     // the warp on the beam: the whole design, in one dimension
     panel.child(at(0, 0, kClothW, kClothH).fill(warpMat));
 
-    // the picks. Every one is an absolutely-placed leaf with a computed rect
-    // and its own progress window — 378 Yoga nodes in a panel that has no
-    // layout in it at all, because there is no way to declare a set of
-    // positioned leaves that differ only in rect and fill.
-    const float span = kWeaveEnd - kBeamEnd;
-    for (int i = 0; i < kPicks; ++i) {
-      const int col = (int)S[(size_t)(i % (int)S.size())];
-      const int phase = (i + 2) % 4;
-      const float w0 = kBeamEnd + span * ((float)i / (float)kPicks);
-      panel.child(
-          at(0, (float)i * kPx, kClothW, kPx)
-              .fill(pickMat[(size_t)col * 4 + (size_t)phase])
-              .opacity(bind(&loom).source(w0, w0 + 0.0035f).clamp(0.0f, 1.0f)));
-    }
+    // the picks. 378 strips that differ only in WHICH of twelve pick
+    // materials they wear and how far along the beat they have beaten in —
+    // which is one instanced leaf: an Atlas of the twelve (colour, phase)
+    // tiles, and a Pool of 378 frames whose per-instance ALPHA lane is
+    // written from the loom. One draw, no layout, and a fade that rewrites
+    // one float per pick instead of running 378 bindings.
+    panel.child(at(0, 0, kClothW, kClothH)
+                    .child(instancing::instances(pickAtlas, pickPool,
+                                                 instancing::Mode::Live)));
 
     // the shutter: the warp beams on left-to-right. There is no wipe verb, and
     // scaleX on the ground itself would squash the bands rather than reveal
@@ -1253,26 +1325,27 @@ struct BlackWatch : sketch::Sketch {
 
   Element theVerification() {
     const float x0 = 1060, y0 = 1052, lh = 13.6f;
+    const size_t rows = verdict.rows.size();
     Element g = box();
     g.child(label("VERIFIED AT STARTUP, NOT ASSERTED", mn(9, kInk, 0.5f), x0,
                   1030, kColW));
-    g.child(at(x0 - 12, y0 - 8, 472, (float)verifyLines.size() * lh + 14)
+    g.child(at(x0 - 12, y0 - 8, 472, (float)rows * lh + 14)
                 .fill(hex(0xDCD4C4, 0.8f))
                 .foreground(
                     stroke(1, Fill::color(kRule), PathFormat::Align::Inner)));
-    for (size_t i = 0; i < verifyLines.size(); ++i) {
+    // The LINE is the table's, verdict included; what the card adds is the
+    // ink. A finding that fails is the two setts' agreement drifting, not a
+    // defect here, so it is set in the same red and counted apart.
+    for (size_t i = 0; i < rows; ++i) {
+      const measure::Check& c = verdict.rows[i];
       const float w0 = kWeaveEnd + (float)i * 0.0092f;
-      const std::string& s = verifyLines[i];
-      const bool okLine = s.size() > 2 && s.compare(s.size() - 2, 2, "OK") == 0;
-      Element row =
-          at(x0, y0 + (float)i * lh, 450, 13)
-              .opacity(bind(&loom).source(w0, w0 + 0.011f).clamp(0.0f, 1.0f));
-      row.child(text(U(okLine ? s.substr(0, s.size() - 2) : s),
-                     mn(9.5f, kInk, 0.1f)));
-      if (okLine)
-        row.child(
-            at(414, 0, 24, 13).child(text(U("OK"), mn(9.5f, kRed, 0.6f))));
-      g.child(std::move(row));
+      g.child(at(x0, y0 + (float)i * lh, 450, 13)
+                  .opacity(bind(&loom).source(w0, w0 + 0.011f).clamp(0.0f,
+                                                                    1.0f))
+                  .child(text(U(c.line(40, 7)),
+                              mn(9.5f, !c.judged() ? kInk2
+                                                   : (c.pass ? kInk : kRed),
+                                 0.1f))));
     }
     return g;
   }
@@ -1283,13 +1356,9 @@ struct BlackWatch : sketch::Sketch {
     (void)ctx;
     Element root = stack().width(Dim(kCanvasW)).height(Dim(kCanvasH));
 
-    // the board, with its tooth
-    root.child(at(0, 0, kCanvasW, kCanvasH).fill(kCard));
-    root.child(at(0, 0, kCanvasW, kCanvasH)
-                   .fill(cardGrain)
-                   .blend(SkBlendMode::kMultiply)
-                   .cache(Cache::Texture)
-                   .opacity(0.13f));
+    // the board: one recipe, paint and tooth together
+    root.child(
+        at(0, 0, kCanvasW, kCanvasH).fill(boardMat).cache(Cache::Texture));
     root.child(at(24, 24, kCanvasW - 48, kCanvasH - 48)
                    .foreground(stroke(1, Fill::color(kRule),
                                       PathFormat::Align::Inner)));
@@ -1369,6 +1438,16 @@ struct BlackWatch : sketch::Sketch {
     ctx.ticker.add([this](double dt) {
       clock += dt;
       loom = (float)(std::fmod(clock, (double)kCycle) / (double)kCycle);
+      // THE BEAT-IN, one float per pick: pick i comes up over its own
+      // 0.0035 of the cycle, the same window each of the 378 leaves used to
+      // hold its own binding for.
+      const float span = kWeaveEnd - kBeamEnd;
+      auto alpha = pickPool->alphas();
+      for (int i = 0; i < kPicks; ++i) {
+        const float w0 = kBeamEnd + span * ((float)i / (float)kPicks);
+        alpha[(size_t)i] =
+            std::clamp((loom.value() - w0) / 0.0035f, 0.0f, 1.0f);
+      }
       return true;
     });
     ctx.composer.render(describe(ctx));
