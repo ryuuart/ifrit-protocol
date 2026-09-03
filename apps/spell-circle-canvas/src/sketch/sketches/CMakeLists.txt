@@ -88,6 +88,27 @@ foreach(pair RANGE ${_requirement_last})
       "sketch ${sketch_stem} left out: ${sketch_needs} is not configured")
   endif()
 endforeach()
+# WHICH SKETCHES THIS TREE CARRIES. Empty, the default, is every one the
+# directory holds. A list of stems narrows the registry to those — for a
+# pass over the libraries or the host that wants Sketchbook over the one
+# sketch it is looking at while the rest are still being brought onto a
+# new vocabulary. The sketches come last, and a host links every sketch
+# it carries, so without this a broken sketch anywhere stands between a
+# pass and the one it is studying. The directory stays the only list of
+# what a sketch IS; this says only which of them one tree compiles.
+set(SIGIL_SKETCH_ONLY "" CACHE STRING
+  "Stems of the sketches to compile in; empty for every one")
+if(SIGIL_SKETCH_ONLY)
+  foreach(sketch_file IN LISTS SIGIL_SKETCH_FILES)
+    get_filename_component(sketch_stem ${sketch_file} NAME_WE)
+    if(NOT sketch_stem IN_LIST SIGIL_SKETCH_ONLY)
+      list(REMOVE_ITEM SIGIL_SKETCH_FILES ${sketch_file})
+      list(FILTER SIGIL_SKETCH_UNITS EXCLUDE
+           REGEX "/${sketch_stem}/[^/]+\\.cpp$")
+    endif()
+  endforeach()
+  message(STATUS "sketches narrowed to: ${SIGIL_SKETCH_ONLY}")
+endif()
 foreach(sketch_file IN LISTS SIGIL_SKETCH_FILES)
   get_filename_component(sketch_stem ${sketch_file} NAME_WE)
   set_source_files_properties(${sketch_file} PROPERTIES
