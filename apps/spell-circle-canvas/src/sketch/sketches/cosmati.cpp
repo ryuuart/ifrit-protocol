@@ -31,10 +31,11 @@
 
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/brush/LayerStyles.h>
-#include <sigilcompose/core/Material.h>
-#include <sigilcompose/core/Patterns.h>
-#include <sigilcompose/kit/Silhouettes.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilmaterial/kit/Grained.h>
+#include <sigilmaterial/skia/Color.h>
+#include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
 
 #include <array>
@@ -43,8 +44,14 @@
 #include <string>
 
 namespace sketch = sigil::sketch;
+namespace shapes = sigil::geometry::shapes;
+namespace motion = sigil::motion;
+namespace weave = sigil::weave;
+namespace mkit = sigil::material::kit;
+namespace mskia = sigil::material::skia;
 
 using namespace sigil::compose;
+using sigil::material::skia::Paint;
 using sigil::compose::toU8;
 using namespace std::chrono_literals;
 
@@ -90,29 +97,25 @@ constexpr float kFieldY = (kH - kFieldSide) * 0.5f;
 constexpr float kBandW = 40;  // the Purbeck frame carrying the inscription
 constexpr float kInner = kFieldSide - 2 * kBandW;
 
-/** A cut stone: the quarry's two tones on a diagonal bed, veined with
- *  LUMINANCE grain and flecked with a speckle in the stone's own colours.
- *  patterns::grain() rather than patterns::noise(): noise is fractal RGB
- *  whose three channels are independent, so over a coloured surface it
+/** A CUT STONE, off the material kit's own recipe: the quarry's two
+ *  tones on a diagonal bed, veined with LUMINANCE grain and flecked with
+ *  a speckle in the stone's own colours, every field generated per pixel
+ *  from these numbers rather than baked into a tile. Luminance grain
+ *  rather than fractal RGB is the whole reason it reads as stone: RGB
+ *  noise's three channels are independent, so over a coloured surface it
  *  hue-shifts rather than shades, and a Cosmati floor is the one thing
- *  that must never read as rainbow terrazzo. */
-inline Material stone(SkColor4f hi, SkColor4f lo, float angleDeg = 24,
-                      int octaves = 3) {
-  const float a = angleDeg * 3.14159265f / 180.0f;
-  const float dx = std::cos(a) * 52.0f, dy = std::sin(a) * 52.0f;
-  auto mix = [](SkColor4f c, float k, float alpha) {
-    return SkColor4f{std::min(1.0f, c.fR * k), std::min(1.0f, c.fG * k),
-                     std::min(1.0f, c.fB * k), alpha};
-  };
-  return Material::blend(
-      {{Material::linear({0, 0}, {dx, dy},
-                         {{0.0f, hi}, {0.52f, lo}, {1.0f, hi}}),
-        SkBlendMode::kSrc},
-       {patterns::grain(0.055f, octaves, 7.0f), SkBlendMode::kOverlay},
-       {patterns::speckle(34, 16, 0.5f, 1.9f,
-                          {mix(hi, 1.45f, 0.26f), mix(lo, 0.55f, 0.28f)})
-            .material(),
-        SkBlendMode::kSrcOver}});
+ *  that must never read as rainbow terrazzo. `contrast` is how hard the
+ *  veining reads, and the framework band asks for less of it than the
+ *  tesserae do so that the Purbeck reads as one stone. */
+inline Paint stone(SkColor4f hi, SkColor4f lo, float angleDeg = 24,
+                   float contrast = 0.35f) {
+  return Paint::recipe(mkit::stone({.hi = mskia::toColor(hi),
+                                    .lo = mskia::toColor(lo),
+                                    .bedAngle = angleDeg,
+                                    .grainContrast = contrast,
+                                    .speckle = 0.30f,
+                                    .speckleCell = 9.0f,
+                                    .speckleAlpha = 0.27f}));
 }
 
 /** A regular polygon ring: `count` lozenges laid on a circle of radius
@@ -237,12 +240,12 @@ struct Cosmati final : sketch::Sketch {
                      .height(Dim(r * 2))
                      .centerAt(at)
                      .cache(Cache::Texture)
-                     .opacity(animate(from(0.0f).to(1.0f),
+                     .opacity(animate(motion::from(0.0f).to(1.0f),
                                       {380ms, &ch::easeOutQuad, delay}))
-                     .scale(animate(from(0.86f).to(1.0f),
+                     .scale(animate(motion::from(0.86f).to(1.0f),
                                     {520ms, &ch::easeOutQuint, delay}));
     // the bed
-    el.child(box().inset(0).corners({r}).fill(Material::solid(cs::kMortar)));
+    el.child(box().inset(0).corners({r}).fill(Paint::solid(cs::kMortar)));
     // outer fillet
     el.child(box().inset(0).corners({r}).foreground(
         stroke(3.0f, Fill::color(cs::kMarble), PathFormat::Align::Inner)));
@@ -281,7 +284,7 @@ struct Cosmati final : sketch::Sketch {
                        .centerAt({x, y})
                        .rotate(degrees)
                        .cache(Cache::Texture)
-                       .opacity(animate(from(0.0f).to(1.0f),
+                       .opacity(animate(motion::from(0.0f).to(1.0f),
                                         {360ms, &ch::easeOutQuad, delay}));
     band.child(box()
                    .inset(0)
@@ -331,9 +334,9 @@ struct Cosmati final : sketch::Sketch {
                     .left(x)
                     .top(y)
                     .cache(Cache::Texture)
-                    .opacity(animate(from(0.0f).to(1.0f),
+                    .opacity(animate(motion::from(0.0f).to(1.0f),
                                      {420ms, &ch::easeOutQuad, delay}));
-    q.child(box().inset(0).fill(Material::solid(cs::kMortar)));
+    q.child(box().inset(0).fill(Paint::solid(cs::kMortar)));
     // The pavement's tesserae are an order of magnitude smaller than one
     // coarse course: no interstitial area on the Great Pavement reads as
     // a dozen triangles across, and at that size the field reads as a
@@ -361,7 +364,7 @@ struct Cosmati final : sketch::Sketch {
     namespace ch = choreograph;
     using namespace std::chrono_literals;
 
-    auto root = stack().fill(Material::linear(
+    auto root = stack().fill(Paint::linear(
         {0, 0}, {0, cs::kH}, {{0.0f, hex(0x14120F)}, {1.0f, hex(0x080706)}}));
 
     // ---- the pavement ------------------------------------------------
@@ -380,26 +383,26 @@ struct Cosmati final : sketch::Sketch {
             // even though only its border shows, and on the
             // raster backend every pixel of it is an SkSL
             // evaluation
-            .fill(cs::stone(cs::kPurbeck, cs::kPurbeckLo, 6, 1))
+            .fill(cs::stone(cs::kPurbeck, cs::kPurbeckLo, 6, 0.18f))
             .foreground(stroke(2.0f, Fill::color(cs::kMarble),
                                PathFormat::Align::Inner))
             .background(styles::dropShadow({0, 0, 0, 0.7f}, {0, 8}, 18)));
     floorPlate.child(
         text(toU8("\xc2\xb7 QVATVOR \xc2\xb7 PRAECEDENTES "
                   "\xc2\xb7 ET \xc2\xb7 TRES \xc2\xb7"),
-             type({.size = 11, .color = cs::kInkDim, .track = 3.4f}))
+             weave::textStyle({.size = 11, .color = cs::kInkDim, .track = 3.4f}))
             .left(cs::kBandW)
             .top(13));
     floorPlate.child(
         text(toU8("\xc2\xb7 ODORICVS \xc2\xb7 FECIT \xc2\xb7 "
                   "MCCLXVIII \xc2\xb7"),
-             type({.size = 11, .color = cs::kInkDim, .track = 3.4f}))
+             weave::textStyle({.size = 11, .color = cs::kInkDim, .track = 3.4f}))
             .left(cs::kBandW)
             .top(cs::kFieldSide - 24));
 
     // the mortar bed inside the frame
     floorPlate.child(
-        box().inset(cs::kBandW).fill(Material::solid(cs::kMortar)));
+        box().inset(cs::kBandW).fill(Paint::solid(cs::kMortar)));
 
     // ---- the quincunx of quincunxes ---------------------------------
     const float c = cs::kFieldSide * 0.5f;
@@ -441,7 +444,7 @@ struct Cosmati final : sketch::Sketch {
                                "TRIPLEX \xc2\xb7"),
                           [] {
                             namespace cs = cosmati;
-                            auto t = type({.size = 9,
+                            auto t = weave::textStyle({.size = 9,
                                            .color = cs::kGiallo,
                                            .track = 2.0f,
                                            .weight = 600});
@@ -464,8 +467,8 @@ struct Cosmati final : sketch::Sketch {
             .width(Dim(210.0f))
             .height(Dim(cs::kFieldSide + 80))
             .rotate(14.0f)
-            .translateX(bind(&rake).target(-260, cosmati::kW + 260))
-            .fill(Material::linear({0, 0}, {210, 0},
+            .translateX(motion::bind(&rake).target(-260, cosmati::kW + 260))
+            .fill(Paint::linear({0, 0}, {210, 0},
                                    {{0.0f, {1, 0.96f, 0.88f, 0.0f}},
                                     {0.5f, {1, 0.96f, 0.88f, 0.13f}},
                                     {1.0f, {1, 0.96f, 0.88f, 0.0f}}}))
@@ -480,19 +483,19 @@ struct Cosmati final : sketch::Sketch {
             .column()
             .left(px)
             .top(cs::kFieldY + 4)
-            .child(text(toU8("OPUS SECTILE"), type({.size = 21,
+            .child(text(toU8("OPUS SECTILE"), weave::textStyle({.size = 21,
                                                     .color = cs::kInk,
                                                     .track = 3.4f,
                                                     .weight = 640})))
             .child(text(toU8("Cosmatesque \xc2\xb7 Westminster "
                              "1268"),
-                        type({.size = 11, .color = cs::kInkDim, .track = 1.4f}))
+                        weave::textStyle({.size = 11, .color = cs::kInkDim, .track = 1.4f}))
                        .margin(0, 6, 0, 0))
             .child(box()
                        .width(Dim(190.0f))
                        .height(Dim(1.0f))
                        .margin(0, 12, 0, 12)
-                       .fill(Material::linear({0, 0}, {190, 0},
+                       .fill(Paint::linear({0, 0}, {190, 0},
                                               {{0.0f,
                                                 {cs::kGiallo.fR, cs::kGiallo.fG,
                                                  cs::kGiallo.fB, 0.7f}},
@@ -506,7 +509,7 @@ struct Cosmati final : sketch::Sketch {
                           "quincunx of quincunxes, 25 Roman feet "
                           "square, laid by a Roman crew under "
                           "Odoricus."),
-                     type({.size = 11.5f, .color = cs::kInkDim, .track = 0.2f}))
+                     weave::textStyle({.size = 11.5f, .color = cs::kInkDim, .track = 0.2f}))
                     .width(Dim(210.0f))));
 
     // the quarry legend: every stone named, with a real sample of it
@@ -539,8 +542,8 @@ struct Cosmati final : sketch::Sketch {
               .row()
               .alignItems(Align::Center)
               .gap(9)
-              .opacity(animate(from(0.0f).to(1.0f), {320ms}))
-              .translateX(animate(from(-14.0f).to(0.0f), {400ms}))
+              .opacity(animate(motion::from(0.0f).to(1.0f), {320ms}))
+              .translateX(animate(motion::from(-14.0f).to(0.0f), {400ms}))
               .child(box()
                          .width(Dim(20.0f))
                          .height(Dim(13.0f))
@@ -550,7 +553,7 @@ struct Cosmati final : sketch::Sketch {
                                                 cs::kMarble.fB, 0.55f}))))
               .child(text(
                   toU8(q.label),
-                  type({.size = 10.5f, .color = cs::kInkDim, .track = 0.7f}))));
+                  weave::textStyle({.size = 10.5f, .color = cs::kInkDim, .track = 0.7f}))));
     root.child(std::move(legend));
     return root;
   }
@@ -563,5 +566,5 @@ struct Cosmati final : sketch::Sketch {
 
 }  // namespace
 
-SIGIL_SKETCH_AS(Cosmati, "cosmati", "Catalog \xc2\xb7 Tiling",
+SIGIL_SKETCH_AS(Cosmati, "cosmati", "Study \xc2\xb7 Pattern",
                 "opus sectile \xe2\x80\x94 quincunx, guilloche, quarried stone")
