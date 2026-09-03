@@ -25,8 +25,18 @@
 # include path is PRIVATE to each. Every other target in this tree compiles
 # against the public headers alone.
 add_library(SigilComposeCore STATIC
-  # the element value and its builders
-  Element.cpp
+  # the element value and its builders, one subject each
+  ElementLayout.cpp
+  ElementShape.cpp
+  ElementMask.cpp
+  ElementPaint.cpp
+  ElementMarks.cpp
+  ElementTransform.cpp
+  ElementText.cpp
+  ElementIdentity.cpp
+  ElementImage.cpp
+  Factories.cpp
+  Region.cpp
   Effects.cpp
   Diagnostics.cpp
   # the composer and its phases
