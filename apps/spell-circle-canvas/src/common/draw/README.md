@@ -119,7 +119,7 @@ default.
 | the stroke | `strokeWeight`, `strokeCap(ROUND \| SQUARE \| PROJECT)`, `strokeJoin(MITER \| BEVEL \| ROUND)`, `smooth`, `noSmooth` |
 | modes | `rectMode`, `ellipseMode`, `imageMode` over `CORNER \| CORNERS \| CENTER \| RADIUS` with p5's defaults (rect and image at the corner, ellipse at the centre); `angleMode(RADIANS \| DEGREES)`, radians by default |
 | shapes | `point`, `line`, `rect(x, y, w, h[, r \| tl, tr, br, bl])`, `square`, `ellipse(x, y, w[, h])`, `circle(x, y, d)`, `arc(x, y, w, h, start, stop[, OPEN \| CHORD \| PIE])`, `triangle`, `quad`, `bezier`, `curve`, `curveTightness` |
-| vertices | `beginShape([POINTS \| LINES \| TRIANGLES \| TRIANGLE_FAN \| TRIANGLE_STRIP \| QUADS \| QUAD_STRIP])`, `vertex`, `curveVertex`, `bezierVertex`, `quadraticVertex`, `beginContour`, `endContour`, `endShape([CLOSE])` |
+| vertices | `beginShape([POINTS \| LINES \| TRIANGLES \| TRIANGLE_FAN \| TRIANGLE_STRIP \| QUADS \| QUAD_STRIP])`, `vertex`, `curveVertex`, `bezierVertex`, `quadraticVertex`, `beginContour`, `endContour`, `endShape([CLOSE])`; `fill` between two `vertex` calls colours the corners either side of it |
 | text | `text(str, x, y[, w, h])`, `text(number, x, y)`, `textSize`, `textFont(family[, size])`, `textAlign(LEFT \| CENTER \| RIGHT[, TOP \| CENTER \| BOTTOM \| BASELINE])`, `textLeading`, `textStyle(NORMAL \| BOLD \| ITALIC \| BOLDITALIC)`, `textWidth`, `textAscent`, `textDescent` |
 | images | `image(img, x, y[, w, h])` and the nine-argument source-rect form, over an `sk_sp<SkImage>` |
 | transform | `translate`, `rotate`, `scale(s \| sx, sy)`, `shearX`, `shearY`, `push`, `pop`, `resetMatrix`, `applyMatrix(a, b, c, d, e, f)` |
@@ -135,7 +135,14 @@ arc angles are corrected from the geometric angle a sketch means to the
 parametric one the ellipse is traced by, as p5 corrects them. `bezier`
 and `curve` fill as well as stroke, the way an open shape does.
 `background` covers the whole canvas whatever the transform stands at
-and blends when it carries alpha, which is what makes a trail. Text is
+and blends when it carries alpha, which is what makes a trail.
+`noSmooth` turns off antialiasing AND image smoothing, so a small source
+blown up is blocks rather than a blur, and `smooth` puts both back. A
+shape whose corners were added under DIFFERENT fills is filled as a
+triangle mesh with the colour interpolated across it — a ramp along a
+streak, a lit facet, a heat gradient, without one shape per band — while
+its stroke still follows the outline; one fill across the shape is one
+path, as before, and only the triangle and quad kinds have a mesh. Text is
 black until a fill is set and stroked only once a stroke is, so a fresh
 pen's text is ink. `point` is a disc of the stroke weight in the stroke
 colour. `textSize` sets the leading to five quarters of the size until
@@ -193,6 +200,15 @@ one.
   named colours a sketch reaches for; anything else reads as black.
 * **`beginShape()` with no kind is `POLYGON`**, the one word p5 does not
   spell, and no sketch needs to.
+* **The canvas is reachable.** `pen.canvas()` is the `SkCanvas` the pen
+  paints on, carrying the pen's current transform — p5's
+  `drawingContext`, and the door out of p5's vocabulary. Another
+  library's drawing takes an `SkCanvas&`, and this is the one to hand
+  it, beside `pen.fillPaint()` and `pen.strokePaint()` for the style the
+  pen stands at and `pen.contentScale()` for the device pixels one
+  canvas unit covers. What is drawn through it lands in the same place
+  and the same order as the pen's own verbs, since there is one canvas;
+  leave the transform and the clip as they were found.
 
 ## Not provided
 
@@ -200,7 +216,7 @@ p5 verbs and variables a pasted sketch has to replace, stated so nobody
 searches for them: `createVector` and `p5.Vector` (glm has the
 vectors), `tint`, `filter`, `blendMode`, `erase`/`noErase`, `clip`,
 `loadPixels`/`updatePixels`/`pixels`/`get`/`set`, `createGraphics`,
-`drawingContext`, `save`/`saveCanvas`/`saveFrames`/`saveGif`,
+`save`/`saveCanvas`/`saveFrames`/`saveGif`,
 `describe`/`textOutput`, `cursor`/`noCursor`, `fullscreen`,
 `windowWidth`/`windowHeight`/`displayWidth`/`displayHeight`/`windowResized`,
 `pixelDensity`, `textWrap` (words wrap), `curveDetail`/`bezierDetail`,
@@ -285,9 +301,12 @@ ctest --test-dir build -C Release -R draw_test --output-on-failure
 `draw_test` holds p5's semantics to the pen — a rect at `rectMode(CENTER)`
 lands where p5 says, `push`/`pop` restores fill and transform, an arc
 fills the pie unless `CHORD`, seeded `random` repeats, `noise` at a
-lattice corner is core's word — and this library's own: a material as a
-fill, a silhouette as a shape, text shaped and centred by its alignment,
-a guest retained per call site. `draw_bench` times ten thousand circles
+lattice corner is core's word, `noSmooth` sampling an image
+nearest-neighbour, a `fill` between two vertices colouring the corners
+either side of it — and this library's own: a material as a fill, a
+silhouette as a shape, text shaped and centred by its alignment, a guest
+retained per call site, the canvas carrying the pen's transform.
+`draw_bench` times ten thousand circles
 filled and stroked, ten thousand rects, a screen of text, a translucent
 background and a thousand noise samples per frame; it builds through the
 `benches` target and runs through `scripts/bench_ledger.py`.

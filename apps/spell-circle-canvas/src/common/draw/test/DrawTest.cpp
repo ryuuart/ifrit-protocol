@@ -433,4 +433,161 @@ TEST(Pen, TheRetainedStoreKeepsAValueByItsSlot) {
   EXPECT_EQ(store.size(), 2u);
 }
 
+// ---- smoothing reaches the image sampler ------------------------------------
+
+/** A two-by-two image, one colour per texel, for a blit to magnify. */
+sk_sp<SkImage> quadrants() {
+  SkBitmap bitmap;
+  bitmap.allocPixels(SkImageInfo::MakeN32Premul(2, 2));
+  bitmap.eraseArea(SkIRect::MakeXYWH(0, 0, 1, 1), SK_ColorRED);
+  bitmap.eraseArea(SkIRect::MakeXYWH(1, 0, 1, 1), SK_ColorGREEN);
+  bitmap.eraseArea(SkIRect::MakeXYWH(0, 1, 1, 1), SK_ColorBLUE);
+  bitmap.eraseArea(SkIRect::MakeXYWH(1, 1, 1, 1), SK_ColorWHITE);
+  bitmap.setImmutable();
+  return bitmap.asImage();
+}
+
+TEST(Pen, NoSmoothMakesImageDrawingNearestNeighbour) {
+  Paper paper;
+  paper.begin();
+  paper.pen.noSmooth();
+  paper.pen.image(quadrants(), 0, 0, 40, 40);
+  paper.end();
+  // The boundary between two texels is a step: the last column of the
+  // first block is the whole first colour and the first column of the
+  // second is the whole second one, with nothing between them.
+  EXPECT_EQ(paper.pixel(19, 5), SK_ColorRED);
+  EXPECT_EQ(paper.pixel(20, 5), SK_ColorGREEN);
+  EXPECT_EQ(paper.pixel(5, 35), SK_ColorBLUE);
+}
+
+TEST(Pen, SmoothingOnBlendsAcrossTheImageBoundary) {
+  Paper paper;
+  paper.begin();
+  paper.pen.image(quadrants(), 0, 0, 40, 40);
+  paper.end();
+  // The default is p5's smoothing: the same boundary is a ramp, so
+  // neither side of it is either texel's own colour.
+  const SkColor left = paper.pixel(19, 20);
+  EXPECT_NE(left, SK_ColorRED);
+  EXPECT_NE(left, SK_ColorGREEN);
+}
+
+// ---- a fill between two vertices colours the corners ------------------------
+
+TEST(Pen, FillBetweenVerticesColoursEachCorner) {
+  Paper paper;
+  paper.begin();
+  paper.pen.noStroke();
+  paper.pen.beginShape(QUADS);
+  paper.pen.fill(255, 0, 0);
+  paper.pen.vertex(0, 0);
+  paper.pen.vertex(0, 99);
+  paper.pen.fill(0, 0, 255);
+  paper.pen.vertex(99, 99);
+  paper.pen.vertex(99, 0);
+  paper.pen.endShape();
+  paper.end();
+  const SkColor left = paper.pixel(2, 50);
+  const SkColor right = paper.pixel(97, 50);
+  const SkColor middle = paper.pixel(50, 50);
+  EXPECT_GT(SkColorGetR(left), 200u);
+  EXPECT_LT(SkColorGetB(left), 60u);
+  EXPECT_GT(SkColorGetB(right), 200u);
+  EXPECT_LT(SkColorGetR(right), 60u);
+  // Interpolated across the quad, so the middle is neither corner.
+  EXPECT_GT(SkColorGetR(middle), 60u);
+  EXPECT_GT(SkColorGetB(middle), 60u);
+}
+
+TEST(Pen, AlphaRampsAcrossAQuadTheSameWay) {
+  Paper paper;
+  paper.begin();
+  paper.pen.noStroke();
+  paper.pen.beginShape(QUADS);
+  paper.pen.fill(255, 255, 255, 255);
+  paper.pen.vertex(0, 0);
+  paper.pen.vertex(0, 99);
+  paper.pen.fill(255, 255, 255, 0);
+  paper.pen.vertex(99, 99);
+  paper.pen.vertex(99, 0);
+  paper.pen.endShape();
+  paper.end();
+  EXPECT_GT(SkColorGetA(paper.pixel(2, 50)), 200u);
+  EXPECT_LT(SkColorGetA(paper.pixel(97, 50)), 60u);
+}
+
+TEST(Pen, OneFillAcrossTheShapeStaysAPathAndStrokes) {
+  Paper paper;
+  paper.begin();
+  paper.pen.fill(0, 255, 0);
+  paper.pen.stroke(255, 0, 0);
+  paper.pen.strokeWeight(6);
+  paper.pen.beginShape(QUADS);
+  paper.pen.vertex(20, 20);
+  paper.pen.vertex(20, 80);
+  paper.pen.vertex(80, 80);
+  paper.pen.vertex(80, 20);
+  paper.pen.endShape();
+  paper.end();
+  EXPECT_EQ(paper.pixel(50, 50), SK_ColorGREEN);
+  EXPECT_EQ(paper.pixel(50, 20), SK_ColorRED);
+}
+
+TEST(Pen, AStrokedMeshStillWearsItsOutline) {
+  Paper paper;
+  paper.begin();
+  paper.pen.stroke(255, 255, 255);
+  paper.pen.strokeWeight(6);
+  paper.pen.beginShape(QUADS);
+  paper.pen.fill(255, 0, 0);
+  paper.pen.vertex(20, 20);
+  paper.pen.vertex(20, 80);
+  paper.pen.fill(0, 0, 255);
+  paper.pen.vertex(80, 80);
+  paper.pen.vertex(80, 20);
+  paper.pen.endShape();
+  paper.end();
+  EXPECT_EQ(paper.pixel(50, 20), SK_ColorWHITE);
+  EXPECT_GT(SkColorGetR(paper.pixel(24, 50)), 200u);
+}
+
+// ---- the canvas itself, for another library's drawing -----------------------
+
+TEST(Pen, TheCanvasCarriesThePensTransform) {
+  Paper paper;
+  paper.begin();
+  paper.pen.translate(30, 40);
+  SkPaint paint;
+  paint.setColor(SK_ColorRED);
+  paint.setAntiAlias(false);
+  ASSERT_NE(paper.pen.canvas(), nullptr);
+  paper.pen.canvas()->drawRect(SkRect::MakeWH(10, 10), paint);
+  paper.end();
+  // Drawn in the pen's space: the rect landed where pen.rect would have
+  // put it, not at the canvas origin.
+  EXPECT_EQ(paper.inked(), SkIRect::MakeXYWH(30, 40, 10, 10));
+}
+
+TEST(Pen, TheCanvasAndThePensOwnVerbsShareOneOrder) {
+  Paper paper;
+  paper.begin();
+  paper.pen.noStroke();
+  paper.pen.fill(0, 255, 0);
+  paper.pen.rect(0, 0, 50, 50);
+  SkPaint paint;
+  paint.setColor(SK_ColorRED);
+  paper.pen.canvas()->drawRect(SkRect::MakeWH(50, 50), paint);
+  paper.end();
+  EXPECT_EQ(paper.pixel(25, 25), SK_ColorRED);
+}
+
+TEST(Pen, TheContentScaleIsWhatTheFrameBeganOn) {
+  Paper paper;
+  paper.surface->getCanvas()->scale(2, 2);
+  paper.begin();
+  EXPECT_FLOAT_EQ(paper.pen.contentScale(), 2.0f);
+  paper.end();
+}
+
 }  // namespace

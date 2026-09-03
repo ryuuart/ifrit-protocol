@@ -7,6 +7,7 @@
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkRRect.h>
 #include <include/core/SkSamplingOptions.h>
+#include <include/core/SkVertices.h>
 #include <sigildraw/Math.h>
 #include <sigildraw/Pen.h>
 #include <sigilmaterial/core/Material.h>
@@ -34,6 +35,18 @@ SkPaint::Cap capOf(Constant cap) {
     default:
       return SkPaint::kRound_Cap;
   }
+}
+
+/** HOW AN IMAGE IS SAMPLED under the pen's smoothing. Smoothing off is
+ *  not only about the edges of shapes: it is what a blown-up pixel
+ *  source needs, one source texel per destination block with nothing
+ *  blended across the boundary, so the picture is blocks and not a
+ *  blur. Mipmaps go with it — a mipmap IS a blend of neighbours. */
+SkSamplingOptions samplingFor(bool smooth) {
+  return smooth ? SkSamplingOptions(SkFilterMode::kLinear,
+                                    SkMipmapMode::kLinear)
+                : SkSamplingOptions(SkFilterMode::kNearest,
+                                    SkMipmapMode::kNone);
 }
 
 SkPaint::Join joinOf(Constant join) {
@@ -533,6 +546,9 @@ void Pen::beginShape(Constant kind) {
   m_hasPoint = false;
   m_newContour = false;
   m_vertices.clear();
+  m_vertexColors.clear();
+  m_vertexColorsVary = false;
+  m_vertexFillsSolid = true;
   m_curve.clear();
 }
 
@@ -542,6 +558,20 @@ void Pen::vertex(float x, float y) {
   flushCurve();
   if (m_shapeKind != POLYGON) {
     m_vertices.push_back({x, y});
+    // The fill AT THIS MOMENT, so a fill() between two vertex() calls
+    // colours the corners either side of it differently. A fill that is
+    // not a solid carries no per-corner colour, and one such corner
+    // sends the whole shape down the path route, where the shader is
+    // what draws it.
+    if (!m_style.fill.isSolid()) {
+      m_vertexFillsSolid = false;
+      m_vertexColors.push_back(SK_ColorTRANSPARENT);
+      return;
+    }
+    const SkColor packed = m_style.fill.solidColor().toSkColor();
+    if (!m_vertexColors.empty() && packed != m_vertexColors.front())
+      m_vertexColorsVary = true;
+    m_vertexColors.push_back(packed);
     return;
   }
   if (!m_hasPoint || m_newContour) {
@@ -604,20 +634,52 @@ void Pen::endContour() {
   m_newContour = true;
 }
 
+void Pen::paintVertices(const std::vector<SkPoint>& positions,
+                        const std::vector<SkColor>& colors) {
+  if (!m_canvas || positions.empty()) return;
+  const sk_sp<SkVertices> mesh =
+      SkVertices::MakeCopy(SkVertices::kTriangles_VertexMode,
+                           (int)positions.size(), positions.data(),
+                           /*texs=*/nullptr, colors.data());
+  if (!mesh) return;
+  SkPaint paint;
+  paint.setAntiAlias(m_style.antiAlias);
+  // The paint carries no shader, so the mesh's own corner colours are
+  // what lands; kDst is the mode that keeps them instead of blending
+  // the paint's colour into them.
+  m_canvas->drawVertices(mesh, SkBlendMode::kDst, paint);
+}
+
 void Pen::emitKind(const std::vector<SkPoint>& v) {
   const size_t n = v.size();
   SkPathBuilder path;
-  auto closed = [&](std::initializer_list<SkPoint> ring) {
+  // A MESH ONLY WHERE THE CORNERS DISAGREE. One fill across the shape is
+  // a path, which is what strokes, what a shader fills and what every
+  // shape drawn before this distinction was drawn as.
+  const bool mesh = m_vertexColorsVary && m_vertexFillsSolid &&
+                    m_vertexColors.size() == n && m_style.doFill;
+  std::vector<SkPoint> meshPositions;
+  std::vector<SkColor> meshColors;
+  auto closed = [&](std::initializer_list<size_t> ring) {
     bool first = true;
-    for (const SkPoint& p : ring) {
+    for (size_t i : ring) {
       if (first) {
-        path.moveTo(p);
+        path.moveTo(v[i]);
         first = false;
       } else {
-        path.lineTo(p);
+        path.lineTo(v[i]);
       }
     }
     path.close();
+    if (!mesh) return;
+    // The ring fanned from its first corner: one triangle for three
+    // corners, two for four.
+    const std::vector<size_t> corners(ring);
+    for (size_t k = 1; k + 1 < corners.size(); ++k)
+      for (size_t i : {corners[0], corners[k], corners[k + 1]}) {
+        meshPositions.push_back(v[i]);
+        meshColors.push_back(m_vertexColors[i]);
+      }
   };
   switch (m_shapeKind) {
     case POINTS:
@@ -628,26 +690,32 @@ void Pen::emitKind(const std::vector<SkPoint>& v) {
         line(v[i].x(), v[i].y(), v[i + 1].x(), v[i + 1].y());
       return;
     case TRIANGLES:
-      for (size_t i = 0; i + 2 < n; i += 3) closed({v[i], v[i + 1], v[i + 2]});
+      for (size_t i = 0; i + 2 < n; i += 3) closed({i, i + 1, i + 2});
       break;
     case TRIANGLE_STRIP:
-      for (size_t i = 0; i + 2 < n; ++i) closed({v[i], v[i + 1], v[i + 2]});
+      for (size_t i = 0; i + 2 < n; ++i) closed({i, i + 1, i + 2});
       break;
     case TRIANGLE_FAN:
-      for (size_t i = 1; i + 1 < n; ++i) closed({v[0], v[i], v[i + 1]});
+      for (size_t i = 1; i + 1 < n; ++i) closed({0, i, i + 1});
       break;
     case QUADS:
-      for (size_t i = 0; i + 3 < n; i += 4)
-        closed({v[i], v[i + 1], v[i + 2], v[i + 3]});
+      for (size_t i = 0; i + 3 < n; i += 4) closed({i, i + 1, i + 2, i + 3});
       break;
     case QUAD_STRIP:
-      for (size_t i = 0; i + 3 < n; i += 2)
-        closed({v[i], v[i + 1], v[i + 3], v[i + 2]});
+      for (size_t i = 0; i + 3 < n; i += 2) closed({i, i + 1, i + 3, i + 2});
       break;
     default:
       return;
   }
-  paintFilled(path.detach());
+  if (!mesh) {
+    paintFilled(path.detach());
+    return;
+  }
+  paintVertices(meshPositions, meshColors);
+  // The outline still belongs to the shape, so a stroked mesh is
+  // stroked ring by ring exactly as the path form is.
+  if (const SkPaint* stroke = strokePaint())
+    m_canvas->drawPath(path.detach(), *stroke);
 }
 
 void Pen::endShape(Constant mode) {
@@ -656,6 +724,9 @@ void Pen::endShape(Constant mode) {
   if (m_shapeKind != POLYGON) {
     emitKind(m_vertices);
     m_vertices.clear();
+    m_vertexColors.clear();
+    m_vertexColorsVary = false;
+    m_vertexFillsSolid = true;
     return;
   }
   if (!m_hasPoint) return;
@@ -674,19 +745,16 @@ void Pen::image(const sk_sp<SkImage>& img, float x, float y) {
 void Pen::image(const sk_sp<SkImage>& img, float x, float y, float w, float h) {
   if (!m_canvas || !img) return;
   const SkRect box = boxIn(m_style.imageMode, x, y, w, h);
-  m_canvas->drawImageRect(
-      img, box,
-      SkSamplingOptions(SkFilterMode::kLinear, SkMipmapMode::kLinear));
+  m_canvas->drawImageRect(img, box, samplingFor(m_style.antiAlias));
 }
 
 void Pen::image(const sk_sp<SkImage>& img, float dx, float dy, float dw,
                 float dh, float sx, float sy, float sw, float sh) {
   if (!m_canvas || !img) return;
   const SkRect box = boxIn(m_style.imageMode, dx, dy, dw, dh);
-  m_canvas->drawImageRect(
-      img, SkRect::MakeXYWH(sx, sy, sw, sh), box,
-      SkSamplingOptions(SkFilterMode::kLinear, SkMipmapMode::kLinear), nullptr,
-      SkCanvas::kStrict_SrcRectConstraint);
+  m_canvas->drawImageRect(img, SkRect::MakeXYWH(sx, sy, sw, sh), box,
+                          samplingFor(m_style.antiAlias), nullptr,
+                          SkCanvas::kStrict_SrcRectConstraint);
 }
 
 // ---- transform --------------------------------------------------------------

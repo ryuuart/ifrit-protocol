@@ -118,9 +118,28 @@ class Pen {
   void begin(SkCanvas& canvas, const Frame& frame);
   /** Ends it, restoring the canvas to how `begin` found it. */
   void end();
-  /** The canvas a frame is being drawn on; null between frames. */
+  /** THE CANVAS ITSELF, carrying the pen's current transform — every
+   *  `translate`, `rotate`, `scale` and open `push` this frame is
+   *  already on it, so a rect drawn here lands where `pen.rect` would
+   *  put it. Null between frames.
+   *
+   *  It is the DOOR OUT of p5's vocabulary: another library's drawing
+   *  takes an `SkCanvas&` and this is the one to hand it, alongside
+   *  `fillPaint()` and `strokePaint()` for the style the pen stands at
+   *  and `contentScale()` for the device pixels one canvas unit covers.
+   *  Whatever is drawn through it lands in the same place in the same
+   *  order as the pen's own verbs, since there is only one canvas.
+   *
+   *  Leave it as it was found: the pen's transform and clip carry into
+   *  the rest of the frame, so an unbalanced `save` here is an
+   *  unbalanced transform for every verb after it. */
   [[nodiscard]] SkCanvas* canvas() const { return m_canvas; }
   [[nodiscard]] weave::FontContext* fonts() const { return m_fonts; }
+  /** How many device pixels one canvas unit covered when the frame
+   *  began — one on a plate at the declared size, two on a doubled
+   *  screen. What a hairline, a dash period or a bake resolution
+   *  computed outside the pen has to be scaled by. */
+  [[nodiscard]] float contentScale() const { return m_contentScale; }
   /** What this pen keeps between frames for its guests. */
   [[nodiscard]] Retained& retained() { return m_retained; }
   [[nodiscard]] const Retained& retained() const { return m_retained; }
@@ -217,6 +236,10 @@ class Pen {
   void strokeCap(Constant cap);
   void strokeJoin(Constant join);
   void smooth();
+  /** Jagged edges AND jagged pixels: antialiasing off on every shape,
+   *  and `image` sampled nearest-neighbour with no mipmap, so a small
+   *  source blown up is blocks rather than a blur. `smooth()` puts both
+   *  back. */
   void noSmooth();
 
   // ---- modes ---------------------------------------------------------------
@@ -257,6 +280,22 @@ class Pen {
   void curveTightness(float amount);
 
   void beginShape(Constant kind = POLYGON);
+  /** A corner of the shape being built, WEARING THE FILL THAT STANDS
+   *  WHEN IT IS ADDED. Calling `fill` between two `vertex` calls
+   *  therefore colours the shape corner by corner, and the colour is
+   *  interpolated across each triangle of the mesh the kind describes —
+   *  which is how a ramp along a streak, a lit facet or a heat gradient
+   *  is drawn without one shape per band.
+   *
+   *  It costs nothing where nothing changes: a shape whose corners all
+   *  carry one colour is drawn as a path, filled and stroked exactly as
+   *  before. A shape whose corners differ is FILLED AS A TRIANGLE MESH,
+   *  so the fill must be a solid colour — a gradient or an effect
+   *  cannot also be interpolated per corner — while the stroke, if
+   *  there is one, still follows the shape's outline.
+   *
+   *  Only the triangle and quad kinds have a mesh; `POLYGON` is one
+   *  path with one fill, as p5 has it. */
   void vertex(float x, float y);
   void curveVertex(float x, float y);
   void bezierVertex(float x2, float y2, float x3, float y3, float x4, float y4);
@@ -410,6 +449,10 @@ class Pen {
   void resolveStroke();
   [[nodiscard]] material::skia::PaintFrame paintFrame() const;
   void paintFilled(const SkPath& path);
+  /** The mesh a shape whose corners carry different fills is drawn as:
+   *  triangles in threes, each corner its own colour. */
+  void paintVertices(const std::vector<SkPoint>& positions,
+                     const std::vector<SkColor>& colors);
   void paintOval(const SkRect& oval);
   void paintRect(const SkRect& rect);
   void flushCurve();
@@ -444,6 +487,12 @@ class Pen {
   bool m_hasPoint = false;
   bool m_newContour = false;
   std::vector<SkPoint> m_vertices;
+  // The fill each vertex was added under, and whether any two of them
+  // differ — which is the only thing that decides between a path and a
+  // mesh, so a shape drawn under one fill costs no comparison per draw.
+  std::vector<SkColor> m_vertexColors;
+  bool m_vertexColorsVary = false;
+  bool m_vertexFillsSolid = true;
   std::vector<SkPoint> m_curve;
 
   core::noise::Mix64Stream m_random;
