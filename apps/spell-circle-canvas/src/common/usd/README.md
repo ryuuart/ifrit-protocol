@@ -12,7 +12,8 @@ the writer took — so a stage this library authors round-trips whole.
 
 Materials travel as `UsdPreviewSurface` with `UsdUVTexture` inputs — the
 metallic-roughness surface SigilMaterial's kit defines, slot for slot —
-and their images are written as PNG files beside the stage.
+and their images are written as PNG files beside the stage, or inside
+the archive when the stage is a package.
 
 Namespace `sigil::usd`. One feature library per directory, linked by what
 a consumer uses; every public header lives under
@@ -113,6 +114,19 @@ references (bytes read from the stage's neighbours). When the mesh as a
 whole binds nothing, the first subset's material fills the factors.
 Point instancers come back as faceless parts with `size` from scales.
 
+**A package is not a layer.** `.usdc`, `.usda` and `.usd` are layers and
+a layer exports itself onto the path. A `.usdz` is a zip archive OF a
+layer and every file that layer refers to, and exporting a root layer
+onto one is refused — so `save()` on a `.usdz` path writes the crate
+beside where the package will stand, where the images it already wrote
+are and where its relative asset paths therefore resolve, packages it
+with `UsdUtilsCreateNewUsdzPackage`, and then deletes the staged crate
+and the images it took copies of. What is left is the one file the
+format exists to be. Reading is symmetrical: a stage opened from a
+package resolves its images to members of the archive, which no stream
+can open, so the reader pulls texture bytes through the asset resolver
+and falls back to the filesystem for a plain path.
+
 **The runtime is a plugin registry.** USD's file formats are discovered
 on disk when the process first touches USD; a build whose libraries are
 present but whose `plugInfo.json` registry beside them is not will link,
@@ -190,7 +204,10 @@ the stage metrics a consumer reads them by, a mesh's points with one
 bound subset per slot, the same material binding one prim and writing
 one image file, stamps as a point instancer over one prototype, the
 ascii a `.usda` extension asks for, and the prim paths names are
-sanitized into. The read test reads the hand-authored stages committed
+sanitized into. The `.usdz` case stands in the read test, because what
+a package is for is only visible from the far side of it: the archive's
+own magic bytes, nothing of the stage left standing beside it, and the
+model — the material's image included — read back out of the one file. The read test reads the hand-authored stages committed
 under `read/test/assets/` (an ASCII stage with a parent xform, a mixed
 triangle-and-quad mesh with per-vertex `st` and `displayColor`, two
 subsets bound to two materials, a texture file beside it, and a point

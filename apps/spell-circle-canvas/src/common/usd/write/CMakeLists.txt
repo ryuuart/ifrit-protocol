@@ -22,8 +22,8 @@ target_include_directories(SigilUsdWrite PUBLIC ${SIGIL_USD_INCLUDE_DIR})
 target_link_libraries(SigilUsdWrite
   PUBLIC SigilMaterialKit SigilWorldElement SigilWorldLight SigilGeometryMesh
          SigilGeometryMeshPop SigilGeometryMeshCamera unofficial::skia::skia
-  PRIVATE SigilImageEncode SigilLoaderSource usd usdGeom usdShade usdLux sdf
-          tf gf vt)
+  PRIVATE SigilImageEncode SigilLoaderSource usd usdGeom usdShade usdLux
+          usdUtils sdf tf gf vt)
 
 # Links the library it exercises, the runtime probe it skips on, and USD
 # itself to inspect the authored stage.

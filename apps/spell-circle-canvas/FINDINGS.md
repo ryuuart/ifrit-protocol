@@ -298,16 +298,6 @@ Assert once fixed: draw one passage into one box under each of TOP,
 CENTER and BOTTOM and read the first line's baseline back; the three must
 differ by half and by all of the room the passage left over.
 
-## The USD writer promises .usdz and cannot write one
-
-`usd::Writer::save()` on a `.usdz` path fails inside USD with "writing
-package usdz layer is not allowed through this API"; `.usdc` and `.usda`
-round-trip whole. `src/common/usd/README.md` and `write/Writer.h` both
-name `.usdz` as a target. The intent is the package: it is written through
-`UsdUtilsCreateNewUsdzPackage` over a staged `.usdc`, not through
-`SdfLayer::Export`. A test should save a stage as `.usdz` and read its
-model back.
-
 ## A device pop chain reports a barrier state mismatch
 
 `compute_variant --gpu` prints, twice per frame, "The state COPY_DEST of

@@ -4,11 +4,13 @@
  * The Writer: a USD stage built from the values a scene is made of —
  * meshes with their placements and material slots, stamps as point
  * instancers, lights, a camera — and saved as binary crate (`.usdc`, the
- * default), ASCII (`.usda`) or a `.usdz` package.
+ * default), ASCII (`.usda`) or a `.usdz` package, which is an archive of
+ * the crate and everything it refers to.
  *
  * Materials go out as UsdPreviewSurface with UsdUVTexture inputs — the
  * metallic-roughness model, slot for slot — and their images are written
- * as PNG files beside the stage. A stacked material exports the material
+ * as PNG files beside the stage, or inside the archive when the stage is
+ * a package. A stacked material exports the material
  * at the bottom of the stack; stacking is a live composition, not a thing
  * UsdPreviewSurface can hold, and the depth is noted on the prim as
  * custom metadata rather than baked.
@@ -104,7 +106,17 @@ class Writer {
                      const geometry::mesh::camera::Camera& camera,
                      std::string_view parent = "/World");
 
-  /** Write the stage; false (with @p error) when USD refuses. */
+  /** Write the stage in the form the path's extension asks for; false
+   *  (with @p error) when USD refuses.
+   *
+   *  `.usdc`, `.usd` and `.usda` are LAYERS, exported onto the path.
+   *  `.usdz` is a PACKAGE: a zip archive of a layer and every file that
+   *  layer refers to. A root layer cannot be exported onto one, so the
+   *  crate is written beside where the package will stand — where the
+   *  images this writer already wrote are, and where the stage's
+   *  relative asset paths therefore resolve — packaged, and then the
+   *  staged crate and the images it took copies of are deleted. What is
+   *  left is the one file. */
   bool save(std::string* error = nullptr);
 
   struct Impl;

@@ -1,18 +1,24 @@
 /** @file
  * A bound UsdPreviewSurface into a Part's material fields: scalar
  * inputs as factors, UsdUVTexture inputs as texture references whose
- * bytes are read from the files beside the stage.
+ * bytes are read from wherever the image stands — beside the stage, or
+ * inside the package the stage is a member of.
  */
 
 #include <pxr/base/gf/vec3f.h>
 #include <pxr/base/tf/token.h>
 #include <pxr/base/vt/value.h>
+#include <pxr/usd/ar/asset.h>
+#include <pxr/usd/ar/resolvedPath.h>
+#include <pxr/usd/ar/resolver.h>
 #include <pxr/usd/sdf/assetPath.h>
 #include <pxr/usd/usdShade/connectableAPI.h>
 #include <pxr/usd/usdShade/input.h>
 #include <pxr/usd/usdShade/shader.h>
 
+#include <cstring>
 #include <fstream>
+#include <memory>
 #include <optional>
 
 #include "ReadContext.h"
@@ -29,6 +35,23 @@ std::optional<std::vector<std::byte>> readBytes(const std::string& path) {
   std::vector<std::byte> bytes;
   char c;
   while (in.get(c)) bytes.push_back((std::byte)c);
+  return bytes;
+}
+
+/** @p resolved through the asset resolver, which is the only way to
+ *  reach an image INSIDE a package: a stage opened from a `.usdz`
+ *  resolves its images to members of that archive, and a member is not
+ *  something a stream can open. A path the resolver does not know is
+ *  nothing, and the caller falls back to the filesystem. */
+std::optional<std::vector<std::byte>> readResolvedAsset(
+    const std::string& resolved) {
+  const std::shared_ptr<ArAsset> opened =
+      ArGetResolver().OpenAsset(ArResolvedPath(resolved));
+  if (!opened) return std::nullopt;
+  const std::shared_ptr<const char> buffer = opened->GetBuffer();
+  if (!buffer) return std::nullopt;
+  std::vector<std::byte> bytes(opened->GetSize());
+  if (!bytes.empty()) std::memcpy(bytes.data(), buffer.get(), bytes.size());
   return bytes;
 }
 
@@ -64,6 +87,10 @@ void readMaterial(const UsdShadeMaterial& material,
                                      : asset.GetResolvedPath();
     if (resolved.empty()) return;
     uriOut = asset.GetAssetPath();
+    if (auto bytes = readResolvedAsset(resolved)) {
+      bytesOut = std::move(*bytes);
+      return;
+    }
     std::filesystem::path p(resolved);
     if (p.is_relative()) p = stageDir / p;
     if (auto bytes = readBytes(p.string())) bytesOut = std::move(*bytes);

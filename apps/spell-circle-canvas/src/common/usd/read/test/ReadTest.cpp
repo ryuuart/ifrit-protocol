@@ -16,6 +16,7 @@
 
 #include <cmath>
 #include <filesystem>
+#include <fstream>
 #include <glm/geometric.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <optional>
@@ -264,6 +265,53 @@ TEST(UsdRead, RoundTripsWhatTheWriterAuthors) {
   EXPECT_FLOAT_EQ(part.roughness, 0.3f);
   EXPECT_FLOAT_EQ(part.metallic, 0.75f);
   EXPECT_FLOAT_EQ(part.baseColor.r, 1.0f);
+}
+
+TEST(UsdRead, APackageIsOneFileAndTheModelComesBackOutOfIt) {
+  SKIP_WITHOUT_USD();
+  const std::filesystem::path file = scratch("packed.usdz");
+  const std::filesystem::path textures = file.parent_path() / "packed_textures";
+  std::error_code ec;
+  std::filesystem::remove_all(textures, ec);
+  std::filesystem::remove(file, ec);
+  const Torus torus = twoSlotTorus();
+  {
+    usd::Writer writer(file);
+    // The textured material alone, so what comes back names the image
+    // and the package is the only place the bytes can have come from.
+    writer.mesh("ring", torus.mesh, glm::mat4(1.0f), torus.textured);
+    std::string error;
+    ASSERT_TRUE(writer.save(&error)) << error;
+  }
+  // A zip, not a layer: the archive's own magic. A `.usdz` reaching
+  // SdfLayer::Export instead would land a crate under this name.
+  {
+    std::ifstream in(file, std::ios::binary);
+    char magic[4] = {};
+    in.read(magic, 4);
+    EXPECT_EQ(std::string(magic, 4), std::string("PK\x03\x04", 4));
+  }
+  // ONE FILE. The texture the material wears is inside the package, so
+  // nothing of the stage is left standing beside it.
+  EXPECT_FALSE(std::filesystem::exists(textures));
+  EXPECT_FALSE(std::filesystem::exists(file.parent_path() / "packed.usdc"));
+
+  usd::ReadInfo info;
+  std::string error;
+  const std::optional<geometry::mesh::codec::decode::Model> back =
+      usd::readModel(file, &info, &error);
+  ASSERT_TRUE(back) << error;
+  ASSERT_EQ(back->parts.size(), 1u);
+  const geometry::mesh::codec::decode::Part& part = back->parts.front();
+  EXPECT_EQ(part.mesh.triangleCount(), torus.mesh.triangleCount());
+  EXPECT_EQ(info.materialNames.size(), 1u);
+  // The image the material wears, read out of the package: the file it
+  // was written from is gone, so these bytes came from inside.
+  EXPECT_FALSE(part.textureUri.empty());
+  ASSERT_GE(part.textureBytes.size(), 8u);
+  EXPECT_EQ((unsigned char)part.textureBytes[1], 'P');
+  EXPECT_EQ((unsigned char)part.textureBytes[2], 'N');
+  EXPECT_EQ((unsigned char)part.textureBytes[3], 'G');
 }
 
 TEST(UsdRead, ASunComesBackAimedWhereItWasPointedAndStandingNowhere) {

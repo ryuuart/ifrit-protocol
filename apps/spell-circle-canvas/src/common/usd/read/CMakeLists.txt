@@ -20,7 +20,7 @@ target_include_directories(SigilUsdRead PUBLIC ${SIGIL_USD_INCLUDE_DIR})
 target_link_libraries(SigilUsdRead
   PUBLIC SigilGeometryMeshCodec SigilGeometryMesh SigilGeometryMeshCamera
          SigilWorldElement SigilWorldLight
-  PRIVATE usd usdGeom usdShade usdLux sdf tf gf vt)
+  PRIVATE usd usdGeom usdShade usdLux ar sdf tf gf vt)
 
 # Links the library it exercises, the runtime probe it skips on, and the
 # writer whose stages it round-trips; the committed fixtures under

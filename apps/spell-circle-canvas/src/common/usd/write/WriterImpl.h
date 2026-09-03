@@ -66,6 +66,11 @@ struct Writer::Impl {
    *  displayColor, prim lanes as uniform primvars). */
   void fillMesh(pxr::UsdGeomMesh& usdMesh, const geometry::mesh::Mesh& mesh);
 
+  /** Delete the image files this writer wrote beside the stage, and the
+   *  directory they stand in if nothing else is in it — what a package
+   *  does once it has taken copies of them inside itself. */
+  void removeWrittenImages();
+
   /** Bind @p slots: one material over the whole mesh, or GeomSubsets by
    *  the "Material" lane. */
   void bind(pxr::UsdGeomMesh& usdMesh, const geometry::mesh::Mesh& mesh,
