@@ -123,9 +123,17 @@
 //                        HAMMERING, not by a radius
 //   shapers::Jitter      the beaten iron edge: low frequency, high deviation
 //   shapes::chamfered / circle / star / parametric
-//   Material::linear + patterns::grain + speckle   the iron, under
+//   Paint::linear + field::grain + speckle   the iron, under
 //                        Cache::Texture
-//   feed::TextRing       four panels of checks, printed as they run
+//   path::resample       the classifier's own measure: 33 stations spaced
+//                        evenly by ARC LENGTH along a median, which is what
+//                        hanzi-writer and animCJK do before animating
+//   path::smoothThrough  every centreline: a smooth path the median's
+//                        sparse points STEER — three to fourteen points for
+//                        a whole stroke, so the smoothing is not decoration
+//                        but what makes the centreline a centreline
+//   kit::console         the four check panels on one plate
+//   feed::TextRing       their rows, printed as they run
 //
 // Run:
 //   ./build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
@@ -153,14 +161,22 @@
 #include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/brush/Lines.h>
 #include <sigilcompose/brush/Rails.h>
+#include <sigilcompose/core/Core.h>
 #include <sigilcompose/core/Feed.h>
-#include <sigilcompose/core/Material.h>
-#include <sigilcompose/core/Patterns.h>
+#include <sigilcompose/core/Pattern.h>
 #include <sigilcompose/kit/Plate.h>
 #include <sigilcompose/kit/Strokes.h>
-#include <sigilcompose/kit/Silhouettes.h>
-#include <sigilcompose/typography/Type.h>
+#include <sigilgeometry/kit/Shapers.h>
+#include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilgeometry/path/Polyline.h>
+#include <sigilmaterial/field/Field.h>
+#include <sigilmaterial/pattern/Patterns.h>
+#include <sigilmaterial/skia/Color.h>
+#include <sigilmaterial/skia/Paint.h>
+#include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilweave/ports/SystemFontManager.h>
+#include <sigilweave/style/Type.h>
 #include <sigilweave/fonts/FontContext.h>
 
 #include <algorithm>
@@ -171,8 +187,18 @@
 #include <vector>
 
 namespace sketch = sigil::sketch;
+namespace field = sigil::material::field;
+namespace patterns = sigil::material::pattern;
+namespace path = sigil::geometry::path;
+namespace shapers = sigil::geometry::shapers;
+namespace shapes = sigil::geometry::shapes;
+namespace skia = sigil::material::skia;
+namespace weave = sigil::weave;
 
 using namespace sigil::compose;
+using namespace sigil::motion;
+using sigil::material::skia::Paint;
+using sigil::weave::ports::pickTypeface;
 namespace geometry = sigil::geometry;
 using namespace std::chrono_literals;
 namespace ch = choreograph;
@@ -415,31 +441,20 @@ std::vector<Poly> medians(int glyph) {
   return out;
 }
 
-/** Resample a polyline to n stations by arc length — the classifier's own
- *  measure, and hanzi-writer/animCJK do exactly this before animating. */
+/** N stations spaced evenly by ARC LENGTH along a median — the
+ *  classifier's own measure, and what hanzi-writer and animCJK do before
+ *  animating. `path::resample` is that walk; what is here is only the
+ *  conversion between this file's SkPoint medians and the library's
+ *  glm points. */
 Poly resample(const Poly& p, int n) {
-  Poly out;
   if (p.size() < 2) return p;
-  std::vector<float> seg(p.size() - 1);
-  float total = 0;
-  for (size_t i = 0; i + 1 < p.size(); ++i) {
-    seg[i] = std::hypot(p[i + 1].fX - p[i].fX, p[i + 1].fY - p[i].fY);
-    total += seg[i];
-  }
-  if (total < 1e-6f) return Poly((size_t)n, p.front());
-  for (int k = 0; k < n; ++k) {
-    const float d = total * (float)k / (float)(n - 1);
-    float acc = 0;
-    for (size_t i = 0; i < seg.size(); ++i) {
-      if (acc + seg[i] >= d || i + 1 == seg.size()) {
-        const float t = seg[i] > 0 ? (d - acc) / seg[i] : 0;
-        out.push_back({p[i].fX + (p[i + 1].fX - p[i].fX) * t,
-                       p[i].fY + (p[i + 1].fY - p[i].fY) * t});
-        break;
-      }
-      acc += seg[i];
-    }
-  }
+  path::Polyline line;
+  line.points.reserve(p.size());
+  for (const SkPoint& q : p) line.points.push_back({q.fX, q.fY});
+  const path::Sampled r = path::resample(line, n);
+  Poly out;
+  out.reserve(r.points.size());
+  for (const glm::vec2& q : r.points) out.push_back({q.x, q.y});
   return out;
 }
 
@@ -586,18 +601,10 @@ struct LawBand {
  *  the smoothing is not decoration, it is what makes the centreline a
  *  centreline rather than a chain of chords. */
 SkPath smoothPath(const Poly& p) {
-  SkPathBuilder b;
-  if (p.size() < 2) return b.detach();
-  b.moveTo(p[0]);
-  if (p.size() == 2) {
-    b.lineTo(p[1]);
-    return b.detach();
-  }
-  for (size_t i = 1; i + 1 < p.size(); ++i)
-    b.quadTo(p[i],
-             {(p[i].fX + p[i + 1].fX) * 0.5f, (p[i].fY + p[i + 1].fY) * 0.5f});
-  b.lineTo(p.back());
-  return b.detach();
+  std::vector<glm::vec2> pts;
+  pts.reserve(p.size());
+  for (const SkPoint& q : p) pts.push_back({q.fX, q.fY});
+  return path::smoothThrough(pts);
 }
 
 float pathLength(const SkPath& p) {
@@ -675,9 +682,9 @@ constexpr float tSeal = 21.45f;
 constexpr float tStars = 13.10f;
 constexpr float kLoop = 27.0f;
 
-sigil::weave::TextStyle type(sk_sp<SkTypeface> face, float size, SkColor4f c,
+weave::TextStyle type(sk_sp<SkTypeface> face, float size, SkColor4f c,
                              float tracking = 0) {
-  return sigil::compose::type(
+  return weave::textStyle(
       {.face = std::move(face), .size = size, .color = c, .track = tracking});
 }
 
@@ -709,7 +716,7 @@ struct ThunderFulu : sketch::Sketch {
 
   feed::TextRing logA{64}, logB{64}, logC{64}, logD{64};
 
-  Material ironGrain;
+  Paint ironGrain;
   Pattern ironSpeck;
   Element footPrint;  // brush::Scatter art, held for pointer stability
   Element hammerTile, hammerCorner;
@@ -772,17 +779,17 @@ struct ThunderFulu : sketch::Sketch {
       hair.cap = SkPaint::kButt_Cap;
       hair.dashIntervals = {7.0f, 3.0f};
       hair.dashPhase = 2.0f;
-      brush.layer(hair, {kit::brush::shapers::Offset{-2.6f, 3.0f}});
+      brush.layer(hair, {shapers::Offset{-2.6f, 3.0f}});
       PathFormat hair2 = hair;
       hair2.width = 1.8f;
       hair2.dashIntervals = {5.0f, 4.2f};
       hair2.dashPhase = 5.5f;
-      brush.layer(hair2, {kit::brush::shapers::Offset{2.8f, 3.0f}});
+      brush.layer(hair2, {shapers::Offset{2.8f, 3.0f}});
       PathFormat hair3 = hair;
       hair3.width = 1.2f;
       hair3.dashIntervals = {4.0f, 6.0f};
       hair3.dashPhase = 9.0f;
-      brush.layer(hair3, {kit::brush::shapers::Offset{0.2f, 3.0f}});
+      brush.layer(hair3, {shapers::Offset{0.2f, 3.0f}});
     }
 
     const SkRect f = s.frame;
@@ -880,7 +887,7 @@ struct ThunderFulu : sketch::Sketch {
                 .width(Dim(kPW + 46))
                 .height(Dim(kPH + 44))
                 .shape(shapes::chamfered(26.0f))
-                .fill(Material::radialUnit({0.5f, 0.5f}, 0.78f,
+                .fill(Paint::radialUnit({0.5f, 0.5f}, 0.78f,
                                            {{0.0f, hex(0x000000, 0.66f)},
                                             {0.72f, hex(0x000000, 0.40f)},
                                             {1.0f, hex(0x000000, 0.0f)}}))
@@ -891,13 +898,13 @@ struct ThunderFulu : sketch::Sketch {
     g.child(box()
                 .inset(0)
                 .shape([](SkSize s) {
-                  return kit::brush::shapers::Jitter{46.0f, 2.6f, 1356}.shape(
+                  return shapers::Jitter{46.0f, 2.6f, 1356}.shape(
                       shapes::chamfered(17.0f)(s));
                 })
                 // linearUnit, not linear: linear() is in NODE PIXELS, so
                 // a {0.1,0} -> {0.9,1} ramp is one pixel wide at the corner
                 // and clamps the whole plate to its last stop.
-                .fill(Material::linearUnit({0.10f, -0.06f}, {0.96f, 1.0f},
+                .fill(Paint::linearUnit({0.10f, -0.06f}, {0.96f, 1.0f},
                                            {{0.0f, hex(0x736a5b)},
                                             {0.18f, hex(0x4f4840)},
                                             {0.46f, kIronMid},
@@ -933,7 +940,7 @@ struct ThunderFulu : sketch::Sketch {
         box()
             .inset(0)
             .shape([](SkSize s) {
-              return kit::brush::shapers::Jitter{38.0f, 3.1f, 46}.shape(
+              return shapers::Jitter{38.0f, 3.1f, 46}.shape(
                   shapes::chamfered(17.0f)(s));
             })
             .fill(Fill::none())
@@ -1490,10 +1497,10 @@ struct ThunderFulu : sketch::Sketch {
       mp.child(box()
                    .inset(0)
                    .shape([](SkSize s) {
-                     return kit::brush::shapers::Jitter{14.0f, 1.4f, 7}.shape(
+                     return shapers::Jitter{14.0f, 1.4f, 7}.shape(
                          shapes::chamfered(5.0f)(s));
                    })
-                   .fill(Material::linearUnit({0.18f, 0.0f}, {0.88f, 1.0f},
+                   .fill(Paint::linearUnit({0.18f, 0.0f}, {0.88f, 1.0f},
                                               {{0.0f, hex(0x4a443b)},
                                                {0.55f, hex(0x272522)},
                                                {1.0f, hex(0x161514)}}))
@@ -1627,16 +1634,16 @@ struct ThunderFulu : sketch::Sketch {
 
   Element consolePanel() {
     const feed::TextOptions style = logStyle();
-    return kit::plate(
-               {.columns = {feed::feed(logA, style), feed::feed(logB, style),
-                            feed::feed(logC, style)},
-                .column = true,
-                .paddingX = 11,
-                .paddingY = 8,
-                .gap = 7,
-                .fill = Fill::color(hex(0x131215, 0.88f)),
-                .border = Fill::color(hex(0xb2914f, 0.20f)),
-                .divider = Fill::color(hex(0xb2914f, 0.14f))})
+    return kit::console(
+               {.feeds = {&logA, &logB, &logC},
+                .style = style,
+                .plate = {.column = true,
+                          .paddingX = 11,
+                          .paddingY = 8,
+                          .gap = 7,
+                          .fill = Fill::color(hex(0x131215, 0.88f)),
+                          .border = Fill::color(hex(0xb2914f, 0.20f)),
+                          .divider = Fill::color(hex(0xb2914f, 0.14f))}})
         .rect(SkRect::MakeXYWH(1228, 768, 638, 420))
         .key("console");
   }
@@ -2210,16 +2217,17 @@ struct ThunderFulu : sketch::Sketch {
     // library's own walk: the first installed family wins, and a machine
     // with none of them gets the default face AT THE WEIGHT ASKED FOR
     // rather than silently at Normal.
-    faceSerif = pickFace({"Hoefler Text", "Baskerville"});
+    faceSerif = pickTypeface({"Hoefler Text", "Baskerville"});
     faceItalic =
-        pickFace({"Hoefler Text", "Baskerville"}, SkFontStyle::Italic());
-    faceMono = pickFace({"Menlo", "Courier New"});
+        pickTypeface({"Hoefler Text", "Baskerville"}, SkFontStyle::Italic());
+    faceMono = pickTypeface({"Menlo", "Courier New"});
     faceDisplay =
-        pickFace({"Optima", "Baskerville"}, SkFontStyle::kBold_Weight);
+        pickTypeface({"Optima", "Baskerville"}, SkFontStyle::kBold_Weight);
 
-    ironGrain = patterns::grain(2.2f, 4, 1356.0f, 0.55f, 2.6f);
+    ironGrain = Paint::recipe(field::grain(2.2f, 4, 1356.0f, 0.55f, 2.6f));
     ironSpeck = patterns::speckle(420, 26, 0.7f, 2.6f,
-                                  {hex(0x7c7263, 0.10f), hex(0x000000, 0.16f)});
+                                  {skia::toColor(hex(0x7c7263, 0.10f)),
+                                   skia::toColor(hex(0x000000, 0.16f))});
     ironSpeck.seed(1220);
 
     // brush::Scatter / brush::Pattern art: held as MEMBERS. Built inside a
