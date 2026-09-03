@@ -35,9 +35,13 @@
  *
  * THE TEXTURE SET IS GENERATED HERE, not read off the disk. A plate is a
  * function of the declaration, and what a machine happens to have under
- * `build/assets` is not; the floor's set is built through the same
- * `textures::` door a scanned folder arrives by, so what is exercised is
- * the vocabulary rather than the filesystem.
+ * `build/assets` is not; the floor's two maps are baked off the pattern
+ * shelf's checker and handed through the same `textures::` door a
+ * scanned folder arrives by, so what is exercised is the vocabulary
+ * rather than the filesystem. The maps the shelf has no tile for — a
+ * tangent normal, a packed occlusion-roughness-metallic, a mask and an
+ * emissive lattice — are written texel by texel below, each a function
+ * of where the texel is and of nothing a machine decides.
  */
 
 #include <include/core/SkBitmap.h>
@@ -47,6 +51,8 @@
 #include <sigilmaterial/core/Combine.h>
 #include <sigilmaterial/kit/Mask.h>
 #include <sigilmaterial/kit/Surface.h>
+#include <sigilmaterial/pattern/Patterns.h>
+#include <sigilmaterial/pattern/Tile.h>
 #include <sigilmaterial/texture/TextureSet.h>
 #include <sigilsketch/set/Set.h>
 #include <sigilworld/kit/Kit.h>
@@ -63,12 +69,9 @@
 namespace sketch = sigil::sketch;
 namespace world = sigil::world;
 namespace material = sigil::material;
-
-using namespace sigil::world;
+namespace gm = sigil::geometry::mesh;
 
 namespace {
-
-namespace gm = ::sigil::geometry::mesh;
 
 constexpr int kMapSide = 128;
 constexpr float kCardWidth = 96.0f;
@@ -106,19 +109,12 @@ sk_sp<SkImage> generated(const F& texel) {
   return bitmap.asImage();
 }
 
-/** A woven check: two frequencies crossing, so the map has an
- *  orientation and a scale a floor can be read by. @p warm and @p cool
- *  are what its two cells are. */
-sk_sp<SkImage> band(SkColor4f warm, SkColor4f cool, int period) {
-  return generated([&](int x, int y) {
-    const bool warmCell = ((x / period) + (y / period)) % 2 == 0;
-    const float edge =
-        (float)((x % period) + (y % period)) / (float)(2 * period);
-    const SkColor4f base = warmCell ? warm : cool;
-    return SkColor4f{base.fR * (0.86f + 0.14f * edge),
-                     base.fG * (0.86f + 0.14f * edge),
-                     base.fB * (0.86f + 0.14f * edge), 1.0f};
-  });
+/** A CHECK the floor is read by, baked off the pattern shelf's own tile
+ *  rather than written texel by texel: a scale and an orientation are
+ *  all a floor needs from a map, and the tile is the shortest true
+ *  statement of both. */
+sk_sp<SkImage> check(material::Color a, material::Color b, float cell) {
+  return material::pattern::checker(cell, a, b).image();
 }
 
 /** A TANGENT NORMAL MAP: a grid of domes, each rising out of the flat
@@ -197,15 +193,16 @@ sk_sp<SkImage> filaments(int period) {
 material::textures::TextureMaps floorMaps() {
   std::map<std::string, sk_sp<SkImage>> byUsage;
   byUsage["baseColor"] =
-      band({0.30f, 0.33f, 0.38f, 1}, {0.17f, 0.19f, 0.23f, 1}, 16);
+      check({0.30f, 0.33f, 0.38f, 1}, {0.17f, 0.19f, 0.23f, 1}, 16.0f);
   byUsage["roughness"] =
-      band({0.7f, 0.7f, 0.7f, 1}, {0.35f, 0.35f, 0.35f, 1}, 32);
+      check({0.7f, 0.7f, 0.7f, 1}, {0.35f, 0.35f, 0.35f, 1}, 32.0f);
   return material::textures::fromUsageMap(byUsage, /*normalDirectX=*/false);
 }
 
 /** A card standing upright at @p x, wearing @p surface. */
-Element card(std::string_view key, float x, material::Material surface) {
-  return Element()
+world::Element card(std::string_view key, float x,
+                    material::Material surface) {
+  return world::Element()
       .key(key)
       .at({x, 0.0f, 0.0f})
       .rotateX(-kCardLean)
@@ -288,9 +285,9 @@ material::Material emitting() {
 }
 
 /** The five surfaces, left to right. */
-Element cards() {
+world::Element cards() {
   const float left = -2.0f * kCardGap;
-  return Element()
+  return world::Element()
       .key("cards")
       .at({0.0f, 40.0f, 0.0f})
       // The row runs across the turntable's parked station rather than
@@ -313,7 +310,7 @@ struct MaterialLab final : sketch::Set {
    *  about and the floor's two maps are generated pixel by pixel — so
    *  building them per frame would generate the same images sixty times
    *  a second to describe a picture that never changed. */
-  Element row;
+  world::Element row;
   std::optional<material::Material> floorSurface;
 
   void setup(sketch::SetContext& ctx) override {
@@ -329,14 +326,17 @@ struct MaterialLab final : sketch::Set {
             material::kit::map(floor, material::kit::kBaseColorSlot)) {
       material::Texture tiled = *map;
       tiled.tile(SkTileMode::kRepeat)
-          .uv(SkMatrix::Scale(1.0f / 5.0f, 1.0f / 5.0f));
+          // The baked tile is two cells across, so the repeat is set
+          // against ITS size rather than against a map's: this many
+          // tiles cover the floor.
+          .uv(SkMatrix::Scale(1.0f / 20.0f, 1.0f / 20.0f));
       floor.child(material::kit::kBaseColorSlot, std::move(tiled));
     }
     floorSurface = std::move(floor);
   }
 
   world::Frame describe(float seconds) override {
-    kit::Set set;
+    world::kit::Set set;
     set.rig.extent = 140.0f;
     // The key stands just off the eye's own bearing and above it, so
     // every card is lit face on and the highlight lands where a reader
@@ -358,7 +358,7 @@ struct MaterialLab final : sketch::Set {
     // at two bearings.
     set.table.period = 0.0f;
     set.table.fovYDeg = 46.0f;
-    return Frame(kit::litSet(row, set, seconds));
+    return world::Frame(world::kit::litSet(row, set, seconds));
   }
 };
 
