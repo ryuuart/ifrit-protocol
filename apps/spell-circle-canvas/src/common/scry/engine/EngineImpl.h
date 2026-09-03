@@ -49,6 +49,10 @@ class WebEngine::Impl {
   /** Web thread only. */
   ultralight::Renderer& ulRenderer() { return *m_renderer; }
   void registerView(std::weak_ptr<WebView::Impl> view);
+  /** Drops @p view from the publish list. A page that has been torn down
+   *  is nothing to publish, and its impl outlives the teardown for as
+   *  long as anything still holds it. */
+  void forgetView(const WebView::Impl* view);
   bool renderOnce();
   void pump() { m_renderer->Update(); }
 

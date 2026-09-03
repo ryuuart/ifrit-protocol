@@ -226,3 +226,106 @@ TEST(WebViewTest, CallsBackWithEachFrameItPublishes) {
     return callbackVersion > 0;
   })) << "the wait expired: no frame was ever handed to the callback";
 }
+
+// ── A page that is gone is not a page the engine publishes ────────────
+//
+// A view's teardown crosses to the web thread, and so does the pass that
+// publishes repaints. Everything the teardown leaves behind — a registry
+// entry naming a page that no longer exists, an iterator into a registry
+// a callback has just moved — is dereferenced by that pass, on a machine
+// fast enough to interleave them.
+
+// Pages up and down while the engine renders.
+TEST(WebViewTest, PagesComeAndGoUnderTheRenderLoop) {
+  for (int round = 0; round < 12; ++round) {
+    auto view = sharedEngine().createView(64, 64, {.transparent = false});
+    ASSERT_NE(view, nullptr) << "round " << round;
+    view->loadHTML(
+        "<html><body style='background:#0000ff;margin:0'></body></html>");
+    EXPECT_TRUE(waitForFrame(*view, 0)) << "round " << round;
+  }
+}
+
+namespace {
+
+/** What a frame callback running on the web thread writes and the test
+ *  thread waits on. Held by shared_ptr so the callback outliving the
+ *  case cannot reach a local that is gone. */
+struct CallbackState {
+  std::mutex mutex;
+  std::condition_variable changed;
+  std::shared_ptr<WebView> held;
+  std::shared_ptr<WebView> opened;
+  bool acted = false;
+};
+
+/** Waits for the callback to have acted, or says the wait expired. */
+::testing::AssertionResult waitForCallback(CallbackState& state) {
+  std::unique_lock<std::mutex> lock(state.mutex);
+  if (state.changed.wait_for(lock, kPageWait, [&state] { return state.acted; }))
+    return ::testing::AssertionSuccess();
+  return ::testing::AssertionFailure()
+         << "the wait expired: no frame ever reached the callback";
+}
+
+}  // namespace
+
+// A WebView released inside a frame callback is torn down inline, on the
+// web thread, in the middle of the pass that is publishing — so the page
+// the pass is standing on is one that has just stopped existing.
+TEST(WebViewTest, APageReleasedFromAFrameCallbackStopsPublishing) {
+  auto state = std::make_shared<CallbackState>();
+  state->held = sharedEngine().createView(48, 48, {.transparent = false});
+  ASSERT_NE(state->held, nullptr);
+  auto driver = sharedEngine().createView(48, 48, {.transparent = false});
+  ASSERT_NE(driver, nullptr);
+
+  driver->setFrameCallback([state](const WebView::Frame&) {
+    std::lock_guard<std::mutex> lock(state->mutex);
+    if (!state->held) return;
+    state->held.reset();  // the other page's teardown runs right here
+    state->acted = true;
+    state->changed.notify_all();
+  });
+
+  state->held->loadHTML("<html><body style='background:#ff0000'></body></html>");
+  driver->loadHTML("<html><body style='background:#0000ff'></body></html>");
+  ASSERT_TRUE(waitForCallback(*state));
+
+  // The engine is still publishing afterwards, which is the whole claim:
+  // dropping one page mid-pass does not take the pass with it.
+  const uint64_t before = driver->frameVersion();
+  driver->setFrameCallback({});
+  driver->loadHTML("<html><body style='background:#00ff00'></body></html>");
+  EXPECT_TRUE(waitForFrame(*driver, before));
+}
+
+// The same seam from the other side: a page OPENED inside a frame
+// callback joins the registry while the pass is walking it.
+TEST(WebViewTest, APageOpenedFromAFrameCallbackJoinsTheEngine) {
+  auto state = std::make_shared<CallbackState>();
+  auto driver = sharedEngine().createView(48, 48, {.transparent = false});
+  ASSERT_NE(driver, nullptr);
+
+  std::shared_ptr<WebEngine> engine = sharedEngine().shared_from_this();
+  driver->setFrameCallback([state, engine](const WebView::Frame&) {
+    std::lock_guard<std::mutex> lock(state->mutex);
+    if (state->acted) return;
+    state->acted = true;
+    state->opened = engine->createView(32, 32, {.transparent = false});
+    state->changed.notify_all();
+  });
+
+  driver->loadHTML("<html><body style='background:#0000ff'></body></html>");
+  ASSERT_TRUE(waitForCallback(*state));
+  driver->setFrameCallback({});
+
+  std::shared_ptr<WebView> opened;
+  {
+    std::lock_guard<std::mutex> lock(state->mutex);
+    opened = state->opened;
+  }
+  ASSERT_NE(opened, nullptr);
+  opened->loadHTML("<html><body style='background:#00ff00'></body></html>");
+  EXPECT_TRUE(waitForFrame(*opened, 0));
+}

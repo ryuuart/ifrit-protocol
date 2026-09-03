@@ -19,6 +19,11 @@
 namespace sigil::scry {
 
 bool WebView::Impl::publishIfDirty() {
+  // A page with no view has nothing to publish. The render pass holds
+  // every page it is about to publish for the length of the pass, and a
+  // frame callback runs consumer code on this thread — a WebView
+  // released inside one tears its page down before the pass reaches it.
+  if (!view) return false;
   auto* surface = static_cast<SkiaSurface*>(view->surface());
   if (!surface || surface->dirty_bounds().IsEmpty()) return false;
 
@@ -61,18 +66,23 @@ bool WebView::Impl::publishIfDirty() {
   uint64_t newVersion = ++version;
   surface->ClearDirtyBounds();
 
-  if (frameCallback)
-    frameCallback({std::move(image),
-                   {},
-                   src.width(),
-                   src.height(),
-                   dirtyBounds,
-                   newVersion});
+  // Called through a copy: the consumer's callback may release the last
+  // handle to this page, and a WebView released on this thread tears its
+  // page down inline — which clears the very function being run.
+  if (const std::function<void(const WebView::Frame&)> notify = frameCallback)
+    notify({std::move(image),
+            {},
+            src.width(),
+            src.height(),
+            dirtyBounds,
+            newVersion});
   return true;
 }
 
 bool WebView::Impl::publishGpuIfDirty(
     GpuDriver& driver, const std::unordered_set<uint32_t>& dirtyRenderBuffers) {
+  // A page with no view has nothing to publish; see publishIfDirty().
+  if (!view) return false;
   ultralight::RenderTarget target = view->render_target();
   // RenderTarget is a packed struct, so its render buffer id sits at a
   // 1-byte-aligned offset; the set's lookup takes its key by reference, and
@@ -102,9 +112,10 @@ bool WebView::Impl::publishGpuIfDirty(
   }
   uint64_t newVersion = ++version;
 
-  if (frameCallback)
-    frameCallback({nullptr, publishedGpuTexture, frameWidth, frameHeight,
-                   dirtyBounds, newVersion});
+  // Through a copy; see publishIfDirty().
+  if (const std::function<void(const WebView::Frame&)> notify = frameCallback)
+    notify({nullptr, publishedGpuTexture, frameWidth, frameHeight, dirtyBounds,
+            newVersion});
   return true;
 }
 
@@ -126,7 +137,9 @@ void WebView::Impl::releaseGpuTextures() {
 void WebView::Impl::OnFinishLoading(ultralight::View*, uint64_t,
                                     bool isMainFrame,
                                     const ultralight::String&) {
-  if (isMainFrame && loadCallback) loadCallback();
+  // Through a copy; see publishIfDirty().
+  if (!isMainFrame) return;
+  if (const std::function<void()> notify = loadCallback) notify();
 }
 
 void WebView::Impl::OnAddConsoleMessage(

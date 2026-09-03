@@ -311,13 +311,3 @@ loads. The host evidently intends a failed load to be one session's failure,
 with the next file opening as if the first had never been tried. A test in
 the book's resident-session path should open a sketch that fails in its first
 frame, then open one that does not, and assert the second renders.
-
-## scry_engine_gpu_test faults intermittently
-
-Under `ctest --repeat until-fail:3` the test died with SIGSEGV on one run
-and passed on the next with no change in between. The engine's GPU test
-evidently intends a deterministic bring-up and teardown of Ultralight on a
-device; a fault that comes and goes points at an ordering between the
-engine's threads and the device's release. A test should bring the engine
-up and down under the address and thread sanitizers a dozen times and stay
-silent.

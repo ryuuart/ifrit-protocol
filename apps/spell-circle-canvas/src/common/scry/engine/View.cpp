@@ -39,9 +39,12 @@ WebView::WebView(std::shared_ptr<WebEngine> engine, std::shared_ptr<Impl> impl)
 
 WebView::~WebView() {
   // Tear the ultralight::View down on the web thread; the impl travels
-  // with the task so it outlives any in-flight callbacks. Publish
-  // textures are safe to release here: wrapped SkImages hold their own
-  // retains (see GpuDriver::wrapTexture).
+  // with the task so it outlives any in-flight callbacks. The engine is
+  // told to forget the page in the same breath as it is destroyed: the
+  // impl can outlive this task, and an impl with no page in the publish
+  // list is a page the render pass would dereference. Publish textures
+  // are safe to release here: wrapped SkImages hold their own retains
+  // (see GpuDriver::wrapTexture).
   auto impl = m_impl;
   m_impl->engine->post([impl] {
     if (impl->view) {
@@ -49,6 +52,12 @@ WebView::~WebView() {
       impl->view->set_view_listener(nullptr);
       impl->view = nullptr;
     }
+    impl->engine->forgetView(impl.get());
+    // …and calls nobody back: a consumer's callbacks were written for a
+    // WebView that no longer exists, and the frames still in flight
+    // would reach whatever it captured.
+    impl->frameCallback = nullptr;
+    impl->loadCallback = nullptr;
 #ifdef __APPLE__
     impl->releaseGpuTextures();
 #endif

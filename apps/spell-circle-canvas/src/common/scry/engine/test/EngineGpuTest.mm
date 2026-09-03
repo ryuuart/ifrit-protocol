@@ -242,3 +242,16 @@ TEST(WebViewGpuTest, WrapsOnePublishedTextureOncePerVersion) {
   EXPECT_EQ(bare.height, 32);
   EXPECT_TRUE(static_cast<bool>(bare));
 }
+
+// A page brought up and torn down while the engine renders on the
+// device. A view's teardown crosses to the web thread and the publish
+// pass runs there too, so an engine that publishes through a page it has
+// already torn down faults here rather than once in a few hundred runs.
+TEST(WebViewGpuTest, PagesComeAndGoUnderTheRenderLoop) {
+  for (int round = 0; round < 12; ++round) {
+    auto view = sharedEngine().createView(64, 64, {.transparent = false});
+    ASSERT_NE(view, nullptr) << "round " << round;
+    view->loadHTML("<html><body style='background:#0000ff;margin:0'></body></html>");
+    EXPECT_TRUE(waitForFrame(*view, 0)) << "round " << round;
+  }
+}

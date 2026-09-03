@@ -134,33 +134,43 @@ void WebEngine::Impl::registerView(std::weak_ptr<WebView::Impl> view) {
   m_views.push_back(std::move(view));
 }
 
+void WebEngine::Impl::forgetView(const WebView::Impl* view) {
+  std::erase_if(m_views, [view](const std::weak_ptr<WebView::Impl>& entry) {
+    const std::shared_ptr<WebView::Impl> live = entry.lock();
+    return !live || live.get() == view;
+  });
+}
+
 bool WebEngine::Impl::renderOnce() {
   m_renderer->RefreshDisplay(0);
   m_renderer->Render();
 
-  if (m_gpuDriver) {
-    std::unordered_set<uint32_t> dirty = m_gpuDriver->flush();
-    bool published = false;
-    for (auto it = m_views.begin(); it != m_views.end();) {
-      if (std::shared_ptr<WebView::Impl> view = it->lock()) {
-        published = view->publishGpuIfDirty(*m_gpuDriver, dirty) || published;
-        ++it;
-      } else {
-        it = m_views.erase(it);
-      }
-    }
-    return published;
-  }
-
-  bool published = false;
+  // The pass holds the pages it is about to publish and walks that, not
+  // the registry: publishing calls the consumer's frame callback on this
+  // thread, and a callback that opens a page reaches registerView() while
+  // one that releases a WebView reaches forgetView() — either of which
+  // moves the registry under an iterator standing in it.
+  std::vector<std::shared_ptr<WebView::Impl>> pages;
+  pages.reserve(m_views.size());
   for (auto it = m_views.begin(); it != m_views.end();) {
-    if (std::shared_ptr<WebView::Impl> view = it->lock()) {
-      published = view->publishIfDirty() || published;
+    if (std::shared_ptr<WebView::Impl> page = it->lock()) {
+      pages.push_back(std::move(page));
       ++it;
     } else {
       it = m_views.erase(it);
     }
   }
+
+  bool published = false;
+  if (m_gpuDriver) {
+    const std::unordered_set<uint32_t> dirty = m_gpuDriver->flush();
+    for (const std::shared_ptr<WebView::Impl>& page : pages)
+      published = page->publishGpuIfDirty(*m_gpuDriver, dirty) || published;
+    return published;
+  }
+
+  for (const std::shared_ptr<WebView::Impl>& page : pages)
+    published = page->publishIfDirty() || published;
   return published;
 }
 

@@ -174,6 +174,15 @@ GPU destroys still reach a live driver and WebCore's thread-local font
 cache does not carry GPU glyph textures into thread-local cleanup. The
 driver must outlive the renderer it was given.
 
+**A page that is gone publishes nothing and calls nobody back.**
+Releasing the last `WebView` handle tears the page down on the web
+thread — where the render pass also runs — so the same step forgets the
+page on the engine and drops its frame and load callbacks. A callback
+can be running while that happens, because a `WebView` released inside
+one is torn down inline on that thread; callbacks are therefore invoked
+through a copy and finish normally, and the pass holds the pages it is
+about to publish rather than walking the registry a callback may move.
+
 **Smaller edges.** `loadHTML` forces a `file:///` base URL so relative
 resources and image slots resolve. GPU bring-up failure is not fatal — the
 engine falls back to CPU and logs a warning. A page naming a slot with no
