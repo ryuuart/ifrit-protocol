@@ -59,11 +59,11 @@
 //     show). A column is a LINE unit there, so "each column on its own
 //     clock" is `From::Random` over lines — the seeded scrambled ladder,
 //     spread across the loop period by `amountMs`, each field dealing its
-//     own scatter from its own `Stagger::seed` — with a nested cluster
+//     own scatter from its own `Spread::seed` — with a nested cluster
 //     cascade running the glyphs down inside each column's beat. The
 //     whole schedule is declared; nothing steps per-column state by hand,
 //     and no table has to agree with the laid-out column count.
-//   * THE RAIN NEVER STOPS because the cascade LOOPS: `Stagger::loopMs`
+//   * THE RAIN NEVER STOPS because the cascade LOOPS: `Spread::loopMs`
 //     re-opens every glyph's beat once per period, phase-offset by its
 //     column's scattered start, and the scatter spans the whole period —
 //     so at any instant every age of streak is on screen somewhere and
@@ -110,12 +110,16 @@
 //       src/sketch/sketches/matrix_rain.cpp \
 //       --frame /tmp/matrix_rain.png
 
-#include <sigilcompose/core/Material.h>
 #include <sigilcompose/kit/Instruments.h>
-#include <sigilcompose/typography/TextFx.h>
+#include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigilcore/compute/Noise.h>
+#include <sigilmaterial/skia/Paint.h>
+#include <sigilmotion/schedule/Spread.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Style.h>
+#include <sigilweave/style/Type.h>
 
 #include <algorithm>
 #include <cmath>
@@ -123,6 +127,9 @@
 #include <vector>
 
 namespace sketch = sigil::sketch;
+namespace mskia = sigil::material::skia;
+namespace motion = sigil::motion;
+namespace weave = sigil::weave;
 
 using namespace sigil::compose;
 namespace ch = choreograph;
@@ -252,7 +259,7 @@ Selector westCells() { return sel::regex(u8"[0-9#]"); }
  *  burn alike, the way the screens' tubes never sit at one brightness.
  *  Squaring the draw skews the field dim with sparse hot cells. Stable per
  *  glyph, so the field caches between churn steps. */
-GlyphMod phosphorLift(Rng& rng) {
+GlyphMod phosphorLift(sigil::core::noise::Mix64Stream& rng) {
   GlyphMod m;
   const float lift = rng.unit() * rng.unit();
   m.colorScreen = {0.10f * lift, 0.45f * lift, 0.16f * lift, 0.0f};
@@ -266,7 +273,7 @@ GlyphMod phosphorLift(Rng& rng) {
 TextEffect mirrorLift() {
   return fx::effect(
       "rain-mirror-lift",
-      [](const GlyphInfo&, float, Rng& rng) {
+      [](const GlyphInfo&, float, sigil::core::noise::Mix64Stream& rng) {
         GlyphMod m = phosphorLift(rng);
         m.scaleX = -1.0f;
         return m;
@@ -276,7 +283,9 @@ TextEffect mirrorLift() {
 TextEffect westLift() {
   return fx::effect(
       "rain-west-lift",
-      [](const GlyphInfo&, float, Rng& rng) { return phosphorLift(rng); },
+      [](const GlyphInfo&, float, sigil::core::noise::Mix64Stream& rng) {
+        return phosphorLift(rng);
+      },
       0.0f);
 }
 
@@ -303,7 +312,7 @@ struct MatrixRain : sketch::Sketch {
   [[nodiscard]] sigil::weave::TextStyle kanaStyle(float size, SkColor4f color,
                                                   float glowSigma) const {
     sigil::weave::TextStyle style =
-        type({.face = faceKana, .size = size, .color = color});
+        weave::textStyle({.face = faceKana, .size = size, .color = color});
     style.shaping.verticalForm = sigil::weave::VerticalForm::kUpright;
     if (glowSigma > 0)
       // THE HALATION. A phosphor screen does not draw a glyph, it excites
@@ -368,12 +377,12 @@ struct MatrixRain : sketch::Sketch {
     // anywhere — a column's beat lasts exactly as long as its own glyphs
     // need.
     const float cols = (float)std::max(fieldCols[j], 1);
-    Stagger cascade =
-        stagger(unit::Line, {.amountMs = f.loopMs * (cols - 1.0f) / cols,
-                             .from = Stagger::From::Random});
+    // The spread is SigilMotion's and says nothing about text: what a
+    // unit IS — a COLUMN outside, a cluster inside — is the track's, below.
+    sigil::motion::Spread cascade{.amountMs = f.loopMs * (cols - 1.0f) / cols,
+                                  .from = sigil::motion::Spread::From::Random};
     cascade.seed = f.seed;
-    cascade.then(unit::Cluster,
-                 {.eachMs = f.eachMs, .durationMs = f.durationMs});
+    cascade.then({.eachMs = f.eachMs, .durationMs = f.durationMs});
     cascade.loopMs = f.loopMs;
     return text(toU8(fieldText[j]), kanaStyle(f.size, kHead, f.glowSigma))
         .key(f.key)
@@ -384,7 +393,11 @@ struct MatrixRain : sketch::Sketch {
         .clip()
         .writingMode(sigil::weave::WritingMode::kVerticalRL)
         .opacity(f.alpha)
-        .fx({.effect = streak(), .stagger = cascade, .progress = &fall[j]})
+        .fx({.effect = streak(),
+             .stagger = cascade,
+             .over = unit::Line,
+             .innerOver = unit::Cluster,
+             .progress = &fall[j]})
         .fx({.where = !westCells(), .effect = mirrorLift()})
         .fx({.where = westCells(), .effect = westLift()})
         .fx({.where = !westCells(),
@@ -429,7 +442,7 @@ struct MatrixRain : sketch::Sketch {
                    .width(kW)
                    .height(kH)
                    .hitTestable(false)
-                   .fill(Material::glowUnit(
+                   .fill(mskia::Paint::glowUnit(
                        {0.5f, 0.44f}, 1.05f,
                        {{0.0f, {0, 0, 0, 0}},
                         {0.60f, {0, 0, 0, 0.04f}},
@@ -448,11 +461,11 @@ struct MatrixRain : sketch::Sketch {
                    .width(kW)
                    .height(52)
                    .hitTestable(false)
-                   .fill(Material::linear(
-                       {0, 0}, {0, 52},
-                       {{0.0f, {kVoid.fR, kVoid.fG, kVoid.fB, 0.0f}},
-                        {0.45f, {kVoid.fR, kVoid.fG, kVoid.fB, 0.72f}},
-                        {1.0f, {kVoid.fR, kVoid.fG, kVoid.fB, 0.92f}}})));
+                   .fill(linearGradient({0, 0}, {0, 52},
+                                        {{kVoid.fR, kVoid.fG, kVoid.fB, 0.0f},
+                                         {kVoid.fR, kVoid.fG, kVoid.fB, 0.72f},
+                                         {kVoid.fR, kVoid.fG, kVoid.fB, 0.92f}},
+                                        {0.0f, 0.45f, 1.0f})));
 
     root.child(
         // NO GLYPH COUNT. The number this caption used to carry was
@@ -465,10 +478,10 @@ struct MatrixRain : sketch::Sketch {
                   "HALF-WIDTH KATAKANA AND DIGITS, "
                   "MIRRORED PER GLYPH, HELD UPRIGHT \xc2\xb7 THE LIGHT FALLS, "
                   "THE TYPE STANDS STILL"),
-             type({.face = faceLabel,
-                   .size = 10.5f,
-                   .color = kLabel,
-                   .track = 2.2f}))
+             weave::textStyle({.face = faceLabel,
+                               .size = 10.5f,
+                               .color = kLabel,
+                               .track = 2.2f}))
             .key("caption")
             .left(26)
             .top(kH - 30));
@@ -489,9 +502,9 @@ struct MatrixRain : sketch::Sketch {
     // heads, long tails, and columns resting dark between drops.
     ctx.captureAt(7.0);
 
-    faceKana =
-        pickFace({"Hiragino Kaku Gothic ProN", "Hiragino Sans", "Osaka"}, 400);
-    faceLabel = pickFace({"Helvetica Neue", "Arial"}, 500);
+    faceKana = weave::ports::pickTypeface(
+        {"Hiragino Kaku Gothic ProN", "Hiragino Sans", "Osaka"}, 400);
+    faceLabel = weave::ports::pickTypeface({"Helvetica Neue", "Arial"}, 500);
 
     const std::u32string kana = rainKana();
     const std::u32string west = rainWest();
