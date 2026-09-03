@@ -22,8 +22,10 @@
 //   kTwistDeg  — panel 3's amount.
 
 #include <include/core/SkCanvas.h>
+#include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/kit/Sprites.h>
-#include <sigilcompose/typography/Typography.h>
+#include <sigilweave/style/Type.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/codec/Decode.h>
 #include <sigilgeometry/mesh/pop/Points.h>
@@ -35,6 +37,7 @@
 #include <vector>
 
 namespace sketch = sigil::sketch;
+namespace weave = sigil::weave;
 
 using namespace sigil::compose;
 namespace geometry = sigil::geometry;
@@ -48,6 +51,8 @@ constexpr float kRingWidth = 34.0f;
 constexpr float kTwistDeg = 70.0f;
 constexpr float kPanel = 360.0f;
 
+const SkColor4f kGround{0.055f, 0.06f, 0.085f, 1};
+const SkColor4f kRule{0.19f, 0.20f, 0.26f, 1};
 const SkColor4f kInk{0.90f, 0.93f, 0.97f, 1};
 const SkColor4f kDim{0.55f, 0.60f, 0.70f, 1};
 const SkColor4f kFrame{0.24f, 0.28f, 0.36f, 1};
@@ -146,19 +151,26 @@ Element splat(geometry::mesh::Cloud cloud) {
       .cache(Cache::None);
 }
 
+weave::TextStyle label(float size, SkColor4f color, float track = 0) {
+  return weave::textStyle({.size = size, .color = color, .track = track});
+}
+
+kit::Caption voice() {
+  return {.where = kit::Caption::Where::Split,
+          .label = label(12.5f, kInk, 0.4f),
+          .note = label(10.5f, kDim, 0.2f),
+          .gap = 5,
+          .noteMeasure = kPanel};
+}
+
 Element panel(const char* title, const char* note, Element inner) {
-  return box()
-      .width(kPanel)
-      .column()
-      .gap(5)
-      .child(text(toU8(title), type({.size = 12.5f, .color = kInk})))
-      .child(box()
-                 .width(kPanel)
-                 .height(kPanel * 0.8f)
-                 .clip()
-                 .stroke(stroke(1.0f, Fill::color(kFrame)))
-                 .child(std::move(inner)))
-      .child(text(toU8(note), type({.size = 10.5f, .color = kDim})));
+  return kit::cell(voice(), toU8(title), toU8(note),
+                   box()
+                       .width(kPanel)
+                       .height(kPanel * 0.8f)
+                       .clip()
+                       .stroke(stroke(1.0f, Fill::color(kFrame)))
+                       .child(std::move(inner)));
 }
 
 // a literal table; only allocation could throw
@@ -173,9 +185,10 @@ struct GeoGroups : sketch::Sketch {
   std::string caption;
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.captureAt(6.0);
-    ctx.canvas(1200, 400);
-    ctx.background({0.055f, 0.06f, 0.085f, 1});
+    ctx.canvas(1200, 440);
+    ctx.background(kGround);
+    // Every cloud is cooked in setup; nothing reads the clock.
+    ctx.captureAt(0.05);
 
     const std::string geo = houdiniGeo();
     const std::optional<geometry::mesh::codec::decode::Model> model =
@@ -183,7 +196,7 @@ struct GeoGroups : sketch::Sketch {
                                              "grid.geo");
     if (!model || model->parts.empty()) {
       caption = "the .geo did not parse";
-      ctx.composer.render(text(toU8(caption), type({.size = 15, .color = kInk}))
+      ctx.composer.render(text(toU8(caption), weave::textStyle({.size = 15, .color = kInk}))
                               .left(30)
                               .top(16));
       return;
@@ -220,34 +233,33 @@ struct GeoGroups : sketch::Sketch {
                   .cloud();
 
     ctx.composer.render(
-        stack()
-            .child(text(toU8("geometry::decode \xc2\xb7 a Houdini .geo's point "
-                             "group is a pop mask the moment it lands "
-                             "\xe2\x80\x94 " +
-                             caption),
-                        type({.size = 15, .color = kInk}))
-                       .left(30)
-                       .top(16))
-            .child(
-                box()
-                    .row()
-                    .left(30)
-                    .top(48)
-                    .gap(20)
-                    .child(panel("pop::on(part.asCloud())",
+        kit::sheet(
+            {.title = toU8("GEO GROUPS \xc2\xb7 a point group is a pop mask "
+                           "the moment it lands"),
+             .subtitle = toU8(caption),
+             .footer = toU8("a point group arrives from the file as a 0/1 "
+                            "lane under its own name, which is what "
+                            "masked() reads"),
+             .titleStyle = label(15, kInk, 2.0f),
+             .subtitleStyle = label(11, kDim, 0.6f),
+             .footerStyle = label(10.5f, kDim, 0.2f),
+             .marginX = 30,
+             .marginTop = 22,
+             .marginBottom = 16,
+             .ground = Fill::color(kGround),
+             .rule = Fill::color(kRule)},
+            kit::cells(
+                {.cells = {panel("pop::on(part.asCloud())",
                                  "Cd from the file; group \"ring\" scaled up",
-                                 splat(saved)))
-                    .child(panel("peak(60).masked(\"outside\")",
+                                 splat(saved)),
+                           panel("peak(60).masked(\"outside\")",
                                  "the inverted group; the ring stays put",
-                                 splat(peaked)))
-                    .child(panel("twist(70).masked(\"ring\")",
-                                 "only the group turns", splat(twisted))))
-            .child(text(toU8("a point group arrives from the file as a 0/1 "
-                             "lane under its own name, which is what "
-                             "masked() reads"),
-                        type({.size = 11, .color = kDim}))
-                       .left(30)
-                       .bottom(14)));
+                                 splat(peaked)),
+                           panel("twist(70).masked(\"ring\")",
+                                 "only the group turns", splat(twisted))},
+                 .gap = 20}))
+            .absolute()
+            .inset(0));
   }
 };
 
