@@ -47,8 +47,11 @@
 #include <sigilgeometry/mesh/curve/Curve.h>
 #include <sigilgeometry/mesh/pop/Pop.h>
 #include <sigilgeometry/mesh/render/Painter.h>
+#include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Ops.h>
 #include <sigilmaterial/kit/Surfaces.h>
+#include <sigilmaterial/pattern/Patterns.h>
+#include <sigilmaterial/pattern/Tile.h>
 #include <sigilmaterial/skia/Draw.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
 #include <sigilmaterial/texture/EnvironmentMap.h>
@@ -68,38 +71,38 @@ namespace material = sigil::material;
 namespace mesh = sigil::geometry::mesh;
 namespace curve = sigil::geometry::mesh::curve;
 namespace ops = sigil::geometry::path::ops;
+namespace shapes = sigil::geometry::shapes;
+namespace mpattern = sigil::material::pattern;
 
 namespace {
 
 using pop = mesh::pop;
 
-SkPath star(int points, float outer, float inner, SkPoint center,
-            float rotationDeg) {
-  SkPathBuilder b;
-  const float step = (float)M_PI / (float)points;
-  const float rot = rotationDeg * (float)M_PI / 180.0f;
-  for (int i = 0; i < points * 2; ++i) {
-    const float r = i % 2 == 0 ? outer : inner;
-    const float a = rot + step * (float)i;
-    const SkPoint p = {center.fX + r * std::cos(a),
-                       center.fY + r * std::sin(a)};
-    i == 0 ? (void)b.moveTo(p) : (void)b.lineTo(p);
-  }
-  b.close();
-  return b.detach();
+/** A star from the geometry kit's own generator, PLACED: the kit lays a
+ *  silhouette inside the box it is handed and starts it point-up, so an
+ *  outer radius is half a box and a centre is one translation. */
+SkPath star(int points, float outer, float inner, SkPoint centre) {
+  const SkPath path =
+      shapes::star(points, inner / outer).path({2 * outer, 2 * outer});
+  return path.makeTransform(
+      SkMatrix::Translate(centre.fX - outer, centre.fY - outer));
 }
 
+/** WHAT THE GLASS REFRACTS: the pattern shelf's checker under two discs,
+ *  so what is bent behind the badge has both a grid and a curve in it.
+ *  The check is the shelf's tile sampled as a repeating shader rather
+ *  than a pair of loops over cells. */
 sk_sp<SkImage> bakeChecker(int w, int h) {
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(w, h));
   SkCanvas* c = surface->getCanvas();
   SkPaint paint;
-  for (int y = 0; y * 28 < h; ++y)
-    for (int x = 0; x * 28 < w; ++x) {
-      paint.setColor((x + y) % 2 ? 0xff2b2b3a : 0xffb9bece);
-      c->drawRect(SkRect::MakeXYWH((float)x * 28, (float)y * 28, 28, 28),
-                  paint);
-    }
+  paint.setShader(mpattern::checker(28.0f, {0.169f, 0.169f, 0.227f, 1},
+                                    {0.725f, 0.745f, 0.808f, 1})
+                      .texture()
+                      .shader());
+  c->drawRect(SkRect::MakeWH((float)w, (float)h), paint);
+  paint.setShader(nullptr);
   paint.setAntiAlias(true);
   paint.setColor(0xcc4d7dff);
   c->drawCircle((float)w * 0.32f, (float)h * 0.5f, 44, paint);
@@ -140,31 +143,40 @@ sk_sp<SkImage> fibonacciStrip(int width, int height) {
     for (char c : word) next += (c == 'A') ? "AB" : "A";
     word = next;
   }
+  // Long/short cells in golden ratio, each followed by a dark joint, as
+  // RUNS: the word is this file's idea and drawing a row of coloured
+  // runs is the pattern shelf's, so the shelf's sequence tile draws it.
+  const float unit =
+      (float)height / (1.618f * 55.0f + 34.0f);  // F(10)/F(9) mix of the span
+  std::vector<std::pair<float, sigil::material::Color>> runs;
+  for (char term : word) {
+    const float cell = term == 'A' ? unit * 1.618f : unit;
+    runs.push_back({cell - 3.0f, term == 'A'
+                                     ? sigil::material::Color{0.251f, 0.863f,
+                                                              1.0f, 1}
+                                     : sigil::material::Color{1.0f, 0.471f,
+                                                              0.863f, 1}});
+    runs.push_back({3.0f, {0.039f, 0.047f, 0.094f, 1}});
+  }
+  // The shelf lays its runs along +x and the band reads its texture down
+  // v, so the strip is that row turned a quarter turn into the size the
+  // sweep asks for.
+  const sk_sp<SkImage> row = mpattern::sequence(runs).image();
+  if (!row) return nullptr;
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(width, height));
   SkCanvas* c = surface->getCanvas();
   c->clear(SkColorSetARGB(255, 10, 12, 24));
-  SkPaint paint;
-  paint.setAntiAlias(true);
-  // Long/short cell heights in golden ratio; colors alternate by term.
-  const float unit =
-      (float)height / (1.618f * 55.0f + 34.0f);  // F(10)/F(9) mix of the span
-  float y = 0;
-  for (char term : word) {
-    const float cell = term == 'A' ? unit * 1.618f : unit;
-    if (y > (float)height) break;
-    paint.setColor(term == 'A' ? SkColorSetARGB(255, 64, 220, 255)
-                               : SkColorSetARGB(255, 255, 120, 220));
-    c->drawRect(SkRect::MakeXYWH(8, y + 1.5f, (float)width - 16, cell - 3.0f),
-                paint);
-    y += cell;
-  }
+  c->rotate(90);
+  c->translate(0, -(float)width);
+  c->drawImageRect(row, SkRect::MakeWH((float)height, (float)width),
+                   SkSamplingOptions(SkFilterMode::kLinear));
   return surface->makeImageSnapshot();
 }
 
 }  // namespace
 
-struct CrossLibrary : sketch::Sketch {
+struct ShapeworksLab : sketch::Sketch {
   // Built once per (re)load: an outline recipe, a normal map and a
   // material program are all description, and a reload re-runs setup.
   material::EnvironmentMap studio;
@@ -297,14 +309,14 @@ struct CrossLibrary : sketch::Sketch {
         ops::Roughen{3.2f, 8, 3},
         ops::offsetBy(6),
     });
-    cookedPath = recipe(star(7, 152, 84, {0, 0}, -90));
+    cookedPath = recipe(star(7, 152, 84, {0, 0}));
     cooked =
         material::kit::gold(material::bevelNormals(cookedPath, 9), studio, {});
 
     // Badge geometry lives in the surfaces leaf's LOCAL space (540 x 300);
     // bevelNormals() places each normal map at its outline's bounds, so
     // the recipe reads the normal under the pixel it shades.
-    goldPath = star(8, 72, 50, {95, 150}, -90);
+    goldPath = star(8, 72, 50, {95, 150});
     chromePath = SkPath::Circle(270, 150, 74);
     glassPath = SkPath::Circle(445, 150, 78);
     backdrop = bakeChecker(540, 300);
@@ -333,8 +345,8 @@ struct CrossLibrary : sketch::Sketch {
   }
 };
 
-SIGIL_SKETCH_AS(
-    CrossLibrary, "cross_library", "Kit",
+SIGIL_SKETCH(
+    ShapeworksLab, "Start & fixtures",
     "the seam between three libraries in one custom() leaf \xe2\x80\x94 an "
     "operator chain worn as gold, the stock surfaces over bevel maps, and "
     "one curve swept, projected, tiled and scattered")
