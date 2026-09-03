@@ -56,14 +56,18 @@
 //                          severity is encoded in ink as well as in form.
 
 #include <sigilcompose/core/Feed.h>
-#include <sigilcompose/core/Material.h>
-#include <sigilcompose/core/Sdf.h>
-#include <sigilcompose/typography/TextFx.h>
+#include <sigilmaterial/skia/Paint.h>
+#include <sigilmaterial/sdf/Sdf.h>
+#include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigilmaterial/skia/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilweave/ports/SystemFontManager.h>
+#include <sigilweave/style/Features.h>
+#include <sigilweave/style/Type.h>
 #include <sigilweave/style/Features.h>
 #if defined(SIGILMATERIAL_ENABLE_OCIO)
-#include <sigilmaterial/color/Ocio.h>
+#include <sigilmaterial/ocio/Ocio.h>
 #endif
 
 #include <include/core/SkString.h>
@@ -75,8 +79,13 @@
 #include <string>
 
 namespace sketch = sigil::sketch;
+namespace mskia = sigil::material::skia;
+namespace sdf = sigil::material::sdf;
+namespace weave = sigil::weave;
+namespace motion = sigil::motion;
 
 using namespace sigil::compose;
+using sigil::material::skia::Paint;
 using sigil::compose::toU8;
 using namespace std::chrono_literals;
 
@@ -265,20 +274,19 @@ struct DaemonConsole final : sketch::Sketch {
    *  tabular numerals asked of it where digits must sit in columns. */
   sigil::weave::StyleSet rowStyles() const {
     namespace dc = daemon_console;
-    using sigil::compose::type;
     sigil::weave::StyleSet s(
-        type({.face = faceMono, .size = 12.5f, .color = dc::kBody}));
-    s.set("ts", type({.face = faceMono, .size = 11, .color = dc::kDim}));
-    s.set("trace", type({.face = faceMono, .size = 12.5f, .color = dc::kDim}));
+        weave::textStyle({.face = faceMono, .size = 12.5f, .color = dc::kBody}));
+    s.set("ts", weave::textStyle({.face = faceMono, .size = 11, .color = dc::kDim}));
+    s.set("trace", weave::textStyle({.face = faceMono, .size = 12.5f, .color = dc::kDim}));
     s.set("seal",
-          type({.face = faceMono, .size = 12.5f, .color = hex(0x8FE5C4)}));
-    s.set("flux", type({.face = faceMono, .size = 12.5f, .color = dc::kWarn}));
+          weave::textStyle({.face = faceMono, .size = 12.5f, .color = hex(0x8FE5C4)}));
+    s.set("flux", weave::textStyle({.face = faceMono, .size = 12.5f, .color = dc::kWarn}));
     s.set("breach",
-          type({.face = faceMono, .size = 12.5f, .color = dc::kCritText}));
+          weave::textStyle({.face = faceMono, .size = 12.5f, .color = dc::kCritText}));
     s.set("cipher",
-          type({.face = faceMono, .size = 12.5f, .color = dc::kAccent}));
+          weave::textStyle({.face = faceMono, .size = 12.5f, .color = dc::kAccent}));
     auto tag = [&](SkColor4f color) {
-      return type({.face = faceMonoMed, .size = 11, .color = color});
+      return weave::textStyle({.face = faceMonoMed, .size = 11, .color = color});
     };
     s.set("tag-trace", tag(alpha(dc::kDim, 0.8f)));
     s.set("tag-info", tag(dc::kChrome));
@@ -293,12 +301,12 @@ struct DaemonConsole final : sketch::Sketch {
   sigil::weave::TextStyle chrome(float size, SkColor4f color, float track = 0,
                                  bool medium = false, bool tabular = false) {
     sigil::weave::TextStyle s =
-        type({.face = medium ? faceChromeMed : faceChrome,
+        weave::textStyle({.face = medium ? faceChromeMed : faceChrome,
               .size = size,
               .color = color,
               .track = track});
     if (tabular)
-      s.shaping.fontFeatures = {sigil::weave::Features::tabularNumbers};
+      s.shaping.fontFeatures = {weave::features::tabularNumbers};
     return s;
   }
 
@@ -321,13 +329,13 @@ struct DaemonConsole final : sketch::Sketch {
     ring.clear();  // scenes re-activate; seq ids stay monotonic
     gen = dc::LogGen{};
 
-    faceMono = pickFace({"SF Mono", "Menlo", "Monaco"}, 400);
-    faceMonoMed = pickFace({"SF Mono", "Menlo", "Monaco"}, 700);
-    faceChrome = pickFace({"Helvetica Neue", "Arial"}, 400);
-    faceChromeMed = pickFace({"Helvetica Neue", "Arial"}, 600);
+    faceMono = weave::ports::pickTypeface({"SF Mono", "Menlo", "Monaco"}, 400);
+    faceMonoMed = weave::ports::pickTypeface({"SF Mono", "Menlo", "Monaco"}, 700);
+    faceChrome = weave::ports::pickTypeface({"Helvetica Neue", "Arial"}, 400);
+    faceChromeMed = weave::ports::pickTypeface({"Helvetica Neue", "Arial"}, 600);
 
 #if defined(SIGILMATERIAL_ENABLE_OCIO)
-    composer.setView(sigil::material::color::exponent(1.08f));
+    composer.setView(sigil::material::ocio::exponent(1.08f));
 #endif
 
     for (int i = 0; i < 9; ++i)  // history at boot, timestamped in the past
@@ -424,7 +432,7 @@ struct DaemonConsole final : sketch::Sketch {
       case dc::kTrace:
         // A trace merely surfaces: one quiet fade, no cascade.
         leaf.fx({.effect = fx::keys({{0.0f, {.alpha = 0}}, {1.0f, {}}}),
-                 .progress = animate(from(0.0f).to(1.0f),
+                 .progress = animate(motion::from(0.0f).to(1.0f),
                                      {180ms, &choreograph::easeNone})});
         break;
       case dc::kFlux:
@@ -432,7 +440,7 @@ struct DaemonConsole final : sketch::Sketch {
         // still a sweep the eye can follow.
         leaf.fx({.effect = fx::rise(6),
                  .stagger = {.eachMs = 4, .durationMs = 120},
-                 .progress = animate(from(0.0f).to(1.0f),
+                 .progress = animate(motion::from(0.0f).to(1.0f),
                                      {300ms, &choreograph::easeNone})});
         break;
       case dc::kBreach:
@@ -454,14 +462,14 @@ struct DaemonConsole final : sketch::Sketch {
                                       {.colorScreen = {0.4f, 0.28f, 0.22f, 0},
                                        .scaleX = 0.97f}},
                                      {1.0f, {}}}),
-                 .progress = animate(from(0.0f).to(1.0f),
+                 .progress = animate(motion::from(0.0f).to(1.0f),
                                      {240ms, &choreograph::easeOutQuad})});
         break;
       default:
         // Info and seals type on — the terminal's own voice.
         leaf.fx({.effect = fx::typeOn(),
                  .stagger = {.eachMs = 6, .durationMs = 40},
-                 .progress = animate(from(0.0f).to(1.0f),
+                 .progress = animate(motion::from(0.0f).to(1.0f),
                                      {320ms, &choreograph::easeNone})});
         break;
     }
@@ -472,9 +480,10 @@ struct DaemonConsole final : sketch::Sketch {
       leaf.fx(
           {.where = sel::style("cipher"),
            .effect = fx::hold(fx::scramble(U"0123456789abcdef", 10)),
-           .stagger = stagger(unit::Cluster, {.eachMs = 30, .durationMs = 340}),
+           .stagger = {.eachMs = 30, .durationMs = 340},
+           .over = unit::Cluster,
            .progress =
-               animate(from(0.0f).to(1.0f), {750ms, &choreograph::easeNone})});
+               animate(motion::from(0.0f).to(1.0f), {750ms, &choreograph::easeNone})});
 
     Element row = box()
                       .row()
@@ -497,7 +506,7 @@ struct DaemonConsole final : sketch::Sketch {
     return box()
         .column()
         .gap(4)
-        .child(text(toU8(label), type({.face = faceMono,
+        .child(text(toU8(label), weave::textStyle({.face = faceMono,
                                        .size = 10,
                                        .color = dc::kChrome,
                                        .track = 0.6f})))
@@ -543,18 +552,18 @@ struct DaemonConsole final : sketch::Sketch {
     // drawn border sits sdf::pad() in from the node edge — the content
     // padding is that reserve plus the designed inset, read off the style
     // rather than restated as a number that drifts.
-    const sdf::Style panelStyle{.fill = dc::kPanel,
+    const sdf::Style panelStyle{.fill = mskia::toColor(dc::kPanel),
                                 .borderWidth = 1.0f,
-                                .borderColor = hex(0x3B5474, 0.95f),
+                                .borderColor = mskia::toColor(hex(0x3B5474, 0.95f)),
                                 .glowRadius = 6,
-                                .glowColor = hex(0x3EC2DC, 0.22f)};
-    Material panel = sdf::material(sdf::roundBox(12), panelStyle);
+                                .glowColor = mskia::toColor(hex(0x3EC2DC, 0.22f))};
+    Paint panel = Paint::recipe(sdf::material(sdf::roundBox(12), panelStyle));
     const float padX = sdf::pad(panelStyle) + 17.0f;
     const float padY = sdf::pad(panelStyle) + 12.0f;
 
     // Fade the OLDEST rows: a panel-coloured gradient over the top of the
     // well — zero row nodes touched, fully cached.
-    Material fade = Material::linear(
+    Paint fade = Paint::linear(
         {0, 0}, {0, 64},
         {{0.0f, {dc::kPanel.fR, dc::kPanel.fG, dc::kPanel.fB, 1.0f}},
          {1.0f, {dc::kPanel.fR, dc::kPanel.fG, dc::kPanel.fB, 0.0f}}});
@@ -660,14 +669,14 @@ struct DaemonConsole final : sketch::Sketch {
             .gap(2)
             .alignItems(Align::Center)
             .child(text(
-                rich(type({.face = faceMono, .size = 12, .color = dc::kDim}))
+                rich(weave::textStyle({.face = faceMono, .size = 12, .color = dc::kDim}))
                     .add(toU8("wardnet"))
-                    .add(toU8(" $ "), type({.face = faceMonoMed,
+                    .add(toU8(" $ "), weave::textStyle({.face = faceMonoMed,
                                             .size = 12,
                                             .color = dc::kAccent}))))
             .child(text(
                 toU8(std::string(command).substr(0, shown)),
-                type({.face = faceMono, .size = 12.5f, .color = dc::kBone})))
+                weave::textStyle({.face = faceMono, .size = 12.5f, .color = dc::kBone})))
             .child(box()
                        .width(7)
                        .height(13)
@@ -677,7 +686,7 @@ struct DaemonConsole final : sketch::Sketch {
                        // 0.62 s of every 1.06 s cycle, resting dim rather
                        // than vanishing. Phase 0 is ON, so the caret the
                        // typing machine parks at 0 sits solid.
-                       .opacity(bind(&caretClock)
+                       .opacity(motion::bind(&caretClock)
                                     .source(0.0f, 1.06f)
                                     .square(0.62f / 1.06f)
                                     .target(0.10f, 1.0f))
@@ -688,7 +697,7 @@ struct DaemonConsole final : sketch::Sketch {
                         chrome(9.5f, dc::kDim, 0.8f, false, true)));
 
     return stack()
-        .fill(Material::linear({0, 0}, {0, dc::kH},
+        .fill(Paint::linear({0, 0}, {0, dc::kH},
                                {{0.0f, dc::kGroundTop}, {1.0f, dc::kVoid}}))
         .child(
             box()
@@ -714,7 +723,7 @@ struct DaemonConsole final : sketch::Sketch {
                    .inset(0)
                    .zIndex(3)
                    .hitTestable(false)
-                   .fill(Material::sksl(dc::scanEffect()))
+                   .fill(Paint::sksl(dc::scanEffect()))
                    .blend(SkBlendMode::kScreen));
   }
 };
