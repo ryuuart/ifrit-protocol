@@ -1029,3 +1029,34 @@ TEST(ComposeSettling, ABudgetNothingCanMeetDegradesAndSaysSo) {
   EXPECT_TRUE(starved.live);
   EXPECT_GT(starved.degraded, 0);
 }
+
+// ── The kit's hanging list ──────────────────────────────────────────────
+
+TEST(KitBullets, TheMarkerKeepsTheRoomTheIndentOpened) {
+  // The marker is placed beside the item's text, at the block's own start,
+  // and the item is indented by the hang on EVERY line. A first line
+  // pulled back out of the indent would start where the marker already
+  // stands and print through it.
+  //
+  // The marker is left empty here so the only ink on the sheet is the
+  // item's own: its leftmost column IS where the first line begins.
+  constexpr float kHang = 24.0f;
+  const std::array<std::u8string, 1> items = {
+      toU8("First line long enough that this item wraps, and a second that "
+           "carries on under it.")};
+  const std::array<std::u8string, 1> markers = {std::u8string()};
+  Host host(300, 160);
+  host.composer.render(box().padding(0).child(
+      kit::bullets(items, markers, whiteStyle(13), kHang, 240.0f)));
+  host.frame();
+  int leftmost = 300;
+  for (int y = 0; y < 160; ++y)
+    for (int x = 0; x < leftmost; ++x)
+      if (host.pixel(x, y) != SK_ColorBLACK) {
+        leftmost = x;
+        break;
+      }
+  ASSERT_LT(leftmost, 300) << "the list drew nothing";
+  EXPECT_GE((float)leftmost, kHang - 1.0f)
+      << "the first line was pulled back onto the marker's room";
+}

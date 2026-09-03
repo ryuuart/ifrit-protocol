@@ -196,15 +196,18 @@ struct DroppedCap {
 
 /** A LIST WHOSE MARKERS HANG IN THE INDENT.
  *
- *  One text leaf per item, each with a hanging indent — a start indent
- *  with the first line pulled back out of it — and the marker set in the
- *  room that hang opens. A number is the caller's to format, which is why
- *  `markers` is a list of strings rather than a numbering scheme: the
- *  schemes people want (roman, lettered, restarting, hierarchical) are
- *  data, and this is the shape they are drawn in.
+ *  One text leaf per item, indented by the hang on EVERY line, with the
+ *  marker set in the room that indent opens. A number is the caller's to
+ *  format, which is why `markers` is a list of strings rather than a
+ *  numbering scheme: the schemes people want (roman, lettered, restarting,
+ *  hierarchical) are data, and this is the shape they are drawn in.
  *
  *  `hang` is the indent in px, and the marker is set at the block's own
- *  start with the item's text beginning one hang in. */
+ *  start with the item's text beginning one hang in. THE FIRST LINE IS
+ *  INDENTED LIKE THE REST: the marker is placed beside the text rather
+ *  than set in its run, so a first line pulled back out of the indent —
+ *  the shape a marker typed INTO the text wants — would start where the
+ *  marker already stands and print through it. */
 [[nodiscard]] inline Element bullets(std::span<const std::u8string> items,
                                      std::span<const std::u8string> markers,
                                      sigil::weave::TextStyle style, float hang,
@@ -212,7 +215,6 @@ struct DroppedCap {
   Element list = box().column().gap(gap);
   sigil::weave::ParagraphStyle hanging;
   hanging.indent.start = hang;
-  hanging.indent.firstLine = -hang;
   for (size_t index = 0; index < items.size(); ++index) {
     const std::u8string& marker =
         markers.empty() ? items[index]
