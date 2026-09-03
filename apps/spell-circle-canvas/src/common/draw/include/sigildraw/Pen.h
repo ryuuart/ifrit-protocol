@@ -64,6 +64,13 @@ concept Silhouette = requires(const S& s, SkSize size) {
   { s.path(size) } -> std::convertible_to<SkPath>;
 };
 
+/** WHAT `clip` DOES WITH THE SHAPE IT IS GIVEN. */
+struct ClipOptions {
+  /** Cuts the shape OUT of what may be drawn, instead of keeping only
+   *  what falls inside it — p5's `{ invert: true }`. */
+  bool invert = false;
+};
+
 /** WHAT A FRAME SUPPLIES THE PEN, none of it the sketch's to set: the
  *  canvas in its own pixels, the clock of whoever is stepping, the frame
  *  count, the fonts text is shaped with, and the pointer and keys a host
@@ -333,6 +340,32 @@ class Pen {
   /** A path as it stands, filled and stroked with the current style. */
   void shape(const SkPath& path);
 
+  // ---- the clip ------------------------------------------------------------
+  /** p5's CLIP: @p shape draws the mask, and everything drawn after it
+   *  is confined to what @p shape covered.
+   *
+   *      pen.clip([&] { pen.circle(100, 100, 80); });
+   *      pen.image(photo, 60, 60);            // a round photo
+   *
+   *  NOTHING @p shape DRAWS LANDS ON THE CANVAS. Its shape verbs are
+   *  recorded into one path instead — a rect, an ellipse, an arc, a
+   *  triangle, a quad, a bezier, a curve, a silhouette, a `point`, and a
+   *  `beginShape` run of any kind — each in the space it was called in,
+   *  so a `translate` inside @p shape moves the mask with it. The verbs
+   *  that carry no outline add nothing: a `line`, an `image`, a `text`,
+   *  a `background`.
+   *
+   *  IT LASTS UNTIL THE MATCHING `pop()`, and to the end of the frame
+   *  when it was set outside any `push`, which is p5's own scoping — so
+   *  a masked passage is a `push`, a `clip`, the drawing, and a `pop`. A
+   *  clip inside a clip keeps only what falls in both. */
+  template <class Shape>
+  void clip(Shape&& shape, ClipOptions options = {}) {
+    recordClip();
+    shape();
+    applyClip(options);
+  }
+
   // ---- text ----------------------------------------------------------------
   void textSize(float size);
   /** A family by name, matched through the font context's manager; a
@@ -462,6 +495,15 @@ class Pen {
     float leading = 15.0f;
   };
 
+  /** Opens the recording a `clip` shape is gathered into, and closes it
+   *  onto the canvas at the transform the recording began at. */
+  void recordClip();
+  void applyClip(ClipOptions options);
+  /** While a clip is being recorded, @p path joins the mask instead of
+   *  being drawn, carried into the space the recording began in; the
+   *  answer is whether it was taken. */
+  bool recordShape(const SkPath& path);
+
   [[nodiscard]] SkRect rectBox(float x, float y, float w, float h) const;
   [[nodiscard]] static SkRect boxIn(Constant mode, float x, float y, float w,
                                     float h);
@@ -522,6 +564,11 @@ class Pen {
   bool m_vertexColorsVary = false;
   bool m_vertexFillsSolid = true;
   std::vector<SkPoint> m_curve;
+
+  // The mask a clip is gathering, and the transform it is gathered in.
+  SkPathBuilder m_clipBuilder;
+  SkM44 m_clipBase;
+  bool m_clipRecording = false;
 
   core::noise::Mix64Stream m_random;
   bool m_gaussianHeld = false;

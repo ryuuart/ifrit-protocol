@@ -5,6 +5,7 @@
 
 #include <include/core/SkBlendMode.h>
 #include <include/core/SkBlender.h>
+#include <include/core/SkClipOp.h>
 #include <include/core/SkMatrix.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkRRect.h>
@@ -367,7 +368,7 @@ void Pen::background(SkColor4f color) {
 }
 
 void Pen::background(const material::skia::Paint& paint) {
-  if (!m_canvas || paint.isNone()) return;
+  if (!m_canvas || paint.isNone() || m_clipRecording) return;
   SkPaint ground;
   resolve(paint, ground, paintFrame());
   blendInto(ground);
@@ -380,7 +381,7 @@ void Pen::background(const material::skia::Paint& paint) {
 }
 
 void Pen::clear() {
-  if (!m_canvas) return;
+  if (!m_canvas || m_clipRecording) return;
   SkPaint erase;
   erase.setBlendMode(SkBlendMode::kClear);
   SkAutoCanvasRestore restore(m_canvas, true);
@@ -471,6 +472,40 @@ SkRect Pen::boxIn(Constant mode, float x, float y, float w, float h) {
   }
 }
 
+// ---- the clip ---------------------------------------------------------------
+
+void Pen::recordClip() {
+  m_clipBuilder = SkPathBuilder();
+  m_clipBase = m_canvas ? m_canvas->getLocalToDevice() : SkM44();
+  m_clipRecording = true;
+}
+
+bool Pen::recordShape(const SkPath& path) {
+  if (!m_clipRecording) return false;
+  SkM44 inverse;
+  // The shape is in the space it was DRAWN in, and the mask is applied
+  // in the space the recording began in, so a translate or a rotate
+  // inside the shape function carries the mask with it.
+  if (m_canvas && m_clipBase.invert(&inverse))
+    m_clipBuilder.addPath(
+        path.makeTransform((inverse * m_canvas->getLocalToDevice()).asM33()));
+  else
+    m_clipBuilder.addPath(path);
+  return true;
+}
+
+void Pen::applyClip(ClipOptions options) {
+  m_clipRecording = false;
+  const SkPath mask = m_clipBuilder.detach();
+  if (!m_canvas) return;
+  // No save of its own: the clip rides the canvas's stack, so `pop`
+  // takes it off and the end of the frame takes it off, which is where
+  // p5 ends a mask too.
+  m_canvas->clipPath(
+      mask, options.invert ? SkClipOp::kDifference : SkClipOp::kIntersect,
+      m_style.antiAlias);
+}
+
 SkRect Pen::rectBox(float x, float y, float w, float h) const {
   return boxIn(m_style.rectMode, x, y, w, h);
 }
@@ -486,16 +521,19 @@ float Pen::toRadians(float angle) const {
 // ---- shapes -----------------------------------------------------------------
 
 void Pen::paintFilled(const SkPath& path) {
+  if (recordShape(path)) return;
   if (const SkPaint* fill = fillPaint()) m_canvas->drawPath(path, *fill);
   if (const SkPaint* stroke = strokePaint()) m_canvas->drawPath(path, *stroke);
 }
 
 void Pen::paintOval(const SkRect& oval) {
+  if (recordShape(SkPath::Oval(oval))) return;
   if (const SkPaint* fill = fillPaint()) m_canvas->drawOval(oval, *fill);
   if (const SkPaint* stroke = strokePaint()) m_canvas->drawOval(oval, *stroke);
 }
 
 void Pen::paintRect(const SkRect& rect) {
+  if (recordShape(SkPath::Rect(rect))) return;
   if (const SkPaint* fill = fillPaint()) m_canvas->drawRect(rect, *fill);
   if (const SkPaint* stroke = strokePaint()) m_canvas->drawRect(rect, *stroke);
 }
@@ -507,6 +545,7 @@ void Pen::shape(const SkPath& path) {
 
 void Pen::point(float x, float y) {
   if (!m_canvas) return;
+  if (recordShape(SkPath::Circle(x, y, m_style.strokeWeight / 2.0f))) return;
   // p5 draws a point as a disc of the stroke weight in the stroke colour.
   const SkPaint* stroke = strokePaint();
   if (!stroke) return;
@@ -516,7 +555,8 @@ void Pen::point(float x, float y) {
 }
 
 void Pen::line(float x1, float y1, float x2, float y2) {
-  if (!m_canvas) return;
+  // A line has no inside, so it adds nothing to a mask being recorded.
+  if (!m_canvas || m_clipRecording) return;
   if (const SkPaint* stroke = strokePaint())
     m_canvas->drawLine(x1, y1, x2, y2, *stroke);
 }
@@ -537,6 +577,7 @@ void Pen::rect(float x, float y, float w, float h, float tl, float tr, float br,
   const SkVector radii[4] = {{tl, tl}, {tr, tr}, {br, br}, {bl, bl}};
   SkRRect rounded;
   rounded.setRectRadii(box, radii);
+  if (recordShape(SkPath::RRect(rounded))) return;
   if (const SkPaint* fill = fillPaint()) m_canvas->drawRRect(rounded, *fill);
   if (const SkPaint* stroke = strokePaint())
     m_canvas->drawRRect(rounded, *stroke);
@@ -577,6 +618,14 @@ void Pen::arc(float x, float y, float w, float h, float start, float stop,
   }
   const float startDeg = degrees(from);
   const float sweepDeg = degrees(to - from);
+  if (m_clipRecording) {
+    SkPathBuilder wedge;
+    if (mode == PIE) wedge.moveTo(oval.centerX(), oval.centerY());
+    wedge.addArc(oval, startDeg, sweepDeg);
+    wedge.close();
+    recordShape(wedge.detach());
+    return;
+  }
   if (const SkPaint* fill = fillPaint())
     m_canvas->drawArc(oval, startDeg, sweepDeg, mode != CHORD, *fill);
   if (const SkPaint* stroke = strokePaint()) {
@@ -747,8 +796,11 @@ void Pen::emitKind(const std::vector<SkPoint>& v) {
   // A MESH ONLY WHERE THE CORNERS DISAGREE. One fill across the shape is
   // a path, which is what strokes, what a shader fills and what every
   // shape drawn before this distinction was drawn as.
+  // A mask has no colours, so a shape recorded into one is a path
+  // whatever its corners say.
   const bool mesh = m_vertexColorsVary && m_vertexFillsSolid &&
-                    m_vertexColors.size() == n && m_style.doFill;
+                    m_vertexColors.size() == n && m_style.doFill &&
+                    !m_clipRecording;
   std::vector<SkPoint> meshPositions;
   std::vector<SkColor> meshColors;
   auto closed = [&](std::initializer_list<size_t> ring) {
@@ -834,7 +886,7 @@ void Pen::image(const sk_sp<SkImage>& img, float x, float y) {
 }
 
 void Pen::image(const sk_sp<SkImage>& img, float x, float y, float w, float h) {
-  if (!m_canvas || !img) return;
+  if (!m_canvas || !img || m_clipRecording) return;
   const SkRect box = boxIn(m_style.imageMode, x, y, w, h);
   SkPaint paint;
   blendInto(paint);
@@ -843,7 +895,7 @@ void Pen::image(const sk_sp<SkImage>& img, float x, float y, float w, float h) {
 
 void Pen::image(const sk_sp<SkImage>& img, float dx, float dy, float dw,
                 float dh, float sx, float sy, float sw, float sh) {
-  if (!m_canvas || !img) return;
+  if (!m_canvas || !img || m_clipRecording) return;
   const SkRect box = boxIn(m_style.imageMode, dx, dy, dw, dh);
   SkPaint paint;
   blendInto(paint);

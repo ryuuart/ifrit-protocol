@@ -207,7 +207,8 @@ void Pen::textLine(std::string_view line, float x, float baseline) {
 }
 
 void Pen::text(std::string_view str, float x, float y) {
-  if (!m_canvas || !m_fonts) return;
+  // A glyph adds nothing to a mask being recorded.
+  if (!m_canvas || !m_fonts || m_clipRecording) return;
   const std::vector<std::string_view> lines = linesOf(str);
   const float ascent = textAscent();
   const float descent = textDescent();
@@ -239,7 +240,7 @@ void Pen::text(std::string_view str, float x, float y) {
 }
 
 void Pen::text(std::string_view str, float x, float y, float w, float h) {
-  if (!m_canvas || !m_fonts) return;
+  if (!m_canvas || !m_fonts || m_clipRecording) return;
   const SkRect box = rectBox(x, y, w, h);
   weave::Paragraph paragraph;
   paragraph.appendText(utf8(str), textStyleNow());

@@ -121,6 +121,7 @@ default.
 | modes | `rectMode`, `ellipseMode`, `imageMode` over `CORNER \| CORNERS \| CENTER \| RADIUS` with p5's defaults (rect and image at the corner, ellipse at the centre); `angleMode(RADIANS \| DEGREES)`, radians by default |
 | shapes | `point`, `line`, `rect(x, y, w, h[, r \| tl, tr, br, bl])`, `square`, `ellipse(x, y, w[, h])`, `circle(x, y, d)`, `arc(x, y, w, h, start, stop[, OPEN \| CHORD \| PIE])`, `triangle`, `quad`, `bezier`, `curve`, `curveTightness` |
 | vertices | `beginShape([POINTS \| LINES \| TRIANGLES \| TRIANGLE_FAN \| TRIANGLE_STRIP \| QUADS \| QUAD_STRIP])`, `vertex`, `curveVertex`, `bezierVertex`, `quadraticVertex`, `beginContour`, `endContour`, `endShape([CLOSE])`; `fill` between two `vertex` calls colours the corners either side of it |
+| the clip | `clip(shape)`, `clip(shape, {.invert = true})` |
 | text | `text(str, x, y[, w, h])`, `text(number, x, y)`, `textSize`, `textFont(family[, size])`, `textAlign(LEFT \| CENTER \| RIGHT[, TOP \| CENTER \| BOTTOM \| BASELINE])`, `textLeading`, `textStyle(NORMAL \| BOLD \| ITALIC \| BOLDITALIC)`, `textWidth`, `textAscent`, `textDescent` |
 | images | `image(img, x, y[, w, h])` and the nine-argument source-rect form, over an `sk_sp<SkImage>` or a `Graphics` |
 | transform | `translate`, `rotate`, `scale(s \| sx, sy)`, `shearX`, `shearY`, `push`, `pop`, `resetMatrix`, `applyMatrix(a, b, c, d, e, f)` |
@@ -149,8 +150,13 @@ pen's text is ink. `point` is a disc of the stroke weight in the stroke
 colour. `textSize` sets the leading to five quarters of the size until
 `textLeading` says otherwise. `push` saves the style and the transform
 together and `pop` restores both; a push left open at the end of a frame
-is closed there, back to the style that stood when it opened. The blend
-mode is style like any other, so `push` and `pop` carry it, and it
+is closed there, back to the style that stood when it opened. `clip` runs the function it is given with the shape verbs
+RECORDED rather than drawn — each in the space it was called in, so a
+transform inside the function moves the mask with it — and confines
+everything drawn after to what those shapes covered, until the matching
+`pop()` or the end of the frame; the verbs that carry no outline, a
+`line`, an `image`, a `text`, a `background`, add nothing to a mask. The
+blend mode is style like any other, so `push` and `pop` carry it, and it
 reaches every verb that puts pixels down — a fill, a stroke, a glyph, an
 image, the triangle mesh a per-corner shape is drawn as, and the ground a
 `background` lays. `SUBTRACT` takes the source's colour out of the
@@ -231,7 +237,8 @@ beside the verbs, never a renamed one.
 
 p5 verbs and variables a pasted sketch has to replace, stated so nobody
 searches for them: `createVector` and `p5.Vector` (glm has the
-vectors), `tint`, `filter`, `erase`/`noErase`, `clip`,
+vectors), `tint`, `filter`, `erase`/`noErase`, `beginClip`/`endClip`
+(`clip` takes the shape as a function),
 `loadPixels`/`updatePixels`/`pixels`/`get`/`set`,
 `save`/`saveCanvas`/`saveFrames`/`saveGif`, `describe`/`textOutput`,
 `cursor`/`noCursor`, `fullscreen`,

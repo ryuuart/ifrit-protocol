@@ -416,6 +416,82 @@ TEST(Pen, BlendModeIsStyleSoPushAndPopCarryIt) {
   EXPECT_EQ(SkColorGetR(paper.pixel(75, 50)), 50u);
 }
 
+TEST(Pen, ClipKeepsOnlyWhatTheShapeCovered) {
+  Paper paper;
+  paper.begin();
+  paper.pen.noStroke();
+  paper.pen.clip([&] { paper.pen.rect(20, 20, 40, 40); });
+  paper.pen.fill(255, 0, 0);
+  paper.pen.rect(0, 0, 100, 100);
+  paper.end();
+  EXPECT_EQ(paper.pixel(30, 30), SK_ColorRED);
+  EXPECT_EQ(paper.pixel(55, 55), SK_ColorRED);
+  EXPECT_EQ(SkColorGetA(paper.pixel(10, 10)), 0u);
+  EXPECT_EQ(SkColorGetA(paper.pixel(30, 80)), 0u);
+}
+
+TEST(Pen, NothingTheClipShapeDrawsLandsOnTheCanvas) {
+  Paper paper;
+  paper.begin();
+  paper.pen.noStroke();
+  paper.pen.clip([&] {
+    paper.pen.fill(0, 255, 0);
+    paper.pen.rect(20, 20, 40, 40);
+    paper.pen.line(0, 0, 100, 100);
+    paper.pen.text("mask", 4, 90);
+  });
+  paper.end();
+  EXPECT_EQ(SkColorGetA(paper.pixel(30, 30)), 0u);
+  EXPECT_EQ(SkColorGetA(paper.pixel(5, 5)), 0u);
+  EXPECT_EQ(SkColorGetA(paper.pixel(10, 86)), 0u);
+}
+
+TEST(Pen, ClipInvertedCutsTheShapeOut) {
+  Paper paper;
+  paper.begin();
+  paper.pen.noStroke();
+  paper.pen.clip([&] { paper.pen.rect(20, 20, 40, 40); }, {.invert = true});
+  paper.pen.fill(255, 0, 0);
+  paper.pen.rect(0, 0, 100, 100);
+  paper.end();
+  EXPECT_EQ(SkColorGetA(paper.pixel(40, 40)), 0u);
+  EXPECT_EQ(paper.pixel(10, 10), SK_ColorRED);
+}
+
+TEST(Pen, ClipLastsUntilTheMatchingPop) {
+  Paper paper;
+  paper.begin();
+  paper.pen.noStroke();
+  paper.pen.push();
+  paper.pen.clip([&] { paper.pen.rect(0, 0, 50, 100); });
+  paper.pen.fill(255, 0, 0);
+  paper.pen.rect(0, 0, 100, 100);
+  paper.pen.pop();
+  paper.pen.fill(0, 0, 255);
+  paper.pen.rect(60, 0, 40, 100);
+  paper.end();
+  EXPECT_EQ(paper.pixel(25, 50), SK_ColorRED);   // inside the mask
+  EXPECT_EQ(SkColorGetA(paper.pixel(55, 50)), 0u);  // outside it
+  EXPECT_EQ(paper.pixel(70, 50), SK_ColorBLUE);  // after the pop
+}
+
+TEST(Pen, TheMaskCarriesTheTransformItWasDrawnUnder) {
+  Paper paper;
+  paper.begin();
+  paper.pen.noStroke();
+  paper.pen.clip([&] {
+    paper.pen.push();
+    paper.pen.translate(50, 50);
+    paper.pen.rect(0, 0, 20, 20);
+    paper.pen.pop();
+  });
+  paper.pen.fill(255, 0, 0);
+  paper.pen.rect(0, 0, 100, 100);
+  paper.end();
+  EXPECT_EQ(paper.pixel(55, 55), SK_ColorRED);
+  EXPECT_EQ(SkColorGetA(paper.pixel(10, 10)), 0u);
+}
+
 TEST(Pen, MathIsP5s) {
   EXPECT_FLOAT_EQ(map(5, 0, 10, 0, 100), 50.0f);
   EXPECT_FLOAT_EQ(map(15, 0, 10, 0, 100, true), 100.0f);
