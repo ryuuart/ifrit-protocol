@@ -52,7 +52,7 @@
 // tile floors rise 0.9 at the surround to 65.4 at the middle of the window,
 // and the min-luma cross-sections put the peak at (~510, ~340) both ways —
 // so the body is not a fill, it is a RADIAL PEDESTAL, and the pedestal IS
-// the Copland eye blurred into the phosphor. One Material::radialUnit whose
+// the Copland eye blurred into the phosphor. One Paint::radialUnit whose
 // twenty stops are the measured radial profile draws the pedestal and the
 // eye's rings in a single SIMD gradient.
 //
@@ -130,10 +130,10 @@
 //
 // -----------------------------------------------------------------------------
 // BUILT FROM (the library, not by hand)
-//   Material::radialUnit (20 stops)   the pedestal AND the eye's rings, one
+//   Paint::radialUnit (20 stops)   the pedestal AND the eye's rings, one
 //                                     SIMD gradient — an SkSL equivalent runs
 //                                     a shader per pixel for the same picture
-//   Material::linearUnit              each chrome bar's INVERSE bevel, its
+//   Paint::linearUnit              each chrome bar's INVERSE bevel, its
 //                                     six stops read off the bar's own rows
 //   a sampled ellipse path            every ellipse: the rims, the waist and
 //                                     the tilted orbit, as real curves — the
@@ -258,10 +258,21 @@
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilcompose/brush/Brushes.h>
 #include <sigilcompose/brush/Lines.h>
-#include <sigilcompose/core/Material.h>
-#include <sigilcompose/core/Patterns.h>
-#include <sigilcompose/kit/Silhouettes.h>
-#include <sigilcompose/typography/Type.h>
+#include <sigilcompose/brush/Adaptors.h>
+#include <sigilcompose/core/Paint.h>
+#include <sigilcompose/core/Pattern.h>
+#include <sigilcompose/typography/Typography.h>
+#include <sigilgeometry/kit/Curves.h>
+#include <sigilgeometry/kit/Generators.h>
+#include <sigilgeometry/path/Edges.h>
+#include <sigilmaterial/pattern/Patterns.h>
+#include <sigilmaterial/skia/Color.h>
+#include <sigilmaterial/skia/Effect.h>
+#include <sigilmaterial/skia/Paint.h>
+#include <sigilmotion/bind/Bind.h>
+#include <sigilmotion/values/Keyframes.h>
+#include <sigilmotion/values/Time.h>
+#include <sigilmotion/values/Transition.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
@@ -272,6 +283,11 @@
 #include <vector>
 
 namespace sketch = sigil::sketch;
+namespace mskia = sigil::material::skia;
+namespace motion = sigil::motion;
+namespace path = sigil::geometry::path;
+namespace patterns = sigil::material::pattern;
+namespace shapes = sigil::geometry::shapes;
 
 using namespace sigil::compose;
 using namespace std::chrono_literals;
@@ -357,15 +373,15 @@ inline shapes::OutlineFn barOutline(float shear) {
  *  89 ... 85 83 89 99 101 107 125 137 122 93 66 down its 30 rows), which is
  *  where the "brushed capstan" reading comes from — it is not a highlight, it
  *  is a cylinder lit from outside its own silhouette. */
-inline Material barBevel(SkColor4f hi, SkColor4f lo, float bias) {
+inline mskia::Paint barBevel(SkColor4f hi, SkColor4f lo, float bias) {
   auto at = [&](float k) { return mix(lo, hi, k); };
-  return Material::linearUnit({0, 0}, {0, 1},
-                              {{0.00f, mul(at(0.05f), bias)},
-                               {0.13f, mul(at(1.00f), bias)},
-                               {0.30f, mul(at(0.32f), bias)},
-                               {0.62f, mul(at(0.28f), bias)},
-                               {0.87f, mul(at(1.00f), bias)},
-                               {1.00f, mul(at(0.02f), bias)}});
+  return mskia::Paint::linearUnit({0, 0}, {0, 1},
+                              {{0.00f, scaleRgb(at(0.05f), bias)},
+                               {0.13f, scaleRgb(at(1.00f), bias)},
+                               {0.30f, scaleRgb(at(0.32f), bias)},
+                               {0.62f, scaleRgb(at(0.28f), bias)},
+                               {0.87f, scaleRgb(at(1.00f), bias)},
+                               {1.00f, scaleRgb(at(0.02f), bias)}});
 }
 
 // ---------------------------------------------------------------------------
@@ -385,15 +401,15 @@ constexpr float kEyeK[19] = {1.000f, 0.961f, 0.889f, 0.728f, 0.759f,
                              0.621f, 0.500f, 0.466f, 0.441f, 0.418f,
                              0.332f, 0.252f, 0.177f, 0.077f};
 
-inline Material pedestal() {
-  std::vector<Stop> stops;
+inline mskia::Paint pedestal() {
+  std::vector<mskia::Stop> stops;
   stops.reserve(20);
   for (int i = 0; i < 19; ++i)
     stops.push_back({kEyeAt[i] / 359.0f, mix(kBodyEdge, kBodyMid, kEyeK[i])});
-  stops.push_back({1.0f, mul(kBodyEdge, 0.55f)});
+  stops.push_back({1.0f, scaleRgb(kBodyEdge, 0.55f)});
   // radius01 is a fraction of the HALF-DIAGONAL (513 px for this body), so
   // 0.70 puts the last measured annulus (r=336) at its own radius.
-  return Material::radialUnit({0.483f, 0.456f}, 0.70f, std::move(stops));
+  return mskia::Paint::radialUnit({0.483f, 0.456f}, 0.70f, std::move(stops));
 }
 
 /** The Copland eye's TOPOLOGY, from the ASCII transcription rather than a
@@ -561,8 +577,8 @@ inline const sk_sp<SkTypeface>& phraseFace() {
 inline weave::TextStyle type(const sk_sp<SkTypeface>& tf, float size,
                              SkColor4f c, float sigma = 0.0f,
                              float track = 0.0f) {
-  weave::TextStyle s = sigil::compose::type(
-      {.face = tf, .size = size, .color = c, .track = track});
+  weave::TextStyle s =
+      weave::textStyle({.face = tf, .size = size, .color = c, .track = track});
   s.paint.foreground.setBlendMode(SkBlendMode::kPlus);
   if (sigma > 0.01f)
     s.paint.foreground.setMaskFilter(
@@ -792,9 +808,9 @@ struct LainNavi : sketch::Sketch {
   ch::Output<float> flicker{0};  // phosphor dip
   ch::Output<float> breathe{0};  // the camera hunting focus, 0.15 Hz
 
-  int scrollLine = 0;  // console scroll, one line / 220 ms
-  int orbitStep = 0;   // hyperboloid twist, 6 Hz over 24 s
-  int phraseStep = 0;  // the Layer 07 sequence, 12 Hz
+  long long scrollLine = 0;  // console scroll, one line / 220 ms
+  long long orbitStep = 0;   // hyperboloid twist, 6 Hz over 24 s
+  long long phraseStep = 0;  // the Layer 07 sequence, 12 Hz
   float monoSize = 22.0f;
   float proseSize = 30.0f;
 
@@ -820,7 +836,7 @@ struct LainNavi : sketch::Sketch {
       auto place = [&](Element e) {
         return e.at({kTextX, y - monoSize * 0.98f});
       };
-      g.child(place(text(line, type(monoFace(), monoSize, mul(c, 0.40f),
+      g.child(place(text(line, type(monoFace(), monoSize, scaleRgb(c, 0.40f),
                                     sigma + 2.4f)))
                   .key("halo" + std::to_string(i)));
       g.child(place(text(line, type(monoFace(), monoSize, c, sigma)))
@@ -846,7 +862,7 @@ struct LainNavi : sketch::Sketch {
     g.child(box()
                 .inset(0)
                 .shape([phi](SkSize) { return generatrices(phi, 7); })
-                .foreground(add(1.5f, mul(kWire, 0.44f), 0.0f))
+                .foreground(add(1.5f, scaleRgb(kWire, 0.44f), 0.0f))
                 .key("ruling"));
 
     // the two rims and the waist — DOTTED, never solid (1.6 on 4.4 with a
@@ -870,9 +886,9 @@ struct LainNavi : sketch::Sketch {
     // tilted orbit is three concentric dotted rings and reads as a lampshade;
     // the plate shows arcs that leave frame and never close.
     ellArc({kAxis.fX, kAxis.fY - kHalfH}, kRim, kRim * kEcc, 0,
-           mul(kWire, 0.72f), 1.7f, 3.55f, 6.60f, "rimTop");
+           scaleRgb(kWire, 0.72f), 1.7f, 3.55f, 6.60f, "rimTop");
     ellArc({kAxis.fX, kAxis.fY + kHalfH}, kRim, kRim * kEcc, 0,
-           mul(kWire, 0.72f), 1.7f, 0.30f, 3.05f, "rimBot");
+           scaleRgb(kWire, 0.72f), 1.7f, 0.30f, 3.05f, "rimBot");
     ell(kAxis, waist, waist * kEcc, 0, kWire, 2.0f, "waist");
     ell(kOrbit2C, kOrbit2A, kOrbit2B, tilt2, kWire, 2.0f, "orbit2");
 
@@ -887,7 +903,7 @@ struct LainNavi : sketch::Sketch {
                   b.lineTo(503 + kWireShift.fX, 524 + kWireShift.fY);
                   return b.detach();
                 })
-                .foreground(add(2.4f, mul(kWire, 0.72f), 0.7f)));
+                .foreground(add(2.4f, scaleRgb(kWire, 0.72f), 0.7f)));
 
     // `make me feel alright?` stands UPRIGHT beside the orbit's lower-left
     // arc rather than riding it. A run laid on the conic is turned per
@@ -920,7 +936,7 @@ struct LainNavi : sketch::Sketch {
         k = (float)std::max(0.0, 1.0 - (u - p.hold) / 0.9);
       if (k <= 0.01f) continue;
       k = k * k * (3.0f - 2.0f * k);
-      const SkColor4f c = mul(kMinds, k);
+      const SkColor4f c = scaleRgb(kMinds, k);
       // the bloom is a second, blurred pass DECLARED FIRST so it paints under
       // the core; kPlus makes the order irrelevant for colour but not for the
       // core's own crispness
@@ -931,10 +947,10 @@ struct LainNavi : sketch::Sketch {
                   .centerAt(p.centre)
                   .key("ph" + std::to_string(i))
                   .child(text(std::u8string(p.text),
-                              type(serifFace(), p.size, mul(c, 0.42f), 6.5f))
+                              type(serifFace(), p.size, scaleRgb(c, 0.42f), 6.5f))
                              .inset(0))
                   .child(text(std::u8string(p.text),
-                              type(serifFace(), p.size, mul(c, 0.55f), 2.2f))
+                              type(serifFace(), p.size, scaleRgb(c, 0.55f), 2.2f))
                              .inset(0))
                   .child(text(std::u8string(p.text),
                               type(serifFace(), p.size, c, 0.7f))));
@@ -953,7 +969,7 @@ struct LainNavi : sketch::Sketch {
     // saveLayer that Cache::Texture plus .blend() would force.
     root.child(box()
                    .inset(0)
-                   .fill(Material::sksl(plateEffect()))
+                   .fill(mskia::Paint::sksl(plateEffect()))
                    .cache(Cache::Texture)
                    .key("plate"));
 
@@ -980,11 +996,11 @@ struct LainNavi : sketch::Sketch {
     // soft-edged: a radial ramp to nothing rather than a rect with a blur.
     root.child(box()
                    .rect(SkRect::MakeXYWH(178, 88, 304, 304))
-                   .fill(Material::radialUnit({0.48f, 0.46f}, 0.95f,
+                   .fill(mskia::Paint::radialUnit({0.48f, 0.46f}, 0.95f,
                                               {{0.0f, kPanel},
-                                               {0.55f, mul(kPanel, 0.86f)},
-                                               {0.86f, mul(kPanel, 0.30f)},
-                                               {1.0f, mul(kPanel, 0.0f)}}))
+                                               {0.55f, scaleRgb(kPanel, 0.86f)},
+                                               {0.86f, scaleRgb(kPanel, 0.30f)},
+                                               {1.0f, scaleRgb(kPanel, 0.0f)}}))
                    .blend(SkBlendMode::kPlus)
                    .cache(Cache::Texture)
                    .key("panel"));
@@ -1082,7 +1098,7 @@ struct LainNavi : sketch::Sketch {
             .child(text(u8"Copland OS Enterprise",
                         type(serifItalicFace(), 34, kWordmark, 1.9f, 1.0f)))
             .child(text(u8"Produced By Tachibana Lab",
-                        type(serifItalicFace(), 16, mul(kWordmark, 0.7f), 1.6f,
+                        type(serifItalicFace(), 16, scaleRgb(kWordmark, 0.7f), 1.6f,
                              0.8f))));
 
     // ---- S4..S8, the Layer 07 strata over the window ------------------------
@@ -1095,7 +1111,7 @@ struct LainNavi : sketch::Sketch {
             .centerAt({730, 182})
             .key("cover")
             .child(text(u8"cover me",
-                        type(phraseFace(), 62, mul(kCover, 0.5f), 6.5f))
+                        type(phraseFace(), 62, scaleRgb(kCover, 0.5f), 6.5f))
                        .centerAt({0, 0}))
             .child(text(u8"cover me", type(phraseFace(), 62, kCover, 1.4f))));
 
@@ -1119,11 +1135,11 @@ struct LainNavi : sketch::Sketch {
         g.child(
             box()
                 .rect(SkRect::MakeXYWH(b[0], b[1], b[2], 15))
-                .fill(Material::linearUnit({0, 0}, {1, 0},
-                                           {{0.0f, mul(kMagenta, 0.0f)},
-                                            {0.30f, mul(kMagenta, b[3])},
-                                            {0.68f, mul(kMagenta, b[3] * 0.8f)},
-                                            {1.0f, mul(kMagenta, 0.0f)}}))
+                .fill(mskia::Paint::linearUnit({0, 0}, {1, 0},
+                                           {{0.0f, scaleRgb(kMagenta, 0.0f)},
+                                            {0.30f, scaleRgb(kMagenta, b[3])},
+                                            {0.68f, scaleRgb(kMagenta, b[3] * 0.8f)},
+                                            {1.0f, scaleRgb(kMagenta, 0.0f)}}))
                 .blend(SkBlendMode::kPlus)
                 .cache(Cache::Texture));
       root.child(std::move(g));
@@ -1142,7 +1158,7 @@ struct LainNavi : sketch::Sketch {
     root.child(box().inset(0).translateY(&creep).child(
         box()
             .rect(SkRect::MakeXYWH(0, -12, kW, kH + 24))
-            .fill(Material::sksl(crtEffect()))
+            .fill(mskia::Paint::sksl(crtEffect()))
             .cache(Cache::Texture)
             .key("crt")));
     root.child(box()
@@ -1187,7 +1203,7 @@ struct LainNavi : sketch::Sketch {
       t += dt;
       // whole-pixel creep: a fractional translate turns a cached blit into a
       // resample, so the creep steps in whole pixels and never lands between
-      creep = (float)((int)std::floor(t * 0.5) % 6);
+      creep = (float)(motion::stepIndex(t, 0.5) % 6);
       const double ph = std::fmod(t, 4.0);
       flicker = ph < 0.05 ? 0.055f : 0.0f;
       // the camera hunting focus, +-0.4 px at 0.15 Hz
@@ -1203,9 +1219,9 @@ struct LainNavi : sketch::Sketch {
 
   void update(double elapsed, sketch::SketchContext& ctx) override {
     // Three independent rates, three slots. Nothing else re-describes at all.
-    const int line = (int)std::floor(elapsed / 0.220);
-    const int orbit = (int)std::floor(elapsed * 6.0);
-    const int phr = (int)std::floor(elapsed * 12.0);
+    const long long line = motion::stepIndex(elapsed, 1.0 / 0.220);
+    const long long orbit = motion::stepIndex(elapsed, 6.0);
+    const long long phr = motion::stepIndex(elapsed, 12.0);
     if (line != scrollLine) {
       scrollLine = line;
       ctx.composer.renderSlot("mips", consoleText());
