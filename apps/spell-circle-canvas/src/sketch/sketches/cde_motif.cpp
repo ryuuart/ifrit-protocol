@@ -131,7 +131,7 @@
 //  · A WIDGET DOES NOT CHOOSE ITS OWN COLOUR SET, so it should not be
 //    handed one. The set is a property of the window a widget was
 //    composed inside, which is what an inherited value is:
-//    `env::Provide<ColorSet>` opens the scope and every bevel, label,
+//    `core::env::Provide<ColorSet>` opens the scope and every bevel, label,
 //    stipple and icon four levels down reads the same one. Threading a
 //    set by argument is how a window ends up drawn in three of them, and
 //    a study of this derivation cannot afford that mistake.
@@ -139,7 +139,7 @@
 //    1 with integer rects and AA off, every sampled band above is one
 //    flat colour with no 254/255 edge anywhere. Yoga's resolved rects
 //    are integers when the inputs are, `.padding(6)` is exact, and
-//    shapes::inset(5, …)'s path-op offset survives it.
+//    inset(5, …)'s path-op offset survives it.
 //  · EDGING IS ASKED FOR. `ShapingStyle::aliased` (compose spells it
 //    `Type::aliased`) selects hard-edged rasterisation and is part of the
 //    shape-cache key, so every one of the ~80 UI runs on this canvas goes
@@ -181,13 +181,16 @@
 #include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/brush/Decorations.h>
-#include <sigilcompose/core/Env.h>
-#include <sigilcompose/core/Material.h>
+#include <sigilmotion/bind/Bind.h>
+#include <sigilweave/ports/SystemFontManager.h>
+#include <sigilcore/reconcile/Env.h>
+#include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/Pattern.h>
-#include <sigilcompose/core/Patterns.h>
-#include <sigilcompose/kit/Silhouettes.h>
+#include <sigilmaterial/kit/Patterns.h>
+#include <sigilcompose/brush/Adaptors.h>
+#include <sigilgeometry/kit/Generators.h>
 #include <sigilcompose/testing/Checks.h>
-#include <sigilcompose/typography/Type.h>
+#include <sigilcompose/typography/Typography.h>
 #include <sigilsketch/canvas/Sketch.h>
 
 #include <algorithm>
@@ -202,6 +205,11 @@
 namespace sketch = sigil::sketch;
 namespace measure = sigil::measure;
 namespace test = sigil::compose::test;
+namespace env = sigil::core::env;
+namespace motion = sigil::motion;
+namespace shapes = sigil::geometry::shapes;
+namespace pattern = sigil::material::pattern;
+namespace weave = sigil::weave;
 
 using namespace sigil::compose;
 using namespace std::chrono_literals;
@@ -441,7 +449,7 @@ constexpr std::array<uint32_t, 8> kIconColor = {0x000000, 0xFFFFFF, 0xFF0000,
 //
 //    A CDE widget is drawn in whatever set the window around it was
 //    assigned, and no widget picks its own. That is an ambient value, so
-//    it is one: `env::Provide<ColorSet>` opens the scope a piece of
+//    it is one: `core::env::Provide<ColorSet>` opens the scope a piece of
 //    chrome is drawn in, and every bevel, label, stipple and icon under
 //    it reads the same set without being handed it. Threading a set by
 //    argument through six levels is how a window ends up drawn in three
@@ -652,7 +660,7 @@ inline MotifStipple stipple() { return MotifStipple{ambient().bg}; }
  *  each, on a staggered half-drop. Period 14 in x, 13 in y. In 1993 a
  *  texture was a pixmap and a gradient was a dither, and this is why the
  *  CDE root window is a faintly-structured mid-tone rather than flat. */
-inline PatternProgram pinStripeTile(SkColor4f light, SkColor4f dark) {
+inline pattern::Program pinStripeTile(SkColor4f light, SkColor4f dark) {
   return [light, dark](SkCanvas& c, SkSize, uint32_t) {
     SkPaint p;
     p.setAntiAlias(false);
@@ -681,7 +689,7 @@ inline PatternProgram pinStripeTile(SkColor4f light, SkColor4f dark) {
 // ===========================================================================
 
 inline sk_sp<SkTypeface> uiFace() {
-  static sk_sp<SkTypeface> f = sigil::compose::pickFace({"Helvetica", "Arial"});
+  static sk_sp<SkTypeface> f = weave::ports::pickTypeface({"Helvetica", "Arial"});
   return f;
 }
 
@@ -702,7 +710,7 @@ constexpr float kTrack = 0.95f;
  *  desktop's type looks like, and the one property this reconstruction
  *  cannot approximate. */
 inline sigil::weave::TextStyle type(SkColor4f c, float size = kType) {
-  return sigil::compose::type({.face = uiFace(),
+  return weave::textStyle({.face = uiFace(),
                                .size = size,
                                .color = c,
                                .track = kTrack,
@@ -734,10 +742,13 @@ inline Element label(std::string_view t, SkColor4f c, float size = kType,
 }
 
 // ===========================================================================
-// 7. WIDGETS.  Every one takes its colour set(s) as an argument, because
-//    a widget has no other channel for one. A File
-//    Manager window needs THREE at once: set 1 chrome, set 6 menus,
-//    set 5 client area.
+// 7. WIDGETS.  Not one takes a colour set as an argument: each reads
+//    `ambient()` — the set the window it was composed inside opened with
+//    `env::Provide<ColorSet>` — so a bevel, a label, a stipple and an
+//    icon four levels down are all in the same set without anyone
+//    passing it down. A window that wants two puts the second scope
+//    around the subtree that wears it, which is how the File Manager
+//    below has set 1 on its frame and set 5 on its body.
 // ===========================================================================
 
 /** XmPushButton. Armed is XmSHADOW_IN *and* the background swapped to the
@@ -779,7 +790,7 @@ inline Element textField(std::string_view t, float w, bool caret = false,
                       .child(label(t, s.fg));
   if (caret && caretOut)
     inner.child(box().width(Dim(1)).height(Dim(13)).fill(s.fg).opacity(
-        bind(caretOut).quantize(2)));
+        motion::bind(caretOut).quantize(2)));
   Element field = box()
                       .fill(s.bg)
                       .overlay(bevel(2, true, false))
@@ -1103,16 +1114,16 @@ struct CdeMotifSketch : sketch::Sketch {
       const cde::Derived d = cde::calculate(cde::from8(c.bg));
       char want[16];
       std::snprintf(want, sizeof want, "#%06X", c.ts);
-      t.add(test::check(std::string(c.what) + " ts", want, hexOf(d.ts)));
+      t.add(measure::check(std::string(c.what) + " ts", want, hexOf(d.ts)));
       std::snprintf(want, sizeof want, "#%06X", c.bs);
-      t.add(test::check(std::string(c.what) + " bs", want, hexOf(d.bs)));
+      t.add(measure::check(std::string(c.what) + " bs", want, hexOf(d.bs)));
     }
     // The five LITE colours CDE ships are all colour-set 4, and the top
     // shadow comes out DARKER than the background on every one — which is
     // the branch a reimplementation gets backwards.
     const cde::Derived lite = cde::calculate(cde::from8(0xFFF7E9));
-    t.add(test::check("#FFF7E9 takes LITE", lite.branch == cde::Branch::Lite));
-    t.add(test::check("LITE ts darker than bg", lite.ts.r < lite.bg.r));
+    t.add(measure::check("#FFF7E9 takes LITE", lite.branch == cde::Branch::Lite));
+    t.add(measure::check("LITE ts darker than bg", lite.ts.r < lite.bg.r));
     return t;
   }
 
@@ -1122,14 +1133,14 @@ struct CdeMotifSketch : sketch::Sketch {
   /** The 6 px Motif window frame [MEAS]: a raised outer bevel of 2, a 3 px
    *  band, and a 1 px INNER bevel that is inverted — you are looking at
    *  the inside face of a ridge. The inner one goes through
-   *  shapes::inset(5, …), which is that helper's exact use case ("the
+   *  inset(5, …), which is that helper's exact use case ("the
    *  same bevel again, five pixels in"). */
   Element windowFrame(Element content) {
     const Set s = cde::ambient();
     return box()
         .fill(s.bg)
         .overlay(cde::bevel(2, false, false))
-        .overlay(shapes::inset(5, cde::bevel(1, true, false)))
+        .overlay(inset(5, cde::bevel(1, true, false)))
         .padding(6)
         .column()
         .child(std::move(content));
@@ -1193,9 +1204,10 @@ struct CdeMotifSketch : sketch::Sketch {
   }
 
   // -------------------------------------------------------------------------
-  // The File Manager. Frame + title in set 1, menu bar in set 6, client
-  // area in set 5 — three colour sets in one window, each threaded in by
-  // hand.
+  // The File Manager. Frame and title in set 1, menu bar and client area
+  // in set 5, the path field in set 4 and the scrollbar in set 3 — four
+  // scopes opened around four subtrees, and no widget below them told
+  // which it is in.
 
   Element fileManager() {
     // THE WINDOW'S COLOUR SETS, and the scope each one covers. The frame
@@ -1628,7 +1640,7 @@ struct CdeMotifSketch : sketch::Sketch {
                    .height(Dim(11))
                    .fill(cde::C(cde::kIconColor[0]))
                    .transformOrigin(0.5f, 1.0f)
-                   .rotate(bind(&clockT).quantize(61).scale(30).offset(300)));
+                   .rotate(motion::bind(&clockT).quantize(61).scale(30).offset(300)));
     face.child(box()
                    .left(Dim(23))
                    .top(Dim(6))
@@ -1636,7 +1648,7 @@ struct CdeMotifSketch : sketch::Sketch {
                    .height(Dim(18))
                    .fill(cde::C(cde::kIconColor[0]))
                    .transformOrigin(0.5f, 1.0f)
-                   .rotate(bind(&clockT).quantize(61).scale(360)));
+                   .rotate(motion::bind(&clockT).quantize(61).scale(360)));
     face.child(box()
                    .left(Dim(22))
                    .top(Dim(22))
@@ -1713,7 +1725,7 @@ struct CdeMotifSketch : sketch::Sketch {
                                   .height(Dim(10))
                                   .fill(cde::C(0x00C000))
                                   .overlay(cde::bevel(1, true, false))
-                                  .opacity(bind(&busy).quantize(2)));
+                                  .opacity(motion::bind(&busy).quantize(2)));
     Element right = box()
                         .width(Dim(26))
                         .alignItems(Align::Center)
