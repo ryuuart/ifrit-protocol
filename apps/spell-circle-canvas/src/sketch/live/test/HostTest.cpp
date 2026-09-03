@@ -22,6 +22,7 @@ using namespace sigil::sketch;
 using sigil::sketch::test::fonts;
 using sigil::sketch::test::kSquare;
 using sigil::sketch::test::Watched;
+using sigil::sketch::test::WatchedDirectory;
 
 Host::Options options(const std::filesystem::path& path) {
   Host::Options opts;
@@ -84,6 +85,49 @@ TEST(SketchHost, RebuildsWhenAHeaderBesideTheSketchIsEdited) {
   Host host(std::move(opts), fonts());
   ASSERT_FALSE(host.compiling());
   std::ofstream(file.dir.path / "palette.h") << "// a helper\n";
+  host.poll();
+  EXPECT_TRUE(host.compiling());
+}
+
+TEST(SketchHost, RebuildsWhenAUnitBesideADirectorySketchIsEdited) {
+  // A sketch that is a directory is every source beside its entry, so a
+  // unit written there is an edit to the sketch.
+  const WatchedDirectory file("sigil_sketch_host_unit");
+  Host::Options opts = options(file.path);
+  opts.siblingScanInterval = std::chrono::milliseconds(0);
+  Host host(std::move(opts), fonts());
+  ASSERT_FALSE(host.compiling());
+  std::ofstream(file.path.parent_path() / "tables.cpp") << "// a unit\n";
+  host.poll();
+  EXPECT_TRUE(host.compiling());
+}
+
+TEST(SketchHost, LeavesABareSketchAloneWhenAnotherSketchBesideItIsEdited) {
+  // Beside a bare sketch the other sources are other sketches. An edit
+  // to one of them is nothing to this one — a directory of sketches
+  // must not rebuild every open one whenever any of them is saved.
+  const Watched file("sigil_sketch_host_neighbour");
+  Host::Options opts = options(file.path);
+  opts.siblingScanInterval = std::chrono::milliseconds(0);
+  Host host(std::move(opts), fonts());
+  ASSERT_FALSE(host.compiling());
+  std::ofstream(file.dir.path / "other.cpp") << "// another sketch\n";
+  host.poll();
+  EXPECT_FALSE(host.compiling());
+}
+
+TEST(SketchHost, RebuildsWhenTheSharedLayerIsEdited) {
+  // The shared layer's sources are units of every sketch and its
+  // headers may be included by any, so an edit there rebuilds a bare
+  // sketch as surely as an edit to the sketch itself.
+  const Watched file("sigil_sketch_host_shared");
+  Host::Options opts = options(file.path);
+  opts.siblingScanInterval = std::chrono::milliseconds(0);
+  opts.sharedDir = file.dir.path / "shared";
+  std::filesystem::create_directories(opts.sharedDir);
+  Host host(std::move(opts), fonts());
+  ASSERT_FALSE(host.compiling());
+  std::ofstream(file.dir.path / "shared" / "palette.cpp") << "// a module\n";
   host.poll();
   EXPECT_TRUE(host.compiling());
 }

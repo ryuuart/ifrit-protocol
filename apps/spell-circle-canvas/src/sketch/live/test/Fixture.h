@@ -50,4 +50,18 @@ struct Watched {
   std::filesystem::path path;
 };
 
+/** THE DIRECTORY FORM of the same: the entry standing in a directory of
+ *  its own name, so the sources beside it are units of it rather than
+ *  other sketches. */
+struct WatchedDirectory {
+  explicit WatchedDirectory(std::string_view label) : dir(label) {
+    std::filesystem::create_directories(dir.path / "rain");
+    path = dir.path / "rain" / "rain.cpp";
+    std::ofstream(path) << "// watched, never built\n";
+  }
+
+  sigil::test::ScratchDir dir;
+  std::filesystem::path path;
+};
+
 }  // namespace sigil::sketch::test

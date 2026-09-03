@@ -1,8 +1,8 @@
 #pragma once
 
 /** @file
- * The live-reload host: a sketch file watched, rebuilt into a dylib on
- * save, and hot-swapped into the running session.
+ * The live-reload host: a sketch watched, rebuilt into a dylib on save,
+ * and hot-swapped into the running session.
  */
 
 #include <include/core/SkRefCnt.h>
@@ -17,6 +17,7 @@
 #include <filesystem>
 #include <functional>
 #include <future>
+#include <map>
 #include <memory>
 #include <optional>
 #include <string>
@@ -32,16 +33,20 @@ class FontContext;
 
 namespace sigil::sketch {
 
-/** THE LIVE HOST, and it is Qt-free on purpose: it watches the sketch
- *  source, rebuilds it into a versioned dylib with the compiler flags
+/** THE LIVE HOST, and it is Qt-free on purpose: it watches the sketch's
+ *  sources, rebuilds them into a versioned dylib with the compiler flags
  *  the build captured, dlopens the result and swaps the running session
  *  — keeping the previous one alive on a compile error, which is the
  *  behaviour that makes live coding usable.
  *
  *  The host executable exports the framework's symbols, so a sketch
  *  dylib links with `-undefined dynamic_lookup` and builds in a couple
- *  of seconds: one small translation unit, nothing linked against the
- *  static libraries.
+ *  of seconds: a few small translation units, nothing linked against
+ *  the static libraries. A sketch that is a directory is the entry and
+ *  every source beside it, compiled apart and linked once — and a unit
+ *  whose source and headers are the ones it was last compiled from is
+ *  not compiled again, so a table standing in its own unit costs a
+ *  reload of the entry nothing but the link.
  *
  *  Old libraries are never dlclosed. Their statics stay valid — a
  *  running session may hold a vtable, a string literal or a function
@@ -50,7 +55,11 @@ namespace sigil::sketch {
 class Host {
  public:
   struct Options {
-    /** The file to watch. */
+    /** The sketch's ENTRY: the file to watch, and the one whose
+     *  directory says what else is built with it. A file standing in a
+     *  directory of its own name is the entry of a directory sketch,
+     *  and every other `.cpp` in that directory is a unit of it; any
+     *  other file is a sketch of one unit. */
     std::filesystem::path sketchPath;
     /** Where the sketch looks for what it did not generate. Defaults to
      *  `assets` beside the sketch file. */
@@ -58,6 +67,11 @@ class Host {
     /** The compiler line the build captured, beside the executable. */
     std::filesystem::path flagsFile;
     std::string compiler = "clang++";
+    /** THE SHARED LAYER: a directory whose sources are units of every
+     *  sketch this host builds, and whose headers a sketch spells as
+     *  `<shared/Name.h>`. Watched with the sketch's own files. Empty
+     *  for none. */
+    std::filesystem::path sharedDir;
     /** Pin anything a sketch measured about its own execution, so a
      *  capture can be diffed. */
     bool deterministic = false;
@@ -65,11 +79,12 @@ class Host {
      *  than by building the file, and compile only once the file
      *  changes. Null means always build. */
     const Entry* compiledIn = nullptr;
-    /** How long between re-reads of the headers standing beside the
-     *  sketch. The sketch's own file is stamped every poll; the
-     *  directory around it is not, because reading a directory is cheap
-     *  but not free and a header is saved by hand a moment before the
-     *  sketch is. Zero re-reads them on every poll. */
+    /** How long between re-reads of the directories the sketch is
+     *  built from — the one beside the entry and the shared layer. The
+     *  entry itself is stamped every poll; the directories around it
+     *  are not, because reading a directory is cheap but not free and
+     *  a header is saved by hand a moment before the sketch is. Zero
+     *  re-reads them on every poll. */
     std::chrono::milliseconds siblingScanInterval{250};
   };
 
@@ -154,24 +169,57 @@ class Host {
   [[nodiscard]] SkColor4f background() const;
 
  private:
+  /** One translation unit on a build's compile line, and where its
+   *  object goes. */
+  struct Unit {
+    std::filesystem::path source;
+    std::filesystem::path object;
+    std::filesystem::file_time_type sourceTime;
+  };
   struct CompileResult {
     bool ok = false;
     std::filesystem::path library;
     std::string output;
+    /** The units this build compiled — recorded as built once the
+     *  build is adopted, under the header stamp they were compiled
+     *  against — and how many the sketch has in all. */
+    std::vector<Unit> compiled;
+    std::filesystem::file_time_type headers;
+    int units = 0;
+  };
+  /** WHAT A UNIT WAS LAST COMPILED FROM. Its object is reused while its
+   *  source and the headers around the sketch are the ones it was
+   *  compiled against. The headers are ONE stamp for every unit rather
+   *  than a dependency list per unit: any header beside the sketch or
+   *  in the shared layer may be included by any unit, and re-reading
+   *  two small directories is cheaper than asking the compiler which
+   *  unit includes what. */
+  struct Built {
+    std::filesystem::path object;
+    std::filesystem::file_time_type source;
+    std::filesystem::file_time_type headers;
   };
 
   void startCompile();
   void adopt(const std::filesystem::path& library);
   void openSession(const Kind& kind);
   /** THE NEWEST WRITE ACROSS EVERYTHING THE SKETCH IS BUILT FROM, or
-   *  nothing when the sketch file itself is not there.
+   *  nothing when the entry itself is not there.
    *
-   *  A sketch is one translation unit and more than one file: a helper
-   *  beside it is reached by a quoted include, which resolves relative
-   *  to the including file and needs no include path — so an edit to one
-   *  has to rebuild the sketch, or what stays on screen is the code that
-   *  stood before it. */
+   *  A sketch is more than one file: a helper beside it is reached by a
+   *  quoted include, which resolves relative to the including file and
+   *  needs no include path; a directory sketch has units beside its
+   *  entry; the shared layer has both. An edit to any of them has to
+   *  rebuild the sketch, or what stays on screen is the code that stood
+   *  before it. */
   [[nodiscard]] std::optional<std::filesystem::file_time_type> sourceStamp();
+  /** Re-reads the directories the sketch is built from into the two
+   *  stamps below. */
+  void scanBeside();
+  /** Every unit the next build compiles or reuses, in compile order:
+   *  the entry, the sources beside it when it is a directory sketch,
+   *  then the shared layer's. */
+  [[nodiscard]] std::vector<std::filesystem::path> units() const;
 
   Options m_options;
   weave::FontContext& m_fonts;
@@ -184,12 +232,18 @@ class Host {
 
   std::future<CompileResult> m_compile;
   std::filesystem::file_time_type m_compiledMtime;
-  // The sibling headers' newest write, re-read on the cadence the
+  // The directories around the sketch, re-read on the cadence the
   // options name rather than every poll: reading a directory is not
   // per-frame work, and the file being typed into is where
-  // responsiveness is wanted.
-  std::filesystem::file_time_type m_siblingStamp;
+  // responsiveness is wanted. One stamp for the headers, which decide
+  // whether a cached object is still good, and one for the other
+  // sources, which only ever mean a rebuild.
+  std::filesystem::file_time_type m_headerStamp;
+  std::filesystem::file_time_type m_unitStamp;
   std::chrono::steady_clock::time_point m_lastSiblingScan;
+  std::map<std::filesystem::path, Built> m_built;
+  int m_unitsCompiled = 0;  // of the last adopted build, for its status line
+  int m_unitsTotal = 0;
   bool m_everCompiled = false;
   int m_generation = 0;
   int m_frameIndex = -1;  // for the crash reporter's phase line
