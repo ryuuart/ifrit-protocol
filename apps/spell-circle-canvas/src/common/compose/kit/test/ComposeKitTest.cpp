@@ -585,6 +585,52 @@ TEST(KitPixelType, ASnappedRunMeasuresTheWidthItDraws) {
       drawn);
 }
 
+TEST(KitPixelType, ARunOfCellsStandsOnOneBaseline) {
+  // A cell is cropped to its ink, so where that ink sat inside the line
+  // box is the cell's to carry: an `x` and an `l` cropped flush and drawn
+  // at one y would stand on no common line at all. The drop tells them
+  // apart, and the two inks END together — which is what a baseline is.
+  const kit::PixFont f = kit::bakeFont(fonts(), pixelStyle(12.0f));
+  const kit::Cell& tall = f.cell('l');
+  const kit::Cell& shortOne = f.cell('x');
+  ASSERT_NE(tall.mask, nullptr);
+  ASSERT_NE(shortOne.mask, nullptr);
+  EXPECT_GT(shortOne.inkY, tall.inkY)
+      << "an x sits lower in the line box than an l";
+  EXPECT_NEAR(tall.inkY + tall.h, shortOne.inkY + shortOne.h, 1)
+      << "both rest on the same baseline";
+  // A descender reaches BELOW that baseline, and the line box holds it.
+  const kit::Cell& below = f.cell('p');
+  ASSERT_NE(below.mask, nullptr);
+  EXPECT_GT(below.inkY + below.h, shortOne.inkY + shortOne.h);
+  EXPECT_GE(f.lineHeight, below.inkY + below.h);
+}
+
+TEST(KitPixelType, ABlitLandsEachCellAtItsOwnDropInTheLineBox) {
+  // The pen walk is unchanged by the drop — the advance is the advance —
+  // but the ink lands where the cell says, so a mixed run reads as type
+  // rather than as a row of tops.
+  const kit::PixFont f = kit::bakeFont(fonts(), pixelStyle(12.0f));
+  const kit::Cell& shortOne = f.cell('x');
+  ASSERT_NE(shortOne.mask, nullptr);
+  ASSERT_GT(shortOne.inkY, 0);
+  sk_sp<SkSurface> s = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(80, 40));
+  ASSERT_TRUE(s);
+  s->getCanvas()->clear(SK_ColorBLACK);
+  kit::blit(*s->getCanvas(), f, {4, 4}, "x", {1, 1, 1, 1});
+  SkBitmap read;
+  ASSERT_TRUE(read.tryAllocPixels(SkImageInfo::MakeN32Premul(80, 40)));
+  ASSERT_TRUE(s->readPixels(read.pixmap(), 0, 0));
+  int topmost = 40;
+  for (int y = 0; y < 40; ++y)
+    for (int x = 0; x < 80; ++x)
+      if (SkColorGetR(read.getColor(x, y)) > 0) {
+        topmost = std::min(topmost, y);
+        break;
+      }
+  EXPECT_EQ(topmost, 4 + shortOne.inkY);
+}
+
 TEST(KitPixelType, MaskedIsANodeTheSizeOfTheMask) {
   const kit::Mask m = kit::bakeRun(u8"88", fonts(), pixelStyle(10.0f));
   ASSERT_TRUE(m);

@@ -128,6 +128,11 @@ struct Coverage {
   /** What `measure()` reported — the ADVANCE, which is what a layout
    *  wants and is NOT the ink extent. */
   SkSize advance = {0, 0};
+  /** The slack the bake actually used, which is NOT the slack asked for:
+   *  a run whose ink touched an edge was baked again with the pad doubled.
+   *  It is the origin of the run's own line box inside the plane, so it is
+   *  what turns a plane coordinate into a typographic one. */
+  Pad pad;
 
   bool valid() const { return !plane.isNull(); }
   int width() const { return plane.width(); }
@@ -181,6 +186,7 @@ inline Coverage coverage(std::u8string_view run,
         fonts, {w, h});
     if (plane.isNull()) return out;
     out.plane = std::move(plane);
+    out.pad = pad;
     int x0 = w, y0 = h, x1 = -1, y1 = -1;
     for (int y = 0; y < h; ++y)
       for (int x = 0; x < w; ++x)
@@ -312,18 +318,28 @@ inline Element masked(const Mask& m, const Present& p = {}) {
 // ---------------------------------------------------------------------------
 // The 96-cell font — what a LIVE readout needs.
 
-/** One baked cell. */
+/** One baked cell.
+ *
+ *  The mask is cropped to its ink, so where that ink sat inside the cell's
+ *  own LINE BOX is the cell's to carry: a `T` and a `p` cropped flush to
+ *  their ink and drawn at one y would stand on no common line at all.
+ *  `inkX` is the left side bearing and `inkY` the drop from the top of the
+ *  line box, both in px, and `blit` adds them back. */
 struct Cell {
   sk_sp<SkImage> mask;
   int w = 0, h = 0;
   /** The shaped advance, rounded — NOT the ink width. */
   int advance = 0;
+  /** Where this cell's ink sits inside its line box. */
+  int inkX = 0, inkY = 0;
 };
 
 /** ASCII 32..127, baked once. */
 struct PixFont {
   std::array<Cell, 96> cells{};
-  /** The tallest cell — a line box for the caller. */
+  /** How deep the cells reach below the top of their shared line box —
+   *  a line box for the caller. It is NOT the tallest cell: a cell is
+   *  cropped to its ink and sits at its own drop inside the box. */
   int lineHeight = 0;
   /** The widest DIGIT advance, shared by all ten — see trap 3. */
   int digitAdvance = 0;
@@ -364,7 +380,13 @@ inline PixFont bakeFont(sigil::weave::FontContext& fonts,
     cell.w = m.w;
     cell.h = m.h;
     cell.advance = std::max(1, (int)std::lround(cov.advance.width()));
-    f.lineHeight = std::max(f.lineHeight, cell.h);
+    // Plane coordinates back to line-box ones: the run was drawn inset by
+    // the pad the bake settled on, and that pad is not the same for every
+    // cell — one whose ink touched an edge was baked again with a larger
+    // one.
+    cell.inkX = m.inkX - cov.pad.x;
+    cell.inkY = m.inkY - cov.pad.y;
+    f.lineHeight = std::max(f.lineHeight, cell.inkY + cell.h);
   }
   for (int d = 0; d < 10; ++d)
     f.digitAdvance =
@@ -441,10 +463,11 @@ inline float blit(SkCanvas& canvas, const PixFont& f, SkPoint at,
   const float y = detail::snapTo(at.fY, b.snap);
   return detail::walkRun(f, s, b, [&](const Cell& cell, float x) {
     if (cell.mask)
-      canvas.drawImageRect(
-          cell.mask,
-          SkRect::MakeXYWH(x0 + x, y, (float)cell.w, (float)cell.h), nearest,
-          &p);
+      canvas.drawImageRect(cell.mask,
+                           SkRect::MakeXYWH(x0 + x + (float)cell.inkX,
+                                            y + (float)cell.inkY,
+                                            (float)cell.w, (float)cell.h),
+                           nearest, &p);
   });
 }
 
