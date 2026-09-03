@@ -95,7 +95,7 @@
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/kit/PixelType.h>
 #include <sigilcompose/texture/Texture.h>
-#include <sigilcompose/typography/Type.h>
+#include <sigilweave/style/Type.h>
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
@@ -119,6 +119,7 @@
 
 namespace sketch = sigil::sketch;
 namespace world = sigil::world;
+namespace geometry = sigil::geometry;
 namespace material = sigil::material;
 namespace compose = sigil::compose;
 namespace weave = sigil::weave;
@@ -506,20 +507,24 @@ compose::Element gauge(float x, float y, float w, float h, float fraction,
 namespace {
 
 struct VagrantStoryTarget final : sketch::Set {
-  weave::FontContext* fonts = nullptr;
+  /** THE SESSION KEEPS THE SCENE. Asked for once while the set declares
+   *  itself, so the texture the overlay quad wears outlives every frame
+   *  that wears it; asked for per frame it would be one scene per frame,
+   *  each holding a texture the last one's body was pointing at. */
   std::shared_ptr<compose::TextureScene> overlay;
+  weave::FontContext* fonts = nullptr;
   compose::Element retained;
-  float lastSeconds = -1.0f;
   /** The camera. It is a member because the overlay's quad has to be put
    *  where the frustum is, and a set whose camera is declared once is a
    *  set whose overlay is a fixed rectangle rather than a guess. */
-  world::Camera lens;
+  geometry::mesh::camera::Camera lens;
 
   void setup(sketch::SetContext& ctx) override {
     ctx.canvas(vs::kHudW, vs::kHudH);
     ctx.background({0.016f, 0.019f, 0.031f, 1.0f});
     ctx.captureAt(2.2);
     fonts = &ctx.fonts;
+    overlay = ctx.textureScene({vs::kHudW, vs::kHudH});
 
     lens.eye = {-108.0f, 334.0f, 988.0f};
     lens.target = {-24.0f, 104.0f, 0.0f};
@@ -541,13 +546,13 @@ struct VagrantStoryTarget final : sketch::Set {
   compose::Element hud() {
     using namespace vs;
     const Limb& L = kLimbs[kSelected];
-    const weave::TextStyle title = compose::type({.size = 13.0f,
+    const weave::TextStyle title = weave::textStyle({.size = 13.0f,
                                                   .color = {1, 1, 1, 1},
                                                   .track = 0.0f,
                                                   .condense = 0.92f,
                                                   .aliased = true,
                                                   .antiAlias = false});
-    const weave::TextStyle body = compose::type({.size = 9.0f,
+    const weave::TextStyle body = weave::textStyle({.size = 9.0f,
                                                  .color = {1, 1, 1, 1},
                                                  .track = 0.0f,
                                                  .condense = 0.95f,
@@ -706,9 +711,6 @@ struct VagrantStoryTarget final : sketch::Set {
     scene.child(reachSphere(seconds));
     scene.child(attackLadder());
 
-    if (!overlay || seconds <= lastSeconds)
-      overlay = compose::TextureScene::make({kHudW, kHudH}, *fonts);
-    lastSeconds = seconds;
     overlay->render(retained, (double)seconds);
     scene.child(overlayQuad(overlay->texture()));
 
