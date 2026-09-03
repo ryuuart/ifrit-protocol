@@ -18,10 +18,10 @@
 // Why this is a SigilCompose stress test, not a screensaver:
 //   The fire is a STATEFUL cellular automaton — every cell's next value
 //   reads its neighbours' CURRENT values out of a persistent buffer.
-//   Material::sksl() is the opposite shape: a pure function of
+//   Paint::sksl() is the opposite shape: a pure function of
 //   (position, uTime, uniforms) re-evaluated from scratch each frame, with
 //   no ping-pong/feedback texture anywhere in the public API. So the state
-//   machine has no home in Material at all — it lives in a CPU buffer this
+//   machine has no home in a paint at all — it lives in a CPU buffer this
 //   sketch owns, stepped behind a FIXED-TIMESTEP accumulator at the
 //   historical 27 Hz inside ctx.ticker.add(), rasterized into an SkBitmap
 //   once per SIM tick, and blitted by a custom() + Cache::None leaf every
@@ -38,13 +38,16 @@
 #include <include/core/SkImage.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkSamplingOptions.h>
+#include <sigilcompose/core/Core.h>
 #include <sigilcompose/core/Feed.h>
-#include <sigilcompose/core/Material.h>
-#include <sigilcompose/typography/TextFx.h>
-#include <sigilcompose/typography/Type.h>
+#include <sigilcompose/kit/Kinetic.h>
+#include <sigilcompose/typography/Typography.h>
 #include <sigilcore/compute/Noise.h>
+#include <sigilmaterial/skia/Paint.h>
+#include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>
+#include <sigilweave/style/Type.h>
 
 #include <algorithm>
 #include <array>
@@ -57,9 +60,13 @@
 #include <vector>
 
 namespace sketch = sigil::sketch;
+namespace weave = sigil::weave;
 
 using namespace sigil::compose;
+using namespace sigil::motion;
 using namespace std::chrono_literals;
+using sigil::material::skia::Paint;
+using sigil::weave::ports::pickTypeface;
 namespace ch = choreograph;
 
 namespace {
@@ -102,7 +109,7 @@ constexpr double kSimStep = 1.0 / kSimHz;
 // Type
 
 sk_sp<SkTypeface> face(const char* family, SkFontStyle style) {
-  return sigil::compose::pickFace({family}, style);
+  return pickTypeface({family}, style);
 }
 
 sk_sp<SkTypeface> monoFace() {
@@ -125,21 +132,21 @@ sk_sp<SkTypeface> uiFace() {
   return f;
 }
 
-// A positional shorthand over the library's designated-init `type()`, for
+// A positional shorthand over weave's designated-init `textStyle()`, for
 // the two display lines that name their own face.
-sigil::weave::TextStyle type(sk_sp<SkTypeface> tf, float size, SkColor4f color,
-                             float track = 0.0f) {
-  return sigil::compose::type(
+weave::TextStyle faced(sk_sp<SkTypeface> tf, float size, SkColor4f color,
+                       float track = 0.0f) {
+  return weave::textStyle(
       {.face = std::move(tf), .size = size, .color = color, .track = track});
 }
 
 // The two registers the chrome is set in.
-sigil::weave::TextStyle mono(float size, SkColor4f c, float track = 0.0f) {
-  return sigil::compose::type(
+weave::TextStyle mono(float size, SkColor4f c, float track = 0.0f) {
+  return weave::textStyle(
       {.face = monoFace(), .size = size, .color = c, .track = track});
 }
-sigil::weave::TextStyle ui(float size, SkColor4f c, float track = 0.0f) {
-  return sigil::compose::type(
+weave::TextStyle ui(float size, SkColor4f c, float track = 0.0f) {
+  return weave::textStyle(
       {.face = uiFace(), .size = size, .color = c, .track = track});
 }
 
@@ -342,13 +349,13 @@ struct PsxDoomFire : sketch::Sketch {
     // glyph — so for this ASCII line the unit count is its non-space
     // character count.
     static constexpr char kTitle[] = "DOOM FIRE, 1995";
-    const Stagger cascade{.eachMs = 28, .durationMs = 480};
+    const Spread cascade{.eachMs = 28, .durationMs = 480};
     const auto units =
         (uint32_t)std::count_if(std::begin(kTitle), std::end(kTitle) - 1,
                                 [](char c) { return c != ' '; });
     const auto span =
         std::chrono::milliseconds(std::lround(cascade.spanMs(units)));
-    return text(toU8(kTitle), type(heavyFace(), 50, kBone, -0.6f))
+    return text(toU8(kTitle), faced(heavyFace(), 50, kBone, -0.6f))
         .key("title")
         .fx({.effect = fx::rise(24),
              .stagger = cascade,
@@ -359,9 +366,9 @@ struct PsxDoomFire : sketch::Sketch {
 
   /** The logo voice: heavy, huge, wide-tracked, with a dark ring underlay so
    *  the letterforms hold their edge where a flame tongue crosses them. */
-  sigil::weave::TextStyle doomType() {
-    sigil::weave::TextStyle s = type(heavyFace(), 186, hex(0xC23A1C), 34.0f);
-    s.paint.addUnderlay(sigil::weave::PaintLayer::outline(
+  weave::TextStyle doomType() {
+    weave::TextStyle s = faced(heavyFace(), 186, hex(0xC23A1C), 34.0f);
+    s.paint.addUnderlay(weave::PaintLayer::outline(
         hex(0x2A0805).toSkColor(), 7.0f, SkPaint::kRound_Join));
     return s;
   }
@@ -427,7 +434,7 @@ struct PsxDoomFire : sketch::Sketch {
                    .left(0)
                    .top(80)
                    .width(kPanelW)
-                   .textAlign(sigil::weave::TextAlignment::kCenter)
+                   .textAlign(weave::TextAlignment::kCenter)
                    .opacity(animate(from(0.0f).to(1.0f),
                                     {.duration = 600ms, .delay = 380ms}))
                    .zIndex(1))
@@ -513,12 +520,12 @@ struct PsxDoomFire : sketch::Sketch {
               .width(kSwatch)
               .height(34)
               .shrink(0)
-              .fill(Material::solid(hex(kPalette[i])))
+              .fill(Paint::solid(hex(kPalette[i])))
               .transformOrigin(0.5f, 1.0f)
               .scale(animate(from(0.0f).to(1.0f),
                              {.duration = 220ms, .ease = &easeOutBack}));
       if (i == 0)  // the transparent one — show the key, not the color
-        sw.fill(Material::solid(hex(0x070707)))
+        sw.fill(Paint::solid(hex(0x070707)))
             .stroke(
                 stroke(1.0f, Fill::color(kKeyline), PathFormat::Align::Inner));
       if (i == 36)  // the energy strobe — one pulse per simulation tick
