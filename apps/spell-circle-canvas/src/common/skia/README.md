@@ -32,8 +32,9 @@ directory, and links only what it needs.
 | draw | `SigilSkiaDraw` | `<sigilskia/draw/Direct.h>` | the two `SkCanvas` ops Graphite leaves unimplemented, decomposed into ones every backend performs |
 
 `SigilSkia` is the umbrella over the Qt-free features. Dependencies point
-one way: Graphite stands on the hardware device, so the graphite and qt
-features link `SigilCoreHardware` and nothing there knows Skia exists.
+one way: Graphite stands on the hardware device, so the graphite feature
+links `SigilCoreHardware` — the qt feature links graphite — and nothing
+there knows Skia exists.
 The draw feature is header-only over Skia and links neither. A Qt host links `SigilSkiaQt`, which carries the
 umbrella with it. A consumer that owns its own Metal device (the native
 macOS app, the headless gallery, the GPU tests and benchmarks) links

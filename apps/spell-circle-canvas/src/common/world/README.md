@@ -12,8 +12,9 @@ materials, recipes and programs are SigilMaterial's; the reconciler, its
 phases and the caching proof are SigilCore's, as are the erased value a
 `Generator` and a `PassBody` take, the field pin every hand-written
 comparator here sits under, and the fold a geometry signature accumulates
-with; the device, its handles and Graphite are SigilSkia's; animation is
-SigilMotion's; counters and timers are SigilMeasure's.
+with; the device and its handles are SigilCoreHardware's, and Graphite is
+SigilSkia's; animation is SigilMotion's; counters and timers are
+SigilMeasure's.
 
 Namespace `sigil::world`, headers under `include/sigilworld/`. Each
 feature is its own static archive with its own tests and benchmark, and
@@ -632,8 +633,9 @@ study about the scene must be able to say what it looks like on a device
 too. The flag answers with the device or with nothing: on a machine with
 no Vulkan runtime it reports that and fails, rather than quietly putting
 the CPU's plate under a name that asked for the device's. The device is
-brought up by the BINARY and installed once for the process, so this
-library links none and a machine with no GPU still renders the CPU tier.
+brought up by the BINARY and installed once for the process, so no
+feature here but `diligent/` links one, and a machine with no GPU still
+renders the CPU tier.
 
 Ten of them, and between them they exercise every feature this library
 has:

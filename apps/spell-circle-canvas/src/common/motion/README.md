@@ -6,8 +6,8 @@ well-behaved per-frame deltas, a ticker that steps a
 [Choreograph](https://github.com/sansumbrella/Choreograph) timeline plus
 any callbacks you register and tells you whether anything is still
 moving, and a small set of value types describing how a property changes
-over time. It links Choreograph and nothing else, so anything can use it
-without dragging in a graphics stack.
+over time. It links Choreograph and two header-only SigilCore leaves, so
+anything can use it without dragging in a graphics stack.
 
 Namespace `sigil::motion`. One feature library per directory, linked by
 what a consumer uses; every public header lives under
@@ -367,7 +367,7 @@ track's progress, a set from a lane and a study from a bare `phase()`.
 
 That is the point: consumers that also draw — a compositor, a 3D
 renderer — link this library without inheriting a drawing library, and
-can re-export its types into their own namespaces.
+spell `sigil::motion` at the call site rather than re-exporting it.
 
 The library ships the values, the clock, and the motion a value runs as
 — everything answerable from the animatable and the ticker alone.
