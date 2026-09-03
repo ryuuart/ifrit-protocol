@@ -59,7 +59,7 @@ each a static archive that links only what sits beneath it:
 
 | target | holds | links |
 |--------|-------|-------|
-| `SigilMaterialColor` | `Color`, `rgb()` and the OKLab round trip — the leaf, which the core's `Params.h` includes | nothing of this project's |
+| `SigilMaterialColor` | `Color`, `rgb()`, `hsv()` and the OKLab round trip — the leaf, which the core's `Params.h` includes | nothing of this project's |
 | `SigilMaterialCore` | the value model: `Target`, `Params`, `Recipe`, `Program` and the cache, `Material`, `Leaf`, `UniformBlock`, `FrameData`; and `over()`, the combinator that stacks one material on another through a mask | SigilMaterialColor, SigilMotionValues, glm, Boost::pfr |
 | `SigilMaterialTexture` | `Texture` and its sources, `ShaderLeaf`, `textures::` (the tools' sets by role), `EnvironmentMap` and `bevelNormals`, `Atlas` | SigilMaterialCore, SigilImageAsset, Skia; simdjson and stb privately |
 | `SigilMaterialOcio` | `ocio::` — `available()`, and the OCIO `viewTransform`, `convert`, `exponent` as LUT materials | SigilMaterialTexture; OpenColorIO privately, when found |
@@ -603,6 +603,18 @@ float4; `rgb(0xRRGGBB)` is its packed spelling. `Color.h` also holds the
 sRGB transfer function both ways and the OKLab round trip — `toOklab`,
 `fromOklab`, `lerpOklab` — which every perceptual interpolation in the
 codebase runs through.
+
+**Two ways to name a colour, for two different jobs.** `rgb()` is how an
+authored palette is typed in; `hsv(hueDegrees, saturation, value)` is how
+a palette is WALKED — a wheel, a run of chips on a golden-angle step, one
+hue's tone ladder read off saturation and value together. The hue wraps
+and the other two clamp, and both folds are in the verb rather than at
+the call site because the sextant ladder underneath answers magenta for
+any hue it does not recognise, which is exactly what an unwrapped angle
+hands it. HSV is not a perceptual space and must not be used as one:
+`value` is the largest channel and nothing more, so a full-value yellow
+and a full-value blue are nowhere near the same brightness. Anything that
+INTERPOLATES goes through `lerpOklab`.
 
 **A Skia colour crosses at one place.** `SkColor4f` holds the same four
 straight sRGB floats in the same order, so `skia::toColor`,

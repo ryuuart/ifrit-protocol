@@ -26,6 +26,26 @@ struct Color {
  *  a palette is authored in. */
 Color rgb(uint32_t hex, float a = 1.0f);
 
+/** A colour from HUE, SATURATION and VALUE — the wheel a palette is
+ *  WALKED on, where `rgb()` is the one an authored palette is typed in.
+ *
+ *  Hue is in degrees and wraps, so a golden-angle walk (`i * 137.5`) or a
+ *  hue driven by an angle needs no fold at the call site — and the fold is
+ *  here rather than there because the sextant ladder underneath silently
+ *  answers magenta for anything it does not recognise, which is what an
+ *  unwrapped hue hands it. Saturation and value are clamped to the unit
+ *  range for the same reason: outside it the ladder returns a colour, and
+ *  the wrong one.
+ *
+ *  NOT A PERCEPTUAL SPACE, and it must not be used as one. `value` is the
+ *  largest channel and nothing else: a full-value yellow and a full-value
+ *  blue are nowhere near the same brightness, so a ramp built by moving
+ *  `value` bends in lightness, and a hue sweep at fixed s and v reads as
+ *  bands of unequal weight. Interpolate in OKLab (`lerpOklab`) and reach
+ *  for this when the SEPARATION of hues is the point — a wheel, a run of
+ *  chips, one hue's tone ladder read off s and v together. */
+Color hsv(float hueDegrees, float saturation, float value, float a = 1.0f);
+
 /** A colour in OKLab, the space every perceptual interpolation runs in:
  *  lightness, the green–red axis, the blue–yellow axis, and straight alpha
  *  carried along unchanged. */
