@@ -62,6 +62,7 @@
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/brush/Brushes.h>
 #include <sigilcompose/brush/LayerStyles.h>
+#include <sigilcompose/brush/PixelStyles.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilcompose/core/Pattern.h>
@@ -99,6 +100,7 @@ namespace material = sigil::material;
 namespace compose = sigil::compose;
 namespace weave = sigil::weave;
 namespace mskia = sigil::material::skia;
+namespace path = sigil::geometry::path;
 namespace motion = sigil::motion;
 
 using namespace sigil::compose;
@@ -649,13 +651,22 @@ struct WorldHud final : sketch::Set {
                       .transformOrigin(0.0f, 0.5f)
                       .scaleX(&poise)
                       .fill(Paint::solid(wh::kPoise)));
-    for (int i = 1; i < 6; ++i)
-      stackEl.child(box()
-                        .left(ex + 2 + wh::kEnergyInnerW * (float)i / 6.0f)
-                        .top(wh::kPoiseY + 3)
-                        .width(Dim(3.0f))
-                        .height(Dim(10.0f))
-                        .fill(Paint::solid(wh::kPoiseTick)));
+    // The ticks are a RAIL, not five boxes: one mark every sixth of the
+    // bar, three wide and ten tall, declared once as the ladder it is.
+    stackEl.child(
+        box()
+            .left(ex + 2)
+            .top(wh::kPoiseY + 3)
+            .width(Dim(wh::kEnergyInnerW))
+            .height(Dim(wh::kEnergyInnerH))
+            .foreground(styles::TickRail{.color = wh::kPoiseTick,
+                                         .pitch = wh::kEnergyInnerW / 6.0f,
+                                         .minor = 10.0f,
+                                         .major = 10.0f,
+                                         .width = 3.0f,
+                                         .majorEvery = 0,
+                                         .phase = 1.0f,
+                                         .edge = path::Edge::Top}));
     return stackEl;
   }
 
