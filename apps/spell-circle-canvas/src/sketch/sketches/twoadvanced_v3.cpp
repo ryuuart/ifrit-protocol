@@ -68,14 +68,21 @@
 #include <include/effects/SkImageFilters.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/brush/LayerStyles.h>
-#include <sigilcompose/core/Material.h>
+#include <sigilcompose/brush/Adaptors.h>
+#include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/Pattern.h>
-#include <sigilcompose/core/Patterns.h>
 #include <sigilcompose/kit/Frame.h>
-#include <sigilcompose/kit/Silhouettes.h>
-#include <sigilcompose/typography/TextFx.h>
-#include <sigilcompose/typography/Type.h>
-#include <sigilloader/hub/Network.h>
+#include <sigilcompose/kit/Kinetic.h>
+#include <sigilcompose/typography/Typography.h>
+#include <sigilgeometry/kit/Corners.h>
+#include <sigilgeometry/kit/Generators.h>
+#include <sigilgeometry/path/Edges.h>
+#include <sigilmaterial/pattern/Patterns.h>
+#include <sigilmaterial/skia/Color.h>
+#include <sigilmaterial/skia/Effect.h>
+#include <sigilmaterial/skia/Paint.h>
+#include <sigilmotion/bind/Bind.h>
+#include <sigilmotion/values/Keyframes.h>
 #include <sigilsketch/canvas/Sketch.h>
 
 #include <algorithm>
@@ -83,14 +90,19 @@
 #include <cmath>
 #include <cstdio>
 #include <cstring>
-#include <filesystem>
 #include <map>
 #include <string>
 #include <vector>
 
-#include "twoadvanced.h"
+#include <shared/TwoAdvanced.h>
 
 namespace sketch = sigil::sketch;
+namespace mskia = sigil::material::skia;
+namespace patterns = sigil::material::pattern;
+namespace motion = sigil::motion;
+namespace path = sigil::geometry::path;
+namespace shapes = sigil::geometry::shapes;
+namespace weave = sigil::weave;
 
 using namespace sigil::compose;
 // Absolute placement: this composition is pinned, so a node says
@@ -164,36 +176,20 @@ struct TwoAdvancedV3 : sketch::Sketch {
    *  Two plates, one name is the one thing a byte-identity sweep cannot
    *  survive.
    *
-   *  So the probe asks the loader's own cache key what is on disk. A
-   *  machine that has fetched once is available forever after and
-   *  offline; a machine that never has is UNAVAILABLE by name, with the
-   *  first missing URL as the reason, and the ledger stands it down
-   *  rather than hashing a different page. */
+   *  So the probe asks the loader's own cache what is on disk. A machine
+   *  that has fetched once is available forever after and offline; a
+   *  machine that never has is UNAVAILABLE by name, with the first
+   *  missing URL as the reason, and the ledger stands it down rather
+   *  than hashing a different page. */
   static bool available(std::string* why) {
-    static const char* kNeeded[] = {
-        "https://v3.2advanced.com/V3ExpansionsReboot/assets/background.gif",
-        "https://v3.2advanced.com/V3ExpansionsReboot/assets/images/"
-        "social-icons@2x.png",
-        "https://v3.2advanced.com/V3ExpansionsReboot/assets/images/"
-        "2a-logo@2x.png",
-        "https://v3.2advanced.com/v3expansionsreboot/mainstage.riv",
-    };
-    const std::filesystem::path dir =
-        std::filesystem::temp_directory_path() / "sigilloader-net-cache";
-    for (const char* url : kNeeded) {
-      std::error_code ec;
-      if (std::filesystem::exists(dir / sigil::loader::networkCacheKey(url),
-                                  ec) &&
-          !ec)
-        continue;
-      if (why)
-        *why = std::string(
-                   "the site's own art is not in the loader's cache "
-                   "on this machine \xe2\x80\x94 ") +
-               url;
-      return false;
-    }
-    return true;
+    return sketch::requireCached(
+        {"https://v3.2advanced.com/V3ExpansionsReboot/assets/background.gif",
+         "https://v3.2advanced.com/V3ExpansionsReboot/assets/images/"
+         "social-icons@2x.png",
+         "https://v3.2advanced.com/V3ExpansionsReboot/assets/images/"
+         "2a-logo@2x.png",
+         "https://v3.2advanced.com/v3expansionsreboot/mainstage.riv"},
+        why);
   }
 
   using ImagePtr = std::shared_ptr<const sigil::image::ImageAsset>;
@@ -250,11 +246,11 @@ struct TwoAdvancedV3 : sketch::Sketch {
   bool booted = false;
 
   /** A bitmap stretched to exactly (w, h). */
-  static Material stretchFill(const ImagePtr& asset, float w, float h,
+  static mskia::Paint stretchFill(const ImagePtr& asset, float w, float h,
                               SkTileMode tx = SkTileMode::kClamp,
                               SkTileMode ty = SkTileMode::kClamp) {
     const sk_sp<SkImage>& img = asset->frames()[0].image;
-    return Material::image(
+    return mskia::Paint::image(
         img, tx, ty,
         SkMatrix::Scale(w / (float)img->width(), h / (float)img->height()),
         SkSamplingOptions(SkFilterMode::kLinear));
@@ -415,15 +411,15 @@ struct TwoAdvancedV3 : sketch::Sketch {
         .alignItems(Align::Center)
         .padding(7, 0)
         .gap(8)
-        .fill(Material::linearUnit({0, 0}, {0, 1},
+        .fill(mskia::Paint::linearUnit({0, 0}, {0, 1},
                                    {{0.0f, hex(0x8B98B2)},
                                     {0.55f, hex(0x64738F)},
                                     {1.0f, hex(0x4C5A73)}}))
-        .foreground(shapes::onEdges(shapes::Edge::Bottom,
+        .foreground(onEdges(path::Edge::Bottom,
                                     stroke(1, Fill::color(alpha(kInk, 0.6f)),
                                            PathFormat::Align::Inner)))
-        .foreground(shapes::onEdges(
-            shapes::Edge::Top, stroke(1, Fill::color(alpha(kSteelHi, 0.7f)),
+        .foreground(onEdges(
+            path::Edge::Top, stroke(1, Fill::color(alpha(kSteelHi, 0.7f)),
                                       PathFormat::Align::Inner)))
         .child(box()
                    .width(16)
@@ -446,7 +442,7 @@ struct TwoAdvancedV3 : sketch::Sketch {
     return box()
         .width(Dim(w))
         .height(Dim(h))
-        .fill(Material::linearUnit(
+        .fill(mskia::Paint::linearUnit(
             {0, 0}, {0, 1},
             {{0.0f, kSteelHi}, {0.5f, kSteel}, {1.0f, kSteelDim}}))
         .stroke(
@@ -468,12 +464,12 @@ struct TwoAdvancedV3 : sketch::Sketch {
 
   Element bevelBar() {
     using namespace tv3;
-    return at(box().fill(Material::linearUnit(
+    return at(box().fill(mskia::Paint::linearUnit(
                   {0, 0}, {0, 1},
                   {{0.0f, hex(0x98A3BA)}, {1.0f, hex(0x66738F)}})),
               kStageX, 0, kStageW, 8)
         .translateY(
-            animate(from(-10.0f).to(0.0f), {300ms, &ch::easeOutQuint, 1450ms}));
+            animate(motion::from(-10.0f).to(0.0f), {300ms, &ch::easeOutQuint, 1450ms}));
   }
 
   Element headerStrip() {
@@ -486,16 +482,16 @@ struct TwoAdvancedV3 : sketch::Sketch {
       strip.child(
           at(box().fill(stretchFill(topHeader, 1381, 77)), 0, 0, 1381, 77));
     } else {
-      strip.fill(Material::linearUnit(
+      strip.fill(mskia::Paint::linearUnit(
           {0, 0}, {1, 0.4f}, {{0.0f, hex(0x2E3F5D)}, {1.0f, hex(0x25334C)}}));
       strip.child(
           at(box().fill(diag.material()).opacity(0.18f), 0, 0, kStageW, 74));
     }
     return strip
         .translateY(
-            animate(from(-84.0f).to(0.0f), {380ms, &ch::easeOutQuint, 1500ms}))
+            animate(motion::from(-84.0f).to(0.0f), {380ms, &ch::easeOutQuint, 1500ms}))
         .opacity(
-            animate(from(0.0f).to(1.0f), {280ms, &ch::easeOutQuad, 1500ms}));
+            animate(motion::from(0.0f).to(1.0f), {280ms, &ch::easeOutQuad, 1500ms}));
   }
 
   Element wordmark() {
@@ -515,11 +511,11 @@ struct TwoAdvancedV3 : sketch::Sketch {
     Element panel =
         at(box().row().alignItems(Align::Center).padding(30, 0).gap(16),
            kStageX, 82, kStageW, 86)
-            .fill(Material::linearUnit(
+            .fill(mskia::Paint::linearUnit(
                 {0, 0}, {0, 1},
                 {{0.0f, hex(0x8C99B4)}, {0.6f, kSteel}, {1.0f, hex(0x67748E)}}))
-            .foreground(shapes::onEdges(
-                shapes::Edge::Bottom, stroke(2, Fill::color(alpha(kInk, 0.5f)),
+            .foreground(onEdges(
+                path::Edge::Bottom, stroke(2, Fill::color(alpha(kInk, 0.5f)),
                                              PathFormat::Align::Inner)))
             .child(mark)
             .child(box()
@@ -538,9 +534,9 @@ struct TwoAdvancedV3 : sketch::Sketch {
             .child(box().grow(1));
     return panel
         .translateY(
-            animate(from(-60.0f).to(0.0f), {420ms, &ch::easeOutQuint, 1600ms}))
+            animate(motion::from(-60.0f).to(0.0f), {420ms, &ch::easeOutQuint, 1600ms}))
         .opacity(
-            animate(from(0.0f).to(1.0f), {300ms, &ch::easeOutQuad, 1600ms}));
+            animate(motion::from(0.0f).to(1.0f), {300ms, &ch::easeOutQuad, 1600ms}));
   }
 
   Element navBar() {
@@ -552,7 +548,7 @@ struct TwoAdvancedV3 : sketch::Sketch {
       // strip note — squeezing lightens the render).
       bar.clip().fill(stretchFill(navbarBg, 1338, 33));
     else
-      bar.fill(Material::linearUnit(
+      bar.fill(mskia::Paint::linearUnit(
           {0, 0}, {0, 1},
           {{0.0f, hex(0x5A6A88)}, {0.5f, kNavbar}, {1.0f, hex(0x3C4A63)}}));
 
@@ -566,8 +562,8 @@ struct TwoAdvancedV3 : sketch::Sketch {
             .padding(12, 0)
             .gap(7)
             .fill(alpha(hex(0x39445C), 0.92f))
-            .foreground(shapes::onEdges(
-                shapes::Edge::Right, stroke(1, Fill::color(alpha(kInk, 0.8f)),
+            .foreground(onEdges(
+                path::Edge::Right, stroke(1, Fill::color(alpha(kInk, 0.8f)),
                                             PathFormat::Align::Inner)))
             .child(t("\xe2\x86\x92", micro(11, kSteelHi, 0)))
             .child(t("2A.V3..2024 // EXPANSIONS", micro(11.5f, kNear, 80))));
@@ -576,9 +572,9 @@ struct TwoAdvancedV3 : sketch::Sketch {
     bar.child(slot("navtabs"));
     return bar
         .translateY(
-            animate(from(-40.0f).to(0.0f), {380ms, &ch::easeOutQuint, 1750ms}))
+            animate(motion::from(-40.0f).to(0.0f), {380ms, &ch::easeOutQuint, 1750ms}))
         .opacity(
-            animate(from(0.0f).to(1.0f), {280ms, &ch::easeOutQuad, 1750ms}));
+            animate(motion::from(0.0f).to(1.0f), {280ms, &ch::easeOutQuad, 1750ms}));
   }
 
   /** The tab row at `active` (-1 = home, nothing lit). The indicator is
@@ -624,7 +620,7 @@ struct TwoAdvancedV3 : sketch::Sketch {
                                         .opacity(0.55f))),
               kStageX, 210, kStageW, 7)
         .opacity(
-            animate(from(0.0f).to(1.0f), {280ms, &ch::easeOutQuad, 1800ms}));
+            animate(motion::from(0.0f).to(1.0f), {280ms, &ch::easeOutQuad, 1800ms}));
   }
 
   /** The stage viewport. Its CONTENT lives in a slot — the section
@@ -633,7 +629,7 @@ struct TwoAdvancedV3 : sketch::Sketch {
   Element stageArt() {
     using namespace tv3;
     return at(box().clip().child(slot("stage")), kStageX, kArtY, kStageW, kArtH)
-        .mask(by::edge(0, animate(from(0.0f).to(1.0f),
+        .mask(by::edge(0, animate(motion::from(0.0f).to(1.0f),
                                   {650ms, &ch::easeOutQuint, 1900ms})));
   }
 
@@ -654,7 +650,7 @@ struct TwoAdvancedV3 : sketch::Sketch {
     if (bg)
       art.fill(stretchFill(bg, kStageW, kArtH));
     else
-      art.fill(Material::linearUnit({0, 0}, {0, 1},
+      art.fill(mskia::Paint::linearUnit({0, 0}, {0, 1},
                                     {{0.0f, hex(0x2A3A58)}, {1.0f, kDeep}}));
 
     if (sec < 0) {
@@ -695,11 +691,11 @@ struct TwoAdvancedV3 : sketch::Sketch {
                       .inset(0)
                       .child(at(box().clip().child(slot("clouds")), 415, 35,
                                 310, 255))
-                      .mask(by::alpha(Material::image(
+                      .mask(by::alpha(mskia::Paint::image(
                           gapMask, SkTileMode::kClamp, SkTileMode::kClamp,
                           SkMatrix::Scale(kStageW / (float)gapMask->width(),
                                           kArtH / (float)gapMask->height()))))
-                      .effect(Effect::filter(kCloudLook))
+                      .effect(mskia::Effect::filter(kCloudLook))
                       .opacity(0.95f));
       }
       // Idle beacon on the art's readout cluster: the one light that
@@ -784,8 +780,8 @@ struct TwoAdvancedV3 : sketch::Sketch {
                   .padding(10, 0)
                   .gap(6)
                   .fill(hex(0x4B5870))
-                  .foreground(shapes::onEdges(
-                      shapes::Edge::Top,
+                  .foreground(onEdges(
+                      path::Edge::Top,
                       stroke(1, Fill::color(alpha(kSteelHi, 0.55f)),
                              PathFormat::Align::Inner)))
                   .child(t("\xe2\x86\x93", micro(9, kSteelHi, 0)))
@@ -796,7 +792,7 @@ struct TwoAdvancedV3 : sketch::Sketch {
                       t("AMBIENCE.MUTE", micro(9, alpha(kSteel, 0.9f), 180))),
               kStageX, 617, kStageW, 16)
         .opacity(
-            animate(from(0.0f).to(1.0f), {300ms, &ch::easeOutQuad, 2200ms}));
+            animate(motion::from(0.0f).to(1.0f), {300ms, &ch::easeOutQuad, 2200ms}));
   }
 
   /** One lower module: title bar + bordered translucent body. */
@@ -813,10 +809,10 @@ struct TwoAdvancedV3 : sketch::Sketch {
                    .stroke(stroke(1, Fill::color(alpha(kSteelHi, 0.55f)),
                                   PathFormat::Align::Inner))
                    .child(body.inset(0)))
-        .translateY(animate(from(46.0f).to(0.0f),
+        .translateY(animate(motion::from(46.0f).to(0.0f),
                             {420ms, &ch::easeOutQuint,
                              std::chrono::milliseconds(2300 + 120 * order)}))
-        .opacity(animate(from(0.0f).to(1.0f),
+        .opacity(animate(motion::from(0.0f).to(1.0f),
                          {320ms, &ch::easeOutQuad,
                           std::chrono::milliseconds(2300 + 120 * order)}));
   }
@@ -1063,7 +1059,7 @@ struct TwoAdvancedV3 : sketch::Sketch {
                   .alignItems(Align::Center)
                   .padding(10, 0)
                   .gap(8)
-                  .fill(Material::linearUnit(
+                  .fill(mskia::Paint::linearUnit(
                       {0, 0}, {0, 1},
                       {{0.0f, hex(0x5A6880)}, {1.0f, hex(0x49556C)}}))
                   .child(t("(C) 2024 2ADVANCED STUDIOS", micro(9, kInk, 140)))
@@ -1076,7 +1072,7 @@ struct TwoAdvancedV3 : sketch::Sketch {
                   .child(box().width(12).height(12).corners({6}).fill(kHost)),
               kStageX, 1045, kStageW, 20)
         .opacity(
-            animate(from(0.0f).to(1.0f), {320ms, &ch::easeOutQuad, 2900ms}));
+            animate(motion::from(0.0f).to(1.0f), {320ms, &ch::easeOutQuad, 2900ms}));
   }
 
   // ---- boot overlay: the site's own preloader page, compressed ------------
@@ -1100,17 +1096,17 @@ struct TwoAdvancedV3 : sketch::Sketch {
 
     Element o = stack().inset(0).zIndex(90);
     o.child(box().inset(0).fill(kPreBg).opacity(
-        animate(through({{0ms, 1.0f}, {1250ms, 1.0f}, {1450ms, 0.0f}}))));
+        animate(motion::through({{0ms, 1.0f}, {1250ms, 1.0f}, {1450ms, 0.0f}}))));
     o.child(
         at(box().column().alignItems(Align::Center).gap(18), kW / 2 - 300,
            kH / 2 - 170, 600, 360)
-            .opacity(animate(through(
+            .opacity(animate(motion::through(
                 {{0ms, 0.0f}, {150ms, 1.0f}, {1200ms, 1.0f}, {1350ms, 0.0f}})))
             .child(lockup)
             .child(t("SOLACE IN TECHNOLOGY. BELIEF IN THE FUTURE.",
                      tracked(grot(), 10, kPreInk, 400, 1.0f)))
             .child(slot("bootpct")));
-    o.opacity(animate(through({{1400ms, 1.0f}, {1450ms, 0.0f}})));
+    o.opacity(animate(motion::through({{1400ms, 1.0f}, {1450ms, 0.0f}})));
     return o;
   }
 
@@ -1133,7 +1129,7 @@ struct TwoAdvancedV3 : sketch::Sketch {
       // clamped down (the page is shorter than the strip).
       page.fill(stretchFill(pageTile, 10, 1600, SkTileMode::kRepeat));
     } else {
-      page.fill(Material::linearUnit({0, 0}, {0, 1},
+      page.fill(mskia::Paint::linearUnit({0, 0}, {0, 1},
                                      {{0.0f, kPageHi}, {0.55f, kPage}}));
     }
     page.child(bevelBar());
@@ -1149,10 +1145,10 @@ struct TwoAdvancedV3 : sketch::Sketch {
     if (lowerPanelBg)
       ground.fill(stretchFill(lowerPanelBg, kStageW, 400));
     else
-      ground.fill(Material::linearUnit({0, 0}, {1, 1},
+      ground.fill(mskia::Paint::linearUnit({0, 0}, {1, 1},
                                        {{0.0f, hex(0x22304A)}, {1.0f, kPage}}));
     ground.opacity(
-        animate(from(0.0f).to(1.0f), {380ms, &ch::easeOutQuad, 2250ms}));
+        animate(motion::from(0.0f).to(1.0f), {380ms, &ch::easeOutQuad, 2250ms}));
     page.child(ground);
 
     Element mods = at(box().row().gap(10), kStageX, kModY, kStageW, kModH);
@@ -1161,7 +1157,7 @@ struct TwoAdvancedV3 : sketch::Sketch {
     // the dark divider band that closes the module row
     page.child(at(box().fill(alpha(hex(0x26314A), 0.9f)), kStageX,
                   kModY + kModH + 2, kStageW, 8)
-                   .opacity(animate(from(0.0f).to(1.0f),
+                   .opacity(animate(motion::from(0.0f).to(1.0f),
                                     {320ms, &ch::easeOutQuad, 2650ms})));
 
     Element row = at(box().row().gap(10), kStageX, kRowY, kStageW, kRowH);
@@ -1183,10 +1179,10 @@ struct TwoAdvancedV3 : sketch::Sketch {
     // (20 fps, 102 frames) on its bright crest, frame 50.
     ctx.captureAt(7.6);
 
-    diag = patterns::stripes(2, 9, alpha(kSteelHi, 0.5f));
+    diag = patterns::stripes(2, 9, mskia::toColor(alpha(kSteelHi, 0.5f)));
     diag.rotate(45);
-    dots = patterns::halftone(5, 1.3f, alpha(kInk, 0.55f));
-    vticks = patterns::stripes(1.5f, 5.5f, alpha(kSteelHi, 0.5f));
+    dots = patterns::halftone(5, 1.3f, mskia::toColor(alpha(kInk, 0.55f)));
+    vticks = patterns::stripes(1.5f, 5.5f, mskia::toColor(alpha(kSteelHi, 0.5f)));
 
     // --- the production assets, from the live site ------------------------
     // https fetches cache on disk (CacheFirst): the first run downloads,
