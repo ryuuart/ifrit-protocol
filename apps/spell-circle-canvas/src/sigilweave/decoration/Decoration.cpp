@@ -199,7 +199,7 @@ std::vector<std::pair<float, float>> decorationSegments(
     return segments;
   const bool alongColumn = run.shaped->vertical;
   const float startX = alongColumn ? run.origin.y() : run.origin.x();
-  const float endX = startX + run.shaped->advance;
+  const float endX = startX + run.advance;
   if (endX <= startX) return segments;
 
   // Intercepts come out of a HORIZONTAL band window, which a column's band

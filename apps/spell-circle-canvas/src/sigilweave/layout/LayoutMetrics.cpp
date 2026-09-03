@@ -45,7 +45,7 @@ std::vector<LineMetrics> ParagraphLayout::lineMetrics(
       }
       runAscent = -fontMetrics.fAscent;
       runDescent = fontMetrics.fDescent;
-      runRight += run.shaped->advance;
+      runRight += run.advance;
     } else if (run.placeholderIndex >= 0) {
       const Placeholder& placeholder =
           paragraph.placeholders()[static_cast<size_t>(run.placeholderIndex)];

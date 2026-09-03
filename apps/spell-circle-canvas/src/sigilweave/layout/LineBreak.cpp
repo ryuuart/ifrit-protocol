@@ -121,20 +121,16 @@ sk_sp<SkTextBlob> buildTransformedBlob(const ShapedWord& shapedWord,
 
 /** HOW A JUSTIFIED LINE SPENDS WHAT ITS WORD GAPS COULD NOT: extra advance
  *  between the glyphs, and a horizontal scale on the glyphs themselves. The
- *  default is neither, which is a shared word blob and the only path a text
- *  that never asks for the other two ever takes. */
-struct LineFit {
-  float letterSpacing = 0;  ///< px added after each glyph
-  float glyphScale = 1.0f;  ///< horizontal scale on the glyphs
-  [[nodiscard]] bool plain() const {
-    return letterSpacing == 0 && glyphScale == 1.0f;
-  }
-  /** The advance `word` takes under this fit. */
-  [[nodiscard]] float advanceOf(const ShapedWord& word) const {
-    return word.advance * glyphScale +
-           letterSpacing * static_cast<float>(word.glyphs.size());
-  }
-};
+ *  identity is neither, which is a shared word blob and the only path a
+ *  text that never asks for the other two ever takes. It rides on every run
+ *  it shaped, because everything that reads the glyphs back has to apply
+ *  the same numbers the blob was baked with. */
+using LineFit = GlyphFit;
+
+/** The advance `word` takes under @p fit. */
+[[nodiscard]] float advanceUnder(const LineFit& fit, const ShapedWord& word) {
+  return fit.advanceOf(word.advance, word.glyphs.size());
+}
 
 /** Per-glyph positioned blob for a run a justified line respaced or scaled:
  *  the shared blob bakes one set of positions and this line needs another. */
@@ -165,6 +161,7 @@ void emitSegment(ParagraphLayout& result, const FlatInterval& flatInterval,
   if (shapedWord.glyphs.empty()) return;
   PositionedRun run;
   run.shaped = segment.shaped;
+  run.advance = shapedWord.advance;
   run.styleIndex = segment.styleIndex;
   run.wordIndex = wordIndex;
   run.lineIndex = flatInterval.sourceLineIndex;
@@ -184,6 +181,10 @@ void emitSegment(ParagraphLayout& result, const FlatInterval& flatInterval,
     // of those would be two placements arguing over one run.
     run.blob = fit.plain() ? wordBlob(shapedWord)
                            : buildFittedBlob(shapedWord, fit);
+    if (!fit.plain()) {
+      run.fit = fit;
+      run.advance = advanceUnder(fit, shapedWord);
+    }
     // A BASELINE SHIFT lifts the span off its line's baseline and changes
     // nothing else: the advances are the face's own, so the pen is where
     // it was and the shaped run is the shared one.
@@ -396,6 +397,7 @@ void emitLeader(FontContext& fontContext, const Paragraph& paragraph,
     PositionedRun run;
     run.blob = wordBlob(*leader);
     run.shaped = leader;
+    run.advance = leader->advance;
     run.styleIndex = styleIndex;
     // A leader belongs to the WORD BEFORE ITS TAB: it is set in that word's
     // style, on that word's line, and everything that reads a run back —
@@ -565,11 +567,41 @@ void placeWords(FontContext& fontContext, const Paragraph& paragraph,
       justification.glyphScale != 1.0f ||
       justification.glyphScaleMinimum != 1.0f ||
       justification.glyphScaleMaximum != 1.0f ||
+      justification.spaceStretch != JustificationOptions{}.spaceStretch ||
       justification.singleWord == JustificationOptions::SingleWord::kJustify;
   const bool extendedJustify =
       resolvedAlignment == TextAlignment::kJustify && spendsPastGaps;
   const float wordSpacingDelta =
       extendedJustify ? justification.wordSpacing - 1.0f : 0.0f;
+
+  // WHAT THE LETTER AND GLYPH PASSES ARE MEASURED IN, needed before the
+  // gaps are fitted because each pass's DESIRED value widens the line
+  // ahead of them exactly as the desired word spacing does: a letter
+  // spacing that only got what the gaps could not spend would never reach
+  // a line the gaps fit on their own, which is every line of an ordinary
+  // measure.
+  //
+  // The two quantities are the ones the pen walk actually spends the fit
+  // on: one letter space after EVERY glyph the line holds, and the scale
+  // over the shaped advance those glyphs came to. Anything else — a word's
+  // own gap to the next, an inline slot's box — is not the fit's to move,
+  // so pricing the passes against it would leave the line short of the
+  // measure by exactly what was mispriced.
+  const float em = wordFontSize(words[firstWordIndex]);
+  float lineGlyphs = 0;
+  float lineShapedWidth = 0;
+  if (extendedJustify)
+    for (uint32_t wordIndex = firstWordIndex; wordIndex < endWordIndex;
+         ++wordIndex)
+      for (const WordSegment& segment : words[wordIndex].segments()) {
+        lineGlyphs += static_cast<float>(segment.shaped->glyphs.size());
+        lineShapedWidth += segment.shaped->advance;
+      }
+  const float desiredLetterSpacing =
+      extendedJustify ? justification.letterSpacing * em : 0.0f;
+  const float desiredGlyphWidening =
+      extendedJustify ? (justification.glyphScale - 1.0f) * lineShapedWidth
+                      : 0.0f;
 
   float startOffset = 0;
   float spaceAdjustment = 0;
@@ -585,11 +617,13 @@ void placeWords(FontContext& fontContext, const Paragraph& paragraph,
       startOffset = std::max(0.0f, extraWidth);
       break;
     case TextAlignment::kJustify: {
-      // The desired word spacing widens the line before anything is fitted:
-      // it is what the gaps are AIMED at, and the elasticity is measured
-      // from there.
-      const float extraWidth =
-          extraWidthNatural - wordSpacingDelta * stretchableGlue;
+      // Every pass's desired value widens the line before anything is
+      // fitted: they are what the gaps, the letters and the glyphs are
+      // AIMED at, and each elasticity is measured from there.
+      const float extraWidth = extraWidthNatural -
+                               wordSpacingDelta * stretchableGlue -
+                               desiredLetterSpacing * lineGlyphs -
+                               desiredGlyphWidening;
       if (extraWidth > 0 && (spaceGapCount + ideographicGapCount) > 0) {
         const float ideographicExpansionLimit =
             options.justification.maxIdeographicExpansion *
@@ -608,6 +642,22 @@ void placeWords(FontContext& fontContext, const Paragraph& paragraph,
                   : 0;  // no spaces to absorb the rest: stay underfull
         } else {
           spaceAdjustment = ideographicAdjustment = equalGapAdjustment;
+        }
+        // THE GAPS MAY ONLY OPEN TO THEIR STRETCH LIMIT, measured from the
+        // width they are aimed at. What they may not take is what the
+        // letter and glyph passes are for, and this is the only thing that
+        // ever leaves them anything: a line whose gaps could take
+        // everything leaves the two passes past them nothing to do.
+        //
+        // A line that asked for none of those passes is fitted on its gaps
+        // alone and this never runs, because the alternative there is a
+        // loose right margin with nothing able to close it.
+        if (extendedJustify && spaceGapCount > 0) {
+          const float spaceStretchLimit =
+              stretchableGlue * options.justification.wordSpacing /
+              static_cast<float>(spaceGapCount) *
+              options.justification.spaceStretch;
+          spaceAdjustment = std::min(spaceAdjustment, spaceStretchLimit);
         }
       } else if (extraWidth < 0 && (spaceGapCount + ideographicGapCount) > 0) {
         // Shrink, but never beyond the shrink limits — a slightly overfull
@@ -636,51 +686,40 @@ void placeWords(FontContext& fontContext, const Paragraph& paragraph,
       // WHAT THE GAPS COULD NOT SPEND, spent in the two passes past them,
       // in order and each on what the one before it left: letter spacing
       // between the glyphs, then a horizontal scale on the glyphs. Each is
-      // measured from its own DESIRED value, which widened the line before
-      // any of this, and bounded by its own two limits.
-      int lineGlyphCount = 0;
-      float lineContentWidth = 0;
-      for (uint32_t wordIndex = firstWordIndex; wordIndex < endWordIndex;
-           ++wordIndex) {
-        lineContentWidth += words[wordIndex].width;
-        for (const WordSegment& segment : words[wordIndex].segments())
-          lineGlyphCount += static_cast<int>(segment.shaped->glyphs.size());
-      }
-      const float em = wordFontSize(words[firstWordIndex]);
-      const auto glyphGaps = static_cast<float>(std::max(lineGlyphCount - 1, 0));
+      // measured from its own DESIRED value, which widened the line above
+      // and is therefore already paid for here, and bounded by its own two
+      // limits.
       float residual =
           extraWidth -
           (spaceAdjustment * static_cast<float>(spaceGapCount) +
            ideographicAdjustment * static_cast<float>(ideographicGapCount));
 
-      float letterSpacing = justification.letterSpacing * em;
-      residual -= letterSpacing * glyphGaps;
+      float letterSpacing = desiredLetterSpacing;
       const bool loneWord = spaceGapCount + ideographicGapCount == 0;
-      if (glyphGaps > 0 && loneWord &&
+      if (lineGlyphs > 0 && loneWord &&
           justification.singleWord ==
               JustificationOptions::SingleWord::kJustify) {
         // A LINE HOLDING ONE WORD has no gaps at all: asked to justify, it
         // spends the whole measure between its letters and no limit could
         // mean anything, because there is nothing else to spend it on.
-        letterSpacing += residual / glyphGaps;
+        letterSpacing += residual / lineGlyphs;
         residual = 0;
         startOffset = 0;
-      } else if (glyphGaps > 0) {
-        const float wanted = letterSpacing + residual / glyphGaps;
+      } else if (lineGlyphs > 0) {
+        const float wanted = letterSpacing + residual / lineGlyphs;
         const float bounded =
             std::clamp(wanted,
                        std::min(letterSpacing,
                                 justification.letterSpacingMinimum * em),
                        std::max(letterSpacing,
                                 justification.letterSpacingMaximum * em));
-        residual -= (bounded - letterSpacing) * glyphGaps;
+        residual -= (bounded - letterSpacing) * lineGlyphs;
         letterSpacing = bounded;
       }
 
       float glyphScale = justification.glyphScale;
-      residual -= (glyphScale - 1.0f) * lineContentWidth;
-      if (lineContentWidth > 0) {
-        const float wanted = glyphScale + residual / lineContentWidth;
+      if (lineShapedWidth > 0) {
+        const float wanted = glyphScale + residual / lineShapedWidth;
         const float bounded = std::clamp(
             wanted, std::min(glyphScale, justification.glyphScaleMinimum),
             std::max(glyphScale, justification.glyphScaleMaximum));
@@ -719,7 +758,7 @@ void placeWords(FontContext& fontContext, const Paragraph& paragraph,
       for (const WordSegment& segment : word.segments()) {
         emitSegment(result, flatInterval, segment, wordIndex,
                     penPosition + local, options, fit, shiftOf(segment));
-        local += fit.advanceOf(*segment.shaped);
+        local += advanceUnder(fit, *segment.shaped);
       }
       if (!word.segments().empty()) wordAdvance = local;
     }
@@ -868,7 +907,7 @@ void applyEllipsis(FontContext& fontContext, Paragraph& paragraph,
   // that the writing mode changes.
   auto runEnd = [&](const PositionedRun& run) {
     const float runWidth = run.shaped
-                               ? run.shaped->advance
+                               ? run.advance
                                : (run.placeholderIndex >= 0
                                       ? paragraph
                                             .placeholders()[static_cast<size_t>(
@@ -911,6 +950,7 @@ void applyEllipsis(FontContext& fontContext, Paragraph& paragraph,
 
   PositionedRun run;
   run.shaped = marker;
+  run.advance = marker->advance;
   run.styleIndex = styleIndex;
   run.wordIndex = tailWord;
   run.lineIndex = lineIndex;

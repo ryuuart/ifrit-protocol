@@ -22,6 +22,30 @@
 
 namespace sigil::weave {
 
+/** HOW A JUSTIFIED LINE RESPACED THE GLYPHS OF A RUN: extra advance after
+ *  every glyph, and a horizontal scale on the glyphs themselves.
+ *
+ *  The identity is neither, which is what every run of a line fitted on its
+ *  word gaps alone carries. It is baked into the run's blob, so a caller
+ *  that only draws never asks; a caller that reads the glyphs BACK — a
+ *  query, a per-glyph effect, a decoration measuring where a run ends —
+ *  applies it, or it reads the positions the shaper produced instead of the
+ *  ones the line was set at. */
+struct GlyphFit {
+  float letterSpacing = 0;  ///< px added after each glyph
+  float glyphScale = 1.0f;  ///< horizontal scale on the glyphs
+  [[nodiscard]] bool plain() const {
+    return letterSpacing == 0 && glyphScale == 1.0f;
+  }
+  /** The advance a shaped run of @p glyphCount glyphs takes under this
+   *  fit, from the advance the shaper gave it. */
+  [[nodiscard]] float advanceOf(float shapedAdvance, size_t glyphCount) const {
+    return shapedAdvance * glyphScale +
+           letterSpacing * static_cast<float>(glyphCount);
+  }
+  bool operator==(const GlyphFit&) const = default;
+};
+
 /// One draw call: a shared word blob translated to `origin`, or a fully
 /// positioned RSXform blob (contour/rotated intervals) drawn at (0,0).
 /// Placeholder runs carry no blob at all — just the flow position where the
@@ -43,6 +67,15 @@ struct PositionedRun {
   /// it was placed on, and where along that geometry its pen started.
   int intervalIndex = -1;
   float penOffset = 0;  ///< pen travel at the run's start, in advance units
+  /// THE ADVANCE THIS RUN TOOK WHERE IT LANDED, which is the shaped
+  /// advance except on a justified line that spent letter spacing or a
+  /// glyph scale: those are the line's answer and not the face's, so the
+  /// shaped word cannot report them and anything measuring a line reads
+  /// them from here.
+  float advance = 0;
+  /// What the line's fit did to this run's glyphs — identity on every line
+  /// fitted on its word gaps alone.
+  GlyphFit fit;
 };
 
 /// Geometry of one laid-out line, derived on demand from its placed runs

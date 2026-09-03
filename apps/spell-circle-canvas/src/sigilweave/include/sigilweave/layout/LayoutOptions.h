@@ -117,6 +117,19 @@ struct JustificationOptions {
   bool expandIdeographicGaps = true;
   float maxIdeographicExpansion = 0.5f;  ///< per-gap cap, fraction of fontSize
 
+  /// A JUSTIFIED LINE IS FITTED IN THREE PASSES — the word gaps, then
+  /// letter spacing between the glyphs, then a horizontal scale on the
+  /// glyphs — and each spends only what the one before it could not. Every
+  /// pass's DESIRED value widens the line before any of them is fitted, and
+  /// its two limits bound what it may add on top of that.
+  ///
+  /// A LINE THAT ASKS FOR NONE OF THE PASSES PAST THE GAPS is fitted on its
+  /// gaps alone and its gaps are unbounded, because the alternative there
+  /// is a loose right margin with nothing able to close it. Change any
+  /// field below from its stock value and the whole three-pass fit runs,
+  /// bounds included — which is what makes a line that has reached every
+  /// limit stand short of the measure rather than open a hole.
+
   /// The width a justified word gap is AIMED at, as a multiple of the
   /// shaped space width; the elasticity below is measured from it, so the
   /// gap may run from `wordSpacing · (1 - spaceShrink)` to
@@ -127,8 +140,9 @@ struct JustificationOptions {
 
   /// Letter spacing the second pass may add or remove, as fractions of the
   /// em. `letterSpacing` is applied to every justified line whatever its
-  /// fit; the two limits bound what the pass may add on top. All three zero
-  /// leaves the pass out.
+  /// fit; the two limits bound what the pass may add on top, and the pass
+  /// may always undo its own desired value where the line will not take
+  /// it. All three zero leaves the pass out.
   float letterSpacing = 0;
   float letterSpacingMinimum = 0;
   float letterSpacingMaximum = 0;

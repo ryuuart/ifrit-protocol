@@ -136,8 +136,8 @@ void forEachDecorationRect(const std::vector<PositionedRun>& runs,
     }
 
     const float groupStartX = decorationEntryOf(first);
-    const float groupEndX = decorationEntryOf(runs[groupEnd - 1]) +
-                            runs[groupEnd - 1].shaped->advance;
+    const float groupEndX =
+        decorationEntryOf(runs[groupEnd - 1]) + runs[groupEnd - 1].advance;
     const SkFont font =
         makeFont(first.shaped->typeface, first.shaped->fontSize);
     SkFontMetrics metrics;
