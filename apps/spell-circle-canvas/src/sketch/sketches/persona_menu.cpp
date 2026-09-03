@@ -33,8 +33,8 @@
 //  - entrance: items fade + drop from -30px over 0.4s (the recreation's
 //    own 0.4s tween from Vector2.UP * 30), 33ms stagger
 //    BOTTOM-UP (children declared bottom-first; zIndex owns paint
-//    order); the two-triangle cursor spawns at +0.4s and lands with a
-//    damped diagonal overshoot along (1,-1): +40 -> -20 -> +10 -> 0.
+//    order); the two-triangle cursor spawns at +0.4s and flies home
+//    along (1,-1) under a spring that rings +40 -> -20 -> +10 -> 0.
 //
 // The layout was authored on a 960-wide canvas and this one is 900 wide, so
 // x positions are compressed by 0.9375 while type sizes, wedge geometry and
@@ -53,10 +53,13 @@
 #include <sigilcompose/brush/Adaptors.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilmotion/values/Spring.h>
+#include <sigilmotion/values/Time.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/style/Type.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstdio>
@@ -236,6 +239,10 @@ struct PersonaMenu final : sketch::Sketch {
   choreograph::Output<float> qTime{0};
   choreograph::Output<float> wedgePulse{1};
   choreograph::Output<float> curDx{40}, curDy{-40};
+  // The cursor's landing carries its own velocity, so it is a spring and
+  // not a curve: the offset is what rings down, and the two triangles
+  // read it on both axes.
+  motion::Spring cursorFlight{40.0f, 0.0f};
 
   void setup(sketch::SketchContext& ctx) override {
     ctx.canvas(kSceneSize.fWidth, kSceneSize.fHeight);
@@ -247,6 +254,7 @@ struct PersonaMenu final : sketch::Sketch {
     wedgePulse = 1;
     curDx = 40;
     curDy = -40;
+    cursorFlight = {40.0f, 0.0f};
 
     ticker.add([this, t = 0.0](double dt) mutable {
       namespace ch = choreograph;
@@ -263,26 +271,17 @@ struct PersonaMenu final : sketch::Sketch {
       else if (ph < 0.15)
         s = 1.05f - 0.05f * (float)((ph - 0.1) / 0.05);
       wedgePulse = s;
-      // Cursor: spawn +0.4s, damped overshoot along (1,-1):
-      // +40 -> -20 (0.2s) -> +10 (0.1s) -> 0 (0.1s).
+      // Cursor: it sits 40px out along (1,-1) until it spawns at +0.4s,
+      // then flies home under a spring. The recreation's landing rings
+      // through -20 and +10 before it settles, which is a period of
+      // 0.391s at a damping of 0.215 — the successive overshoots halve.
       const double tau = t - 0.4;
-      auto seg = [](double x, float a, float b) {
-        const float e = 0.5f - 0.5f * (float)std::cos(x * 3.14159265);
-        return a + (b - a) * e;
-      };
-      float d;
-      if (tau < 0)
-        d = 40;
-      else if (tau < 0.2)
-        d = seg(tau / 0.2, 40, -20);
-      else if (tau < 0.3)
-        d = seg((tau - 0.2) / 0.1, -20, 10);
-      else if (tau < 0.4)
-        d = seg((tau - 0.3) / 0.1, 10, 0);
-      else
-        d = 0;
-      curDx = d;
-      curDy = -d;
+      if (tau > 0)
+        cursorFlight =
+            motion::spring(cursorFlight, 0.0f, std::min(dt, tau),
+                           {.periodSeconds = 0.391f, .damping = 0.215f});
+      curDx = cursorFlight.value;
+      curDy = -cursorFlight.value;
       return true;
     });
 
@@ -510,8 +509,8 @@ struct PersonaMenu final : sketch::Sketch {
   }
 
   /** Two-triangle cursor: red under white, offset (1,5) +2 deg, root
-   *  -16 deg, additive red; spawns at +0.4s and lands with the damped
-   *  diagonal overshoot (ticker-bound). */
+   *  -16 deg, additive red; spawns at +0.4s and rings home on the
+   *  spring the ticker steps. */
   Element cursor() {
     namespace nn = persona_menu;
     namespace ch = choreograph;
