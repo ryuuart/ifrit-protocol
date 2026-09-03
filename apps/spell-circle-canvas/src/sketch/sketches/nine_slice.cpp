@@ -39,9 +39,9 @@
 #include <sigilweave/style/Type.h>
 
 #include <cmath>
+#include <iterator>
 #include <memory>
 #include <utility>
-#include <vector>
 
 namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
@@ -110,15 +110,21 @@ Element nativeLattice(std::shared_ptr<sigil::image::ImageAsset> asset) {
             asset ? asset->frameAt(0).image : nullptr;
         if (!image) return;
         const int side = image->width();
-        std::vector<int> xs = {side / 3, side * 2 / 3};
-        std::vector<int> ys = {side / 3, side * 2 / 3};
+        const int xs[] = {side / 3, side * 2 / 3};
+        const int ys[] = {side / 3, side * 2 / 3};
         const SkIRect bounds = SkIRect::MakeWH(side, image->height());
-        SkCanvas::Lattice lattice;
-        lattice.fXDivs = xs.data();
-        lattice.fYDivs = ys.data();
-        lattice.fXCount = (int)xs.size();
-        lattice.fYCount = (int)ys.size();
-        lattice.fBounds = &bounds;
+        // EVERY FIELD NAMED, because Lattice is a plain aggregate with no
+        // default member initializers: a declaration followed by the four
+        // assignments this call needs leaves the per-rectangle fill
+        // arrays holding whatever was on the stack, and the recorder
+        // dereferences them whenever they are not null.
+        const SkCanvas::Lattice lattice{.fXDivs = xs,
+                                        .fYDivs = ys,
+                                        .fRectTypes = nullptr,
+                                        .fXCount = (int)std::size(xs),
+                                        .fYCount = (int)std::size(ys),
+                                        .fBounds = &bounds,
+                                        .fColors = nullptr};
         canvas.drawImageLattice(
             image.get(), lattice,
             SkRect::MakeWH(ctx.size.width(), ctx.size.height()),
