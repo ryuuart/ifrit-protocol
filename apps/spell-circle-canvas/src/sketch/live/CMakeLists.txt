@@ -11,8 +11,12 @@ add_library(SigilSketchLive STATIC
   ${SIGIL_SKETCH_INCLUDE_DIR}/sigilsketch/live/Residency.h
 )
 target_compile_features(SigilSketchLive PUBLIC cxx_std_20)
-target_link_libraries(SigilSketchLive PUBLIC SigilSketchCore SigilImageEncode
-  SigilMotionClock)
+# The host's header publishes the samples and stopwatch a build is timed
+# with, so SigilMeasure is PUBLIC; the loader's byte writer a rebuilt
+# source is saved through is read in the source alone.
+target_link_libraries(SigilSketchLive
+  PUBLIC SigilSketchCore SigilImageEncode SigilMotionClock SigilMeasure
+  PRIVATE SigilLoaderSource)
 set_target_properties(SigilSketchLive PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 add_executable(sketch_live_test test/HostTest.cpp test/ResidencyTest.cpp)

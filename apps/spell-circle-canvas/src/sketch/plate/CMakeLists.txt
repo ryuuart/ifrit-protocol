@@ -8,8 +8,11 @@ add_library(SigilSketchPlate STATIC
   ${SIGIL_SKETCH_INCLUDE_DIR}/sigilsketch/plate/Sweep.h
 )
 target_compile_features(SigilSketchPlate PUBLIC cxx_std_20)
-target_link_libraries(SigilSketchPlate PUBLIC SigilSketchCore SigilMeasure
-  SigilImageEncode)
+# The loader's byte writer a plate is saved through is read in the
+# source alone.
+target_link_libraries(SigilSketchPlate
+  PUBLIC SigilSketchCore SigilMeasure SigilImageEncode
+  PRIVATE SigilLoaderSource)
 set_target_properties(SigilSketchPlate PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 # The device lane: a process-owned device and queue with a Graphite

@@ -13,6 +13,8 @@ target_compile_features(SigilSketchSet PUBLIC cxx_std_20)
 target_link_libraries(SigilSketchSet PUBLIC
   SigilSketchCore SigilWorldScene SigilWorldKit SigilWorldFrame
   SigilWorldElement SigilWorldLight SigilMaterialKit SigilMotionClock)
+# The session's lap timer is read in its source alone.
+target_link_libraries(SigilSketchSet PRIVATE SigilMeasure)
 set_target_properties(SigilSketchSet PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 add_executable(sketch_set_test test/SetSessionTest.cpp)

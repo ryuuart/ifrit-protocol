@@ -22,11 +22,14 @@ add_library(SigilWorldFrame STATIC
 target_compile_features(SigilWorldFrame PUBLIC cxx_std_20)
 target_include_directories(SigilWorldFrame PUBLIC ${SIGIL_WORLD_INCLUDE_DIR})
 # SigilMaterialTexture because a body's view carries the map its surface
-# is dressed with, which every executor samples.
-target_link_libraries(SigilWorldFrame PUBLIC
-  SigilWorldElement
-  SigilMaterialTexture
-  SigilGeometryMeshRender)
+# is dressed with, which every executor samples; SigilCoreReconcile
+# because a pass body and a generator are its erased value. The CPU
+# executor cooks a body's chain itself, so the point operators are named
+# privately.
+target_link_libraries(SigilWorldFrame
+  PUBLIC SigilWorldElement SigilMaterialTexture SigilGeometryMeshRender
+         SigilCoreReconcile
+  PRIVATE SigilGeometryMeshPop)
 
 # Links only the library it exercises, so a link edge that pulled the
 # retained side or a device in would show up as a build failure here.

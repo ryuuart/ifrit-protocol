@@ -86,7 +86,6 @@ target_link_libraries(SigilComposeCore
     SigilGeometryPath
     SigilImage
     SigilMaterial
-    SigilSkiaDraw
     SigilMeasure
     SigilMotion
     SigilWeave

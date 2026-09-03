@@ -22,11 +22,16 @@ target_include_directories(SigilWorldScene PUBLIC ${SIGIL_WORLD_INCLUDE_DIR})
 # SigilMaterialKit is PRIVATE and is read for one thing: the slot name a
 # surface carries its base-colour map in, so that extract can hand an
 # execution the map the body is dressed with rather than a material tree
-# to walk. Nothing here defines a shading model.
+# to walk. Nothing here defines a shading model. The stats a scene
+# publishes are the reconciler's counts under SigilMeasure's counters, so
+# both are PUBLIC; the cache the phases prove against, the pose a body
+# takes along a curve and the animated value a phase samples are read in
+# the sources alone.
 target_link_libraries(SigilWorldScene
   PUBLIC SigilWorldGraph SigilGeometryMeshRender SigilMotionClock
-  SigilMotionSchedule
-  PRIVATE EnTT::EnTT SigilMaterialKit)
+         SigilMotionSchedule SigilCoreReconcile SigilMeasure
+  PRIVATE EnTT::EnTT SigilMaterialKit SigilCoreCache SigilGeometryMeshCurve
+          SigilMotionValues)
 
 add_executable(world_scene_test test/SceneTest.cpp)
 target_include_directories(world_scene_test PRIVATE ${SIGIL_WORLD_TEST_DIR})

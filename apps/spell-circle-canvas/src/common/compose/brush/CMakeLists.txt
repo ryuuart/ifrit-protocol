@@ -13,9 +13,10 @@
 # MaskResolver values the verbs install, which is why `stroke(spans, …)`,
 # `background(spans, …)`, `across()` and every `by::` constructor are
 # defined here though the kernel declares them. Links the kernel, the
-# typography tier and the geometry library's silhouette shelf publicly: a
-# brush is applied to a silhouette. The kit tier links this one, and
-# nothing here reaches up into the kit.
+# typography tier and the geometry library's silhouette shelf publicly — a
+# brush is applied to a silhouette — and names every other library its
+# headers include. The kit tier links this one, and nothing here reaches
+# up into the kit.
 add_library(SigilComposeBrush STATIC
   Decorations.cpp
   LayerStyles.cpp
@@ -48,9 +49,14 @@ target_compile_features(SigilComposeBrush PUBLIC cxx_std_20)
 # does: resolving a span claim reads the retained Instance.
 target_include_directories(SigilComposeBrush
   PRIVATE ${CMAKE_CURRENT_LIST_DIR} ${CMAKE_CURRENT_LIST_DIR}/../core)
+# What the headers include beyond the three tiers is PUBLIC: the image
+# asset a decoration stamps, the material paint and layer-style tables a
+# look is built from, the direct draws, and the type style a plate is set
+# in. The seeded mixer a brush jitters with is read in the sources alone.
 target_link_libraries(SigilComposeBrush
   PUBLIC SigilComposeCore SigilComposeTypography SigilGeometryKit
-  PRIVATE yoga::yogacore)
+         SigilImage SigilMaterial SigilSkiaDraw SigilWeave
+  PRIVATE SigilCoreCompute yoga::yogacore)
 
 # Decorations, lines, rails, hatches, brushes, the stroke grammar (which is
 # what the authoring-grammar file exercises), the kit's stroke presets, the

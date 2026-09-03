@@ -1078,7 +1078,8 @@ caller can supply it (`decode::Resolver` is the hook).
 
 Surface shading is **SigilMaterial**'s: its bevel normal maps and its
 gold, chrome and glass recipes take a normals pass this library draws,
-and it links `SigilGeometryPath`, never the reverse.
+handed over as pixels. No material target links a geometry one, and the
+one edge the other way is `path/blend`'s private link to the colour leaf.
 
 The relationship with **SigilWorld**, the GPU renderer that sits beside it,
 is one-directional: SigilWorld links SigilGeometry and consumes its `Mesh`,

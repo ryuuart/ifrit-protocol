@@ -30,9 +30,12 @@ add_library(SigilComposeTypography STATIC
 target_compile_features(SigilComposeTypography PUBLIC cxx_std_20)
 target_include_directories(SigilComposeTypography
   PRIVATE ${CMAKE_CURRENT_LIST_DIR} ${CMAKE_CURRENT_LIST_DIR}/../core)
+# The engine's sources walk a geometry contour, stamp image assets and
+# shape, choreograph, decorate, lay out and query text through SigilWeave;
+# none of that reaches a public header, so those libraries are PRIVATE.
 target_link_libraries(SigilComposeTypography
   PUBLIC SigilComposeCore
-  PRIVATE yoga::yogacore)
+  PRIVATE SigilGeometryPath SigilImage SigilWeave yoga::yogacore)
 
 # Text data, the text pass, vertical writing, motion along paths, the
 # text-fx presets, rich spans and the variation drive. The kit is here

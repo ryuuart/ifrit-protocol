@@ -72,11 +72,14 @@ target_include_directories(SigilWorldDiligent
 # slot is bound or left reading one white texel.
 # Diligent arrives through SigilGeometryDevice, which links it PUBLIC,
 # and is never named again here — see that feature's CMakeLists for why
-# the order matters.
+# the order matters. The hardware device a native import names and the
+# mesh-renderer seam the painter stands in are PUBLIC because the headers
+# spell them; the Graphite pixel reads an environment upload takes are
+# PRIVATE.
 target_link_libraries(SigilWorldDiligent
   PUBLIC SigilGeometryDevice SigilWorldScene SigilMaterialSlang
-         SigilGeometryMeshPop
-  PRIVATE SigilMaterialKit)
+         SigilGeometryMeshPop SigilCoreHardware SigilGeometryMeshRender
+  PRIVATE SigilMaterialKit SigilSkiaGraphite)
 
 add_executable(world_diligent_test test/PainterTest.cpp test/RuntimeTest.cpp
   test/StackTest.cpp test/SurfaceTest.cpp test/Distance.h test/OnDevice.h)

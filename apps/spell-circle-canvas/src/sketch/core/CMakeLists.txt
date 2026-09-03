@@ -16,8 +16,7 @@ add_library(SigilSketchCore STATIC
 )
 target_compile_features(SigilSketchCore PUBLIC cxx_std_20)
 target_include_directories(SigilSketchCore PUBLIC ${SIGIL_SKETCH_INCLUDE_DIR})
-target_link_libraries(SigilSketchCore PUBLIC SigilLoader SigilCoreComparable
-  SigilMeasure)
+target_link_libraries(SigilSketchCore PUBLIC SigilLoader SigilCoreComparable)
 set_target_properties(SigilSketchCore PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 add_executable(sketch_core_test test/RegistryTest.cpp)

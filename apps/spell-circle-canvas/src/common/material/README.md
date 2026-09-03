@@ -41,9 +41,10 @@ and glass over a normal map and an environment; the girih panel and its
 palettes; the gel and chrome colour tables; the six text paints and the
 chrome-type ramps.
 
-The core links glm (for the vector types a struct may hold), choreograph
-(for the animation output a field may bind to) and Boost.PFR (for the
-reflection that reads a struct's field names off the type). The core has
+The core links the colour leaf, glm (for the vector types a struct may
+hold), SigilMotionValues (for the animatable a field may bind to, and
+choreograph with it) and Boost.PFR (for the reflection that reads a
+struct's field names off the type). The core has
 no renderer in it: compilers arrive from backend features, and two of
 them ship here. The Skia one turns a recipe's SkSL body into an
 `SkRuntimeEffect`. The Slang one compiles Slang source to SPIR-V and
@@ -59,11 +60,11 @@ each a static archive that links only what sits beneath it:
 | target | holds | links |
 |--------|-------|-------|
 | `SigilMaterialColor` | `Color`, `rgb()` and the OKLab round trip — the leaf, which the core's `Params.h` includes | nothing of this project's |
-| `SigilMaterialCore` | the value model: `Target`, `Params`, `Recipe`, `Program` and the cache, `Material`, `Leaf`, `UniformBlock`, `FrameData`; and `over()`, the combinator that stacks one material on another through a mask | SigilMaterialColor, SigilGeometryPath, SigilMotionValues, Boost::pfr |
+| `SigilMaterialCore` | the value model: `Target`, `Params`, `Recipe`, `Program` and the cache, `Material`, `Leaf`, `UniformBlock`, `FrameData`; and `over()`, the combinator that stacks one material on another through a mask | SigilMaterialColor, SigilMotionValues, glm, Boost::pfr |
 | `SigilMaterialTexture` | `Texture` and its sources, `ShaderLeaf`, `textures::` (the tools' sets by role), `EnvironmentMap` and `bevelNormals`, `Atlas` | SigilMaterialCore, SigilImageAsset, Skia; simdjson and stb privately |
 | `SigilMaterialOcio` | `ocio::` — `available()`, and the OCIO `viewTransform`, `convert`, `exponent` as LUT materials | SigilMaterialTexture; OpenColorIO privately, when found |
 | `SigilMaterialSdf` | `sdf::` — `Shape`, `Style`, `pad`, `material` | SigilMaterialCore, SigilMaterialColor |
-| `SigilMaterialPattern` | `pattern::Tile` and the stock tiles | SigilMaterialTexture, SigilMaterialColor |
+| `SigilMaterialPattern` | `pattern::Tile` and the stock tiles | SigilMaterialTexture, SigilMaterialColor; SigilCoreCompute privately |
 | `SigilMaterialField` | `field::` — `halftoneRamp`, `noise`, `grain`, `ripple`, `crtOverlay` | SigilMaterialTexture, SigilMaterialColor |
 | `SigilMaterialSkia` | the SkSL compiler and `SkiaProgram`, whose builder uploads resolved bytes; `skia::builder` and `skia::shader` binding leaves into slots; `skia::fill`; the colour bridge `skia::toColor` / `skia::toSkColor` / `skia::toColors`; `skia::Paint`, the model as ONE shader; and `skia::Effect`, the post-processing recipe over a rendered layer | SigilMaterialTexture, SigilMaterialColor, SigilMotionValues |
 | `SigilMaterialSlang` | the Slang compiler: `slang::compileModule` to SPIR-V, `slang::Compiled` with the reflected `slang::UniformSlot` per uniform, `slang::SlangProgram`, and `slang::Uniforms`, the buffer one draw is written into; `Portable.slang`, the subset a host and a device answer alike, loaded into every session by name | SigilMaterialCore; SigilMaterialKit and Slang privately |
@@ -665,11 +666,12 @@ texture IS a Skia image with its sampling, and SigilImage because an
 asset is a source. SigilLoader owns resource access and SigilImage owns
 image meaning, so this library decodes nothing and opens no file — every
 door that needs pixels takes them or takes a decoder. SigilGeometry draws
-the normals passes and outlines a surface is shaded over and links
-nothing here; SigilWorld's renderer is one executor of the surface the
-kit defines and adds no shading model of its own; SigilCompose places
-what a material paints — it takes a `skia::Paint` as a node's fill and
-routes it, and holds no paint model of its own.
+the normals passes and outlines a surface is shaded over, and links
+nothing here but the colour leaf, privately, for the OKLab interpolation
+its path blend runs in; SigilWorld's renderer is one executor of the
+surface the kit defines and adds no shading model of its own;
+SigilCompose places what a material paints — it takes a `skia::Paint` as
+a node's fill and routes it, and holds no paint model of its own.
 
 ## Building and testing
 

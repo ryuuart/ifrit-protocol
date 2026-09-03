@@ -584,10 +584,10 @@ target `SigilComposeTexture` — see Boundaries.
 **Testing — `testing/Checks.h`.** A separate target, `SigilComposeTesting`,
 whose one header verifies generated geometry and reads back what was
 drawn, in `namespace test` (GoogleTest owns `::testing`): `test::coverage`, `test::endpointDegrees`,
-`test::rasterize`, `test::check`, `test::report`,
-`test::failures`. The checks themselves — `test::check` and
-`test::failures` — are SigilMeasure's, brought into `test`; only the
-geometry readers and the feed `test::report` are this library's. Test
+`test::rasterize` and the feed `test::report`. The checks a plate
+reports — `measure::check` and `measure::failures` — are SigilMeasure's,
+spelled under its own name from `<sigilmeasure/check/Check.h>`; only the
+geometry readers and `test::report` are this library's. Test
 binaries link it, and so does the sketch library, so a sketch can report
 its own checks; nothing that ships does, which is what keeps a
 point-sampled coverage scan out of a paint loop.
@@ -748,10 +748,13 @@ the left edge, not the top one.
 The kernel links `SigilCoreReconcile`, `SigilCoreCache`,
 `SigilCoreComparable`, `SigilCoreCompute`, `SigilGeometryPath`,
 `SigilImage`, `SigilMaterial`, `SigilMeasure`, `SigilMotion`,
-`SigilSkiaDraw`, `SigilWeave` and Skia publicly, and Yoga privately. The
-brush tier adds `SigilGeometryKit`, the silhouette shelf a brush is
-applied to, and the kit tier links the brush tier — the arrow between
-those two points one way.
+`SigilWeave` and Skia publicly, and Yoga privately. The brush tier adds
+`SigilGeometryKit`, the silhouette shelf a brush is applied to, and
+`SigilSkiaDraw`, the direct draws it and the instanced leaf stamp
+through; the kit tier links the brush tier — the arrow between
+those two points one way. Each tier also names, on its own link line,
+every library its headers include, so no tier reaches a library through
+the kernel's.
 
 **What compose IS, after all of those: the element runtime.** It
 reconciles a description against a retained tree, lays it out, paints it
@@ -798,13 +801,15 @@ value equal to the frame before's, which is what lets a consumer prune on
 it. The surface is a raster one by default and a texture on a GPU device
 when a host hands the scene one, so a renderer standing on that same
 device binds the pixels where they were painted rather than copying them.
-The arrow points one way: this feature links SigilSkia and SigilMaterial's
-texture feature, and nothing that samples the value links compose.
+The arrow points one way: this feature links SigilMaterial's texture
+feature, SigilSkia's graphite feature and SigilCore's hardware device,
+and nothing that samples the value links compose.
 
 Deliberately *not* linked: SigilScry (the web leaf is a header-only
 adapter, exercised by its own test target), EnTT (the instancing header
-keeps the registry on your side), the mesh-and-material `SigilGeometry`
-above the path leaf, Diligent, and Qt — Qt identifiers are banned
+keeps the registry on your side), SigilGeometry beyond the path leaf and
+the mesh its silhouette shelf rests on (no camera, curve, point operator,
+renderer, codec or device), Diligent, and Qt — Qt identifiers are banned
 outright in exported headers.
 
 What it refuses to be:

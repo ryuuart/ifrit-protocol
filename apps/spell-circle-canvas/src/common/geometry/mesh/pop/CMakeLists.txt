@@ -94,9 +94,12 @@ target_compile_features(SigilGeometryMeshPop PUBLIC cxx_std_20)
 target_include_directories(SigilGeometryMeshPop
   PUBLIC ${SIGIL_GEOMETRY_INCLUDE_DIR} ${SIGIL_SLANG_GENERATED_DIR})
 # The Runtime seams — the cook's and the sweep's — are comparable erased
-# values, which is SigilCoreComparable's shape.
-target_link_libraries(SigilGeometryMeshPop PUBLIC SigilGeometryMeshCurve
-  SigilCoreComparable)
+# values, which is SigilCoreComparable's shape. The seeded mixers the
+# scatter and the generators deal from are SigilCoreCompute's, read in
+# the sources alone.
+target_link_libraries(SigilGeometryMeshPop
+  PUBLIC SigilGeometryMeshCurve SigilCoreComparable
+  PRIVATE SigilCoreCompute)
 # The device executors dispatch the kernels this feature compiled, on the
 # device SigilGeometryDevice created. Diligent arrives through that
 # target and is never named beside it — see its CMakeLists for why the

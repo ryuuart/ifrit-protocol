@@ -5,15 +5,17 @@
 #
 # It links the description and SigilMaterial's kit, because a ground
 # plane given no surface has to be made of something; it defines no
-# shading model, no catalog and no material of its own.
+# shading model, no catalog and no material of its own. The turntable's
+# phase along its rail is a motion value, read in the source alone.
 add_library(SigilWorldKit STATIC
   Kit.cpp
   ${SIGIL_WORLD_INCLUDE_DIR}/sigilworld/kit/Kit.h
 )
 target_compile_features(SigilWorldKit PUBLIC cxx_std_20)
 target_include_directories(SigilWorldKit PUBLIC ${SIGIL_WORLD_INCLUDE_DIR})
-target_link_libraries(SigilWorldKit PUBLIC SigilWorldElement SigilMaterialKit
-  SigilGeometryKit)
+target_link_libraries(SigilWorldKit
+  PUBLIC SigilWorldElement SigilMaterialKit SigilGeometryKit
+  PRIVATE SigilMotionValues)
 
 # The negative control for the include boundary above: a target that must
 # FAIL to build, and a test that builds it and demands the one message that

@@ -7,6 +7,7 @@
 # its declarations. No Skia, no Slang: compilers arrive from
 # the backend features through registerCompiler().
 find_package(boost_pfr CONFIG REQUIRED)
+find_package(glm CONFIG REQUIRED)
 add_library(SigilMaterialCore STATIC
   Combine.cpp
   Material.cpp
@@ -29,9 +30,11 @@ target_include_directories(SigilMaterialCore PUBLIC ${SIGIL_MATERIAL_INCLUDE_DIR
 # Params.h includes <boost/pfr.hpp>, so the include path must reach every
 # consumer that instantiates schema<P>(); the target is header-only, and
 # nothing links. SigilMaterialColor is the colour value a params struct
-# holds, included by the same header.
+# holds, included by the same header, and glm the vectors beside it. No
+# header here includes SigilGeometry, so no target of it is named: the
+# outline a normals pass is drawn over arrives as pixels.
 target_link_libraries(SigilMaterialCore
-  PUBLIC SigilMaterialColor SigilGeometryPath SigilMotionValues Boost::pfr)
+  PUBLIC SigilMaterialColor SigilMotionValues glm::glm Boost::pfr)
 
 # Links only the library it exercises, so a link edge that pulled a
 # renderer in would show up as a build failure here.

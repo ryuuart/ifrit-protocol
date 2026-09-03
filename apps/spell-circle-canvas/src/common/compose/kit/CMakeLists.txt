@@ -45,10 +45,14 @@ target_compile_features(SigilComposeKit PUBLIC cxx_std_20)
 # PUBLIC (not PRIVATE): anything that links the kit gets the tiers its values
 # are expressed in — the kernel, type styles, the brush tier whose
 # decorations the era looks are built from, and the geometry library's
-# silhouette shelf — with it. The arrow points one way: this tier links
+# silhouette shelf — with it, and the libraries the kit headers include
+# themselves: the material tables and paints the chrome, gel and gloss
+# looks are drawn with, the type style a typeset takes, and the seeded
+# mixer a layout scatters with. The arrow points one way: this tier links
 # Brush, and Brush links nothing here.
 target_link_libraries(SigilComposeKit PUBLIC
-  SigilComposeCore SigilComposeTypography SigilComposeBrush SigilGeometryKit)
+  SigilComposeCore SigilComposeTypography SigilComposeBrush SigilGeometryKit
+  SigilCoreCompute SigilMaterial SigilWeave)
 
 # The negative control: a target that must FAIL to build, and a test that
 # builds it and demands the one message that says the boundary held. The
@@ -78,9 +82,9 @@ add_test(NAME compose_kit_test COMMAND compose_kit_test)
 
 # Composer queries, the studio, the feed plate and the instruments that
 # read a cascade back — the kit's instruments over the kernel's queries,
-# with Brush for the plate.
+# with Brush for the plate and SigilMeasure for the checks a plate reports.
 _compose_test_binary(compose_studio_test
-  LIBRARIES SigilComposeCore SigilComposeKit SigilComposeBrush
+  LIBRARIES SigilComposeCore SigilComposeKit SigilComposeBrush SigilMeasure
   SOURCES
     test/ComposeTestQueriesStudio.cpp
     test/ComposeTestContentStudio.cpp

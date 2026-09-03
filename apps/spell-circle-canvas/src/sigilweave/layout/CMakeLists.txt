@@ -2,7 +2,9 @@
 # Knuth-Plass breakers over one flattened interval sequence, placement as
 # shared or baked blobs, the ellipsis, and the per-line and per-column
 # metrics derived from the placed runs. SigilGeometryPath is public — a
-# contour interval carries a geometry::path::Contour.
+# contour interval carries a geometry::path::Contour. The Unicode leaf is
+# private: a reading set beside its base is split at grapheme boundaries
+# in one source file and nowhere in a header.
 add_library(SigilWeaveLayout STATIC
   Beside.cpp
   Flow.cpp
@@ -26,6 +28,7 @@ target_link_libraries(SigilWeaveLayout
     SigilWeaveParagraph
     SigilGeometryPath
   PRIVATE
+    SigilWeaveUnicode
     harfbuzz::harfbuzz
     ICU::uc
     absl::flat_hash_map

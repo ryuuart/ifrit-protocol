@@ -21,6 +21,9 @@ target_link_libraries(SigilSketchCanvas PUBLIC
   # The weave kit carries the tables a page of set text asks for — the
   # hyphenation patterns among them — so a sketch may reach one.
   SigilGeometry SigilMaterial SigilWeaveKit SigilWeavePorts EnTT::EnTT)
+# The session's own clock, ticker and lap timer are read in its source
+# alone, so they are no part of the sketch API.
+target_link_libraries(SigilSketchCanvas PRIVATE SigilMotionClock SigilMeasure)
 set_target_properties(SigilSketchCanvas PROPERTIES
   POSITION_INDEPENDENT_CODE ON)
 

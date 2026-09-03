@@ -8,9 +8,10 @@
 # way it samples any other image.
 #
 # Links the kernel and SigilMaterial's texture feature, because both
-# appear in its header. The device feature is added only when this build
-# carries one; without it the raster surface stands and useDevice()
-# answers false.
+# appear in its header, and the motion clock privately, because the
+# composer it keeps is stepped by one. The device feature is added only
+# when this build carries one; without it the raster surface stands and
+# useDevice() answers false.
 add_library(SigilComposeTexture STATIC
   Texture.cpp
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/texture/Texture.h
@@ -18,8 +19,9 @@ add_library(SigilComposeTexture STATIC
 target_compile_features(SigilComposeTexture PUBLIC cxx_std_20)
 target_include_directories(SigilComposeTexture PUBLIC
   ${SIGIL_COMPOSE_INCLUDE_DIR})
-target_link_libraries(SigilComposeTexture PUBLIC
-  SigilComposeCore SigilMaterialTexture)
+target_link_libraries(SigilComposeTexture
+  PUBLIC SigilComposeCore SigilMaterialTexture
+  PRIVATE SigilMotionClock)
 if(TARGET SigilSkiaGraphite)
   target_link_libraries(SigilComposeTexture PUBLIC SigilSkiaGraphite
     SigilCoreHardware)

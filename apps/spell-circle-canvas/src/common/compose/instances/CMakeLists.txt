@@ -13,7 +13,11 @@ add_library(SigilComposeInstances STATIC
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/kit/Placers.h
 )
 target_compile_features(SigilComposeInstances PUBLIC cxx_std_20)
-target_link_libraries(SigilComposeInstances PUBLIC SigilComposeCore)
+# The placers arrange along a geometry path and the pool stamps through
+# the direct draws; both headers include those libraries, so both are
+# named here.
+target_link_libraries(SigilComposeInstances PUBLIC SigilComposeCore
+  SigilGeometryPath SigilSkiaDraw)
 
 # The pool's lanes, the atlas and its variants, both stamp modes, the
 # per-sprite blend, the pick and the placers. Links this tier alone over the
