@@ -19,11 +19,12 @@
  * expression with the mark literal-quoted, so a dash that is also a regex
  * operator means itself. Edit the copy and the run re-resolves.
  *
- * A LIST is a hanging indent with the marker set in the room the hang
- * opens: `indent.start` holds every line in and a negative
- * `indent.firstLine` pulls the first one back out, so the marker and the
- * opening word begin together at the block's start and the hang shows on
- * the lines after them. The numbering is the caller's to format, which is
+ * A LIST is an indent with the marker standing in the room it opens:
+ * `indent.start` holds EVERY line in, the first one included, and the
+ * marker is a leaf placed beside the text at the block's own start. The
+ * room belongs to the marker alone — a first line pulled back out of the
+ * indent would begin exactly where the marker stands and print through
+ * it. The numbering is the caller's to format, which is
  * why `markers` is strings: roman, lettered, restarting and hierarchical
  * schemes are data, and this is the shape they are drawn in. Two levels
  * is two calls.
@@ -137,8 +138,8 @@ struct BulletsDropCap final : sketch::Sketch {
     // not a mechanism here either.
     const std::vector<std::u8string> outer = {
         u8"The marker is set at the block's own start.",
-        u8"The item's text begins one hang in, and every line after the "
-        u8"first keeps that indent."};
+        u8"Every line of the item begins one hang in, the first one "
+        u8"included, so the marker has the room to itself."};
     const std::vector<std::u8string> outerMarks = {u8"1.", u8"2."};
     const std::vector<std::u8string> inner = {
         u8"A number is the caller's to format.",
@@ -168,8 +169,9 @@ struct BulletsDropCap final : sketch::Sketch {
              .footer = toU8("none of these is a mechanism: the cap is an "
                             "exclusion the body flows around, the nested "
                             "style is a span restyle over a selector the "
-                            "vocabulary could already name, and a list is a "
-                            "hanging indent"),
+                            "vocabulary could already name, and a list is "
+                            "an indent with the marker standing in the room "
+                            "it opened"),
              .titleStyle = label(14, kInk, 2.4f),
              .subtitleStyle = label(11.5f, kAsh, 0.8f),
              .footerStyle = label(11, kAsh, 0.4f),
@@ -206,9 +208,10 @@ struct BulletsDropCap final : sketch::Sketch {
                                        .style = smallCaps})),
                       cell("kit::bullets(items, markers, style, hang, "
                            "measure)",
-                           "two levels, two calls \xc2\xb7 the hang shows "
-                           "on the lines AFTER the first, which the "
-                           "negative firstLine pulls back to the marker",
+                           "two levels, two calls \xc2\xb7 every line of an "
+                           "item stands one hang in, the first included, "
+                           "and the marker keeps the room the indent "
+                           "opened",
                            std::move(list))},
                  .gap = 14}))
             .absolute()
