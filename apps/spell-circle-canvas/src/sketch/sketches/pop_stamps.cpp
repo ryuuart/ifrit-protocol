@@ -32,7 +32,7 @@
 //   .smooth(strength, iterations) — drop it and the star sweep kinks.
 
 #include <include/core/SkMatrix.h>
-#include <sigilcompose/kit/Silhouettes.h>
+#include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilcompose/texture/Texture.h>
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
@@ -47,6 +47,7 @@
 #include <vector>
 
 namespace sketch = sigil::sketch;
+namespace shapes = sigil::geometry::shapes;
 
 using namespace sigil::compose;
 namespace mesh = sigil::geometry::mesh;
@@ -97,16 +98,16 @@ struct PopStamps final : sketch::Sketch {
   mesh::Mesh tube, plates, crown, glints, ribbon;
   glm::mat4 crownPlace{1.0f};
 
-  /** The scene behind the sheet. A texture scene owns the surface its
-   *  image was taken from, so it is held for as long as the image is. */
-  std::shared_ptr<TextureScene> sheet;
-
-  /** An element tree painted to pixels, square, at a stated side. */
-  sk_sp<SkImage> bake(const Element& tree, sigil::weave::FontContext& f,
-                      int side) {
-    sheet = TextureScene::make({side, side}, f);
-    sheet->render(tree);
-    return sheet->image();
+  /** An element tree painted to pixels, square, at a stated side. The
+   *  session owns the scene the picture was taken from and lets it go
+   *  when the body declares again, so the sketch holds an image and
+   *  nothing else. */
+  static sk_sp<SkImage> bake(sketch::SketchContext& ctx, const Element& tree,
+                             int side) {
+    const std::shared_ptr<TextureScene> scene = ctx.textureScene({side, side});
+    if (!scene) return nullptr;
+    scene->render(tree);
+    return scene->image();
   }
 
   void draw(SkCanvas& canvas) const {
@@ -152,7 +153,7 @@ struct PopStamps final : sketch::Sketch {
     ctx.background({0.051f, 0.051f, 0.075f, 1});
     ctx.captureAt(1.0);
 
-    if (ctx.fonts) atlas = bake(atlasSheet(128), *ctx.fonts, 256);
+    atlas = bake(ctx, atlasSheet(128), 256);
 
     const std::vector<glm::vec3> ring = ringPoints();
     const glm::vec3 eye = {0, 260, 980};

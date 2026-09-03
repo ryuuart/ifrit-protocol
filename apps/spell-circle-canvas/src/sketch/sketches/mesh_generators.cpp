@@ -55,7 +55,8 @@
 
 #include <include/core/SkMatrix.h>
 #include <include/core/SkPaint.h>
-#include <sigilcompose/kit/Silhouettes.h>
+#include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilgeometry/mesh/pop/Sweep.h>
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
@@ -68,6 +69,7 @@
 #include <vector>
 
 namespace sketch = sigil::sketch;
+namespace shapes = sigil::geometry::shapes;
 
 using namespace sigil::compose;
 namespace mesh = sigil::geometry::mesh;

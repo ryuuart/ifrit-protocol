@@ -30,11 +30,12 @@
 
 #include <include/core/SkMatrix.h>
 #include <include/core/SkPaint.h>
-#include <sigilcompose/kit/Silhouettes.h>
+#include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Ops.h>
 #include <sigilsketch/canvas/Sketch.h>
 
 namespace sketch = sigil::sketch;
+namespace shapes = sigil::geometry::shapes;
 
 using namespace sigil::compose;
 namespace ops = sigil::geometry::path::ops;
