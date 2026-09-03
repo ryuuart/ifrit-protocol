@@ -556,6 +556,14 @@ MECHANISMS: bevels, sheens, inner shadows, outer glows and overlays built
 from gradients and blurs rather than shaders. The LOOKS they are bundled
 into are the kit's, one era per header: `kit/Gel.h`, `kit/Chrome.h`,
 `kit/Gloss.h`, each over SigilMaterial's colour tables.
+`brush/PixelStyles.h` is the other route, the bitmap era's — strokes and
+rectangles on the pixel lattice, never a blur: `styles::BevelPair`, a
+light edge and a dark edge kept inside the silhouette, raised or sunken
+as one value (`styles::bevelPair` states the two tones or derives them
+from the face); `styles::Brackets`, the reticle's L's standing off a box
+at the corners asked for; `styles::TickRail`, a ruler of marks along one
+edge with every n-th one long; and `styles::Scanlines`, hard rows over
+the outline through a blend mode.
 `core/Pattern.h` adds the one thing a tile cannot do for itself — an
 element tree AS the tile, baked through `snapshot()`. A recipe instance
 becomes a paint through `material::skia::Paint::recipe`, an effect

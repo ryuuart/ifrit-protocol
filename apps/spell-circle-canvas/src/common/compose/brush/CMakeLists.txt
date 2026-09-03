@@ -23,6 +23,7 @@ add_library(SigilComposeBrush STATIC
   Decorations.cpp
   LayerStyles.cpp
   Lines.cpp
+  PixelStyles.cpp
   Brushes.cpp
   # the stroke grammar's engine and the mask gates, behind the kernel's
   # StrokeResolver and MaskResolver seams
@@ -41,6 +42,7 @@ add_library(SigilComposeBrush STATIC
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/brush/LayerStyles.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/brush/Layered.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/brush/Lines.h
+  ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/brush/PixelStyles.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/brush/Rails.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/kit/Flourish.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/kit/Ornament.h
@@ -92,6 +94,7 @@ _compose_test_binary(compose_paint_test
     test/ComposeTestKernelPaint.cpp
     test/ComposeTestLinesPaint.cpp
     test/ComposeTestMaskPaint.cpp
+    test/ComposeTestPixelStylesPaint.cpp
     test/ComposeTestTextDataPaint.cpp
 )
 
