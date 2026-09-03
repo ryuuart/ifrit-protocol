@@ -11,6 +11,7 @@
 #include <sigilcompose/instances/Instances.h>
 #include <sigilcompose/kit/Silhouettes.h>
 #include <sigilcompose/typography/TextFx.h>
+#include <sigilcompose/typography/Typography.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 
 #include <sigilmaterial/core/Material.h>

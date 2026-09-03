@@ -17,5 +17,5 @@
 #include "sigilcompose/core/Paint.h"
 #include "sigilcompose/core/Shape.h"
 #include "sigilcompose/core/Stroke.h"
-#include "sigilcompose/core/Text.h"
+#include "sigilcompose/core/TextPainter.h"
 #include "sigilcompose/core/Tiles.h"

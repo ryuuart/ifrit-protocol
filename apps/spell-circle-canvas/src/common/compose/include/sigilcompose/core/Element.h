@@ -19,7 +19,6 @@
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/Shape.h>
 #include <sigilcompose/core/Stroke.h>
-#include <sigilcompose/core/Text.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/Animation.h>
 #include <sigilmotion/schedule/Schedule.h>
@@ -55,6 +54,13 @@ struct Instance;
 }  // namespace detail
 
 class Composer;
+// The typography vocabulary the text verbs take, defined under
+// <sigilcompose/typography/>: a call site that dresses its type includes
+// the header that spells the value it passes.
+class Selector;
+struct Track;
+struct Annotation;
+struct TextPath;
 
 // ---------------------------------------------------------------------------
 // Element — a cheap value description

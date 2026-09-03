@@ -27,7 +27,10 @@
 #include <sigilcompose/core/Composer.h>
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Factories.h>
-#include <sigilcompose/core/Text.h>
+#include <sigilcompose/typography/Annotation.h>
+#include <sigilcompose/typography/RichText.h>
+#include <sigilcompose/typography/Selector.h>
+#include <sigilcompose/typography/Units.h>
 #include <sigilweave/style/Style.h>
 
 #include <algorithm>

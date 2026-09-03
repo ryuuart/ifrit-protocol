@@ -14,7 +14,6 @@
 #include <include/core/SkSize.h>
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Paint.h>
-#include <sigilcompose/core/Text.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/clock/FrameClock.h>
 #include <sigilmotion/clock/Ticker.h>
@@ -37,6 +36,39 @@ namespace sigil::compose {
 namespace detail {
 struct Instance;
 }  // namespace detail
+
+// The typography vocabulary the text queries answer in, defined under
+// <sigilcompose/typography/>: a caller of `beatsOf` or `units` includes
+// the header that spells the value it reads back.
+class Selector;
+enum class Unit : uint8_t;
+struct TextUnit;
+struct Beat;
+
+/** WHAT A LIVE PASSAGE'S LAST LAYOUT COST — `Composer::settling`'s answer.
+ *
+ *  A text told its input is moving keeps its break decisions and reuses
+ *  them, and this is what a frame actually got for that: how many blocks
+ *  came out of the store, and how many the composer's budget forced to the
+ *  greedy breaker. It is a REPORT about one input, not a verdict about the
+ *  node — the runtime holds one proof that a node has settled, and folds
+ *  this into it beside everything else the node reads. */
+struct TextSettling {
+  /// The leaf declared its input moving (`Element::live`). A settled
+  /// passage reports nothing here and answers `reused == 0`: it decided
+  /// its breaks once, and no later frame asks it again.
+  bool live = false;
+  /// Blocks answered from break decisions this thread already had. Under
+  /// `live`, a frame that reused every block of its passage did no
+  /// composing at all.
+  int reused = 0;
+  /// Blocks the budget forced to the greedy breaker. A degrade drops the
+  /// whole setting — the hyphens, the justification passes past the word
+  /// gaps, the widow rule — for that frame alone, and the leaf lays out
+  /// again so the setting comes back the frame the budget is met.
+  int degraded = 0;
+  bool operator==(const TextSettling&) const = default;
+};
 
 // ---------------------------------------------------------------------------
 // Composer — the retained side; a guest in the host's canvas

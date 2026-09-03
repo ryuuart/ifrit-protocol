@@ -7,6 +7,7 @@
 #include <include/core/SkM44.h>
 #include <sigilcompose/Compose.h>
 #include <sigilcompose/typography/TextFx.h>
+#include <sigilcompose/typography/Typography.h>
 
 #include <cmath>
 #include <memory>

@@ -24,9 +24,9 @@
  *
  * The combinators and the effects the runtime itself evaluates —
  * `fx::keys`, `fx::seq`, `fx::mix`, `fx::hold`, `fx::scramble`, `fx::pass`
- * and the `fx::effect` door — are declared with the kernel in `Text.h`;
- * this header holds the presets, which are values built from the same
- * `TextEffect` constructor any caller may use.
+ * and the `fx::effect` door — are declared with the seam in
+ * `TextEffect.h`; this header holds the presets, which are values built
+ * from the same `TextEffect` constructor any caller may use.
  *
  * One-shot effects consume progress 0→1; loop effects (waveLoop) read a
  * WRAPPING bound phase (an Output stepped mod 1), and a looping CASCADE
@@ -45,7 +45,7 @@
  * has to be told.
  */
 
-#include <sigilcompose/core/Text.h>
+#include <sigilcompose/typography/TextEffect.h>
 
 #include <algorithm>
 #include <cmath>
@@ -57,20 +57,15 @@
 
 namespace sigil::compose::fx {
 
-namespace detail {
 // The three curves the presets below shape their glyphs with are
 // Choreograph's own — `easeOutCubic`, `easeOutExpo` and the
 // shape-parameterised `easeOutBack` — called directly here rather than
 // wrapped, because a preset shapes one float per glyph per frame and an
 // EaseFn through a std::function would put an indirect call in that
 // loop. `motion::ease::outBack` is the same curve in the form a
-// Transition holds.
-/** What a scale-only effect may push past the box: a glyph grown by
- *  `factor` about its own centre escapes by half the excess in each
- *  direction, and no effect here knows the font size at construction, so
- *  the nominal display size below stands in. Over-reporting is safe. */
-inline constexpr float kNominalSizePx = 96.0f;
-}  // namespace detail
+// Transition holds. A scale-only effect's reach is read against
+// `kNominalSizePx`, the display size the seam declares reaches at when no
+// effect knows its font size at construction.
 
 /** The stagger-reveal workhorse: glyphs rise from `distancePx` below their
  *  rest while fading in. Ease-out-expo motion; alpha completes over the
@@ -116,7 +111,7 @@ inline constexpr float kNominalSizePx = 96.0f;
         m.alpha = std::min(1.0f, t * 2.2f);
         return m;
       },
-      (peak - 1.0f) * detail::kNominalSizePx);
+      (peak - 1.0f) * kNominalSizePx);
 }
 
 /** Tumble-in: glyphs spin from `degrees` while rising and fading. */
@@ -133,7 +128,7 @@ inline constexpr float kNominalSizePx = 96.0f;
       },
       // A rotated glyph's corners swing out of its advance box; half the
       // nominal size covers any angle.
-      std::abs(risePx) + detail::kNominalSizePx * 0.5f);
+      std::abs(risePx) + kNominalSizePx * 0.5f);
 }
 
 /** Hard typewriter: a glyph is absent, then simply THERE (pair with a
@@ -167,7 +162,7 @@ inline constexpr float kNominalSizePx = 96.0f;
                amplitudeEm * (g.fontSize > 0 ? g.fontSize : 16.0f);
         return m;
       },
-      std::abs(amplitudeEm) * detail::kNominalSizePx);
+      std::abs(amplitudeEm) * kNominalSizePx);
 }
 
 /** Seeded scatter: every glyph flies in from its own random offset inside
@@ -192,7 +187,7 @@ inline constexpr float kNominalSizePx = 96.0f;
         m.alpha = std::min(1.0f, t * 1.7f);
         return m;
       },
-      std::abs(radiusPx) + detail::kNominalSizePx * 0.5f);
+      std::abs(radiusPx) + kNominalSizePx * 0.5f);
 }
 
 /** A variable-font axis SWEPT across local progress: `from` at t = 0,

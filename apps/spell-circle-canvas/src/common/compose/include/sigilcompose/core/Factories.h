@@ -11,7 +11,6 @@
 #include <include/core/SkRect.h>
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Layout.h>
-#include <sigilcompose/core/Text.h>
 #include <sigilweave/layout/ParagraphLayout.h>
 #include <sigilweave/paragraph/Paragraph.h>
 #include <sigilweave/style/Style.h>
@@ -24,6 +23,16 @@
 #include <vector>
 
 namespace sigil::compose {
+
+// The two composed text values the text factories take, defined in
+// <sigilcompose/typography/RichText.h>.
+class RichText;
+class Story;
+
+/** UTF-8 std::string → std::u8string for text() call sites. */
+inline std::u8string toU8(std::string_view s) {
+  return std::u8string(s.begin(), s.end());
+}
 
 // ---- factories -----------------------------------------------------------
 

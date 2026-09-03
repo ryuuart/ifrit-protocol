@@ -16,6 +16,12 @@
 #include <vector>
 
 #include "sigilcompose/Compose.h"
+// The text leaf's description is spelled in the typography vocabulary —
+// its tracks, its runs, its readings, its restyles' selectors, its
+// baseline path — which the kernel stores, compares and lays out without
+// linking the engine that dresses it: every member the kernel reaches is
+// defined in these headers.
+#include "sigilcompose/typography/Typography.h"
 
 namespace sigil::compose::detail {
 

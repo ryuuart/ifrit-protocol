@@ -419,12 +419,15 @@ sound model; nothing below them changes kernel semantics.
   `PaintContext`,
   `StampCache`, and the colour spellings `hex`, `alpha`, `mul`, `lift`,
   `mix` over `SkColor4f`.
-- `core/Text.h` — the text model: `Unit`, `Selector` and `sel::`,
-  `TextEffect`, `Track`, `Beat`, the mixed-text value `rich` /
-  `RichText`, and `toU8`.
+- `core/TextPainter.h` — the seam the kernel draws dressed type through:
+  `TextPainterOps`, the operations the composer asks of text that is not
+  resting on its own straight baseline, and `TextPainter`, that engine
+  as the value a text verb installs on a description. It is spelled in
+  the typography feature's vocabulary and only names it; the kernel
+  holds the paragraph, lays it out and draws it at rest by itself.
 - `core/Shape.h` — the comparable seam values `Shape` (with
-  `ShapeScheme`), `MotionPath`, `TextPath`, `Decoration` and its
-  declared-volatility concepts, and `LayerStyle`.
+  `ShapeScheme`), `MotionPath`, `Decoration` and its declared-volatility
+  concepts, and `LayerStyle`.
 - `core/Stroke.h` — the stroke grammar: `Spans` and `spans::`, `Across`,
   `Around`, `StrandPath` and `strand::`. The path arithmetic under it is
   SigilGeometry's — the width law `geometry::path::Profile` with
@@ -439,14 +442,16 @@ sound model; nothing below them changes kernel semantics.
   `ComponentFn` concepts.
 - `core/Element.h` — `Element` and its builders, the class alone.
 - `core/Factories.h` — the functions that start one: `box`, `stack`,
-  `positioned`, `text`, `image`, `custom`, `slot`, `layout`, `memo`.
+  `positioned`, `text`, `frame`, `image`, `custom`, `slot`, `layout`,
+  `memo`, with `toU8` for a call site holding a `std::string`.
 - `core/Measure.h` — the one-shot verbs that take a tree without a live
   composer: `snapshot`, `measure`, `metrics`, `measureRun`, `runPens`.
 - `core/Tiles.h` — `tiles::`, the slicing of one baked picture into a run
   of tile-sized rasters.
 - `core/Derive.h` — `connector`, `rail`, `Anchor`, `band`, `bandPointAt`,
   and the `derive::` namespace that gathers the family.
-- `core/Composer.h` — `Composer`.
+- `core/Composer.h` — `Composer`, and `TextSettling`, what
+  `Composer::settling` reports about a live passage's last layout.
 - `core/Paint.h` — beside `Fill` and `PaintContext`: `frameOf`, `toFill`
   and `resolveFill`, the three lines that put SigilMaterial's
   `material::skia::Paint` on a node. The paint model itself is that
@@ -553,15 +558,32 @@ transform for
 `Composer::setView` is SigilMaterial's colour transform, compiled only
 when the build finds OpenColorIO.
 
-**Type — `typography/`.** `typography/TextFx.h` supplies the stock preset
-effects (`fx::rise`, `fx::slide`, `fx::pop`, `fx::spinIn`, `fx::typeOn`,
+**Type — `typography/`.** The text vocabulary is this feature's, one
+header per value family: `typography/Units.h` — `Unit` and `unit::`, the
+granularity a selector slices and a cascade beats over, and `TextUnit`,
+one unit as the layout placed it; `typography/Selector.h` — `Selector`
+and `sel::`; `typography/TextEffect.h` — `GlyphInfo`, `GlyphMod`,
+`TextEffect`, `Phase`, and the effects the runtime evaluates by
+structure: `fx::scramble`, the `fx::keys` keyframe table, the `fx::pass`
+shader pass, the `fx::seq`, `fx::mix` and `fx::hold` combinators, and the
+`fx::effect` door; `typography/Track.h` — `Track`, `Beats` and `Beat`;
+`typography/RichText.h` — `rich` / `RichText` and `Story`;
+`typography/Annotation.h` — `Annotation`; `typography/TextPath.h` —
+`TextPath`; and `typography/Typography.h`, the umbrella over them. The
+kernel describes its text leaf in this vocabulary — a description stores
+tracks, runs and readings — and every member it stores, compares or
+evaluates is defined in the header that declares it, so the kernel links
+no engine to do so; what the feature's archive holds is the members that
+carry a diagnostic, the mixed-text builders, and the engine behind
+dressed type. `typography/TextFx.h` supplies the stock preset effects
+(`fx::rise`, `fx::slide`, `fx::pop`, `fx::spinIn`, `fx::typeOn`,
 `fx::waveLoop`, `fx::scatter`, `fx::variableAxisSweep`, `fx::tint`) for
 the kernel's `Element::fx` seam — and `marquee`, the seamless ticker
-built from a clipped strip and a wrapping phase. The effects the runtime
-evaluates by structure are declared with the kernel in `core/Text.h`:
-`fx::scramble`, the `fx::keys` keyframe table, the `fx::pass` shader pass,
-the `fx::seq`, `fx::mix` and `fx::hold` combinators, and the `fx::effect`
-door. A style's own numbers are SigilWeave's: `weave::textStyle` builds a
+built from a clipped strip and a wrapping phase. A text verb takes this
+vocabulary and a text query answers in it, and the kernel's own headers
+only name it: a call site that dresses its type, or reads a beat or a
+unit back, includes the typography header that spells the value. A
+style's own numbers are SigilWeave's: `weave::textStyle` builds a
 `weave::TextStyle` from the designated-init `weave::Type`
 (`<sigilweave/style/Type.h>`), and `weave::ports::pickTypeface` resolves the
 first installed family of a fallback chain
@@ -853,8 +875,8 @@ The library is one feature target per directory, and a consumer links the
 tier it draws with: `SigilComposeCore` (`core/` — the kernel: elements,
 layout, paint, transitions, text and the feed, as the host of
 SigilCore's reconciler),
-`SigilComposeTypography` (`typography/` — the text engine behind dressed
-type, with the type styles and the text-fx presets), `SigilComposeBrush`
+`SigilComposeTypography` (`typography/` — the text vocabulary and the
+engine behind dressed type, with the text-fx presets), `SigilComposeBrush`
 (`brush/` — decorations, lines, brushes, the stroke grammar's engine and
 the mask gates, with `kit/Strokes.h` and `kit/Plate.h`),
 `SigilComposeInstances` (`instances/` — the instanced sprite leaf and the

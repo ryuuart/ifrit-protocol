@@ -14,7 +14,7 @@
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/core/Paint.h>
-#include <sigilcompose/core/Text.h>
+#include <sigilcompose/typography/Track.h>
 
 #include <algorithm>
 #include <cstddef>

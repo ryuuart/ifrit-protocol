@@ -2,10 +2,11 @@
  * The text-fx seam's resolution against a laid-out paragraph: the per-walk
  * glyph structure every track shares, selection as glyphs and as text
  * ranges, the walk that decides which beat each glyph falls in at each
- * level, the composition algebra, and the stock combinators. The
- * arithmetic over those beat numbers is SigilMotion's cascade; the
- * comparable values themselves — `TextEffect`, `Selector` — are the
- * kernel's and are built in Element.cpp.
+ * level, the composition algebra, and the effects the runtime evaluates
+ * by structure — the sequence, the keyframe table, the hold, the
+ * scramble and the mix. The arithmetic over those beat numbers is
+ * SigilMotion's cascade; the comparable values themselves — `TextEffect`,
+ * `Selector` — are defined with their headers.
  *
  * Nothing here touches an Instance or a canvas. TextFxPainting.cpp drives it:
  * build the structure once per frame, resolve each track's selection (cached on
@@ -13,7 +14,7 @@
  * time and composing the deviations.
  */
 
-#include <sigilcompose/typography/TextFx.h>
+#include <sigilcompose/typography/TextEffect.h>
 #include <sigilweave/choreograph/Choreograph.h>
 #include <sigilweave/query/Query.h>
 
@@ -832,7 +833,7 @@ float keysReach(const std::vector<Key>& table) {
     const bool leans = m.rotateDeg != 0 || m.skewXDeg != 0 || m.skewYDeg != 0;
     reach = std::max(reach, std::abs(m.dx) + std::abs(m.dy) +
                                 (grown + (leans ? 0.5f : 0.0f)) *
-                                    fx::detail::kNominalSizePx);
+                                    fx::kNominalSizePx);
   }
   return reach;
 }

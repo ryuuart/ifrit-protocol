@@ -27,7 +27,8 @@
 #include <sigilcompose/core/Composer.h>
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Factories.h>
-#include <sigilcompose/core/Text.h>
+#include <sigilcompose/typography/Selector.h>
+#include <sigilcompose/typography/Units.h>
 
 #include <functional>
 #include <optional>

@@ -354,56 +354,6 @@ bool depthEqual(const Box<DepthData>& a, const Box<DepthData>& b) {
  *  The endpoint trio is compared only for the two rules that READ it
  *  (Spans::resolve consults `values[3i..3i+2]` under Range and Wrap and
  *  nowhere else); every other field is unconditional. */
-// ---- the fx() seam's hand-written comparators ------------------------------
-
-/** Two effects are the same effect when their identity — the preset name
- *  or the author's key, the parameters, the operands, the pass material
- *  and the named curves — is; a lambda-valued curve compares unequal,
- *  conservatively, through easeEqual. */
-bool TextEffect::operator==(const TextEffect& other) const {
-  if (m_state == other.m_state) return true;  // copies of one value
-  if (!m_state || !other.m_state) return false;
-  if (m_state->name != other.m_state->name ||
-      m_state->params != other.m_state->params ||
-      m_state->operands != other.m_state->operands)
-    return false;
-  // A pass compares by its MATERIAL, by value — Material's own recipe
-  // equality, so two passes over one source with equal constants prune,
-  // and a live pass material never compares equal, conservatively.
-  if ((m_state->pass != nullptr) != (other.m_state->pass != nullptr))
-    return false;
-  if (m_state->pass && !(*m_state->pass == *other.m_state->pass)) return false;
-  if (m_state->curves.size() != other.m_state->curves.size()) return false;
-  for (size_t i = 0; i < m_state->curves.size(); ++i)
-    if (!detail::easeEqual(m_state->curves[i], other.m_state->curves[i]))
-      return false;
-  return true;
-}
-
-bool Selector::operator==(const Selector& other) const {
-  if (m_state == other.m_state) return true;
-  if (!m_state || !other.m_state) return false;  // one is "everything"
-  return *m_state == *other.m_state;
-}
-
-static_assert(kFieldCount<Track> == 9,
-              "Track gained or lost a field — rule on it in "
-              "Track::sameShape() below, then bump this count. `progress` is "
-              "deliberately NOT compared there: it is an Animatable, and "
-              "textEqual() compares it through propEqual with every other "
-              "animated slot. A cascade field left out makes two different "
-              "cascades compare equal, the text node prunes, and it keeps "
-              "beating to the old ladder forever.");
-bool Track::sameShape(const Track& other) const {
-  return where == other.where && effect == other.effect &&
-         stagger == other.stagger && over == other.over &&
-         innerOver == other.innerOver && beatsOver == other.beatsOver &&
-         reach == other.reach && continuous == other.continuous;
-}
-bool Track::operator==(const Track& other) const {
-  return sameShape(other) && propEqual(progress, other.progress);
-}
-
 static_assert(kFieldCount<Spans::Term> == 11,
               "Spans::Term gained or lost a field — rule on it below, then "
               "bump this count. A term field left out makes every claim of "

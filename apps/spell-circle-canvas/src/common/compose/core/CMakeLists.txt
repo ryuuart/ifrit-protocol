@@ -43,6 +43,7 @@ add_library(SigilComposeCore STATIC
   Coverage.cpp
   # text
   TextAtRest.cpp
+  TextPainter.cpp
   # paint values
   Fills.cpp
   # internal headers
@@ -69,7 +70,7 @@ add_library(SigilComposeCore STATIC
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/core/Pattern.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/core/Shape.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/core/Stroke.h
-  ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/core/Text.h
+  ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/core/TextPainter.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/core/Tiles.h
 )
 target_compile_features(SigilComposeCore PUBLIC cxx_std_20)
