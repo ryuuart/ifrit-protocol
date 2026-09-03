@@ -567,7 +567,8 @@ struct Pattern {
 /** The variable-width RIBBON: a filled band whose width follows a law —
  *  a linear taper by default, a calligraphic nib when `nibAngleDeg` ≥ 0
  *  (the width peaks where the path runs perpendicular to the nib), or any
- *  `Profile` on the shared width seam. */
+ *  `Profile` on the shared width seam — joined at the corners, and handed
+ *  back as geometry by `band()` for anything that has to measure it. */
 struct Ribbon {
   Fill fill = Fill::color({1, 1, 1, 1});
   float widthStart = 10.0f, widthEnd = 2.0f;
@@ -599,16 +600,34 @@ struct Ribbon {
    *  start. A window whose BEGIN moves, or one that wraps, measures px
    *  from the revealed piece's own start. See `PxKeyedProfileScheme`.
    *
-   *  GEOMETRY: a profiled ribbon is `bandRegion()`, so its rails go
-   *  through `profileOffset` — a CONSTANT profile picks up
-   *  `geometry::path::parallel`'s real-vertex corner repair (arc outside a
-   *  turn, miter inside) instead of the spur the sample-and-displace walk
-   *  below leaves on the inside of every rectangle corner; a VARYING one
-   *  is sampled per rail at a uniform 2 px and zipped by arc length.
-   *
    *  Default-constructed means ABSENT: the nib, then the
    *  widthStart→widthEnd taper apply. */
   geometry::path::Profile width;
+
+  /** THE CORNER, on the OUTSIDE of a turn — bevel by default, the chord
+   *  the sampled rails already cut; round adds the disc the turn sweeps
+   *  out; miter carries the two rails to their meeting point, or bevels
+   *  when that point is further than `miterLimit` widths away, which is
+   *  Skia's own rule for a stroke.
+   *
+   *  It shapes the outside only, because the inside of a turn is not a
+   *  choice: a band is the UNION of its cross-sections, and this one is
+   *  built as one quadrilateral per sampled step, all wound the same way,
+   *  so the overlap on the inside of a bend fills. A band zipped into a
+   *  single left-forward, right-back contour cannot do that — its inner
+   *  rail crosses itself, the crossing winds the wrong way, and the
+   *  winding fill DROPS the inside of the bend. The hole opens once the
+   *  band is wider than about half the leg it turns on, and it is then
+   *  wider than the band itself.
+   *
+   *  `SkPaint::Join` rather than a word of our own, because this is the
+   *  same decision a stroke makes and a caller should not have to learn a
+   *  second spelling of it. */
+  SkPaint::Join join = SkPaint::kBevel_Join;
+  /** How far a miter may reach, in widths, before it bevels instead —
+   *  Skia's default of 4, and the reason `bleed()` grows under a miter:
+   *  a mitered corner is the one join that reaches past the width. */
+  float miterLimit = 4.0f;
 
   /** Is the profile seam in use? (A default-constructed Profile compares
    *  equal to itself — see Profile::operator== — so this is the honest
@@ -616,14 +635,28 @@ struct Ribbon {
   bool hasProfile() const { return !(width == geometry::path::Profile{}); }
 
   float bleed() const {
-    if (hasProfile()) return width.max();
-    return std::max(widthStart, widthEnd);
+    const float w = hasProfile() ? width.max() : std::max(widthStart, widthEnd);
+    // A bevel and a round join stay inside the width; a miter is allowed
+    // to reach `miterLimit` of them, and a bleed that did not say so
+    // would clip the one corner the caller asked to be sharp.
+    return join == SkPaint::kMiter_Join ? w * std::max(miterLimit, 1.0f) : w;
   }
   bool operator==(const Ribbon& o) const {
     return fill == o.fill && widthStart == o.widthStart &&
            widthEnd == o.widthEnd && nibAngleDeg == o.nibAngleDeg &&
-           nibContrast == o.nibContrast && step == o.step && width == o.width;
+           nibContrast == o.nibContrast && step == o.step && width == o.width &&
+           join == o.join && miterLimit == o.miterLimit;
   }
+
+  /** THE BAND THIS RIBBON FILLS over @p spine — the same geometry `paint`
+   *  draws, handed back.
+   *
+   *  Without it a study that wants to MEASURE what a ribbon drew has to
+   *  transcribe the construction, and a transcription goes stale the
+   *  moment the sampling changes, with the audit then measuring a band
+   *  nobody draws. Pair it with `compose::test::widthAlong` to ask
+   *  whether the band is the width its profile claims. */
+  SkPath band(const SkPath& spine) const;
 
   void paint(SkCanvas& c, const PaintContext& ctx) const;
 };

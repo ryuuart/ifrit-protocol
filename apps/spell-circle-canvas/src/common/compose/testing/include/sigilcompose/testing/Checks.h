@@ -27,17 +27,21 @@
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkColor.h>
+#include <include/core/SkContourMeasure.h>
 #include <include/core/SkImageInfo.h>
 #include <include/core/SkPath.h>
 #include <include/core/SkPicture.h>
 #include <include/core/SkPoint.h>
 #include <include/core/SkRect.h>
 #include <include/core/SkSurface.h>
+#include <include/pathops/SkPathOps.h>
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Feed.h>
+#include <sigilgeometry/path/Profile.h>
 #include <sigilmeasure/check/Check.h>
 
 #include <algorithm>
+#include <cmath>
 #include <span>
 #include <string>
 #include <string_view>
@@ -161,6 +165,157 @@ inline Coverage coverage(std::span<const SkPath> pieces, const SkPath& region,
       }
     }
   }
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// Is a band the width it claims?
+
+/** One station of a width audit: where on the spine, what the band
+ *  actually measured there, and what the law asked for. */
+struct WidthStation {
+  float along = 0;     ///< px of arc length from the spine's start
+  SkPoint at{0, 0};    ///< the spine point the chord was taken through
+  float measured = 0;  ///< the shortest chord of the band through it
+  float intended = 0;  ///< the profile's width there
+  float error() const { return std::abs(measured - intended); }
+};
+
+/** What a width-along audit found. A band that is the width it claims has
+ *  `maxError` under whatever the caller's ink can show. */
+struct WidthAlong {
+  int samples = 0;        ///< stations measured
+  float maxError = 0;     ///< the worst |measured − intended|, px
+  float rmsError = 0;     ///< the same error over the whole run
+  /** The worst stations, most wrong first, so a caller can print or draw
+   *  WHERE the band went wrong instead of only how far. */
+  std::vector<WidthStation> worst;
+
+  bool within(float tolerance) const {
+    return samples > 0 && maxError <= tolerance;
+  }
+};
+
+/** Measures the width of a drawn @p band along its @p spine and compares
+ *  it with what @p profile asked for.
+ *
+ *  **Why a min-chord raycast and not an area check.** Total ink is the
+ *  cheap test and it cannot see a corner defect at all: a band that loses
+ *  the inside of a bend and gains an outer chord loses and gains almost
+ *  the same area, so the two errors cancel and the area agrees to a
+ *  fraction of a percent while the picture is visibly torn. The width is
+ *  a LOCAL property and only a local measurement finds it. At each
+ *  station the shortest chord of the band through the spine point is
+ *  taken, over `directions` evenly spaced headings across a half turn —
+ *  shortest, because through any interior point the shortest chord is the
+ *  one across the band, whatever the spine's tangent is doing.
+ *
+ *  A HALF-WIDTH MARGIN AT EACH END IS SKIPPED, and it has to be: within
+ *  about half a width of a cap the shortest chord through a point runs
+ *  diagonally out through the END of the band rather than across it, so
+ *  it reads well under the true width and swamps every real error. The
+ *  cap is the one place where the shortest chord through a point is not
+ *  the width.
+ *
+ *  Cost is O(stations × directions × band edges), like `coverage` and for
+ *  the same reason: a verification pass, not a paint loop. */
+inline WidthAlong widthAlong(const SkPath& band, const SkPath& spine,
+                             const geometry::path::Profile& profile,
+                             float step = 4.0f, int directions = 90,
+                             size_t witnesses = 8) {
+  WidthAlong out;
+  const float reach = profile.max() * 4.0f + 40.0f;
+  if (directions < 2 || !(step > 0) || band.isEmpty()) return out;
+
+  // THE OUTLINE FIRST. A band is usually built as overlapping pieces —
+  // one per step, or one per leg — and every shared edge between two of
+  // them is a line INSIDE the ink. A raycast that counted those would
+  // find its shortest chord at the first interior seam and report a band
+  // one sampling step wide, whatever the band actually is. Simplify()
+  // resolves the winding into the boundary of the union, which is what
+  // the eye sees and what the width means.
+  SkPath outline;
+  if (!Simplify(band, &outline)) outline = band;
+
+  // Flatten by MEASURING rather than by reading verbs: a band built from
+  // a profile carries curves, and a line-only walk would see none of them
+  // and report a band it never touched as infinitely wide.
+  std::vector<SkPoint> edges;
+  {
+    SkContourMeasureIter it(outline, false);
+    while (sk_sp<SkContourMeasure> contour = it.next()) {
+      const float len = contour->length();
+      SkPoint prev;
+      SkVector tan;
+      if (len <= 0 || !contour->getPosTan(0, &prev, &tan)) continue;
+      for (float d = 1.0f;; d += 1.0f) {
+        const float at = std::min(d, len);
+        SkPoint here;
+        if (!contour->getPosTan(at, &here, &tan)) break;
+        edges.push_back(prev);
+        edges.push_back(here);
+        prev = here;
+        if (at >= len) break;
+      }
+      if (contour->isClosed()) {
+        SkPoint first;
+        if (contour->getPosTan(0, &first, &tan)) {
+          edges.push_back(prev);
+          edges.push_back(first);
+        }
+      }
+    }
+  }
+  if (edges.empty()) return out;
+
+  // The chord of the flattened band through `p` along `u`, both ways.
+  const auto chord = [&](SkPoint p, SkVector u) {
+    float fwd = reach, back = reach;
+    for (size_t i = 0; i + 1 < edges.size(); i += 2) {
+      const SkPoint a = edges[i], b = edges[i + 1];
+      const SkVector e{b.x() - a.x(), b.y() - a.y()};
+      const float den = u.x() * e.y() - u.y() * e.x();
+      if (std::abs(den) < 1e-9f) continue;
+      const SkVector w{a.x() - p.x(), a.y() - p.y()};
+      const float t = (w.x() * e.y() - w.y() * e.x()) / den;
+      const float s = (w.x() * u.y() - w.y() * u.x()) / den;
+      if (s < 0.0f || s > 1.0f) continue;
+      if (t > 0.0f)
+        fwd = std::min(fwd, t);
+      else
+        back = std::min(back, -t);
+    }
+    return fwd + back;
+  };
+
+  double squared = 0;
+  SkContourMeasureIter it(spine, false);
+  while (sk_sp<SkContourMeasure> contour = it.next()) {
+    const float len = contour->length();
+    const float margin = profile.max() * 0.55f + step;
+    for (float d = std::max(step, margin); d < len - margin; d += step) {
+      SkPoint here;
+      SkVector tan;
+      if (!contour->getPosTan(d, &here, &tan)) continue;
+      float shortest = reach;
+      for (int k = 0; k < directions; ++k) {
+        const float a = 3.14159265f * (float)k / (float)directions;
+        shortest = std::min(shortest, chord(here, {std::cos(a), std::sin(a)}));
+      }
+      const WidthStation station{d, here, shortest,
+                                 profile.acrossAt(len > 0 ? d / len : 0, len)};
+      ++out.samples;
+      squared += (double)station.error() * station.error();
+      out.maxError = std::max(out.maxError, station.error());
+      out.worst.push_back(station);
+    }
+  }
+  if (out.samples > 0) out.rmsError = (float)std::sqrt(squared / out.samples);
+  std::sort(out.worst.begin(), out.worst.end(),
+            [](const WidthStation& a, const WidthStation& b) {
+              return a.error() > b.error();
+            });
+  if (out.worst.size() > witnesses) out.worst.resize(witnesses);
   return out;
 }
 

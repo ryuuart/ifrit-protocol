@@ -543,7 +543,20 @@ three headers: `brush/Layered.h`, the stroke stack (`StrokeLayer`,
 deviating an outline (`ops::`, `GeometryOp`); and `brush/Brushes.h`, the
 brush kinds over them — `brush::solid`, the composites `brush::layers`
 and `brush::weave`, and the archetypes `brush::Scatter`, `brush::Pattern`,
-`brush::Ribbon`, `brush::Art`. The line vocabulary is three more:
+`brush::Ribbon`, `brush::Art`. A ribbon is the variable-width band, built
+as one quadrilateral per sampled step rather than as one long contour,
+because a band is the UNION of its cross-sections: zipped into a single
+left-forward, right-back outline the inner rail crosses itself where the
+spine turns hard, the crossing winds the wrong way, and the winding fill
+DROPS the inside of the bend — a hole that opens once the band is wider
+than about half the leg it turns on, and is then wider than the band.
+`Ribbon::join` is what happens on the OUTSIDE of that corner, an
+`SkPaint::Join` because it is the same decision a stroke makes: the
+chord, the arc, or the point (bevelling past `Ribbon::miterLimit`, which
+is also the one join whose bleed reaches past the width). `Ribbon::band`
+hands that geometry back, so a study that MEASURES what was drawn does
+not have to transcribe how it is built. The line vocabulary is three
+more:
 `brush/Lines.h`, the cartography and diagram stroke (`lines::Line` —
 parallel casings, terminal caps, ties, waves); `brush/Rails.h`, N-rail
 strokes where every rail is its own line; and `brush/Hatches.h`, the
@@ -622,14 +635,25 @@ shaping, its caches and its bindings carry from frame to frame.
 
 **Testing — `testing/Checks.h`.** A separate target, `SigilComposeTesting`,
 whose one header verifies generated geometry and reads back what was
-drawn, in `namespace test` (GoogleTest owns `::testing`): `test::coverage`, `test::endpointDegrees`,
+drawn, in `namespace test` (GoogleTest owns `::testing`): `test::coverage`, `test::widthAlong`, `test::endpointDegrees`,
 `test::rasterize` and the feed `test::report`. The checks a plate
 reports — `measure::check` and `measure::failures`, with
 `measure::finding`, `measure::reading` and `measure::heading` for the
 rows that stand beside claims, and `measure::Table` for the run of them
 — are SigilMeasure's, spelled under its own name from
 `<sigilmeasure/check/Check.h>`; only the geometry readers and
-`test::report` are this library's. `test::report` writes one check or a
+`test::report` are this library's. `test::widthAlong` is the width
+question `test::coverage` cannot answer: the shortest chord of a drawn
+band through each station of its spine, against the
+`geometry::path::Profile` the band claims. Total ink is the cheap version
+and is blind to a corner defect — a band that loses the inside of a bend
+and gains an outer chord loses and gains nearly the same area, so the sum
+agrees while the picture is torn — and a width is a LOCAL property only a
+local measurement finds. It resolves the band's winding into one outline
+before measuring, so a band built as overlapping pieces is not measured
+against its own interior seams, and it skips half a width at each end,
+where the shortest chord through a point runs out through the cap rather
+than across the band. `test::report` writes one check or a
 whole `measure::Table` into a `feed::TextRing`, each row in the ink its
 standing and verdict choose from a `test::ReportStyles` — the pass, fail,
 finding, reading and heading names a plate's tinted set registers — so

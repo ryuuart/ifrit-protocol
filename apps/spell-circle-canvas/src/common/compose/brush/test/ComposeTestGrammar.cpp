@@ -2146,3 +2146,141 @@ TEST(ComposeR2Volatility, ALiveMaterialOnASpanPassDeclaresItself) {
       << "a live stroke material on a span pass must declare isAnimated()";
   EXPECT_EQ(paintedPerFrame(false), 0u) << "…and a static one must still cache";
 }
+
+// ---- The ribbon's corners, and the audit that finds them ------------------
+
+namespace {
+
+/** A spine that turns 90° at the middle: two 60 px legs meeting at (80,80).
+ *  A band wider than about half a leg is where a join-less construction
+ *  loses the inside of the bend. */
+SkPath elbow() {
+  SkPathBuilder b;
+  b.moveTo(20, 80);
+  b.lineTo(80, 80);
+  b.lineTo(80, 140);
+  return b.detach();
+}
+
+/** A constant width on the profile seam. */
+struct FlatWidth {
+  float w = 40.0f;
+  float across(float) const { return w; }
+  float max() const { return w; }
+  bool operator==(const FlatWidth&) const = default;
+};
+
+}  // namespace
+
+TEST(ComposeR1Ribbon, TheInsideOfATightBendIsFilled) {
+  // A band is the UNION of its cross-sections, and the union is what the
+  // construction has to produce. Zipped into one left-forward, right-back
+  // contour the inner rail crosses itself, the crossing winds the wrong
+  // way, and the winding fill drops the wedge on the inside of the bend —
+  // a hole wider than the band, at every corner a wide band turns on.
+  brush::Ribbon r;
+  r.width = geometry::path::Profile(FlatWidth{40.0f});
+  const SkPath band = r.band(elbow());
+
+  // The wedge on the inside of the bend is where the two legs' widths
+  // OVERLAP — x in [60,80], y in [80,100] here — and it is exactly the
+  // region a contour that crossed itself would cancel away.
+  EXPECT_TRUE(band.contains(70, 90)) << "the inside of the bend";
+  EXPECT_TRUE(band.contains(62, 82)) << "…out to the corner of the overlap";
+  // …and the band is still a band: 40 wide means 20 either side.
+  EXPECT_TRUE(band.contains(50, 95));
+  EXPECT_FALSE(band.contains(50, 105)) << "25px off a 40-wide band";
+}
+
+TEST(ComposeR1Ribbon, TheJoinShapesTheOutsideOfTheCorner) {
+  // Outside the turn the three joins differ by construction, and the
+  // difference is exactly what each word means: the chord, the arc, the
+  // point. The corner is at (80,80) and the outer side is down-right.
+  brush::Ribbon bevel;
+  bevel.width = geometry::path::Profile(FlatWidth{40.0f});
+  brush::Ribbon round = bevel;
+  round.join = SkPaint::kRound_Join;
+  brush::Ribbon miter = bevel;
+  miter.join = SkPaint::kMiter_Join;
+
+  // Outside a right turn is the far side of the elbow, up and to the
+  // right of (80,80). The bevel's chord cuts that corner off at 14.1 px;
+  // the arc reaches the full 20; the miter carries the two rails to their
+  // meeting point at 28.3.
+  const SkPoint onTheArc{92.0f, 68.0f};     // 17 px out — past the chord
+  const SkPoint atThePoint{97.0f, 63.0f};   // 24 px out — past the arc
+  EXPECT_FALSE(bevel.band(elbow()).contains(onTheArc.x(), onTheArc.y()));
+  EXPECT_TRUE(round.band(elbow()).contains(onTheArc.x(), onTheArc.y()));
+  EXPECT_TRUE(miter.band(elbow()).contains(atThePoint.x(), atThePoint.y()));
+  EXPECT_FALSE(round.band(elbow()).contains(atThePoint.x(), atThePoint.y()));
+
+  // A miter reaches past the width, which is the one join whose bleed is
+  // not the width — a cull sized from the width would clip its point.
+  EXPECT_FLOAT_EQ(bevel.bleed(), 40.0f);
+  EXPECT_FLOAT_EQ(round.bleed(), 40.0f);
+  EXPECT_FLOAT_EQ(miter.bleed(), 40.0f * 4.0f);
+
+  // Past the limit a miter bevels, exactly as a stroke's does, so a
+  // near-reversal cannot fire a spike off the end of the picture.
+  brush::Ribbon tight = miter;
+  tight.miterLimit = 1.05f;  // only turns gentler than ~145° may point
+  EXPECT_FALSE(tight.band(elbow()).contains(atThePoint.x(), atThePoint.y()));
+
+  // And the join is part of the value, or two ribbons differing only in
+  // their corners would prune into each other.
+  EXPECT_FALSE(bevel == round);
+  EXPECT_FALSE(miter == tight);
+}
+
+TEST(ComposeR1Ribbon, WidthAlongMeasuresTheBandTheRibbonDrew) {
+  // The audit reads the geometry the ribbon hands back, so what is
+  // measured is what was drawn rather than a transcription of how it is
+  // built — which is what goes stale the moment the sampling changes.
+  const geometry::path::Profile flat{FlatWidth{24.0f}};
+  brush::Ribbon r;
+  r.width = flat;
+
+  SkPathBuilder straight;
+  straight.moveTo(20, 100);
+  straight.lineTo(180, 100);
+  const SkPath spine = straight.detach();
+
+  const test::WidthAlong audit = test::widthAlong(r.band(spine), spine, flat);
+  EXPECT_GT(audit.samples, 10);
+  EXPECT_TRUE(audit.within(0.5f)) << "worst " << audit.maxError << " px";
+  EXPECT_LT(audit.rmsError, 0.5f);
+
+  // Point it at a band built to a DIFFERENT law and it says so, in px,
+  // and names where — which the cheap total-ink check cannot do at all,
+  // because a band that loses area at one place and gains it at another
+  // conserves the sum.
+  brush::Ribbon thin;
+  thin.width = geometry::path::Profile(FlatWidth{16.0f});
+  const test::WidthAlong wrong =
+      test::widthAlong(thin.band(spine), spine, flat);
+  EXPECT_NEAR(wrong.maxError, 8.0f, 0.5f);
+  ASSERT_FALSE(wrong.worst.empty());
+  EXPECT_NEAR(wrong.worst.front().measured, 16.0f, 0.5f);
+  EXPECT_NEAR(wrong.worst.front().intended, 24.0f, 0.01f);
+  EXPECT_FALSE(wrong.within(1.0f));
+}
+
+TEST(ComposeR1Ribbon, WidthAlongSkipsTheCapsAndSeesTheCorner) {
+  // Within half a width of an end the shortest chord through a point runs
+  // diagonally out through the cap rather than across the band, so the
+  // margin is not a nicety: without it every audit reports its own ends as
+  // the worst defect in the picture and buries whatever is really wrong.
+  const geometry::path::Profile flat{FlatWidth{40.0f}};
+  brush::Ribbon r;
+  r.width = flat;
+  const SkPath spine = elbow();
+  const test::WidthAlong audit = test::widthAlong(r.band(spine), spine, flat);
+  ASSERT_GT(audit.samples, 4);
+  for (const test::WidthStation& s : audit.worst)
+    EXPECT_GT(s.along, 20.0f) << "a cap was measured as a defect";
+  // Away from the corner the joined band is the width it claims. At the
+  // corner itself the shortest chord runs across the turn rather than
+  // across the band, which is a property of the measurement and not of
+  // the band — so the audit is read as a run, never as one number.
+  EXPECT_LT(audit.rmsError, 12.0f);
+}
