@@ -63,12 +63,12 @@ each a static archive that links only what sits beneath it:
 | `SigilMaterialCore` | the value model: `Target`, `Params`, `Recipe`, `Program` and the cache, `Material`, `Leaf`, `UniformBlock`, `FrameData`; and `over()`, the combinator that stacks one material on another through a mask | SigilMaterialColor, SigilMotionValues, glm, Boost::pfr |
 | `SigilMaterialTexture` | `Texture` and its sources, `ShaderLeaf`, `textures::` (the tools' sets by role), `EnvironmentMap` and `bevelNormals`, `Atlas` | SigilMaterialCore, SigilImageAsset, Skia; simdjson and stb privately |
 | `SigilMaterialOcio` | `ocio::` — `available()`, and the OCIO `viewTransform`, `convert`, `exponent` as LUT materials | SigilMaterialTexture; OpenColorIO privately, when found |
-| `SigilMaterialSdf` | `sdf::` — `Shape`, `Style`, `pad`, `material` | SigilMaterialCore, SigilMaterialColor |
+| `SigilMaterialSdf` | `sdf::` — `Shape`, `Style`, `pad`, `material`, `everyRecipe` | SigilMaterialCore, SigilMaterialColor |
 | `SigilMaterialPattern` | `pattern::Tile` and the stock tiles | SigilMaterialTexture, SigilMaterialColor; SigilCoreCompute privately |
-| `SigilMaterialField` | `field::` — `halftoneRamp`, `noise`, `grain`, `ripple`, `crtOverlay` | SigilMaterialTexture, SigilMaterialColor |
+| `SigilMaterialField` | `field::` — `halftoneRamp`, `noise`, `grain`, `ripple`, `crtOverlay`, `everyRecipe` | SigilMaterialTexture, SigilMaterialColor |
 | `SigilMaterialSkia` | the SkSL compiler and `SkiaProgram`, whose builder uploads resolved bytes; `skia::builder` and `skia::shader` binding leaves into slots; `skia::fill`; the colour bridge `skia::toColor` / `skia::toSkColor` / `skia::toColors`; `skia::Paint`, the model as ONE shader; and `skia::Effect`, the post-processing recipe over a rendered layer | SigilMaterialTexture, SigilMaterialColor, SigilMotionValues |
 | `SigilMaterialSlang` | the Slang compiler: `slang::compileModule` to SPIR-V, `slang::Compiled` with the reflected `slang::UniformSlot` per uniform, `slang::SlangProgram`, and `slang::Uniforms`, the buffer one draw is written into; `Portable.slang`, the subset a host and a device answer alike, loaded into every session by name | SigilMaterialCore; SigilMaterialKit and Slang privately |
-| `SigilMaterialKit` | the presets: the metallic-roughness `kit::surface` and `kit::unlit` and the masks that stack them; `kit::gold`, `kit::chrome`, `kit::glass`; the grained `kit::stone`, `kit::timber`, `kit::latten` and `kit::board`; `kit::girih8` and its palettes; `kit::Bank`, the bounded seeded bank of a field's instances; the gel and chrome tables with `kit::contourRing`; the text paints and chrome-type ramps; and `kit::termsSource`, the shading terms a surface is composed of | SigilMaterialPattern, SigilMaterialColor |
+| `SigilMaterialKit` | the presets: the metallic-roughness `kit::surface` and `kit::unlit` and the masks that stack them; `kit::gold`, `kit::chrome`, `kit::glass`; the grained `kit::stone`, `kit::timber`, `kit::latten` and `kit::board`; `kit::girih8` and its palettes; `kit::Bank`, the bounded seeded bank of a field's instances; the gel and chrome tables with `kit::contourRing`; the text paints and chrome-type ramps; `kit::termsSource`, the shading terms a surface is composed of; and `kit::everyRecipe`, one instance of each of the above | SigilMaterialPattern, SigilMaterialColor |
 
 `SigilMaterial` is the umbrella, an interface over all ten. Headers live
 under `include/sigilmaterial/<feature>/` and are spelled that way —
@@ -460,7 +460,9 @@ text holding each piece of shading arithmetic as a function with a closed
 form — `lambert`, `blinn`, `fresnel` and `fresnelRough`,
 `specularColor`, `environmentBrdf` and `environmentSpecular` (the split
 sum), `environmentReflection` (the additive one), `refraction`,
-`absorption`, `emission`, `occlusion` — beside the display transform
+`attenuate` (Beer-Lambert, not called `absorption` because a surface's
+own absorption is a uniform of that name and a term compiled beside one
+would be an ambiguous reference), `emission`, `occlusion` — beside the display transform
 every lit sum ends at, `luminance` and `toneMap`, and the panorama's own
 geometry, `equirectUv`, `equirectDirection` and `roughnessLevel`. No
 term is a whole shading model and none has to be physically complete to
@@ -790,6 +792,31 @@ uniform or a live child makes the effect live, and a static chain
 precomposes once. It resolves against the same `PaintFrame` a paint
 does, so a consumer builds one frame per draw and hands it to both.
 
+**FOUR NAMES A BODY MAY NOT DECLARE: `pos`, `inColor`, `destColor`,
+`primitiveColor`.** A GPU backend does not compile a runtime effect as a
+program of its own — it inlines the body into the pipeline's fragment
+shader as a helper whose parameters it names itself, those four, and
+discards the names the body's own `main` declared, rewriting references
+to them as those. So a body declaring anything else by one of those
+names redeclares a parameter. `SkRuntimeEffect::MakeForShader` cannot
+see it, because there the body IS the whole program and the name is
+free, and every raster suite compiles that way; on a device it is a
+pipeline that never builds, a draw that paints nothing and a compiler's
+complaint per frame. The compile refuses those declarations up front,
+naming the recipe, and `main`'s own parameter is the one place the name
+is allowed — it is the declaration the backend replaces.
+
+**One instance of every recipe, as a list.** `kit::everyRecipe()`,
+`sdf::everyRecipe()` and `field::everyRecipe()` each answer a
+`std::vector<Material>` holding one instance of every recipe that
+feature ships, dressed the way its own builder dresses it and with a
+stand-in image in any slot that needs one — because a recipe is only
+half of what a backend compiles and a slot left empty generates a
+different program. They are for a caller that has to reach every program
+the library can ask a backend for without knowing what it holds: a
+device renderer warming its pipeline cache, and the device sweep below.
+A recipe added to one of those features belongs in its list.
+
 ## Boundaries
 
 The core links no renderer; the texture feature links Skia because a
@@ -806,7 +833,8 @@ a node's fill and routes it, and holds no paint model of its own.
 
 ## Building and testing
 
-Ten tests and ten benchmarks, one pair per feature:
+Ten tests and ten benchmarks, one pair per feature, and one device sweep
+over all of them:
 
 ```sh
 ctest --test-dir build -C Debug -R material
@@ -829,7 +857,28 @@ every preset and checks a fill stays inside its path, dresses a surface
 from a decoded set and pins the packed channels it wires, and shades a
 stack at both ends of its mask. `material_core_test` pins what `over()`
 builds: the operands as children, a blend per recipe, and the walk down
-to the bottom of a stack. The acceptance pieces are the
+to the bottom of a stack.
+
+`material_gpu_test` is the eleventh, and it belongs to the whole library
+rather than to a feature: every other suite shades on a raster surface,
+where a body is compiled as its own SkSL program, and a body can pass
+that and fail once a GPU backend has inlined it into a pipeline. It
+stands Graphite up, installs a shader-error handler through
+`GraphiteContext::reportShaderErrorsTo`, and draws every material
+`kit::everyRecipe()`, `sdf::everyRecipe()` and `field::everyRecipe()`
+answer — plus a stack per blend, the whole terms text, and the ocio LUT
+where OpenColorIO is available — through the same `skia::Paint` a
+consumer draws it through, demanding that not one reports an error. It
+is labelled `gpu` and needs Metal, and it carries its own control: the
+collision the four reserved names exist to prevent, built as a raw
+runtime effect so it reaches the device, must be reported — which is
+what proves the handler is wired to anything at all. Run it with
+
+```sh
+ctest --test-dir build -C Release -R material_gpu_test
+```
+
+The acceptance pieces are the
 `shapeworks_lab`, `easel_playground` and `mesh_normal_bridge` sketches
 under `src/sketch/sketches/`, whose surfaces are shaded here. SigilCompose is the largest consumer: its
 `Material::recipe` resolves a material through this library's cache with

@@ -126,4 +126,12 @@ Material ripple(float amplitudePx, float wavelengthPx, float phase = 0.0f,
  *  resamples. */
 const std::shared_ptr<const Recipe>& rippleRecipe();
 
+/** An instance of every recipe this feature ships, one apiece, with the
+ *  ripple's `content` slot dressed — a slot left empty and a slot
+ *  holding an image are not the same program. The grain is one recipe
+ *  per octave count, so the list carries the counts from one up to the
+ *  default. For a caller that has to compile every program the feature
+ *  can ask a backend for without knowing what it holds. */
+std::vector<Material> everyRecipe();
+
 }  // namespace sigil::material::field

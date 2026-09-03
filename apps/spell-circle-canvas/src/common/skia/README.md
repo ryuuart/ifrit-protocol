@@ -248,6 +248,18 @@ host that needs a particular layout afterwards transitions it itself.
 budget from the environment. Unset leaves Skia's default in place; it
 exists so the budget can be varied while measuring.
 
+**A shader that will not compile is a log line, not an error.** Graphite
+builds the fragment program for a draw at record time and compiles it on
+the device. A program that fails there is dropped, the draw paints
+nothing, and the next frame tries again — so a runtime effect that is
+valid as its own SkSL program and invalid once Graphite has inlined it
+into a pipeline scrolls past forever rather than failing anything.
+`GraphiteContext::reportShaderErrorsTo` puts a `skgpu::ShaderErrorHandler`
+in Skia's place so a caller can act on it; it is read when the context is
+created, so install it first. Unset, Skia prints the generated shader and
+the compiler's errors to stderr. SigilMaterial's device sweep is built on
+this.
+
 ## The two draws Graphite does not implement
 
 `graphite::Device` overrides `drawImageLattice` and `drawAtlas` with

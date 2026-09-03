@@ -27,6 +27,7 @@
 #include <cstdint>
 #include <cstring>
 #include <memory>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -119,6 +120,50 @@ TEST(SkiaCompiler, ABodyThatDoesNotCompileResolvesToNoProgram) {
   Material m(broken);
   EXPECT_EQ(m.resolve(Target::SkSL, FrameData{}).program, nullptr);
   EXPECT_EQ(skia::shader(m, FrameData{}), nullptr);
+}
+
+// A GPU backend inlines a runtime effect's body into its fragment shader
+// under parameters it names itself, discarding the names the body's own
+// main declared: `pos` for the coordinates, `inColor` for the colour from
+// the stage before, `destColor` for a blender's destination,
+// `primitiveColor` for the draw's own. A body declaring anything else by
+// one of those names redeclares a parameter — which is invisible to
+// SkRuntimeEffect::MakeForShader, where the body IS the whole program and
+// the name is free, and fatal on a device. So the compile refuses them
+// here, on the CPU, where the refusal is a resolve that answers nothing
+// and a message naming the recipe.
+TEST(SkiaCompiler, ABodyDeclaringAReservedParameterNameResolvesToNoProgram) {
+  skia::install();
+  const auto refused = [](const char* body) {
+    static int serial = 0;
+    auto recipe = std::make_shared<const Recipe>(
+        Recipe::of<TwoParams>("reserved." + std::to_string(serial++))
+            .body(Target::SkSL, body));
+    return skia::shader(Material(recipe), FrameData{}) == nullptr;
+  };
+  EXPECT_TRUE(refused("half4 main(float2 p) { float2 pos = p * 0.5; "
+                      "return half4(half2(pos), 0.0, 1.0); }"));
+  EXPECT_TRUE(refused("half4 main(float2 p) { half4 inColor = half4(1.0); "
+                      "return inColor; }"));
+  EXPECT_TRUE(refused("half4 main(float2 p) { half4 destColor = half4(1.0); "
+                      "return destColor; }"));
+  EXPECT_TRUE(
+      refused("half4 main(float2 p) { half4 primitiveColor = half4(1.0); "
+              "return primitiveColor; }"));
+  // A helper's parameter is a declaration too, and lands in the same
+  // generated scope.
+  EXPECT_TRUE(refused("float2 shift(float2 pos) { return pos * 0.5; }\n"
+                      "half4 main(float2 p) { return half4(half2(shift(p)), "
+                      "0.0, 1.0); }"));
+
+  // What must still pass: main's OWN parameter by that name, which is the
+  // one declaration the backend replaces rather than collides with; and
+  // the word in a comment or inside another identifier.
+  EXPECT_FALSE(refused("half4 main(float2 pos) { return half4(half2(pos), "
+                       "0.0, 1.0); }"));
+  EXPECT_FALSE(refused("half4 main(float2 p) { /* float2 pos; */ float2 "
+                       "position = p; return half4(half2(position), 0.0, "
+                       "1.0); }"));
 }
 
 TEST(SkiaPaint, APassBodyIsNotCompiledAsAShaderOfItsOwn) {

@@ -4,6 +4,10 @@
 #include <memory>
 #include <mutex>
 
+namespace skgpu {
+class ShaderErrorHandler;
+}  // namespace skgpu
+
 namespace skgpu::graphite {
 class Context;
 class Recorder;
@@ -101,6 +105,21 @@ class GraphiteContext {
    *  SIGILSKIA_GLYPH_ATLAS_BYTES to cap the Graphite glyph-atlas
    *  texture budget; unset leaves Skia's own default in place. */
   static skgpu::graphite::ContextOptions makeContextOptions();
+
+  /** WHERE A SHADER THAT WOULD NOT COMPILE IS REPORTED. Graphite builds
+   *  the fragment program for a draw at record time and compiles it on
+   *  the device; a program that fails there is dropped, the draw paints
+   *  nothing, and the frame after it tries again. With no handler
+   *  installed Skia prints the generated shader and the compiler's
+   *  errors to stderr and the process carries on, so a body that
+   *  compiles as its own SkSL program and not once Graphite has inlined
+   *  it into a pipeline is a scrolling log rather than something a
+   *  caller can act on. A handler set here is given to every context
+   *  this factory builds afterwards, which is what makes such a failure
+   *  observable — so set it BEFORE the context is created. Process-wide;
+   *  the caller keeps ownership and must outlive the contexts. Null
+   *  restores Skia's own reporting. */
+  static void reportShaderErrorsTo(skgpu::ShaderErrorHandler* handler);
 
  private:
   /** Wraps a context and the one recorder made from it; the backend

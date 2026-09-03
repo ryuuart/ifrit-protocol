@@ -6,8 +6,11 @@
 
 #include "sigilmaterial/field/Field.h"
 
+#include <include/core/SkCanvas.h>
+#include <include/core/SkSurface.h>
 #include <include/effects/SkPerlinNoiseShader.h>
 #include <sigilmaterial/texture/ShaderLeaf.h>
+#include <sigilmaterial/texture/Texture.h>
 
 #include <algorithm>
 #include <array>
@@ -207,6 +210,22 @@ Material ripple(float amplitudePx, float wavelengthPx, float phase,
       rippleRecipe(),
       RippleParams{amplitudePx, 6.2831853f / std::max(wavelengthPx, 1.0f),
                    phase, vertical ? 1.0f : 0.0f});
+}
+
+std::vector<Material> everyRecipe() {
+  std::vector<Material> all;
+  all.push_back(halftoneRamp(8, 1, 3, {1, 1, 1, 1}, 15.0f, 0.1f, 0.9f));
+  all.push_back(noise(0.03f));
+  for (int octaves = 1; octaves <= 4; ++octaves)
+    all.push_back(grain(0.05f, octaves));
+  all.push_back(crtOverlay());
+  sk_sp<SkSurface> content =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(4, 4));
+  content->getCanvas()->clear(SK_ColorMAGENTA);
+  Material warp = ripple(4, 32);
+  warp.child("content", Texture::of(content->makeImageSnapshot()));
+  all.push_back(std::move(warp));
+  return all;
 }
 
 }  // namespace sigil::material::field

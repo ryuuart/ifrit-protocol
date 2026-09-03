@@ -41,6 +41,20 @@ target_link_libraries(SigilMaterial INTERFACE
   SigilMaterialSdf SigilMaterialPattern SigilMaterialField SigilMaterialSkia
   SigilMaterialKit SigilMaterialSlang)
 
+# THE DEVICE SWEEP, over the whole library rather than one feature: a body
+# is validated one way as its own runtime effect and another once a GPU
+# backend has inlined it into a pipeline, and every per-feature suite
+# compiles on a raster surface, so none of them can see the second. It
+# links the umbrella and Graphite, which is why it stands here and not
+# under a feature.
+if(APPLE AND TARGET SigilSkia)
+  add_executable(material_gpu_test test/MaterialGpuTest.mm)
+  target_link_libraries(material_gpu_test PRIVATE SigilMaterial SigilSkia
+    GTest::gtest_main)
+  add_test(NAME material_gpu_test COMMAND material_gpu_test)
+  set_tests_properties(material_gpu_test PROPERTIES LABELS gpu)
+endif()
+
 # Registers this library with the `docs` target (see cmake/Docs.cmake).
 # The README is the site's front page, so the generated pages open on the
 # same document that is canon for the library.

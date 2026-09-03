@@ -130,4 +130,16 @@ Material material(const Shape& shape, const Style& style) {
                 shape.p0, shape.p1, shape.p2});
 }
 
+std::vector<Material> everyRecipe() {
+  Style dressed;
+  dressed.fill = {0.2f, 0.5f, 0.9f, 1};
+  dressed.borderWidth = 2;
+  dressed.glowRadius = 6;
+  dressed.shadowOffset = {2, 3};
+  dressed.shadowBlur = 4;
+  dressed.shadowColor = {0, 0, 0, 0.5f};
+  return {material(roundBox(8), dressed), material(circle(), dressed),
+          material(star(5, 3), dressed)};
+}
+
 }  // namespace sigil::material::sdf

@@ -23,6 +23,7 @@ add_library(SigilMaterialKit STATIC
   Mask.cpp
   Grained.cpp
   Patterns.cpp
+  Recipes.cpp
   Surface.cpp
   Surfaces.cpp
   Terms.cpp
@@ -34,6 +35,7 @@ add_library(SigilMaterialKit STATIC
   ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/kit/LayerStyles.h
   ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/kit/Mask.h
   ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/kit/Patterns.h
+  ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/kit/Recipes.h
   ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/kit/Surface.h
   ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/kit/Surfaces.h
   ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/kit/Terms.h

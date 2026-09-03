@@ -12,6 +12,7 @@
 #include <include/core/SkBitmap.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 
+#include <atomic>
 #include <cstdint>
 #include <cstdlib>
 #include <unordered_map>
@@ -66,10 +67,24 @@ class CachingImageProvider final : public skgpu::graphite::ImageProvider {
   std::unordered_map<uint64_t, sk_sp<SkImage>> m_cache;
 };
 
+/** Where a failed shader compile is reported, for every context built
+ *  after it is set. Atomic because the contexts are built on whichever
+ *  thread owns the device. */
+std::atomic<skgpu::ShaderErrorHandler*>& shaderErrorSink() {
+  static std::atomic<skgpu::ShaderErrorHandler*> sink{nullptr};
+  return sink;
+}
+
 }  // namespace
+
+void GraphiteContext::reportShaderErrorsTo(skgpu::ShaderErrorHandler* handler) {
+  shaderErrorSink().store(handler, std::memory_order_relaxed);
+}
 
 skgpu::graphite::ContextOptions GraphiteContext::makeContextOptions() {
   skgpu::graphite::ContextOptions options;
+  // Null leaves Skia's own handler in place, which prints to stderr.
+  options.fShaderErrorHandler = shaderErrorSink().load(std::memory_order_relaxed);
   // The glyph-atlas texture budget, overridable from the environment so
   // it can be varied under a benchmark without a rebuild. Unparseable or
   // non-positive values are ignored, so an unset or malformed variable
