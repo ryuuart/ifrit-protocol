@@ -117,7 +117,8 @@ express what a consumer needs, that library grows.
 
 **Several hands share one index.** Stage by explicit path and commit
 with `git commit --only -m <message> -- <paths>`; a bare commit takes whatever
-another pass left staged. Two concurrent builders per build tree at
+another pass left staged. Never rewrite the shared branch: no `reset`,
+`amend` or `rebase` while another hand may have committed after you. Two concurrent builders per build tree at
 most; a third configures its own tree over the shared
 `vcpkg_installed/`.
 
