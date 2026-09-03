@@ -37,14 +37,17 @@
 //   kAka / kAi           — the two band inks: vermilion for the right-hand
 //                          sideline, indigo for the left-hand one.
 
-#include <sigilcompose/kit/Silhouettes.h>
-#include <sigilcompose/typography/TextFx.h>
+#include <shared/VerticalSpecimen.h>
+#include <sigilcompose/kit/Kinetic.h>
+#include <sigilcompose/typography/Typography.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/style/Features.h>
 
-#include "VerticalSpecimen.h"
+#include <utility>
 
 namespace sketch = sigil::sketch;
+
+namespace motion = sigil::motion;
 
 using namespace sigil::compose;
 using sigil::compose::toU8;
@@ -72,9 +75,9 @@ constexpr float kBlockRight = 60;
  *  installed face answers is what the plate shows. */
 inline sigil::weave::TextStyle columnFitted(float size, SkColor4f color) {
   sigil::weave::TextStyle s = body(size, color);
-  s.shaping.fontFeatures = {sigil::weave::Features::verticalAlternates,
-                            sigil::weave::Features::proportionalVerticalMetrics,
-                            sigil::weave::Features::verticalKana};
+  s.shaping.fontFeatures = {sigil::weave::features::verticalAlternates,
+                            sigil::weave::features::proportionalVerticalMetrics,
+                            sigil::weave::features::verticalKana};
   return s;
 }
 
@@ -105,6 +108,11 @@ inline sigil::weave::PaintStyle banded(SkColor4f ink,
   p.addDecoration(decoration);
   return p;
 }
+
+/** The strip's entrance, and the ms its master must span to run at those
+ *  numbers: one beat a COLUMN, and the strip sets four of them. */
+const sigil::motion::Spread kColumnEntrance{.eachMs = 210, .durationMs = 520};
+const float kColumnEntranceSpan = kColumnEntrance.spanMs(4);
 
 }  // namespace bousen
 
@@ -153,8 +161,8 @@ struct Bousen final : sketch::Sketch {
     namespace bs = bousen;
     namespace ch = choreograph;
 
-    Material ground = Material::linear(
-        {0, 0}, {0, bs::kH}, {{0.0f, bs::kKinariLift}, {1.0f, bs::kKinari}});
+    Fill ground =
+        linearGradient({0, 0}, {0, bs::kH}, {bs::kKinariLift, bs::kKinari});
 
     auto passage =
         rich(bs::body(bs::kBodySize, bs::kSumi))
@@ -279,11 +287,12 @@ struct Bousen final : sketch::Sketch {
                                sigil::weave::Decoration::Kind::kUnderline,
                                bs::kAka, 2.0f))
                 .fx({.effect = fx::rise(18),
-                     .stagger = {.eachMs = 210,
-                                 .durationMs = 520,
-                                 .over = unit::Line},
-                     .progress = animate(from(0.0f).to(1.0f),
-                                         {1400ms, &ch::easeNone, 220ms})}))
+                     .stagger = bs::kColumnEntrance,
+                     .over = unit::Line,
+                     .progress = animate(motion::from(0.0f).to(1.0f),
+                                         {std::chrono::milliseconds(
+                                              (int)bs::kColumnEntranceSpan),
+                                          &ch::easeNone, 220ms})}))
         .child(text(toU8("\xe2\x86\x91 this strip's entrance beats over\n"
                          "unit::Line \xe2\x80\x94 one COLUMN a beat,\n"
                          "and its band stands at rest"),
@@ -319,5 +328,5 @@ struct Bousen final : sketch::Sketch {
 
 }  // namespace
 
-SIGIL_SKETCH_AS(Bousen, "bousen", "Catalog \xc2\xb7 Type & grid",
+SIGIL_SKETCH_AS(Bousen, "bousen", "Catalog \xc2\xb7 Type",
                 "vertical columns \xe2\x80\x94 sidelines, alternates, marks")
