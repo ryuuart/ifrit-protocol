@@ -1,6 +1,8 @@
 /** @file
  * The presets: where three lights stand round a subject, the rail a
- * turntable rides, and the set both of them make with a ground plane.
+ * turntable rides, the set both of them make with a ground plane, and
+ * the two other rails — a loop that rises and falls, and a winding round
+ * a shell.
  */
 
 #include <sigilgeometry/kit/Solids.h>
@@ -18,6 +20,10 @@ namespace sigil::world::kit {
 namespace {
 
 constexpr float kDegrees = 3.14159265358979323846f / 180.0f;
+constexpr float kTwoPi = 6.283185307179586f;
+
+/** At least three stations: a closed loop needs three points to be one. */
+int atLeastThree(int stations) { return stations < 3 ? 3 : stations; }
 
 /** The one colour this library states: a ground plane that was given no
  *  surface. Mid grey, so that what stands on it is what is read. */
@@ -68,13 +74,48 @@ Element threePoint(const Rig& rig) {
 
 geometry::mesh::curve::Spline3 rail(const Turntable& table) {
   geometry::mesh::curve::Spline3 spline;
-  const int stations = table.stations < 3 ? 3 : table.stations;
-  const float turn = 6.283185307179586f / (float)stations;
+  const int stations = atLeastThree(table.stations);
+  const float turn = kTwoPi / (float)stations;
   for (int i = 0; i < stations; ++i) {
     const float angle = (float)i * turn;
     spline.points.emplace_back(table.at.x + table.radius * std::cos(angle),
                                table.at.y + table.height,
                                table.at.z + table.radius * std::sin(angle));
+  }
+  spline.closed = true;
+  return spline;
+}
+
+geometry::mesh::curve::Spline3 wave(const Wave& wave) {
+  geometry::mesh::curve::Spline3 spline;
+  const int knots = atLeastThree(wave.knots);
+  for (int i = 0; i < knots; ++i) {
+    const float angle = (float)i * kTwoPi / (float)knots;
+    const bool outer = i % 2 == 0;
+    const float radius = outer ? wave.radius : wave.inner;
+    const float height = outer ? wave.high : wave.low;
+    spline.points.emplace_back(wave.at.x + radius * std::cos(angle),
+                               wave.at.y + height,
+                               wave.at.z + radius * std::sin(angle));
+  }
+  spline.closed = true;
+  return spline;
+}
+
+geometry::mesh::curve::Spline3 winding(const Winding& winding) {
+  geometry::mesh::curve::Spline3 spline;
+  const int knots = atLeastThree(winding.knots);
+  for (int i = 0; i < knots; ++i) {
+    const float t = (float)i / (float)knots;
+    // Latitude swings between ±1 radian `wraps` times a lap while the
+    // azimuth makes `turns` laps of its own; the two counts sharing no
+    // factor is what keeps the wraps from landing on one another.
+    const float latitude = std::sin(kTwoPi * winding.wraps * t);
+    const float azimuth = -kTwoPi * winding.turns * t;
+    spline.points.emplace_back(
+        winding.at.x + winding.shell.x * std::cos(latitude) * std::cos(azimuth),
+        winding.at.y + winding.shell.y * std::sin(latitude),
+        winding.at.z + winding.shell.z * std::cos(latitude) * std::sin(azimuth));
   }
   spline.closed = true;
   return spline;

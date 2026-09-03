@@ -3,17 +3,18 @@
 /** @file
  * Presets: elements composed out of the verbs a tree is already written
  * in — a three-point rig, a turntable, and a set with both over a
- * ground plane.
+ * ground plane — and the rails a body rides: the turntable's ring, a
+ * loop that rises and falls, and a winding round a shell.
  *
  * NOTHING HERE DECIDES A LOOK. Each returns an ordinary `Element` whose
- * every field the caller can read, replace or ignore, and the only
- * constants in it are the geometry of the arrangement — where a key
- * light stands relative to a subject, how a rail circles it — plus one
- * neutral grey for a ground plane that was given no surface. There is
- * no shading model here, no catalog of surfaces and no material of this
- * library's own: a preset is a shorthand for a tree someone could have
- * written by hand, and it is worth having only for as long as that
- * stays true.
+ * every field the caller can read, replace or ignore — or a plain
+ * `Spline3` a tree rides — and the only constants in it are the
+ * geometry of the arrangement — where a key light stands relative to a
+ * subject, how a rail circles it — plus one neutral grey for a ground
+ * plane that was given no surface. There is no shading model here, no
+ * catalog of surfaces and no material of this library's own: a preset
+ * is a shorthand for a tree someone could have written by hand, and it
+ * is worth having only for as long as that stays true.
  */
 
 #include <sigilmaterial/core/Material.h>
@@ -79,6 +80,50 @@ struct Turntable {
 /** THE RAIL a turntable rides: a closed loop of `stations` points round
  *  `at`, at the table's radius and height. */
 geometry::mesh::curve::Spline3 rail(const Turntable& table);
+
+/** A RAIL THAT RISES AND FALLS: `knots` stations round `at`, the even
+ *  ones standing out at `radius` and `high` above the centre, the odd
+ *  ones in at `inner` and `low` — so a body riding it, a comet
+ *  scattered along it or a band swept over it reads as a curve in space
+ *  rather than as a ring seen at an angle. The two radii are absolute
+ *  and the two heights are signed, so both may stand above the centre
+ *  or both below it. */
+struct Wave {
+  glm::vec3 at{0.0f, 0.0f, 0.0f};
+  float radius = 210.0f;
+  float inner = 130.0f;
+  float high = 80.0f;
+  float low = -60.0f;
+  /** Stations round the loop. An even count alternates cleanly all the
+   *  way round; an odd one puts two outer stations side by side at the
+   *  seam. Fewer than three is three, because a closed loop needs three
+   *  points to be one. */
+  int knots = 6;
+};
+
+/** THE WAVE as a closed spline through its stations. */
+geometry::mesh::curve::Spline3 wave(const Wave& wave = {});
+
+/** A RAIL THAT WINDS A SHELL: a closed loop on the ellipsoid of
+ *  half-extents `shell` round `at`, climbing and diving `wraps` times per
+ *  lap while the plane it winds in turns `turns` times. Two counts with
+ *  no common factor keep a later wrap from retracing an earlier one, so
+ *  the loop crosses in front of and behind itself and a body riding it
+ *  is seen from every side in one lap; the winding runs from +x toward
+ *  −z. */
+struct Winding {
+  glm::vec3 at{0.0f, 0.0f, 0.0f};
+  glm::vec3 shell{230.0f, 120.0f, 190.0f};
+  float wraps = 3.0f;
+  float turns = 2.0f;
+  /** Stations round the loop. The curve is smooth between them, so the
+   *  count decides how faithfully the winding is drawn rather than what
+   *  it is; fewer than three is three. */
+  int knots = 72;
+};
+
+/** THE WINDING as a closed spline through its stations. */
+geometry::mesh::curve::Spline3 winding(const Winding& winding = {});
 
 /** THE CAMERA at scene time @p seconds, as one element riding that rail
  *  and looking at the subject from wherever it has reached.

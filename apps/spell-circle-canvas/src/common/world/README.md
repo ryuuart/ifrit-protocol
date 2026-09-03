@@ -32,7 +32,7 @@ library that is not here.
 | `graph/` | `SigilWorldGraph` | `sigil::world::graph` | the `Plan`: the order the passes run in, the surfaces they share, the barriers between them, and how each selection is realised. It reads declarations and draws nothing. |
 | `scene/` | `SigilWorldScene` | `sigil::world` | the retained side: the reconcile host, the entity store, the content-keyed resource store, the declared phases, the execution of a frame's passes, and the draw. |
 | `light/` | `SigilWorldLight` | `sigil::world::light` | emitters as plain comparable values over glm: a sun, a point light, a spot, their falloffs and the per-frame budget. |
-| `kit/` | `SigilWorldKit` | `sigil::world::kit` | presets that compose elements: a three-point rig, a turntable, and the lit set both make over a ground plane. Nothing here decides a look. |
+| `kit/` | `SigilWorldKit` | `sigil::world::kit` | presets that compose elements: a three-point rig, a turntable, and the lit set both make over a ground plane; and the rails a body rides — the turntable's ring, a loop that rises and falls, a winding round a shell. Nothing here decides a look. |
 | `diligent/` | `SigilWorldDiligent` | `sigil::world::diligent` | the programs this backend draws with — the scaffold, the sky, the mesh painter and the post stages, compiled through SigilMaterial's Slang backend — and the two seam values that stand on that device: the `Runtime` that performs a frame's passes and the `geometry::mesh::render::Runtime` that draws a mesh onto a canvas — plus `importNative`, the door a foreign texture reaches a material slot by. The chain cook and the swept rings are SigilGeometry's own device executors, beside the CPU ones of the same seams. |
 | — | `SigilWorld` | — | the umbrella: an interface target over every feature above, and `<sigilworld/World.h>`, which is their public headers in one include. A consumer of the whole library names only this; the device feature is in it where it was built. |
 
@@ -117,6 +117,19 @@ subject's own extents so one rig serves a thumbnail and a room;
 `kit::turntable(table, seconds)` is a camera riding a closed rail and
 looking inward, with `kit::rail(table)` the curve itself; `kit::litSet`
 is both over a ground plane, with the subject under it.
+
+Two more rails stand beside the turntable's, each a plain `Spline3` a
+tree rides with `along()`, scatters a comet on or sweeps a band over.
+`kit::wave(w)` is a closed loop that RISES AND FALLS: its stations
+alternate between an outer radius standing high and an inner one
+standing low, so a tube swept along it or a comet riding it reads as a
+curve in space rather than as a ring seen at an angle. `kit::winding(w)`
+is a closed loop that WINDS A SHELL: on the ellipsoid its half-extents
+name, it climbs and dives `wraps` times a lap while the plane it winds in
+turns `turns` times — two counts with no common factor, so no wrap
+retraces another and the loop crosses in front of and behind itself. A
+sketch that draws one of these names its own radii, heights and shell,
+and the preset states nothing but the arrangement.
 
 **Nothing here decides a look.** Each returns an ordinary `Element` whose
 every field the caller can read, replace or ignore, and the only
@@ -1062,8 +1075,11 @@ selectors. `world_kit_test` covers the presets: what tree each returns,
 that the rig is stated in the subject's own extents and puts every lamp
 at the subject when there are none, that a whole turn of the turntable is
 where it started and a rail asked for fewer than three stations is still
-a closed loop, and that the one colour this library states is the
-ground's. `world_scene_test` covers the retained side, every case over
+a closed loop, that the wave alternates between its two radii and two
+heights round its centre and the winding stays on its shell while
+crossing its own plane twice a wrap and turning the laps it was asked
+for, and that the one colour this library states is the ground's.
+`world_scene_test` covers the retained side, every case over
 one fixture holding a clock and a scene reading it: an emitter dial
 reaching the light it scales while the tree stands still, identity across
 a keyed reorder, the three lifetimes pulling apart under a geometry-slot

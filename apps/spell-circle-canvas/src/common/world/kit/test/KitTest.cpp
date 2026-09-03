@@ -194,6 +194,74 @@ TEST(WorldKit, ARailIsAClosedLoopHoweverFewStationsItIsAskedFor) {
   EXPECT_TRUE(track.closed);
   EXPECT_EQ((int)track.points.size(), 3);
   EXPECT_GT(track.length(), 0.0f);
+
+  kit::Wave fewWave;
+  fewWave.knots = 2;
+  EXPECT_EQ((int)kit::wave(fewWave).points.size(), 3);
+  EXPECT_TRUE(kit::wave(fewWave).closed);
+  kit::Winding fewWinding;
+  fewWinding.knots = 0;
+  EXPECT_EQ((int)kit::winding(fewWinding).points.size(), 3);
+  EXPECT_TRUE(kit::winding(fewWinding).closed);
+}
+
+TEST(WorldKit, AWaveAlternatesBetweenTwoRadiiAndTwoHeightsRoundItsCentre) {
+  kit::Wave shape;
+  shape.at = {10.0f, 20.0f, 30.0f};
+  shape.radius = 200.0f;
+  shape.inner = 120.0f;
+  shape.high = 70.0f;
+  shape.low = -50.0f;
+  const geometry::mesh::curve::Spline3 loop = kit::wave(shape);
+  EXPECT_TRUE(loop.closed);
+  EXPECT_EQ(loop.type, geometry::mesh::curve::Spline3::Type::CatmullRom);
+  ASSERT_EQ((int)loop.points.size(), shape.knots);
+  for (int i = 0; i < shape.knots; ++i) {
+    const glm::vec3 station = loop.points[(size_t)i] - shape.at;
+    const bool outer = i % 2 == 0;
+    // Even stations stand out and high, odd ones in and low, each at
+    // its share of the turn.
+    EXPECT_NEAR(std::hypot(station.x, station.z),
+                outer ? shape.radius : shape.inner, 1e-3f)
+        << i;
+    EXPECT_FLOAT_EQ(station.y, outer ? shape.high : shape.low) << i;
+    const float angle = std::atan2(station.z, station.x);
+    const float expected = (float)i * 6.283185307179586f / (float)shape.knots;
+    EXPECT_NEAR(std::remainder(angle - expected, 6.283185307179586f), 0.0f,
+                1e-4f)
+        << i;
+  }
+}
+
+TEST(WorldKit, AWindingStaysOnItsShellAndCrossesItsOwnPlane) {
+  kit::Winding shape;
+  shape.at = {5.0f, -10.0f, 15.0f};
+  const geometry::mesh::curve::Spline3 loop = kit::winding(shape);
+  EXPECT_TRUE(loop.closed);
+  ASSERT_EQ((int)loop.points.size(), shape.knots);
+  // Every station is on the ellipsoid the shell names, round the centre.
+  for (const glm::vec3& point : loop.points) {
+    const glm::vec3 q = (point - shape.at) / shape.shell;
+    EXPECT_NEAR(glm::dot(q, q), 1.0f, 1e-4f);
+  }
+  // It climbs and dives `wraps` times a lap: the height changes sign
+  // twice per wrap, counted round the loop and across the seam.
+  int crossings = 0;
+  float turned = 0.0f;
+  for (size_t i = 0; i < loop.points.size(); ++i) {
+    const glm::vec3 here = (loop.points[i] - shape.at) / shape.shell;
+    const glm::vec3 before =
+        (loop.points[(i + loop.points.size() - 1) % loop.points.size()] -
+         shape.at) /
+        shape.shell;
+    crossings += (here.y >= 0.0f) != (before.y >= 0.0f);
+    // …while the azimuth makes `turns` laps of its own, from +x toward −z.
+    turned += std::remainder(
+        std::atan2(here.z, here.x) - std::atan2(before.z, before.x),
+        6.283185307179586f);
+  }
+  EXPECT_EQ(crossings, 2 * (int)shape.wraps);
+  EXPECT_NEAR(turned / 6.283185307179586f, -shape.turns, 1e-3f);
 }
 
 }  // namespace

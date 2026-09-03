@@ -39,9 +39,28 @@ void LitSet(benchmark::State& state) {
   }
 }
 
+/** The two other rails are built fresh wherever a frame describes them,
+ *  so their cost is a per-frame cost too — by the stations they are
+ *  drawn through. */
+void WaveRail(benchmark::State& state) {
+  kit::Wave shape;
+  shape.knots = (int)state.range(0);
+  for ([[maybe_unused]] auto iteration : state)
+    benchmark::DoNotOptimize(kit::wave(shape));
+}
+
+void WindingRail(benchmark::State& state) {
+  kit::Winding shape;
+  shape.knots = (int)state.range(0);
+  for ([[maybe_unused]] auto iteration : state)
+    benchmark::DoNotOptimize(kit::winding(shape));
+}
+
 BENCHMARK(ThreePoint);
 BENCHMARK(Turntable);
 BENCHMARK(LitSet);
+BENCHMARK(WaveRail)->Arg(6)->Arg(24);
+BENCHMARK(WindingRail)->Arg(72)->Arg(288);
 
 }  // namespace
 
