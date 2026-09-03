@@ -7,7 +7,7 @@
 #                geometry/ (SigilGeometry), world/ (SigilWorldElement,
 #                SigilWorldFrame, SigilWorldGraph, SigilWorldScene,
 #                SigilWorldLight, SigilWorldKit, SigilWorldDiligent),
-#                material/ (SigilMaterial), compose/
+#                material/ (SigilMaterial), draw/ (SigilDraw), compose/
 #                (SigilCompose)
 #   sketch/      SigilSketch: every renderable thing in this repository as
 #                one sketch file, with the registry, the two runtimes a
@@ -37,6 +37,9 @@ add_subdirectory(common/measure)
 add_subdirectory(common/motion)
 add_subdirectory(common/geometry)
 add_subdirectory(common/material)
+# The immediate-mode pen: over material's paint, weave's text and core's
+# mixers, and beneath compose, which hosts a pen program in a node.
+add_subdirectory(common/draw)
 add_subdirectory(common/world)
 if(SPELLCIRCLE_ENABLE_SUBSTANCE)
   add_subdirectory(common/substance)
