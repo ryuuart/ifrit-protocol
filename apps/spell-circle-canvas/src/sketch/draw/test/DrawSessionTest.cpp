@@ -10,6 +10,7 @@
 #include <sigilsketch/draw/Draw.h>
 
 #include <memory>
+#include <string>
 #include <vector>
 
 #include "Support.h"
@@ -190,6 +191,83 @@ TEST(DrawSessionLoop, ARequestedFrameRateSkipsDraws) {
     session->frame(*surface->getCanvas(), 1.0 / 60.0);
   EXPECT_GE(Slow::draws, 29);
   EXPECT_LE(Slow::draws, 31);
+}
+
+/** A sketch whose simulation runs at a fixed rate whatever the host
+ *  draws at, and which draws the interpolant the ticker publishes. */
+struct Stepped : DrawSketch {
+  static inline int steps = 0;
+  static inline int setups = 0;
+  static inline float lastAlpha = -1.0f;
+  choreograph::Output<float> alpha{0.0f};
+
+  void setup(DrawContext& ctx) override {
+    ++setups;
+    ctx.canvas(50, 50);
+    ctx.oversample(3);
+    // 32 Hz stepped at 1/64 s: both are powers of two, so the step
+    // count and the leftover fraction are exact rather than nearly so.
+    ctx.ticker.addFixed(
+        32.0,
+        [] {
+          ++steps;
+          return true;
+        },
+        8, &alpha);
+  }
+  void draw(Pen&) override { lastAlpha = alpha; }
+};
+
+class DrawSessionFixedStep : public ::testing::Test {
+ protected:
+  DrawSessionFixedStep()
+      : session(kindOf<Stepped>()->open(fonts(), assets())),
+        surface(SkSurfaces::Raster(SkImageInfo::MakeN32Premul(50, 50))) {
+    Stepped::steps = 0;
+    Stepped::setups = 0;
+    Stepped::lastAlpha = -1.0f;
+  }
+  std::unique_ptr<Session> session;
+  sk_sp<SkSurface> surface;
+};
+
+TEST_F(DrawSessionFixedStep, TheSimulationRunsAtItsOwnRateWhateverTheDrawRate) {
+  for (int i = 0; i < 64; ++i)
+    session->frame(*surface->getCanvas(), 1.0 / 64.0);
+  EXPECT_EQ(Stepped::steps, 32);  // one second at 32 Hz, drawn at 64
+  Stepped::steps = 0;
+  std::unique_ptr<Session> slower = kindOf<Stepped>()->open(fonts(), assets());
+  for (int i = 0; i < 16; ++i)
+    slower->frame(*surface->getCanvas(), 1.0 / 16.0);
+  EXPECT_EQ(Stepped::steps, 32);  // the same second, drawn at 16
+}
+
+TEST_F(DrawSessionFixedStep, TheRenderInterpolantIsPublished) {
+  // Half a step in: the leftover fraction is a half, and one whole step
+  // in it is back to none.
+  session->frame(*surface->getCanvas(), 1.0 / 64.0);
+  EXPECT_EQ(Stepped::steps, 0);
+  EXPECT_NEAR(Stepped::lastAlpha, 0.5f, 1e-4f);
+  session->frame(*surface->getCanvas(), 1.0 / 64.0);
+  EXPECT_EQ(Stepped::steps, 1);
+  EXPECT_NEAR(Stepped::lastAlpha, 0.0f, 1e-4f);
+}
+
+TEST_F(DrawSessionFixedStep, AFreshSetupStepsTheSimulationOnce) {
+  session->redeclare();
+  EXPECT_EQ(Stepped::setups, 1);  // the fixture zeroed the first
+  for (int i = 0; i < 64; ++i)
+    session->frame(*surface->getCanvas(), 1.0 / 64.0);
+  EXPECT_EQ(Stepped::steps, 32);
+}
+
+TEST_F(DrawSessionFixedStep, TheDeclaredOversampleFormsTheKeptSurface) {
+  EXPECT_EQ(session->canvas().oversample, 3);
+  session->frame(*surface->getCanvas(), 1.0 / 60.0);
+  // Three device pixels per canvas pixel on a canvas that offers one,
+  // and the blit back is the declared size, so the plate is 150 across
+  // where the host scales by three.
+  EXPECT_NE(session->counters().find("150x150"), std::string::npos);
 }
 
 TEST(DrawSessionKind, NamesItsRuntime) {

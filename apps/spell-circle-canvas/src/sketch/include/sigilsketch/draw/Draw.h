@@ -10,11 +10,13 @@
 #include <include/core/SkImage.h>
 #include <include/core/SkRefCnt.h>
 #include <sigildraw/Draw.h>
+#include <sigilmotion/clock/Ticker.h>
 #include <sigilsketch/core/Assets.h>
 #include <sigilsketch/core/CanvasSpec.h>
 #include <sigilsketch/core/Registry.h>
 #include <sigilsketch/core/Session.h>
 
+#include <algorithm>
 #include <concepts>
 #include <memory>
 #include <string_view>
@@ -35,13 +37,35 @@ namespace sigil::sketch {
  *  own spec, and a copy kept past setup would write into nothing. */
 struct DrawContext {
   draw::Pen& pen;
+  /** THE SESSION'S TICKER, stepped by the session's own clock every
+   *  frame — whether or not `draw` ran that frame, since time passes
+   *  either way. What it is for in a pen program is the FIXED STEP:
+   *
+   *      ctx.ticker.addFixed(60.0, [this] { step(); return true; },
+   *                          8, &alpha);
+   *
+   *  A simulation stepped from the frame delta is a different
+   *  simulation at every draw rate, and a capture of it is a claim
+   *  about the machine that took it. `addFixed` runs the body at
+   *  exactly @p hz from accumulated time, and publishes the leftover
+   *  fraction of a step into the Output handed last — the render
+   *  interpolant, so `lerp(previous, current, alpha)` is what the pen
+   *  draws and the judder between rates is gone. Its own words are
+   *  SigilMotion's, from `<sigilmotion/clock/Ticker.h>`.
+   *
+   *  Register in `setup` and keep the Outputs on the sketch, since
+   *  `draw` is handed the pen alone. A fresh setup gets a fresh ticker,
+   *  so a sketch set up twice is stepped once. */
+  motion::Ticker& ticker;
   Assets& assets;
   weave::FontContext& fonts;
   CanvasSpec* spec = nullptr;  ///< host-owned; written via the calls below
 
-  DrawContext(draw::Pen& penIn, Assets& assetsIn, weave::FontContext& fontsIn,
-              CanvasSpec* specIn, bool deterministicIn)
+  DrawContext(draw::Pen& penIn, motion::Ticker& tickerIn, Assets& assetsIn,
+              weave::FontContext& fontsIn, CanvasSpec* specIn,
+              bool deterministicIn)
       : pen(penIn),
+        ticker(tickerIn),
         assets(assetsIn),
         fonts(fontsIn),
         spec(specIn),
@@ -91,6 +115,25 @@ struct DrawContext {
    *  piece is most itself. */
   void captureAt(double seconds) {
     if (spec) spec->captureSeconds = seconds;
+  }
+  /** How many device pixels per canvas pixel this sketch is DRAWN at —
+   *  a whole number, at least one. The canvas a pen program keeps is
+   *  the plate, so the number cannot be applied when the still is
+   *  taken: it is a floor on the pixels the kept canvas is formed with,
+   *  and every frame is drawn at them from the first. A still is then
+   *  the frame just finished at those pixels, sharpened rather than
+   *  magnified.
+   *
+   *  Declare it on a pixel-exact reconstruction: one whose subject's
+   *  pixel is a whole number of canvas pixels, so that downsampling the
+   *  plate by that whole number lays it over the reference. A
+   *  fractional scale spreads one source pixel over seven device pixels
+   *  in one column and eight in the next, and no downsample recovers
+   *  the reference from that.
+   *
+   *      ctx.oversample(2); // one source pixel is 3 canvas px, so 6 here */
+  void oversample(int perCanvasPixel) {
+    if (spec) spec->oversample = std::max(1, perCanvasPixel);
   }
   /** p5's loadImage: the image at "res://<name>" — the sketch's assets
    *  directory — as something `pen.image` draws. A file not there yet

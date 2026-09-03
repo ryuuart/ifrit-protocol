@@ -10,12 +10,15 @@ add_library(SigilSketchDraw STATIC
   ${SIGIL_SKETCH_INCLUDE_DIR}/sigilsketch/draw/Draw.h
 )
 target_compile_features(SigilSketchDraw PUBLIC cxx_std_20)
-target_link_libraries(SigilSketchDraw PUBLIC SigilSketchCore SigilDraw)
+# The ticker is on the context a setup is handed, so its vocabulary —
+# steppables, the fixed step and choreograph's Outputs — is part of the
+# draw sketch API.
+target_link_libraries(SigilSketchDraw PUBLIC SigilSketchCore SigilDraw
+  SigilMotionClock)
 # The session's own clock and lap timer are read in its source alone, so
 # they are no part of the sketch API; the image asset is what loadImage
 # reads a frame off.
-target_link_libraries(SigilSketchDraw PRIVATE SigilMotionClock SigilMeasure
-  SigilImage)
+target_link_libraries(SigilSketchDraw PRIVATE SigilMeasure SigilImage)
 set_target_properties(SigilSketchDraw PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 add_executable(sketch_draw_test test/DrawSessionTest.cpp)

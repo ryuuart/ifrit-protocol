@@ -138,6 +138,11 @@ downsampling its plate by that whole number and laying the result over
 the reference, and a fractional scale defeats the check: at 1.875 a
 four-canvas-pixel square covers seven device pixels in one column and
 eight in the next, and no downsample recovers the reference from that.
+The draw runtime honours the same number one step earlier: its plate IS
+the canvas it keeps, so the number is a floor on the pixels that canvas
+is formed with and every frame is drawn at them from the first — a
+declaration there changes the live window too, which is the only way a
+kept canvas can be sharpened rather than magnified.
 
 ### A sketch over an SDK this machine may not have
 
@@ -249,6 +254,40 @@ are honoured by the runtime skipping draws, since the clock is its. The
 pointer and the keys arrive through `Session::pointer` and
 `Session::key`, which a host feeds in canvas units; headless, nothing
 arrives and `pen.mouseX` stays at zero.
+
+**A simulation is stepped by the context's ticker, not by the frame
+delta.** `ctx.ticker` is the session's `motion::Ticker`, stepped by the
+session's own clock on every frame — including the frames a
+`frameRate(fps)` request or a `noLoop` skipped, since time passed on
+those too. `addFixed(hz, fn, maxCatchUp, &alphaOut)` runs the body at
+exactly `hz` from accumulated time and publishes the leftover fraction
+of a step into the Output, so a piece drawn as
+`lerp(previous, current, alpha)` is one picture at every draw rate and a
+capture of it is a claim about the piece rather than about the machine.
+Register in `setup` and keep the Outputs on the sketch, since `draw` is
+handed the pen alone; a fresh setup gets a fresh ticker, so a sketch set
+up twice is stepped once.
+
+```cpp
+struct Cloth final : sketch::DrawSketch {
+  ch::Output<float> alpha{0.0f};
+  void setup(sketch::DrawContext& ctx) override {
+    ctx.canvas(640, 480);
+    ctx.oversample(2);
+    ctx.ticker.addFixed(60.0, [this] { solve(); return true; }, 8, &alpha);
+  }
+  void draw(Pen& pen) override { paint(pen, alpha); }
+};
+```
+
+**A live readout that is a retained tree is a guest, and the guest IS
+the slot.** What `slot()` and `Composer::renderSlot` are to a described
+scene — a part updated without re-describing the rest —
+`pen.element(tree, box)` is to a pen program: the pen keeps one composer
+per CALL SITE, so the tree handed in each frame is reconciled against
+what that site already holds and its layout, its shaping and its caches
+carry. Nothing has to be declared for it, and a loop that paints several
+passes the index.
 
 ### One runtime's picture inside another
 
@@ -740,7 +779,7 @@ src/sketch/
   core/       what a sketch is, what it declares, the registry, the kind seam
   canvas/     the 2D runtime: a clock, a ticker and a Composer
   set/        the 3D runtime: a ticker and a retained Scene
-  draw/       the immediate-mode runtime: a clock, a pen and a surface that persists
+  draw/       the immediate-mode runtime: a clock, a ticker, a pen and a surface that persists
   live/       the reload engine, the resident set, and the crash reporter
   plate/      the headless sweep
   book/       Sketchbook: the app, and the headless entry point

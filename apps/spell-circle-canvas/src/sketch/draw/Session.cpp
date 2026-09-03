@@ -10,12 +10,14 @@
 #include <sigilimage/asset/ImageAsset.h>
 #include <sigilmeasure/time/Laps.h>
 #include <sigilmotion/clock/FrameClock.h>
+#include <sigilmotion/clock/Ticker.h>
 #include <sigilsketch/draw/Draw.h>
 
 #include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstdio>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -58,9 +60,10 @@ class DrawSession final : public Session {
   }
 
   ~DrawSession() override {
-    // What the pen kept for its guests may point into sketch-owned
-    // state, so it goes before its author.
+    // What the pen kept for its guests and what the ticker steps both
+    // point into sketch-owned state, so both go before their author.
     m_pen.retained().clear();
+    m_ticker.reset();
     m_sketch.reset();
   }
 
@@ -87,6 +90,10 @@ class DrawSession final : public Session {
       step = m_clock.tick();
     }
     m_sinceDraw += step;
+    // Stepped whether or not this frame draws: a frame skipped by
+    // `frameRate(fps)` or by `noLoop` is still a frame of elapsed time,
+    // and a fixed-step simulation counts from elapsed time.
+    m_ticker->tick(step);
     ensureSurface(canvas);
     if (shouldDraw()) {
       ++m_frameCount;
@@ -110,9 +117,12 @@ class DrawSession final : public Session {
   void repaint(SkCanvas& canvas) override { paint(canvas); }
 
   /** The plate IS the frame just finished. The surface holds every
-   *  frame's residue, and there is nothing to form again larger: a
-   *  bigger canvas would magnify it rather than sharpen it, which is
-   *  why this runtime asks for no oversample. */
+   *  frame's residue, so there is nothing to draw again larger here: a
+   *  bigger canvas at this moment would magnify what is already drawn.
+   *  A sketch that wants a plate finer than its canvas declares an
+   *  oversample instead, which forms the KEPT surface at that many
+   *  pixels from the first frame — the sharpening has to happen while
+   *  the piece is being drawn, not while it is being photographed. */
   void still(SkCanvas& canvas) override { paint(canvas); }
 
   void redeclare() override {
@@ -204,12 +214,17 @@ class DrawSession final : public Session {
    *  over, so the setup's drawing is kept as a picture and replayed onto
    *  the surface when it is formed. */
   void runSetup() {
+    // A FRESH TICKER, because setup is where steppables are registered:
+    // a second setup over the first's registrations would step one
+    // simulation twice per frame.
+    m_ticker = std::make_unique<motion::Ticker>();
     SkPictureRecorder recorder;
     SkCanvas* canvas = recorder.beginRecording(SkRect::MakeWH(16384, 16384));
     m_pen.begin(*canvas, frameNow(0, 0.0, 0.0));
     m_pen.width = m_spec.size.width();
     m_pen.height = m_spec.size.height();
-    DrawContext ctx{m_pen, m_assets, m_fonts, &m_spec, m_deterministic};
+    DrawContext ctx{m_pen,   *m_ticker, m_assets,
+                    m_fonts, &m_spec,   m_deterministic};
     m_sketch->setup(ctx);
     m_pen.end();
     m_setupPicture = recorder.finishRecordingAsPicture();
@@ -247,9 +262,14 @@ class DrawSession final : public Session {
     if (events.keyReleased) m_sketch->keyReleased(m_pen);
   }
 
-  /** The declared canvas in the pixels @p canvas has for it. */
+  /** The declared canvas in the pixels @p canvas has for it, or in the
+   *  declared oversample where that is more — the number is a FLOOR, so
+   *  a sketch that reconstructs pixels draws at its own grid on a plate
+   *  and on a screen coarser than it alike, and a finer screen still
+   *  gets its own pixels. */
   [[nodiscard]] SkISize extentOn(const SkCanvas& canvas) const {
-    const float scale = pixelScale(canvas);
+    const float scale =
+        std::max(pixelScale(canvas), (float)std::max(1, m_spec.oversample));
     return {std::max(1, (int)std::lround(m_spec.size.width() * scale)),
             std::max(1, (int)std::lround(m_spec.size.height() * scale))};
   }
@@ -292,6 +312,8 @@ class DrawSession final : public Session {
   weave::FontContext& m_fonts;
   Assets& m_assets;
   motion::FrameClock m_clock;
+  // Held indirectly so a fresh setup can replace it whole; see runSetup.
+  std::unique_ptr<motion::Ticker> m_ticker;
   CanvasSpec m_spec;
   std::unique_ptr<DrawSketch> m_sketch;
   draw::Pen m_pen;
