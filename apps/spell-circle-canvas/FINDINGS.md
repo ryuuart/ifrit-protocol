@@ -272,3 +272,14 @@ a sketch whose status strip says it is live. Evidently intended: a row
 learns everything a session can tell it, the runtime included, the first
 time that session runs. A test should open a file by path, drive one
 frame, and assert the row's `kind` names the session's runtime.
+
+## A PLY blob with no extension in its hint decodes to nothing
+
+`decode::model` sniffs an extension-less blob for GLB magic, glTF JSON,
+Ogawa magic and binary-STL size arithmetic, but not for PLY's `ply`
+header line, so a PLY blob reached through a hint that carries no
+extension returns no model, although PLY is the one format the library
+also writes. The sniff evidently intends to cover every format the
+decoder table names. A test should hand `decode::model` the bytes
+`encode::ply` produced under an extension-less hint and assert the
+mesh comes back.
