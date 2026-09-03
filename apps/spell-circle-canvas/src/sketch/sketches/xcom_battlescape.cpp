@@ -102,14 +102,18 @@
 //
 // Three routes exist and all three are wrong differently: quantise at authoring
 // time (exact, turns the library into a rectangle-placer); quantise at paint
-// time with an SkSL post pass (right shape, unreachable — Material::sksl() has
+// time with an SkSL post pass (right shape, unreachable — Paint::sksl() has
 // no child-shader and no array-uniform lane, so a 256-entry LUT cannot get in);
 // or quantise BY DISCIPLINE and test afterwards. This file ships the third.
 // Every colour comes from PAL[] and there is not one hex literal below the
-// table. Every edge lands on a multiple of PX = 4. Verification #5 is the test.
+// table. Every edge lands on a multiple of PX = 4. The colour census off the
+// written plate is the test.
 //
 // -----------------------------------------------------------------------------
-// VERIFICATION — what printAudit() asserts, and what a pass looks like
+// VERIFICATION — the four checks printAudit() runs, and what a pass looks
+// like. Two more belong to the plate rather than to the sketch: they read the
+// WRITTEN PNG, which a sketch describing a tree never sees, so they are stated
+// under them as what a plate check has to assert.
 //
 //   #1 projection round-trip     200 pseudo-random screen points through
 //                                screenToMap then mapToScreen: every point
@@ -132,15 +136,17 @@
 //                                four bars drew (bounds() on the keyed fill
 //                                and outline rows), so a bar drawn at the
 //                                wrong length prints a MISMATCH.
-//   #5 the colour census         every distinct colour in the written PNG must
-//                                be one of the 256 table entries. Any
-//                                off-palette pixel means antialiasing, or a
-//                                generator left unquantised, somewhere.
-//   #6 the 4-px lattice          nearest 4x down then 4x up must be
+// Off the written plate, not from here:
+//   the colour census            every distinct colour in the PNG must be one
+//                                of the 256 table entries. Any off-palette
+//                                pixel means antialiasing, or a generator
+//                                left unquantised, somewhere.
+//   the 4-px lattice             nearest 4x down then 4x up must be
 //                                byte-identical to the frame, which is true
 //                                only if every edge is on the 1994 grid.
 //
-// #5 is the check that earns its keep, because the failure it catches is
+// The census is the check that earns its keep, because the failure it catches
+// is
 // invisible: Pool::tints() MULTIPLIES, so the font atlas's mask cell has to be
 // pure white. Fill it with the palette's own white — PAL[1] #FCFCFC, the
 // obvious choice — and every tinted glyph is scaled by 252/255, which puts
@@ -182,16 +188,21 @@
 #include <include/core/SkPaint.h>
 #include <include/core/SkSurface.h>
 #include <sigilcompose/brush/Decorations.h>
-#include <sigilcompose/core/Material.h>
+#include <sigilcompose/core/Core.h>
 #include <sigilcompose/core/Pattern.h>
-#include <sigilcompose/core/Patterns.h>
-#include <sigilcompose/instances/Instances.h>
 #include <sigilcompose/kit/Frame.h>
+#include <sigilcompose/kit/Layouts.h>
 #include <sigilcompose/kit/PixelType.h>
-#include <sigilcompose/kit/Silhouettes.h>
 #include <sigilcore/compute/Noise.h>
+#include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilgeometry/path/Frame.h>
+#include <sigilmaterial/pattern/Patterns.h>
+#include <sigilmaterial/skia/Color.h>
+#include <sigilmaterial/skia/Paint.h>
+#include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>
+#include <sigilweave/style/Type.h>
 
 #include <algorithm>
 #include <array>
@@ -203,10 +214,16 @@
 #include <vector>
 
 namespace sketch = sigil::sketch;
+namespace path = sigil::geometry::path;
+namespace patterns = sigil::material::pattern;
+namespace shapes = sigil::geometry::shapes;
+namespace weave = sigil::weave;
 
 using namespace sigil::compose;
+using namespace sigil::motion;
 using namespace std::chrono_literals;
-namespace weave = sigil::weave;
+using sigil::material::skia::Paint;
+using sigil::material::skia::toColor;
 
 namespace xcom {
 
@@ -218,7 +235,7 @@ constexpr float PX = 4.0f;
 // an origin and a snap. It is constexpr, which is why it rounds by hand
 // instead of calling std::round — that would make n() unusable in the
 // constant expressions below.
-constexpr kit::Grid kGrid{.scale = PX};
+constexpr path::Grid kGrid{.scale = PX};
 constexpr float n(float v) { return kGrid.s(v); }
 constexpr float kCanvasW = n(320), kCanvasH = n(200);
 constexpr float kPanelY = n(144), kPanelH = n(56);  // 200 - iconsHeight
@@ -806,7 +823,7 @@ inline PixelText pixelText(const std::u8string& s, weave::TextStyle style,
 }
 
 /** The pixel-text element: an image fill at exactly 4x, nearest-sampled, on a
- *  box whose size is the ink. Material::image takes the sampling options, which
+ *  box whose size is the ink. Paint::image takes the sampling options, which
  *  is what keeps the 4x magnification from filtering. */
 inline Element pixelTextEl(const PixelText& t, float x, float y) {
   if (!t.image) return box().width(0).height(0);
@@ -815,7 +832,7 @@ inline Element pixelTextEl(const PixelText& t, float x, float y) {
       .top(y)
       .width((float)t.w * PX)
       .height((float)t.h * PX)
-      .fill(Material::image(t.image, SkTileMode::kDecal, SkTileMode::kDecal,
+      .fill(Paint::image(t.image, SkTileMode::kDecal, SkTileMode::kDecal,
                             SkMatrix::Scale(PX, PX),
                             SkSamplingOptions(SkFilterMode::kNearest)));
 }
@@ -1711,7 +1728,7 @@ struct XcomBattlescape : sketch::Sketch {
     // patterns::gridLines(spacingX, spacingY, width, colour) — the 5 x 2 pitch,
     // exactly. It takes ONE colour, so the capture's 136/137 verticals and its
     // 138 horizontals collapse to a single palette step here.
-    latticePattern = patterns::gridLines(n(5), n(2), PX, C(137));
+    latticePattern = patterns::gridLines(n(5), n(2), PX, toColor(C(137)));
     latticePattern.sampling(SkSamplingOptions(SkFilterMode::kNearest));
 
     // Type. FONT_BIG substitute at 1x, quantised into block 8 by coverage.
