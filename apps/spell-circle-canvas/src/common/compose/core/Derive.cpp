@@ -112,10 +112,30 @@ bool Composer::Impl::resolveThreads() {
   bool moved = false;
   // Which frames are somebody's target: the rest are chain heads.
   std::set<const Instance*> threadedInto;
+  std::vector<Instance*> targets;
   for (Instance* inst : threadedInstances) {
     auto found = byKey.find(inst->desc->textData->threadTo);
-    if (found != byKey.end()) threadedInto.insert(found->second);
+    if (found == byKey.end()) continue;
+    if (threadedInto.insert(found->second).second) targets.push_back(found->second);
   }
+  // A FRAME IS BOUNDED BY ITS OWN DEPTH, and the last link of a chain is a
+  // frame although it threads nowhere: what it cannot hold has nowhere to
+  // go, and unbounded it would draw past its box instead of running out
+  // and taking the marker the leaf asked for. Only the walk knows which
+  // leaf that is, so the fact is written onto the instance here — and off
+  // again where a chain no longer reaches, which is what the kept list is
+  // for.
+  const auto bound = [&](Instance* frame, bool inChain) {
+    if (frame->threadedInto == inChain) return;
+    frame->threadedInto = inChain;
+    frame->contentRev++;
+    if (frame->yoga) YGNodeMarkDirty(frame->yoga);
+    moved = true;
+  };
+  for (Instance* stale : threadTargets)
+    if (!threadedInto.count(stale)) bound(stale, false);
+  for (Instance* target : targets) bound(target, true);
+  threadTargets = std::move(targets);
   std::set<const Instance*> visited;
   for (Instance* head : threadedInstances) {
     if (threadedInto.count(head)) continue;  // not a head

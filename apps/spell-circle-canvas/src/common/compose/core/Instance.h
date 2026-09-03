@@ -169,6 +169,12 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // walk knows it. A cascade numbered over the story needs the story's own
   // count, and no single fill has it.
   uint32_t threadStoryLines = 0;
+  // Whether some frame threads INTO this one, which is what makes the last
+  // link of a chain a frame rather than an ordinary text leaf. A leaf's
+  // height is an answer and it grows down the page; a FRAME is bounded by
+  // its own depth. The links before the last are known by their own
+  // thread(), and the last is known only by this.
+  bool threadedInto = false;
   uint32_t contentRev = 0;     // bumped on text/exclusion change
   uint32_t measuredRev = ~0u;  // rev the cached measurement belongs to
   // rich().slot(): the slot names in the order the content declares them —

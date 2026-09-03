@@ -7,6 +7,7 @@
 #include <sigilcompose/kit/Annotations.h>
 #include <sigilcompose/kit/Typeset.h>
 
+#include <array>
 #include <string>
 #include <vector>
 
@@ -479,6 +480,36 @@ TEST(ComposeStory, ANarrowerFirstFrameMovesTheCut) {
     return second.empty() ? ~0u : second.front().range.start;
   };
   EXPECT_LT(cutAt(120.0f), cutAt(220.0f));
+}
+
+TEST(ComposeStory, TheMarkerEndsTheChainAndNoCutInsideIt) {
+  // The last column of a chain threads nowhere, so what it cannot hold
+  // has nowhere to go: without a marker it simply draws past its box. The
+  // marker ends the story there and says it goes on. The columns before
+  // it must NOT take one — a mark at every cut reads as three texts
+  // rather than one threaded through three frames.
+  const auto chainOf = [](Host& host, std::u8string marker) {
+    Story article(rich(whiteStyle(13)).add(passage()).add(toU8(" ")).add(
+        passage()));
+    host.composer.render(box().child(
+        kit::columns(article, 3, 12.0f, 240.0f, 32.0f, "col",
+                     std::move(marker))));
+    host.frame();
+    return std::array{host.composer.paragraphLayout("col0"),
+                      host.composer.paragraphLayout("col1"),
+                      host.composer.paragraphLayout("col2")};
+  };
+  Host bareHost(500, 300), markedHost(500, 300);
+  const auto bare = chainOf(bareHost, {});
+  const auto marked = chainOf(markedHost, u8"\u2026");
+  for (const auto* column : bare) ASSERT_NE(column, nullptr);
+  for (const auto* column : marked) ASSERT_NE(column, nullptr);
+
+  EXPECT_TRUE(marked[2]->overflowed()) << "the chain must actually run out";
+  EXPECT_TRUE(marked[2]->ellipsized) << "the marker never landed";
+  EXPECT_FALSE(marked[0]->ellipsized) << "a cut inside the chain is silent";
+  EXPECT_FALSE(marked[1]->ellipsized) << "a cut inside the chain is silent";
+  EXPECT_FALSE(bare[2]->ellipsized) << "no marker asked for, none drawn";
 }
 
 // ── What a decoration dresses ────────────────────────────────────────────

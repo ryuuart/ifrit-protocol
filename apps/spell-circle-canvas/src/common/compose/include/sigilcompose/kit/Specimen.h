@@ -55,6 +55,12 @@ struct Caption {
   /** Between the label and the note where the two stand together
    *  (`Above`, `Below`), px. */
   float noteGap = 4.0f;
+  /** The label's measure, px. 0 lets the label take the cell's width; a
+   *  measure wraps it there, so a long call written out over a narrow
+   *  specimen does not widen the cell. A label is usually short enough
+   *  that this never comes up, and then it is exactly the width that
+   *  makes a run of cells stop lining up. */
+  float labelMeasure = 0.0f;
   /** The note's measure, px. 0 lets the note take the cell's width; a
    *  measure wraps it there, so a long remark under a narrow specimen
    *  does not widen the cell. */
@@ -91,7 +97,10 @@ struct Caption {
   const bool hasNote = !note.empty();
   Element labelLeaf;
   Element noteLeaf;
-  if (hasLabel) labelLeaf = text(std::move(label), caption.label);
+  if (hasLabel) {
+    labelLeaf = text(std::move(label), caption.label);
+    if (caption.labelMeasure > 0) labelLeaf.width(Dim(caption.labelMeasure));
+  }
   if (hasNote) {
     noteLeaf = text(std::move(note), caption.note);
     if (caption.noteMeasure > 0) noteLeaf.width(Dim(caption.noteMeasure));

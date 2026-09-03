@@ -238,12 +238,20 @@ struct DroppedCap {
  *  own columns are a different thing entirely and keep their word — those
  *  are one frame's lines turned a quarter turn.
  *
- *  Each column takes an equal share of `width` after the gutters, and the
- *  LAST one keeps whatever ellipsis a caller puts on it: the frames before
- *  it overflow by design and draw nothing. */
+ *  Each column takes an equal share of `width` after the gutters.
+ *
+ *  @p ellipsis ENDS THE CHAIN. The last column threads nowhere, so what
+ *  it cannot hold has nowhere to go and draws past its box unless
+ *  something stops it; the marker lands on that column's last line and
+ *  says the story goes on. The columns before it overflow BY DESIGN and
+ *  take no marker whatever is passed here — a mark at every cut would
+ *  read as three separate texts rather than one story threaded through
+ *  three frames. Empty (the default) is the run-on, for a caller who
+ *  clips the chain or knows the story fits. */
 [[nodiscard]] inline Element columns(Story story, int count, float gutter,
                                      float width, float height,
-                                     std::string keyPrefix = "column") {
+                                     std::string keyPrefix = "column",
+                                     std::u8string ellipsis = {}) {
   Element row = box().row().gap(gutter);
   if (count < 1) return row;
   const float measure =
@@ -255,6 +263,8 @@ struct DroppedCap {
                          .height(Dim(height));
     if (index + 1 < count)
       column.thread(keyPrefix + std::to_string(index + 1));
+    else if (!ellipsis.empty())
+      column.ellipsis(ellipsis);
     row.child(std::move(column));
   }
   return row;

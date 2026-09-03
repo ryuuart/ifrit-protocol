@@ -701,6 +701,10 @@ TEST(KitDocs, EverySignatureIsSpelledOnce) {
   (void)frame.dir(30);
   (void)frame.box(0.5f);
   (void)kit::disc(frame, 0.5f);
+  // A braced pair is a CENTRE. Frame begins with a point and a radius,
+  // so without the constraint on the frame overload this line is
+  // ambiguous — and every centre in this repository is written this way.
+  (void)kit::disc({12.0f, 34.0f}, 5.0f);
   (void)frame.scaled(0.5f);
   (void)frame.about({0, 0});
   (void)frame.turned(4.5f);
@@ -938,6 +942,24 @@ TEST(KitSpecimen, TheCaptionsLinesStandWhereTheVoiceSays) {
   auto [bareTop, bareHeight] = placed(kit::Caption::Where::Split, false);
   EXPECT_NEAR(bareTop, label + 6, 1.0f);
   EXPECT_NEAR(bareHeight, label + 6 + 40, 1.0f);
+}
+
+TEST(KitSpecimen, AMeasureKeepsALongLabelFromWideningItsCell) {
+  // The point of a specimen sheet is that its cells line up. A label
+  // wider than the body it captions widens the cell it is in and no
+  // other, so a run of them stops lining up at whichever cell happens to
+  // carry the longest call.
+  const auto width = [](float labelMeasure) {
+    kit::Caption voice = specimenVoice(kit::Caption::Where::Split);
+    voice.labelMeasure = labelMeasure;
+    return measure(kit::cell(voice,
+                             u8"a label far wider than the body under it",
+                             u8"", box().width(60).height(40)),
+                   fonts())
+        .width();
+  };
+  EXPECT_GT(width(0), 60.0f);         // unmeasured: the label decides
+  EXPECT_FLOAT_EQ(width(60), 60.0f);  // measured: the body does
 }
 
 TEST(KitSpecimen, ARunSpacesItsCellsAndRulesBetweenThem) {

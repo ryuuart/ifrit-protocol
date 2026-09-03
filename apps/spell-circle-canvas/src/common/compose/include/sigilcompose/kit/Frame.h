@@ -16,6 +16,8 @@
 #include <sigilcompose/core/Layout.h>
 #include <sigilgeometry/path/Frame.h>
 
+#include <concepts>
+#include <type_traits>
 #include <utility>
 
 namespace sigil::compose::kit {
@@ -54,8 +56,21 @@ inline Element at(Element e, float x, float y, float w, float h) {
 
 /** `disc` at @p frame: an Element sized and centred for a
  *  `shapes::circle()`/`sector()`/`arc()` outline at @p rNorm of the
- *  frame's radius. */
-inline Element disc(const geometry::path::Frame& frame, float rNorm = 1.0f) {
+ *  frame's radius.
+ *
+ *  IT TAKES A FRAME THAT ALREADY EXISTS, and the constraint is what
+ *  makes that true rather than a matter of style. A `Frame` begins with
+ *  a point and a radius, so `disc({x, y}, r)` initialises one just as
+ *  readily as it initialises the SkPoint the centre overload wants, and
+ *  a plain overload pair leaves that call ambiguous — which is a
+ *  compile error at every site that writes a centre as a braced pair,
+ *  the way every other Skia point is written. Deduction cannot see
+ *  through a braced list, so this overload drops out of the set there
+ *  and the pair means the point it reads as. Spell a frame LITERAL as
+ *  `geometry::path::Frame{…}`. */
+template <class FrameLike>
+  requires std::same_as<std::remove_cvref_t<FrameLike>, geometry::path::Frame>
+inline Element disc(const FrameLike& frame, float rNorm = 1.0f) {
   return disc(frame.centre, rNorm * frame.radius);
 }
 

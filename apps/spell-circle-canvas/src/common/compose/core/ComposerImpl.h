@@ -94,6 +94,9 @@ struct Composer::Impl {
   // derive pass, because frame b's fill begins where frame a's RESULT ended
   // and the phase order has no edge for that.
   std::vector<detail::Instance*> threadedInstances;
+  // …and the frames THEY thread into, kept from the last walk so a frame
+  // that stops being a target is unbounded again the moment it does.
+  std::vector<detail::Instance*> threadTargets;
   std::unordered_map<std::string, std::vector<detail::Instance*>>
       routesByAnchor;
   bool volatileDirty = true;  // recompute needed (render or animation)

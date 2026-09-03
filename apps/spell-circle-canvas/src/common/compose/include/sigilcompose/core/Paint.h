@@ -4,9 +4,10 @@
  * SigilCompose paint values — Fill, Corners, the PaintContext a paint
  * program is handed, the instance-side StampCache, and the three lines
  * that put SigilMaterial's paint on a node. These are the
- * comparable values the paint stage reads; the polymorphic Material that
- * supersedes Fill as fill()'s authoring value is declared in
- * <sigilcompose/Material.h>.
+ * comparable values the paint stage reads. The recipe-backed material a
+ * node wears beside a Fill is SigilMaterial's own
+ * `sigil::material::Material`, from <sigilmaterial/core/Material.h>,
+ * which the three lines below carry onto a node.
  */
 
 #include <include/core/SkColor.h>

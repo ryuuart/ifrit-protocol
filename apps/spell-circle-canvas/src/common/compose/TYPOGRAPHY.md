@@ -832,7 +832,12 @@ threads nowhere. A frame's own geometry is its business: it may flow
 around a silhouette or carry exclusions like any other text leaf.
 `kit::columns` is N frames side by side threaded in order, which is what a
 Western multi-column measure is — the vertical writing mode keeps the word
-column for the thing it already meant.
+column for the thing it already meant. Its last argument is the ellipsis
+that ends the chain: the last column threads nowhere, so without one what
+it cannot hold draws past its box, and the marker lands on that column's
+last line instead. The columns before it take none whatever is passed,
+because a mark at every cut would read as three texts rather than one
+story.
 
 The chain is walked in the derive pass, in chain order, with each frame
 re-filled at the measure it resolved to before the next is asked what it

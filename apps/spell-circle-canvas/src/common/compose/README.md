@@ -716,7 +716,8 @@ point-sampled coverage scan out of a paint loop.
 
 **Kit — `kit/Kit.h`.** A tier above the library that adds no kernel state
 and no new equality: `kit::disc` (a node about a centre, at a radius or
-at a `geometry::path::Frame`'s) and `kit::at` (a box pinned at absolute
+at a `geometry::path::Frame`'s — a braced pair is the centre, and a
+frame is spelled as one) and `kit::at` (a box pinned at absolute
 coordinates, for the plate that has no layout at all), `kit::dotSprite`
 (the round stamp a point sink draws each point with),
 `kit::PixFont` (aliased bitmap-font bakes), `kit::Scrim` and the
@@ -737,7 +738,9 @@ what is being watched) and `kit::restGhost` (the same word
 undeformed under the moving one) — the furniture of a specimen sheet in
 `kit/Specimen.h` — `kit::cell`, a body with a label and a note set
 beside it as a `kit::Caption` says (`Caption::Where` puts the note under
-the body, or both lines above it, or both below), `kit::cells`, a run of
+the body, or both lines above it, or both below, and `labelMeasure` and
+`noteMeasure` wrap either line at a stated width so a long one does not
+widen the cell it captions), `kit::cells`, a run of
 them along one axis with a hairline between neighbours, and
 `kit::sheet`, the titled and footed page that rules its header and
 footer off from the content between them; every face, size and distance

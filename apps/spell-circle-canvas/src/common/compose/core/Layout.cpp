@@ -79,6 +79,26 @@ float detail::baselineOfTextNode(YGNodeConstRef node, float, float) {
   return inst->measuredBaseline;
 }
 
+namespace {
+
+/** Whether @p inst is a FRAME rather than an ordinary text leaf — a link
+ *  of a chain over one story, which is bounded by its own depth where a
+ *  leaf grows down the page.
+ *
+ *  A link is one either because it threads onward, which its own
+ *  description says, or because something threads into it, which only the
+ *  chain walk knows. The LAST link is the second case alone, and it has to
+ *  be bounded too: unbounded it holds the whole remainder and draws it
+ *  past its box, and the marker it asked for never lands because it never
+ *  runs out. */
+bool isFrameOfAChain(const Instance& inst) {
+  return inst.threadedInto ||
+         (inst.desc && inst.desc->textData &&
+          !inst.desc->textData->threadTo.empty());
+}
+
+}  // namespace
+
 void Composer::Impl::layoutText(Instance& inst, float constraint,
                                 float downConstraint) {
   // onPath: the PATH is the measure, not the box. Laying the run out to
@@ -144,10 +164,7 @@ void Composer::Impl::layoutText(Instance& inst, float constraint,
       inst.textLayout = sigil::weave::layoutParagraph(
           fonts, *inst.paragraph, flow, options, inst.threadCursor);
     } else if (!inst.exclusionsLocal.empty()) {
-      const float depth =
-          inst.desc->textData && !inst.desc->textData->threadTo.empty()
-              ? downConstraint
-              : 1.0e6f;
+      const float depth = isFrameOfAChain(inst) ? downConstraint : 1.0e6f;
       sigil::weave::ExclusionFlow flow(SkRect::MakeWH(constraint, depth));
       addExclusions(flow);
       inst.textLayout = sigil::weave::layoutParagraph(
@@ -159,10 +176,7 @@ void Composer::Impl::layoutText(Instance& inst, float constraint,
       // frame a frame: a leaf that threads into another is bounded by its
       // own depth, so it runs out of room and the remainder is what the
       // next frame begins at.
-      const float depth =
-          inst.desc->textData && !inst.desc->textData->threadTo.empty()
-              ? downConstraint
-              : 1.0e6f;
+      const float depth = isFrameOfAChain(inst) ? downConstraint : 1.0e6f;
       sigil::weave::BlockFlow flow(SkRect::MakeWH(constraint, depth));
       inst.textLayout = sigil::weave::layoutParagraph(
           fonts, *inst.paragraph, flow, options, inst.threadCursor);

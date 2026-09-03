@@ -79,5 +79,11 @@ Material maskHeight(Texture positions, float low, float high,
 Material fit(Material mask, float low, float high);
 /** @p mask with its answer flipped. */
 Material invert(Material mask);
+/** Both reshape A MASK and nothing else, and hand back a material they
+ *  did not reshape with a report saying so rather than quietly. A
+ *  material that is not a mask declares no range to replace and no
+ *  answer to flip, so there is no reading of either call that could
+ *  change it — and a stack whose coverage silently stayed as it was
+ *  looks exactly like a stack whose fit was wrong. */
 
 }  // namespace sigil::material::kit

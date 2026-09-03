@@ -445,6 +445,18 @@ TEST(Mask, ShapesWhatItReads) {
     EXPECT_TRUE(skia::shader(m, {}));
 }
 
+TEST(Mask, ReshapingSomethingThatIsNotAMaskChangesNothing) {
+  // A material with no range to move and no answer to flip cannot be
+  // reshaped, and a stack whose coverage silently stayed as it was looks
+  // exactly like a stack whose fit was wrong — so both hand the material
+  // straight back, with a report on stderr naming the rule.
+  kit::SurfaceParams red;
+  red.baseColor = {1, 0, 0, 1};
+  const Material paint = kit::unlit(red);
+  EXPECT_EQ(kit::fit(paint, 0.25f, 0.75f), paint);
+  EXPECT_EQ(kit::invert(paint), paint);
+}
+
 TEST(Over, StacksTopOverBaseWhereTheMaskSays) {
   skia::install();
   kit::SurfaceParams red;

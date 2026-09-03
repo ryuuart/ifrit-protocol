@@ -536,7 +536,11 @@ axis, or a value dotted with an axis, from whatever texture the renderer
 supplies as the source. All of them then fit — `low` and `high` remap the
 raw value onto 0..1 and clamp, and `kit::invert` flips it — which is why
 the slope and height factories take the range: without one those masks
-mean nothing. `kit::fit` moves the range on an existing mask. Both mask
+mean nothing. `kit::fit` moves the range on an existing mask, and both it
+and `kit::invert` reshape A MASK and nothing else: handed a material that
+is not one they change nothing and say so, because a material with no
+range to move looks, from the stack that reads it, exactly like a fit
+that was wrong. Both mask
 recipes carry a body in every language a renderer here speaks, because a
 mask is an operand of a stack and a stack is only composable for a target
 all three of its operands have a body for.
