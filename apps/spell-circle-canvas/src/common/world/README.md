@@ -246,6 +246,16 @@ the machine — and a pass written down before its producer still runs
 after it. A cycle is an error naming the passes on it, and no plan is
 produced.
 
+**A target has ONE geometry pass.** A geometry pass clears its target
+and then paints, so a second one over a resource that has already been
+written does not stand over that picture — it throws it away and keeps
+its own bodies. That is refused while the plan is read, naming both
+passes and the target, because the result of allowing it is a plausible
+picture that says nothing about the one that went missing. Laying one
+picture over another is what a post pass is, and a post pass may write
+what a geometry pass wrote; a geometry pass carrying a `body` is outside
+the rule, since a body runs instead of the stage and clears nothing.
+
 **Two resources whose lives do not overlap share a surface.** A resource
 lives from the step that first writes it to the last step that touches
 it; the transients are given the lowest-numbered free surface, so a frame

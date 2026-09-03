@@ -65,9 +65,56 @@ TEST(WorldGraph, AWriteRunsAfterTheWriteBeforeItAndAfterThatVersionsReaders) {
   const Frame frame = framed()
                           .pass(geometryPass("first").writes("colour"))
                           .pass(postPass("read").reads("colour").writes("copy"))
-                          .pass(geometryPass("again").writes("colour"));
+                          .pass(postPass("again").writes("colour"));
   const std::vector<std::string> expected = {"first", "read", "again"};
   EXPECT_EQ(namesOf(graph::build(frame)), expected);
+}
+
+TEST(WorldGraph, ASecondGeometryPassOverAWrittenTargetIsAnErrorNamingBoth) {
+  // A geometry pass CLEARS its target, so this one does not stand over
+  // the picture "main" painted — it throws it away and keeps its own
+  // bodies. Refused while the plan is read, because looking at the
+  // result shows a plausible picture and says nothing about the one
+  // that is missing.
+  const Frame frame =
+      framed()
+          .pass(geometryPass("main").writes("colour"))
+          .pass(geometryPass("motes").reads("motes").writes("colour"));
+  const graph::Plan plan = graph::build(frame);
+  EXPECT_FALSE((bool)plan);
+  EXPECT_TRUE(plan.steps().empty());
+  EXPECT_NE(plan.error().find("main"), std::string::npos);
+  EXPECT_NE(plan.error().find("motes"), std::string::npos);
+  EXPECT_NE(plan.error().find("colour"), std::string::npos);
+  EXPECT_EQ(plan.error(), graph::build(frame).error());
+}
+
+TEST(WorldGraph, APostPassMayWriteWhatAGeometryPassWrote) {
+  // Laying one picture over another is what a post pass is: it writes
+  // the result of reading its layers rather than clearing and painting,
+  // so nothing is lost and the plan stands.
+  const Frame frame =
+      framed()
+          .pass(geometryPass("main").writes("colour"))
+          .pass(postPass("grade").reads("colour").writes("colour"));
+  const graph::Plan plan = graph::build(frame);
+  ASSERT_TRUE((bool)plan) << plan.error();
+  const std::vector<std::string> expected = {"main", "grade"};
+  EXPECT_EQ(namesOf(plan), expected);
+}
+
+TEST(WorldGraph, AGeometryPassCarryingABodyMayWriteWhatWasWritten) {
+  // A body runs INSTEAD of the stage and keeps only its declarations, so
+  // it clears nothing: what it makes of what already stands in the
+  // target is the body's own business and the rule does not reach it.
+  const Frame frame = framed()
+                          .pass(geometryPass("main").writes("colour"))
+                          .pass(geometryPass("hand").writes("colour").body(
+                              [](const View&, Targets&) {}));
+  const graph::Plan plan = graph::build(frame);
+  ASSERT_TRUE((bool)plan) << plan.error();
+  const std::vector<std::string> expected = {"main", "hand"};
+  EXPECT_EQ(namesOf(plan), expected);
 }
 
 TEST(WorldGraph, ACycleIsAnErrorNamingThePassesOnIt) {

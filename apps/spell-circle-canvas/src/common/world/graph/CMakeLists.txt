@@ -5,6 +5,7 @@
 # nothing, so it links the frame feature and nothing else.
 add_library(SigilWorldGraph STATIC
   Barriers.cpp
+  Claims.cpp
   Order.cpp
   Plan.cpp
   Realise.cpp

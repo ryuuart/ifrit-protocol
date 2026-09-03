@@ -1,9 +1,10 @@
 #pragma once
 
 /** @file
- * The four readings a plan is assembled from, one per file: the order,
- * the selection realisations, the resource lives and their aliasing, and
- * the barriers. Each takes what the ones before it produced and adds
+ * The readings a plan is assembled from, one per file: the order, the
+ * claim each pass makes on the targets it writes, the selection
+ * realisations, the resource lives and their aliasing, and the
+ * barriers. Each takes what the ones before it produced and adds
  * nothing to the frame.
  */
 
@@ -29,6 +30,10 @@ Touches touchesOf(const PassWork& work);
  *  stopped it — a cycle, naming the passes on it — or an empty string.
  */
 std::string order(std::span<const Pass> passes, std::vector<size_t>& into);
+
+/** Whether any target is written twice with a clear between. Returns
+ *  what stopped it, naming both passes, or an empty string. */
+std::string claims(std::span<const Pass> passes, std::span<const size_t> order);
 
 /** How each ordered step's selection reaches the pixels, and the
  *  coverage a masked step needs written for it. Returns what stopped

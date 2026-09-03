@@ -298,17 +298,6 @@ Assert once fixed: draw one passage into one box under each of TOP,
 CENTER and BOTTOM and read the first line's baseline back; the three must
 differ by half and by all of the room the passage left over.
 
-## A second geometry pass writing a written target erases it
-
-`world/frame/CpuGeometry.cpp`'s `paintGeometry` opens with
-`canvas->clear(pass.clear())` and its body loop is not narrowed by the
-pass's selection, so `geometryPass("motes").reads("motes").writes(
-"colour").stamp(...)` after a main pass repaints every body and drops the
-main pass's variant, with no warning. The pass model evidently intends a
-later pass over the same target to composite over it, or to refuse at plan
-time. A test should plan two passes writing one target and assert either
-the composite or the diagnostic.
-
 ## hitman_verlet's drag leader can never have a length
 
 `stepPhysics` starts the §7 drag at `dragTarget = dragFrom = rig.x[LHA]`
