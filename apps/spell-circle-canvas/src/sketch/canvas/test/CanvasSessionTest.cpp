@@ -10,6 +10,7 @@
 #include <sigilcompose/texture/Texture.h>
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
+#include <sigilgeometry/mesh/render/Runtime.h>
 #include <sigilmaterial/kit/Surface.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilworld/element/Element.h>
@@ -287,6 +288,16 @@ TEST(CanvasDoors, BakesTheSameSetFromTheCameraItIsGiven) {
   const SkIRect far = silhouetteOf(pixelsOf(Baking::far));
   EXPECT_NEAR((float)far.width(), near.width() / 2.0f, 2.0f);
   EXPECT_NEAR((float)far.height(), near.height() / 2.0f, 2.0f);
+}
+
+TEST(CanvasDoors, PaintsMeshOnTheCpuUntilAProcessInstallsADevice) {
+  namespace render = sigil::geometry::mesh::render;
+  // A sketch writes `style.runtime = sketch::painterRuntime()` once and
+  // draws on both tiers, so the door must be a runtime that draws — an
+  // empty one silently paints no mesh at all.
+  EXPECT_EQ(painterRuntime(), render::Runtime::cpu());
+  usePainterRuntime({});
+  EXPECT_EQ(painterRuntime(), render::Runtime::cpu());
 }
 
 }  // namespace

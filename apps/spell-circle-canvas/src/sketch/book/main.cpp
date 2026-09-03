@@ -54,6 +54,7 @@
 
 #ifndef SIGILSKETCH_NO_DEVICE
 #include <sigilgeometry/device/Device.h>
+#include <sigilworld/diligent/Painter.h>
 #include <sigilworld/diligent/Runtime.h>
 #endif
 
@@ -152,6 +153,9 @@ bool useDevice() {
     return false;
   }
   sketch::useRuntime(sigil::world::diligent::runtime(*g_device));
+  // …and the 2D twin: a canvas sketch that stands a mesh up in space
+  // reaches the same device through sketch::painterRuntime().
+  sketch::usePainterRuntime(sigil::world::diligent::painterRuntime(*g_device));
   return true;
 }
 
@@ -162,6 +166,7 @@ bool useDevice() {
  *  longer exist. */
 void releaseDevice() {
   sketch::useRuntime({});
+  sketch::usePainterRuntime({});
   g_device.reset();
 }
 #else
@@ -732,9 +737,11 @@ int main(int argc, char* argv[]) {
     sweepOptions.only = chosen;
     sweepOptions.kind = kind;
     sweepOptions.gpu = gpu;
-    // A device is brought up only when something in the selection draws
-    // through one; the canvas runtime's device lane is the surface the
-    // sweep allocates, not a runtime it installs.
+    // A device is brought up only when a SET in the selection draws
+    // through one. A canvas sketch's device lane is the surface the
+    // sweep allocates, and its mesh painter stays on the CPU executor
+    // here whatever the flag says: a plate is hashed from that executor,
+    // and the two rasterise the same picture but not the same bytes.
     if (gpu && selectionNeedsDevice(chosen, kind) && !useDevice()) return 1;
     const int result = sweep(sweepOptions, fonts(), assets());
     releaseDevice();

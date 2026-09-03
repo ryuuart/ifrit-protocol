@@ -5,6 +5,7 @@
 
 #include <sigilcompose/core/Composer.h>
 #include <sigilcompose/texture/Texture.h>
+#include <sigilgeometry/mesh/render/Runtime.h>
 #include <sigilmeasure/time/Laps.h>
 #include <sigilmotion/clock/FrameClock.h>
 #include <sigilmotion/clock/Ticker.h>
@@ -240,6 +241,28 @@ std::unique_ptr<Session> CanvasKind::open(weave::FontContext& fonts,
                                           bool deterministic) const {
   return std::make_unique<CanvasSession>(m_factory(), fonts, assets,
                                          deterministic);
+}
+
+namespace {
+
+/** The process's mesh painter. It starts as the CPU executor rather than
+ *  as nothing, so a sketch that hands it to a style draws on a machine
+ *  where no host ever installed one — an empty runtime draws no mesh at
+ *  all, which would read as a bug in the sketch. */
+geometry::mesh::render::Runtime& processPainter() {
+  static geometry::mesh::render::Runtime painter =
+      geometry::mesh::render::Runtime::cpu();
+  return painter;
+}
+
+}  // namespace
+
+void usePainterRuntime(const geometry::mesh::render::Runtime& runtime) {
+  processPainter() = runtime ? runtime : geometry::mesh::render::Runtime::cpu();
+}
+
+const geometry::mesh::render::Runtime& painterRuntime() {
+  return processPainter();
 }
 
 }  // namespace sigil::sketch

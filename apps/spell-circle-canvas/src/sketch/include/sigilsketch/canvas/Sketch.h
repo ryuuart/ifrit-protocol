@@ -29,6 +29,9 @@ class Frame;
 namespace sigil::geometry::mesh::camera {
 struct Camera;
 }
+namespace sigil::geometry::mesh::render {
+class Runtime;
+}
 
 namespace sigil::sketch {
 
@@ -239,6 +242,32 @@ class CanvasKind final : public KindOps {
  private:
   Factory m_factory;
 };
+
+/** THE MESH PAINTER EVERY 2D SKETCH DRAWS THROUGH, for this process.
+ *
+ *  A canvas sketch that stands geometry up in space hands this to a
+ *  `MeshStyle`, and the mesh is then rasterised on whatever device the
+ *  host brought up:
+ *
+ *      style.runtime = sketch::painterRuntime();
+ *
+ *  Without a device it is the CPU mesh executor, which is what a machine
+ *  with no device renders on and what a byte-identity plate is hashed
+ *  from — so the line above is written once and is correct on both, and
+ *  a sketch never asks whether a device is here.
+ *
+ *  A host that brought one up says so ONCE, because a device is a
+ *  property of the process and not of a sketch. It is the 2D twin of the
+ *  runtime a set draws through: a set's is a whole frame's, this one is
+ *  a single mesh draw's, and a process on a device installs both.
+ *  Installing an empty runtime — what a host does when it lets its
+ *  device go — puts the CPU executor back rather than leaving a value
+ *  that draws nothing.
+ *
+ *  Its own words are SigilGeometry's, from
+ *  `<sigilgeometry/mesh/render/Runtime.h>`. */
+void usePainterRuntime(const geometry::mesh::render::Runtime& runtime);
+[[nodiscard]] const geometry::mesh::render::Runtime& painterRuntime();
 
 /** The factory SIGIL_SKETCH takes the ADDRESS of, rather than a lambda
  *  whose body it would carry: taking a function's address cannot throw,

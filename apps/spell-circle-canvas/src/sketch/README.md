@@ -293,6 +293,25 @@ own headers — `<sigilcompose/texture/Texture.h>`,
 `<sigilworld/frame/Frame.h>` — and the scene's and the frame's words are
 those libraries' to define.
 
+`sketch::painterRuntime()` is the third door, and it carries no picture:
+it is the `geometry::mesh::render::Runtime` the process draws mesh
+through, for a canvas sketch that stands geometry up in space rather
+than baking it.
+
+```cpp
+render::MeshStyle style;
+style.runtime = sketch::painterRuntime();  // the app's device, or the CPU
+```
+
+Written once, it is correct on both tiers — a process with no device
+hands back the CPU mesh executor, so a sketch never asks whether a
+device is here. The app installs the device one, and the sweep does not:
+a plate is hashed from the CPU executor, and the two rasterise the same
+picture but not the same bytes, because one sorts triangles back to
+front and antialiases their edges while the other depth-tests them. It
+is the 2D twin of `sketch::runtime()`, which is the whole frame a set
+draws through; a process on a device installs both.
+
 ### Three paths for motion, and the order to reach for them
 
 The canvas runtime is retained-mode, not a redraw loop:
@@ -745,11 +764,13 @@ targets do.
   other library's value by forward declaration alone, with the archive
   behind it linking that library privately. A sketch that walks through
   a door includes that library's own headers.
-* **`set` links no device.** The runtime a session draws through is a
-  value the process installs once — one device, one queue, every
+* **No runtime links a device.** The runtime a session draws through is
+  a value the process installs once — one device, one queue, every
   session — so a machine with no device runs every set on the CPU mesh
   executor and the plates it makes are the ones the byte-identity tier
-  hashes. `book/` is the only place that installs one.
+  hashes. `book/` is the only place that installs one, and it installs
+  two: `sketch::useRuntime` for the frame a set draws, and
+  `sketch::usePainterRuntime` for the mesh draws a canvas sketch takes.
 * **The live host is Qt-free.** Everything about watching, compiling and
   swapping is in `live/`; `book/` is the only place a window appears.
 
