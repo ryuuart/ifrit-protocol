@@ -23,8 +23,9 @@
 #include <include/core/SkSize.h>
 #include <include/core/SkTypeface.h>
 #include <sigilcompose/core/Factories.h>
-#include <sigilcompose/typography/Type.h>
+#include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Style.h>
+#include <sigilweave/style/Type.h>
 
 #include <string_view>
 #include <utility>
@@ -59,7 +60,7 @@ constexpr SkColor4f kAka{0.847f, 0.294f, 0.216f, 1};    // vermilion
  *  offers. Resolved once: the fallback chain walks the system font list,
  *  which is not a per-frame cost anyone should pay. */
 inline sk_sp<SkTypeface> mincho() {
-  static const sk_sp<SkTypeface> face = sigil::compose::pickFace(
+  static const sk_sp<SkTypeface> face = sigil::weave::ports::pickTypeface(
       {"Hiragino Mincho ProN", "Yu Mincho", "Songti SC", "Noto Serif CJK JP"});
   return face;
 }
@@ -72,7 +73,7 @@ inline sigil::weave::TextStyle body(
     float size, SkColor4f color,
     sigil::weave::VerticalForm form = sigil::weave::VerticalForm::kAuto) {
   sigil::weave::TextStyle s =
-      sigil::compose::type({.size = size, .color = color});
+      sigil::weave::textStyle({.size = size, .color = color});
   s.shaping.typeface = mincho();
   s.shaping.languageTag = "ja";
   s.shaping.verticalForm = form;
@@ -83,7 +84,7 @@ inline sigil::weave::TextStyle body(
  *  default family is — a label is not part of the setting it names. */
 inline sigil::weave::TextStyle label(float size, SkColor4f color,
                                      float tracking = 0) {
-  return sigil::compose::type(
+  return sigil::weave::textStyle(
       {.size = size, .color = color, .track = tracking});
 }
 
