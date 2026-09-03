@@ -301,3 +301,13 @@ Assert once fixed: at a moment inside the drag phase, the distance
 between `drawn(rig, LHA)` and `toStage(dragTarget)` is greater than the
 casing's width, and the plate at that moment carries accent pixels
 outside the target ring.
+
+## A sketch that fails to load leaves the window unable to load any other
+
+Opening a sketch whose shaders fail to compile on the device (chaucer_astrolabe
+before its latten body stopped naming a local `pos`) leaves Sketchbook
+running but refusing every later sketch: the window stays up and nothing new
+loads. The host evidently intends a failed load to be one session's failure,
+with the next file opening as if the first had never been tried. A test in
+the book's resident-session path should open a sketch that fails in its first
+frame, then open one that does not, and assert the second renders.

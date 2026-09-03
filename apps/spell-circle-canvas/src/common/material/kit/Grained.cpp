@@ -104,13 +104,17 @@ half4 main(float2 p) {
 }
 )";
 
+// A body's own locals never take the name `pos`: Skia Graphite inlines a
+// runtime effect as a function whose coordinate parameter is spelled `pos`,
+// so a local of that name compiles on the raster surface and fails on the
+// device.
 constexpr char kLatten[] = R"(
 half4 main(float2 p) {
   float2 run = to - from;
   float u = clamp(dot(p - from, run) / max(dot(run, run), 1e-6), 0.0, 1.0);
-  float pos = clamp(level + (u - 0.5) * sheen, 0.0, 1.0);
-  float3 c = pos < 0.5 ? mix(shadow.rgb, body.rgb, pos * 2.0)
-                       : mix(body.rgb, light.rgb, (pos - 0.5) * 2.0);
+  float along = clamp(level + (u - 0.5) * sheen, 0.0, 1.0);
+  float3 c = along < 0.5 ? mix(shadow.rgb, body.rgb, along * 2.0)
+                         : mix(body.rgb, light.rgb, (along - 0.5) * 2.0);
   float2 q = p + seed * 37.0;
   float t = fbm3(q * toothScale);
   c = grained(c, t, tooth);
@@ -222,9 +226,9 @@ constexpr char kSlangLatten[] = R"(
 float4 surface(float2 uv) {
   float2 run = to - from;
   float u = clamp(dot(uv - from, run) / max(dot(run, run), 1e-6), 0.0, 1.0);
-  float pos = clamp(level + (u - 0.5) * sheen, 0.0, 1.0);
-  float3 c = pos < 0.5 ? lerp(shadow.rgb, body.rgb, pos * 2.0)
-                       : lerp(body.rgb, light.rgb, (pos - 0.5) * 2.0);
+  float along = clamp(level + (u - 0.5) * sheen, 0.0, 1.0);
+  float3 c = along < 0.5 ? lerp(shadow.rgb, body.rgb, along * 2.0)
+                         : lerp(body.rgb, light.rgb, (along - 0.5) * 2.0);
   float2 q = uv + seed * 37.0;
   float t = fbm3G(q * toothScale);
   c = grainedG(c, t, tooth);
