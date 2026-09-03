@@ -106,11 +106,19 @@
 #include <sigilcompose/brush/Brushes.h>
 #include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/brush/Lines.h>
-#include <sigilcompose/core/Material.h>
-#include <sigilcompose/core/Patterns.h>
-#include <sigilcompose/kit/Silhouettes.h>
+#include <sigilcompose/core/Core.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilgeometry/path/Edges.h>
+#include <sigilmaterial/field/Field.h>
+#include <sigilmaterial/kit/Bank.h>
+#include <sigilmaterial/kit/Grained.h>
+#include <sigilmaterial/skia/Color.h>
+#include <sigilmaterial/skia/Paint.h>
+#include <sigilmotion/Animation.h>
+#include <sigilmotion/schedule/Spread.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilweave/style/Type.h>
 
 #include <algorithm>
 #include <array>
@@ -122,8 +130,17 @@
 #include <vector>
 
 namespace sketch = sigil::sketch;
+namespace field = sigil::material::field;
+namespace matkit = sigil::material::kit;
+namespace path = sigil::geometry::path;
+namespace shapes = sigil::geometry::shapes;
+namespace skia = sigil::material::skia;
+namespace weave = sigil::weave;
 
 using namespace sigil::compose;
+namespace motion = sigil::motion;
+using namespace sigil::motion;
+using sigil::material::skia::Paint;
 using namespace std::chrono_literals;
 
 namespace {
@@ -508,60 +525,63 @@ const Granite kKobraGrey{kGreyBase, kGreyLit, kGreyVein, 1.00f,
 
 // A bank keyed by (species, seed bucket). A tile's seed is folded into one of
 // 40 buckets per granite, which is more variety than a field of two prototiles
-// at ten orientations can expose, and it caps the number of live shaders at
-// 80 instead of one per sett.
+// at ten orientations can expose, and it caps the number of live materials at
+// 80 instead of one per sett. Because the instance is HELD rather than
+// re-minted per describe, its identity is stable and a re-describe prunes.
+//
+// The stone itself is `material::kit::stone`: a quarry's two tones on a
+// diagonal bed, veined with grain and flecked with a speckle in its own
+// colours, generated per pixel from its parameters and a seed. The BUCKET is
+// what varies a piece — a seed the recipe reads, and a jitter on the tone,
+// both applied in the maker.
 class GraniteBank {
  public:
-  Material get(const Granite& g, uint32_t seed, bool fat) {
-    const uint32_t bucket = seed % 40u;
-    const uint64_t key = ((uint64_t)(fat ? 1 : 0) << 32u) | bucket;
-    auto it = m_bank.find(key);
-    if (it != m_bank.end()) return it->second;
-
-    const float jitter = ((float)(bucket % 13) / 12.0f - 0.5f) * 0.115f;
-    auto tone = [&](SkColor4f c, float k) {
-      return SkColor4f{std::clamp(c.fR * (1 + k), 0.f, 1.f),
-                       std::clamp(c.fG * (1 + k), 0.f, 1.f),
-                       std::clamp(c.fB * (1 + k), 0.f, 1.f), 1};
-    };
-    // The slab body: a shallow ramp across the slab from its sun-facing
-    // corner to its shaded one. linearUnit, not linear() — the ramp is stated
-    // in unit-box coordinates because a sett's bounding box is whatever its
-    // rotation makes it, and the ramp has to land the same way on all ten
-    // orientations.
-    auto mixc = [](SkColor4f a, SkColor4f b, float u) {
-      return SkColor4f{a.fR + (b.fR - a.fR) * u, a.fG + (b.fG - a.fG) * u,
-                       a.fB + (b.fB - a.fB) * u, 1};
-    };
-    Material body =
-        Material::linearUnit({0.10f, 0.0f}, {0.90f, 1.0f},
-                             {{0.00f, tone(mixc(g.base, g.lit, 0.40f), jitter)},
-                              {0.55f, tone(g.base, jitter)},
-                              {1.00f, tone(g.base, jitter - 0.030f)}});
-
-    Material m = Material::blend(
-        {{body, SkBlendMode::kSrcOver},
-         // mineral aggregate — luminance noise, so soft-light reads as LIGHT
-         // rather than hue (patterns::noise would rainbow the stone into
-         // terrazzo). Two octaves at ~2 px cells IS the crystal size at this
-         // scale: a 600 mm sett drawn 78 px wide is 7.7 mm per pixel.
-         {patterns::grain(g.speckleFreq, 2, (float)(bucket * 7 + 3),
-                          g.speckleAmp, 1.0f),
-          SkBlendMode::kSoftLight},
-         // sub-crystal grit — one octave under a pixel, which is what stops
-         // the aggregate reading as a printed pattern
-         {patterns::grain(2.1f, 1, (float)(bucket * 13 + 5), 0.62f, 1.0f),
-          SkBlendMode::kSoftLight},
-         // the slow blotch that makes one slab differ from the next
-         {patterns::grain(g.blotchFreq, 1, (float)(bucket * 31 + 11),
-                          g.veinContrast, 1.25f),
-          SkBlendMode::kSoftLight}});
-    m_bank.emplace(key, m);
-    return m;
+  Paint get(const Granite& g, uint32_t seed, bool fat) {
+    // The species is the params' bytes and the bucket is the seed, so the
+    // two rhombs of one granite at one bucket are ONE material.
+    const matkit::StoneParams species{
+        .hi = skia::toColor(g.lit),
+        .lo = skia::toColor(g.base),
+        // The bed runs across the sett rather than along it, so a rotated
+        // prototile does not read as a stripe following its own long axis,
+        // and it is LONG compared with a 78 px sett: a shallow ramp from the
+        // sun-facing corner to the shaded one, not a stripe.
+        .bedAngle = fat ? 24.0f : 62.0f,
+        .bedLength = 260.0f,
+        .bedDepth = 0.30f,
+        // FEATURES PER PIXEL, and this is the number that decides whether
+        // the stone reads as granite or as cloud: at ~1 per px the veining
+        // is at the crystal size — a 600 mm sett drawn 78 px wide is 7.7 mm
+        // per pixel — and an order of magnitude lower is weather.
+        .grainScale = g.speckleFreq,
+        .grainContrast = g.speckleAmp * 0.42f,
+        .stretch = 1.0f,
+        // The dark inclusions: what separates the two granites at this
+        // distance is their SIZE, not the pitch of the field.
+        .speckle = 0.34f,
+        .speckleCell = g.blotchFreq > 0.05f ? 6.5f : 4.0f,
+        .speckleAlpha = 0.26f};
+    return Paint::recipe(m_bank.get(
+        matkit::stoneRecipe(), species, seed, [&](uint32_t bucket) {
+          // The per-bucket tone jitter: one slab lighter than the next, out
+          // of the same quarry.
+          const float jitter = ((float)(bucket % 13) / 12.0f - 0.5f) * 0.115f;
+          auto tone = [&](sigil::material::Color c) {
+            return sigil::material::Color{std::clamp(c.r * (1 + jitter), 0.f, 1.f),
+                                          std::clamp(c.g * (1 + jitter), 0.f, 1.f),
+                                          std::clamp(c.b * (1 + jitter), 0.f, 1.f),
+                                          1};
+          };
+          matkit::StoneParams p = species;
+          p.hi = tone(species.hi);
+          p.lo = tone(species.lo);
+          p.seed = (float)bucket;
+          return sigil::material::Material(matkit::stoneRecipe(), p);
+        }));
   }
 
  private:
-  std::map<uint64_t, Material> m_bank;
+  matkit::Bank m_bank{40};
 };
 
 // ---------------------------------------------------------------------------
@@ -572,28 +592,21 @@ SkVector normv(SkVector v) {
   return l > 1e-6f ? SkVector{v.x() / l, v.y() / l} : SkVector{1, 0};
 }
 
-// Offset every edge of a convex quad inward by d. At a vertex whose interior
-// angle is θ, the point d from BOTH incident edges sits at
-// p + (u_prev + u_next)·d/sin θ — exact, and it is what gives the thin rhomb's
-// 36° corners their correspondingly deep pull-back.
+// THE SETT'S TWO INSET RINGS — the joint pull-back and the chamfer band.
+// `path::insetPolygon` moves every vertex one for one, so each source corner
+// keeps its partner in the moved ring, which is what a chamfer band between
+// the two needs and an outline offset cannot give. The mitre is the price: a
+// corner of interior angle θ moves distance/sin(θ/2), and at the thin rhomb's
+// 36° corners that is 3.24 distances — geometrically right for a silhouette
+// and, for a BAND, a wedge that swallows the corner. The miter limit blunts
+// it instead, which is what a stonemason's arris does anyway.
 void insetQuad(const SkPoint in[4], float d, SkPoint out[4],
                float miterLimit = 1e6f) {
-  for (int i = 0; i < 4; ++i) {
-    const SkPoint p = in[i], pv = in[(i + 3) % 4], nx = in[(i + 1) % 4];
-    const SkVector u1 = normv({pv.x() - p.x(), pv.y() - p.y()});
-    const SkVector u2 = normv({nx.x() - p.x(), nx.y() - p.y()});
-    const SkVector bis = normv({u1.x() + u2.x(), u1.y() + u2.y()});
-    // |u1+u2| = 2cos(θ/2) exactly, so the half-angle sine comes for free.
-    const float halfCos = std::clamp(
-        0.5f * std::hypot(u1.x() + u2.x(), u1.y() + u2.y()), 0.02f, 0.999f);
-    const float halfSin = std::sqrt(1 - halfCos * halfCos);
-    // |offset| = d/sin(θ/2); at the thin rhomb's 36° corners that is 3.24·d,
-    // which is geometrically right for the silhouette but turns a chamfer
-    // BAND into a wedge that swallows the corner. Clamping bevels the corner
-    // instead — which is what a stonemason's arris does anyway.
-    const float len = std::min(d / std::max(halfSin, 0.02f), d * miterLimit);
-    out[i] = {p.x() + bis.x() * len, p.y() + bis.y() * len};
-  }
+  std::array<glm::vec2, 4> poly{};
+  for (int i = 0; i < 4; ++i) poly[(size_t)i] = {in[i].x(), in[i].y()};
+  const std::vector<glm::vec2> moved = path::insetPolygon(poly, d, miterLimit);
+  for (int i = 0; i < 4 && i < (int)moved.size(); ++i)
+    out[i] = {moved[(size_t)i].x, moved[(size_t)i].y};
 }
 
 SkPath quadPath(const SkPoint q[4], SkPoint origin) {
@@ -834,7 +847,7 @@ struct PenrosePaving : sketch::Sketch {
     auto group = positioned()
                      .inset(0, 0, 0, 0)
                      .key("gen" + std::to_string(gen))
-                     .staggerChildren(9ms, Stagger::From::Center)
+                     .staggerChildren(9ms, motion::Spread::From::Center)
                      .transformOrigin(0.5f, 0.5f)
                      .scale(animate(from(0.94f).to(1.0f),
                                     Transition{320ms, ease::outBack(1.1f)}));
@@ -922,7 +935,7 @@ struct PenrosePaving : sketch::Sketch {
             text(toU8("DEFLATION \xc2\xb7 FAT \xe2\x86\x92 2 FAT + 1 THIN, "
                       "\xc3\x97"
                       "1/\xcf\x86"),
-                 type({.size = 10.5f, .color = hex(0x8E9295), .track = 1.0f}))
+                 weave::textStyle({.size = 10.5f, .color = hex(0x8E9295), .track = 1.0f}))
                 .left(14)
                 .top(12))
         .child(box().left(10).top(34).width(kDiagW).height(kDiagH).child(
@@ -956,7 +969,7 @@ struct PenrosePaving : sketch::Sketch {
         // automatic bake, so the cache has to be asked for by hand.
         .child(box()
                    .inset(0, 0, 0, 0)
-                   .fill(patterns::grain(0.9f, 1, 12.0f, 0.55f, 1.0f))
+                   .fill(Paint::recipe(field::grain(0.9f, 1, 12.0f, 0.55f, 1.0f)))
                    .opacity(0.20f)
                    .cache(Cache::Texture))
         .child(field)
@@ -970,9 +983,10 @@ struct PenrosePaving : sketch::Sketch {
                    .blend(SkBlendMode::kMultiply)
                    .opacity(0.42f)
                    .cache(Cache::Texture)
-                   .fill(Material::blend(
-                       {{Material::solid(hex(0xFFFFFF)), SkBlendMode::kSrcOver},
-                        {patterns::grain(0.0042f, 2, 91.0f, 0.62f, 1.15f),
+                   .fill(Paint::blend(
+                       {{Paint::solid(hex(0xFFFFFF)), SkBlendMode::kSrcOver},
+                        {Paint::recipe(
+                             field::grain(0.0042f, 2, 91.0f, 0.62f, 1.15f)),
                          SkBlendMode::kSoftLight}})))
         // ---- daylight. One multiply pass carries the sun's falloff across
         // the plaza. It is SHALLOW: the header calls this a plan view and
@@ -1037,20 +1051,20 @@ struct PenrosePaving : sketch::Sketch {
             text(toU8("PENROSE TILING \xc2\xb7 P3 RHOMBI \xc2\xb7 ROYAL "
                       "WHITE & KOBRA GREY GRANITE \xc2\xb7 POLISHED 30 mm "
                       "STAINLESS INSERTS"),
-                 type({.size = 13.0f, .color = hex(0xDCE0E2), .track = 1.9f}))
+                 weave::textStyle({.size = 13.0f, .color = hex(0xDCE0E2), .track = 1.9f}))
                 .left(76)
                 .top(1100)
                 .opacity(1.0f))
         .child(
             text(toU8("MATHEMATICAL INSTITUTE, ANDREW WILES BUILDING, "
                       "OXFORD \xc2\xb7 R. PENROSE 1974 / PAVING 2012"),
-                 type({.size = 11.5f, .color = hex(0xA9AEB1), .track = 1.5f}))
+                 weave::textStyle({.size = 11.5f, .color = hex(0xA9AEB1), .track = 1.5f}))
                 .left(76)
                 .top(1126)
                 .opacity(1.0f))
         .child(
             text(toU8(spec),
-                 type({.size = 10.5f, .color = hex(0x8E9598), .track = 1.3f}))
+                 weave::textStyle({.size = 10.5f, .color = hex(0x8E9598), .track = 1.3f}))
                 .left(76)
                 .top(1152)
                 .opacity(1.0f));
