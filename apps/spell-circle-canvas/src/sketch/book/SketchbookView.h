@@ -91,6 +91,9 @@ class SketchbookView : public QQuickRhiItem {
    *  directory of sketches outside this repository a place to work. */
   static std::filesystem::path assetsDir;
   static std::filesystem::path flagsFile;
+  /** The shared layer: the directory whose sources are units of every
+   *  sketch and whose headers a sketch spells as `<shared/Name.h>`. */
+  static std::filesystem::path sharedDir;
   /** SKETCHES THIS BINARY DOES NOT CARRY, opened from a path.
    *
    *  The registry is the compiled-in table and settles the first time it

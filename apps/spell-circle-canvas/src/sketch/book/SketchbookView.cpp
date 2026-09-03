@@ -21,6 +21,7 @@
 #include <sigilmeasure/time/Stopwatch.h>
 #include <sigilmotion/clock/FrameClock.h>
 #include <sigilsketch/core/Registry.h>
+#include <sigilsketch/core/Sources.h>
 #include <sigilsketch/live/Host.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
@@ -46,6 +47,7 @@ namespace motion = sigil::motion;
 std::filesystem::path SketchbookView::sketchDir;
 std::filesystem::path SketchbookView::assetsDir;
 std::filesystem::path SketchbookView::flagsFile;
+std::filesystem::path SketchbookView::sharedDir;
 std::vector<std::filesystem::path> SketchbookView::externals;
 sketch::Host* SketchbookView::host = nullptr;
 sketch::Residency SketchbookView::sessions;
@@ -199,7 +201,7 @@ void SketchbookRenderer::openSketch(int index) {
     // the compiled-in entry and builds only once the file changes.
     options.compiledIn = &entries[index];
     options.sketchPath =
-        SketchbookView::sketchDir / (std::string(entries[index].key) + ".cpp");
+        sketch::sourceOf(SketchbookView::sketchDir, entries[index].key);
   } else if (const int external = externalAt(index);
              external >= 0 &&
              external < (int)SketchbookView::externals.size()) {
@@ -211,6 +213,7 @@ void SketchbookRenderer::openSketch(int index) {
   }
   options.assetsDir = SketchbookView::assetsDir;
   options.flagsFile = SketchbookView::flagsFile;
+  options.sharedDir = SketchbookView::sharedDir;
   // The file is the session's name: it is what distinguishes a registry
   // entry from every other, and a file opened by path from every other.
   const std::string key = options.sketchPath.string();

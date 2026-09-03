@@ -20,8 +20,9 @@
  *  * the **registry** — the filed name, the folder, the blurb, the file
  *    stem, which runtime it draws through, and whether this machine can
  *    run it;
- *  * the **file** — how many lines it is, the subject it states at the
- *    top of itself, and the knobs it says to reach for first;
+ *  * the **file** — the bare file, or the entry of a sketch that is a
+ *    directory — how many lines it is, the subject it states at the top
+ *    of itself, and the knobs it says to reach for first;
  *  * the **plate** — the quick-tier still, as a thumbnail.
  *
  *  What is NOT here is the canvas: a sketch declares its size, its

@@ -10,6 +10,8 @@
  *   Sketchbook <file.cpp> [--frame <png>] [--bench]
  *                                              a file, live or measured
  *   Sketchbook <file.cpp>                      the app, on that file
+ *   Sketchbook <stem>/<stem>.cpp               …either way, a sketch that
+ *                                              is a directory, by its entry
  *   Sketchbook --window-bench [<sec>] [--window-size <WxH>]
  *              [--window-scale <n>] [--sketch <name>] [--kind <k>]
  *                                              the window's own frame rate
@@ -34,6 +36,7 @@
 #include <sigilmeasure/time/Stopwatch.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/core/Registry.h>
+#include <sigilsketch/core/Sources.h>
 #include <sigilsketch/live/Crash.h>
 #include <sigilsketch/live/Host.h>
 #include <sigilsketch/plate/Sweep.h>
@@ -718,8 +721,7 @@ int main(int argc, char* argv[]) {
   // built with, and only the first joins the app's list on its own.
   const bool fileGiven = !sketchFile.empty();
   if (!fileGiven && chosen >= 0)
-    sketchFile = sketchDir / (std::string(sketch::registry()[chosen].key) +
-                              std::string(".cpp"));
+    sketchFile = sketch::sourceOf(sketchDir, sketch::registry()[chosen].key);
 
   sketch::Host::Options options;
   // DETERMINISTIC BY DEFAULT WHEN CAPTURING. A capture exists to be
@@ -736,6 +738,10 @@ int main(int argc, char* argv[]) {
   // makes a directory outside this checkout a place to work.
   options.assetsDir = assetsOverride;
   options.flagsFile = flagsFileNear(executableDir(argv[0]));
+  // THE SHARED LAYER IS THIS REPOSITORY'S, for every sketch the host
+  // builds: a file anywhere on disk compiles with the same flags, so it
+  // may spell <shared/Name.h> too, and then needs the module behind it.
+  options.sharedDir = sketchDir / "shared";
 
   if (!capture.out.empty() || capture.bench) {
     if (sketchFile.empty() || !std::filesystem::exists(sketchFile)) {
@@ -792,6 +798,7 @@ int main(int argc, char* argv[]) {
 #endif
   SketchbookView::assetsDir = options.assetsDir;
   SketchbookView::flagsFile = options.flagsFile;
+  SketchbookView::sharedDir = options.sharedDir;
   // A FILE ON THE COMMAND LINE OPENS THE WINDOW ON THAT FILE. The
   // registry is the compiled-in table and settles the first time it is
   // read, so the file joins a session-local list the app's own listing

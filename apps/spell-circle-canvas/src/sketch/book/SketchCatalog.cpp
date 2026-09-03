@@ -6,6 +6,7 @@
 #include "SketchCatalog.h"
 
 #include <sigilsketch/core/Registry.h>
+#include <sigilsketch/core/Sources.h>
 
 #include <QtCore/QCoreApplication>
 #include <QtCore/QDir>
@@ -252,8 +253,9 @@ SketchCatalog::SketchCatalog(QObject* parent) : QObject(parent) {
                  (qsizetype)SketchbookView::externals.size());
   for (int i = 0; i < (int)entries.size(); ++i) {
     const sketch::Entry& entry = entries[i];
-    const fs::path file =
-        SketchbookView::sketchDir / (std::string(entry.key) + ".cpp");
+    // The bare file, or the entry of a directory sketch: what the row
+    // reads its header and its line count from, and what a click opens.
+    const fs::path file = sketch::sourceOf(SketchbookView::sketchDir, entry.key);
     QVariantMap row =
         rowFor(i, entry.name, entry.key, QString::fromUtf8(entry.category),
                QString::fromUtf8(entry.blurb), file);
