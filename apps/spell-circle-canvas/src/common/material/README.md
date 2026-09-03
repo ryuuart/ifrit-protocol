@@ -68,7 +68,7 @@ each a static archive that links only what sits beneath it:
 | `SigilMaterialField` | `field::` — `halftoneRamp`, `noise`, `grain`, `ripple`, `crtOverlay` | SigilMaterialTexture, SigilMaterialColor |
 | `SigilMaterialSkia` | the SkSL compiler and `SkiaProgram`, whose builder uploads resolved bytes; `skia::builder` and `skia::shader` binding leaves into slots; `skia::fill`; the colour bridge `skia::toColor` / `skia::toSkColor` / `skia::toColors`; `skia::Paint`, the model as ONE shader; and `skia::Effect`, the post-processing recipe over a rendered layer | SigilMaterialTexture, SigilMaterialColor, SigilMotionValues |
 | `SigilMaterialSlang` | the Slang compiler: `slang::compileModule` to SPIR-V, `slang::Compiled` with the reflected `slang::UniformSlot` per uniform, `slang::SlangProgram`, and `slang::Uniforms`, the buffer one draw is written into; `Portable.slang`, the subset a host and a device answer alike, loaded into every session by name | SigilMaterialCore; SigilMaterialKit and Slang privately |
-| `SigilMaterialKit` | the presets: the metallic-roughness `kit::surface` and `kit::unlit` and the masks that stack them; `kit::gold`, `kit::chrome`, `kit::glass`; the grained `kit::stone`, `kit::timber`, `kit::latten` and `kit::board`; `kit::girih8` and its palettes; the gel and chrome tables with `kit::contourRing`; the text paints and chrome-type ramps; and `kit::termsSource`, the shading terms a surface is composed of | SigilMaterialPattern, SigilMaterialColor |
+| `SigilMaterialKit` | the presets: the metallic-roughness `kit::surface` and `kit::unlit` and the masks that stack them; `kit::gold`, `kit::chrome`, `kit::glass`; the grained `kit::stone`, `kit::timber`, `kit::latten` and `kit::board`; `kit::girih8` and its palettes; `kit::Bank`, the bounded seeded bank of a field's instances; the gel and chrome tables with `kit::contourRing`; the text paints and chrome-type ramps; and `kit::termsSource`, the shading terms a surface is composed of | SigilMaterialPattern, SigilMaterialColor |
 
 `SigilMaterial` is the umbrella, an interface over all ten. Headers live
 under `include/sigilmaterial/<feature>/` and are spelled that way —
@@ -574,6 +574,22 @@ two pieces at two seeds are two pieces of one quarry. Each recipe carries
 a body in both languages — the SkSL one reads pixels, the Slang one the
 surface's uv — so a device renderer shades the same piece the 2D painter
 does.
+
+**A field of a thousand pieces banks its materials.** A paving whose
+every sett differs cannot afford a material per sett — a material is a
+program and a resolve — so `kit::Bank` bounds them: `bank.get(recipe,
+params, seed)` folds the seed into one of `buckets()` and answers the
+instance for that (recipe, params, bucket) triple, minting it once. The
+params' BYTES are their identity, which `schema<P>()` proves is sound by
+refusing a struct that is not packed floats, so two pieces of one species
+in one bucket are one material and a second tone is a second species. The
+seeded form writes the bucket into a `seed` field and ignores whatever
+seed the caller left there, so no caller can make the bank unbounded; the
+form taking a maker banks whatever that maker builds per bucket — a
+stack, a recipe over a jittered tone — so a blend is banked exactly as a
+recipe is. Because the instance is held rather than re-minted per
+describe, its identity is stable, which is what lets a consumer that
+compares materials prune.
 
 **Resolve is memoised on its inputs.** `resolve()` samples the bindings,
 snaps and injects the frame values, and compares the resulting bytes plus
