@@ -11,8 +11,8 @@
  * A pass whose limits equal its desired value contributes nothing and
  * costs nothing, which is why a caller who sets none of them gets word
  * spacing alone — and why the passes are opened one at a time on this
- * sheet, over one passage in one measure, so each cell is the cell before
- * it plus exactly one pass.
+ * sheet, over one passage in one measure, so each cell is the stock
+ * settings plus exactly one field moved off them.
  *
  * `wordSpacing` is the width a gap is AIMED at, as a multiple of the
  * shaped space, and the elasticity is measured from it: a gap may run
@@ -134,8 +134,8 @@ struct SpacingPasses final : sketch::Sketch {
     ctx.background(kGround);
     ctx.captureAt(0.05);  // nothing moves; the sheet is complete at once
 
-    // Each value is the one before it plus one pass, so the cells read as
-    // a ladder rather than as five settings.
+    // Every value is the stock one with a single field moved, so a cell
+    // reports what that field does and nothing else.
     weave::JustificationOptions gaps;
     weave::JustificationOptions wider = gaps;
     wider.wordSpacing = kWordSpacing;
