@@ -243,6 +243,22 @@ class Pen {
    *  back. */
   void noSmooth();
 
+  // ---- blending ------------------------------------------------------------
+  /** HOW WHAT IS DRAWN MEETS WHAT IS ALREADY THERE. `BLEND` lays the
+   *  source over the canvas by its alpha and is where a pen starts;
+   *  `ADD` adds the two and clamps, which is what light does; `REPLACE`
+   *  overwrites, alpha and all; `REMOVE` takes the source's alpha out of
+   *  the canvas; and `DARKEST`, `LIGHTEST`, `DIFFERENCE`, `EXCLUSION`,
+   *  `MULTIPLY`, `SCREEN`, `OVERLAY`, `HARD_LIGHT`, `SOFT_LIGHT`,
+   *  `DODGE`, `BURN` and `SUBTRACT` are the rest of the separable
+   *  functions.
+   *
+   *  It reaches every verb that puts pixels down — a fill, a stroke, a
+   *  glyph, an image, the triangle mesh a per-corner shape is drawn as,
+   *  and the ground a `background` lays — and it is style, so `push`
+   *  saves it and `pop` puts it back. */
+  void blendMode(Constant mode);
+
   // ---- modes ---------------------------------------------------------------
   void rectMode(Constant mode);
   void ellipseMode(Constant mode);
@@ -428,6 +444,7 @@ class Pen {
     SkPaint::Cap cap = SkPaint::kRound_Cap;
     SkPaint::Join join = SkPaint::kMiter_Join;
     bool antiAlias = true;
+    Constant blend = BLEND;
     Constant rectMode = CORNER;
     Constant ellipseMode = CENTER;
     Constant imageMode = CORNER;
@@ -451,6 +468,11 @@ class Pen {
   [[nodiscard]] float toDegrees(float angle) const;
   [[nodiscard]] float toRadians(float angle) const;
   void applyStyle();
+  /** The blend the style stands at, onto a paint about to draw with it.
+   *  Every paint the pen hands to the canvas goes through here, so a
+   *  mode set once holds for the image and the glyph as well as the
+   *  shape. */
+  void blendInto(SkPaint& paint) const;
   void resolveFill();
   void resolveStroke();
   [[nodiscard]] material::skia::PaintFrame paintFrame() const;

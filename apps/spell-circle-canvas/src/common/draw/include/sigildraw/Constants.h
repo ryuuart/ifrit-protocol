@@ -62,6 +62,23 @@ enum Constant : uint8_t {
   TRIANGLE_STRIP,
   QUADS,
   QUAD_STRIP,
+  // blendMode
+  BLEND,
+  ADD,
+  DARKEST,
+  LIGHTEST,
+  DIFFERENCE,
+  EXCLUSION,
+  MULTIPLY,
+  SCREEN,
+  REPLACE,
+  REMOVE,
+  OVERLAY,
+  HARD_LIGHT,
+  SOFT_LIGHT,
+  DODGE,
+  BURN,
+  SUBTRACT,
 };
 
 inline constexpr float PI = 3.14159265358979323846f;

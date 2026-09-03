@@ -3,11 +3,15 @@
  * Text is in Text.cpp.
  */
 
+#include <include/core/SkBlendMode.h>
+#include <include/core/SkBlender.h>
 #include <include/core/SkMatrix.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkRRect.h>
 #include <include/core/SkSamplingOptions.h>
+#include <include/core/SkString.h>
 #include <include/core/SkVertices.h>
+#include <include/effects/SkRuntimeEffect.h>
 #include <sigildraw/Math.h>
 #include <sigildraw/Pen.h>
 #include <sigilmaterial/core/Material.h>
@@ -47,6 +51,81 @@ SkSamplingOptions samplingFor(bool smooth) {
                                     SkMipmapMode::kLinear)
                 : SkSamplingOptions(SkFilterMode::kNearest,
                                     SkMipmapMode::kNone);
+}
+
+/** SUBTRACT: the source's colour taken out of the canvas's. No blend
+ *  mode does it, so it is a blender of two lines, built once.
+ *
+ *  THE CANVAS KEEPS ITS OWN ALPHA. Subtracting alpha as well would turn
+ *  an opaque ground transparent instead of dark, which is the opposite
+ *  of what taking light away means; and the channels floor at nothing,
+ *  which keeps each of them under the alpha a premultiplied colour has
+ *  to stay under. */
+sk_sp<SkBlender> subtractBlender() {
+  static const sk_sp<SkBlender> blender = [] {
+    SkRuntimeEffect::Result made = SkRuntimeEffect::MakeForBlender(
+        SkString("half4 main(half4 src, half4 dst) {"
+                 "  return half4(max(dst.rgb - src.rgb, half3(0.0)), dst.a);"
+                 "}"));
+    return made.effect ? made.effect->makeBlender(nullptr) : sk_sp<SkBlender>();
+  }();
+  return blender;
+}
+
+/** p5's blend words as Skia spells them. All but one are a blend mode,
+ *  and setting a mode drops any blender the paint carried, so a paint
+ *  that was SUBTRACT is plain again the moment another word is set. */
+void setBlend(SkPaint& paint, Constant mode) {
+  switch (mode) {
+    case ADD:
+      paint.setBlendMode(SkBlendMode::kPlus);
+      return;
+    case DARKEST:
+      paint.setBlendMode(SkBlendMode::kDarken);
+      return;
+    case LIGHTEST:
+      paint.setBlendMode(SkBlendMode::kLighten);
+      return;
+    case DIFFERENCE:
+      paint.setBlendMode(SkBlendMode::kDifference);
+      return;
+    case EXCLUSION:
+      paint.setBlendMode(SkBlendMode::kExclusion);
+      return;
+    case MULTIPLY:
+      paint.setBlendMode(SkBlendMode::kMultiply);
+      return;
+    case SCREEN:
+      paint.setBlendMode(SkBlendMode::kScreen);
+      return;
+    case REPLACE:
+      paint.setBlendMode(SkBlendMode::kSrc);
+      return;
+    case REMOVE:
+      paint.setBlendMode(SkBlendMode::kDstOut);
+      return;
+    case OVERLAY:
+      paint.setBlendMode(SkBlendMode::kOverlay);
+      return;
+    case HARD_LIGHT:
+      paint.setBlendMode(SkBlendMode::kHardLight);
+      return;
+    case SOFT_LIGHT:
+      paint.setBlendMode(SkBlendMode::kSoftLight);
+      return;
+    case DODGE:
+      paint.setBlendMode(SkBlendMode::kColorDodge);
+      return;
+    case BURN:
+      paint.setBlendMode(SkBlendMode::kColorBurn);
+      return;
+    case SUBTRACT:
+      paint.setBlender(subtractBlender());
+      return;
+    default:
+      paint.setBlendMode(SkBlendMode::kSrcOver);
+      return;
+  }
 }
 
 SkPaint::Join joinOf(Constant join) {
@@ -168,8 +247,18 @@ void Pen::applyStyle() {
   m_strokePaint.setStrokeWidth(m_style.strokeWeight);
   m_strokePaint.setStrokeCap(m_style.cap);
   m_strokePaint.setStrokeJoin(m_style.join);
+  blendInto(m_fillPaint);
+  blendInto(m_strokePaint);
   resolveFill();
   resolveStroke();
+}
+
+void Pen::blendInto(SkPaint& paint) const { setBlend(paint, m_style.blend); }
+
+void Pen::blendMode(Constant mode) {
+  m_style.blend = mode;
+  blendInto(m_fillPaint);
+  blendInto(m_strokePaint);
 }
 
 material::skia::PaintFrame Pen::paintFrame() const {
@@ -281,6 +370,7 @@ void Pen::background(const material::skia::Paint& paint) {
   if (!m_canvas || paint.isNone()) return;
   SkPaint ground;
   resolve(paint, ground, paintFrame());
+  blendInto(ground);
   // The whole canvas under the transform the frame began on: a
   // background is not a rect in the sketch's current space, and it is
   // not a clear either, since it may carry alpha and must blend.
@@ -644,9 +734,10 @@ void Pen::paintVertices(const std::vector<SkPoint>& positions,
   if (!mesh) return;
   SkPaint paint;
   paint.setAntiAlias(m_style.antiAlias);
-  // The paint carries no shader, so the mesh's own corner colours are
-  // what lands; kDst is the mode that keeps them instead of blending
-  // the paint's colour into them.
+  // The paint's blend is how the mesh meets the canvas; kDst is a
+  // different question — how the corner colours meet the paint's own —
+  // and keeping them is what a paint with no shader wants.
+  blendInto(paint);
   m_canvas->drawVertices(mesh, SkBlendMode::kDst, paint);
 }
 
@@ -745,15 +836,19 @@ void Pen::image(const sk_sp<SkImage>& img, float x, float y) {
 void Pen::image(const sk_sp<SkImage>& img, float x, float y, float w, float h) {
   if (!m_canvas || !img) return;
   const SkRect box = boxIn(m_style.imageMode, x, y, w, h);
-  m_canvas->drawImageRect(img, box, samplingFor(m_style.antiAlias));
+  SkPaint paint;
+  blendInto(paint);
+  m_canvas->drawImageRect(img, box, samplingFor(m_style.antiAlias), &paint);
 }
 
 void Pen::image(const sk_sp<SkImage>& img, float dx, float dy, float dw,
                 float dh, float sx, float sy, float sw, float sh) {
   if (!m_canvas || !img) return;
   const SkRect box = boxIn(m_style.imageMode, dx, dy, dw, dh);
+  SkPaint paint;
+  blendInto(paint);
   m_canvas->drawImageRect(img, SkRect::MakeXYWH(sx, sy, sw, sh), box,
-                          samplingFor(m_style.antiAlias), nullptr,
+                          samplingFor(m_style.antiAlias), &paint,
                           SkCanvas::kStrict_SrcRectConstraint);
 }
 

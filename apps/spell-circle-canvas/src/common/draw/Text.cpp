@@ -197,9 +197,12 @@ void Pen::textLine(std::string_view line, float x, float baseline) {
   }
   const weave::ParagraphLayout layout =
       weave::layoutSingleLine(*m_fonts, paragraph, {x0, baseline});
-  const weave::PaintStyle over =
+  weave::PaintStyle over =
       glyphPaint(m_style.doFill, m_style.fillSet, fillPaint(),
                  m_style.strokeSet, strokePaint(), m_style.antiAlias);
+  // The colours a fill was never set for are built here rather than
+  // copied from a paint, so the blend has to be put on them.
+  blendInto(over.foreground);
   layout.draw(m_canvas, paragraph, &over);
 }
 
@@ -253,9 +256,10 @@ void Pen::text(std::string_view str, float x, float y, float w, float h) {
                                      : weave::FrameOptions::Distribute::kStart;
   const weave::ParagraphLayout layout =
       weave::layoutParagraph(*m_fonts, paragraph, flow, options);
-  const weave::PaintStyle over =
+  weave::PaintStyle over =
       glyphPaint(m_style.doFill, m_style.fillSet, fillPaint(),
                  m_style.strokeSet, strokePaint(), m_style.antiAlias);
+  blendInto(over.foreground);
   layout.draw(m_canvas, paragraph, &over);
 }
 

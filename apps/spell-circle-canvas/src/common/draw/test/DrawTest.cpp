@@ -289,6 +289,133 @@ TEST(Pen, BeginShapeCloseFillsThePolygon) {
   EXPECT_EQ(paper.pixel(10, 80), SK_ColorTRANSPARENT);
 }
 
+TEST(Pen, BlendModeAddPutsLightTogetherAndClamps) {
+  Paper paper;
+  paper.begin();
+  paper.pen.noStroke();
+  paper.pen.fill(200, 0, 40);
+  paper.pen.rect(10, 10, 40, 40);
+  paper.pen.blendMode(ADD);
+  paper.pen.fill(100, 0, 80);
+  paper.pen.rect(10, 10, 40, 40);
+  paper.end();
+  const SkColor lit = paper.pixel(30, 30);
+  EXPECT_EQ(SkColorGetR(lit), 255u);  // 200 + 100, clamped
+  EXPECT_EQ(SkColorGetB(lit), 120u);  // 40 + 80
+}
+
+TEST(Pen, BlendModeReplaceOverwritesAlphaAndAll) {
+  Paper paper;
+  paper.begin();
+  paper.pen.noStroke();
+  paper.pen.fill(255, 0, 0);
+  paper.pen.rect(10, 10, 40, 40);
+  paper.pen.blendMode(REPLACE);
+  paper.pen.fill(0, 0, 255, 128);
+  paper.pen.rect(10, 10, 40, 40);
+  paper.end();
+  const SkColor over = paper.pixel(30, 30);
+  // Laid over, this would be an opaque purple; replaced, the source's
+  // own half alpha is what stands.
+  EXPECT_EQ(SkColorGetA(over), 128u);
+  EXPECT_EQ(SkColorGetR(over), 0u);
+}
+
+TEST(Pen, BlendModeRemoveTakesThePixelsAway) {
+  Paper paper;
+  paper.begin();
+  paper.pen.noStroke();
+  paper.pen.fill(255, 0, 0);
+  paper.pen.rect(10, 10, 40, 40);
+  paper.pen.blendMode(REMOVE);
+  paper.pen.fill(0, 255, 0);
+  paper.pen.rect(10, 10, 20, 20);
+  paper.end();
+  EXPECT_EQ(SkColorGetA(paper.pixel(20, 20)), 0u);
+  EXPECT_EQ(paper.pixel(40, 40), SK_ColorRED);
+}
+
+TEST(Pen, BlendModeSubtractTakesLightAwayAndKeepsTheAlpha) {
+  Paper paper;
+  paper.begin();
+  paper.pen.noStroke();
+  paper.pen.fill(200, 200, 200);
+  paper.pen.rect(10, 10, 40, 40);
+  paper.pen.blendMode(SUBTRACT);
+  paper.pen.fill(50, 0, 0);
+  paper.pen.rect(10, 10, 40, 40);
+  paper.end();
+  const SkColor dark = paper.pixel(30, 30);
+  EXPECT_NEAR(SkColorGetR(dark), 150u, 1u);
+  EXPECT_NEAR(SkColorGetG(dark), 200u, 1u);
+  EXPECT_EQ(SkColorGetA(dark), 255u);
+}
+
+TEST(Pen, BlendModeReachesTheMeshTheImageAndTheGround) {
+  // The per-corner mesh: one fill on each end of a triangle sends the
+  // shape down the vertices route, which has a paint of its own.
+  Paper paper;
+  paper.begin();
+  paper.pen.noStroke();
+  paper.pen.fill(120, 0, 0);
+  paper.pen.rect(0, 0, 100, 100);
+  paper.pen.blendMode(ADD);
+  paper.pen.beginShape(TRIANGLES);
+  paper.pen.fill(60, 0, 0);
+  paper.pen.vertex(10, 10);
+  paper.pen.vertex(90, 10);
+  paper.pen.fill(60, 0, 0);
+  paper.pen.vertex(50, 90);
+  paper.pen.endShape();
+  paper.end();
+  EXPECT_EQ(SkColorGetR(paper.pixel(50, 40)), 180u);
+
+  // The image: the same source put down twice adds to itself.
+  Paper sheet;
+  sheet.begin();
+  sheet.pen.noStroke();
+  sheet.pen.fill(70, 0, 0);
+  sheet.pen.rect(0, 0, 100, 100);
+  sheet.end();
+  const sk_sp<SkImage> stamp = sheet.surface->makeImageSnapshot();
+
+  Paper page;
+  page.begin();
+  page.pen.image(stamp, 0, 0, 100, 100);
+  page.pen.blendMode(ADD);
+  page.pen.image(stamp, 0, 0, 100, 100);
+  page.end();
+  EXPECT_EQ(SkColorGetR(page.pixel(50, 50)), 140u);
+
+  // The ground a background lays.
+  Paper ground;
+  ground.begin();
+  ground.pen.background(30, 0, 0);
+  ground.pen.blendMode(ADD);
+  ground.pen.background(30, 0, 0);
+  ground.end();
+  EXPECT_EQ(SkColorGetR(ground.pixel(50, 50)), 60u);
+}
+
+TEST(Pen, BlendModeIsStyleSoPushAndPopCarryIt) {
+  Paper paper;
+  paper.begin();
+  paper.pen.noStroke();
+  paper.pen.fill(100, 0, 0);
+  paper.pen.rect(0, 0, 100, 100);
+  paper.pen.push();
+  paper.pen.blendMode(ADD);
+  paper.pen.fill(50, 0, 0);
+  paper.pen.rect(0, 0, 50, 100);
+  paper.pen.pop();
+  // Back under BLEND, an opaque fill covers rather than adds.
+  paper.pen.fill(50, 0, 0);
+  paper.pen.rect(50, 0, 50, 100);
+  paper.end();
+  EXPECT_EQ(SkColorGetR(paper.pixel(25, 50)), 150u);
+  EXPECT_EQ(SkColorGetR(paper.pixel(75, 50)), 50u);
+}
+
 TEST(Pen, MathIsP5s) {
   EXPECT_FLOAT_EQ(map(5, 0, 10, 0, 100), 50.0f);
   EXPECT_FLOAT_EQ(map(15, 0, 10, 0, 100, true), 100.0f);
