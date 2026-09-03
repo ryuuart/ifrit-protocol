@@ -50,6 +50,7 @@
 #include <thread>
 
 namespace sketch = sigil::sketch;
+namespace weave = sigil::weave;
 namespace scry = sigil::scry;
 
 using namespace sigil::compose;
@@ -199,8 +200,8 @@ Element note(std::u8string heading, std::u8string body) {
       .foreground(stroke(1.0f, Fill::color(hex(0x7ee8ff, 0.22f))))
       .column()
       .gap(6)
-      .child(text(std::move(heading), type({.size = 14, .color = kInk})))
-      .child(text(std::move(body), type({.size = 11.5f, .color = kDim})));
+      .child(text(std::move(heading), weave::textStyle({.size = 14, .color = kInk})))
+      .child(text(std::move(body), weave::textStyle({.size = 11.5f, .color = kDim})));
 }
 
 }  // namespace
@@ -211,7 +212,7 @@ struct WebPanelSketch final : sketch::Sketch {
    *  dylibs, so a build that links the SDK can still find nothing to lay
    *  out with. */
   static bool available(std::string* why) {
-    return scry::runtime::available(why);
+    return scry::available(why);
   }
 
   void setup(sketch::SketchContext& ctx) override {
@@ -238,7 +239,7 @@ struct WebPanelSketch final : sketch::Sketch {
         .fill(linearGradient({0, 0}, {0, 660},
                              {hex(0x140e26), hex(0x241033), hex(0x0d1424)}))
         .child(text(u8"A PAGE AS A LEAF",
-                    type({.size = 15, .color = kInk, .track = 2.4f}))
+                    weave::textStyle({.size = 15, .color = kInk, .track = 2.4f}))
                    .left(40)
                    .top(32))
         // The page at its own pixel size: the view is created at exactly
@@ -268,7 +269,7 @@ struct WebPanelSketch final : sketch::Sketch {
                                u8"inside it.")))
         .child(text(u8"the page background is transparent — the scene's "
                     u8"gradient is what shows between its cards",
-                    type({.size = 12, .color = kDim}))
+                    weave::textStyle({.size = 12, .color = kDim}))
                    .left(40)
                    .top(590));
   }
@@ -289,14 +290,14 @@ struct WebPanelSketch final : sketch::Sketch {
                    .column()
                    .gap(10)
                    .child(text(u8"no web engine here",
-                               type({.size = 22, .color = kInk})))
-                   .child(text(toU8(why), type({.size = 13, .color = kDim}))));
+                               weave::textStyle({.size = 22, .color = kInk})))
+                   .child(text(toU8(why), weave::textStyle({.size = 13, .color = kDim}))));
   }
 
  private:
   std::shared_ptr<scry::WebView> m_view;
 };
 
-SIGIL_SKETCH(WebPanelSketch, "Kit \xc2\xb7 API",
+SIGIL_SKETCH(WebPanelSketch, "Start & fixtures",
              "A live web page as a compose leaf, and Skia drawn back into "
              "the page")
