@@ -91,11 +91,4 @@ inline TextStyle textStyle(const Type& t) {
   return s;
 }
 
-/** The same call under a name that says nothing of what it builds;
- *  `textStyle` is the spelling. */
-[[deprecated("the same call is textStyle")]] inline TextStyle type(
-    const Type& t) {
-  return textStyle(t);
-}
-
 }  // namespace sigil::weave
