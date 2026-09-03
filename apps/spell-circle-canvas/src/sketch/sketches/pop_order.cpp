@@ -34,7 +34,9 @@
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
-#include <sigilcompose/typography/Type.h>
+#include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Specimen.h>
+#include <sigilweave/style/Type.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/pop/Points.h>
 #include <sigilgeometry/mesh/pop/Pop.h>
@@ -45,6 +47,7 @@
 #include <vector>
 
 namespace sketch = sigil::sketch;
+namespace weave = sigil::weave;
 
 using namespace sigil::compose;
 namespace mesh = sigil::geometry::mesh;
@@ -59,6 +62,8 @@ constexpr float kPanel = 340.0f;
 
 const SkColor4f kInk{0.90f, 0.93f, 0.97f, 1};
 const SkColor4f kDim{0.55f, 0.60f, 0.70f, 1};
+const SkColor4f kGround{0.055f, 0.06f, 0.085f, 1};
+const SkColor4f kRule{0.19f, 0.20f, 0.26f, 1};
 const SkColor4f kFrame{0.24f, 0.28f, 0.36f, 1};
 
 /** A CROWN: a closed ring in the XZ plane with a threefold vertical wave.
@@ -125,19 +130,26 @@ Element splat(mesh::Cloud cloud, float spriteSize) {
       .cache(Cache::None);
 }
 
+weave::TextStyle label(float size, SkColor4f color, float track = 0) {
+  return weave::textStyle({.size = size, .color = color, .track = track});
+}
+
+kit::Caption voice() {
+  return {.where = kit::Caption::Where::Split,
+          .label = label(13, kInk, 0.4f),
+          .note = label(11, kDim, 0.2f),
+          .gap = 5,
+          .noteMeasure = kPanel};
+}
+
 Element panel(const char* title, const char* note, Element inner) {
-  return box()
-      .width(kPanel)
-      .column()
-      .gap(5)
-      .child(text(toU8(title), type({.size = 13.0f, .color = kInk})))
-      .child(box()
-                 .width(kPanel)
-                 .height(kPanel)
-                 .clip()  // the projection is wider than the frame
-                 .stroke(stroke(1.0f, Fill::color(kFrame)))
-                 .child(std::move(inner)))
-      .child(text(toU8(note), type({.size = 11.0f, .color = kDim})));
+  return kit::cell(voice(), toU8(title), toU8(note),
+                   box()
+                       .width(kPanel)
+                       .height(kPanel)
+                       .clip()  // the projection is wider than the frame
+                       .stroke(stroke(1.0f, Fill::color(kFrame)))
+                       .child(std::move(inner)));
 }
 
 }  // namespace
@@ -146,9 +158,10 @@ struct PopOrder : sketch::Sketch {
   mesh::Cloud unsorted, sorted;
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(760, 470);
-    ctx.background({0.055f, 0.06f, 0.085f, 1});
-    ctx.captureAt(1.0);
+    ctx.canvas(760, 500);
+    ctx.background(kGround);
+    // Both clouds are cooked in setup; nothing reads the clock.
+    ctx.captureAt(0.05);
 
     const std::vector<glm::vec3> loop = crown(215, 190, 72);
 
@@ -170,29 +183,33 @@ struct PopOrder : sketch::Sketch {
     sorted = depthChain().order(kOrderAxis, kDescending).cloud();
 
     ctx.composer.render(
-        stack()
-            .child(text(toU8("geometry::pop \xc2\xb7 order() is a "
-                             "PERMUTATION, and the point sink draws in it"),
-                        type({.size = 15.0f, .color = kInk}))
-                       .left(30)
-                       .top(16))
-            .child(box()
-                       .row()
-                       .left(30)
-                       .top(50)
-                       .gap(20)
-                       .child(panel("no order() \xc2\xb7 WRONG",
-                                    "scatter order = painter order",
-                                    splat(unsorted, 34)))
-                       .child(panel("order({0,0,1}) \xc2\xb7 right",
-                                    "farthest first, one call",
-                                    splat(sorted, 34))))
-            .child(text(toU8("Sort is CPU-only and stated as a boundary: a "
-                             "permutation is not a per-point map, so "
-                             "SigilWorld declines a chain holding one"),
-                        type({.size = 11.0f, .color = kDim}))
-                       .left(30)
-                       .bottom(14)));
+        kit::sheet(
+            {.title = toU8("POP ORDER \xc2\xb7 order() is a PERMUTATION, "
+                           "and the point sink draws in it"),
+             .subtitle = toU8("colour is driven from P.z over the ring's own "
+                              "depth range, so colour IS depth and a "
+                              "mis-ordered sprite is a dark dot sitting on "
+                              "a bright one"),
+             .footer = toU8("Sort is CPU-only and stated as a boundary: a "
+                            "permutation is not a per-point map, so "
+                            "SigilWorld declines a chain holding one"),
+             .titleStyle = label(15, kInk, 2.0f),
+             .subtitleStyle = label(11, kDim, 0.6f),
+             .footerStyle = label(10.5f, kDim, 0.2f),
+             .marginX = 30,
+             .marginTop = 22,
+             .marginBottom = 16,
+             .ground = Fill::color(kGround),
+             .rule = Fill::color(kRule)},
+            kit::cells({.cells = {panel("no order() \xc2\xb7 WRONG",
+                                        "scatter order = painter order",
+                                        splat(unsorted, 34)),
+                                  panel("order({0,0,1}) \xc2\xb7 right",
+                                        "farthest first, one call",
+                                        splat(sorted, 34))},
+                        .gap = 20}))
+            .absolute()
+            .inset(0));
   }
 };
 
