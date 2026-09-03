@@ -82,7 +82,9 @@
 //   shapes::sector()     the 120 sub-wedges the engraved fan is built from
 //   lines::hatch()       their tone, rotated per sub-wedge into a fan
 //   kit::disc()         placement for every circle on the plate
-//   instancing::Pool     9,580 sand grains, ONE atlas stamp, Mode::Live
+//   instancing::Pool     9,580 sand grains, ONE atlas stamp, Mode::Live;
+//                        Pool::fly() flies every grain from its scatter to
+//                        its nodal line on its own start and duration
 //   bind()               one settle Output per figure, shaped three ways
 //   PathFormat::trim*    the bow's travelling contact arc
 //   field::grain / patterns::speckle  plate tone and foxing
@@ -432,13 +434,14 @@ struct ChladniTab1 : sketch::Sketch {
   double now = 0;
   std::array<float, 12> bowShake{};
 
-  struct Grain {
-    SkPoint from, to;
-    float rotFrom, rotTo;
-    float t0, dur, scale, alpha, phase;
-    int fig, frame;
-  };
-  std::vector<Grain> grains;
+  // The one thing about a grain that is not a flight: the phase of its
+  // shiver. Sand does not slide into a line, it hops there, and the hop
+  // depends on the clock and on the bow rather than on this grain's own
+  // progress.
+  std::vector<float> shiverPhase;
+  // Where each figure's grains begin, plus the end — so the bow's nudge is
+  // read once per figure instead of stored once per grain.
+  std::array<size_t, kFigures.size() + 1> figureFirst{};
   std::shared_ptr<instancing::Atlas> atlas;
   std::shared_ptr<instancing::Pool> pool;
 
@@ -455,10 +458,17 @@ struct ChladniTab1 : sketch::Sketch {
   // pool, one atlas stamp
 
   void seedGrains() {
-    grains.clear();
     pool = std::make_shared<instancing::Pool>();
+    size_t total = 0;
+    for (const FigSpec& f : kFigures) total += (size_t)f.grains;
+    pool->resize(total);
+    auto flights = pool->flights();
+    auto frames = pool->frames();
+    shiverPhase.assign(total, 0.0f);
+    size_t at = 0;
 
     for (size_t fi = 0; fi < kFigures.size(); ++fi) {
+      figureFirst[fi] = at;
       const FigSpec& f = kFigures[fi];
       const SkPoint c = centreOf(f);
       Xorshift rng(1787u + f.num * 61u);
@@ -491,14 +501,13 @@ struct ChladniTab1 : sketch::Sketch {
         }
       }
 
-      for (int g = 0; g < f.grains; ++g) {
-        Grain grain;
-        grain.fig = (int)fi;
+      for (int g = 0; g < f.grains; ++g, ++at) {
+        instancing::Pool::Flight grain;
         // scattered start: uniform over the disc
         const float sa = rng.range(0, 360.0f);
         const float sr = kR * 0.965f * std::sqrt(rng.next());
         grain.from = polar(c, sr, sa);
-        grain.rotFrom = rng.range(0, 2 * SK_FloatPI);
+        grain.rotateFrom = rng.range(0, 2 * SK_FloatPI);
 
         if (f.kind == Kind::Star) {
           const float half = kR * kTip;
@@ -508,9 +517,9 @@ struct ChladniTab1 : sketch::Sketch {
             if (starPath.contains(p.fX, p.fY)) break;
           }
           grain.to = {c.fX - half + p.fX, c.fY - half + p.fY};
-          grain.rotTo = rng.range(0, 2 * SK_FloatPI);
-          grain.frame = rng.next() < 0.55f ? 0 : 2;
-          grain.scale = rng.range(0.55f, 0.94f);
+          grain.rotateTo = rng.range(0, 2 * SK_FloatPI);
+          frames[at] = rng.next() < 0.55f ? 0 : 2;
+          grain.scaleFrom = grain.scaleTo = rng.range(0.55f, 0.94f);
         } else if (f.kind == Kind::Petals) {
           // the valleys BETWEEN the star's arms, density biased outward
           // the way the engraved fan is
@@ -523,10 +532,10 @@ struct ChladniTab1 : sketch::Sketch {
           }
           grain.to = {c.fX - kR + p.fX, c.fY - kR + p.fY};
           // the fan: every stroke points radially out of the centre
-          grain.rotTo = std::atan2(grain.to.fY - c.fY, grain.to.fX - c.fX) +
-                        rng.range(-0.09f, 0.09f);
-          grain.frame = 3;
-          grain.scale = rng.range(0.44f, 0.88f);
+          grain.rotateTo = std::atan2(grain.to.fY - c.fY, grain.to.fX - c.fX) +
+                           rng.range(-0.09f, 0.09f);
+          frames[at] = 3;
+          grain.scaleFrom = grain.scaleTo = rng.range(0.44f, 0.88f);
         } else {
           float pick = rng.next() * totalLen;
           size_t ci = 0;
@@ -540,22 +549,21 @@ struct ChladniTab1 : sketch::Sketch {
           const float off = (rng.next() + rng.next() - 1.0f) * 1.9f;
           grain.to = {c.fX - kR + pos.fX - tan.fY * off,
                       c.fY - kR + pos.fY + tan.fX * off};
-          grain.rotTo = std::atan2(tan.fY, tan.fX) + rng.range(-0.10f, 0.10f);
-          grain.frame = rng.next() < 0.7f ? 1 : 2;
-          grain.scale = rng.range(0.45f, 0.78f);
+          grain.rotateTo = std::atan2(tan.fY, tan.fX) + rng.range(-0.10f, 0.10f);
+          frames[at] = rng.next() < 0.7f ? 1 : 2;
+          grain.scaleFrom = grain.scaleTo = rng.range(0.45f, 0.78f);
         }
 
-        grain.t0 = bowAt + rng.range(0.0f, 0.24f);
-        grain.dur = (0.80f + rng.range(0.0f, 0.42f)) * speed;
-        grain.alpha = rng.range(0.62f, 1.0f);
-        grain.phase = rng.range(0, 6.28f);
-        grains.push_back(grain);
+        grain.start = bowAt + rng.range(0.0f, 0.24f);
+        grain.duration = (0.80f + rng.range(0.0f, 0.42f)) * speed;
+        // The grain's own ink weight rides the pool's opacity lane, so the
+        // tint stays free for the gate that fades the whole field in.
+        grain.alphaFrom = grain.alphaTo = rng.range(0.62f, 1.0f);
+        shiverPhase[at] = rng.range(0, 6.28f);
+        flights[at] = grain;
       }
     }
-
-    pool->resize(grains.size());
-    auto frames = pool->frames();
-    for (size_t i = 0; i < grains.size(); ++i) frames[i] = grains[i].frame;
+    figureFirst[kFigures.size()] = at;
   }
 
   // ------------------------------------------------------------------
@@ -825,9 +833,10 @@ struct ChladniTab1 : sketch::Sketch {
     seedGrains();
 
     // ---- the simulation ------------------------------------------------
-    // instancing::Pool has no per-instance tween, so one little timeline per
-    // grain (start, target, delay, duration, ease) is bookkept here and
-    // stepped by hand — which is why the pool has to stay Mode::Live.
+    // Every grain's trip is a Pool::Flight the pool steps itself; one bounce
+    // curve serves all 9,580 of them, because the variation between grains
+    // is in their start times and not in their curves. The pool stays
+    // Mode::Live: it is rewritten every frame.
     ctx.ticker.add([this](double dt) {
       now += dt;
       const float t = (float)now;
@@ -859,29 +868,32 @@ struct ChladniTab1 : sketch::Sketch {
         }
       }
 
+      // the flights, then the two motions that are not flights: the shiver,
+      // which reads the clock and the bow, and the gate that fades the whole
+      // field in at once.
+      pool->fly(t, settleEase);
+      const std::span<const instancing::Pool::Flight> flights = pool->flights();
       auto pos = pool->positions();
-      auto rot = pool->rotations();
-      auto scl = pool->scales();
       auto tint = pool->tints();
-      for (size_t i = 0; i < grains.size(); ++i) {
-        const Grain& g = grains[i];
-        float u = (t - g.t0) / g.dur;
-        float appear = 0.0f;
-        if (t >= tScatter) appear = std::min(1.0f, (t - tScatter) / 0.40f);
-        if (u < 0.0f) u = 0.0f;
-        const bool moving = u > 0.0f && u < 1.0f;
-        u = std::min(u, 1.0f);
-        const float e = settleEase ? settleEase(u) : u;
-        // sand does not slide, it hops: a decaying shiver across the walk,
-        // plus a nudge whenever the bow is on this figure's rim
-        const float amp = (1.0f - u) * (moving ? 5.6f : 1.5f) + bowShake[g.fig];
-        const float sx = std::sin(t * 21.0f + g.phase) * amp;
-        const float sy = std::cos(t * 17.0f + g.phase * 1.7f) * amp * 0.8f;
-        pos[i] = {g.from.fX + (g.to.fX - g.from.fX) * e + sx,
-                  g.from.fY + (g.to.fY - g.from.fY) * e + sy};
-        rot[i] = g.rotFrom + (g.rotTo - g.rotFrom) * e;
-        scl[i] = g.scale;
-        tint[i] = {1, 1, 1, appear * g.alpha};
+      const float appear =
+          t >= tScatter ? std::min(1.0f, (t - tScatter) / 0.40f) : 0.0f;
+      for (size_t fi = 0; fi < kFigures.size(); ++fi) {
+        const float nudge = bowShake[fi];
+        for (size_t i = figureFirst[fi]; i < figureFirst[fi + 1]; ++i) {
+          const instancing::Pool::Flight& f = flights[i];
+          const float u =
+              f.duration > 0.0f
+                  ? std::clamp((t - f.start) / f.duration, 0.0f, 1.0f)
+                  : 1.0f;
+          // sand does not slide, it hops: a decaying shiver across the walk,
+          // plus a nudge whenever the bow is on this figure's rim
+          const bool moving = u > 0.0f && u < 1.0f;
+          const float amp = (1.0f - u) * (moving ? 5.6f : 1.5f) + nudge;
+          const float ph = shiverPhase[i];
+          pos[i].offset(std::sin(t * 21.0f + ph) * amp,
+                        std::cos(t * 17.0f + ph * 1.7f) * amp * 0.8f);
+          tint[i] = {1, 1, 1, appear};
+        }
       }
       return true;
     });
