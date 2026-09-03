@@ -170,7 +170,7 @@
 //   driving the same 24 sticks through the Pool::sizes() lane beside
 //   the custom() path, shapes::parametric for the approximation-error
 //   plot, lines::hatch for the drafting section on the bump,
-//   patterns::grain on the floor, Material::glowUnit for the blast,
+//   patterns::grain on the floor, Paint::glowUnit for the blast,
 //   bind() with map/to/invert/clamp, slot()/renderSlot() for eight live
 //   numbers, staggerChildren + withFrom + ease::outBack for the chrome.
 //
@@ -187,15 +187,17 @@
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/brush/Hatches.h>
 #include <sigilcompose/brush/Lines.h>
-#include <sigilcompose/core/Material.h>
-#include <sigilcompose/core/Patterns.h>
-#include <sigilcompose/instances/Instances.h>
+#include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Frame.h>
-#include <sigilcompose/kit/Silhouettes.h>
-#include <sigilcompose/typography/TextFx.h>
-#include <sigilcompose/typography/Type.h>
+#include <sigilcompose/kit/Kinetic.h>
+#include <sigilcompose/typography/Typography.h>
+#include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilmaterial/field/Field.h>
+#include <sigilmaterial/skia/Paint.h>
+#include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>
+#include <sigilweave/style/Type.h>
 
 #include <algorithm>
 #include <array>
@@ -208,9 +210,15 @@
 #include <vector>
 
 namespace sketch = sigil::sketch;
+namespace field = sigil::material::field;
+namespace shapes = sigil::geometry::shapes;
+namespace weave = sigil::weave;
 
 using namespace sigil::compose;
+using namespace sigil::motion;
 using namespace std::chrono_literals;
+using sigil::material::skia::Paint;
+using sigil::weave::ports::pickTypeface;
 namespace ch = choreograph;
 
 namespace {
@@ -304,7 +312,7 @@ inline float len(SkPoint a) { return std::sqrt(dot(a, a)); }
 // Type
 
 sk_sp<SkTypeface> face(const char* family, SkFontStyle style) {
-  return sigil::compose::pickFace({family}, style);
+  return pickTypeface({family}, style);
 }
 sk_sp<SkTypeface> monoFace() {
   static sk_sp<SkTypeface> f = face("Menlo", SkFontStyle::Normal());
@@ -330,21 +338,21 @@ sk_sp<SkTypeface> heavyFace() {
   return f;
 }
 
-sigil::weave::TextStyle type(sk_sp<SkTypeface> tf, float size, SkColor4f color,
-                             float track = 0.0f) {
-  return sigil::compose::type(
+weave::TextStyle faced(sk_sp<SkTypeface> tf, float size, SkColor4f color,
+                       float track = 0.0f) {
+  return weave::textStyle(
       {.face = std::move(tf), .size = size, .color = color, .track = track});
 }
-sigil::weave::TextStyle mono(float size, SkColor4f c, float track = 0.0f) {
-  return type(monoFace(), size, c, track);
+weave::TextStyle mono(float size, SkColor4f c, float track = 0.0f) {
+  return faced(monoFace(), size, c, track);
 }
-sigil::weave::TextStyle monoB(float size, SkColor4f c, float track = 0.0f) {
-  return type(monoBoldFace(), size, c, track);
+weave::TextStyle monoB(float size, SkColor4f c, float track = 0.0f) {
+  return faced(monoBoldFace(), size, c, track);
 }
-sigil::weave::TextStyle ui(float size, SkColor4f c, float track = 0.0f) {
-  return type(uiFace(), size, c, track);
+weave::TextStyle ui(float size, SkColor4f c, float track = 0.0f) {
+  return faced(uiFace(), size, c, track);
 }
-Element t(const char* s, sigil::weave::TextStyle st) {
+Element t(const char* s, weave::TextStyle st) {
   return text(toU8(s), std::move(st));
 }
 
@@ -1126,7 +1134,7 @@ struct HitmanVerlet : sketch::Sketch {
                    // sibling box with .fill(material) and .blend() it would
                    // cost a whole extra node just to composite the grain.
                    .overlay(decorations::wash(
-                       patterns::grain(0.035f, 3, 11.0f, 0.5f),
+                       Paint::recipe(field::grain(0.035f, 3, 11.0f, 0.5f)),
                        SkBlendMode::kSoftLight, 0.6f)))
         .child(box()
                    .left(Dim(0))
@@ -1269,8 +1277,8 @@ struct HitmanVerlet : sketch::Sketch {
 
   Element blastFlash() {
     const SkPoint c = toStage(kBlast);
-    return kit::disc(c, 120.0f)
-        .fill(Material::glowUnit({0.5f, 0.5f}, 1.0f,
+    return kit::disc(SkPoint(c), 120.0f)
+        .fill(Paint::glowUnit({0.5f, 0.5f}, 1.0f,
                                  {{0.0f, hex(0xFFF3E2, 1.0f)},
                                   {0.35f, hex(0xFFC98A, 0.55f)},
                                   {1.0f, hex(0xC8402F, 0.0f)}}))
@@ -1932,7 +1940,7 @@ struct HitmanVerlet : sketch::Sketch {
                 .opacity(animate(from(0.0f).to(1.0f), {.duration = 260ms}))
                 .translateY(animate(from(8.0f).to(0.0f), {.duration = 260ms})))
         .child(
-            t("THE HITMAN RAGDOLL, 2000", type(heavyFace(), 42, kBone, -0.3f))
+            t("THE HITMAN RAGDOLL, 2000", faced(heavyFace(), 42, kBone, -0.3f))
                 .key("title")
                 .fx(std::move(rise)))
         .child(t("Thomas Jakobsen, IO Interactive \xe2\x80\x94 \"Advanced "
