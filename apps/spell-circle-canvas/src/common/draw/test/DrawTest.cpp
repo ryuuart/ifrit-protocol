@@ -623,6 +623,47 @@ TEST(Pen, TextIsShapedAndCentredByTheAlignment) {
   EXPECT_NEAR((box.top() + box.bottom()) / 2.0, 50.0, 6.0);
 }
 
+TEST(Pen, TheBoxIsTheExtentTheVerticalAlignmentDistributesOver) {
+  // One passage in a box deeper than it needs. The room left over is
+  // what the alignment places, and only the box says how much room that
+  // is — a distribution over an extent of nobody said has none to place
+  // and seats the middle and the foot where the top would be.
+  constexpr float kX = 4, kY = 4, kW = 92;
+  const auto ink = [](Constant vertical, float height) {
+    Paper paper(100, 140);
+    paper.begin();
+    paper.pen.textSize(12);
+    paper.pen.textAlign(LEFT, vertical);
+    paper.pen.text("one two three", kX, kY, kW, height);
+    paper.end();
+    const SkIRect box = paper.inked();
+    EXPECT_FALSE(box.isEmpty());
+    return box;
+  };
+  const SkIRect top = ink(TOP, 92);
+  const SkIRect middle = ink(CENTER, 92);
+  const SkIRect foot = ink(BOTTOM, 92);
+
+  // The passage is the same passage: only its seat moves.
+  EXPECT_NEAR(middle.height(), top.height(), 1);
+  EXPECT_NEAR(foot.height(), top.height(), 1);
+  EXPECT_EQ(middle.left(), top.left());
+
+  // HALF OF THE ROOM, AND ALL OF IT.
+  const int all = foot.top() - top.top();
+  const int half = middle.top() - top.top();
+  EXPECT_GT(all, 8) << "the box is deeper than the passage, so there is room";
+  EXPECT_NEAR(half * 2, all, 2);
+
+  // AND THE ROOM IS THE BOX'S. A box twenty pixels deeper leaves twenty
+  // more for the foot to take and none for the top, which stacks from
+  // the near edge whatever stands past the last line.
+  const SkIRect deeperFoot = ink(BOTTOM, 112);
+  const SkIRect deeperTop = ink(TOP, 112);
+  EXPECT_EQ(deeperFoot.top() - foot.top(), 20);
+  EXPECT_EQ(deeperTop.top(), top.top());
+}
+
 TEST(Pen, TextIsBlackUntilAFillIsSet) {
   Paper paper;
   paper.begin();

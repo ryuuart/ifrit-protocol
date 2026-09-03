@@ -206,7 +206,11 @@ beside the verbs, never a renamed one.
   family through the font context's manager, `textFont(sk_sp<SkTypeface>)`
   takes a face, and `textFont(weave::Type)` takes a whole type: size,
   tracking, condensation and variable axes at once. The fill colours the
-  glyphs whatever the type's own colour says.
+  glyphs whatever the type's own colour says. In the boxed form the BOX
+  IS THE EXTENT the vertical alignment distributes over, so CENTER seats
+  the passage on half the room it left over and BOTTOM on all of it; in
+  the unboxed form there is no room to distribute and the alignment
+  places the block against the point instead.
 * **`noise` is a field over core's mixer.** It has p5's shape — octaves
   at doubling frequency, a falloff between them, a cosine blend, a value
   in [0, 1) — but every lattice corner is core's `lattice` word rather

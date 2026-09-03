@@ -255,6 +255,12 @@ void Pen::text(std::string_view str, float x, float y, float w, float h) {
       m_style.textAlignY == CENTER   ? weave::FrameOptions::Distribute::kCenter
       : m_style.textAlignY == BOTTOM ? weave::FrameOptions::Distribute::kEnd
                                      : weave::FrameOptions::Distribute::kStart;
+  // THE BOX IS THE EXTENT. Distributing what the passage left over is a
+  // question about how deep the frame is, and the layout cannot see the
+  // geometry it was handed — so a distribution over an extent of zero
+  // has no room to place and returns at once, seating the middle and the
+  // foot exactly where the top would be. The pen was handed the depth.
+  options.frame.extent = box.height();
   const weave::ParagraphLayout layout =
       weave::layoutParagraph(*m_fonts, paragraph, flow, options);
   weave::PaintStyle over =
