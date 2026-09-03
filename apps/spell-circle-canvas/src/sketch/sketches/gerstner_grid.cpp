@@ -42,17 +42,28 @@
 //                steps to the next.
 //   kSweepSecs — one pass of the reading index down the field.
 
-#include <sigilcompose/core/Material.h>
-#include <sigilcompose/core/Patterns.h>
+#include <sigilcompose/core/Pattern.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/field/Field.h>
+#include <sigilmaterial/pattern/Patterns.h>
+#include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilweave/style/Type.h>
 
 #include <array>
 #include <cmath>
 #include <cstdio>
 #include <string>
+#include <utility>
 
 namespace sketch = sigil::sketch;
+
+namespace field = sigil::material::field;
+namespace motion = sigil::motion;
+namespace mskia = sigil::material::skia;
+namespace pattern = sigil::material::pattern;
+namespace weave = sigil::weave;
 
 using namespace sigil::compose;
 using sigil::compose::toU8;
@@ -142,6 +153,12 @@ inline constexpr int kBodyCount = (int)(sizeof(kBody) / sizeof(kBody[0]));
 }  // namespace gerstner
 
 struct GerstnerGrid final : sketch::Sketch {
+  // THE BAKE IS THE IDENTITY, so the two ruled fields are held here rather
+  // than minted inside describe(): the programme re-describes on every
+  // step, and a freshly constructed Pattern carries no bake, so a
+  // per-describe one would re-render its tile six times a loop.
+  Pattern unitRule;
+  Pattern emphasisRule;
   choreograph::Output<float> sweep{0};
   int config = 3;  // the four-column setting, Capital's default
   int shownConfig = -1;
@@ -158,6 +175,17 @@ struct GerstnerGrid final : sketch::Sketch {
     ctx.captureAt(1.5);
     Composer& composer = ctx.composer;
     sigil::motion::Ticker& ticker = ctx.ticker;
+    // The grid, in the blue a grid was drawn in: every unit ruled faintly
+    // both ways, and over it every second column line and every fifth
+    // baseline struck harder. Two tiles rather than ninety-three boxes.
+    const auto blue = [](float alpha) {
+      return sigil::material::Color{gerstner::kBlue.fR, gerstner::kBlue.fG,
+                                    gerstner::kBlue.fB, alpha};
+    };
+    unitRule = Pattern(pattern::gridLines(gerstner::kUnit, gerstner::kUnit,
+                                          0.5f, blue(0.07f)));
+    emphasisRule = Pattern(pattern::gridLines(
+        gerstner::kUnit * 2.0f, gerstner::kUnit * 5.0f, 0.5f, blue(0.16f)));
     sweep = 0;
     config = 3;
     shownConfig = -1;
@@ -199,21 +227,13 @@ struct GerstnerGrid final : sketch::Sketch {
    *  material reads rather than a loop the tree carries. */
   Element gridPlate() {
     namespace g = gerstner;
-    const auto blue = [](float alpha) {
-      return SkColor4f{g::kBlue.fR, g::kBlue.fG, g::kBlue.fB, alpha};
-    };
     return stack()
         .left(g::kFieldX)
         .top(g::kFieldY)
         .width(Dim(g::kFieldW))
         .height(Dim(g::kFieldH))
-        .child(box().inset(0).fill(
-            patterns::gridLines(g::kUnit, g::kUnit, 0.5f, blue(0.07f))
-                .material()))
-        .child(box().inset(0).fill(patterns::gridLines(g::kUnit * 2.0f,
-                                                       g::kUnit * 5.0f, 0.5f,
-                                                       blue(0.16f))
-                                       .material()));
+        .child(box().inset(0).fill(unitRule.material()))
+        .child(box().inset(0).fill(emphasisRule.material()));
   }
 
   /** The configuration: n column bands, each entering on a stagger. */
@@ -241,11 +261,11 @@ struct GerstnerGrid final : sketch::Sketch {
               .top(0)
               .width(Dim(colW))
               .height(Dim(g::kFieldH))
-              .opacity(animate(from(0.0f).to(1.0f), {320ms, &ch::easeOutQuad}))
-              .translateY(
-                  animate(from(9.0f).to(0.0f), {420ms, &ch::easeOutQuint}))
-              .fill(
-                  Material::solid({g::kRed.fR, g::kRed.fG, g::kRed.fB, 0.045f}))
+              .opacity(animate(motion::from(0.0f).to(1.0f),
+                               {320ms, &ch::easeOutQuad}))
+              .translateY(animate(motion::from(9.0f).to(0.0f),
+                                  {420ms, &ch::easeOutQuint}))
+              .fill(Fill::color({g::kRed.fR, g::kRed.fG, g::kRed.fB, 0.045f}))
               // The field's foot is the page's foot: the copy that does not
               // fit is cut there, as it is in a magazine.
               .clip();
@@ -255,12 +275,13 @@ struct GerstnerGrid final : sketch::Sketch {
       Element copy =
           box().left(0).top(g::kUnit * 5).right(0).column().gap(g::kUnit);
       for (int b = 0; b < c.blocks; ++b)
-        copy.child(text(toU8(g::kBody[(i + b) % g::kBodyCount]),
-                        type({.size = c.size,
-                              .color = b % 2 == 0 ? g::kInk : g::kInkSoft,
-                              .track = 0,
-                              .weight = 0}))
-                       .width(Dim(colW)));
+        copy.child(
+            text(toU8(g::kBody[(i + b) % g::kBodyCount]),
+                 weave::textStyle({.size = c.size,
+                                   .color = b % 2 == 0 ? g::kInk : g::kInkSoft,
+                                   .track = 0,
+                                   .weight = 0}))
+                .width(Dim(colW)));
       band.child(std::move(copy));
       // a column rule at the head, the way Capital marked its columns
       band.child(box()
@@ -268,13 +289,13 @@ struct GerstnerGrid final : sketch::Sketch {
                      .top(g::kUnit * 3.4f)
                      .width(Dim(colW))
                      .height(Dim(1.4f))
-                     .fill(Material::solid(g::kInk)));
+                     .fill(Fill::color(g::kInk)));
       char label[24];
       std::snprintf(label, sizeof(label), "%02d", i + 1);
-      band.child(text(toU8(label), type({.size = 10,
-                                         .color = g::kRed,
-                                         .track = 1.6f,
-                                         .weight = 620}))
+      band.child(text(toU8(label), weave::textStyle({.size = 10,
+                                                     .color = g::kRed,
+                                                     .track = 1.6f,
+                                                     .weight = 620}))
                      .left(0)
                      .top(g::kUnit * 1.7f));
       bands.child(std::move(band));
@@ -296,23 +317,25 @@ struct GerstnerGrid final : sketch::Sketch {
         .column()
         .left(g::kFieldX)
         .top(38)
-        .child(box()
-                   .row()
-                   .alignItems(Align::End)
-                   .child(text(toU8("PROGRAMME"), type({.size = 30,
-                                                        .color = g::kInk,
-                                                        .track = 3.2f,
-                                                        .weight = 680})))
-                   .child(text(toU8("58"), type({.size = 30,
-                                                 .color = g::kRed,
-                                                 .track = 1.0f,
-                                                 .weight = 680}))
-                              .margin(14, 0, 0, 0))
-                   .child(text(toU8(count), type({.size = 11,
-                                                  .color = g::kInkSoft,
-                                                  .track = 3.0f,
-                                                  .weight = 600}))
-                              .margin(18, 0, 0, 6)));
+        .child(
+            box()
+                .row()
+                .alignItems(Align::End)
+                .child(
+                    text(toU8("PROGRAMME"), weave::textStyle({.size = 30,
+                                                              .color = g::kInk,
+                                                              .track = 3.2f,
+                                                              .weight = 680})))
+                .child(text(toU8("58"), weave::textStyle({.size = 30,
+                                                          .color = g::kRed,
+                                                          .track = 1.0f,
+                                                          .weight = 680}))
+                           .margin(14, 0, 0, 0))
+                .child(text(toU8(count), weave::textStyle({.size = 11,
+                                                           .color = g::kInkSoft,
+                                                           .track = 3.0f,
+                                                           .weight = 600}))
+                           .margin(18, 0, 0, 6)));
   }
 
   /** The arithmetic, printed where a caption goes. */
@@ -321,22 +344,23 @@ struct GerstnerGrid final : sketch::Sketch {
     namespace ch = choreograph;
     using namespace std::chrono_literals;
     const g::Config& c = g::kConfigs[config];
-    Element row = box()
-                      .key("sum")
-                      .row()
-                      .alignItems(Align::Center)
-                      .gap(10)
-                      .left(g::kFieldX)
-                      .top(g::kFieldY + g::kFieldH + 16)
-                      .opacity(animate(from(0.0f).to(1.0f), {300ms}))
-                      .child(text(toU8("58 ="), type({.size = 13,
-                                                      .color = g::kInkSoft,
-                                                      .track = 1.2f,
-                                                      .weight = 600})))
-                      .child(text(toU8(c.arithmetic), type({.size = 15,
-                                                            .color = g::kInk,
-                                                            .track = 0.8f,
-                                                            .weight = 640})));
+    Element row =
+        box()
+            .key("sum")
+            .row()
+            .alignItems(Align::Center)
+            .gap(10)
+            .left(g::kFieldX)
+            .top(g::kFieldY + g::kFieldH + 16)
+            .opacity(animate(motion::from(0.0f).to(1.0f), {300ms}))
+            .child(text(toU8("58 ="), weave::textStyle({.size = 13,
+                                                        .color = g::kInkSoft,
+                                                        .track = 1.2f,
+                                                        .weight = 600})))
+            .child(text(toU8(c.arithmetic), weave::textStyle({.size = 15,
+                                                              .color = g::kInk,
+                                                              .track = 0.8f,
+                                                              .weight = 640})));
     // the ladder of all six, with the live one marked
     Element ladder = box()
                          .row()
@@ -354,22 +378,22 @@ struct GerstnerGrid final : sketch::Sketch {
               .height(Dim(22.0f))
               .alignItems(Align::Center)
               .justify(Justify::Center)
-              .fill(Material::solid(live ? g::kRed : SkColor4f{0, 0, 0, 0}))
+              .fill(Fill::color(live ? g::kRed : SkColor4f{0, 0, 0, 0}))
               .foreground(
                   stroke(1.0f, Fill::color(live ? g::kRed : g::kInkSoft)))
-              .child(
-                  text(toU8(n), type({.size = 12,
-                                      .color = live ? g::kPaper : g::kInkSoft,
-                                      .track = 0.6f,
-                                      .weight = 620}))));
+              .child(text(toU8(n), weave::textStyle(
+                                       {.size = 12,
+                                        .color = live ? g::kPaper : g::kInkSoft,
+                                        .track = 0.6f,
+                                        .weight = 620}))));
     }
     return stack().inset(0).child(std::move(row)).child(std::move(ladder));
   }
 
   Element describe() {
     namespace g = gerstner;
-    auto root = stack().fill(Material::linear(
-        {0, 0}, {0, g::kH}, {{0.0f, g::kPaper}, {1.0f, g::kPaperLo}}));
+    auto root = stack().fill(
+        linearGradient({0, 0}, {0, g::kH}, {g::kPaper, g::kPaperLo}));
 
     // Paper tooth: a full-canvas fractal noise that never changes. The
     // library will not bake through an opacity and a blend — it would
@@ -377,7 +401,7 @@ struct GerstnerGrid final : sketch::Sketch {
     // three octaves are evaluated once instead of once a frame.
     root.child(box()
                    .inset(0)
-                   .fill(patterns::noise(0.9f, 3, 5.0f))
+                   .fill(mskia::Paint::recipe(field::noise(0.9f, 3, 5.0f)))
                    .opacity(0.05f)
                    .blend(SkBlendMode::kMultiply)
                    .cache(Cache::Texture));
@@ -393,24 +417,26 @@ struct GerstnerGrid final : sketch::Sketch {
     // defect rather than as an instrument.
     root.child(
         text(toU8("READING INDEX"),
-             type({.size = 7, .color = g::kRed, .track = 0.6f, .weight = 620}))
+             weave::textStyle(
+                 {.size = 7, .color = g::kRed, .track = 0.6f, .weight = 620}))
             .left(g::kFieldX + g::kFieldW + 6)
             .top(-4)
             .translateY(&sweep)
             .zIndex(6));
-    root.child(box()
-                   .left(g::kFieldX - 22)
-                   .width(Dim(g::kFieldW + 44))
-                   .height(Dim(1.0f))
-                   .top(0)
-                   .translateY(&sweep)
-                   .fill(Material::linear(
-                       {0, 0}, {g::kFieldW + 44, 0},
-                       {{0.0f, {g::kRed.fR, g::kRed.fG, g::kRed.fB, 0.0f}},
-                        {0.12f, {g::kRed.fR, g::kRed.fG, g::kRed.fB, 0.55f}},
-                        {0.88f, {g::kRed.fR, g::kRed.fG, g::kRed.fB, 0.55f}},
-                        {1.0f, {g::kRed.fR, g::kRed.fG, g::kRed.fB, 0.0f}}}))
-                   .zIndex(6));
+    root.child(
+        box()
+            .left(g::kFieldX - 22)
+            .width(Dim(g::kFieldW + 44))
+            .height(Dim(1.0f))
+            .top(0)
+            .translateY(&sweep)
+            .fill(linearGradient({0, 0}, {g::kFieldW + 44, 0},
+                                 {{g::kRed.fR, g::kRed.fG, g::kRed.fB, 0.0f},
+                                  {g::kRed.fR, g::kRed.fG, g::kRed.fB, 0.55f},
+                                  {g::kRed.fR, g::kRed.fG, g::kRed.fB, 0.55f},
+                                  {g::kRed.fR, g::kRed.fG, g::kRed.fB, 0.0f}},
+                                 {0.0f, 0.12f, 0.88f, 1.0f}))
+            .zIndex(6));
 
     root.child(
         box()
@@ -419,12 +445,13 @@ struct GerstnerGrid final : sketch::Sketch {
             .bottom(26)
             .child(text(toU8("KARL GERSTNER \xc2\xb7 CAPITAL "
                              "\xc2\xb7 1962"),
-                        type({.size = 10,
-                              .color = g::kInkSoft,
-                              .track = 2.6f,
-                              .weight = 600})))
+                        weave::textStyle({.size = 10,
+                                          .color = g::kInkSoft,
+                                          .track = 2.6f,
+                                          .weight = 600})))
             .child(text(toU8("the mobile grid, run"),
-                        type({.size = 10, .color = g::kInkSoft, .track = 1.2f}))
+                        weave::textStyle(
+                            {.size = 10, .color = g::kInkSoft, .track = 1.2f}))
                        .margin(0, 3, 0, 0)));
     return root;
   }
@@ -432,5 +459,5 @@ struct GerstnerGrid final : sketch::Sketch {
 
 }  // namespace
 
-SIGIL_SKETCH_AS(GerstnerGrid, "gerstner grid", "Catalog \xc2\xb7 Type & grid",
+SIGIL_SKETCH_AS(GerstnerGrid, "gerstner grid", "Specimen",
                 "Capital 1962 \xe2\x80\x94 the mobile grid, run")
