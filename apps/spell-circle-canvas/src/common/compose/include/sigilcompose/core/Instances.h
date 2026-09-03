@@ -14,7 +14,10 @@
  *    you hold assets; it outlives any one describe.
  *  - The POOL is yours: plain parallel arrays (position / rotation / uniform
  *    scale / tint / frame). Mutate it directly, from a ticker, or by copying
- *    out of an ECS — no registry type crosses this seam.
+ *    out of an ECS — no registry type crosses this seam. It can also carry
+ *    one FLIGHT per instance — from, to, start, duration — and step them
+ *    all with `Pool::fly`, which is the entrance a field of thousands
+ *    otherwise keeps as a shadow array of little timelines.
  *  - Stamping is one `skia::draw::drawSpriteAtlas` call with RSXform semantics:
  *    rotation, uniform scale and translation, plus two opt-in lanes —
  *    `sizes()` for per-instance NON-UNIFORM scale and `texWindows()` for a
@@ -50,6 +53,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <span>
 #include <vector>
@@ -113,6 +117,52 @@ class Pool {
   std::span<SkSize> sizes();
   bool hasSizes() const { return m_sizes.size() == m_positions.size(); }
 
+  /** ONE INSTANCE'S FLIGHT: where it starts, where it lands, and when it
+   *  makes the trip — the timeline a pool otherwise has to keep beside
+   *  itself, one little struct per sprite, stepped by hand.
+   *
+   *  `start` and `duration` are seconds on whatever clock the caller
+   *  steps `fly()` with; they are per instance because the STAGGER is the
+   *  point. A schedule (`motion::Spread`, `motion::Cascade`) divides one
+   *  progress between N units and is the right thing when the units are
+   *  a run; these are the times themselves, which is what a field of
+   *  thousands seeded from a distribution actually has. */
+  struct Flight {
+    SkPoint from{0, 0}, to{0, 0};
+    float rotateFrom = 0.0f, rotateTo = 0.0f;
+    float scaleFrom = 1.0f, scaleTo = 1.0f;
+    float alphaFrom = 1.0f, alphaTo = 1.0f;
+    float start = 0.0f;     ///< seconds; before it, the instance is `from`
+    float duration = 0.0f;  ///< 0 arrives at `start` and holds
+    bool operator==(const Flight&) const = default;
+  };
+
+  /** Per-instance FLIGHT, opt-in like `sizes()`. A pool that never asks
+   *  for it costs nothing and stamps exactly as before. */
+  std::span<Flight> flights();
+  bool hasFlights() const { return m_flights.size() == m_positions.size(); }
+  std::span<const Flight> flights() const { return m_flights; }
+
+  /** STEP EVERY FLIGHT to @p seconds, writing the position, rotation,
+   *  scale and opacity lanes the stamp reads, and publishing the edit.
+   *
+   *  @p ease shapes each instance's own 0→1, so one curve serves the
+   *  whole field — which is what a field wants: the variation between
+   *  sprites is in their times, not in their curves.
+   *
+   *  It is on the pool rather than in the kit's placers because it is not
+   *  an arrangement. A placer says WHERE the instances of a grid or a
+   *  ring go; this says WHEN each of them gets to where it is already
+   *  going, and it reads state the pool itself holds. A pool with no
+   *  flight lane is left alone.
+   *
+   *  Not every motion is a flight, and the ones that are not stay the
+   *  caller's: a per-frame shiver, a gate that fades a whole field at
+   *  once, anything whose value depends on something other than this
+   *  instance's own progress. Step those after this call, over the lanes
+   *  it wrote. */
+  void fly(float seconds, const std::function<float(float)>& ease = {});
+
   /** Per-instance OPACITY, opt-in like sizes(), multiplied into the tint's
    *  alpha at stamp time. It composes with the tint rather than replacing
    *  it, so an authored colour stays authored and a fade rewrites one
@@ -150,6 +200,7 @@ class Pool {
   std::vector<SkSize> m_sizes;       // empty unless sizes() was asked for
   std::vector<float> m_alphas;       // empty unless alphas() was asked for
   std::vector<SkRect> m_texWindows;  // empty unless texWindows() was asked for
+  std::vector<Flight> m_flights;     // empty unless flights() was asked for
   uint64_t m_revision = 0;
 };
 

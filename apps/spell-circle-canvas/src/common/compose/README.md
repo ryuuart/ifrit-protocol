@@ -454,6 +454,24 @@ sound model; nothing below them changes kernel semantics.
   leaf that stamps the pool in one draw; and `instancing::pick`, the
   inverse of the stamp. The fillers that arrange a pool are the kit's
   (`kit/Placers.h`).
+
+  A pool can also carry ONE FLIGHT PER INSTANCE — `Pool::Flight`, an
+  opt-in lane like `sizes()` and `alphas()`, holding where a sprite starts
+  and lands in position, rotation, scale and opacity, and the second it
+  leaves and how long it takes. `Pool::fly(seconds, ease)` steps them all
+  and writes the lanes the stamp reads. The times are per instance because
+  the STAGGER is what a field of thousands is: `motion::Spread` and
+  `motion::Cascade` divide one progress between N units and are the right
+  thing when the units are a run, while a field seeded from a distribution
+  has its times already. One ease serves the whole pool, since the
+  variation between sprites belongs in their times and not in their
+  curves. It sits on the pool rather than among the placers because it is
+  not an arrangement: a placer says WHERE the instances of a grid or a
+  ring go, this says when each gets to where it is already going, and it
+  reads state the pool itself holds. Motion that is not a flight stays the
+  caller's — a per-frame shiver, a gate that fades a whole field at once,
+  anything whose value depends on something besides this instance's own
+  progress — and steps after `fly()`, over the lanes it wrote.
 - `core/Derive.h` — `connector`, `rail`, `Anchor`, `band`, `bandPointAt`,
   and the `derive::` namespace that gathers the family.
 - `core/Composer.h` — `Composer`, and `TextSettling`, what

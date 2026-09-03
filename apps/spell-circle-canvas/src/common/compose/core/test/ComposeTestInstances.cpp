@@ -398,3 +398,87 @@ TEST(ComposeR1Pool, CommitPublishesABulkEdit) {
   pool.commit();
   EXPECT_NE(pool.revision(), committed) << "each publish is its own revision";
 }
+
+TEST(ComposeR1Pool, AFlightLaneCarriesTheEntranceThePoolUsedToShadow) {
+  using namespace sigil::compose::instancing;
+  Pool pool;
+  pool.add({0, 0});
+  pool.add({0, 0});
+
+  // Two instances leaving at different times — the stagger IS the field,
+  // which is why the times are per instance rather than one schedule.
+  {
+    std::span<Pool::Flight> flights = pool.flights();
+    flights[0] = {.from = {0, 0},
+                  .to = {100, 0},
+                  .alphaFrom = 0.0f,
+                  .alphaTo = 1.0f,
+                  .start = 0.0f,
+                  .duration = 1.0f};
+    flights[1] = {.from = {0, 0},
+                  .to = {100, 0},
+                  .rotateFrom = 0.0f,
+                  .rotateTo = 2.0f,
+                  .start = 1.0f,
+                  .duration = 1.0f};
+  }
+  ASSERT_TRUE(pool.hasFlights());
+
+  pool.fly(0.5f);
+  EXPECT_FLOAT_EQ(pool.positions()[0].fX, 50.0f);
+  EXPECT_FLOAT_EQ(pool.alphas()[0], 0.5f) << "the opacity lane flies too";
+  EXPECT_FLOAT_EQ(pool.positions()[1].fX, 0.0f) << "not left yet";
+  EXPECT_FLOAT_EQ(pool.rotations()[1], 0.0f);
+
+  pool.fly(1.5f);
+  EXPECT_FLOAT_EQ(pool.positions()[0].fX, 100.0f) << "landed, and holds";
+  EXPECT_FLOAT_EQ(pool.positions()[1].fX, 50.0f);
+  EXPECT_FLOAT_EQ(pool.rotations()[1], 1.0f);
+
+  // One curve for the whole field: the variation between sprites is in
+  // their times, not in their curves.
+  pool.fly(0.5f, [](float u) { return u * u; });
+  EXPECT_FLOAT_EQ(pool.positions()[0].fX, 25.0f);
+
+  // A step publishes, or a Mode::Data leaf would replay its old picture.
+  const uint64_t before = pool.revision();
+  pool.fly(0.75f);
+  EXPECT_NE(pool.revision(), before);
+}
+
+TEST(ComposeR1Pool, AFlightMaterialisesAtRestAndKeepsStepWithTheLanes) {
+  using namespace sigil::compose::instancing;
+  Pool pool;
+  pool.add({10, 20}, 0, 0.5f, 2.0f);
+  // Asking for the lane must not move anything: an instance whose flight
+  // was never filled in stays exactly where it was put.
+  (void)pool.flights();
+  pool.fly(99.0f);
+  EXPECT_FLOAT_EQ(pool.positions()[0].fX, 10.0f);
+  EXPECT_FLOAT_EQ(pool.rotations()[0], 0.5f);
+  EXPECT_FLOAT_EQ(pool.scales()[0], 2.0f);
+
+  // …and the lane keeps step with the pool through add and resize, or a
+  // length test would switch it off and a re-fill would apply a previous
+  // generation's flights.
+  pool.add({30, 40});
+  EXPECT_TRUE(pool.hasFlights());
+  pool.resize(5);
+  EXPECT_TRUE(pool.hasFlights());
+  pool.fly(0.0f);
+  EXPECT_FLOAT_EQ(pool.positions()[1].fX, 30.0f) << "added at rest";
+
+  // A zero duration is "appears then", not a division by zero.
+  std::span<Pool::Flight> flights = pool.flights();
+  flights[0] = {.from = {0, 0}, .to = {80, 0}, .start = 2.0f};
+  pool.fly(1.9f);
+  EXPECT_FLOAT_EQ(pool.positions()[0].fX, 0.0f);
+  pool.fly(2.0f);
+  EXPECT_FLOAT_EQ(pool.positions()[0].fX, 80.0f);
+
+  // clear() drops the lane with its generation, so the next fill starts
+  // without one rather than lining up again against old flights.
+  pool.clear();
+  pool.add({7, 7});
+  EXPECT_FALSE(pool.hasFlights());
+}

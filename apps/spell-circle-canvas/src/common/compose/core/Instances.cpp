@@ -11,6 +11,7 @@
 #include <sigilcompose/core/Instances.h>
 #include <sigilcompose/core/Measure.h>
 
+#include <algorithm>
 #include <cmath>
 
 namespace sigil::compose::instancing {
@@ -30,6 +31,12 @@ size_t Pool::add(SkPoint position, int frame, float rotateRadians, float scale,
   if (!m_sizes.empty()) m_sizes.push_back({1.0f, 1.0f});
   if (!m_alphas.empty()) m_alphas.push_back(1.0f);
   if (!m_texWindows.empty()) m_texWindows.push_back(SkRect::MakeWH(1.0f, 1.0f));
+  if (!m_flights.empty()) m_flights.push_back({.from = position,
+                                               .to = position,
+                                               .rotateFrom = rotateRadians,
+                                               .rotateTo = rotateRadians,
+                                               .scaleFrom = scale,
+                                               .scaleTo = scale});
   ++m_revision;
   return m_positions.size() - 1;
 }
@@ -43,6 +50,7 @@ void Pool::clear() {
   m_sizes.clear();
   m_alphas.clear();
   m_texWindows.clear();
+  m_flights.clear();
   ++m_revision;
 }
 
@@ -55,6 +63,7 @@ void Pool::resize(size_t n) {
   if (!m_sizes.empty()) m_sizes.resize(n, {1.0f, 1.0f});
   if (!m_alphas.empty()) m_alphas.resize(n, 1.0f);
   if (!m_texWindows.empty()) m_texWindows.resize(n, SkRect::MakeWH(1.0f, 1.0f));
+  if (!m_flights.empty()) m_flights.resize(n, {});
   ++m_revision;
 }
 
@@ -74,6 +83,46 @@ std::span<float> Pool::alphas() {
   if (m_alphas.size() != m_positions.size())
     m_alphas.resize(m_positions.size(), 1.0f);
   return m_alphas;
+}
+
+std::span<Pool::Flight> Pool::flights() {
+  if (m_flights.size() != m_positions.size()) {
+    // A flight materialises AT REST where the instance already is, so a
+    // pool that asks for the lane and fills only some of it does not
+    // teleport the rest to the origin on the first step.
+    m_flights.resize(m_positions.size());
+    for (size_t i = 0; i < m_flights.size(); ++i)
+      m_flights[i] = {.from = m_positions[i],
+                      .to = m_positions[i],
+                      .rotateFrom = m_rotations[i],
+                      .rotateTo = m_rotations[i],
+                      .scaleFrom = m_scales[i],
+                      .scaleTo = m_scales[i]};
+  }
+  return m_flights;
+}
+
+void Pool::fly(float seconds, const std::function<float(float)>& ease) {
+  if (!hasFlights()) return;
+  std::span<float> alpha = alphas();
+  for (size_t i = 0; i < m_flights.size(); ++i) {
+    const Flight& f = m_flights[i];
+    // A zero duration arrives AT `start` rather than never: it is the
+    // spelling of "appears then", and dividing by it would be the
+    // spelling of a NaN that deletes the sprite.
+    float u = 1.0f;
+    if (seconds < f.start)
+      u = 0.0f;
+    else if (f.duration > 0.0f)
+      u = std::min((seconds - f.start) / f.duration, 1.0f);
+    const float e = ease ? ease(u) : u;
+    m_positions[i] = {f.from.fX + (f.to.fX - f.from.fX) * e,
+                      f.from.fY + (f.to.fY - f.from.fY) * e};
+    m_rotations[i] = f.rotateFrom + (f.rotateTo - f.rotateFrom) * e;
+    m_scales[i] = f.scaleFrom + (f.scaleTo - f.scaleFrom) * e;
+    alpha[i] = f.alphaFrom + (f.alphaTo - f.alphaFrom) * e;
+  }
+  ++m_revision;
 }
 
 int Atlas::cell(Element tree, SkSize logicalSize) {
