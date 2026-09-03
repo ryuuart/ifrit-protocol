@@ -121,6 +121,11 @@ target_link_libraries(SigilSketches PUBLIC
   SigilWorldElement SigilWorldFrame SigilWorldScene SigilWorldKit
   SigilCoreCompute SigilImage SigilMotion SigilLoader
   ${SIGIL_SKETCH_OPTIONAL_LIBRARIES})
+# This directory is on the include path for one reason: a module under
+# shared/ is spelled <shared/Name.h>, so the include names the layer.
+# PUBLIC, because the flags a hot-reloaded sketch compiles with are
+# lifted from this target's compile line — the same surface, once.
+target_include_directories(SigilSketches PUBLIC ${CMAKE_CURRENT_LIST_DIR})
 target_compile_definitions(SigilSketches PUBLIC
   SIGIL_SKETCH_ASSET_DIR="${SIGIL_SKETCH_ASSET_DIR}"
   SIGIL_SKETCH_DIR="${SIGIL_SKETCH_DIR}"
