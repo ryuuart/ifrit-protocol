@@ -149,10 +149,11 @@ struct KineticCard final : sketch::Sketch {
     ctx.background(kGround);
     // MID-CASCADE. The master maps onto each track's OWN span, so one
     // fraction of the period is the same fraction of every schedule
-    // however many units a word has. At 0.22 the leading letters are
-    // landing while the trailing ones have not opened, which is the
-    // ladder a meter exists to show.
-    ctx.captureAt(kPeriod * 0.22);
+    // however many letters a word has. At half way the head of every word
+    // has landed and its tail is still in flight — the ladder a meter
+    // exists to show, and late enough that each word is legible as the
+    // word it is.
+    ctx.captureAt(kPeriod * 0.5);
     phase = 0;
     ctx.ticker.add([this, t = 0.0](double dt) mutable {
       t += dt;
