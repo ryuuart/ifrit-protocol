@@ -97,8 +97,10 @@
 //   each is:
 //     * the field is the pen's. 8,000 streaks per SkVertices list, six
 //       triangles each with a colour ramp across the cross-section,
-//       issued through `pen.canvas()` because light ADDS and CLAMPS
-//       [R83 §2.5] and the pen has no blend mode of its own. The
+//       issued through `pen.canvas()` because an SkVertices list has no
+//       pen verb, wearing the pen's own paint under `blendMode(ADD)` -
+//       light ADDS and CLAMPS [R83 §2.5] - inside a `clip()` of the
+//       stage. The
 //       magnified motion-blur callout beside it is the same quad drawn
 //       in the pen's own words - `beginShape(TRIANGLE_STRIP)` with a
 //       `fill()` between the vertices, so the corners either side of a
@@ -573,7 +575,7 @@ struct GenesisFire final : sketch::DrawSketch {
   // 1/50 s shutter at 24 fps is half the inter-frame motion — six
   // vertices wide so the cross-section falls off (drawVertices does not
   // antialias its own edges, so the falloff lives in the vertex colours).
-  // kPlus on the paint is the whole colour model: light ADDS and CLAMPS.
+  // ADD is the whole colour model: light ADDS and the buffer CLAMPS.
 
   void buildStreaks(const std::vector<Particle>& v,
                     std::vector<sk_sp<SkVertices>>& out) {
@@ -649,26 +651,27 @@ struct GenesisFire final : sketch::DrawSketch {
     }
   }
 
-  /** The additive pass, through the pen's canvas. `light ADDS and the
-   *  buffer CLAMPS` is a BLEND MODE, and a pen has no verb for one —
-   *  `pen.canvas()` is the door the library names for exactly this, and
-   *  what goes through it lands in the pen's own space and in the order
-   *  the call was made. The fade at either end of the loop is a layer
-   *  rather than a per-vertex multiply, so the streaks keep the colours
-   *  the simulation gave them. */
+  /** The additive pass, through the pen's canvas. A streak list is an
+   *  `SkVertices` and no pen verb takes one, so it goes through
+   *  `pen.canvas()` — the door the library names for another library's
+   *  drawing — WEARING THE PEN'S OWN PAINT: `blendMode(ADD)` stands on
+   *  the caller's push, `fillPaint()` hands it over, and light adds where
+   *  every other verb in this frame would have added too. What goes
+   *  through the door lands in the pen's own space and in the order the
+   *  call was made. The fade at either end of the loop is a layer rather
+   *  than a per-vertex multiply, so the streaks keep the colours the
+   *  simulation gave them. */
   static void paintField(Pen& pen, const std::vector<sk_sp<SkVertices>>& chunks,
                          float alpha) {
     SkCanvas* c = pen.canvas();
-    if (!c || chunks.empty() || alpha <= 0.001f) return;
+    const SkPaint* style = pen.fillPaint();
+    if (!c || !style || chunks.empty() || alpha <= 0.001f) return;
     const bool layer = alpha < 0.999f;
     if (layer) c->saveLayerAlphaf(nullptr, alpha);
-    SkPaint p;
-    p.setAntiAlias(true);
-    p.setBlendMode(SkBlendMode::kPlus);  // light adds; the buffer clamps
     for (const sk_sp<SkVertices>& v : chunks)
       if (v)
-        c->drawVertices(v, SkBlendMode::kDst, p);  // no shader -> vertex
-    if (layer) c->restore();                       // colour is the source
+        c->drawVertices(v, SkBlendMode::kDst, *style);  // no shader ->
+    if (layer) c->restore();  // vertex colour is the source
   }
 
   /** The bench pool: ONE pool, read by two instances() leaves at two
@@ -1607,14 +1610,19 @@ struct GenesisFire final : sketch::DrawSketch {
       const float t = loopU.value() * 10.0f;
       const float a = std::clamp(t / 0.30f, 0.0f, 1.0f) *
                       std::clamp((9.55f - t) / 0.5f, 0.0f, 1.0f);
-      SkCanvas* c = pen.canvas();
-      c->save();
-      c->clipRect(stageBox);  // the stage clips; the pen has no clip verb
+      // The stage is the mask and ADD is the colour model, both the
+      // pen's and both held by this push: the field is drawn BETWEEN two
+      // guests, into the box the stage declares.
       pen.push();
+      pen.clip([&] {
+        pen.rect(stageBox.x(), stageBox.y(), stageBox.width(),
+                 stageBox.height());
+      });
+      pen.blendMode(sigil::draw::ADD);
+      pen.fill(255);  // the vertices carry the colour; this carries none
       pen.translate(kStageX, kBodyY);
       paintField(pen, fieldChunks, a);
       pen.pop();
-      c->restore();
     }
     pen.element(aboveEl, stageBox);
     blurCallout(pen, kStageX + 24, kBodyY + kStageH - 24 - 142, 268, 142,
@@ -1646,14 +1654,13 @@ struct GenesisFire final : sketch::DrawSketch {
     {
       const float cellX = kSideX + 12 + 2 * (130 + 15);
       const float cellY = panelTop(3) + 12 + 13 + 4;
-      SkCanvas* c = pen.canvas();
-      c->save();
-      c->clipRect(SkRect::MakeXYWH(cellX, cellY, 130, 52));
       pen.push();
+      pen.clip([&] { pen.rect(cellX, cellY, 130, 52); });
+      pen.blendMode(sigil::draw::ADD);
+      pen.fill(255);
       pen.translate(cellX, cellY);
       paintField(pen, abChunks, 1.0f);
       pen.pop();
-      c->restore();
     }
   }
 
