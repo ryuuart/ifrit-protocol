@@ -526,6 +526,20 @@ declaration and never off a frame-to-frame difference, so a marquee parked
 at a phase keeps the placement it was turning with rather than taking one
 last quarter-pixel shift the moment it settles.
 
+**TYPE ON A TURNED PLANE IS PROJECTED AT DRAW, never resampled.** A text
+leaf under `rotateX` or `rotateY`, or standing in a `preserve3d()` space,
+is shaped and placed in its own plane and drawn through the flattened 4x4
+that plane projects with — a projective matrix — so the near edge is as
+sharp as the far one and nothing is rasterised flat first. A projective
+matrix can push glyphs off the atlas path and onto path filling, which is
+the cost the text bench's perspective arm measures against an affine
+tilt of the same panel. A `Cache::Texture` on a turned text node bakes
+the plane at the projection's largest local scale and lets the projection
+resample the bake — sharp at the near edge, minified toward the far one —
+and no device-space bake forms under a perspective. A plane whose
+projection moves — its own lane, its host's turn, or the view above it —
+puts the run on the subpixel grid exactly as a turning ancestor does.
+
 **A track declares through two facts, and needs both.** Its progress must
 be live — bound, or mid-transition — and its effect must actually move
 glyphs, which is what `TextEffect::displaces` answers. That answer is
