@@ -304,7 +304,11 @@ seeded mixers the value-noise field is built on.
   `sample()` to walk a parametric curve evenly by arc length, `Sampled`
   and `resample()`, `bestAlignment()`/`applyAlignment()` for matching two
   closed contours, `toPath()` to rebuild (optionally through Catmull-Rom
-  cubics), and `lerp()`.
+  cubics), `smoothThrough()` to rebuild as a curve the points STEER — one
+  quadratic per interior point, through the midpoint of every edge and
+  never outside the hull of the points, so a coastline given a dozen
+  points or a brush centreline given four reads as one stroke rather
+  than a chain of chords — and `lerp()`.
 - **`path/Contour.h`** — a path's sub-paths by arc length. `Contour::of()`
   splits a path (skipping zero-length contours); `length()`, `closed()`,
   `at()`, `around()`, `segment()`/`appendSegment()`, and `corners()`, which
@@ -350,7 +354,14 @@ seeded mixers the value-noise field is built on.
   it. `Edge` and `has()`, `edges()` (the sub-contours facing chosen box
   edges, classified against the bounds centre and cut by bisection at
   each run boundary) and `insetOutline()` (a mitred concentric copy;
-  positive shrinks). Both take an outline and give an outline.
+  positive shrinks). Both take an outline and give an outline. Beside
+  them `insetPolygon()` takes a polygon's vertices and gives them back
+  moved inward ONE FOR ONE — every edge parallel to its source at the
+  distance, inward read off the polygon's own winding — so a caller
+  pairing each source corner with its moved one (a chamfer band, a lid
+  on a plinth) keeps the correspondence an outline offset cannot give;
+  a needle-sharp corner's mitre is capped at a stated number of
+  distances, blunting the corner rather than dropping the vertex.
 - **`path/Ops.h`** — path operators. Booleans over Skia's pathops (`unite`,
   `subtract`, `intersect`, `exclude`, `simplify`, and a stroke-expansion
   `offset`, and `roundCorners`), and four distortions as parameter structs

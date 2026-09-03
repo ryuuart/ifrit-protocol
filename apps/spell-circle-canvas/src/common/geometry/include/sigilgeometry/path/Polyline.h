@@ -5,13 +5,15 @@
  * list of vertices starts here: shape blending, roughening, corner
  * walks, scatter along an edge.
  *
- * Only `flatten` reads a Skia path and only `toPath` writes one; the rest
- * is plain vectors so it composes with any source of points.
+ * Only `flatten` reads a Skia path, and only `toPath` and `smoothThrough`
+ * write one; the rest is plain vectors so it composes with any source of
+ * points.
  */
 #include <include/core/SkPath.h>
 
 #include <functional>
 #include <glm/vec2.hpp>
+#include <span>
 #include <vector>
 
 namespace sigil::geometry::path {
@@ -81,6 +83,25 @@ Sampled applyAlignment(const Sampled& b, const Alignment& alignment);
 SkPath toPath(const Sampled& samples, bool smooth = false);
 /** Straight segments through the points, closed when the polyline is. */
 SkPath toPath(const Polyline& line);
+
+/** A SMOOTH PATH STEERED BY THE POINTS: one quadratic per interior
+ *  point, with that point as the control and the midpoint of the edge
+ *  after it as the end. The curve leaves the first point, passes through
+ *  the midpoint of every edge tangent to that edge, and arrives at the
+ *  last — so the points steer it rather than lie on it, and it never
+ *  leaves the hull they span. That is what makes a sparse chain of a few
+ *  placed points read as one stroke instead of a chain of chords: a
+ *  coastline given a dozen points, a brush centreline given four. Closed,
+ *  it starts at the midpoint of the seam edge and comes round through
+ *  every point; two points are a line and fewer are an empty path.
+ *
+ *  `toPath(sampled, true)` is the other smoothing, and the difference is
+ *  the contract: its Catmull-Rom cubic PASSES THROUGH every point and may
+ *  overshoot between two that turn sharply, while this one is bounded by
+ *  the points and touches none of the interior ones. */
+SkPath smoothThrough(std::span<const glm::vec2> points, bool closed = false);
+/** The same, over a polyline: its points, closed when it is. */
+SkPath smoothThrough(const Polyline& line);
 
 /** Point-for-point interpolation, pairing by index over whichever of the
  *  two is shorter. Closure comes from `a`; the source length interpolates

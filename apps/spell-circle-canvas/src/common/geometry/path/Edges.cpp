@@ -13,6 +13,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <glm/geometric.hpp>
 
 #include "sigilgeometry/path/Numeric.h"
 
@@ -86,6 +87,55 @@ SkPath insetOutline(const SkPath& outline, float px) {
          &result))
     return result;
   return outline;
+}
+
+std::vector<glm::vec2> insetPolygon(std::span<const glm::vec2> polygon,
+                                    float distance, float miterLimit) {
+  const size_t n = polygon.size();
+  std::vector<glm::vec2> moved(polygon.begin(), polygon.end());
+  if (n < 3 || distance == 0.0f) return moved;
+
+  // Twice the signed area, by the shoelace. Its sign is the winding, and
+  // the winding is which side of a directed edge the interior lies on —
+  // so the inward normal of every edge is one turn of the edge, the same
+  // way round for the whole polygon.
+  float twiceArea = 0.0f;
+  for (size_t i = 0; i < n; ++i) {
+    const glm::vec2 a = polygon[i], b = polygon[(i + 1) % n];
+    twiceArea += a.x * b.y - b.x * a.y;
+  }
+  const float side = twiceArea >= 0.0f ? 1.0f : -1.0f;
+  const auto inwardNormal = [&](size_t edge) -> glm::vec2 {
+    const glm::vec2 e = polygon[(edge + 1) % n] - polygon[edge];
+    const float length = glm::length(e);
+    if (!(length > 0.0f)) return {0.0f, 0.0f};
+    return glm::vec2{-e.y, e.x} * (side / length);
+  };
+
+  const float cap = std::abs(distance) * std::max(miterLimit, 1.0f);
+  for (size_t i = 0; i < n; ++i) {
+    const glm::vec2 before = inwardNormal((i + n - 1) % n);
+    const glm::vec2 after = inwardNormal(i);
+    // The two moved edges are the lines (x − p)·n₁ = d and (x − p)·n₂ = d,
+    // which meet at p + (n₁ + n₂)·d / (1 + n₁·n₂): the mitre, d over the
+    // cosine of half the turn. A hairpin has no such point — the normals
+    // cancel — and its corner is pulled straight back along the edge it
+    // leaves by, which is the bisector a hairpin has.
+    const glm::vec2 sum = before + after;
+    const float denominator = 1.0f + glm::dot(before, after);
+    glm::vec2 offset;
+    if (denominator > 1e-4f) {
+      offset = sum * (distance / denominator);
+    } else {
+      const glm::vec2 leaving = polygon[(i + 1) % n] - polygon[i];
+      const float length = glm::length(leaving);
+      offset = length > 0.0f ? leaving * (cap / length) : glm::vec2{0, 0};
+    }
+    const float reach = glm::length(offset);
+    if (reach > cap) offset *= cap / reach;
+    moved[i] = polygon[i] + offset;
+  }
+  return moved;
 }
 
 }  // namespace sigil::geometry::path

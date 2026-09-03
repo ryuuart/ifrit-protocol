@@ -295,6 +295,42 @@ SkPath toPath(const Polyline& line) {
   return builder.detach();
 }
 
+SkPath smoothThrough(std::span<const glm::vec2> points, bool closed) {
+  SkPathBuilder builder;
+  const size_t n = points.size();
+  if (n < 2) return builder.detach();
+  const auto midpoint = [&](size_t i, size_t j) {
+    return toSk((points[i] + points[j]) * 0.5f);
+  };
+  if (!closed) {
+    // The first point is the start, the last is the end, and every point
+    // between steers one quad from the midpoint before it to the midpoint
+    // after it; the one edge left over on each end is a straight run.
+    builder.moveTo(toSk(points[0]));
+    for (size_t i = 1; i + 1 < n; ++i)
+      builder.quadTo(toSk(points[i]), midpoint(i, i + 1));
+    builder.lineTo(toSk(points[n - 1]));
+    return builder.detach();
+  }
+  if (n == 2) {
+    builder.moveTo(toSk(points[0]));
+    builder.lineTo(toSk(points[1]));
+    builder.close();
+    return builder.detach();
+  }
+  // Round a loop every point is interior, so every point steers a quad
+  // and the curve starts where the seam edge is crossed: its midpoint.
+  builder.moveTo(midpoint(n - 1, 0));
+  for (size_t i = 0; i < n; ++i)
+    builder.quadTo(toSk(points[i]), midpoint(i, (i + 1) % n));
+  builder.close();
+  return builder.detach();
+}
+
+SkPath smoothThrough(const Polyline& line) {
+  return smoothThrough(line.points, line.closed);
+}
+
 Sampled lerp(const Sampled& a, const Sampled& b, float t) {
   Sampled out;
   out.closed = a.closed;

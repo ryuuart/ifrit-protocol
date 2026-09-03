@@ -23,6 +23,7 @@
 #include "sigilgeometry/path/Band.h"
 #include "sigilgeometry/path/Contour.h"
 #include "sigilgeometry/path/Crossings.h"
+#include "sigilgeometry/path/Edges.h"
 #include "sigilgeometry/path/Frame.h"
 #include "sigilgeometry/path/Noise.h"
 #include "sigilgeometry/path/Numeric.h"
@@ -365,6 +366,149 @@ TEST(Polyline, ToPathRoundTripsThroughFlatten) {
   EXPECT_EQ(back[0].points.size(), 3u);
   EXPECT_TRUE(back[0].closed);
   EXPECT_NEAR(back[0].signedArea(), tri.signedArea(), 1e-4f);
+}
+
+TEST(Polyline, SmoothThroughTwoPointsIsALineAndFewerIsNothing) {
+  EXPECT_TRUE(smoothThrough(std::vector<glm::vec2>{{3, 4}}).isEmpty());
+  const SkPath line = smoothThrough(std::vector<glm::vec2>{{0, 0}, {10, 0}});
+  EXPECT_EQ(line.countVerbs(), 2);
+  EXPECT_EQ(line.getPoint(0), SkPoint::Make(0, 0));
+  EXPECT_EQ(line.getPoint(1), SkPoint::Make(10, 0));
+  EXPECT_FALSE(line.isLastContourClosed());
+}
+
+TEST(Polyline, SmoothThroughIsOneQuadPerInteriorPointEndingOnTheNextMidpoint) {
+  const std::vector<glm::vec2> points = {{0, 0}, {40, 0}, {40, 40}, {80, 40}};
+  const SkPath path = smoothThrough(points);
+  SkPath::Iter iter(path, false);
+  SkPoint p[4];
+  ASSERT_EQ(iter.next(p), SkPath::kMove_Verb);
+  EXPECT_EQ(p[0], SkPoint::Make(0, 0));
+  // Each interior point is a CONTROL, never an on-curve point: the curve
+  // is tangent to the edge after it at that edge's midpoint.
+  ASSERT_EQ(iter.next(p), SkPath::kQuad_Verb);
+  EXPECT_EQ(p[1], SkPoint::Make(40, 0));
+  EXPECT_EQ(p[2], SkPoint::Make(40, 20));
+  ASSERT_EQ(iter.next(p), SkPath::kQuad_Verb);
+  EXPECT_EQ(p[1], SkPoint::Make(40, 40));
+  EXPECT_EQ(p[2], SkPoint::Make(60, 40));
+  ASSERT_EQ(iter.next(p), SkPath::kLine_Verb);
+  EXPECT_EQ(p[1], SkPoint::Make(80, 40));
+  EXPECT_EQ(iter.next(p), SkPath::kDone_Verb);
+  // A quad lies in the hull of its three points, so the whole curve lies
+  // in the hull of the polyline — which a Catmull-Rom through the same
+  // points does not promise.
+  const SkRect bounds = path.computeTightBounds();
+  EXPECT_GE(bounds.left(), 0.0f);
+  EXPECT_GE(bounds.top(), 0.0f);
+  EXPECT_LE(bounds.right(), 80.0f);
+  EXPECT_LE(bounds.bottom(), 40.0f);
+}
+
+TEST(Polyline, SmoothThroughClosedComesRoundFromTheSeamsMidpoint) {
+  Polyline diamond;
+  diamond.points = {{0, -10}, {10, 0}, {0, 10}, {-10, 0}};
+  diamond.closed = true;
+  const SkPath loop = smoothThrough(diamond);
+  EXPECT_TRUE(loop.isLastContourClosed());
+  // Every point steers a quad, so a closed loop of n points is n quads,
+  // starting where the seam edge — last point to first — is crossed.
+  EXPECT_EQ(loop.getPoint(0), SkPoint::Make(-5, -5));
+  int quads = 0;
+  SkPath::Iter iter(loop, false);
+  SkPoint p[4];
+  for (SkPath::Verb verb = iter.next(p); verb != SkPath::kDone_Verb;
+       verb = iter.next(p))
+    quads += verb == SkPath::kQuad_Verb;
+  EXPECT_EQ(quads, 4);
+  // …and it touches no point, since each is a control: the loop stays
+  // strictly inside the diamond at every vertex.
+  EXPECT_LT(loop.computeTightBounds().right(), 10.0f);
+  EXPECT_GT(loop.computeTightBounds().top(), -10.0f);
+}
+
+// ---------------------------------------------------------------------------
+// Edges
+
+TEST(Edges, InsetPolygonShrinksASquareByTheDistanceWhicheverWayItWinds) {
+  const std::vector<glm::vec2> square = {{0, 0}, {100, 0}, {100, 100}, {0, 100}};
+  const std::vector<glm::vec2> in = insetPolygon(square, 10);
+  ASSERT_EQ(in.size(), 4u);
+  const glm::vec2 expected[] = {{10, 10}, {90, 10}, {90, 90}, {10, 90}};
+  for (size_t i = 0; i < 4; ++i) {
+    EXPECT_NEAR(in[i].x, expected[i].x, 1e-4f) << i;
+    EXPECT_NEAR(in[i].y, expected[i].y, 1e-4f) << i;
+  }
+  // The same polygon wound the other way insets to the same corners,
+  // each still answering to the vertex it came from.
+  const std::vector<glm::vec2> reversed(square.rbegin(), square.rend());
+  const std::vector<glm::vec2> other = insetPolygon(reversed, 10);
+  ASSERT_EQ(other.size(), 4u);
+  for (size_t i = 0; i < 4; ++i) {
+    EXPECT_NEAR(other[i].x, in[3 - i].x, 1e-4f) << i;
+    EXPECT_NEAR(other[i].y, in[3 - i].y, 1e-4f) << i;
+  }
+  // A negative distance grows.
+  const std::vector<glm::vec2> out = insetPolygon(square, -10);
+  EXPECT_NEAR(out[0].x, -10, 1e-4f);
+  EXPECT_NEAR(out[2].y, 110, 1e-4f);
+}
+
+TEST(Edges, InsetPolygonMitresASharpCornerUntilTheLimitBluntsIt) {
+  // A thin rhomb: 36° at the two ends, 144° at the two sides. The mitre
+  // at a 36° corner is d / sin(18°) — over three distances — while the
+  // 144° corner's is barely more than one.
+  constexpr float kHalfTip = 18.0f * kPi / 180.0f;
+  const float length = 100.0f;
+  const float half = length * std::tan(kHalfTip);
+  const std::vector<glm::vec2> rhomb = {
+      {-length, 0}, {0, -half}, {length, 0}, {0, half}};
+  const float d = 4.0f;
+  const std::vector<glm::vec2> mitred = insetPolygon(rhomb, d, 100.0f);
+  ASSERT_EQ(mitred.size(), 4u);
+  EXPECT_NEAR(mitred[0].x, -length + d / std::sin(kHalfTip), 1e-3f);
+  EXPECT_NEAR(mitred[0].y, 0.0f, 1e-4f);
+  EXPECT_NEAR(mitred[2].x, length - d / std::sin(kHalfTip), 1e-3f);
+  // Every moved edge stands exactly d inside the edge it came from: the
+  // distance from a moved vertex to the source edge's line is d.
+  for (size_t i = 0; i < 4; ++i) {
+    const glm::vec2 a = rhomb[i], b = rhomb[(i + 1) % 4];
+    const glm::vec2 edge = b - a;
+    const glm::vec2 normal = glm::normalize(glm::vec2{-edge.y, edge.x});
+    EXPECT_NEAR(std::abs(glm::dot(mitred[i] - a, normal)), d, 1e-3f) << i;
+    EXPECT_NEAR(std::abs(glm::dot(mitred[(i + 1) % 4] - a, normal)), d, 1e-3f)
+        << i;
+  }
+  // Capped at two distances the tips stop at 2d along the axis, the
+  // vertex count stands, and the wide corners — inside the cap — are
+  // exactly where they were.
+  const std::vector<glm::vec2> capped = insetPolygon(rhomb, d, 2.0f);
+  ASSERT_EQ(capped.size(), 4u);
+  EXPECT_NEAR(capped[0].x, -length + 2 * d, 1e-3f);
+  EXPECT_NEAR(capped[0].y, 0.0f, 1e-4f);
+  EXPECT_NEAR(capped[1].x, mitred[1].x, 1e-4f);
+  EXPECT_NEAR(capped[1].y, mitred[1].y, 1e-4f);
+}
+
+TEST(Edges, InsetPolygonMovesAReflexCornerTheWayItsEdgesSayAndLeavesTooFewAlone) {
+  // An L. Its reflex corner is where the bar meets the column, and the
+  // inset L's reflex corner is the meeting of the two moved edges — back
+  // toward the outer corner, not toward the interior of either arm.
+  const std::vector<glm::vec2> ell = {{0, 0},   {100, 0},  {100, 50},
+                                      {50, 50}, {50, 100}, {0, 100}};
+  const std::vector<glm::vec2> in = insetPolygon(ell, 10);
+  ASSERT_EQ(in.size(), 6u);
+  EXPECT_NEAR(in[3].x, 40, 1e-4f);
+  EXPECT_NEAR(in[3].y, 40, 1e-4f);
+  EXPECT_NEAR(in[0].x, 10, 1e-4f);
+  EXPECT_NEAR(in[2].x, 90, 1e-4f);
+  EXPECT_NEAR(in[2].y, 40, 1e-4f);
+  EXPECT_NEAR(in[4].y, 90, 1e-4f);
+
+  const std::vector<glm::vec2> two = {{0, 0}, {5, 5}};
+  const std::vector<glm::vec2> same = insetPolygon(two, 3);
+  ASSERT_EQ(same.size(), 2u);
+  EXPECT_EQ(same[1], glm::vec2(5, 5));
 }
 
 // ---------------------------------------------------------------------------
