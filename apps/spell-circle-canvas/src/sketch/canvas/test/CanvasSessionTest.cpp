@@ -8,10 +8,17 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
 #include <sigilcompose/texture/Texture.h>
+#include <sigilgeometry/kit/Solids.h>
+#include <sigilgeometry/mesh/camera/Camera.h>
+#include <sigilmaterial/kit/Surface.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilworld/element/Element.h>
+#include <sigilworld/frame/Frame.h>
 
+#include <cmath>
 #include <cstring>
 #include <memory>
+#include <numbers>
 #include <string>
 
 #include "Support.h"
@@ -20,6 +27,8 @@ namespace {
 
 using namespace sigil::sketch;
 using namespace sigil::compose;
+namespace world = sigil::world;
+namespace gm = sigil::geometry::mesh;
 
 using sigil::sketch::test::assets;
 using sigil::sketch::test::fonts;
@@ -31,6 +40,54 @@ SkBitmap pixelsOf(const sk_sp<SkImage>& image) {
       SkImageInfo::MakeN32Premul(image->width(), image->height()));
   EXPECT_TRUE(image->readPixels(nullptr, bitmap.pixmap(), 0, 0));
   return bitmap;
+}
+
+/** THE ONE BODY A BAKE IS MEASURED BY: a white unlit card, its size
+ *  stated in world units, square to the camera at the origin. Unlit
+ *  because a shaded body's edge is a gradient and this test is about
+ *  where the edge IS; a card because a card's silhouette is a rectangle
+ *  whose pixels the camera predicts exactly. */
+constexpr float kCardW = 100.0f;
+constexpr float kCardH = 60.0f;
+constexpr float kEyeZ = 300.0f;
+constexpr SkISize kBakeSize{128, 96};
+constexpr SkColor4f kGround{0.1f, 0.1f, 0.1f, 1};
+
+world::Frame cardFrame() {
+  return world::Frame(world::Element().key("set").child(
+      world::Element()
+          .key("card")
+          .mesh(gm::quad(kCardW, kCardH))
+          .fill(sigil::material::kit::unlit({.baseColor = {1, 1, 1, 1}}))));
+}
+
+gm::camera::Camera cardCamera(float eyeZ) {
+  gm::camera::Camera lens;
+  lens.eye = {0, 0, eyeZ};
+  lens.target = {0, 0, 0};
+  return lens;
+}
+
+/** HOW MANY PIXELS ONE WORLD UNIT COVERS at the origin, from @p lens, on
+ *  a picture @p size across: the projection's own arithmetic, so the
+ *  test states the relationship rather than a number someone measured
+ *  off a picture. */
+float pixelsPerUnit(const gm::camera::Camera& lens, SkISize size) {
+  const float halfFov =
+      lens.fovYDeg * 0.5f * (float)std::numbers::pi / 180.0f;
+  return (float)size.height() /
+         (2.0f * std::abs(lens.eye.z) * std::tan(halfFov));
+}
+
+/** The box the drawn pixels stand in: every pixel that is not the
+ *  background. Empty when nothing was drawn. */
+SkIRect silhouetteOf(const SkBitmap& pixels) {
+  SkIRect box = SkIRect::MakeEmpty();
+  for (int y = 0; y < pixels.height(); ++y)
+    for (int x = 0; x < pixels.width(); ++x)
+      if (pixels.getColor(x, y) != kGround.toSkColor())
+        box.join(SkIRect::MakeXYWH(x, y, 1, 1));
+  return box;
 }
 
 /** A sketch that asks for a texture scene while declaring itself, paints
@@ -144,6 +201,20 @@ TEST_F(CanvasSession, TakesTheStillLargerThanItsCanvas) {
   EXPECT_GT(session->oversample(), 1.0f);
 }
 
+/** A sketch that bakes the card twice while declaring itself: once from
+ *  the stated distance, once from twice it. */
+struct Baking : Sketch {
+  static inline sk_sp<SkImage> near;
+  static inline sk_sp<SkImage> far;
+  void setup(SketchContext& ctx) override {
+    ctx.canvas(200, 120);
+    near = ctx.bakeSet(cardFrame(), cardCamera(kEyeZ), kBakeSize, kGround);
+    far =
+        ctx.bakeSet(cardFrame(), cardCamera(kEyeZ * 2), kBakeSize, kGround);
+    ctx.composer.render(box().width(10).height(10));
+  }
+};
+
 TEST(CanvasDoors, PaintsWhatTheSketchHandedTheTextureScene) {
   const std::unique_ptr<Session> session =
       kindOf<Screening>()->open(fonts(), assets());
@@ -173,6 +244,49 @@ TEST(CanvasDoors, KeepsTheTextureScenesItHandsOutUntilTheBodyDeclaresAgain) {
   // …and the session going lets go of the last of them.
   session.reset();
   EXPECT_TRUE(Screening::scene.expired());
+}
+
+TEST(CanvasDoors, BakesASetAsTheCameraProjectsIt) {
+  const std::unique_ptr<Session> session =
+      kindOf<Baking>()->open(fonts(), assets());
+  ASSERT_TRUE(Baking::near);
+  EXPECT_EQ(Baking::near->width(), kBakeSize.width());
+  EXPECT_EQ(Baking::near->height(), kBakeSize.height());
+
+  const SkBitmap pixels = pixelsOf(Baking::near);
+  // Nothing but the card is in the tree, so the corner is the ground it
+  // was cleared to and the middle of the card is the card's own colour —
+  // unlit, so it is that colour exactly.
+  EXPECT_EQ(pixels.getColor(1, 1), kGround.toSkColor());
+  EXPECT_EQ(pixels.getColor(kBakeSize.width() / 2, kBakeSize.height() / 2),
+            SK_ColorWHITE);
+
+  // THE SILHOUETTE IS THE PROOF. A card of stated size, square to the
+  // camera at the point it is aimed at, covers a rectangle the
+  // projection names to the pixel; a body that collapsed to a point, or
+  // one drawn without its transform, would land inside a colour
+  // comparison at the centre and nowhere near this.
+  const float scale = pixelsPerUnit(cardCamera(kEyeZ), kBakeSize);
+  const SkIRect drawn = silhouetteOf(pixels);
+  EXPECT_NEAR((float)drawn.width(), kCardW * scale, 2.0f);
+  EXPECT_NEAR((float)drawn.height(), kCardH * scale, 2.0f);
+  EXPECT_NEAR((float)(drawn.left() + drawn.right()) / 2.0f,
+              kBakeSize.width() / 2.0f, 1.0f);
+  EXPECT_NEAR((float)(drawn.top() + drawn.bottom()) / 2.0f,
+              kBakeSize.height() / 2.0f, 1.0f);
+}
+
+TEST(CanvasDoors, BakesTheSameSetFromTheCameraItIsGiven) {
+  const std::unique_ptr<Session> session =
+      kindOf<Baking>()->open(fonts(), assets());
+  ASSERT_TRUE(Baking::far);
+  // The same frame from twice the distance is the same card at half the
+  // pixels — the viewpoint is the caller's, and the picture is a
+  // projection of the set rather than a stamp of it.
+  const SkIRect near = silhouetteOf(pixelsOf(Baking::near));
+  const SkIRect far = silhouetteOf(pixelsOf(Baking::far));
+  EXPECT_NEAR((float)far.width(), near.width() / 2.0f, 2.0f);
+  EXPECT_NEAR((float)far.height(), near.height() / 2.0f, 2.0f);
 }
 
 }  // namespace

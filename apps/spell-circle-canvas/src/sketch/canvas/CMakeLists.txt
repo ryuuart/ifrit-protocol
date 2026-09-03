@@ -23,18 +23,24 @@ target_link_libraries(SigilSketchCanvas PUBLIC
   # hyphenation patterns among them — so a sketch may reach one.
   SigilGeometry SigilMaterial SigilWeaveKit SigilWeavePorts EnTT::EnTT)
 # The session's own clock, ticker and lap timer are read in its source
-# alone, so they are no part of the sketch API.
-target_link_libraries(SigilSketchCanvas PRIVATE SigilMotionClock SigilMeasure)
+# alone, so they are no part of the sketch API. So is the retained scene
+# a set is baked to an image in: the context's door names a world Frame
+# by forward declaration only, and a sketch walking through it includes
+# SigilWorld's own headers.
+target_link_libraries(SigilSketchCanvas PRIVATE SigilMotionClock SigilMeasure
+  SigilWorldScene)
 set_target_properties(SigilSketchCanvas PROPERTIES
   POSITION_INDEPENDENT_CODE ON)
 
-# The test walks through the door, so it includes and links what a sketch
-# doing the same would: the compose leaf that keeps the scene.
+# The test walks through both doors, so it includes and links what a
+# sketch doing the same would: the compose leaf that keeps the scene, and
+# the world it bakes.
 add_executable(sketch_canvas_test test/CanvasSessionTest.cpp)
 target_include_directories(sketch_canvas_test PRIVATE
   ${SIGIL_SKETCH_TEST_SUPPORT_DIR})
 target_link_libraries(sketch_canvas_test PRIVATE SigilSketchCanvas
-  SigilComposeTexture GTest::gtest_main)
+  SigilComposeTexture SigilWorldElement SigilWorldFrame SigilGeometryKit
+  SigilMaterialKit GTest::gtest_main)
 add_test(NAME sketch_canvas_test COMMAND sketch_canvas_test)
 
 add_executable(sketch_canvas_bench bench/CanvasSessionBench.cpp)

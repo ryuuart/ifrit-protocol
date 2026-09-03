@@ -6,6 +6,8 @@
  * compose Element tree.
  */
 
+#include <include/core/SkImage.h>
+#include <include/core/SkRefCnt.h>
 #include <sigilcompose/Compose.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilsketch/core/Assets.h>
@@ -20,6 +22,12 @@
 
 namespace sigil::compose {
 class TextureScene;
+}
+namespace sigil::world {
+class Frame;
+}
+namespace sigil::geometry::mesh::camera {
+struct Camera;
 }
 
 namespace sigil::sketch {
@@ -80,6 +88,30 @@ struct SketchContext {
    *
    *  Null only where the host lent no fonts. */
   [[nodiscard]] std::shared_ptr<compose::TextureScene> textureScene(
+      SkISize size, SkColor4f background = {0, 0, 0, 0});
+
+  /** A LIT SET RENDERED ONCE INTO AN IMAGE @p size pixels across, over
+   *  @p background — the picture INSIDE a page. A canvas plate is
+   *  re-rendered at the capture scale, so a document that wanted a set
+   *  in one of its panels cannot wear it as a texture the way a body
+   *  does: it bakes the set at the pixels the panel will have and paints
+   *  the image. The frame's own words are SigilWorld's, from
+   *  `<sigilworld/frame/Frame.h>`.
+   *
+   *  SEEN FROM @p camera — unless the tree carries a viewpoint of its
+   *  own, which wins here exactly as it wins in the set runtime, so a
+   *  set that put its camera on a rail is photographed from that rail
+   *  wherever it is photographed. The frame is formed and presented
+   *  through the one viewpoint, so the two cannot disagree.
+   *
+   *  It draws on the CPU mesh executor whatever device the process
+   *  holds, and declares no passes: the picture is a function of the
+   *  frame, the viewpoint and the size, and of nothing the machine it
+   *  ran on decides. The scene it stands the frame in lives for this
+   *  call alone, so what comes back is an image and not a view onto
+   *  something still standing. */
+  [[nodiscard]] sk_sp<SkImage> bakeSet(
+      const world::Frame& frame, const geometry::mesh::camera::Camera& camera,
       SkISize size, SkColor4f background = {0, 0, 0, 0});
 
   /** The host is taking a capture that will be DIFFED, so anything the
