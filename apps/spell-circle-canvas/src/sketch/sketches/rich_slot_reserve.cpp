@@ -7,9 +7,13 @@
  * line never breaks inside it however narrow the measure gets.
  * `baselineDrop` is how far the box's BOTTOM sits below the baseline — 0
  * stands it on the baseline like an inline image, and about the face's
- * descent centres a pill on the x-height. A box TALLER than the type is
- * drawn from that bottom upward into the lines above it: the third cell
- * is that case, and the passage's own pitch does not open to hold it.
+ * descent centres a pill on the x-height. A box TALLER than the type
+ * OPENS THE LINES OF ITS BLOCK: how far the box reaches either side of
+ * the baseline is a fact about the strut, and the strut is the block's,
+ * because a band is asked of the geometry before anyone knows which
+ * words land on it. The third cell is that case — every line of the
+ * passage stands on the opened pitch, not the one the slot happens to
+ * sit in.
  *
  * The child is an ordinary subtree that animates, caches and hit-tests
  * like any other, and it re-lands wherever the placeholder lands when the
@@ -57,7 +61,7 @@ constexpr float kCell = 163;
 constexpr float kPicture = 200;
 
 constexpr SkSize kChip = {34, 16};   // the inline slot
-constexpr SkSize kTall = {46, 40};   // …and one taller than the type
+constexpr SkSize kTall = {40, 26};   // …and one taller than the type
 constexpr float kDrop = 4;           // the drop that centres a pill
 constexpr float kBand = 14;          // room beside every line, px
 
@@ -145,7 +149,7 @@ struct RichSlotReserve final : sketch::Sketch {
             {.title = toU8("SLOTS AND RESERVED ROOM \xc2\xb7 "
                            "RichText::slot, Element::reserve"),
              .subtitle = toU8("dials \xc2\xb7 the slot's size (34\xc3\x97" "16, "
-                              "then 46\xc3\x97" "40) \xc2\xb7 its baseline drop "
+                              "then 40\xc3\x97" "26) \xc2\xb7 its baseline drop "
                               "(0, then 4) \xc2\xb7 the band reserved beside "
                               "every line (14 px)"),
              .footer = toU8("a text slot is not a mount slot: these names "
@@ -173,10 +177,10 @@ struct RichSlotReserve final : sketch::Sketch {
                            "about the face's descent \xc2\xb7 a pill centred "
                            "on the x-height",
                            slotted(kChip, kDrop, kChipFill)),
-                      cell("slot(\"chip\", {46, 40})",
-                           "taller than the type \xc2\xb7 it is drawn "
-                           "from its bottom upward into the lines above, "
-                           "and the pitch does not open for it",
+                      cell("slot(\"chip\", {40, 26})",
+                           "taller than the type \xc2\xb7 the strut takes "
+                           "how far it reaches either side of the baseline, "
+                           "so every line of the BLOCK opens by that much",
                            slotted(kTall, kDrop, kChipFill)),
                       cell("no reserve",
                            "the reference pitch \xc2\xb7 the plate is filled "
