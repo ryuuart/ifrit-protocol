@@ -3,9 +3,9 @@
 # registry, one live host and one headless renderer.
 #
 # It stands ABOVE the drawing libraries rather than beside them: a sketch
-# may describe a compose Element tree or a world Frame, so this library
-# links both. Nothing underneath links back — a drawn tree and a lit set
-# meet here and nowhere else.
+# may describe a compose Element tree, a world Frame or a pen's frame, so
+# this library links all three. Nothing underneath links back — a drawn
+# tree, a lit set and a pen's canvas meet here and nowhere else.
 #
 # Each feature is its own archive with its own tests and benchmarks, and
 # links only the features beneath it. Every public header lives under one
@@ -29,11 +29,12 @@ set(SIGIL_SKETCH_ASSET_DIR ${CMAKE_CURRENT_LIST_DIR}/sketches/assets)
 # this feature could not draw a pixel.
 add_subdirectory(core)
 
-# The two runtimes a sketch may be written for. Each owns its sketch
+# The three runtimes a sketch may be written for. Each owns its sketch
 # body, its declaration surface and the session that drives it, and they
 # know nothing of each other.
 add_subdirectory(canvas)
 add_subdirectory(set)
+add_subdirectory(draw)
 
 # The live-reload engine: a file watched, rebuilt into a dylib on save,
 # and hot-swapped into the running session.
@@ -53,8 +54,8 @@ add_subdirectory(book)
 # feature of it.
 add_library(SigilSketch INTERFACE)
 target_link_libraries(SigilSketch INTERFACE
-  SigilSketchCore SigilSketchCanvas SigilSketchSet SigilSketchLive
-  SigilSketchPlate)
+  SigilSketchCore SigilSketchCanvas SigilSketchSet SigilSketchDraw
+  SigilSketchLive SigilSketchPlate)
 
 # Registers this library with the `docs` target (see cmake/Docs.cmake).
 sigil_add_docs(

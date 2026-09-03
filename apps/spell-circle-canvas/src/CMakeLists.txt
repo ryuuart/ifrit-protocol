@@ -10,7 +10,7 @@
 #                material/ (SigilMaterial), draw/ (SigilDraw), compose/
 #                (SigilCompose)
 #   sketch/      SigilSketch: every renderable thing in this repository as
-#                one sketch file, with the registry, the two runtimes a
+#                one sketch file, with the registry, the three runtimes a
 #                sketch may draw through, the live host and the headless
 #                renderer — and Sketchbook, the one live application
 #   sigilweave/  the Qt-free SigilWeave text layout engine, its companion

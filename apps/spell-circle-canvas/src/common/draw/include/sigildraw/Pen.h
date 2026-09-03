@@ -123,6 +123,7 @@ class Pen {
   [[nodiscard]] weave::FontContext* fonts() const { return m_fonts; }
   /** What this pen keeps between frames for its guests. */
   [[nodiscard]] Retained& retained() { return m_retained; }
+  [[nodiscard]] const Retained& retained() const { return m_retained; }
   /** Whether the loop is running (`noLoop` stops it, `loop` restarts
    *  it), and whether one `redraw()` was asked for since the last frame
    *  — the runtime reads both and clears the second. */

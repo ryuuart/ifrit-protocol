@@ -10,6 +10,7 @@
 #include <optional>
 #include <span>
 #include <string>
+#include <string_view>
 #include <vector>
 
 class SkCanvas;
@@ -157,6 +158,27 @@ class Session {
     (void)yawDeg;
     (void)pitchDeg;
     (void)distance;
+  }
+
+  /** WHERE A POINTER STANDS over the sketch, in the sketch's own canvas
+   *  units — whatever a host scaled or letterboxed the canvas by, this is
+   *  the point on the canvas the sketch declared — and whether its
+   *  button is down. A host feeds it as the pointer moves and as the
+   *  button changes; a runtime with nothing for a pointer to do ignores
+   *  it. */
+  virtual void pointer(float x, float y, bool pressed) {
+    (void)x;
+    (void)y;
+    (void)pressed;
+  }
+
+  /** A KEY GOING DOWN OR UP: its name as a keyboard spells it — "a",
+   *  "ArrowLeft", "Enter" — and its code beside it. A runtime with
+   *  nothing for a key to do ignores it. */
+  virtual void key(std::string_view name, int code, bool pressed) {
+    (void)name;
+    (void)code;
+    (void)pressed;
   }
 };
 

@@ -23,7 +23,7 @@ open build/bin/Release/Sketchbook.app          # the app
 build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook --list
 ```
 
-## Two runtimes, one seam
+## Three runtimes, one seam
 
 A sketch declares what it draws by which header it includes, and the
 registration macro reads the rest off the type:
@@ -32,19 +32,20 @@ registration macro reads the rest off the type:
 | --- | --- | --- |
 | `<sigilsketch/canvas/Sketch.h>` | `sketch::Sketch` | a compose Element tree, onto a canvas |
 | `<sigilsketch/set/Set.h>` | `sketch::Set` | a world Frame, on a lit set |
+| `<sigilsketch/draw/Draw.h>` | `sketch::DrawSketch` | a pen's frames, p5's way, onto a canvas that keeps them |
 
-The two are a **seam**, not a switch. `Kind` is `core::Erased<KindOps>`:
+The three are a **seam**, not a switch. `Kind` is `core::Erased<KindOps>`:
 a value that knows one runtime and one body, and opens a `Session` on
 them. Every host here — the registry listing, the live canvas, the
 headless sweep, the frame-time gate — drives a `Session` and never
-learns which runtime it is holding. A third runtime is therefore a value
-someone constructs and hands to `SIGIL_SKETCH`, and none of the hosts
-change when one arrives.
+learns which runtime it is holding. Another runtime is therefore a
+value someone constructs and hands to `SIGIL_SKETCH`, and none of the
+hosts change when one arrives.
 
-This library sits **above** both drawing libraries and links both. The
-arrow only points this way: nothing in compose or world knows this
-library exists, and a drawn tree and a lit set meet here and nowhere
-else.
+This library sits **above** the drawing libraries and links them all.
+The arrow only points this way: nothing in compose, world or draw knows
+this library exists, and a drawn tree, a lit set and a pen's canvas meet
+here and nowhere else.
 
 ## Writing one
 
@@ -192,6 +193,42 @@ SIGIL_SKETCH(FirstLight, "Set", "A lit set …")
 a plate reproducible: the host steps from zero at a fixed rate and
 photographs the declared moment, so the image depends on the declaration
 and never on how fast the machine ran.
+
+A p5 sketch is the same shape with a pen — `setup` once, `draw` every
+frame, a canvas that keeps what earlier frames drew:
+
+```cpp
+#include <sigilsketch/draw/Draw.h>
+
+using namespace sigil::draw;
+
+struct Orbit final : sketch::DrawSketch {
+  void setup(sketch::DrawContext& ctx) override {
+    ctx.canvas(400, 300);
+    ctx.background(20);
+    ctx.pen.noStroke();
+  }
+  void draw(Pen& pen) override {
+    pen.background(20, 30);  // translucent: a trail
+    pen.fill(255, 120, 80);
+    pen.circle(200 + 120 * cos(pen.millis() / 900), 150, 40);
+  }
+};
+
+SIGIL_SKETCH(Orbit, "Draw", "A ball on a rail, with a trail.")
+```
+
+The pen is SigilDraw's, whose README is the canon for its verbs; what
+the runtime adds is p5's `setup`/`draw` loop over a surface it keeps
+between frames, a clock it owns, and the seed every session's `random`
+starts from — so a plate stepped from zero draws the same picture on
+every run. `ctx.pen` in setup is for whatever a p5 setup would have set
+on the canvas: a style, a font, a first drawing, which lands on the
+first frame. `pen.noLoop()`, `pen.redraw()` and `pen.frameRate(fps)`
+are honoured by the runtime skipping draws, since the clock is its. The
+pointer and the keys arrive through `Session::pointer` and
+`Session::key`, which a host feeds in canvas units; headless, nothing
+arrives and `pen.mouseX` stays at zero.
 
 ### Three paths for motion, and the order to reach for them
 
@@ -459,13 +496,15 @@ the benchmark phases entirely and goes straight there, which is most of
 a sweep's wall clock — and produces a bit-identical plate, because the
 capture never depended on the phases in the first place.
 
-The two runtimes make a plate differently, and both ways are
-load-bearing. A drawn tree is resolution-independent, so its still is
-one more frame re-rendered at up to twice the canvas — a texture bake
-re-runs at the capture scale rather than being upsampled. A lit set is
-FORMED at one resolution and its still describes nothing, so there is
-nothing to form again larger and its plate is the frame it just
-finished. `Session::still()` is that seam.
+The runtimes make a plate differently, and each way is load-bearing. A
+drawn tree is resolution-independent, so its still is one more frame
+re-rendered at up to twice the canvas — a texture bake re-runs at the
+capture scale rather than being upsampled. A lit set is FORMED at one
+resolution and its still describes nothing, so there is nothing to form
+again larger and its plate is the frame it just finished. A pen's
+canvas holds every frame's residue at the resolution it was formed at,
+so its plate, too, is the frame just finished. `Session::still()` is
+that seam.
 
 Which resolution that is comes off the canvas a host hands over. A
 plate's canvas is the declared size and carries no transform; a live
@@ -595,6 +634,7 @@ src/sketch/
   core/       what a sketch is, what it declares, the registry, the kind seam
   canvas/     the 2D runtime: a clock, a ticker and a Composer
   set/        the 3D runtime: a ticker and a retained Scene
+  draw/       the immediate-mode runtime: a clock, a pen and a surface that persists
   live/       the reload engine, the resident set, and the crash reporter
   plate/      the headless sweep
   book/       Sketchbook: the app, and the headless entry point
@@ -611,7 +651,8 @@ targets do.
 * **`core` draws nothing.** A consumer that only wants to know what
   sketches exist links it alone; it could not paint a pixel.
 * **The runtimes do not know each other.** `canvas` links compose,
-  `set` links world, and neither names a type from the other's library.
+  `set` links world, `draw` links SigilDraw, and none names a type from
+  another's library.
 * **`set` links no device.** The runtime a session draws through is a
   value the process installs once — one device, one queue, every
   session — so a machine with no device runs every set on the CPU mesh
@@ -638,14 +679,15 @@ From `apps/spell-circle-canvas`:
 ```sh
 python3 scripts/setup.py --config Debug
 cmake --build build --config Debug --target sketch_core_test \
-  sketch_canvas_test sketch_set_test sketch_live_test sketch_plate_test
+  sketch_canvas_test sketch_set_test sketch_draw_test sketch_live_test \
+  sketch_plate_test
 ctest --test-dir build -C Debug -R sketch_ --output-on-failure
 ```
 
 One test binary per feature, each linking that feature alone:
 `sketch_core_test` over the registry, the kind seam and where a sketch
-stands on disk, `sketch_canvas_test`
-and `sketch_set_test` over the two sessions, `sketch_live_test` over the
+stands on disk, `sketch_canvas_test`, `sketch_set_test` and
+`sketch_draw_test` over the three sessions, `sketch_live_test` over the
 host and the resident set, `sketch_plate_test` over the sweep.
 
 `test/Support.h` at the library root holds what every one of them opens a
