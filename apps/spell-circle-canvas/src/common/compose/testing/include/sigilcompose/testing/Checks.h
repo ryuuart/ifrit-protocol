@@ -350,20 +350,73 @@ inline Raster rasterize(Element root, sigil::weave::FontContext& fonts,
  *  header adds is the one thing the measure library cannot know — how a
  *  check is written into a feed. */
 
-/** Append a check to a feed of text rows, the row's style name chosen by the
- *  verdict.
+/** THE INKS A TABLE IS REPORTED IN: the style name a feed's row takes, by
+ *  the row's standing and its verdict, and the two column widths the
+ *  rows are set at.
  *
- *  The two names are parameters because the style set a plate reads is the
- *  caller's — nothing here knows what a given study calls its passing ink.
- *  The defaults are a convention; a set that registers neither name sets
- *  both rows in its base style, which is legible but says nothing. */
+ *  The names are parameters because the style set a plate reads is the
+ *  caller's — nothing here knows what a given study calls its passing
+ *  ink. The defaults are the convention the kit's tinted sets are usually
+ *  built with; a set that registers none of them sets every row in its
+ *  base style, which is legible but says nothing. */
+struct ReportStyles {
+  std::string pass = "pass";
+  std::string fail = "fail";
+  /** A finding that did not hold — the subject's failing, in its own ink
+   *  on a plate that tells the two apart. */
+  std::string finding = "fail";
+  std::string reading = "number";
+  std::string heading = "heading";
+  int labelWidth = 44;
+  int valueWidth = 8;
+};
+
+/** The style name @p c takes under @p styles. */
+inline const std::string& styleOf(const measure::Check& c,
+                                  const ReportStyles& styles) {
+  switch (c.standing) {
+    case measure::Standing::Heading:
+      return styles.heading;
+    case measure::Standing::Reading:
+      return styles.reading;
+    case measure::Standing::Finding:
+      return c.pass ? styles.pass : styles.finding;
+    case measure::Standing::Claim:
+      break;
+  }
+  return c.pass ? styles.pass : styles.fail;
+}
+
+/** Append a check to a feed of text rows, the row's style name chosen by
+ *  its standing and its verdict. The text is `Check::line()` at the
+ *  styles' widths, so what the plate shows is what the table would
+ *  print. */
+inline void report(feed::TextRing& ring, const measure::Check& c,
+                   const ReportStyles& styles) {
+  const std::string text = c.line(styles.labelWidth, styles.valueWidth);
+  ring.append({std::u8string(text.begin(), text.end()), styleOf(c, styles)});
+}
+
+/** The same, with only the two verdict inks named — a claim's pass and
+ *  fail — and every other standing in the default ink for it. */
 inline void report(feed::TextRing& ring, const measure::Check& c,
                    std::string passStyle = "pass",
                    std::string failStyle = "fail", int labelWidth = 44,
                    int valueWidth = 8) {
-  const std::string text = c.line(labelWidth, valueWidth);
-  ring.append({std::u8string(text.begin(), text.end()),
-               c.pass ? std::move(passStyle) : std::move(failStyle)});
+  report(ring, c,
+         ReportStyles{.pass = std::move(passStyle),
+                      .fail = std::move(failStyle),
+                      .labelWidth = labelWidth,
+                      .valueWidth = valueWidth});
+}
+
+/** A whole table into the feed, row by row, in the order it was made —
+ *  the verification block of a study, printed as it runs. The summary
+ *  line is not written: a plate is not where a run's exit status is read,
+ *  and `Table::failures()` is what a build asks. */
+inline void report(feed::TextRing& ring, const measure::Table& table,
+                   const ReportStyles& styles = {}) {
+  for (const measure::Check& c : table.rows) report(ring, c, styles);
 }
 
 }  // namespace sigil::compose::test

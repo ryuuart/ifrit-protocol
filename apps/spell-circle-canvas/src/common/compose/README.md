@@ -474,7 +474,10 @@ sound model; nothing below them changes kernel semantics.
   `sigil::weave::StyleSet` (`feed::TextRow`, `feed::TextOptions`). Built
   purely by composing the kernel; the bordered strip several feeds sit on
   is the kit's `kit::plate` (`kit/Plate.h`), with `kit::tinted` building
-  the one-face style set its rows name.
+  the one-face style set its rows name, and `kit::console` is that plate
+  over N feeds of one voice — each in its own column, or `Console::stacked`
+  to a column — which is the verification plate a study prints its checks
+  into.
 
 **The animation vocabulary is SigilMotion's and is spelled that way.**
 `motion::Animatable` is the property slot every setter here takes,
@@ -621,9 +624,17 @@ shaping, its caches and its bindings carry from frame to frame.
 whose one header verifies generated geometry and reads back what was
 drawn, in `namespace test` (GoogleTest owns `::testing`): `test::coverage`, `test::endpointDegrees`,
 `test::rasterize` and the feed `test::report`. The checks a plate
-reports — `measure::check` and `measure::failures` — are SigilMeasure's,
-spelled under its own name from `<sigilmeasure/check/Check.h>`; only the
-geometry readers and `test::report` are this library's. Test
+reports — `measure::check` and `measure::failures`, with
+`measure::finding`, `measure::reading` and `measure::heading` for the
+rows that stand beside claims, and `measure::Table` for the run of them
+— are SigilMeasure's, spelled under its own name from
+`<sigilmeasure/check/Check.h>`; only the geometry readers and
+`test::report` are this library's. `test::report` writes one check or a
+whole `measure::Table` into a `feed::TextRing`, each row in the ink its
+standing and verdict choose from a `test::ReportStyles` — the pass, fail,
+finding, reading and heading names a plate's tinted set registers — so
+the verification block of a study is one table, printed as it runs, and
+no verdict is ever typed into a row's text. Test
 binaries link it, and so does the sketch library, so a sketch can report
 its own checks; nothing that ships does, which is what keeps a
 point-sampled coverage scan out of a paint loop.

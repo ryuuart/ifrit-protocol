@@ -5,7 +5,9 @@
  * set that colours their rows. Both are plain composition over the public
  * API: `plate` is a padded, bordered box with hairline dividers, `tinted` a
  * `sigil::weave::StyleSet` of one face and one size whose entries differ
- * only in colour, which is the shape `feed::height` measures exactly.
+ * only in colour, which is the shape `feed::height` measures exactly. `console` is
+ * `plate` over `feed::feed`, the verification plate every study prints
+ * its checks into.
  */
 
 #include <include/core/SkColor.h>
@@ -13,9 +15,13 @@
 #include <include/core/SkTypeface.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Element.h>
+#include <sigilcompose/core/Factories.h>
+#include <sigilcompose/core/Feed.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilweave/style/Style.h>
 
+#include <algorithm>
+#include <cstddef>
 #include <string>
 #include <utility>
 #include <vector>
@@ -132,6 +138,59 @@ struct Plate {
   }
   ground.child(std::move(inner));
   return ground;
+}
+
+// ---------------------------------------------------------------------------
+// The console several check feeds print into.
+
+/** THE CONSOLE a study prints its checks into: N feeds of one voice on
+ *  one plate, each in a column of its own — or `stacked` to a column,
+ *  the first `stacked` feeds down the first column and so on — inside
+ *  the plate's chrome. It is `plate()` over `feed::feed()` with the voice
+ *  threaded through once, which is what every verification plate wrote,
+ *  each a little differently.
+ *
+ *      kit::console({.feeds = {&logA, &logB, &logC, &logD},
+ *                    .style = voice,
+ *                    .stacked = 2,
+ *                    .plate = {.paddingX = 12, .paddingY = 8, .gap = 14,
+ *                              .fill = Fill::color(hex(0x1b1e26, 0.86f)),
+ *                              .border = Fill::color(hex(0xc7ab74, 0.22f)),
+ *                              .divider = Fill::color(hex(0xc7ab74, 0.16f))}})
+ *          .rect(SkRect::MakeXYWH(1383, 882, 690, 468))
+ *
+ *  `plate.columns` is the console's to fill; anything in it is replaced.
+ *  A feed left null is skipped. The rings are the caller's and outlive
+ *  the description, as a feed's always do. */
+struct Console {
+  /** In reading order. */
+  std::vector<const feed::TextRing*> feeds;
+  /** The voice every row is set in — a `tinted` set, usually. */
+  feed::TextOptions style;
+  /** Feeds per column: 1 (default) gives each its own. */
+  int stacked = 1;
+  /** Between feeds stacked in one column, px. */
+  float stackGap = 6.0f;
+  /** The chrome: padding, gap, ground, keyline, dividers, the axis. */
+  Plate plate;
+};
+
+[[nodiscard]] inline Element console(Console c) {
+  const size_t per = (size_t)std::max(c.stacked, 1);
+  std::vector<Element> columns;
+  for (size_t i = 0; i < c.feeds.size(); i += per) {
+    if (per == 1) {
+      if (c.feeds[i]) columns.push_back(feed::feed(*c.feeds[i], c.style));
+      continue;
+    }
+    Element stack = box().column().gap(c.stackGap);
+    const size_t end = std::min(i + per, c.feeds.size());
+    for (size_t j = i; j < end; ++j)
+      if (c.feeds[j]) stack.child(feed::feed(*c.feeds[j], c.style).grow(1));
+    columns.push_back(std::move(stack));
+  }
+  c.plate.columns = std::move(columns);
+  return plate(std::move(c.plate));
 }
 
 }  // namespace sigil::compose::kit

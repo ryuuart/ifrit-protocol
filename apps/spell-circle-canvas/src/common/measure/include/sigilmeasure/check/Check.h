@@ -2,12 +2,14 @@
 
 /** @file
  * A verified claim — its label, the value it expected, the value it got
- * and a verdict — the overloads that produce one from two numbers, and
- * the table a run of them prints as.
+ * and a verdict — the overloads that produce one from two numbers, the
+ * rows that stand beside claims without judging anything, and the table
+ * a run of them prints as.
  */
 
 #include <cmath>
 #include <concepts>
+#include <cstdint>
 #include <cstdio>
 #include <span>
 #include <string>
@@ -16,6 +18,29 @@
 #include <vector>
 
 namespace sigil::measure {
+
+/** WHAT A ROW'S VERDICT MEANS to the run it stands in.
+ *
+ *  A verification is not only claims. Beside them stand the measurements
+ *  the claims were made from, the titles that group them, and claims
+ *  about the SUBJECT rather than the construction — a published formula
+ *  that does not hold, a plate whose legend its engraving contradicts —
+ *  whose failing is the finding and not a defect in the run. Each is a
+ *  row, and what it means is stated here rather than typed into its
+ *  text, so a reader of the table and a build that counts its failures
+ *  read the same thing. */
+enum class Standing : uint8_t {
+  /** A claim about the construction: its FAIL fails the run. */
+  Claim,
+  /** A claim about the subject: its verdict is printed as any claim's is
+   *  and never counted against the run. */
+  Finding,
+  /** A measurement reported beside the claims and judged by nobody: its
+   *  value is printed with no verdict. */
+  Reading,
+  /** A title over the rows that follow: a label alone. */
+  Heading,
+};
 
 /** One claim, its evidence, and its verdict.
  *
@@ -29,6 +54,7 @@ struct Check {
   std::string label;
   std::string expected, actual;  ///< already formatted, for printing
   bool pass = false;
+  Standing standing = Standing::Claim;
 
   /** `  <label padded> <actual, right-aligned>   PASS`, or
    *  `… FAIL want <expected>` — the shape of `"  %-44s %8ld   %s"`. Values
@@ -41,8 +67,13 @@ struct Check {
    *
    *  Long labels are NOT truncated — they push the value column right
    *  instead. A clipped label silently loses the units or the qualifier at
-   *  the end of a claim, which is worse than a line that wraps. */
+   *  the end of a claim, which is worse than a line that wraps.
+   *
+   *  A reading stops after its value, since it has no verdict to print;
+   *  a heading is its label alone, unindented, so it reads as the title of
+   *  the indented rows under it. */
   std::string line(int labelWidth = 44, int valueWidth = 8) const {
+    if (standing == Standing::Heading) return label;
     std::string out = "  " + label;
     if ((int)label.size() < labelWidth)
       out.append((size_t)labelWidth - label.size(), ' ');
@@ -50,8 +81,13 @@ struct Check {
     if ((int)actual.size() < valueWidth)
       out.append((size_t)valueWidth - actual.size(), ' ');
     out += actual;
+    if (standing == Standing::Reading) return out;
     out += pass ? "   PASS" : "   FAIL want " + expected;
     return out;
+  }
+  /** Whether this row carries a verdict at all — a claim or a finding. */
+  bool judged() const {
+    return standing == Standing::Claim || standing == Standing::Finding;
   }
 };
 
@@ -108,11 +144,54 @@ inline Check check(std::string label, bool condition) {
   return {std::move(label), "true", condition ? "true" : "false", condition};
 }
 
-/** How many of @p checks failed — an exit code for a verification run, and
- *  what makes the claims mean something away from the screen. */
+/** @p claim restated as a FINDING: a claim about the subject, whose
+ *  verdict is computed and printed exactly as it was and never counted
+ *  against the run. `finding(check("legend holds", 1.0, measured, 0.01))`
+ *  is how a plate is shown to contradict its own legend. */
+inline Check finding(Check claim) {
+  claim.standing = Standing::Finding;
+  return claim;
+}
+
+/** A READING: @p value reported under @p label with no verdict — a
+ *  residual in scientific notation, a count, a ratio, a name — what the
+ *  claims beside it were made from. */
+inline Check reading(std::string label, std::string value) {
+  return {std::move(label), "", std::move(value), true, Standing::Reading};
+}
+/** A reading of a number, formatted as the tolerance overload formats
+ *  its values. */
+inline Check reading(std::string label, double value) {
+  return reading(std::move(label), detail::fmtDouble(value));
+}
+/** A reading of a count. */
+template <std::integral T>
+Check reading(std::string label, T value) {
+  return reading(std::move(label), detail::fmtLong((long)value));
+}
+
+/** A HEADING: @p title over the rows that follow it. */
+inline Check heading(std::string title) {
+  return {std::move(title), "", "", true, Standing::Heading};
+}
+
+/** How many CLAIMS in @p checks failed — an exit code for a verification
+ *  run, and what makes the claims mean something away from the screen. A
+ *  finding that fails is not among them: its failing is a statement about
+ *  the subject, and is counted by `findings()`. */
 inline int failures(std::span<const Check> checks) {
   int n = 0;
-  for (const Check& c : checks) n += c.pass ? 0 : 1;
+  for (const Check& c : checks)
+    n += (!c.pass && c.standing == Standing::Claim) ? 1 : 0;
+  return n;
+}
+
+/** How many findings in @p checks failed — the things the run found out
+ *  about its subject. */
+inline int findings(std::span<const Check> checks) {
+  int n = 0;
+  for (const Check& c : checks)
+    n += (!c.pass && c.standing == Standing::Finding) ? 1 : 0;
   return n;
 }
 
@@ -127,12 +206,20 @@ struct Table {
     return *this;
   }
   int failures() const { return measure::failures(rows); }
+  int findings() const { return measure::findings(rows); }
   bool pass() const { return failures() == 0; }
+  /** How many rows carry a verdict — the claims and the findings. */
+  int checks() const {
+    int n = 0;
+    for (const Check& c : rows) n += c.judged() ? 1 : 0;
+    return n;
+  }
 
   /** One string per row, then a final `  <n> checks, <m> failed` line
-   *  (`all passed` when none did). Empty when there are no rows: a
-   *  table with nothing in it prints nothing rather than a summary of
-   *  nothing. */
+   *  (`all passed` when none did), with `, <k> findings` after it when a
+   *  finding failed. The readings and headings are printed and not
+   *  counted. Empty when there are no rows: a table with nothing in it
+   *  prints nothing rather than a summary of nothing. */
   std::vector<std::string> lines(int labelWidth = 44, int valueWidth = 8) const;
 };
 

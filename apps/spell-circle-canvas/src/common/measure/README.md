@@ -99,6 +99,23 @@ silently loses the qualifier at the end of a claim. `failures(checks)`
 counts the misses, and `Table::lines()` prints the rows at one width
 followed by a summary line.
 
+**A verification is not only claims, and each row says what it is.**
+`Check::standing` is a `Standing`: a `Claim` about the construction,
+whose FAIL fails the run; a `Finding`, a claim about the SUBJECT — a
+published formula that does not hold, a plate whose engraving
+contradicts its legend — whose verdict is computed and printed exactly
+as a claim's is and never counted against the run (`finding(check(…))`
+restates one, `findings()` counts the ones that did not hold, and the
+summary line says `, 1 finding`); a `Reading`, a measurement reported
+beside the claims and judged by nobody, printed with no verdict
+(`reading(label, value)` for a number, a count or a string); and a
+`Heading`, a title over the rows under it, printed as its label alone
+(`heading(title)`). `Table::checks()` counts the rows that carry a
+verdict, and `Check::judged()` says whether one does. The standing is a
+value on the row rather than a word in its text, so the sentence a
+reader sees and the count a build reads cannot disagree about which
+failures are the run's.
+
 **A sample is plain numbers.** `FrameSample` holds `frameMs`, `workMs`,
 `p99Ms` and `headroomFps` as values, so a snapshot taken when a sample
 window closes survives the ring being cleared or refilled behind it.

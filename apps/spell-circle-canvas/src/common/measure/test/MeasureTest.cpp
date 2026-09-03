@@ -310,3 +310,43 @@ TEST(Check, FailuresCountsAndTableSummarises) {
   EXPECT_EQ(all.lines().back(), "  1 checks, all passed");
   EXPECT_TRUE(Table{}.lines().empty());
 }
+
+TEST(Check, AFindingIsPrintedAsAClaimAndNeverCountedAgainstTheRun) {
+  const Check legend = finding(check("legend holds", 1.0, 1.126, 0.01));
+  EXPECT_FALSE(legend.pass);
+  EXPECT_EQ(legend.standing, Standing::Finding);
+  EXPECT_EQ(legend.line(12, 5), "  legend holds 1.126   FAIL want 1 \xc2\xb1 0.01");
+  Table t;
+  t.add(check("a", 1, 1)).add(legend);
+  EXPECT_EQ(t.failures(), 0);
+  EXPECT_EQ(t.findings(), 1);
+  EXPECT_TRUE(t.pass());
+  EXPECT_EQ(t.lines(4, 2).back(), "  2 checks, all passed, 1 finding");
+  // A finding that holds is a finding of nothing.
+  t.add(finding(check("b", 2, 2)));
+  EXPECT_EQ(t.findings(), 1);
+}
+
+TEST(Check, ReadingsAndHeadingsStandBesideTheClaimsUnjudged) {
+  const Check residual = reading("max residual", 5.6e-16);
+  EXPECT_TRUE(residual.pass);
+  EXPECT_FALSE(residual.judged());
+  EXPECT_EQ(residual.line(12, 8), "  max residual  5.6e-16");
+  EXPECT_EQ(reading("pieces", 12).line(6, 2), "  pieces 12");
+  EXPECT_EQ(reading("centre", "305.185, 393.529").line(6, 2),
+            "  centre 305.185, 393.529");
+  const Check title = heading("THE RETE IS ONE PIECE OF METAL");
+  EXPECT_EQ(title.line(), "THE RETE IS ONE PIECE OF METAL");
+  EXPECT_EQ(title.standing, Standing::Heading);
+  // Neither is a check: the summary counts the claims alone.
+  Table t;
+  t.add(title).add(residual).add(check("spurs", 0, 0)).add(reading("bars", 41));
+  EXPECT_EQ(t.checks(), 1);
+  EXPECT_EQ(t.failures(), 0);
+  const std::vector<std::string> lines = t.lines(6, 2);
+  ASSERT_EQ(lines.size(), 5u);
+  EXPECT_EQ(lines[0], "THE RETE IS ONE PIECE OF METAL");
+  EXPECT_EQ(lines[2], "  spurs   0   PASS");
+  EXPECT_EQ(lines[3], "  bars   41");
+  EXPECT_EQ(lines[4], "  1 checks, all passed");
+}

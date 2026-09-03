@@ -165,3 +165,74 @@ TEST(ComposeDebug, RestGhostCopiesTheTypeAndNotTheMarksOnIt) {
         ASSERT_TRUE(caret.contains((float)x + 0.5f, (float)y + 0.5f))
             << "the ghost carries a second copy of the mark";
 }
+
+// ---------------------------------------------------------------------------
+// kit::console and test::report — the two halves of a verification plate.
+
+#include <sigilcompose/kit/Plate.h>
+#include <sigilcompose/testing/Checks.h>
+
+TEST(ComposeConsole, StacksFeedsPerColumnInOneVoice) {
+  feed::TextRing a{8}, b{8}, c{8}, d{8};
+  for (feed::TextRing* ring : {&a, &b, &c, &d}) ring->append({u8"a row", ""});
+  feed::TextOptions voice;
+  voice.styles =
+      kit::tinted(nullptr, 12.0f, {1, 1, 1, 1}, {{"pass", {0, 1, 0, 1}}});
+  voice.window.visible = 4;
+  const float row = feed::height(voice, 1, fonts());
+  kit::Plate chrome;
+  chrome.paddingX = 0;
+  chrome.paddingY = 0;
+  // One feed per column: the plate is one row tall.
+  const float one =
+      measure(box().child(kit::console(
+                  {.feeds = {&a, &b}, .style = voice, .plate = chrome})),
+              fonts())
+          .height();
+  EXPECT_NEAR(one, row, 1.0f);
+  // Two per column: two rows and the stack gap.
+  const float two = measure(box().child(kit::console({.feeds = {&a, &b, &c, &d},
+                                                      .style = voice,
+                                                      .stacked = 2,
+                                                      .stackGap = 6,
+                                                      .plate = chrome})),
+                            fonts())
+                        .height();
+  EXPECT_NEAR(two, 2 * row + 6, 1.5f);
+  // A null feed is skipped rather than dereferenced.
+  const float gap = measure(box().child(kit::console({.feeds = {&a, nullptr},
+                                                      .style = voice,
+                                                      .plate = chrome})),
+                            fonts())
+                        .height();
+  EXPECT_NEAR(gap, row, 1.0f);
+}
+
+TEST(ComposeReport, ATableLandsInTheFeedRowByRowInTheInkOfItsStanding) {
+  namespace measure = sigil::measure;
+  measure::Table table;
+  table.add(measure::heading("THE RETE"))
+      .add(measure::check("spurs", 0, 0))
+      .add(measure::check("components", 1, 2))
+      .add(measure::finding(measure::check("legend", 1.0, 1.1, 0.01)))
+      .add(measure::reading("residual", 5.6e-16));
+  feed::TextRing ring{16};
+  test::report(ring, table, {.labelWidth = 12, .valueWidth = 4});
+  ASSERT_EQ(ring.size(), 5u);
+  const auto& rows = ring.rows();
+  EXPECT_EQ(rows[0].value.style, "heading");
+  EXPECT_TRUE(rows[0].value.text == u8"THE RETE");
+  EXPECT_EQ(rows[1].value.style, "pass");
+  EXPECT_EQ(rows[2].value.style, "fail");
+  EXPECT_EQ(rows[3].value.style, "fail");
+  EXPECT_EQ(rows[4].value.style, "number");
+  EXPECT_TRUE(rows[4].value.text == u8"  residual     5.6e-16");
+  // A plate that tells a finding from a failure names its ink.
+  test::report(ring, table.rows[3], {.finding = "measured"});
+  EXPECT_EQ(ring.rows().back().value.style, "measured");
+  // The two-name spelling still routes a reading to its own ink.
+  test::report(ring, measure::reading("bars", 41), "ok", "bad");
+  EXPECT_EQ(ring.rows().back().value.style, "number");
+  test::report(ring, measure::check("bars", 41, 40), "ok", "bad");
+  EXPECT_EQ(ring.rows().back().value.style, "bad");
+}
