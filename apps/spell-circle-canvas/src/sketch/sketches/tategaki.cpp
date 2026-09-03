@@ -34,13 +34,14 @@
 //                               moment stands after it, so raising it
 //                               past 2.4 s puts the plate mid-entrance.
 
-#include <sigilcompose/kit/Silhouettes.h>
-#include <sigilcompose/typography/TextFx.h>
+#include <shared/VerticalSpecimen.h>
+#include <sigilcompose/kit/Kinetic.h>
+#include <sigilcompose/typography/Typography.h>
 #include <sigilsketch/canvas/Sketch.h>
 
-#include "VerticalSpecimen.h"
-
 namespace sketch = sigil::sketch;
+
+namespace motion = sigil::motion;
 
 using namespace sigil::compose;
 using sigil::compose::toU8;
@@ -61,6 +62,12 @@ constexpr float kBodySize = 30;
 constexpr float kColumnBlockW = 420;
 constexpr float kColumnBlockH = 436;
 constexpr float kColumnBlockRight = 56;
+
+/** The settling entrance: an AMOUNT-mode cascade, so the whole spread is
+ *  1100 ms however many clusters the passage breaks into, and its span is
+ *  the same number for every count past one. */
+const sigil::motion::Spread kSettle{.amountMs = 1100, .durationMs = 520};
+const float kSettleSpan = kSettle.spanMs(2);
 
 }  // namespace tategaki
 
@@ -94,8 +101,8 @@ struct Tategaki final : sketch::Sketch {
     namespace tg = tategaki;
     namespace ch = choreograph;
 
-    Material ground = Material::linear(
-        {0, 0}, {0, tg::kH}, {{0.0f, tg::kSumiLift}, {1.0f, tg::kSumi}});
+    Fill ground =
+        linearGradient({0, 0}, {0, tg::kH}, {tg::kSumiLift, tg::kSumi});
 
     // All three vertical forms in one passage. Only the two numbers and the
     // Latin word name a form; everything else takes UTR#50's, which is what
@@ -132,9 +139,11 @@ struct Tategaki final : sketch::Sketch {
                    // One settling entrance, beating cluster by cluster in
                    // READING ORDER: down each column, then right to left.
                    .fx({.effect = fx::rise(30),
-                        .stagger = {.amountMs = 1100, .durationMs = 520},
-                        .progress = animate(from(0.0f).to(1.0f),
-                                            {1500ms, &ch::easeNone, 180ms})}))
+                        .stagger = tg::kSettle,
+                        .progress = animate(
+                            motion::from(0.0f).to(1.0f),
+                            {std::chrono::milliseconds((int)tg::kSettleSpan),
+                             &ch::easeNone, 180ms})}))
         .child(
             box()
                 .absolute()
@@ -191,5 +200,5 @@ struct Tategaki final : sketch::Sketch {
 
 }  // namespace
 
-SIGIL_SKETCH_AS(Tategaki, "tategaki", "Catalog \xc2\xb7 Type & grid",
+SIGIL_SKETCH_AS(Tategaki, "tategaki", "Catalog \xc2\xb7 Type",
                 "vertical-rl CJK \xe2\x80\x94 three forms, one paragraph")
