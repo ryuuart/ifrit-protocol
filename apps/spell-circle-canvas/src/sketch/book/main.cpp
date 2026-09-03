@@ -7,7 +7,7 @@
  *   Sketchbook --headless <outdir> [--gpu] [--sketch <name>] [--kind <k>]
  *              [--ledger] [--no-promotion] [--capture-at <s>]
  *              [--timing-json <path>]          plates, and the timing table
- *   Sketchbook <file.cpp> [--frame <png>] [--bench]
+ *   Sketchbook <file.cpp> [--frame <png>] [--bench] [--gpu]
  *                                              a file, live or measured
  *   Sketchbook <file.cpp>                      the app, on that file
  *   Sketchbook <stem>/<stem>.cpp               …either way, a sketch that
@@ -784,7 +784,7 @@ int main(int argc, char* argv[]) {
                    "[--at <sec>] [--scale <n>]\n"
                    "         [--frames <count>] [--fps <n>] [--bench] "
                    "[--bench-frames <n>]\n"
-                   "         [--jitter-dt [amplitude]] "
+                   "         [--gpu] [--jitter-dt [amplitude]] "
                    "[--deterministic | --no-deterministic]\n");
       return 2;
     }
@@ -797,9 +797,24 @@ int main(int argc, char* argv[]) {
     // Installed before the guest can ever run: without it, a fault
     // inside a sketch is a bare signal with nothing printed.
     sketch::installCrashReporter(options.sketchPath);
-    sketch::Host host(std::move(options), fonts());
-    return capture.bench ? runBench(host, capture, host.sketchPath())
-                         : runFrames(host, capture);
+    // `--gpu` PUTS THIS RUN ON THE DEVICE, exactly as it does for a
+    // sweep: a set draws its frame there, and a canvas sketch's mesh
+    // painter rasterises there. Fatal when the device will not come up,
+    // because a run that asked for the device and quietly gave the CPU's
+    // picture puts two different pictures under one name — which is the
+    // one thing a capture must never do.
+    if (gpu && !useDevice()) return 1;
+    int result = 0;
+    {
+      sketch::Host host(std::move(options), fonts());
+      result = capture.bench ? runBench(host, capture, host.sketchPath())
+                             : runFrames(host, capture);
+    }
+    // The session goes before the device does: it holds textures and
+    // pipelines the device made, and releasing the device first takes
+    // their teardown into static destruction.
+    releaseDevice();
+    return result;
   }
 
   // ---- the app ---------------------------------------------------------

@@ -109,13 +109,28 @@ struct SketchContext {
    *
    *  It draws on the CPU mesh executor whatever device the process
    *  holds, and declares no passes: the picture is a function of the
-   *  frame, the viewpoint and the size, and of nothing the machine it
-   *  ran on decides. The scene it stands the frame in lives for this
-   *  call alone, so what comes back is an image and not a view onto
-   *  something still standing. */
+   *  frame, the viewpoint, the size and @p seconds, and of nothing the
+   *  machine it ran on decides. The scene it stands the frame in lives
+   *  for this call alone, so what comes back is an image and not a view
+   *  onto something still standing.
+   *
+   *  @p seconds IS THE MOMENT OF THE BAKE, on the baked scene's own
+   *  clock, which starts when the scene mounts. It is what a set with an
+   *  ENTRANCE is photographed at: a `staggerChildren` cascade is a
+   *  schedule of transitions that begin at the mount, so at zero every
+   *  one of them is still at its start pose and the picture is the set
+   *  before it arrived — which is a still no author ever wanted.
+   *
+   *  The clock is the BAKE'S, not the sketch's. Reaching the moment on
+   *  the sketch's own ticker would step the sketch, and a document that
+   *  photographed a set in one of its panels would move everything else
+   *  on the page to do it. The moment is reached in one step, so a set
+   *  whose motion is a fixed-rate steppable rather than a transition is
+   *  not what this is for. */
   [[nodiscard]] sk_sp<SkImage> bakeSet(
       const world::Frame& frame, const geometry::mesh::camera::Camera& camera,
-      SkISize size, SkColor4f background = {0, 0, 0, 0});
+      SkISize size, SkColor4f background = {0, 0, 0, 0},
+      double seconds = 0.0);
 
   /** The host is taking a capture that will be DIFFED, so anything the
    *  sketch measured about its own execution must be pinned. See

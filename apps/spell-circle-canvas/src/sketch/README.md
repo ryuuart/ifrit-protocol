@@ -316,7 +316,8 @@ forward: a sweep that must photograph an earlier moment opens a second
 session rather than rewinding this one, so no run of the piece begins
 where an earlier one left off, and a sketch needs no guard of its own.
 
-`ctx.bakeSet(frame, camera, size, background)` — on the canvas context —
+`ctx.bakeSet(frame, camera, size, background, seconds)` — on the canvas
+context —
 is a lit set rendered once into an image: the picture inside a page, for
 a document whose plate is re-rendered at the capture scale and cannot
 drag its chrome through a texture for the sake of one panel. The
@@ -325,6 +326,15 @@ tree carrying a camera of its own is seen from it here exactly as in the
 set runtime, and forming and presenting cannot disagree. It draws on the
 CPU mesh executor whatever device the process holds and declares no
 passes, so the page's plate and its live picture are one picture.
+
+`seconds` is the MOMENT of the bake, on the baked scene's own clock,
+which starts when the scene mounts — what a set with an entrance is
+photographed at. A `staggerChildren` cascade is a schedule of transitions
+that begin at the mount, so at zero every one of them is still at its
+start pose and the picture is the set before it arrived. The clock is the
+bake's and not the sketch's: reaching the moment on the sketch's own
+ticker would step the sketch, and a document photographing a set in one
+of its panels would move everything else on the page to do it.
 
 Each door names the other library's value by forward declaration and
 nothing else of it: a sketch walking through one includes that library's
@@ -421,7 +431,7 @@ Sketchbook [--no-gpu]                       # the app
 Sketchbook --sketch <name>                  # the app, on that one
 Sketchbook <file.cpp>                       # the app, on that file
 Sketchbook --list [--kind canvas|set]       # the registry, one per line
-Sketchbook <file.cpp> --frame out.png [--at <sec>] [--scale <n>]
+Sketchbook <file.cpp> --frame out.png [--at <sec>] [--scale <n>] [--gpu]
                                   [--frames <count>] [--fps <n>]
 Sketchbook <file.cpp> --bench [--bench-frames <n>] [--jitter-dt [amp]]
 Sketchbook --headless <outdir> [--gpu] [--sketch <name>] [--kind <k>]
@@ -460,6 +470,14 @@ declared with `ctx.captureAt`, then captures `--frames` PNGs
 pixel, which is what asset generation wants). Declare the exact canvas,
 give it a transparent background, draw, export. Any sketch answers to the
 flag, so the sketch that draws the asset is the template.
+
+**`--gpu` puts the run on the device**, exactly as it does for a sweep: a
+set draws its frame there, and a canvas sketch's mesh painter
+(`sketch::painterRuntime()`) rasterises there. It is fatal when no device
+comes up, because a run that asked for the device and quietly gave the
+CPU's picture puts two different pictures under one name. Without it a
+file renders on the CPU mesh executor, which is what a plate is hashed
+from.
 
 **The moment is the sketch's, not the flag's.** `--at <sec>` overrides
 it, and a sketch that declared none falls back to 1.5 s; otherwise a

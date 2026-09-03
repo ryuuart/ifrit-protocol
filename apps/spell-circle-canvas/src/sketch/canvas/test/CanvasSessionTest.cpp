@@ -16,6 +16,7 @@
 #include <sigilworld/element/Element.h>
 #include <sigilworld/frame/Frame.h>
 
+#include <chrono>
 #include <cmath>
 #include <cstring>
 #include <memory>
@@ -53,6 +54,12 @@ constexpr float kCardH = 60.0f;
 constexpr float kEyeZ = 300.0f;
 constexpr SkISize kBakeSize{128, 96};
 constexpr SkColor4f kGround{0.1f, 0.1f, 0.1f, 1};
+/** The entrance the bake's moment is read against: how far a card slides
+ *  in, how long one card's own motion lasts, and how far apart the
+ *  cascade starts the two of them. */
+constexpr float kSlideIn = 90.0f;
+constexpr auto kEnter = std::chrono::milliseconds(400);
+constexpr auto kStagger = std::chrono::milliseconds(120);
 
 world::Frame cardFrame() {
   return world::Frame(world::Element().key("set").child(
@@ -215,6 +222,67 @@ struct Baking : Sketch {
     ctx.composer.render(box().width(10).height(10));
   }
 };
+
+/** THE SAME CARD WITH AN ENTRANCE, cascaded: it slides in from the left
+ *  over its own transition, and the parent staggers when each of its
+ *  children starts. A still of it is a claim about that entrance, so the
+ *  bake has to be able to reach a moment of it. */
+world::Frame enteringFrame() {
+  const auto card = [](const char* key, float x) {
+    return world::Element()
+        .key(key)
+        .translateX(sigil::motion::animate(
+            sigil::motion::from(x - kSlideIn).to(x), {kEnter}))
+        .mesh(gm::quad(kCardW * 0.4f, kCardH))
+        .fill(sigil::material::kit::unlit({.baseColor = {1, 1, 1, 1}}));
+  };
+  return world::Frame(world::Element()
+                          .key("set")
+                          .staggerChildren(
+                              {.eachMs = (float)kStagger.count(),
+                               .durationMs = (float)kEnter.count()})
+                          .child(card("left", -40.0f))
+                          .child(card("right", 40.0f)));
+}
+
+/** A sketch that bakes the entering card at three moments: before it
+ *  starts, part way through, and after the whole cascade has landed. */
+struct Entering : Sketch {
+  static inline sk_sp<SkImage> atMount;
+  static inline sk_sp<SkImage> partWay;
+  static inline sk_sp<SkImage> landed;
+  void setup(SketchContext& ctx) override {
+    ctx.canvas(200, 120);
+    const auto bake = [&](double seconds) {
+      return ctx.bakeSet(enteringFrame(), cardCamera(kEyeZ), kBakeSize, kGround,
+                         seconds);
+    };
+    atMount = bake(0.0);
+    partWay = bake(kEnter.count() / 1000.0 * 0.5);
+    landed = bake((kEnter.count() + kStagger.count() * 2) / 1000.0);
+    ctx.composer.render(box().width(10).height(10));
+  }
+};
+
+TEST(CanvasDoors, BakesTheMomentOfAnEntranceRatherThanAlwaysItsFirstFrame) {
+  const std::unique_ptr<Session> session =
+      kindOf<Entering>()->open(fonts(), assets());
+  ASSERT_TRUE(Entering::landed);
+  const SkIRect mounted = silhouetteOf(pixelsOf(Entering::atMount));
+  const SkIRect halfway = silhouetteOf(pixelsOf(Entering::partWay));
+  const SkIRect settled = silhouetteOf(pixelsOf(Entering::landed));
+  ASSERT_FALSE(settled.isEmpty());
+  // The cards slide in from the left, so the pair's box travels right as
+  // the cascade runs. Three distinct moments, three distinct pictures —
+  // and before this argument existed all three were the first.
+  EXPECT_LT(mounted.left(), halfway.left())
+      << "the bake stood still where the entrance was moving";
+  EXPECT_LT(halfway.left(), settled.left());
+  // …and the landed one is the set as described, symmetric about the
+  // middle, which is what says the clock actually reached the end.
+  EXPECT_NEAR((float)(settled.left() + settled.right()) / 2.0f,
+              kBakeSize.width() / 2.0f, 1.5f);
+}
 
 TEST(CanvasDoors, PaintsWhatTheSketchHandedTheTextureScene) {
   const std::unique_ptr<Session> session =
