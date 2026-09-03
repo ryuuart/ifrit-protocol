@@ -54,7 +54,6 @@ add_library(SigilComposeCore STATIC
   StackingPainter.cpp
   Coverage.cpp
   # text
-  TextAtRest.cpp
   TextPainter.cpp
   # the instanced leaf
   Instances.cpp

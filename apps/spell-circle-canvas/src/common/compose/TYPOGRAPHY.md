@@ -241,6 +241,13 @@ A mark needs no
 `reach`, being a child: the recording cull already grows by the union of a
 node's children.
 
+**The rest pose is a description.** `Element::atRest` is this leaf as a
+second element that can stand beside it: the same content, style,
+measure and layout, carrying nothing that deviates or restyles a glyph
+at paint time — no tracks, no span restyles, none of the leaf's marks or
+slot mounts — keyed `-rest` after the original, its ink the caller's.
+`kit::restGhost` is that copy under the moving one, set in one colour.
+
 **Effects are comparable values**, which is what lets text carrying tracks
 prune like any other static leaf. A preset compares by its name and its
 parameters; an ad-hoc body goes through `fx::effect`, which takes the key

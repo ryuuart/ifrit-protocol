@@ -1059,6 +1059,22 @@ class Element {
    *  `fx()` wins if both are set (a track draws its own batched buckets
    *  along the flow, not along the curve). */
   Element& onPath(TextPath spec);
+  /** Text leaves only: THIS LEAF AS IT STANDS AT REST, as a second element
+   *  that can stand beside it in one tree — the same content, style,
+   *  measure and layout, carrying nothing that deviates or restyles a
+   *  glyph at paint time: no `fx()` tracks, no span restyles, and no
+   *  children, since a text node's children are its marks and its slot
+   *  mounts and both are already on screen once. A slot's reserved RUN
+   *  stays — it is content, and it holds the same space in the copy's
+   *  paragraph, which is what keeps the two copies' letters in the same
+   *  places. The key takes `-rest` after it (a keyless original leaves the
+   *  copy keyless), so both are addressable and both prune; the ink is
+   *  left to the caller, which is what `textFill` is for.
+   *
+   *  A rest pose is what a track's per-glyph deviation is measured
+   *  against, and `kit::restGhost` draws it under the moving copy.
+   *  Anything but text warns once and comes back as a plain copy. */
+  [[nodiscard]] Element atRest() const;
 
   // ---- identity, caching, transitions ----
   /** The author-owned identity: what the reconciler matches a child by

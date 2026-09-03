@@ -2,15 +2,60 @@
  * The text leaf's own verbs — the glyph stroke, the layout options that
  * override a paragraph's field by field, the frame chain and the
  * exclusion — with the options' fold onto SigilWeave's layout options and
- * the UTF-16 boundary the leaf speaks to it across. The verbs that dress
- * type are declared beside these and defined by the typography tier.
+ * the UTF-16 boundary the leaf speaks to it across — and the leaf as it
+ * stands at rest, which is a copy of its description. The verbs that
+ * dress type are declared beside these and defined by the typography
+ * tier.
  */
 
+#include <include/core/SkTypes.h>  // SkDebugf — the rest-of-non-text diagnostic
 #include <sigilcore/reconcile/Env.h>
 
 #include "ComposeInternal.h"
 
 namespace sigil::compose {
+
+namespace {
+void warnAtRestOfNonText() {
+  static bool warned = false;
+  if (warned) return;
+  warned = true;
+  SkDebugf(
+      "[compose] atRest() on an element that is not text() hands back a "
+      "plain copy: a rest pose is what an fx() track's per-glyph deviation "
+      "is measured against, and every other element already draws where "
+      "its layout put it.\n");
+}
+}  // namespace
+
+Element Element::atRest() const {
+  const std::shared_ptr<detail::ElementNode>& source = node();
+  if (source->kind != detail::Kind::Text || !source->textData) {
+    warnAtRestOfNonText();
+    return *this;
+  }
+  // A COPY OF THE DESCRIPTION, not a re-description: the copy has to be
+  // the same paragraph, laid out the same way, at the same width, or the
+  // two disagree about where a letter belongs and a comparison against it
+  // is worthless. Everything that could shift a glyph is therefore carried
+  // over untouched, and only what moves or restyles one at paint time
+  // goes.
+  auto rest = std::make_shared<detail::ElementNode>(*source);
+  detail::TextData& text = rest->textData.ensure();
+  text.tracks.clear();
+  text.spanRestyles.clear();
+  // …AND NO CHILDREN, which is the same rule read twice. A text node's
+  // children are its marks and its slot mounts, and both are already on
+  // screen once: copying them would draw each of them twice under a
+  // duplicate key, which the composer's key index cannot answer for. The
+  // slot RUNS stay — they are content, and they reserve the same space in
+  // the copy's paragraph, which is what keeps the two copies' letters in
+  // the same places.
+  rest->children.clear();
+  text.marks.clear();
+  if (!rest->key.empty()) rest->key += "-rest";
+  return Element{std::move(rest)};
+}
 
 Element& Element::textStroke(float width, Fill fill) {
   auto& t = m_node->textData.ensure();

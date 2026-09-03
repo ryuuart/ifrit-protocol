@@ -2,9 +2,8 @@
 
 /** @file
  * SigilCompose factories — the functions that start an Element: `box`,
- * `stack`, `positioned`, `text` in its three content forms, `image`,
- * `custom`, `layout`, `slot` and `memo`, with the kernel's `textAtRest`
- * copy of a text leaf.
+ * `stack`, `positioned`, `text` in its three content forms and `frame`
+ * over a story, `image`, `custom`, `layout`, `slot` and `memo`.
  */
 
 #include <include/core/SkColor.h>
@@ -146,17 +145,6 @@ Element layout(L scheme) {
 Element slot(std::string_view name);
 
 namespace detail {
-/** A copy of a TEXT element carrying no tracks, no marks and no children,
- *  set in one ink — the rest pose an fx() track's per-glyph deviation is
- *  measured against. Everything that could make the two copies disagree
- *  about where a letter belongs is left alone: same content, same style,
- *  same width, same layout; only the tracks and the ink differ. The key
- *  takes `-rest` after it (a keyless original leaves the copy keyless).
- *  Anything but text warns once and comes back unchanged. Building the
- *  copy means reading the description, which is why this is the kernel's
- *  and not an instrument's. */
-Element textAtRest(Element moving, SkColor4f colour);
-
 Element makeMemo(std::any props,
                  std::function<bool(const std::any&, const std::any&)> equal,
                  std::function<Element(const std::any&)> invoke);

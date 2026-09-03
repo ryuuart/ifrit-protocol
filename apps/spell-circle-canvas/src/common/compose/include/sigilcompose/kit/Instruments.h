@@ -15,6 +15,7 @@
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/typography/Track.h>
+#include <sigilmaterial/skia/Paint.h>
 
 #include <algorithm>
 #include <cstddef>
@@ -112,30 +113,29 @@ struct MeterPlacement {
  *  A track's deviation is per glyph and lives only in the draw, so the
  *  undeformed letter is nowhere on screen to compare with: a squash reads
  *  as a squash only beside the shape it squashed. This returns a box
- *  holding two copies of @p moving — a ghost set in @p colour, carrying no
- *  tracks and pinned at the box's origin, and @p moving itself in the flow,
- *  which is what sizes the box. Drop it in where the text was:
+ *  holding two copies of @p moving — `Element::atRest`'s copy set in
+ *  @p colour and pinned at the box's origin, and @p moving itself in the
+ *  flow, which is what sizes the box. Drop it in where the text was:
  *
  *      box().child(kit::restGhost(
  *          text(u8"RUBBERBAND", set).key("word").fx({…}), rest))
  *
- *  The ghost takes the moving copy's key with `-rest` after it (a keyless
- *  original leaves the ghost keyless too), so both are addressable and both
- *  prune. Everything that could make the two disagree about where a letter
- *  belongs is left alone — same content, same style, same width, same
- *  layout — and only the tracks and the ink differ.
- *
- *  IT GHOSTS THE TYPE AND NOTHING ELSE. A text node's children are its
- *  `Element::mark`s and its `RichText::slot` mounts, and both are already
- *  drawn once; the ghost carries neither, so nothing appears twice under
- *  one key. A slot's reserved space is content and stays, which is what
- *  keeps the two copies' letters in the same places.
- *
- *  TEXT ONLY. Anything else has its rest position on screen already, so a
- *  ghost of it would be a second copy of a thing that never moved; that
- *  warns once and hands @p moving back unchanged. */
+ *  What the rest copy is — the same content, style, width and layout with
+ *  no tracks, no span restyles and none of the moving copy's children,
+ *  keyed `-rest` after the original — is `Element::atRest`'s statement;
+ *  this adds the one ink, over whatever the style paints, and drops any
+ *  glyph stroke so the ghost reads as one flat colour. Anything but text
+ *  comes back as a plain copy beside the original, with the warning that
+ *  verb gives. */
 [[nodiscard]] inline Element restGhost(Element moving, SkColor4f colour) {
-  return detail::textAtRest(std::move(moving), colour);
+  Element ghost = moving.atRest();
+  ghost.textFill(material::skia::Paint::solid(colour))
+      .textStroke(0.0f, Fill{})
+      // Pinned at the origin so the two copies share one origin, and
+      // absolute so the MOVING copy is what sizes the box around them.
+      .left(0.0f)
+      .top(0.0f);
+  return box().child(std::move(ghost)).child(std::move(moving));
 }
 
 }  // namespace sigil::compose::kit
