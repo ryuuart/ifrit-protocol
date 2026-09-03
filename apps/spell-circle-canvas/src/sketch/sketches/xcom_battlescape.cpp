@@ -100,14 +100,20 @@
 // THE ONE HARD THING: THE LIBRARY HAS NO NOTION OF A FIXED PALETTE, AND THIS
 // SCREEN HAS NOTHING ELSE.
 //
-// Three routes exist and all three are wrong differently: quantise at authoring
-// time (exact, turns the library into a rectangle-placer); quantise at paint
-// time with an SkSL post pass (right shape, unreachable — Paint::sksl() has
-// no child-shader and no array-uniform lane, so a 256-entry LUT cannot get in);
-// or quantise BY DISCIPLINE and test afterwards. This file ships the third.
-// Every colour comes from PAL[] and there is not one hex literal below the
-// table. Every edge lands on a multiple of PX = 4. The colour census off the
-// written plate is the test.
+// Two routes, and the file ships both where each belongs. The SPRITE ART goes
+// through the palette in the SHADER: every atlas cell is authored once as an
+// index raster and read through a 256 x 1 strip in a `Paint::sksl` child slot,
+// with StandardShade and ColorReplace as the body — see paletteEffect() below.
+// A shaded cell is then a lookup, not a re-rasterisation, and no colour it can
+// emit is outside the table, by construction rather than by care.
+//
+// EVERYTHING ELSE — the panel, the bars, the pixel type, the unit elements —
+// is quantised BY DISCIPLINE and tested afterwards: every colour comes from
+// PAL[] and there is not one hex literal below the table, every edge lands on
+// a multiple of PX = 4, and the colour census off the written plate is the
+// test. Discipline is what governs a drawing whose colours are AUTHORED; the
+// shader is what governs a drawing whose colours are DERIVED, and the shade
+// ramp is the only derivation on this screen.
 //
 // -----------------------------------------------------------------------------
 // VERIFICATION — the four checks printAudit() runs, and what a pass looks
@@ -155,13 +161,21 @@
 // -----------------------------------------------------------------------------
 // WHAT THE FIXED PALETTE COSTS, IN CELLS
 //
-// `tints()` cannot shade a tile — a 16-step ramp is not a scalar multiple of
-// its top entry (block 3 at shade 8 needs R 0.17 / G 0.54 / B 0.42, and the
-// best single scalar renders red far too red), so the faithful flyweight is
-// `frames = types x shades`. Three floors x two dither variants, plus bush,
-// tree, hull wall and hull deck, all at nine shade levels, plus six recoloured
-// arrows and a cursor: 97 cells at 128x160, sixteen to a sheet row, where a
-// palette LUT in the shader would have been ONE cell and a uniform.
+// THIRTEEN DRAWINGS, NINETY-SEVEN FRAMES, and the gap between those two
+// numbers is the whole cost. The art is thirteen index rasters — three floors
+// x two dither variants, bush, tree, hull wall, hull deck, two arrow
+// directions, the cursor — each drawn once and never again. The sheet still
+// holds 97 frames at 128x160, sixteen to a row, because the frames are
+// LOOKUPS of those thirteen at nine shades and three marker blocks.
+//
+// The 97 is the POOL's number, not the paint model's. `tints()` cannot shade a
+// tile — a 16-step ramp is not a scalar multiple of its top entry (block 3 at
+// shade 8 needs R 0.17 / G 0.54 / B 0.42, and the best single scalar renders
+// red far too red) — and an instance carries a position, a rotation, a scale,
+// a tint and a FRAME and nothing else, so a per-instance shade has nowhere to
+// ride but the frame index. Give the instanced leaf a per-instance uniform
+// lane and this becomes thirteen cells and one float; until then the shader
+// saves the RASTERISATION, which is the part that was ever the sketch's.
 //
 // What it buys is the whole map in four instanced leaves. Described as
 // ordinary Elements the same scene would be well over a thousand nodes, every
@@ -186,7 +200,10 @@
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkPaint.h>
+#include <include/core/SkSamplingOptions.h>
 #include <include/core/SkSurface.h>
+#include <include/core/SkTileMode.h>
+#include <include/effects/SkRuntimeEffect.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/core/Pattern.h>
@@ -209,6 +226,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
+#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
@@ -382,11 +400,19 @@ constexpr uint8_t kDigit[10][5] = {
 
 struct Ink {
   SkCanvas& c;
+  /** INDEX MODE: write the palette INDEX itself into the red channel rather
+   *  than the colour that index names. One drawing then serves every shade
+   *  and every marker block, because the table and the two index arithmetics
+   *  are applied afterwards, in the shader — which is what an 8-bit sprite
+   *  sheet always was. */
+  bool indexed = false;
   void rect(float x, float y, float w, float h, int idx) const {
     if (idx == 0) return;
     SkPaint p;
     p.setAntiAlias(false);
-    p.setColor4f(C(idx), nullptr);
+    p.setColor4f(indexed ? SkColor4f{(float)idx / 255.0f, 0.0f, 0.0f, 1.0f}
+                         : C(idx),
+                 nullptr);
     c.drawRect(SkRect::MakeXYWH(x * PX, y * PX, w * PX, h * PX), p);
   }
   void px(float x, float y, int idx) const { rect(x, y, 1, 1, idx); }
@@ -395,6 +421,94 @@ struct Ink {
     rect(x0, y, w, 1, idx);
   }
 };
+
+// ---------------------------------------------------------------------------
+// THE PALETTE, IN THE SHADER. Every atlas cell's art is authored ONCE, in
+// indices, and the 256-entry table reaches SkSL as a 256 x 1 CHILD IMAGE:
+// `Paint::sksl(...).child("uPalette", Paint::image(strip, ..., kNearest))`.
+// The lookup has to be a child rather than a uniform array because the index
+// is a PIXEL VALUE — SkSL indexes a uniform array only by a constant — and it
+// has to be kNearest because the sampled value is data, not colour: a linear
+// tap between two palette entries is a blend of two unrelated hues.
+//
+// The body below is shd() and replaceBlock() transcribed, and like them it
+// does not multiply: one add, one compare, one snap to absolute black.
+// `uShade` is StandardShade's addend and `uBlock1` is ColorReplace's 1-based
+// block, zero meaning keep the index's own.
+
+inline sk_sp<SkRuntimeEffect> paletteEffect() {
+  static const sk_sp<SkRuntimeEffect> fx = [] {
+    auto [effect, error] = SkRuntimeEffect::MakeForShader(SkString(
+        "uniform shader uIndex;\n"
+        "uniform shader uPalette;\n"
+        "uniform float uShade;\n"
+        "uniform float uBlock1;\n"
+        "half4 main(float2 p) {\n"
+        "  half4 s = uIndex.eval(p);\n"
+        "  if (s.a < 0.5) { return half4(0); }\n"
+        "  float i = floor(float(s.r) * 255.0 + 0.5);\n"
+        "  float ns = mod(i, 16.0) + uShade;\n"
+        "  float base = uBlock1 > 0.0 ? (uBlock1 - 1.0) * 16.0\n"
+        "                             : floor(i / 16.0) * 16.0;\n"
+        "  float dst = ns > 15.0 ? 15.0 : base + ns;\n"
+        "  return uPalette.eval(float2(dst + 0.5, 0.5));\n"
+        "}"));
+    if (!effect) std::fprintf(stderr, "palette effect: %s\n", error.c_str());
+    return effect;
+  }();
+  return fx;
+}
+
+/** The 256 entries as a 256 x 1 strip, entry i at texel i. Index 0 keeps its
+ *  alpha 0, so the chroma key stays a hole exactly as C(0) leaves one. */
+inline sk_sp<SkImage> paletteStrip() {
+  static const sk_sp<SkImage> strip = [] {
+    SkBitmap bm;
+    bm.allocPixels(SkImageInfo::MakeN32Premul(256, 1));
+    bm.eraseColor(SK_ColorTRANSPARENT);
+    SkCanvas c(bm);
+    SkPaint p;
+    p.setAntiAlias(false);
+    p.setBlendMode(SkBlendMode::kSrc);
+    for (int i = 0; i < 256; ++i) {
+      p.setColor4f(C(i), nullptr);
+      c.drawRect(SkRect::MakeXYWH((float)i, 0.0f, 1.0f, 1.0f), p);
+    }
+    bm.setImmutable();
+    return bm.asImage();
+  }();
+  return strip;
+}
+
+/** One cell's art, drawn once into a 128 x 160 index raster. */
+inline sk_sp<SkImage> indexCell(const std::function<void(const Ink&)>& art) {
+  SkBitmap bm;
+  bm.allocPixels(SkImageInfo::MakeN32Premul((int)kCellW, (int)kCellH));
+  bm.eraseColor(SK_ColorTRANSPARENT);
+  SkCanvas canvas(bm);
+  art(Ink{canvas, true});
+  bm.setImmutable();
+  return bm.asImage();
+}
+
+/** @p indices read through the table at @p shade, optionally with the block
+ *  replaced by the 1-based @p block1. Identity local matrices on both
+ *  children: the cell is baked at 1:1, so a fragment centre lands on a texel
+ *  centre and the sample is the authored byte. */
+inline Paint paletteLut(const sk_sp<SkImage>& indices, int shade,
+                        int block1 = 0) {
+  const SkSamplingOptions nearest{SkFilterMode::kNearest};
+  Paint p = Paint::sksl(paletteEffect());
+  p.uniform("uShade", (float)shade);
+  p.uniform("uBlock1", (float)block1);
+  p.child("uIndex",
+          Paint::image(indices, SkTileMode::kClamp, SkTileMode::kClamp,
+                       SkMatrix::I(), nearest));
+  p.child("uPalette",
+          Paint::image(paletteStrip(), SkTileMode::kClamp, SkTileMode::kClamp,
+                       SkMatrix::I(), nearest));
+  return p;
+}
 
 /** A deterministic 32-bit hash. Tile dither, speckle placement, the terrain
  *  scenario — everything random in this file comes through here, so the map is
@@ -538,14 +652,17 @@ inline std::array<TileData, (size_t)kMapSize * kMapSize> buildMap() {
 }
 
 // ---------------------------------------------------------------------------
-// THE CELL ART. Every cell is a custom() paint program inside an
-// instancing::Atlas at oversample 1.0 — authored at FINAL scale so the stamp is
-// 1:1 and no magnification happens. Cells are 128 x 160, addressed as
-// (type, shade): the flyweight is `frames = types x shades`, because a 16-step
-// palette ramp is NOT a scalar multiple of its top entry and Pool::tints()
-// therefore cannot shade a tile (block 3 at shade 8 needs per-channel
-// multipliers R 0.17 / G 0.54 / B 0.42, and no single scalar comes close —
-// matching green leaves red far too bright).
+// THE CELL ART. Each drawing below is authored ONCE, in indices, into a
+// 128 x 160 raster at FINAL scale, so the stamp is 1:1 and no magnification
+// happens. It carries no shade and no marker colour: those are the LUT's two
+// uniforms, and the atlas frame for (type, shade) is that one drawing read
+// through the table.
+//
+// The frames are still `types x shades`, because a 16-step palette ramp is NOT
+// a scalar multiple of its top entry and Pool::tints() therefore cannot shade a
+// tile (block 3 at shade 8 needs per-channel multipliers R 0.17 / G 0.54 /
+// B 0.42, and no single scalar comes close — matching green leaves red far too
+// bright). What the LUT removes is the RE-RASTERISATION behind each frame.
 
 /** Floor: the diamond, dithered two palette steps apart with a scatter of a
  *  third. X-COM's terrain has no smooth shading inside a tile — two steps in a
@@ -555,8 +672,7 @@ inline std::array<TileData, (size_t)kMapSize * kMapSize> buildMap() {
  *  variant the dither repeats identically under the (+-16, +8) lattice and a
  *  coherent moire appears across the whole map — the flyweight's own failure
  *  mode, and one that only shows up in the picture, never in the arithmetic. */
-inline void paintFloor(SkCanvas& canvas, Floor kind, int shade, int variant) {
-  const Ink ink{canvas};
+inline void paintFloor(const Ink& ink, Floor kind, int variant) {
   int base = blk(3, 5), alt = blk(3, 7), speck = blk(3, 9), rare = blk(2, 4);
   if (kind == kDirt) {
     base = blk(6, 7);
@@ -579,15 +695,14 @@ inline void paintFloor(SkCanvas& canvas, Floor kind, int shade, int variant) {
         idx = speck;
       else if ((h % 61u) == 0u)
         idx = rare;
-      ink.px((float)x, (float)(kDiamondTop + r), shd(idx, shade));
+      ink.px((float)x, (float)(kDiamondTop + r), idx);
     }
   }
   if (kind == kHull)  // plate seams
     for (int r = 3; r < 16; r += 6) {
       int x0, w;
       diamondRow(r, x0, w);
-      ink.run((float)x0, (float)(kDiamondTop + r), (float)w,
-              shd(blk(14, 9), shade));
+      ink.run((float)x0, (float)(kDiamondTop + r), (float)w, blk(14, 9));
     }
 }
 
@@ -605,8 +720,7 @@ inline void diamondColumn(int x, int& rTop, int& rBot) {
  *  which is what makes the crash site the only two-level structure here — the
  *  wall face blits at z = 0 and the deck plate at z = 1, exactly the
  *  O_OBJECT / O_FLOOR split Map::drawTerrain walks. */
-inline void paintHullWall(SkCanvas& canvas, int shade) {
-  const Ink ink{canvas};
+inline void paintHullWall(const Ink& ink) {
   for (int x = 0; x < 32; ++x) {
     int rTop, rBot;
     diamondColumn(x, rTop, rBot);
@@ -617,20 +731,18 @@ inline void paintHullWall(SkCanvas& canvas, int shade) {
       int step = (lit ? 6 : 9) + (int)(h % 2u);
       if ((h % 23u) == 0u) step += 3;      // rivets and scoring
       if (((y - y0) % 7) == 0) step += 2;  // hull plate seams, one per 7 rows
-      ink.px((float)x, (float)y, shd(blk(14, step), shade));
+      ink.px((float)x, (float)y, blk(14, step));
     }
-    ink.px((float)x, (float)y0, shd(blk(14, 4), shade));  // top lip
+    ink.px((float)x, (float)y0, blk(14, 4));  // top lip
   }
 }
-inline void paintHullDeck(SkCanvas& canvas, int shade) {
-  paintFloor(canvas, kHull, shade, 0);
-  const Ink ink{canvas};
+inline void paintHullDeck(const Ink& ink) {
+  paintFloor(ink, kHull, 0);
   for (int r = 0; r < 16; ++r) {  // a bright rim so the deck reads as raised
     int x0, w;
     diamondRow(r, x0, w);
-    ink.px((float)x0, (float)(kDiamondTop + r), shd(blk(14, 1), shade));
-    ink.px((float)(x0 + w - 1), (float)(kDiamondTop + r),
-           shd(blk(14, 6), shade));
+    ink.px((float)x0, (float)(kDiamondTop + r), blk(14, 1));
+    ink.px((float)(x0 + w - 1), (float)(kDiamondTop + r), blk(14, 6));
   }
 }
 
@@ -641,7 +753,7 @@ inline void paintHullDeck(SkCanvas& canvas, int shade) {
  *  PAL[15] #000000, not the ramp's darkest green. That is the overflow branch
  *  in shd(), and it is why X-COM's night terrain looks the way it does. */
 inline void paintCanopy(const Ink& ink, float cx, float cy, float rx, float ry,
-                        int shade, int litStep, uint32_t seed) {
+                        int litStep, uint32_t seed) {
   const int r0 = (int)std::floor(cy - ry), r1 = (int)std::ceil(cy + ry);
   for (int r = r0; r <= r1; ++r) {
     const float t = ((float)r + 0.5f - cy) / ry;
@@ -656,7 +768,7 @@ inline void paintCanopy(const Ink& ink, float cx, float cy, float rx, float ry,
       int idx = blk(3, litStep + (flank ? 3 : 0) + (int)(h % 3u));
       if (!flank && (h % 89u) == 0u)
         idx = blk(2, 2);  // fruit — block 2 red, one pixel
-      ink.px((float)x, (float)r, shd(idx, shade));
+      ink.px((float)x, (float)r, idx);
     }
   }
 }
@@ -665,27 +777,23 @@ inline void paintCanopy(const Ink& ink, float cx, float cy, float rx, float ry,
  *  diamond's centre (row 32). 28 original px tall, which is what the reference
  *  measures. It has to fit in ONE cell: a tree drawn across two levels comes
  *  out around 48 px and reads as a column rather than as a tree. */
-inline void paintTree(SkCanvas& canvas, int shade) {
-  const Ink ink{canvas};
+inline void paintTree(const Ink& ink) {
   for (int r = 23; r <= 32; ++r)
-    ink.run(15.0f, (float)r, r > 29 ? 3.0f : 2.0f, shd(blk(10, 6), shade));
-  ink.run(13.0f, 32.0f, 6.0f, shd(blk(10, 8), shade));
-  paintCanopy(ink, 16.0f, 16.0f, 9.5f, 8.5f, shade, 6, 5u);
+    ink.run(15.0f, (float)r, r > 29 ? 3.0f : 2.0f, blk(10, 6));
+  ink.run(13.0f, 32.0f, 6.0f, blk(10, 8));
+  paintCanopy(ink, 16.0f, 16.0f, 9.5f, 8.5f, 6, 5u);
 }
-inline void paintBush(SkCanvas& canvas, int shade) {
-  const Ink ink{canvas};
-  paintCanopy(ink, 16.0f, 27.0f, 8.0f, 5.5f, shade, 7, 17u);
+inline void paintBush(const Ink& ink) {
+  paintCanopy(ink, 16.0f, 27.0f, 8.0f, 5.5f, 7, 17u);
 }
 
 /** The path arrow. ColorReplace recolours ONE sprite three ways, so the art is
- *  authored in block 1 and the cell bakes with the block replaced — which is
+ *  authored in block 0 and the LUT replaces the block per cell — which is
  *  exactly what blitNShade(..., newBaseColor) does at runtime.
  *  dir: 0 = down-left (map +y), 1 = down-right (map +x). */
-inline void paintArrow(SkCanvas& canvas, int dir, int block1) {
-  const Ink ink{canvas};
+inline void paintArrow(const Ink& ink, int dir) {
   const auto put = [&](int x, int y, int step) {
-    ink.px((float)(dir == 0 ? x : 31 - x), (float)y,
-           replaceBlock(blk(0, step), 0, block1));
+    ink.px((float)(dir == 0 ? x : 31 - x), (float)y, blk(0, step));
   };
   // A left-pointing arrow, 11 x 7 original px: head then shaft. Sized off
   // the reference, and the size is the point — a 32-px tile is only 32 px,
@@ -707,8 +815,7 @@ inline void paintArrow(SkCanvas& canvas, int dir, int block1) {
  *  the tile the HONEST inverse returns; the game's own picker biases the mouse
  *  ten pixels down first (Map.cpp:1314), and printAudit reports both answers so
  *  the difference is visible. */
-inline void paintCursor(SkCanvas& canvas) {
-  const Ink ink{canvas};
+inline void paintCursor(const Ink& ink) {
   const int lit = blk(2, 0), dim = blk(2, 2);
   const int lift = 12;  // the box is half a level tall
   for (int r = 0; r < 16; ++r) {
@@ -1103,49 +1210,52 @@ struct XcomBattlescape : sketch::Sketch {
     tiles->filter(SkFilterMode::kNearest);
     const SkSize cell{kCellW, kCellH};
 
+    // THE ART, AUTHORED ONCE EACH, IN INDICES. Thirteen 128 x 160 index
+    // rasters — three floors at two dither variants, bush, tree, hull wall,
+    // hull deck, two arrow directions and the cursor. Nothing about a shade
+    // or a marker colour is committed here.
+    sk_sp<SkImage> idxFloor[3][2];
+    for (int f = 0; f < 3; ++f)
+      for (int v = 0; v < 2; ++v) {
+        const Floor kind = (Floor)f;
+        idxFloor[f][v] =
+            indexCell([kind, v](const Ink& ink) { paintFloor(ink, kind, v); });
+      }
+    const sk_sp<SkImage> idxBush = indexCell(paintBush);
+    const sk_sp<SkImage> idxTree = indexCell(paintTree);
+    const sk_sp<SkImage> idxWall = indexCell(paintHullWall);
+    const sk_sp<SkImage> idxDeck = indexCell(paintHullDeck);
+    sk_sp<SkImage> idxArrow[2];
+    for (int d = 0; d < 2; ++d)
+      idxArrow[d] = indexCell([d](const Ink& ink) { paintArrow(ink, d); });
+    const sk_sp<SkImage> idxCursor = indexCell(paintCursor);
+
+    // THE CELLS, DERIVED. Ninety-seven sheet frames, every one of them the
+    // same handful of drawings read through the table at a different shade
+    // or a different marker block. The count is the POOL's, not the paint
+    // model's: an instance carries a position, a rotation, a scale, a tint
+    // and a FRAME, so a per-instance shade has nowhere to ride but the frame
+    // index, and the sheet has to hold what the frame selects.
     for (int shade = 0; shade <= 8; ++shade) {
       for (int f = 0; f < 3; ++f)
-        for (int v = 0; v < 2; ++v) {
-          const Floor kind = (Floor)f;
-          cellFloor[f][v][shade] = tiles->cell(
-              custom([kind, shade, v](SkCanvas& c, const PaintContext&) {
-                paintFloor(c, kind, shade, v);
-              }),
-              cell);
-        }
+        for (int v = 0; v < 2; ++v)
+          cellFloor[f][v][shade] =
+              tiles->cell(box().fill(paletteLut(idxFloor[f][v], shade)), cell);
       cellObj[kBush][shade] =
-          tiles->cell(custom([shade](SkCanvas& c, const PaintContext&) {
-                        paintBush(c, shade);
-                      }),
-                      cell);
+          tiles->cell(box().fill(paletteLut(idxBush, shade)), cell);
       cellObj[kTree][shade] =
-          tiles->cell(custom([shade](SkCanvas& c, const PaintContext&) {
-                        paintTree(c, shade);
-                      }),
-                      cell);
+          tiles->cell(box().fill(paletteLut(idxTree, shade)), cell);
       cellObj[kHullWall][shade] =
-          tiles->cell(custom([shade](SkCanvas& c, const PaintContext&) {
-                        paintHullWall(c, shade);
-                      }),
-                      cell);
+          tiles->cell(box().fill(paletteLut(idxWall, shade)), cell);
       cellHullDeck[shade] =
-          tiles->cell(custom([shade](SkCanvas& c, const PaintContext&) {
-                        paintHullDeck(c, shade);
-                      }),
-                      cell);
+          tiles->cell(box().fill(paletteLut(idxDeck, shade)), cell);
     }
     const int kBlocks[3] = {4, 10, 3};  // Pathfinding green / yellow / red
     for (int d = 0; d < 2; ++d)
-      for (int m = 0; m < 3; ++m) {
-        const int b = kBlocks[m];
-        cellArrow[d][m] =
-            tiles->cell(custom([d, b](SkCanvas& c, const PaintContext&) {
-                          paintArrow(c, d, b);
-                        }),
-                        cell);
-      }
-    cellCursor = tiles->cell(
-        custom([](SkCanvas& c, const PaintContext&) { paintCursor(c); }), cell);
+      for (int m = 0; m < 3; ++m)
+        cellArrow[d][m] = tiles->cell(
+            box().fill(paletteLut(idxArrow[d], 0, kBlocks[m])), cell);
+    cellCursor = tiles->cell(box().fill(paletteLut(idxCursor, 0)), cell);
     atlasCells = tiles->frameCount();
 
     fontAtlas = std::make_shared<Atlas>(1.0f);
