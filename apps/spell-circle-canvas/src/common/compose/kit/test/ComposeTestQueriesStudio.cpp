@@ -334,6 +334,7 @@ TEST(ComposeDebug, RasterizeReadsBackWhatWasDrawn) {
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Plate.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigilmeasure/check/Check.h>
 #include <sigilmotion/Animation.h>
 
 TEST(ComposePlacement, RectIsTheLonghandAndPrunesIdentically) {
@@ -817,15 +818,17 @@ TEST(ComposeDebug, CheckPrintsTheVerdictItComputed) {
   // A figure that prints its own verification is worthless if the printed
   // verdict is written by hand next to the numbers: the string and the claim
   // are then unconnected, and the plate cannot be falsified by its own
-  // output. test::check() derives the verdict FROM the two values it
+  // output. sigil::measure::check() derives the verdict FROM the two values it
   // prints, so a wrong number changes the word beside it.
-  const test::Check ok = test::check("northern column", 422000 - 22000, 400000);
+  const sigil::measure::Check ok =
+      sigil::measure::check("northern column", 422000 - 22000, 400000);
   EXPECT_TRUE(ok.pass);
   EXPECT_NE(ok.line().find("400000"), std::string::npos);
   EXPECT_NE(ok.line().find("PASS"), std::string::npos);
   EXPECT_EQ(ok.line().find("FAIL"), std::string::npos);
 
-  const test::Check bad = test::check("Berezina", 20000 + 30000, 49000);
+  const sigil::measure::Check bad =
+      sigil::measure::check("Berezina", 20000 + 30000, 49000);
   EXPECT_FALSE(bad.pass);
   EXPECT_NE(bad.line().find("FAIL want 50000"), std::string::npos)
       << "a failing check must print what it wanted, or the plate says "
@@ -834,24 +837,29 @@ TEST(ComposeDebug, CheckPrintsTheVerdictItComputed) {
 
   // A long label is not truncated — sigillum_aemeth.cpp:1719 documents four
   // checks silently losing their units to a feed column that clipped.
-  const std::string wide = test::check(std::string(80, 'L'), 1, 1).line(44);
+  const std::string wide =
+      sigil::measure::check(std::string(80, 'L'), 1, 1).line(44);
   EXPECT_NE(wide.find(std::string(80, 'L')), std::string::npos);
 
   // Floats need a tolerance the STUDY chooses; there is no default.
-  EXPECT_TRUE(test::check("R", 257.972, 257.9715, 0.001).pass);
-  EXPECT_FALSE(test::check("R", 257.972, 257.9, 0.001).pass);
-  EXPECT_NE(test::check("R", 257.972, 257.9, 0.001).line().find("\xc2\xb1"),
-            std::string::npos);
+  EXPECT_TRUE(sigil::measure::check("R", 257.972, 257.9715, 0.001).pass);
+  EXPECT_FALSE(sigil::measure::check("R", 257.972, 257.9, 0.001).pass);
+  EXPECT_NE(
+      sigil::measure::check("R", 257.972, 257.9, 0.001).line().find("\xc2\xb1"),
+      std::string::npos);
 
-  EXPECT_TRUE(
-      test::check("winding", std::string_view("kCW"), std::string_view("kCW"))
-          .pass);
-  EXPECT_FALSE(test::check("closed", false).pass);
-  EXPECT_TRUE(test::check("closed", true).pass);
+  EXPECT_TRUE(sigil::measure::check("winding", std::string_view("kCW"),
+                                    std::string_view("kCW"))
+                  .pass);
+  EXPECT_FALSE(sigil::measure::check("closed", false).pass);
+  EXPECT_TRUE(sigil::measure::check("closed", true).pass);
 
-  const test::Check checks[] = {ok, bad, test::check("x", true)};
-  EXPECT_EQ(test::failures(checks), 1);
-  EXPECT_EQ(test::failures(std::span<const test::Check>{checks, 1}), 0);
+  const sigil::measure::Check checks[] = {ok, bad,
+                                          sigil::measure::check("x", true)};
+  EXPECT_EQ(sigil::measure::failures(checks), 1);
+  EXPECT_EQ(sigil::measure::failures(
+                std::span<const sigil::measure::Check>{checks, 1}),
+            0);
 
   // report() lands the line in the feed under the style name the VERDICT
   // chose — that link is the whole primitive.

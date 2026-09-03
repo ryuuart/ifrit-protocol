@@ -344,14 +344,11 @@ inline Raster rasterize(Element root, sigil::weave::FontContext& fonts,
 // ---------------------------------------------------------------------------
 // Saying whether it was right
 
-/** A claim and its verdict are `sigil::measure`'s: `Check`, the `check()`
- *  overloads and `failures()` are those, brought into this namespace so a
- *  test spells `test::check` beside `test::coverage`. What this header adds
- *  is the one thing the measure library cannot know — how a check is
- *  written into a feed. */
-using measure::Check;
-using measure::check;
-using measure::failures;
+/** A claim and its verdict are `sigil::measure`'s — `measure::Check`, the
+ *  `measure::check()` overloads and `measure::failures()`, from
+ *  `<sigilmeasure/check/Check.h>`, spelled under that name. What this
+ *  header adds is the one thing the measure library cannot know — how a
+ *  check is written into a feed. */
 
 /** Append a check to a feed of text rows, the row's style name chosen by the
  *  verdict.
@@ -360,7 +357,7 @@ using measure::failures;
  *  caller's — nothing here knows what a given study calls its passing ink.
  *  The defaults are a convention; a set that registers neither name sets
  *  both rows in its base style, which is legible but says nothing. */
-inline void report(feed::TextRing& ring, const Check& c,
+inline void report(feed::TextRing& ring, const measure::Check& c,
                    std::string passStyle = "pass",
                    std::string failStyle = "fail", int labelWidth = 44,
                    int valueWidth = 8) {
