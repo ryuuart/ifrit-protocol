@@ -14,6 +14,7 @@
 #include <cmath>
 #include <string>
 
+#include "sigilimage/decode/ChannelData.h"
 #include "sigilimage/decode/Decode.h"
 #include "sigilimage/encode/Encode.h"
 
@@ -147,6 +148,92 @@ TEST(Encode, ExrCarriesValuesAboveOne) {
   // encode, the same way it fails to decode.
   EXPECT_FALSE(bytes);
 #endif
+}
+
+TEST(Encode, NamedChannelsGoOutAsLayersAndComeBackByName) {
+  // Two groups and a lone depth in one file, which is the shape a
+  // renderer's AOVs have and the shape DecodeOptions::layer exists to
+  // read: the names ARE the layers.
+  ChannelData channels;
+  channels.width = kSize;
+  channels.height = kSize;
+  channels.floatingPoint = true;
+  channels.names = {"diffuse.R", "diffuse.G", "diffuse.B",
+                    "glow.R",    "glow.G",    "glow.B",
+                    "depth.Z"};
+  channels.data.assign((size_t)kSize * kSize * channels.names.size(), 0.0f);
+  for (int y = 0; y < kSize; ++y)
+    for (int x = 0; x < kSize; ++x) {
+      float* px = channels.data.data() +
+                  ((size_t)y * kSize + x) * channels.names.size();
+      px[0] = 0.25f;  // diffuse: a colour under one
+      px[1] = 0.5f;
+      px[2] = 0.75f;
+      px[3] = 4.0f;  // glow: a colour above it, so LDR clamping shows
+      px[4] = 2.0f;
+      px[5] = 1.0f;
+      px[6] = (float)x;  // depth: a ramp, so a transpose shows
+    }
+
+  const sk_sp<SkData> bytes = encodeImage(channels, Format::Exr);
+#ifdef SIGILIMAGE_HAS_OIIO_ENCODE
+  ASSERT_TRUE(bytes);
+  const auto back = decodeChannels(static_cast<const std::byte*>(bytes->data()),
+                                   bytes->size(), "layers.exr");
+  ASSERT_TRUE(back);
+  EXPECT_EQ(back->width, kSize);
+  EXPECT_EQ(back->height, kSize);
+  EXPECT_TRUE(back->floatingPoint);
+  for (const std::string& name : channels.names)
+    EXPECT_GE(back->index(name), 0) << name << " did not come back";
+  // Half float, so the tolerance is the format's step and not ours.
+  EXPECT_NEAR(back->at(3, 3, back->index("glow.R")), 4.0f, 0.01f);
+  EXPECT_NEAR(back->at(3, 3, back->index("diffuse.B")), 0.75f, 0.001f);
+  EXPECT_NEAR(back->at(5, 2, back->index("depth.Z")), 5.0f, 0.01f);
+
+  // AND THE LAYER SELECTION READS IT. This is the door the decode side
+  // has carried all along with nothing in this tree able to write its
+  // fixture.
+  const sk_sp<SkImage> lit = back->makeImage("glow");
+  ASSERT_TRUE(lit);
+  const sk_sp<SkImage> flat = back->makeImage("diffuse");
+  ASSERT_TRUE(flat);
+  SkBitmap read;
+  ASSERT_TRUE(read.tryAllocPixels(
+      SkImageInfo::Make(kSize, kSize, kRGBA_F32_SkColorType,
+                        kPremul_SkAlphaType)));
+  ASSERT_TRUE(lit->readPixels(nullptr, read.pixmap(), 0, 0));
+  const float* pixel = (const float*)read.getAddr(4, 4);
+  EXPECT_NEAR(pixel[0], 4.0f, 0.01f);
+  EXPECT_NEAR(pixel[1], 2.0f, 0.01f);
+  EXPECT_NEAR(pixel[2], 1.0f, 0.01f);
+  // No alpha in the group, so the composite fills it.
+  EXPECT_NEAR(pixel[3], 1.0f, 0.001f);
+  ASSERT_TRUE(flat->readPixels(nullptr, read.pixmap(), 0, 0));
+  pixel = (const float*)read.getAddr(4, 4);
+  EXPECT_NEAR(pixel[0], 0.25f, 0.001f);
+  // A layer the file does not carry is nothing, not a black picture.
+  EXPECT_FALSE(back->makeImage("specular"));
+#else
+  EXPECT_FALSE(bytes);
+#endif
+}
+
+TEST(Encode, OnlyExrHoldsNamedChannels) {
+  ChannelData channels;
+  channels.width = 2;
+  channels.height = 2;
+  channels.names = {"R", "G", "B"};
+  channels.data.assign(2 * 2 * 3, 0.5f);
+  // Three or four channels with fixed meanings have nothing to do with a
+  // name, so the other formats decline rather than dropping them.
+  EXPECT_FALSE(encodeImage(channels, Format::Png));
+  EXPECT_FALSE(encodeImage(channels, Format::Jpeg));
+  EXPECT_FALSE(encodeImage(channels, Format::Webp));
+  // …and a value whose names and planes disagree describes no file.
+  ChannelData ragged = channels;
+  ragged.names.push_back("A");
+  EXPECT_FALSE(encodeImage(ragged, Format::Exr));
 }
 
 TEST(Encode, EmptyPixelsEncodeToNothing) {

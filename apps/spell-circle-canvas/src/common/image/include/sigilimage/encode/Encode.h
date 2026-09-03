@@ -2,8 +2,8 @@
 
 /** @file
  * The encode surface of SigilImage: Format, EncodeOptions, and
- * encodeImage(), which routes pixels to the encoder for a format and
- * hands back the encoded bytes. Skia's own encoders cover PNG, JPEG and
+ * encodeImage(), which routes pixels — or named channel planes — to the
+ * encoder for a format and hands back the encoded bytes. Skia's own encoders cover PNG, JPEG and
  * WebP; the OpenImageIO backend, when built in
  * (SIGILIMAGE_HAS_OIIO_ENCODE), adds EXR. A format with no encoder in
  * the build simply fails to encode, the same way a format with no
@@ -24,6 +24,8 @@ class SkImage;
 class SkPixmap;
 
 namespace sigil::image {
+
+struct ChannelData;
 
 /** The formats encodeImage() writes. */
 enum class Format {
@@ -62,6 +64,28 @@ sk_sp<SkData> encodeImage(const SkPixmap& pixels, Format format,
  *  another depth reads back itself and uses the pixmap overload. Null
  *  when the image cannot be read back or the format has no encoder. */
 sk_sp<SkData> encodeImage(const SkImage& image, Format format,
+                          const EncodeOptions& options = {});
+
+/** EVERY CHANNEL UNDER ITS OWN NAME. `ChannelData` is the same value the
+ *  decode side hands back — named interleaved float planes, from
+ *  `<sigilimage/decode/ChannelData.h>` — and this writes it out with
+ *  those names kept, so a group like `diffuse.R`/`diffuse.G`/`diffuse.B`
+ *  comes back through `DecodeOptions::layer = "diffuse"` and a lone
+ *  `depth.Z` comes back beside it. There is no other way to write a
+ *  layer: the pixmap doors carry four channels called R, G, B and A and
+ *  nothing else.
+ *
+ *  ONLY EXR HOLDS THIS. Every other format this library writes is three
+ *  or four channels with fixed meanings, so any other @p format is null
+ *  — a caller with a layer to write and a PNG to write it to composites
+ *  the group into an image first, which is what `ChannelData::makeImage`
+ *  is for. Null also when the names and the planes disagree, or when
+ *  this build has no EXR encoder.
+ *
+ *  The channels are written HALF FLOAT, exactly as the pixmap door
+ *  writes RGBA: it is EXR's native storage, and asking for the full
+ *  float mantissa is a different request than asking for an EXR. */
+sk_sp<SkData> encodeImage(const ChannelData& channels, Format format,
                           const EncodeOptions& options = {});
 
 /** The format a filename names, by extension, case-insensitively

@@ -14,6 +14,10 @@
 class SkData;
 class SkPixmap;
 
+namespace sigil::image {
+struct ChannelData;
+}
+
 namespace sigil::image::backend {
 
 /** PNG, JPEG and WebP through Skia's encoders; null for anything else
@@ -27,6 +31,11 @@ sk_sp<SkData> encodeWithSkia(const SkPixmap& pixels, Format format,
  *  pixels and full float otherwise. Null when the pixels cannot be read
  *  as float or OIIO has no EXR writer. */
 sk_sp<SkData> encodeExrWithOiio(const SkPixmap& pixels);
+
+/** The same file with the channels the caller named rather than R, G, B
+ *  and A. Null when the names and the planes disagree or OIIO has no EXR
+ *  writer. */
+sk_sp<SkData> encodeExrChannelsWithOiio(const ChannelData& channels);
 
 #endif  // SIGILIMAGE_HAS_OIIO_ENCODE
 

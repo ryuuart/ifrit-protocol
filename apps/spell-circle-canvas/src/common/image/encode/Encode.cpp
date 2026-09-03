@@ -11,6 +11,7 @@
 #include <include/core/SkImage.h>
 #include <include/core/SkImageInfo.h>
 #include <include/core/SkPixmap.h>
+#include <sigilimage/decode/ChannelData.h>
 
 #include <algorithm>
 #include <cctype>
@@ -44,6 +45,21 @@ sk_sp<SkData> encodeImage(const SkPixmap& pixels, Format format,
 #endif
   }
   return backend::encodeWithSkia(pixels, format, options);
+}
+
+sk_sp<SkData> encodeImage(const ChannelData& channels, Format format,
+                          const EncodeOptions& options) {
+  (void)options;  // EXR is lossless at every setting
+  // EVERY OTHER FORMAT IS THREE OR FOUR CHANNELS WITH FIXED MEANINGS, so
+  // there is nothing for it to do with a name — a caller with a layer
+  // and a PNG composites the group into an image first.
+  if (format != Format::Exr) return nullptr;
+#ifdef SIGILIMAGE_HAS_OIIO_ENCODE
+  return backend::encodeExrChannelsWithOiio(channels);
+#else
+  (void)channels;
+  return nullptr;
+#endif
 }
 
 sk_sp<SkData> encodeImage(const SkImage& image, Format format,

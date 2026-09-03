@@ -5,7 +5,8 @@ pixels in and encoded bytes out. Skia's own codecs decode PNG, JPEG,
 WebP, GIF and AVIF, including multi-frame animation, and encode the first
 three; two optional backends extend that — OpenImageIO for EXR, PSD, TIFF
 and HDR with layer and channel selection on the way in, and EXR on the way
-out, and Skia's SVG module for rasterizing vector sources. For sources
+out with those channels' names kept, and Skia's SVG module for
+rasterizing vector sources. For sources
 carrying more than plain RGBA, the raw float channel planes are exposed
 directly. No Qt, no windowing, no filesystem abstraction — the library
 sees bytes.
@@ -18,7 +19,7 @@ what a consumer uses; every public header lives under
 |--------|---------|-------|
 | `SigilImageAsset`  | `asset/ImageAsset.h` | `ImageProbe`, `Frame` and `ImageAsset` — the decoded document and the Skia codec path; Skia only |
 | `SigilImageDecode` | `decode/Decode.h`, `decode/ChannelData.h` | `DecodeOptions`, `decodeImage()`, `probeImage()` and `decodeChannels()` — the routing surface, carrying the optional backends — and `ChannelData`, the raw channel planes |
-| `SigilImageEncode` | `encode/Encode.h` | `Format`, `EncodeOptions`, `encodeImage()` — the routing surface the other way — and `formatForPath()`/`extensionFor()` |
+| `SigilImageEncode` | `encode/Encode.h` | `Format`, `EncodeOptions`, `encodeImage()` — the routing surface the other way, over a pixmap, an image or named channel planes — and `formatForPath()`/`extensionFor()` |
 
 `SigilImage` is the umbrella target over all three. `SigilImageEncode`
 stands beside `SigilImageDecode` rather than under it: a consumer that
@@ -54,6 +55,9 @@ if (auto ch = sigil::image::decodeChannels(exr.data(), exr.size(),
   const float nearest = ch->at(0, 0, z);
   sk_sp<SkImage> glow = ch->makeImage("glow");
 }
+
+// …and back out again, with the names kept: one EXR carrying layers.
+sk_sp<SkData> written = sigil::image::encodeImage(*ch, sigil::image::Format::Exr);
 
 // Metadata without a pixel decode.
 auto info = sigil::image::probeImage(bytes.data(), bytes.size(), "logo.png");
@@ -97,6 +101,16 @@ first, at the depth the format can hold: premultiplied N32 for the LDR
 formats, RGBA float for EXR. A caller who wants a depth the format allows
 but the readback would not choose reads back itself and uses the pixmap
 door.
+
+A third door takes `ChannelData` rather than pixels and writes every
+channel under the name it carries, so a group like
+`diffuse.R`/`diffuse.G`/`diffuse.B` comes back through
+`DecodeOptions::layer = "diffuse"`. It is the only way to write a layer —
+the pixmap doors carry four channels called R, G, B and A and nothing
+else — and only EXR holds it: every other format this library writes is
+three or four channels with fixed meanings, so it declines rather than
+dropping the names. A caller with a layer and a PNG to put it in
+composites the group with `ChannelData::makeImage` first.
 
 `decode/Decode.h` is the routing surface. `decodeImage()` sniffs the bytes and
 tries the Skia codecs first (skipped when a layer is named, since layers
@@ -161,7 +175,11 @@ is lossy at that quality.
 
 **EXR is written as half float.** That is the format's native storage and
 it halves the file for the range a rendered panorama actually carries.
-Full float per channel is a different request than "write me an EXR".
+Full float per channel is a different request than "write me an EXR", and
+the named-channel door writes half for the same reason. Channels called
+`A` and `Z` are declared to the file as the alpha and the depth, because
+those are the names EXR reads that way; a set naming neither declares
+none rather than the first.
 
 F32 images are not filterable on Apple GPUs, so a float source decoded
 here is not automatically drawable on such a device. The fallback that
@@ -180,7 +198,10 @@ OpenImageIO and Skia's SVG module privately and optionally, each behind a
 `find_package` or target check that degrades to "that format fails to
 decode" with a configure-time warning. `SigilImageEncode` links
 `unofficial::skia::skia` publicly and OpenImageIO privately and
-optionally, degrading the same way to "that format fails to encode". A
+optionally, degrading the same way to "that format fails to encode". Its
+named-channel door names `ChannelData` and links nothing of the decode
+feature: the value is a plain aggregate, and a consumer that writes one
+includes that header and links that feature itself. A
 consumer that only draws decoded images links `SigilImageAsset` and never
 sees a backend.
 
