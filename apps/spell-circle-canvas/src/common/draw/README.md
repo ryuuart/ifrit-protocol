@@ -150,13 +150,14 @@ pen's text is ink. `point` is a disc of the stroke weight in the stroke
 colour. `textSize` sets the leading to five quarters of the size until
 `textLeading` says otherwise. `push` saves the style and the transform
 together and `pop` restores both; a push left open at the end of a frame
-is closed there, back to the style that stood when it opened. `clip` runs the function it is given with the shape verbs
-RECORDED rather than drawn — each in the space it was called in, so a
-transform inside the function moves the mask with it — and confines
-everything drawn after to what those shapes covered, until the matching
-`pop()` or the end of the frame; the verbs that carry no outline, a
-`line`, an `image`, a `text`, a `background`, add nothing to a mask. The
-blend mode is style like any other, so `push` and `pop` carry it, and it
+is closed there, back to the style that stood when it opened. `clip`
+runs the function it is given with the shape verbs RECORDED rather than
+drawn — each in the space it was called in, so a transform inside the
+function moves the mask with it — and confines everything drawn after to
+what those shapes covered, until the matching `pop()` or the end of the
+frame; the verbs that carry no outline, a `line`, an `image`, a `text`,
+a `background`, add nothing to a mask. The blend mode is style like any
+other, so `push` and `pop` carry it, and it
 reaches every verb that puts pixels down — a fill, a stroke, a glyph, an
 image, the triangle mesh a per-corner shape is drawn as, and the ground a
 `background` lays. `SUBTRACT` takes the source's colour out of the
