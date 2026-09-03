@@ -94,12 +94,12 @@
 // -----------------------------------------------------------------------------
 // THE SHARED COLOUR FIELD, AND WHY IT NEEDS NO WORLD-SPACE MATERIAL
 //
-// Sixteen ribbons must sample ONE continuous field. Material::linear is
+// Sixteen ribbons must sample ONE continuous field. Paint::linear is
 // node-local pixels and radialUnit is the node's unit square; neither spans
 // siblings. The answer here is better than per-node endpoint arithmetic: the
 // entire funnel is ONE node the size of the canvas whose outline() is the
 // stroked union of every ribbon polyline, so the node's local space IS canvas
-// space and one Material::linear({0,0},{0,1080}) serves all of it in a single
+// space and one Paint::linear({0,0},{0,1080}) serves all of it in a single
 // draw. That works because the field is VERTICAL and every ribbon is
 // absolutely placed; the moment a ribbon needs its own transform, or the field
 // is radial about a moving centre, this construction stops being available and
@@ -114,7 +114,7 @@
 //   skpathutils::FillPathWithPaint     44 px mitred ribbons from polylines,
 //                                      vertices pre-placed on measured coords
 //                                      (no router search to notch the bends)
-//   Material::linear (20 stops)        the hue field, one gradient blitter
+//   Paint::linear (20 stops)        the hue field, one gradient blitter
 //   Composer::renderSlot               the front advances by re-describing
 //                                      ONLY the funnel, 6 Hz, so the art's
 //                                      texture bake survives it
@@ -163,9 +163,17 @@
 #include <include/core/SkTypeface.h>
 #include <sigilcompose/brush/Brushes.h>
 #include <sigilcompose/core/Feed.h>
-#include <sigilcompose/core/Material.h>
+#include <sigilcompose/core/Paint.h>
 #include <sigilcompose/kit/Strokes.h>
-#include <sigilcompose/typography/Type.h>
+#include <sigilcompose/typography/Typography.h>
+#include <sigilgeometry/kit/Generators.h>
+#include <sigilgeometry/path/Edges.h>
+#include <sigilmaterial/skia/Color.h>
+#include <sigilmaterial/skia/Paint.h>
+#include <sigilmotion/bind/Bind.h>
+#include <sigilmotion/values/Keyframes.h>
+#include <sigilmotion/values/Transition.h>
+#include <sigilmotion/values/Time.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>
@@ -179,6 +187,11 @@
 #include <vector>
 
 namespace sketch = sigil::sketch;
+namespace mskia = sigil::material::skia;
+namespace motion = sigil::motion;
+namespace path = sigil::geometry::path;
+namespace shapes = sigil::geometry::shapes;
+namespace weave = sigil::weave;
 
 using namespace sigil::compose;
 using namespace std::chrono_literals;
@@ -266,7 +279,7 @@ constexpr int kRampN = (int)(sizeof(kRamp) / sizeof(kRamp[0]));
 // TYPE. Helvetica Bold, condensed per label to the measured width.
 
 inline const sk_sp<SkTypeface>& boldFace() {
-  static const sk_sp<SkTypeface> f = sigil::compose::pickFace(
+  static const sk_sp<SkTypeface> f = weave::ports::pickTypeface(
       {"Helvetica", "Arial"}, SkFontStyle::kBold_Weight);
   return f;
 }
@@ -275,7 +288,7 @@ inline const sk_sp<SkTypeface>& boldFace() {
 // every mark on this plate is the same bold grotesque, condensed.
 inline weave::TextStyle type(float size, SkColor4f color, float condense = 1.0f,
                              float track = 0.0f) {
-  return sigil::compose::type({.face = boldFace(),
+  return weave::textStyle({.face = boldFace(),
                                .size = size,
                                .color = color,
                                .track = track,
@@ -602,15 +615,15 @@ const Label kCollapsing[] = {
 // uniform. That is correct and live, and it is the most expensive way in the
 // library to say "linear ramp": a bound uniform makes the material live, so it
 // re-resolves and repaints every frame, and the mix chain is interpreted per
-// covered pixel on the CPU raster the sketch host uses. Material::linear
+// covered pixel on the CPU raster the sketch host uses. Paint::linear
 // lowers to SkShaders::LinearGradient, a SIMD blitter, for the same picture.
 // The front then advances the DATA way: the stop positions shift and update()
 // re-renders at 6 Hz — declared choppiness, the same idea as
-// Material::quantizeTime. A 14-second sweep stepped six times a second is
+// Paint::quantizeTime. A 14-second sweep stepped six times a second is
 // invisible as steps and cheap as pixels.
 
-inline Material rampMaterial(float front) {
-  std::vector<Stop> stops;
+inline mskia::Paint rampMaterial(float front) {
+  std::vector<mskia::Stop> stops;
   stops.reserve((size_t)kRampN);
   float last = -1.0f;
   for (const auto& stop : kRamp) {
@@ -620,7 +633,7 @@ inline Material rampMaterial(float front) {
     last = pos;
     stops.push_back({pos, hex(stop.rgb)});
   }
-  return Material::linear({0, 0}, {0, kH}, std::move(stops));
+  return mskia::Paint::linear({0, 0}, {0, kH}, std::move(stops));
 }
 
 // ---------------------------------------------------------------------------
@@ -748,7 +761,7 @@ struct EvaMagiDefense : sketch::Sketch {
     const SkColor4f plateFill = friendly ? kFriendly : kHostile;
     const SkColor4f rim = friendly ? kRimFriendly : kRim;
     const SkColor4f ink = friendly ? kInkFriendly : kInkHostile;
-    const auto snap = Transition{.duration = 180ms, .ease = ch::easeOutQuad};
+    const auto snap = motion::Transition{.duration = 180ms, .ease = ch::easeOutQuad};
 
     const SkPoint at = unroll(s.centre);
     auto plate = box()
@@ -758,7 +771,7 @@ struct EvaMagiDefense : sketch::Sketch {
                      .height(tre::kTotalH)
                      .shape(tre::silhouette)
                      .rotate(s.rotation)
-                     .fill(animate(to(Fill::color(plateFill)), snap))
+                     .fill(animate(motion::to(Fill::color(plateFill)), snap))
                      .foreground(rimGlow(2.4f, rim))
                      .key(std::string("site#") + s.name);
 
@@ -923,7 +936,7 @@ struct EvaMagiDefense : sketch::Sketch {
     root.child(camera(collapsingLayer(1)));
 
     // the photographed CRT: scanlines + vignette baked once, crept
-    Material crt = Material::recipe(sigil::material::field::crtOverlay());
+    mskia::Paint crt = mskia::Paint::recipe(sigil::material::field::crtOverlay());
     root.child(box()
                    .left(0)
                    .top(-8)
@@ -1026,13 +1039,13 @@ struct EvaMagiDefense : sketch::Sketch {
     ctx.ticker.add([this, t = 0.0](double dt) mutable {
       t += dt;
       // gate weave: whole pixels, a 3 Hz wander, the projector's own motion
-      const uint32_t gate = (uint32_t)std::max(0.0, std::floor(t * 3.0));
+      const uint32_t gate = (uint32_t)std::max(0LL, motion::stepIndex(t, 3.0));
       const uint32_t h = (gate * 2654435761u) ^ (gate >> 3u);
       weaveX = (float)((h >> 8u) % 3u) - 1.0f;
       weaveY = (float)((h >> 19u) % 3u) - 1.0f;
       // scanlines creep one WHOLE PIXEL at a time, 4 px per 8 s: a fractional
       // translate turns the cached CRT texture's blit into a resample.
-      creep = (float)((int)std::floor(t * 0.5) % 4);
+      creep = (float)(motion::stepIndex(t, 0.5) % 4);
       // phosphor flicker: a 4 s cycle, 1% duty
       const double ph = std::fmod(t, 4.0);
       flicker = ph < 0.04 ? 0.04f : 0.0f;
