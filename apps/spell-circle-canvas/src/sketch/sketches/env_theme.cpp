@@ -1,41 +1,50 @@
-// env_theme.cpp — ONE API: env::Provide<T> / env::inherited<T>().
-// =============================================================================
-// The point is a value read where a component is COMPOSED, not where it is
-// written. `chip()` below takes NO arguments and is four calls down from the
-// nearest `Provide`; `feed::feed(ring)` — a library component nobody here
-// wrote — is themed by the same channel, keyed on its own props type.
-//
-// Three columns, one component tree, drawn three times:
-//   NO BINDING   inherited<Palette>() is null, so chip() uses its own
-//                default — exactly a React context's default value.
-//   OUTER        one Provide<Palette> + one Provide<feed::TextOptions> at the
-//                top of the column. Nothing below is handed either.
-//   SHADOWED     the same column, with an INNER Provide<Palette> around
-//                only the bottom half. LIFO: the inner one wins there and
-//                the outer one is back in scope after it.
-//
-// EDIT THESE FIRST
-//   kOuter / kInner (below) — the two Palettes. Change a colour and watch
-//                            which chips move: only the ones under that
-//                            scope, because a read lands in the reading
-//                            node's OWN props and propsEqual is already
-//                            the dependency tracker.
-//   kLevels                 — how deep the handed-nothing chain runs.
-//
-// The three ways things move: none of them. env:: is a
-// DESCRIBE-path channel — a theme change re-describes and the reconciler
-// patches the nodes whose props moved. Bind the one property that scrubs
-// at 60 Hz, never the theme.
+/** @file
+ * env_theme — `env::Provide<T>` / `env::inherited<T>()`.
+ *
+ * The point is a value read where a component is COMPOSED, not where it
+ * is written. `chip()` below takes NO arguments and is four calls down
+ * from the nearest `Provide`; `feed::feed(ring)` — a library component
+ * nobody here wrote — is themed by the same channel, keyed on its own
+ * props type.
+ *
+ * Three columns, one component tree, drawn three times:
+ *   NO BINDING   inherited<Palette>() is null, so chip() uses its own
+ *                default — exactly a React context's default value.
+ *   OUTER        one Provide<Palette> + one Provide<feed::TextOptions> at
+ *                the top of the column. Nothing below is handed either.
+ *   SHADOWED     the same column, with an INNER Provide<Palette> around
+ *                only the middle band. LIFO: the inner one wins there and
+ *                the outer one is back in scope after it.
+ *
+ * EDIT THESE FIRST
+ *   kOuter / kInner — the two Palettes. Change a colour and watch which
+ *                chips move: only the ones under that scope, because a
+ *                read lands in the reading node's OWN props and
+ *                propsEqual is already the dependency tracker.
+ *   kLevels     — how deep the handed-nothing chain runs.
+ *
+ * The three ways things move: none of them. env:: is a DESCRIBE-path
+ * channel — a theme change re-describes and the reconciler patches the
+ * nodes whose props moved. Bind the one property that scrubs at 60 Hz,
+ * never the theme.
+ */
 
+#include <sigilcompose/core/Core.h>
 #include <sigilcompose/core/Feed.h>
-#include <sigilcompose/typography/Typography.h>
+#include <sigilcompose/kit/Specimen.h>
+#include <sigilcore/reconcile/Env.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilweave/style/Type.h>
 
 #include <string>
+#include <utility>
 
 namespace sketch = sigil::sketch;
+namespace weave = sigil::weave;
+namespace env = sigil::core::env;
 
 using namespace sigil::compose;
+using sigil::compose::toU8;
 
 namespace {
 
@@ -66,15 +75,31 @@ const Palette kInner{"inner (shadowing)",
 
 constexpr int kLevels = 4;  // containers between Provide and the read
 
-const SkColor4f kInk{0.90f, 0.93f, 0.97f, 1};
-const SkColor4f kDim{0.55f, 0.60f, 0.70f, 1};
-const SkColor4f kFrame{0.20f, 0.24f, 0.32f, 1};
+constexpr SkColor4f kGround{0.055f, 0.06f, 0.085f, 1};
+constexpr SkColor4f kInk{0.90f, 0.93f, 0.97f, 1};
+constexpr SkColor4f kDim{0.55f, 0.60f, 0.70f, 1};
+constexpr SkColor4f kFrame{0.20f, 0.24f, 0.32f, 1};
+constexpr SkColor4f kRule{0.19f, 0.20f, 0.26f, 1};
+constexpr float kColumn = 340.0f;
+
+weave::TextStyle label(float size, SkColor4f color, float track = 0) {
+  return weave::textStyle({.size = size, .color = color, .track = track});
+}
+
+kit::Caption voice() {
+  return {.where = kit::Caption::Where::Above,
+          .label = label(14, kInk, 0.5f),
+          .note = label(11, kDim, 0.2f),
+          .gap = 10,
+          .noteGap = 4,
+          .noteMeasure = kColumn};
+}
 
 // -------------------------------------------------------------- the consumer
 // THE WHOLE POINT: handed nothing, reads the ambient binding, states its own
 // default when there is none.
 
-Element chip(const char* label) {
+Element chip(const char* caption) {
   const Palette c = env::inheritedOr(Palette{});
   return box()
       .width(64)
@@ -84,7 +109,7 @@ Element chip(const char* label) {
       .stroke(stroke(1.2f, Fill::color(c.accent)))
       .alignItems(Align::Center)
       .justify(Justify::Center)
-      .child(text(toU8(label), type({.size = 11, .color = c.ink})));
+      .child(text(toU8(caption), label(11, c.ink)));
 }
 
 /** `kLevels` plain containers, none of which knows a Palette exists. */
@@ -106,7 +131,7 @@ Element boundLine() {
   return text(
       toU8(have ? std::string("env::bound<Palette>() true \xc2\xb7 ") + c.name
                 : std::string("env::bound<Palette>() FALSE")),
-      type({.size = 11, .color = have ? c.accent : kDim}));
+      label(11, have ? c.accent : kDim));
 }
 
 // -------------------------------------------------------------- the library
@@ -116,28 +141,22 @@ Element boundLine() {
 
 feed::TextOptions feedOptions(const Palette& c) {
   feed::TextOptions options;
-  options.styles.base(type({.size = 11, .color = c.ink}))
-      .set("accent", type({.size = 11, .color = c.accent}))
-      .set("dim", type({.size = 11, .color = kDim}));
+  options.styles.base(label(11, c.ink))
+      .set("accent", label(11, c.accent))
+      .set("dim", label(11, kDim));
   options.window.gap = 3;
   options.window.visible = 5;
   return options;
 }
 
 Element panelColumn(const char* heading, const char* note, Element body) {
-  return box()
-      .width(340)
-      .column()
-      .gap(10)
-      .child(text(toU8(heading), type({.size = 14, .color = kInk})))
-      .child(text(toU8(note), type({.size = 11, .color = kDim})))
-      .child(std::move(body));
+  return kit::cell(voice(), toU8(heading), toU8(note), std::move(body));
 }
 
 /** The body every column shares — same code, three environments. */
 Element themedBody(const feed::TextRing& ring) {
   return box()
-      .width(340)
+      .width(kColumn)
       .column()
       .gap(10)
       .padding(12)
@@ -145,7 +164,7 @@ Element themedBody(const feed::TextRing& ring) {
       .child(handedNothing(kLevels))
       .child(boundLine())
       .child(text(toU8("feed::feed(ring) \xc2\xb7 no options argument"),
-                  type({.size = 10, .color = kDim})))
+                  label(10, kDim)))
       .child(feed::feed(ring));
 }
 
@@ -155,9 +174,10 @@ struct EnvTheme : sketch::Sketch {
   feed::TextRing ring{16};
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.captureAt(6.0);
-    ctx.canvas(1140, 470);
-    ctx.background({0.055f, 0.06f, 0.085f, 1});
+    ctx.canvas(1140, 520);
+    ctx.background(kGround);
+    // Nothing moves: env is a describe-path channel.
+    ctx.captureAt(0.05);
 
     ring.clear();
     ring.append({u8"describe: env stack pushed", "accent"});
@@ -193,48 +213,52 @@ struct EnvTheme : sketch::Sketch {
             .child(boundLine());
       }();
       return box()
-          .width(340)
+          .width(kColumn)
           .column()
           .gap(10)
           .padding(12)
           .stroke(stroke(1.0f, Fill::color(kFrame)))
           .child(std::move(top))
           .child(std::move(inner))
-          .child(text(toU8("…and back OUT of the inner scope:"),
-                      type({.size = 10, .color = kDim})))
+          .child(text(toU8("\xe2\x80\xa6" "and back OUT of the inner scope:"),
+                      label(10, kDim)))
           .child(handedNothing(kLevels))
           .child(feed::feed(ring));
     }();
 
     ctx.composer.render(
-        stack()
-            .child(text(toU8("env::Provide<T> / env::inherited<T>() \xc2\xb7 "
-                             "read where a component is COMPOSED"),
-                        type({.size = 15, .color = kInk}))
-                       .left(30)
-                       .top(16))
-            .child(
-                box()
-                    .row()
-                    .left(30)
-                    .top(52)
-                    .gap(24)
-                    .child(panelColumn("NO BINDING",
-                                       "inheritedOr() default \xe2\x80\x94 the "
-                                       "feed's own, at its own size",
-                                       std::move(plain)))
-                    .child(panelColumn("OUTER SCOPE",
-                                       "one Provide, four levels up",
-                                       std::move(outer)))
-                    .child(panelColumn("SHADOWED",
-                                       "an inner Provide over the middle band",
-                                       std::move(shadowed))))
-            .child(text(toU8("bindings are keyed by C++ TYPE \xc2\xb7 there "
-                             "is no library-wide Theme \xc2\xb7 a callable "
-                             "the KERNEL invokes sees no scope"),
-                        type({.size = 11, .color = kDim}))
-                       .left(30)
-                       .bottom(14)));
+        kit::sheet(
+            {.title = toU8("ENV \xc2\xb7 env::Provide<T> / "
+                           "env::inherited<T>()"),
+             .subtitle = toU8("one component tree, three environments "
+                              "\xe2\x80\x94 read where a component is "
+                              "COMPOSED, not where it is written"),
+             .footer = toU8("bindings are keyed by C++ TYPE \xc2\xb7 there "
+                            "is no library-wide Theme \xc2\xb7 a callable "
+                            "the KERNEL invokes sees no scope"),
+             .titleStyle = label(15, kInk, 2.0f),
+             .subtitleStyle = label(11, kDim, 0.6f),
+             .footerStyle = label(10.5f, kDim, 0.2f),
+             .marginX = 30,
+             .marginTop = 22,
+             .marginBottom = 16,
+             .ground = Fill::color(kGround),
+             .rule = Fill::color(kRule)},
+            kit::cells(
+                {.cells =
+                     {panelColumn("NO BINDING",
+                                  "inheritedOr() default \xe2\x80\x94 the "
+                                  "feed's own, at its own size",
+                                  std::move(plain)),
+                      panelColumn("OUTER SCOPE",
+                                  "one Provide, four levels up",
+                                  std::move(outer)),
+                      panelColumn("SHADOWED",
+                                  "an inner Provide over the middle band",
+                                  std::move(shadowed))},
+                 .gap = 24}))
+            .absolute()
+            .inset(0));
   }
 };
 
