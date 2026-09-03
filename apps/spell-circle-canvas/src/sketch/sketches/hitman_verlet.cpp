@@ -163,8 +163,9 @@
 //     * the corpse's 24 capped-cylinder proxies are the pen's own words -
 //       `strokeCap(ROUND)` at twice the capsule radius IS a capsule -
 //       and so are the centrelines coloured by live constraint error, the
-//       dotted knee inequality, the cased drag leader with its red head,
-//       the cloth, the plants and every contact marker.
+//       dotted knee inequality and the marching cased drag leader - both
+//       `strokeDash`, the pen's own dash - the cloth, the plants and
+//       every contact marker.
 //     * every panel is a retained tree painted through `pen.element`:
 //       the six sidebar panels, the two instancing pools, the blast
 //       glow. Three of them are laid out with a HOLE - the anatomy
@@ -172,19 +173,17 @@
 //       the pen draws into at the box the panel's own arithmetic gives.
 //       The tree sets type and lays out; the pen draws what the solver
 //       just moved.
-//   Two things still go through `pen.canvas()`, the door the pen names
-//   for another library's drawing: the additive blast glow's clip and the
-//   drafting hatch inside the bump, because a pen has no clip verb and no
-//   blend mode.
+//   Nothing goes through `pen.canvas()`: the drafting hatch inside the
+//   bump is a `pen.clip()` of the section's own triangle, and the blast's
+//   additive glow is a leaf of the overlay tree because its glow is
+//   authored in the leaf's unit box.
 //
 //   ./build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
 //       src/sketch/sketches/hitman_verlet.cpp \
 //       --frame /tmp/hitman_verlet.png
 
-#include <include/core/SkCanvas.h>
 #include <include/core/SkColor.h>
 #include <include/core/SkPaint.h>
-#include <include/core/SkPathBuilder.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
@@ -392,21 +391,6 @@ void penMonoB(Pen& pen, float size, SkColor4f c, float track = 0.0f) {
 void penUi(Pen& pen, float size, SkColor4f c, float track = 0.0f) {
   pen.textFont(weave::Type{.face = uiFace(), .size = size, .track = track});
   pen.fill(c);
-}
-
-/** A DASHED SEGMENT, in the pen's own words: the run of on/off pieces a
- *  PathFormat's dashIntervals describes, walked here because a pen
- *  strokes what it is given and carries no dash. */
-void dashed(Pen& pen, SkPoint a, SkPoint b, float on, float off) {
-  const SkPoint d = b - a;
-  const float L = len(d);
-  if (L < 1e-4f) return;
-  const SkPoint u = d * (1.0f / L);
-  for (float s = 0; s < L; s += on + off) {
-    const float e = std::min(L, s + on);
-    pen.line(a.fX + u.fX * s, a.fY + u.fY * s, a.fX + u.fX * e,
-             a.fY + u.fY * e);
-  }
 }
 
 /** A part's entrance as time arithmetic: what a described tree spells as
@@ -1061,7 +1045,10 @@ struct HitmanVerlet final : sketch::DrawSketch {
     // 3. The inequality constraint — dotted, as Figure 8 draws it.
     pen.strokeWeight(1.4f * scale);
     pen.stroke(hex(0xC8402F, 0.75f * fade));
-    dashed(pen, at(LKN), at(RKN), 2.5f, 3.5f);
+    pen.strokeDash({2.5f, 3.5f});
+    const SkPoint lk = at(LKN), rk = at(RKN);
+    pen.line(lk.fX, lk.fY, rk.fX, rk.fY);
+    pen.noDash();
     pen.noStroke();
   }
 
@@ -1148,22 +1135,17 @@ struct HitmanVerlet final : sketch::DrawSketch {
     pen.strokeWeight(1.0f);
     pen.triangle(a1.fX, a1.fY, b1.fX, b1.fY, c1.fX, c1.fY);
     {
-      // The hatch: 45° lines inside the section. A pen has no clip verb,
-      // so the clip goes through the canvas the pen hands out.
-      SkCanvas* c = pen.canvas();
-      SkPathBuilder tri;
-      tri.moveTo(a1);
-      tri.lineTo(b1);
-      tri.lineTo(c1);
-      tri.close();
-      c->save();
-      c->clipPath(tri.detach(), true);
+      // The hatch: 45° lines inside the section, masked by the section
+      // itself — the same three points, drawn once as the shape and once
+      // as the clip, so the hatch cannot outrun the bump it belongs to.
+      pen.push();
+      pen.clip([&] { pen.triangle(a1.fX, a1.fY, b1.fX, b1.fY, c1.fX, c1.fY); });
       pen.stroke(hex(0x6FA8DC, 0.20f * a));
       pen.strokeWeight(1.0f);
       const float span = c1.fX - a1.fX + (a1.fY - b1.fY);
       for (float s = 0; s < span; s += 6.0f)
         pen.line(a1.fX + s, a1.fY, a1.fX + s - span, a1.fY - span);
-      c->restore();
+      pen.pop();
     }
     pen.noStroke();
   }
@@ -1193,7 +1175,9 @@ struct HitmanVerlet final : sketch::DrawSketch {
       walked += side;
     }
     pen.stroke(hex(0x6FA8DC, 0.22f));
-    dashed(pen, {0, 1}, {kStage, 1}, 4.0f, 5.0f);
+    pen.strokeDash({4.0f, 5.0f});
+    pen.line(0, 1, kStage, 1);
+    pen.noDash();
     pen.strokeCap(draw::ROUND);
     pen.noStroke();
   }
@@ -1252,7 +1236,11 @@ struct HitmanVerlet final : sketch::DrawSketch {
     // §7 IK: the target the hand is pinned to, "the hand of the player" —
     // a CASED leader (a wide casing under a narrow core) whose last eighth
     // is drawn in the accent, which is what a trim window on a path is
-    // when the path is two points.
+    // when the path is two points. The core MARCHES: a dash whose phase
+    // runs backwards with the clock, so the leader reads as a pull toward
+    // the target rather than a rod between two points. The casing under it
+    // and the accent head stay solid, which is what makes the marching
+    // legible.
     if (dragging) {
       const SkPoint h = drawn(rig, LHA), tgt = toStage(dragTarget);
       pen.strokeWeight(2.0f + 2.0f * 4.0f);
@@ -1260,7 +1248,9 @@ struct HitmanVerlet final : sketch::DrawSketch {
       pen.line(h.fX, h.fY, tgt.fX, tgt.fY);
       pen.strokeWeight(2.0f);
       pen.stroke(hex(0x6FA8DC, 0.55f));
+      pen.strokeDash({4.0f, 3.0f}, -(float)pen.millis() * 0.02f);
       pen.line(h.fX, h.fY, tgt.fX, tgt.fY);
+      pen.noDash();
       const SkPoint head = h + (tgt - h) * 0.88f;
       pen.strokeWeight(2.6f);
       pen.stroke(kRed);
@@ -1294,7 +1284,8 @@ struct HitmanVerlet final : sketch::DrawSketch {
 
   /** The retained overlay: every particle dot through instances(Mode::Live)
    *  — the control case beside the pen's own stroking — and the blast's
-   *  additive glow, which needs a blend mode a pen has no verb for. */
+   *  additive glow, whose falloff is authored in the unit box of the leaf
+   *  that carries it. */
   Element stageOverlay() {
     const SkPoint c = toStage(kBlast);
     return stack()
@@ -1759,7 +1750,9 @@ struct HitmanVerlet final : sketch::DrawSketch {
     }
     pen.strokeWeight(1.0f);
     pen.stroke(hex(0xC8402F, 0.9f));
-    dashed(pen, p[LKN], p[RKN], 2.0f, 3.0f);
+    pen.strokeDash({2.0f, 3.0f});
+    pen.line(p[LKN].fX, p[LKN].fY, p[RKN].fX, p[RKN].fY);
+    pen.noDash();
     pen.noStroke();
     pen.fill(kBone);
     for (const SkPoint& q : p) pen.circle(q.fX, q.fY, 5.2f);

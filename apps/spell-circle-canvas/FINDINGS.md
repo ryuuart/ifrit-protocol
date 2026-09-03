@@ -328,3 +328,23 @@ main pass's variant, with no warning. The pass model evidently intends a
 later pass over the same target to composite over it, or to refuse at plan
 time. A test should plan two passes writing one target and assert either
 the composite or the diagnostic.
+
+## hitman_verlet's drag leader can never have a length
+
+`stepPhysics` starts the §7 drag at `dragTarget = dragFrom = rig.x[LHA]`
+and then pins the hand to `dragTarget` on every step, so the hand and the
+target are the same point for the whole 3.2 s of the phase. The leader
+`simulation()` draws between them — a wide casing, a narrow core and an
+accent head over its last eighth, which the header names as one of the
+things the pen draws — is a few pixels of round cap around the target
+ring at every moment of the loop, and the accent head and the core's dash
+are invisible inside it.
+
+Intended: the leader shows the pull, so it is drawn between where the
+hand IS and where the target has moved to — the projection the drag is
+asking for, before the pin resolves it.
+
+Assert once fixed: at a moment inside the drag phase, the distance
+between `drawn(rig, LHA)` and `toStage(dragTarget)` is greater than the
+casing's width, and the plate at that moment carries accent pixels
+outside the target ring.
