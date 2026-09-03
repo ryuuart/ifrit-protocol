@@ -148,14 +148,16 @@
 // LINE VOCABULARY — gilt on vellum, where a lone 1 px hairline is a mistake
 //
 //  * THE BEZEL IS A 20-GON, one flat per face of the die, and it carries the
-//    whole border vocabulary at twenty vertices: `weightedCorners` on the outer
-//    ring so the rule thickens where it turns, `gappedRule` on the inner so it
-//    stops short at every flat, `brackets` as a twenty-tick ladder that indexes
-//    the die's twenty faces, and a `brush::Pattern` whose CORNER tile is a gilt
-//    fleuron on the bisector with side tiles run between. See the CORNER ANGLE
-//    note below — all four of those need to be told what a corner is.
-//  * `lines::heavyHairHeavy` for the principal rule and `lines::dottedCore` for
-//    the secondary — shipped helpers, not hand-built Rails.
+//    whole border vocabulary at twenty vertices: `decorations::weightedCorners`
+//    on the outer ring so the rule thickens where it turns, a `spans::corners`
+//    pass as the twenty-tick ladder that indexes the die's twenty faces, a
+//    `spans::edges` pass on the inner ring so its rule stops short at every
+//    flat, and a `brush::Pattern` whose CORNER tile is a gilt fleuron on the
+//    bisector with side tiles run between. See the CORNER ANGLE note below —
+//    all four of those need to be told what a corner is.
+//  * `brush::presets::heavyHairHeavy` for the principal rule and
+//    `brush::presets::dottedCore` for the secondary — shipped helpers, not
+//    hand-built Rails.
 //  * A hand-built `Rails` set on the DC plate with one rail's `dashPhase` slid
 //    against its neighbours, which is what makes a doubled rule read as
 //    ENGRAVED rather than printed twice.
@@ -208,12 +210,13 @@
 #include <sigilcompose/brush/Hatches.h>
 #include <sigilcompose/brush/Lines.h>
 #include <sigilcompose/brush/Rails.h>
-#include <sigilcompose/core/Material.h>
-#include <sigilcompose/core/Patterns.h>
-#include <sigilcompose/kit/Silhouettes.h>
-#include <sigilcompose/typography/Type.h>
+#include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Strokes.h>
+#include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>
+#include <sigilweave/style/Type.h>
 
 #include <algorithm>
 #include <array>
@@ -223,10 +226,13 @@
 #include <vector>
 
 namespace sketch = sigil::sketch;
+namespace shapes = sigil::geometry::shapes;
+namespace weave = sigil::weave;
 
 using namespace sigil::compose;
+using namespace sigil::motion;
 using namespace std::chrono_literals;
-namespace weave = sigil::weave;
+using sigil::weave::ports::pickTypeface;
 
 namespace bg3 {
 
@@ -542,7 +548,6 @@ struct Bg3DiceRoll : sketch::Sketch {
   choreograph::Output<float> rosetteSpin{0};
   choreograph::Output<float> hatchSpacing{14.0f};
   choreograph::Output<float> hatchAngle{12.0f};
-  choreograph::Output<float> outcomeInk{0};
 
   // ---- state that changes CONTENT (re-describe) ---------------------------
   double clock = 0;
@@ -559,12 +564,11 @@ struct Bg3DiceRoll : sketch::Sketch {
   // ------------------------------------------------------------------- type
   Element label(const std::string& s, float x, float y, float size,
                 SkColor4f col, float track = 0.0f, bool useMono = false) const {
-    weave::TextStyle st;
-    st.shaping.typeface = useMono ? mono : serif;
-    st.shaping.fontSize = size;
-    st.shaping.letterSpacing = track;
-    st.paint.foreground.setColor4f(col, nullptr);
-    return box().left(x).top(y).child(text(bg3::u8(s), st));
+    return box().left(x).top(y).child(
+        text(bg3::u8(s), weave::textStyle({.face = useMono ? mono : serif,
+                                           .size = size,
+                                           .color = col,
+                                           .track = track})));
   }
   /** Right-aligned, since a numeral column must align on its units digit and
    *  Yoga is not the skeleton here. `right` is in the PARENT's space, so the
@@ -573,11 +577,10 @@ struct Bg3DiceRoll : sketch::Sketch {
   Element labelR(const std::string& s, float right, float y, float size,
                  SkColor4f col, bool useMono = false,
                  float parentWidth = bg3::kW) const {
-    weave::TextStyle st;
-    st.shaping.typeface = useMono ? mono : serif;
-    st.shaping.fontSize = size;
-    st.paint.foreground.setColor4f(col, nullptr);
-    return box().right(parentWidth - right).top(y).child(text(bg3::u8(s), st));
+    return box().right(parentWidth - right).top(y).child(
+        text(bg3::u8(s), weave::textStyle({.face = useMono ? mono : serif,
+                                           .size = size,
+                                           .color = col})));
   }
 
   /** A bare rule as its own tiny node — a stroke wants a box the size of the
@@ -614,25 +617,12 @@ struct Bg3DiceRoll : sketch::Sketch {
                vis[(size_t)f] = r.z > 0.0f;
              }
 
-             // Carved bone: the visible faces as one filled body, shaded only
-             // by a flat gradient the node already carries. No per-face tone —
-             // the read is the edges.
+             // Carved bone. Each visible face gets its own tone from its own
+             // normal — the only shading on the die, and derived from the
+             // geometry rather than painted.
              SkPaint body;
              body.setAntiAlias(true);
              body.setStyle(SkPaint::kFill_Style);
-             SkPathBuilder solidBody;
-             for (int f = 0; f < nf; ++f) {
-               if (!vis[(size_t)f]) continue;
-               const auto& t = solid.faces[(size_t)f];
-               solidBody.moveTo(proj[(size_t)t[0]]);
-               solidBody.lineTo(proj[(size_t)t[1]]);
-               solidBody.lineTo(proj[(size_t)t[2]]);
-               solidBody.close();
-             }
-             const SkPath bodyPath = solidBody.detach();
-             // Each visible face gets its own tone from its own normal — the
-             // only shading, and it is derived from the geometry rather than
-             // painted.
              for (int f = 0; f < nf; ++f) {
                if (!vis[(size_t)f]) continue;
                const auto& t = solid.faces[(size_t)f];
@@ -1006,7 +996,7 @@ struct Bg3DiceRoll : sketch::Sketch {
               // The leader tick, running back toward the bezel.
               .child(rule(
                   0.0f, 20.0f, 84.0f,
-                  lines::heavyHairHeavy(1.4f, 0.5f, bg3::giltDark(0.8f), 2.6f),
+                  brush::presets::heavyHairHeavy(1.4f, 0.5f, bg3::giltDark(0.8f), 2.6f),
                   1.0f))
               .child(label(b.sourceName, 96.0f, 2.0f, 21.0f, bg3::kInk, 0.8f))
               .child(label(b.description, 96.0f, 26.0f, 9.5f,
@@ -1027,7 +1017,7 @@ struct Bg3DiceRoll : sketch::Sketch {
     constexpr float kRight = 1076.0f;
     Element g = stack().left(0).top(0).width(bg3::kW).height(bg3::kH);
     g.child(rule(kX + 96.0f, kY - 12.0f, kRight - kX - 96.0f + 16.0f,
-                 lines::heavyHairHeavy(2.0f, 0.7f, bg3::ink(0.85f), 4.0f),
+                 brush::presets::heavyHairHeavy(2.0f, 0.7f, bg3::ink(0.85f), 4.0f),
                  1.0f));
     g.child(label("Total", kX + 96.0f, kY + 4.0f, 22.0f, alpha(bg3::kInk, 0.8f),
                   3.0f));
@@ -1193,7 +1183,7 @@ struct Bg3DiceRoll : sketch::Sketch {
     constexpr float kNx = 962.0f, kNy = 246.0f;
     g.child(rule(
         kNx - 74.0f, kNy + 44.0f, 74.0f,
-        lines::dottedCore(1.5f, 2.4f, bg3::giltDark(0.95f), 3.6f, 7.0f), 1.0f));
+        brush::presets::dottedCore(1.5f, 2.4f, bg3::giltDark(0.95f), 3.6f, 7.0f), 1.0f));
     g.child(
         label("NaturalRoll", kNx, kNy, 12.0f, alpha(bg3::kInk, 0.62f), 2.6f));
     g.child(label("StatsRollResult", kNx, kNy + 16.0f, 8.0f,
@@ -1201,7 +1191,7 @@ struct Bg3DiceRoll : sketch::Sketch {
     g.child(label(std::to_string(bg3::kNaturalRoll), kNx, kNy + 28.0f, 52.0f,
                   bg3::kInk));
     g.child(rule(kNx, kNy + 92.0f, 118.0f,
-                 lines::heavyHairHeavy(1.8f, 0.6f, bg3::gilt(), 3.4f), 1.0f));
+                 brush::presets::heavyHairHeavy(1.8f, 0.6f, bg3::gilt(), 3.4f), 1.0f));
     g.child(label("before modifiers", kNx, kNy + 98.0f, 8.5f,
                   alpha(bg3::kGiltDark, 0.85f), 1.0f, true));
     return g.cache(Cache::Texture);
@@ -1375,9 +1365,9 @@ struct Bg3DiceRoll : sketch::Sketch {
     // BG3 sets a humanist old-style with tall caps; these are the closest
     // faces present on the host.
     serif =
-        sigil::compose::pickFace({"Baskerville", "Palatino", "Hoefler Text",
+        pickTypeface({"Baskerville", "Palatino", "Hoefler Text",
                                   "Georgia", "Times New Roman", "Helvetica"});
-    mono = sigil::compose::pickFace(
+    mono = pickTypeface(
         {"Menlo", "SF Mono", "Monaco", "Courier New", "Helvetica"});
 
     solid = bg3::buildSolid();
@@ -1408,7 +1398,6 @@ struct Bg3DiceRoll : sketch::Sketch {
         const float e = 1.0f - (1.0f - u) * (1.0f - u);
         hatchSpacing = 14.0f - 11.0f * e;  // 14 px -> 3 px
         hatchAngle = 12.0f + 12.0f * e;    // a 12 degree swing
-        outcomeInk = e;
       }
       return true;
     });
@@ -1449,8 +1438,9 @@ SIGIL_SKETCH(
 // THREE THINGS WORTH KNOWING BEFORE EDITING THIS PLATE
 //
 // 1. THE CORNER THRESHOLD HAS TO BE PASSED, ON EVERY DECORATION SEPARATELY.
-//    On this bezel, at the default 30 degrees, `brackets`, `gappedRule` and
-//    `weightedCorners` find ZERO corners and the ornament renders blank — all
+//    On this bezel, at the default 30 degrees, every `spans::corners` and
+//    `spans::edges` pass and `weightedCorners` find ZERO corners and the
+//    ornament renders blank — all
 //    twenty ticks gone, the outer rule flattened to one uniform hairline
 //    (weighted corners with no corners is a plain rule over the whole contour),
 //    the inner gapped rule running continuous instead of stopping at each flat,
