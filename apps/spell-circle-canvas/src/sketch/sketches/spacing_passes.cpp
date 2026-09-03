@@ -25,10 +25,14 @@
  * at the block's alignment and `kJustify` stretches it across the measure
  * with letter spacing alone.
  *
- * What moves this passage is the FIRST pass alone. Aiming the gaps at
- * twice the shaped space re-breaks it; the letter pass, the glyph pass
- * and the single-word rule leave it exactly as the defaults set it, and
- * the cells say so where they stand.
+ * OPENING A PASS CHANGES THE PASS BEFORE IT. The word gaps run
+ * unbounded while nothing follows them, which is the first cell; the
+ * moment the letter or glyph limits leave room past what those passes
+ * were asked for, the gaps stop at `wordSpacing · (1 + spaceStretch)`
+ * and what they may not take is what the later passes spend. So the
+ * third and fourth cells set the same words in tighter gaps than the
+ * first, and the right margin of each is where that cell's limits ran
+ * out.
  *
  * EDIT THESE FIRST
  *   kMeasure — the measure every cell is set in, px. A narrow one is what
@@ -170,9 +174,10 @@ struct SpacingPasses final : sketch::Sketch {
             kit::cells(
                 {.cells =
                      {cell("justification({})",
-                           "the word gaps alone, at their stock elasticity "
-                           "\xc2\xb7 the two later passes have limits equal "
-                           "to their desired values and do not run",
+                           "the word gaps alone \xc2\xb7 the two later "
+                           "passes have limits equal to their desired "
+                           "values and do not run, so nothing bounds the "
+                           "gaps and they take the whole fit",
                            passage(gaps)),
                       cell("wordSpacing = 2.0",
                            "the FIRST pass aimed at twice the shaped space "
@@ -180,22 +185,23 @@ struct SpacingPasses final : sketch::Sketch {
                            "not from the space the face cut",
                            passage(wider)),
                       cell("letterSpacing = 0.05",
-                           "the SECOND pass, in em fractions, applied "
-                           "to every justified line whatever its fit "
-                           "\xc2\xb7 this passage is set identically with "
-                           "it and without it",
+                           "the SECOND pass, in em fractions, applied to "
+                           "every justified line whatever its fit \xc2\xb7 "
+                           "a pass past the gaps is open, so the gaps hold "
+                           "at their stretch limit and the letters carry "
+                           "the rest",
                            passage(letters)),
                       cell("glyphScale = 0.92",
                            "the THIRD pass, which scales the letters "
-                           "themselves across \xc2\xb7 the last thing a "
-                           "page should do, and this fit is unmoved by it "
-                           "too",
+                           "themselves across \xc2\xb7 the last thing a page "
+                           "should do: every justified line is set at 92 "
+                           "per cent of its shaped width",
                            passage(glyphs)),
                       cell("singleWord = kJustify",
                            "a line holding ONE word has no gaps to "
-                           "spend \xc2\xb7 asked to stretch across the "
-                           "measure by letter spacing alone, and the last "
-                           "line stands where it stood",
+                           "spend \xc2\xb7 stretched across the measure by "
+                           "letter spacing alone, with justifyLastLine "
+                           "setting the closing line too",
                            passage(lastWord))},
                  .gap = 12}))
             .absolute()
