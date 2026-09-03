@@ -4,6 +4,7 @@
  */
 
 #include <sigilcompose/core/Composer.h>
+#include <sigilcompose/texture/Texture.h>
 #include <sigilmeasure/time/Laps.h>
 #include <sigilmotion/clock/FrameClock.h>
 #include <sigilmotion/clock/Ticker.h>
@@ -11,6 +12,9 @@
 
 #include <array>
 #include <cstdio>
+#include <memory>
+#include <string>
+#include <vector>
 
 namespace sigil::sketch {
 
@@ -97,6 +101,9 @@ class CanvasSession final : public Session {
   [[nodiscard]] float oversample() const override { return 2.0f; }
 
   void redeclare() override {
+    // The body declares everything again, its texture scenes included,
+    // so the ones it asked for last time are let go before it asks.
+    m_scenes.clear();
     SketchContext ctx = context();
     m_sketch->setup(ctx);
     applySize();
@@ -120,7 +127,14 @@ class CanvasSession final : public Session {
                   stats.picturesRecorded - stats.texturesBaked,
                   stats.texturesBaked, stats.picturesLive, stats.texturesLive,
                   stats.instances);
-    return line;
+    // …and what the BODY is holding through the context, which the
+    // composer's own counters cannot see: a scene it asked for once is a
+    // fixture, and a count that climbs frame by frame is a body asking
+    // for one every frame.
+    if (m_scenes.empty()) return line;
+    char held[48];
+    std::snprintf(held, sizeof held, "   scenes %zu", m_scenes.size());
+    return std::string(line) + held;
   }
 
   void setAutoPromotion(bool on) override {
@@ -191,8 +205,8 @@ class CanvasSession final : public Session {
   SketchContext context() {
     // A prvalue: SketchContext is non-copyable, so guaranteed elision is
     // the only way it travels.
-    return SketchContext{*m_composer, m_ticker, m_assets,       m_spec.size,
-                         &m_spec,     &m_fonts, m_deterministic};
+    return SketchContext{*m_composer, m_ticker, m_assets,        m_spec.size,
+                         &m_spec,     &m_fonts, m_deterministic, &m_scenes};
   }
 
   weave::FontContext& m_fonts;
@@ -200,6 +214,11 @@ class CanvasSession final : public Session {
   motion::FrameClock m_clock;
   motion::Ticker m_ticker;
   CanvasSpec m_spec;
+  /** The texture scenes the context handed out. Before the sketch and
+   *  the composer, so they outlive both: an image a sketch took from one
+   *  and a texture a retained tree holds are still standing when their
+   *  owners go. */
+  std::vector<std::shared_ptr<compose::TextureScene>> m_scenes;
   std::unique_ptr<Sketch> m_sketch;
   // After the sketch: reverse destruction releases retained descriptions
   // (which may point at sketch-owned Outputs) before their owner.

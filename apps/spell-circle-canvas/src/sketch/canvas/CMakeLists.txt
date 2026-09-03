@@ -6,6 +6,7 @@
 # #include is exactly this list, because the flags a sketch compiles with
 # are lifted from a translation unit inside this target graph.
 add_library(SigilSketchCanvas STATIC
+  Context.cpp
   Session.cpp
   ${SIGIL_SKETCH_INCLUDE_DIR}/sigilsketch/canvas/Sketch.h
 )
@@ -27,11 +28,13 @@ target_link_libraries(SigilSketchCanvas PRIVATE SigilMotionClock SigilMeasure)
 set_target_properties(SigilSketchCanvas PROPERTIES
   POSITION_INDEPENDENT_CODE ON)
 
+# The test walks through the door, so it includes and links what a sketch
+# doing the same would: the compose leaf that keeps the scene.
 add_executable(sketch_canvas_test test/CanvasSessionTest.cpp)
 target_include_directories(sketch_canvas_test PRIVATE
   ${SIGIL_SKETCH_TEST_SUPPORT_DIR})
 target_link_libraries(sketch_canvas_test PRIVATE SigilSketchCanvas
-  GTest::gtest_main)
+  SigilComposeTexture GTest::gtest_main)
 add_test(NAME sketch_canvas_test COMMAND sketch_canvas_test)
 
 add_executable(sketch_canvas_bench bench/CanvasSessionBench.cpp)

@@ -6,6 +6,8 @@
 #include <gtest/gtest.h>
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
+#include <sigilcompose/Compose.h>
+#include <sigilcompose/texture/Texture.h>
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilmaterial/kit/Surface.h>
@@ -18,6 +20,7 @@
 #include <glm/geometric.hpp>
 #include <memory>
 #include <optional>
+#include <string>
 
 #include "Support.h"
 
@@ -51,6 +54,31 @@ struct Spun : Set {
                    .rotateY(seconds * 90.0f)
                    .mesh(gm::superellipsoid({40, 40, 40}, 0.2f, 24, 16))
                    .fill(sigil::material::kit::surface()));
+  }
+};
+
+/** A set that paints a compose sheet into a texture the session keeps,
+ *  and wears it on one unlit card facing the camera. */
+struct Screened : Set {
+  std::shared_ptr<sigil::compose::TextureScene> screen;
+  void setup(SetContext& ctx) override {
+    ctx.canvas(160, 120);
+    ctx.background({0, 0, 0, 1});
+    sigil::geometry::mesh::camera::Camera lens;
+    lens.eye = {0, 0, 200};
+    lens.target = {0, 0, 0};
+    ctx.camera(lens);
+    screen = ctx.textureScene({64, 64});
+  }
+  world::Frame describe(float seconds) override {
+    using namespace sigil::compose;
+    screen->render(
+        box().width(64).height(64).fill(Fill::color({0, 1, 0, 1})), seconds);
+    sigil::material::Material surface =
+        sigil::material::kit::unlit({.baseColor = {1, 1, 1, 1}});
+    surface.child(sigil::material::kit::kBaseColorSlot, screen->texture());
+    return world::Element().key("set").child(
+        world::Element().key("card").mesh(gm::quad(120, 90)).fill(surface));
   }
 };
 
@@ -310,6 +338,22 @@ TEST(SetSession, ADragMovesItAboutTheTargetItDeclared) {
   ASSERT_TRUE(after.has_value());
   EXPECT_NEAR(after->distance, declared.distance, 1e-2f);
   EXPECT_NEAR(after->pitchDeg, declared.pitchDeg, 1e-2f);
+}
+
+TEST(SetDoors, PaintsATextureSceneOntoABody) {
+  std::unique_ptr<Session> session =
+      kindOf<Screened>()->open(fonts(), assets());
+  // The card is unlit and wears the sheet, so what the middle of the
+  // picture shows is what the compose tree painted: green, and nothing
+  // of the black ground or of any lighting.
+  const SkBitmap picture = oneFrame(*session);
+  const SkColor centre = picture.getColor(80, 60);
+  EXPECT_GT(SkColorGetG(centre), 200u);
+  EXPECT_LT(SkColorGetR(centre), 40u);
+  EXPECT_LT(SkColorGetB(centre), 40u);
+  // The set holds the scene too, but the SESSION is what keeps it
+  // standing, and says so.
+  EXPECT_NE(session->counters().find("screens 1"), std::string::npos);
 }
 
 }  // namespace

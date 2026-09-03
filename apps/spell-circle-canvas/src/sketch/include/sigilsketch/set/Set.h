@@ -16,23 +16,50 @@
 
 #include <concepts>
 #include <memory>
+#include <vector>
 
 namespace sigil::weave {
 class FontContext;
+}
+namespace sigil::compose {
+class TextureScene;
 }
 
 namespace sigil::sketch {
 
 /** WHAT A SET IS HANDED when it declares itself: the plate it will be
- *  photographed onto, the viewpoint it is seen from, and what it may
- *  reach for. Handed once, at setup — a set's every frame is a function
- *  of the scene time and of nothing else. */
+ *  photographed onto, the viewpoint it is seen from, what it may reach
+ *  for, and the one door a 2D picture comes in by. Handed once, at
+ *  setup — a set's every frame is a function of the scene time and of
+ *  nothing else. */
 struct SetContext {
   Assets& assets;
   weave::FontContext& fonts;
   CanvasSpec* spec = nullptr;  ///< host-owned; written via the calls below
   geometry::mesh::camera::Camera* eye =
       nullptr;  ///< host-owned; the fallback viewpoint
+  /** Host-owned: the texture scenes `textureScene()` handed out, kept
+   *  for the session's life. */
+  std::vector<std::shared_ptr<compose::TextureScene>>* scenes = nullptr;
+
+  /** A COMPOSE SCENE PAINTED INTO A TEXTURE, @p size pixels across and
+   *  cleared to @p background — a 2D screen a body wears. Ask for it
+   *  here, hold the pointer, and in `describe` hand it the tree at the
+   *  scene time with `render()` and put `texture()` in a material's
+   *  slot. Its own words are SigilCompose's, from
+   *  `<sigilcompose/texture/Texture.h>`.
+   *
+   *  THE SESSION KEEPS IT for as long as it runs, which is what a body
+   *  wearing it needs: a scene standing on a device destroys the texture
+   *  it painted into when it goes, so a surface whose scene had been let
+   *  go would be sampling a texture that is not there.
+   *
+   *  Nothing has to be remade when time moves. A session's clock only
+   *  goes forward — a sweep that must photograph an earlier moment opens
+   *  a second session rather than rewinding this one — so no run of the
+   *  piece begins where an earlier one left off. */
+  [[nodiscard]] std::shared_ptr<compose::TextureScene> textureScene(
+      SkISize size, SkColor4f background = {0, 0, 0, 0});
 
   /** Declare the plate's size in pixels. */
   void canvas(int width, int height) {

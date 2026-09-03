@@ -4,6 +4,7 @@
  */
 
 #include <include/core/SkCanvas.h>
+#include <sigilcompose/texture/Texture.h>
 #include <sigilmeasure/time/Laps.h>
 #include <sigilmotion/clock/FrameClock.h>
 #include <sigilmotion/clock/Ticker.h>
@@ -16,7 +17,10 @@
 #include <cmath>
 #include <cstdio>
 #include <glm/geometric.hpp>
+#include <memory>
 #include <optional>
+#include <string>
+#include <vector>
 
 namespace sigil::sketch {
 
@@ -62,7 +66,7 @@ class SetSession final : public Session {
     m_spec.size = {900, 640};
     m_spec.background = {0.04f, 0.045f, 0.06f, 1.0f};
     m_spec.captureSeconds = 1.0;
-    SetContext ctx{assets, fonts, &m_spec, &m_camera};
+    SetContext ctx{assets, fonts, &m_spec, &m_camera, &m_scenes};
     m_set->setup(ctx);
     m_declared = m_camera;
     m_extent = {(int)m_spec.size.width(), (int)m_spec.size.height()};
@@ -141,7 +145,12 @@ class SetSession final : public Session {
                   "nodes %lld   drawn %lld   resources %lld   passes %lld",
                   (long long)stats.nodes, (long long)stats.drawn,
                   (long long)stats.resources, (long long)stats.passes);
-    return line;
+    // …and the screens the set asked for at setup, which no counter of
+    // the retained scene's can see.
+    if (m_scenes.empty()) return line;
+    char held[48];
+    std::snprintf(held, sizeof held, "   screens %zu", m_scenes.size());
+    return std::string(line) + held;
   }
 
   /** ORBIT: yaw and pitch about the viewpoint's own target, at a
@@ -192,6 +201,10 @@ class SetSession final : public Session {
     m_scene.draw(canvas, viewing());
   }
 
+  /** The texture scenes the context handed out. Before the set and the
+   *  retained scene, so they outlive both: a texture a body wears is
+   *  still standing when its wearer goes. */
+  std::vector<std::shared_ptr<compose::TextureScene>> m_scenes;
   std::unique_ptr<Set> m_set;
   motion::Ticker m_ticker;
   world::Scene m_scene;

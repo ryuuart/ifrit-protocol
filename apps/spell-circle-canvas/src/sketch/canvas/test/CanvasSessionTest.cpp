@@ -7,10 +7,12 @@
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
+#include <sigilcompose/texture/Texture.h>
 #include <sigilsketch/canvas/Sketch.h>
 
 #include <cstring>
 #include <memory>
+#include <string>
 
 #include "Support.h"
 
@@ -21,6 +23,32 @@ using namespace sigil::compose;
 
 using sigil::sketch::test::assets;
 using sigil::sketch::test::fonts;
+
+/** The pixels of an image, read back. */
+SkBitmap pixelsOf(const sk_sp<SkImage>& image) {
+  SkBitmap bitmap;
+  bitmap.allocPixels(
+      SkImageInfo::MakeN32Premul(image->width(), image->height()));
+  EXPECT_TRUE(image->readPixels(nullptr, bitmap.pixmap(), 0, 0));
+  return bitmap;
+}
+
+/** A sketch that asks for a texture scene while declaring itself, paints
+ *  one red sheet into it, and then LETS GO of it — keeping the image it
+ *  took and a weak look at the scene, so that what stands afterwards is
+ *  what the session is holding and nothing the sketch is. */
+struct Screening : Sketch {
+  static inline sk_sp<SkImage> sheet;
+  static inline std::weak_ptr<TextureScene> scene;
+  void setup(SketchContext& ctx) override {
+    ctx.canvas(200, 120);
+    const std::shared_ptr<TextureScene> kept = ctx.textureScene({32, 32});
+    kept->render(box().width(32).height(32).fill(Fill::color({1, 0, 0, 1})));
+    sheet = kept->image();
+    scene = kept;
+    ctx.composer.render(box().width(10).height(10));
+  }
+};
 
 /** A sketch that declares a canvas, draws one box, and counts the times
  *  its body was run. The count is the observable behind the difference
@@ -114,6 +142,37 @@ TEST_F(CanvasSession, RepaintDoesNotAdvanceButStillDoes) {
 
 TEST_F(CanvasSession, TakesTheStillLargerThanItsCanvas) {
   EXPECT_GT(session->oversample(), 1.0f);
+}
+
+TEST(CanvasDoors, PaintsWhatTheSketchHandedTheTextureScene) {
+  const std::unique_ptr<Session> session =
+      kindOf<Screening>()->open(fonts(), assets());
+  ASSERT_TRUE(Screening::sheet);
+  EXPECT_EQ(Screening::sheet->width(), 32);
+  EXPECT_EQ(Screening::sheet->height(), 32);
+  EXPECT_EQ(pixelsOf(Screening::sheet).getColor(16, 16), SK_ColorRED);
+}
+
+TEST(CanvasDoors, KeepsTheTextureScenesItHandsOutUntilTheBodyDeclaresAgain) {
+  std::unique_ptr<Session> session =
+      kindOf<Screening>()->open(fonts(), assets());
+  // The sketch dropped its own reference at the end of setup; the scene
+  // stands because the SESSION holds it — which is what a picture on a
+  // device needs, since a scene destroys the texture its image names
+  // when it goes.
+  EXPECT_FALSE(Screening::scene.expired());
+  EXPECT_NE(session->counters().find("scenes 1"), std::string::npos);
+
+  // Declaring again lets last time's scenes go and keeps this time's.
+  const std::weak_ptr<TextureScene> first = Screening::scene;
+  session->redeclare();
+  EXPECT_TRUE(first.expired());
+  EXPECT_FALSE(Screening::scene.expired());
+  EXPECT_NE(session->counters().find("scenes 1"), std::string::npos);
+
+  // …and the session going lets go of the last of them.
+  session.reset();
+  EXPECT_TRUE(Screening::scene.expired());
 }
 
 }  // namespace

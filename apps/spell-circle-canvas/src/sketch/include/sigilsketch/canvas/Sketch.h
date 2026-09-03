@@ -16,6 +16,11 @@
 #include <algorithm>
 #include <concepts>
 #include <memory>
+#include <vector>
+
+namespace sigil::compose {
+class TextureScene;
+}
 
 namespace sigil::sketch {
 
@@ -33,20 +38,49 @@ struct SketchContext {
   SkSize size;                    // the current logical canvas size
   CanvasSpec* spec = nullptr;     // host-owned; written via the calls below
   sigil::weave::FontContext* fonts = nullptr;  // measure()/snapshot() fuel
+  /** Host-owned: the texture scenes `textureScene()` handed out, kept
+   *  for the session's life. */
+  std::vector<std::shared_ptr<compose::TextureScene>>* scenes = nullptr;
 
   SketchContext(compose::Composer& composerIn, sigil::motion::Ticker& tickerIn,
                 Assets& assetsIn, SkSize sizeIn, CanvasSpec* specIn = nullptr,
                 sigil::weave::FontContext* fontsIn = nullptr,
-                bool deterministicIn = false)
+                bool deterministicIn = false,
+                std::vector<std::shared_ptr<compose::TextureScene>>* scenesIn =
+                    nullptr)
       : composer(composerIn),
         ticker(tickerIn),
         assets(assetsIn),
         size(sizeIn),
         spec(specIn),
         fonts(fontsIn),
+        scenes(scenesIn),
         deterministic(deterministicIn) {}
   SketchContext(const SketchContext&) = delete;
   SketchContext& operator=(const SketchContext&) = delete;
+
+  /** A COMPOSE SCENE PAINTED INTO A TEXTURE, @p size pixels across and
+   *  cleared to @p background: hand it a tree with `render()` and read
+   *  `image()` or `texture()` back. Its own words are SigilCompose's,
+   *  from `<sigilcompose/texture/Texture.h>`.
+   *
+   *  THE SESSION KEEPS IT and lets go of everything it kept when the
+   *  body declares again, so a sketch may take the image and drop the
+   *  scene — which it could not do on its own, because a scene standing
+   *  on a device destroys the texture its image names when it goes, and
+   *  only the raster path leaves a picture behind that outlives it.
+   *
+   *  ASK WHILE DECLARING. A body that asks every frame holds every
+   *  frame's scene until the next declaration, the way cooking a mesh
+   *  every frame holds every frame's mesh; the session's counters say
+   *  how many it is holding, so that costs what it costs in the open.
+   *  Nothing has to be remade when time moves — a session's clock only
+   *  goes forward, and a run that starts over is a new session with new
+   *  scenes.
+   *
+   *  Null only where the host lent no fonts. */
+  [[nodiscard]] std::shared_ptr<compose::TextureScene> textureScene(
+      SkISize size, SkColor4f background = {0, 0, 0, 0});
 
   /** The host is taking a capture that will be DIFFED, so anything the
    *  sketch measured about its own execution must be pinned. See
