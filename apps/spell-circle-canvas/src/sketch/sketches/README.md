@@ -84,10 +84,9 @@ beside it — so there is one place to read and one place to change.
 | `rota_convocationis` | An invented conjuring wheel in the real idiom of the Solomonic circles, Agrippa's planetary tables and the alchemical rotae | A magic circle that ASSEMBLES — fourteen curved baselines forming, orbiting and charging at once: fitted ring runs, a cue-table rim with a `beatsOf`-placed scribe, roundels chained start-to-start from `spanMs`, a kamea decoding under a nested cascade, and an `fx::pass` charge riding a marquee baseline |
 | `winamp_base` | Winamp 2.91's default "Base" skin | A bitmap skin rebuilt as generated material; a genuinely quantised 28-frame slider |
 
-Three are not studies:
+Two are not studies:
 
 | Sketch | Why it exists |
 |---|---|
 | `hello` | The starter. Copy it. |
 | `stock_materials` | One of every stock material, painted from a sketch dylib and wired up as the `sketch_reload_materials` test — so a helper added to a shader fails the build instead of failing someone's sketch three weeks later. |
-| `frame_asset` | Headless export of a frame at exact pixel size: the asset workflow's template. |
