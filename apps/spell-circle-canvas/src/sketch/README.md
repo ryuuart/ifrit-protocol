@@ -1,8 +1,9 @@
-# SigilSketch — everything renderable, as one file each
+# SigilSketch — everything renderable, as one sketch each
 
-A **sketch** is a single `.cpp` file that declares a scene. It is real
-C++ over the full drawing API — no scripting layer, no markup — and it is
-three things at once:
+A **sketch** is a `.cpp` file that declares a scene — or a directory
+named for that file, with the file as its entry and the rest of the
+directory built with it. It is real C++ over the full drawing API — no
+scripting layer, no markup — and it is three things at once:
 
 * an entry in **one registry**, addressed by its own file stem;
 * a **live-coding** subject: save the file and the running canvas
@@ -73,6 +74,53 @@ SIGIL_SKETCH(Hello, "Kit", "The starter sketch. Copy it.")
 Drop the file in `sketches/` and it is in the registry: the stem is its
 key, and `sketches/CMakeLists.txt` finds it by looking in the directory.
 There is no second list anywhere that could disagree.
+
+### A sketch that is a directory
+
+A sketch that outgrows one file becomes a directory named for it:
+
+```
+sketches/
+  hello.cpp                            a sketch of one translation unit
+  dunhuang_star_chart/
+    dunhuang_star_chart.cpp            the ENTRY: the same file, in a
+                                       directory of its own name
+    Catalogue.h                        reached by a quoted include
+    Catalogue.cpp                      a UNIT: compiled into the sketch
+  shared/                              the layer beside them, below
+```
+
+The rule is one sentence: **a `.cpp` standing in a directory that
+carries its own stem is the entry of a directory sketch, and every
+other `.cpp` in that directory is a unit of it.** The key is still the
+stem, `SIGIL_SKETCH` still goes in the entry and nowhere else, and the
+build compiles every unit into the sketch target with the entry. A
+directory with no entry of its own name is not a sketch, and nothing
+in it is compiled. Its `assets/` and `captures/` stand inside it, since
+both stand beside the entry.
+
+What goes in a unit is what an edit to the plate should never compile
+again: a data table generated from a source and frozen, a construction
+the entry only reads. The live host compiles the units apart and links
+them once, and a unit whose source and headers have not changed since
+it was last compiled is not compiled again — so a save of the entry
+costs the entry, not the table. A bare `sketches/<stem>.cpp` stays what
+it was, and a sketch goes from one form to the other by moving.
+
+### The shared layer
+
+`sketches/shared/` holds the modules more than one sketch reaches for
+and no library owns yet. It is not a sketch: its sources are compiled
+into the sketch target once, and its headers are spelled as
+`<shared/Name.h>` — the sketches directory is on the include path, so
+the include names the layer it comes from, and the flags a hot-reloaded
+sketch compiles with carry that path because they are lifted from the
+same target. For the live host every source there is a unit of every
+sketch, cached like the sketch's own and dropped from the dylib when the
+sketch names nothing in it, so an unchanged module costs a reload only
+its link; saving one rebuilds the sketch that is open, which is what
+makes it live. A module a library should own is promoted out of here
+into that library.
 
 `SIGIL_SKETCH` takes the folder it files under and one line on what it
 is — both shown beside it in the app. `SIGIL_SKETCH_AS` adds a name of
@@ -440,8 +488,13 @@ embedding a scripting language — so a sketch never leaves the real API.
 
 * The host executable exports the framework's symbols, so a sketch dylib
   links with `-undefined dynamic_lookup` and builds in a couple of
-  seconds: one small translation unit, nothing linked against the static
-  libraries.
+  seconds: a few small translation units, nothing linked against the
+  static libraries. The units — the entry, the sources beside it when
+  the sketch is a directory, the shared layer's — compile side by side
+  into cached objects and link once; a unit is compiled again only when
+  its own source or any header beside the sketch or in the shared layer
+  has been written since, one conservative rule that needs no
+  dependency scan.
 * Compile errors overlay while the **last good sketch keeps running**.
 * Old libraries are never unloaded. Their statics stay valid — a running
   session may hold a vtable or a string literal that lives in one — and
@@ -457,12 +510,15 @@ embedding a scripting language — so a sketch never leaves the real API.
   zero. What leaves is the one presented longest ago. An EDIT is not a
   switch: a rebuild restarts its own session from nothing, which is
   exactly what an edit wants.
-* The watch covers the **headers standing beside the sketch** as well as
-  the sketch. A sketch is one translation unit and more than one file: a
-  helper beside it is reached by a quoted include, which resolves
-  relative to the including file and needs no include path — so saving
-  the header rebuilds, rather than leaving the code that stood before
-  the edit on screen with nothing saying so.
+* The watch covers **everything the sketch is built from**: the entry
+  every poll, and on a short cadence the headers standing beside it, the
+  units beside it when it is a directory sketch, and the shared layer's
+  sources and headers. A helper beside a sketch is reached by a quoted
+  include, which resolves relative to the including file and needs no
+  include path — so saving the header rebuilds, rather than leaving the
+  code that stood before the edit on screen with nothing saying so.
+  Beside a BARE sketch the other sources are other sketches, and saving
+  one of them is nothing to this one.
 * After rebuilding the framework itself, restart the host. The ABI
   version guards deliberate changes to the sketch surface; a separate
   guard refuses to compile while any repository header on the include
@@ -493,9 +549,16 @@ So a workspace is just a directory:
 ~/sketches/
   my_experiment.cpp     one sketch, opened by path
   palette.h             a helper, reached by a quoted include
+  rain/
+    rain.cpp            a sketch that is a directory, opened by its entry
+    drops.cpp           a unit of it
   assets/               what mounts at res://
   captures/             where the app's Capture writes
 ```
+
+The directory form is the same rule wherever the entry stands, and the
+shared layer a workspace sketch may spell `<shared/Name.h>` against is
+this repository's: the flags it compiles with are this checkout's.
 
 `assets/` beside the sketch is the default root, and `--assets <dir>`
 names another. Saving `palette.h` rebuilds the sketch that includes it.
@@ -535,7 +598,7 @@ src/sketch/
   live/       the reload engine, the resident set, and the crash reporter
   plate/      the headless sweep
   book/       Sketchbook: the app, and the headless entry point
-  sketches/   every sketch, one file each
+  sketches/   every sketch, one file or one directory each; shared/ beside them
 ```
 
 Each feature is its own archive with its own tests and benchmarks, and
@@ -580,7 +643,8 @@ ctest --test-dir build -C Debug -R sketch_ --output-on-failure
 ```
 
 One test binary per feature, each linking that feature alone:
-`sketch_core_test` over the registry and the kind seam, `sketch_canvas_test`
+`sketch_core_test` over the registry, the kind seam and where a sketch
+stands on disk, `sketch_canvas_test`
 and `sketch_set_test` over the two sessions, `sketch_live_test` over the
 host and the resident set, `sketch_plate_test` over the sweep.
 
@@ -619,7 +683,18 @@ another.
 Within the dynamic entries, one per distinct surface: `shapeworks_lab`
 and `first_light` are the widest canvas and set sketches by the symbols
 they name, `stock_materials` paints one of every stock material,
-`world_hud` is the other registration form, and the two behind an
-optional SDK name symbols nothing else does. A starter sketch that names
-none of those adds no entry of its own: anything that stops it compiling
-and loading stops the wide ones too.
+`world_hud` is the other registration form, `dunhuang_star_chart` is
+the directory form — several units compiled apart and linked once — and
+the two behind an optional SDK name symbols nothing else does. A starter
+sketch that names none of those adds no entry of its own: anything that
+stops it compiling and loading stops the wide ones too.
+
+### A host over one sketch while the rest are broken
+
+The sketches come last: library work is expected to break them, and a
+host links every sketch it carries, so in the middle of a library pass
+no Sketchbook links at all. `-DSIGIL_SKETCH_ONLY=stem;stem` at configure
+time narrows the registry a tree compiles to those stems — the directory
+is still the only list of what a sketch IS; this says which of them one
+tree carries — so a pass over the host can be looked at through the one
+sketch it is studying. Leave it empty, the default, for every sketch.

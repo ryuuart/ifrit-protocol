@@ -1,8 +1,9 @@
 # The sketches
 
-One file per scene. `../README.md` is the canon for what a sketch is, how
-it is registered and how it is run; this page is about what is in the
-directory.
+One file per scene — or one directory named for it, with that file as
+the entry and the sources beside it built with it. `../README.md` is the
+canon for what a sketch is, how it is registered and how it is run; this
+page is about what is in the directory.
 
 Most of these are **studies**: each rebuilds something that actually
 existed — a shipped game screen, a real website, a published plate, a
