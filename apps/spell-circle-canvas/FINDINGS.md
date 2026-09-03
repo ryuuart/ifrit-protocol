@@ -281,3 +281,19 @@ repainted each time; either the explicit cache is not honoured on a memo
 node or the counter misses that write. The stat evidently intends to
 count every picture the composer records. A test should mutate a memo
 node under `Cache::Picture` and assert `picturesRecorded` advances.
+
+## SigilDraw's textAlignY is inert
+
+`Pen::text(str, x, y, w, h)` (`src/common/draw/Text.cpp`) maps
+`textAlignY` onto `FrameOptions::distribute` and never sets
+`FrameOptions::extent`, which is how deep the frame is. The distribution
+reads the extent and returns at once when it is zero, so CENTER and
+BOTTOM lay the lines out exactly where TOP does — the same defect the
+compose side had, one library over.
+
+Intended: the box the pen was handed IS the extent, so a passage asked to
+sit at the middle or the foot of it does.
+
+Assert once fixed: draw one passage into one box under each of TOP,
+CENTER and BOTTOM and read the first line's baseline back; the three must
+differ by half and by all of the room the passage left over.
