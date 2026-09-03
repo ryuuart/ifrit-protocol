@@ -121,7 +121,7 @@ default.
 | shapes | `point`, `line`, `rect(x, y, w, h[, r \| tl, tr, br, bl])`, `square`, `ellipse(x, y, w[, h])`, `circle(x, y, d)`, `arc(x, y, w, h, start, stop[, OPEN \| CHORD \| PIE])`, `triangle`, `quad`, `bezier`, `curve`, `curveTightness` |
 | vertices | `beginShape([POINTS \| LINES \| TRIANGLES \| TRIANGLE_FAN \| TRIANGLE_STRIP \| QUADS \| QUAD_STRIP])`, `vertex`, `curveVertex`, `bezierVertex`, `quadraticVertex`, `beginContour`, `endContour`, `endShape([CLOSE])`; `fill` between two `vertex` calls colours the corners either side of it |
 | text | `text(str, x, y[, w, h])`, `text(number, x, y)`, `textSize`, `textFont(family[, size])`, `textAlign(LEFT \| CENTER \| RIGHT[, TOP \| CENTER \| BOTTOM \| BASELINE])`, `textLeading`, `textStyle(NORMAL \| BOLD \| ITALIC \| BOLDITALIC)`, `textWidth`, `textAscent`, `textDescent` |
-| images | `image(img, x, y[, w, h])` and the nine-argument source-rect form, over an `sk_sp<SkImage>` |
+| images | `image(img, x, y[, w, h])` and the nine-argument source-rect form, over an `sk_sp<SkImage>` or a `Graphics` |
 | transform | `translate`, `rotate`, `scale(s \| sx, sy)`, `shearX`, `shearY`, `push`, `pop`, `resetMatrix`, `applyMatrix(a, b, c, d, e, f)` |
 | numbers | `random()`, `random(max)`, `random(min, max)`, `randomGaussian`, `randomSeed`, `noise(x[, y, z])`, `noiseSeed`, `noiseDetail` |
 | the loop | `frameCount`, `deltaTime` (milliseconds), `millis()`, `frameRate()`, `frameRate(fps)`, `noLoop`, `loop`, `redraw` |
@@ -158,8 +158,8 @@ library's.
 
 ## Where ours differs
 
-Each of these is an ADDED overload on the same verb, never a renamed
-one.
+Each of these is an ADDED overload on the same verb, or a value standing
+beside the verbs, never a renamed one.
 
 * **A material is a fill.** `fill(material::skia::Paint)` and
   `stroke(material::skia::Paint)` take this repository's paint value —
@@ -209,15 +209,25 @@ one.
   canvas unit covers. What is drawn through it lands in the same place
   and the same order as the pen's own verbs, since there is one canvas;
   leave the transform and the clip as they were found.
+* **`createGraphics` is a value, not a call.** `Graphics buffer{w, h}`
+  is p5's offscreen canvas — a surface with a pen of its own, kept by
+  whoever declares it, because it lives across frames. `buffer.begin(pen)`
+  opens a frame on it and hands back its pen, `buffer.end()` closes it,
+  `pen.image(buffer, x, y)` puts it down and `buffer.image()` is what it
+  holds as an `SkImage`. It is formed at the host pen's own density,
+  through the host's canvas so it lives where the host draws, and placed
+  by its CANVAS size rather than its pixel count; its clock and fonts
+  are the host's, and its style and its pixels hold between frames as a
+  pen's and a canvas's do.
 
 ## Not provided
 
 p5 verbs and variables a pasted sketch has to replace, stated so nobody
 searches for them: `createVector` and `p5.Vector` (glm has the
 vectors), `tint`, `filter`, `blendMode`, `erase`/`noErase`, `clip`,
-`loadPixels`/`updatePixels`/`pixels`/`get`/`set`, `createGraphics`,
-`save`/`saveCanvas`/`saveFrames`/`saveGif`,
-`describe`/`textOutput`, `cursor`/`noCursor`, `fullscreen`,
+`loadPixels`/`updatePixels`/`pixels`/`get`/`set`,
+`save`/`saveCanvas`/`saveFrames`/`saveGif`, `describe`/`textOutput`,
+`cursor`/`noCursor`, `fullscreen`,
 `windowWidth`/`windowHeight`/`displayWidth`/`displayHeight`/`windowResized`,
 `pixelDensity`, `textWrap` (words wrap), `curveDetail`/`bezierDetail`,
 `beginShape(TESS)`, `texture`, `mouseButton`, `movedX`/`movedY`,
@@ -266,8 +276,10 @@ src/common/draw/
     Color.h       ColorMode, colorFrom(), parseColor()
     Noise.h       NoiseField
     Retained.h    Slot and Retained
+    Graphics.h    the offscreen buffer, p5's createGraphics
     Math.h        the pure calculations
   Pen.cpp         the frame, the style, the shapes, the transform, the streams
+  Graphics.cpp    the offscreen buffer
   Text.cpp        text through SigilWeave
   Color.cpp       the colour models and the CSS string
   Noise.cpp       the layered field
@@ -305,7 +317,9 @@ lattice corner is core's word, `noSmooth` sampling an image
 nearest-neighbour, a `fill` between two vertices colouring the corners
 either side of it — and this library's own: a material as a fill, a
 silhouette as a shape, text shaped and centred by its alignment, a guest
-retained per call site, the canvas carrying the pen's transform.
+retained per call site, the canvas carrying the pen's transform, an
+offscreen buffer formed at the host's density and put down in canvas
+units.
 `draw_bench` times ten thousand circles
 filled and stroked, ten thousand rects, a screen of text, a translucent
 background and a thousand noise samples per frame; it builds through the

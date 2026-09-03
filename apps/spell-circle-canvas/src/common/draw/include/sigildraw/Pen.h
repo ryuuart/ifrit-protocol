@@ -43,6 +43,7 @@ class FontContext;
 namespace sigil::draw {
 
 class Pen;
+class Graphics;
 
 /** A GUEST: something another library keeps between frames and paints
  *  inside a box the pen names — a retained element tree, a shaped page.
@@ -352,6 +353,11 @@ class Pen {
    *  box (@p dx, @p dy, @p dw, @p dh). */
   void image(const sk_sp<SkImage>& img, float dx, float dy, float dw, float dh,
              float sx, float sy, float sw, float sh);
+  /** An offscreen buffer put down, as p5 puts a Graphics down: placed
+   *  and sized by the buffer's CANVAS size, not by the pixel count it
+   *  was formed at. Its words are in `<sigildraw/Graphics.h>`. */
+  void image(const Graphics& buffer, float x, float y);
+  void image(const Graphics& buffer, float x, float y, float w, float h);
 
   // ---- transform -----------------------------------------------------------
   void translate(float x, float y);

@@ -12,12 +12,14 @@ set(SIGIL_DRAW_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/include)
 
 add_library(SigilDraw STATIC
   Color.cpp
+  Graphics.cpp
   Noise.cpp
   Pen.cpp
   Text.cpp
   ${SIGIL_DRAW_INCLUDE_DIR}/sigildraw/Color.h
   ${SIGIL_DRAW_INCLUDE_DIR}/sigildraw/Constants.h
   ${SIGIL_DRAW_INCLUDE_DIR}/sigildraw/Draw.h
+  ${SIGIL_DRAW_INCLUDE_DIR}/sigildraw/Graphics.h
   ${SIGIL_DRAW_INCLUDE_DIR}/sigildraw/Math.h
   ${SIGIL_DRAW_INCLUDE_DIR}/sigildraw/Noise.h
   ${SIGIL_DRAW_INCLUDE_DIR}/sigildraw/Pen.h

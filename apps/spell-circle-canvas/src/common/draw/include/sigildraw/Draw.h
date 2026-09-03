@@ -6,6 +6,7 @@
 
 #include <sigildraw/Color.h>
 #include <sigildraw/Constants.h>
+#include <sigildraw/Graphics.h>
 #include <sigildraw/Math.h>
 #include <sigildraw/Noise.h>
 #include <sigildraw/Pen.h>
