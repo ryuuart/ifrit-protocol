@@ -606,7 +606,12 @@ than about half the leg it turns on, and is then wider than the band.
 chord, the arc, or the point (bevelling past `Ribbon::miterLimit`, which
 is also the one join whose bleed reaches past the width). `Ribbon::band`
 hands that geometry back, so a study that MEASURES what was drawn does
-not have to transcribe how it is built. The line vocabulary is three
+not have to transcribe how it is built. `Ribbon::fillMaterial` paints the
+band with a recipe instead of a `Fill` — the door `strokeMaterial` opens
+on a stroke, mirrored here, so a ribbon beside a stroked outline does not
+have to have the same paint written twice; `brush::taper` and
+`brush::calligraphic` each take a `material::skia::Paint` beside a
+`Fill`, and a live material declares the ribbon animated. The line vocabulary is three
 more:
 `brush/Lines.h`, the cartography and diagram stroke (`lines::Line` —
 parallel casings, terminal caps, ties, waves); `brush/Rails.h`, N-rail

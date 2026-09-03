@@ -2147,6 +2147,35 @@ TEST(ComposeR2Volatility, ALiveMaterialOnASpanPassDeclaresItself) {
   EXPECT_EQ(paintedPerFrame(false), 0u) << "…and a static one must still cache";
 }
 
+TEST(ComposeR1Ribbon, ARecipeCanPaintTheBandAndALiveOneDeclaresItself) {
+  // A BAND IS A SURFACE, and a surface a material can dress — the same
+  // door a stroke opens with strokeMaterial. Without it a ribbon beside a
+  // stroked outline has to have the same paint written twice, once as a
+  // Material in the unit square and once as a node-local Fill.
+  Host host;
+  brush::Ribbon painted =
+      brush::taper(24, 24, material::skia::Paint::solid({0, 1, 0, 1}));
+  ASSERT_TRUE(painted.fillMaterial.has_value());
+  host.composer.render(straightRun(std::move(painted)));
+  host.frame();
+  EXPECT_EQ(host.pixel(100, 100), SK_ColorGREEN)
+      << "the recipe never reached the band";
+
+  // …and a LIVE one declares itself, so the node repaints every frame
+  // with no re-describe — the same rule a live stroke material follows.
+  const auto paintedPerFrame = [](bool live) {
+    Host again;
+    again.composer.render(straightRun(
+        brush::taper(24, 24, material::skia::Paint::sksl(heavyEffect(live)))));
+    again.frame();
+    again.frame();
+    return again.composer.stats().nodesPainted;
+  };
+  EXPECT_GT(paintedPerFrame(true), 0u)
+      << "a live band material must declare isAnimated()";
+  EXPECT_EQ(paintedPerFrame(false), 0u) << "…and a static one must cache";
+}
+
 // ---- The ribbon's corners, and the audit that finds them ------------------
 
 namespace {

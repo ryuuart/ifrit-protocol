@@ -571,6 +571,17 @@ struct Pattern {
  *  back as geometry by `band()` for anything that has to measure it. */
 struct Ribbon {
   Fill fill = Fill::color({1, 1, 1, 1});
+  /** A Material for the band, superseding `fill` when set — the same
+   *  door `Decoration::strokeMaterial` opens on a stroke, so a recipe
+   *  that dresses an outline can dress the ribbon beside it without
+   *  being written twice.
+   *
+   *  Prefer it to `fill` when the same paint also fills something else:
+   *  a Material is authored in the unit square, compares structurally,
+   *  and can carry live uniforms, where a `Fill` is node-local pixels
+   *  compared by shader pointer. A live material makes the ribbon
+   *  animated, so the node repaints without a re-describe. */
+  std::optional<material::skia::Paint> fillMaterial;
   float widthStart = 10.0f, widthEnd = 2.0f;
   float nibAngleDeg = -1.0f;  ///< ≥0 → calligraphic (widthStart = full)
   float nibContrast = 0.15f;  ///< thinnest fraction at nib-aligned tangents
@@ -641,8 +652,12 @@ struct Ribbon {
     // would clip the one corner the caller asked to be sharp.
     return join == SkPaint::kMiter_Join ? w * std::max(miterLimit, 1.0f) : w;
   }
+  bool isAnimated() const {
+    return fillMaterial && fillMaterial->isAnimated();
+  }
   bool operator==(const Ribbon& o) const {
-    return fill == o.fill && widthStart == o.widthStart &&
+    return fill == o.fill && fillMaterial == o.fillMaterial &&
+           widthStart == o.widthStart &&
            widthEnd == o.widthEnd && nibAngleDeg == o.nibAngleDeg &&
            nibContrast == o.nibContrast && step == o.step && width == o.width &&
            join == o.join && miterLimit == o.miterLimit;
@@ -663,11 +678,16 @@ struct Ribbon {
 
 /** Linear taper (comet body, ink pull-away). */
 Ribbon taper(float widthStart, float widthEnd, Fill fill);
+/** …painted by a recipe, which is the same taper with `fillMaterial`
+ *  set: a band is a surface, and a surface a material can dress. */
+Ribbon taper(float widthStart, float widthEnd, material::skia::Paint paint);
 
 /** The calligraphic nib: full width perpendicular to `nibAngleDeg`,
  *  `contrast` fraction when the path runs along the nib. */
 Ribbon calligraphic(float nibAngleDeg, float width, Fill fill,
                     float contrast = 0.15f);
+Ribbon calligraphic(float nibAngleDeg, float width,
+                    material::skia::Paint paint, float contrast = 0.15f);
 
 /** The ART brush: ONE art cell stretched and continuously BENT along each
  *  contour. This is what the stamp and tile brushes cannot do — they break

@@ -739,10 +739,15 @@ void Ribbon::paint(SkCanvas& c, const PaintContext& ctx) const {
   if (region.isEmpty()) return;
   SkPaint p;
   p.setAntiAlias(true);
-  if (fill.kind == Fill::Kind::Color)
-    p.setColor4f(fill.colorValue, nullptr);
-  else if (fill.kind == Fill::Kind::Shader)
-    p.setShader(fill.shaderValue);
+  // A material supersedes the fill, and it is resolved through the same
+  // body a stroke's does, so a recipe means the same thing on a band as
+  // on the outline beside it — unit square, node's box, one clock.
+  const Fill band =
+      fillMaterial ? resolveFill(*fillMaterial, ctx) : fill;
+  if (band.kind == Fill::Kind::Color)
+    p.setColor4f(band.colorValue, nullptr);
+  else if (band.kind == Fill::Kind::Shader)
+    p.setShader(band.shaderValue);
   c.drawPath(region, p);
 }
 
@@ -754,12 +759,30 @@ Ribbon taper(float widthStart, float widthEnd, Fill fill) {
   return r;
 }
 
+Ribbon taper(float widthStart, float widthEnd, material::skia::Paint paint) {
+  Ribbon r;
+  r.widthStart = widthStart;
+  r.widthEnd = widthEnd;
+  r.fillMaterial = std::move(paint);
+  return r;
+}
+
 Ribbon calligraphic(float nibAngleDeg, float width, Fill fill, float contrast) {
   Ribbon r;
   r.widthStart = width;
   r.nibAngleDeg = nibAngleDeg;
   r.nibContrast = contrast;
   r.fill = std::move(fill);
+  return r;
+}
+
+Ribbon calligraphic(float nibAngleDeg, float width,
+                    material::skia::Paint paint, float contrast) {
+  Ribbon r;
+  r.widthStart = width;
+  r.nibAngleDeg = nibAngleDeg;
+  r.nibContrast = contrast;
+  r.fillMaterial = std::move(paint);
   return r;
 }
 
