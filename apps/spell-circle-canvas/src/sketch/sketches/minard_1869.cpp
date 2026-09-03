@@ -136,16 +136,26 @@
 #include <include/core/SkTypeface.h>
 #include <sigilcompose/brush/Brushes.h>
 #include <sigilcompose/brush/Lines.h>
+#include <sigilcompose/core/Core.h>
 #include <sigilcompose/core/Feed.h>
-#include <sigilcompose/core/Material.h>
-#include <sigilcompose/core/Patterns.h>
+#include <sigilcompose/core/Pattern.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Plate.h>
-#include <sigilcompose/kit/Silhouettes.h>
+#include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/testing/Checks.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilgeometry/path/Polyline.h>
+#include <sigilmaterial/field/Field.h>
+#include <sigilmaterial/pattern/Patterns.h>
+#include <sigilmaterial/skia/Color.h>
+#include <sigilmaterial/skia/Paint.h>
+#include <sigilmeasure/check/Check.h>
+#include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/fonts/FontContext.h>
+#include <sigilweave/ports/SystemFontManager.h>
+#include <sigilweave/style/Type.h>
 
 #include <algorithm>
 #include <array>
@@ -159,8 +169,19 @@
 
 namespace sketch = sigil::sketch;
 
+namespace skia = sigil::material::skia;
+namespace field = sigil::material::field;
+namespace measure = sigil::measure;
+namespace patterns = sigil::material::pattern;
+namespace shapes = sigil::geometry::shapes;
+namespace weave = sigil::weave;
+
 using namespace sigil::compose;
+using namespace sigil::motion;
+using sigil::material::skia::Paint;
+using sigil::weave::ports::pickTypeface;
 namespace geometry = sigil::geometry;
+namespace path = sigil::geometry::path;
 using namespace std::chrono_literals;
 namespace ch = choreograph;
 
@@ -840,19 +861,15 @@ std::function<SkPath(SkSize)> pathFn(const SkPath& path) {
   return [path](SkSize) { return path; };
 }
 
-/** Quadratic smoothing through a point list (midpoint construction) —
- *  the coastlines and rivers of both panels. */
+/** The coastlines and rivers of both panels: A SMOOTH PATH THE POINTS
+ *  STEER — one quadratic per interior point, bounded by the hull they
+ *  span and passing through none of them. That is what makes a dozen
+ *  placed points read as one coast instead of a chain of chords. */
 SkPath smooth(const std::vector<SkPoint>& p) {
-  SkPathBuilder b;
-  if (p.size() < 2) return b.detach();
-  b.moveTo(p[0]);
-  for (size_t i = 1; i + 1 < p.size(); ++i) {
-    const SkPoint m{(p[i].x() + p[i + 1].x()) * 0.5f,
-                    (p[i].y() + p[i + 1].y()) * 0.5f};
-    b.quadTo(p[i], m);
-  }
-  b.lineTo(p.back());
-  return b.detach();
+  std::vector<glm::vec2> pts;
+  pts.reserve(p.size());
+  for (const SkPoint& q : p) pts.push_back({q.x(), q.y()});
+  return path::smoothThrough(pts);
 }
 
 SkPath rectPath(float l, float t, float r, float bm) {
@@ -861,12 +878,12 @@ SkPath rectPath(float l, float t, float r, float bm) {
   return p.detach();
 }
 
-sigil::weave::TextStyle type(sk_sp<SkTypeface> face, float size,
+weave::TextStyle type(sk_sp<SkTypeface> face, float size,
                              SkColor4f color, float tracking = 0) {
-  return sigil::compose::type({.face = std::move(face),
-                               .size = size,
-                               .color = color,
-                               .track = tracking});
+  return weave::textStyle({.face = std::move(face),
+                           .size = size,
+                           .color = color,
+                           .track = tracking});
 }
 
 /** printf into a std::string, sized by a measuring pass rather than
@@ -935,7 +952,7 @@ struct Minard1869 : sketch::Sketch {
                                                // metrics()/measureRun()
 
   Pattern paperPulp, laidLines, chainLines, foxing, tintSpeckle;
-  Material paperMat, vignette;
+  Paint paperMat, vignette;
 
   // audits, computed once in setup()
   WidthAudit auditAdvance, auditRetreat;
@@ -1351,7 +1368,7 @@ struct Minard1869 : sketch::Sketch {
     return box()
         .inset(0)
         .shape(pathFn(band))
-        .fill(Material::solid(colour))
+        .fill(Paint::solid(colour))
         .mask(by::edge(wipeDeg, std::move(reveal)))
         .key(key);
   }
@@ -1742,7 +1759,7 @@ struct Minard1869 : sketch::Sketch {
       PathFormat f;
       f.width = 0.7f;
       // the rule fades as it crosses the panel divider
-      f.strokeMaterial = Material::linearUnit({0, 0}, {0, 1},
+      f.strokeMaterial = Paint::linearUnit({0, 0}, {0, 1},
                                               {{0.0f, hex(0x4e4436, 0.80f)},
                                                {0.66f, hex(0x4e4436, 0.22f)},
                                                {1.0f, hex(0x4e4436, 0.75f)}});
@@ -1901,21 +1918,28 @@ struct Minard1869 : sketch::Sketch {
   // THE AUDIT — five cards, a different world: clean paper, crisp rules,
   // no grain.
 
+  /** ONE AUDIT CARD. Its ground, its title and the rule under the title
+   *  are `kit::sheet`'s header, laid over the whole card, and the body is
+   *  a sibling of it — so the body keeps the card's own coordinates while
+   *  the header flows and a longer title pushes its own rule down. */
   Element card(float y, float h, const char* title, const char* key, float t0,
                Element body) {
     auto c = box()
                  .rect(SkRect::MakeXYWH(kAuditX, y, kAuditW, h))
-                 .fill(Material::solid(kCard))
-                 .stroke(stroke(1.0f, Fill::color(hex(0xcfc6b4))))
                  .key(key)
                  .opacity(beat(t0, t0 + 0.4f))
                  .translateY(bind(&T).window(t0, t0 + 0.4f).invert().scale(14));
-    c.child(
-        text(toU8(title), type(faceUiBold, 15, kCardInk, 1.6f)).at({18, 12}));
-    c.child(box()
+    c.child(kit::sheet({.title = toU8(title),
+                        .titleStyle = type(faceUiBold, 15, kCardInk, 1.6f),
+                        .marginX = 18,
+                        .marginTop = 12,
+                        .marginBottom = 12,
+                        .contentGap = 13,
+                        .ground = Fill::color(kCard),
+                        .rule = Fill::color(kCardInk)},
+                       box())
                 .inset(0)
-                .shape(segFn({18, 36}, {kAuditW - 18, 36}))
-                .stroke(stroke(1.0f, Fill::color(kCardInk))));
+                .stroke(stroke(1.0f, Fill::color(hex(0xcfc6b4)))));
     c.child(std::move(body));
     return c;
   }
@@ -1961,9 +1985,9 @@ struct Minard1869 : sketch::Sketch {
                 .key("fitline"));
     for (size_t i = 0; i < treads.size(); ++i) {
       const float x = X(treads[i].first), y = Y(treads[i].second);
-      g.child(kit::disc({x, y}, 3.6f)
+      g.child(kit::disc(SkPoint{x, y}, 3.6f)
                   .shape(shapes::circle())
-                  .fill(Material::solid(kBlue))
+                  .fill(Paint::solid(kBlue))
                   .key("tread" + std::to_string(i))
                   .opacity(beat(tScale + 0.6f + 0.09f * (float)i,
                                 tScale + 0.8f + 0.09f * (float)i)));
@@ -2092,9 +2116,9 @@ struct Minard1869 : sketch::Sketch {
                 .key("floorLab")
                 .opacity(beat(tScale + 1.5f, tScale + 1.8f)));
     for (size_t i = 0; i < pts.size(); ++i)
-      g.child(kit::disc({X(pts[i].first), Y(pts[i].second)}, 3.0f)
+      g.child(kit::disc(SkPoint{X(pts[i].first), Y(pts[i].second)}, 3.0f)
                   .shape(shapes::circle())
-                  .fill(Material::solid(i >= 8 ? kAmber : kBlue))
+                  .fill(Paint::solid(i >= 8 ? kAmber : kBlue))
                   .key("fp" + std::to_string(i))
                   .opacity(beat(tScale + 1.0f + 0.05f * (float)i,
                                 tScale + 1.2f + 0.05f * (float)i)));
@@ -2178,9 +2202,9 @@ struct Minard1869 : sketch::Sketch {
     for (size_t i = 0; i < kCities.size(); ++i) {
       const City& c = kCities[i];
       const bool out = cityKm(c) > 20.0f;
-      g.child(kit::disc({MX(c.lon), MY(c.lat)}, out ? 4.0f : 2.6f)
+      g.child(kit::disc(SkPoint{MX(c.lon), MY(c.lat)}, out ? 4.0f : 2.6f)
                   .shape(shapes::circle())
-                  .fill(Material::solid(out ? kAmber : kBlue))
+                  .fill(Paint::solid(out ? kAmber : kBlue))
                   .key("gc" + std::to_string(i))
                   .opacity(beat(tGeo + 0.1f + 0.02f * (float)i,
                                 tGeo + 0.35f + 0.02f * (float)i)));
@@ -2204,7 +2228,7 @@ struct Minard1869 : sketch::Sketch {
       g.child(box()
                   .rect(SkRect::MakeXYWH(hx + bw * (float)i + 1, hy + hh - bh,
                                          bw - 2, std::max(bh, 1.0f)))
-                  .fill(Material::solid(i >= 4 ? kAmber : kBlue))
+                  .fill(Paint::solid(i >= 4 ? kAmber : kBlue))
                   .key("hist" + std::to_string(i))
                   .scale(animate(
                       from(0.0f).to(1.0f),
@@ -2216,7 +2240,7 @@ struct Minard1869 : sketch::Sketch {
     // the digitisation quantum, as a grey band behind
     g.child(box()
                 .rect(SkRect::MakeXYWH(hx + hw * 6.41f / 40.0f - 6, hy, 12, hh))
-                .fill(Material::solid(hex(0x6d675c, 0.22f)))
+                .fill(Paint::solid(hex(0x6d675c, 0.22f)))
                 .key("quantum")
                 .opacity(beat(tGeo + 1.3f, tGeo + 1.6f)));
     g.child(text(toU8("residual vectors ×8"), type(faceUi, 9, kGrey))
@@ -2284,7 +2308,7 @@ struct Minard1869 : sketch::Sketch {
           box()
               .rect(SkRect::MakeXYWH(dx < 0 ? mid + dx : mid, y,
                                      std::max(std::fabs(dx), 1.0f), 7))
-              .fill(Material::solid(bad ? kAmber : kBlue))
+              .fill(Paint::solid(bad ? kAmber : kBlue))
               .key("legb" + std::to_string(i))
               .scale(animate(from(0.0f).to(1.0f),
                              ramp((tDistort + 0.2f) * 1000 + 70.0f * (float)i,
@@ -2431,21 +2455,20 @@ struct Minard1869 : sketch::Sketch {
                             {"measured", hex(0x64a8d8)},
                             {"heading", hex(0xf0e8d8)}});
     // The heading runs a shade larger; set() replaces it where it sits.
-    s.styles.set(
-        "heading",
-        type({.face = faceMono, .size = 8.8f, .color = hex(0xf0e8d8)}));
+    s.styles.set("heading", weave::textStyle({.face = faceMono,
+                                              .size = 8.8f,
+                                              .color = hex(0xf0e8d8)}));
     s.window.gap = 0.0f;
     s.window.visible = 20;
-    return kit::plate({.columns = {feed::feed(colA, s), feed::feed(colB, s),
-                                   feed::feed(colC, s), feed::feed(colD, s),
-                                   feed::feed(colE, s)},
-                       .paddingX = 8,
-                       .paddingY = 8,
-                       .gap = 12,
-                       .fill = Fill::color(hex(0x141311)),
-                       .border = Fill::color(hex(0x2c2a26)),
-                       .borderAlign = PathFormat::Align::Center,
-                       .columnExtent = 480})
+    return kit::console({.feeds = {&colA, &colB, &colC, &colD, &colE},
+                         .style = s,
+                         .plate = {.paddingX = 8,
+                                   .paddingY = 8,
+                                   .gap = 12,
+                                   .fill = Fill::color(hex(0x141311)),
+                                   .border = Fill::color(hex(0x2c2a26)),
+                                   .borderAlign = PathFormat::Align::Center,
+                                   .columnExtent = 480}})
         .rect(SkRect::MakeXYWH(48, kConsoleY, 2464, kConsoleH))
         .key("console");
   }
@@ -2454,7 +2477,7 @@ struct Minard1869 : sketch::Sketch {
 
   Element describe(sketch::SketchContext& ctx) {
     return box()
-        .fill(Material::solid(kDesk))
+        .fill(Paint::solid(kDesk))
         .child(titleStrip())
         .child(sheet(ctx))
         .child(auditColumn())
@@ -2469,15 +2492,27 @@ struct Minard1869 : sketch::Sketch {
     auto say = [&](feed::TextRing& r, const std::string& s, const char* style) {
       r.append({toU8(s), style});
     };
-    // The verdict is never written by hand: test::check computes it FROM
-    // the two values and test::report prints it in the style that
+    // THE VERDICT IS NEVER WRITTEN BY HAND. `measure::check` computes it
+    // from the two values and `test::report` prints it in the ink that
     // verdict chose, so a line that reads EXACT cannot disagree with the
     // arithmetic printed beside it, and a line that fails says what it
     // expected as well as what it got.
-    auto chk = [&](feed::TextRing& r, const std::string& label, long lhs,
-                   long rhs) {
-      test::report(r, test::check(label, rhs, lhs), "pass", "fail");
+    //
+    // A FINDING is a claim about MINARD'S PLATE rather than about this
+    // reconstruction: its verdict is printed exactly as a claim's is and
+    // never counted against the run, because its failing is the result.
+    const test::ReportStyles ink{.pass = "pass",
+                                 .fail = "fail",
+                                 .finding = "fail",
+                                 .reading = "measured",
+                                 .heading = "heading",
+                                 .labelWidth = 52,
+                                 .valueWidth = 9};
+    auto row = [&](feed::TextRing& r, const measure::Check& c) {
+      test::report(r, c, ink);
     };
+    auto chk = [&](feed::TextRing& r, const std::string& label, long lhs,
+                   long rhs) { row(r, measure::check(label, rhs, lhs)); };
 
     say(colA, "FLOW CONSERVATION — Minard's own engraved numbers", "heading");
     chk(colA, "422,000 − 22,000 (northern column)", 422000 - 22000, 400000);
@@ -2545,14 +2580,10 @@ struct Minard1869 : sketch::Sketch {
         "  11 treads, Commons scan:  3.828 px/10k, intercept "
         "−0.19 px, R² 0.99266",
         "measured");
-    say(colB,
-        "  intercept / (10,000-men width)   −0.05        PASS "
-        "(proportional)",
-        "pass");
-    say(colB,
-        "  paper 3945×3423 px, aspect 1.1525 vs 62/54 = 1.1481   "
-        "+0.4%  PASS",
-        "pass");
+    row(colB, measure::check("  intercept / (10,000-men width)", 0.0, -0.05,
+                             0.1));
+    row(colB, measure::check("  paper aspect 3945/3423 vs 62/54",
+                             62.0 / 54.0, 3945.0 / 3423.0, 0.01));
     say(colB, "  frame 3685 px = 579.14 mm ⇒ 3.4482 px/mm on that scan", "dim");
     say(colB,
         fmt("  from the regression                        %.3f mm/10k",
@@ -2561,11 +2592,10 @@ struct Minard1869 : sketch::Sketch {
     say(colB, "  four direct BnF spot reads             1.1258 ± 0.013 mm",
         "measured");
     say(colB, "  STATED                                 1.0000 mm", "dim");
-    say(colB,
-        fmt("  → the engraved zones are %.1f%% WIDER than the legend "
-            "claims     FAIL (the plate's)",
-            100.0 * (kMmPer10k - 1.0) / 1.0),
-        "fail");
+    // THE PLATE'S OWN CLAIM, checked: a finding, not a defect here.
+    row(colB, measure::finding(measure::check(
+                  "  \xe2\x86\x92 mm per 10,000 men, against the legend",
+                  1.0, (double)kMmPer10k, 0.01)));
     say(colB,
         "  and the SAME factor on the Hannibal panel, other data, other "
         "continent",
@@ -2617,11 +2647,16 @@ struct Minard1869 : sketch::Sketch {
       say(colC, fmt("                         rms  %.2f km", rms), "measured");
       say(colC, "  0.1° digitisation quantum, diagonal        6.41 km", "dim");
       say(colC, "  rms expected from quantisation alone      3.70 km", "dim");
-      say(colC,
-          fmt("  → residual is within %.1f× of the measurement floor  "
-              "         PASS",
-              rms / 3.70),
-          "pass");
+      // A statement about MINARD'S MAP, not about this file, and the one
+      // the received account gets backwards: the rms residual is three
+      // times the floor his data's own 0.1-degree quantisation sets, on a
+      // span of 871 km. That is a map, not a schematic.
+      row(colC, measure::reading("  \xe2\x86\x92 rms over the "
+                                 "quantisation floor, \xc3\x97",
+                                 (double)(rms / 3.70f)));
+      row(colC, measure::finding(measure::check(
+                    "  \xe2\x86\x92 median residual over the span, %", 0.0,
+                    (double)(med / 871.0f * 100.0f), 1.0)));
       const float kmKM = haversineKm(kCities[0].rlon, kCities[0].rlat,
                                      kCities[17].rlon, kCities[17].rlat);
       const float kmM = haversineKm(kCities[0].lon, kCities[0].lat,
@@ -2700,10 +2735,11 @@ struct Minard1869 : sketch::Sketch {
         "  °C = °R × 5/4   °F = °R × 9/4 + "
         "32   (exact, no offset)",
         "dim");
-    say(colD,
-        "  −30 °R = −37.50 °C = −35.50 °F  "
-        "  9 readings converted     PASS",
-        "pass");
+    row(colD, measure::check("  \xe2\x88\x92" "30 \xc2\xb0" "R in \xc2\xb0" "C",
+                             -37.5, -30.0 * 5.0 / 4.0, 1e-9));
+    row(colD, measure::check("  \xe2\x88\x92" "30 \xc2\xb0" "R in \xc2\xb0" "F",
+                             -35.5, -30.0 * 9.0 / 4.0 + 32.0, 1e-9));
+    row(colD, measure::reading("  readings converted", 9));
     say(colD,
         "  the undated −11° recovers as 24 Nov (days col.) and "
         "25 Nov (lon interp.)",
@@ -2967,41 +3003,43 @@ struct Minard1869 : sketch::Sketch {
     // library's own walk: the first installed family wins, and a machine
     // with none of them gets the default face AT THE WEIGHT ASKED FOR
     // rather than silently at Normal.
-    faceScript = pickFace({"Snell Roundhand", "Apple Chancery"});
+    faceScript = pickTypeface({"Snell Roundhand", "Apple Chancery"});
     faceItalic =
-        pickFace({"Baskerville", "Times New Roman"}, SkFontStyle::Italic());
-    faceRoman = pickFace({"Baskerville", "Times New Roman"});
-    faceNum = pickFace({"Baskerville"});
-    faceUi = pickFace({"Helvetica Neue", "Baskerville"});
+        pickTypeface({"Baskerville", "Times New Roman"}, SkFontStyle::Italic());
+    faceRoman = pickTypeface({"Baskerville", "Times New Roman"});
+    faceNum = pickTypeface({"Baskerville"});
+    faceUi = pickTypeface({"Helvetica Neue", "Baskerville"});
     faceUiBold =
-        pickFace({"Helvetica Neue", "Baskerville"}, SkFontStyle::kBold_Weight);
-    faceMono = pickFace({"Menlo", "Courier New"});
+        pickTypeface({"Helvetica Neue", "Baskerville"}, SkFontStyle::kBold_Weight);
+    faceMono = pickTypeface({"Menlo", "Courier New"});
 
     // THE PAPER, and it is a FIBRE problem, not a colour problem: pulp
     // grain, the laid lines of a hand-made 19th-century sheet at ~1.2 px
     // pitch, the chain lines at ~26 px, and foxing.
     paperPulp = patterns::speckle(160, 220, 0.35f, 0.9f,
-                                  {hex(0xb9ad98, 0.20f), hex(0xd6cab6, 0.18f)});
+                                  {skia::toColor(hex(0xb9ad98, 0.20f)),
+                                   skia::toColor(hex(0xd6cab6, 0.18f))});
     paperPulp.seed(1869);
-    laidLines = patterns::stripes(0.6f, 0.7f, hex(0xb9ad98, 0.10f));
+    laidLines = patterns::stripes(0.6f, 0.7f, skia::toColor(hex(0xb9ad98, 0.10f)));
     laidLines.rotate(90.0f);
-    chainLines = patterns::stripes(1.1f, 25.0f, hex(0xb9ad98, 0.13f));
+    chainLines = patterns::stripes(1.1f, 25.0f, skia::toColor(hex(0xb9ad98, 0.13f)));
     chainLines.rotate(90.0f);
-    foxing = patterns::speckle(190, 5, 1.6f, 6.0f, {hex(0xa07f55, 0.10f)});
+    foxing = patterns::speckle(190, 5, 1.6f, 6.0f, {skia::toColor(hex(0xa07f55, 0.10f))});
     foxing.seed(91);
-    tintSpeckle = patterns::speckle(64, 40, 0.6f, 2.4f, {hex(0x8f6a55, 0.5f)});
+    tintSpeckle = patterns::speckle(64, 40, 0.6f, 2.4f, {skia::toColor(hex(0x8f6a55, 0.5f))});
     tintSpeckle.seed(41);
 
-    paperMat = Material::blend({
-        {Material::solid(kPaperBody), SkBlendMode::kSrc},
-        {patterns::grain(0.34f, 2, 7.0f, 0.40f), SkBlendMode::kSoftLight},
+    paperMat = Paint::blend({
+        {Paint::solid(kPaperBody), SkBlendMode::kSrc},
+        {Paint::recipe(field::grain(0.34f, 2, 7.0f, 0.40f)),
+         SkBlendMode::kSoftLight},
         {laidLines.material(), SkBlendMode::kSrcOver},
         {chainLines.material(), SkBlendMode::kSrcOver},
         {paperPulp.material(), SkBlendMode::kSrcOver},
         {foxing.material(), SkBlendMode::kSrcOver},
     });
     // lying under a window: the vignette centre sits slightly ABOVE middle
-    vignette = Material::radialUnit(
+    vignette = Paint::radialUnit(
         {0.46f, 0.40f}, 1.10f,
         {{0.0f, hex(0xffffff)}, {0.70f, hex(0xf6f1e6)}, {1.0f, hex(0xc4b9a4)}});
 
