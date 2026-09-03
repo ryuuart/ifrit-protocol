@@ -23,7 +23,7 @@
 //    heartbeat: wedge 1 -> 1.05 (100ms) -> 1 (50ms) every 600ms.
 //  - backdrop: sea-of-souls layer order -- deep blue ground -> 5-stop
 //    posterized bands with HARD stops at the LUT positions
-//    0/.31/.48/.77/.81 -> patterns::noise organic variation -> #007FD2
+//    0/.31/.48/.77/.81 -> mpattern::noise organic variation -> #007FD2
 //    tint veil -> two SkSL caustic layers (alpha = step(cut,|p1-p2|)),
 //    TIME QUANTIZED at 6 Hz host-side (floor(t*6)/6) under a sigma-1.4
 //    blur -> dark bottom + cyan top gradients.
@@ -47,10 +47,14 @@
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilcompose/brush/LayerStyles.h>
-#include <sigilcompose/core/Material.h>
-#include <sigilcompose/core/Patterns.h>
-#include <sigilcompose/kit/Silhouettes.h>
+#include <sigilmaterial/skia/Paint.h>
+#include <sigilcompose/core/Pattern.h>
+#include <sigilmaterial/pattern/Patterns.h>
+#include <sigilcompose/brush/Adaptors.h>
+#include <sigilmaterial/field/Field.h>
+#include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilweave/style/Type.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
 #include <array>
@@ -59,8 +63,14 @@
 #include <functional>
 
 namespace sketch = sigil::sketch;
+namespace shapes = sigil::geometry::shapes;
+namespace mpattern = sigil::material::pattern;
+namespace field = sigil::material::field;
+namespace weave = sigil::weave;
+namespace motion = sigil::motion;
 
 using namespace sigil::compose;
+using sigil::material::skia::Paint;
 using sigil::compose::toU8;
 using namespace std::chrono_literals;
 
@@ -244,7 +254,7 @@ struct PersonaMenu final : sketch::Sketch {
       // The caustics step time at 6 Hz rather than running smoothly. This
       // is not an optimization — the stepping IS the texture, and a
       // continuous version does not look like the original.
-      qTime = (float)quantizeTime(t, 6.0);
+      qTime = (float)motion::quantizeTime(t, 6.0);
       // Idle heartbeat: wedge 1 -> 1.05 (100ms) -> 1 (50ms) every 600ms.
       const double ph = std::fmod(t, 0.6);
       float s = 1.0f;
@@ -283,7 +293,7 @@ struct PersonaMenu final : sketch::Sketch {
    *  the reference's sigma-1.4 blur. One live material and one texture bake
    *  per 6 Hz step: because the time input holds between steps, the memo
    *  turns every intermediate frame into a blit. */
-  Material dualCaustic() {
+  Paint dualCaustic() {
     namespace nn = persona_menu;
     static const sk_sp<SkRuntimeEffect> fx = [] {
       auto [effect, err] = SkRuntimeEffect::MakeForShader(SkString(R"(
@@ -335,7 +345,7 @@ struct PersonaMenu final : sketch::Sketch {
       if (!effect) SkDebugf("persona dualCaustic: %s\n", err.c_str());
       return effect;
     }();
-    Material m = Material::sksl(fx);
+    Paint m = Paint::sksl(fx);
     m.uniform("uLight", nn::kCausLight)
         .uniform("uDark", nn::kCausBub)
         .uniform("uTime", &qTime);
@@ -347,7 +357,7 @@ struct PersonaMenu final : sketch::Sketch {
   Element backdrop() {
     namespace nn = persona_menu;
     // 5-stop posterized band structure: HARD stops at the LUT positions.
-    Material bands = Material::linear({0, 0}, {0, nn::kH},
+    Paint bands = Paint::linear({0, 0}, {0, nn::kH},
                                       {{0.000f, nn::kLut0},
                                        {0.309f, nn::kLut0},
                                        {0.309f, nn::kLut1},
@@ -370,16 +380,16 @@ struct PersonaMenu final : sketch::Sketch {
                    .inset(0)
                    .cache(Cache::Texture)  // static under-plane: ground +
                                            // bands + noise + veil, one blit
-                   .fill(Material::linear(
+                   .fill(Paint::linear(
                        {0, 0}, {0, nn::kH},
                        {{0.0f, nn::kGroundDark}, {1.0f, nn::kGround}}))
                    .child(box().inset(0).fill(bands).opacity(0.97f))
                    .child(box()
                               .inset(0)
-                              .fill(patterns::noise(0.006f, 4))
+                              .fill(Paint::recipe(field::noise(0.006f, 4)))
                               .opacity(0.20f)
                               .blend(SkBlendMode::kSoftLight))
-                   .child(box().inset(0).fill(Material::solid(nn::kTintVeil))))
+                   .child(box().inset(0).fill(Paint::solid(nn::kTintVeil))))
         // The sea: one dual-layer 6Hz shader, its own texture plane --
         // baked at HALF raster scale and linear-upscaled at the blit.
         // The bands are watercolor-soft already, so the reduced bake
@@ -395,7 +405,7 @@ struct PersonaMenu final : sketch::Sketch {
             box()
                 .inset(0)
                 .cache(Cache::Texture)
-                .child(box().inset(0).fill(Material::linear(
+                .child(box().inset(0).fill(Paint::linear(
                     {0, nn::kH * 0.60f}, {0, nn::kH},
                     {{0.0f,
                       {nn::kBotDark.fR, nn::kBotDark.fG, nn::kBotDark.fB, 0}},
@@ -403,7 +413,7 @@ struct PersonaMenu final : sketch::Sketch {
                       {nn::kBotDark.fR, nn::kBotDark.fG, nn::kBotDark.fB,
                        0.88f}}})))
                 .child(box().inset(0).fill(
-                    Material::linear({0, 0}, {0, nn::kH * 0.42f},
+                    Paint::linear({0, 0}, {0, nn::kH * 0.42f},
                                      {{0.0f, nn::kTopCyan},
                                       {1.0f,
                                        {nn::kTopCyan.fR, nn::kTopCyan.fG,
@@ -431,8 +441,8 @@ struct PersonaMenu final : sketch::Sketch {
         .padding(14)
         .rotate(r.rot)
         .zIndex(r.z)
-        .translateY(animate(from(-30.0f).to(0.0f), {400ms, &ch::easeOutQuint}))
-        .opacity(animate(from(0.0f).to(1.0f), {400ms, &ch::easeOutQuad}))
+        .translateY(animate(motion::from(-30.0f).to(0.0f), {400ms, &ch::easeOutQuint}))
+        .opacity(animate(motion::from(0.0f).to(1.0f), {400ms, &ch::easeOutQuad}))
         .cache(Cache::Texture)
         .child(text(toU8(r.label), nn::menuType(41, r.color, 1.8f))
                    .effect(styles::textGlow({0, 0, 0, 0.5f}, 3.5f)));
@@ -463,8 +473,8 @@ struct PersonaMenu final : sketch::Sketch {
             .rotate(r.rot)
             .zIndex(r.z)
             .translateY(
-                animate(from(-30.0f).to(0.0f), {400ms, &ch::easeOutQuint}))
-            .opacity(animate(from(0.0f).to(1.0f), {400ms, &ch::easeOutQuad}));
+                animate(motion::from(-30.0f).to(0.0f), {400ms, &ch::easeOutQuint}))
+            .opacity(animate(motion::from(0.0f).to(1.0f), {400ms, &ch::easeOutQuad}));
     // pink back-wedge, misregistered under the white one
     row.child(box()
                   .left(10)
@@ -473,7 +483,7 @@ struct PersonaMenu final : sketch::Sketch {
                   .height(wH)
                   .shape(nn::sliverWedge())
                   .rotate(8)
-                  .fill(Material::solid(nn::kPink)));
+                  .fill(Paint::solid(nn::kPink)));
     // white wedge -- clips the red echo; idle heartbeat on scale.
     // The echo's top carries an extra +5px. The wedge rotates +8 deg about
     // its OWN centre, which walks the echo up by about that much, so the
@@ -487,7 +497,7 @@ struct PersonaMenu final : sketch::Sketch {
                   .shape(nn::sliverWedge())
                   .rotate(8)
                   .clip(true)
-                  .fill(Material::solid(nn::kPaper))
+                  .fill(Paint::solid(nn::kPaper))
                   .scale(&wedgePulse)
                   .child(text(toU8(r.label), nn::menuType(50, nn::kRedC, 0))
                              .left(lx + 3)
@@ -518,20 +528,20 @@ struct PersonaMenu final : sketch::Sketch {
         .rotate(-16)
         .translateX(&curDx)
         .translateY(&curDy)
-        .opacity(animate(from(0.0f).to(1.0f), {60ms, &ch::easeOutQuad, 400ms}))
+        .opacity(animate(motion::from(0.0f).to(1.0f), {60ms, &ch::easeOutQuad, 400ms}))
         // The original draws this additively. At this size over the navy
         // sea, kPlus washes the red rim out completely, so it stays a plain
         // red fill.
         .child(box()
                    .inset(0)
                    .shape(shapes::polygon(3, 92))
-                   .fill(Material::solid(nn::kRedC))
+                   .fill(Paint::solid(nn::kRedC))
                    .translateX(1)
                    .translateY(5))
         .child(box()
                    .inset(0)
                    .shape(shapes::polygon(3, 90))
-                   .fill(Material::solid(nn::kPaper)));
+                   .fill(Paint::solid(nn::kPaper)));
   }
 
   Element promptCircle(const char* glyph) {
@@ -561,8 +571,8 @@ struct PersonaMenu final : sketch::Sketch {
         .top(34)
         .column()
         .zIndex(8)
-        .translateX(animate(from(-30.0f).to(0.0f), {420ms, &ch::easeOutQuint}))
-        .opacity(animate(from(0.0f).to(1.0f), {340ms}))
+        .translateX(animate(motion::from(-30.0f).to(0.0f), {420ms, &ch::easeOutQuint}))
+        .opacity(animate(motion::from(0.0f).to(1.0f), {340ms}))
         .child(
             box()
                 .row()
@@ -581,7 +591,7 @@ struct PersonaMenu final : sketch::Sketch {
                    .width(168)
                    .height(2)
                    .margin(0, 7, 0, 5)
-                   .fill(Material::linear(
+                   .fill(Paint::linear(
                        {0, 0}, {168, 0},
                        {{0.0f, {1, 1, 1, 0.85f}}, {1.0f, {1, 1, 1, 0.0f}}})))
         .child(
@@ -621,13 +631,13 @@ struct PersonaMenu final : sketch::Sketch {
                      .width(84)
                      .height(6)
                      .grow(0)
-                     .fill(Material::solid({0, 0.05f, 0.18f, 0.55f}))
+                     .fill(Paint::solid({0, 0.05f, 0.18f, 0.55f}))
                      .child(box()
                                 .left(0)
                                 .top(0)
                                 .width(Dim(84 * frac))
                                 .height(Dim(6.0f))
-                                .fill(Material::linear(
+                                .fill(Paint::linear(
                                     {0, 0}, {0, 6},
                                     {{0.0f,
                                       {std::min(1.0f, color.fR * 1.4f),
@@ -654,10 +664,10 @@ struct PersonaMenu final : sketch::Sketch {
               .height(52)
               .rotate(-4)
               .translateX(
-                  animate(from(46.0f).to(0.0f), {440ms, &ch::easeOutQuint}))
-              .opacity(animate(from(0.0f).to(1.0f), {360ms}))
+                  animate(motion::from(46.0f).to(0.0f), {440ms, &ch::easeOutQuint}))
+              .opacity(animate(motion::from(0.0f).to(1.0f), {360ms}))
               .shape(shapes::parallelogram(9))
-              .fill(Material::linear({0, 0}, {246, 0},
+              .fill(Paint::linear({0, 0}, {246, 0},
                                      {{0.0f, {0.02f, 0.16f, 0.42f, 0.78f}},
                                       {1.0f, {0.02f, 0.30f, 0.62f, 0.55f}}}))
               .stroke(stroke(1.4f, Fill::color({1, 1, 1, 0.55f})))
@@ -702,7 +712,7 @@ struct PersonaMenu final : sketch::Sketch {
                    .rotate(90)
                    .zIndex(1)
                    .blend(SkBlendMode::kScreen)
-                   .opacity(animate(from(0.0f).to(0.85f), {500ms}))
+                   .opacity(animate(motion::from(0.0f).to(0.85f), {500ms}))
                    // 220px digits render as glyph PATHS (over the atlas
                    // cutoff); bake them once, the rotation rides outside
                    .cache(Cache::Texture))
@@ -743,9 +753,9 @@ struct PersonaMenu final : sketch::Sketch {
                    // room for the glow tail, pins shifted to compensate
                    .padding(12)
                    .cache(Cache::Texture)
-                   .translateX(animate(from(36.0f).to(0.0f),
+                   .translateX(animate(motion::from(36.0f).to(0.0f),
                                        {400ms, &ch::easeOutQuint}))
-                   .opacity(animate(from(0.0f).to(1.0f), {300ms}))
+                   .opacity(animate(motion::from(0.0f).to(1.0f), {300ms}))
                    .child(text(toU8("PERSONA"), nn::menuType(30, nn::kPaper, 2))
                               .effect(styles::textGlow({0, 0, 0, 0.5f}, 3)))
                    .child(box()
@@ -768,7 +778,7 @@ struct PersonaMenu final : sketch::Sketch {
                 .row()
                 .alignItems(Align::Center)
                 .zIndex(8)
-                .opacity(animate(from(0.0f).to(1.0f),
+                .opacity(animate(motion::from(0.0f).to(1.0f),
                                  {400ms, &ch::easeOutQuad, 250ms}))
                 .child(promptCircle("O"))
                 .child(
