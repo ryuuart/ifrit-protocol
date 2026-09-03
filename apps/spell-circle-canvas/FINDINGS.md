@@ -283,3 +283,29 @@ also writes. The sniff evidently intends to cover every format the
 decoder table names. A test should hand `decode::model` the bytes
 `encode::ply` produced under an extension-less hint and assert the
 mesh comes back.
+
+## sdf::star's pointiness runs the other way from its comment
+
+`sigilmaterial/sdf/Sdf.h` says `pointiness` is m in [2, points], m = points
+the regular polygon, values toward 2 sharpening the arms; the rendered
+truth is the reverse: `star(6, 2)` is the hexagon and `star(6, 5)` a thin
+six-spoke asterisk (`kSdStar` in `sdf/Sdf.cpp`). Either the comment or the
+body is wrong; the intent reads as the comment's. A test should render
+`star(6, points)` and assert its coverage equals the regular hexagon's.
+
+## shapes::chamfered(0) emits duplicate vertices
+
+`kit/Silhouettes.cpp` writes `lineTo(w - c, 0); lineTo(w, c);` with c = 0,
+so `rounded(chamfered(0), r)` rounds only the seam corner instead of all
+four; `parallelogram(0)` is the clean four-point rectangle. A chamfer of
+zero evidently intends the plain rectangle. A test should assert
+`chamfered(0)` has four vertices and `rounded(chamfered(0), r)` four arcs.
+
+## The "body never reads" report never fires on SkSL
+
+`SkiaProgram::keeps` asks `SkRuntimeEffect::findUniform`, and this Skia
+reflects declared-but-unused uniforms, so `ProgramCache`'s unread-field
+message is dead on the only registered compiler: a recipe reading neither
+of two declared fields prints nothing. The check evidently intends to
+name a field the body never reads. A test should compile a body that
+ignores a declared field and assert the report names it.
