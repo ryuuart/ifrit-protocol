@@ -186,15 +186,21 @@
 #include <sigilcompose/brush/Hatches.h>
 #include <sigilcompose/brush/Lines.h>
 #include <sigilcompose/brush/Rails.h>
+#include <sigilcompose/core/Core.h>
 #include <sigilcompose/core/Feed.h>
-#include <sigilcompose/core/Material.h>
-#include <sigilcompose/core/Patterns.h>
-#include <sigilcompose/instances/Instances.h>
+#include <sigilcompose/core/Pattern.h>
 #include <sigilcompose/kit/Strokes.h>
-#include <sigilcompose/kit/Silhouettes.h>
-#include <sigilcompose/typography/Type.h>
 #include <sigilcore/compute/Noise.h>
+#include <sigilgeometry/kit/Shapers.h>
+#include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilmaterial/field/Field.h>
+#include <sigilmaterial/pattern/Patterns.h>
+#include <sigilmaterial/skia/Color.h>
+#include <sigilmaterial/skia/Paint.h>
+#include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilweave/ports/SystemFontManager.h>
+#include <sigilweave/style/Type.h>
 #include <sigilweave/fonts/FontContext.h>
 
 #include <algorithm>
@@ -207,9 +213,18 @@
 #include "Catalogue.h"
 
 namespace sketch = sigil::sketch;
+namespace field = sigil::material::field;
+namespace patterns = sigil::material::pattern;
+namespace shapers = sigil::geometry::shapers;
+namespace shapes = sigil::geometry::shapes;
+namespace skia = sigil::material::skia;
+namespace weave = sigil::weave;
 
 using namespace sigil::compose;
+using namespace sigil::motion;
 using namespace dunhuang;
+using sigil::material::skia::Paint;
+using sigil::weave::ports::pickTypeface;
 namespace noise = sigil::core::noise;
 using namespace std::chrono_literals;
 namespace ch = choreograph;
@@ -582,9 +597,9 @@ int astUnique(const AstRec& A) {
   return n;
 }
 
-sigil::weave::TextStyle type(sk_sp<SkTypeface> face, float size, SkColor4f c,
+weave::TextStyle type(sk_sp<SkTypeface> face, float size, SkColor4f c,
                              float tracking = 0) {
-  return sigil::compose::type(
+  return weave::textStyle(
       {.face = std::move(face), .size = size, .color = c, .track = tracking});
 }
 
@@ -670,7 +685,7 @@ struct DunhuangStarChart : sketch::Sketch {
                                  .clamp(0, 1));
   }
 
-  Material paperGrain;
+  Paint paperGrain;
   Pattern paperSpeck;
 
   // --- the star field -----------------------------------------------------
@@ -932,7 +947,7 @@ struct DunhuangStarChart : sketch::Sketch {
                 .top(0)
                 .width(Dim(kW))
                 .height(Dim(kH))
-                .fill(Material::linear({0, 0}, {kW, kH},
+                .fill(Paint::linear({0, 0}, {kW, kH},
                                        {{0.0f, hex(0x171410)},
                                         {0.5f, hex(0x1d1913)},
                                         {1.0f, hex(0x120f0c)}}))
@@ -971,7 +986,7 @@ struct DunhuangStarChart : sketch::Sketch {
                 .top(0)
                 .width(Dim(w))
                 .height(Dim(kBandH))
-                .fill(Material::linear({0, 0}, {0, kBandH},
+                .fill(Paint::linear({0, 0}, {0, kBandH},
                                        {{0.00f, kKraft},
                                         {0.055f, kPaperDeep},
                                         {0.30f, kPaperMid},
@@ -1032,7 +1047,7 @@ struct DunhuangStarChart : sketch::Sketch {
             })
             .stroke(
                 Brush{}
-                    .shaped(kit::brush::shapers::Jitter{
+                    .shaped(shapers::Jitter{
                         .segLength = 34, .deviation = 0.9f, .seed = 3326})
                     .layer(lines::Rails{
                         .rails = {{.across = 0,
@@ -1078,7 +1093,7 @@ struct DunhuangStarChart : sketch::Sketch {
                 .width(Dim(w))
                 .height(Dim(kFrameH))
                 .stroke(Brush{}
-                            .shaped(kit::brush::shapers::Jitter{
+                            .shaped(shapers::Jitter{
                                 .segLength = 30,
                                 .deviation = 1.1f,
                                 .seed = (uint32_t)(600 + k)})
@@ -1132,7 +1147,7 @@ struct DunhuangStarChart : sketch::Sketch {
                     .left(x - 11)
                     .top(kFrameH + 3)
                     .width(Dim(24))
-                    .textAlign(sigil::weave::TextAlignment::kCenter));
+                    .textAlign(weave::TextAlignment::kCenter));
     }
 
     // the map's own number and month, in the margin above
@@ -1141,7 +1156,7 @@ struct DunhuangStarChart : sketch::Sketch {
             .left(w - 20)
             .top(-19)
             .width(Dim(18))
-            .textAlign(sigil::weave::TextAlignment::kEnd));
+            .textAlign(weave::TextAlignment::kEnd));
 
     // THE MANSION BOUNDARIES, ruled where the DETERMINATIVE STARS put them
     // and not at 12.86° apiece — Stellarium's lunar_system.defining_stars,
@@ -1173,13 +1188,13 @@ struct DunhuangStarChart : sketch::Sketch {
                   .left(x - 9)
                   .top(-32)
                   .width(Dim(18))
-                  .textAlign(sigil::weave::TextAlignment::kCenter));
+                  .textAlign(weave::TextAlignment::kCenter));
       g.child(
           text(toU8(kXiuPinyin[m]), type(faceMono, 7.0f, hex(0x5d4c37, 0.75f)))
               .left(x - 20)
               .top(-45)
               .width(Dim(40))
-              .textAlign(sigil::weave::TextAlignment::kCenter));
+              .textAlign(weave::TextAlignment::kCenter));
     }
     return g;
   }
@@ -1256,9 +1271,9 @@ struct DunhuangStarChart : sketch::Sketch {
             .shape(shapes::circle())
             .stroke(
                 Brush{}
-                    .shaped(kit::brush::shapers::Jitter{
+                    .shaped(shapers::Jitter{
                         .segLength = 22, .deviation = 1.0f, .seed = 1300})
-                    .layer(lines::heavyHairHeavy(
+                    .layer(brush::presets::heavyHairHeavy(
                         1.7f, 0.5f, Fill::color(hex(0x3a2e1e, 0.86f)), 5.0f))));
 
     // the DEC rings, at the published 5.10 °/cm — parametric, not stamped
@@ -1310,7 +1325,7 @@ struct DunhuangStarChart : sketch::Sketch {
                     .left(lx - 8)
                     .top(ly - 8)
                     .width(Dim(16))
-                    .textAlign(sigil::weave::TextAlignment::kCenter));
+                    .textAlign(weave::TextAlignment::kCenter));
       }
     }
 
@@ -1476,7 +1491,7 @@ struct DunhuangStarChart : sketch::Sketch {
                   .shape([p = A.local](SkSize) { return p; })
                   .stroke(spans::upTo(gate(A.t0, A.t0 + 0.9f)),
                           Brush{}
-                              .shaped(kit::brush::shapers::Jitter{
+                              .shaped(shapers::Jitter{
                                   .segLength = 13.0f,
                                   .deviation = 0.85f,
                                   .seed = (uint32_t)(i * 31 + 7)})
@@ -1777,7 +1792,7 @@ struct DunhuangStarChart : sketch::Sketch {
                   spans::upTo(gate(tArch + 0.9f + (float)i * 0.08f,
                                    tArch + 1.4f + (float)i * 0.08f)),
                   Brush{}
-                      .shaped(kit::brush::shapers::Jitter{
+                      .shaped(shapers::Jitter{
                           .segLength = 9.0f, .deviation = 0.7f, .seed = seed})
                       .layer(lines::Line{
                           .width = 1.9f,
@@ -1806,7 +1821,7 @@ struct DunhuangStarChart : sketch::Sketch {
                 .top(0)
                 .width(Dim(lw))
                 .height(Dim(lh))
-                .fill(Material::linear({0, 0}, {0, lh},
+                .fill(Paint::linear({0, 0}, {0, lh},
                                        {{0.0f, hex(0xa2865c)},
                                         {0.5f, hex(0xd6bf95)},
                                         {1.0f, hex(0xa2865c)}}))
@@ -2085,7 +2100,7 @@ struct DunhuangStarChart : sketch::Sketch {
                 .left(bw - 40)
                 .top(124)
                 .width(Dim(40))
-                .textAlign(sigil::weave::TextAlignment::kEnd));
+                .textAlign(weave::TextAlignment::kEnd));
     g.child(box()
                 .left(-4)
                 .top(107)
@@ -2160,7 +2175,7 @@ struct DunhuangStarChart : sketch::Sketch {
                   .left(xr - 26)
                   .top(y + 13)
                   .width(Dim(28))
-                  .textAlign(sigil::weave::TextAlignment::kEnd));
+                  .textAlign(weave::TextAlignment::kEnd));
       g.child(text(toU8(fmt("%d\xc2\xb0",
                             (int)std::lround(wrap360(mapCentre(k) + 24.0f)))),
                    type(faceMono, 7.6f, hex(0xc9a35c, 0.85f)))
@@ -2223,7 +2238,7 @@ struct DunhuangStarChart : sketch::Sketch {
                 .left(-16)
                 .top(h + 4)
                 .width(Dim(w + 32))
-                .textAlign(sigil::weave::TextAlignment::kCenter));
+                .textAlign(weave::TextAlignment::kCenter));
     return g;
   }
 
@@ -2787,19 +2802,21 @@ struct DunhuangStarChart : sketch::Sketch {
     // library's own walk: the first installed family wins, and a machine
     // with none of them gets the default face AT THE WEIGHT ASKED FOR
     // rather than silently at Normal.
-    faceSerif = pickFace({"Hoefler Text", "Baskerville"});
+    faceSerif = pickTypeface({"Hoefler Text", "Baskerville"});
     faceItalic =
-        pickFace({"Hoefler Text", "Baskerville"}, SkFontStyle::Italic());
-    faceMono = pickFace({"Menlo", "Courier New"});
+        pickTypeface({"Hoefler Text", "Baskerville"}, SkFontStyle::Italic());
+    faceMono = pickTypeface({"Menlo", "Courier New"});
     faceDisplay =
-        pickFace({"Optima", "Baskerville"}, SkFontStyle::kBold_Weight);
+        pickTypeface({"Optima", "Baskerville"}, SkFontStyle::kBold_Weight);
     faceHan =
-        pickFace({"Songti SC", "PingFang SC", "Hiragino Sans", "Baskerville"});
+        pickTypeface({"Songti SC", "PingFang SC", "Hiragino Sans", "Baskerville"});
 
     // the fibre runs ALONG the roll: anisotropic luminance grain, not noise
-    paperGrain = patterns::grain(1.15f, 4, 3326.0f, 0.42f, 5.5f);
+    paperGrain = Paint::recipe(field::grain(1.15f, 4, 3326.0f, 0.42f, 5.5f));
     paperSpeck = patterns::speckle(
-        900, 34, 0.20f, 0.85f, {hex(0x6a5330, 0.10f), hex(0x2a2118, 0.08f)});
+        900, 34, 0.20f, 0.85f,
+        {skia::toColor(hex(0x6a5330, 0.10f)),
+         skia::toColor(hex(0x2a2118, 0.08f))});
     paperSpeck.seed(649);
 
     computeJoins();
