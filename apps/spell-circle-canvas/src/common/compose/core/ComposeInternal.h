@@ -293,6 +293,22 @@ struct TextData {
     return (options.set & TextOptions::kAlignment) ? options.alignment
                                                    : layoutOptions.alignment;
   }
+
+  /** WHETHER THIS LEAF SPENDS THE ROOM LEFT OVER DOWN ITS BOX — the rule
+   *  `distribute()` wrote, otherwise whatever the full-control overload's
+   *  options carry.
+   *
+   *  Only the resolved box knows how much room there is, so a leaf that
+   *  answers true must be laid out at its RESOLVED DEPTH and not at an
+   *  open one, exactly as an aligned leaf must be laid out at its resolved
+   *  width. A leaf that answers false never reads the depth and is free to
+   *  grow down the page. */
+  bool distributesRoom() const {
+    const sigil::weave::FrameOptions& frame =
+        (options.set & TextOptions::kFrame) ? options.frame
+                                            : layoutOptions.frame;
+    return frame.distribute != sigil::weave::FrameOptions::Distribute::kStart;
+  }
 };
 
 struct ImageData {

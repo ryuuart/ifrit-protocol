@@ -784,3 +784,72 @@ TEST(ComposeStory, BeatsSpanTheChainOnOneMasterProgress) {
   EXPECT_GT(second.front().unitIndex, first.back().unitIndex);
   EXPECT_GT(second.front().startMs, first.back().startMs);
 }
+
+// ── The room left over down a frame ──────────────────────────────────────
+
+TEST(ComposeFrameOptions, DistributeSpendsTheRoomLeftOverDownTheBox) {
+  // A leaf of a STATED height taller than its lines has room left over,
+  // and `distribute` says what becomes of it. kStart leaves it past the
+  // last line; kCenter puts half of it above; kEnd puts all of it above;
+  // kJustify spreads it BETWEEN the lines as extra leading, which moves
+  // the last line to the foot and leaves the first where it stood.
+  const auto baselines = [](sigil::weave::FrameOptions::Distribute rule) {
+    Host host(360, 400);
+    host.composer.render(box().child(text(passage(), whiteStyle(14))
+                                         .key("t")
+                                         .width(Dim(200.0f))
+                                         .height(Dim(300.0f))
+                                         .distribute(rule)));
+    host.frame();
+    return baselinesOf(host, "t");
+  };
+  using Distribute = sigil::weave::FrameOptions::Distribute;
+  const std::vector<float> start = baselines(Distribute::kStart);
+  ASSERT_GE(start.size(), 3u);
+  const std::vector<float> centred = baselines(Distribute::kCenter);
+  const std::vector<float> ended = baselines(Distribute::kEnd);
+  const std::vector<float> spread = baselines(Distribute::kJustify);
+  ASSERT_EQ(centred.size(), start.size());
+  ASSERT_EQ(ended.size(), start.size());
+  ASSERT_EQ(spread.size(), start.size());
+
+  const float used = start.back() - start.front();
+  const float leftover = 300.0f - used;
+  ASSERT_GT(leftover, 40.0f);
+  // Half above, then all above: a pure translation, so every line moves
+  // by the same amount and the second is twice the first.
+  EXPECT_NEAR(centred.front() - start.front(), (ended.front() - start.front()) * 0.5f,
+              2.0f);
+  EXPECT_GT(ended.front() - start.front(), 20.0f);
+  EXPECT_NEAR(centred.back() - start.back(), centred.front() - start.front(), 0.5f);
+  // Spread: the first line does not move and every gap opens.
+  EXPECT_NEAR(spread.front(), start.front(), 0.5f);
+  EXPECT_GT(spread.back() - start.back(), 20.0f);
+  EXPECT_GT(spread[1] - spread[0], (start[1] - start[0]) + 1.0f);
+}
+
+TEST(ComposeFrameOptions, DistributeSpendsTheRoomLeftOverDownAStoryFrame) {
+  // The same of a frame of a story, which is the form a column of a
+  // magazine is written in.
+  const auto baselines = [](sigil::weave::FrameOptions::Distribute rule) {
+    Host host(360, 400);
+    Story article(rich(whiteStyle(14)).add(passage()));
+    host.composer.render(box().child(frame(article)
+                                         .key("t")
+                                         .width(Dim(200.0f))
+                                         .height(Dim(300.0f))
+                                         .distribute(rule)));
+    host.frame();
+    return baselinesOf(host, "t");
+  };
+  using Distribute = sigil::weave::FrameOptions::Distribute;
+  const std::vector<float> start = baselines(Distribute::kStart);
+  ASSERT_GE(start.size(), 3u);
+  const std::vector<float> ended = baselines(Distribute::kEnd);
+  const std::vector<float> spread = baselines(Distribute::kJustify);
+  ASSERT_EQ(ended.size(), start.size());
+  ASSERT_EQ(spread.size(), start.size());
+  EXPECT_GT(ended.front() - start.front(), 20.0f);
+  EXPECT_NEAR(spread.front(), start.front(), 0.5f);
+  EXPECT_GT(spread.back() - start.back(), 20.0f);
+}

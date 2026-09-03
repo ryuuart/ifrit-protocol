@@ -899,19 +899,29 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
           const bool verticalRun =
               inst.paragraph && inst.paragraph->writingMode() !=
                                     sigil::weave::WritingMode::kHorizontal;
+          // A leaf that spends the room left over down its box needs the
+          // RESOLVED DEPTH for the same reason an aligned leaf needs the
+          // resolved width: a box of a stated height never reaches the
+          // measure callback at all, so this is the only place the depth
+          // `distribute` spends is known.
+          const bool distributesRoom =
+              node.textData && node.textData->distributesRoom();
           if (inst.measuredRev != inst.contentRev ||
               (!onPathRun && node.textData &&
-               (verticalRun || node.textData->alignment() !=
-                                   sigil::weave::TextAlignment::kStart) &&
+               (verticalRun || distributesRoom ||
+                node.textData->alignment() !=
+                    sigil::weave::TextAlignment::kStart) &&
                (inst.measuredForWidth != bounds.width() ||
-                (verticalRun && inst.measuredForHeight != bounds.height()))))
+                ((verticalRun || distributesRoom) &&
+                 inst.measuredForHeight != bounds.height()))))
             // A FRAME is bounded by its own depth either way round: its
             // remainder is what the next frame of its chain begins at, and
             // a re-layout here at an unbounded depth would place the whole
             // story and leave the next frame nothing.
             layoutText(inst, bounds.width(),
-                       verticalRun || (node.textData &&
-                                       !node.textData->threadTo.empty())
+                       verticalRun || distributesRoom ||
+                               (node.textData &&
+                                !node.textData->threadTo.empty())
                            ? bounds.height()
                            : 1.0e6f);
           // Misprint echoes of the TEXT, under the real pass (fx() text
