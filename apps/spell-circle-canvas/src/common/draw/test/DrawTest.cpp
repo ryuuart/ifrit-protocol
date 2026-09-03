@@ -492,6 +492,100 @@ TEST(Pen, TheMaskCarriesTheTransformItWasDrawnUnder) {
   EXPECT_EQ(SkColorGetA(paper.pixel(10, 10)), 0u);
 }
 
+/** A pen set up to draw crisp two-pixel strokes, so a dash reads as
+ *  whole inked and blank pixels. */
+void dashPen(Pen& pen) {
+  pen.noSmooth();
+  pen.noFill();
+  pen.stroke(0);
+  pen.strokeWeight(2);
+  pen.strokeCap(SQUARE);
+}
+
+TEST(Pen, StrokeDashBreaksTheStrokeIntoItsRun) {
+  Paper paper;
+  paper.begin();
+  dashPen(paper.pen);
+  paper.pen.strokeDash({4, 4});
+  paper.pen.line(10, 50, 90, 50);
+  paper.end();
+  EXPECT_GT(SkColorGetA(paper.pixel(11, 50)), 0u);
+  EXPECT_EQ(SkColorGetA(paper.pixel(15, 50)), 0u);
+  EXPECT_GT(SkColorGetA(paper.pixel(19, 50)), 0u);
+}
+
+TEST(Pen, AnOddDashRunRepeatsItself) {
+  Paper paper;
+  paper.begin();
+  dashPen(paper.pen);
+  paper.pen.strokeDash({4});
+  paper.pen.line(10, 50, 90, 50);
+  paper.end();
+  EXPECT_GT(SkColorGetA(paper.pixel(11, 50)), 0u);
+  EXPECT_EQ(SkColorGetA(paper.pixel(15, 50)), 0u);
+  EXPECT_GT(SkColorGetA(paper.pixel(19, 50)), 0u);
+}
+
+TEST(Pen, TheDashPhaseStartsTheRunPartwayIn) {
+  Paper paper;
+  paper.begin();
+  dashPen(paper.pen);
+  paper.pen.strokeDash({4, 4}, 4);
+  paper.pen.line(10, 50, 90, 50);
+  paper.end();
+  EXPECT_EQ(SkColorGetA(paper.pixel(11, 50)), 0u);
+  EXPECT_GT(SkColorGetA(paper.pixel(15, 50)), 0u);
+}
+
+TEST(Pen, ABeginShapeOutlineWearsTheDash) {
+  Paper paper;
+  paper.begin();
+  dashPen(paper.pen);
+  paper.pen.strokeDash({4, 4});
+  paper.pen.beginShape();
+  paper.pen.vertex(20, 20);
+  paper.pen.vertex(80, 20);
+  paper.pen.vertex(80, 80);
+  paper.pen.vertex(20, 80);
+  paper.pen.endShape(CLOSE);
+  paper.end();
+  EXPECT_GT(SkColorGetA(paper.pixel(21, 20)), 0u);
+  EXPECT_EQ(SkColorGetA(paper.pixel(25, 20)), 0u);
+  EXPECT_GT(SkColorGetA(paper.pixel(29, 20)), 0u);
+}
+
+TEST(Pen, APointIsADiscAndNeverDashed) {
+  Paper paper;
+  paper.begin();
+  paper.pen.noSmooth();
+  paper.pen.stroke(0);
+  paper.pen.strokeWeight(10);
+  paper.pen.strokeDash({2, 2});
+  paper.pen.point(50, 50);
+  paper.end();
+  EXPECT_GT(SkColorGetA(paper.pixel(50, 50)), 0u);
+  EXPECT_GT(SkColorGetA(paper.pixel(52, 52)), 0u);
+}
+
+TEST(Pen, NoDashPutsTheSolidStrokeBackAndPushPopCarriesIt) {
+  Paper paper;
+  paper.begin();
+  dashPen(paper.pen);
+  paper.pen.push();
+  paper.pen.strokeDash({4, 4});
+  paper.pen.line(10, 30, 90, 30);
+  paper.pen.pop();
+  // Outside the push the stroke was never dashed.
+  paper.pen.line(10, 50, 90, 50);
+  paper.pen.strokeDash({4, 4});
+  paper.pen.noDash();
+  paper.pen.line(10, 70, 90, 70);
+  paper.end();
+  EXPECT_EQ(SkColorGetA(paper.pixel(15, 30)), 0u);
+  EXPECT_GT(SkColorGetA(paper.pixel(15, 50)), 0u);
+  EXPECT_GT(SkColorGetA(paper.pixel(15, 70)), 0u);
+}
+
 TEST(Pen, MathIsP5s) {
   EXPECT_FLOAT_EQ(map(5, 0, 10, 0, 100), 50.0f);
   EXPECT_FLOAT_EQ(map(15, 0, 10, 0, 100, true), 100.0f);

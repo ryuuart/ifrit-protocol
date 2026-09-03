@@ -12,6 +12,7 @@
 #include <include/core/SkSamplingOptions.h>
 #include <include/core/SkString.h>
 #include <include/core/SkVertices.h>
+#include <include/effects/SkDashPathEffect.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigildraw/Math.h>
 #include <sigildraw/Pen.h>
@@ -248,6 +249,7 @@ void Pen::applyStyle() {
   m_strokePaint.setStrokeWidth(m_style.strokeWeight);
   m_strokePaint.setStrokeCap(m_style.cap);
   m_strokePaint.setStrokeJoin(m_style.join);
+  m_strokePaint.setPathEffect(m_style.dash);
   blendInto(m_fillPaint);
   blendInto(m_strokePaint);
   resolveFill();
@@ -441,6 +443,33 @@ void Pen::strokeJoin(Constant join) {
   m_style.join = joinOf(join);
   m_strokePaint.setStrokeJoin(m_style.join);
 }
+void Pen::strokeDash(std::initializer_list<float> intervals, float phase) {
+  std::vector<SkScalar> run(intervals.begin(), intervals.end());
+  // An odd run repeats itself, so {6} is six drawn and six skipped —
+  // which is what a line dash of an odd length means everywhere else.
+  // Reserved first, since each entry is copied from the same vector.
+  if (run.size() % 2 == 1) {
+    const size_t stated = run.size();
+    run.reserve(stated * 2);
+    for (size_t i = 0; i < stated; ++i) run.push_back(run[i]);
+  }
+  float total = 0.0f;
+  for (SkScalar length : run) {
+    if (!(length >= 0.0f)) return noDash();
+    total += length;
+  }
+  if (run.empty() || !(total > 0.0f)) return noDash();
+  m_style.dash =
+      SkDashPathEffect::Make(SkSpan<const SkScalar>(run.data(), run.size()),
+                             phase);
+  m_strokePaint.setPathEffect(m_style.dash);
+}
+
+void Pen::noDash() {
+  m_style.dash = nullptr;
+  m_strokePaint.setPathEffect(nullptr);
+}
+
 void Pen::smooth() {
   m_style.antiAlias = true;
   m_fillPaint.setAntiAlias(true);
@@ -551,6 +580,8 @@ void Pen::point(float x, float y) {
   if (!stroke) return;
   SkPaint dot = *stroke;
   dot.setStyle(SkPaint::kFill_Style);
+  // A disc is not a stroke, so a dash has nothing to break up here.
+  dot.setPathEffect(nullptr);
   m_canvas->drawCircle(x, y, m_style.strokeWeight / 2.0f, dot);
 }
 

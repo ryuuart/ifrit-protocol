@@ -15,6 +15,7 @@
 #include <include/core/SkPaint.h>
 #include <include/core/SkPath.h>
 #include <include/core/SkPathBuilder.h>
+#include <include/core/SkPathEffect.h>
 #include <include/core/SkPoint.h>
 #include <include/core/SkRect.h>
 #include <include/core/SkRefCnt.h>
@@ -30,6 +31,7 @@
 
 #include <concepts>
 #include <cstdint>
+#include <initializer_list>
 #include <source_location>
 #include <span>
 #include <string>
@@ -249,6 +251,25 @@ class Pen {
    *  source blown up is blocks rather than a blur. `smooth()` puts both
    *  back. */
   void noSmooth();
+  /** THE PEN'S OWN STROKE VERB: a dashed stroke. p5 has no word for one
+   *  and reaches through to `drawingContext.setLineDash`, so this stands
+   *  beside `strokeWeight`, `strokeCap` and `strokeJoin` rather than
+   *  renaming any of them.
+   *
+   *  @p intervals is the run of lengths the stroke alternates along, on
+   *  first: `{6, 4}` is six drawn and four skipped, `{6}` is six and six
+   *  since an odd run repeats itself. @p phase starts the run partway
+   *  in, so an animated phase is a marching-ants line. It is measured in
+   *  the pen's own units, along the path, which means a dashed shape
+   *  under a `scale` dashes at the scaled length.
+   *
+   *  Every stroked verb wears it — a line, a rect, an ellipse, an arc, a
+   *  `beginShape` outline, a shaped glyph's stroke — except `point`,
+   *  which is a disc and not a stroke. A run with a negative length or
+   *  no length at all is no dash. It is style, so `push` saves it and
+   *  `pop` puts it back. */
+  void strokeDash(std::initializer_list<float> intervals, float phase = 0);
+  void noDash();
 
   // ---- blending ------------------------------------------------------------
   /** HOW WHAT IS DRAWN MEETS WHAT IS ALREADY THERE. `BLEND` lays the
@@ -476,6 +497,8 @@ class Pen {
     float strokeWeight = 1.0f;
     SkPaint::Cap cap = SkPaint::kRound_Cap;
     SkPaint::Join join = SkPaint::kMiter_Join;
+    /** The dash, already built; null is a solid stroke. */
+    sk_sp<SkPathEffect> dash;
     bool antiAlias = true;
     Constant blend = BLEND;
     Constant rectMode = CORNER;

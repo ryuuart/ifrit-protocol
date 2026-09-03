@@ -182,6 +182,16 @@ beside the verbs, never a renamed one.
   the box it paints, is resolved against the pen's clock and canvas on
   every draw. A paint's coordinates are the pen's current space, so a
   gradient authored in pixels follows the transform.
+* **A stroke can dash.** `strokeDash({on, off, ...}[, phase])` and
+  `noDash()` stand beside `strokeWeight`, `strokeCap` and `strokeJoin`,
+  because p5 has no word for a dashed stroke and reaches through to
+  `drawingContext.setLineDash`. An odd run repeats itself, so `{6}` is
+  six drawn and six skipped; the phase starts the run partway in, which
+  is what marches the ants; the lengths are the pen's own units measured
+  along the path, so a dashed shape under a `scale` dashes at the scaled
+  length. Every stroked verb wears it — a line, a rect, an ellipse, an
+  arc, a `beginShape` outline, the outline of a per-corner mesh, a
+  glyph's stroke — except `point`, which is a disc and not a stroke.
 * **A silhouette is a shape.** `shape(silhouette, x, y, w, h)` fits any
   value with `path(SkSize)` — the geometry kit's `star`, `polygon`,
   `squircle`, `blob`, `annulus`, or one of your own — to the box the
