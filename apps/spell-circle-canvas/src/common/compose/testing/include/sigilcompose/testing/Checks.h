@@ -210,6 +210,28 @@ struct WidthAlong {
  *  shortest, because through any interior point the shortest chord is the
  *  one across the band, whatever the spine's tangent is doing.
  *
+ *  **The chord is of the FILLED REGION, and that is the whole of the
+ *  measurement.** A band is built as overlapping pieces — one
+ *  quadrilateral per sampled step, or one per leg — so every shared edge
+ *  between two of them is a line standing INSIDE the ink. A cast that
+ *  stopped at the first edge it met would stop at the first interior
+ *  seam and report a band one sampling step wide whatever the band
+ *  actually is. Resolving the union into an outline first does not fix
+ *  it either: an outline of a run of hundreds of overlapping steps walks
+ *  in and out along the interior seams, and those excursions enclose no
+ *  area but are edges all the same — a seven-hundred-step trunk resolves
+ *  to a boundary walking eight times its own perimeter, and the shortest
+ *  chord lands on one of the excursions.
+ *
+ *  So every crossing along the ray is kept and the ray is read the way
+ *  the rasterizer reads it: the crossings are sorted along the ray, the
+ *  fill rule is accumulated through them, and the chord is the run of
+ *  FILLED ray either side of the station. Two coincident edges of
+ *  opposite sense — which is exactly what a shared seam is — contribute
+ *  two crossings that cancel, so a seam is not a boundary and an
+ *  excursion enclosing no area is not one either. Nothing needs to be
+ *  unioned, and no outline is trusted.
+ *
  *  A HALF-WIDTH MARGIN AT EACH END IS SKIPPED, and it has to be: within
  *  about half a width of a cap the shortest chord through a point runs
  *  diagonally out through the END of the band rather than across it, so
@@ -227,27 +249,20 @@ inline WidthAlong widthAlong(const SkPath& band, const SkPath& spine,
   const float reach = profile.max() * 4.0f + 40.0f;
   if (directions < 2 || !(step > 0) || band.isEmpty()) return out;
 
-  // THE OUTLINE FIRST. A band is usually built as overlapping pieces —
-  // one per step, or one per leg — and every shared edge between two of
-  // them is a line INSIDE the ink. A raycast that counted those would
-  // find its shortest chord at the first interior seam and report a band
-  // one sampling step wide, whatever the band actually is. Simplify()
-  // resolves the winding into the boundary of the union, which is what
-  // the eye sees and what the width means.
-  SkPath outline;
-  if (!Simplify(band, &outline)) outline = band;
-
   // Flatten by MEASURING rather than by reading verbs: a band built from
   // a profile carries curves, and a line-only walk would see none of them
-  // and report a band it never touched as infinitely wide.
+  // and report a band it never touched as infinitely wide. The edges keep
+  // their DIRECTION, because the fill rule is read off the sense in which
+  // each one is crossed.
   std::vector<SkPoint> edges;
   {
-    SkContourMeasureIter it(outline, false);
+    SkContourMeasureIter it(band, false);
     while (sk_sp<SkContourMeasure> contour = it.next()) {
       const float len = contour->length();
       SkPoint prev;
       SkVector tan;
       if (len <= 0 || !contour->getPosTan(0, &prev, &tan)) continue;
+      const SkPoint first = prev;
       for (float d = 1.0f;; d += 1.0f) {
         const float at = std::min(d, len);
         SkPoint here;
@@ -257,20 +272,27 @@ inline WidthAlong widthAlong(const SkPath& band, const SkPath& spine,
         prev = here;
         if (at >= len) break;
       }
-      if (contour->isClosed()) {
-        SkPoint first;
-        if (contour->getPosTan(0, &first, &tan)) {
-          edges.push_back(prev);
-          edges.push_back(first);
-        }
+      // CLOSED WHETHER IT SAYS SO OR NOT. A fill rule is only defined on
+      // closed contours, and a band's pieces are filled shapes; an open
+      // one left open would leak the winding along the whole ray.
+      if (prev != first) {
+        edges.push_back(prev);
+        edges.push_back(first);
       }
     }
   }
   if (edges.empty()) return out;
 
-  // The chord of the flattened band through `p` along `u`, both ways.
+  const bool evenOdd = band.getFillType() == SkPathFillType::kEvenOdd ||
+                       band.getFillType() == SkPathFillType::kInverseEvenOdd;
+
+  // The run of FILLED ray through `p` along `u`, both ways — the chord
+  // the eye would measure across the ink. Negative where this ray found
+  // no ink at the station at all, which is a different answer from a
+  // chord of zero and must not join the minimum.
+  std::vector<std::pair<float, int>> crossings;
   const auto chord = [&](SkPoint p, SkVector u) {
-    float fwd = reach, back = reach;
+    crossings.clear();
     for (size_t i = 0; i + 1 < edges.size(); i += 2) {
       const SkPoint a = edges[i], b = edges[i + 1];
       const SkVector e{b.x() - a.x(), b.y() - a.y()};
@@ -279,13 +301,76 @@ inline WidthAlong widthAlong(const SkPath& band, const SkPath& spine,
       const SkVector w{a.x() - p.x(), a.y() - p.y()};
       const float t = (w.x() * e.y() - w.y() * e.x()) / den;
       const float s = (w.x() * u.y() - w.y() * u.x()) / den;
-      if (s < 0.0f || s > 1.0f) continue;
-      if (t > 0.0f)
-        fwd = std::min(fwd, t);
-      else
-        back = std::min(back, -t);
+      // Half-open in s, so a vertex shared by two edges is one crossing
+      // and not two — the difference between a filled run and a run with
+      // a hole one crossing wide at every vertex.
+      if (s < 0.0f || s >= 1.0f) continue;
+      crossings.push_back({t, den > 0 ? 1 : -1});
     }
-    return fwd + back;
+    if (crossings.empty()) return -1.0f;
+    std::sort(crossings.begin(), crossings.end(),
+              [](const auto& x, const auto& y) { return x.first < y.first; });
+    // COINCIDENT CROSSINGS ARE ONE CROSSING. A shared seam is two edges
+    // over the same line, and the ray meets both at the same point — but
+    // it meets them through two different flattenings, so the two
+    // parameters differ in the last bits. Left apart they bracket an
+    // interval a millionth of a pixel wide in which the fill rule reads
+    // empty, and the run of ink stops at the first seam it meets. Summed
+    // into one crossing they cancel, which is what a seam is: a line
+    // inside the ink with no boundary on it.
+    {
+      size_t kept = 0;
+      for (size_t i = 0; i < crossings.size();) {
+        size_t j = i;
+        int sum = 0;
+        while (j < crossings.size() &&
+               crossings[j].first - crossings[i].first < 1e-3f) {
+          sum += crossings[j].second;
+          ++j;
+        }
+        if (sum != 0) crossings[kept++] = {crossings[i].first, sum};
+        i = j;
+      }
+      crossings.resize(kept);
+    }
+    if (crossings.empty()) return -1.0f;
+    // Far along the ray is outside, so the fill at any point is the sum
+    // of what is crossed BEYOND it — read from the far end back.
+    const auto filled = [&](int accumulated) {
+      return evenOdd ? (accumulated & 1) != 0 : accumulated != 0;
+    };
+    size_t at = crossings.size();  // the interval past the last crossing
+    int accumulated = 0;
+    // Walk back to the interval holding t = 0, keeping the fill state.
+    while (at > 0 && crossings[at - 1].first > 0.0f) {
+      accumulated += crossings[at - 1].second;
+      --at;
+    }
+    if (!filled(accumulated)) return -1.0f;  // no ink on this ray
+    // Forward to where the fill ends, and back the same way.
+    float hi = reach;
+    {
+      int forward = accumulated;
+      for (size_t i = at; i < crossings.size(); ++i) {
+        forward -= crossings[i].second;
+        if (!filled(forward)) {
+          hi = crossings[i].first;
+          break;
+        }
+      }
+    }
+    float lo = -reach;
+    {
+      int backward = accumulated;
+      for (size_t i = at; i-- > 0;) {
+        backward += crossings[i].second;
+        if (!filled(backward)) {
+          lo = crossings[i].first;
+          break;
+        }
+      }
+    }
+    return std::min(hi, reach) - std::max(lo, -reach);
   };
 
   double squared = 0;
@@ -297,11 +382,20 @@ inline WidthAlong widthAlong(const SkPath& band, const SkPath& spine,
       SkPoint here;
       SkVector tan;
       if (!contour->getPosTan(d, &here, &tan)) continue;
+      // The shortest chord over the rays that FOUND ink. A station with
+      // no ink under it at all measures zero, which is what a hole in the
+      // band is; one ray missing where others hit is the fill rule read
+      // through a vertex and is not a hole.
       float shortest = reach;
+      bool onInk = false;
       for (int k = 0; k < directions; ++k) {
         const float a = 3.14159265f * (float)k / (float)directions;
-        shortest = std::min(shortest, chord(here, {std::cos(a), std::sin(a)}));
+        const float across = chord(here, {std::cos(a), std::sin(a)});
+        if (across < 0.0f) continue;
+        onInk = true;
+        shortest = std::min(shortest, across);
       }
+      if (!onInk) shortest = 0.0f;
       const WidthStation station{d, here, shortest,
                                  profile.acrossAt(len > 0 ? d / len : 0, len)};
       ++out.samples;

@@ -2265,6 +2265,50 @@ TEST(ComposeR1Ribbon, WidthAlongMeasuresTheBandTheRibbonDrew) {
   EXPECT_FALSE(wrong.within(1.0f));
 }
 
+TEST(ComposeR1Ribbon, WidthAlongMeasuresATrunkOfHundredsOfOverlappingSteps) {
+  // THE CASE THAT BREAKS EVERY OUTLINE-FIRST MEASUREMENT. A band is a
+  // union of one quadrilateral per sampled step, and a long one is
+  // hundreds of them; resolving that union into a boundary gives an
+  // outline that walks in and out along every interior seam — enclosing
+  // no area, and edges all the same. A cast that trusted such an outline
+  // finds its shortest chord on one of those excursions and reports a
+  // few pixels across a band a hundred wide, on a straight leg the same
+  // band fills to within a couple of percent of the width integral.
+  //
+  // A wide band on a long polyline with one hard corner is that shape at
+  // the smallest size that still has it.
+  const geometry::path::Profile wide{FlatWidth{100.0f}};
+  brush::Ribbon r;
+  r.width = wide;
+  r.step = 2.0f;  // ~700 steps over the run below
+
+  SkPathBuilder trunk;
+  trunk.moveTo(100, 400);
+  for (int i = 1; i <= 40; ++i) trunk.lineTo(100 + 20.0f * i, 400);
+  for (int i = 1; i <= 30; ++i) trunk.lineTo(900, 400 - 20.0f * i);
+  const SkPath spine = trunk.detach();
+
+  // A coarser station spacing and fewer headings than the defaults: the
+  // cost is stations x headings x band edges, and this band has thousands
+  // of edges by construction.
+  const test::WidthAlong audit =
+      test::widthAlong(r.band(spine), spine, wide, 12.0f, 45);
+  EXPECT_GT(audit.samples, 60);
+  // The corner itself is measured across the turn rather than across the
+  // band, which is a property of the measurement; every straight station
+  // must be the width the law asked for.
+  EXPECT_LT(audit.rmsError, 4.0f) << "worst " << audit.maxError << " px at "
+                                  << audit.worst.front().at.x() << ","
+                                  << audit.worst.front().at.y();
+  int badOnAStraightLeg = 0;
+  for (const test::WidthStation& st : audit.worst) {
+    const bool nearCorner =
+        std::abs(st.at.x() - 900.0f) < 120.0f && st.at.y() > 280.0f;
+    if (!nearCorner && st.error() > 4.0f) ++badOnAStraightLeg;
+  }
+  EXPECT_EQ(badOnAStraightLeg, 0);
+}
+
 TEST(ComposeR1Ribbon, WidthAlongSkipsTheCapsAndSeesTheCorner) {
   // Within half a width of an end the shortest chord through a point runs
   // diagonally out through the cap rather than across the band, so the

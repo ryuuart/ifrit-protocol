@@ -700,9 +700,14 @@ band through each station of its spine, against the
 and is blind to a corner defect — a band that loses the inside of a bend
 and gains an outer chord loses and gains nearly the same area, so the sum
 agrees while the picture is torn — and a width is a LOCAL property only a
-local measurement finds. It resolves the band's winding into one outline
-before measuring, so a band built as overlapping pieces is not measured
-against its own interior seams, and it skips half a width at each end,
+local measurement finds. The chord it takes is of the band's FILLED
+REGION: every crossing along the ray is kept, sorted, and the fill rule
+accumulated through them, so a shared seam — two coincident edges of
+opposite sense — cancels and is not a boundary. Resolving the union into
+an outline first would not do: the outline of a run of hundreds of
+overlapping steps walks in and out along the interior seams, enclosing no
+area and carrying edges all the same, and the shortest chord lands on one
+of those excursions. It skips half a width at each end,
 where the shortest chord through a point runs out through the cap rather
 than across the band. `test::report` writes one check or a
 whole `measure::Table` into a `feed::TextRing`, each row in the ink its
