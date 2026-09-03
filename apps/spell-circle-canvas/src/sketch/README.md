@@ -198,6 +198,31 @@ the network: a machine that has fetched once is available offline
 forever after, and one that never has stands down with the first
 missing URL as the reason.
 
+### The shared web engine is a host option
+
+An Ultralight process may create one renderer in its lifetime, while
+Sketchbook keeps several sketches resident and loads a fresh dylib on every
+edit. A web sketch therefore borrows the engine its host configured:
+
+```cpp
+#include <sigilsketch/scry/SharedEngine.h>
+
+const std::shared_ptr<sigil::scry::WebEngine> engine =
+    sketch::scry::sharedEngine();
+```
+
+This is the optional `SigilSketchScry` integration, not SigilScry's ordinary
+ownership model. A standalone SigilScry consumer still calls
+`WebEngine::create(config)` and owns that explicitly configured value. A
+sketch host opts into sharing by calling `configureSharedEngine(config)`
+before it opens any sketches; the first borrower boots exactly that
+configuration, and `shutdownSharedEngine()` is final for the process.
+
+The configuration belongs to the host rather than to whichever sketch was
+selected first. Differences that must coexist belong on a view or web
+session; engine-wide differences require separate processes because they
+would require separate Ultralight renderers.
+
 A 3D sketch is the same shape with a different body:
 
 ```cpp

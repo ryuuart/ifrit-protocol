@@ -46,6 +46,7 @@
 #include <sigilscry/engine/WebEngine.h>
 #include <sigilscry/engine/WebView.h>
 #include <sigilscry/platform/Runtime.h>
+#include <sigilsketch/scry/SharedEngine.h>
 #include <sigilsketch/set/Set.h>
 #include <sigilweave/style/Type.h>
 #include <sigilworld/element/Element.h>
@@ -70,7 +71,7 @@ using sigil::compose::toU8;
 
 namespace {
 
-constexpr float kPanel = 200.0f;   // how large each screen stands
+constexpr float kPanel = 200.0f;       // how large each screen stands
 constexpr SkISize kBake = {512, 512};  // the compose scene's pixel size
 constexpr int kPageW = 512, kPageH = 512;
 
@@ -191,7 +192,8 @@ struct ImportNative final : sketch::Set {
     // The scry producer: one engine, one view, one settled frame. The
     // frame is held rather than re-read, because a set's every frame is a
     // function of the scene time and a live page is not.
-    static std::shared_ptr<scry::WebEngine> engine = scry::WebEngine::create({});
+    const std::shared_ptr<scry::WebEngine> engine =
+        sketch::scry::sharedEngine();
     if (engine) {
       view = engine->createView(kPageW, kPageH);
       view->loadHTML(page());

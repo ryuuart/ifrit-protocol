@@ -65,11 +65,12 @@ file(GLOB SIGIL_SKETCH_SHARED_FILES CONFIGURE_DEPENDS
 # a device feature the build may lack. A row may name a stem that is not
 # in the directory yet; it costs nothing until the file arrives.
 set(SIGIL_SKETCH_REQUIREMENTS
+  import_native      SigilSketchScry
   substance_swatches SigilSubstance
   web_panel          SigilComposeWeb
-  web_panel          SigilScry
+  web_panel          SigilSketchScry
   web_script         SigilComposeWeb
-  web_script         SigilScry
+  web_script         SigilSketchScry
   usd_roundtrip      SigilUsd
   half_float         SigilSkia)
 

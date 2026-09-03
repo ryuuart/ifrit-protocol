@@ -35,12 +35,15 @@
 #include <sigilmeasure/stats/Samples.h>
 #include <sigilmeasure/time/Stopwatch.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/core/Crash.h>
 #include <sigilsketch/core/Registry.h>
 #include <sigilsketch/core/Sources.h>
-#include <sigilsketch/core/Crash.h>
 #include <sigilsketch/live/Host.h>
 #include <sigilsketch/plate/Sweep.h>
 #include <sigilsketch/set/Set.h>
+#ifdef SIGILSKETCH_BOOK_SCRY
+#include <sigilsketch/scry/SharedEngine.h>
+#endif
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
@@ -83,6 +86,35 @@
 namespace sketch = sigil::sketch;
 
 namespace {
+
+#ifdef SIGILSKETCH_BOOK_SCRY
+/** THIS HOST OPTS INTO ONE LAZY WEB ENGINE for every sketch it opens.
+ *
+ * SigilScry's ordinary path remains explicit caller ownership through
+ * WebEngine::create(config). Sketchbook is the exceptional host whose live
+ * and resident sketches must borrow one renderer across selection and reload,
+ * so it chooses that renderer's configuration before any sketch can ask for
+ * it and releases it after every session is gone. */
+class SharedWebEngineScope {
+ public:
+  SharedWebEngineScope() {
+    if (!sketch::scry::configureSharedEngine({}))
+      std::fprintf(stderr,
+                   "[sketchbook] shared web engine was already configured\n");
+  }
+  ~SharedWebEngineScope() { sketch::scry::shutdownSharedEngine(); }
+
+  SharedWebEngineScope(const SharedWebEngineScope&) = delete;
+  SharedWebEngineScope& operator=(const SharedWebEngineScope&) = delete;
+
+  void shutdown() { sketch::scry::shutdownSharedEngine(); }
+};
+#else
+class SharedWebEngineScope {
+ public:
+  void shutdown() {}
+};
+#endif
 
 /** The 60 FPS gate, in milliseconds per frame. */
 constexpr double kFrameBudgetMs = 16.6;
@@ -748,6 +780,7 @@ int main(int argc, char* argv[]) {
     // here whatever the flag says: a plate is hashed from that executor,
     // and the two rasterise the same picture but not the same bytes.
     if (gpu && selectionNeedsDevice(chosen, kind) && !useDevice()) return 1;
+    SharedWebEngineScope sharedWebEngine;
     // A SWEEP HAS A GUEST TOO, and it has a hundred of them in one
     // process: without the reporter a faulting sketch takes the run down
     // with a bare signal, and the only thing left saying which sketch it
@@ -755,6 +788,7 @@ int main(int argc, char* argv[]) {
     // one file to name here — the sweep names the entry it is on.
     sketch::installCrashReporter({});
     const int result = sweep(sweepOptions, fonts(), assets());
+    sharedWebEngine.shutdown();
     releaseDevice();
     return result;
   }
@@ -815,6 +849,7 @@ int main(int argc, char* argv[]) {
     // picture puts two different pictures under one name — which is the
     // one thing a capture must never do.
     if (gpu && !useDevice()) return 1;
+    SharedWebEngineScope sharedWebEngine;
     int result = 0;
     {
       sketch::Host host(std::move(options), fonts());
@@ -824,6 +859,7 @@ int main(int argc, char* argv[]) {
     // The session goes before the device does: it holds textures and
     // pipelines the device made, and releasing the device first takes
     // their teardown into static destruction.
+    sharedWebEngine.shutdown();
     releaseDevice();
     return result;
   }
@@ -849,6 +885,7 @@ int main(int argc, char* argv[]) {
     std::fprintf(stderr,
                  "[sketchbook] sets draw on the CPU mesh executor: a "
                  "surface reaches it as the colour extract read off it\n");
+  SharedWebEngineScope sharedWebEngine;
   SketchbookView::sketchDir = sketchDir;
   // WHERE THE BROWSER'S THUMBNAILS COME FROM: the quick tier's baseline,
   // unless the command line already named somewhere else.
@@ -971,6 +1008,7 @@ int main(int argc, char* argv[]) {
     SketchbookView::sessions.clear();
     SketchbookView::host = nullptr;
   }
+  sharedWebEngine.shutdown();
   releaseDevice();
   return status;
 }

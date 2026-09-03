@@ -63,6 +63,13 @@ target_link_libraries(Sketchbook PRIVATE
   SigilSketchLive SigilSketchPlate SigilSketches SigilMeasure SigilWeavePorts
   Qt6::Gui Qt6::GuiPrivate Qt6::Quick Qt6::QuickControls2)
 
+# Sharing the sole Ultralight renderer is an opt-in property of this host,
+# separate from SigilScry's ordinary explicitly owned WebEngine path.
+if(TARGET SigilSketchScry)
+  target_link_libraries(Sketchbook PRIVATE SigilSketchScry)
+  target_compile_definitions(Sketchbook PRIVATE SIGILSKETCH_BOOK_SCRY)
+endif()
+
 # The device lane for set sketches. Without it the binary reports rather
 # than falling back: a flag that asked for the device answers with the
 # device or with nothing.
@@ -214,7 +221,7 @@ endif()
 # archive missing from the force-load list shows up here alone. A machine
 # whose SDK is installed but whose runtime data is not still passes: the
 # sketch draws what it is missing rather than failing to load.
-if(TARGET SigilComposeWeb)
+if(TARGET SigilComposeWeb AND TARGET SigilSketchScry)
   add_test(NAME sketch_reload_surface_web
     COMMAND Sketchbook
       ${SIGIL_SKETCH_DIR}/web_panel.cpp

@@ -36,17 +36,16 @@
  *   kScript    — the expression the second cell evaluates.
  */
 
+#include <include/core/SkCanvas.h>
+#include <shared/SettledPage.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilscry/engine/WebEngine.h>
 #include <sigilscry/engine/WebView.h>
 #include <sigilscry/platform/Runtime.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/scry/SharedEngine.h>
 #include <sigilweave/style/Type.h>
-
-#include <include/core/SkCanvas.h>
-
-#include <shared/SettledPage.h>
 
 #include <future>
 #include <memory>
@@ -128,12 +127,6 @@ const char* page() {
 </script>)HTML";
 }
 
-/** The one engine, booted once for the process. */
-std::shared_ptr<scry::WebEngine> engine() {
-  static std::shared_ptr<scry::WebEngine> one = scry::WebEngine::create({});
-  return one;
-}
-
 }  // namespace
 
 struct WebScript final : sketch::Sketch {
@@ -153,9 +146,9 @@ struct WebScript final : sketch::Sketch {
     ctx.background(kGround);
     ctx.captureAt(0.05);  // every stage is done before the first frame
 
-    const std::shared_ptr<scry::WebEngine> web = engine();
+    const std::shared_ptr<scry::WebEngine> web = sketch::scry::sharedEngine();
     if (!web) {
-      ctx.composer.render(missing("the web engine did not boot"));
+      ctx.composer.render(missing("this sketch host has no shared web engine"));
       return;
     }
 
@@ -245,11 +238,12 @@ struct WebScript final : sketch::Sketch {
              .subtitle = toU8("dials \xc2\xb7 the script \xc2\xb7 the wheel "
                               "\xc2\xb7 the point pressed \xe2\x80\x94 one "
                               "document, four views, one call apart"),
-             .footer = toU8(std::string(
-                 "every call crosses to the web thread, so each cell was "
-                 "driven and then waited on for the engine's own events "
-                 "\xe2\x80\x94 the load, then the page's own answer that "
-                 "what the call asked for is what the latest frame shows") +
+             .footer = toU8(
+                 std::string(
+                     "every call crosses to the web thread, so each cell was "
+                     "driven and then waited on for the engine's own events "
+                     "\xe2\x80\x94 the load, then the page's own answer that "
+                     "what the call asked for is what the latest frame shows") +
                  (settled ? "" : "; one of those waits expired")),
              .titleStyle = label(14, kInk, 2.4f),
              .subtitleStyle = label(11, kAsh, 0.6f),
@@ -263,12 +257,10 @@ struct WebScript final : sketch::Sketch {
                 {.cells =
                      {cell("plain", plain, "loadHTML + setLoadCallback",
                            std::string("the load callback ") +
-                               (fired ? "fired" : "never fired") +
-                               ", and " +
+                               (fired ? "fired" : "never fired") + ", and " +
                                (painted ? "a frame was published"
                                         : "nothing was published")),
-                      cell("scripted", scripted,
-                           "evaluateScript(js, onResult)",
+                      cell("scripted", scripted, "evaluateScript(js, onResult)",
                            std::string("the page answered \xe2\x80\x9c") +
                                returned + "\xe2\x80\x9d"),
                       cell("scrolled", scrolled, "scroll(0, -dy)", wheel),
@@ -292,8 +284,9 @@ struct WebScript final : sketch::Sketch {
         voice(), toU8(call), toU8(note),
         custom(std::move(key),
                [view](SkCanvas& canvas, const PaintContext&) {
-                 if (view) view->draw(canvas, SkRect::MakeWH((float)kViewW,
-                                                             (float)kViewH));
+                 if (view)
+                   view->draw(canvas,
+                              SkRect::MakeWH((float)kViewW, (float)kViewH));
                })
             .width((float)kViewW)
             .height((float)kViewH)

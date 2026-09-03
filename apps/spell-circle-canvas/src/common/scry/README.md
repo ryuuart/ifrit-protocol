@@ -156,6 +156,14 @@ program's lifetime. `WebEngine::create()` returns null on a second call
 — which is why the CPU-mode and GPU-mode engines are tested and
 benchmarked in separate binaries.
 
+**Ownership is explicit by default.** A consumer chooses a
+`WebEngineConfig`, calls `WebEngine::create(config)` and owns the result.
+SigilScry does not silently cache it or make later configurations aliases of
+the first. A host above this library may deliberately offer one configured
+engine to several of its own consumers; SigilSketch does that through its
+separate, opt-in `SigilSketchScry` integration because live sketch dylibs must
+all reach the same process-owned renderer.
+
 ## Conventions that will bite you
 
 **CPU frames are pooled snapshots.** Each publish copies the live surface

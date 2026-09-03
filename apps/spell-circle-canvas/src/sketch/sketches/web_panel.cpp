@@ -36,16 +36,17 @@
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPaint.h>
+#include <shared/SettledPage.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilcompose/web/Web.h>
 #include <sigilscry/engine/WebEngine.h>
 #include <sigilscry/engine/WebImage.h>
 #include <sigilscry/platform/Runtime.h>
 #include <sigilsketch/canvas/Sketch.h>
-
-#include <shared/SettledPage.h>
+#include <sigilsketch/scry/SharedEngine.h>
 
 #include <cmath>
+#include <cstdint>
 #include <memory>
 #include <string>
 
@@ -104,7 +105,7 @@ constexpr const char* kPage = R"html(
     <span class="tag">is_transparent</span></div>
   <div class="card slot"><div>
     <h2>And the other way</h2>
-    <img src="sigil.imgsrc" style="width:104px;height:104px" />
+    <img src="__SIGIL_SLOT__.imgsrc" style="width:104px;height:104px" />
     <p>Skia, into a slot this page names.</p></div>
     <span class="tag">WebImage</span></div>
   <div class="card wide"><div>
@@ -115,6 +116,18 @@ constexpr const char* kPage = R"html(
     <span class="tag">frameVersion()</span></div>
 </div></body></html>
 )html";
+
+/** The page bound to one session's image slot. Two copies of this sketch may
+ * be resident under different source paths, and a reloaded session starts
+ * while the old slot's removal is queued on the web thread, so each live
+ * owner names its own slot rather than racing over one process-global name. */
+std::string pageFor(const std::string& slot) {
+  std::string page = kPage;
+  constexpr const char* marker = "__SIGIL_SLOT__";
+  if (const size_t at = page.find(marker); at != std::string::npos)
+    page.replace(at, std::char_traits<char>::length(marker), slot);
+  return page;
+}
 
 /** The disc the page displays: rings and chords, drawn with Skia into
  *  the slot's own canvas. */
@@ -145,35 +158,6 @@ void drawSigil(SkCanvas& canvas, float size) {
   }
 }
 
-/** THE ONE ENGINE THIS PROCESS IS ALLOWED, and the one slot it
- *  publishes.
- *
- *  Both are process-wide rather than per-sketch: a renderer may be
- *  created once for the lifetime of the program, and a slot's name is
- *  unique per engine — two sessions of this sketch overlap while a host
- *  reopens it, and the second would be asking for a name the first still
- *  holds. */
-struct Browser {
-  std::shared_ptr<scry::WebEngine> engine;
-  std::shared_ptr<scry::WebImage> sigil;
-};
-
-const Browser& browser() {
-  static const Browser one = [] {
-    Browser started;
-    started.engine = scry::WebEngine::create({});
-    if (!started.engine) return started;
-    // Registered before any page loads: a page naming a slot that does
-    // not exist yet gets a warning and a hole.
-    started.sigil = started.engine->createImage("sigil", kSlotSize, kSlotSize);
-    if (started.sigil)
-      started.sigil->paint(
-          [](SkCanvas& canvas) { drawSigil(canvas, (float)kSlotSize); });
-    return started;
-  }();
-  return one;
-}
-
 Element note(std::u8string heading, std::u8string body) {
   return box()
       .width(236)
@@ -183,8 +167,10 @@ Element note(std::u8string heading, std::u8string body) {
       .foreground(stroke(1.0f, Fill::color(hex(0x7ee8ff, 0.22f))))
       .column()
       .gap(6)
-      .child(text(std::move(heading), weave::textStyle({.size = 14, .color = kInk})))
-      .child(text(std::move(body), weave::textStyle({.size = 11.5f, .color = kDim})));
+      .child(text(std::move(heading),
+                  weave::textStyle({.size = 14, .color = kInk})))
+      .child(text(std::move(body),
+                  weave::textStyle({.size = 11.5f, .color = kDim})));
 }
 
 }  // namespace
@@ -194,9 +180,7 @@ struct WebPanelSketch final : sketch::Sketch {
    *  certificate bundle ship with the application rather than with its
    *  dylibs, so a build that links the SDK can still find nothing to lay
    *  out with. */
-  static bool available(std::string* why) {
-    return scry::available(why);
-  }
+  static bool available(std::string* why) { return scry::available(why); }
 
   void setup(sketch::SketchContext& ctx) override {
     ctx.canvas(980, 660);
@@ -204,14 +188,25 @@ struct WebPanelSketch final : sketch::Sketch {
     ctx.captureAt(1.0);
 
     std::string why;
-    if (!browser().engine) {
-      why = "the web engine did not boot in this process";
+    const std::shared_ptr<scry::WebEngine> engine =
+        sketch::scry::sharedEngine();
+    if (!engine) {
+      why = "this sketch host has no shared web engine";
     } else {
-      m_view = browser().engine->createView(kPageWidth, kPageHeight);
+      m_slotName =
+          "sigil-" + std::to_string(reinterpret_cast<std::uintptr_t>(this));
+      // Registered before the page loads: a page naming a slot that does
+      // not exist yet gets a warning and a hole.
+      m_sigil = engine->createImage(m_slotName, kSlotSize, kSlotSize);
+      if (m_sigil)
+        m_sigil->paint(
+            [](SkCanvas& canvas) { drawSigil(canvas, (float)kSlotSize); });
+
+      m_view = engine->createView(kPageWidth, kPageHeight);
       // The events are latched before the load, so nothing about the
       // document can happen between asking for it and listening.
       const webpage::Events events(*m_view);
-      m_view->loadHTML(kPage);
+      m_view->loadHTML(pageFor(m_slotName));
       if (!events.awaitLoad()) {
         why = "the page never loaded and painted";
         m_view.reset();
@@ -224,10 +219,11 @@ struct WebPanelSketch final : sketch::Sketch {
     return stack()
         .fill(linearGradient({0, 0}, {0, 660},
                              {hex(0x140e26), hex(0x241033), hex(0x0d1424)}))
-        .child(text(u8"A PAGE AS A LEAF",
-                    weave::textStyle({.size = 15, .color = kInk, .track = 2.4f}))
-                   .left(40)
-                   .top(32))
+        .child(
+            text(u8"A PAGE AS A LEAF",
+                 weave::textStyle({.size = 15, .color = kInk, .track = 2.4f}))
+                .left(40)
+                .top(32))
         // The page at its own pixel size: the view is created at exactly
         // the box it is laid into, so nothing resamples.
         .child(box()
@@ -277,10 +273,13 @@ struct WebPanelSketch final : sketch::Sketch {
                    .gap(10)
                    .child(text(u8"no web engine here",
                                weave::textStyle({.size = 22, .color = kInk})))
-                   .child(text(toU8(why), weave::textStyle({.size = 13, .color = kDim}))));
+                   .child(text(toU8(why),
+                               weave::textStyle({.size = 13, .color = kDim}))));
   }
 
  private:
+  std::string m_slotName;
+  std::shared_ptr<scry::WebImage> m_sigil;
   std::shared_ptr<scry::WebView> m_view;
 };
 

@@ -36,6 +36,14 @@ add_subdirectory(canvas)
 add_subdirectory(set)
 add_subdirectory(draw)
 
+# The opt-in bridge for a host that lets several sketches borrow the one
+# WebEngine Ultralight permits in a process. SigilScry itself keeps explicit
+# caller ownership as its ordinary path; only a host that configures this
+# feature gets a shared engine.
+if(TARGET SigilScry)
+  add_subdirectory(scry)
+endif()
+
 # The live-reload engine: a file watched, rebuilt into a dylib on save,
 # and hot-swapped into the running session.
 add_subdirectory(live)
