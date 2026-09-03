@@ -1,7 +1,9 @@
 // The Slang backend: a module compiles, its layout is the compiler's own
-// answer rather than a guess, a draw's bytes land at those offsets, and
-// the two modules every session carries are importable.
+// answer rather than a guess, a draw's bytes land at those offsets, the
+// two modules every session carries are importable, and the kit's grained
+// recipes compile as the surface a device renderer asks them for.
 
+#include <sigilmaterial/kit/Grained.h>
 #include <sigilmaterial/slang/SlangCompiler.h>
 
 #include <cstring>
@@ -183,4 +185,44 @@ TEST(MaterialSlang, AMissingEntryPointIsNamed) {
   EXPECT_FALSE(compileModule(kModule, "vsTest", "fsNoSuchStage",
                              /*lit=*/false, &built, &error));
   EXPECT_NE(error.find("fsNoSuchStage"), std::string::npos) << error;
+}
+
+// ---------------------------------------------------------------------------
+// The kit's grained recipes carry a Slang body, and it compiles.
+
+TEST(MaterialSlang, EveryGrainedRecipeCompilesAsASurface) {
+  // A body answers `float4 surface(float2 uv)`; the scaffold a renderer
+  // hands the compiler declares the uniforms the recipe generates and the
+  // two stages that read the surface.
+  constexpr const char* kScaffold = R"SLANG(
+struct VSOut { float4 position : SV_Position; float2 uv : TEXCOORD0; };
+
+[shader("vertex")]
+VSOut vsTest(uint id : SV_VertexID) {
+  VSOut out;
+  out.position = float4(float(id), 0, 0, 1);
+  out.uv = float2(0.5, 0.5);
+  return out;
+}
+
+[shader("fragment")]
+float4 fsTest(VSOut input) : SV_Target {
+  return surface(input.uv);
+}
+)SLANG";
+  namespace kit = sigil::material::kit;
+  using sigil::material::Recipe;
+  using sigil::material::Target;
+  for (const Recipe* recipe :
+       {kit::stoneRecipe().get(), kit::timberRecipe().get(),
+        kit::lattenRecipe().get(), kit::boardRecipe().get()}) {
+    Compiled built;
+    std::string error;
+    const std::string source = recipe->source(Target::Slang) + kScaffold;
+    EXPECT_TRUE(compileModule(source, "vsTest", "fsTest", /*lit=*/false,
+                              &built, &error))
+        << recipe->name() << ": " << error;
+    // Every parameter the body reads is in the layout.
+    EXPECT_NE(built.uniform("seed"), nullptr) << recipe->name();
+  }
 }

@@ -1,6 +1,7 @@
 # The kit: presets — the reflective surfaces over a normal map and an
-# environment map, the girih panel, the gel and chrome colour tables, the
-# text paints, and the shading TERMS those surfaces are composed of.
+# environment map, the grained surfaces (stone, timber, latten, board),
+# the girih panel, the gel and chrome colour tables, the text paints, and
+# the shading TERMS those surfaces are composed of.
 # Bodies are shader text; the kit links the pattern feature for the tile
 # the panel bakes into and no renderer.
 #
@@ -19,6 +20,7 @@ sigil_slang_module(NAME Shading SOURCE ${SIGIL_MATERIAL_SHADER_DIR}/Shading.slan
 add_library(SigilMaterialKit STATIC
   LayerStyles.cpp
   Mask.cpp
+  Grained.cpp
   Patterns.cpp
   Surface.cpp
   Surfaces.cpp
@@ -26,6 +28,7 @@ add_library(SigilMaterialKit STATIC
   TextPaint.cpp
   ${SIGIL_MATERIAL_SHADING_H}
   ${SIGIL_MATERIAL_SHADER_DIR}/Shading.slang
+  ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/kit/Grained.h
   ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/kit/LayerStyles.h
   ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/kit/Mask.h
   ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/kit/Patterns.h

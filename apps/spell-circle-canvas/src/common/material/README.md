@@ -68,7 +68,7 @@ each a static archive that links only what sits beneath it:
 | `SigilMaterialField` | `field::` — `halftoneRamp`, `noise`, `grain`, `ripple`, `crtOverlay` | SigilMaterialTexture, SigilMaterialColor |
 | `SigilMaterialSkia` | the SkSL compiler and `SkiaProgram`, whose builder uploads resolved bytes; `skia::builder` and `skia::shader` binding leaves into slots; `skia::fill`; the colour bridge `skia::toColor` / `skia::toSkColor` / `skia::toColors`; `skia::Paint`, the model as ONE shader; and `skia::Effect`, the post-processing recipe over a rendered layer | SigilMaterialTexture, SigilMaterialColor, SigilMotionValues |
 | `SigilMaterialSlang` | the Slang compiler: `slang::compileModule` to SPIR-V, `slang::Compiled` with the reflected `slang::UniformSlot` per uniform, `slang::SlangProgram`, and `slang::Uniforms`, the buffer one draw is written into; `Portable.slang`, the subset a host and a device answer alike, loaded into every session by name | SigilMaterialCore; SigilMaterialKit and Slang privately |
-| `SigilMaterialKit` | the presets: the metallic-roughness `kit::surface` and `kit::unlit` and the masks that stack them; `kit::gold`, `kit::chrome`, `kit::glass`; `kit::girih8` and its palettes; the gel and chrome tables with `kit::contourRing`; the text paints and chrome-type ramps; and `kit::termsSource`, the shading terms a surface is composed of | SigilMaterialPattern, SigilMaterialColor |
+| `SigilMaterialKit` | the presets: the metallic-roughness `kit::surface` and `kit::unlit` and the masks that stack them; `kit::gold`, `kit::chrome`, `kit::glass`; the grained `kit::stone`, `kit::timber`, `kit::latten` and `kit::board`; `kit::girih8` and its palettes; the gel and chrome tables with `kit::contourRing`; the text paints and chrome-type ramps; and `kit::termsSource`, the shading terms a surface is composed of | SigilMaterialPattern, SigilMaterialColor |
 
 `SigilMaterial` is the umbrella, an interface over all ten. Headers live
 under `include/sigilmaterial/<feature>/` and are spelled that way —
@@ -424,7 +424,14 @@ drawn with the first one's program.
 
 The kit is presets: functions that fix a colour, a proportion or a named
 style over the primitives. `kit::girih8` is the 8-fold star-and-cross
-panel as a `Tile`, with `fezPalette()` and `nasridPalette()`. The gel and
+panel as a `Tile`, with `fezPalette()` and `nasridPalette()`; its
+`contactDeg` is Hankin's contact angle, the one dial of the construction
+— two rays leave every edge midpoint at that angle to the edge and meet
+on the bisector between neighbours, so the star sharpens as the angle
+grows. At the 45° default the rays through an octagon are collinear, the
+panel is the classic one, and it is drawn in the closed form it has
+always had: two squares through the octagon's edge midpoints, whose union
+is the {8/2} khatam and whose outlines are the interlace. The gel and
 chrome tables — `aquaBodyRamp`, `aquaGlowRamp`, `chromeRamp`, the
 `AquaGelOptions` and `ChromeOptions` a renderer's bundles read — are
 `RampStop` lists a renderer turns into its own gradient. The text paints
@@ -543,6 +550,30 @@ are the body's uniforms by name, with two exceptions the comments state:
 pixel: gold adds foil crinkle and glints, chrome the contrast curve and
 brushed anisotropy, glass refracts the backdrop through the normal field
 with a fresnel-weighted reflection on top.
+
+**The grained surfaces are generated, never photographed.** `kit::stone`,
+`kit::timber`, `kit::latten` and `kit::board` are recipes over no texture
+at all, and all four are the same construction: a RAMP of the material's
+own tones, a GRAIN of value noise folded into the colour as light rather
+than as hue — which is what keeps a coloured surface from reading as
+rainbow terrazzo — and a SPECKLE in some fraction of the cells of a
+lattice. What differs is the ramp. `kit::StoneParams` runs a bed of `hi`
+and `lo` at `bedAngle` over `bedLength`, flecked in its own tones;
+`kit::TimberParams` is a planed board, a flat face between a narrow lit
+arris and a narrow shadowed one across its `span`, with `flip` to light
+the far edge and `along` to turn the piece down local y, so one recipe
+boards a lattice's rails and its posts; `kit::LattenParams` is sheet
+brass, whose one colour and many lights are a three-tone LADDER — a
+piece's `level` is where on it that face sits, and `sheen` drifts that
+position along the run from `from` to `to`, which is how one light
+crosses two hundred nodes of one instrument; `kit::BoardParams` is a flat
+`paint` under a fine tooth and a slow wear. Every length is in pixels
+rather than in the box, because a tessera is cut from a slab and its
+grain does not scale with the piece, and `seed` offsets every field, so
+two pieces at two seeds are two pieces of one quarry. Each recipe carries
+a body in both languages — the SkSL one reads pixels, the Slang one the
+surface's uv — so a device renderer shades the same piece the 2D painter
+does.
 
 **Resolve is memoised on its inputs.** `resolve()` samples the bindings,
 snaps and injects the frame values, and compares the resulting bytes plus

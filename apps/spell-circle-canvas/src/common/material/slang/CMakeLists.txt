@@ -40,7 +40,7 @@ target_link_libraries(SigilMaterialSlang
 
 add_executable(material_slang_test test/SlangTest.cpp)
 target_link_libraries(material_slang_test PRIVATE SigilMaterialSlang
-  GTest::gtest_main)
+  SigilMaterialKit GTest::gtest_main)
 add_test(NAME material_slang_test COMMAND material_slang_test)
 
 # Google Benchmark (use a Release build), linking only what it measures.
