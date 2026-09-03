@@ -29,13 +29,14 @@
 //               label and every note follows the new wrap.
 //   kGutter   — how far the marginalia stand off the text.
 
-#include <sigilsketch/canvas/Sketch.h>
-
 #include <sigilcompose/kit/Annotations.h>
 #include <sigilcompose/kit/Instruments.h>
+#include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/kit/Typeset.h>
-#include <sigilcompose/typography/TextFx.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigilsketch/canvas/Sketch.h>
+#include <sigilweave/ports/SystemFontManager.h>
+#include <sigilweave/style/Type.h>
 
 #include <string>
 #include <vector>
@@ -45,6 +46,7 @@ namespace sketch = sigil::sketch;
 using namespace sigil::compose;
 using sigil::compose::toU8;
 using namespace std::chrono_literals;
+namespace motion = sigil::motion;
 namespace weave = sigil::weave;
 
 namespace {
@@ -68,24 +70,31 @@ const SkColor4f kMark{0.192f, 0.404f, 0.545f, 1};
 const SkColor4f kHot{0.780f, 0.286f, 0.176f, 1};
 
 sk_sp<SkTypeface> serif() {
-  static sk_sp<SkTypeface> face =
-      pickFace({"Iowan Old Style", "Palatino", "Georgia", "Times New Roman"});
+  static sk_sp<SkTypeface> face = weave::ports::pickTypeface(
+      {"Iowan Old Style", "Palatino", "Georgia", "Times New Roman"});
   return face;
 }
 sk_sp<SkTypeface> grotesque() {
-  static sk_sp<SkTypeface> face =
-      pickFace({"Helvetica Neue", "Inter", "Helvetica", "Arial"});
+  static sk_sp<SkTypeface> face = weave::ports::pickTypeface(
+      {"Helvetica Neue", "Inter", "Helvetica", "Arial"});
   return face;
 }
 
 weave::TextStyle body(float size = 19.0f) {
-  return type({.face = serif(), .size = size, .color = kInk});
+  return weave::textStyle({.face = serif(), .size = size, .color = kInk});
 }
 weave::TextStyle note(float size = 8.5f, SkColor4f colour = kFaint,
                       float track = 0.4f) {
-  return type(
+  return weave::textStyle(
       {.face = grotesque(), .size = size, .color = colour, .track = track});
 }
+
+/** The cascade the playhead rides, and the ms its master must span for it
+ *  to run at those numbers: `Track::spanMs` is the same arithmetic
+ *  `Composer::cascadeSpanMs` reads back off the mounted track, computed
+ *  here from the word count before any node exists. */
+const motion::Spread kRoll{.eachMs = 90, .durationMs = 420};
+const float kRollSpan = kRoll.spanMs(12);  // the line below is twelve words
 
 constexpr const char8_t* kPassage =
     u8"Marginalia stand beside a text and reserve nothing. Each note here "
@@ -98,7 +107,10 @@ struct AnnotatedMargin final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
     ctx.canvas(kSceneSize.fWidth, kSceneSize.fHeight);
     ctx.background(margin::kPaper);
-    ctx.captureAt(1.6);
+    // MID-CASCADE. The playhead is the point of the lower strip, and a
+    // meter photographed after its schedule has closed is nine full bars
+    // saying nothing; this falls a little past half way through the roll.
+    ctx.captureAt(1.0);
     ctx.composer.render(describe(ctx));
     // THE ANNOTATIONS ARE A READ-BACK: they resolve from the layout the
     // last draw left standing, so the page is described once for the text
@@ -138,8 +150,7 @@ struct AnnotatedMargin final : sketch::Sketch {
                        .left(Dim(m::kTextLeft))
                        .top(Dim(m::kTextTop))
                        .width(Dim(m::kMeasure))
-                       .paragraph({.leading =
-                                       weave::Leading::multiple(1.55f)}))
+                       .paragraph({.leading = weave::Leading::multiple(1.55f)}))
             // The same text again, lower, under a cascade — the playhead
             // below rides its beats.
             .child(text(toU8("A marker placed from a beat agrees with the "
@@ -151,51 +162,52 @@ struct AnnotatedMargin final : sketch::Sketch {
                        .top(Dim(m::kH - 210))
                        .width(Dim(m::kMeasure))
                        .fx({.effect = fx::rise(14),
-                            .stagger = {.eachMs = 90,
-                                        .durationMs = 420,
-                                        .over = unit::Word},
-                            .progress = animate(from(0.0f).to(1.0f),
-                                                {2600ms, &ch::easeNone,
-                                                 200ms})}));
+                            .stagger = m::kRoll,
+                            .over = unit::Word,
+                            .progress = animate(
+                                motion::from(0.0f).to(1.0f),
+                                {std::chrono::milliseconds((int)m::kRollSpan),
+                                 &ch::easeNone, 200ms})}));
 
     // ── The label under every word of the opening phrase ────────────────
-    page.child(
-        kit::annotate(
-            composer, "passage", sel::words(0, 6), unit::Word,
-            {.side = kit::Beside::Side::After, .gap = 5.0f},
-            [&](const TextUnit& unit) {
-              // The label says what the unit IS — its range and the line
-              // it landed on — because a label that only repeated the word
-              // would be showing nothing the word does not already show.
-              return text(toU8(std::to_string(unit.range.start) + "\xe2\x80\x93" +
-                               std::to_string(unit.range.end)),
-                          m::note(7.5f, m::kMark, 0.2f));
-            })
-            .absolute()
-            .inset(0, 0, 0, 0));
+    page.child(kit::annotate(composer, "passage", sel::words(0, 6), unit::Word,
+                             {.side = kit::Beside::Side::After, .gap = 5.0f},
+                             [&](const TextUnit& unit) {
+                               // The label says what the unit IS — its range
+                               // and the line it landed on — because a label
+                               // that only repeated the word would be showing
+                               // nothing the word does not already show.
+                               return text(
+                                   toU8(std::to_string(unit.range.start) +
+                                        "\xe2\x80\x93" +
+                                        std::to_string(unit.range.end)),
+                                   m::note(7.5f, m::kMark, 0.2f));
+                             })
+                   .absolute()
+                   .inset(0, 0, 0, 0));
 
     // ── One note per line, in the gutter, with a leader ──────────────────
     page.child(
-        kit::annotate(
-            composer, "passage", sel::each(unit::Line), unit::Line,
-            {.side = kit::Beside::Side::Start,
-             .gap = m::kGutter,
-             .measure = m::kNoteMeasure},
-            [&](const TextUnit& unit) {
-              return box()
-                  .width(Dim(m::kNoteMeasure))
-                  .justify(Justify::End)
-                  .row()
-                  .gap(8)
-                  .child(text(toU8("line " + std::to_string(unit.lineIndex) +
-                                   " \xc2\xb7 baseline " +
-                                   std::to_string((int)unit.axis)),
-                              m::note()))
-                  .child(box()
-                             .width(Dim(m::kGutter - 6))
-                             .height(Dim(1.0f))
-                             .fill(Fill::color(m::kFaint)));
-            })
+        kit::annotate(composer, "passage", sel::each(unit::Line), unit::Line,
+                      {.side = kit::Beside::Side::Start,
+                       .gap = m::kGutter,
+                       .measure = m::kNoteMeasure},
+                      [&](const TextUnit& unit) {
+                        return box()
+                            .width(Dim(m::kNoteMeasure))
+                            .justify(Justify::End)
+                            .row()
+                            .gap(8)
+                            .child(text(
+                                toU8("line " + std::to_string(unit.lineIndex) +
+                                     " \xc2\xb7 baseline " +
+                                     std::to_string((int)unit.axis)),
+                                m::note()))
+                            .child(box()
+                                       .width(Dim(m::kGutter - 6))
+                                       .height(Dim(1.0f))
+                                       .fill(Fill::color(m::kFaint)));
+                      })
             .absolute()
             .inset(0, 0, 0, 0));
 
@@ -229,5 +241,5 @@ struct AnnotatedMargin final : sketch::Sketch {
 
 }  // namespace
 
-SIGIL_SKETCH_AS(AnnotatedMargin, "annotated_margin", "Catalog \xc2\xb7 Type & grid",
+SIGIL_SKETCH_AS(AnnotatedMargin, "annotated_margin", "Catalog \xc2\xb7 Type",
                 "labels, marginalia and rules read off a text's units")
