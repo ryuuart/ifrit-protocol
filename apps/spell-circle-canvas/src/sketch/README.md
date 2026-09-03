@@ -173,6 +173,26 @@ frame-time gate stand it down by name. A skip is not a failure and not a
 mover, and the plates for such a sketch exist only on the machines where
 its SDK does.
 
+A sketch over FETCHED ART is the same shape with a different probe. Its
+bitmaps arrive over the loader's https path, which caches on disk, and
+every use site keeps a procedural stand-in so a cold cache still
+renders — but it renders the stand-in, and the plate the sketch is
+judged on is then not the picture its header describes. Two plates
+under one name is what a byte-identity sweep cannot survive, so such a
+sketch is unavailable until the art is here:
+
+```cpp
+static bool available(std::string* why) {
+  return sketch::requireCached({"https://…/leftsidepanel.gif",
+                                "https://…/2alogobug.svg"}, why);
+}
+```
+
+`requireCached` asks the loader's cache the loader's own way and never
+the network: a machine that has fetched once is available offline
+forever after, and one that never has stands down with the first
+missing URL as the reason.
+
 A 3D sketch is the same shape with a different body:
 
 ```cpp
@@ -229,6 +249,49 @@ are honoured by the runtime skipping draws, since the clock is its. The
 pointer and the keys arrive through `Session::pointer` and
 `Session::key`, which a host feeds in canvas units; headless, nothing
 arrives and `pen.mouseX` stays at zero.
+
+### One runtime's picture inside another
+
+A sketch stays in its own runtime, and what crosses between runtimes is
+a PICTURE, through two doors on the contexts.
+
+`ctx.textureScene(size, background)` — on the canvas context and the set
+context alike — is a compose scene painted into a texture: hand it a
+tree with `render()` and read `image()` or `texture()` back. A canvas
+sketch that wants a card as pixels paints it once while declaring itself
+and keeps the image; a set that wears a live 2D screen asks for the
+scene at setup, holds the pointer, and in `describe` hands it the tree
+at the scene time and puts `texture()` in a material's base-colour slot.
+
+THE SESSION KEEPS THE SCENE, and lets go of everything it kept when the
+body declares again. That is not a convenience: a scene standing on a
+device destroys the texture it painted into when it goes, so a sketch
+that took the image and dropped the scene would be holding a picture of
+nothing, and a body would be wearing a texture that is not there.
+Because the session keeps them, a body asking for a scene every frame
+holds every frame's scene — so each session's counters say how many it
+is holding, and a number that climbs is that mistake.
+
+Nothing has to be remade when time moves. A session's clock only goes
+forward: a sweep that must photograph an earlier moment opens a second
+session rather than rewinding this one, so no run of the piece begins
+where an earlier one left off, and a sketch needs no guard of its own.
+
+`ctx.bakeSet(frame, camera, size, background)` — on the canvas context —
+is a lit set rendered once into an image: the picture inside a page, for
+a document whose plate is re-rendered at the capture scale and cannot
+drag its chrome through a texture for the sake of one panel. The
+viewpoint is written onto the frame rather than handed to the draw, so a
+tree carrying a camera of its own is seen from it here exactly as in the
+set runtime, and forming and presenting cannot disagree. It draws on the
+CPU mesh executor whatever device the process holds and declares no
+passes, so the page's plate and its live picture are one picture.
+
+Each door names the other library's value by forward declaration and
+nothing else of it: a sketch walking through one includes that library's
+own headers — `<sigilcompose/texture/Texture.h>`,
+`<sigilworld/frame/Frame.h>` — and the scene's and the frame's words are
+those libraries' to define.
 
 ### Three paths for motion, and the order to reach for them
 
@@ -658,9 +721,14 @@ targets do.
 
 * **`core` draws nothing.** A consumer that only wants to know what
   sketches exist links it alone; it could not paint a pixel.
-* **The runtimes do not know each other.** `canvas` links compose,
-  `set` links world, `draw` links SigilDraw, and none names a type from
-  another's library.
+* **The runtimes do not know each other's bodies.** `canvas` links
+  compose, `set` links world, `draw` links SigilDraw, and none describes
+  through another's runtime. What crosses between them is a picture,
+  through the two doors on the contexts — a compose tree painted into a
+  texture, a world frame baked to an image — and each door names the
+  other library's value by forward declaration alone, with the archive
+  behind it linking that library privately. A sketch that walks through
+  a door includes that library's own headers.
 * **`set` links no device.** The runtime a session draws through is a
   value the process installs once — one device, one queue, every
   session — so a machine with no device runs every set on the CPU mesh
