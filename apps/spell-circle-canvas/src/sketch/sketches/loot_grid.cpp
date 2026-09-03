@@ -11,7 +11,7 @@
 // Why this scene exists: an inventory is the densest MATERIAL exercise in
 // game UI. Nothing here is an image. Every surface is generated:
 //
-//   panel stone ......... slate ramp under patterns::noise, inside a
+//   panel stone ......... slate ramp under field::noise, inside a
 //                         bronze bevel with corner rivets — the frame is
 //                         BevelEmboss + two keylines, not a nine-slice
 //   slot wells .......... 40 identical cells through instances(): ONE
@@ -26,9 +26,11 @@
 //   item art ............ procedural silhouettes — every blade, flask and
 //                         gauntlet is a path under a steel or glass ramp
 //   the rarity ladder ... D2's item colours (white normal, #6969FF magic,
-//                         #FFFF64 rare, #C7B377 unique, #00FF00 set) tint
-//                         the cell behind the item, the name in the
-//                         tooltip, and the glow uniques and sets carry
+//                         #FFFF64 rare, #C7B377 unique, #00FF00 set) carry
+//                         on the name in the tooltip, on a hairline round
+//                         the cell and, for sets and uniques, in the glow
+//                         they throw — the cell itself stays the same
+//                         dark well whatever is in it
 //   drag validity ....... the held item's footprint highlights GREEN over
 //                         free cells and RED where it overlaps, which is
 //                         FarrokhGames' canAdd -> blocked sprite, live
@@ -41,11 +43,13 @@
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/brush/Brushes.h>
 #include <sigilcompose/brush/LayerStyles.h>
-#include <sigilcompose/core/Material.h>
-#include <sigilcompose/core/Patterns.h>
-#include <sigilcompose/instances/Instances.h>
-#include <sigilcompose/kit/Silhouettes.h>
+#include <sigilcompose/brush/PixelStyles.h>
+#include <sigilcompose/core/Instances.h>
+#include <sigilcompose/core/Pattern.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigilmaterial/field/Field.h>
+#include <sigilmaterial/pattern/Patterns.h>
+#include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
@@ -58,8 +62,13 @@
 #include <vector>
 
 namespace sketch = sigil::sketch;
+namespace weave = sigil::weave;
+namespace motion = sigil::motion;
+namespace field = sigil::material::field;
+namespace mpattern = sigil::material::pattern;
 
 using namespace sigil::compose;
+using sigil::material::skia::Paint;
 using sigil::compose::toU8;
 using namespace std::chrono_literals;
 
@@ -273,7 +282,7 @@ inline Element artwork(Art art, float w, float h, SkColor4f tint,
       .width(Dim(w))
       .height(Dim(h))
       .shape(artPath(art))
-      .fill(Material::linear({0, 0}, {w * 0.35f, h},
+      .fill(Paint::linear({0, 0}, {w * 0.35f, h},
                              {{0.0f, hi}, {0.55f, tint}, {1.0f, lo}}))
       .stroke(stroke(1.1f, Fill::color({0.03f, 0.03f, 0.03f, 0.85f})));
 }
@@ -333,14 +342,16 @@ inline Element well(float w, float h, float alpha = 1.0f) {
       .width(Dim(w))
       .height(Dim(h))
       .corners({2})
-      .fill(Material::linear(
+      .fill(Paint::linear(
           {0, 0}, {0, h},
           {{0.0f, {kWellLo.fR, kWellLo.fG, kWellLo.fB, alpha}},
            {1.0f, {kWellHi.fR, kWellHi.fG, kWellHi.fB, alpha}}}))
       .foreground(styles::InnerShadow{{0, 0, 0, 0.75f}, {0, 2}, 3})
-      .foreground(shapes::onEdges(
-          shapes::Edge::Bottom,
-          stroke(1.0f, Fill::color({0.42f, 0.38f, 0.31f, 0.30f}))));
+      // …and the hard edge under it: one light line and one dark line,
+      // SUNKEN, which is what a hole has always been on a screen of this
+      // era. The blur says the depth and this says the lip.
+      .overlay(styles::bevelPair({0.42f, 0.38f, 0.31f, 0.30f},
+                                 {0, 0, 0, 0.55f}, 1.0f, /*sunken=*/true));
 }
 
 /** The bronze-framed stone panel every part of this UI sits in. */
@@ -350,13 +361,13 @@ inline Element panel(float w, float h) {
       .height(Dim(h))
       .corners({4})
       .background(styles::dropShadow({0, 0, 0, 0.65f}, {0, 7}, 16))
-      .fill(Material::linear({0, 0}, {0, h},
+      .fill(Paint::linear({0, 0}, {0, h},
                              {{0.0f, kStoneHi}, {1.0f, kStoneLo}}))
       .clip()
       // quarried, not smooth: the grain is generated, never a texture file
       .child(box()
                  .inset(0)
-                 .fill(patterns::noise(0.06f, 4, 7.0f))
+                 .fill(Paint::recipe(field::noise(0.06f, 4, 7.0f)))
                  .opacity(0.16f)
                  .blend(SkBlendMode::kOverlay))
       .foreground(styles::BevelEmboss{
@@ -385,7 +396,7 @@ inline Element rivets(float w, float h, float inset = 11) {
         .corners({3})
         .left(x - 3)
         .top(y - 3)
-        .fill(Material::radial(
+        .fill(Paint::radial(
             {3, 3}, 3.4f,
             {{0.0f, kBronzeLit}, {0.7f, kBronze}, {1.0f, kBronzeDim}}));
   };
@@ -449,7 +460,7 @@ struct LootGrid final : sketch::Sketch {
     ctx.canvas(kSceneSize.fWidth, kSceneSize.fHeight);
     ctx.background({0, 0, 0, 1});
     ctx.captureAt(5.1);
-    displayFace = pickFace({"Papyrus", "Baskerville", "Hoefler Text",
+    displayFace = weave::ports::pickTypeface({"Papyrus", "Baskerville", "Hoefler Text",
                             "Iowan Old Style", "Georgia"},
                            600);
     Composer& composer = ctx.composer;
@@ -538,7 +549,7 @@ struct LootGrid final : sketch::Sketch {
               // loudest thing on the screen and turns a hoard into a
               // status grid, so what quality carries here is a hairline
               // and, for the two lit ranks, a bloom.
-              .fill(Material::linear({0, 0}, {0, h},
+              .fill(Paint::linear({0, 0}, {0, h},
                                      {{0.0f, {0.10f, 0.095f, 0.082f, 0.92f}},
                                       {1.0f, {0.05f, 0.048f, 0.042f, 0.92f}}}))
               .foreground(stroke(
@@ -561,9 +572,9 @@ struct LootGrid final : sketch::Sketch {
                 .height(Dim(h * 1.8f))
                 .left(-w * 0.4f)
                 .top(-h * 0.4f)
-                .translateX(bind(&shimmer).target(-70, 170))
+                .translateX(motion::bind(&shimmer).target(-70, 170))
                 .rotate(18.0f)
-                .fill(Material::linear({0, 0}, {w * 0.35f, 0},
+                .fill(Paint::linear({0, 0}, {w * 0.35f, 0},
                                        {{0.0f, {1, 1, 1, 0.0f}},
                                         {0.5f, {1, 1, 1, 0.30f}},
                                         {1.0f, {1, 1, 1, 0.0f}}}))
@@ -584,7 +595,7 @@ struct LootGrid final : sketch::Sketch {
             .top(0)
             .translateX(&dragX)
             .translateY(&dragY)
-            .fill(Material::solid({0.16f, 0.80f, 0.24f, 0.26f}))
+            .fill(Paint::solid({0.16f, 0.80f, 0.24f, 0.26f}))
             .foreground(stroke(1.4f, Fill::color({0.35f, 1.0f, 0.45f, 0.75f})))
             .opacity(&fitsMix)
             .zIndex(5));
@@ -597,7 +608,7 @@ struct LootGrid final : sketch::Sketch {
             .top(0)
             .translateX(&dragX)
             .translateY(&dragY)
-            .fill(Material::solid({0.90f, 0.16f, 0.14f, 0.30f}))
+            .fill(Paint::solid({0.90f, 0.16f, 0.14f, 0.30f}))
             .foreground(stroke(1.4f, Fill::color({1.0f, 0.35f, 0.30f, 0.8f})))
             .opacity(&blockedMix)
             .zIndex(6));
@@ -621,7 +632,7 @@ struct LootGrid final : sketch::Sketch {
         .height(Dim(690.0f))
         .left(30.0f)
         .top(96.0f)
-        .child(text(toU8("HOARD"), type({.size = 12,
+        .child(text(toU8("HOARD"), weave::textStyle({.size = 12,
                                          .color = lt::kBronzeLit,
                                          .track = 4.5f,
                                          .weight = 650}))
@@ -629,7 +640,7 @@ struct LootGrid final : sketch::Sketch {
                    .top(492.0f))
         .child(text(toU8("10 \xc3\x97"
                          " 4"),
-                    type({.size = 11, .color = lt::kAsh, .track = 2.0f}))
+                    weave::textStyle({.size = 11, .color = lt::kAsh, .track = 2.0f}))
                    .left(398.0f)
                    .top(493.0f))
         .child(std::move(grid));
@@ -705,7 +716,7 @@ struct LootGrid final : sketch::Sketch {
                 // The same rule as the hoard's cells: the socket is a dark
                 // well whatever is worn in it, and quality is a hairline.
                 .fill(
-                    Material::linear({0, 0}, {0, h},
+                    Paint::linear({0, 0}, {0, h},
                                      {{0.0f, {0.10f, 0.095f, 0.082f, 0.95f}},
                                       {1.0f, {0.05f, 0.048f, 0.042f, 0.95f}}}))
                 .foreground(
@@ -734,7 +745,7 @@ struct LootGrid final : sketch::Sketch {
         // is read by.
         const bool narrow = s.w < 2;
         socket.child(
-            text(toU8(s.label), type({.size = 7.0f,
+            text(toU8(s.label), weave::textStyle({.size = 7.0f,
                                       .color = lt::kAsh,
                                       .track = narrow ? 0.4f : 1.3f,
                                       .condense = narrow ? 0.86f : 1.0f}))
@@ -755,13 +766,13 @@ struct LootGrid final : sketch::Sketch {
           .width(Dim(166.0f))
           .alignItems(Align::Center)
           .child(text(toU8(label),
-                      type({.size = 10.5f, .color = lt::kAsh, .track = 1.1f})))
+                      weave::textStyle({.size = 10.5f, .color = lt::kAsh, .track = 1.1f})))
           .child(box()
                      .grow(1)
                      .height(Dim(1.0f))
                      .margin(6, 0, 6, 0)
-                     .fill(Material::solid({0.42f, 0.38f, 0.31f, 0.28f})))
-          .child(text(toU8(value), type({.size = 12,
+                     .fill(Paint::solid({0.42f, 0.38f, 0.31f, 0.28f})))
+          .child(text(toU8(value), weave::textStyle({.size = 12,
                                          .color = valueColor,
                                          .track = 0.5f,
                                          .weight = 620})));
@@ -798,7 +809,7 @@ struct LootGrid final : sketch::Sketch {
         .top(96)
         .child(loot::panel(pw, ph).inset(0))
         .child(loot::rivets(pw, ph))
-        .child(text(toU8("EQUIPPED"), type({.size = 12,
+        .child(text(toU8("EQUIPPED"), weave::textStyle({.size = 12,
                                             .color = lt::kBronzeLit,
                                             .track = 4.5f,
                                             .weight = 650}))
@@ -814,7 +825,7 @@ struct LootGrid final : sketch::Sketch {
     using namespace std::chrono_literals;
     const SkColor4f rc = lt::rarityColor(lt::Rarity::Unique);
     auto line = [&](const char* s, SkColor4f c) {
-      return text(toU8(s), type({.size = 11.5f, .color = c, .track = 0.2f}));
+      return text(toU8(s), weave::textStyle({.size = 11.5f, .color = c, .track = 0.2f}));
     };
     return box()
         .width(Dim(300.0f))
@@ -825,12 +836,12 @@ struct LootGrid final : sketch::Sketch {
         .padding(14, 11)
         .gap(2)
         .corners({2})
-        .fill(Material::solid({0.02f, 0.02f, 0.02f, 0.90f}))
+        .fill(Paint::solid({0.02f, 0.02f, 0.02f, 0.90f}))
         .foreground(stroke(1.0f, Fill::color({rc.fR, rc.fG, rc.fB, 0.45f})))
         .background(styles::dropShadow({0, 0, 0, 0.7f}, {0, 5}, 12))
         .key("tooltip")
-        .opacity(animate(from(0.0f).to(1.0f), {380ms}))
-        .translateY(animate(from(8.0f).to(0.0f), {460ms}))
+        .opacity(animate(motion::from(0.0f).to(1.0f), {380ms}))
+        .translateY(animate(motion::from(8.0f).to(0.0f), {460ms}))
         .zIndex(9)
         // THE NAME IS THE ONE PLACE QUALITY IS SPELLED OUT, so it is set
         // in a display face rather than in the sheet's grotesque: Diablo
@@ -838,13 +849,13 @@ struct LootGrid final : sketch::Sketch {
         // everything else in a small serif, and the difference between
         // those two registers is most of what makes a tooltip feel like
         // that game's tooltip.
-        .child(text(toU8("Doomslinger"), type({.face = displayFace,
+        .child(text(toU8("Doomslinger"), weave::textStyle({.face = displayFace,
                                                .size = 17,
                                                .color = rc,
                                                .track = 1.2f,
                                                .weight = 620})))
         .child(text(toU8("Colossus Blade"),
-                    type({.size = 11.5f, .color = lt::kParch, .track = 0.8f}))
+                    weave::textStyle({.size = 11.5f, .color = lt::kParch, .track = 0.8f}))
                    .margin(0, 0, 0, 6))
         .child(line("189% Enhanced Damage", lt::rarityColor(lt::Rarity::Magic)))
         .child(line("+2 to Fire Skills", lt::rarityColor(lt::Rarity::Magic)))
@@ -857,7 +868,7 @@ struct LootGrid final : sketch::Sketch {
                 .width(Dim(180.0f))
                 .height(Dim(1.0f))
                 .margin(0, 7, 0, 5)
-                .fill(Material::linear({0, 0}, {180, 0},
+                .fill(Paint::linear({0, 0}, {180, 0},
                                        {{0.0f, {rc.fR, rc.fG, rc.fB, 0.0f}},
                                         {0.5f, {rc.fR, rc.fG, rc.fB, 0.5f}},
                                         {1.0f, {rc.fR, rc.fG, rc.fB, 0.0f}}})))
@@ -889,7 +900,7 @@ struct LootGrid final : sketch::Sketch {
                          kHeld[i], lt::kCell * 0.6f, lt::kCell * 0.7f,
                          i == 3 ? hex(0xB9A06A) : hex(0xC24040), i != 3)));
       slot.child(text(toU8(kKeys[i]),
-                      type({.size = 8, .color = lt::kAsh, .track = 0.4f}))
+                      weave::textStyle({.size = 8, .color = lt::kAsh, .track = 0.4f}))
                      .left(3)
                      .top(2));
       rack.child(std::move(slot));
@@ -899,7 +910,7 @@ struct LootGrid final : sketch::Sketch {
         .gap(7)
         .left(500)
         .top(150)
-        .child(text(toU8("BELT"), type({.size = 12,
+        .child(text(toU8("BELT"), weave::textStyle({.size = 12,
                                         .color = lt::kBronzeLit,
                                         .track = 4.5f,
                                         .weight = 650})))
@@ -938,7 +949,7 @@ struct LootGrid final : sketch::Sketch {
         .top(560)
         .child(text(toU8("HORADRIC CUBE \xc2\xb7 3 \xc3\x97"
                          " 4"),
-                    type({.size = 12,
+                    weave::textStyle({.size = 12,
                           .color = lt::kBronzeLit,
                           .track = 4.5f,
                           .weight = 650})))
@@ -950,7 +961,7 @@ struct LootGrid final : sketch::Sketch {
     char goldText[32];
     std::snprintf(goldText, sizeof(goldText), "%d", gold);
 
-    auto root = stack().fill(Material::linear(
+    auto root = stack().fill(Paint::linear(
         {0, 0}, {0, lt::kH},
         {{0.0f, hex(0x0D0C0A)}, {0.5f, hex(0x14120F)}, {1.0f, hex(0x080706)}}));
 
@@ -977,16 +988,17 @@ struct LootGrid final : sketch::Sketch {
             .bakeScale(0.34f)
             .child(box()
                        .inset(0)
-                       .fill(patterns::noise(0.9f, 4, 3.0f))
+                       .fill(Paint::recipe(field::noise(0.9f, 4, 3.0f)))
                        .opacity(0.34f)
                        .blend(SkBlendMode::kOverlay))
             .child(box().inset(0).fill(
-                patterns::gridLines(96.0f, 1.0f, {0.62f, 0.50f, 0.26f, 0.10f})
+                Pattern(mpattern::gridLines(96.0f, 1.0f,
+                                            {0.62f, 0.50f, 0.26f, 0.10f}))
                     .material()))
             .child(box()
                        .inset(0)
-                       .fill(patterns::gridLines(96.0f, 1.0f,
-                                                 {0.0f, 0.0f, 0.0f, 0.22f})
+                       .fill(Pattern(mpattern::gridLines(
+                                         96.0f, 1.0f, {0.0f, 0.0f, 0.0f, 0.22f}))
                                  .material())
                        .translateX(1.0f)
                        .translateY(1.0f)));
@@ -997,13 +1009,13 @@ struct LootGrid final : sketch::Sketch {
             .left(30)
             .top(34)
             .child(
-                text(toU8("HOARD OF THE HORADRIM"), type({.size = 23,
+                text(toU8("HOARD OF THE HORADRIM"), weave::textStyle({.size = 23,
                                                           .color = lt::kParch,
                                                           .track = 3.4f,
                                                           .weight = 640})))
             .child(text(toU8("grid inventory \xe2\x80\x94 generated "
                              "materials, no sprites"),
-                        type({.size = 12, .color = lt::kAsh, .track = 1.0f}))
+                        weave::textStyle({.size = 12, .color = lt::kAsh, .track = 1.0f}))
                        .margin(0, 5, 0, 0)));
 
     root.child(paperdoll());
@@ -1022,23 +1034,23 @@ struct LootGrid final : sketch::Sketch {
             .top(38)
             .padding(13, 7)
             .corners({3})
-            .fill(Material::linear(
+            .fill(Paint::linear(
                 {0, 0}, {0, 32}, {{0.0f, lt::kStoneHi}, {1.0f, lt::kStoneLo}}))
             .foreground(stroke(1.0f, Fill::color(lt::kBronzeDim)))
             .child(box()
                        .width(Dim(13.0f))
                        .height(Dim(13.0f))
                        .corners({6.5f})
-                       .fill(Material::radial({5, 4}, 9,
+                       .fill(Paint::radial({5, 4}, 9,
                                               {{0.0f, hex(0xFFE9A8)},
                                                {0.6f, hex(0xD8A93C)},
                                                {1.0f, hex(0x7A5C15)}})))
-            .child(text(toU8(goldText), type({.size = 17,
+            .child(text(toU8(goldText), weave::textStyle({.size = 17,
                                               .color = hex(0xD8B95C),
                                               .track = 1.6f,
                                               .weight = 620})))
             .child(text(toU8("GOLD"),
-                        type({.size = 10, .color = lt::kAsh, .track = 2.2f}))));
+                        weave::textStyle({.size = 10, .color = lt::kAsh, .track = 2.2f}))));
 
     // the legend for the rarity ladder, bottom right
     auto chip = [&](lt::Rarity r, const char* label) {
@@ -1051,11 +1063,11 @@ struct LootGrid final : sketch::Sketch {
                      .width(Dim(9.0f))
                      .height(Dim(9.0f))
                      .corners({1.5f})
-                     .fill(Material::solid(
+                     .fill(Paint::solid(
                          {c.fR * 0.35f, c.fG * 0.35f, c.fB * 0.35f, 1}))
                      .foreground(stroke(1.0f, Fill::color(c))))
           .child(text(toU8(label),
-                      type({.size = 10.5f, .color = c, .track = 0.8f})));
+                      weave::textStyle({.size = 10.5f, .color = c, .track = 0.8f})));
     };
     root.child(box()
                    .row()
@@ -1080,23 +1092,23 @@ struct LootGrid final : sketch::Sketch {
                        .width(Dim(11.0f))
                        .height(Dim(11.0f))
                        .corners({2})
-                       .fill(Material::solid({0.16f, 0.80f, 0.24f, 0.30f}))
+                       .fill(Paint::solid({0.16f, 0.80f, 0.24f, 0.30f}))
                        .foreground(stroke(
                            1.0f, Fill::color({0.35f, 1.0f, 0.45f, 0.8f}))))
             .child(
                 text(toU8("fits"),
-                     type({.size = 10.5f, .color = lt::kAsh, .track = 0.8f})))
+                     weave::textStyle({.size = 10.5f, .color = lt::kAsh, .track = 0.8f})))
             .child(box()
                        .width(Dim(11.0f))
                        .height(Dim(11.0f))
                        .corners({2})
                        .margin(10, 0, 0, 0)
-                       .fill(Material::solid({0.90f, 0.16f, 0.14f, 0.34f}))
+                       .fill(Paint::solid({0.90f, 0.16f, 0.14f, 0.34f}))
                        .foreground(stroke(
                            1.0f, Fill::color({1.0f, 0.35f, 0.30f, 0.8f}))))
             .child(
                 text(toU8("blocked"),
-                     type({.size = 10.5f, .color = lt::kAsh, .track = 0.8f}))));
+                     weave::textStyle({.size = 10.5f, .color = lt::kAsh, .track = 0.8f}))));
     return root;
   }
 };
