@@ -58,9 +58,11 @@ std::optional<Model> alembic(const void* bytes, size_t size,
 
 /** Import from memory. @p pathHint names the source ("duck.glb",
  *  a path, a URL path) — its extension picks the format; without a
- *  useful extension the bytes are sniffed (GLB magic, glTF JSON,
- *  Ogawa magic, binary STL's size arithmetic). Returns nullopt on
- *  unknown format or malformed content. */
+ *  useful extension the bytes are sniffed (GLB magic, glTF JSON, Ogawa
+ *  magic, a .geo's or a PLY's opening line, binary STL's size
+ *  arithmetic), so everything the extension table names except OBJ, which
+ *  has no signature. Returns nullopt on unknown format or malformed
+ *  content. */
 std::optional<Model> model(const void* bytes, size_t size,
                            std::string_view pathHint,
                            const Resolver& resolve = {});

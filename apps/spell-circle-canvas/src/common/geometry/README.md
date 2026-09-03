@@ -636,7 +636,11 @@ declares; `PlyEncode.cpp` is the writer.
   a path hint, or from a file with its siblings resolved; and
   `decode::alembic()` with `AlembicOptions` choosing the time. OBJ (with
   MTL), glTF 2.0 as `.gltf` or `.glb`, ascii and binary STL, ascii and
-  binary-little-endian PLY, Ogawa Alembic, and Houdini's JSON `.geo`.
+  binary-little-endian PLY, Ogawa Alembic, and Houdini's JSON `.geo`. A
+  hint carrying no useful extension — a blob off a wire, out of a cache,
+  or from a URL path ending in nothing — falls through to a sniff, and the
+  sniff covers every one of those but OBJ, which has no signature to be
+  known by.
 - **`mesh/codec/Encode.h`** — the door out: `encode::ply()` over a `Cloud` or a
   `Mesh`, ascii by default or binary via `PlyOptions`.
 

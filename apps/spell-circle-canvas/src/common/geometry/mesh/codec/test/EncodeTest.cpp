@@ -255,3 +255,26 @@ TEST(Save, PlyWritesPrimLanesAsFaceProperties) {
   ASSERT_EQ(back->parts.size(), 1u);
   EXPECT_EQ(back->parts.front().mesh.triangleCount(), 2u);
 }
+
+TEST(Save, WhatIsWrittenIsSniffableWithNoExtensionToGoOn) {
+  // A blob arriving over the wire, out of a cache, or from a URL whose
+  // path ends in nothing carries no extension for `model()` to dispatch
+  // on, and then the bytes have to speak for themselves. The one format
+  // this library also WRITES must be first among those: a file it made
+  // has to come back through a hint that says nothing about it.
+  const Mesh mesh = splitQuad();
+  for (bool binary : {false, true}) {
+    const std::string bytes = codec::encode::ply(mesh, {.binary = binary});
+    ASSERT_FALSE(bytes.empty());
+    for (const char* hint : {"", "download", "dir.d/blob", "blob.dat"}) {
+      const auto back =
+          codec::decode::model(bytes.data(), bytes.size(), hint);
+      ASSERT_TRUE(back.has_value())
+          << (binary ? "binary" : "ascii") << " under hint '" << hint << "'";
+      ASSERT_EQ(back->parts.size(), 1u);
+      EXPECT_EQ(back->parts.front().mesh.triangleCount(),
+                mesh.triangleCount());
+      EXPECT_EQ(back->parts.front().mesh.vertexCount(), mesh.vertexCount());
+    }
+  }
+}
