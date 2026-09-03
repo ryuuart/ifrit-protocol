@@ -11,12 +11,14 @@ pragma ComponentBehavior: Bound
 // the canvas keeps presenting while the browser is read: SELECTION is a
 // look — it moves the inspector and nothing else — and ENTER is what
 // moves the canvas. The resident set is what makes that worth doing,
-// because a sketch already opened comes back without being built again.
+// because a sketch already opened comes back without being compiled again;
+// its runtime session is fresh so its entrance animation still plays.
 
 import QtCore
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
+import Ifrit.Ui 1.0 as Ui
 import Sigil.Sketchbook
 
 ApplicationWindow {
@@ -72,6 +74,10 @@ ApplicationWindow {
     property var rows: []
     property var cards: []
     property var folders: []
+    /** Session-only facts keyed by registry index. They overlay the stable
+     *  browser models so learning one canvas does not remount every thumbnail. */
+    property var learnedSketches: ({})
+    property int rebuildGeneration: 0
 
     onViewModeChanged: settings.viewMode = window.viewMode
     onInspectorOpenChanged: settings.inspectorOpen = window.inspectorOpen
@@ -96,7 +102,8 @@ ApplicationWindow {
     })
 
     readonly property var selectedSketch:
-        window.sketchAt(window.selectedIndex) ?? window.blankSketch
+        window.learnedSketches[window.selectedIndex]
+            ?? window.sketchAt(window.selectedIndex) ?? window.blankSketch
 
     function sketchAt(index) {
         const all = catalog.sketches;
@@ -184,6 +191,12 @@ ApplicationWindow {
     // ---- The rows --------------------------------------------------------
 
     function rebuild() {
+        // Replacing either JavaScript-array model makes its view choose a
+        // fresh contentY. Keep the reader's place across facts learned from
+        // a newly presented sketch (and across any other registry rebuild).
+        const listScroll = sketchList.scrollPosition();
+        const galleryScroll = gallery.scrollPosition();
+        const generation = ++window.rebuildGeneration;
         const terms = window.parseFilter(window.filterText);
         const all = catalog.sketches;
         let found = [];
@@ -262,6 +275,15 @@ ApplicationWindow {
                 }
             }
         }
+
+        // The views apply their new models on the next event-loop turn.
+        // Only the latest rebuild gets to put the saved positions back.
+        Qt.callLater(function() {
+            if (generation !== window.rebuildGeneration)
+                return;
+            sketchList.restoreScrollPosition(listScroll);
+            gallery.restoreScrollPosition(galleryScroll);
+        });
     }
 
     function toggleGroup(name) {
@@ -394,9 +416,9 @@ ApplicationWindow {
     // ---- Everything a sketch says about itself ----------------------------
     SketchCatalog { id: catalog }
 
-    // A row that has just learned its canvas may belong under a
-    // different heading than the one it is under, so the rows are made
-    // again rather than patched in place.
+    // A future structural catalog replacement still rebuilds the browser.
+    // learn() takes the row-local overlay path below instead, because a
+    // model reset would remount every asynchronous thumbnail.
     Connections {
         target: catalog
         function onSketchesChanged() { window.rebuild(); }
@@ -411,13 +433,21 @@ ApplicationWindow {
         target: view
         function onMetricsChanged() {
             const stats = view.metrics;
-            if (stats.sketchIndex !== undefined)
-                catalog.learn(stats.sketchIndex, stats.canvas ?? "",
-                              stats.moment ?? -1, stats.background ?? "");
+            if (stats.sketchIndex === undefined)
+                return;
+            const learned = catalog.learn(
+                stats.sketchIndex, stats.canvas ?? "",
+                stats.moment ?? -1, stats.background ?? "");
+            if (learned.sketchIndex === undefined)
+                return;
+            let next = ({});
+            for (const index in window.learnedSketches)
+                next[index] = window.learnedSketches[index];
+            next[learned.sketchIndex] = learned;
+            window.learnedSketches = next;
         }
         function onSketchIndexChanged() {
             window.selectedIndex = view.sketchIndex;
-            window.reveal();
         }
     }
 
@@ -501,6 +531,7 @@ ApplicationWindow {
                     anchors.fill: parent
                     visible: window.viewMode === "list"
                     rows: window.rows
+                    learnedSketches: window.learnedSketches
                     selectedIndex: window.selectedIndex
                     presentedIndex: view.sketchIndex
                     sortKey: window.sortKey
@@ -518,6 +549,7 @@ ApplicationWindow {
                     anchors.fill: parent
                     visible: window.viewMode === "gallery"
                     cards: window.cards
+                    learnedSketches: window.learnedSketches
                     folders: window.folders
                     folder: window.folder
                     selectedIndex: window.selectedIndex
@@ -535,100 +567,140 @@ ApplicationWindow {
                 SplitView.minimumWidth: 300
                 spacing: 0
 
-                SketchbookView {
-                    id: view
+                Ui.PanZoomCanvas {
+                    id: canvasViewport
 
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    // Captures run on the render thread; the saved path
-                    // (or an empty string on failure) arrives
-                    // asynchronously.
-                    onCaptureReady: path => window.showCapture(path)
+                    canvasWidth: {
+                        const dimensions = (view.metrics.canvas ?? "")
+                            .split("x");
+                        const value = Number(dimensions[0]);
+                        return dimensions.length === 2 && value > 0
+                            ? value : 900;
+                    }
+                    canvasHeight: {
+                        const dimensions = (view.metrics.canvas ?? "")
+                            .split("x");
+                        const value = Number(dimensions[1]);
+                        return dimensions.length === 2 && value > 0
+                            ? value : 640;
+                    }
+                    checkerboardVisible: false
+                    // The largest registry canvases still fit inside the
+                    // common 16K texture limit at 4× on a Retina screen.
+                    maximumScale: 4.0
+                    panButtons: Qt.MiddleButton
+                    showPanCursor: false
+                    // A set sketch owns the ordinary wheel for camera
+                    // distance. Ctrl-wheel still reaches zoom below.
+                    mouseWheelZoomEnabled: !view.orbitable
 
-                    // Orbit, for the sketches that have a viewpoint to
-                    // move. A drag is yaw and pitch; the wheel is
-                    // distance. A sketch with no viewpoint gets no
-                    // handler at all, so a drag over a drawn tree does
-                    // nothing rather than something invisible.
-                    //
-                    // EVERY GESTURE STARTS FROM WHERE THE SKETCH STANDS,
-                    // read off the view at the moment it begins, so an
-                    // untouched sketch is seen from the camera it
-                    // declared and the first drag moves that camera
-                    // rather than replacing it.
-                    property real yaw: 0
-                    property real pitch: 0
-                    property real distance: 0
+                    SketchbookView {
+                        id: view
 
-                    DragHandler {
-                        enabled: view.orbitable
-                        target: null
-                        property real startYaw: 0
-                        property real startPitch: 0
-                        onActiveChanged: {
-                            if (active) {
-                                startYaw = view.orbitYaw;
-                                startPitch = view.orbitPitch;
-                                view.distance = view.orbitDistance;
+                        anchors.fill: parent
+                        // Captures run on the render thread; the saved path
+                        // (or an empty string on failure) arrives
+                        // asynchronously.
+                        onCaptureReady: path => window.showCapture(path)
+
+                        // Orbit, for the sketches that have a viewpoint to
+                        // move. A drag is yaw and pitch; the wheel is
+                        // distance. A sketch with no viewpoint gets no
+                        // handler at all, so a drag over a drawn tree does
+                        // nothing rather than something invisible.
+                        //
+                        // EVERY GESTURE STARTS FROM WHERE THE SKETCH STANDS,
+                        // read off the view at the moment it begins, so an
+                        // untouched sketch is seen from the camera it
+                        // declared and the first drag moves that camera
+                        // rather than replacing it.
+                        property real yaw: 0
+                        property real pitch: 0
+                        property real distance: 0
+
+                        DragHandler {
+                            enabled: view.orbitable
+                            target: null
+                            property real startYaw: 0
+                            property real startPitch: 0
+                            onActiveChanged: {
+                                if (active) {
+                                    startYaw = view.orbitYaw;
+                                    startPitch = view.orbitPitch;
+                                    view.distance = view.orbitDistance;
+                                }
+                            }
+                            onTranslationChanged: {
+                                view.yaw = startYaw - translation.x * 0.4;
+                                view.pitch = startPitch + translation.y * 0.3;
+                                view.orbit(view.yaw, view.pitch, view.distance);
                             }
                         }
-                        onTranslationChanged: {
-                            view.yaw = startYaw - translation.x * 0.4;
-                            view.pitch = startPitch + translation.y * 0.3;
-                            view.orbit(view.yaw, view.pitch, view.distance);
+                        WheelHandler {
+                            enabled: view.orbitable
+                            onWheel: event => {
+                                if (event.modifiers & Qt.ControlModifier) {
+                                    const point = view.mapToItem(
+                                        canvasViewport, event.x, event.y);
+                                    const factor = Math.pow(
+                                        1.4, event.angleDelta.y / 120.0);
+                                    canvasViewport.zoomAt(
+                                        factor, point.x, point.y);
+                                    return;
+                                }
+                                view.yaw = view.orbitYaw;
+                                view.pitch = view.orbitPitch;
+                                view.distance = Math.max(
+                                    40,
+                                    view.orbitDistance
+                                        - event.angleDelta.y * 0.5);
+                                view.orbit(
+                                    view.yaw, view.pitch, view.distance);
+                            }
                         }
-                    }
-                    WheelHandler {
-                        enabled: view.orbitable
-                        onWheel: event => {
-                            view.yaw = view.orbitYaw;
-                            view.pitch = view.orbitPitch;
-                            view.distance = Math.max(
-                                40,
-                                view.orbitDistance - event.angleDelta.y * 0.5);
-                            view.orbit(view.yaw, view.pitch, view.distance);
-                        }
-                    }
 
-                    // The pointer and the keys, for the sketches that
-                    // read them. Neither handler takes the grab, so the
-                    // orbit above still drags a set; a sketch with
-                    // nothing for a pointer to do ignores what arrives.
-                    // The hover reports where the pointer stands with
-                    // no button down, the point handler while one is,
-                    // and a click gives this canvas the keyboard — so
-                    // the keys go to the sketch after it is clicked and
-                    // back to the list when the list is.
-                    HoverHandler {
-                        id: hover
-                        onPointChanged: {
-                            if (!press.active)
-                                view.pointer(point.position.x,
-                                             point.position.y, false);
+                        // The pointer and the keys, for the sketches that
+                        // read them. Neither handler takes the grab, so the
+                        // orbit above still drags a set; a sketch with
+                        // nothing for a pointer to do ignores what arrives.
+                        // The hover reports where the pointer stands with
+                        // no button down, the point handler while one is,
+                        // and a click gives this canvas the keyboard — so
+                        // the keys go to the sketch after it is clicked and
+                        // back to the list when the list is.
+                        HoverHandler {
+                            id: hover
+                            onPointChanged: {
+                                if (!press.active)
+                                    view.pointer(point.position.x,
+                                                 point.position.y, false);
+                            }
                         }
-                    }
-                    PointHandler {
-                        id: press
-                        acceptedButtons: Qt.LeftButton
-                        onActiveChanged: view.pointer(point.position.x,
-                                                      point.position.y,
-                                                      active)
-                        onPointChanged: {
-                            if (active)
-                                view.pointer(point.position.x,
-                                             point.position.y, true);
+                        PointHandler {
+                            id: press
+                            acceptedButtons: Qt.LeftButton
+                            onActiveChanged: view.pointer(point.position.x,
+                                                          point.position.y,
+                                                          active)
+                            onPointChanged: {
+                                if (active)
+                                    view.pointer(point.position.x,
+                                                 point.position.y, true);
+                            }
                         }
-                    }
-                    TapHandler {
-                        onTapped: view.forceActiveFocus()
-                    }
-                    Keys.onPressed: event => {
-                        view.key(event.key, event.text, true);
-                        event.accepted = true;
-                    }
-                    Keys.onReleased: event => {
-                        view.key(event.key, event.text, false);
-                        event.accepted = true;
+                        TapHandler {
+                            onTapped: view.forceActiveFocus()
+                        }
+                        Keys.onPressed: event => {
+                            view.key(event.key, event.text, true);
+                            event.accepted = true;
+                        }
+                        Keys.onReleased: event => {
+                            view.key(event.key, event.text, false);
+                            event.accepted = true;
+                        }
                     }
                 }
 
@@ -687,7 +759,9 @@ ApplicationWindow {
             sketch: view.metrics.sketch ?? ""
             path: window.sketchAt(view.sketchIndex)?.path ?? ""
             hints: "↑↓ select · ⏎ open · / filter"
-                + (view.orbitable ? " · drag to orbit" : "")
+                + (view.orbitable
+                    ? " · drag/wheel orbit · ctrl-wheel zoom"
+                    : " · wheel zoom · middle-drag pan")
                 + (view.activeFocus ? " · keys go to the sketch" : "")
             paused: view.paused
             timeScale: view.timeScale

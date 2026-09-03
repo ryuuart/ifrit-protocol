@@ -342,6 +342,20 @@ void Host::openSession(const Kind& kind) {
   m_drawMs.clear();
 }
 
+bool Host::restartSession() {
+  if (!m_kind) return false;
+  openSession(m_kind);
+  // The new Session owns its own fresh clock and ticker. Reset the host-side
+  // clock as well so asset polling and crash-report frame coordinates describe
+  // the same new run, not the session that was just released.
+  m_clock = motion::FrameClock{};
+  m_lastAssetPoll = 0.0;
+  m_frameIndex = -1;
+  m_presentSince.reset();
+  m_presentMs.clear();
+  return m_session != nullptr;
+}
+
 SkSize Host::canvasSize() const {
   return m_session ? m_session->canvas().size : kUnloaded.size;
 }

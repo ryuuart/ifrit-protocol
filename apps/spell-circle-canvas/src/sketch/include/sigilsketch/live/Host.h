@@ -129,6 +129,11 @@ class Host {
   [[nodiscard]] bool compiling() const { return m_compile.valid(); }
   [[nodiscard]] bool live() const { return m_session != nullptr; }
   [[nodiscard]] int generation() const { return m_generation; }
+  /** Reopens the current kind as a fresh runtime session without compiling
+   *  it again. The host's watched source, loaded libraries and asset cache
+   *  stay warm, while setup, clocks, Outputs and mount transitions all start
+   *  over. Returns false when no kind has loaded yet. */
+  bool restartSession();
   /** The running session, for a host that needs more than a frame from
    *  it — its counters, its viewpoint, its per-node costs. Null until
    *  something has loaded. */

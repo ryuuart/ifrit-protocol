@@ -301,16 +301,19 @@ void SketchbookRenderer::openSketch(int index) {
       });
   SketchbookView::host = presented.host;
   if (!SketchbookView::host) return;
-  // The window's own rolling numbers start over for a session that has
-  // just been built and carry on for one that was already running —
-  // which is what a resident set is for: the readout on return is the
-  // sketch's own history, not a ring filling from zero.
-  if (presented.opened) {
-    m_frameCount = 0;
-    m_submitMsAverage = 0.0;
-  }
+  // Residency keeps the expensive host/compiler warm, but PRESENTATION is
+  // a fresh run. In particular, a retained Composer's mount transitions have
+  // already finished; merely resuming it makes entrance-heavy sketches look
+  // inert when revisited.
+  if (!presented.opened) SketchbookView::host->restartSession();
+  m_frameCount = 0;
+  m_submitMsAverage = 0.0;
   m_metricsDirty = true;
   m_clock = motion::FrameClock{};  // a new sketch starts at its own zero
+  // synchronize() applied these before openSketch(). Replacing the clock
+  // above must not silently unpause it or return it to normal speed.
+  m_clock.setPaused(m_paused);
+  m_clock.setTimeScale(m_timeScale);
   const bool orbits = SketchbookView::host->session() &&
                       SketchbookView::host->session()->hasViewpoint();
   if (m_view) {

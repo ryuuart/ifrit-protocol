@@ -32,6 +32,20 @@ using sigil::sketch::test::kSquare;
 using sigil::sketch::test::Watched;
 using sigil::sketch::test::WatchedDirectory;
 
+/** A body whose setup count makes a runtime-session restart observable. */
+struct Restarted : Sketch {
+  static inline int setups = 0;
+
+  void setup(SketchContext& ctx) override {
+    ++setups;
+    ctx.canvas(120, 90);
+    ctx.composer.render(sigil::compose::box().width(20).height(20));
+  }
+};
+
+Kind restartedKind() { return kindOf<Restarted>(); }
+const Entry kRestarted{"restarted", "restarted", "Test", "", &restartedKind};
+
 Host::Options options(const std::filesystem::path& path) {
   Host::Options opts;
   opts.sketchPath = path;
@@ -52,6 +66,26 @@ TEST(SketchHost, OpensACompiledInSketchWithoutBuildingIt) {
   host.poll();
   EXPECT_FALSE(host.compiling());
   EXPECT_TRUE(host.errorLog().empty());
+}
+
+TEST(SketchHost, RestartsTheRuntimeSessionWithoutBuildingAgain) {
+  const Watched file("sigil_sketch_host_restart");
+  Host::Options opts = options(file.path);
+  opts.compiledIn = &kRestarted;
+  Restarted::setups = 0;
+  Host host(std::move(opts), fonts());
+  ASSERT_TRUE(host.live());
+  EXPECT_EQ(Restarted::setups, 1);
+
+  sk_sp<SkSurface> surface =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(120, 90));
+  host.frame(*surface->getCanvas(), 1.0 / 60.0);
+  EXPECT_GT(host.workMsAverage(), 0.0);
+
+  EXPECT_TRUE(host.restartSession());
+  EXPECT_EQ(Restarted::setups, 2);
+  EXPECT_EQ(host.workMsAverage(), 0.0);
+  EXPECT_FALSE(host.compiling());
 }
 
 TEST(SketchHost, ReportsTheMomentTheSketchDeclared) {

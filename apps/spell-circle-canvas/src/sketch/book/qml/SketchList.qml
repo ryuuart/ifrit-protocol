@@ -19,6 +19,8 @@ Item {
      *  index, and arrow keys that work. Every row carries the same
      *  fields, so a delegate never reads `undefined` off the other kind. */
     property var rows: []
+    /** Learned session facts overlaid by sketchIndex without resetting rows. */
+    property var learnedSketches: ({})
     /** The row the inspector is showing, and the one the canvas is
      *  presenting. They are different questions: browsing moves the
      *  first without disturbing the second. */
@@ -37,6 +39,14 @@ Item {
     function positionAt(row) {
         if (row >= 0)
             rowList.positionViewAtIndex(row, ListView.Contain);
+    }
+    function scrollPosition() { return rowList.contentY; }
+    function restoreScrollPosition(position) {
+        rowList.forceLayout();
+        const first = rowList.originY;
+        const last = Math.max(
+            first, first + rowList.contentHeight - rowList.height);
+        rowList.contentY = Math.max(first, Math.min(position, last));
     }
 
     // The columns, stated once: a heading and its row are the same
@@ -172,7 +182,10 @@ Item {
                 id: row
 
                 required property var modelData
-                readonly property var sketch: row.modelData.sketch
+                readonly property var recordedSketch: row.modelData.sketch
+                readonly property var sketch:
+                    list.learnedSketches[row.recordedSketch.sketchIndex]
+                        ?? row.recordedSketch
 
                 width: rowList.rowWidth
                 height: row.modelData.header ? 30 : 48

@@ -121,10 +121,11 @@ class SketchbookView : public QQuickRhiItem {
    *  set's presented session, held as a pointer because that is what
    *  every frame, poll and capture already reaches for. */
   static sigil::sketch::Host* host;
-  /** THE SESSIONS THIS WINDOW HAS OPENED. Selecting a sketch swaps which
-   *  one is presented rather than building it again, so a switch does
-   *  not re-run setup and the frame windows behind the readout survive a
-   *  look at something else. Under the same mutex as `host`. */
+  /** THE HOSTS THIS WINDOW HAS OPENED. Selecting a sketch swaps which host
+   *  is presented rather than compiling it again. A returning host opens a
+   *  fresh runtime session so setup and entrance animations replay, while its
+   *  compiler, watched source and loaded libraries stay warm. Under the same
+   *  mutex as `host`. */
   static sigil::sketch::Residency sessions;
   static QMutex hostMutex;
 

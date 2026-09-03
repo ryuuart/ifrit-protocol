@@ -18,6 +18,8 @@ Item {
     /** The sketches the filter left, already sorted. No headers: a grid
      *  reads by picture, and the folders are the chips over it. */
     property var cards: []
+    /** Learned session facts overlaid by sketchIndex without resetting cards. */
+    property var learnedSketches: ({})
     /** Every folder with a count, plus the one that is on. */
     property var folders: []
     property string folder: ""
@@ -33,6 +35,13 @@ Item {
     function positionAt(row) {
         if (row >= 0)
             grid.positionViewAtIndex(row, GridView.Contain);
+    }
+    function scrollPosition() { return grid.contentY; }
+    function restoreScrollPosition(position) {
+        grid.forceLayout();
+        const first = grid.originY;
+        const last = Math.max(first, first + grid.contentHeight - grid.height);
+        grid.contentY = Math.max(first, Math.min(position, last));
     }
     /** How many cards fit across — what an arrow up or down moves by. */
     function columns() { return Math.max(1, Math.floor(grid.width / 230)); }
@@ -139,6 +148,9 @@ Item {
                 id: cell
 
                 required property var modelData
+                readonly property var sketch:
+                    gallery.learnedSketches[cell.modelData.sketchIndex]
+                        ?? cell.modelData
 
                 width: grid.cellWidth
                 height: grid.cellHeight
@@ -147,14 +159,14 @@ Item {
                     anchors.fill: parent
                     anchors.margins: 5
                     radius: 8
-                    color: gallery.selectedIndex === cell.modelData.sketchIndex
+                    color: gallery.selectedIndex === cell.sketch.sketchIndex
                         ? Theme.hover : Theme.panel
                     border.width: 1
                     border.color:
-                        gallery.presentedIndex === cell.modelData.sketchIndex
+                        gallery.presentedIndex === cell.sketch.sketchIndex
                             ? Theme.accent
                             : (cardHover.hovered ? Theme.border : Theme.rule)
-                    opacity: cell.modelData.available ? 1.0 : 0.45
+                    opacity: cell.sketch.available ? 1.0 : 0.45
 
                     ColumnLayout {
                         anchors.fill: parent
@@ -166,14 +178,14 @@ Item {
 
                             Layout.fillWidth: true
                             Layout.preferredHeight: still.width * 0.625
-                            plate: cell.modelData.plate
-                            kind: cell.modelData.kind
+                            plate: cell.sketch.plate
+                            kind: cell.sketch.kind
                             radius: 5
                             decodeWidth: 320
                         }
                         Label {
                             Layout.fillWidth: true
-                            text: cell.modelData.name
+                            text: cell.sketch.name
                             color: Theme.text
                             font.pixelSize: 13
                             font.weight: Font.DemiBold
@@ -182,11 +194,11 @@ Item {
                         Label {
                             Layout.fillWidth: true
                             Layout.fillHeight: true
-                            text: cell.modelData.available
-                                ? cell.modelData.blurb
-                                : "unavailable — " + cell.modelData.reason
-                            color: cell.modelData.available ? Theme.muted
-                                                            : Theme.warn
+                            text: cell.sketch.available
+                                ? cell.sketch.blurb
+                                : "unavailable — " + cell.sketch.reason
+                            color: cell.sketch.available ? Theme.muted
+                                                       : Theme.warn
                             font.pixelSize: 11
                             lineHeight: 1.2
                             wrapMode: Text.WordWrap
@@ -199,14 +211,14 @@ Item {
                             spacing: 7
 
                             Label {
-                                text: cell.modelData.kind
+                                text: cell.sketch.kind
                                 color: Theme.faint
                                 font.family: Theme.mono
                                 font.pixelSize: 10
                             }
                             Label {
-                                text: cell.modelData.canvas.length > 0
-                                    ? cell.modelData.canvas : "—"
+                                text: cell.sketch.canvas.length > 0
+                                    ? cell.sketch.canvas : "—"
                                 color: Theme.faint
                                 font.family: Theme.mono
                                 font.pixelSize: 10
@@ -214,7 +226,7 @@ Item {
                                 Layout.fillWidth: true
                             }
                             Label {
-                                text: cell.modelData.lines + " ln"
+                                text: cell.sketch.lines + " ln"
                                 color: Theme.faint
                                 font.family: Theme.mono
                                 font.pixelSize: 10
@@ -226,11 +238,11 @@ Item {
                     TapHandler {
                         onTapped: {
                             gallery.selectRequested(
-                                cell.modelData.sketchIndex);
+                                cell.sketch.sketchIndex);
                             grid.forceActiveFocus();
                         }
                         onDoubleTapped: gallery.activateRequested(
-                            cell.modelData.sketchIndex)
+                            cell.sketch.sketchIndex)
                     }
                 }
             }

@@ -56,9 +56,11 @@ class SketchCatalog : public QObject {
 
   /** What a running session declared about itself. A row keeps the last
    *  answer it was given: a sketch looked at once still reads its canvas
-   *  back after the resident set has let it go. */
-  Q_INVOKABLE void learn(int index, const QString& canvas, double moment,
-                         const QString& background);
+   *  back after the resident set has let it go. Returns the changed row,
+   *  or an empty map when the answer was already known. Learning one row
+   *  deliberately does not reset the whole sketches model. */
+  Q_INVOKABLE QVariantMap learn(int index, const QString& canvas,
+                                double moment, const QString& background);
 
   /** Render one still of the sketch through this same binary's `--frame`
    *  path, into `captures/` beside the file. */

@@ -292,18 +292,19 @@ SketchCatalog::SketchCatalog(QObject* parent) : QObject(parent) {
   }
 }
 
-void SketchCatalog::learn(int index, const QString& canvas, double moment,
-                          const QString& background) {
-  if (index < 0 || index >= m_rows.size()) return;
+QVariantMap SketchCatalog::learn(int index, const QString& canvas,
+                                 double moment, const QString& background) {
+  if (index < 0 || index >= m_rows.size()) return {};
   QVariantMap row = m_rows[index].toMap();
   if (row.value(QStringLiteral("canvas")).toString() == canvas &&
-      row.value(QStringLiteral("moment")).toDouble() == moment)
-    return;
+      row.value(QStringLiteral("moment")).toDouble() == moment &&
+      row.value(QStringLiteral("background")).toString() == background)
+    return {};
   row.insert(QStringLiteral("canvas"), canvas);
   row.insert(QStringLiteral("moment"), moment);
   row.insert(QStringLiteral("background"), background);
   m_rows[index] = row;
-  emit sketchesChanged();
+  return row;
 }
 
 void SketchCatalog::frame(int index) {

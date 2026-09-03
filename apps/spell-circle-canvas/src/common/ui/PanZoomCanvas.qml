@@ -22,6 +22,17 @@ Item {
     property real minimumScale: 0.04
     property real maximumScale: 16.0
     property bool checkerboardVisible: true
+    /** Which mouse buttons drag the pasteboard. Hosts with interactive
+     *  canvas content can reserve the left button for that content and
+     *  leave panning on the middle button. */
+    property alias panButtons: panArea.acceptedButtons
+    /** Whether an unmodified mouse wheel changes the canvas scale. A host
+     *  that gives the wheel another meaning can turn this off and call
+     *  zoomAt() itself for its modified-wheel gesture. */
+    property bool mouseWheelZoomEnabled: true
+    /** The open-hand cursor is useful when every ordinary drag pans, but
+     *  misleading over interactive content whose left drag does not. */
+    property bool showPanCursor: true
     /** Hides the built-in zoom and canvas-size badges for hosts that show
      *  that information in their own chrome (e.g. the app's activity
      *  panel), keeping the viewport itself unobstructed. */
@@ -181,9 +192,13 @@ Item {
     }
 
     MouseArea {
+        id: panArea
+
         anchors.fill: parent
         acceptedButtons: Qt.MiddleButton | Qt.LeftButton
-        cursorShape: pressed ? Qt.ClosedHandCursor : Qt.OpenHandCursor
+        cursorShape: root.showPanCursor
+            ? (pressed ? Qt.ClosedHandCursor : Qt.OpenHandCursor)
+            : Qt.ArrowCursor
 
         property point previousPointerPosition
 
@@ -211,6 +226,7 @@ Item {
     WheelHandler {
         target: null
         acceptedDevices: PointerDevice.Mouse
+        enabled: root.mouseWheelZoomEnabled
         onWheel: wheelEvent => {
             const zoomFactor = Math.pow(1.4, wheelEvent.angleDelta.y / 120.0);
             root.zoomAt(zoomFactor, wheelEvent.x, wheelEvent.y);
