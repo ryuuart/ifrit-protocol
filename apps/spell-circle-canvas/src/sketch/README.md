@@ -371,6 +371,23 @@ front and antialiases their edges while the other depth-tests them. It
 is the 2D twin of `sketch::runtime()`, which is the whole frame a set
 draws through; a process on a device installs both.
 
+`sketch::device()` — from `<sigilsketch/core/Device.h>`, on both
+surfaces — is the fourth, and the only one that is not a runtime: it is
+the `geometry::device::Device` this process brought up, or **null**,
+which is the CPU tier. Reach for it where a runtime cannot stand in,
+which is a call that takes the device itself because what it does is
+give the device a handle over something the graphics API already holds:
+
+```cpp
+if (auto* on = sketch::device())
+  slot = world::diligent::importNative(*on, native);  // no copy, either way
+```
+
+Null is an answer, not a failure. A plate is taken on the CPU tier, so a
+sketch that reaches through this door says what it draws without one,
+and a sketch whose whole subject needs a device says so through
+`unavailable(...)` rather than drawing an empty set.
+
 ### Three paths for motion, and the order to reach for them
 
 The canvas runtime is retained-mode, not a redraw loop:
@@ -851,8 +868,19 @@ targets do.
   session — so a machine with no device runs every set on the CPU mesh
   executor and the plates it makes are the ones the byte-identity tier
   hashes. `book/` is the only place that installs one, and it installs
-  two: `sketch::useRuntime` for the frame a set draws, and
-  `sketch::usePainterRuntime` for the mesh draws a canvas sketch takes.
+  three: `sketch::useRuntime` for the frame a set draws,
+  `sketch::usePainterRuntime` for the mesh draws a canvas sketch takes,
+  and `sketch::useDevice` for the device itself, which a call that
+  imports a foreign texture names and no runtime can stand in for.
+* **The force-load list is every archive the host links.** A sketch
+  dylib resolves the framework out of the host, so a symbol the host
+  does not contain stops the load. The list is walked from two roots —
+  what `SigilSketches` hands its consumers, and what the host links
+  itself — because an archive only an application brings up, a device
+  backend among them, is in the second and not the first. A gap there is
+  invisible in every compile and every picture and appears at one
+  dlopen, so each root has a reload test that names symbols nothing else
+  does.
 * **The live host is Qt-free.** Everything about watching, compiling and
   swapping is in `live/`; `book/` is the only place a window appears.
 

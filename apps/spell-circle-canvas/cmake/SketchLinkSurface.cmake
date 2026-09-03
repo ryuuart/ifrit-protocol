@@ -1,15 +1,22 @@
-# THE HOT-RELOAD LINK SURFACE, derived from the include surface.
+# THE HOT-RELOAD LINK SURFACE: every archive of this repository's that
+# the host links, force-loaded and re-exported.
 #
 # A sketch dylib links with `-undefined dynamic_lookup` and resolves the
 # framework's symbols out of the host executable, so the host must
 # CONTAIN them — which for a static archive means force-loading it
 # whether or not the host's own translation units reference anything
-# inside. Which archives? Exactly the ones a sketch may link, and what a
-# sketch may link is what the sketch target links: what it may #include
-# is that target's public dependencies, and the flags a hot-reloaded
-# sketch compiles with are lifted from a source of that same target. So
-# the archives are read off the same target rather than written down a
-# second time — a list beside it would drift, and a missing archive is
+# inside. Which archives? EVERY ONE THE HOST LINKS, from both roots: the
+# sketch target's closure, which is what a sketch may #include and the
+# flags a hot-reloaded sketch compiles with are lifted from; and the
+# host's own, which carries the archives a sketch may name but a bare
+# consumer of the sketch target must not be made to link — a device
+# backend among them, which only an application brings up. A symbol
+# reachable from a compiled-in sketch and not from a reloaded one is the
+# defect this exists to rule out, so the rule is the whole of what the
+# host holds rather than a chosen part of it.
+#
+# The roots are read off the targets rather than written down a second
+# time — a list beside them would drift, and a missing archive is
 # invisible everywhere but a dlopen: every sketch still compiles and
 # every compiled-in sketch still runs, and the reloaded one fails with a
 # symbol not found in the flat namespace, only for the symbols no
@@ -44,9 +51,18 @@ endfunction()
 
 function(_sigil_sketch_link_surface_now host sketches)
   cmake_parse_arguments(SURFACE "" "" "EXTRA" ${ARGN})
-  get_target_property(queue ${sketches} INTERFACE_LINK_LIBRARIES)
-  if(NOT queue)
-    set(queue)
+  # Both roots at once: what the sketch target hands its consumers, and
+  # what the host itself links. An executable keeps its own dependencies
+  # in LINK_LIBRARIES and hands nothing to an interface, so the two
+  # properties are different questions and both have to be asked.
+  set(queue)
+  get_target_property(surface ${sketches} INTERFACE_LINK_LIBRARIES)
+  if(surface)
+    list(APPEND queue ${surface})
+  endif()
+  get_target_property(linked ${host} LINK_LIBRARIES)
+  if(linked)
+    list(APPEND queue ${linked})
   endif()
   set(seen)
   while(queue)
@@ -86,5 +102,6 @@ function(_sigil_sketch_link_surface_now host sketches)
   endforeach()
   list(LENGTH archives count)
   message(STATUS
-    "${host} force-loads ${count} archives off ${sketches}'s link surface")
+    "${host} force-loads ${count} archives off its own and ${sketches}'s "
+    "link surface")
 endfunction()

@@ -13,11 +13,13 @@
 add_library(SigilSketchCore STATIC
   Assets.cpp
   Crash.cpp
+  Device.cpp
   Registry.cpp
   Sources.cpp
   ${SIGIL_SKETCH_INCLUDE_DIR}/sigilsketch/core/Assets.h
   ${SIGIL_SKETCH_INCLUDE_DIR}/sigilsketch/core/CanvasSpec.h
   ${SIGIL_SKETCH_INCLUDE_DIR}/sigilsketch/core/Crash.h
+  ${SIGIL_SKETCH_INCLUDE_DIR}/sigilsketch/core/Device.h
   ${SIGIL_SKETCH_INCLUDE_DIR}/sigilsketch/core/Kind.h
   ${SIGIL_SKETCH_INCLUDE_DIR}/sigilsketch/core/Registry.h
   ${SIGIL_SKETCH_INCLUDE_DIR}/sigilsketch/core/Session.h
@@ -29,6 +31,7 @@ target_link_libraries(SigilSketchCore PUBLIC SigilLoader SigilCoreComparable)
 set_target_properties(SigilSketchCore PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 add_executable(sketch_core_test test/AssetsTest.cpp test/CrashTest.cpp
+  test/DeviceTest.cpp
   test/RegistryTest.cpp
   test/SourcesTest.cpp)
 target_include_directories(sketch_core_test PRIVATE ${SIGIL_TEST_SUPPORT_DIR})

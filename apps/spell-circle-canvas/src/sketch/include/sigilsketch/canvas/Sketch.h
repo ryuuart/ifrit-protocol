@@ -12,6 +12,7 @@
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilsketch/core/Assets.h>
 #include <sigilsketch/core/CanvasSpec.h>
+#include <sigilsketch/core/Device.h>
 #include <sigilsketch/core/Registry.h>
 #include <sigilsketch/core/Session.h>
 
@@ -280,7 +281,10 @@ class CanvasKind final : public KindOps {
  *  that draws nothing.
  *
  *  Its own words are SigilGeometry's, from
- *  `<sigilgeometry/mesh/render/Runtime.h>`. */
+ *  `<sigilgeometry/mesh/render/Runtime.h>`.
+ *
+ *  A call that takes the DEVICE itself rather than a runtime over it
+ *  reaches `sketch::device()`, from `<sigilsketch/core/Device.h>`. */
 void usePainterRuntime(const geometry::mesh::render::Runtime& runtime);
 [[nodiscard]] const geometry::mesh::render::Runtime& painterRuntime();
 

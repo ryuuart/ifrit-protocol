@@ -171,6 +171,20 @@ add_test(NAME sketch_reload_surface_set
     ${SIGIL_SKETCH_DIR}/first_light.cpp
     --frame ${CMAKE_BINARY_DIR}/sketch_reload_surface_set.png)
 
+# …and for the archives only the HOST links. A device backend is not in
+# the sketch target's closure — a bare consumer of that target must not
+# be made to link a renderer — so its symbols reach a compiled-in sketch
+# through the host's own link line and reach a reloaded one only if the
+# force-load list covers that line too. Nothing in the registry names
+# one, so the case is a probe file beside this list rather than a sketch:
+# what it asserts is a dlopen, not a picture.
+if(TARGET SigilWorldDiligent)
+  add_test(NAME sketch_reload_surface_device
+    COMMAND Sketchbook
+      ${CMAKE_CURRENT_LIST_DIR}/test/device_import_probe.cpp
+      --frame ${CMAKE_BINARY_DIR}/sketch_reload_surface_device.png)
+endif()
+
 # …and once more for each optional SDK, on the machines that have one.
 # These name symbols nothing else in the registry names, so an SDK
 # archive missing from the force-load list shows up here alone. A machine

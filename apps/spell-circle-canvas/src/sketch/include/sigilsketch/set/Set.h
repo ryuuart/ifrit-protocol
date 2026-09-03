@@ -8,6 +8,7 @@
 
 #include <sigilsketch/core/Assets.h>
 #include <sigilsketch/core/CanvasSpec.h>
+#include <sigilsketch/core/Device.h>
 #include <sigilsketch/core/Registry.h>
 #include <sigilsketch/core/Session.h>
 #include <sigilworld/element/Element.h>
@@ -162,7 +163,10 @@ template <class SetType>
  *  what a machine with no Vulkan runtime renders on, and it is what a
  *  byte-identity plate is hashed from. A host that brought a device up
  *  says so ONCE — one device, one queue, every session — because a
- *  device is a property of the process and not of a sketch. */
+ *  device is a property of the process and not of a sketch.
+ *
+ *  A call that takes the DEVICE itself rather than a runtime over it
+ *  reaches `sketch::device()`, from `<sigilsketch/core/Device.h>`. */
 void useRuntime(const world::Runtime& runtime);
 [[nodiscard]] const world::Runtime& runtime();
 

@@ -156,6 +156,10 @@ bool useDevice() {
   // …and the 2D twin: a canvas sketch that stands a mesh up in space
   // reaches the same device through sketch::painterRuntime().
   sketch::usePainterRuntime(sigil::world::diligent::painterRuntime(*g_device));
+  // …and the device itself, for the calls no runtime can stand in for:
+  // a foreign texture entering a material slot names the device it
+  // already stands on.
+  sketch::useDevice(g_device.get());
   return true;
 }
 
@@ -165,6 +169,7 @@ bool useDevice() {
  *  their teardown into static destruction, where the locks they want no
  *  longer exist. */
 void releaseDevice() {
+  sketch::useDevice(nullptr);
   sketch::useRuntime({});
   sketch::usePainterRuntime({});
   g_device.reset();
