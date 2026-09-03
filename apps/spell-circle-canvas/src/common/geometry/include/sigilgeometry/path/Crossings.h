@@ -24,6 +24,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <functional>
+#include <span>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -65,6 +67,16 @@ concept CrossingScheme =
       { d.decide(c) } -> std::convertible_to<Order>;
     };
 
+/** A scheme that must see the WHOLE set before it can answer any of it —
+ *  a rule about the walk rather than about one meeting. Declare
+ *  `void prepare(std::span<const Crossing>) const` beside `decide` and a
+ *  holder calls it once per discovery, before the first decide. */
+template <typename D>
+concept PreparedCrossingScheme =
+    CrossingScheme<D> && requires(const D& d, std::span<const Crossing> all) {
+      { d.prepare(all) };
+    };
+
 /** The rule ladder, as ONE comparable value. Climb only as far as the
  *  composition needs:
  *
@@ -87,9 +99,15 @@ class CrossingRule {
     m_equals = [](const std::any& x, const std::any& y) {
       return std::any_cast<const D&>(x) == std::any_cast<const D&>(y);
     };
-    m_decide = [s = std::move(scheme)](const Crossing& c) {
-      return s.decide(c);
-    };
+    if constexpr (PreparedCrossingScheme<D>) {
+      auto held = std::make_shared<D>(std::move(scheme));
+      m_prepare = [held](std::span<const Crossing> all) { held->prepare(all); };
+      m_decide = [held](const Crossing& c) { return held->decide(c); };
+    } else {
+      m_decide = [s = std::move(scheme)](const Crossing& c) {
+        return s.decide(c);
+      };
+    }
   }
 
   static CrossingRule sequence(std::vector<Order> pattern) {
@@ -104,6 +122,28 @@ class CrossingRule {
     r.m_dominance = std::move(dominance);
     return r;
   }
+  /** THE ALTERNATING WEAVE, in the knot-theoretic sense: walk each
+   *  strand from its start and the crossings you meet go over, under,
+   *  over, under. See `crossing::alternateAlong`. */
+  static CrossingRule alternatingAlong() {
+    CrossingRule r;
+    r.m_kind = Kind::AlternatingAlong;
+    return r;
+  }
+
+  /** WHAT THE WHOLE SET SAYS, handed over once per discovery and before
+   *  the first `decide`. A rule about one meeting ignores it; a rule
+   *  about the WALK — every crossing you meet along a strand alternating
+   *  with the one before it — cannot be answered without it, because
+   *  nothing in a single Crossing says how many crossings on its strand
+   *  come before it.
+   *
+   *  A holder that discovers crossings calls this each time it
+   *  rediscovers them and may call it as often as it likes: what it
+   *  computes is a function of the set alone. It does not enter equality
+   *  — it is derived from geometry, not authored — so a rule that has
+   *  been prepared still prunes against the same rule that has not. */
+  void prepare(std::span<const Crossing> all) const;
 
   /** Pin ONE crossing, layered over whatever rule this already is.
    *
@@ -139,6 +179,14 @@ class CrossingRule {
           if (over == (int)c.b && under == (int)c.a) return Order::Under;
         }
         break;
+      case Kind::AlternatingAlong: {
+        const auto found = m_walk.find(c.index);
+        if (found != m_walk.end()) return found->second;
+        // Not prepared, or a crossing that was not in the set it was
+        // prepared with: list order, which is what every rule falls back
+        // to when it has nothing to say.
+        break;
+      }
       case Kind::Custom:
         if (m_decide) return m_decide(c);
         break;
@@ -159,14 +207,26 @@ class CrossingRule {
   }
 
  private:
-  enum class Kind : uint8_t { ListOrder, Sequence, Pairs, Custom };
+  enum class Kind : uint8_t {
+    ListOrder,
+    Sequence,
+    Pairs,
+    AlternatingAlong,
+    Custom
+  };
   Kind m_kind = Kind::ListOrder;
   std::vector<Order> m_pattern;
   std::vector<std::pair<int, int>> m_dominance;
   std::vector<std::pair<size_t, Order>> m_pins;
   std::function<Order(const Crossing&)> m_decide;
+  std::function<void(std::span<const Crossing>)> m_prepare;
   std::any m_held;
   std::function<bool(const std::any&, const std::any&)> m_equals;
+  /** What `prepare` worked out, by crossing ordinal. Mutable and outside
+   *  equality: it is a function of the geometry the holder discovered,
+   *  not of anything the author wrote, so two rules that differ only in
+   *  whether they have been prepared are the same rule. */
+  mutable std::unordered_map<size_t, Order> m_walk;
 };
 
 namespace crossing {
@@ -184,6 +244,31 @@ inline CrossingRule sequence(std::vector<Order> pattern) {
  *  tilings and heraldic knots are full of. */
 inline CrossingRule pairs(std::vector<std::pair<int, int>> dominance) {
   return CrossingRule::pairs(std::move(dominance));
+}
+/** THE ALTERNATING WEAVE OF KNOT THEORY: walk any strand from its start
+ *  and the crossings you meet run over, under, over, under.
+ *
+ *  IT IS NOT `alternate()`, and the difference is the whole reason both
+ *  exist. `alternate()` alternates by DISCOVERED ORDINAL — the order the
+ *  crossings were numbered in, which is arc length along the
+ *  lowest-indexed strand each one involves. That is one strand's walk,
+ *  and every other strand's crossings are numbered in whatever order the
+ *  first strand met them, so on anything more braided than two strands
+ *  the parity you meet walking strand 3 is arbitrary and the weave reads
+ *  as a mistake. This one alternates along EVERY strand, by sorting the
+ *  passes — two per crossing, one on each strand it joins — by strand and
+ *  then by arc length, and reading the parity of each pass.
+ *
+ *  A {7/2} heptagram is the smallest figure that tells them apart: seven
+ *  chords, four crossings on each, and the plaited star everyone draws by
+ *  hand is this rule and not the other.
+ *
+ *  Where a diagram is NOT alternable — a crossing whose two passes both
+ *  come up even — the two strands cannot both go over and the pass on the
+ *  lower-indexed strand decides. Such a figure has no alternating weave
+ *  at all, and this is where it shows. */
+inline CrossingRule alternateAlong() {
+  return CrossingRule::alternatingAlong();
 }
 }  // namespace crossing
 

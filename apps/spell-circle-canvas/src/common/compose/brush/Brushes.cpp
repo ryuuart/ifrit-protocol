@@ -141,6 +141,12 @@ void Weave::paint(SkCanvas& c, const PaintContext& ctx) const {
   }
   const std::vector<geometry::path::Crossing>& crossings = crossingCache->found;
   if (crossings.empty()) return;
+  // WHAT THE WHOLE SET SAYS, before anything is asked of one of it: a
+  // rule about the WALK — over, under, over along each strand — cannot
+  // be answered crossing by crossing, because nothing in a Crossing says
+  // how many crossings on its strand come before it. A rule about one
+  // meeting ignores this.
+  crossing.prepare(crossings);
   const auto reachOf = [&](size_t i) {
     // The MARK's full width, not the cull's bleed(): an Align::Inner
     // stroke bleeds zero while painting a mark `width` wide, so a region

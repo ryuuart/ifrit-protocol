@@ -20,6 +20,55 @@
 
 namespace sigil::geometry::path {
 
+void CrossingRule::prepare(std::span<const Crossing> all) const {
+  if (m_prepare) m_prepare(all);
+  if (m_kind != Kind::AlternatingAlong) return;
+  m_walk.clear();
+  if (all.empty()) return;
+  // ONE PASS PER STRAND PER CROSSING: a crossing joins two strands and
+  // is met once on each, so the walk that decides it is not the list of
+  // crossings but the list of passes.
+  struct Pass {
+    size_t strand;
+    float along;
+    size_t crossing;
+    bool onA;
+  };
+  std::vector<Pass> passes;
+  passes.reserve(all.size() * 2);
+  for (const Crossing& c : all) {
+    passes.push_back({c.a, c.alongA, c.index, true});
+    passes.push_back({c.b, c.alongB, c.index, false});
+  }
+  std::sort(passes.begin(), passes.end(), [](const Pass& x, const Pass& y) {
+    if (x.strand != y.strand) return x.strand < y.strand;
+    if (x.along != y.along) return x.along < y.along;
+    return x.crossing < y.crossing;
+  });
+  // Parity along each strand, from its start. A pass met an even number
+  // of passes into its strand goes over.
+  size_t strand = passes.front().strand;
+  size_t ordinal = 0;
+  for (const Pass& pass : passes) {
+    if (pass.strand != strand) {
+      strand = pass.strand;
+      ordinal = 0;
+    }
+    const bool over = (ordinal % 2) == 0;
+    ++ordinal;
+    // `Order` IS STATED AGAINST `a`, so `a` going over is Over and `b`
+    // going over is `a` going under. Where a figure cannot alternate —
+    // both passes of one crossing coming up even — the two strands
+    // cannot both go over, so the pass on `a` assigns and the pass on
+    // `b` only fills a crossing nothing has answered yet.
+    if (pass.onA)
+      m_walk[pass.crossing] = over ? Order::Over : Order::Under;
+    else
+      m_walk.emplace(pass.crossing, over ? Order::Under : Order::Over);
+  }
+}
+
+
 namespace {
 
 struct Flat {

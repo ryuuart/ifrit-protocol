@@ -176,6 +176,69 @@ TEST(Points, BillboardsCoverPixels) {
   EXPECT_GT(lit, 200);
 }
 
+TEST(Points, BillboardsSplatTheAtlasCellTheCloudCarries) {
+  // A sprite SHEET splats as a field of different sprites, and which one
+  // each point takes is the window a pop::Atlas op wrote into "Tex".
+  // Without the lane every point takes the whole sheet, which is the
+  // failure this reads: a splat showing all four quadrants at once.
+  //
+  // The sheet: four quadrants, one colour each, no antialiasing anywhere.
+  constexpr int kSheet = 64;
+  constexpr int kHalf = kSheet / 2;
+  sk_sp<SkImage> sheet;
+  {
+    sk_sp<SkSurface> sheetSurface =
+        SkSurfaces::Raster(SkImageInfo::MakeN32Premul(kSheet, kSheet));
+    SkCanvas* c = sheetSurface->getCanvas();
+    const auto cell = [&](int x, int y, SkColor colour) {
+      SkPaint p;
+      p.setColor(colour);
+      c->drawIRect(SkIRect::MakeXYWH(x, y, kHalf, kHalf), p);
+    };
+    cell(0, 0, SK_ColorWHITE);
+    cell(kHalf, 0, SK_ColorRED);
+    cell(0, kHalf, SK_ColorGREEN);
+    cell(kHalf, kHalf, SK_ColorBLUE);
+    sheet = sheetSurface->makeImageSnapshot();
+  }
+
+  // One point, dead centre, carrying the BOTTOM-LEFT cell — green.
+  Cloud cloud;
+  cloud.positions = {{0, 0, 0}};
+  cloud.color("Tex") = {{0.0f, 0.5f, 0.5f, 0.5f}};
+  camera::Camera camera;
+  camera.eye = {0, 0, 200};
+
+  const auto centrePixel = [&](const std::string& lane) {
+    sk_sp<SkSurface> surface =
+        SkSurfaces::Raster(SkImageInfo::MakeN32Premul(120, 120));
+    surface->getCanvas()->clear(SK_ColorBLACK);
+    points::BillboardStyle style;
+    style.sprite = sheet;
+    style.size = 60;
+    style.additive = false;
+    style.perspective = false;
+    style.texLane = lane;
+    points::drawBillboards(*surface->getCanvas(), cloud, camera, {120, 120},
+                           style);
+    SkBitmap bm;
+    bm.allocPixels(surface->imageInfo());
+    EXPECT_TRUE(surface->readPixels(bm.pixmap(), 0, 0));
+    return bm.getColor(60, 60);
+  };
+  // The cell is one flat colour, so its centre IS its colour.
+  EXPECT_EQ(centrePixel("Tex"), SK_ColorGREEN) << "the window was not read";
+  // Unnamed, the splat is the whole sheet and its centre is the seam
+  // between four different colours — anything but the cell's own.
+  EXPECT_NE(centrePixel(""), SK_ColorGREEN);
+
+  // A degenerate window is not a cell: an atlas op that never ran, or a
+  // lane padded with zeros, takes the whole image rather than splatting
+  // a sliver of one texel over everything.
+  cloud.color("Tex") = {{0.0f, 0.0f, 0.0f, 0.0f}};
+  EXPECT_EQ(centrePixel("Tex"), centrePixel(""));
+}
+
 TEST(Mesh, AppendKeepsNormalAndUvLanesSizedToPositions) {
   // Invariant across append: an optional vertex lane ends up either absent
   // on both sides or sized to positions on the merged mesh. Consumers read

@@ -29,6 +29,10 @@ void drawBillboards(SkCanvas& canvas, const Cloud& cloud,
     float px;  // half-size in pixels
     float depth;
     glm::vec4 tint;
+    /** The cell of the sprite this splat draws, in the unit square:
+     *  {uOffset, vOffset, uScale, vScale}. The identity window is the
+     *  whole image. */
+    glm::vec4 window{0, 0, 1, 1};
   };
   std::vector<Splat> splats;
   splats.reserve(n);
@@ -37,6 +41,8 @@ void drawBillboards(SkCanvas& canvas, const Cloud& cloud,
       style.sizeLane.empty() ? nullptr : cloud.scalarIf(style.sizeLane);
   const std::vector<glm::vec4>* tintLane =
       style.tintLane.empty() ? nullptr : cloud.colorIf(style.tintLane);
+  const std::vector<glm::vec4>* texLane =
+      style.texLane.empty() ? nullptr : cloud.colorIf(style.texLane);
 
   // Pixels per world unit at distance d: focal / d * (h/2).
   const float focal = 1.0f / std::tan(camera.fovYDeg * (float)M_PI / 360.0f);
@@ -58,6 +64,13 @@ void drawBillboards(SkCanvas& canvas, const Cloud& cloud,
     glm::vec4 tint = style.tint;
     if (tintLane && i < tintLane->size()) tint *= (*tintLane)[i];
     splat.tint = tint;
+    if (texLane && i < texLane->size()) {
+      const glm::vec4& window = (*texLane)[i];
+      // A window with no extent is not a cell: an atlas op that never
+      // ran, or a lane padded with zeros, would otherwise splat a sliver
+      // of one texel across every point.
+      if (window.z > 0.0f && window.w > 0.0f) splat.window = window;
+    }
     splats.push_back(splat);
   }
   if (style.depthSort)
@@ -104,7 +117,19 @@ void drawBillboards(SkCanvas& canvas, const Cloud& cloud,
     const SkRect dst =
         SkRect::MakeXYWH(splat.screen.fX - splat.px, splat.screen.fY - splat.px,
                          splat.px * 2, splat.px * 2);
-    canvas.drawImageRect(sprite, dst, sampling, &paint);
+    if (splat.window == glm::vec4{0, 0, 1, 1}) {
+      canvas.drawImageRect(sprite, dst, sampling, &paint);
+      continue;
+    }
+    // The window is in the unit square and the sheet is in texels. Its
+    // own cell is drawn with kStrict, so the linear filter never reaches
+    // a neighbouring cell's texels and bleeds one sprite into the next.
+    const float w = (float)sprite->width(), h = (float)sprite->height();
+    const SkRect src = SkRect::MakeXYWH(splat.window.x * w, splat.window.y * h,
+                                        splat.window.z * w,
+                                        splat.window.w * h);
+    canvas.drawImageRect(sprite, src, dst, sampling, &paint,
+                         SkCanvas::kStrict_SrcRectConstraint);
   }
 }
 

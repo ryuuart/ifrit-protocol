@@ -193,6 +193,19 @@ struct BillboardStyle {
   float size = 10;       ///< world units at scale 1
   std::string sizeLane;  ///< scalar multiplier per point
   std::string tintLane;  ///< color per point
+  /** THE ATLAS WINDOW LANE: a colour lane holding {uOffset, vOffset,
+   *  uScale, vScale} per point, in the unit square — which is exactly
+   *  what a `pop::Atlas` op writes into "Tex". Each splat then draws
+   *  THAT CELL of the sprite instead of the whole image, so one sheet of
+   *  sprites splats as a field of different ones and a cloud carries
+   *  which is which.
+   *
+   *  Named rather than assumed, because a cloud may carry "Tex" for the
+   *  stamping path while these splats are meant to be one sprite; say
+   *  `"Tex"` to read what the atlas op wrote. A point whose window is
+   *  degenerate, or which the lane does not reach, takes the whole
+   *  image. */
+  std::string texLane;
   glm::vec4 tint = {1, 1, 1, 1};
   bool additive = true;  ///< kPlus glow vs kSrcOver
   bool depthSort = true;

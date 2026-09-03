@@ -802,6 +802,62 @@ TEST(CrossingRuleDecides, ListOrderAlternateSequencePairsAndPins) {
   EXPECT_FALSE(pinned == crossing::alternate());
 }
 
+TEST(CrossingRules, AlternateAlongPlaitsEveryStrandAndAlternateDoesNot) {
+  // A {7/2} HEPTAGRAM: seven chords, each skipping one vertex, four
+  // crossings on each. It is the smallest figure that tells the two
+  // alternating rules apart — with two strands they agree, and with
+  // three they can still agree by luck.
+  constexpr int kPoints = 7;
+  constexpr int kStep = 2;
+  std::vector<SkPath> chords;
+  for (int i = 0; i < kPoints; ++i) {
+    const auto at = [&](int k) {
+      const float a = 2.0f * 3.14159265f * (float)k / (float)kPoints - 1.5708f;
+      return SkPoint{200 + 150 * std::cos(a), 200 + 150 * std::sin(a)};
+    };
+    const SkPoint from = at(i), to = at((i + kStep) % kPoints);
+    chords.push_back(segment(from.x(), from.y(), to.x(), to.y()));
+  }
+  const std::vector<Crossing> knots = discoverCrossings(chords);
+  ASSERT_EQ(knots.size(), (size_t)kPoints)
+      << "a {7/2} star meets itself once per point, around the inner "
+         "heptagon";
+
+  // THE CLAIM: walk any chord from its start and the crossings you meet
+  // run over, under, over, under. That is what a plaited star is.
+  const auto walksAlternating = [&](const CrossingRule& rule) {
+    for (size_t strand = 0; strand < chords.size(); ++strand) {
+      std::vector<std::pair<float, bool>> along;  // (arc length, this one over)
+      for (const Crossing& k : knots) {
+        if (k.a != strand && k.b != strand) continue;
+        const bool aIsOver = rule.decide(k) == Order::Over;
+        along.push_back({k.a == strand ? k.alongA : k.alongB,
+                         k.a == strand ? aIsOver : !aIsOver});
+      }
+      std::sort(along.begin(), along.end());
+      for (size_t i = 1; i < along.size(); ++i)
+        if (along[i].second == along[i - 1].second) return false;
+    }
+    return true;
+  };
+
+  CrossingRule plaited = crossing::alternateAlong();
+  plaited.prepare(knots);
+  EXPECT_TRUE(walksAlternating(plaited));
+  // …and the ordinal rule does not, because it alternates along ONE
+  // strand's numbering and every other strand meets that numbering in
+  // whatever order it happens to.
+  EXPECT_FALSE(walksAlternating(crossing::alternate()));
+
+  // Unprepared it is list order, and preparing does not change what it
+  // compares to: the table is a function of geometry, not of the author.
+  EXPECT_TRUE(crossing::alternateAlong() == plaited);
+  EXPECT_FALSE(crossing::alternateAlong() == crossing::alternate());
+  // A pin beats it, the way a pin beats every rule under it.
+  plaited.except(knots.front().index, Order::Under);
+  EXPECT_EQ(plaited.decide(knots.front()), Order::Under);
+}
+
 TEST(CrossingPatch, TheLensIsBoundedByTheKnotsOwnTerritory) {
   const SkPath a = segment(0, 50, 200, 50);
   const SkPath b = segment(100, 0, 100, 100);

@@ -406,9 +406,22 @@ seeded mixers the value-noise field is built on.
   coincident paths and endpoint touches are meetings, not crossings —
   and numbers them along the boundary. `CrossingRule` is the comparable
   answer: list order by default, `crossing::alternate()`,
-  `crossing::sequence()`, `crossing::pairs()` for dominance (cycles
+  `crossing::alternateAlong()`, `crossing::sequence()`,
+  `crossing::pairs()` for dominance (cycles
   legal, which is the impossible braid), your own `CrossingScheme`, and
-  `except(i, order)` pinning one knot POSITIONALLY. `crossingPatch()` is
+  `except(i, order)` pinning one knot POSITIONALLY. The two alternating
+  rules are not the same rule: `alternate()` alternates by DISCOVERED
+  ORDINAL, which is arc length along one strand, so every other strand
+  meets that numbering in whatever order it happens to;
+  `alternateAlong()` is the knot-theoretic weave — walk ANY strand and
+  the crossings run over, under, over — and it answers by sorting the
+  passes, two per crossing, by strand and then by arc length. It
+  therefore needs the whole set before it can answer any of it, which is
+  what `CrossingRule::prepare(all)` and the `PreparedCrossingScheme`
+  concept are for: a holder that discovers crossings calls it once per
+  discovery, and what it works out stays outside equality because it is
+  a function of the geometry rather than of the author. A {7/2}
+  heptagram is the smallest figure that tells the two apart. `crossingPatch()` is
   the region two marks actually overlap at one knot, bounded by a
   `maxRadius` that is required for correctness rather than a margin:
   without it neighbouring lenses merge and one strand owns half the
@@ -520,7 +533,12 @@ the decoration a compiled module needs before a driver may be handed it.
   `displaceNoise()`, the consumers `instance()` and `quads()` (stamp a
   mesh at every point into one merged mesh) and `promoteToPrims()`
   (`Modifiers.cpp`); and `drawBillboards()`, camera-facing sprites
-  (`Billboards.cpp`).
+  (`Billboards.cpp`). `BillboardStyle::texLane` names a colour lane of
+  {uOffset, vOffset, uScale, vScale} windows — what a `pop::Atlas` op
+  writes into `"Tex"` — and each splat then draws THAT CELL of the
+  sprite, so one sheet splats as a field of different sprites. It is
+  named rather than assumed, because a cloud may carry `"Tex"` for the
+  stamping path while its splats are meant to be one sprite.
 
   **A modifier is its operator without a chain.** `jitter()` runs the
   `Jitter` operator's own kernel over the positions and
