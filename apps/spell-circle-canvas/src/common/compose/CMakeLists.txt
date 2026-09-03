@@ -21,6 +21,9 @@
 #                                        handed over as a material texture
 #   SigilComposeWeb         web/         the Ultralight leaf (headers; only
 #                                        with SigilScry)
+#   SigilComposeDraw        draw/        the door to SigilDraw's pen, both
+#                                        ways: a node running a pen program,
+#                                        and an element retained in a pen
 #   SigilComposeKit         kit/         the kit tier: the silhouette shelf
 #                                        spelled for a node, the layout
 #                                        schemes, the routers, the placers,
@@ -103,6 +106,7 @@ add_subdirectory(typography)
 add_subdirectory(brush)
 add_subdirectory(texture)
 add_subdirectory(web)
+add_subdirectory(draw)
 add_subdirectory(kit)
 
 # ---------------------------------------------------------------------------
@@ -154,6 +158,7 @@ add_custom_command(
           --include ${CMAKE_CURRENT_SOURCE_DIR}/../geometry/include/sigilgeometry/path
           --include ${CMAKE_CURRENT_SOURCE_DIR}/../material/include/sigilmaterial/skia
           --include ${CMAKE_CURRENT_SOURCE_DIR}/../skia/include/sigilskia/draw
+          --include ${CMAKE_CURRENT_SOURCE_DIR}/../draw/include/sigildraw
           --include ${CMAKE_CURRENT_SOURCE_DIR}/../../sigilweave/include
           --out ${COMPOSE_API_DOC_PROBES}
   DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/README.md
@@ -176,7 +181,7 @@ add_test(NAME compose_api_doc_probes_self_test
 
 _compose_test_binary(compose_docs_test
   LIBRARIES SigilComposeCore SigilComposeKit SigilComposeBrush
-            SigilComposeTypography
+            SigilComposeTypography SigilComposeDraw
   SOURCES
     ${COMPOSE_API_DOC_PROBES}
     test/ComposeTestEngineDocs.cpp

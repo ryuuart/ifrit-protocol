@@ -402,7 +402,7 @@ CSS's model over it.
 Everything lives in `namespace sigil::compose` under
 `include/sigilcompose/<feature>/`, one directory per feature target, and
 the include spelling is the feature's: `<sigilcompose/core/Element.h>`,
-`<sigilcompose/kit/Silhouettes.h>`. The public include root is `include/`
+`<sigilcompose/kit/Layouts.h>`. The public include root is `include/`
 and nothing else — the internal headers beside each feature's sources are
 not reachable from outside it. Each feature has an umbrella named after
 it (`core/Core.h`, `kit/Kit.h`, `brush/Brush.h`,
@@ -506,10 +506,7 @@ Output at a new address breaks pruning even when the value is unchanged.
 SigilGeometry's, spelled `geometry::shapes::` from
 `<sigilgeometry/kit/Silhouettes.h>`: a comparable `path(SkSize)` value
 needs nothing of a component tree, and every one of them prunes a shaped
-node exactly as an unshaped one prunes. `kit/Silhouettes.h` holds only
-the two things that DO need a node: `onEdges`, which runs an inner
-decoration against only the sub-contours facing chosen box edges, and
-`inset`, which runs it against a concentric copy of the outline. `kit/Layouts.h` holds the placement schemes for the `layout()`
+node exactly as an unshaped one prunes. `kit/Layouts.h` holds the placement schemes for the `layout()`
 seam (`layouts::Radial`, `AlongPath`, `ModularGrid`, `Diagonal`,
 `BaselineGrid`, `Scatter`). `kit/Routers.h` holds the stock connector and
 rail routers (`routers::straight`, `orthogonal`, `polyline`,
@@ -534,7 +531,10 @@ shadow; `Slice` (lattice image mapping — its `density` is the source's pixels 
 layout unit in the fixed bands, so a frame generated oversized to stay
 sharp still draws its corners at the width it was designed for);
 `ContourWalk` (walk the outline
-and run a program at each sample); `Wash`; `Border`. The brush engine is
+and run a program at each sample); `Wash`; `Border`. `brush/Adaptors.h`
+runs any of them on another outline than the node's own: `onEdges`,
+against only the sub-contours facing chosen box edges, and `inset`,
+against a concentric copy of the outline. The brush engine is
 three headers: `brush/Layered.h`, the stroke stack (`StrokeLayer`,
 `LayeredBrush`); `brush/GeometryOps.h`, the one mechanism door for
 deviating an outline (`ops::`, `GeometryOp`); and `brush/Brushes.h`, the
@@ -598,7 +598,16 @@ Ultralight page a leaf; it is a header-only adapter and the library does
 not link SigilScry, so include it only in targets that do.
 `texture/Texture.h` is the door OUT of this library: a scene painted into
 a surface and handed over as a SigilMaterial texture value, in its own
-target `SigilComposeTexture` — see Boundaries.
+target `SigilComposeTexture` — see Boundaries. `draw/Draw.h` is the door
+to the imperative pen, both ways, in its own target `SigilComposeDraw`:
+`compose::draw` takes a `PenProgram` — a function of a `draw::Pen` — and
+makes the node `custom()` would, at `Cache::None`, with the pen's width
+and height the node's box and its transform starting at the box's
+corner, so a declarative scene drops into p5's verbs for one node; and
+`compose::paintRetained` is where the pen's `element(...)` lands, an
+`Element` painted inside an imperative loop and RETAINED — reconciled
+against what the composer kept for that call site, so its layout, its
+shaping, its caches and its bindings carry from frame to frame.
 
 **Testing — `testing/Checks.h`.** A separate target, `SigilComposeTesting`,
 whose one header verifies generated geometry and reads back what was
@@ -833,6 +842,18 @@ The arrow points one way: this feature links SigilMaterial's texture
 feature, SigilSkia's graphite feature and SigilCore's hardware device,
 and nothing that samples the value links compose.
 
+`SigilComposeDraw` is the feature that meets SigilDraw's pen, and the
+arrow between the two libraries points one way: this feature links
+SigilDraw, and SigilDraw names nothing of compose — the pen reaches a
+retained `Element` through a seam it declares for any guest,
+`paintRetained`, which this feature defines for `Element` in compose's
+own namespace. The clock is whoever steps the pen: a `compose::draw`
+node's pen reads the composer's clock through the paint context, and a
+retained element's composer runs on a clock stepped by the pen's frame
+delta, advancing on the frames it is painted and standing still on the
+frames it is not. Neither side reads the wall, which is what keeps a
+plate with a pen in it reproducible.
+
 Deliberately *not* linked: SigilScry (the web leaf is a header-only
 adapter, exercised by its own test target), EnTT (the instancing header
 keeps the registry on your side), SigilGeometry beyond the path leaf and
@@ -888,6 +909,7 @@ the mask gates, with `kit/Strokes.h` and `kit/Plate.h`),
 `SigilComposeTexture` (`texture/` — a scene
 painted into a surface and handed out as a texture value),
 `SigilComposeWeb` (`web/` — header-only, present only with SigilScry),
+`SigilComposeDraw` (`draw/` — the door to SigilDraw's pen, both ways),
 `SigilComposeTesting` (`testing/`) and `SigilComposeKit` (`kit/` — the
 shelves: the silhouette catalog spelled for a node, the layout schemes,
 the routers and the kinetic type presets). Each directory holds the target's sources,
