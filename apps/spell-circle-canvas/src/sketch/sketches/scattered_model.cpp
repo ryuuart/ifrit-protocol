@@ -7,32 +7,38 @@
  * point of it, turning above it. What the codec hands over is the same
  * `Mesh` currency a generated body is, so nothing past the import knows
  * which of the two it is holding — which is the whole of what this
- * study says.
+ * study says. What a round trip out through the encoder and back costs
+ * is `codec_roundtrip`'s subject; this one is the door alone.
  *
- * WHERE THE MODEL COMES FROM is `res://models/`, the sketch assets
- * mount. Nothing is mounted there in this repository, so what the
- * declaration resolves to — and therefore what a plate is taken from —
- * is the generated body below: a plate is a function of the declaration,
- * and what a machine happens to have on disk is not. Point a host at a
- * directory of models (`--assets <dir>`) and the same declaration
- * scatters those instead, one file name at a time.
+ * WHERE THE MODEL COMES FROM is one named file under `res://models/`,
+ * the sketch assets mount — the file the repository's asset manifest
+ * fetches, and no other. ONE name rather than a list of candidates is
+ * what makes the picture a function of the declaration: a search over
+ * whatever a machine happens to hold would photograph a different body
+ * on every machine, and two pictures under one name is what a plate
+ * cannot be. With nothing mounted the subject is the body generated
+ * below, which is the second and last picture this file can produce and
+ * is stated here rather than discovered.
  *
- * The scatter is SEEDED and resolved once, at setup: it is a property of
- * the subject and not of the moment, so every frame describes the same
- * cloud and it cooks once however long the study runs.
+ * THE DUST IS A CHAIN, not a written-out cloud. `pop::on(mesh, count)`
+ * scatters over the faces, one ramp reads each point's height into its
+ * colour, and one vary spreads the stamp sizes about a base — so the
+ * whole look is three verbs the runtime cooks, on the host executor or
+ * on the device's kernels, from the same description. The height the
+ * ramp spans is the subject's own bounds, so an imported model that
+ * stands anywhere in space is coloured top to bottom exactly as the
+ * generated one is.
  */
 
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/codec/Decode.h>
-#include <sigilgeometry/mesh/pop/Points.h>
+#include <sigilgeometry/mesh/pop/Pop.h>
 #include <sigilloader/Loader.h>
 #include <sigilmaterial/kit/Surface.h>
 #include <sigilsketch/set/Set.h>
 #include <sigilworld/kit/Kit.h>
 
-#include <algorithm>
-#include <cmath>
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
 #include <memory>
@@ -45,12 +51,9 @@ namespace sketch = sigil::sketch;
 namespace world = sigil::world;
 namespace material = sigil::material;
 namespace loader = sigil::loader;
-
-using namespace sigil::world;
+namespace gm = sigil::geometry::mesh;
 
 namespace {
-
-namespace gm = ::sigil::geometry::mesh;
 
 /** How far across the subject stands, whatever it turned out to be.
  *  Every distance below is written against it, so an imported model and
@@ -58,11 +61,9 @@ namespace gm = ::sigil::geometry::mesh;
 constexpr float kExtent = 150.0f;
 constexpr int kMotes = 17000;
 
-/** The names tried under `res://models/`, in order. They are the ones
- *  the repository's asset manifest fetches, so a host pointed at that
- *  directory finds one without being told which. */
-constexpr std::string_view kCandidates[] = {"Avocado.glb", "Duck.glb",
-                                            "bunny.obj"};
+/** THE ONE FILE this study imports: the glTF sample asset the
+ *  repository's manifest fetches into the assets directory. */
+constexpr std::string_view kModel = "res://models/Avocado.glb";
 
 /** THE MODEL, decoded through the mesh codec and fitted to the stage —
  *  or nothing, when the mount holds no such file. The bytes come from
@@ -70,18 +71,15 @@ constexpr std::string_view kCandidates[] = {"Avocado.glb", "Duck.glb",
  *  mounted directory, an archive or a URL without the study knowing
  *  which. */
 std::optional<gm::Mesh> imported(sketch::Assets& assets) {
-  for (std::string_view name : kCandidates) {
-    const std::string uri = "res://models/" + std::string(name);
-    const std::shared_ptr<const loader::Bytes> bytes = assets.hub().blob(uri);
-    if (!bytes || bytes->bytes.empty()) continue;
-    const std::optional<gm::codec::decode::Model> model =
-        gm::codec::decode::model(bytes->bytes.data(), bytes->bytes.size(), uri);
-    if (!model || model->parts.empty()) continue;
-    gm::Mesh merged = model->merged();
-    merged.transform(model->fitTransform(kExtent * 2.0f));
-    return merged;
-  }
-  return std::nullopt;
+  const std::string uri(kModel);
+  const std::shared_ptr<const loader::Bytes> bytes = assets.hub().blob(uri);
+  if (!bytes || bytes->bytes.empty()) return std::nullopt;
+  const std::optional<gm::codec::decode::Model> model =
+      gm::codec::decode::model(bytes->bytes.data(), bytes->bytes.size(), uri);
+  if (!model || model->parts.empty()) return std::nullopt;
+  gm::Mesh merged = model->merged();
+  merged.transform(model->fitTransform(kExtent * 2.0f));
+  return merged;
 }
 
 /** …and what stands in for it: a body made here rather than read,
@@ -94,30 +92,19 @@ gm::Mesh generated() {
                             72, 48);
 }
 
-/** THE DUST: points on the subject's surface, each carrying the size and
- *  the tint its stamp is drawn at. Both lanes are written from the point
- *  itself — its height decides its colour, its index its size — so the
- *  cloud describes the whole look and the stamp is one small body
- *  repeated. */
-gm::Cloud dustOver(const gm::Mesh& subject) {
-  gm::Cloud dust = gm::points::onMesh(subject, kMotes, 3);
-  float low = 0.0f, high = 0.0f;
-  for (const glm::vec3& point : dust.positions) {
-    low = std::min(low, point.y);
-    high = std::max(high, point.y);
-  }
-  const float span = std::max(high - low, 1e-3f);
-  std::vector<glm::vec4>& tint = dust.color("tint");
-  std::vector<float>& size = dust.scalar("size", 1.0f);
-  for (size_t i = 0; i < dust.size(); ++i) {
-    const float up = (dust.positions[i].y - low) / span;
-    tint[i] = {0.35f + 0.62f * up, 0.52f + 0.18f * up, 0.95f - 0.55f * up,
-               1.0f};
-    // A varied size read off the index rather than off a generator, so
-    // the cloud is the same cloud on every run and on every tier.
-    size[i] = 0.55f + 0.85f * (0.5f + 0.5f * std::sin((float)i * 2.399963f));
-  }
-  return dust;
+/** THE DUST: a chain over the subject's faces — the scatter, a ramp
+ *  that reads each point's height into its colour over the subject's own
+ *  bounds, and a vary that spreads the stamp sizes about a base. The
+ *  chain is the description; what cooks it is whichever runtime the
+ *  frame is performed on. */
+gm::pop::Chain dustOver(const gm::Mesh& subject) {
+  glm::vec3 low{0.0f}, high{0.0f};
+  subject.bounds(&low, &high);
+  return gm::pop::on(subject, kMotes)
+      .rampBy(gm::pop::Lane::P, 1,
+              {{0.35f, 0.52f, 0.95f, 1.0f}, {0.97f, 0.70f, 0.40f, 1.0f}},
+              low.y, high.y)
+      .vary(0.85f, 0.55f);
 }
 
 }  // namespace
@@ -126,7 +113,7 @@ namespace {
 
 struct ScatteredModel final : sketch::Set {
   gm::Mesh subject;
-  gm::Cloud dust;
+  gm::pop::Chain dust;
 
   void setup(sketch::SetContext& ctx) override {
     ctx.canvas(860, 580);
@@ -138,7 +125,7 @@ struct ScatteredModel final : sketch::Set {
   }
 
   world::Frame describe(float seconds) override {
-    kit::Set set;
+    world::kit::Set set;
     set.rig.extent = kExtent;
     set.rig.bearing = -34.0f;
     set.rig.elevation = 30.0f;
@@ -152,7 +139,7 @@ struct ScatteredModel final : sketch::Set {
     // The body under its own dust: dim and unlit, so what reads is the
     // silhouette the scatter was taken from rather than a second lit
     // surface competing with it.
-    Element core = Element()
+    world::Element core = world::Element()
                        .key("body")
                        .mesh(subject)
                        .fill(material::kit::unlit(
@@ -165,19 +152,21 @@ struct ScatteredModel final : sketch::Set {
     // body is the cheapest stamp that still reads as a shell. It turns
     // slowly, so the scatter reads as a skin over the silhouette rather
     // than as a texture on it.
-    Element shell = Element()
+    world::Element shell = world::Element()
                         .key("dust")
                         .rotateY(seconds * 9.0f)
                         .scale(1.05f)
-                        .cloud(dust)
+                        .chain(dust)
                         .stamp(gm::quad(2.9f, 2.9f))
                         .fill(material::kit::surface(
                             {.baseColor = {1, 1, 1, 1}, .roughness = 0.65f}))
                         .tag("dust");
 
-    return Frame(kit::litSet(
-        Element().key("subject").child(std::move(core)).child(std::move(shell)),
-        set, seconds));
+    return world::Frame(world::kit::litSet(world::Element()
+                                              .key("subject")
+                                              .child(std::move(core))
+                                              .child(std::move(shell)),
+                                          set, seconds));
   }
 };
 
