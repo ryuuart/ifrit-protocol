@@ -35,6 +35,7 @@
 #include <vector>
 
 namespace sketch = sigil::sketch;
+namespace weave = sigil::weave;
 namespace substance = sigil::substance;
 
 using namespace sigil::compose;
@@ -83,8 +84,8 @@ Element card(const Swatch& swatch) {
                  .corners({10})
                  .clip()
                  .foreground(stroke(1.0f, Fill::color(hex(0xffffff, 0.16f)))))
-      .child(text(toU8(swatch.usage), type({.size = 14, .color = kInk})))
-      .child(text(toU8(size), type({.size = 11.5f, .color = kDim})));
+      .child(text(toU8(swatch.usage), weave::textStyle({.size = 14, .color = kInk})))
+      .child(text(toU8(size), weave::textStyle({.size = 11.5f, .color = kDim})));
 }
 
 Element notice(std::u8string heading, const std::string& detail) {
@@ -96,8 +97,8 @@ Element notice(std::u8string heading, const std::string& detail) {
       .foreground(stroke(1.0f, Fill::color(hex(0xffb46b, 0.24f))))
       .column()
       .gap(10)
-      .child(text(std::move(heading), type({.size = 22, .color = kInk})))
-      .child(text(toU8(detail), type({.size = 13, .color = kDim})));
+      .child(text(std::move(heading), weave::textStyle({.size = 22, .color = kInk})))
+      .child(text(toU8(detail), weave::textStyle({.size = 13, .color = kDim})));
 }
 
 }  // namespace
@@ -161,12 +162,19 @@ struct SubstanceSwatchesSketch final : sketch::Sketch {
                kHeaderHeight + (float)rows * cardHeight +
                    (float)(rows - 1) * kGap + kCaptionHeight);
 
+    // THE ENGINE'S VERSION GOES TO stderr, NOT ONTO THE PLATE. It is a
+    // number this machine's SDK decides, so a plate carrying it would
+    // change under an SDK upgrade that changed no pixel anyone authored,
+    // and a byte-identity sweep would report that as a mover.
+    std::fprintf(stderr, "[substance] engine %s \xc2\xb7 %s\n",
+                 substance::Package::engineVersion().c_str(),
+                 graph.label().c_str());
+
     char caption[192];
     std::snprintf(caption, sizeof caption,
-                  "%s \xc2\xb7 %zu parameters \xc2\xb7 %zu channels "
-                  "\xc2\xb7 engine %s",
+                  "%s \xc2\xb7 %zu parameters \xc2\xb7 %zu channels",
                   graph.label().c_str(), graph.parameters().size(),
-                  swatches.size(), substance::Package::engineVersion().c_str());
+                  swatches.size());
 
     Element grid = box().left(kMargin).top(kHeaderHeight).column().gap(kGap);
     for (int start = 0; start < (int)swatches.size(); start += kPerRow) {
@@ -181,16 +189,16 @@ struct SubstanceSwatchesSketch final : sketch::Sketch {
             .fill(linearGradient({0, 0}, {0, ctx.size.height()},
                                  {hex(0x1a120b), hex(0x0f0d10)}))
             .child(text(u8"A PROCEDURAL ARCHIVE, COOKED",
-                        type({.size = 15, .color = kInk, .track = 2.4f}))
+                        weave::textStyle({.size = 15, .color = kInk, .track = 2.4f}))
                        .left(kMargin)
                        .top(34))
-            .child(text(toU8(caption), type({.size = 12, .color = kDim}))
+            .child(text(toU8(caption), weave::textStyle({.size = 12, .color = kDim}))
                        .left(kMargin)
                        .top(62))
             .child(std::move(grid)));
   }
 };
 
-SIGIL_SKETCH(SubstanceSwatchesSketch, "Kit \xc2\xb7 API",
+SIGIL_SKETCH(SubstanceSwatchesSketch, "Start & fixtures",
              "A .sbsar cooked through the Substance engine, one card per "
              "channel it declares")
