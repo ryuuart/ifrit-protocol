@@ -42,12 +42,10 @@
 namespace sketch = sigil::sketch;
 namespace world = sigil::world;
 namespace material = sigil::material;
-
-using namespace sigil::world;
+namespace gm = sigil::geometry::mesh;
 
 namespace {
 
-namespace gm = ::sigil::geometry::mesh;
 /** The point-operator language is a SCOPE rather than a namespace, so
  *  it is named by a type alias and spelled the same way either is. */
 using pop = gm::pop;
@@ -111,7 +109,7 @@ struct DeformedCloud final : sketch::Set {
     const float turn = 18.0f + 86.0f * (0.5f + 0.5f * std::sin(seconds * 0.7f));
     const float push = 16.0f + 30.0f * (0.5f + 0.5f * std::sin(seconds * 0.5f));
 
-    const Chain forged =
+    const gm::pop::Chain forged =
         pop::on(seed)
             .rampBy(pop::Lane::P, 1, heights(), low, high)
             .select("band", pop::Select::Shape::Box, centre, slab, 0.45f)
@@ -128,7 +126,7 @@ struct DeformedCloud final : sketch::Set {
             .masked("band")
             .vary(0.45f, 1.0f);
 
-    kit::Set set;
+    world::kit::Set set;
     set.rig.extent = kExtent * 1.4f;
     set.rig.bearing = -38.0f;
     set.rig.elevation = 30.0f;
@@ -139,8 +137,8 @@ struct DeformedCloud final : sketch::Set {
     set.table.period = 20.0f;
     set.table.fovYDeg = 42.0f;
 
-    return Frame(
-        kit::litSet(Element()
+    return world::Frame(
+        world::kit::litSet(world::Element()
                         .key("forged")
                         .chain(forged)
                         .stamp(gm::quad(3.1f, 3.1f))
