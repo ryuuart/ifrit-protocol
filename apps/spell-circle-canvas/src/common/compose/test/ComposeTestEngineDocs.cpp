@@ -309,6 +309,7 @@ TEST(ComposeDocs, EverySignatureInTheDecorationAndLayoutDocsCompiles) {
   layouts::Diagonal diagonal;
   layouts::BaselineGrid baseline;  // the only consumer of childBaselines
   layouts::Scatter scatter;
+  layouts::Table table;  // the only consumer of childCells
 
   // ---- text on a path: all THREE orientations ---------------------------
   for (TextPath::Orient o :

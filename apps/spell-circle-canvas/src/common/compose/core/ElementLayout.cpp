@@ -4,6 +4,8 @@
  * longhand, and the two placement shorthands written over it.
  */
 
+#include <algorithm>
+
 #include "ComposeInternal.h"
 
 namespace sigil::compose {
@@ -172,6 +174,24 @@ Element& Element::bottom(Dim d) {
 Element& Element::centerAt(SkPoint p) {
   m_node->layout.absolute = true;
   m_node->layout.centerAt = p;
+  return *this;
+}
+
+Element& Element::cells(int column, int row, int columns, int rows) {
+  // A span of zero cells would place the child nowhere and size it to
+  // nothing, which reads as "it vanished" rather than as a mistake.
+  m_node->layout.cells.column = column;
+  m_node->layout.cells.row = row;
+  m_node->layout.cells.columns = std::max(columns, 1);
+  m_node->layout.cells.rows = std::max(rows, 1);
+  m_node->layout.cells.declared = true;
+  return *this;
+}
+
+Element& Element::cellAlign(Align across, Align down) {
+  m_node->layout.cells.across = across;
+  m_node->layout.cells.down = down;
+  m_node->layout.cells.declared = true;
   return *this;
 }
 

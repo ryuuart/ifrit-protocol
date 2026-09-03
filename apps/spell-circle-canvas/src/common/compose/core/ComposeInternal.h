@@ -58,6 +58,9 @@ struct LayoutProps {
   EdgeDims insets;
   std::optional<SkPoint> centerAt;  // absolute: center ON this point
                                     // (resolved post-measure)
+  /** The cells this child claims of a layout() container's scheme, read
+   *  by nothing else. Default means unspoken, and a scheme flows it. */
+  CellSpan cells;
   bool operator==(const LayoutProps&) const = default;
 };
 

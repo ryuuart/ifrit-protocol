@@ -438,8 +438,8 @@ sound model; nothing below them changes kernel semantics.
 - `core/Mask.h` — the masking family: `Region`, `parts::`, `by::`, `Gate`,
   `Mask`.
 - `core/Layout.h` — `Dim` and its literals, `Align`, `Justify`, `Echo`,
-  `Cache`, `LayoutInput` / `LayoutScheme`, and the `ComponentProps` /
-  `ComponentFn` concepts.
+  `Cache`, `LayoutInput` / `LayoutScheme`, `CellSpan`, and the
+  `ComponentProps` / `ComponentFn` concepts.
 - `core/Element.h` — `Element` and its builders, the class alone.
 - `core/Factories.h` — the functions that start one: `box`, `stack`,
   `positioned`, `text`, `frame`, `image`, `custom`, `slot`, `layout`,
@@ -511,7 +511,40 @@ SigilGeometry's, spelled `geometry::shapes::` from
 needs nothing of a component tree, and every one of them prunes a shaped
 node exactly as an unshaped one prunes. `kit/Layouts.h` holds the placement schemes for the `layout()`
 seam (`layouts::Radial`, `AlongPath`, `ModularGrid`, `Diagonal`,
-`BaselineGrid`, `Scatter`). `kit/Routers.h` holds the stock connector and
+`BaselineGrid`, `Scatter`, `Table`).
+
+**A scheme sees one thing about a child it could not measure: the cells
+the child claimed.** `LayoutInput` carries the container's size, every
+child's measured size and every child's first baseline — all facts a
+layout pass established — plus `childCells`, one `CellSpan` per child,
+written by `Element::cells` and `Element::cellAlign`. It is on the CHILD
+and not in a list the scheme carries beside it, because a parallel list
+has nothing to check itself against: insert or reorder one child and
+every entry after it silently addresses the wrong one, taking another
+cell's span, alignment and origin, with no error and a picture that still
+looks plausible. `CellSpan::declared` is what a scheme reads to tell
+"cell (0,0)" from "wherever you like", so a table can flow the children
+that said nothing into the cells no child claimed. `layouts::Table` is
+placed entirely by it; `ModularGrid` reads it too and falls back to its
+own parallel `spans` list for a child that named no cells.
+
+`layouts::Table` is the HTML automatic table layout: unequal columns
+sized by what is in them, spans, and a surplus shared out in proportion.
+It is not a modular grid under another name and it goes through none of
+`geometry::arrange` — a module is one size repeated, and no column of a
+table is the width of the next. Columns start at the widest child that
+sits in one alone; spanning children then top their columns up, narrowest
+span first, sharing a deficit in proportion to the widths already found;
+and whatever the table is wider than its content is shared the same way,
+which is what puts every column of a real page on a fractional pixel.
+Rows take the first of those steps and deliberately not the second: the
+whole of a rowspan's height deficit lands on the LAST row it covers,
+because sharing it in proportion inflates the first row of every span and
+drags everything below it down the page. `Table::solve` hands the
+resolved column widths, row heights and origins back, so a study
+reproducing a published table can print what it resolved and diff it
+against what the original measured — numbers no placed rect carries,
+since a column nothing fills leaves no trace in the rects at all. `kit/Routers.h` holds the stock connector and
 rail routers (`routers::straight`, `orthogonal`, `polyline`,
 `octilinear`, `orbit`).
 

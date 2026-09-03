@@ -126,6 +126,18 @@ class Element {
    *  on markers). Resolved after measurement, so intrinsic-size nodes
    *  center correctly; implies absolute(). */
   Element& centerAt(SkPoint p);
+  /** WHICH CELLS this child claims of the `layout()` scheme above it, and
+   *  how many it covers — read by grid-shaped schemes (`layouts::Table`,
+   *  `layouts::ModularGrid`) and by nothing else.
+   *
+   *  Said HERE, on the child, rather than in a list the scheme carries
+   *  beside it: a parallel list has nothing to check itself against, and
+   *  an inserted or reordered child silently shifts every entry after it
+   *  onto the wrong cell. */
+  Element& cells(int column, int row, int columns = 1, int rows = 1);
+  /** Where this child sits INSIDE the cell box its span makes.
+   *  `Align::Stretch` sizes it to the box instead of placing it in one. */
+  Element& cellAlign(Align across, Align down);
   /** Place an absolute node on a parent-space RECT — the peer of
    *  centerAt(), for when you already know the box.
    *

@@ -429,6 +429,7 @@ bool Composer::Impl::applyCustomLayouts(Instance& inst) {
         baseline = first.baseline - first.rect().top();
       }
       input.childBaselines.push_back(baseline);
+      input.childCells.push_back(child->desc->layout.cells);
     }
     std::vector<SkRect> rects = inst.desc->deriveData->placeFn(input);
     const size_t count = std::min(rects.size(), inst.children.size());

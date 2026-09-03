@@ -143,14 +143,43 @@ constexpr core::Cache cachePolicy(Cache c) {
 // ---------------------------------------------------------------------------
 // Custom layout (the SwiftUI Layout-protocol shape, C++20-ified)
 
+/** WHICH CELLS OF A GRID A CHILD CLAIMS, and where it sits inside them —
+ *  the one thing about a child that a placement scheme needs and cannot
+ *  measure.
+ *
+ *  It is on the CHILD rather than in a list the scheme carries, and that
+ *  is the whole point. A scheme holding a vector parallel to the children
+ *  has nothing to check it against: insert or reorder one child and every
+ *  entry after it silently addresses the wrong one, taking another cell's
+ *  span, alignment and origin, with no error and a picture that still
+ *  looks plausible.
+ *
+ *  `across` and `down` place the child INSIDE the cell box its span makes;
+ *  `Align::Stretch` sizes it to that box instead. `Auto` and `Baseline`
+ *  read as `Start` — a cell has no run of siblings to share a baseline
+ *  with.
+ *
+ *  `declared` is false on a child that said nothing, so a scheme can tell
+ *  "cell (0,0)" from "wherever you like" and flow the rest. */
+struct CellSpan {
+  int column = 0, row = 0;
+  int columns = 1, rows = 1;
+  Align across = Align::Start;
+  Align down = Align::Start;
+  bool declared = false;
+  bool operator==(const CellSpan&) const = default;
+};
+
 /** What a custom layout sees: the container's resolved size, each child's
- *  measured size (text children measured by SigilWeave), and each child's
+ *  measured size (text children measured by SigilWeave), each child's
  *  first-baseline offset from its own top (NaN for children without one) —
- *  what baseline-rhythm schemes (layouts::BaselineGrid) snap by. */
+ *  what baseline-rhythm schemes (layouts::BaselineGrid) snap by — and the
+ *  cells each child claimed with `Element::cells`. */
 struct LayoutInput {
   SkSize container = SkSize::MakeEmpty();
   std::vector<SkSize> childSizes;
   std::vector<float> childBaselines;  // NaN = no baseline (non-text)
+  std::vector<CellSpan> childCells;   // .declared = false when unspoken
 };
 
 /** A custom layout places children: one rect per child (position and
