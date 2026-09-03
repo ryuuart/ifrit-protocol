@@ -1,5 +1,5 @@
 #pragma once
-// twoadvanced.h — one studio's house vocabulary, across three eras.
+// TwoAdvanced.h — one studio's house vocabulary, across three eras.
 //
 // twoadvanced_v3, twoadvanced_v4 and twoadvanced_equipment reconstruct
 // three different artefacts — a 2024 Rive rebuild, a 2003 Flash stage and
@@ -37,8 +37,9 @@
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkTypeface.h>
 #include <sigilcompose/core/Factories.h>
-#include <sigilcompose/typography/Type.h>
+#include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Style.h>
+#include <sigilweave/style/Type.h>
 
 #include <algorithm>
 #include <cmath>
@@ -51,20 +52,20 @@ namespace twoadvanced {
 
 /** v3's workhorse: Akzidenz-Grotesk medium, substituted. */
 inline const sk_sp<SkTypeface>& grot() {
-  static const sk_sp<SkTypeface> f = sigil::compose::pickFace(
+  static const sk_sp<SkTypeface> f = sigil::weave::ports::pickTypeface(
       {"Helvetica Neue", "Arial"}, SkFontStyle::kMedium_Weight);
   return f;
 }
 /** v3's headline weight. */
 inline const sk_sp<SkTypeface>& grotBold() {
-  static const sk_sp<SkTypeface> f = sigil::compose::pickFace(
+  static const sk_sp<SkTypeface> f = sigil::weave::ports::pickTypeface(
       {"Helvetica Neue", "Arial"}, SkFontStyle::kBold_Weight);
   return f;
 }
 /** v4's chrome voice: Helvetica CondensedBlack, the face the SWF
  *  embedded and the one thing the whole interface is lettered in. */
 inline const sk_sp<SkTypeface>& condBlack() {
-  static const sk_sp<SkTypeface> f = sigil::compose::pickFace(
+  static const sk_sp<SkTypeface> f = sigil::weave::ports::pickTypeface(
       {"Helvetica Neue", "Avenir Next Condensed"},
       SkFontStyle(SkFontStyle::kBlack_Weight, SkFontStyle::kCondensed_Width,
                   SkFontStyle::kUpright_Slant));
@@ -72,23 +73,23 @@ inline const sk_sp<SkTypeface>& condBlack() {
 }
 /** v4's heavier, wider register: Arial Black. */
 inline const sk_sp<SkTypeface>& blackFace() {
-  static const sk_sp<SkTypeface> f = sigil::compose::pickFace(
+  static const sk_sp<SkTypeface> f = sigil::weave::ports::pickTypeface(
       {"Arial Black", "Helvetica Neue"}, SkFontStyle::kBlack_Weight);
   return f;
 }
 /** The body face both Flash-era pages set their prose in. */
 inline const sk_sp<SkTypeface>& arial() {
   static const sk_sp<SkTypeface> f =
-      sigil::compose::pickFace({"Arial", "Helvetica"});
+      sigil::weave::ports::pickTypeface({"Arial", "Helvetica"});
   return f;
 }
 /** The store's face: Verdana, which is what an HTML `size=1` cell was
  *  set in and what macOS still ships. */
 inline const sk_sp<SkTypeface>& verdanaFace(bool bold) {
   static const sk_sp<SkTypeface> regular =
-      sigil::compose::pickFace({"Verdana", "Arial"});
+      sigil::weave::ports::pickTypeface({"Verdana", "Arial"});
   static const sk_sp<SkTypeface> heavy =
-      sigil::compose::pickFace({"Verdana", "Arial"}, SkFontStyle::kBold_Weight);
+      sigil::weave::ports::pickTypeface({"Verdana", "Arial"}, SkFontStyle::kBold_Weight);
   return bold ? heavy : regular;
 }
 
@@ -103,7 +104,7 @@ inline sigil::weave::TextStyle tracked(const sk_sp<SkTypeface>& face,
                                        float size, SkColor4f color,
                                        float trackUnits = 0,
                                        float condense = 1.0f) {
-  return sigil::compose::type({.face = face,
+  return sigil::weave::textStyle({.face = face,
                                .size = size,
                                .color = color,
                                .track = size * trackUnits / 1000.0f,

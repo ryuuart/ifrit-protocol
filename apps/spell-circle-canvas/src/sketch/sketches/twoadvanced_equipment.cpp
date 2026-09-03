@@ -28,8 +28,11 @@
 // Every bitmap above is fetched from the restoration host over
 // SigilLoader's https path (disk-cached after the first run); a missing
 // fetch leaves a flat #7C252C or white stand-in so the sketch still
-// renders offline. The type is Verdana at HTML size=1 — 10 px — which
-// macOS ships.
+// renders offline. But a stand-in page is not the page this header
+// describes, so `available()` asks the loader's cache first and stands
+// the sketch down BY NAME on a machine that has never fetched, rather
+// than publishing a second picture under the same one. The type is
+// Verdana at HTML size=1 — 10 px — which macOS ships.
 //
 // The page is STATIC; its only behaviours are the JS rollovers and the
 // frame's scrollbar, so those are the only motion here: a simulated
@@ -50,9 +53,11 @@
 //   the palette block   — the page's own attribute colours.
 
 #include <sigilcompose/brush/Decorations.h>
-#include <sigilcompose/core/Material.h>
+#include <sigilcompose/core/Paint.h>
+#include <sigilgeometry/path/Edges.h>
+#include <sigilmotion/bind/Bind.h>
 #include <sigilcompose/kit/Frame.h>
-#include <sigilcompose/kit/Silhouettes.h>
+#include <sigilcompose/brush/Adaptors.h>
 #include <sigilsketch/canvas/Sketch.h>
 
 #include <algorithm>
@@ -61,9 +66,12 @@
 #include <map>
 #include <string>
 
-#include "twoadvanced.h"
+#include <shared/TwoAdvanced.h>
 
 namespace sketch = sigil::sketch;
+namespace motion = sigil::motion;
+namespace path = sigil::geometry::path;
+namespace weave = sigil::weave;
 
 using namespace sigil::compose;
 // Absolute placement: this composition is pinned, so a node says
@@ -142,6 +150,32 @@ constexpr Product kProducts[7] = {
 // ===========================================================================
 
 struct TwoAdvancedEquipment : sketch::Sketch {
+  /** THE STORE'S BITMAPS ARE RUNTIME DATA, and a sketch over runtime data
+   *  a machine may not have says so rather than drawing a second picture
+   *  under the same name. Every GIF and JPEG on this frameset comes off
+   *  the restoration host through the loader's https path, which caches
+   *  on disk; `img()` keeps a flat maroon-or-white stand-in at every use
+   *  site, so a cold cache still renders — but it renders the STAND-IN
+   *  page, and the plate this sketch is judged on is then not the picture
+   *  the header describes.
+   *
+   *  Four files stand for the sixteen: the top bar and the logo carry the
+   *  masthead, the product-selection image is the whole left frame, and
+   *  the first thumbnail is the row art. A cache holding those was
+   *  written by a run that fetched them all. */
+  static bool available(std::string* why) {
+    return sketch::requireCached(
+        {"https://v4prophecy.2advanced.com/equipment/index_files/"
+         "topframe_files/ecom-topbar.gif",
+         "https://v4prophecy.2advanced.com/equipment/index_files/"
+         "topframe_files/ecom-logo.gif",
+         "https://v4prophecy.2advanced.com/equipment/index_files/"
+         "leftframe-productselection_files/ecom-productselectimage.jpg",
+         "https://v4prophecy.2advanced.com/equipment/index_files/"
+         "productselect_files/ecom-sm_phiberglassshirt.gif"},
+        why);
+  }
+
   using ImagePtr = std::shared_ptr<const sigil::image::ImageAsset>;
 
   // Keyed by file name under equipment/index_files/.
@@ -308,11 +342,11 @@ struct TwoAdvancedEquipment : sketch::Sketch {
           .width(Dim(kSbW))
           .height(Dim(kSbW))
           .fill(kSbFace)
-          .foreground(shapes::onEdges(
-              shapes::Edge::Top | shapes::Edge::Left,
+          .foreground(onEdges(
+              path::Edge::Top | path::Edge::Left,
               stroke(1, Fill::color(kWhite), PathFormat::Align::Inner)))
-          .foreground(shapes::onEdges(
-              shapes::Edge::Bottom | shapes::Edge::Right,
+          .foreground(onEdges(
+              path::Edge::Bottom | path::Edge::Right,
               stroke(1, Fill::color(hex(0x000000)), PathFormat::Align::Inner)))
           .justify(Justify::Center)
           .alignItems(Align::Center)
@@ -328,7 +362,7 @@ struct TwoAdvancedEquipment : sketch::Sketch {
             .child(sbButton(true))
             .child(box().grow(1).fill(kSbTrack).child(
                 at(box().fill(kSbFace).foreground(
-                       shapes::onEdges(shapes::Edge::Top | shapes::Edge::Left,
+                       onEdges(path::Edge::Top | path::Edge::Left,
                                        stroke(1, Fill::color(kWhite),
                                               PathFormat::Align::Inner))),
                    0, 0, kSbW, thumbH)
