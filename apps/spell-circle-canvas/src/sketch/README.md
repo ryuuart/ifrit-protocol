@@ -289,6 +289,16 @@ what that site already holds and its layout, its shaping and its caches
 carry. Nothing has to be declared for it, and a loop that paints several
 passes the index.
 
+**A TREE THAT DOES NOT CHANGE IS DESCRIBED ONCE.** Build it in `setup`,
+keep it as a member, and hand the same value to `pen.element` every
+frame: the guest's own animation, its bindings and its live rows still
+run, because those are read from the tree rather than rebuilt by it.
+Describing it again inside `draw` cannot make it draw anything new, and
+it makes the pen reconcile a whole tree against an identical one on
+every frame — a cost that grows with the tree and is paid for nothing.
+Only the parts whose SHAPE changes — a row appearing, a pool whose lanes
+were rewritten — are worth describing again.
+
 ### One runtime's picture inside another
 
 A sketch stays in its own runtime, and what crosses between runtimes is
