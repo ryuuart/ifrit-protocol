@@ -137,6 +137,30 @@ add_custom_target(sketch_flags
   DEPENDS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>/sketch_flags.rsp)
 add_dependencies(Sketchbook sketch_flags)
 
+# THE ONE TEST THAT LOOKS AT WHOSE CODE RAN, and the reason every other
+# reload test below can pass while the live host is dead.
+#
+# A registry sketch is compiled into this executable as well as into the
+# dylib an edit produces, so both images carry the same weak symbols for
+# it — the sketch's vtable and typeinfo when its virtuals are all inline,
+# and the function templates the registration macro takes the address of.
+# Weak definitions coalesce across a flat namespace onto whichever image
+# came first, and the executable is always first, so a guest compiled at
+# default visibility hands back an Entry whose factory is the HOST'S. The
+# build reports, the dlopen succeeds, the picture comes out — and it is
+# the picture of the file as it stood when the host was built.
+#
+# So this drives a difference through: a copy of a registry sketch with
+# its ground colour replaced, and the corner pixel of what `--frame`
+# writes must be that colour, with the registry's own copy of the same
+# sketch drawn as the control.
+add_test(NAME sketch_reload_runs_the_file
+  COMMAND ${Python3_EXECUTABLE}
+    ${CMAKE_CURRENT_LIST_DIR}/test/reload_runs_the_file.py
+    --sketchbook $<TARGET_FILE:Sketchbook>
+    --source ${SIGIL_SKETCH_DIR}/crossing_rule.cpp
+    --work ${CMAKE_BINARY_DIR}/sketch_reload_runs_the_file)
+
 # Paints one of every stock material, so a material that cannot compile
 # or draw fails here rather than in someone's sketch.
 add_test(NAME sketch_reload_materials

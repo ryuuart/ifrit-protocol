@@ -60,12 +60,35 @@ std::filesystem::path objectFor(const std::filesystem::path& buildDir,
   return buildDir / (std::string(hash) + "_" + source.stem().string() + ".o");
 }
 
-/** One unit to its object, with the flags the build captured. */
+/** One unit to its object, with the flags the build captured — and the
+ *  one difference between a compiled-in sketch and a guest one.
+ *
+ *  HIDDEN VISIBILITY IS WHAT MAKES A GUEST RUN ITS OWN CODE. A sketch's
+ *  body reaches the host through weak definitions: the class's vtable
+ *  and typeinfo when every virtual is inline, and the function templates
+ *  the registration macro takes the address of. Weak definitions
+ *  COALESCE across a flat namespace — every image that exports one names
+ *  the same symbol, and the loader binds them all to whichever image
+ *  came first. The host is loaded before any dylib and exports its own
+ *  copy of every sketch it was built with, so a guest's definitions
+ *  would lose to the host's and the picture would be the host's; between
+ *  two generations of the same guest, build 1 would beat build 2 and an
+ *  edit would never appear.
+ *
+ *  Compiled hidden, a guest's definitions are private to its image and
+ *  join no coalescing set in either direction. Its UNDEFINED references
+ *  are untouched by this — they still resolve into the host through the
+ *  link line's dynamic lookup — and the entry points the registration
+ *  macro exports carry default visibility explicitly, so `dlsym` finds
+ *  them. The cost is that a guest gets its own copy of every inline the
+ *  host also has, which is correct for code and would be wrong only for
+ *  a mutable static inside one. */
 std::string compileLine(const Host::Options& options,
                         const std::filesystem::path& source,
                         const std::filesystem::path& object) {
   std::ostringstream cmd;
-  cmd << options.compiler << " @" << options.flagsFile << " -c -o " << object
+  cmd << options.compiler << " @" << options.flagsFile
+      << " -fvisibility=hidden -fvisibility-inlines-hidden -c -o " << object
       << ' ' << source;
   return cmd.str();
 }

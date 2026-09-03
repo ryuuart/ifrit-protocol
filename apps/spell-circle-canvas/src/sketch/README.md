@@ -716,6 +716,32 @@ embedding a scripting language — so a sketch never leaves the real API.
   its own source or any header beside the sketch or in the shared layer
   has been written since, one conservative rule that needs no
   dependency scan.
+* **The guest compiles hidden**, with `-fvisibility=hidden
+  -fvisibility-inlines-hidden` on top of the flags the build captured,
+  and that is what makes the file on disk the thing that runs. A sketch
+  reaches its host through weak definitions — the class's vtable and
+  typeinfo when every virtual is inline, `kindOf<T>` and the other
+  function templates the registration macro takes the address of — and
+  weak definitions COALESCE. Every image exporting one names the same
+  symbol, and the loader binds them all to whichever came first. The
+  executable is always first and carries its own copy of every sketch in
+  the registry, so a guest at default visibility would hand back an entry
+  whose factory is the host's: the build reports, the dlopen succeeds,
+  and the picture is of the file as it stood when the host was built.
+  The same rule runs the other way between two builds of one guest,
+  since old libraries are never unloaded — build 1 would beat build 2 and
+  an edit would never appear, for a sketch outside the registry too.
+  Hidden visibility closes both directions at once, because a definition
+  that is private to its image joins no coalescing set in either. What
+  hidden does NOT touch is an UNDEFINED reference, so the framework still
+  resolves out of the host exactly as before; the two entry points the
+  registration macro exports carry `visibility("default")` explicitly, so
+  `dlsym` finds them. The cost is that a guest gets its own copy of every
+  inline the host also has, which is right for code and would be wrong
+  only for a mutable static inside one, and typeinfo equality survives
+  because a duplicated typeinfo is compared by name. `--frame` on a
+  registry sketch with one colour changed is the whole of the proof, and
+  the `sketch_reload_runs_the_file` test is exactly that.
 * Compile errors overlay while the **last good sketch keeps running**.
 * Old libraries are never unloaded. Their statics stay valid — a running
   session may hold a vtable or a string literal that lives in one — and
@@ -953,6 +979,13 @@ the directory form — several units compiled apart and linked once — and
 the two behind an optional SDK name symbols nothing else does. A starter
 sketch that names none of those adds no entry of its own: anything that
 stops it compiling and loading stops the wide ones too.
+
+Every one of those judges a compile and a load, and none of them judges
+WHOSE code drew: a host that quietly ran its own copy of the sketch
+passes all of them. `sketch_reload_runs_the_file` is the one that looks,
+by rendering a copy of a registry sketch whose ground colour has been
+replaced and reading the corner pixel back, with the registry's own copy
+of the same sketch as the control.
 
 ### A host over one sketch while the rest are broken
 
