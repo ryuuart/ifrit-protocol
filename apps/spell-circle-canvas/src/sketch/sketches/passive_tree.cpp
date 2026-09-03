@@ -22,7 +22,7 @@
 //                         This is what makes a passive tree READ as orbits
 //                         rather than as an arbitrary node soup.
 //   the 3-state law ..... every edge is Normal / Intermediate / Active --
-//                         kit::brush::presets::rope(state, zoom) carries
+//                         brush::presets::rope(state, zoom) carries
 //                         PoE's own colour ladder (#3A332A -> #6B5A40 ->
 //                         #8A7248 plus a halo). Active needs BOTH ends
 //                         allocated, Intermediate exactly one, and the rope
@@ -43,7 +43,7 @@
 //   draw-on entrance .... the allocated spine (a real shortest path through
 //                         the graph, notable -> keystone) enters with
 //                         stroke(spans::upTo(animate(0 -> 1, 900ms)), …)
-//   pulse-travel ........ stock kit::brush::presets::pulse() rides that spine
+//   pulse-travel ........ stock brush::presets::pulse() rides that spine
 //   search pulse ........ Daripher's Passive-Skill-Tree lights matched
 //                         nodes with a sin-driven alpha; ours rings them
 //   selection ring ...... and rotates an ornament ring around the selected
@@ -54,12 +54,14 @@
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/brush/Brushes.h>
 #include <sigilcompose/brush/LayerStyles.h>
-#include <sigilcompose/core/Material.h>
-#include <sigilcompose/core/Sdf.h>
+#include <sigilmaterial/skia/Paint.h>
+#include <sigilmaterial/sdf/Sdf.h>
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilcompose/kit/Routers.h>
-#include <sigilcompose/kit/Silhouettes.h>
-#include <sigilcompose/typography/Type.h>
+#include <sigilcompose/brush/Adaptors.h>
+#include <sigilweave/style/Type.h>
+#include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilmaterial/skia/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 
 #include <algorithm>
@@ -74,8 +76,14 @@
 #include "SkillTreeData.h"
 
 namespace sketch = sigil::sketch;
+namespace mskia = sigil::material::skia;
+namespace shapes = sigil::geometry::shapes;
+namespace sdf = sigil::material::sdf;
+namespace weave = sigil::weave;
+namespace motion = sigil::motion;
 
 using namespace sigil::compose;
+using sigil::material::skia::Paint;
 using sigil::compose::toU8;
 using namespace std::chrono_literals;
 
@@ -146,7 +154,7 @@ inline SkColor4f ringColor(data::State s) {
 
 inline sigil::weave::TextStyle type(float size, SkColor4f color,
                                     float tracking = 0, bool italic = false) {
-  return sigil::compose::type({.size = size,
+  return weave::textStyle({.size = size,
                                .color = color,
                                .track = tracking,
                                .slant = italic ? -10.0f : 0.0f,
@@ -198,7 +206,7 @@ inline Element socket(const char* key, SkPoint at, float dia,
                       const choreograph::Output<float>* breathingGlow = nullptr,
                       int z = 3) {
   const float boxSize = sdf::minBoxFor(st, dia);
-  Material m = sdf::material(sdf::circle(), st);
+  Paint m = Paint::recipe(sdf::material(sdf::circle(), st));
   if (breathingGlow) m.uniform("uGlowR", breathingGlow);
   Element e = box()
                   .width(Dim(boxSize))
@@ -284,9 +292,9 @@ struct PassiveTree final : sketch::Sketch {
     const float dia = pt::diameterOf(n.kind);
     const bool alloc = n.state == treedata::State::Allocated;
     const bool can = n.state == treedata::State::CanAllocate;
-    const sdf::Style st{.fill = pt::kSocket,
+    const sdf::Style st{.fill = mskia::toColor(pt::kSocket),
                         .borderWidth = alloc ? 2.6f : 1.9f,
-                        .borderColor = pt::ringColor(n.state),
+                        .borderColor = mskia::toColor(pt::ringColor(n.state)),
                         .glowRadius = can ? 12.0f : (alloc ? 11.0f : 0.0f),
                         .glowColor = {pt::kHalo.fR, pt::kHalo.fG, pt::kHalo.fB,
                                       alloc ? 0.45f : 0.40f}};
@@ -295,7 +303,7 @@ struct PassiveTree final : sketch::Sketch {
     Element e =
         pt::socket(nullptr, {n.x, n.y}, dia, st, can ? &breath : nullptr);
     if (alloc) {
-      Material m = sdf::material(sdf::circle(), st);
+      Paint m = Paint::recipe(sdf::material(sdf::circle(), st));
       m.uniform("uGlowR", 5.5f);
       e.fill(std::move(m));
     }
@@ -311,9 +319,9 @@ struct PassiveTree final : sketch::Sketch {
     const bool can = n.state == treedata::State::CanAllocate;
     const SkColor4f ring = pt::ringColor(n.state);
     const sdf::Style outer{
-        .fill = pt::kSocket,
+        .fill = mskia::toColor(pt::kSocket),
         .borderWidth = alloc ? 3.2f : 2.4f,
-        .borderColor = ring,
+        .borderColor = mskia::toColor(ring),
         .glowRadius = 14,
         .glowColor = {pt::kHalo.fR, pt::kHalo.fG, pt::kHalo.fB,
                       alloc ? 0.5f
@@ -323,7 +331,7 @@ struct PassiveTree final : sketch::Sketch {
     Element frame =
         pt::socket(key.c_str(), at, dia, outer, can ? &breath : nullptr);
     if (alloc) {
-      Material m = sdf::material(sdf::circle(), outer);
+      Paint m = Paint::recipe(sdf::material(sdf::circle(), outer));
       m.uniform("uGlowR", 7.0f);
       frame.fill(std::move(m));
     }
@@ -331,7 +339,7 @@ struct PassiveTree final : sketch::Sketch {
     // the inner ring and the notch rosette that make it read "notable"
     parent.child(pt::socket(
         nullptr, at, dia - 11,
-        {.fill = {0, 0, 0, 0}, .borderWidth = 1.6f, .borderColor = ring},
+        {.fill = {0, 0, 0, 0}, .borderWidth = 1.6f, .borderColor = mskia::toColor(ring)},
         nullptr, 4));
     parent.child(
         box()
@@ -353,7 +361,7 @@ struct PassiveTree final : sketch::Sketch {
                      .height(Dim(dia * 0.50f))
                      .centerAt(at)
                      .shape(shapes::star(4, 0.34f))
-                     .fill(Material::solid(
+                     .fill(Paint::solid(
                          {ring.fR, ring.fG, ring.fB, alloc ? 0.95f : 0.6f}))
                      .zIndex(4));
   }
@@ -371,7 +379,7 @@ struct PassiveTree final : sketch::Sketch {
                      .centerAt(at)
                      .key(nodeKey(i))
                      .shape(shapes::polygon(4))
-                     .fill(Material::solid(pt::kSocket))
+                     .fill(Paint::solid(pt::kSocket))
                      .stroke(stroke(1.8f, Fill::color(ring)))
                      .zIndex(3));
     parent.child(box()
@@ -379,7 +387,7 @@ struct PassiveTree final : sketch::Sketch {
                      .height(Dim(dia * 0.42f))
                      .centerAt(at)
                      .shape(shapes::polygon(4))
-                     .fill(Material::solid({ring.fR, ring.fG, ring.fB, 0.75f}))
+                     .fill(Paint::solid({ring.fR, ring.fG, ring.fB, 0.75f}))
                      .zIndex(4));
   }
 
@@ -393,7 +401,7 @@ struct PassiveTree final : sketch::Sketch {
     // Halo well first, so the octagon frame sits inside its own light.
     parent.child(
         pt::socket(nullptr, at, dia - 6,
-                   {.fill = pt::kSocket,
+                   {.fill = mskia::toColor(pt::kSocket),
                     .borderWidth = 0,
                     .glowRadius = 22,
                     .glowColor = {pt::kHalo.fR, pt::kHalo.fG, pt::kHalo.fB,
@@ -406,7 +414,7 @@ struct PassiveTree final : sketch::Sketch {
             .centerAt(at)
             .key(nodeKey(i))
             .shape(shapes::polygon(8, 22.5f))
-            .fill(Material::radial({dia * 0.5f, dia * 0.5f}, dia * 0.62f,
+            .fill(Paint::radial({dia * 0.5f, dia * 0.5f}, dia * 0.62f,
                                    {{0.0f, {0.20f, 0.16f, 0.12f, 1}},
                                     {1.0f, {0.07f, 0.06f, 0.05f, 1}}}))
             .stroke(stroke(2.8f, Fill::color(ring)))
@@ -434,7 +442,7 @@ struct PassiveTree final : sketch::Sketch {
             .height(Dim(dia * 0.60f))
             .centerAt(at)
             .shape(shapes::star(6, 0.40f))
-            .fill(Material::radial(
+            .fill(Paint::radial(
                 {dia * 0.30f, dia * 0.30f}, dia * 0.34f,
                 {{0.0f,
                   {pt::kHalo.fR, pt::kHalo.fG, pt::kHalo.fB,
@@ -480,7 +488,7 @@ struct PassiveTree final : sketch::Sketch {
               // and at half a stop over the ground it is invisible: the
               // rosettes then float on flat charcoal and the tree loses
               // the one cue that says which nodes belong together.
-              .fill(Material::radial({discR, discR}, discR,
+              .fill(Paint::radial({discR, discR}, discR,
                                      {{0.00f, {0.30f, 0.24f, 0.18f, 0.85f}},
                                       {0.55f, {0.22f, 0.18f, 0.14f, 0.62f}},
                                       {0.86f, {0.15f, 0.12f, 0.10f, 0.28f}},
@@ -535,7 +543,7 @@ struct PassiveTree final : sketch::Sketch {
             .centerAt({g.x, g.y})
             .shape(pt::circleOutline())
             .stroke(spans::wrap(0.92f, 1.06f).offset(&ringPhase),
-                    kit::brush::presets::pulse(
+                    brush::presets::pulse(
                         {pt::kHalo.fR, pt::kHalo.fG, pt::kHalo.fB, 0.22f},
                         {1, 1, 1, 0.75f}, 0.72f))
             .zIndex(2));
@@ -556,7 +564,7 @@ struct PassiveTree final : sketch::Sketch {
       }
       root.child(rail({{nodeKey(e.a)}, {nodeKey(e.b)}}, std::move(router))
                      .inset(0)
-                     .stroke(kit::brush::presets::rope(state, pt::kRopeScale))
+                     .stroke(brush::presets::rope(state, pt::kRopeScale))
                      .zIndex(1));
     }
   }
@@ -624,14 +632,14 @@ struct PassiveTree final : sketch::Sketch {
     // curves same-radius pairs anyway — a single focus would be a lie.
     root.child(rail(anchors)
                    .inset(0)
-                   .stroke(spans::upTo(animate(from(0.0f).to(1.0f), {900ms})),
-                           kit::brush::presets::rope(2, pt::kRopeScale))
+                   .stroke(spans::upTo(animate(motion::from(0.0f).to(1.0f), {900ms})),
+                           brush::presets::rope(2, pt::kRopeScale))
                    .zIndex(2));
     root.child(
         rail(anchors)
             .inset(0)
             .stroke(spans::range(&pulseS, &pulseE),
-                    kit::brush::presets::pulse(
+                    brush::presets::pulse(
                         {pt::kHalo.fR, pt::kHalo.fG, pt::kHalo.fB, 0.35f},
                         {1, 1, 1, 0.9f}, 1.25f))
             .zIndex(2));
@@ -694,15 +702,15 @@ struct PassiveTree final : sketch::Sketch {
             .padding(16, 13)
             .gap(0)
             .corners({3})
-            .fill(Material::linear({0, 0}, {0, 170},
+            .fill(Paint::linear({0, 0}, {0, 170},
                                    {{0.0f, {0.075f, 0.063f, 0.051f, 0.96f}},
                                     {1.0f, {0.043f, 0.036f, 0.031f, 0.96f}}}))
             .background(styles::dropShadow({0, 0, 0, 0.6f}, {0, 6}, 14))
             .foreground(stroke(1.2f, Fill::color({pt::kGold.fR, pt::kGold.fG,
                                                   pt::kGold.fB, 0.45f})))
             .zIndex(7)
-            .opacity(animate(from(0.0f).to(1.0f), {420ms}))
-            .translateY(animate(from(10.0f).to(0.0f), {520ms}))
+            .opacity(animate(motion::from(0.0f).to(1.0f), {420ms}))
+            .translateY(animate(motion::from(10.0f).to(0.0f), {520ms}))
             .child(text(toU8(detail->name), pt::type(17, pt::kHalo, 2.4f)))
             .child(text(toU8(detail->kind), pt::type(9.5f, pt::kAsh, 3.2f))
                        .margin(0, 3, 0, 0))
@@ -711,7 +719,7 @@ struct PassiveTree final : sketch::Sketch {
                     .width(Dim(kCardW - 32))
                     .height(Dim(1.0f))
                     .margin(0, 9, 0, 9)
-                    .fill(Material::linear(
+                    .fill(Paint::linear(
                         {0, 0}, {kCardW - 32, 0},
                         {{0.0f,
                           {pt::kGold.fR, pt::kGold.fG, pt::kGold.fB, 0.55f}},
@@ -729,7 +737,7 @@ struct PassiveTree final : sketch::Sketch {
                          .height(Dim(3.0f))
                          .margin(0, 6, 0, 0)
                          .corners({1.5f})
-                         .fill(Material::solid({pt::kRimLit.fR, pt::kRimLit.fG,
+                         .fill(Paint::solid({pt::kRimLit.fR, pt::kRimLit.fG,
                                                 pt::kRimLit.fB, 0.9f})))
               .child(
                   text(toU8(line), pt::type(12, {0.62f, 0.68f, 0.90f, 1}, 0.2f))
@@ -791,7 +799,7 @@ struct PassiveTree final : sketch::Sketch {
                    .zIndex(8)
                    .padding(10, 5)
                    .corners({3})
-                   .fill(Material::solid({0.075f, 0.063f, 0.051f, 0.9f}))
+                   .fill(Paint::solid({0.075f, 0.063f, 0.051f, 0.9f}))
                    .foreground(
                        stroke(1.0f, Fill::color({pt::kSearch.fR, pt::kSearch.fG,
                                                  pt::kSearch.fB, 0.4f})))
@@ -808,7 +816,7 @@ struct PassiveTree final : sketch::Sketch {
                      .width(Dim(44.0f))
                      .height(Dim(14.0f))
                      .shape(pt::hline())
-                     .stroke(kit::brush::presets::rope(state, 0.8f)))
+                     .stroke(brush::presets::rope(state, 0.8f)))
           .child(text(toU8(label), pt::type(11, pt::kAsh, 0.8f)));
     };
     root.child(box()
@@ -826,7 +834,7 @@ struct PassiveTree final : sketch::Sketch {
   Element describe() {
     namespace pt = skill_tree;
 
-    auto root = stack().fill(Material::radial(
+    auto root = stack().fill(Paint::radial(
         {pt::kW * 0.5f, pt::kH * 0.48f}, 600,
         {{0.0f, pt::kBgLift}, {0.55f, pt::kBg}, {1.0f, pt::kBgSink}}));
 
