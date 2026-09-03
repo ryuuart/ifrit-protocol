@@ -17,13 +17,16 @@
  *
  * The rail is `curve::sweep` over the same spline the dart rides, so
  * there is exactly one curve in this file and both the picture and the
- * flight are read off it.
+ * flight are read off it. The curve itself is the world kit's winding:
+ * this file says how many gates stand on it and how fast the dart flies
+ * it, and nothing about where it goes.
  */
 
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/curve/Curve.h>
 #include <sigilmaterial/kit/Surface.h>
+#include <sigilmotion/values/Time.h>
 #include <sigilsketch/set/Set.h>
 #include <sigilworld/kit/Kit.h>
 
@@ -36,41 +39,25 @@
 namespace sketch = sigil::sketch;
 namespace world = sigil::world;
 namespace material = sigil::material;
-
-using namespace sigil::world;
+namespace motion = sigil::motion;
+namespace gm = sigil::geometry::mesh;
 
 namespace {
 
-namespace gm = ::sigil::geometry::mesh;
-
-constexpr float kTwoPi = 6.283185307179586f;
 /** How many gates stand on the loop, and how fast the dart flies it —
  *  loops per second, so one number says both how long a lap takes and
  *  how far apart two frames are. */
 constexpr int kGates = 9;
 constexpr float kLapsPerSecond = 0.11f;
 
-/** THE FLIGHT LOOP: a closed winding that leaves its own plane, so the
- *  rail crosses in front of and behind itself and a body riding it is
- *  seen from every side of the frame during one lap. The two rates are
- *  coprime, which is what keeps a later wrap from retracing an earlier
- *  one. */
-Spline3 flight() {
-  Spline3 loop;
-  constexpr int kKnots = 72;
-  constexpr float kWraps = 3.0f;    // rises and falls per lap
-  constexpr float kPrecess = 2.0f;  // turns of the winding plane per lap
-  constexpr glm::vec3 kShell{230.0f, 120.0f, 190.0f};
-  for (int i = 0; i < kKnots; ++i) {
-    const float t = (float)i / (float)kKnots;
-    const float latitude = std::sin(kTwoPi * kWraps * t);
-    const float azimuth = -kTwoPi * kPrecess * t;
-    loop.points.emplace_back(kShell.x * std::cos(latitude) * std::cos(azimuth),
-                             kShell.y * std::sin(latitude),
-                             kShell.z * std::cos(latitude) * std::sin(azimuth));
-  }
-  loop.closed = true;
-  return loop;
+/** THE FLIGHT LOOP: the kit's winding round a shell, which leaves its
+ *  own plane, so the rail crosses in front of and behind itself and a
+ *  body riding it is seen from every side of the frame during one lap.
+ *  The rise-and-fall count and the turn count share no factor, which is
+ *  what keeps a later wrap from retracing an earlier one. */
+gm::curve::Spline3 flight() {
+  return world::kit::winding(
+      {.shell = {230.0f, 120.0f, 190.0f}, .wraps = 3.0f, .turns = 2.0f});
 }
 
 /** The dart: a profile revolved about its own up axis, nose at the top.
@@ -101,7 +88,7 @@ struct DartFlight final : sketch::Set {
   }
 
   world::Frame describe(float seconds) override {
-    const Spline3 loop = flight();
+    const gm::curve::Spline3 loop = flight();
     const float lap = loop.length();
 
     const gm::Mesh rail =
@@ -117,8 +104,9 @@ struct DartFlight final : sketch::Set {
     const material::Material brass = material::kit::surface(
         {.baseColor = {0.86f, 0.62f, 0.28f, 1.0f}, .roughness = 0.35f});
 
-    Element subject = Element().key("flight");
-    subject.child(Element().key("rail").mesh(rail).fill(wire).tag("rail"));
+    world::Element subject = world::Element().key("flight");
+    subject.child(
+        world::Element().key("rail").mesh(rail).fill(wire).tag("rail"));
 
     // The gates: one node per station, each standing at a constant
     // distance along the loop and ROLLED about the rail inside the frame
@@ -126,7 +114,7 @@ struct DartFlight final : sketch::Set {
     // rotation lanes rather than replacing them.
     for (int i = 0; i < kGates; ++i) {
       const float where = lap * ((float)i / (float)kGates);
-      subject.child(Element()
+      subject.child(world::Element()
                         .key("gate" + std::to_string(i))
                         .along(loop, where)
                         .rotateY((float)i * 11.0f)
@@ -138,14 +126,14 @@ struct DartFlight final : sketch::Set {
     // …and the dart, on the same curve, at a distance that is a function
     // of the moment and of nothing else.
     subject.child(
-        Element()
+        world::Element()
             .key("dart")
-            .along(loop, std::fmod(seconds * kLapsPerSecond, 1.0f) * lap)
+            .along(loop, motion::phase(seconds, 1.0 / kLapsPerSecond) * lap)
             .mesh(dart())
             .fill(chrome)
             .tag("dart"));
 
-    kit::Set set;
+    world::kit::Set set;
     set.rig.extent = 220.0f;
     set.rig.bearing = -30.0f;
     set.rig.elevation = 32.0f;
@@ -156,7 +144,7 @@ struct DartFlight final : sketch::Set {
     set.table.height = 300.0f;
     set.table.period = 18.0f;
     set.table.fovYDeg = 42.0f;
-    return Frame(kit::litSet(std::move(subject), set, seconds));
+    return world::Frame(world::kit::litSet(std::move(subject), set, seconds));
   }
 };
 
