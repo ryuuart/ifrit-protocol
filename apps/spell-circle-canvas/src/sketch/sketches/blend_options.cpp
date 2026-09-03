@@ -94,12 +94,15 @@ weave::TextStyle label(float size, SkColor4f color, float track = 0) {
   return weave::textStyle({.size = size, .color = color, .track = track});
 }
 
-kit::Caption voice() {
+/** The caption voice, measured to the cell it sits under: a note wider
+ *  than its own picture would widen the cell and push its neighbour off
+ *  the sheet. */
+kit::Caption voice(float measure) {
   return {.where = kit::Caption::Where::Split,
           .label = label(12, kInk, 0.6f),
           .note = label(11, kAsh, 0.3f),
           .gap = 7,
-          .noteMeasure = kBand};
+          .noteMeasure = measure};
 }
 
 /** A generator's outline at a diameter, centred on a point. The shape
@@ -140,7 +143,7 @@ using Painter = void (*)(SkCanvas&);
 
 Element band(std::string key, float width, float height, const char* call,
              const char* note, Painter paint) {
-  return kit::cell(voice(), toU8(call), toU8(note),
+  return kit::cell(voice(width), toU8(call), toU8(note),
                    custom(std::move(key),
                           [paint](SkCanvas& canvas, const PaintContext&) {
                             paint(canvas);
@@ -250,7 +253,7 @@ void spineTurned(SkCanvas& canvas) {
 
 struct BlendOptions final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(1200, 1300);
+    ctx.canvas(1200, 1330);
     ctx.background(kGround);
     // Every step is computed from the keys and the options; nothing here
     // reads the clock.

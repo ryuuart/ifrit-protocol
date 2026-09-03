@@ -143,7 +143,7 @@ struct BlurFalloff final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
     ctx.canvas(1080, 430);
     ctx.background(kGround);
-    ctx.captureAt(1.6);  // rack focus near its widest
+    ctx.captureAt(2.78);  // the top of panel 4's breath: 1 / (2 kRackHz)
 
     ctx.composer.render(
         kit::sheet(

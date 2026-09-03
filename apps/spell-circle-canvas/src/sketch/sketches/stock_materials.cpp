@@ -118,7 +118,7 @@ Element row(std::vector<Element> cells) {
 
 struct StockMaterialsSheet final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(1150, 990);
+    ctx.canvas(1150, 900);
     ctx.background(kGround);
     // Nothing on the sheet moves: every generator is evaluated from its
     // parameters and the box, and the two that read the clock are pinned
