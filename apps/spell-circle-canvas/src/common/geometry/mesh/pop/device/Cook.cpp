@@ -254,17 +254,27 @@ void PopGpu::dispatch(const Dispatch& work, size_t count) {
       (dg::Uint32)((count + kGroupSize - 1) / kGroupSize);
   context->DispatchCompute(attribs);
 
-  // ONE DISPATCH READS WHAT THE ONE BEFORE IT WROTE, and a lane never
-  // changes state between them, so nothing about the bindings tells the
-  // driver to wait. A transition from a state to itself is what does:
-  // it is the barrier, and without it an operator would read the lane as
-  // the operator before it found it.
+  // ONE DISPATCH READS WHAT THE ONE BEFORE IT WROTE, and the bindings
+  // say nothing about that: the same lane is bound the same way to both.
+  // A barrier over every lane is what makes the second wait, and without
+  // it an operator would read the lane as the operator before it found
+  // it.
+  //
+  // ITS OLD STATE IS THE BUFFER'S OWN, which is what leaving it unknown
+  // asks for, because a lane does not reach a dispatch from one place. A
+  // lane the dispatch before wrote stands in UNORDERED_ACCESS; one
+  // re-uploaded at the head of this cook stands in COPY_DEST; one the
+  // cook before read back stands in COPY_SOURCE. Naming a single state
+  // for all three is wrong for two of them, and the backend says so and
+  // then barriers from the state it was told rather than the state the
+  // buffer is in — so the wait the barrier exists to impose is imposed
+  // between the wrong pair of stages.
   std::vector<dg::StateTransitionDesc> barriers;
   barriers.reserve(lanes.size());
   for (auto& [name, held] : lanes)
-    barriers.emplace_back(
-        held.buffer.RawPtr(), dg::RESOURCE_STATE_UNORDERED_ACCESS,
-        dg::RESOURCE_STATE_UNORDERED_ACCESS, dg::STATE_TRANSITION_FLAG_NONE);
+    barriers.emplace_back(held.buffer.RawPtr(), dg::RESOURCE_STATE_UNKNOWN,
+                          dg::RESOURCE_STATE_UNORDERED_ACCESS,
+                          dg::STATE_TRANSITION_FLAG_NONE);
   if (!barriers.empty())
     context->TransitionResourceStates((dg::Uint32)barriers.size(),
                                       barriers.data());

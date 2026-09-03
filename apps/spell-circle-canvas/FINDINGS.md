@@ -298,16 +298,6 @@ Assert once fixed: draw one passage into one box under each of TOP,
 CENTER and BOTTOM and read the first line's baseline back; the three must
 differ by half and by all of the room the passage left over.
 
-## A device pop chain reports a barrier state mismatch
-
-`compute_variant --gpu` prints, twice per frame, "The state COPY_DEST of
-buffer 'pop lane' does not match the old state UNORDERED_ACCESS specified
-by the barrier" from Diligent; the picture is right. The device point
-executor evidently intends to track the lane buffer's state across the
-compute and copy passes. A test on the device tier should cook a chain
-that both computes and reads back a lane and assert Diligent's validation
-stays silent.
-
 ## A second geometry pass writing a written target erases it
 
 `world/frame/CpuGeometry.cpp`'s `paintGeometry` opens with

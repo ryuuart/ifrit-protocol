@@ -10,6 +10,7 @@
  * thing this test exists to see.
  */
 
+#include <Primitives/interface/DebugOutput.h>
 #include <gtest/gtest.h>
 #include <sigilgeometry/mesh/pop/Kernel.h>
 #include <sigilgeometry/mesh/pop/Pop.h>
@@ -210,7 +211,67 @@ std::vector<Case> everySupportedChain() {
   return cases;
 }
 
+/** WHAT THE BACKEND COMPLAINED ABOUT while a cook ran. Diligent reports
+ *  a wrong barrier, a wrong binding or a wrong state through this
+ *  callback and then carries on drawing the right picture, so a defect
+ *  in the plumbing is invisible to a comparison of the answers — which
+ *  is why it is read here rather than trusted to show up as a wrong
+ *  number. The callback is a plain function pointer, so what it collects
+ *  into is a plain global. */
+std::vector<std::string>& complaints() {
+  static std::vector<std::string> held;
+  return held;
+}
+
+void DILIGENT_CALL_TYPE collect(Diligent::DEBUG_MESSAGE_SEVERITY severity,
+                                const char* message, const char* function,
+                                const char* file, int line) {
+  (void)function;
+  (void)file;
+  (void)line;
+  // Errors and worse only: a warning is Diligent telling the caller
+  // about the machine, and this test is about the calls.
+  if (severity < Diligent::DEBUG_MESSAGE_SEVERITY_ERROR) return;
+  complaints().emplace_back(message ? message : "");
+}
+
 }  // namespace
+
+TEST(DevicePop, ACookThatReadsBackAndCooksAgainDrawsNoComplaint) {
+  const OnDevice on = onDevice();
+  if (!on) GTEST_SKIP() << "no Vulkan device: " << on.error;
+
+  // A lane reaches a dispatch from three places, and only a SECOND cook
+  // over held buffers visits all of them: the first cook creates the
+  // lanes and dispatches over them, its readback leaves every one of
+  // them a copy source, and the second cook re-uploads the seeded ones,
+  // which leaves those a copy destination. A barrier naming one state
+  // for all three is right for one of them.
+  const pop::Chain chain = pop::on(loop())
+                               .count(2048)
+                               .spread(11.0f)
+                               .select("core", {20, 0, 0}, 90.0f, 0.35f)
+                               .jitter(16.0f)
+                               .masked("core")
+                               .fade({1, 0.9f, 0.4f, 1}, {0.1f, 0.2f, 0.8f, 0.4f});
+
+  complaints().clear();
+  const Diligent::DebugMessageCallbackType before =
+      Diligent::DebugMessageCallback;
+  Diligent::SetDebugMessageCallback(&collect);
+  const Cloud once = pop::cook(chain, on.runtime);
+  const Cloud twice = pop::cook(chain, on.runtime);
+  Diligent::SetDebugMessageCallback(before);
+
+  ASSERT_FALSE(once.positions.empty());
+  EXPECT_EQ(once.positions.size(), twice.positions.size());
+  EXPECT_TRUE(complaints().empty())
+      << complaints().size() << " complaint(s), first: " << complaints().front();
+  // …and the second cook is still the answer, so nothing was fixed by
+  // barriering the lanes into silence.
+  EXPECT_EQ(compare(pop::cook(chain, pop::Runtime::cpu()), twice).differing,
+            0u);
+}
 
 TEST(DevicePop, EverySupportedChainCooksToTheSameBits) {
   const OnDevice on = onDevice();
