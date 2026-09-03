@@ -32,6 +32,7 @@
  * | `kit/PixelType.h` | the aliased bitmap-font bake |
  * | `kit/Legibility.h` | halo / shade / scrim |
  * | `kit/Instruments.h` | `trackMeter()` and `restGhost()` — a cascade seen |
+ * | `kit/Kinetic.h` | the `fx::` presets over the effect seam, and `marquee()` |
  * | `kit/Annotations.h` | `annotate()` — an element per unit, `Beside` it |
  * | `kit/Annotations.h` | …or `Anchored`, where the caller says |
  * | `kit/Typeset.h` | ruby, kenten, drop cap, `NestedStyle` |
@@ -63,6 +64,7 @@
 #include "sigilcompose/kit/Gel.h"
 #include "sigilcompose/kit/Gloss.h"
 #include "sigilcompose/kit/Instruments.h"
+#include "sigilcompose/kit/Kinetic.h"
 #include "sigilcompose/kit/Legibility.h"
 #include "sigilcompose/kit/PixelType.h"
 #include "sigilcompose/kit/Sprites.h"

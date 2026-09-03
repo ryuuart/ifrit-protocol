@@ -39,7 +39,6 @@ add_library(SigilComposeTypography STATIC
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/typography/RichText.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/typography/Selector.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/typography/TextEffect.h
-  ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/typography/TextFx.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/typography/TextPath.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/typography/Track.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/typography/Typography.h
@@ -79,7 +78,8 @@ _compose_test_binary(compose_text_test
 target_compile_definitions(compose_text_test PRIVATE
   SIGILCOMPOSE_TEST_ASSET_DIR="${SIGIL_COMPOSE_TEST_ASSET_DIR}")
 
-# Dense text replayed, baked and projected; kinetic text every frame.
+# Dense text replayed, baked and projected; kinetic text every frame. The
+# kit is here for the stock effect the kinetic arms drive.
 _compose_bench(compose_text_bench GPU
-  LIBRARIES SigilComposeTypography
+  LIBRARIES SigilComposeTypography SigilComposeKit
   SOURCES bench/ComposeTextBench.cpp)

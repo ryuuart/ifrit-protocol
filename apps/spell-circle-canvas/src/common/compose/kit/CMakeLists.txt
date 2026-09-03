@@ -8,8 +8,10 @@
 # negative control for exactly that (expected to fail; see the file).
 #
 # The shelves of stock values are here: WHERE a child lands (`layouts::`),
-# WHAT JOINS two of them (`routers::`), and the two outline adaptors that
-# only mean anything against a node (`shapes::onEdges`, `shapes::inset`).
+# WHAT JOINS two of them (`routers::`), HOW a glyph deviates from rest
+# (the `fx::` presets over the typography tier's effect seam, with the
+# marquee, in kit/Kinetic.h), and the two outline adaptors that only mean
+# anything against a node (`shapes::onEdges`, `shapes::inset`).
 # The silhouette generators themselves are the geometry library's, spelled
 # under `shapes::` by `kit/Silhouettes.h`, because a `path(SkSize)` value
 # needs nothing of a component tree.
@@ -32,6 +34,7 @@ add_library(SigilComposeKit STATIC
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/kit/Annotations.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/kit/Typeset.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/kit/Instruments.h
+  ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/kit/Kinetic.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/kit/Kit.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/kit/Layouts.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/kit/PixelType.h

@@ -9,8 +9,8 @@
 #include <sigilcompose/Compose.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/instances/Instances.h>
+#include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/kit/Silhouettes.h>
-#include <sigilcompose/typography/TextFx.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 

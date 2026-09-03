@@ -28,7 +28,11 @@ it. The spread is SigilMotion's and says nothing about text; `over` is the
 whole of what makes it a cascade over glyphs rather than over a set's
 children or a feed's rows. `Element::fx` appends one;
 several compose per glyph, with `GlyphMod` offsets and rotations adding
-and scale and alpha multiplying.
+and scale and alpha multiplying. The seam — `TextEffect`, `GlyphMod`, and
+the effects the runtime evaluates by structure — is
+`typography/TextEffect.h`; the stock effects an example reaches for,
+`fx::rise`, `fx::waveLoop` and the rest, are stock values over it and so
+the kit's, in `kit/Kinetic.h`.
 
 ```cpp
 text(u8"ONE LINE, TWO MOVES", display)

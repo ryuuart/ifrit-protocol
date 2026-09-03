@@ -1,9 +1,10 @@
 #pragma once
 
 /** @file
- * SigilCompose text-fx presets — the stock entrances, loops and
- * combinators for the kernel's multi-track `fx()` seam, all as plain
- * comparable `TextEffect` VALUES.
+ * SigilCompose KIT — kinetic type: the stock entrances and loops for the
+ * kernel's multi-track `fx()` seam, all as plain comparable `TextEffect`
+ * VALUES built from the same constructor any caller may use, and the
+ * marquee, a ticker composed from a clipped strip and a wrapping phase.
  *
  * One track:
  *
@@ -22,38 +23,41 @@
  *            .effect = fx::waveLoop(),
  *            .progress = &phase});
  *
- * The combinators and the effects the runtime itself evaluates —
- * `fx::keys`, `fx::seq`, `fx::mix`, `fx::hold`, `fx::scramble`, `fx::pass`
- * and the `fx::effect` door — are declared with the seam in
- * `TextEffect.h`; this header holds the presets, which are values built
- * from the same `TextEffect` constructor any caller may use.
+ * The effects the runtime itself evaluates — `fx::keys`, `fx::seq`,
+ * `fx::mix`, `fx::hold`, `fx::scramble`, `fx::pass` and the `fx::effect`
+ * door — are the seam's, declared with it in
+ * <sigilcompose/typography/TextEffect.h>; this header holds the presets,
+ * which are values over that seam and need nothing it does not expose.
  *
  * One-shot effects consume progress 0→1; loop effects (waveLoop) read a
  * WRAPPING bound phase (an Output stepped mod 1), and a looping CASCADE
- * (`motion::Spread::loopMs`) reads the same wrapping phase and re-opens every
- * unit's beat once per wrap. Everything renders
- * through batched RSXform draws — moving text is never per-glyph draw
- * calls — and every preset declares the reach its motion needs so the
- * recording cull does not truncate it.
+ * (`motion::Spread::loopMs`) reads the same wrapping phase and re-opens
+ * every unit's beat once per wrap. Everything renders through batched
+ * RSXform draws — moving text is never per-glyph draw calls — and every
+ * preset declares the reach its motion needs so the recording cull does
+ * not truncate it.
  *
  * Every effect here also carries whether it MOVES its glyphs off the pen
  * positions the layout gave them (`TextEffect::displaces`), which is what
  * decides the grid a live run's origins are rounded to. `rise`, `slide`,
  * `pop`, `spinIn`, `scatter` and `waveLoop` move them; `typeOn`,
- * `variableAxisSweep`, `tint`, `scramble` and `pass` do not; `keys` reads its
- * own table and the combinators derive from their operands. Only `fx::effect`
- * has to be told.
+ * `variableAxisSweep` and `tint` do not.
  */
 
+#include <choreograph/Easing.h>
+#include <include/core/SkColor.h>
+#include <sigilcompose/core/Element.h>
+#include <sigilcompose/core/Factories.h>
+#include <sigilcompose/core/Layout.h>
 #include <sigilcompose/typography/TextEffect.h>
+#include <sigilcore/compute/Noise.h>
+#include <sigilmotion/values/Animatable.h>
+#include <sigilmotion/values/Transition.h>
+#include <sigilweave/style/ShapingStyle.h>
 
 #include <algorithm>
 #include <cmath>
-#include <string>
 #include <utility>
-#include <vector>
-
-#include "sigilcompose/Compose.h"
 
 namespace sigil::compose::fx {
 
@@ -192,8 +196,8 @@ namespace sigil::compose::fx {
 
 /** A variable-font axis SWEPT across local progress: `from` at t = 0,
  *  `to` at t = 1. Pair it with a stagger and a weight rolls along the
- *  line. The held coordinate is `TextEffect::variableAxis`, in the
- *  kernel, because the span verb that holds an axis is built on it. */
+ *  line. The held coordinate is `TextEffect::variableAxis`, on the seam,
+ *  because the span verb that holds an axis is built on it. */
 [[nodiscard]] inline TextEffect variableAxisSweep(const char (&tag)[5],
                                                   float from, float to) {
   const sigil::weave::FontVariation coordinate(tag, from);
@@ -259,7 +263,7 @@ namespace sigil::compose::fx {
 
 }  // namespace sigil::compose::fx
 
-namespace sigil::compose {
+namespace sigil::compose::kit {
 
 // ---------------------------------------------------------------------------
 // The marquee — text in motion that costs a repaint and never a reflow
@@ -304,4 +308,4 @@ inline Element marquee(Element content, float contentWidth,
                                     .child(pinned()));
 }
 
-}  // namespace sigil::compose
+}  // namespace sigil::compose::kit

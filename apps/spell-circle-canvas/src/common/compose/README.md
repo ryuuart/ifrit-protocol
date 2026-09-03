@@ -575,11 +575,8 @@ tracks, runs and readings — and every member it stores, compares or
 evaluates is defined in the header that declares it, so the kernel links
 no engine to do so; what the feature's archive holds is the members that
 carry a diagnostic, the mixed-text builders, and the engine behind
-dressed type. `typography/TextFx.h` supplies the stock preset effects
-(`fx::rise`, `fx::slide`, `fx::pop`, `fx::spinIn`, `fx::typeOn`,
-`fx::waveLoop`, `fx::scatter`, `fx::variableAxisSweep`, `fx::tint`) for
-the kernel's `Element::fx` seam — and `marquee`, the seamless ticker
-built from a clipped strip and a wrapping phase. A text verb takes this
+dressed type. The stock effects over the seam are stock values, and so
+the kit's — `kit/Kinetic.h`, below. A text verb takes this
 vocabulary and a text query answers in it, and the kernel's own headers
 only name it: a call site that dresses its type, or reads a beat or a
 unit back, includes the typography header that spells the value. A
@@ -620,7 +617,13 @@ at a `geometry::path::Frame`'s) and `kit::at` (a box pinned at absolute
 coordinates, for the plate that has no layout at all), `kit::dotSprite`
 (the round stamp a point sink draws each point with),
 `kit::PixFont` (aliased bitmap-font bakes), `kit::Scrim` and the
-halo/shade legibility helpers, the two instruments for text in motion —
+halo/shade legibility helpers, the stock text effects over the
+`Element::fx` seam in `kit/Kinetic.h` — `fx::rise`, `fx::slide`,
+`fx::pop`, `fx::spinIn`, `fx::typeOn`, `fx::waveLoop`, `fx::scatter`,
+`fx::variableAxisSweep` and `fx::tint`, each a comparable `TextEffect`
+built from the constructor any caller may use — with `kit::marquee`,
+the seamless ticker built from a clipped strip and a wrapping phase, the
+two instruments for text in motion —
 `kit::trackMeter` (a cascade's schedule drawn, one cell per beat at its
 rect, filled by its local time — `MeterPlacement` stands the cells over
 the beats or under them as a rule, for a track whose own letters are
@@ -876,7 +879,7 @@ tier it draws with: `SigilComposeCore` (`core/` — the kernel: elements,
 layout, paint, transitions, text and the feed, as the host of
 SigilCore's reconciler),
 `SigilComposeTypography` (`typography/` — the text vocabulary and the
-engine behind dressed type, with the text-fx presets), `SigilComposeBrush`
+engine behind dressed type), `SigilComposeBrush`
 (`brush/` — decorations, lines, brushes, the stroke grammar's engine and
 the mask gates, with `kit/Strokes.h` and `kit/Plate.h`),
 `SigilComposeInstances` (`instances/` — the instanced sprite leaf and the
@@ -884,8 +887,8 @@ kit's placers, over Core), `SigilComposeTexture` (`texture/` — a scene
 painted into a surface and handed out as a texture value),
 `SigilComposeWeb` (`web/` — header-only, present only with SigilScry),
 `SigilComposeTesting` (`testing/`) and `SigilComposeKit` (`kit/` — the
-shelves: the silhouette catalog spelled for a node, the layout schemes
-and the routers). Each directory holds the target's sources,
+shelves: the silhouette catalog spelled for a node, the layout schemes,
+the routers and the kinetic type presets). Each directory holds the target's sources,
 its internal headers, its `test/` and its `bench/`; the public headers
 sit under `include/sigilcompose/<feature>/`. A harness several features
 compose against belongs to none of them, so the shared ones sit at the

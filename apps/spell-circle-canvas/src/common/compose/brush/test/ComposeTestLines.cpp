@@ -82,7 +82,7 @@ TEST(ComposeUtil, MarqueeSlidesTwoCopies) {
   Host host(200, 60);
   choreograph::Output<float> phase{0.0f};
   host.composer.render(box().padding(10).child(
-      marquee(box().width(60).height(20).fill(red()), &phase)
+      kit::marquee(box().width(60).height(20).fill(red()), &phase)
           .width(Dim(100.0f))
           .height(Dim(20.0f))));
   host.frame();

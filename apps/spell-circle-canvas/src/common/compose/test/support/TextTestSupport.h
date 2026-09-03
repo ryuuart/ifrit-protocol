@@ -6,7 +6,7 @@
 // nothing that strokes or fills.
 
 #include <sigilcompose/kit/Legibility.h>
-#include <sigilcompose/typography/TextFx.h>
+#include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilgeometry/kit/Shapers.h>
 #include <sigilgeometry/kit/Silhouettes.h>
