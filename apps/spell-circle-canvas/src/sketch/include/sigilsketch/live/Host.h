@@ -91,6 +91,33 @@ class Host {
   Host(Options options, weave::FontContext& fonts);
   ~Host();
 
+  /** WHERE THIS HOST BUILDS: one object per unit and one dylib per
+   *  build, under a directory named for the running process.
+   *
+   *  Every host in a process shares it — a window keeps three sketches
+   *  resident, each with a host of its own — so it is made with the
+   *  first of them and removed with the last, and again on normal exit
+   *  for a process that ends without unwinding that far. Nothing on
+   *  disk survives usefully past the run: the freshness table that
+   *  decides a rebuild is in memory, so no later process reads a byte
+   *  of it. */
+  [[nodiscard]] const std::filesystem::path& buildDir() const {
+    return m_buildDir;
+  }
+
+  /** Removes the build directories of processes that are no longer
+   *  running, beside the one this process builds in.
+   *
+   *  A run that was killed or that faulted never reached the removal
+   *  above, and its directory carries a pid no later run can reuse, so
+   *  nothing would ever clear it. The pid in the name is asked of the
+   *  system directly, and only the answer that says NOBODY HOLDS IT
+   *  removes anything: a directory whose process is alive — this
+   *  process's own included — is left standing. Runs once by itself
+   *  before the first host makes its directory; calling it again is
+   *  harmless. */
+  static void sweepAbandonedBuildDirs();
+
   /** Drives the reload machinery: source mtime, finished compiles, asset
    *  changes. Call once per frame. */
   void poll();

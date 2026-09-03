@@ -742,6 +742,20 @@ embedding a scripting language — so a sketch never leaves the real API.
   because a duplicated typeinfo is compared by name. `--frame` on a
   registry sketch with one colour changed is the whole of the proof, and
   the `sketch_reload_runs_the_file` test is exactly that.
+* **The build directory belongs to the run that made it.** The objects
+  and one dylib per build stand in `<temp>/sigil_sketch_<pid>`, shared by
+  every host in the process, and it is removed when the last of them is
+  destroyed and again on normal exit — a `--frame` or `--bench` run,
+  which ends right after its build, takes its own with it, and a
+  `--headless` sweep walks the compiled-in registry, hosts nothing and
+  makes none. Removing it disturbs nothing: no dylib is ever dlclosed,
+  and an unlinked file that is mapped stays readable until the last
+  mapping goes. Nothing on disk is read across runs anyway — the
+  freshness table that decides a rebuild is in memory. A run that was
+  killed or that faulted never reached that removal, so before a host
+  makes its own directory it removes the sibling ones whose pid no
+  process holds; a live pid's directory is never touched, this process's
+  own least of all.
 * Compile errors overlay while the **last good sketch keeps running**.
 * Old libraries are never unloaded. Their statics stay valid — a running
   session may hold a vtable or a string literal that lives in one — and

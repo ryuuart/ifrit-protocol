@@ -311,22 +311,3 @@ loads. The host evidently intends a failed load to be one session's failure,
 with the next file opening as if the first had never been tried. A test in
 the book's resident-session path should open a sketch that fails in its first
 frame, then open one that does not, and assert the second renders.
-
-
-## The live host's build directory outlives the process that made it
-
-`Host` creates `<temp>/sigil_sketch_<pid>` in its constructor and nothing
-ever removes it: every run of Sketchbook that compiles a sketch leaves
-its cached objects and one dylib per build behind, under a name no later
-run can reuse because the pid is in it. A machine that has done a few
-thousand runs carries a few thousand of these directories. The in-memory
-freshness table is what decides a rebuild, so nothing on disk is read
-across runs and none of it serves anyone after the process exits.
-
-Intended: a build directory belongs to the host that made it. Old
-libraries stay mapped for the life of the process — a running session may
-hold a vtable or a string literal that lives in one — which is a reason
-not to unlink during the run, not a reason to keep the files afterwards.
-
-Assert once fixed: run a host over a sketch, note the directory it built
-in, destroy the host, and the directory is gone.

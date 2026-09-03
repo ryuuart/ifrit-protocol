@@ -13,13 +13,19 @@
 #include <sigilimage/encode/Encode.h>
 #include <sigilloader/source/Sink.h>
 #include <sigilsketch/core/Sources.h>
+#include <signal.h>
 #include <unistd.h>
 
 #include <algorithm>
 #include <atomic>
+#include <cctype>
+#include <cerrno>
 #include <cstdio>
+#include <cstdlib>
 #include <fstream>
+#include <mutex>
 #include <sstream>
+#include <string_view>
 #include <thread>
 
 #include "sigilsketch/core/Crash.h"
@@ -174,17 +180,111 @@ std::string newerHeaderThanHost(const std::filesystem::path& flagsFile,
   return {};
 }
 
+// ---- the build directory --------------------------------------------------
+// One per process, shared by every host in it, and named for the process
+// so that two runs side by side never write into one. It holds the
+// cached objects and one dylib per build, all of it useless the moment
+// the process ends: the freshness table that decides a rebuild is in
+// memory, so nothing here is ever read by a later run.
+//
+// REMOVING IT DOES NOT DISTURB WHAT IS RUNNING. Every dylib the host
+// loaded stays mapped for the life of the process — none is ever
+// dlclosed, because a live session may hold a vtable or a string literal
+// inside one — and an unlinked file that is mapped stays readable until
+// the last mapping goes.
+
+constexpr std::string_view kBuildDirPrefix = "sigil_sketch_";
+
+std::filesystem::path buildDirFor(pid_t pid) {
+  std::error_code ec;
+  const std::filesystem::path root = std::filesystem::temp_directory_path(ec);
+  if (ec) return {};
+  return root / (std::string(kBuildDirPrefix) + std::to_string(pid));
+}
+
+void removeBuildDir(const std::filesystem::path& dir) {
+  if (dir.empty()) return;
+  std::error_code ec;
+  std::filesystem::remove_all(dir, ec);
+}
+
+void removeThisProcessBuildDir() { removeBuildDir(buildDirFor(getpid())); }
+
+/** THE PID IN A BUILD DIRECTORY'S NAME, or zero when the name is not one
+ *  of ours. Only all-digits after the prefix counts, so a scratch
+ *  directory a test named for itself is left alone. */
+pid_t pidOfBuildDir(const std::string& name) {
+  if (name.rfind(kBuildDirPrefix, 0) != 0) return 0;
+  const std::string digits = name.substr(kBuildDirPrefix.size());
+  // Longer than any pid can be: a name that is not a number at all.
+  if (digits.empty() || digits.size() > 9) return 0;
+  for (const unsigned char c : digits)
+    if (std::isdigit(c) == 0) return 0;
+  const long pid = std::strtol(digits.c_str(), nullptr, 10);
+  return pid > 0 ? (pid_t)pid : 0;
+}
+
+/** True unless the system says NOBODY HOLDS @p pid. ESRCH is the only
+ *  answer that means the process is gone; EPERM is a live one owned by
+ *  another user, and anything else is an answer we did not understand,
+ *  which is a reason to leave the directory standing. */
+bool processAlive(pid_t pid) {
+  return ::kill(pid, 0) == 0 || errno != ESRCH;
+}
+
+std::mutex g_buildDirMutex;
+int g_buildDirHosts = 0;
+
+/** Makes the directory for the first host in this process and hands
+ *  every host the same path. */
+std::filesystem::path acquireBuildDir() {
+  const std::filesystem::path dir = buildDirFor(getpid());
+  const std::lock_guard lock(g_buildDirMutex);
+  if (g_buildDirHosts++ == 0) {
+    std::error_code ec;
+    std::filesystem::create_directories(dir, ec);
+    // The last host going out of scope is the ordinary end; this catches
+    // a process that exits without unwinding to it, which is what the
+    // window does.
+    static const bool atExit = std::atexit(&removeThisProcessBuildDir) == 0;
+    (void)atExit;
+  }
+  return dir;
+}
+
+void releaseBuildDir() {
+  const std::lock_guard lock(g_buildDirMutex);
+  if (--g_buildDirHosts == 0) removeThisProcessBuildDir();
+}
+
 constexpr CanvasSpec kUnloaded{};
 
 }  // namespace
+
+void Host::sweepAbandonedBuildDirs() {
+  std::error_code ec;
+  const std::filesystem::path root = std::filesystem::temp_directory_path(ec);
+  if (ec) return;
+  for (auto it = std::filesystem::directory_iterator(root, ec);
+       !ec && it != std::filesystem::directory_iterator(); it.increment(ec)) {
+    const std::filesystem::path dir = it->path();
+    std::error_code stat;
+    if (!std::filesystem::is_directory(dir, stat) || stat) continue;
+    const pid_t pid = pidOfBuildDir(dir.filename().string());
+    if (pid == 0 || processAlive(pid)) continue;
+    removeBuildDir(dir);
+  }
+}
 
 Host::Host(Options options, weave::FontContext& fonts)
     : m_options(withDefaults(std::move(options))),
       m_fonts(fonts),
       m_assets(m_options.assetsDir) {
-  m_buildDir = std::filesystem::temp_directory_path() /
-               ("sigil_sketch_" + std::to_string(getpid()));
-  std::filesystem::create_directories(m_buildDir);
+  // Before this process claims its own: the directories of runs that were
+  // killed or that faulted are the ones nothing else will ever clear.
+  static std::once_flag swept;
+  std::call_once(swept, &Host::sweepAbandonedBuildDirs);
+  m_buildDir = acquireBuildDir();
   // A sketch this binary already carries opens instantly, and the file is
   // watched from where it stands: an edit builds, an unedited file never
   // does. A file the binary does not carry has to be built to be seen.
@@ -205,6 +305,11 @@ Host::~Host() {
   // sketch-owned state; release it before the libraries it came from.
   // Loaded dylibs intentionally remain mapped.
   m_session.reset();
+  // …and the files behind them go with the last host in this process.
+  // An unlinked file that is mapped stays readable until the last
+  // mapping goes, so removing the directory takes nothing out from
+  // under a library still in use.
+  releaseBuildDir();
 }
 
 void Host::openSession(const Kind& kind) {

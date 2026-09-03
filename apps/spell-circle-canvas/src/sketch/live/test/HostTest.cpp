@@ -7,10 +7,14 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
 #include <sigilsketch/live/Host.h>
+#include <signal.h>
+#include <unistd.h>
 
+#include <cerrno>
 #include <chrono>
 #include <filesystem>
 #include <fstream>
+#include <system_error>
 #include <utility>
 
 #include "Fixture.h"
@@ -185,6 +189,57 @@ TEST(SketchHost, ReportsWaitingWhenNothingHasLoaded) {
   // say so by standing still rather than by spawning a compiler.
   host.poll();
   EXPECT_FALSE(host.compiling());
+}
+
+// ---- the build directory --------------------------------------------------
+
+/** A PID NOBODY HOLDS, which is what a run that ended looks like from
+ *  outside. Zero when every number tried was in use. */
+pid_t unusedPid() {
+  for (pid_t pid = 90000; pid < 99999; ++pid)
+    if (::kill(pid, 0) == -1 && errno == ESRCH) return pid;
+  return 0;
+}
+
+TEST(SketchHostBuildDir, StandsWhileTheHostLivesAndGoesWithIt) {
+  // The objects and the dylibs a run compiles serve nobody once it ends:
+  // the table that decides a rebuild is in memory, so no later run reads
+  // a byte of them, and the directory's name carries a pid no later run
+  // can reuse.
+  const Watched file("sigil_sketch_host_build_dir");
+  std::filesystem::path dir;
+  {
+    Host host(options(file.path), fonts());
+    dir = host.buildDir();
+    ASSERT_FALSE(dir.empty());
+    EXPECT_TRUE(std::filesystem::is_directory(dir));
+  }
+  EXPECT_FALSE(std::filesystem::exists(dir));
+}
+
+TEST(SketchHostBuildDir, SweepsAGoneProcessAndLeavesALiveOneStanding) {
+  // A run that was killed or that faulted never reached the removal
+  // above. The pid in the name is what says which is which, and only
+  // "nobody holds it" removes anything — a directory belonging to a
+  // process that is still running, this one's own above all, is one a
+  // live host is writing into.
+  const std::filesystem::path root = std::filesystem::temp_directory_path();
+  const pid_t gone = unusedPid();
+  ASSERT_NE(gone, 0);
+  const std::filesystem::path abandoned =
+      root / ("sigil_sketch_" + std::to_string(gone));
+  const std::filesystem::path live =
+      root / ("sigil_sketch_" + std::to_string(::getpid()));
+  std::filesystem::create_directories(abandoned);
+  std::ofstream(abandoned / "sketch_1.dylib") << "a library nobody holds\n";
+  std::filesystem::create_directories(live);
+
+  Host::sweepAbandonedBuildDirs();
+
+  EXPECT_FALSE(std::filesystem::exists(abandoned));
+  EXPECT_TRUE(std::filesystem::is_directory(live));
+  std::error_code ec;
+  std::filesystem::remove_all(live, ec);
 }
 
 }  // namespace
