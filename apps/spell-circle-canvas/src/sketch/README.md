@@ -611,7 +611,7 @@ registry, which is the compiled-in table — a workspace file is
 photographed with `--frame` and measured with `--bench`, one file at a
 time.
 
-### The two lists that must agree
+### One surface, read twice
 
 What a sketch may `#include` is `SigilSketches`' PUBLIC dependencies —
 the flags a hot-reloaded sketch compiles with are lifted out of the
@@ -619,13 +619,21 @@ compilation database from `sketches/Anchor.cpp`, a source of that same
 target, so the include surface cannot drift between a compiled-in sketch
 and a reloaded one.
 
-What a sketch may **link** is the force-load list in
-`book/CMakeLists.txt`. These are one fact stated twice, and when they
-disagree the symptom is invisible everywhere but one place: every sketch
-still compiles, every compiled-in sketch still runs, and the reloaded
-one fails at `dlopen` with a symbol not found in the flat namespace. The
-`sketch_reload_surface` tests exist for exactly that, one per runtime,
-and they must go through the dynamic path to see it.
+What a sketch may **link** is read off the same target: at configure
+time `cmake/SketchLinkSurface.cmake` walks `SigilSketches`' link closure
+and force-loads into Sketchbook every archive of this repository's in it
+— the public ones, the private ones riding beneath them, and the ones an
+optional SDK produced on the machines where it did — with Skia, the one
+vendored archive a sketch calls directly, named beside them. An archive
+added to the sketch target is therefore in the host without a second
+list to keep in step. The failure that list guards against is invisible
+everywhere but one place: every sketch still compiles, every compiled-in
+sketch still runs, and only a reloaded one fails at `dlopen` with a
+symbol not found in the flat namespace — and only for a symbol no
+compiled-in sketch happened to pull in, which is why a full tree hides
+it and a narrowed one bites. The `sketch_reload_surface` tests exist for
+exactly that, one per runtime, and they must go through the dynamic path
+to see it.
 
 ## Layout
 

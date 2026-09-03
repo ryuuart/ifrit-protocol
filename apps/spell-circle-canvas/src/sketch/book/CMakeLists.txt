@@ -89,51 +89,20 @@ endif()
 # force-loading it whether or not the host's own translation units
 # reference anything inside.
 #
-# The list below and SigilSketches' PUBLIC dependencies are one fact
-# stated twice: the latter decides what a sketch may #include, this
-# decides what it may LINK. When they disagree, every sketch still
-# compiles and every compiled-in sketch still runs — and the hot-reloaded
-# one fails at dlopen with a symbol not found in flat namespace. So
-# anything added there belongs here too, as the ARCHIVES it resolves to:
-# an interface target has no file to force-load, which is why the tiers
-# are named archive by archive.
+# What a sketch may LINK is what it may #include, and both are read off
+# SigilSketches: its public dependencies are the include surface, and
+# the archives in its link closure — every one of this repository's, the
+# ones an optional SDK produced on the machines where it did, and the
+# private dependencies riding beneath them — are force-loaded here by
+# walking that closure at configure time. One fact, read twice, so an
+# archive added there is force-loaded here without a second list to
+# keep in step. Skia is the one vendored archive a sketch calls
+# directly, and it is named.
+include(SketchLinkSurface)
 if(APPLE)
   target_link_options(Sketchbook PRIVATE "LINKER:-export_dynamic")
-  foreach(sketch_dep IN ITEMS
-      SigilSketchCore SigilSketchCanvas SigilSketchSet SigilSketchLive
-      SigilComposeCore SigilComposeKit SigilComposeBrush
-      SigilComposeTypography
-      SigilComposeTexture
-      SigilImageAsset SigilImageDecode SigilLoaderHub
-      SigilMotionClock SigilMotionBind
-      SigilCoreCache SigilCoreReconcile
-      SigilGeometryPath SigilGeometryPathBlend SigilGeometryMesh
-      SigilGeometryMeshCamera SigilGeometryMeshRender SigilGeometryMeshCurve
-      SigilGeometryMeshPop SigilGeometryMeshCodec
-      SigilMaterialCore SigilMaterialTexture SigilMaterialColor
-      SigilMaterialSdf SigilMaterialPattern SigilMaterialField
-      SigilMaterialSkia SigilMaterialKit SigilMaterialOcio
-      SigilWorldElement SigilWorldFrame SigilWorldGraph SigilWorldScene
-      SigilWorldLight SigilWorldKit
-      SigilWeaveUnicode SigilWeaveFonts SigilWeaveParagraph SigilWeaveLayout
-      SigilWeaveDecoration SigilWeavePaint SigilWeaveChoreograph
-      SigilWeaveQuery SigilWeaveCache SigilWeavePorts
-      unofficial::skia::skia)
-    target_link_options(Sketchbook PRIVATE
-      "LINKER:-force_load,$<TARGET_FILE:${sketch_dep}>")
-  endforeach()
-  # …and the archives an optional SDK produced, on the machines where it
-  # did. A sketch over one of those is only in the registry where its
-  # target exists, so its symbols are only wanted here on the same
-  # machines — and where it IS compiled in, a hot-reload of it needs them
-  # exactly as much as any other sketch needs the list above.
-  foreach(sketch_sdk_dep IN ITEMS
-      SigilScryPlatform SigilScryGpu SigilScryEngine SigilSubstance)
-    if(TARGET ${sketch_sdk_dep})
-      target_link_options(Sketchbook PRIVATE
-        "LINKER:-force_load,$<TARGET_FILE:${sketch_sdk_dep}>")
-    endif()
-  endforeach()
+  sigil_sketch_link_surface(Sketchbook SigilSketches
+    EXTRA unofficial::skia::skia)
 else()
   target_link_options(Sketchbook PRIVATE "LINKER:--export-dynamic")
 endif()

@@ -61,11 +61,17 @@ file(GLOB SIGIL_SKETCH_SHARED_FILES CONFIGURE_DEPENDS
 # requirement and misname the piece; here the stem stays free to say what
 # the sketch IS, and this file — the one place that already decides what
 # is compiled — says what it needs. It is short by construction: a
-# requirement is a defect in anything but a sketch that draws an SDK.
+# requirement is a defect in anything but a sketch that draws an SDK or
+# a device feature the build may lack. A row may name a stem that is not
+# in the directory yet; it costs nothing until the file arrives.
 set(SIGIL_SKETCH_REQUIREMENTS
   substance_swatches SigilSubstance
   web_panel          SigilComposeWeb
-  web_panel          SigilScry)
+  web_panel          SigilScry
+  web_script         SigilComposeWeb
+  web_script         SigilScry
+  usd_roundtrip      SigilUsd
+  half_float         SigilSkia)
 
 list(LENGTH SIGIL_SKETCH_REQUIREMENTS _requirement_entries)
 math(EXPR _requirement_last "${_requirement_entries} / 2 - 1")
@@ -130,13 +136,14 @@ add_library(SigilSketches OBJECT
 #
 # Every library a sketch includes is named here, by its umbrella where
 # the library has one and by feature target where the umbrella leaves a
-# feature out (compose's texture and testing leaves; weave's
+# feature out (compose's texture, testing and draw leaves; weave's
 # kit and ports) or would bring a device with it (world's diligent
-# feature, which only the app installs). A sketch reaches no library
-# through a neighbour's link line.
+# feature, which only the app installs). The three runtimes stand
+# first, and the pen's runtime brings SigilDraw with it. A sketch
+# reaches no library through a neighbour's link line.
 target_link_libraries(SigilSketches PUBLIC
-  SigilSketchCanvas SigilSketchSet
-  SigilCompose SigilComposeTexture SigilComposeTesting
+  SigilSketchCanvas SigilSketchSet SigilSketchDraw
+  SigilCompose SigilComposeTexture SigilComposeTesting SigilComposeDraw
   SigilGeometry SigilMaterial
   SigilWeave SigilWeaveKit SigilWeavePorts
   SigilWorldElement SigilWorldFrame SigilWorldScene SigilWorldKit
