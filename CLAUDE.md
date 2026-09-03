@@ -22,6 +22,8 @@ do not reconstruct a library's rules from another library's document.
 - `src/common/compose/README.md` — data-driven drawable components, with
   `src/common/compose/TYPOGRAPHY.md` beside it for the type chapter (both
   compile-checked: every API name they spell must exist in a header)
+- `src/common/draw/README.md` — SigilDraw: an immediate-mode pen with
+  p5's verbs, the imperative way beside compose
 - `src/sketch/README.md` — SigilSketch: every renderable thing as one
   sketch, with Sketchbook, the live host and the plates
 - `src/common/geometry/README.md` — higher-level drawing over Skia, the
