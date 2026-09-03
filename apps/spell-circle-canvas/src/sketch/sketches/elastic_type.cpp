@@ -80,11 +80,13 @@
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPathBuilder.h>
-#include <sigilcompose/core/Material.h>
 #include <sigilcompose/kit/Instruments.h>
-#include <sigilcompose/typography/TextFx.h>
+#include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigilcore/compute/Noise.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilweave/ports/SystemFontManager.h>
+#include <sigilweave/style/Type.h>
 
 #include <algorithm>
 #include <string>
@@ -92,6 +94,9 @@
 #include <vector>
 
 namespace sketch = sigil::sketch;
+
+namespace motion = sigil::motion;
+namespace weave = sigil::weave;
 
 using namespace sigil::compose;
 
@@ -176,7 +181,7 @@ Table jelloTable() {
  *  value the glyphs are drawn from. */
 GlyphMod at(const TextEffect& effect, float t) {
   GlyphInfo glyph;
-  Rng rng(1);
+  sigil::core::noise::Mix64Stream rng(1);
   return effect(glyph, t, rng);
 }
 
@@ -288,7 +293,7 @@ struct ElasticType : sketch::Sketch {
   [[nodiscard]] sigil::weave::TextStyle small(SkColor4f color,
                                               float size = 11.5f,
                                               float track = 2.4f) const {
-    return type(
+    return weave::textStyle(
         {.face = faceLabel, .size = size, .color = color, .track = track});
   }
 
@@ -299,8 +304,8 @@ struct ElasticType : sketch::Sketch {
    *  and its marks are one body and squash together. */
   [[nodiscard]] Element row(const char* word, const char* caption,
                             TextEffect effect) {
-    const sigil::weave::TextStyle set =
-        type({.face = face, .size = kWordSize, .color = kInk, .track = 3.0f});
+    const sigil::weave::TextStyle set = weave::textStyle(
+        {.face = face, .size = kWordSize, .color = kInk, .track = 3.0f});
 
     // THE GHOST: the same word, same style, no track — the rest position
     // the deviation is measured against. A track's deviation is per glyph
@@ -352,9 +357,8 @@ struct ElasticType : sketch::Sketch {
         .column()
         .padding(48, 42)
         .gap(26)
-        .fill(Material::linear(
-            {0, 0}, {0, kH},
-            {{0.0f, kPaper}, {0.55f, hex(0x15151B)}, {1.0f, kPaper}}))
+        .fill(linearGradient({0, 0}, {0, kH}, {kPaper, hex(0x15151B), kPaper},
+                             {0.0f, 0.55f, 1.0f}))
         .child(box()
                    .row()
                    .alignItems(Align::End)
@@ -417,8 +421,10 @@ struct ElasticType : sketch::Sketch {
     // table laid out along the line.
     ctx.captureAt(1.15);
 
-    face = pickFace({"Avenir Next", "Futura", "Helvetica Neue"}, 700);
-    faceLabel = pickFace({".SF NS", "SF Pro", "Helvetica Neue"}, 500);
+    face = weave::ports::pickTypeface(
+        {"Avenir Next", "Futura", "Helvetica Neue"}, 700);
+    faceLabel =
+        weave::ports::pickTypeface({".SF NS", "SF Pro", "Helvetica Neue"}, 500);
 
     ctx.ticker.add([this, t = 0.0](double dt) mutable {
       t += dt;
