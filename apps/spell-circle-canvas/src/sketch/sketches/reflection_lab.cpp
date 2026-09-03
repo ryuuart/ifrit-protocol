@@ -55,12 +55,9 @@
 namespace sketch = sigil::sketch;
 namespace world = sigil::world;
 namespace material = sigil::material;
-
-using namespace sigil::world;
+namespace gm = sigil::geometry::mesh;
 
 namespace {
-
-namespace gm = ::sigil::geometry::mesh;
 
 constexpr float kRadius = 52.0f;
 constexpr float kGap = 132.0f;
@@ -73,8 +70,9 @@ constexpr int kMeridians = 64;
 constexpr int kParallels = 40;
 
 /** One sphere at @p x, wearing @p surface. */
-Element ball(std::string_view key, float x, material::Material surface) {
-  return Element()
+world::Element ball(std::string_view key, float x,
+                    material::Material surface) {
+  return world::Element()
       .key(key)
       .at({x, 0.0f, 0.0f})
       .mesh(gm::superellipsoid({kRadius, kRadius, kRadius}, 2.0f, kMeridians,
@@ -86,9 +84,9 @@ Element ball(std::string_view key, float x, material::Material surface) {
 /** The four surfaces, left to right: a mirror, a rough metal, a
  *  dielectric and glass. Each is a composition the kit ships, so what
  *  the study varies is the surface and not the way it is spelled. */
-Element balls() {
+world::Element balls() {
   const float left = -1.5f * kGap;
-  return Element()
+  return world::Element()
       .key("balls")
       .at({0.0f, 26.0f, 0.0f})
       // The row runs across the turntable's parked station rather than
@@ -117,7 +115,7 @@ struct ReflectionLab final : sketch::Set {
    *  texel by texel and prefiltered into nine levels the first time it
    *  is asked for; building one per frame would bake the same sky sixty
    *  times a second to describe a picture that never changed. */
-  Element row;
+  world::Element row;
   material::EnvironmentMap studio;
   material::EnvironmentMap sunset;
 
@@ -142,10 +140,10 @@ struct ReflectionLab final : sketch::Set {
     // THE SKY, AS A NODE. Its transform is its orientation, so one
     // rotate lane turns every reflection in the set at once; the
     // crossfade runs beside it, from the studio bake to the sunset one.
-    Environment sky;
+    world::Environment sky;
     sky.map = studio;
     sky.next = sunset;
-    Element dome = Element()
+    world::Element dome = world::Element()
                        .key("sky")
                        .environmentMap(sky)
                        .rotateY(seconds * 26.0f)
@@ -164,7 +162,7 @@ struct ReflectionLab final : sketch::Set {
                        .backdrop(0.85f)
                        .backdropBlur(0.35f);
 
-    kit::Set set;
+    world::kit::Set set;
     set.rig.extent = 140.0f;
     // The rig is dimmer than a studio's, because the sky is now most of
     // the light in the set: a key at full strength would wash the
@@ -181,8 +179,8 @@ struct ReflectionLab final : sketch::Set {
     // what moves in the picture is the sky and nothing else.
     set.table.period = 0.0f;
     set.table.fovYDeg = 46.0f;
-    return Frame(kit::litSet(
-        Element().key("study").child(dome).child(row), set, seconds));
+    return world::Frame(world::kit::litSet(
+        world::Element().key("study").child(dome).child(row), set, seconds));
   }
 };
 
