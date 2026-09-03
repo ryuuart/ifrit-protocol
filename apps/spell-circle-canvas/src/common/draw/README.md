@@ -183,6 +183,31 @@ beside the verbs, never a renamed one.
   the box it paints, is resolved against the pen's clock and canvas on
   every draw. A paint's coordinates are the pen's current space, so a
   gradient authored in pixels follows the transform.
+* **A material can be fitted to the shape.** `fill(paint, SHAPE)` and
+  `stroke(paint, SHAPE)` measure the material against the BOUNDS OF EACH
+  SHAPE the pen draws — the box's top-left is the material's origin and
+  the box is its unit square — so `linearUnit`, `radialUnit`, `glowUnit`
+  and anything else reading `uResolution` land on the shape. `CANVAS` is
+  the default and measures against the frame. A compose leaf has this and
+  needs no word for it, because a node paints inside its own laid-out box;
+  a pen has one canvas and many shapes, so which one a material is a unit
+  of has to be said — and it is said on the fill, because it is a fact
+  about that material. A fill set without the word goes back to the
+  canvas. Every verb that fills a shape wears it, and a `line` and a
+  `point` on the stroke side; text, images and `background` are always the
+  canvas, and a box with no width or no height falls back to it rather
+  than dividing by zero. It is style, so `push` and `pop` carry it.
+* **A mesh is a shape.** `vertices(sk_sp<SkVertices>)` draws a mesh built
+  somewhere else — a triangulated field, a lit strip, a deformed grid, a
+  marching-squares contour — with the pen's fill, blend, clip and
+  transform, so it lands in the same place and the same order as the pen's
+  own verbs and nothing has to go through `canvas()` to put one down.
+  Where the mesh carries its own corner colours and the fill is a plain
+  colour, the corners paint it, which is the rule `vertex()` follows when
+  the corners disagree; where the fill is a material, the material paints
+  the whole mesh, and `fill(paint, SHAPE)` makes its unit square the
+  mesh's own bounds. A mesh has no outline, so it is not stroked and it
+  adds nothing to a clip mask. Building it is Skia's business.
 * **A stroke can dash.** `strokeDash({on, off, ...}[, phase])` and
   `noDash()` stand beside `strokeWeight`, `strokeCap` and `strokeJoin`,
   because p5 has no word for a dashed stroke and reaches through to
@@ -236,7 +261,14 @@ beside the verbs, never a renamed one.
   pen stands at and `pen.contentScale()` for the device pixels one
   canvas unit covers. What is drawn through it lands in the same place
   and the same order as the pen's own verbs, since there is one canvas;
-  leave the transform and the clip as they were found.
+  leave the transform and the clip as they were found. **Both paints are
+  null where there is nothing to hand over** — `fillPaint()` under
+  `noFill()`, `strokePaint()` under `noStroke()` or a zero weight — because
+  that is what those words mean, so a caller checks before it dereferences
+  exactly as every verb in the class does. The pen's blend, its
+  antialiasing and its dash ride these paints, so under `noFill()` there
+  is nowhere to read them from either: take them off the stroke, or set a
+  fill.
 * **`createGraphics` is a value, not a call.** `Graphics buffer{w, h}`
   is p5's offscreen canvas — a surface with a pen of its own, kept by
   whoever declares it, because it lives across frames. `buffer.begin(pen)`
@@ -348,7 +380,10 @@ either side of it — and this library's own: a material as a fill, a
 silhouette as a shape, text shaped and centred by its alignment, a guest
 retained per call site, the canvas carrying the pen's transform, an
 offscreen buffer formed at the host's density and put down in canvas
-units.
+units, a unit-space material ramping across the frame under `CANVAS` and
+across each box under `SHAPE`, a built `SkVertices` drawn with the pen's
+fill and moved by the pen's transform, and both paints answering null
+where the style says there is nothing to draw with.
 `draw_bench` times ten thousand circles
 filled and stroked, ten thousand rects, a screen of text, a translucent
 background and a thousand noise samples per frame; it builds through the

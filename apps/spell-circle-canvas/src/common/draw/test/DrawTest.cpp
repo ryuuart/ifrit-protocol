@@ -7,6 +7,7 @@
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
+#include <include/core/SkVertices.h>
 #include <sigilcore/compute/Noise.h>
 #include <sigildraw/Draw.h>
 #include <sigilweave/fonts/FontContext.h>
@@ -690,6 +691,141 @@ TEST(Pen, AMaterialIsAFill) {
   paper.end();
   EXPECT_GT(SkColorGetR(paper.pixel(2, 50)), 200u);
   EXPECT_GT(SkColorGetB(paper.pixel(97, 50)), 200u);
+}
+
+TEST(Pen, AMaterialFitsTheCanvasUnlessTheFillSaysTheShape) {
+  using sigil::material::skia::Paint;
+  using sigil::material::skia::Stop;
+  const std::vector<Stop> ramp{{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}};
+  // ONE unit-square ramp, TWO boxes far apart. The only difference between
+  // the two papers is the word on the fill.
+  const auto draw = [&](Paper& paper, bool fitted) {
+    paper.begin();
+    paper.pen.noStroke();
+    if (fitted)
+      paper.pen.fill(Paint::linearUnit({0, 0}, {1, 0}, ramp), SHAPE);
+    else
+      paper.pen.fill(Paint::linearUnit({0, 0}, {1, 0}, ramp));
+    paper.pen.rect(0, 0, 40, 40);
+    paper.pen.rect(60, 0, 40, 40);
+    paper.end();
+  };
+
+  Paper canvasFit;
+  draw(canvasFit, false);
+  // One ramp across the frame: the left box sits at its red end, the right
+  // box at its blue one, and neither box has a ramp of its own.
+  EXPECT_GT(SkColorGetR(canvasFit.pixel(2, 20)), 200u);
+  EXPECT_LT(SkColorGetB(canvasFit.pixel(37, 20)), 150u);
+  EXPECT_GT(SkColorGetB(canvasFit.pixel(97, 20)), 200u);
+
+  Paper shapeFit;
+  draw(shapeFit, true);
+  // A ramp per box: each runs the whole way from red to blue inside its
+  // own bounds, wherever those bounds are.
+  EXPECT_GT(SkColorGetR(shapeFit.pixel(2, 20)), 200u);
+  EXPECT_GT(SkColorGetB(shapeFit.pixel(37, 20)), 200u);
+  EXPECT_GT(SkColorGetR(shapeFit.pixel(62, 20)), 200u);
+  EXPECT_GT(SkColorGetB(shapeFit.pixel(97, 20)), 200u);
+}
+
+TEST(Pen, AFitIsSaidOnTheFillThatSetsIt) {
+  using sigil::material::skia::Paint;
+  using sigil::material::skia::Stop;
+  const std::vector<Stop> ramp{{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}};
+  Paper paper;
+  paper.begin();
+  paper.pen.noStroke();
+  paper.pen.fill(Paint::linearUnit({0, 0}, {1, 0}, ramp), SHAPE);
+  // A fill set without the word goes back to the canvas rather than
+  // inheriting the fit of the fill before it.
+  paper.pen.fill(Paint::linearUnit({0, 0}, {1, 0}, ramp));
+  paper.pen.rect(0, 0, 40, 40);
+  paper.end();
+  EXPECT_LT(SkColorGetB(paper.pixel(37, 20)), 150u);
+}
+
+TEST(Pen, AMeshIsDrawnWithThePensFillWhereItGoverns) {
+  const SkPoint corners[3] = {{10, 10}, {90, 10}, {10, 90}};
+  const SkColor reds[3] = {SK_ColorRED, SK_ColorRED, SK_ColorRED};
+
+  Paper paper;
+  paper.begin();
+  paper.pen.noStroke();
+  paper.pen.fill(0, 255, 0);
+  paper.pen.vertices(SkVertices::MakeCopy(SkVertices::kTriangles_VertexMode, 3,
+                                          corners, nullptr, reds));
+  paper.end();
+  // The mesh carries its own corner colours and the fill is a plain one,
+  // so the corners paint — the rule the per-corner form of `vertex`
+  // follows. It lands in the pen's space, and only inside the triangle.
+  EXPECT_EQ(paper.pixel(20, 20), SK_ColorRED);
+  EXPECT_EQ(paper.pixel(80, 80), SK_ColorTRANSPARENT);
+
+  // The pen's transform carries it, and `noFill()` means there is nothing
+  // to draw it with.
+  Paper moved;
+  moved.begin();
+  moved.pen.noStroke();
+  moved.pen.noFill();
+  moved.pen.vertices(SkVertices::MakeCopy(SkVertices::kTriangles_VertexMode, 3,
+                                          corners, nullptr, reds));
+  EXPECT_EQ(moved.inked(), SkIRect::MakeEmpty());
+  moved.pen.fill(0, 0, 255);
+  moved.pen.translate(0, 5);
+  moved.pen.vertices(SkVertices::MakeCopy(SkVertices::kTriangles_VertexMode, 3,
+                                          corners, nullptr, nullptr));
+  moved.end();
+  // No corner colours, so the fill's own colour paints, five rows down.
+  EXPECT_EQ(moved.pixel(20, 25), SK_ColorBLUE);
+  EXPECT_EQ(moved.pixel(20, 12), SK_ColorTRANSPARENT);
+}
+
+TEST(Pen, AMeshTakesAFittedMaterialOverItsOwnBounds) {
+  using sigil::material::skia::Paint;
+  using sigil::material::skia::Stop;
+  const std::vector<Stop> ramp{{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}};
+  // A triangle occupying the left half of the paper. Fitted, its ramp runs
+  // red to blue across THAT, not across the frame.
+  const SkPoint corners[3] = {{0, 0}, {50, 0}, {0, 100}};
+  Paper paper;
+  paper.begin();
+  paper.pen.noStroke();
+  paper.pen.fill(Paint::linearUnit({0, 0}, {1, 0}, ramp), SHAPE);
+  paper.pen.vertices(SkVertices::MakeCopy(SkVertices::kTriangles_VertexMode, 3,
+                                          corners, nullptr, nullptr));
+  paper.end();
+  EXPECT_GT(SkColorGetR(paper.pixel(1, 1)), 200u);
+  EXPECT_GT(SkColorGetB(paper.pixel(46, 1)), 180u);
+}
+
+TEST(Pen, TheFillPaintIsNullUnderNoFillAndSoIsTheStroke) {
+  Paper paper;
+  paper.begin();
+  paper.pen.fill(255, 0, 0);
+  paper.pen.stroke(0, 0, 255);
+  paper.pen.blendMode(ADD);
+  const SkPaint* fill = paper.pen.fillPaint();
+  ASSERT_NE(fill, nullptr);
+  EXPECT_EQ(fill->asBlendMode(), SkBlendMode::kPlus);
+
+  // `noFill()` means there is NO FILL to hand over, not a colourless one:
+  // the answer is null, and the pen's blend has to be read off the stroke
+  // instead. Every verb in the class checks before it dereferences and a
+  // caller through the canvas door has to as well.
+  paper.pen.noFill();
+  EXPECT_EQ(paper.pen.fillPaint(), nullptr);
+  const SkPaint* stroke = paper.pen.strokePaint();
+  ASSERT_NE(stroke, nullptr);
+  EXPECT_EQ(stroke->asBlendMode(), SkBlendMode::kPlus);
+
+  paper.pen.noStroke();
+  EXPECT_EQ(paper.pen.strokePaint(), nullptr);
+  // A zero weight is the other way a stroke stops existing.
+  paper.pen.stroke(0, 0, 255);
+  paper.pen.strokeWeight(0);
+  EXPECT_EQ(paper.pen.strokePaint(), nullptr);
+  paper.end();
 }
 
 struct Ring {

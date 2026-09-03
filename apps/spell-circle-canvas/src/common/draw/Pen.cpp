@@ -10,6 +10,7 @@
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkRRect.h>
 #include <include/core/SkSamplingOptions.h>
+#include <include/core/SkShader.h>
 #include <include/core/SkString.h>
 #include <include/core/SkVertices.h>
 #include <include/effects/SkDashPathEffect.h>
@@ -305,18 +306,56 @@ void Pen::resolveStroke() {
   m_strokeLive = resolve(m_style.stroke, m_strokePaint, paintFrame());
 }
 
-const SkPaint* Pen::fillPaint() {
+sk_sp<SkShader> Pen::fittedShader(const material::skia::Paint& paint,
+                                  const SkRect& box) const {
+  // The material is asked for a shader as though the shape were the whole
+  // canvas — its unit square IS this box — and the answer is then moved to
+  // where the box actually sits, since the pen paints in canvas
+  // coordinates and a compose node paints at its own origin.
+  material::skia::PaintFrame frame = paintFrame();
+  frame.size = {box.width(), box.height()};
+  frame.rootSize = {width, height};
+  frame.toRoot = SkMatrix::Translate(box.left(), box.top());
+  sk_sp<SkShader> shader = paint.shaderFor(frame);
+  if (!shader) return nullptr;
+  return shader->makeWithLocalMatrix(
+      SkMatrix::Translate(box.left(), box.top()));
+}
+
+/** Whether @p box is a unit square a material can be measured against: a
+ *  horizontal line and a zero-radius circle are not, and asking a material
+ *  to divide by their extent is how a fitted fill turns into nothing. */
+namespace {
+bool fittable(const SkRect* box) {
+  return box && box->width() > 0.0f && box->height() > 0.0f;
+}
+}  // namespace
+
+const SkPaint* Pen::fillPaint(const SkRect* box) {
   if (!m_style.doFill) return nullptr;
+  if (m_style.fillFitted && fittable(box) && !m_style.fill.isSolid() &&
+      !m_style.fill.isNone()) {
+    m_fillPaint.setShader(fittedShader(m_style.fill, *box));
+    return &m_fillPaint;
+  }
   if (m_fillLive) m_fillPaint.setShader(m_style.fill.shaderFor(paintFrame()));
   return &m_fillPaint;
 }
 
-const SkPaint* Pen::strokePaint() {
+const SkPaint* Pen::strokePaint(const SkRect* box) {
   if (!m_style.doStroke || !(m_style.strokeWeight > 0.0f)) return nullptr;
+  if (m_style.strokeFitted && fittable(box) && !m_style.stroke.isSolid() &&
+      !m_style.stroke.isNone()) {
+    m_strokePaint.setShader(fittedShader(m_style.stroke, *box));
+    return &m_strokePaint;
+  }
   if (m_strokeLive)
     m_strokePaint.setShader(m_style.stroke.shaderFor(paintFrame()));
   return &m_strokePaint;
 }
+
+const SkPaint* Pen::fillPaint() { return fillPaint(nullptr); }
+const SkPaint* Pen::strokePaint() { return strokePaint(nullptr); }
 
 // ---- colour -----------------------------------------------------------------
 
@@ -401,9 +440,16 @@ void Pen::fill(std::string_view css) { fill(parseColor(css)); }
 void Pen::fill(SkColor4f color) { fill(material::skia::Paint::solid(color)); }
 void Pen::fill(const material::skia::Paint& paint) {
   m_style.fill = paint;
+  // The fit belongs to the material it was set with, so a fill set without
+  // a word is measured against the canvas whatever the fill before it said.
+  m_style.fillFitted = false;
   m_style.doFill = true;
   m_style.fillSet = true;
   resolveFill();
+}
+void Pen::fill(const material::skia::Paint& paint, Constant fit) {
+  fill(paint);
+  m_style.fillFitted = fit == SHAPE;
 }
 void Pen::fill(const material::Material& material) {
   fill(material::skia::Paint::recipe(material));
@@ -422,9 +468,14 @@ void Pen::stroke(SkColor4f color) {
 }
 void Pen::stroke(const material::skia::Paint& paint) {
   m_style.stroke = paint;
+  m_style.strokeFitted = false;
   m_style.doStroke = true;
   m_style.strokeSet = true;
   resolveStroke();
+}
+void Pen::stroke(const material::skia::Paint& paint, Constant fit) {
+  stroke(paint);
+  m_style.strokeFitted = fit == SHAPE;
 }
 void Pen::stroke(const material::Material& material) {
   stroke(material::skia::Paint::recipe(material));
@@ -551,20 +602,38 @@ float Pen::toRadians(float angle) const {
 
 void Pen::paintFilled(const SkPath& path) {
   if (recordShape(path)) return;
-  if (const SkPaint* fill = fillPaint()) m_canvas->drawPath(path, *fill);
-  if (const SkPaint* stroke = strokePaint()) m_canvas->drawPath(path, *stroke);
+  const SkRect box = path.getBounds();
+  if (const SkPaint* fill = fillPaint(&box)) m_canvas->drawPath(path, *fill);
+  if (const SkPaint* stroke = strokePaint(&box))
+    m_canvas->drawPath(path, *stroke);
 }
 
 void Pen::paintOval(const SkRect& oval) {
   if (recordShape(SkPath::Oval(oval))) return;
-  if (const SkPaint* fill = fillPaint()) m_canvas->drawOval(oval, *fill);
-  if (const SkPaint* stroke = strokePaint()) m_canvas->drawOval(oval, *stroke);
+  if (const SkPaint* fill = fillPaint(&oval)) m_canvas->drawOval(oval, *fill);
+  if (const SkPaint* stroke = strokePaint(&oval))
+    m_canvas->drawOval(oval, *stroke);
 }
 
 void Pen::paintRect(const SkRect& rect) {
   if (recordShape(SkPath::Rect(rect))) return;
-  if (const SkPaint* fill = fillPaint()) m_canvas->drawRect(rect, *fill);
-  if (const SkPaint* stroke = strokePaint()) m_canvas->drawRect(rect, *stroke);
+  if (const SkPaint* fill = fillPaint(&rect)) m_canvas->drawRect(rect, *fill);
+  if (const SkPaint* stroke = strokePaint(&rect))
+    m_canvas->drawRect(rect, *stroke);
+}
+
+void Pen::vertices(const sk_sp<SkVertices>& mesh) {
+  // A mesh carries no outline, so like a line and an image it adds nothing
+  // to a mask being recorded, and there is nothing on it to stroke.
+  if (!m_canvas || !mesh || m_clipRecording) return;
+  const SkRect box = mesh->bounds();
+  const SkPaint* fill = fillPaint(&box);
+  if (!fill) return;
+  // kDst is how the mesh's own corner colours meet the paint's: keep the
+  // paint's. Skia ignores it where the paint has no shader, which is
+  // exactly where the corner colours are what a caller meant — the same
+  // rule the per-corner form of `vertex` follows.
+  m_canvas->drawVertices(mesh, SkBlendMode::kDst, *fill);
 }
 
 void Pen::shape(const SkPath& path) {
@@ -576,7 +645,11 @@ void Pen::point(float x, float y) {
   if (!m_canvas) return;
   if (recordShape(SkPath::Circle(x, y, m_style.strokeWeight / 2.0f))) return;
   // p5 draws a point as a disc of the stroke weight in the stroke colour.
-  const SkPaint* stroke = strokePaint();
+  const SkRect disc = SkRect::MakeLTRB(x - m_style.strokeWeight / 2.0f,
+                                       y - m_style.strokeWeight / 2.0f,
+                                       x + m_style.strokeWeight / 2.0f,
+                                       y + m_style.strokeWeight / 2.0f);
+  const SkPaint* stroke = strokePaint(&disc);
   if (!stroke) return;
   SkPaint dot = *stroke;
   dot.setStyle(SkPaint::kFill_Style);
@@ -588,7 +661,9 @@ void Pen::point(float x, float y) {
 void Pen::line(float x1, float y1, float x2, float y2) {
   // A line has no inside, so it adds nothing to a mask being recorded.
   if (!m_canvas || m_clipRecording) return;
-  if (const SkPaint* stroke = strokePaint())
+  const SkRect span = SkRect::MakeLTRB(std::min(x1, x2), std::min(y1, y2),
+                                       std::max(x1, x2), std::max(y1, y2));
+  if (const SkPaint* stroke = strokePaint(&span))
     m_canvas->drawLine(x1, y1, x2, y2, *stroke);
 }
 

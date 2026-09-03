@@ -62,6 +62,9 @@ enum Constant : uint8_t {
   TRIANGLE_STRIP,
   QUADS,
   QUAD_STRIP,
+  // fill and stroke: what a material's coordinates are measured against
+  CANVAS,
+  SHAPE,
   // blendMode
   BLEND,
   ADD,

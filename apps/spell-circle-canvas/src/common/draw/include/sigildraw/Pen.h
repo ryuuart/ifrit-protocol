@@ -21,6 +21,7 @@
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkSize.h>
 #include <include/core/SkTypeface.h>
+#include <include/core/SkVertices.h>
 #include <sigilcore/compute/Noise.h>
 #include <sigildraw/Color.h>
 #include <sigildraw/Constants.h>
@@ -229,6 +230,29 @@ class Pen {
    *  is resolved against the pen's clock on every draw; a static one
    *  once, here. */
   void fill(const material::skia::Paint& paint);
+  /** THE SAME MATERIAL, FITTED TO WHAT IT PAINTS. `SHAPE` measures the
+   *  material against the BOUNDS OF EACH SHAPE the pen draws — the box's
+   *  top-left is the material's origin and the box is its unit square —
+   *  so `linearUnit`, `radialUnit`, `glowUnit` and anything else reading
+   *  `uResolution` land on the shape. `CANVAS`, the default, measures
+   *  against the frame, which is where a pen's coordinates otherwise
+   *  live.
+   *
+   *  A compose leaf has this and needs no word for it: a node paints
+   *  inside its own laid-out box, so a unit-space fill already has a box
+   *  to be a unit of. A pen has one canvas and many shapes, so which one
+   *  a material is a unit of has to be said — and it is said on the fill,
+   *  because it is a fact about that material and not about the pen.
+   *
+   *  Every verb that fills a shape wears it — a rect, an ellipse, an arc,
+   *  a triangle, a quad, a bezier, a curve, a silhouette, a `beginShape`
+   *  outline, a mesh — and so does a `line` and a `point` on the stroke
+   *  side. A box with no width or no height has no unit square, so a
+   *  horizontal line falls back to the canvas rather than dividing by
+   *  zero. Text, images and `background` are always the canvas: they are
+   *  not shapes and have no bounds the pen decides. It is style, so
+   *  `push` saves it and `pop` puts it back. */
+  void fill(const material::skia::Paint& paint, Constant fit);
   /** A recipe instance as the fill: a shader. */
   void fill(const material::Material& material);
   void noFill();
@@ -240,6 +264,9 @@ class Pen {
   void stroke(std::string_view css);
   void stroke(SkColor4f color);
   void stroke(const material::skia::Paint& paint);
+  /** Fitted exactly as the fill is: `SHAPE` measures the material against
+   *  each shape's bounds, `CANVAS` against the frame. */
+  void stroke(const material::skia::Paint& paint, Constant fit);
   void stroke(const material::Material& material);
   void noStroke();
   void strokeWeight(float weight);
@@ -361,6 +388,27 @@ class Pen {
   /** A path as it stands, filled and stroked with the current style. */
   void shape(const SkPath& path);
 
+  /** THE PEN'S OWN MESH VERB: an `SkVertices` built somewhere else — a
+   *  triangulated field, a lit strip, a deformed grid, a marching-squares
+   *  contour — drawn HERE, with the pen's fill, its blend, its clip and
+   *  its transform, so a mesh lands in the same place and the same order
+   *  as the pen's own shapes and nothing has to go through `canvas()` to
+   *  put one down.
+   *
+   *  The pen's FILL is what paints it. Where the mesh carries its own
+   *  corner colours and the fill is a plain colour, the corners paint it
+   *  and the fill's colour stands aside — which is the same rule
+   *  `vertex()` follows when the corners disagree. Where the fill is a
+   *  material, the material paints the whole mesh and the corner colours
+   *  are not read; fit it with `fill(paint, SHAPE)` and its unit square
+   *  is the mesh's own bounds.
+   *
+   *  A mesh has no outline, so it is not stroked and it adds nothing to a
+   *  clip mask being recorded — a `line` and an `image` add nothing for
+   *  the same reason. Building the mesh is Skia's business: this verb
+   *  takes one and asks no questions about how it was made. */
+  void vertices(const sk_sp<SkVertices>& mesh);
+
   // ---- the clip ------------------------------------------------------------
   /** p5's CLIP: @p shape draws the mask, and everything drawn after it
    *  is confined to what @p shape covered.
@@ -477,11 +525,23 @@ class Pen {
   }
 
   // ---- the paints, for a guest that draws with them -----------------------
-  /** The fill as an SkPaint, resolved for this frame; unset when
-   *  `noFill()` holds. */
+  /** The fill as an SkPaint, resolved against the CANVAS for this frame.
+   *
+   *  NULL UNDER `noFill()`, and that is the whole answer: `noFill()` means
+   *  there is no fill to hand over, not that the pen has a colourless one.
+   *  A caller through the canvas door therefore checks before it
+   *  dereferences — `if (const SkPaint* fill = pen.fillPaint())` — exactly
+   *  as every verb in this class does. The pen's blend, its antialiasing
+   *  and its dash live on these paints, so under `noFill()` there is
+   *  nowhere for them to be read from either; take them off
+   *  `strokePaint()`, or set a fill.
+   *
+   *  A material fitted with `fill(paint, SHAPE)` has no shape here — this
+   *  is the canvas-framed resolve, since a caller asking for the paint
+   *  has not named a box. */
   [[nodiscard]] const SkPaint* fillPaint();
-  /** The stroke as an SkPaint, resolved for this frame; unset when
-   *  `noStroke()` holds or the weight is zero. */
+  /** The stroke as an SkPaint, resolved for this frame; null when
+   *  `noStroke()` holds or the weight is zero, on the same rule. */
   [[nodiscard]] const SkPaint* strokePaint();
 
  private:
@@ -492,6 +552,10 @@ class Pen {
      *  until a fill is set, and strokes it only once a stroke is. */
     bool fillSet = false;
     bool strokeSet = false;
+    /** Whether the fill's and the stroke's coordinates are measured
+     *  against each shape's bounds rather than against the canvas. */
+    bool fillFitted = false;
+    bool strokeFitted = false;
     material::skia::Paint fill = material::skia::Paint::solid({1, 1, 1, 1});
     material::skia::Paint stroke = material::skia::Paint::solid({0, 0, 0, 1});
     float strokeWeight = 1.0f;
@@ -541,6 +605,13 @@ class Pen {
   void resolveFill();
   void resolveStroke();
   [[nodiscard]] material::skia::PaintFrame paintFrame() const;
+  /** The fill and the stroke resolved against @p box when the material was
+   *  set `SHAPE`-fitted, and against the canvas otherwise. A null or
+   *  degenerate box is the canvas. */
+  [[nodiscard]] const SkPaint* fillPaint(const SkRect* box);
+  [[nodiscard]] const SkPaint* strokePaint(const SkRect* box);
+  [[nodiscard]] sk_sp<SkShader> fittedShader(const material::skia::Paint& paint,
+                                             const SkRect& box) const;
   void paintFilled(const SkPath& path);
   /** The mesh a shape whose corners carry different fills is drawn as:
    *  triangles in threes, each corner its own colour. */
