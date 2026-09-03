@@ -19,7 +19,9 @@
  * The room is then an ordinary inline slot: `advance` is the wider of the
  * two lines and `band` the depth they stack into, which is exactly what
  * `RichText::slot` reserves and what the breakers treat as one unbreakable
- * word. The child laid into it draws the two lines.
+ * word. The child laid into it draws the two lines. A band deeper than
+ * the base's type goes into the block's strut, so the pitch of the whole
+ * block opens to hold the note and no leading is set by hand here.
  *
  * EDIT THESE FIRST
  *   kNote — the aside, whose own length decides where it is cut.
@@ -33,7 +35,6 @@
 #include <sigilcompose/typography/Typography.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/layout/Beside.h>
-#include <sigilweave/layout/LayoutOptions.h>
 #include <sigilweave/paragraph/Paragraph.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
@@ -196,11 +197,8 @@ struct WarichuPlaceholder final : sketch::Sketch {
                  .add(u8" interrupts the line it stands in, rather than "
                       u8"standing beside it."))
             .width(Dim(kCell - 24))
-            // The pitch is the CALLER'S: a slot deeper than the type does
-            // not open the line it lands on, so a base carrying a warichu
-            // is set on a leading that already holds the band.
-            .paragraph({.leading = weave::Leading::absolute(
-                            kBaseSize + slot.height() + 4)})
+            // The band goes into the block's strut, so the base's own
+            // pitch opens to hold the note.
             .child(box().key("note").fill(Fill::color(kSlot)).child(
                 std::move(child)));
     if (vertical) {
@@ -225,8 +223,8 @@ struct WarichuPlaceholder final : sketch::Sketch {
   Element splitCell() {
     return cell("warichuSplit(fonts, note)",
                 "the same note in two lines of one length, in a slot the "
-                "split sized \xc2\xb7 the base is set on a leading that "
-                "already holds the band",
+                "split sized \xc2\xb7 the band opens the base's own pitch, "
+                "with no leading set by hand",
                 based({split.advance, split.band}, stackedNote()));
   }
 
