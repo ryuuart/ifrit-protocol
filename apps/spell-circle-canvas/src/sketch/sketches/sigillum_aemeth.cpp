@@ -124,10 +124,22 @@
 //
 // A star polygon {n/k} self-intersects n(k−1) times, so this heptagram has
 // SEVEN crossings and fourteen passes — not the fourteen crossings a {7/3}
-// would have. Panel D counts them and reports any crossing whose two passes
-// came out on the same side: the {7/2} heptagram is ONE closed curve,
-// 0→2→4→6→1→3→5→0, so alternating along that single traversal IS a valid
-// alternating weave.
+// would have. They are DISCOVERED, never authored: `discoverCrossings`
+// finds the proper crossings, which is what keeps the seven shared vertices
+// out of the list, and `crossingPatch` gives the exact lens where two bands
+// overlap at a knot — the region the graver repaints to take one limb
+// through. A disc is the wrong shape there: two bands meeting at a shallow
+// angle overlap in a long lens, and a disc sized for the perpendicular case
+// leaves the under-band showing straight across the over-band's cut.
+//
+// THE ORDER IS ALTERNATION ALONG THE CURVE, and that is a rule of this
+// plate's own rather than `crossing::alternate()`. An alternating knot
+// alternates as you TRAVEL it, and the heptagram is one closed curve,
+// 0→2→4→6→1→3→5→0; `crossing::alternate()` alternates by the crossing's
+// discovered ordinal, which on this star puts two consecutive UNDERs on
+// the strand from vertex 3, where the band would pass behind both its
+// neighbours and vanish. Panel D counts the crossings and reports any
+// whose two passes came out on the same side.
 //
 // WHAT MAKES IT AFFORDABLE. The plate is large and nearly all of it is
 // static, so the whole question is which layers can be baked and then left
@@ -180,16 +192,26 @@
 #include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/brush/Lines.h>
 #include <sigilcompose/brush/Rails.h>
+#include <sigilcompose/core/Core.h>
 #include <sigilcompose/core/Feed.h>
-#include <sigilcompose/core/Material.h>
-#include <sigilcompose/core/Patterns.h>
+#include <sigilcompose/core/Pattern.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Plate.h>
 #include <sigilcompose/kit/Strokes.h>
-#include <sigilcompose/kit/Silhouettes.h>
 #include <sigilcompose/testing/Checks.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigilgeometry/kit/Shapers.h>
+#include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilgeometry/path/Crossings.h>
+#include <sigilmaterial/field/Field.h>
+#include <sigilmaterial/pattern/Patterns.h>
+#include <sigilmaterial/skia/Color.h>
+#include <sigilmaterial/skia/Paint.h>
+#include <sigilmeasure/check/Check.h>
+#include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilweave/ports/SystemFontManager.h>
+#include <sigilweave/style/Type.h>
 #include <sigilweave/fonts/FontContext.h>
 
 #include <algorithm>
@@ -201,7 +223,20 @@
 
 namespace sketch = sigil::sketch;
 
+namespace skia = sigil::material::skia;
+namespace field = sigil::material::field;
+namespace measure = sigil::measure;
+namespace patterns = sigil::material::pattern;
+namespace path = sigil::geometry::path;
+namespace shapers = sigil::geometry::shapers;
+namespace shapes = sigil::geometry::shapes;
+namespace weaveNs = sigil::weave;
+
 using namespace sigil::compose;
+namespace motion = sigil::motion;
+using namespace sigil::motion;
+using sigil::material::skia::Paint;
+using sigil::weave::ports::pickTypeface;
 using namespace std::chrono_literals;
 namespace ch = choreograph;
 
@@ -448,70 +483,97 @@ shapes::OutlineFn heptChords(float rNorm, float inset) {
   };
 }
 
-/** The {7/2} heptagram is ONE closed curve: 0→2→4→6→1→3→5→0. Each of its
- *  seven segments crosses exactly two others, so there are SEVEN crossings
- *  and fourteen passes. Because the whole star is a single traversal,
- *  alternating over/under along it is a valid weave; `inconsistent` counts
- *  any crossing whose two passes came out claiming the same side, and the
- *  the feed reports it. */
+/** THE {7/2} HEPTAGRAM AS SEVEN STRANDS, and the crossings DISCOVERED among
+ *  them. A star polygon {n/k} self-intersects n(k-1) times, so seven
+ *  crossings and fourteen passes — and none of them is authored here:
+ *  `path::discoverCrossings` finds the PROPER crossings, which is what keeps
+ *  the seven shared vertices out of the list.
+ *
+ *  THE ORDER IS ALTERNATION ALONG THE CURVE, and that is why this is a rule
+ *  of its own rather than `crossing::alternate()`. An alternating knot
+ *  alternates as you TRAVEL it: the heptagram is one closed curve,
+ *  0→2→4→6→1→3→5→0, and going over then under along that traversal is what
+ *  makes the interlace read. `crossing::alternate()` alternates by the
+ *  crossing's discovered ORDINAL, which is a different sequence — on this
+ *  star it puts two consecutive UNDERs on the strand from vertex 3, and the
+ *  band there passes behind both its neighbours and vanishes.
+ *
+ *  So the traversal parity is computed once, over the fourteen passes sorted
+ *  by (strand, position along it), and held as a comparable value. `decide`
+ *  reads it by ordinal; equality is the table, so the node holding the rule
+ *  prunes. `inconsistent` counts any crossing whose two passes came out
+ *  claiming the same side — for a single traversal with an odd crossing
+ *  count it should be zero, and the feed reports it. */
 struct Weave {
   SkPoint v[7];  // traversal vertices, in visiting order
-  struct Cross {
-    SkPoint at;
-    int segA, segB;  // the two segments
-    float tA, tB;
-    bool aOver;
-  };
-  std::vector<Cross> crossings;
+  std::vector<SkPath> strands;
+  std::vector<path::Crossing> crossings;
+  /** Over-side per discovered ordinal, read against `Crossing::a`. */
+  std::vector<uint8_t> over;
+  /** Half the arc distance to the nearest neighbouring crossing, per
+   *  ordinal — the cap `crossingPatch` requires so that two lenses on one
+   *  strand cannot merge into a single contour. */
+  std::vector<float> reachCap;
   int inconsistent = 0;
+
+  bool operator==(const Weave& o) const { return over == o.over; }
+  path::Order decide(const path::Crossing& c) const {
+    return (c.index < over.size() && over[c.index] != 0) ? path::Order::Over
+                                                         : path::Order::Under;
+  }
 };
 
 Weave buildWeave(float rNorm) {
   Weave w;
   for (int k = 0; k < 7; ++k) w.v[k] = heptVertex((2 * k) % 7, rNorm);
-  // All 21 unordered pairs are tested. Adjacent pairs share an endpoint and
-  // are rejected by the t/u range test below, as are the non-adjacent pairs
-  // whose infinite lines meet outside both segments; on a {7/2} star what
-  // survives is the seven real crossings, two per segment.
+  for (int i = 0; i < 7; ++i) {
+    SkPathBuilder b;
+    b.moveTo(w.v[i]);
+    b.lineTo(w.v[(i + 1) % 7]);
+    w.strands.push_back(b.detach());
+  }
+  w.crossings = path::discoverCrossings(w.strands);
+  w.over.assign(w.crossings.size(), 0);
+  w.reachCap.assign(w.crossings.size(), 1e9f);
+
+  // The fourteen passes, in the order the single traversal meets them.
   struct Pass {
-    int seg;
-    float t;
+    size_t strand;
+    float along;
     size_t cross;
+    bool isA;
   };
   std::vector<Pass> passes;
-  for (int i = 0; i < 7; ++i)
-    for (int j = i + 1; j < 7; ++j) {
-      const SkPoint a = w.v[i], b = w.v[(i + 1) % 7];
-      const SkPoint c = w.v[j], d = w.v[(j + 1) % 7];
-      const float rx = b.fX - a.fX, ry = b.fY - a.fY;
-      const float sx = d.fX - c.fX, sy = d.fY - c.fY;
-      const float den = rx * sy - ry * sx;
-      if (std::fabs(den) < 1e-4f) continue;
-      const float t = ((c.fX - a.fX) * sy - (c.fY - a.fY) * sx) / den;
-      const float u = ((c.fX - a.fX) * ry - (c.fY - a.fY) * rx) / den;
-      if (t <= 1e-3f || t >= 1 - 1e-3f || u <= 1e-3f || u >= 1 - 1e-3f)
-        continue;
-      const size_t idx = w.crossings.size();
-      w.crossings.push_back(
-          {{a.fX + rx * t, a.fY + ry * t}, i, j, t, u, false});
-      passes.push_back({i, t, idx});
-      passes.push_back({j, u, idx});
-    }
+  for (const path::Crossing& c : w.crossings) {
+    passes.push_back({c.a, c.alongA, c.index, true});
+    passes.push_back({c.b, c.alongB, c.index, false});
+  }
   std::sort(passes.begin(), passes.end(), [](const Pass& x, const Pass& y) {
-    return x.seg != y.seg ? x.seg < y.seg : x.t < y.t;
+    return x.strand != y.strand ? x.strand < y.strand : x.along < y.along;
   });
-  // alternate over/under along the single traversal
   std::vector<int> seen(w.crossings.size(), -1);
   for (size_t k = 0; k < passes.size(); ++k) {
-    const bool over = (k % 2) == 0;
-    Weave::Cross& c = w.crossings[passes[k].cross];
-    if (seen[passes[k].cross] < 0) {
-      seen[passes[k].cross] = over ? 1 : 0;
-      c.aOver = (passes[k].seg == c.segA) ? over : !over;
-    } else if ((seen[passes[k].cross] == 1) == over) {
+    const bool overHere = (k % 2) == 0;
+    const size_t idx = passes[k].cross;
+    if (seen[idx] < 0) {
+      seen[idx] = overHere ? 1 : 0;
+      // The table answers for strand `a`, so a pass on `b` inverts.
+      w.over[idx] = (passes[k].isA ? overHere : !overHere) ? 1u : 0u;
+    } else if ((seen[idx] == 1) == overHere) {
       ++w.inconsistent;  // both passes claim the same side
     }
   }
+  // The cap: half the distance along a shared strand to the next crossing.
+  for (size_t i = 0; i < passes.size(); ++i)
+    for (size_t j = i + 1; j < passes.size(); ++j) {
+      if (passes[i].strand != passes[j].strand) break;
+      const float d = std::fabs(passes[j].along - passes[i].along);
+      const SkPoint& a = w.v[passes[i].strand];
+      const SkPoint& b = w.v[(passes[i].strand + 1) % 7];
+      const float px = d * std::hypot(b.fX - a.fX, b.fY - a.fY) * 0.5f;
+      w.reachCap[passes[i].cross] = std::min(w.reachCap[passes[i].cross], px);
+      w.reachCap[passes[j].cross] = std::min(w.reachCap[passes[j].cross], px);
+    }
   return w;
 }
 
@@ -522,7 +584,7 @@ Weave buildWeave(float rNorm) {
 shapes::OutlineFn wobbled(shapes::OutlineFn base, uint32_t seed,
                           float seg = 26.0f, float dev = 0.34f) {
   return [base = std::move(base), seed, seg, dev](SkSize s) {
-    return kit::brush::shapers::Jitter{seg, dev, seed}.shape(base(s));
+    return shapers::Jitter{seg, dev, seed}.shape(base(s));
   };
 }
 
@@ -531,9 +593,9 @@ shapes::OutlineFn wobbled(shapes::OutlineFn base, uint32_t seed,
 
 // A positional shorthand over type. Every text run on this plate is
 // built from the same four fields, and there are hundreds of call sites.
-sigil::weave::TextStyle type(sk_sp<SkTypeface> face, float size, SkColor4f c,
-                             float tracking = 0) {
-  return sigil::compose::type(
+weaveNs::TextStyle type(sk_sp<SkTypeface> face, float size, SkColor4f c,
+                        float tracking = 0) {
+  return weaveNs::textStyle(
       {.face = std::move(face), .size = size, .color = c, .track = tracking});
 }
 
@@ -587,7 +649,7 @@ struct SigillumAemeth : sketch::Sketch {
   double clockT = 0;
   int solvePhase = -2;
 
-  Material waxGrain;
+  Paint waxGrain;
   Pattern waxSpeck;
 
   // --- the reading order, in seconds ---------------------------------------
@@ -607,9 +669,9 @@ struct SigillumAemeth : sketch::Sketch {
     auto g = box().inset(0);
 
     // the cake: rim, body, and the tool-marks of a warm knife
-    g.child(kit::disc({kRR, kRR}, kWaxEdge * 1.055f * kR)
+    g.child(kit::disc(SkPoint{kRR, kRR}, kWaxEdge * 1.055f * kR)
                 .shape(shapes::annulus(0.90f))
-                .fill(Material::radialUnit({0.5f, 0.5f}, 1.0f,
+                .fill(Paint::radialUnit({0.5f, 0.5f}, 1.0f,
                                            {{0.0f, hex(0x05070a, 0.0f)},
                                             {0.905f, hex(0x05070a, 0.0f)},
                                             {0.945f, hex(0x05070a, 0.62f)},
@@ -617,10 +679,10 @@ struct SigillumAemeth : sketch::Sketch {
                 .translateX(5)
                 .translateY(11)
                 .key("waxshadow"));
-    g.child(kit::disc({kRR, kRR}, kWaxEdge * kR)
+    g.child(kit::disc(SkPoint{kRR, kRR}, kWaxEdge * kR)
                 .shape(shapes::circle())
-                .fill(Material::blend(
-                    {{Material::radialUnit({0.42f, 0.36f}, 1.05f,
+                .fill(Paint::blend(
+                    {{Paint::radialUnit({0.42f, 0.36f}, 1.05f,
                                            {{0.0f, kWaxPale},
                                             {0.45f, kWaxLit},
                                             {0.82f, kWaxMid},
@@ -639,16 +701,16 @@ struct SigillumAemeth : sketch::Sketch {
 
     // the burnish left by the shew-stone. A ball of quartz stood on the
     // middle of this figure for its whole working life.
-    g.child(kit::disc({kRR, kRR}, 0.33f * kR)
+    g.child(kit::disc(SkPoint{kRR, kRR}, 0.33f * kR)
                 .shape(shapes::circle())
-                .fill(Material::radialUnit({0.42f, 0.38f}, 1.0f,
+                .fill(Paint::radialUnit({0.42f, 0.38f}, 1.0f,
                                            {{0.0f, hex(0xfff6dd, 0.34f)},
                                             {0.55f, hex(0xffeec6, 0.14f)},
                                             {1.0f, hex(0x000000, 0.0f)}}))
                 .blend(SkBlendMode::kScreen)
                 .key("shew"));
     g.child(
-        kit::disc({kRR, kRR}, 0.335f * kR)
+        kit::disc(SkPoint{kRR, kRR}, 0.335f * kR)
             .shape(shapes::circle())
             .fill(Fill::none())
             .stroke(PathFormat{.width = 2.0f,
@@ -671,7 +733,7 @@ struct SigillumAemeth : sketch::Sketch {
     // hair INSIDE. lines::Line cannot say this; lines::Rails can.
     auto rule = [&](float rNorm, float heavy, float hair, float gap,
                     const char* key, bool dotted) {
-      Element e = kit::disc({kRR, kRR}, rNorm * kR)
+      Element e = kit::disc(SkPoint{kRR, kRR}, rNorm * kR)
                       .shape(wobbled(shapes::circle(), 1582))
                       .fill(Fill::none())
                       .key(key);
@@ -691,7 +753,7 @@ struct SigillumAemeth : sketch::Sketch {
           spans::upTo(animate(from(0.0f).to(1.0f), ramp(tPlate * 1000, 900)))));
       return e;
     };
-    g.child(kit::disc({kRR, kRR}, rGreat * kR)
+    g.child(kit::disc(SkPoint{kRR, kRR}, rGreat * kR)
                 .shape(shapes::annulus(rBandIn / rGreat))
                 .fill(Fill::none())
                 .foreground(lines::RadialHatch{
@@ -711,7 +773,7 @@ struct SigillumAemeth : sketch::Sketch {
     // CENTRE, so an Interval scatter with no phase lands its first stamp
     // half a cell along — exactly on the boundary — and every one after.
     const float step = 2.0f * SK_FloatPI * rBandIn * kR / 40.0f;
-    g.child(kit::disc({kRR, kRR}, rBandIn * kR)
+    g.child(kit::disc(SkPoint{kRR, kRR}, rBandIn * kR)
                 .shape(shapes::circle())
                 .fill(Fill::none())
                 .stroke(brush::Scatter{
@@ -755,9 +817,9 @@ struct SigillumAemeth : sketch::Sketch {
             .key("dividers"));
 
     // the letters, upright-radial, and their numbers above or below
-    const sigil::weave::TextStyle letStyle =
+    const weaveNs::TextStyle letStyle =
         type(faceRing, 0.060f * kR, hex(0x241603, 1.0f));
-    const sigil::weave::TextStyle numStyle =
+    const weaveNs::TextStyle numStyle =
         type(faceRing, 0.031f * kR, hex(0x4a3210, 1.0f));
     for (int i = 0; i < 40; ++i) {
       const Cell& c = kRing[(size_t)i];
@@ -849,7 +911,7 @@ struct SigillumAemeth : sketch::Sketch {
       const float mid = ((float)k + 0.5f) * 360.0f / 7.0f;
       const float half = 360.0f / 7.0f * 0.5f - 1.1f;
       plates.child(
-          kit::disc({kRR, kRR}, 0.868f * kR)
+          kit::disc(SkPoint{kRR, kRR}, 0.868f * kR)
               .shape(shapes::sector(skAngle(mid - half), 2 * half,
                                     0.720f / 0.868f))
               .fill(Fill::color(hex(0xd9bd88, 0.30f)))
@@ -877,7 +939,7 @@ struct SigillumAemeth : sketch::Sketch {
 
     // the 49 letters: ONE text run per row on a SEVEN-CONTOUR chord path,
     // addressed by (k + 0.5)/7 of one continuous arc-length coordinate.
-    const sigil::weave::TextStyle angStyle =
+    const weaveNs::TextStyle angStyle =
         type(faceSeal, 0.049f * kR, hex(0x201404, 1.0f), 0.034f * kR);
     for (int k = 0; k < 7; ++k) {
       std::string row;
@@ -901,7 +963,7 @@ struct SigillumAemeth : sketch::Sketch {
       // the bird lands: its angle-plate takes a rule it did not have before
       const float mid2 = ((float)k + 0.5f) * 360.0f / 7.0f;
       const float half2 = 360.0f / 7.0f * 0.5f - 1.1f;
-      g.child(kit::disc({kRR, kRR}, 0.868f * kR)
+      g.child(kit::disc(SkPoint{kRR, kRR}, 0.868f * kR)
                   .shape(shapes::sector(skAngle(mid2 - half2), 2 * half2,
                                         0.720f / 0.868f))
                   .fill(Fill::none())
@@ -953,7 +1015,7 @@ struct SigillumAemeth : sketch::Sketch {
                                    .dash = {1.4f, 4.6f}}}))
             .key("heptrule2"));
 
-    const sigil::weave::TextStyle nameStyle =
+    const weaveNs::TextStyle nameStyle =
         type(faceQuill, 0.048f * kR, hex(0x201404, 1.0f), 0.026f * kR);
     for (int k = 0; k < 7; ++k) {
       std::string row;
@@ -985,8 +1047,16 @@ struct SigillumAemeth : sketch::Sketch {
   }
 
   // =========================================================================
-  // THE HEPTAGRAM — an interlaced band, seven crossings, drawn as one
-  // custom leaf because the library has no over/under primitive.
+  // THE HEPTAGRAM — an interlaced band over seven DISCOVERED crossings.
+  //
+  // The over/under is the geometry library's crossing rule: the crossings
+  // are found by path intersection, the order is a comparable rule value
+  // (alternation along the single traversal — see Weave), and the region
+  // repainted at each knot is `crossingPatch`, the EXACT lens where the two
+  // marks overlap. A disc is the wrong shape there: two bands meeting at a
+  // shallow angle overlap in a long lens whose extent goes as
+  // reach/sin(theta), and a disc sized for the perpendicular case leaves
+  // the under-band showing straight across the over-band's cut.
 
   Element heptagram() {
     Weave w = weave;
@@ -1034,15 +1104,23 @@ struct SigillumAemeth : sketch::Sketch {
       // THE WEAVE, CUT. At a crossing the graver takes the over-limb
       // through and stops the under-limb's walls short of it, so the
       // interlace is in the cut rather than in a cast shadow: redraw the
-      // over limb clipped to a disc the width of the band, and its floor
-      // and walls close over the other's.
-      for (const Weave::Cross& x : w.crossings) {
-        const int over = x.aOver ? x.segA : x.segB;
-        SkPathBuilder clipB;
-        clipB.addCircle(x.at.fX, x.at.fY, bandW * 1.32f);
+      // over limb clipped to the lens where the two marks actually overlap,
+      // and its floor and walls close over the other's. The cap is half the
+      // arc distance to the next crossing on the same strand, which is what
+      // stops two neighbouring lenses merging into one contour and handing
+      // the whole run to a single strand.
+      const path::CrossingRule rule = w;
+      const float reach = bandW * 0.5f + 1.6f;
+      for (const path::Crossing& x : w.crossings) {
+        const size_t over =
+            rule.decide(x) == path::Order::Over ? x.a : x.b;
+        const size_t under = over == x.a ? x.b : x.a;
         c.save();
-        c.clipPath(clipB.detach(), true);
-        limb(c, over, true);
+        c.clipPath(path::crossingPatch(w.strands[over], reach,
+                                       w.strands[under], reach, x.at,
+                                       w.reachCap[x.index]),
+                   true);
+        limb(c, (int)over, true);
         c.restore();
       }
     };
@@ -1086,7 +1164,7 @@ struct SigillumAemeth : sketch::Sketch {
     for (int i = 0; i < 5; ++i) {
       const float rr = kCellRings[i];
       g.child(
-          kit::disc({kRR, kRR}, rr * kR)
+          kit::disc(SkPoint{kRR, kRR}, rr * kR)
               .shape(wobbled(shapes::circle(), (uint32_t)(7 + i), 22.0f, 0.30f))
               .fill(Fill::none())
               .stroke(
@@ -1211,7 +1289,7 @@ struct SigillumAemeth : sketch::Sketch {
     // "Set Z, of Zedekieil within the angle which standeth up toward the
     // begynning of the greatest Circle" — point-up, aligned on division 1.
     g.child(
-        kit::disc({kHp, kHp}, rPenta * kR)
+        kit::disc(SkPoint{kHp, kHp}, rPenta * kR)
             .shape(wobbled(shapes::star(5, 0.382f), 5, 16.0f, 0.30f))
             .fill(Fill::color(hex(0xe6cf9e, 0.18f)))
             .stroke(lines::rails({{.across = 0.0f,
@@ -1366,12 +1444,12 @@ struct SigillumAemeth : sketch::Sketch {
       // needs its namespace.
       auto fade = [&](float) -> Animatable<float> {
         return live ? Animatable<float>(animate(
-                          sigil::compose::from(0.0f).to(1.0f), ramp(0, 220)))
+                          motion::from(0.0f).to(1.0f), ramp(0, 220)))
                     : Animatable<float>(0.15f);
       };
       auto reveal = [&](float ms) -> Animatable<float> {
         return live ? Animatable<float>(animate(
-                          sigil::compose::from(0.0f).to(1.0f), ramp(0, ms)))
+                          motion::from(0.0f).to(1.0f), ramp(0, ms)))
                     : Animatable<float>(1.0f);
       };
       g.child(box()
@@ -1626,7 +1704,7 @@ struct SigillumAemeth : sketch::Sketch {
                     .height(30)
                     .centerAt(at)
                     .rotate(fanAngle(c))
-                    .textAlign(sigil::weave::TextAlignment::kCenter)
+                    .textAlign(weaveNs::TextAlignment::kCenter)
                     .opacity(animate(from(0.0f).to(1.0f), ramp(delay, 300))));
       }
     g.child(text(toU8("48 letters, and one is noted by a Cross: which maketh "
@@ -1689,31 +1767,23 @@ struct SigillumAemeth : sketch::Sketch {
 
   Element consolePanel() {
     const float px = 1660 * kS, py = 1058 * kS, pw = 690, ph = 468;
-    auto g = box()
-                 .rect(SkRect::MakeXYWH(px, py, pw, ph))
-                 .scale(kS)
-                 .transformOrigin(0.0f, 0.0f)
-                 .fill(Fill::color(hex(0x1b1e26, 0.86f)))
-                 .stroke(stroke(1.0f, Fill::color(hex(0xc7ab74, 0.22f)),
-                                PathFormat::Align::Inner));
-    g.child(box()
-                .rect(SkRect::MakeXYWH(12, 8, pw - 24, ph - 16))
-                .row()
-                .gap(14)
-                .child(box()
-                           .column()
-                           .grow(1)
-                           .gap(6)
-                           .child(feed::feed(logA, logStyle()))
-                           .child(feed::feed(logC, logStyle())))
-                .child(box().width(1).fill(Fill::color(hex(0xc7ab74, 0.16f))))
-                .child(box()
-                           .column()
-                           .grow(1)
-                           .gap(6)
-                           .child(feed::feed(logB, logStyle()))
-                           .child(feed::feed(logD, logStyle()))));
-    return g;
+    // Four feeds, two per column: the kit's console is `plate` over `feed`
+    // with the voice threaded through once, which is what this panel spelled
+    // out by hand.
+    return kit::console(
+               {.feeds = {&logA, &logC, &logB, &logD},
+                .style = logStyle(),
+                .stacked = 2,
+                .stackGap = 6,
+                .plate = {.paddingX = 12,
+                          .paddingY = 8,
+                          .gap = 14,
+                          .fill = Fill::color(hex(0x1b1e26, 0.86f)),
+                          .border = Fill::color(hex(0xc7ab74, 0.22f)),
+                          .divider = Fill::color(hex(0xc7ab74, 0.16f))}})
+        .rect(SkRect::MakeXYWH(px, py, pw, ph))
+        .scale(kS)
+        .transformOrigin(0.0f, 0.0f);
   }
 
   Element colophon() {
@@ -1968,15 +2038,20 @@ struct SigillumAemeth : sketch::Sketch {
     logD.append(
         {toU8("  would collide with ZABATHIEL at 0.285 R.  {7/2}."), "pass"});
     logD.append({toU8("THE INTERLACE"), "heading"});
-    logD.append({toU8(fmt("  %zu crossings, %zu passes, %d inconsistent",
-                          weave.crossings.size(), weave.crossings.size() * 2,
-                          weave.inconsistent)),
-                 // buildWeave() records one Cross per crossing POINT, so a
-                 // {7/2} star yields 7 of them (n(k-1)); the 14 passes are the
-                 // same points counted from both segments.
-                 (weave.crossings.size() == 7 && weave.inconsistent == 0)
-                     ? "pass"
-                     : "heading"});
+    // discoverCrossings reports one crossing per POINT, so a {7/2} star
+    // yields n(k-1) = 7 of them; the 14 passes are the same points counted
+    // from both strands. The shared vertices are MEETINGS, not crossings,
+    // and never appear.
+    // The column is narrow, so the two claims are set at its own widths
+    // rather than at the table's default.
+    test::report(logD,
+                 measure::check("  crossings discovered", size_t{7},
+                                weave.crossings.size()),
+                 "pass", "heading", 30, 4);
+    test::report(logD,
+                 measure::check("  passes on the same side", 0,
+                                weave.inconsistent),
+                 "pass", "heading", 30, 4);
     logD.append(
         {toU8("  gcd(40,7)=gcd(40,5)=gcd(7,5)=1 \xe2\x80\x94 one"), "dim"});
     logD.append({toU8("  alignment only, and it is 12 o'clock."), "pass"});
@@ -1997,19 +2072,19 @@ struct SigillumAemeth : sketch::Sketch {
     // library's own walk: the first installed family wins, and a machine
     // with none of them gets the default face AT THE WEIGHT ASKED FOR
     // rather than silently at Normal.
-    faceSerif = pickFace({"Hoefler Text", "Baskerville"});
+    faceSerif = pickTypeface({"Hoefler Text", "Baskerville"});
     faceItalic =
-        pickFace({"Hoefler Text", "Baskerville"}, SkFontStyle::Italic());
-    faceMono = pickFace({"Menlo", "Courier New"});
-    faceSeal = pickFace({"Herculanum", "Optima", "Baskerville"});
-    faceRing = pickFace({"Trattatello", "Hoefler Text", "Baskerville"},
+        pickTypeface({"Hoefler Text", "Baskerville"}, SkFontStyle::Italic());
+    faceMono = pickTypeface({"Menlo", "Courier New"});
+    faceSeal = pickTypeface({"Herculanum", "Optima", "Baskerville"});
+    faceRing = pickTypeface({"Trattatello", "Hoefler Text", "Baskerville"},
                         SkFontStyle::Italic());
     faceQuill =
-        pickFace({"Hoefler Text", "Baskerville"}, SkFontStyle::Italic());
-    faceDisplay = pickFace({"Luminari", "Herculanum", "Optima", "Baskerville"});
+        pickTypeface({"Hoefler Text", "Baskerville"}, SkFontStyle::Italic());
+    faceDisplay = pickTypeface({"Luminari", "Herculanum", "Optima", "Baskerville"});
 
-    waxGrain = patterns::grain(1.6f, 4, 1582.0f, 0.34f);
-    waxSpeck = patterns::speckle(520, 18, 1.4f, 4.4f, {hex(0x6a4a20, 0.10f)});
+    waxGrain = Paint::recipe(field::grain(1.6f, 4, 1582.0f, 0.34f));
+    waxSpeck = patterns::speckle(520, 18, 1.4f, 4.4f, {skia::toColor(hex(0x6a4a20, 0.10f))});
     waxSpeck.seed(1582);
 
     // solve, then draw what the solver said
@@ -2029,11 +2104,6 @@ struct SigillumAemeth : sketch::Sketch {
       const double loop = 26.0;
       const double t = std::fmod(clockT, loop);
       // the rings turn from tSpin, decelerating into the one alignment
-      const double a = (t - (double)tSpin) / (24.0 - (double)tSpin);
-      const double k = a <= 0   ? 0.0
-                       : a >= 1 ? 0.0
-                                : 1.0 - (1.0 - (1.0 - a)) * 0.0;
-      (void)k;
       float s = 0.0f;
       if (t > (double)tSpin && t < 24.0) {
         const double u = (t - (double)tSpin) / (24.0 - (double)tSpin);
