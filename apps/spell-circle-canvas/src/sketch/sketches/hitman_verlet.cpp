@@ -1,5 +1,5 @@
 // hitman_verlet.cpp — the Hitman corpse (IO Interactive, 2000)
-// and Thomas Jakobsen's verlet character physics.
+// and Thomas Jakobsen's verlet character physics, drawn by a pen.
 //
 // SUBJECT  The corpse / cloth / plant simulation of Hitman: Codename 47
 //          (IO Interactive / Eidos Interactive, Microsoft Windows,
@@ -151,28 +151,31 @@
 //   - [DC66] Drillis & Contini 1966 could not be checked against a
 //     primary scan; see VERIFIED 4
 //
-// WHY IT IS A SigilCompose STRESS TEST
-//   A verlet body has no velocity variable at all, so its shape at frame N
-//   is a function of what it TOUCHED at frame N-1 - the solver projects,
-//   the integrator reads the projection as velocity, and the next frame
-//   inherits it. Geometry IS the state, and it is rebuilt every step,
-//   which puts the weight on two parts of the library in particular:
-//     * ticker.addFixed(hz, fn, maxCatchUp, &alphaOut) publishes the
-//       render interpolant. A verlet body's state IS the pair (x*, x), so
-//       lerp(x*, x, alpha) is the integrator's OWN interpolant, free.
-//       Every drawn particle here goes through it.
-//     * decorations::paintOn(canvas, ctx, path, decoration) - so the
-//       corpse's 24 capped-cylinder proxies are lines::Line values, its
-//       centrelines are PathFormat values, and the drag leader wears a
-//       PathFormat trim window riding its own head, all on geometry
-//       recomputed sixty times a second inside custom().
-//   Plus: instances(Mode::Live) for every particle dot, a SECOND pool
-//   driving the same 24 sticks through the Pool::sizes() lane beside
-//   the custom() path, shapes::parametric for the approximation-error
-//   plot, lines::hatch for the drafting section on the bump,
-//   patterns::grain on the floor, Paint::glowUnit for the blast,
-//   bind() with map/to/invert/clamp, slot()/renderSlot() for eight live
-//   numbers, staggerChildren + withFrom + ease::outBack for the chrome.
+// HOW IT IS DRAWN
+//   A verlet body has no velocity variable at all: its shape at frame N
+//   is a function of what it TOUCHED at frame N-1, geometry IS the state,
+//   and the state is rebuilt sixty times a second. That is a loop, so
+//   this is a pen program.
+//     * `ctx.ticker.addFixed(60, ..., 8, &alpha)` is the integrator's
+//       clock and publishes the render interpolant. A verlet body's state
+//       IS the pair (x*, x), so `lerp(x*, x, alpha)` is its OWN
+//       interpolant, free; every drawn particle here goes through it.
+//     * the corpse's 24 capped-cylinder proxies are the pen's own words -
+//       `strokeCap(ROUND)` at twice the capsule radius IS a capsule -
+//       and so are the centrelines coloured by live constraint error, the
+//       dotted knee inequality, the cased drag leader with its red head,
+//       the cloth, the plants and every contact marker.
+//     * every panel is a retained tree painted through `pen.element`:
+//       the six sidebar panels, the two instancing pools, the blast
+//       glow. Three of them are laid out with a HOLE - the anatomy
+//       diagram, the relaxation A/B and the bench's second half - which
+//       the pen draws into at the box the panel's own arithmetic gives.
+//       The tree sets type and lays out; the pen draws what the solver
+//       just moved.
+//   Two things still go through `pen.canvas()`, the door the pen names
+//   for another library's drawing: the additive blast glow's clip and the
+//   drafting hatch inside the bump, because a pen has no clip verb and no
+//   blend mode.
 //
 //   ./build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
 //       src/sketch/sketches/hitman_verlet.cpp \
@@ -180,14 +183,11 @@
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkColor.h>
-#include <include/core/SkFont.h>
-#include <include/core/SkFontMgr.h>
-#include <include/core/SkFontTypes.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>
-#include <sigilcompose/brush/Hatches.h>
-#include <sigilcompose/brush/Lines.h>
+#include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/draw/Draw.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/typography/Typography.h>
@@ -195,7 +195,7 @@
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/Animation.h>
-#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/draw/Draw.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
@@ -205,7 +205,6 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
-#include <cstring>
 #include <string>
 #include <vector>
 
@@ -217,8 +216,10 @@ namespace weave = sigil::weave;
 using namespace sigil::compose;
 using namespace sigil::motion;
 using namespace std::chrono_literals;
+using sigil::draw::Pen;
 using sigil::material::skia::Paint;
 using sigil::weave::ports::pickTypeface;
+namespace draw = sigil::draw;
 namespace ch = choreograph;
 
 namespace {
@@ -256,13 +257,34 @@ SkColor4f errColor(float e, float alpha = 1.0f) {
   return {kRampCol[4].fR, kRampCol[4].fG, kRampCol[4].fB, alpha};
 }
 
+SkColor4f fadeTo(SkColor4f c, float a) { return {c.fR, c.fG, c.fB, c.fA * a}; }
+
 // ---------------------------------------------------------------------------
-// The frame. The STAGE IS SQUARE BECAUSE THE PAPER'S WORLD IS A CUBE.
+// The frame. THE STAGE IS SQUARE BECAUSE THE PAPER'S WORLD IS A CUBE.
 
 constexpr float kCanvasW = 1560, kCanvasH = 920;
 constexpr float kStage = 736;              // px, = the 1000-unit cube
 constexpr float kUnit = kStage / 1000.0f;  // 0.736 px per world unit
 constexpr float kColW = 352;
+
+// The page, laid out by the pen: padding 32, a 100 px header, then the
+// stage and two panel columns whose fixed heights add up to the stage's.
+constexpr float kPad = 32;
+constexpr float kHeaderH = 100;
+constexpr float kBodyY = kPad + kHeaderH + 20;  // 152
+constexpr float kStageX = kPad;                 // 32
+constexpr float kColAX = kPad + kStage + 28;    // 796
+constexpr float kColBX = kColAX + kColW + 28;   // 1176
+constexpr float kPanelGap = 24;
+constexpr float kPanelAH[3] = {156, 288, 244};
+constexpr float kPanelBH[3] = {236, 264, 188};
+constexpr float kPanelPad = 14;
+
+constexpr float panelTop(const float (&h)[3], int i) {
+  float y = kBodyY;
+  for (int k = 0; k < i; ++k) y += h[k] + kPanelGap;
+  return y;
+}
 
 // The parameter table. Every rate here is per fixed simulation step.
 constexpr double kSimHz = 60.0;
@@ -356,51 +378,75 @@ Element t(const char* s, weave::TextStyle st) {
   return text(toU8(s), std::move(st));
 }
 
-/** A sidebar panel shell. */
+/** The same three registers on the PEN: a pen carries one type and one
+ *  fill, so a register is set rather than described. */
+void penMono(Pen& pen, float size, SkColor4f c, float track = 0.0f) {
+  pen.textFont(weave::Type{.face = monoFace(), .size = size, .track = track});
+  pen.fill(c);
+}
+void penMonoB(Pen& pen, float size, SkColor4f c, float track = 0.0f) {
+  pen.textFont(
+      weave::Type{.face = monoBoldFace(), .size = size, .track = track});
+  pen.fill(c);
+}
+void penUi(Pen& pen, float size, SkColor4f c, float track = 0.0f) {
+  pen.textFont(weave::Type{.face = uiFace(), .size = size, .track = track});
+  pen.fill(c);
+}
+
+/** A DASHED SEGMENT, in the pen's own words: the run of on/off pieces a
+ *  PathFormat's dashIntervals describes, walked here because a pen
+ *  strokes what it is given and carries no dash. */
+void dashed(Pen& pen, SkPoint a, SkPoint b, float on, float off) {
+  const SkPoint d = b - a;
+  const float L = len(d);
+  if (L < 1e-4f) return;
+  const SkPoint u = d * (1.0f / L);
+  for (float s = 0; s < L; s += on + off) {
+    const float e = std::min(L, s + on);
+    pen.line(a.fX + u.fX * s, a.fY + u.fY * s, a.fX + u.fX * e,
+             a.fY + u.fY * e);
+  }
+}
+
+/** A part's entrance as time arithmetic: what a described tree spells as
+ *  `animate(from(0).to(1), {duration, delay})`, in a loop that has the
+ *  clock in its hand. */
+float cue(double ms, float delayMs, float durationMs,
+          const ch::EaseFn& ease = nullptr) {
+  const float u = std::clamp(
+      (float)((ms - (double)delayMs) / (double)durationMs), 0.0f, 1.0f);
+  return ease ? ease(u) : u;
+}
+
+/** A sidebar panel shell. Each panel is its own guest at its own box, so
+ *  the entrance the column used to stagger is the panel's own delay. */
 Element panel(float height, const char* heading, int order) {
+  const auto delay = std::chrono::milliseconds(85 * order);
   return box()
       .column()
       .width(Dim(kColW))
       .height(Dim(height))
       .shrink(0)
-      .padding(14)
+      .padding(kPanelPad)
       .gap(7)
       .corners({5})
       .fill(kPanel)
       .clip(true)
       .stroke(stroke(1.0f, Fill::color(kKeyline), PathFormat::Align::Inner))
-      .opacity(animate(from(0.0f).to(1.0f), {.duration = 300ms}))
-      .translateX(animate(from(14.0f).to(0.0f), {.duration = 300ms}))
+      .opacity(animate(from(0.0f).to(1.0f),
+                       {.duration = 300ms, .delay = delay}))
+      .translateX(animate(from(14.0f).to(0.0f),
+                          {.duration = 300ms, .delay = delay}))
       .key(std::string("panel") + std::to_string(order))
       .child(t(heading, ui(9.5f, kSteel, 1.9f)).height(Dim(12)).shrink(0));
-}
-
-/** A stage inset: the scrim over the world. */
-Element stageInset(float x, float y, float w, float h, int order) {
-  return box()
-      .left(Dim(x))
-      .top(Dim(y))
-      .width(Dim(w))
-      .height(Dim(h))
-      .padding(8)
-      .column()
-      .gap(3)
-      .corners({5})
-      .fill(hex(0x101116, 0.88f))
-      .stroke(stroke(1.0f, Fill::color(kKeyline), PathFormat::Align::Inner))
-      .opacity(
-          animate(from(0.0f).to(1.0f), {.duration = 340ms, .delay = 900ms}))
-      .scale(animate(
-          from(0.94f).to(1.0f),
-          {.duration = 340ms, .ease = ease::outBack(1.70158f), .delay = 900ms}))
-      .key(std::string("inset") + std::to_string(order));
 }
 
 }  // namespace
 
 // ===========================================================================
 
-struct HitmanVerlet : sketch::Sketch {
+struct HitmanVerlet final : sketch::DrawSketch {
   // -------------------------------------------------------------------------
   // §4 — the mechanism
 
@@ -457,20 +503,26 @@ struct HitmanVerlet : sketch::Sketch {
   // -------------------------------------------------------------------------
   // Clocks and phase
 
-  double loopT = 0, elapsed = 0;
+  double loopT = 0;
   uint64_t simSteps = 0;
-  bool stepped = false;
   bool didHit = false, didBomb = false;
   int phase = 0;  // 0 SPAWN 1 HIT 2 BOMB 3 SETTLE 4 DRAG 5 RELEASE
   SkPoint dragTarget{0, 0}, dragFrom{0, 0};
   bool dragging = false;
   float chainPhase = 0;
 
+  /** THE GUESTS, BUILT ONCE. A guest is retained — the pen keeps a
+   *  composer per call site — so a description that says the same thing
+   *  every frame is work nobody asked for. Every live number on this
+   *  canvas is drawn by the pen, and every pool lane is rewritten in
+   *  place, so not one of these trees has to be described twice. */
+  Element headerEl, overlayEl, barsEl;
+  std::array<Element, 3> colAEl, colBEl;
+
   // Measured
   float stageMaxErr = 0;
   std::array<float, 3> chainMean{{0, 0, 0}}, chainMax{{0, 0, 0}};
   size_t contactCount = 0;
-  double customUs = 0, instUs = 0;
 
   // Bindings
   ch::Output<float> alpha{0.0f};       // addFixed's render interpolant
@@ -953,24 +1005,6 @@ struct HitmanVerlet : sketch::Sketch {
     return toStage(drawnWorld(b, i));
   }
 
-  static SkPath segment(SkPoint a, SkPoint b) {
-    SkPathBuilder p;
-    p.moveTo(a);
-    p.lineTo(b);
-    return p.detach();
-  }
-
-  /** Every edge of a body as ONE path: the cloth's edges and a plant's
-   *  sticks each become a single stroke rather than one element per edge. */
-  SkPath bodyPath(const Body& b) const {
-    SkPathBuilder p;
-    for (const Stick& s : b.sticks) {
-      p.moveTo(drawn(b, (size_t)s.a));
-      p.lineTo(drawn(b, (size_t)s.b));
-    }
-    return p.detach();
-  }
-
   /** The rig's stage-space bounds, so the two A/B thumbnails can FIT it
    *  rather than assume where it is. */
   SkRect rigBounds() const {
@@ -994,45 +1028,41 @@ struct HitmanVerlet : sketch::Sketch {
                (h - b.height() * s) * 0.5f - b.fTop * s};
   }
 
-  /** The corpse's 24 sticks, three layers, all through the decoration
-   *  vocabulary on geometry recomputed this frame (decorations::paintOn).
-   *  Returns the microseconds spent, which the A/B strip prints beside the
-   *  same sticks drawn through instances(). */
-  double paintRig(SkCanvas& c, const PaintContext& ctx, float scale,
-                  SkPoint offset, float fade, bool proxies) const {
-    const auto t0 = std::chrono::steady_clock::now();
+  /** The corpse's 24 sticks, three layers, all in the pen's own words on
+   *  geometry recomputed this frame. A ROUND CAP AT TWICE THE CAPSULE
+   *  RADIUS IS A CAPPED CYLINDER — the collision proxy the paper
+   *  describes, made visible by the stroke that already draws it. */
+  void paintRig(Pen& pen, float scale, SkPoint offset, float fade,
+                bool proxies) const {
     auto at = [&](size_t i) {
       const SkPoint p = drawn(rig, i);
       return SkPoint{offset.fX + p.fX * scale, offset.fY + p.fY * scale};
     };
+    pen.noFill();
+    pen.strokeCap(draw::ROUND);
     if (proxies) {
       // 1. The capped-cylinder proxies — the collision geometry the paper
-      //    describes, made visible. lines::Line strokes with ROUND caps,
-      //    which is exactly a capsule.
-      SkPathBuilder all;
+      //    describes, at the width the solver actually uses.
+      pen.strokeWeight(2.0f * kCapsule * kUnit * scale);
+      pen.stroke(hex(0x6FA8DC, 0.10f * fade));
       for (const Stick& s : rig.sticks) {
-        all.moveTo(at((size_t)s.a));
-        all.lineTo(at((size_t)s.b));
+        const SkPoint a = at((size_t)s.a), b = at((size_t)s.b);
+        pen.line(a.fX, a.fY, b.fX, b.fY);
       }
-      lines::Line capsule;
-      capsule.width = 2.0f * kCapsule * kUnit * scale;
-      capsule.fill = Fill::color(hex(0x6FA8DC, 0.10f * fade));
-      decorations::paintOn(c, ctx, all.detach(), capsule);
     }
     // 2. The centrelines, coloured by LIVE constraint error.
+    pen.strokeWeight(std::max(4.6f, 2.5f * scale));
     for (const Stick& s : rig.sticks) {
       const float e = std::abs(len(rig.x[s.b] - rig.x[s.a]) - s.r) / s.r;
-      decorations::paintOn(
-          c, ctx, segment(at((size_t)s.a), at((size_t)s.b)),
-          stroke(std::max(4.6f, 2.5f * scale), Fill::color(errColor(e, fade))));
+      pen.stroke(errColor(e, fade));
+      const SkPoint a = at((size_t)s.a), b = at((size_t)s.b);
+      pen.line(a.fX, a.fY, b.fX, b.fY);
     }
     // 3. The inequality constraint — dotted, as Figure 8 draws it.
-    PathFormat dotted =
-        stroke(1.4f * scale, Fill::color(hex(0xC8402F, 0.75f * fade)));
-    dotted.dashIntervals = {2.5f, 3.5f};
-    decorations::paintOn(c, ctx, segment(at(LKN), at(RKN)), dotted);
-    const auto t1 = std::chrono::steady_clock::now();
-    return std::chrono::duration<double, std::micro>(t1 - t0).count();
+    pen.strokeWeight(1.4f * scale);
+    pen.stroke(hex(0xC8402F, 0.75f * fade));
+    dashed(pen, at(LKN), at(RKN), 2.5f, 3.5f);
+    pen.noStroke();
   }
 
   // =========================================================================
@@ -1089,517 +1119,429 @@ struct HitmanVerlet : sketch::Sketch {
   }
 
   // =========================================================================
-  // The stage
+  // The stage, in pen verbs
 
-  Element worldBox() {
-    return box()
-        .inset(0)
-        .stroke(spans::upTo(animate(to(1.0f), {.duration = 620ms,
-                                               .ease = ch::easeOutCubic,
-                                               .delay = 240ms})),
-                stroke(1.5f, Fill::color(hex(0x6FA8DC, 0.45f)),
-                       PathFormat::Align::Inner))
-        .child(box()  // the cube's top wall — real, just not interesting
-                   .left(Dim(0))
-                   .top(Dim(0))
-                   .width(Dim(kStage))
-                   .height(Dim(1))
-                   .fill(kInk)
-                   .stroke([] {
-                     PathFormat f =
-                         stroke(1.5f, Fill::color(hex(0x6FA8DC, 0.22f)));
-                     f.dashIntervals = {4.0f, 5.0f};
-                     return f;
-                   }()))
-        .key("worldbox");
-  }
-
-  Element stageChrome() {
+  void stageChrome(Pen& pen, double ms) {
+    const float a = cue(ms, 520, 400);
     // The floor: a band from world y = 0 down out of frame is the bottom
-    // edge of the cube, so the solid reads as a 26 px plinth under it plus
-    // the surface line the paper's projection actually clamps to.
+    // edge of the cube, so the solid reads as a plinth under it plus the
+    // surface line the paper's projection actually clamps to. The grain is
+    // a LAYER OF THE PAINT — Paint::blend soft-lights it onto the solid in
+    // one fill, rather than costing a second pass over the same band.
     const float floorTop = kStage - kCapsule * kUnit;
-    return box()
-        .inset(0)
-        .opacity(
-            animate(from(0.0f).to(1.0f), {.duration = 400ms, .delay = 520ms}))
-        .child(box()
-                   .left(Dim(0))
-                   .top(Dim(floorTop))
-                   .width(Dim(kStage))
-                   .height(Dim(kStage - floorTop))
-                   .fill(kSolid)
-                   // decorations::wash is the material-valued decoration:
-                   // the grain rides this node's own paint. Spelled as a
-                   // sibling box with .fill(material) and .blend() it would
-                   // cost a whole extra node just to composite the grain.
-                   .overlay(decorations::wash(
-                       Paint::recipe(field::grain(0.035f, 3, 11.0f, 0.5f)),
-                       SkBlendMode::kSoftLight, 0.6f)))
-        .child(box()
-                   .left(Dim(0))
-                   .top(Dim(floorTop))
-                   .width(Dim(kStage))
-                   .height(Dim(1))
-                   .fill(hex(0x6FA8DC, 0.5f)))
-        // The bump, drawn to the paper's own Fig. 4 scale, with the
-        // drafting-section hatch as a foreground — a generator, not a
-        // texture. A box().shape(shapes::polygon(3)) INSCRIBES, which is
-        // the wrong shape; the three points go in directly.
-        .child(box()
-                   .left(Dim(kBumpA.fX * kUnit))
-                   .top(Dim(kStage - kBumpB.fY * kUnit))
-                   .width(Dim((kBumpC.fX - kBumpA.fX) * kUnit))
-                   .height(Dim(kBumpB.fY * kUnit))
-                   .shape([](SkSize s) {
-                     SkPathBuilder p;
-                     p.moveTo(0, s.height());
-                     p.lineTo(s.width() * 0.5f, 0);
-                     p.lineTo(s.width(), s.height());
-                     p.close();
-                     return p.detach();
-                   })
-                   .fill(kSolid)
-                   .foreground(lines::hatch(Fill::color(hex(0x6FA8DC, 0.20f)),
-                                            6.0f, 1.0f, 45.0f))
-                   .stroke(stroke(1.0f, Fill::color(hex(0x6FA8DC, 0.40f)))));
+    const Paint floor = Paint::blend(
+        {{Paint::solid(fadeTo(kSolid, a)), SkBlendMode::kSrc},
+         {Paint::recipe(field::grain(0.035f, 3, 11.0f, 0.5f)),
+          SkBlendMode::kSoftLight}});
+    pen.noStroke();
+    pen.fill(floor);
+    pen.rect(0, floorTop, kStage, kStage - floorTop);
+    pen.fill(hex(0x6FA8DC, 0.5f * a));
+    pen.rect(0, floorTop, kStage, 1);
+
+    // The bump, drawn to the paper's own Fig. 4 scale, with a drafting
+    // section hatched inside it — a generator, not a texture.
+    const SkPoint a1 = toStage(kBumpA), b1 = toStage(kBumpB),
+                  c1 = toStage(kBumpC);
+    pen.fill(fadeTo(kSolid, a));
+    pen.stroke(hex(0x6FA8DC, 0.40f * a));
+    pen.strokeWeight(1.0f);
+    pen.triangle(a1.fX, a1.fY, b1.fX, b1.fY, c1.fX, c1.fY);
+    {
+      // The hatch: 45° lines inside the section. A pen has no clip verb,
+      // so the clip goes through the canvas the pen hands out.
+      SkCanvas* c = pen.canvas();
+      SkPathBuilder tri;
+      tri.moveTo(a1);
+      tri.lineTo(b1);
+      tri.lineTo(c1);
+      tri.close();
+      c->save();
+      c->clipPath(tri.detach(), true);
+      pen.stroke(hex(0x6FA8DC, 0.20f * a));
+      pen.strokeWeight(1.0f);
+      const float span = c1.fX - a1.fX + (a1.fY - b1.fY);
+      for (float s = 0; s < span; s += 6.0f)
+        pen.line(a1.fX + s, a1.fY, a1.fX + s - span, a1.fY - span);
+      c->restore();
+    }
+    pen.noStroke();
   }
 
-  /** The corpse, the cloth, the plants, the contacts — one custom leaf.
-   *  custom() measures ZERO on the main axis, so both dims are explicit. */
-  Element simulation() {
-    return custom([this](SkCanvas& c, const PaintContext& ctx) {
-             const float f = bodyFade.value();
-             // The cloth: one path for the triangle fill, one for the edges.
-             {
-               SkPathBuilder tri;
-               constexpr int C = 5, R = 5;
-               for (int r = 0; r + 1 < R; ++r)
-                 for (int c = 0; c + 1 < C; ++c) {
-                   const int a = r * C + c;
-                   tri.moveTo(drawn(cloth, (size_t)a));
-                   tri.lineTo(drawn(cloth, (size_t)a + 1));
-                   tri.lineTo(drawn(cloth, (size_t)a + (size_t)C + 1));
-                   tri.lineTo(drawn(cloth, (size_t)a + (size_t)C));
-                   tri.close();
-                 }
-               SkPaint fp;
-               fp.setAntiAlias(true);
-               fp.setColor4f(hex(0x6FA8DC, 0.07f), nullptr);
-               c.drawPath(tri.detach(), fp);
-             }
-             lines::Line clothEdge;
-             clothEdge.width = 1.0f;
-             clothEdge.fill = Fill::color(hex(0x8A8F9C, 0.45f));
-             decorations::paintOn(c, ctx, bodyPath(cloth), clothEdge);
-             lines::Line stem;
-             stem.width = 2.0f;
-             stem.fill = Fill::color(hex(0x8A8F9C, 0.70f));
-             SkPathBuilder stems;
-             for (const Body& p : plants)
-               for (const Stick& st : p.sticks) {
-                 stems.moveTo(drawn(p, (size_t)st.a));
-                 stems.lineTo(drawn(p, (size_t)st.b));
-               }
-             decorations::paintOn(c, ctx, stems.detach(), stem);
-
-             paintRig(c, ctx, 1.0f, {0, 0}, f, true);
-
-             // The contact markers: an open ring and a normal tick at
-             // every projection this frame. These are the frames where the
-             // ramp fires.
-             SkPaint mark;
-             mark.setAntiAlias(true);
-             mark.setStyle(SkPaint::kStroke_Style);
-             mark.setStrokeWidth(1.3f);
-             mark.setColor4f(hex(0xC8402F, 0.95f * f), nullptr);
-             for (const Contact& k : contacts) {
-               const SkPoint p = toStage(k.p);
-               c.drawCircle(p.fX, p.fY, 3.5f, mark);
-               c.drawLine(p.fX, p.fY, p.fX + k.n.fX * 14.0f,
-                          p.fY - k.n.fY * 14.0f, mark);
-             }
-
-             // §7 IK: the target the hand is pinned to, "the hand of the
-             // player". lines::cased for the leader, and a PathFormat with
-             // its OWN trim window riding the leader's head — a trim window
-             // on geometry that is rebuilt every frame.
-             if (dragging) {
-               const SkPoint h = drawn(rig, LHA), tgt = toStage(dragTarget);
-               const SkPath leader = segment(h, tgt);
-               decorations::paintOn(
-                   c, ctx, leader,
-                   lines::cased(2.0f, Fill::color(hex(0x6FA8DC, 0.55f)), 4.0f));
-               PathFormat head = stroke(2.6f, Fill::color(kRed));
-               head.trimStart = 0.88f;
-               head.trimEnd = 1.0f;
-               decorations::paintOn(c, ctx, leader, head);
-               SkPaint ring;
-               ring.setAntiAlias(true);
-               ring.setStyle(SkPaint::kStroke_Style);
-               ring.setStrokeWidth(1.6f);
-               ring.setColor4f(kRed, nullptr);
-               c.drawCircle(tgt.fX, tgt.fY, 9.0f, ring);
-             }
-             // The blast site, marked permanently: the law is documented,
-             // the constant is not.
-             {
-               const SkPoint b = toStage(kBlast);
-               SkPaint x;
-               x.setAntiAlias(true);
-               x.setStyle(SkPaint::kStroke_Style);
-               x.setStrokeWidth(1.0f);
-               x.setColor4f(hex(0xC8402F, 0.75f), nullptr);
-               c.drawLine(b.fX - 7, b.fY, b.fX + 7, b.fY, x);
-               c.drawLine(b.fX, b.fY - 7, b.fX, b.fY + 7, x);
-               c.drawCircle(b.fX, b.fY, 4.5f, x);
-             }
-             // The HIT chevron, 0.4 s on the displaced particle.
-             if (loopT >= 1.10 && loopT < 1.50) {
-               const SkPoint p = drawn(rig, RSH);
-               SkPaint chev;
-               chev.setAntiAlias(true);
-               chev.setStyle(SkPaint::kStroke_Style);
-               chev.setStrokeWidth(2.0f);
-               chev.setColor4f(kRed, nullptr);
-               SkPathBuilder b;
-               b.moveTo(p.fX + 20, p.fY - 9);
-               b.lineTo(p.fX + 9, p.fY);
-               b.lineTo(p.fX + 20, p.fY + 9);
-               c.drawPath(b.detach(), chev);
-             }
-           })
-        .inset(0)
-        .width(Dim(kStage))
-        .height(Dim(kStage))
-        .cache(Cache::None);
+  void worldBox(Pen& pen, double ms) {
+    // The cube's bezel, and its top wall — real, just not interesting.
+    const float g = cue(ms, 240, 620, &ch::easeOutCubic);
+    pen.noFill();
+    pen.strokeCap(draw::SQUARE);
+    pen.stroke(hex(0x6FA8DC, 0.45f));
+    pen.strokeWeight(1.5f);
+    // the bezel drawn UP TO a fraction of its perimeter, as a trim window
+    // on a rect is
+    const float per = 4.0f * kStage, run = per * g;
+    const SkPoint corner[5] = {{0.75f, 0.75f},
+                               {kStage - 0.75f, 0.75f},
+                               {kStage - 0.75f, kStage - 0.75f},
+                               {0.75f, kStage - 0.75f},
+                               {0.75f, 0.75f}};
+    float walked = 0;
+    for (int i = 0; i < 4 && walked < run; ++i) {
+      const SkPoint p0 = corner[i], p1 = corner[i + 1];
+      const float side = len(p1 - p0);
+      const float take = std::min(side, run - walked);
+      const SkPoint u = (p1 - p0) * (1.0f / side);
+      pen.line(p0.fX, p0.fY, p0.fX + u.fX * take, p0.fY + u.fY * take);
+      walked += side;
+    }
+    pen.stroke(hex(0x6FA8DC, 0.22f));
+    dashed(pen, {0, 1}, {kStage, 1}, 4.0f, 5.0f);
+    pen.strokeCap(draw::ROUND);
+    pen.noStroke();
   }
 
-  Element blastFlash() {
+  /** The corpse, the cloth, the plants and every contact this frame. */
+  void simulation(Pen& pen) {
+    const float f = bodyFade.value();
+    // The cloth: one shape for the quad fill, then its edges.
+    pen.noStroke();
+    pen.fill(hex(0x6FA8DC, 0.07f * f));
+    constexpr int C = 5, R = 5;
+    pen.beginShape(draw::QUADS);
+    for (int r = 0; r + 1 < R; ++r)
+      for (int c = 0; c + 1 < C; ++c) {
+        const int a = r * C + c;
+        const SkPoint p0 = drawn(cloth, (size_t)a),
+                      p1 = drawn(cloth, (size_t)a + 1),
+                      p2 = drawn(cloth, (size_t)a + (size_t)C + 1),
+                      p3 = drawn(cloth, (size_t)a + (size_t)C);
+        pen.vertex(p0.fX, p0.fY);
+        pen.vertex(p1.fX, p1.fY);
+        pen.vertex(p2.fX, p2.fY);
+        pen.vertex(p3.fX, p3.fY);
+      }
+    pen.endShape();
+
+    pen.noFill();
+    pen.strokeCap(draw::ROUND);
+    pen.strokeWeight(1.0f);
+    pen.stroke(hex(0x8A8F9C, 0.45f * f));
+    for (const Stick& s : cloth.sticks) {
+      const SkPoint a = drawn(cloth, (size_t)s.a), b = drawn(cloth, (size_t)s.b);
+      pen.line(a.fX, a.fY, b.fX, b.fY);
+    }
+    pen.strokeWeight(2.0f);
+    pen.stroke(hex(0x8A8F9C, 0.70f * f));
+    for (const Body& p : plants)
+      for (const Stick& st : p.sticks) {
+        const SkPoint a = drawn(p, (size_t)st.a), b = drawn(p, (size_t)st.b);
+        pen.line(a.fX, a.fY, b.fX, b.fY);
+      }
+
+    paintRig(pen, 1.0f, {0, 0}, f, true);
+
+    // The contact markers: an open ring and a normal tick at every
+    // projection this frame. These are the frames where the ramp fires.
+    pen.noFill();
+    pen.stroke(hex(0xC8402F, 0.95f * f));
+    pen.strokeWeight(1.3f);
+    for (const Contact& k : contacts) {
+      const SkPoint p = toStage(k.p);
+      pen.circle(p.fX, p.fY, 7.0f);
+      pen.line(p.fX, p.fY, p.fX + k.n.fX * 14.0f, p.fY - k.n.fY * 14.0f);
+    }
+
+    // §7 IK: the target the hand is pinned to, "the hand of the player" —
+    // a CASED leader (a wide casing under a narrow core) whose last eighth
+    // is drawn in the accent, which is what a trim window on a path is
+    // when the path is two points.
+    if (dragging) {
+      const SkPoint h = drawn(rig, LHA), tgt = toStage(dragTarget);
+      pen.strokeWeight(2.0f + 2.0f * 4.0f);
+      pen.stroke(kInk);
+      pen.line(h.fX, h.fY, tgt.fX, tgt.fY);
+      pen.strokeWeight(2.0f);
+      pen.stroke(hex(0x6FA8DC, 0.55f));
+      pen.line(h.fX, h.fY, tgt.fX, tgt.fY);
+      const SkPoint head = h + (tgt - h) * 0.88f;
+      pen.strokeWeight(2.6f);
+      pen.stroke(kRed);
+      pen.line(head.fX, head.fY, tgt.fX, tgt.fY);
+      pen.strokeWeight(1.6f);
+      pen.circle(tgt.fX, tgt.fY, 18.0f);
+    }
+    // The blast site, marked permanently: the law is documented, the
+    // constant is not.
+    {
+      const SkPoint b = toStage(kBlast);
+      pen.strokeWeight(1.0f);
+      pen.stroke(hex(0xC8402F, 0.75f));
+      pen.line(b.fX - 7, b.fY, b.fX + 7, b.fY);
+      pen.line(b.fX, b.fY - 7, b.fX, b.fY + 7);
+      pen.circle(b.fX, b.fY, 9.0f);
+    }
+    // The HIT chevron, 0.4 s on the displaced particle.
+    if (loopT >= 1.10 && loopT < 1.50) {
+      const SkPoint p = drawn(rig, RSH);
+      pen.strokeWeight(2.0f);
+      pen.stroke(kRed);
+      pen.beginShape();
+      pen.vertex(p.fX + 20, p.fY - 9);
+      pen.vertex(p.fX + 9, p.fY);
+      pen.vertex(p.fX + 20, p.fY + 9);
+      pen.endShape();
+    }
+    pen.noStroke();
+  }
+
+  /** The retained overlay: every particle dot through instances(Mode::Live)
+   *  — the control case beside the pen's own stroking — and the blast's
+   *  additive glow, which needs a blend mode a pen has no verb for. */
+  Element stageOverlay() {
     const SkPoint c = toStage(kBlast);
-    return kit::disc(SkPoint(c), 120.0f)
-        .fill(Paint::glowUnit({0.5f, 0.5f}, 1.0f,
-                                 {{0.0f, hex(0xFFF3E2, 1.0f)},
-                                  {0.35f, hex(0xFFC98A, 0.55f)},
-                                  {1.0f, hex(0xC8402F, 0.0f)}}))
-        .blend(SkBlendMode::kPlus)
-        .opacity(bind(&blastPhase).map(ch::easeOutQuad).clamp(0.0f, 1.0f))
-        .key("blast");
-  }
-
-  /** The A/B strip: the SAME 24 sticks drawn twice side by side, once
-   *  through instances()+sizes() and once through custom()+paintOn, so the
-   *  two paths can be compared on one picture. */
-  Element instancingStrip() {
-    constexpr float w = 330, h = 108;
-    return box()
-        .left(Dim(16))
-        .top(Dim(178))
-        .width(Dim(w))
-        .height(Dim(h))
-        .column()
-        .padding(7)
-        .gap(2)
-        .corners({5})
-        .fill(hex(0x101116, 0.88f))
-        .stroke(stroke(1.0f, Fill::color(kKeyline), PathFormat::Align::Inner))
-        .opacity(
-            animate(from(0.0f).to(1.0f), {.duration = 340ms, .delay = 980ms}))
-        .key("strip")
-        .child(t("SAME 24 STICKS \xc2\xb7 instances()+sizes() vs custom()",
-                 ui(7.5f, kSteel, 0.9f))
-                   .height(Dim(10))
-                   .shrink(0))
-        .child(box()
-                   .grow(1)
-                   .child(box()  // the instanced half
-                              .left(Dim(0))
-                              .top(Dim(0))
-                              .width(Dim(150))
-                              .height(Dim(76))
-                              .child(instancing::instances(
-                                  barAtlas, barPool, instancing::Mode::Live)))
-                   .child(custom([this](SkCanvas& c, const PaintContext& ctx) {
-                            // The custom() half, fitted to the same cell.
-                            float sc = 1;
-                            SkPoint off{0, 0};
-                            rigFit(150.0f, 74.0f, &sc, &off);
-                            off.fX += 166.0f;
-                            off.fY += 2.0f;
-                            customUs = customUs * 0.9f +
-                                       0.1f * paintRig(c, ctx, sc, off,
-                                                       bodyFade.value(), false);
-                            // The instanced path's own cost, measured through
-                            // the SAME call instances(Mode::Live) makes (it is
-                            // custom(){ detail::stamp(...) } and nothing else),
-                            // issued into a 1 px clip so only the CPU-side
-                            // array build and the draw call are timed.
-                            const auto s0 = std::chrono::steady_clock::now();
-                            c.save();
-                            c.clipRect(SkRect::MakeWH(1, 1));
-                            instancing::detail::stamp(c, ctx, *barAtlas,
-                                                      *barPool,
-                                                      SkBlendMode::kSrcOver);
-                            c.restore();
-                            const auto s1 = std::chrono::steady_clock::now();
-                            instUs =
-                                instUs * 0.9 +
-                                0.1 * std::chrono::duration<double, std::micro>(
-                                          s1 - s0)
-                                          .count();
-                          })
-                              .left(Dim(0))
-                              .top(Dim(0))
-                              .width(Dim(w - 14))
-                              .height(Dim(76))
-                              .cache(Cache::None))
-                   .child(box()
-                              .left(Dim(158))
-                              .top(Dim(0))
-                              .width(Dim(1))
-                              .height(Dim(76))
-                              .fill(hex(0x191B22, 0.9f))))
-        .child(t("ONE POOL WITH sizes() \xc2\xb7 ONE custom() PROGRAM",
-                 mono(7.0f, kTick, 0.2f))
-                   .height(Dim(10))
-                   .shrink(0));
-  }
-
-  Element errorLegend() {
-    auto swatch = [&](int i, const char* label) {
-      return box()
-          .column()
-          .gap(3)
-          .width(Dim(48))
-          .shrink(0)
-          .child(box()
-                     .height(Dim(7))
-                     .fill(kRampCol[i])
-                     .scaleX(animate(from(0.0f).to(1.0f),
-                                     {.duration = 200ms, .delay = 1500ms}))
-                     .transformOrigin(0.0f, 0.5f))
-          .child(t(label, mono(6.5f, kTick, 0.2f)));
-    };
-    return box()
-        .left(Dim(16))
-        .top(Dim(302))
-        .width(Dim(336))
-        .height(Dim(48))
-        .column()
-        .gap(4)
-        .padding(7)
-        .corners({4})
-        .fill(hex(0x101116, 0.86f))
-        .stroke(stroke(1.0f, Fill::color(kKeyline), PathFormat::Align::Inner))
-        .opacity(
-            animate(from(0.0f).to(1.0f), {.duration = 300ms, .delay = 1440ms}))
-        .key("legend")
-        .child(box()
-                   .row()
-                   .gap(2)
-                   .staggerChildren(40ms)
-                   .child(swatch(0, "0.000"))
-                   .child(swatch(1, "0.004"))
-                   .child(swatch(2, "0.010"))
-                   .child(swatch(3, "0.020"))
-                   .child(swatch(4, "\xe2\x89\xa5.035"))
-                   .child(box().grow(1))
-                   .child(t("e = ||x2\xe2\x88\x92x1|\xe2\x88\x92r| / r",
-                            ui(7.0f, kSteel, 0.3f))))
-        .child(slot("stageStat").height(Dim(9)).shrink(0));
-  }
-
-  Element figPenetration() {
-    // Fig. 4b/5b: the paper's own worked case, c1 = 0.75, c2 = 0.25.
-    return stageInset(16, 16, 208, 148, 1)
-        .child(t("FIG. 4b/5b \xc2\xb7 \xc2\xa7"
-                 "5 PENETRATION",
-                 ui(7.5f, kSteel, 1.2f))
-                   .height(Dim(10))
-                   .shrink(0))
-        .child(custom([](SkCanvas& c, const PaintContext& ctx) {
-                 SkPaint p;
-                 p.setAntiAlias(true);
-                 p.setStyle(SkPaint::kStroke_Style);
-                 // the obstacle
-                 p.setStrokeWidth(1.0f);
-                 p.setColor4f(hex(0x2A2E38), nullptr);
-                 SkPaint fillp;
-                 fillp.setAntiAlias(true);
-                 fillp.setColor4f(hex(0x2A2E38), nullptr);
-                 SkPathBuilder ob;
-                 ob.moveTo(10, 56);
-                 ob.lineTo(96, 14);
-                 ob.lineTo(180, 56);
-                 ob.lineTo(180, 62);
-                 ob.lineTo(10, 62);
-                 ob.close();
-                 c.drawPath(ob.detach(), fillp);
-                 // the stick, penetrating a quarter along
-                 const SkPoint x1{22, 44}, x2{162, 26};
-                 const SkPoint pp{x1.fX * 0.75f + x2.fX * 0.25f,
-                                  x1.fY * 0.75f + x2.fY * 0.25f};
-                 const SkPoint q{pp.fX + 2, pp.fY - 17};
-                 p.setStrokeWidth(2.0f);
-                 p.setColor4f(hex(0x6FA8DC), nullptr);
-                 c.drawLine(x1.fX, x1.fY, x2.fX, x2.fY, p);
-                 p.setStrokeWidth(1.4f);
-                 p.setColor4f(kRed, nullptr);
-                 c.drawLine(pp.fX, pp.fY, q.fX, q.fY, p);
-                 SkPaint dotp;
-                 dotp.setAntiAlias(true);
-                 dotp.setColor4f(kBone, nullptr);
-                 c.drawCircle(x1.fX, x1.fY, 2.6f, dotp);
-                 c.drawCircle(x2.fX, x2.fY, 2.6f, dotp);
-                 dotp.setColor4f(kRed, nullptr);
-                 c.drawCircle(pp.fX, pp.fY, 2.2f, dotp);
-                 c.drawCircle(q.fX, q.fY, 2.2f, dotp);
-                 (void)ctx;
-               })
-                   .height(Dim(64))
-                   .shrink(0))
-        .child(t("p = c1\xc2\xb7x1 + c2\xc2\xb7x2,  c1 = 0.75, c2 = 0.25",
-                 mono(7.0f, kBlue, 0.1f)))
-        .child(t("\xce\xbb = (q\xe2\x88\x92p)\xc2\xb7\xce\x94 / "
-                 "((c1\xc2\xb2+c2\xc2\xb2)\xc2\xb7\xce\x94\xc2\xb2)",
-                 mono(7.0f, kBlue, 0.1f)))
-        .child(
-            t("x1' = x1 + c1\xce\xbb\xce\x94    x2' = x2 + c2\xce\xbb\xce\x94",
-              mono(7.0f, kBlue, 0.1f)))
-        .child(t("THE FIX-UP VIOLATES THE STICK. RELAX AGAIN.",
-                 ui(6.5f, kTick, 0.6f)));
-  }
-
-  Element figFriction() {
-    return stageInset(512, 16, 208, 148, 2)
-        .child(t("FIG. 10 \xc2\xb7 \xc2\xa7"
-                 "7 FRICTION",
-                 ui(7.5f, kSteel, 1.2f))
-                   .height(Dim(10))
-                   .shrink(0))
-        .child(custom([](SkCanvas& c, const PaintContext& ctx) {
-                 SkPaint fillp;
-                 fillp.setAntiAlias(true);
-                 fillp.setColor4f(hex(0x2A2E38), nullptr);
-                 SkPathBuilder ground;
-                 ground.moveTo(8, 58);
-                 ground.quadTo(96, 34, 184, 58);
-                 ground.lineTo(184, 70);
-                 ground.lineTo(8, 70);
-                 ground.close();
-                 c.drawPath(ground.detach(), fillp);
-                 SkPaint p;
-                 p.setAntiAlias(true);
-                 p.setStyle(SkPaint::kStroke_Style);
-                 p.setStrokeWidth(1.2f);
-                 // the box, sunk by d_p
-                 p.setColor4f(hex(0x6FA8DC, 0.55f), nullptr);
-                 c.drawRect(SkRect::MakeXYWH(58, 30, 34, 22), p);
-                 p.setColor4f(kRed, nullptr);
-                 c.drawLine(75, 52, 75, 44, p);  // d_p
-                 p.setColor4f(hex(0x6FA8DC), nullptr);
-                 c.drawLine(96, 40, 146, 40, p);  // v_t before
-                 c.drawLine(146, 40, 140, 36, p);
-                 c.drawLine(146, 40, 140, 44, p);
-                 p.setColor4f(hex(0xE8E6E1), nullptr);
-                 c.drawLine(96, 52, 124, 52, p);  // v_t after
-                 c.drawLine(124, 52, 118, 48, p);
-                 c.drawLine(124, 52, 118, 56, p);
-                 (void)ctx;
-               })
-                   .height(Dim(64))
-                   .shrink(0))
-        .child(
-            t("d_p MEASURED BEFORE THE PROJECTION,", mono(7.0f, kBlue, 0.1f)))
-        .child(t("v_t REDUCED BY k\xc2\xb7"
-                 "d_p BY MOVING x*.",
-                 mono(7.0f, kBlue, 0.1f)))
-        .child(t("NEVER LET v_t REVERSE \xe2\x80\x94 CLAMP TO ZERO.",
-                 mono(7.0f, kBlue, 0.1f)))
-        .child(t("RESTITUTION IS ZERO: PARTICLES DO NOT BOUNCE.",
-                 ui(6.5f, kTick, 0.6f)));
-  }
-
-  Element phaseStrip() {
-    const char* names[5] = {"SPAWN", "HIT", "BOMB", "SETTLE", "DRAG"};
-    auto row = box().row().gap(9);
-    for (int i = 0; i < 5; ++i)
-      row.child(t(names[i],
-                  ui(8.0f, i == phase ? kRed : hex(0x8A8F9C, 0.45f), 1.7f)));
-    return row;
-  }
-
-  Element stage() {
-    return box()
+    return stack()
         .width(Dim(kStage))
         .height(Dim(kStage))
-        .shrink(0)
-        .child(worldBox())
-        .child(stageChrome())
-        .child(simulation())
         .child(box().inset(0).child(
             instancing::instances(dotAtlas, dotPool, instancing::Mode::Live)))
-        .child(blastFlash())
-        .child(
-            t("(0, 0)", mono(7.5f, kTick)).left(Dim(7)).top(Dim(kStage - 13)))
-        .child(t("(1000, 1000)", mono(7.5f, kTick))
-                   .left(Dim(kStage - 62))
-                   .top(Dim(5)))
-        .child(t("\xc2\xa7"
-                 "9 \xc2\xb7 THE CORPSE \xc2\xb7 16 PARTICLES, 24 STICKS, "
-                 "4 ITERATIONS \xc2\xb7 EVERY STICK COLOURED BY ITS LIVE "
-                 "CONSTRAINT ERROR",
-                 ui(7.5f, kBone, 0.5f))
-                   .left(Dim(16))
-                   .top(Dim(548))
-                   .width(Dim(214)))
-        .child(t("\xc2\xa7"
-                 "4 \xc2\xb7 TRIANGULAR MESH \xc2\xb7 ONE PARTICLE "
-                 "PINNED \xc2\xb7 ONE ITERATION \xc2\xb7 THE SAG IS THE "
-                 "ITERATION COUNT",
-                 ui(7.0f, kTick, 0.5f))
-                   .left(Dim(452))
-                   .top(Dim(412))
-                   .width(Dim(268))
-                   .textAlign(sigil::weave::TextAlignment::kEnd))
-        .child(t("\xc2\xa7"
-                 "4 \xc2\xb7 PLANTS = CLOTH + SUPPORT STICKS \xc2\xb7 "
-                 "ONE ITERATION \xc2\xb7 BASE ROW PINNED",
-                 ui(7.0f, kTick, 0.5f))
-                   .left(Dim(452))
-                   .top(Dim(596))
-                   .width(Dim(268))
-                   .textAlign(sigil::weave::TextAlignment::kEnd))
-        .child(figPenetration())
-        .child(figFriction())
-        .child(instancingStrip())
-        .child(errorLegend())
-        .child(slot("phase").left(Dim(16)).top(Dim(690)))
-        .child(box()
-                   .left(Dim(240))
-                   .top(Dim(18))
-                   .width(Dim(262))
-                   .column()
-                   .gap(2)
-                   .child(t("736 \xc3\x97 736 px = THE PAPER'S CUBE "
-                            "(0,0,0)\xe2\x80\x93(1000,1000,1000) IN THE PLANE.",
-                            ui(7.0f, kTick, 0.4f)))
-                   .child(t("1 UNIT = 0.736 px = 3.60 mm \xc2\xb7 THE STAGE IS "
-                            "SQUARE BECAUSE THE WORLD IS A CUBE.",
-                            ui(7.0f, kTick, 0.4f)))
-                   .child(box().height(Dim(3)).shrink(0))
-                   .child(t("\xc2\xa7"
-                            "7 BOMB \xe2\x8a\x95 \xc2\xb7 |\xce\x94x| = "
-                            "K / |x\xe2\x88\x92"
-                            "c|\xc2\xb2 \xc2\xb7 EVERY "
-                            "PARTICLE, ONCE \xc2\xb7 THE INTEGRATOR MAKES IT "
-                            "VELOCITY",
-                            ui(7.0f, hex(0xC8402F, 0.8f), 0.4f))));
-    ;
+        .child(kit::disc(SkPoint(c), 120.0f)
+                   .fill(Paint::glowUnit({0.5f, 0.5f}, 1.0f,
+                                         {{0.0f, hex(0xFFF3E2, 1.0f)},
+                                          {0.35f, hex(0xFFC98A, 0.55f)},
+                                          {1.0f, hex(0xC8402F, 0.0f)}}))
+                   .blend(SkBlendMode::kPlus)
+                   .opacity(bind(&blastPhase).map(ch::easeOutQuad).clamp(0.0f,
+                                                                        1.0f))
+                   .key("blast"));
+  }
+
+  /** The stage's own labels, and the note block over the world box. */
+  void stageLabels(Pen& pen) {
+    penMono(pen, 7.5f, kTick);
+    pen.textAlign(draw::LEFT, draw::TOP);
+    pen.text("(0, 0)", 7, kStage - 13);
+    pen.text("(1000, 1000)", kStage - 62, 5);
+    penUi(pen, 7.5f, kBone, 0.5f);
+    pen.text("\xc2\xa7"
+             "9 \xc2\xb7 THE CORPSE \xc2\xb7 16 PARTICLES, 24 STICKS, "
+             "4 ITERATIONS \xc2\xb7 EVERY STICK COLOURED BY ITS LIVE "
+             "CONSTRAINT ERROR",
+             16, 548, 214, 60);
+    penUi(pen, 7.0f, kTick, 0.5f);
+    pen.textAlign(draw::RIGHT, draw::TOP);
+    pen.text("\xc2\xa7"
+             "4 \xc2\xb7 TRIANGULAR MESH \xc2\xb7 ONE PARTICLE PINNED "
+             "\xc2\xb7 ONE ITERATION \xc2\xb7 THE SAG IS THE ITERATION "
+             "COUNT",
+             452, 412, 268, 40);
+    pen.text("\xc2\xa7"
+             "4 \xc2\xb7 PLANTS = CLOTH + SUPPORT STICKS \xc2\xb7 ONE "
+             "ITERATION \xc2\xb7 BASE ROW PINNED",
+             452, 596, 268, 40);
+    pen.textAlign(draw::LEFT, draw::TOP);
+    pen.text("736 \xc3\x97 736 px = THE PAPER'S CUBE "
+             "(0,0,0)\xe2\x80\x93(1000,1000,1000) IN THE PLANE.",
+             240, 18, 262, 24);
+    pen.text("1 UNIT = 0.736 px = 3.60 mm \xc2\xb7 THE STAGE IS SQUARE "
+             "BECAUSE THE WORLD IS A CUBE.",
+             240, 40, 262, 24);
+    penUi(pen, 7.0f, hex(0xC8402F, 0.8f), 0.4f);
+    pen.text("\xc2\xa7"
+             "7 BOMB \xe2\x8a\x95 \xc2\xb7 |\xce\x94x| = K / |x\xe2\x88\x92"
+             "c|\xc2\xb2 \xc2\xb7 EVERY PARTICLE, ONCE \xc2\xb7 THE "
+             "INTEGRATOR MAKES IT VELOCITY",
+             240, 68, 262, 24);
+
+    // The phase strip, and the live stage readout under the error legend.
+    const char* names[5] = {"SPAWN", "HIT", "BOMB", "SETTLE", "DRAG"};
+    float x = 16;
+    for (int i = 0; i < 5; ++i) {
+      penUi(pen, 8.0f, i == phase ? kRed : hex(0x8A8F9C, 0.45f), 1.7f);
+      pen.text(names[i], x, 690);
+      x += pen.textWidth(names[i]) + 9;
+    }
+  }
+
+  /** Fig. 4b/5b: the paper's own worked case, c1 = 0.75, c2 = 0.25, and
+   *  Fig. 10's friction diagram beside it. Both are drawings with four
+   *  lines of type under them, so both are the pen's. */
+  void figPenetration(Pen& pen, float x0, float y0, float a) {
+    inset(pen, x0, y0, 208, 148, a);
+    penUi(pen, 7.5f, fadeTo(kSteel, a), 1.2f);
+    pen.text("FIG. 4b/5b \xc2\xb7 \xc2\xa7"
+             "5 PENETRATION",
+             x0 + 8, y0 + 8);
+    pen.push();
+    pen.translate(x0 + 8, y0 + 21);
+    // the obstacle
+    pen.noStroke();
+    pen.fill(fadeTo(kSolid, a));
+    pen.beginShape();
+    pen.vertex(10, 56);
+    pen.vertex(96, 14);
+    pen.vertex(180, 56);
+    pen.vertex(180, 62);
+    pen.vertex(10, 62);
+    pen.endShape(draw::CLOSE);
+    // the stick, penetrating a quarter along
+    const SkPoint x1{22, 44}, x2{162, 26};
+    const SkPoint pp{x1.fX * 0.75f + x2.fX * 0.25f,
+                     x1.fY * 0.75f + x2.fY * 0.25f};
+    const SkPoint q{pp.fX + 2, pp.fY - 17};
+    pen.noFill();
+    pen.strokeWeight(2.0f);
+    pen.stroke(fadeTo(kBlue, a));
+    pen.line(x1.fX, x1.fY, x2.fX, x2.fY);
+    pen.strokeWeight(1.4f);
+    pen.stroke(fadeTo(kRed, a));
+    pen.line(pp.fX, pp.fY, q.fX, q.fY);
+    pen.noStroke();
+    pen.fill(fadeTo(kBone, a));
+    pen.circle(x1.fX, x1.fY, 5.2f);
+    pen.circle(x2.fX, x2.fY, 5.2f);
+    pen.fill(fadeTo(kRed, a));
+    pen.circle(pp.fX, pp.fY, 4.4f);
+    pen.circle(q.fX, q.fY, 4.4f);
+    pen.pop();
+    float y = y0 + 21 + 64 + 3;
+    penMono(pen, 7.0f, fadeTo(kBlue, a), 0.1f);
+    pen.text("p = c1\xc2\xb7x1 + c2\xc2\xb7x2,  c1 = 0.75, c2 = 0.25",
+             x0 + 8, y);
+    y += 11;
+    pen.text("\xce\xbb = (q\xe2\x88\x92p)\xc2\xb7\xce\x94 / "
+             "((c1\xc2\xb2+c2\xc2\xb2)\xc2\xb7\xce\x94\xc2\xb2)",
+             x0 + 8, y);
+    y += 11;
+    pen.text("x1' = x1 + c1\xce\xbb\xce\x94    x2' = x2 + c2\xce\xbb\xce\x94",
+             x0 + 8, y);
+    y += 12;
+    penUi(pen, 6.5f, fadeTo(kTick, a), 0.6f);
+    pen.text("THE FIX-UP VIOLATES THE STICK. RELAX AGAIN.", x0 + 8, y);
+  }
+
+  void figFriction(Pen& pen, float x0, float y0, float a) {
+    inset(pen, x0, y0, 208, 148, a);
+    penUi(pen, 7.5f, fadeTo(kSteel, a), 1.2f);
+    pen.text("FIG. 10 \xc2\xb7 \xc2\xa7"
+             "7 FRICTION",
+             x0 + 8, y0 + 8);
+    pen.push();
+    pen.translate(x0 + 8, y0 + 21);
+    pen.noStroke();
+    pen.fill(fadeTo(kSolid, a));
+    pen.beginShape();
+    pen.vertex(8, 58);
+    pen.quadraticVertex(96, 34, 184, 58);
+    pen.vertex(184, 70);
+    pen.vertex(8, 70);
+    pen.endShape(draw::CLOSE);
+    pen.noFill();
+    pen.strokeWeight(1.2f);
+    // the box, sunk by d_p
+    pen.stroke(hex(0x6FA8DC, 0.55f * a));
+    pen.rect(58, 30, 34, 22);
+    pen.stroke(fadeTo(kRed, a));
+    pen.line(75, 52, 75, 44);  // d_p
+    pen.stroke(fadeTo(kBlue, a));
+    pen.line(96, 40, 146, 40);  // v_t before
+    pen.line(146, 40, 140, 36);
+    pen.line(146, 40, 140, 44);
+    pen.stroke(fadeTo(kBone, a));
+    pen.line(96, 52, 124, 52);  // v_t after
+    pen.line(124, 52, 118, 48);
+    pen.line(124, 52, 118, 56);
+    pen.noStroke();
+    pen.pop();
+    float y = y0 + 21 + 64 + 3;
+    penMono(pen, 7.0f, fadeTo(kBlue, a), 0.1f);
+    pen.text("d_p MEASURED BEFORE THE PROJECTION,", x0 + 8, y);
+    y += 11;
+    pen.text("v_t REDUCED BY k\xc2\xb7"
+             "d_p BY MOVING x*.",
+             x0 + 8, y);
+    y += 11;
+    pen.text("NEVER LET v_t REVERSE \xe2\x80\x94 CLAMP TO ZERO.", x0 + 8, y);
+    y += 12;
+    penUi(pen, 6.5f, fadeTo(kTick, a), 0.6f);
+    pen.text("RESTITUTION IS ZERO: PARTICLES DO NOT BOUNCE.", x0 + 8, y);
+  }
+
+  /** A stage inset: the scrim over the world. */
+  void inset(Pen& pen, float x, float y, float w, float h, float a) {
+    pen.noStroke();
+    pen.fill(hex(0x101116, 0.88f * a));
+    pen.rect(x, y, w, h, 5);
+    pen.noFill();
+    pen.stroke(fadeTo(kKeyline, a));
+    pen.strokeWeight(1.0f);
+    pen.rect(x + 0.5f, y + 0.5f, w - 1, h - 1, 5);
+    pen.noStroke();
+  }
+
+  /** The A/B strip's chrome, with the instanced half riding in as a guest
+   *  and the pen drawing the same 24 sticks beside it. */
+  Element instancedHalf() {
+    return box().inset(0).child(
+        instancing::instances(barAtlas, barPool, instancing::Mode::Live));
+  }
+
+  void instancingStrip(Pen& pen, float x0, float y0, float a) {
+    constexpr float w = 330, h = 108;
+    inset(pen, x0, y0, w, h, a);
+    penUi(pen, 7.5f, fadeTo(kSteel, a), 0.9f);
+    pen.text("SAME 24 STICKS \xc2\xb7 instances()+sizes() vs the pen",
+             x0 + 7, y0 + 7);
+    pen.element(barsEl, SkRect::MakeXYWH(x0 + 7, y0 + 19, 150, 76));
+    {
+      float sc = 1;
+      SkPoint off{0, 0};
+      rigFit(150.0f, 74.0f, &sc, &off);
+      paintRig(pen, sc, {x0 + 7 + off.fX + 166.0f, y0 + 19 + off.fY + 2.0f},
+               bodyFade.value(), false);
+    }
+    pen.noStroke();
+    pen.fill(hex(0x191B22, 0.9f * a));
+    pen.rect(x0 + 7 + 158, y0 + 19, 1, 76);
+    penMono(pen, 7.0f, fadeTo(kTick, a), 0.2f);
+    pen.text("ONE POOL WITH sizes() \xc2\xb7 ONE PEN PROGRAM", x0 + 7,
+             y0 + h - 17);
+  }
+
+  void errorLegend(Pen& pen, float x0, float y0, float a) {
+    constexpr float w = 336, h = 48;
+    pen.noStroke();
+    pen.fill(hex(0x101116, 0.86f * a));
+    pen.rect(x0, y0, w, h, 4);
+    pen.noFill();
+    pen.stroke(fadeTo(kKeyline, a));
+    pen.strokeWeight(1);
+    pen.rect(x0 + 0.5f, y0 + 0.5f, w - 1, h - 1, 4);
+    pen.noStroke();
+    const char* labels[5] = {"0.000", "0.004", "0.010", "0.020",
+                             "\xe2\x89\xa5.035"};
+    for (int i = 0; i < 5; ++i) {
+      const float x = x0 + 7 + (float)i * 50;
+      pen.fill(fadeTo(kRampCol[i], a));
+      pen.rect(x, y0 + 7, 48, 7);
+      penMono(pen, 6.5f, fadeTo(kTick, a), 0.2f);
+      pen.text(labels[i], x, y0 + 17);
+    }
+    penUi(pen, 7.0f, fadeTo(kSteel, a), 0.3f);
+    pen.textAlign(draw::RIGHT, draw::TOP);
+    pen.text("e = ||x2\xe2\x88\x92x1|\xe2\x88\x92r| / r", x0 + w - 7, y0 + 7);
+    pen.textAlign(draw::LEFT, draw::TOP);
+    // the live readout: max error, contacts, step and the interpolant
+    char buf[128];
+    std::snprintf(buf, sizeof buf,
+                  "MAX e %5.2f%%  \xc2\xb7  CONTACTS %2zu  \xc2\xb7  STEP "
+                  "%llu  \xc2\xb7  \xce\xb1 %.2f",
+                  stageMaxErr * 100, contactCount, (unsigned long long)simSteps,
+                  (double)alpha.value());
+    penMonoB(pen, 8.0f, errColor(stageMaxErr, a), 0.1f);
+    pen.text(buf, x0 + 7, y0 + 30);
   }
 
   // =========================================================================
-  // Sidebar — column A
+  // Sidebar — the six panels. Three of them are laid out with a HOLE the
+  // pen draws into afterwards.
 
   Element codeLine(const char* s, SkColor4f c, bool caret = false) {
     auto row = box().row().gap(4).height(Dim(12)).shrink(0);
@@ -1611,7 +1553,9 @@ struct HitmanVerlet : sketch::Sketch {
   }
 
   Element panelA1() {
-    return panel(156, "A1 \xc2\xb7 VERLET \xe2\x80\x94 NO VELOCITY VARIABLE", 1)
+    return panel(kPanelAH[0], "A1 \xc2\xb7 VERLET \xe2\x80\x94 NO VELOCITY "
+                              "VARIABLE",
+                 1)
         .gap(4)
         .child(t("x' = 2x \xe2\x88\x92 x* + a\xc2\xb7\xce\x94t\xc2\xb2      x* "
                  "= x",
@@ -1633,7 +1577,8 @@ struct HitmanVerlet : sketch::Sketch {
   }
 
   Element panelA2() {
-    return panel(288, "A2 \xc2\xb7 THE STICK CONSTRAINT, AND A SIGN", 2)
+    return panel(kPanelAH[1], "A2 \xc2\xb7 THE STICK CONSTRAINT, AND A SIGN",
+                 2)
         .child(codeLine("delta = x2-x1;", kBlue))
         .child(codeLine("deltalength = sqrt(delta*delta);", kBlue))
         .child(codeLine("diff = (deltalength-restlength)/deltalength;", kBlue))
@@ -1711,7 +1656,7 @@ struct HitmanVerlet : sketch::Sketch {
                      .transformOrigin(0.5f, 1.0f))
           .child(t(label, mono(7.0f, kSteel)));
     };
-    return panel(244, "A3 \xc2\xb7 THE SQUARE-ROOT APPROXIMATION", 3)
+    return panel(kPanelAH[2], "A3 \xc2\xb7 THE SQUARE-ROOT APPROXIMATION", 3)
         .child(codeLine("delta *= r*r/(delta*delta+r*r) - 0.5;", kBlue))
         .child(codeLine("x1 -= delta;   x2 += delta;", kBlue))
         .child(
@@ -1764,61 +1709,13 @@ struct HitmanVerlet : sketch::Sketch {
                  ui(7.0f, kTick, 0.4f)));
   }
 
-  // Sidebar — column B
-
+  /** B1's tree leaves a 118 px hole under its heading; the anatomy
+   *  diagram is drawn into it by the pen, because it is the rest pose of
+   *  the same rig the stage is simulating. */
   Element panelB1() {
-    return panel(236, "B1 \xc2\xb7 FIGURE 9: THE ANATOMY", 4)
+    return panel(kPanelBH[0], "B1 \xc2\xb7 FIGURE 9: THE ANATOMY", 4)
         .gap(4)
-        .child(custom([this](SkCanvas& c, const PaintContext& ctx) {
-                 // The rest pose at 156 px tall, centred.
-                 const float H = 104.0f;
-                 const float cx = ctx.size.width() * 0.5f, base = 112.0f;
-                 auto P = [&](Norm n, float side) {
-                   return SkPoint{cx + n.x * side * H, base - n.y * H};
-                 };
-                 std::array<SkPoint, NRIG> p = {
-                     P(kHead, 0), P(kNeck, 0), P(kSh, -1), P(kSh, +1),
-                     P(kEl, -1),  P(kEl, +1),  P(kHa, -1), P(kHa, +1),
-                     P(kWa, -1),  P(kWa, +1),  P(kHi, -1), P(kHi, +1),
-                     P(kKn, -1),  P(kKn, +1),  P(kFo, -1), P(kFo, +1)};
-                 SkPathBuilder b;
-                 for (const Stick& s : rig.sticks) {
-                   b.moveTo(p[(size_t)s.a]);
-                   b.lineTo(p[(size_t)s.b]);
-                 }
-                 lines::Line l;
-                 l.width = 1.5f;
-                 l.fill = Fill::color(hex(0x8A8F9C, 0.9f));
-                 decorations::paintOn(c, ctx, b.detach(), l);
-                 PathFormat dotted =
-                     stroke(1.0f, Fill::color(hex(0xC8402F, 0.9f)));
-                 dotted.dashIntervals = {2.0f, 3.0f};
-                 SkPathBuilder k;
-                 k.moveTo(p[LKN]);
-                 k.lineTo(p[RKN]);
-                 decorations::paintOn(c, ctx, k.detach(), dotted);
-                 SkPaint dp;
-                 dp.setAntiAlias(true);
-                 dp.setColor4f(kBone, nullptr);
-                 for (const SkPoint& q : p) c.drawCircle(q.fX, q.fY, 2.6f, dp);
-                 // four labels
-                 SkFont f(monoFace(), 7.0f);
-                 SkPaint tp;
-                 tp.setAntiAlias(true);
-                 tp.setColor4f(kTick, nullptr);
-                 auto lab = [&](const char* s, SkPoint at, float dx) {
-                   c.drawSimpleText(s, strlen(s), SkTextEncoding::kUTF8,
-                                    at.fX + dx, at.fY + 2.5f, f, tp);
-                 };
-                 lab("NECK", p[NECK], 7);
-                 lab("WAIST", p[RWA], 7);
-                 lab("HIP", p[RHI], 7);
-                 tp.setColor4f(kRed, nullptr);
-                 lab("|LK\xe2\x88\x92RK| \xe2\x89\xa5 100", p[LKN], -66);
-               })
-                   .height(Dim(118))
-                   .shrink(0)
-                   .cache(Cache::None))
+        .child(box().height(Dim(118)).shrink(0))
         .child(t("16 PARTICLES \xc2\xb7 24 STICKS \xc2\xb7 1 INEQUALITY "
                  "(KNEES, \xc2\xa7"
                  "6)",
@@ -1840,43 +1737,52 @@ struct HitmanVerlet : sketch::Sketch {
                  ui(7.0f, kTick, 0.4f)));
   }
 
+  void paintAnatomy(Pen& pen, float x0, float y0, float w) {
+    // The rest pose at 104 px tall, centred in the panel's hole.
+    const float H = 104.0f;
+    const float cx = x0 + w * 0.5f, base = y0 + 112.0f;
+    auto P = [&](Norm n, float side) {
+      return SkPoint{cx + n.x * side * H, base - n.y * H};
+    };
+    std::array<SkPoint, NRIG> p = {
+        P(kHead, 0), P(kNeck, 0), P(kSh, -1), P(kSh, +1),
+        P(kEl, -1),  P(kEl, +1),  P(kHa, -1), P(kHa, +1),
+        P(kWa, -1),  P(kWa, +1),  P(kHi, -1), P(kHi, +1),
+        P(kKn, -1),  P(kKn, +1),  P(kFo, -1), P(kFo, +1)};
+    pen.noFill();
+    pen.strokeCap(draw::ROUND);
+    pen.strokeWeight(1.5f);
+    pen.stroke(hex(0x8A8F9C, 0.9f));
+    for (const Stick& s : rig.sticks) {
+      const SkPoint a = p[(size_t)s.a], b = p[(size_t)s.b];
+      pen.line(a.fX, a.fY, b.fX, b.fY);
+    }
+    pen.strokeWeight(1.0f);
+    pen.stroke(hex(0xC8402F, 0.9f));
+    dashed(pen, p[LKN], p[RKN], 2.0f, 3.0f);
+    pen.noStroke();
+    pen.fill(kBone);
+    for (const SkPoint& q : p) pen.circle(q.fX, q.fY, 5.2f);
+    penMono(pen, 7.0f, kTick);
+    pen.textAlign(draw::LEFT, draw::CENTER);
+    pen.text("NECK", p[NECK].fX + 7, p[NECK].fY);
+    pen.text("WAIST", p[RWA].fX + 7, p[RWA].fY);
+    pen.text("HIP", p[RHI].fX + 7, p[RHI].fY);
+    penMono(pen, 7.0f, kRed);
+    pen.text("|LK\xe2\x88\x92RK| \xe2\x89\xa5 100", p[LKN].fX - 66,
+             p[LKN].fY);
+    pen.textAlign(draw::LEFT, draw::TOP);
+  }
+
+  /** B2's tree leaves a 156 px hole for the three chains and 34 px for
+   *  their live numbers; both are the solver's, so both are the pen's. */
   Element panelB2() {
-    return panel(264, "B2 \xc2\xb7 RELAXATION: 1 \xc2\xb7 4 \xc2\xb7 10", 5)
+    return panel(kPanelBH[1], "B2 \xc2\xb7 RELAXATION: 1 \xc2\xb7 4 \xc2\xb7 "
+                              "10",
+                 5)
         .gap(4)
-        .child(custom([this](SkCanvas& c, const PaintContext& ctx) {
-                 for (int k = 0; k < 3; ++k) {
-                   const Body& b = chains[(size_t)k];
-                   for (const Stick& s : b.sticks) {
-                     const float e =
-                         std::abs(len(b.x[s.b] - b.x[s.a]) - s.r) / s.r;
-                     const SkPoint a = drawnWorld(b, (size_t)s.a);
-                     const SkPoint z = drawnWorld(b, (size_t)s.b);
-                     decorations::paintOn(
-                         c, ctx, segment(a, z),
-                         stroke(2.2f, Fill::color(errColor(e))));
-                   }
-                   SkPaint dp;
-                   dp.setAntiAlias(true);
-                   for (size_t i = 0; i < b.x.size(); ++i) {
-                     const SkPoint q = drawnWorld(b, i);
-                     dp.setColor4f(b.invm[i] <= 0 ? kRed : kBone, nullptr);
-                     c.drawCircle(q.fX, q.fY, 2.0f, dp);
-                   }
-                 }
-                 SkFont f(monoBoldFace(), 9.0f);
-                 SkPaint tp;
-                 tp.setAntiAlias(true);
-                 tp.setColor4f(kBone, nullptr);
-                 const char* labels[3] = {"1", "4", "10"};
-                 const float xs[3] = {54, 156, 256};
-                 for (int k = 0; k < 3; ++k)
-                   c.drawSimpleText(labels[k], strlen(labels[k]),
-                                    SkTextEncoding::kUTF8, xs[k], 12, f, tp);
-               })
-                   .height(Dim(156))
-                   .shrink(0)
-                   .cache(Cache::None))
-        .child(slot("chainStat").height(Dim(34)).shrink(0))
+        .child(box().height(Dim(156)).shrink(0))
+        .child(box().height(Dim(34)).shrink(0))
         .child(t("\"ITERATIONS USED IN HITMAN VARY BETWEEN 1 AND 10 WITH THE "
                  "KIND OF OBJECT SIMULATED.\" \xe2\x80\x94 \xc2\xa7"
                  "7. "
@@ -1884,6 +1790,57 @@ struct HitmanVerlet : sketch::Sketch {
                  "CONVERGES IN ONE SWEEP AND ALL THREE ARE IDENTICAL. THESE "
                  "ARE LISTED FROM THE FREE END.",
                  ui(7.0f, kTick, 0.4f)));
+  }
+
+  void paintChains(Pen& pen, float x0, float y0) {
+    pen.push();
+    pen.translate(x0, y0);
+    pen.noFill();
+    pen.strokeCap(draw::ROUND);
+    pen.strokeWeight(2.2f);
+    for (int k = 0; k < 3; ++k) {
+      const Body& b = chains[(size_t)k];
+      for (const Stick& s : b.sticks) {
+        const float e = std::abs(len(b.x[s.b] - b.x[s.a]) - s.r) / s.r;
+        const SkPoint a = drawnWorld(b, (size_t)s.a);
+        const SkPoint z = drawnWorld(b, (size_t)s.b);
+        pen.stroke(errColor(e));
+        pen.line(a.fX, a.fY, z.fX, z.fY);
+      }
+      pen.noStroke();
+      for (size_t i = 0; i < b.x.size(); ++i) {
+        const SkPoint q = drawnWorld(b, i);
+        pen.fill(b.invm[i] <= 0 ? kRed : kBone);
+        pen.circle(q.fX, q.fY, 4.0f);
+      }
+      pen.noFill();
+    }
+    pen.noStroke();
+    penMonoB(pen, 9.0f, kBone);
+    pen.textAlign(draw::LEFT, draw::BASELINE);
+    const char* labels[3] = {"1", "4", "10"};
+    const float xs[3] = {54, 156, 256};
+    for (int k = 0; k < 3; ++k) pen.text(labels[k], xs[k], 12);
+    pen.textAlign(draw::LEFT, draw::TOP);
+    pen.pop();
+
+    // The A/B's own numbers, and the monotonicity claim COMPUTED from the
+    // three means rather than asserted beside them.
+    char a[96], b[96];
+    std::snprintf(a, sizeof a, "MEAN e   %5.2f%%    %5.2f%%    %5.2f%%",
+                  chainMean[0] * 100, chainMean[1] * 100, chainMean[2] * 100);
+    std::snprintf(b, sizeof b, "MAX  e   %5.2f%%    %5.2f%%    %5.2f%%",
+                  chainMax[0] * 100, chainMax[1] * 100, chainMax[2] * 100);
+    const bool monotone =
+        chainMean[0] > chainMean[1] && chainMean[1] > chainMean[2];
+    penMonoB(pen, 8.5f, kBone, 0.1f);
+    pen.text(a, x0, y0 + 160);
+    penMono(pen, 8.5f, kSteel, 0.1f);
+    pen.text(b, x0, y0 + 171);
+    penMono(pen, 7.5f, monotone ? hex(0x4FC79E) : kRed, 0.1f);
+    pen.text(monotone ? "mean e(1) > mean e(4) > mean e(10)  \xe2\x9c\x93"
+                      : "MONOTONICITY FAILED THIS FRAME",
+             x0, y0 + 182);
   }
 
   Element panelB3() {
@@ -1896,7 +1853,7 @@ struct HitmanVerlet : sketch::Sketch {
           .child(t(val, anchor ? monoB(8.0f, kBlue, 0.1f)
                                : mono(8.0f, kBone, 0.1f)));
     };
-    return panel(188, "B3 \xc2\xb7 REST LENGTHS & PRODUCTION", 6)
+    return panel(kPanelBH[2], "B3 \xc2\xb7 REST LENGTHS & PRODUCTION", 6)
         .gap(3)
         .child(restRow("head \xe2\x80\x93 neck", "56.0", false))
         .child(restRow("shoulder bar", "168.0", false))
@@ -1932,7 +1889,7 @@ struct HitmanVerlet : sketch::Sketch {
             {.duration = 1100ms, .ease = ch::easeOutQuad, .delay = 120ms})};
     return box()
         .column()
-        .height(Dim(100))
+        .height(Dim(kHeaderH))
         .shrink(0)
         .gap(3)
         .child(
@@ -1956,73 +1913,10 @@ struct HitmanVerlet : sketch::Sketch {
             animate(from(0.0f).to(1.0f), {.duration = 400ms, .delay = 320ms})));
   }
 
-  Element describe() {
-    return box().column().padding(32).gap(20).fill(kInk).child(header()).child(
-        box().row().gap(28).grow(1).child(stage()).child(
-            box()
-                .row()
-                .gap(28)
-                .width(Dim(732))
-                .shrink(0)
-                .child(box()
-                           .column()
-                           .gap(24)
-                           .width(Dim(kColW))
-                           .shrink(0)
-                           .staggerChildren(85ms)
-                           .child(panelA1())
-                           .child(panelA2())
-                           .child(panelA3()))
-                .child(box()
-                           .column()
-                           .gap(24)
-                           .width(Dim(kColW))
-                           .shrink(0)
-                           .staggerChildren(85ms)
-                           .child(panelB1())
-                           .child(panelB2())
-                           .child(panelB3()))));
-  }
-
-  // -------------------------------------------------------------------------
-  // Live numbers. Animatable carries no string case, so numbers that tick
-  // cannot be bound to a text node and go through slot()/renderSlot():
-  // only the slot's subtree re-describes when a value changes.
-
-  Element chainStatEl() {
-    char a[96], b[96];
-    std::snprintf(a, sizeof a, "MEAN e   %5.2f%%    %5.2f%%    %5.2f%%",
-                  chainMean[0] * 100, chainMean[1] * 100, chainMean[2] * 100);
-    std::snprintf(b, sizeof b, "MAX  e   %5.2f%%    %5.2f%%    %5.2f%%",
-                  chainMax[0] * 100, chainMax[1] * 100, chainMax[2] * 100);
-    const bool monotone =
-        chainMean[0] > chainMean[1] && chainMean[1] > chainMean[2];
-    return box()
-        .column()
-        .child(t(a, monoB(8.5f, kBone, 0.1f)))
-        .child(t(b, mono(8.5f, kSteel, 0.1f)))
-        .child(t(monotone ? "mean e(1) > mean e(4) > mean e(10)  \xe2\x9c\x93"
-                          : "MONOTONICITY FAILED THIS FRAME",
-                 mono(7.5f, monotone ? hex(0x4FC79E) : kRed, 0.1f)));
-  }
-
-  Element stageStatEl() {
-    char buf[128];
-    std::snprintf(buf, sizeof buf,
-                  "MAX e %5.2f%%  \xc2\xb7  CONTACTS %2zu  \xc2\xb7  STEP "
-                  "%llu  \xc2\xb7  \xce\xb1 %.2f",
-                  stageMaxErr * 100, contactCount, (unsigned long long)simSteps,
-                  (double)alpha.value());
-    return t(buf, monoB(8.0f, errColor(stageMaxErr), 0.1f));
-  }
-
   // =========================================================================
 
-  bool deterministic_ = false;  // pin what this study timed about itself
-
-  void setup(sketch::SketchContext& ctx) override {
-    deterministic_ = ctx.deterministic;
-    ctx.canvas((int)kCanvasW, (int)kCanvasH);
+  void setup(sketch::DrawContext& ctx) override {
+    ctx.canvas(kCanvasW, kCanvasH);
     ctx.background(kInk);
     // This study brings its own canvas, background and capture instant
     // rather than inheriting any: 3.35 s is 0.75 s after the bomb fires at
@@ -2031,13 +1925,11 @@ struct HitmanVerlet : sketch::Sketch {
     // floor, which is the one still a physics study must not ship.
     ctx.captureAt(3.35);
 
-    loopT = elapsed = 0;
+    loopT = 0;
     simSteps = 0;
-    stepped = false;
     didHit = didBomb = dragging = false;
     phase = 0;
     chainPhase = 0;
-    customUs = instUs = 0;
     contacts.clear();
 
     buildRig({300.0f, kCapsule});
@@ -2068,45 +1960,81 @@ struct HitmanVerlet : sketch::Sketch {
     barPool = std::make_shared<instancing::Pool>();
     (void)barPool->sizes();  // materialise the lane
 
-    Composer& composer = ctx.composer;
-
     // The clock. Verlet is only correct at a fixed Δt, and the alphaOut
     // parameter publishes the leftover fraction of a step: a verlet body's
     // state IS the pair (x*, x), so lerp(x*, x, alpha) is the integrator's
     // own interpolant, and drawing through it costs nothing extra.
     ctx.ticker.addFixed(
-        kSimHz,
-        [this] {
-          stepPhysics();
-          stepped = true;
-          return true;
-        },
-        8, &alpha);
+        kSimHz, [this] { stepPhysics(); return true; }, 8, &alpha);
 
-    ctx.ticker.add([this, &composer](double dt) {
-      elapsed += dt;
-      if (stepped) {
-        stepped = false;
-        composer.renderSlot("chainStat", chainStatEl());
-        composer.renderSlot("stageStat", stageStatEl());
-        composer.renderSlot("phase", phaseStrip());
-      }
-      writeDotPool();
-      {
-        float sc = 1;
-        SkPoint off{0, 0};
-        rigFit(150.0f, 74.0f, &sc, &off);
-        writeBarPool({off.fX, off.fY + 2.0f}, sc);
-      }
-      return true;
-    });
+    headerEl = header();
+    overlayEl = stageOverlay();
+    barsEl = instancedHalf();
+    colAEl = {panelA1(), panelA2(), panelA3()};
+    colBEl = {panelB1(), panelB2(), panelB3()};
 
-    composer.render(describe());
-    composer.renderSlot("chainStat", chainStatEl());
-    composer.renderSlot("stageStat", stageStatEl());
+    ctx.pen.noStroke();
+    ctx.pen.textAlign(draw::LEFT, draw::TOP);
   }
 
-  void update(double, sketch::SketchContext&) override {}
+  void draw(Pen& pen) override {
+    const double ms = pen.millis();
+    // The pools are written every frame, because what they carry is the
+    // interpolated position and that moves between steps as well as
+    // across them.
+    writeDotPool();
+    {
+      // The pool's positions are LOCAL to the guest's own box, which is
+      // where the instances leaf paints them.
+      float sc = 1;
+      SkPoint off{0, 0};
+      rigFit(150.0f, 74.0f, &sc, &off);
+      writeBarPool({off.fX, off.fY + 2.0f}, sc);
+    }
+
+    pen.background(kInk);
+    pen.element(headerEl,
+                SkRect::MakeXYWH(kPad, kPad, kCanvasW - 2 * kPad, kHeaderH));
+
+    // --- the stage -------------------------------------------------------
+    const SkRect stageBox = SkRect::MakeXYWH(kStageX, kBodyY, kStage, kStage);
+    pen.push();
+    pen.translate(kStageX, kBodyY);
+    worldBox(pen, ms);
+    stageChrome(pen, ms);
+    simulation(pen);
+    pen.pop();
+    pen.element(overlayEl, stageBox);
+    pen.push();
+    pen.translate(kStageX, kBodyY);
+    stageLabels(pen);
+    pen.pop();
+
+    const float insetA = cue(ms, 900, 340);
+    figPenetration(pen, kStageX + 16, kBodyY + 16, insetA);
+    figFriction(pen, kStageX + 512, kBodyY + 16, insetA);
+    instancingStrip(pen, kStageX + 16, kBodyY + 178, cue(ms, 980, 340));
+    errorLegend(pen, kStageX + 16, kBodyY + 302, cue(ms, 1440, 300));
+
+    // --- the sidebar: six panels, three of them with a hole --------------
+    pen.element(colAEl[0], SkRect::MakeXYWH(kColAX, panelTop(kPanelAH, 0),
+                                            kColW, kPanelAH[0]));
+    pen.element(colAEl[1], SkRect::MakeXYWH(kColAX, panelTop(kPanelAH, 1),
+                                            kColW, kPanelAH[1]));
+    pen.element(colAEl[2], SkRect::MakeXYWH(kColAX, panelTop(kPanelAH, 2),
+                                            kColW, kPanelAH[2]));
+    pen.element(colBEl[0], SkRect::MakeXYWH(kColBX, panelTop(kPanelBH, 0),
+                                            kColW, kPanelBH[0]));
+    pen.element(colBEl[1], SkRect::MakeXYWH(kColBX, panelTop(kPanelBH, 1),
+                                            kColW, kPanelBH[1]));
+    pen.element(colBEl[2], SkRect::MakeXYWH(kColBX, panelTop(kPanelBH, 2),
+                                            kColW, kPanelBH[2]));
+    // The holes: B1's heading is 12 tall over a 4 px gap, so the diagram
+    // starts 30 px into the panel's padding box.
+    const float holeX = kColBX + kPanelPad, holeW = kColW - 2 * kPanelPad;
+    paintAnatomy(pen, holeX, panelTop(kPanelBH, 0) + kPanelPad + 12 + 4, holeW);
+    paintChains(pen, holeX, panelTop(kPanelBH, 1) + kPanelPad + 12 + 4);
+  }
 };
 
 SIGIL_SKETCH(
