@@ -1,11 +1,24 @@
 # The sketches, compiled into whichever host links them.
 #
-# A SKETCH JOINS BY BEING A FILE HERE. The stem is its key, and
-# SIGIL_SKETCH_STATIC — set per source below — switches the registration
-# macro from exporting a dylib's entry points to registering a factory
-# under that stem. So the file someone hot-reloads and the sketch a host
-# shows are the same file, always, and there is no second list anywhere
-# that could disagree with this directory.
+# A SKETCH JOINS BY BEING A FILE HERE — OR A DIRECTORY. `<stem>.cpp` is a
+# sketch of one translation unit. `<stem>/<stem>.cpp` is the ENTRY of a
+# sketch that is a directory: every other `.cpp` beside the entry is a
+# unit of the same sketch, compiled into this target with it and carrying
+# no key of its own, and every header beside it is reached by a quoted
+# include. Either way the stem is the key, and SIGIL_SKETCH_STATIC — set
+# on each entry below — switches the registration macro from exporting a
+# dylib's entry points to registering a factory under that stem. So the
+# file someone hot-reloads and the sketch a host shows are the same file,
+# always, and there is no second list anywhere that could disagree with
+# this directory.
+#
+# `shared/` IS THE ONE DIRECTORY HERE THAT IS NOT A SKETCH: modules more
+# than one sketch reaches for and no library owns yet. Its sources are
+# compiled into this target once, and its headers are reached as
+# <shared/Name.h> — this directory is on the include path, so the include
+# names the layer it comes from. A module a library should own is
+# promoted out of it. Any other directory without an entry file in it
+# is not a sketch and nothing in it is compiled.
 #
 # An OBJECT library, not an archive: registration happens in a
 # namespace-scope initializer with nothing referring to it, which an
@@ -14,6 +27,28 @@
 file(GLOB SIGIL_SKETCH_FILES CONFIGURE_DEPENDS
      ${CMAKE_CURRENT_LIST_DIR}/*.cpp)
 list(REMOVE_ITEM SIGIL_SKETCH_FILES ${CMAKE_CURRENT_LIST_DIR}/Anchor.cpp)
+
+# The directory sketches: a source one level down whose stem is the name
+# of the directory it stands in is an entry, and the other sources in
+# that directory are its units.
+file(GLOB SIGIL_SKETCH_NESTED_FILES CONFIGURE_DEPENDS
+     ${CMAKE_CURRENT_LIST_DIR}/*/*.cpp)
+set(SIGIL_SKETCH_UNITS)
+foreach(nested_file IN LISTS SIGIL_SKETCH_NESTED_FILES)
+  get_filename_component(sketch_dir ${nested_file} DIRECTORY)
+  get_filename_component(sketch_stem ${sketch_dir} NAME)
+  if(sketch_stem STREQUAL "shared")
+    continue()
+  endif()
+  if(nested_file STREQUAL "${sketch_dir}/${sketch_stem}.cpp")
+    list(APPEND SIGIL_SKETCH_FILES ${nested_file})
+    file(GLOB sketch_units CONFIGURE_DEPENDS ${sketch_dir}/*.cpp)
+    list(REMOVE_ITEM sketch_units ${nested_file})
+    list(APPEND SIGIL_SKETCH_UNITS ${sketch_units})
+  endif()
+endforeach()
+file(GLOB SIGIL_SKETCH_SHARED_FILES CONFIGURE_DEPENDS
+     ${CMAKE_CURRENT_LIST_DIR}/shared/*.cpp)
 
 # THE SKETCHES THAT NEED A LIBRARY THIS BUILD MAY NOT HAVE: stem, then
 # the target that must exist for it to compile. A sketch over an optional
@@ -42,8 +77,13 @@ foreach(pair RANGE ${_requirement_last})
   if(TARGET ${sketch_needs})
     list(APPEND SIGIL_SKETCH_OPTIONAL_LIBRARIES ${sketch_needs})
   else()
+    # Whichever form the sketch takes: the bare file, or the entry and
+    # every unit of its directory.
     list(REMOVE_ITEM SIGIL_SKETCH_FILES
-         ${CMAKE_CURRENT_LIST_DIR}/${sketch_stem}.cpp)
+         ${CMAKE_CURRENT_LIST_DIR}/${sketch_stem}.cpp
+         ${CMAKE_CURRENT_LIST_DIR}/${sketch_stem}/${sketch_stem}.cpp)
+    list(FILTER SIGIL_SKETCH_UNITS EXCLUDE
+         REGEX "/${sketch_stem}/[^/]+\\.cpp$")
     message(STATUS
       "sketch ${sketch_stem} left out: ${sketch_needs} is not configured")
   endif()
@@ -57,6 +97,8 @@ endforeach()
 add_library(SigilSketches OBJECT
   Anchor.cpp
   ${SIGIL_SKETCH_FILES}
+  ${SIGIL_SKETCH_UNITS}
+  ${SIGIL_SKETCH_SHARED_FILES}
 )
 # THE SKETCH API SURFACE, stated once. What a sketch may #include is
 # exactly this target's PUBLIC dependencies, and the flags a hot-reloaded
