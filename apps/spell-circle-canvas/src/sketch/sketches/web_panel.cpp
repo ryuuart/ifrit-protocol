@@ -23,11 +23,11 @@
 // stops, and every frame after that draws the same published frame no
 // matter when it is asked for.
 //
-// AND THE ONE WAY IT IS NOT. The wait has a wall-clock deadline, so a
-// machine on which the engine takes longer than that draws a card saying
-// what is missing instead of the page — the same build, a different
-// picture, decided by how fast the machine ran. A plate that shows the
-// card is a plate of the deadline, not of this sketch.
+// AND WHAT SETTLED MEANS — the engine's own two events, never a stretch
+// of clock: the load callback says the document and everything it pulled
+// in are here, and the frame callback says a repaint carrying that
+// document has been handed over. A machine that runs the engine slowly
+// reaches both later and draws this same picture. See shared/SettledPage.h.
 //
 // EDIT THESE FIRST
 //   kPage                     — the document. It is the subject.
@@ -43,11 +43,11 @@
 #include <sigilscry/platform/Runtime.h>
 #include <sigilsketch/canvas/Sketch.h>
 
-#include <chrono>
+#include <shared/SettledPage.h>
+
 #include <cmath>
 #include <memory>
 #include <string>
-#include <thread>
 
 namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
@@ -174,23 +174,6 @@ const Browser& browser() {
   return one;
 }
 
-/** Waits for the page to publish a frame and stop changing it. The
- *  document is static, so this is a bounded wait for the load and the
- *  first paint rather than a poll of an animation. */
-bool settled(scry::WebView& view) {
-  using namespace std::chrono_literals;
-  const auto deadline = std::chrono::steady_clock::now() + 15s;
-  uint64_t published = 0;
-  int stableTicks = 0;
-  while (std::chrono::steady_clock::now() < deadline && stableTicks < 8) {
-    const uint64_t version = view.frameVersion();
-    stableTicks = (version > 0 && version == published) ? stableTicks + 1 : 0;
-    published = version;
-    std::this_thread::sleep_for(16ms);
-  }
-  return published > 0;
-}
-
 Element note(std::u8string heading, std::u8string body) {
   return box()
       .width(236)
@@ -225,9 +208,12 @@ struct WebPanelSketch final : sketch::Sketch {
       why = "the web engine did not boot in this process";
     } else {
       m_view = browser().engine->createView(kPageWidth, kPageHeight);
+      // The events are latched before the load, so nothing about the
+      // document can happen between asking for it and listening.
+      const webpage::Events events(*m_view);
       m_view->loadHTML(kPage);
-      if (!settled(*m_view)) {
-        why = "the page never published a frame";
+      if (!events.awaitLoad()) {
+        why = "the page never loaded and painted";
         m_view.reset();
       }
     }

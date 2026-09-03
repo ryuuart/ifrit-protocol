@@ -311,3 +311,24 @@ loads. The host evidently intends a failed load to be one session's failure,
 with the next file opening as if the first had never been tried. A test in
 the book's resident-session path should open a sketch that fails in its first
 frame, then open one that does not, and assert the second renders.
+
+## A reloaded sketch loses to the copy compiled into the host
+
+`Sketchbook <file> --frame out.png` compiles the file, dlopens it and
+reports `live · build 1 · compiled in Ns` — and then draws the host's own
+copy of that sketch. Changing `ctx.background` in `crossing_rule.cpp` to
+red, or the title string in `web_script.cpp`, and rendering produces a
+picture byte-identical to the one before the edit; rebuilding
+`Sketchbook` is what makes an edit appear. Every sketch in the registry
+is compiled into the host as well as into the dylib, and the sketch's
+body — its type, its vtable, the `kindOf<T>` the exported `Entry` points
+at — are weak definitions in both images, so the loader coalesces the
+dylib's onto the host's.
+
+Intended: the file on disk is what runs, which is the whole of the live
+host and of the `sketch_reload_surface*` tests — those still prove the
+dlopen and the link surface, but the picture they judge is the host's.
+
+Assert once fixed: render a sketch, change a colour its `setup()` names,
+render again through `--frame` without rebuilding the host, and the two
+plates must differ.

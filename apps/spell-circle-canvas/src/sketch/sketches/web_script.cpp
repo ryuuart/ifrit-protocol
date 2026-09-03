@@ -25,9 +25,10 @@
  *
  * The waiting is the awkward part and is stated rather than hidden: every
  * call above is asynchronous across the web thread, so each stage ends by
- * spinning until the published frame version stops moving. That is a
- * bounded wait for a static document and nothing like a poll of an
- * animation.
+ * waiting on the ENGINE'S OWN EVENTS — the load callback for the document
+ * and the frame callback for the repaint a call caused — and never on a
+ * stretch of clock. A machine that runs the engine slowly reaches those
+ * events later and draws this same sheet. See shared/SettledPage.h.
  *
  * EDIT THESE FIRST
  *   kScrollBy  — how far down the page the third cell walks, px.
@@ -45,12 +46,11 @@
 
 #include <include/core/SkCanvas.h>
 
-#include <atomic>
-#include <chrono>
+#include <shared/SettledPage.h>
+
+#include <future>
 #include <memory>
-#include <mutex>
 #include <string>
-#include <thread>
 #include <vector>
 
 namespace sketch = sigil::sketch;
@@ -134,24 +134,6 @@ std::shared_ptr<scry::WebEngine> engine() {
   return one;
 }
 
-/** Waits until the view has published a frame and stopped changing it.
- *  Every call this sheet makes crosses to the web thread, so each stage
- *  ends here. The document is static, so this is a bounded wait for a
- *  load and a repaint rather than a poll of an animation. */
-bool settled(scry::WebView& view) {
-  using namespace std::chrono_literals;
-  const auto deadline = std::chrono::steady_clock::now() + 15s;
-  uint64_t published = 0;
-  int stableTicks = 0;
-  while (std::chrono::steady_clock::now() < deadline && stableTicks < 8) {
-    const uint64_t version = view.frameVersion();
-    stableTicks = (version > 0 && version == published) ? stableTicks + 1 : 0;
-    published = version;
-    std::this_thread::sleep_for(16ms);
-  }
-  return published > 0;
-}
-
 }  // namespace
 
 struct WebScript final : sketch::Sketch {
@@ -177,48 +159,71 @@ struct WebScript final : sketch::Sketch {
       return;
     }
 
+    // Every stage latches the view's events BEFORE the call it is about
+    // to make, so nothing the engine says can land in the gap between
+    // asking and listening.
+
     // ---- the load callback, on a view that is only loaded ------------
-    auto loads = std::make_shared<std::atomic<int>>(0);
     std::shared_ptr<scry::WebView> plain = open(*web);
-    plain->setLoadCallback([loads] { ++*loads; });
+    const webpage::Events plainEvents(*plain);
     plain->loadHTML(page());
-    const bool painted = settled(*plain);
-    const int fired = loads->load();
+    const bool painted = plainEvents.awaitLoad();
+    const bool fired = plainEvents.loaded();
 
     // ---- the script, and what it evaluated to ------------------------
-    auto answered = std::make_shared<std::mutex>();
-    auto answer = std::make_shared<std::string>();
     std::shared_ptr<scry::WebView> scripted = open(*web);
+    const webpage::Events scriptedEvents(*scripted);
     scripted->loadHTML(page());
-    settled(*scripted);
-    scripted->evaluateScript(kScript, [answered, answer](std::string result) {
-      std::lock_guard<std::mutex> guard(*answered);
-      *answer = std::move(result);
+    bool settled = scriptedEvents.awaitLoad();
+
+    auto answered = std::make_shared<std::promise<std::string>>();
+    std::future<std::string> reply = answered->get_future();
+    scripted->evaluateScript(kScript, [answered](std::string result) {
+      answered->set_value(std::move(result));
     });
-    settled(*scripted);
-    std::string returned;
-    {
-      std::lock_guard<std::mutex> guard(*answered);
-      returned = *answer;
-    }
+    // The heading the script rewrites is the page's own statement that
+    // the rewrite has landed AND been painted.
+    settled = webpage::awaitAnswer(*scripted, scriptedEvents,
+                                   "document.getElementById('head')"
+                                   ".textContent",
+                                   "EVALUATED") &&
+              settled;
+    const std::string returned =
+        reply.wait_for(webpage::kUnresponsive) == std::future_status::ready
+            ? reply.get()
+            : std::string();
 
     // ---- the wheel ---------------------------------------------------
     std::shared_ptr<scry::WebView> scrolled = open(*web);
+    const webpage::Events scrolledEvents(*scrolled);
     scrolled->loadHTML(page());
-    settled(*scrolled);
+    settled = scrolledEvents.awaitLoad() && settled;
     // A wheel's delta is what the CONTENT moves by, so moving DOWN the
     // page is a negative dy.
     scrolled->scroll(0, -kScrollBy);
-    settled(*scrolled);
+    // THE ENGINE WALKS A WHEEL SMOOTHLY, so the frame after the call is
+    // the page part of the way down. The page's own scroll offset says
+    // when the walk is over — read EXACTLY, because the last fraction of
+    // a pixel of that walk is a row edge antialiased two ways.
+    settled = webpage::awaitAnswer(*scrolled, scrolledEvents,
+                                   "String(window.scrollY)",
+                                   std::to_string(kScrollBy)) &&
+              settled;
 
     // ---- the press ---------------------------------------------------
     std::shared_ptr<scry::WebView> pressed = open(*web);
+    const webpage::Events pressedEvents(*pressed);
     pressed->loadHTML(page());
-    settled(*pressed);
+    settled = pressedEvents.awaitLoad() && settled;
     pressed->mouseMove(kClickAt.x(), kClickAt.y());
     pressed->mouseDown(kClickAt.x(), kClickAt.y());
     pressed->mouseUp(kClickAt.x(), kClickAt.y());
-    settled(*pressed);
+    // The class the page's own handler adds is its statement that the
+    // click arrived and the button has been repainted in it.
+    settled = webpage::awaitAnswer(*pressed, pressedEvents,
+                                   "document.getElementById('btn').className",
+                                   "hit") &&
+              settled;
 
     views = {plain, scripted, scrolled, pressed};
 
@@ -240,9 +245,12 @@ struct WebScript final : sketch::Sketch {
              .subtitle = toU8("dials \xc2\xb7 the script \xc2\xb7 the wheel "
                               "\xc2\xb7 the point pressed \xe2\x80\x94 one "
                               "document, four views, one call apart"),
-             .footer = toU8("every call crosses to the web thread, so each "
-                            "cell was driven and then waited on until its "
-                            "published frame stopped moving"),
+             .footer = toU8(std::string(
+                 "every call crosses to the web thread, so each cell was "
+                 "driven and then waited on for the engine's own events "
+                 "\xe2\x80\x94 the load, then the page's own answer that "
+                 "what the call asked for is what the latest frame shows") +
+                 (settled ? "" : "; one of those waits expired")),
              .titleStyle = label(14, kInk, 2.4f),
              .subtitleStyle = label(11, kAsh, 0.6f),
              .footerStyle = label(10.5f, kAsh, 0.3f),
@@ -255,7 +263,7 @@ struct WebScript final : sketch::Sketch {
                 {.cells =
                      {cell("plain", plain, "loadHTML + setLoadCallback",
                            std::string("the load callback ") +
-                               (fired > 0 ? "fired" : "never fired") +
+                               (fired ? "fired" : "never fired") +
                                ", and " +
                                (painted ? "a frame was published"
                                         : "nothing was published")),
