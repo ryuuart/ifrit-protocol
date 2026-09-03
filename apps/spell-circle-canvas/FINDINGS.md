@@ -273,15 +273,6 @@ learns everything a session can tell it, the runtime included, the first
 time that session runs. A test should open a file by path, drive one
 frame, and assert the row's `kind` names the session's runtime.
 
-## sdf::star's pointiness runs the other way from its comment
-
-`sigilmaterial/sdf/Sdf.h` says `pointiness` is m in [2, points], m = points
-the regular polygon, values toward 2 sharpening the arms; the rendered
-truth is the reverse: `star(6, 2)` is the hexagon and `star(6, 5)` a thin
-six-spoke asterisk (`kSdStar` in `sdf/Sdf.cpp`). Either the comment or the
-body is wrong; the intent reads as the comment's. A test should render
-`star(6, points)` and assert its coverage equals the regular hexagon's.
-
 ## shapes::chamfered(0) emits duplicate vertices
 
 `kit/Silhouettes.cpp` writes `lineTo(w - c, 0); lineTo(w, c);` with c = 0,
@@ -308,3 +299,18 @@ repainted each time; either the explicit cache is not honoured on a memo
 node or the counter misses that write. The stat evidently intends to
 count every picture the composer records. A test should mutate a memo
 node under `Cache::Picture` and assert `picturesRecorded` advances.
+
+## test::widthAlong raycasts a resolved band's interior seams
+
+`Simplify` on a `brush::Ribbon::band()` — a union of one quadrilateral
+per sampled step — returns the right INK and a boundary that walks in and
+out along the interior seams: minard_1869's advance trunk resolves 719
+steps into 18 contours whose longest walks 23,802 px around a band of
+about 2,914 px of perimeter. `test::widthAlong` then finds its shortest
+chord on one of those excursions and reads 6 px across a 102 px law on a
+straight leg the same band fills to within 2.33% of ∫w ds. The audit
+evidently intends to measure the band's ink, so either it must reject an
+outline whose length is out of scale with its bounds, or the band must be
+handed over already unioned. A test should measure a wide profiled ribbon
+on a polyline with one hard corner and assert `widthAlong` reports the
+profile's width along every straight leg.
