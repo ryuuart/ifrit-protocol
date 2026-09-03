@@ -344,6 +344,14 @@ def touches_a_set(changed: list) -> bool:
             return True
         if spelled.startswith("src/sketch/sketches/") and path.suffix == ".cpp":
             source = REPO_DIR / path
+            # A module of the shared layer is a unit of every sketch, the
+            # ones that light a set included; a unit of a directory sketch
+            # answers for the sketch it is a unit of, whose entry is what
+            # names the runtime.
+            if source.parent.name == "shared":
+                return True
+            if source.parent.parent.name == "sketches":
+                source = source.parent / (source.parent.name + ".cpp")
             if source.is_file() and SET_RUNTIME_HEADER in source.read_text():
                 return True
     return False

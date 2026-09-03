@@ -229,3 +229,14 @@ add_test(NAME sketch_reload_named
   COMMAND Sketchbook
     ${SIGIL_SKETCH_DIR}/world_hud.cpp
     --frame ${CMAKE_BINARY_DIR}/sketch_reload_named.png)
+
+# THE DIRECTORY FORM. A sketch that is a directory goes through the host
+# as several translation units compiled apart and linked once, which
+# nothing above exercises: every entry there is one file. This one is
+# the entry of a directory sketch whose catalogue stands in a unit
+# beside it, so a break in the unit list, the object cache or the link
+# line shows up here and nowhere else.
+add_test(NAME sketch_reload_directory
+  COMMAND Sketchbook
+    ${SIGIL_SKETCH_DIR}/dunhuang_star_chart/dunhuang_star_chart.cpp
+    --frame ${CMAKE_BINARY_DIR}/sketch_reload_directory.png)
