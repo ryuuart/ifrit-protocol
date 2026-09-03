@@ -10,12 +10,16 @@
 #include <signal.h>
 #include <unistd.h>
 
+#include <algorithm>
 #include <cerrno>
 #include <chrono>
 #include <filesystem>
 #include <fstream>
+#include <string>
 #include <system_error>
+#include <thread>
 #include <utility>
+#include <vector>
 
 #include "Fixture.h"
 #include "Support.h"
@@ -240,6 +244,86 @@ TEST(SketchHostBuildDir, SweepsAGoneProcessAndLeavesALiveOneStanding) {
   EXPECT_TRUE(std::filesystem::is_directory(live));
   std::error_code ec;
   std::filesystem::remove_all(live, ec);
+}
+
+/** A COMPILER THAT ONLY MAKES THE FILE IT IS ASKED FOR, so that a case
+ *  about which PATH a build names does not pay for a real one. It is
+ *  spelled as a command prefix, which is all the host ever does with the
+ *  compiler it is given. */
+std::string stubCompiler(const std::filesystem::path& script) {
+  std::ofstream(script) << "prev=\n"
+                           "for arg in \"$@\"; do\n"
+                           "  if [ \"$prev\" = \"-o\" ]; then\n"
+                           "    : > \"$arg\"\n"
+                           "  fi\n"
+                           "  prev=$arg\n"
+                           "done\n"
+                           "exit 0\n";
+  return "/bin/sh " + script.string();
+}
+
+/** Runs one build of @p host to completion. */
+void buildOnce(Host& host) {
+  host.poll();
+  while (host.compiling()) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    host.poll();
+  }
+}
+
+TEST(SketchHostBuildDir, TwoHostsInOneProcessNeverLinkOverEachOther) {
+  // Every host in a process links into ONE directory, and the window
+  // keeps three sketches resident, each with a host of its own. A build
+  // named by its generation alone would have all of them writing
+  // sketch_1.dylib: two hosts building at once race for the path, and
+  // the file standing there when one of them dlopens is whichever link
+  // finished last, so a host adopts a sketch it did not build. Two hosts
+  // over ONE source, two builds each, must therefore name four files and
+  // not two.
+  const Watched file("sigil_sketch_host_two_hosts");
+  const std::string compiler = stubCompiler(file.dir.path / "compiler.sh");
+
+  Host::Options first = options(file.path);
+  first.compiler = compiler;
+  Host::Options second = options(file.path);
+  second.compiler = compiler;
+  second.compiledIn = &sigil::sketch::test::kWide;
+
+  Host square(std::move(first), fonts());
+  Host wide(std::move(second), fonts());
+  ASSERT_TRUE(square.live());
+  ASSERT_TRUE(wide.live());
+
+  for (int build = 1; build <= 2; ++build) {
+    // One edit, seen by both: the same source at the same generation is
+    // the collision this is about.
+    std::filesystem::last_write_time(
+        file.path,
+        std::filesystem::file_time_type::clock::now() +
+            std::chrono::seconds(build));
+    buildOnce(square);
+    buildOnce(wide);
+  }
+
+  std::vector<std::string> libraries;
+  std::error_code ec;
+  for (auto it = std::filesystem::directory_iterator(square.buildDir(), ec);
+       !ec && it != std::filesystem::directory_iterator(); it.increment(ec))
+    if (it->path().extension() == ".dylib")
+      libraries.push_back(it->path().filename().string());
+  std::sort(libraries.begin(), libraries.end());
+  EXPECT_EQ(libraries.size(), 4u) << "four builds, four files";
+  EXPECT_EQ(std::unique(libraries.begin(), libraries.end()) - libraries.begin(),
+            4);
+
+  // And each host still answers with the sketch IT opened. Nothing is
+  // dlopened here — the stub's output is not a library, so every adopt
+  // fails and each host keeps the session it started with, which is
+  // exactly the state a host beside a building one is in. That a real
+  // guest loads and draws its own file is what the sketch_reload_* ctest
+  // entries put through a whole Sketchbook.
+  EXPECT_EQ(square.canvasSize(), SkSize::Make(120, 90));
+  EXPECT_EQ(wide.canvasSize(), SkSize::Make(200, 100));
 }
 
 }  // namespace

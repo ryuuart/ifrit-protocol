@@ -260,6 +260,12 @@ class Host {
   Options m_options;
   weave::FontContext& m_fonts;
   std::filesystem::path m_buildDir;
+  /** WHICH HOST IN THIS PROCESS THIS IS, counted from one. Every host in
+   *  a process links into one build directory, so the id is in the name
+   *  of every dylib this one builds: without it two hosts building at
+   *  once would write one path, and the file standing there when one of
+   *  them dlopens would be whichever link finished last. */
+  int m_hostId = 0;
 
   Assets m_assets;
   Kind m_kind;

@@ -235,6 +235,24 @@ bool processAlive(pid_t pid) {
 std::mutex g_buildDirMutex;
 int g_buildDirHosts = 0;
 
+/** WHICH HOST IN THIS PROCESS, counted from one and never reused.
+ *
+ *  Every host in a process links into one directory, and the window
+ *  keeps three sketches resident, each with a host of its own. Naming a
+ *  build by its generation alone would have all of them writing
+ *  `sketch_1.dylib`: two hosts building at once race for the path, and
+ *  the file standing there when one of them dlopens is whichever link
+ *  finished last — so a host adopts a sketch it did not build.
+ *
+ *  The image already loaded is not the exposure. The linker REPLACES its
+ *  output rather than rewriting it, so the inode a mapped dylib is
+ *  reading stays alive under it however many times the path is relinked,
+ *  and dlopen of a replaced path loads the new file rather than handing
+ *  back the old image. The exposure is the window between a link and the
+ *  dlopen that follows it, and an id per host closes it by giving no two
+ *  hosts a path in common. */
+std::atomic<int> g_nextHostId{0};
+
 /** Makes the directory for the first host in this process and hands
  *  every host the same path. */
 std::filesystem::path acquireBuildDir() {
@@ -285,6 +303,7 @@ Host::Host(Options options, weave::FontContext& fonts)
   static std::once_flag swept;
   std::call_once(swept, &Host::sweepAbandonedBuildDirs);
   m_buildDir = acquireBuildDir();
+  m_hostId = ++g_nextHostId;
   // A sketch this binary already carries opens instantly, and the file is
   // watched from where it stands: an edit builds, an unedited file never
   // does. A file the binary does not carry has to be built to be seen.
@@ -423,7 +442,8 @@ void Host::startCompile() {
   m_status = "compiling build " + std::to_string(m_generation + 1) + "…";
 
   const std::filesystem::path out =
-      m_buildDir / ("sketch_" + std::to_string(++m_generation) + ".dylib");
+      m_buildDir / ("sketch_" + std::to_string(m_hostId) + "_" +
+                    std::to_string(++m_generation) + ".dylib");
   // Every unit is on the link line; only the stale ones are compiled. A
   // unit is stale when it has never been built, when its source is not
   // the one its object came from, or when any header around the sketch

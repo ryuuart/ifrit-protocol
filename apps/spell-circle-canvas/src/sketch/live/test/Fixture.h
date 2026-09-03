@@ -36,6 +36,23 @@ inline Kind squareKind() { return kindOf<Square>(); }
 /** The registry entry a host is handed to open the square. */
 inline const Entry kSquare{"square", "square", "Test", "", &squareKind};
 
+/** A SECOND BODY, told apart from the square by its canvas alone: two
+ *  hosts in one process each open one of these, so a case can ask
+ *  whether a host still answers with the sketch IT opened after another
+ *  host beside it has built. */
+struct Wide : Sketch {
+  void setup(SketchContext& ctx) override {
+    ctx.canvas(200, 100);
+    ctx.background({0, 0, 0, 1});
+    ctx.composer.render(compose::box().width(60).height(20).fill(
+        compose::Fill::color({1, 0, 0, 1})));
+  }
+};
+
+inline Kind wideKind() { return kindOf<Wide>(); }
+
+inline const Entry kWide{"wide", "wide", "Test", "", &wideKind};
+
 /** A FILE FOR A HOST TO WATCH, in a directory of its own.
  *
  *  The host watches the headers standing beside a sketch as well as the

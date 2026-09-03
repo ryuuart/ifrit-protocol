@@ -756,6 +756,17 @@ embedding a scripting language — so a sketch never leaves the real API.
   makes its own directory it removes the sibling ones whose pid no
   process holds; a live pid's directory is never touched, this process's
   own least of all.
+* **A build is named for the host that made it** —
+  `sketch_<host>_<build>.dylib` — because every host in a process links
+  into that one directory. Named by
+  its build number alone, the three resident hosts would all write
+  `sketch_1.dylib`: two of them building at once race for the path, and
+  the file standing there when one of them dlopens is whichever link
+  finished last, so a host adopts a sketch it did not build. The image
+  already loaded is safe either way — the linker replaces its output
+  rather than rewriting it, so the inode a mapped dylib is reading stays
+  alive under it — and it is the gap between a link and the dlopen after
+  it that an id per host closes.
 * Compile errors overlay while the **last good sketch keeps running**.
 * Old libraries are never unloaded. Their statics stay valid — a running
   session may hold a vtable or a string literal that lives in one — and
