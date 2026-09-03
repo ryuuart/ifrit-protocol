@@ -297,3 +297,34 @@ sit at the middle or the foot of it does.
 Assert once fixed: draw one passage into one box under each of TOP,
 CENTER and BOTTOM and read the first line's baseline back; the three must
 differ by half and by all of the room the passage left over.
+
+## The USD writer promises .usdz and cannot write one
+
+`usd::Writer::save()` on a `.usdz` path fails inside USD with "writing
+package usdz layer is not allowed through this API"; `.usdc` and `.usda`
+round-trip whole. `src/common/usd/README.md` and `write/Writer.h` both
+name `.usdz` as a target. The intent is the package: it is written through
+`UsdUtilsCreateNewUsdzPackage` over a staged `.usdc`, not through
+`SdfLayer::Export`. A test should save a stage as `.usdz` and read its
+model back.
+
+## A device pop chain reports a barrier state mismatch
+
+`compute_variant --gpu` prints, twice per frame, "The state COPY_DEST of
+buffer 'pop lane' does not match the old state UNORDERED_ACCESS specified
+by the barrier" from Diligent; the picture is right. The device point
+executor evidently intends to track the lane buffer's state across the
+compute and copy passes. A test on the device tier should cook a chain
+that both computes and reads back a lane and assert Diligent's validation
+stays silent.
+
+## A second geometry pass writing a written target erases it
+
+`world/frame/CpuGeometry.cpp`'s `paintGeometry` opens with
+`canvas->clear(pass.clear())` and its body loop is not narrowed by the
+pass's selection, so `geometryPass("motes").reads("motes").writes(
+"colour").stamp(...)` after a main pass repaints every body and drops the
+main pass's variant, with no warning. The pass model evidently intends a
+later pass over the same target to composite over it, or to refuse at plan
+time. A test should plan two passes writing one target and assert either
+the composite or the diagnostic.
