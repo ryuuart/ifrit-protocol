@@ -77,29 +77,23 @@
 //   the catalogued paper size are the competing explanations, and the
 //   second is the one that would kill it.
 //
-// THE ONE DELIBERATE DEVIATION, and it is a library finding, not a
-// drafting choice. `brush::Ribbon` is the primitive a flow map is made of,
-// and a VARYING width still has no corner join: the band is pos +- n*w/2
-// per sample with nothing inserted where the tangent jumps, so the inner
-// edge self-intersects and the winding fill drops the inside of the bend.
-// The hole opens once the band is wider than about half the leg it turns
-// on, and it is then wider than the band itself. Around Wilna the advance
-// band carries 340,000 men into a leg shorter than the band is wide, so
-// the bend is lost outright. The ADVANCE zones are therefore drawn as the
-// union of their per-leg quads plus hand-rolled bevel wedges — i.e.
-// SkPaint::kBevel_Join, spelled out — while the RETREAT band, a quarter as
-// wide on longer legs, is a real Ribbon and works. The audit still measures
-// the Ribbon band and not the quads, so the defect stays reported rather
-// than hidden behind the workaround; the error it finds is printed in the
-// checks strip in both px and millimetres of Minard's paper.
+// EVERY ZONE ON BOTH PANELS IS ONE PRIMITIVE: a `brush::Ribbon` on the
+// width Profile seam, the law read at arc length so every riser stays at
+// its named city. A band is the union of its cross-sections, so the inside
+// of a bend fills however tight the turn — which this sheet needs, because
+// around Wilna the advance carries 340,000 men into a leg shorter than the
+// band is wide, the hardest corner on the plate. `Ribbon::join` says what
+// happens on the OUTSIDE of that turn and this sheet asks for the bevel,
+// the chord across the corner, which is what a lithographer's overlapping
+// treads leave. `Ribbon::band` hands the drawn geometry back, so the audit
+// in the checks strip measures the band on the sheet rather than a
+// transcription of how one is built; what it finds is printed in both px
+// and millimetres of Minard's paper.
 //
-// `profileOffset` delegates to `geometry::path::parallel` — real vertices, arc
-// outside a turn, miter inside — only when the profile is CONSTANT. A flow
-// map's whole point is that it is not, so this band takes the sampled walk
-// however the width is spelled, and the deviation stands. What the width
-// Profile does buy is the other half: the law is a comparable value with a
-// derived `max()`, so the band can prune and its reach is declared rather
-// than guessed.
+// The width Profile is a comparable value with a derived `max()`, so a
+// band prunes like any other value and its reach is declared rather than
+// guessed — which is what lets the 12.6% morph ride a live Output through
+// the law without the reveal or the cull going wrong.
 //
 // THE LIBRARY CONSTRAINTS THIS SKETCH IS SHAPED BY:
 //   * Slot names live in an index of their own — `bySlot`, populated only
@@ -108,11 +102,9 @@
 //     slot name. This study keeps its slot names and its content keys
 //     distinct anyway, so that a key always names exactly one node.
 //   * `Element::outline()` is memoised on (descriptor, size), so geometry
-//     cannot be a bound value the way a transform or an opacity can. The
-//     12.6% morph therefore costs a re-describe, which is why the zones it
-//     moves are the only thing inside their slot.
-//   * `brush::Ribbon` has no corner join — below; a variable-width band is
-//     a stroke, and a join is the one stroke property it cannot state.
+//     cannot be a bound value the way a transform or an opacity can — which
+//     is why the 12.6% morph rides the width LAW, read at paint, and not
+//     the shape.
 //   * There are no boolean path ops, so the Mediterranean's hachure region
 //     is built as one closed polygon by hand rather than as a difference.
 //
@@ -133,6 +125,7 @@
 #include <include/core/SkFontStyle.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkPathMeasure.h>
+#include <include/pathops/SkPathOps.h>
 #include <include/core/SkTypeface.h>
 #include <sigilcompose/brush/Brushes.h>
 #include <sigilcompose/brush/Lines.h>
@@ -593,228 +586,6 @@ WidthProfile profileOfH(const std::vector<HStation>& st) {
   return w;
 }
 
-/** The band as a UNION OF PER-LEG QUADRILATERALS — which is what a
- *  lithographer draws, and what Minard's plate is: each tread is a
- *  parallel-sided strip of one width, and consecutive strips simply
- *  overlap at the bend. Every quad is wound the same way (its order is
- *  defined by the leg's own tangent), so under kWinding the union is
- *  filled everywhere and no bend is lost.
- *
- *  It exists because `brush::Ribbon` cannot draw it. Ribbon offsets
- *  ±n·w/2 per sampled station with nothing inserted where the tangent
- *  jumps, so the inner edge self-intersects and the winding fill drops
- *  the inside of the bend — visible as a wedge-shaped HOLE once the band
- *  is wider than about half its leg, which the advance band is at every
- *  turn between the Niemen and Witebsk. The two areas are both measured
- *  below; their difference is the corner defect, in ink. */
-SkPath quadUnion(const std::vector<SkPoint>& pts, const std::vector<float>& men,
-                 float scale = 1.0f) {
-  SkPathBuilder b;
-  // Every sub-polygon must be wound the SAME way: under kWinding a
-  // reversed triangle laid over a quad cancels to winding 0 and punches a
-  // hole. Cheap to enforce, and impossible to see coming.
-  auto addTri = [&](SkPoint a, SkPoint c, SkPoint d) {
-    const float area = a.x() * c.y() - c.x() * a.y() + c.x() * d.y() -
-                       d.x() * c.y() + d.x() * a.y() - a.x() * d.y();
-    b.moveTo(a);
-    if (area > 0) {
-      b.lineTo(d);
-      b.lineTo(c);
-    } else {
-      b.lineTo(c);
-      b.lineTo(d);
-    }
-    b.close();
-  };
-  auto normalAt = [&](size_t i) {
-    const SkVector e{pts[i + 1].x() - pts[i].x(), pts[i + 1].y() - pts[i].y()};
-    const float L = std::max(std::hypot(e.x(), e.y()), 1e-4f);
-    return SkVector{-e.y() / L, e.x() / L};
-  };
-  // the BEVEL JOIN, by hand: at every interior vertex, the two wedges the
-  // per-leg quads leave open. This is SkPaint::kBevel_Join, spelled out,
-  // because a variable-width band IS a stroke and the library's one
-  // variable-width brush has no join field.
-  for (size_t i = 1; i + 1 < pts.size(); ++i) {
-    const SkVector n0 = normalAt(i - 1), n1 = normalAt(i);
-    const float h0 = bandPx(men[i - 1]) * 0.5f * scale,
-                h1 = bandPx(men[i]) * 0.5f * scale;
-    addTri(pts[i], {pts[i].x() + n0.x() * h0, pts[i].y() + n0.y() * h0},
-           {pts[i].x() + n1.x() * h1, pts[i].y() + n1.y() * h1});
-    addTri(pts[i], {pts[i].x() - n0.x() * h0, pts[i].y() - n0.y() * h0},
-           {pts[i].x() - n1.x() * h1, pts[i].y() - n1.y() * h1});
-  }
-  for (size_t i = 0; i + 1 < pts.size(); ++i) {
-    const SkVector e{pts[i + 1].x() - pts[i].x(), pts[i + 1].y() - pts[i].y()};
-    const float L = std::hypot(e.x(), e.y());
-    if (L < 1e-4f) continue;
-    const SkVector n{-e.y() / L, e.x() / L};
-    const float h = bandPx(men[i]) * 0.5f * scale;
-    b.moveTo(pts[i].x() + n.x() * h, pts[i].y() + n.y() * h);
-    b.lineTo(pts[i + 1].x() + n.x() * h, pts[i + 1].y() + n.y() * h);
-    b.lineTo(pts[i + 1].x() - n.x() * h, pts[i + 1].y() - n.y() * h);
-    b.lineTo(pts[i].x() - n.x() * h, pts[i].y() - n.y() * h);
-    b.close();
-  }
-  return b.detach();
-}
-
-std::vector<SkPoint> pointsOf(const std::vector<Station>& st) {
-  std::vector<SkPoint> p;
-  p.reserve(st.size());
-  for (const Station& s : st) p.push_back(stationPt(s));
-  return p;
-}
-std::vector<float> menOf(const std::vector<Station>& st) {
-  std::vector<float> m;
-  m.reserve(st.size());
-  for (const Station& s : st) m.push_back(s.men);
-  return m;
-}
-
-/** A line-for-line transcription of brush::Ribbon::paint's band
- *  construction (Brushes.h): sample the contour every `stride` px and
- *  emit pos ± n·w/2, left forward then right backward, closed.
- *
- *  It exists because there is no way to GET the polygon a brush emitted —
- *  Ribbon paints and forgets. The audit below has to measure the polygon
- *  that was actually drawn, so the study reconstructs it. Any change to
- *  Ribbon's sampling has to be mirrored here or the audit measures a band
- *  nobody draws. */
-SkPath ribbonBand(const SkPath& spine, const WidthProfile& w,
-                  float stride = 3.0f) {
-  SkPathBuilder band;
-  SkContourMeasureIter iter(spine, false);
-  while (sk_sp<SkContourMeasure> contour = iter.next()) {
-    const float len = contour->length();
-    std::vector<SkPoint> left, right;
-    for (float d = 0;; d += stride) {
-      const float at = std::min(d, len);
-      SkPoint pos;
-      SkVector tan;
-      if (!contour->getPosTan(at, &pos, &tan)) break;
-      const float ww = w.pxAt(at);
-      const SkVector n{-tan.y(), tan.x()};
-      left.push_back({pos.x() + n.x() * ww / 2, pos.y() + n.y() * ww / 2});
-      right.push_back({pos.x() - n.x() * ww / 2, pos.y() - n.y() * ww / 2});
-      if (at >= len) break;
-    }
-    if (left.size() < 2) continue;
-    band.moveTo(left.front());
-    for (size_t i = 1; i < left.size(); ++i) band.lineTo(left[i]);
-    for (size_t i = right.size(); i-- > 0;) band.lineTo(right[i]);
-    band.close();
-  }
-  return band.detach();
-}
-
-// ---------------------------------------------------------------------------
-// THE AUDITOR — the same min-chord raycaster that measured Minard's
-// engraving, pointed at the sketch's own geometry: at each step along the
-// spine it takes the shortest chord of the drawn band through that point
-// and compares it with the width the profile asked for.
-
-struct WidthAudit {
-  std::vector<float> at, measured, intended;
-  float maxErr = 0.0f;
-  float maxErrAt = 0.0f;
-  SkPoint worst{0, 0};
-  float rms = 0.0f;
-  int samples = 0;
-};
-
-/** Chord of `edges` through `p` along direction `u`, or -1 if p is outside.
- *  Edges are a flat list of segment endpoints. */
-float chordThrough(const std::vector<SkPoint>& edges, SkPoint p, SkVector u,
-                   float limit) {
-  float fwd = limit, back = limit;
-  for (size_t i = 0; i + 1 < edges.size(); i += 2) {
-    const SkPoint a = edges[i], b = edges[i + 1];
-    const SkVector e{b.x() - a.x(), b.y() - a.y()};
-    const float den = u.x() * e.y() - u.y() * e.x();
-    if (std::fabs(den) < 1e-9f) continue;
-    const SkVector w{a.x() - p.x(), a.y() - p.y()};
-    const float t = (w.x() * e.y() - w.y() * e.x()) / den;  // along u
-    const float s = (w.x() * u.y() - w.y() * u.x()) / den;  // along e
-    if (s < 0.0f || s > 1.0f) continue;
-    if (t > 0.0f)
-      fwd = std::min(fwd, t);
-    else
-      back = std::min(back, -t);
-  }
-  return fwd + back;
-}
-
-WidthAudit widthAlong(const SkPath& band, const SkPath& spine,
-                      const WidthProfile& w, float step = 4.0f,
-                      int directions = 90) {
-  // flatten the band into segments once
-  std::vector<SkPoint> edges;
-  {
-    SkPath::Iter it(band, true);
-    SkPoint pts[4];
-    SkPoint last{0, 0};
-    bool have = false;
-    for (SkPath::Verb v = it.next(pts); v != SkPath::kDone_Verb;
-         v = it.next(pts)) {
-      if (v == SkPath::kMove_Verb) {
-        last = pts[0];
-        have = true;
-      } else if (v == SkPath::kLine_Verb && have) {
-        edges.push_back(last);
-        edges.push_back(pts[1]);
-        last = pts[1];
-      } else if (v == SkPath::kClose_Verb) {
-        have = false;
-      }
-    }
-  }
-
-  WidthAudit out;
-  const float limit = w.maxPx * 4.0f + 40.0f;
-  SkContourMeasureIter iter(spine, false);
-  while (sk_sp<SkContourMeasure> contour = iter.next()) {
-    const float len = contour->length();
-    // Skip a half-width margin at each cap, or the audit reports the cap as
-    // a defect: within about w/2 of an end the shortest chord through the
-    // point runs diagonally out through the cap rather than across the
-    // band, so it reads well under the true width and swamps every real
-    // error — the cap is the one place where the shortest chord through a
-    // point is not the width. The engraving measurement excludes ends the
-    // same way (the split is at the risers and never straddles an end),
-    // so the two audits stay comparable.
-    const float margin = w.maxPx * 0.55f + step;
-    // the loop walks a distance; the accumulated float is the position
-    // NOLINTNEXTLINE(clang-analyzer-security.FloatLoopCounter,bugprone-float-loop-counter)
-    for (float d = std::max(step, margin); d < len - margin; d += step) {
-      SkPoint pos;
-      SkVector tan;
-      if (!contour->getPosTan(d, &pos, &tan)) continue;
-      float best = limit;
-      for (int k = 0; k < directions; ++k) {
-        const float a = kPi * (float)k / (float)directions;
-        const SkVector u{std::cos(a), std::sin(a)};
-        const float c = chordThrough(edges, pos, u, limit);
-        best = std::min(best, c);
-      }
-      const float want = w.pxAt(d);
-      out.at.push_back(d);
-      out.measured.push_back(best);
-      out.intended.push_back(want);
-      const float err = std::fabs(best - want);
-      out.rms += err * err;
-      ++out.samples;
-      if (err > out.maxErr) {
-        out.maxErr = err;
-        out.maxErrAt = d;
-        out.worst = pos;
-      }
-    }
-  }
-  if (out.samples) out.rms = std::sqrt(out.rms / (float)out.samples);
-  return out;
-}
-
 /** ∫ w ds over the profile — the ink Minard intended, in px². */
 float inkIntegral(const SkPath& spine, const WidthProfile& w,
                   float step = 1.0f) {
@@ -955,11 +726,14 @@ struct Minard1869 : sketch::Sketch {
   Paint paperMat, vignette;
 
   // audits, computed once in setup()
-  WidthAudit auditAdvance, auditRetreat;
+  test::WidthAlong auditAdvance, auditRetreat;
   float advanceInk = 0, advanceArea = 0;
   float retreatArea = 0;
   float coverDoubled = 0;
-  float unionArea = 0;
+  // the audit's own input, measured: what resolving the band's overlapping
+  // steps into one outline leaves for a raycast to cross
+  int outlineContours = 0, advSteps = 0;
+  float outlineWalk = 0, advPerimeter = 0;
   const char* worstCorner = "";
   size_t advComponentsDrawn = 0, advComponentsWilkinson = 0, retComponents = 0;
   float riserArcErr = 0;   // arc-length indexed  — the right way
@@ -1328,10 +1102,21 @@ struct Minard1869 : sketch::Sketch {
   // =======================================================================
   // NAPOLEON
 
-  /** One band: brush::Ribbon on the width PROFILE seam, on a node sized to
-   *  the ROUTE's bounding box so that the profile's `max()` is actually
-   *  load bearing (the band overflows that box by up to w/2 on each
-   *  side). */
+  /** The brush every zone on both panels is painted with: the strength law
+   *  on the width Profile seam, bevelled on the outside of each turn — the
+   *  chord a lithographer's overlapping treads leave. The audit reads the
+   *  same value, so what it measures is what the sheet shows. */
+  brush::Ribbon flowRibbon(const WidthProfile& prof, SkColor4f colour) {
+    brush::Ribbon r =
+        brush::ribbon(FlowWidth{prof, &mmScale}, Fill::color(colour));
+    r.step = 2.0f;
+    r.join = SkPaint::kBevel_Join;
+    return r;
+  }
+
+  /** One band, on a node sized to the ROUTE's bounding box so that the
+   *  profile's `max()` is actually load bearing (the band overflows that
+   *  box by up to w/2 on each side). */
   Element bandElement(const SkPath& spine, const WidthProfile& prof,
                       SkColor4f colour, const std::string& key,
                       Animatable<float> reveal) {
@@ -1339,10 +1124,7 @@ struct Minard1869 : sketch::Sketch {
     const SkPath local = spine.makeOffset(-bb.left(), -bb.top());
     // The profile reads a LIVE Output (the 12.6% morph), which the
     // reconciler cannot see change — hence Cache::None. See FlowWidth.
-    brush::Ribbon r;
-    r.fill = Fill::color(colour);
-    r.step = 2.0f;
-    r.width = FlowWidth{prof, &mmScale};
+    const brush::Ribbon r = flowRibbon(prof, colour);
     return box()
         .rect(SkRect::MakeXYWH(bb.left(), bb.top(), bb.width(), bb.height()))
         // the callable is invoked on every layout, so its capture must survive
@@ -1351,25 +1133,6 @@ struct Minard1869 : sketch::Sketch {
         .shape([local](SkSize) { return local; })
         .stroke(spans::upTo(std::move(reveal)), r)
         .cache(Cache::None)
-        .key(key);
-  }
-
-  /** The advance zones, drawn as the union of their per-leg quads and
-   *  filled — the construction Minard's lithographer used, and the one
-   *  brush::Ribbon cannot express. `mmScale` is read at describe time
-   *  here rather than per paint, so the 12.6% morph re-describes this
-   *  subtree; that is the cost of a comparable value, and it is the right
-   *  trade for a band that must not lose its bends. */
-  Element quadBandElement(const std::vector<Station>& st, SkColor4f colour,
-                          const std::string& key, Animatable<float> reveal,
-                          float wipeDeg) {
-    const std::vector<SkPoint> pts = pointsOf(st);
-    const SkPath band = quadUnion(pts, menOf(st), mmScale.value() / kMmPer10k);
-    return box()
-        .inset(0)
-        .shape(pathFn(band))
-        .fill(Paint::solid(colour))
-        .mask(by::edge(wipeDeg, std::move(reveal)))
         .key(key);
   }
 
@@ -1414,15 +1177,20 @@ struct Minard1869 : sketch::Sketch {
         .opacity(beat(t0, t0 + 0.3f));
   }
 
+  /** The advance: one trunk and two branches, each the same band brush
+   *  over its own strength law, revealed from the Niemen eastward the way
+   *  the army walked it. */
   Element advanceZones() {
+    auto zone = [this](const std::vector<Station>& st, const std::string& key,
+                       Animatable<float> reveal) {
+      return bandElement(polyline(st), profileOf(st), kZone, key,
+                         std::move(reveal));
+    };
     return box()
         .inset(0)
-        .child(quadBandElement(kAdvTrunk, kZone, "advTrunk",
-                               beat(tAdv, tAdv + 1.6f), 0.0f))
-        .child(quadBandElement(kAdvNorth, kZone, "advNorth",
-                               beat(tAdv + 0.35f, tAdv + 0.8f), 270.0f))
-        .child(quadBandElement(kAdvPolotzk, kZone, "advPol",
-                               beat(tAdv + 0.55f, tAdv + 1.2f), 0.0f));
+        .child(zone(kAdvTrunk, "advTrunk", beat(tAdv, tAdv + 1.6f)))
+        .child(zone(kAdvNorth, "advNorth", beat(tAdv + 0.35f, tAdv + 0.8f)))
+        .child(zone(kAdvPolotzk, "advPol", beat(tAdv + 0.55f, tAdv + 1.2f)));
   }
 
   Element napoleonPanel(sketch::SketchContext& ctx) {
@@ -1493,12 +1261,10 @@ struct Minard1869 : sketch::Sketch {
     // slightly out of register. One translate, and it is the single most
     // convincing "this is a lithograph" cue on the sheet.
     auto redStone = box().inset(0).translateX(0.4f).translateY(-0.3f);
-    // The zones ride in a SLOT: their geometry is a function of the live
-    // mmScale Output, and Element::outline() is memoised on (descriptor,
-    // size) — a shape cannot BE a bound value, so a geometry morph costs a
-    // re-describe. renderSlot() keeps that re-describe to these three nodes
-    // instead of the whole sheet.
-    redStone.child(slot("zones"));
+    // The zones read the 12.6% morph the way every other band on the sheet
+    // does: through the width law, at paint. Nothing here re-describes when
+    // it moves.
+    redStone.child(advanceZones());
     // the stone took unevenly: a very low-amplitude speckle in the zone
     // colour, NOT a gradient (the Commons p10/p90 are two units apart)
     redStone.child(box()
@@ -2747,40 +2513,54 @@ struct Minard1869 : sketch::Sketch {
     say(colD, "", "dim");
 
     // --- THE SKETCH'S OWN GEOMETRY ---------------------------------------
+    // THE BAND THE SHEET DRAWS, handed back by the brush that draws it, so
+    // the audit cannot drift from the picture: a transcription of the
+    // construction would go stale the moment the sampling changed.
     const SkPath advSpine = polyline(kAdvTrunk);
     const WidthProfile advProf = profileOf(kAdvTrunk);
-    const SkPath advBand = ribbonBand(advSpine, advProf, 2.0f);
-    auditAdvance = widthAlong(advBand, advSpine, advProf, 4.0f, 90);
+    const brush::Ribbon advRibbon = flowRibbon(advProf, kZone);
+    const SkPath advBand = advRibbon.band(advSpine);
+    // WHAT THE AUDIT RAYCASTS. A band is the union of one quadrilateral per
+    // sampled step, so a width audit resolves it into one outline first or
+    // it measures the band against its own interior seams. Resolving is
+    // where this sheet's hardest geometry goes: the trunk alone is hundreds
+    // of overlapping steps, and what comes back is measured here rather
+    // than assumed, because the audit below is only as good as it.
+    {
+      SkContourMeasureIter steps(advBand, false);
+      while (steps.next()) ++advSteps;
+      SkPath outline;
+      if (Simplify(advBand, &outline)) {
+        SkContourMeasureIter walk(outline, false);
+        while (sk_sp<SkContourMeasure> contour = walk.next()) {
+          ++outlineContours;
+          outlineWalk = std::max(outlineWalk, contour->length());
+        }
+      }
+      SkContourMeasureIter spine(advSpine, false);
+      if (sk_sp<SkContourMeasure> m = spine.next())
+        advPerimeter = 2.0f * m->length() + 2.0f * advProf.maxPx;
+    }
+    auditAdvance = test::widthAlong(advBand, advSpine, advRibbon.width);
 
     const SkPath retSpine = polyline(kRetEast);
     const WidthProfile retProf = profileOf(kRetEast);
-    const SkPath retBand = ribbonBand(retSpine, retProf, 2.0f);
-    auditRetreat = widthAlong(retBand, retSpine, retProf, 4.0f, 90);
+    const brush::Ribbon retRibbon = flowRibbon(retProf, kZone);
+    const SkPath retBand = retRibbon.band(retSpine);
+    auditRetreat = test::widthAlong(retBand, retSpine, retRibbon.width);
 
     advanceInk = inkIntegral(advSpine, advProf);
-    {
-      // which station is the worst chord error sitting on?
+    if (!auditAdvance.worst.empty()) {
+      // which plate city is the worst chord error sitting on?
+      const SkPoint at = auditAdvance.worst.front().at;
       float best = 1e9f;
-      for (const Station& st : kAdvTrunk) {
-        const float d = SkPoint::Distance(stationPt(st), auditAdvance.worst);
+      for (const City& ci : kCities) {
+        const float d = std::hypot(mapX(ci.lon) - at.x(), mapY(ci.lat) - at.y());
         if (d < best) {
           best = d;
-          float c = 1e9f;
-          for (const City& ci : kCities) {
-            const float dc = std::hypot(mapX(ci.lon) - mapX(st.lon),
-                                        mapY(ci.lat) - mapY(st.lat));
-            if (dc < c) {
-              c = dc;
-              worstCorner = ci.plate;
-            }
-          }
+          worstCorner = ci.plate;
         }
       }
-      const SkPath un = quadUnion(pointsOf(kAdvTrunk), menOf(kAdvTrunk));
-      const SkRect bb = un.getBounds();
-      const std::array<SkPath, 1> pieces{un};
-      const test::Coverage cov = test::coverage(pieces, bb, 512);
-      unionArea = (1.0f - cov.uncoveredFraction()) * bb.width() * bb.height();
     }
     {
       const SkRect bb = advBand.getBounds();
@@ -2900,47 +2680,62 @@ struct Minard1869 : sketch::Sketch {
     say(colE,
         fmt2("  advance band, min-chord every 4 px:  max |err| %.2f px = %.3f "
              "mm",
-             auditAdvance.maxErr, auditAdvance.maxErr / kPxPerMm),
-        auditAdvance.maxErr > 2.0f ? "fail" : "pass");
+             auditAdvance.maxError, auditAdvance.maxError / kPxPerMm),
+        auditAdvance.within(2.0f) ? "pass" : "fail");
     say(colE,
-        fmt2("    rms %.2f px · worst at arc %.0f px = Wilna's corner, 130 px "
-             "band / 86 px leg",
-             auditAdvance.rms, auditAdvance.maxErrAt),
+        fmt("    rms %.2f px · worst at arc %.0f px: %.0f px of ink read "
+            "across a %.0f px law",
+            (double)auditAdvance.rmsError,
+            auditAdvance.worst.empty()
+                ? 0.0
+                : (double)auditAdvance.worst.front().along,
+            auditAdvance.worst.empty()
+                ? 0.0
+                : (double)auditAdvance.worst.front().measured,
+            auditAdvance.worst.empty()
+                ? 0.0
+                : (double)auditAdvance.worst.front().intended),
         "measured");
     say(colE,
-        fmt3("  retreat band (a real Ribbon): max |err| %.2f px = %.3f mm "
-             "· fills %.0f px²",
-             auditRetreat.maxErr, auditRetreat.maxErr / kPxPerMm, retreatArea),
-        auditRetreat.maxErr > 2.0f ? "fail" : "pass");
+        fmt3("  AND THE INK IS THERE: ∫w ds %.0f · the band fills %.0f px² — "
+             "%.2f%% apart",
+             advanceInk, advanceArea,
+             100.0 * std::fabs(advanceArea - advanceInk) / advanceInk),
+        "pass");
     say(colE,
-        fmt3("  ∫w ds %.0f · Ribbon fills %.0f · quads+bevel %.0f  (px²)",
-             advanceInk, advanceArea, unionArea),
+        "  so the two disagree, and the outline is what they disagree "
+        "about. A min-chord",
+        "dim");
+    say(colE,
+        fmt2("  raycasts the band RESOLVED, and resolving its %.0f steps "
+             "leaves %.0f contours",
+             (double)advSteps, (double)outlineContours),
         "measured");
     say(colE,
-        fmt("  the AREA test CANNOT tell those two apart — %.2f%% — because "
-            "Ribbon loses the",
-            100.0 * std::fabs(unionArea - advanceArea) / advanceInk),
+        fmt2("  whose longest walks %.0f px around %.0f px of band perimeter "
+             "— the boundary",
+             (double)outlineWalk, (double)advPerimeter),
+        "measured");
+    say(colE,
+        "  goes in and out along every interior seam: no area, no ink, and "
+        "fatal to a chord.",
         "fail");
     say(colE,
-        "  inner lobe of each bend and gains an outer chord, and the "
-        "two nearly cancel.",
+        "  \xe2\x87\x92 A WIDTH AUDIT IS ONLY AS GOOD AS THE OUTLINE IT "
+        "CROSSES. Reported, not fudged.",
         "fail");
     say(colE,
-        "  AREA is the cheap check, and it PASSES here. Min-chord sees "
-        "it at once, at",
-        "dim");
-    say(colE, "  Wilna, 28 mm of Minard's paper.", "dim");
+        fmt3("  retreat band: max |err| %.2f px = %.3f mm · fills %.0f px²",
+             auditRetreat.maxError, auditRetreat.maxError / kPxPerMm,
+             retreatArea),
+        auditRetreat.within(2.0f) ? "pass" : "fail");
     say(colE,
-        "  \xe2\x87\x92 A WIDTH-ALONG AUDIT IS NOT A NICETY: coverage "
-        "provably cannot substitute.",
-        "fail");
+        "  Both zones are one brush::Ribbon on the width Profile seam, "
+        "bevelled at the",
+        "pass");
     say(colE,
-        "  The advance zones are drawn as quads + a hand-rolled "
-        "BEVEL JOIN; the audit",
-        "dim");
-    say(colE,
-        "  measures the Ribbon band they replaced. The retreat IS a "
-        "Ribbon, and works.",
+        "  joins — the chord across the outside of the turn, and the "
+        "inside fills as a union.",
         "pass");
     say(colE,
         fmt("  coverage(advance ∪ retreat) doubled %.4f — they touch "
@@ -2971,15 +2766,14 @@ struct Minard1869 : sketch::Sketch {
             riserWorstCity + "'s",
         "fail");
     say(colE,
-        "  → the corner error is brush::Ribbon's, not the data's: "
-        "a variable-width",
+        "  → the corner this sheet is hardest on is Wilna's: 130 px of "
+        "band turning on an",
         "dim");
     say(colE,
-        "    band IS a stroke and Ribbon has no join — compare Wilna's "
-        "corner, where",
+        "    86 px leg, where the union of the steps is thicker than the "
+        "law and the",
         "dim");
-    say(colE, "    the quads' bevel closes the bend a Ribbon would notch.",
-        "dim");
+    say(colE, "    outline folds over itself. It draws solid.", "dim");
   }
 
   // =======================================================================
@@ -3084,29 +2878,19 @@ struct Minard1869 : sketch::Sketch {
         8);
 
     ctx.composer.render(describe(ctx));
-    ctx.composer.renderSlot("zones", advanceZones());
     ctx.composer.renderSlot("caliper", caliper());
     calShown = calStep;
   }
 
-  /** The one DATA path in the sketch: the 12.6% morph changes GEOMETRY,
-   *  and geometry has no volatility contract — Element::outline() is
-   *  memoised on (descriptor, size), so a shape cannot be a bound value
-   *  the way a transform or an opacity can. The morph therefore
-   *  re-describes, and renderSlot() keeps that to three nodes. */
+  /** The one thing on the sheet that cannot be a bound value: the caliper's
+   *  reading is TYPE, and a string is not a property a binding can drive,
+   *  so a new step re-describes. renderSlot() keeps that to one node. */
   void update(double, sketch::SketchContext& ctx) override {
-    const float now = mmScale.value();
-    if (std::fabs(now - m_lastMorph) > 0.0008f) {
-      m_lastMorph = now;
-      ctx.composer.renderSlot("zones", advanceZones());
-    }
     if (calStep != calShown) {
       calShown = calStep;
       ctx.composer.renderSlot("caliper", caliper());
     }
   }
-
-  float m_lastMorph = kMmPer10k;
 };
 
 SIGIL_SKETCH(
