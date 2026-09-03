@@ -25,9 +25,10 @@
  * what becomes of the room left over: nothing, half above and half below,
  * all above, or spread BETWEEN the lines as extra leading, which is what
  * a magazine column does to reach its foot. The last two cells stand a
- * frame of stated height under the first and the last of those, and the
- * lines do not move between them — which is what this sheet has to
- * report about `distribute` today.
+ * frame of stated height under the first and the last of those: the room
+ * a distribution divides is the frame's own depth, so a leaf that states
+ * one has room to spend, and kJustify opens the gaps between the lines
+ * until the last one lands on the foot.
  *
  * EDIT THESE FIRST
  *   kWidows, kOrphans — the two keep counts.
@@ -281,10 +282,10 @@ struct KeepsAndFrames final : sketch::Sketch {
                         optionPlate(std::move(stacked))),
               kit::cell(voice(kOptionCell),
                         toU8("distribute(kJustify)"),
-                        toU8("the same room asked to spread between the "
-                             "lines as extra leading \xc2\xb7 on this "
-                             "frame nothing moves: the lines stand where "
-                             "kStart left them"),
+                        toU8("the same room spread between the lines as "
+                             "extra leading \xc2\xb7 the gaps open evenly "
+                             "and the last line lands on the frame's "
+                             "foot"),
                         optionPlate(std::move(justified)))},
          .gap = 14});
   }
