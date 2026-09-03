@@ -399,8 +399,8 @@ Steps the clock to `--at` (default 1.5 s) at `--fps` (default 60), then
 captures `--frames` PNGs (sequences number as `out_0001.png…`) at
 `--scale` (default 1: captures match the declared canvas pixel for
 pixel, which is what asset generation wants). Declare the exact canvas,
-give it a transparent background, draw, export. `sketches/frame_asset.cpp`
-is the template.
+give it a transparent background, draw, export. Any sketch answers to the
+flag, so the sketch that draws the asset is the template.
 
 `--fps` sets the PRE-ROLL step, not just the capture rate. A sketch
 using a fixed-rate steppable has a catch-up clamp, so pre-rolling far
