@@ -167,16 +167,18 @@
 //       `strokeDash`, the pen's own dash - the cloth, the plants and
 //       every contact marker.
 //     * every panel is a retained tree painted through `pen.element`:
-//       the six sidebar panels, the two instancing pools, the blast
-//       glow. Three of them are laid out with a HOLE - the anatomy
+//       the six sidebar panels, the two instancing pools. Three of them
+//       are laid out with a HOLE - the anatomy
 //       diagram, the relaxation A/B and the bench's second half - which
 //       the pen draws into at the box the panel's own arithmetic gives.
 //       The tree sets type and lays out; the pen draws what the solver
 //       just moved.
 //   Nothing goes through `pen.canvas()`: the drafting hatch inside the
 //   bump is a `pen.clip()` of the section's own triangle, and the blast's
-//   additive glow is a leaf of the overlay tree because its glow is
-//   authored in the leaf's unit box.
+//   additive glow is the pen's own rect under `fill(paint, SHAPE)`,
+//   which gives a falloff authored in a unit square the box it is a unit
+//   of - the shape's own bounds - without a leaf standing in to supply
+//   one.
 //
 //   ./build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
 //       src/sketch/sketches/hitman_verlet.cpp \
@@ -1283,25 +1285,44 @@ struct HitmanVerlet final : sketch::DrawSketch {
   }
 
   /** The retained overlay: every particle dot through instances(Mode::Live)
-   *  — the control case beside the pen's own stroking — and the blast's
-   *  additive glow, whose falloff is authored in the unit box of the leaf
-   *  that carries it. */
+   *  — the control case beside the pen's own stroking. */
   Element stageOverlay() {
-    const SkPoint c = toStage(kBlast);
     return stack()
         .width(Dim(kStage))
         .height(Dim(kStage))
         .child(box().inset(0).child(
-            instancing::instances(dotAtlas, dotPool, instancing::Mode::Live)))
-        .child(kit::disc(SkPoint(c), 120.0f)
-                   .fill(Paint::glowUnit({0.5f, 0.5f}, 1.0f,
-                                         {{0.0f, hex(0xFFF3E2, 1.0f)},
-                                          {0.35f, hex(0xFFC98A, 0.55f)},
-                                          {1.0f, hex(0xC8402F, 0.0f)}}))
-                   .blend(SkBlendMode::kPlus)
-                   .opacity(bind(&blastPhase).map(ch::easeOutQuad).clamp(0.0f,
-                                                                        1.0f))
-                   .key("blast"));
+            instancing::instances(dotAtlas, dotPool, instancing::Mode::Live)));
+  }
+
+  /** THE BLAST'S ADDITIVE GLOW, in the pen's own words. Its falloff is
+   *  authored in a UNIT SQUARE — nothing about it is in pixels — and
+   *  `fill(paint, SHAPE)` is what gives that unit square a box: the
+   *  240 x 240 the shape itself occupies, wherever the blast site is.
+   *  Before that word existed the glow needed a compose leaf whose only
+   *  job was to be a box for the fill to be a unit of, and the picture is
+   *  the same one.
+   *
+   *  The decay is the STOPS' alpha rather than a node opacity, because
+   *  the pass is additive and dst + a*src is what a dimming light does,
+   *  with nothing gathered in between. Off entirely once the phase is
+   *  spent, which is most of the loop. */
+  void blastGlow(Pen& pen) {
+    const float a =
+        std::clamp(ch::easeOutQuad(blastPhase.value()), 0.0f, 1.0f);
+    if (a <= 0.0f) return;
+    const SkPoint c = toStage(kBlast);
+    pen.push();
+    pen.translate(kStageX, kBodyY);
+    pen.noStroke();
+    pen.blendMode(sigil::draw::ADD);
+    pen.rectMode(sigil::draw::CENTER);
+    pen.fill(Paint::glowUnit({0.5f, 0.5f}, 1.0f,
+                             {{0.0f, hex(0xFFF3E2, 1.0f * a)},
+                              {0.35f, hex(0xFFC98A, 0.55f * a)},
+                              {1.0f, hex(0xC8402F, 0.0f)}}),
+             sigil::draw::SHAPE);
+    pen.rect(c.fX, c.fY, 240.0f, 240.0f);
+    pen.pop();
   }
 
   /** The stage's own labels, and the note block over the world box. */
@@ -1998,6 +2019,7 @@ struct HitmanVerlet final : sketch::DrawSketch {
     simulation(pen);
     pen.pop();
     pen.element(overlayEl, stageBox);
+    blastGlow(pen);
     pen.push();
     pen.translate(kStageX, kBodyY);
     stageLabels(pen);
