@@ -16,14 +16,19 @@
 
 namespace sigil::sketch::test {
 
-/** One green square, and nothing else: the body under every host here. */
+/** One green square, and nothing else: the body under every host here.
+ *  It declares a moment so a host can be asked what the running sketch
+ *  wants a still taken at. */
 struct Square : Sketch {
   void setup(SketchContext& ctx) override {
     ctx.canvas(120, 90);
     ctx.background({0, 0, 0, 1});
+    ctx.captureAt(kMoment);
     ctx.composer.render(compose::box().width(40).height(40).fill(
         compose::Fill::color({0, 1, 0, 1})));
   }
+
+  static constexpr double kMoment = 2.75;
 };
 
 inline Kind squareKind() { return kindOf<Square>(); }

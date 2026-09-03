@@ -395,12 +395,22 @@ inside it:
 
 ### `--frame`: the asset workflow
 
-Steps the clock to `--at` (default 1.5 s) at `--fps` (default 60), then
-captures `--frames` PNGs (sequences number as `out_0001.png…`) at
+Steps the clock at `--fps` (default 60) to the moment the sketch
+declared with `ctx.captureAt`, then captures `--frames` PNGs
+(sequences number as `out_0001.png…`) at
 `--scale` (default 1: captures match the declared canvas pixel for
 pixel, which is what asset generation wants). Declare the exact canvas,
 give it a transparent background, draw, export. Any sketch answers to the
 flag, so the sketch that draws the asset is the template.
+
+**The moment is the sketch's, not the flag's.** `--at <sec>` overrides
+it, and a sketch that declared none falls back to 1.5 s; otherwise a
+still lands where `ctx.captureAt` put it, so the same file photographed
+here and photographed by the sweep is the same frame. The line it prints
+says which of the three it used. `--bench` keeps the 1.5 s default
+whatever the sketch declared: its `--at` is a warm-up that has only to
+get programs, bakes and atlases hot, and pinning it keeps the measured
+run the same run for every sketch.
 
 `--fps` sets the PRE-ROLL step, not just the capture rate. A sketch
 using a fixed-rate steppable has a catch-up clamp, so pre-rolling far

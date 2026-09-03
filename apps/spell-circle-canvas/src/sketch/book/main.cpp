@@ -191,9 +191,16 @@ bool selectionNeedsDevice(int only, const std::string& kind) {
 // ---------------------------------------------------------------------------
 // Running one file, headless
 
+/** Where a capture lands when neither the caller nor the sketch says. */
+constexpr double kFallbackMoment = 1.5;
+
 struct CaptureOptions {
   std::string out;
-  double at = 1.5;     // seconds of fixed-step warmup before capture
+  /** Seconds of fixed-step stepping before the capture, as the CALLER
+   *  stated it. Negative means unstated, which is not the same as 1.5:
+   *  a still then lands at the moment the sketch itself declared, and
+   *  only a sketch that declares none falls back to the number. */
+  double at = -1.0;
   float scale = 1.0f;  // multiplier over the sketch's canvas size
   int frames = 1;      // >1 captures a numbered sequence
   double fps = 60.0;   // fixed-step rate
@@ -291,7 +298,13 @@ int runBench(sketch::Host& host, const CaptureOptions& options,
     flush();
   };
 
-  const int warmup = std::max(1, (int)std::lround(options.at / dt));
+  // A warm-up, not a capture: what it has to reach is the state where
+  // programs, bakes and atlases are hot, and any stretch of frames does
+  // that. So an unstated --at takes the fallback here rather than the
+  // sketch's declared moment, and the measured run stays the same run
+  // whatever moment the author chose to photograph.
+  const double warmSeconds = options.at >= 0.0 ? options.at : kFallbackMoment;
+  const int warmup = std::max(1, (int)std::lround(warmSeconds / dt));
   for (int i = 0; i < warmup; ++i) step();
 
   // One profiled frame BEFORE the timed run, so a failure can name the
@@ -394,12 +407,22 @@ int runBench(sketch::Host& host, const CaptureOptions& options,
 
 int runFrames(sketch::Host& host, const CaptureOptions& options) {
   if (!awaitFirstBuild(host)) return 1;
-  // Step the clock to --at with a fixed step, on a tiny scratch surface:
-  // the real pixels come from the capture below.
+  // THE MOMENT THE SKETCH DECLARED wins over any number this program
+  // could pick, because a still of an animation is a claim about that
+  // animation and the author is the one who knows which frame makes it.
+  // A stated --at overrides the declaration; a sketch declaring nothing
+  // gets the fallback. The declaration is only readable once a body has
+  // run its setup, which is why it is read here and not while parsing.
+  const double declared = host.captureSeconds();
+  const double at = options.at >= 0.0
+                        ? options.at
+                        : (declared > 0.0 ? declared : kFallbackMoment);
+  // Step the clock to that moment with a fixed step, on a tiny scratch
+  // surface: the real pixels come from the capture below.
   const double dt = 1.0 / options.fps;
   sk_sp<SkSurface> scratch =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(8, 8));
-  const int warmup = std::max(1, (int)std::lround(options.at / dt));
+  const int warmup = std::max(1, (int)std::lround(at / dt));
   for (int i = 0; i < warmup; ++i) host.frame(*scratch->getCanvas(), dt);
 
   for (int index = 0; index < options.frames; ++index) {
@@ -414,10 +437,14 @@ int runFrames(sketch::Host& host, const CaptureOptions& options) {
     }
     if (index + 1 < options.frames) host.frame(*scratch->getCanvas(), dt);
   }
-  std::printf("wrote %s (%d frame%s at %.3gx, build %d, work %.2f ms avg)\n",
-              options.out.c_str(), options.frames,
-              options.frames == 1 ? "" : "s", options.scale, host.generation(),
-              host.workMsAverage());
+  std::printf(
+      "wrote %s (%d frame%s at %.3gx, t=%.3gs %s, build %d, work %.2f ms "
+      "avg)\n",
+      options.out.c_str(), options.frames, options.frames == 1 ? "" : "s",
+      options.scale, at,
+      options.at >= 0.0 ? "asked for"
+                        : (declared > 0.0 ? "declared" : "by default"),
+      host.generation(), host.workMsAverage());
   return 0;
 }
 

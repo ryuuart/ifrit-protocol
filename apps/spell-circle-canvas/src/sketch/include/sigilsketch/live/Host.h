@@ -167,6 +167,15 @@ class Host {
    *  size and clear with this colour. */
   [[nodiscard]] SkSize canvasSize() const;
   [[nodiscard]] SkColor4f background() const;
+  /** THE SCENE TIME THE RUNNING SKETCH DECLARED a still of itself should
+   *  be taken at, or a negative number where it declared none — the
+   *  moment a capture steps to unless the caller names another.
+   *
+   *  A body declares it from inside its own setup, so it is only
+   *  truthful once something has loaded; before that it is negative,
+   *  which reads as "no preference" exactly as an undeclaring sketch
+   *  does. */
+  [[nodiscard]] double captureSeconds() const;
 
  private:
   /** One translation unit on a build's compile line, and where its

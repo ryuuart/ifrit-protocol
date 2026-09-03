@@ -46,6 +46,15 @@ TEST(SketchHost, OpensACompiledInSketchWithoutBuildingIt) {
   EXPECT_TRUE(host.errorLog().empty());
 }
 
+TEST(SketchHost, ReportsTheMomentTheSketchDeclared) {
+  // A capture with no moment named on the command line steps to this
+  // number, so a still is the frame the author chose rather than the
+  // one a default happened to reach.
+  const Watched file("sigil_sketch_host_moment");
+  Host host(options(file.path), fonts());
+  EXPECT_EQ(host.captureSeconds(), sigil::sketch::test::Square::kMoment);
+}
+
 TEST(SketchHost, DrawsTheSketchItOpened) {
   const Watched file("sigil_sketch_host_draws");
   Host host(options(file.path), fonts());

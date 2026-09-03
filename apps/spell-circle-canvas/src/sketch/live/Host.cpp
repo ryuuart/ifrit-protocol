@@ -205,6 +205,11 @@ SkColor4f Host::background() const {
   return m_session ? m_session->canvas().background : kUnloaded.background;
 }
 
+double Host::captureSeconds() const {
+  return m_session ? m_session->canvas().captureSeconds
+                   : kUnloaded.captureSeconds;
+}
+
 std::optional<std::filesystem::file_time_type> Host::sourceStamp() {
   std::error_code ec;
   const auto self = std::filesystem::last_write_time(m_options.sketchPath, ec);
