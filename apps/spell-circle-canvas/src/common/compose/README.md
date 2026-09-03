@@ -640,7 +640,15 @@ the two instruments for text in motion —
 rect, filled by its local time — `MeterPlacement` stands the cells over
 the beats or under them as a rule, for a track whose own letters are
 what is being watched) and `kit::restGhost` (the same word
-undeformed under the moving one) — and, shipped with the tiers whose
+undeformed under the moving one) — the furniture of a specimen sheet in
+`kit/Specimen.h` — `kit::cell`, a body with a label and a note set
+beside it as a `kit::Caption` says (`Caption::Where` puts the note under
+the body, or both lines above it, or both below), `kit::cells`, a run of
+them along one axis with a hairline between neighbours, and
+`kit::sheet`, the titled and footed page that rules its header and
+footer off from the content between them; every face, size and distance
+is the `Caption`'s and the `Sheet`'s, so the kit decides no look — and,
+shipped with the tiers whose
 types they are spelled in, `kit/Strokes.h`'s braid, bracket spans and brush
 presets and `kit/Plate.h`'s bordered feed plate (Brush), and
 `kit/Legibility.h` (Typography). The kit

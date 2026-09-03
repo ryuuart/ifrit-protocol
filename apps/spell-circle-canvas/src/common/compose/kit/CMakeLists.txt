@@ -36,6 +36,7 @@ add_library(SigilComposeKit STATIC
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/kit/PixelType.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/kit/Placers.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/kit/Routers.h
+  ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/kit/Specimen.h
   ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/kit/Sprites.h
 )
 

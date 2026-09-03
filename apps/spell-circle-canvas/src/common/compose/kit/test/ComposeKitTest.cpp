@@ -880,3 +880,137 @@ TEST(KitSprites, MarginAndSizeAreTheCallersNumbers) {
   // clipped edge the default avoids.
   EXPECT_GT(SkColorGetA(bm.getColor(32, 63)), 0u);
 }
+
+// ---------------------------------------------------------------------------
+// kit/Specimen.h — the captioned cell, the run of cells and the sheet.
+//
+// The claims are about WHERE THE PARTS LAND, so every case lays out through
+// a composer and reads the keyed boxes back, rather than restating the
+// margins the component spells.
+
+namespace {
+
+kit::Caption specimenVoice(kit::Caption::Where where) {
+  return {.where = where,
+          .label = weave::textStyle({.size = 12}),
+          .note = weave::textStyle({.size = 10}),
+          .gap = 6,
+          .noteGap = 4};
+}
+
+/** One line of type at @p size, as the layout will size it. */
+float lineHeight(float size) {
+  return measure(box().child(text(u8"Hg", weave::textStyle({.size = size}))),
+                 fonts())
+      .height();
+}
+
+}  // namespace
+
+TEST(KitSpecimen, TheCaptionsLinesStandWhereTheVoiceSays) {
+  const float label = lineHeight(12);
+  const float note = lineHeight(10);
+  // The body's top and the cell's height, for one arrangement.
+  const auto placed = [&](kit::Caption::Where where, bool withNote) {
+    StrokeHost host(300, 300);
+    host.composer.render(box().width(300).height(300).child(
+        kit::cell(specimenVoice(where), u8"LABEL",
+                  withNote ? u8"a note" : u8"",
+                  box().key("body").width(100).height(40))
+            .key("cell")));
+    host.frame();
+    return std::pair{host.composer.bounds("body").value().top(),
+                     host.composer.bounds("cell").value().height()};
+  };
+  // Split: the label over the body, the note under it.
+  auto [splitTop, splitHeight] = placed(kit::Caption::Where::Split, true);
+  EXPECT_NEAR(splitTop, label + 6, 1.0f);
+  EXPECT_NEAR(splitHeight, label + 6 + 40 + 6 + note, 1.5f);
+  // Above: both lines over the body, the note gap between them.
+  auto [aboveTop, aboveHeight] = placed(kit::Caption::Where::Above, true);
+  EXPECT_NEAR(aboveTop, label + 4 + note + 6, 1.5f);
+  EXPECT_NEAR(aboveHeight, aboveTop + 40, 1.5f);
+  // Below: the body first, then both lines.
+  auto [belowTop, belowHeight] = placed(kit::Caption::Where::Below, true);
+  EXPECT_FLOAT_EQ(belowTop, 0.0f);
+  EXPECT_NEAR(belowHeight, 40 + 6 + label + 4 + note, 1.5f);
+  // An absent note spends no gap: the cell ends at the body.
+  auto [bareTop, bareHeight] = placed(kit::Caption::Where::Split, false);
+  EXPECT_NEAR(bareTop, label + 6, 1.0f);
+  EXPECT_NEAR(bareHeight, label + 6 + 40, 1.0f);
+}
+
+TEST(KitSpecimen, ARunSpacesItsCellsAndRulesBetweenThem) {
+  const auto run = [](bool column) {
+    return kit::cells({.cells = {box().key("a").width(50).height(20),
+                                 box().key("b").width(50).height(30)},
+                       .column = column,
+                       .gap = 10,
+                       .divider = strokeRed(),
+                       .dividerWidth = 2});
+  };
+  StrokeHost host(300, 300);
+  host.composer.render(box().width(300).height(300).child(run(false)));
+  host.frame();
+  // cell, gap, rule, gap, cell — and the rule spans the taller cell.
+  EXPECT_FLOAT_EQ(host.composer.bounds("b").value().left(), 50 + 10 + 2 + 10);
+  EXPECT_EQ(host.pixel(61, 5), SK_ColorRED);
+  EXPECT_EQ(host.pixel(61, 25), SK_ColorRED);
+  EXPECT_EQ(host.pixel(55, 5), SK_ColorBLACK);
+
+  host.composer.render(box().width(300).height(300).child(run(true)));
+  host.frame();
+  EXPECT_FLOAT_EQ(host.composer.bounds("b").value().top(), 20 + 10 + 2 + 10);
+  EXPECT_EQ(host.pixel(5, 31), SK_ColorRED);
+  EXPECT_EQ(host.pixel(49, 31), SK_ColorRED);
+}
+
+TEST(KitSpecimen, ASheetRulesOffItsHeaderAndFooterAndFootsThePage) {
+  const float title = lineHeight(15);
+  const float footer = lineHeight(11);
+  kit::Sheet page{.title = u8"TITLE",
+                  .footer = u8"the footer",
+                  .titleStyle = weave::textStyle({.size = 15}),
+                  .footerStyle = weave::textStyle({.size = 11}),
+                  .marginX = 30,
+                  .marginTop = 16,
+                  .marginBottom = 14,
+                  .contentGap = 18,
+                  .rule = strokeRed(),
+                  .ruleWidth = 2,
+                  .key = "page"};
+  StrokeHost host(400, 300);
+  host.composer.render(
+      kit::sheet(page, box().key("body")).width(400).height(300));
+  host.frame();
+  const SkRect content = host.composer.bounds("page-content").value();
+  // The content stands one content gap under the title, inside the side
+  // margins, and one content gap over the footer, which sits on the bottom
+  // margin.
+  EXPECT_NEAR(content.top(), 16 + title + 18, 1.5f);
+  EXPECT_FLOAT_EQ(content.left(), 30.0f);
+  EXPECT_FLOAT_EQ(content.right(), 370.0f);
+  const SkRect foot = host.composer.bounds("page-footer").value();
+  EXPECT_NEAR(foot.bottom(), 300 - 14, 1.5f);
+  EXPECT_NEAR(foot.height(), footer, 1.0f);
+  EXPECT_NEAR(content.bottom(), foot.top() - 18, 1.5f);
+  // The rule bisects that gap and is drawn full width.
+  const SkRect rule = host.composer.bounds("page-head-rule").value();
+  EXPECT_FLOAT_EQ(rule.height(), 2.0f);
+  EXPECT_NEAR(rule.top(), 16 + title + 8, 1.5f);
+  EXPECT_EQ(host.pixel(200, (int)rule.top() + 1), SK_ColorRED);
+  EXPECT_EQ(host.pixel(31, (int)rule.top() + 1), SK_ColorRED);
+  EXPECT_EQ(host.pixel(200, (int)rule.top() - 2), SK_ColorBLACK);
+
+  // Unruled, the content lands at the same place: a rule bisects the gap
+  // rather than adding to it.
+  kit::Sheet plain = page;
+  plain.rule = Fill::none();
+  plain.key = "plain";
+  host.composer.render(
+      kit::sheet(plain, box().key("body")).width(400).height(300));
+  host.frame();
+  EXPECT_NEAR(host.composer.bounds("plain-content").value().top(),
+              content.top(), 1.0f);
+  EXPECT_FALSE(host.composer.bounds("plain-head-rule").has_value());
+}

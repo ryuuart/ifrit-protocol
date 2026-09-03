@@ -37,6 +37,7 @@
  * | `kit/Annotations.h` | …or `Anchored`, where the caller says |
  * | `kit/Typeset.h` | ruby, kenten, drop cap, `NestedStyle` |
  * | `kit/Typeset.h` | bullets, block rules |
+ * | `kit/Specimen.h` | `cell()`, `cells()`, `sheet()` — a specimen sheet's furniture |
  *
  * **`kit/Strokes.h` AND `kit/Plate.h` ARE NOT INCLUDED HERE, AND THIS
  * UMBRELLA DOES NOT GIVE YOU THEM.** Both are spelled in the Brush tier's
@@ -67,5 +68,6 @@
 #include "sigilcompose/kit/Kinetic.h"
 #include "sigilcompose/kit/Legibility.h"
 #include "sigilcompose/kit/PixelType.h"
+#include "sigilcompose/kit/Specimen.h"
 #include "sigilcompose/kit/Sprites.h"
 #include "sigilcompose/kit/Typeset.h"
