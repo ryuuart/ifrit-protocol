@@ -663,12 +663,17 @@ struct PsxDoomFire final : sketch::DrawSketch {
     pen.fill(fade(kPanelInk, a));
     pen.rect(0, 0, bw, bh);
     if (frame) {
+      // The crop and the lattice over it are the BUFFER, and the buffer
+      // is the box: a clip holds both inside it, so the grid ends where
+      // the bytes end and the keyline below is drawn outside the mask.
+      // One noSmooth covers the pair — a blown-up crop is blocks, and the
+      // lattice is a pixel grid too — and the pop puts smoothing back.
+      pen.push();
+      pen.clip([&] { pen.rect(0, 0, bw, bh); });
       pen.noSmooth();
       pen.fill(SkColor4f{1, 1, 1, a});
       pen.image(frame, 0, 0, bw, bh, (float)kCropX, (float)kCropY,
                 (float)kInspectCells, (float)kInspectRows);
-      pen.smooth();
-      pen.noSmooth();  // the lattice is a pixel grid too
       pen.stroke(fade({kKeyline.fR, kKeyline.fG, kKeyline.fB, 0.55f}, a));
       pen.strokeWeight(1);
       for (int i = 0; i <= kInspectCells; ++i)
@@ -677,7 +682,7 @@ struct PsxDoomFire final : sketch::DrawSketch {
       for (int j = 0; j <= kInspectRows; ++j)
         pen.line(0, (float)(j * kInspectZoom) + 0.5f, bw,
                  (float)(j * kInspectZoom) + 0.5f);
-      pen.smooth();
+      pen.pop();
     }
     pen.noFill();
     pen.stroke(fade(kKeyline, a));
