@@ -20,13 +20,19 @@
  * keeps every scene it hands out, so the sketch holds an image and
  * nothing else.
  *
- * WHO DRAWS THE MESHES is one value, `kRuntime`. The CPU executor sorts
- * triangles back to front and antialiases their edges; a device executor
- * depth-tests them and does not, so the two draw the same picture and not
- * the same bytes, and what they disagree about is a silhouette. A panel
- * is the canvas's own draw either way — the perspective is concatenated
- * and the 2D content runs on whatever surface the canvas is — which is
- * why the two agree about a panel exactly.
+ * WHO DRAWS THE MESHES is one value, `painter()`, and it is the process's
+ * own: `sketch::painterRuntime()` is the device executor where a host
+ * brought a device up and the CPU one where it did not, so the line is
+ * written once and both tiers are correct. Run this file plainly and the
+ * meshes go through the CPU executor, which sorts triangles back to front
+ * and antialiases their edges; run it with `--gpu` and the same call goes
+ * through `diligent::painterRuntime`, which depth-tests them and does
+ * not. The two draw the same picture and not the same bytes, and where
+ * they disagree is exactly the two MESH draws: the floor plane and the
+ * curved screen, whose triangle edges and texture sampling are each
+ * executor's own. The three flat cards are identical on both, because a
+ * panel is not a mesh draw at all — the perspective is a matrix concat
+ * and the image lands on whatever surface the canvas already is.
  *
  * The floor is `mesh::grid` over a flat function, lit at very low alpha.
  * It is not decoration: without a ground plane the cards have no horizon
@@ -45,6 +51,7 @@
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/render/Painter.h>
+#include <sigilgeometry/mesh/render/Runtime.h>
 #include <sigilsketch/canvas/Sketch.h>
 
 #include <cmath>
@@ -63,10 +70,12 @@ namespace {
 
 constexpr SkSize kCanvas = {1240, 720};
 
-/** WHO DRAWS THE MESHES. The CPU executor needs no device and is what a
- *  plate is hashed from; a device executor is the same call with another
- *  runtime in it, and every style, mesh and camera below is unchanged. */
-render::Runtime painter() { return render::Runtime::cpu(); }
+/** WHO DRAWS THE MESHES: the process's own painter, whatever it is. A
+ *  host that brought a device up installed the device executor here; a
+ *  host that did not hands back the CPU one, which is what a plate is
+ *  hashed from. Every style, mesh and camera below is the same either
+ *  way — the runtime is the only thing that differs. */
+render::Runtime painter() { return sketch::painterRuntime(); }
 
 /** A readout card, as an element tree: a header pill, a stack of tick
  *  rows, a two-sector gauge and a bar row. Sized in px because it is
