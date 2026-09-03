@@ -22,12 +22,13 @@
 // through their spans, and the first-class layer does the baking (2x
 // oversample built in) and the drawAtlas stamping.
 
-#include <sigilcompose/instances/Instances.h>
+#include <sigilcompose/core/Instances.h>
 #include <sigilcompose/kit/Flourish.h>
 #include <sigilcompose/kit/Legibility.h>
 #include <sigilcompose/kit/Ornament.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilweave/style/Type.h>
 
 #include <cmath>
 #include <entt/entt.hpp>
@@ -35,6 +36,7 @@
 #include <random>
 
 namespace sketch = sigil::sketch;
+namespace weave = sigil::weave;
 
 using namespace sigil::compose;
 using sigil::compose::toU8;
@@ -120,7 +122,7 @@ struct UiParticles final : sketch::Sketch {
         .foreground(sigil::compose::stroke(2, Fill::color(t.edge)))
         .alignItems(Align::Center)
         .justify(Justify::Center)
-        .child(text(std::move(label), type({.size = 15, .color = t.ink})));
+        .child(text(std::move(label), weave::textStyle({.size = 15, .color = t.ink})));
   }
   Element shout(const ChipTheme& t, std::u8string label, int spikes) {
     return box()
@@ -133,7 +135,7 @@ struct UiParticles final : sketch::Sketch {
         .foreground(sigil::compose::stroke(2, Fill::color(t.edge)))
         .alignItems(Align::Center)
         .justify(Justify::Center)
-        .child(text(std::move(label), type({.size = 13, .color = t.ink})));
+        .child(text(std::move(label), weave::textStyle({.size = 13, .color = t.ink})));
   }
   Element seal(const ChipTheme& t, std::u8string label, float lobe) {
     return box()
@@ -144,7 +146,7 @@ struct UiParticles final : sketch::Sketch {
         .foreground(sigil::compose::stroke(2, Fill::color(t.edge)))
         .alignItems(Align::Center)
         .justify(Justify::Center)
-        .child(text(std::move(label), type({.size = 13, .color = t.ink})));
+        .child(text(std::move(label), weave::textStyle({.size = 13, .color = t.ink})));
   }
   Element framed(const Palette& pal, std::u8string label) {
     return box()
@@ -154,7 +156,7 @@ struct UiParticles final : sketch::Sketch {
             sigil::image::ImageAsset::wrap(makeCarvedFrame(pal, 96)))))
         .alignItems(Align::Center)
         .justify(Justify::Center)
-        .child(text(std::move(label), type({.size = 15, .color = pal.ink})));
+        .child(text(std::move(label), weave::textStyle({.size = 15, .color = pal.ink})));
   }
   Element note(const ChipTheme& t, std::u8string line1, std::u8string line2) {
     PathFormat dashed;
@@ -174,8 +176,8 @@ struct UiParticles final : sketch::Sketch {
         .column()
         .gap(2)
         .padding(6)
-        .child(text(std::move(line1), type({.size = 12, .color = t.ink})))
-        .child(text(std::move(line2), type({.size = 10, .color = t.edge})));
+        .child(text(std::move(line1), weave::textStyle({.size = 12, .color = t.ink})))
+        .child(text(std::move(line2), weave::textStyle({.size = 10, .color = t.edge})));
   }
 
   void buildChipAtlas() {
@@ -243,10 +245,10 @@ struct UiParticles final : sketch::Sketch {
   Element flourishPost(const PostConfig& cfg) {
     FlourishStyle s;  // gilt-on-parchment
     return flourishCard(s, kPostW - 6, kPostH - 6)
-        .child(text(cfg.title, type({.size = 15, .color = s.ink})))
-        .child(text(cfg.body1, type({.size = 10.5f, .color = s.ink})))
+        .child(text(cfg.title, weave::textStyle({.size = 15, .color = s.ink})))
+        .child(text(cfg.body1, weave::textStyle({.size = 10.5f, .color = s.ink})))
         .child(
-            text(cfg.body2, type({.size = 10.5f,
+            text(cfg.body2, weave::textStyle({.size = 10.5f,
                                   .color = SkColor4f{s.bronze.fR, s.bronze.fG,
                                                      s.bronze.fB, 1}})));
   }
@@ -262,9 +264,9 @@ struct UiParticles final : sketch::Sketch {
         .column()
         .padding(30, 26)
         .gap(5)
-        .child(text(cfg.title, type({.size = 15, .color = pal.stem})))
-        .child(text(cfg.body1, type({.size = 10.5f, .color = pal.ink})))
-        .child(text(cfg.body2, type({.size = 10.5f, .color = pal.ink})));
+        .child(text(cfg.title, weave::textStyle({.size = 15, .color = pal.stem})))
+        .child(text(cfg.body1, weave::textStyle({.size = 10.5f, .color = pal.ink})))
+        .child(text(cfg.body2, weave::textStyle({.size = 10.5f, .color = pal.ink})));
   }
   Element plainPost(const PostConfig& cfg) {
     // A modern dark UI card — the counterpoint to the ornate borders.
@@ -280,11 +282,11 @@ struct UiParticles final : sketch::Sketch {
         .column()
         .padding(16, 14)
         .gap(6)
-        .child(text(cfg.title, type({.size = 15, .color = accent})))
+        .child(text(cfg.title, weave::textStyle({.size = 15, .color = accent})))
         .child(box().width(pct(38)).height(2).corners({1}).fill(
             Fill::color(accent)))
-        .child(text(cfg.body1, type({.size = 10.5f, .color = hex(0xcdd3df)})))
-        .child(text(cfg.body2, type({.size = 10.5f, .color = hex(0x9aa3b4)})));
+        .child(text(cfg.body1, weave::textStyle({.size = 10.5f, .color = hex(0xcdd3df)})))
+        .child(text(cfg.body2, weave::textStyle({.size = 10.5f, .color = hex(0x9aa3b4)})));
   }
 
   Element postVariant(const PostConfig& cfg) {
@@ -462,7 +464,7 @@ struct UiParticles final : sketch::Sketch {
             .child(
                 kit::scrim(text(u8"UI as particles \u2014 820 chips over "
                                 u8"30 posts, one instances() stamp a tier",
-                                type({.size = 17, .color = hex(0xf2f5fb)})),
+                                weave::textStyle({.size = 17, .color = hex(0xf2f5fb)})),
                            {.fill = Fill::color({0.03f, 0.025f, 0.06f, 0.92f}),
                             .paddingX = 14,
                             .paddingY = 9})
@@ -475,5 +477,6 @@ struct UiParticles final : sketch::Sketch {
 
 }  // namespace
 
-SIGIL_SKETCH_AS(UiParticles, "ui particles", "Catalog \xc2\xb7 Scale",
-                "SoA scale \xc2\xb7 instances()")
+SIGIL_SKETCH_AS(UiParticles, "ui particles", "Specimen",
+                "instances() at scale \xe2\x80\x94 two atlases over a "
+                "structure-of-arrays simulation")
