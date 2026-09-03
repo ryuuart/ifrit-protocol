@@ -148,16 +148,19 @@
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/brush/Hatches.h>
 #include <sigilcompose/brush/Lines.h>
-#include <sigilcompose/core/Material.h>
-#include <sigilcompose/core/Patterns.h>
+#include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/PixelType.h>
-#include <sigilcompose/kit/Strokes.h>
 #include <sigilcompose/kit/Routers.h>
-#include <sigilcompose/kit/Silhouettes.h>
-#include <sigilcompose/typography/Type.h>
+#include <sigilcompose/kit/Strokes.h>
 #include <sigilcore/compute/Noise.h>
+#include <sigilgeometry/kit/Shapers.h>
+#include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilmaterial/field/Field.h>
+#include <sigilmaterial/skia/Paint.h>
+#include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>
+#include <sigilweave/style/Type.h>
 
 #include <algorithm>
 #include <array>
@@ -167,10 +170,16 @@
 #include <vector>
 
 namespace sketch = sigil::sketch;
+namespace field = sigil::material::field;
+namespace shapers = sigil::geometry::shapers;
+namespace shapes = sigil::geometry::shapes;
+namespace weave = sigil::weave;
 
 using namespace sigil::compose;
+using namespace sigil::motion;
 using namespace std::chrono_literals;
-namespace weave = sigil::weave;
+using sigil::material::skia::Paint;
+using sigil::weave::ports::pickTypeface;
 namespace ch = choreograph;
 
 namespace thaum {
@@ -442,7 +451,7 @@ inline float tierMul(EdgeTier t) {
 }
 inline SkColor4f tierTint(EdgeTier t, SkColor4f base) {
   const float k = tierMul(t);
-  SkColor4f c = mul(base, k);
+  SkColor4f c = scaleRgb(base, k);
   if (t == kSiblingKnown)
     c.fB = base.fB * 0.4f;  // 0.3,0.3,0.4 — the one tier with a hue
   return c;
@@ -528,7 +537,8 @@ inline Router thaumRoute(bool flipped) {
 
 // ---------------------------------------------------------------------------
 // INK. Every tile in the route vocabulary is generated from the brush kit:
-// shapers::Jitter over lines::cased, plus a light brush::Scatter of spatter.
+// shapers::Jitter over a layered bed and a ruled body, plus a light
+// brush::Scatter of spatter.
 // Art elements are held by the sketch so their node identity is stable and the
 // brush::Pattern bake happens once.
 
@@ -542,8 +552,8 @@ inline Brush penBrush(SkColor4f tint, float k, const Element& spatter,
   Brush br;
   if (bow > 0)
     br.shaped(
-        kit::brush::shapers::Wave{.amplitude = g(bow), .wavelength = g(30)});
-  br.shaped(kit::brush::shapers::Jitter{
+        shapers::Wave{.amplitude = g(bow), .wavelength = g(30)});
+  br.shaped(shapers::Jitter{
       .segLength = g(4.5f), .deviation = g(0.45f), .seed = 21});
   // The bed: a crisp dark outline a GUI px wider than the body, and NO blur.
   // brush::Pattern and brush::Scatter bake their art with snapshot(), which
@@ -551,15 +561,15 @@ inline Brush penBrush(SkColor4f tint, float k, const Element& spatter,
   // one of the hundred-plus stamps a frame of routes costs. Art stamped that
   // often has to be flat geometry.
   br.layer(LayeredBrush{{
-      {g(4.0f) * k, mul(kInkDeep, 1.0f, 0.34f * tint.fA)},
-      {g(2.6f) * k, mul(kInkDeep, 1.0f, 0.92f * tint.fA)},
+      {g(4.0f) * k, scaleRgb(kInkDeep, 1.0f, 0.34f * tint.fA)},
+      {g(2.6f) * k, scaleRgb(kInkDeep, 1.0f, 0.92f * tint.fA)},
   }});
   // the body: one rule — state moves VALUE, never width
   br.layer(lines::Line{.width = g(1.3f) * k, .fill = Fill::color(tint)});
   // the dry edge: a hairline offset to one side, where the nib lifted
   br.layer(lines::Line{.width = g(0.45f) * k,
-                       .fill = Fill::color(mul(tint, 1.35f, 0.85f * tint.fA))},
-           {kit::brush::shapers::Offset{.px = g(0.85f), .step = g(2)}});
+                       .fill = Fill::color(scaleRgb(tint, 1.35f, 0.85f * tint.fA))},
+           {shapers::Offset{.px = g(0.85f), .step = g(2)}});
   br.layer(brush::Scatter{.art = spatter,
                           .spacing = g(13),
                           .seed = 9,
@@ -578,7 +588,7 @@ inline Element spatterCell(SkColor4f tint) {
       .width(g(1.2f))
       .height(g(1.2f))
       .shape(shapes::circle())
-      .fill(Fill::color(mul(tint, 0.85f, 0.7f * tint.fA)));
+      .fill(Fill::color(scaleRgb(tint, 0.85f, 0.7f * tint.fA)));
 }
 
 /** One 24x24 straight tile, authored 28 GUI px wide so successive stamps
@@ -612,10 +622,10 @@ inline Element knotCell(SkColor4f tint) {
                   .width(g(4.4f))
                   .height(g(3.2f))
                   .shape(shapes::polygon(4, 0))
-                  .fill(Fill::color(mul(tint, 1.12f)));
+                  .fill(Fill::color(scaleRgb(tint, 1.12f)));
   e.stroke(
       PathFormat{.width = g(1.1f),
-                 .strokeFill = Fill::color(mul(kInkDeep, 1, 0.9f * tint.fA))});
+                 .strokeFill = Fill::color(scaleRgb(kInkDeep, 1, 0.9f * tint.fA))});
   return e;
 }
 
@@ -669,7 +679,7 @@ inline Element arrowCell(SkColor4f tint) {
       .fill(Fill::color(tint))
       .stroke(PathFormat{
           .width = g(1),
-          .strokeFill = Fill::color(mul(kInkDeep, 1, 0.6f * tint.fA))});
+          .strokeFill = Fill::color(scaleRgb(kInkDeep, 1, 0.6f * tint.fA))});
 }
 
 // ---------------------------------------------------------------------------
@@ -731,35 +741,35 @@ inline Element plateArt(uint8_t meta, uint32_t seed, const Element& spatter) {
   else if (meta & kHex)
     shape = shapes::polygon(6, 90);
 
-  const SkColor4f face = hidden ? mul(kPaper, 0.80f) : kPaper;
-  const SkColor4f lit = hidden ? mul(kPaperLit, 0.80f) : kPaperLit;
+  const SkColor4f face = hidden ? scaleRgb(kPaper, 0.80f) : kPaper;
+  const SkColor4f lit = hidden ? scaleRgb(kPaperLit, 0.80f) : kPaperLit;
 
   Element e = box()
                   .width(g(32))
                   .height(g(32))
                   .shape(shape)
-                  .fill(Material::radialUnit(
+                  .fill(Paint::radialUnit(
                       {0.38f, 0.32f}, 1.05f,
-                      {{0.0f, lit}, {0.55f, face}, {1.0f, mul(face, 0.42f)}}))
+                      {{0.0f, lit}, {0.55f, face}, {1.0f, scaleRgb(face, 0.42f)}}))
                   .overlay(lines::Hatch{
-                      .strokeFill = Fill::color(mul(kPaperDark, 1, 0.13f)),
+                      .strokeFill = Fill::color(scaleRgb(kPaperDark, 1, 0.13f)),
                       .spacing = g(3.2f),
                       .width = g(0.6f),
                       .angleDeg = 32});
   // A doubled rule: a solid outer and a dotted inner that stops short.
   Brush rule;
-  rule.shaped(kit::brush::shapers::Jitter{
+  rule.shaped(shapers::Jitter{
       .segLength = g(5), .deviation = g(0.7f), .seed = seed});
   lines::Line outer;
   outer.width = g(1.6f);
-  outer.fill = Fill::color(mul(kInkDeep, 1.0f, hidden ? 0.55f : 0.9f));
+  outer.fill = Fill::color(scaleRgb(kInkDeep, 1.0f, hidden ? 0.55f : 0.9f));
   rule.layer(outer);
   lines::Line inner;
   inner.width = g(0.8f);
-  inner.fill = Fill::color(mul(kBrassLit, hidden ? 0.35f : 0.75f));
+  inner.fill = Fill::color(scaleRgb(kBrassLit, hidden ? 0.35f : 0.75f));
   inner.dashIntervals = {g(2.0f), g(hidden ? 4.0f : 2.5f)};
   rule.layer(inner,
-             {kit::brush::shapers::Offset{.px = -g(2.4f), .step = g(2)}});
+             {shapers::Offset{.px = -g(2.4f), .step = g(2)}});
   e.stroke(rule);
   return e;
 }
@@ -771,13 +781,13 @@ inline Element spikyOverlay(uint32_t seed) {
   Element e = box()
                   .inset(0)
                   .shape(shapes::star(8, 0.74f, 0.35f))
-                  .fill(Fill::color(mul(kBrass, 1.0f, 0.30f)));
+                  .fill(Fill::color(scaleRgb(kBrass, 1.0f, 0.30f)));
   Brush br;
-  br.shaped(kit::brush::shapers::Jitter{
+  br.shaped(shapers::Jitter{
       .segLength = g(4), .deviation = g(0.6f), .seed = seed});
   lines::Line l;
   l.width = g(1.1f);
-  l.fill = Fill::color(mul(kBrassLit, 0.9f, 0.85f));
+  l.fill = Fill::color(scaleRgb(kBrassLit, 0.9f, 0.85f));
   br.layer(l);
   e.stroke(br);
   return e;
@@ -1007,7 +1017,7 @@ inline Element researchBadge() {
       .width(g(16))
       .height(g(16))
       .shape(shapes::star(4, 0.30f, 0.55f))
-      .fill(Material::radialUnit(
+      .fill(Paint::radialUnit(
           {0.5f, 0.5f}, 0.9f,
           {{0, hex(0xFFF3C0)}, {0.45f, hex(0xFFAA00)}, {1, hex(0xFFAA00, 0)}}));
 }
@@ -1052,7 +1062,7 @@ inline Element warpSwirl(const ch::Output<float>* spin, int strength) {
                   .width(g(44))
                   .height(g(44))
                   .shape(shapes::star(6, 0.50f, 0.62f))
-                  .fill(Material::radialUnit({0.5f, 0.5f}, 1.0f,
+                  .fill(Paint::radialUnit({0.5f, 0.5f}, 1.0f,
                                              {{0.0f, hex(0xC060FF, a)},
                                               {0.45f, hex(0x7A0BA8, a * 0.8f)},
                                               {1.0f, hex(0x2A0038, 0)}}))
@@ -1081,16 +1091,16 @@ inline Element frameRun() {
         k.r(0, 2, W, H - 4, kBrass);
         k.r(0, 2, W, 1, kBrassLit);
         k.r(0, H - 3, W, 1, kBrassDark);
-        k.r(0, 5, W, 1, mul(kBrassDark, 1, 0.55f));
-        k.r(0, H - 6, W, 1, mul(kBrassLit, 1, 0.35f));
+        k.r(0, 5, W, 1, scaleRgb(kBrassDark, 1, 0.55f));
+        k.r(0, H - 6, W, 1, scaleRgb(kBrassLit, 1, 0.35f));
         // beading: a lens every 8 px, and a rivet every 16
         for (int i = 0; i < (int)W; i += 8) {
-          k.r((float)i + 2, 7, 4, H - 14, mul(kBrass, 1.22f));
-          k.r((float)i + 3, 8, 2, H - 16, mul(kBrass, 0.72f));
+          k.r((float)i + 2, 7, 4, H - 14, scaleRgb(kBrass, 1.22f));
+          k.r((float)i + 3, 8, 2, H - 16, scaleRgb(kBrass, 0.72f));
         }
         for (int i = 8; i < (int)W; i += 16) {
           k.r((float)i - 1, H / 2 - 1, 2, 2, kBrassLit);
-          k.px((float)i - 1, H / 2, mul(kBrassDark, 1, 0.8f));
+          k.px((float)i - 1, H / 2, scaleRgb(kBrassDark, 1, 0.8f));
         }
       }));
 }
@@ -1116,11 +1126,11 @@ inline Element cornerPlate(SkColor4f tint) {
         SkPaint p;
         p.setAntiAlias(true);
         // the seating shadow, then the boss body as a lit sphere
-        p.setColor4f(T(mul(kBrassDark, 0.7f, 0.85f)), nullptr);
+        p.setColor4f(T(scaleRgb(kBrassDark, 0.7f, 0.85f)), nullptr);
         c.drawCircle(m + g(0.6f), m + g(0.8f), g(10.6f), p);
         for (int i = 0; i < 9; ++i) {
           const float f = (float)i / 8.0f;
-          p.setColor4f(T(mul(kBrass, 1.55f - 0.85f * f)), nullptr);
+          p.setColor4f(T(scaleRgb(kBrass, 1.55f - 0.85f * f)), nullptr);
           c.drawCircle(m - g(1.5f) * (1 - f), m - g(1.8f) * (1 - f),
                        g(10.0f) * (1.0f - 0.62f * f), p);
         }
@@ -1129,9 +1139,9 @@ inline Element cornerPlate(SkColor4f tint) {
           const float a = 0.7853982f + (float)i * 1.5707963f;
           const float x = m + std::cos(a) * g(7.2f);
           const float y = m + std::sin(a) * g(7.2f);
-          p.setColor4f(T(mul(kBrassDark, 1.0f, 0.9f)), nullptr);
+          p.setColor4f(T(scaleRgb(kBrassDark, 1.0f, 0.9f)), nullptr);
           c.drawCircle(x, y, g(1.9f), p);
-          p.setColor4f(T(mul(kBrassLit, 1.15f)), nullptr);
+          p.setColor4f(T(scaleRgb(kBrassLit, 1.15f)), nullptr);
           c.drawCircle(x - g(0.35f), y - g(0.4f), g(1.2f), p);
         }
         // the bevel: a bright arc up-left, a dark arc down-right
@@ -1139,17 +1149,17 @@ inline Element cornerPlate(SkColor4f tint) {
         p.setStrokeWidth(g(1.3f));
         const SkRect ring =
             SkRect::MakeLTRB(m - g(10), m - g(10), m + g(10), m + g(10));
-        p.setColor4f(T(mul(kBrassLit, 1.25f, 0.9f)), nullptr);
+        p.setColor4f(T(scaleRgb(kBrassLit, 1.25f, 0.9f)), nullptr);
         c.drawArc(ring, 150, 150, false, p);
-        p.setColor4f(T(mul(kBrassDark, 1.0f, 0.9f)), nullptr);
+        p.setColor4f(T(scaleRgb(kBrassDark, 1.0f, 0.9f)), nullptr);
         c.drawArc(ring, 330, 150, false, p);
         // the recess and its catchlight
         p.setStyle(SkPaint::kFill_Style);
-        p.setColor4f(T(mul(kBrassDark, 1.1f)), nullptr);
+        p.setColor4f(T(scaleRgb(kBrassDark, 1.1f)), nullptr);
         c.drawCircle(m, m, g(4.4f), p);
-        p.setColor4f(T(mul(kBrass, 1.35f)), nullptr);
+        p.setColor4f(T(scaleRgb(kBrass, 1.35f)), nullptr);
         c.drawCircle(m, m, g(3.1f), p);
-        p.setColor4f(T(mul(kBrassLit, 1.3f, 0.85f)), nullptr);
+        p.setColor4f(T(scaleRgb(kBrassLit, 1.3f, 0.85f)), nullptr);
         c.drawCircle(m - g(1.0f), m - g(1.1f), g(1.3f), p);
       }));
 }
@@ -1192,11 +1202,11 @@ inline constexpr float kPixSizePx = 10.0f;
 
 inline PixText bakeText(const std::string& s, weave::FontContext& fonts,
                         const sk_sp<SkTypeface>& face, float sizePx) {
-  weave::TextStyle st;
-  st.shaping.typeface = face;
-  st.shaping.fontSize = sizePx;
-  st.shaping.aliased = true;
-  st.paint.foreground.setColor(SK_ColorWHITE);
+  const weave::TextStyle st = weave::textStyle({.face = face,
+                                                .size = sizePx,
+                                                .color = {1, 1, 1, 1},
+                                                .aliased = true,
+                                                .color8 = true});
   const std::u8string u8(reinterpret_cast<const char8_t*>(s.c_str()));
   return ::sigil::compose::kit::bakeRun(u8, fonts, st);
 }
@@ -1238,7 +1248,7 @@ struct Thaumonomicon : sketch::Sketch {
   PixText tipTitle, tipMissing, tipParent;
 
   static sk_sp<SkTypeface> systemFace() {
-    return sigil::compose::pickFace(
+    return pickTypeface(
         {"Menlo", "Monaco", "Courier New", "Helvetica"});
   }
 
@@ -1256,7 +1266,7 @@ struct Thaumonomicon : sketch::Sketch {
         // this file transcribes has nothing to carry over a flat brown
         // ground — a 2.0 : 1.5 depth ratio only reads when the two planes
         // hold structure the eye can follow.
-        Material::radialUnit({0.44f, 0.38f}, 1.20f,
+        Paint::radialUnit({0.44f, 0.38f}, 1.20f,
                              {{0.00f, hex(0x6E2A72)},
                               {0.22f, hex(0x4A1A56)},
                               {0.46f, hex(0x2A1036)},
@@ -1294,12 +1304,12 @@ struct Thaumonomicon : sketch::Sketch {
       // the wheel: four rules and three rings, plus a 72-tick limb
       for (int i = 0; i < 6; ++i) {
         p.setStrokeWidth(g(i % 3 == 0 ? 2.0f : 0.9f));
-        p.setColor4f(mul(kBrassLit, 1.0f, 0.13f + 0.05f * (float)(i % 3)),
+        p.setColor4f(scaleRgb(kBrassLit, 1.0f, 0.13f + 0.05f * (float)(i % 3)),
                      nullptr);
         c.drawCircle(o.fX, o.fY, g(46.0f + (float)i * 30.0f), p);
       }
       p.setStrokeWidth(g(1.0f));
-      p.setColor4f(mul(kBrassLit, 1.0f, 0.17f), nullptr);
+      p.setColor4f(scaleRgb(kBrassLit, 1.0f, 0.17f), nullptr);
       SkPathBuilder t;
       for (int i = 0; i < 72; ++i) {
         const float aRad = (float)i * 5.0f * 0.0174533f;
@@ -1338,7 +1348,7 @@ struct Thaumonomicon : sketch::Sketch {
                 .inset(0)
                 .opacity(0.42f)
                 .blend(SkBlendMode::kOverlay)
-                .fill(patterns::grain(0.06f, 5, 3.0f)));
+                .fill(Paint::recipe(field::grain(0.06f, 5, 3.0f))));
     return e;
   }
 
@@ -1351,9 +1361,9 @@ struct Thaumonomicon : sketch::Sketch {
         .height(h)
         .blend(SkBlendMode::kScreen)
         .opacity(0.34f)
-        .fill(Material::blend(
-            {{patterns::grain(0.0075f, 4, 11.0f), SkBlendMode::kSrc},
-             {Material::radialUnit({0.5f, 0.5f}, 1.0f,
+        .fill(Paint::blend(
+            {{Paint::recipe(field::grain(0.0075f, 4, 11.0f)), SkBlendMode::kSrc},
+             {Paint::radialUnit({0.5f, 0.5f}, 1.0f,
                                    {{0.0f, hex(0xFFFFFF)},
                                     {0.7f, hex(0x808080)},
                                     {1.0f, hex(0x000000)}}),
@@ -1536,14 +1546,14 @@ struct Thaumonomicon : sketch::Sketch {
     Brush br;
     lines::Line outer;
     outer.width = g(1.2f);
-    outer.fill = Fill::color(mul(kBrassDark, 1.0f, 0.85f));
+    outer.fill = Fill::color(scaleRgb(kBrassDark, 1.0f, 0.85f));
     br.layer(outer);
     lines::Line dotted;
     dotted.width = g(0.8f);
-    dotted.fill = Fill::color(mul(kBrassLit, 0.85f, 0.65f));
+    dotted.fill = Fill::color(scaleRgb(kBrassLit, 0.85f, 0.65f));
     dotted.dashIntervals = {g(1.2f), g(3.0f)};
     br.layer(dotted,
-             {kit::brush::shapers::Offset{.px = -g(2.5f), .step = g(3)}});
+             {shapers::Offset{.px = -g(2.5f), .step = g(3)}});
     e.stroke(br);
     return e;
   }
