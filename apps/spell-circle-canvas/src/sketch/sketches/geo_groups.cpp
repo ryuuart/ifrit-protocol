@@ -1,24 +1,28 @@
-// geo_groups.cpp — A HOUDINI .geo COMES IN, GROUPS AND ALL, and its groups
-// are pop masks the moment they land.
+// geo_groups.cpp — A HOUDINI .geo GOES OUT AND COMES BACK, AND THE GROUP
+// SURVIVES THE TRIP AS THE MASK IT ALWAYS WAS.
 // =============================================================================
-// The file is parsed by SigilGeometry's importer, poured into a Cloud, and
-// that cloud SEEDS a chain (pop::on(cloud), the PointSet generator). Its
-// point group "ring" is a 0/1 lane under that name — exactly what
-// `.masked("ring")` reads.
+// A flat grid is built with points::grid, given a tint sweep and a 0/1
+// lane "ring", and written as Houdini's JSON .geo by encode::geo. That
+// text is then read by the .geo importer, poured into a Cloud, and that
+// cloud SEEDS a chain (pop::on(cloud), the PointSet generator) whose lane
+// "ring" is exactly what `.masked("ring")` reads.
 //
-// The .geo text is generated below in the shape Houdini writes (paged
-// attributes, boolRLE groups) so this file stays self-contained; drop a
-// real save in its place and nothing else changes.
+// THE GROUP AND THE LANE ARE THE SAME THING, which is what the round trip
+// shows: the reader turns a .geo point group INTO a 0/1 scalar lane under
+// its own name, and nothing on this side can tell such a lane from any
+// other scalar — so the writer sends it back as the attribute it became.
+// Drop a real Houdini save with a real `ring` group in place of the
+// encoded text and every panel below is unchanged.
 //
-//   1. as saved     — Cd from the file colours the points; the "ring"
-//                     group is drawn larger by a masked Math on Scale.
+//   1. as saved     — the tint lane colours the points; the "ring" lane
+//                     is drawn larger by a masked Math on Scale.
 //   2. peak outside — everyone outside the ring peaks along N; the ring
-//                     stays (the group inverted into a second mask).
+//                     stays (the lane inverted into a second mask).
 //   3. twist ring   — only the ring turns about +Y.
 //
 // EDIT THESE FIRST
-//   kSide      — the grid's side in points (the file is regenerated).
-//   kRingRadius / kRingWidth — which points the group holds.
+//   kSide      — the grid's side in points.
+//   kRingRadius / kRingWidth — which points the lane holds.
 //   kTwistDeg  — panel 3's amount.
 
 #include <include/core/SkCanvas.h>
@@ -28,6 +32,7 @@
 #include <sigilweave/style/Type.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/codec/Decode.h>
+#include <sigilgeometry/mesh/codec/Encode.h>
 #include <sigilgeometry/mesh/pop/Points.h>
 #include <sigilgeometry/mesh/pop/Pop.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -57,67 +62,26 @@ const SkColor4f kInk{0.90f, 0.93f, 0.97f, 1};
 const SkColor4f kDim{0.55f, 0.60f, 0.70f, 1};
 const SkColor4f kFrame{0.24f, 0.28f, 0.36f, 1};
 
-/** A .geo save of a flat grid of points with N up, a Cd sweep across x,
- *  and a point group "ring": paged P (one page, the way Houdini pages
- *  1024 elements), tuple-listed N and Cd, a boolRLE group. */
-std::string houdiniGeo() {
-  const int n = kSide * kSide;
-  std::string p, nrm, cd, rle;
-  int runFlag = -1, runLen = 0;
-  const auto flush = [&] {
-    if (runLen == 0) return;
-    if (!rle.empty()) rle += ',';
-    rle += std::to_string(runLen) + (runFlag ? ",true" : ",false");
-  };
-  for (int i = 0; i < n; ++i) {
-    const float x = ((float)(i % kSide) - (float)(kSide - 1) * 0.5f) * kSpacing;
-    const int row = i / kSide;
-    const float z = ((float)row - (float)(kSide - 1) * 0.5f) * kSpacing;
-    if (i) {
-      p += ',';
-      nrm += ',';
-      cd += ',';
-    }
-    p += std::to_string(x) + ",0," + std::to_string(z);
-    nrm += "[0,1,0]";
-    const float t = (float)(i % kSide) / (float)(kSide - 1);
-    cd += "[" + std::to_string(0.2f + 0.7f * t) + "," + std::to_string(0.45f) +
-          "," + std::to_string(0.9f - 0.7f * t) + "]";
-    const float r = std::sqrt(x * x + z * z);
-    const int inRing = std::abs(r - kRingRadius) < kRingWidth * 0.5f;
-    if (inRing == runFlag) {
-      ++runLen;
-    } else {
-      flush();
-      runFlag = inRing;
-      runLen = 1;
-    }
+/** The grid this study saves: a flat lattice with N up, a tint sweep
+ *  across x, and a 0/1 lane "ring" — a point group's own spelling on this
+ *  side of the seam. */
+geometry::mesh::Cloud sourceGrid() {
+  const float half = (float)(kSide - 1) * 0.5f * kSpacing;
+  geometry::mesh::Cloud cloud = geometry::mesh::points::grid(
+      {-half, 0, -half}, {2 * half, 0, 0}, {0, 0, 2 * half}, kSide, kSide);
+  // grid() faces its lattice by du x dv, which for x then z points down;
+  // this study peaks UP, so the plate's own normal is stated.
+  for (glm::vec3& n : cloud.vector("normal")) n = {0, 1, 0};
+  std::vector<glm::vec4>& tint = cloud.color("tint");
+  std::vector<float>& ring = cloud.scalar("ring");
+  for (size_t i = 0; i < cloud.size(); ++i) {
+    const float t = (float)(i % (size_t)kSide) / (float)(kSide - 1);
+    tint[i] = {0.2f + 0.7f * t, 0.45f, 0.9f - 0.7f * t, 1};
+    const glm::vec3 p = cloud.positions[i];
+    const float r = std::sqrt(p.x * p.x + p.z * p.z);
+    ring[i] = std::abs(r - kRingRadius) < kRingWidth * 0.5f ? 1.0f : 0.0f;
   }
-  flush();
-  return "[\"fileversion\",\"20.5.278\",\"pointcount\"," + std::to_string(n) +
-         ",\"vertexcount\",0,\"primitivecount\",0,"
-         "\"topology\",[\"pointref\",[\"indices\",[]]],"
-         "\"attributes\",[\"pointattributes\",["
-         "[[\"scope\",\"public\",\"type\",\"numeric\",\"name\",\"P\","
-         "\"options\",{}],[\"size\",3,\"storage\",\"fpreal32\",\"values\","
-         "[\"size\",3,\"storage\",\"fpreal32\",\"packing\",[3],\"pagesize\","
-         "1024,\"constantpageflags\",[[false]],\"rawpagedata\",[" +
-         p +
-         "]]]],"
-         "[[\"scope\",\"public\",\"type\",\"numeric\",\"name\",\"N\","
-         "\"options\",{}],[\"size\",3,\"storage\",\"fpreal32\",\"values\","
-         "[\"size\",3,\"storage\",\"fpreal32\",\"tuples\",[" +
-         nrm +
-         "]]]],"
-         "[[\"scope\",\"public\",\"type\",\"numeric\",\"name\",\"Cd\","
-         "\"options\",{}],[\"size\",3,\"storage\",\"fpreal32\",\"values\","
-         "[\"size\",3,\"storage\",\"fpreal32\",\"tuples\",[" +
-         cd +
-         "]]]]]],"
-         "\"primitives\",[],"
-         "\"pointgroups\",[[[\"name\",\"ring\"],[\"selection\",[\"unordered\","
-         "[\"boolRLE\",[" +
-         rle + "]]]]]]]";
+  return cloud;
 }
 
 geometry::mesh::camera::Camera lookDown() {
@@ -190,7 +154,7 @@ struct GeoGroups : sketch::Sketch {
     // Every cloud is cooked in setup; nothing reads the clock.
     ctx.captureAt(0.05);
 
-    const std::string geo = houdiniGeo();
+    const std::string geo = geometry::mesh::codec::encode::geo(sourceGrid());
     const std::optional<geometry::mesh::codec::decode::Model> model =
         geometry::mesh::codec::decode::model(geo.data(), geo.size(),
                                              "grid.geo");
@@ -202,7 +166,8 @@ struct GeoGroups : sketch::Sketch {
       return;
     }
     // asCloud(): positions, "normal" from N, "tint" from Cd, and every
-    // group as a 0/1 scalar lane under its own name.
+    // group — and every scalar attribute a group came back as — under its
+    // own name.
     const geometry::mesh::Cloud seed = model->parts.front().asCloud();
     int inRing = 0;
     if (const std::vector<float>* ring = seed.scalarIf("ring"))
@@ -238,8 +203,9 @@ struct GeoGroups : sketch::Sketch {
                            "the moment it lands"),
              .subtitle = toU8(caption),
              .footer = toU8("a point group arrives from the file as a 0/1 "
-                            "lane under its own name, which is what "
-                            "masked() reads"),
+                            "lane under its own name — which is what "
+                            "masked() reads, and what encode::geo writes "
+                            "back out"),
              .titleStyle = label(15, kInk, 2.0f),
              .subtitleStyle = label(11, kDim, 0.6f),
              .footerStyle = label(10.5f, kDim, 0.2f),
@@ -265,5 +231,5 @@ struct GeoGroups : sketch::Sketch {
 
 SIGIL_SKETCH(
     GeoGroups, "Kit \xc2\xb7 API",
-    "geometry::decode of a Houdini .geo \xe2\x80\x94 its point group is a "
-    "pop mask on arrival, and pop::on(cloud) seeds the chain from it")
+    "a Houdini .geo written and read back \xe2\x80\x94 its point group is "
+    "a pop mask on arrival, and pop::on(cloud) seeds the chain from it")
