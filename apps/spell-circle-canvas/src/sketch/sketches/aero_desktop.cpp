@@ -12,7 +12,7 @@
 //
 // which is approximated here as Element::backdrop() with a tight blur sigma
 // (Aero's own blur deviation was small — the glass shows shape, not colour)
-// plus a Material::blend tint stack in the Windows 7 "Sky" accent (#74B8FC).
+// plus a Paint::blend tint stack in the Windows 7 "Sky" accent (#74B8FC).
 //
 // The frame anatomy is what makes it read as Aero rather than as a blur:
 // a 1px black silhouette stroked Outer on the frame outline, a 1px white
@@ -32,15 +32,18 @@
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilcompose/brush/LayerStyles.h>
-#include <sigilcompose/core/Material.h>
-#include <sigilcompose/typography/Type.h>
+#include <sigilmaterial/skia/Paint.h>
+#include <sigilweave/style/Type.h>
 #include <sigilsketch/canvas/Sketch.h>
 
 #include <cmath>
 
 namespace sketch = sigil::sketch;
+namespace weave = sigil::weave;
+namespace motion = sigil::motion;
 
 using namespace sigil::compose;
+using sigil::material::skia::Paint;
 using sigil::compose::toU8;
 using namespace std::chrono_literals;
 
@@ -70,11 +73,11 @@ constexpr SkColor4f kSky{0.455f, 0.722f, 0.988f, 1};
 /** This chrome's type colour reaches the paint as 8-bit sRGB: a grey
  *  computed per frame lands on the same 256-step ladder as one quoted off
  *  the capture, which is the ladder the reference itself was drawn on.
- *  `compose::type` carries the float through instead, and the device
- *  raster resolves the two differently. */
+ *  A style that carries the float through instead lands between two
+ *  rungs, and the device raster resolves the two differently. */
 inline sigil::weave::TextStyle type(float size, SkColor4f color,
                                     float tracking = 0) {
-  return sigil::compose::type(
+  return sigil::weave::textStyle(
       {.size = size, .color = color, .track = tracking, .color8 = true});
 }
 
@@ -145,8 +148,8 @@ inline sk_sp<SkRuntimeEffect> auroraEffect() {
 // The DWM colorization approximated as ONE flattened shader stack over
 // the blurred backdrop: Sky tint (colorBalance+afterglow read), a top
 // glass sheen, and the diagonal desktop reflection (screen, peak a~.2).
-inline Material glassTint(float w, float h) {
-  return Material::blend({
+inline Paint glassTint(float w, float h) {
+  return Paint::blend({
       // tint*colorBalance -- the flat Sky wash.
       //
       // This alpha is the whole scene's balance point, so change it
@@ -162,17 +165,17 @@ inline Material glassTint(float w, float h) {
       // blurred desktop, and the glass stops reading as glass; lower it and
       // the Sky character goes, along with the contrast the dark caption text
       // needs to stay legible.
-      {Material::solid({kSky.fR, kSky.fG, kSky.fB, 0.19f}),
+      {Paint::solid({kSky.fR, kSky.fG, kSky.fB, 0.19f}),
        SkBlendMode::kSrcOver},
       // afterglow stand-in: brighter accent breathing down from the top
-      {Material::linear({0, 0}, {0, h},
+      {Paint::linear({0, 0}, {0, h},
                         {{0.00f, {0.62f, 0.82f, 1.00f, 0.24f}},
                          {0.10f, {0.55f, 0.78f, 1.00f, 0.11f}},
                          {0.30f, {0.45f, 0.72f, 0.99f, 0.03f}},
                          {1.00f, {0.45f, 0.72f, 0.99f, 0.07f}}}),
        SkBlendMode::kSrcOver},
       // the desktop-space diagonal sheen (~30 deg, peak a~.2)
-      {Material::linear({0, h * 0.85f}, {w, h * 0.15f},
+      {Paint::linear({0, h * 0.85f}, {w, h * 0.15f},
                         {{0.00f, {1, 1, 1, 0.00f}},
                          {0.40f, {1, 1, 1, 0.00f}},
                          {0.52f, {1, 1, 1, 0.20f}},
@@ -185,14 +188,14 @@ inline Material glassTint(float w, float h) {
 }
 
 // Radial white corner glow, a.35->0 over ~30px, centered on a top corner.
-inline Material cornerGlow(SkPoint center) {
-  return Material::radial(center, 34,
+inline Paint cornerGlow(SkPoint center) {
+  return Paint::radial(center, 34,
                           {{0.0f, {1, 1, 1, 0.35f}}, {1.0f, {1, 1, 1, 0.0f}}});
 }
 
 // The bloom that filled the close button on hover.
-inline Material closeBloom(float w, float h) {
-  return Material::radial({w * 0.5f, h * 0.42f}, w * 0.60f,
+inline Paint closeBloom(float w, float h) {
+  return Paint::radial({w * 0.5f, h * 0.42f}, w * 0.60f,
                           {{0.00f, {1.000f, 0.769f, 0.706f, 0.95f}},
                            {0.35f, {0.902f, 0.431f, 0.353f, 0.90f}},
                            {0.70f, {0.745f, 0.098f, 0.078f, 0.85f}},
@@ -230,8 +233,8 @@ inline sk_sp<SkRuntimeEffect> windowShadowEffect() {
 }
 
 // Caption-button glass base (idle): faint vertical white gradient.
-inline Material buttonBase(float h) {
-  return Material::linear({0, 0}, {0, h},
+inline Paint buttonBase(float h) {
+  return Paint::linear({0, 0}, {0, h},
                           {{0.00f, {1, 1, 1, 0.28f}},
                            {0.45f, {1, 1, 1, 0.10f}},
                            {0.50f, {1, 1, 1, 0.04f}},
@@ -265,7 +268,7 @@ struct AeroDesktop final : sketch::Sketch {
       // 8 Hz-stepped breathing: invisible on a soft glow, and the stepped
       // value holds between steps so the taskbar plane can blit instead
       // of re-rastering (the live-resolve/stability rule, host-side).
-      const double q = quantizeTime(t, 8.0);
+      const double q = motion::quantizeTime(t, 8.0);
       orbGlow = 0.55f + 0.25f * (float)std::sin(q * 1.4);
       return true;
     });
@@ -297,8 +300,7 @@ struct AeroDesktop final : sketch::Sketch {
     return stack().inset(0).child(bar(45)).child(bar(-45));
   }
 
-  Element captionButton(float w, float h, Corners c, Element glyph,
-                        bool hovered) {
+  Element captionButton(float w, float h, Corners c, Element glyph) {
     namespace ad = aero_desktop;
     // Inner-aligned edge, so the full 1 px lands inside the clip: a Center
     // stroke under clip() keeps only its inner half.
@@ -310,11 +312,10 @@ struct AeroDesktop final : sketch::Sketch {
                  .fill(ad::buttonBase(h))
                  .stroke(stroke(1, Fill::color({1, 1, 1, 0.30f}),
                                 PathFormat::Align::Inner));
-    // NOTE: the hovered close-button bloom is drawn by closeBloomOverlay()
-    // in describe() -- its &bloom opacity bind here would keep the entire
-    // window texture plane volatile. `hovered` stays in the signature as
-    // the state marker the real control had.
-    (void)hovered;
+    // The close button's hover bloom is drawn by closeBloomOverlay() in
+    // describe(): a bind on this button's own opacity would keep the
+    // whole window texture plane volatile, and the overlay is one node
+    // outside it.
     // faint inner top light
     b.child(box().inset(1, 1, 1, h - 2).fill(Fill::color({1, 1, 1, 0.22f})));
     b.child(std::move(glyph));
@@ -333,12 +334,12 @@ struct AeroDesktop final : sketch::Sketch {
         .top(1)
         .right(8)
         .child(
-            captionButton(wMin, bh, {0, 0, 0, 4}, buttonGlyphMinimize(), false))
+            captionButton(wMin, bh, {0, 0, 0, 4}, buttonGlyphMinimize()))
         .child(seam())
-        .child(captionButton(wMax, bh, {0}, buttonGlyphMaximize(), false))
+        .child(captionButton(wMax, bh, {0}, buttonGlyphMaximize()))
         .child(seam())
         .child(captionButton(wClose, bh, {0, 0, 4, 0},
-                             buttonGlyphClose(wClose, bh), true));
+                             buttonGlyphClose(wClose, bh)));
   }
 
   // ---- caption text over the DrawThemeTextEx white haze ---------------
@@ -372,7 +373,7 @@ struct AeroDesktop final : sketch::Sketch {
         .child(
             box()
                 .inset(0, 0, 0, clientH - 34)
-                .fill(Material::linear({0, 0}, {0, 34},
+                .fill(Paint::linear({0, 0}, {0, 34},
                                        {{0.0f, {0.937f, 0.957f, 0.980f, 1}},
                                         {1.0f, {0.867f, 0.906f, 0.949f, 1}}})))
         .child(box()
@@ -404,7 +405,7 @@ struct AeroDesktop final : sketch::Sketch {
                    .inset(162, 50, 12, 0)
                    .height(22)
                    .corners({2})
-                   .fill(Material::linear({0, 0}, {0, 22},
+                   .fill(Paint::linear({0, 0}, {0, 22},
                                           {{0.0f, {0.86f, 0.92f, 0.98f, 1}},
                                            {1.0f, {0.74f, 0.85f, 0.96f, 1}}}))
                    .stroke(stroke(1, Fill::color({0.52f, 0.70f, 0.88f, 1}))))
@@ -448,9 +449,9 @@ struct AeroDesktop final : sketch::Sketch {
                        .bakeScale(0.5f)
                        .child(box()
                                   .inset(0)
-                                  .fill(Material::sksl(ad::auroraEffect())
+                                  .fill(Paint::sksl(ad::auroraEffect())
                                             .uniform("uTime", 0.75f))
-                                  .effect(Effect::filter(
+                                  .effect(sigil::material::skia::Effect::filter(
                                       SkImageFilters::Blur(3, 3, nullptr)))))
             // ...then the colorization tint stack over it
             .child(box().inset(0).fill(ad::glassTint(ad::kWW, ad::kWH)))
@@ -477,7 +478,7 @@ struct AeroDesktop final : sketch::Sketch {
                 box()
                     .inset(14, 8, ad::kWW - 30, ad::kWH - 24)
                     .corners({3})
-                    .fill(Material::linear({0, 0}, {0, 16},
+                    .fill(Paint::linear({0, 0}, {0, 16},
                                            {{0.0f, {0.55f, 0.80f, 1.0f, 1}},
                                             {1.0f, {0.10f, 0.38f, 0.75f, 1}}}))
                     .stroke(stroke(1, Fill::color({1, 1, 1, 0.6f}))))
@@ -504,15 +505,15 @@ struct AeroDesktop final : sketch::Sketch {
         .inset(0)
         .transformOrigin((ad::kWX + ad::kWW * 0.5f) / ad::kW,
                          (ad::kWY + ad::kWH * 0.5f) / ad::kH)
-        .scale(animate(from(0.96f).to(1.0f), {220ms}))
-        .opacity(animate(from(0.0f).to(1.0f), {180ms}))
+        .scale(animate(motion::from(0.96f).to(1.0f), {220ms}))
+        .opacity(animate(motion::from(0.0f).to(1.0f), {180ms}))
         // the DWM soft drop shadow (SDF ring -- no filter, no overflow)
         .child(box()
                    .inset(ad::kWX - 34, ad::kWY - 30,
                           ad::kW - ad::kWX - ad::kWW - 34,
                           ad::kH - ad::kWY - ad::kWH - 40)
                    .cache(Cache::Texture)  // static SDF shadow: bake once
-                   .fill(Material::sksl(ad::windowShadowEffect())
+                   .fill(Paint::sksl(ad::windowShadowEffect())
                              .uniform("uMargins", SkColor4f{34, 30, 34, 40})))
         .child(std::move(frame));
   }
@@ -535,7 +536,7 @@ struct AeroDesktop final : sketch::Sketch {
                 .corners({d / 2})
                 .clip()
                 // the orb's radial base
-                .fill(Material::radial(
+                .fill(Paint::radial(
                     {d * 0.5f, d * 0.42f}, d * 0.62f,
                     {{0.00f, {0.086f, 0.227f, 0.373f, 1}},    // #163A5F
                      {0.70f, {0.043f, 0.137f, 0.251f, 1}},    // #0B2340
@@ -571,7 +572,7 @@ struct AeroDesktop final : sketch::Sketch {
                     box()
                         .inset(4, 1.5f, 4, d * 0.52f)
                         .corners({d * 0.36f, d * 0.36f, d * 0.20f, d * 0.20f})
-                        .fill(Material::linear({0, 0}, {0, d * 0.46f},
+                        .fill(Paint::linear({0, 0}, {0, d * 0.46f},
                                                {{0.0f, {1, 1, 1, 0.55f}},
                                                 {1.0f, {1, 1, 1, 0.04f}}}))));
   }
@@ -609,7 +610,7 @@ struct AeroDesktop final : sketch::Sketch {
         .inset(14 - pad, ad::kH - ad::kTaskbarH + 3 - pad, 0, 0)
         .width(2 * r)
         .height(2 * r)
-        .fill(Material::radial({r, r}, r,
+        .fill(Paint::radial({r, r}, r,
                                {{0.00f, {0.35f, 0.75f, 1.0f, 0}},
                                 {0.60f, {0.35f, 0.75f, 1.0f, 0}},
                                 {0.68f, {0.35f, 0.75f, 1.0f, 0.11f}},
@@ -632,16 +633,16 @@ struct AeroDesktop final : sketch::Sketch {
                    .bakeScale(0.5f)
                    .child(box()
                               .inset(0)
-                              .fill(Material::sksl(ad::auroraEffect())
+                              .fill(Paint::sksl(ad::auroraEffect())
                                         .uniform("uTime", 0.75f))
-                              .effect(Effect::filter(
+                              .effect(sigil::material::skia::Effect::filter(
                                   SkImageFilters::Blur(3, 3, nullptr)))))
-        .child(box().inset(0).fill(Material::blend({
-            {Material::solid({0.02f, 0.05f, 0.10f, 0.52f}),
+        .child(box().inset(0).fill(Paint::blend({
+            {Paint::solid({0.02f, 0.05f, 0.10f, 0.52f}),
              SkBlendMode::kSrcOver},
-            {Material::solid({ad::kSky.fR, ad::kSky.fG, ad::kSky.fB, 0.16f}),
+            {Paint::solid({ad::kSky.fR, ad::kSky.fG, ad::kSky.fB, 0.16f}),
              SkBlendMode::kSrcOver},
-            {Material::linear({0, 0}, {0, th},
+            {Paint::linear({0, 0}, {0, th},
                               {{0.00f, {1, 1, 1, 0.22f}},
                                {0.08f, {1, 1, 1, 0.05f}},
                                {0.55f, {1, 1, 1, 0.00f}},
@@ -656,7 +657,7 @@ struct AeroDesktop final : sketch::Sketch {
                    .inset(62, 4, 0, 4)
                    .width(54)
                    .corners({3})
-                   .fill(Material::linear({0, 0}, {0, th - 8},
+                   .fill(Paint::linear({0, 0}, {0, th - 8},
                                           {{0.0f, {1, 1, 1, 0.26f}},
                                            {0.5f, {1, 1, 1, 0.08f}},
                                            {1.0f, {1, 1, 1, 0.16f}}}))
@@ -666,7 +667,7 @@ struct AeroDesktop final : sketch::Sketch {
                               .width(16)
                               .height(13)
                               .corners({2})
-                              .fill(Material::linear(
+                              .fill(Paint::linear(
                                   {0, 0}, {0, 13},
                                   {{0.0f, {1.0f, 0.87f, 0.55f, 1}},
                                    {1.0f, {0.90f, 0.67f, 0.25f, 1}}}))
@@ -697,7 +698,7 @@ struct AeroDesktop final : sketch::Sketch {
         .height(72)
         .child(box().inset(24, 2, 24, 26).child(std::move(glyph)))
         .child(lbl({0, 0, 0, 0.85f})
-                   .effect(Effect::filter(
+                   .effect(sigil::material::skia::Effect::filter(
                        SkImageFilters::Blur(1.6f, 1.6f, nullptr))))
         .child(lbl({1, 1, 1, 0.95f}));
   }
@@ -708,7 +709,7 @@ struct AeroDesktop final : sketch::Sketch {
         .child(box()
                    .inset(2, 6, 4, 8)
                    .corners({2, 2, 3, 3})
-                   .fill(Material::linear({0, 0}, {0, 30},
+                   .fill(Paint::linear({0, 0}, {0, 30},
                                           {{0.0f, {1.00f, 0.88f, 0.55f, 1}},
                                            {1.0f, {0.86f, 0.62f, 0.20f, 1}}}))
                    .stroke(stroke(1, Fill::color({0.45f, 0.32f, 0.08f, 0.7f}))))
@@ -725,7 +726,7 @@ struct AeroDesktop final : sketch::Sketch {
             box()
                 .inset(8, 10, 8, 4)
                 .corners({3, 3, 6, 6})
-                .fill(Material::linear({0, 0}, {28, 0},
+                .fill(Paint::linear({0, 0}, {28, 0},
                                        {{0.00f, {0.75f, 0.88f, 0.97f, 0.55f}},
                                         {0.50f, {0.45f, 0.62f, 0.80f, 0.35f}},
                                         {1.00f, {0.75f, 0.88f, 0.97f, 0.55f}}}))
@@ -752,7 +753,7 @@ struct AeroDesktop final : sketch::Sketch {
                    // this scene; the curtains drift at a tenth of a screen a
                    // second, so ten steps and four are the same picture in
                    // motion and four is six tenths of the bakes.
-                   .fill(Material::sksl(ad::auroraEffect()).quantizeTime(4.0f)))
+                   .fill(Paint::sksl(ad::auroraEffect()).quantizeTime(4.0f)))
         .child(desktopIcon(24, 22, binGlyph(), "Recycle Bin"))
         .child(desktopIcon(24, 116, folderGlyph(), "Nightscapes"))
         // Each chrome region is its own texture PLANE: the backdrop blur
