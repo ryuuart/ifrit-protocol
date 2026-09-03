@@ -9,12 +9,13 @@
 // exists; editing the file on disk hot-swaps it too).
 
 #include <include/core/SkPathBuilder.h>
-#include <sigilcompose/typography/Typography.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilweave/style/Type.h>
 
 #include <cmath>
 
 namespace sketch = sigil::sketch;
+namespace weave = sigil::weave;
 
 using namespace sigil::compose;
 using namespace std::chrono_literals;
@@ -45,7 +46,7 @@ struct HelloSketch : sketch::Sketch {
           .alignItems(Align::Center)
           .justify(Justify::Center)
           .child(text(std::move(label),
-                      type({.size = 20, .color = hex(0xffffff)})));
+                      weave::textStyle({.size = 20, .color = hex(0xffffff)})));
     };
 
     return stack()
@@ -95,11 +96,11 @@ struct HelloSketch : sketch::Sketch {
         // Re-rendered by update() whenever the score changes —
         // the keyed text keeps its identity across renders.
         .child(text(toU8("score " + std::to_string(score)),
-                    type({.size = 24, .color = hex(0xffd9a0)}))
+                    weave::textStyle({.size = 24, .color = hex(0xffd9a0)}))
                    .key("score")
                    .inset(650, 120, 90, 480))
         .child(text(u8"Sketchbook — edit hello.cpp and save",
-                    type({.size = 17, .color = hex(0x9aa4bb)}))
+                    weave::textStyle({.size = 17, .color = hex(0x9aa4bb)}))
                    .inset(90, 560, 90, 40));
   }
 
@@ -128,4 +129,4 @@ struct HelloSketch : sketch::Sketch {
   }
 };
 
-SIGIL_SKETCH(HelloSketch, "Kit", "The starter sketch. Copy it.")
+SIGIL_SKETCH(HelloSketch, "Start & fixtures", "The starter sketch. Copy it.")
