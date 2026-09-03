@@ -23,11 +23,11 @@
  * `material::Texture` whose `image()` is NULL, which is not an omission:
  * it is what says the pixels were never read back, so a renderer holding
  * another device draws the body undressed rather than something it
- * invented. It is not reached from here, for two reasons worth stating
- * plainly. A sketch has no `geometry::device::Device&`: the host installs
- * runtimes and hands out no device, so there is nothing to import ONTO.
- * And the symbol is not among the ones the sketch host force-loads, so a
- * sketch naming it fails to load rather than to run.
+ * invented. A sketch reaches the device through `sketch::device()`, which
+ * is null on the CPU tier, and the host force-loads every archive it
+ * links, so a set that walks through the door does so under `--gpu`. This
+ * sheet stops at the two producers: what it shows is the host image each
+ * one hands over, on either tier.
  *
  * EDIT THESE FIRST
  *   kPanel — how large each screen stands in the set.
