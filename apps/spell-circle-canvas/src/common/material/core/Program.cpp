@@ -71,10 +71,10 @@ std::shared_ptr<Program> ProgramCache::program(
     report(std::string(name(target)) + " failed to compile: " + error);
     return nullptr;
   }
-  // A field the compiled body never reads: the shader compiler discarded
-  // the uniform, so nothing is uploaded for it and every value the
-  // material writes there is lost. Named once per (recipe, target), like
-  // every other thing this cache has to say about a definition.
+  // A field the compiled body never reads: whatever the material writes
+  // there has no effect on the picture, which reads at a call site as a
+  // dial that does nothing. Named once per (recipe, target), like every
+  // other thing this cache has to say about a definition.
   std::string unread;
   for (const Field& f : recipe->params().fields) {
     if (built->keeps(f.name)) continue;
@@ -88,9 +88,9 @@ std::shared_ptr<Program> ProgramCache::program(
       first = m_unread.insert({recipe.get(), target}).second;
     }
     if (first) {
-      const std::string what = "the " + std::string(name(target)) +
-                               " body never reads " + unread +
-                               " — nothing is uploaded for those fields";
+      const std::string what =
+          "the " + std::string(name(target)) + " body never reads " + unread +
+          " — whatever is written to those fields has no effect";
       std::fprintf(stderr, "[sigil::material] recipe \"%s\": %s\n",
                    recipe->name().c_str(), what.c_str());
     }

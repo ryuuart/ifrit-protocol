@@ -250,6 +250,14 @@ bool declaresUniform(const sk_sp<SkRuntimeEffect>& effect,
   return u && u->sizeInBytes() == bytes;
 }
 
+bool isPassBody(const sigil::material::Recipe& recipe) {
+  if (!recipe.has(sigil::material::Target::SkSL)) return false;
+  for (std::string_view name :
+       {"uContent", "uUnitRect", "uUnitPhase", "kUnitCount"})
+    if (recipe.readsField(name)) return true;
+  return false;
+}
+
 // THE ONE SPECIALIZATION behind every pass: the author's recipe with the
 // runtime's declarations prepended to its SkSL body at the requested unit
 // count, held per (recipe identity, count) for the process. The
@@ -541,6 +549,15 @@ void Paint::detachBacked() {
 
 sk_sp<SkShader> Paint::buildBacked(const PaintFrame* ctx) const {
   const Backed& backed = *m_backed;
+  // A PASS BODY HAS NO STANDALONE SHADER. It is written against the
+  // declarations the fx() runtime prepends once it knows the track's unit
+  // count, so compiling it here would report one error per mention of a
+  // name that does not exist yet — a page of diagnostics about a compile
+  // nobody asked for, on a material that then renders correctly through
+  // resolvePass(). Nothing is lost: a pass material used as an ordinary
+  // fill has no picture to give, and now it says so by drawing nothing
+  // rather than by failing loudly at load.
+  if (detail::isPassBody(backed.material.recipe())) return nullptr;
   sigil::material::FrameData frame;
   std::vector<std::byte> key;
   if (ctx) {

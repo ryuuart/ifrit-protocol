@@ -114,6 +114,42 @@ TEST(SkiaCompiler, ABodyThatDoesNotCompileResolvesToNoProgram) {
   EXPECT_EQ(skia::shader(m, FrameData{}), nullptr);
 }
 
+TEST(SkiaPaint, APassBodyIsNotCompiledAsAShaderOfItsOwn) {
+  skia::install();
+  // A pass body is written against declarations the fx() runtime
+  // prepends once it knows the track's unit count. Compiled standalone it
+  // names four things that do not exist yet and the compiler reports one
+  // error per mention — a page of diagnostics about a compile nobody
+  // asked for, on a material that then renders correctly through the
+  // pass path. So it is not attempted.
+  auto pass = std::make_shared<const Recipe>(
+      Recipe::of<TwoParams>("pass.body")
+          .body(Target::SkSL,
+                "half4 main(float2 p) {\n"
+                "  half4 c = uContent.eval(p);\n"
+                "  for (int i = 0; i < kUnitCount; ++i)\n"
+                "    c += half4(uUnitRect[i]) * uUnitPhase[i].x;\n"
+                "  return c * half4(uColor * uScale);\n"
+                "}"));
+  EXPECT_TRUE(skia::detail::isPassBody(*pass));
+  std::string said;
+  {
+    testing::internal::CaptureStderr();
+    const skia::Paint paint = skia::Paint::recipe(Material(pass));
+    // Nothing to draw on its own — a pass material used as an ordinary
+    // fill has no picture to give, and now it says so by drawing nothing.
+    EXPECT_EQ(paint.staticShader(), nullptr);
+    said = testing::internal::GetCapturedStderr();
+  }
+  EXPECT_EQ(said, "") << said;
+
+  // An ordinary recipe is unaffected: it still compiles at the paint.
+  auto plain = std::make_shared<const Recipe>(
+      Recipe::of<TwoParams>("pass.notone").body(Target::SkSL, kBody));
+  EXPECT_FALSE(skia::detail::isPassBody(*plain));
+  EXPECT_NE(skia::Paint::recipe(Material(plain)).staticShader(), nullptr);
+}
+
 // ---------------------------------------------------------------------------
 // The colour bridge.
 

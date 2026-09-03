@@ -72,6 +72,17 @@ void Material::write(std::string_view name, Kind kind, const void* floats,
                           "\"; the value is ignored");
     return;
   }
+  // A FIELD NO BODY READS is a dial that does nothing: the bytes go up
+  // and the picture does not change, which at a call site reads exactly
+  // like a wrong value. It is reported HERE rather than where a program
+  // is compiled because here is where somebody wrote to it — a params
+  // struct that carries a field this recipe's kind has no use for is a
+  // shared ABI and not a mistake, and poured in whole it says nothing.
+  if (!m_recipe->readsField(name))
+    reportOnce(key(), "recipe \"" + m_recipe->name() + "\" field \"" +
+                          std::string(name) +
+                          "\" is read by no body of it; writing to it has no "
+                          "effect on the picture");
   // Colour and float4 interchange — both are four floats and the shader
   // declares one float4 — but a count mismatch means a different uniform.
   if (f->floats != count) {

@@ -289,6 +289,41 @@ TEST(ProgramCache, UnreadParamsFieldIsNamedOnce) {
   EXPECT_EQ(quiet, "") << quiet;
 }
 
+TEST(Material, WritingToAFieldNoBodyReadsSaysSo) {
+  // A dial that does nothing looks exactly like a wrong value from the
+  // call site, and no compiler's reflection can say which it is: the
+  // declarations are generated from the params whether the body reads
+  // them or not. The RECIPE can say, and it is asked at the write.
+  auto r = std::make_shared<const Recipe>(
+      Recipe::of<TwoParams>("half-read")
+          .body(Target::Slang, "float4 main() { return uColor; }"));
+  Material m(r);
+  const std::string said = captureStderr([&] { m.set("uScale", 2.0f); });
+  EXPECT_NE(said.find("\"uScale\""), std::string::npos) << said;
+  EXPECT_NE(said.find("no body"), std::string::npos) << said;
+  // The field the body DOES read is silent, and so is a second write to
+  // the one it does not.
+  const std::string quiet = captureStderr([&] {
+    m.set("uColor", Color{1, 0, 0, 1});
+    m.set("uScale", 3.0f);
+  });
+  EXPECT_EQ(quiet, "") << quiet;
+  // …and the value is still written: the report is about the picture,
+  // not about the bytes.
+  EXPECT_EQ(m.get<float>("uScale"), 3.0f);
+  // A NAME INSIDE A LONGER ONE is a different name.
+  auto sub = std::make_shared<const Recipe>(
+      Recipe::of<TwoParams>("substring")
+          .body(Target::Slang, "float4 main() { return uScaleFactor; }"));
+  Material s(sub);
+  EXPECT_NE(captureStderr([&] { s.set("uScale", 1.0f); }).find("uScale"),
+            std::string::npos);
+  // A recipe with no body at all has nothing to say.
+  auto none = std::make_shared<const Recipe>(Recipe::of<TwoParams>("bodiless"));
+  Material n(none);
+  EXPECT_EQ(captureStderr([&] { n.set("uScale", 1.0f); }), "");
+}
+
 TEST(Material, MirrorsParamsAsBytesAndSetsFields) {
   auto r = twoRecipe();
   Material m(r, TwoParams{2.0f, {0.1f, 0.2f, 0.3f, 1.0f}});

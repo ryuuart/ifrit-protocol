@@ -273,16 +273,6 @@ learns everything a session can tell it, the runtime included, the first
 time that session runs. A test should open a file by path, drive one
 frame, and assert the row's `kind` names the session's runtime.
 
-## The "body never reads" report never fires on SkSL
-
-`SkiaProgram::keeps` asks `SkRuntimeEffect::findUniform`, and this Skia
-reflects declared-but-unused uniforms, so `ProgramCache`'s unread-field
-message is dead on the only registered compiler: a recipe reading neither
-of two declared fields prints nothing. The check evidently intends to
-name a field the body never reads. A test should compile a body that
-ignores a declared field and assert the report names it.
-
-
 ## A memo subtree under Cache::Picture reports no picture recorded
 
 `Composer::Stats::picturesRecorded` stayed 0 for a memo subtree marked

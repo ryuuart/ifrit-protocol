@@ -30,8 +30,14 @@ class SkiaProgram : public Program {
 
   const sk_sp<SkRuntimeEffect>& effect() const { return m_effect; }
 
-  /** The SkSL optimiser discards a uniform the body never reads, and the
-   *  effect is then the only place that says so. */
+  /** Whether the COMPILED PROGRAM still has the uniform @p name.
+   *
+   *  Skia's reflection keeps every uniform the source declared, read or
+   *  not, so this is yes for every field of the recipe — and it is the
+   *  truthful answer to the question asked: nothing was discarded, and
+   *  the bytes are uploaded. Whether the BODY reads a field is a
+   *  different question, and it is asked of the recipe
+   *  (`Recipe::readsField`) at the moment a caller writes one. */
   bool keeps(std::string_view name) const override {
     return m_effect && m_effect->findUniform(name) != nullptr;
   }

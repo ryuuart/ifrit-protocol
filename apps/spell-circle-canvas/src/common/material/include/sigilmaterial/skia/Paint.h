@@ -196,6 +196,18 @@ struct PassInputs {
 std::shared_ptr<const sigil::material::Recipe> passRecipeFor(
     const std::shared_ptr<const sigil::material::Recipe>& authored,
     uint32_t units);
+
+/** Whether @p recipe's SkSL body is a PASS body — one written against the
+ *  declarations `passRecipeFor` prepends rather than against its own.
+ *
+ *  It is asked because such a body IS NOT A SHADER ON ITS OWN: compiled
+ *  standalone it names `uContent`, `uUnitRect`, `uUnitPhase` and
+ *  `kUnitCount`, none of which exist yet, and the compiler reports one
+ *  error per mention. That failure is not information — the recipe was
+ *  never meant to compile until the runtime knew the unit count — so it
+ *  must not be provoked. The four names are the signal, because an author
+ *  is told not to declare them and they mean nothing anywhere else. */
+bool isPassBody(const sigil::material::Recipe& recipe);
 }  // namespace detail
 
 /** The polymorphic paint value. Construct via the static factories; pass to

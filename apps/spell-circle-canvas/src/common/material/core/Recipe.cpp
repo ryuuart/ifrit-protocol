@@ -86,6 +86,24 @@ const std::string* Recipe::body(Target target) const {
   return it == m_bodies.end() ? nullptr : &it->second;
 }
 
+bool Recipe::readsField(std::string_view name) const {
+  if (m_bodies.empty() || name.empty()) return true;
+  const auto part = [](char c) {
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+           (c >= '0' && c <= '9') || c == '_';
+  };
+  for (const auto& [target, body] : m_bodies) {
+    for (size_t at = body.find(name); at != std::string::npos;
+         at = body.find(name, at + 1)) {
+      if (at > 0 && part(body[at - 1])) continue;
+      const size_t end = at + name.size();
+      if (end < body.size() && part(body[end])) continue;
+      return true;
+    }
+  }
+  return false;
+}
+
 std::vector<Target> Recipe::targets() const {
   std::vector<Target> out;
   out.reserve(m_bodies.size());

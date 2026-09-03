@@ -160,16 +160,24 @@ names in the struct and cannot drift. A struct with NO fields is legal and
 is a recipe with no ABI of its own — a body over child slots and frame
 inputs alone.
 
-**A field no body reads is not in the ABI, and the cache says so.** A
-shader compiler discards a uniform its body never mentions, and the upload
-then skips that field: every value the material writes there — a constant,
-a bound output, a whole table — reaches nothing. The program cache compares
-the params against the program it just compiled and names the recipe and
-each unread field on stderr, once per (recipe, target), beside the reports
-for a missing body and a failed compile. `Program::keeps(name)` is what it
-asks; a backend whose compiler drops nothing leaves it at yes. A field a
-body reads on one target and not on another is named for the target that
-drops it, which is the honest answer: on that target the field is dead.
+**Writing to a field no body reads is reported at the write.** A dial
+that does nothing looks, from the call site, exactly like a dial set to
+the wrong value: the bytes go up and the picture does not change. So
+`Material::set(name, …)` asks the recipe — `Recipe::readsField(name)`,
+which is whether any body of it SPELLS the name as a whole identifier —
+and names the recipe and the field on stderr once per pair, beside the
+reports for an unknown field and a wrong float count. The value is still
+written; the report is about the picture, not the bytes.
+
+It is asked at the WRITE and not at the compile because a params struct
+carrying a field this recipe's kind has no use for is a shared ABI and
+not a mistake — the three `sdf` silhouettes are one struct whose `uP0..2`
+mean something different in each — and a struct poured in whole says
+nothing. What the compile side can still say is that a BACKEND discarded
+a uniform: `Program::keeps(name)` is that question, and the program cache
+names each dropped field once per (recipe, target). Skia's reflection
+keeps every declared uniform, so on SkSL that answer is always yes and
+the write-side check is the one that speaks.
 
 **A recipe's identity is the object.** Two recipes built from the same
 text are two definitions with two sets of programs; `operator==` compares
@@ -728,6 +736,16 @@ READS.** Three tiers, and nothing chooses between them by hand:
   `uTime` or `uContentScale`. `isAnimated()` is true and the paint is
   rebuilt every draw; a live CHILD or blend layer makes its parent live,
   which is what stops a cache from freezing the parameter.
+
+**A PASS body is not a shader of its own.** A material handed to a text
+runtime's pass is written against declarations that runtime prepends once
+it knows the track's unit count — `uContent`, `uUnitRect[N]`,
+`uUnitPhase[N]`, `kUnitCount` — so compiling it standalone names four
+things that do not exist yet and reports one error per mention, about a
+compile nobody asked for. `Paint::recipe` recognises such a body by those
+names (`skia::detail::isPassBody`) and builds no static shader for it:
+the picture comes from `resolvePass`, and used as an ordinary fill the
+material draws nothing rather than failing loudly at load.
 
 `PaintFrame` is what one draw supplies and no author sets: the box, the
 root's size, the box→root matrix, the clock and the device scale. A

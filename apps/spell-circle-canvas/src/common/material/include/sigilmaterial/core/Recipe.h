@@ -72,6 +72,19 @@ class Recipe {
   const Schema& layout() const { return m_layout; }
   /** The body for @p target, or null when none was given. */
   const std::string* body(Target target) const;
+  /** WHETHER ANY BODY OF THIS RECIPE READS THE FIELD @p name.
+   *
+   *  A field no body spells is a dial that does nothing: the bytes are
+   *  uploaded and the picture does not change, which at a call site is
+   *  indistinguishable from a wrong value. Asking the bodies is the only
+   *  way to know — a shading compiler's reflection reports what the
+   *  source DECLARED, and the declarations are generated from the params
+   *  whether the body reads them or not.
+   *
+   *  Spelled means as a WHOLE IDENTIFIER, so a `low` inside `lowEdge` is
+   *  a different name; a recipe with no body at all answers yes, having
+   *  nothing to say. */
+  bool readsField(std::string_view name) const;
   bool has(Target target) const { return body(target) != nullptr; }
   /** The targets that have a body, in Target order. */
   std::vector<Target> targets() const;
