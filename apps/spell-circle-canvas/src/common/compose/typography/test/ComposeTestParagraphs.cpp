@@ -969,3 +969,63 @@ TEST(ComposeJustification, TheLastLineJustifiesOnlyWhenAskedTo) {
   EXPECT_LT(ragged.back(), 128.0f);
   EXPECT_NEAR(full.back(), 130.0f, 1.0f);
 }
+
+// ── What a live passage's last layout cost ──────────────────────────────
+
+/** A passage whose measure swells from 150 px to 230 px and back, drawn at
+ *  every whole pixel, then set once more at @p endAt — and what
+ *  `Composer::settling` reports about that last frame. */
+TextSettling sweptSettling(bool live, float budgetMicroseconds, float endAt) {
+  Host host(280, 320);
+  const auto step = [&](float measure) {
+    Element leaf =
+        text(toU8("A measure that animates is one input of a run of layouts "
+                  "rather than a question somebody asked once, and the block "
+                  "that knows so keeps the break decisions it has already "
+                  "made."),
+             whiteStyle(11.5f))
+            .key("para")
+            .width(Dim(measure))
+            .lineBreak(sigil::weave::LineBreakStrategy::kKnuthPlass);
+    if (live) leaf.live(true, budgetMicroseconds);
+    host.composer.render(box().padding(10).child(std::move(leaf)));
+    host.frame();
+  };
+  for (float measure = 150; measure <= 230; measure += 1) step(measure);
+  for (float measure = 230; measure >= 150; measure -= 1) step(measure);
+  step(endAt);
+  return host.composer.settling("para");
+}
+
+TEST(ComposeSettling, AMeasureAlreadyCrossedCostsNoBreakDecision) {
+  // The break decisions of a live block are kept and reused, keyed on the
+  // words and on the measure taken to the whole pixel below it. A swell
+  // that has run the whole range and comes back to a measure inside it
+  // therefore decides nothing — and the report says so, at either end.
+  const TextSettling narrow = sweptSettling(true, 4000.0f, 150.0f);
+  EXPECT_TRUE(narrow.live);
+  EXPECT_GT(narrow.reused, 0);
+  EXPECT_EQ(narrow.degraded, 0);
+  const TextSettling wide = sweptSettling(true, 4000.0f, 230.0f);
+  EXPECT_TRUE(wide.live);
+  EXPECT_GT(wide.reused, 0);
+  EXPECT_EQ(wide.degraded, 0);
+}
+
+TEST(ComposeSettling, APassageThatNeverSaidItMovesStoresNothing) {
+  const TextSettling settled = sweptSettling(false, 0.0f, 230.0f);
+  EXPECT_FALSE(settled.live);
+  EXPECT_EQ(settled.reused, 0);
+  EXPECT_EQ(settled.degraded, 0);
+}
+
+TEST(ComposeSettling, ABudgetNothingCanMeetDegradesAndSaysSo) {
+  // The floor under a frame the optimizing breaker cannot finish in time:
+  // the block is filled greedily for that frame and counted. A budget is
+  // read DURING the search, so a block shorter than whatever stride the
+  // search reads it at would otherwise never read it at all — which is
+  // every ordinary paragraph.
+  const TextSettling starved = sweptSettling(true, 1.0f, 230.0f);
+  EXPECT_TRUE(starved.live);
+  EXPECT_GT(starved.degraded, 0);
+}

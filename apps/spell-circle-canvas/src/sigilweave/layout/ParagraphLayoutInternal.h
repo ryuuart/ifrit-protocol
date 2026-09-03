@@ -222,12 +222,14 @@ class IntervalSequence {
 // reads. A settled layout, or one over a contour or an exclusion, decides
 // every break itself exactly as it always has.
 //
-// THE BOUND IS STATED AND SMALL: one store per thread, holding the most
-// recently answered blocks up to kBreakStoreEntries, each one a break list
-// as long as the block has lines. A width animating across a range of
-// pixels therefore keeps the pixels it has most recently crossed and
-// forgets the rest, and a story of many blocks keeps the blocks it is
-// still setting.
+// THE BOUND IS STATED: one store per thread, holding the most recently
+// answered blocks up to kBreakStoreEntries, each one a break list as long
+// as the block has lines. It has to cover THE RANGE A MEASURE ANIMATES
+// ACROSS, because a store shorter than that range forgets every pixel on
+// the way out and has nothing left on the way back — which is the one case
+// the store exists for. A swell of a couple of hundred pixels is an
+// ordinary one, so that is what it holds; past the bound the least
+// recently answered block goes.
 struct BreakKey {
   uint64_t paragraph = 0;  // which paragraph, told apart for its lifetime
   uint64_t words = 0;      // what the paragraph's word list is
@@ -241,7 +243,7 @@ struct BreakKey {
 // One line's end: the word it ends at, and the interval the line occupied.
 using BreakList = std::vector<std::pair<uint32_t, uint32_t>>;
 
-inline constexpr size_t kBreakStoreEntries = 32;
+inline constexpr size_t kBreakStoreEntries = 256;
 
 class BreakStore {
  public:

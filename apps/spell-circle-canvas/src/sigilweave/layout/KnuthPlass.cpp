@@ -125,6 +125,15 @@ void knuthPlassBlock(FontContext& fontContext, Paragraph& paragraph,
   const std::vector<Word>& words = paragraph.words();
   const uint32_t base = block.firstWord;
   const uint32_t wordCount = block.endWord;
+  // HOW OFTEN THE BUDGET IS READ: the clock costs more than a breakpoint
+  // does, so it is read at a fixed FRACTION of the block rather than every
+  // so many breakpoints. A fixed count reads it zero times on every block
+  // shorter than that count — which is every ordinary paragraph — and a
+  // budget stated over one would then bound nothing at all.
+  constexpr uint32_t kBudgetChecksPerBlock = 8;
+  const uint32_t budgetCheckStride =
+      std::max(1u, (wordCount > base ? wordCount - base : 1u) /
+                       kBudgetChecksPerBlock);
   lastIntervalUsed = SIZE_MAX;
   if (base >= wordCount) return;
   if (!intervalSequence.intervalAt(firstInterval)) {
@@ -333,10 +342,7 @@ void knuthPlassBlock(FontContext& fontContext, Paragraph& paragraph,
 
     for (uint32_t breakIndex = base + 1;
          breakIndex <= wordCount && !active.empty(); ++breakIndex) {
-      // The budget is read every so many breakpoints rather than every one:
-      // the clock costs more than the breakpoint does.
-      constexpr uint32_t kBudgetCheckStride = 256;
-      if (budgetExpiry && (breakIndex - base) % kBudgetCheckStride == 0 &&
+      if (budgetExpiry && (breakIndex - base) % budgetCheckStride == 0 &&
           Clock::now() >= *budgetExpiry) {
         outOfBudget = true;
         return -1;
