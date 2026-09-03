@@ -132,14 +132,14 @@
 // angle overlap in a long lens, and a disc sized for the perpendicular case
 // leaves the under-band showing straight across the over-band's cut.
 //
-// THE ORDER IS ALTERNATION ALONG THE CURVE, and that is a rule of this
-// plate's own rather than `crossing::alternate()`. An alternating knot
-// alternates as you TRAVEL it, and the heptagram is one closed curve,
+// THE ORDER IS ALTERNATION ALONG THE CURVE: `crossing::alternateAlong()`,
+// not `crossing::alternate()`. An alternating knot alternates as you
+// TRAVEL it, and the heptagram is one closed curve,
 // 0→2→4→6→1→3→5→0; `crossing::alternate()` alternates by the crossing's
 // discovered ordinal, which on this star puts two consecutive UNDERs on
 // the strand from vertex 3, where the band would pass behind both its
-// neighbours and vanish. Panel D counts the crossings and reports any
-// whose two passes came out on the same side.
+// neighbours and vanish. Panel D counts the crossings and walks every
+// strand back over the prepared rule to see that its sides alternate.
 //
 // WHAT MAKES IT AFFORDABLE. The plate is large and nearly all of it is
 // static, so the whole question is which layers can be baked and then left
@@ -489,38 +489,38 @@ shapes::OutlineFn heptChords(float rNorm, float inset) {
  *  `path::discoverCrossings` finds the PROPER crossings, which is what keeps
  *  the seven shared vertices out of the list.
  *
- *  THE ORDER IS ALTERNATION ALONG THE CURVE, and that is why this is a rule
- *  of its own rather than `crossing::alternate()`. An alternating knot
- *  alternates as you TRAVEL it: the heptagram is one closed curve,
- *  0→2→4→6→1→3→5→0, and going over then under along that traversal is what
- *  makes the interlace read. `crossing::alternate()` alternates by the
- *  crossing's discovered ORDINAL, which is a different sequence — on this
- *  star it puts two consecutive UNDERs on the strand from vertex 3, and the
- *  band there passes behind both its neighbours and vanishes.
+ *  THE ORDER IS ALTERNATION ALONG THE CURVE — `crossing::alternateAlong()`,
+ *  not `crossing::alternate()`. An alternating knot alternates as you TRAVEL
+ *  it: the heptagram is one closed curve, 0→2→4→6→1→3→5→0, and going over then
+ *  under along that traversal is what makes the interlace read.
+ *  `crossing::alternate()` alternates by the crossing's discovered ORDINAL,
+ *  which is a different sequence — on this star it puts two consecutive
+ *  UNDERs on the strand from vertex 3, and the band there passes behind both
+ *  its neighbours and vanishes.
  *
- *  So the traversal parity is computed once, over the fourteen passes sorted
- *  by (strand, position along it), and held as a comparable value. `decide`
- *  reads it by ordinal; equality is the table, so the node holding the rule
- *  prunes. `inconsistent` counts any crossing whose two passes came out
- *  claiming the same side — for a single traversal with an odd crossing
- *  count it should be zero, and the feed reports it. */
+ *  The rule is PREPARED once against the discovered set, because a rule about
+ *  the walk cannot be answered from one crossing alone: nothing in a single
+ *  Crossing says how many crossings on its own strand come before it. What is
+ *  prepared travels with the value, so the copy the paint program holds
+ *  decides without rediscovering anything.
+ *
+ *  `outOfAlternation` reads the prepared rule back the way an engraver checks
+ *  a plate — walk each strand and see that the sides it takes run over,
+ *  under, over, under. A figure that alternates has none, and the feed
+ *  reports it. */
 struct Weave {
   SkPoint v[7];  // traversal vertices, in visiting order
   std::vector<SkPath> strands;
   std::vector<path::Crossing> crossings;
-  /** Over-side per discovered ordinal, read against `Crossing::a`. */
-  std::vector<uint8_t> over;
+  /** Who passes over whom: the alternating weave along every strand. */
+  path::CrossingRule rule = path::crossing::alternateAlong();
   /** Half the arc distance to the nearest neighbouring crossing, per
    *  ordinal — the cap `crossingPatch` requires so that two lenses on one
    *  strand cannot merge into a single contour. */
   std::vector<float> reachCap;
-  int inconsistent = 0;
-
-  bool operator==(const Weave& o) const { return over == o.over; }
-  path::Order decide(const path::Crossing& c) const {
-    return (c.index < over.size() && over[c.index] != 0) ? path::Order::Over
-                                                         : path::Order::Under;
-  }
+  /** Passes taking the same side as the previous pass on their own
+   *  strand. */
+  int outOfAlternation = 0;
 };
 
 Weave buildWeave(float rNorm) {
@@ -533,10 +533,12 @@ Weave buildWeave(float rNorm) {
     w.strands.push_back(b.detach());
   }
   w.crossings = path::discoverCrossings(w.strands);
-  w.over.assign(w.crossings.size(), 0);
+  w.rule.prepare(w.crossings);
   w.reachCap.assign(w.crossings.size(), 1e9f);
 
-  // The fourteen passes, in the order the single traversal meets them.
+  // The fourteen passes: a crossing joins two strands and is met once on
+  // each, so the walk that the weave is read along is the passes and not
+  // the crossings.
   struct Pass {
     size_t strand;
     float along;
@@ -551,17 +553,20 @@ Weave buildWeave(float rNorm) {
   std::sort(passes.begin(), passes.end(), [](const Pass& x, const Pass& y) {
     return x.strand != y.strand ? x.strand < y.strand : x.along < y.along;
   });
-  std::vector<int> seen(w.crossings.size(), -1);
-  for (size_t k = 0; k < passes.size(); ++k) {
-    const bool overHere = (k % 2) == 0;
-    const size_t idx = passes[k].cross;
-    if (seen[idx] < 0) {
-      seen[idx] = overHere ? 1 : 0;
-      // The table answers for strand `a`, so a pass on `b` inverts.
-      w.over[idx] = (passes[k].isA ? overHere : !overHere) ? 1u : 0u;
-    } else if ((seen[idx] == 1) == overHere) {
-      ++w.inconsistent;  // both passes claim the same side
+  // Read the prepared rule back along each strand: this strand goes over
+  // here, under at the next knot, over at the one after.
+  size_t walking = passes.empty() ? 0 : passes.front().strand;
+  int previous = -1;
+  for (const Pass& pass : passes) {
+    if (pass.strand != walking) {
+      walking = pass.strand;
+      previous = -1;
     }
+    const path::Crossing& c = w.crossings[pass.cross];
+    const bool over =
+        (w.rule.decide(c) == path::Order::Over) == pass.isA;
+    if (previous >= 0 && (previous != 0) == over) ++w.outOfAlternation;
+    previous = over ? 1 : 0;
   }
   // The cap: half the distance along a shared strand to the next crossing.
   for (size_t i = 0; i < passes.size(); ++i)
@@ -1050,8 +1055,8 @@ struct SigillumAemeth : sketch::Sketch {
   // THE HEPTAGRAM — an interlaced band over seven DISCOVERED crossings.
   //
   // The over/under is the geometry library's crossing rule: the crossings
-  // are found by path intersection, the order is a comparable rule value
-  // (alternation along the single traversal — see Weave), and the region
+  // are found by path intersection, the order is `crossing::alternateAlong()`
+  // prepared against them — see Weave — and the region
   // repainted at each knot is `crossingPatch`, the EXACT lens where the two
   // marks overlap. A disc is the wrong shape there: two bands meeting at a
   // shallow angle overlap in a long lens whose extent goes as
@@ -1109,7 +1114,7 @@ struct SigillumAemeth : sketch::Sketch {
       // arc distance to the next crossing on the same strand, which is what
       // stops two neighbouring lenses merging into one contour and handing
       // the whole run to a single strand.
-      const path::CrossingRule rule = w;
+      const path::CrossingRule& rule = w.rule;
       const float reach = bandW * 0.5f + 1.6f;
       for (const path::Crossing& x : w.crossings) {
         const size_t over =
@@ -2049,8 +2054,8 @@ struct SigillumAemeth : sketch::Sketch {
                                 weave.crossings.size()),
                  "pass", "heading", 30, 4);
     test::report(logD,
-                 measure::check("  passes on the same side", 0,
-                                weave.inconsistent),
+                 measure::check("  passes out of alternation", 0,
+                                weave.outOfAlternation),
                  "pass", "heading", 30, 4);
     logD.append(
         {toU8("  gcd(40,7)=gcd(40,5)=gcd(7,5)=1 \xe2\x80\x94 one"), "dim"});
