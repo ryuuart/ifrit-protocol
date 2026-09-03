@@ -17,7 +17,7 @@ what a consumer uses; every public header lives under
 | target | headers | holds |
 |--------|---------|-------|
 | `SigilLoaderSource` | `source/Source.h`, `source/Sink.h` | header only, standard library only: `Bytes`, the `ByteSource`, `ResolvingByteSource` and `Decoder` concepts, `AnyByteSource` (the type-erased source value), and the other direction — the `ByteSink` concept and `writeBytes()`, the one place a path and a run of bytes become a file |
-| `SigilLoaderHub`    | `hub/Hub.h`, `hub/Network.h` | the `Hub` and `ResourceInfo`; `NetworkPolicy` and `networkCacheKey()` |
+| `SigilLoaderHub`    | `hub/Hub.h`, `hub/Network.h` | the `Hub` and `ResourceInfo`; `NetworkPolicy`, `networkCacheKey()` and `defaultNetworkCacheDir()` — the file a URL lands under and the directory it lands in when a hub names no other, so a probe with no hub in reach asks the cache the hub's own way |
 
 `SigilLoader` is the umbrella target over both, and
 `<sigilloader/Loader.h>` the umbrella header. The hub is a `ByteSource`;

@@ -21,7 +21,8 @@ target_include_directories(SigilSketchCore PUBLIC ${SIGIL_SKETCH_INCLUDE_DIR})
 target_link_libraries(SigilSketchCore PUBLIC SigilLoader SigilCoreComparable)
 set_target_properties(SigilSketchCore PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
-add_executable(sketch_core_test test/RegistryTest.cpp test/SourcesTest.cpp)
+add_executable(sketch_core_test test/AssetsTest.cpp test/RegistryTest.cpp
+  test/SourcesTest.cpp)
 target_include_directories(sketch_core_test PRIVATE ${SIGIL_TEST_SUPPORT_DIR})
 target_link_libraries(sketch_core_test PRIVATE SigilSketchCore
   GTest::gtest_main)

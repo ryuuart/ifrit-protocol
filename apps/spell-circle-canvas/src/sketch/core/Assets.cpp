@@ -3,6 +3,9 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkSurface.h>
+#include <sigilloader/hub/Network.h>
+
+#include <system_error>
 
 namespace sigil::sketch {
 
@@ -60,6 +63,30 @@ bool Assets::poll() {
     }
   }
   return changed;
+}
+
+bool requireCached(std::initializer_list<std::string_view> urls,
+                   std::string* why, const std::filesystem::path& cacheDir) {
+  const std::filesystem::path dir =
+      cacheDir.empty() ? sigil::loader::defaultNetworkCacheDir() : cacheDir;
+  for (std::string_view url : urls) {
+    // A fetch persists only when it succeeded — an HTTP error writes
+    // nothing — so the file standing under the URL's own cache key is
+    // the whole question. Its SIZE is asked for too, because a write
+    // that was interrupted leaves a file that is there and holds
+    // nothing, and a sketch given nothing draws its stand-in anyway.
+    std::error_code ec;
+    const std::filesystem::path cached =
+        dir / sigil::loader::networkCacheKey(url);
+    if (std::filesystem::is_regular_file(cached, ec) && !ec &&
+        std::filesystem::file_size(cached, ec) > 0 && !ec)
+      continue;
+    if (why)
+      *why = "not in the loader's network cache on this machine \xe2\x80\x94 " +
+             std::string(url);
+    return false;
+  }
+  return true;
 }
 
 }  // namespace sigil::sketch

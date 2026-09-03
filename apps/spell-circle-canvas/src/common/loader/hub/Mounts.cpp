@@ -44,9 +44,7 @@ FetchResult fetchResource(const Hub& hub,
                           NetworkPolicy netPolicy, std::string_view uri) {
   if (isNetworkUri(uri)) {
     const std::filesystem::path cacheDir =
-        netCacheDir.empty()
-            ? std::filesystem::temp_directory_path() / "sigilloader-net-cache"
-            : netCacheDir;
+        netCacheDir.empty() ? defaultNetworkCacheDir() : netCacheDir;
     return fetchNetwork(cacheDir, uri, netPolicy);
   }
   std::filesystem::path path = localPath(hub, uri);

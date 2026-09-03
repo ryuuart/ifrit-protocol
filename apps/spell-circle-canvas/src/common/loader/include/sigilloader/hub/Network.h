@@ -2,10 +2,12 @@
 
 /** @file
  * The hub's network contract: NetworkPolicy, when an http(s):// ask may
- * touch the network against its on-disk cache, and networkCacheKey(),
- * the cache filename a URL maps to.
+ * touch the network against its on-disk cache, networkCacheKey(), the
+ * cache filename a URL maps to, and defaultNetworkCacheDir(), the
+ * directory it lands in when a hub was given no other.
  */
 
+#include <filesystem>
 #include <string>
 #include <string_view>
 
@@ -32,5 +34,11 @@ enum class NetworkPolicy {
  *  hex of the URL's hash plus the URL path's extension, so decode
  *  pathHints keep working. Exposed for tests and cache pre-seeding. */
 std::string networkCacheKey(std::string_view url);
+
+/** Where a hub given no cache directory of its own persists its fetches:
+ *  "sigilloader-net-cache" under the system's temporary directory. A
+ *  caller with no hub in reach — a probe asking what is already on this
+ *  machine — looks under the same directory, so the two cannot drift. */
+std::filesystem::path defaultNetworkCacheDir();
 
 }  // namespace sigil::loader

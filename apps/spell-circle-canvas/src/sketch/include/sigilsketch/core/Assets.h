@@ -2,12 +2,14 @@
 
 /** @file
  * Sketch-facing assets: a thin veneer over the resource hub, with the
- * forgiving contract a live-edited file wants.
+ * forgiving contract a live-edited file wants — and the probe a sketch
+ * over fetched art answers its availability with.
  */
 
 #include <sigilloader/Loader.h>
 
 #include <filesystem>
+#include <initializer_list>
 #include <map>
 #include <memory>
 #include <string>
@@ -48,5 +50,27 @@ class Assets {
   std::map<std::string, bool, std::less<>> m_placeholders;  // name → waiting
   std::shared_ptr<const sigil::image::ImageAsset> m_placeholder;
 };
+
+/** WHETHER EVERY ONE OF @p urls IS ALREADY ON THIS MACHINE, in the
+ *  loader's network cache — the probe a sketch over fetched art writes
+ *  into its `available()`.
+ *
+ *  Such a sketch keeps a procedural stand-in at every use site, so a
+ *  cold cache still renders; but it renders the STAND-IN, and the plate
+ *  the sketch is judged on is then not the picture its header describes.
+ *  Two plates under one name is the one thing a byte-identity sweep
+ *  cannot survive, so the sketch is unavailable BY NAME until the art is
+ *  here: a machine that has fetched once stays available offline forever
+ *  after, and one that never has stands down with the first missing URL
+ *  as the reason, in @p why when it is given.
+ *
+ *  It asks the cache the loader's own way — the file a URL lands under,
+ *  in the directory fetches persist to — and never the network, because
+ *  a probe that fetched would make availability a function of the
+ *  connection. @p cacheDir names another cache than the loader's default,
+ *  which is what a test hands it. */
+[[nodiscard]] bool requireCached(std::initializer_list<std::string_view> urls,
+                                 std::string* why,
+                                 const std::filesystem::path& cacheDir = {});
 
 }  // namespace sigil::sketch

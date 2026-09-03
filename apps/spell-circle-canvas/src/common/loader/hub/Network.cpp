@@ -110,6 +110,10 @@ std::string networkCacheKey(std::string_view url) {
   return key;
 }
 
+std::filesystem::path defaultNetworkCacheDir() {
+  return std::filesystem::temp_directory_path() / "sigilloader-net-cache";
+}
+
 void Hub::setNetworkCacheDir(std::filesystem::path dir) {
   m_netCacheDir = std::move(dir);
 }
