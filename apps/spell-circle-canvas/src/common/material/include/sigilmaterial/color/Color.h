@@ -9,15 +9,47 @@
 #include <algorithm>
 #include <cmath>
 #include <compare>
+#include <concepts>
 #include <cstdint>
 
 namespace sigil::material {
+
+/** A COLOUR VALUE SOMEONE ELSE'S LIBRARY SPELLS: four straight sRGB
+ *  components named the way Skia names them. Nothing in reach but
+ *  `SkColor4f` answers to it, and matching it by shape rather than by
+ *  name is what lets the colour below be built from one without this
+ *  library's leaf including a renderer's header. */
+template <class C>
+concept FourFloatColor = requires(const C& value) {
+  { value.fR } -> std::convertible_to<float>;
+  { value.fG } -> std::convertible_to<float>;
+  { value.fB } -> std::convertible_to<float>;
+  { value.fA } -> std::convertible_to<float>;
+};
 
 /** A colour as a shader receives it: four straight (not premultiplied)
  *  components in sRGB, one float each. Exactly four floats in memory, so a
  *  params struct holding one mirrors to bytes as a plain float4 uniform. */
 struct Color {
   float r = 0, g = 0, b = 0, a = 1;
+
+  constexpr Color() = default;
+  constexpr Color(float red, float green, float blue, float alpha = 1)
+      : r(red), g(green), b(blue), a(alpha) {}
+  /** A FOUR-FLOAT sRGB COLOUR, field for field: same order, same straight
+   *  alpha, so there is no transfer function, no premultiply and no clamp
+   *  to get wrong — a channel above 1 survives.
+   *
+   *  It is implicit because the alternative is a spelled conversion at
+   *  every call, and a conversion spelled by hand at each site is a place
+   *  where a channel order or an alpha convention drifts from this one
+   *  silently. This is the one place the mapping is written. */
+  template <FourFloatColor C>
+  constexpr Color(const C& other)  // NOLINT: the crossing is the point
+      : r((float)other.fR),
+        g((float)other.fG),
+        b((float)other.fB),
+        a((float)other.fA) {}
 
   constexpr auto operator<=>(const Color&) const = default;
 };

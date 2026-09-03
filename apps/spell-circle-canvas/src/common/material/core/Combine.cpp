@@ -375,7 +375,8 @@ const std::shared_ptr<const Recipe>& overRecipe(Blend blend) {
   return mix;
 }
 
-Material over(Material base, Material top, Material mask, Blend blend) {
+Material over(Material base, Material top, Material mask, Blend blend,
+              float amount) {
   const std::shared_ptr<const Recipe> recipe =
       composed(blend, &base.recipe(), &top.recipe(), &mask.recipe());
   const auto fill = [&](Material out) {
@@ -384,13 +385,13 @@ Material over(Material base, Material top, Material mask, Blend blend) {
     out.child("mask", std::move(mask));
     return out;
   };
-  if (!recipe) return fill(Material(overRecipe(blend), OverParams{}));
+  if (!recipe) return fill(Material(overRecipe(blend), OverParams{amount}));
 
   // A composed recipe's ABI is its operands' fields and not one struct's,
   // so its values are written field by field rather than poured from a
   // params struct.
   Material out(recipe);
-  out.set("amount", OverParams{}.amount);
+  out.set("amount", amount);
   const Material* operands[3] = {&base, &top, &mask};
   carry(out, operands);
   return fill(std::move(out));

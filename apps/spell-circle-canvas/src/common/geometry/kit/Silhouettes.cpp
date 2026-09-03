@@ -237,30 +237,37 @@ SkPath Trochoid::path(SkSize s) const {
 SkPath Chamfered::path(SkSize s) const {
   const float w = s.width(), h = s.height();
   const float c = std::clamp(cut, 0.0f, std::min(w, h) * 0.5f);
+  // A CUT OF ZERO IS A SQUARE CORNER, not a cut of no length. Emitting the
+  // two vertices anyway puts a duplicate point at each corner, and every
+  // treatment that reads the vertices afterwards — rounding among them —
+  // sees a degenerate segment there and rounds nothing.
+  const auto cutting = [&](Corner corner) {
+    return c > 0.0f && has(mask, corner);
+  };
   SkPathBuilder b;
-  if (has(mask, Corner::TopLeft))
+  if (cutting(Corner::TopLeft))
     b.moveTo(c, 0);
   else
     b.moveTo(0, 0);
-  if (has(mask, Corner::TopRight)) {
+  if (cutting(Corner::TopRight)) {
     b.lineTo(w - c, 0);
     b.lineTo(w, c);
   } else {
     b.lineTo(w, 0);
   }
-  if (has(mask, Corner::BottomRight)) {
+  if (cutting(Corner::BottomRight)) {
     b.lineTo(w, h - c);
     b.lineTo(w - c, h);
   } else {
     b.lineTo(w, h);
   }
-  if (has(mask, Corner::BottomLeft)) {
+  if (cutting(Corner::BottomLeft)) {
     b.lineTo(c, h);
     b.lineTo(0, h - c);
   } else {
     b.lineTo(0, h);
   }
-  if (has(mask, Corner::TopLeft)) b.lineTo(0, c);
+  if (cutting(Corner::TopLeft)) b.lineTo(0, c);
   b.close();
   return b.detach();
 }
@@ -269,33 +276,39 @@ SkPath Notched::path(SkSize s) const {
   const float w = s.width(), h = s.height();
   const float n = std::clamp(notchWidth, 0.0f, std::min(w, h) * 0.45f);
   const float d = std::clamp(depth, 0.0f, std::min(w, h) * 0.45f);
+  // A bite with no width or no depth is a SQUARE CORNER, for the same
+  // reason a chamfer of zero is: the vertices it would emit stand on top
+  // of each other and every later treatment reads them as a segment.
+  const auto biting = [&](Corner corner) {
+    return n > 0.0f && d > 0.0f && has(mask, corner);
+  };
   SkPathBuilder b;
-  if (has(mask, Corner::TopLeft))
+  if (biting(Corner::TopLeft))
     b.moveTo(n, 0);
   else
     b.moveTo(0, 0);
-  if (has(mask, Corner::TopRight)) {
+  if (biting(Corner::TopRight)) {
     b.lineTo(w - n, 0);
     b.lineTo(w - n, d);
     b.lineTo(w, d);
   } else {
     b.lineTo(w, 0);
   }
-  if (has(mask, Corner::BottomRight)) {
+  if (biting(Corner::BottomRight)) {
     b.lineTo(w, h - d);
     b.lineTo(w - n, h - d);
     b.lineTo(w - n, h);
   } else {
     b.lineTo(w, h);
   }
-  if (has(mask, Corner::BottomLeft)) {
+  if (biting(Corner::BottomLeft)) {
     b.lineTo(n, h);
     b.lineTo(n, h - d);
     b.lineTo(0, h - d);
   } else {
     b.lineTo(0, h);
   }
-  if (has(mask, Corner::TopLeft)) {
+  if (biting(Corner::TopLeft)) {
     b.lineTo(0, d);
     b.lineTo(n, d);
   }

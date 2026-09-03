@@ -11,6 +11,8 @@
 #include <sigilmaterial/sdf/Sdf.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
 
+#include <cmath>
+
 using namespace sigil::material;
 
 namespace {
@@ -41,6 +43,38 @@ TEST(Sdf, StarFillsCenterMissesCorners) {
   EXPECT_NE(
       render(sdf::material(sdf::roundBox(6), style), 32, 32).getColor(16, 16),
       0u);
+}
+
+TEST(Sdf, PointinessRunsBluntToSharp) {
+  // The dial's ends are what a caller reads off the comment and gets
+  // wrong in silence: 2 is the REGULAR POLYGON, and the point count
+  // itself closes the arms to nothing. What is asserted is the ordering
+  // and both ends, so a body that turned the dial round would fail here
+  // rather than in a plate nobody rebased.
+  sdf::Style style;
+  style.fill = {1, 1, 1, 1};
+  const auto covered = [&](float pointiness) {
+    const SkBitmap bm =
+        render(sdf::material(sdf::star(6, pointiness), style), 64, 64);
+    int on = 0;
+    for (int y = 0; y < 64; ++y)
+      for (int x = 0; x < 64; ++x)
+        if ((bm.getColor(x, y) >> 24) > 127) ++on;
+    return on;
+  };
+  const int hexagon = covered(2.0f);
+  EXPECT_GT(hexagon, covered(3.5f));
+  EXPECT_GT(covered(3.5f), covered(5.0f));
+  EXPECT_EQ(covered(6.0f), 0) << "the arms close at the point count";
+  // …and 2 really is the polygon: a hexagon covers 3·sqrt(3)/2 of its
+  // circumradius squared against the pi the circle of that radius covers.
+  const SkBitmap round = render(sdf::material(sdf::circle(), style), 64, 64);
+  int disc = 0;
+  for (int y = 0; y < 64; ++y)
+    for (int x = 0; x < 64; ++x)
+      if ((round.getColor(x, y) >> 24) > 127) ++disc;
+  EXPECT_NEAR((double)hexagon / disc, 3.0 * std::sqrt(3.0) / (2.0 * M_PI),
+              0.03);
 }
 
 TEST(Sdf, PadReservesTheStylesReach) {

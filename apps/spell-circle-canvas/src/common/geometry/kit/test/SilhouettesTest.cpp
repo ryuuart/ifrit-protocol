@@ -9,6 +9,7 @@
 
 #include <gtest/gtest.h>
 #include <include/core/SkPathBuilder.h>
+#include <src/core/SkPathPriv.h>
 #include <sigilgeometry/kit/Divisions.h>
 #include <sigilgeometry/kit/Shapers.h>
 #include <sigilgeometry/kit/Silhouettes.h>
@@ -37,6 +38,27 @@ TEST(Silhouettes, EveryGeneratorStaysInsideTheBoxItIsGiven) {
   EXPECT_TRUE(within(arrow()(kBox)));
   EXPECT_TRUE(within(chamfered(8)(kBox)));
   EXPECT_TRUE(within(notched(10, 6)(kBox)));
+}
+
+TEST(Silhouettes, ACornerTreatmentOfZeroIsASquareCorner) {
+  // A cut of zero is not a cut of no length: the two vertices it would
+  // emit stand on top of each other, and every treatment that reads the
+  // vertices afterwards sees a degenerate segment there. Rounding is the
+  // one that shows it — it rounds the corners it can find, and a
+  // duplicated corner is not one of them.
+  const auto vertices = [](const SkPath& p) {
+    int points = 0;
+    for (auto [verb, pts, w] : SkPathPriv::Iterate(p))
+      if (verb == SkPathVerb::kLine) ++points;
+    return points;
+  };
+  EXPECT_EQ(chamfered(0)(kBox), parallelogram(0)(kBox));
+  EXPECT_EQ(vertices(chamfered(0)(kBox)), 3);  // …and the close is the 4th
+  EXPECT_EQ(vertices(notched(0, 6)(kBox)), 3);
+  EXPECT_EQ(vertices(notched(10, 0)(kBox)), 3);
+  // Rounded, the square-cornered box rounds all four corners rather than
+  // the one seam a duplicated vertex leaves roundable.
+  EXPECT_EQ(rounded(chamfered(0), 10)(kBox), rounded(parallelogram(0), 10)(kBox));
 }
 
 TEST(Silhouettes, EqualValuesGenerateEqualPaths) {

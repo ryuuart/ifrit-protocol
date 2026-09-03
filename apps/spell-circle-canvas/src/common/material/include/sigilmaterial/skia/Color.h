@@ -7,9 +7,12 @@
  * field-for-field copy and nothing else — no transfer function, no
  * premultiply, no clamp.
  *
- * It lives here rather than at each call site because a hand-written copy
- * of it in a caller is a place where a channel order or an alpha
- * convention can drift from this one silently.
+ * `Color` CONVERTS FROM AN SkColor4f ON ITS OWN, so a Skia caller hands
+ * one to anything taking a colour and writes one into any field that is
+ * one. What is here is the named spellings — the way back, which the
+ * colour cannot carry without naming Skia, and the palette form — and
+ * `toColor` is that same conversion under a name, not a second copy of
+ * it.
  */
 
 #include <include/core/SkColor.h>
@@ -20,10 +23,9 @@
 
 namespace sigil::material::skia {
 
-/** A Skia colour as this library's. */
-constexpr Color toColor(const SkColor4f& c) noexcept {
-  return {c.fR, c.fG, c.fB, c.fA};
-}
+/** A Skia colour as this library's — the conversion `Color` already
+ *  performs, named for a call that wants to say so. */
+constexpr Color toColor(const SkColor4f& c) noexcept { return Color(c); }
 
 /** This library's colour as Skia's. */
 constexpr SkColor4f toSkColor(const Color& c) noexcept {

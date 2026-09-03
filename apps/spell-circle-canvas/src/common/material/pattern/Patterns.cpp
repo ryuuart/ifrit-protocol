@@ -47,22 +47,27 @@ Tile stripes(float on, float off, Color color) {
   });
 }
 
-Tile sequence(std::vector<std::pair<float, Color>> runs, float phase) {
+Tile sequence(std::vector<std::pair<float, Color>> runs, float phase,
+              Axis along) {
   float period = 0;
   for (const auto& [w, c] : runs) period += std::max(w, 0.0f);
   if (period <= 0) return stripes(1, 0, {0, 0, 0, 0});  // draws nothing
-  return Tile::of({period, 8}, [runs = std::move(runs), period, phase](
-                                   SkCanvas& c, SkSize sz, uint32_t) {
-    // Start one wrapped phase to the left and paint two periods, so the
-    // seam is covered whatever the phase.
-    float x = -std::fmod(std::fmod(phase, period) + period, period);
+  const bool down = along == Axis::V;
+  const SkSize size = down ? SkSize{8, period} : SkSize{period, 8};
+  return Tile::of(size, [runs = std::move(runs), period, phase, down](
+                            SkCanvas& c, SkSize sz, uint32_t) {
+    // Start one wrapped phase back along the axis and paint two periods,
+    // so the seam is covered whatever the phase.
+    float at = -std::fmod(std::fmod(phase, period) + period, period);
     for (int rep = 0; rep < 2; ++rep)
       for (const auto& [w, col] : runs) {
         if (w <= 0) continue;
         SkPaint p;
         p.setColor4f(sk(col), nullptr);
-        c.drawRect(SkRect::MakeXYWH(x, 0, w, sz.height()), p);
-        x += w;
+        c.drawRect(down ? SkRect::MakeXYWH(0, at, sz.width(), w)
+                        : SkRect::MakeXYWH(at, 0, w, sz.height()),
+                   p);
+        at += w;
       }
   });
 }

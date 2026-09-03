@@ -46,6 +46,10 @@ namespace sigil::weave {
 class FontContext;
 }
 
+namespace sigil::material::pattern {
+class Tile;
+}
+
 namespace sigil::compose {
 
 namespace detail {
@@ -54,6 +58,7 @@ struct Instance;
 }  // namespace detail
 
 class Composer;
+class Pattern;
 // The typography vocabulary the text verbs take, defined under
 // <sigilcompose/typography/>: a call site that dresses its type includes
 // the header that spells the value it passes.
@@ -267,6 +272,20 @@ class Element {
    *  richer authoring value. A static Material collapses to a Fill, so it
    *  caches and prunes on the same path. See <sigilcompose/Material.h>. */
   Element& fill(material::skia::Paint m);
+  /** NEITHER A TILE NOR A PATTERN IS A FILL, and the reason is where they
+   *  have to be STORED. A Pattern's bake is its identity: it renders its
+   *  tile once, on the shared state that Pattern holds, so a Pattern minted
+   *  inside a describe is a fresh state with no bake in it and re-renders
+   *  the tile on every render. Hold the Pattern where assets are held — a
+   *  sketch member, a model field — and fill with what it bakes:
+   *
+   *      Pattern m_grain = pattern::stripes(6, 6, kInk);  // once
+   *      box().fill(m_grain.material());                  // every describe
+   *
+   *  Deleted rather than absent so the error names the rule instead of
+   *  naming an overload set. */
+  Element& fill(material::pattern::Tile tile) = delete;
+  Element& fill(const Pattern& pattern) = delete;
   /** Solid-color sugar: fill({r,g,b,a}) without the Fill:: ceremony. */
   Element& fill(SkColor4f color) {
     return fill(motion::Animatable<Fill>{Fill::color(color)});

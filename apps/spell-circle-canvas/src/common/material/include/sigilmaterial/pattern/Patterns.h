@@ -11,6 +11,7 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/pattern/Tile.h>
 
+#include <cstdint>
 #include <utility>
 #include <vector>
 
@@ -24,12 +25,25 @@ Tile halftone(float spacing, float radius, Color color, bool staggered = true);
  *  draws nothing. */
 Tile stripes(float on, float off, Color color);
 
-/** A COLOURED SEQUENCE of runs along +x — a tartan sett, an awning, a
- *  ribbon edge: as many colours as there are runs. Each run is {width px,
- *  colour}; the period is their sum; @p phase slides the whole sequence
- *  along +x (px, wrapped). If no run has a positive width the result
- *  draws nothing. */
-Tile sequence(std::vector<std::pair<float, Color>> runs, float phase = 0.0f);
+/** WHICH WAY A RUN OF COLOUR TRAVELS across the tile: along +x, or down
+ *  +y. A sett is woven both ways, and the two together are the check —
+ *  which is a sequence over a sequence and not one pattern. */
+enum class Axis : uint8_t { U, V };
+
+/** A COLOURED SEQUENCE of runs along @p along — a tartan sett, an awning,
+ *  a ribbon edge: as many colours as there are runs. Each run is {width
+ *  px, colour}; the period is their sum; @p phase slides the whole
+ *  sequence along that axis (px, wrapped). If no run has a positive width
+ *  the result draws nothing.
+ *
+ *  The axis is HERE rather than left to `rotate(90)` because the two are
+ *  not the same tile: rotating remaps the sampling of a tile whose repeat
+ *  is one period by an arbitrary eight pixels, so it happens to read
+ *  right only while the other direction is constant — which stops being
+ *  true the moment such a tile is stacked under another. Asking for the
+ *  axis bakes the runs down the tile instead. */
+Tile sequence(std::vector<std::pair<float, Color>> runs, float phase = 0.0f,
+              Axis along = Axis::U);
 
 /** 2×2 checkerboard. */
 Tile checker(float cell, Color a, Color b);

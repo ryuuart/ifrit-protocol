@@ -344,11 +344,18 @@ index)` wraps past the end.
 
 ## Stacking
 
-**`over(base, top, mask, blend)` is a material.** The three operands
+**`over(base, top, mask, blend, amount)` is a material.** The three
+operands
 become its children, so the stack compares, animates and resolves as one
 value, and applying `over` again builds a taller one. The MASK is any
 material whose red channel is read as a scalar; `blend` is `Mix`, `Add`
-or `Multiply`, one recipe each so a body carries no branch. `under(m)`
+or `Multiply`, one recipe each so a body carries no branch; `amount` is
+how strongly the top shows where the mask is fully on, which is the
+stack's own strength rather than a second answer about where it applies.
+It is a parameter of the call because a COMPOSED stack has no params
+struct to write afterwards — its ABI is its operands' fields — so a
+caller who did not know to write the field by name would get a stack at
+full strength and read it as a wrong mask. `under(m)`
 is the material a stack stands on — one step down, so walking it reaches
 the bottom — and `stackDepth(m)` counts the steps. A consumer that can
 only express one material (`UsdPreviewSurface`, say) writes the bottom
@@ -620,14 +627,25 @@ hands it. HSV is not a perceptual space and must not be used as one:
 and a full-value blue are nowhere near the same brightness. Anything that
 INTERPOLATES goes through `lerpOklab`.
 
-**A Skia colour crosses at one place.** `SkColor4f` holds the same four
-straight sRGB floats in the same order, so `skia::toColor`,
-`skia::toSkColor` and the palette form `skia::toColors`
-(`<sigilmaterial/skia/Color.h>`) are a field-for-field copy — no transfer
-function, no premultiply, no clamp, so a channel above 1 survives. They
-live in one header rather than at each call site because a hand-written
-copy is a place where a channel order or an alpha convention drifts
-silently.
+**A Skia colour crosses at one place, and it is `Color` itself.**
+`SkColor4f` holds the same four straight sRGB floats in the same order,
+so the crossing is a field-for-field copy — no transfer function, no
+premultiply, no clamp, so a channel above 1 survives. `Color` is
+IMPLICITLY CONSTRUCTIBLE from one, matched by shape rather than by name
+(`FourFloatColor`: four float members `fR`, `fG`, `fB`, `fA`), so the
+leaf that every params struct includes still names no renderer:
+
+```cpp
+pattern::stripes(6, 6, kInk);              // kInk is an SkColor4f
+sdf::Style style{.fill = kInk, .borderColor = kEdge};
+```
+
+`skia::toSkColor` is the way BACK, which a colour cannot carry without
+naming Skia, and `skia::toColors` converts a palette in one call;
+`skia::toColor` is the same conversion under a name, for a call that
+wants to say so (`<sigilmaterial/skia/Color.h>`). The mapping is written
+once because a copy of it spelled at a call site is a place where a
+channel order or an alpha convention drifts silently.
 
 **A view transform is a LUT material with one open slot.** OpenColorIO's
 GPU codegen never emits SkSL, so `ocio::viewTransform(config, display,
@@ -651,7 +669,12 @@ bound `uBorderW` and however many styles there are, three programs
 compile. Distances are in pixel space over the resolution the frame
 supplies, never uv, so borders stay even on a stretched box. The style's
 outer treatments reserve `pad(style)` inside the box; size a box with
-`minBoxFor(style, contentPx)` or the reserve eats the interior.
+`minBoxFor(style, contentPx)` or the reserve eats the interior. A
+`Style`'s colours are `Color`, which an `SkColor4f` converts to, so a
+Skia caller writes one straight into the field. `star`'s `pointiness`
+runs BLUNT TO SHARP: 2 is the regular polygon, and values toward the
+point count narrow the arms until at the count itself they close to
+nothing.
 
 **pattern.** A `Tile` is one bake plus a mapping. The program draws one
 seamless tile at a seed; the bake is memoised on shared state, `seed(n)`
@@ -660,7 +683,18 @@ and `program()` copy-on-write that state and drop it, and `scale`,
 rotated repeat stays seamless with no rebake. The bake is the identity:
 hold a Tile where assets are held. `texture()` is the bake repeating on
 both axes through the mapping. The stock tiles — `halftone`, `stripes`,
-`sequence`, `checker`, `gridLines`, `speckle` — are programs over it.
+`sequence`, `checker`, `gridLines`, `speckle` — are programs over it, and
+each takes its colours as `Color`, which an `SkColor4f` converts to.
+`sequence` takes the AXIS its runs travel along (`Axis::U` across,
+`Axis::V` down) rather than leaving it to `rotate(90)`: rotating remaps
+the sampling of a tile whose repeat is one period by an arbitrary eight
+pixels, which reads right only while the other direction is constant.
+
+A Tile is not a fill and neither is a compose `Pattern`: `Element::fill`
+deletes both overloads so the error names the rule. The bake is the
+identity, so a Pattern minted inside a describe is a fresh state with no
+bake in it and re-renders its tile every frame — hold the Pattern where
+assets are held and fill with `pattern.material()`.
 
 **field.** `halftoneRamp` swells a staggered dot grid down the box and
 reads the resolution; `noise` is Skia's Perlin generator behind a

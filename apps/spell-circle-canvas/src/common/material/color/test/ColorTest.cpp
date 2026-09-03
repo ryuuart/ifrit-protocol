@@ -59,3 +59,26 @@ TEST(Color, HsvWalksTheWheelAndFoldsWhateverItIsGiven) {
   // Alpha rides through, straight, like every other colour here.
   EXPECT_FLOAT_EQ(hsv(10, 1, 1, 0.25f).a, 0.25f);
 }
+
+TEST(Color, TakesAFourFloatColourFieldForFieldWithoutNamingItsLibrary) {
+  // The shape of a Skia colour, declared here so this test names no
+  // renderer either — which is the whole point of matching by shape: the
+  // leaf every params struct includes must not include one.
+  struct FourFloats {
+    float fR, fG, fB, fA;
+  };
+  static_assert(FourFloatColor<FourFloats>);
+  static_assert(!FourFloatColor<Color>, "this library names its own channels");
+  // Same order, straight alpha, and no clamp: a channel above 1 survives,
+  // because a clamp here would silently change a colour that was correct
+  // for a wide gamut.
+  const Color crossed = FourFloats{1.4f, 0.25f, 0.0f, 0.5f};
+  EXPECT_FLOAT_EQ(crossed.r, 1.4f);
+  EXPECT_FLOAT_EQ(crossed.g, 0.25f);
+  EXPECT_FLOAT_EQ(crossed.b, 0.0f);
+  EXPECT_FLOAT_EQ(crossed.a, 0.5f);
+  // Implicit: it crosses at an argument and at a field, which is the
+  // reason it is a conversion rather than a named call.
+  const auto takesAColour = [](Color c) { return c.g; };
+  EXPECT_FLOAT_EQ(takesAColour(FourFloats{0, 1, 0, 1}), 1.0f);
+}

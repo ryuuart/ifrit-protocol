@@ -791,7 +791,10 @@ beneath, in `sigil::geometry::shapes`.
 - **`kit/Corners.h`** — `rounded()`, the wrapper that rounds any
   silhouette's sharp corners, and the two shapes a frame is cut to:
   `chamfered()` and `notched()`, both taking a per-`Corner` mask because a
-  cut on one diagonal is the common case and no single radius says it.
+  cut on one diagonal is the common case and no single radius says it. A
+  treatment of ZERO is a square corner, not a cut of no length: the two
+  vertices it would otherwise emit stand on top of each other, and
+  `rounded()` over that path finds no corner to round there.
 - **`kit/Silhouettes.h`** — the 2D shelf, including all three.
 - **`kit/Shapers.h`** — `shapers::`, the stock over the deviation seam:
   `Wave` (also the braid primitive — strands that oscillate trade sides,
