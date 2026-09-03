@@ -6,10 +6,13 @@
  * the raster to a 1-bit A8 mask, and presents that mask at an INTEGER
  * scale with nearest sampling — pixel type whose every edge lands on the
  * grid. `kit::bakeRun` gives one run as a `Mask`; `kit::bakeFont` bakes
- * all 96 printable ASCII cells as a `PixFont`, and `kit::blit` walks a
- * pen over them inside a `custom()` leaf, which is the only way a LIVE
- * number is drawn at all: `text()` takes a string, not an animatable, so
- * a rolling readout cannot be a text node.
+ * all 96 printable ASCII cells as a `PixFont` — each cropped to its ink
+ * and carrying where that ink sits inside the shared line box, so a run
+ * of figures, x-heights and descenders stands on ONE baseline and
+ * `lineHeight` is how deep the cells reach below the top of that box.
+ * `kit::blit` walks a pen over them inside a `custom()` leaf, which is
+ * the only way a LIVE number is drawn at all: `text()` takes a string,
+ * not an animatable, so a rolling readout cannot be a text node.
  *
  * The traps are the sheet. The SIZE is the control and the threshold is
  * inert — under aliased shaping Skia lights a pixel iff its centre is
@@ -221,17 +224,18 @@ struct PixFontDotSprite final : sketch::Sketch {
   Element readout() {
     const kit::PixFont* f = &font;
     return cell("kit::blit(canvas, font, at, run, colour, Blit)",
-                "a LIVE number, no text node at all \xc2\xb7 the same run "
-                "at track 1 and track 5, px added after every cell",
+                "a LIVE readout, no text node at all \xc2\xb7 figures, an "
+                "x-height and a descender on ONE baseline, the same run at "
+                "track 1 and track 5",
                 custom("pixfont.readout",
                        [f](SkCanvas& canvas, const PaintContext& pc) {
                          const double t = pc.elapsedSeconds;
-                         // Digits only: a baked cell is cropped to its
-                         // ink and blitted from its top, so a run that
-                         // mixes cap height with a period does not share
-                         // a baseline.
+                         // A cell is cropped to its ink and carries where
+                         // that ink sits inside the shared line box, so a
+                         // run mixing figures, an x-height and a descender
+                         // stands on one baseline.
                          const std::string run =
-                             line("%06.0f", 111000.0 + t * 1111.0);
+                             line("%04.0fpx", 1100.0 + t * 111.0);
                          canvas.save();
                          canvas.scale(2, 2);
                          kit::blit(canvas, *f, {0, 0}, run, kOn,
