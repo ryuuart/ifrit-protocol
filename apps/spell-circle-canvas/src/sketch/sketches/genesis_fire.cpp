@@ -96,11 +96,9 @@
 //   film. So the piece is a pen program, and the parts divide by what
 //   each is:
 //     * the field is the pen's. 8,000 streaks per SkVertices list, six
-//       triangles each with a colour ramp across the cross-section,
-//       issued through `pen.canvas()` because an SkVertices list has no
-//       pen verb, wearing the pen's own paint under `blendMode(ADD)` -
-//       light ADDS and CLAMPS [R83 §2.5] - inside a `clip()` of the
-//       stage. The
+//       triangles each with a colour ramp across the cross-section, put
+//       down by `pen.vertices()` under `blendMode(ADD)` - light ADDS and
+//       CLAMPS [R83 §2.5] - inside a `clip()` of the stage. The
 //       magnified motion-blur callout beside it is the same quad drawn
 //       in the pen's own words - `beginShape(TRIANGLE_STRIP)` with a
 //       `fill()` between the vertices, so the corners either side of a
@@ -651,27 +649,26 @@ struct GenesisFire final : sketch::DrawSketch {
     }
   }
 
-  /** The additive pass, through the pen's canvas. A streak list is an
-   *  `SkVertices` and no pen verb takes one, so it goes through
-   *  `pen.canvas()` — the door the library names for another library's
-   *  drawing — WEARING THE PEN'S OWN PAINT: `blendMode(ADD)` stands on
-   *  the caller's push, `fillPaint()` hands it over, and light adds where
-   *  every other verb in this frame would have added too. What goes
-   *  through the door lands in the pen's own space and in the order the
-   *  call was made. The fade at either end of the loop is a layer rather
-   *  than a per-vertex multiply, so the streaks keep the colours the
-   *  simulation gave them. */
+  /** THE ADDITIVE PASS, IN THE PEN'S OWN WORDS. A streak list is an
+   *  `SkVertices` and `pen.vertices` takes one: it lands in the pen's
+   *  space and in the pen's order, wearing the pen's fill under the
+   *  `blendMode(ADD)` the caller's push stands at, so light adds where
+   *  every other verb in this frame adds too. The fill carries no colour
+   *  of its own — the vertices carry theirs, and a plain fill is where
+   *  the corner colours govern.
+   *
+   *  THE FADE AT EITHER END OF THE LOOP IS THE FILL'S ALPHA. A layer would
+   *  gather the streaks additively and then composite the gathered picture
+   *  over the stage src-over, which is not what a dimming light does;
+   *  scaling the source keeps the pass additive from the first streak all
+   *  the way to the canvas. */
   static void paintField(Pen& pen, const std::vector<sk_sp<SkVertices>>& chunks,
                          float alpha) {
-    SkCanvas* c = pen.canvas();
-    const SkPaint* style = pen.fillPaint();
-    if (!c || !style || chunks.empty() || alpha <= 0.001f) return;
-    const bool layer = alpha < 0.999f;
-    if (layer) c->saveLayerAlphaf(nullptr, alpha);
-    for (const sk_sp<SkVertices>& v : chunks)
-      if (v)
-        c->drawVertices(v, SkBlendMode::kDst, *style);  // no shader ->
-    if (layer) c->restore();  // vertex colour is the source
+    if (chunks.empty() || alpha <= 0.001f) return;
+    pen.push();
+    pen.fill(255, 255, 255, alpha * 255.0f);
+    for (const sk_sp<SkVertices>& v : chunks) pen.vertices(v);
+    pen.pop();
   }
 
   /** The bench pool: ONE pool, read by two instances() leaves at two
@@ -1619,7 +1616,6 @@ struct GenesisFire final : sketch::DrawSketch {
                  stageBox.height());
       });
       pen.blendMode(sigil::draw::ADD);
-      pen.fill(255);  // the vertices carry the colour; this carries none
       pen.translate(kStageX, kBodyY);
       paintField(pen, fieldChunks, a);
       pen.pop();
@@ -1657,7 +1653,6 @@ struct GenesisFire final : sketch::DrawSketch {
       pen.push();
       pen.clip([&] { pen.rect(cellX, cellY, 130, 52); });
       pen.blendMode(sigil::draw::ADD);
-      pen.fill(255);
       pen.translate(cellX, cellY);
       paintField(pen, abChunks, 1.0f);
       pen.pop();
