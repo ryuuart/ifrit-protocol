@@ -130,16 +130,21 @@
 #include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkVertices.h>
-#include <sigilcompose/core/Material.h>
-#include <sigilcompose/core/Patterns.h>
-#include <sigilcompose/instances/Instances.h>
+#include <sigilcompose/core/Core.h>
+#include <sigilcompose/core/Pattern.h>
 #include <sigilcompose/kit/Frame.h>
-#include <sigilcompose/kit/Silhouettes.h>
-#include <sigilcompose/typography/TextFx.h>
-#include <sigilcompose/typography/Type.h>
+#include <sigilcompose/kit/Kinetic.h>
+#include <sigilcompose/typography/Typography.h>
 #include <sigilcore/compute/Noise.h>
+#include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilmaterial/field/Field.h>
+#include <sigilmaterial/pattern/Patterns.h>
+#include <sigilmaterial/skia/Color.h>
+#include <sigilmaterial/skia/Paint.h>
+#include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>
+#include <sigilweave/style/Type.h>
 
 #include <algorithm>
 #include <array>
@@ -151,9 +156,18 @@
 #include <vector>
 
 namespace sketch = sigil::sketch;
+namespace field = sigil::material::field;
+namespace patterns = sigil::material::pattern;
+namespace shapes = sigil::geometry::shapes;
+namespace weave = sigil::weave;
 
 using namespace sigil::compose;
+using namespace sigil::motion;
 using namespace std::chrono_literals;
+using sigil::material::skia::Paint;
+using sigil::material::skia::toColor;
+using sigil::material::skia::toColors;
+using sigil::weave::ports::pickTypeface;
 namespace ch = choreograph;
 
 namespace {
@@ -249,7 +263,7 @@ constexpr double kFrontCrossSeconds = (kStageW - kX0) / kSpread;  // 5.762 s
 // Type
 
 sk_sp<SkTypeface> face(const char* family, SkFontStyle style) {
-  return sigil::compose::pickFace({family}, style);
+  return pickTypeface({family}, style);
 }
 sk_sp<SkTypeface> monoFace() {
   static sk_sp<SkTypeface> f = face("Menlo", SkFontStyle::Normal());
@@ -277,26 +291,26 @@ sk_sp<SkTypeface> heavyFace() {
 
 // A positional shorthand over the library's designated-init `type()`, for
 // the one display line that names its own face.
-sigil::weave::TextStyle type(sk_sp<SkTypeface> tf, float size, SkColor4f color,
+weave::TextStyle faced(sk_sp<SkTypeface> tf, float size, SkColor4f color,
                              float track = 0.0f) {
-  return sigil::compose::type(
+  return weave::textStyle(
       {.face = std::move(tf), .size = size, .color = color, .track = track});
 }
 // The three registers the panel is set in.
-sigil::weave::TextStyle mono(float size, SkColor4f c, float track = 0.0f) {
-  return sigil::compose::type(
+weave::TextStyle mono(float size, SkColor4f c, float track = 0.0f) {
+  return weave::textStyle(
       {.face = monoFace(), .size = size, .color = c, .track = track});
 }
-sigil::weave::TextStyle monoB(float size, SkColor4f c, float track = 0.0f) {
-  return sigil::compose::type(
+weave::TextStyle monoB(float size, SkColor4f c, float track = 0.0f) {
+  return weave::textStyle(
       {.face = monoBoldFace(), .size = size, .color = c, .track = track});
 }
-sigil::weave::TextStyle ui(float size, SkColor4f c, float track = 0.0f) {
-  return sigil::compose::type(
+weave::TextStyle ui(float size, SkColor4f c, float track = 0.0f) {
+  return weave::textStyle(
       {.face = uiFace(), .size = size, .color = c, .track = track});
 }
 
-Element t(const char* s, sigil::weave::TextStyle st) {
+Element t(const char* s, weave::TextStyle st) {
   return text(toU8(s), std::move(st));
 }
 
@@ -689,7 +703,7 @@ struct GenesisFire : sketch::Sketch {
     const float sizes[5] = {7.0f, 5.4f, 4.2f, 3.2f, 2.4f};
     for (float s : sizes)
       starAtlas->cell(box().width(s).height(s).fill(
-                          Material::radialUnit({0.5f, 0.5f}, 0.707f,
+                          Paint::radialUnit({0.5f, 0.5f}, 0.707f,
                                                {{0.0f, {1, 1, 1, 1}},
                                                 {0.22f, {1, 1, 1, 0.78f}},
                                                 {0.58f, {1, 1, 1, 0.14f}},
@@ -735,7 +749,7 @@ struct GenesisFire : sketch::Sketch {
                                        PathFormat::Align::Inner)),
                     {4, 4});
     planAtlas->cell(box().width(4.0f).height(4.0f).fill(
-                        Material::radialUnit({0.5f, 0.5f}, 0.707f,
+                        Paint::radialUnit({0.5f, 0.5f}, 0.707f,
                                              {{0.0f, {1, 1, 1, 1}},
                                               {0.45f, {1, 1, 1, 0.8f}},
                                               {1.0f, {1, 1, 1, 0}}})),
@@ -766,7 +780,7 @@ struct GenesisFire : sketch::Sketch {
     // stubby at apogee; an atlas cell is one size and a Pool scale is one
     // float, so this cell is the compromise the middle two panels show.
     abAtlas->cell(box().width(4.4f).height(2.3f).corners({1.0f}).fill(
-                      Material::radialUnit({0.5f, 0.5f}, 1.05f,
+                      Paint::radialUnit({0.5f, 0.5f}, 1.05f,
                                            {{0.0f, {1, 1, 1, 1}},
                                             {0.42f, {1, 1, 1, 0.9f}},
                                             {1.0f, {1, 1, 1, 0}}})),
@@ -836,7 +850,7 @@ struct GenesisFire : sketch::Sketch {
       const bool sol = i == 7;
       g.child(
           kit::disc(p, rad * 2.0f)
-              .fill(Material::radialUnit(
+              .fill(Paint::radialUnit(
                   {0.5f, 0.5f}, 0.707f,
                   {{0.0f, sol ? hex(0xFFFFFF) : hex(0xEFF3FF)},
                    {0.22f, sol ? hex(0xFFF4D8, 0.9f) : hex(0xD9E4FF, 0.85f)},
@@ -872,15 +886,17 @@ struct GenesisFire : sketch::Sketch {
   Element regolith() {
     // A generated surface, plus the ONE hand-added light in the shot
     // (Tom Duff's), riding the wavefront.
-    Material ground = Material::blend(
-        {{Material::radialUnit({0.5f, 0.723f}, 0.50f,
+    Paint ground = Paint::blend(
+        {{Paint::radialUnit({0.5f, 0.723f}, 0.50f,
                                {{0.0f, hex(0x3B3933)},
                                 {0.42f, hex(0x232119)},
                                 {1.0f, hex(0x0A0A0C)}}),
           SkBlendMode::kSrc},
-         {patterns::grain(0.022f, 4, 7.0f, 0.5f, 1.0f),
+         {Paint::recipe(field::grain(0.022f, 4, 7.0f, 0.5f, 1.0f)),
           SkBlendMode::kSoftLight},
-         {patterns::speckle(170, 17, 0.9f, 3.4f, {hex(0x6A655B), hex(0x171512)})
+         {Pattern(patterns::speckle(
+                      170, 17, 0.9f, 3.4f,
+                      {toColor(hex(0x6A655B)), toColor(hex(0x171512))}))
               .material(),
           SkBlendMode::kOverlay}});
 
@@ -895,8 +911,8 @@ struct GenesisFire : sketch::Sketch {
             from(12.0f).to(0.0f),
             {.duration = 520ms, .ease = &ch::easeOutCubic, .delay = 420ms}))
         // Duff's local light. ONE Output (loopU) shaped into px.
-        .child(kit::disc({0, 0}, 132)
-                   .fill(Material::radialUnit({0.5f, 0.5f}, 0.707f,
+        .child(kit::disc(SkPoint{0, 0}, 132)
+                   .fill(Paint::radialUnit({0.5f, 0.5f}, 0.707f,
                                               {{0.0f, hex(0xFF8A3A, 0.62f)},
                                                {0.38f, hex(0xC24E14, 0.24f)},
                                                {1.0f, hex(0xFF8A3A, 0.0f)}}))
@@ -916,7 +932,7 @@ struct GenesisFire : sketch::Sketch {
     const SkPoint impact{kX0, limbY(kX0 < 0 ? 0.0f : kX0) + 8.0f};
     Element g = box().inset(0);
     g.child(kit::disc(impact, 170)
-                .fill(Material::radialUnit({0.5f, 0.5f}, 0.707f,
+                .fill(Paint::radialUnit({0.5f, 0.5f}, 0.707f,
                                            {{0.0f, {1, 1, 1, 0.95f}},
                                             {0.25f, hex(0xFFE7B0, 0.6f)},
                                             {1.0f, hex(0xFF7A20, 0.0f)}}))
@@ -963,7 +979,7 @@ struct GenesisFire : sketch::Sketch {
             .stroke(stroke(1.0f, Fill::color(hex(0x4FB8D8, 0.55f)),
                            PathFormat::Align::Inner))
             // the expanding wavefront ring — same Output, unit scale
-            .child(kit::disc({34, 106}, 124)
+            .child(kit::disc(SkPoint{34, 106}, 124)
                        .shape(shapes::circle())
                        .stroke(stroke(1.0f, Fill::color(hex(0x4FB8D8, 0.75f))))
                        .scale(bind(&loopU)
@@ -1131,7 +1147,7 @@ struct GenesisFire : sketch::Sketch {
         .height(kStageH)
         .shrink(0)
         .clip()
-        .fill(Material::linearUnit({0.5f, 0.0f}, {0.5f, 0.85f},
+        .fill(Paint::linearUnit({0.5f, 0.0f}, {0.5f, 0.85f},
                                    {{0.0f, hex(0x03040A)},
                                     {0.55f, hex(0x05060D)},
                                     {1.0f, hex(0x0A0B13)}}))
@@ -1187,7 +1203,7 @@ struct GenesisFire : sketch::Sketch {
                    .shrink(0));
   }
 
-  Element censusCell(const char* s, float w, sigil::weave::TextStyle st) {
+  Element censusCell(const char* s, float w, weave::TextStyle st) {
     return t(s, std::move(st)).width(w).shrink(0);
   }
 
@@ -1287,7 +1303,7 @@ struct GenesisFire : sketch::Sketch {
                              .width(28)
                              .height(26)
                              .shrink(0)
-                             .fill(Material::solid(overlap(n)))
+                             .fill(Paint::solid(overlap(n)))
                              .transformOrigin(0.5f, 1.0f)
                              .scaleY(animate(from(0.0f).to(1.0f),
                                              {.duration = 220ms,
@@ -1415,7 +1431,7 @@ struct GenesisFire : sketch::Sketch {
             t("STOCHASTIC PARTICLE SYSTEMS", ui(11.5f, kSteel, 2.7f))
                 .opacity(animate(from(0.0f).to(1.0f), {.duration = 260ms}))
                 .translateY(animate(from(8.0f).to(0.0f), {.duration = 260ms})))
-        .child(t("THE GENESIS DEMO, 1982", type(heavyFace(), 46, kBone, -0.4f))
+        .child(t("THE GENESIS DEMO, 1982", faced(heavyFace(), 46, kBone, -0.4f))
                    .key("title")
                    .fx(std::move(rise)))
         .child(t("W. T. Reeves, Lucasfilm Ltd \xe2\x80\x94 \"Particle "
