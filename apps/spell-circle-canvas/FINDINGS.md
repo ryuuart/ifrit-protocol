@@ -260,3 +260,15 @@ Each README evidently intends to point a reader at the sketch that draws
 the feature beside it. A test (or the docs build) should resolve every
 sketch stem a README names against the registry and fail on a stem with
 no file — the same check the compose README already gets for API names.
+
+## A workspace row's runtime stays "not yet compiled" after it has compiled
+
+`SketchCatalog` builds a row for a file opened by path with an empty
+`kind`, because which runtime the file draws through is not known until
+it has been built — and nothing fills it in afterwards: `learn()` takes
+the canvas, the moment and the background off the running session and
+leaves the runtime alone, so the inspector reads "not yet compiled" under
+a sketch whose status strip says it is live. Evidently intended: a row
+learns everything a session can tell it, the runtime included, the first
+time that session runs. A test should open a file by path, drive one
+frame, and assert the row's `kind` names the session's runtime.
