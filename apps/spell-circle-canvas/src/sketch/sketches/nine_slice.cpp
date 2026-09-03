@@ -1,15 +1,50 @@
 /** @file
- * nine slice — a carved hall: frame textures generated on intermediate
- * canvases and stretched over panels of every size, with one panel
- * relaid out every frame so the stretch is watched rather than assumed.
+ * nine slice — one generated frame texture, and the three things a
+ * lattice has to get right.
+ *
+ * A carved frame is drawn once on an offscreen canvas at TWICE the size
+ * it is used at, and every panel below wears that one image through a
+ * `Slice`: the corner and edge bands hold their shape while the middle
+ * stretches to whatever box the layout settled.
+ *
+ *   DENSITY  A texture generated oversized is sharp on a dense display
+ *            and, drawn without saying so, twice as heavy as it was
+ *            designed: a 64 px corner band lands 64 layout units wide
+ *            where 32 were meant. `Slice::density` is the source's
+ *            pixels per layout unit, and the two panels in the first row
+ *            are the one image at 2 and at 1, so the difference between
+ *            declaring it and not is the picture.
+ *   THE TRAP Skia's own `drawImageLattice` is not implemented on every
+ *            backend and draws NOTHING where it is not — including when
+ *            a picture recorded elsewhere replays there. The second row
+ *            draws the same frame twice at the same size: once through
+ *            `Slice`, which decomposes the lattice into rects on every
+ *            backend, and once through the native call in a `custom()`
+ *            leaf. On a raster plate the two agree; on the device the
+ *            right-hand cell is empty, which is why the decomposed path
+ *            exists.
+ *   STRETCH  The panel at the foot is re-laid out every frame, so the
+ *            middle bands are watched stretching rather than assumed.
+ *
+ * The cells and the page are the specimen kit's, so the sheet's voice is
+ * declared once.
  */
 
-#include <include/core/SkMaskFilter.h>
+#include <include/core/SkSamplingOptions.h>
+#include <sigilcompose/brush/Decorations.h>
+#include <sigilcompose/core/Factories.h>
 #include <sigilcompose/kit/Ornament.h>
-#include <sigilcompose/typography/Typography.h>
+#include <sigilcompose/kit/Specimen.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilweave/style/Type.h>
+
+#include <cmath>
+#include <memory>
+#include <utility>
+#include <vector>
 
 namespace sketch = sigil::sketch;
+namespace weave = sigil::weave;
 
 using namespace sigil::compose;
 using sigil::compose::toU8;
@@ -17,131 +52,194 @@ using namespace std::chrono_literals;
 using namespace sigil::compose::kit::ornament;
 
 namespace {
-/** The canvas this piece was drawn against, which is also the default a
- *  sketch gets when it declares none. */
+
 constexpr SkSize kSceneSize = {900, 640};
+/** The panels every comparison is drawn in — one size, so what differs
+ *  between two cells is the one thing the cell is about. */
+constexpr float kPanelW = 250, kPanelH = 96;
+/** The frame is drawn at twice the size it is used at, so its bands stay
+ *  sharp on a dense display; every consumer repeats that factor as the
+ *  slice's density. */
+constexpr float kFrameDensity = 2.0f;
+
+constexpr SkColor4f kInk{0.86f, 0.88f, 0.94f, 1};
+constexpr SkColor4f kAsh{0.60f, 0.64f, 0.73f, 1};
+constexpr SkColor4f kRule{0.22f, 0.23f, 0.30f, 1};
+constexpr SkColor4f kQuest{0.169f, 0.110f, 0.043f, 1};
+
+weave::TextStyle label(float size, SkColor4f color, float track = 0) {
+  return weave::textStyle({.size = size, .color = color, .track = track});
+}
+
+/** THE SHEET'S ONE VOICE: the call over the panel, what it did under it. */
+kit::Caption voice() {
+  return {.where = kit::Caption::Where::Split,
+          .label = label(12.5f, kInk, 0.4f),
+          .note = label(11.0f, kAsh, 0.2f),
+          .gap = 7,
+          .noteMeasure = kPanelW};
+}
+
+/** The panel every cell shows: the frame stretched over a box of one
+ *  size, with room inside it for a line of type. 24 clears the carved
+ *  corner bosses, which reach 0.215 of the 96-unit band in from the
+ *  edge. */
+Element panel(Slice frame, std::u8string caption, SkColor4f ink) {
+  return box()
+      .width(Dim(kPanelW))
+      .height(Dim(kPanelH))
+      .background(std::move(frame))
+      .padding(24)
+      .alignItems(Align::Center)
+      .justify(Justify::Center)
+      .child(text(std::move(caption), label(17, ink)));
+}
+
+/** THE NATIVE CALL, in a leaf of its own: Skia's `drawImageLattice`
+ *  against the same divs the `Slice` beside it declares. Nothing here
+ *  goes through the library's decomposition, which is the point. */
+Element nativeLattice(std::shared_ptr<sigil::image::ImageAsset> asset) {
+  return box()
+      .width(Dim(kPanelW))
+      .height(Dim(kPanelH))
+      .alignItems(Align::Center)
+      .justify(Justify::Center)
+      .child(custom([asset = std::move(asset)](SkCanvas& canvas,
+                                               const PaintContext& ctx) {
+        const sk_sp<SkImage> image =
+            asset ? asset->frameAt(0).image : nullptr;
+        if (!image) return;
+        const int side = image->width();
+        std::vector<int> xs = {side / 3, side * 2 / 3};
+        std::vector<int> ys = {side / 3, side * 2 / 3};
+        const SkIRect bounds = SkIRect::MakeWH(side, image->height());
+        SkCanvas::Lattice lattice;
+        lattice.fXDivs = xs.data();
+        lattice.fYDivs = ys.data();
+        lattice.fXCount = (int)xs.size();
+        lattice.fYCount = (int)ys.size();
+        lattice.fBounds = &bounds;
+        canvas.drawImageLattice(
+            image.get(), lattice,
+            SkRect::MakeWH(ctx.size.width(), ctx.size.height()),
+            SkFilterMode::kLinear);
+      }).absolute()
+                 .inset(0))
+      .child(text(u8"NATIVE", label(17, kQuest)));
+}
 
 struct NineSlice final : sketch::Sketch {
-  std::shared_ptr<sigil::image::ImageAsset> oakFrame, azureFrame, crimsonFrame;
+  std::shared_ptr<sigil::image::ImageAsset> oak, azure, crimson;
+  /** The trap's row compares two DRAW PATHS, so both of its cells wear a
+   *  texture drawn at the size it is used at: the native call has no
+   *  density of its own, and a pair that also differed in weight would
+   *  be comparing two things at once. */
+  std::shared_ptr<sigil::image::ImageAsset> azurePlain;
   float stretch = 0.0f;
 
-  /** The frame texture, and the factor every consumer of it must repeat:
-   *  drawn at twice the size it is used at, so the corner bands stay sharp
-   *  on a 2x device, and handed to the slice as a density of 2 so they come
-   *  out at the on-page width the panel padding is measured against. */
-  static constexpr float kFrameDensity = 2.0f;
-
   static std::shared_ptr<sigil::image::ImageAsset> generate(
-      const Palette& pal) {
+      const Palette& pal, float density = kFrameDensity) {
     // The intermediate canvas: draw the carved frame once, wrap the
     // snapshot, stretch it everywhere below.
     return std::make_shared<sigil::image::ImageAsset>(
         sigil::image::ImageAsset::wrap(
-            makeCarvedFrame(pal, (int)(96 * kFrameDensity))));
+            makeCarvedFrame(pal, (int)(96 * density))));
   }
 
   Element describe() {
-    auto panel = [&](const std::shared_ptr<sigil::image::ImageAsset>& f,
-                     float l, float t, float w, float h) {
-      return box()
-          .width(w)
-          .height(h)
-          .inset(l, t, kSceneSize.width() - l - w, kSceneSize.height() - t - h)
-          .background(carvedFrameSlice(f, kFrameDensity))
-          // 24 clears the carved corner bosses, which reach 0.215 of the
-          // 96-unit band in from the edge; a wider band would put type
-          // under them.
-          .padding(24);
-    };
+    const float breathW = kPanelW + 66 * stretch;
+    const float breathH = kPanelH + 26 * stretch;
 
-    const float breathW = 250 + 66 * stretch;
-    const float breathH = 130 + 34 * stretch;
+    Element density = kit::cells(
+        {.cells =
+             {kit::cell(voice(), u8"Slice::density = 2",
+                        u8"192 px at its design width \xe2\x80\x94 a 16-unit "
+                        u8"band",
+                        panel(carvedFrameSlice(oak, kFrameDensity),
+                              u8"BEGIN QUEST", kQuest)),
+              kit::cell(voice(), u8"Slice::density = 1",
+                        u8"the same image at face value \xe2\x80\x94 twice "
+                        u8"as heavy",
+                        panel(carvedFrameSlice(oak, 1.0f), u8"BEGIN QUEST",
+                              kQuest))},
+         .gap = 34,
+         .divider = Fill::color(kRule)});
 
-    return stack()
-        .fill(sigil::compose::linearGradient(
-            {0, 0}, {0, 640},
-            {{0.09f, 0.07f, 0.10f, 1}, {0.05f, 0.06f, 0.09f, 1}}))
-        // The source texture at natural size, labeled.
-        .child(box()
-                   .inset(24, 24, kSceneSize.width() - 24 - 200,
-                          kSceneSize.height() - 24 - 150)
-                   .column()
-                   .gap(8)
-                   .child(image(oakFrame).width(96).height(96))
-                   .child(text(u8"the source texture — drawn 2x on an "
-                               u8"offscreen canvas, wrapped, nine-sliced",
-                               type({.size = 12, .color = hex(0x9aa4bb)}))
-                              .width(190)))
-        // Button: oak, small.
-        .child(panel(oakFrame, 24, 210, 220, 84)
-                   .alignItems(Align::Center)
-                   .justify(Justify::Center)
-                   .child(text(u8"BEGIN QUEST",
-                               type({.size = 19, .color = hex(0x2b1c0b)}))))
-        // Banner: azure, wide.
-        .child(panel(azureFrame, 268, 24, 600, 108)
-                   .justify(Justify::Center)
-                   .child(text(u8"THE HALL OF STRETCHED FRAMES",
-                               type({.size = 23, .color = hex(0x14243a)})))
-                   .child(text(u8"one texture per palette — any size "
-                               u8"without distortion, corners stay carved",
-                               type({.size = 13.5f, .color = hex(0x3a4a63)}))))
-        // Tall dialog: crimson, itemized.
-        .child(panel(crimsonFrame, 560, 168, 300, 330)
-                   .column()
-                   .gap(12)
-                   .child(text(u8"CELLAR MANIFEST",
-                               type({.size = 19, .color = hex(0x3a1410)})))
-                   .child(text(u8"◈  six barrels of pitch",
-                               type({.size = 15, .color = hex(0x4a2018)})))
-                   .child(text(u8"◈  the copper bowls",
-                               type({.size = 15, .color = hex(0x4a2018)})))
-                   .child(text(u8"◈  rope, forty fathoms",
-                               type({.size = 15, .color = hex(0x4a2018)})))
-                   .child(text(u8"◈  one coal, still warm",
-                               type({.size = 15, .color = hex(0x4a2018)})))
-                   .child(box().grow(1))
-                   .child(text(u8"signed, the quartermaster",
-                               type({.size = 13, .color = hex(0x6a3a30)}))))
-        // The breathing panel: relaid out every frame — the lattice
-        // stretches live while the carved corners hold their shape.
-        .child(
-            panel(oakFrame, 60, 380 - (breathHalf(breathH)), breathW, breathH)
-                .alignItems(Align::Center)
-                .justify(Justify::Center)
-                .child(text(u8"stretch me",
-                            type({.size = 17, .color = hex(0x2b1c0b)}))));
+    Element trap = kit::cells(
+        {.cells =
+             {kit::cell(voice(), u8"Slice",
+                        u8"decomposed into rects \xe2\x80\x94 every backend",
+                        panel(carvedFrameSlice(azurePlain, 1.0f),
+                              u8"DECOMPOSED", kQuest)),
+              kit::cell(voice(), u8"canvas.drawImageLattice",
+                        u8"the native op \xe2\x80\x94 blank on a device",
+                        nativeLattice(azurePlain))},
+         .gap = 34,
+         .divider = Fill::color(kRule)});
+
+    Element source = kit::cells(
+        {.cells = {kit::cell(voice(), u8"the source",
+                             u8"drawn once, offscreen, at 2\xc3\x97",
+                             image(oak).width(Dim(96)).height(Dim(96))),
+                   kit::cell(voice(), u8"re-laid out every frame",
+                             u8"the box changes, the corners do not",
+                             panel(carvedFrameSlice(crimson, kFrameDensity),
+                                   u8"stretch me", kQuest)
+                                 .width(Dim(breathW))
+                                 .height(Dim(breathH)))},
+         .gap = 34,
+         .align = Align::Center,
+         .divider = Fill::color(kRule)});
+
+    return kit::sheet(
+               {.title = u8"NINE SLICE",
+                .subtitle = u8"one generated texture over every size \xe2\x80\x94 "
+                            u8"the density it declares, and the native op "
+                            u8"it does not use",
+                .footer = u8"Sketchbook \xc2\xb7 nine_slice",
+                .titleStyle = label(26, kInk, 3),
+                .subtitleStyle = label(12, kAsh, 0.6f),
+                .footerStyle = label(10.5f, kAsh, 1.2f),
+                .marginX = 44,
+                .marginTop = 34,
+                .marginBottom = 22,
+                .ground = Fill::color({0.055f, 0.055f, 0.075f, 1}),
+                .rule = Fill::color(kRule)},
+               kit::cells({.cells = {std::move(density), std::move(trap),
+                                     std::move(source)},
+                           .column = true,
+                           .gap = 22}))
+        .absolute()
+        .inset(0);
   }
 
-  static float breathHalf(float h) { return (h - 130.0f) * 0.5f; }
-
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kSceneSize.fWidth, kSceneSize.fHeight);
+    ctx.canvas((int)kSceneSize.fWidth, (int)kSceneSize.fHeight);
     ctx.captureAt(6.0);
     ctx.background({0, 0, 0, 1});
-    Composer& composer = ctx.composer;
-    oakFrame = generate(oakPalette());
-    azureFrame = generate(azurePalette());
-    crimsonFrame = generate(crimsonPalette());
+    oak = generate(oakPalette());
+    azure = generate(azurePalette());
+    crimson = generate(crimsonPalette());
+    azurePlain = generate(azurePalette(), 1.0f);
     stretch = 0.0f;
-    composer.render(describe());
+    ctx.composer.render(describe());
   }
 
   /** THE WHOLE TREE, EVERY FRAME, and deliberately: what moves here is a
-   *  panel's HEIGHT, so the frame texture is re-sliced and everything
-   *  below it re-laid out. That is the describe path — a bound Output
-   *  animates a value the layout already settled, and this changes what
-   *  the layout settles. The reconciler diffs the rest, which is the
-   *  point of watching the stretch rather than assuming it. */
+   *  panel's SIZE, so the frame is re-sliced and everything below it
+   *  re-laid out. That is the describe path — a bound Output animates a
+   *  value the layout already settled, and this changes what the layout
+   *  settles. The reconciler diffs the rest, which is the point of
+   *  watching the stretch rather than assuming it. */
   void update(double elapsed, sketch::SketchContext& ctx) override {
-    Composer& composer = ctx.composer;
     stretch = 0.5f + 0.5f * (float)std::sin(elapsed * 1.4);
-    composer.render(describe());
+    ctx.composer.render(describe());
   }
 };
 
 }  // namespace
 
-SIGIL_SKETCH_AS(
-    NineSlice, "nine slice", "Kit \xc2\xb7 API",
-    "frame textures generated once and stretched over panels of every size")
+SIGIL_SKETCH_AS(NineSlice, "nine slice", "Kit \xc2\xb7 API",
+                "one frame texture over every size \xe2\x80\x94 the lattice, "
+                "the density it declares, and the native op that draws "
+                "nothing on a device")
