@@ -35,6 +35,7 @@ target_link_libraries(SigilWeaveKit
     unofficial::skia::skia
   PRIVATE
     SigilWeaveUnicode
+    Boost::unordered
 )
 
 # The invalidation semantics the kit exists to make explicit.

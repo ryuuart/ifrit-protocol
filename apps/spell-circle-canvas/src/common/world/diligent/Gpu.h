@@ -22,8 +22,8 @@
 #include <include/core/SkSize.h>
 #include <sigilgeometry/device/Device.h>
 #include <sigilgeometry/device/Resources.h>
-#include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/Mesh.h>
+#include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilmaterial/texture/EnvironmentMap.h>
 #include <sigilmaterial/texture/Texture.h>
 #include <sigilworld/frame/Pass.h>
@@ -32,10 +32,10 @@
 
 #include <Common/interface/RefCntAutoPtr.hpp>
 #include <Graphics/GraphicsTools/interface/DynamicBuffer.hpp>
+#include <boost/container/map.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <glm/mat4x4.hpp>
-#include <map>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -135,7 +135,7 @@ struct Gpu {
   SkISize extent{0, 0};
   uint64_t frame = 0;
 
-  std::map<std::string, DeviceImage, std::less<>> images;
+  boost::container::map<std::string, DeviceImage, std::less<>> images;
   dg::RefCntAutoPtr<dg::ITexture> depth;
   /** TARGETS NO RESOURCE NAMES, made on the first ask and kept for the
    *  extent's life. A device cannot sample an image it is drawing into,
@@ -144,7 +144,7 @@ struct Gpu {
    *  these, and they are addressed by index so that two such stages in
    *  one pass cannot be handed the same one. */
   std::vector<dg::RefCntAutoPtr<dg::ITexture>> scratch;
-  std::map<uint64_t, MeshBuffers> meshes;
+  boost::container::map<uint64_t, MeshBuffers> meshes;
   /** THE ONE PAIR OF BUFFERS a mesh nobody can name is written into,
    *  grown to fit and overwritten by the next draw. A draw whose seam
    *  carries no artefact number is told nothing that says two of them
@@ -158,21 +158,21 @@ struct Gpu {
   std::unique_ptr<dg::DynamicBuffer> streamVertices;
   std::unique_ptr<dg::DynamicBuffer> streamIndices;
   MeshBuffers streamed;
-  std::map<PipelineKey, Pipeline> pipelines;
+  boost::container::map<PipelineKey, Pipeline> pipelines;
   /** Maps whose pixels already stand on this device, under the name the
    *  API gave them. Nothing is copied for one of these. */
-  std::map<uint64_t, SampledImage> wrapped;
+  boost::container::map<uint64_t, SampledImage> wrapped;
   /** …and maps that had to be brought over, under the id of the image
    *  they were brought from. */
-  std::map<uint32_t, SampledImage> uploaded;
+  boost::container::map<uint32_t, SampledImage> uploaded;
   /** PREFILTERED PANORAMAS, under the id of the panorama they were
    *  built from. One texture with the whole chain in it, in a float
    *  format, because a sky holds values above one and an eight-bit
    *  upload would put the sun and the sky beside it at the same
    *  brightness. */
-  std::map<uint32_t, SampledImage> environments;
+  boost::container::map<uint32_t, SampledImage> environments;
   /** …and the cosine convolutions, under the same key. */
-  std::map<uint32_t, SampledImage> irradiances;
+  boost::container::map<uint32_t, SampledImage> irradiances;
 
   // ---- what the whole of it is made of (Gpu.cpp) ----
   /** Sizes the frame's targets to @p size, dropping everything made at

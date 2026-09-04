@@ -12,6 +12,8 @@
 #include <sigilcore/reconcile/Phases.h>
 #include <sigilcore/reconcile/Reconciler.h>
 
+#include <boost/unordered/unordered_flat_map.hpp>
+
 #include "Instance.h"
 #include "Lanes.h"
 #include "SlotSpecs.h"
@@ -77,7 +79,9 @@ struct Composer::Impl {
   // indexed after its parent, so in a single shared map the content would
   // overwrite the slot's entry and every later renderSlot() would silently
   // find the wrong instance. Two namespaces, no collision.
-  std::unordered_map<std::string, detail::Instance*> bySlot;
+  boost::unordered_flat_map<std::string, detail::Instance*, core::KeyHash,
+                            std::equal_to<>>
+      bySlot;
   // The EDGE STORE, rebuilt with the key index each render: routed nodes
   // (connector()/rail()) as a flat list in tree order, plus the back-index
   // anchor-key → routes-anchored-there. The derive pass iterates these flat
@@ -97,7 +101,8 @@ struct Composer::Impl {
   // …and the frames THEY thread into, kept from the last walk so a frame
   // that stops being a target is unbounded again the moment it does.
   std::vector<detail::Instance*> threadTargets;
-  std::unordered_map<std::string, std::vector<detail::Instance*>>
+  boost::unordered_flat_map<std::string, std::vector<detail::Instance*>,
+                            core::KeyHash, std::equal_to<>>
       routesByAnchor;
   bool volatileDirty = true;  // recompute needed (render or animation)
   bool tickerWasActive = false;

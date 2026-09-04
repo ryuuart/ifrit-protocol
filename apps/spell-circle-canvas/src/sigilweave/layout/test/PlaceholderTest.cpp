@@ -4,9 +4,9 @@
  * a resize relaying out live.
  */
 
-#include <absl/container/flat_hash_set.h>
 #include <gtest/gtest.h>
 
+#include <boost/unordered/unordered_flat_set.hpp>
 #include <string>
 
 #include "support/LayoutSupport.h"
@@ -74,7 +74,7 @@ TEST(Placeholders, WrapAndJustifyLikeWords) {
 
   const auto rects = layout.placeholderRects(paragraph);
   ASSERT_EQ(rects.size(), 6u);
-  absl::flat_hash_set<int> lines;
+  boost::unordered_flat_set<int> lines;
   for (const auto& placed : rects) {
     lines.insert(placed.lineIndex);
     // Slots never overflow the measure.

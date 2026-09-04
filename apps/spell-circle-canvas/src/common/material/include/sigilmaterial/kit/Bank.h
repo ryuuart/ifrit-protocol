@@ -19,10 +19,10 @@
 #include <sigilmaterial/core/Params.h>
 #include <sigilmaterial/core/Recipe.h>
 
+#include <boost/container/map.hpp>
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
-#include <map>
 #include <memory>
 #include <type_traits>
 #include <utility>
@@ -51,8 +51,7 @@ class Bank {
    *  a tone, a grain's own seed — and it returns the material whole, so a
    *  blend of several recipes is banked exactly as one recipe is. */
   template <class P, std::invocable<uint32_t> Make>
-    requires std::convertible_to<std::invoke_result_t<Make, uint32_t>,
-                                 Material>
+    requires std::convertible_to<std::invoke_result_t<Make, uint32_t>, Material>
   const Material& get(const std::shared_ptr<const Recipe>& recipe,
                       const P& params, uint32_t seed, Make&& make) {
     (void)schema<P>();  // packed floats, so the bytes are the identity
@@ -101,7 +100,7 @@ class Bank {
   }
 
   uint32_t m_buckets;
-  std::map<Key, Material> m_bank;
+  boost::container::map<Key, Material> m_bank;
 };
 
 }  // namespace sigil::material::kit

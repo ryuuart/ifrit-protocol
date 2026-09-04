@@ -10,10 +10,10 @@
 # wrapping phase. A link edge to the clock would be the first step to
 # something in here reading time for itself.
 #
-# The two edges out of this library are the std-only leaves: SigilCoreCompute
-# for the mixer the scattered ordering ranks with, so a seeded permutation
-# is the same permutation everywhere in the tree, and SigilCoreComparable
-# for the field pin the spec's comparator sits under.
+# The two core edges out of this library are foundational leaves:
+# SigilCoreCompute supplies the mixer the scattered ordering ranks with, so a
+# seeded permutation is the same permutation everywhere in the tree, and
+# SigilCoreComparable supplies the field pin the spec's comparator sits under.
 add_library(SigilMotionSchedule STATIC
   Cascade.cpp
   Order.cpp
@@ -28,7 +28,7 @@ target_include_directories(SigilMotionSchedule PUBLIC
   ${SIGIL_MOTION_INCLUDE_DIR})
 target_link_libraries(SigilMotionSchedule PUBLIC
   SigilMotionBind SigilCoreCompute SigilCoreComparable
-  choreograph::choreograph)
+  choreograph::choreograph PRIVATE Boost::unordered)
 
 # Links only the library it exercises — no clock, so a schedule that
 # started reading time for itself would show up as a build failure here.

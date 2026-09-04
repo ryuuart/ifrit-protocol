@@ -19,6 +19,7 @@ target_link_libraries(SigilWeaveDecoration
     # The intercept cache's key is folded with the shared stir, so a hash
     # is one body wherever it is accumulated.
     SigilCoreCompute
+    Boost::unordered
 )
 
 # Bands checked as geometry, without drawing them.

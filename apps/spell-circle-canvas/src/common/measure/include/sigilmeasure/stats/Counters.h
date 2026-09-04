@@ -4,9 +4,9 @@
  * Named integer counters — how many of each thing a run did.
  */
 
+#include <boost/container/flat_map.hpp>
 #include <cstdint>
 #include <functional>
-#include <map>
 #include <string>
 #include <string_view>
 
@@ -43,7 +43,7 @@ class Counters {
   }
 
  private:
-  std::map<std::string, int64_t, std::less<>> m_counts;
+  boost::container::flat_map<std::string, int64_t, std::less<>> m_counts;
 };
 
 }  // namespace sigil::measure

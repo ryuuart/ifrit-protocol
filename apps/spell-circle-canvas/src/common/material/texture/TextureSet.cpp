@@ -7,6 +7,7 @@
 #include "sigilmaterial/texture/TextureSet.h"
 
 #include <algorithm>
+#include <boost/container/flat_map.hpp>
 #include <cctype>
 
 namespace sigil::material::textures {
@@ -207,7 +208,7 @@ Role roleForUsage(std::string_view usage) {
 }
 
 std::vector<TextureSet> discover(const std::filesystem::path& directory) {
-  std::map<std::string, TextureSet> sets;
+  boost::container::flat_map<std::string, TextureSet> sets;
   std::error_code ec;
   for (const auto& entry : std::filesystem::directory_iterator(directory, ec)) {
     if (!entry.is_regular_file() || !isImageExtension(entry.path())) continue;
@@ -241,8 +242,9 @@ TextureMaps fromFiles(const TextureSet& set, const Decoder& decode) {
   return out;
 }
 
-TextureMaps fromUsageMap(const std::map<std::string, sk_sp<SkImage>>& byUsage,
-                         bool normalDirectX) {
+TextureMaps fromUsageMap(
+    const boost::container::map<std::string, sk_sp<SkImage>>& byUsage,
+    bool normalDirectX) {
   TextureMaps out;
   out.normalDirectX = normalDirectX;
   for (const auto& [usage, image] : byUsage) {

@@ -15,7 +15,7 @@ target_include_directories(SigilGeometryMeshRender PUBLIC ${SIGIL_GEOMETRY_INCLU
 # The Runtime seam is a comparable erased value, which is
 # SigilCoreComparable's shape.
 target_link_libraries(SigilGeometryMeshRender PUBLIC SigilGeometryMesh
-  SigilGeometryMeshCamera SigilCoreComparable)
+  SigilGeometryMeshCamera SigilCoreComparable PRIVATE Boost::unordered)
 
 add_executable(geometry_mesh_render_test
   test/PainterTest.cpp

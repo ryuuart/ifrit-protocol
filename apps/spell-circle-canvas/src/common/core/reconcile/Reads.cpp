@@ -6,7 +6,7 @@
 #include "sigilcore/reconcile/Reads.h"
 
 #include <algorithm>
-#include <unordered_map>
+#include <boost/unordered/unordered_flat_map.hpp>
 
 namespace sigil::core {
 
@@ -20,7 +20,7 @@ std::vector<uint32_t> orderByReads(std::span<const std::string> keys,
   // Which reader answers to which key. A key two readers claim is the
   // host's mistake and the FIRST one wins, because that is the one every
   // other lookup in a keyed tree finds.
-  std::unordered_map<std::string, uint32_t> answersTo;
+  boost::unordered_flat_map<std::string, uint32_t> answersTo;
   for (uint32_t index = 0; index < count; ++index)
     if (!keys[index].empty()) answersTo.emplace(keys[index], index);
 

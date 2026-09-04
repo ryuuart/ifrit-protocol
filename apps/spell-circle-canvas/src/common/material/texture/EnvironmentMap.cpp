@@ -11,9 +11,9 @@
 #include <include/core/SkPixmap.h>
 
 #include <algorithm>
+#include <boost/container/flat_map.hpp>
 #include <cmath>
 #include <functional>
-#include <map>
 #include <mutex>
 
 namespace sigil::material {
@@ -95,10 +95,10 @@ Grid resample(const Grid& src, int w, int h) {
       float acc[4] = {0, 0, 0, 0};
       for (int j = 0; j < tapsY; ++j) {
         for (int i = 0; i < taps; ++i) {
-          const float u = ((float)x + ((float)i + 0.5f) / (float)taps) /
-                          (float)w;
-          const float v = ((float)y + ((float)j + 0.5f) / (float)tapsY) /
-                          (float)h;
+          const float u =
+              ((float)x + ((float)i + 0.5f) / (float)taps) / (float)w;
+          const float v =
+              ((float)y + ((float)j + 0.5f) / (float)tapsY) / (float)h;
           const SkV4 c = src.sample(u, v);
           for (int k = 0; k < 4; ++k) acc[k] += (&c.x)[k];
         }
@@ -302,8 +302,8 @@ struct EnvironmentMap::State {
   sk_sp<SkImage> base;
 
   mutable std::mutex lock;
-  mutable std::map<int, sk_sp<SkImage>> blurs;
-  mutable std::map<int, std::vector<sk_sp<SkImage>>> chains;
+  mutable boost::container::flat_map<int, sk_sp<SkImage>> blurs;
+  mutable boost::container::flat_map<int, std::vector<sk_sp<SkImage>>> chains;
   mutable sk_sp<SkImage> cosine;
   mutable SkColor4f mean{0, 0, 0, 0};
   mutable bool meanDone = false;
@@ -405,10 +405,14 @@ EnvironmentMap EnvironmentMap::fromCubeMap(sk_sp<SkImage> sheet) {
 
   const float aspect = (float)grid.w / (float)grid.h;
   const Layout* layout = nullptr;
-  if (aspect > 5.0f) layout = &kRow;
-  else if (aspect < 0.25f) layout = &kColumn;
-  else if (aspect > 1.0f) layout = &kHorizontalCross;
-  else layout = &kVerticalCross;
+  if (aspect > 5.0f)
+    layout = &kRow;
+  else if (aspect < 0.25f)
+    layout = &kColumn;
+  else if (aspect > 1.0f)
+    layout = &kHorizontalCross;
+  else
+    layout = &kVerticalCross;
 
   const int edge = std::min(grid.w / layout->cols, grid.h / layout->rows);
   if (edge <= 0) return {};
@@ -488,8 +492,7 @@ EnvironmentMap EnvironmentMap::withGround(SkColor4f color) const {
     if (k <= 0) continue;
     for (int x = 0; x < grid.w; ++x) {
       float* px = grid.at(x, y);
-      for (int c = 0; c < 4; ++c)
-        px[c] += ((&color.fR)[c] - px[c]) * k;
+      for (int c = 0; c < 4; ++c) px[c] += ((&color.fR)[c] - px[c]) * k;
     }
   }
   return fromEquirect(gridImage(grid)).withPrefilterSize(m_prefilter);
@@ -510,9 +513,8 @@ std::vector<sk_sp<SkImage>> EnvironmentMap::chain() const {
     const int h = std::max(w / 2, 1);
     const Grid src = readGrid(image((float)level / (float)(kLevels - 1)));
     if (src.empty()) return {};
-    levels.push_back(gridImage(src.w == w && src.h == h
-                                   ? src
-                                   : resample(src, w, h)));
+    levels.push_back(
+        gridImage(src.w == w && src.h == h ? src : resample(src, w, h)));
   }
   const std::lock_guard<std::mutex> held(m_state->lock);
   m_state->chains[top] = levels;
@@ -547,8 +549,8 @@ sk_sp<SkImage> EnvironmentMap::irradiance() const {
     for (int x = 0; x < kSrcW; ++x) {
       const float u = ((float)x + 0.5f) / (float)kSrcW;
       const float* px = src.at(x, y);
-      samples.push_back({equirectDirection({u, v}), solid,
-                         {px[0], px[1], px[2]}});
+      samples.push_back(
+          {equirectDirection({u, v}), solid, {px[0], px[1], px[2]}});
     }
   }
 
@@ -564,8 +566,7 @@ sk_sp<SkImage> EnvironmentMap::irradiance() const {
       float acc[3] = {0, 0, 0};
       float total = 0;
       for (const Sample& s : samples) {
-        const float cosine =
-            n.x * s.dir.x + n.y * s.dir.y + n.z * s.dir.z;
+        const float cosine = n.x * s.dir.x + n.y * s.dir.y + n.z * s.dir.z;
         if (cosine <= 0) continue;
         const float k = cosine * s.weight;
         for (int c = 0; c < 3; ++c) acc[c] += s.rgb[c] * k;

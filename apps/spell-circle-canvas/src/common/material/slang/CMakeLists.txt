@@ -36,7 +36,7 @@ target_compile_definitions(SigilMaterialSlang
 # compiled beside it call one definition of a term. Slang itself is
 # PRIVATE — the public header names none of its types.
 target_link_libraries(SigilMaterialSlang
-  PUBLIC SigilMaterialCore
+  PUBLIC SigilMaterialCore Boost::container
   PRIVATE SigilMaterialKit SigilIOHub slang::slang)
 
 add_executable(material_slang_test test/SlangTest.cpp)

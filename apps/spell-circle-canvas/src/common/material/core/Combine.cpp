@@ -9,7 +9,7 @@
 #include <sigilio/hub/Hub.h>
 #include <sigilmaterial/core/Program.h>
 
-#include <map>
+#include <boost/container/flat_map.hpp>
 #include <mutex>
 #include <span>
 #include <string>
@@ -229,7 +229,7 @@ std::shared_ptr<const Recipe> composed(Blend blend, const Recipe* base,
     auto operator<=>(const Key&) const = default;
   };
   static std::mutex mutex;
-  static std::map<Key, std::shared_ptr<const Recipe>> built;
+  static boost::container::flat_map<Key, std::shared_ptr<const Recipe>> built;
   const Key key{blend, base, top, mask};
   const std::lock_guard lock(mutex);
   auto it = built.find(key);

@@ -7,6 +7,8 @@
 
 #include <tiny_obj_loader.h>
 
+#include <boost/container/flat_map.hpp>
+#include <boost/unordered/unordered_flat_map.hpp>
 #include <sstream>
 #include <string>
 
@@ -59,10 +61,10 @@ std::optional<Model> importObj(std::string_view text, const Resolver& resolve) {
     // One Part per material used inside the shape; -1 = no material.
     struct Building {
       Part part;
-      std::map<std::array<int, 3>, uint32_t> seen;
+      boost::unordered_flat_map<std::array<int, 3>, uint32_t> seen;
       bool hasNormals = true;
     };
-    std::map<int, Building> byMaterial;
+    boost::container::flat_map<int, Building> byMaterial;
 
     size_t cursor = 0;
     for (size_t face = 0; face < shape.mesh.num_face_vertices.size(); ++face) {

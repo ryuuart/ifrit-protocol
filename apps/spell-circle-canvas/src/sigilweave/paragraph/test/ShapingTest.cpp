@@ -6,13 +6,12 @@
  * variations and condensation as cache keys.
  */
 
-#include <absl/container/flat_hash_set.h>
 #include <gtest/gtest.h>
 #include <include/core/SkFontMgr.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
 #include <algorithm>
-#include <set>
+#include <boost/unordered/unordered_flat_set.hpp>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -319,7 +318,7 @@ TEST(Scripts, EmojiInsideLatinFallsBackPerSegment) {
   FontContext& fontContext = sharedContext();
   Paragraph paragraph = makeParagraph(u8"great👍work");
   paragraph.ensureShaped(fontContext);
-  absl::flat_hash_set<const SkTypeface*> faces;
+  boost::unordered_flat_set<const SkTypeface*> faces;
   for (const Word& word : paragraph.words())
     for (const WordSegment& segment : word.segments())
       faces.insert(segment.shaped->typeface.get());

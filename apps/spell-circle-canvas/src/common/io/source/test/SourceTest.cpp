@@ -9,9 +9,9 @@
 #include <sigilio/source/Sink.h>
 #include <sigilio/source/Source.h>
 
+#include <boost/container/flat_map.hpp>
 #include <filesystem>
 #include <fstream>
-#include <map>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -25,7 +25,7 @@ namespace {
 
 /** An in-memory source: URIs mapped to text, nothing on disk. */
 struct TableSource {
-  std::map<std::string, std::string, std::less<>> table;
+  boost::container::flat_map<std::string, std::string, std::less<>> table;
 
   std::shared_ptr<const Bytes> fetch(std::string_view uri) {
     const auto it = table.find(uri);
@@ -99,7 +99,7 @@ namespace {
 
 /** An in-memory sink: URIs mapped to what was written under them. */
 struct TableSink {
-  std::map<std::string, std::string, std::less<>> table;
+  boost::container::flat_map<std::string, std::string, std::less<>> table;
 
   bool write(std::string_view uri, const void* bytes, size_t size) {
     table[std::string(uri)] =

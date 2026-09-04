@@ -17,10 +17,10 @@
  * <sigilgeometry/kit/Solids.h>.
  */
 
+#include <boost/container/map.hpp>
 #include <cstdint>
 #include <functional>
 #include <glm/glm.hpp>
-#include <map>
 #include <string>
 #include <vector>
 
@@ -51,7 +51,7 @@ struct Mesh {
    *  owning point's index, so "a stamp instance" is expressible as a
    *  lane VALUE rather than a new container). Any other name is a
    *  custom lane, create-on-first-touch. */
-  std::map<std::string, std::vector<glm::vec4>, std::less<>> prims;
+  boost::container::map<std::string, std::vector<glm::vec4>, std::less<>> prims;
 
   size_t vertexCount() const { return positions.size(); }
   size_t triangleCount() const { return indices.size() / 3; }

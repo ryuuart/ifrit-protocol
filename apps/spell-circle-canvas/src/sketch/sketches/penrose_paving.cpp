@@ -122,11 +122,10 @@
 
 #include <algorithm>
 #include <array>
+#include <boost/unordered/unordered_flat_map.hpp>
 #include <cmath>
 #include <cstdio>
-#include <map>
 #include <string>
-#include <unordered_map>
 #include <vector>
 
 namespace sketch = sigil::sketch;
@@ -405,7 +404,7 @@ Audit verify(const std::vector<Tile>& tiles, float module) {
 
   // 1. Angle sums. Every interior vertex of a genuine tiling closes at 360°;
   //    a gap or an overlap in the dualization shows up here first.
-  std::unordered_map<int64_t, std::pair<double, SkPoint>> vsum;
+  boost::unordered_flat_map<int64_t, std::pair<double, SkPoint>> vsum;
   for (const Tile& t : tiles) {
     (t.fat ? a.fat : a.thin)++;
     for (int i = 0; i < 4; ++i) {
@@ -442,8 +441,8 @@ Audit verify(const std::vector<Tile>& tiles, float module) {
   //    module/2 from its own arc centre is what makes two arcs of radius
   //    module/2, centred on the two ends of a shared edge, meet tangentially
   //    at its midpoint.
-  std::unordered_map<int64_t, std::pair<int, SkPoint>> ends;
-  std::unordered_map<int64_t, int> mids;
+  boost::unordered_flat_map<int64_t, std::pair<int, SkPoint>> ends;
+  boost::unordered_flat_map<int64_t, int> mids;
   for (const Tile& t : tiles) {
     for (int i = 0; i < 4; ++i) {
       const SkPoint p = t.v[i], q = t.v[(i + 1) % 4];
@@ -561,16 +560,16 @@ class GraniteBank {
         .speckle = 0.34f,
         .speckleCell = g.blotchFreq > 0.05f ? 6.5f : 4.0f,
         .speckleAlpha = 0.26f};
-    return Paint::recipe(m_bank.get(
-        matkit::stoneRecipe(), species, seed, [&](uint32_t bucket) {
+    return Paint::recipe(
+        m_bank.get(matkit::stoneRecipe(), species, seed, [&](uint32_t bucket) {
           // The per-bucket tone jitter: one slab lighter than the next, out
           // of the same quarry.
           const float jitter = ((float)(bucket % 13) / 12.0f - 0.5f) * 0.115f;
           auto tone = [&](sigil::material::Color c) {
-            return sigil::material::Color{std::clamp(c.r * (1 + jitter), 0.f, 1.f),
-                                          std::clamp(c.g * (1 + jitter), 0.f, 1.f),
-                                          std::clamp(c.b * (1 + jitter), 0.f, 1.f),
-                                          1};
+            return sigil::material::Color{
+                std::clamp(c.r * (1 + jitter), 0.f, 1.f),
+                std::clamp(c.g * (1 + jitter), 0.f, 1.f),
+                std::clamp(c.b * (1 + jitter), 0.f, 1.f), 1};
           };
           matkit::StoneParams p = species;
           p.hi = tone(species.hi);
@@ -931,13 +930,13 @@ struct PenrosePaving : sketch::Sketch {
         .stroke(stroke(1.0f, Fill::color(hex(0x5E6163, 0.55f)),
                        PathFormat::Align::Inner))
         .background(styles::dropShadow(hex(0x000000, 0.55f), {0, 6}, 22))
-        .child(
-            text(toU8("DEFLATION \xc2\xb7 FAT \xe2\x86\x92 2 FAT + 1 THIN, "
-                      "\xc3\x97"
-                      "1/\xcf\x86"),
-                 weave::textStyle({.size = 10.5f, .color = hex(0x8E9295), .track = 1.0f}))
-                .left(14)
-                .top(12))
+        .child(text(toU8("DEFLATION \xc2\xb7 FAT \xe2\x86\x92 2 FAT + 1 THIN, "
+                         "\xc3\x97"
+                         "1/\xcf\x86"),
+                    weave::textStyle(
+                        {.size = 10.5f, .color = hex(0x8E9295), .track = 1.0f}))
+                   .left(14)
+                   .top(12))
         .child(box().left(10).top(34).width(kDiagW).height(kDiagH).child(
             slot("deflate")));
   }
@@ -967,11 +966,12 @@ struct PenrosePaving : sketch::Sketch {
         // depends on animates, so Cache::Texture bakes it once and the cache
         // never invalidates; the node's opacity is what keeps it out of the
         // automatic bake, so the cache has to be asked for by hand.
-        .child(box()
-                   .inset(0, 0, 0, 0)
-                   .fill(Paint::recipe(field::grain(0.9f, 1, 12.0f, 0.55f, 1.0f)))
-                   .opacity(0.20f)
-                   .cache(Cache::Texture))
+        .child(
+            box()
+                .inset(0, 0, 0, 0)
+                .fill(Paint::recipe(field::grain(0.9f, 1, 12.0f, 0.55f, 1.0f)))
+                .opacity(0.20f)
+                .cache(Cache::Texture))
         .child(field)
         // Weathering at PLAZA scale — cells a couple of hundred px across,
         // i.e. metres of traffic staining that crosses joints because dirt
@@ -1047,27 +1047,27 @@ struct PenrosePaving : sketch::Sketch {
                                   PathFormat::Align::Inner))
                    .background(
                        styles::dropShadow(hex(0x000000, 0.5f), {0, 5}, 18)))
-        .child(
-            text(toU8("PENROSE TILING \xc2\xb7 P3 RHOMBI \xc2\xb7 ROYAL "
-                      "WHITE & KOBRA GREY GRANITE \xc2\xb7 POLISHED 30 mm "
-                      "STAINLESS INSERTS"),
-                 weave::textStyle({.size = 13.0f, .color = hex(0xDCE0E2), .track = 1.9f}))
-                .left(76)
-                .top(1100)
-                .opacity(1.0f))
-        .child(
-            text(toU8("MATHEMATICAL INSTITUTE, ANDREW WILES BUILDING, "
-                      "OXFORD \xc2\xb7 R. PENROSE 1974 / PAVING 2012"),
-                 weave::textStyle({.size = 11.5f, .color = hex(0xA9AEB1), .track = 1.5f}))
-                .left(76)
-                .top(1126)
-                .opacity(1.0f))
-        .child(
-            text(toU8(spec),
-                 weave::textStyle({.size = 10.5f, .color = hex(0x8E9598), .track = 1.3f}))
-                .left(76)
-                .top(1152)
-                .opacity(1.0f));
+        .child(text(toU8("PENROSE TILING \xc2\xb7 P3 RHOMBI \xc2\xb7 ROYAL "
+                         "WHITE & KOBRA GREY GRANITE \xc2\xb7 POLISHED 30 mm "
+                         "STAINLESS INSERTS"),
+                    weave::textStyle(
+                        {.size = 13.0f, .color = hex(0xDCE0E2), .track = 1.9f}))
+                   .left(76)
+                   .top(1100)
+                   .opacity(1.0f))
+        .child(text(toU8("MATHEMATICAL INSTITUTE, ANDREW WILES BUILDING, "
+                         "OXFORD \xc2\xb7 R. PENROSE 1974 / PAVING 2012"),
+                    weave::textStyle(
+                        {.size = 11.5f, .color = hex(0xA9AEB1), .track = 1.5f}))
+                   .left(76)
+                   .top(1126)
+                   .opacity(1.0f))
+        .child(text(toU8(spec),
+                    weave::textStyle(
+                        {.size = 10.5f, .color = hex(0x8E9598), .track = 1.3f}))
+                   .left(76)
+                   .top(1152)
+                   .opacity(1.0f));
   }
 
   // -------------------------------------------------------------------------

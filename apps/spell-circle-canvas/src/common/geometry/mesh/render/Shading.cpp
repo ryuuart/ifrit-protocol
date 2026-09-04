@@ -3,17 +3,15 @@
  * roughness picks, and the two sides a lit surface asks it for.
  */
 
-#include <sigilgeometry/mesh/render/Shading.h>
-
 #include <include/core/SkBitmap.h>
 #include <include/core/SkImageInfo.h>
 #include <include/core/SkPixmap.h>
+#include <sigilgeometry/mesh/render/Shading.h>
 
-#include <glm/gtc/matrix_inverse.hpp>
-
+#include <boost/unordered/unordered_node_map.hpp>
 #include <cstdint>
+#include <glm/gtc/matrix_inverse.hpp>
 #include <mutex>
-#include <unordered_map>
 
 namespace sigil::geometry::mesh::render {
 
@@ -63,7 +61,7 @@ inline constexpr size_t kKeptPanoramas = 64;
 
 const Pixels& pixelsOf(const sk_sp<SkImage>& image) {
   static std::mutex lock;
-  static std::unordered_map<uint32_t, Entry> cache;
+  static boost::unordered_node_map<uint32_t, Entry> cache;
   static const Pixels empty;
   if (!image) return empty;
   const std::lock_guard<std::mutex> held(lock);

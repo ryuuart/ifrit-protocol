@@ -163,7 +163,7 @@ bool WebEngine::Impl::renderOnce() {
 
   bool published = false;
   if (m_gpuDriver) {
-    const std::unordered_set<uint32_t> dirty = m_gpuDriver->flush();
+    const boost::unordered_flat_set<uint32_t> dirty = m_gpuDriver->flush();
     for (const std::shared_ptr<WebView::Impl>& page : pages)
       published = page->publishGpuIfDirty(*m_gpuDriver, dirty) || published;
     return published;

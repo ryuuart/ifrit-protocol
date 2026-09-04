@@ -6,8 +6,6 @@
 
 #include <gtest/gtest.h>
 
-#include <set>
-
 #include "support/LayoutSupport.h"
 using namespace sigil::weave;
 using namespace sigil::weave::test;

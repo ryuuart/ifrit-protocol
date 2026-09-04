@@ -16,10 +16,10 @@
 #include <sigilcore/hardware/Handle.h>
 
 #include <atomic>
+#include <boost/unordered/unordered_flat_set.hpp>
 #include <cstdint>
 #include <functional>
 #include <mutex>
-#include <unordered_set>
 #include <vector>
 
 #include "sigilscry/engine/WebEngine.h"
@@ -80,7 +80,7 @@ class WebView::Impl final : public ultralight::LoadListener,
    *  in @p dirtyRenderBuffers. Returns true on publish. */
   bool publishGpuIfDirty(
       GpuDriver& driver,
-      const std::unordered_set<uint32_t>& dirtyRenderBuffers);
+      const boost::unordered_flat_set<uint32_t>& dirtyRenderBuffers);
 
   /** Web thread: releases the ping-pong publish textures. */
   void releaseGpuTextures();

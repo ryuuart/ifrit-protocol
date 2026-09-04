@@ -9,6 +9,7 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkSurface.h>
+#include <sigilgeometry/kit/Solids.h>
 
 #include <cmath>
 #include <glm/gtc/matrix_transform.hpp>
@@ -21,7 +22,6 @@
 #include "sigilgeometry/mesh/pop/Points.h"
 #include "sigilgeometry/mesh/pop/Pop.h"
 #include "support/GeometrySupport.h"
-#include <sigilgeometry/kit/Solids.h>
 
 using namespace sigil::geometry;
 using namespace sigil::geometry::mesh;
@@ -710,11 +710,11 @@ TEST(Pop, DeleteRemovesThePointsASelectionNames) {
 // same way all the way round.
 TEST(Pop, NormalUnitsADirectionLaneAndGivesItOneSense) {
   const std::vector<glm::vec3> loop = flatRing(12, 200);
-  const Cloud cooked = pop::cook(pop::Chain(pop::on(loop)
-                                                .count(120)
-                                                .fill(pop::Lane::Dir,
-                                                      {3, 0, 0, 0})
-                                                .normal(1.0f, {0, 0, 0})));
+  const Cloud cooked =
+      pop::cook(pop::Chain(pop::on(loop)
+                               .count(120)
+                               .fill(pop::Lane::Dir, {3, 0, 0, 0})
+                               .normal(1.0f, {0, 0, 0})));
   const std::vector<glm::vec3>* dir = cooked.vectorIf("dir");
   ASSERT_TRUE(dir);
   for (size_t i = 0; i < cooked.size(); ++i) {
@@ -909,7 +909,7 @@ TEST(Pop, PointSetSeedsAChainFromAnExistingCloudLanesAndAll) {
   // cloud's.
   EXPECT_EQ(pop::cook(pop::on(given).count(5).window(0.5f, 0.5f)).size(), 40u);
   // The layout the GPU executor uploads is the same function.
-  std::map<std::string, std::vector<glm::vec4>, std::less<>> lanes;
+  pop::Lanes lanes;
   pop::seedAttrs(given, lanes);
   EXPECT_EQ(lanes.count("P"), 1u);
   EXPECT_EQ(lanes.count("Scale"), 1u);

@@ -12,10 +12,10 @@
 #include <pxr/usd/usd/stage.h>
 #include <pxr/usd/usdGeom/mesh.h>
 
+#include <boost/unordered/unordered_flat_map.hpp>
+#include <boost/unordered/unordered_flat_set.hpp>
 #include <filesystem>
-#include <map>
 #include <optional>
-#include <set>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -34,7 +34,7 @@ struct Writer::Impl {
   std::filesystem::path file;
   WriteOptions options;
   pxr::UsdStageRefPtr stage;
-  std::set<std::string> usedPaths;
+  boost::unordered_flat_set<std::string> usedPaths;
   /** Materials already authored, by pointer identity of their images and
    *  value of their scalars — the same material placed twice binds one
    *  prim. */
@@ -42,7 +42,7 @@ struct Writer::Impl {
   int textureCounter = 0;
   bool texturesDirReady = false;
   /** One file per image, however many materials share it. */
-  std::map<const SkImage*, std::string> writtenImages;
+  boost::unordered_flat_map<const SkImage*, std::string> writtenImages;
 
   /** "<parent>/<identifier(name)>", suffixed "_2", "_3", ... until it is
    *  one the stage has not used. */

@@ -25,7 +25,6 @@
 #include <memory>
 #include <optional>
 #include <string>
-#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -183,7 +182,7 @@ struct Scene::Impl {
    *  argument describe needs. */
   Element pending;
 
-  std::unordered_map<std::string, Instance*> byKey;
+  core::Reconciler<Impl, Instance, Desc>::KeyIndex byKey;
   /** The extracted draw order, in tree order. */
   std::vector<entt::entity> order;
   std::vector<Light> lights;

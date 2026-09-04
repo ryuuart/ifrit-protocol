@@ -43,8 +43,8 @@ chrome-type ramps.
 
 The core links the colour leaf, glm (for the vector types a struct may
 hold), SigilMotionValues (for the animatable a field may bind to, and
-choreograph with it) and Boost.PFR (for the reflection that reads a
-struct's field names off the type). The core has
+choreograph with it), Boost.PFR (for the reflection that reads a struct's field
+names off the type), and Boost.Container for its ordered stores. The core has
 no renderer in it: compilers arrive from backend features, and two of
 them ship here. The Skia one turns a recipe's SkSL body into an
 `SkRuntimeEffect`. The Slang one compiles Slang source to SPIR-V and
@@ -60,15 +60,15 @@ each a static archive that links only what sits beneath it:
 | target | holds | links |
 |--------|-------|-------|
 | `SigilMaterialColor` | `Color`, `rgb()`, `hsv()` and the OKLab round trip — the leaf, which the core's `Params.h` includes | nothing of this project's |
-| `SigilMaterialCore` | the value model: `Target`, `Params`, `Recipe`, `Program` and the cache, `Material`, `Leaf`, `UniformBlock`, `FrameData`; and `over()`, the combinator that stacks one material on another through a mask | SigilMaterialColor, SigilMotionValues, glm, Boost::pfr |
-| `SigilMaterialTexture` | `Texture` and its sources, `ShaderLeaf`, `textures::` (the tools' sets by role), `EnvironmentMap` and `bevelNormals`, `Atlas` | SigilMaterialCore, SigilImageAsset, Skia; simdjson and stb privately |
+| `SigilMaterialCore` | the value model: `Target`, `Params`, `Recipe`, `Program` and the cache, `Material`, `Leaf`, `UniformBlock`, `FrameData`; and `over()`, the combinator that stacks one material on another through a mask | SigilMaterialColor, SigilMotionValues, glm, Boost.PFR, Boost.Container; Boost.Unordered privately |
+| `SigilMaterialTexture` | `Texture` and its sources, `ShaderLeaf`, `textures::` (the tools' sets by role), `EnvironmentMap` and `bevelNormals`, `Atlas` | SigilMaterialCore, SigilImageAsset, Skia, Boost.Container; simdjson and stb privately |
 | `SigilMaterialOcio` | `ocio::` — `available()`, and the OCIO `viewTransform`, `convert`, `exponent` as LUT materials | SigilMaterialTexture; OpenColorIO privately, when found |
 | `SigilMaterialSdf` | `sdf::` — `Shape`, `Style`, `pad`, `material`, `everyRecipe` | SigilMaterialCore, SigilMaterialColor |
 | `SigilMaterialPattern` | `pattern::Tile` and the stock tiles | SigilMaterialTexture, SigilMaterialColor; SigilCoreCompute privately |
 | `SigilMaterialField` | `field::` — `halftoneRamp`, `noise`, `grain`, `ripple`, `crtOverlay`, `everyRecipe` | SigilMaterialTexture, SigilMaterialColor |
 | `SigilMaterialSkia` | the SkSL compiler and `SkiaProgram`, whose builder uploads resolved bytes; `skia::builder` and `skia::shader` binding leaves into slots; `skia::fill`; the colour bridge `skia::toColor` / `skia::toSkColor` / `skia::toColors`; `skia::Paint`, the model as ONE shader; and `skia::Effect`, the post-processing recipe over a rendered layer | SigilMaterialTexture, SigilMaterialColor, SigilMotionValues |
-| `SigilMaterialSlang` | the Slang compiler: `slang::compileModule` to SPIR-V, `slang::Compiled` with the reflected `slang::UniformSlot` per uniform, `slang::SlangProgram`, and `slang::Uniforms`, the buffer one draw is written into; `Portable.slang`, the subset a host and a device answer alike, loaded into every session by name | SigilMaterialCore; SigilMaterialKit and Slang privately |
-| `SigilMaterialKit` | the presets: the metallic-roughness `kit::surface` and `kit::unlit` and the masks that stack them; `kit::gold`, `kit::chrome`, `kit::glass`; the grained `kit::stone`, `kit::timber`, `kit::latten` and `kit::board`; `kit::girih8` and its palettes; `kit::Bank`, the bounded seeded bank of a field's instances; the gel and chrome tables with `kit::contourRing`; the text paints and chrome-type ramps; `kit::termsSource`, the shading terms a surface is composed of; and `kit::everyRecipe`, one instance of each of the above | SigilMaterialPattern, SigilMaterialColor |
+| `SigilMaterialSlang` | the Slang compiler: `slang::compileModule` to SPIR-V, `slang::Compiled` with the reflected `slang::UniformSlot` per uniform, `slang::SlangProgram`, and `slang::Uniforms`, the buffer one draw is written into; `Portable.slang`, the subset a host and a device answer alike, loaded into every session by name | SigilMaterialCore, Boost.Container; SigilMaterialKit and Slang privately |
+| `SigilMaterialKit` | the presets: the metallic-roughness `kit::surface` and `kit::unlit` and the masks that stack them; `kit::gold`, `kit::chrome`, `kit::glass`; the grained `kit::stone`, `kit::timber`, `kit::latten` and `kit::board`; `kit::girih8` and its palettes; `kit::Bank`, the bounded seeded bank of a field's instances; the gel and chrome tables with `kit::contourRing`; the text paints and chrome-type ramps; `kit::termsSource`, the shading terms a surface is composed of; and `kit::everyRecipe`, one instance of each of the above | SigilMaterialPattern, SigilMaterialColor, Boost.Container |
 
 `SigilMaterial` is the umbrella, an interface over all ten. Headers live
 under `include/sigilmaterial/<feature>/` and are spelled that way —

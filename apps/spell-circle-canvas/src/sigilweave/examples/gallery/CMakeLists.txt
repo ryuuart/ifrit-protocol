@@ -74,6 +74,7 @@ target_link_libraries(WeaveGallery
     SigilWeaveKit # rebuild/layout guards, glyph buckets, labels (kit/README.md)
     SigilWeaveShaders # PaintShaders presets used by the effect scenes
     SigilWeavePorts # systemFontManager()
+    Boost::container
 )
 
 # The Graphite GPU path reuses the generic Skia/Metal plumbing under

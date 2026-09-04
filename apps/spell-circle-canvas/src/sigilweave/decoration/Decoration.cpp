@@ -13,9 +13,9 @@
 #include <sigilcore/compute/Hash.h>
 
 #include <algorithm>
+#include <boost/unordered/unordered_node_map.hpp>
 #include <cstdint>
 #include <cstring>
-#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -59,7 +59,8 @@ const std::vector<SkScalar>& cachedIntercepts(const SkTextBlob& blob,
       return ::sigil::core::hash::combine(h, hi);
     }
   };
-  static thread_local std::unordered_map<Key, std::vector<SkScalar>, KeyHash>
+  static thread_local boost::unordered_node_map<Key, std::vector<SkScalar>,
+                                                KeyHash>
       cache;
   constexpr size_t kMaxInterceptEntries = size_t{1} << 12u;
   const Key key{blob.uniqueID(), bounds[0], bounds[1]};

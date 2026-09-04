@@ -11,6 +11,7 @@
 #include <simdjson.h>
 
 #include <algorithm>
+#include <boost/container/flat_map.hpp>
 #include <cctype>
 #include <cstdlib>
 #include <vector>
@@ -162,7 +163,8 @@ bool readFrames(simdjson::dom::element doc, std::vector<AtlasRegion>* out) {
 /** Sequences from the regions' names: frames sharing a stem, ordered by
  *  their trailing number. A name with no number is a sequence of one. */
 void sequencesFromNames(Atlas* atlas) {
-  std::map<std::string, std::vector<std::pair<long, size_t>>> groups;
+  boost::container::flat_map<std::string, std::vector<std::pair<long, size_t>>>
+      groups;
   const std::span<const AtlasRegion> regions = atlas->regions();
   for (size_t i = 0; i < regions.size(); ++i) {
     auto [name, number] = split(regions[i].name);

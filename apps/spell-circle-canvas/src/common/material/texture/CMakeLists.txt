@@ -27,6 +27,7 @@ target_include_directories(SigilMaterialTexture
   PRIVATE ${Stb_INCLUDE_DIR})
 target_link_libraries(SigilMaterialTexture
   PUBLIC SigilMaterialCore SigilImageAsset unofficial::skia::skia
+         Boost::container
   PRIVATE simdjson::simdjson)
 
 add_executable(material_texture_test test/TextureTest.cpp)

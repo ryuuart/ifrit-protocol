@@ -2,8 +2,8 @@
 
 /** @file The pin counts shared by a Hub and the leases issued from it. */
 
+#include <boost/container/flat_map.hpp>
 #include <cstddef>
-#include <map>
 #include <mutex>
 #include <string>
 
@@ -11,7 +11,7 @@ namespace sigil::io::detail {
 
 struct Residency {
   std::mutex mutex;
-  std::map<std::string, std::size_t, std::less<>> pins;
+  boost::container::flat_map<std::string, std::size_t, std::less<>> pins;
 };
 
 struct Synchronization {

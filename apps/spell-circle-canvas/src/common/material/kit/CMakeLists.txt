@@ -52,7 +52,7 @@ target_include_directories(SigilMaterialKit
 target_compile_definitions(SigilMaterialKit
   PRIVATE SIGIL_MATERIAL_KIT_SHADER_DIR="${SIGIL_MATERIAL_SHADER_DIR}")
 target_link_libraries(SigilMaterialKit PUBLIC SigilMaterialPattern
-  SigilMaterialColor)
+  SigilMaterialColor Boost::container)
 target_link_libraries(SigilMaterialKit PRIVATE SigilIOHub)
 
 # The negative control for "and no renderer": a target that must FAIL to

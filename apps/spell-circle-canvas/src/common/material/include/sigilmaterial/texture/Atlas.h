@@ -13,7 +13,7 @@
 #include <include/core/SkSize.h>
 #include <sigilmaterial/texture/Texture.h>
 
-#include <map>
+#include <boost/container/map.hpp>
 #include <optional>
 #include <span>
 #include <string>
@@ -77,7 +77,8 @@ class Atlas {
 
   /** Names a sequence of region indices; replaces one of the same name. */
   Atlas& sequence(std::string name, std::vector<size_t> frames);
-  const std::map<std::string, std::vector<size_t>>& sequences() const {
+  const boost::container::map<std::string, std::vector<size_t>>& sequences()
+      const {
     return m_sequences;
   }
   /** The frames of @p name, or null. */
@@ -94,7 +95,7 @@ class Atlas {
  private:
   Texture m_sheet;
   std::vector<AtlasRegion> m_regions;
-  std::map<std::string, std::vector<size_t>> m_sequences;
+  boost::container::map<std::string, std::vector<size_t>> m_sequences;
 };
 
 }  // namespace sigil::material

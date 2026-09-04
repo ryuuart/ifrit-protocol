@@ -100,7 +100,7 @@ target_include_directories(SigilGeometryMeshPop
 # the sources alone.
 find_package(TBB CONFIG REQUIRED)
 target_link_libraries(SigilGeometryMeshPop
-  PUBLIC SigilGeometryMeshCurve SigilCoreComparable
+  PUBLIC SigilGeometryMeshCurve SigilCoreComparable Boost::container
   PRIVATE SigilCoreCompute TBB::tbb)
 # The device executors dispatch the kernels this feature compiled, on the
 # device SigilGeometryDevice created. Diligent arrives through that

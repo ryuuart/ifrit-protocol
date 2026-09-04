@@ -11,7 +11,7 @@
 #include <include/core/SkRefCnt.h>
 #include <substance/framework/framework.h>
 
-#include <map>
+#include <boost/container/map.hpp>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -25,8 +25,8 @@ struct Graph::Impl {
   SubstanceAir::Renderer* renderer = nullptr;       // owned by the package
   std::string label;
   std::string url;
-  std::map<std::string, sk_sp<SkImage>> byIdentifier;
-  std::map<std::string, sk_sp<SkImage>> byUsage;
+  boost::container::map<std::string, sk_sp<SkImage>> byIdentifier;
+  boost::container::map<std::string, sk_sp<SkImage>> byUsage;
   std::vector<SubstanceAir::InputImage::SPtr> heldImages;  // keep inputs alive
 
   /** The input instance named @p identifier, or null. */

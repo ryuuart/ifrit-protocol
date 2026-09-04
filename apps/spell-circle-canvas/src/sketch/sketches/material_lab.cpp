@@ -58,10 +58,10 @@
 #include <sigilworld/kit/Kit.h>
 
 #include <algorithm>
+#include <boost/container/map.hpp>
 #include <cmath>
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
-#include <map>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -191,7 +191,7 @@ sk_sp<SkImage> filaments(int period) {
  *  tags its outputs with — the same door a discovered folder's files
  *  arrive through once they are decoded. */
 material::textures::TextureMaps floorMaps() {
-  std::map<std::string, sk_sp<SkImage>> byUsage;
+  boost::container::map<std::string, sk_sp<SkImage>> byUsage;
   byUsage["baseColor"] =
       check({0.30f, 0.33f, 0.38f, 1}, {0.17f, 0.19f, 0.23f, 1}, 16.0f);
   byUsage["roughness"] =
@@ -200,8 +200,7 @@ material::textures::TextureMaps floorMaps() {
 }
 
 /** A card standing upright at @p x, wearing @p surface. */
-world::Element card(std::string_view key, float x,
-                    material::Material surface) {
+world::Element card(std::string_view key, float x, material::Material surface) {
   return world::Element()
       .key(key)
       .at({x, 0.0f, 0.0f})
@@ -325,7 +324,8 @@ struct MaterialLab final : sketch::Set {
     if (const material::Texture* map =
             material::kit::map(floor, material::kit::kBaseColorSlot)) {
       material::Texture tiled = *map;
-      tiled.tile(SkTileMode::kRepeat)
+      tiled
+          .tile(SkTileMode::kRepeat)
           // The baked tile is two cells across, so the repeat is set
           // against ITS size rather than against a map's: this many
           // tiles cover the floor.

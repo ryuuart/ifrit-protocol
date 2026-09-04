@@ -15,7 +15,8 @@ add_library(SigilWorldGraph STATIC
 )
 target_compile_features(SigilWorldGraph PUBLIC cxx_std_20)
 target_include_directories(SigilWorldGraph PUBLIC ${SIGIL_WORLD_INCLUDE_DIR})
-target_link_libraries(SigilWorldGraph PUBLIC SigilWorldFrame)
+target_link_libraries(SigilWorldGraph PUBLIC SigilWorldFrame
+  PRIVATE Boost::container)
 
 add_executable(world_graph_test test/GraphTest.cpp)
 target_include_directories(world_graph_test PRIVATE ${SIGIL_WORLD_TEST_DIR})

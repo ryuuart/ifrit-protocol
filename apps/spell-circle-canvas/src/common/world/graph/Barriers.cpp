@@ -9,7 +9,7 @@
  */
 
 #include <algorithm>
-#include <map>
+#include <boost/container/flat_map.hpp>
 #include <string>
 #include <vector>
 
@@ -29,7 +29,7 @@ struct Touch {
 void barriers(std::span<const PassWork> steps,
               std::span<const Resource> resources, std::vector<Barrier>& into) {
   into.clear();
-  std::map<std::string, std::vector<Touch>> byName;
+  boost::container::flat_map<std::string, std::vector<Touch>> byName;
   for (size_t step = 0; step < steps.size(); ++step) {
     const Touches touches = touchesOf(steps[step]);
     for (const std::string& name : touches.writes)
@@ -59,7 +59,7 @@ void barriers(std::span<const PassWork> steps,
 
   // …and where one surface serves two resources, the second's first
   // write waits on the first's last reader.
-  std::map<int, std::vector<const Resource*>> bySlot;
+  boost::container::flat_map<int, std::vector<const Resource*>> bySlot;
   for (const Resource& resource : resources)
     if (resource.slot >= 0) bySlot[resource.slot].push_back(&resource);
   for (auto& [slot, sharing] : bySlot) {

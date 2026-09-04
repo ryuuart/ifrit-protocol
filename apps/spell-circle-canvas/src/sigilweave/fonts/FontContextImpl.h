@@ -4,15 +4,16 @@
  * Private guts of FontContext, shared by FontContext.cpp and Shaper.cpp:
  * the content-addressed shape key in owning and borrowed forms, the
  * fallback and varied-typeface memo keys, and the Impl that holds every
- * cache. Keeps HarfBuzz and abseil types out of the public headers and
- * never leaves the fonts directory.
+ * cache. Keeps HarfBuzz and Boost container types out of the public headers
+ * and never leaves the fonts directory.
  */
 
-#include <absl/container/flat_hash_map.h>
-#include <absl/hash/hash.h>
 #include <hb.h>
 
 #include <array>
+#include <boost/container_hash/hash.hpp>
+#include <boost/unordered/unordered_flat_map.hpp>
+#include <boost/unordered/unordered_node_map.hpp>
 #include <concepts>
 #include <cstring>
 #include <string>
@@ -20,8 +21,8 @@
 #include <type_traits>
 #include <vector>
 
-#include "sigilweave/fonts/FontContext.h"
 #include "OpticalKerning.h"
+#include "sigilweave/fonts/FontContext.h"
 #include "sigilweave/fonts/Shaper.h"
 
 namespace sigil::weave {
@@ -117,12 +118,23 @@ struct ShapeKeyHash {
   template <ShapeCacheKey Key>
   size_t operator()(const Key& source) const {
     const ShapeKeyView key = makeShapeKeyView(source);
-    return absl::HashOf(key.typefaceId, key.fontSizeBits, key.letterSpacingBits,
-                        key.scaleXBits, key.script, key.rightToLeft,
-                        key.vertical, key.aliased, key.opticalKerning,
-                        key.languageTag,
-                        objectBytes(key.fontFeatures, key.featureCount),
-                        objectBytes(key.text.data(), key.text.size()));
+    const std::array<uint64_t, 3> fixed = {
+        uint64_t(key.typefaceId) << 32u | uint64_t(key.fontSizeBits),
+        uint64_t(key.letterSpacingBits) << 32u | uint64_t(key.scaleXBits),
+        uint64_t(key.script) << 32u | uint64_t(key.rightToLeft) << 3u |
+            uint64_t(key.vertical) << 2u | uint64_t(key.aliased) << 1u |
+            uint64_t(key.opticalKerning)};
+    size_t hash = boost::hash_range(fixed.begin(), fixed.end());
+    if (!key.languageTag.empty())
+      boost::hash_range(hash, key.languageTag.begin(), key.languageTag.end());
+    if (key.featureCount != 0) {
+      const std::string_view features =
+          objectBytes(key.fontFeatures, key.featureCount);
+      boost::hash_range(hash, features.begin(), features.end());
+    }
+    const std::string_view text = objectBytes(key.text.data(), key.text.size());
+    boost::hash_range(hash, text.begin(), text.end());
+    return hash;
   }
 };
 
@@ -158,11 +170,15 @@ struct FallbackKey {
   bool operator==(const FallbackKey&) const = default;
 };
 
-template <typename H>
-H AbslHashValue(H hashState, const FallbackKey& key) {
-  return H::combine(std::move(hashState), key.typefaceId, key.codePoint,
-                    key.languageId);
-}
+struct FallbackKeyHash {
+  size_t operator()(const FallbackKey& key) const {
+    size_t hash = 0;
+    boost::hash_combine(hash, key.typefaceId);
+    boost::hash_combine(hash, key.codePoint);
+    boost::hash_combine(hash, key.languageId);
+    return hash;
+  }
+};
 
 // FontVariation is 8 padding-free bytes ({char[4], float}), so a variation
 // list memoizes by its raw bytes (bit equality; -0.0/0.0 would be distinct
@@ -178,11 +194,14 @@ struct VariedTypefaceKey {
   bool operator==(const VariedTypefaceKey&) const = default;
 };
 
-template <typename H>
-H AbslHashValue(H hashState, const VariedTypefaceKey& key) {
-  return H::combine(std::move(hashState), key.baseTypefaceId,
-                    key.variationBytes);
-}
+struct VariedTypefaceKeyHash {
+  size_t operator()(const VariedTypefaceKey& key) const {
+    size_t hash = 0;
+    boost::hash_combine(hash, key.baseTypefaceId);
+    boost::hash_combine(hash, key.variationBytes);
+    return hash;
+  }
+};
 
 struct FontContext::Impl {
   // One hb_face/hb_font pair per SkTypeface, scaled to the face's unitsPerEm so
@@ -199,10 +218,13 @@ struct FontContext::Impl {
   sk_sp<SkTypeface> defaultTypeface;
   FontContext::FallbackResolver fallbackResolver;
 
-  absl::flat_hash_map<uint32_t, TypefaceRecord> typefaceRecords;
-  absl::flat_hash_map<FallbackKey, sk_sp<SkTypeface>> fallbackTypefaces;
-  absl::flat_hash_map<VariedTypefaceKey, sk_sp<SkTypeface>> variedTypefaces;
-  absl::flat_hash_map<std::string, uint32_t> fallbackLanguageIds;
+  boost::unordered_flat_map<uint32_t, TypefaceRecord> typefaceRecords;
+  boost::unordered_flat_map<FallbackKey, sk_sp<SkTypeface>, FallbackKeyHash>
+      fallbackTypefaces;
+  boost::unordered_flat_map<VariedTypefaceKey, sk_sp<SkTypeface>,
+                            VariedTypefaceKeyHash>
+      variedTypefaces;
+  boost::unordered_flat_map<std::string, uint32_t> fallbackLanguageIds;
   std::string lastFallbackLanguageTag;
   uint32_t lastFallbackLanguageId = 0;
   uint32_t nextFallbackLanguageId = 1;
@@ -210,20 +232,20 @@ struct FontContext::Impl {
   // codepoints that dominate Latin text, plus a one-entry memo of the last
   // primary used (itemization rarely alternates primaries mid-paragraph).
   using AsciiTable = std::array<SkTypeface*, 128>;
-  absl::flat_hash_map<uint32_t, AsciiTable> asciiFallbackTypefaces;
+  boost::unordered_node_map<uint32_t, AsciiTable> asciiFallbackTypefaces;
   uint32_t lastAsciiTypefaceId = 0;
   AsciiTable* lastAsciiFallbackTable = nullptr;
-  absl::flat_hash_map<ShapeKey, ShapedWordRef, ShapeKeyHash, ShapeKeyEq>
+  boost::unordered_flat_map<ShapeKey, ShapedWordRef, ShapeKeyHash, ShapeKeyEq>
       shapeCache;
 
   // (typefaceId, glyph) -> the glyph's edge profile in ems, measured once
   // and good for every size: optical kerning asks for a handful of glyphs
   // per word and the same handful for every word after it.
-  absl::flat_hash_map<uint64_t, detail::GlyphProfile> glyphProfiles;
+  boost::unordered_flat_map<uint64_t, detail::GlyphProfile> glyphProfiles;
   // The distance the face's own reference pair leaves, in ems, per face —
   // what optical kerning closes every other pair to. Absent from the map
   // until the face has been asked; kNoInk when the face has no such pair.
-  absl::flat_hash_map<uint32_t, float> referenceGaps;
+  boost::unordered_flat_map<uint32_t, float> referenceGaps;
 
   // Reused scratch object (the context is single-threaded by contract).
   hb_buffer_t* shapingBuffer = nullptr;

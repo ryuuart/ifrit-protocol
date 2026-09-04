@@ -26,7 +26,7 @@ target_include_directories(SigilScryEngine
 target_link_libraries(SigilScryEngine
   PUBLIC SigilScryPlatform SigilScryGpu SigilSkiaGraphite SigilCoreHardware
          unofficial::skia::skia
-  PRIVATE Ultralight::Ultralight Ultralight::AppCore)
+  PRIVATE Ultralight::Ultralight Ultralight::AppCore Boost::unordered)
 
 # Ultralight allows one Renderer per process, so the CPU-mode and the
 # GPU-mode engines are tested in separate binaries. Each links the

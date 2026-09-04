@@ -1,6 +1,6 @@
 # Single-style paragraphs memoized by text, typeface and quantized size,
 # for labels and captions rebuilt at high frequency. The node-based map
-# that keeps returned references stable hides behind a pimpl, so abseil
+# that keeps returned references stable hides behind a pimpl, so Boost
 # stays private.
 add_library(SigilWeaveCache STATIC
   SingleLineParagraphCache.cpp
@@ -15,8 +15,7 @@ target_link_libraries(SigilWeaveCache
   PUBLIC
     SigilWeaveParagraph
   PRIVATE
-    absl::node_hash_map
-    absl::strings
+    Boost::unordered
     ICU::uc
 )
 

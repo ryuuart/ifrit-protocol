@@ -15,7 +15,8 @@ add_library(SigilIOHub STATIC
 )
 target_compile_features(SigilIOHub PUBLIC cxx_std_20)
 target_include_directories(SigilIOHub PUBLIC ${SIGIL_IO_INCLUDE_DIR})
-target_link_libraries(SigilIOHub PUBLIC SigilIOSource SigilImageDecode)
+target_link_libraries(SigilIOHub PUBLIC SigilIOSource SigilImageDecode
+  Boost::container)
 find_package(TBB CONFIG REQUIRED)
 target_link_libraries(SigilIOHub PRIVATE TBB::tbb)
 

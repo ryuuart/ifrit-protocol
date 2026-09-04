@@ -29,11 +29,9 @@
 #include <algorithm>
 #include <cmath>
 #include <iterator>  // std::size, for the kSlotSpecs asserts
-#include <map>
 #include <memory>
 #include <optional>
 #include <string>
-#include <unordered_map>
 #include <vector>
 
 namespace sigil::compose::detail {

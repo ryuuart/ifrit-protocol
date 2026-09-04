@@ -25,7 +25,7 @@ add_library(SigilCoreReconcile STATIC
 target_compile_features(SigilCoreReconcile PUBLIC cxx_std_20)
 target_include_directories(SigilCoreReconcile PUBLIC ${SIGIL_CORE_INCLUDE_DIR})
 target_link_libraries(SigilCoreReconcile PUBLIC
-  SigilCoreComparable SigilMeasure)
+  SigilCoreComparable SigilMeasure Boost::container_hash Boost::unordered)
 
 # Links only the library it exercises, over a fake host, so a link edge
 # that pulled a drawing or layout library in would show up as a build

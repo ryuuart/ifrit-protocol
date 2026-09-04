@@ -8,7 +8,7 @@
 #include <oneapi/tbb/blocked_range.h>
 #include <oneapi/tbb/parallel_for.h>
 
-#include <set>
+#include <boost/container/flat_set.hpp>
 
 #include "Fetch.h"
 #include "Residency.h"
@@ -86,7 +86,7 @@ size_t Hub::preload(std::span<const std::string_view> uris) {
     FetchResult fetched;
   };
 
-  std::set<std::string, std::less<>> seen;
+  boost::container::flat_set<std::string, std::less<>> seen;
   std::vector<Pending> pending;
   size_t ready = 0;
   std::filesystem::path networkCache;

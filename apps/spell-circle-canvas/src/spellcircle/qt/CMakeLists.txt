@@ -139,8 +139,7 @@ endif()
 # the animated text layer drawn by SkiaSceneBackend.cpp.
 if(SPELLCIRCLE_ENABLE_SKIA_CANVAS)
   # SigilWeaveQt carries SigilWeave transitively; SigilWeavePorts provides the
-  # system font manager used by the render-thread FontContext. (No direct
-  # absl links: SigilWeave's public headers no longer expose abseil types.)
+  # system font manager used by the render-thread FontContext.
   target_link_libraries(SpellCircleCanvas PRIVATE SigilSkiaQt SigilWeaveQt
     SigilWeavePorts)
 endif()

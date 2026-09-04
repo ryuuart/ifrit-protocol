@@ -81,7 +81,7 @@ target_compile_definitions(SigilWorldDiligent
 target_link_libraries(SigilWorldDiligent
   PUBLIC SigilGeometryDevice SigilWorldScene SigilMaterialSlang
          SigilGeometryMeshPop SigilCoreHardware SigilGeometryMeshRender
-  PRIVATE SigilMaterialKit SigilSkiaGraphite SigilIOHub)
+  PRIVATE SigilMaterialKit SigilSkiaGraphite SigilIOHub Boost::container)
 
 add_executable(world_diligent_test test/PainterTest.cpp test/RuntimeTest.cpp
   test/StackTest.cpp test/SurfaceTest.cpp test/Distance.h test/OnDevice.h)

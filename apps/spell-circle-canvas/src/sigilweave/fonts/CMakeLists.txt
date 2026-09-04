@@ -1,6 +1,6 @@
 # The font service and the shaper: HarfBuzz faces bound to Skia typefaces,
 # fallback resolution, varied-typeface clones, the content-addressed word
-# shape cache, and one word shaped into a ShapedWord. HarfBuzz and abseil
+# shape cache, and one word shaped into a ShapedWord. HarfBuzz and Boost
 # stay private — no public header names a type of either.
 add_library(SigilWeaveFonts STATIC
   FontContext.cpp
@@ -22,7 +22,8 @@ target_link_libraries(SigilWeaveFonts
     unofficial::skia::skia
   PRIVATE
     harfbuzz::harfbuzz
-    absl::flat_hash_map
+    Boost::container_hash
+    Boost::unordered
 )
 
 # Tests shape through the system font port; every weave test binary

@@ -149,7 +149,7 @@ std::optional<std::string> Composer::Impl::hitInstance(
 
 std::vector<std::string> Composer::routesAt(std::string_view nodeKey) const {
   std::vector<std::string> keys;
-  auto it = m_impl->routesByAnchor.find(std::string(nodeKey));
+  auto it = m_impl->routesByAnchor.find(nodeKey);
   if (it == m_impl->routesByAnchor.end()) return keys;
   keys.reserve(it->second.size());
   for (const detail::Instance* route : it->second) {

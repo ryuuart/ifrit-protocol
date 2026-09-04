@@ -23,7 +23,7 @@ target_link_libraries(SigilUsdWrite
   PUBLIC SigilMaterialKit SigilWorldElement SigilWorldLight SigilGeometryMesh
          SigilGeometryMeshPop SigilGeometryMeshCamera unofficial::skia::skia
   PRIVATE SigilImageEncode SigilIOSource usd usdGeom usdShade usdLux
-          usdUtils sdf tf gf vt)
+          usdUtils sdf tf gf vt Boost::unordered)
 
 # Links the library it exercises, the runtime probe it skips on, and USD
 # itself to inspect the authored stage.

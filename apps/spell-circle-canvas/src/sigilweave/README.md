@@ -177,14 +177,14 @@ every frame.
 |---|---|---|
 | `SigilWeaveUnicode` | the Unicode leaf | ICU and HarfBuzz's ICU bridge, private; no Skia |
 | `SigilWeaveStyle` | the style vocabulary, header-only, with `Type` and `type()` — the designated-init aggregate a call site names a style's numbers in | — |
-| `SigilWeaveFonts` | the font service and the shaper | HarfBuzz, abseil — private |
-| `SigilWeaveParagraph` | the document model | SigilWeaveUnicode, abseil — private |
-| `SigilWeaveLayout` | flows, breakers, placement, metrics | SigilGeometryPath (public: `LineInterval::contour` is a `geometry::path::Contour`); ICU, abseil — private |
+| `SigilWeaveFonts` | the font service and the shaper | HarfBuzz, Boost.Unordered and Boost.ContainerHash — private |
+| `SigilWeaveParagraph` | the document model | SigilWeaveUnicode, Boost.Container — private |
+| `SigilWeaveLayout` | flows, breakers, placement, metrics | SigilGeometryPath (public: `LineInterval::contour` is a `geometry::path::Contour`); ICU and Boost.Unordered — private |
 | `SigilWeaveDecoration` | decoration bands | SigilCoreCompute (the stir the skip-ink cache keys with) — private |
 | `SigilWeavePaint` | `draw()` and `drawBatched()`, `paint/Paint.h` | — |
 | `SigilWeaveChoreograph` | per-glyph choreography | — |
 | `SigilWeaveQuery` | range search and markers | ICU, private |
-| `SigilWeaveCache` | the label cache | abseil, ICU — private |
+| `SigilWeaveCache` | the label cache | Boost.Unordered, ICU — private |
 | `SigilWeave` | interface over every target above | — |
 | `SigilWeaveShaders` | `shaders/PaintShaders.h` — water, mesh gradient, sparkle, star nest, clouds, tunnel | SigilMaterialKit, SigilMaterialSkia — private; not in the export set |
 | `SigilWeavePorts` | `ports::systemFontManager()` — CoreText today; DirectWrite/Fontconfig slot into the same call — and `ports::pickTypeface()`, the first installed family of a fallback chain | Skia platform ports |
@@ -197,10 +197,10 @@ cache each resting on the one they need — so a consumer of one tier links
 that tier alone; `SigilWeave` is for a consumer of the whole engine. Skia
 and SigilGeometryPath are PUBLIC dependencies — the path a line of text
 follows is a geometry contour, and `ExclusionFlow` flattens its shapes
-through the same library; the Unicode leaf, HarfBuzz, ICU and abseil are
+through the same library; the Unicode leaf, HarfBuzz, ICU and Boost are
 PRIVATE and appear in no public header. Pimpls hide the hash maps, and
 `Word::segments()` hands out a `std::span` over storage whose container
-type only the paragraph feature sees, so the one abseil container inside
+type only the paragraph feature sees, so the one Boost container inside
 a value type never reaches a consumer. The engine is Qt-free and carries
 no SkSL: shader presets are content, not engine.
 

@@ -7,7 +7,7 @@
 #include <include/core/SkTypes.h>  // SkDebugf — the slot-rename diagnostic
 
 #include <algorithm>
-#include <set>
+#include <boost/unordered/unordered_flat_set.hpp>
 
 #include "ComposeInternal.h"
 
@@ -28,7 +28,7 @@ Element& Element::key(std::string_view k) {
   // fires where the caller still has BOTH names in hand, which is what
   // makes it actionable.
   if (m_node->kind == Kind::Slot && !m_node->key.empty() && m_node->key != k) {
-    static std::set<std::string> warned;  // once per rename, not per frame
+    static boost::unordered_flat_set<std::string> warned;
     if (warned.insert(m_node->key + "->" + std::string(k)).second)
       SkDebugf(
           "[compose] .key(\"%.*s\") on slot(\"%s\") RENAMES the slot: "

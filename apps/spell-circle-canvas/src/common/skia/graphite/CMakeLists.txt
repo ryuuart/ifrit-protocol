@@ -40,7 +40,7 @@ target_compile_features(SigilSkiaGraphite PUBLIC cxx_std_20)
 target_include_directories(SigilSkiaGraphite PUBLIC ${SIGIL_SKIA_INCLUDE_DIR})
 target_link_libraries(SigilSkiaGraphite
   PUBLIC unofficial::skia::skia SigilCoreHardware
-  PRIVATE Vulkan::Headers)
+  PRIVATE Vulkan::Headers Boost::unordered)
 if(APPLE)
   target_link_libraries(SigilSkiaGraphite PRIVATE ${FOUNDATION_FRAMEWORK})
 endif()

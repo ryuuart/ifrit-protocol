@@ -11,8 +11,8 @@
 #include <include/core/SkImage.h>
 #include <sigilsubstance/Substance.h>
 
+#include <boost/container/map.hpp>
 #include <filesystem>
-#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -139,7 +139,8 @@ TEST(Substance, RendersEveryOutputAtTheResolutionItWasSet) {
   substance::Graph& graph = package->graph(0);
   ASSERT_TRUE(graph.setResolution(7, 7));  // 128 x 128: fast
   ASSERT_TRUE(graph.render());
-  const std::map<std::string, sk_sp<SkImage>> byUsage = graph.outputsByUsage();
+  const boost::container::map<std::string, sk_sp<SkImage>> byUsage =
+      graph.outputsByUsage();
   ASSERT_FALSE(byUsage.empty());
   sk_sp<SkImage> base;
   for (const auto& [usage, image] : byUsage) {

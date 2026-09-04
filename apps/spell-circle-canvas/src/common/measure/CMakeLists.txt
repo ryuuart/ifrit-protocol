@@ -1,6 +1,6 @@
-# SigilMeasure — timing, statistics and check reporting, on the standard
-# library alone. Every other library measures itself with this one, so it
-# links nothing: a dependency here would be a dependency of everything.
+# SigilMeasure — timing, statistics and check reporting. Every other library
+# measures itself with this one, so its sole dependency is the Boost.Container
+# header used by the compact, ordered counter table.
 #
 # Every public header lives under one include root, include/sigilmeasure/
 # <subject>/, and <sigilmeasure/Measure.h> is the umbrella over all of
@@ -22,6 +22,7 @@ add_library(SigilMeasure STATIC
 )
 target_compile_features(SigilMeasure PUBLIC cxx_std_20)
 target_include_directories(SigilMeasure PUBLIC ${SIGIL_MEASURE_INCLUDE_DIR})
+target_link_libraries(SigilMeasure PUBLIC Boost::container)
 
 # Links only the library it exercises, so a link edge that pulled anything
 # else in would show up as a build failure here.
@@ -40,7 +41,7 @@ add_dependencies(benches measure_bench)
 # same document that is canon for the library.
 sigil_add_docs(
   NAME SigilMeasure
-  BRIEF "Timing, statistics and check reporting, on the standard library alone"
+  BRIEF "Timing, statistics and check reporting, with compact ordered counter storage"
   INPUT
         ${CMAKE_CURRENT_SOURCE_DIR}/include
         ${CMAKE_CURRENT_SOURCE_DIR}/README.md

@@ -6,7 +6,9 @@ include(CMakeFindDependencyMacro)
 find_dependency(unofficial-skia CONFIG)
 find_dependency(harfbuzz CONFIG)
 find_dependency(ICU COMPONENTS i18n uc data)
-find_dependency(absl CONFIG)
+find_dependency(boost_container CONFIG)
+find_dependency(boost_container_hash CONFIG)
+find_dependency(boost_unordered CONFIG)
 
 # The Qt bridge (sigil::weave::SigilWeaveQt) is opt-in: only consumers that ask
 # for the Qt component pull a Qt6 requirement.

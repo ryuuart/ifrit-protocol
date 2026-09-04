@@ -7,10 +7,10 @@
  * colours, and a file without faces is a point cloud.
  */
 
+#include <boost/container/map.hpp>
 #include <cstdlib>
 #include <cstring>
 #include <functional>
-#include <map>
 #include <sstream>
 #include <string>
 
@@ -110,9 +110,12 @@ struct PlyElement {
  *  grammar is one grammar, so it gets one implementation — a second
  *  copy would be the thing that drifts. */
 void foldSuffixedLanes(
-    std::map<std::string, std::vector<float>, std::less<>>& scalars,
-    std::map<std::string, std::vector<glm::vec3>, std::less<>>& vectors,
-    std::map<std::string, std::vector<glm::vec4>, std::less<>>& colors) {
+    boost::container::map<std::string, std::vector<float>, std::less<>>&
+        scalars,
+    boost::container::map<std::string, std::vector<glm::vec3>, std::less<>>&
+        vectors,
+    boost::container::map<std::string, std::vector<glm::vec4>, std::less<>>&
+        colors) {
   std::vector<std::string> vectorBases, colorBases;
   for (const auto& [name, lane] : scalars) {
     if (name.size() > 2 && name.ends_with("_x"))
@@ -237,7 +240,8 @@ std::optional<Model> importPly(const std::byte* bytes, size_t size) {
    *  see the fan replication below). Accumulated across every face
    *  element, folded and widened into Mesh::prims once the body is
    *  read. */
-  std::map<std::string, std::vector<float>, std::less<>> primScalars;
+  boost::container::map<std::string, std::vector<float>, std::less<>>
+      primScalars;
 
   // One reader per source; ascii tokenizes, binary walks a cursor.
   std::istringstream ascii(binary ? std::string()
@@ -440,8 +444,10 @@ std::optional<Model> importPly(const std::byte* bytes, size_t size) {
   // a folded vector takes w = 0 (Mesh::append's pad for non-"Color"
   // lanes), and a lone scalar lands in .x — the "Id" convention.
   {
-    std::map<std::string, std::vector<glm::vec3>, std::less<>> primVectors;
-    std::map<std::string, std::vector<glm::vec4>, std::less<>> primColors;
+    boost::container::map<std::string, std::vector<glm::vec3>, std::less<>>
+        primVectors;
+    boost::container::map<std::string, std::vector<glm::vec4>, std::less<>>
+        primColors;
     foldSuffixedLanes(primScalars, primVectors, primColors);
     const size_t tris = mesh.triangleCount();
     // A lane the file under- or over-supplied is DROPPED whole rather

@@ -10,8 +10,8 @@
 #include <sigilmaterial/core/Params.h>
 #include <sigilmaterial/core/Target.h>
 
+#include <boost/container/map.hpp>
 #include <cstdint>
-#include <map>
 #include <memory>
 #include <span>
 #include <string>
@@ -118,7 +118,7 @@ class Recipe {
   std::string m_name;
   Schema m_params;
   Schema m_layout;
-  std::map<Target, std::string> m_bodies;
+  boost::container::map<Target, std::string> m_bodies;
   std::vector<std::string> m_children;
   uint8_t m_frame = 0;
 };

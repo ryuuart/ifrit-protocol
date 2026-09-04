@@ -80,7 +80,8 @@ bool WebView::Impl::publishIfDirty() {
 }
 
 bool WebView::Impl::publishGpuIfDirty(
-    GpuDriver& driver, const std::unordered_set<uint32_t>& dirtyRenderBuffers) {
+    GpuDriver& driver,
+    const boost::unordered_flat_set<uint32_t>& dirtyRenderBuffers) {
   // A page with no view has nothing to publish; see publishIfDirty().
   if (!view) return false;
   ultralight::RenderTarget target = view->render_target();

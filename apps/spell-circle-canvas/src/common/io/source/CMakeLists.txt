@@ -17,5 +17,5 @@ target_include_directories(SigilIOSource INTERFACE
 add_executable(io_source_test test/SourceTest.cpp)
 target_include_directories(io_source_test PRIVATE ${SIGIL_TEST_SUPPORT_DIR})
 target_link_libraries(io_source_test PRIVATE SigilIOSource
-  GTest::gtest_main)
+  Boost::container GTest::gtest_main)
 add_test(NAME io_source_test COMMAND io_source_test)

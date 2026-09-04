@@ -112,7 +112,8 @@ switch.
 
 ## Boundary
 
-Public dependency: Skia (`SkImage` out). Private: the Substance 3D SDK's
+Public dependencies: Skia (`SkImage` out) and Boost.Container (the keyed output
+map). Private: the Substance 3D SDK's
 framework library and one engine dylib — no public header names an SDK
 type; the SDK is included only by the sources and the internal headers
 beside them. Deliberately absent: any GPU device, any material or

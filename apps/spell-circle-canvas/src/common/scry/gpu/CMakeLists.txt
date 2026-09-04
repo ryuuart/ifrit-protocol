@@ -32,7 +32,7 @@ target_compile_features(SigilScryGpu PUBLIC cxx_std_20)
 # driver paints through SigilSkia's Graphite context: both PUBLIC, because
 # the driver contract spells the handle and the context.
 target_link_libraries(SigilScryGpu
-  PUBLIC SigilSkiaGraphite SigilCoreHardware
+  PUBLIC SigilSkiaGraphite SigilCoreHardware Boost::unordered
   PRIVATE Ultralight::Ultralight)
 if(APPLE)
   set_source_files_properties(metal/MetalDriver.mm metal/MetalInterop.mm

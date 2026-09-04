@@ -6,8 +6,8 @@
 #include "sigilweave/kit/Hyphenation.h"
 
 #include <algorithm>
+#include <boost/unordered/unordered_flat_map.hpp>
 #include <functional>
-#include <unordered_map>
 
 #include "sigilweave/unicode/Unicode.h"
 
@@ -61,12 +61,12 @@ bool foldToLetters(std::u16string_view word, std::u32string& letters,
  *  however many code units spell it. */
 struct PatternHyphenator::Table {
   // letters → one value per position, [0, letters.size()]
-  std::unordered_map<std::u32string, std::vector<uint8_t>, LettersHash,
-                     std::equal_to<>>
+  boost::unordered_flat_map<std::u32string, std::vector<uint8_t>, LettersHash,
+                            std::equal_to<>>
       patterns;
   // whole lower-cased word → the letter positions it may break at
-  std::unordered_map<std::u32string, std::vector<uint32_t>, LettersHash,
-                     std::equal_to<>>
+  boost::unordered_flat_map<std::u32string, std::vector<uint32_t>, LettersHash,
+                            std::equal_to<>>
       exceptions;
   size_t longestPattern = 0;
 };

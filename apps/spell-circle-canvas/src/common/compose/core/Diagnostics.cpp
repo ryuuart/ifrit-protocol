@@ -17,12 +17,11 @@
 #include <include/pathops/SkPathOps.h>
 
 #include <algorithm>
+#include <boost/unordered/unordered_flat_set.hpp>
 #include <cmath>  // std::isfinite — the geometry::path::profileOffset non-finite guard
 #include <cstdio>  // std::snprintf — variationDrive's effect key
-#include <set>
 #include <string>
 #include <string_view>
-#include <unordered_set>  // the once-per-name diagnostics' seen sets
 
 #include "ComposeInternal.h"
 #include "sigilgeometry/path/Contour.h"
@@ -105,7 +104,7 @@ void warnWritingModeOnPath() {
 void warnNoSuchParagraphStyle(std::string_view name, bool anySetInScope) {
   // Once per distinct name: a description re-runs every frame and a name
   // that is wrong is wrong every time.
-  static thread_local std::unordered_set<std::string> seen;
+  static thread_local boost::unordered_flat_set<std::string> seen;
   if (!seen.insert(std::string(name)).second) return;
   std::fprintf(
       stderr,

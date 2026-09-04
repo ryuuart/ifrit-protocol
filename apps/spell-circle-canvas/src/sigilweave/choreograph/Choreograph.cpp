@@ -14,9 +14,9 @@
 #include <algorithm>
 #include <array>
 #include <bit>
+#include <boost/container/flat_map.hpp>
 #include <cmath>
 #include <list>
-#include <map>
 #include <numbers>
 #include <utility>
 
@@ -67,7 +67,9 @@ sk_sp<SkColorFilter> tintFilter(const SkColor4f& tint,
   // Most recently used at the front. The map holds iterators into the list,
   // which std::list keeps valid across splice and across every insertion.
   static thread_local std::list<Entry> order;
-  static thread_local std::map<Key, std::list<Entry>::iterator> table;
+  static thread_local boost::container::flat_map<Key,
+                                                 std::list<Entry>::iterator>
+      table;
   const Key key{
       {std::bit_cast<uint32_t>(tint.fR), std::bit_cast<uint32_t>(tint.fG),
        std::bit_cast<uint32_t>(tint.fB), std::bit_cast<uint32_t>(add.fR),

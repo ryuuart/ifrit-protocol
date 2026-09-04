@@ -110,8 +110,10 @@ target_link_libraries(SigilComposeCore
     SigilMotion
     SigilSkiaDraw
     SigilWeave
+    Boost::unordered
     unofficial::skia::skia
   PRIVATE
+    Boost::container
     SigilIOHub
     yoga::yogacore
 )

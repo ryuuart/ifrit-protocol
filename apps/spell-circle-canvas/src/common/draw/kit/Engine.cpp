@@ -15,9 +15,9 @@ namespace sigil::draw::brush {
 
 namespace {
 
-std::unordered_map<std::string, Engine::Field> stockFields() {
+boost::unordered_flat_map<std::string, Engine::Field> stockFields() {
   using std::numbers::pi_v;
-  std::unordered_map<std::string, Engine::Field> result;
+  boost::unordered_flat_map<std::string, Engine::Field> result;
   result.emplace("hand", [](SkPoint point, float seconds) {
     return std::sin(point.fX * 0.045f + point.fY * 0.021f + seconds) * 0.18f;
   });

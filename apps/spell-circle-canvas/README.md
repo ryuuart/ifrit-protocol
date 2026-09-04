@@ -107,10 +107,9 @@ thread.
 
 The Mac app is a separate executable rather than a Qt build. Its
 `SpellCircleMacBridge` is a shared library that absorbs the entire C++
-side, because Swift's linker rejects the raw `-Wl,-framework,CoreFoundation`
-flag that Abseil's package config carries in its link interface; keeping
-that on the clang++ side of a dylib boundary is what makes the Swift target
-link at all.
+side — scene core, Skia, SigilWeave, ICU, HarfBuzz, Syphon — so the whole
+of it links through the clang++ driver and the Swift executable links one
+dylib.
 
 ## Libraries
 

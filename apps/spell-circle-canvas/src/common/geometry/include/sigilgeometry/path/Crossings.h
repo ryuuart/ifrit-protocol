@@ -20,12 +20,12 @@
 #include <include/core/SkPoint.h>
 
 #include <any>
+#include <boost/unordered/unordered_flat_map.hpp>
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <span>
-#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -226,7 +226,7 @@ class CrossingRule {
    *  equality: it is a function of the geometry the holder discovered,
    *  not of anything the author wrote, so two rules that differ only in
    *  whether they have been prepared are the same rule. */
-  mutable std::unordered_map<size_t, Order> m_walk;
+  mutable boost::unordered_flat_map<size_t, Order> m_walk;
 };
 
 namespace crossing {

@@ -2,6 +2,8 @@
 // are paint-tier values, cut from that file so each test binary links only the
 // target it exercises.
 
+#include <boost/container/flat_set.hpp>
+
 #include "support/PaintTestSupport.h"
 
 TEST(ComposeBrushes, PatternIntegerFitNeverTearsTheLastTile) {
@@ -46,7 +48,7 @@ TEST(ComposeSeams, PerlinNoiseFillsWithVariation) {
   host.composer.render(box().child(box().width(100).height(100).fill(
       material::skia::Paint::recipe(material::field::noise(0.05f, 4, 2.0f)))));
   host.frame();
-  std::set<SkColor> distinct;
+  boost::container::flat_set<SkColor> distinct;
   for (int y = 10; y < 90; y += 8)
     for (int x = 10; x < 90; x += 8) distinct.insert(host.pixel(x, y));
   EXPECT_GT(distinct.size(), 30u);  // organic variation, not a flat fill

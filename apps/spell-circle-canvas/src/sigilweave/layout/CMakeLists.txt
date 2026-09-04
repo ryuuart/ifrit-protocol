@@ -31,7 +31,7 @@ target_link_libraries(SigilWeaveLayout
     SigilWeaveUnicode
     harfbuzz::harfbuzz
     ICU::uc
-    absl::flat_hash_map
+    Boost::unordered
 )
 
 # Everything that places runs and reads where they landed: both breakers,
@@ -65,7 +65,7 @@ target_link_libraries(weave_layout_test PRIVATE
   SigilWeaveKit
   SigilWeaveQuery
   SigilWeavePorts
-  absl::flat_hash_set
+  Boost::unordered
   GTest::gtest_main
 )
 add_test(NAME weave_layout_test COMMAND weave_layout_test)

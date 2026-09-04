@@ -59,12 +59,10 @@ catalog. One target per directory:
 `SigilCoreComparable` and `SigilCoreCompute` are header-only, so they are
 INTERFACE targets and produce no archive; everything else is a static
 library. `SigilCoreComparable` takes the standard library and Boost.PFR,
-`SigilCoreCompute` the standard library alone — which is what lets any
-library link either without pulling a kernel, a device or a drawing
-library behind it. `SigilCoreHardware` is the one target here that takes
-more than the standard library: it takes the graphics API and nothing
-else, and only a consumer that needs a device links it, so the rest of
-SigilCore stays what it was.
+`SigilCoreCompute` the standard library alone, and `SigilCoreReconcile`
+Boost.Unordered for its keyed indices. `SigilCoreHardware` takes the graphics
+API and nothing else. Consumers still link only the feature they use, without
+pulling in a drawing or layout library.
 
 Every public header lives under `include/sigilcore/<feature>/` and is
 spelled `<sigilcore/comparable/X.h>`, `<sigilcore/compute/X.h>`,

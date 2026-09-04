@@ -66,9 +66,10 @@
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkString.h>
 #include <include/effects/SkImageFilters.h>
+#include <shared/TwoAdvanced.h>
+#include <sigilcompose/brush/Adaptors.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/brush/LayerStyles.h>
-#include <sigilcompose/brush/Adaptors.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/Pattern.h>
 #include <sigilcompose/kit/Frame.h>
@@ -90,11 +91,8 @@
 #include <cmath>
 #include <cstdio>
 #include <cstring>
-#include <map>
 #include <string>
 #include <vector>
-
-#include <shared/TwoAdvanced.h>
 
 namespace sketch = sigil::sketch;
 namespace mskia = sigil::material::skia;
@@ -247,8 +245,8 @@ struct TwoAdvancedV3 : sketch::Sketch {
 
   /** A bitmap stretched to exactly (w, h). */
   static mskia::Paint stretchFill(const ImagePtr& asset, float w, float h,
-                              SkTileMode tx = SkTileMode::kClamp,
-                              SkTileMode ty = SkTileMode::kClamp) {
+                                  SkTileMode tx = SkTileMode::kClamp,
+                                  SkTileMode ty = SkTileMode::kClamp) {
     const sk_sp<SkImage>& img = asset->frames()[0].image;
     return mskia::Paint::image(
         img, tx, ty,
@@ -412,15 +410,15 @@ struct TwoAdvancedV3 : sketch::Sketch {
         .padding(7, 0)
         .gap(8)
         .fill(mskia::Paint::linearUnit({0, 0}, {0, 1},
-                                   {{0.0f, hex(0x8B98B2)},
-                                    {0.55f, hex(0x64738F)},
-                                    {1.0f, hex(0x4C5A73)}}))
+                                       {{0.0f, hex(0x8B98B2)},
+                                        {0.55f, hex(0x64738F)},
+                                        {1.0f, hex(0x4C5A73)}}))
         .foreground(onEdges(path::Edge::Bottom,
-                                    stroke(1, Fill::color(alpha(kInk, 0.6f)),
-                                           PathFormat::Align::Inner)))
-        .foreground(onEdges(
-            path::Edge::Top, stroke(1, Fill::color(alpha(kSteelHi, 0.7f)),
-                                      PathFormat::Align::Inner)))
+                            stroke(1, Fill::color(alpha(kInk, 0.6f)),
+                                   PathFormat::Align::Inner)))
+        .foreground(onEdges(path::Edge::Top,
+                            stroke(1, Fill::color(alpha(kSteelHi, 0.7f)),
+                                   PathFormat::Align::Inner)))
         .child(box()
                    .width(16)
                    .height(16)
@@ -468,8 +466,8 @@ struct TwoAdvancedV3 : sketch::Sketch {
                   {0, 0}, {0, 1},
                   {{0.0f, hex(0x98A3BA)}, {1.0f, hex(0x66738F)}})),
               kStageX, 0, kStageW, 8)
-        .translateY(
-            animate(motion::from(-10.0f).to(0.0f), {300ms, &ch::easeOutQuint, 1450ms}));
+        .translateY(animate(motion::from(-10.0f).to(0.0f),
+                            {300ms, &ch::easeOutQuint, 1450ms}));
   }
 
   Element headerStrip() {
@@ -488,10 +486,10 @@ struct TwoAdvancedV3 : sketch::Sketch {
           at(box().fill(diag.material()).opacity(0.18f), 0, 0, kStageW, 74));
     }
     return strip
-        .translateY(
-            animate(motion::from(-84.0f).to(0.0f), {380ms, &ch::easeOutQuint, 1500ms}))
-        .opacity(
-            animate(motion::from(0.0f).to(1.0f), {280ms, &ch::easeOutQuad, 1500ms}));
+        .translateY(animate(motion::from(-84.0f).to(0.0f),
+                            {380ms, &ch::easeOutQuint, 1500ms}))
+        .opacity(animate(motion::from(0.0f).to(1.0f),
+                         {280ms, &ch::easeOutQuad, 1500ms}));
   }
 
   Element wordmark() {
@@ -514,9 +512,9 @@ struct TwoAdvancedV3 : sketch::Sketch {
             .fill(mskia::Paint::linearUnit(
                 {0, 0}, {0, 1},
                 {{0.0f, hex(0x8C99B4)}, {0.6f, kSteel}, {1.0f, hex(0x67748E)}}))
-            .foreground(onEdges(
-                path::Edge::Bottom, stroke(2, Fill::color(alpha(kInk, 0.5f)),
-                                             PathFormat::Align::Inner)))
+            .foreground(onEdges(path::Edge::Bottom,
+                                stroke(2, Fill::color(alpha(kInk, 0.5f)),
+                                       PathFormat::Align::Inner)))
             .child(mark)
             .child(box()
                        .column()
@@ -533,10 +531,10 @@ struct TwoAdvancedV3 : sketch::Sketch {
                                 tracked(grotBold(), 12, kNear, 560, 1.0f))))
             .child(box().grow(1));
     return panel
-        .translateY(
-            animate(motion::from(-60.0f).to(0.0f), {420ms, &ch::easeOutQuint, 1600ms}))
-        .opacity(
-            animate(motion::from(0.0f).to(1.0f), {300ms, &ch::easeOutQuad, 1600ms}));
+        .translateY(animate(motion::from(-60.0f).to(0.0f),
+                            {420ms, &ch::easeOutQuint, 1600ms}))
+        .opacity(animate(motion::from(0.0f).to(1.0f),
+                         {300ms, &ch::easeOutQuad, 1600ms}));
   }
 
   Element navBar() {
@@ -562,19 +560,19 @@ struct TwoAdvancedV3 : sketch::Sketch {
             .padding(12, 0)
             .gap(7)
             .fill(alpha(hex(0x39445C), 0.92f))
-            .foreground(onEdges(
-                path::Edge::Right, stroke(1, Fill::color(alpha(kInk, 0.8f)),
-                                            PathFormat::Align::Inner)))
+            .foreground(onEdges(path::Edge::Right,
+                                stroke(1, Fill::color(alpha(kInk, 0.8f)),
+                                       PathFormat::Align::Inner)))
             .child(t("\xe2\x86\x92", micro(11, kSteelHi, 0)))
             .child(t("2A.V3..2024 // EXPANSIONS", micro(11.5f, kNear, 80))));
     // Right: the six tab slots live in a slot so the active-section
     // indicator can move without re-describing the bar.
     bar.child(slot("navtabs"));
     return bar
-        .translateY(
-            animate(motion::from(-40.0f).to(0.0f), {380ms, &ch::easeOutQuint, 1750ms}))
-        .opacity(
-            animate(motion::from(0.0f).to(1.0f), {280ms, &ch::easeOutQuad, 1750ms}));
+        .translateY(animate(motion::from(-40.0f).to(0.0f),
+                            {380ms, &ch::easeOutQuint, 1750ms}))
+        .opacity(animate(motion::from(0.0f).to(1.0f),
+                         {280ms, &ch::easeOutQuad, 1750ms}));
   }
 
   /** The tab row at `active` (-1 = home, nothing lit). The indicator is
@@ -619,8 +617,8 @@ struct TwoAdvancedV3 : sketch::Sketch {
                                         .fill(vticks.material())
                                         .opacity(0.55f))),
               kStageX, 210, kStageW, 7)
-        .opacity(
-            animate(motion::from(0.0f).to(1.0f), {280ms, &ch::easeOutQuad, 1800ms}));
+        .opacity(animate(motion::from(0.0f).to(1.0f),
+                         {280ms, &ch::easeOutQuad, 1800ms}));
   }
 
   /** The stage viewport. Its CONTENT lives in a slot — the section
@@ -650,8 +648,8 @@ struct TwoAdvancedV3 : sketch::Sketch {
     if (bg)
       art.fill(stretchFill(bg, kStageW, kArtH));
     else
-      art.fill(mskia::Paint::linearUnit({0, 0}, {0, 1},
-                                    {{0.0f, hex(0x2A3A58)}, {1.0f, kDeep}}));
+      art.fill(mskia::Paint::linearUnit(
+          {0, 0}, {0, 1}, {{0.0f, hex(0x2A3A58)}, {1.0f, kDeep}}));
 
     if (sec < 0) {
       if (!clouds.empty() && gapMask) {
@@ -780,10 +778,10 @@ struct TwoAdvancedV3 : sketch::Sketch {
                   .padding(10, 0)
                   .gap(6)
                   .fill(hex(0x4B5870))
-                  .foreground(onEdges(
-                      path::Edge::Top,
-                      stroke(1, Fill::color(alpha(kSteelHi, 0.55f)),
-                             PathFormat::Align::Inner)))
+                  .foreground(
+                      onEdges(path::Edge::Top,
+                              stroke(1, Fill::color(alpha(kSteelHi, 0.55f)),
+                                     PathFormat::Align::Inner)))
                   .child(t("\xe2\x86\x93", micro(9, kSteelHi, 0)))
                   .child(t("SCROLL.EXTENDED.CONTENT",
                            micro(9, alpha(kSteelHi, 0.85f), 180)))
@@ -791,8 +789,8 @@ struct TwoAdvancedV3 : sketch::Sketch {
                   .child(
                       t("AMBIENCE.MUTE", micro(9, alpha(kSteel, 0.9f), 180))),
               kStageX, 617, kStageW, 16)
-        .opacity(
-            animate(motion::from(0.0f).to(1.0f), {300ms, &ch::easeOutQuad, 2200ms}));
+        .opacity(animate(motion::from(0.0f).to(1.0f),
+                         {300ms, &ch::easeOutQuad, 2200ms}));
   }
 
   /** One lower module: title bar + bordered translucent body. */
@@ -1071,8 +1069,8 @@ struct TwoAdvancedV3 : sketch::Sketch {
                   .child(t("HOSTING PARTNER:", micro(9, kInk, 140)))
                   .child(box().width(12).height(12).corners({6}).fill(kHost)),
               kStageX, 1045, kStageW, 20)
-        .opacity(
-            animate(motion::from(0.0f).to(1.0f), {320ms, &ch::easeOutQuad, 2900ms}));
+        .opacity(animate(motion::from(0.0f).to(1.0f),
+                         {320ms, &ch::easeOutQuad, 2900ms}));
   }
 
   // ---- boot overlay: the site's own preloader page, compressed ------------
@@ -1095,8 +1093,8 @@ struct TwoAdvancedV3 : sketch::Sketch {
           .child(t("2ADVANCED", tracked(grotBold(), 24, kNear, 200, 1.0f)));
 
     Element o = stack().inset(0).zIndex(90);
-    o.child(box().inset(0).fill(kPreBg).opacity(
-        animate(motion::through({{0ms, 1.0f}, {1250ms, 1.0f}, {1450ms, 0.0f}}))));
+    o.child(box().inset(0).fill(kPreBg).opacity(animate(
+        motion::through({{0ms, 1.0f}, {1250ms, 1.0f}, {1450ms, 0.0f}}))));
     o.child(
         at(box().column().alignItems(Align::Center).gap(18), kW / 2 - 300,
            kH / 2 - 170, 600, 360)
@@ -1130,7 +1128,7 @@ struct TwoAdvancedV3 : sketch::Sketch {
       page.fill(stretchFill(pageTile, 10, 1600, SkTileMode::kRepeat));
     } else {
       page.fill(mskia::Paint::linearUnit({0, 0}, {0, 1},
-                                     {{0.0f, kPageHi}, {0.55f, kPage}}));
+                                         {{0.0f, kPageHi}, {0.55f, kPage}}));
     }
     page.child(bevelBar());
     page.child(headerStrip());
@@ -1145,10 +1143,10 @@ struct TwoAdvancedV3 : sketch::Sketch {
     if (lowerPanelBg)
       ground.fill(stretchFill(lowerPanelBg, kStageW, 400));
     else
-      ground.fill(mskia::Paint::linearUnit({0, 0}, {1, 1},
-                                       {{0.0f, hex(0x22304A)}, {1.0f, kPage}}));
-    ground.opacity(
-        animate(motion::from(0.0f).to(1.0f), {380ms, &ch::easeOutQuad, 2250ms}));
+      ground.fill(mskia::Paint::linearUnit(
+          {0, 0}, {1, 1}, {{0.0f, hex(0x22304A)}, {1.0f, kPage}}));
+    ground.opacity(animate(motion::from(0.0f).to(1.0f),
+                           {380ms, &ch::easeOutQuad, 2250ms}));
     page.child(ground);
 
     Element mods = at(box().row().gap(10), kStageX, kModY, kStageW, kModH);
@@ -1182,7 +1180,8 @@ struct TwoAdvancedV3 : sketch::Sketch {
     diag = patterns::stripes(2, 9, mskia::toColor(alpha(kSteelHi, 0.5f)));
     diag.rotate(45);
     dots = patterns::halftone(5, 1.3f, mskia::toColor(alpha(kInk, 0.55f)));
-    vticks = patterns::stripes(1.5f, 5.5f, mskia::toColor(alpha(kSteelHi, 0.5f)));
+    vticks =
+        patterns::stripes(1.5f, 5.5f, mskia::toColor(alpha(kSteelHi, 0.5f)));
 
     // --- the production assets, from the live site ------------------------
     // https fetches cache on disk (CacheFirst): the first run downloads,

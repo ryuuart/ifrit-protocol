@@ -28,8 +28,8 @@
 #include <include/core/SkImage.h>
 #include <include/core/SkRefCnt.h>
 
+#include <boost/container/map.hpp>
 #include <glm/glm.hpp>
-#include <map>
 #include <string>
 #include <vector>
 
@@ -48,9 +48,11 @@ namespace sigil::geometry::mesh {
  *  first touch, sized to the cloud and filled with a default. */
 struct Cloud {
   std::vector<glm::vec3> positions;
-  std::map<std::string, std::vector<float>, std::less<>> scalars;
-  std::map<std::string, std::vector<glm::vec3>, std::less<>> vectors;
-  std::map<std::string, std::vector<glm::vec4>, std::less<>> colors;
+  boost::container::map<std::string, std::vector<float>, std::less<>> scalars;
+  boost::container::map<std::string, std::vector<glm::vec3>, std::less<>>
+      vectors;
+  boost::container::map<std::string, std::vector<glm::vec4>, std::less<>>
+      colors;
 
   size_t size() const { return positions.size(); }
 

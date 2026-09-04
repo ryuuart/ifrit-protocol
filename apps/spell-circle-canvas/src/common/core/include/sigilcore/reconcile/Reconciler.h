@@ -7,10 +7,14 @@
  * index read back off the result.
  */
 
+#include <boost/container_hash/hash.hpp>
+#include <boost/unordered/unordered_flat_map.hpp>
+#include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <string>
-#include <unordered_map>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -19,6 +23,18 @@
 #include "sigilcore/reconcile/Stats.h"
 
 namespace sigil::core {
+
+/** The hash of an addressable key, taking the key as the view a caller
+ *  holds it in: a table hashed with this and compared with
+ *  `std::equal_to<>` answers a `std::string_view` without first copying it
+ *  into a `std::string`. */
+struct KeyHash {
+  using is_transparent = void;
+  using is_avalanching = void;
+  size_t operator()(std::string_view key) const noexcept {
+    return boost::hash<std::string_view>{}(key);
+  }
+};
 
 /** Drives a host's retained tree from descriptions.
  *
@@ -39,7 +55,8 @@ class Reconciler {
   using Desc = DescT;
   using Value = DescValue<Desc>;
   /** Addressable key → node, rebuilt by indexKeys(). */
-  using KeyIndex = std::unordered_map<std::string, Node*>;
+  using KeyIndex =
+      boost::unordered_flat_map<std::string, Node*, KeyHash, std::equal_to<>>;
 
   explicit Reconciler(Host& host) : m_host(host) {}
 
@@ -119,7 +136,7 @@ class Reconciler {
     // Match by key when present, else by position among unkeyed children.
     std::vector<const Node*> oldOrder;
     oldOrder.reserve(inst.children.size());
-    std::unordered_map<std::string, std::unique_ptr<Node>> keyed;
+    boost::unordered_flat_map<std::string, std::unique_ptr<Node>> keyed;
     std::vector<std::unique_ptr<Node>> unkeyed;
     for (auto& child : inst.children) {
       if (child) {

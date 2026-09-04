@@ -212,8 +212,8 @@ void MetalDriver::UpdateCommandList(const ultralight::CommandList &list) {
   m_state->commands.insert(m_state->commands.end(), list.commands, list.commands + list.size);
 }
 
-std::unordered_set<uint32_t> MetalDriver::flush() {
-  std::unordered_set<uint32_t> dirtyRenderBuffers;
+boost::unordered_flat_set<uint32_t> MetalDriver::flush() {
+  boost::unordered_flat_set<uint32_t> dirtyRenderBuffers;
   if (m_state->commands.empty()) return dirtyRenderBuffers;
 
   @autoreleasepool {

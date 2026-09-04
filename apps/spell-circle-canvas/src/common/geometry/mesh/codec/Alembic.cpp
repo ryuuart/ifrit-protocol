@@ -11,6 +11,7 @@
 #include <Alembic/AbcCoreOgawa/All.h>
 #include <Alembic/AbcGeom/All.h>
 
+#include <boost/unordered/unordered_flat_map.hpp>
 #include <cstring>
 #include <glm/gtc/type_ptr.hpp>
 #include <istream>
@@ -279,7 +280,8 @@ void importAbcMesh(AbcGeom::IPolyMesh object, const glm::mat4& world,
   domain.corners = numCorners;
   domain.faces = faceCounts->size();
 
-  std::map<std::array<int32_t, 3>, uint32_t> seen;
+  boost::unordered_flat_map<std::array<int32_t, 3>, uint32_t> seen;
+  seen.reserve(numCorners);
   std::vector<uint32_t> ring;
   size_t cursor = 0;
   for (size_t face = 0; face < faceCounts->size(); ++face) {

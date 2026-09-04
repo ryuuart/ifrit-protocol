@@ -151,6 +151,7 @@ target_link_libraries(SigilSketches PUBLIC
   SigilWeave SigilWeaveKit SigilWeavePorts
   SigilWorldElement SigilWorldFrame SigilWorldScene SigilWorldKit
   SigilCoreCompute SigilImage SigilVideo SigilMotion SigilIO
+  Boost::container Boost::unordered
   ${SIGIL_SKETCH_OPTIONAL_LIBRARIES})
 # This directory is on the include path for one reason: a module under
 # shared/ is spelled <shared/Name.h>, so the include names the layer.

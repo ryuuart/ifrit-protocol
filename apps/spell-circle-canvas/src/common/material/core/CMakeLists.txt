@@ -45,8 +45,9 @@ target_compile_definitions(SigilMaterialCore
 # header here includes SigilGeometry, so no target of it is named: the
 # outline a normals pass is drawn over arrives as pixels.
 target_link_libraries(SigilMaterialCore
-  PUBLIC SigilMaterialColor SigilMotionValues glm::glm Boost::pfr)
-target_link_libraries(SigilMaterialCore PRIVATE SigilIOHub)
+  PUBLIC SigilMaterialColor SigilMotionValues glm::glm Boost::pfr
+         Boost::container)
+target_link_libraries(SigilMaterialCore PRIVATE SigilIOHub Boost::unordered)
 target_link_libraries(SigilMaterialCore PRIVATE TBB::tbb)
 
 # Links only the library it exercises, so a link edge that pulled a

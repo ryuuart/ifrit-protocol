@@ -13,9 +13,9 @@
 #include <sigilskia/graphite/GraphiteContext.h>
 
 #include <atomic>
+#include <boost/unordered/unordered_flat_map.hpp>
 #include <cstdint>
 #include <cstdlib>
-#include <unordered_map>
 
 namespace sigil::skia {
 
@@ -64,7 +64,7 @@ class CachingImageProvider final : public skgpu::graphite::ImageProvider {
 
  private:
   static constexpr size_t kMaxEntries = 256;
-  std::unordered_map<uint64_t, sk_sp<SkImage>> m_cache;
+  boost::unordered_flat_map<uint64_t, sk_sp<SkImage>> m_cache;
 };
 
 /** Where a failed shader compile is reported, for every context built
@@ -84,7 +84,8 @@ void GraphiteContext::reportShaderErrorsTo(skgpu::ShaderErrorHandler* handler) {
 skgpu::graphite::ContextOptions GraphiteContext::makeContextOptions() {
   skgpu::graphite::ContextOptions options;
   // Null leaves Skia's own handler in place, which prints to stderr.
-  options.fShaderErrorHandler = shaderErrorSink().load(std::memory_order_relaxed);
+  options.fShaderErrorHandler =
+      shaderErrorSink().load(std::memory_order_relaxed);
   // The glyph-atlas texture budget, overridable from the environment so
   // it can be varied under a benchmark without a rebuild. Unparseable or
   // non-positive values are ignored, so an unset or malformed variable

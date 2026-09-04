@@ -17,10 +17,10 @@
 #include <include/core/SkSurface.h>
 #include <sigilworld/element/Geometry.h>
 
+#include <boost/container/map.hpp>
+#include <boost/container/set.hpp>
 #include <cstdint>
 #include <functional>
-#include <map>
-#include <set>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -119,18 +119,18 @@ class Targets {
   SkISize m_extent{0, 0};
   /** The shared slots, in slot order, and which names sit in them. */
   std::vector<sk_sp<SkSurface>> m_shared;
-  std::map<std::string, int> m_slotOf;
+  boost::container::map<std::string, int> m_slotOf;
   /** The names holding a surface of their own. */
-  std::map<std::string, sk_sp<SkSurface>> m_own;
-  std::map<std::string, sk_sp<SkImage>> m_previous;
-  std::set<std::string> m_kept;
-  std::map<std::string, geometry::mesh::Cloud> m_points;
+  boost::container::map<std::string, sk_sp<SkSurface>> m_own;
+  boost::container::map<std::string, sk_sp<SkImage>> m_previous;
+  boost::container::set<std::string> m_kept;
+  boost::container::map<std::string, geometry::mesh::Cloud> m_points;
   /** A formed stamping and the frame it was last asked for in. */
   struct Stamping {
     geometry::mesh::Mesh mesh;
     uint64_t used = 0;
   };
-  std::map<uint64_t, Stamping> m_stamped;
+  boost::container::map<uint64_t, Stamping> m_stamped;
   uint64_t m_frame = 0;
   uint64_t m_stampings = 0;
   ImageSource m_source;

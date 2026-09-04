@@ -28,8 +28,8 @@ find_package(tinyobjloader CONFIG REQUIRED)
 find_package(Alembic CONFIG REQUIRED)
 find_package(simdjson CONFIG REQUIRED)
 target_link_libraries(SigilGeometryMeshCodec
-  PUBLIC SigilGeometryMesh SigilGeometryMeshPop
-  PRIVATE tinyobjloader::tinyobjloader Alembic::Alembic
+  PUBLIC SigilGeometryMesh SigilGeometryMeshPop Boost::container
+  PRIVATE tinyobjloader::tinyobjloader Alembic::Alembic Boost::unordered
           simdjson::simdjson)
 
 # The decode tests write Alembic archives in memory with the O* API, so

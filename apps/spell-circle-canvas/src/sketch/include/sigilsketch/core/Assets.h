@@ -10,9 +10,9 @@
 #include <sigilio/IO.h>
 #include <sigilvideo/decode/Decode.h>
 
+#include <boost/container/flat_map.hpp>
 #include <filesystem>
 #include <initializer_list>
-#include <map>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -62,7 +62,8 @@ class Assets {
 
   std::filesystem::path m_root;
   sigil::io::Hub m_hub;
-  std::map<std::string, bool, std::less<>> m_placeholders;  // name → waiting
+  boost::container::flat_map<std::string, bool, std::less<>>
+      m_placeholders;  // name → waiting
   std::vector<CachedVideo> m_videos;
   std::shared_ptr<const sigil::image::ImageAsset> m_placeholder;
 };

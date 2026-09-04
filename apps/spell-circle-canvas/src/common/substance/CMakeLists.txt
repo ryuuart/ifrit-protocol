@@ -42,7 +42,7 @@ target_include_directories(SigilSubstance
 # install name is @rpath-relative, so every executable linking this
 # library carries the SDK's bin/release in its runtime search path.
 target_link_libraries(SigilSubstance
-  PUBLIC unofficial::skia::skia
+  PUBLIC unofficial::skia::skia Boost::container
   PRIVATE Substance::Framework
 )
 get_filename_component(_substance_bin "${SUBSTANCE_SDK_DIR}/bin/release" ABSOLUTE)

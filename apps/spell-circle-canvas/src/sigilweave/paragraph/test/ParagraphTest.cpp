@@ -3,7 +3,6 @@
  * and sentence starts follow the text and survive paint edits.
  */
 
-#include <absl/container/flat_hash_set.h>
 #include <gtest/gtest.h>
 
 #include <string>

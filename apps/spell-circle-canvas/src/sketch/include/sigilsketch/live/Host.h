@@ -13,11 +13,11 @@
 #include <sigilsketch/core/Registry.h>
 #include <sigilsketch/core/Session.h>
 
+#include <boost/container/flat_map.hpp>
 #include <chrono>
 #include <filesystem>
 #include <functional>
 #include <future>
-#include <map>
 #include <memory>
 #include <optional>
 #include <string>
@@ -288,7 +288,7 @@ class Host {
   std::filesystem::file_time_type m_headerStamp;
   std::filesystem::file_time_type m_unitStamp;
   std::chrono::steady_clock::time_point m_lastSiblingScan;
-  std::map<std::filesystem::path, Built> m_built;
+  boost::container::flat_map<std::filesystem::path, Built> m_built;
   int m_unitsCompiled = 0;  // of the last adopted build, for its status line
   int m_unitsTotal = 0;
   bool m_everCompiled = false;

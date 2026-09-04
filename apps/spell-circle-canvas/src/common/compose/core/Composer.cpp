@@ -23,9 +23,9 @@
 #include <sigilweave/layout/ParagraphLayout.h>
 
 #include <algorithm>
+#include <boost/unordered/unordered_flat_set.hpp>
 #include <cmath>
 #include <functional>
-#include <set>
 
 #include "ComposeRuntime.h"
 
@@ -292,7 +292,7 @@ void Composer::render(const Element& root) {
 void Composer::renderSlot(std::string_view name, const Element& content) {
   Impl& impl = *m_impl;
   const sigil::measure::Stopwatch reconcile;
-  auto it = impl.bySlot.find(std::string(name));
+  auto it = impl.bySlot.find(name);
   if (it == impl.bySlot.end()) {
     // A miss must be loud, because the SYMPTOM points somewhere else: an
     // empty slot lays out W x 0, which reads as a layout bug and sends the
@@ -302,7 +302,7 @@ void Composer::renderSlot(std::string_view name, const Element& content) {
     // name in `key`, so any later `.key(...)` on that element renames the
     // slot with no type error and no second field to disagree with itself.
     // Listing the names that DO exist turns the diagnosis into one read.
-    static std::set<std::string> warned;  // once per name, not per frame
+    static boost::unordered_flat_set<std::string> warned;
     if (warned.insert(std::string(name)).second) {
       std::string have;
       for (const auto& [key, inst] : impl.bySlot)
@@ -545,7 +545,7 @@ void Composer::purgeCaches() {
 }
 
 std::optional<SkRect> Composer::bounds(std::string_view key) const {
-  auto it = m_impl->byKey.find(std::string(key));
+  auto it = m_impl->byKey.find(key);
   if (it == m_impl->byKey.end()) return std::nullopt;
   // Accumulate offsets up the yoga tree.
   SkRect rect = m_impl->instanceRect(*it->second);
@@ -564,13 +564,13 @@ std::optional<SkRect> Composer::bounds(std::string_view key) const {
 
 const sigil::weave::ParagraphLayout* Composer::paragraphLayout(
     std::string_view key) const {
-  auto it = m_impl->byKey.find(std::string(key));
+  auto it = m_impl->byKey.find(key);
   if (it == m_impl->byKey.end() || !it->second->paragraph) return nullptr;
   return &it->second->textLayout;
 }
 
 TextSettling Composer::settling(std::string_view key) const {
-  auto it = m_impl->byKey.find(std::string(key));
+  auto it = m_impl->byKey.find(key);
   if (it == m_impl->byKey.end() || !it->second->paragraph) return {};
   const detail::Instance& inst = *it->second;
   return {.live = inst.desc && inst.desc->textData &&
@@ -583,7 +583,7 @@ TextSettling Composer::settling(std::string_view key) const {
 
 std::vector<Beat> Composer::beatsOf(std::string_view key,
                                     size_t trackIndex) const {
-  auto it = m_impl->byKey.find(std::string(key));
+  auto it = m_impl->byKey.find(key);
   if (it == m_impl->byKey.end()) return {};
   // Logically const: resolving a schedule fills the same per-instance
   // scratch the painter does and changes nothing the next draw can see.
@@ -609,7 +609,7 @@ std::vector<Beat> Composer::beatsOf(std::string_view key,
 std::vector<TextUnit> Composer::units(std::string_view key,
                                       const Selector& selector,
                                       Unit unit) const {
-  auto it = m_impl->byKey.find(std::string(key));
+  auto it = m_impl->byKey.find(key);
   if (it == m_impl->byKey.end()) return {};
   // Logically const: resolving the units fills the same per-instance
   // scratch the painter does and changes nothing the next draw can see.
@@ -641,7 +641,7 @@ std::vector<TextUnit> Composer::units(std::string_view key,
 }
 
 float Composer::cascadeSpanMs(std::string_view key, size_t trackIndex) const {
-  auto it = m_impl->byKey.find(std::string(key));
+  auto it = m_impl->byKey.find(key);
   if (it == m_impl->byKey.end()) return 0.0f;
   // Logically const: resolving a schedule fills the same per-instance
   // scratch the painter does and changes nothing the next draw can see.

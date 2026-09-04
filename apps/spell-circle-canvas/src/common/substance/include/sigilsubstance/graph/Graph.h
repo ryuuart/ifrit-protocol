@@ -12,8 +12,8 @@
 #include <sigilsubstance/graph/Output.h>
 #include <sigilsubstance/graph/Parameter.h>
 
+#include <boost/container/map.hpp>
 #include <initializer_list>
-#include <map>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -78,7 +78,7 @@ class Graph {
   /** Every rendered image output keyed by its usage — the map
    *  SigilMaterial's texture-set door takes. Outputs with no usage are
    *  keyed by identifier. */
-  std::map<std::string, sk_sp<SkImage>> outputsByUsage() const;
+  boost::container::map<std::string, sk_sp<SkImage>> outputsByUsage() const;
 
   struct Impl;
 

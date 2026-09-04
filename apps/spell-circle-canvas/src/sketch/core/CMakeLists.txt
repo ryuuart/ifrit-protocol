@@ -31,7 +31,8 @@ target_link_libraries(SigilSketchCore PUBLIC
   SigilCoreComparable
   SigilImageAsset
   SigilIO
-  SigilVideoDecode)
+  SigilVideoDecode
+  Boost::container)
 set_target_properties(SigilSketchCore PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 add_executable(sketch_core_test test/AssetsTest.cpp test/CrashTest.cpp

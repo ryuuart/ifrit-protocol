@@ -5,6 +5,8 @@
  * the call site that painted the guest.
  */
 
+#include <boost/container_hash/hash.hpp>
+#include <boost/unordered/unordered_flat_map.hpp>
 #include <cstdint>
 #include <cstring>
 #include <functional>
@@ -12,7 +14,6 @@
 #include <source_location>
 #include <string_view>
 #include <typeindex>
-#include <unordered_map>
 
 namespace sigil::draw {
 
@@ -36,10 +37,12 @@ struct Slot {
 
 struct SlotHash {
   size_t operator()(const Slot& s) const {
-    size_t h = std::hash<std::string_view>{}(std::string_view(s.file));
-    h ^= (size_t)s.line * 0x9e3779b97f4a7c15ull;
-    h ^= ((size_t)s.column << 17u) ^ ((size_t)(uint32_t)s.index << 33u);
-    return h;
+    size_t hash = 0;
+    boost::hash_combine(hash, std::string_view(s.file));
+    boost::hash_combine(hash, s.line);
+    boost::hash_combine(hash, s.column);
+    boost::hash_combine(hash, s.index);
+    return hash;
   }
 };
 
@@ -74,7 +77,7 @@ class Retained {
     std::type_index type;
     std::shared_ptr<void> value;
   };
-  std::unordered_map<Slot, Entry, SlotHash> m_entries;
+  boost::unordered_flat_map<Slot, Entry, SlotHash> m_entries;
 };
 
 }  // namespace sigil::draw

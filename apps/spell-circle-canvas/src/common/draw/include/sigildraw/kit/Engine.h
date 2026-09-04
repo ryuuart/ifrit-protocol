@@ -8,9 +8,9 @@
 #include <sigildraw/kit/Box.h>
 #include <sigildraw/kit/Geometry.h>
 
+#include <boost/unordered/unordered_flat_map.hpp>
 #include <functional>
 #include <optional>
-#include <unordered_map>
 
 namespace sigil::draw::brush {
 
@@ -199,7 +199,7 @@ class Engine {
   std::optional<Brush> m_hatchBrush;
   std::optional<Mass> m_mass;
   Brush m_massBrush;
-  std::unordered_map<std::string, Field> m_fields;
+  boost::unordered_flat_map<std::string, Field> m_fields;
   std::string m_selectedField;
   float m_fieldSeconds = 0.0f;
   float m_fieldAmount = 1.0f;

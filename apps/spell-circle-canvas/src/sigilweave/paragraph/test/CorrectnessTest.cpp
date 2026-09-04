@@ -6,7 +6,6 @@
  * matches the font.
  */
 
-#include <absl/container/flat_hash_set.h>
 #include <gtest/gtest.h>
 #include <include/core/SkFontArguments.h>
 #include <include/core/SkFontMetrics.h>
@@ -14,8 +13,9 @@
 #include <include/core/SkTypeface.h>
 
 #include <algorithm>
+#include <boost/container/flat_set.hpp>
+#include <boost/unordered/unordered_flat_set.hpp>
 #include <cmath>
-#include <set>
 #include <string>
 #include <vector>
 
@@ -110,7 +110,7 @@ TEST(Correctness, ZwnjBlocksArabicJoining) {
   auto glyphsOf = [&](const char8_t* text) {
     Paragraph paragraph = makeParagraph(text);
     paragraph.ensureShaped(fontContext);
-    std::multiset<uint16_t> ids;
+    boost::container::flat_multiset<uint16_t> ids;
     for (const Word& word : paragraph.words())
       for (const WordSegment& seg : word.segments())
         for (uint16_t glyph : seg.shaped->glyphs)
@@ -133,7 +133,7 @@ TEST(Correctness, CombiningMarkAttachesToBase) {
   EXPECT_NEAR(nfc.words()[0].width, nfd.words()[0].width, 0.75f);
   // And the mark forms one grapheme cluster with its base: the NFD segment
   // reports at most as many clusters as it has base characters (4).
-  absl::flat_hash_set<uint32_t> unique(
+  boost::unordered_flat_set<uint32_t> unique(
       nfd.words()[0].segments()[0].shaped->clusters.begin(),
       nfd.words()[0].segments()[0].shaped->clusters.end());
   EXPECT_LE(unique.size(), 4u);

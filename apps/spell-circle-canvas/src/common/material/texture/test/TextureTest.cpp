@@ -21,9 +21,9 @@
 #include <sigilmaterial/texture/TextureSet.h>
 
 #include <algorithm>
+#include <boost/container/map.hpp>
 #include <cstdio>
 #include <filesystem>
-#include <map>
 #include <vector>
 
 using namespace sigil::material;
@@ -233,7 +233,7 @@ TEST(TextureSet, DiscoversAndDecodesByRole) {
   EXPECT_TRUE(tiles.normalDirectX);
   EXPECT_EQ(tiles.files.size(), 4u);
 
-  std::map<std::string, sk_sp<SkImage>> decoded;
+  boost::container::map<std::string, sk_sp<SkImage>> decoded;
   const auto decode = [&](const fs::path& p) {
     sk_sp<SkImage>& img = decoded[p.filename().string()];
     if (!img) img = solid(SK_ColorWHITE, 2, 2);
@@ -307,8 +307,8 @@ TEST(EnvironmentMap, TheEquirectConventionRoundTrips) {
 TEST(EnvironmentMap, SixFacesResampleIntoOnePanorama) {
   // +x -x +y -y +z -z, each its own colour, so where a face landed in the
   // panorama is legible from the pixel.
-  const SkColor kFace[6] = {SK_ColorRED,     SK_ColorGREEN, SK_ColorBLUE,
-                            SK_ColorYELLOW,  SK_ColorCYAN,  SK_ColorMAGENTA};
+  const SkColor kFace[6] = {SK_ColorRED,    SK_ColorGREEN, SK_ColorBLUE,
+                            SK_ColorYELLOW, SK_ColorCYAN,  SK_ColorMAGENTA};
   EnvironmentMap::Faces faces;
   for (int i = 0; i < 6; ++i) faces[i] = solid(kFace[i], 32, 32);
   const EnvironmentMap env = EnvironmentMap::fromFaces(faces, 128);
@@ -326,8 +326,8 @@ TEST(EnvironmentMap, SixFacesResampleIntoOnePanorama) {
     const SkColor4f c = floatPixel(pano, x, y);
     return SkColor4f{c.fR, c.fG, c.fB, 1};
   };
-  const SkV3 axes[6] = {{1, 0, 0}, {-1, 0, 0}, {0, 1, 0},
-                        {0, -1, 0}, {0, 0, 1}, {0, 0, -1}};
+  const SkV3 axes[6] = {{1, 0, 0},  {-1, 0, 0}, {0, 1, 0},
+                        {0, -1, 0}, {0, 0, 1},  {0, 0, -1}};
   for (int i = 0; i < 6; ++i) {
     const SkColor4f got = colourAt(axes[i]);
     const SkColor4f want = SkColor4f::FromColor(kFace[i]);
@@ -344,8 +344,8 @@ TEST(EnvironmentMap, ACubeSheetIsUnpackedByItsLayout) {
   row.allocPixels(SkImageInfo::MakeN32Premul(6 * 16, 16));
   SkBitmap column;
   column.allocPixels(SkImageInfo::MakeN32Premul(16, 6 * 16));
-  const SkColor kFace[6] = {SK_ColorRED,     SK_ColorGREEN, SK_ColorBLUE,
-                            SK_ColorYELLOW,  SK_ColorCYAN,  SK_ColorMAGENTA};
+  const SkColor kFace[6] = {SK_ColorRED,    SK_ColorGREEN, SK_ColorBLUE,
+                            SK_ColorYELLOW, SK_ColorCYAN,  SK_ColorMAGENTA};
   for (int i = 0; i < 6; ++i) {
     SkCanvas(row).clear(SK_ColorTRANSPARENT);
     SkCanvas(column).clear(SK_ColorTRANSPARENT);

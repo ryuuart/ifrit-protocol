@@ -15,20 +15,19 @@
 #include <Graphics/GraphicsEngine/interface/PipelineState.h>
 #include <Graphics/GraphicsEngine/interface/RenderDevice.h>
 #include <Graphics/GraphicsEngine/interface/ShaderResourceBinding.h>
-#include <sigilgeometry/mesh/pop/Kernel.h>
 #include <sigilgeometry/device/Device.h>
+#include <sigilgeometry/mesh/pop/Kernel.h>
+#include <sigilgeometry/mesh/pop/Pop.h>
 
 #include <Common/interface/RefCntAutoPtr.hpp>
+#include <boost/container/map.hpp>
 #include <cstring>
-#include <map>
 #include <memory>
 #include <span>
 #include <string>
 #include <utility>
 #include <variant>
 #include <vector>
-
-#include <sigilgeometry/mesh/pop/Pop.h>
 
 namespace sigil::geometry::mesh {
 
@@ -77,7 +76,7 @@ struct PopGpu {
   size_t tableCapacity = 0;
   dg::RefCntAutoPtr<dg::IBuffer> staging;
   size_t stagingCapacity = 0;
-  std::map<std::string, LaneBuffer, std::less<>> lanes;
+  boost::container::map<std::string, LaneBuffer, std::less<>> lanes;
   size_t held = 0;     ///< how many points the held lane buffers are sized for
   uint64_t cooks = 0;  ///< which cook is running, for the lane stamps
 

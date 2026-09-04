@@ -88,7 +88,8 @@ sk_sp<SkImage> Graph::output(std::string_view name) const {
   return nullptr;
 }
 
-std::map<std::string, sk_sp<SkImage>> Graph::outputsByUsage() const {
+boost::container::map<std::string, sk_sp<SkImage>> Graph::outputsByUsage()
+    const {
   return m_impl->byUsage;
 }
 

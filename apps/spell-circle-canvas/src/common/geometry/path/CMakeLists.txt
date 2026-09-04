@@ -41,7 +41,7 @@ find_package(glm CONFIG REQUIRED)
 # Noise.h names the seeded mixers, which live one library down so that a
 # shader's CPU twin and a resource key reach the same bodies.
 target_link_libraries(SigilGeometryPath PUBLIC unofficial::skia::skia glm::glm
-  SigilCoreCompute)
+  SigilCoreCompute Boost::unordered)
 
 # The leaf is a public dependency of the text engine, whose install rules
 # export it; an exported target's dependencies must themselves sit in an

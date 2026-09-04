@@ -5,7 +5,6 @@
  * surrogate boundary, and the per-line metrics derived from the runs.
  */
 
-#include <absl/container/flat_hash_set.h>
 #include <gtest/gtest.h>
 #include <include/core/SkFontMetrics.h>
 #include <include/core/SkPixmap.h>
@@ -15,7 +14,6 @@
 #include <cmath>
 #include <memory>
 #include <numbers>
-#include <set>
 #include <vector>
 
 #include "support/LayoutSupport.h"

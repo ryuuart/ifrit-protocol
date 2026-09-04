@@ -9,8 +9,8 @@
  */
 
 #include <algorithm>
-#include <map>
-#include <set>
+#include <boost/container/flat_map.hpp>
+#include <boost/container/flat_set.hpp>
 #include <string>
 #include <vector>
 
@@ -29,8 +29,9 @@ struct Touchers {
   std::vector<size_t> readers;
 };
 
-std::map<std::string, Touchers> touchersOf(std::span<const Pass> passes) {
-  std::map<std::string, Touchers> byName;
+boost::container::flat_map<std::string, Touchers> touchersOf(
+    std::span<const Pass> passes) {
+  boost::container::flat_map<std::string, Touchers> byName;
   for (size_t i = 0; i < passes.size(); ++i) {
     for (const std::string& name : passes[i].writes())
       byName[name].writers.push_back(i);
@@ -43,9 +44,10 @@ std::map<std::string, Touchers> touchersOf(std::span<const Pass> passes) {
 /** The cycle the ordering could not break, as the passes on it. It
  *  walks backwards along the dependencies, taking the lowest remaining
  *  one at every step, so the report is the same every run. */
-std::string nameCycle(std::span<const Pass> passes,
-                      const std::vector<std::set<size_t>>& before,
-                      const std::vector<bool>& emitted) {
+std::string nameCycle(
+    std::span<const Pass> passes,
+    const std::vector<boost::container::flat_set<size_t>>& before,
+    const std::vector<bool>& emitted) {
   size_t start = 0;
   while (start < passes.size() && emitted[start]) ++start;
   std::vector<size_t> walk;
@@ -74,10 +76,11 @@ std::string nameCycle(std::span<const Pass> passes,
 
 std::string order(std::span<const Pass> passes, std::vector<size_t>& into) {
   into.clear();
-  const std::map<std::string, Touchers> byName = touchersOf(passes);
+  const boost::container::flat_map<std::string, Touchers> byName =
+      touchersOf(passes);
 
-  std::vector<std::set<size_t>> after(passes.size());
-  std::vector<std::set<size_t>> before(passes.size());
+  std::vector<boost::container::flat_set<size_t>> after(passes.size());
+  std::vector<boost::container::flat_set<size_t>> before(passes.size());
   std::vector<int> waiting(passes.size(), 0);
   const auto edge = [&](size_t from, size_t to) {
     if (from == to) return;
@@ -107,7 +110,7 @@ std::string order(std::span<const Pass> passes, std::vector<size_t>& into) {
     }
   }
 
-  std::set<size_t> ready;
+  boost::container::flat_set<size_t> ready;
   for (size_t i = 0; i < passes.size(); ++i)
     if (waiting[i] == 0) ready.insert(i);
   std::vector<bool> emitted(passes.size(), false);

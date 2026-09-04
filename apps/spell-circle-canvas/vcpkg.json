@@ -1,10 +1,12 @@
 {
   "dependencies": [
-    "abseil",
     "alembic",
     "asio",
     "benchmark",
+    "boost-container",
+    "boost-container-hash",
     "boost-pfr",
+    "boost-unordered",
     "cgltf",
     "choreograph",
     "concurrentqueue",

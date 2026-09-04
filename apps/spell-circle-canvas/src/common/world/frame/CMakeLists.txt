@@ -28,7 +28,7 @@ target_include_directories(SigilWorldFrame PUBLIC ${SIGIL_WORLD_INCLUDE_DIR})
 # privately.
 target_link_libraries(SigilWorldFrame
   PUBLIC SigilWorldElement SigilMaterialTexture SigilGeometryMeshRender
-         SigilCoreReconcile
+         SigilCoreReconcile Boost::container
   PRIVATE SigilGeometryMeshPop)
 
 # Links only the library it exercises, so a link edge that pulled the

@@ -25,12 +25,10 @@
 #include <sigilweave/fonts/Shaper.h>  // makeFont — textFill's cap-height metrics
 
 #include <algorithm>
+#include <boost/unordered/unordered_flat_set.hpp>
 #include <chrono>
 #include <cmath>
-#include <map>
-#include <set>
 #include <tuple>
-#include <unordered_set>
 #include <utility>
 
 #include "AxisGate.h"
@@ -63,7 +61,7 @@ namespace {
 
 /** Once per (mark key) whose selector found no glyphs. */
 void warnMarkSelectsNothing(const std::string& key) {
-  static std::set<std::string> warned;
+  static boost::unordered_flat_set<std::string> warned;
   if (!warned.insert(key).second) return;
   SkDebugf(
       "[compose] mark(\"%s\") selects no glyphs in this text, so it places "

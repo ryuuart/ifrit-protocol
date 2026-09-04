@@ -10,12 +10,12 @@
 #include <sigilweave/layout/Flow.h>
 
 #include <algorithm>
+#include <boost/unordered/unordered_flat_set.hpp>
 #include <cmath>
 #include <iterator>
 #include <limits>
 #include <optional>
 #include <ranges>
-#include <set>
 #include <span>
 
 #include "ComposeRuntime.h"
@@ -92,9 +92,8 @@ namespace {
  *  past its box, and the marker it asked for never lands because it never
  *  runs out. */
 bool isFrameOfAChain(const Instance& inst) {
-  return inst.threadedInto ||
-         (inst.desc && inst.desc->textData &&
-          !inst.desc->textData->threadTo.empty());
+  return inst.threadedInto || (inst.desc && inst.desc->textData &&
+                               !inst.desc->textData->threadTo.empty());
 }
 
 }  // namespace
@@ -118,7 +117,8 @@ void Composer::Impl::layoutText(Instance& inst, float constraint,
   // rule need the depth the node resolved to. A leaf sized by its own
   // content has no room left over, which is what an unconstrained measure
   // reports here.
-  if (options.frame.distribute != sigil::weave::FrameOptions::Distribute::kStart)
+  if (options.frame.distribute !=
+      sigil::weave::FrameOptions::Distribute::kStart)
     options.frame.extent = downConstraint < 1.0e6f ? downConstraint : 0.0f;
   // Vertical-RL: the geometry is columns, not bands, and they hang off the
   // RIGHT edge of the measure — so the constraint is not just a wrap width
@@ -527,7 +527,7 @@ void warnUnknownTextSlot(const Instance& text, const std::string& key) {
   for (const std::string& declared : text.textSlotKeys)
     if (declared == key)
       return;  // declared; the layout just could not place it
-  static std::set<std::string> warned;  // once per name, not once per frame
+  static boost::unordered_flat_set<std::string> warned;
   if (!warned.insert(key).second) return;
   std::string have;
   for (const std::string& declared : text.textSlotKeys)

@@ -8,9 +8,9 @@
 #include <sigilmotion/schedule/Order.h>
 
 #include <algorithm>
+#include <boost/unordered/unordered_flat_set.hpp>
 #include <cmath>
 #include <cstdio>
-#include <unordered_set>
 
 namespace sigil::motion {
 
@@ -46,7 +46,7 @@ void warnCueTableMismatch(size_t cueCount, size_t unitCount) {
   // mistyped table would otherwise scroll the same line past its author
   // forever. Distinct shapes still each get their say, because two
   // cascades can be wrong in two different ways.
-  static thread_local std::unordered_set<uint64_t> seen;
+  static thread_local boost::unordered_flat_set<uint64_t> seen;
   const uint64_t key = ((uint64_t)cueCount << 32u) | (uint32_t)unitCount;
   if (!seen.insert(key).second) return;
   std::fprintf(stderr,

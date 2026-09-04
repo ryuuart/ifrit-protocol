@@ -19,11 +19,11 @@
 #include <sigilweave/query/Query.h>
 
 #include <algorithm>
+#include <boost/unordered/unordered_flat_set.hpp>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
 #include <numeric>
-#include <unordered_set>
 #include <utility>
 
 #include "TextEngine.h"
@@ -281,7 +281,7 @@ void resolveInto(const Selector& selector, const GlyphStructure& structure,
 void warnBadSelectorPattern(const std::u8string& pattern) {
   // Once per distinct pattern: a selector resolved every reflow would
   // otherwise scroll the same line past the author forever.
-  static thread_local std::unordered_set<std::string> seen;
+  static thread_local boost::unordered_flat_set<std::string> seen;
   std::string key((const char*)pattern.data(), pattern.size());
   if (!seen.insert(key).second) return;
   std::fprintf(stderr,
@@ -293,7 +293,7 @@ void warnBadSelectorPattern(const std::u8string& pattern) {
 void warnNoSuchStyleName(const std::u8string& name) {
   // Once per distinct name, for the reason the pattern warning is: this
   // resolves on every reflow, and a name that is wrong is wrong every time.
-  static thread_local std::unordered_set<std::string> seen;
+  static thread_local boost::unordered_flat_set<std::string> seen;
   std::string key((const char*)name.data(), name.size());
   if (!seen.insert(key).second) return;
   std::fprintf(stderr,
@@ -304,7 +304,7 @@ void warnNoSuchStyleName(const std::u8string& name) {
 }
 
 void warnNoSuchFrameKey(const std::u8string& key) {
-  static thread_local std::unordered_set<std::string> seen;
+  static thread_local boost::unordered_flat_set<std::string> seen;
   std::string name((const char*)key.data(), key.size());
   if (!seen.insert(name).second) return;
   std::fprintf(stderr,
@@ -831,9 +831,9 @@ float keysReach(const std::vector<Key>& table) {
                                   std::abs(m.scale * m.scaleY), 1.0f}) -
                         1.0f;
     const bool leans = m.rotateDeg != 0 || m.skewXDeg != 0 || m.skewYDeg != 0;
-    reach = std::max(reach, std::abs(m.dx) + std::abs(m.dy) +
-                                (grown + (leans ? 0.5f : 0.0f)) *
-                                    fx::kNominalSizePx);
+    reach = std::max(reach,
+                     std::abs(m.dx) + std::abs(m.dy) +
+                         (grown + (leans ? 0.5f : 0.0f)) * fx::kNominalSizePx);
   }
   return reach;
 }

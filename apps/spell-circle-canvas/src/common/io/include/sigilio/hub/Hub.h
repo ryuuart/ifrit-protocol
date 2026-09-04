@@ -43,11 +43,11 @@
 
 #include <sigilimage/decode/Decode.h>
 
+#include <boost/container/flat_map.hpp>
 #include <cstddef>
 #include <filesystem>
 #include <functional>
 #include <initializer_list>
-#include <map>
 #include <memory>
 #include <optional>
 #include <span>
@@ -338,7 +338,7 @@ class Hub {
   struct Entry {
     std::string uri;
     std::shared_ptr<const Bytes> blob;
-    std::map<std::type_index, View> views;
+    boost::container::flat_map<std::type_index, View> views;
     std::filesystem::path path;
     std::filesystem::file_time_type mtime;
   };
@@ -379,8 +379,8 @@ class Hub {
 
   std::unique_ptr<detail::Synchronization> m_synchronization;
   std::vector<std::pair<std::string, std::filesystem::path>> m_mounts;
-  std::map<std::string, Entry, std::less<>> m_entries;
-  std::map<std::type_index, Redecode> m_decoders;
+  boost::container::flat_map<std::string, Entry, std::less<>> m_entries;
+  boost::container::flat_map<std::type_index, Redecode> m_decoders;
   std::filesystem::path m_netCacheDir;  // empty = the default temp dir
   NetworkPolicy m_netPolicy = NetworkPolicy::CacheFirst;
   std::shared_ptr<detail::Residency> m_residency;

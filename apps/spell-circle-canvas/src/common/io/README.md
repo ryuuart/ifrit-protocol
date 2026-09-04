@@ -223,8 +223,8 @@ cache hit or failure.
 
 ## Boundary
 
-Dependencies: `SigilIOHub` links `SigilIOSource` and
-`SigilImageDecode` publicly and `CURL::libcurl` plus oneTBB privately — private
+Dependencies: `SigilIOHub` links `SigilIOSource`, `SigilImageDecode` and
+Boost.Container publicly and `CURL::libcurl` plus oneTBB privately — private
 because they are transport and loading implementation, while curl remains a
 hard requirement to configure. `SigilIOSource` itself depends on
 nothing beyond the standard library, so a decoder or an encoder library

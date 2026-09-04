@@ -52,21 +52,20 @@
 //                       laid out from them.
 //   the palette block   — the page's own attribute colours.
 
+#include <shared/TwoAdvanced.h>
+#include <sigilcompose/brush/Adaptors.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Paint.h>
+#include <sigilcompose/kit/Frame.h>
 #include <sigilgeometry/path/Edges.h>
 #include <sigilmotion/bind/Bind.h>
-#include <sigilcompose/kit/Frame.h>
-#include <sigilcompose/brush/Adaptors.h>
 #include <sigilsketch/canvas/Sketch.h>
 
 #include <algorithm>
 #include <array>
+#include <boost/container/flat_map.hpp>
 #include <cmath>
-#include <map>
 #include <string>
-
-#include <shared/TwoAdvanced.h>
 
 namespace sketch = sigil::sketch;
 namespace motion = sigil::motion;
@@ -179,7 +178,7 @@ struct TwoAdvancedEquipment : sketch::Sketch {
   using ImagePtr = std::shared_ptr<const sigil::image::ImageAsset>;
 
   // Keyed by file name under equipment/index_files/.
-  std::map<std::string, ImagePtr, std::less<>> art;
+  boost::container::flat_map<std::string, ImagePtr, std::less<>> art;
 
   /** THE ONLY THING THE CLOCK WRITES. Both of the page's behaviours are
    *  periodic shapes of the elapsed seconds, so each is declared as a
@@ -342,9 +341,9 @@ struct TwoAdvancedEquipment : sketch::Sketch {
           .width(Dim(kSbW))
           .height(Dim(kSbW))
           .fill(kSbFace)
-          .foreground(onEdges(
-              path::Edge::Top | path::Edge::Left,
-              stroke(1, Fill::color(kWhite), PathFormat::Align::Inner)))
+          .foreground(
+              onEdges(path::Edge::Top | path::Edge::Left,
+                      stroke(1, Fill::color(kWhite), PathFormat::Align::Inner)))
           .foreground(onEdges(
               path::Edge::Bottom | path::Edge::Right,
               stroke(1, Fill::color(hex(0x000000)), PathFormat::Align::Inner)))
@@ -355,20 +354,19 @@ struct TwoAdvancedEquipment : sketch::Sketch {
     };
     const float trackH = kContentH - 2 * kSbW;
     const float thumbH = thumbHeight();
-    Element scrollbar =
-        box()
-            .width(Dim(kSbW))
-            .column()
-            .child(sbButton(true))
-            .child(box().grow(1).fill(kSbTrack).child(
-                at(box().fill(kSbFace).foreground(
-                       onEdges(path::Edge::Top | path::Edge::Left,
+    Element scrollbar = box()
+                            .width(Dim(kSbW))
+                            .column()
+                            .child(sbButton(true))
+                            .child(box().grow(1).fill(kSbTrack).child(
+                                at(box().fill(kSbFace).foreground(onEdges(
+                                       path::Edge::Top | path::Edge::Left,
                                        stroke(1, Fill::color(kWhite),
                                               PathFormat::Align::Inner))),
-                   0, 0, kSbW, thumbH)
-                    .translateY(
-                        scrollEnvelope().target(0.0f, trackH - thumbH))))
-            .child(sbButton(false));
+                                   0, 0, kSbW, thumbH)
+                                    .translateY(scrollEnvelope().target(
+                                        0.0f, trackH - thumbH))))
+                            .child(sbButton(false));
 
     return at(box().fill(kWhite), kLeftW, kTopH, kPageW - kLeftW, kContentH)
         .clip()

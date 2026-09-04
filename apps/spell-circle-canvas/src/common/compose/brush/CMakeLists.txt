@@ -97,6 +97,7 @@ _compose_test_binary(compose_paint_test
     test/ComposeTestPixelStylesPaint.cpp
     test/ComposeTestTextDataPaint.cpp
 )
+target_link_libraries(compose_paint_test PRIVATE Boost::container)
 
 # Masks, brushes, profiled and span strokes, stamps, warps, hatches and
 # the binding cost under stroked cells.

@@ -1103,12 +1103,12 @@ is silently, plausibly wrong rather than obviously broken.
 
 ## Boundaries
 
-Publicly the library links Skia, glm and the two SigilCore leaves —
+Publicly the library links Skia, glm, Boost.Container and Boost.Unordered, and
+the two SigilCore leaves —
 SigilCoreCompute for the seeded mixers, SigilCoreComparable for the
 erased value the mesh and point-operator runtimes are — and nothing
-else; every feature links only the features above it in the tree. The
-leaves are the standard library (and Boost.PFR) behind a name, so
-linking them acquires no kernel, no device and nothing that draws.
+else; every feature links only the features above it in the tree. Linking the
+leaves acquires no kernel, no device and nothing that draws.
 Privately `path/blend` links `SigilMaterialColor`, the colour value and
 the OKLab round trip its colour interpolation runs in — the one edge
 from this library into SigilMaterial, and no header spells it. Privately

@@ -141,7 +141,7 @@ text (its own section below).
   `verticalKana`, `verticalKerning`, and `verticalFormsOff` to decline
   the vertical forms shaping takes by itself.
 
-**`fonts`** — `SigilWeaveFonts`, HarfBuzz and abseil private:
+**`fonts`** — `SigilWeaveFonts`, HarfBuzz and Boost private:
 
 - **`fonts/FontContext.h`** — the per-thread service object: HarfBuzz
   faces, fallback memos, varied-typeface clones (retained, or transient for

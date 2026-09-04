@@ -24,7 +24,8 @@ add_library(SigilDrawKit STATIC
 )
 target_compile_features(SigilDrawKit PUBLIC cxx_std_20)
 target_include_directories(SigilDrawKit PUBLIC ${SIGIL_DRAW_INCLUDE_DIR})
-target_link_libraries(SigilDrawKit PUBLIC SigilDraw PRIVATE SigilSkiaDraw)
+target_link_libraries(SigilDrawKit PUBLIC SigilDraw Boost::unordered
+  PRIVATE SigilSkiaDraw)
 set_target_properties(SigilDrawKit PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 add_executable(draw_kit_test test/BrushTest.cpp)

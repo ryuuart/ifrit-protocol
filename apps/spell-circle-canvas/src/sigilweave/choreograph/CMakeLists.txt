@@ -17,6 +17,8 @@ target_include_directories(SigilWeaveChoreograph PUBLIC
 target_link_libraries(SigilWeaveChoreograph
   PUBLIC
     SigilWeaveLayout
+  PRIVATE
+    Boost::container
 )
 
 # The walk, the batches, and a glyph on a contour re-placed from its pen.

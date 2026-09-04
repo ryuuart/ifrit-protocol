@@ -35,7 +35,8 @@ class MetalDriver final : public GpuDriver {
   /** @p device must be Metal and, with @p graphite, outlive the driver.
    *  Null when pipeline-state creation fails (broken shader compile). */
   static std::unique_ptr<MetalDriver> create(
-      sigil::core::hardware::GpuDevice& device, sigil::skia::GraphiteContext& graphite);
+      sigil::core::hardware::GpuDevice& device,
+      sigil::skia::GraphiteContext& graphite);
 
   // Defined where State is complete.
   // NOLINTNEXTLINE(performance-trivially-destructible)
@@ -65,25 +66,30 @@ class MetalDriver final : public GpuDriver {
   void UpdateCommandList(const ultralight::CommandList& list) override;
 
   // GpuDriver
-  std::unordered_set<uint32_t> flush() override;
-  sigil::core::hardware::TextureHandle createPublishTexture(int width,
-                                                  int height) override;
-  sigil::core::hardware::TextureHandle createImageTexture(int width, int height) override;
+  boost::unordered_flat_set<uint32_t> flush() override;
+  sigil::core::hardware::TextureHandle createPublishTexture(
+      int width, int height) override;
+  sigil::core::hardware::TextureHandle createImageTexture(int width,
+                                                          int height) override;
   void releaseTexture(sigil::core::hardware::TextureHandle texture) override;
-  void copyTexture(uint32_t srcTextureId, sigil::core::hardware::TextureHandle dst,
-                   int width, int height) override;
+  void copyTexture(uint32_t srcTextureId,
+                   sigil::core::hardware::TextureHandle dst, int width,
+                   int height) override;
   bool copyDeviceTexture(sigil::core::hardware::TextureHandle src,
                          sigil::core::hardware::TextureHandle dst, int width,
                          int height) override;
-  uint32_t registerExternalTexture(sigil::core::hardware::TextureHandle texture) override;
+  uint32_t registerExternalTexture(
+      sigil::core::hardware::TextureHandle texture) override;
   void unregisterExternalTexture(uint32_t textureId) override;
-  void uploadToTexture(sigil::core::hardware::TextureHandle texture, const void* pixels,
-                       int width, int height, size_t rowBytes) override;
-  bool paintTexture(sigil::core::hardware::TextureHandle texture, int width, int height,
+  void uploadToTexture(sigil::core::hardware::TextureHandle texture,
+                       const void* pixels, int width, int height,
+                       size_t rowBytes) override;
+  bool paintTexture(sigil::core::hardware::TextureHandle texture, int width,
+                    int height,
                     const std::function<void(SkCanvas&)>& painter) override;
   sk_sp<SkImage> wrapTexture(skgpu::graphite::Recorder* recorder,
-                             sigil::core::hardware::TextureHandle texture, int width,
-                             int height) override;
+                             sigil::core::hardware::TextureHandle texture,
+                             int width, int height) override;
 
   struct State;
 

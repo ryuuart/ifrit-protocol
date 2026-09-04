@@ -27,11 +27,11 @@
 #include <sigilmaterial/core/Program.h>
 #include <sigilmaterial/core/Recipe.h>
 
+#include <boost/container/map.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <glm/mat4x4.hpp>
-#include <map>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -66,7 +66,7 @@ struct UniformSlot {
 struct Compiled {
   std::vector<uint32_t> vertex;
   std::vector<uint32_t> fragment;
-  std::map<std::string, UniformSlot, std::less<>> uniforms;
+  boost::container::map<std::string, UniformSlot, std::less<>> uniforms;
   /** The sampled slots, in the order they were declared. */
   std::vector<std::string> textures;
   /** How large the program's one uniform buffer is. */

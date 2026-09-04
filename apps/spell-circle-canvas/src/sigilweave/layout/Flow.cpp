@@ -9,10 +9,10 @@
 
 #include "sigilweave/layout/Flow.h"
 
-#include <absl/container/flat_hash_map.h>
 #include <include/core/SkPathTypes.h>
 
 #include <algorithm>
+#include <boost/unordered/unordered_flat_map.hpp>
 #include <cmath>
 #include <glm/vec2.hpp>
 #include <numbers>
@@ -239,7 +239,7 @@ struct ExclusionFlow::FlatPath {
 // public layout/Flow.h. unique_ptr values keep FlatPath addresses stable across
 // rehashes.
 struct ExclusionFlow::PathCache {
-  absl::flat_hash_map<uint32_t, std::unique_ptr<FlatPath>> entries;
+  boost::unordered_flat_map<uint32_t, std::unique_ptr<FlatPath>> entries;
 };
 
 ExclusionFlow::ExclusionFlow(const SkRect& bounds, FlowAxis axis)

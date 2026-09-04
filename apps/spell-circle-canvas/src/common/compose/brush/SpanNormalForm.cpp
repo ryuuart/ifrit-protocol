@@ -19,7 +19,6 @@
 #include <algorithm>
 #include <cmath>  // std::isfinite — the geometry::path::profileOffset non-finite guard
 #include <cstdio>  // std::snprintf — variationDrive's effect key
-#include <set>
 
 #include "ComposeInternal.h"
 #include "SpanArithmetic.h"

@@ -64,7 +64,7 @@ std::optional<geometry::mesh::camera::Camera> Scene::camera() const {
 std::vector<Light> Scene::lights() const { return m_impl->lights; }
 
 uint64_t Scene::handleOf(std::string_view key) const {
-  const auto it = m_impl->byKey.find(std::string(key));
+  const auto it = m_impl->byKey.find(key);
   if (it == m_impl->byKey.end()) return 0;
   // Offset by one so that zero can mean "no such node" without
   // colliding with the first entity EnTT hands out.
@@ -72,13 +72,13 @@ uint64_t Scene::handleOf(std::string_view key) const {
 }
 
 std::optional<glm::mat4> Scene::transformOf(std::string_view key) const {
-  const auto it = m_impl->byKey.find(std::string(key));
+  const auto it = m_impl->byKey.find(key);
   if (it == m_impl->byKey.end()) return std::nullopt;
   return it->second->world;
 }
 
 int Scene::referencesOf(std::string_view key) const {
-  const auto it = m_impl->byKey.find(std::string(key));
+  const auto it = m_impl->byKey.find(key);
   if (it == m_impl->byKey.end() || !it->second->resource) return 0;
   return it->second->resource->references;
 }

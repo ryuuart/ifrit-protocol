@@ -96,7 +96,9 @@ find_package(spdlog CONFIG REQUIRED)
 find_package(flatbuffers CONFIG REQUIRED)
 find_package(entt CONFIG REQUIRED)
 find_package(benchmark CONFIG REQUIRED)
-find_package(absl CONFIG REQUIRED)
+find_package(boost_container CONFIG REQUIRED)
+find_package(boost_container_hash CONFIG REQUIRED)
+find_package(boost_unordered CONFIG REQUIRED)
 # Skia is needed unconditionally now: the SigilWeave text-layout library
 # (src/sigilweave) builds on it even when the Skia scene backend is disabled.
 find_package(unofficial-skia CONFIG REQUIRED)
@@ -222,21 +224,6 @@ if(SPELLCIRCLE_SANITIZE)
       "-fno-sanitize-recover=undefined")
   endif()
   if("address" IN_LIST SPELLCIRCLE_SANITIZE)
-    # workaround: instrumented Abseil headers meeting an uninstrumented
-    # archive.
-    #
-    # Abseil's swisstable headers turn on iterator-generation bookkeeping
-    # in any translation unit compiled under ASan, which changes the
-    # table layout and makes generation pointers load-bearing. The
-    # function that supplies the empty-table generation pointer lives in
-    # the prebuilt (unsanitized) vcpkg archive, where that bookkeeping
-    # compiled out — it returns null, and the first find() on an absl map
-    # dereferences it. NDEBUG_SANITIZER is Abseil's own switch for
-    # keeping generations off under sanitizers; defining it makes our
-    # sanitized objects agree with the archive about the layout. The cost
-    # is Abseil's iterator-invalidation checking, which cannot work
-    # against a prebuilt archive anyway.
-    add_compile_definitions(NDEBUG_SANITIZER)
     # workaround: instrumented Skia headers meeting an uninstrumented
     # archive.
     #

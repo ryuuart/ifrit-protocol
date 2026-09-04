@@ -30,6 +30,7 @@
 
 #include <algorithm>
 #include <array>
+#include <boost/unordered/unordered_node_map.hpp>
 #include <cassert>
 #include <cstdint>
 #include <functional>
@@ -39,7 +40,6 @@
 #include <string>
 #include <string_view>
 #include <tuple>
-#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -291,7 +291,8 @@ class StampCache {
   }
 
  private:
-  std::unordered_map<const void*, std::pair<std::weak_ptr<const void>, Entry>>
+  boost::unordered_node_map<const void*,
+                            std::pair<std::weak_ptr<const void>, Entry>>
       m_entries;
 };
 

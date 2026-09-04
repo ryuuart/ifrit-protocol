@@ -6,10 +6,10 @@
 
 #include "sigilweave/cache/SingleLineParagraphCache.h"
 
-#include <absl/container/node_hash_map.h>
-#include <absl/strings/str_cat.h>
 #include <unicode/ustring.h>
 
+#include <boost/unordered/unordered_node_map.hpp>
+#include <charconv>
 #include <string>
 
 namespace sigil::weave {
@@ -18,7 +18,7 @@ namespace sigil::weave {
 /// while other entries are inserted (the header's documented contract).
 struct SingleLineParagraphCache::Impl {
   explicit Impl(size_t maximumEntryCount) : maximumEntries(maximumEntryCount) {}
-  absl::node_hash_map<std::string, Paragraph> paragraphs;
+  boost::unordered_node_map<std::string, Paragraph> paragraphs;
   size_t maximumEntries;
 };
 
@@ -54,6 +54,14 @@ void appendUtf8Key(std::string& key, std::u16string_view utf16) {
     key.resize(keyStart);
 }
 
+template <typename Integer>
+void appendInteger(std::string& key, Integer value) {
+  char digits[16];
+  const auto result =
+      std::to_chars(std::begin(digits), std::end(digits), value);
+  key.append(digits, result.ptr);
+}
+
 }  // namespace
 
 template <detail::CacheableTextView View>
@@ -61,8 +69,10 @@ Paragraph& SingleLineParagraphCache::paragraphForImpl(
     View text, const sk_sp<SkTypeface>& typeface, float fontSize) {
   std::string key;
   appendUtf8Key(key, text);
-  absl::StrAppend(&key, "\x1f", typeface ? typeface->uniqueID() : 0, "\x1f",
-                  static_cast<int>(fontSize * 16.0f));
+  key.push_back('\x1f');
+  appendInteger(key, typeface ? typeface->uniqueID() : 0u);
+  key.push_back('\x1f');
+  appendInteger(key, static_cast<int>(fontSize * 16.0f));
   auto& paragraphs = m_impl->paragraphs;
   auto paragraph = paragraphs.find(key);
   if (paragraph == paragraphs.end()) {

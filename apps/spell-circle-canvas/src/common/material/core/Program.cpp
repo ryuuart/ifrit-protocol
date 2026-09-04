@@ -9,13 +9,13 @@
 #include <oneapi/tbb/parallel_for.h>
 
 #include <atomic>
+#include <boost/container/flat_map.hpp>
+#include <boost/container/flat_set.hpp>
+#include <boost/unordered/unordered_flat_set.hpp>
 #include <cstdio>
 #include <exception>
 #include <future>
-#include <map>
 #include <mutex>
-#include <set>
-#include <unordered_set>
 #include <vector>
 
 #include "sigilmaterial/core/Material.h"
@@ -35,13 +35,13 @@ struct ProgramCache::Impl {
   };
 
   mutable std::mutex mutex;
-  std::map<Target, Compiler> compilers;
-  std::map<Key, std::shared_ptr<Program>> programs;
-  std::map<Key, InFlight> inFlight;
-  std::set<std::pair<const Recipe*, Target>> reported;
+  boost::container::flat_map<Target, Compiler> compilers;
+  boost::container::flat_map<Key, std::shared_ptr<Program>> programs;
+  boost::container::flat_map<Key, InFlight> inFlight;
+  boost::container::flat_set<std::pair<const Recipe*, Target>> reported;
   // Kept apart from reported so that a variant which compiled and one
   // which did not each still say their piece once.
-  std::set<std::pair<const Recipe*, Target>> unread;
+  boost::container::flat_set<std::pair<const Recipe*, Target>> unread;
   size_t generation = 0;
 };
 
@@ -50,7 +50,7 @@ ProgramCache::~ProgramCache() = default;
 
 void reportOnce(const std::string& key, const std::string& message) {
   static std::mutex mutex;
-  static std::unordered_set<std::string> seen;
+  static boost::unordered_flat_set<std::string> seen;
   std::lock_guard lock(mutex);
   if (!seen.insert(key).second) return;
   std::fprintf(stderr, "[sigil::material] %s\n", message.c_str());
@@ -175,7 +175,7 @@ std::shared_ptr<Program> ProgramCache::program(
 }
 
 WarmupResult ProgramCache::warmup(std::span<const WarmupRequest> requests) {
-  std::map<Impl::Key, WarmupRequest> unique;
+  boost::container::flat_map<Impl::Key, WarmupRequest> unique;
   for (const WarmupRequest& request : requests) {
     if (!request.recipe) continue;
     unique.try_emplace(

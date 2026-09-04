@@ -127,10 +127,10 @@ its verdict and refuses to start while the other lane's tree stands;
 `--keep` holds a tree for a debugger. A configure or build failure
 leaves the tree standing. UBSan findings abort, so a finding fails its
 test. vcpkg archives are uninstrumented, which is why container-overflow
-checking is off at runtime and the address lane pins Abseil's table
-layout and Skia's array layout to agree with the prebuilt archives (a
-header that grows a member under instrumentation moves every field
-behind it); `cmake/SkiaSanitizerAbi.h` asserts the pin took, and the
+checking is off at runtime and the address lane pins Skia's array layout
+to agree with the prebuilt archive (a header that grows a member under
+instrumentation moves every field behind it);
+`cmake/SkiaSanitizerAbi.h` asserts the pin took, and the
 `version>=` on `skia` in `vcpkg.json` names the port it was written
 against. LeakSanitizer is unsupported on Apple Silicon and off. The
 thread lane watches a dependency whose headers this tree instantiates

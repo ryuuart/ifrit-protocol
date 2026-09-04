@@ -58,7 +58,8 @@ target_include_directories(SigilComposeTypography
 target_link_libraries(SigilComposeTypography
   PUBLIC SigilComposeCore SigilCoreComparable SigilCoreCompute SigilMaterial
          SigilMotion SigilWeave
-  PRIVATE SigilCoreReconcile SigilGeometryPath SigilImage yoga::yogacore)
+  PRIVATE SigilCoreReconcile SigilGeometryPath SigilImage Boost::container
+          Boost::unordered yoga::yogacore)
 
 # Text data, the text pass, vertical writing, motion along paths, the
 # text-fx presets, rich spans and the variation drive. The kit is here

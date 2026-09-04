@@ -40,7 +40,7 @@ target_compile_definitions(SigilDraw
 target_link_libraries(SigilDraw PUBLIC
   SigilMaterialSkia SigilCoreCompute
   SigilWeaveStyle SigilWeaveParagraph SigilWeaveLayout SigilWeavePaint
-  SigilWeaveFonts)
+  SigilWeaveFonts Boost::container_hash Boost::unordered)
 target_link_libraries(SigilDraw PRIVATE SigilIOHub)
 set_target_properties(SigilDraw PROPERTIES POSITION_INDEPENDENT_CODE ON)
 

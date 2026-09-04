@@ -18,8 +18,8 @@
 
 #include <sigilcore/comparable/Erased.h>
 
+#include <boost/container/map.hpp>
 #include <cstdint>
-#include <map>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -406,8 +406,7 @@ struct pop {
   using Op =
       std::variant<SplineScatter, Jitter, Noise, Ramp, Vary, LookAt, Math,
                    Relax, MeshScatter, Fill, Atlas, Promote, Lookup, Sort,
-                   Select, Affine, Peak, Deform, Mix, PointSet, Delete,
-                   Normal>;
+                   Select, Affine, Peak, Deform, Mix, PointSet, Delete, Normal>;
   using Chain = std::vector<Op>;
 
   /** The operator's own name — "Jitter", "Select", "PointSet" — for a
@@ -769,8 +768,7 @@ struct pop {
     /** The chain cooked and splatted onto @p canvas as camera-facing
      *  sprites — pop::cookBillboards on this builder's chain. */
     void billboards(SkCanvas& canvas, const camera::Camera& camera,
-                    SkSize viewport,
-                    const points::BillboardStyle& style = {},
+                    SkSize viewport, const points::BillboardStyle& style = {},
                     const Runtime& runtime = Runtime::cpu()) const;
 
    private:
@@ -807,7 +805,8 @@ struct pop {
   /** THE ATTRIBUTE STORE a chain runs over: every attribute a named
    *  float4 lane, builtins ("P", "T", "Dir", "Scale", "Color", "Tex")
    *  and customs alike, each one value per point. */
-  using Lanes = std::map<std::string, std::vector<glm::vec4>, std::less<>>;
+  using Lanes =
+      boost::container::map<std::string, std::vector<glm::vec4>, std::less<>>;
 
   /** What an untouched lane holds, by name: a scale and a colour start
    *  at one, a texture window at the whole image, a direction at +z, and

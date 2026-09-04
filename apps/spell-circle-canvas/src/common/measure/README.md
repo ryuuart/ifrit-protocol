@@ -1,13 +1,14 @@
 # SigilMeasure
 
-Timing, statistics and check reporting, on the standard library alone. The
-library gives you a stopwatch, a lap timer that names the phases of one
+Timing, statistics and check reporting, on the standard library plus
+Boost.Container for the compact ordered counter table. The library gives you
+a stopwatch, a lap timer that names the phases of one
 span, a frame timer whose four marks feed the three lanes a render loop
 is judged by, a rolling ring of samples with the summaries a HUD prints,
 named counters, the frame sample a headless timing sweep snapshots, and
 `Check` — a claim whose printed verdict is computed from the values it
-reports. It links nothing, so every
-other library can measure itself with it without acquiring a dependency.
+reports. It has no domain-library dependency, so every other library can
+measure itself without pulling in another Sigil layer.
 
 Namespace `sigil::measure`. One static target, `SigilMeasure`; every
 public header lives under `include/sigilmeasure/<subject>/` and is spelled

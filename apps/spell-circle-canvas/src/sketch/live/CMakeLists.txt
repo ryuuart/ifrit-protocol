@@ -14,6 +14,7 @@ target_compile_features(SigilSketchLive PUBLIC cxx_std_20)
 # source is saved through is read in the source alone.
 target_link_libraries(SigilSketchLive
   PUBLIC SigilSketchCore SigilImageEncode SigilMotionClock SigilMeasure
+         Boost::container
   PRIVATE SigilIOSource)
 set_target_properties(SigilSketchLive PROPERTIES POSITION_INDEPENDENT_CODE ON)
 

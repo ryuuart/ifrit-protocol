@@ -8,8 +8,8 @@
 
 #include <algorithm>
 #include <array>
+#include <boost/container/flat_set.hpp>
 #include <cmath>
-#include <set>
 
 #include "SceneRegistry.h"
 #include "SceneSupport.h"
@@ -23,7 +23,7 @@ namespace {
 struct Coverage {
   int glyphCount = 0;
   int missingGlyphCount = 0;
-  std::set<uint32_t> typefaceIds;
+  boost::container::flat_set<uint32_t> typefaceIds;
 };
 
 void includeCoverage(const ParagraphLayout& layout, Coverage& coverage) {

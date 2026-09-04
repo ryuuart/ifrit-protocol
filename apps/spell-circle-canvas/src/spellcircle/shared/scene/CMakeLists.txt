@@ -17,7 +17,7 @@ target_link_libraries(SpellCircleScene
       unofficial::skia::skia
       SigilWeave                # SceneLabels.h/SceneRenderer.h expose sigil::weave types
       SigilGeometryPath         # SceneLabels.h holds each ring as a geometry::path::Contour
-      absl::flat_hash_map     # SceneLabels.h exposes the ring-geometry cache map
+      Boost::unordered           # SceneLabels.h exposes the ring-geometry cache map
     PRIVATE
       SigilWeavePorts           # system font manager for the default FontContext
       # Only SceneModel.cpp reads the generated wire schema, so the

@@ -3,7 +3,7 @@
 # log external range trackers follow. The Unicode leaf is private — no
 # public header names one of its types — and it is also where the tag a
 # shaper is told a run's script in comes from, so nothing here names a
-# HarfBuzz type. The one abseil container inside a Word hides behind opaque
+# HarfBuzz type. The one Boost container inside a Word hides behind opaque
 # bytes in WordSegmentList.
 add_library(SigilWeaveParagraph STATIC
   Paragraph.cpp
@@ -21,7 +21,7 @@ target_link_libraries(SigilWeaveParagraph
     SigilWeaveFonts
   PRIVATE
     SigilWeaveUnicode
-    absl::inlined_vector
+    Boost::container
 )
 
 # Shaping as the paragraph drives it, the document model, the typographic
@@ -37,7 +37,8 @@ target_include_directories(weave_paragraph_test PRIVATE ${SIGIL_WEAVE_TEST_SUPPO
 target_link_libraries(weave_paragraph_test PRIVATE
   SigilWeaveParagraph
   SigilWeavePorts
-  absl::flat_hash_set
+  Boost::container
+  Boost::unordered
   GTest::gtest_main
 )
 add_test(NAME weave_paragraph_test COMMAND weave_paragraph_test)

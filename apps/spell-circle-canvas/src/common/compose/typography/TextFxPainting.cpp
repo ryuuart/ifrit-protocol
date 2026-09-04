@@ -27,12 +27,11 @@
 #include <sigilweave/fonts/Shaper.h>  // makeFont — textFill's cap-height metrics
 
 #include <algorithm>
+#include <boost/container/flat_map.hpp>
+#include <boost/unordered/unordered_flat_set.hpp>
 #include <chrono>
 #include <cmath>
-#include <map>
-#include <set>
 #include <tuple>
-#include <unordered_set>
 #include <utility>
 
 #include "AxisGate.h"
@@ -152,7 +151,7 @@ SkGlyphID substituteGlyph(sigil::weave::FontContext& fonts,
     bool alike[2] = {false, false};  ///< indexed by the axis: level, upright
   };
   using Key = std::tuple<uint32_t, SkGlyphID, uint32_t>;
-  static thread_local std::map<Key, Verdict> table;
+  static thread_local boost::container::flat_map<Key, Verdict> table;
   auto [entry, fresh] = table.try_emplace(
       Key{face->uniqueID(), original, (uint32_t)codepoint}, Verdict{});
   Verdict& verdict = entry->second;
@@ -174,7 +173,7 @@ SkGlyphID substituteGlyph(sigil::weave::FontContext& fonts,
   if (verdict.alike[axis]) return verdict.replacement;
   // Once per face and axis: a scramble over a proportional charset would
   // otherwise report every character of it, one line each.
-  static thread_local std::unordered_set<uint64_t> warned;
+  static thread_local boost::unordered_flat_set<uint64_t> warned;
   if (warned.insert(((uint64_t)face->uniqueID() << 1u) | (uint64_t)axis).second)
     SkDebugf(
         "sigilcompose fx: a code-point substitution on this font is "

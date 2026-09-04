@@ -6,9 +6,9 @@
 
 #include <sigildraw/kit/Brush.h>
 
+#include <boost/unordered/unordered_node_map.hpp>
 #include <string>
 #include <string_view>
-#include <unordered_map>
 #include <vector>
 
 namespace sigil::draw::brush {
@@ -29,7 +29,7 @@ class Box {
   void scale(float factor);
 
  private:
-  std::unordered_map<std::string, Brush> m_brushes;
+  boost::unordered_node_map<std::string, Brush> m_brushes;
 };
 
 }  // namespace sigil::draw::brush

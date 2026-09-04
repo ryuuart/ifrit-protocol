@@ -21,8 +21,8 @@
 #include <include/core/SkPathUtils.h>
 
 #include <algorithm>
+#include <boost/container/flat_set.hpp>
 #include <cmath>
-#include <set>
 
 #include "ComposeRuntime.h"
 
@@ -112,7 +112,7 @@ bool Composer::Impl::resolveThreads() {
   if (threadedInstances.empty()) return false;
   bool moved = false;
   // Which frames are somebody's target: the rest are chain heads.
-  std::set<const Instance*> threadedInto;
+  boost::container::flat_set<const Instance*> threadedInto;
   std::vector<Instance*> targets;
   for (Instance* inst : threadedInstances) {
     auto found = byKey.find(inst->desc->textData->threadTo);
@@ -138,7 +138,7 @@ bool Composer::Impl::resolveThreads() {
     if (!threadedInto.count(stale)) bound(stale, false);
   for (Instance* target : targets) bound(target, true);
   threadTargets = std::move(targets);
-  std::set<const Instance*> visited;
+  boost::container::flat_set<const Instance*> visited;
   for (Instance* head : threadedInstances) {
     if (threadedInto.count(head)) continue;  // not a head
     uint32_t cursor = 0;
