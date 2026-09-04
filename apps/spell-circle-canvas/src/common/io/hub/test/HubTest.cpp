@@ -10,6 +10,7 @@
 #include <include/core/SkPixmap.h>
 #include <sigilimage/encode/Encode.h>
 #include <sigilio/hub/Hub.h>
+#include <sigilio/hub/TextLibrary.h>
 #include <sigilio/source/Sink.h>
 
 #ifdef SIGILIO_HAS_OIIO
@@ -161,10 +162,58 @@ TEST_F(IOHub, BlobAndTextLoadThroughMounts) {
   EXPECT_EQ(hub.blob("res://missing.bin"), nullptr);
 }
 
+TEST_F(IOHub, TextLibraryLoadsRelativeNamesAndPollsChanges) {
+  dir.write("shaders/glow.sksl", "half4 main(float2 p) { return half4(1); }");
+  TextLibrary library("shader://", dir.path / "shaders");
+  EXPECT_EQ(library.text("shader://glow.sksl"),
+            "half4 main(float2 p) { return half4(1); }");
+
+  dir.write("shaders/glow.sksl", "half4 main(float2 p) { return half4(0); }");
+  touchForward(dir.path / "shaders/glow.sksl");
+  EXPECT_TRUE(library.poll());
+  EXPECT_EQ(library.text("shader://glow.sksl"),
+            "half4 main(float2 p) { return half4(0); }");
+}
+
+TEST_F(IOHub, TextLibrariesSharePreloadedRootCache) {
+  dir.write("shaders/a.sksl", "a");
+  dir.write("shaders/nested/b.slang", "b");
+  TextLibrary loading("shader://", dir.path / "shaders");
+  EXPECT_EQ(loading.preload(), 2u);
+
+  dir.write("shaders/a.sksl", "changed after preload");
+  TextLibrary consuming("shader://", dir.path / "shaders");
+  EXPECT_EQ(consuming.text("shader://a.sksl"), "a");
+  EXPECT_EQ(consuming.text("shader://nested/b.slang"), "b");
+}
+
 TEST_F(IOHub, MissingFilesHealWithoutStaleCache) {
   EXPECT_EQ(hub.text("res://late.txt"), std::nullopt);
   dir.write("late.txt", "arrived");
   EXPECT_EQ(hub.text("res://late.txt"), "arrived");
+}
+
+TEST_F(IOHub, PreloadFetchesDistinctUrisIntoTheByteCache) {
+  dir.write("one.sksl", "one");
+  dir.write("two.slang", "two");
+  const std::string_view uris[] = {"res://one.sksl", "res://two.slang",
+                                   "res://one.sksl", "res://missing.sksl"};
+  EXPECT_EQ(hub.preload(uris), 2u);
+
+  dir.write("one.sksl", "changed on disk");
+  EXPECT_EQ(hub.text("res://one.sksl"), "one");
+  EXPECT_EQ(hub.text("res://two.slang"), "two");
+}
+
+TEST_F(IOHub, PreloadDirectoryDiscoversNestedResourcesByUri) {
+  dir.write("shaders/a.sksl", "a");
+  dir.write("shaders/nested/b.slang", "b");
+  hub.mount("shader://", dir.path / "shaders");
+  EXPECT_EQ(hub.preloadDirectory("shader://"), 2u);
+
+  dir.write("shaders/nested/b.slang", "changed after preload");
+  EXPECT_EQ(hub.text("shader://a.sksl"), "a");
+  EXPECT_EQ(hub.text("shader://nested/b.slang"), "b");
 }
 
 // blob(), image(), and channels() are independent views of one

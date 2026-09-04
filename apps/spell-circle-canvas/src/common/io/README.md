@@ -17,7 +17,7 @@ what a consumer uses; every public header lives under
 | target | headers | holds |
 |--------|---------|-------|
 | `SigilIOSource` | `source/Source.h`, `source/Sink.h` | header only, standard library only: `Bytes`, the `ByteSource`, `ResolvingByteSource` and `Decoder` concepts, `AnyByteSource` (the type-erased source value), and the other direction — the `ByteSink` concept and `writeBytes()`, the one place a path and a run of bytes become a file |
-| `SigilIOHub`    | `hub/Hub.h`, `hub/Network.h` | the `Hub` and `ResourceInfo`; `NetworkPolicy`, `networkCacheKey()` and `defaultNetworkCacheDir()` — the file a URL lands under and the directory it lands in when a hub names no other, so a probe with no hub in reach asks the cache the hub's own way |
+| `SigilIOHub`    | `hub/Hub.h`, `hub/Network.h`, `hub/TextLibrary.h` | the `Hub` and `ResourceInfo`; `TextLibrary`, a synchronized cached collection rooted at one directory; `NetworkPolicy`, `networkCacheKey()` and `defaultNetworkCacheDir()` — the file a URL lands under and the directory it lands in when a hub names no other, so a probe with no hub in reach asks the cache the hub's own way |
 
 `SigilIO` is the umbrella target over both, and
 `<sigilio/IO.h>` the umbrella header. The hub is a `ByteSource`;
@@ -28,6 +28,7 @@ and handed a hub, a fixture, or an `AnyByteSource` holding either.
 
 ```cpp
 #include <sigilio/hub/Hub.h>
+#include <sigilio/hub/TextLibrary.h>
 
 sigil::io::Hub hub;
 hub.mount("res://", "/opt/myapp/assets");
@@ -56,6 +57,18 @@ auto raw = source.fetch("res://data/table.bin");
 hub.setNetworkCacheDir("/opt/myapp/assets/.netcache");
 hub.setNetworkPolicy(sigil::io::NetworkPolicy::Offline);
 auto remote = hub.image("https://example.com/tex.png");
+
+std::string_view shaderUris[] = {"shader://surface.slang",
+                                 "shader://bloom.sksl"};
+hub.mount("shader://", shaderDirectory);
+hub.preload(shaderUris); // concurrent fetch, bytes only
+hub.preloadDirectory("shader://"); // recursive; newly added files need no list
+
+// A library loading authored shader files from its own source directory.
+// The Hub and its synchronization remain private to this small facade.
+sigil::io::TextLibrary shaders("shader://", shaderDirectory);
+shaders.preload(); // the whole mounted directory
+auto glowSource = shaders.text("shader://glow.sksl");
 
 // Bytes back out, through the same mount table they are read by. What
 // they are is the caller's business: an image is encoded first.
@@ -104,6 +117,14 @@ matched on the URI each one carries, never by parsing a key.
 Network URIs bypass the mount list entirely. A fetch goes through the disk
 cache directory, and the entry carries a sentinel timestamp so `poll()`
 knows to leave it alone.
+
+`preload()` fetches distinct URI bytes concurrently and merges them into the
+same cache ordinary reads use. `preloadDirectory()` discovers every regular
+file below a local mounted prefix first, then uses that path; it cannot
+enumerate a network URI. `TextLibrary` is the synchronized text-only facade for
+library-owned source directories. Instances with the same prefix and root
+share one hidden hub, so an application loading phase can fill the cache that
+recipe constructors later read without exposing a mutex or hub in either API.
 
 Every decode is a registered decoder. The constructor registers
 SigilImage's two — `ImageAsset` and `ChannelData` — and
@@ -167,8 +188,9 @@ cache hit or failure.
 ## Boundary
 
 Dependencies: `SigilIOHub` links `SigilIOSource` and
-`SigilImageDecode` publicly and `CURL::libcurl` privately — private
-because it is pure transport, but a hard requirement to configure. `SigilIOSource` itself depends on
+`SigilImageDecode` publicly and `CURL::libcurl` plus oneTBB privately — private
+because they are transport and loading implementation, while curl remains a
+hard requirement to configure. `SigilIOSource` itself depends on
 nothing beyond the standard library, so a decoder or an encoder library
 can speak the byte vocabulary without inheriting the hub, libcurl or any
 codec.

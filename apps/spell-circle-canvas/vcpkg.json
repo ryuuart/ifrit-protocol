@@ -70,6 +70,7 @@
     "simdjson",
     "spdlog",
     "stb",
+    "tbb",
     {
       "name": "spout2",
       "features": [

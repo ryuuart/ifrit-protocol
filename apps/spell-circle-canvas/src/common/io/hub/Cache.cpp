@@ -5,6 +5,12 @@
  * the changed ones from one read.
  */
 
+#include <oneapi/tbb/blocked_range.h>
+#include <oneapi/tbb/parallel_for.h>
+
+#include <algorithm>
+#include <set>
+
 #include "Fetch.h"
 #include "sigilio/hub/Hub.h"
 
@@ -59,6 +65,78 @@ std::optional<std::string> Hub::text(std::string_view uri) {
   auto bytes = blob(uri);
   if (!bytes) return std::nullopt;
   return std::string(bytes->asText());
+}
+
+size_t Hub::preload(std::span<const std::string_view> uris) {
+  struct Pending {
+    std::string uri;
+    std::string key;
+    FetchResult fetched;
+  };
+
+  std::set<std::string, std::less<>> seen;
+  std::vector<Pending> pending;
+  size_t ready = 0;
+  for (std::string_view uri : uris) {
+    if (!seen.emplace(uri).second) continue;
+    const std::string key = cacheKey(uri, nullptr);
+    const auto cached = m_entries.find(key);
+    if (cached != m_entries.end() && cached->second.blob) {
+      ++ready;
+      continue;
+    }
+    pending.push_back({std::string(uri), key, {}});
+  }
+
+  const auto fetch = [&](size_t from, size_t to) {
+    for (size_t i = from; i != to; ++i)
+      pending[i].fetched =
+          fetchResource(*this, m_netCacheDir, m_netPolicy, pending[i].uri);
+  };
+  if (pending.size() < 4) {
+    fetch(0, pending.size());
+  } else {
+    oneapi::tbb::parallel_for(
+        oneapi::tbb::blocked_range<size_t>(0, pending.size(), 2),
+        [&](const oneapi::tbb::blocked_range<size_t>& range) {
+          fetch(range.begin(), range.end());
+        });
+  }
+
+  for (Pending& ask : pending) {
+    if (!ask.fetched.blob) continue;
+    Entry& entry = m_entries[ask.key];
+    entry.uri = std::move(ask.uri);
+    entry.blob = std::move(ask.fetched.blob);
+    entry.path = std::move(ask.fetched.path);
+    entry.mtime = ask.fetched.mtime;
+    ++ready;
+  }
+  return ready;
+}
+
+size_t Hub::preloadDirectory(std::string_view uriPrefix) {
+  if (isNetworkUri(uriPrefix)) return 0;
+  const std::filesystem::path directory = localPath(*this, uriPrefix);
+  std::error_code error;
+  if (!std::filesystem::is_directory(directory, error) || error) return 0;
+
+  std::string base(uriPrefix);
+  if (!base.empty() && !base.ends_with('/')) base += '/';
+  std::vector<std::string> names;
+  for (std::filesystem::recursive_directory_iterator it(directory, error), end;
+       !error && it != end; it.increment(error)) {
+    if (!it->is_regular_file(error) || error) continue;
+    const std::filesystem::path relative =
+        std::filesystem::relative(it->path(), directory, error);
+    if (error) break;
+    names.push_back(base + relative.generic_string());
+  }
+  std::ranges::sort(names);
+  std::vector<std::string_view> uris;
+  uris.reserve(names.size());
+  for (const std::string& name : names) uris.push_back(name);
+  return preload(uris);
 }
 
 std::shared_ptr<const void> Hub::loadView(const std::string& key,

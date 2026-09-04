@@ -49,6 +49,7 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <typeindex>
@@ -177,6 +178,17 @@ class Hub {
 
   /** UTF-8 text convenience over blob(). */
   std::optional<std::string> text(std::string_view uri);
+
+  /** Fetches the distinct @p uris concurrently into the byte cache and
+   *  returns how many are ready. No decoding is performed. Like every Hub
+   *  operation, the call itself must not overlap another call on this Hub. */
+  size_t preload(std::span<const std::string_view> uris);
+
+  /** Recursively fetches every regular file below the local directory named
+   *  by @p uriPrefix. The discovered files keep that URI prefix in the cache,
+   *  so later typed or text asks hit the same entries. Network URIs cannot be
+   *  enumerated and return zero. */
+  size_t preloadDirectory(std::string_view uriPrefix);
 
   /** Decoded image (stills and animations); null on failure. Decodes
    *  on this first ask, from bytes a prior blob() ask already cached

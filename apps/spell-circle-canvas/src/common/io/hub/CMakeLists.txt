@@ -6,13 +6,17 @@ add_library(SigilIOHub STATIC
   Decoders.cpp
   Mounts.cpp
   Network.cpp
+  TextLibrary.cpp
   Fetch.h
   ${SIGIL_IO_INCLUDE_DIR}/sigilio/hub/Hub.h
   ${SIGIL_IO_INCLUDE_DIR}/sigilio/hub/Network.h
+  ${SIGIL_IO_INCLUDE_DIR}/sigilio/hub/TextLibrary.h
 )
 target_compile_features(SigilIOHub PUBLIC cxx_std_20)
 target_include_directories(SigilIOHub PUBLIC ${SIGIL_IO_INCLUDE_DIR})
 target_link_libraries(SigilIOHub PUBLIC SigilIOSource SigilImageDecode)
+find_package(TBB CONFIG REQUIRED)
+target_link_libraries(SigilIOHub PRIVATE TBB::tbb)
 
 # libcurl backs the http(s):// URIs (fetch + on-disk cache); pure
 # transport, so it stays a private implementation detail.
