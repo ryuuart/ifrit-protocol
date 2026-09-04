@@ -17,6 +17,7 @@ pragma ComponentBehavior: Bound
 import QtCore
 import QtQuick
 import QtQuick.Controls.Basic
+import QtQuick.Dialogs
 import QtQuick.Layouts
 import Ifrit.Ui 1.0 as Ui
 import Sigil.Sketchbook
@@ -98,7 +99,8 @@ ApplicationWindow {
     readonly property var blankSketch: ({
         sketchIndex: -1, name: "", key: "", folder: "", blurb: "", path: "",
         kind: "", available: true, reason: "", lines: 0, subject: "",
-        editFirst: "", plate: "", canvas: "", background: "", moment: -1
+        editFirst: "", plate: "", canvas: "", background: "", moment: -1,
+        videoExportable: false
     })
 
     readonly property var selectedSketch:
@@ -394,6 +396,23 @@ ApplicationWindow {
         captureHide.restart();
     }
 
+    FileDialog {
+        id: videoDialog
+
+        property int sketchIndex: -1
+        fileMode: FileDialog.SaveFile
+        nameFilters: ["MPEG-4 video (*.mp4)"]
+        defaultSuffix: "mp4"
+        acceptLabel: "Export"
+        onAccepted: catalog.video(videoDialog.sketchIndex, selectedFile)
+    }
+
+    function exportVideo(index) {
+        videoDialog.sketchIndex = index;
+        videoDialog.currentFile = catalog.videoDefault(index);
+        videoDialog.open();
+    }
+
     Shortcut {
         // The plural form: Save is more than one binding on some
         // platforms, and binding the first silently drops the rest.
@@ -484,12 +503,14 @@ ApplicationWindow {
             shown: window.cards.length
             viewMode: window.viewMode
             inspectorOpen: window.inspectorOpen
+            taskRunning: catalog.taskRunning
             onFilterTextChanged: window.filterText = topBar.filterText
             onViewModeRequested: mode => {
                 window.viewMode = mode;
                 window.reveal();
             }
             onInspectorToggled: window.inspectorOpen = !window.inspectorOpen
+            onVideoRequested: window.exportVideo(-1)
             onSteppedOut: {
                 if (window.viewMode === "gallery")
                     gallery.focusRows();
@@ -747,6 +768,7 @@ ApplicationWindow {
                 taskRunning: catalog.taskRunning
                 onOpenRequested: window.activate(window.selectedIndex)
                 onFrameRequested: catalog.frame(window.selectedIndex)
+                onVideoRequested: window.exportVideo(window.selectedIndex)
                 onBenchRequested: catalog.bench(window.selectedIndex)
                 onRevealRequested: catalog.reveal(window.selectedIndex)
             }

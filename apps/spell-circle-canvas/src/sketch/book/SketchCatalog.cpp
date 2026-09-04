@@ -11,6 +11,7 @@
 #include <QtCore/QCoreApplication>
 #include <QtCore/QDir>
 #include <QtCore/QFileInfo>
+#include <QtCore/QStandardPaths>
 #include <QtCore/QStringList>
 #include <QtCore/QUrl>
 #include <algorithm>
@@ -235,16 +236,17 @@ QVariantMap rowFor(int index, const std::string& name, const std::string& key,
   row.insert(QStringLiteral("canvas"), QString());
   row.insert(QStringLiteral("background"), QString());
   row.insert(QStringLiteral("moment"), -1.0);
+  row.insert(QStringLiteral("videoExportable"), true);
   return row;
 }
 
 }  // namespace
 
 SketchCatalog::SketchCatalog(QObject* parent) : QObject(parent) {
-  // ONE LINE OUT OF A RUN THAT PRINTS MANY. Both flags answer on a line
-  // of their own — `--frame` names the file it wrote, `--bench` prefixes
-  // its verdict so a collector can find it — so the panel keeps the
-  // marked line and drops the rest rather than growing a log pane.
+  // ONE LINE OUT OF A RUN THAT PRINTS MANY. Each action answers on a line
+  // of its own — `--frame` and `--video` name the file they wrote, and
+  // `--bench` prefixes its verdict so a collector can find it — so the panel
+  // keeps the marked line and drops the rest rather than growing a log pane.
   connect(&m_task, &QProcess::finished, this, [this](int code) {
     const QStringList output =
         QString::fromUtf8(m_task.readAll()).split(QLatin1Char('\n'));
@@ -256,6 +258,8 @@ SketchCatalog::SketchCatalog(QObject* parent) : QObject(parent) {
                      : found;
     emit taskChanged();
   });
+  connect(&m_task, &QProcess::stateChanged, this,
+          [this] { emit taskChanged(); });
 
   const auto& entries = sketch::registry();
   m_rows.reserve((qsizetype)entries.size() +
@@ -264,7 +268,8 @@ SketchCatalog::SketchCatalog(QObject* parent) : QObject(parent) {
     const sketch::Entry& entry = entries[i];
     // The bare file, or the entry of a directory sketch: what the row
     // reads its header and its line count from, and what a click opens.
-    const fs::path file = sketch::sourceOf(SketchbookView::sketchDir, entry.key);
+    const fs::path file =
+        sketch::sourceOf(SketchbookView::sketchDir, entry.key);
     QVariantMap row =
         rowFor(i, entry.name, entry.key, QString::fromUtf8(entry.category),
                QString::fromUtf8(entry.blurb), file);
@@ -297,6 +302,7 @@ SketchCatalog::SketchCatalog(QObject* parent) : QObject(parent) {
     row.insert(QStringLiteral("kind"), QString());
     row.insert(QStringLiteral("available"), true);
     row.insert(QStringLiteral("reason"), QString());
+    row.insert(QStringLiteral("videoExportable"), false);
     m_rows.push_back(row);
   }
 }
@@ -327,17 +333,58 @@ void SketchCatalog::frame(int index) {
       file.parent_path() / "captures" / (file.stem().string() + ".png");
   std::error_code code;
   fs::create_directories(out.parent_path(), code);
-  run(index,
+  run(m_rows[index].toMap().value(QStringLiteral("name")).toString(),
       {QString::fromStdString(file.string()), QStringLiteral("--frame"),
        QString::fromStdString(out.string())},
       QStringLiteral("wrote "));
+}
+
+QUrl SketchCatalog::videoDefault(int index) const {
+  if (index >= 0 && index < m_rows.size()) {
+    const fs::path file = m_rows[index]
+                              .toMap()
+                              .value(QStringLiteral("path"))
+                              .toString()
+                              .toStdString();
+    return QUrl::fromLocalFile(QString::fromStdString(
+        (file.parent_path() / "captures" / (file.stem().string() + ".mp4"))
+            .string()));
+  }
+  const fs::path movies =
+      QStandardPaths::writableLocation(QStandardPaths::MoviesLocation)
+          .toStdString();
+  return QUrl::fromLocalFile(
+      QString::fromStdString((movies / "sigil-sketchbook.mp4").string()));
+}
+
+void SketchCatalog::video(int index, const QUrl& output) {
+  if (m_task.state() != QProcess::NotRunning || !output.isLocalFile()) return;
+  if (index < -1 || index >= m_rows.size()) return;
+
+  fs::path out = output.toLocalFile().toStdString();
+  if (out.extension() != ".mp4") out += ".mp4";
+  std::error_code code;
+  fs::create_directories(out.parent_path(), code);
+
+  QString label = QStringLiteral("All sketches");
+  QStringList arguments{QStringLiteral("--video"),
+                        QString::fromStdString(out.string())};
+  if (index >= 0) {
+    const QVariantMap row = m_rows[index].toMap();
+    if (!row.value(QStringLiteral("videoExportable")).toBool()) return;
+    label = row.value(QStringLiteral("name")).toString();
+    arguments << QStringLiteral("--sketch")
+              << row.value(QStringLiteral("key")).toString();
+  }
+  run(label, arguments, QStringLiteral("wrote "));
 }
 
 void SketchCatalog::bench(int index) {
   if (index < 0 || index >= m_rows.size()) return;
   const QString file =
       m_rows[index].toMap().value(QStringLiteral("path")).toString();
-  run(index, {file, QStringLiteral("--bench")}, QStringLiteral("BENCH"));
+  run(m_rows[index].toMap().value(QStringLiteral("name")).toString(),
+      {file, QStringLiteral("--bench")}, QStringLiteral("BENCH"));
 }
 
 void SketchCatalog::reveal(int index) {
@@ -347,12 +394,11 @@ void SketchCatalog::reveal(int index) {
   QProcess::startDetached(QStringLiteral("open"), {QStringLiteral("-R"), file});
 }
 
-void SketchCatalog::run(int index, const QStringList& arguments,
+void SketchCatalog::run(const QString& label, const QStringList& arguments,
                         const QString& prefix) {
   if (m_task.state() != QProcess::NotRunning) return;
   m_taskPrefix = prefix;
-  m_taskLine = m_rows[index].toMap().value(QStringLiteral("name")).toString() +
-               QStringLiteral(" — running…");
+  m_taskLine = label + QStringLiteral(" — running…");
   emit taskChanged();
   // THE SAME BINARY, on the same file. A run through the app's own
   // headless flags is the one that answers for what the app is showing:

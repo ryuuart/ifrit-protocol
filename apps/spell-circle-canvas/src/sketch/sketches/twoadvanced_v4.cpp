@@ -25,8 +25,8 @@
 //     restoration of this exact movie. Its HTML shell still serves the
 //     PRODUCTION artefacts, and this sketch draws them directly:
 //     images/{leftsidepanel,rightsidepanel,sitebackground,sitefooter}.gif
-//     and images/2alogobug.svg arrive over SigilLoader's https path
-//     (fetched once, then served from the loader's disk cache). Every
+//     and images/2alogobug.svg arrive over SigilIO's https path
+//     (fetched once, then served from SigilIO's disk cache). Every
 //     real-asset site keeps its procedural stand-in as the fallback, so
 //     a run with no network and a cold cache still renders — just with
 //     rebuilt chrome instead of the original bitmaps.
@@ -305,7 +305,7 @@ struct TwoAdvancedV4 : sketch::Sketch {
    *  a machine may not have says so rather than drawing a second picture
    *  under the same name. The rails, the page ground, the footer strip
    *  and the logo bug come off 2Advanced's own restoration host through
-   *  the loader's https path, which caches on disk; every use site keeps
+   *  SigilIO's https path, which caches on disk; every use site keeps
    *  its procedural stand-in, so a cold cache still renders — but it
    *  renders REBUILT chrome, and the plate this sketch is judged on is
    *  then not the picture the header describes. */
@@ -2446,12 +2446,12 @@ struct TwoAdvancedV4 : sketch::Sketch {
     heroPlate = bakeHero(2348, 632, ctx);
 
     // --- the production shell bitmaps, from the restoration host ----------
-    // The loader's https path caches on disk (CacheFirst), so only the
+    // SigilIO's https path caches on disk (CacheFirst), so only the
     // very first run touches the network; each call returns null when the
     // fetch fails AND nothing is cached, which the use sites treat as
     // "draw the procedural stand-in".
     {
-      sigil::loader::Hub& hub = ctx.assets.hub();
+      sigil::io::Hub& hub = ctx.assets.hub();
       const std::string base = "https://v4prophecy.2advanced.com/images/";
       railLeftGif = hub.image(base + "leftsidepanel.gif");
       railRightGif = hub.image(base + "rightsidepanel.gif");

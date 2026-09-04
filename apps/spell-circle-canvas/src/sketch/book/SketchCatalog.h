@@ -8,6 +8,7 @@
 
 #include <QtCore/QObject>
 #include <QtCore/QProcess>
+#include <QtCore/QUrl>
 #include <QtCore/QVariantList>
 #include <QtCore/QVariantMap>
 #include <filesystem>
@@ -40,8 +41,8 @@ class SketchCatalog : public QObject {
   Q_OBJECT
   QML_ELEMENT
   Q_PROPERTY(QVariantList sketches READ sketches NOTIFY sketchesChanged)
-  /** The one line the last Frame or Bench run left behind, and whether
-   *  one is still going. Both are the whole of what the inspector shows
+  /** The one line the last Frame, Video or Bench run left behind, and whether
+   *  one is still going. These are the whole of what the inspector shows
    *  for a subprocess: these runs answer in one line by design. */
   Q_PROPERTY(QString taskLine READ taskLine NOTIFY taskChanged)
   Q_PROPERTY(bool taskRunning READ taskRunning NOTIFY taskChanged)
@@ -60,12 +61,16 @@ class SketchCatalog : public QObject {
    *  back after the resident set has let it go. Returns the changed row,
    *  or an empty map when the answer was already known. Learning one row
    *  deliberately does not reset the whole sketches model. */
-  Q_INVOKABLE QVariantMap learn(int index, const QString& canvas,
-                                double moment, const QString& background);
+  Q_INVOKABLE QVariantMap learn(int index, const QString& canvas, double moment,
+                                const QString& background);
 
   /** Render one still of the sketch through this same binary's `--frame`
    *  path, into `captures/` beside the file. */
   Q_INVOKABLE void frame(int index);
+  /** Export the registry, or one registry sketch, as a vertical MP4. */
+  Q_INVOKABLE void video(int index, const QUrl& output);
+  /** A writable filename for the video save dialog. */
+  Q_INVOKABLE QUrl videoDefault(int index) const;
   /** Run the 60 FPS gate over it, and keep the verdict line. */
   Q_INVOKABLE void bench(int index);
   /** Show the file in the Finder. */
@@ -88,7 +93,8 @@ class SketchCatalog : public QObject {
    *  it said. Only one at a time: these are seconds-long renders, and a
    *  second one started over the first would report whichever finished
    *  last under whichever button was pressed first. */
-  void run(int index, const QStringList& arguments, const QString& prefix);
+  void run(const QString& label, const QStringList& arguments,
+           const QString& prefix);
 
   QVariantList m_rows;
   QProcess m_task;

@@ -419,7 +419,7 @@ The host operations do not need brush-kit aliases. `DrawContext::canvas` and
 brush random stream. The pen's `push`, `pop`, `translate`, `rotate` and `scale`
 already carry the canvas state the kit draws through, and `Engine::angleMode`
 both sets and reads brush angle units. `SkColor4f` is the plain colour value.
-An image-tip URI is resolved by SigilLoader and SigilImage before its `SkImage`
+An image-tip URI is resolved by SigilIO and SigilImage before its `SkImage`
 is assigned to the plain `Brush` value.
 
 The timed `brush_live_tutorial` moves through field lines, the stock-tool

@@ -124,8 +124,9 @@ The app is thin. Most of the code is in libraries under `src/common/` and
 | [SigilGeometry](src/common/geometry/README.md) | Higher-level drawing over Skia: geometry, curves, materials |
 | [SigilWorld](src/common/world/README.md) | 3D surfaces on Diligent Engine |
 | [SigilMotion](src/common/motion/README.md) | Animation clock and animatable values |
-| [SigilImage](src/common/image/README.md) | Image decoding and probing |
-| [SigilLoader](src/common/loader/README.md) | Resource access: URIs, mounts, caching, hot reload |
+| [SigilImage](src/common/image/README.md) | Still-image and animated-image decoding and encoding |
+| [SigilVideo](src/common/video/README.md) | Streaming video decoding, GPU composition, and MP4 encoding |
+| [SigilIO](src/common/io/README.md) | Resource access and export: URIs, mounts, caching, hot reload, byte sinks |
 | [SigilScry](src/common/scry/README.md) | HTML and CSS rendered to Skia images |
 
 ## Build and test

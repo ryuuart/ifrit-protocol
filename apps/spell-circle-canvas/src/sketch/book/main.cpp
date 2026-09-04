@@ -7,6 +7,8 @@
  *   Sketchbook --headless <outdir> [--gpu] [--sketch <name>] [--kind <k>]
  *              [--ledger] [--no-promotion] [--capture-at <s>]
  *              [--timing-json <path>]          plates, and the timing table
+ *   Sketchbook --video <out.mp4> [--video-frames <n>] [--fps <n>]
+ *              [--sketch <name>] [--kind <k>]  the vertical video montage
  *   Sketchbook <file.cpp> [--frame <png>] [--bench] [--gpu]
  *                                              a file, live or measured
  *   Sketchbook <file.cpp>                      the app, on that file
@@ -39,6 +41,7 @@
 #include <sigilsketch/core/Registry.h>
 #include <sigilsketch/core/Sources.h>
 #include <sigilsketch/live/Host.h>
+#include <sigilsketch/plate/Story.h>
 #include <sigilsketch/plate/Sweep.h>
 #include <sigilsketch/set/Set.h>
 #ifdef SIGILSKETCH_BOOK_SCRY
@@ -635,6 +638,7 @@ int main(int argc, char* argv[]) {
   std::filesystem::path assetsOverride;
   std::string selected, kind, shotPath;
   sketch::SweepOptions sweepOptions;
+  sketch::StoryOptions storyOptions;
   CaptureOptions capture;
   WindowBench windowBench;
   bool headless = false, list = false, gpu = false, noGpu = false;
@@ -648,6 +652,24 @@ int main(int argc, char* argv[]) {
         sweepOptions.outDir = argv[++i];
     } else if (arg == "--list") {
       list = true;
+    } else if ((arg == "--video" || arg == "--story") && i + 1 < argc) {
+      storyOptions.out = argv[++i];
+    } else if ((arg == "--video-frames" || arg == "--story-frames") &&
+               i + 1 < argc) {
+      storyOptions.framesPerSketch = std::max(1, std::stoi(argv[++i]));
+    } else if ((arg == "--video-size" || arg == "--story-size") &&
+               i + 1 < argc) {
+      const std::string size = argv[++i];
+      const size_t by = size.find('x');
+      if (by == std::string::npos) {
+        std::fprintf(stderr, "--video-size wants WIDTHxHEIGHT\n");
+        return 2;
+      }
+      storyOptions.width = std::max(2, std::stoi(size.substr(0, by)));
+      storyOptions.height = std::max(2, std::stoi(size.substr(by + 1)));
+    } else if ((arg == "--video-bitrate" || arg == "--story-bitrate") &&
+               i + 1 < argc) {
+      storyOptions.bitRate = std::max<int64_t>(1, std::stoll(argv[++i]));
     } else if (arg == "--gpu") {
       gpu = true;
     } else if (arg == "--no-gpu") {
@@ -703,6 +725,7 @@ int main(int argc, char* argv[]) {
       capture.frames = std::max(1, std::stoi(argv[++i]));
     } else if (arg == "--fps" && i + 1 < argc) {
       capture.fps = std::stod(argv[++i]);
+      storyOptions.framesPerSecond = std::max(1, (int)std::lround(capture.fps));
     } else if (arg == "--bench") {
       capture.bench = true;
     } else if (arg == "--bench-frames" && i + 1 < argc) {
@@ -768,6 +791,18 @@ int main(int argc, char* argv[]) {
                   entry.name, why.c_str(), toTerminal ? "\x1b[0m" : "");
     }
     return 0;
+  }
+
+  if (!storyOptions.out.empty() && storyOptions.framesPerSketch > 0) {
+    storyOptions.only = chosen;
+    storyOptions.kind = kind;
+    if (selectionNeedsDevice(chosen, kind) && !useDevice() && gpu) return 1;
+    SharedWebEngineScope sharedWebEngine;
+    sketch::installCrashReporter({});
+    const int result = story(storyOptions, fonts(), assets());
+    sharedWebEngine.shutdown();
+    releaseDevice();
+    return result;
   }
 
   if (headless) {

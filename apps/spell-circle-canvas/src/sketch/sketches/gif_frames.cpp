@@ -21,7 +21,7 @@
  *
  * THE SUBJECT IS THE REAL FILE. `fastbreak.gif` is the one thing that
  * ever moved on the 1996 Space Jam site, fetched here over https through
- * the loader's own cache; `sketch::requireCached` is the availability
+ * SigilIO's own cache; `sketch::requireCached` is the availability
  * door, so a machine that has fetched it once renders this sheet forever
  * after and offline, and one that never has stands the sketch down by
  * name rather than drawing a stand-in under it.
@@ -38,7 +38,7 @@
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilimage/asset/ImageAsset.h>
-#include <sigilloader/hub/Hub.h>
+#include <sigilio/hub/Hub.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/style/Type.h>
 
@@ -49,7 +49,7 @@
 namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
 namespace image = sigil::image;
-namespace loader = sigil::loader;
+namespace io = sigil::io;
 
 using namespace sigil::compose;
 using sigil::compose::toU8;
@@ -115,8 +115,8 @@ struct GifFrames final : sketch::Sketch {
     ctx.background(kGround);
     ctx.captureAt(0.05);  // every frame is on the sheet; nothing moves
 
-    loader::Hub& hub = ctx.assets.hub();
-    const std::optional<loader::ResourceInfo> probed = hub.probe(kSource);
+    io::Hub& hub = ctx.assets.hub();
+    const std::optional<io::ResourceInfo> probed = hub.probe(kSource);
     const std::shared_ptr<const image::ImageAsset> gif = hub.image(kSource);
 
     ctx.composer.render(gif ? sheet(*gif, probed) : missing());
@@ -149,7 +149,7 @@ struct GifFrames final : sketch::Sketch {
   }
 
   Element sheet(const image::ImageAsset& gif,
-                const std::optional<loader::ResourceInfo>& probed) const {
+                const std::optional<io::ResourceInfo>& probed) const {
     std::string foot = "Hub::probe() \xe2\x80\x94 ";
     if (probed)
       foot += probed->image.format + ", " + std::to_string(probed->byteSize) +

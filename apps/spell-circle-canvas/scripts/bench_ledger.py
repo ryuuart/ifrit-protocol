@@ -76,8 +76,8 @@ TOLERANCES = {
     # Sub-microsecond bodies: a hash, a lookup, a resolve. The timer's own
     # resolution and the loop overhead are a visible fraction of each.
     r":BM_Noise": 0.15,
-    r"^loader_bench:BM_Resolve": 0.15,
-    r"^loader_bench:BM_NetworkCacheKey": 0.15,
+    r"^io_bench:BM_Resolve": 0.15,
+    r"^io_bench:BM_NetworkCacheKey": 0.15,
     # The cold arms purge and refill a cache inside each repetition and
     # pay HarfBuzz for every word; allocator state moves them more than
     # the warm arms.

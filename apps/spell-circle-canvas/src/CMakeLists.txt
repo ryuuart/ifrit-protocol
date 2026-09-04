@@ -2,7 +2,8 @@
 #
 #   common/      libraries shared across products: skia/ (SigilSkia,
 #                Graphite bring-up), ui/ (Ifrit.Ui Qt Quick controls), image/
-#                (SigilImage), loader/ (SigilLoader), scry/ (SigilScry),
+#                (SigilImage), video/ (SigilVideo), io/ (SigilIO),
+#                scry/ (SigilScry),
 #                measure/ (SigilMeasure), motion/ (SigilMotion), core/ (SigilCore),
 #                geometry/ (SigilGeometry), world/ (SigilWorldElement,
 #                SigilWorldFrame, SigilWorldGraph, SigilWorldScene,
@@ -29,7 +30,8 @@ add_subdirectory(common/core)
 add_subdirectory(common/skia)
 add_subdirectory(common/ui)
 add_subdirectory(common/image)
-add_subdirectory(common/loader)
+add_subdirectory(common/video)
+add_subdirectory(common/io)
 if(SPELLCIRCLE_ENABLE_ULTRALIGHT)
   add_subdirectory(common/scry)
 endif()

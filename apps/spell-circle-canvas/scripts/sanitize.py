@@ -12,7 +12,7 @@ variable change recompiles everything it touches.
 
 Usage (from apps/spell-circle-canvas):
   scripts/sanitize.py                                # ASan+UBSan, full suite
-  scripts/sanitize.py --filter 'motion_test|loader_test'
+  scripts/sanitize.py --filter 'motion_test|io_test'
   scripts/sanitize.py --thread --filter 'motion_test'  # TSan lane
   scripts/sanitize.py --keep                         # leave the tree behind
 

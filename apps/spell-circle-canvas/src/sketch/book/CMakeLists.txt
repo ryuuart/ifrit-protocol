@@ -66,7 +66,8 @@ target_compile_definitions(Sketchbook PRIVATE
 target_include_directories(Sketchbook PRIVATE ${CMAKE_CURRENT_LIST_DIR})
 target_link_libraries(Sketchbook PRIVATE
   SigilSketchLive SigilSketchPlate SigilSketches SigilMeasure SigilWeavePorts
-  IfritUiplugin Qt6::Gui Qt6::GuiPrivate Qt6::Quick Qt6::QuickControls2)
+  IfritUiplugin Qt6::Gui Qt6::GuiPrivate Qt6::Quick Qt6::QuickControls2
+  Qt6::QuickDialogs2)
 
 # Sharing the sole Ultralight renderer is an opt-in property of this host,
 # separate from SigilScry's ordinary explicitly owned WebEngine path.
@@ -198,6 +199,15 @@ add_test(NAME sketch_reload_surface
   COMMAND Sketchbook
     ${SIGIL_SKETCH_DIR}/shapeworks_lab.cpp
     --frame ${CMAKE_BINARY_DIR}/sketch_reload_surface.png)
+
+# The video leaf reaches both an adapter header and codec archives that no
+# geometry-heavy sketch names. Its dynamic run proves the generated compile
+# surface carries SigilVideo's include root and the host exports decode and
+# encode for the guest after a Release configure as well as a Debug one.
+add_test(NAME sketch_reload_surface_video
+  COMMAND Sketchbook
+    ${SIGIL_SKETCH_DIR}/video_compose.cpp
+    --frame ${CMAKE_BINARY_DIR}/sketch_reload_surface_video.png)
 
 # …and the same guard for the other runtime: a set sketch names world
 # symbols no canvas sketch does, so a world archive missing from the list

@@ -2,17 +2,19 @@
 # declared moment and photographed, so a plate is a function of the
 # declaration alone and never of how fast the machine ran.
 add_library(SigilSketchPlate STATIC
+  Story.cpp
   Sweep.cpp
   ${SIGIL_SKETCH_INCLUDE_DIR}/sigilsketch/plate/FrameStats.h
   ${SIGIL_SKETCH_INCLUDE_DIR}/sigilsketch/plate/Graphite.h
+  ${SIGIL_SKETCH_INCLUDE_DIR}/sigilsketch/plate/Story.h
   ${SIGIL_SKETCH_INCLUDE_DIR}/sigilsketch/plate/Sweep.h
 )
 target_compile_features(SigilSketchPlate PUBLIC cxx_std_20)
-# The loader's byte writer a plate is saved through is read in the
+# The IO byte writer a plate is saved through is read in the
 # source alone.
 target_link_libraries(SigilSketchPlate
-  PUBLIC SigilSketchCore SigilMeasure SigilImageEncode
-  PRIVATE SigilLoaderSource)
+  PUBLIC SigilSketchCore SigilMeasure SigilImageEncode SigilVideoCore
+  PRIVATE SigilIOSource SigilVideoEncode SigilWeaveFonts)
 set_target_properties(SigilSketchPlate PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 # The device lane: a process-owned device and queue with a Graphite

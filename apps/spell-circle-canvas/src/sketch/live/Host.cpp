@@ -11,7 +11,7 @@
 #include <include/core/SkData.h>
 #include <include/core/SkSurface.h>
 #include <sigilimage/encode/Encode.h>
-#include <sigilloader/source/Sink.h>
+#include <sigilio/source/Sink.h>
 #include <sigilsketch/core/Sources.h>
 #include <signal.h>
 #include <unistd.h>
@@ -675,7 +675,7 @@ bool Host::capture(const std::filesystem::path& out, float scale) {
   // file are the sink's business, not this one's.
   const sk_sp<SkData> png =
       image::encodeImage(bitmap.pixmap(), image::Format::Png);
-  return png && loader::writeBytes(out, png->data(), png->size());
+  return png && io::writeBytes(out, png->data(), png->size());
 }
 
 }  // namespace sigil::sketch

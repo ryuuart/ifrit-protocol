@@ -27,7 +27,11 @@ add_library(SigilSketchCore STATIC
 )
 target_compile_features(SigilSketchCore PUBLIC cxx_std_20)
 target_include_directories(SigilSketchCore PUBLIC ${SIGIL_SKETCH_INCLUDE_DIR})
-target_link_libraries(SigilSketchCore PUBLIC SigilLoader SigilCoreComparable)
+target_link_libraries(SigilSketchCore PUBLIC
+  SigilCoreComparable
+  SigilImageAsset
+  SigilIO
+  SigilVideoDecode)
 set_target_properties(SigilSketchCore PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 add_executable(sketch_core_test test/AssetsTest.cpp test/CrashTest.cpp
@@ -35,7 +39,9 @@ add_executable(sketch_core_test test/AssetsTest.cpp test/CrashTest.cpp
   test/RegistryTest.cpp
   test/SourcesTest.cpp)
 target_include_directories(sketch_core_test PRIVATE ${SIGIL_TEST_SUPPORT_DIR})
-target_link_libraries(sketch_core_test PRIVATE SigilSketchCore
+target_link_libraries(sketch_core_test PRIVATE
+  SigilSketchCore
+  SigilVideoEncode
   GTest::gtest_main)
 add_test(NAME sketch_core_test COMMAND sketch_core_test)
 

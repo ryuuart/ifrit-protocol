@@ -11,9 +11,13 @@
 #define SIGIL_SKETCH_STATIC "sweep_probe"
 
 #include <gtest/gtest.h>
+#include <include/core/SkBitmap.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/plate/Story.h>
 #include <sigilsketch/plate/Sweep.h>
+#include <sigilvideo/decode/Decode.h>
 
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <string>
@@ -45,6 +49,21 @@ struct Probe : Sketch {
                             .height(10)
                             .inset((float)elapsed * 20.0f, 0, 0, 0)
                             .fill(Fill::color({1, 0, 0, 1})));
+  }
+};
+
+/** Red until a deliberately late capture moment, then green and still. The
+ *  Story tests can distinguish an honest pre-roll from an early loading cut,
+ *  and can measure whether editorial motion shifted its frame. */
+struct StoryMomentProbe : Sketch {
+  void setup(SketchContext& ctx) override {
+    ctx.canvas(64, 48);
+    ctx.background({0, 0, 0, 1});
+    ctx.captureAt(2.0);
+  }
+  void update(double elapsed, SketchContext& ctx) override {
+    ctx.composer.render(box().width(64).height(48).fill(Fill::color(
+        elapsed > 1.9 ? SkColor4f{0, 1, 0, 1} : SkColor4f{1, 0, 0, 1})));
   }
 };
 
@@ -113,6 +132,36 @@ Extent extentOf(const std::filesystem::path& path) {
 std::vector<char> bytesOf(const std::filesystem::path& path) {
   std::ifstream in(path, std::ios::binary);
   return {std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>()};
+}
+
+struct PixelBounds {
+  int left = 0;
+  int top = 0;
+  int right = -1;
+  int bottom = -1;
+
+  bool operator==(const PixelBounds&) const = default;
+};
+
+PixelBounds greenBounds(const SkImage& image) {
+  SkBitmap bitmap;
+  bitmap.allocN32Pixels(image.width(), image.height());
+  if (!image.readPixels(bitmap.pixmap(), 0, 0)) return {};
+  PixelBounds bounds{image.width(), image.height(), -1, -1};
+  for (int y = 0; y < image.height(); ++y) {
+    for (int x = 0; x < image.width(); ++x) {
+      const SkColor color = bitmap.getColor(x, y);
+      const int red = SkColorGetR(color);
+      const int green = SkColorGetG(color);
+      const int blue = SkColorGetB(color);
+      if (green < 150 || green < red + 70 || green < blue + 70) continue;
+      bounds.left = std::min(bounds.left, x);
+      bounds.top = std::min(bounds.top, y);
+      bounds.right = std::max(bounds.right, x);
+      bounds.bottom = std::max(bounds.bottom, y);
+    }
+  }
+  return bounds;
 }
 
 SweepOptions ledgerRun(const std::filesystem::path& outDir) {
@@ -202,6 +251,49 @@ TEST(Sweep, KeepsTheWidthCeilingForASketchThatDeclaresNoOversample) {
   EXPECT_EQ(plate.width, 2400u);
 }
 
+TEST(Story, EncodesASelectedSketchAsVerticalMp4) {
+  const ScratchDir out("sigil_story_selected");
+  StoryOptions options;
+  options.out = (out.path / "story.mp4").string();
+  options.only = find("story_moment_probe");
+  options.width = 360;
+  options.height = 640;
+  options.framesPerSecond = 10;
+  options.framesPerSketch = 3;
+  options.introFrames = 0;
+  options.outroFrames = 0;
+  options.bitRate = 500'000;
+  options.hardware = sigil::video::HardwarePreference::Disabled;
+  ASSERT_GE(options.only, 0);
+  ASSERT_EQ(0, story(options, fonts(), assets()));
+
+  const std::vector<char> encoded = bytesOf(options.out);
+  ASSERT_FALSE(encoded.empty());
+  const auto* bytes = reinterpret_cast<const std::byte*>(encoded.data());
+  const std::optional<sigil::video::VideoProbe> probe =
+      sigil::video::probeVideo(bytes, encoded.size(), options.out);
+  ASSERT_TRUE(probe);
+  EXPECT_EQ(probe->width, 360);
+  EXPECT_EQ(probe->height, 640);
+  EXPECT_NEAR(probe->frameRate, 10.0, 0.1);
+  EXPECT_GE(probe->durationSeconds, 0.29);
+
+  const std::shared_ptr<sigil::video::Video> clip = sigil::video::decodeVideo(
+      bytes, encoded.size(),
+      {.hardware = sigil::video::HardwarePreference::Disabled}, options.out);
+  ASSERT_TRUE(clip);
+  const sigil::video::VideoFrame first = clip->frameAt(0.0);
+  const sigil::video::VideoFrame last = clip->frameAt(0.2);
+  ASSERT_TRUE(first.image);
+  ASSERT_TRUE(last.image);
+  const PixelBounds firstBounds = greenBounds(*first.image);
+  const PixelBounds lastBounds = greenBounds(*last.image);
+  EXPECT_GE(firstBounds.right, firstBounds.left)
+      << "the first video frame was captured before the declared moment";
+  EXPECT_EQ(firstBounds, lastBounds)
+      << "the fitted sketch moved inside its story card";
+}
+
 /** The extra fixtures, recorded by hand: the registration macro files
  *  ONE sketch per translation unit, and the two wide ones are a pair
  *  that only means anything read together. */
@@ -214,6 +306,10 @@ TEST(Sweep, KeepsTheWidthCeilingForASketchThatDeclaresNoOversample) {
 [[maybe_unused]] const bool ungroundedRegistered =
     add("ungrounded", nullptr, "Test", "a sketch this machine cannot draw",
         &kindOf<Ungrounded>, &probeOf<Ungrounded>);
+[[maybe_unused]] const bool storyMomentRegistered =
+    add("story_moment_probe", nullptr, "Test",
+        "a late capture moment held in a fixed video frame",
+        &kindOf<StoryMomentProbe>);
 
 }  // namespace
 

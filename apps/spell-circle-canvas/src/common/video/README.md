@@ -1,0 +1,166 @@
+# SigilVideo
+
+Video meaning for Skia applications: encoded container bytes open as a
+seekable, streaming `Video`; frames decode around the playhead and stay in a
+small presentation cache; pixels flow the other direction through an
+incremental `Encoder` and finish as container bytes. FFmpeg supplies container
+and codec support. SigilVideo owns no paths, URIs, network policy, or files —
+SigilIO fetches encoded bytes and stores the bytes an encoder returns.
+
+Namespace `sigil::video`. The targets are deliberately separable:
+
+| target | holds |
+|---|---|
+| `SigilVideoCore` | shared hardware policy and native-frame vocabulary |
+| `SigilVideoDevice` | platform-native frame executor; VideoToolbox pixel buffers become Metal Y and UV textures for Graphite on Apple platforms |
+| `SigilVideoDecode` | FFmpeg demux and decode, seeking, frame cache, CPU conversion, and dispatch to the device executor |
+| `SigilVideoEncode` | FFmpeg video encoding and MP4 muxing into memory |
+| `SigilVideo` | umbrella over decode and encode |
+
+## Decode and compose
+
+```cpp
+#include <sigilvideo/decode/Decode.h>
+
+auto bytes = hub.blob("res://motion/title.mp4");
+auto clip = sigil::video::decodeVideo(bytes->bytes.data(), bytes->bytes.size());
+
+clip->draw(canvas, destination, elapsedSeconds);
+```
+
+`Video` copies the encoded input because demuxing and later seeks outlive the
+call that created it. Opening finds the best video stream and prepares its
+decoder; it does not decode the whole file. `frameAt()` seeks when needed,
+decodes forward to the requested presentation time, and retains only
+`DecodeOptions::cachedFrames` decoded frames.
+
+Alpha-bearing video is reported by `VideoProbe::hasAlpha` and produces
+premultiplied `VideoFrame` images. WebM VP8 and VP9 alpha use FFmpeg's libvpx
+decoder because the container carries the alpha bitstream beside the colour
+bitstream. Platform hardware decoders that expose only opaque YUV surfaces are
+skipped for those clips; the decoded premultiplied frame is cached and uploads
+through Skia when it is drawn on a GPU canvas. Requiring hardware decode rejects
+an alpha clip rather than silently dropping its alpha plane.
+
+With `HardwarePreference::Preferred`, Apple builds first request a
+VideoToolbox decoder. A hardware frame carries its `CVPixelBuffer` as a
+`NativeFrame`, so a platform host may publish it through a display-overlay
+path without converting it. When `frameAt()` receives the Graphite recorder
+owned by the destination canvas, the device executor makes Metal views of the
+pixel buffer's Y and UV planes and gives those textures to Skia's YUVA image
+factory. Drawing that image composites video on the GPU without an RGBA upload
+or CPU colour conversion. One texture cache serves every decoder on the same
+Metal device, and one wrapped image per decoded frame can feed any number of
+draws.
+A raster canvas, an unsupported native pixel format, or a disabled device
+policy transfers and converts through the CPU executor.
+
+The native device passed in `DecodeOptions::metalDevice` must be the device
+behind the destination recorder. Null selects the system Metal device. A host
+with an explicit device should always pass it.
+
+## Asynchronous presentation
+
+`Playback` is the many-video presentation path. It owns a bounded decoder
+worker pool over a multi-producer, multi-consumer queue, coalesces repeated
+requests that still fall inside the displayed source frame or match the
+in-flight request, and lets newer requests replace queued stale work. The
+render thread only requests a time and reads the last complete frame:
+
+```cpp
+#include <sigilvideo/decode/Playback.h>
+
+sigil::video::Playback playback;
+auto handle = playback.add(clip);
+
+playback.request(handle, elapsedSeconds);
+auto frame = playback.frame(handle, canvas.recorder());
+if (frame.image) canvas.drawImage(frame.image, 0, 0);
+```
+
+Request the initial presentation time immediately after `add()` to prefetch it
+while the scene is being assembled. `ready(handle)` lets a host keep one loading
+cover visible until every source has produced a frame. Several draw leaves may
+reuse one handle when they show the same source clock; the completed native or
+raster frame is then mapped once and fanned out without another decode.
+
+Hardware frames cross the queue as retained native surfaces and are mapped to
+Graphite only by `frame()`. Software and alpha decode happens on a worker and
+crosses as an immutable raster image. A device may cap its simultaneous native
+decoder sessions; `Preferred` lets excess streams decode on workers while the
+render thread keeps GPU-compositing every resulting image. `Required` rejects
+a frame if the codec opens a hardware configuration but the device later
+refuses to produce a native surface.
+
+## Encode and export
+
+```cpp
+#include <sigilio/source/Sink.h>
+#include <sigilvideo/encode/Encode.h>
+
+auto encoder = sigil::video::Encoder::make(
+    sigil::video::Format::Mp4,
+    {.width = 1080, .height = 1920, .framesPerSecond = 30});
+
+for (const SkPixmap& frame : frames)
+  encoder->append(frame);
+
+sk_sp<SkData> mp4 = encoder->finish();
+sigil::io::writeBytes("story.mp4", mp4->data(), mp4->size());
+```
+
+MP4 output uses H.264. The encoder prefers the platform hardware encoder and
+falls back to OpenH264 unless hardware is required.
+Every input is resized and converted to the codec's YUV format. Dimensions,
+frame rate, and bit rate are fixed for the encoder's lifetime; odd dimensions
+are rejected because interoperable 4:2:0 H.264 requires complete chroma
+samples.
+
+`finish()` flushes the delayed codec frames, writes the MP4 trailer, and hands
+back one `SkData`. The result can go through `Hub::write()` or any
+`ByteSink`; the encoder never opens an output path.
+
+## Caching and ownership
+
+The least-recently-used cache stores decoded presentation frames, not rendered
+copies of the whole video. Native frames retain their platform surface, raster
+frames retain their pixel data, and a Graphite wrap retains the texture planes
+until Skia releases them. Seeking flushes codec state but does not invalidate
+cached frames that still cover a later request, so repeated seek points remain
+hot while they fit the configured capacity. Cache capacity zero is normalized
+to one.
+
+`Video` and `Encoder` are not thread-safe. A player that decodes on one thread
+and draws on another transfers `VideoFrame` values across its own queue; it
+does not call one `Video` concurrently.
+
+## Boundary
+
+SigilVideo owns temporal media meaning: containers, codecs, frame timestamps,
+pixel formats, hardware video surfaces, and muxing. SigilSkia continues to own
+the Graphite context and recorder. SigilCompose supplies a retained leaf that
+samples a `Video` against its motion clock. SigilIO owns access and export.
+None of those libraries re-export SigilVideo's vocabulary.
+
+Audio streams are detected in `VideoProbe` but are not decoded or encoded.
+Timing is therefore a video clock only. Subtitle streams and alpha-video
+encoding are outside this surface.
+
+## Build and test
+
+From `apps/spell-circle-canvas`:
+
+```sh
+python3 scripts/setup.py --config Debug
+cmake --build build --config Debug --target video_decode_test video_encode_test
+ctest --test-dir build -C Debug -R video_ --output-on-failure
+```
+
+`video_encode_test` creates a short MP4 in memory, decodes it through
+`SigilVideoDecode`, and checks its timing and changing pixels.
+`video_decode_test` covers malformed input, seeking, cache behavior, and the
+hardware-policy failure contract. The native device path is exercised on a
+Graphite Metal surface where the platform makes VideoToolbox available.
+`video_device_bench --async --streams 100 --surfaces 100 --rate 120` exercises
+independent mixed-resolution clocks through the worker pool and reports native,
+ready, and fresh frame percentages separately from render-thread frame time.

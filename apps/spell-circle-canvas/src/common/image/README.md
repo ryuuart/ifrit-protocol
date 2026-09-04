@@ -79,8 +79,8 @@ if (auto format = sigil::image::formatForPath(out))
   bytes = sigil::image::encodeImage(*image, *format);
 ```
 
-Where those bytes then go is SigilLoader's half:
-`loader::writeBytes(path, bytes->data(), bytes->size())` for a plain path,
+Where those bytes then go is SigilIO's half:
+`io::writeBytes(path, bytes->data(), bytes->size())` for a plain path,
 `hub.write(uri, …)` for one behind a mount.
 
 ## Mental model
@@ -142,7 +142,7 @@ returns `nullopt` no matter which backends are built in. Only the free
 functions in `decode/Decode.h` route.
 
 Nothing here opens a file. `ImageAsset` takes `SkData`, `decode/Decode.h` takes
-a byte range; a caller with a path reads it (SigilLoader's `Hub::image`
+a byte range; a caller with a path reads it (SigilIO's `Hub::image`
 is the usual way, `SkData::MakeFromFileName` the bare one) and hands the
 bytes in.
 
@@ -216,8 +216,8 @@ SigilImage owns **meaning**: format sniffing, decode and encode backends,
 probing, channel and layer semantics, colour type choice, and the quality
 and depth decisions a format offers. It owns nothing about *access* —
 where bytes come from, where they go, how they are named, whether they are
-cached or reloaded when they change. That is SigilLoader's half, and
-SigilLoader adds no format knowledge in return. Nothing here opens a file
+cached or reloaded when they change. That is SigilIO's half, and
+SigilIO adds no format knowledge in return. Nothing here opens a file
 in either direction: `encodeImage()` hands bytes back the way
 `decodeImage()` takes them in.
 

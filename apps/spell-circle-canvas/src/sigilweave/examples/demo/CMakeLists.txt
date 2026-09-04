@@ -16,4 +16,4 @@ add_executable(weave_demo
 )
 target_link_libraries(weave_demo PRIVATE SigilWeave SigilWeaveShaders
                                             SigilWeavePorts SigilWeaveKit
-                                            SigilImageEncode SigilLoaderSource)
+                                            SigilImageEncode SigilIOSource)

@@ -2074,7 +2074,7 @@
     "repetitions": 4
    }
   },
-  "loader_hub_bench": {
+  "io_hub_bench": {
    "BM_Blob_CacheHit/1": {
     "real_ns": 13.34759565902335,
     "cpu_ns": 13.315757943810187,

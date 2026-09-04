@@ -19,6 +19,8 @@
 #   SigilComposeTesting     testing/     the read-back checks (headers)
 #   SigilComposeTexture     texture/     a scene painted into a surface and
 #                                        handed over as a material texture
+#   SigilComposeVideo       video/       a streaming SigilVideo leaf sampled
+#                                        by the composer's motion clock
 #   SigilComposeWeb         web/         the Ultralight leaf (headers; only
 #                                        with SigilScry)
 #   SigilComposeDraw        draw/        the door to SigilDraw's pen, both
@@ -105,6 +107,7 @@ add_subdirectory(testing)
 add_subdirectory(typography)
 add_subdirectory(brush)
 add_subdirectory(texture)
+add_subdirectory(video)
 add_subdirectory(web)
 add_subdirectory(draw)
 add_subdirectory(kit)
@@ -181,7 +184,7 @@ add_test(NAME compose_api_doc_probes_self_test
 
 _compose_test_binary(compose_docs_test
   LIBRARIES SigilComposeCore SigilComposeKit SigilComposeBrush
-            SigilComposeTypography SigilComposeDraw
+            SigilComposeTypography SigilComposeVideo SigilComposeDraw
   SOURCES
     ${COMPOSE_API_DOC_PROBES}
     test/ComposeTestEngineDocs.cpp

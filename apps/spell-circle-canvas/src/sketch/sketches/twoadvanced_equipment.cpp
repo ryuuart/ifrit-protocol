@@ -26,10 +26,10 @@
 //   · bottomframe.htm: ecom-bottombar.gif 790×11.
 //
 // Every bitmap above is fetched from the restoration host over
-// SigilLoader's https path (disk-cached after the first run); a missing
+// SigilIO's https path (disk-cached after the first run); a missing
 // fetch leaves a flat #7C252C or white stand-in so the sketch still
 // renders offline. But a stand-in page is not the page this header
-// describes, so `available()` asks the loader's cache first and stands
+// describes, so `available()` asks SigilIO's cache first and stands
 // the sketch down BY NAME on a machine that has never fetched, rather
 // than publishing a second picture under the same one. The type is
 // Verdana at HTML size=1 — 10 px — which macOS ships.
@@ -153,7 +153,7 @@ struct TwoAdvancedEquipment : sketch::Sketch {
   /** THE STORE'S BITMAPS ARE RUNTIME DATA, and a sketch over runtime data
    *  a machine may not have says so rather than drawing a second picture
    *  under the same name. Every GIF and JPEG on this frameset comes off
-   *  the restoration host through the loader's https path, which caches
+   *  the restoration host through SigilIO's https path, which caches
    *  on disk; `img()` keeps a flat maroon-or-white stand-in at every use
    *  site, so a cold cache still renders — but it renders the STAND-IN
    *  page, and the plate this sketch is judged on is then not the picture
@@ -413,7 +413,7 @@ struct TwoAdvancedEquipment : sketch::Sketch {
 
     // --- every bitmap the frameset names, from the restoration host ------
     {
-      sigil::loader::Hub& hub = ctx.assets.hub();
+      sigil::io::Hub& hub = ctx.assets.hub();
       const std::string base =
           "https://v4prophecy.2advanced.com/equipment/index_files/";
       auto fetch = [&](const char* dir, const char* name) {

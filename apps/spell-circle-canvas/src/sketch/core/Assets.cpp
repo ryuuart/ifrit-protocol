@@ -3,7 +3,7 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkSurface.h>
-#include <sigilloader/hub/Network.h>
+#include <sigilio/hub/Network.h>
 
 #include <system_error>
 
@@ -51,8 +51,26 @@ std::shared_ptr<const sigil::image::ImageAsset> Assets::image(
   return m_placeholder;
 }
 
+std::shared_ptr<sigil::video::Video> Assets::video(
+    std::string_view name, const sigil::video::DecodeOptions& options) {
+  for (const CachedVideo& cached : m_videos)
+    if (cached.name == name && cached.options == options) return cached.clip;
+
+  const std::string uri = uriFor(name);
+  const std::shared_ptr<const sigil::io::Bytes> encoded = m_hub.blob(uri);
+  if (!encoded) return nullptr;
+  std::shared_ptr<sigil::video::Video> clip =
+      sigil::video::decodeVideo(encoded->bytes.data(), encoded->bytes.size(),
+                                options, m_hub.resolve(uri));
+  if (clip)
+    m_videos.push_back(
+        {.name = std::string(name), .options = options, .clip = clip});
+  return clip;
+}
+
 bool Assets::poll() {
   bool changed = m_hub.poll();
+  if (changed) m_videos.clear();
   // Placeholders heal the moment their file becomes loadable.
   for (auto it = m_placeholders.begin(); it != m_placeholders.end();) {
     if (m_hub.image(uriFor(it->first))) {
@@ -68,7 +86,7 @@ bool Assets::poll() {
 bool requireCached(std::initializer_list<std::string_view> urls,
                    std::string* why, const std::filesystem::path& cacheDir) {
   const std::filesystem::path dir =
-      cacheDir.empty() ? sigil::loader::defaultNetworkCacheDir() : cacheDir;
+      cacheDir.empty() ? sigil::io::defaultNetworkCacheDir() : cacheDir;
   for (std::string_view url : urls) {
     // A fetch persists only when it succeeded — an HTTP error writes
     // nothing — so the file standing under the URL's own cache key is
@@ -76,13 +94,12 @@ bool requireCached(std::initializer_list<std::string_view> urls,
     // that was interrupted leaves a file that is there and holds
     // nothing, and a sketch given nothing draws its stand-in anyway.
     std::error_code ec;
-    const std::filesystem::path cached =
-        dir / sigil::loader::networkCacheKey(url);
+    const std::filesystem::path cached = dir / sigil::io::networkCacheKey(url);
     if (std::filesystem::is_regular_file(cached, ec) && !ec &&
         std::filesystem::file_size(cached, ec) > 0 && !ec)
       continue;
     if (why)
-      *why = "not in the loader's network cache on this machine \xe2\x80\x94 " +
+      *why = "not in the IO hub's network cache on this machine \xe2\x80\x94 " +
              std::string(url);
     return false;
   }

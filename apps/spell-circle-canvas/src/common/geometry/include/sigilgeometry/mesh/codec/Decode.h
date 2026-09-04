@@ -26,11 +26,11 @@
  * references (.mtl libraries, .bin buffers, texture files) are pulled
  * through the caller's Resolver, so the same import runs over a
  * directory (the path overload wires sibling files up automatically),
- * a SigilLoader Hub (res:// mounts or http(s):// behind its offline
+ * a SigilIO Hub (res:// mounts or http(s):// behind its offline
  * disk cache), or anything else that maps a relative URI to bytes.
  * Textures are NOT decoded here — a Part carries the encoded bytes
  * (or the unresolved URI); what pixels mean stays SigilImage's
- * concern, exactly as with the loader.
+ * concern, exactly as with SigilIO.
  */
 
 #include <cstddef>

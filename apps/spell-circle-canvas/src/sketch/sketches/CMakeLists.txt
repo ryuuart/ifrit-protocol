@@ -146,10 +146,11 @@ target_link_libraries(SigilSketches PUBLIC
   SigilSketchCanvas SigilSketchSet SigilSketchDraw
   SigilDrawKit
   SigilCompose SigilComposeTexture SigilComposeTesting SigilComposeDraw
+  SigilComposeVideo
   SigilGeometry SigilMaterial
   SigilWeave SigilWeaveKit SigilWeavePorts
   SigilWorldElement SigilWorldFrame SigilWorldScene SigilWorldKit
-  SigilCoreCompute SigilImage SigilMotion SigilLoader
+  SigilCoreCompute SigilImage SigilVideo SigilMotion SigilIO
   ${SIGIL_SKETCH_OPTIONAL_LIBRARIES})
 # This directory is on the include path for one reason: a module under
 # shared/ is spelled <shared/Name.h>, so the include names the layer.

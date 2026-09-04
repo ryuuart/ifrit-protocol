@@ -10,7 +10,7 @@
  * decoder fails to decode.
  *
  * Resource ACCESS — where the bytes go, under what name, through which
- * mount — is SigilLoader's concern; this header only ever hands bytes
+ * mount — is SigilIO's concern; this header only ever hands bytes
  * back.
  */
 

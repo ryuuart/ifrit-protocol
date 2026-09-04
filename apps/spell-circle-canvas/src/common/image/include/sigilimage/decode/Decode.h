@@ -13,7 +13,7 @@
  * rasterizes SVG sources at DecodeOptions::width/height (intrinsic size
  * by default).
  *
- * Resource ACCESS (URIs, mounts, caching, hot reload) is SigilLoader's
+ * Resource ACCESS (URIs, mounts, caching, hot reload) is SigilIO's
  * concern; this header only ever sees bytes.
  */
 

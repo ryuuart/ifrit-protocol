@@ -34,7 +34,7 @@
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/codec/Decode.h>
 #include <sigilgeometry/mesh/pop/Pop.h>
-#include <sigilloader/Loader.h>
+#include <sigilio/IO.h>
 #include <sigilmaterial/kit/Surface.h>
 #include <sigilsketch/set/Set.h>
 #include <sigilworld/kit/Kit.h>
@@ -50,7 +50,7 @@
 namespace sketch = sigil::sketch;
 namespace world = sigil::world;
 namespace material = sigil::material;
-namespace loader = sigil::loader;
+namespace io = sigil::io;
 namespace gm = sigil::geometry::mesh;
 
 namespace {
@@ -72,7 +72,7 @@ constexpr std::string_view kModel = "res://models/Avocado.glb";
  *  which. */
 std::optional<gm::Mesh> imported(sketch::Assets& assets) {
   const std::string uri(kModel);
-  const std::shared_ptr<const loader::Bytes> bytes = assets.hub().blob(uri);
+  const std::shared_ptr<const io::Bytes> bytes = assets.hub().blob(uri);
   if (!bytes || bytes->bytes.empty()) return std::nullopt;
   const std::optional<gm::codec::decode::Model> model =
       gm::codec::decode::model(bytes->bytes.data(), bytes->bytes.size(), uri);

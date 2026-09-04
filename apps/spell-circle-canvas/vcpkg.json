@@ -12,6 +12,17 @@
     "diligent-engine",
     "earcut-hpp",
     "entt",
+    {
+      "name": "ffmpeg",
+      "default-features": false,
+      "features": [
+        "avcodec",
+        "avformat",
+        "openh264",
+        "swscale",
+        "vpx"
+      ]
+    },
     "flatbuffers",
     "glm",
     "gtest",

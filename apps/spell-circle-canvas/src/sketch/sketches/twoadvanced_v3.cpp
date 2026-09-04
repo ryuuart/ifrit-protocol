@@ -13,7 +13,7 @@
 //     layer this sketch rebuilds: "upper bevel bar", "top bar navigation",
 //     "mid ui top modules", "lwr txt left module.stdby", "SCROLL.EXTENDED.
 //     CONTENT", "AMBIENCE.MUTE". This sketch downloads that exact file
-//     over SigilLoader's https path and lifts the art straight out of it
+//     over SigilIO's https path and lifts the art straight out of it
 //     (PNG signature scan; each embedded image is preceded by its asset
 //     name). The type inside is Berthold Akzidenz-Grotesk — substituted
 //     here with the nearest faces the platform ships.
@@ -169,14 +169,14 @@ struct TwoAdvancedV3 : sketch::Sketch {
   /** THE PRODUCTION ART IS RUNTIME DATA, and a sketch over runtime data a
    *  machine may not have says so rather than drawing a second picture
    *  under the same name. Every bitmap on this page comes off the
-   *  studio's own host through the loader's https path, which caches on
+   *  studio's own host through SigilIO's https path, which caches on
    *  disk; the use sites all keep a procedural stand-in, so a cold cache
    *  renders — but it renders the STAND-IN page, and the plate this
    *  sketch is judged on is then not the picture the header describes.
    *  Two plates, one name is the one thing a byte-identity sweep cannot
    *  survive.
    *
-   *  So the probe asks the loader's own cache what is on disk. A machine
+   *  So the probe asks SigilIO's own cache what is on disk. A machine
    *  that has fetched once is available forever after and offline; a
    *  machine that never has is UNAVAILABLE by name, with the first
    *  missing URL as the reason, and the ledger stands it down rather
@@ -1189,7 +1189,7 @@ struct TwoAdvancedV3 : sketch::Sketch {
     // every later run is served locally; a failed fetch leaves the
     // pointer null and the use site builds its steel stand-in.
     {
-      sigil::loader::Hub& hub = ctx.assets.hub();
+      sigil::io::Hub& hub = ctx.assets.hub();
       const std::string site = "https://v3.2advanced.com/";
       pageTile = hub.image(site + "V3ExpansionsReboot/assets/background.gif");
       socialSprite = hub.image(site +

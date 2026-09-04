@@ -31,7 +31,7 @@
 #include <pxr/usd/sdf/assetPath.h>
 #include <pxr/usd/usdLux/domeLight.h>
 #include <sigilimage/encode/Encode.h>
-#include <sigilloader/source/Sink.h>
+#include <sigilio/source/Sink.h>
 
 #include <algorithm>
 #include <cmath>
@@ -74,7 +74,7 @@ float writePanorama(const sk_sp<SkImage>& image,
   // function exists to keep are the caller's choice, and a readback
   // would pick eight.
   const sk_sp<SkData> png = image::encodeImage(bm.pixmap(), image::Format::Png);
-  if (!png || !loader::writeBytes(path, png->data(), png->size())) return 0;
+  if (!png || !io::writeBytes(path, png->data(), png->size())) return 0;
   return peak;
 }
 

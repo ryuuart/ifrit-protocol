@@ -10,7 +10,7 @@
 #include <include/core/SkPixmap.h>
 #include <include/core/SkSurface.h>
 #include <sigilimage/encode/Encode.h>
-#include <sigilloader/source/Sink.h>
+#include <sigilio/source/Sink.h>
 #include <sigilmeasure/time/Stopwatch.h>
 #include <sigilsketch/core/Assets.h>
 #include <sigilsketch/core/Crash.h>
@@ -70,7 +70,7 @@ constexpr float kPlateWidthCeiling = 2400.0f;
  *  half-written file must read as a failure rather than as a plate. */
 bool writePlate(const SkPixmap& pixels, const std::filesystem::path& path) {
   const sk_sp<SkData> png = image::encodeImage(pixels, image::Format::Png);
-  return png && loader::writeBytes(path, png->data(), png->size());
+  return png && io::writeBytes(path, png->data(), png->size());
 }
 
 /** The entries this run walks. */

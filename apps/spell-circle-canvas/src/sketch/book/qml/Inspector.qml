@@ -25,6 +25,7 @@ Rectangle {
 
     signal openRequested
     signal frameRequested
+    signal videoRequested
     signal benchRequested
     signal revealRequested
 
@@ -124,7 +125,7 @@ Rectangle {
             }
 
             // Open is the one that moves the canvas, so it stands alone
-            // on its own line; the three under it leave the window where
+            // on its own line; the actions under it leave the window where
             // it is and answer in the line below them.
             ColumnLayout {
                 Layout.fillWidth: true
@@ -160,6 +161,18 @@ Rectangle {
                     }
                     Button {
                         Layout.fillWidth: true
+                        text: "Video"
+                        enabled: !rail.taskRunning
+                            && rail.sketch.videoExportable
+                        ToolTip.visible: hovered
+                        ToolTip.delay: 700
+                        ToolTip.text: rail.sketch.videoExportable
+                            ? "Export this sketch as a vertical MP4"
+                            : "Video export requires a registry sketch"
+                        onClicked: rail.videoRequested()
+                    }
+                    Button {
+                        Layout.fillWidth: true
                         text: "Reveal"
                         ToolTip.visible: hovered
                         ToolTip.delay: 700
@@ -169,7 +182,7 @@ Rectangle {
                 }
             }
 
-            // What the last Frame or Bench run answered. Both answer on
+            // What the last Frame, Video or Bench run answered. Each answers on
             // one line by design, so one line is what is kept.
             Label {
                 Layout.fillWidth: true

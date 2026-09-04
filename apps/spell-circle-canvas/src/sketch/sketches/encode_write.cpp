@@ -4,7 +4,7 @@
  *
  * `encodeImage` hands BYTES back and nothing else. What the bytes mean,
  * where they land, under what name and through which mount is
- * SigilLoader's concern, and the two are separate on purpose: the
+ * SigilIO's concern, and the two are separate on purpose: the
  * encoder never looks at a filename, and `Hub::write` never looks at the
  * content. This sheet is one call of each, in that order.
  *
@@ -44,7 +44,7 @@
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilimage/asset/ImageAsset.h>
 #include <sigilimage/encode/Encode.h>
-#include <sigilloader/hub/Hub.h>
+#include <sigilio/hub/Hub.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
@@ -57,7 +57,7 @@
 namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
 namespace img = sigil::image;
-namespace loader = sigil::loader;
+namespace io = sigil::io;
 
 using namespace sigil::compose;
 using sigil::compose::toU8;
@@ -176,7 +176,7 @@ struct EncodeWrite final : sketch::Sketch {
     // names, mounts and directories.
     const std::filesystem::path dir =
         std::filesystem::temp_directory_path() / "sigil-encode-write";
-    loader::Hub hub;
+    io::Hub hub;
     hub.mount(kMount, dir);
     sk_sp<SkData> bytes = img::encodeImage(*art, img::Format::Png);
     const std::string uri = std::string(kMount) + "plate.png";
@@ -191,7 +191,7 @@ struct EncodeWrite final : sketch::Sketch {
     ctx.composer.render(
         kit::sheet(
             {.title = toU8("ENCODE, THEN WRITE \xc2\xb7 image::encodeImage, "
-                           "loader::Hub::write"),
+                           "io::Hub::write"),
              .subtitle =
                  toU8("dials \xc2\xb7 the format \xc2\xb7 the quality the "
                       "lossy ones honour (24) \xc2\xb7 the source's side "

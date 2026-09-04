@@ -39,8 +39,8 @@
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilimage/asset/ImageAsset.h>
 #include <sigilimage/encode/Encode.h>
-#include <sigilloader/hub/Hub.h>
-#include <sigilloader/source/Sink.h>
+#include <sigilio/hub/Hub.h>
+#include <sigilio/source/Sink.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
@@ -55,7 +55,7 @@
 namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
 namespace img = sigil::image;
-namespace loader = sigil::loader;
+namespace io = sigil::io;
 
 using namespace sigil::compose;
 using sigil::compose::toU8;
@@ -102,7 +102,7 @@ struct Cloud {
   std::vector<SkPoint> points;
 };
 
-std::optional<Cloud> parseCloud(const loader::Bytes& bytes, std::string_view) {
+std::optional<Cloud> parseCloud(const io::Bytes& bytes, std::string_view) {
   Cloud cloud;
   const std::string text(reinterpret_cast<const char*>(bytes.bytes.data()),
                          bytes.bytes.size());
@@ -155,16 +155,16 @@ struct HubReload final : sketch::Sketch {
         std::filesystem::temp_directory_path() / "sigil-hub-reload";
     std::filesystem::create_directories(dir);
     const auto put = [&](const char* name, const std::string& text) {
-      loader::writeBytes(dir / name, text.data(), text.size());
+      io::writeBytes(dir / name, text.data(), text.size());
     };
 
     // THE FIRST STATE on disk.
     put("notes.txt", kFirst);
     put("cloud.pts", "10 20\n40 64\n86 30\n120 78\n150 44\n");
     if (sk_sp<SkData> png = chart(3, kFigure))
-      loader::writeBytes(dir / "chart.png", png->data(), png->size());
+      io::writeBytes(dir / "chart.png", png->data(), png->size());
 
-    loader::Hub hub;
+    io::Hub hub;
     hub.mount(kMount, dir);
     hub.registerDecoder<Cloud>(parseCloud);
 
@@ -181,7 +181,7 @@ struct HubReload final : sketch::Sketch {
     put("notes.txt", kSecond);
     put("cloud.pts", "16 70\n52 26\n96 62\n128 22\n158 68\n");
     if (sk_sp<SkData> png = chart(6, {0.46f, 0.74f, 0.94f, 1}))
-      loader::writeBytes(dir / "chart.png", png->data(), png->size());
+      io::writeBytes(dir / "chart.png", png->data(), png->size());
     const bool moved = hub.poll();
 
     const std::optional<std::string> secondText = hub.text(notesUri);

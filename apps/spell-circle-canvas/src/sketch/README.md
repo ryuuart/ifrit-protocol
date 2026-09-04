@@ -179,7 +179,7 @@ mover, and the plates for such a sketch exist only on the machines where
 its SDK does.
 
 A sketch over FETCHED ART is the same shape with a different probe. Its
-bitmaps arrive over the loader's https path, which caches on disk, and
+bitmaps arrive over SigilIO's https path, which caches on disk, and
 every use site keeps a procedural stand-in so a cold cache still
 renders — but it renders the stand-in, and the plate the sketch is
 judged on is then not the picture its header describes. Two plates
@@ -193,7 +193,7 @@ static bool available(std::string* why) {
 }
 ```
 
-`requireCached` asks the loader's cache the loader's own way and never
+`requireCached` asks SigilIO's cache the IO hub's own way and never
 the network: a machine that has fetched once is available offline
 forever after, and one that never has stands down with the first
 missing URL as the reason.
@@ -492,6 +492,9 @@ Sketchbook <file.cpp> --bench [--bench-frames <n>] [--jitter-dt [amp]]
 Sketchbook --headless <outdir> [--gpu] [--sketch <name>] [--kind <k>]
            [--ledger] [--no-promotion] [--capture-at <s>]
            [--timing-json <path>]
+Sketchbook --video out.mp4 [--video-frames <n>] [--video-size <WxH>]
+           [--video-bitrate <bits>] [--fps <n>] [--sketch <name>]
+           [--kind <k>]
 Sketchbook --window-bench [<sec>] [--window-size <WxH>] [--window-scale <n>]
 … [--assets <dir>]                          # what mounts at res://
 … [--plates <dir>]                          # the stills the browser shows
@@ -515,6 +518,29 @@ plate's name.
 The app is a macOS bundle, so a headless run goes through the binary
 inside it:
 `build/bin/<config>/Sketchbook.app/Contents/MacOS/Sketchbook`.
+
+### `--video`: the video montage
+
+Encodes every selected, available registry sketch into one vertical H.264
+MP4. The default frame is 1080×1920 at 30 FPS, with ten output frames per
+sketch. Each session is opened and advanced in fixed display-sized steps to
+the moment it declared with `captureAt`; a sketch that declared no moment uses
+1.5 seconds. Recording begins there, so a long entrance or loading sequence is
+settled before its cut begins. Each cut is the sketch in one fixed fitted
+rectangle on black with its title in white. The sketch's own animation remains
+live; the montage adds no border, progress chrome, pulse, scan, or reveal wipe.
+
+`--video-frames` changes each sketch's share of the edit, `--video-size`
+changes the even output dimensions, `--video-bitrate` sets H.264 bits per
+second, and `--fps` changes both the encoder rate and the fixed scene clock.
+`--sketch` makes a one-sketch video and `--kind` limits the registry by
+runtime. Hardware H.264 is preferred and OpenH264 is the fallback. Unavailable
+sketches are named and skipped rather than encoded as failure cards.
+
+The app's **Export video** action writes the full registry through this path.
+The selected sketch's **Video** action writes a one-sketch cut; both use a
+native save dialog and run the encoder in a child Sketchbook process so the
+browser and its live canvas remain responsive.
 
 ### `--frame`: the asset workflow
 
@@ -754,7 +780,7 @@ embedding a scripting language — so a sketch never leaves the real API.
   typeinfo when every virtual is inline, `kindOf<T>` and the other
   function templates the registration macro takes the address of — and
   weak definitions COALESCE. Every image exporting one names the same
-  symbol, and the loader binds them all to whichever came first. The
+  symbol, and the dynamic loader binds them all to whichever came first. The
   executable is always first and carries its own copy of every sketch in
   the registry, so a guest at default visibility would hand back an entry
   whose factory is the host's: the build reports, the dlopen succeeds,
@@ -912,7 +938,7 @@ src/sketch/
   set/        the 3D runtime: a ticker and a retained Scene
   draw/       the immediate-mode runtime: a clock, a ticker, a pen and a surface that persists
   live/       the reload engine and the resident set
-  plate/      the headless sweep
+  plate/      the headless sweep and vertical Story video encoder
   book/       Sketchbook: the app, and the headless entry point
   sketches/   every sketch, one file or one directory each; shared/ beside them
 ```
@@ -976,6 +1002,10 @@ forgiving contract a live-edited file wants — a magenta placeholder
 stands in for a missing or undecodable file and heals the moment one
 appears, re-running the sketch's declaration — and `hub()` opens the
 full resource surface without the sketch ever touching the filesystem.
+`video()` opens encoded bytes as a streaming SigilVideo clip, caches one clip
+per URI and decode policy, and drops those clips when the hub observes the
+source changing. A video keeps only its small decoded-frame cache; the asset
+store does not expand the whole timeline into images.
 
 ## Build and test
 
@@ -993,7 +1023,8 @@ One test binary per feature, each linking that feature alone:
 `sketch_core_test` over the registry, the kind seam and where a sketch
 stands on disk, `sketch_canvas_test`, `sketch_set_test` and
 `sketch_draw_test` over the three sessions, `sketch_live_test` over the
-host and the resident set, `sketch_plate_test` over the sweep.
+host and the resident set, `sketch_plate_test` over the sweep and Story MP4
+exporter.
 
 `test/Support.h` at the library root holds what every one of them opens a
 session with — the one font context and the one asset store a process

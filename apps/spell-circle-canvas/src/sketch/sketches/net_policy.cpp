@@ -37,9 +37,9 @@
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilimage/asset/ImageAsset.h>
 #include <sigilimage/encode/Encode.h>
-#include <sigilloader/hub/Hub.h>
-#include <sigilloader/hub/Network.h>
-#include <sigilloader/source/Sink.h>
+#include <sigilio/hub/Hub.h>
+#include <sigilio/hub/Network.h>
+#include <sigilio/source/Sink.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
@@ -52,7 +52,7 @@
 namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
 namespace img = sigil::image;
-namespace loader = sigil::loader;
+namespace io = sigil::io;
 
 using namespace sigil::compose;
 using sigil::compose::toU8;
@@ -139,24 +139,24 @@ struct NetPolicy final : sketch::Sketch {
     const std::filesystem::path cacheDir =
         std::filesystem::temp_directory_path() / "sigil-net-policy";
     std::filesystem::create_directories(cacheDir);
-    const std::string key = loader::networkCacheKey(kSeeded);
+    const std::string key = io::networkCacheKey(kSeeded);
     if (sk_sp<SkData> bytes = seedBytes())
-      loader::writeBytes(cacheDir / key, bytes->data(), bytes->size());
+      io::writeBytes(cacheDir / key, bytes->data(), bytes->size());
 
     /** One hub, one policy, one ask — a hub of its own each time,
      *  because the policy governs the FIRST ask and an entry already
      *  loaded stays as it is. */
-    const auto ask = [&](loader::NetworkPolicy policy, const char* url) {
-      loader::Hub hub;
+    const auto ask = [&](io::NetworkPolicy policy, const char* url) {
+      io::Hub hub;
       hub.setNetworkCacheDir(cacheDir);
       hub.setNetworkPolicy(policy);
       return hub.image(url);
     };
 
-    const auto cacheFirst = ask(loader::NetworkPolicy::CacheFirst, kSeeded);
-    const auto offlineHit = ask(loader::NetworkPolicy::Offline, kSeeded);
-    const auto offlineMiss = ask(loader::NetworkPolicy::Offline, kMissing);
-    const auto refresh = ask(loader::NetworkPolicy::Refresh, kSeeded);
+    const auto cacheFirst = ask(io::NetworkPolicy::CacheFirst, kSeeded);
+    const auto offlineHit = ask(io::NetworkPolicy::Offline, kSeeded);
+    const auto offlineMiss = ask(io::NetworkPolicy::Offline, kMissing);
+    const auto refresh = ask(io::NetworkPolicy::Refresh, kSeeded);
 
     const auto verdict = [](const char* name,
                             const std::shared_ptr<const img::ImageAsset>& a) {

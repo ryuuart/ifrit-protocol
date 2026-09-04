@@ -19,7 +19,7 @@
 #include <pxr/usd/usdShade/output.h>
 #include <pxr/usd/usdShade/shader.h>
 #include <sigilimage/encode/Encode.h>
-#include <sigilloader/source/Sink.h>
+#include <sigilio/source/Sink.h>
 #include <sigilmaterial/core/Combine.h>
 #include <sigilmaterial/kit/Surface.h>
 
@@ -35,7 +35,7 @@ namespace {
 
 bool writePng(const sk_sp<SkImage>& image, const std::filesystem::path& path) {
   const sk_sp<SkData> png = image::encodeImage(*image, image::Format::Png);
-  return png && loader::writeBytes(path, png->data(), png->size());
+  return png && io::writeBytes(path, png->data(), png->size());
 }
 
 }  // namespace

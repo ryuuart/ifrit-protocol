@@ -53,7 +53,7 @@ struct Frame {
  * draw per frame). Not for streaming video-sized content.
  *
  * Bytes in, never a path: where bytes come from (files, URIs, caches)
- * is a resource loader's concern, and this type only ever sees memory.
+ * is SigilIO's concern, and this type only ever sees memory.
  */
 class ImageAsset {
  public:

@@ -20,10 +20,12 @@ Rectangle {
     /** "list" or "gallery". Written here, read by the window. */
     property string viewMode: "list"
     property bool inspectorOpen: true
+    property bool taskRunning: false
     property alias filterText: field.text
 
     signal viewModeRequested(string mode)
     signal inspectorToggled
+    signal videoRequested
     /** The filter field gives up the keyboard downwards: typing narrows
      *  the list, and the arrow that follows should move in it. */
     signal steppedOut
@@ -135,6 +137,16 @@ Rectangle {
         }
 
         Item { Layout.fillWidth: true }
+
+        Button {
+            text: "Export video"
+            enabled: !bar.taskRunning
+            implicitHeight: 28
+            ToolTip.visible: hovered
+            ToolTip.delay: 700
+            ToolTip.text: "Export every available sketch as a vertical MP4"
+            onClicked: bar.videoRequested()
+        }
 
         // The two ways of looking at the same registry. A gallery
         // answers "which one was that", a list answers "what is here" —

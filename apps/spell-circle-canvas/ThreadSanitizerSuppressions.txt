@@ -25,3 +25,10 @@
 # un-watching the standard-library atomics this repository's own threads
 # depend on.
 race:pxrInternal_*::VtValue
+
+# workaround: concurrentqueue publishes each constructed slot through a
+# release tail index and acquires that index before reading the slot. The
+# dependency identifies its lock-free operations as a TSan false-positive
+# boundary; suppressing its implementation leaves the scheduler's own slot,
+# frame and lifetime synchronization instrumented.
+race:moodycamel::ConcurrentQueue

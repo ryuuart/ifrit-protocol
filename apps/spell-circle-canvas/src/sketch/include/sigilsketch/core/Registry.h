@@ -115,7 +115,7 @@ bool add(const char* key, const char* name, const char* category,
  *  anything crossing the host/dylib line changes shape. A host refuses a
  *  dylib built against another version rather than letting a stale
  *  binary corrupt it. */
-inline constexpr unsigned kAbiVersion = 7;
+inline constexpr unsigned kAbiVersion = 8;
 
 }  // namespace sigil::sketch
 

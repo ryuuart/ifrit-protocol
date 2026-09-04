@@ -673,7 +673,21 @@ first installed family of a fallback chain
 (`<sigilweave/ports/SystemFontManager.h>`). `kit/Legibility.h` ships with
 this tier.
 
-**Leaves with their own targets.** `web/Web.h` makes a live
+**Leaves with their own targets.** `video/Video.h` makes a streaming
+`SigilVideo` clip a live leaf. `video(clip)` takes its intrinsic dimensions
+from the encoded frame, samples presentation time from the composer's motion
+clock, and disables picture caching while the clip's own decoded-frame cache
+stays active. On a Graphite canvas the leaf passes its recorder to the video
+device executor, so a native YUV frame remains on the GPU through composition;
+the compose kernel links no codec. `VideoFit::Cover`, `VideoFit::Contain` and
+`VideoFit::Stretch` state how the decoded frame meets its box. The leaf's
+`VideoOptions` also carries opacity and blend mode into its single image draw,
+so an additive black-backed effect does not need a grouping layer.
+`video(clip, playback)` is the many-video form: share one playback scheduler
+across the scene so decode work is coalesced on a bounded worker pool and no
+leaf waits for its decoder during paint. Registering a source once and passing
+its playback handle to several video leaves fans one decoded frame out to
+several compositions. `web/Web.h` makes a live
 Ultralight page a leaf; it is a header-only adapter and the library does
 not link SigilScry, so include it only in targets that do.
 `texture/Texture.h` is the door OUT of this library: a scene painted into
@@ -976,8 +990,8 @@ delta, advancing on the frames it is painted and standing still on the
 frames it is not. Neither side reads the wall, which is what keeps a
 plate with a pen in it reproducible.
 
-Deliberately *not* linked: SigilScry (the web leaf is a header-only
-adapter, exercised by its own test target), EnTT (the instancing header
+Deliberately *not* linked: SigilVideo and SigilScry (their live leaves are
+header-only adapters with their own targets), EnTT (the instancing header
 keeps the registry on your side), SigilGeometry beyond the path leaf and
 the mesh its silhouette shelf rests on (no camera, curve, point operator,
 renderer, codec or device), Diligent, and Qt — Qt identifiers are banned
@@ -1030,6 +1044,8 @@ engine behind dressed type), `SigilComposeBrush`
 the mask gates, with `kit/Strokes.h` and `kit/Plate.h`),
 `SigilComposeTexture` (`texture/` — a scene
 painted into a surface and handed out as a texture value),
+`SigilComposeVideo` (`video/` — a streaming SigilVideo clip sampled from the
+motion clock),
 `SigilComposeWeb` (`web/` — header-only, present only with SigilScry),
 `SigilComposeDraw` (`draw/` — the door to SigilDraw's pen, both ways),
 `SigilComposeTesting` (`testing/`) and `SigilComposeKit` (`kit/` — the

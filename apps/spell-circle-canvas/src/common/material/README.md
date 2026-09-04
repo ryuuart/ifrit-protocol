@@ -824,7 +824,7 @@ A recipe added to one of those features belongs in its list.
 
 The core links no renderer; the texture feature links Skia because a
 texture IS a Skia image with its sampling, and SigilImage because an
-asset is a source. SigilLoader owns resource access and SigilImage owns
+asset is a source. SigilIO owns resource access and SigilImage owns
 image meaning, so this library decodes nothing and opens no file — every
 door that needs pixels takes them or takes a decoder. SigilGeometry draws
 the normals passes and outlines a surface is shaded over, and links
