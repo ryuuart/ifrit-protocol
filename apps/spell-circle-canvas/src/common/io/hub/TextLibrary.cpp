@@ -62,6 +62,13 @@ std::optional<std::string> TextLibrary::text(std::string_view uri) {
   return store.hub.text(uri);
 }
 
+std::vector<std::string> TextLibrary::select(std::string_view selector) const {
+  TextStore& store = *m_impl->store;
+  const std::lock_guard lock(store.mutex);
+  if (!selector.starts_with(store.prefix)) return {};
+  return store.hub.select(selector);
+}
+
 size_t TextLibrary::preload(std::span<const std::string_view> uris) {
   TextStore& store = *m_impl->store;
   const std::lock_guard lock(store.mutex);
@@ -70,10 +77,17 @@ size_t TextLibrary::preload(std::span<const std::string_view> uris) {
   return store.hub.preload(uris);
 }
 
+size_t TextLibrary::preload(std::string_view selector) {
+  TextStore& store = *m_impl->store;
+  const std::lock_guard lock(store.mutex);
+  if (!selector.starts_with(store.prefix)) return 0;
+  return store.hub.preload(selector);
+}
+
 size_t TextLibrary::preload() {
   TextStore& store = *m_impl->store;
   const std::lock_guard lock(store.mutex);
-  return store.hub.preloadDirectory(store.prefix);
+  return store.hub.preload(store.prefix);
 }
 
 bool TextLibrary::poll() {

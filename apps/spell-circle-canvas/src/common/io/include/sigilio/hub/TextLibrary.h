@@ -11,6 +11,7 @@
 #include <span>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace sigil::io {
 
@@ -35,8 +36,13 @@ class TextLibrary {
   /** Text at @p uri, or no value when it is outside this library or missing. */
   std::optional<std::string> text(std::string_view uri);
 
+  /** The regular-file URIs named by an exact file, directory, or glob. */
+  std::vector<std::string> select(std::string_view selector) const;
+
   /** Fetches the distinct URIs concurrently into the byte cache. */
   size_t preload(std::span<const std::string_view> uris);
+  /** Selects an exact file, directory, or glob and fetches its files. */
+  size_t preload(std::string_view selector);
   /** Fetches every regular file below the root concurrently. */
   size_t preload();
 

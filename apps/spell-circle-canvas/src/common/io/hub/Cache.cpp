@@ -8,7 +8,6 @@
 #include <oneapi/tbb/blocked_range.h>
 #include <oneapi/tbb/parallel_for.h>
 
-#include <algorithm>
 #include <set>
 
 #include "Fetch.h"
@@ -113,30 +112,6 @@ size_t Hub::preload(std::span<const std::string_view> uris) {
     ++ready;
   }
   return ready;
-}
-
-size_t Hub::preloadDirectory(std::string_view uriPrefix) {
-  if (isNetworkUri(uriPrefix)) return 0;
-  const std::filesystem::path directory = localPath(*this, uriPrefix);
-  std::error_code error;
-  if (!std::filesystem::is_directory(directory, error) || error) return 0;
-
-  std::string base(uriPrefix);
-  if (!base.empty() && !base.ends_with('/')) base += '/';
-  std::vector<std::string> names;
-  for (std::filesystem::recursive_directory_iterator it(directory, error), end;
-       !error && it != end; it.increment(error)) {
-    if (!it->is_regular_file(error) || error) continue;
-    const std::filesystem::path relative =
-        std::filesystem::relative(it->path(), directory, error);
-    if (error) break;
-    names.push_back(base + relative.generic_string());
-  }
-  std::ranges::sort(names);
-  std::vector<std::string_view> uris;
-  uris.reserve(names.size());
-  for (const std::string& name : names) uris.push_back(name);
-  return preload(uris);
 }
 
 std::shared_ptr<const void> Hub::loadView(const std::string& key,

@@ -62,12 +62,15 @@ std::string_view shaderUris[] = {"shader://surface.slang",
                                  "shader://bloom.sksl"};
 hub.mount("shader://", shaderDirectory);
 hub.preload(shaderUris); // concurrent fetch, bytes only
-hub.preloadDirectory("shader://"); // recursive; newly added files need no list
+auto sksl = hub.select("shader://**/*.sksl"); // sorted URI snapshot
+hub.preload("shader://**/*.sksl"); // discover, then fetch concurrently
+hub.preload("shader://"); // a directory selector recursively fetches everything
 
 // A library loading authored shader files from its own source directory.
 // The Hub and its synchronization remain private to this small facade.
 sigil::io::TextLibrary shaders("shader://", shaderDirectory);
-shaders.preload(); // the whole mounted directory
+shaders.preload("shader://**/*.slang"); // one authored language
+shaders.preload(); // or the whole mounted directory
 auto glowSource = shaders.text("shader://glow.sksl");
 
 // Bytes back out, through the same mount table they are read by. What
@@ -118,13 +121,24 @@ Network URIs bypass the mount list entirely. A fetch goes through the disk
 cache directory, and the entry carries a sentinel timestamp so `poll()`
 knows to leave it alone.
 
+`select()` turns one local selector into a sorted, duplicate-free URI snapshot.
+An exact file selects itself, a directory selects every regular file below it
+recursively, and a glob uses `*` within one path segment, `?` for one
+non-separator character and `**` across directories. A backslash quotes the
+next character. Mounted URIs, `file://` URLs and plain filesystem paths can be
+selected; a network URI cannot be enumerated. When mounts overlap, the same
+longest-prefix rule as an ordinary read decides which physical file occupies a
+URI.
+
 `preload()` fetches distinct URI bytes concurrently and merges them into the
-same cache ordinary reads use. `preloadDirectory()` discovers every regular
-file below a local mounted prefix first, then uses that path; it cannot
-enumerate a network URI. `TextLibrary` is the synchronized text-only facade for
-library-owned source directories. Instances with the same prefix and root
-share one hidden hub, so an application loading phase can fill the cache that
-recipe constructors later read without exposing a mutex or hub in either API.
+same cache ordinary reads use. Its selector overload calls `select()` first, so
+one directory or glob replaces a maintained list. `preloadDirectory()` is the
+directory-only spelling of that overload. `TextLibrary` is
+the synchronized text-only facade for library-owned source directories and
+offers the same selection and preload vocabulary within its own prefix.
+Instances with the same prefix and root share one hidden hub, so an application
+loading phase can fill the cache that recipe constructors later read without
+exposing a mutex or hub in either API.
 
 Every decode is a registered decoder. The constructor registers
 SigilImage's two — `ImageAsset` and `ChannelData` — and
@@ -138,6 +152,10 @@ without fetching. The hub never inspects bytes.
 `Hub` has no synchronization of any kind. It is not safe for concurrent
 use — and that includes concurrent reads, since a lookup that misses
 inserts into the cache.
+
+Selection is a filesystem snapshot, not a watch. A later `select()` sees files
+added since the previous call, while a returned vector does not change beneath
+its caller. Matching is case-sensitive and directory selection is recursive.
 
 `probe()` is `const` but is not cheap and is not side-effect-free: it
 performs a full fetch on every call and caches nothing. For a network URI
@@ -219,8 +237,8 @@ Targets: `SigilIOSource` (header only, `source/`) with
 `io_source_test`, which checks the concepts against a fixture source,
 a fixture decoder and a fixture sink with no hub in the binary, and
 `writeBytes` against a real scratch directory; `SigilIOHub` (static
-library, `hub/` — mounts, cache, network and the decoder registry one
-translation unit each behind the private `hub/Fetch.h`) with
+library, `hub/` — mounts, selection, cache, network and the decoder registry
+split behind the private `hub/Fetch.h`) with
 `io_hub_test` and `io_hub_bench` (Google Benchmark, built by the
 `benches` target and run from a Release build through
 `scripts/bench_ledger.py`: `Hub::blob` on a cache hit and `load<T>` on a

@@ -179,15 +179,25 @@ class Hub {
   /** UTF-8 text convenience over blob(). */
   std::optional<std::string> text(std::string_view uri);
 
+  /** The regular-file URIs named by @p selector, in lexical order.
+   *
+   *  An exact file selects itself. A directory URI selects every regular file
+   *  below it recursively. In a glob, `*` matches within one path segment,
+   *  `?` matches one non-separator character, and `**` crosses `/`; a
+   *  backslash quotes the next character. Selection enumerates local
+   *  filesystem resources (mounted URIs, file:// URLs and plain paths),
+   *  performs no file reads, and returns an empty list for network URIs. */
+  std::vector<std::string> select(std::string_view selector) const;
+
   /** Fetches the distinct @p uris concurrently into the byte cache and
    *  returns how many are ready. No decoding is performed. Like every Hub
    *  operation, the call itself must not overlap another call on this Hub. */
   size_t preload(std::span<const std::string_view> uris);
 
-  /** Recursively fetches every regular file below the local directory named
-   *  by @p uriPrefix. The discovered files keep that URI prefix in the cache,
-   *  so later typed or text asks hit the same entries. Network URIs cannot be
-   *  enumerated and return zero. */
+  /** Selects @p selector and concurrently fetches the resulting files. */
+  size_t preload(std::string_view selector);
+
+  /** Recursively selects and preloads a directory URI. */
   size_t preloadDirectory(std::string_view uriPrefix);
 
   /** Decoded image (stills and animations); null on failure. Decodes
