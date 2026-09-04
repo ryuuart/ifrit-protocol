@@ -57,6 +57,10 @@ void touchForward(const fs::path& path) {
       path, fs::file_time_type::clock::now() + std::chrono::seconds(2));
 }
 
+std::vector<std::string> leaseUris(const ResourceLease& lease) {
+  return {lease.uris().begin(), lease.uris().end()};
+}
+
 }  // namespace
 
 // The hub is the reference ByteSource: the source concepts are
@@ -284,6 +288,87 @@ TEST_F(IOHub, PreloadSelectorCachesOnlyMatchingResources) {
   EXPECT_EQ(hub.text("res://shaders/nested/b.slang"), "not preloaded");
 }
 
+TEST_F(IOHub, ResourceLeaseRetainsTheUnionOfMultipleSelectors) {
+  dir.write("material/a.sksl", "material");
+  dir.write("material/ignored.slang", "ignored");
+  dir.write("compose/nested/b.slang", "compose");
+  dir.write("loose.txt", "loose");
+  ResourceLease shaders =
+      hub.retain({"res://material/**/*.sksl", "res://compose/**/*.slang"});
+
+  EXPECT_EQ(leaseUris(shaders),
+            (std::vector<std::string>{"res://compose/nested/b.slang",
+                                      "res://material/a.sksl"}));
+  EXPECT_EQ(shaders.preload(), 2u);
+  auto loose = hub.blob("res://loose.txt");
+  ASSERT_NE(loose, nullptr);
+
+  dir.write("material/a.sksl", "changed material");
+  dir.write("compose/nested/b.slang", "changed compose");
+  dir.write("loose.txt", "changed loose");
+  EXPECT_EQ(hub.discardUnretained(), 1u);
+  EXPECT_EQ(hub.text("res://material/a.sksl"), "material");
+  EXPECT_EQ(hub.text("res://compose/nested/b.slang"), "compose");
+  EXPECT_EQ(hub.text("res://loose.txt"), "changed loose");
+  EXPECT_EQ(loose->asText(), "loose");
+}
+
+TEST_F(IOHub, ResourceLeaseRefreshesItsSelectorSnapshots) {
+  dir.write("shaders/a.sksl", "a");
+  ResourceLease shaders = hub.retain("res://shaders/**/*.sksl");
+  ASSERT_EQ(shaders.preload(), 1u);
+  EXPECT_EQ(leaseUris(shaders),
+            std::vector<std::string>{"res://shaders/a.sksl"});
+
+  dir.write("shaders/b.sksl", "b");
+  EXPECT_EQ(leaseUris(shaders),
+            std::vector<std::string>{"res://shaders/a.sksl"});
+  EXPECT_EQ(shaders.refresh(), 2u);
+  EXPECT_EQ(leaseUris(shaders),
+            (std::vector<std::string>{"res://shaders/a.sksl",
+                                      "res://shaders/b.sksl"}));
+  EXPECT_EQ(shaders.preload(), 2u);
+
+  fs::remove(dir.path / "shaders" / "a.sksl");
+  EXPECT_EQ(shaders.refresh(), 1u);
+  EXPECT_EQ(leaseUris(shaders),
+            std::vector<std::string>{"res://shaders/b.sksl"});
+  EXPECT_EQ(hub.discardUnretained(), 1u);
+}
+
+TEST_F(IOHub, OverlappingResourceLeasesRetainIndependently) {
+  dir.write("shared.sksl", "shared");
+  ResourceLease first = hub.retain("res://shared.sksl");
+  ResourceLease second = hub.retain("res://shared.sksl");
+  ASSERT_EQ(first.preload(), 1u);
+
+  first = ResourceLease{};
+  EXPECT_EQ(hub.discardUnretained(), 0u);
+  second = ResourceLease{};
+  EXPECT_EQ(hub.discardUnretained(), 1u);
+}
+
+TEST_F(IOHub, EmptyResourceLeaseCanIncludeSeveralSelectors) {
+  dir.write("material/a.sksl", "a");
+  dir.write("compose/b.slang", "b");
+  ResourceLease shaders = hub.retain();
+
+  EXPECT_EQ(shaders.include("res://material/**/*.sksl"), 1u);
+  EXPECT_EQ(shaders.include("res://compose/**/*.slang"), 2u);
+  EXPECT_EQ(leaseUris(shaders),
+            (std::vector<std::string>{"res://compose/b.slang",
+                                      "res://material/a.sksl"}));
+}
+
+TEST(IOResourceLease, MayBeDestroyedAfterItsHub) {
+  ResourceLease lease;
+  {
+    Hub hub;
+    lease = hub.retain();
+  }
+  lease = ResourceLease{};
+}
+
 // blob(), image(), and channels() are independent views of one
 // resource: asking for one must not null a later ask for another.
 TEST_F(IOHub, BlobThenImageThenChannelsAllAnswer) {
@@ -385,9 +470,15 @@ TEST_F(IOHub, FileUrlsSelectDirectoriesAndGlobsWithoutAMount) {
             std::vector<std::string>{plain + "/nested/c.sksl"});
 }
 
-TEST_F(IOHub, NetworkUrisCannotBeSelectedOrEnumerated) {
+TEST_F(IOHub, NetworkSelectorsAreExactAndCannotGlob) {
   EXPECT_TRUE(hub.select("https://example.invalid/**/*.webm").empty());
-  EXPECT_EQ(hub.preload("https://example.invalid/assets/"), 0u);
+  EXPECT_EQ(hub.select("https://example.invalid/assets/"),
+            std::vector<std::string>{"https://example.invalid/assets/"});
+  EXPECT_EQ(
+      hub.select("https://example.invalid/assets/clip.webm"),
+      std::vector<std::string>{"https://example.invalid/assets/clip.webm"});
+  EXPECT_EQ(hub.select("https://example.invalid/image.png?v=2"),
+            std::vector<std::string>{"https://example.invalid/image.png?v=2"});
 }
 
 TEST_F(IOHub, WriteStoresThroughTheMountItReadsBy) {

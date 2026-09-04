@@ -46,6 +46,7 @@
 #include <cstddef>
 #include <filesystem>
 #include <functional>
+#include <initializer_list>
 #include <map>
 #include <memory>
 #include <optional>
@@ -61,6 +62,55 @@
 #include "sigilio/source/Source.h"
 
 namespace sigil::io {
+
+namespace detail {
+struct Residency;
+}
+
+class Hub;
+
+/** A movable lease that keeps an inspectable set of resource URIs resident.
+ *
+ * Selectors are snapshots. include() adds a selector and immediately refreshes
+ * the union; refresh() reruns every selector so newly created files join and
+ * vanished files leave. Multiple leases may retain the same URI independently.
+ * Destroying a lease releases only its own claim. The Hub must outlive calls on
+ * its leases, but a lease may be destroyed safely after its Hub. */
+class ResourceLease {
+ public:
+  ResourceLease() = default;
+  ~ResourceLease();
+
+  ResourceLease(ResourceLease&& other) noexcept;
+  ResourceLease& operator=(ResourceLease&& other) noexcept;
+  ResourceLease(const ResourceLease&) = delete;
+  ResourceLease& operator=(const ResourceLease&) = delete;
+
+  /** Adds @p selector and refreshes the retained union. Returns its new size.
+   */
+  size_t include(std::string_view selector);
+
+  /** Reruns every included selector and updates the retained URI snapshot. */
+  size_t refresh();
+
+  /** Loads the retained resources into their Hub's byte cache concurrently. */
+  size_t preload();
+
+  /** The sorted, duplicate-free URI snapshot this lease currently retains. */
+  std::span<const std::string> uris() const { return m_uris; }
+
+ private:
+  friend class Hub;
+  ResourceLease(Hub& hub, std::shared_ptr<detail::Residency> residency,
+                std::vector<std::string> selectors);
+
+  void release();
+
+  Hub* m_hub = nullptr;
+  std::weak_ptr<detail::Residency> m_residency;
+  std::vector<std::string> m_selectors;
+  std::vector<std::string> m_uris;
+};
 
 /** What a resource is, before (or without) fully decoding it. */
 struct ResourceInfo {
@@ -94,6 +144,11 @@ class Hub {
   /** Registers the SigilImage decoders: ImageAsset (the routed decode
    *  at default options) and ChannelData. */
   Hub();
+
+  Hub(const Hub&) = delete;
+  Hub& operator=(const Hub&) = delete;
+  Hub(Hub&&) = delete;
+  Hub& operator=(Hub&&) = delete;
 
   /** Maps every URI starting with `prefix` to files under `dir`
    *  ("res://" + "ui/logo.png" → dir/ui/logo.png). Longest matching
@@ -185,8 +240,9 @@ class Hub {
    *  below it recursively. In a glob, `*` matches within one path segment,
    *  `?` matches one non-separator character, and `**` crosses `/`; a
    *  backslash quotes the next character. Selection enumerates local
-   *  filesystem resources (mounted URIs, file:// URLs and plain paths),
-   *  performs no file reads, and returns an empty list for network URIs. */
+   *  filesystem resources (mounted URIs, file:// URLs and plain paths) without
+   *  reading file contents. A network selector without a star is one exact URL
+   *  and selects itself without a fetch; network globs cannot be enumerated. */
   std::vector<std::string> select(std::string_view selector) const;
 
   /** Fetches the distinct @p uris concurrently into the byte cache and
@@ -199,6 +255,21 @@ class Hub {
 
   /** Recursively selects and preloads a directory URI. */
   size_t preloadDirectory(std::string_view uriPrefix);
+
+  /** An empty resource-retention lease bound to this Hub. */
+  ResourceLease retain();
+
+  /** A lease retaining the current files selected by @p selector. */
+  ResourceLease retain(std::string_view selector);
+
+  /** A lease retaining the union of the current selector snapshots. */
+  ResourceLease retain(std::span<const std::string_view> selectors);
+  ResourceLease retain(std::initializer_list<std::string_view> selectors);
+
+  /** Discards every cached entry not protected by a resource lease. Values
+   *  already returned in shared_ptrs stay alive for their holders. Returns the
+   *  number of cache entries discarded. */
+  size_t discardUnretained();
 
   /** Decoded image (stills and animations); null on failure. Decodes
    *  on this first ask, from bytes a prior blob() ask already cached
@@ -297,6 +368,7 @@ class Hub {
   std::map<std::type_index, Redecode> m_decoders;
   std::filesystem::path m_netCacheDir;  // empty = the default temp dir
   NetworkPolicy m_netPolicy = NetworkPolicy::CacheFirst;
+  std::shared_ptr<detail::Residency> m_residency;
 };
 
 }  // namespace sigil::io

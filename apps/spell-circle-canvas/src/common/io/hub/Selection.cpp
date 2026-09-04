@@ -31,6 +31,22 @@ bool hasWildcard(std::string_view pattern) {
   return false;
 }
 
+bool hasStar(std::string_view pattern) {
+  bool quoted = false;
+  for (char c : pattern) {
+    if (quoted) {
+      quoted = false;
+      continue;
+    }
+    if (c == '\\') {
+      quoted = true;
+      continue;
+    }
+    if (c == '*') return true;
+  }
+  return false;
+}
+
 std::string unquote(std::string_view value) {
   std::string unquoted;
   unquoted.reserve(value.size());
@@ -245,12 +261,19 @@ std::vector<std::string> selectFilesystem(std::string_view selector,
 }  // namespace
 
 std::vector<std::string> Hub::select(std::string_view selector) const {
-  if (selector.empty() || detail::isNetworkUri(selector)) return {};
-  if (selector.starts_with("file://")) return selectFilesystem(selector, true);
-
+  if (selector.empty()) return {};
+  // A question mark delimits a URL query rather than a one-character glob.
+  // Network providers have no directory enumerator, so only a star makes a
+  // network selector unanswerable; every other URL is one exact resource.
+  if (detail::isNetworkUri(selector)) {
+    if (hasStar(selector)) return {};
+    return {std::string(selector)};
+  }
   const bool glob = hasWildcard(selector);
   const std::string literalSelector =
       glob ? std::string(selector) : unquote(selector);
+  if (selector.starts_with("file://")) return selectFilesystem(selector, true);
+
   const bool uri = selector.find("://") != std::string_view::npos;
   if (!uri) return selectFilesystem(selector, false);
 

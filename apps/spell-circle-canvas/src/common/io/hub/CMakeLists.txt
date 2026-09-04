@@ -1,14 +1,16 @@
-# The hub: mounts and resolution, URI selection, the entry cache and its poll,
-# network fetch behind the disk cache, the decoder registry and the synchronized
-# text facade — split behind the private Fetch.h seam.
+# The hub: mounts and resolution, URI selection and retention, the entry cache
+# and its poll, network fetch behind the disk cache, the decoder registry and
+# the synchronized text facade — split behind private seams.
 add_library(SigilIOHub STATIC
   Cache.cpp
   Decoders.cpp
   Mounts.cpp
   Network.cpp
+  Retention.cpp
   Selection.cpp
   TextLibrary.cpp
   Fetch.h
+  Residency.h
   ${SIGIL_IO_INCLUDE_DIR}/sigilio/hub/Hub.h
   ${SIGIL_IO_INCLUDE_DIR}/sigilio/hub/Network.h
   ${SIGIL_IO_INCLUDE_DIR}/sigilio/hub/TextLibrary.h

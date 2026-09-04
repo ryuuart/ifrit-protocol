@@ -17,7 +17,7 @@ what a consumer uses; every public header lives under
 | target | headers | holds |
 |--------|---------|-------|
 | `SigilIOSource` | `source/Source.h`, `source/Sink.h` | header only, standard library only: `Bytes`, the `ByteSource`, `ResolvingByteSource` and `Decoder` concepts, `AnyByteSource` (the type-erased source value), and the other direction — the `ByteSink` concept and `writeBytes()`, the one place a path and a run of bytes become a file |
-| `SigilIOHub`    | `hub/Hub.h`, `hub/Network.h`, `hub/TextLibrary.h` | the `Hub` and `ResourceInfo`; `TextLibrary`, a synchronized cached collection rooted at one directory; `NetworkPolicy`, `networkCacheKey()` and `defaultNetworkCacheDir()` — the file a URL lands under and the directory it lands in when a hub names no other, so a probe with no hub in reach asks the cache the hub's own way |
+| `SigilIOHub`    | `hub/Hub.h`, `hub/Network.h`, `hub/TextLibrary.h` | the `Hub`, `ResourceInfo`, and `ResourceLease`; `TextLibrary`, a synchronized cached collection rooted at one directory; `NetworkPolicy`, `networkCacheKey()` and `defaultNetworkCacheDir()` — the file a URL lands under and the directory it lands in when a hub names no other, so a probe with no hub in reach asks the cache the hub's own way |
 
 `SigilIO` is the umbrella target over both, and
 `<sigilio/IO.h>` the umbrella header. The hub is a `ByteSource`;
@@ -65,6 +65,15 @@ hub.preload(shaderUris); // concurrent fetch, bytes only
 auto sksl = hub.select("shader://**/*.sksl"); // sorted URI snapshot
 hub.preload("shader://**/*.sksl"); // discover, then fetch concurrently
 hub.preload("shader://"); // a directory selector recursively fetches everything
+
+// Preloading controls when bytes arrive. A lease controls how long the Hub
+// promises to retain them, and may unite any number of selectors.
+auto authored = hub.retain({"shader://material/**/*.sksl",
+                            "shader://compose/**/*.sksl"});
+authored.include("shader://plugins/**/*.slang");
+authored.preload();
+for (const std::string& uri : authored.uris())
+  registerAuthoredShader(uri);
 
 // A library loading authored shader files from its own source directory.
 // The Hub and its synchronization remain private to this small facade.
@@ -121,14 +130,15 @@ Network URIs bypass the mount list entirely. A fetch goes through the disk
 cache directory, and the entry carries a sentinel timestamp so `poll()`
 knows to leave it alone.
 
-`select()` turns one local selector into a sorted, duplicate-free URI snapshot.
+`select()` turns one selector into a sorted, duplicate-free URI snapshot.
 An exact file selects itself, a directory selects every regular file below it
 recursively, and a glob uses `*` within one path segment, `?` for one
 non-separator character and `**` across directories. A backslash quotes the
 next character. Mounted URIs, `file://` URLs and plain filesystem paths can be
-selected; a network URI cannot be enumerated. When mounts overlap, the same
-longest-prefix rule as an ordinary read decides which physical file occupies a
-URI.
+enumerated. A network selector with no star is one exact URL, including its
+query and a possible trailing slash, and selects itself without fetching;
+network globs cannot be enumerated. When mounts overlap, the same longest-prefix
+rule as an ordinary read decides which physical file occupies a URI.
 
 `preload()` fetches distinct URI bytes concurrently and merges them into the
 same cache ordinary reads use. Its selector overload calls `select()` first, so
@@ -139,6 +149,16 @@ offers the same selection and preload vocabulary within its own prefix.
 Instances with the same prefix and root share one hidden hub, so an application
 loading phase can fill the cache that recipe constructors later read without
 exposing a mutex or hub in either API.
+
+Preloading and retention are separate. `preload()` eagerly fills the byte cache
+but makes no residency promise. `retain()` returns a movable `ResourceLease`
+whose sorted `uris()` are the promise: every cache entry for those URIs is
+protected until that lease releases it. A lease may include several selectors;
+their matches are one duplicate-free union, and overlapping leases retain a URI
+independently. Selectors are snapshots until `refresh()` reruns them, admitting
+new files and releasing vanished ones. `discardUnretained()` removes every
+unprotected cache entry; values already held through a `shared_ptr` survive that
+removal for their holders.
 
 Every decode is a registered decoder. The constructor registers
 SigilImage's two — `ImageAsset` and `ChannelData` — and
@@ -156,6 +176,11 @@ inserts into the cache.
 Selection is a filesystem snapshot, not a watch. A later `select()` sees files
 added since the previous call, while a returned vector does not change beneath
 its caller. Matching is case-sensitive and directory selection is recursive.
+
+A resource lease protects cached versions from cache eviction. It does not make
+a vanished source exist or suppress hot reload: `poll()` may remove a missing
+resource or replace a changed version, and `write()` invalidates the version it
+overwrites. An already returned `shared_ptr` continues to own its older value.
 
 `probe()` is `const` but is not cheap and is not side-effect-free: it
 performs a full fetch on every call and caches nothing. For a network URI

@@ -11,6 +11,7 @@
 #include <set>
 
 #include "Fetch.h"
+#include "Residency.h"
 #include "sigilio/hub/Hub.h"
 
 namespace sigil::io {
@@ -112,6 +113,26 @@ size_t Hub::preload(std::span<const std::string_view> uris) {
     ++ready;
   }
   return ready;
+}
+
+size_t Hub::discardUnretained() {
+  if (!m_residency) {
+    const size_t discarded = m_entries.size();
+    m_entries.clear();
+    return discarded;
+  }
+
+  const std::lock_guard lock(m_residency->mutex);
+  size_t discarded = 0;
+  for (auto entry = m_entries.begin(); entry != m_entries.end();) {
+    if (m_residency->pins.contains(entry->second.uri)) {
+      ++entry;
+    } else {
+      entry = m_entries.erase(entry);
+      ++discarded;
+    }
+  }
+  return discarded;
 }
 
 std::shared_ptr<const void> Hub::loadView(const std::string& key,
