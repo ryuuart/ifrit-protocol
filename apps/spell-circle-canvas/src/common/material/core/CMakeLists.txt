@@ -8,8 +8,17 @@
 # the backend features through registerCompiler().
 find_package(boost_pfr CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
+find_package(TBB CONFIG REQUIRED)
+set(_shaders ${CMAKE_CURRENT_LIST_DIR}/shaders)
 add_library(SigilMaterialCore STATIC
   Combine.cpp
+  ${_shaders}/OverAdd.sksl
+  ${_shaders}/OverAdd.slang
+  ${_shaders}/OverMix.sksl
+  ${_shaders}/OverMix.slang
+  ${_shaders}/OverMultiply.sksl
+  ${_shaders}/OverMultiply.slang
+  ${_shaders}/OverPrelude.slang
   Material.cpp
   Params.cpp
   Program.cpp
@@ -27,6 +36,8 @@ add_library(SigilMaterialCore STATIC
 )
 target_compile_features(SigilMaterialCore PUBLIC cxx_std_20)
 target_include_directories(SigilMaterialCore PUBLIC ${SIGIL_MATERIAL_INCLUDE_DIR})
+target_compile_definitions(SigilMaterialCore
+  PRIVATE SIGIL_MATERIAL_CORE_SHADER_DIR="${_shaders}")
 # Params.h includes <boost/pfr.hpp>, so the include path must reach every
 # consumer that instantiates schema<P>(); the target is header-only, and
 # nothing links. SigilMaterialColor is the colour value a params struct
@@ -35,6 +46,8 @@ target_include_directories(SigilMaterialCore PUBLIC ${SIGIL_MATERIAL_INCLUDE_DIR
 # outline a normals pass is drawn over arrives as pixels.
 target_link_libraries(SigilMaterialCore
   PUBLIC SigilMaterialColor SigilMotionValues glm::glm Boost::pfr)
+target_link_libraries(SigilMaterialCore PRIVATE SigilIOHub)
+target_link_libraries(SigilMaterialCore PRIVATE TBB::tbb)
 
 # Links only the library it exercises, so a link edge that pulled a
 # renderer in would show up as a build failure here.

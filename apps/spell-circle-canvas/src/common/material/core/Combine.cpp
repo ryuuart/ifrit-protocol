@@ -6,44 +6,20 @@
 
 #include "sigilmaterial/core/Combine.h"
 
+#include <sigilio/hub/TextLibrary.h>
 #include <sigilmaterial/core/Program.h>
 
 #include <map>
 #include <mutex>
 #include <span>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
 namespace sigil::material {
 
 namespace {
-
-/** The mask read: red, scaled by the amount, clamped into 0..1. */
-constexpr char kPrelude[] = R"(
-half coverage(float2 xy) {
-  return half(clamp(float(mask.eval(xy).r) * amount, 0.0, 1.0));
-}
-)";
-
-constexpr char kMix[] = R"(
-half4 main(float2 xy) {
-  return mix(base.eval(xy), top.eval(xy), coverage(xy));
-}
-)";
-
-constexpr char kAdd[] = R"(
-half4 main(float2 xy) {
-  return base.eval(xy) + top.eval(xy) * coverage(xy);
-}
-)";
-
-constexpr char kMultiply[] = R"(
-half4 main(float2 xy) {
-  half4 b = base.eval(xy);
-  return mix(b, b * top.eval(xy), coverage(xy));
-}
-)";
 
 /** The three operands, in the order a composed body evaluates them: the
  *  slot each fills, the prefix its own names take among the composed
@@ -59,102 +35,44 @@ constexpr Operand kOperands[3] = {
     {"mask", "mask_", "overMask"},
 };
 
-/** What a composed body says beyond a colour, taken from the scaffold's
- *  own per-pixel variables after one operand has run, and the mixing of
- *  two operands' answers by the coverage that mixes their colours. The
- *  variables themselves belong to the renderer, so this text names them
- *  and declares none of them. */
-constexpr char kSlangPrelude[] = R"(
-struct OverTerms {
-  float3 normal;
-  float gloss;
-  float metal;
-  bool perPixel;
-};
-
-/** The per-pixel variables back at what "said nothing" means, so each
- *  operand is asked with a clean slate and the stack answers for all
- *  three of them rather than for whichever ran last. */
-void overClear() {
-  gSurfaceNormal = float3(0.0, 0.0, 1.0);
-  gSurfaceGloss = -1.0;
-  gSurfaceMetal = 0.0;
-  gSurfacePerPixel = false;
+std::string shaderSource(std::string_view name) {
+  static io::TextLibrary library("shader://material/core/",
+                                 SIGIL_MATERIAL_CORE_SHADER_DIR);
+  return library.text("shader://material/core/" + std::string(name))
+      .value_or("");
 }
 
-OverTerms overTaken() {
-  OverTerms out;
-  out.normal = gSurfaceNormal;
-  out.gloss = gSurfaceGloss;
-  out.metal = gSurfaceMetal;
-  out.perPixel = gSurfacePerPixel;
-  return out;
-}
-
-// A Blinn exponent below zero is "take the scaffold's own", which is not
-// a number to interpolate toward: where one operand named an exponent
-// and the other did not, the one that named it stands.
-float overGloss(float a, float b, float t) {
-  if (a < 0.0) return b;
-  if (b < 0.0) return a;
-  return a + (b - a) * t;
-}
-
-// Written out rather than taken from the language's library, for the
-// reason the portable subset exists: an intrinsic whose two targets are
-// two different pieces of code is where one source stops producing one
-// answer.
-float4 overMixed(float4 a, float4 b, float t) { return a + (b - a) * t; }
-
-/** The two operands' per-pixel terms through the coverage that mixes
- *  their colours, so a top wearing a normal map bumps the surface only
- *  where the mask lets the top show. */
-void overSay(OverTerms a, OverTerms b, float t) {
-  if (!a.perPixel && !b.perPixel) return;
-  gSurfaceNormal = normalizeP(a.normal + (b.normal - a.normal) * t);
-  gSurfaceGloss = overGloss(a.gloss, b.gloss, t);
-  gSurfaceMetal = a.metal + (b.metal - a.metal) * t;
-  gSurfacePerPixel = true;
-}
-)";
-
-/** The composed reading, with the blend's own last line. Straight alpha
- *  both sides, which is what a Slang body answers with. */
-constexpr char kSlangMix[] = "  return overMixed(b, t, cov);\n";
-constexpr char kSlangAdd[] = "  return b + t * cov;\n";
-constexpr char kSlangMultiply[] = "  return overMixed(b, b * t, cov);\n";
-
-const char* skslBody(Blend blend) {
+std::string_view skslFile(Blend blend) {
   switch (blend) {
     case Blend::Add:
-      return kAdd;
+      return "OverAdd.sksl";
     case Blend::Multiply:
-      return kMultiply;
+      return "OverMultiply.sksl";
     case Blend::Mix:
-      break;
+      return "OverMix.sksl";
   }
-  return kMix;
+  return "OverMix.sksl";
 }
 
-const char* slangTail(Blend blend) {
+std::string_view slangFile(Blend blend) {
   switch (blend) {
     case Blend::Add:
-      return kSlangAdd;
+      return "OverAdd.slang";
     case Blend::Multiply:
-      return kSlangMultiply;
+      return "OverMultiply.slang";
     case Blend::Mix:
-      break;
+      return "OverMix.slang";
   }
-  return kSlangMix;
+  return "OverMix.slang";
 }
 
-std::shared_ptr<const Recipe> make(Blend blend, const char* body) {
+std::shared_ptr<const Recipe> make(Blend blend) {
   return std::make_shared<const Recipe>(
       Recipe::of<OverParams>(stackName(blend))
           .child("base")
           .child("top")
           .child("mask")
-          .body(Target::SkSL, std::string(kPrelude) + body));
+          .body(Target::SkSL, shaderSource(skslFile(blend))));
 }
 
 /** The names one operand's body spells that the composed recipe declares
@@ -209,24 +127,9 @@ std::string inlined(const Recipe& recipe, const Operand& operand) {
  *  under their own names, and the surface that asks all three and
  *  combines what they said. */
 std::string composedSlang(Blend blend, const Recipe* operands[3]) {
-  std::string out(kSlangPrelude);
+  std::string out = shaderSource("OverPrelude.slang");
   for (int i = 0; i < 3; ++i) out += inlined(*operands[i], kOperands[i]);
-  out += R"(
-float4 surface(float2 uv) {
-  overClear();
-  float4 b = overBase::surface(uv);
-  OverTerms under = overTaken();
-  overClear();
-  float4 t = overTop::surface(uv);
-  OverTerms upper = overTaken();
-  overClear();
-  float4 k = overMask::surface(uv);
-  overClear();
-  float cov = min(max(k.r * amount, 0.0), 1.0);
-  overSay(under, upper, cov);
-)";
-  out += slangTail(blend);
-  out += "}\n";
+  out += shaderSource(slangFile(blend));
   return out;
 }
 
@@ -258,7 +161,7 @@ std::shared_ptr<const Recipe> composeRecipe(Blend blend,
           FrameInput::WorldTransform})
       if (operands[i]->reads(input)) recipe.frame(input);
   }
-  recipe.body(Target::SkSL, std::string(kPrelude) + skslBody(blend));
+  recipe.body(Target::SkSL, shaderSource(skslFile(blend)));
   recipe.body(Target::Slang, composedSlang(blend, operands));
   return std::make_shared<const Recipe>(std::move(recipe));
 }
@@ -360,10 +263,9 @@ std::string stackName(Blend blend) {
 }
 
 const std::shared_ptr<const Recipe>& overRecipe(Blend blend) {
-  static const std::shared_ptr<const Recipe> mix = make(Blend::Mix, kMix);
-  static const std::shared_ptr<const Recipe> add = make(Blend::Add, kAdd);
-  static const std::shared_ptr<const Recipe> multiply =
-      make(Blend::Multiply, kMultiply);
+  static const std::shared_ptr<const Recipe> mix = make(Blend::Mix);
+  static const std::shared_ptr<const Recipe> add = make(Blend::Add);
+  static const std::shared_ptr<const Recipe> multiply = make(Blend::Multiply);
   switch (blend) {
     case Blend::Add:
       return add;

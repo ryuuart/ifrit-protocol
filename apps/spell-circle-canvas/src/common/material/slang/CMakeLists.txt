@@ -7,12 +7,11 @@
 # nothing that knows a pass, a target or a device.
 #
 # Portable.slang is the subset whose transcendentals a host and a device
-# answer alike. It is compiled by slangc when this library is built —
-# which is what makes a mistake in it a build failure — and its text is
-# generated into a header, because every session loads it by name so a
-# shader's `import Portable;` resolves in memory and nothing is looked for
-# on disk. The directory holding it is named here for the compilers of the
-# shaders that import it to search.
+# answer alike. It is compiled by slangc when this library is built, which
+# makes a mistake in it a build failure. At run time SigilIO loads that same
+# authored file into every session by name; the generated header remains the
+# build's validation artifact. Compilers of importing shaders search this
+# directory.
 include(Slang)
 set(SIGIL_MATERIAL_SLANG_SHADER_DIR "${CMAKE_CURRENT_LIST_DIR}/shaders"
     CACHE INTERNAL "the material Slang backend's shader modules")
@@ -30,13 +29,15 @@ target_compile_features(SigilMaterialSlang PUBLIC cxx_std_20)
 target_include_directories(SigilMaterialSlang
   PUBLIC ${SIGIL_MATERIAL_INCLUDE_DIR}
   PRIVATE ${SIGIL_SLANG_GENERATED_DIR})
+target_compile_definitions(SigilMaterialSlang
+  PRIVATE SIGIL_MATERIAL_SLANG_SHADER_DIR="${SIGIL_MATERIAL_SLANG_SHADER_DIR}")
 # The kit is linked for one thing: its shading terms are loaded into every
 # session by name, so a renderer's shading and every material body
 # compiled beside it call one definition of a term. Slang itself is
 # PRIVATE — the public header names none of its types.
 target_link_libraries(SigilMaterialSlang
   PUBLIC SigilMaterialCore
-  PRIVATE SigilMaterialKit slang::slang)
+  PRIVATE SigilMaterialKit SigilIOHub slang::slang)
 
 add_executable(material_slang_test test/SlangTest.cpp)
 target_link_libraries(material_slang_test PRIVATE SigilMaterialSlang

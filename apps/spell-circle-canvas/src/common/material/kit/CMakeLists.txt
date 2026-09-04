@@ -6,15 +6,17 @@
 # Bodies are shader text; the kit links the pattern feature for the tile
 # the panel bakes into and no renderer.
 #
-# Shading.slang is compiled by slangc when this library is built — which
-# is what makes a mistake in a term a build failure — and its text is
-# generated into a header, because the source a term is prepended to
-# cannot be finished until the material exists. The same file is what a
-# renderer's own shaders import, so the directory holding it is named
-# here for their compilers to search.
+# Shading.slang is compiled by slangc when this library is built, which makes a
+# mistake in a term a build failure. At run time SigilIO loads that same
+# authored file into the compiler session; the generated header remains the
+# build's validation artifact. A renderer's own shaders import it, so their
+# compilers also search this directory.
 include(Slang)
 set(SIGIL_MATERIAL_SHADER_DIR "${CMAKE_CURRENT_LIST_DIR}/shaders"
     CACHE INTERNAL "the material kit's shader modules")
+file(GLOB _shader_sources CONFIGURE_DEPENDS
+  "${SIGIL_MATERIAL_SHADER_DIR}/*.sksl"
+  "${SIGIL_MATERIAL_SHADER_DIR}/*.slang")
 sigil_slang_module(NAME Shading SOURCE ${SIGIL_MATERIAL_SHADER_DIR}/Shading.slang
   OUT_VAR SIGIL_MATERIAL_SHADING_H)
 
@@ -29,7 +31,7 @@ add_library(SigilMaterialKit STATIC
   Terms.cpp
   TextPaint.cpp
   ${SIGIL_MATERIAL_SHADING_H}
-  ${SIGIL_MATERIAL_SHADER_DIR}/Shading.slang
+  ${_shader_sources}
   ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/kit/Bank.h
   ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/kit/Grained.h
   ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/kit/LayerStyles.h
@@ -45,8 +47,11 @@ target_compile_features(SigilMaterialKit PUBLIC cxx_std_20)
 target_include_directories(SigilMaterialKit
   PUBLIC ${SIGIL_MATERIAL_INCLUDE_DIR}
   PRIVATE ${SIGIL_SLANG_GENERATED_DIR})
+target_compile_definitions(SigilMaterialKit
+  PRIVATE SIGIL_MATERIAL_KIT_SHADER_DIR="${SIGIL_MATERIAL_SHADER_DIR}")
 target_link_libraries(SigilMaterialKit PUBLIC SigilMaterialPattern
   SigilMaterialColor)
+target_link_libraries(SigilMaterialKit PRIVATE SigilIOHub)
 
 # The negative control for "and no renderer": a target that must FAIL to
 # build, and a test that builds it and demands the one message that says the

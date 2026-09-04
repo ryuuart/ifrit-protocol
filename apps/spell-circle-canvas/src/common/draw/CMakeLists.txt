@@ -11,12 +11,15 @@
 # above this library and reach down to it.
 set(SIGIL_DRAW_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/include)
 
+set(_shaders ${CMAKE_CURRENT_LIST_DIR}/shaders)
+
 add_library(SigilDraw STATIC
   Color.cpp
   Graphics.cpp
   Noise.cpp
   Pen.cpp
   Text.cpp
+  ${_shaders}/Subtract.sksl
   ${SIGIL_DRAW_INCLUDE_DIR}/sigildraw/Color.h
   ${SIGIL_DRAW_INCLUDE_DIR}/sigildraw/Constants.h
   ${SIGIL_DRAW_INCLUDE_DIR}/sigildraw/Draw.h
@@ -28,6 +31,8 @@ add_library(SigilDraw STATIC
 )
 target_compile_features(SigilDraw PUBLIC cxx_std_20)
 target_include_directories(SigilDraw PUBLIC ${SIGIL_DRAW_INCLUDE_DIR})
+target_compile_definitions(SigilDraw
+  PRIVATE SIGIL_DRAW_SHADER_DIR="${_shaders}")
 # The material's Skia paint is what a fill is; the weave targets are what
 # text is shaped, laid out and painted by; the core mixer is what the
 # random stream and the noise field are seeded through. All public: the
@@ -36,6 +41,7 @@ target_link_libraries(SigilDraw PUBLIC
   SigilMaterialSkia SigilCoreCompute
   SigilWeaveStyle SigilWeaveParagraph SigilWeaveLayout SigilWeavePaint
   SigilWeaveFonts)
+target_link_libraries(SigilDraw PRIVATE SigilIOHub)
 set_target_properties(SigilDraw PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 # Stock brushes, pressure-bearing paths and direction fields over the pen.

@@ -1,0 +1,28 @@
+half4 main(float2 xy) {
+  float3 n = readNormal(xy);
+  // Foil crinkle: fbm gradient folded into the normal field. The scale
+  // is cycles per pixel; forty of them is one noise cell.
+  float2 np = xy * max(crinkleScale, 1e-4) * 40.0;
+  float e = 0.45;
+  float gx = fbm(np + float2(e, 0.0)) - fbm(np - float2(e, 0.0));
+  float gy = fbm(np + float2(0.0, e)) - fbm(np - float2(0.0, e));
+  n = normalize(float3(n.x + gx * crinkle * 2.2,
+                       n.y + gy * crinkle * 2.2, n.z));
+
+  float3 V = float3(0.0, 0.0, 1.0);
+  float3 R = reflect(-V, n);
+  float3 e3 = envSample(R);
+  float ndv = clamp(dot(n, V), 0.0, 1.0);
+  float fres = pow(1.0 - ndv, 5.0);
+  float3 f0 = tint.rgb;
+  // Metals tint their reflection; fresnel whitens the grazing rim.
+  float3 spec = e3 * mix(f0, float3(1.0), fres);
+  float3 col = f0 * ambient + spec;
+
+  // Glints: sparse hash cells, gated to lit wrinkles.
+  float cell = hash21(floor(xy * 0.7));
+  float lum = dot(e3, float3(0.299, 0.587, 0.114));
+  float glint = step(0.992, cell) * sparkle * smoothstep(0.35, 1.2, lum);
+  col += float3(glint);
+  return half4(half3(col), 1.0);
+}

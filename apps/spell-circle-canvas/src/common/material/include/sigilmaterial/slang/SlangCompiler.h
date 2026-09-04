@@ -16,12 +16,12 @@
  * declares one more parameter moves nothing a renderer has to be told
  * about.
  *
- * Every session this opens already carries two modules by name, so a
- * shader may `import` them and nothing is looked for on disk: `Portable`,
- * the subset whose transcendentals a host and a device answer alike, and
- * `Shading`, the material kit's own terms — so a renderer's shading and
- * every material body compiled beside it call one definition of a term
- * rather than a copy apiece.
+ * Every session this opens already carries two modules by name, loaded from
+ * their authored files before compilation, so a shader may `import` them
+ * without another resource lookup: `Portable`, the subset whose
+ * transcendentals a host and a device answer alike, and `Shading`, the
+ * material kit's own terms — so a renderer's shading and every material body
+ * compiled beside it call one definition of a term rather than a copy apiece.
  */
 
 #include <sigilmaterial/core/Program.h>

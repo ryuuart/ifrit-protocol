@@ -6,13 +6,12 @@
 
 #include "Programs.h"
 
-#include <sigilslang/Painter.h>
-#include <sigilslang/Post.h>
-#include <sigilslang/Surface.h>
+#include <sigilio/hub/TextLibrary.h>
 #include <sigilworld/diligent/Runtime.h>
 
 #include <mutex>
 #include <string>
+#include <string_view>
 
 namespace sigil::world::diligent {
 
@@ -20,15 +19,12 @@ namespace {
 
 using material::slang::Compiled;
 
-/** The scaffold's fragment stage for a material: the body's `surface`,
- *  shaded and premultiplied. It is appended after the recipe's own text
- *  because that is where `surface` becomes visible. */
-constexpr std::string_view kMaterialEntry = R"SLANG(
-[shader("fragment")]
-float4 fsMaterial(VSOut input) : SV_Target {
-  return shade(surface(input.uv), input);
+std::string shaderSource(std::string_view name) {
+  static io::TextLibrary library("shader://world/diligent/",
+                                 SIGIL_WORLD_SHADER_DIR);
+  return library.text("shader://world/diligent/" + std::string(name))
+      .value_or("");
 }
-)SLANG";
 
 }  // namespace
 
@@ -36,7 +32,7 @@ const Compiled& scaffold(bool lit) {
   const auto build = [](bool shaded) {
     Compiled built;
     std::string error;
-    if (!material::slang::compileModule(slangmodule::Surface::kSource, "vsMain",
+    if (!material::slang::compileModule(shaderSource("Surface.slang"), "vsMain",
                                         "fsFlat", shaded, &built, &error))
       material::reportOnce("world.diligent.scaffold",
                            "the surface scaffold did not compile: " + error);
@@ -53,7 +49,7 @@ const Compiled& backdropProgram() {
     std::string error;
     // The LIT build, always: the sky's uniforms are the lit scaffold's,
     // and a build with no lighting in it does not declare them.
-    if (!material::slang::compileModule(slangmodule::Surface::kSource,
+    if (!material::slang::compileModule(shaderSource("Surface.slang"),
                                         "vsBackdrop", "fsBackdrop",
                                         /*lit=*/true, &program, &error))
       material::reportOnce("world.diligent.backdrop",
@@ -71,7 +67,7 @@ const Compiled& painterProgram() {
     // "does light reach this" answer are fields of a style, which is a
     // value a caller changes between two draws, so specialising on one
     // would compile a program per draw rather than per material.
-    if (!material::slang::compileModule(slangmodule::Painter::kSource,
+    if (!material::slang::compileModule(shaderSource("Painter.slang"),
                                         "vsPaint", "fsPaint", /*lit=*/false,
                                         &program, &error))
       material::reportOnce("world.diligent.painter",
@@ -86,7 +82,7 @@ const PostPrograms& postPrograms() {
     PostPrograms built;
     const auto one = [](const char* entry, Compiled* into) {
       std::string error;
-      if (!material::slang::compileModule(slangmodule::Post::kSource,
+      if (!material::slang::compileModule(shaderSource("Post.slang"),
                                           "vsFullscreen", entry, /*lit=*/false,
                                           into, &error))
         material::reportOnce(std::string("world.diligent.post.") + entry,
@@ -114,10 +110,10 @@ void installSlangCompiler() {
           // before the recipe's text; the recipe's declarations and body
           // next; the fragment entry that calls the body last, because
           // `surface` is not visible until the body has defined it.
-          std::string source(slangmodule::Surface::kSource);
+          std::string source = shaderSource("Surface.slang");
           source += '\n';
           source += recipe->source(material::Target::Slang);
-          source += kMaterialEntry;
+          source += shaderSource("MaterialEntry.slang");
           Compiled built;
           if (!material::slang::compileModule(source, "vsMain", "fsMaterial",
                                               variant.has(kVariantLit), &built,

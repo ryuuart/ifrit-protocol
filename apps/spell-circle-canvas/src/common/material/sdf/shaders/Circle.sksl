@@ -1,0 +1,3 @@
+float sd(float2 p, float2 b) {
+  return length(p) - min(b.x, b.y);
+}

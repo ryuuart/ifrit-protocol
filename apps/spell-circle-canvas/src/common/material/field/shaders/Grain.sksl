@@ -1,0 +1,32 @@
+float valueNoise(float2 q) {
+  float2 c = floor(q);
+  float2 f = fract(q);
+  float2 w = f * f * (3.0 - 2.0 * f);
+  float2 k0 = fract((c + float2(0.0, 0.0)) * float2(123.34, 456.21) + uSeed);
+  k0 += dot(k0, k0 + 45.32);
+  float2 k1 = fract((c + float2(1.0, 0.0)) * float2(123.34, 456.21) + uSeed);
+  k1 += dot(k1, k1 + 45.32);
+  float2 k2 = fract((c + float2(0.0, 1.0)) * float2(123.34, 456.21) + uSeed);
+  k2 += dot(k2, k2 + 45.32);
+  float2 k3 = fract((c + float2(1.0, 1.0)) * float2(123.34, 456.21) + uSeed);
+  k3 += dot(k3, k3 + 45.32);
+  return mix(mix(fract(k0.x * k0.y), fract(k1.x * k1.y), w.x),
+             mix(fract(k2.x * k2.y), fract(k3.x * k3.y), w.x), w.y);
+}
+
+half4 main(float2 pos) {
+  const int kOctaves = 1;
+  float2 q = pos * uFreq;
+  float sum = 0.0;
+  float total = 0.0;
+  float amplitude = 0.5;
+  for (int octave = 0; octave < kOctaves; ++octave) {
+    sum += amplitude * valueNoise(q);
+    total += amplitude;
+    q *= 2.0;
+    amplitude *= 0.5;
+  }
+  float v = total > 0.0 ? sum / total : 0.5;
+  v = clamp(0.5 + (v - 0.5) * uContrast, 0.0, 1.0);
+  return half4(half3(v), 1.0);
+}

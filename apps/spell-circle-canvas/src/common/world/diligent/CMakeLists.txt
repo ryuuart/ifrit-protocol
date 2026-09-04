@@ -6,17 +6,16 @@
 # consumer of one — which is SigilGeometryDevice, and this links it.
 find_package(unofficial-diligent-engine CONFIG REQUIRED)
 
-# The shader modules. Each is compiled by slangc when this library is
-# built — which is what makes a mistake in one a build failure — and its
-# text is generated into a header, because the source a material's body
-# is appended to cannot be finished until the material exists.
+# The shader modules. Each is compiled by slangc when this library is built,
+# which makes a mistake in one a build failure. At run time SigilIO loads the
+# same authored files before a material body is appended; the generated headers
+# remain the build's validation artifacts.
 include(Slang)
 set(_shaders ${CMAKE_CURRENT_LIST_DIR}/shaders)
 # Every module here imports the portable subset, and Surface.slang and
 # Painter.slang the material kit's shading terms as well, so slangc is
-# pointed at the two directories those files live in. At run time the
-# same texts are loaded into the compiler session by name, from the
-# headers their own builds generated.
+# pointed at the two directories those files live in. At run time the same
+# texts are loaded into the compiler session by name through SigilIO.
 set(_imports ${_shaders} ${SIGIL_MATERIAL_SLANG_SHADER_DIR}
              ${SIGIL_MATERIAL_SHADER_DIR})
 set(_portable ${SIGIL_MATERIAL_SLANG_SHADER_DIR}/Portable.slang)
@@ -49,6 +48,7 @@ add_library(SigilWorldDiligent STATIC
   ${_shaders}/Surface.slang
   ${_shaders}/Painter.slang
   ${_shaders}/Post.slang
+  ${_shaders}/MaterialEntry.slang
   ${SIGIL_WORLD_INCLUDE_DIR}/sigilworld/diligent/Import.h
   ${SIGIL_WORLD_INCLUDE_DIR}/sigilworld/diligent/Painter.h
   ${SIGIL_WORLD_INCLUDE_DIR}/sigilworld/diligent/Runtime.h
@@ -57,6 +57,8 @@ target_compile_features(SigilWorldDiligent PUBLIC cxx_std_20)
 target_include_directories(SigilWorldDiligent
   PUBLIC ${SIGIL_WORLD_INCLUDE_DIR}
   PRIVATE ${CMAKE_CURRENT_LIST_DIR} ${SIGIL_SLANG_GENERATED_DIR})
+target_compile_definitions(SigilWorldDiligent
+  PRIVATE SIGIL_WORLD_SHADER_DIR="${_shaders}")
 
 # SigilGeometryDevice is PUBLIC because every entry point here takes the
 # device it creates, and Gpu.h holds the resources it made; SigilWorldScene is PUBLIC because the runtime
@@ -79,7 +81,7 @@ target_include_directories(SigilWorldDiligent
 target_link_libraries(SigilWorldDiligent
   PUBLIC SigilGeometryDevice SigilWorldScene SigilMaterialSlang
          SigilGeometryMeshPop SigilCoreHardware SigilGeometryMeshRender
-  PRIVATE SigilMaterialKit SigilSkiaGraphite)
+  PRIVATE SigilMaterialKit SigilSkiaGraphite SigilIOHub)
 
 add_executable(world_diligent_test test/PainterTest.cpp test/RuntimeTest.cpp
   test/StackTest.cpp test/SurfaceTest.cpp test/Distance.h test/OnDevice.h)

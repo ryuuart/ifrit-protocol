@@ -17,6 +17,7 @@
 #include <include/core/SkTypes.h>  // SkDebugf
 #include <include/effects/SkGradient.h>
 #include <include/effects/SkRuntimeEffect.h>
+#include <sigilio/hub/TextLibrary.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
 #include <sigilmaterial/texture/ShaderLeaf.h>
@@ -26,8 +27,21 @@
 #include <cmath>
 #include <cstring>
 #include <mutex>
+#include <string>
+#include <string_view>
 
 namespace sigil::material::skia {
+
+namespace {
+
+std::string shaderSource(std::string_view name) {
+  static io::TextLibrary library("shader://material/skia/",
+                                 SIGIL_MATERIAL_SKIA_SHADER_DIR);
+  return library.text("shader://material/skia/" + std::string(name))
+      .value_or("");
+}
+
+}  // namespace
 
 /** The sksl recipe behind a Paint (opaque in the header). */
 struct Paint::Live {
@@ -755,6 +769,77 @@ sk_sp<SkImage> PixelBuffer::image() {
   return m_snapshot;
 }
 
+namespace detail {
+
+Paint unitRamp(SkPoint a, SkPoint b, std::vector<Stop> stops, bool radial) {
+  // The stop count is baked into the source and one effect is cached per
+  // count. Generating per count leaves no arbitrary ceiling below the
+  // uniform budget and avoids a uniform-guarded fixed-maximum loop.
+  if (stops.empty()) return Paint::solid(SkColor4f{0, 0, 0, 0});
+  if (stops.size() == 1) return Paint::solid(stops.front().color);
+  constexpr size_t kMaxStops = 256;
+  if (stops.size() > kMaxStops) stops.resize(kMaxStops);
+  const size_t n = stops.size();
+
+  struct Cached {
+    size_t count;
+    sk_sp<SkRuntimeEffect> effect;
+  };
+  static std::mutex mutex;
+  static std::vector<Cached> cache;
+  sk_sp<SkRuntimeEffect> fx;
+  {
+    const std::lock_guard lock(mutex);
+    for (const Cached& cached : cache)
+      if (cached.count == n) {
+        fx = cached.effect;
+        break;
+      }
+    if (!fx) {
+      std::string declarations;
+      std::string mixes;
+      for (size_t i = 1; i < n; ++i) {
+        declarations += "uniform float4 uC" + std::to_string(i) + ";\n";
+        declarations += "uniform float uS" + std::to_string(i) + ";\n";
+        const std::string previous = std::to_string(i - 1);
+        const std::string current = std::to_string(i);
+        mixes += "  col = mix(col, uC" + current + ", clamp((t - uS" +
+                 previous + ") / max(uS" + current + " - uS" + previous +
+                 ", 1e-6), 0.0, 1.0));\n";
+      }
+      std::string source = shaderSource("UnitRamp.sksl");
+      const auto insert = [&](std::string_view marker,
+                              std::string_view replacement) {
+        const size_t at = source.find(marker);
+        if (at != std::string::npos)
+          source.replace(at, marker.size(), replacement);
+      };
+      insert("// SIGIL_STOP_DECLARATIONS", declarations);
+      insert("// SIGIL_STOP_MIXES", mixes);
+      auto [effect, error] =
+          SkRuntimeEffect::MakeForShader(SkString(source.c_str()));
+      if (!effect) {
+        SkDebugf("sigilmaterial unitRamp shader (%zu stops): %s\n", n,
+                 error.c_str());
+        return Paint::solid(stops.front().color);
+      }
+      fx = std::move(effect);
+      cache.push_back({n, fx});
+    }
+  }
+
+  Paint material = Paint::sksl(fx, {{"uRadial", radial ? 1.0f : 0.0f}});
+  material.uniform("uA", std::array<float, 2>{a.x(), a.y()});
+  material.uniform("uB", std::array<float, 2>{b.x(), b.y()});
+  for (size_t i = 0; i < n; ++i) {
+    material.uniform("uC" + std::to_string(i), stops[i].color);
+    material.uniform("uS" + std::to_string(i), stops[i].pos);
+  }
+  return material;
+}
+
+}  // namespace detail
+
 Paint Paint::sksl(sk_sp<SkRuntimeEffect> effect,
                   std::vector<std::pair<std::string, float>> constants) {
   Paint m;
@@ -798,12 +883,8 @@ namespace {
  *  whole process, per the Patterns.h one-effect rule. */
 sk_sp<SkShader> mixShaders(sk_sp<SkShader> a, sk_sp<SkShader> b, float t) {
   static const sk_sp<SkRuntimeEffect> fx = [] {
-    auto [effect, err] = SkRuntimeEffect::MakeForShader(
-        SkString("uniform shader a;"
-                 "uniform shader b;"
-                 "uniform half uAmt;"
-                 "half4 main(float2 p) { return mix(a.eval(p), b.eval(p),"
-                 "                                  uAmt); }"));
+    auto [effect, err] =
+        SkRuntimeEffect::MakeForShader(SkString(shaderSource("Mix.sksl")));
     return effect;
   }();
   if (!fx) return b;

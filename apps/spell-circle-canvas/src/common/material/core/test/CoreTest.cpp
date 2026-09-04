@@ -12,12 +12,17 @@
 #include <unistd.h>
 
 #include <array>
+#include <atomic>
+#include <chrono>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
 #include <functional>
+#include <future>
 #include <memory>
 #include <string>
+#include <thread>
+#include <vector>
 
 using namespace sigil::material;
 
@@ -199,6 +204,58 @@ TEST(ProgramCache, KeysByRecipeTargetAndVariant) {
   EXPECT_EQ(cache.size(), 0u);
   EXPECT_EQ(cache.program(a, Target::Slang)->recipe().name(), "a");
   EXPECT_EQ(gCompiles, 4);
+}
+
+TEST(ProgramCache, ConcurrentRequestsShareOneInFlightCompile) {
+  ProgramCache cache;
+  std::atomic_int compiles = 0;
+  cache.registerCompiler(
+      Target::Slang,
+      [&](std::shared_ptr<const Recipe> recipe, Variant variant, std::string&) {
+        ++compiles;
+        std::this_thread::sleep_for(std::chrono::milliseconds(15));
+        return std::shared_ptr<Program>(std::make_shared<Program>(
+            std::move(recipe), Target::Slang, variant));
+      });
+  auto recipe = std::make_shared<const Recipe>(
+      Recipe::of<TwoParams>("concurrent").body(Target::Slang, "x"));
+
+  std::vector<std::future<std::shared_ptr<Program>>> asks;
+  for (int i = 0; i < 8; ++i)
+    asks.push_back(std::async(std::launch::async, [&] {
+      return cache.program(recipe, Target::Slang);
+    }));
+  const std::shared_ptr<Program> first = asks.front().get();
+  ASSERT_NE(first, nullptr);
+  for (size_t i = 1; i < asks.size(); ++i) EXPECT_EQ(asks[i].get(), first);
+  EXPECT_EQ(compiles.load(), 1);
+}
+
+TEST(ProgramCache, WarmupFoldsDuplicateKeysAndPopulatesTheCache) {
+  ProgramCache cache;
+  std::atomic_int compiles = 0;
+  cache.registerCompiler(
+      Target::Slang,
+      [&](std::shared_ptr<const Recipe> recipe, Variant variant, std::string&) {
+        ++compiles;
+        return std::shared_ptr<Program>(std::make_shared<Program>(
+            std::move(recipe), Target::Slang, variant));
+      });
+  auto a = std::make_shared<const Recipe>(
+      Recipe::of<TwoParams>("warm.a").body(Target::Slang, "x"));
+  auto b = std::make_shared<const Recipe>(
+      Recipe::of<TwoParams>("warm.b").body(Target::Slang, "x"));
+  const WarmupRequest requests[] = {
+      {a, Target::Slang, {}},
+      {b, Target::Slang, {}},
+      {a, Target::Slang, {}},
+  };
+  const WarmupResult result = cache.warmup(requests);
+  EXPECT_EQ(result.requested, 3u);
+  EXPECT_EQ(result.unique, 2u);
+  EXPECT_EQ(result.ready, 2u);
+  EXPECT_EQ(compiles.load(), 2);
+  EXPECT_EQ(cache.size(), 2u);
 }
 
 TEST(ProgramCache, MissingBodyAndMissingCompilerReturnNull) {

@@ -6,13 +6,18 @@
 # so a consumer links one name on every machine. The definition is PUBLIC
 # so a consumer can #ifdef around the transforms.
 find_package(OpenColorIO CONFIG QUIET)
+set(_shaders ${CMAKE_CURRENT_LIST_DIR}/shaders)
 add_library(SigilMaterialOcio STATIC
   LutRecipe.cpp
+  ${_shaders}/Lut3d.sksl
   ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/ocio/Ocio.h
 )
 target_compile_features(SigilMaterialOcio PUBLIC cxx_std_20)
 target_include_directories(SigilMaterialOcio PUBLIC ${SIGIL_MATERIAL_INCLUDE_DIR})
+target_compile_definitions(SigilMaterialOcio
+  PRIVATE SIGIL_MATERIAL_OCIO_SHADER_DIR="${_shaders}")
 target_link_libraries(SigilMaterialOcio PUBLIC SigilMaterialTexture)
+target_link_libraries(SigilMaterialOcio PRIVATE SigilIOHub)
 if(TARGET OpenColorIO::OpenColorIO)
   target_sources(SigilMaterialOcio PRIVATE Ocio.cpp)
   target_link_libraries(SigilMaterialOcio PRIVATE OpenColorIO::OpenColorIO)

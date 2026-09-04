@@ -10,13 +10,27 @@
 #include <include/core/SkTypes.h>  // SkDebugf — the slot diagnostics
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
+#include <sigilio/hub/TextLibrary.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
 
 #include <algorithm>
 #include <cmath>
+#include <string>
+#include <string_view>
 #include <utility>
 
 namespace sigil::material::skia {
+
+namespace {
+
+std::string shaderSource(std::string_view name) {
+  static io::TextLibrary library("shader://material/skia/",
+                                 SIGIL_MATERIAL_SKIA_SHADER_DIR);
+  return library.text("shader://material/skia/" + std::string(name))
+      .value_or("");
+}
+
+}  // namespace
 
 Effect Effect::filter(sk_sp<SkImageFilter> f) {
   Effect e;
@@ -41,49 +55,8 @@ Effect Effect::glow(SkColor4f color, float sigma) {
 Effect Effect::phosphorBloom(float radius, float threshold, float intensity,
                              float chroma) {
   static const sk_sp<SkRuntimeEffect> effect = [] {
-    auto [program, error] = SkRuntimeEffect::MakeForShader(SkString(R"(
-      uniform shader content;
-      uniform float uRadius;
-      uniform float uThreshold;
-      uniform float uIntensity;
-      uniform float uChroma;
-
-      half3 bright(float2 p) {
-        half3 color = content.eval(p).rgb;
-        half peak = max(color.r, max(color.g, color.b));
-        half gate = smoothstep(half(uThreshold),
-                               half(min(uThreshold + 0.30, 1.0)), peak);
-        return color * gate;
-      }
-
-      half3 ring(float2 p, float radius) {
-        float diagonal = radius * 0.70710678;
-        half3 sum = bright(p + float2( radius, 0.0));
-        sum += bright(p + float2(-radius, 0.0));
-        sum += bright(p + float2(0.0,  radius));
-        sum += bright(p + float2(0.0, -radius));
-        sum += bright(p + float2( diagonal,  diagonal));
-        sum += bright(p + float2(-diagonal,  diagonal));
-        sum += bright(p + float2( diagonal, -diagonal));
-        sum += bright(p + float2(-diagonal, -diagonal));
-        return sum * 0.125;
-      }
-
-      half4 main(float2 p) {
-        half4 source = content.eval(p);
-        half3 near = ring(p, uRadius * 0.28);
-        half3 middle = ring(p, uRadius * 0.62);
-        half3 far = ring(p, uRadius);
-
-        half3 common = near * 0.52 + middle * 0.31 + far * 0.17;
-        half3 spectral = half3(
-            near.r * 0.16 + middle.r * 0.29 + far.r * 0.55,
-            near.g * 0.27 + middle.g * 0.50 + far.g * 0.23,
-            near.b * 0.58 + middle.b * 0.29 + far.b * 0.13);
-        half3 bloom = mix(common, spectral, half(uChroma));
-        return half4(source.rgb + bloom * half(uIntensity), source.a);
-      }
-    )"));
+    auto [program, error] = SkRuntimeEffect::MakeForShader(
+        SkString(shaderSource("PhosphorBloom.sksl")));
     if (!program)
       SkDebugf("[material] skia::Effect::phosphorBloom: shader failed: %s\n",
                error.c_str());
@@ -188,17 +161,7 @@ namespace {
 sk_sp<SkRuntimeEffect> paramBlurMix() {
   static const sk_sp<SkRuntimeEffect> fx = [] {
     auto [effect, error] = SkRuntimeEffect::MakeForShader(
-        SkString("uniform shader level0;"
-                 "uniform shader level1;"
-                 "uniform shader level2;"
-                 "uniform shader param;"
-                 "half4 main(float2 p) {"
-                 "  float t = clamp(param.eval(p).r, 0.0, 1.0) * 2.0;"
-                 "  half4 lo = mix(level0.eval(p), level1.eval(p),"
-                 "                 half(clamp(t, 0.0, 1.0)));"
-                 "  return mix(lo, level2.eval(p),"
-                 "             half(clamp(t - 1.0, 0.0, 1.0)));"
-                 "}"));
+        SkString(shaderSource("ParamBlurMix.sksl")));
     if (!effect)
       SkDebugf("[material] skia::Effect::blur: mix shader failed: %s\n",
                error.c_str());

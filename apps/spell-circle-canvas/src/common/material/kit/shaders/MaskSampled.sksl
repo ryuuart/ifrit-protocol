@@ -1,0 +1,16 @@
+half chan(half4 c, float which) {
+  return which < 0.5 ? c.r : which < 1.5 ? c.g : which < 2.5 ? c.b : c.a;
+}
+
+float3 unit(float3 v) {
+  float len = length(v);
+  return len < 1e-5 ? float3(0.0, 1.0, 0.0) : v / len;
+}
+
+half4 main(float2 xy) {
+  half4 s = source.eval(xy);
+  float raw = reading < 0.5   ? float(chan(s, channel))
+              : reading < 1.5 ? dot(float3(s.rgb) * 2.0 - 1.0, unit(axis.xyz))
+                              : dot(float3(s.rgb), axis.xyz);
+  return half4(shape(raw));
+}

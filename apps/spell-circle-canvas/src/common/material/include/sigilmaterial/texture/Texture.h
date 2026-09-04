@@ -23,7 +23,6 @@
 #include <concepts>
 #include <functional>
 #include <memory>
-#include <mutex>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -167,9 +166,7 @@ struct AssetSource {
  *  must name the picture and every parameter that shaped it. */
 class ProducerSource {
  public:
-  ProducerSource(std::string key, std::function<sk_sp<SkImage>()> produce)
-      : m_key(std::move(key)),
-        m_state(std::make_shared<State>(std::move(produce))) {}
+  ProducerSource(std::string key, std::function<sk_sp<SkImage>()> produce);
 
   const std::string& key() const { return m_key; }
   sk_sp<SkImage> image() const;
@@ -179,12 +176,7 @@ class ProducerSource {
   }
 
  private:
-  struct State {
-    explicit State(std::function<sk_sp<SkImage>()> p) : produce(std::move(p)) {}
-    std::function<sk_sp<SkImage>()> produce;
-    std::once_flag once;
-    sk_sp<SkImage> baked;
-  };
+  struct State;
   std::string m_key;
   std::shared_ptr<State> m_state;
 };

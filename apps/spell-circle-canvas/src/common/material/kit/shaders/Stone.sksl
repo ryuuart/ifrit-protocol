@@ -1,0 +1,15 @@
+half4 main(float2 p) {
+  float2 q = p + seed * 91.7;
+  float a = bedAngle * 0.017453292;
+  float2 d = float2(cos(a), sin(a));
+  float t = fract(dot(q, d) / max(bedLength, 1.0));
+  float bed = 1.0 - abs(2.0 * t - 1.0);
+  float3 c = mix(hi.rgb, lo.rgb, bed * bedDepth);
+  float k = max(stretch, 0.01);
+  float g = fbm3(q * float2(grainScale / k, grainScale * k));
+  c = grained(c, g, grainContrast);
+  float2 f = fleck(q, max(speckleCell, 2.0), speckle, seed);
+  float3 tone = f.y > 0.5 ? min(hi.rgb * 1.45, float3(1.0)) : lo.rgb * 0.55;
+  c = mix(c, tone, f.x * speckleAlpha);
+  return half4(half3(clamp(c, 0.0, 1.0)), 1.0);
+}

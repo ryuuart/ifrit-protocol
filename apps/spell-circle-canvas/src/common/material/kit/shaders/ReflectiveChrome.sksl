@@ -1,0 +1,34 @@
+half4 main(float2 xy) {
+  float3 n = readNormal(xy);
+  float3 V = float3(0.0, 0.0, 1.0);
+  float3 R = reflect(-V, n);
+  float2 uv = envUv(R);
+
+  // Brushed steel: smear the lookup along the azimuth.
+  float3 e3 = float3(0.0);
+  if (brushed > 0.001) {
+    float total = 0.0;
+    for (int k = -3; k <= 3; ++k) {
+      float w = 1.0 - abs(float(k)) / 4.0;
+      float du = float(k) * brushed * 0.02;
+      // Jitter breaks the 7-tap banding into grain — the brushed tell.
+      du += (hash21(xy + float(k)) - 0.5) * brushed * 0.012;
+      e3 += envAt(float2(fract(uv.x + du), uv.y)) * w;
+      total += w;
+    }
+    e3 /= total;
+  } else {
+    e3 = envAt(uv);
+  }
+
+  // The chrome move: crush the environment's midtones.
+  e3 = e3 * exposure;
+  e3 = (e3 - 0.5) * contrast + 0.5;
+  e3 = max(e3, float3(0.0));
+
+  float ndv = clamp(dot(n, V), 0.0, 1.0);
+  float face = mix(1.0 - fresnel, 1.0, pow(1.0 - ndv, 3.0));
+  float3 col = e3 * tint.rgb * (0.55 + 0.45 * face);
+  col += float3(0.9) * pow(1.0 - ndv, 6.0); // hot silhouette rim
+  return half4(half3(col), 1.0);
+}

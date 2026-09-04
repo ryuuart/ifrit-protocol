@@ -10,86 +10,23 @@
 
 #include "sigilmaterial/kit/Mask.h"
 
+#include <sigilio/hub/TextLibrary.h>
 #include <sigilmaterial/core/Program.h>
 
 #include <string>
+#include <string_view>
 #include <utility>
 
 namespace sigil::material::kit {
 
 namespace {
 
-/** The fit both bodies end with: the raw value remapped onto 0..1 by
- *  [low, high], clamped, then flipped when inverted. */
-constexpr char kFit[] = R"(
-half shape(float raw) {
-  float t = clamp((raw - low) / max(high - low, 1e-5), 0.0, 1.0);
-  return half(inverted > 0.5 ? 1.0 - t : t);
+std::string shaderSource(std::string_view name) {
+  static io::TextLibrary library("shader://material/kit/",
+                                 SIGIL_MATERIAL_KIT_SHADER_DIR);
+  return library.text("shader://material/kit/" + std::string(name))
+      .value_or("");
 }
-)";
-
-constexpr char kConstant[] = R"(
-half4 main(float2 xy) {
-  return half4(shape(value));
-}
-)";
-
-constexpr char kSampled[] = R"(
-half chan(half4 c, float which) {
-  return which < 0.5 ? c.r : which < 1.5 ? c.g : which < 2.5 ? c.b : c.a;
-}
-
-float3 unit(float3 v) {
-  float len = length(v);
-  return len < 1e-5 ? float3(0.0, 1.0, 0.0) : v / len;
-}
-
-half4 main(float2 xy) {
-  half4 s = source.eval(xy);
-  float raw = reading < 0.5   ? float(chan(s, channel))
-              : reading < 1.5 ? dot(float3(s.rgb) * 2.0 - 1.0, unit(axis.xyz))
-                              : dot(float3(s.rgb), axis.xyz);
-  return half4(shape(raw));
-}
-)";
-
-/** The same two readings in Slang, for a renderer that compiles it. The
- *  params, the slot and the fit are the same ABI, because they are the
- *  same recipe; where the SkSL body evaluates the source as a shader,
- *  this samples it as a texture. */
-constexpr char kSlangFit[] = R"(
-float shapeS(float raw) {
-  float t = clamp((raw - low) / max(high - low, 1e-5), 0.0, 1.0);
-  return inverted > 0.5 ? 1.0 - t : t;
-}
-)";
-
-constexpr char kSlangConstant[] = R"(
-float4 surface(float2 uv) {
-  float v = shapeS(value);
-  return float4(v, v, v, 1.0);
-}
-)";
-
-constexpr char kSlangSampled[] = R"(
-float chanM(float4 c, float which) {
-  return which < 0.5 ? c.r : which < 1.5 ? c.g : which < 2.5 ? c.b : c.a;
-}
-
-float3 unitM(float3 v) {
-  float len = lengthP(v);
-  return len < 1e-5 ? float3(0.0, 1.0, 0.0) : v / len;
-}
-
-float4 surface(float2 uv) {
-  float4 s = source.Sample(uv);
-  float raw = reading < 0.5   ? chanM(s, channel)
-              : reading < 1.5 ? dotP(s.rgb * 2.0 - 1.0, unitM(axis.xyz))
-                              : dotP(s.rgb, axis.xyz);
-  float v = shapeS(raw);
-  return float4(v, v, v, 1.0);
-}
-)";
 
 Material sampled(Texture source, MaskParams params) {
   Material m(sampledMaskRecipe(), params);
@@ -103,8 +40,10 @@ const std::shared_ptr<const Recipe>& constantMaskRecipe() {
   static const std::shared_ptr<const Recipe> recipe =
       std::make_shared<const Recipe>(
           Recipe::of<MaskParams>("mask.constant")
-              .body(Target::SkSL, std::string(kFit) + kConstant)
-              .body(Target::Slang, std::string(kSlangFit) + kSlangConstant));
+              .body(Target::SkSL, shaderSource("MaskFit.sksl") +
+                                      shaderSource("MaskConstant.sksl"))
+              .body(Target::Slang, shaderSource("MaskFit.slang") +
+                                       shaderSource("MaskConstant.slang")));
   return recipe;
 }
 
@@ -113,8 +52,10 @@ const std::shared_ptr<const Recipe>& sampledMaskRecipe() {
       std::make_shared<const Recipe>(
           Recipe::of<MaskParams>("mask.sampled")
               .child(std::string(kMaskSourceSlot))
-              .body(Target::SkSL, std::string(kFit) + kSampled)
-              .body(Target::Slang, std::string(kSlangFit) + kSlangSampled));
+              .body(Target::SkSL, shaderSource("MaskFit.sksl") +
+                                      shaderSource("MaskSampled.sksl"))
+              .body(Target::Slang, shaderSource("MaskFit.slang") +
+                                       shaderSource("MaskSampled.slang")));
   return recipe;
 }
 

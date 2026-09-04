@@ -1,0 +1,9 @@
+half4 main(float2 xy) {
+  half4 c = half4(baseColor) * baseColorMap.eval(xy);
+  half occ = mix(half(1.0), chan(occlusionMap.eval(xy), occlusionChannel),
+                 half(clamp(occlusionStrength, 0.0, 1.0)));
+  half3 rgb = c.rgb * occ + half3(emissive.rgb) * half(emissiveStrength) *
+                                emissiveMap.eval(xy).rgb;
+  half a = cut(c.a * chan(opacityMap.eval(xy), opacityChannel));
+  return half4(min(rgb, half3(a)), a);
+}

@@ -17,15 +17,23 @@
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigildraw/Math.h>
 #include <sigildraw/Pen.h>
+#include <sigilio/hub/TextLibrary.h>
 #include <sigilmaterial/core/Material.h>
 
 #include <algorithm>
 #include <cmath>
 #include <initializer_list>
+#include <string>
+#include <string_view>
 
 namespace sigil::draw {
 
 namespace {
+
+std::string shaderSource(std::string_view name) {
+  static io::TextLibrary library("shader://draw/", SIGIL_DRAW_SHADER_DIR);
+  return library.text("shader://draw/" + std::string(name)).value_or("");
+}
 
 /** The seed every pen starts on, so a sketch stepped from zero draws the
  *  same picture on every machine. `randomSeed` moves off it. */
@@ -50,10 +58,9 @@ SkPaint::Cap capOf(Constant cap) {
  *  blended across the boundary, so the picture is blocks and not a
  *  blur. Mipmaps go with it — a mipmap IS a blend of neighbours. */
 SkSamplingOptions samplingFor(bool smooth) {
-  return smooth ? SkSamplingOptions(SkFilterMode::kLinear,
-                                    SkMipmapMode::kLinear)
-                : SkSamplingOptions(SkFilterMode::kNearest,
-                                    SkMipmapMode::kNone);
+  return smooth
+             ? SkSamplingOptions(SkFilterMode::kLinear, SkMipmapMode::kLinear)
+             : SkSamplingOptions(SkFilterMode::kNearest, SkMipmapMode::kNone);
 }
 
 /** SUBTRACT: the source's colour taken out of the canvas's. No blend
@@ -67,9 +74,7 @@ SkSamplingOptions samplingFor(bool smooth) {
 sk_sp<SkBlender> subtractBlender() {
   static const sk_sp<SkBlender> blender = [] {
     SkRuntimeEffect::Result made = SkRuntimeEffect::MakeForBlender(
-        SkString("half4 main(half4 src, half4 dst) {"
-                 "  return half4(max(dst.rgb - src.rgb, half3(0.0)), dst.a);"
-                 "}"));
+        SkString(shaderSource("Subtract.sksl")));
     return made.effect ? made.effect->makeBlender(nullptr) : sk_sp<SkBlender>();
   }();
   return blender;
@@ -510,9 +515,8 @@ void Pen::strokeDash(std::initializer_list<float> intervals, float phase) {
     total += length;
   }
   if (run.empty() || !(total > 0.0f)) return noDash();
-  m_style.dash =
-      SkDashPathEffect::Make(SkSpan<const SkScalar>(run.data(), run.size()),
-                             phase);
+  m_style.dash = SkDashPathEffect::Make(
+      SkSpan<const SkScalar>(run.data(), run.size()), phase);
   m_strokePaint.setPathEffect(m_style.dash);
 }
 
@@ -645,10 +649,9 @@ void Pen::point(float x, float y) {
   if (!m_canvas) return;
   if (recordShape(SkPath::Circle(x, y, m_style.strokeWeight / 2.0f))) return;
   // p5 draws a point as a disc of the stroke weight in the stroke colour.
-  const SkRect disc = SkRect::MakeLTRB(x - m_style.strokeWeight / 2.0f,
-                                       y - m_style.strokeWeight / 2.0f,
-                                       x + m_style.strokeWeight / 2.0f,
-                                       y + m_style.strokeWeight / 2.0f);
+  const SkRect disc = SkRect::MakeLTRB(
+      x - m_style.strokeWeight / 2.0f, y - m_style.strokeWeight / 2.0f,
+      x + m_style.strokeWeight / 2.0f, y + m_style.strokeWeight / 2.0f);
   const SkPaint* stroke = strokePaint(&disc);
   if (!stroke) return;
   SkPaint dot = *stroke;

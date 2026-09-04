@@ -140,8 +140,7 @@ namespace detail {
  *  stops — the count is baked into the generated source as a chain of
  *  mixes, each taking effect past its own start, and one effect is cached
  *  per stop count. */
-inline Paint unitRamp(SkPoint a, SkPoint b, std::vector<Stop> stops,
-                      bool radial);
+Paint unitRamp(SkPoint a, SkPoint b, std::vector<Stop> stops, bool radial);
 
 /** THE CHILD-SLOT CONVERSION, in one place because its callers must agree:
  *  sksl()'s children, blend()'s layers and Effect's children all need this
@@ -730,93 +729,5 @@ class Paint {
         "then bump this count.");
   }
 };
-
-namespace detail {
-
-inline Paint unitRamp(SkPoint a, SkPoint b, std::vector<Stop> stops,
-                      bool radial) {
-  // The stop count is BAKED INTO THE SOURCE and one effect is cached per
-  // count. The alternative — one effect with a uniform-guarded loop over a
-  // fixed maximum — is not available: such a loop faults here, and main()
-  // has to stay a single function. Generating per count also means there
-  // is no arbitrary ceiling on stops below the uniform budget.
-  if (stops.empty()) return Paint::solid(SkColor4f{0, 0, 0, 0});
-  if (stops.size() == 1) return Paint::solid(stops.front().color);
-  constexpr size_t kMaxStops = 256;  // uniform budget, not a design limit
-  if (stops.size() > kMaxStops) stops.resize(kMaxStops);
-  const size_t n = stops.size();
-
-  struct Cached {
-    size_t count;
-    sk_sp<SkRuntimeEffect> effect;
-  };
-  static std::vector<Cached> cache;
-  sk_sp<SkRuntimeEffect> fx;
-  for (const Cached& c : cache)
-    if (c.count == n) {
-      fx = c.effect;
-      break;
-    }
-  if (!fx) {
-    std::string src =
-        "uniform float2 uResolution;\n"
-        "uniform float2 uA;\n"
-        "uniform float2 uB;\n"
-        "uniform float  uRadial;\n";
-    for (size_t i = 0; i < n; ++i) {
-      src += "uniform float4 uC" + std::to_string(i) + ";\n";
-      src += "uniform float  uS" + std::to_string(i) + ";\n";
-    }
-    src +=
-        "half4 main(float2 xy) {\n"
-        "  float2 p = xy / max(uResolution, float2(1.0, 1.0));\n"
-        "  float t;\n"
-        "  if (uRadial > 0.5) {\n"
-        // radius is a fraction of the box's half-diagonal, so {0.5,0.5}
-        // r = 1 reaches the corners of ANY box (glowUnit divides it back
-        // down to the inscribed circle).
-        "    float2 d = p - uA;\n"
-        "    t = length(d) / max(uB.x * 0.70710678, 1e-6);\n"
-        "  } else {\n"
-        "    float2 d = uB - uA;\n"
-        "    t = dot(p - uA, d) / max(dot(d, d), 1e-6);\n"
-        "  }\n"
-        "  t = clamp(t, 0.0, 1.0);\n"
-        "  float4 col = uC0;\n";
-    for (size_t i = 1; i < n; ++i) {
-      const std::string p0 = std::to_string(i - 1), p1 = std::to_string(i);
-      src += "  col = mix(col, uC";
-      src += p1;
-      src += ", clamp((t - uS";
-      src += p0;
-      src += ") / max(uS";
-      src += p1;
-      src += " - uS";
-      src += p0;
-      src += ", 1e-6), 0.0, 1.0));\n";
-    }
-    src += "  return half4(half3(col.rgb) * half(col.a), half(col.a));\n}\n";
-    auto [effect, error] =
-        SkRuntimeEffect::MakeForShader(SkString(src.c_str()));
-    if (!effect) {
-      SkDebugf("sigilmaterial unitRamp shader (%zu stops): %s\n", n,
-               error.c_str());
-      return Paint::solid(stops.front().color);
-    }
-    fx = effect;
-    cache.push_back({n, fx});
-  }
-
-  Paint m = Paint::sksl(fx, {{"uRadial", radial ? 1.0f : 0.0f}});
-  m.uniform("uA", std::array<float, 2>{a.x(), a.y()});
-  m.uniform("uB", std::array<float, 2>{b.x(), b.y()});
-  for (size_t i = 0; i < n; ++i) {
-    m.uniform("uC" + std::to_string(i), stops[i].color);
-    m.uniform("uS" + std::to_string(i), stops[i].pos);
-  }
-  return m;
-}
-
-}  // namespace detail
 
 }  // namespace sigil::material::skia

@@ -1,0 +1,23 @@
+uniform float2 uResolution;
+uniform float2 uA;
+uniform float2 uB;
+uniform float uRadial;
+uniform float4 uC0;
+uniform float uS0;
+// SIGIL_STOP_DECLARATIONS
+
+half4 main(float2 xy) {
+  float2 p = xy / max(uResolution, float2(1.0, 1.0));
+  float t;
+  if (uRadial > 0.5) {
+    float2 d = p - uA;
+    t = length(d) / max(uB.x * 0.70710678, 1e-6);
+  } else {
+    float2 d = uB - uA;
+    t = dot(p - uA, d) / max(dot(d, d), 1e-6);
+  }
+  t = clamp(t, 0.0, 1.0);
+  float4 col = uC0;
+  // SIGIL_STOP_MIXES
+  return half4(half3(col.rgb) * half(col.a), half(col.a));
+}

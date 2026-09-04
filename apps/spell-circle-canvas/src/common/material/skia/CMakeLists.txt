@@ -9,11 +9,17 @@
 # Links the
 # texture feature (and through it the core and Skia) and SigilMotion, for
 # the animatable a live uniform and a bound pan hold.
+set(_shaders ${CMAKE_CURRENT_LIST_DIR}/shaders)
+
 add_library(SigilMaterialSkia STATIC
   Draw.cpp
   Effect.cpp
   Paint.cpp
   SkiaCompiler.cpp
+  ${_shaders}/PhosphorBloom.sksl
+  ${_shaders}/ParamBlurMix.sksl
+  ${_shaders}/Mix.sksl
+  ${_shaders}/UnitRamp.sksl
   ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/skia/Color.h
   ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/skia/Draw.h
   ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/skia/Effect.h
@@ -22,9 +28,12 @@ add_library(SigilMaterialSkia STATIC
 )
 target_compile_features(SigilMaterialSkia PUBLIC cxx_std_20)
 target_include_directories(SigilMaterialSkia PUBLIC ${SIGIL_MATERIAL_INCLUDE_DIR})
+target_compile_definitions(SigilMaterialSkia
+  PRIVATE SIGIL_MATERIAL_SKIA_SHADER_DIR="${_shaders}")
 target_link_libraries(SigilMaterialSkia
   PUBLIC SigilMaterialTexture SigilMaterialColor SigilMotionValues
          unofficial::skia::skia)
+target_link_libraries(SigilMaterialSkia PRIVATE SigilIOHub)
 
 add_executable(material_skia_test test/SkiaTest.cpp)
 target_link_libraries(material_skia_test PRIVATE SigilMaterialSkia

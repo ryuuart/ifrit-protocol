@@ -1,0 +1,13 @@
+half4 main(float2 p) {
+  float2 run = to - from;
+  float u = clamp(dot(p - from, run) / max(dot(run, run), 1e-6), 0.0, 1.0);
+  float along = clamp(level + (u - 0.5) * sheen, 0.0, 1.0);
+  float3 c = along < 0.5 ? mix(shadow.rgb, body.rgb, along * 2.0)
+                         : mix(body.rgb, light.rgb, (along - 0.5) * 2.0);
+  float2 q = p + seed * 37.0;
+  float t = fbm3(q * toothScale);
+  c = grained(c, t, tooth);
+  float2 f = fleck(q, max(patinaCell, 2.0), patina, seed);
+  c = mix(c, patinaColor.rgb, f.x * patinaColor.a);
+  return half4(half3(clamp(c, 0.0, 1.0)), 1.0);
+}

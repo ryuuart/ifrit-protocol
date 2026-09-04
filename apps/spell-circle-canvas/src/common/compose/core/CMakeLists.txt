@@ -24,6 +24,8 @@
 # the two engines' that implement its seams (typography/ and brush/); the
 # include path is PRIVATE to each. Every other target in this tree compiles
 # against the public headers alone.
+set(_shaders ${CMAKE_CURRENT_LIST_DIR}/shaders)
+
 add_library(SigilComposeCore STATIC
   # the element value and its builders, one subject each
   ElementLayout.cpp
@@ -52,6 +54,7 @@ add_library(SigilComposeCore STATIC
   Bounds.cpp
   Depth.cpp
   StackingPainter.cpp
+  ${_shaders}/LumaCoverage.sksl
   Coverage.cpp
   # text
   TextPainter.cpp
@@ -92,6 +95,8 @@ target_include_directories(SigilComposeCore
   PUBLIC ${SIGIL_COMPOSE_INCLUDE_DIR}
   PRIVATE ${CMAKE_CURRENT_LIST_DIR}
 )
+target_compile_definitions(SigilComposeCore
+  PRIVATE SIGIL_COMPOSE_SHADER_DIR="${_shaders}")
 target_link_libraries(SigilComposeCore
   PUBLIC
     SigilCoreCache
@@ -107,6 +112,7 @@ target_link_libraries(SigilComposeCore
     SigilWeave
     unofficial::skia::skia
   PRIVATE
+    SigilIOHub
     yoga::yogacore
 )
 

@@ -9,36 +9,44 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
 #include <include/effects/SkPerlinNoiseShader.h>
+#include <sigilio/hub/TextLibrary.h>
 #include <sigilmaterial/texture/ShaderLeaf.h>
 #include <sigilmaterial/texture/Texture.h>
 
 #include <algorithm>
 #include <array>
 #include <string>
+#include <string_view>
 
 namespace sigil::material::field {
+
+namespace {
+
+io::TextLibrary& shaders() {
+  static io::TextLibrary library("shader://material/field/",
+                                 SIGIL_MATERIAL_FIELD_SHADER_DIR);
+  return library;
+}
+
+std::string shaderSource(std::string_view name) {
+  return shaders()
+      .text("shader://material/field/" + std::string(name))
+      .value_or("");
+}
+
+void replace(std::string& text, std::string_view token,
+             std::string_view value) {
+  const size_t at = text.find(token);
+  if (at != std::string::npos) text.replace(at, token.size(), value);
+}
+
+}  // namespace
 
 const std::shared_ptr<const Recipe>& halftoneRampRecipe() {
   static const auto recipe = std::make_shared<const Recipe>(
       Recipe::of<HalftoneRampParams>("field.halftoneRamp")
           .frame(FrameInput::Resolution)
-          .body(Target::SkSL, R"(
-      half4 main(float2 xy) {
-        float ty = xy.y / max(uResolution.y, 1.0);
-        float t = clamp((ty - uRamp0) / max(uRamp1 - uRamp0, 0.001), 0.0, 1.0);
-        float2 p = xy + float2(uDriftX, uDriftY);
-        float cs = cos(uAngle); float sn = sin(uAngle);
-        p = float2(p.x * cs - p.y * sn, p.x * sn + p.y * cs);
-        float row = floor(p.y / uSpacing);
-        p.x += mod(row, 2.0) * uSpacing * 0.5; // staggered rows
-        float2 cell = p - uSpacing * (floor(p / uSpacing) + 0.5);
-        float r = mix(uRMin, uRMax, t);
-        float d = length(cell) - r;
-        float cov = 1.0 - smoothstep(-0.75, 0.75, d);
-        float a = uColor.a * cov;
-        return half4(half3(uColor.rgb) * a, a);
-      }
-    )"));
+          .body(Target::SkSL, shaderSource("HalftoneRamp.sksl")));
   return recipe;
 }
 
@@ -54,17 +62,7 @@ const std::shared_ptr<const Recipe>& crtOverlayRecipe() {
   static const auto recipe = std::make_shared<const Recipe>(
       Recipe::of<CrtOverlayParams>("field.crtOverlay")
           .frame(FrameInput::Resolution)
-          .body(Target::SkSL, R"(
-      half4 main(float2 xy) {
-        float line = mod(xy.y, uScanPitch) < uScanPitch * 0.5
-                       ? uScanStrength : 0.0;
-        float2 p = (xy / max(uResolution, float2(1.0)) - 0.5) * 2.0;
-        float r = length(p / uSqueeze);
-        float vig = smoothstep(uVigInner, uVigOuter, r) * uVigStrength;
-        float a = clamp(line + vig, 0.0, 1.0);
-        return half4(0.0, 0.0, 0.0, half(a));
-      }
-    )"));
+          .body(Target::SkSL, shaderSource("CrtOverlay.sksl")));
   return recipe;
 }
 
@@ -115,8 +113,7 @@ const std::shared_ptr<const Recipe>& passThroughRecipe() {
   static const auto recipe = std::make_shared<const Recipe>(
       Recipe::of<NoParams>("field.noise")
           .child("uSource")
-          .body(Target::SkSL,
-                "half4 main(float2 p) { return uSource.eval(p); }"));
+          .body(Target::SkSL, shaderSource("Noise.sksl")));
   return recipe;
 }
 
@@ -133,47 +130,9 @@ const std::shared_ptr<const Recipe>& grainRecipe(int octaves) {
   const int n = std::clamp(octaves, 1, 8);
   static std::array<std::shared_ptr<const Recipe>, 9> cache{};
   if (cache[(size_t)n]) return cache[(size_t)n];
-  std::string src = R"(
-half4 main(float2 pos) {
-  float2 q = pos * uFreq;
-  float sum = 0.0;
-  float total = 0.0;
-)";
-  float amp = 0.5f;
-  for (int o = 0; o < n; ++o) {
-    const std::string a = std::to_string(amp);
-    src += R"(
-  {
-    float2 c = floor(q);
-    float2 f = fract(q);
-    float2 w = f * f * (3.0 - 2.0 * f);
-    float2 k0 = fract((c + float2(0.0, 0.0)) * float2(123.34, 456.21) + uSeed);
-    k0 += dot(k0, k0 + 45.32);
-    float2 k1 = fract((c + float2(1.0, 0.0)) * float2(123.34, 456.21) + uSeed);
-    k1 += dot(k1, k1 + 45.32);
-    float2 k2 = fract((c + float2(0.0, 1.0)) * float2(123.34, 456.21) + uSeed);
-    k2 += dot(k2, k2 + 45.32);
-    float2 k3 = fract((c + float2(1.0, 1.0)) * float2(123.34, 456.21) + uSeed);
-    k3 += dot(k3, k3 + 45.32);
-    float n = mix(mix(fract(k0.x * k0.y), fract(k1.x * k1.y), w.x),
-                  mix(fract(k2.x * k2.y), fract(k3.x * k3.y), w.x), w.y);
-    sum += )";
-    src += a;
-    src += R"( * n;
-    total += )";
-    src += a;
-    src += R"(;
-    q *= 2.0;
-  }
-)";
-    amp *= 0.5f;
-  }
-  src += R"(
-  float v = total > 0.0 ? sum / total : 0.5;
-  v = clamp(0.5 + (v - 0.5) * uContrast, 0.0, 1.0);
-  return half4(half3(v), 1.0);
-}
-)";
+  std::string src = shaderSource("Grain.sksl");
+  replace(src, "const int kOctaves = 1;",
+          "const int kOctaves = " + std::to_string(n) + ";");
   cache[(size_t)n] = std::make_shared<const Recipe>(
       Recipe::of<GrainParams>("field.grain." + std::to_string(n))
           .body(Target::SkSL, src));
@@ -188,19 +147,10 @@ Material grain(float frequency, int octaves, float seed, float contrast,
 }
 
 const std::shared_ptr<const Recipe>& rippleRecipe() {
-  static const auto recipe =
-      std::make_shared<const Recipe>(Recipe::of<RippleParams>("field.ripple")
-                                         .child("content")
-                                         .body(Target::SkSL, R"(
-      half4 main(float2 p) {
-        float2 q = p;
-        if (uVertical > 0.5)
-          q.x += sin(p.y * uFreq + uPhase) * uAmp;
-        else
-          q.y += sin(p.x * uFreq + uPhase) * uAmp;
-        return content.eval(q);
-      }
-    )"));
+  static const auto recipe = std::make_shared<const Recipe>(
+      Recipe::of<RippleParams>("field.ripple")
+          .child("content")
+          .body(Target::SkSL, shaderSource("Ripple.sksl")));
   return recipe;
 }
 
@@ -213,6 +163,7 @@ Material ripple(float amplitudePx, float wavelengthPx, float phase,
 }
 
 std::vector<Material> everyRecipe() {
+  shaders().preload();
   std::vector<Material> all;
   all.push_back(halftoneRamp(8, 1, 3, {1, 1, 1, 1}, 15.0f, 0.1f, 0.9f));
   all.push_back(noise(0.03f));

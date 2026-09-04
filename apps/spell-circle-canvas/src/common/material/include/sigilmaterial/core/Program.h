@@ -10,15 +10,15 @@
 #include <sigilmaterial/core/Target.h>
 
 #include <functional>
-#include <map>
 #include <memory>
-#include <mutex>
-#include <set>
+#include <span>
 #include <string>
 #include <string_view>
 #include <utility>
 
 namespace sigil::material {
+
+class Material;
 
 /** A recipe compiled for one target and variant. The base carries what
  *  every backend shares; a backend's compiler returns a subclass holding
@@ -60,6 +60,20 @@ class Program {
 using Compiler = std::function<std::shared_ptr<Program>(
     std::shared_ptr<const Recipe> recipe, Variant variant, std::string& error)>;
 
+/** One program a loading phase wants resident before the first frame. */
+struct WarmupRequest {
+  std::shared_ptr<const Recipe> recipe;
+  Target target;
+  Variant variant{};
+};
+
+/** What a warm-up submitted after duplicate keys were folded together. */
+struct WarmupResult {
+  size_t requested = 0;
+  size_t unique = 0;
+  size_t ready = 0;
+};
+
 /** THE program cache: every compiled program in the process, keyed by
  *  (recipe identity, target, variant), so a recipe compiles once per key
  *  however many materials instantiate it. Thread-safe.
@@ -76,6 +90,11 @@ using Compiler = std::function<std::shared_ptr<Program>(
  *  recipe and each unread field. */
 class ProgramCache {
  public:
+  ProgramCache();
+  ~ProgramCache();
+  ProgramCache(const ProgramCache&) = delete;
+  ProgramCache& operator=(const ProgramCache&) = delete;
+
   /** The one cache. */
   static ProgramCache& shared();
 
@@ -87,6 +106,9 @@ class ProgramCache {
   std::shared_ptr<Program> program(std::shared_ptr<const Recipe> recipe,
                                    Target target, Variant variant = {});
 
+  /** Compiles the distinct requests concurrently and populates this cache. */
+  WarmupResult warmup(std::span<const WarmupRequest> requests);
+
   /** How many programs are held. */
   size_t size() const;
   /** Drops every program; compilers stay registered. The next request for
@@ -95,19 +117,8 @@ class ProgramCache {
   void clear();
 
  private:
-  struct Key {
-    const Recipe* recipe;
-    Target target;
-    Variant variant;
-    auto operator<=>(const Key&) const = default;
-  };
-  mutable std::mutex m_mutex;
-  std::map<Target, Compiler> m_compilers;
-  std::map<Key, std::shared_ptr<Program>> m_programs;
-  std::set<std::pair<const Recipe*, Target>> m_reported;
-  // Kept apart from m_reported so that a variant which compiled and one
-  // which did not each still say their piece once.
-  std::set<std::pair<const Recipe*, Target>> m_unread;
+  struct Impl;
+  std::unique_ptr<Impl> m_impl;
 };
 
 /** `ProgramCache::shared().registerCompiler(...)`. */
@@ -115,6 +126,11 @@ void registerCompiler(Target target, Compiler compiler);
 /** `ProgramCache::shared().program(...)`. */
 std::shared_ptr<Program> program(std::shared_ptr<const Recipe> recipe,
                                  Target target, Variant variant = {});
+/** `ProgramCache::shared().warmup(requests)`. */
+WarmupResult warmup(std::span<const WarmupRequest> requests);
+/** Compiles the distinct recipes instantiated by @p materials. */
+WarmupResult warmup(std::span<const Material> materials, Target target,
+                    Variant variant = {});
 
 /** Writes @p message to the diagnostic stream the first time @p key is
  *  seen and never again, so a per-frame path can report a mistake once. */

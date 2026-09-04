@@ -7,9 +7,9 @@
  * name of theirs is spelled `::slang::` here.
  */
 
+#include <sigilio/hub/TextLibrary.h>
 #include <sigilmaterial/kit/Terms.h>
 #include <sigilmaterial/slang/SlangCompiler.h>
-#include <sigilslang/Portable.h>
 #include <slang-com-ptr.h>
 #include <slang.h>
 
@@ -20,6 +20,12 @@
 namespace sigil::material::slang {
 
 namespace {
+
+std::string portableSource() {
+  static io::TextLibrary shaders("shader://material/slang/",
+                                 SIGIL_MATERIAL_SLANG_SHADER_DIR);
+  return shaders.text("shader://material/slang/Portable.slang").value_or("");
+}
 
 /** The compiler's diagnostics, or an empty string when it produced
  *  none. */
@@ -66,17 +72,15 @@ class Compiler {
       if (error) *error = "the Slang session could not be created";
       return nullptr;
     }
-    // The portable subset and the shading terms are loaded into the
-    // session by name, so every module's `import` resolves against what
-    // is in memory and nothing is looked for on disk. The terms are the
-    // material kit's own text: a renderer's shading and every material
-    // body compiled beside it call one definition of a term rather than
-    // a copy apiece.
+    // The portable subset and shading terms have been fetched through the
+    // source libraries and are loaded into the session by name, so every
+    // module's `import` resolves without another resource lookup. The terms
+    // are the material kit's own text: a renderer's shading and every material
+    // body compiled beside it call one definition rather than a copy apiece.
     Slang::ComPtr<::slang::IBlob> diagnostics;
-    slot->loadModuleFromSourceString(
-        "Portable", "Portable.slang",
-        std::string(slangmodule::Portable::kSource).c_str(),
-        diagnostics.writeRef());
+    const std::string portable = portableSource();
+    slot->loadModuleFromSourceString("Portable", "Portable.slang",
+                                     portable.c_str(), diagnostics.writeRef());
     slot->loadModuleFromSourceString("Shading", "Shading.slang",
                                      kit::termsSource(Target::Slang).c_str(),
                                      diagnostics.writeRef());

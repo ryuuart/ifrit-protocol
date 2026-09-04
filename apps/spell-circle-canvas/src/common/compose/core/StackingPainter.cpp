@@ -22,6 +22,7 @@
 #include <include/effects/SkRuntimeEffect.h>
 #include <include/effects/SkTrimPathEffect.h>
 #include <sigilimage/asset/ImageAsset.h>
+#include <sigilio/hub/TextLibrary.h>
 #include <sigilmeasure/time/Stopwatch.h>
 #include <sigilweave/choreograph/Choreograph.h>
 #include <sigilweave/fonts/FontContext.h>
@@ -33,6 +34,8 @@
 #include <map>
 #include <optional>
 #include <set>
+#include <string>
+#include <string_view>
 #include <tuple>
 #include <unordered_set>
 #include <utility>
@@ -112,6 +115,13 @@ void Composer::Impl::recordPicture(Instance& inst, float hostScale,
 
 namespace {
 
+std::string shaderSource(std::string_view name) {
+  static sigil::io::TextLibrary library("shader://compose/core/",
+                                        SIGIL_COMPOSE_SHADER_DIR);
+  return library.text("shader://compose/core/" + std::string(name))
+      .value_or("");
+}
+
 /** Does this span set claim the whole boundary? Then the boundary is
  *  untouched, and returning the source path unchanged is required, not an
  *  optimisation: a fully settled reveal must draw exactly the path it would
@@ -164,14 +174,8 @@ SkColor4f lumaCoverageColor(const SkColor4f& c) {
  *  coefficients sum to 1, so `Y' <= a` always. */
 sk_sp<SkShader> lumaCoverageShader(sk_sp<SkShader> src) {
   static const SkRuntimeEffect* effect = [] {
-    auto result = SkRuntimeEffect::MakeForShader(SkString(R"(
-uniform shader src;
-half4 main(float2 p) {
-  half4 c = src.eval(p);
-  half y = clamp(dot(c.rgb, half3(0.299, 0.587, 0.114)), 0, 1);
-  return half4(0, 0, 0, y);
-}
-)"));
+    auto result = SkRuntimeEffect::MakeForShader(
+        SkString(shaderSource("LumaCoverage.sksl")));
     return result.effect.release();
   }();
   if (!effect || !src) return src;
@@ -918,12 +922,12 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
             // remainder is what the next frame of its chain begins at, and
             // a re-layout here at an unbounded depth would place the whole
             // story and leave the next frame nothing.
-            layoutText(inst, bounds.width(),
-                       verticalRun || distributesRoom ||
-                               (node.textData &&
-                                !node.textData->threadTo.empty())
-                           ? bounds.height()
-                           : 1.0e6f);
+            layoutText(
+                inst, bounds.width(),
+                verticalRun || distributesRoom ||
+                        (node.textData && !node.textData->threadTo.empty())
+                    ? bounds.height()
+                    : 1.0e6f);
           // Misprint echoes of the TEXT, under the real pass (fx() text
           // draws its own buckets — echoes skip it by contract).
           if (!echoesOf(node).empty() && !hasTextFx(inst)) {
@@ -1167,10 +1171,10 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
   bool ownHidden = false;
   if (depth) {
     flat = depth->asM33();
-    ownHidden = !flat->invert(nullptr) ||
-                (node.depthData &&
-                 node.depthData->backface == Backface::Hidden &&
-                 facesAway(*depth));
+    ownHidden =
+        !flat->invert(nullptr) ||
+        (node.depthData && node.depthData->backface == Backface::Hidden &&
+         facesAway(*depth));
     if (ownHidden && !spaceHost) return;
   }
 
@@ -1240,7 +1244,8 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
   Space hosted;
   if (spaceHost) hosted = Space{*depth, space ? space->rootToPlane : plane};
   DepthScope depthScope(this, spaceHost ? &hosted : nullptr,
-                        spaceHost ? flat : std::nullopt, spaceHost && ownHidden);
+                        spaceHost ? flat : std::nullopt,
+                        spaceHost && ownHidden);
 
   const material::skia::Effect* backdropFx = backdropEffectOf(node);
   sk_sp<SkImageFilter> backdropFilter;
@@ -1530,8 +1535,8 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
   // The PRIMARY verdict: the first refusal in the order an author should
   // address them (their own switches first, then content, then geometry).
   static constexpr Prom kRefusalOrder[] = {
-      Prom::OptedOut,    Prom::HostsSpace, Prom::Volatile,
-      Prom::Composited,  Prom::Transformed, Prom::Filtered,
+      Prom::OptedOut,      Prom::HostsSpace,  Prom::Volatile,
+      Prom::Composited,    Prom::Transformed, Prom::Filtered,
       Prom::ReadsBackdrop, Prom::TooBig};
   Prom why = Prom::Cheap;
   for (Prom p : kRefusalOrder)

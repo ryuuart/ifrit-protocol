@@ -1,0 +1,8 @@
+half chan(half4 c, float which) {
+  return which < 0.5 ? c.r : which < 1.5 ? c.g : which < 2.5 ? c.b : c.a;
+}
+
+half cut(half a) {
+  return alphaCutoff > 0.0 ? (a < half(alphaCutoff) ? half(0.0) : half(1.0))
+                           : a;
+}

@@ -22,6 +22,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <set>
 
 #include "ComposeRuntime.h"
 
@@ -116,7 +117,8 @@ bool Composer::Impl::resolveThreads() {
   for (Instance* inst : threadedInstances) {
     auto found = byKey.find(inst->desc->textData->threadTo);
     if (found == byKey.end()) continue;
-    if (threadedInto.insert(found->second).second) targets.push_back(found->second);
+    if (threadedInto.insert(found->second).second)
+      targets.push_back(found->second);
   }
   // A FRAME IS BOUNDED BY ITS OWN DEPTH, and the last link of a chain is a
   // frame although it threads nowhere: what it cannot hold has nowhere to
@@ -148,7 +150,8 @@ bool Composer::Impl::resolveThreads() {
     uint32_t lineOffset = 0;
     std::vector<Instance*> chain;
     for (Instance* frame = head; frame;) {
-      if (!visited.insert(frame).second) break;  // a cycle: stop where it closes
+      if (!visited.insert(frame).second)
+        break;  // a cycle: stop where it closes
       const detail::TextData* text = frame->desc && frame->desc->textData
                                          ? &*frame->desc->textData
                                          : nullptr;
@@ -181,11 +184,11 @@ bool Composer::Impl::resolveThreads() {
       const SkRect box = instanceRect(*frame);
       if (box.isFinite() && box.width() > 0)
         layoutText(*frame, box.width(), box.height());
-      cursor = frame->textLayout.overflowed()
-                   ? frame->textLayout.firstUnplacedWord
-                   : (frame->paragraph
-                          ? (uint32_t)frame->paragraph->words().size()
-                          : cursor);
+      cursor =
+          frame->textLayout.overflowed()
+              ? frame->textLayout.firstUnplacedWord
+              : (frame->paragraph ? (uint32_t)frame->paragraph->words().size()
+                                  : cursor);
       lineOffset += (uint32_t)std::max(frame->textLayout.lineCount, 0);
       chain.push_back(frame);
       frame = next;
