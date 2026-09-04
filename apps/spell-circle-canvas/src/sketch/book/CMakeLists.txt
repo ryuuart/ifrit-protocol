@@ -66,6 +66,7 @@ target_compile_definitions(Sketchbook PRIVATE
 target_include_directories(Sketchbook PRIVATE ${CMAKE_CURRENT_LIST_DIR})
 target_link_libraries(Sketchbook PRIVATE
   SigilSketchLive SigilSketchPlate SigilSketches SigilMeasure SigilWeavePorts
+  SigilMaterial
   IfritUiplugin Qt6::Gui Qt6::GuiPrivate Qt6::Quick Qt6::QuickControls2
   Qt6::QuickDialogs2)
 

@@ -34,6 +34,11 @@
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
+#include <sigilmaterial/core/Program.h>
+#include <sigilmaterial/field/Field.h>
+#include <sigilmaterial/kit/Recipes.h>
+#include <sigilmaterial/sdf/Sdf.h>
+#include <sigilmaterial/skia/SkiaCompiler.h>
 #include <sigilmeasure/stats/Samples.h>
 #include <sigilmeasure/time/Stopwatch.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -77,6 +82,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
+#include <future>
 #include <memory>
 #include <optional>
 #include <string>
@@ -134,6 +140,35 @@ constexpr double kDefaultJitter = 0.35;
  *  first frames' program compiles, texture bakes and glyph atlases. */
 constexpr double kWindowBenchSeconds = 2.5;
 constexpr double kWindowBenchWarmupSeconds = 1.2;
+
+/** Loads the authored stock shader files and compiles their SkSL programs.
+ *  Each catalogue discovers its shader directory through SigilIO before the
+ *  shared program cache compiles the distinct recipe identities. */
+sigil::material::WarmupResult warmStockMaterials() {
+  namespace material = sigil::material;
+  material::skia::install();
+  auto fields = std::async(std::launch::async, material::field::everyRecipe);
+  auto shapes = std::async(std::launch::async, material::sdf::everyRecipe);
+  auto kit = std::async(std::launch::async, material::kit::everyRecipe);
+
+  std::vector<material::Material> recipes;
+  const auto append = [&recipes](std::vector<material::Material> found) {
+    for (material::Material& item : found) recipes.push_back(std::move(item));
+  };
+  append(fields.get());
+  append(shapes.get());
+  append(kit.get());
+  return material::warmup(recipes, material::Target::SkSL);
+}
+
+void finishMaterialWarmup(std::future<sigil::material::WarmupResult>& loading) {
+  const sigil::material::WarmupResult result = loading.get();
+  if (result.ready != result.unique)
+    std::fprintf(stderr,
+                 "[sketchbook] material warm-up prepared %zu of %zu "
+                 "programs\n",
+                 result.ready, result.unique);
+}
 
 /** The compiler line the build captured, which lands beside the binaries
  *  rather than inside the bundle: a macOS application is a directory, and
@@ -793,12 +828,16 @@ int main(int argc, char* argv[]) {
     return 0;
   }
 
+  std::future<sigil::material::WarmupResult> materialWarmup =
+      std::async(std::launch::async, warmStockMaterials);
+
   if (!storyOptions.out.empty() && storyOptions.framesPerSketch > 0) {
     storyOptions.only = chosen;
     storyOptions.kind = kind;
     if (selectionNeedsDevice(chosen, kind) && !useDevice() && gpu) return 1;
     SharedWebEngineScope sharedWebEngine;
     sketch::installCrashReporter({});
+    finishMaterialWarmup(materialWarmup);
     const int result = story(storyOptions, fonts(), assets());
     sharedWebEngine.shutdown();
     releaseDevice();
@@ -822,6 +861,7 @@ int main(int argc, char* argv[]) {
     // was is whatever the one before it happened to print. There is no
     // one file to name here — the sweep names the entry it is on.
     sketch::installCrashReporter({});
+    finishMaterialWarmup(materialWarmup);
     const int result = sweep(sweepOptions, fonts(), assets());
     sharedWebEngine.shutdown();
     releaseDevice();
@@ -885,6 +925,7 @@ int main(int argc, char* argv[]) {
     // one thing a capture must never do.
     if (gpu && !useDevice()) return 1;
     SharedWebEngineScope sharedWebEngine;
+    finishMaterialWarmup(materialWarmup);
     int result = 0;
     {
       sketch::Host host(std::move(options), fonts());
@@ -954,6 +995,8 @@ int main(int argc, char* argv[]) {
   QGuiApplication application(argc, argv);
   QGuiApplication::setOrganizationDomain("sigil.dev");
   QGuiApplication::setApplicationName("Sketchbook");
+
+  finishMaterialWarmup(materialWarmup);
 
   QQmlApplicationEngine engine;
   QObject::connect(

@@ -530,6 +530,12 @@ settled before its cut begins. Each cut is the sketch in one fixed fitted
 rectangle on black with its title in white. The sketch's own animation remains
 live; the montage adds no border, progress chrome, pulse, scan, or reveal wipe.
 
+Before the first selected session opens, Sketchbook preloads the stock shader
+directories through SigilIO and warms their SkSL programs concurrently. The
+story, headless sweep, capture path and live browser all cross that loading
+barrier before they render, so compilation does not become a captured loading
+frame or the first interactive frame.
+
 `--video-frames` changes each sketch's share of the edit, `--video-size`
 changes the even output dimensions, `--video-bitrate` sets H.264 bits per
 second, and `--fps` changes both the encoder rate and the fixed scene clock.
