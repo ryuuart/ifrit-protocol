@@ -526,6 +526,9 @@ on, so the cloud vocabulary lives in this feature beside the chain
 language — and so does every piece of GPU-focused mesh work the library
 has: the swept operator with its own kernel, both device executors, and
 the decoration a compiled module needs before a driver may be handed it.
+The built-in CPU executor divides large item and output-group ranges through
+oneTBB; small ranges stay on the calling thread, and the device executors remain
+separate implementations of the same dispatch seams.
 
 - **`mesh/pop/Points.h`** — `Cloud` and its lane accessors (`Cloud.cpp`);
   the generators `onSpline()`, `grid()`, `ring()`, `scatterBox()` and

@@ -20,6 +20,7 @@
 #include <variant>
 #include <vector>
 
+#include "Parallel.h"
 #include "sigilgeometry/mesh/pop/Spirv.h"
 
 /** THE KERNEL ITSELF, as the build's C++ emitter names it. Its two
@@ -178,9 +179,9 @@ bool describe(const pop::Op& op, size_t count, Dispatch* out) {
           // length it never has to check and a degenerate fallback lands
           // on one answer rather than on whatever the caller wrote.
           glm::vec3 fallback = value.fallback;
-          const float length = std::sqrt(fallback.x * fallback.x +
-                                         fallback.y * fallback.y +
-                                         fallback.z * fallback.z);
+          const float length =
+              std::sqrt(fallback.x * fallback.x + fallback.y * fallback.y +
+                        fallback.z * fallback.z);
           fallback = length > 1e-6f ? fallback / length : glm::vec3{0, 0, 1};
           work.args.a = asVec4(value.center, value.sense);
           work.args.b = asVec4(fallback, 0);
@@ -217,9 +218,11 @@ void run(const Dispatch& dispatch, glm::vec4* dst, glm::vec4* a, glm::vec4* b,
   globals.table = {const_cast<glm::vec4*>(dispatch.table.data()),
                    dispatch.table.size()};
 
-  VaryingInput varying{
-      {0, 0, 0}, {(uint32_t)((count + kGroupSize - 1) / kGroupSize), 1, 1}};
-  sigilPopKernel(&varying, nullptr, &globals);
+  const uint32_t groupCount = (uint32_t)((count + kGroupSize - 1) / kGroupSize);
+  parallel::groups(groupCount, [&](uint32_t first, uint32_t last) {
+    VaryingInput varying{{first, 0, 0}, {last, 1, 1}};
+    sigilPopKernel(&varying, nullptr, &globals);
+  });
 }
 
 std::span<const uint32_t> spirv() {

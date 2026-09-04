@@ -64,6 +64,7 @@ add_library(SigilGeometryMeshPop STATIC
   Generators.cpp
   Kernel.cpp
   Modifiers.cpp
+  Parallel.h
   Sinks.cpp
   Spirv.cpp
   Stamp.cpp
@@ -97,9 +98,10 @@ target_include_directories(SigilGeometryMeshPop
 # values, which is SigilCoreComparable's shape. The seeded mixers the
 # scatter and the generators deal from are SigilCoreCompute's, read in
 # the sources alone.
+find_package(TBB CONFIG REQUIRED)
 target_link_libraries(SigilGeometryMeshPop
   PUBLIC SigilGeometryMeshCurve SigilCoreComparable
-  PRIVATE SigilCoreCompute)
+  PRIVATE SigilCoreCompute TBB::tbb)
 # The device executors dispatch the kernels this feature compiled, on the
 # device SigilGeometryDevice created. Diligent arrives through that
 # target and is never named beside it — see its CMakeLists for why the

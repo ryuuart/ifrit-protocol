@@ -21,6 +21,7 @@
 #include <cstdint>
 #include <utility>
 
+#include "Parallel.h"
 #include "sigilgeometry/mesh/pop/Spirv.h"
 
 /** THE KERNEL ITSELF, as the build's C++ emitter names it. Its two
@@ -83,9 +84,11 @@ void run(const Dispatch& dispatch, glm::vec4* positions, glm::vec4* normals) {
   globals.outPosition = {positions, count};
   globals.outNormal = {normals, count};
 
-  VaryingInput varying{
-      {0, 0, 0}, {(uint32_t)((count + kGroupSize - 1) / kGroupSize), 1, 1}};
-  sigilSweepKernel(&varying, nullptr, &globals);
+  const uint32_t groupCount = (uint32_t)((count + kGroupSize - 1) / kGroupSize);
+  parallel::groups(groupCount, [&](uint32_t first, uint32_t last) {
+    VaryingInput varying{{first, 0, 0}, {last, 1, 1}};
+    sigilSweepKernel(&varying, nullptr, &globals);
+  });
 }
 
 std::span<const uint32_t> spirv() {

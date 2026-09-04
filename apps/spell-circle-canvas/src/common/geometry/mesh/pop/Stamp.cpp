@@ -17,6 +17,7 @@
 #include <utility>
 #include <vector>
 
+#include "Parallel.h"
 #include "sigilgeometry/mesh/pop/Points.h"
 #include "sigilgeometry/mesh/pop/Spirv.h"
 
@@ -91,9 +92,11 @@ void run(const Dispatch& dispatch, glm::vec4* positions, glm::vec4* normals,
   globals.outNormal = {normals, count};
   globals.outColor = {colors, count};
 
-  VaryingInput varying{
-      {0, 0, 0}, {(uint32_t)((count + kGroupSize - 1) / kGroupSize), 1, 1}};
-  sigilStampKernel(&varying, nullptr, &globals);
+  const uint32_t groupCount = (uint32_t)((count + kGroupSize - 1) / kGroupSize);
+  parallel::groups(groupCount, [&](uint32_t first, uint32_t last) {
+    VaryingInput varying{{first, 0, 0}, {last, 1, 1}};
+    sigilStampKernel(&varying, nullptr, &globals);
+  });
 }
 
 std::span<const uint32_t> spirv() {
@@ -162,8 +165,7 @@ bool describe(const Cloud& cloud, const Mesh& stamp,
     const glm::vec3 n =
         v < stamp.normals.size() ? stamp.normals[v] : glm::vec3{0, 0, 0};
     work.stampNormal.emplace_back(n.x, n.y, n.z, 0.0f);
-    const glm::vec2 uv =
-        v < stamp.uvs.size() ? stamp.uvs[v] : glm::vec2{0, 0};
+    const glm::vec2 uv = v < stamp.uvs.size() ? stamp.uvs[v] : glm::vec2{0, 0};
     work.stampUv.emplace_back(uv.x, uv.y, 0.0f, 0.0f);
     work.stampColor.push_back(v < stamp.colors.size() ? stamp.colors[v]
                                                       : glm::vec4{1, 1, 1, 1});
@@ -188,9 +190,8 @@ bool describe(const Cloud& cloud, const Mesh& stamp,
                                   : glm::vec4{1, 1, 1, 1});
     // The texture window is the identity where the cloud carries none,
     // so the kernel remaps unconditionally and no branch decides it.
-    work.pointTex.push_back(texLane && i < texLane->size()
-                                ? (*texLane)[i]
-                                : glm::vec4{0, 0, 1, 1});
+    work.pointTex.push_back(
+        texLane && i < texLane->size() ? (*texLane)[i] : glm::vec4{0, 0, 1, 1});
   }
 
   *out = std::move(work);
