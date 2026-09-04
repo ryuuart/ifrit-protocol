@@ -22,7 +22,7 @@
 #include <include/effects/SkRuntimeEffect.h>
 #include <include/effects/SkTrimPathEffect.h>
 #include <sigilimage/asset/ImageAsset.h>
-#include <sigilio/hub/TextLibrary.h>
+#include <sigilio/hub/Hub.h>
 #include <sigilmeasure/time/Stopwatch.h>
 #include <sigilweave/choreograph/Choreograph.h>
 #include <sigilweave/fonts/FontContext.h>
@@ -115,10 +115,26 @@ void Composer::Impl::recordPicture(Instance& inst, float hostScale,
 
 namespace {
 
+constexpr char kShaderPrefix[] = "shader://compose/core/";
+
+struct ShaderResources {
+  ShaderResources() {
+    hub.mount(kShaderPrefix, SIGIL_COMPOSE_SHADER_DIR);
+    retained = hub.retain(kShaderPrefix);
+  }
+
+  sigil::io::Hub hub;
+  sigil::io::ResourceLease retained;
+};
+
+ShaderResources& shaders() {
+  static ShaderResources resources;
+  return resources;
+}
+
 std::string shaderSource(std::string_view name) {
-  static sigil::io::TextLibrary library("shader://compose/core/",
-                                        SIGIL_COMPOSE_SHADER_DIR);
-  return library.text("shader://compose/core/" + std::string(name))
+  return shaders()
+      .hub.text(std::string(kShaderPrefix) + std::string(name))
       .value_or("");
 }
 

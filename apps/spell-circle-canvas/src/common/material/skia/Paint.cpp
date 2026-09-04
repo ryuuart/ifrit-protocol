@@ -17,7 +17,6 @@
 #include <include/core/SkTypes.h>  // SkDebugf
 #include <include/effects/SkGradient.h>
 #include <include/effects/SkRuntimeEffect.h>
-#include <sigilio/hub/TextLibrary.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
 #include <sigilmaterial/texture/ShaderLeaf.h>
@@ -30,18 +29,9 @@
 #include <string>
 #include <string_view>
 
+#include "ShaderSources.h"
+
 namespace sigil::material::skia {
-
-namespace {
-
-std::string shaderSource(std::string_view name) {
-  static io::TextLibrary library("shader://material/skia/",
-                                 SIGIL_MATERIAL_SKIA_SHADER_DIR);
-  return library.text("shader://material/skia/" + std::string(name))
-      .value_or("");
-}
-
-}  // namespace
 
 /** The sksl recipe behind a Paint (opaque in the header). */
 struct Paint::Live {

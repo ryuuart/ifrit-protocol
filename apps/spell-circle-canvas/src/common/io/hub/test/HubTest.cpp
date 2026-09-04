@@ -10,7 +10,6 @@
 #include <include/core/SkPixmap.h>
 #include <sigilimage/encode/Encode.h>
 #include <sigilio/hub/Hub.h>
-#include <sigilio/hub/TextLibrary.h>
 #include <sigilio/source/Sink.h>
 
 #ifdef SIGILIO_HAS_OIIO
@@ -226,48 +225,6 @@ TEST_F(IOHub, BlobAndTextLoadThroughMounts) {
   EXPECT_EQ(hub.blob("res://missing.bin"), nullptr);
 }
 
-TEST_F(IOHub, TextLibraryLoadsRelativeNamesAndPollsChanges) {
-  dir.write("shaders/glow.sksl", "half4 main(float2 p) { return half4(1); }");
-  TextLibrary library("shader://", dir.path / "shaders");
-  EXPECT_EQ(library.text("shader://glow.sksl"),
-            "half4 main(float2 p) { return half4(1); }");
-
-  dir.write("shaders/glow.sksl", "half4 main(float2 p) { return half4(0); }");
-  touchForward(dir.path / "shaders/glow.sksl");
-  EXPECT_TRUE(library.poll());
-  EXPECT_EQ(library.text("shader://glow.sksl"),
-            "half4 main(float2 p) { return half4(0); }");
-}
-
-TEST_F(IOHub, TextLibrariesSharePreloadedRootCache) {
-  dir.write("shaders/a.sksl", "a");
-  dir.write("shaders/nested/b.slang", "b");
-  TextLibrary loading("shader://", dir.path / "shaders");
-  EXPECT_EQ(loading.preload(), 2u);
-
-  dir.write("shaders/a.sksl", "changed after preload");
-  TextLibrary consuming("shader://", dir.path / "shaders");
-  EXPECT_EQ(consuming.text("shader://a.sksl"), "a");
-  EXPECT_EQ(consuming.text("shader://nested/b.slang"), "b");
-}
-
-TEST_F(IOHub, TextLibrarySelectsAndPreloadsWithinItsPrefix) {
-  dir.write("shaders/a.sksl", "a");
-  dir.write("shaders/nested/b.slang", "b");
-  dir.write("shaders/nested/c.sksl", "c");
-  TextLibrary library("shader://", dir.path / "shaders");
-
-  EXPECT_EQ(
-      library.select("shader://**/*.sksl"),
-      (std::vector<std::string>{"shader://a.sksl", "shader://nested/c.sksl"}));
-  EXPECT_TRUE(library.select("res://**").empty());
-  EXPECT_EQ(library.preload("shader://**/*.sksl"), 2u);
-  dir.write("shaders/a.sksl", "changed after preload");
-  dir.write("shaders/nested/b.slang", "not preloaded");
-  EXPECT_EQ(library.text("shader://a.sksl"), "a");
-  EXPECT_EQ(library.text("shader://nested/b.slang"), "not preloaded");
-}
-
 TEST_F(IOHub, MissingFilesHealWithoutStaleCache) {
   EXPECT_EQ(hub.text("res://late.txt"), std::nullopt);
   dir.write("late.txt", "arrived");
@@ -311,26 +268,28 @@ TEST_F(IOHub, PreloadSelectorCachesOnlyMatchingResources) {
 }
 
 TEST_F(IOHub, ResourceLeaseRetainsTheUnionOfMultipleSelectors) {
+  ScratchDir plugins("sigilio_plugins");
   dir.write("material/a.sksl", "material");
   dir.write("material/ignored.slang", "ignored");
-  dir.write("compose/nested/b.slang", "compose");
+  plugins.write("compose/nested/b.slang", "compose");
   dir.write("loose.txt", "loose");
+  hub.mount("plugin://", plugins.path);
   ResourceLease shaders =
-      hub.retain({"res://material/**/*.sksl", "res://compose/**/*.slang"});
+      hub.retain({"res://material/**/*.sksl", "plugin://**/*.slang"});
 
   EXPECT_EQ(leaseUris(shaders),
-            (std::vector<std::string>{"res://compose/nested/b.slang",
+            (std::vector<std::string>{"plugin://compose/nested/b.slang",
                                       "res://material/a.sksl"}));
   EXPECT_EQ(shaders.preload(), 2u);
   auto loose = hub.blob("res://loose.txt");
   ASSERT_NE(loose, nullptr);
 
   dir.write("material/a.sksl", "changed material");
-  dir.write("compose/nested/b.slang", "changed compose");
+  plugins.write("compose/nested/b.slang", "changed compose");
   dir.write("loose.txt", "changed loose");
   EXPECT_EQ(hub.discardUnretained(), 1u);
   EXPECT_EQ(hub.text("res://material/a.sksl"), "material");
-  EXPECT_EQ(hub.text("res://compose/nested/b.slang"), "compose");
+  EXPECT_EQ(hub.text("plugin://compose/nested/b.slang"), "compose");
   EXPECT_EQ(hub.text("res://loose.txt"), "changed loose");
   EXPECT_EQ(loose->asText(), "loose");
 }

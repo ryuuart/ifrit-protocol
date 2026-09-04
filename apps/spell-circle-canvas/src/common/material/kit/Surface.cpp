@@ -9,24 +9,17 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkColor.h>
 #include <include/core/SkSurface.h>
-#include <sigilio/hub/TextLibrary.h>
 
 #include <string>
 #include <string_view>
 #include <utility>
 
+#include "ShaderSources.h"
 #include "sigilmaterial/kit/Terms.h"
 
 namespace sigil::material::kit {
 
 namespace {
-
-std::string shaderSource(std::string_view name) {
-  static io::TextLibrary library("shader://material/kit/",
-                                 SIGIL_MATERIAL_KIT_SHADER_DIR);
-  return library.text("shader://material/kit/" + std::string(name))
-      .value_or("");
-}
 
 /** The lit body for @p reflection: the shared text with the one line
  *  that says how the environment enters filled in. A negative weight is

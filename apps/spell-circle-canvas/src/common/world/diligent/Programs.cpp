@@ -6,7 +6,7 @@
 
 #include "Programs.h"
 
-#include <sigilio/hub/TextLibrary.h>
+#include <sigilio/hub/Hub.h>
 #include <sigilworld/diligent/Runtime.h>
 
 #include <mutex>
@@ -19,10 +19,26 @@ namespace {
 
 using material::slang::Compiled;
 
+constexpr char kShaderPrefix[] = "shader://world/diligent/";
+
+struct ShaderResources {
+  ShaderResources() {
+    hub.mount(kShaderPrefix, SIGIL_WORLD_SHADER_DIR);
+    retained = hub.retain(kShaderPrefix);
+  }
+
+  io::Hub hub;
+  io::ResourceLease retained;
+};
+
+ShaderResources& shaders() {
+  static ShaderResources resources;
+  return resources;
+}
+
 std::string shaderSource(std::string_view name) {
-  static io::TextLibrary library("shader://world/diligent/",
-                                 SIGIL_WORLD_SHADER_DIR);
-  return library.text("shader://world/diligent/" + std::string(name))
+  return shaders()
+      .hub.text(std::string(kShaderPrefix) + std::string(name))
       .value_or("");
 }
 

@@ -26,6 +26,8 @@ add_library(SigilMaterialKit STATIC
   Grained.cpp
   Patterns.cpp
   Recipes.cpp
+  ShaderSources.cpp
+  ShaderSources.h
   Surface.cpp
   Surfaces.cpp
   Terms.cpp

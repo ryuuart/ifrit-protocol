@@ -79,7 +79,7 @@ includes the whole core.
 ## Using it
 
 ```cpp
-#include <sigilio/hub/TextLibrary.h>
+#include <sigilio/hub/Hub.h>
 #include <sigilmaterial/Material.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
 
@@ -93,9 +93,13 @@ struct Glow {
   std::array<float, 8> uBars;
 };
 
-// Authored shader text remains a shader file, so editors and shader tools
-// see the language. The URI facade caches it for every recipe using this root.
-sigil::io::TextLibrary shaders("shader://", shaderDirectory);
+// Authored shader text remains a shader file, so editors and shader tools see
+// the language. The Hub caches it, while the lease makes its residency promise
+// explicit for as long as this material catalogue lives.
+sigil::io::Hub shaders;
+shaders.mount("shader://", shaderDirectory);
+auto retainedShaders = shaders.retain("shader://");
+retainedShaders.preload();
 auto glowSource = shaders.text("shader://Glow.sksl");
 if (!glowSource) throw std::runtime_error("Glow.sksl is missing");
 

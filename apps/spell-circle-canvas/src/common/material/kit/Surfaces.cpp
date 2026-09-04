@@ -6,22 +6,15 @@
 
 #include "sigilmaterial/kit/Surfaces.h"
 
-#include <sigilio/hub/TextLibrary.h>
-
 #include <algorithm>
 #include <string>
 #include <string_view>
 
+#include "ShaderSources.h"
+
 namespace sigil::material::kit {
 
 namespace {
-
-std::string shaderSource(std::string_view name) {
-  static io::TextLibrary library("shader://material/kit/",
-                                 SIGIL_MATERIAL_KIT_SHADER_DIR);
-  return library.text("shader://material/kit/" + std::string(name))
-      .value_or("");
-}
 
 glm::vec2 sizeOf(const EnvironmentMap& env) {
   const SkISize s = env.size();

@@ -5,7 +5,7 @@
 
 #include "sigilmaterial/sdf/Sdf.h"
 
-#include <sigilio/hub/TextLibrary.h>
+#include <sigilio/hub/Hub.h>
 
 #include <algorithm>
 #include <cmath>
@@ -25,15 +25,26 @@ Shape star(int points, float pointiness) {
 
 namespace {
 
-io::TextLibrary& shaders() {
-  static io::TextLibrary library("shader://material/sdf/",
-                                 SIGIL_MATERIAL_SDF_SHADER_DIR);
-  return library;
+constexpr char kShaderPrefix[] = "shader://material/sdf/";
+
+struct ShaderResources {
+  ShaderResources() {
+    hub.mount(kShaderPrefix, SIGIL_MATERIAL_SDF_SHADER_DIR);
+    retained = hub.retain(kShaderPrefix);
+  }
+
+  io::Hub hub;
+  io::ResourceLease retained;
+};
+
+ShaderResources& shaders() {
+  static ShaderResources resources;
+  return resources;
 }
 
 std::string shaderSource(std::string_view name) {
   return shaders()
-      .text("shader://material/sdf/" + std::string(name))
+      .hub.text(std::string(kShaderPrefix) + std::string(name))
       .value_or("");
 }
 
@@ -86,7 +97,9 @@ Material material(const Shape& shape, const Style& style) {
 }
 
 std::vector<Material> everyRecipe() {
-  shaders().preload();
+  ShaderResources& resources = shaders();
+  resources.retained.refresh();
+  resources.retained.preload();
   Style dressed;
   dressed.fill = {0.2f, 0.5f, 0.9f, 1};
   dressed.borderWidth = 2;

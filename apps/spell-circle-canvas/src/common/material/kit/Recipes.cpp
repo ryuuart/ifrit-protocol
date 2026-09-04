@@ -10,7 +10,6 @@
 #include <include/core/SkPath.h>
 #include <include/core/SkRect.h>
 #include <include/core/SkSurface.h>
-#include <sigilio/hub/TextLibrary.h>
 #include <sigilmaterial/kit/Grained.h>
 #include <sigilmaterial/kit/Mask.h>
 #include <sigilmaterial/kit/Surface.h>
@@ -19,6 +18,8 @@
 #include <sigilmaterial/texture/EnvironmentMap.h>
 #include <sigilmaterial/texture/Surface.h>
 #include <sigilmaterial/texture/Texture.h>
+
+#include "ShaderSources.h"
 
 namespace sigil::material::kit {
 
@@ -35,9 +36,7 @@ Texture stand(SkColor color) {
 }  // namespace
 
 std::vector<Material> everyRecipe() {
-  static io::TextLibrary shaders("shader://material/kit/",
-                                 SIGIL_MATERIAL_KIT_SHADER_DIR);
-  shaders.preload();
+  preloadShaderSources();
   const SkPath shape = SkPath::Circle(20, 20, 16);
   const Texture normals = bevelNormals(shape, 5);
   const EnvironmentMap env = EnvironmentMap::studio(64);

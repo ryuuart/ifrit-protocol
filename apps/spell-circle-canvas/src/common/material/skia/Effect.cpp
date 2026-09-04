@@ -10,7 +10,6 @@
 #include <include/core/SkTypes.h>  // SkDebugf — the slot diagnostics
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
-#include <sigilio/hub/TextLibrary.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
 
 #include <algorithm>
@@ -19,18 +18,9 @@
 #include <string_view>
 #include <utility>
 
+#include "ShaderSources.h"
+
 namespace sigil::material::skia {
-
-namespace {
-
-std::string shaderSource(std::string_view name) {
-  static io::TextLibrary library("shader://material/skia/",
-                                 SIGIL_MATERIAL_SKIA_SHADER_DIR);
-  return library.text("shader://material/skia/" + std::string(name))
-      .value_or("");
-}
-
-}  // namespace
 
 Effect Effect::filter(sk_sp<SkImageFilter> f) {
   Effect e;

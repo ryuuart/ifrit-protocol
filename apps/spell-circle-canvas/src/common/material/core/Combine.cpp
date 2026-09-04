@@ -6,7 +6,7 @@
 
 #include "sigilmaterial/core/Combine.h"
 
-#include <sigilio/hub/TextLibrary.h>
+#include <sigilio/hub/Hub.h>
 #include <sigilmaterial/core/Program.h>
 
 #include <map>
@@ -35,10 +35,26 @@ constexpr Operand kOperands[3] = {
     {"mask", "mask_", "overMask"},
 };
 
+constexpr char kShaderPrefix[] = "shader://material/core/";
+
+struct ShaderResources {
+  ShaderResources() {
+    hub.mount(kShaderPrefix, SIGIL_MATERIAL_CORE_SHADER_DIR);
+    retained = hub.retain(kShaderPrefix);
+  }
+
+  io::Hub hub;
+  io::ResourceLease retained;
+};
+
+ShaderResources& shaders() {
+  static ShaderResources resources;
+  return resources;
+}
+
 std::string shaderSource(std::string_view name) {
-  static io::TextLibrary library("shader://material/core/",
-                                 SIGIL_MATERIAL_CORE_SHADER_DIR);
-  return library.text("shader://material/core/" + std::string(name))
+  return shaders()
+      .hub.text(std::string(kShaderPrefix) + std::string(name))
       .value_or("");
 }
 

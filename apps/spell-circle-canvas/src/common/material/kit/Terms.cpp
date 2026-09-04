@@ -4,7 +4,7 @@
 
 #include "sigilmaterial/kit/Terms.h"
 
-#include <sigilio/hub/TextLibrary.h>
+#include "ShaderSources.h"
 
 namespace sigil::material::kit {
 
@@ -14,11 +14,7 @@ namespace {
  *  this text into its compiler session under the name `Shading` and its
  *  own shaders import it, which is how one text serves both the
  *  renderer's scaffold and every material body compiled beside it. */
-std::string slangSource() {
-  static io::TextLibrary shaders("shader://material/kit/",
-                                 SIGIL_MATERIAL_KIT_SHADER_DIR);
-  return shaders.text("shader://material/kit/Shading.slang").value_or("");
-}
+std::string slangSource() { return shaderSource("Shading.slang"); }
 
 /** THE SAME TEXT AS A 2D PAINT TAKES IT. SkSL has no modules and no
  *  export qualifier; everything else in the term source is spelled the

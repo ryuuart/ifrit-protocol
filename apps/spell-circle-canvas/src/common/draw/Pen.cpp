@@ -17,7 +17,7 @@
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigildraw/Math.h>
 #include <sigildraw/Pen.h>
-#include <sigilio/hub/TextLibrary.h>
+#include <sigilio/hub/Hub.h>
 #include <sigilmaterial/core/Material.h>
 
 #include <algorithm>
@@ -30,9 +30,27 @@ namespace sigil::draw {
 
 namespace {
 
+constexpr char kShaderPrefix[] = "shader://draw/";
+
+struct ShaderResources {
+  ShaderResources() {
+    hub.mount(kShaderPrefix, SIGIL_DRAW_SHADER_DIR);
+    retained = hub.retain(kShaderPrefix);
+  }
+
+  io::Hub hub;
+  io::ResourceLease retained;
+};
+
+ShaderResources& shaders() {
+  static ShaderResources resources;
+  return resources;
+}
+
 std::string shaderSource(std::string_view name) {
-  static io::TextLibrary library("shader://draw/", SIGIL_DRAW_SHADER_DIR);
-  return library.text("shader://draw/" + std::string(name)).value_or("");
+  return shaders()
+      .hub.text(std::string(kShaderPrefix) + std::string(name))
+      .value_or("");
 }
 
 /** The seed every pen starts on, so a sketch stepped from zero draws the

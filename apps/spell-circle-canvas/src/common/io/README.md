@@ -17,7 +17,7 @@ what a consumer uses; every public header lives under
 | target | headers | holds |
 |--------|---------|-------|
 | `SigilIOSource` | `source/Source.h`, `source/Sink.h` | header only, standard library only: `Bytes`, the `ByteSource`, `ResolvingByteSource` and `Decoder` concepts, `AnyByteSource` (the type-erased source value), and the other direction — the `ByteSink` concept and `writeBytes()`, the one place a path and a run of bytes become a file |
-| `SigilIOHub`    | `hub/Hub.h`, `hub/Network.h`, `hub/TextLibrary.h` | the `Hub`, `ResourceInfo`, and `ResourceLease`; `TextLibrary`, a synchronized cached collection rooted at one directory; `NetworkPolicy`, `networkCacheKey()` and `defaultNetworkCacheDir()` — the file a URL lands under and the directory it lands in when a hub names no other, so a probe with no hub in reach asks the cache the hub's own way |
+| `SigilIOHub`    | `hub/Hub.h`, `hub/Network.h` | the `Hub`, `ResourceInfo`, and `ResourceLease`; `NetworkPolicy`, `networkCacheKey()` and `defaultNetworkCacheDir()` — the file a URL lands under and the directory it lands in when a hub names no other, so a probe with no hub in reach asks the cache the hub's own way |
 
 `SigilIO` is the umbrella target over both, and
 `<sigilio/IO.h>` the umbrella header. The hub is a `ByteSource`;
@@ -28,7 +28,6 @@ and handed a hub, a fixture, or an `AnyByteSource` holding either.
 
 ```cpp
 #include <sigilio/hub/Hub.h>
-#include <sigilio/hub/TextLibrary.h>
 
 sigil::io::Hub hub;
 hub.mount("res://", "/opt/myapp/assets");
@@ -61,6 +60,7 @@ auto remote = hub.image("https://example.com/tex.png");
 std::string_view shaderUris[] = {"shader://surface.slang",
                                  "shader://bloom.sksl"};
 hub.mount("shader://", shaderDirectory);
+hub.mount("plugin://", pluginShaderDirectory);
 hub.preload(shaderUris); // concurrent fetch, bytes only
 auto sksl = hub.select("shader://**/*.sksl"); // sorted URI snapshot
 hub.preload("shader://**/*.sksl"); // discover, then fetch concurrently
@@ -70,17 +70,10 @@ hub.preload("shader://"); // a directory selector recursively fetches everything
 // promises to retain them, and may unite any number of selectors.
 auto authored = hub.retain({"shader://material/**/*.sksl",
                             "shader://compose/**/*.sksl"});
-authored.include("shader://plugins/**/*.slang");
+authored.include("plugin://**/*.slang");
 authored.preload();
 for (const std::string& uri : authored.uris())
   registerAuthoredShader(uri);
-
-// A library loading authored shader files from its own source directory.
-// The Hub and its synchronization remain private to this small facade.
-sigil::io::TextLibrary shaders("shader://", shaderDirectory);
-shaders.preload("shader://**/*.slang"); // one authored language
-shaders.preload(); // or the whole mounted directory
-auto glowSource = shaders.text("shader://glow.sksl");
 
 // Bytes back out, through the same mount table they are read by. What
 // they are is the caller's business: an image is encoded first.
@@ -98,7 +91,9 @@ if (hub.poll())
 
 ## Mental model
 
-A `Hub` holds two things: a mount list and a cache.
+A `Hub` holds the mount list, decoder registry and cache. Resource leases keep
+explicit claims beside that cache; the retained URI set is observable rather
+than an undocumented side effect of having loaded something once.
 
 Mounts map a URI prefix onto a directory, and the **longest matching
 prefix wins**, so `res://deep/` can point somewhere other than `res://`.
@@ -143,12 +138,7 @@ rule as an ordinary read decides which physical file occupies a URI.
 `preload()` fetches distinct URI bytes concurrently and merges them into the
 same cache ordinary reads use. Its selector overload calls `select()` first, so
 one directory or glob replaces a maintained list. `preloadDirectory()` is the
-directory-only spelling of that overload. `TextLibrary` is
-the synchronized text-only facade for library-owned source directories and
-offers the same selection and preload vocabulary within its own prefix.
-Instances with the same prefix and root share one hidden hub, so an application
-loading phase can fill the cache that recipe constructors later read without
-exposing a mutex or hub in either API.
+directory-only spelling of that overload.
 
 Preloading and retention are separate. `preload()` eagerly fills the byte cache
 but makes no residency promise. `retain()` returns a movable `ResourceLease`

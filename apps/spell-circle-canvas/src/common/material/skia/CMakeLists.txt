@@ -15,6 +15,8 @@ add_library(SigilMaterialSkia STATIC
   Draw.cpp
   Effect.cpp
   Paint.cpp
+  ShaderSources.cpp
+  ShaderSources.h
   SkiaCompiler.cpp
   ${_shaders}/PhosphorBloom.sksl
   ${_shaders}/ParamBlurMix.sksl
