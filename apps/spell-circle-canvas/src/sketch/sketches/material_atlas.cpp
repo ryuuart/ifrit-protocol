@@ -29,6 +29,7 @@
  *   kPlayhead    — the frame index the wrapping cell reads.
  */
 
+#include <include/core/SkSurface.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilmaterial/skia/Paint.h>
@@ -38,9 +39,6 @@
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
-#include <include/core/SkSurface.h>
-
-#include <cstdio>
 #include <functional>
 #include <optional>
 #include <string>
@@ -91,8 +89,8 @@ kit::Caption voice() {
 const material::Texture& sheet() {
   static const material::Texture texture =
       material::Texture::produce("material_atlas.sheet", [] {
-        sk_sp<SkSurface> surface = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(
-            kCols * kCellSide, kRows * kCellSide));
+        sk_sp<SkSurface> surface = SkSurfaces::Raster(
+            SkImageInfo::MakeN32Premul(kCols * kCellSide, kRows * kCellSide));
         SkCanvas* canvas = surface->getCanvas();
         canvas->clear(SkColor4f{0.10f, 0.12f, 0.16f, 1}.toSkColor());
         for (int i = 0; i < kCols * kRows; ++i) {
@@ -105,8 +103,8 @@ const material::Texture& sheet() {
               back);
           SkPaint wedge;
           wedge.setAntiAlias(true);
-          wedge.setColor4f({0.98f, 0.72f - 0.05f * (float)i,
-                            0.30f + 0.07f * (float)i, 1});
+          wedge.setColor4f(
+              {0.98f, 0.72f - 0.05f * (float)i, 0.30f + 0.07f * (float)i, 1});
           canvas->drawArc(
               SkRect::MakeXYWH(x + 10, y + 10, kCellSide - 20, kCellSide - 20),
               -90, 45.0f * (float)(i + 1), true, wedge);
@@ -152,12 +150,6 @@ constexpr char kAsepriteJson[] = R"({
   }
 })";
 
-std::string line(const char* format, auto... args) {
-  char buffer[256];
-  std::snprintf(buffer, sizeof buffer, format, args...);
-  return buffer;
-}
-
 std::string sequenceNames(const material::Atlas& atlas) {
   std::string names;
   for (const auto& [name, frames] : atlas.sequences()) {
@@ -169,16 +161,15 @@ std::string sequenceNames(const material::Atlas& atlas) {
 
 Element cell(const char* call, const std::string& note,
              std::function<void(SkCanvas&)> draw) {
-  return kit::cell(voice(), toU8(call), toU8(note),
-                   custom(call,
-                          [draw = std::move(draw)](SkCanvas& canvas,
-                                                   const PaintContext&) {
-                            if (draw) draw(canvas);
-                          })
-                       .width(kCell)
-                       .height(kPicture)
-                       .clip()
-                       .fill(Fill::color(kCellGround)));
+  return kit::cell(
+      voice(), toU8(call), toU8(note),
+      kit::well({.width = kCell,
+                 .height = kPicture,
+                 .ground = Fill::color(kCellGround)},
+                custom(call, [draw = std::move(draw)](SkCanvas& canvas,
+                                                      const PaintContext&) {
+                  if (draw) draw(canvas);
+                })));
 }
 
 /** A texture drawn at a stated rect, which is how a region is used: it
@@ -192,8 +183,7 @@ void put(SkCanvas& canvas, const material::Texture& texture, SkRect where,
   canvas.translate(where.x(), where.y());
   canvas.scale(where.width() / (float)source.width(),
                where.height() / (float)source.height());
-  canvas.drawRect(SkRect::MakeWH((float)source.width(),
-                                 (float)source.height()),
+  canvas.drawRect(SkRect::MakeWH((float)source.width(), (float)source.height()),
                   paint);
   canvas.restore();
 }
@@ -230,7 +220,7 @@ struct MaterialAtlas final : sketch::Sketch {
         kit::sheet(
             {.title = toU8("MATERIAL ATLAS \xc2\xb7 Atlas grid, "
                            "fromTexturePacker, fromAseprite, region, frame"),
-             .subtitle = toU8(line(
+             .subtitle = toU8(kit::format(
                  "dials \xc2\xb7 the grid (%d by %d of %d px) \xc2\xb7 the "
                  "source JSON \xc2\xb7 the sequence \xc2\xb7 the playhead "
                  "(%zu, past the end of a four-frame run)",
@@ -253,7 +243,7 @@ struct MaterialAtlas final : sketch::Sketch {
                      {kit::cells(
                           {.cells =
                                {cell("the sheet, whole",
-                                     line("%d by %d cells of %d px \xc2\xb7 "
+                                     kit::format("%d by %d cells of %d px \xc2\xb7 "
                                           "each wedge sweeps 45\xc2\xb0 "
                                           "further than the last, so a run "
                                           "read out of order shows it",
@@ -267,7 +257,7 @@ struct MaterialAtlas final : sketch::Sketch {
                                             kRows * kCellSide});
                                      }),
                                 cell("Atlas::grid(sheet, 4, 2)",
-                                     line("equal cells, row-major, named by "
+                                     kit::format("equal cells, row-major, named by "
                                           "index \xc2\xb7 sequences: %s",
                                           sequenceNames(grid).c_str()),
                                      strip(grid, "all", 4, 0)),
@@ -280,7 +270,7 @@ struct MaterialAtlas final : sketch::Sketch {
                       kit::cells(
                           {.cells =
                                {cell("Atlas::fromTexturePacker(sheet, json)",
-                                     packed ? line("a sequence per NAME STEM "
+                                     packed ? kit::format("a sequence per NAME STEM "
                                                    "\xc2\xb7 %s \xc2\xb7 "
                                                    "walk_01\xe2\x80\xa6"
                                                    "walk_04 in numeric order",
@@ -290,7 +280,7 @@ struct MaterialAtlas final : sketch::Sketch {
                                      packed ? strip(*packed, "walk", 4, 0)
                                             : std::function<void(SkCanvas&)>{}),
                                 cell("Atlas::fromAseprite(sheet, json)",
-                                     tagged ? line("a sequence per frame TAG "
+                                     tagged ? kit::format("a sequence per frame TAG "
                                                    "\xc2\xb7 %s \xc2\xb7 the "
                                                    "names carry nothing here",
                                                    sequenceNames(*tagged)
@@ -300,7 +290,7 @@ struct MaterialAtlas final : sketch::Sketch {
                                             : std::function<void(SkCanvas&)>{}),
                                 cell("frame(\"walk\", 6) \xc2\xb7 wrapping",
                                      packed
-                                         ? line("index %zu of a four-frame run "
+                                         ? kit::format("index %zu of a four-frame run "
                                                 "\xc2\xb7 past the end "
                                                 "wraps, so the strip reads "
                                                 "2, 3, 0, 1",

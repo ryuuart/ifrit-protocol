@@ -27,6 +27,7 @@
  *   kSnap   — the canvas-px pitch the Grid rounds results to.
  */
 
+#include <include/core/SkPathBuilder.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilgeometry/path/Arrange.h>
@@ -35,9 +36,6 @@
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
-#include <include/core/SkPathBuilder.h>
-
-#include <cstdio>
 #include <functional>
 #include <string>
 #include <vector>
@@ -128,24 +126,17 @@ void reading(SkCanvas& canvas, const path::Frame& frame, float deg,
                   strokePaint(colour, 1.3f));
 }
 
-std::string line(const char* format, auto... args) {
-  char buffer[224];
-  std::snprintf(buffer, sizeof buffer, format, args...);
-  return buffer;
-}
-
 Element cell(const char* call, const std::string& note,
              std::function<void(SkCanvas&)> draw) {
-  return kit::cell(voice(), toU8(call), toU8(note),
-                   custom(call,
-                          [draw = std::move(draw)](SkCanvas& canvas,
-                                                   const PaintContext&) {
-                            draw(canvas);
-                          })
-                       .width(kCell)
-                       .height(kPicture)
-                       .clip()
-                       .fill(Fill::color(kCellGround)));
+  return kit::cell(
+      voice(), toU8(call), toU8(note),
+      kit::well({.width = kCell,
+                 .height = kPicture,
+                 .ground = Fill::color(kCellGround)},
+                custom(call, [draw = std::move(draw)](SkCanvas& canvas,
+                                                      const PaintContext&) {
+                  draw(canvas);
+                })));
 }
 
 }  // namespace
@@ -157,8 +148,8 @@ struct FrameGrid final : sketch::Sketch {
     ctx.captureAt(0.05);  // nothing moves; the sheet is complete at once
 
     const path::Grid unit{.scale = kUnits, .origin = {30, 26}};
-    const path::Grid snapped{.scale = kUnits, .origin = {30, 26},
-                             .snap = kSnap};
+    const path::Grid snapped{
+        .scale = kUnits, .origin = {30, 26}, .snap = kSnap};
     // One drawing in artefact units, mapped by two grids that differ in
     // one field.
     const std::vector<SkPoint> figure = [] {
@@ -212,7 +203,8 @@ struct FrameGrid final : sketch::Sketch {
                                        reading(canvas, frame, 0, kFigure);
                                        reading(canvas, frame, 126, kWarm);
                                      }),
-                                cell("\xe2\x80\xa6" ".zero = East, "
+                                cell("\xe2\x80\xa6"
+                                     ".zero = East, "
                                      ".sense = CCW",
                                      "the SAME two numbers, 0\xc2\xb0 and "
                                      "126\xc2\xb0, in Skia's convention "
@@ -261,16 +253,18 @@ struct FrameGrid final : sketch::Sketch {
                           {.cells =
                                {cell("arrange::onRing(i, n, \xe2\x80\xa6"
                                      ", Turn)",
-                                     line("seven items over 270\xc2\xb0 "
-                                          "\xc2\xb7 Turn::Open steps "
-                                          "%.1f\xc2\xb0 and lands on both "
-                                          "ends; Turn::Closed steps "
-                                          "%.1f\xc2\xb0 and stops short",
-                                          (double)arrange::step(
-                                              270, 7, arrange::Turn::Open),
-                                          (double)arrange::step(
-                                              270, 7,
-                                              arrange::Turn::Closed)),
+                                     kit::format(
+                                         "seven items over 270\xc2\xb0 "
+                                         "\xc2\xb7 Turn::Open steps "
+                                         "%.1f\xc2\xb0 and lands on both "
+                                         "ends; Turn::Closed steps "
+                                         "%.1f\xc2\xb0 and stops short",
+                                         (
+                                             double)arrange::
+                                             step(270, 7, arrange::Turn::Open),
+                                         (
+                                             double)arrange::
+                                             step(270, 7, arrange::Turn::Closed)),
                                      [](SkCanvas& canvas) {
                                        const SkPoint c = middle();
                                        constexpr float kStart =
@@ -280,11 +274,10 @@ struct FrameGrid final : sketch::Sketch {
                                                              arrange::Turn turn,
                                                              SkColor4f colour) {
                                          SkPathBuilder arc;
-                                         arc.addArc(
-                                             SkRect::MakeXYWH(c.fX - r,
-                                                              c.fY - r, 2 * r,
-                                                              2 * r),
-                                             -135, 270);
+                                         arc.addArc(SkRect::MakeXYWH(
+                                                        c.fX - r, c.fY - r,
+                                                        2 * r, 2 * r),
+                                                    -135, 270);
                                          canvas.drawPath(
                                              arc.detach(),
                                              strokePaint(kFaint, 1.0f));
@@ -335,8 +328,7 @@ struct FrameGrid final : sketch::Sketch {
                                              bool first = true;
                                              for (const SkPoint& p :
                                                   grid.map(figure)) {
-                                               const SkPoint q{p.fX,
-                                                               p.fY + dy};
+                                               const SkPoint q{p.fX, p.fY + dy};
                                                first ? b.moveTo(q)
                                                      : b.lineTo(q);
                                                first = false;

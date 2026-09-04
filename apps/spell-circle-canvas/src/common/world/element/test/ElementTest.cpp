@@ -151,6 +151,15 @@ TEST(WorldElement, EveryFieldADescriptionCarriesReachesThePrune) {
   }
 }
 
+TEST(WorldElement, BackfaceVisibilityReachesThePrune) {
+  const Element hidden = Element().key("body");
+  const Element visible = Element().key("body").backface(Backface::Visible);
+  EXPECT_FALSE(propsEqual(*hidden.node(), *visible.node()));
+  EXPECT_TRUE(
+      propsEqual(*visible.node(),
+                 *Element().key("body").backface(Backface::Visible).node()));
+}
+
 TEST(WorldElement, TheGeometrySlotsValueTypeIsTheKind) {
   Element mesh = Element().key("g").mesh(triangle(10));
   Element cloud =

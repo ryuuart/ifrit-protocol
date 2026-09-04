@@ -191,7 +191,6 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
-#include <cstdio>
 #include <string>
 #include <vector>
 
@@ -680,11 +679,9 @@ using motion::ramp;  // (startMs, durationMs) -> a Transition
  *  with the circle, so it is constant along the groove and varies across
  *  it. The alphas are how deep each family reads over the brass. */
 PathFormat groove(float rad, float w, float darkA, float liteA) {
-  return kit::groove(rad, w,
-                     SkColor4f{kGrooveDark.fR, kGrooveDark.fG, kGrooveDark.fB,
-                               darkA},
-                     SkColor4f{kGrooveLite.fR, kGrooveLite.fG, kGrooveLite.fB,
-                               liteA});
+  return kit::groove(
+      rad, w, SkColor4f{kGrooveDark.fR, kGrooveDark.fG, kGrooveDark.fB, darkA},
+      SkColor4f{kGrooveLite.fR, kGrooveLite.fG, kGrooveLite.fB, liteA});
 }
 
 /** One engraved circle: centre and radius in R units of the math frame,
@@ -699,16 +696,6 @@ Element cut(SkPoint mc, float mr, float w, float darkA, float liteA,
       .shape(shapes::circle())
       .fill(Fill::none())
       .stroke(groove(rad, w, darkA, liteA));
-}
-
-template <typename... A>
-std::string fmt(const char* f, A... args) {
-  char buf[512];
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wformat-security"
-  std::snprintf(buf, sizeof(buf), f, args...);
-#pragma clang diagnostic pop
-  return buf;
 }
 
 // ---------------------------------------------------------------------------
@@ -902,13 +889,13 @@ struct ChaucerAstrolabe : sketch::Sketch {
   Paint brass(float level = 0.5f) {
     const uint32_t bucket = (uint32_t)std::lround(
         std::clamp(level, 0.0f, 1.0f) * (float)(kLevels - 1));
-    return Paint::recipe(
-               latten.get(matkit::lattenRecipe(), sheet(), bucket,
-                          [](uint32_t b) {
-                            matkit::LattenParams p = sheet();
-                            p.level = (float)b / (float)(kLevels - 1);
-                            return mat::Material(matkit::lattenRecipe(), p);
-                          }))
+    return Paint::recipe(latten.get(matkit::lattenRecipe(), sheet(), bucket,
+                                    [](uint32_t b) {
+                                      matkit::LattenParams p = sheet();
+                                      p.level = (float)b / (float)(kLevels - 1);
+                                      return mat::Material(
+                                          matkit::lattenRecipe(), p);
+                                    }))
         .worldSpace();
   }
 
@@ -933,12 +920,11 @@ struct ChaucerAstrolabe : sketch::Sketch {
       return SkPoint{q.fX - r.left(), q.fY - r.top()};
     };
     const float s = 0.10f;
-    return linearGradient(
-        p({kCx - kMaterR * 0.95f, kCy + kMaterR * 0.95f}),
-        p({kCx + kMaterR * 0.85f, kCy - kMaterR * 1.05f}),
-        {brassRamp(level - s * 0.5f), brassRamp(level),
-         brassRamp(level + s * 0.5f)},
-        {0.0f, 0.5f, 1.0f});
+    return linearGradient(p({kCx - kMaterR * 0.95f, kCy + kMaterR * 0.95f}),
+                          p({kCx + kMaterR * 0.85f, kCy - kMaterR * 1.05f}),
+                          {brassRamp(level - s * 0.5f), brassRamp(level),
+                           brassRamp(level + s * 0.5f)},
+                          {0.0f, 0.5f, 1.0f});
   }
 
   // =========================================================================
@@ -1508,7 +1494,8 @@ struct ChaucerAstrolabe : sketch::Sketch {
                     .rotate(-40.0f)
                     .opacity(animate(from(0.0f).to(1.0f), ramp(delay, 420))));
         // the ear and the muzzle
-        g.child(kit::disc(SkPoint{c.fX - 0.020f * kR, c.fY - 0.020f * kR}, 0.011f * kR)
+        g.child(kit::disc(SkPoint{c.fX - 0.020f * kR, c.fY - 0.020f * kR},
+                          0.011f * kR)
                     .key("dogear")
                     .shape(shapes::polygon(3, 20))
                     .fill(Fill::color(kBrassP70))
@@ -1684,9 +1671,9 @@ struct ChaucerAstrolabe : sketch::Sketch {
                 .shape(shapes::circle())
                 .cache(Cache::Texture)
                 .fill(Paint::glowUnit({0.40f, 0.30f}, 0.95f,
-                                         {{0.0f, hex(0xfff3cf, 0.30f)},
-                                          {0.55f, hex(0xffdc8b, 0.10f)},
-                                          {1.0f, hex(0x4f360e, 0.14f)}}))
+                                      {{0.0f, hex(0xfff3cf, 0.30f)},
+                                       {0.55f, hex(0xffdc8b, 0.10f)},
+                                       {1.0f, hex(0x4f360e, 0.14f)}}))
                 .blend(SkBlendMode::kSoftLight)
                 .opacity(animate(from(0.0f).to(1.0f),
                                  ramp(tMater * 1000 + 200, 700))));
@@ -1715,16 +1702,16 @@ struct ChaucerAstrolabe : sketch::Sketch {
     // the three rules of the limb: 1.155 / 1.082 / 1.005 R
     const float rules[3] = {1.155f, 1.082f, 1.005f};
     for (int i = 0; i < 3; ++i)
-      g.child(kit::disc(SkPoint{kCx, kCy}, rules[i] * kR)
-                  .key("rule" + std::to_string(i))
-                  .shape(shapes::circle())
-                  .fill(Fill::none())
-                  .stroke(spans::upTo(
-                              animate(from(0.0f).to(1.0f),
+      g.child(
+          kit::disc(SkPoint{kCx, kCy}, rules[i] * kR)
+              .key("rule" + std::to_string(i))
+              .shape(shapes::circle())
+              .fill(Fill::none())
+              .stroke(
+                  spans::upTo(animate(from(0.0f).to(1.0f),
                                       ramp(tMater * 1000 + 200 + (float)i * 120,
                                            900, ch::easeOutQuint))),
-                          groove(rules[i] * kR, i == 0 ? 3.0f : 2.0f, 0.75f,
-                                 0.45f)));
+                  groove(rules[i] * kR, i == 0 ? 3.0f : 2.0f, 0.75f, 0.45f)));
 
     // the 360 degree ticks — ONE atlas cell, three LENGTHS through
     // Pool::sizes(). This is the instancing case, and it works here for
@@ -1794,8 +1781,8 @@ struct ChaucerAstrolabe : sketch::Sketch {
                   .key("hlg" + std::to_string(n))
                   .shape(shapes::circle())
                   .fill(Paint::glowUnit({0.5f, 0.5f}, 1.0f,
-                                           {{0.0f, hex(0xfff3cf, 0.85f)},
-                                            {1.0f, hex(0xfff3cf, 0.0f)}}))
+                                        {{0.0f, hex(0xfff3cf, 0.85f)},
+                                         {1.0f, hex(0xfff3cf, 0.0f)}}))
                   .blend(SkBlendMode::kPlus)
                   .opacity(&letterGlow[n - 1]));
     }
@@ -1895,9 +1882,9 @@ struct ChaucerAstrolabe : sketch::Sketch {
         .child(kit::disc(p, 34.0f)
                    .shape(shapes::circle())
                    .fill(Paint::glowUnit({0.5f, 0.5f}, 1.0f,
-                                            {{0.0f, up ? hex(0xfff3cf, 0.60f)
-                                                       : hex(0x8fb0d0, 0.30f)},
-                                             {1.0f, hex(0xfff3cf, 0.0f)}}))
+                                         {{0.0f, up ? hex(0xfff3cf, 0.60f)
+                                                    : hex(0x8fb0d0, 0.30f)},
+                                          {1.0f, hex(0xfff3cf, 0.0f)}}))
                    .blend(SkBlendMode::kPlus))
         .child(kit::disc(p, 15.0f)
                    .shape(shapes::star(12, 0.40f, 0.16f))
@@ -2022,11 +2009,12 @@ struct ChaucerAstrolabe : sketch::Sketch {
         .width(pw - 32)
         .column()
         .gap(4)
-        .child(row(fmt("\xce\xb4 = %+7.3f\xc2\xb0", dec), kInk, 14))
-        .child(row(fmt("r = R_eq\xc2\xb7tan((90\xe2\x88\x92\xce\xb4)/2) = "
-                       "%.6f R",
-                       rOfDec(dec)),
-                   kInk, 14))
+        .child(row(kit::format("\xce\xb4 = %+7.3f\xc2\xb0", dec), kInk, 14))
+        .child(
+            row(kit::format("r = R_eq\xc2\xb7tan((90\xe2\x88\x92\xce\xb4)/2) = "
+                            "%.6f R",
+                            rOfDec(dec)),
+                kInk, 14))
         .child(row("R_can 0.424423  R_eq 0.651477  R_cap 1.000000",
                    hex(0x7b6a54), 12))
         .child(row("a circle through the EYE projects to a LINE \xe2\x80\x94 "
@@ -2170,7 +2158,8 @@ struct ChaucerAstrolabe : sketch::Sketch {
     // the two weights share a colour at 0.6 alpha: drawn over each other
     // the fifths would composite to 0.84 and print darker than the plate.
     {
-      const path::Frame limb{.centre = c, .radius = r, .zero = path::Zero::East};
+      const path::Frame limb{
+          .centre = c, .radius = r, .zero = path::Zero::East};
       auto ladder = [&](const shapes::Ticks& spec, float width) {
         const SkPath path = shapes::ticks(limb, spec);
         SkRect bb = path.getBounds();
@@ -2296,8 +2285,7 @@ struct ChaucerAstrolabe : sketch::Sketch {
                       ramp(tChaucer * 1000 + 200, 900, ease::outBack())))
                   .fill(brass(0.80f))
                   .foreground(stroke(1.0f, Fill::color(hex(0x2a1d08, 0.6f)))));
-    g.child(
-        kit::disc(c, 8).shape(shapes::circle()).fill(brass(0.82f)));
+    g.child(kit::disc(c, 8).shape(shapes::circle()).fill(brass(0.82f)));
     g.child(text(toU8("altitude 25\xc2\xb0 30\xe2\x80\xb2 \xe2\x80\x94 "
                       "12 March 1391"),
                  type(faceItalic, 13, kRubric))
@@ -2390,8 +2378,8 @@ struct ChaucerAstrolabe : sketch::Sketch {
       g.child(
           text(toU8(kStars[i].modern), type(faceItalic, 12.5f, hex(0x6b5a44)))
               .at({px + 168, y}));
-      g.child(text(toU8(fmt("%8.3f  %+8.3f   %.5f", kStars[i].ra1326,
-                            kStars[i].dec1326, r)),
+      g.child(text(toU8(kit::format("%8.3f  %+8.3f   %.5f", kStars[i].ra1326,
+                                    kStars[i].dec1326, r)),
                    type(faceMono, 11.5f, kInk))
                   .at({px + 276, y + 1}));
       // where the star lands between Cancer and Capricorn
@@ -2404,9 +2392,10 @@ struct ChaucerAstrolabe : sketch::Sketch {
                     .rect(SkRect::MakeXYWH(
                         bx + bw * (t - lo) / (1.0f - lo) - 0.5f, y + 4, 1, 9))
                     .fill(Fill::color(hex(0x241c15, 0.35f))));
-      g.child(kit::disc(SkPoint{bx + bw * (r - lo) / (1.0f - lo), y + 8.5f}, 3.6f)
-                  .shape(shapes::circle())
-                  .fill(Fill::color(i == 3 ? kRubric : kInk)));
+      g.child(
+          kit::disc(SkPoint{bx + bw * (r - lo) / (1.0f - lo), y + 8.5f}, 3.6f)
+              .shape(shapes::circle())
+              .fill(Fill::color(i == 3 ? kRubric : kInk)));
     }
     g.child(text(toU8("ALHABOR / Sirius at 0.868 R is the outermost by a long "
                       "way \xe2\x80\x94 the only southern star here, which is "
@@ -2490,7 +2479,7 @@ struct ChaucerAstrolabe : sketch::Sketch {
       float ly = by - h - 9;
       if (h < 84.0f * 30.0f / maxSpan && ly - 5.0f < y30r)
         ly = 0.5f * ((by - h) + y30r);
-      g.child(text(toU8(fmt("%.1f", span)), type(faceMono, 9.5f, kInk))
+      g.child(text(toU8(kit::format("%.1f", span)), type(faceMono, 9.5f, kInk))
                   .width(w)
                   .textAlign(sigil::weave::TextAlignment::kCenter)
                   .centerAt({bx + (bw / 12.0f) * (float)i + w * 0.5f, ly}));
@@ -2500,12 +2489,12 @@ struct ChaucerAstrolabe : sketch::Sketch {
     // laid the dash down twice, one scanline apart and out of phase, and the
     // pair read as a sawtooth rather than a rule.
     const float y30 = by - 84.0f * 30.0f / maxSpan;
-    g.child(box()
-                .rect(SkRect::MakeXYWH(bx, y30, bw, 1))
-                .fill(Pattern(patterns::stripes(
-                                  5.0f, 4.0f,
-                                  skia::toColor(hex(0x241c15, 0.55f))))
-                          .material()));
+    g.child(
+        box()
+            .rect(SkRect::MakeXYWH(bx, y30, bw, 1))
+            .fill(Pattern(patterns::stripes(
+                              5.0f, 4.0f, skia::toColor(hex(0x241c15, 0.55f))))
+                      .material()));
     g.child(text(toU8("30\xc2\xb0 \xe2\x80\x94 an unprojected ring"),
                  type(faceItalic, 11, hex(0x7b6a54)))
                 .at({bx + 4, y30 - 16}));
@@ -2534,15 +2523,15 @@ struct ChaucerAstrolabe : sketch::Sketch {
   }
 
   Element consolePanel() {
-    return kit::console({.feeds = {&logA, &logB, &logC, &logD},
-                         .style = logStyle(),
-                         .plate = {.paddingX = 14,
-                                   .paddingY = 9,
-                                   .gap = 18,
-                                   .fill = Fill::color(hex(0xe4d9c0, 0.78f)),
-                                   .border = Fill::color(hex(0x241c15, 0.25f)),
-                                   .divider =
-                                       Fill::color(hex(0x241c15, 0.18f))}})
+    return kit::console(
+               {.feeds = {&logA, &logB, &logC, &logD},
+                .style = logStyle(),
+                .plate = {.paddingX = 14,
+                          .paddingY = 9,
+                          .gap = 18,
+                          .fill = Fill::color(hex(0xe4d9c0, 0.78f)),
+                          .border = Fill::color(hex(0x241c15, 0.25f)),
+                          .divider = Fill::color(hex(0x241c15, 0.18f))}})
         .rect(SkRect::MakeXYWH(64, 1396, kW - 128, 190));
   }
 
@@ -2584,13 +2573,14 @@ struct ChaucerAstrolabe : sketch::Sketch {
           .child(text(toU8(k), type(faceLimb, 10, hex(0x8a99b0), 1.4f)))
           .child(text(toU8(v), type(faceMono, 19, c)));
     };
-    g.child(
-        cell("LOCAL APPARENT TIME", fmt("%02d:%04.1f", hh, mm), hex(0xffdc8b)));
-    g.child(cell("HOVR ANGLE", fmt("%+8.3f\xc2\xb0", hourAngle.value()),
+    g.child(cell("LOCAL APPARENT TIME", kit::format("%02d:%04.1f", hh, mm),
+                 hex(0xffdc8b)));
+    g.child(cell("HOVR ANGLE", kit::format("%+8.3f\xc2\xb0", hourAngle.value()),
                  hex(0xd8c79c)));
-    g.child(cell("SONNE ALTITVDE", fmt("%+7.3f\xc2\xb0", sunAlt.value()),
-                 hex(0xd8c79c)));
-    g.child(cell("SONNE IN", fmt("\xce\xbb %6.2f\xc2\xb0", sunLam.value()),
+    g.child(cell("SONNE ALTITVDE",
+                 kit::format("%+7.3f\xc2\xb0", sunAlt.value()), hex(0xd8c79c)));
+    g.child(cell("SONNE IN",
+                 kit::format("\xce\xbb %6.2f\xc2\xb0", sunLam.value()),
                  hex(0xd8c79c)));
     g.child(cell("LETTRE IN THE BORDVRE",
                  std::string(kLetters[letter - 1]) + "  (" +
@@ -2639,9 +2629,9 @@ struct ChaucerAstrolabe : sketch::Sketch {
             .corners({3})
             .cache(Cache::Texture)
             .fill(Paint::glowUnit({0.50f, 0.46f}, 1.05f,
-                                     {{0.0f, hex(0x33405a, 0.55f)},
-                                      {0.62f, hex(0x1d222d, 0.0f)},
-                                      {1.0f, hex(0x080a10, 0.75f)}}))
+                                  {{0.0f, hex(0x33405a, 0.55f)},
+                                   {0.62f, hex(0x1d222d, 0.0f)},
+                                   {1.0f, hex(0x080a10, 0.75f)}}))
             .opacity(animate(from(0.0f).to(1.0f), ramp(tGround * 1000, 900))));
     // the contact shadow
     root.child(
@@ -2743,10 +2733,10 @@ struct ChaucerAstrolabe : sketch::Sketch {
         .add(measure::check("dist((R_eq,0) \xe2\x86\x92 horizon centre)",
                             kReqD / std::sin(kPhiD * kDD),
                             std::hypot(kReqD, almCyD(0.0)), 1e-14))
-        .add(measure::check("prime vertical: R_eq\xc2\xb2 + cy\xc2\xb2 "
-                            "\xe2\x88\x92 a\xc2\xb2",
-                            0.0, kReqD * kReqD + kAzCyD * kAzCyD - kAzAD * kAzAD,
-                            1e-15));
+        .add(measure::check(
+            "prime vertical: R_eq\xc2\xb2 + cy\xc2\xb2 "
+            "\xe2\x88\x92 a\xc2\xb2",
+            0.0, kReqD * kReqD + kAzCyD * kAzCyD - kAzAD * kAzAD, 1e-15));
 
     // --- the azimuth family, checked the hard way ------------------------
     double resPrime = 0, resNaive = 0, lineMax = 0;
@@ -2777,18 +2767,19 @@ struct ChaucerAstrolabe : sketch::Sketch {
         .add(measure::reading(
             "each A projected (A,h)\xe2\x86\x92(\xce\xb4,H)\xe2\x86\x92plate",
             12))
-        .add(measure::check(
-            "A\xe2\x80\xb2 = 90\xc2\xb0\xe2\x88\x92" "A, from the PRIME VERTICAL",
-            0.0, resPrime, 1e-12))
+        .add(measure::check("A\xe2\x80\xb2 = 90\xc2\xb0\xe2\x88\x92"
+                            "A, from the PRIME VERTICAL",
+                            0.0, resPrime, 1e-12))
         // A FINDING, not a claim about this code: the published
         // parameterisation is measured from north, and drawn that way the
         // family misses by more than the plate's own radius. Its failing is
         // the result, so it is printed with a verdict and counted separately.
-        .add(measure::finding(measure::check(
-            "A from NORTH, as published", 0.0, resNaive, 1e-12)))
+        .add(measure::finding(
+            measure::check("A from NORTH, as published", 0.0, resNaive, 1e-12)))
         .add(measure::check("A = 0/180 degenerates to a LINE: max |x|", 0.0,
                             lineMax, 1e-15))
-        .add(measure::reading("\xe2\x86\x91 the check that caught it", "1.7 R"));
+        .add(
+            measure::reading("\xe2\x86\x91 the check that caught it", "1.7 R"));
 
     // --- the seasonal hours ---------------------------------------------
     double worst = 0, worstDec = 0;
@@ -2831,20 +2822,20 @@ struct ChaucerAstrolabe : sketch::Sketch {
       }
     }
     B.add(measure::heading(
-             "THE SEASONAL HOVRES \xe2\x80\x94 AND THEIR DOCVMENTED ERROVR"))
+              "THE SEASONAL HOVRES \xe2\x80\x94 AND THEIR DOCVMENTED ERROVR"))
         // Twelve seasonal hours between sunrise and sunset: on the equator
         // the day is exactly twelve equinoctial hours, so the step is 15°
         // and the medieval construction is exact THERE and nowhere else.
-        .add(measure::check("spacing on the equator, degrees", 15.0,
-                            stepd(0.0), 1e-12))
-        .add(measure::check("k=6 is straight (3 points collinear)",
-                            sixStraight))
+        .add(measure::check("spacing on the equator, degrees", 15.0, stepd(0.0),
+                            1e-12))
+        .add(
+            measure::check("k=6 is straight (3 points collinear)", sixStraight))
         // The medieval construction — a circle through one point on each
         // tropic — against the true locus. It is a FINDING: the approximation
         // is the subject, and how far it misses is the number this study is
         // here to produce.
-        .add(measure::finding(measure::check(
-            "3-point circle vs TRVE locus, R", 0.0, worst, 1e-6)))
+        .add(measure::finding(measure::check("3-point circle vs TRVE locus, R",
+                                             0.0, worst, 1e-6)))
         .add(measure::reading("worst at declination, degrees", worstDec))
         .add(measure::reading("on the real 132 mm object, mm", worst * 60.0))
         .add(measure::reading("one engraved line is about, mm", 0.2));
@@ -2966,26 +2957,27 @@ struct ChaucerAstrolabe : sketch::Sketch {
                      std::sin(kPhiD * kDD) * std::sin(dec * kDD)) /
                     (std::cos(kPhiD * kDD) * std::cos(dec * kDD))) /
           kDD;
-      chaucerH = fmt("graphical (two DRAWN circles cut)  H = %.9f\xc2\xb0", Hg);
-      chaucerA =
-          fmt("analytic  (cos H = (sin h \xe2\x88\x92 s\xcf\x86 s"
-              "\xce\xb4)/(c\xcf\x86 c\xce\xb4))   %.9f\xc2\xb0",
-              Ha);
-      chaucerDelta =
-          fmt("agreement  %.2e\xc2\xb0 \xe2\x80\x94 the DRAWN "
-              "geometry encodes the trigonometry",
-              std::abs(Hg - Ha));
+      chaucerH = kit::format(
+          "graphical (two DRAWN circles cut)  H = %.9f\xc2\xb0", Hg);
+      chaucerA = kit::format(
+          "analytic  (cos H = (sin h \xe2\x88\x92 s\xcf\x86 s"
+          "\xce\xb4)/(c\xcf\x86 c\xce\xb4))   %.9f\xc2\xb0",
+          Ha);
+      chaucerDelta = kit::format(
+          "agreement  %.2e\xc2\xb0 \xe2\x80\x94 the DRAWN "
+          "geometry encodes the trigonometry",
+          std::abs(Hg - Ha));
       D.add(measure::heading("TELLING THE TIME \xe2\x80\x94 12 MARCH 1391, "
                              "ALT 25\xc2\xb0 30\xe2\x80\xb2"))
-          .add(measure::reading("graphical, two DRAWN circles cut, degrees",
-                                Hg))
-          .add(measure::reading("analytic, spherical trigonometry, degrees",
-                                Ha))
+          .add(
+              measure::reading("graphical, two DRAWN circles cut, degrees", Hg))
+          .add(
+              measure::reading("analytic, spherical trigonometry, degrees", Ha))
           // THE HEADLINE. The drawn geometry and the trigonometry are not
           // the same code and never meet: that they agree to 1e-14 degrees
           // is what says the picture encodes the mathematics.
-          .add(measure::check("the DRAWN geometry IS the trigonometry",
-                              Ha, Hg, 1e-12))
+          .add(measure::check("the DRAWN geometry IS the trigonometry", Ha, Hg,
+                              1e-12))
           .add(measure::reading("the instrument reads", "08:53.8"))
           .add(measure::reading("lettre X (21st) \xc2\xb7 Chaucer read",
                                 "9 of the clokke"))
@@ -3007,9 +2999,9 @@ struct ChaucerAstrolabe : sketch::Sketch {
               (double)kEpsTrue1326, (double)kEps, 0.01)))
           .add(measure::reading("equator radius, % small",
                                 (double)((kReq - kt) / kt * 100.0f)))
-          .add(measure::reading("Tropic of Cancer, % small",
-                                (double)((kRcan - kt * kt) / (kt * kt) *
-                                         100.0f)))
+          .add(measure::reading(
+              "Tropic of Cancer, % small",
+              (double)((kRcan - kt * kt) / (kt * kt) * 100.0f)))
           .add(measure::reading("on the 132 mm object, mm",
                                 (double)((kReq - kt) / kt * 60.0f)));
     }
@@ -3055,11 +3047,13 @@ struct ChaucerAstrolabe : sketch::Sketch {
     faceSerif = pickTypeface({"Hoefler Text", "Baskerville"});
     faceItalic =
         pickTypeface({"Hoefler Text", "Baskerville"}, SkFontStyle::Italic());
-    faceBold = pickTypeface({"Hoefler Text", "Baskerville"}, SkFontStyle::Bold());
+    faceBold =
+        pickTypeface({"Hoefler Text", "Baskerville"}, SkFontStyle::Bold());
     faceMono = pickTypeface({"Menlo", "Courier New"});
 
     brassGrain = Paint::recipe(field::grain(0.9f, 3, 11.0f, 0.30f));
-    verdigris = patterns::speckle(420, 16, 1.6f, 5.0f, {skia::toColor(hex(0x2f5a44, 0.09f))});
+    verdigris = patterns::speckle(420, 16, 1.6f, 5.0f,
+                                  {skia::toColor(hex(0x2f5a44, 0.09f))});
     verdigris.seed(1326);
     vellumGrain = Paint::recipe(field::grain(0.02f, 4, 5.0f));
 

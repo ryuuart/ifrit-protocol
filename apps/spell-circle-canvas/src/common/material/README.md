@@ -787,7 +787,10 @@ takes the layer a consumer has already rendered and runs a filter over
 it: `filter()` wraps any `SkImageFilter`, `shader()` an SkSL program
 whose `content` child IS that layer, `recipe()` a `Material` in the same
 position, and `blur()`/`directionalBlur()`/`glow()` are the three named
-ones. `then()` chains them, and the same tier rules hold — a bound
+spatial ones. `phosphorBloom()` is the display post-process: a bright pass
+feeds three radii whose RGB channels have different reach, so the feather
+changes hue while the sharp source remains on top. `then()` chains effects,
+and the same tier rules hold — a bound
 uniform or a live child makes the effect live, and a static chain
 precomposes once. It resolves against the same `PaintFrame` a paint
 does, so a consumer builds one frame per draw and hands it to both.

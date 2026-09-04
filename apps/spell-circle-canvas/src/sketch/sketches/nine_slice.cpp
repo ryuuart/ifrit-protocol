@@ -194,8 +194,8 @@ struct NineSlice final : sketch::Sketch {
                                  .width(Dim(breathW))
                                  .height(Dim(breathH)))},
          .gap = 34,
-         .align = Align::Center,
-         .divider = Fill::color(kRule)});
+         .divider = Fill::color(kRule),
+         .align = Align::Center});
 
     return kit::sheet(
                {.title = u8"NINE SLICE",

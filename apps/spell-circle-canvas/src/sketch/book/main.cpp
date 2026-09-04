@@ -887,11 +887,19 @@ int main(int argc, char* argv[]) {
                  "surface reaches it as the colour extract read off it\n");
   SharedWebEngineScope sharedWebEngine;
   SketchbookView::sketchDir = sketchDir;
-  // WHERE THE BROWSER'S THUMBNAILS COME FROM: the quick tier's baseline,
-  // unless the command line already named somewhere else.
+  // WHERE THE BROWSER'S THUMBNAILS COME FROM: the latest canvas quick tier,
+  // its adopted baseline as fallback, and the latest set world tier, unless
+  // the command line named one store for every runtime.
 #ifdef SIGILSKETCH_PLATES_DIR
-  if (SketchCatalog::platesDir.empty())
+  if (SketchCatalog::platesDir.empty()) {
     SketchCatalog::platesDir = SIGILSKETCH_PLATES_DIR;
+#ifdef SIGILSKETCH_BASELINE_PLATES_DIR
+    SketchCatalog::baselinePlatesDir = SIGILSKETCH_BASELINE_PLATES_DIR;
+#endif
+#ifdef SIGILSKETCH_WORLD_PLATES_DIR
+    SketchCatalog::worldPlatesDir = SIGILSKETCH_WORLD_PLATES_DIR;
+#endif
+  }
 #endif
   SketchbookView::assetsDir = options.assetsDir;
   SketchbookView::flagsFile = options.flagsFile;

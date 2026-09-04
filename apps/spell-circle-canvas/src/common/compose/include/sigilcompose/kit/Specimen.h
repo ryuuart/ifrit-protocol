@@ -2,12 +2,13 @@
 
 /** @file
  * SigilCompose KIT — the furniture of a SPECIMEN SHEET: a captioned
- * cell (a label, a note and the thing they describe), a run of cells
- * along one axis with a hairline between them where the sheet wants
- * one, and the sheet itself — a titled, footed page whose header and
- * footer are ruled off from the content between them.
+ * cell (a label, a note and the thing they describe), the fixed well a
+ * specimen is shown in, a run of cells along one axis with a hairline
+ * between them where the sheet wants one, and the sheet itself — a titled,
+ * footed page whose header and footer are ruled off from the content
+ * between them.
  *
- * All three are plain composition over the public API and decide no
+ * Every component is plain composition over the public API and decides no
  * look. Every face, size, colour and distance is the caller's, handed in
  * once as a `Caption` for the cells and a `Sheet` for the page; what is
  * fixed here is only the ARRANGEMENT — which side of the body a note
@@ -24,6 +25,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <cstdio>
 #include <string>
 #include <utility>
 #include <vector>
@@ -124,6 +126,63 @@ struct Caption {
       break;
   }
   return column;
+}
+
+// ---------------------------------------------------------------------------
+// The specimen well
+
+/** THE FIXED SURFACE A SPECIMEN IS SHOWN IN. Its size, ground and padding
+ *  are caller decisions; the kit only applies them together and clips the
+ *  result, which is the frame every specimen cell otherwise restates.
+ *
+ *      kit::well({.width = 240, .height = 160,
+ *                 .ground = Fill::color(kGround), .padding = 12},
+ *                box().child(subject()))
+ *
+ *  The second argument is the surface itself, not a child wrapped in a new
+ *  box. Hand it `custom(key, draw)` when the drawing should receive the
+ *  well's resolved size directly; hand it `box().child(body)` when the well
+ *  contains a laid-out body. An open width or height leaves that dimension
+ *  already carried by the surface alone. */
+struct Well {
+  Dim width;
+  Dim height;
+  Fill ground;
+  float padding = 0.0f;
+  bool clip = true;
+};
+
+[[nodiscard]] inline Element well(const Well& spec, Element surface) {
+  if (spec.width.unit != Dim::Unit::Auto) surface.width(spec.width);
+  if (spec.height.unit != Dim::Unit::Auto) surface.height(spec.height);
+  if (spec.ground.kind != Fill::Kind::None) surface.fill(spec.ground);
+  if (spec.padding != 0.0f) surface.padding(spec.padding);
+  if (spec.clip) surface.clip();
+  return surface;
+}
+
+/** An empty specimen well, ready for children to be added fluently. */
+[[nodiscard]] inline Element well(const Well& spec) {
+  return well(spec, box());
+}
+
+/** A formatted specimen reading, sized to its result rather than to a
+ *  guessed stack buffer. This is printf's formatting contract because the
+ *  readings it replaces already carry printf format strings. */
+[[nodiscard]] inline std::string format(const char* text) {
+  return text != nullptr ? std::string(text) : std::string{};
+}
+
+template <typename... Args>
+  requires(sizeof...(Args) > 0)
+[[nodiscard]] std::string format(const char* pattern, Args... args) {
+  if (pattern == nullptr) return {};
+  const int length = std::snprintf(nullptr, 0, pattern, args...);
+  if (length <= 0) return {};
+  std::string result((size_t)length + 1, '\0');
+  std::snprintf(result.data(), result.size(), pattern, args...);
+  result.resize((size_t)length);
+  return result;
 }
 
 // ---------------------------------------------------------------------------
@@ -261,8 +320,8 @@ struct Sheet {
     if (hasTitle)
       header.child(named(text(page.title, page.titleStyle), "title"));
     if (hasSubtitle) {
-      Element subtitle = named(text(page.subtitle, page.subtitleStyle),
-                               "subtitle");
+      Element subtitle =
+          named(text(page.subtitle, page.subtitleStyle), "subtitle");
       if (hasTitle) subtitle.margin(0, page.subtitleGap, 0, 0);
       header.child(std::move(subtitle));
     }

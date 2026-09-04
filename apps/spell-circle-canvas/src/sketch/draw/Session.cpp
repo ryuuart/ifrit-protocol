@@ -6,6 +6,7 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPicture.h>
 #include <include/core/SkPictureRecorder.h>
+#include <include/core/SkSamplingOptions.h>
 #include <include/core/SkSurface.h>
 #include <sigilimage/asset/ImageAsset.h>
 #include <sigilmeasure/time/Laps.h>
@@ -275,25 +276,34 @@ class DrawSession final : public Session {
   }
 
   /** The surface the sketch draws on, formed at the pixels the host's
-   *  canvas has for the declared size and kept while that holds. It is
-   *  made through the host's canvas so it lives where the host draws —
-   *  on the device when the host is on one — and falls back to raster.
-   *  A new surface starts on the ground and the setup's drawing. */
+   *  canvas has for the declared size. It is made through the host's
+   *  canvas so it lives where the host draws — on the device when the
+   *  host is on one — and falls back to raster. The first surface starts
+   *  on the ground and the setup's drawing. A replacement surface scales
+   *  the pixels already kept into its new extent, because changing the
+   *  presentation scale must not erase an accumulated canvas. */
   void ensureSurface(SkCanvas& canvas) {
     const SkISize extent = extentOn(canvas);
     if (m_surface && m_extent == extent) return;
     const SkImageInfo info = SkImageInfo::MakeN32Premul(extent);
     sk_sp<SkSurface> surface = canvas.makeSurface(info);
     if (!surface) surface = SkSurfaces::Raster(info);
-    m_extent = extent;
-    m_scale = (float)extent.width() / m_spec.size.width();
     SkCanvas& target = *surface->getCanvas();
     target.clear(m_spec.background);
-    if (m_setupPicture) {
+    if (m_surface) {
       SkAutoCanvasRestore restore(&target, true);
-      target.scale(m_scale, m_scale);
+      target.scale((float)extent.width() / (float)m_extent.width(),
+                   (float)extent.height() / (float)m_extent.height());
+      m_surface->draw(&target, 0, 0, SkSamplingOptions(SkFilterMode::kLinear),
+                      nullptr);
+    } else if (m_setupPicture) {
+      SkAutoCanvasRestore restore(&target, true);
+      const float scale = (float)extent.width() / m_spec.size.width();
+      target.scale(scale, scale);
       target.drawPicture(m_setupPicture);
     }
+    m_extent = extent;
+    m_scale = (float)extent.width() / m_spec.size.width();
     m_surface = std::move(surface);
   }
 

@@ -24,9 +24,12 @@
 namespace fs = std::filesystem;
 namespace sketch = sigil::sketch;
 
-// Set by main() before QML loads: the build's own quick-tier baseline,
-// or whatever `--plates` named instead.
+// Set by main() before QML loads: the latest quick sweep, its adopted
+// baseline, and the latest world sweep, or one directory `--plates` named
+// instead.
 fs::path SketchCatalog::platesDir;
+fs::path SketchCatalog::baselinePlatesDir;
+fs::path SketchCatalog::worldPlatesDir;
 
 namespace {
 
@@ -192,15 +195,21 @@ Header readHeader(const fs::path& file) {
   return header;
 }
 
-/** The plate the quick tier photographed this sketch as, or nothing
- *  where no sweep has run on this machine. A plate is named the way the
- *  sketch is FILED, which is what the baseline holds it under. */
+/** The plate a sweep photographed this sketch as, or nothing where no
+ *  matching sweep has run on this machine. A plate is named the way the
+ *  sketch is FILED, which is what every store holds it under. */
 QString plateFor(const std::string& name) {
-  if (SketchCatalog::platesDir.empty()) return {};
-  const fs::path plate = SketchCatalog::platesDir / ("plate_" + name + ".png");
-  std::error_code code;
-  if (!fs::exists(plate, code)) return {};
-  return QUrl::fromLocalFile(QString::fromStdString(plate.string())).toString();
+  for (const fs::path* directory :
+       {&SketchCatalog::platesDir, &SketchCatalog::baselinePlatesDir,
+        &SketchCatalog::worldPlatesDir}) {
+    if (directory->empty()) continue;
+    const fs::path plate = *directory / ("plate_" + name + ".png");
+    std::error_code code;
+    if (fs::exists(plate, code))
+      return QUrl::fromLocalFile(QString::fromStdString(plate.string()))
+          .toString();
+  }
+  return {};
 }
 
 /** One row, with everything the file and the plate can say filled in and

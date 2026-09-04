@@ -33,8 +33,8 @@
  */
 
 #include <sigilcompose/core/Core.h>
-#include <sigilcompose/typography/Typography.h>
 #include <sigilcompose/kit/Specimen.h>
+#include <sigilcompose/typography/Typography.h>
 #include <sigilgeometry/kit/Curves.h>
 #include <sigilgeometry/kit/Generators.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -102,8 +102,8 @@ Element run(const char* word, float size, SkColor4f colour, bool exact,
       .absolute()
       .inset(inset)
       .onPath({.path = shapes::spiral(kTurns),
-               .align = TextPath::Align::Center,
                .at = 0.42f,
+               .align = TextPath::Align::Center,
                .exactTangent = exact});
 }
 
@@ -122,11 +122,9 @@ Element arcRun(const char* word, float size, SkColor4f colour, bool exact,
 }
 
 Element plate(Element body) {
-  return box()
-      .width(Dim(kCell))
-      .height(Dim(kPicture))
-      .clip()
-      .fill(Fill::color(kCellGround))
+  return kit::well({.width = kCell,
+                    .height = kPicture,
+                    .ground = Fill::color(kCellGround)})
       .child(std::move(body));
 }
 
@@ -146,10 +144,11 @@ struct ExactTangent final : sketch::Sketch {
         kit::sheet(
             {.title = toU8("THE TANGENT LADDER \xc2\xb7 "
                            "TextPath::exactTangent on a tight spiral"),
-             .subtitle = toU8("dials \xc2\xb7 the size (15 px, then 74, then 260) "
-                              "\xc2\xb7 the spiral's turns (3.2) \xc2\xb7 "
-                              "exactTangent \xc2\xb7 how far off the "
-                              "baseline the type rides"),
+             .subtitle =
+                 toU8("dials \xc2\xb7 the size (15 px, then 74, then 260) "
+                      "\xc2\xb7 the spiral's turns (3.2) \xc2\xb7 "
+                      "exactTangent \xc2\xb7 how far off the "
+                      "baseline the type rides"),
              .footer = toU8("the ladder is sixteen steps per pixel of em, "
                             "clamped between 64 and 2048 \xe2\x80\x94 so a "
                             "step sweeps a glyph's far edge about a fifth "
@@ -172,7 +171,8 @@ struct ExactTangent final : sketch::Sketch {
                            "size with the ladder ON",
                            run("a tight spiral carries its whole run",
                                kLabelSize, kFigure, false)),
-                      cell("\xe2\x80\xa6" ".exactTangent = true",
+                      cell("\xe2\x80\xa6"
+                           ".exactTangent = true",
                            "the same run with the ladder lifted \xc2\xb7 at "
                            "this size the two are the same picture, which "
                            "is what the default is for",
@@ -182,14 +182,12 @@ struct ExactTangent final : sketch::Sketch {
                            "display size on a circle \xc2\xb7 still on "
                            "the sixteen-steps-per-pixel ladder, so a step "
                            "sweeps about a fifth of a pixel here too",
-                           arcRun("Ravello", kDisplaySize, kFigure,
-                                  false)),
+                           arcRun("Ravello", kDisplaySize, kFigure, false)),
                       cell("74 px \xc2\xb7 exactTangent = true",
                            "the same letters turned to their exact "
                            "tangents \xc2\xb7 one strike per letter per "
                            "distinct angle, which a static plate can afford",
-                           arcRun("Ravello", kDisplaySize, kFigure,
-                                  true)),
+                           arcRun("Ravello", kDisplaySize, kFigure, true)),
                       cell("260 px, both at once",
                            "snapped in warm under exact in cool, cropped "
                            "to a detail \xc2\xb7 no fringe: the two land "
@@ -199,8 +197,8 @@ struct ExactTangent final : sketch::Sketch {
                                .absolute()
                                .inset(0)
                                .clip()
-                               .child(arcRun("Ra", kDetailSize, kSnapped,
-                                             false, 0.26f, -86, 4))
+                               .child(arcRun("Ra", kDetailSize, kSnapped, false,
+                                             0.26f, -86, 4))
                                .child(arcRun("Ra", kDetailSize, kExact, true,
                                              0.26f, -86, 4)))},
                  .gap = 12}))

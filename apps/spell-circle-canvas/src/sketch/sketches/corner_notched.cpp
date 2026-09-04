@@ -85,10 +85,10 @@ kit::Caption voice() {
  *  treatment reads both as a silhouette and as an edge. */
 Element cell(const char* call, const char* note, Shape cut) {
   return kit::cell(voice(), toU8(call), toU8(note),
-                   box()
-                       .width(Dim(kCell))
-                       .height(Dim(kPicture))
-                       .fill(Fill::color(kCellGround))
+                   kit::well({.width = kCell,
+                              .height = kPicture,
+                              .ground = Fill::color(kCellGround),
+                              .clip = false})
                        .child(box()
                                   .absolute()
                                   .inset(30, 22, 30, 22)
@@ -157,15 +157,14 @@ struct CornerNotched final : sketch::Sketch {
                                      "the rectangular bite on all four "
                                      "\xe2\x80\x94 the stencil corner, the "
                                      "fixing lug",
-                                     shapes::notched(kNotchWidth,
-                                                     kNotchDepth)),
+                                     shapes::notched(kNotchWidth, kNotchDepth)),
                                 cell("notched(38, 18, TopLeft|TopRight)",
                                      "the mask is a bit set, so any union "
                                      "of corners is a value \xc2\xb7 two "
                                      "lugs on the top edge",
-                                     shapes::notched(kNotchWidth, kNotchDepth,
-                                                     Corner::TopLeft |
-                                                         Corner::TopRight)),
+                                     shapes::notched(
+                                         kNotchWidth, kNotchDepth,
+                                         Corner::TopLeft | Corner::TopRight)),
                                 cell("rounded(star(6, 0.5), 10)",
                                      "the wrapper over a shape with NO box "
                                      "corners \xc2\xb7 twelve sharp turns, "
@@ -177,8 +176,8 @@ struct CornerNotched final : sketch::Sketch {
                                      "bites stay, and the eight corners "
                                      "they made soften",
                                      shapes::rounded(
-                                         shapes::notched(kNotchWidth,
-                                                         kNotchDepth),
+                                         shapes::notched(
+                                             kNotchWidth, kNotchDepth),
                                          7))},
                            .gap = 14})},
                  .column = true,

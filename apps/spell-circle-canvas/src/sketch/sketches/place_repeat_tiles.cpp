@@ -26,6 +26,8 @@
  *   kTiles — how many tiles the strip is cut into.
  */
 
+#include <include/core/SkCanvas.h>
+#include <include/core/SkPicture.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/core/Instances.h>
 #include <sigilcompose/core/Tiles.h>
@@ -35,9 +37,6 @@
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
-
-#include <include/core/SkCanvas.h>
-#include <include/core/SkPicture.h>
 
 #include <cmath>
 #include <memory>
@@ -57,9 +56,9 @@ constexpr SkSize kCanvas = {1100, 470};
 constexpr float kCell = 200;
 constexpr float kPicture = 200;
 
-constexpr size_t kCopies = 9;      // copies in each chain
-constexpr float kStep = 19;        // the per-copy translate, px
-constexpr int kTiles = 4;          // slices the strip is cut into
+constexpr size_t kCopies = 9;  // copies in each chain
+constexpr float kStep = 19;    // the per-copy translate, px
+constexpr int kTiles = 4;      // slices the strip is cut into
 constexpr SkSize kMotif = {34, 34};
 constexpr SkISize kTile = {44, 128};
 
@@ -100,11 +99,9 @@ Element motif() {
 
 Element cell(const char* call, const char* note, Element body) {
   return kit::cell(voice(), toU8(call), toU8(note),
-                   box()
-                       .width(Dim(kCell))
-                       .height(Dim(kPicture))
-                       .clip()
-                       .fill(Fill::color(kCellGround))
+                   kit::well({.width = kCell,
+                              .height = kPicture,
+                              .ground = Fill::color(kCellGround)})
                        .child(std::move(body)));
 }
 
@@ -127,8 +124,8 @@ struct PlaceRepeatTiles final : sketch::Sketch {
     instancing::place::repeat(*plain, kCopies, {28, 100}, {kStep, 0});
 
     spun = std::make_shared<instancing::Pool>();
-    instancing::place::repeat(*spun, kCopies, {34, 60}, {kStep, 9},
-                              0.18f, 0.90f);
+    instancing::place::repeat(*spun, kCopies, {34, 60}, {kStep, 9}, 0.18f,
+                              0.90f);
 
     faded = std::make_shared<instancing::Pool>();
     instancing::place::repeat(*faded, kCopies, {28, 100}, {kStep, 0}, 0, 1.0f,
@@ -201,18 +198,22 @@ struct PlaceRepeatTiles final : sketch::Sketch {
   }
 
   Element turned() const {
-    return cell("\xe2\x80\xa6" ", rotateStep = 0.18, scaleStep = 0.90",
-                "rotation LINEAR in the index, scale EXPONENTIAL \xc2\xb7 "
-                "each copy is nine tenths of the one before it",
-                pooled(spun));
+    return cell(
+        "\xe2\x80\xa6"
+        ", rotateStep = 0.18, scaleStep = 0.90",
+        "rotation LINEAR in the index, scale EXPONENTIAL \xc2\xb7 "
+        "each copy is nine tenths of the one before it",
+        pooled(spun));
   }
 
   Element ramped() const {
-    return cell("\xe2\x80\xa6" ", opacityFrom = 1, opacityTo = 0.12",
-                "the ramp writes the alphas() lane, composing with the "
-                "authored tint \xc2\xb7 written only when the two arguments "
-                "say something",
-                pooled(faded));
+    return cell(
+        "\xe2\x80\xa6"
+        ", opacityFrom = 1, opacityTo = 0.12",
+        "the ramp writes the alphas() lane, composing with the "
+        "authored tint \xc2\xb7 written only when the two arguments "
+        "say something",
+        pooled(faded));
   }
 
   /** The strip, cut into `kTiles` rasters and laid out with air between
@@ -242,9 +243,8 @@ struct PlaceRepeatTiles final : sketch::Sketch {
                                k * ((float)kTile.width() + kAir / scale), 0);
                            canvas.clipRect(SkRect::MakeWH(
                                (float)kTile.width(), (float)kTile.height()));
-                           canvas.concat(tiles::window(kTile, k,
-                                                       tiles::Flow::Down,
-                                                       facing));
+                           canvas.concat(tiles::window(
+                               kTile, k, tiles::Flow::Down, facing));
                            canvas.drawPicture(art);
                            canvas.restore();
                          }

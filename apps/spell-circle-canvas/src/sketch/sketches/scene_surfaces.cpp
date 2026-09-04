@@ -22,6 +22,10 @@
  * a display, so the same texture read through a lit body is the third
  * reading and the shelf beside them is the fourth.
  *
+ * THE CARDS AND BANDS ARE OPEN SURFACES. Each keeps its backface visible,
+ * so the turntable can pass behind it without the geometry disappearing;
+ * a closed shelf keeps the ordinary hidden-backface default.
+ *
  * EACH SURFACE'S SCENE IS ASKED FOR ONCE, while the study is declaring
  * itself: `ctx.textureScene(size)` hands back a scene the session keeps,
  * and `describe` only renders the tree of the moment into it and reads
@@ -329,6 +333,7 @@ struct SceneSurfaces final : sketch::Set {
               .at({kArcRadius * std::sin(bearing), 78.0f,
                    kArcRadius * std::cos(bearing) - kArcRadius})
               .mesh(gm::quad(kCardWidth, kCardHeight))
+              .backface(world::Backface::Visible)
               .fill(screenOf(cards[(size_t)i].at(seconds, content[(size_t)i])))
               .tag("flat"));
     }
@@ -338,6 +343,7 @@ struct SceneSurfaces final : sketch::Set {
                       .key("band")
                       .at({0.0f, -40.0f, 0.0f})
                       .mesh(gm::cylinderPanel(560.0f, 76.0f, kArcRadius, 72, 6))
+                      .backface(world::Backface::Visible)
                       .fill(screenOf(strip.at(seconds, band(seconds))))
                       .tag("curved"));
 
@@ -369,6 +375,7 @@ struct SceneSurfaces final : sketch::Set {
     room.child(world::Element()
                    .key("ribbon")
                    .mesh(rail)
+                   .backface(world::Backface::Visible)
                    .fill(std::move(printedTape))
                    .tag("tiled"));
 

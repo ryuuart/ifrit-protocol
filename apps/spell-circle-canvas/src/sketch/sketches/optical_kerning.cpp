@@ -37,7 +37,6 @@
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
-#include <cstdio>
 #include <string>
 #include <utility>
 
@@ -95,20 +94,12 @@ kit::Caption voice() {
           .noteMeasure = kCell};
 }
 
-std::string line(const char* format, auto... args) {
-  char buffer[96];
-  std::snprintf(buffer, sizeof buffer, format, args...);
-  return buffer;
-}
-
 Element cell(const char* call, const char* note, Element body) {
   return kit::cell(voice(), toU8(call), toU8(note),
-                   box()
-                       .width(Dim(kCell))
-                       .height(Dim(kPicture))
-                       .clip()
-                       .fill(Fill::color(kCellGround))
-                       .padding(12)
+                   kit::well({.width = kCell,
+                              .height = kPicture,
+                              .ground = Fill::color(kCellGround),
+                              .padding = 12})
                        .child(std::move(body)));
 }
 
@@ -127,15 +118,16 @@ struct OpticalKerning final : sketch::Sketch {
     // pair the face already kerns has little left to give.
     const auto advance = [&](const char* text8, bool optical) {
       return ctx
-          .measure(box().child(text(toU8(text8), display(kSize, kFigure,
-                                                         optical))))
+          .measure(
+              box().child(text(toU8(text8), display(kSize, kFigure, optical))))
           .width();
     };
     for (int i = 0; i < 6; ++i)
-      rows[i] = line("%-3s %+6.2f px", kPairs[i],
-                     advance(kPairs[i], true) - advance(kPairs[i], false));
-    rows[6] = line("%-3s %+6.2f px", "the line",
-                   advance(kHeadline, true) - advance(kHeadline, false));
+      rows[i] =
+          kit::format("%-3s %+6.2f px", kPairs[i],
+                      advance(kPairs[i], true) - advance(kPairs[i], false));
+    rows[6] = kit::format("%-3s %+6.2f px", "the line",
+                          advance(kHeadline, true) - advance(kHeadline, false));
 
     ctx.composer.render(
         kit::sheet(
@@ -158,8 +150,8 @@ struct OpticalKerning final : sketch::Sketch {
              .marginBottom = 16,
              .ground = Fill::color(kGround),
              .rule = Fill::color(kRule)},
-            kit::cells({.cells = {plain(), optical(), both(), table()},
-                        .gap = 14}))
+            kit::cells(
+                {.cells = {plain(), optical(), both(), table()}, .gap = 14}))
             .absolute()
             .inset(0));
   }

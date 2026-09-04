@@ -26,6 +26,7 @@
  *   kGain  — the height every bar is multiplied by.
  */
 
+#include <include/core/SkPathBuilder.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilmaterial/core/Material.h>
@@ -37,11 +38,8 @@
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
-#include <include/core/SkPathBuilder.h>
-
 #include <array>
 #include <cmath>
-#include <cstdio>
 #include <memory>
 #include <string>
 
@@ -50,11 +48,11 @@ namespace weave = sigil::weave;
 namespace material = sigil::material;
 
 using namespace sigil::compose;
-using sigil::compose::toU8;
 using material::Color;
 using material::FrameInput;
 using material::Recipe;
 using material::Target;
+using sigil::compose::toU8;
 
 namespace {
 
@@ -62,7 +60,7 @@ constexpr SkSize kCanvas = {1100, 646};
 constexpr float kCell = 341;
 constexpr float kPicture = 196;
 
-constexpr int kBars = 12;    // the table's length, and a constant in the body
+constexpr int kBars = 12;      // the table's length, and a constant in the body
 constexpr float kGain = 0.9f;  // every bar's height multiplier
 
 constexpr SkColor4f kGround{0.07f, 0.07f, 0.085f, 1};
@@ -181,29 +179,21 @@ SkPath whole() {
   return path;
 }
 
-std::string line(const char* format, auto... args) {
-  char buffer[224];
-  std::snprintf(buffer, sizeof buffer, format, args...);
-  return buffer;
-}
-
 Element cell(const char* call, const std::string& note, material::Material m,
              float contentScale, glm::mat3 world = glm::mat3(1.0f)) {
   return kit::cell(
       voice(), toU8(call), toU8(note),
-      custom(call,
-             [m = std::move(m), contentScale, world](
-                 SkCanvas& canvas, const PaintContext& pc) {
-               material::skia::fill(
-                   canvas, whole(), m,
-                   {.resolution = {pc.size.width(), pc.size.height()},
-                    .contentScale = contentScale,
-                    .world = world});
-             })
-          .width(kCell)
-          .height(kPicture)
-          .clip()
-          .fill(Fill::color(kCellGround)));
+      kit::well({.width = kCell,
+                 .height = kPicture,
+                 .ground = Fill::color(kCellGround)},
+                custom(call, [m = std::move(m), contentScale, world](
+                                 SkCanvas& canvas, const PaintContext& pc) {
+                  material::skia::fill(
+                      canvas, whole(), m,
+                      {.resolution = {pc.size.width(), pc.size.height()},
+                       .contentScale = contentScale,
+                       .world = world});
+                })));
 }
 
 }  // namespace
@@ -212,7 +202,7 @@ struct FrameInputs final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
     ctx.canvas(kCanvas.width(), kCanvas.height());
     ctx.background(kGround);
-    ctx.captureAt(0.05);  // nothing moves; the sheet is complete at once
+    ctx.captureAt(0.05);        // nothing moves; the sheet is complete at once
     material::skia::install();  // the SkSL compiler, once per process
 
     // The caller's table, owned beside the model rather than in the
@@ -266,12 +256,14 @@ struct FrameInputs final : sketch::Sketch {
                           {.cells =
                                {cell("bind(\"uBars\", block) \xc2\xb7 "
                                      "contentScale 1",
-                                     line("twelve floats read LIVE at every "
-                                          "resolve \xc2\xb7 the hairlines "
-                                          "are 1 / uContentScale wide, so "
-                                          "here they are 1 px"),
+                                     kit::format(
+                                         "twelve floats read LIVE at every "
+                                         "resolve \xc2\xb7 the hairlines "
+                                         "are 1 / uContentScale wide, so "
+                                         "here they are 1 px"),
                                      bars, 1.0f),
-                                cell("\xe2\x80\xa6" " contentScale 3",
+                                cell("\xe2\x80\xa6"
+                                     " contentScale 3",
                                      "the same material and the same block "
                                      "\xc2\xb7 only the frame value moved, "
                                      "and the hairlines thinned to a third",

@@ -60,8 +60,6 @@
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
-#include <cstdarg>
-#include <cstdio>
 #include <filesystem>
 #include <glm/glm.hpp>
 #include <optional>
@@ -84,9 +82,9 @@ constexpr SkSize kCanvas = {1200, 520};
 constexpr float kCell = 274;
 constexpr float kPicture = 232;
 
-constexpr float kR = 62, kr = 23;     // the torus, major and minor radius
-constexpr int kNu = 44, kNv = 22;     // how finely it is tessellated
-constexpr int kMotes = 900;           // points the instancer carries
+constexpr float kR = 62, kr = 23;  // the torus, major and minor radius
+constexpr int kNu = 44, kNv = 22;  // how finely it is tessellated
+constexpr int kMotes = 900;        // points the instancer carries
 constexpr double kMetersPerUnit = 0.01;
 
 constexpr SkColor4f kGround{0.07f, 0.075f, 0.085f, 1};
@@ -143,15 +141,6 @@ camera::Camera sourceCamera() {
   return view;
 }
 
-std::string fmt(const char* pattern, ...) {
-  char buffer[320];
-  va_list args;
-  va_start(args, pattern);
-  std::vsnprintf(buffer, sizeof buffer, pattern, args);
-  va_end(args);
-  return buffer;
-}
-
 const char* kindName(world::light::Kind kind) {
   switch (kind) {
     case world::light::Kind::Sun:
@@ -168,16 +157,16 @@ Element cell(const std::string& key, const char* heading,
              const std::string& reading, gm::Mesh mesh, camera::Camera lens) {
   return kit::cell(
       voice(), toU8(heading), toU8(reading),
-      custom(key,
-             [mesh = std::move(mesh), lens](SkCanvas& canvas,
-                                            const PaintContext& pc) {
-               if (mesh.positions.empty()) return;
-               render::drawMesh(canvas, mesh, glm::mat4(1.0f), lens, pc.size,
-                                stageStyle());
-             })
-          .width(kCell)
-          .height(kPicture)
-          .fill(Fill::color(kCellGround)));
+      kit::well({.width = kCell,
+                 .height = kPicture,
+                 .ground = Fill::color(kCellGround),
+                 .clip = false},
+                custom(key, [mesh = std::move(mesh), lens](
+                                SkCanvas& canvas, const PaintContext& pc) {
+                  if (mesh.positions.empty()) return;
+                  render::drawMesh(canvas, mesh, glm::mat4(1.0f), lens, pc.size,
+                                   stageStyle());
+                })));
 }
 
 }  // namespace
@@ -196,11 +185,12 @@ struct UsdRoundtrip final : sketch::Sketch {
     // THE SOURCE, as values. Nothing below reaches into a renderer.
     const gm::Mesh source = gm::torus(kR, kr, kNu, kNv);
     const gm::Cloud motes = gm::points::onMesh(source, kMotes, 7);
-    const material::Material brass = material::kit::surface(
-        {.baseColor = {0.76f, 0.58f, 0.28f, 1}, .metallic = 1,
-         .roughness = 0.28f});
-    const world::light::Light sun = world::light::sun(
-        {-0.5f, -0.7f, -0.5f}, {1.0f, 0.95f, 0.88f, 1}, 1.2f);
+    const material::Material brass =
+        material::kit::surface({.baseColor = {0.76f, 0.58f, 0.28f, 1},
+                                .metallic = 1,
+                                .roughness = 0.28f});
+    const world::light::Light sun =
+        world::light::sun({-0.5f, -0.7f, -0.5f}, {1.0f, 0.95f, 0.88f, 1}, 1.2f);
     const camera::Camera lens = sourceCamera();
 
     const std::filesystem::path dir =
@@ -209,14 +199,14 @@ struct UsdRoundtrip final : sketch::Sketch {
     std::filesystem::create_directories(dir, ignored);
 
     kit::Cells shelf{.gap = 18, .divider = Fill::color(kRule)};
-    shelf.cells.push_back(
-        cell("source", "the set, as values",
-             fmt("%zu vertices \xc2\xb7 %zu triangles \xc2\xb7 no colour "
-                 "lane\n%s light \xc2\xb7 fovY %.1f\xc2\xb0 \xc2\xb7 "
-                 "%zu instancer points",
-                 source.positions.size(), source.indices.size() / 3,
-                 kindName(sun.kind), (double)lens.fovYDeg, motes.size()),
-             source, lens));
+    shelf.cells.push_back(cell(
+        "source", "the set, as values",
+        kit::format("%zu vertices \xc2\xb7 %zu triangles \xc2\xb7 no colour "
+                    "lane\n%s light \xc2\xb7 fovY %.1f\xc2\xb0 \xc2\xb7 "
+                    "%zu instancer points",
+                    source.positions.size(), source.indices.size() / 3,
+                    kindName(sun.kind), (double)lens.fovYDeg, motes.size()),
+        source, lens));
 
     std::string names;
     std::string trouble;
@@ -254,7 +244,8 @@ struct UsdRoundtrip final : sketch::Sketch {
 
       shelf.cells.push_back(cell(
           extension, extension,
-          fmt("%.1f KiB \xc2\xb7 %zu parts \xc2\xb7 %zu vertices\n"
+          kit::format(
+              "%.1f KiB \xc2\xb7 %zu parts \xc2\xb7 %zu vertices\n"
               "%zu light%s (%s) \xc2\xb7 %zu camera%s \xc2\xb7 fovY %.1f"
               "\xc2\xb0",
               (double)bytes / 1024.0, model ? model->parts.size() : 0,
@@ -268,17 +259,16 @@ struct UsdRoundtrip final : sketch::Sketch {
           back, readLens));
     }
 
-    std::string foot =
-        fmt("Writer(metersPerUnit = %g) \xc2\xb7 UsdGeomMesh + "
-            "UsdGeomPointInstancer + UsdLuxDistantLight + UsdGeomCamera "
-            "under /World",
-            kMetersPerUnit);
+    std::string foot = kit::format(
+        "Writer(metersPerUnit = %g) \xc2\xb7 UsdGeomMesh + "
+        "UsdGeomPointInstancer + UsdLuxDistantLight + UsdGeomCamera "
+        "under /World",
+        kMetersPerUnit);
     if (!names.empty())
       foot += "   \xc2\xb7   ReadInfo bound \xe2\x80\x9c" + names +
               "\xe2\x80\x9d as the material";
     if (!trouble.empty())
-      foot +=
-          "   \xc2\xb7   a package layer is not written through save()";
+      foot += "   \xc2\xb7   a package layer is not written through save()";
 
     ctx.composer.render(
         kit::sheet({.title = toU8("USD ROUND TRIP \xc2\xb7 usd::Writer "

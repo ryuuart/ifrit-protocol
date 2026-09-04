@@ -31,6 +31,10 @@
  *   kFirst, kSecond — the two states the text file is written in.
  */
 
+#include <include/core/SkCanvas.h>
+#include <include/core/SkData.h>
+#include <include/core/SkPaint.h>
+#include <include/core/SkSurface.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilimage/asset/ImageAsset.h>
@@ -41,12 +45,6 @@
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
-#include <include/core/SkCanvas.h>
-#include <include/core/SkData.h>
-#include <include/core/SkPaint.h>
-#include <include/core/SkSurface.h>
-
-#include <cstdio>
 #include <filesystem>
 #include <memory>
 #include <optional>
@@ -104,11 +102,10 @@ struct Cloud {
   std::vector<SkPoint> points;
 };
 
-std::optional<Cloud> parseCloud(const loader::Bytes& bytes,
-                                std::string_view) {
+std::optional<Cloud> parseCloud(const loader::Bytes& bytes, std::string_view) {
   Cloud cloud;
-  const std::string text(
-      reinterpret_cast<const char*>(bytes.bytes.data()), bytes.bytes.size());
+  const std::string text(reinterpret_cast<const char*>(bytes.bytes.data()),
+                         bytes.bytes.size());
   float x = 0, y = 0;
   size_t at = 0;
   while (at < text.size()) {
@@ -137,20 +134,12 @@ sk_sp<SkData> chart(int bars, SkColor4f ink) {
   return img::encodeImage(*surface->makeImageSnapshot(), img::Format::Png);
 }
 
-std::string line(const char* format, auto... args) {
-  char buffer[200];
-  std::snprintf(buffer, sizeof buffer, format, args...);
-  return buffer;
-}
-
 Element cell(const char* call, const char* note, Element body) {
   return kit::cell(voice(), toU8(call), toU8(note),
-                   box()
-                       .width(Dim(kCell))
-                       .height(Dim(kPicture))
-                       .clip()
-                       .fill(Fill::color(kCellGround))
-                       .padding(10)
+                   kit::well({.width = kCell,
+                              .height = kPicture,
+                              .ground = Fill::color(kCellGround),
+                              .padding = 10})
                        .child(std::move(body)));
 }
 
@@ -227,13 +216,14 @@ struct HubReload final : sketch::Sketch {
                            "the UTF-8 convenience over blob() \xc2\xb7 read "
                            "once before the file changed and once after, "
                            "with poll() between them",
-                           lines({line("first  \xc2\xb7 %s",
-                                       firstText ? firstText->c_str() : "-"),
-                                  line("poll() \xc2\xb7 %s",
-                                       moved ? "true" : "false"),
-                                  line("second \xc2\xb7 %s",
-                                       secondText ? secondText->c_str()
-                                                  : "-")})),
+                           lines({kit::format(
+                                      "first  \xc2\xb7 %s",
+                                      firstText ? firstText->c_str() : "-"),
+                                  kit::format("poll() \xc2\xb7 %s",
+                                              moved ? "true" : "false"),
+                                  kit::format("second \xc2\xb7 %s",
+                                              secondText ? secondText->c_str()
+                                                         : "-")})),
                       cell("hub.load<Cloud>(\"res://cloud.pts\")",
                            "a type the hub has no opinion about, decoded by "
                            "a function this file registered \xc2\xb7 both "
@@ -248,21 +238,27 @@ struct HubReload final : sketch::Sketch {
                            "nothing: a view already handed out keeps its "
                            "value, so the first reading is still the first "
                            "reading and the new one arrives by asking again",
-                           lines({line("first  cloud \xc2\xb7 %zu points",
-                                       firstCloud ? firstCloud->points.size()
+                           lines({kit::format(
+                                      "first  cloud \xc2\xb7 %zu points",
+                                      firstCloud
+                                          ? firstCloud->points
+                                                .size()
+                                          : 0),
+                                  kit::format(
+                                      "second cloud \xc2\xb7 %zu points",
+                                      secondCloud ? secondCloud
+                                                        ->points.size()
                                                   : 0),
-                                  line("second cloud \xc2\xb7 %zu points",
-                                       secondCloud
-                                           ? secondCloud->points.size()
-                                           : 0),
-                                  line("first  chart \xc2\xb7 %d\xc3\x97%d",
-                                       firstChart ? firstChart->width() : 0,
-                                       firstChart ? firstChart->height() : 0),
-                                  line("mount  \xc2\xb7 %s",
-                                       hub.resolve(notesUri)
-                                           .filename()
-                                           .string()
-                                           .c_str())}))},
+                                  kit::format("first  chart \xc2\xb7 "
+                                              "%d\xc3\x97%d",
+                                              firstChart ? firstChart->width()
+                                                         : 0,
+                                              firstChart ? firstChart->height()
+                                                         : 0),
+                                  kit::format("mount  \xc2\xb7 %s", hub.resolve(notesUri)
+                                                                        .filename()
+                                                                        .string()
+                                                                        .c_str())}))},
                  .gap = 14}))
             .absolute()
             .inset(0));
@@ -279,10 +275,10 @@ struct HubReload final : sketch::Sketch {
    *  ink, so the reload is one picture. */
   Element clouds(const std::shared_ptr<const Cloud>& before,
                  const std::shared_ptr<const Cloud>& after) {
-    const std::vector<SkPoint> a = before ? before->points
-                                          : std::vector<SkPoint>{};
-    const std::vector<SkPoint> b = after ? after->points
-                                         : std::vector<SkPoint>{};
+    const std::vector<SkPoint> a =
+        before ? before->points : std::vector<SkPoint>{};
+    const std::vector<SkPoint> b =
+        after ? after->points : std::vector<SkPoint>{};
     return custom("hub.clouds",
                   [a, b](SkCanvas& canvas, const PaintContext&) {
                     SkPaint paint;

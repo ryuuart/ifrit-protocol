@@ -80,6 +80,11 @@ FOUR VERIFICATION TIERS (--tier):
   beside it still runs: a miss is reported as a mover that could not be
   judged, and `--rebase` fills the store.
 
+  Every completed quick sweep also keeps its successful plates in
+  build/plate_thumbnails_quick_<config>/ for Sketchbook. This display cache
+  is independent of the adopted plate store: a new or deliberately changed
+  sketch can have a thumbnail without changing a verdict.
+
   So quick answers "did I move any bytes I didn't mean to?" during
   iteration, and the full tier answers it authoritatively at the end.
 
@@ -92,6 +97,11 @@ FOUR VERIFICATION TIERS (--tier):
   the same verdict table, against its own baseline
   (build/plate_baseline_world_<config>.sha256). It needs no device — a
   machine with no GPU runs it green.
+
+  Every completed world sweep keeps its successful plates in
+  build/plate_thumbnails_world_<config>/ for Sketchbook. The thumbnail
+  cache is not the baseline: retaining the current pictures changes no
+  verdict, which is still the manifest's byte identity.
 
   world-gpu — the same studies, rendered through the Diligent runtime
   instead of the CPU one. It is the ONE TIER THAT IS NOT JUDGED ON BYTE
@@ -585,20 +595,20 @@ def judge_quick(store, rendered_dir, scene):
     )
 
 
-def store_quick_plates(store, rendered_dir, scenes, whole_registry):
-    """The plates a rebased quick baseline is judged against.
+def store_plates(store, rendered_dir, scenes, whole_registry):
+    """Copies rendered plates into a persistent store.
 
-    A whole-registry rebase re-makes the store, so a plate for a scene
-    that has left the registry cannot linger; a subset rebase replaces
-    only the scenes it rendered, which is the manifest's merge rule
-    applied to the pictures."""
+    Quick uses adopted plates to judge a hash miss. World uses the latest
+    successful sweep as set-sketch thumbnails. A complete sweep re-makes
+    its store so a scene that left the registry cannot linger; a subset or
+    partially failed sweep replaces only the scenes it rendered."""
     if whole_registry and os.path.isdir(store):
         shutil.rmtree(store)
     os.makedirs(store, exist_ok=True)
     for scene in scenes:
         plate = f"{PLATE_PREFIX}{scene}.png"
         shutil.copyfile(os.path.join(rendered_dir, plate), os.path.join(store, plate))
-    print(f"baseline plates written: {store} ({len(scenes)} plates)")
+    print(f"plate store written: {store} ({len(scenes)} plates)")
 
 
 def discard_later(directory):
@@ -889,10 +899,17 @@ def main():
         root, "build", f"plate_baseline{tier_tag}_{args.config}.sha256"
     )
     # The quick tier judges a hash miss by decoding the two plates, so its
-    # baseline keeps the pictures the manifest names beside it. The tiers
-    # judged on the hash alone need no such store.
+    # baseline keeps the pictures the manifest names beside it. Separate
+    # display caches keep the latest successful quick and world sweeps; neither
+    # is evidence used by a hash verdict.
     plate_store = os.path.join(
         root, "build", f"plate_baseline{tier_tag}_{args.config}.plates"
+    )
+    quick_thumbnail_store = os.path.join(
+        root, "build", f"plate_thumbnails_quick_{args.config}"
+    )
+    world_thumbnail_store = os.path.join(
+        root, "build", f"plate_thumbnails_world_{args.config}"
     )
     if not os.path.exists(binary):
         sys.exit(f"no binary at {binary} — build the {args.tier} tier's renderer first")
@@ -1025,7 +1042,20 @@ def main():
             f"{len(results)} from this sweep)"
         )
         if quick and results:
-            store_quick_plates(plate_store, outdir, results, not args.scenes)
+            store_plates(plate_store, outdir, results, not args.scenes)
+            store_plates(
+                quick_thumbnail_store,
+                outdir,
+                results,
+                whole_registry=not args.scenes and not errors,
+            )
+        if args.tier == "world" and results:
+            store_plates(
+                world_thumbnail_store,
+                outdir,
+                results,
+                whole_registry=not args.scenes and not errors,
+            )
         return 0 if not errors else 1
 
     movers, missing = [], []
@@ -1081,6 +1111,20 @@ def main():
         verdict = 1
     for scene in missing:
         print(f"  NEW    {scene} (not in baseline — rebase to adopt)")
+    if quick and results:
+        store_plates(
+            quick_thumbnail_store,
+            outdir,
+            results,
+            whole_registry=not args.scenes and not errors,
+        )
+    if args.tier == "world" and results:
+        store_plates(
+            world_thumbnail_store,
+            outdir,
+            results,
+            whole_registry=not args.scenes and not errors,
+        )
     if verdict == 0 and not errors:
         print(
             "VERDICT: no plate moved beyond the device's own scatter"

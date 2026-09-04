@@ -76,6 +76,7 @@ struct ElementNode {
   std::optional<Along> along;
   std::optional<Window> window;
   Geometry geometry;
+  Backface backface = Backface::Hidden;
   /** The one surface. */
   std::optional<::sigil::material::Material> material;
   /** …or the per-face slots, in slot order. A node carries one form or

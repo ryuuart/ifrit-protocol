@@ -28,6 +28,8 @@
  *   kSeed     — the seed every generated field is offset by.
  */
 
+#include <include/core/SkPathBuilder.h>
+#include <include/core/SkSurface.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilmaterial/field/Field.h>
@@ -37,9 +39,6 @@
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
-
-#include <include/core/SkPathBuilder.h>
-#include <include/core/SkSurface.h>
 
 #include <functional>
 #include <string>
@@ -58,9 +57,9 @@ constexpr SkSize kCanvas = {1100, 636};
 constexpr float kCell = 200;
 constexpr float kPicture = 182;
 
-constexpr float kSpacing = 9;      // the halftone lattice pitch, px
-constexpr float kNoiseHz = 0.035f; // features per px
-constexpr float kSeed = 4;         // the seed every generated field offsets by
+constexpr float kSpacing = 9;       // the halftone lattice pitch, px
+constexpr float kNoiseHz = 0.035f;  // features per px
+constexpr float kSeed = 4;          // the seed every generated field offsets by
 
 constexpr SkColor4f kGround{0.07f, 0.07f, 0.085f, 1};
 constexpr SkColor4f kCellGround{0.09f, 0.095f, 0.11f, 1};
@@ -125,17 +124,16 @@ material::Material rippled(float amplitude, float wavelength, bool vertical) {
 
 Element cell(const char* call, const char* note,
              std::function<void(SkCanvas&, const material::FrameData&)> draw) {
-  return kit::cell(voice(), toU8(call), toU8(note),
-                   custom(call,
-                          [draw = std::move(draw)](SkCanvas& canvas,
-                                                   const PaintContext& pc) {
-                            draw(canvas, {.resolution = {pc.size.width(),
-                                                         pc.size.height()}});
-                          })
-                       .width(kCell)
-                       .height(kPicture)
-                       .clip()
-                       .fill(Fill::color(kCellGround)));
+  return kit::cell(
+      voice(), toU8(call), toU8(note),
+      kit::well({.width = kCell,
+                 .height = kPicture,
+                 .ground = Fill::color(kCellGround)},
+                custom(call, [draw = std::move(draw)](SkCanvas& canvas,
+                                                      const PaintContext& pc) {
+                  draw(canvas,
+                       {.resolution = {pc.size.width(), pc.size.height()}});
+                })));
 }
 
 /** A field on its own. */
@@ -165,7 +163,7 @@ struct FieldShelf final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
     ctx.canvas(kCanvas.width(), kCanvas.height());
     ctx.background(kGround);
-    ctx.captureAt(0.05);  // nothing moves; the sheet is complete at once
+    ctx.captureAt(0.05);        // nothing moves; the sheet is complete at once
     material::skia::install();  // the SkSL compiler, once per process
 
     ctx.composer.render(
@@ -230,9 +228,9 @@ struct FieldShelf final : sketch::Sketch {
                                       "swell band remapped to the middle "
                                       "half",
                                       field::halftoneRamp(
-                                          kSpacing, 0.5f, 4.0f,
-                                          {0.94f, 0.90f, 0.80f, 1}, 30, 0.25f,
-                                          0.75f)),
+                                          kSpacing, 0.5f,
+                                          4.0f, {0.94f, 0.90f, 0.80f, 1},
+                                          30, 0.25f, 0.75f)),
                                 plain("noise(0.035, 4, 4, true)",
                                       "the turbulence variant \xe2\x80\x94 "
                                       "the abs-value fold, which is sharper "
@@ -244,7 +242,8 @@ struct FieldShelf final : sketch::Sketch {
                                       "runs lengthwise",
                                       field::grain(0.02f, 4, kSeed, 1.6f, 7)),
                                 plain("ripple(9, 70, vertical)",
-                                      "\xe2\x80\xa6" "and with the flag, x "
+                                      "\xe2\x80\xa6"
+                                      "and with the flag, x "
                                       "shifted by a sine of y \xc2\xb7 the "
                                       "same field turned a quarter",
                                       rippled(9, 70, true)),

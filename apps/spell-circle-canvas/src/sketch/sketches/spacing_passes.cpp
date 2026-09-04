@@ -64,8 +64,8 @@ constexpr SkSize kCanvas = {1100, 400};
 constexpr float kCell = 200;
 constexpr float kPicture = 200;
 
-constexpr float kMeasure = 130;   // every cell is set in this measure
-constexpr float kWordSpacing = 2.0f;    // the multiple a gap is AIMED at
+constexpr float kMeasure = 130;          // every cell is set in this measure
+constexpr float kWordSpacing = 2.0f;     // the multiple a gap is AIMED at
 constexpr float kLetterSpacing = 0.05f;  // the em fraction the second pass adds
 constexpr float kGlyphScale = 0.92f;     // what the third pass scales across
 
@@ -117,12 +117,10 @@ Element passage(weave::JustificationOptions options) {
 
 Element cell(const char* call, const char* note, Element body) {
   return kit::cell(voice(), toU8(call), toU8(note),
-                   box()
-                       .width(Dim(kCell))
-                       .height(Dim(kPicture))
-                       .clip()
-                       .fill(Fill::color(kCellGround))
-                       .padding(12)
+                   kit::well({.width = kCell,
+                              .height = kPicture,
+                              .ground = Fill::color(kCellGround),
+                              .padding = 12})
                        .child(std::move(body)));
 }
 

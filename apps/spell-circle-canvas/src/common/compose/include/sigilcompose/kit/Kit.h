@@ -32,12 +32,13 @@
  * | `kit/PixelType.h` | the aliased bitmap-font bake |
  * | `kit/Legibility.h` | halo / shade / scrim |
  * | `kit/Instruments.h` | `trackMeter()` and `restGhost()` — a cascade seen |
- * | `kit/Kinetic.h` | the `fx::` presets over the effect seam, and `marquee()` |
- * | `kit/Annotations.h` | `annotate()` — an element per unit, `Beside` it |
+ * | `kit/Kinetic.h` | the `fx::` presets over the effect seam, and `marquee()`
+ * | | `kit/Annotations.h` | `annotate()` — an element per unit, `Beside` it |
  * | `kit/Annotations.h` | …or `Anchored`, where the caller says |
  * | `kit/Typeset.h` | ruby, kenten, drop cap, `NestedStyle` |
  * | `kit/Typeset.h` | bullets, block rules |
- * | `kit/Specimen.h` | `cell()`, `cells()`, `sheet()` — a specimen sheet's furniture |
+ * | `kit/Specimen.h` | `cell()`, `well()`, `format()`, `cells()`, `sheet()` —
+ * specimen furniture |
  *
  * **`kit/Strokes.h` AND `kit/Plate.h` ARE NOT INCLUDED HERE, AND THIS
  * UMBRELLA DOES NOT GIVE YOU THEM.** Both are spelled in the Brush tier's

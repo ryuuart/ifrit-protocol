@@ -121,7 +121,7 @@ bool materialsEqual(const ElementNode& a, const ElementNode& b) {
 
 }  // namespace
 
-static_assert(core::kFieldCount<ElementNode> == 18,
+static_assert(core::kFieldCount<ElementNode> == 19,
               "A field of ElementNode appeared or vanished. Rule on it in "
               "propsEqual() below — participate, or a stated reason not to "
               "— then bump this count. A miss is silent: the node prunes, "
@@ -139,6 +139,7 @@ bool propsEqual(const ElementNode& a, const ElementNode& b) {
   // generator with no `==` compares equal only to its own copies, so a
   // node carrying one re-patches rather than pruning into a stale cook.
   if (!(a.geometry == b.geometry)) return false;
+  if (a.backface != b.backface) return false;
   if (!materialsEqual(a, b)) return false;
   if (a.tags != b.tags) return false;
   if (a.light != b.light) return false;

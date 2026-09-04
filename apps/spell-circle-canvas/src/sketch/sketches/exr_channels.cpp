@@ -41,6 +41,12 @@
  *   kCell  — how large each plane is drawn.
  */
 
+#include <include/core/SkCanvas.h>
+#include <include/core/SkData.h>
+#include <include/core/SkImageInfo.h>
+#include <include/core/SkPaint.h>
+#include <include/core/SkPixmap.h>
+#include <include/core/SkSamplingOptions.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilimage/decode/ChannelData.h>
@@ -52,15 +58,7 @@
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/style/Type.h>
 
-#include <include/core/SkCanvas.h>
-#include <include/core/SkData.h>
-#include <include/core/SkImageInfo.h>
-#include <include/core/SkPaint.h>
-#include <include/core/SkPixmap.h>
-#include <include/core/SkSamplingOptions.h>
-
 #include <cmath>
-#include <cstdio>
 #include <string>
 #include <vector>
 
@@ -74,9 +72,9 @@ using sigil::compose::toU8;
 
 namespace {
 
-constexpr int kSize = 192;      // the fixture's edge, px
-constexpr float kPeak = 4.0f;   // the red plane's authored peak
-constexpr float kCell = 158;    // how large each plane is drawn
+constexpr int kSize = 192;     // the fixture's edge, px
+constexpr float kPeak = 4.0f;  // the red plane's authored peak
+constexpr float kCell = 158;   // how large each plane is drawn
 constexpr SkSize kCanvas = {1080, 396};
 
 constexpr SkColor4f kGround{0.07f, 0.07f, 0.085f, 1};
@@ -116,9 +114,9 @@ std::vector<float> fields() {
       const float r = std::sqrt(dx * dx + dy * dy) * 2.0f;
 
       const float red = kPeak * std::exp(-r * r * 3.4f);
-      const float rough =
-          0.5f + 0.34f * std::sin(u * 9.4f) * std::cos(v * 7.1f) +
-          0.12f * std::sin((u + v) * 88.0f);
+      const float rough = 0.5f +
+                          0.34f * std::sin(u * 9.4f) * std::cos(v * 7.1f) +
+                          0.12f * std::sin((u + v) * 88.0f);
       const float mask =
           (r < 0.78f ? 1.0f : 0.0f) * (v > 0.42f && v < 0.5f ? 0.25f : 1.0f);
 
@@ -143,25 +141,19 @@ sk_sp<SkData> writeExr() {
 
 Element cell(std::string key, sk_sp<SkImage> picture, const char* call,
              std::string note) {
-  return kit::cell(
-      voice(), toU8(call), toU8(note),
-      custom(std::move(key),
-             [picture](SkCanvas& canvas, const PaintContext&) {
-               if (!picture) return;
-               SkPaint paint;
-               canvas.drawImageRect(picture, SkRect::MakeWH(kCell, kCell),
-                                    SkSamplingOptions(SkFilterMode::kLinear),
-                                    &paint);
-             })
-          .width(kCell)
-          .height(kCell)
-          .fill(Fill::color(kCellGround)));
-}
-
-std::string fmt(const char* pattern, double a) {
-  char buffer[96];
-  std::snprintf(buffer, sizeof buffer, pattern, a);
-  return buffer;
+  return kit::cell(voice(), toU8(call), toU8(note),
+                   custom(std::move(key),
+                          [picture](SkCanvas& canvas, const PaintContext&) {
+                            if (!picture) return;
+                            SkPaint paint;
+                            canvas.drawImageRect(
+                                picture, SkRect::MakeWH(kCell, kCell),
+                                SkSamplingOptions(SkFilterMode::kLinear),
+                                &paint);
+                          })
+                       .width(kCell)
+                       .height(kCell)
+                       .fill(Fill::color(kCellGround)));
 }
 
 }  // namespace
@@ -229,10 +221,9 @@ struct ExrChannels final : sketch::Sketch {
           cell("plane" + planes.names[i], planes.makeImage(c, c, c, -1),
                "makeImage(i, i, i, -1)",
                "index(\"" + planes.names[i] + "\") = " + std::to_string(c) +
-                   "   peak " + fmt("%.2f", (double)peak)));
+                   "   peak " + kit::format("%.2f", (double)peak)));
     }
-    shelf.cells.push_back(cell("layer", planes.makeImage(),
-                               "makeImage()",
+    shelf.cells.push_back(cell("layer", planes.makeImage(), "makeImage()",
                                "the default layer \xe2\x80\x94 R, G and B "
                                "composited, alpha filled where absent"));
     shelf.cells.push_back(
@@ -250,8 +241,7 @@ struct ExrChannels final : sketch::Sketch {
               std::to_string(byteSize) + " bytes, no pixels decoded";
       if (!probed->channelNames.empty()) {
         foot += "   \xc2\xb7   names";
-        for (const std::string& name : probed->channelNames)
-          foot += " " + name;
+        for (const std::string& name : probed->channelNames) foot += " " + name;
       }
       if (!probed->layers.empty()) {
         foot += "   \xc2\xb7   layers";

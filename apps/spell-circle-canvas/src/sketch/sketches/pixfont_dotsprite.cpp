@@ -30,6 +30,10 @@
  *   kScale — the integer present scale.
  */
 
+#include <include/core/SkCanvas.h>
+#include <include/core/SkColorFilter.h>
+#include <include/core/SkPaint.h>
+#include <include/core/SkSamplingOptions.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/PixelType.h>
 #include <sigilcompose/kit/Specimen.h>
@@ -39,12 +43,6 @@
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
-#include <include/core/SkCanvas.h>
-#include <include/core/SkColorFilter.h>
-#include <include/core/SkPaint.h>
-#include <include/core/SkSamplingOptions.h>
-
-#include <cstdio>
 #include <string>
 #include <utility>
 
@@ -60,8 +58,8 @@ constexpr SkSize kCanvas = {1100, 424};
 constexpr float kCell = 200;
 constexpr float kPicture = 200;
 
-constexpr float kBakeSizes[3] = {9, 12, 16};  // the sweep in the first cell
-constexpr float kScale = 3;                   // integer, always
+constexpr float kBakeSizes[3] = {9, 12, 16};      // the sweep in the first cell
+constexpr float kScale = 3;                       // integer, always
 constexpr SkColor4f kOn{0.62f, 0.98f, 0.72f, 1};  // what a mask is tinted
 
 constexpr SkColor4f kGround{0.07f, 0.07f, 0.085f, 1};
@@ -104,22 +102,14 @@ kit::Caption voice() {
 }
 
 Element plate(Element body) {
-  return box()
-      .width(Dim(kCell))
-      .height(Dim(kPicture))
-      .clip()
-      .fill(Fill::color(kCellGround))
+  return kit::well({.width = kCell,
+                    .height = kPicture,
+                    .ground = Fill::color(kCellGround)})
       .child(std::move(body).absolute().inset(14));
 }
 
 Element cell(const char* call, const char* note, Element body) {
   return kit::cell(voice(), toU8(call), toU8(note), plate(std::move(body)));
-}
-
-std::string line(const char* format, auto... args) {
-  char buffer[96];
-  std::snprintf(buffer, sizeof buffer, format, args...);
-  return buffer;
 }
 
 }  // namespace
@@ -175,11 +165,14 @@ struct PixFontDotSprite final : sketch::Sketch {
   Element sizeSweep() {
     Element column = box().column().gap(12);
     for (int i = 0; i < 3; ++i)
-      column.child(box().row().gap(10).alignItems(Align::Center)
-                       .child(text(toU8(line("%2.0f", kBakeSizes[i])),
-                                   mono(9, kAsh)))
-                       .child(kit::masked(sweep[i],
-                                          {.colour = kOn, .scale = 2})));
+      column.child(
+          box()
+              .row()
+              .gap(10)
+              .alignItems(Align::Center)
+              .child(text(toU8(kit::format("%2.0f", kBakeSizes[i])),
+                          mono(9, kAsh)))
+              .child(kit::masked(sweep[i], {.colour = kOn, .scale = 2})));
     return cell("bakeRun(\"3.eg\", fonts, aliased(size))",
                 "one run, three bake sizes, one present scale \xc2\xb7 at the "
                 "smallest the counters hold no pixel centre and close",
@@ -189,33 +182,33 @@ struct PixFontDotSprite final : sketch::Sketch {
   /** Trap 4: an integer scale with nearest sampling, beside the 1\xc3\x97
    *  bake it came from. */
   Element presented() {
-    return cell("kit::masked(mask, {.scale = 3})",
-                "the same 1-bit mask at 1\xc3\x97 and at 3\xc3\x97 \xc2\xb7 "
-                "nearest sampling, so a bake stays a bake",
-                box()
-                    .column()
-                    .gap(18)
-                    .alignItems(Align::Start)
-                    .child(kit::masked(sweep[2], {.colour = kOn}))
-                    .child(kit::masked(sweep[2],
-                                       {.colour = kOn, .scale = kScale})));
+    return cell(
+        "kit::masked(mask, {.scale = 3})",
+        "the same 1-bit mask at 1\xc3\x97 and at 3\xc3\x97 \xc2\xb7 "
+        "nearest sampling, so a bake stays a bake",
+        box()
+            .column()
+            .gap(18)
+            .alignItems(Align::Start)
+            .child(kit::masked(sweep[2], {.colour = kOn}))
+            .child(kit::masked(sweep[2], {.colour = kOn, .scale = kScale})));
   }
 
   /** The shadow pass: a second blit underneath at an offset in
    *  DESTINATION px, with the colour's RGB multiplied down. */
   Element shadowed() {
-    return cell("Present{.shadowOffset = {3, 3}}",
-                "one extra pass under the mask, offset in destination px "
-                "and multiplied by a quarter \xc2\xb7 one bake, two draws",
-                box()
-                    .column()
-                    .gap(20)
-                    .child(kit::masked(sweep[2],
-                                       {.colour = kOn, .scale = kScale}))
-                    .child(kit::masked(sweep[2], {.colour = kOn,
-                                                  .scale = kScale,
-                                                  .shadowOffset = {3, 3},
-                                                  .shadowMul = 0.25f})));
+    return cell(
+        "Present{.shadowOffset = {3, 3}}",
+        "one extra pass under the mask, offset in destination px "
+        "and multiplied by a quarter \xc2\xb7 one bake, two draws",
+        box()
+            .column()
+            .gap(20)
+            .child(kit::masked(sweep[2], {.colour = kOn, .scale = kScale}))
+            .child(kit::masked(sweep[2], {.colour = kOn,
+                                          .scale = kScale,
+                                          .shadowOffset = {3, 3},
+                                          .shadowMul = 0.25f})));
   }
 
   /** Trap 3, and the whole reason the 96-cell bake exists: a number that
@@ -223,75 +216,69 @@ struct PixFontDotSprite final : sketch::Sketch {
    *  with nothing re-described. */
   Element readout() {
     const kit::PixFont* f = &font;
-    return cell("kit::blit(canvas, font, at, run, colour, Blit)",
-                "a LIVE readout, no text node at all \xc2\xb7 figures, an "
-                "x-height and a descender on ONE baseline, the same run at "
-                "track 1 and track 5",
-                custom("pixfont.readout",
-                       [f](SkCanvas& canvas, const PaintContext& pc) {
-                         const double t = pc.elapsedSeconds;
-                         // A cell is cropped to its ink and carries where
-                         // that ink sits inside the shared line box, so a
-                         // run mixing figures, an x-height and a descender
-                         // stands on one baseline.
-                         const std::string run =
-                             line("%04.0fpx", 1100.0 + t * 111.0);
-                         canvas.save();
-                         canvas.scale(2, 2);
-                         kit::blit(canvas, *f, {0, 0}, run, kOn,
-                                   {.track = 1, .tabularDigits = true,
-                                    .snap = 1});
-                         kit::blit(canvas, *f, {0, (float)f->lineHeight + 8},
-                                   run, kOn,
-                                   {.track = 5, .tabularDigits = true,
-                                    .snap = 1});
-                         canvas.restore();
-                       })
-                    .absolute()
-                    .inset(0)
-                    .cache(Cache::None));
+    return cell(
+        "kit::blit(canvas, font, at, run, colour, Blit)",
+        "a LIVE readout, no text node at all \xc2\xb7 figures, an "
+        "x-height and a descender on ONE baseline, the same run at "
+        "track 1 and track 5",
+        custom("pixfont.readout",
+               [f](SkCanvas& canvas, const PaintContext& pc) {
+                 const double t = pc.elapsedSeconds;
+                 // A cell is cropped to its ink and carries where
+                 // that ink sits inside the shared line box, so a
+                 // run mixing figures, an x-height and a descender
+                 // stands on one baseline.
+                 const std::string run =
+                     kit::format("%04.0fpx", 1100.0 + t * 111.0);
+                 canvas.save();
+                 canvas.scale(2, 2);
+                 kit::blit(canvas, *f, {0, 0}, run, kOn,
+                           {.track = 1, .tabularDigits = true, .snap = 1});
+                 kit::blit(canvas, *f, {0, (float)f->lineHeight + 8}, run, kOn,
+                           {.track = 5, .tabularDigits = true, .snap = 1});
+                 canvas.restore();
+               })
+            .absolute()
+            .inset(0)
+            .cache(Cache::None));
   }
 
   /** The stamp: white on transparency, so the tint is the caller's. */
   Element stamp() {
     sk_sp<SkImage> image = dot;
-    return cell("kit::dotSprite(32)",
-                "a white antialiased disc with a transparent ring around it "
-                "\xc2\xb7 baked once, tinted per point, never a square edge",
-                custom("pixfont.dot",
-                       [image](SkCanvas& canvas, const PaintContext& pc) {
-                         static constexpr SkColor4f kTints[3] = {
-                             {1, 1, 1, 1}, kOn, {1.0f, 0.55f, 0.35f, 1}};
-                         const float side = pc.size.width() / 3.4f;
-                         // A white stamp is TINTED by modulating it —
-                         // setting a paint colour does nothing to a colour
-                         // image, and this is the step a point sink takes
-                         // per point.
-                         SkPaint paint;
-                         for (int i = 0; i < 3; ++i) {
-                           paint.setColorFilter(SkColorFilters::Blend(
-                               kTints[i], nullptr, SkBlendMode::kModulate));
-                           canvas.drawImageRect(
-                               image,
-                               SkRect::MakeXYWH(i * (side + 8), 10, side,
-                                                side),
-                               SkSamplingOptions(SkFilterMode::kLinear),
-                               &paint);
-                         }
-                         // …and the same stamp small enough that the
-                         // transparent margin is the only reason its edge
-                         // is not a square.
-                         paint.setColorFilter(SkColorFilters::Blend(
-                             kOn, nullptr, SkBlendMode::kModulate));
-                         for (int i = 0; i < 9; ++i)
-                           canvas.drawImageRect(
-                               image,
-                               SkRect::MakeXYWH(i * 16.0f, side + 26, 14, 14),
-                               SkSamplingOptions(SkFilterMode::kLinear),
-                               &paint);
-                       })
-                    .absolute()
-                    .inset(0));
+    return cell(
+        "kit::dotSprite(32)",
+        "a white antialiased disc with a transparent ring around it "
+        "\xc2\xb7 baked once, tinted per point, never a square edge",
+        custom("pixfont.dot",
+               [image](SkCanvas& canvas, const PaintContext& pc) {
+                 static constexpr SkColor4f kTints[3] = {
+                     {1, 1, 1, 1}, kOn, {1.0f, 0.55f, 0.35f, 1}};
+                 const float side = pc.size.width() / 3.4f;
+                 // A white stamp is TINTED by modulating it —
+                 // setting a paint colour does nothing to a colour
+                 // image, and this is the step a point sink takes
+                 // per point.
+                 SkPaint paint;
+                 for (int i = 0; i < 3; ++i) {
+                   paint.setColorFilter(SkColorFilters::Blend(
+                       kTints[i], nullptr, SkBlendMode::kModulate));
+                   canvas.drawImageRect(
+                       image, SkRect::MakeXYWH(i * (side + 8), 10, side, side),
+                       SkSamplingOptions(SkFilterMode::kLinear), &paint);
+                 }
+                 // …and the same stamp small enough that the
+                 // transparent margin is the only reason its edge
+                 // is not a square.
+                 paint.setColorFilter(SkColorFilters::Blend(
+                     kOn, nullptr, SkBlendMode::kModulate));
+                 for (int i = 0; i < 9; ++i)
+                   canvas.drawImageRect(
+                       image, SkRect::MakeXYWH(i * 16.0f, side + 26, 14, 14),
+                       SkSamplingOptions(SkFilterMode::kLinear), &paint);
+               })
+            .absolute()
+            .inset(0));
   }
 };
 

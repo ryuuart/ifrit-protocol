@@ -24,6 +24,7 @@
  *   kPan    — the offset the mapping pans the repeat by, px.
  */
 
+#include <include/core/SkCanvas.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilmaterial/pattern/Patterns.h>
@@ -32,9 +33,6 @@
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
-#include <include/core/SkCanvas.h>
-
-#include <cstdio>
 #include <functional>
 #include <string>
 #include <utility>
@@ -46,8 +44,8 @@ namespace material = sigil::material;
 namespace pattern = sigil::material::pattern;
 
 using namespace sigil::compose;
-using sigil::compose::toU8;
 using material::Color;
+using sigil::compose::toU8;
 
 namespace {
 
@@ -106,8 +104,8 @@ const pattern::Tile& banked() {
 
 /** A pixel-grid tile, for the pair that differ only in their filter. */
 const pattern::Tile& squares() {
-  static const pattern::Tile tile = pattern::checker(
-      4, {0.16f, 0.19f, 0.24f, 1}, {0.80f, 0.72f, 0.46f, 1});
+  static const pattern::Tile tile =
+      pattern::checker(4, {0.16f, 0.19f, 0.24f, 1}, {0.80f, 0.72f, 0.46f, 1});
   return tile;
 }
 
@@ -117,24 +115,17 @@ void paintTile(SkCanvas& canvas, const pattern::Tile& tile, SkSize size) {
   canvas.drawRect(SkRect::MakeWH(size.width(), size.height()), paint);
 }
 
-std::string line(const char* format, auto... args) {
-  char buffer[224];
-  std::snprintf(buffer, sizeof buffer, format, args...);
-  return buffer;
-}
-
 Element cell(const char* call, const std::string& note,
              std::function<void(SkCanvas&, SkSize)> draw) {
-  return kit::cell(voice(), toU8(call), toU8(note),
-                   custom(call,
-                          [draw = std::move(draw)](SkCanvas& canvas,
-                                                   const PaintContext& pc) {
-                            draw(canvas, pc.size);
-                          })
-                       .width(kCell)
-                       .height(kPicture)
-                       .clip()
-                       .fill(Fill::color(kCellGround)));
+  return kit::cell(
+      voice(), toU8(call), toU8(note),
+      kit::well({.width = kCell,
+                 .height = kPicture,
+                 .ground = Fill::color(kCellGround)},
+                custom(call, [draw = std::move(draw)](SkCanvas& canvas,
+                                                      const PaintContext& pc) {
+                  draw(canvas, pc.size);
+                })));
 }
 
 Element swatch(const char* call, const std::string& note, pattern::Tile tile) {
@@ -177,9 +168,10 @@ struct PatternSequence final : sketch::Sketch {
                      {kit::cells(
                           {.cells =
                                {swatch("pattern::sequence(runs)",
-                                       line("four runs along +x \xc2\xb7 the "
-                                            "period is their sum, %.0f px",
-                                            (double)period(sett())),
+                                       kit::format(
+                                           "four runs along +x \xc2\xb7 the "
+                                           "period is their sum, %.0f px",
+                                           (double)period(sett())),
                                        pattern::sequence(sett())),
                                 swatch("sequence(runs, 17)",
                                        "the phase slides the whole sequence "
@@ -203,20 +195,19 @@ struct PatternSequence final : sketch::Sketch {
                            .gap = 14}),
                       kit::cells(
                           {.cells =
-                               {swatch("banked.offset({21, 0})",
-                                       "the mapping pans the repeat in the "
-                                       "SAMPLED space's px \xc2\xb7 no "
-                                       "rebake, and the seam never shows",
-                                       pattern::Tile(banked()).offset(
-                                           {kPan, 0})),
+                               {swatch(
+                                    "banked.offset({21, 0})",
+                                    "the mapping pans the repeat in the "
+                                    "SAMPLED space's px \xc2\xb7 no "
+                                    "rebake, and the seam never shows",
+                                    pattern::Tile(banked()).offset({kPan, 0})),
                                 swatch("banked.rotate(90).scale(1.4)",
                                        "rotate, then scale, then translate "
                                        "\xc2\xb7 a rotated repeat stays "
                                        "seamless because the bake never "
                                        "turned",
-                                       pattern::Tile(banked())
-                                           .rotate(90)
-                                           .scale(1.4f)),
+                                       pattern::Tile(banked()).rotate(90).scale(
+                                           1.4f)),
                                 cell("one bake, drawn crossed",
                                      "the sett along +x and the same bake "
                                      "turned a right angle over it \xc2\xb7 "
@@ -224,10 +215,10 @@ struct PatternSequence final : sketch::Sketch {
                                      [](SkCanvas& canvas, SkSize size) {
                                        paintTile(canvas, banked(), size);
                                        canvas.saveLayerAlphaf(nullptr, 0.55f);
-                                       paintTile(canvas,
-                                                 pattern::Tile(banked())
-                                                     .rotate(90),
-                                                 size);
+                                       paintTile(
+                                           canvas,
+                                           pattern::Tile(banked()).rotate(90),
+                                           size);
                                        canvas.restore();
                                      }),
                                 cell("filter(kNearest) | filter(kLinear)",
@@ -238,25 +229,24 @@ struct PatternSequence final : sketch::Sketch {
                                      [](SkCanvas& canvas, SkSize size) {
                                        canvas.save();
                                        canvas.clipRect(SkRect::MakeWH(
-                                           size.width() * 0.5f,
-                                           size.height()));
-                                       paintTile(canvas,
-                                                 pattern::Tile(squares())
-                                                     .scale(5)
-                                                     .filter(SkFilterMode::
-                                                                 kNearest),
-                                                 size);
+                                           size.width() * 0.5f, size.height()));
+                                       paintTile(
+                                           canvas,
+                                           pattern::Tile(squares())
+                                               .scale(5)
+                                               .filter(SkFilterMode::kNearest),
+                                           size);
                                        canvas.restore();
                                        canvas.save();
                                        canvas.clipRect(SkRect::MakeLTRB(
-                                           size.width() * 0.5f, 0,
-                                           size.width(), size.height()));
-                                       paintTile(canvas,
-                                                 pattern::Tile(squares())
-                                                     .scale(5)
-                                                     .filter(SkFilterMode::
-                                                                 kLinear),
-                                                 size);
+                                           size.width() * 0.5f, 0, size.width(),
+                                           size.height()));
+                                       paintTile(
+                                           canvas,
+                                           pattern::Tile(squares())
+                                               .scale(5)
+                                               .filter(SkFilterMode::kLinear),
+                                           size);
                                        canvas.restore();
                                      })},
                            .gap = 14})},

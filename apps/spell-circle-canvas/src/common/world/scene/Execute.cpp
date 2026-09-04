@@ -61,6 +61,7 @@ void Scene::Impl::collectBodies(const geometry::mesh::camera::Camera& eye,
     into.push_back(Draw{
         .world = registry.get<component::Placement>(entity).world,
         .mesh = body.mesh,
+        .backface = body.backface,
         .geometry = body.id,
         .baseColor = surface.baseColor,
         .key = named.key,

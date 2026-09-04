@@ -99,10 +99,10 @@ world::Element subject() {
                  .key("body")
                  .at({0, 40, 0})
                  .mesh(gm::superellipsoid({46, 46, 46}, 2.0f, 40, 26))
-                 .fill(material::kit::surface({.baseColor = {0.85f, 0.86f,
-                                                             0.88f, 1},
-                                               .metallic = 1.0f,
-                                               .roughness = 0.12f})))
+                 .fill(material::kit::surface(
+                     {.baseColor = {0.85f, 0.86f, 0.88f, 1},
+                      .metallic = 1.0f,
+                      .roughness = 0.12f})))
       .child(world::Element()
                  .key("slab")
                  .at({0, -14, 0})
@@ -125,17 +125,14 @@ gm::camera::Camera lens() {
 }
 
 Element cell(const char* call, const char* note, sk_sp<SkImage> baked) {
-  Element picture = baked ? image(std::make_shared<const sigil::image::
-                                                       ImageAsset>(
-                                     sigil::image::ImageAsset::wrap(
-                                         std::move(baked))))
-                          : box();
+  Element picture =
+      baked ? image(std::make_shared<const sigil::image::ImageAsset>(
+                  sigil::image::ImageAsset::wrap(std::move(baked))))
+            : box();
   return kit::cell(voice(), toU8(call), toU8(note),
-                   box()
-                       .width(Dim(kCell))
-                       .height(Dim(kPicture))
-                       .clip()
-                       .fill(Fill::color(kCellGround))
+                   kit::well({.width = kCell,
+                              .height = kPicture,
+                              .ground = Fill::color(kCellGround)})
                        .child(std::move(picture).absolute().inset(0)));
 }
 

@@ -31,12 +31,16 @@ Item {
     signal folderRequested(string folder)
     signal stepRequested(int delta)
 
-    function focusRows() { grid.forceActiveFocus(); }
+    function focusRows() {
+        grid.forceActiveFocus();
+    }
     function positionAt(row) {
         if (row >= 0)
             grid.positionViewAtIndex(row, GridView.Contain);
     }
-    function scrollPosition() { return grid.contentY; }
+    function scrollPosition() {
+        return grid.contentY;
+    }
     function restoreScrollPosition(position) {
         grid.forceLayout();
         const first = grid.originY;
@@ -44,16 +48,27 @@ Item {
         grid.contentY = Math.max(first, Math.min(position, last));
     }
     /** How many cards fit across — what an arrow up or down moves by. */
-    function columns() { return Math.max(1, Math.floor(grid.width / 230)); }
+    function columns() {
+        return Math.max(1, Math.floor(grid.width / 230));
+    }
+    function folderIndex() {
+        for (let index = 0; index < gallery.folders.length; ++index)
+            if (gallery.folders[index].folder === gallery.folder)
+                return index;
+        return 0;
+    }
 
     ColumnLayout {
         anchors.fill: parent
         spacing: 0
 
-        // ---- The folders, as one row of switches ----
+        // ---- The folder lens ------------------------------------------------
+        // A registry has too many folders for a strip of clipped chips. The
+        // selector gives the full row to one name and the popup gives every
+        // folder the same aligned name/count columns.
         Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: 42
+            Layout.preferredHeight: 46
             color: "transparent"
 
             Rectangle {
@@ -63,56 +78,80 @@ Item {
                 color: Theme.ruleSoft
             }
 
-            ListView {
+            RowLayout {
                 anchors.fill: parent
                 anchors.leftMargin: 12
                 anchors.rightMargin: 12
-                anchors.topMargin: 8
-                anchors.bottomMargin: 8
-                orientation: ListView.Horizontal
-                spacing: 6
-                clip: true
-                model: gallery.folders
+                anchors.topMargin: 7
+                anchors.bottomMargin: 7
+                spacing: 9
 
-                delegate: Rectangle {
-                    id: chip
+                Label {
+                    text: "FOLDER"
+                    color: Theme.faint
+                    font.family: Theme.mono
+                    font.pixelSize: 9
+                    font.letterSpacing: 0.6
+                }
 
-                    required property var modelData
-                    readonly property bool on:
-                        gallery.folder === chip.modelData.folder
+                ComboBox {
+                    id: folderChoice
 
-                    width: chipRow.implicitWidth + 20
-                    height: 26
-                    radius: 6
-                    color: chip.on ? Theme.selection : Theme.panel
-                    border.width: 1
-                    border.color: chip.on ? Theme.border : Theme.selection
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 30
+                    model: gallery.folders
+                    currentIndex: gallery.folderIndex()
+                    textRole: "label"
+                    valueRole: "folder"
+                    displayText: currentIndex >= 0 ? gallery.folders[currentIndex].label + "  ·  " + gallery.folders[currentIndex].count : ""
+                    font.pixelSize: 11
+                    onActivated: gallery.folderRequested(currentValue)
 
-                    RowLayout {
-                        id: chipRow
-
-                        anchors.centerIn: parent
-                        spacing: 6
-
-                        Label {
-                            text: chip.modelData.label
-                            color: chip.on ? Theme.text : Theme.label
-                            font.pixelSize: 11
-                            font.letterSpacing: 0.4
-                            font.capitalization: Font.AllUppercase
-                        }
-                        Label {
-                            text: chip.modelData.count
-                            color: Theme.faint
-                            font.family: Theme.mono
-                            font.pixelSize: 10
-                        }
+                    contentItem: Label {
+                        leftPadding: 9
+                        rightPadding: 28
+                        text: folderChoice.displayText
+                        color: Theme.label
+                        font: folderChoice.font
+                        verticalAlignment: Text.AlignVCenter
+                        elide: Text.ElideRight
                     }
 
-                    TapHandler {
-                        onTapped: gallery.folderRequested(chip.modelData.folder)
+                    background: Rectangle {
+                        radius: 6
+                        color: Theme.ground
+                        border.width: 1
+                        border.color: folderChoice.activeFocus ? Theme.accent : Theme.selection
                     }
-                    HoverHandler { cursorShape: Qt.PointingHandCursor }
+
+                    delegate: ItemDelegate {
+                        id: folderRow
+
+                        required property int index
+                        required property var modelData
+
+                        width: folderChoice.popup.width
+                        height: 30
+                        highlighted: folderChoice.highlightedIndex === index
+
+                        contentItem: RowLayout {
+                            spacing: 8
+                            Label {
+                                Layout.fillWidth: true
+                                text: folderRow.modelData.label
+                                color: Theme.text
+                                font.pixelSize: 11
+                                elide: Text.ElideRight
+                            }
+                            Label {
+                                text: folderRow.modelData.count
+                                color: Theme.faint
+                                font.family: Theme.mono
+                                font.pixelSize: 10
+                                horizontalAlignment: Text.AlignRight
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -129,28 +168,26 @@ Item {
             currentIndex: -1
             keyNavigationEnabled: false
             cacheBuffer: 600
-            cellWidth: Math.floor(
-                (grid.width - (gridScroll.visible ? gridScroll.width : 0))
-                / gallery.columns())
-            cellHeight: Math.round(grid.cellWidth * 0.92)
+            cellWidth: Math.floor((grid.width - (gridScroll.visible ? gridScroll.width : 0)) / gallery.columns())
+            // The picture owns a fixed aspect ratio. Text is budgeted below
+            // it instead of being asked to fit whatever a ratio left over.
+            cellHeight: Math.round((grid.cellWidth - 24) * 0.625 + 164)
             Keys.onLeftPressed: gallery.stepRequested(-1)
             Keys.onRightPressed: gallery.stepRequested(1)
             Keys.onUpPressed: gallery.stepRequested(-gallery.columns())
             Keys.onDownPressed: gallery.stepRequested(gallery.columns())
-            Keys.onReturnPressed: gallery.activateRequested(
-                gallery.selectedIndex)
-            Keys.onEnterPressed: gallery.activateRequested(
-                gallery.selectedIndex)
+            Keys.onReturnPressed: gallery.activateRequested(gallery.selectedIndex)
+            Keys.onEnterPressed: gallery.activateRequested(gallery.selectedIndex)
 
-            ScrollBar.vertical: ScrollBar { id: gridScroll }
+            ScrollBar.vertical: ScrollBar {
+                id: gridScroll
+            }
 
             delegate: Item {
                 id: cell
 
                 required property var modelData
-                readonly property var sketch:
-                    gallery.learnedSketches[cell.modelData.sketchIndex]
-                        ?? cell.modelData
+                readonly property var sketch: gallery.learnedSketches[cell.modelData.sketchIndex] ?? cell.modelData
 
                 width: grid.cellWidth
                 height: grid.cellHeight
@@ -159,13 +196,9 @@ Item {
                     anchors.fill: parent
                     anchors.margins: 5
                     radius: 8
-                    color: gallery.selectedIndex === cell.sketch.sketchIndex
-                        ? Theme.hover : Theme.panel
+                    color: gallery.selectedIndex === cell.sketch.sketchIndex ? Theme.hover : Theme.panel
                     border.width: 1
-                    border.color:
-                        gallery.presentedIndex === cell.sketch.sketchIndex
-                            ? Theme.accent
-                            : (cardHover.hovered ? Theme.border : Theme.rule)
+                    border.color: gallery.presentedIndex === cell.sketch.sketchIndex ? Theme.accent : (cardHover.hovered ? Theme.border : Theme.rule)
                     opacity: cell.sketch.available ? 1.0 : 0.45
 
                     ColumnLayout {
@@ -189,21 +222,23 @@ Item {
                             color: Theme.text
                             font.pixelSize: 13
                             font.weight: Font.DemiBold
+                            horizontalAlignment: Text.AlignLeft
                             elide: Text.ElideRight
                         }
-                        Label {
+                        Text {
+                            id: blurb
+
                             Layout.fillWidth: true
-                            Layout.fillHeight: true
-                            text: cell.sketch.available
-                                ? cell.sketch.blurb
-                                : "unavailable — " + cell.sketch.reason
-                            color: cell.sketch.available ? Theme.muted
-                                                       : Theme.warn
+                            Layout.preferredHeight: Math.ceil(blurb.font.pixelSize * blurb.lineHeight * 6) + 3
+                            Layout.minimumHeight: Layout.preferredHeight
+                            text: cell.sketch.available ? cell.sketch.blurb : "unavailable — " + cell.sketch.reason
+                            color: cell.sketch.available ? Theme.muted : Theme.warn
                             font.pixelSize: 11
                             lineHeight: 1.2
-                            wrapMode: Text.WordWrap
+                            wrapMode: Text.WrapAtWordBoundaryOrAnywhere
                             elide: Text.ElideRight
-                            maximumLineCount: 2
+                            maximumLineCount: 6
+                            horizontalAlignment: Text.AlignLeft
                             verticalAlignment: Text.AlignTop
                         }
                         RowLayout {
@@ -217,8 +252,7 @@ Item {
                                 font.pixelSize: 10
                             }
                             Label {
-                                text: cell.sketch.canvas.length > 0
-                                    ? cell.sketch.canvas : "—"
+                                text: cell.sketch.canvas.length > 0 ? cell.sketch.canvas : "—"
                                 color: Theme.faint
                                 font.family: Theme.mono
                                 font.pixelSize: 10
@@ -234,15 +268,15 @@ Item {
                         }
                     }
 
-                    HoverHandler { id: cardHover }
+                    HoverHandler {
+                        id: cardHover
+                    }
                     TapHandler {
                         onTapped: {
-                            gallery.selectRequested(
-                                cell.sketch.sketchIndex);
+                            gallery.selectRequested(cell.sketch.sketchIndex);
                             grid.forceActiveFocus();
                         }
-                        onDoubleTapped: gallery.activateRequested(
-                            cell.sketch.sketchIndex)
+                        onDoubleTapped: gallery.activateRequested(cell.sketch.sketchIndex)
                     }
                 }
             }

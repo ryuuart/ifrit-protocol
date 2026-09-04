@@ -28,22 +28,20 @@
  *   kStops — the two exposures each readback is tone-mapped at.
  */
 
-#include <sigilcompose/core/Core.h>
-#include <sigilcompose/kit/Specimen.h>
-#include <sigilimage/asset/ImageAsset.h>
-#include <sigilskia/graphite/Pixels.h>
-#include <sigilsketch/canvas/Sketch.h>
-#include <sigilweave/ports/SystemFontManager.h>
-#include <sigilweave/style/Type.h>
-
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkSurface.h>
+#include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Specimen.h>
+#include <sigilimage/asset/ImageAsset.h>
+#include <sigilsketch/canvas/Sketch.h>
+#include <sigilskia/graphite/Pixels.h>
+#include <sigilweave/ports/SystemFontManager.h>
+#include <sigilweave/style/Type.h>
 
 #include <algorithm>
 #include <cmath>
-#include <cstdio>
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -64,8 +62,8 @@ constexpr SkSize kCanvas = {1100, 400};
 constexpr float kCell = 206;
 constexpr float kPicture = 176;
 
-constexpr int kSide = 96;      // the source's side, texels
-constexpr float kPeak = 6.0f;  // how far past one the ramp runs
+constexpr int kSide = 96;                   // the source's side, texels
+constexpr float kPeak = 6.0f;               // how far past one the ramp runs
 constexpr float kStops[2] = {1.0f, 0.18f};  // the two exposures
 
 constexpr SkColor4f kGround{0.07f, 0.07f, 0.085f, 1};
@@ -106,8 +104,7 @@ float halfToFloat(uint16_t bits) {
   } else if (exponent == 0x1f) {
     value = mantissa ? 0.0f : 65504.0f;  // NaN reads as 0, infinity clamps
   } else {
-    value = (float)(mantissa + 1024u) *
-            std::pow(2.0f, (float)exponent - 25.0f);
+    value = (float)(mantissa + 1024u) * std::pow(2.0f, (float)exponent - 25.0f);
   }
   return sign ? -value : value;
 }
@@ -135,20 +132,12 @@ sk_sp<SkImage> hdrSource() {
   return surface->makeImageSnapshot();
 }
 
-std::string line(const char* format, auto... args) {
-  char buffer[200];
-  std::snprintf(buffer, sizeof buffer, format, args...);
-  return buffer;
-}
-
 Element cell(const char* call, const char* note, Element body) {
   return kit::cell(voice(), toU8(call), toU8(note),
-                   box()
-                       .width(Dim(kCell))
-                       .height(Dim(kPicture))
-                       .clip()
-                       .fill(Fill::color(kCellGround))
-                       .padding(10)
+                   kit::well({.width = kCell,
+                              .height = kPicture,
+                              .ground = Fill::color(kCellGround),
+                              .padding = 10})
                        .child(std::move(body)));
 }
 
@@ -180,14 +169,13 @@ struct HalfFloat final : sketch::Sketch {
     };
 
     const size_t hot = (size_t)(kSide / 4) * (size_t)kSide + (size_t)kSide - 4;
-    const std::string readout =
-        line("isFloatImage \xc2\xb7 %s\nhalves %zu words \xc2\xb7 bytes %zu\n"
-             "hot texel R \xc2\xb7 half %.2f \xc2\xb7 byte %.2f\n"
-             "peak asked for \xc2\xb7 %.2f",
-             isFloat ? "true" : "false", halves.size(), bytes.size(),
-             halves.size() > hot * 4 ? halfToFloat(halves[hot * 4]) : 0.0f,
-             bytes.size() > hot * 4 ? (float)bytes[hot * 4] / 255.0f : 0.0f,
-             kPeak);
+    const std::string readout = kit::format(
+        "isFloatImage \xc2\xb7 %s\nhalves %zu words \xc2\xb7 bytes %zu\n"
+        "hot texel R \xc2\xb7 half %.2f \xc2\xb7 byte %.2f\n"
+        "peak asked for \xc2\xb7 %.2f",
+        isFloat ? "true" : "false", halves.size(), bytes.size(),
+        halves.size() > hot * 4 ? halfToFloat(halves[hot * 4]) : 0.0f,
+        bytes.size() > hot * 4 ? (float)bytes[hot * 4] / 255.0f : 0.0f, kPeak);
 
     ctx.composer.render(
         kit::sheet(
@@ -254,11 +242,10 @@ struct HalfFloat final : sketch::Sketch {
       for (int x = 0; x < kSide; ++x) {
         const size_t texel = (size_t)y * kSide + (size_t)x;
         const auto channel = [&](int c) {
-          return (uint32_t)std::clamp(sampler(texel, c) * 255.0f, 0.0f,
-                                      255.0f);
+          return (uint32_t)std::clamp(sampler(texel, c) * 255.0f, 0.0f, 255.0f);
         };
-        *bitmap.getAddr32(x, y) = 0xff000000u | (channel(2) << 16) |
-                                  (channel(1) << 8) | channel(0);
+        *bitmap.getAddr32(x, y) =
+            0xff000000u | (channel(2) << 16) | (channel(1) << 8) | channel(0);
       }
     bitmap.setImmutable();
     return image(std::make_shared<const img::ImageAsset>(

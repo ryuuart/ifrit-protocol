@@ -902,6 +902,46 @@ TEST(KitAt, TheElementOverloadPlacesANodeItDidNotBuild) {
 }
 
 // ---------------------------------------------------------------------------
+// kit/Typeset.h — the dropped initial and the opening run.
+
+TEST(KitDropCap, AnOrnamentKeepsItsSilhouetteAsTheOpeningExclusion) {
+  const std::u8string passage =
+      u8"small words keep moving through the opening measure until the "
+      u8"ornament has passed and the full line becomes available again "
+      u8"below it, with enough copy to make that recovery visible";
+  const auto scene = [&](bool silhouette) {
+    Element ornament =
+        box().width(90).height(90).fill(Fill::color({0, 1, 0, 1}));
+    if (silhouette) ornament.shape(geometry::shapes::circle());
+    kit::DroppedCap made = kit::dropCap(std::move(ornament), passage,
+                                        pixelStyle(12), "ornament", 4);
+    return box()
+        .width(220)
+        .height(260)
+        .child(std::move(made.initial))
+        .child(std::move(made.body).key("body").width(220));
+  };
+
+  StrokeHost boxed(220, 260), round(220, 260);
+  boxed.composer.render(scene(false));
+  boxed.frame();
+  round.composer.render(scene(true));
+  round.frame();
+
+  ASSERT_TRUE(round.composer.bounds("ornament").has_value());
+  EXPECT_FLOAT_EQ(round.composer.bounds("ornament")->width(), 90);
+  EXPECT_FLOAT_EQ(round.composer.bounds("ornament")->height(), 90);
+  const auto firstLineStart = [](const StrokeHost& host) {
+    float start = 10000;
+    for (const weave::PositionedRun& run :
+         host.composer.paragraphLayout("body")->runs)
+      if (run.lineIndex == 0) start = std::min(start, run.origin.x());
+    return start;
+  };
+  EXPECT_LT(firstLineStart(round), firstLineStart(boxed));
+}
+
+// ---------------------------------------------------------------------------
 // kit/Sprites.h — the stamp a point sink draws with.
 
 TEST(KitSprites, DotIsOpaqueWhiteAtTheCentreAndClearOutsideTheDisc) {
@@ -964,30 +1004,33 @@ TEST(KitSpecimen, TheCaptionsLinesStandWhereTheVoiceSays) {
   const auto placed = [&](kit::Caption::Where where, bool withNote) {
     StrokeHost host(300, 300);
     host.composer.render(box().width(300).height(300).child(
-        kit::cell(specimenVoice(where), u8"LABEL",
-                  withNote ? u8"a note" : u8"",
+        kit::cell(specimenVoice(where), u8"LABEL", withNote ? u8"a note" : u8"",
                   box().key("body").width(100).height(40))
             .key("cell")));
     host.frame();
     return std::pair{host.composer.bounds("body").value().top(),
                      host.composer.bounds("cell").value().height()};
   };
+  const auto expectPlaced = [&](const char* name, kit::Caption::Where where,
+                                bool withNote, float expectedTop,
+                                float expectedHeight, float tolerance = 1.5f) {
+    SCOPED_TRACE(name);
+    const auto [bodyTop, cellHeight] = placed(where, withNote);
+    EXPECT_NEAR(bodyTop, expectedTop, tolerance);
+    EXPECT_NEAR(cellHeight, expectedHeight, tolerance);
+  };
   // Split: the label over the body, the note under it.
-  auto [splitTop, splitHeight] = placed(kit::Caption::Where::Split, true);
-  EXPECT_NEAR(splitTop, label + 6, 1.0f);
-  EXPECT_NEAR(splitHeight, label + 6 + 40 + 6 + note, 1.5f);
+  expectPlaced("split", kit::Caption::Where::Split, true, label + 6,
+               label + 6 + 40 + 6 + note);
   // Above: both lines over the body, the note gap between them.
-  auto [aboveTop, aboveHeight] = placed(kit::Caption::Where::Above, true);
-  EXPECT_NEAR(aboveTop, label + 4 + note + 6, 1.5f);
-  EXPECT_NEAR(aboveHeight, aboveTop + 40, 1.5f);
+  expectPlaced("above", kit::Caption::Where::Above, true, label + 4 + note + 6,
+               label + 4 + note + 6 + 40);
   // Below: the body first, then both lines.
-  auto [belowTop, belowHeight] = placed(kit::Caption::Where::Below, true);
-  EXPECT_FLOAT_EQ(belowTop, 0.0f);
-  EXPECT_NEAR(belowHeight, 40 + 6 + label + 4 + note, 1.5f);
+  expectPlaced("below", kit::Caption::Where::Below, true, 0.0f,
+               40 + 6 + label + 4 + note);
   // An absent note spends no gap: the cell ends at the body.
-  auto [bareTop, bareHeight] = placed(kit::Caption::Where::Split, false);
-  EXPECT_NEAR(bareTop, label + 6, 1.0f);
-  EXPECT_NEAR(bareHeight, label + 6 + 40, 1.0f);
+  expectPlaced("split without note", kit::Caption::Where::Split, false,
+               label + 6, label + 6 + 40, 1.0f);
 }
 
 TEST(KitSpecimen, AMeasureKeepsALongLabelFromWideningItsCell) {
@@ -998,14 +1041,63 @@ TEST(KitSpecimen, AMeasureKeepsALongLabelFromWideningItsCell) {
   const auto width = [](float labelMeasure) {
     kit::Caption voice = specimenVoice(kit::Caption::Where::Split);
     voice.labelMeasure = labelMeasure;
-    return measure(kit::cell(voice,
-                             u8"a label far wider than the body under it",
-                             u8"", box().width(60).height(40)),
-                   fonts())
+    return measure(
+               kit::cell(voice, u8"a label far wider than the body under it",
+                         u8"", box().width(60).height(40)),
+               fonts())
         .width();
   };
   EXPECT_GT(width(0), 60.0f);         // unmeasured: the label decides
   EXPECT_FLOAT_EQ(width(60), 60.0f);  // measured: the body does
+}
+
+TEST(KitSpecimen, AWellAppliesTheCallersSizeGroundAndPadding) {
+  StrokeHost host(160, 120);
+  host.composer.render(box().width(160).height(120).child(kit::well(
+      {.width = 100, .height = 80, .ground = strokeRed(), .padding = 10},
+      box().key("well").child(
+          box().key("body").width(20).height(15).fill(strokeGreen())))));
+  host.frame();
+
+  const auto well = host.composer.bounds("well");
+  const auto body = host.composer.bounds("body");
+  ASSERT_TRUE(well.has_value());
+  ASSERT_TRUE(body.has_value());
+  EXPECT_EQ(*well, SkRect::MakeWH(100, 80));
+  EXPECT_FLOAT_EQ(body->left(), 10);
+  EXPECT_FLOAT_EQ(body->top(), 10);
+  EXPECT_EQ(host.pixel(1, 1), SK_ColorRED);
+  EXPECT_EQ(host.pixel(11, 11), SK_ColorGREEN);
+}
+
+TEST(KitSpecimen, AWellClipsByDefaultAndCanBeOpened) {
+  const auto specimen = [](bool clip) {
+    return kit::well({.width = 100, .height = 80, .clip = clip},
+                     box().child(box()
+                                     .absolute()
+                                     .left(Dim(90))
+                                     .top(Dim(20))
+                                     .width(30)
+                                     .height(20)
+                                     .fill(strokeGreen())));
+  };
+  StrokeHost host(160, 120);
+  host.composer.render(box().width(160).height(120).child(specimen(true)));
+  host.frame();
+  EXPECT_EQ(host.pixel(95, 25), SK_ColorGREEN);
+  EXPECT_EQ(host.pixel(105, 25), SK_ColorBLACK);
+
+  host.composer.render(box().width(160).height(120).child(specimen(false)));
+  host.frame();
+  EXPECT_EQ(host.pixel(105, 25), SK_ColorGREEN);
+}
+
+TEST(KitSpecimen, FormatReturnsTheWholeReading) {
+  EXPECT_EQ(kit::format("plain"), "plain");
+  EXPECT_EQ(kit::format("%s %d %.2f", "row", 17, 0.25), "row 17 0.25");
+  const std::string payload(4096, 'x');
+  EXPECT_EQ(kit::format("[%s]", payload.c_str()), "[" + payload + "]");
+  EXPECT_TRUE(kit::format(nullptr).empty());
 }
 
 TEST(KitSpecimen, ARunSpacesItsCellsAndRulesBetweenThem) {

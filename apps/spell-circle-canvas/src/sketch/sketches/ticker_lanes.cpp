@@ -38,6 +38,10 @@
  *   kLevels — how many levels the derivation quantizes its source to.
  */
 
+#include <choreograph/Choreograph.h>
+#include <include/core/SkCanvas.h>
+#include <include/core/SkPaint.h>
+#include <include/core/SkPathBuilder.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilmotion/bind/Bind.h>
@@ -47,12 +51,6 @@
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
-#include <choreograph/Choreograph.h>
-#include <include/core/SkCanvas.h>
-#include <include/core/SkPaint.h>
-#include <include/core/SkPathBuilder.h>
-
-#include <cstdio>
 #include <string>
 #include <utility>
 #include <vector>
@@ -140,21 +138,13 @@ Element plot(const char* key, std::vector<std::pair<Trace, SkColor4f>> lanes) {
       .inset(0);
 }
 
-std::string line(const char* format, auto... args) {
-  char buffer[128];
-  std::snprintf(buffer, sizeof buffer, format, args...);
-  return buffer;
-}
-
 Element cell(const char* call, const char* note, Element body,
              const std::string& readout) {
   return kit::cell(
       voice(), toU8(call), toU8(note),
-      box()
-          .width(Dim(kCell))
-          .height(Dim(kPicture))
-          .clip()
-          .fill(Fill::color(kCellGround))
+      kit::well({.width = kCell,
+                 .height = kPicture,
+                 .ground = Fill::color(kCellGround)})
           .child(std::move(body))
           // The readout stands on a scrim of the cell's own ground: a
           // trace runs the whole plate and would otherwise cross it.
@@ -191,7 +181,13 @@ struct TickerLanes final : sketch::Sketch {
       source = motion::phase(elapsed, 1.0);
       return true;  // …and so this ticker is active forever
     });
-    ticker.addFixed(kFixedHz, [&] { ++fixedSteps; return true; }, 8, &alpha);
+    ticker.addFixed(
+        kFixedHz,
+        [&] {
+          ++fixedSteps;
+          return true;
+        },
+        8, &alpha);
     const bool derived_ok =
         ticker.derive(&derived, motion::bind(&source).quantize(kLevels));
     ticker.timeline().apply(&ramped).then<ch::RampTo>(1.0f, kRamp);
@@ -207,13 +203,14 @@ struct TickerLanes final : sketch::Sketch {
       timelineLane.push_back(ramped);
     }
 
-    readouts[0] = line("add \xc2\xb7 %d ticks \xc2\xb7 active %s", steps,
-                       stillActive ? "true" : "false");
-    readouts[1] = line("addFixed %.0f Hz \xc2\xb7 %d steps in %.0f s",
-                       kFixedHz, fixedSteps, kSpan);
-    readouts[2] = line("derive \xc2\xb7 quantize(%d) \xc2\xb7 registered %s",
-                       kLevels, derived_ok ? "true" : "false");
-    readouts[3] = line("timeline \xc2\xb7 RampTo over %.1f s", kRamp);
+    readouts[0] = kit::format("add \xc2\xb7 %d ticks \xc2\xb7 active %s", steps,
+                              stillActive ? "true" : "false");
+    readouts[1] = kit::format("addFixed %.0f Hz \xc2\xb7 %d steps in %.0f s",
+                              kFixedHz, fixedSteps, kSpan);
+    readouts[2] =
+        kit::format("derive \xc2\xb7 quantize(%d) \xc2\xb7 registered %s",
+                    kLevels, derived_ok ? "true" : "false");
+    readouts[3] = kit::format("timeline \xc2\xb7 RampTo over %.1f s", kRamp);
 
     ctx.composer.render(
         kit::sheet(
@@ -248,15 +245,15 @@ struct TickerLanes final : sketch::Sketch {
                            "the count of fixed steps against the render "
                            "interpolant \xc2\xb7 the count comes from total "
                            "elapsed time, so it is exact at any draw rate",
-                           plot("fixed", {{fixedLane, kFigure},
-                                          {alphaLane, kSecond}}),
+                           plot("fixed",
+                                {{fixedLane, kFigure}, {alphaLane, kSecond}}),
                            readouts[1]),
                       cell("derive(&d, bind(&source).quantize(6))",
                            "the source under the derivation \xc2\xb7 the "
                            "bind() vocabulary reaching an Output instead of "
                            "a property slot",
-                           plot("derive", {{sourceLane, kAsh},
-                                           {derivedLane, kFigure}}),
+                           plot("derive",
+                                {{sourceLane, kAsh}, {derivedLane, kFigure}}),
                            readouts[2]),
                       cell("timeline().apply(&v).then<RampTo>(1, 1.4)",
                            "the master timeline \xc2\xb7 a finished motion "

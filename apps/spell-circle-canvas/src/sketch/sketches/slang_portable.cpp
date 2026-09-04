@@ -28,6 +28,7 @@
  *   kLit    — the one axis a session specialises on (defines SIGIL_LIT).
  */
 
+#include <include/core/SkPathBuilder.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilmaterial/kit/Grained.h>
@@ -38,9 +39,6 @@
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
-#include <include/core/SkPathBuilder.h>
-
-#include <cstdio>
 #include <cstring>
 #include <glm/mat4x4.hpp>
 #include <string>
@@ -134,25 +132,17 @@ kit::Caption voice() {
           .noteMeasure = kCell};
 }
 
-std::string line(const char* format, auto... args) {
-  char buffer[512];
-  std::snprintf(buffer, sizeof buffer, format, args...);
-  return buffer;
-}
-
 /** A readout cell: a block of monospaced text in the plate, which is
  *  what a layout and a diagnostic ARE. */
 Element readout(const char* call, const std::string& note,
                 const std::string& body, SkColor4f colour = kFigure) {
-  return kit::cell(voice(), toU8(call), toU8(note),
-                   box()
-                       .width(Dim(kCell))
-                       .height(Dim(kPicture))
-                       .clip()
-                       .padding(12, 10)
-                       .fill(Fill::color(kCellGround))
-                       .child(text(toU8(body), mono(9.0f, colour))
-                                  .width(Dim(kCell - 24))));
+  return kit::cell(
+      voice(), toU8(call), toU8(note),
+      kit::well({.width = kCell,
+                 .height = kPicture,
+                 .ground = Fill::color(kCellGround)})
+          .padding(12, 10)
+          .child(text(toU8(body), mono(9.0f, colour)).width(Dim(kCell - 24))));
 }
 
 }  // namespace
@@ -161,28 +151,26 @@ struct SlangPortable final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
     ctx.canvas(kCanvas.width(), kCanvas.height());
     ctx.background(kGround);
-    ctx.captureAt(0.05);  // nothing moves; the sheet is complete at once
+    ctx.captureAt(0.05);        // nothing moves; the sheet is complete at once
     material::skia::install();  // the SkSL compiler, once per process
 
     slang::Compiled built;
     std::string error;
-    const bool ok =
-        slang::compileModule(kModule, "vsCover", "fsCover", kLit, &built,
-                             &error);
+    const bool ok = slang::compileModule(kModule, "vsCover", "fsCover", kLit,
+                                         &built, &error);
 
     // THE LAYOUT, as the compiler reported it. Nothing here computes an
     // offset; every number is read back.
-    std::string layout =
-        line("stages   vertex %zu words \xc2\xb7 fragment %zu words\n"
-             "buffer   %zu bytes\n"
-             "textures %s\n\n"
-             "name          offset  bytes  count  stride\n",
-             built.vertex.size(), built.fragment.size(), built.uniformBytes,
-             built.textures.empty() ? "none"
-                                    : built.textures.front().c_str());
+    std::string layout = kit::format(
+        "stages   vertex %zu words \xc2\xb7 fragment %zu words\n"
+        "buffer   %zu bytes\n"
+        "textures %s\n\n"
+        "name          offset  bytes  count  stride\n",
+        built.vertex.size(), built.fragment.size(), built.uniformBytes,
+        built.textures.empty() ? "none" : built.textures.front().c_str());
     for (const auto& [name, slot] : built.uniforms)
-      layout += line("%-13s %6zu %6zu %6zu %7zu\n", name.c_str(), slot.offset,
-                     slot.bytes, slot.count, slot.stride);
+      layout += kit::format("%-13s %6zu %6zu %6zu %7zu\n", name.c_str(),
+                            slot.offset, slot.bytes, slot.count, slot.stride);
 
     // ONE DRAW'S BYTES, written at those offsets and read straight back
     // out of the buffer.
@@ -201,11 +189,11 @@ struct SlangPortable final : sketch::Sketch {
       if (!slot) return std::string("(not in the layout)");
       float v[4] = {0, 0, 0, 0};
       std::memcpy(v, values.bytes().data() + slot->offset + extra, sizeof v);
-      return line("%.2f %.2f %.2f %.2f", (double)v[0], (double)v[1],
-                  (double)v[2], (double)v[3]);
+      return kit::format("%.2f %.2f %.2f %.2f", (double)v[0], (double)v[1],
+                         (double)v[2], (double)v[3]);
     };
     const slang::UniformSlot* stops = built.uniform("uStops");
-    bytes = line(
+    bytes = kit::format(
         "uModel  row 0     %s\n"
         "  the shader reads ROWS, so what was\n"
         "  written is the transpose\n\n"
@@ -231,11 +219,11 @@ struct SlangPortable final : sketch::Sketch {
       std::string why;
       const std::string source =
           recipe->source(material::Target::Slang) + kScaffold;
-      const bool made = slang::compileModule(source, "vsCover", "fsCover",
-                                             kLit, &surface, &why);
-      surfaces += line("%-9s %11zu %9zu  %s\n", recipe->name().c_str(),
-                       surface.uniformBytes, surface.uniforms.size(),
-                       made ? "compiled" : "FAILED");
+      const bool made = slang::compileModule(source, "vsCover", "fsCover", kLit,
+                                             &surface, &why);
+      surfaces += kit::format("%-9s %11zu %9zu  %s\n", recipe->name().c_str(),
+                              surface.uniformBytes, surface.uniforms.size(),
+                              made ? "compiled" : "FAILED");
     }
 
     slang::Compiled missing;
@@ -253,7 +241,7 @@ struct SlangPortable final : sketch::Sketch {
             {.title = toU8("SLANG PORTABLE \xc2\xb7 compileModule, the "
                            "reported layout, and the two modules every "
                            "session carries"),
-             .subtitle = toU8(line(
+             .subtitle = toU8(kit::format(
                  "dials \xc2\xb7 the module source \xc2\xb7 lit (%s, which "
                  "defines SIGIL_LIT) \xc2\xb7 the entry point names "
                  "\xc2\xb7 this module compiled: %s",
@@ -281,8 +269,7 @@ struct SlangPortable final : sketch::Sketch {
                                         "sqrtP is Portable's and lambert is "
                                         "Shading's, so a host and a device "
                                         "call one definition",
-                                        std::string(kModule).substr(1),
-                                        kInk),
+                                        std::string(kModule).substr(1), kInk),
                                 readout("Compiled::uniforms",
                                         "every number read back off the "
                                         "program that was just built "
@@ -297,31 +284,40 @@ struct SlangPortable final : sketch::Sketch {
                                         "skipped, not faulted",
                                         bytes)},
                            .gap = 14}),
-                      kit::cells(
-                          {.cells =
-                               {readout("the kit's bodies through a scaffold",
-                                        "each grained recipe's generated "
-                                        "declarations and body, plus the two "
-                                        "stages a renderer supplies "
-                                        "\xc2\xb7 one body, two targets",
-                                        surfaces),
-                                readout("a missing entry point",
-                                        "the name it could not find is in "
-                                        "the message, which is what makes a "
-                                        "typo a diagnostic rather than an "
-                                        "empty program",
-                                        missingWhy.empty() ? "(no message)"
-                                                           : missingWhy,
-                                        kFault),
-                                readout("source that is not Slang",
-                                        "false, an empty Compiled, and the "
-                                        "compiler's own diagnostics "
-                                        "\xc2\xb7 a body that cannot compile "
-                                        "must say why",
-                                        garbageWhy.empty() ? "(no message)"
-                                                           : garbageWhy,
-                                        kFault)},
-                           .gap = 14})},
+                      kit::cells({.cells =
+                                      {readout(
+                                           "the kit's bodies through a "
+                                           "scaffold",
+                                           "each grained recipe's generated "
+                                           "declarations and body, plus the "
+                                           "two "
+                                           "stages a renderer supplies "
+                                           "\xc2\xb7 one body, two targets",
+                                           surfaces),
+                                       readout("a missing entry point",
+                                               "the name it could not find is "
+                                               "in "
+                                               "the message, which is what "
+                                               "makes a "
+                                               "typo a diagnostic rather than "
+                                               "an "
+                                               "empty program",
+                                               missingWhy.empty()
+                                                   ? "(no message)"
+                                                   : missingWhy,
+                                               kFault),
+                                       readout("source that is not Slang",
+                                               "false, an empty Compiled, and "
+                                               "the "
+                                               "compiler's own diagnostics "
+                                               "\xc2\xb7 a body that cannot "
+                                               "compile "
+                                               "must say why",
+                                               garbageWhy.empty()
+                                                   ? "(no message)"
+                                                   : garbageWhy,
+                                               kFault)},
+                                  .gap = 14})},
                  .column = true,
                  .gap = 18}))
             .absolute()

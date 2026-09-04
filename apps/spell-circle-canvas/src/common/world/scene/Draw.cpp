@@ -42,6 +42,7 @@ void dress(geometry::mesh::render::MeshStyle& style, const Draw& body) {
   style.tileTexture = sampling.tile;
   style.filter = sampling.filter;
   style.lit = body.lit;
+  style.backfaceCull = body.backface == Backface::Hidden;
   const SurfaceTerms terms = surfaceTermsOf(body.material);
   style.metallic = terms.metallic;
   style.roughness = terms.roughness;

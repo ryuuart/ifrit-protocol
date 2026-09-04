@@ -27,6 +27,8 @@
  *   kBevel — the shoulder the slope mask's normals are derived from.
  */
 
+#include <include/core/SkSurface.h>
+#include <include/effects/SkGradient.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilgeometry/kit/Corners.h>
@@ -41,10 +43,6 @@
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
-#include <include/core/SkSurface.h>
-#include <include/effects/SkGradient.h>
-
-#include <cstdio>
 #include <string>
 
 namespace sketch = sigil::sketch;
@@ -61,7 +59,7 @@ constexpr SkSize kCanvas = {1100, 622};
 constexpr float kCell = 200;
 constexpr float kPicture = 176;
 
-constexpr float kLow = 0.32f;    // the fit both sampled masks are read through
+constexpr float kLow = 0.32f;  // the fit both sampled masks are read through
 constexpr float kHigh = 0.70f;
 constexpr float kBevel = 26;  // the shoulder the slope normals come from
 
@@ -142,27 +140,19 @@ material::Material brass() {
                                 .patina = 0.12f});
 }
 
-std::string line(const char* format, auto... args) {
-  char buffer[224];
-  std::snprintf(buffer, sizeof buffer, format, args...);
-  return buffer;
-}
-
 Element cell(const char* call, const std::string& note,
              material::Material paint) {
-  return kit::cell(voice(), toU8(call), toU8(note),
-                   custom(call,
-                          [paint = std::move(paint)](SkCanvas& canvas,
-                                                     const PaintContext& pc) {
-                            material::skia::fill(
-                                canvas, plate(), paint,
-                                {.resolution = {pc.size.width(),
-                                                pc.size.height()}});
-                          })
-                       .width(kCell)
-                       .height(kPicture)
-                       .clip()
-                       .fill(Fill::color(kCellGround)));
+  return kit::cell(
+      voice(), toU8(call), toU8(note),
+      kit::well({.width = kCell,
+                 .height = kPicture,
+                 .ground = Fill::color(kCellGround)},
+                custom(call, [paint = std::move(paint)](
+                                 SkCanvas& canvas, const PaintContext& pc) {
+                  material::skia::fill(
+                      canvas, plate(), paint,
+                      {.resolution = {pc.size.width(), pc.size.height()}});
+                })));
 }
 
 }  // namespace
@@ -171,12 +161,11 @@ struct OverUnder final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
     ctx.canvas(kCanvas.width(), kCanvas.height());
     ctx.background(kGround);
-    ctx.captureAt(0.05);  // nothing moves; the sheet is complete at once
+    ctx.captureAt(0.05);        // nothing moves; the sheet is complete at once
     material::skia::install();  // the SkSL compiler, once per process
 
     const material::Material mixed =
-        material::over(stone(), brass(),
-                       material::kit::maskMap(placedRamp()));
+        material::over(stone(), brass(), material::kit::maskMap(placedRamp()));
     const material::Material twice = material::over(
         mixed, material::kit::board({.paint = {0.10f, 0.11f, 0.13f, 1}}),
         material::kit::maskConstant(0.35f), material::Blend::Multiply);
@@ -228,11 +217,10 @@ struct OverUnder final : sketch::Sketch {
                                 cell("invert(maskMap(ramp))",
                                      "the same map with its answer flipped "
                                      "\xc2\xb7 brass where the ramp is dark",
-                                     material::over(
-                                         stone(), brass(),
-                                         material::kit::invert(
-                                             material::kit::maskMap(
-                                                 placedRamp()))))},
+                                     material::over(stone(), brass(),
+                                                    material::kit::invert(
+                                                        material::kit::maskMap(
+                                                            placedRamp()))))},
                            .gap = 12}),
                       kit::cells(
                           {.cells =
@@ -240,12 +228,11 @@ struct OverUnder final : sketch::Sketch {
                                      "the raw range that maps onto 0..1 "
                                      "moved \xc2\xb7 the transition "
                                      "narrows to that band",
-                                     material::over(
-                                         stone(), brass(),
-                                         material::kit::fit(
-                                             material::kit::maskMap(
-                                                 placedRamp()),
-                                             kLow, kHigh))),
+                                     material::over(stone(), brass(),
+                                                    material::kit::fit(
+                                                        material::kit::maskMap(
+                                                            placedRamp()),
+                                                        kLow, kHigh))),
                                 cell("maskSlope(bevelNormals(plate, 26))",
                                      "dot(N, up) fitted \xc2\xb7 brass on "
                                      "the shoulder that faces the light, "
@@ -253,18 +240,17 @@ struct OverUnder final : sketch::Sketch {
                                      material::over(
                                          stone(), brass(),
                                          material::kit::maskSlope(
-                                             material::bevelNormals(plate(),
-                                                                    kBevel),
+                                             material::bevelNormals(
+                                                 plate(), kBevel),
                                              {0, -1, 0}, 0.05f, 0.55f))),
                                 cell("maskHeight(ramp, 0.32, 0.70)",
                                      "the same map read with NO tangent "
                                      "decode \xc2\xb7 a value dotted with an "
                                      "axis, which is what a tide line is",
-                                     material::over(
-                                         stone(), brass(),
-                                         material::kit::maskHeight(
-                                             placedRamp(), kLow, kHigh,
-                                             {0, 1, 0}))),
+                                     material::over(stone(), brass(),
+                                                    material::kit::maskHeight(
+                                                        placedRamp(), kLow,
+                                                        kHigh, {0, 1, 0}))),
                                 cell("over(\xe2\x80\xa6, Blend::Add)",
                                      "the top ADDS, scaled by the mask "
                                      "\xc2\xb7 one recipe per blend, so no "
@@ -275,10 +261,11 @@ struct OverUnder final : sketch::Sketch {
                                          material::Blend::Add)),
                                 cell("over(over(\xe2\x80\xa6), \xe2\x80\xa6"
                                      ", Multiply)",
-                                     line("a stack over a stack \xc2\xb7 "
-                                          "stackDepth %d, and under() walks "
-                                          "back down to the stone",
-                                          material::stackDepth(twice)),
+                                     kit::format(
+                                         "a stack over a stack \xc2\xb7 "
+                                         "stackDepth %d, and under() walks "
+                                         "back down to the stone",
+                                         material::stackDepth(twice)),
                                      twice)},
                            .gap = 12})},
                  .column = true,

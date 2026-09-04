@@ -66,12 +66,16 @@ the two that rasterise on a device within stated per-channel ceilings —
 a device plate is not a function of the drawing code alone. `--tier
 quick` is the iteration loop: GPU renders at a uniform early capture,
 seconds for the registry; its baseline keeps the plates beside the hash
-manifest, and a hash miss is compared per colour channel rather than
-reported, because two builds of the host render the same sketch a
-scatter of channels apart. The default full tier steps every canvas
+manifest, and every successful sweep also refreshes Sketchbook's
+separate canvas-thumbnail cache without adopting the baseline. A hash
+miss is compared per colour channel rather than reported, because two
+builds of the host render the same sketch a scatter of channels apart.
+The default full tier steps every canvas
 sketch to its declared moment on the CPU and is the byte-identity
 verdict; a scene over the per-scene budget fails by name. `--tier
-world` does the same for the sketches that light a set; `--tier
+world` does the same for the sketches that light a set and retains every
+successful sweep in a separate cache as Sketchbook's set thumbnails;
+the cache does not adopt or change the hash baseline. `--tier
 world-gpu` renders those on the device and compares against the CPU
 tier's plates within a per-sketch tolerance. `--rebase` adopts a
 baseline for the active tier, merging atomically when given `--scenes`;

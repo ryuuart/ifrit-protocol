@@ -9,6 +9,7 @@
 #include <sigilweave/kit/SigilWeaveKit.h>
 
 #include <string>
+#include <string_view>
 #include <tuple>
 #include <vector>
 
@@ -19,8 +20,16 @@ using namespace sigil::weave::test;
 
 namespace {
 
+std::vector<uint32_t> breakPoints(const kit::PatternHyphenator& hyphenator,
+                                  std::u16string_view word,
+                                  std::string_view language) {
+  std::vector<uint32_t> points;
+  hyphenator.breakPoints(word, language, points);
+  return points;
+}
+
 TEST(RebuildGuard, FiresOnFirstUseThenOnlyOnKeyChange) {
-  sigil::weave::kit::RebuildGuard<std::string, float> guard;
+  kit::RebuildGuard<std::string, float> guard;
   int builds = 0;
   auto build = [&] { ++builds; };
 
@@ -37,7 +46,7 @@ TEST(RebuildGuard, FiresOnFirstUseThenOnlyOnKeyChange) {
 }
 
 TEST(RebuildGuard, ThrowingBuildStaysInvalidAndRetries) {
-  sigil::weave::kit::RebuildGuard<int> guard;
+  kit::RebuildGuard<int> guard;
   EXPECT_THROW(guard.ensure({1}, [] { throw std::runtime_error("boom"); }),
                std::runtime_error);
   EXPECT_FALSE(guard.built());
@@ -47,7 +56,7 @@ TEST(RebuildGuard, ThrowingBuildStaysInvalidAndRetries) {
 }
 
 TEST(CachedValue, ReturnsCachedValueUntilKeyChanges) {
-  sigil::weave::kit::CachedValue<int, int> cached;
+  kit::CachedValue<int, int> cached;
   EXPECT_EQ(cached.ensure({10}, [] { return 100; }), 100);
   // Same key: the stale-looking callable must not run.
   EXPECT_EQ(cached.ensure({10}, [] { return 999; }), 100);
@@ -56,7 +65,7 @@ TEST(CachedValue, ReturnsCachedValueUntilKeyChanges) {
 }
 
 TEST(CachedValue, KeylessEnsureBuildsOnce) {
-  sigil::weave::kit::CachedValue<int> lazy;
+  kit::CachedValue<int> lazy;
   int builds = 0;
   auto build = [&] {
     ++builds;
@@ -69,7 +78,7 @@ TEST(CachedValue, KeylessEnsureBuildsOnce) {
 
 TEST(LayoutGuard, RelayoutsOnEditAndDeclaredKeysOnly) {
   Paragraph paragraph = makeParagraph(u8"guarded layout text");
-  sigil::weave::kit::LayoutGuard<SkISize, TextAlignment> guard;
+  kit::LayoutGuard<SkISize, TextAlignment> guard;
   ParagraphLayout layout;
   int relayouts = 0;
   auto relayout = [&] {
@@ -105,7 +114,7 @@ TEST(LayoutGuard, RelayoutsOnEditAndDeclaredKeysOnly) {
 
 TEST(LayoutGuard, PaintOnlyRestyleDoesNotRelayout) {
   Paragraph paragraph = makeParagraph(u8"repaint me freely");
-  sigil::weave::kit::LayoutGuard<SkISize> guard;
+  kit::LayoutGuard<SkISize> guard;
   ParagraphLayout layout;
   int relayouts = 0;
   auto relayout = [&] {
@@ -127,10 +136,10 @@ TEST(LayoutGuard, PaintOnlyRestyleDoesNotRelayout) {
 }
 
 TEST(Quantize, SnapsToStepMultiples) {
-  EXPECT_FLOAT_EQ(sigil::weave::kit::quantize(10.3f), 10.0f);
-  EXPECT_FLOAT_EQ(sigil::weave::kit::quantize(10.6f), 11.0f);
-  EXPECT_FLOAT_EQ(sigil::weave::kit::quantize(103.0f, 8.0f), 104.0f);
-  EXPECT_FLOAT_EQ(sigil::weave::kit::quantize(-2.6f), -3.0f);
+  EXPECT_FLOAT_EQ(kit::quantize(10.3f), 10.0f);
+  EXPECT_FLOAT_EQ(kit::quantize(10.6f), 11.0f);
+  EXPECT_FLOAT_EQ(kit::quantize(103.0f, 8.0f), 104.0f);
+  EXPECT_FLOAT_EQ(kit::quantize(-2.6f), -3.0f);
 }
 
 TEST(GlyphBuckets, GroupsByKeyAndSkipsEmptyOnDraw) {
@@ -139,7 +148,7 @@ TEST(GlyphBuckets, GroupsByKeyAndSkipsEmptyOnDraw) {
     int fade = 0;
     bool operator==(const Shade&) const = default;
   };
-  sigil::weave::kit::GlyphBuckets<Shade> buckets;
+  kit::GlyphBuckets<Shade> buckets;
   buckets.add({1, 0}, 10, {0, 0});
   buckets.add({1, 0}, 11, {1, 0});
   buckets.add({2, 3}, 12, {2, 0});
@@ -159,8 +168,8 @@ TEST(GlyphBuckets, GroupsByKeyAndSkipsEmptyOnDraw) {
 }
 
 TEST(SampleText, FillerIsDeterministicAndMultiSpan) {
-  const Paragraph first = sigil::weave::kit::mixedScriptFiller(240, 16.0f);
-  const Paragraph second = sigil::weave::kit::mixedScriptFiller(240, 16.0f);
+  const Paragraph first = kit::mixedScriptFiller(240, 16.0f);
+  const Paragraph second = kit::mixedScriptFiller(240, 16.0f);
   EXPECT_EQ(first.text(), second.text());
   EXPECT_GT(first.spans().size(), 1u);
 }
@@ -187,37 +196,29 @@ TEST(LineTables, TheStockProhibitionsAreTheFullWidthPunctuationOfTheGrid) {
 
 TEST(Hyphenation, ATableAnswersForTheLanguageItDeclaresAndNoOther) {
   const kit::PatternHyphenator german("de", "ü1be");
-  std::vector<uint32_t> breaks;
-  german.breakPoints(u"über", "de-DE", breaks);
-  EXPECT_EQ(breaks, (std::vector<uint32_t>{1u})) << "ü-ber";
-  breaks.clear();
-  german.breakPoints(u"über", "en-US", breaks);
-  EXPECT_TRUE(breaks.empty()) << "no answer beats a misspelling";
-  breaks.clear();
-  german.breakPoints(u"über", "", breaks);
-  EXPECT_TRUE(breaks.empty()) << "a text that never said its language";
+  EXPECT_EQ(breakPoints(german, u"über", "de-DE"), (std::vector<uint32_t>{1u}))
+      << "ü-ber";
+  EXPECT_TRUE(breakPoints(german, u"über", "en-US").empty())
+      << "no answer beats a misspelling";
+  EXPECT_TRUE(breakPoints(german, u"über", "").empty())
+      << "a text that never said its language";
 }
 
 TEST(Hyphenation, LettersOutsideAsciiAreLettersLikeAnyOther) {
   // The same pattern reaches the word however the word is capitalised, and
   // a table written over one alphabet says nothing about another.
   const kit::PatternHyphenator german("de", "ü1be");
-  std::vector<uint32_t> breaks;
-  german.breakPoints(u"Über", "de", breaks);
-  EXPECT_EQ(breaks, (std::vector<uint32_t>{1u}));
-  breaks.clear();
   const kit::PatternHyphenator greek("el", "λ1λη");
-  greek.breakPoints(u"ελλην", "el", breaks);
-  EXPECT_EQ(breaks, (std::vector<uint32_t>{2u}));
+  EXPECT_EQ(breakPoints(german, u"Über", "de"), (std::vector<uint32_t>{1u}));
+  EXPECT_EQ(breakPoints(greek, u"ελλην", "el"), (std::vector<uint32_t>{2u}));
 }
 
 TEST(Hyphenation, AWordThatIsNotAllLettersIsLeftWhole) {
   const kit::PatternHyphenator german("de", "ü1be 1be");
-  std::vector<uint32_t> breaks;
-  german.breakPoints(u"über2", "de", breaks);
-  EXPECT_TRUE(breaks.empty()) << "a digit is not a letter";
-  german.breakPoints(u"über-alles", "de", breaks);
-  EXPECT_TRUE(breaks.empty()) << "a word already carrying a hyphen";
+  EXPECT_TRUE(breakPoints(german, u"über2", "de").empty())
+      << "a digit is not a letter";
+  EXPECT_TRUE(breakPoints(german, u"über-alles", "de").empty())
+      << "a word already carrying a hyphen";
 }
 
 TEST(Hyphenation, ExceptionSpellingsAndCommentsSurviveTheParse) {
@@ -226,9 +227,8 @@ TEST(Hyphenation, ExceptionSpellingsAndCommentsSurviveTheParse) {
                                       "ü1be\n"
                                       "exceptions\n"
                                       "über\n");
-  std::vector<uint32_t> breaks;
-  german.breakPoints(u"über", "de", breaks);
-  EXPECT_TRUE(breaks.empty()) << "the exception spelling forbids the break";
+  EXPECT_TRUE(breakPoints(german, u"über", "de").empty())
+      << "the exception spelling forbids the break";
   EXPECT_EQ(german.patternCount(), 1u) << "the comment held no pattern";
 }
 
@@ -236,8 +236,8 @@ TEST(Hyphenation, PatternsOpenBreaksInsideWords) {
   static const kit::PatternHyphenator hyphenator(
       "en", kit::englishHyphenationPatterns());
   EXPECT_GT(hyphenator.patternCount(), 100u);
-  std::vector<uint32_t> points;
-  hyphenator.breakPoints(u"hyphenation", "en-US", points);
+  const std::vector<uint32_t> points =
+      breakPoints(hyphenator, u"hyphenation", "en-US");
   EXPECT_FALSE(points.empty());
   for (const uint32_t offset : points) {
     EXPECT_GT(offset, 0u);

@@ -36,6 +36,9 @@
  *   kPeriod — the phase's loop and the spring's period, seconds.
  */
 
+#include <include/core/SkCanvas.h>
+#include <include/core/SkPaint.h>
+#include <include/core/SkPathBuilder.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilmotion/values/Spring.h>
@@ -43,10 +46,6 @@
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
-
-#include <include/core/SkCanvas.h>
-#include <include/core/SkPaint.h>
-#include <include/core/SkPathBuilder.h>
 
 #include <functional>
 #include <string>
@@ -149,11 +148,9 @@ Element plot(const char* key, std::vector<std::pair<Curve, SkColor4f>> curves,
 
 Element cell(const char* call, const char* note, Element body) {
   return kit::cell(voice(), toU8(call), toU8(note),
-                   box()
-                       .width(Dim(kCell))
-                       .height(Dim(kPicture))
-                       .clip()
-                       .fill(Fill::color(kCellGround))
+                   kit::well({.width = kCell,
+                              .height = kPicture,
+                              .ground = Fill::color(kCellGround)})
                        .child(std::move(body)));
 }
 
@@ -201,17 +198,16 @@ struct DecayStep final : sketch::Sketch {
              .rule = Fill::color(kRule)},
             kit::cells(
                 {.cells =
-                     {cell("motion::decay(age, 0.6)",
-                           "exp(-age/tau) \xc2\xb7 1 at the instant it "
-                           "happened, and never quite 0 \xc2\xb7 the grid is "
-                           "one tau apart, so the curve crosses each line "
-                           "lower by the same fraction",
-                           plot("decay",
-                                {{[](float t) {
-                                    return motion::decay(t, kTau);
-                                  },
-                                  kFigure}},
-                                (int)(kSpan / kTau))),
+                     {cell(
+                          "motion::decay(age, 0.6)",
+                          "exp(-age/tau) \xc2\xb7 1 at the instant it "
+                          "happened, and never quite 0 \xc2\xb7 the grid is "
+                          "one tau apart, so the curve crosses each line "
+                          "lower by the same fraction",
+                          plot("decay",
+                               {{[](float t) { return motion::decay(t, kTau); },
+                                 kFigure}},
+                               (int)(kSpan / kTau))),
                       cell("quantizeTime(t, 4) / 3",
                            "SECONDS posterised at a rate and held still "
                            "between steps \xc2\xb7 twelve steps across "
@@ -219,8 +215,7 @@ struct DecayStep final : sketch::Sketch {
                            plot("quantize",
                                 {{[](float t) { return t / kSpan; }, kAsh},
                                  {[](float t) {
-                                    return motion::quantizeTime(t, kHz) /
-                                           kSpan;
+                                    return motion::quantizeTime(t, kHz) / kSpan;
                                   },
                                   kFigure}},
                                 (int)(kSpan * kHz))),
@@ -240,11 +235,10 @@ struct DecayStep final : sketch::Sketch {
                            "\xc2\xb7 the marching ants, the marquee, the "
                            "scanline creep \xc2\xb7 three and three quarter "
                            "turns in three seconds",
-                           plot("phase",
-                                {{[](float t) {
-                                    return motion::phase(t, kPeriod);
-                                  },
-                                  kFigure}})),
+                           plot("phase", {{[](float t) {
+                                             return motion::phase(t, kPeriod);
+                                           },
+                                           kFigure}})),
                       cell("spring(s, 1, dt, {0.8, damping})",
                            "damping 0.25, 0.6 and 1.2 \xc2\xb7 below one it "
                            "overshoots and rings, at one it arrives as fast "

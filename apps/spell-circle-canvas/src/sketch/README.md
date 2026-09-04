@@ -272,9 +272,12 @@ The pen is SigilDraw's, whose README is the canon for its verbs; what
 the runtime adds is p5's `setup`/`draw` loop over a surface it keeps
 between frames, a clock it owns, and the seed every session's `random`
 starts from — so a plate stepped from zero draws the same picture on
-every run. `ctx.pen` in setup is for whatever a p5 setup would have set
-on the canvas: a style, a font, a first drawing, which lands on the
-first frame. `pen.noLoop()`, `pen.redraw()` and `pen.frameRate(fps)`
+every run. When presentation zoom changes the surface's pixel extent, the
+runtime scales the pixels it already holds into the replacement instead of
+replaying setup or clearing accumulated drawing. `ctx.pen` in setup is for
+whatever a p5 setup would have set on the canvas: a style, a font, a first
+drawing, which lands on the first frame. `pen.noLoop()`, `pen.redraw()` and
+`pen.frameRate(fps)`
 are honoured by the runtime skipping draws, since the clock is its. The
 pointer and the keys arrive through `Session::pointer` and
 `Session::key`, which a host feeds in canvas units; headless, nothing
@@ -647,12 +650,15 @@ file stem at once, while `folder:` and `kind:` narrow on that field
 alone — so `folder:study kind:canvas rain` is one question, not three.
 `/` puts the cursor in it and Escape empties it.
 
-**The thumbnails are the quick tier's plates**, read from the baseline
-the plate ledger writes beside its manifest — so a checkout that has
-never run a sweep has no thumbnails, and one that has is looking at
-exactly the images the sweep judged. `--plates <dir>` names another
-directory. A sketch with no plate gets a drawn glyph for the runtime it
-draws through.
+**The thumbnails are plate-ledger output.** Canvas sketches read the quick
+tier's adopted plate store. Set sketches fall back to the latest successful
+world sweep, kept in `plate_thumbnails_world_Release`; this display cache
+does not change the world's hash baseline when a scene has moved. A checkout
+that has never run the relevant tier has no thumbnails for it. Every
+Sketchbook configuration reads the Release stores, which are the stores the
+ledgers produce; a Debug build does not invent empty Debug-only stores.
+`--plates <dir>` names one other directory for both runtimes. A sketch with
+no plate gets a drawn glyph for the runtime it draws through.
 
 **What is not in a row is the canvas.** A sketch declares its size, its
 ground and the moment it names from inside its own setup, so those are

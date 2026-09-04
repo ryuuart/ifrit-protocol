@@ -60,10 +60,10 @@ constexpr SkSize kCanvas = {1100, 424};
 constexpr float kCell = 163;
 constexpr float kPicture = 200;
 
-constexpr SkSize kChip = {34, 16};   // the inline slot
-constexpr SkSize kTall = {40, 26};   // …and one taller than the type
-constexpr float kDrop = 4;           // the drop that centres a pill
-constexpr float kBand = 14;          // room beside every line, px
+constexpr SkSize kChip = {34, 16};  // the inline slot
+constexpr SkSize kTall = {40, 26};  // …and one taller than the type
+constexpr float kDrop = 4;          // the drop that centres a pill
+constexpr float kBand = 14;         // room beside every line, px
 
 constexpr SkColor4f kGround{0.07f, 0.07f, 0.085f, 1};
 constexpr SkColor4f kCellGround{0.105f, 0.11f, 0.125f, 1};
@@ -106,12 +106,10 @@ const char* kPassage =
 
 Element cell(const char* call, const char* note, Element body) {
   return kit::cell(voice(), toU8(call), toU8(note),
-                   box()
-                       .width(Dim(kCell))
-                       .height(Dim(kPicture))
-                       .clip()
-                       .fill(Fill::color(kCellGround))
-                       .padding(12)
+                   kit::well({.width = kCell,
+                              .height = kPicture,
+                              .ground = Fill::color(kCellGround),
+                              .padding = 12})
                        .child(std::move(body)));
 }
 
@@ -148,8 +146,10 @@ struct RichSlotReserve final : sketch::Sketch {
         kit::sheet(
             {.title = toU8("SLOTS AND RESERVED ROOM \xc2\xb7 "
                            "RichText::slot, Element::reserve"),
-             .subtitle = toU8("dials \xc2\xb7 the slot's size (34\xc3\x97" "16, "
-                              "then 40\xc3\x97" "26) \xc2\xb7 its baseline drop "
+             .subtitle = toU8("dials \xc2\xb7 the slot's size (34\xc3\x97"
+                              "16, "
+                              "then 40\xc3\x97"
+                              "26) \xc2\xb7 its baseline drop "
                               "(0, then 4) \xc2\xb7 the band reserved beside "
                               "every line (14 px)"),
              .footer = toU8("a text slot is not a mount slot: these names "
@@ -172,7 +172,8 @@ struct RichSlotReserve final : sketch::Sketch {
                            "image \xc2\xb7 the child is keyed \"chip\" and "
                            "lands wherever the placeholder does",
                            slotted(kChip, 0, kChipFill)),
-                      cell("\xe2\x80\xa6" ", baselineDrop = 4",
+                      cell("\xe2\x80\xa6"
+                           ", baselineDrop = 4",
                            "the box's BOTTOM dropped below the baseline by "
                            "about the face's descent \xc2\xb7 a pill centred "
                            "on the x-height",

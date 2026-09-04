@@ -388,8 +388,8 @@ void Scene::Impl::writeComponents(Instance& inst) {
           ? &inst.resource->cooked.mesh
           : nullptr;
   if (mesh)
-    registry.emplace_or_replace<component::Body>(inst.entity, mesh,
-                                                 inst.resource->id);
+    registry.emplace_or_replace<component::Body>(
+        inst.entity, mesh, inst.resource->id, node.backface);
   else
     registry.remove<component::Body>(inst.entity);
   const material::Material* worn = surfaceOf(node);

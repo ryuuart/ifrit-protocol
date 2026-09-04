@@ -45,8 +45,7 @@ constexpr float kPicture = 212;
 
 /** The traced outline: a lightning bolt, whose own bounds are taller
  *  than they are wide, so a wide box has to do something about it. */
-constexpr const char* kBolt =
-    "M62 4 L18 78 H44 L30 148 L86 62 H56 Z";
+constexpr const char* kBolt = "M62 4 L18 78 H44 L30 148 L86 62 H56 Z";
 
 constexpr SkColor4f kGround{0.07f, 0.07f, 0.085f, 1};
 constexpr SkColor4f kCellGround{0.105f, 0.11f, 0.125f, 1};
@@ -81,10 +80,10 @@ Element cell(const char* call, const char* note, SkSize boxSize,
              bool preserveAspect) {
   return kit::cell(
       voice(), toU8(call), toU8(note),
-      box()
-          .width(Dim(kCell))
-          .height(Dim(kPicture))
-          .fill(Fill::color(kCellGround))
+      kit::well({.width = kCell,
+                 .height = kPicture,
+                 .ground = Fill::color(kCellGround),
+                 .clip = false})
           .alignItems(Align::Center)
           .justify(Justify::Center)
           .child(box()

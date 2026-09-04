@@ -57,8 +57,8 @@ constexpr float kCell = 163;
 constexpr float kPicture = 176;
 constexpr float kNode = 46;
 
-constexpr float kRadius = 12;   // the corner radius, px
-constexpr float kChamfer = 14;  // the 45 degree cut, which wins over a radius
+constexpr float kRadius = 12;    // the corner radius, px
+constexpr float kChamfer = 14;   // the 45 degree cut, which wins over a radius
 constexpr float kBulge = 0.26f;  // the arc's bulge, as a fraction of the chord
 
 constexpr SkColor4f kGround{0.07f, 0.07f, 0.085f, 1};
@@ -102,11 +102,9 @@ Element plate(const std::string& tag, Element route) {
   PathFormat wire;
   wire.width = 1.6f;
   wire.strokeFill = Fill::color(kWire);
-  return box()
-      .width(Dim(kCell))
-      .height(Dim(kPicture))
-      .clip()
-      .fill(Fill::color(kCellGround))
+  return kit::well({.width = kCell,
+                    .height = kPicture,
+                    .ground = Fill::color(kCellGround)})
       .child(stack()
                  .inset(0)
                  .child(endpoint(tag + "-a", 16, 26))
@@ -165,27 +163,26 @@ struct RoutersStraight final : sketch::Sketch {
                            "here as a named value, with a 4 px gap pulling "
                            "each end back",
                            "st", wire("st", routers::straight())),
-                      cell("orthogonal(Bend::MidX)",
-                           "the Z \xc2\xb7 half way over, one vertical run, "
-                           "half way in \xe2\x80\x94 what a node graph "
-                           "defaults to",
-                           "mx",
-                           wire("mx", routers::orthogonal(
-                                          routers::Bend::MidX))),
+                      cell(
+                          "orthogonal(Bend::MidX)",
+                          "the Z \xc2\xb7 half way over, one vertical run, "
+                          "half way in \xe2\x80\x94 what a node graph "
+                          "defaults to",
+                          "mx",
+                          wire("mx", routers::orthogonal(routers::Bend::MidX))),
                       cell("orthogonal(Bend::HFirst, 12)",
                            "an L bending AT THE TARGET column, its turn "
                            "rounded \xc2\xb7 the circuit trace",
                            "hf",
-                           wire("hf", routers::orthogonal(
-                                          routers::Bend::HFirst, kRadius))),
+                           wire("hf", routers::orthogonal(routers::Bend::HFirst,
+                                                          kRadius))),
                       cell("orthogonal(Bend::VFirst, 0, 14)",
                            "the other L, out of the SOURCE first, its turn "
                            "cut at 45\xc2\xb0 \xc2\xb7 a chamfer wins over a "
                            "radius",
                            "vf",
-                           wire("vf",
-                                routers::orthogonal(routers::Bend::VFirst, 0,
-                                                    kChamfer))),
+                           wire("vf", routers::orthogonal(routers::Bend::VFirst,
+                                                          0, kChamfer))),
                       cell("routers::arc(0.26)",
                            "the chord bowed by a fraction of its own length "
                            "\xc2\xb7 the sign picks the side",

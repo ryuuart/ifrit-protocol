@@ -52,6 +52,15 @@ class Effect {
    *  shadow at zero offset, which keeps the content on top. Chain with
    *  `then()` for a tighter core over a wider halo. */
   static Effect glow(SkColor4f color, float sigma);
+  /** Display bloom over the completed layer. Pixels above @p threshold feed
+   *  three concentric kernels; their red, green and blue channels are
+   *  recombined with progressively different reach, so the feather changes
+   *  hue instead of behaving like a same-colour software blur. @p radius is
+   *  the outer kernel radius in pixels, @p intensity is its additive energy,
+   *  and @p chroma blends from an achromatic falloff at zero to full spectral
+   *  separation at one. The sharp source is retained on top. */
+  static Effect phosphorBloom(float radius = 9.0f, float threshold = 0.52f,
+                              float intensity = 0.46f, float chroma = 0.80f);
   /** @p uniforms are float uniforms set by name on the SkSL effect;
    *  the layer arrives as the child shader named "content".
    *

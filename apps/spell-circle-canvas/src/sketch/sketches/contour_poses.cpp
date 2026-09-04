@@ -26,6 +26,7 @@
  *   kWindow     — the reach of a corner window, px.
  */
 
+#include <include/core/SkPathBuilder.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilgeometry/kit/Generators.h>
@@ -36,9 +37,6 @@
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
-#include <include/core/SkPathBuilder.h>
-
-#include <cstdio>
 #include <span>
 #include <string>
 #include <vector>
@@ -125,23 +123,18 @@ void ghost(SkCanvas& canvas, const SkPath& p) {
   canvas.drawPath(p, strokePaint(kFaint, 1.2f));
 }
 
-std::string line(const char* format, auto... args) {
-  char buffer[192];
-  std::snprintf(buffer, sizeof buffer, format, args...);
-  return buffer;
-}
-
 Element cell(const char* call, const std::string& note,
              std::function<void(SkCanvas&)> draw) {
-  return kit::cell(voice(), toU8(call), toU8(note),
-                   custom(call,
-                          [draw = std::move(draw)](SkCanvas& canvas,
-                                                   const PaintContext&) {
-                            draw(canvas);
-                          })
-                       .width(kCell)
-                       .height(kPicture)
-                       .fill(Fill::color(kCellGround)));
+  return kit::cell(
+      voice(), toU8(call), toU8(note),
+      kit::well({.width = kCell,
+                 .height = kPicture,
+                 .ground = Fill::color(kCellGround),
+                 .clip = false},
+                custom(call, [draw = std::move(draw)](SkCanvas& canvas,
+                                                      const PaintContext&) {
+                  draw(canvas);
+                })));
 }
 
 }  // namespace
@@ -159,9 +152,9 @@ struct ContourPoses final : sketch::Sketch {
 
     float sharpest = 0;
     const std::vector<path::Contour::Corner> corners =
-        contours.empty() ? std::vector<path::Contour::Corner>{}
-                         : contours.front().corners(kCornerDeg, 6.0f, 2.0f,
-                                                    &sharpest);
+        contours.empty()
+            ? std::vector<path::Contour::Corner>{}
+            : contours.front().corners(kCornerDeg, 6.0f, 2.0f, &sharpest);
 
     ctx.composer.render(
         kit::sheet(
@@ -187,40 +180,43 @@ struct ContourPoses final : sketch::Sketch {
                      {kit::cells(
                           {.cells =
                                {cell("Contour::of(path)",
-                                     line("%zu contour \xc2\xb7 closed %s "
-                                          "\xc2\xb7 totalLength %.1f px "
-                                          "\xc2\xb7 seam ringed",
-                                          contours.size(),
-                                          path::closedThroughout(run) ? "yes"
-                                                                      : "no",
-                                          (double)total),
+                                     kit::format(
+                                         "%zu contour \xc2\xb7 closed %s "
+                                         "\xc2\xb7 totalLength %.1f px "
+                                         "\xc2\xb7 seam ringed",
+                                         contours.size(),
+                                         path::closedThroughout(run) ? "yes"
+                                                                     : "no",
+                                         (
+                                             double)total),
                                      [figure, contours](SkCanvas& canvas) {
-                                       const std::span<const path::Contour>
-                                           run{contours};
+                                       const std::span<const path::Contour> run{
+                                           contours};
                                        canvas.drawPath(
                                            figure, strokePaint(kFigure, 2.0f));
                                        const path::Pose head =
                                            path::poseAlong(run, 0.0f);
-                                       canvas.drawCircle(sk(head.position), 5,
-                                                         strokePaint(kWarm,
-                                                                     1.6f));
+                                       canvas.drawCircle(
+                                           sk(head.position), 5,
+                                           strokePaint(kWarm, 1.6f));
                                        const glm::vec2 tip =
                                            head.position + head.tangent * 22.0f;
-                                       canvas.drawLine(sk(head.position),
-                                                       sk(tip),
-                                                       strokePaint(kWarm,
-                                                                   1.6f));
+                                       canvas.drawLine(
+                                           sk(head.position), sk(tip),
+                                           strokePaint(kWarm, 1.6f));
                                      }),
                                 cell("poseAlong(contours, d) \xc2\xb7 "
                                      "Pose::normal",
-                                     line("%d stations by arrange::along(0, "
-                                          "%.0f, i, n, Turn::Closed) "
-                                          "\xc2\xb7 each tick on the pose's "
-                                          "normal",
-                                          kStations, (double)total),
-                                     [figure, contours, total](SkCanvas& canvas) {
-                                       const std::span<const path::Contour>
-                                           run{contours};
+                                     kit::format(
+                                         "%d stations by arrange::along(0, "
+                                         "%.0f, i, n, Turn::Closed) "
+                                         "\xc2\xb7 each tick on the pose's "
+                                         "normal",
+                                         kStations, (double)total),
+                                     [figure, contours, total](
+                                         SkCanvas& canvas) {
+                                       const std::span<const path::Contour> run{
+                                           contours};
                                        ghost(canvas, figure);
                                        for (int i = 0; i < kStations; ++i) {
                                          const float d = arrange::along(
@@ -238,15 +234,18 @@ struct ContourPoses final : sketch::Sketch {
                                        }
                                      }),
                                 cell("Wrap::Clamp vs Wrap::Around",
-                                     line("the same 12 distances from "
-                                          "\xe2\x88\x92" "0.2 to 1.2 of "
-                                          "totalLength, joined in order "
-                                          "\xc2\xb7 the outer chain parks "
-                                          "at the ends, the inner one comes "
-                                          "round the seam"),
-                                     [figure, contours, total](SkCanvas& canvas) {
-                                       const std::span<const path::Contour>
-                                           run{contours};
+                                     kit::format(
+                                         "the same 12 distances from "
+                                         "\xe2\x88\x92"
+                                         "0.2 to 1.2 of "
+                                         "totalLength, joined in order "
+                                         "\xc2\xb7 the outer chain parks "
+                                         "at the ends, the inner one comes "
+                                         "round the seam"),
+                                     [figure, contours,
+                                      total](SkCanvas& canvas) {
+                                       const std::span<const path::Contour> run{
+                                           contours};
                                        ghost(canvas, figure);
                                        // Each policy's twelve stations
                                        // joined in order: where a chain
@@ -263,12 +262,12 @@ struct ContourPoses final : sketch::Sketch {
                                              path::poseAlong(
                                                  run, f * total,
                                                  path::Wrap::Around);
-                                         const SkPoint out = sk(
-                                             clamped.position +
-                                             clamped.normal * 11.0f);
-                                         const SkPoint in = sk(
-                                             around.position -
-                                             around.normal * 11.0f);
+                                         const SkPoint out =
+                                             sk(clamped.position +
+                                                clamped.normal * 11.0f);
+                                         const SkPoint in =
+                                             sk(around.position -
+                                                around.normal * 11.0f);
                                          (i ? parked.lineTo(out)
                                             : parked.moveTo(out));
                                          (i ? round.lineTo(in)
@@ -278,24 +277,27 @@ struct ContourPoses final : sketch::Sketch {
                                          canvas.drawCircle(in, 3.6f,
                                                            fillPaint(kCool));
                                        }
-                                       canvas.drawPath(parked.detach(),
-                                                       strokePaint(kWarm, 1.0f));
-                                       canvas.drawPath(round.detach(),
-                                                       strokePaint(kCool, 1.0f));
+                                       canvas.drawPath(
+                                           parked.detach(),
+                                           strokePaint(kWarm, 1.0f));
+                                       canvas.drawPath(
+                                           round.detach(),
+                                           strokePaint(kCool, 1.0f));
                                      })},
                            .gap = 14}),
                       kit::cells(
                           {.cells =
                                {cell("Contour::corners(30\xc2\xb0)",
-                                     line("%zu corners \xc2\xb7 sharpest turn "
-                                          "%.0f\xc2\xb0 \xc2\xb7 each drawn "
-                                          "as its in tangent and its out "
-                                          "tangent",
-                                          corners.size(), (double)sharpest),
+                                     kit::format(
+                                         "%zu corners \xc2\xb7 sharpest turn "
+                                         "%.0f\xc2\xb0 \xc2\xb7 each drawn "
+                                         "as its in tangent and its out "
+                                         "tangent",
+                                         corners.size(), (double)sharpest),
                                      [figure, corners,
                                       contours](SkCanvas& canvas) {
-                                       const std::span<const path::Contour>
-                                           run{contours};
+                                       const std::span<const path::Contour> run{
+                                           contours};
                                        ghost(canvas, figure);
                                        for (const path::Contour::Corner& c :
                                             corners) {
@@ -309,9 +311,9 @@ struct ContourPoses final : sketch::Sketch {
                                              sk(p.position),
                                              sk(p.position + c.out * 18.0f),
                                              strokePaint(kWarm, 1.6f));
-                                         canvas.drawCircle(sk(p.position), 3.2f,
-                                                           strokePaint(kFigure,
-                                                                       1.4f));
+                                         canvas.drawCircle(
+                                             sk(p.position), 3.2f,
+                                             strokePaint(kFigure, 1.4f));
                                        }
                                      }),
                                 cell("cornerWindows(26, true, 30\xc2\xb0)",
@@ -321,7 +323,8 @@ struct ContourPoses final : sketch::Sketch {
                                        ghost(canvas, figure);
                                        canvas.drawPath(
                                            path::cornerWindows(figure, kWindow,
-                                                               true, kCornerDeg),
+                                                               true,
+                                                               kCornerDeg),
                                            strokePaint(kWarm, 3.0f));
                                      }),
                                 cell("cornerWindows(26, false, 30\xc2\xb0)",

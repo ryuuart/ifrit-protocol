@@ -145,6 +145,11 @@ Element& Element::mesh(geometry::mesh::Mesh m) {
   return *this;
 }
 
+Element& Element::backface(Backface facing) {
+  m_node->backface = facing;
+  return *this;
+}
+
 Element& Element::cloud(geometry::mesh::Cloud c) {
   ElementNode* node = m_node.operator->();
   geometry::mesh::Mesh stamp = takeStamp(node->geometry);

@@ -26,6 +26,8 @@
  *   kIterations — the strongest smoothing on the sheet.
  */
 
+#include <include/core/SkCanvas.h>
+#include <include/core/SkSurface.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilgeometry/kit/Solids.h>
@@ -36,11 +38,7 @@
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
-#include <include/core/SkCanvas.h>
-#include <include/core/SkSurface.h>
-
 #include <cmath>
-#include <cstdio>
 #include <functional>
 #include <string>
 #include <vector>
@@ -61,9 +59,9 @@ constexpr SkSize kCanvas = {1100, 748};
 constexpr float kCell = 340;
 constexpr float kPicture = 248;
 
-constexpr int kMotes = 5200;    // points in each cloud
-constexpr float kNoise = 20;    // the displacement Relax has to heal
-constexpr int kIterations = 12; // the strongest smoothing on the sheet
+constexpr int kMotes = 5200;     // points in each cloud
+constexpr float kNoise = 20;     // the displacement Relax has to heal
+constexpr int kIterations = 12;  // the strongest smoothing on the sheet
 
 constexpr SkColor4f kGround{0.07f, 0.07f, 0.085f, 1};
 constexpr SkColor4f kCellGround{0.09f, 0.095f, 0.11f, 1};
@@ -152,24 +150,17 @@ pop::Builder kinked() {
       .rampBy({{0.98f, 0.84f, 0.42f, 1}, {0.42f, 0.86f, 0.72f, 1}});
 }
 
-std::string line(const char* format, auto... args) {
-  char buffer[192];
-  std::snprintf(buffer, sizeof buffer, format, args...);
-  return buffer;
-}
-
 Element cell(const char* call, const std::string& note,
              std::function<void(SkCanvas&, SkSize)> draw) {
-  return kit::cell(voice(), toU8(call), toU8(note),
-                   custom(call,
-                          [draw = std::move(draw)](SkCanvas& canvas,
-                                                   const PaintContext& pc) {
-                            draw(canvas, pc.size);
-                          })
-                       .width(kCell)
-                       .height(kPicture)
-                       .clip()
-                       .fill(Fill::color(kCellGround)));
+  return kit::cell(
+      voice(), toU8(call), toU8(note),
+      kit::well({.width = kCell,
+                 .height = kPicture,
+                 .ground = Fill::color(kCellGround)},
+                custom(call, [draw = std::move(draw)](SkCanvas& canvas,
+                                                      const PaintContext& pc) {
+                  draw(canvas, pc.size);
+                })));
 }
 
 }  // namespace
@@ -210,35 +201,37 @@ struct PopBillboards final : sketch::Sketch {
                           {.cells =
                                {cell("pop::Builder::billboards(canvas, "
                                      "camera, viewport)",
-                                     line("%d points \xc2\xb7 size and tint "
-                                          "lanes picked up unnamed \xc2\xb7 "
-                                          "the default soft dot, additive",
-                                          kMotes),
+                                     kit::format(
+                                         "%d points \xc2\xb7 size and tint "
+                                         "lanes picked up unnamed \xc2\xb7 "
+                                         "the default soft dot, additive",
+                                         kMotes),
                                      [](SkCanvas& canvas, SkSize size) {
                                        points::BillboardStyle style;
                                        style.size = 2.6f;
-                                       motes().billboards(canvas, stage(),
-                                                          size, style);
+                                       motes().billboards(canvas, stage(), size,
+                                                          style);
                                      }),
                                 cell("BillboardStyle{.sprite = ring}",
-                                     line("one sprite for the whole splat "
-                                          "\xc2\xb7 pop::Atlas wrote Tex "
-                                          "cell (%.2f, %.2f) on point 0 for "
-                                          "the STAMPING sink, which this "
-                                          "one does not read",
-                                          tex && !tex->empty()
-                                              ? (double)(*tex)[0].x
-                                              : 0.0,
-                                          tex && !tex->empty()
-                                              ? (double)(*tex)[0].y
-                                              : 0.0),
+                                     kit::format(
+                                         "one sprite for the whole splat "
+                                         "\xc2\xb7 pop::Atlas wrote Tex "
+                                         "cell (%.2f, %.2f) on point 0 for "
+                                         "the STAMPING sink, which this "
+                                         "one does not read",
+                                         tex && !tex->empty()
+                                             ? (double)(*tex)[0].x
+                                             : 0.0,
+                                         tex && !tex->empty()
+                                             ? (double)(*tex)[0].y
+                                             : 0.0),
                                      [](SkCanvas& canvas, SkSize size) {
                                        points::BillboardStyle style;
                                        style.sprite = ringSprite();
                                        style.size = 7;
                                        style.additive = false;
-                                       motes().billboards(canvas, stage(),
-                                                          size, style);
+                                       motes().billboards(canvas, stage(), size,
+                                                          style);
                                      }),
                                 cell("BillboardStyle{.perspective = false}",
                                      "constant pixel size \xc2\xb7 near and "
@@ -250,23 +243,24 @@ struct PopBillboards final : sketch::Sketch {
                                        style.size = 4;
                                        style.perspective = false;
                                        style.additive = false;
-                                       motes().billboards(canvas, stage(),
-                                                          size, style);
+                                       motes().billboards(canvas, stage(), size,
+                                                          style);
                                      })},
                            .gap = 14}),
                       kit::cells(
                           {.cells =
                                {cell("no Relax",
-                                     line("noise(%.0f, 0.075) straight off "
-                                          "the loop scatter \xc2\xb7 "
-                                          "consecutive points jump, so a "
-                                          "frame threaded through them "
-                                          "tears",
-                                          (double)kNoise),
+                                     kit::format(
+                                         "noise(%.0f, 0.075) straight off "
+                                         "the loop scatter \xc2\xb7 "
+                                         "consecutive points jump, so a "
+                                         "frame threaded through them "
+                                         "tears",
+                                         (
+                                             double)kNoise),
                                      [](SkCanvas& canvas, SkSize size) {
-                                       kinked().billboards(
-                                           canvas, stage(), size,
-                                           strandStyle());
+                                       kinked().billboards(canvas, stage(),
+                                                           size, strandStyle());
                                      }),
                                 cell("smooth(0.5, 3)",
                                      "Relax{.strength = 0.5, .iterations = "
@@ -278,12 +272,13 @@ struct PopBillboards final : sketch::Sketch {
                                            strandStyle());
                                      }),
                                 cell("smooth(0.9, 12)",
-                                     line("strength 0.9 over %d passes "
-                                          "\xc2\xb7 the run is continuous "
-                                          "again \xe2\x80\x94 the "
-                                          "amplitude survives, only the "
-                                          "kinks go",
-                                          kIterations),
+                                     kit::format(
+                                         "strength 0.9 over %d passes "
+                                         "\xc2\xb7 the run is continuous "
+                                         "again \xe2\x80\x94 the "
+                                         "amplitude survives, only the "
+                                         "kinks go",
+                                         kIterations),
                                      [](SkCanvas& canvas, SkSize size) {
                                        kinked()
                                            .smooth(0.9f, kIterations)

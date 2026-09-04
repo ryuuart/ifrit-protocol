@@ -30,14 +30,13 @@
  *   kWindow — the sweep's start and end angles.
  */
 
+#include <include/core/SkCanvas.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
-
-#include <include/core/SkCanvas.h>
 
 #include <memory>
 #include <vector>
@@ -55,8 +54,8 @@ constexpr SkSize kCanvas = {1100, 646};
 constexpr float kCell = 252;
 constexpr float kPicture = 190;
 
-constexpr float kFocus = 44;      // the conical's hot spot displacement, px
-constexpr float kWindowFrom = 45; // the sweep window that does not fill a turn
+constexpr float kFocus = 44;       // the conical's hot spot displacement, px
+constexpr float kWindowFrom = 45;  // the sweep window that does not fill a turn
 constexpr float kWindowTo = 315;
 
 constexpr SkColor4f kGround{0.07f, 0.07f, 0.085f, 1};
@@ -105,20 +104,16 @@ std::vector<paint::Stop> wheel() {
 
 Element cell(const char* call, const char* note, Element body) {
   return kit::cell(voice(), toU8(call), toU8(note),
-                   std::move(body)
-                       .width(Dim(kCell))
-                       .height(Dim(kPicture))
-                       .clip()
-                       .fill(Fill::color(kCellGround)));
+                   kit::well({.width = kCell,
+                              .height = kPicture,
+                              .ground = Fill::color(kCellGround)},
+                             std::move(body)));
 }
 
 /** One paint across the whole cell. */
 Element swatch(const char* call, const char* note, paint::Paint fill) {
   return cell(call, note,
-              box().child(box()
-                              .absolute()
-                              .inset(0)
-                              .fill(std::move(fill))));
+              box().child(box().absolute().inset(0).fill(std::move(fill))));
 }
 
 }  // namespace
@@ -152,11 +147,11 @@ struct PaintShelf final : sketch::Sketch {
     // "the node's own box" and "the root's box" are two visibly
     // different readings of the same description.
     const auto field = [](bool world) {
-      paint::Paint p = paint::Paint::linearUnit(
-          {0, 0}, {1, 1},
-          {{0.0f, {0.16f, 0.20f, 0.34f, 1}},
-           {0.5f, {0.44f, 0.78f, 0.86f, 1}},
-           {1.0f, {0.96f, 0.72f, 0.34f, 1}}});
+      paint::Paint p =
+          paint::Paint::linearUnit({0, 0}, {1, 1},
+                                   {{0.0f, {0.16f, 0.20f, 0.34f, 1}},
+                                    {0.5f, {0.44f, 0.78f, 0.86f, 1}},
+                                    {1.0f, {0.96f, 0.72f, 0.34f, 1}}});
       return p.worldSpace(world);
     };
     const auto pair = [&](bool world) {
@@ -207,7 +202,8 @@ struct PaintShelf final : sketch::Sketch {
                                            {middle().fX - kFocus,
                                             middle().fY - kFocus * 0.6f},
                                            0, middle(), 92, ember())),
-                                swatch("\xe2\x80\xa6" "with the focus moved "
+                                swatch("\xe2\x80\xa6"
+                                       "with the focus moved "
                                        "across",
                                        "the one dial \xc2\xb7 the "
                                        "highlight crosses the face while "
@@ -222,8 +218,7 @@ struct PaintShelf final : sketch::Sketch {
                                        "the centre \xc2\xb7 the stops end "
                                        "where they began, so the only edge "
                                        "is the start",
-                                       paint::Paint::sweep(middle(),
-                                                           wheel()))},
+                                       paint::Paint::sweep(middle(), wheel()))},
                            .gap = 14}),
                       kit::cells(
                           {.cells =

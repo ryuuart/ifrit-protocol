@@ -56,6 +56,7 @@
 #include <sigilcompose/kit/Typeset.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilweave/kit/Hyphenation.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Features.h>
 #include <sigilweave/style/Type.h>
@@ -74,6 +75,12 @@ using namespace std::chrono_literals;
 using namespace sigil::compose::kit::ornament;
 
 namespace {
+
+const weave::kit::PatternHyphenator& hyphenator() {
+  static const weave::kit::PatternHyphenator table(
+      "en", weave::kit::englishHyphenationPatterns());
+  return table;
+}
 
 /** The humanist old-styles this page is set in, best first. Every one of
  *  them descends from the minuscule the Florentine scribes wrote, which is
@@ -337,6 +344,8 @@ struct Manuscript final : sketch::Sketch {
             .child(prose.key("block")
                        .width(Dim(px(kMeasure)))
                        .paragraph(block)
+                       .lineBreak(weave::LineBreakStrategy::kKnuthPlass)
+                       .hyphenation({.patterns = &hyphenator()})
                        .flowAround("note", px(3.0f))
                        .flowAround("sprig", px(2.4f)));
 

@@ -66,7 +66,8 @@ constexpr SkColor4f kCellGround{0.105f, 0.11f, 0.125f, 1};
 constexpr SkColor4f kInk{0.90f, 0.90f, 0.92f, 1};
 constexpr SkColor4f kAsh{0.55f, 0.56f, 0.62f, 1};
 constexpr SkColor4f kRule{0.20f, 0.21f, 0.25f, 1};
-constexpr SkColor4f kHot{0.95f, 0.36f, 0.28f, 1};  // what the mixed tint wipes FROM
+constexpr SkColor4f kHot{0.95f, 0.36f, 0.28f,
+                         1};  // what the mixed tint wipes FROM
 constexpr SkColor4f kFigure{0.90f, 0.83f, 0.68f, 1};
 
 weave::TextStyle label(float size, SkColor4f color, float track = 0) {
@@ -94,22 +95,18 @@ kit::Caption voice() {
           .noteMeasure = kCell};
 }
 
-Element cell(const char* call, const char* note, const char* key,
-             Track track) {
+Element cell(const char* call, const char* note, const char* key, Track track) {
   track.progress = kProgress;
-  return kit::cell(
-      voice(), toU8(call), toU8(note),
-      box()
-          .width(Dim(kCell))
-          .height(Dim(kPicture))
-          .clip()
-          .fill(Fill::color(kCellGround))
-          .child(text(toU8("DISPLACEMENT"), specimen())
-                     .key(key)
-                     .width(Dim(kCell - 28))
-                     .absolute()
-                     .inset(14, 60, 14, 14)
-                     .fx(std::move(track))));
+  return kit::cell(voice(), toU8(call), toU8(note),
+                   kit::well({.width = kCell,
+                              .height = kPicture,
+                              .ground = Fill::color(kCellGround)})
+                       .child(text(toU8("DISPLACEMENT"), specimen())
+                                  .key(key)
+                                  .width(Dim(kCell - 28))
+                                  .absolute()
+                                  .inset(14, 60, 14, 14)
+                                  .fx(std::move(track))));
 }
 
 /** The one spread every cell starts from — the origin and the
@@ -185,15 +182,15 @@ struct FxScatterMix final : sketch::Sketch {
                            "ed",
                            {.effect = fx::scatter(kRadius, kLean),
                             .stagger = ladder(motion::Spread::From::Edges)}),
-                      cell("\xe2\x80\xa6" ", .distribution = t\xc2\xb2",
+                      cell("\xe2\x80\xa6"
+                           ", .distribution = t\xc2\xb2",
                            "the ramp of DELAYS passed through a curve "
                            "\xc2\xb7 an ease-in crowds the early units and "
                            "lets the tail spread out",
                            "di",
                            {.effect = fx::scatter(kRadius, kLean),
-                            .stagger =
-                                ladder(motion::Spread::From::Start,
-                                       [](float t) { return t * t; })})},
+                            .stagger = ladder(motion::Spread::From::Start,
+                                              [](float t) { return t * t; })})},
                  .gap = 12}))
             .absolute()
             .inset(0));

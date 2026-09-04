@@ -41,6 +41,7 @@
  *   kBudget — the floor under a frame the optimizing breaker cannot meet.
  */
 
+#include <include/core/SkSurface.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
@@ -49,9 +50,6 @@
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
-#include <include/core/SkSurface.h>
-
-#include <cstdio>
 #include <string>
 #include <utility>
 
@@ -120,12 +118,6 @@ Element passage(float measure, bool live, float budget) {
   return leaf;
 }
 
-std::string line(const char* format, auto... args) {
-  char buffer[128];
-  std::snprintf(buffer, sizeof buffer, format, args...);
-  return buffer;
-}
-
 }  // namespace
 
 struct LiveSettling final : sketch::Sketch {
@@ -143,8 +135,8 @@ struct LiveSettling final : sketch::Sketch {
     const auto sweep = [&](bool live, float budget, float endAt) {
       Composer probe(ctx.ticker, *ctx.fonts);
       probe.setSize({kWide + 40, 320});
-      sk_sp<SkSurface> scratch = SkSurfaces::Raster(
-          SkImageInfo::MakeN32Premul((int)kWide + 40, 320));
+      sk_sp<SkSurface> scratch =
+          SkSurfaces::Raster(SkImageInfo::MakeN32Premul((int)kWide + 40, 320));
       const auto step = [&](float measure) {
         probe.render(box().padding(10).child(passage(measure, live, budget)));
         if (scratch) probe.draw(*scratch->getCanvas());
@@ -153,9 +145,9 @@ struct LiveSettling final : sketch::Sketch {
       for (float w = kWide; w >= kNarrow; w -= 1) step(w);
       step(endAt);
       const TextSettling settled = probe.settling("para");
-      return line("live %s \xc2\xb7 reused %d \xc2\xb7 degraded %d",
-                  settled.live ? "true" : "false", settled.reused,
-                  settled.degraded);
+      return kit::format("live %s \xc2\xb7 reused %d \xc2\xb7 degraded %d",
+                         settled.live ? "true" : "false", settled.reused,
+                         settled.degraded);
     };
 
     reports[0] = sweep(true, kBudget, kNarrow);
@@ -216,18 +208,15 @@ struct LiveSettling final : sketch::Sketch {
    *  swell produced printed under it. */
   Element cell(const char* call, const char* note, float measure, bool live,
                float budget, const std::string& report) {
-    return kit::cell(
-        voice(), toU8(call), toU8(note),
-        box()
-            .width(Dim(kCell))
-            .height(Dim(kPicture))
-            .clip()
-            .fill(Fill::color(kCellGround))
-            .padding(12)
-            .column()
-            .gap(10)
-            .child(passage(measure, live, budget))
-            .child(text(toU8(report), mono(10, kFigure))));
+    return kit::cell(voice(), toU8(call), toU8(note),
+                     kit::well({.width = kCell,
+                                .height = kPicture,
+                                .ground = Fill::color(kCellGround),
+                                .padding = 12})
+                         .column()
+                         .gap(10)
+                         .child(passage(measure, live, budget))
+                         .child(text(toU8(report), mono(10, kFigure))));
   }
 };
 

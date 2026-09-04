@@ -2,13 +2,13 @@
  * bullets_dropcap — the furniture a page of set text carries, and how
  * little of it is a mechanism.
  *
- * A DROP CAP is an exclusion: the initial is an ordinary text leaf with a
- * key, absolutely placed, and the body is an ordinary text leaf that
- * flows around that key — the same exclusion a photograph in a column
- * gets, resolved in the same pass. How deep the cap goes is its own
- * type's SIZE, because the body flows around the box the initial
- * occupies; a cap three lines deep is a cap set three lines deep, and no
- * ratio of the body size is written anywhere.
+ * A DROP CAP is an exclusion: the initial is an ordinary keyed element,
+ * absolutely placed, and the body is an ordinary text leaf that flows
+ * around that key — the same exclusion a photograph in a column gets,
+ * resolved in the same pass. A letter can stand alone, or stand inside an
+ * illuminated ornament whose silhouette the opening lines follow. How deep
+ * a plain cap goes is its own type's SIZE; no ratio of the body size is
+ * written anywhere.
  *
  * A NESTED STYLE is the opening of a paragraph set differently from the
  * rest of it. What makes it nested rather than a hand-cut restyle is that
@@ -38,6 +38,7 @@
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/kit/Typeset.h>
+#include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
@@ -103,12 +104,10 @@ kit::Caption voice() {
 
 Element cell(const char* call, const char* note, Element body) {
   return kit::cell(voice(), toU8(call), toU8(note),
-                   box()
-                       .width(Dim(kCell))
-                       .height(Dim(kPicture))
-                       .clip()
-                       .fill(Fill::color(kCellGround))
-                       .padding(14)
+                   kit::well({.width = kCell,
+                              .height = kPicture,
+                              .ground = Fill::color(kCellGround),
+                              .padding = 14})
                        .child(std::move(body)));
 }
 
@@ -119,6 +118,24 @@ Element dropped(const char* key, std::optional<kit::NestedStyle> nested) {
   kit::DroppedCap made =
       kit::dropCap(u8"W", serif(kCapSize, kFigure), toU8(kPassage),
                    serif(11.5f, kBody), key, kMargin, std::move(nested));
+  return box()
+      .child(std::move(made.initial))
+      .child(std::move(made.body).width(Dim(kCell - 28)));
+}
+
+/** A caller-built initial: the star is both the ornament that paints and
+ *  the silhouette the opening lines subtract. */
+Element illuminated(const char* key, std::optional<kit::NestedStyle> nested) {
+  Element ornament =
+      box()
+          .width(58)
+          .height(64)
+          .shape(sigil::geometry::shapes::star(8, 0.48f, 0.12f))
+          .fill(Fill::color(kFigure))
+          .child(text(u8"W", serif(27, kGround)).absolute().left(15).top(14));
+  kit::DroppedCap made =
+      kit::dropCap(std::move(ornament), toU8(kPassage), serif(11.5f, kBody),
+                   key, kMargin, std::move(nested));
   return box()
       .child(std::move(made.initial))
       .child(std::move(made.body).width(Dim(kCell - 28)));
@@ -145,7 +162,7 @@ struct BulletsDropCap final : sketch::Sketch {
         u8"A number is the caller's to format.",
         u8"Roman, lettered, restarting, hierarchical \xe2\x80\x94 all data."};
     const std::vector<std::u8string> innerMarks = {u8"\xe2\x80\x94",
-                                                  u8"\xe2\x80\x94"};
+                                                   u8"\xe2\x80\x94"};
 
     Element list =
         box()
@@ -187,25 +204,27 @@ struct BulletsDropCap final : sketch::Sketch {
                            "and the body flowAround()s it \xc2\xb7 no "
                            "drop-cap facility underneath",
                            dropped("cap-plain", {})),
-                      cell("\xe2\x80\xa6" ", NestedStyle{Words, 6}",
-                           "the first six of the paragraph's own "
-                           "line-break words, restyled \xc2\xb7 an edit that "
-                           "adds a word before them moves the run",
-                           dropped("cap-words",
-                                   kit::NestedStyle{
-                                       .until = kit::NestedStyle::Until::Words,
-                                       .count = 6,
-                                       .style = smallCaps})),
-                      cell("\xe2\x80\xa6" ", NestedStyle{Delimiter, \"once.\"}",
+                      cell("dropCap(ornament, rest, bodyType)",
+                           "the star is the painted initial AND the "
+                           "silhouette subtracted from each horizontal "
+                           "line \xc2\xb7 type enters its notches",
+                           illuminated(
+                               "cap-ornament",
+                               kit::NestedStyle{
+                                   .until = kit::NestedStyle::Until::Words,
+                                   .count = 6,
+                                   .style = smallCaps})),
+                      cell("\xe2\x80\xa6"
+                           ", NestedStyle{Delimiter, \"once.\"}",
                            "from the start THROUGH the first occurrence, "
                            "inclusive \xc2\xb7 an anchored non-greedy regex "
                            "with the mark literal-quoted",
-                           dropped("cap-delim",
-                                   kit::NestedStyle{
-                                       .until =
-                                           kit::NestedStyle::Until::Delimiter,
-                                       .delimiter = u8"once.",
-                                       .style = smallCaps})),
+                           dropped(
+                               "cap-delim",
+                               kit::NestedStyle{
+                                   .until = kit::NestedStyle::Until::Delimiter,
+                                   .delimiter = u8"once.",
+                                   .style = smallCaps})),
                       cell("kit::bullets(items, markers, style, hang, "
                            "measure)",
                            "two levels, two calls \xc2\xb7 every line of an "

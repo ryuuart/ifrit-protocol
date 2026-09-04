@@ -202,14 +202,20 @@ void drawBody(Gpu& gpu, const glm::mat4& viewProj, const glm::mat4& view,
               const glm::mat4& model, glm::vec4 baseColor,
               const material::Material* material, const material::Texture* map,
               std::span<const Light> lights, const Environment& sky,
-              const glm::mat3& orientation, bool lit, bool depthWrite) {
+              const glm::mat3& orientation, bool lit, bool depthWrite,
+              bool cull) {
   const MeshBuffers* buffers = gpu.upload(artefact, mesh);
   if (!buffers) return;
   const Surface surface = surfaceOf(material, lit);
   if (!surface.program || surface.program->empty()) return;
 
-  const PipelineKey key{surface.program, SkBlendMode::kSrcOver, true,
-                        depthWrite, false};
+  const PipelineKey key{surface.program,
+                        SkBlendMode::kSrcOver,
+                        true,
+                        depthWrite,
+                        false,
+                        false,
+                        cull};
   const Pipeline* pipeline = gpu.pipeline(key);
   if (!pipeline) return;
 
@@ -389,7 +395,8 @@ void drawBodies(Gpu& gpu, const View& view, const glm::mat4& viewProj,
              colour, flat ? nullptr : body.material,
              flat ? nullptr : body.texture, view.lights, view.environment,
              view.orientation, lit && body.lit,
-             /*depthWrite=*/colour.a >= 1.0f);
+             /*depthWrite=*/colour.a >= 1.0f,
+             /*cull=*/body.backface == Backface::Hidden);
   }
 }
 
@@ -453,7 +460,7 @@ void paintGeometry(Gpu& gpu, const PassWork& work, const View& view,
       drawBody(gpu, viewProj, viewMatrix, artefact, *stamped, glm::mat4(1.0f),
                {0.9f, 0.9f, 0.95f, 1.0f}, nullptr, nullptr, view.lights,
                view.environment, view.orientation,
-               /*lit=*/true, /*depthWrite=*/true);
+               /*lit=*/true, /*depthWrite=*/true, /*cull=*/true);
     }
   }
 

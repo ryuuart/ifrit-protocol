@@ -32,6 +32,9 @@
  *   kScale   — how many sheet pixels one source pixel covers.
  */
 
+#include <include/core/SkCanvas.h>
+#include <include/core/SkPaint.h>
+#include <include/core/SkSamplingOptions.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilimage/asset/ImageAsset.h>
@@ -39,11 +42,6 @@
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/style/Type.h>
 
-#include <include/core/SkCanvas.h>
-#include <include/core/SkPaint.h>
-#include <include/core/SkSamplingOptions.h>
-
-#include <cstdio>
 #include <memory>
 #include <string>
 #include <vector>
@@ -58,7 +56,8 @@ using sigil::compose::toU8;
 
 namespace {
 
-constexpr const char* kSource = "https://www.spacejam.com/1996/img/fastbreak.gif";
+constexpr const char* kSource =
+    "https://www.spacejam.com/1996/img/fastbreak.gif";
 constexpr SkSize kCanvas = {1120, 560};
 constexpr float kScale = 3.0f;  // sheet pixels per source pixel
 /** The moments the lower shelf reads. The file's own loop is 600 ms, so
@@ -87,25 +86,19 @@ kit::Caption voice() {
  *  sheet is about. */
 Element cell(std::string key, sk_sp<SkImage> frame, float w, float h,
              const char* call, std::string note) {
-  return kit::cell(
-      voice(), toU8(call), toU8(note),
-      custom(std::move(key),
-             [frame, w, h](SkCanvas& canvas, const PaintContext&) {
-               if (!frame) return;
-               SkPaint paint;
-               canvas.drawImageRect(
-                   frame, SkRect::MakeWH(w, h),
-                   SkSamplingOptions(SkFilterMode::kNearest), &paint);
-             })
-          .width(w)
-          .height(h)
-          .fill(Fill::color(kCellGround)));
-}
-
-std::string fmt(const char* pattern, double a) {
-  char buffer[96];
-  std::snprintf(buffer, sizeof buffer, pattern, a);
-  return buffer;
+  return kit::cell(voice(), toU8(call), toU8(note),
+                   custom(std::move(key),
+                          [frame, w, h](SkCanvas& canvas, const PaintContext&) {
+                            if (!frame) return;
+                            SkPaint paint;
+                            canvas.drawImageRect(
+                                frame, SkRect::MakeWH(w, h),
+                                SkSamplingOptions(SkFilterMode::kNearest),
+                                &paint);
+                          })
+                       .width(w)
+                       .height(h)
+                       .fill(Fill::color(kCellGround)));
 }
 
 }  // namespace
@@ -136,9 +129,9 @@ struct GifFrames final : sketch::Sketch {
     const float h = (float)gif.height() * kScale;
     kit::Cells shelf{.gap = 12};
     for (size_t i = 0; i < gif.frames().size(); ++i)
-      shelf.cells.push_back(
-          cell("frame" + std::to_string(i), gif.frames()[i].image, w, h,
-               "frames()", fmt("%.0f ms", (double)gif.frames()[i].durationMs)));
+      shelf.cells.push_back(cell(
+          "frame" + std::to_string(i), gif.frames()[i].image, w, h, "frames()",
+          kit::format("%.0f ms", (double)gif.frames()[i].durationMs)));
     return kit::cells(std::move(shelf));
   }
 
@@ -150,8 +143,8 @@ struct GifFrames final : sketch::Sketch {
     kit::Cells shelf{.gap = 12};
     for (double at : kSamples)
       shelf.cells.push_back(cell("at" + std::to_string((int)at),
-                                 gif.frameAt(at).image, w, h,
-                                 "frameAt(ms)", fmt("%.0f ms", at)));
+                                 gif.frameAt(at).image, w, h, "frameAt(ms)",
+                                 kit::format("%.0f ms", at)));
     return kit::cells(std::move(shelf));
   }
 
@@ -159,17 +152,18 @@ struct GifFrames final : sketch::Sketch {
                 const std::optional<loader::ResourceInfo>& probed) const {
     std::string foot = "Hub::probe() \xe2\x80\x94 ";
     if (probed)
-      foot += probed->image.format + ", " +
-              std::to_string(probed->byteSize) + " bytes, " +
-              std::to_string(probed->image.width) + "\xc3\x97" +
+      foot += probed->image.format + ", " + std::to_string(probed->byteSize) +
+              " bytes, " + std::to_string(probed->image.width) + "\xc3\x97" +
               std::to_string(probed->image.height) + ", " +
-              std::to_string(probed->image.frames) + " frames, no pixels "
+              std::to_string(probed->image.frames) +
+              " frames, no pixels "
               "decoded";
     else
       foot += "nothing (the hub could not sniff this resource)";
     foot += "   \xc2\xb7   decoded \xe2\x80\x94 " +
             std::to_string(gif.frames().size()) + " frames, " +
-            fmt("%.0f ms", (double)gif.totalDurationMs()) + " a loop, " +
+            kit::format("%.0f ms", (double)gif.totalDurationMs()) +
+            " a loop, " +
             (gif.repetitionCount() == image::ImageAsset::kInfinite
                  ? std::string("repeating forever")
                  : std::to_string(gif.repetitionCount()) + " repetitions");
@@ -177,9 +171,10 @@ struct GifFrames final : sketch::Sketch {
     return kit::sheet(
                {.title = toU8("ANIMATED FRAMES \xc2\xb7 ImageAsset::frames() "
                               "+ frameAt(ms)"),
-                .subtitle = toU8(std::string("dials \xc2\xb7 the file (") +
-                                 kSource + ") \xc2\xb7 the moments the lower "
-                                 "shelf reads"),
+                .subtitle =
+                    toU8(std::string("dials \xc2\xb7 the file (") + kSource +
+                         ") \xc2\xb7 the moments the lower "
+                         "shelf reads"),
                 .footer = toU8(foot),
                 .titleStyle = label(14, kInk, 2.4f),
                 .subtitleStyle = label(11, kAsh, 0.6f),

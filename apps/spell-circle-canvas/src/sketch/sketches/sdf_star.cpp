@@ -27,6 +27,7 @@
  *   kGlow       — the glow's falloff radius, px.
  */
 
+#include <include/core/SkPathBuilder.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilmaterial/sdf/Sdf.h>
@@ -36,9 +37,6 @@
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
-#include <include/core/SkPathBuilder.h>
-
-#include <cstdio>
 #include <string>
 
 namespace sketch = sigil::sketch;
@@ -55,9 +53,9 @@ constexpr SkSize kCanvas = {1100, 640};
 constexpr float kCell = 252;
 constexpr float kPicture = 196;
 
-constexpr int kPoints = 6;          // arms
-constexpr float kPointiness = 2.6f; // m in [2, points]
-constexpr float kGlow = 14;         // the glow's falloff radius, px
+constexpr int kPoints = 6;           // arms
+constexpr float kPointiness = 2.6f;  // m in [2, points]
+constexpr float kGlow = 14;          // the glow's falloff radius, px
 
 constexpr SkColor4f kGround{0.06f, 0.06f, 0.075f, 1};
 constexpr SkColor4f kCellGround{0.085f, 0.09f, 0.105f, 1};
@@ -97,27 +95,19 @@ sdf::Style plain() {
           .borderColor = {0.24f, 0.16f, 0.08f, 1}};
 }
 
-std::string line(const char* format, auto... args) {
-  char buffer[224];
-  std::snprintf(buffer, sizeof buffer, format, args...);
-  return buffer;
-}
-
 Element cell(const char* call, const std::string& note, sdf::Shape shape,
              const sdf::Style& style) {
   return kit::cell(
       voice(), toU8(call), toU8(note),
-      custom(call,
-             [paint = sdf::material(shape, style)](SkCanvas& canvas,
-                                                   const PaintContext& pc) {
-               material::skia::fill(
-                   canvas, whole(), paint,
-                   {.resolution = {pc.size.width(), pc.size.height()}});
-             })
-          .width(kCell)
-          .height(kPicture)
-          .clip()
-          .fill(Fill::color(kCellGround)));
+      kit::well({.width = kCell,
+                 .height = kPicture,
+                 .ground = Fill::color(kCellGround)},
+                custom(call, [paint = sdf::material(shape, style)](
+                                 SkCanvas& canvas, const PaintContext& pc) {
+                  material::skia::fill(
+                      canvas, whole(), paint,
+                      {.resolution = {pc.size.width(), pc.size.height()}});
+                })));
 }
 
 }  // namespace
@@ -169,7 +159,7 @@ struct SdfStar final : sketch::Sketch {
                      {kit::cells(
                           {.cells =
                                {cell("sdf::star(6, 2)",
-                                     line("the clamp's lower end \xc2\xb7 "
+                                     kit::format("the clamp's lower end \xc2\xb7 "
                                           "the notch between two arms is "
                                           "shallowest here \xc2\xb7 pad "
                                           "%.0f px",
@@ -193,14 +183,14 @@ struct SdfStar final : sketch::Sketch {
                       kit::cells(
                           {.cells =
                                {cell("\xe2\x80\xa6" ".glowRadius = 14",
-                                     line("exp(\xe2\x88\x92" "d / radius), "
+                                     kit::format("exp(\xe2\x88\x92" "d / radius), "
                                           "not a blurred copy \xc2\xb7 pad "
                                           "%.0f px",
                                           (double)sdf::pad(glowing)),
                                      sdf::star(kPoints, kPointiness),
                                      glowing),
                                 cell("\xe2\x80\xa6" ".glowRadius = 22",
-                                     line("the falloff is the radius and "
+                                     kit::format("the falloff is the radius and "
                                           "nothing else \xc2\xb7 pad %.0f "
                                           "px, so in a fixed box the "
                                           "silhouette shrinks; minBoxFor("
@@ -210,7 +200,7 @@ struct SdfStar final : sketch::Sketch {
                                      sdf::star(kPoints, kPointiness), wide),
                                 cell("\xe2\x80\xa6" ".shadowOffset, "
                                      ".shadowBlur",
-                                     line("the layer BEHIND the fill "
+                                     kit::format("the layer BEHIND the fill "
                                           "\xc2\xb7 pad %.0f px, which is "
                                           "the offset and the blur together",
                                           (double)sdf::pad(dropped)),

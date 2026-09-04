@@ -35,6 +35,11 @@
  *   kMount — the prefix the written bytes are stored under.
  */
 
+#include <include/core/SkCanvas.h>
+#include <include/core/SkData.h>
+#include <include/core/SkPaint.h>
+#include <include/core/SkSurface.h>
+#include <include/effects/SkGradient.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilimage/asset/ImageAsset.h>
@@ -44,13 +49,6 @@
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
-#include <include/core/SkCanvas.h>
-#include <include/core/SkData.h>
-#include <include/core/SkPaint.h>
-#include <include/core/SkSurface.h>
-#include <include/effects/SkGradient.h>
-
-#include <cstdio>
 #include <filesystem>
 #include <memory>
 #include <string>
@@ -126,32 +124,22 @@ sk_sp<SkImage> source() {
   return surface->makeImageSnapshot();
 }
 
-std::string line(const char* format, auto... args) {
-  char buffer[160];
-  std::snprintf(buffer, sizeof buffer, format, args...);
-  return buffer;
-}
-
 Element cell(const char* call, const char* note, sk_sp<SkImage> picture,
              const std::string& readout) {
-  Element art =
-      picture ? image(std::make_shared<const img::ImageAsset>(
-                    img::ImageAsset::wrap(std::move(picture))))
-              : box();
-  return kit::cell(
-      voice(), toU8(call), toU8(note),
-      box()
-          .width(Dim(kCell))
-          .height(Dim(kPicture))
-          .clip()
-          .fill(Fill::color(kCellGround))
-          .child(std::move(art).absolute().inset(0))
-          .child(text(toU8(readout), mono(10, kFigure))
-                     .absolute()
-                     .left(Dim(6.0f))
-                     .top(Dim(6.0f))
-                     .padding(4, 2)
-                     .fill(Fill::color({0, 0, 0, 0.55f}))));
+  Element art = picture ? image(std::make_shared<const img::ImageAsset>(
+                              img::ImageAsset::wrap(std::move(picture))))
+                        : box();
+  return kit::cell(voice(), toU8(call), toU8(note),
+                   kit::well({.width = kCell,
+                              .height = kPicture,
+                              .ground = Fill::color(kCellGround)})
+                       .child(std::move(art).absolute().inset(0))
+                       .child(text(toU8(readout), mono(10, kFigure))
+                                  .absolute()
+                                  .left(Dim(6.0f))
+                                  .top(Dim(6.0f))
+                                  .padding(4, 2)
+                                  .fill(Fill::color({0, 0, 0, 0.55f}))));
 }
 
 }  // namespace
@@ -174,8 +162,8 @@ struct EncodeWrite final : sketch::Sketch {
                 img::ImageAsset::decode(bytes))
           back = decoded->frames().empty() ? nullptr
                                            : decoded->frames().front().image;
-      return std::pair<sk_sp<SkImage>, size_t>{
-          std::move(back), bytes ? bytes->size() : 0};
+      return std::pair<sk_sp<SkImage>, size_t>{std::move(back),
+                                               bytes ? bytes->size() : 0};
     };
 
     const auto [png, pngBytes] = roundTrip(img::Format::Png, 100);
@@ -192,14 +180,13 @@ struct EncodeWrite final : sketch::Sketch {
     hub.mount(kMount, dir);
     sk_sp<SkData> bytes = img::encodeImage(*art, img::Format::Png);
     const std::string uri = std::string(kMount) + "plate.png";
-    const bool wrote =
-        bytes && hub.write(uri, bytes->data(), bytes->size());
+    const bool wrote = bytes && hub.write(uri, bytes->data(), bytes->size());
     const std::shared_ptr<const img::ImageAsset> read =
         wrote ? hub.image(uri) : nullptr;
     const std::string written =
-        line("write %s\nread back %s \xc2\xb7 %d\xc3\x97%d",
-             wrote ? "true" : "false", read ? "true" : "false",
-             read ? read->width() : 0, read ? read->height() : 0);
+        kit::format("write %s\nread back %s \xc2\xb7 %d\xc3\x97%d",
+                    wrote ? "true" : "false", read ? "true" : "false",
+                    read ? read->width() : 0, read ? read->height() : 0);
 
     ctx.composer.render(
         kit::sheet(
@@ -229,29 +216,33 @@ struct EncodeWrite final : sketch::Sketch {
                            "a smooth ramp under hard edges and fine detail "
                            "\xc2\xb7 the pair of things the lossy codecs "
                            "disagree about",
-                           art, line("N32 premul \xc2\xb7 %d\xc3\x97%d",
-                                     kSide, kSide)),
+                           art,
+                           kit::format("N32 premul \xc2\xb7 %d\xc3\x97%d",
+                                       kSide, kSide)),
                       cell("encodeImage(art, Png)",
                            "lossless at every setting, and the quality is "
                            "ignored \xc2\xb7 the bytes decode back to the "
                            "pixels that went in",
-                           png, line("png \xc2\xb7 %zu bytes", pngBytes)),
+                           png,
+                           kit::format("png \xc2\xb7 %zu bytes", pngBytes)),
                       cell("Webp, quality 100",
                            "100 selects the LOSSLESS codec rather than lossy "
                            "at maximum \xc2\xb7 two codecs in one container, "
                            "and this is the one that keeps everything",
                            webpLossless,
-                           line("webp \xc2\xb7 %zu bytes", losslessBytes)),
+                           kit::format("webp \xc2\xb7 %zu bytes",
+                                       losslessBytes)),
                       cell("Webp, quality 24",
                            "the same container, the other codec \xc2\xb7 the "
                            "ramp survives and the fine rules go soft",
                            webpLossy,
-                           line("webp \xc2\xb7 %zu bytes", lossyBytes)),
+                           kit::format("webp \xc2\xb7 %zu bytes", lossyBytes)),
                       cell("Jpeg, quality 24",
                            "the quantisation quality \xc2\xb7 the blocks are "
                            "the codec's own, and they land where the edges "
                            "are",
-                           jpeg, line("jpeg \xc2\xb7 %zu bytes", jpegBytes)),
+                           jpeg,
+                           kit::format("jpeg \xc2\xb7 %zu bytes", jpegBytes)),
                       cell("hub.write(uri, bytes)",
                            "the bytes out through the mount table, then "
                            "asked back for as an image \xc2\xb7 the write "

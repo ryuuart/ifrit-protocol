@@ -51,8 +51,8 @@ constexpr float kCell = 252;
 constexpr float kPicture = 168;
 
 constexpr const char* kWord = "SIGIL";
-constexpr float kSize = 56;    // the type size, px
-constexpr float kMoment = 6.4f; // the second every field is frozen at
+constexpr float kSize = 56;      // the type size, px
+constexpr float kMoment = 6.4f;  // the second every field is frozen at
 
 constexpr SkColor4f kGround{0.06f, 0.06f, 0.075f, 1};
 constexpr SkColor4f kCellGround{0.10f, 0.105f, 0.125f, 1};
@@ -73,9 +73,9 @@ weave::TextStyle mono(float size, SkColor4f color) {
 /** The wordmark's own face: as heavy as the machine has, so the fill has
  *  letterforms to be seen inside. */
 weave::TextStyle display() {
-  static const sk_sp<SkTypeface> face = weave::ports::pickTypeface(
-      {"Avenir Next Heavy", "Helvetica Neue Bold", "Arial Black", "Impact",
-       "sans-serif"});
+  static const sk_sp<SkTypeface> face =
+      weave::ports::pickTypeface({"Avenir Next Heavy", "Helvetica Neue Bold",
+                                  "Arial Black", "Impact", "sans-serif"});
   return weave::textStyle(
       {.face = face, .size = kSize, .color = kInk, .track = 3.0f});
 }
@@ -96,19 +96,20 @@ SkRect run() { return SkRect::MakeWH(1, 1); }
  *  UNDER the first — which is what a transparent field is drawn over. */
 Element cell(const char* call, const char* note, paint::Paint fill,
              paint::Paint beneath = {}) {
-  Element plate = box()
-                      .width(Dim(kCell))
-                      .height(Dim(kPicture))
-                      .clip()
-                      .fill(Fill::color(kCellGround))
+  Element plate = kit::well({.width = kCell,
+                             .height = kPicture,
+                             .ground = Fill::color(kCellGround)})
                       .alignItems(Align::Center)
                       .justify(Justify::Center);
   Element word = text(toU8(kWord), display()).textFill(std::move(fill));
   if (beneath.isSolid() || beneath.asShader())
-    plate.child(box().absolute().inset(0).alignItems(Align::Center)
-                    .justify(Justify::Center)
-                    .child(text(toU8(kWord), display())
-                               .textFill(std::move(beneath))));
+    plate.child(
+        box()
+            .absolute()
+            .inset(0)
+            .alignItems(Align::Center)
+            .justify(Justify::Center)
+            .child(text(toU8(kWord), display()).textFill(std::move(beneath))));
   return kit::cell(voice(), toU8(call), toU8(note),
                    std::move(plate).child(std::move(word)));
 }
@@ -174,8 +175,7 @@ struct TextPaints final : sketch::Sketch {
                                       "a volumetric raymarch \xc2\xb7 the "
                                       "heaviest of the six, since it is a "
                                       "nested loop",
-                                      material::kit::starNest(run(),
-                                                              kMoment))},
+                                      material::kit::starNest(run(), kMoment))},
                            .gap = 14}),
                       kit::cells(
                           {.cells =

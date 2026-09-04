@@ -39,7 +39,6 @@
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
-#include <cstdio>
 #include <string>
 #include <utility>
 
@@ -104,20 +103,12 @@ std::u8string narrow(std::u16string_view utf16) {
   return out;
 }
 
-std::string line(const char* format, auto... args) {
-  char buffer[160];
-  std::snprintf(buffer, sizeof buffer, format, args...);
-  return buffer;
-}
-
 Element cell(const char* call, const char* note, Element body) {
   return kit::cell(voice(), toU8(call), toU8(note),
-                   box()
-                       .width(Dim(kCell))
-                       .height(Dim(kPicture))
-                       .clip()
-                       .fill(Fill::color(kCellGround))
-                       .padding(12)
+                   kit::well({.width = kCell,
+                              .height = kPicture,
+                              .ground = Fill::color(kCellGround),
+                              .padding = 12})
                        .child(std::move(body)));
 }
 
@@ -137,26 +128,24 @@ struct WarichuPlaceholder final : sketch::Sketch {
     // The note as a paragraph of its own, which is what the split is asked
     // about: its size, its face and its language are the note's, and the
     // base has no say in any of them.
-    weave::Paragraph note =
-        weave::ParagraphBuilder(serif(kNoteSize, kFigure))
-            .addText(toU8(kNote))
-            .build();
+    weave::Paragraph note = weave::ParagraphBuilder(serif(kNoteSize, kFigure))
+                                .addText(toU8(kNote))
+                                .build();
     split = weave::warichuSplit(*ctx.fonts, note);
 
     const std::u16string& text = note.text();
-    const uint32_t cut =
-        split.cutWord < note.words().size()
-            ? note.words()[split.cutWord].textBegin
-            : static_cast<uint32_t>(text.size());
+    const uint32_t cut = split.cutWord < note.words().size()
+                             ? note.words()[split.cutWord].textBegin
+                             : static_cast<uint32_t>(text.size());
     first = narrow(std::u16string_view(text).substr(0, cut));
     second = narrow(std::u16string_view(text).substr(cut));
 
     oneLine = ctx.measure(box().child(text_(kNote))).width();
-    report[0] = line("one line \xc2\xb7 advance %.1f px", oneLine);
-    report[1] = line("split \xc2\xb7 advance %.1f \xc2\xb7 band %.1f",
-                     split.advance, split.band);
-    report[2] = line("cut at word %u \xc2\xb7 \"%s\"", split.cutWord,
-                     reinterpret_cast<const char*>(second.c_str()));
+    report[0] = kit::format("one line \xc2\xb7 advance %.1f px", oneLine);
+    report[1] = kit::format("split \xc2\xb7 advance %.1f \xc2\xb7 band %.1f",
+                            split.advance, split.band);
+    report[2] = kit::format("cut at word %u \xc2\xb7 \"%s\"", split.cutWord,
+                            reinterpret_cast<const char*>(second.c_str()));
 
     ctx.composer.render(
         kit::sheet(
@@ -186,7 +175,9 @@ struct WarichuPlaceholder final : sketch::Sketch {
             .inset(0));
   }
 
-  Element text_(const char* utf8) { return text(toU8(utf8), serif(kNoteSize, kFigure)); }
+  Element text_(const char* utf8) {
+    return text(toU8(utf8), serif(kNoteSize, kFigure));
+  }
 
   /** The base sentence, with one inline slot in the middle of it. */
   Element based(SkSize slot, Element child, bool vertical = false) {
@@ -199,8 +190,10 @@ struct WarichuPlaceholder final : sketch::Sketch {
             .width(Dim(kCell - 24))
             // The band goes into the block's strut, so the base's own
             // pitch opens to hold the note.
-            .child(box().key("note").fill(Fill::color(kSlot)).child(
-                std::move(child)));
+            .child(box()
+                       .key("note")
+                       .fill(Fill::color(kSlot))
+                       .child(std::move(child)));
     if (vertical) {
       leaf.writingMode(weave::WritingMode::kVerticalRL)
           .width(Dim(kCell - 24))
@@ -231,10 +224,12 @@ struct WarichuPlaceholder final : sketch::Sketch {
   /** The same slot in a vertical base: the two lines stack ACROSS the
    *  column, which is the setting the form comes from. */
   Element verticalCell() {
-    return cell("\xe2\x80\xa6" " in a vertical base",
-                "the two lines stack across the column \xc2\xb7 the slot is "
-                "the same value and the writing mode is the base's",
-                based({split.band, split.advance}, stackedNote(true), true));
+    return cell(
+        "\xe2\x80\xa6"
+        " in a vertical base",
+        "the two lines stack across the column \xc2\xb7 the slot is "
+        "the same value and the writing mode is the base's",
+        based({split.band, split.advance}, stackedNote(true), true));
   }
 
   /** THE SLOT'S CHILD IS A POSITIONED SUBTREE — the placeholder rect is

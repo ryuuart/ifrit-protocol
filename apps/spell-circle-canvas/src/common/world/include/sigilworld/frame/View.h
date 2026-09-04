@@ -34,6 +34,8 @@ namespace sigil::world {
 struct Draw {
   glm::mat4 world{1.0f};
   const geometry::mesh::Mesh* mesh = nullptr;
+  /** Whether reverse-wound faces survive rasterization. */
+  Backface backface = Backface::Hidden;
   /** WHICH COOKED ARTEFACT those triangles are, named by a number no
    *  other artefact ever has. An executor that keeps something of its
    *  own per geometry — a device's uploaded buffers — keys on this and

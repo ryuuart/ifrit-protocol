@@ -52,12 +52,17 @@ qt_add_qml_module(Sketchbook
     SketchbookView.cpp SketchbookView.h
     SketchCatalog.cpp SketchCatalog.h
 )
-# WHERE THE BROWSER LOOKS FOR THE STILLS IT SHOWS: the quick tier's
-# baseline, which a plate sweep writes beside its manifest. A machine
-# that has never run one simply has no thumbnails, and `--plates <dir>`
-# names another directory.
+# WHERE THE BROWSER LOOKS FOR THE STILLS IT SHOWS: every configuration reads
+# the Release plate stores, because the plate ledgers produce Release output
+# and a Debug browser is still browsing those same pictures. Canvas stills
+# prefer the latest successful quick sweep and fall back to its adopted plates;
+# set stills are the latest successful world sweep. A machine that has never
+# run a tier has no thumbnails for it, and `--plates <dir>` names one directory
+# for every runtime.
 target_compile_definitions(Sketchbook PRIVATE
-  SIGILSKETCH_PLATES_DIR="${CMAKE_BINARY_DIR}/plate_baseline_quick_$<CONFIG>.plates")
+  SIGILSKETCH_PLATES_DIR="${CMAKE_BINARY_DIR}/plate_thumbnails_quick_Release"
+  SIGILSKETCH_BASELINE_PLATES_DIR="${CMAKE_BINARY_DIR}/plate_baseline_quick_Release.plates"
+  SIGILSKETCH_WORLD_PLATES_DIR="${CMAKE_BINARY_DIR}/plate_thumbnails_world_Release")
 target_include_directories(Sketchbook PRIVATE ${CMAKE_CURRENT_LIST_DIR})
 target_link_libraries(Sketchbook PRIVATE
   SigilSketchLive SigilSketchPlate SigilSketches SigilMeasure SigilWeavePorts

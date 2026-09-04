@@ -141,29 +141,35 @@ TEST(SkiaCompiler, ABodyDeclaringAReservedParameterNameResolvesToNoProgram) {
             .body(Target::SkSL, body));
     return skia::shader(Material(recipe), FrameData{}) == nullptr;
   };
-  EXPECT_TRUE(refused("half4 main(float2 p) { float2 pos = p * 0.5; "
-                      "return half4(half2(pos), 0.0, 1.0); }"));
-  EXPECT_TRUE(refused("half4 main(float2 p) { half4 inColor = half4(1.0); "
-                      "return inColor; }"));
-  EXPECT_TRUE(refused("half4 main(float2 p) { half4 destColor = half4(1.0); "
-                      "return destColor; }"));
+  EXPECT_TRUE(
+      refused("half4 main(float2 p) { float2 pos = p * 0.5; "
+              "return half4(half2(pos), 0.0, 1.0); }"));
+  EXPECT_TRUE(
+      refused("half4 main(float2 p) { half4 inColor = half4(1.0); "
+              "return inColor; }"));
+  EXPECT_TRUE(
+      refused("half4 main(float2 p) { half4 destColor = half4(1.0); "
+              "return destColor; }"));
   EXPECT_TRUE(
       refused("half4 main(float2 p) { half4 primitiveColor = half4(1.0); "
               "return primitiveColor; }"));
   // A helper's parameter is a declaration too, and lands in the same
   // generated scope.
-  EXPECT_TRUE(refused("float2 shift(float2 pos) { return pos * 0.5; }\n"
-                      "half4 main(float2 p) { return half4(half2(shift(p)), "
-                      "0.0, 1.0); }"));
+  EXPECT_TRUE(
+      refused("float2 shift(float2 pos) { return pos * 0.5; }\n"
+              "half4 main(float2 p) { return half4(half2(shift(p)), "
+              "0.0, 1.0); }"));
 
   // What must still pass: main's OWN parameter by that name, which is the
   // one declaration the backend replaces rather than collides with; and
   // the word in a comment or inside another identifier.
-  EXPECT_FALSE(refused("half4 main(float2 pos) { return half4(half2(pos), "
-                       "0.0, 1.0); }"));
-  EXPECT_FALSE(refused("half4 main(float2 p) { /* float2 pos; */ float2 "
-                       "position = p; return half4(half2(position), 0.0, "
-                       "1.0); }"));
+  EXPECT_FALSE(
+      refused("half4 main(float2 pos) { return half4(half2(pos), "
+              "0.0, 1.0); }"));
+  EXPECT_FALSE(
+      refused("half4 main(float2 p) { /* float2 pos; */ float2 "
+              "position = p; return half4(half2(position), 0.0, "
+              "1.0); }"));
 }
 
 TEST(SkiaPaint, APassBodyIsNotCompiledAsAShaderOfItsOwn) {
@@ -400,6 +406,15 @@ TEST(SkiaEffect, ChainingPrecomposesAndAnEmptySideIsTheOther) {
   EXPECT_TRUE(skia::Effect{}.then(blur) == blur);
 }
 
+TEST(SkiaEffect, PhosphorBloomIsAComparableSpectralPostProcess) {
+  const skia::Effect bloom =
+      skia::Effect::phosphorBloom(8.0f, 0.6f, 0.4f, 0.75f);
+  EXPECT_NE(bloom.resolvedImageFilter(nullptr), nullptr);
+  EXPECT_FALSE(bloom.isAnimated());
+  EXPECT_TRUE(bloom == skia::Effect::phosphorBloom(8.0f, 0.6f, 0.4f, 0.75f));
+  EXPECT_FALSE(bloom == skia::Effect::phosphorBloom(10.0f, 0.6f, 0.4f, 0.75f));
+}
+
 // ---------------------------------------------------------------------------
 // A FIXED PALETTE THROUGH AN EFFECT. An indexed picture — a 1994 sprite
 // sheet, a datashader's category ramp — is one channel of indices and one
@@ -420,8 +435,8 @@ std::vector<SkColor4f> paletteTable() {
 /** The same table as the 256 x 1 unpremultiplied image a child slot takes. */
 sk_sp<SkImage> paletteImage(const std::vector<SkColor4f>& pal) {
   SkBitmap bm;
-  bm.allocPixels(SkImageInfo::Make(256, 1, kRGBA_8888_SkColorType,
-                                   kUnpremul_SkAlphaType));
+  bm.allocPixels(
+      SkImageInfo::Make(256, 1, kRGBA_8888_SkColorType, kUnpremul_SkAlphaType));
   for (int i = 0; i < 256; ++i) {
     const SkColor4f c = pal[(size_t)i];
     auto b = [](float v) {
@@ -442,12 +457,12 @@ TEST(SkiaPaint, APaletteReachesAnEffectAsOneChildImage) {
   // pixel value, not a literal — and a sampled 256 x 1 strip is the form
   // that takes: nearest, at the texel centre, so entry 200 is entry 200
   // and not a blend of two unrelated ones.
-  skia::Paint lut = skia::Paint::sksl(effectFor(
-      "uniform shader uPalette;\n"
-      "uniform float uIndex;\n"
-      "half4 main(float2 p) {\n"
-      "  return uPalette.eval(float2(uIndex + 0.5, 0.5));\n"
-      "}"));
+  skia::Paint lut = skia::Paint::sksl(
+      effectFor("uniform shader uPalette;\n"
+                "uniform float uIndex;\n"
+                "half4 main(float2 p) {\n"
+                "  return uPalette.eval(float2(uIndex + 0.5, 0.5));\n"
+                "}"));
   lut.uniform("uIndex", 200.0f);
   lut.child("uPalette",
             skia::Paint::image(paletteImage(pal), SkTileMode::kClamp,

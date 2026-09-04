@@ -31,6 +31,9 @@
  *   Cache::Texture are what earn four of the five reasons.
  */
 
+#include <include/core/SkCanvas.h>
+#include <include/core/SkPaint.h>
+#include <include/core/SkSurface.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Routers.h>
@@ -38,10 +41,6 @@
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
-
-#include <include/core/SkCanvas.h>
-#include <include/core/SkPaint.h>
-#include <include/core/SkSurface.h>
 
 #include <cstdio>
 #include <string>
@@ -93,19 +92,32 @@ kit::Caption voice(float measure) {
  *  MASK, where the sentence a reason spells would not fit. */
 const char* promotionWord(Composer::Promotion p) {
   switch (p) {
-    case Composer::Promotion::Cheap: return "Cheap";
-    case Composer::Promotion::Warming: return "Warming";
-    case Composer::Promotion::Promoted: return "Promoted";
-    case Composer::Promotion::AskedFor: return "AskedFor";
-    case Composer::Promotion::OptedOut: return "OptedOut";
-    case Composer::Promotion::Volatile: return "Volatile";
-    case Composer::Promotion::Composited: return "Composited";
-    case Composer::Promotion::Transformed: return "Transformed";
-    case Composer::Promotion::Filtered: return "Filtered";
-    case Composer::Promotion::ReadsBackdrop: return "ReadsBackdrop";
-    case Composer::Promotion::TooBig: return "TooBig";
-    case Composer::Promotion::SplitBaked: return "SplitBaked";
-    case Composer::Promotion::HostsSpace: return "HostsSpace";
+    case Composer::Promotion::Cheap:
+      return "Cheap";
+    case Composer::Promotion::Warming:
+      return "Warming";
+    case Composer::Promotion::Promoted:
+      return "Promoted";
+    case Composer::Promotion::AskedFor:
+      return "AskedFor";
+    case Composer::Promotion::OptedOut:
+      return "OptedOut";
+    case Composer::Promotion::Volatile:
+      return "Volatile";
+    case Composer::Promotion::Composited:
+      return "Composited";
+    case Composer::Promotion::Transformed:
+      return "Transformed";
+    case Composer::Promotion::Filtered:
+      return "Filtered";
+    case Composer::Promotion::ReadsBackdrop:
+      return "ReadsBackdrop";
+    case Composer::Promotion::TooBig:
+      return "TooBig";
+    case Composer::Promotion::SplitBaked:
+      return "SplitBaked";
+    case Composer::Promotion::HostsSpace:
+      return "HostsSpace";
   }
   return "";
 }
@@ -148,8 +160,8 @@ struct RoutesProbe final : sketch::Sketch {
     probe.setSize({kDiagram, kPicture});
     probe.setProfiling(true);
     probe.render(diagram());
-    if (sk_sp<SkSurface> scratch = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(
-            (int)kDiagram, (int)kPicture)))
+    if (sk_sp<SkSurface> scratch = SkSurfaces::Raster(
+            SkImageInfo::MakeN32Premul((int)kDiagram, (int)kPicture)))
       probe.draw(*scratch->getCanvas());
 
     routes = probe.routesAt(kProbe);
@@ -168,11 +180,11 @@ struct RoutesProbe final : sketch::Sketch {
             if (!refused.empty()) refused += ", ";
             refused += promotionWord(p);
           }
-          verdicts.push_back(
-              row.label + "  \xc2\xb7  " + stateWord(row.cacheState) +
-              "\n      " + Composer::promotionReason(row.promotion) +
-              "\n      refusals \xc2\xb7 " +
-              (refused.empty() ? std::string("none") : refused));
+          verdicts.push_back(row.label + "  \xc2\xb7  " +
+                             stateWord(row.cacheState) + "\n      " +
+                             Composer::promotionReason(row.promotion) +
+                             "\n      refusals \xc2\xb7 " +
+                             (refused.empty() ? std::string("none") : refused));
           break;
         }
 
@@ -187,9 +199,7 @@ struct RoutesProbe final : sketch::Sketch {
         .width(Dim(kNode))
         .height(Dim(34))
         .fill(Fill::color(kCellGround))
-        .child(text(toU8(key), mono(10, kFigure))
-                   .absolute()
-                   .inset(9, 9, 0, 0));
+        .child(text(toU8(key), mono(10, kFigure)).absolute().inset(9, 9, 0, 0));
   }
 
   Element diagram() const {
@@ -206,30 +216,31 @@ struct RoutesProbe final : sketch::Sketch {
             .child(probe("spun", 16, 24).rotate(-8))
             .child(probe("glass", 220, 24).opacity(0.55f))
             .child(probe("baked", 16, 232).cache(Cache::Texture))
-            .child(probe("live", 220, 232)
-                       .cache(Cache::None)
-                       .child(custom("routes.live",
-                                     [](SkCanvas& canvas,
-                                        const PaintContext& pc) {
-                                       SkPaint paint;
-                                       paint.setColor4f(kWire);
-                                       canvas.drawRect(
-                                           {0, 0, pc.size.width() *
-                                                      (float)(0.3 + 0.5 *
-                                                              pc.elapsedSeconds),
-                                            3},
-                                           paint);
-                                     })
-                                 .absolute()
-                                 .inset(0, 26, 0, 0)));
+            .child(
+                probe("live", 220, 232)
+                    .cache(Cache::None)
+                    .child(custom("routes.live",
+                                  [](SkCanvas& canvas, const PaintContext& pc) {
+                                    SkPaint paint;
+                                    paint.setColor4f(kWire);
+                                    canvas.drawRect(
+                                        {0, 0,
+                                         pc.size.width() *
+                                             (float)(0.3 +
+                                                     0.5 * pc.elapsedSeconds),
+                                         3},
+                                        paint);
+                                  })
+                               .absolute()
+                               .inset(0, 26, 0, 0)));
 
     // Keyed routes: only a keyed route is addressable, and routesAt lists
     // exactly these.
     Element wires =
         stack()
             .inset(0)
-            .child(connector("spun", kProbe, routers::orthogonal(
-                                                 routers::Bend::VFirst, 8))
+            .child(connector("spun", kProbe,
+                             routers::orthogonal(routers::Bend::VFirst, 8))
                        .key("wire-spun")
                        .inset(0)
                        .foreground(wire))
@@ -246,11 +257,9 @@ struct RoutesProbe final : sketch::Sketch {
                        .inset(0)
                        .foreground(wire));
 
-    return box()
-        .width(Dim(kDiagram))
-        .height(Dim(kPicture))
-        .clip()
-        .fill(Fill::color({0.085f, 0.09f, 0.10f, 1}))
+    return kit::well({.width = kDiagram,
+                      .height = kPicture,
+                      .ground = Fill::color({0.085f, 0.09f, 0.10f, 1})})
         .child(nodes)
         .child(wires);
   }

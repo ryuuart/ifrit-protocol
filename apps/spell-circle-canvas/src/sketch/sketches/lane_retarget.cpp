@@ -32,6 +32,9 @@
  *   kDuration — the transition both descriptions ask for.
  */
 
+#include <include/core/SkCanvas.h>
+#include <include/core/SkPaint.h>
+#include <include/core/SkPathBuilder.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilmotion/clock/Ticker.h>
@@ -41,12 +44,7 @@
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
-#include <include/core/SkCanvas.h>
-#include <include/core/SkPaint.h>
-#include <include/core/SkPathBuilder.h>
-
 #include <chrono>
-#include <cstdio>
 #include <memory>
 #include <string>
 #include <utility>
@@ -104,9 +102,7 @@ kit::Caption voice() {
           .noteMeasure = kCell};
 }
 
-motion::Transition ramp() {
-  return {std::chrono::milliseconds(kDuration)};
-}
+motion::Transition ramp() { return {std::chrono::milliseconds(kDuration)}; }
 
 using Trace = std::vector<float>;
 
@@ -149,20 +145,12 @@ Element plot(const char* key, std::vector<std::pair<Trace, SkColor4f>> lanes) {
       .inset(0);
 }
 
-std::string line(const char* format, auto... args) {
-  char buffer[128];
-  std::snprintf(buffer, sizeof buffer, format, args...);
-  return buffer;
-}
-
 Element cell(const char* call, const char* note, Element body,
              const std::string& readout) {
   return kit::cell(voice(), toU8(call), toU8(note),
-                   box()
-                       .width(Dim(kCell))
-                       .height(Dim(kPicture))
-                       .clip()
-                       .fill(Fill::color(kCellGround))
+                   kit::well({.width = kCell,
+                              .height = kPicture,
+                              .ground = Fill::color(kCellGround)})
                        .child(std::move(body))
                        .child(text(toU8(readout), mono(10, kFigure))
                                   .absolute()
@@ -188,12 +176,12 @@ struct LaneRetarget final : sketch::Sketch {
     family = run(Change::Family);
     reshaped = run(Change::Reshaped);
 
-    readouts[0] = line("one description \xc2\xb7 0 \xe2\x86\x92 %.2f",
-                       kFirst);
-    readouts[1] = line("retargetSlots at %.2f s \xe2\x86\x92 %.2f", kAt,
-                       kSecond);
-    readouts[2] = line("retargetFamily \xc2\xb7 same shape");
-    readouts[3] = line("retargetFamily \xc2\xb7 shape 1 \xe2\x86\x92 2");
+    readouts[0] =
+        kit::format("one description \xc2\xb7 0 \xe2\x86\x92 %.2f", kFirst);
+    readouts[1] =
+        kit::format("retargetSlots at %.2f s \xe2\x86\x92 %.2f", kAt, kSecond);
+    readouts[2] = kit::format("retargetFamily \xc2\xb7 same shape");
+    readouts[3] = kit::format("retargetFamily \xc2\xb7 shape 1 \xe2\x86\x92 2");
 
     ctx.composer.render(
         kit::sheet(
@@ -240,8 +228,8 @@ struct LaneRetarget final : sketch::Sketch {
                            "dropped and the new lanes start where the "
                            "storage starts, which is the jump this rule "
                            "chooses over a wrong carry",
-                           plot("reshaped", {{plain, kAsh},
-                                             {reshaped, kSecondInk}}),
+                           plot("reshaped",
+                                {{plain, kAsh}, {reshaped, kSecondInk}}),
                            readouts[3])},
                  .gap = 14}))
             .absolute()
@@ -294,9 +282,8 @@ struct LaneRetarget final : sketch::Sketch {
       ticker.tick(kDt);
       const motion::Animatable<float>& reading =
           applied && change != Change::None ? second : first;
-      trace.push_back(motion::resolveFloatAt(anims.empty() ? nullptr
-                                                           : anims[0].get(),
-                                             reading));
+      trace.push_back(motion::resolveFloatAt(
+          anims.empty() ? nullptr : anims[0].get(), reading));
     }
     return trace;
   }

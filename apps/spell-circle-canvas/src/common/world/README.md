@@ -149,6 +149,11 @@ and `rotate(axis, degrees)`, the geometry slot (`mesh`, `cloud`, `chain`,
 `stamp`, `generate`), `window`, `along`, `tag`, `light`, the emitter's
 dials `intensity` and `emission`, and `camera`.
 
+A closed solid keeps its reverse-wound triangles hidden by default. A sheet,
+screen or other open surface that must remain visible as the viewpoint passes
+behind it declares `backface(Backface::Visible)`; the choice reaches both the
+CPU rasterizer and the device pipeline.
+
 ## Mental model
 
 **A description is a value; a node is what it became.** `Element` is

@@ -23,7 +23,8 @@
  *  * the **file** — the bare file, or the entry of a sketch that is a
  *    directory — how many lines it is, the subject it states at the top
  *    of itself, and the knobs it says to reach for first;
- *  * the **plate** — the quick-tier still, as a thumbnail.
+ *  * the **plate** — the quick-tier canvas still or world-tier set still,
+ *    as a thumbnail.
  *
  *  What is NOT here is the canvas: a sketch declares its size, its
  *  ground and the moment it is worth photographing from inside its own
@@ -70,10 +71,13 @@ class SketchCatalog : public QObject {
   /** Show the file in the Finder. */
   Q_INVOKABLE void reveal(int index);
 
-  /** Where `plate_<name>.png` is looked for; empty means no thumbnails.
-   *  The build writes the quick-tier baseline beside its manifest, which
-   *  is what main() fills this with; `--plates <dir>` names another. */
+  /** Where `plate_<name>.png` is looked for. The primary directory is the
+   *  latest quick-tier canvas store, followed by the adopted quick baseline
+   *  and the latest world-tier set store. `--plates <dir>` names one
+   *  directory for every runtime. */
   static std::filesystem::path platesDir;
+  static std::filesystem::path baselinePlatesDir;
+  static std::filesystem::path worldPlatesDir;
 
  signals:
   void sketchesChanged();

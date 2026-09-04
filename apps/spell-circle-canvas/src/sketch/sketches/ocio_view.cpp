@@ -28,6 +28,9 @@
  *   kConfig  — the config an ocio:// URI names.
  */
 
+#include <include/core/SkPathBuilder.h>
+#include <include/core/SkSurface.h>
+#include <include/effects/SkGradient.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilmaterial/ocio/Ocio.h>
@@ -38,11 +41,6 @@
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
-#include <include/core/SkPathBuilder.h>
-#include <include/core/SkSurface.h>
-#include <include/effects/SkGradient.h>
-
-#include <cstdio>
 #include <string>
 
 namespace sketch = sigil::sketch;
@@ -59,8 +57,8 @@ constexpr SkSize kCanvas = {1100, 640};
 constexpr float kCell = 341;
 constexpr float kPicture = 200;
 
-constexpr float kGamma = 2.2f;   // the exponent the plumbing test applies
-constexpr int kLutSize = 33;     // the 3D LUT's side
+constexpr float kGamma = 2.2f;  // the exponent the plumbing test applies
+constexpr int kLutSize = 33;    // the 3D LUT's side
 constexpr const char* kConfig = "ocio://default";
 
 constexpr SkColor4f kGround{0.07f, 0.07f, 0.085f, 1};
@@ -109,10 +107,9 @@ material::Texture wedge() {
     for (int i = 0; i < kSteps; ++i) {
       const float v = (float)i / (float)(kSteps - 1);
       step.setColor4f({v, v, v, 1});
-      canvas->drawRect(
-          SkRect::MakeXYWH((float)i * kW / kSteps, 0, (float)kW / kSteps,
-                           kH * 0.5f),
-          step);
+      canvas->drawRect(SkRect::MakeXYWH((float)i * kW / kSteps, 0,
+                                        (float)kW / kSteps, kH * 0.5f),
+                       step);
     }
     const SkColor4f primaries[3] = {
         {1, 0.15f, 0.10f, 1}, {0.15f, 1, 0.25f, 1}, {0.20f, 0.35f, 1, 1}};
@@ -123,8 +120,7 @@ material::Texture wedge() {
       ramp.setShader(SkShaders::LinearGradient(
           ends, SkGradient({{stops, 2}, {}, SkTileMode::kClamp}, {})));
       canvas->drawRect(
-          SkRect::MakeXYWH(0, kH * (0.5f + (float)band / 6.0f), kW,
-                           kH / 6.0f),
+          SkRect::MakeXYWH(0, kH * (0.5f + (float)band / 6.0f), kW, kH / 6.0f),
           ramp);
     }
     return surface->makeImageSnapshot();
@@ -140,27 +136,19 @@ material::Material through(material::Material transform) {
   return transform;
 }
 
-std::string line(const char* format, auto... args) {
-  char buffer[224];
-  std::snprintf(buffer, sizeof buffer, format, args...);
-  return buffer;
-}
-
 Element cell(const char* call, const std::string& note,
              material::Material paint) {
-  return kit::cell(voice(), toU8(call), toU8(note),
-                   custom(call,
-                          [paint = std::move(paint)](SkCanvas& canvas,
-                                                     const PaintContext& pc) {
-                            material::skia::fill(
-                                canvas, whole(), paint,
-                                {.resolution = {pc.size.width(),
-                                                pc.size.height()}});
-                          })
-                       .width(kCell)
-                       .height(kPicture)
-                       .clip()
-                       .fill(Fill::color(kCellGround)));
+  return kit::cell(
+      voice(), toU8(call), toU8(note),
+      kit::well({.width = kCell,
+                 .height = kPicture,
+                 .ground = Fill::color(kCellGround)},
+                custom(call, [paint = std::move(paint)](
+                                 SkCanvas& canvas, const PaintContext& pc) {
+                  material::skia::fill(
+                      canvas, whole(), paint,
+                      {.resolution = {pc.size.width(), pc.size.height()}});
+                })));
 }
 
 }  // namespace
@@ -169,7 +157,7 @@ struct OcioView final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
     ctx.canvas(kCanvas.width(), kCanvas.height());
     ctx.background(kGround);
-    ctx.captureAt(0.05);  // nothing moves; the sheet is complete at once
+    ctx.captureAt(0.05);        // nothing moves; the sheet is complete at once
     material::skia::install();  // the SkSL compiler, once per process
 
     const bool have = ocio::available();
@@ -178,7 +166,7 @@ struct OcioView final : sketch::Sketch {
         kit::sheet(
             {.title = toU8("OCIO VIEW \xc2\xb7 ocio::exponent, convert, "
                            "viewTransform \xe2\x80\x94 each a baked 3D LUT"),
-             .subtitle = toU8(line(
+             .subtitle = toU8(kit::format(
                  "dials \xc2\xb7 the exponent (%.1f) \xc2\xb7 the LUT side "
                  "(%d) \xc2\xb7 the config (\"%s\") \xc2\xb7 the display "
                  "and view names \xc2\xb7 available() is %s here",
@@ -210,8 +198,7 @@ struct OcioView final : sketch::Sketch {
                                      "config \xc2\xb7 needs no config file, "
                                      "which is what makes it the plumbing "
                                      "test",
-                                     through(ocio::exponent(kGamma,
-                                                            kLutSize))),
+                                     through(ocio::exponent(kGamma, kLutSize))),
                                 cell("ocio::exponent(1 / 2.2)",
                                      "and its inverse \xc2\xb7 the two "
                                      "compose back to the wedge above, "
@@ -225,9 +212,9 @@ struct OcioView final : sketch::Sketch {
                                      "a colour-space conversion from the "
                                      "same config sources \xc2\xb7 input is "
                                      "whatever the content carries",
-                                     through(ocio::convert(
-                                         kConfig, "lin_srgb", "srgb_tx",
-                                         kLutSize))),
+                                     through(ocio::convert(kConfig, "lin_srgb",
+                                                           "srgb_tx",
+                                                           kLutSize))),
                                 cell("viewTransform(config, display, view)",
                                      "\"sRGB - Display\" and \"ACES 2.0 - "
                                      "SDR 100 nits (Rec.709)\" \xc2\xb7 "
@@ -238,7 +225,8 @@ struct OcioView final : sketch::Sketch {
                                          kConfig, "sRGB - Display",
                                          "ACES 2.0 - SDR 100 nits (Rec.709)",
                                          kLutSize))),
-                                cell("viewTransform(\xe2\x80\xa6" ", bad view)",
+                                cell("viewTransform(\xe2\x80\xa6"
+                                     ", bad view)",
                                      "a bad name must not take the canvas "
                                      "down \xc2\xb7 the error is reported, "
                                      "an EMPTY material comes back, and it "

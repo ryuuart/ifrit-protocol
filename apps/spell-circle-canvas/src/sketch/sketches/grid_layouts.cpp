@@ -25,15 +25,14 @@
  *   kSkewDeg — the shear the second cell's rows ride.
  */
 
+#include <include/core/SkCanvas.h>
+#include <include/core/SkPaint.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Layouts.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
-
-#include <include/core/SkCanvas.h>
-#include <include/core/SkPaint.h>
 
 #include <string>
 #include <vector>
@@ -115,11 +114,8 @@ Element rhythmLines() {
 
 Element cell(const char* call, const char* note, Element placed,
              bool ruled = false) {
-  Element plate = box()
-                      .width(Dim(kCell))
-                      .height(Dim(kPicture))
-                      .clip()
-                      .fill(Fill::color(kCellGround));
+  Element plate = kit::well(
+      {.width = kCell, .height = kPicture, .ground = Fill::color(kCellGround)});
   if (ruled) plate.child(rhythmLines());
   plate.child(placed.absolute().inset(kInset).children(cards()));
   return kit::cell(voice(), toU8(call), toU8(note), std::move(plate));
@@ -140,7 +136,8 @@ struct GridLayouts final : sketch::Sketch {
              .subtitle = toU8("dials \xc2\xb7 the module (3 columns "
                               "\xc3\x97 4 rows, 10 px gutter) \xc2\xb7 the "
                               "baseline rhythm (32 px) \xc2\xb7 the shear "
-                              "(\xe2\x88\x92" "12\xc2\xb0) \xc2\xb7 the same "
+                              "(\xe2\x88\x92"
+                              "12\xc2\xb0) \xc2\xb7 the same "
                               "twelve cards in all three"),
              .footer = toU8("a scheme is arithmetic over LayoutInput, so "
                             "each of these caches like any other static "

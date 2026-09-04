@@ -125,8 +125,8 @@
 #include <include/core/SkFontStyle.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkPathMeasure.h>
-#include <include/pathops/SkPathOps.h>
 #include <include/core/SkTypeface.h>
+#include <include/pathops/SkPathOps.h>
 #include <sigilcompose/brush/Brushes.h>
 #include <sigilcompose/brush/Lines.h>
 #include <sigilcompose/core/Core.h>
@@ -153,8 +153,6 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
-#include <cstdarg>
-#include <cstdio>
 #include <iterator>
 #include <string>
 #include <utility>
@@ -649,45 +647,14 @@ SkPath rectPath(float l, float t, float r, float bm) {
   return p.detach();
 }
 
-weave::TextStyle type(sk_sp<SkTypeface> face, float size,
-                             SkColor4f color, float tracking = 0) {
+weave::TextStyle type(sk_sp<SkTypeface> face, float size, SkColor4f color,
+                      float tracking = 0) {
   return weave::textStyle({.face = std::move(face),
                            .size = size,
                            .color = color,
                            .track = tracking});
 }
 
-/** printf into a std::string, sized by a measuring pass rather than
- *  written into a fixed buffer, so a long caption is never truncated. */
-#if defined(__GNUC__) || defined(__clang__)
-__attribute__((format(printf, 1, 2)))
-#endif
-std::string fmt(const char* format, ...) {
-  va_list args;
-  va_start(args, format);
-  va_list probe;
-  va_copy(probe, args);
-  const int needed = std::vsnprintf(nullptr, 0, format, probe);
-  va_end(probe);
-  if (needed < 0) {
-    va_end(args);
-    return {};
-  }
-  std::string out((size_t)needed, '\0');
-  std::vsnprintf(out.data(), (size_t)needed + 1, format, args);
-  va_end(args);
-  return out;
-}
-std::string fmt2(const char* f, double a, double b) {
-  char buf[192];
-  std::snprintf(buf, sizeof buf, f, a, b);
-  return buf;
-}
-std::string fmt3(const char* f, double a, double b, double c) {
-  char buf[224];
-  std::snprintf(buf, sizeof buf, f, a, b, c);
-  return buf;
-}
 /** The French thousands separator the plate actually engraves: 422.000,
  *  never 422,000. */
 std::string french(float men) {
@@ -1526,9 +1493,9 @@ struct Minard1869 : sketch::Sketch {
       f.width = 0.7f;
       // the rule fades as it crosses the panel divider
       f.strokeMaterial = Paint::linearUnit({0, 0}, {0, 1},
-                                              {{0.0f, hex(0x4e4436, 0.80f)},
-                                               {0.66f, hex(0x4e4436, 0.22f)},
-                                               {1.0f, hex(0x4e4436, 0.75f)}});
+                                           {{0.0f, hex(0x4e4436, 0.80f)},
+                                            {0.66f, hex(0x4e4436, 0.22f)},
+                                            {1.0f, hex(0x4e4436, 0.75f)}});
       g.child(box()
                   .inset(0)
                   .shape(pathFn(d.detach()))
@@ -1627,11 +1594,12 @@ struct Minard1869 : sketch::Sketch {
     };
     jaw(r.x, r.y, r.halfPx, "jaw1");
     const float rx = kFrameL + 10, ry = 686.0f;
-    g.child(text(toU8(fmt("%.2f mm", r.mm)), type(faceUiBold, 17, kBlue))
-                .at({rx, ry})
-                .key("calread"));
-    g.child(text(toU8(fmt2("÷ %.0f = %.4f mm / 10.000", r.men,
-                           r.mm / (r.men / 10000.0f))),
+    g.child(
+        text(toU8(kit::format("%.2f mm", r.mm)), type(faceUiBold, 17, kBlue))
+            .at({rx, ry})
+            .key("calread"));
+    g.child(text(toU8(kit::format("÷ %.0f = %.4f mm / 10.000", r.men,
+                                  r.mm / (r.men / 10000.0f))),
                  type(faceUi, 9.5f, kBlue))
                 .at({rx, ry + 20})
                 .key("calread2"));
@@ -2082,7 +2050,7 @@ struct Minard1869 : sketch::Sketch {
               .transformOrigin(dx < 0 ? 1.0f : 0.0f, 0.5f)
               .opacity(beat(tDistort + 0.2f + 0.05f * (float)i,
                             tDistort + 0.4f + 0.05f * (float)i)));
-      g.child(text(toU8(fmt("%.3f", legs[i].ratio)),
+      g.child(text(toU8(kit::format("%.3f", legs[i].ratio)),
                    type(faceUi, 9.5f, bad ? kAmber : kGrey))
                   .at({bx + bw + 20, y - 2})
                   .key("legv" + std::to_string(i))
@@ -2133,9 +2101,10 @@ struct Minard1869 : sketch::Sketch {
            i == 4 ? std::string(t.label) + "   (NO DATE ENGRAVED)"
                   : std::string(t.label),
            i == 4 ? kAmber : col, cold ? 11.0f : 10.0f);
-      cell(1, fmt("%.0f", t.reaumur), col, cold ? 11.5f : 10.0f);
-      cell(2, fmt("%.2f", t.reaumur * 1.25f), col, cold ? 11.5f : 10.0f);
-      cell(3, fmt("%.2f", t.reaumur * 2.25f + 32.0f), col,
+      cell(1, kit::format("%.0f", t.reaumur), col, cold ? 11.5f : 10.0f);
+      cell(2, kit::format("%.2f", t.reaumur * 1.25f), col,
+           cold ? 11.5f : 10.0f);
+      cell(3, kit::format("%.2f", t.reaumur * 2.25f + 32.0f), col,
            cold ? 11.5f : 10.0f);
       cell(4, i == 0 ? std::string("—") : std::to_string(t.daysSincePrev),
            kGrey, 10.0f);
@@ -2221,9 +2190,9 @@ struct Minard1869 : sketch::Sketch {
                             {"measured", hex(0x64a8d8)},
                             {"heading", hex(0xf0e8d8)}});
     // The heading runs a shade larger; set() replaces it where it sits.
-    s.styles.set("heading", weave::textStyle({.face = faceMono,
-                                              .size = 8.8f,
-                                              .color = hex(0xf0e8d8)}));
+    s.styles.set("heading",
+                 weave::textStyle(
+                     {.face = faceMono, .size = 8.8f, .color = hex(0xf0e8d8)}));
     s.window.gap = 0.0f;
     s.window.visible = 20;
     return kit::console({.feeds = {&colA, &colB, &colC, &colD, &colE},
@@ -2287,9 +2256,9 @@ struct Minard1869 : sketch::Sketch {
     chk(colA, "20,000 + 30,000 at the Berezina", 20000 + 30000, 50000);
     chk(colA, " 4,000 +  6,000 at the Niemen", 4000 + 6000, 10000);
     say(colA,
-        fmt("  Berezina 50,000−28,000=22,000 in 4 days · campaign "
-            "%.2f%% survived",
-            100.0 * 10000.0 / 422000.0),
+        kit::format("  Berezina 50,000−28,000=22,000 in 4 days · campaign "
+                    "%.2f%% survived",
+                    100.0 * 10000.0 / 422000.0),
         "dim");
     // the one identity that fails, found by walking the retreat westward
     int junctions = 0, violations = 0;
@@ -2304,14 +2273,14 @@ struct Minard1869 : sketch::Sketch {
         const bool bobr = std::fabs(all[i].lon - 29.2f) < 0.01f;
         if (all[i].men > all[i - 1].men && !bobr) {
           ++violations;
-          viol = fmt2("  → %.0f → %.0f westward: the army GAINS men",
-                      all[i - 1].men, all[i].men);
+          viol = kit::format("  → %.0f → %.0f westward: the army GAINS men",
+                             all[i - 1].men, all[i].men);
         }
       }
     }
     say(colA,
-        fmt2("  junctions checked %.0f      violations %.0f", (double)junctions,
-             (double)violations),
+        kit::format("  junctions checked %.0f      violations %.0f",
+                    (double)junctions, (double)violations),
         violations ? "fail" : "pass");
     say(colA, viol + " (Molodezno→Smorgoni, +2,000, unexplained)", "fail");
     say(colA, "", "dim");
@@ -2327,12 +2296,12 @@ struct Minard1869 : sketch::Sketch {
         "dim");
     say(colA, "  → the one place he smooths.  Δ 1,000", "dim");
     say(colA,
-        fmt("  Hannibal 218 BC   96,000 → 26,000   survived %.2f%%",
-            100.0 * 26.0 / 96.0),
+        kit::format("  Hannibal 218 BC   96,000 → 26,000   survived %.2f%%",
+                    100.0 * 26.0 / 96.0),
         "dim");
     say(colA,
-        fmt("  Napoleon 1812    422,000 → 10,000   survived %.2f%%",
-            100.0 * 10.0 / 422.0),
+        kit::format("  Napoleon 1812    422,000 → 10,000   survived %.2f%%",
+                    100.0 * 10.0 / 422.0),
         "dim");
     say(colA, "", "dim");
 
@@ -2346,28 +2315,29 @@ struct Minard1869 : sketch::Sketch {
         "  11 treads, Commons scan:  3.828 px/10k, intercept "
         "−0.19 px, R² 0.99266",
         "measured");
-    row(colB, measure::check("  intercept / (10,000-men width)", 0.0, -0.05,
-                             0.1));
-    row(colB, measure::check("  paper aspect 3945/3423 vs 62/54",
-                             62.0 / 54.0, 3945.0 / 3423.0, 0.01));
+    row(colB,
+        measure::check("  intercept / (10,000-men width)", 0.0, -0.05, 0.1));
+    row(colB, measure::check("  paper aspect 3945/3423 vs 62/54", 62.0 / 54.0,
+                             3945.0 / 3423.0, 0.01));
     say(colB, "  frame 3685 px = 579.14 mm ⇒ 3.4482 px/mm on that scan", "dim");
     say(colB,
-        fmt("  from the regression                        %.3f mm/10k",
-            3.828 / 3.4482),
+        kit::format("  from the regression                        %.3f mm/10k",
+                    3.828 / 3.4482),
         "measured");
     say(colB, "  four direct BnF spot reads             1.1258 ± 0.013 mm",
         "measured");
     say(colB, "  STATED                                 1.0000 mm", "dim");
     // THE PLATE'S OWN CLAIM, checked: a finding, not a defect here.
     row(colB, measure::finding(measure::check(
-                  "  \xe2\x86\x92 mm per 10,000 men, against the legend",
-                  1.0, (double)kMmPer10k, 0.01)));
+                  "  \xe2\x86\x92 mm per 10,000 men, against the legend", 1.0,
+                  (double)kMmPer10k, 0.01)));
     say(colB,
         "  and the SAME factor on the Hannibal panel, other data, other "
         "continent",
         "fail");
     say(colB,
-        fmt("  half a French ligne (2.2558/2) = 1.1279 mm  — %.2f%% away  "
+        kit::format(
+            "  half a French ligne (2.2558/2) = 1.1279 mm  — %.2f%% away  "
             "[SPECULATION]",
             100.0 * std::fabs(kLigneHalf - kMmPer10k) / kMmPer10k),
         "dim");
@@ -2407,10 +2377,11 @@ struct Minard1869 : sketch::Sketch {
       const float rms = std::sqrt(ss / (float)km.size());
       const float med = (sorted[9] + sorted[10]) * 0.5f;
       say(colC,
-          fmt2("  20 cities, haversine:  mean %.2f km   median %.2f km", mean,
-               med),
+          kit::format("  20 cities, haversine:  mean %.2f km   median %.2f km",
+                      mean, med),
           "measured");
-      say(colC, fmt("                         rms  %.2f km", rms), "measured");
+      say(colC, kit::format("                         rms  %.2f km", rms),
+          "measured");
       say(colC, "  0.1° digitisation quantum, diagonal        6.41 km", "dim");
       say(colC, "  rms expected from quantisation alone      3.70 km", "dim");
       // A statement about MINARD'S MAP, not about this file, and the one
@@ -2428,7 +2399,8 @@ struct Minard1869 : sketch::Sketch {
       const float kmM = haversineKm(kCities[0].lon, kCities[0].lat,
                                     kCities[17].lon, kCities[17].lat);
       say(colC,
-          fmt2("  Kowno→Moscou  real %.1f km   Minard %.1f km", kmKM, kmM),
+          kit::format("  Kowno→Moscou  real %.1f km   Minard %.1f km", kmKM,
+                      kmM),
           "measured");
       say(colC,
           "  worst legs  Wixma→Chjat 0.591  Chjat→Mojaisk "
@@ -2501,9 +2473,15 @@ struct Minard1869 : sketch::Sketch {
         "  °C = °R × 5/4   °F = °R × 9/4 + "
         "32   (exact, no offset)",
         "dim");
-    row(colD, measure::check("  \xe2\x88\x92" "30 \xc2\xb0" "R in \xc2\xb0" "C",
+    row(colD, measure::check("  \xe2\x88\x92"
+                             "30 \xc2\xb0"
+                             "R in \xc2\xb0"
+                             "C",
                              -37.5, -30.0 * 5.0 / 4.0, 1e-9));
-    row(colD, measure::check("  \xe2\x88\x92" "30 \xc2\xb0" "R in \xc2\xb0" "F",
+    row(colD, measure::check("  \xe2\x88\x92"
+                             "30 \xc2\xb0"
+                             "R in \xc2\xb0"
+                             "F",
                              -35.5, -30.0 * 9.0 / 4.0 + 32.0, 1e-9));
     row(colD, measure::reading("  readings converted", 9));
     say(colD,
@@ -2555,7 +2533,8 @@ struct Minard1869 : sketch::Sketch {
       const SkPoint at = auditAdvance.worst.front().at;
       float best = 1e9f;
       for (const City& ci : kCities) {
-        const float d = std::hypot(mapX(ci.lon) - at.x(), mapY(ci.lat) - at.y());
+        const float d =
+            std::hypot(mapX(ci.lon) - at.x(), mapY(ci.lat) - at.y());
         if (d < best) {
           best = d;
           worstCorner = ci.plate;
@@ -2678,12 +2657,14 @@ struct Minard1869 : sketch::Sketch {
     say(colE, "THE SKETCH'S OWN GEOMETRY — the same auditor, turned round",
         "heading");
     say(colE,
-        fmt2("  advance band, min-chord every 4 px:  max |err| %.2f px = %.3f "
-             "mm",
-             auditAdvance.maxError, auditAdvance.maxError / kPxPerMm),
+        kit::format(
+            "  advance band, min-chord every 4 px:  max |err| %.2f px = %.3f "
+            "mm",
+            auditAdvance.maxError, auditAdvance.maxError / kPxPerMm),
         auditAdvance.within(2.0f) ? "pass" : "fail");
     say(colE,
-        fmt("    rms %.2f px · worst at arc %.0f px: %.0f px of ink read "
+        kit::format(
+            "    rms %.2f px · worst at arc %.0f px: %.0f px of ink read "
             "across a %.0f px law",
             (double)auditAdvance.rmsError,
             auditAdvance.worst.empty()
@@ -2697,24 +2678,27 @@ struct Minard1869 : sketch::Sketch {
                 : (double)auditAdvance.worst.front().intended),
         "measured");
     say(colE,
-        fmt3("  AND THE INK IS THERE: ∫w ds %.0f · the band fills %.0f px² — "
-             "%.2f%% apart",
-             advanceInk, advanceArea,
-             100.0 * std::fabs(advanceArea - advanceInk) / advanceInk),
+        kit::format(
+            "  AND THE INK IS THERE: ∫w ds %.0f · the band fills %.0f px² — "
+            "%.2f%% apart",
+            advanceInk, advanceArea,
+            100.0 * std::fabs(advanceArea - advanceInk) / advanceInk),
         "pass");
     say(colE,
         "  so the two disagree, and the outline is what they disagree "
         "about. A min-chord",
         "dim");
     say(colE,
-        fmt2("  raycasts the band RESOLVED, and resolving its %.0f steps "
-             "leaves %.0f contours",
-             (double)advSteps, (double)outlineContours),
+        kit::format(
+            "  raycasts the band RESOLVED, and resolving its %.0f steps "
+            "leaves %.0f contours",
+            (double)advSteps, (double)outlineContours),
         "measured");
     say(colE,
-        fmt2("  whose longest walks %.0f px around %.0f px of band perimeter "
-             "— the boundary",
-             (double)outlineWalk, (double)advPerimeter),
+        kit::format(
+            "  whose longest walks %.0f px around %.0f px of band perimeter "
+            "— the boundary",
+            (double)outlineWalk, (double)advPerimeter),
         "measured");
     say(colE,
         "  goes in and out along every interior seam: no area, no ink, and "
@@ -2725,9 +2709,10 @@ struct Minard1869 : sketch::Sketch {
         "CROSSES. Reported, not fudged.",
         "fail");
     say(colE,
-        fmt3("  retreat band: max |err| %.2f px = %.3f mm · fills %.0f px²",
-             auditRetreat.maxError, auditRetreat.maxError / kPxPerMm,
-             retreatArea),
+        kit::format(
+            "  retreat band: max |err| %.2f px = %.3f mm · fills %.0f px²",
+            auditRetreat.maxError, auditRetreat.maxError / kPxPerMm,
+            retreatArea),
         auditRetreat.within(2.0f) ? "pass" : "fail");
     say(colE,
         "  Both zones are one brush::Ribbon on the width Profile seam, "
@@ -2738,26 +2723,29 @@ struct Minard1869 : sketch::Sketch {
         "inside fills as a union.",
         "pass");
     say(colE,
-        fmt("  coverage(advance ∪ retreat) doubled %.4f — they touch "
-            "near Wizma, as on the plate",
-            coverDoubled),
+        kit::format("  coverage(advance ∪ retreat) doubled %.4f — they touch "
+                    "near Wizma, as on the plate",
+                    coverDoubled),
         coverDoubled > 0.0005f ? "fail" : "pass");
     say(colE,
-        fmt2("  components()  advance as Minard draws it %.0f, as Wilkinson "
-             "encodes it %.0f",
-             (double)advComponentsDrawn, (double)advComponentsWilkinson),
+        kit::format(
+            "  components()  advance as Minard draws it %.0f, as Wilkinson "
+            "encodes it %.0f",
+            (double)advComponentsDrawn, (double)advComponentsWilkinson),
         "measured");
     say(colE,
-        fmt("  components()  retreat %.0f   — one army came back",
-            (double)retComponents),
+        kit::format("  components()  retreat %.0f   — one army came back",
+                    (double)retComponents),
         retComponents == 1 ? "pass" : "fail");
     say(colE,
-        fmt("  risers, indexed by ARC LENGTH  max %.3f px off station    "
+        kit::format(
+            "  risers, indexed by ARC LENGTH  max %.3f px off station    "
             "PASS",
             riserArcErr),
         riserArcErr < 0.5f ? "pass" : "fail");
     say(colE,
-        fmt("  risers, indexed by FRACTION    max %.1f px off station    "
+        kit::format(
+            "  risers, indexed by FRACTION    max %.1f px off station    "
             "FAIL",
             riserFracErr),
         "fail");
@@ -2803,8 +2791,8 @@ struct Minard1869 : sketch::Sketch {
     faceRoman = pickTypeface({"Baskerville", "Times New Roman"});
     faceNum = pickTypeface({"Baskerville"});
     faceUi = pickTypeface({"Helvetica Neue", "Baskerville"});
-    faceUiBold =
-        pickTypeface({"Helvetica Neue", "Baskerville"}, SkFontStyle::kBold_Weight);
+    faceUiBold = pickTypeface({"Helvetica Neue", "Baskerville"},
+                              SkFontStyle::kBold_Weight);
     faceMono = pickTypeface({"Menlo", "Courier New"});
 
     // THE PAPER, and it is a FIBRE problem, not a colour problem: pulp
@@ -2814,13 +2802,17 @@ struct Minard1869 : sketch::Sketch {
                                   {skia::toColor(hex(0xb9ad98, 0.20f)),
                                    skia::toColor(hex(0xd6cab6, 0.18f))});
     paperPulp.seed(1869);
-    laidLines = patterns::stripes(0.6f, 0.7f, skia::toColor(hex(0xb9ad98, 0.10f)));
+    laidLines =
+        patterns::stripes(0.6f, 0.7f, skia::toColor(hex(0xb9ad98, 0.10f)));
     laidLines.rotate(90.0f);
-    chainLines = patterns::stripes(1.1f, 25.0f, skia::toColor(hex(0xb9ad98, 0.13f)));
+    chainLines =
+        patterns::stripes(1.1f, 25.0f, skia::toColor(hex(0xb9ad98, 0.13f)));
     chainLines.rotate(90.0f);
-    foxing = patterns::speckle(190, 5, 1.6f, 6.0f, {skia::toColor(hex(0xa07f55, 0.10f))});
+    foxing = patterns::speckle(190, 5, 1.6f, 6.0f,
+                               {skia::toColor(hex(0xa07f55, 0.10f))});
     foxing.seed(91);
-    tintSpeckle = patterns::speckle(64, 40, 0.6f, 2.4f, {skia::toColor(hex(0x8f6a55, 0.5f))});
+    tintSpeckle = patterns::speckle(64, 40, 0.6f, 2.4f,
+                                    {skia::toColor(hex(0x8f6a55, 0.5f))});
     tintSpeckle.seed(41);
 
     paperMat = Paint::blend({

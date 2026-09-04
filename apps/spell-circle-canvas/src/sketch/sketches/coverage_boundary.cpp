@@ -28,6 +28,9 @@
  *   kGlow — the outer glow's blur extent, px.
  */
 
+#include <include/core/SkCanvas.h>
+#include <include/core/SkPaint.h>
+#include <include/core/SkSurface.h>
 #include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
@@ -36,10 +39,6 @@
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
-
-#include <include/core/SkCanvas.h>
-#include <include/core/SkPaint.h>
-#include <include/core/SkSurface.h>
 
 #include <memory>
 #include <utility>
@@ -105,7 +104,8 @@ std::shared_ptr<const sigil::image::ImageAsset> cutOut(float alpha) {
   punch.setAntiAlias(true);
   punch.setBlendMode(SkBlendMode::kClear);
   canvas->drawPath(
-      shapes::circle().path({kSide * 0.30f, kSide * 0.30f})
+      shapes::circle()
+          .path({kSide * 0.30f, kSide * 0.30f})
           .makeTransform(SkMatrix::Translate(kSide * 0.35f, kSide * 0.35f)),
       punch);
   return std::make_shared<const sigil::image::ImageAsset>(
@@ -127,18 +127,14 @@ Element art(float alpha = 1.0f) {
       cutOut(1.0f);
   static const std::shared_ptr<const sigil::image::ImageAsset> faint =
       cutOut(kWash);
-  return image(alpha < 1.0f ? faint : solid)
-      .width(Dim(kArt))
-      .height(Dim(kArt));
+  return image(alpha < 1.0f ? faint : solid).width(Dim(kArt)).height(Dim(kArt));
 }
 
 Element cell(const char* call, const char* note, Element body) {
   return kit::cell(voice(), toU8(call), toU8(note),
-                   box()
-                       .width(Dim(kCell))
-                       .height(Dim(kPicture))
-                       .clip()
-                       .fill(Fill::color(kCellGround))
+                   kit::well({.width = kCell,
+                              .height = kPicture,
+                              .ground = Fill::color(kCellGround)})
                        .child(std::move(body).absolute().inset(
                            (kCell - kArt) / 2, (kPicture - kArt) / 2,
                            (kCell - kArt) / 2, (kPicture - kArt) / 2)));
@@ -194,17 +190,18 @@ struct CoverageBoundary final : sketch::Sketch {
                            "punched through it, and a rectangle of nothing "
                            "around both",
                            art()),
-                      cell("\xe2\x80\xa6" ".style(halo)",
+                      cell("\xe2\x80\xa6"
+                           ".style(halo)",
                            "Boundary::Auto is the node's own shape \xc2\xb7 "
                            "the halo hugs the BOX, which is what the "
                            "picture is not",
                            art().style(halo())),
-                      cell("\xe2\x80\xa6" ".boundary(Coverage).style(halo)",
+                      cell("\xe2\x80\xa6"
+                           ".boundary(Coverage).style(halo)",
                            "the same style on the traced silhouette \xc2\xb7 "
                            "a staircase of whole pixels, which is what "
                            "reading a raster gives",
-                           art().boundary(Boundary::Coverage)
-                               .style(halo())),
+                           art().boundary(Boundary::Coverage).style(halo())),
                       cell("the same cut-out at 30% alpha",
                            "under half a pixel covered is not a silhouette "
                            "\xc2\xb7 the trace comes back EMPTY, and an "

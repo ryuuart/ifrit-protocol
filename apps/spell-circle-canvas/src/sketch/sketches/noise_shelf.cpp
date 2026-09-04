@@ -31,6 +31,8 @@
  *   kCells — the lattice cell, in samples.
  */
 
+#include <include/core/SkCanvas.h>
+#include <include/core/SkPaint.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcore/compute/Hash.h>
@@ -39,10 +41,6 @@
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
-#include <include/core/SkCanvas.h>
-#include <include/core/SkPaint.h>
-
-#include <cstdio>
 #include <functional>
 #include <string>
 #include <utility>
@@ -108,10 +106,10 @@ Element field(const char* key, Field sample) {
                   for (int y = 0; y < rows; ++y)
                     for (int x = 0; x < columns; ++x) {
                       const float v = sample(x, y);
-                      paint.setColor4f({kFigure.fR * v, kFigure.fG * v,
-                                        kFigure.fB * v, 1});
-                      canvas.drawRect({x * kBlock, y * kBlock,
-                                       (x + 1) * kBlock, (y + 1) * kBlock},
+                      paint.setColor4f(
+                          {kFigure.fR * v, kFigure.fG * v, kFigure.fB * v, 1});
+                      canvas.drawRect({x * kBlock, y * kBlock, (x + 1) * kBlock,
+                                       (y + 1) * kBlock},
                                       paint);
                     }
                 })
@@ -119,19 +117,11 @@ Element field(const char* key, Field sample) {
       .inset(0);
 }
 
-std::string line(const char* format, auto... args) {
-  char buffer[160];
-  std::snprintf(buffer, sizeof buffer, format, args...);
-  return buffer;
-}
-
 Element cell(const char* call, const char* note, Element body) {
   return kit::cell(voice(), toU8(call), toU8(note),
-                   box()
-                       .width(Dim(kCell))
-                       .height(Dim(kPicture))
-                       .clip()
-                       .fill(Fill::color(kCellGround))
+                   kit::well({.width = kCell,
+                              .height = kPicture,
+                              .ground = Fill::color(kCellGround)})
                        .child(std::move(body)));
 }
 
@@ -236,12 +226,14 @@ struct NoiseShelf final : sketch::Sketch {
     const size_t mixed = core::hash::combine(0, 7u);
     Element column = box().column().gap(8);
     for (const std::string& row :
-         {line("fnv1a(offset, 7)"), line("  %016llx", (unsigned long long)a),
-          line("fnv1a(offset, \"stamp\")"),
-          line("  %016llx", (unsigned long long)text),
-          line("fnv1a(that, 7)"), line("  %016llx", (unsigned long long)both),
-          line("combine(0, 7)"),
-          line("  %016llx", (unsigned long long)mixed)})
+         {kit::format("fnv1a(offset, 7)"),
+          kit::format("  %016llx", (unsigned long long)a),
+          kit::format("fnv1a(offset, \"stamp\")"),
+          kit::format("  %016llx", (unsigned long long)text),
+          kit::format("fnv1a(that, 7)"),
+          kit::format("  %016llx", (unsigned long long)both),
+          kit::format("combine(0, 7)"),
+          kit::format("  %016llx", (unsigned long long)mixed)})
       column.child(text_(row));
     return cell("fnv1a \xc2\xb7 combine",
                 "one-way folds over a word and over text \xc2\xb7 an address "

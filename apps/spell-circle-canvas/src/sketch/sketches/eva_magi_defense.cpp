@@ -82,14 +82,11 @@
 //     one camera transform over square-authored geometry.
 //
 // -----------------------------------------------------------------------------
-// THE TRAP, STATED SO IT CANNOT BE MISSED
+// THE TUBE
 //
-// RIBBONS ARE FLAT AND DO NOT BLOOM. RIMS AND GLYPHS DO. A trunk edge goes
-// ground -> full in 2 px and back in 2 px with no halo; a pill rim peaks at
-// v=254 over a 2 px core and is still at v=25 nine pixels out. Bloom the
-// 45 px ribbons and the whole plate turns to orange soup, which is how every
-// fan recreation of this look goes wrong. So the glow layer contains ONLY
-// rims, numerals and pill type — the funnel is not in it at all.
+// Geometry stays hard-edged. The completed display is thresholded once, then
+// its bright-pass colour channels are spread to different radii. This keeps
+// overlaps and masks exact while the feather changes hue away from each mark.
 //
 // -----------------------------------------------------------------------------
 // THE SHARED COLOUR FIELD, AND WHY IT NEEDS NO WORLD-SPACE MATERIAL
@@ -118,11 +115,8 @@
 //   Composer::renderSlot               the front advances by re-describing
 //                                      ONLY the funnel, 6 Hz, so the art's
 //                                      texture bake survives it
-//   LayeredBrush (kPlus + blurSigma)   every rim's bloom, as blurred stroke
-//                                      MASKS bounded by the shape — no layer,
-//                                      no filter, no full-canvas anything
-//   SkMaskFilter on TextStyle::paint   the same trick for glyph halos,
-//                                      declared UNDER an opaque core
+//   Effect::phosphorBloom              one spectral bright-pass over the
+//                                      completed display
 //   Cache::Texture, PER MARK           one bake per mark, sized to the mark,
 //                                      not one bake of a mostly-empty canvas
 //   ctx.measure()                      every label's point size is SOLVED from
@@ -155,12 +149,11 @@
 //              climbing and how long it takes.
 // =============================================================================
 
-#include <include/core/SkFontStyle.h>
-#include <include/core/SkMaskFilter.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkPathUtils.h>
 #include <include/core/SkTypeface.h>
+#include <shared/EvangelionUi.h>
 #include <sigilcompose/brush/Brushes.h>
 #include <sigilcompose/core/Feed.h>
 #include <sigilcompose/core/Paint.h>
@@ -168,15 +161,15 @@
 #include <sigilcompose/typography/Typography.h>
 #include <sigilgeometry/kit/Generators.h>
 #include <sigilgeometry/path/Edges.h>
+#include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/skia/Color.h>
+#include <sigilmaterial/skia/Effect.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/bind/Bind.h>
 #include <sigilmotion/values/Keyframes.h>
-#include <sigilmotion/values/Transition.h>
 #include <sigilmotion/values/Time.h>
-#include <sigilmaterial/field/Field.h>
+#include <sigilmotion/values/Transition.h>
 #include <sigilsketch/canvas/Sketch.h>
-#include <sigilweave/ports/SystemFontManager.h>
 
 #include <algorithm>
 #include <cmath>
@@ -276,93 +269,32 @@ constexpr RampStop kRamp[] = {
 constexpr int kRampN = (int)(sizeof(kRamp) / sizeof(kRamp[0]));
 
 // ---------------------------------------------------------------------------
-// TYPE. Helvetica Bold, condensed per label to the measured width.
+// TYPE. One condensed grotesque, with sizes selected by semantic role.
 
 inline const sk_sp<SkTypeface>& boldFace() {
-  static const sk_sp<SkTypeface> f = weave::ports::pickTypeface(
-      {"Helvetica", "Arial"}, SkFontStyle::kBold_Weight);
-  return f;
+  return evangelion::condensedBold();
 }
 
 // The terminal's one register, over the library's designated-init `type()`:
 // every mark on this plate is the same bold grotesque, condensed.
 inline weave::TextStyle type(float size, SkColor4f color, float condense = 1.0f,
                              float track = 0.0f) {
-  return weave::textStyle({.face = boldFace(),
-                               .size = size,
-                               .color = color,
-                               .track = track,
-                               .condense = condense});
+  return evangelion::type(boldFace(), size, color, condense, track);
 }
 
 // ---------------------------------------------------------------------------
-// BLOOM, WITHOUT A SINGLE saveLayer.
-//
-// The obvious construction — a full-canvas subtree under effect(Blur) +
-// blend(kPlus) — allocates, blurs and composites a canvas-sized layer whatever
-// bakeScale says, and a bound opacity anywhere inside it re-runs that blur
-// every frame. The measured rim profile — v=254 over a 2 px core, v~98 at
-// 3 px, v~25 at 9 px, a long dim tail — is EXACTLY the shape LayeredBrush was
-// built for: additive stroke passes whose blur is an SkMaskFilter on the
-// stroke MASK, bounded by the shape, no layer at all. Same for glyphs: a
-// blurred copy of the run is a mask filter on the text paint, and Skia caches
-// blurred glyph masks. It is also the more faithful optic, because the halo
-// then hugs the mark instead of the canvas.
-//
-// NOTHING BELOW EVER TOUCHES A RIBBON. Ribbons are flat.
-
-/** A rim and its halo, as one stock brush.
- *
- *  `LayeredBrush::bleed()` reports the envelope the decoration needs — per
- *  layer, `width/2 + 3σ`, taking the max — so the blurred pass is not culled
- *  at the node's own bounds when the subtree records, and nothing here has to
- *  declare reach by hand. That reach also SIZES the surface every mark bakes
- *  into under `Cache::Texture`, so changing a layer's width or sigma re-phases
- *  the bake's blit and reshuffles roughly a pixel of antialiasing along every
- *  edge in the plate. */
-inline LayeredBrush rimGlow(float core, SkColor4f c) {
-  // TWO passes, not three. The measured profile is one hard core and one
-  // long soft tail (v 254 -> 98 at 3 px -> 25 at 9 px), so: a hairline and
-  // a wide dim blur under it. A middle pass at width core+3.5 and sigma 2
-  // fills the gap between them and the keyline reads three times its
-  // width — a fatter rim, not a halo.
-  SkColor4f wide = c;
-  wide.fA = 0.30f;
+// EMISSIVE MARKS. The strokes and glyphs remain crisp here. The completed
+// display is thresholded and bloomed once in describe(), after its routing,
+// overlap and clipping have been resolved.
+inline LayeredBrush rimStroke(float core, SkColor4f c) {
   return LayeredBrush{{
-      {core + 7.0f, wide, 6.5f, {}, 0, SkBlendMode::kPlus, false},
       {core, c, 0.0f, {}, 0, SkBlendMode::kSrcOver, false},
   }};
 }
 
-inline weave::TextStyle glowType(float size, SkColor4f color, float condense,
-                                 float sigma, float alpha) {
-  weave::TextStyle s = type(size, color, condense);
-  SkColor4f c = color;
-  c.fA = alpha;
-  s.paint.foreground.setColor4f(c, nullptr);
-  s.paint.foreground.setMaskFilter(
-      SkMaskFilter::MakeBlur(kNormal_SkBlurStyle, sigma));
-  s.paint.foreground.setBlendMode(SkBlendMode::kPlus);
-  return s;
-}
-
-/** A run of type with its own halo: the sharp core SIZES the box (it is the
- *  only in-flow child) and two additive blurred passes ride over it as
- *  absolute overlays. Not a stack(): a stack's children measure to nothing
- *  here, so the pill's column centred a zero-width box and every label shot
- *  out of its own pill to the right. In-flow-core + absolute-overlays is the
- *  shape that measures. kPlus makes the paint order irrelevant. */
-inline Element glowText(std::u8string s, float size, SkColor4f c,
-                        float condense = 1.0f) {
-  // ORDER IS THE WHOLE THING. Two additive halos over the core put #FDA114
-  // at 1.76x, and kPlus clips R at 255 while it keeps lifting G, so the
-  // amber walks toward yellow-green. Declared FIRST they paint UNDER an
-  // opaque core: the glyph body stays the sampled colour to the byte and
-  // the halo only exists where the glyph is not.
-  return box()
-      .child(text(s, glowType(size, c, condense, 6.5f, 0.34f)).inset(0))
-      .child(text(s, glowType(size, c, condense, 2.2f, 0.62f)).inset(0))
-      .child(text(std::move(s), type(size, c, condense)));
+inline Element displayText(std::u8string s, float size, SkColor4f c,
+                           float condense = 1.0f) {
+  return text(std::move(s), type(size, c, condense));
 }
 
 // ---------------------------------------------------------------------------
@@ -450,45 +382,7 @@ inline SkPath funnelPath() {
 // THE T-TREFOIL. One component; every site is this, rotated.
 
 namespace tre {
-constexpr float kBarW = 343.0f, kBarH = 176.0f;
-constexpr float kStemW = 128.0f, kStemH = 104.0f;
-constexpr float kTotalH = kBarH + kStemH;  // 280
-// The corner radius solves to 16: the black interior of MAGI 02's cell 1 is
-// 72 px wide and its arc gives r = 12.9 from two depths (6 px inset at d=2,
-// 2 px at d=6), plus the ~3 px rim.
-constexpr float kCellW = 88.0f, kCellH = 150.0f, kCellR = 16.0f;
-constexpr float kMargin = 20.0f;
-constexpr float kStemX = (kBarW - kStemW) * 0.5f;
-
-inline SkPath silhouette(SkSize) {
-  SkPathBuilder b;
-  b.moveTo(0, 0);
-  b.lineTo(kBarW, 0);
-  b.lineTo(kBarW, kBarH);
-  b.lineTo(kStemX + kStemW, kBarH);
-  b.lineTo(kStemX + kStemW, kTotalH);
-  b.lineTo(kStemX, kTotalH);
-  b.lineTo(kStemX, kBarH);
-  b.lineTo(0, kBarH);
-  b.close();
-  return b.detach();
-}
-
-/** Cell rects in component-local coordinates: 1 left, 3 right, 2 in the stem.
- */
-inline SkRect cell(int n) {
-  switch (n) {
-    case 1:
-      return SkRect::MakeXYWH(kMargin, kMargin - 1, kCellW, kCellH);
-    case 3:
-      return SkRect::MakeXYWH(kBarW - kMargin - kCellW, kMargin - 1, kCellW,
-                              kCellH);
-    default:
-      return SkRect::MakeXYWH((kBarW - kCellW) * 0.5f,
-                              kTotalH - kMargin - kCellH, kCellW, kCellH);
-  }
-}
-constexpr SkPoint kLabelAt{kBarW * 0.5f + 2.0f, 66.0f};
+inline constexpr evangelion::MagiModule kModule{};
 }  // namespace tre
 
 struct Site {
@@ -511,54 +405,58 @@ constexpr Site kSites[] = {
 constexpr int kSiteN = (int)(sizeof(kSites) / sizeof(kSites[0]));
 
 // ---------------------------------------------------------------------------
-// PILLS. Unfilled: black interior, stroked rim, text inside. Two of them have
-// CHAMFERED outer-top corners so they sit flush against the funnel wall — one
-// outline generator with per-corner cut flags, because a rounded rect there is
-// a fail.
+// PILLS. Unfilled: black interior, stroked rim, text inside. The label role
+// chooses a stable type register; measuring only shrinks unusually long runs
+// enough to fit their capsule.
 
-enum Cut : uint8_t { kNone = 0, kTL = 1, kTR = 2, kBR = 4, kBL = 8 };
+enum class LabelRole : uint8_t {
+  Support,
+  Place,
+  Country,
+  Defense,
+  Barrier,
+  Hub,
+  Zone,
+  Flank,
+  Side,
+  Alarm,
+};
 
-inline std::function<SkPath(SkSize)> pillOutline(float r, uint8_t cuts,
-                                                 float cut) {
-  return [r, cuts, cut](SkSize s) {
-    const float w = s.width(), h = s.height();
-    const float d = 2.0f * r;
-    SkPathBuilder b;
-    if (cuts & kTL) {
-      b.moveTo(0, cut);
-      b.lineTo(cut, 0);
-    } else {
-      b.moveTo(0, r);
-      b.arcTo(SkRect::MakeXYWH(0, 0, d, d), 180, 90, false);
-    }
-    if (cuts & kTR) {
-      b.lineTo(w - cut, 0);
-      b.lineTo(w, cut);
-    } else {
-      b.lineTo(w - r, 0);
-      b.arcTo(SkRect::MakeXYWH(w - d, 0, d, d), 270, 90, false);
-    }
-    if (cuts & kBR) {
-      b.lineTo(w, h - cut);
-      b.lineTo(w - cut, h);
-    } else {
-      b.lineTo(w, h - r);
-      b.arcTo(SkRect::MakeXYWH(w - d, h - d, d, d), 0, 90, false);
-    }
-    if (cuts & kBL) {
-      b.lineTo(cut, h);
-      b.lineTo(0, h - cut);
-    } else {
-      b.lineTo(r, h);
-      b.arcTo(SkRect::MakeXYWH(0, h - d, d, d), 90, 90, false);
-    }
-    b.close();
-    return b.detach();
-  };
+struct LabelRegister {
+  float size;
+  float insetX;
+  float insetY;
+  float lineGap;
+};
+
+inline LabelRegister labelRegister(LabelRole role) {
+  switch (role) {
+    case LabelRole::Support:
+      return {48.0f, 10.0f, 2.0f, 1.0f};
+    case LabelRole::Place:
+      return {46.0f, 8.0f, 2.0f, 1.0f};
+    case LabelRole::Country:
+      return {42.0f, 0.0f, 0.0f, 1.0f};
+    case LabelRole::Defense:
+      return {43.0f, 8.0f, 1.0f, 1.0f};
+    case LabelRole::Barrier:
+      return {58.0f, 0.0f, 0.0f, 1.0f};
+    case LabelRole::Hub:
+      return {68.0f, 10.0f, 2.0f, 1.0f};
+    case LabelRole::Zone:
+      return {38.0f, 10.0f, 5.0f, 1.0f};
+    case LabelRole::Flank:
+      return {37.0f, 8.0f, 5.0f, 2.0f};
+    case LabelRole::Side:
+      return {28.0f, 8.0f, 1.0f, 1.0f};
+    case LabelRole::Alarm:
+      return {44.0f, 10.0f, 2.0f, 1.0f};
+  }
+  return {34.0f, 8.0f, 2.0f, 1.0f};
 }
 
-/** Every label on the plate. `w`/`h` are the pill's measured outer size;
- *  `lines` are set solid inside it and the point size is SOLVED from `w`. */
+/** Every label on the plate. `w` and `h` define a layout slot rather than a
+ *  target that each string must be stretched to fill. */
 struct Label {
   const char* lines[3];
   SkPoint centre;
@@ -567,45 +465,262 @@ struct Label {
   uint8_t cuts;
   bool pill;
   bool alarm;
+  LabelRole role;
 };
 
 const Label kLabels[] = {
     // the four SUPPORT LINE pills — two of them bleed off the side edges
-    {{"SUPPORT LINE"}, {522, 45}, 280, 45, 0, kNone, true, false},
-    {{"SUPPORT LINE"}, {1409, 43}, 280, 45, 0, kNone, true, false},
-    {{"SUPPORT LINE"}, {34, 358}, 280, 45, 0, kNone, true, false},
-    {{"SUPPORT LINE"}, {1913, 355}, 280, 45, 0, kNone, true, false},
+    {{"SUPPORT LINE"},
+     {522, 45},
+     280,
+     45,
+     0,
+     evangelion::CutNone,
+     true,
+     false,
+     LabelRole::Support},
+    {{"SUPPORT LINE"},
+     {1409, 43},
+     280,
+     45,
+     0,
+     evangelion::CutNone,
+     true,
+     false,
+     LabelRole::Support},
+    {{"SUPPORT LINE"},
+     {34, 358},
+     280,
+     45,
+     0,
+     evangelion::CutNone,
+     true,
+     false,
+     LabelRole::Support},
+    {{"SUPPORT LINE"},
+     {1913, 355},
+     280,
+     45,
+     0,
+     evangelion::CutNone,
+     true,
+     false,
+     LabelRole::Support},
     // site names
-    {{"MATSUSHIRO"}, {966, 120}, 242, 47, 0, kNone, true, false},
-    {{"CHINA"}, {527, 161}, 148, 42, 0, kNone, true, false},
-    {{"BEIJING"}, {541, 203}, 168, 44, 0, kNone, true, false},
-    {{"GERMANY"}, {1387, 177}, 180, 42, 0, kNone, true, false},
-    {{"BERLIN"}, {1377, 219}, 154, 44, 0, kNone, true, false},
-    {{"U.S.A"}, {101, 570}, 119, 42, 0, kNone, true, false},
-    {{"MASSACHUSETTS"}, {210, 607}, 331, 44, 0, kNone, true, false},
-    {{"GERMANY"}, {1841, 567}, 180, 42, 0, kNone, true, false},
-    {{"HAMBURG"}, {1849, 606}, 190, 44, 0, kNone, true, false},
+    {{"MATSUSHIRO"},
+     {966, 120},
+     242,
+     47,
+     0,
+     evangelion::CutNone,
+     true,
+     false,
+     LabelRole::Place},
+    {{"CHINA"},
+     {541, 155},
+     168,
+     52,
+     0,
+     evangelion::CutNone,
+     false,
+     false,
+     LabelRole::Country},
+    {{"BEIJING"},
+     {541, 207},
+     168,
+     44,
+     0,
+     evangelion::CutNone,
+     true,
+     false,
+     LabelRole::Place},
+    {{"GERMANY"},
+     {1377, 171},
+     154,
+     52,
+     0,
+     evangelion::CutNone,
+     false,
+     false,
+     LabelRole::Country},
+    {{"BERLIN"},
+     {1377, 223},
+     154,
+     44,
+     0,
+     evangelion::CutNone,
+     true,
+     false,
+     LabelRole::Place},
+    {{"U.S.A"},
+     {210, 563},
+     331,
+     52,
+     0,
+     evangelion::CutNone,
+     false,
+     false,
+     LabelRole::Country},
+    {{"MASSACHUSETTS"},
+     {210, 610},
+     331,
+     44,
+     0,
+     evangelion::CutNone,
+     true,
+     false,
+     LabelRole::Place},
+    {{"GERMANY"},
+     {1849, 560},
+     190,
+     52,
+     0,
+     evangelion::CutNone,
+     false,
+     false,
+     LabelRole::Country},
+    {{"HAMBURG"},
+     {1849, 610},
+     190,
+     44,
+     0,
+     evangelion::CutNone,
+     true,
+     false,
+     LabelRole::Place},
     // the defense lines
-    {{"1st. DEFENSE LINE"}, {972, 547}, 318, 40, 0, kNone, true, false},
-    {{"MAIN BARRIER"}, {973, 599}, 385, 44, 0, kNone, false, false},
-    {{"2nd. DEFENSE LINE"}, {979, 651}, 316, 40, 0, kNone, true, false},
-    {{"3rd. DEFENSE LINE"}, {668, 757}, 222, 38, -55, kNone, true, false},
-    {{"3rd. DEFENSE LINE"}, {1278, 757}, 222, 38, 55, kNone, true, false},
+    {{"1st. DEFENSE LINE"},
+     {972, 543},
+     318,
+     40,
+     0,
+     evangelion::CutNone,
+     true,
+     false,
+     LabelRole::Defense},
+    {{"MAIN BARRIER"},
+     {973, 599},
+     385,
+     64,
+     0,
+     evangelion::CutNone,
+     false,
+     false,
+     LabelRole::Barrier},
+    {{"2nd. DEFENSE LINE"},
+     {979, 655},
+     316,
+     40,
+     0,
+     evangelion::CutNone,
+     true,
+     false,
+     LabelRole::Defense},
+    {{"3rd. DEFENSE LINE"},
+     {668, 757},
+     222,
+     38,
+     -55,
+     evangelion::CutNone,
+     true,
+     false,
+     LabelRole::Defense},
+    {{"3rd. DEFENSE LINE"},
+     {1278, 757},
+     222,
+     38,
+     55,
+     evangelion::CutNone,
+     true,
+     false,
+     LabelRole::Defense},
     // the hub
-    {{"TOKYO-3"}, {969, 757}, 274, 57, 0, kNone, true, false},
-    {{"FINAL", "DEFENSE", "ZONE"}, {834, 834}, 126, 92, 0, kTL, true, false},
-    {{"FINAL", "DEFENSE", "ZONE"}, {1104, 834}, 126, 92, 0, kTR, true, false},
-    {{"LEFT", "FLANK"}, {602, 962}, 114, 82, 0, kNone, true, false},
-    {{"RIGHT", "FLANK"}, {1343, 962}, 118, 82, 0, kNone, true, false},
-    {{"LEFT SIDE BARRIER"}, {737, 988}, 196, 33, -90, kNone, true, false},
-    {{"RIGHT SIDE BARRIER"}, {1203, 988}, 205, 33, -90, kNone, true, false},
+    {{"TOKYO-3"},
+     {969, 757},
+     274,
+     57,
+     0,
+     evangelion::CutNone,
+     true,
+     false,
+     LabelRole::Hub},
+    {{"FINAL", "DEFENSE", "ZONE"},
+     {834, 842},
+     126,
+     92,
+     0,
+     evangelion::CutTopLeft,
+     true,
+     false,
+     LabelRole::Zone},
+    {{"FINAL", "DEFENSE", "ZONE"},
+     {1104, 842},
+     126,
+     92,
+     0,
+     evangelion::CutTopRight,
+     true,
+     false,
+     LabelRole::Zone},
+    {{"LEFT", "FLANK"},
+     {602, 962},
+     114,
+     82,
+     0,
+     evangelion::CutNone,
+     true,
+     false,
+     LabelRole::Flank},
+    {{"RIGHT", "FLANK"},
+     {1343, 962},
+     118,
+     82,
+     0,
+     evangelion::CutNone,
+     true,
+     false,
+     LabelRole::Flank},
+    {{"LEFT SIDE BARRIER"},
+     {737, 988},
+     196,
+     33,
+     -90,
+     evangelion::CutNone,
+     true,
+     false,
+     LabelRole::Side},
+    {{"RIGHT SIDE BARRIER"},
+     {1203, 988},
+     205,
+     33,
+     -90,
+     evangelion::CutNone,
+     true,
+     false,
+     LabelRole::Side},
 };
 constexpr int kLabelN = (int)(sizeof(kLabels) / sizeof(kLabels[0]));
 
 // the two COLLAPSING pills blink, so they are their own (volatile) layer
 const Label kCollapsing[] = {
-    {{"COLLAPSING"}, {528, 617}, 214, 46, 0, kNone, true, true},
-    {{"COLLAPSING"}, {1416, 617}, 214, 46, 0, kNone, true, true},
+    {{"COLLAPSING"},
+     {528, 617},
+     214,
+     46,
+     0,
+     evangelion::CutNone,
+     true,
+     true,
+     LabelRole::Alarm},
+    {{"COLLAPSING"},
+     {1416, 617},
+     214,
+     46,
+     0,
+     evangelion::CutNone,
+     true,
+     true,
+     LabelRole::Alarm},
 };
 
 // ---------------------------------------------------------------------------
@@ -668,8 +783,6 @@ inline float rad(float d) { return d * 0.01745329252f; }
 struct EvaMagiDefense : sketch::Sketch {
   using Sketch::Sketch;
 
-  ch::Output<float> weaveX{0.0f};  // gate weave, whole px
-  ch::Output<float> weaveY{0.0f};
   ch::Output<float> creep{0.0f};    // scanline creep
   ch::Output<float> flicker{0.0f};  // phosphor dip (alpha of a black plane)
   ch::Output<float> blink{1.0f};    // COLLAPSING, hard on/off
@@ -677,7 +790,7 @@ struct EvaMagiDefense : sketch::Sketch {
   bool fallen[eva::kSiteN] = {false, false, false, false, false, false};
   int fallCount = 0;
   int frontStep = 0;             // the advancing front, 84 steps at 6 Hz
-  std::vector<float> labelSize;  // solved from the measured widths
+  std::vector<float> labelSize;  // role size, reduced only when it must fit
   std::vector<float> siteNameSize;
   float numeralSize = 96.0f;
   sigil::compose::feed::TextRing audit{48};
@@ -761,37 +874,39 @@ struct EvaMagiDefense : sketch::Sketch {
     const SkColor4f plateFill = friendly ? kFriendly : kHostile;
     const SkColor4f rim = friendly ? kRimFriendly : kRim;
     const SkColor4f ink = friendly ? kInkFriendly : kInkHostile;
-    const auto snap = motion::Transition{.duration = 180ms, .ease = ch::easeOutQuad};
+    const auto snap =
+        motion::Transition{.duration = 180ms, .ease = ch::easeOutQuad};
+    const auto& module = tre::kModule;
 
     const SkPoint at = unroll(s.centre);
     auto plate = box()
-                     .left(at.fX - tre::kBarW * 0.5f)
-                     .top(at.fY - tre::kTotalH * 0.5f)
-                     .width(tre::kBarW)
-                     .height(tre::kTotalH)
-                     .shape(tre::silhouette)
+                     .left(at.fX - module.barWidth * 0.5f)
+                     .top(at.fY - module.totalHeight() * 0.5f)
+                     .width(module.barWidth)
+                     .height(module.totalHeight())
+                     .shape(module.outline())
                      .rotate(s.rotation)
                      .fill(animate(motion::to(Fill::color(plateFill)), snap))
-                     .foreground(rimGlow(2.4f, rim))
+                     .foreground(rimStroke(2.4f, rim))
                      .key(std::string("site#") + s.name);
 
     // three cells: black, hard orange keyline, and the keyline blooms
     for (int n : {1, 2, 3}) {
-      const SkRect r = tre::cell(n);
+      const SkRect r = module.cell(n);
       auto cell = box()
                       .left(r.left())
                       .top(r.top())
                       .width(r.width())
                       .height(r.height())
-                      .corners({tre::kCellR})
+                      .corners({module.cellRadius})
                       .fill(Fill::color(kCell))
-                      .foreground(rimGlow(3.2f, rim));
+                      .foreground(rimStroke(3.2f, rim));
       // The numeral is centred in the cell's TOP SQUARE, not in the cell:
       // measured, the glyph's centre sits at 30% of a 150 px cell, which is
       // 44 px — the middle of the 88 px width. And it stays UPRIGHT while
       // the plate turns.
-      cell.child(glowText(toU8(std::string(1, (char)('0' + n))), numeralSize,
-                          kNumeral, 0.88f)
+      cell.child(displayText(toU8(std::string(1, (char)('0' + n))), numeralSize,
+                             kNumeral, 0.88f)
                      .centerAt({r.width() * 0.5f, r.width() * 0.5f + 3})
                      .rotate(-s.rotation));
       plate.child(std::move(cell));
@@ -812,7 +927,7 @@ struct EvaMagiDefense : sketch::Sketch {
     // word is Helvetica CONDENSED on the plate and the numerals are not, which
     // is what fontsinuse lists for the panels.
     plate.child(box()
-                    .centerAt(tre::kLabelAt)
+                    .centerAt(module.labelCentre())
                     .column()
                     .alignItems(Align::Center)
                     .gap(-6)
@@ -826,6 +941,7 @@ struct EvaMagiDefense : sketch::Sketch {
   Element pillOf(const eva::Label& L, float size, int keyIndex,
                  const char* keyTag) const {
     using namespace eva;
+    const LabelRegister labelStyle = labelRegister(L.role);
     const SkColor4f ink = L.alarm ? kAlarm : kRim;
     const SkPoint at = unroll(L.centre);
     auto node = box()
@@ -835,17 +951,19 @@ struct EvaMagiDefense : sketch::Sketch {
                     .height(L.h)
                     .rotate(L.rotate)
                     .column()
-                    .alignItems(Align::Center)
+                    .alignItems(L.role == LabelRole::Country ? Align::Start
+                                                             : Align::Center)
                     .justify(Justify::Center)
-                    .gap(-2)
+                    .gap(labelStyle.lineGap)
                     .key(std::string(keyTag) + std::to_string(keyIndex));
     if (L.pill) {
-      node.shape(pillOutline(10.0f, L.cuts, 26.0f));
+      node.shape(evangelion::panel(
+          {.radius = 10.0f, .cut = {26.0f, 26.0f}, .cutMask = L.cuts}));
       node.fill(Fill::color(kCell));
-      node.foreground(rimGlow(3.0f, ink));
+      node.foreground(rimStroke(3.0f, ink));
     }
     for (const char* line : L.lines)
-      if (line) node.child(glowText(toU8(line), size, ink, 0.94f));
+      if (line) node.child(displayText(toU8(line), size, ink, 0.94f));
     return node;
   }
 
@@ -902,24 +1020,19 @@ struct EvaMagiDefense : sketch::Sketch {
    *  identity. Put the same rotate on the OUTER node and every frame becomes a
    *  rotated resample of a canvas-sized texture.
    *
-   *  A push-in about Tokyo-3 would cost the same way: any scale != 1 resamples
-   *  the whole texture, and 1.02 is no cheaper than 1.06. What stands in for it
-   *  is truer to the artefact anyway — GATE WEAVE, the 1 px wander of a film
-   *  frame in the projector gate, which is an INTEGER translate and so leaves
-   *  the blit exact.
-   *
    *  The pivot is the FRAME CENTRE, not the hub: the coordinates were
    *  measured off an already-rolled frame, and rolling about the centre puts
    *  them back within ~1 px where rolling about the hub leaves the top of
    *  the plate 6 px out. */
   Element describe() {
     using namespace eva;
-    auto camera = [this](Element e) {
-      return box().inset(0).translateX(&weaveX).translateY(&weaveY).child(
+    auto camera = [](Element e) {
+      return box().inset(0).child(
           std::move(e.rotate(kRoll).transformOriginPx({kW * 0.5f, kH * 0.5f})));
     };
 
     auto root = stack().inset(0);
+    auto picture = stack().inset(0);
 
     // (no ground node: the host clears to ctx.background, and a full-canvas
     //  opaque fill on top of that is pure waste)
@@ -927,16 +1040,21 @@ struct EvaMagiDefense : sketch::Sketch {
     // The ribbons: flat fills of one continuous field, and NO bloom anywhere.
     // In a SLOT, because the advancing front re-describes it six times a
     // second and a full render() would dirty the art's texture bake with it.
-    root.child(camera(slot("funnel")));
+    picture.child(camera(slot("funnel")));
 
-    // the plates, the pills and the type — each mark carries its own bounded
-    // halo and its OWN texture bake (see art()); the group is a plain picture
-    root.child(camera(art()));
-    root.child(camera(collapsingLayer(0)));
-    root.child(camera(collapsingLayer(1)));
+    // The assembled screen is one optical input, so paths hidden by panels do
+    // not leak through the bloom and shared edges do not accumulate halos.
+    picture.child(camera(art()));
+    picture.child(camera(collapsingLayer(0)));
+    picture.child(camera(collapsingLayer(1)));
+    root.child(
+        std::move(picture)
+            .effect(mskia::Effect::phosphorBloom(11.0f, 0.58f, 0.46f, 0.86f))
+            .key("phosphor"));
 
     // the photographed CRT: scanlines + vignette baked once, crept
-    mskia::Paint crt = mskia::Paint::recipe(sigil::material::field::crtOverlay());
+    mskia::Paint crt =
+        mskia::Paint::recipe(sigil::material::field::crtOverlay());
     root.child(box()
                    .left(0)
                    .top(-8)
@@ -1001,23 +1119,27 @@ struct EvaMagiDefense : sketch::Sketch {
     funnel = funnelPath();
     runAudit();
 
-    // Solve every label's point size from the width measured off the frame:
-    // measure once at 100 pt and scale. The type then lands where the cel's
-    // does instead of where a guess would.
+    // Every semantic role starts on one type register. Measurement only
+    // supplies a fit guard for a long name or a multi-line capsule.
     auto solve = [&](const Label& L) {
+      const LabelRegister labelStyle = labelRegister(L.role);
       const char* longest = L.lines[0];
       for (const char* l : L.lines)
         if (l && longest && std::strlen(l) > std::strlen(longest)) longest = l;
-      const float pad = L.pill ? 14.0f : 0.0f;  // measured: MATSUSHIRO's
-                                                // type is 235 of 242 px
-      const SkSize m =
-          ctx.measure(text(toU8(longest), type(100.0f, kRim, 0.94f)));
-      const float target = L.w - pad;
-      float size = m.width() > 1.0f ? 100.0f * target / m.width() : 30.0f;
-      // multi-line pills are height-bound, not width-bound
+      float size = labelStyle.size;
+      const SkSize run =
+          ctx.measure(text(toU8(longest), type(size, kRim, 0.94f)));
+      const float availableWidth = L.w - 2.0f * labelStyle.insetX;
+      if (run.width() > availableWidth && run.width() > 1.0f)
+        size *= availableWidth / run.width();
+
       const int lines = (L.lines[1] ? (L.lines[2] ? 3 : 2) : 1);
-      if (lines > 1)
-        size = std::min(size, (L.h - 16.0f) / (float)lines / 0.98f);
+      const SkSize line = ctx.measure(text(u8"Hg", type(size, kRim, 0.94f)));
+      const float drawn =
+          line.height() * (float)lines + labelStyle.lineGap * (lines - 1);
+      const float availableHeight = L.h - 2.0f * labelStyle.insetY;
+      if (drawn > availableHeight && drawn > 1.0f)
+        size *= availableHeight / drawn;
       return size;
     };
     labelSize.clear();
@@ -1038,11 +1160,6 @@ struct EvaMagiDefense : sketch::Sketch {
     // --- motion ---
     ctx.ticker.add([this, t = 0.0](double dt) mutable {
       t += dt;
-      // gate weave: whole pixels, a 3 Hz wander, the projector's own motion
-      const uint32_t gate = (uint32_t)std::max(0LL, motion::stepIndex(t, 3.0));
-      const uint32_t h = (gate * 2654435761u) ^ (gate >> 3u);
-      weaveX = (float)((h >> 8u) % 3u) - 1.0f;
-      weaveY = (float)((h >> 19u) % 3u) - 1.0f;
       // scanlines creep one WHOLE PIXEL at a time, 4 px per 8 s: a fractional
       // translate turns the cached CRT texture's blit into a resample.
       creep = (float)(motion::stepIndex(t, 0.5) % 4);

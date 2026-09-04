@@ -29,6 +29,10 @@
  *   kCacheDir — the directory the seed is written into.
  */
 
+#include <include/core/SkCanvas.h>
+#include <include/core/SkData.h>
+#include <include/core/SkPaint.h>
+#include <include/core/SkSurface.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilimage/asset/ImageAsset.h>
@@ -40,12 +44,6 @@
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
-#include <include/core/SkCanvas.h>
-#include <include/core/SkData.h>
-#include <include/core/SkPaint.h>
-#include <include/core/SkSurface.h>
-
-#include <cstdio>
 #include <filesystem>
 #include <memory>
 #include <string>
@@ -111,26 +109,17 @@ sk_sp<SkData> seedBytes() {
   return img::encodeImage(*surface->makeImageSnapshot(), img::Format::Png);
 }
 
-std::string line(const char* format, auto... args) {
-  char buffer[200];
-  std::snprintf(buffer, sizeof buffer, format, args...);
-  return buffer;
-}
-
 Element cell(const char* call, const char* note,
              const std::shared_ptr<const img::ImageAsset>& asset,
              const std::string& readout) {
-  Element art =
-      asset ? image(asset).width(Dim(150)).height(Dim(100))
-            : box().width(Dim(150)).height(Dim(100)).fill(
-                  Fill::color({0.13f, 0.10f, 0.11f, 1}));
+  Element art = asset ? image(asset).width(Dim(150)).height(Dim(100))
+                      : box().width(Dim(150)).height(Dim(100)).fill(
+                            Fill::color({0.13f, 0.10f, 0.11f, 1}));
   return kit::cell(voice(), toU8(call), toU8(note),
-                   box()
-                       .width(Dim(kCell))
-                       .height(Dim(kPicture))
-                       .clip()
-                       .fill(Fill::color(kCellGround))
-                       .padding(12)
+                   kit::well({.width = kCell,
+                              .height = kPicture,
+                              .ground = Fill::color(kCellGround),
+                              .padding = 12})
                        .column()
                        .gap(10)
                        .child(std::move(art))
@@ -171,10 +160,11 @@ struct NetPolicy final : sketch::Sketch {
 
     const auto verdict = [](const char* name,
                             const std::shared_ptr<const img::ImageAsset>& a) {
-      return line("%s \xc2\xb7 %s", name,
-                  a ? line("served %d\xc3\x97%d", a->width(), a->height())
-                          .c_str()
-                    : "null");
+      return kit::format(
+          "%s \xc2\xb7 %s", name,
+          a ? kit::format("served %d\xc3\x97%d", a->width(), a->height())
+                  .c_str()
+            : "null");
     };
 
     ctx.composer.render(

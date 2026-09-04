@@ -34,6 +34,11 @@ namespace sigil::world {
 
 struct ElementNode;
 
+/** WHICH SIDES OF A BODY'S TRIANGLES ARE DRAWN. Hidden is the default for
+ *  closed solids; Visible keeps the reverse side of a sheet or panel when
+ *  the viewpoint passes behind it. */
+enum class Backface { Hidden, Visible };
+
 // The emitters, under the name a tree spells them.
 /** The emitter value, unchanged — `point`, `spot` and `sun` build one. */
 using Light = light::Light;
@@ -118,6 +123,10 @@ class Element {
   // ---- geometry ----
   /** A formed mesh. */
   Element& mesh(geometry::mesh::Mesh m);
+  /** Whether reverse-wound faces are culled or drawn. A flat panel that
+   *  must survive an orbit uses `backface(Backface::Visible)`; a closed
+   *  solid normally keeps the default `Hidden`. */
+  Element& backface(Backface facing);
   /** Points, with `stamp()` standing at each of them. */
   Element& cloud(geometry::mesh::Cloud c);
   /** A point chain and the runtime that cooks it, with `stamp()`

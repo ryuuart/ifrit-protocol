@@ -87,10 +87,8 @@ weave::TextStyle mono(float size, SkColor4f color) {
  *  Japanese behaviour is what shapes it. */
 weave::TextStyle body() {
   static const sk_sp<SkTypeface> face = weave::ports::pickTypeface(
-      {"Hiragino Mincho ProN", "Yu Mincho", "Songti SC",
-       "Noto Serif CJK JP"});
-  weave::TextStyle style =
-      weave::textStyle({.size = kSize, .color = kBody});
+      {"Hiragino Mincho ProN", "Yu Mincho", "Songti SC", "Noto Serif CJK JP"});
+  weave::TextStyle style = weave::textStyle({.size = kSize, .color = kBody});
   style.shaping.typeface = face;
   style.shaping.languageTag = "ja";
   return style;
@@ -128,9 +126,10 @@ weave::MojikumiTable brackets(float room) {
  *  a reading mark and two sentence marks, so each table has something to
  *  act on. */
 Element column() {
-  return text(u8"「組版」「行送り」の禁則は、行頭に句読点を置かない。"
-              u8"約物の空きは詰め、行末には句点をぶら下げる。",
-              body())
+  return text(
+             u8"「組版」「行送り」の禁則は、行頭に句読点を置かない。"
+             u8"約物の空きは詰め、行末には句点をぶら下げる。",
+             body())
       .width(Dim(kCell - 24))
       .height(Dim(kPicture - 24))
       .writingMode(weave::WritingMode::kVerticalRL);
@@ -138,12 +137,10 @@ Element column() {
 
 Element cell(const char* call, const char* note, Element body) {
   return kit::cell(voice(), toU8(call), toU8(note),
-                   box()
-                       .width(Dim(kCell))
-                       .height(Dim(kPicture))
-                       .clip()
-                       .fill(Fill::color(kCellGround))
-                       .padding(12)
+                   kit::well({.width = kCell,
+                              .height = kPicture,
+                              .ground = Fill::color(kCellGround),
+                              .padding = 12})
                        .child(std::move(body)));
 }
 

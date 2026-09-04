@@ -128,10 +128,11 @@ kit::Caption voice() {
  *  of them line up whatever each one drew. */
 Element cell(const char* heading, const std::string& reading, Element picture) {
   return kit::cell(voice(), toU8(heading), toU8(reading),
-                   std::move(picture)
-                       .width(kCell)
-                       .height(kPicture)
-                       .fill(Fill::color(kCellGround)));
+                   kit::well({.width = kCell,
+                              .height = kPicture,
+                              .ground = Fill::color(kCellGround),
+                              .clip = false},
+                             std::move(picture)));
 }
 
 Element meshCell(const char* heading, const std::string& reading,

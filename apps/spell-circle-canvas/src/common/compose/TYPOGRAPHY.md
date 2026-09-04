@@ -912,7 +912,10 @@ difference between the two values.
 `kit::rules` cuts a rule or a shade to the extent a block's lines actually
 occupy, `kit::bullets` hangs markers in a hanging indent, and
 `kit::dropCap` is an initial with the body flowing around it — an ordinary
-exclusion, resolved in the ordinary pass.
+exclusion, resolved in the ordinary pass. Its first argument may be the
+letter and its style, or a caller-built `Element`: an illuminated frame,
+flourish or combined ornament can therefore declare a silhouette and have
+the opening lines follow that outline rather than its box.
 
 A NESTED STYLE — the opening of a paragraph set differently from the rest
 of it — is a selector and a span restyle, and `kit::NestedStyle` is the
@@ -926,6 +929,9 @@ caps that carry a paragraph out of it are written together.
 ```cpp
 kit::dropCap(u8"W", capType, rest, bodyType, "dropcap", 6.0f,
              kit::NestedStyle{.count = 3, .style = smallCaps});
+
+kit::dropCap(box().width(72).height(88).shape(ornament).child(initial),
+             rest, bodyType, "ornament", 6.0f);
 ```
 
 Because it is a selector, the run re-resolves with the text: an edit that

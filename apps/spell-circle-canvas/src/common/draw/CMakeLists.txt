@@ -2,7 +2,8 @@
 # SkCanvas carrying p5's verbs with p5's names, held as one value so two
 # pens draw side by side and nothing is global. README.md is the canon.
 #
-# One static target. What the verbs draw WITH is this repository's:
+# The pen is one static target, with a kit of stock procedural tools over it.
+# What the verbs draw WITH is this repository's:
 # SigilMaterial's Skia paint as a fill or a stroke, SigilWeave's shaping
 # and paragraph engine for text, SigilCore's mixers for the seeded random
 # stream and the noise field. Nothing here knows about the sketch runtime
@@ -36,6 +37,9 @@ target_link_libraries(SigilDraw PUBLIC
   SigilWeaveStyle SigilWeaveParagraph SigilWeaveLayout SigilWeavePaint
   SigilWeaveFonts)
 set_target_properties(SigilDraw PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+# Stock brushes, pressure-bearing paths and direction fields over the pen.
+add_subdirectory(kit)
 
 # Links the library and the system font manager its text is shaped
 # against, and nothing above either.

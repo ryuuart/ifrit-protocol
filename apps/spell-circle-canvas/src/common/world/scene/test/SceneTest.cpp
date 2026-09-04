@@ -15,6 +15,7 @@
 #include <sigilmotion/clock/Ticker.h>
 #include <sigilworld/scene/Scene.h>
 
+#include <algorithm>
 #include <array>
 #include <chrono>
 #include <cstdint>
@@ -56,14 +57,22 @@ geometry::mesh::camera::Camera frontCamera() {
 }
 
 /** The bytes a scene draws into, at a fixed size, on the CPU. */
-std::vector<uint8_t> plate(Scene& scene) {
+std::vector<uint8_t> plate(Scene& scene,
+                           const geometry::mesh::camera::Camera& camera) {
   SkBitmap bitmap;
   bitmap.allocPixels(SkImageInfo::MakeN32Premul(96, 96));
-  bitmap.eraseColor(SK_ColorBLACK);
+  bitmap.eraseColor(SK_ColorTRANSPARENT);
   SkCanvas canvas(bitmap);
-  scene.draw(canvas, frontCamera());
+  scene.draw(canvas, camera);
   const uint8_t* pixels = (const uint8_t*)bitmap.getPixels();
   return {pixels, pixels + bitmap.computeByteSize()};
+}
+
+std::vector<uint8_t> plate(Scene& scene) { return plate(scene, frontCamera()); }
+
+bool hasInk(const std::vector<uint8_t>& pixels) {
+  return std::any_of(pixels.begin(), pixels.end(),
+                     [](uint8_t value) { return value != 0; });
 }
 
 /** A CLOCK AND A SCENE READING IT — what nearly every case below opens
@@ -99,6 +108,19 @@ TEST_F(WorldScene, AKeyedReorderKeepsEveryNodesHandle) {
   EXPECT_EQ(scene.handleOf("c"), c);
   EXPECT_EQ(scene.stats().reconcile.mounted, 0);
   EXPECT_EQ(scene.stats().reconcile.retired, 0);
+}
+
+TEST_F(WorldScene, AVisibleBackfaceKeepsAPlaneUnderAnOrbit) {
+  geometry::mesh::camera::Camera behind = frontCamera();
+  behind.eye.z = -320;
+
+  scene.render(Element().key("root").child(
+      Element().key("card").mesh(card(24)).backface(Backface::Hidden)));
+  EXPECT_FALSE(hasInk(plate(scene, behind)));
+
+  scene.render(Element().key("root").child(
+      Element().key("card").mesh(card(24)).backface(Backface::Visible)));
+  EXPECT_TRUE(hasInk(plate(scene, behind)));
 }
 
 TEST_F(WorldScene, AGeometrySlotChangeKeepsTheNodeAndItsLanes) {

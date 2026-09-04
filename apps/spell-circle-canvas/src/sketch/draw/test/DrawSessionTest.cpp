@@ -110,6 +110,24 @@ TEST_F(DrawSession, TheCanvasKeepsWhatEarlierFramesDrew) {
   EXPECT_EQ(pixel(100, 60), SK_ColorBLACK);
 }
 
+TEST_F(DrawSession, ChangingPresentationScaleKeepsWhatEarlierFramesDrew) {
+  session->frame(canvas(), 1.0 / 60.0);
+
+  sk_sp<SkSurface> zoomed =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(400, 240));
+  zoomed->getCanvas()->scale(2, 2);
+  session->frame(*zoomed->getCanvas(), 1.0 / 60.0);
+
+  SkBitmap zoomedPixels;
+  zoomedPixels.allocPixels(zoomed->imageInfo());
+  ASSERT_TRUE(zoomed->readPixels(zoomedPixels.pixmap(), 0, 0));
+  EXPECT_EQ(zoomedPixels.getColor(40, 120), SK_ColorRED);
+
+  canvas().clear(SK_ColorWHITE);
+  session->frame(canvas(), 1.0 / 60.0);
+  EXPECT_EQ(pixel(20, 60), SK_ColorRED);
+}
+
 TEST_F(DrawSession, SetupsDrawingLandsOnTheFirstFrame) {
   session->frame(canvas(), 1.0 / 60.0);
   EXPECT_EQ(pixel(5, 5), SK_ColorRED);

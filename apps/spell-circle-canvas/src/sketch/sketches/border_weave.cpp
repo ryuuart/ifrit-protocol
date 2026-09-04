@@ -99,8 +99,8 @@ kit::Caption voice() {
  *  real tangent break the corner scan can find — except in the last cell,
  *  which is the inscribed circle, a silhouette with no break anywhere. */
 Element plaque(bool round = false) {
-  Element node = box().width(Dim(kPlaque)).height(Dim(kPlaque)).fill(
-      Fill::color(kPlate));
+  Element node =
+      box().width(Dim(kPlaque)).height(Dim(kPlaque)).fill(Fill::color(kPlate));
   if (round)
     node.shape(shapes::circle());
   else
@@ -110,11 +110,9 @@ Element plaque(bool round = false) {
 
 Element cell(const char* call, const char* note, Element body) {
   return kit::cell(voice(), toU8(call), toU8(note),
-                   box()
-                       .width(Dim(kCell))
-                       .height(Dim(kPicture))
-                       .clip()
-                       .fill(Fill::color(kCellGround))
+                   kit::well({.width = kCell,
+                              .height = kPicture,
+                              .ground = Fill::color(kCellGround)})
                        .child(std::move(body).absolute().inset(
                            (kCell - kPlaque) / 2, (kPicture - kPlaque) / 2,
                            (kCell - kPlaque) / 2, (kPicture - kPlaque) / 2)));
