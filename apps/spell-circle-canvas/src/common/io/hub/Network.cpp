@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "Fetch.h"
+#include "Residency.h"
 
 namespace sigil::io {
 
@@ -115,9 +116,13 @@ std::filesystem::path defaultNetworkCacheDir() {
 }
 
 void Hub::setNetworkCacheDir(std::filesystem::path dir) {
+  const std::lock_guard lock(m_synchronization->mutex);
   m_netCacheDir = std::move(dir);
 }
 
-void Hub::setNetworkPolicy(NetworkPolicy policy) { m_netPolicy = policy; }
+void Hub::setNetworkPolicy(NetworkPolicy policy) {
+  const std::lock_guard lock(m_synchronization->mutex);
+  m_netPolicy = policy;
+}
 
 }  // namespace sigil::io

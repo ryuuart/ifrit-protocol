@@ -9,6 +9,7 @@
 #include <iterator>
 
 #include "Fetch.h"
+#include "Residency.h"
 #include "sigilio/hub/Hub.h"
 
 namespace sigil::io {
@@ -59,6 +60,7 @@ FetchResult fetchResource(const Hub& hub,
 }  // namespace detail
 
 void Hub::mount(std::string prefix, std::filesystem::path dir) {
+  const std::lock_guard lock(m_synchronization->mutex);
   for (auto& [existing, path] : m_mounts)
     if (existing == prefix) {
       path = std::move(dir);
@@ -72,6 +74,7 @@ bool Hub::write(std::string_view uri, const void* bytes, size_t size) {
   // it belongs to the fetch, and writing into it would invent a
   // resource the server never served.
   if (detail::isNetworkUri(uri)) return false;
+  const std::lock_guard lock(m_synchronization->mutex);
   const std::filesystem::path path = detail::localPath(*this, uri);
   if (path.empty()) return false;
   if (!writeBytes(path, bytes, size)) return false;
@@ -84,6 +87,7 @@ bool Hub::write(std::string_view uri, const void* bytes, size_t size) {
 }
 
 std::filesystem::path Hub::resolve(std::string_view uri) const {
+  const std::lock_guard lock(m_synchronization->mutex);
   const std::pair<std::string, std::filesystem::path>* best = nullptr;
   for (const auto& mountPair : m_mounts)
     if (uri.starts_with(mountPair.first) &&
@@ -91,6 +95,12 @@ std::filesystem::path Hub::resolve(std::string_view uri) const {
       best = &mountPair;
   if (best) return best->second / std::string(uri.substr(best->first.size()));
   return {};
+}
+
+std::vector<std::pair<std::string, std::filesystem::path>>
+Hub::mountedDirectories() const {
+  const std::lock_guard lock(m_synchronization->mutex);
+  return m_mounts;
 }
 
 }  // namespace sigil::io

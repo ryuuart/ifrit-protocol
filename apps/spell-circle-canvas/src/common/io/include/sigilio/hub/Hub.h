@@ -65,7 +65,8 @@ namespace sigil::io {
 
 namespace detail {
 struct Residency;
-}
+struct Synchronization;
+}  // namespace detail
 
 class Hub;
 
@@ -137,13 +138,16 @@ struct ResourceInfo {
  * re-asking). Failed lookups are NOT cached: a missing file loads as
  * soon as it appears.
  *
- * A Hub satisfies ByteSource and ResolvingByteSource.
+ * Calls on one Hub may overlap: mount, decoder, cache and retention state are
+ * synchronized internally. A Hub satisfies ByteSource and
+ * ResolvingByteSource.
  */
 class Hub {
  public:
   /** Registers the SigilImage decoders: ImageAsset (the routed decode
    *  at default options) and ChannelData. */
   Hub();
+  ~Hub();
 
   Hub(const Hub&) = delete;
   Hub& operator=(const Hub&) = delete;
@@ -199,14 +203,15 @@ class Hub {
   void registerDecoder(
       std::function<std::optional<T>(const Bytes&, std::string_view hint)>
           decode) {
-    m_decoders[std::type_index(typeid(T))] =
+    setDecoder(
+        std::type_index(typeid(T)),
         [decode = std::move(decode)](
             const Bytes& bytes,
             const std::filesystem::path& path) -> std::shared_ptr<const void> {
-      auto value = decode(bytes, path.native());
-      if (!value) return nullptr;
-      return std::make_shared<const T>(std::move(*value));
-    };
+          auto value = decode(bytes, path.native());
+          if (!value) return nullptr;
+          return std::make_shared<const T>(std::move(*value));
+        });
   }
 
   /** The same, from any object satisfying the Decoder concept. */
@@ -226,9 +231,8 @@ class Hub {
    *  image(uri) and shares its view. */
   template <typename T>
   std::shared_ptr<const T> load(std::string_view uri) {
-    return std::static_pointer_cast<const T>(
-        loadView(cacheKey(uri, nullptr), uri, std::type_index(typeid(T)),
-                 registeredDecoder(std::type_index(typeid(T)))));
+    return std::static_pointer_cast<const T>(loadRegisteredView(
+        cacheKey(uri, nullptr), uri, std::type_index(typeid(T))));
   }
 
   /** UTF-8 text convenience over blob(). */
@@ -246,8 +250,7 @@ class Hub {
   std::vector<std::string> select(std::string_view selector) const;
 
   /** Fetches the distinct @p uris concurrently into the byte cache and
-   *  returns how many are ready. No decoding is performed. Like every Hub
-   *  operation, the call itself must not overlap another call on this Hub. */
+   *  returns how many are ready. No decoding is performed. */
   size_t preload(std::span<const std::string_view> uris);
 
   /** Selects @p selector and concurrently fetches the resulting files. */
@@ -351,8 +354,19 @@ class Hub {
                                        std::type_index type,
                                        const Redecode& decode);
 
+  /** The registered-decoder path. A populated view returns under one cache
+   *  lock; only a miss copies the decoder and enters loadView(). */
+  std::shared_ptr<const void> loadRegisteredView(const std::string& key,
+                                                 std::string_view uri,
+                                                 std::type_index type);
+
   /** The decoder registered for `type`, or an empty function. */
   Redecode registeredDecoder(std::type_index type) const;
+  void setDecoder(std::type_index type, Redecode decode);
+
+  std::vector<std::pair<std::string, std::filesystem::path>>
+  mountedDirectories() const;
+  std::shared_ptr<detail::Residency> residency();
 
   /** The map key for an ask: the URI alone for blob()/text()/
    *  channels() and default-options image(); with a layer or size
@@ -363,6 +377,7 @@ class Hub {
   static std::string cacheKey(std::string_view uri,
                               const image::DecodeOptions* options);
 
+  std::unique_ptr<detail::Synchronization> m_synchronization;
   std::vector<std::pair<std::string, std::filesystem::path>> m_mounts;
   std::map<std::string, Entry, std::less<>> m_entries;
   std::map<std::type_index, Redecode> m_decoders;

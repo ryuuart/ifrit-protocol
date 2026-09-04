@@ -4,11 +4,12 @@
  * decoder registered for its type.
  */
 
+#include "Residency.h"
 #include "sigilio/hub/Hub.h"
 
 namespace sigil::io {
 
-Hub::Hub() {
+Hub::Hub() : m_synchronization(std::make_unique<detail::Synchronization>()) {
   registerDecoder<sigil::image::ImageAsset>(
       [](const Bytes& bytes, std::string_view hint) {
         return sigil::image::decodeImage(bytes.bytes.data(), bytes.bytes.size(),
@@ -21,7 +22,15 @@ Hub::Hub() {
   });
 }
 
+Hub::~Hub() = default;
+
+void Hub::setDecoder(std::type_index type, Redecode decode) {
+  const std::lock_guard lock(m_synchronization->mutex);
+  m_decoders[type] = std::move(decode);
+}
+
 Hub::Redecode Hub::registeredDecoder(std::type_index type) const {
+  const std::lock_guard lock(m_synchronization->mutex);
   const auto it = m_decoders.find(type);
   return it == m_decoders.end() ? Redecode{} : it->second;
 }

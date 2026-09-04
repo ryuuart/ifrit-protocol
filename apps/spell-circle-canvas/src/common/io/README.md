@@ -169,9 +169,12 @@ without fetching. The hub never inspects bytes.
 
 ## Gotchas
 
-`Hub` has no synchronization of any kind. It is not safe for concurrent
-use — and that includes concurrent reads, since a lookup that misses
-inserts into the cache.
+A `Hub` synchronizes its mount table, decoder registry, cache and retention
+state internally. Calls on one Hub may overlap. Fetch and decode work happens
+outside the cache lock; concurrent cold asks may do the same source work, but
+only one resulting view becomes the cached answer. A single `ResourceLease` is
+a mutable selector set and its own `include()` and `refresh()` calls must not
+overlap; independent leases coordinate their URI claims internally.
 
 Selection is a filesystem snapshot, not a watch. A later `select()` sees files
 added since the previous call, while a returned vector does not change beneath

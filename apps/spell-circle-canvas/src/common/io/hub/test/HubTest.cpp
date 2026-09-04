@@ -19,11 +19,14 @@
 
 #include <gtest/gtest.h>
 
+#include <array>
+#include <barrier>
 #include <chrono>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <string>
+#include <thread>
 
 #include "ScratchDir.h"
 
@@ -138,6 +141,25 @@ TEST_F(IOHub, RegisteredDecodersAnswerLoadAndReloadOnPoll) {
   EXPECT_NE(recounted, counted);
   EXPECT_EQ(recounted->words, 2u);
   EXPECT_EQ(hub.text("res://live.txt"), "four five");
+}
+
+TEST_F(IOHub, ConcurrentColdLoadsPublishOneCachedView) {
+  dir.write("shared.txt", "one two three");
+  hub.registerDecoder<WordCount>(WordCounter{});
+  constexpr size_t kReaders = 8;
+  std::barrier start(static_cast<std::ptrdiff_t>(kReaders));
+  std::array<std::shared_ptr<const WordCount>, kReaders> views;
+  std::array<std::thread, kReaders> readers;
+  for (size_t i = 0; i < kReaders; ++i)
+    readers[i] = std::thread([&, i] {
+      start.arrive_and_wait();
+      views[i] = hub.load<WordCount>("res://shared.txt");
+    });
+  for (std::thread& reader : readers) reader.join();
+
+  ASSERT_NE(views.front(), nullptr);
+  EXPECT_EQ(views.front()->words, 3u);
+  for (const auto& view : views) EXPECT_EQ(view, views.front());
 }
 
 TEST_F(IOHub, LoadImageAssetIsTheImageView) {

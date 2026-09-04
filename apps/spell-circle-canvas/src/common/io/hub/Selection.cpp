@@ -191,6 +191,18 @@ struct MountedWalk {
   std::string uriPrefix;
 };
 
+std::filesystem::path resolveMounted(
+    std::span<const std::pair<std::string, std::filesystem::path>> mounts,
+    std::string_view uri) {
+  const std::pair<std::string, std::filesystem::path>* best = nullptr;
+  for (const auto& mount : mounts)
+    if (uri.starts_with(mount.first) &&
+        (!best || mount.first.size() > best->first.size()))
+      best = &mount;
+  if (!best) return {};
+  return best->second / std::string(uri.substr(best->first.size()));
+}
+
 /** Narrows a mounted traversal to the overlap between the mount's namespace
  * and a known literal directory prefix. */
 std::optional<MountedWalk> mountedWalk(std::string_view mountPrefix,
@@ -277,15 +289,16 @@ std::vector<std::string> Hub::select(std::string_view selector) const {
   const bool uri = selector.find("://") != std::string_view::npos;
   if (!uri) return selectFilesystem(selector, false);
 
+  const auto mounts = mountedDirectories();
   if (!glob) {
-    const std::filesystem::path exact = resolve(literalSelector);
+    const std::filesystem::path exact = resolveMounted(mounts, literalSelector);
     if (regularFile(exact)) return {literalSelector};
   }
 
   const std::string beneath =
       glob ? globDirectoryPrefix(selector) : directoryPrefix(literalSelector);
   std::vector<std::string> found;
-  for (const auto& [prefix, root] : m_mounts) {
+  for (const auto& [prefix, root] : mounts) {
     const std::optional<MountedWalk> traversal =
         mountedWalk(prefix, root, beneath);
     if (!traversal || !directory(traversal->root)) continue;
@@ -298,7 +311,7 @@ std::vector<std::string> Hub::select(std::string_view selector) const {
 
       // A more-specific mount hides the broad mount's file at this URI. Only
       // expose candidates contributed by the prefix an ordinary fetch wins.
-      for (const auto& mount : m_mounts) {
+      for (const auto& mount : mounts) {
         const std::string& otherPrefix = mount.first;
         if (otherPrefix.size() > prefix.size() &&
             candidate.starts_with(otherPrefix))

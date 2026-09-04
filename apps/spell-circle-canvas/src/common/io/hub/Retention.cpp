@@ -110,27 +110,28 @@ void ResourceLease::release() {
   m_uris.clear();
 }
 
-ResourceLease Hub::retain() {
-  if (!m_residency) m_residency = std::make_shared<detail::Residency>();
-  return ResourceLease(*this, m_residency, {});
-}
+ResourceLease Hub::retain() { return ResourceLease(*this, residency(), {}); }
 
 ResourceLease Hub::retain(std::string_view selector) {
-  if (!m_residency) m_residency = std::make_shared<detail::Residency>();
-  return ResourceLease(*this, m_residency, {std::string(selector)});
+  return ResourceLease(*this, residency(), {std::string(selector)});
 }
 
 ResourceLease Hub::retain(std::span<const std::string_view> selectors) {
-  if (!m_residency) m_residency = std::make_shared<detail::Residency>();
   std::vector<std::string> owned;
   owned.reserve(selectors.size());
   for (std::string_view selector : selectors) owned.emplace_back(selector);
-  return ResourceLease(*this, m_residency, std::move(owned));
+  return ResourceLease(*this, residency(), std::move(owned));
 }
 
 ResourceLease Hub::retain(std::initializer_list<std::string_view> selectors) {
   return retain(
       std::span<const std::string_view>(selectors.begin(), selectors.size()));
+}
+
+std::shared_ptr<detail::Residency> Hub::residency() {
+  const std::lock_guard lock(m_synchronization->mutex);
+  if (!m_residency) m_residency = std::make_shared<detail::Residency>();
+  return m_residency;
 }
 
 }  // namespace sigil::io

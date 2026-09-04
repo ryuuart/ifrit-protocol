@@ -14,4 +14,8 @@ struct Residency {
   std::map<std::string, std::size_t, std::less<>> pins;
 };
 
+struct Synchronization {
+  mutable std::recursive_mutex mutex;
+};
+
 }  // namespace sigil::io::detail
