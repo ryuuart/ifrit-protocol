@@ -952,13 +952,21 @@ beneath, in `sigil::geometry::shapes`.
   the box changes: `parametric()` raw and keyed, `lissajous()`,
   `harmonograph()` (a Lissajous whose amplitudes decay, with precession),
   `rose()`, `spiral()` (Archimedean or logarithmic) and `trochoid()`.
-- **`kit/Corners.h`** — `rounded()`, the wrapper that rounds any
-  silhouette's sharp corners, and the two shapes a frame is cut to:
-  `chamfered()` and `notched()`, both taking a per-`Corner` mask because a
+- **`kit/Corners.h`** — the two wrappers over any silhouette and the two
+  shapes a frame is cut to. `rounded()` rounds every sharp corner;
+  `shaped()` runs a `path::Shaper` over the outline, so a torn or wobbled
+  edge is decided ONCE where the shape is asked for rather than re-run as
+  a path effect on every mark the figure carries — which is also what
+  makes the fill, the keyline and the glow agree on where the edge went.
+  `chamfered()` and `notched()` both take a per-`Corner` mask, because a
   cut on one diagonal is the common case and no single radius says it. A
   treatment of ZERO is a square corner, not a cut of no length: the two
   vertices it would otherwise emit stand on top of each other, and
-  `rounded()` over that path finds no corner to round there.
+  `rounded()` over that path finds no corner to round there. `Chamfered`
+  also carries a `radius` for the corners its mask does NOT name —
+  "rounded except where cut", the machined-panel rule, which a rounding
+  wrapped round a chamfer cannot say because it would round the cut too —
+  and a `cutRise` for the cut that is not at 45°.
 - **`kit/Silhouettes.h`** — the 2D shelf, including all three.
 - **`kit/Shapers.h`** — `shapers::`, the stock over the deviation seam:
   `Wave` (also the braid primitive — strands that oscillate trade sides,

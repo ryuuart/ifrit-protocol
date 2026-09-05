@@ -236,38 +236,60 @@ SkPath Trochoid::path(SkSize s) const {
 
 SkPath Chamfered::path(SkSize s) const {
   const float w = s.width(), h = s.height();
-  const float c = std::clamp(cut, 0.0f, std::min(w, h) * 0.5f);
+  // A 45 degree cut clamps to the SHORT side so it stays at 45 degrees;
+  // an anisotropic one was never at 45 and clamps each leg to its own
+  // half-side. A cut of no rise is a square corner and needs no spelling
+  // of its own, which is what lets zero mean "the rise is the run".
+  const bool square = cutRise <= 0.0f;
+  const float run = square ? std::clamp(cut, 0.0f, std::min(w, h) * 0.5f)
+                           : std::clamp(cut, 0.0f, w * 0.5f);
+  const float rise = square ? run : std::clamp(cutRise, 0.0f, h * 0.5f);
+  const float r = std::clamp(radius, 0.0f, std::min(w, h) * 0.5f);
+  const float d = r * 2.0f;
   // A CUT OF ZERO IS A SQUARE CORNER, not a cut of no length. Emitting the
   // two vertices anyway puts a duplicate point at each corner, and every
   // treatment that reads the vertices afterwards — rounding among them —
   // sees a degenerate segment there and rounds nothing.
   const auto cutting = [&](Corner corner) {
-    return c > 0.0f && has(mask, corner);
+    return run > 0.0f && rise > 0.0f && has(mask, corner);
   };
   SkPathBuilder b;
-  if (cutting(Corner::TopLeft))
-    b.moveTo(c, 0);
-  else
+  if (cutting(Corner::TopLeft)) {
+    b.moveTo(run, 0);
+  } else if (r > 0.0f) {
+    b.moveTo(0, r);
+    b.arcTo(SkRect::MakeXYWH(0, 0, d, d), 180, 90, false);
+  } else {
     b.moveTo(0, 0);
+  }
   if (cutting(Corner::TopRight)) {
-    b.lineTo(w - c, 0);
-    b.lineTo(w, c);
+    b.lineTo(w - run, 0);
+    b.lineTo(w, rise);
+  } else if (r > 0.0f) {
+    b.lineTo(w - r, 0);
+    b.arcTo(SkRect::MakeXYWH(w - d, 0, d, d), 270, 90, false);
   } else {
     b.lineTo(w, 0);
   }
   if (cutting(Corner::BottomRight)) {
-    b.lineTo(w, h - c);
-    b.lineTo(w - c, h);
+    b.lineTo(w, h - rise);
+    b.lineTo(w - run, h);
+  } else if (r > 0.0f) {
+    b.lineTo(w, h - r);
+    b.arcTo(SkRect::MakeXYWH(w - d, h - d, d, d), 0, 90, false);
   } else {
     b.lineTo(w, h);
   }
   if (cutting(Corner::BottomLeft)) {
-    b.lineTo(c, h);
-    b.lineTo(0, h - c);
+    b.lineTo(run, h);
+    b.lineTo(0, h - rise);
+  } else if (r > 0.0f) {
+    b.lineTo(r, h);
+    b.arcTo(SkRect::MakeXYWH(0, h - d, d, d), 90, 90, false);
   } else {
     b.lineTo(0, h);
   }
-  if (cutting(Corner::TopLeft)) b.lineTo(0, c);
+  if (cutting(Corner::TopLeft)) b.lineTo(0, rise);
   b.close();
   return b.detach();
 }
