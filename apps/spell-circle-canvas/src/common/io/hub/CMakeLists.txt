@@ -23,10 +23,26 @@ find_package(OpenImageIO CONFIG QUIET)
 sigil_test(io_hub_test
   SOURCES test/HubTest.cpp
   LIBRARIES SigilIOHub SigilImageEncode SigilCoreSchedule)
+# The four EXR cases write their own fixtures through OpenImageIO, so
+# they exist only in a build that has it; the label says so.
 if(OpenImageIO_FOUND)
   target_link_libraries(io_hub_test PRIVATE OpenImageIO::OpenImageIO)
   target_compile_definitions(io_hub_test PRIVATE SIGILIO_HAS_OIIO)
+else()
+  set_tests_properties(io_hub_test PROPERTIES LABELS oiio)
 endif()
+
+# One case in that binary fetches over the network. It runs as an entry
+# of its own, which is where the `network` label sits, and the entry the
+# rest of the cases run under leaves it out, so a default run needs no
+# connectivity.
+set(_live IONetwork.LiveFetchThenOfflineRoundTrip)
+set_tests_properties(io_hub_test PROPERTIES
+  ENVIRONMENT "GTEST_FILTER=-${_live}")
+add_test(NAME io_hub_network_test
+  COMMAND io_hub_test --gtest_filter=${_live})
+set_tests_properties(io_hub_network_test PROPERTIES LABELS network)
+unset(_live)
 
 # Cache hits, typed-view dispatch and URI resolution, the disk kept out
 # of the timed loop.

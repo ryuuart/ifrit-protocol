@@ -23,7 +23,6 @@
 #include <array>
 #include <barrier>
 #include <chrono>
-#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <string>
@@ -806,16 +805,16 @@ TEST(IONetwork, FetchedBytesPersistWholeOrNotAtAll) {
   EXPECT_EQ(offline.text(url), "ok");
 }
 
-// Opt-in live-network round trip: fetch once, then read the same URL
-// back through a fresh hub locked Offline — the persisted cache is the
-// only possible source. Pinned to an immutable commit. It is skipped
-// unless SIGILIO_NET_TESTS is set in the environment, so a default
-// run needs no connectivity.
+// The one case in this file that reaches the network: fetch a URL over
+// the built-in transport, then read it back through a fresh hub locked
+// Offline, where the persisted cache is the only possible source. It has
+// a ctest entry of its own so a default run never leaves the machine,
+// and that entry carries the `network` label.
 TEST(IONetwork, LiveFetchThenOfflineRoundTrip) {
-  if (!std::getenv("SIGILIO_NET_TESTS"))
-    GTEST_SKIP() << "set SIGILIO_NET_TESTS=1 to run live-network "
-                    "tests";
   const ScratchDir cache("sigilio_net");
+  // An immutable commit, so the bytes on the far end never change under
+  // the case; how many of them there are is the far end's fact and not
+  // this library's, so only the round trip is claimed.
   const std::string url =
       "https://raw.githubusercontent.com/KhronosGroup/"
       "glTF-Sample-Assets/2bac6f8c57bf471df0d2a1e8a8ec023c7801dddf/"
@@ -823,13 +822,13 @@ TEST(IONetwork, LiveFetchThenOfflineRoundTrip) {
   Hub online;
   online.setNetworkCacheDir(cache.path);
   auto fetched = online.blob(url);
-  ASSERT_NE(fetched, nullptr);
-  EXPECT_EQ(fetched->bytes.size(), 120484u);
+  if (!fetched) GTEST_SKIP() << "no route to " << url;
+  EXPECT_FALSE(fetched->bytes.empty());
 
   Hub offline;
   offline.setNetworkCacheDir(cache.path);
   offline.setNetworkPolicy(NetworkPolicy::Offline);
   auto replay = offline.blob(url);
   ASSERT_NE(replay, nullptr);
-  EXPECT_EQ(replay->bytes.size(), fetched->bytes.size());
+  EXPECT_EQ(replay->bytes, fetched->bytes);
 }

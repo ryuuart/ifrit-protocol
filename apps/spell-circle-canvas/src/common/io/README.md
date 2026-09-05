@@ -274,7 +274,7 @@ From `apps/spell-circle-canvas`:
 ```sh
 python3 scripts/setup.py --config Release
 cmake --build build --config Release --target io_source_test io_hub_test
-ctest --test-dir build -C Release -R io_ --output-on-failure
+ctest --test-dir build -C Release -R '^io_' --output-on-failure
 ```
 
 Targets: `SigilIOSource` (header only, `source/`) with
@@ -299,12 +299,21 @@ needs before it can be asked anything — and forces a distinct mtime
 through one `touchForward()` helper rather than by sleeping, since a
 filesystem's timestamp granularity is not this test's running time.
 
-Two parts of `io_hub_test` are conditional. The EXR cases compile only
-when OpenImageIO is found at configure time — the test uses it to *write*
-its fixtures, while the library itself never calls it. The live-network
-case fetches a pinned immutable URL once and reads it back through a
-fresh hub locked `Offline`, and it skips unless `SIGILIO_NET_TESTS=1`
-is set in the environment. Every other network case is a pre-seeded disk
-cache, with a stub transport standing in for libcurl where a fetch has to
-succeed or fail, so libcurl itself is untested by default and the default
-run needs no connectivity and no resolver at all.
+Two parts of `io_hub_test` are conditional, and a ctest label says so in
+both cases. The EXR cases compile only when OpenImageIO is found at
+configure time — the test uses it to *write* its fixtures, while the
+library itself never calls it — so a build without it carries the `oiio`
+label. The live-network case fetches a pinned immutable URL once and
+reads it back through a fresh hub locked `Offline`; it is a ctest entry
+of its own, `io_hub_network_test`, labelled `network`, and the entry the
+other cases run under leaves it out, so a default run needs no
+connectivity and no resolver at all. Every other network case is a
+pre-seeded disk cache, with a stub transport standing in for libcurl
+where a fetch has to succeed or fail, so libcurl itself is untested by
+default.
+
+A case here asserts one thing a header promises and is named that
+promise as a sentence. It pins only what editing this library could
+falsify — a cache hit, a selection, a URI resolution, bytes in and the
+same bytes out — never how many bytes a server happens to hold, nor how
+long a fetch took.
