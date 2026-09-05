@@ -143,13 +143,17 @@ TEST(Timing, TheClocksAdvanceWithRealTimeAndResetSendsThemBack) {
     ScopedMs timed(scoped);
     std::this_thread::sleep_for(std::chrono::milliseconds(2));
   }
-  EXPECT_GE(sw.elapsedMs(), 1.0);
+  const double slept = sw.elapsedMs();
+  EXPECT_GE(slept, 1.0);
   EXPECT_GE(laps.mark("slept"), 1.0);
   EXPECT_GE(scoped, 1.0);
   // Reset is only observable once a span has been measured, which is why
-  // it is claimed here rather than beside the deterministic cases.
+  // it is claimed here rather than beside the deterministic cases. A
+  // stopwatch that ignored reset would only ever read higher, so the
+  // comparison is against the span already measured and not against a
+  // ceiling the scheduler could cross.
   sw.reset();
-  EXPECT_LT(sw.elapsedMs(), 1.0);
+  EXPECT_LT(sw.elapsedMs(), slept);
 }
 
 TEST(Laps, MarksAreNamedInOrderAndSumToTheTotal) {

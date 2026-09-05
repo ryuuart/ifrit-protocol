@@ -142,8 +142,10 @@ scope exit, the frame timer's lanes, and `Check::line` formatting as one
 parameterised case per kind of claim — integral, tolerance, text, bare
 condition, and a label longer than its column. Exactly one case reads the
 wall clock, and it owns every claim that needs one: that the stopwatch,
-the lap timer and `ScopedMs` advance with real time and that a reset
-sends the reading back. Every other timing case is deterministic, because
+the lap timer and `ScopedMs` advance with real time, and that a reset
+sends the reading back — asserted against the span already measured,
+since a stopwatch that ignored reset could only ever read higher, and
+not against a ceiling a busy scheduler could cross. Every other timing case is deterministic, because
 sleeping and then asserting on a duration asserts the operating system's
 scheduler rather than anything this library promises. `measure_bench` times `Samples::add`,
 `Samples::percentile` and `Samples::mean` per sample count; it builds
