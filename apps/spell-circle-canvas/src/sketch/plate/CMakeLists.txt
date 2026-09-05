@@ -3,19 +3,19 @@
 # declared moment and photographed, so a plate is a function of the
 # declaration alone and never of how fast the machine ran. The IO byte
 # writer a plate is saved through is read in the source alone.
+#
+# THE DEVICE LANE MAKES NO DEVICE. A `--gpu` sweep draws through the
+# Graphite context the process's device already carries, which is why
+# SigilGeometryDevice is on this line: a set is rendered by the runtime
+# the host installed on that device, and a canvas is photographed on a
+# surface allocated from the same one. A device of the plate's own would
+# be a second set of textures neither could read out of the other.
 sigil_library(SigilSketchPlate PIC
-  SOURCES Compare.cpp Story.cpp Sweep.cpp
+  SOURCES Compare.cpp Graphite.cpp Story.cpp Sweep.cpp
   HEADERS Compare.h FrameStats.h Graphite.h Story.h Sweep.h
   PUBLIC SigilSketchCore SigilMeasure SigilImageEncode SigilVideoCore
-  PRIVATE SigilIOSource SigilImageDecode SigilVideoEncode SigilWeaveFonts)
-
-# The device lane: a process-owned device and queue with a Graphite
-# context over them, since a run with no window shares nobody's.
-if(APPLE)
-  target_sources(SigilSketchPlate PRIVATE GraphiteMetal.mm)
-  target_link_libraries(SigilSketchPlate PRIVATE SigilSkia)
-  target_compile_definitions(SigilSketchPlate PRIVATE SIGILSKETCH_HEADLESS_GPU)
-endif()
+  PRIVATE SigilGeometryDevice SigilSkiaGraphite SigilIOSource
+          SigilImageDecode SigilVideoEncode SigilWeaveFonts)
 
 sigil_test(sketch_plate_test
   SOURCES test/CompareTest.cpp test/SweepTest.cpp

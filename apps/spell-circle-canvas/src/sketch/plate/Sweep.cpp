@@ -17,17 +17,14 @@
 #include <sigilsketch/core/Registry.h>
 #include <sigilsketch/core/Session.h>
 #include <sigilsketch/plate/FrameStats.h>
+#include <sigilsketch/plate/Graphite.h>
 
-#ifdef SIGILSKETCH_HEADLESS_GPU
 #include <include/gpu/GpuTypes.h>  // skgpu::GpuStatsFlags
 #include <include/gpu/graphite/Context.h>
 #include <include/gpu/graphite/Recorder.h>
 #include <include/gpu/graphite/Recording.h>
 #include <include/gpu/graphite/Surface.h>
 #include <sigilskia/graphite/GraphiteContext.h>
-
-#include "sigilsketch/plate/Graphite.h"
-#endif
 
 #include <algorithm>
 #include <cmath>
@@ -94,12 +91,22 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
     }
   }
 
-#ifdef SIGILSKETCH_HEADLESS_GPU
-  std::unique_ptr<skia::GraphiteContext> graphite;
+  // THE DEVICE'S OWN CONTEXT, and never one of this sweep's making: a
+  // set is rendered by the runtime the host installed on the device it
+  // brought up, and a canvas is photographed on a surface allocated
+  // here. Two devices would mean the second could not read what the
+  // first painted, so both stand on the one the host installed.
+  skia::GraphiteContext* graphite = nullptr;
   if (options.gpu) {
-    graphite = headlessGraphite();
+    graphite = deviceGraphite();
     if (!graphite) {
-      std::fprintf(stderr, "Graphite context creation failed; no GPU sweep\n");
+      // Named the way a device that could not be created is named, so a
+      // caller telling "this machine has no device" from "this is a
+      // defect" reads one answer for both: a device whose Graphite
+      // adoption failed has no 2D device runtime either.
+      std::fprintf(stderr,
+                   "no device runtime (the device carries no Graphite "
+                   "context)\n");
       if (timingJson) std::fclose(timingJson);
       return 1;
     }
@@ -125,13 +132,6 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
             : "unsupported on this backend",
         (unsigned)caps);
   }
-#else
-  if (options.gpu) {
-    std::fprintf(stderr, "this build has no headless GPU backend\n");
-    if (timingJson) std::fclose(timingJson);
-    return 1;
-  }
-#endif
 
   std::filesystem::create_directories(options.outDir);
   // TWO TIMING COLUMNS, and the difference between them is the point.
@@ -205,8 +205,7 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
         SkImageInfo::MakeN32Premul((int)size.width(), (int)size.height());
     sk_sp<SkSurface> surface;
     std::function<void()> flushHook;
-#ifdef SIGILSKETCH_HEADLESS_GPU
-    if (options.gpu) {
+    if (graphite) {
       surface = SkSurfaces::RenderTarget(graphite->recorder(), info);
       // Serialize each frame to completion so a frame's cost cannot hide
       // in queue depth. Real hosts pipeline — this is the honest
@@ -220,7 +219,6 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
         graphite->context()->submit(skgpu::graphite::SyncToCpu::kYes);
       };
     }
-#endif
     if (!surface) surface = SkSurfaces::Raster(info);
 
     FrameStats stats;
@@ -371,8 +369,7 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
     SkBitmap bitmap;
     bitmap.allocPixels(plateInfo);
 
-#ifdef SIGILSKETCH_HEADLESS_GPU
-    if (options.gpu) {
+    if (graphite) {
       // A Graphite surface cannot readPixels synchronously, so the still
       // comes back through the async path — and these are the pixels the
       // interactive host actually shows, so visual review runs here.
@@ -423,7 +420,6 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
       ++plates;
       continue;
     }
-#endif
     sk_sp<SkSurface> plate = SkSurfaces::Raster(plateInfo);
     plate->getCanvas()->clear(clearColor);
     plate->getCanvas()->scale(scale, scale);

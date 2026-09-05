@@ -252,9 +252,12 @@ bool useDevice() {
 void releaseDevice() {}
 #endif
 
-/** True when the selection holds a sketch that draws through a device —
- *  the only reason to bring one up. The kind answers for itself, so a
- *  runtime added later is not a name this has to learn. */
+/** True when the selection holds a sketch that draws through a device.
+ *  The kind answers for itself, so a runtime added later is not a name
+ *  this has to learn. It is not what decides whether a device is brought
+ *  up — a `--gpu` run brings one up whatever it holds, because the
+ *  surface a canvas is photographed on comes off that same device — but
+ *  it is what a montage asks before spending one. */
 bool selectionNeedsDevice(int only, const std::string& kind) {
   const auto& entries = sketch::registry();
   for (int index : sketch::selection(only, kind)) {
@@ -959,12 +962,15 @@ int main(int argc, char* argv[]) {
     sweepOptions.only = chosen;
     sweepOptions.kind = kind;
     sweepOptions.gpu = gpu;
-    // A device is brought up only when a SET in the selection draws
-    // through one. A canvas sketch's device lane is the surface the
-    // sweep allocates, and its mesh painter stays on the CPU executor
-    // here whatever the flag says: a plate is hashed from that executor,
-    // and the two rasterise the same picture but not the same bytes.
-    if (gpu && selectionNeedsDevice(chosen, kind) && !useDevice()) return 1;
+    // `--gpu` BRINGS THE ONE DEVICE UP, whatever the selection holds.
+    // A set is rendered by the runtime installed on it; a canvas is
+    // photographed on a Graphite surface allocated from that same
+    // device's context, so there is one device in the process and not
+    // two that cannot read each other's textures. A canvas sketch's mesh
+    // painter still stays on the CPU executor whatever the flag says: a
+    // plate is hashed from that executor, and the two rasterise the same
+    // picture but not the same bytes.
+    if (gpu && !useDevice()) return 1;
     SharedWebEngineScope sharedWebEngine;
     // A SWEEP HAS A GUEST TOO, and it has a hundred of them in one
     // process: without the reporter a faulting sketch takes the run down
