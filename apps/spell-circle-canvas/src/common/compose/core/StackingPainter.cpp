@@ -1475,9 +1475,21 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
 
   // Fill-only leaves route blend/opacity straight onto the fill paint instead
   // of a (device-clip-sized!) saveLayer — a field of plus-blended shapes costs
-  // path draws, not full-canvas layers. Excluded: live opacity (must stay
-  // outside any cached recording) and texture bakes (blending must hit the
-  // real destination, not the bake's transparent surface).
+  // path draws, not full-canvas layers. Excluded: texture bakes (blending
+  // must hit the real destination, not the bake's transparent surface).
+  //
+  // A LIVE OPACITY IS ALLOWED, ON A LEAF THAT CANNOT RECORD. The hazard it
+  // has to be kept away from is a recording: a recording that baked the
+  // fill paint would freeze this frame's alpha into it and replay a fade
+  // that has moved on. Every OTHER recording is already impossible — a
+  // bound opacity declares the node's own paint volatile, which blocks
+  // every containing recording and every group bake — so what is left is
+  // the node's own, and the only two ways a leaf this predicate admits
+  // takes one are asking for `Cache::Picture` and holding a memo. Both are
+  // named. The composite itself is exact for a single fill: a lone path
+  // drawn into a transparent layer and composited at alpha is the same
+  // pixels as that path drawn at alpha, since there is nothing inside the
+  // layer for it to composite against first.
   const bool opacityLive =
       node.paint.opacity.binding() != nullptr ||
       (inst.anims[Instance::kOpacity] &&
@@ -1489,7 +1501,9 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
       (!node.fxData ||
        (node.fxData->overlays.empty() && node.fxData->masks.empty())) &&
       !layerEffectOf(node) && !backdropEffectOf(node) && !node.clipContent &&
-      !opacityLive && node.cacheMode != Cache::Texture &&
+      (!opacityLive ||
+       (node.cacheMode != Cache::Picture && !memoized)) &&
+      node.cacheMode != Cache::Texture &&
       node.cacheMode != Cache::Group;  // (same reason: bakes isolate)
   // A texture-cached node composites exactly ONE draw — its blit — so its
   // blend and opacity can ride that draw's paint instead of a

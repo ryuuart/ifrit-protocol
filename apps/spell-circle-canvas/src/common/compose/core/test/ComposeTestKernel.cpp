@@ -478,6 +478,76 @@ TEST(ComposeEffects, ALiveBackdropEffectIsNeverLiftedOffABake) {
   EXPECT_NE(grab(host), sharp) << "and it still tracks its parameter";
 }
 
+TEST(ComposeCache, ABlendedLeafWithABoundOpacityPaintsWithoutALayer) {
+  // A leaf that composites — a plus-blended glow, a fading overlay — used
+  // to be handed a saveLayer whenever its opacity was BOUND rather than
+  // plain, and that layer is the size of what the node PAINTS, so a
+  // full-bleed one cost a canvas-sized intermediate every frame for one
+  // fill. The alpha rides the fill paint instead, and this is the claim
+  // that makes that legal: a lone fill drawn into a transparent layer and
+  // composited at alpha is the same pixels as that fill drawn at alpha,
+  // since there is nothing inside the layer for it to composite against
+  // first. Asserted against the PLAIN opacity of the same value, which
+  // took the direct route all along.
+  const auto plate = [](const ch::Output<float>* bound, float plain) {
+    auto host = std::make_unique<Host>();
+    Element leaf = box()
+                       .key("glow")
+                       .width(120)
+                       .height(120)
+                       .absolute()
+                       .left(30)
+                       .top(30)
+                       .corners({28.0f})
+                       .hitTestable(false)
+                       .fill(green())
+                       .blend(SkBlendMode::kPlus);
+    if (bound)
+      leaf.opacity(bound);
+    else
+      leaf.opacity(plain);
+    host->composer.render(profiledUnder(
+        stack().child(box().inset(0).fill(red())).child(std::move(leaf))));
+    host->frame();
+    return host;
+  };
+  ch::Output<float> gain{0.5f};
+  const std::unique_ptr<Host> live = plate(&gain, 0.0f);
+  const std::unique_ptr<Host> plain = plate(nullptr, 0.5f);
+  EXPECT_TRUE(identicalPixels(*live, *plain, 200, 200))
+      << "the alpha on the fill paint is not the alpha through a layer";
+  // …and it still tracks the binding, which a frozen fill paint would not.
+  gain = 0.0f;
+  live->frame();
+  EXPECT_EQ(SkColorGetG(live->pixel(90, 90)), 0u);
+}
+
+TEST(ComposeCache, ARecordedLeafKeepsItsBoundOpacityOutOfTheRecording) {
+  // …and the exclusion that survives. A leaf asked for `Cache::Picture`
+  // records, and a recording that baked the fill paint would freeze this
+  // frame's alpha and replay a fade that has moved on. Such a leaf keeps
+  // the layer, so the opacity is applied over the replay.
+  Host host;
+  ch::Output<float> gain{1.0f};
+  host.composer.render(profiledUnder(
+      stack().child(box().inset(0).fill(red())).child(box()
+                                                          .key("fading")
+                                                          .width(80)
+                                                          .height(80)
+                                                          .absolute()
+                                                          .left(10)
+                                                          .top(10)
+                                                          .fill(green())
+                                                          .cache(Cache::Picture)
+                                                          .opacity(&gain))));
+  host.frame();
+  EXPECT_GT(SkColorGetG(host.pixel(50, 50)), 200u) << "opaque at gain 1";
+  gain = 0.0f;
+  host.frame();
+  EXPECT_LT(SkColorGetG(host.pixel(50, 50)), 20u)
+      << "the recording froze the alpha it was taken at";
+}
+
 TEST(ComposeCache, ADeclaredScaleEntranceBakesOnceAtItsDestination) {
   // A `from(a).to(b)` on a scale lane NAMES b, so the coarse bake ladder
   // takes the bake there and the blit minifies through the entrance. The

@@ -1190,8 +1190,17 @@ struct RotaConvocationis : sketch::Sketch {
             .width(2 * rNom * kR)
             .height(2 * rNom * kR)
             .hitTestable(false)
+            // TURNED AS A BODY, not advanced along its path — the same
+            // rule the seals are built on, and for the same reason: a
+            // circular baseline rotated about its own centre is the same
+            // picture as the run advanced along it, so the ring is
+            // recorded once and blitted under a bound rotation where a
+            // driven phase re-places every glyph, re-runs the glow and
+            // re-rasterizes the whole band on every frame.
+            .rotate(motion::bind(&nomDrift).target(0.0f, 360.0f))
+            .cache(Cache::Texture)
             .onPath({.path = shapes::circle(),
-                     .at = &nomDrift,
+                     .at = 0.0f,
                      .align = TextPath::Align::Start,
                      .offset = -nomSize * 0.34f,
                      .autoFlip = false})
@@ -1452,12 +1461,17 @@ struct RotaConvocationis : sketch::Sketch {
           .glowRadius = 6.0f,
           .glowColor = sigil::material::rgb(0xFFC152, 0.42f)};
       const float side = sdf::minBoxFor(lit, 2.0f * kSealR);
+      // BAKED, because the seal count is the whole point of the rim: the
+      // figure is one static shader and only its gain moves, so twelve of
+      // them evaluating the field every frame is twelve times a cost that
+      // is paid once. The blend and the gain ride the blit.
       seal.child(
           box()
               .key(id + "-lit")
               .absolute()
               .inset(kSealR - side * 0.5f)
               .hitTestable(false)
+              .cache(Cache::Texture)
               .fill(mskia::Paint::recipe(sdf::material(sdf::circle(), lit)))
               .blend(SkBlendMode::kPlus)
               .opacity(&litSeal[k]));
@@ -1515,6 +1529,11 @@ struct RotaConvocationis : sketch::Sketch {
                    .absolute()
                    .inset(kSealR - kSealRing)
                    .hitTestable(false)
+                   // …and baked for the same reason: once its cascade has
+                   // landed the run is a settled picture that the body
+                   // turns, and a replay would re-draw every glyph of every
+                   // seal on every frame.
+                   .cache(Cache::Texture)
                    .onPath({.path = shapes::circle(),
                             .at = (float)k / (float)kSeals,
                             .align = TextPath::Align::Start,
