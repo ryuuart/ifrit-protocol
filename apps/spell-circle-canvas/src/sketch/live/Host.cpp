@@ -279,25 +279,30 @@ std::filesystem::file_time_type hostBinaryTime() {
   return {};
 }
 
+namespace {
+
+/** Whether anything in this process has walked yet, so a host being
+ *  built does not walk again after an owner already did. Set by the walk
+ *  itself rather than guarding it: the walk is idempotent and a caller
+ *  that asks for one is asking for one. */
+std::atomic_bool g_swept{false};
+
+}  // namespace
+
 void Host::sweepAbandonedBuildDirs() {
-  // ONCE PER PROCESS, wherever it is called from: the walk removes
-  // directories, and two of them walking the same tree at once would be
-  // two removals racing over one entry.
-  static std::once_flag swept;
-  std::call_once(swept, [] {
-    std::error_code ec;
-    const std::filesystem::path root = std::filesystem::temp_directory_path(ec);
-    if (ec) return;
-    for (auto it = std::filesystem::directory_iterator(root, ec);
-         !ec && it != std::filesystem::directory_iterator(); it.increment(ec)) {
-      const std::filesystem::path dir = it->path();
-      std::error_code stat;
-      if (!std::filesystem::is_directory(dir, stat) || stat) continue;
-      const pid_t pid = pidOfBuildDir(dir.filename().string());
-      if (pid == 0 || processAlive(pid)) continue;
-      removeBuildDir(dir);
-    }
-  });
+  g_swept.store(true, std::memory_order_relaxed);
+  std::error_code ec;
+  const std::filesystem::path root = std::filesystem::temp_directory_path(ec);
+  if (ec) return;
+  for (auto it = std::filesystem::directory_iterator(root, ec);
+       !ec && it != std::filesystem::directory_iterator(); it.increment(ec)) {
+    const std::filesystem::path dir = it->path();
+    std::error_code stat;
+    if (!std::filesystem::is_directory(dir, stat) || stat) continue;
+    const pid_t pid = pidOfBuildDir(dir.filename().string());
+    if (pid == 0 || processAlive(pid)) continue;
+    removeBuildDir(dir);
+  }
 }
 
 Host::Host(Options options, weave::FontContext& fonts)
@@ -305,9 +310,11 @@ Host::Host(Options options, weave::FontContext& fonts)
       m_fonts(fonts),
       m_assets(m_options.assetsDir) {
   // Before this process claims its own: the directories of runs that were
-  // killed or that faulted are the ones nothing else will ever clear. A
-  // host built after the owner already swept costs nothing here.
-  sweepAbandonedBuildDirs();
+  // killed or that faulted are the ones nothing else will ever clear. An
+  // owner that swept while its window was coming up has already done it,
+  // and this host walks nothing.
+  if (!g_swept.exchange(true, std::memory_order_relaxed))
+    sweepAbandonedBuildDirs();
   m_buildDir = acquireBuildDir();
   m_hostId = ++g_nextHostId;
   // A sketch this binary already carries opens instantly, and the file is
