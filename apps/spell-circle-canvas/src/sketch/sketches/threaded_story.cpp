@@ -42,6 +42,8 @@
 #include <sigilcompose/typography/Typography.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilweave/layout/Story.h>
+#include <sigilweave/paragraph/RichText.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
@@ -110,9 +112,9 @@ kit::Caption voice() {
 
 /** The story, declared once. Its blocks are numbered from its own start,
  *  so the third block is set the same way whichever frame it lands in. */
-Story article() {
-  Story built(
-      rich(body())
+weave::Story article() {
+  weave::Story built(
+      weave::rich(body())
           .add(u8"WHERE A STORY IS CUT\n", lead(16))
           .add(u8"A frame is not a paragraph and not a column: it is a "
                u8"piece of geometry a story is filled into, and a story is "
@@ -161,7 +163,8 @@ struct ThreadedStory final : sketch::Sketch {
 
   /** ONE CHAIN at one measure: a frame round a disc, then two columns.
    *  `prefix` keys the chain, so the page may carry two of them. */
-  Element chain(const char* prefix, float measure, const Story& article) {
+  Element chain(const char* prefix, float measure,
+                const weave::Story& article) {
     namespace s = story;
     const std::string head = std::string(prefix) + "-head";
     const std::string column = std::string(prefix) + "-column";
@@ -204,7 +207,7 @@ struct ThreadedStory final : sketch::Sketch {
 
   Element describe() {
     namespace s = story;
-    const Story article = s::article();
+    const weave::Story article = s::article();
 
     const auto captioned = [&](const char* name, const char* note,
                                Element built) {

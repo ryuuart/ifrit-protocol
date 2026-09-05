@@ -39,12 +39,15 @@
 #include <sigilcompose/typography/Typography.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilweave/paragraph/RichText.h>
+#include <sigilweave/query/Selector.h>
 
 namespace sketch = sigil::sketch;
 
 namespace motion = sigil::motion;
 
 using namespace sigil::compose;
+namespace weave = sigil::weave;
 using sigil::compose::toU8;
 using namespace std::chrono_literals;
 
@@ -87,7 +90,7 @@ struct Tategaki final : sketch::Sketch {
   /** One form, named and shown: a Latin caption over a short column set
    *  the way the caption says. The three together are the whole per-span
    *  vocabulary, side by side at a size where the difference reads. */
-  Element specimen(const char* caption, RichText run) {
+  Element specimen(const char* caption, weave::RichText run) {
     namespace tg = tategaki;
     return tg::specimen(
         caption, tg::label(12, tg::kAi, 2),
@@ -110,7 +113,7 @@ struct Tategaki final : sketch::Sketch {
     // stands the ideographs upright and turns the Latin on its side by
     // itself.
     auto passage =
-        rich(tg::body(tg::kBodySize, tg::kGofun))
+        weave::rich(tg::body(tg::kBodySize, tg::kGofun))
             .add(u8"縦組みの文章は、上から下へ、右から左へと流れる。平成")
             .add(u8"31", tg::body(tg::kBodySize, tg::kGofun,
                                   sigil::weave::VerticalForm::kTateChuYoko))
@@ -135,7 +138,7 @@ struct Tategaki final : sketch::Sketch {
                    .writingMode(sigil::weave::WritingMode::kVerticalRL)
                    // The phrase the plate is about, in vermilion — paint only,
                    // so the glyphs are exactly the glyphs the passage shaped.
-                   .spanPaint(sel::text(u8"縦組み"),
+                   .spanPaint(weave::sel::text(u8"縦組み"),
                               sigil::weave::PaintStyle(tg::kAka.toSkColor()))
                    // One settling entrance, beating cluster by cluster in
                    // READING ORDER: down each column, then right to left.
@@ -169,17 +172,19 @@ struct Tategaki final : sketch::Sketch {
                         .gap(34)
                         .child(specimen(
                             "UPRIGHT",
-                            rich(tg::body(28, tg::kGofun,
-                                          sigil::weave::VerticalForm::kUpright))
+                            weave::rich(
+                                tg::body(28, tg::kGofun,
+                                         sigil::weave::VerticalForm::kUpright))
                                 .add(u8"字は立つ")))
                         .child(specimen(
                             "ROTATED",
-                            rich(tg::body(24, tg::kAi,
-                                          sigil::weave::VerticalForm::kRotated))
+                            weave::rich(
+                                tg::body(24, tg::kAi,
+                                         sigil::weave::VerticalForm::kRotated))
                                 .add(u8"Latin lies")))
                         .child(specimen(
                             "TATE-CHU-YOKO",
-                            rich(tg::body(28, tg::kGofun))
+                            weave::rich(tg::body(28, tg::kGofun))
                                 .add(u8"令和")
                                 .add(u8"07",
                                      tg::body(28, tg::kAka,

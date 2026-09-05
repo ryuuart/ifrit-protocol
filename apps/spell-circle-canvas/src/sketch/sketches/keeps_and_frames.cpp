@@ -42,6 +42,8 @@
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 #include <sigilweave/layout/LayoutOptions.h>
+#include <sigilweave/layout/Story.h>
+#include <sigilweave/paragraph/RichText.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
@@ -78,19 +80,19 @@ weave::TextStyle serif(float size, SkColor4f color) {
 
 /** Three blocks: a lead, a body long enough to straddle the join, and a
  *  closing block, so a keep has a boundary to argue with. */
-Story article(bool longBody, weave::KeepOptions bodyKeep,
-              weave::KeepOptions closeKeep) {
-  Story story(rich(serif(11.5f, kBody))
-                  .add(u8"THE FIRST BLOCK\n", serif(11.5f, kLead))
-                  .add(longBody
-                           ? u8"A widow stands at the head of the next frame "
-                             u8"and an orphan at the foot of this one, so "
-                             u8"both are settled where the boundary is "
-                             u8"rather than while the lines are being "
-                             u8"chosen, and the rest is overflow.\n"
-                           : u8"A widow stands at the head of the next "
-                             u8"frame.\n")
-                  .add(u8"The last block closes the story."));
+weave::Story article(bool longBody, weave::KeepOptions bodyKeep,
+                     weave::KeepOptions closeKeep) {
+  weave::Story story(
+      weave::rich(serif(11.5f, kBody))
+          .add(u8"THE FIRST BLOCK\n", serif(11.5f, kLead))
+          .add(longBody ? u8"A widow stands at the head of the next frame "
+                          u8"and an orphan at the foot of this one, so "
+                          u8"both are settled where the boundary is "
+                          u8"rather than while the lines are being "
+                          u8"chosen, and the rest is overflow.\n"
+                        : u8"A widow stands at the head of the next "
+                          u8"frame.\n")
+          .add(u8"The last block closes the story."));
   weave::ParagraphStyle lead;
   lead.spaceAfter = 5;
   weave::ParagraphStyle body;
@@ -103,7 +105,7 @@ Story article(bool longBody, weave::KeepOptions bodyKeep,
 }
 
 /** One two-frame chain, drawn as two plates side by side. */
-Element chain(const std::string& tag, const Story& story) {
+Element chain(const std::string& tag, const weave::Story& story) {
   const auto plate = [&](const std::string& key, bool threaded) {
     Element leaf = frame(story)
                        .key(key)
@@ -206,19 +208,21 @@ struct KeepsAndFrames final : sketch::Sketch {
             .firstBaseline(weave::FrameOptions::FirstBaseline::kCapHeight,
                            kSeat);
     Element stacked =
-        frame(Story(passage("The lines stack from the top and the remainder "
-                            "is air underneath, which is the default and "
-                            "costs nothing to say."),
-                    serif(11.5f, kBody)))
+        frame(weave::Story(
+                  passage("The lines stack from the top and the remainder "
+                          "is air underneath, which is the default and "
+                          "costs nothing to say."),
+                  serif(11.5f, kBody)))
             .key("dist-start")
             .width(Dim(kOptionCell - 24))
             .height(Dim(kOptionPicture - 24))
             .distribute(weave::FrameOptions::Distribute::kStart);
     Element justified =
-        frame(Story(passage("The remainder is spread BETWEEN the lines as "
-                            "extra leading, which is how a column of a "
-                            "magazine reaches its foot."),
-                    serif(11.5f, kBody)))
+        frame(
+            weave::Story(passage("The remainder is spread BETWEEN the lines as "
+                                 "extra leading, which is how a column of a "
+                                 "magazine reaches its foot."),
+                         serif(11.5f, kBody)))
             .key("dist-justify")
             .width(Dim(kOptionCell - 24))
             .height(Dim(kOptionPicture - 24))

@@ -192,6 +192,7 @@
 #include <sigilmotion/bind/Bind.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilweave/paragraph/RichText.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
 #include <algorithm>
@@ -734,7 +735,7 @@ inline Element label(std::string_view t, SkColor4f c, float size = kType,
   d.thickness = 1;
   d.color = c.toSkColor();
   under.paint.addDecoration(d);
-  return text(rich(plain)
+  return text(weave::rich(plain)
                   .add(toU8(t.substr(0, (size_t)mnemonic)))
                   .add(toU8(t.substr((size_t)mnemonic, 1)), under)
                   .add(toU8(t.substr((size_t)mnemonic + 1))))

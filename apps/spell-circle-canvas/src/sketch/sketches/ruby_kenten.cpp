@@ -13,10 +13,10 @@
 //
 // The four columns, and the one thing each is for:
 //
-//   · MONO — one reading per character (unit::Cluster). The pitch of the
-//     column opens by the reading's own line height, which is why the
-//     bare column beside it is narrower.
-//   · GROUP — one reading per word (unit::Word), centred on the whole
+//   · MONO — one reading per character (weave::unit::Cluster). The pitch
+//     of the column opens by the reading's own line height, which is why
+//     the bare column beside it is narrower.
+//   · GROUP — one reading per word (weave::unit::Word), centred on the whole
 //     compound rather than distributed over its characters.
 //   · JUKUGO — the compound annotated per cluster with the readings its
 //     characters take, which is the same verb with a different unit and
@@ -43,6 +43,8 @@
 #include <sigilcompose/typography/Typography.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilweave/paragraph/Unit.h>
+#include <sigilweave/query/Selector.h>
 #include <sigilweave/style/Type.h>
 
 #include <string>
@@ -131,20 +133,21 @@ struct RubyKenten final : sketch::Sketch {
             u8"\xe6\x97\xa5\xe6\x9c\xac\xe8\xaa\x9e\xe3\x81\xae"
             u8"\xe6\x9b\xb8\xe7\x89\xa9\xe3\x80\x82")
             .annotate(kit::ruby(
-                sel::text(u8"\xe6\x97\xa5\xe6\x9c\xac\xe8\xaa\x9e"),
-                unit::Cluster,
+                weave::sel::text(u8"\xe6\x97\xa5\xe6\x9c\xac\xe8\xaa\x9e"),
+                weave::unit::Cluster,
                 {u8"\xe3\x81\xab", u8"\xe3\x81\xbb", u8"\xe3\x81\x94"},
                 rubyType(), 1.0f));
 
     // GROUP — one reading over the whole compound.
-    Element group = passage(
-                        u8"\xe6\x97\xa5\xe6\x9c\xac\xe8\xaa\x9e\xe3\x81\xae"
-                        u8"\xe6\x9b\xb8\xe7\x89\xa9\xe3\x80\x82")
-                        .annotate(kit::ruby(
-                            sel::text(u8"\xe6\x9b\xb8\xe7\x89\xa9"), unit::Word,
-                            {u8"\xe3\x81\x97\xe3\x82\x87"
-                             u8"\xe3\x82\x82\xe3\x81\xa4"},
-                            rubyType(), 1.0f));
+    Element group =
+        passage(
+            u8"\xe6\x97\xa5\xe6\x9c\xac\xe8\xaa\x9e\xe3\x81\xae"
+            u8"\xe6\x9b\xb8\xe7\x89\xa9\xe3\x80\x82")
+            .annotate(kit::ruby(weave::sel::text(u8"\xe6\x9b\xb8\xe7\x89\xa9"),
+                                weave::unit::Word,
+                                {u8"\xe3\x81\x97\xe3\x82\x87"
+                                 u8"\xe3\x82\x82\xe3\x81\xa4"},
+                                rubyType(), 1.0f));
 
     // JUKUGO — the compound per cluster, each character its own reading.
     Element jukugo =
@@ -152,8 +155,9 @@ struct RubyKenten final : sketch::Sketch {
             u8"\xe5\x9b\xbd\xe8\xaa\x9e\xe8\xbe\x9e\xe5\x85\xb8"
             u8"\xe3\x82\x92\xe5\xbc\x95\xe3\x81\x8f\xe3\x80\x82")
             .annotate(kit::ruby(
-                sel::text(u8"\xe5\x9b\xbd\xe8\xaa\x9e\xe8\xbe\x9e\xe5\x85\xb8"),
-                unit::Cluster,
+                weave::sel::text(
+                    u8"\xe5\x9b\xbd\xe8\xaa\x9e\xe8\xbe\x9e\xe5\x85\xb8"),
+                weave::unit::Cluster,
                 {u8"\xe3\x81\x93\xe3\x81\x8f", u8"\xe3\x81\x94",
                  u8"\xe3\x81\x98", u8"\xe3\x81\xa6\xe3\x82\x93"},
                 rubyType(), 1.0f));
@@ -168,8 +172,9 @@ struct RubyKenten final : sketch::Sketch {
             f::kSplitHeight)
             .width(Dim(f::kColumnW * 2.2f))
             .annotate(kit::ruby(
-                sel::text(u8"\xe5\x9b\xbd\xe8\xaa\x9e\xe8\xbe\x9e\xe5\x85\xb8"),
-                unit::Word,
+                weave::sel::text(
+                    u8"\xe5\x9b\xbd\xe8\xaa\x9e\xe8\xbe\x9e\xe5\x85\xb8"),
+                weave::unit::Word,
                 {u8"\xe3\x81\x93\xe3\x81\x8f\xe3\x81\x94\xe3\x81\x98"
                  u8"\xe3\x81\xa6\xe3\x82\x93"},
                 rubyType(), 1.0f));
@@ -180,9 +185,9 @@ struct RubyKenten final : sketch::Sketch {
             u8"\xe3\x81\x93\xe3\x81\x93\xe3\x81\xa0\xe3\x81\x91"
             u8"\xe3\x81\xaf\xe8\xa6\x8b\xe9\x80\x83\xe3\x81\x99"
             u8"\xe3\x81\xaa\xe3\x80\x82")
-            .annotate(
-                kit::kenten(sel::text(u8"\xe8\xa6\x8b\xe9\x80\x83\xe3\x81\x99"),
-                            marks, u8"\xef\xb9\x85", 1.0f));
+            .annotate(kit::kenten(
+                weave::sel::text(u8"\xe8\xa6\x8b\xe9\x80\x83\xe3\x81\x99"),
+                marks, u8"\xef\xb9\x85", 1.0f));
 
     return box()
         .fill(linearGradient({0, 0}, {0, f::kH}, {f::kKinariLift, f::kKinari}))

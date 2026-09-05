@@ -81,6 +81,7 @@
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilweave/ports/SystemFontManager.h>
+#include <sigilweave/query/Selector.h>
 #include <sigilweave/style/Type.h>
 
 #include <cmath>
@@ -284,7 +285,7 @@ struct AxisRipple : sketch::Sketch {
     // label column, the gap and the tracking, none of which the mark has
     // to be told about.
     if (marked)
-      run.mark(Selector{},
+      run.mark(weave::Selector{},
                box().key("rule").left(pct(100)).top(0).width(1).height(96).fill(
                    Fill::color(kMark)));
     return box()

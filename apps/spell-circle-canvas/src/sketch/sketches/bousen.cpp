@@ -23,7 +23,7 @@
 //     vertical alternates and kana forms, so what those tags do on the
 //     installed face is on the page rather than in a comment.
 //
-// The cascade is on a strip of its own, beating over unit::Line — one
+// The cascade is on a strip of its own, beating over weave::unit::Line — one
 // COLUMN a beat — because a band and a track do not share a node: a track
 // draws its own glyphs in batched buckets and a bucket carries glyphs
 // alone. The plate is the settled page.
@@ -43,6 +43,9 @@
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilweave/kit/Features.h>
+#include <sigilweave/paragraph/RichText.h>
+#include <sigilweave/paragraph/Unit.h>
+#include <sigilweave/query/Selector.h>
 
 #include <utility>
 
@@ -51,6 +54,7 @@ namespace sketch = sigil::sketch;
 namespace motion = sigil::motion;
 
 using namespace sigil::compose;
+namespace weave = sigil::weave;
 using sigil::compose::toU8;
 using namespace std::chrono_literals;
 
@@ -166,7 +170,7 @@ struct Bousen final : sketch::Sketch {
         linearGradient({0, 0}, {0, bs::kH}, {bs::kKinariLift, bs::kKinari});
 
     auto passage =
-        rich(bs::body(bs::kBodySize, bs::kSumi))
+        weave::rich(bs::body(bs::kBodySize, bs::kSumi))
             .add(u8"縦組みの本文にも、")
             .add(u8"傍線")
             .add(u8"を引くことができる。線は列の右に立ち、")
@@ -188,19 +192,19 @@ struct Bousen final : sketch::Sketch {
                 // The band the plate is named for: down the RIGHT of the
                 // column, the length of the phrase it dresses.
                 .spanPaint(
-                    sel::text(u8"傍線"),
+                    weave::sel::text(u8"傍線"),
                     bs::banded(bs::kSumi,
                                sigil::weave::Decoration::Kind::kUnderline,
                                bs::kAka, 2.5f))
                 // Its opposite, down the left.
-                .spanPaint(sel::text(u8"約物"),
+                .spanPaint(weave::sel::text(u8"約物"),
                            bs::banded(bs::kSumi,
                                       sigil::weave::Decoration::Kind::kOverline,
                                       bs::kAi, 2.0f))
                 // A highlight covers the column PITCH — there is no cap
                 // band across a column to hang one on.
                 .spanPaint(
-                    sel::text(u8"小書きの仮名"),
+                    weave::sel::text(u8"小書きの仮名"),
                     bs::banded(bs::kSumi,
                                sigil::weave::Decoration::Kind::kHighlight,
                                {bs::kAi.fR, bs::kAi.fG, bs::kAi.fB, 0.13f}, 0))
@@ -208,7 +212,7 @@ struct Bousen final : sketch::Sketch {
                 // the rect it anchors to is the union of that phrase's
                 // advance boxes, and in a column those stack downward, so
                 // the note it carries runs down the page beside them.
-                .mark(sel::text(u8"列は右から左へ"),
+                .mark(weave::sel::text(u8"列は右から左へ"),
                       box()
                           .key("callout")
                           .left(Dim(-168.0f))
@@ -229,7 +233,7 @@ struct Bousen final : sketch::Sketch {
                                      .width(Dim(168.0f))
                                      .height(Dim(1.0f))
                                      .fill(Fill::color(bs::kAka)))
-                          .child(text(rich(bs::label(10, bs::kUsu))
+                          .child(text(weave::rich(bs::label(10, bs::kUsu))
                                           .add(toU8("mark() "),
                                                bs::label(11, bs::kAka, 1))
                                           .add(toU8("\xe2\x80\x94 anchored to "
@@ -283,19 +287,19 @@ struct Bousen final : sketch::Sketch {
                 .height(Dim(300.0f))
                 .writingMode(sigil::weave::WritingMode::kVerticalRL)
                 .spanPaint(
-                    sel::text(u8"右から左へ"),
+                    weave::sel::text(u8"右から左へ"),
                     bs::banded(bs::kAi,
                                sigil::weave::Decoration::Kind::kUnderline,
                                bs::kAka, 2.0f))
                 .fx({.effect = fx::rise(18),
                      .stagger = bs::kColumnEntrance,
-                     .over = unit::Line,
+                     .over = weave::unit::Line,
                      .progress = animate(motion::from(0.0f).to(1.0f),
                                          {std::chrono::milliseconds(
                                               (int)bs::kColumnEntranceSpan),
                                           &ch::easeNone, 220ms})}))
         .child(text(toU8("\xe2\x86\x91 this strip's entrance beats over\n"
-                         "unit::Line \xe2\x80\x94 one COLUMN a beat,\n"
+                         "weave::unit::Line \xe2\x80\x94 one COLUMN a beat,\n"
                          "and its band stands at rest"),
                     bs::label(10, bs::kUsu))
                    .absolute()

@@ -13,7 +13,8 @@
 //                    sequence id — so an append reconciles as ONE row mount
 //                    and every row already on screen keeps its cached
 //                    picture, whatever the ring's capacity.
-//   rows ........... each row is a stripe, a chip band and ONE rich() text
+//   rows ........... each row is a stripe, a chip band and ONE weave::rich()
+//   text
 //                    leaf: tabular-timestamp, channel tag and payload each in
 //                    their own named style, with an optional cipher field.
 //                    Severity is encoded in form as well as colour — the
@@ -66,6 +67,8 @@
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilweave/kit/Features.h>
+#include <sigilweave/paragraph/RichText.h>
+#include <sigilweave/paragraph/Unit.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
@@ -287,7 +290,7 @@ struct DaemonConsole final : sketch::Sketch {
     return std::max(92.0, 99.8 - 0.22 * gen.breaches + 0.04 * gen.seals);
   }
 
-  /** The row voices, named once and resolved by name from every rich()
+  /** The row voices, named once and resolved by name from every weave::rich()
    *  span. Timestamps and tags are monospaced so the columns align by
    *  construction; the chrome (header, rail, counters) is proportional with
    *  tabular numerals asked of it where digits must sit in columns. */
@@ -432,7 +435,7 @@ struct DaemonConsole final : sketch::Sketch {
     composer.render(describe());
   }
 
-  /** One log row: the severity's stripe, then a single rich() leaf whose
+  /** One log row: the severity's stripe, then a single weave::rich() leaf whose
    *  runs speak in the named voices — timestamp, channel tag, payload,
    *  cipher. Every entrance SETTLES: while a track runs the row paints
    *  live, and the frame it ends the row goes back to being a cached
@@ -442,7 +445,7 @@ struct DaemonConsole final : sketch::Sketch {
     namespace dc = daemon_console;
     const dc::SevDress& d = dc::dress(r.sev);
 
-    auto line = rich(styles.base())
+    auto line = weave::rich(styles.base())
                     .styles(styles)
                     .add(toU8(std::format("{:07.2f}  ", r.t)), "ts")
                     .add(toU8(std::format("{:<6}", r.tag)), d.tagStyle)
@@ -499,13 +502,12 @@ struct DaemonConsole final : sketch::Sketch {
       // The cipher decodes on its own clock: held to NOTHING until each
       // glyph's beat opens (an unheld scramble would show wrong letters out
       // of turn), then hex churn, resolved by the end of the beat.
-      leaf.fx(
-          {.where = sel::style("cipher"),
-           .effect = fx::hold(fx::scramble(U"0123456789abcdef", 10)),
-           .stagger = {.eachMs = 30, .durationMs = 340},
-           .over = unit::Cluster,
-           .progress =
-               animate(motion::from(0.0f).to(1.0f), {750ms, &choreograph::easeNone})});
+      leaf.fx({.where = sel::style("cipher"),
+               .effect = fx::hold(fx::scramble(U"0123456789abcdef", 10)),
+               .stagger = {.eachMs = 30, .durationMs = 340},
+               .over = weave::unit::Cluster,
+               .progress = animate(motion::from(0.0f).to(1.0f),
+                                   {750ms, &choreograph::easeNone})});
 
     Element row = box()
                       .row()
@@ -690,15 +692,18 @@ struct DaemonConsole final : sketch::Sketch {
             .row()
             .gap(2)
             .alignItems(Align::Center)
-            .child(text(
-                rich(weave::textStyle({.face = faceMono, .size = 12, .color = dc::kDim}))
-                    .add(toU8("wardnet"))
-                    .add(toU8(" $ "), weave::textStyle({.face = faceMonoMed,
-                                            .size = 12,
-                                            .color = dc::kAccent}))))
+            .child(text(weave::rich(weave::textStyle({.face = faceMono,
+                                                      .size = 12,
+                                                      .color = dc::kDim}))
+                            .add(toU8("wardnet"))
+                            .add(toU8(" $ "),
+                                 weave::textStyle({.face = faceMonoMed,
+                                                   .size = 12,
+                                                   .color = dc::kAccent}))))
             .child(text(
                 toU8(std::string(command).substr(0, shown)),
-                weave::textStyle({.face = faceMono, .size = 12.5f, .color = dc::kBone})))
+                weave::textStyle(
+                    {.face = faceMono, .size = 12.5f, .color = dc::kBone})))
             .child(box()
                        .width(7)
                        .height(13)

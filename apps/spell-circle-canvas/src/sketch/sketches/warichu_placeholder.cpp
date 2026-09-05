@@ -18,9 +18,9 @@
  *
  * The room is then an ordinary inline slot: `advance` is the wider of the
  * two lines and `band` the depth they stack into, which is exactly what
- * `RichText::slot` reserves and what the breakers treat as one unbreakable
- * word. The child laid into it draws the two lines. A band deeper than
- * the base's type goes into the block's strut, so the pitch of the whole
+ * `weave::RichText::slot` reserves and what the breakers treat as one
+ * unbreakable word. The child laid into it draws the two lines. A band deeper
+ * than the base's type goes into the block's strut, so the pitch of the whole
  * block opens to hold the note and no leading is set by hand here.
  *
  * EDIT THESE FIRST
@@ -37,6 +37,7 @@
 #include <sigilsketch/kit/Kit.h>
 #include <sigilweave/layout/Beside.h>
 #include <sigilweave/paragraph/Paragraph.h>
+#include <sigilweave/paragraph/RichText.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
@@ -146,7 +147,7 @@ struct WarichuPlaceholder final : sketch::Sketch {
   /** The base sentence, with one inline slot in the middle of it. */
   Element based(SkSize slot, Element child, bool vertical = false) {
     Element leaf =
-        text(rich(serif(kBaseSize, kBody))
+        text(weave::rich(serif(kBaseSize, kBody))
                  .add(u8"A warichu ")
                  .slot("note", slot, kDrop)
                  .add(u8" interrupts the line it stands in, rather than "

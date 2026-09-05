@@ -150,7 +150,10 @@
 #include <sigilmotion/values/Time.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilweave/paragraph/RichText.h>
+#include <sigilweave/paragraph/Unit.h>
 #include <sigilweave/ports/SystemFontManager.h>
+#include <sigilweave/query/Selector.h>
 #include <sigilweave/style/Style.h>
 #include <sigilweave/style/Type.h>
 
@@ -316,7 +319,7 @@ struct ShippingForecast : sketch::Sketch {
                .stagger = {.amountMs = 320,
                            .durationMs = 560,
                            .from = motion::Spread::From::Start},
-               .over = unit::Glyph,
+               .over = weave::unit::Glyph,
                .progress = beat(0.55f + delay, 2.55f + delay)};
 
     // The swell. GRAD is the advance-invariant weight axis — it thickens a
@@ -531,7 +534,7 @@ struct ShippingForecast : sketch::Sketch {
    *  colour. */
   [[nodiscard]] Element forecast() {
     const sigil::weave::StyleSet set = forecastStyles();
-    RichText copy = rich(set.base());
+    weave::RichText copy = weave::rich(set.base());
     copy.styles(set)
         .add(u8"Southwesterly", "dir")
         .add(u8" 5 to 7, occasionally gale 8 ")
@@ -553,8 +556,9 @@ struct ShippingForecast : sketch::Sketch {
     // a separate track over the whole set. Numbered over each track's own
     // selection the two would run cascades of different lengths, and the
     // grade would arrive on a different beat from the letter it grades.
-    const Selector everyInitial = sel::each(unit::Word).take(1);
-    const Selector glossary = sel::style("term");
+    const weave::Selector everyInitial =
+        weave::sel::each(weave::unit::Word).take(1);
+    const weave::Selector glossary = sel::style("term");
     // ONE CLOCK ACROSS THE THREE. `beats::Text` numbers every word of the
     // paragraph, addressed or not, so three tracks that partition one
     // sentence share a ladder BY CONSTRUCTION; under the default numbering
@@ -567,19 +571,19 @@ struct ShippingForecast : sketch::Sketch {
     Track initials{.where = everyInitial,
                    .effect = fx::rise(16.0f),
                    .stagger = wordClock(460.0f),
-                   .over = unit::Word,
+                   .over = weave::unit::Word,
                    .beatsOver = beats::Text,
                    .progress = beat(1.75f, 4.10f)};
     Track grade{.where = everyInitial & !glossary,
                 .effect = fx::variableAxisSweep("GRAD", 400.0f, 900.0f),
                 .stagger = wordClock(460.0f),
-                .over = unit::Word,
+                .over = weave::unit::Word,
                 .beatsOver = beats::Text,
                 .progress = beat(1.75f, 4.10f)};
-    Track bodies{.where = sel::each(unit::Word).drop(1),
+    Track bodies{.where = weave::sel::each(weave::unit::Word).drop(1),
                  .effect = fx::rise(9.0f),
                  .stagger = wordClock(500.0f),
-                 .over = unit::Word,
+                 .over = weave::unit::Word,
                  .beatsOver = beats::Text,
                  .progress = beat(1.83f, 4.30f)};
 
@@ -593,7 +597,7 @@ struct ShippingForecast : sketch::Sketch {
                    .key("forecast")
                    .width(pct(100))
                    .lineBreak(sigil::weave::LineBreakStrategy::kKnuthPlass)
-                   .spanPaint(sel::regex(u8"[0-9]+"),
+                   .spanPaint(weave::sel::regex(u8"[0-9]+"),
                               sigil::weave::PaintStyle(kAmber.toSkColor()))
                    .fx(std::move(initials))
                    .fx(std::move(grade))
@@ -663,7 +667,7 @@ struct ShippingForecast : sketch::Sketch {
     const sigil::weave::StyleSet set = forecastStyles();
     sigil::weave::TextStyle graded = set.base();
     graded.variation("GRAD", 800.0f);
-    RichText copy = rich(set.base());
+    weave::RichText copy = weave::rich(set.base());
     copy.styles(set)
         .add(u8"Low", "dir")
         .add(u8", Rockall, ")
@@ -685,12 +689,12 @@ struct ShippingForecast : sketch::Sketch {
                    .key("synopsis")
                    .width(pct(100))
                    .lineBreak(sigil::weave::LineBreakStrategy::kKnuthPlass)
-                   .spanStyle(sel::regex(u8"[0-9]+"), graded)
-                   .spanPaint(sel::regex(u8"[0-9]+"),
+                   .spanStyle(weave::sel::regex(u8"[0-9]+"), graded)
+                   .spanPaint(weave::sel::regex(u8"[0-9]+"),
                               sigil::weave::PaintStyle(kAmber.toSkColor()))
                    .fx({.effect = fx::slide(-22.0f),
                         .stagger = {.eachMs = 150, .durationMs = 620},
-                        .over = unit::Line,
+                        .over = weave::unit::Line,
                         .progress = beat(2.70f, 4.60f)}));
   }
 

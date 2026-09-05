@@ -14,7 +14,7 @@
 //
 //     text(u8"EMBER DECODE", display)
 //         .fx({.effect = fx::pass(burn),
-//              .stagger = stagger(unit::Cluster, {.eachMs = 260})});
+//              .stagger = stagger(weave::unit::Cluster, {.eachMs = 260})});
 //
 // `fx::pass` makes the track's effect a PASS rather than a per-glyph
 // deviation. The runtime renders the track's units into a layer, hands it to
@@ -71,6 +71,7 @@
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilweave/choreograph/Choreograph.h>
+#include <sigilweave/paragraph/Unit.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
 #include <algorithm>
@@ -228,13 +229,12 @@ struct EmberDecode : sketch::Sketch {
     root.child(text(toU8("TEXT AS A SAMPLER \xc2\xb7 ONE SkSL PASS OVER ONE "
                          "RENDERED LINE"),
                     label));
-    root.child(
-        text(u8"EMBER DECODE", big)
-            .key("burn-display")
-            .fx({.effect = fx::pass(burn),
-                 .stagger = {.eachMs = kEachMs, .durationMs = kUnitMs},
-                 .over = unit::Cluster,
-                 .progress = &display}));
+    root.child(text(u8"EMBER DECODE", big)
+                   .key("burn-display")
+                   .fx({.effect = fx::pass(burn),
+                        .stagger = {.eachMs = kEachMs, .durationMs = kUnitMs},
+                        .over = weave::unit::Cluster,
+                        .progress = &display}));
     root.child(
         text(toU8("uUnitRect[N] \xc2\xb7 uUnitPhase[N] \xe2\x80\x94 a LETTER "
                   "is a unit; the bar under each one is the progress that "
@@ -244,9 +244,8 @@ struct EmberDecode : sketch::Sketch {
     root.child(text(u8"ONE PASS PER WORD PHASE", small)
                    .key("burn-words")
                    .fx({.effect = fx::pass(burn),
-                        .stagger = {.eachMs = kEachMs,
-                                    .durationMs = kUnitMs},
-                        .over = unit::Word,
+                        .stagger = {.eachMs = kEachMs, .durationMs = kUnitMs},
+                        .over = weave::unit::Word,
                         .progress = &words}));
     root.child(text(toU8("the same pass, the same source at another count "
                          "\xe2\x80\x94 a WORD is a unit here, and the "

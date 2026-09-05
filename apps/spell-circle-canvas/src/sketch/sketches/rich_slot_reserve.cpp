@@ -2,7 +2,7 @@
  * rich_slot_reserve — an element woven into a line, and room kept beside
  * every line before anything is broken.
  *
- * `RichText::slot` reserves px of blank space in the flow and names the
+ * `weave::RichText::slot` reserves px of blank space in the flow and names the
  * child laid out into it. The reserved box is ONE UNBREAKABLE WORD: a
  * line never breaks inside it however narrow the measure gets.
  * `baselineDrop` is how far the box's BOTTOM sits below the baseline — 0
@@ -44,6 +44,7 @@
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 #include <sigilweave/layout/LayoutOptions.h>
+#include <sigilweave/paragraph/RichText.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
@@ -91,7 +92,7 @@ Element cell(const char* call, const char* note, Element body) {
 
 /** One passage with an inline slot in the middle of it. */
 Element slotted(SkSize size, float drop, SkColor4f fill) {
-  return text(rich(body())
+  return text(weave::rich(body())
                   .add(u8"A reserved box is one unbreakable word, so a "
                        u8"line never breaks inside ")
                   .slot("chip", size, drop)
@@ -119,7 +120,7 @@ struct RichSlotReserve final : sketch::Sketch {
 
     ctx.composer.render(sketch::kit::page(
         {.title = toU8("SLOTS AND RESERVED ROOM \xc2\xb7 "
-                       "RichText::slot, Element::reserve"),
+                       "weave::RichText::slot, Element::reserve"),
          .subtitle = toU8("dials \xc2\xb7 the slot's size (34\xc3\x97"
                           "16, "
                           "then 40\xc3\x97"
@@ -132,7 +133,7 @@ struct RichSlotReserve final : sketch::Sketch {
                         "captions may both reserve an \"icon\" and "
                         "neither is reachable by renderSlot")},
         kit::cells(
-            {.cells = {cell("rich(body).slot(\"chip\", {34, 16})",
+            {.cells = {cell("weave::rich(…).slot(\"chip\", {34, 16})",
                             "the box stands ON the baseline, like an inline "
                             "image \xc2\xb7 the child is keyed \"chip\" and "
                             "lands wherever the placeholder does",

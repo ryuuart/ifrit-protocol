@@ -36,7 +36,9 @@
 #include <sigilcompose/typography/Typography.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilweave/paragraph/Unit.h>
 #include <sigilweave/ports/SystemFontManager.h>
+#include <sigilweave/query/Selector.h>
 #include <sigilweave/style/Type.h>
 
 #include <string>
@@ -161,14 +163,15 @@ struct AnnotatedMargin final : sketch::Sketch {
                        .width(Dim(m::kMeasure))
                        .fx({.effect = fx::rise(14),
                             .stagger = m::kRoll,
-                            .over = unit::Word,
+                            .over = weave::unit::Word,
                             .progress = animate(
                                 motion::from(0.0f).to(1.0f),
                                 {std::chrono::milliseconds((int)m::kRollSpan),
                                  &ch::easeNone, 200ms})}));
 
     // ── The label under every word of the opening phrase ────────────────
-    page.child(kit::annotate(composer, "passage", sel::words(0, 6), unit::Word,
+    page.child(kit::annotate(composer, "passage", weave::sel::words(0, 6),
+                             weave::unit::Word,
                              {.side = kit::Beside::Side::After, .gap = 5.0f},
                              [&](const TextUnit& unit) {
                                // The label says what the unit IS — its range
@@ -186,7 +189,8 @@ struct AnnotatedMargin final : sketch::Sketch {
 
     // ── One note per line, in the gutter, with a leader ──────────────────
     page.child(
-        kit::annotate(composer, "passage", sel::each(unit::Line), unit::Line,
+        kit::annotate(composer, "passage", weave::sel::each(weave::unit::Line),
+                      weave::unit::Line,
                       {.side = kit::Beside::Side::Start,
                        .gap = m::kGutter,
                        .measure = m::kNoteMeasure},
@@ -210,7 +214,8 @@ struct AnnotatedMargin final : sketch::Sketch {
             .inset(0, 0, 0, 0));
 
     // ── A rule cut to what the block occupies ───────────────────────────
-    page.child(kit::rules(composer, "passage", sel::each(unit::Line),
+    page.child(kit::rules(composer, "passage",
+                          weave::sel::each(weave::unit::Line),
                           {.where = kit::BlockRule::Where::Below,
                            .thickness = 1.0f,
                            .gap = 14.0f,

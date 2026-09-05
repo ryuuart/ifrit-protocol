@@ -119,7 +119,9 @@
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilweave/kit/PaintLayers.h>
+#include <sigilweave/paragraph/Unit.h>
 #include <sigilweave/ports/SystemFontManager.h>
+#include <sigilweave/query/Selector.h>
 #include <sigilweave/style/Style.h>
 #include <sigilweave/style/Type.h>
 
@@ -254,7 +256,7 @@ TextEffect streak() {
 /** WHICH CELLS ARE WESTERN — the digits-and-'#' class, addressed by the
  *  characters themselves so the partition follows whatever text a seed
  *  dealt. The complement is the half-width class. */
-Selector westCells() { return sel::regex(u8"[0-9#]"); }
+weave::Selector westCells() { return weave::sel::regex(u8"[0-9#]"); }
 
 /** The per-glyph phosphor lift the whole field wears: each cell screens up
  *  by its own seeded amount — most barely, a few hard — so no two cells
@@ -397,8 +399,8 @@ struct MatrixRain : sketch::Sketch {
         .opacity(f.alpha)
         .fx({.effect = streak(),
              .stagger = cascade,
-             .over = unit::Line,
-             .innerOver = unit::Cluster,
+             .over = weave::unit::Line,
+             .innerOver = weave::unit::Cluster,
              .progress = &fall[j]})
         .fx({.where = !westCells(), .effect = mirrorLift()})
         .fx({.where = westCells(), .effect = westLift()})
