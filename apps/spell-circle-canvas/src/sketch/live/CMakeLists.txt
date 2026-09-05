@@ -10,7 +10,7 @@ sigil_library(SigilSketchLive PIC
   HEADERS Host.h Residency.h
   PUBLIC SigilSketchCore SigilImageEncode SigilMotionClock SigilMeasure
          Boost::container
-  PRIVATE SigilIOSource)
+  PRIVATE SigilIOSource SigilCoreSchedule)
 
 sigil_test(sketch_live_test
   SOURCES test/HostTest.cpp test/ResidencyTest.cpp

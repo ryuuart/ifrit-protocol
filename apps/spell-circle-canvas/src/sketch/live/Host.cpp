@@ -10,6 +10,7 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkData.h>
 #include <include/core/SkSurface.h>
+#include <sigilcore/schedule/ConcurrentIo.h>
 #include <sigilimage/encode/Encode.h>
 #include <sigilio/source/Sink.h>
 #include <sigilsketch/core/Sources.h>
@@ -26,7 +27,6 @@
 #include <mutex>
 #include <sstream>
 #include <string_view>
-#include <thread>
 
 #include "sigilsketch/core/Crash.h"
 
@@ -497,23 +497,17 @@ void Host::startCompile() {
         result.compiled = stale;
         result.headers = headers;
         result.units = total;
-        // The stale units compile side by side, as many at once as the
-        // machine has cores: a sketch of several units then takes as
-        // long as its slowest one, which is the entry being edited.
+        // The stale units compile side by side, so a sketch of several
+        // units takes as long as its slowest one — which is the entry
+        // being edited. Each compile is a WAIT on a child process rather
+        // than work this process does, so it goes to the fan-out that
+        // exists for waiting, and each unit writes only its own two
+        // elements.
         std::vector<std::string> outputs(compiles.size());
         std::vector<int> codes(compiles.size(), 0);
-        std::atomic<size_t> next{0};
-        const auto work = [&] {
-          for (size_t i; (i = next.fetch_add(1)) < compiles.size();)
-            codes[i] = run(compiles[i], outputs[i]);
-        };
-        const size_t workers = std::min(
-            compiles.size(),
-            std::max<size_t>(1, std::thread::hardware_concurrency()));
-        std::vector<std::thread> pool;
-        for (size_t w = 1; w < workers; ++w) pool.emplace_back(work);
-        work();
-        for (std::thread& worker : pool) worker.join();
+        core::schedule::concurrentIo(compiles.size(), [&](size_t unit) {
+          codes[unit] = run(compiles[unit], outputs[unit]);
+        });
         // Failures in unit order, so the entry's errors read first.
         for (size_t i = 0; i < compiles.size(); ++i)
           if (codes[i] != 0) result.output += outputs[i];
