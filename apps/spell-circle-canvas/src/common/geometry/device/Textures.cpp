@@ -3,7 +3,7 @@
  * where they do not, and the panorama chain a lit surface reflects.
  */
 
-#include "sigilgeometry/device/Textures.h"
+#include "Textures.h"
 
 // clang-format off
 // ORDER IS LOAD-BEARING HERE, which is why the sorter is held off: the
@@ -17,12 +17,13 @@
 #include <include/core/SkBitmap.h>
 #include <include/core/SkImageInfo.h>
 #include <sigilcore/hardware/GpuDevice.h>
-#include <sigilgeometry/device/Resources.h>
 #include <sigilskia/graphite/Pixels.h>
 
 #include <Graphics/GraphicsAccessories/interface/GraphicsAccessories.hpp>
 #include <cstdint>
 #include <vector>
+
+#include "Resources.h"
 
 namespace sigil::geometry::device {
 

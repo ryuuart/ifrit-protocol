@@ -4,18 +4,19 @@
  * draws onto.
  */
 
-#include "sigilgeometry/device/Pipelines.h"
+#include "Pipelines.h"
 
 #include <Graphics/GraphicsEngine/interface/DeviceContext.h>
 #include <Graphics/GraphicsEngine/interface/RenderDevice.h>
 #include <Graphics/GraphicsTools/interface/CommonlyUsedStates.h>
-#include <sigilgeometry/device/Meshes.h>
 
 #include <Graphics/GraphicsEngine/interface/GraphicsTypesX.hpp>
 #include <Graphics/GraphicsTools/interface/MapHelper.hpp>
 #include <cstddef>
 #include <cstring>
 #include <utility>
+
+#include "Meshes.h"
 
 namespace sigil::geometry::device {
 

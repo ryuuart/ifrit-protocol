@@ -45,12 +45,20 @@ sigil_slang_module(NAME Post SOURCE ${_shaders}/Post.slang
 # environment upload takes are PRIVATE. The mesh painter's own device
 # executor is not here: it draws no frame, so it stands beside its CPU
 # twin in SigilGeometry.
+#
+# Gpu.h holds the device's shared resources, its residencies and its
+# pipelines, and those are spelled in the device feature's OWN headers
+# rather than in SigilGeometry's public ones — a header that names a
+# Diligent interface is not a library's public word. That directory is
+# therefore on this target's PRIVATE include path, which is the one door
+# onto those interfaces, and Gpu.h includes them by their bare names.
 sigil_library(SigilWorldDiligent
   SOURCES Geometry.cpp Gpu.cpp Gpu.h Import.cpp Post.cpp
           Programs.cpp Programs.h Runtime.cpp
           ${SIGIL_WORLD_SURFACE_PROOF} ${SIGIL_WORLD_POST_PROOF}
   HEADERS Import.h Runtime.h
   INCLUDE_PRIVATE ${CMAKE_CURRENT_LIST_DIR}
+                  ${SIGIL_GEOMETRY_DEVICE_PRIVATE_DIR}
   PUBLIC SigilGeometryDevice SigilWorldScene SigilMaterialSlang
          SigilGeometryMeshPop SigilCoreHardware SigilGeometryMeshRender
   PRIVATE SigilMaterialKit SigilSkiaGraphite Boost::container)

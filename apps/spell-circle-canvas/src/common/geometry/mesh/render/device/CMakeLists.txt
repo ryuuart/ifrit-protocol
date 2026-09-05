@@ -28,9 +28,16 @@ sigil_slang_module(NAME Painter SOURCE ${_shaders}/Painter.slang
 # and the uniforms written into it, both named in the source alone;
 # Diligent arrives through SigilGeometryDevice and is never named beside
 # it, because that target's archive must come first on the link line.
+#
+# The draw itself holds the device's own buffers, textures and pipelines,
+# which are spelled in the device feature's own headers rather than in
+# the library's — so this target puts that directory on its PRIVATE
+# include path and Painter.cpp includes them by their bare names. Nothing
+# of that reaches Painter.h.
 sigil_library(SigilGeometryMeshRenderDevice
   SOURCES Painter.cpp ${SIGIL_GEOMETRY_PAINTER_PROOF}
   HEADERS Painter.h
+  INCLUDE_PRIVATE ${SIGIL_GEOMETRY_DEVICE_PRIVATE_DIR}
   PUBLIC SigilGeometryDevice SigilGeometryMeshRender
   PRIVATE SigilMaterialSlang)
 sigil_shader_sources(SigilGeometryMeshRenderDevice

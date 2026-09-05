@@ -23,10 +23,6 @@
 #include <include/core/SkSamplingOptions.h>
 #include <include/core/SkSize.h>
 #include <sigilgeometry/device/Device.h>
-#include <sigilgeometry/device/Meshes.h>
-#include <sigilgeometry/device/Pipelines.h>
-#include <sigilgeometry/device/Resources.h>
-#include <sigilgeometry/device/Textures.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilmaterial/texture/EnvironmentMap.h>
@@ -45,7 +41,11 @@
 #include <string_view>
 #include <vector>
 
+#include "Meshes.h"
+#include "Pipelines.h"
 #include "Programs.h"
+#include "Resources.h"
+#include "Textures.h"
 
 namespace sigil::world::diligent {
 

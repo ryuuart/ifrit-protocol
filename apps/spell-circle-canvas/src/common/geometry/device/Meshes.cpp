@@ -3,7 +3,7 @@
  * device reads, the buffers it lands in, and how long they are kept.
  */
 
-#include "sigilgeometry/device/Meshes.h"
+#include "Meshes.h"
 
 #include <Graphics/GraphicsTools/interface/DynamicBuffer.hpp>
 #include <utility>

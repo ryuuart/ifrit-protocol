@@ -36,12 +36,23 @@
 # vkGetInstanceProcAddr on to it so both APIs dispatch through the one
 # loader this process opened.
 #
-# Diligent is PUBLIC because Resources.h names its buffer, sampler and
-# texture interfaces: an executor holding one of these is writing
-# Diligent calls. SigilCoreHardware and SigilSkiaGraphite are PUBLIC
-# because Device.h hands out the adopted device and the Graphite context
-# standing on it. volk and the Vulkan headers are PRIVATE — the public
-# headers spell no Vulkan type at all.
+# ONE PUBLIC HEADER, AND IT NAMES NO DILIGENT TYPE IT DOES NOT DECLARE.
+# Device.h forward-declares the render device and the context it hands
+# out, and includes nothing of the engine's. The four beside it —
+# Resources.h, Meshes.h, Pipelines.h, Textures.h — spell the engine's
+# buffer, sampler, texture, pipeline and binding interfaces, so they are
+# this feature's own headers and not the library's: they sit in this
+# directory, and a consumer holding one of these is writing Diligent
+# calls and says so by putting this directory on its own PRIVATE include
+# path. SIGIL_GEOMETRY_DEVICE_PRIVATE_DIR below is that one door; the
+# world's frame executor is what walks through it.
+#
+# Diligent is PUBLIC all the same, because Device.h's two doors hand out
+# objects the caller then makes engine calls on, and because of the link
+# order below. SigilCoreHardware and SigilSkiaGraphite are PUBLIC because
+# Device.h hands out the adopted device and the Graphite context standing
+# on it. volk and the Vulkan headers are PRIVATE — no header here spells
+# a Vulkan type at all.
 #
 # NOTHING DOWNSTREAM NAMES DiligentCore ON ITS OWN LINE. This archive
 # defines every volk symbol (VolkShim.c), and the engine's archive
@@ -54,14 +65,25 @@ enable_language(C)
 
 
 sigil_library(SigilGeometryDevice
-  SOURCES AdoptDevice.cpp AdoptDevice.h Device.cpp Meshes.cpp Pipelines.cpp
-          Resources.cpp Textures.cpp VolkShim.c
-  HEADERS Device.h Meshes.h Pipelines.h Resources.h Textures.h
+  SOURCES AdoptDevice.cpp AdoptDevice.h Device.cpp Meshes.cpp Meshes.h
+          Pipelines.cpp Pipelines.h Resources.cpp Resources.h Textures.cpp
+          Textures.h VolkShim.c
+  HEADERS Device.h
   INCLUDE_PRIVATE ${CMAKE_CURRENT_LIST_DIR}
   PUBLIC unofficial::diligent-engine::DiligentCore SigilCoreHardware
          SigilSkiaGraphite SigilGeometryMesh SigilMaterialTexture
          SigilMaterialSlang
   PRIVATE unofficial::diligent-engine::volk Vulkan::Headers)
+
+# THE ONE DOOR ONTO THE ENGINE'S INTERFACES: the directory holding the
+# headers that spell them. A consumer that genuinely holds a Diligent
+# buffer, texture or pipeline — the world's frame executor does, and the
+# mesh painter's device executor does — puts this on its own PRIVATE
+# include path and includes the header by its bare name. Anything that
+# only wants a device includes <sigilgeometry/device/Device.h> and needs
+# none of this.
+set(SIGIL_GEOMETRY_DEVICE_PRIVATE_DIR ${CMAKE_CURRENT_LIST_DIR}
+    CACHE INTERNAL "the device feature's own headers, which spell Diligent")
 
 # The device fixture every binary with device cases reads: one device per
 # process, and the reason there is none. Named so a consumer in another
@@ -75,7 +97,7 @@ set(SIGIL_GEOMETRY_DEVICE_TEST_SUPPORT_DIR ${CMAKE_CURRENT_LIST_DIR}/test/suppor
 sigil_test(geometry_device_test
   SOURCES test/DeviceTest.cpp test/ResidencyTest.cpp
   LIBRARIES SigilGeometryDevice
-  SUPPORT_DIRS ${CMAKE_CURRENT_LIST_DIR}/test/support
+  SUPPORT_DIRS ${CMAKE_CURRENT_LIST_DIR} ${CMAKE_CURRENT_LIST_DIR}/test/support
                ${SIGIL_SKIA_GRAPHITE_TEST_SUPPORT_DIR}
   LABELS gpu)
 

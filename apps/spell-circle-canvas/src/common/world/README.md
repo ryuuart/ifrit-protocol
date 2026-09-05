@@ -339,6 +339,18 @@ around it are unchanged.
 
 ### The device executor
 
+**No header of this library names a Diligent type.** The executor holds
+plenty of them — targets, pipelines, bindings, the buffers and textures
+a residency put on the device — and every one of them is spelled in
+`diligent/Gpu.h`, which is this feature's own header and not the
+library's. The words for them come from SigilGeometry's device feature,
+whose headers likewise sit beside its sources rather than under its
+include tree; this target puts that directory on its PRIVATE include
+path, which is the one door onto those interfaces, and walks through it
+because a frame's passes ARE engine calls. `Import.h` and `Runtime.h`,
+the two headers a consumer reads, spell a device, a scene and a runtime
+and nothing of the engine.
+
 `diligent::runtime(device)` performs the same passes on the device the
 `diligent/` feature brought up. What it does with each:
 

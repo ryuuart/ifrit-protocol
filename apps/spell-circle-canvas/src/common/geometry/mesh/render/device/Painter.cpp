@@ -19,10 +19,6 @@
 #include <include/core/SkImage.h>
 #include <include/core/SkM44.h>
 #include <sigilgeometry/device/Device.h>
-#include <sigilgeometry/device/Meshes.h>
-#include <sigilgeometry/device/Pipelines.h>
-#include <sigilgeometry/device/Resources.h>
-#include <sigilgeometry/device/Textures.h>
 #include <sigilgeometry/mesh/render/Painter.h>
 #include <sigilmaterial/core/Program.h>
 #include <sigilmaterial/slang/SlangCompiler.h>
@@ -38,6 +34,11 @@
 #include <string>
 #include <utility>
 #include <vector>
+
+#include "Meshes.h"
+#include "Pipelines.h"
+#include "Resources.h"
+#include "Textures.h"
 
 namespace sigil::geometry::mesh::render {
 

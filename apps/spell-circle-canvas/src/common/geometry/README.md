@@ -1005,6 +1005,18 @@ surface.canvas()->clear(SK_ColorBLUE);
 surface.submit(gpu, fence);
 ```
 
+**`device/Device.h` is the whole of what this feature says in public,
+and it spells no engine header.** The two Diligent interfaces it hands
+out are forward-declared, so a consumer that only wants a device — a
+host bringing one up, a sketch reaching for one — compiles against no
+engine at all. The headers that DO name the engine's buffers, samplers,
+textures, pipelines and bindings sit beside this feature's sources
+instead of under `include/`, and a consumer that genuinely holds one of
+those objects reaches them by putting that directory on its own PRIVATE
+include path — `SIGIL_GEOMETRY_DEVICE_PRIVATE_DIR` is the one door, and
+the world's frame executor is what walks through it. A header that names
+an engine interface is not a library's public word.
+
 `renderDevice()` and `context()` are the Diligent side and are never
 null on a device that was created. `gpu()` and `graphite()` are the
 adopted side and are null together when the adoption failed — a driver

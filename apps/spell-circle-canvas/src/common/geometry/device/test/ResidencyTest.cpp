@@ -6,12 +6,12 @@
  */
 
 #include <gtest/gtest.h>
-#include <sigilgeometry/device/Meshes.h>
-#include <sigilgeometry/device/Textures.h>
 
 #include <Graphics/GraphicsEngine/interface/Buffer.h>
 
+#include "Meshes.h"
 #include "OnDevice.h"
+#include "Textures.h"
 
 using namespace sigil::geometry;
 

@@ -4,7 +4,7 @@
  * the staging copy a readback goes through.
  */
 
-#include <sigilgeometry/device/Resources.h>
+#include "Resources.h"
 
 #include <Graphics/GraphicsEngine/interface/DeviceContext.h>
 #include <Graphics/GraphicsEngine/interface/RenderDevice.h>

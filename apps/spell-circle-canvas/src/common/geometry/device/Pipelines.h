@@ -20,13 +20,14 @@
 #include <include/core/SkBlendMode.h>
 #include <include/core/SkSamplingOptions.h>
 #include <sigilgeometry/device/Device.h>
-#include <sigilgeometry/device/Resources.h>
 #include <sigilmaterial/slang/SlangCompiler.h>
 
 #include <Common/interface/RefCntAutoPtr.hpp>
 #include <boost/container/map.hpp>
 #include <span>
 #include <string_view>
+
+#include "Resources.h"
 
 namespace sigil::geometry::device {
 
