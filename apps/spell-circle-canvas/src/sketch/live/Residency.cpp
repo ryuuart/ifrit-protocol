@@ -41,6 +41,10 @@ Host* Residency::presented() const {
   return m_sessions.empty() ? nullptr : m_sessions.front().host.get();
 }
 
+void Residency::dropPresented() {
+  if (!m_sessions.empty()) m_sessions.erase(m_sessions.begin());
+}
+
 std::vector<std::string> Residency::keys() const {
   std::vector<std::string> out;
   out.reserve(m_sessions.size());

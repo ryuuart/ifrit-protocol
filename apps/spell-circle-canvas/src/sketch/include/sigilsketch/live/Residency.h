@@ -72,6 +72,13 @@ class Residency {
    *  after clear(). */
   [[nodiscard]] Host* presented() const;
 
+  /** DROPS THE PRESENTED SESSION and keeps the rest of the set warm. What
+   *  a window does when the frame the presented session drew failed: that
+   *  one host's failure is not the others', so it goes and they stay,
+   *  ready to be presented again without a rebuild. Does nothing when the
+   *  set is empty. */
+  void dropPresented();
+
   [[nodiscard]] std::size_t size() const { return m_sessions.size(); }
   [[nodiscard]] std::size_t capacity() const { return m_capacity; }
   /** The keys held, most recently presented first. */
