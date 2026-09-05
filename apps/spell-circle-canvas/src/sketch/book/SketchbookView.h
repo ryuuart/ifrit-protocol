@@ -140,7 +140,7 @@ class SketchbookView : public QQuickRhiItem {
   bool m_orbitDirty = false;
   /** Published by the renderer from the running session: where the
    *  sketch is seen from, whether or not a pointer has moved it. */
-  sigil::sketch::Orbit m_orbit;
+  sigil::geometry::mesh::camera::Orbit m_orbit;
   QVariantMap m_metrics = {{QStringLiteral("backend"),
                             QStringLiteral("hardware QRhi renderer required")}};
   QString m_status;

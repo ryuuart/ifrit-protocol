@@ -7,7 +7,9 @@ nothing else: the 3D scene description, the frame graph that orders
 passes from their declared inputs and outputs, and the execution of that
 graph. It holds no window, no swapchain, no clock, and no second
 copy of anything a library beneath it already defines: meshes, point
-operators, splines, cameras and the CPU mesh executor are SigilGeometry's;
+operators, splines, cameras — including the clip-space view a device
+draws with, which is `camera::Camera::clipProjection()` — and the CPU
+mesh executor are SigilGeometry's;
 materials, recipes and programs are SigilMaterial's; the reconciler, its
 phases and the caching proof are SigilCore's, as are the erased value a
 `Generator` and a `PassBody` take, the field pin every hand-written

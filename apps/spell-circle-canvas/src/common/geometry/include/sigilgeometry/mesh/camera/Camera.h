@@ -35,7 +35,43 @@ struct Camera {
   glm::mat4 projection(float aspect) const;
   /** view -> NDC -> viewport pixels (y flipped back to Skia's y-down). */
   glm::mat4 viewProjection(SkSize viewport) const;
+  /** view -> CLIP SPACE, which is what a device wants: the projection
+   *  and the view composed without the viewport step `viewProjection`
+   *  ends with, and depth put where a device reads it — the projection
+   *  runs z from one at the near plane to minus one at the far one, and
+   *  a device wants zero to one the other way about. The x and y already
+   *  agree, both counting y upward, so nothing turns them over. The
+   *  aspect is @p extent's; a device's target is whole pixels. */
+  glm::mat4 clipProjection(SkISize extent) const;
 };
+
+/** A VIEWPOINT AS A POINTER STATES IT: yaw and pitch in degrees about
+ *  the point being looked at, and how far out from it the eye stands. It
+ *  is the whole of what a drag can say about where to stand, and it says
+ *  nothing about the lens — turning one of these back into a camera
+ *  keeps that camera's aim, its up axis and its field of view, so
+ *  something driving a viewpoint takes hold of the one it was given
+ *  rather than inventing one. Yaw runs about the up axis from the
+ *  direction the eye looks along; pitch is positive above the target. */
+struct Orbit {
+  float yawDeg = 0;
+  float pitchDeg = 0;
+  float distance = 0;
+};
+
+/** THE ORBIT @p camera ALREADY STANDS AT: yaw and pitch in degrees about
+ *  its target, and the distance from it. All zero when the eye stands on
+ *  the target, where no direction is named. */
+[[nodiscard]] Orbit orbitOf(const Camera& camera);
+
+/** @p pivot moved onto @p orbit — the same target, the same up axis and
+ *  the same lens, with the eye put where the yaw, the pitch and the
+ *  distance say.
+ *
+ *  It is the exact inverse of `orbitOf`, which is what lets a control
+ *  take hold of a camera rather than replace it: reading a camera's
+ *  orbit and moving it by nothing gives that camera back. */
+[[nodiscard]] Camera cameraAt(const Camera& pivot, Orbit orbit);
 
 /** Model-matrix helpers (row-major reading order: applied right to
  *  left, translate * rotate * scale). */

@@ -397,7 +397,8 @@ void SketchbookRenderer::publishMetrics() {
   // has moved it: a drag reads this at the moment it starts, so the
   // first one continues the sketch's own framing and every one after it
   // continues where the last left off.
-  if (const std::optional<sketch::Orbit> orbit = session->orbit()) {
+  if (const std::optional<geometry::mesh::camera::Orbit> orbit =
+          session->orbit()) {
     m_view->m_orbit = *orbit;
     QMetaObject::invokeMethod(m_view, &SketchbookView::orbitChanged,
                               Qt::QueuedConnection);

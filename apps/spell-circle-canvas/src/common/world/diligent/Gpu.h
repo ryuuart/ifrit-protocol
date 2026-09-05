@@ -266,18 +266,6 @@ std::shared_ptr<Gpu> makeGpu(Device& device);
 void openTarget(Gpu& gpu, dg::ITexture* colour, const float* clear,
                 bool withDepth);
 
-/** THE CAMERA AS THE DEVICE WANTS IT.
- *
- *  A camera's `viewProjection` lands in PIXELS, because that is what a
- *  canvas concat needs; a device wants clip space, so the projection and
- *  the view are composed without the viewport step. What is left to
- *  correct is depth: the projection runs z from one at the near plane to
- *  minus one at the far one, and the device wants zero to one the other
- *  way about. The x and y of that clip space already agree — both count
- *  y upward — so nothing turns them over. */
-glm::mat4 clipFor(const ::sigil::geometry::mesh::camera::Camera& camera,
-                  SkISize extent);
-
 /** A texture's placement as a shader reads it: the same matrix a host
  *  tier puts on its style, in the four-by-four the uniform is. */
 glm::mat4 mapMatrix(const SkMatrix& uv);

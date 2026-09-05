@@ -658,17 +658,6 @@ sk_sp<SkImage> Gpu::read(std::string_view name) {
   return shared.read(texture);
 }
 
-glm::mat4 clipFor(const ::sigil::geometry::mesh::camera::Camera& camera,
-                  SkISize extent) {
-  const float aspect = extent.height() > 0
-                           ? (float)extent.width() / (float)extent.height()
-                           : 1.0f;
-  glm::mat4 depth(1.0f);
-  depth[2][2] = -0.5f;
-  depth[3][2] = 0.5f;
-  return depth * camera.projection(aspect) * camera.view();
-}
-
 glm::mat4 mapMatrix(const SkMatrix& uv) {
   glm::mat4 out(1.0f);
   out[0] = {uv.getScaleX(), uv.getSkewY(), 0.0f, 0.0f};

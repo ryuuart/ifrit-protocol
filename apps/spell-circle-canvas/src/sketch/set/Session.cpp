@@ -163,12 +163,14 @@ class SetSession final : public Session {
    *  picture. */
   [[nodiscard]] bool hasViewpoint() const override { return true; }
 
-  [[nodiscard]] std::optional<Orbit> orbit() const override {
-    return orbitOf(viewing());
+  [[nodiscard]] std::optional<geometry::mesh::camera::Orbit> orbit()
+      const override {
+    return geometry::mesh::camera::orbitOf(viewing());
   }
 
   void viewpoint(float yawDeg, float pitchDeg, float distance) override {
-    m_orbit = cameraAt(m_declared, {yawDeg, pitchDeg, distance});
+    m_orbit = geometry::mesh::camera::cameraAt(m_declared,
+                                               {yawDeg, pitchDeg, distance});
     m_orbiting = true;
   }
 
@@ -227,31 +229,6 @@ class SetSession final : public Session {
 };
 
 }  // namespace
-
-Orbit orbitOf(const geometry::mesh::camera::Camera& camera) {
-  constexpr float kToDegrees = 180.0f / 3.14159265358979f;
-  const glm::vec3 out = camera.eye - camera.target;
-  const float distance = glm::length(out);
-  if (!(distance > 0.0f)) return {};
-  // Yaw from the +z axis toward +x and pitch off the ground plane, which
-  // is the pair `cameraAt` puts the eye back at.
-  return {std::atan2(out.x, out.z) * kToDegrees,
-          std::asin(std::clamp(out.y / distance, -1.0f, 1.0f)) * kToDegrees,
-          distance};
-}
-
-geometry::mesh::camera::Camera cameraAt(
-    const geometry::mesh::camera::Camera& pivot, Orbit orbit) {
-  constexpr float kToRadians = 3.14159265358979f / 180.0f;
-  const float yaw = orbit.yawDeg * kToRadians;
-  const float pitch = orbit.pitchDeg * kToRadians;
-  geometry::mesh::camera::Camera out = pivot;
-  out.eye = pivot.target +
-            glm::vec3{orbit.distance * std::cos(pitch) * std::sin(yaw),
-                      orbit.distance * std::sin(pitch),
-                      orbit.distance * std::cos(pitch) * std::cos(yaw)};
-  return out;
-}
 
 std::unique_ptr<Session> SetKind::open(weave::FontContext& fonts,
                                        Assets& assets,

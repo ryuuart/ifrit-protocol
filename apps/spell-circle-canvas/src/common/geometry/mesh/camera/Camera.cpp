@@ -5,6 +5,7 @@
 
 #include "sigilgeometry/mesh/camera/Camera.h"
 
+#include <algorithm>
 #include <cmath>
 #include <glm/gtc/type_ptr.hpp>
 
@@ -48,6 +49,38 @@ glm::mat4 Camera::viewProjection(SkSize viewport) const {
   out.preConcat(toSkM44(projection(aspect)));
   out.preConcat(toSkM44(view()));
   return toGlm(out);
+}
+
+glm::mat4 Camera::clipProjection(SkISize extent) const {
+  const float aspect = extent.height() > 0 ? (float)extent.width() /
+                                                 (float)extent.height()
+                                           : 1.0f;
+  glm::mat4 depth(1.0f);
+  depth[2][2] = -0.5f;
+  depth[3][2] = 0.5f;
+  return depth * projection(aspect) * view();
+}
+
+Orbit orbitOf(const Camera& camera) {
+  const glm::vec3 out = camera.eye - camera.target;
+  const float distance = glm::length(out);
+  if (!(distance > 0.0f)) return {};
+  // Yaw from the +z axis toward +x and pitch off the ground plane, which
+  // is the pair `cameraAt` puts the eye back at.
+  return {std::atan2(out.x, out.z) / kDegToRad,
+          std::asin(std::clamp(out.y / distance, -1.0f, 1.0f)) / kDegToRad,
+          distance};
+}
+
+Camera cameraAt(const Camera& pivot, Orbit orbit) {
+  const float yaw = orbit.yawDeg * kDegToRad;
+  const float pitch = orbit.pitchDeg * kDegToRad;
+  Camera out = pivot;
+  out.eye = pivot.target +
+            glm::vec3{orbit.distance * std::cos(pitch) * std::sin(yaw),
+                      orbit.distance * std::sin(pitch),
+                      orbit.distance * std::cos(pitch) * std::cos(yaw)};
+  return out;
 }
 
 glm::mat4 place(glm::vec3 position, float yawDeg, float pitchDeg, float rollDeg,

@@ -29,6 +29,7 @@ namespace {
 using namespace sigil::sketch;
 namespace world = sigil::world;
 namespace gm = sigil::geometry::mesh;
+namespace camera = sigil::geometry::mesh::camera;
 
 using sigil::sketch::test::assets;
 using sigil::sketch::test::fonts;
@@ -279,22 +280,6 @@ TEST(SetSession, OffersAViewpointAHostCanMove) {
   session->viewpoint(45.0f, 20.0f, 300.0f);
 }
 
-TEST(Orbit, ReadsACameraBackAsTheOrbitThatMakesIt) {
-  // The two are exact inverses, which is what lets a host seed a control
-  // from a set's own lens: moving it by nothing gives that lens back.
-  const sigil::geometry::mesh::camera::Camera lens = framedLens();
-  const Orbit orbit = orbitOf(lens);
-  EXPECT_NEAR(orbit.distance, glm::length(lens.eye - lens.target), 1e-3f);
-  const sigil::geometry::mesh::camera::Camera back = cameraAt(lens, orbit);
-  EXPECT_NEAR(back.eye.x, lens.eye.x, 1e-3f);
-  EXPECT_NEAR(back.eye.y, lens.eye.y, 1e-3f);
-  EXPECT_NEAR(back.eye.z, lens.eye.z, 1e-3f);
-  // Everything but where the eye stands is the pivot's own.
-  EXPECT_EQ(back.target, lens.target);
-  EXPECT_EQ(back.up, lens.up);
-  EXPECT_FLOAT_EQ(back.fovYDeg, lens.fovYDeg);
-}
-
 TEST(SetSession, IsSeenFromTheCameraItsOwnTreeCarries) {
   // WHAT A LIVE HOST MUST SHOW before anyone touches it: the set as its
   // plate shows it. The host hands in a fallback camera nowhere near the
@@ -302,8 +287,8 @@ TEST(SetSession, IsSeenFromTheCameraItsOwnTreeCarries) {
   std::unique_ptr<Session> session = kindOf<Framed>()->open(fonts(), assets());
   oneFrame(*session);
 
-  const Orbit declared = orbitOf(framedLens());
-  const std::optional<Orbit> reported = session->orbit();
+  const camera::Orbit declared = camera::orbitOf(framedLens());
+  const std::optional<camera::Orbit> reported = session->orbit();
   ASSERT_TRUE(reported.has_value());
   EXPECT_NEAR(reported->yawDeg, declared.yawDeg, 1e-2f);
   EXPECT_NEAR(reported->pitchDeg, declared.pitchDeg, 1e-2f);
@@ -316,7 +301,7 @@ TEST(SetSession, ADragThatMovesItByNothingChangesNothing) {
   // distance of the host's.
   std::unique_ptr<Session> session = kindOf<Framed>()->open(fonts(), assets());
   oneFrame(*session);
-  const Orbit declared = orbitOf(framedLens());
+  const camera::Orbit declared = camera::orbitOf(framedLens());
 
   const SkBitmap standing = oneFrame(*session);
   session->viewpoint(declared.yawDeg, declared.pitchDeg, declared.distance);
@@ -327,14 +312,14 @@ TEST(SetSession, ADragThatMovesItByNothingChangesNothing) {
 TEST(SetSession, ADragMovesItAboutTheTargetItDeclared) {
   std::unique_ptr<Session> session = kindOf<Framed>()->open(fonts(), assets());
   oneFrame(*session);
-  const Orbit declared = orbitOf(framedLens());
+  const camera::Orbit declared = camera::orbitOf(framedLens());
 
   const SkBitmap standing = oneFrame(*session);
   session->viewpoint(declared.yawDeg + 90.0f, declared.pitchDeg,
                      declared.distance);
   const SkBitmap moved = oneFrame(*session);
   EXPECT_FALSE(samePicture(standing, moved));
-  const std::optional<Orbit> after = session->orbit();
+  const std::optional<camera::Orbit> after = session->orbit();
   ASSERT_TRUE(after.has_value());
   EXPECT_NEAR(after->distance, declared.distance, 1e-2f);
   EXPECT_NEAR(after->pitchDeg, declared.pitchDeg, 1e-2f);

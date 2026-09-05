@@ -5,6 +5,7 @@
  * through.
  */
 
+#include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilsketch/core/CanvasSpec.h>
 
 #include <optional>
@@ -31,20 +32,6 @@ struct Timing {
   double totalMs = 0;
   double updateMs = 0;
   double drawMs = 0;
-};
-
-/** A VIEWPOINT AS A HOST STATES IT: yaw and pitch in degrees about the
- *  point being looked at, and how far out from it the eye stands. It is
- *  the whole of what a pointer can say about where to stand, and it says
- *  nothing about the lens — a runtime turning one of these back into a
- *  viewpoint keeps its own aim, its own up axis and its own field of
- *  view, so a host may take hold of a set's camera without inventing
- *  one. Yaw runs about the up axis from the direction the eye looks
- *  along; pitch is positive above the target. */
-struct Orbit {
-  float yawDeg = 0;
-  float pitchDeg = 0;
-  float distance = 0;
 };
 
 /** ONE RUNNING SKETCH — a body, the runtime it draws through, and the
@@ -148,7 +135,8 @@ class Session {
    *  a number the host chose — a sketch that put its lens somewhere
    *  particular keeps that framing until a drag actually moves it.
    *  Nothing for a runtime with no viewpoint. */
-  [[nodiscard]] virtual std::optional<Orbit> orbit() const {
+  [[nodiscard]] virtual std::optional<geometry::mesh::camera::Orbit> orbit()
+      const {
     return std::nullopt;
   }
 

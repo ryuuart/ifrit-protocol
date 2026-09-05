@@ -89,4 +89,80 @@ TEST(Camera, AnEyeOnTopOfItsAnchorStillFacesSomewhere) {
   EXPECT_NEAR(glm::length(glm::vec3(same[2])), 1.0f, 1e-5f);
 }
 
+
+// The orbit and the camera it stands for are exact inverses, which is
+// what lets a control take hold of a camera rather than replace it:
+// reading a camera's orbit and moving it by nothing gives that camera
+// back.
+TEST(Camera, ReadsACameraBackAsTheOrbitThatMakesIt) {
+  camera::Camera lens;
+  lens.eye = {180, 120, -260};
+  lens.target = {10, 30, 5};
+  lens.fovYDeg = 32;
+  const camera::Orbit orbit = camera::orbitOf(lens);
+  EXPECT_NEAR(orbit.distance, glm::length(lens.eye - lens.target), 1e-3f);
+  const camera::Camera back = camera::cameraAt(lens, orbit);
+  EXPECT_NEAR(back.eye.x, lens.eye.x, 1e-3f);
+  EXPECT_NEAR(back.eye.y, lens.eye.y, 1e-3f);
+  EXPECT_NEAR(back.eye.z, lens.eye.z, 1e-3f);
+  // Everything but where the eye stands is the pivot's own.
+  EXPECT_EQ(back.target, lens.target);
+  EXPECT_EQ(back.up, lens.up);
+  EXPECT_FLOAT_EQ(back.fovYDeg, lens.fovYDeg);
+}
+
+// An eye standing on its target names no direction, so there is no orbit
+// to report and the whole of it reads zero.
+TEST(Camera, ReportsNoOrbitWhereTheEyeStandsOnItsTarget) {
+  camera::Camera lens;
+  lens.eye = lens.target = {4, 5, 6};
+  const camera::Orbit orbit = camera::orbitOf(lens);
+  EXPECT_FLOAT_EQ(orbit.distance, 0.0f);
+  EXPECT_FLOAT_EQ(orbit.yawDeg, 0.0f);
+  EXPECT_FLOAT_EQ(orbit.pitchDeg, 0.0f);
+}
+
+// CLIP SPACE IS NOT PIXELS. viewProjection() ends with the viewport step
+// and lands on the middle pixel; clipProjection() stops before it, so the
+// same point lands on the origin — and the x and y of the two agree once
+// the viewport step is undone, because nothing between them turns an axis
+// over.
+TEST(Camera, ProjectsToClipSpaceWithoutTheViewportStep) {
+  camera::Camera cam;
+  cam.eye = {0, 0, 100};
+  cam.target = {0, 0, 0};
+  const glm::mat4 clip = cam.clipProjection({800, 600});
+  const glm::vec4 centre = clip * glm::vec4{0, 0, 0, 1};
+  EXPECT_NEAR(centre.x / centre.w, 0.0f, 1e-4f);
+  EXPECT_NEAR(centre.y / centre.w, 0.0f, 1e-4f);
+
+  const glm::vec4 point{30, 20, 0, 1};
+  const glm::vec4 inClip = clip * point;
+  const glm::vec4 inPixels = cam.viewProjection({800, 600}) * point;
+  EXPECT_NEAR(inClip.x / inClip.w * 400.0f + 400.0f,
+              inPixels.x / inPixels.w, 1e-2f);
+  EXPECT_NEAR(inClip.y / inClip.w * -300.0f + 300.0f,
+              inPixels.y / inPixels.w, 1e-2f);
+}
+
+// DEPTH IS THE DEVICE'S WAY ROUND: the projection runs z from one at the
+// near plane to minus one at the far one, and a device reads zero to one
+// the other way about, so a nearer point must come back with a SMALLER
+// depth and both must stand inside the range a device samples.
+TEST(Camera, ProjectsDepthTheDeviceWayRound) {
+  camera::Camera cam;
+  cam.eye = {0, 0, 100};
+  cam.target = {0, 0, 0};
+  cam.zNear = 4;
+  cam.zFar = 1000;
+  const glm::mat4 clip = cam.clipProjection({800, 600});
+  const glm::vec4 near = clip * glm::vec4{0, 0, 50, 1};
+  const glm::vec4 far = clip * glm::vec4{0, 0, -400, 1};
+  const float nearDepth = near.z / near.w;
+  const float farDepth = far.z / far.w;
+  EXPECT_LT(nearDepth, farDepth);
+  EXPECT_GE(nearDepth, 0.0f);
+  EXPECT_LE(farDepth, 1.0f);
+}
+
 }  // namespace

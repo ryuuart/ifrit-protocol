@@ -523,6 +523,22 @@ own repertoire here rather than inside whatever draws through it.
   matrix factories, so a point projected here lands where a canvas concat
   would put it.
 
+  `clipProjection(extent)` is the same view for a DEVICE: the projection
+  and the view composed without the viewport step `viewProjection()` ends
+  with, and depth put where a device reads it — zero at the near plane
+  and one at the far one, the other way about from the projection's own.
+  Every executor that hands a camera to a shader takes it from here, so
+  the arithmetic that turns a viewpoint into clip space is written once.
+
+  `Orbit` is a viewpoint as a POINTER states it — yaw and pitch in
+  degrees about the target, and the distance from it — with `orbitOf()`
+  reading one off a camera and `cameraAt()` putting a camera back on one.
+  The two are exact inverses, which is what lets a control take hold of a
+  camera rather than replace it: reading a camera's orbit and moving it
+  by nothing gives that camera back, keeping its aim, its up axis and its
+  lens. A host that offers a drag over a 3D view spells these rather than
+  deriving a viewpoint of its own.
+
 **`mesh/render`** — `SigilGeometryMeshRender`, needs `mesh` and
 `mesh/camera`.
 

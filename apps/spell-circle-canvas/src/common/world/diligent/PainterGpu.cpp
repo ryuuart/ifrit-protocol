@@ -159,7 +159,7 @@ class PainterExecutor : public geometry::mesh::render::Executor {
                             const geometry::mesh::render::MeshStyle& style) {
     const glm::mat4 view = cam.view();
     const glm::mat4 modelView = view * model;
-    uniforms.set("uViewProj", clipFor(cam, extent));
+    uniforms.set("uViewProj", cam.clipProjection(extent));
     uniforms.set("uModel", model);
     uniforms.set("uModelView", modelView);
     uniforms.set("uNormalMatrix",

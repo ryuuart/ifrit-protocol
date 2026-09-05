@@ -418,7 +418,7 @@ void paintGeometry(Gpu& gpu, const PassWork& work, const View& view,
   dg::ITexture* colour = gpu.target(writes.front());
   if (!colour) return;
 
-  const glm::mat4 viewProj = clipFor(view.camera, view.extent);
+  const glm::mat4 viewProj = view.camera.clipProjection(view.extent);
   const glm::mat4 viewMatrix = view.camera.view();
 
   float clear[4];
