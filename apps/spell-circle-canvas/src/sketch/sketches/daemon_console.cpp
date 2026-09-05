@@ -36,9 +36,9 @@
 //                    at the end of the typed text because it is the next
 //                    sibling in the row
 //   chrome ......... an SDF roundBox panel (fill, border, glow in one pass),
-//                    hairline rules, and a scanline-and-refresh-band overlay
-//                    that is the one full-screen live shader
-//   grade .......... an OCIO exponent, when the build has OpenColorIO
+//                    hairline rules, and the tube: a scanline tile crept by
+//                    a bound pan and a refresh band baked once and slid by
+//                    a bound translate — no per-pixel program runs per frame
 //
 // The scene is re-rendered on every append and every prompt keystroke, and
 // reconciliation touches a constant handful of nodes for each: the new row's
@@ -56,6 +56,7 @@
 //                          severity is encoded in ink as well as in form.
 
 #include <sigilcompose/core/Feed.h>
+#include <sigilcompose/core/Pattern.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmaterial/sdf/Sdf.h>
 #include <sigilcompose/kit/Kinetic.h>
@@ -66,12 +67,8 @@
 #include <sigilweave/style/Features.h>
 #include <sigilweave/style/Type.h>
 #include <sigilweave/style/Features.h>
-#if defined(SIGILMATERIAL_ENABLE_OCIO)
-#include <sigilmaterial/ocio/Ocio.h>
-#endif
 
-#include <include/core/SkString.h>
-#include <include/effects/SkRuntimeEffect.h>
+#include <include/core/SkPaint.h>
 
 #include <cmath>
 #include <format>
@@ -147,26 +144,43 @@ struct LogRow {
   bool operator==(const LogRow&) const = default;
 };
 
-/** The scanline field and the slow refresh band, one pass over everything.
- *  uTime makes it live by construction — this is the scene's one perpetual
- *  full-screen shader. */
-inline sk_sp<SkRuntimeEffect> scanEffect() {
-  static const char* kSkSL = R"(
-    uniform float uTime;
-    half4 main(float2 p) {
-      float band = 0.5 + 0.5 * sin(p.y * 1.7 - uTime * 9.0);
-      float d = abs(p.y - mod(uTime * 90.0, 820.0) + 90.0);
-      float refresh = max(0.0, 1.0 - d / 64.0);
-      half a = half(0.028 * band + 0.045 * refresh);
-      return half4(half3(0.55, 0.85, 0.95) * a, a); // premultiplied
+/** THE TUBE, in two pieces whose only per-frame input is a phase — so
+ *  neither runs a program per pixel per frame.
+ *
+ *  The scanline field is a sine over y, and a field that is periodic in y
+ *  is a TILE: ten periods baked once into a strip, repeated across the
+ *  panel, and crept by the bound pan the tile's material carries. The
+ *  strip holds a whole number of pixels, so its period lands a hair off
+ *  the sine's own; the eye reads a 3.7 px scanline either way. */
+constexpr float kScanPeriods = 10.0f;
+constexpr float kScanTileH = 37.0f;  // ten periods of 2pi / 1.7 px, whole
+constexpr float kScanCreep = 9.0f / 1.7f;  // px per second, downward
+constexpr SkColor4f kTubeInk{0.55f, 0.85f, 0.95f, 1.0f};
+
+inline Pattern scanlineTile() {
+  return Pattern::tile({4.0f, kScanTileH}, [](SkCanvas& canvas, SkSize size,
+                                                uint32_t) {
+    SkPaint row;
+    for (int y = 0; y < (int)size.height(); ++y) {
+      const float phase =
+          ((float)y + 0.5f) / size.height() * kScanPeriods * 6.2831853f;
+      const float a = 0.028f * (0.5f + 0.5f * std::sin(phase));
+      row.setColor4f({kTubeInk.fR, kTubeInk.fG, kTubeInk.fB, a});
+      canvas.drawRect(SkRect::MakeXYWH(0, (float)y, size.width(), 1), row);
     }
-  )";
-  static auto effect = [] {
-    auto [fx, err] = SkRuntimeEffect::MakeForShader(SkString(kSkSL));
-    if (!fx) SkDebugf("scanline shader: %s\n", err.c_str());
-    return fx;
-  }();
-  return effect;
+  });
+}
+
+/** The refresh band: a 128 px tent, brightest at its centre, that sweeps
+ *  down the panel — one gradient, baked once, slid by a bound translate. */
+constexpr float kRefreshH = 128.0f;
+constexpr float kRefreshSpeed = 90.0f;  // px per second
+constexpr float kRefreshWrap = 820.0f;  // the sweep's period, in px
+inline Paint refreshBand() {
+  return Paint::linear({0, 0}, {0, kRefreshH},
+                       {{0.0f, {kTubeInk.fR, kTubeInk.fG, kTubeInk.fB, 0.0f}},
+                        {0.5f, {kTubeInk.fR, kTubeInk.fG, kTubeInk.fB, 0.045f}},
+                        {1.0f, {kTubeInk.fR, kTubeInk.fG, kTubeInk.fB, 0.0f}}});
 }
 
 /** Seeded pseudo-log: plausible ward-perimeter chatter with severities and
@@ -242,6 +256,12 @@ struct DaemonConsole final : sketch::Sketch {
   choreograph::Output<float> caretClock{0.0f};
   choreograph::Output<float> lamp{1.0f};
   choreograph::Output<float> meter[4] = {{0.5f}, {0.5f}, {0.5f}, {0.5f}};
+  // The tube's two phases: where the scanline tile has crept to, and
+  // where the refresh band's top stands.
+  choreograph::Output<float> scanCreep{0.0f};
+  choreograph::Output<float> refreshSweep{0.0f};
+  // The scanline strip: held here because its bake is its identity.
+  Pattern scanlines;
 
   // The prompt's typing machine.
   enum class Prompt { Idle, Typing, Hold };
@@ -328,15 +348,14 @@ struct DaemonConsole final : sketch::Sketch {
     clockNow = 0.0;
     ring.clear();  // scenes re-activate; seq ids stay monotonic
     gen = dc::LogGen{};
+    scanCreep = 0.0f;
+    refreshSweep = 0.0f;
+    scanlines = dc::scanlineTile();
 
     faceMono = weave::ports::pickTypeface({"SF Mono", "Menlo", "Monaco"}, 400);
     faceMonoMed = weave::ports::pickTypeface({"SF Mono", "Menlo", "Monaco"}, 700);
     faceChrome = weave::ports::pickTypeface({"Helvetica Neue", "Arial"}, 400);
     faceChromeMed = weave::ports::pickTypeface({"Helvetica Neue", "Arial"}, 600);
-
-#if defined(SIGILMATERIAL_ENABLE_OCIO)
-    composer.setView(sigil::material::ocio::exponent(1.08f));
-#endif
 
     for (int i = 0; i < 9; ++i)  // history at boot, timestamped in the past
       gen.emitRow(ring, mission(-4.5 + 0.5 * i));
@@ -354,6 +373,10 @@ struct DaemonConsole final : sketch::Sketch {
                              (float)std::sin(t * 1.9);
       meter[3] = 0.70f + 0.22f * (float)std::sin(t * 1.07 + 1.2);
       lamp = 0.55f + 0.45f * (float)std::sin(t * 2.4);
+      // The tube: the scanlines creep, and the refresh band sweeps from
+      // above the panel's top edge to below its foot and wraps.
+      scanCreep = (float)(t * dc::kScanCreep);
+      refreshSweep = (float)std::fmod(t * dc::kRefreshSpeed, dc::kRefreshWrap);
       // A caret blinks while the console waits and holds solid while it
       // types. The waveform lives on the caret's square() binding; what
       // the machine owns is the PHASE — parked at 0, the pulse's ON
@@ -718,12 +741,28 @@ struct DaemonConsole final : sketch::Sketch {
                            .child(std::move(rail)))
                 .child(rule(8, 7))
                 .child(promptLine))
-        // the living surface: scanlines and the slow refresh band
+        // the living surface: the scanline tile, crept by its bound pan
         .child(box()
                    .inset(0)
                    .zIndex(3)
                    .hitTestable(false)
-                   .fill(Paint::sksl(dc::scanEffect()))
+                   .fill(Pattern(scanlines)
+                             .offset(std::nullopt, &scanCreep)
+                             .material())
+                   .blend(SkBlendMode::kScreen))
+        // …and the refresh band, baked once and slid down the panel. Its
+        // rest position puts the tent's centre 90 px above the top edge,
+        // so the sweep enters from above and leaves below the foot.
+        .child(box()
+                   .left(0)
+                   .top(-90.0f - dc::kRefreshH * 0.5f)
+                   .width(dc::kW)
+                   .height(dc::kRefreshH)
+                   .zIndex(4)
+                   .hitTestable(false)
+                   .fill(dc::refreshBand())
+                   .translateY(&refreshSweep)
+                   .cache(Cache::Texture)
                    .blend(SkBlendMode::kScreen));
   }
 };
