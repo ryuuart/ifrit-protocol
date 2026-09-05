@@ -77,9 +77,6 @@ set(SUBSTANCE_SDK_DIR "" CACHE PATH "Adobe Substance 3D SDK directory (holds sub
 # moves its build rules with it.
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
-# workaround: Qt adds a case-colliding FindFFmpeg module on macOS. Resolve
-# vcpkg's FFMPEG package before Qt changes the module search path.
-find_package(FFMPEG REQUIRED)
 find_package(Qt6 REQUIRED COMPONENTS Quick QuickControls2 QuickLayouts QuickDialogs2 CanvasPainter Network GuiPrivate)
 find_package(gtest CONFIG REQUIRED)
 find_package(spdlog CONFIG REQUIRED)

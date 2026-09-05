@@ -2,8 +2,8 @@
 sigil_library(SigilVideoEncode
   SOURCES Encode.cpp
   HEADERS Encode.h
-  PUBLIC SigilVideoCore unofficial::skia::skia)
-_sigil_video_ffmpeg(SigilVideoEncode)
+  PUBLIC SigilVideoCore unofficial::skia::skia
+  PRIVATE PkgConfig::FFMPEG)
 
 sigil_test(video_encode_test
   SOURCES test/EncodeTest.cpp

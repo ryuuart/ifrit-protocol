@@ -14,8 +14,7 @@ sigil_library(SigilVideoDecode
   SOURCES Decode.cpp Playback.cpp ${_device_source} Device.h
   HEADERS Decode.h Playback.h
   PUBLIC SigilVideoCore unofficial::skia::skia
-  PRIVATE concurrentqueue::concurrentqueue)
-_sigil_video_ffmpeg(SigilVideoDecode)
+  PRIVATE concurrentqueue::concurrentqueue PkgConfig::FFMPEG)
 if(APPLE)
   target_link_libraries(SigilVideoDecode PRIVATE
     "-framework CoreVideo" ${METAL_FRAMEWORK})

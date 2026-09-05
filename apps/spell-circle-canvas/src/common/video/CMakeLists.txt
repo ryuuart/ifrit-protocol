@@ -6,13 +6,14 @@ sigil_library_root(SigilVideo
 
 find_package(concurrentqueue CONFIG REQUIRED)
 
-# FFmpeg comes as include and library directories rather than a target,
-# which is the one link the library helper cannot spell.
-function(_sigil_video_ffmpeg target)
-  target_include_directories(${target} PRIVATE ${FFMPEG_INCLUDE_DIRS})
-  target_link_directories(${target} PRIVATE ${FFMPEG_LIBRARY_DIRS})
-  target_link_libraries(${target} PRIVATE ${FFMPEG_LIBRARIES})
-endfunction()
+# FFmpeg publishes its interface as pkg-config files and nothing else:
+# one per library, each naming the codecs, the system frameworks and the
+# other FFmpeg libraries it needs. Read as an imported target, that is
+# the whole link — the four libraries this one calls, and whatever the
+# build of FFmpeg on this machine put behind them.
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(FFMPEG REQUIRED IMPORTED_TARGET
+                  libavcodec libavformat libavutil libswscale)
 
 sigil_library(SigilVideoCore
   HEADERS Types.h)
