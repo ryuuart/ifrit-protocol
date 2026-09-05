@@ -759,9 +759,9 @@ TEST(ComposeBindings, WindowClampsBeforeTheCurveSoEasingsStayInDomain) {
 TEST(ComposeText, MetricsExposeTheCapSlackThatPlacementNeeds) {
   // A text node's top is the LINE BOX top, while type is usually positioned
   // by its CAP TOP, so aligning a layout against a reference needs the SLACK
-  // between the two. measure() returns only an SkSize, which leaves a caller
-  // guessing a fraction of the line height — a constant that changes with
-  // every face.
+  // between the two. intrinsicSize() returns only an SkSize, which leaves a
+  // caller guessing a fraction of the line height — a constant that changes
+  // with every face.
   const auto m = metrics(whiteStyle(40), fonts());
   EXPECT_GT(m.ascent, 0.0f);   // reported as a positive distance, not
   EXPECT_GT(m.descent, 0.0f);  // Skia's signed convention
@@ -1002,7 +1002,7 @@ TEST(ComposeMaterials, UnitRampsTakeAnyNumberOfStops) {
 }
 
 TEST(ComposeText, MeasureRunShapesOnceAndMatchesTheLaidOutElement) {
-  // measure() is per-Element, so hand-placing N glyphs costs N layouts.
+  // intrinsicSize() is per-Element, so hand-placing N glyphs costs N layouts.
   // measureRun() is ONE layout through the same shaping path a text() leaf
   // takes — which is only useful if it agrees with that leaf, so the
   // assertion is that its advances reproduce what the Element machinery
@@ -1017,9 +1017,10 @@ TEST(ComposeText, MeasureRunShapesOnceAndMatchesTheLaidOutElement) {
     sum += a;
   }
   // The independent arm: the full Element path (reconcile + Yoga + text
-  // measure) sizes the same run. measure() ceils the shaped width, so
+  // measure) sizes the same run. intrinsicSize() ceils the shaped width, so
   // agreement is to the ceil.
-  const SkSize laidOut = measure(text(u8"HAMBURGEFONTSIV", style), fonts());
+  const SkSize laidOut =
+      intrinsicSize(text(u8"HAMBURGEFONTSIV", style), fonts());
   EXPECT_NEAR(std::ceil(sum), laidOut.width(), 1.01f)
       << "measureRun's advances disagree with the laid-out element";
   // Controls: a doubled face doubles the run (shaping is live, not a

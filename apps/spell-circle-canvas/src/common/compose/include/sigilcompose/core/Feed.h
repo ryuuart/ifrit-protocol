@@ -160,7 +160,7 @@ template <class T, class RowFn>
  *      const float h = 2 * padY + 3 * well + 4 * gap + 2 * dividerWidth;
  *
  *  **It measures, it does not compute.** A probe ring of @p rows rows goes
- *  through the real `feed()` and the real `compose::measure()`, so the
+ *  through the real `feed()` and the real `compose::intrinsicSize()`, so the
  *  answer includes `Options::gap` between the rows and whatever SigilWeave's
  *  line metrics and Yoga's pixel grid do to the row element. Doing the
  *  arithmetic instead — a line height times a row count plus the gaps —
@@ -181,8 +181,8 @@ template <class T, class RowFn>
  *    each row is one line box. A real row long enough to wrap at the feed's
  *    final width takes two, which is what the column's clip is for.
  *
- *  The `box()` shell is the `snapshot()`/`measure()` sizing rule: both size
- *  by the root's CHILDREN and ignore the root's own dimensions. It changes
+ *  The `box()` shell is the `snapshot()`/`intrinsicSize()` sizing rule: both
+ * size by the root's CHILDREN and ignore the root's own dimensions. It changes
  *  nothing while `feed()` returns a column that sets neither a width nor a
  *  height, and it keeps the measurement honest if that ever changes. */
 template <class RowFn>
@@ -193,7 +193,7 @@ template <class RowFn>
   for (size_t i = 0; i < rows; ++i) probe.append(i);
   Element column =
       feed(probe, options, [&](const uint64_t&) { return probeRow(); });
-  return compose::measure(box().child(std::move(column)), fonts).height();
+  return compose::intrinsicSize(box().child(std::move(column)), fonts).height();
 }
 
 // ---------------------------------------------------------------------------

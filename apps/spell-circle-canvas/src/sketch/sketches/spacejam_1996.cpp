@@ -512,7 +512,7 @@ inline Element starTile() {
  *  cap (0.46 advance-to-cap, against Impact's 0.62). So this sizes by the
  *  measured cap band first, condenses with scaleX down to a 0.70 floor —
  *  which is what a 1996 art director did by hand — and only then gives up
- *  cap height. `measure()` is doing the work `<img width=>` did for the
+ *  cap height. `intrinsicSize()` is doing the work `<img width=>` did for the
  *  browser: the run has to fit its box before the table sees it. */
 inline Element navLabel(sigil::weave::FontContext& fonts, const char* s,
                         float x, float y, float w, float capPx,
@@ -520,13 +520,13 @@ inline Element navLabel(sigil::weave::FontContext& fonts, const char* s,
   const float track = 0.4f * kScale;
   auto styleAt = [&](float sz) { return ty(display(), sz, ink, track); };
   float size = capPx / 0.72f;  // Impact cap height ~0.72 em
-  SkSize m = measure(text(U(s), styleAt(size)), fonts);
+  SkSize m = intrinsicSize(text(U(s), styleAt(size)), fonts);
   float sx = 1.0f;
   if (m.width() > w && m.width() > 1) {
     sx = w / m.width();
     if (sx < 0.70f) {  // past the condensing floor, give up cap height
       size *= sx / 0.70f;
-      m = measure(text(U(s), styleAt(size)), fonts);
+      m = intrinsicSize(text(U(s), styleAt(size)), fonts);
       sx = (m.width() > w && m.width() > 1) ? w / m.width() : 1.0f;
     }
   }
@@ -944,7 +944,7 @@ inline Element artLogo(sigil::weave::FontContext& fonts) {
     const float d[8][2] = {{-1, 0},  {1, 0},  {0, -1}, {0, 1},
                            {-1, -1}, {1, -1}, {-1, 1}, {1, 1}};
     for (auto& v : d) t.echo({v[0] * r, v[1] * r}, C5(0x101831));
-    const SkSize m = measure(text(U(s), ty(display(), size, kLabel, 0)), fonts);
+    const SkSize m = intrinsicSize(text(U(s), ty(display(), size, kLabel, 0)), fonts);
     const float sx = m.width() > 1 ? targetW / m.width() : 1.0f;
     return t.left(Dim(x))
         .top(Dim(capTopY - 0.20f * size))
@@ -994,7 +994,7 @@ inline Element wordmark(sigil::weave::FontContext& fonts, const char* s,
     return ty(display(), sz, C5(0xFF0000), track);
   };
   float size = h * 1.16f;
-  SkSize m = measure(text(U(s), styleAt(size)), fonts);
+  SkSize m = intrinsicSize(text(U(s), styleAt(size)), fonts);
   float sx = 1.0f;
   if (m.width() > target && m.width() > 1) sx = target / m.width();
   Element t = text(U(s), styleAt(size));

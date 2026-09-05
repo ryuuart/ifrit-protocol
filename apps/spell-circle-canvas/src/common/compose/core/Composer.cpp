@@ -205,8 +205,8 @@ std::vector<float> runPens(std::u8string_view utf8,
   return pens;
 }
 
-SkSize measure(const Element& root, sigil::weave::FontContext& fonts,
-               SkSize maxSize) {
+SkSize intrinsicSize(const Element& root, sigil::weave::FontContext& fonts,
+                     SkSize maxSize) {
   motion::Ticker ticker;  // inert — same sampling rules as snapshot()
   Composer composer(ticker, fonts);
   Composer::Impl& impl = *composer.m_impl;

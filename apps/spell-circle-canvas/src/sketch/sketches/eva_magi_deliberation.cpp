@@ -61,7 +61,8 @@ struct EvaMagiDeliberation : sketch::Sketch {
     weave::TextStyle style =
         evangelion::type(face, size, color, 1.0f, tracking);
     if (fonts && maxWidth > 1.0f) {
-      const SkSize measured = sigil::compose::measure(text(run, style), *fonts);
+      const SkSize measured =
+          sigil::compose::intrinsicSize(text(run, style), *fonts);
       if (measured.width() > maxWidth && measured.width() > 1.0f)
         style.shaping.scaleX = maxWidth / measured.width();
     }
@@ -77,7 +78,8 @@ struct EvaMagiDeliberation : sketch::Sketch {
       if (probe.capHeight > 1.0f)
         style = evangelion::minchoDisplay(
             style.shaping.fontSize * capHeight / probe.capHeight, color, 1.12f);
-      const SkSize measured = sigil::compose::measure(text(run, style), *fonts);
+      const SkSize measured =
+          sigil::compose::intrinsicSize(text(run, style), *fonts);
       if (measured.width() > maxWidth && measured.width() > 1.0f)
         style.shaping.scaleX *= maxWidth / measured.width();
     }

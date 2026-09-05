@@ -57,11 +57,11 @@ struct Guest {
 
 }  // namespace
 
-Element draw(PenProgram program) {
+Element pen(PenProgram program) {
   return custom(over(std::move(program))).cache(Cache::None);
 }
 
-Element draw(std::string_view key, PenProgram program) {
+Element pen(std::string_view key, PenProgram program) {
   return custom(key, over(std::move(program))).cache(Cache::None);
 }
 

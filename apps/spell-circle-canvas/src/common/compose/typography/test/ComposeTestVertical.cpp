@@ -108,9 +108,9 @@ TEST(TextVertical, ColumnsRunTopToBottomAndAdvanceRightToLeft) {
 TEST(TextVertical, IntrinsicMeasurementSwapsTheAxes) {
   // The same passage, measured both ways with no explicit box: horizontal
   // text is a wide short line, vertical text is a tall thin column.
-  const SkSize wide =
-      sigil::compose::measure(text(kProse, jp(20, SK_ColorWHITE)), fonts());
-  const SkSize tall = sigil::compose::measure(
+  const SkSize wide = sigil::compose::intrinsicSize(
+      text(kProse, jp(20, SK_ColorWHITE)), fonts());
+  const SkSize tall = sigil::compose::intrinsicSize(
       text(kProse, jp(20, SK_ColorWHITE))
           .writingMode(sigil::weave::WritingMode::kVerticalRL),
       fonts());

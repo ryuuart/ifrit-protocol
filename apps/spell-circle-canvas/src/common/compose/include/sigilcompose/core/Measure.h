@@ -43,7 +43,7 @@ sk_sp<SkPicture> snapshot(const Element& root, sigil::weave::FontContext& fonts,
  *  A compose text node's top is the LINE BOX top, while type is usually
  *  positioned against its CAP TOP — so aligning text to a coordinate taken
  *  from a design or a reference image needs the slack between the two, and
- *  `measure()` returns only an `SkSize`. `capSlack()` below is that
+ *  `intrinsicSize()` returns only an `SkSize`. `capSlack()` below is that
  *  number.
  *
  *  `capHeight` and `xHeight` are what the face itself reports; both fall
@@ -71,7 +71,7 @@ TextMetrics metrics(const sigil::weave::TextStyle& style,
  *  which is neither the byte nor the code-point count.
  *
  *  Pen positions are the running prefix sums, so hand-placing N glyphs
- *  costs one layout here rather than N text() leaves and N `measure()`
+ *  costs one layout here rather than N text() leaves and N `intrinsicSize()`
  *  calls. A space between two words is a gap the flow leaves rather than a
  *  glyph, so it rides the advance of the glyph before it and the sums stay
  *  true across a whole sentence; the sums therefore add up to the run's
@@ -126,7 +126,7 @@ std::vector<float> runPens(std::u8string_view utf8,
  *  content-fit chrome (marquees, tooltips, badges): measure the content,
  *  then describe the real tree with the answer. Same sampling rules as
  *  snapshot() — bindings at current values, no transitions. */
-SkSize measure(const Element& root, sigil::weave::FontContext& fonts,
-               SkSize maxSize = SkSize::MakeEmpty());
+SkSize intrinsicSize(const Element& root, sigil::weave::FontContext& fonts,
+                     SkSize maxSize = SkSize::MakeEmpty());
 
 }  // namespace sigil::compose

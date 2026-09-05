@@ -434,10 +434,10 @@ sigil::weave::TextStyle pixelStyle(float size) {
 }  // namespace
 
 TEST(KitPixelType, PadsWideEnoughThatTheLastGlyphIsNotClipped) {
-  // Sizing the bake plane from measure() plus a small fixed margin ends the
-  // surface inside the final letter: measure() returns the ADVANCE, and a
-  // glyph's ink can sit outside its advance. The assertion is that with the
-  // default pad the ink never reaches the right or bottom edge of the plane
+  // Sizing the bake plane from intrinsicSize() plus a small fixed margin ends
+  // the surface inside the final letter: intrinsicSize() returns the ADVANCE,
+  // and a glyph's ink can sit outside its advance. The assertion is that with
+  // the default pad the ink never reaches the right or bottom edge of the plane
   // — if it touches an edge, something was cut off.
   const auto style = pixelStyle(10.0f);
   for (const char8_t* s :
@@ -635,7 +635,7 @@ TEST(KitPixelType, MaskedIsANodeTheSizeOfTheMask) {
   const kit::Mask m = kit::bakeRun(u8"88", fonts(), pixelStyle(10.0f));
   ASSERT_TRUE(m);
   const SkSize sz =
-      measure(box().child(kit::masked(m, {.scale = 2.0f})), fonts());
+      intrinsicSize(box().child(kit::masked(m, {.scale = 2.0f})), fonts());
   EXPECT_FLOAT_EQ(sz.width(), (float)m.w * 2.0f);
   EXPECT_FLOAT_EQ(sz.height(), (float)m.h * 2.0f);
 }
@@ -669,11 +669,11 @@ TEST(KitLegibility, ShadeIsAnOffsetFillNotAStroke) {
 TEST(KitLegibility, ScrimGrowsTheRunByItsPadding) {
   sigil::weave::TextStyle st;
   st.shaping.fontSize = 12;
-  const SkSize bare = measure(box().child(text(u8"NAVI", st)), fonts());
+  const SkSize bare = intrinsicSize(box().child(text(u8"NAVI", st)), fonts());
   const SkSize plated =
-      measure(box().child(kit::scrim(text(u8"NAVI", st),
-                                     {.paddingX = 3, .paddingY = 4})),
-              fonts());
+      intrinsicSize(box().child(kit::scrim(text(u8"NAVI", st),
+                                           {.paddingX = 3, .paddingY = 4})),
+                    fonts());
   EXPECT_FLOAT_EQ(plated.width(), bare.width() + 6);
   EXPECT_FLOAT_EQ(plated.height(), bare.height() + 8);
 }
@@ -990,8 +990,9 @@ kit::Caption specimenVoice(kit::Caption::Where where) {
 
 /** One line of type at @p size, as the layout will size it. */
 float lineHeight(float size) {
-  return measure(box().child(text(u8"Hg", weave::textStyle({.size = size}))),
-                 fonts())
+  return intrinsicSize(
+             box().child(text(u8"Hg", weave::textStyle({.size = size}))),
+             fonts())
       .height();
 }
 
@@ -1041,7 +1042,7 @@ TEST(KitSpecimen, AMeasureKeepsALongLabelFromWideningItsCell) {
   const auto width = [](float labelMeasure) {
     kit::Caption voice = specimenVoice(kit::Caption::Where::Split);
     voice.labelMeasure = labelMeasure;
-    return measure(
+    return intrinsicSize(
                kit::cell(voice, u8"a label far wider than the body under it",
                          u8"", box().width(60).height(40)),
                fonts())

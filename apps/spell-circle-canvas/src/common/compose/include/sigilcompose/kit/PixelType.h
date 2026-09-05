@@ -19,7 +19,7 @@
  *
  * ## The four traps
  *
- * 1. **`measure()` returns the ADVANCE, and glyph ink escapes it.** Ink
+ * 1. **`intrinsicSize()` returns the ADVANCE, and glyph ink escapes it.** Ink
  *    overhanging the advance is normal — an italic's exit stroke, a
  *    negative left side-bearing, a swash — and a scratch surface sized to
  *    the advance clips it. The tell is that a clipped bake looks the same
@@ -125,7 +125,7 @@ struct Coverage {
   /** The bbox of pixels with any coverage at all. Empty when nothing lit
    *  (a space, an unmapped codepoint). */
   SkIRect ink = SkIRect::MakeEmpty();
-  /** What `measure()` reported — the ADVANCE, which is what a layout
+  /** What `intrinsicSize()` reported — the ADVANCE, which is what a layout
    *  wants and is NOT the ink extent. */
   SkSize advance = {0, 0};
   /** The slack the bake actually used, which is NOT the slack asked for:
@@ -160,10 +160,10 @@ inline Coverage coverage(std::u8string_view run,
                          const sigil::weave::TextStyle& style, Pad pad = {}) {
   Coverage out;
   const std::u8string text8(run);
-  const SkSize sz = measure(box().child(text(text8, style)), fonts);
+  const SkSize sz = intrinsicSize(box().child(text(text8, style)), fonts);
   out.advance = sz;
   // SLACK ON THE ADVANCE, because the scratch surface CONSTRAINS the run.
-  // `measure()` answers an unconstrained layout; laid out again inside
+  // `intrinsicSize()` answers an unconstrained layout; laid out again inside
   // exactly that width, a run can wrap its last word. A wrapped bake is
   // not a clipped glyph — it is a second LINE — and the pad retry below
   // cannot see it, because nothing touches an edge. The mask is cropped to

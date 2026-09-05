@@ -581,7 +581,7 @@ TEST(ComposeStudio, TypeCarriesWhatTheShippedPositionalHelperCouldNot) {
   // And it actually lays out — a TextStyle that measures to nothing would
   // satisfy every field assertion above.
   const SkSize measured =
-      measure(text(u8"Wm", weave::textStyle({.size = 40})), fonts());
+      intrinsicSize(text(u8"Wm", weave::textStyle({.size = 40})), fonts());
   EXPECT_GT(measured.width(), 10.0f);
   EXPECT_GT(measured.height(), 10.0f);
 }
@@ -693,13 +693,13 @@ TEST(ComposeFeed, VisibleRowsHaveAHeightAndThreeFeedsFitOnePlate) {
   EXPECT_FLOAT_EQ(feed::height(st, 400, fonts()), rows);
   EXPECT_LT(feed::height(st, 6, fonts()), rows);
 
-  // The snapshot()/measure() rule — those size by the root's CHILDREN, not
-  // the root's own dims — is DEMONSTRATED, not assumed: feed() returns a
+  // The snapshot()/intrinsicSize() rule — those size by the root's CHILDREN,
+  // not the root's own dims — is DEMONSTRATED, not assumed: feed() returns a
   // column that sets neither width nor height, so the shell box the
   // implementation wraps it in cannot change the answer.
   feed::TextRing full;
   for (int i = 0; i < 20; ++i) full.append({u8"the ring outruns its window"});
-  EXPECT_FLOAT_EQ(measure(feed::feed(full, st), fonts()).height(), rows)
+  EXPECT_FLOAT_EQ(intrinsicSize(feed::feed(full, st), fonts()).height(), rows)
       << "the un-shelled spelling disagrees — feed() grew its own dims";
 
   // And it is the height the feed ACTUALLY takes when laid out: three feeds

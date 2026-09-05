@@ -17,7 +17,7 @@ using sigil::draw::Pen;
 
 void DrawNode(benchmark::State& state) {
   bench::Host host(800, 600);
-  host.composer.render(stack().child(draw([](Pen& pen) {
+  host.composer.render(stack().child(pen([](Pen& pen) {
                                        pen.noStroke();
                                        pen.fill(220, 120, 80);
                                        for (int i = 0; i < 300; ++i)

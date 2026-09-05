@@ -271,7 +271,7 @@ namespace sigil::compose::kit {
 /** The seamless ticker (news crawl, y2k status bar): `content` twice in a
  *  row inside a clipped box, slid by a caller-owned WRAPPING phase Output
  *  in px. Step the phase over [-(w + gap), 0] where w = the content's
- *  width — measure(content, fonts).width() gives it — and the loop is
+ *  width — intrinsicSize(content, fonts).width() gives it — and the loop is
  *  invisible. Binding translateX is paint-only volatility: the strip's
  *  recording replays every frame, nothing re-records. Keep `content`
  *  keyless (it mounts twice). */

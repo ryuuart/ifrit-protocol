@@ -47,7 +47,7 @@ TEST(DrawNode, RunsThePenOverTheNodesBoxEveryFrame) {
   Host host;
   int runs = 0;
   float width = 0;
-  host.composer.render(stack().child(draw([&](Pen& pen) {
+  host.composer.render(stack().child(pen([&](Pen& pen) {
                                        ++runs;
                                        width = pen.width;
                                        pen.noStroke();
@@ -67,7 +67,7 @@ TEST(DrawNode, RunsThePenOverTheNodesBoxEveryFrame) {
 
 TEST(DrawNode, ThePenHoldsItsStyleFromFrameToFrame) {
   Host host;
-  host.composer.render(stack().child(draw([](Pen& pen) {
+  host.composer.render(stack().child(pen([](Pen& pen) {
                                        if (pen.frameCount == 1) {
                                          pen.noStroke();
                                          pen.fill(0, 0, 255);
@@ -83,7 +83,7 @@ TEST(DrawNode, ThePenHoldsItsStyleFromFrameToFrame) {
 
 TEST(DrawNode, TheTransformStartsAtTheBox) {
   Host host;
-  host.composer.render(stack().child(draw([](Pen& pen) {
+  host.composer.render(stack().child(pen([](Pen& pen) {
                                        pen.noStroke();
                                        pen.fill(0, 255, 0);
                                        pen.rect(0, 0, 10, 10);

@@ -166,7 +166,7 @@ struct SketchContext {
    *  strips, tooltips and badges from their content. */
   SkSize measure(const compose::Element& element,
                  SkSize maxSize = SkSize::MakeEmpty()) {
-    return fonts ? compose::measure(element, *fonts, maxSize)
+    return fonts ? compose::intrinsicSize(element, *fonts, maxSize)
                  : SkSize::MakeEmpty();
   }
 

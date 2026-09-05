@@ -801,9 +801,9 @@ void Art::paint(SkCanvas& c, const PaintContext& ctx) const {
     }
   }
   if (!cache->image) {
-    // Shell box: snapshot() and measure() size by the root's CHILDREN
+    // Shell box: snapshot() and intrinsicSize() size by the root's CHILDREN
     // and ignore the root's own dimensions.
-    const SkSize sz = measure(box().child(art), *ctx.fonts);
+    const SkSize sz = intrinsicSize(box().child(art), *ctx.fonts);
     if (sz.isEmpty()) return;
     sk_sp<SkPicture> pic = snapshot(box().child(art), *ctx.fonts);
     sk_sp<SkSurface> surface = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(

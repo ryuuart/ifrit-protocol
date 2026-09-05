@@ -445,7 +445,7 @@ sound model; nothing below them changes kernel semantics.
   `positioned`, `text`, `frame`, `image`, `custom`, `slot`, `layout`,
   `memo`, with `toU8` for a call site holding a `std::string`.
 - `core/Measure.h` — the one-shot verbs that take a tree without a live
-  composer: `snapshot`, `measure`, `metrics`, `measureRun`, `runPens`.
+  composer: `snapshot`, `intrinsicSize`, `metrics`, `measureRun`, `runPens`.
 - `core/Tiles.h` — `tiles::`, the slicing of one baked picture into a run
   of tile-sized rasters.
 - `core/Instances.h` — the instanced sprite leaf: `instancing::Pool`,
@@ -695,7 +695,7 @@ not link SigilScry, so include it only in targets that do.
 a surface and handed over as a SigilMaterial texture value, in its own
 target `SigilComposeTexture` — see Boundaries. `draw/Draw.h` is the door
 to the imperative pen, both ways, in its own target `SigilComposeDraw`:
-`compose::draw` takes a `PenProgram` — a function of a `draw::Pen` — and
+`compose::pen` takes a `PenProgram` — a function of a `draw::Pen` — and
 makes the node `custom()` would, at `Cache::None`, with the pen's width
 and height the node's box and its transform starting at the box's
 corner, so a declarative scene drops into p5's verbs for one node; and
@@ -984,7 +984,7 @@ arrow between the two libraries points one way: this feature links
 SigilDraw, and SigilDraw names nothing of compose — the pen reaches a
 retained `Element` through a seam it declares for any guest,
 `paintRetained`, which this feature defines for `Element` in compose's
-own namespace. The clock is whoever steps the pen: a `compose::draw`
+own namespace. The clock is whoever steps the pen: a `compose::pen`
 node's pen reads the composer's clock through the paint context, and a
 retained element's composer runs on a clock stepped by the pen's frame
 delta, advancing on the frames it is painted and standing still on the

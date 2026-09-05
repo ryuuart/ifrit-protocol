@@ -25,7 +25,7 @@ TEST(ComposeLayout, DimInsetsAcceptPercent) {
 }
 
 TEST(ComposeMeasure, MeasureReportsIntrinsicSize) {
-  const SkSize size = measure(box()
+  const SkSize size = intrinsicSize(box()
                                   .row()
                                   .gap(10)
                                   .child(box().width(40).height(30))

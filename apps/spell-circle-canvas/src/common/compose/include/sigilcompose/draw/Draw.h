@@ -29,10 +29,10 @@ using PenProgram = std::function<void(draw::Pen&)>;
  *  in one frame holds in the next and a guest painted from it is
  *  retained. Like `custom()`, it sizes as an empty box does — give it
  *  dims, or make it `absolute().inset(0)`. */
-Element draw(PenProgram program);
+Element pen(PenProgram program);
 /** The PRUNABLE spelling: @p key is the program's identity, on the same
  *  contract as the keyed `custom()`. */
-Element draw(std::string_view key, PenProgram program);
+Element pen(std::string_view key, PenProgram program);
 
 /** THE OTHER WAY THROUGH THE DOOR: `pen.element(element, box)` lands
  *  here. A composer is kept in the pen for the call site, @p element is

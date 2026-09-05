@@ -95,7 +95,7 @@ class Composer {
    *  are ignored, like the CSS root) — size content via children.
    *  An EMPTY size means INTRINSIC instead: the root sizes to its content
    *  and its own dims ARE respected. That is the rule the
-   *  snapshot()/measure() path runs under. */
+   *  snapshot()/intrinsicSize() path runs under. */
   void setSize(SkSize size);
 
   /** Feeds PaintContext::elapsedSeconds (one clock everywhere). Null
@@ -513,7 +513,8 @@ class Composer {
   friend struct detail::Instance;
   friend sk_sp<SkPicture> snapshot(const Element&, sigil::weave::FontContext&,
                                    SkSize);
-  friend SkSize measure(const Element&, sigil::weave::FontContext&, SkSize);
+  friend SkSize intrinsicSize(const Element&, sigil::weave::FontContext&,
+                              SkSize);
   std::unique_ptr<Impl> m_impl;
 };
 

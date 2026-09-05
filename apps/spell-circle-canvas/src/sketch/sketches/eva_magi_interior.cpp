@@ -727,7 +727,7 @@ struct EvaMagiInterior : sketch::Sketch {
                           float* slack = nullptr) const {
     weave::TextStyle st = fitCap(tf, cap, c, slack);
     if (fonts && inkW > 1.0f) {
-      const SkSize m = sigil::compose::measure(text(s, st), *fonts);
+      const SkSize m = sigil::compose::intrinsicSize(text(s, st), *fonts);
       if (m.width() > 1.0f)
         st.shaping.scaleX = std::clamp(inkW / m.width(), 0.40f, 1.8f);
     }
@@ -739,7 +739,7 @@ struct EvaMagiInterior : sketch::Sketch {
                              SkColor4f c) const {
     weave::TextStyle st = fitCap(tf, cap, c);
     if (!fonts) return st;
-    const SkSize measured = sigil::compose::measure(text(s, st), *fonts);
+    const SkSize measured = sigil::compose::intrinsicSize(text(s, st), *fonts);
     if (measured.width() > maxWidth && measured.width() > 1.0f)
       st.shaping.scaleX = std::min(maxWidth / measured.width(), 1.0f);
     return st;
@@ -756,7 +756,7 @@ struct EvaMagiInterior : sketch::Sketch {
     float em = advanceSpan * 0.5f;
     if (fonts) {
       weave::TextStyle probe = evangelion::minchoDisplay(100.0f, c, kStretch);
-      const SkSize m = sigil::compose::measure(text(s, probe), *fonts);
+      const SkSize m = sigil::compose::intrinsicSize(text(s, probe), *fonts);
       if (m.width() > 1.0f) em = 100.0f * advanceSpan / m.width();
     }
     weave::TextStyle st = evangelion::minchoDisplay(em, c, kStretch);

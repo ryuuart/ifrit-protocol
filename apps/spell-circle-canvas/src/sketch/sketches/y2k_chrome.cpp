@@ -256,7 +256,7 @@ inline Element caption(std::string_view s) {
 
 struct Y2kChrome final : sketch::Sketch {
   choreograph::Output<float> tickX{0};
-  float unitW = 0;    // strip content's intrinsic width (compose::measure)
+  float unitW = 0;    // strip content's intrinsic width (compose::intrinsicSize)
   float wrapLen = 1;  // marquee wrap length = unitW + gap
 
   void setup(sketch::SketchContext& ctx) override {

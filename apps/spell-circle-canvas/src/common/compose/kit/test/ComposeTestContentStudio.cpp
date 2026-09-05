@@ -185,13 +185,13 @@ TEST(ComposeConsole, StacksFeedsPerColumnInOneVoice) {
   chrome.paddingY = 0;
   // One feed per column: the plate is one row tall.
   const float one =
-      measure(box().child(kit::console(
+      intrinsicSize(box().child(kit::console(
                   {.feeds = {&a, &b}, .style = voice, .plate = chrome})),
               fonts())
           .height();
   EXPECT_NEAR(one, row, 1.0f);
   // Two per column: two rows and the stack gap.
-  const float two = measure(box().child(kit::console({.feeds = {&a, &b, &c, &d},
+  const float two = intrinsicSize(box().child(kit::console({.feeds = {&a, &b, &c, &d},
                                                       .style = voice,
                                                       .stacked = 2,
                                                       .stackGap = 6,
@@ -200,7 +200,7 @@ TEST(ComposeConsole, StacksFeedsPerColumnInOneVoice) {
                         .height();
   EXPECT_NEAR(two, 2 * row + 6, 1.5f);
   // A null feed is skipped rather than dereferenced.
-  const float gap = measure(box().child(kit::console({.feeds = {&a, nullptr},
+  const float gap = intrinsicSize(box().child(kit::console({.feeds = {&a, nullptr},
                                                       .style = voice,
                                                       .plate = chrome})),
                             fonts())
