@@ -95,36 +95,15 @@ every ORDER a measurement decides, which is the same defect one level up.
 A table ranked by a stopwatch is a picture of the machine even when every
 number printed in it is pinned.
 
+Two named so far, found by sweeping the whole canvas set twice and then
+rendering each sketch alone: `chladni_tab1` alternates between two
+pictures, and `ksp_mapview` produced three distinct pictures over six
+renders. Both are stable under some renders and not others, so a
+byte-identity sweep cannot tell either from a real mover.
+
 Assert once fixed: two headless sweeps of the same binary produce
 byte-identical plates for every canvas sketch, and each plate equals the
 one that sketch renders alone.
-
-## A page's still is whichever repaint the engine published last
-
-`web_script` renders byte-identically four times in five and differs on
-the fifth, rendered ALONE (`--headless --ledger --sketch web_script`):
-about a dozen pixels in one panel, three rows of the plate. `web_panel`
-and `import_native`, the other two sketches that draw a `scry::WebView`,
-are stable over four renders each. So two headless sweeps of one binary
-disagree about `web_script` roughly one run in five, and a byte-identity
-sweep cannot tell that from a real mover.
-
-What the code does: `sketch::scry::awaitAnswer`
-(`sigilsketch/scry/SettledPage.h`) waits for a repaint, asks the document
-whether it is in the state the still is meant to photograph, and returns
-when it answers. The picture is drawn afterwards, and a view IS the
-picture — the leaf draws whatever frame the view published LAST, not the
-frame the answer described. Every repaint the engine hands over between
-the answer and the draw replaces it, and `web_script` drives its page
-with a wheel, which the engine walks over several frames.
-
-Intended: the picture is the frame the settle rule accepted. `Events`
-already receives every frame the engine publishes through
-`setFrameCallback`, so it can latch the one the answer described and the
-sketch can draw that rather than asking the view what it holds later.
-
-Assert once fixed: eight renders of `web_script` produce one digest, and
-each panel is a picture of one document state.
 
 ## The house colours a paint program needs are still typed out
 

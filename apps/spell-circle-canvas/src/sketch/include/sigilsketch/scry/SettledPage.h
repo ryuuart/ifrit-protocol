@@ -28,6 +28,14 @@
  * page BEFORE the engine's next advance, so an answer read after a
  * repaint describes exactly the state that repaint painted. When the
  * answer is the one asked for, the published frame is the picture of it.
+ *
+ * AND THE STILL IS THAT FRAME, NOT WHATEVER THE VIEW HOLDS LATER. A view
+ * is a live document: it keeps repainting after the settle — a caret, a
+ * transition, the tail of a walk — and a leaf that asks the view what it
+ * has at PAINT time gets whichever repaint happened to land last, which
+ * is a different picture on a machine that ran the engine faster. So the
+ * frame the settle accepted is latched here, and the picture is drawn
+ * from that.
  */
 
 #include <sigilscry/engine/WebView.h>
@@ -71,10 +79,11 @@ class Events {
       }
       state->changed.notify_all();
     });
-    view.setFrameCallback([state](const sigil::scry::WebView::Frame&) {
+    view.setFrameCallback([state](const sigil::scry::WebView::Frame& frame) {
       {
         const std::lock_guard<std::mutex> lock(state->mutex);
         ++state->repaints;
+        state->latest = frame;
       }
       state->changed.notify_all();
     });
@@ -94,9 +103,11 @@ class Events {
   [[nodiscard]] bool awaitLoad() const {
     const std::shared_ptr<State> state = m_state;
     std::unique_lock<std::mutex> lock(state->mutex);
-    return state->changed.wait_for(lock, kUnresponsive, [&state] {
+    const bool there = state->changed.wait_for(lock, kUnresponsive, [&state] {
       return state->loaded && state->repaints > state->repaintsAtLoad;
     });
+    if (there) state->accepted = state->latest;
+    return there;
   }
 
   /** How many repaints have been handed over. Take one before driving
@@ -121,13 +132,36 @@ class Events {
     return m_state->loaded;
   }
 
+  /** KEEPS THE FRAME STANDING NOW as the one the still is of. Called by
+   *  every settle that succeeded, so the accepted frame is the one whose
+   *  state the settle rule just read. */
+  void accept() const {
+    const std::lock_guard<std::mutex> lock(m_state->mutex);
+    m_state->accepted = m_state->latest;
+  }
+
+  /** THE FRAME THE SETTLE ACCEPTED — what a still of this view is a
+   *  picture of. Falsy before any settle succeeded.
+   *
+   *  On a CPU engine it carries the raster image, which is immutable and
+   *  therefore exact however long the page goes on repainting. A GPU
+   *  engine publishes a texture the view reuses, so `image` is null
+   *  there and the caller draws through the view: a GPU still is the
+   *  engine's latest either way, and a plate is taken on the CPU tier. */
+  [[nodiscard]] sigil::scry::WebView::Frame accepted() const {
+    const std::lock_guard<std::mutex> lock(m_state->mutex);
+    return m_state->accepted;
+  }
+
  private:
   struct State {
     std::mutex mutex;
     std::condition_variable changed;
     bool loaded = false;
-    uint64_t repaints = 0;       // handed over so far
-    uint64_t repaintsAtLoad = 0; // the count when the document arrived
+    uint64_t repaints = 0;        // handed over so far
+    uint64_t repaintsAtLoad = 0;  // the count when the document arrived
+    sigil::scry::WebView::Frame latest;    // the newest handed over
+    sigil::scry::WebView::Frame accepted;  // the one a settle stopped on
   };
 
   sigil::scry::WebView* m_view;
@@ -170,7 +204,12 @@ inline std::string answer(sigil::scry::WebView& view,
   for (int tick = 0; tick < repaints; ++tick) {
     if (!events.awaitRepaint(mark)) return false;
     mark = events.repaints();
-    if (answer(view, expression) == expected) return true;
+    if (answer(view, expression) == expected) {
+      // The answer describes the frame standing now, so that frame is
+      // the still — every repaint after it is a later document.
+      events.accept();
+      return true;
+    }
   }
   return false;
 }

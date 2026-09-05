@@ -37,6 +37,7 @@
  */
 
 #include <include/core/SkCanvas.h>
+#include <include/core/SkSamplingOptions.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilscry/engine/WebEngine.h>
@@ -140,10 +141,12 @@ struct WebScript final : sketch::Sketch {
    *  out with. */
   static bool available(std::string* why) { return scry::available(why); }
 
-  /** One view per cell. They are held for the sketch's life because a
-   *  view IS the picture — the leaf draws whatever frame it last
-   *  published. */
+  /** One view per cell, held for the sketch's life because a view owns
+   *  the frame drawn from it. THE PICTURE IS NOT "whatever the view holds
+   *  now": a page goes on repainting after it has settled, so each cell
+   *  draws the frame its own settle accepted. */
   std::vector<std::shared_ptr<scry::WebView>> views;
+  std::vector<scry::WebView::Frame> stills;
 
   void setup(sketch::SketchContext& ctx) override {
     const sketch::kit::Provide look(sheetTheme());
@@ -223,6 +226,8 @@ struct WebScript final : sketch::Sketch {
               settled;
 
     views = {plain, scripted, scrolled, pressed};
+    stills = {plainEvents.accepted(), scriptedEvents.accepted(),
+              scrolledEvents.accepted(), pressedEvents.accepted()};
 
     char press[96];
     std::snprintf(press, sizeof press,
@@ -249,17 +254,19 @@ struct WebScript final : sketch::Sketch {
                  "what the call asked for is what the latest frame shows") +
              (settled ? "" : "; one of those waits expired"))},
         kit::cells(
-            {.cells = {cell("plain", plain, "loadHTML + setLoadCallback",
+            {.cells = {cell("plain", plain, stills[0],
+                            "loadHTML + setLoadCallback",
                             std::string("the load callback ") +
                                 (fired ? "fired" : "never fired") + ", and " +
                                 (painted ? "a frame was published"
                                          : "nothing was published")),
-                       cell("scripted", scripted,
+                       cell("scripted", scripted, stills[1],
                             "evaluateScript(js, onResult)",
                             std::string("the page answered \xe2\x80\x9c") +
                                 returned + "\xe2\x80\x9d"),
-                       cell("scrolled", scrolled, "scroll(0, -dy)", wheel),
-                       cell("pressed", pressed,
+                       cell("scrolled", scrolled, stills[2], "scroll(0, -dy)",
+                            wheel),
+                       cell("pressed", pressed, stills[3],
                             "mouseMove / mouseDown / mouseUp", press)},
              .gap = 18,
              .divider = Fill::color(kRule)})));
@@ -269,17 +276,29 @@ struct WebScript final : sketch::Sketch {
     return web.createView(kViewW, kViewH);
   }
 
-  /** One cell: the view's latest published frame, at its own pixel size
-   *  so nothing resamples. */
+  /** One cell: THE FRAME THIS CELL'S SETTLE ACCEPTED, at its own pixel
+   *  size so nothing resamples.
+   *
+   *  A CPU engine hands the frame over as an immutable image, and that
+   *  image is the still however long the page goes on repainting. A GPU
+   *  engine publishes a texture it reuses, so there is no image to keep
+   *  and the view draws its latest — which is what a device rendering of
+   *  a live page is either way. */
   static Element cell(std::string key, std::shared_ptr<scry::WebView> view,
-                      const char* call, std::string note) {
+                      scry::WebView::Frame still, const char* call,
+                      std::string note) {
+    const SkRect where = SkRect::MakeWH((float)kViewW, (float)kViewH);
     return sketch::kit::caption(
         (float)kViewW, toU8(call), toU8(note),
         custom(std::move(key),
-               [view](SkCanvas& canvas, const PaintContext&) {
-                 if (view)
-                   view->draw(canvas,
-                              SkRect::MakeWH((float)kViewW, (float)kViewH));
+               [view, still = std::move(still),
+                where](SkCanvas& canvas, const PaintContext&) {
+                 if (still.image)
+                   canvas.drawImageRect(
+                       still.image, where,
+                       SkSamplingOptions(SkFilterMode::kLinear));
+                 else if (view)
+                   view->draw(canvas, where);
                })
             .width((float)kViewW)
             .height((float)kViewH)
