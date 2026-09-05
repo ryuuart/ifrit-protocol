@@ -30,7 +30,7 @@
 extern "C" void sigilSweepKernel(void* varying, void* entryPointParams,
                                  void* globalParams);
 
-namespace sigil::geometry::mesh::curve {
+namespace sigil::geometry::mesh::pop {
 
 namespace kernel {
 
@@ -157,8 +157,9 @@ SweepRuntime SweepRuntime::cpu() {
   return kCpu;
 }
 
-bool describe(const std::vector<Frame3>& rail, const path::Polyline& profile,
-              const SweepOptions& options, kernel::Dispatch* out) {
+bool describe(const std::vector<curve::Frame3>& rail,
+              const path::Polyline& profile, const SweepOptions& options,
+              kernel::Dispatch* out) {
   if (!out) return false;
   const uint32_t ring = (uint32_t)profile.points.size();
   if (rail.size() < 2 || ring < 2) return false;
@@ -174,7 +175,7 @@ bool describe(const std::vector<Frame3>& rail, const path::Polyline& profile,
   work.railPosition.reserve(rail.size());
   work.railNormal.reserve(rail.size());
   work.railBinormal.reserve(rail.size());
-  for (const Frame3& f : rail) {
+  for (const curve::Frame3& f : rail) {
     // THE TAPER, EVALUATED HERE: it is an arbitrary function of t and
     // the only part of a ring's size a kernel could not answer.
     const float size =
@@ -194,8 +195,8 @@ bool describe(const std::vector<Frame3>& rail, const path::Polyline& profile,
   return true;
 }
 
-Mesh sweep(const std::vector<Frame3>& rail, const path::Polyline& profile,
-           const SweepOptions& options) {
+Mesh sweep(const std::vector<curve::Frame3>& rail,
+           const path::Polyline& profile, const SweepOptions& options) {
   Mesh out;
   kernel::Dispatch work;
   if (!describe(rail, profile, options, &work)) return out;
@@ -246,7 +247,7 @@ Mesh sweep(const std::vector<Frame3>& rail, const path::Polyline& profile,
 
   if (options.caps) {
     for (int end = 0; end < 2; ++end) {
-      const Frame3& f = rail[end == 0 ? 0 : rail.size() - 1];
+      const curve::Frame3& f = rail[end == 0 ? 0 : rail.size() - 1];
       const glm::vec3 n = end == 0 ? f.tangent * -1.0f : f.tangent;
       const uint32_t center = (uint32_t)out.positions.size();
       out.positions.push_back(f.position);
@@ -267,11 +268,11 @@ Mesh sweep(const std::vector<Frame3>& rail, const path::Polyline& profile,
   return out;
 }
 
-Mesh sweep(const Spline3& spline, const path::Polyline& profile,
+Mesh sweep(const curve::Spline3& spline, const path::Polyline& profile,
            const SweepOptions& options) {
   SweepOptions railed = options;
   if (spline.closed) railed.caps = false;  // a loop has no ends to close
   return sweep(frames(spline, options.segments, options.up), profile, railed);
 }
 
-}  // namespace sigil::geometry::mesh::curve
+}  // namespace sigil::geometry::mesh::pop

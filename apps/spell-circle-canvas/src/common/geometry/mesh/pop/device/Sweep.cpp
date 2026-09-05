@@ -26,7 +26,7 @@
 
 #include <sigilgeometry/mesh/pop/Sweep.h>
 
-namespace sigil::geometry::mesh::curve {
+namespace sigil::geometry::mesh::pop {
 
 using ::sigil::geometry::device::Device;
 
@@ -276,8 +276,8 @@ class DeviceSweepExecutor : public SweepExecutor {
 
 }  // namespace
 
-SweepRuntime deviceRuntime(Device& device) {
+SweepRuntime sweepDeviceRuntime(Device& device) {
   return SweepRuntime{DeviceSweepExecutor{std::make_shared<SweepGpu>(device)}};
 }
 
-}  // namespace sigil::geometry::mesh::curve
+}  // namespace sigil::geometry::mesh::pop

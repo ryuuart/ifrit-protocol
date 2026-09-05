@@ -56,10 +56,10 @@ struct FirstLight final : sketch::Set {
     const gm::curve::Spline3 track = world::kit::rail(kTable);
 
     const gm::Mesh tube =
-        gm::curve::sweep(loop, gm::curve::profile::circle(16),
+        gm::pop::sweep(loop, gm::pop::profile::circle(16),
                          {.segments = 220,
                           .scale = 9.0f,
-                          .normals = gm::curve::SweepOptions::Normals::Radial});
+                          .normals = gm::pop::SweepOptions::Normals::Radial});
 
     const std::vector<glm::vec3> path = loop.sampleArcLength(96);
     const float head = motion::phase(seconds, 1.0 / 0.35);

@@ -25,6 +25,7 @@
 using namespace sigil;
 namespace gm = sigil::geometry::mesh;
 namespace curve = sigil::geometry::mesh::curve;
+namespace pop = sigil::geometry::mesh::pop;
 
 namespace {
 
@@ -33,7 +34,7 @@ namespace {
  *  runtime, so a machine with no GPU stays green. */
 struct OnDevice {
   std::unique_ptr<geometry::device::Device> device;
-  curve::SweepRuntime sweep;
+  pop::SweepRuntime sweep;
   std::string error;
   explicit operator bool() const { return (bool)device; }
 };
@@ -42,7 +43,7 @@ OnDevice onDevice() {
   OnDevice out;
   const geometry::device::DeviceConfig config;
   out.device = geometry::device::Device::create(config, &out.error);
-  if (out.device) out.sweep = curve::deviceRuntime(*out.device);
+  if (out.device) out.sweep = pop::sweepDeviceRuntime(*out.device);
   return out;
 }
 
@@ -101,13 +102,13 @@ curve::Spline3 arc() {
   return ::testing::AssertionSuccess();
 }
 
-const char* nameOf(curve::SweepOptions::Normals rule) {
+const char* nameOf(pop::SweepOptions::Normals rule) {
   switch (rule) {
-    case curve::SweepOptions::Normals::Radial:
+    case pop::SweepOptions::Normals::Radial:
       return "Radial";
-    case curve::SweepOptions::Normals::Frame:
+    case pop::SweepOptions::Normals::Frame:
       return "Frame";
-    case curve::SweepOptions::Normals::Geometric:
+    case pop::SweepOptions::Normals::Geometric:
       return "Geometric";
   }
   return "?";
@@ -120,31 +121,30 @@ TEST(DeviceSweep, TheRuntimeIsAValue) {
   if (!on) GTEST_SKIP() << on.error;
   EXPECT_TRUE((bool)on.sweep);
   EXPECT_EQ(on.sweep->name(), "diligent");
-  EXPECT_EQ(on.sweep, curve::SweepRuntime(on.sweep));
-  EXPECT_NE(on.sweep, curve::SweepRuntime::cpu());
-  EXPECT_NE(on.sweep, curve::deviceRuntime(*on.device));
+  EXPECT_EQ(on.sweep, pop::SweepRuntime(on.sweep));
+  EXPECT_NE(on.sweep, pop::SweepRuntime::cpu());
+  EXPECT_NE(on.sweep, pop::sweepDeviceRuntime(*on.device));
 }
 
 TEST(DeviceSweep, EveryNormalRuleIsBitIdenticalToTheHost) {
   const OnDevice on = onDevice();
   if (!on) GTEST_SKIP() << on.error;
 
-  for (curve::SweepOptions::Normals rule :
-       {curve::SweepOptions::Normals::Radial,
-        curve::SweepOptions::Normals::Frame,
-        curve::SweepOptions::Normals::Geometric}) {
+  for (pop::SweepOptions::Normals rule :
+       {pop::SweepOptions::Normals::Radial, pop::SweepOptions::Normals::Frame,
+        pop::SweepOptions::Normals::Geometric}) {
     for (bool closed : {true, false}) {
       const curve::Spline3 spline = closed ? loop() : arc();
       const std::vector<curve::Frame3> rail = curve::frames(spline, 64);
       for (const auto& contour :
-           {curve::profile::circle(12), curve::profile::line()}) {
-        curve::SweepOptions options;
+           {pop::profile::circle(12), pop::profile::line()}) {
+        pop::SweepOptions options;
         options.normals = rule;
         options.scale = 14.0f;
         options.caps = !closed;
-        const gm::Mesh host = curve::sweep(rail, contour, options);
+        const gm::Mesh host = pop::sweep(rail, contour, options);
         options.runtime = on.sweep;
-        const gm::Mesh device = curve::sweep(rail, contour, options);
+        const gm::Mesh device = pop::sweep(rail, contour, options);
         EXPECT_TRUE(identical(host, device))
             << nameOf(rule) << (closed ? " on a loop" : " on an arc")
             << " with a " << contour.points.size() << "-point profile";
@@ -159,14 +159,14 @@ TEST(DeviceSweep, ATaperReachesTheDeviceAsTheSizeItResolvedTo) {
 
   // A taper is an arbitrary host function; what crosses is the number it
   // answered, once per ring, so the two tiers scale by the same bits.
-  curve::SweepOptions options;
+  pop::SweepOptions options;
   options.scale = 20.0f;
   options.taper = [](float t) { return 0.2f + 0.9f * t * t; };
   const std::vector<curve::Frame3> rail = curve::frames(loop(), 48);
-  const sigil::geometry::path::Polyline contour = curve::profile::circle(9);
-  const gm::Mesh host = curve::sweep(rail, contour, options);
+  const sigil::geometry::path::Polyline contour = pop::profile::circle(9);
+  const gm::Mesh host = pop::sweep(rail, contour, options);
   options.runtime = on.sweep;
-  EXPECT_TRUE(identical(host, curve::sweep(rail, contour, options)));
+  EXPECT_TRUE(identical(host, pop::sweep(rail, contour, options)));
 }
 
 TEST(DeviceSweep, ASplineSweepsTheSameOnEitherRuntime) {
@@ -176,12 +176,11 @@ TEST(DeviceSweep, ASplineSweepsTheSameOnEitherRuntime) {
   // The spline overload builds the rail first and then hands it over, so
   // the runtime reaches the rings through the options exactly as the
   // rail overload does.
-  curve::SweepOptions options;
+  pop::SweepOptions options;
   options.segments = 128;
   options.scale = 9.0f;
-  const gm::Mesh host =
-      curve::sweep(loop(), curve::profile::circle(16), options);
+  const gm::Mesh host = pop::sweep(loop(), pop::profile::circle(16), options);
   options.runtime = on.sweep;
-  EXPECT_TRUE(identical(
-      host, curve::sweep(loop(), curve::profile::circle(16), options)));
+  EXPECT_TRUE(
+      identical(host, pop::sweep(loop(), pop::profile::circle(16), options)));
 }

@@ -301,10 +301,10 @@ struct SceneSurfaces final : sketch::Set {
     strip.scene = ctx.textureScene({1024, 128});
     loop.scene = ctx.textureScene({kTapeWidth, kTapeHeight});
     rail =
-        gm::curve::sweep(ribbon(), gm::curve::profile::line(),
+        gm::pop::sweep(ribbon(), gm::pop::profile::line(),
                          {.segments = 240,
                           .scale = 46.0f,
-                          .normals = gm::curve::SweepOptions::Normals::Frame});
+                          .normals = gm::pop::SweepOptions::Normals::Frame});
   }
 
   world::Frame describe(float seconds) override {

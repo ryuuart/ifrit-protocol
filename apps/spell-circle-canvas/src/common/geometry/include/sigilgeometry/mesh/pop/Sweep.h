@@ -19,7 +19,7 @@
  * formed, so it is written once here and never twice.
  *
  * The ring arithmetic itself is written ONCE, in
- * `curve/kernels/Sweep.slang`, and the build compiles that source twice:
+ * `mesh/pop/kernels/Sweep.slang`, and the build compiles that source twice:
  * to C++, which the built-in executor calls, and to SPIR-V, which a
  * runtime that owns a device dispatches. Neither side re-derives a
  * formula, which is what lets two tiers be held to bit identity rather
@@ -45,7 +45,7 @@ namespace sigil::geometry::device {
 class Device;
 }  // namespace sigil::geometry::device
 
-namespace sigil::geometry::mesh::curve {
+namespace sigil::geometry::mesh::pop {
 
 /** The cross-sections `sweep()` carries. A profile is a plain
  *  `path::Polyline` in Skia's y-down 2D space — x runs along the
@@ -205,8 +205,9 @@ struct SweepOptions {
  *  leaving @p out untouched — when there is nothing to sweep: fewer than
  *  two rings, or fewer than two profile points. The taper is evaluated
  *  here, once per ring. */
-bool describe(const std::vector<Frame3>& rail, const path::Polyline& profile,
-              const SweepOptions& options, kernel::Dispatch* out);
+bool describe(const std::vector<curve::Frame3>& rail,
+              const path::Polyline& profile, const SweepOptions& options,
+              kernel::Dispatch* out);
 
 /**
  * THE DEVICE EXECUTOR, beside the CPU one: the `SweepRuntime` that forms
@@ -232,7 +233,7 @@ bool describe(const std::vector<Frame3>& rail, const path::Polyline& profile,
  * calls do not, because they hold separate device state. Defined only
  * where this library was built with a device feature.
  */
-SweepRuntime deviceRuntime(::sigil::geometry::device::Device& device);
+SweepRuntime sweepDeviceRuntime(::sigil::geometry::device::Device& device);
 
 /** Carry @p profile along @p rail into one Mesh. THE swept primitive:
  *  a circle profile forms a tube, a two-point line forms a ribbon or
@@ -242,13 +243,13 @@ SweepRuntime deviceRuntime(::sigil::geometry::device::Device& device);
  *  at that frame's t. u runs across the profile and v is the frame's
  *  t. The ring vertices are formed on `options.runtime`; every executor
  *  writes exactly these vertices from the same rail. */
-Mesh sweep(const std::vector<Frame3>& rail, const path::Polyline& profile,
-           const SweepOptions& options = {});
+Mesh sweep(const std::vector<curve::Frame3>& rail,
+           const path::Polyline& profile, const SweepOptions& options = {});
 
 /** The same sweep over a spline, whose parallel-transport frames are
  *  the rail (`segments` of them, seeded by `up`). A closed spline has
  *  no ends, so it drops `caps`. */
-Mesh sweep(const Spline3& spline, const path::Polyline& profile,
+Mesh sweep(const curve::Spline3& spline, const path::Polyline& profile,
            const SweepOptions& options = {});
 
-}  // namespace sigil::geometry::mesh::curve
+}  // namespace sigil::geometry::mesh::pop

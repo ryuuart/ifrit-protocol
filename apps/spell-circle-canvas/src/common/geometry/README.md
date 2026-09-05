@@ -103,7 +103,7 @@ void paint(SkCanvas &canvas, SkSize viewport, const SkPath &star) {
           .noise(18)
           .smooth()
           .fade({1.0f, 0.3f, 0.6f, 1.0f}, {0.2f, 0.9f, 1.0f, 1.0f})
-          .sweep(curve::profile::circle(), false,
+          .sweep(pop::profile::circle(), false,
                  {.segments = 160, .scale = 9});
 
   camera::Camera cam;
@@ -160,7 +160,7 @@ copies of them.
 **Values, not baked results.** Options structs, distortion structs,
 operator values, splines, clouds and chains are all plain data you edit and
 re-cook. `ops::PathOp` plus `ops::chain()` compose a non-destructive
-recipe; `blend::Options`, `curve::SweepOptions` and `pop::Chain` behave the
+recipe; `blend::Options`, `pop::SweepOptions` and `pop::Chain` behave the
 same way. Nothing is committed until a draw call or an explicit cook asks
 for it, so changing one dial and re-running is always available.
 
@@ -240,7 +240,7 @@ driver fuses a multiply and the add after it and rounds once where the
 source rounds twice.
 
 **A SWEEP runs on one as well, and its executor's whole contract is the
-RING VERTICES.** `SweepOptions::runtime` carries a `curve::SweepRuntime`,
+RING VERTICES.** `SweepOptions::runtime` carries a `pop::SweepRuntime`,
 defaulting to `SweepRuntime::cpu()`, and a sweep is two things of which
 only one is arithmetic: the ring vertices are a pure function of one
 frame, one profile point and the size the profile scales to there, and
@@ -249,7 +249,7 @@ closes an end, the averaging that forms a geometric normal — is integer
 or a reduction over triangles that do not exist until the vertices do.
 The topology is the same wherever the vertices were formed, so it is
 written once and the seam is narrow: an executor is handed a
-`curve::kernel::Dispatch` and fills two lanes — a position carrying u
+`pop::kernel::Dispatch` and fills two lanes — a position carrying u
 in its fourth float and a normal carrying v in its, because both of
 those floats were spare and a lane of its own for two numbers is a
 third of everything this seam moves. The TAPER never crosses
@@ -264,7 +264,7 @@ tolerance.
 into a `Cloud`: the two mesh-forming sinks stand on the cooked cloud and
 hand back a `Mesh`, so a device-side former would have to read its own
 result back to answer them — the place a device replaces ring forming is
-`curve::sweep()` over a rail, not the sink. An executor also declares,
+`pop::sweep()` over a rail, not the sink. An executor also declares,
 per operator, whether it runs it, and `cook()` asks before it dispatches:
 an operator a runtime lacks stops the cook with a message naming the
 operator and the runtime, because a chain quietly missing an operator
@@ -567,13 +567,13 @@ separate implementations of the same dispatch seams.
   role), `has()`, `describe()`, `run()` and `spirv()`. `Kernel.cpp` packs
   and calls; `Spirv.cpp` decorates the module.
 - **`mesh/pop/Sweep.h`** — the swept operator as a subject: the
-  cross-sections `curve::profile::circle()`, `curve::profile::line()` and
-  `curve::profile::fromPath()`; `SweepOptions` with `SweepNormals`; the
-  two swept formers `curve::sweep()`, over a rail you built and over the
+  cross-sections `pop::profile::circle()`, `pop::profile::line()` and
+  `pop::profile::fromPath()`; `SweepOptions` with `SweepNormals`; the
+  two swept formers `pop::sweep()`, over a rail you built and over the
   spline that builds one; and the seam a device replaces —
-  `curve::SweepExecutor` (one call, `rings()`), `curve::SweepRuntime`
-  holding one, `curve::describe()` turning a rail and a profile into a
-  `curve::kernel::Dispatch`, and `kernel::run()` and `kernel::spirv()` as
+  `pop::SweepExecutor` (one call, `rings()`), `pop::SweepRuntime`
+  holding one, `pop::describe()` turning a rail and a profile into a
+  `pop::kernel::Dispatch`, and `kernel::run()` and `kernel::spirv()` as
   the two ends of the one arithmetic. `Sweep.cpp` holds the profiles, the
   packing, the topology and the built-in executor; `mesh/pop/device/Sweep.cpp`
   the device one.
@@ -726,7 +726,7 @@ with the same expression.
 the mask on the filter just added — and the builder converts to a
 `Chain`, so you can reach into any operator afterwards and re-cook. Sinks
 end a chain: `cook()` to a `Cloud`, `cookMesh()` to one mesh of stamps,
-`cookSweep()` reading the cooked points as the path `curve::sweep()`
+`cookSweep()` reading the cooked points as the path `pop::sweep()`
 carries a profile along, and `cookBillboards()` splatting them onto a
 canvas as camera-facing sprites — the one sink that forms no geometry,
 because a billboard faces the eye and so is answered where the eye is
@@ -778,7 +778,7 @@ And the sinks, which stand on the cooked cloud:
 | --- | --- | --- | --- |
 | `cook()` | the `Cloud` itself | yes | the chain dispatched, read back once |
 | `cookMesh()` / `points::instance()` | the stamp placed at every point | yes | the vertices dispatched, read back once |
-| `cookSweep()` / `curve::sweep()` | the profile carried along the cooked points | yes | the ring vertices dispatched, read back once |
+| `cookSweep()` / `pop::sweep()` | the profile carried along the cooked points | yes | the ring vertices dispatched, read back once |
 | `cookBillboards()` / `points::drawBillboards()` | camera-facing sprites on a canvas | yes | — |
 
 **Against TouchDesigner's POP set**, the operators above answer Noise,
@@ -912,7 +912,7 @@ lock does not nest: no Diligent call may be made while one is held.
 **The device executors of this library's own seams stand beside their CPU
 ones**, in `mesh/pop/device/`: `pop::deviceRuntime(device)` cooks a chain
 by dispatching the kernel this build compiled,
-`curve::deviceRuntime(device)` forms a sweep's rings by dispatching
+`pop::sweepDeviceRuntime(device)` forms a sweep's rings by dispatching
 theirs, and `points::deviceRuntime(device)` forms a stamping's vertices
 by dispatching the third. Neither computes an arithmetic of its own — the kernel is one
 Slang source compiled twice, to the C++ the host executor calls and to

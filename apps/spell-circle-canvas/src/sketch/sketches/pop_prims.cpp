@@ -50,7 +50,7 @@ namespace sketch = sigil::sketch;
 using namespace sigil::compose;
 namespace mesh = sigil::geometry::mesh;
 namespace camera = sigil::geometry::mesh::camera;
-using sigil::geometry::mesh::pop;
+namespace pop = sigil::geometry::mesh::pop;
 namespace render = sigil::geometry::mesh::render;
 namespace material = sigil::material;
 

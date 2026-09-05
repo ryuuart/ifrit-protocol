@@ -76,7 +76,7 @@ namespace mpattern = sigil::material::pattern;
 
 namespace {
 
-using pop = mesh::pop;
+namespace pop = mesh::pop;
 
 /** A star from the geometry kit's own generator, PLACED: the kit lays a
  *  silhouette inside the box it is handed and starts it point-up, so an
@@ -234,7 +234,7 @@ struct ShapeworksLab : sketch::Sketch {
           steel.baseColor = {0.62f, 0.7f, 0.85f, 1};
           steel.specular = 0.9f;
           mesh::render::drawMesh(canvas,
-                                 curve::sweep(rail, curve::profile::circle(),
+                                 pop::sweep(rail, pop::profile::circle(),
                                               {.segments = 180, .scale = 7}),
                                  glm::mat4(1.0f), camera, viewport, steel);
           SkPaint wire;
@@ -256,11 +256,11 @@ struct ShapeworksLab : sketch::Sketch {
           band.uvTransform = SkMatrix::Translate(0, t * 0.11f);
           mesh::render::drawMesh(
               canvas,
-              curve::sweep(closedLoop(loopAt(t, 265, 96)),
-                           curve::profile::line(),
+              pop::sweep(closedLoop(loopAt(t, 265, 96)),
+                           pop::profile::line(),
                            {.segments = 220,
                             .scale = 30,
-                            .normals = curve::SweepOptions::Normals::Frame}),
+                            .normals = pop::SweepOptions::Normals::Frame}),
               glm::mat4(1.0f), camera, viewport, band);
 
           // Sparks: a point CHAIN on the same loop — the scatter, the

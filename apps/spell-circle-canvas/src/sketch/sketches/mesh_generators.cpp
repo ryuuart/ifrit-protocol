@@ -181,7 +181,7 @@ struct MeshGenerators final : sketch::Sketch {
     pedestal = mesh::superellipsoid({420, 26, 200}, 6);
 
     rail = knot();
-    tube = curve::sweep(rail, curve::profile::circle(12),
+    tube = mesh::pop::sweep(rail, mesh::pop::profile::circle(12),
                         {.segments = 220, .scale = 9});
 
     mesh::Cloud cloud = points::onSpline(rail, 14);

@@ -15,7 +15,7 @@
  * — `along()` replaces the translation and the axis turn, and the three
  * rotation lanes still apply after it.
  *
- * The rail is `curve::sweep` over the same spline the dart rides, so
+ * The rail is `pop::sweep` over the same spline the dart rides, so
  * there is exactly one curve in this file and both the picture and the
  * flight are read off it. The curve itself is the world kit's winding:
  * this file says how many gates stand on it and how fast the dart flies
@@ -92,10 +92,10 @@ struct DartFlight final : sketch::Set {
     const float lap = loop.length();
 
     const gm::Mesh rail =
-        gm::curve::sweep(loop, gm::curve::profile::circle(12),
-                         {.segments = 260,
-                          .scale = 3.4f,
-                          .normals = gm::curve::SweepOptions::Normals::Radial});
+        gm::pop::sweep(loop, gm::pop::profile::circle(12),
+                       {.segments = 260,
+                        .scale = 3.4f,
+                        .normals = gm::pop::SweepOptions::Normals::Radial});
 
     const material::Material chrome = material::kit::surface(
         {.baseColor = {0.90f, 0.93f, 1.0f, 1.0f}, .roughness = 0.12f});

@@ -46,7 +46,7 @@ namespace points = sigil::geometry::mesh::points;
 
 using namespace sigil::compose;
 using sigil::compose::toU8;
-using pop = sigil::geometry::mesh::pop;
+namespace pop = sigil::geometry::mesh::pop;
 
 namespace {
 

@@ -28,8 +28,8 @@ using namespace sigil::geometry::mesh;
 namespace {
 
 using curve::Frame3;
-using curve::SweepOptions;
-using curve::SweepRuntime;
+using pop::SweepOptions;
+using pop::SweepRuntime;
 
 /** A short straight rail: two frames a unit apart, axis-aligned. */
 std::vector<Frame3> rail(size_t count = 4) {
@@ -48,17 +48,17 @@ std::vector<Frame3> rail(size_t count = 4) {
 
 /** An executor that counts what it was handed and then answers exactly
  *  what the built-in one would. */
-struct CountingExecutor : curve::SweepExecutor {
+struct CountingExecutor : pop::SweepExecutor {
   std::shared_ptr<int> calls = std::make_shared<int>(0);
 
   bool operator==(const CountingExecutor& other) const {
     return calls == other.calls;
   }
   std::string name() const override { return "counting"; }
-  void rings(const curve::kernel::Dispatch& work, glm::vec4* positions,
+  void rings(const pop::kernel::Dispatch& work, glm::vec4* positions,
              glm::vec4* normals) const override {
     ++*calls;
-    curve::kernel::run(work, positions, normals);
+    pop::kernel::run(work, positions, normals);
   }
 };
 
@@ -76,13 +76,13 @@ TEST(Sweep, RuntimeIsOneValue) {
 
 TEST(Sweep, DescribePacksTheRailAndTheProfile) {
   const std::vector<Frame3> r = rail(5);
-  const sigil::geometry::path::Polyline p = curve::profile::circle(8);
+  const sigil::geometry::path::Polyline p = pop::profile::circle(8);
   SweepOptions options;
   options.scale = 2.0f;
   options.taper = [](float t) { return 1.0f + t; };
 
-  curve::kernel::Dispatch work;
-  ASSERT_TRUE(curve::describe(r, p, options, &work));
+  pop::kernel::Dispatch work;
+  ASSERT_TRUE(pop::describe(r, p, options, &work));
   EXPECT_EQ(work.args.code.x, 5u);
   EXPECT_EQ(work.args.code.y, p.points.size());
   EXPECT_EQ(work.args.code.z, 1u) << "Radial is the default";
@@ -96,21 +96,21 @@ TEST(Sweep, DescribePacksTheRailAndTheProfile) {
   EXPECT_FLOAT_EQ(work.railNormal.back().w, 1.0f) << "the frame's t";
 
   // Nothing to sweep is said by the answer, not by an empty mesh.
-  curve::kernel::Dispatch none;
-  EXPECT_FALSE(curve::describe(rail(1), p, options, &none));
+  pop::kernel::Dispatch none;
+  EXPECT_FALSE(pop::describe(rail(1), p, options, &none));
   EXPECT_FALSE(
-      curve::describe(r, sigil::geometry::path::Polyline{}, options, &none));
+      pop::describe(r, sigil::geometry::path::Polyline{}, options, &none));
 }
 
 TEST(Sweep, ASubstitutedExecutorFormsTheVertices) {
   const std::vector<Frame3> r = rail(6);
-  const sigil::geometry::path::Polyline p = curve::profile::circle(10);
+  const sigil::geometry::path::Polyline p = pop::profile::circle(10);
 
-  const Mesh built = curve::sweep(r, p);
+  const Mesh built = pop::sweep(r, p);
   SweepOptions options;
   const CountingExecutor counting;
   options.runtime = SweepRuntime{counting};
-  const Mesh substituted = curve::sweep(r, p, options);
+  const Mesh substituted = pop::sweep(r, p, options);
 
   EXPECT_EQ(*counting.calls, 1) << "one dispatch forms every ring";
   ASSERT_EQ(built.positions.size(), substituted.positions.size());
@@ -122,18 +122,18 @@ TEST(Sweep, ASubstitutedExecutorFormsTheVertices) {
 
 TEST(Sweep, EveryNormalRuleIsFormedFromTheSameRings) {
   const std::vector<Frame3> r = rail(6);
-  const sigil::geometry::path::Polyline p = curve::profile::circle(10);
+  const sigil::geometry::path::Polyline p = pop::profile::circle(10);
   for (SweepOptions::Normals rule :
        {SweepOptions::Normals::Radial, SweepOptions::Normals::Frame,
         SweepOptions::Normals::Geometric}) {
     SweepOptions options;
     options.normals = rule;
-    const Mesh mesh = curve::sweep(r, p, options);
+    const Mesh mesh = pop::sweep(r, p, options);
     EXPECT_EQ(mesh.positions.size(), r.size() * p.points.size());
     EXPECT_EQ(mesh.normals.size(), mesh.positions.size());
     // The positions do not depend on where a normal came from.
     SweepOptions radial;
-    EXPECT_EQ(mesh.positions, curve::sweep(r, p, radial).positions);
+    EXPECT_EQ(mesh.positions, pop::sweep(r, p, radial).positions);
   }
 }
 
@@ -142,17 +142,17 @@ TEST(Sweep, EveryNormalRuleIsFormedFromTheSameRings) {
 TEST(Curves, SweptProfilesAreWellFormed) {
   curve::Spline3 arc;
   arc.points = {{0, 0, 0}, {60, 60, 0}, {120, 0, 0}};
-  const Mesh t = curve::sweep(arc, curve::profile::circle(8),
-                              {.segments = 24, .scale = 8, .caps = true});
+  const Mesh t = pop::sweep(arc, pop::profile::circle(8),
+                            {.segments = 24, .scale = 8, .caps = true});
   EXPECT_GT(t.triangleCount(), 0u);
   EXPECT_EQ(t.normals.size(), t.vertexCount());
   for (const glm::vec3& n : t.normals) EXPECT_NEAR(glm::length(n), 1, 1e-3);
   // A line profile sweeps to a strip: `segments` cross-sections of two
   // vertices each, and two triangles per gap between consecutive sections.
-  const Mesh r = curve::sweep(arc, curve::profile::line(),
-                              {.segments = 24,
-                               .scale = 20,
-                               .normals = curve::SweepOptions::Normals::Frame});
+  const Mesh r = pop::sweep(arc, pop::profile::line(),
+                            {.segments = 24,
+                             .scale = 20,
+                             .normals = pop::SweepOptions::Normals::Frame});
   EXPECT_EQ(r.vertexCount(), 48u);    // 24 * 2
   EXPECT_EQ(r.triangleCount(), 46u);  // (24 - 1) * 2
 }
@@ -168,11 +168,11 @@ TEST(Curves, SweepCarriesAnyFlattenedOutline) {
   SkPathBuilder square;
   square.moveTo(-10, -10).lineTo(10, -10).lineTo(10, 10).lineTo(-10, 10);
   square.close();
-  const path::Polyline outline = curve::profile::fromPath(square.detach());
+  const path::Polyline outline = pop::profile::fromPath(square.detach());
   EXPECT_TRUE(outline.closed);
-  const Mesh box = curve::sweep(
+  const Mesh box = pop::sweep(
       arc, outline,
-      {.segments = 8, .normals = curve::SweepOptions::Normals::Geometric});
+      {.segments = 8, .normals = pop::SweepOptions::Normals::Geometric});
   EXPECT_EQ(box.vertexCount(), 8u * (uint32_t)outline.points.size());
   EXPECT_EQ(box.normals.size(), box.vertexCount());
   glm::vec3 lo, hi;
@@ -188,14 +188,14 @@ TEST(Curves, ScaleAndTaperSizeTheProfile) {
   curve::Spline3 arc;
   arc.type = curve::Spline3::Type::Linear;
   arc.points = {{0, 0, 0}, {0, 0, 200}};
-  const Mesh even = curve::sweep(arc, curve::profile::circle(16),
-                                 {.segments = 32, .scale = 10});
+  const Mesh even =
+      pop::sweep(arc, pop::profile::circle(16), {.segments = 32, .scale = 10});
   glm::vec3 lo, hi;
   even.bounds(&lo, &hi);
   EXPECT_NEAR(hi.x - lo.x, 20, 0.2f);
 
-  const Mesh cone = curve::sweep(
-      arc, curve::profile::circle(16),
+  const Mesh cone = pop::sweep(
+      arc, pop::profile::circle(16),
       {.segments = 32, .scale = 10, .taper = [](float t) { return t; }});
   // The first ring collapses onto the curve and the last is full width.
   EXPECT_NEAR(glm::length(cone.positions[0] - arc.position(0)), 0, 1e-3);
@@ -210,9 +210,9 @@ TEST(Curves, HungRailKeepsAProfileUpright) {
     loop.points.emplace_back(300.0f * std::cos(a), 40.0f * std::sin(2 * a),
                              300.0f * std::sin(a));
   }
-  const Mesh band = curve::sweep(
-      curve::hangFrames(loop, 120), curve::profile::line(),
-      {.scale = 50, .normals = curve::SweepOptions::Normals::Frame});
+  const Mesh band =
+      pop::sweep(curve::hangFrames(loop, 120), pop::profile::line(),
+                 {.scale = 50, .normals = pop::SweepOptions::Normals::Frame});
   ASSERT_EQ(band.vertexCount(), 240u);
   // A hung rail hangs: its across-vector is held vertical in world space
   // rather than rolling with the curve's frame, which keeps text upright
@@ -380,12 +380,12 @@ curve::Spline3 arc() {
 // floats.
 TEST(Curves, CircleProfileReproducesTheTube) {
   reference::expectSame(
-      curve::sweep(reference::knot(), curve::profile::circle(12),
-                   {.segments = 220, .scale = 9}),
+      pop::sweep(reference::knot(), pop::profile::circle(12),
+                 {.segments = 220, .scale = 9}),
       reference::tube(reference::knot(), 9, nullptr, 220, 12, true, {0, 1, 0}));
   reference::expectSame(
-      curve::sweep(reference::arc(), curve::profile::circle(10),
-                   {.segments = 180, .scale = 7, .caps = true}),
+      pop::sweep(reference::arc(), pop::profile::circle(10),
+                 {.segments = 180, .scale = 7, .caps = true}),
       reference::tube(reference::arc(), 7, nullptr, 180, 10, true, {0, 1, 0}));
   // The taper multiplies the radius exactly where the old profile
   // function did — before the offset leaves the frame, not after.
@@ -393,12 +393,12 @@ TEST(Curves, CircleProfileReproducesTheTube) {
     return 0.2f + std::sin(t * 3.0f);
   };
   reference::expectSame(
-      curve::sweep(reference::arc(), curve::profile::circle(6),
-                   {.segments = 40,
-                    .scale = 12,
-                    .taper = pinch,
-                    .up = {0, 0, 1},
-                    .caps = true}),
+      pop::sweep(reference::arc(), pop::profile::circle(6),
+                 {.segments = 40,
+                  .scale = 12,
+                  .taper = pinch,
+                  .up = {0, 0, 1},
+                  .caps = true}),
       reference::tube(reference::arc(), 12, pinch, 40, 6, true, {0, 0, 1}));
 }
 
@@ -412,19 +412,19 @@ TEST(Curves, LineProfileReproducesTheRibbon) {
   for (const std::function<float(float)>& taper :
        {std::function<float(float)>{}, swell}) {
     reference::expectSame(
-        curve::sweep(reference::knot(), curve::profile::line(),
-                     {.segments = 220,
-                      .scale = 30,
-                      .taper = taper,
-                      .normals = curve::SweepOptions::Normals::Frame}),
+        pop::sweep(reference::knot(), pop::profile::line(),
+                   {.segments = 220,
+                    .scale = 30,
+                    .taper = taper,
+                    .normals = pop::SweepOptions::Normals::Frame}),
         reference::ribbon(reference::knot(), 30, taper, 220, {0, 1, 0}));
     reference::expectSame(
-        curve::sweep(reference::arc(), curve::profile::line(),
-                     {.segments = 96,
-                      .scale = 42,
-                      .taper = taper,
-                      .up = {1, 0, 0},
-                      .normals = curve::SweepOptions::Normals::Frame}),
+        pop::sweep(reference::arc(), pop::profile::line(),
+                   {.segments = 96,
+                    .scale = 42,
+                    .taper = taper,
+                    .up = {1, 0, 0},
+                    .normals = pop::SweepOptions::Normals::Frame}),
         reference::ribbon(reference::arc(), 42, taper, 96, {1, 0, 0}));
   }
 }
@@ -438,9 +438,9 @@ TEST(Curves, LineProfileOnAHungRailReproducesTheBanner) {
   for (int k = 0; k < 4; ++k) {
     const float head = (float)(k + 1) / 4.0f;
     reference::expectSame(
-        curve::sweep(
-            curve::hangFrames(loop, 160, head, 0.25f), curve::profile::line(),
-            {.scale = 64, .normals = curve::SweepOptions::Normals::Frame}),
+        pop::sweep(curve::hangFrames(loop, 160, head, 0.25f),
+                   pop::profile::line(),
+                   {.scale = 64, .normals = pop::SweepOptions::Normals::Frame}),
         reference::banner(loop, 64, head, 0.25f, 160));
   }
 }

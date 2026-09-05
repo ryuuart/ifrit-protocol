@@ -59,7 +59,7 @@ scene.render(
         .child(Element().key("eye").along(rail, travelled).camera(lens))
         .child(Element()
                    .key("tube")
-                   .mesh(geometry::mesh::curve::sweep(loop, profile))
+                   .mesh(geometry::mesh::pop::sweep(loop, profile))
                    .fill(surface)
                    .rotateY(bind(&spin))
                    .tag("lit"))
@@ -837,7 +837,7 @@ of those two are what put the mesh painter under that judgement.
 
 ### The swept rings on the device
 
-`curve::deviceRuntime(device)` is a `curve::SweepRuntime` whose
+`pop::sweepDeviceRuntime(device)` is a `pop::SweepRuntime` whose
 executor forms a sweep's ring vertices on the device: the rail and the
 profile uploaded, one compute dispatch, both output lanes read back in
 one crossing. Everything else a sweep is made of stays on the host and is

@@ -168,9 +168,9 @@ void paintRail(SkCanvas& canvas, const std::vector<curve::Frame3>& rail,
   const camera::Camera camera = view();
 
   const mesh::Mesh cloth =
-      curve::sweep(rail, curve::profile::line(),
+      mesh::pop::sweep(rail, mesh::pop::profile::line(),
                    {.scale = kWidth,
-                    .normals = curve::SweepOptions::Normals::Frame});
+                    .normals = mesh::pop::SweepOptions::Normals::Frame});
   render::MeshStyle style;
   style.texture = art;
   style.baseColor = {1, 1, 1, 1};

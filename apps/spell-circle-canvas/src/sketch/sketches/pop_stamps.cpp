@@ -52,8 +52,7 @@ namespace shapes = sigil::geometry::shapes;
 using namespace sigil::compose;
 namespace mesh = sigil::geometry::mesh;
 namespace camera = sigil::geometry::mesh::camera;
-namespace curve = sigil::geometry::mesh::curve;
-using sigil::geometry::mesh::pop;
+namespace pop = sigil::geometry::mesh::pop;
 namespace render = sigil::geometry::mesh::render;
 
 namespace {
@@ -161,7 +160,7 @@ struct PopStamps final : sketch::Sketch {
     tube = pop::on(ring)
                .count(220)
                .noise(26, 0.004f)
-               .sweep(curve::profile::circle(14), true,
+               .sweep(pop::profile::circle(14), true,
                       {.segments = 160, .scale = 11});
 
     plates = pop::on(ring)
@@ -177,13 +176,13 @@ struct PopStamps final : sketch::Sketch {
                 .count(140)
                 .noise(20, 0.004f)
                 .smooth(0.5f, 2)
-                .sweep(curve::profile::fromPath(
+                .sweep(pop::profile::fromPath(
                            shapes::star(5, 14.0f / 30.0f)
                                .path({60, 60})
                                .makeTransform(SkMatrix::Translate(-30, -30))),
                        true,
                        {.segments = 160,
-                        .normals = curve::SweepOptions::Normals::Geometric});
+                        .normals = pop::SweepOptions::Normals::Geometric});
     crownPlace = camera::place({0, 255, -140}, 14, -10, 0, 0.85f);
     glints = pop::on(crown, 600).jitter(1.5f).stamps(mesh::quad(3, 3));
 
@@ -192,10 +191,10 @@ struct PopStamps final : sketch::Sketch {
                                 .window(0.5f, 0.5f)
                                 .noise(16, 0.004f)
                                 .smooth(0.6f, 3),
-                            curve::profile::line(), false,
+                            pop::profile::line(), false,
                             {.segments = 120,
                              .scale = 42,
-                             .normals = curve::SweepOptions::Normals::Frame});
+                             .normals = pop::SweepOptions::Normals::Frame});
 
     ctx.composer.render(custom([this](SkCanvas& canvas, const PaintContext&) {
                           draw(canvas);

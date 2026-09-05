@@ -26,7 +26,7 @@
 
 using namespace sigil;
 using sigil::geometry::mesh::Cloud;
-using sigil::geometry::mesh::pop;
+namespace pop = sigil::geometry::mesh::pop;
 
 namespace {
 

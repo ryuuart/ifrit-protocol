@@ -234,12 +234,12 @@ void countVertices(benchmark::State& state, const Mesh& m) {
 
 void BM_Sweep_Circle(benchmark::State& state) {
   const curve::Spline3 spline = knot(9);
-  const path::Polyline profile = curve::profile::circle((int)state.range(1));
-  const curve::SweepOptions options{.segments = (int)state.range(0),
+  const path::Polyline profile = pop::profile::circle((int)state.range(1));
+  const pop::SweepOptions options{.segments = (int)state.range(0),
                                     .scale = 6};
   Mesh last;
   for ([[maybe_unused]] auto iteration : state) {
-    last = curve::sweep(spline, profile, options);
+    last = pop::sweep(spline, profile, options);
     benchmark::DoNotOptimize(last.positions.data());
   }
   countVertices(state, last);
@@ -256,13 +256,13 @@ BENCHMARK(BM_Sweep_Circle)
  *  device executor's arm has a host number to stand beside. */
 void BM_Sweep_Rings(benchmark::State& state) {
   const curve::Spline3 spline = knot(9);
-  const path::Polyline profile = curve::profile::circle(24);
-  const curve::SweepOptions options{.segments = (int)state.range(0),
+  const path::Polyline profile = pop::profile::circle(24);
+  const pop::SweepOptions options{.segments = (int)state.range(0),
                                     .scale = 6};
   const std::vector<curve::Frame3> rail =
       curve::frames(spline, options.segments, options.up);
-  curve::kernel::Dispatch work;
-  curve::describe(rail, profile, options, &work);
+  pop::kernel::Dispatch work;
+  pop::describe(rail, profile, options, &work);
   std::vector<glm::vec4> positions(work.vertices());
   std::vector<glm::vec4> normals(work.vertices());
   for ([[maybe_unused]] auto iteration : state) {
@@ -282,14 +282,14 @@ BENCHMARK(BM_Sweep_Rings)
 
 void BM_Sweep_Line(benchmark::State& state) {
   const curve::Spline3 spline = knot(9);
-  const path::Polyline profile = curve::profile::line();
-  const curve::SweepOptions options{
+  const path::Polyline profile = pop::profile::line();
+  const pop::SweepOptions options{
       .segments = (int)state.range(0),
       .scale = 24,
-      .normals = curve::SweepOptions::Normals::Frame};
+      .normals = pop::SweepOptions::Normals::Frame};
   Mesh last;
   for ([[maybe_unused]] auto iteration : state) {
-    last = curve::sweep(spline, profile, options);
+    last = pop::sweep(spline, profile, options);
     benchmark::DoNotOptimize(last.positions.data());
   }
   countVertices(state, last);
@@ -305,13 +305,13 @@ BENCHMARK(BM_Sweep_Line)
 // from the transported rail above.
 void BM_Sweep_Hang(benchmark::State& state) {
   const curve::Spline3 spline = knot(9);
-  const path::Polyline profile = curve::profile::line();
-  const curve::SweepOptions options{
-      .scale = 24, .normals = curve::SweepOptions::Normals::Frame};
+  const path::Polyline profile = pop::profile::line();
+  const pop::SweepOptions options{
+      .scale = 24, .normals = pop::SweepOptions::Normals::Frame};
   const int sections = (int)state.range(0);
   Mesh last;
   for ([[maybe_unused]] auto iteration : state) {
-    last = curve::sweep(curve::hangFrames(spline, sections, 1, 0.4f), profile,
+    last = pop::sweep(curve::hangFrames(spline, sections, 1, 0.4f), profile,
                         options);
     benchmark::DoNotOptimize(last.positions.data());
   }

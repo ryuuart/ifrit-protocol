@@ -48,7 +48,7 @@ namespace {
 
 /** The point-operator language is a SCOPE rather than a namespace, so
  *  it is named by a type alias and spelled the same way either is. */
-using pop = gm::pop;
+namespace pop = gm::pop;
 
 /** How far across the body stands, how many points are scattered over
  *  it, and how thick the selected band is as a fraction of its height. */

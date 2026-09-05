@@ -69,11 +69,11 @@ void pop::cookBillboards(const pop::Chain& chain, SkCanvas& canvas,
 }
 
 Mesh pop::cookSweep(const pop::Chain& chain, const Polyline& profile,
-                    bool closed, const curve::SweepOptions& options,
+                    bool closed, const pop::SweepOptions& options,
                     const pop::Runtime& runtime) {
   const Spline3 path = pathThrough(chain, closed, runtime);
   if (path.points.size() < 2) return {};
-  return curve::sweep(path, profile, options);
+  return pop::sweep(path, profile, options);
 }
 
 }  // namespace sigil::geometry::mesh
