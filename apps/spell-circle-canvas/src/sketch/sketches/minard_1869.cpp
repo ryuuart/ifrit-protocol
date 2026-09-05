@@ -171,7 +171,6 @@ namespace weave = sigil::weave;
 using namespace sigil::compose;
 using namespace sigil::motion;
 using sigil::material::skia::Paint;
-using sigil::weave::ports::pickTypeface;
 namespace geometry = sigil::geometry;
 namespace path = sigil::geometry::path;
 using namespace std::chrono_literals;
@@ -2816,15 +2815,15 @@ struct Minard1869 : sketch::Sketch {
     // library's own walk: the first installed family wins, and a machine
     // with none of them gets the default face AT THE WEIGHT ASKED FOR
     // rather than silently at Normal.
-    faceScript = pickTypeface({"Snell Roundhand", "Apple Chancery"});
-    faceItalic =
-        pickTypeface({"Baskerville", "Times New Roman"}, SkFontStyle::Italic());
-    faceRoman = pickTypeface({"Baskerville", "Times New Roman"});
-    faceNum = pickTypeface({"Baskerville"});
-    faceUi = pickTypeface({"Helvetica Neue", "Baskerville"});
-    faceUiBold = pickTypeface({"Helvetica Neue", "Baskerville"},
-                              SkFontStyle::kBold_Weight);
-    faceMono = pickTypeface({"Menlo", "Courier New"});
+    faceScript = weave::ports::face({"Snell Roundhand", "Apple Chancery"});
+    faceItalic = weave::ports::face({"Baskerville", "Times New Roman"},
+                                    SkFontStyle::Italic());
+    faceRoman = weave::ports::face({"Baskerville", "Times New Roman"});
+    faceNum = weave::ports::face({"Baskerville"});
+    faceUi = weave::ports::face({"Helvetica Neue", "Baskerville"});
+    faceUiBold = weave::ports::face({"Helvetica Neue", "Baskerville"},
+                                    SkFontStyle::kBold_Weight);
+    faceMono = weave::ports::face({"Menlo", "Courier New"});
 
     // THE PAPER, and it is a FIBRE problem, not a colour problem: pulp
     // grain, the laid lines of a hand-made 19th-century sheet at ~1.2 px

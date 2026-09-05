@@ -51,6 +51,7 @@
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
 #include <array>
@@ -457,12 +458,12 @@ struct LootGrid final : sketch::Sketch {
   sk_sp<SkTypeface> displayFace;
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kSceneSize.fWidth, kSceneSize.fHeight);
-    ctx.background({0, 0, 0, 1});
-    ctx.captureAt(5.1);
-    displayFace = weave::ports::pickTypeface({"Papyrus", "Baskerville", "Hoefler Text",
-                            "Iowan Old Style", "Georgia"},
-                           600);
+    sketch::kit::stage(ctx, {.size = kSceneSize,
+                             .captureAt = 5.1,
+                             .background = SkColor4f{0, 0, 0, 1}});
+    displayFace = weave::ports::face({"Papyrus", "Baskerville", "Hoefler Text",
+                                      "Iowan Old Style", "Georgia"},
+                                     600);
     Composer& composer = ctx.composer;
     sigil::motion::Ticker& ticker = ctx.ticker;
     namespace lt = loot;

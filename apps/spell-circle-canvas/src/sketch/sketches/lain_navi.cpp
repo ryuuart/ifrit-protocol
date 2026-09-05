@@ -256,9 +256,9 @@
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkTypeface.h>
 #include <include/effects/SkRuntimeEffect.h>
+#include <sigilcompose/brush/Adaptors.h>
 #include <sigilcompose/brush/Brushes.h>
 #include <sigilcompose/brush/Lines.h>
-#include <sigilcompose/brush/Adaptors.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/Pattern.h>
 #include <sigilcompose/typography/Typography.h>
@@ -274,6 +274,7 @@
 #include <sigilmotion/values/Time.h>
 #include <sigilmotion/values/Transition.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
 #include <algorithm>
@@ -1172,15 +1173,15 @@ struct LainNavi : sketch::Sketch {
   // --- host ------------------------------------------------------------------
   void setup(sketch::SketchContext& ctx) override {
     using namespace lain;
-    ctx.canvas(kW, kH);
-    ctx.background(kGround);
     // This sketch brings its own canvas size — the source frames' 1016x720,
     // so a capture diffs against them directly — and its own ground colour.
     // Both cycles are phased for the 2.5 s still: the frame's verbatim
     // `.frame $fp,40,$31` line, which every sharpness measurement above is
     // anchored on, sits at the focal plane, and "no double minds" is at full
     // bloom.
-    ctx.captureAt(2.5);
+    sketch::kit::stage(ctx, {.size = SkSize::Make(kW, kH),
+                             .captureAt = 2.5,
+                             .background = kGround});
 
     // SOLVE the mono size from the measured advance rather than guessing it:
     // measure a 40-character run at 100 pt and scale.

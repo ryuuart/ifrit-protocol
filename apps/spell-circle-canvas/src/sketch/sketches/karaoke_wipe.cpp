@@ -343,8 +343,7 @@ struct KaraokeWipe : sketch::Sketch {
     ctx.background(kStage);
     if (!ctx.fonts) return;
 
-    face = weave::ports::pickTypeface(
-        {"Avenir Next", "Futura", "Helvetica Neue"}, 600);
+    face = weave::ports::face({"Avenir Next", "Futura", "Helvetica Neue"}, 600);
     lyric = weave::textStyle({.face = face,
                               .size = kLyricSize,
                               .color = kSung,

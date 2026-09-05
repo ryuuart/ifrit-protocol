@@ -24,8 +24,9 @@
  *      mode. The clear colour is the FLAT normal (0,0,1) encoded, so
  *      pixels outside the silhouette read as facing the viewer rather
  *      than as garbage.
- *   2. RECIPE. `kit::chrome` / `kit::gold` over that map and an
- *      environment. Nothing in the recipe knows it is looking at a mesh.
+ *   2. RECIPE. `material::kit::chrome` / `material::kit::gold` over that
+ *      map and an environment. Nothing in the recipe knows it is looking
+ *      at a mesh.
  *   3. COVERAGE. The mesh is rasterised a second time in any opaque mode
  *      to lay down its silhouette, and the shader is painted over it
  *      through kSrcIn — so the recipe reaches exactly the body's pixels.
@@ -50,6 +51,7 @@
 
 #include <include/core/SkColor.h>
 #include <include/core/SkSurface.h>
+#include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
@@ -59,9 +61,9 @@
 #include <sigilmaterial/skia/Draw.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
 #include <sigilmaterial/texture/EnvironmentMap.h>
-#include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilmaterial/texture/Surface.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
 #include <sigilweave/style/Type.h>
 
 namespace sketch = sigil::sketch;
@@ -73,7 +75,6 @@ namespace mesh = sigil::geometry::mesh;
 namespace camera = sigil::geometry::mesh::camera;
 namespace render = sigil::geometry::mesh::render;
 namespace material = sigil::material;
-namespace kit = sigil::material::kit;
 
 namespace {
 
@@ -146,24 +147,26 @@ struct MeshNormalBridge final : sketch::Sketch {
 
     {
       const glm::mat4 model = camera::place({kStations[0], 0, 0}, 24, -10, -8);
-      kit::ChromeParams params;
+      material::kit::ChromeParams params;
       params.contrast = 1.35f;
       shadeThroughCoverage(
           canvas, blob, model, view,
           material::skia::shader(
-              kit::chrome(material::Texture::of(normalPass(blob, model, view)),
-                          sunset, params),
+              material::kit::chrome(
+                  material::Texture::of(normalPass(blob, model, view)), sunset,
+                  params),
               {}));
     }
     {
       const glm::mat4 model = camera::place({kStations[1], 0, -40}, 0, -30, 18);
-      kit::GoldParams params;
+      material::kit::GoldParams params;
       params.crinkle = 0.12f;
       shadeThroughCoverage(
           canvas, ring, model, view,
           material::skia::shader(
-              kit::gold(material::Texture::of(normalPass(ring, model, view)),
-                        studio, params),
+              material::kit::gold(
+                  material::Texture::of(normalPass(ring, model, view)), studio,
+                  params),
               {}));
     }
     // THE OTHER SOURCE. No mesh, no G-buffer, no coverage pass: the map
@@ -171,22 +174,23 @@ struct MeshNormalBridge final : sketch::Sketch {
     // stencil, so one drawPath is the whole panel.
     {
       const SkPath outline = squircle();
-      kit::ChromeParams params;
+      material::kit::ChromeParams params;
       params.contrast = 1.35f;
       SkPaint shade;
       shade.setAntiAlias(true);
       shade.setShader(material::skia::shader(
-          kit::chrome(material::bevelNormals(outline, kBevelPx), sunset,
-                      params),
+          material::kit::chrome(material::bevelNormals(outline, kBevelPx),
+                                sunset, params),
           {}));
       canvas.drawPath(outline, shade);
     }
   }
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kCanvas.width(), kCanvas.height());
-    ctx.background({0.051f, 0.051f, 0.075f, 1});
-    ctx.captureAt(1.0);
+    sketch::kit::stage(ctx,
+                       {.size = SkSize::Make(kCanvas.width(), kCanvas.height()),
+                        .captureAt = 1.0,
+                        .background = SkColor4f{0.051f, 0.051f, 0.075f, 1}});
     material::skia::install();
     studio = material::kit::studioEnvironment();
     sunset = material::kit::sunsetEnvironment();
@@ -211,21 +215,23 @@ struct MeshNormalBridge final : sketch::Sketch {
                         label(15, kInk, 2.0f))
                        .left(30)
                        .top(20))
-            .child(caption("Mode::Normals \xe2\x86\x92 kit::chrome",
+            .child(caption("Mode::Normals \xe2\x86\x92 material::kit::chrome",
                            "a superellipsoid's own normals, rasterised into "
                            "a G-buffer and read back",
                            kStations[0]))
-            .child(caption("Mode::Normals \xe2\x86\x92 kit::gold",
+            .child(caption("Mode::Normals \xe2\x86\x92 material::kit::gold",
                            "the same bridge, another recipe and another "
                            "environment",
                            kStations[1]))
-            .child(caption("bevelNormals(path, 118) \xe2\x86\x92 kit::chrome",
-                           "no mesh at all \xe2\x80\x94 a shoulder derived "
-                           "from a flat path's coverage, under the same "
-                           "recipe and the same sky",
-                           kStations[2]))
+            .child(caption(
+                "bevelNormals(path, 118) \xe2\x86\x92 material::kit::chrome",
+                "no mesh at all \xe2\x80\x94 a shoulder derived "
+                "from a flat path's coverage, under the same "
+                "recipe and the same sky",
+                kStations[2]))
             .child(text(toU8("both encode device-space normals as "
-                             "rgb = n\xc2\xb7" "0.5 + 0.5, and a recipe cannot "
+                             "rgb = n\xc2\xb7"
+                             "0.5 + 0.5, and a recipe cannot "
                              "tell which one it was handed"),
                         label(11, kDim))
                        .left(30)

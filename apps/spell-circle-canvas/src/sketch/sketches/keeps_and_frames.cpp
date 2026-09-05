@@ -71,7 +71,7 @@ constexpr SkColor4f kBody{0.84f, 0.85f, 0.88f, 1};
 constexpr SkColor4f kLead{0.90f, 0.83f, 0.68f, 1};
 
 weave::TextStyle serif(float size, SkColor4f color) {
-  static const sk_sp<SkTypeface> face = weave::ports::pickTypeface(
+  static const sk_sp<SkTypeface> face = weave::ports::face(
       {"Iowan Old Style", "Georgia", "Times New Roman", "serif"});
   return weave::textStyle({.face = face, .size = size, .color = color});
 }

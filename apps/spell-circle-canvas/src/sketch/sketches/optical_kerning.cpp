@@ -64,7 +64,7 @@ constexpr SkColor4f kOptical{0.40f, 0.76f, 0.98f, 0.80f};
 /** The headline's register. `optical` is the whole difference between the
  *  two settings on this sheet. */
 weave::TextStyle display(float size, SkColor4f color, bool optical) {
-  static const sk_sp<SkTypeface> face = weave::ports::pickTypeface(
+  static const sk_sp<SkTypeface> face = weave::ports::face(
       {"Helvetica Neue", "Helvetica", "Arial", "sans-serif"});
   weave::TextStyle style =
       weave::textStyle({.face = face, .size = size, .color = color});

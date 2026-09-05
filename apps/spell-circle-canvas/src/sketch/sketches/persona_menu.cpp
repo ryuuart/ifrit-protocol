@@ -46,25 +46,26 @@
 #include <include/core/SkString.h>
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
-#include <sigilcompose/brush/LayerStyles.h>
-#include <sigilmaterial/skia/Paint.h>
-#include <sigilcompose/core/Pattern.h>
-#include <sigilmaterial/pattern/Patterns.h>
 #include <sigilcompose/brush/Adaptors.h>
-#include <sigilmaterial/field/Field.h>
+#include <sigilcompose/brush/LayerStyles.h>
+#include <sigilcompose/core/Pattern.h>
 #include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilmaterial/field/Field.h>
+#include <sigilmaterial/pattern/Patterns.h>
+#include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/values/Spring.h>
 #include <sigilmotion/values/Time.h>
 #include <sigilsketch/canvas/Sketch.h>
-#include <sigilweave/style/Type.h>
+#include <sigilsketch/kit/Page.h>
+#include <sigilweave/kit/PaintLayers.h>
 #include <sigilweave/ports/SystemFontManager.h>
+#include <sigilweave/style/Type.h>
 
 #include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstdio>
 #include <functional>
-#include <sigilweave/kit/PaintLayers.h>
 
 namespace sketch = sigil::sketch;
 namespace shapes = sigil::geometry::shapes;
@@ -246,9 +247,9 @@ struct PersonaMenu final : sketch::Sketch {
   motion::Spring cursorFlight{40.0f, 0.0f};
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kSceneSize.fWidth, kSceneSize.fHeight);
-    ctx.captureAt(6.0);
-    ctx.background({0, 0, 0, 1});
+    sketch::kit::stage(ctx, {.size = kSceneSize,
+                             .captureAt = 6.0,
+                             .background = SkColor4f{0, 0, 0, 1}});
     Composer& composer = ctx.composer;
     sigil::motion::Ticker& ticker = ctx.ticker;
     qTime = 0;

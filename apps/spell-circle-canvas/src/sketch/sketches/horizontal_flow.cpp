@@ -18,6 +18,7 @@
 #include <sigilcompose/kit/Typeset.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
@@ -46,14 +47,14 @@ constexpr SkColor4f kCinnabar{0.67f, 0.16f, 0.11f, 1};
 constexpr SkColor4f kGold{0.78f, 0.55f, 0.16f, 1};
 
 weave::TextStyle sans(float size, SkColor4f color, float track = 0) {
-  static const sk_sp<SkTypeface> face = weave::ports::pickTypeface(
+  static const sk_sp<SkTypeface> face = weave::ports::face(
       {"Avenir Next", "Helvetica Neue", "DejaVu Sans", "sans-serif"});
   return weave::textStyle(
       {.face = face, .size = size, .color = color, .track = track});
 }
 
 weave::TextStyle serif(float size, SkColor4f color, float track = 0) {
-  static const sk_sp<SkTypeface> face = weave::ports::pickTypeface(
+  static const sk_sp<SkTypeface> face = weave::ports::face(
       {"Iowan Old Style", "Georgia", "Times New Roman", "serif"});
   return weave::textStyle(
       {.face = face, .size = size, .color = color, .track = track});
@@ -147,9 +148,10 @@ Element panel(float left, const char* title, const char* note, Element body) {
 
 struct HorizontalFlow final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kCanvas.width(), kCanvas.height());
-    ctx.background(kPaper);
-    ctx.captureAt(0.05);
+    sketch::kit::stage(ctx,
+                       {.size = SkSize::Make(kCanvas.width(), kCanvas.height()),
+                        .captureAt = 0.05,
+                        .background = kPaper});
 
     ctx.composer.render(
         box()

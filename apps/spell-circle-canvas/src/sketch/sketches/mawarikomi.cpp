@@ -36,6 +36,7 @@
 #include <shared/VerticalSpecimen.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
 
 namespace sketch = sigil::sketch;
 
@@ -66,9 +67,9 @@ constexpr float kDiscSize = 168, kSealSize = 104;
 
 struct Mawarikomi final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kSceneSize.fWidth, kSceneSize.fHeight);
-    ctx.background({1, 1, 1, 1});
-    ctx.captureAt(1.0);
+    sketch::kit::stage(ctx, {.size = kSceneSize,
+                             .captureAt = 1.0,
+                             .background = SkColor4f{1, 1, 1, 1}});
     ctx.composer.render(describe());
   }
 

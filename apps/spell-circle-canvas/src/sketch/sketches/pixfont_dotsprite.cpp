@@ -73,8 +73,8 @@ sketch::kit::Theme sheetTheme() {
 }
 
 weave::TextStyle mono(float size, SkColor4f color) {
-  static const sk_sp<SkTypeface> face = weave::ports::pickTypeface(
-      {"SF Mono", "Menlo", "DejaVu Sans Mono", "monospace"});
+  static const sk_sp<SkTypeface> face =
+      weave::ports::face({"SF Mono", "Menlo", "DejaVu Sans Mono", "monospace"});
   return weave::textStyle({.face = face, .size = size, .color = color});
 }
 
@@ -83,9 +83,9 @@ weave::TextStyle mono(float size, SkColor4f color) {
  *  96-cell font is baked from a PROPORTIONAL face on purpose — a `1` is
  *  narrower than a `0` there, which is the whole of trap 3. */
 weave::TextStyle bakeFace(float size, bool proportional = false) {
-  static const sk_sp<SkTypeface> code = weave::ports::pickTypeface(
-      {"SF Mono", "Menlo", "DejaVu Sans Mono", "monospace"});
-  static const sk_sp<SkTypeface> text = weave::ports::pickTypeface(
+  static const sk_sp<SkTypeface> code =
+      weave::ports::face({"SF Mono", "Menlo", "DejaVu Sans Mono", "monospace"});
+  static const sk_sp<SkTypeface> text = weave::ports::face(
       {"Helvetica Neue", "Helvetica", "Arial", "sans-serif"});
   return weave::textStyle({.face = proportional ? text : code,
                            .size = size,

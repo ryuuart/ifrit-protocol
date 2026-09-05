@@ -117,6 +117,8 @@
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/schedule/Spread.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
+#include <sigilweave/kit/PaintLayers.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Style.h>
 #include <sigilweave/style/Type.h>
@@ -125,7 +127,6 @@
 #include <cmath>
 #include <string>
 #include <vector>
-#include <sigilweave/kit/PaintLayers.h>
 
 namespace sketch = sigil::sketch;
 namespace mskia = sigil::material::skia;
@@ -497,15 +498,15 @@ struct MatrixRain : sketch::Sketch {
   }
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kW, kH);
-    ctx.background(kVoid);
     // Deep into the steady state: streaks at every age at once — fresh
     // heads, long tails, and columns resting dark between drops.
-    ctx.captureAt(7.0);
+    sketch::kit::stage(
+        ctx,
+        {.size = SkSize::Make(kW, kH), .captureAt = 7.0, .background = kVoid});
 
-    faceKana = weave::ports::pickTypeface(
+    faceKana = weave::ports::face(
         {"Hiragino Kaku Gothic ProN", "Hiragino Sans", "Osaka"}, 400);
-    faceLabel = weave::ports::pickTypeface({"Helvetica Neue", "Arial"}, 500);
+    faceLabel = weave::ports::face({"Helvetica Neue", "Arial"}, 500);
 
     const std::u32string kana = rainKana();
     const std::u32string west = rainWest();

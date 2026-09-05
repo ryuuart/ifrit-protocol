@@ -49,6 +49,7 @@
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
 #include <sigilweave/style/Type.h>
 
 #include <array>
@@ -170,9 +171,9 @@ struct GerstnerGrid final : sketch::Sketch {
   // entrance, well clear of the first step.
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kSceneSize.fWidth, kSceneSize.fHeight);
-    ctx.background({0, 0, 0, 1});
-    ctx.captureAt(1.5);
+    sketch::kit::stage(ctx, {.size = kSceneSize,
+                             .captureAt = 1.5,
+                             .background = SkColor4f{0, 0, 0, 1}});
     Composer& composer = ctx.composer;
     sigil::motion::Ticker& ticker = ctx.ticker;
     // The grid, in the blue a grid was drawn in: every unit ruled faintly

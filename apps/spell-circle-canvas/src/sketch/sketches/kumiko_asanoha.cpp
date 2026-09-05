@@ -97,6 +97,7 @@
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
 #include <sigilweave/style/Type.h>
 
 #include <algorithm>
@@ -1019,15 +1020,15 @@ struct KumikoAsanoha : sketch::Sketch {
   }
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kW, kH);
-    ctx.background(kNight);
     // This sketch brings its own canvas size and unlit background rather
     // than inheriting a default, and photographs itself mid-hold: the panel
     // is complete and lit from kTGlow + kDGlow onwards, and the loop tears
     // down and reassembles at kPeriod. 4.2 s sits well clear of both edges,
     // so a small timing change on either side cannot catch the plate
     // half-built.
-    ctx.captureAt(4.2);
+    sketch::kit::stage(
+        ctx,
+        {.size = SkSize::Make(kW, kH), .captureAt = 4.2, .background = kNight});
 
     panel = Panel{};
     panel.build();

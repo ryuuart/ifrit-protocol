@@ -98,6 +98,7 @@
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
@@ -1899,10 +1900,9 @@ struct KspMapView : sketch::Sketch {
   // -------------------------------------------------------------------
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.captureAt(6.0);
     using namespace ksp;
-    ctx.canvas(1200, 800);
-    ctx.background(kSpace);
+    sketch::kit::stage(
+        ctx, {.size = {1200, 800}, .captureAt = 6.0, .background = kSpace});
 
     // Starfield: one soft-dot cell, 360 hashed instances.
     starAtlas = std::make_shared<instancing::Atlas>(2.0f);

@@ -68,7 +68,6 @@ namespace weave = sigil::weave;
 using namespace sigil::draw;
 using namespace std::chrono_literals;
 using compose::hex;
-using sigil::weave::ports::pickTypeface;
 namespace ch = choreograph;
 
 namespace {
@@ -124,7 +123,7 @@ constexpr float kInspectY = kBodyY + kSpecH + 12;
 // Type
 
 sk_sp<SkTypeface> face(const char* family, SkFontStyle style) {
-  return pickTypeface({family}, style);
+  return weave::ports::face({family}, style);
 }
 
 sk_sp<SkTypeface> monoFace() {

@@ -33,6 +33,7 @@
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Ops.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
 
 namespace sketch = sigil::sketch;
 namespace shapes = sigil::geometry::shapes;
@@ -140,9 +141,10 @@ struct PathBooleans final : sketch::Sketch {
   }
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(1240, 720);
-    ctx.background({0.063f, 0.063f, 0.078f, 1});
-    ctx.captureAt(1.0);
+    sketch::kit::stage(ctx,
+                       {.size = {1240, 720},
+                        .captureAt = 1.0,
+                        .background = SkColor4f{0.063f, 0.063f, 0.078f, 1}});
     ctx.composer.render(custom([this](SkCanvas& canvas, const PaintContext&) {
                           draw(canvas);
                         }).inset(0));

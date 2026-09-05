@@ -71,7 +71,7 @@ constexpr SkColor4f kChipFill{0.86f, 0.52f, 0.34f, 1};
 constexpr SkColor4f kBandTint{0.16f, 0.20f, 0.24f, 1};
 
 weave::TextStyle body() {
-  static const sk_sp<SkTypeface> face = weave::ports::pickTypeface(
+  static const sk_sp<SkTypeface> face = weave::ports::face(
       {"Helvetica Neue", "Helvetica", "Arial", "sans-serif"});
   return weave::textStyle({.face = face, .size = 12, .color = kBody});
 }

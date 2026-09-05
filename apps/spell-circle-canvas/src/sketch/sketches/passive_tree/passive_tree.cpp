@@ -52,17 +52,18 @@
 //                         lines, italic flavour, on a framed scrim
 
 #include <include/core/SkPathBuilder.h>
+#include <sigilcompose/brush/Adaptors.h>
 #include <sigilcompose/brush/Brushes.h>
 #include <sigilcompose/brush/LayerStyles.h>
-#include <sigilmaterial/skia/Paint.h>
-#include <sigilmaterial/sdf/Sdf.h>
-#include <sigilcompose/kit/Strokes.h>
 #include <sigilcompose/kit/Routers.h>
-#include <sigilcompose/brush/Adaptors.h>
-#include <sigilweave/style/Type.h>
+#include <sigilcompose/kit/Strokes.h>
 #include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilmaterial/sdf/Sdf.h>
 #include <sigilmaterial/skia/Color.h>
+#include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
+#include <sigilweave/style/Type.h>
 
 #include <algorithm>
 #include <array>
@@ -230,9 +231,9 @@ struct PassiveTree final : sketch::Sketch {
   choreograph::Output<float> selectSpin{0};
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kSceneSize.fWidth, kSceneSize.fHeight);
-    ctx.captureAt(6.0);
-    ctx.background({0, 0, 0, 1});
+    sketch::kit::stage(ctx, {.size = kSceneSize,
+                             .captureAt = 6.0,
+                             .background = SkColor4f{0, 0, 0, 1}});
     Composer& composer = ctx.composer;
     sigil::motion::Ticker& ticker = ctx.ticker;
     pulseS = 0;

@@ -39,20 +39,21 @@
 //   the palette block — one colour per line, and the legend reads them.
 
 #include <include/core/SkPathBuilder.h>
+#include <sigilcompose/brush/Adaptors.h>
 #include <sigilcompose/brush/Brushes.h>
 #include <sigilcompose/brush/Hatches.h>
 #include <sigilcompose/brush/Lines.h>
-#include <sigilmaterial/skia/Paint.h>
-#include <sigilmaterial/sdf/Sdf.h>
-#include <sigilcompose/kit/Strokes.h>
 #include <sigilcompose/kit/Routers.h>
-#include <sigilcompose/brush/Adaptors.h>
-#include <sigilweave/style/Type.h>
+#include <sigilcompose/kit/Strokes.h>
 #include <sigilgeometry/kit/Shapers.h>
 #include <sigilgeometry/kit/Silhouettes.h>
-#include <sigilmaterial/skia/Color.h>
 #include <sigilgeometry/path/Shaper.h>
+#include <sigilmaterial/sdf/Sdf.h>
+#include <sigilmaterial/skia/Color.h>
+#include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
+#include <sigilweave/style/Type.h>
 
 #include <cmath>
 
@@ -171,9 +172,9 @@ struct NightNetwork final : sketch::Sketch {
   choreograph::Output<float> hubGlow{0};
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kSceneSize.fWidth, kSceneSize.fHeight);
-    ctx.captureAt(6.0);
-    ctx.background({0, 0, 0, 1});
+    sketch::kit::stage(ctx, {.size = kSceneSize,
+                             .captureAt = 6.0,
+                             .background = SkColor4f{0, 0, 0, 1}});
     Composer& composer = ctx.composer;
     sigil::motion::Ticker& ticker = ctx.ticker;
     namespace ch = choreograph;

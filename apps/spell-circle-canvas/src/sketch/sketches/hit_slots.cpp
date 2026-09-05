@@ -58,6 +58,7 @@
 #include <sigilcompose/kit/Routers.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
 #include <sigilweave/style/Type.h>
 
 #include <cmath>
@@ -245,9 +246,10 @@ struct HitSlots final : sketch::Sketch {
   }
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kCanvas.width(), kCanvas.height());
-    ctx.background({0, 0, 0, 1});
-    ctx.captureAt(stationTime(4));  // standing on target-4
+    sketch::kit::stage(
+        ctx, {.size = SkSize::Make(kCanvas.width(), kCanvas.height()),
+              .captureAt = stationTime(4),
+              .background = SkColor4f{0, 0, 0, 1}});  // standing on target-4
     hitLabel = "\xe2\x80\x94";
     hitBounds.reset();
     hitRoutes.clear();

@@ -110,14 +110,15 @@
 #include <sigilcompose/typography/Typography.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Edges.h>
-#include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/core/Bank.h>
+#include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/kit/Grained.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/Animation.h>
 #include <sigilmotion/schedule/Spread.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
 #include <sigilweave/style/Type.h>
 
 #include <algorithm>
@@ -1076,9 +1077,9 @@ struct PenrosePaving : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
     // The finished plaza. 0.75 catches the crystal front mid-growth over the
     // exact five-fold centre, 1.45 the inlay chaining on.
-    ctx.captureAt(4.6);
-    ctx.canvas(kW, kH);
-    ctx.background(kNight);
+    sketch::kit::stage(
+        ctx,
+        {.size = SkSize::Make(kW, kH), .captureAt = 4.6, .background = kNight});
 
     tiles = buildField(kModule, kModule * 1.2f);
     audit = verify(tiles, kModule);

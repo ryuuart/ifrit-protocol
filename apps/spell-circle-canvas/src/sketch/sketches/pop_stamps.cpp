@@ -32,9 +32,9 @@
 //   .smooth(strength, iterations) — drop it and the star sweep kinks.
 
 #include <include/core/SkMatrix.h>
+#include <sigilcompose/texture/Texture.h>
 #include <sigilgeometry/kit/Sections.h>
 #include <sigilgeometry/kit/Silhouettes.h>
-#include <sigilcompose/texture/Texture.h>
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
@@ -42,6 +42,7 @@
 #include <sigilgeometry/mesh/pop/Pop.h>
 #include <sigilgeometry/mesh/render/Painter.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
 
 #include <cmath>
 #include <memory>
@@ -150,9 +151,10 @@ struct PopStamps final : sketch::Sketch {
   }
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kCanvas.width(), kCanvas.height());
-    ctx.background({0.051f, 0.051f, 0.075f, 1});
-    ctx.captureAt(1.0);
+    sketch::kit::stage(ctx,
+                       {.size = SkSize::Make(kCanvas.width(), kCanvas.height()),
+                        .captureAt = 1.0,
+                        .background = SkColor4f{0.051f, 0.051f, 0.075f, 1}});
 
     atlas = bake(ctx, atlasSheet(128), 256);
 

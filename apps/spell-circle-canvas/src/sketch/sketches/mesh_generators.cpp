@@ -57,14 +57,15 @@
 #include <include/core/SkPaint.h>
 #include <sigilgeometry/kit/Sections.h>
 #include <sigilgeometry/kit/Silhouettes.h>
-#include <sigilgeometry/mesh/pop/Sweep.h>
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/curve/Curve.h>
 #include <sigilgeometry/mesh/pop/Points.h>
+#include <sigilgeometry/mesh/pop/Sweep.h>
 #include <sigilgeometry/mesh/render/Painter.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
 
 #include <cmath>
 #include <vector>
@@ -159,9 +160,10 @@ struct MeshGenerators final : sketch::Sketch {
   }
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kCanvas.width(), kCanvas.height());
-    ctx.background({0.04f, 0.04f, 0.062f, 1});
-    ctx.captureAt(1.0);
+    sketch::kit::stage(ctx,
+                       {.size = SkSize::Make(kCanvas.width(), kCanvas.height()),
+                        .captureAt = 1.0,
+                        .background = SkColor4f{0.04f, 0.04f, 0.062f, 1}});
 
     // The bodies are built once. A generator's cost belongs to the
     // description, not to the frame: nothing below changes per frame, so

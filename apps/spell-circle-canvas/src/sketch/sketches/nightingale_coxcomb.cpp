@@ -88,6 +88,7 @@
 #include <sigilmotion/Animation.h>
 #include <sigilmotion/schedule/Spread.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
@@ -112,7 +113,6 @@ namespace skia = sigil::material::skia;
 using namespace sigil::compose;
 using namespace sigil::motion;
 using sigil::material::skia::Paint;
-using sigil::weave::ports::pickTypeface;
 using namespace std::chrono_literals;
 namespace ch = choreograph;
 
@@ -792,14 +792,14 @@ struct NightingaleCoxcomb : sketch::Sketch {
 
   // ------------------------------------------------------------------
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kW, kH);
-    ctx.background(kPaper);
     // The still frame this sketch photographs itself at: the first clean
     // instant after the second needle sweep has faded out (tNeedleEnd plus
     // its 0.45 s fade), by which point every entrance has finished and the
     // plate holds unchanged. Capturing earlier catches the legend half
     // written and the dashed leader mid-draw.
-    ctx.captureAt(13.6);
+    sketch::kit::stage(ctx, {.size = SkSize::Make(kW, kH),
+                             .captureAt = 13.6,
+                             .background = kPaper});
 
     // The plate's title face is an ornamental Victorian INLINE Roman —
     // dark stems carrying a white hairline. "Academy Engraved LET" is the
@@ -810,13 +810,15 @@ struct NightingaleCoxcomb : sketch::Sketch {
     // library's own walk: the first installed family wins, and a machine
     // with none of them gets the default face AT THE WEIGHT ASKED FOR
     // rather than silently at Normal.
-    faceDisplay = pickTypeface({"Academy Engraved LET"}, SkFontStyle::Normal());
+    faceDisplay =
+        weave::ports::face({"Academy Engraved LET"}, SkFontStyle::Normal());
     if (!faceDisplay)
-      faceDisplay = pickTypeface({"Bodoni 72"}, SkFontStyle::kBold_Weight);
-    faceGrotesque =
-        pickTypeface({"Copperplate", "Helvetica Neue"}, SkFontStyle::kBold_Weight);
-    faceLabel = pickTypeface({"Copperplate", "Helvetica Neue"});
-    faceScript = pickTypeface({"Snell Roundhand", "Apple Chancery"});
+      faceDisplay =
+          weave::ports::face({"Bodoni 72"}, SkFontStyle::kBold_Weight);
+    faceGrotesque = weave::ports::face({"Copperplate", "Helvetica Neue"},
+                                       SkFontStyle::kBold_Weight);
+    faceLabel = weave::ports::face({"Copperplate", "Helvetica Neue"});
+    faceScript = weave::ports::face({"Snell Roundhand", "Apple Chancery"});
 
     // The litho tint: a paper-side wash with the ink dot field over it.
     // Two speckle layers per band — a fine one for the tint itself and a

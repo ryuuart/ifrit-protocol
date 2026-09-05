@@ -10,6 +10,7 @@
 
 #include <include/core/SkPathBuilder.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
 #include <sigilweave/style/Type.h>
 
 #include <cmath>
@@ -107,8 +108,8 @@ struct HelloSketch : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
     // p5's createCanvas/background: declare the canvas you want —
     // the window letterboxes to it, headless captures honor it.
-    ctx.canvas(1000, 700);
-    ctx.background({0.05f, 0.04f, 0.10f, 1});
+    sketch::kit::stage(ctx, {.size = {1000, 700},
+                             .background = SkColor4f{0.05f, 0.04f, 0.10f, 1}});
 
     // Declared motion: a steppable drives the bound Output every
     // frame from here on — no per-frame describes needed.
