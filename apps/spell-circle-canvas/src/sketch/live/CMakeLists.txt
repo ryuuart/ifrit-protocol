@@ -1,31 +1,21 @@
 # The live feature: the reload engine. Qt-free on purpose — it watches a
 # source file, rebuilds it into a versioned dylib with the compiler flags
 # the build captured, dlopens the result and swaps the running session,
-# keeping the previous one alive while a build is broken.
-add_library(SigilSketchLive STATIC
-  Host.cpp
-  Residency.cpp
-  ${SIGIL_SKETCH_INCLUDE_DIR}/sigilsketch/live/Host.h
-  ${SIGIL_SKETCH_INCLUDE_DIR}/sigilsketch/live/Residency.h
-)
-target_compile_features(SigilSketchLive PUBLIC cxx_std_20)
-# The host's header publishes the samples and stopwatch a build is timed
-# with, so SigilMeasure is PUBLIC; the IO byte writer a rebuilt
-# source is saved through is read in the source alone.
-target_link_libraries(SigilSketchLive
+# keeping the previous one alive while a build is broken. The host's
+# header publishes the samples and stopwatch a build is timed with, so
+# SigilMeasure is PUBLIC; the IO byte writer a rebuilt source is saved
+# through is read in the source alone.
+sigil_library(SigilSketchLive PIC
+  SOURCES Host.cpp Residency.cpp
+  HEADERS Host.h Residency.h
   PUBLIC SigilSketchCore SigilImageEncode SigilMotionClock SigilMeasure
          Boost::container
   PRIVATE SigilIOSource)
-set_target_properties(SigilSketchLive PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
-add_executable(sketch_live_test test/HostTest.cpp test/ResidencyTest.cpp)
-target_include_directories(sketch_live_test PRIVATE
-  ${SIGIL_SKETCH_TEST_SUPPORT_DIR} ${SIGIL_TEST_SUPPORT_DIR})
-target_link_libraries(sketch_live_test PRIVATE SigilSketchLive
-  SigilSketchCanvas GTest::gtest_main)
-add_test(NAME sketch_live_test COMMAND sketch_live_test)
+sigil_test(sketch_live_test
+  SOURCES test/HostTest.cpp test/ResidencyTest.cpp
+  LIBRARIES SigilSketchLive SigilSketchCanvas)
 
-add_executable(sketch_live_bench bench/HostBench.cpp)
-target_link_libraries(sketch_live_bench PRIVATE SigilSketchLive
-  SigilSketchCanvas benchmark::benchmark)
-add_dependencies(benches sketch_live_bench)
+sigil_bench(sketch_live_bench
+  SOURCES bench/HostBench.cpp
+  LIBRARIES SigilSketchLive SigilSketchCanvas)

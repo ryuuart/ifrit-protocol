@@ -7,23 +7,10 @@
 # and the probe that answers whether that resolved directory actually
 # holds what an engine needs to boot; everything else names Ultralight
 # types and stays beside the sources.
-add_library(SigilScryPlatform STATIC
-  FileSystem.cpp
-  FileSystem.h
-  Logger.cpp
-  Logger.h
-  ResourceDir.cpp
-  ResourceDir.h
-  Runtime.cpp
-  SkiaSurface.cpp
-  SkiaSurface.h
-  Utf8.h
-  ${SIGIL_SCRY_INCLUDE_DIR}/sigilscry/platform/LogLevel.h
-  ${SIGIL_SCRY_INCLUDE_DIR}/sigilscry/platform/Runtime.h
-)
-target_compile_features(SigilScryPlatform PUBLIC cxx_std_20)
-target_include_directories(SigilScryPlatform PUBLIC ${SIGIL_SCRY_INCLUDE_DIR})
-target_link_libraries(SigilScryPlatform
+sigil_library(SigilScryPlatform
+  SOURCES FileSystem.cpp FileSystem.h Logger.cpp Logger.h ResourceDir.cpp
+          ResourceDir.h Runtime.cpp SkiaSurface.cpp SkiaSurface.h Utf8.h
+  HEADERS LogLevel.h Runtime.h
   PUBLIC unofficial::skia::skia
   PRIVATE Ultralight::Ultralight)
 
@@ -36,18 +23,14 @@ target_compile_definitions(SigilScryPlatform PRIVATE
 # handlers take; no renderer is created, so it shares a process with
 # nothing. The staged resources are what the resource-directory test
 # looks for.
-add_executable(scry_platform_test test/PlatformTest.cpp)
-target_include_directories(scry_platform_test PRIVATE ${CMAKE_CURRENT_LIST_DIR})
-target_link_libraries(scry_platform_test PRIVATE SigilScryPlatform
-  Ultralight::Ultralight GTest::gtest_main)
+sigil_test(scry_platform_test
+  SOURCES test/PlatformTest.cpp
+  SUPPORT_DIRS ${CMAKE_CURRENT_LIST_DIR}
+  LIBRARIES SigilScryPlatform Ultralight::Ultralight)
 ultralight_copy_resources(scry_platform_test)
-add_test(NAME scry_platform_test COMMAND scry_platform_test)
 
-# Google Benchmark (use a Release build). Not a test: it builds through the
-# `benches` target and runs through scripts/bench_ledger.py.
-add_executable(scry_platform_bench bench/PlatformBench.cpp)
-target_include_directories(scry_platform_bench PRIVATE ${CMAKE_CURRENT_LIST_DIR})
-target_link_libraries(scry_platform_bench PRIVATE SigilScryPlatform
-  Ultralight::Ultralight benchmark::benchmark)
+sigil_bench(scry_platform_bench
+  SOURCES bench/PlatformBench.cpp
+  SUPPORT_DIRS ${CMAKE_CURRENT_LIST_DIR}
+  LIBRARIES SigilScryPlatform Ultralight::Ultralight)
 ultralight_copy_resources(scry_platform_bench)
-add_dependencies(benches scry_platform_bench)

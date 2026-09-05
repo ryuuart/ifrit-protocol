@@ -221,8 +221,7 @@ compositing model, in both directions.
 
 The library is gated on `SPELLCIRCLE_ENABLE_ULTRALIGHT`, which turns itself
 off with a warning when the SDK is not found (see
-`cmake/FindUltralight.cmake`), and needs the `SigilSkia` target — that is,
-`SPELLCIRCLE_ENABLE_SKIA_CANVAS` on — or it is skipped with a message.
+`cmake/FindUltralight.cmake`).
 
 Targets: `SigilScryPlatform`, `SigilScryGpu`, `SigilScryEngine` and the
 `SigilScry` umbrella. Tests (ctest): `scry_platform_test` exercises the

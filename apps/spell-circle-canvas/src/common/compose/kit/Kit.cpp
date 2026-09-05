@@ -7,9 +7,6 @@
  * compose's `include/` tree. ComposeInternal.h and ComposeRuntime.h live in
  * core/, which is on no other target's include path, so a kit header
  * that reached for the kernel's internals would fail to compile here.
- *
- * See kit/BoundaryProbe.cpp for the negative control, and CMakeLists.txt
- * for how to run it.
  */
 
 #include <sigilgeometry/kit/Divisions.h>

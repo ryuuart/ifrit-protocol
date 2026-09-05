@@ -9,45 +9,21 @@
 # the views that publish frames and the image slots pages display.
 # `SigilScry` is the umbrella over all three.
 #
-# Every public header lives under one include root, include/sigilscry/
-# <feature>/, so a feature adds the root and spells its own directory.
 # <sigilscry/Scry.h> is the umbrella header. The platform and gpu
 # features also carry headers that name Ultralight types; Ultralight is
 # private to the library, so those stay beside their sources and the
 # engine feature reaches them by directory rather than the include root.
 #
 # Only added when SPELLCIRCLE_ENABLE_ULTRALIGHT is ON (auto-off when the
-# SDK is missing). Textures are named on
-# SigilCoreHardware's GpuDevice and the GPU driver draws over a shared
-# Graphite context, so the library needs SigilSkia's graphite feature
-# (SPELLCIRCLE_ENABLE_SKIA_CANVAS).
-if(NOT TARGET SigilSkia)
-  message(STATUS "SigilScry skipped: needs SPELLCIRCLE_ENABLE_SKIA_CANVAS (SigilSkia)")
-  return()
-endif()
-
-set(SIGIL_SCRY_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/include)
-
-if(APPLE)
-  find_library(METAL_FRAMEWORK Metal REQUIRED)
-endif()
+# SDK is missing). Textures are named on SigilCoreHardware's GpuDevice
+# and the GPU driver draws over a shared Graphite context.
+sigil_library_root(SigilScry
+  BRIEF "A headless web engine whose HTML, CSS and JavaScript output arrives as Skia images")
 
 # Dependencies point up this list.
 add_subdirectory(platform)
 add_subdirectory(gpu)
 add_subdirectory(engine)
 
-add_library(SigilScry INTERFACE)
-target_link_libraries(SigilScry INTERFACE
-  SigilScryPlatform SigilScryGpu SigilScryEngine)
-
-# API documentation (docs/README.md).
-sigil_add_docs(
-  NAME SigilScry
-  BRIEF "A headless web engine whose HTML, CSS and JavaScript output arrives as Skia images"
-  INPUT
-        ${CMAKE_CURRENT_SOURCE_DIR}/include
-        ${CMAKE_CURRENT_SOURCE_DIR}/README.md
-  MAINPAGE ${CMAKE_CURRENT_SOURCE_DIR}/README.md
-  STRIP
-        ${CMAKE_CURRENT_SOURCE_DIR}/include)
+sigil_library(SigilScry
+  INTERFACE SigilScryPlatform SigilScryGpu SigilScryEngine)

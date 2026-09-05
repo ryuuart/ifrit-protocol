@@ -22,7 +22,7 @@ namespace sigil::image::test {
  *  reached through a compile definition so a test runs from any working
  *  directory. */
 inline std::string assetPath(const char* name) {
-  return std::string(SIGILIMAGE_TEST_ASSET_DIR "/") + name;
+  return std::string(SIGIL_TEST_ASSET_DIR "/") + name;
 }
 
 /** The pixel at (@p x, @p y) of a decoded frame, unpremultiplied so a

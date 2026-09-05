@@ -1,3 +1,7 @@
+# Ifrit.Ui — the Qt Quick controls the desktop tools share, with the
+# native window dressing beside them. A Qt module rather than a Sigil
+# library: its public surface is QML, and its one header is the window
+# chrome the module registers.
 set_source_files_properties(
   Theme.qml
   PROPERTIES QT_QML_SINGLETON_TYPE TRUE
@@ -35,7 +39,8 @@ target_link_libraries(IfritUi
     Qt6::QuickLayouts
 )
 
-# API documentation (docs/README.md).
+# The documentation site, over the QML and the one header in this
+# directory rather than an include/ root.
 sigil_add_docs(
   NAME IfritUi
   BRIEF "Reusable Qt Quick components shared by the desktop tools, plus native window dressing"

@@ -143,7 +143,7 @@ BENCHMARK(BM_Draw_KineticColumns)
     ->Arg(4)
     ->Unit(benchmark::kMicrosecond);
 
-#ifdef COMPOSE_BENCH_GRAPHITE
+#ifdef SIGIL_BENCH_GPU
 
 // ---- Dense static text on Graphite ---------------------------------------
 // Automatic texture promotion is off on the GPU path, so a dense static text
@@ -313,6 +313,6 @@ static void BM_Draw_DenseText_Persp_Perspective_Graphite(
 BENCHMARK(BM_Draw_DenseText_Persp_Perspective_Graphite)
     ->Unit(benchmark::kMillisecond);
 
-#endif  // COMPOSE_BENCH_GRAPHITE
+#endif  // SIGIL_BENCH_GPU
 
 BENCHMARK_MAIN();

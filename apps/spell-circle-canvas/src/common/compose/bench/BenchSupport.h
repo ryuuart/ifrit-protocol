@@ -3,7 +3,7 @@
 /** @file
  * What every compose benchmark binary shares: the font context, a composer
  * over a raster surface, the node-count ladder the scaling arms walk, and —
- * when the binary is built with COMPOSE_BENCH_GRAPHITE — one Graphite
+ * when the binary is built with SIGIL_BENCH_GPU — one Graphite
  * context over a GPU device of the process's own, with a render target
  * acquired per arm.
  *
@@ -23,7 +23,7 @@
 #include <cstdint>
 #include <memory>
 
-#ifdef COMPOSE_BENCH_GRAPHITE
+#ifdef SIGIL_BENCH_GPU
 #include <include/gpu/graphite/Context.h>
 #include <include/gpu/graphite/Recorder.h>
 #include <include/gpu/graphite/Recording.h>
@@ -80,7 +80,7 @@ inline Fill cellFill(int id, int changed = -1, int phase = 0) {
   return Fill::color({tint, 0.45f, 0.68f, 1.0f});
 }
 
-#ifdef COMPOSE_BENCH_GRAPHITE
+#ifdef SIGIL_BENCH_GPU
 
 /** The process's GPU device, created on first use; null where there is
  *  none. */
@@ -156,6 +156,6 @@ struct GraphiteTarget {
   void submitSynced() { submitGraphiteSynced(*context); }
 };
 
-#endif  // COMPOSE_BENCH_GRAPHITE
+#endif  // SIGIL_BENCH_GPU
 
 }  // namespace sigil::compose::bench

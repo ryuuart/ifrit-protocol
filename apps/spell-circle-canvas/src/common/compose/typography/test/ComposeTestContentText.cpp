@@ -3079,7 +3079,7 @@ TEST(TextSpanAxis, AnAdvanceVariantAxisReshapesInstead) {
   // fold has something to decline. Loaded here rather than shared, so this
   // face's verdict is this test's own to observe.
   const sk_sp<SkTypeface> face = fonts().fontManager()->makeFromFile(
-      SIGILCOMPOSE_TEST_ASSET_DIR "/AdvanceVariant.ttf");
+      SIGIL_TEST_ASSET_DIR "/AdvanceVariant.ttf");
   ASSERT_TRUE(face) << "test asset AdvanceVariant.ttf failed to load";
   ASSERT_GT(face->getVariationDesignParameters({}), 0);
   ASSERT_FALSE(fonts().axisIsAdvanceInvariant(face, "wght"))

@@ -13,7 +13,9 @@
 # queue; each backend implements the private interface in DeviceBackend.h
 # — Metal on Apple, Vulkan everywhere, resolving its entry points from the
 # loader at run time so nothing links Vulkan and a machine without a
-# driver only reports that.
+# driver only reports that. Vulkan's headers are private: every public
+# header spells a Vulkan handle as an opaque value, so no consumer needs
+# them.
 if(APPLE)
   set(SIGIL_CORE_HARDWARE_NATIVE_SOURCES GpuDeviceMetal.mm)
 else()
@@ -22,23 +24,12 @@ endif()
 
 find_package(VulkanHeaders CONFIG REQUIRED)
 
-add_library(SigilCoreHardware STATIC
-  DeviceBackend.h
-  GpuDevice.cpp
-  GpuDeviceVulkan.cpp
-  ${SIGIL_CORE_HARDWARE_NATIVE_SOURCES}
-  ${SIGIL_CORE_INCLUDE_DIR}/sigilcore/hardware/Fence.h
-  ${SIGIL_CORE_INCLUDE_DIR}/sigilcore/hardware/GpuDevice.h
-  ${SIGIL_CORE_INCLUDE_DIR}/sigilcore/hardware/Handle.h
-)
-target_compile_features(SigilCoreHardware PUBLIC cxx_std_20)
-target_include_directories(SigilCoreHardware PUBLIC ${SIGIL_CORE_INCLUDE_DIR})
-# Vulkan's headers are private: every public header spells a Vulkan handle
-# as an opaque value, so no consumer needs them.
-target_link_libraries(SigilCoreHardware PRIVATE Vulkan::Headers
-  ${CMAKE_DL_LIBS})
+sigil_library(SigilCoreHardware
+  SOURCES DeviceBackend.h GpuDevice.cpp GpuDeviceVulkan.cpp
+          ${SIGIL_CORE_HARDWARE_NATIVE_SOURCES}
+  HEADERS Fence.h GpuDevice.h Handle.h
+  PRIVATE Vulkan::Headers ${CMAKE_DL_LIBS})
 if(APPLE)
-  find_library(METAL_FRAMEWORK Metal REQUIRED)
   target_link_libraries(SigilCoreHardware PRIVATE ${METAL_FRAMEWORK}
     ${FOUNDATION_FRAMEWORK})
 endif()
@@ -47,16 +38,11 @@ endif()
 # guaranteed. Both compile without ARC: they count retains to prove
 # ownership, and ARC would hide the counts they assert on.
 if(APPLE)
-  add_executable(core_hardware_test test/DeviceTest.mm)
-  target_link_libraries(core_hardware_test PRIVATE SigilCoreHardware
-    GTest::gtest_main ${METAL_FRAMEWORK})
-  add_test(NAME core_hardware_test COMMAND core_hardware_test)
+  sigil_test(core_hardware_test
+    SOURCES test/DeviceTest.mm
+    LIBRARIES SigilCoreHardware ${METAL_FRAMEWORK})
 
-  # Google Benchmark (use a Release build), linking only what it measures.
-  # Not a test: it builds through the `benches` target and runs through
-  # scripts/bench_ledger.py.
-  add_executable(core_hardware_bench bench/DeviceBench.mm)
-  target_link_libraries(core_hardware_bench PRIVATE SigilCoreHardware
-    benchmark::benchmark ${METAL_FRAMEWORK})
-  add_dependencies(benches core_hardware_bench)
+  sigil_bench(core_hardware_bench
+    SOURCES bench/DeviceBench.mm
+    LIBRARIES SigilCoreHardware ${METAL_FRAMEWORK})
 endif()

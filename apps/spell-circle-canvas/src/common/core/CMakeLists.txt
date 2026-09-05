@@ -31,28 +31,11 @@
 # nothing else — no Skia, no Diligent, no Qt — so a drawing library stands
 # on the device it hands out rather than owning one, and two of them stand
 # on the same one. Only a consumer that needs a device links it.
-#
-# Every public header lives under one include root, include/sigilcore/
-# <feature>/, so a feature adds the root and spells its own directory.
-
-set(SIGIL_CORE_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/include)
+sigil_library_root(SigilCore
+  BRIEF "The kernels a retained runtime is built on — the reconciler (keyed matching, memo, the identity prune, inherited values, animation lanes and phases) and the caching proof (policy, settled subtrees, the stability release and the bake seam) — over three leaves: comparable type erasure with the field pin, the mixers and folds several libraries agree on to the bit, and the GPU device with its handles and fences")
 
 add_subdirectory(comparable)
 add_subdirectory(compute)
 add_subdirectory(reconcile)
 add_subdirectory(cache)
 add_subdirectory(hardware)
-
-# The header tree installs as one unit beside the exported leaves.
-install(DIRECTORY include/sigilcore DESTINATION include)
-
-# API documentation (docs/README.md).
-sigil_add_docs(
-  NAME SigilCore
-  BRIEF "The kernels a retained runtime is built on — the reconciler (keyed matching, memo, the identity prune, inherited values, animation lanes and phases) and the caching proof (policy, settled subtrees, the stability release and the bake seam) — over three leaves: comparable type erasure with the field pin, the mixers and folds several libraries agree on to the bit, and the GPU device with its handles and fences"
-  INPUT
-        ${CMAKE_CURRENT_SOURCE_DIR}/include
-        ${CMAKE_CURRENT_SOURCE_DIR}/README.md
-  MAINPAGE ${CMAKE_CURRENT_SOURCE_DIR}/README.md
-  STRIP
-        ${CMAKE_CURRENT_SOURCE_DIR}/include)

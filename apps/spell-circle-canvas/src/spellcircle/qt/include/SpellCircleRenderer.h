@@ -69,9 +69,8 @@ class SpellCircleRenderer : public QCanvasPainterItemRenderer {
   std::unique_ptr<TexturePublisher> m_publisher;
 
   // The Skia Graphite offscreen backend, created once in
-  // initializeResources(). Null when the build has no Skia canvas
-  // (SPELLCIRCLE_ENABLE_SKIA_CANVAS off — the stub factory) or the active
-  // QRhi backend is unsupported; prePaint() then draws nothing.
+  // initializeResources(). Null when the active QRhi backend is
+  // unsupported; prePaint() then draws nothing.
   std::unique_ptr<CanvasSceneBackend> m_sceneBackend;
 
   // Copied from GraphicsConfig in synchronize() — defaults match the

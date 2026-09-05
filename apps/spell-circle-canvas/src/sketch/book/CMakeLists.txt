@@ -77,41 +77,23 @@ if(TARGET SigilSketchScry)
   target_compile_definitions(Sketchbook PRIVATE SIGILSKETCH_BOOK_SCRY)
 endif()
 
-# The device lane for set sketches. Without it the binary reports rather
-# than falling back: a flag that asked for the device answers with the
-# device or with nothing.
-if(TARGET SigilWorldDiligent)
-  target_link_libraries(Sketchbook PRIVATE SigilWorldDiligent)
-else()
-  target_compile_definitions(Sketchbook PRIVATE SIGILSKETCH_NO_DEVICE=1)
-endif()
+# The device lane for set sketches: a flag that asked for the device
+# answers with the device or with nothing, never with a fallback.
+target_link_libraries(Sketchbook PRIVATE SigilWorldDiligent)
 
 # Draw straight into QQuickRhiItem's texture through the shared Skia
-# Graphite context when the active QRhi backend supports it. Other builds
-# keep the explicit CPU-raster/upload fallback in SketchbookView.cpp.
-if(TARGET SigilSkiaQt)
-  target_link_libraries(Sketchbook PRIVATE SigilSkiaQt)
-  target_compile_definitions(Sketchbook PRIVATE SIGILSKETCH_BOOK_GPU)
-endif()
+# Graphite context when the active QRhi backend supports it; the
+# CPU-raster/upload path in SketchbookView.cpp stands beside it for the
+# backends that do not.
+target_link_libraries(Sketchbook PRIVATE SigilSkiaQt)
+target_compile_definitions(Sketchbook PRIVATE SIGILSKETCH_BOOK_GPU)
 
-# ---------------------------------------------------------------------------
-# THE HOT-RELOAD LINK SURFACE.
-#
-# A sketch dylib links with `-undefined dynamic_lookup` and resolves the
-# framework's symbols out of this executable, so the host must EXPORT
-# them — and it must contain them, which for a static archive means
-# force-loading it whether or not the host's own translation units
-# reference anything inside.
-#
-# What a sketch may LINK is what it may #include, and both are read off
-# SigilSketches: its public dependencies are the include surface, and
-# the archives in its link closure — every one of this repository's, the
-# ones an optional SDK produced on the machines where it did, and the
-# private dependencies riding beneath them — are force-loaded here by
-# walking that closure at configure time. One fact, read twice, so an
-# archive added there is force-loaded here without a second list to
-# keep in step. Skia is the one vendored archive a sketch calls
-# directly, and it is named.
+# THE HOT-RELOAD LINK SURFACE. A sketch dylib links with `-undefined
+# dynamic_lookup` and resolves the framework's symbols out of this
+# executable, so the host exports them and force-loads every archive of
+# this repository's in its own and SigilSketches' link closure, read off
+# the targets rather than listed a second time. Skia is the one vendored
+# archive a sketch calls directly, and it is named.
 include(SketchLinkSurface)
 if(APPLE)
   target_link_options(Sketchbook PRIVATE "LINKER:-export_dynamic")
@@ -225,12 +207,10 @@ add_test(NAME sketch_reload_surface_set
 # force-load list covers that line too. Nothing in the registry names
 # one, so the case is a probe file beside this list rather than a sketch:
 # what it asserts is a dlopen, not a picture.
-if(TARGET SigilWorldDiligent)
-  add_test(NAME sketch_reload_surface_device
-    COMMAND Sketchbook
-      ${CMAKE_CURRENT_LIST_DIR}/test/device_import_probe.cpp
-      --frame ${CMAKE_BINARY_DIR}/sketch_reload_surface_device.png)
-endif()
+add_test(NAME sketch_reload_surface_device
+  COMMAND Sketchbook
+    ${CMAKE_CURRENT_LIST_DIR}/test/device_import_probe.cpp
+    --frame ${CMAKE_BINARY_DIR}/sketch_reload_surface_device.png)
 
 # …and once more for each optional SDK, on the machines that have one.
 # These name symbols nothing else in the registry names, so an SDK

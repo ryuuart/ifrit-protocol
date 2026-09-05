@@ -504,7 +504,7 @@ TEST(TextVertical, ASubstitutionIsGatedOnTheAxisItsRunAdvancesOn) {
   // along a line and not down a column. A gate reading one axis for both
   // orientations therefore reaches the wrong verdict on every case here.
   const sk_sp<SkTypeface> face = fonts().fontManager()->makeFromFile(
-      SIGILCOMPOSE_TEST_ASSET_DIR "/VerticalAdvance.ttf");
+      SIGIL_TEST_ASSET_DIR "/VerticalAdvance.ttf");
   ASSERT_TRUE(face) << "test asset VerticalAdvance.ttf failed to load";
   const SkGlyphID a = face->unicharToGlyph(U'A');
   const SkGlyphID b = face->unicharToGlyph(U'B');

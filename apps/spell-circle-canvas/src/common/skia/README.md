@@ -294,9 +294,8 @@ or a scene.
 
 ## Building
 
-`SigilSkiaDraw` and `sigilskia_draw_test` are always built; the rest —
-`SigilSkiaGraphite`, `SigilSkiaQt` and the `SigilSkia` umbrella — only
-when `SPELLCIRCLE_ENABLE_SKIA_CANVAS` is on, with on
+`SigilSkiaDraw`, `SigilSkiaGraphite`, `SigilSkiaQt` and the `SigilSkia`
+umbrella are always built, with `sigilskia_draw_test` everywhere and on
 Apple `sigilskia_graphite_test` (ctest) plus `sigilskia_graphite_bench`
 (Google Benchmark, through the `benches` target and
 `scripts/bench_ledger.py`). The test takes the Metal path end to end on

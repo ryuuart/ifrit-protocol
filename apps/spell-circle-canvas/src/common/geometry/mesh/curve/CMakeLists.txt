@@ -1,25 +1,15 @@
 # Splines, their parallel-transport frames, and the pose read off one by
 # distance; projection to a 2D path needs the camera. What a rail
 # CARRIES is a point operator and lives with them, in mesh/pop.
-add_library(SigilGeometryMeshCurve STATIC
-  Curve.cpp
-  Pose.cpp
-  ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/mesh/curve/Curve.h
-  ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/mesh/curve/Frame.h
-  ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/mesh/curve/Pose.h
-)
-target_compile_features(SigilGeometryMeshCurve PUBLIC cxx_std_20)
-target_include_directories(SigilGeometryMeshCurve
-  PUBLIC ${SIGIL_GEOMETRY_INCLUDE_DIR})
-target_link_libraries(SigilGeometryMeshCurve PUBLIC SigilGeometryMesh
-  SigilGeometryMeshCamera)
+sigil_library(SigilGeometryMeshCurve
+  SOURCES Curve.cpp Pose.cpp
+  HEADERS Curve.h Frame.h Pose.h
+  PUBLIC SigilGeometryMesh SigilGeometryMeshCamera)
 
-add_executable(geometry_mesh_curve_test test/CurveTest.cpp)
-target_link_libraries(geometry_mesh_curve_test PRIVATE SigilGeometryMeshCurve
-  GTest::gtest_main)
-add_test(NAME geometry_mesh_curve_test COMMAND geometry_mesh_curve_test)
+sigil_test(geometry_mesh_curve_test
+  SOURCES test/CurveTest.cpp
+  LIBRARIES SigilGeometryMeshCurve)
 
-add_executable(geometry_mesh_curve_bench bench/CurveBench.cpp)
-target_link_libraries(geometry_mesh_curve_bench PRIVATE SigilGeometryMeshCurve
-  benchmark::benchmark)
-add_dependencies(benches geometry_mesh_curve_bench)
+sigil_bench(geometry_mesh_curve_bench
+  SOURCES bench/CurveBench.cpp
+  LIBRARIES SigilGeometryMeshCurve)

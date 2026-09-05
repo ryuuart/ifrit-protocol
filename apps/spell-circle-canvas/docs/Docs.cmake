@@ -1,6 +1,6 @@
 # Doxygen sites for the Sigil libraries.
 #
-# Each library calls sigil_add_docs() next to its add_library(); the root
+# Each library root registers itself through sigil_add_docs(); the root
 # calls sigil_finalize_docs() once every subdirectory has been added,
 # which records the set as a manifest and adds the targets that read it.
 # Building the `docs` target writes one browsable site per library under

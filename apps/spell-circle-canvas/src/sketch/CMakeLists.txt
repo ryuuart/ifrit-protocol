@@ -8,14 +8,11 @@
 # tree, a lit set and a pen's canvas meet here and nowhere else.
 #
 # Each feature is its own archive with its own tests and benchmarks, and
-# links only the features beneath it. Every public header lives under one
-# include root, include/sigilsketch/, and the directories under it nest
-# the way the targets do.
-set(SIGIL_SKETCH_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/include)
-# The fixtures every sketch test binary shares — the one font context and
-# the one asset store a process holds. A test target adds this directory
-# and spells "Support.h".
-set(SIGIL_SKETCH_TEST_SUPPORT_DIR ${CMAKE_CURRENT_LIST_DIR}/test)
+# links only the features beneath it. The fixtures every sketch test
+# binary shares — the one font context and the one asset store a process
+# holds — are test/Support.h.
+sigil_library_root(SigilSketch
+  BRIEF "Sketches: one file per scene, one registry, one host")
 # Where a sketch looks for what it did not generate, and where the live
 # host finds the file behind a registry entry. Neither directory need
 # exist: a missing asset yields the placeholder and heals when a file
@@ -60,18 +57,6 @@ add_subdirectory(book)
 
 # The umbrella, for a consumer that takes the library rather than a
 # feature of it.
-add_library(SigilSketch INTERFACE)
-target_link_libraries(SigilSketch INTERFACE
-  SigilSketchCore SigilSketchCanvas SigilSketchSet SigilSketchDraw
-  SigilSketchLive SigilSketchPlate)
-
-# API documentation (docs/README.md).
-sigil_add_docs(
-  NAME SigilSketch
-  BRIEF "Sketches: one file per scene, one registry, one host"
-  INPUT
-        ${CMAKE_CURRENT_SOURCE_DIR}/include
-        ${CMAKE_CURRENT_SOURCE_DIR}/README.md
-  MAINPAGE ${CMAKE_CURRENT_SOURCE_DIR}/README.md
-  STRIP
-        ${CMAKE_CURRENT_SOURCE_DIR}/include)
+sigil_library(SigilSketch
+  INTERFACE SigilSketchCore SigilSketchCanvas SigilSketchSet SigilSketchDraw
+            SigilSketchLive SigilSketchPlate)

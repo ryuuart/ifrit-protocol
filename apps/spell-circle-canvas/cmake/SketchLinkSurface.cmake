@@ -1,41 +1,24 @@
-# THE HOT-RELOAD LINK SURFACE: every archive of this repository's that
+# The hot-reload link surface: every archive of this repository's that
 # the host links, force-loaded and re-exported.
 #
 # A sketch dylib links with `-undefined dynamic_lookup` and resolves the
 # framework's symbols out of the host executable, so the host must
-# CONTAIN them — which for a static archive means force-loading it
+# contain them — which for a static archive means force-loading it
 # whether or not the host's own translation units reference anything
-# inside. Which archives? EVERY ONE THE HOST LINKS, from both roots: the
-# sketch target's closure, which is what a sketch may #include and the
-# flags a hot-reloaded sketch compiles with are lifted from; and the
-# host's own, which carries the archives a sketch may name but a bare
-# consumer of the sketch target must not be made to link — a device
-# backend among them, which only an application brings up. A symbol
-# reachable from a compiled-in sketch and not from a reloaded one is the
-# defect this exists to rule out, so the rule is the whole of what the
-# host holds rather than a chosen part of it.
+# inside. A reloaded sketch must resolve every symbol a compiled-in one
+# does, so the rule is every archive in both roots: the sketch target's
+# closure (what a sketch may #include) and the host's own (the archives
+# only an application brings up, a device backend among them). The
+# closure is read off the targets rather than listed a second time,
+# because a missing archive is invisible everywhere but a dlopen. A
+# private dependency rides in an interface as $<LINK_ONLY:…> and is
+# walked too; the vendored archives beneath are resolved through those,
+# except the ones a sketch calls directly, which the caller names as
+# EXTRA.
 #
-# The roots are read off the targets rather than written down a second
-# time — a list beside them would drift, and a missing archive is
-# invisible everywhere but a dlopen: every sketch still compiles and
-# every compiled-in sketch still runs, and the reloaded one fails with a
-# symbol not found in the flat namespace, only for the symbols no
-# compiled-in sketch happened to pull in.
-#
-# The walk covers the whole link closure — a private dependency of an
-# archive rides in its interface as $<LINK_ONLY:…> and is an archive the
-# host links all the same — and force-loads every archive of this
-# repository's in it, by the prefix its targets carry. The vendored
-# archives beneath them are resolved through those, except the ones a
-# sketch calls directly, which the caller names as EXTRA.
-#
-# THE WALK RUNS LAST, deferred to the end of the top-level directory,
-# and this is load-bearing: a link line may name a target that has not
-# been defined yet, which the generator resolves later and a walk at
-# configure time would silently drop — dropping precisely the archives
-# whose directory is added after the host's. Deferred, every target in
-# the tree exists, so a name the walk cannot resolve to a target is a
-# plain library name and nothing of this repository's can go missing.
+# The walk is deferred to the end of the top-level directory because a
+# link line may name a target defined after the host's directory; walked
+# then, a name that is not a target is a plain library name.
 #
 #   sigil_sketch_link_surface(<host> <sketches> [EXTRA <target>…])
 

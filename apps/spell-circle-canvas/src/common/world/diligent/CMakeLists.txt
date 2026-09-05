@@ -32,78 +32,52 @@ sigil_slang_module(NAME Post SOURCE ${_shaders}/Post.slang
   DEPENDS ${_portable}
   OUT_VAR SIGIL_WORLD_POST_H)
 
-add_library(SigilWorldDiligent STATIC
-  Geometry.cpp
-  Gpu.cpp
-  Gpu.h
-  Import.cpp
-  PainterGpu.cpp
-  Post.cpp
-  Programs.cpp
-  Programs.h
-  Runtime.cpp
-  ${SIGIL_WORLD_SURFACE_H}
-  ${SIGIL_WORLD_PAINTER_H}
-  ${SIGIL_WORLD_POST_H}
-  ${_shaders}/Surface.slang
-  ${_shaders}/Painter.slang
-  ${_shaders}/Post.slang
-  ${_shaders}/MaterialEntry.slang
-  ${SIGIL_WORLD_INCLUDE_DIR}/sigilworld/diligent/Import.h
-  ${SIGIL_WORLD_INCLUDE_DIR}/sigilworld/diligent/Painter.h
-  ${SIGIL_WORLD_INCLUDE_DIR}/sigilworld/diligent/Runtime.h
-)
-target_compile_features(SigilWorldDiligent PUBLIC cxx_std_20)
-target_include_directories(SigilWorldDiligent
-  PUBLIC ${SIGIL_WORLD_INCLUDE_DIR}
-  PRIVATE ${CMAKE_CURRENT_LIST_DIR} ${SIGIL_SLANG_GENERATED_DIR})
-target_compile_definitions(SigilWorldDiligent
-  PRIVATE SIGIL_WORLD_SHADER_DIR="${_shaders}")
-
 # SigilGeometryDevice is PUBLIC because every entry point here takes the
-# device it creates, and Gpu.h holds the resources it made; SigilWorldScene is PUBLIC because the runtime
-# value this hands back is executed by a Scene. Diligent and Slang are
-# PRIVATE: the public headers name Diligent's two interfaces by forward
-# declaration only and Slang not at all.
-# SigilMaterialSlang is PUBLIC because a compiled program and the
-# uniforms written into it are what Gpu.h hands around; Slang itself is
-# reached only through it, so nothing here links the compiler.
-# SigilMaterialKit is PRIVATE and is read for one thing: whether a
-# material's sampled slot holds a map a caller placed or the neutral
-# dressing every surface is built with, which is what decides whether a
-# slot is bound or left reading one white texel.
-# Diligent arrives through SigilGeometryDevice, which links it PUBLIC,
-# and is never named again here — see that feature's CMakeLists for why
-# the order matters. The hardware device a native import names and the
+# device it creates, and Gpu.h holds the resources it made;
+# SigilWorldScene is PUBLIC because the runtime value this hands back is
+# executed by a Scene. SigilMaterialSlang is PUBLIC because a compiled
+# program and the uniforms written into it are what Gpu.h hands around;
+# Slang itself is reached only through it, so nothing here links the
+# compiler. SigilMaterialKit is PRIVATE and is read for one thing:
+# whether a material's sampled slot holds a map a caller placed or the
+# neutral dressing every surface is built with, which is what decides
+# whether a slot is bound or left reading one white texel. Diligent
+# arrives through SigilGeometryDevice, which links it PUBLIC, and is
+# never named again here: that target's archive must come first on the
+# link line. The hardware device a native import names and the
 # mesh-renderer seam the painter stands in are PUBLIC because the headers
 # spell them; the Graphite pixel reads an environment upload takes are
 # PRIVATE.
-target_link_libraries(SigilWorldDiligent
+sigil_library(SigilWorldDiligent
+  SOURCES Geometry.cpp Gpu.cpp Gpu.h Import.cpp PainterGpu.cpp Post.cpp
+          Programs.cpp Programs.h Runtime.cpp
+          ${SIGIL_WORLD_SURFACE_H} ${SIGIL_WORLD_PAINTER_H}
+          ${SIGIL_WORLD_POST_H}
+          ${_shaders}/Surface.slang ${_shaders}/Painter.slang
+          ${_shaders}/Post.slang ${_shaders}/MaterialEntry.slang
+  HEADERS Import.h Painter.h Runtime.h
+  INCLUDE_PRIVATE ${CMAKE_CURRENT_LIST_DIR} ${SIGIL_SLANG_GENERATED_DIR}
   PUBLIC SigilGeometryDevice SigilWorldScene SigilMaterialSlang
          SigilGeometryMeshPop SigilCoreHardware SigilGeometryMeshRender
   PRIVATE SigilMaterialKit SigilSkiaGraphite SigilIOHub Boost::container)
+target_compile_definitions(SigilWorldDiligent
+  PRIVATE SIGIL_WORLD_SHADER_DIR="${_shaders}")
 
-add_executable(world_diligent_test test/PainterTest.cpp test/RuntimeTest.cpp
-  test/StackTest.cpp test/SurfaceTest.cpp test/Distance.h test/OnDevice.h)
 # The runtime test reads the compiled program the compiler registration
-# produced, which is this feature's own header rather than a public one;
-# the second directory is the fixtures every world test binary shares.
-target_include_directories(world_diligent_test
-  PRIVATE ${CMAKE_CURRENT_LIST_DIR} ${SIGIL_WORLD_TEST_DIR})
-target_link_libraries(world_diligent_test PRIVATE SigilWorldDiligent
-  SigilMaterialKit SigilGeometryKit GTest::gtest_main)
-add_test(NAME world_diligent_test COMMAND world_diligent_test)
+# produced, which is this feature's own header rather than a public one.
 # HALF THIS BINARY IS A NO-OP WITHOUT A VULKAN RUNTIME, and it reports
 # pass either way, because a case that cannot ask its question skips
 # rather than fails. The label is what makes that visible from outside:
 # `ctest -L gpu` is the run that needs a device, and a run that excludes
 # it is a run nobody should read a device verdict out of.
-set_tests_properties(world_diligent_test PROPERTIES LABELS gpu)
+sigil_test(world_diligent_test
+  SOURCES test/PainterTest.cpp test/RuntimeTest.cpp test/StackTest.cpp
+          test/SurfaceTest.cpp test/Distance.h test/OnDevice.h
+  SUPPORT_DIRS ${CMAKE_CURRENT_LIST_DIR}
+  LIBRARIES SigilWorldDiligent SigilMaterialKit SigilGeometryKit
+  LABELS gpu)
 
-# Google Benchmark (use a Release build). Not a test: it builds through
-# the `benches` target and runs through scripts/bench_ledger.py.
-add_executable(world_diligent_bench bench/DeviceBench.cpp)
-target_include_directories(world_diligent_bench PRIVATE ${CMAKE_CURRENT_LIST_DIR})
-target_link_libraries(world_diligent_bench PRIVATE SigilWorldDiligent
-  SigilMaterialKit SigilGeometryKit SigilMeasure benchmark::benchmark)
-add_dependencies(benches world_diligent_bench)
+sigil_bench(world_diligent_bench
+  SOURCES bench/DeviceBench.cpp
+  SUPPORT_DIRS ${CMAKE_CURRENT_LIST_DIR}
+  LIBRARIES SigilWorldDiligent SigilMaterialKit SigilGeometryKit SigilMeasure)

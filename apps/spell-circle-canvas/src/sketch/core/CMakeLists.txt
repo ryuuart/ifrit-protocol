@@ -10,45 +10,18 @@
 # have a guest: the live host calls into a dylib it just loaded, and the
 # sweep calls into a hundred sketches in one process, and a fault inside
 # one is a fault inside the host either way.
-add_library(SigilSketchCore STATIC
-  Assets.cpp
-  Crash.cpp
-  Device.cpp
-  Registry.cpp
-  Sources.cpp
-  ${SIGIL_SKETCH_INCLUDE_DIR}/sigilsketch/core/Assets.h
-  ${SIGIL_SKETCH_INCLUDE_DIR}/sigilsketch/core/CanvasSpec.h
-  ${SIGIL_SKETCH_INCLUDE_DIR}/sigilsketch/core/Crash.h
-  ${SIGIL_SKETCH_INCLUDE_DIR}/sigilsketch/core/Device.h
-  ${SIGIL_SKETCH_INCLUDE_DIR}/sigilsketch/core/Kind.h
-  ${SIGIL_SKETCH_INCLUDE_DIR}/sigilsketch/core/Registry.h
-  ${SIGIL_SKETCH_INCLUDE_DIR}/sigilsketch/core/Session.h
-  ${SIGIL_SKETCH_INCLUDE_DIR}/sigilsketch/core/Sources.h
-)
-target_compile_features(SigilSketchCore PUBLIC cxx_std_20)
-target_include_directories(SigilSketchCore PUBLIC ${SIGIL_SKETCH_INCLUDE_DIR})
-target_link_libraries(SigilSketchCore PUBLIC
-  SigilCoreComparable
-  SigilImageAsset
-  SigilIO
-  SigilVideoDecode
-  Boost::container)
-set_target_properties(SigilSketchCore PROPERTIES POSITION_INDEPENDENT_CODE ON)
+sigil_library(SigilSketchCore PIC
+  SOURCES Assets.cpp Crash.cpp Device.cpp Registry.cpp Sources.cpp
+  HEADERS Assets.h CanvasSpec.h Crash.h Device.h Kind.h Registry.h Session.h
+          Sources.h
+  PUBLIC SigilCoreComparable SigilImageAsset SigilIO SigilVideoDecode
+         Boost::container)
 
-add_executable(sketch_core_test test/AssetsTest.cpp test/CrashTest.cpp
-  test/DeviceTest.cpp
-  test/RegistryTest.cpp
-  test/SourcesTest.cpp)
-target_include_directories(sketch_core_test PRIVATE ${SIGIL_TEST_SUPPORT_DIR})
-target_link_libraries(sketch_core_test PRIVATE
-  SigilSketchCore
-  SigilVideoEncode
-  GTest::gtest_main)
-add_test(NAME sketch_core_test COMMAND sketch_core_test)
+sigil_test(sketch_core_test
+  SOURCES test/AssetsTest.cpp test/CrashTest.cpp test/DeviceTest.cpp
+          test/RegistryTest.cpp test/SourcesTest.cpp
+  LIBRARIES SigilSketchCore SigilVideoEncode)
 
-# Google Benchmark (use a Release build). Not a test: it builds through
-# the `benches` target and runs through scripts/bench_ledger.py.
-add_executable(sketch_core_bench bench/RegistryBench.cpp)
-target_link_libraries(sketch_core_bench PRIVATE SigilSketchCore
-  benchmark::benchmark)
-add_dependencies(benches sketch_core_bench)
+sigil_bench(sketch_core_bench
+  SOURCES bench/RegistryBench.cpp
+  LIBRARIES SigilSketchCore)

@@ -830,9 +830,9 @@ TEST(KitDocs, EverySignatureIsSpelledOnce) {
 // yourself: every case below goes through the same public seam a
 // user-written value would, and kit/Kit.cpp static_asserts the concepts.
 // The other half of the boundary — that the kit compiles against public
-// headers only — cannot be checked from a gtest binary, since it is a
-// compile FAILURE that must be observed; kit/BoundaryProbe.cpp covers it
-// and is built on demand.
+// headers only — is the kit target's include path, which carries no
+// compose source directory; a kit source that reached for an internal
+// header fails to compile.
 
 #include <sigilcompose/typography/Typography.h>
 

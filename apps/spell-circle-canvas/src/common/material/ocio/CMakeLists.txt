@@ -7,17 +7,13 @@
 # so a consumer can #ifdef around the transforms.
 find_package(OpenColorIO CONFIG QUIET)
 set(_shaders ${CMAKE_CURRENT_LIST_DIR}/shaders)
-add_library(SigilMaterialOcio STATIC
-  LutRecipe.cpp
-  ${_shaders}/Lut3d.sksl
-  ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/ocio/Ocio.h
-)
-target_compile_features(SigilMaterialOcio PUBLIC cxx_std_20)
-target_include_directories(SigilMaterialOcio PUBLIC ${SIGIL_MATERIAL_INCLUDE_DIR})
+sigil_library(SigilMaterialOcio
+  SOURCES LutRecipe.cpp ${_shaders}/Lut3d.sksl
+  HEADERS Ocio.h
+  PUBLIC SigilMaterialTexture
+  PRIVATE SigilIOHub)
 target_compile_definitions(SigilMaterialOcio
   PRIVATE SIGIL_MATERIAL_OCIO_SHADER_DIR="${_shaders}")
-target_link_libraries(SigilMaterialOcio PUBLIC SigilMaterialTexture)
-target_link_libraries(SigilMaterialOcio PRIVATE SigilIOHub)
 if(TARGET OpenColorIO::OpenColorIO)
   target_sources(SigilMaterialOcio PRIVATE Ocio.cpp)
   target_link_libraries(SigilMaterialOcio PRIVATE OpenColorIO::OpenColorIO)
@@ -30,14 +26,10 @@ endif()
 
 # The test shades through the Skia backend, and skips where the
 # transforms are unavailable.
-add_executable(material_ocio_test test/OcioTest.cpp)
-target_link_libraries(material_ocio_test PRIVATE SigilMaterialOcio
-  SigilMaterialSkia GTest::gtest_main)
-add_test(NAME material_ocio_test COMMAND material_ocio_test)
+sigil_test(material_ocio_test
+  SOURCES test/OcioTest.cpp
+  LIBRARIES SigilMaterialOcio SigilMaterialSkia)
 
-# Google Benchmark (use a Release build). Not a test: it builds through
-# the `benches` target and runs through scripts/bench_ledger.py.
-add_executable(material_ocio_bench bench/OcioBench.cpp)
-target_link_libraries(material_ocio_bench PRIVATE SigilMaterialOcio
-  benchmark::benchmark)
-add_dependencies(benches material_ocio_bench)
+sigil_bench(material_ocio_bench
+  SOURCES bench/OcioBench.cpp
+  LIBRARIES SigilMaterialOcio)

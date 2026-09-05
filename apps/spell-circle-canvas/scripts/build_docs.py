@@ -2,7 +2,7 @@
 """Generates the per-library Doxygen sites and the page that lists them.
 
 Driven by the manifest sigil_finalize_docs() writes, which is the list of
-libraries that called sigil_add_docs() next to their own add_library():
+libraries registered through sigil_library_root() or sigil_add_docs():
 name, brief, input directories, path prefix to strip, and the document
 to use as the site's front page.
 

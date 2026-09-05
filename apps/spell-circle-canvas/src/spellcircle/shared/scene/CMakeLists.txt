@@ -29,22 +29,14 @@ target_include_directories(SpellCircleScene PUBLIC
   ${CMAKE_CURRENT_LIST_DIR}/include
 )
 
-add_executable(spellcircle_test
-  test/SceneTest.cpp
-)
-
 # The test builds wire payloads with the generated FlatBuffers API so it can
 # exercise the real verify -> decode -> resolve path, which is why it links
 # the schema directly instead of relying on SpellCircleScene's PRIVATE edge.
-target_link_libraries(spellcircle_test PRIVATE
-  SpellCircleScene
-  SpellCircleSchema
-  GTest::gtest_main
-)
+sigil_test(spellcircle_test
+  SOURCES test/SceneTest.cpp
+  LIBRARIES SpellCircleScene SpellCircleSchema)
 
 # The test observes box geometry through an SkCanvas subclass, and Skia is
 # built without RTTI — a derived class references its base's typeinfo, so
 # this TU must match or the link fails on typeinfo for SkCanvas.
 target_compile_options(spellcircle_test PRIVATE -fno-rtti)
-
-add_test(NAME spellcircle_test COMMAND spellcircle_test)

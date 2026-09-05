@@ -71,8 +71,7 @@ set(SIGIL_SKETCH_REQUIREMENTS
   web_panel          SigilSketchScry
   web_script         SigilComposeWeb
   web_script         SigilSketchScry
-  usd_roundtrip      SigilUsd
-  half_float         SigilSkia)
+  usd_roundtrip      SigilUsd)
 
 list(LENGTH SIGIL_SKETCH_REQUIREMENTS _requirement_entries)
 math(EXPR _requirement_last "${_requirement_entries} / 2 - 1")

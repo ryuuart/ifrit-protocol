@@ -5,34 +5,12 @@
 # contour interval carries a geometry::path::Contour. The Unicode leaf is
 # private: a reading set beside its base is split at grapheme boundaries
 # in one source file and nowhere in a header.
-add_library(SigilWeaveLayout STATIC
-  Beside.cpp
-  Flow.cpp
-  LineBreak.cpp
-  KnuthPlass.cpp
-  LayoutMetrics.cpp
-  ParagraphLayoutInternal.h
-  ${SIGIL_WEAVE_INCLUDE_DIR}/sigilweave/layout/Beside.h
-  ${SIGIL_WEAVE_INCLUDE_DIR}/sigilweave/layout/Flow.h
-  ${SIGIL_WEAVE_INCLUDE_DIR}/sigilweave/layout/LayoutOptions.h
-  ${SIGIL_WEAVE_INCLUDE_DIR}/sigilweave/layout/PositionedRun.h
-  ${SIGIL_WEAVE_INCLUDE_DIR}/sigilweave/layout/ParagraphLayout.h
-)
-target_compile_features(SigilWeaveLayout PUBLIC cxx_std_20)
-target_include_directories(SigilWeaveLayout PUBLIC
-  $<BUILD_INTERFACE:${SIGIL_WEAVE_INCLUDE_DIR}>
-  $<INSTALL_INTERFACE:include>
-)
-target_link_libraries(SigilWeaveLayout
-  PUBLIC
-    SigilWeaveParagraph
-    SigilGeometryPath
-  PRIVATE
-    SigilWeaveUnicode
-    harfbuzz::harfbuzz
-    ICU::uc
-    Boost::unordered
-)
+sigil_library(SigilWeaveLayout
+  SOURCES Beside.cpp Flow.cpp LineBreak.cpp KnuthPlass.cpp LayoutMetrics.cpp
+          ParagraphLayoutInternal.h
+  HEADERS Beside.h Flow.h LayoutOptions.h PositionedRun.h ParagraphLayout.h
+  PUBLIC SigilWeaveParagraph SigilGeometryPath
+  PRIVATE SigilWeaveUnicode harfbuzz::harfbuzz ICU::uc Boost::unordered)
 
 # Everything that places runs and reads where they landed: both breakers,
 # the flows, overflow and clamp, vertical writing, placeholders, relayout
@@ -40,43 +18,17 @@ target_link_libraries(SigilWeaveLayout
 # paragraph controls one subject to a file, and the large-paragraph stress
 # cases. The stress case that restyles through the query layer links it,
 # and the files that read a stock table link the kit.
-add_executable(weave_layout_test
-  test/LayoutTest.cpp
-  test/KnuthPlassTest.cpp
-  test/OverflowTest.cpp
-  test/VerticalTest.cpp
-  test/FlowTest.cpp
-  test/PathTextTest.cpp
-  test/PlaceholderTest.cpp
-  test/IncrementalTest.cpp
-  test/TypographyTest.cpp
-  test/LeadingTest.cpp
-  test/TabStopTest.cpp
-  test/FrameTest.cpp
-  test/HyphenationTest.cpp
-  test/LineEdgesTest.cpp
-  test/BesideTest.cpp
-  test/MojikumiTest.cpp
-  test/StressTest.cpp
-)
-target_include_directories(weave_layout_test PRIVATE ${SIGIL_WEAVE_TEST_SUPPORT_DIR})
-target_link_libraries(weave_layout_test PRIVATE
-  SigilWeaveLayout
-  SigilWeaveKit
-  SigilWeaveQuery
-  SigilWeavePorts
-  Boost::unordered
-  GTest::gtest_main
-)
-add_test(NAME weave_layout_test COMMAND weave_layout_test)
+sigil_test(weave_layout_test
+  SOURCES test/LayoutTest.cpp test/KnuthPlassTest.cpp test/OverflowTest.cpp
+          test/VerticalTest.cpp test/FlowTest.cpp test/PathTextTest.cpp
+          test/PlaceholderTest.cpp test/IncrementalTest.cpp
+          test/TypographyTest.cpp test/LeadingTest.cpp test/TabStopTest.cpp
+          test/FrameTest.cpp test/HyphenationTest.cpp test/LineEdgesTest.cpp
+          test/BesideTest.cpp test/MojikumiTest.cpp test/StressTest.cpp
+  LIBRARIES SigilWeaveLayout SigilWeaveKit SigilWeaveQuery SigilWeavePorts
+            Boost::unordered)
 
-# layoutParagraph per word over a warm shape cache. Built through
-# `benches`, run through scripts/bench_ledger.py from a Release build.
-add_executable(weave_layout_bench bench/LayoutBench.cpp)
-target_include_directories(weave_layout_bench PRIVATE ${SIGIL_WEAVE_BENCH_SUPPORT_DIR})
-target_link_libraries(weave_layout_bench PRIVATE
-  SigilWeaveLayout
-  SigilWeavePorts
-  benchmark::benchmark
-)
-add_dependencies(benches weave_layout_bench)
+# layoutParagraph per word over a warm shape cache.
+sigil_bench(weave_layout_bench
+  SOURCES bench/LayoutBench.cpp
+  LIBRARIES SigilWeaveLayout SigilWeavePorts)

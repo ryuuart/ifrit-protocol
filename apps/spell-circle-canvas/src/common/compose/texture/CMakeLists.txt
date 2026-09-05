@@ -8,35 +8,22 @@
 # way it samples any other image.
 #
 # Links the kernel and SigilMaterial's texture feature, because both
-# appear in its header, and the motion clock privately, because the
-# composer it keeps is stepped by one. The device feature is added only
-# when this build carries one; without it the raster surface stands and
-# useDevice() answers false.
-add_library(SigilComposeTexture STATIC
-  Texture.cpp
-  ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/texture/Texture.h
-)
-target_compile_features(SigilComposeTexture PUBLIC cxx_std_20)
-target_include_directories(SigilComposeTexture PUBLIC
-  ${SIGIL_COMPOSE_INCLUDE_DIR})
-target_link_libraries(SigilComposeTexture
-  PUBLIC SigilComposeCore SigilMaterialTexture
+# appear in its header, the Graphite context and the hardware device the
+# GPU path stands on, and the motion clock privately, because the
+# composer it keeps is stepped by one.
+sigil_library(SigilComposeTexture
+  SOURCES Texture.cpp
+  HEADERS Texture.h
+  PUBLIC SigilComposeCore SigilMaterialTexture SigilSkiaGraphite
+         SigilCoreHardware
   PRIVATE SigilMotionClock)
-if(TARGET SigilSkiaGraphite)
-  target_link_libraries(SigilComposeTexture PUBLIC SigilSkiaGraphite
-    SigilCoreHardware)
-  target_compile_definitions(SigilComposeTexture PUBLIC
-    SIGILCOMPOSE_TEXTURE_DEVICE=1)
-endif()
+target_compile_definitions(SigilComposeTexture PUBLIC
+  SIGILCOMPOSE_TEXTURE_DEVICE=1)
 
-_compose_test_binary(compose_texture_test
-  LIBRARIES SigilComposeTexture
-  SOURCES
-    test/ComposeTextureTest.cpp
-)
+sigil_test(compose_texture_test
+  SOURCES test/ComposeTextureTest.cpp
+  LIBRARIES SigilComposeTexture SigilComposeTesting SigilWeavePorts)
 
-_compose_bench(compose_texture_bench
-  LIBRARIES SigilComposeTexture
-  SOURCES
-    bench/TextureBench.cpp
-)
+sigil_bench(compose_texture_bench
+  SOURCES bench/TextureBench.cpp
+  LIBRARIES SigilComposeTexture SigilWeavePorts)

@@ -13,41 +13,21 @@
 # and Boost.PFR: no kernel, no device, nothing that draws.
 # <sigilmotion/Animation.h> rides here as the umbrella over this feature
 # and bind.
-add_library(SigilMotionValues STATIC
-  Animated.cpp
-  Transition.cpp
-  ${SIGIL_MOTION_INCLUDE_DIR}/sigilmotion/Animation.h
-  ${SIGIL_MOTION_INCLUDE_DIR}/sigilmotion/values/Animatable.h
-  ${SIGIL_MOTION_INCLUDE_DIR}/sigilmotion/values/Animated.h
-  ${SIGIL_MOTION_INCLUDE_DIR}/sigilmotion/values/Keyframes.h
-  ${SIGIL_MOTION_INCLUDE_DIR}/sigilmotion/values/Lanes.h
-  ${SIGIL_MOTION_INCLUDE_DIR}/sigilmotion/values/Spring.h
-  ${SIGIL_MOTION_INCLUDE_DIR}/sigilmotion/values/Time.h
-  ${SIGIL_MOTION_INCLUDE_DIR}/sigilmotion/values/Transition.h
-  ${SIGIL_MOTION_INCLUDE_DIR}/sigilmotion/values/Values.h
-)
-target_compile_features(SigilMotionValues PUBLIC cxx_std_20)
-target_include_directories(SigilMotionValues PUBLIC
-  ${SIGIL_MOTION_INCLUDE_DIR})
-target_link_libraries(SigilMotionValues PUBLIC
-  SigilMotionBind SigilMotionClock SigilCoreComparable
-  choreograph::choreograph)
+sigil_library(SigilMotionValues
+  SOURCES Animated.cpp Transition.cpp
+  HEADERS ../Animation.h Animatable.h Animated.h Keyframes.h Lanes.h
+          Spring.h Time.h Transition.h Values.h
+  PUBLIC SigilMotionBind SigilMotionClock SigilCoreComparable
+         choreograph::choreograph)
 
 # Links the values and the clock that drives them, and nothing that
 # draws, so a link edge that pulled a drawing library in would show up
 # as a build failure here.
-add_executable(motion_values_test test/ValuesTest.cpp test/AnimatedTest.cpp
-  test/LanesTest.cpp test/SpringTest.cpp)
-target_include_directories(motion_values_test PRIVATE
-  ${SIGIL_MOTION_TEST_SUPPORT_DIR})
-target_link_libraries(motion_values_test PRIVATE
-  SigilMotionValues SigilMotionClock GTest::gtest_main)
-add_test(NAME motion_values_test COMMAND motion_values_test)
+sigil_test(motion_values_test
+  SOURCES test/ValuesTest.cpp test/AnimatedTest.cpp test/LanesTest.cpp
+          test/SpringTest.cpp
+  LIBRARIES SigilMotionValues SigilMotionClock)
 
-# Google Benchmark (use a Release build), linking only what it measures.
-# Not a test: it builds through the `benches` target and runs through
-# scripts/bench_ledger.py.
-add_executable(motion_values_bench bench/ValuesBench.cpp)
-target_link_libraries(motion_values_bench PRIVATE SigilMotionValues
-  benchmark::benchmark)
-add_dependencies(benches motion_values_bench)
+sigil_bench(motion_values_bench
+  SOURCES bench/ValuesBench.cpp
+  LIBRARIES SigilMotionValues)

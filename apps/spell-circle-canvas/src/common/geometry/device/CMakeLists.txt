@@ -21,35 +21,14 @@
 # points and links nothing, and AdoptDevice.cpp passes volk's
 # vkGetInstanceProcAddr on to it so both APIs dispatch through the one
 # loader this process opened.
-enable_language(C)
-
-find_package(unofficial-diligent-engine CONFIG REQUIRED)
-find_package(VulkanHeaders CONFIG REQUIRED)
-
-add_library(SigilGeometryDevice STATIC
-  AdoptDevice.cpp
-  AdoptDevice.h
-  Device.cpp
-  Resources.cpp
-  VolkShim.c
-  ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/device/Device.h
-  ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/device/Resources.h
-)
-target_compile_features(SigilGeometryDevice PUBLIC cxx_std_20)
-target_include_directories(SigilGeometryDevice
-  PUBLIC ${SIGIL_GEOMETRY_INCLUDE_DIR}
-  PRIVATE ${CMAKE_CURRENT_LIST_DIR})
+#
 # Diligent is PUBLIC because Resources.h names its buffer, sampler and
 # texture interfaces: an executor holding one of these is writing
 # Diligent calls. SigilCoreHardware and SigilSkiaGraphite are PUBLIC
 # because Device.h hands out the adopted device and the Graphite context
 # standing on it. volk and the Vulkan headers are PRIVATE — the public
 # headers spell no Vulkan type at all.
-target_link_libraries(SigilGeometryDevice
-  PUBLIC unofficial::diligent-engine::DiligentCore SigilCoreHardware
-         SigilSkiaGraphite
-  PRIVATE unofficial::diligent-engine::volk Vulkan::Headers)
-
+#
 # NOTHING DOWNSTREAM NAMES DiligentCore ON ITS OWN LINE. This archive
 # defines every volk symbol (VolkShim.c), and the engine's archive
 # defines them too; whichever comes first on the link line wins, and only
@@ -57,15 +36,24 @@ target_link_libraries(SigilGeometryDevice
 # target is what puts this archive first — naming the engine directly
 # beside it puts the engine's own volk ahead and the device then fails to
 # come up on exactly the machines the shim exists for.
-add_executable(geometry_device_test test/DeviceTest.cpp)
-target_link_libraries(geometry_device_test PRIVATE SigilGeometryDevice
-  GTest::gtest_main)
-add_test(NAME geometry_device_test COMMAND geometry_device_test)
+enable_language(C)
 
-# Google Benchmark (use a Release build). Not a test: it builds through
-# the `benches` target and runs through scripts/bench_ledger.py.
-add_executable(geometry_device_bench bench/DeviceBench.cpp)
-target_include_directories(geometry_device_bench PRIVATE ${CMAKE_CURRENT_LIST_DIR})
-target_link_libraries(geometry_device_bench PRIVATE SigilGeometryDevice
-  SigilMeasure benchmark::benchmark)
-add_dependencies(benches geometry_device_bench)
+find_package(unofficial-diligent-engine CONFIG REQUIRED)
+find_package(VulkanHeaders CONFIG REQUIRED)
+
+sigil_library(SigilGeometryDevice
+  SOURCES AdoptDevice.cpp AdoptDevice.h Device.cpp Resources.cpp VolkShim.c
+  HEADERS Device.h Resources.h
+  INCLUDE_PRIVATE ${CMAKE_CURRENT_LIST_DIR}
+  PUBLIC unofficial::diligent-engine::DiligentCore SigilCoreHardware
+         SigilSkiaGraphite
+  PRIVATE unofficial::diligent-engine::volk Vulkan::Headers)
+
+sigil_test(geometry_device_test
+  SOURCES test/DeviceTest.cpp
+  LIBRARIES SigilGeometryDevice)
+
+sigil_bench(geometry_device_bench
+  SOURCES bench/DeviceBench.cpp
+  SUPPORT_DIRS ${CMAKE_CURRENT_LIST_DIR}
+  LIBRARIES SigilGeometryDevice SigilMeasure)

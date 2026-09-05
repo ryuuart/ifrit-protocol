@@ -12,40 +12,25 @@
 # them the stock values over the leaf's other two 2D seams —
 # `kit/Shapers.h` (what bends one continuous mark, and the width laws that
 # oscillate) and `kit/Divisions.h` (a figure's tick ladder and chord fan as
-# one path).
-add_library(SigilGeometryKit STATIC
-  Silhouettes.cpp
-  Solids.cpp
-  ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/kit/Corners.h
-  ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/kit/Curves.h
-  ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/kit/Divisions.h
-  ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/kit/Generators.h
-  ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/kit/Shapers.h
-  ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/kit/Silhouettes.h
-  ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/kit/Solids.h
-)
+# one path). The blob's lobes are placed by the seeded mixer one library
+# down, so a blob is the same blob in a stored render and in a resource
+# key.
+#
 # workaround: the earcut-hpp port installs headers and exports no config.
 find_path(EARCUT_INCLUDE_DIR mapbox/earcut.hpp REQUIRED)
-target_include_directories(SigilGeometryKit PRIVATE ${EARCUT_INCLUDE_DIR})
-target_compile_features(SigilGeometryKit PUBLIC cxx_std_20)
-target_include_directories(SigilGeometryKit PUBLIC
-  ${SIGIL_GEOMETRY_INCLUDE_DIR})
-# The blob's lobes are placed by the seeded mixer one library down, so a
-# blob is the same blob in a stored render and in a resource key.
-target_link_libraries(SigilGeometryKit PUBLIC SigilGeometryPath
-  SigilGeometryMesh SigilCoreCompute)
+sigil_library(SigilGeometryKit
+  SOURCES Silhouettes.cpp Solids.cpp
+  HEADERS Corners.h Curves.h Divisions.h Generators.h Shapers.h
+          Silhouettes.h Solids.h
+  INCLUDE_PRIVATE ${EARCUT_INCLUDE_DIR}
+  PUBLIC SigilGeometryPath SigilGeometryMesh SigilCoreCompute)
 
 # Links only the shelves, over Skia — a link edge that pulled a component
 # or scene library in would show up as a build failure here.
-add_executable(geometry_kit_test test/SilhouettesTest.cpp test/SolidsTest.cpp)
-target_link_libraries(geometry_kit_test PRIVATE SigilGeometryKit
-  GTest::gtest_main)
-add_test(NAME geometry_kit_test COMMAND geometry_kit_test)
+sigil_test(geometry_kit_test
+  SOURCES test/SilhouettesTest.cpp test/SolidsTest.cpp
+  LIBRARIES SigilGeometryKit)
 
-# Google Benchmark (use a Release build), linking only what it measures.
-# Not a test: it builds through the `benches` target and runs through
-# scripts/bench_ledger.py.
-add_executable(geometry_kit_bench bench/KitBench.cpp bench/SolidsBench.cpp)
-target_link_libraries(geometry_kit_bench PRIVATE SigilGeometryKit
-  benchmark::benchmark)
-add_dependencies(benches geometry_kit_bench)
+sigil_bench(geometry_kit_bench
+  SOURCES bench/KitBench.cpp bench/SolidsBench.cpp
+  LIBRARIES SigilGeometryKit)

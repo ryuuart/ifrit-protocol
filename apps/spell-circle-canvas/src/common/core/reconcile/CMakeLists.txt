@@ -8,45 +8,21 @@
 # that animates either: the lanes a patch retargets and the comparators
 # over the values they carry are SigilMotion's, and a host reaches them
 # there.
-add_library(SigilCoreReconcile STATIC
-  Env.cpp
-  Reads.cpp
-  ${SIGIL_CORE_INCLUDE_DIR}/sigilcore/reconcile/Env.h
-  ${SIGIL_CORE_INCLUDE_DIR}/sigilcore/reconcile/Erased.h
-  ${SIGIL_CORE_INCLUDE_DIR}/sigilcore/reconcile/Host.h
-  ${SIGIL_CORE_INCLUDE_DIR}/sigilcore/reconcile/Memo.h
-  ${SIGIL_CORE_INCLUDE_DIR}/sigilcore/reconcile/Node.h
-  ${SIGIL_CORE_INCLUDE_DIR}/sigilcore/reconcile/Phases.h
-  ${SIGIL_CORE_INCLUDE_DIR}/sigilcore/reconcile/Reads.h
-  ${SIGIL_CORE_INCLUDE_DIR}/sigilcore/reconcile/Reconcile.h
-  ${SIGIL_CORE_INCLUDE_DIR}/sigilcore/reconcile/Reconciler.h
-  ${SIGIL_CORE_INCLUDE_DIR}/sigilcore/reconcile/Stats.h
-)
-target_compile_features(SigilCoreReconcile PUBLIC cxx_std_20)
-target_include_directories(SigilCoreReconcile PUBLIC ${SIGIL_CORE_INCLUDE_DIR})
-target_link_libraries(SigilCoreReconcile PUBLIC
-  SigilCoreComparable SigilMeasure Boost::container_hash Boost::unordered)
+sigil_library(SigilCoreReconcile
+  SOURCES Env.cpp Reads.cpp
+  HEADERS Env.h Erased.h Host.h Memo.h Node.h Phases.h Reads.h Reconcile.h
+          Reconciler.h Stats.h
+  PUBLIC SigilCoreComparable SigilMeasure Boost::container_hash
+         Boost::unordered)
 
-# Links only the library it exercises, over a fake host, so a link edge
-# that pulled a drawing or layout library in would show up as a build
-# failure here.
-add_executable(sigilcore_reconcile_test
-  test/FakeHost.h
-  test/ReconcilerTest.cpp
-  test/EnvTest.cpp
-  test/PhasesTest.cpp
-  test/ReadsTest.cpp
-)
-target_link_libraries(sigilcore_reconcile_test PRIVATE
-  SigilCoreReconcile GTest::gtest_main)
-add_test(NAME sigilcore_reconcile_test COMMAND sigilcore_reconcile_test)
+# Over a fake host, so a link edge that pulled a drawing or layout
+# library in would show up as a build failure here.
+sigil_test(sigilcore_reconcile_test
+  SOURCES test/FakeHost.h test/ReconcilerTest.cpp test/EnvTest.cpp
+          test/PhasesTest.cpp test/ReadsTest.cpp
+  LIBRARIES SigilCoreReconcile)
 
-# Google Benchmark (use a Release build), linking only what it measures.
-# Not a test: it builds through the `benches` target and runs through
-# scripts/bench_ledger.py.
-add_executable(sigilcore_reconcile_bench bench/ReconcileBench.cpp)
-target_include_directories(sigilcore_reconcile_bench PRIVATE
-  ${CMAKE_CURRENT_LIST_DIR}/test)
-target_link_libraries(sigilcore_reconcile_bench PRIVATE
-  SigilCoreReconcile benchmark::benchmark)
-add_dependencies(benches sigilcore_reconcile_bench)
+sigil_bench(sigilcore_reconcile_bench
+  SOURCES bench/ReconcileBench.cpp
+  SUPPORT_DIRS ${CMAKE_CURRENT_LIST_DIR}/test
+  LIBRARIES SigilCoreReconcile)

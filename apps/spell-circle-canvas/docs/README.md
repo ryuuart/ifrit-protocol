@@ -17,7 +17,7 @@ optional and adds inheritance graphs.
 
 | File | What it is |
 | --- | --- |
-| `Docs.cmake` | Registration: `sigil_add_docs()`, and the targets. Included by the root `CMakeLists.txt`. |
+| `Docs.cmake` | Registration: `sigil_add_docs()`, which `sigil_library_root()` calls for a library, and the targets. Included by the root `CMakeLists.txt`. |
 | `Doxyfile.in` | The settings every library's site shares. |
 | `custom.css` | Project overrides, loaded after the theme. |
 | `Dockerfile`, `nginx.conf`, `dockerignore` | Serving the generated site. |
@@ -41,7 +41,12 @@ missing.
 
 ## Adding a library
 
-Call `sigil_add_docs()` in the library's own `CMakeLists.txt`:
+A Sigil library registers through `sigil_library_root()` in its root
+`CMakeLists.txt`, which passes its `include/` tree and `README.md` on to
+`sigil_add_docs()` with the README as the site's front page, so the
+generated pages open on the document that is already canon for that
+library; `DOCS` names further pages. Anything that is not a library root
+calls `sigil_add_docs()` itself:
 
 ```cmake
 sigil_add_docs(
@@ -53,10 +58,8 @@ sigil_add_docs(
   STRIP ${CMAKE_CURRENT_SOURCE_DIR}/include)
 ```
 
-`MAINPAGE` makes the library's README the site's front page, so the
-generated pages open on the document that is already canon for that
-library. The call must run before `sigil_finalize_docs()`, which the
-root `CMakeLists.txt` invokes after `add_subdirectory(src)`.
+Either call must run before `sigil_finalize_docs()`, which the root
+`CMakeLists.txt` invokes after `add_subdirectory(src)`.
 
 ## How it is generated
 

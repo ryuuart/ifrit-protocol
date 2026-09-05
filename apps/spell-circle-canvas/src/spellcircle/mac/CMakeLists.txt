@@ -11,11 +11,6 @@
 #            (CAMetalLayer + pan/zoom). Pure-ObjC headers exported to Swift
 #            via module.modulemap.
 #   app/     SwiftUI executable importing that Clang module.
-if(NOT SPELLCIRCLE_ENABLE_SKIA_CANVAS)
-  message(STATUS "SpellCircleMac skipped: needs SPELLCIRCLE_ENABLE_SKIA_CANVAS")
-  return()
-endif()
-
 include(CheckLanguage)
 check_language(Swift)
 if(NOT CMAKE_Swift_COMPILER)
@@ -24,7 +19,6 @@ if(NOT CMAKE_Swift_COMPILER)
 endif()
 enable_language(Swift)
 
-find_library(METAL_FRAMEWORK Metal REQUIRED)
 find_library(QUARTZCORE_FRAMEWORK QuartzCore REQUIRED)
 
 if(NOT SYPHON_FRAMEWORK)
@@ -39,8 +33,8 @@ add_library(SpellCircleMacBridge SHARED
   bridge/SCKCanvasView.mm bridge/SCKCanvasView.h
 )
 
-# ARC for the ObjC++ engine/view (the shared Skia .mm TUs stay non-ARC and
-# manage CoreFoundation refs explicitly — see GraphiteContextMetal.mm).
+# ARC for the ObjC++ engine/view; the shared Skia .mm translation units
+# stay non-ARC and manage CoreFoundation refs explicitly.
 target_compile_options(SpellCircleMacBridge PRIVATE -fobjc-arc)
 
 target_include_directories(SpellCircleMacBridge PUBLIC

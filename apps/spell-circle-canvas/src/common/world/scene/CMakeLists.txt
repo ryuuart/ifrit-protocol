@@ -4,21 +4,7 @@
 # that presents what they wrote. EnTT is PRIVATE and appears in no
 # public header: there is no registry accessor and no write path through
 # one.
-find_package(EnTT CONFIG REQUIRED)
-add_library(SigilWorldScene STATIC
-  Draw.cpp
-  Execute.cpp
-  Host.cpp
-  Phases.cpp
-  Resources.cpp
-  Scene.cpp
-  Resources.h
-  SceneImpl.h
-  ${SIGIL_WORLD_INCLUDE_DIR}/sigilworld/scene/Scene.h
-  ${SIGIL_WORLD_INCLUDE_DIR}/sigilworld/scene/Stats.h
-)
-target_compile_features(SigilWorldScene PUBLIC cxx_std_20)
-target_include_directories(SigilWorldScene PUBLIC ${SIGIL_WORLD_INCLUDE_DIR})
+#
 # SigilMaterialKit is PRIVATE and is read for one thing: the slot name a
 # surface carries its base-colour map in, so that extract can hand an
 # execution the map the body is dressed with rather than a material tree
@@ -27,21 +13,20 @@ target_include_directories(SigilWorldScene PUBLIC ${SIGIL_WORLD_INCLUDE_DIR})
 # both are PUBLIC; the cache the phases prove against, the pose a body
 # takes along a curve and the animated value a phase samples are read in
 # the sources alone.
-target_link_libraries(SigilWorldScene
+find_package(EnTT CONFIG REQUIRED)
+sigil_library(SigilWorldScene
+  SOURCES Draw.cpp Execute.cpp Host.cpp Phases.cpp Resources.cpp Scene.cpp
+          Resources.h SceneImpl.h
+  HEADERS Scene.h Stats.h
   PUBLIC SigilWorldGraph SigilGeometryMeshRender SigilMotionClock
          SigilMotionSchedule SigilCoreReconcile SigilMeasure
   PRIVATE EnTT::EnTT SigilMaterialKit SigilCoreCache SigilGeometryMeshCurve
           SigilMotionValues)
 
-add_executable(world_scene_test test/SceneTest.cpp)
-target_include_directories(world_scene_test PRIVATE ${SIGIL_WORLD_TEST_DIR})
-target_link_libraries(world_scene_test PRIVATE SigilWorldScene
-  GTest::gtest_main)
-add_test(NAME world_scene_test COMMAND world_scene_test)
+sigil_test(world_scene_test
+  SOURCES test/SceneTest.cpp
+  LIBRARIES SigilWorldScene)
 
-# Google Benchmark (use a Release build). Not a test: it builds through
-# the `benches` target and runs through scripts/bench_ledger.py.
-add_executable(world_scene_bench bench/SceneBench.cpp)
-target_link_libraries(world_scene_bench PRIVATE SigilWorldScene
-  benchmark::benchmark)
-add_dependencies(benches world_scene_bench)
+sigil_bench(world_scene_bench
+  SOURCES bench/SceneBench.cpp
+  LIBRARIES SigilWorldScene)

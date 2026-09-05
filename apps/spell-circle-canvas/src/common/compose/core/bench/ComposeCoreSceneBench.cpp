@@ -679,7 +679,7 @@ static void BM_Draw_TileGrid_SkSLFill(benchmark::State& state) {
 }
 BENCHMARK(BM_Draw_TileGrid_SkSLFill);
 
-#ifdef COMPOSE_BENCH_GRAPHITE
+#ifdef SIGIL_BENCH_GPU
 // ---- The same arms against a Graphite Metal surface ----
 // Cache tiers trade re-recording against re-rasterizing, and which side wins
 // depends on the target. These arms repeat the raster measurements above
@@ -823,4 +823,4 @@ static void BM_Particles_EnttAtlasLeaf_Graphite(benchmark::State& state) {
 }
 BENCHMARK(BM_Particles_EnttAtlasLeaf_Graphite)->Arg(100000)->Arg(1000000);
 
-#endif  // COMPOSE_BENCH_GRAPHITE
+#endif  // SIGIL_BENCH_GPU

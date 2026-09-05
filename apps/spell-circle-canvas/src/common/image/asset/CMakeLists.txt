@@ -2,20 +2,11 @@
 # the Skia-codec decode of PNG, JPEG, WebP, GIF and AVIF (stills and
 # animations) into premultiplied SkImage frames ready for any SkCanvas.
 # Skia only.
-add_library(SigilImageAsset STATIC
-  ImageAsset.cpp
-  ${SIGIL_IMAGE_INCLUDE_DIR}/sigilimage/asset/ImageAsset.h
-)
-target_compile_features(SigilImageAsset PUBLIC cxx_std_20)
-target_include_directories(SigilImageAsset PUBLIC ${SIGIL_IMAGE_INCLUDE_DIR})
-target_link_libraries(SigilImageAsset PUBLIC unofficial::skia::skia)
+sigil_library(SigilImageAsset
+  SOURCES ImageAsset.cpp
+  HEADERS ImageAsset.h
+  PUBLIC unofficial::skia::skia)
 
-# Links only the library it exercises.
-add_executable(image_asset_test test/AssetTest.cpp)
-target_include_directories(image_asset_test PRIVATE
-  ${SIGIL_IMAGE_TEST_SUPPORT_DIR})
-target_link_libraries(image_asset_test PRIVATE SigilImageAsset GTest::gtest_main)
-target_compile_definitions(image_asset_test PRIVATE
-  SIGILIMAGE_TEST_ASSET_DIR="${SIGIL_IMAGE_TEST_ASSET_DIR}"
-)
-add_test(NAME image_asset_test COMMAND image_asset_test)
+sigil_test(image_asset_test
+  SOURCES test/AssetTest.cpp
+  LIBRARIES SigilImageAsset)

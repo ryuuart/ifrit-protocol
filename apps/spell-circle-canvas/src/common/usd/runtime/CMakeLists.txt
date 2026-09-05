@@ -2,20 +2,14 @@
 # this process. Every test and benchmark in the library skips through it
 # when they are not, so a build with the libraries but without their
 # plugin registry reports the fact instead of failing.
-add_library(SigilUsdRuntime STATIC
-  Runtime.cpp
-  ${SIGIL_USD_INCLUDE_DIR}/sigilusd/runtime/Runtime.h
-)
-target_compile_features(SigilUsdRuntime PUBLIC cxx_std_20)
-target_include_directories(SigilUsdRuntime PUBLIC ${SIGIL_USD_INCLUDE_DIR})
-target_link_libraries(SigilUsdRuntime PRIVATE usd sdf tf)
+sigil_library(SigilUsdRuntime
+  SOURCES Runtime.cpp
+  HEADERS Runtime.h
+  PRIVATE usd sdf tf)
 
 # The probe's own claim — it answers, and answers the same way twice —
 # is asserted in usd_read_test, where a case that skips on it stands
 # beside it. This leaf carries no test binary of its own.
-
-# Google Benchmark (use a Release build). Not a test: it builds through the
-# `benches` target and runs through scripts/bench_ledger.py.
-add_executable(usd_runtime_bench bench/RuntimeBench.cpp)
-target_link_libraries(usd_runtime_bench PRIVATE SigilUsdRuntime benchmark::benchmark)
-add_dependencies(benches usd_runtime_bench)
+sigil_bench(usd_runtime_bench
+  SOURCES bench/RuntimeBench.cpp
+  LIBRARIES SigilUsdRuntime)

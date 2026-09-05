@@ -14,33 +14,19 @@
 # SigilCoreCompute supplies the mixer the scattered ordering ranks with, so a
 # seeded permutation is the same permutation everywhere in the tree, and
 # SigilCoreComparable supplies the field pin the spec's comparator sits under.
-add_library(SigilMotionSchedule STATIC
-  Cascade.cpp
-  Order.cpp
-  Spread.cpp
-  ${SIGIL_MOTION_INCLUDE_DIR}/sigilmotion/schedule/Cascade.h
-  ${SIGIL_MOTION_INCLUDE_DIR}/sigilmotion/schedule/Order.h
-  ${SIGIL_MOTION_INCLUDE_DIR}/sigilmotion/schedule/Schedule.h
-  ${SIGIL_MOTION_INCLUDE_DIR}/sigilmotion/schedule/Spread.h
-)
-target_compile_features(SigilMotionSchedule PUBLIC cxx_std_20)
-target_include_directories(SigilMotionSchedule PUBLIC
-  ${SIGIL_MOTION_INCLUDE_DIR})
-target_link_libraries(SigilMotionSchedule PUBLIC
-  SigilMotionBind SigilCoreCompute SigilCoreComparable
-  choreograph::choreograph PRIVATE Boost::unordered)
+sigil_library(SigilMotionSchedule
+  SOURCES Cascade.cpp Order.cpp Spread.cpp
+  HEADERS Cascade.h Order.h Schedule.h Spread.h
+  PUBLIC SigilMotionBind SigilCoreCompute SigilCoreComparable
+         choreograph::choreograph
+  PRIVATE Boost::unordered)
 
 # Links only the library it exercises — no clock, so a schedule that
 # started reading time for itself would show up as a build failure here.
-add_executable(motion_schedule_test test/ScheduleTest.cpp)
-target_link_libraries(motion_schedule_test PRIVATE
-  SigilMotionSchedule GTest::gtest_main)
-add_test(NAME motion_schedule_test COMMAND motion_schedule_test)
+sigil_test(motion_schedule_test
+  SOURCES test/ScheduleTest.cpp
+  LIBRARIES SigilMotionSchedule)
 
-# Google Benchmark (use a Release build), linking only what it measures.
-# Not a test: it builds through the `benches` target and runs through
-# scripts/bench_ledger.py.
-add_executable(motion_schedule_bench bench/ScheduleBench.cpp)
-target_link_libraries(motion_schedule_bench PRIVATE SigilMotionSchedule
-  benchmark::benchmark)
-add_dependencies(benches motion_schedule_bench)
+sigil_bench(motion_schedule_bench
+  SOURCES bench/ScheduleBench.cpp
+  LIBRARIES SigilMotionSchedule)

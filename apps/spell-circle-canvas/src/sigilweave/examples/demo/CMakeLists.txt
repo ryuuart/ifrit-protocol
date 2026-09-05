@@ -1,6 +1,5 @@
 # weave_demo — headless PNG panels for library-only surfaces; the
-# interactive/animated showcases live in the gallery example (the former
-# duplicated scenes were consolidated there).
+# interactive and animated showcases are the gallery example's.
 add_executable(weave_demo
   weave_demo.cpp
   DemoSupport.cpp DemoSupport.h

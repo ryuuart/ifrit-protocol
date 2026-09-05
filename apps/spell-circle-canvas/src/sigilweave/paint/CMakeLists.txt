@@ -6,47 +6,20 @@
 # feature's face: the same draws as free functions, and the resolver a
 # pass with a material is shaded through, which this archive does not
 # supply — it links no renderer.
-add_library(SigilWeavePaint STATIC
-  Paint.cpp
-  ${SIGIL_WEAVE_INCLUDE_DIR}/sigilweave/paint/Paint.h
-)
-target_compile_features(SigilWeavePaint PUBLIC cxx_std_20)
-target_include_directories(SigilWeavePaint PUBLIC
-  $<BUILD_INTERFACE:${SIGIL_WEAVE_INCLUDE_DIR}>
-  $<INSTALL_INTERFACE:include>
-)
-target_link_libraries(SigilWeavePaint
-  PUBLIC
-    SigilWeaveDecoration
-)
+sigil_library(SigilWeavePaint
+  SOURCES Paint.cpp
+  HEADERS Paint.h
+  PUBLIC SigilWeaveDecoration)
 
 # Every test here puts pixels on a surface, except the one that asks the
 # preset runtime shaders to resolve. The material pass installs their
 # resolver and shades with a kit paint, which is why both link here.
-add_executable(weave_paint_test
-  test/PaintTest.cpp
-  test/DecorationPaintTest.cpp
-  test/ShaderPresetTest.cpp
-)
-target_include_directories(weave_paint_test PRIVATE ${SIGIL_WEAVE_TEST_SUPPORT_DIR})
-target_link_libraries(weave_paint_test PRIVATE
-  SigilWeavePaint
-  SigilWeavePorts
-  SigilMaterialKit
-  SigilMaterialSkia
-  GTest::gtest_main
-)
-add_test(NAME weave_paint_test COMMAND weave_paint_test)
+sigil_test(weave_paint_test
+  SOURCES test/PaintTest.cpp test/DecorationPaintTest.cpp
+          test/ShaderPresetTest.cpp
+  LIBRARIES SigilWeavePaint SigilWeavePorts SigilMaterialKit SigilMaterialSkia)
 
-# draw and drawBatched per glyph on a raster surface. Built through
-# `benches`, run through scripts/bench_ledger.py from a Release build.
-add_executable(weave_paint_bench bench/PaintBench.cpp)
-target_include_directories(weave_paint_bench PRIVATE ${SIGIL_WEAVE_BENCH_SUPPORT_DIR})
-target_link_libraries(weave_paint_bench PRIVATE
-  SigilWeavePaint
-  SigilWeavePorts
-  SigilMaterialKit
-  SigilMaterialSkia
-  benchmark::benchmark
-)
-add_dependencies(benches weave_paint_bench)
+# draw and drawBatched per glyph on a raster surface.
+sigil_bench(weave_paint_bench
+  SOURCES bench/PaintBench.cpp
+  LIBRARIES SigilWeavePaint SigilWeavePorts SigilMaterialKit SigilMaterialSkia)

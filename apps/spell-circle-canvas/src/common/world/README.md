@@ -1173,14 +1173,10 @@ and its independence from the order they were written in, a cycle named,
 `previous()` breaking one, the surfaces counted, the hazards stated, and
 each selection realisation ruled on.
 
-`world_kit_boundary_probe` is the kit boundary's NEGATIVE CONTROL: a
-target that must fail to build, run as a test that builds it and requires
-`'SceneImpl.h' file not found` in the output. Nothing puts a world source
-directory on the kit's include path, so the retained side's own header is
-unreachable from kit code — which is what makes "the kit sees public
-headers only" a property of the build rather than a convention. Demanding
-that one message, and not merely a non-zero exit, is what keeps an
-unrelated breakage from reading as the boundary holding.
+Nothing puts a world source directory on the kit's include path, so the
+retained side's own header is unreachable from kit code — which is what
+makes "the kit sees public headers only" a property of the build rather
+than a convention.
 
 `world_element_bench`, `world_frame_bench`, `world_graph_bench`,
 `world_scene_bench`, `world_light_bench`, `world_kit_bench` and

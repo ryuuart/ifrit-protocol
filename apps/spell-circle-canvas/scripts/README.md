@@ -132,7 +132,7 @@ in half, so each such dependency has an entry in
 ## Docs, assets, flags, schema
 
 `build_docs.py` generates the Doxygen site per library from the manifest
-`sigil_add_docs()` calls write (`docs/README.md` is the canon; the
+`sigil_library_root()` and `sigil_add_docs()` calls write (`docs/README.md` is the canon; the
 `docs` target is absent without Doxygen). `fetch_assets.py` (`mise run
 assets`) fetches the open-licensed demo assets into `build/assets/`
 from its hash-pinned manifest and needs no configured tree.

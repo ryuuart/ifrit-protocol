@@ -8,8 +8,7 @@
 # dispatching its kernel, and the sweep's rings formed by dispatching
 # theirs. A device executor stands beside the CPU executor of the seam it
 # serves — the ABI the chain declares is honoured in the same library
-# that declares it — and both are compiled only where a device exists to
-# run on.
+# that declares it.
 
 # THE KERNEL, compiled twice from one source: to the C++ this library's
 # executor calls, and to the SPIR-V a runtime that owns a device
@@ -45,83 +44,42 @@ sigil_slang_module(NAME Stamp
   SPIRV_VAR SIGIL_STAMP_KERNEL_SPV_H)
 sigil_slang_kernel_flags(${SIGIL_STAMP_KERNEL_CPP})
 
-# The device half, present only where a device feature was built.
-if(TARGET SigilGeometryDevice)
-  set(SIGIL_POP_DEVICE_SOURCES
-      device/Cook.cpp
-      device/Stamp.cpp
-      device/Sweep.cpp)
-else()
-  set(SIGIL_POP_DEVICE_SOURCES)
-endif()
-
-add_library(SigilGeometryMeshPop STATIC
-  ${SIGIL_POP_DEVICE_SOURCES}
-  Billboards.cpp
-  Cloud.cpp
-  Cook.cpp
-  Fields.cpp
-  Generators.cpp
-  Kernel.cpp
-  Modifiers.cpp
-  Parallel.h
-  Sinks.cpp
-  Spirv.cpp
-  Stamp.cpp
-  Sweep.cpp
-  ${SIGIL_POP_KERNEL_CPP}
-  ${SIGIL_POP_KERNEL_H}
-  ${SIGIL_POP_KERNEL_SPV_H}
-  ${SIGIL_STAMP_KERNEL_CPP}
-  ${SIGIL_STAMP_KERNEL_H}
-  ${SIGIL_STAMP_KERNEL_SPV_H}
-  ${SIGIL_SWEEP_KERNEL_CPP}
-  ${SIGIL_SWEEP_KERNEL_H}
-  ${SIGIL_SWEEP_KERNEL_SPV_H}
-  ${CMAKE_CURRENT_LIST_DIR}/kernels/Pop.slang
-  ${CMAKE_CURRENT_LIST_DIR}/kernels/Stamp.slang
-  ${CMAKE_CURRENT_LIST_DIR}/kernels/Sweep.slang
-  ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/mesh/pop/Kernel.h
-  ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/mesh/pop/Points.h
-  ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/mesh/pop/Pop.h
-  ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/mesh/pop/Spirv.h
-  ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/mesh/pop/Stamp.h
-  ${SIGIL_GEOMETRY_INCLUDE_DIR}/sigilgeometry/mesh/pop/Sweep.h
-)
-target_compile_features(SigilGeometryMeshPop PUBLIC cxx_std_20)
-# The generated headers are PUBLIC because a runtime that dispatches the
-# kernel on a device reads the words this build embedded rather than
-# compiling the source a second time.
-target_include_directories(SigilGeometryMeshPop
-  PUBLIC ${SIGIL_GEOMETRY_INCLUDE_DIR} ${SIGIL_SLANG_GENERATED_DIR})
 # The Runtime seams — the cook's and the sweep's — are comparable erased
 # values, which is SigilCoreComparable's shape. The seeded mixers the
 # scatter and the generators deal from are SigilCoreCompute's, read in
-# the sources alone.
+# the sources alone. The device executors dispatch the kernels this
+# feature compiled, on the device SigilGeometryDevice created; Diligent
+# arrives through that target and is never named beside it, because that
+# target's archive must come first on the link line.
 find_package(TBB CONFIG REQUIRED)
-target_link_libraries(SigilGeometryMeshPop
-  PUBLIC SigilGeometryMeshCurve SigilCoreComparable Boost::container
+sigil_library(SigilGeometryMeshPop
+  SOURCES device/Cook.cpp device/Stamp.cpp device/Sweep.cpp
+          Billboards.cpp Cloud.cpp Cook.cpp Fields.cpp Generators.cpp
+          Kernel.cpp Modifiers.cpp Parallel.h Sinks.cpp Spirv.cpp Stamp.cpp
+          Sweep.cpp
+          ${SIGIL_POP_KERNEL_CPP} ${SIGIL_POP_KERNEL_H}
+          ${SIGIL_POP_KERNEL_SPV_H}
+          ${SIGIL_STAMP_KERNEL_CPP} ${SIGIL_STAMP_KERNEL_H}
+          ${SIGIL_STAMP_KERNEL_SPV_H}
+          ${SIGIL_SWEEP_KERNEL_CPP} ${SIGIL_SWEEP_KERNEL_H}
+          ${SIGIL_SWEEP_KERNEL_SPV_H}
+          kernels/Pop.slang kernels/Stamp.slang kernels/Sweep.slang
+  HEADERS Kernel.h Points.h Pop.h Spirv.h Stamp.h Sweep.h
+  PUBLIC SigilGeometryMeshCurve SigilGeometryDevice SigilCoreComparable
+         Boost::container
   PRIVATE SigilCoreCompute TBB::tbb)
-# The device executors dispatch the kernels this feature compiled, on the
-# device SigilGeometryDevice created. Diligent arrives through that
-# target and is never named beside it — see its CMakeLists for why the
-# link order matters.
-if(TARGET SigilGeometryDevice)
-  target_link_libraries(SigilGeometryMeshPop PUBLIC SigilGeometryDevice)
-endif()
+# The generated headers are PUBLIC because a runtime that dispatches the
+# kernel on a device reads the words this build embedded rather than
+# compiling the source a second time.
+target_include_directories(SigilGeometryMeshPop PUBLIC
+  ${SIGIL_SLANG_GENERATED_DIR})
 
 # The pop tests seed chains from an imported model and save a cooked
 # result, so this binary reaches into the codec as well.
-add_executable(geometry_mesh_pop_test
-  test/PointsTest.cpp
-  test/PopTest.cpp
-  test/RuntimeTest.cpp
-  test/SweepTest.cpp
-)
-target_include_directories(geometry_mesh_pop_test PRIVATE ${CMAKE_CURRENT_LIST_DIR}/../../test)
-target_link_libraries(geometry_mesh_pop_test PRIVATE SigilGeometryMeshPop
-  SigilGeometryMeshCodec SigilGeometryKit GTest::gtest_main)
-add_test(NAME geometry_mesh_pop_test COMMAND geometry_mesh_pop_test)
+sigil_test(geometry_mesh_pop_test
+  SOURCES test/PointsTest.cpp test/PopTest.cpp test/RuntimeTest.cpp
+          test/SweepTest.cpp
+  LIBRARIES SigilGeometryMeshPop SigilGeometryMeshCodec SigilGeometryKit)
 
 # THE DEVICE TIER, its own binary and labelled `gpu`: every case here
 # brings a Vulkan device up and skips with the reason when the machine
@@ -129,23 +87,12 @@ add_test(NAME geometry_mesh_pop_test COMMAND geometry_mesh_pop_test)
 # bit for bit, and that the backend says nothing while they do — is not
 # what the cases above judge. A machine with no device runs
 # `ctest -LE gpu` and checks the host tier alone.
-if(TARGET SigilGeometryDevice)
-  add_executable(geometry_mesh_pop_device_test
-    test/DeviceCookTest.cpp
-    test/DeviceStampTest.cpp
-    test/DeviceSweepTest.cpp
-  )
-  target_include_directories(geometry_mesh_pop_device_test PRIVATE
-    ${CMAKE_CURRENT_LIST_DIR}/../../test)
-  target_link_libraries(geometry_mesh_pop_device_test PRIVATE
-    SigilGeometryMeshPop SigilGeometryMeshCodec SigilGeometryKit
-    GTest::gtest_main)
-  add_test(NAME geometry_mesh_pop_device_test
-    COMMAND geometry_mesh_pop_device_test)
-  set_tests_properties(geometry_mesh_pop_device_test PROPERTIES LABELS gpu)
-endif()
+sigil_test(geometry_mesh_pop_device_test
+  SOURCES test/DeviceCookTest.cpp test/DeviceStampTest.cpp
+          test/DeviceSweepTest.cpp
+  LIBRARIES SigilGeometryMeshPop SigilGeometryMeshCodec SigilGeometryKit
+  LABELS gpu)
 
-add_executable(geometry_mesh_pop_bench bench/PopBench.cpp)
-target_link_libraries(geometry_mesh_pop_bench PRIVATE SigilGeometryMeshPop
-  SigilGeometryKit benchmark::benchmark)
-add_dependencies(benches geometry_mesh_pop_bench)
+sigil_bench(geometry_mesh_pop_bench
+  SOURCES bench/PopBench.cpp
+  LIBRARIES SigilGeometryMeshPop SigilGeometryKit)

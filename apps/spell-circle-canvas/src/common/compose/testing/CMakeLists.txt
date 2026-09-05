@@ -4,7 +4,9 @@
 # links it, so a paint loop cannot reach a point-sampled coverage scan by
 # accident, and its `report()` may write into a feed without the library
 # depending on one. The checks themselves are SigilMeasure's; this target
-# adds the geometry readers and the feed report over them.
+# adds the geometry readers and the feed report over them. Its headers
+# sit under an include root of their own, so only a target that links it
+# can reach them.
 add_library(SigilComposeTesting INTERFACE)
 target_include_directories(SigilComposeTesting INTERFACE
   ${CMAKE_CURRENT_LIST_DIR}/include)

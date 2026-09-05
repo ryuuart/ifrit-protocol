@@ -13,9 +13,8 @@
 # emits, so it fails to configure when its backing target is not already
 # scanning.
 #
-# Only moc is turned on. No .ui or .qrc file exists here — Qt Quick
-# modules carry their own QML and resources — so AUTOUIC and AUTORCC have
-# nothing to do; add them when one appears.
+# Only moc is turned on: no .ui or .qrc file exists here, since Qt Quick
+# modules carry their own QML and resources.
 function(sigil_qt_target)
   foreach(target IN LISTS ARGV)
     set_target_properties(${target} PROPERTIES AUTOMOC ON)

@@ -66,23 +66,16 @@ target_include_directories(SpellCircleModels
 )
 
 # ── Canvas: the scene item, Skia backend, and texture publishing ─────────
-# SkiaSceneBackend.cpp (real Skia Graphite backend) vs. SkiaSceneBackendStub.cpp
-# (always-null stub) is a build-time swap on the same createSkiaSceneBackend()
-# factory declared in include/SkiaSceneBackend.h — see SPELLCIRCLE_ENABLE_SKIA_CANVAS
-# in the top-level CMakeLists.txt. SpellCircleRenderer never branches on which
-# one it got. (The scene drawing itself lives in the shared Qt-free
-# ../shared/scene/SceneRenderer.cpp; SkiaSceneBackend.cpp is the Qt frame
-# around it.)
-if(SPELLCIRCLE_ENABLE_SKIA_CANVAS)
-  set(SPELLCIRCLE_SKIA_SCENE_BACKEND_SOURCE src/SkiaSceneBackend.cpp)
-else()
-  set(SPELLCIRCLE_SKIA_SCENE_BACKEND_SOURCE src/SkiaSceneBackendStub.cpp)
-endif()
-
+# SkiaSceneBackend.cpp is the Qt frame around the scene drawing, which
+# itself lives in the shared Qt-free ../shared/scene/SceneRenderer.cpp; the
+# createSkiaSceneBackend() factory declared in include/SkiaSceneBackend.h
+# answers null when the active QRhi backend has no Graphite context, and
+# SpellCircleRenderer never branches on more than that null.
+#
 # Per-platform TexturePublisher implementation behind the one factory in
 # TexturePublisherFactory.cpp: Syphon on macOS/Metal, Spout on
-# Windows/D3D11 (Windows bring-up draft — only when vcpkg spout2[dx] is
-# present), nothing elsewhere (the factory then always returns null).
+# Windows/D3D11 (only when vcpkg spout2[dx] is present), nothing elsewhere
+# (the factory then always returns null).
 set(SPELLCIRCLE_PUBLISHER_SOURCES)
 if(APPLE)
   set(SPELLCIRCLE_PUBLISHER_SOURCES src/SyphonBridge.mm include/SyphonBridge.h)
@@ -106,7 +99,7 @@ qt_add_qml_module(SpellCircleCanvas
       src/SpellCircleRenderer.cpp include/SpellCircleRenderer.h
       include/CanvasSceneBackend.h
       include/SkiaSceneBackend.h
-      ${SPELLCIRCLE_SKIA_SCENE_BACKEND_SOURCE}
+      src/SkiaSceneBackend.cpp
 )
 
 target_link_libraries(SpellCircleCanvas
@@ -134,15 +127,13 @@ elseif(TARGET Spout2::SpoutDX)
   target_compile_definitions(SpellCircleCanvas PRIVATE SPELLCIRCLE_HAVE_SPOUT)
 endif()
 
-# SigilSkia (the generic Skia GPU plumbing under src/common/skia)
-# only exists when SPELLCIRCLE_ENABLE_SKIA_CANVAS is ON. SigilWeave provides
-# the animated text layer drawn by SkiaSceneBackend.cpp.
-if(SPELLCIRCLE_ENABLE_SKIA_CANVAS)
-  # SigilWeaveQt carries SigilWeave transitively; SigilWeavePorts provides the
-  # system font manager used by the render-thread FontContext.
-  target_link_libraries(SpellCircleCanvas PRIVATE SigilSkiaQt SigilWeaveQt
-    SigilWeavePorts)
-endif()
+# SigilSkiaQt is the Skia GPU plumbing under src/common/skia reached
+# through a QRhi; SigilWeave provides the animated text layer drawn by
+# SkiaSceneBackend.cpp. SigilWeaveQt carries SigilWeave transitively;
+# SigilWeavePorts provides the system font manager used by the
+# render-thread FontContext.
+target_link_libraries(SpellCircleCanvas PRIVATE SigilSkiaQt SigilWeaveQt
+  SigilWeavePorts)
 
 target_include_directories(SpellCircleCanvas PUBLIC
   ${CMAKE_CURRENT_LIST_DIR}/include

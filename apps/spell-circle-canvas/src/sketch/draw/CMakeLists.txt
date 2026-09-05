@@ -4,31 +4,22 @@
 #
 # ITS PUBLIC DEPENDENCIES ARE THE DRAW SKETCH API. What a draw sketch
 # may #include is exactly this list, because the flags a sketch compiles
-# with are lifted from a translation unit inside this target graph.
-add_library(SigilSketchDraw STATIC
-  Session.cpp
-  ${SIGIL_SKETCH_INCLUDE_DIR}/sigilsketch/draw/Draw.h
-)
-target_compile_features(SigilSketchDraw PUBLIC cxx_std_20)
-# The ticker is on the context a setup is handed, so its vocabulary —
+# with are lifted from a translation unit inside this target graph. The
+# ticker is on the context a setup is handed, so its vocabulary —
 # steppables, the fixed step and choreograph's Outputs — is part of the
-# draw sketch API.
-target_link_libraries(SigilSketchDraw PUBLIC SigilSketchCore SigilDraw
-  SigilMotionClock)
-# The session's own clock and lap timer are read in its source alone, so
-# they are no part of the sketch API; the image asset is what loadImage
-# reads a frame off.
-target_link_libraries(SigilSketchDraw PRIVATE SigilMeasure SigilImage)
-set_target_properties(SigilSketchDraw PROPERTIES POSITION_INDEPENDENT_CODE ON)
+# draw sketch API. The session's own clock and lap timer are read in its
+# source alone, so they are no part of it; the image asset is what
+# loadImage reads a frame off.
+sigil_library(SigilSketchDraw PIC
+  SOURCES Session.cpp
+  HEADERS Draw.h
+  PUBLIC SigilSketchCore SigilDraw SigilMotionClock
+  PRIVATE SigilMeasure SigilImage)
 
-add_executable(sketch_draw_test test/DrawSessionTest.cpp)
-target_include_directories(sketch_draw_test PRIVATE
-  ${SIGIL_SKETCH_TEST_SUPPORT_DIR})
-target_link_libraries(sketch_draw_test PRIVATE SigilSketchDraw SigilWeavePorts
-  GTest::gtest_main)
-add_test(NAME sketch_draw_test COMMAND sketch_draw_test)
+sigil_test(sketch_draw_test
+  SOURCES test/DrawSessionTest.cpp
+  LIBRARIES SigilSketchDraw SigilWeavePorts)
 
-add_executable(sketch_draw_bench bench/DrawSessionBench.cpp)
-target_link_libraries(sketch_draw_bench PRIVATE SigilSketchDraw SigilWeavePorts
-  benchmark::benchmark)
-add_dependencies(benches sketch_draw_bench)
+sigil_bench(sketch_draw_bench
+  SOURCES bench/DrawSessionBench.cpp
+  LIBRARIES SigilSketchDraw SigilWeavePorts)

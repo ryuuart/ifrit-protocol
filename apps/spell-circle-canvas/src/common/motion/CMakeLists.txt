@@ -12,16 +12,11 @@
 # context stays with the consumer — SigilMotion ships the value, not a
 # resolve surface.
 #
-# Every public header lives under one include root, include/sigilmotion/
-# <feature>/, so a feature adds the root and spells its own directory.
 # <sigilmotion/Animation.h> is the umbrella header over the values and
-# bind features.
-#
-# Test fixtures every binary shares sit in test/support/; a feature's test
-# binary adds that directory and includes "support/<Name>.h".
-
-set(SIGIL_MOTION_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/include)
-set(SIGIL_MOTION_TEST_SUPPORT_DIR ${CMAKE_CURRENT_LIST_DIR}/test)
+# bind features. Test fixtures every binary shares sit in test/support/;
+# a feature's test binary includes "support/<Name>.h".
+sigil_library_root(SigilMotion
+  BRIEF "Animation timing, animatable values and schedules, with no renderer in them")
 
 # Dependencies point down this list.
 add_subdirectory(bind)
@@ -29,17 +24,6 @@ add_subdirectory(clock)
 add_subdirectory(schedule)
 add_subdirectory(values)
 
-add_library(SigilMotion INTERFACE)
-target_link_libraries(SigilMotion INTERFACE
-  SigilMotionClock SigilMotionValues SigilMotionBind SigilMotionSchedule)
-
-# API documentation (docs/README.md).
-sigil_add_docs(
-  NAME SigilMotion
-  BRIEF "Animation timing, animatable values and schedules, with no renderer in them"
-  INPUT
-        ${CMAKE_CURRENT_SOURCE_DIR}/include
-        ${CMAKE_CURRENT_SOURCE_DIR}/README.md
-  MAINPAGE ${CMAKE_CURRENT_SOURCE_DIR}/README.md
-  STRIP
-        ${CMAKE_CURRENT_SOURCE_DIR}/include)
+sigil_library(SigilMotion
+  INTERFACE SigilMotionClock SigilMotionValues SigilMotionBind
+            SigilMotionSchedule)

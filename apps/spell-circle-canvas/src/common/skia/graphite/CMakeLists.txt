@@ -14,6 +14,7 @@
 # Links Skia and SigilCoreHardware, the Vulkan headers privately (the
 # public headers spell every Vulkan handle as an opaque value, so no
 # consumer needs them) and, on Apple, Foundation — no Qt.
+find_package(VulkanHeaders CONFIG REQUIRED)
 if(APPLE)
   set(SIGIL_SKIA_GRAPHITE_METAL_SOURCES
       GraphiteContextMetal.mm
@@ -22,23 +23,12 @@ else()
   set(SIGIL_SKIA_GRAPHITE_METAL_SOURCES)
 endif()
 
-add_library(SigilSkiaGraphite STATIC
-  GraphiteContext.cpp
-  GraphiteContextVulkan.cpp
-  GraphiteOnDevice.cpp
-  OffscreenSurface.cpp
-  OffscreenSurfaceOnDevice.cpp
-  OffscreenSurfaceVulkan.cpp
-  Pixels.cpp
-  ${SIGIL_SKIA_GRAPHITE_METAL_SOURCES}
-  ${SIGIL_SKIA_INCLUDE_DIR}/sigilskia/Skia.h
-  ${SIGIL_SKIA_INCLUDE_DIR}/sigilskia/graphite/GraphiteContext.h
-  ${SIGIL_SKIA_INCLUDE_DIR}/sigilskia/graphite/OffscreenSurface.h
-  ${SIGIL_SKIA_INCLUDE_DIR}/sigilskia/graphite/Pixels.h
-)
-target_compile_features(SigilSkiaGraphite PUBLIC cxx_std_20)
-target_include_directories(SigilSkiaGraphite PUBLIC ${SIGIL_SKIA_INCLUDE_DIR})
-target_link_libraries(SigilSkiaGraphite
+sigil_library(SigilSkiaGraphite
+  SOURCES GraphiteContext.cpp GraphiteContextVulkan.cpp GraphiteOnDevice.cpp
+          OffscreenSurface.cpp OffscreenSurfaceOnDevice.cpp
+          OffscreenSurfaceVulkan.cpp Pixels.cpp
+          ${SIGIL_SKIA_GRAPHITE_METAL_SOURCES}
+  HEADERS ../Skia.h GraphiteContext.h OffscreenSurface.h Pixels.h
   PUBLIC unofficial::skia::skia SigilCoreHardware
   PRIVATE Vulkan::Headers Boost::unordered)
 if(APPLE)
@@ -49,21 +39,13 @@ endif()
 # reached through a device's handles: needs a GPU, so both exist only
 # where one is guaranteed.
 if(APPLE)
-  find_library(METAL_FRAMEWORK Metal REQUIRED)
-  add_executable(sigilskia_graphite_test test/GraphiteTest.mm)
-  set_source_files_properties(test/GraphiteTest.mm PROPERTIES
-    COMPILE_OPTIONS -fobjc-arc)
-  target_link_libraries(sigilskia_graphite_test PRIVATE SigilSkiaGraphite
-    GTest::gtest_main ${METAL_FRAMEWORK})
-  add_test(NAME sigilskia_graphite_test COMMAND sigilskia_graphite_test)
+  sigil_test(sigilskia_graphite_test
+    SOURCES test/GraphiteTest.mm
+    LIBRARIES SigilSkiaGraphite ${METAL_FRAMEWORK}
+    ARC)
 
-  # Google Benchmark (use a Release build), linking only what it measures.
-  # Not a test: it builds through the `benches` target and runs through
-  # scripts/bench_ledger.py.
-  add_executable(sigilskia_graphite_bench bench/GraphiteBench.mm)
-  set_source_files_properties(bench/GraphiteBench.mm PROPERTIES
-    COMPILE_OPTIONS -fobjc-arc)
-  target_link_libraries(sigilskia_graphite_bench PRIVATE SigilSkiaGraphite
-    benchmark::benchmark ${METAL_FRAMEWORK})
-  add_dependencies(benches sigilskia_graphite_bench)
+  sigil_bench(sigilskia_graphite_bench
+    SOURCES bench/GraphiteBench.mm
+    LIBRARIES SigilSkiaGraphite ${METAL_FRAMEWORK}
+    ARC)
 endif()

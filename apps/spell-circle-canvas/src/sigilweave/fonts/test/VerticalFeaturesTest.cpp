@@ -34,7 +34,7 @@ constexpr ScriptTag kLatin = 0x4C61746Eu;
 
 sk_sp<SkTypeface> instrument() {
   static sk_sp<SkTypeface> face = ports::systemFontManager()->makeFromFile(
-      SIGILWEAVE_TEST_ASSET_DIR "/VerticalFeatures.ttf");
+      SIGIL_TEST_ASSET_DIR "/VerticalFeatures.ttf");
   return face;
 }
 

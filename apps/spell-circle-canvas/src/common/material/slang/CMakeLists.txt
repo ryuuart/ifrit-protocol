@@ -12,6 +12,11 @@
 # authored file into every session by name; the generated header remains the
 # build's validation artifact. Compilers of importing shaders search this
 # directory.
+#
+# The kit is linked for one thing: its shading terms are loaded into every
+# session by name, so a renderer's shading and every material body
+# compiled beside it call one definition of a term. Slang itself is
+# PRIVATE — the public header names none of its types.
 include(Slang)
 set(SIGIL_MATERIAL_SLANG_SHADER_DIR "${CMAKE_CURRENT_LIST_DIR}/shaders"
     CACHE INTERNAL "the material Slang backend's shader modules")
@@ -19,35 +24,20 @@ sigil_slang_module(NAME Portable
   SOURCE ${SIGIL_MATERIAL_SLANG_SHADER_DIR}/Portable.slang
   OUT_VAR SIGIL_MATERIAL_PORTABLE_H)
 
-add_library(SigilMaterialSlang STATIC
-  SlangCompiler.cpp
-  ${SIGIL_MATERIAL_PORTABLE_H}
-  ${SIGIL_MATERIAL_SLANG_SHADER_DIR}/Portable.slang
-  ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/slang/SlangCompiler.h
-)
-target_compile_features(SigilMaterialSlang PUBLIC cxx_std_20)
-target_include_directories(SigilMaterialSlang
-  PUBLIC ${SIGIL_MATERIAL_INCLUDE_DIR}
-  PRIVATE ${SIGIL_SLANG_GENERATED_DIR})
-target_compile_definitions(SigilMaterialSlang
-  PRIVATE SIGIL_MATERIAL_SLANG_SHADER_DIR="${SIGIL_MATERIAL_SLANG_SHADER_DIR}")
-# The kit is linked for one thing: its shading terms are loaded into every
-# session by name, so a renderer's shading and every material body
-# compiled beside it call one definition of a term. Slang itself is
-# PRIVATE — the public header names none of its types.
-target_link_libraries(SigilMaterialSlang
+sigil_library(SigilMaterialSlang
+  SOURCES SlangCompiler.cpp ${SIGIL_MATERIAL_PORTABLE_H}
+          ${SIGIL_MATERIAL_SLANG_SHADER_DIR}/Portable.slang
+  HEADERS SlangCompiler.h
+  INCLUDE_PRIVATE ${SIGIL_SLANG_GENERATED_DIR}
   PUBLIC SigilMaterialCore Boost::container
   PRIVATE SigilMaterialKit SigilIOHub slang::slang)
+target_compile_definitions(SigilMaterialSlang
+  PRIVATE SIGIL_MATERIAL_SLANG_SHADER_DIR="${SIGIL_MATERIAL_SLANG_SHADER_DIR}")
 
-add_executable(material_slang_test test/SlangTest.cpp)
-target_link_libraries(material_slang_test PRIVATE SigilMaterialSlang
-  SigilMaterialKit GTest::gtest_main)
-add_test(NAME material_slang_test COMMAND material_slang_test)
+sigil_test(material_slang_test
+  SOURCES test/SlangTest.cpp
+  LIBRARIES SigilMaterialSlang SigilMaterialKit)
 
-# Google Benchmark (use a Release build), linking only what it measures.
-# Not a test: it builds through the `benches` target and runs through
-# scripts/bench_ledger.py.
-add_executable(material_slang_bench bench/SlangBench.cpp)
-target_link_libraries(material_slang_bench PRIVATE SigilMaterialSlang
-  benchmark::benchmark)
-add_dependencies(benches material_slang_bench)
+sigil_bench(material_slang_bench
+  SOURCES bench/SlangBench.cpp
+  LIBRARIES SigilMaterialSlang)

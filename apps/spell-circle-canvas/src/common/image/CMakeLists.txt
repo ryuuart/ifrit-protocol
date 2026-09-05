@@ -5,42 +5,24 @@
 # `SigilImage` is the umbrella: an interface over every feature, for a
 # consumer of the whole library.
 #
-# Every public header lives under one include root, include/sigilimage/
-# <feature>/, so a feature adds the root and spells its own directory.
 # The committed fixtures every test and bench reads sit in test/assets/
-# (4x4 px, a few hundred bytes each — one still per format plus a
-# 3-frame red/green/blue animation for each animated format, regenerable
-# with PIL + avifenc) and reach a binary through the
-# SIGILIMAGE_TEST_ASSET_DIR compile definition.
+# (one still per format plus a 3-frame red/green/blue animation for each
+# animated format, regenerable with PIL + avifenc) and reach a binary
+# through the SIGIL_TEST_ASSET_DIR compile definition; the helpers every
+# image test reads a fixture by are test/Pixels.h.
 #
 # The Skia codec set is guaranteed by the skia vcpkg features declared in
 # vcpkg.json (png/jpeg/webp are port defaults; avif is opted in there).
 # The port's avif feature carries libavif[dav1d], because a libavif built
 # with no AV1 codec parses an AVIF container and decodes no frame out of
 # it.
-
-set(SIGIL_IMAGE_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/include)
-set(SIGIL_IMAGE_TEST_ASSET_DIR ${CMAKE_CURRENT_LIST_DIR}/test/assets)
-# The helpers every image test reads a fixture by. A test target adds
-# this directory and spells "Pixels.h".
-set(SIGIL_IMAGE_TEST_SUPPORT_DIR ${CMAKE_CURRENT_LIST_DIR}/test)
+sigil_library_root(SigilImage
+  BRIEF "Image decoding and encoding: bytes in, Skia images out, and back")
 
 # Dependencies point down this list.
 add_subdirectory(asset)
 add_subdirectory(decode)
 add_subdirectory(encode)
 
-add_library(SigilImage INTERFACE)
-target_link_libraries(SigilImage INTERFACE SigilImageAsset SigilImageDecode
-  SigilImageEncode)
-
-# API documentation (docs/README.md).
-sigil_add_docs(
-  NAME SigilImage
-  BRIEF "Image decoding and encoding: bytes in, Skia images out, and back"
-  INPUT
-        ${CMAKE_CURRENT_SOURCE_DIR}/include
-        ${CMAKE_CURRENT_SOURCE_DIR}/README.md
-  MAINPAGE ${CMAKE_CURRENT_SOURCE_DIR}/README.md
-  STRIP
-        ${CMAKE_CURRENT_SOURCE_DIR}/include)
+sigil_library(SigilImage
+  INTERFACE SigilImageAsset SigilImageDecode SigilImageEncode)

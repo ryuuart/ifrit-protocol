@@ -8,37 +8,19 @@ find_package(simdjson CONFIG REQUIRED)
 # workaround: the stb port ships a find module rather than a config
 # package, so it is found by module and reached by include directory.
 find_package(Stb REQUIRED)
-add_library(SigilMaterialTexture STATIC
-  Atlas.cpp
-  EnvironmentMap.cpp
-  Surface.cpp
-  Texture.cpp
-  TextureSet.cpp
-  ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/texture/Atlas.h
-  ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/texture/EnvironmentMap.h
-  ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/texture/ShaderLeaf.h
-  ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/texture/Surface.h
-  ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/texture/Texture.h
-  ${SIGIL_MATERIAL_INCLUDE_DIR}/sigilmaterial/texture/TextureSet.h
-)
-target_compile_features(SigilMaterialTexture PUBLIC cxx_std_20)
-target_include_directories(SigilMaterialTexture
-  PUBLIC ${SIGIL_MATERIAL_INCLUDE_DIR}
-  PRIVATE ${Stb_INCLUDE_DIR})
-target_link_libraries(SigilMaterialTexture
+sigil_library(SigilMaterialTexture
+  SOURCES Atlas.cpp EnvironmentMap.cpp Surface.cpp Texture.cpp TextureSet.cpp
+  HEADERS Atlas.h EnvironmentMap.h ShaderLeaf.h Surface.h Texture.h
+          TextureSet.h
+  INCLUDE_PRIVATE ${Stb_INCLUDE_DIR}
   PUBLIC SigilMaterialCore SigilImageAsset unofficial::skia::skia
          Boost::container
   PRIVATE simdjson::simdjson)
 
-add_executable(material_texture_test test/TextureTest.cpp)
-target_link_libraries(material_texture_test PRIVATE SigilMaterialTexture
-  GTest::gtest_main)
-add_test(NAME material_texture_test COMMAND material_texture_test)
+sigil_test(material_texture_test
+  SOURCES test/TextureTest.cpp
+  LIBRARIES SigilMaterialTexture)
 
-# Google Benchmark (use a Release build), linking only what it measures.
-# Not a test: it builds through the `benches` target and runs through
-# scripts/bench_ledger.py.
-add_executable(material_texture_bench bench/TextureBench.cpp)
-target_link_libraries(material_texture_bench PRIVATE SigilMaterialTexture
-  benchmark::benchmark)
-add_dependencies(benches material_texture_bench)
+sigil_bench(material_texture_bench
+  SOURCES bench/TextureBench.cpp
+  LIBRARIES SigilMaterialTexture)

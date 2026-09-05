@@ -4,21 +4,16 @@
 # lands: a composer kept in the pen for the call site, reconciled every
 # frame. Links the kernel it makes nodes with and SigilDraw, the pen; the
 # clock and ticker a guest composer runs on are read in its source alone.
-add_library(SigilComposeDraw STATIC
-  Draw.cpp
-  ${SIGIL_COMPOSE_INCLUDE_DIR}/sigilcompose/draw/Draw.h
-)
-target_compile_features(SigilComposeDraw PUBLIC cxx_std_20)
-target_link_libraries(SigilComposeDraw PUBLIC SigilComposeCore SigilDraw)
-target_link_libraries(SigilComposeDraw PRIVATE SigilMotionClock)
-set_target_properties(SigilComposeDraw PROPERTIES POSITION_INDEPENDENT_CODE ON)
+sigil_library(SigilComposeDraw PIC
+  SOURCES Draw.cpp
+  HEADERS Draw.h
+  PUBLIC SigilComposeCore SigilDraw
+  PRIVATE SigilMotionClock)
 
-_compose_test_binary(compose_draw_test
-  LIBRARIES SigilComposeDraw
+sigil_test(compose_draw_test
   SOURCES test/ComposeTestDraw.cpp
-)
+  LIBRARIES SigilComposeDraw SigilComposeTesting SigilWeavePorts)
 
-_compose_bench(compose_draw_bench
-  LIBRARIES SigilComposeDraw
+sigil_bench(compose_draw_bench
   SOURCES bench/DrawBench.cpp
-)
+  LIBRARIES SigilComposeDraw SigilWeavePorts)

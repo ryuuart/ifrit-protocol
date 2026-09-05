@@ -320,7 +320,7 @@ that includes exactly the headers its translation units use.
 `test/assets/` holds the constructed faces a question needs that no
 installed font can answer — `VerticalFeatures.ttf`, where every vertical
 feature has its own visible consequence and none share one — each with
-the script that generates it beside it; `SIGILWEAVE_TEST_ASSET_DIR` names
+the script that generates it beside it; `SIGIL_TEST_ASSET_DIR` names
 the directory to the binaries that read them.
 
 The benchmarks own every performance claim about this library — one

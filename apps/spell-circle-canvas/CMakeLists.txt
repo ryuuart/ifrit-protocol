@@ -47,25 +47,10 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # the targets the first defined.
 set(CMAKE_FIND_PACKAGE_TARGETS_GLOBAL ON)
 
-# Redirects final executables (.exe, ELF binaries)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
-
-# Redirects dynamically linked libraries (.so, .dll)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
-
-# Redirects static libraries / archive files (.a, .lib)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
-
-# Redirects QT modules
 set(QT_QML_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/qml")
-
-# Compiles the Skia Graphite CanvasSceneBackend (Metal on Apple platforms,
-# Vulkan elsewhere) and the SigilSkia bring-up library under
-# src/common/skia. At runtime the renderer uses it when a compatible
-# Graphite context can be created; without it the canvas renders no scene
-# content. Turning this off removes the Graphite implementation and
-# leaves the same renderer-facing factory backed by its always-null stub.
-option(SPELLCIRCLE_ENABLE_SKIA_CANVAS "Build the Skia Graphite (Metal/Vulkan) offscreen-canvas backend" ON)
 
 # Builds SigilScry (src/common/scry): HTML/CSS layout rendered by the
 # Ultralight SDK onto SkImage frames for the scene canvases. Auto-disables
@@ -99,8 +84,6 @@ find_package(benchmark CONFIG REQUIRED)
 find_package(boost_container CONFIG REQUIRED)
 find_package(boost_container_hash CONFIG REQUIRED)
 find_package(boost_unordered CONFIG REQUIRED)
-# Skia is needed unconditionally now: the SigilWeave text-layout library
-# (src/sigilweave) builds on it even when the Skia scene backend is disabled.
 find_package(unofficial-skia CONFIG REQUIRED)
 find_package(ICU REQUIRED COMPONENTS i18n uc data)
 find_package(harfbuzz CONFIG REQUIRED COMPONENTS icu)
@@ -148,107 +131,9 @@ if(SPELLCIRCLE_ENABLE_SUBSTANCE)
   endif()
 endif()
 
-# Instruments this project's objects for LLVM source-based coverage
-# (llvm-profdata / llvm-cov). Meant for a dedicated build tree — configure a
-# separate binary dir with this ON (scripts/coverage.py does exactly that)
-# rather than toggling it inside a primary tree, because flipping the flag
-# recompiles every object file. vcpkg dependencies arrive as prebuilt
-# archives and are never instrumented; reports therefore cover this
-# repository's sources, which is the point.
-option(SPELLCIRCLE_COVERAGE "Instrument C/C++/ObjC++ targets for llvm-cov source-based coverage" OFF)
-if(SPELLCIRCLE_COVERAGE)
-  # The instrumentation flags are Clang's; this gate covers AppleClang and
-  # clang-cl too (both carry Clang in their compiler id, and clang-cl
-  # accepts these flags even with its MSVC-style frontend).
-  if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    message(FATAL_ERROR
-      "SPELLCIRCLE_COVERAGE requires a Clang toolchain: "
-      "-fprofile-instr-generate/-fcoverage-mapping are Clang's source-based "
-      "coverage and ${CMAKE_CXX_COMPILER_ID} does not implement them. Under "
-      "MSVC cl.exe the alternative is OpenCppCoverage — PDB-based binary "
-      "instrumentation of an ordinary build, no recompile, a standalone "
-      "tool rather than a library — not integrated here because the "
-      "Windows port is not yet buildable.")
-  endif()
-  # Compile flags are gated on language because SpellCircleMac's Swift
-  # sources go through swiftc, which rejects these clang flags. The link
-  # flag is gated the same way via LINK_LANGUAGE: a C++/ObjC++ link runs
-  # through the clang++ driver, which embeds the profile runtime, while the
-  # Swift executable's swift-driver link must not see the flag. The Swift
-  # app still links the instrumented SpellCircleMacBridge dylib, which
-  # carries its own runtime reference.
-  add_compile_options("$<$<COMPILE_LANGUAGE:C,CXX,OBJC,OBJCXX>:-fprofile-instr-generate;-fcoverage-mapping>")
-  add_link_options("$<$<LINK_LANGUAGE:C,CXX,OBJC,OBJCXX>:-fprofile-instr-generate>")
-endif()
-
-# Builds this project's objects under Clang's runtime sanitizers. The value
-# is a CMake list of -fsanitize= names — "address;undefined" for the
-# ASan+UBSan lane, "thread" for TSan. Meant for a dedicated build tree —
-# configure a separate binary dir with this set (scripts/sanitize.py does
-# exactly that) rather than toggling it inside a primary tree, because
-# changing the value recompiles every object file, and a sanitized binary
-# is not a binary anyone ships. vcpkg dependencies arrive as prebuilt,
-# uninstrumented archives; ASan's interceptors still see every allocation
-# and libc call those archives make, so bugs in this repository's use of
-# them are caught — but checks that need both sides instrumented (container
-# overflow) misfire across the boundary, which is why sanitize.py disables
-# that one check at runtime.
-set(SPELLCIRCLE_SANITIZE "" CACHE STRING
-  "Sanitizers to compile and link with (e.g. address;undefined or thread); empty builds none")
-if(SPELLCIRCLE_SANITIZE)
-  # The flag spellings and runtime libraries are Clang's; this gate covers
-  # AppleClang and clang-cl too (both carry Clang in their compiler id).
-  if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    message(FATAL_ERROR
-      "SPELLCIRCLE_SANITIZE requires a Clang toolchain: the -fsanitize= "
-      "runtimes configured here ship with Clang and "
-      "${CMAKE_CXX_COMPILER_ID} does not provide them.")
-  endif()
-  if("thread" IN_LIST SPELLCIRCLE_SANITIZE AND "address" IN_LIST SPELLCIRCLE_SANITIZE)
-    message(FATAL_ERROR
-      "SPELLCIRCLE_SANITIZE cannot combine thread with address: each "
-      "runtime interposes the allocator and shadows the address space its "
-      "own way, and a process can only host one. Build separate trees.")
-  endif()
-  list(JOIN SPELLCIRCLE_SANITIZE "," spellcircle_sanitize_names)
-  set(spellcircle_sanitize_compile_flags
-    "-fsanitize=${spellcircle_sanitize_names}"
-    # Sanitizer reports unwind through frame pointers; without them the
-    # stacks in a report degrade to unusable fragments.
-    "-fno-omit-frame-pointer")
-  if("undefined" IN_LIST SPELLCIRCLE_SANITIZE)
-    # UBSan's default is print-and-continue, which lets a finding scroll
-    # past inside a passing test. Non-recoverable checks abort instead, so
-    # a UBSan finding fails the test that triggered it.
-    list(APPEND spellcircle_sanitize_compile_flags
-      "-fno-sanitize-recover=undefined")
-  endif()
-  if("address" IN_LIST SPELLCIRCLE_SANITIZE)
-    # workaround: instrumented Skia headers meeting an uninstrumented
-    # archive.
-    #
-    # Skia's TArray grows a poisoning flag in any translation unit compiled
-    # under ASan, which moves every member that follows an array inside a
-    # header type — SkPathBuilder's fill type among them. Half of such an
-    # object's accessors are inline (this layout) and half live in the
-    # prebuilt archive (the other layout), so values written through one
-    # are read back from the wrong offset and quietly revert. Forcing this
-    # header ahead of every Skia include leaves Skia's feature macro
-    # undefined here, pinning our objects to the archive's layout; the
-    # header itself states what that costs.
-    add_compile_options(
-      "$<$<COMPILE_LANGUAGE:CXX,OBJCXX>:-include;${CMAKE_CURRENT_SOURCE_DIR}/cmake/SkiaSanitizerAbi.h>")
-  endif()
-  # Compile flags are gated on language because SpellCircleMac's Swift
-  # sources go through swiftc, which rejects these clang flags. The link
-  # flag is gated the same way via LINK_LANGUAGE: a C++/ObjC++ link runs
-  # through the clang++ driver, which links the sanitizer runtime dylib,
-  # while the Swift executable's swift-driver link must not see the flag.
-  # The Swift app still links the sanitized SpellCircleMacBridge dylib,
-  # which carries its own runtime reference.
-  add_compile_options("$<$<COMPILE_LANGUAGE:C,CXX,OBJC,OBJCXX>:${spellcircle_sanitize_compile_flags}>")
-  add_link_options("$<$<LINK_LANGUAGE:C,CXX,OBJC,OBJCXX>:-fsanitize=${spellcircle_sanitize_names}>")
-endif()
+# SPELLCIRCLE_COVERAGE and SPELLCIRCLE_SANITIZE, each for a build tree of
+# its own.
+include(Instrumentation)
 
 # Opt-in network fetch of open-licensed demo assets into the build tree;
 # nothing here runs during a normal build, and configuring the project
@@ -265,9 +150,13 @@ add_custom_target(fetch_assets
 
 # Per-library Doxygen sites (`--target docs`); nothing here runs during a
 # normal build, and the target is simply absent when Doxygen is not
-# installed. Each library registers itself with sigil_add_docs(); the
-# sigil_finalize_docs() call after add_subdirectory(src) writes the rules.
+# installed. Each library root registers itself; sigil_finalize_docs()
+# after add_subdirectory(src) writes the rules.
 include("${CMAKE_CURRENT_LIST_DIR}/docs/Docs.cmake")
+
+# sigil_library_root(), sigil_library(), sigil_test() and sigil_bench():
+# the calls every library under src/ is built from.
+include(Sigil)
 
 enable_testing()
 
@@ -291,10 +180,11 @@ if(APPLE AND NOT CMAKE_VERSION VERSION_LESS 3.18) # CheckLinkerFlag
   endif()
 endif()
 
-# MacOS Frameworks
+# The macOS frameworks, found once for every target that names one.
 if(APPLE)
   find_library(FOUNDATION_FRAMEWORK Foundation REQUIRED)
   find_library(APPKIT_FRAMEWORK AppKit REQUIRED)
+  find_library(METAL_FRAMEWORK Metal REQUIRED)
   find_library(CORE_GRAPHICS_FRAMEWORK CoreGraphics)
   # workaround: Syphon has no vcpkg port, so the framework is probed by
   # hand and its absence skips the target that needs it.
@@ -317,14 +207,13 @@ qt_standard_project_setup(REQUIRES 6.11)
 
 # Every benchmark binary hangs off this target, so one build command
 # produces the set scripts/bench_ledger.py runs. Benchmarks are not
-# tests: none is registered with ctest, and each library adds its own
-# with add_dependencies(benches <name>).
+# tests: none is registered with ctest.
 add_custom_target(benches)
 
 add_subdirectory(src)
 
-# Every sigil_add_docs() has run by now, which is what lets each library's
-# Doxyfile name all the others in TAGFILES.
+# Every library root has registered by now, which is what lets each
+# library's Doxyfile name all the others in TAGFILES.
 sigil_finalize_docs()
 
 include(GNUInstallDirs)

@@ -200,7 +200,7 @@ TEST(ComposeVariationDrive, AdvanceVariantAxisIsRefused) {
   const SkFourByteTag wght = SkSetFourByteTag('w', 'g', 'h', 't');
   sk_sp<SkTypeface> ui = fonts().defaultTypeface();
   if (!faceDeclaresAxis(ui, wght) || fonts().axisIsAdvanceInvariant(ui, "wght"))
-    ui = fonts().fontManager()->makeFromFile(SIGILCOMPOSE_TEST_ASSET_DIR
+    ui = fonts().fontManager()->makeFromFile(SIGIL_TEST_ASSET_DIR
                                              "/AdvanceVariant.ttf");
   ASSERT_TRUE(ui) << "test asset AdvanceVariant.ttf failed to load";
   ASSERT_TRUE(faceDeclaresAxis(ui, wght));

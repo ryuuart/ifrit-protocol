@@ -5,21 +5,10 @@
 # the emitters and SigilWorldElement for the environment map a dome light
 # carries; OpenUSD, the image encoder that turns a texture into bytes and
 # the sink that lands them beside the stage are private to it.
-add_library(SigilUsdWrite STATIC
-  Camera.cpp
-  Environment.cpp
-  GfMatrix.h
-  Lights.cpp
-  Material.cpp
-  Mesh.cpp
-  Stamps.cpp
-  Writer.cpp
-  WriterImpl.h
-  ${SIGIL_USD_INCLUDE_DIR}/sigilusd/write/Writer.h
-)
-target_compile_features(SigilUsdWrite PUBLIC cxx_std_20)
-target_include_directories(SigilUsdWrite PUBLIC ${SIGIL_USD_INCLUDE_DIR})
-target_link_libraries(SigilUsdWrite
+sigil_library(SigilUsdWrite
+  SOURCES Camera.cpp Environment.cpp GfMatrix.h Lights.cpp Material.cpp
+          Mesh.cpp Stamps.cpp Writer.cpp WriterImpl.h
+  HEADERS Writer.h
   PUBLIC SigilMaterialKit SigilWorldElement SigilWorldLight SigilGeometryMesh
          SigilGeometryMeshPop SigilGeometryMeshCamera unofficial::skia::skia
   PRIVATE SigilImageEncode SigilIOSource usd usdGeom usdShade usdLux
@@ -27,18 +16,11 @@ target_link_libraries(SigilUsdWrite
 
 # Links the library it exercises, the runtime probe it skips on, and USD
 # itself to inspect the authored stage.
-add_executable(usd_write_test test/WriteTest.cpp)
-# The library's own test directory holds the scratch path, the runtime
-# skip and the scene both doors are exercised over.
-target_include_directories(usd_write_test PRIVATE
-  ${CMAKE_CURRENT_LIST_DIR}/../test)
-target_link_libraries(usd_write_test PRIVATE SigilUsdWrite SigilUsdRuntime
-  SigilGeometryKit GTest::gtest_main usd usdGeom usdShade sdf tf vt)
-add_test(NAME usd_write_test COMMAND usd_write_test)
+sigil_test(usd_write_test
+  SOURCES test/WriteTest.cpp
+  LIBRARIES SigilUsdWrite SigilUsdRuntime SigilGeometryKit usd usdGeom
+            usdShade sdf tf vt)
 
-# Google Benchmark (use a Release build). Not a test: it builds through the
-# `benches` target and runs through scripts/bench_ledger.py.
-add_executable(usd_write_bench bench/WriteBench.cpp)
-target_link_libraries(usd_write_bench PRIVATE SigilUsdWrite SigilUsdRuntime
-  SigilGeometryKit benchmark::benchmark)
-add_dependencies(benches usd_write_bench)
+sigil_bench(usd_write_bench
+  SOURCES bench/WriteBench.cpp
+  LIBRARIES SigilUsdWrite SigilUsdRuntime SigilGeometryKit)
