@@ -11,7 +11,9 @@
  *   2 DEPTH OF FIELD — a 3-stop linearUnit down the box.
  *   3 A LENS EDGE — glowUnit from the centre: sharp on axis, soft at the
  *     rim.
- *   4 RACK FOCUS — the same map, maxSigma BOUND: no re-describe.
+ *   4 RACK FOCUS — the same map, maxSigma BOUND inside the declared
+ *     range: no re-describe, and the Gaussian passes are held while only
+ *     the mix between them moves.
  *
  * The content is the library's own repeating tile rather than a shader
  * written here: fine rules are what a blur destroys visibly, and
@@ -179,10 +181,11 @@ struct BlurFalloff final : sketch::Sketch {
                             "a lens edge \xe2\x80\x94 sharp on axis, soft at "
                             "the inscribed circle",
                             mskia::Effect::blur(lensMap(), kMaxSigma), "lens"),
-                      panel("blur(dofMap, 0).uniform(\"maxSigma\", &rack)",
+                      panel("blur(dofMap, 14).uniform(\"maxSigma\", &rack)",
                             "rack focus \xe2\x80\x94 the SAME map, maxSigma "
-                            "bound: nothing re-describes",
-                            mskia::Effect::blur(dofMap(), 0)
+                            "bound inside the declared range: nothing "
+                            "re-describes, the held passes are reused",
+                            mskia::Effect::blur(dofMap(), kMaxSigma)
                                 .uniform("maxSigma", &rack),
                             "rack")},
                  .gap = 20}))
