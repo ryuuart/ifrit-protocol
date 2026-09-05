@@ -310,3 +310,20 @@ loads. The host evidently intends a failed load to be one session's failure,
 with the next file opening as if the first had never been tried. A test in
 the book's resident-session path should open a sketch that fails in its first
 frame, then open one that does not, and assert the second renders.
+
+## video_device_bench cannot open a hardware decoder for its own clip
+
+Every arm of `video_device_bench` fails with FFmpeg's "Failed setup for
+format videotoolbox_vld: hwaccel initialisation returned error" followed
+by "no frame!", so `bench_ledger.py` reports the binary FAILED and the
+baseline carries no entry for it, while `video_device_test` runs its
+VideoToolbox case on the same machine. The bench evidently intends to
+measure the native path on the encoder's own in-memory MP4.
+
+Intended: the clip the bench encodes opens through VideoToolbox, or the
+bench falls back to the worker path and reports the native percentage as
+zero rather than failing.
+
+Assert once fixed: `bench_ledger.py --benches video_device_bench` reports
+the binary ran, and the native percentage it prints is non-zero on a
+machine whose `video_device_test` VideoToolbox case passes.

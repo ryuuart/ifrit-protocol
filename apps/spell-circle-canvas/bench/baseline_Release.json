@@ -2,970 +2,970 @@
  "config": "Release",
  "host": "MacBookPro.control",
  "machine": "arm64",
- "taken": "2026-09-05T03:03:24+00:00",
+ "taken": "2026-09-05T04:50:41+00:00",
  "benches": {
   "compose_brush_bench": {
    "BM_Draw_Mask_Spans_Live/16": {
-    "real_ns": 78917.82549411803,
-    "cpu_ns": 78917.13961407501,
+    "real_ns": 79380.66333509595,
+    "cpu_ns": 79380.63963449454,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Draw_Mask_Spans_Live/64": {
-    "real_ns": 310584.6932700603,
-    "cpu_ns": 310165.50116550084,
+    "real_ns": 302808.1380697341,
+    "cpu_ns": 302808.4632516699,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Draw_Mask_Spans_Live/256": {
-    "real_ns": 1225644.78777349,
-    "cpu_ns": 1225620.0000000005,
+    "real_ns": 1231827.4949939223,
+    "cpu_ns": 1231825.0000000019,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Draw_Mask_Edge_Live/16": {
-    "real_ns": 183311.40546561385,
-    "cpu_ns": 183294.34954007872,
+    "real_ns": 183940.21904089808,
+    "cpu_ns": 183939.4141145136,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Draw_Mask_Edge_Live/64": {
-    "real_ns": 762901.4721438701,
-    "cpu_ns": 762776.2430939212,
+    "real_ns": 770232.1927557444,
+    "cpu_ns": 770215.0837988837,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Draw_Mask_Edge_Live/256": {
-    "real_ns": 2886065.731531587,
-    "cpu_ns": 2885948.2758620596,
+    "real_ns": 2917649.422607641,
+    "cpu_ns": 2917646.5517241415,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Draw_ProfiledRibbon_Live/16": {
-    "real_ns": 449392.75067359494,
-    "cpu_ns": 449372.9903536965,
+    "real_ns": 815283.7936206704,
+    "cpu_ns": 815281.9767441866,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Draw_ProfiledRibbon_Live/64": {
-    "real_ns": 1792647.9683806882,
-    "cpu_ns": 1792250.0000000051,
+    "real_ns": 3255938.4767515697,
+    "cpu_ns": 3255709.3023255905,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Draw_ProfiledRibbon_Live/128": {
-    "real_ns": 3523372.39892222,
-    "cpu_ns": 3523362.49999996,
+    "real_ns": 6418418.568170058,
+    "cpu_ns": 6418159.090909088,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Draw_BrushWeave_Live/2": {
-    "real_ns": 18214.950946424782,
-    "cpu_ns": 18213.829509905998,
+    "real_ns": 18165.656598239566,
+    "cpu_ns": 18165.60798548089,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Draw_BrushWeave_Live/4": {
-    "real_ns": 60789.174381835895,
-    "cpu_ns": 60778.82960413133,
+    "real_ns": 60451.54494205458,
+    "cpu_ns": 60442.95592048378,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Draw_BrushWeave_Live/8": {
-    "real_ns": 296338.6291715627,
-    "cpu_ns": 295028.12499999825,
+    "real_ns": 292399.29096524784,
+    "cpu_ns": 292397.0588235308,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Draw_StrokeSpans_Live/1": {
-    "real_ns": 94457.71856245978,
-    "cpu_ns": 94432.21476510093,
+    "real_ns": 94534.11242233842,
+    "cpu_ns": 94531.73531397607,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Draw_StrokeSpans_Live/2": {
-    "real_ns": 113900.90258242434,
-    "cpu_ns": 113863.78334680668,
+    "real_ns": 113697.81493288299,
+    "cpu_ns": 113697.24025974057,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Draw_StrokeSpans_Live/4": {
-    "real_ns": 125747.5859235373,
-    "cpu_ns": 125738.0952380958,
+    "real_ns": 126010.13448095035,
+    "cpu_ns": 126007.22021660586,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Draw_StrokeSpans_Live/8": {
-    "real_ns": 182034.76812254818,
-    "cpu_ns": 182026.28120893566,
+    "real_ns": 181142.94163277553,
+    "cpu_ns": 181142.67185473448,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Draw_StrokeSpans_Live/16": {
-    "real_ns": 300821.4420091377,
-    "cpu_ns": 300758.5836909839,
+    "real_ns": 299492.6381207817,
+    "cpu_ns": 299490.3640256977,
     "unit": "us",
     "repetitions": 4
    },
    "DecoratedBoard/Render_Unchanged": {
-    "real_ns": 135280.7555329239,
-    "cpu_ns": 135281.68316831463,
+    "real_ns": 158393.4104822851,
+    "cpu_ns": 158392.81641961198,
     "unit": "ns",
     "repetitions": 4
    },
    "DecoratedBoard/Frame_Static": {
-    "real_ns": 134771.2054017133,
-    "cpu_ns": 134770.33730158888,
+    "real_ns": 159217.69085772603,
+    "cpu_ns": 159205.7142857166,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Draw_StampBorder_Cached": {
-    "real_ns": 71788.05881435433,
-    "cpu_ns": 71788.283658787,
+    "real_ns": 72393.17651975059,
+    "cpu_ns": 72392.94971487767,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Draw_SpinningStamped_TransformReplay": {
-    "real_ns": 92875.27676165779,
-    "cpu_ns": 92875.1664447381,
+    "real_ns": 93378.97730114788,
+    "cpu_ns": 93378.83845127042,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Draw_ArtWarp_Live": {
-    "real_ns": 209648.08149104088,
-    "cpu_ns": 209640.92953523033,
+    "real_ns": 210848.612960583,
+    "cpu_ns": 210848.64457831148,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Draw_Hatch_Live": {
-    "real_ns": 941920.165832226,
-    "cpu_ns": 941814.6853146779,
+    "real_ns": 941960.4295129488,
+    "cpu_ns": 941963.0872483258,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Draw_StillAccent_Bound/32": {
-    "real_ns": 338004.8305813025,
-    "cpu_ns": 337973.42995168484,
+    "real_ns": 341029.8053309471,
+    "cpu_ns": 341027.980535277,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Draw_StillAccent_Bound/128": {
-    "real_ns": 264133.00989867543,
-    "cpu_ns": 264134.9892008615,
+    "real_ns": 265876.3440840336,
+    "cpu_ns": 265874.1935483873,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Draw_StillAccent_Bound/512": {
-    "real_ns": 305253.4631362534,
-    "cpu_ns": 305220.3166226902,
+    "real_ns": 313213.5412010689,
+    "cpu_ns": 313210.16483516654,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Draw_StillAccent_Plain/32": {
-    "real_ns": 336952.9753959236,
-    "cpu_ns": 336913.4615384684,
+    "real_ns": 339047.7053085196,
+    "cpu_ns": 339000.0000000023,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Draw_StillAccent_Plain/128": {
-    "real_ns": 256175.27190015477,
-    "cpu_ns": 256145.83333333378,
+    "real_ns": 256007.9743495704,
+    "cpu_ns": 256007.32600732605,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Draw_StillAccent_Plain/512": {
-    "real_ns": 276350.68795506516,
-    "cpu_ns": 276334.9705304556,
+    "real_ns": 284879.99695310614,
+    "cpu_ns": 284881.09756097477,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Draw_SlowAccent_Bound/32": {
-    "real_ns": 345868.5067297828,
-    "cpu_ns": 345503.6231884086,
+    "real_ns": 339315.9226950535,
+    "cpu_ns": 339316.42512077023,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Draw_SlowAccent_Bound/128": {
-    "real_ns": 318761.4403521785,
-    "cpu_ns": 318744.65811965556,
+    "real_ns": 319054.09436733025,
+    "cpu_ns": 319058.56832972146,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Draw_SlowAccent_Bound/512": {
-    "real_ns": 597155.7837923237,
-    "cpu_ns": 596910.290237467,
+    "real_ns": 587792.91303717,
+    "cpu_ns": 587798.9130434783,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Draw_SlowAccent_Plain/32": {
-    "real_ns": 337544.97193373163,
-    "cpu_ns": 337532.45192307094,
+    "real_ns": 338541.6666743995,
+    "cpu_ns": 338539.8550724608,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Draw_SlowAccent_Plain/128": {
-    "real_ns": 263129.62089749903,
-    "cpu_ns": 263129.99999999866,
+    "real_ns": 265662.7075607687,
+    "cpu_ns": 265665.1291512868,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Draw_SlowAccent_Plain/512": {
-    "real_ns": 305765.9652672316,
-    "cpu_ns": 305686.31578945904,
+    "real_ns": 308934.33062960894,
+    "cpu_ns": 308936.10547667474,
     "unit": "us",
     "repetitions": 4
    }
   },
   "compose_core_bench": {
    "BM_Mount_Cold/100": {
-    "real_ns": 50519.461611068306,
-    "cpu_ns": 50516.18770461991,
+    "real_ns": 55755.04239494163,
+    "cpu_ns": 55755.17515923566,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Mount_Cold/500": {
-    "real_ns": 258698.1466356184,
-    "cpu_ns": 258681.73431734357,
+    "real_ns": 282893.72369134234,
+    "cpu_ns": 282894.7368421049,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Mount_Cold/2000": {
-    "real_ns": 1070813.7827280625,
-    "cpu_ns": 1070830.7692307692,
+    "real_ns": 1158893.9380074837,
+    "cpu_ns": 1158896.6942148763,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Reconcile_Flex_Warm/100": {
-    "real_ns": 27086.79747356232,
-    "cpu_ns": 27085.949612403172,
+    "real_ns": 24014.326035780854,
+    "cpu_ns": 24013.855627779714,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Reconcile_Flex_Warm/500": {
-    "real_ns": 146413.15069057408,
-    "cpu_ns": 146405.1362683436,
+    "real_ns": 123384.23882517229,
+    "cpu_ns": 123379.92988606513,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Reconcile_Flex_Warm/2000": {
-    "real_ns": 630588.6818481996,
-    "cpu_ns": 630599.0990990952,
+    "real_ns": 534604.2471432637,
+    "cpu_ns": 534600.000000001,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Reconcile_Positioned_Warm/100": {
-    "real_ns": 25841.50673116109,
-    "cpu_ns": 25837.433449605378,
+    "real_ns": 22644.73570089834,
+    "cpu_ns": 22644.675366521682,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Reconcile_Positioned_Warm/500": {
-    "real_ns": 142704.73379505478,
-    "cpu_ns": 142673.27235772277,
+    "real_ns": 118414.20118237624,
+    "cpu_ns": 118411.24260355053,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Reconcile_Positioned_Warm/2000": {
-    "real_ns": 623581.2406368782,
-    "cpu_ns": 623340.6113537182,
+    "real_ns": 513672.16117849795,
+    "cpu_ns": 513639.19413919514,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Reconcile_OneChanged/100": {
-    "real_ns": 27961.27795194486,
-    "cpu_ns": 27906.096843756182,
+    "real_ns": 24178.574504910324,
+    "cpu_ns": 24178.466838932058,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Reconcile_OneChanged/500": {
-    "real_ns": 151663.3255083106,
-    "cpu_ns": 151474.31865828123,
+    "real_ns": 123257.28754348421,
+    "cpu_ns": 123257.06713780935,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Reconcile_OneChanged/2000": {
-    "real_ns": 744021.0244948826,
-    "cpu_ns": 736599.078341011,
+    "real_ns": 538613.62786625,
+    "cpu_ns": 538610.6870228983,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Reconcile_KeyedReorder/100": {
-    "real_ns": 27809.334913329483,
-    "cpu_ns": 27758.753709199264,
+    "real_ns": 23874.299539909844,
+    "cpu_ns": 23874.295954940993,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Reconcile_KeyedReorder/500": {
-    "real_ns": 146974.23129609984,
-    "cpu_ns": 146970.12578616268,
+    "real_ns": 122888.5615188535,
+    "cpu_ns": 122888.74345549804,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Reconcile_KeyedReorder/2000": {
-    "real_ns": 630842.1547113507,
-    "cpu_ns": 630828.828828827,
+    "real_ns": 536093.9071992603,
+    "cpu_ns": 536092.8030302986,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Layout_Flex_ViewportToggle/100": {
-    "real_ns": 92386.88911198989,
-    "cpu_ns": 92293.45006485126,
+    "real_ns": 92007.16370769963,
+    "cpu_ns": 92007.23208415497,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Layout_Flex_ViewportToggle/500": {
-    "real_ns": 452408.0136332649,
-    "cpu_ns": 452158.1469648512,
+    "real_ns": 453333.53399063996,
+    "cpu_ns": 453330.09708737885,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Layout_Flex_ViewportToggle/2000": {
-    "real_ns": 1975139.5551768476,
-    "cpu_ns": 1972965.7534246675,
+    "real_ns": 1942706.0208019814,
+    "cpu_ns": 1942722.2222222113,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Layout_Positioned_ViewportToggle/100": {
-    "real_ns": 71958.9181486401,
-    "cpu_ns": 71899.42827442876,
+    "real_ns": 72600.96835695145,
+    "cpu_ns": 72599.84439834062,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Layout_Positioned_ViewportToggle/500": {
-    "real_ns": 346358.7894731638,
-    "cpu_ns": 346285.71428571164,
+    "real_ns": 349555.2599997609,
+    "cpu_ns": 349546.2500000013,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Layout_Positioned_ViewportToggle/2000": {
-    "real_ns": 1386654.2912281975,
-    "cpu_ns": 1386653.4653465243,
+    "real_ns": 1423748.0867524603,
+    "cpu_ns": 1423729.59183673,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Query_Bounds/100": {
-    "real_ns": 42.65954796590405,
-    "cpu_ns": 42.658937556633035,
+    "real_ns": 41.179920688404664,
+    "cpu_ns": 41.17941050832934,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Query_Bounds/2000": {
-    "real_ns": 53.50691723358395,
-    "cpu_ns": 53.50589863535684,
+    "real_ns": 43.65706621530497,
+    "cpu_ns": 43.656848882242286,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Query_Bounds/10000": {
-    "real_ns": 121.60107843621063,
-    "cpu_ns": 121.4637761037612,
+    "real_ns": 111.76333247244156,
+    "cpu_ns": 111.76314019595577,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Env_ThemeChange_MemosNeverRead/100": {
-    "real_ns": 45004.488959627604,
-    "cpu_ns": 45001.94995125209,
+    "real_ns": 41309.76479518695,
+    "cpu_ns": 41307.7715631434,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Env_ThemeChange_MemosNeverRead/500": {
-    "real_ns": 238289.71803150311,
-    "cpu_ns": 238235.54421768425,
+    "real_ns": 214578.3505273735,
+    "cpu_ns": 214381.16591927988,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Env_ThemeChange_MemosNeverRead/2000": {
-    "real_ns": 1020689.324958481,
-    "cpu_ns": 1020609.4890510843,
+    "real_ns": 905105.2372039219,
+    "cpu_ns": 905112.1794871828,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Env_ThemeHeld_MemosNeverRead/100": {
-    "real_ns": 28624.671427830504,
-    "cpu_ns": 28623.77149877103,
+    "real_ns": 24649.15421717311,
+    "cpu_ns": 24648.59402460466,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Env_ThemeHeld_MemosNeverRead/500": {
-    "real_ns": 153039.51883254916,
-    "cpu_ns": 153038.80266075325,
+    "real_ns": 128703.58737430145,
+    "cpu_ns": 128703.56816102596,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Env_ThemeHeld_MemosNeverRead/2000": {
-    "real_ns": 684723.5119091955,
-    "cpu_ns": 684726.1306532782,
+    "real_ns": 570360.5769196458,
+    "cpu_ns": 570358.2995951467,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Draw_GroupCache_LivePictures/16": {
-    "real_ns": 275892.9580450058,
-    "cpu_ns": 275880.99999999825,
+    "real_ns": 287511.3212903971,
+    "cpu_ns": 287506.19834711176,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Draw_GroupCache_LivePictures/64": {
-    "real_ns": 1095814.4372661216,
-    "cpu_ns": 1095240.3100775126,
+    "real_ns": 1138071.646278334,
+    "cpu_ns": 1138073.1707316854,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Draw_GroupCache_Blit/16": {
-    "real_ns": 116754.25652767287,
-    "cpu_ns": 116735.04983388857,
+    "real_ns": 116891.267086127,
+    "cpu_ns": 116886.2500000012,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Draw_GroupCache_Blit/64": {
-    "real_ns": 123529.64532820167,
-    "cpu_ns": 123497.82419495098,
+    "real_ns": 124027.82126993396,
+    "cpu_ns": 124027.80229479613,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Bake_TiledStrip_Snapshot/2": {
-    "real_ns": 550013.9162430296,
-    "cpu_ns": 549982.2134387551,
+    "real_ns": 568865.8557045255,
+    "cpu_ns": 568867.8861788724,
     "unit": "ms",
     "repetitions": 4
    },
    "BM_Bake_TiledStrip_Snapshot/10": {
-    "real_ns": 3229225.3877544263,
-    "cpu_ns": 3229068.1818182385,
+    "real_ns": 3355812.999957596,
+    "cpu_ns": 3355880.9523809664,
     "unit": "ms",
     "repetitions": 4
    },
    "BM_Bake_TiledStrip_Snapshot/40": {
-    "real_ns": 14597979.115529193,
-    "cpu_ns": 14597277.777778257,
+    "real_ns": 15219657.388418756,
+    "cpu_ns": 15219444.444444798,
     "unit": "ms",
     "repetitions": 4
    },
    "BM_Bake_TiledStrip_FullReplay/2": {
-    "real_ns": 638148.2840059142,
-    "cpu_ns": 638004.9019607841,
+    "real_ns": 637342.5204484109,
+    "cpu_ns": 637331.8181818149,
     "unit": "ms",
     "repetitions": 4
    },
    "BM_Bake_TiledStrip_FullReplay/10": {
-    "real_ns": 4641093.0731023345,
-    "cpu_ns": 4640916.666666565,
+    "real_ns": 4639765.983301913,
+    "cpu_ns": 4639750.000000002,
     "unit": "ms",
     "repetitions": 4
    },
    "BM_Bake_TiledStrip_FullReplay/40": {
-    "real_ns": 37770150.98603442,
-    "cpu_ns": 37755250.00000091,
+    "real_ns": 37380677.1258387,
+    "cpu_ns": 37380249.99999912,
     "unit": "ms",
     "repetitions": 4
    },
    "BM_Bake_TiledStrip_RTreeReplay/2": {
-    "real_ns": 582672.5711813197,
-    "cpu_ns": 582643.7499999967,
+    "real_ns": 582038.3666711375,
+    "cpu_ns": 582035.4166666598,
     "unit": "ms",
     "repetitions": 4
    },
    "BM_Bake_TiledStrip_RTreeReplay/10": {
-    "real_ns": 3101112.502109673,
-    "cpu_ns": 3101122.2222221117,
+    "real_ns": 3100581.9444544613,
+    "cpu_ns": 3100444.4444444664,
     "unit": "ms",
     "repetitions": 4
    },
    "BM_Bake_TiledStrip_RTreeReplay/40": {
-    "real_ns": 12686537.85386546,
-    "cpu_ns": 12686090.909090936,
+    "real_ns": 12469767.045827623,
+    "cpu_ns": 12469681.818182077,
     "unit": "ms",
     "repetitions": 4
    },
    "BM_Bake_TiledStrip_RTreeBuild/2": {
-    "real_ns": 90130.33560244665,
-    "cpu_ns": 90020.48655569837,
+    "real_ns": 88964.50666088179,
+    "cpu_ns": 88961.92893400832,
     "unit": "ms",
     "repetitions": 4
    },
    "BM_Bake_TiledStrip_RTreeBuild/10": {
-    "real_ns": 484335.2080538714,
-    "cpu_ns": 484337.3702422022,
+    "real_ns": 484644.7569183636,
+    "cpu_ns": 484639.65517241985,
     "unit": "ms",
     "repetitions": 4
    },
    "BM_Bake_TiledStrip_RTreeBuild/40": {
-    "real_ns": 1917547.0870447485,
-    "cpu_ns": 1917513.6986301097,
+    "real_ns": 1916816.2123182125,
+    "cpu_ns": 1916801.3698630328,
     "unit": "ms",
     "repetitions": 4
    },
    "BM_Bake_TiledStrip_PerTilePicture/2": {
-    "real_ns": 583067.1027069911,
-    "cpu_ns": 582989.5833333598,
+    "real_ns": 581465.2510530304,
+    "cpu_ns": 581464.730290466,
     "unit": "ms",
     "repetitions": 4
    },
    "BM_Bake_TiledStrip_PerTilePicture/10": {
-    "real_ns": 3101457.862390412,
-    "cpu_ns": 3101455.5555555504,
+    "real_ns": 3105464.344682534,
+    "cpu_ns": 3105400.0000000633,
     "unit": "ms",
     "repetitions": 4
    },
    "BM_Bake_TiledStrip_PerTilePicture/40": {
-    "real_ns": 12505159.099501643,
-    "cpu_ns": 12503727.272726841,
+    "real_ns": 13515594.68193128,
+    "cpu_ns": 13513045.45454565,
     "unit": "ms",
     "repetitions": 4
    },
    "BM_Bake_TiledStrip_SurfacesOnly/2": {
-    "real_ns": 166892.57028636086,
-    "cpu_ns": 166880.72289157193,
+    "real_ns": 175763.12207633496,
+    "cpu_ns": 175763.63636363286,
     "unit": "ms",
     "repetitions": 4
    },
    "BM_Bake_TiledStrip_SurfacesOnly/10": {
-    "real_ns": 832923.8598456695,
-    "cpu_ns": 832892.8571428729,
+    "real_ns": 873756.5125102265,
+    "cpu_ns": 861646.8749999884,
     "unit": "ms",
     "repetitions": 4
    },
    "BM_Bake_TiledStrip_SurfacesOnly/40": {
-    "real_ns": 3331786.210072182,
-    "cpu_ns": 3331619.0476189908,
+    "real_ns": 3332025.2976929103,
+    "cpu_ns": 3332011.9047618713,
     "unit": "ms",
     "repetitions": 4
    },
    "Scoreboard/Render_Unchanged": {
-    "real_ns": 27922.167800427575,
-    "cpu_ns": 27922.114047287258,
+    "real_ns": 24510.868134523775,
+    "cpu_ns": 24510.966836286374,
     "unit": "ns",
     "repetitions": 4
    },
    "Scoreboard/Render_OneChanged": {
-    "real_ns": 29187.2477814776,
-    "cpu_ns": 29187.330411186427,
+    "real_ns": 26187.958090066917,
+    "cpu_ns": 26187.840631460444,
     "unit": "ns",
     "repetitions": 4
    },
    "Scoreboard/Draw_Cached": {
-    "real_ns": 404058.43139642617,
-    "cpu_ns": 404054.7337278144,
+    "real_ns": 409932.87135885714,
+    "cpu_ns": 409910.818713445,
     "unit": "ns",
     "repetitions": 4
    },
    "Scoreboard/Layout_WidthChange": {
-    "real_ns": 830028.1855661203,
-    "cpu_ns": 830047.0588235452,
+    "real_ns": 868637.0341854186,
+    "cpu_ns": 868636.6459627198,
     "unit": "ns",
     "repetitions": 4
    },
    "Scoreboard/Frame_OneTransitionActive": {
-    "real_ns": 675618.4978077665,
-    "cpu_ns": 675763.2850241084,
+    "real_ns": 692508.6289100201,
+    "cpu_ns": 692754.9504950722,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Render_100Rows_Cold": {
-    "real_ns": 298037.1010786992,
-    "cpu_ns": 298010.6382978721,
+    "real_ns": 328144.6890029186,
+    "cpu_ns": 328143.95604395727,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Draw_100Rows_Volatile": {
-    "real_ns": 408244.3659677875,
-    "cpu_ns": 408227.9635258351,
+    "real_ns": 411811.7354742596,
+    "cpu_ns": 411818.0428134542,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Draw_100Rows_TextureBlit": {
-    "real_ns": 626609.9847601475,
-    "cpu_ns": 626545.0450450407,
+    "real_ns": 625977.4066469013,
+    "cpu_ns": 625746.6666666605,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Draw_Bloom_PictureReplay": {
-    "real_ns": 6400856.993753802,
-    "cpu_ns": 6399113.636363877,
+    "real_ns": 6295473.477207865,
+    "cpu_ns": 6295477.2727274,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Draw_Bloom_TextureBaked": {
-    "real_ns": 81303.78124539385,
-    "cpu_ns": 81263.6786961575,
+    "real_ns": 79875.86765178716,
+    "cpu_ns": 79876.2122076457,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Draw_VaryingBlur_Pyramid/6": {
-    "real_ns": 836682.8987180638,
-    "cpu_ns": 836564.417177913,
+    "real_ns": 798197.6171972097,
+    "cpu_ns": 798194.2857142802,
     "unit": "ms",
     "repetitions": 4
    },
    "BM_Draw_VaryingBlur_Pyramid/24": {
-    "real_ns": 1075433.0481850463,
-    "cpu_ns": 1075103.053435095,
+    "real_ns": 1039128.7350876834,
+    "cpu_ns": 1039111.940298469,
     "unit": "ms",
     "repetitions": 4
    },
    "BM_Draw_VaryingBlur_Naive/6/iterations:3": {
-    "real_ns": 166854840.31525752,
-    "cpu_ns": 166847333.3333343,
+    "real_ns": 167007458.33562297,
+    "cpu_ns": 167007666.6666655,
     "unit": "ms",
     "repetitions": 4
    },
    "BM_Draw_VaryingBlur_Naive/24/iterations:1": {
-    "real_ns": 2538432249.56654,
-    "cpu_ns": 2536905500.0000033,
+    "real_ns": 2558418166.4962673,
+    "cpu_ns": 2558330499.999997,
     "unit": "ms",
     "repetitions": 4
    },
    "BM_Draw_VaryingBlur_ConstantMax/24": {
-    "real_ns": 448602.4261443274,
-    "cpu_ns": 448451.7684887674,
+    "real_ns": 447439.57051907317,
+    "cpu_ns": 447389.42307690857,
     "unit": "ms",
     "repetitions": 4
    },
    "BM_Draw_Instances_Live/10000": {
-    "real_ns": 43584465.12681742,
-    "cpu_ns": 43557999.99999969,
+    "real_ns": 40797270.667098925,
+    "cpu_ns": 40797166.66666873,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Draw_Instances_DataCached/10000": {
-    "real_ns": 40430291.633432105,
-    "cpu_ns": 40429999.999998264,
+    "real_ns": 41076833.33374249,
+    "cpu_ns": 41075000.00000168,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Particles_EnttAtlasLeaf/10000": {
-    "real_ns": 1308796.491853341,
-    "cpu_ns": 1308666.6666666903,
+    "real_ns": 1301203.8981725238,
+    "cpu_ns": 1301157.4074075082,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Particles_EnttAtlasLeaf/100000": {
-    "real_ns": 13086422.325365923,
-    "cpu_ns": 13085090.909091886,
+    "real_ns": 12991193.181237161,
+    "cpu_ns": 12991136.363636842,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Particles_EnttAtlasLeaf/1000000": {
-    "real_ns": 131347562.65208125,
-    "cpu_ns": 131310499.99999788,
+    "real_ns": 130496270.99826467,
+    "cpu_ns": 130496500.00001378,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Particles_DrawCircleLoop/10000": {
-    "real_ns": 6972621.8353025615,
-    "cpu_ns": 6971274.999999722,
+    "real_ns": 7056720.825130469,
+    "cpu_ns": 7056725.000000341,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Draw_TileGrid_Region_Cached": {
-    "real_ns": 932426.6175642165,
-    "cpu_ns": 932313.4328358142,
+    "real_ns": 876521.8125290631,
+    "cpu_ns": 876421.8750000331,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Draw_TileGrid_Region_OneChunkChanged": {
-    "real_ns": 1204802.8507515003,
-    "cpu_ns": 1204831.5789472573,
+    "real_ns": 1286982.2134275585,
+    "cpu_ns": 1287000.000000053,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Draw_TileGrid_SkSLFill": {
-    "real_ns": 5367537.673849326,
-    "cpu_ns": 5366000.000000016,
+    "real_ns": 5357665.057650032,
+    "cpu_ns": 5357673.076923074,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Draw_100Rows_Cached_Graphite": {
-    "real_ns": 263089.05063687183,
-    "cpu_ns": 263028.19548872975,
+    "real_ns": 259320.94143960212,
+    "cpu_ns": 259261.1524163696,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Draw_Instances_Live_Graphite/10000": {
-    "real_ns": 527403.6278327306,
-    "cpu_ns": 526492.5925925942,
+    "real_ns": 518604.2444418288,
+    "cpu_ns": 518557.40740741655,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Draw_Bloom_PictureReplay_Graphite": {
-    "real_ns": 233604.618232004,
-    "cpu_ns": 61264.62167689077,
+    "real_ns": 235705.54559800104,
+    "cpu_ns": 55308.641975308776,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Draw_Bloom_TextureBaked_Graphite": {
-    "real_ns": 38977.063391803254,
-    "cpu_ns": 12409.68489830268,
+    "real_ns": 39059.89539895182,
+    "cpu_ns": 11701.241873645591,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Draw_VaryingBlur_Pyramid_Graphite/6": {
-    "real_ns": 655257.5207315385,
-    "cpu_ns": 81838.00000000474,
+    "real_ns": 667073.3749924693,
+    "cpu_ns": 81999.50000000201,
     "unit": "ms",
     "repetitions": 4
    },
    "BM_Draw_VaryingBlur_Pyramid_Graphite/24": {
-    "real_ns": 833396.7644633683,
-    "cpu_ns": 107742.55485893242,
+    "real_ns": 840794.3790431604,
+    "cpu_ns": 107998.84437596428,
     "unit": "ms",
     "repetitions": 4
    },
    "BM_Draw_VaryingBlur_Naive_Graphite/6": {
-    "real_ns": 1945611.5625798702,
-    "cpu_ns": 39979.00000000243,
+    "real_ns": 1945784.2500050901,
+    "cpu_ns": 37900.49999999923,
     "unit": "ms",
     "repetitions": 4
    },
    "BM_Draw_VaryingBlur_Naive_Graphite/24": {
-    "real_ns": 17051670.20438239,
-    "cpu_ns": 69230.00000000457,
+    "real_ns": 17064138.544956222,
+    "cpu_ns": 73150.00000005512,
     "unit": "ms",
     "repetitions": 4
    },
    "BM_Draw_VaryingBlur_ConstantMax_Graphite/24": {
-    "real_ns": 592676.7499186099,
-    "cpu_ns": 68463.00000000128,
+    "real_ns": 604325.9789948934,
+    "cpu_ns": 67251.50000000469,
     "unit": "ms",
     "repetitions": 4
    },
    "BM_Particles_EnttAtlasLeaf_Graphite/100000": {
-    "real_ns": 353280.8749293236,
-    "cpu_ns": 353231.9587628477,
+    "real_ns": 354572.0987294541,
+    "cpu_ns": 354496.2025316607,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Particles_EnttAtlasLeaf_Graphite/1000000": {
-    "real_ns": 3525823.193530624,
-    "cpu_ns": 3525820.5128203146,
+    "real_ns": 3612188.065936176,
+    "cpu_ns": 3611907.894736532,
     "unit": "ns",
     "repetitions": 4
    }
   },
   "compose_draw_bench": {
    "DrawNode": {
-    "real_ns": 333219.2440582351,
-    "cpu_ns": 333219.1943127962,
+    "real_ns": 316713.1402717041,
+    "cpu_ns": 316703.61990950245,
     "unit": "us",
     "repetitions": 4
    },
    "RetainedCard": {
-    "real_ns": 38045.44898059935,
-    "cpu_ns": 38045.86160108541,
+    "real_ns": 36944.43702086934,
+    "cpu_ns": 36944.54713493526,
     "unit": "us",
     "repetitions": 4
    }
   },
   "compose_paint_bench": {
    "BM_Bake_Pattern_Halftone/4": {
-    "real_ns": 3988.6740503014344,
-    "cpu_ns": 3988.1057143668168,
+    "real_ns": 3984.5882596149577,
+    "cpu_ns": 3984.570987742511,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Bake_Pattern_Halftone/16": {
-    "real_ns": 4113.970942670287,
-    "cpu_ns": 4113.978905308927,
+    "real_ns": 4173.035242271604,
+    "cpu_ns": 4172.862840814384,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Bake_Pattern_Halftone/64": {
-    "real_ns": 9402.554660627753,
-    "cpu_ns": 9401.971963243695,
+    "real_ns": 9400.41941450496,
+    "cpu_ns": 9399.872406151364,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Bake_Pattern_Speckle/64": {
-    "real_ns": 47961.61300818436,
-    "cpu_ns": 47908.53451207062,
+    "real_ns": 47822.9414481158,
+    "cpu_ns": 47822.977125298494,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Bake_Pattern_Speckle/256": {
-    "real_ns": 190909.0017754273,
-    "cpu_ns": 190827.49326145434,
+    "real_ns": 189464.40310681524,
+    "cpu_ns": 189464.09214092203,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Bake_Pattern_Speckle/1024": {
-    "real_ns": 743400.4366299824,
-    "cpu_ns": 742350.0000000016,
+    "real_ns": 740246.8042321277,
+    "cpu_ns": 740246.0317460337,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Bake_Pattern_Speckle/4096": {
-    "real_ns": 2926427.9534496986,
-    "cpu_ns": 2926437.5000000084,
+    "real_ns": 2944407.5521496413,
+    "cpu_ns": 2944281.249999986,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Draw_Pattern_Fill_Live/4": {
-    "real_ns": 1796496.4346519033,
-    "cpu_ns": 1796500.0000000019,
+    "real_ns": 1795120.1858895961,
+    "cpu_ns": 1795115.3846153803,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Draw_Pattern_Fill_Live/16": {
-    "real_ns": 1798032.8456570324,
-    "cpu_ns": 1798006.4102564172,
+    "real_ns": 1809773.500075934,
+    "cpu_ns": 1809243.5897435902,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Draw_Pattern_Fill_Live/64": {
-    "real_ns": 1798954.4446269672,
-    "cpu_ns": 1798726.6666666812,
+    "real_ns": 1810179.7564341747,
+    "cpu_ns": 1809717.9487179471,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Draw_Pattern_Rotate_Live": {
-    "real_ns": 4935718.740203551,
-    "cpu_ns": 4935035.714285726,
+    "real_ns": 4999825.875139712,
+    "cpu_ns": 4999767.857142861,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Draw_Sdf_Cards_Live/16/32": {
-    "real_ns": 5449918.268893201,
-    "cpu_ns": 5447480.769230783,
+    "real_ns": 5437669.86531689,
+    "cpu_ns": 5437692.307692301,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Draw_Sdf_Cards_Live/64/32": {
-    "real_ns": 21729361.188287534,
-    "cpu_ns": 21725833.3333333,
+    "real_ns": 21776531.25060412,
+    "cpu_ns": 21775416.666666824,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Draw_Sdf_Cards_Live/16/96": {
-    "real_ns": 18631624.98921156,
-    "cpu_ns": 18618875.000000034,
+    "real_ns": 18446986.999151707,
+    "cpu_ns": 18447125.00000012,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Draw_Sdf_Cards_Live/64/96": {
-    "real_ns": 57955124.764703214,
-    "cpu_ns": 57914749.99999968,
+    "real_ns": 56870656.24806564,
+    "cpu_ns": 56870749.99999986,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Draw_Path_Cards_Live/16/32": {
-    "real_ns": 117725.67637137367,
-    "cpu_ns": 117456.83760683748,
+    "real_ns": 115355.83566824277,
+    "cpu_ns": 115345.99504541769,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Draw_Path_Cards_Live/64/32": {
-    "real_ns": 462332.2212137282,
-    "cpu_ns": 462331.6666666651,
+    "real_ns": 458949.2491623921,
+    "cpu_ns": 458934.4262295015,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Draw_Path_Cards_Live/16/96": {
-    "real_ns": 207510.2162995824,
-    "cpu_ns": 207501.48148148163,
+    "real_ns": 204577.7657789981,
+    "cpu_ns": 204578.5609397961,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Draw_Path_Cards_Live/64/96": {
-    "real_ns": 829522.5558152213,
-    "cpu_ns": 829500.000000007,
+    "real_ns": 816816.2777849708,
+    "cpu_ns": 816789.4736842099,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Draw_DropShadow_Live/16": {
-    "real_ns": 774569.6344922261,
-    "cpu_ns": 774428.1767955759,
+    "real_ns": 773238.0303352922,
+    "cpu_ns": 773234.8066298398,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Draw_DropShadow_Live/64": {
-    "real_ns": 3107525.803067762,
-    "cpu_ns": 3107076.086956532,
+    "real_ns": 3088311.556645997,
+    "cpu_ns": 3088306.8181817904,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Draw_DropShadow_Cached/16": {
-    "real_ns": 772728.7087978406,
-    "cpu_ns": 772593.4065933919,
+    "real_ns": 764408.0163868363,
+    "cpu_ns": 764409.836065573,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Draw_DropShadow_Cached/64": {
-    "real_ns": 446077.56680008234,
-    "cpu_ns": 445223.2472324781,
+    "real_ns": 393057.86208886805,
+    "cpu_ns": 393047.02194357954,
     "unit": "us",
     "repetitions": 4
    }
   },
   "compose_shape_bench": {
    "BM_Reconcile_Shapes_Comparable/100": {
-    "real_ns": 31955.514127744013,
-    "cpu_ns": 31872.640436661342,
+    "real_ns": 28816.96677027527,
+    "cpu_ns": 28817.078189300395,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Reconcile_Shapes_Comparable/500": {
-    "real_ns": 169007.66931241937,
-    "cpu_ns": 168998.20143884898,
+    "real_ns": 146505.46052603444,
+    "cpu_ns": 146505.26315789507,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Reconcile_Shapes_Comparable/2000": {
-    "real_ns": 741598.4949847946,
-    "cpu_ns": 740837.6963350782,
+    "real_ns": 613365.6387754802,
+    "cpu_ns": 613370.0440528635,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Reconcile_Shapes_RawCallable/100": {
-    "real_ns": 47580.16818726722,
-    "cpu_ns": 47561.62512802996,
+    "real_ns": 48502.824376023185,
+    "cpu_ns": 48502.77392510435,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Reconcile_Shapes_RawCallable/500": {
-    "real_ns": 250952.17531563435,
-    "cpu_ns": 250852.21238938073,
+    "real_ns": 248206.26813782362,
+    "cpu_ns": 248207.0796460184,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Reconcile_Shapes_RawCallable/2000": {
-    "real_ns": 1059755.97493778,
-    "cpu_ns": 1059495.9016393456,
+    "real_ns": 1041469.6827947003,
+    "cpu_ns": 1041440.2985074648,
     "unit": "us",
     "repetitions": 4
    },
    "BM_HitTest_ShapedTree/50": {
-    "real_ns": 4388.628665249606,
-    "cpu_ns": 4388.007137490622,
+    "real_ns": 4438.519175970047,
+    "cpu_ns": 4438.326688184307,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_HitTest_ShapedTree/200": {
-    "real_ns": 17845.978140821513,
-    "cpu_ns": 17840.883064002992,
+    "real_ns": 17849.35139759096,
+    "cpu_ns": 17849.36467598484,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Draw_BlendField_Blobs/100": {
-    "real_ns": 512578.7369359066,
-    "cpu_ns": 512470.58823529066,
+    "real_ns": 509756.1363734051,
+    "cpu_ns": 509734.5454545471,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Draw_BlendField_Blobs/400": {
-    "real_ns": 1049479.1639401861,
-    "cpu_ns": 1049243.4782608731,
+    "real_ns": 1044947.1380131547,
+    "cpu_ns": 1044944.0298507574,
     "unit": "us",
     "repetitions": 4
    }
   },
   "compose_text_bench": {
    "BM_Draw_DenseText_PictureReplay": {
-    "real_ns": 1203683.3715432421,
-    "cpu_ns": 1203637.931034483,
+    "real_ns": 1203636.1336429073,
+    "cpu_ns": 1203560.344827587,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Draw_DenseText_TextureBlit": {
-    "real_ns": 600633.5841627719,
-    "cpu_ns": 600613.7339055792,
+    "real_ns": 599604.9699811225,
+    "cpu_ns": 599566.5236051503,
     "unit": "ns",
     "repetitions": 4
    },
@@ -976,3564 +976,3642 @@
     "repetitions": 4
    },
    "BM_Draw_KineticText/14": {
-    "real_ns": 209304.6121003182,
-    "cpu_ns": 209304.19075144522,
+    "real_ns": 210980.6521119905,
+    "cpu_ns": 210980.34934497834,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Draw_KineticText/56": {
-    "real_ns": 848980.3557417223,
-    "cpu_ns": 848934.2857142873,
+    "real_ns": 853370.907504483,
+    "cpu_ns": 853341.0404624282,
     "unit": "us",
     "repetitions": 4
    },
-   "BM_Draw_DenseText_PictureReplay_Graphite": {
-    "real_ns": 63012.32957264109,
-    "cpu_ns": 59624.62718363889,
-    "unit": "ns",
-    "repetitions": 4
-   },
-   "BM_Draw_DenseText_TextureBlit_Graphite": {
-    "real_ns": 42027.782563530265,
-    "cpu_ns": 12121.260453487346,
-    "unit": "ns",
-    "repetitions": 4
-   },
-   "BM_Draw_KineticText_Graphite/14": {
-    "real_ns": 407671.81749138364,
-    "cpu_ns": 407660.7142857101,
-    "unit": "ns",
-    "repetitions": 4
-   },
-   "BM_Draw_KineticText_Graphite/56": {
-    "real_ns": 1440568.5407109559,
-    "cpu_ns": 1440534.9999999916,
-    "unit": "ns",
-    "repetitions": 4
-   },
-   "BM_Draw_DenseText_Persp_Identity_Graphite": {
-    "real_ns": 416510.73920114245,
-    "cpu_ns": 56916.42591828312,
-    "unit": "ms",
-    "repetitions": 4
-   },
-   "BM_Draw_DenseText_Persp_AffineTilt_Graphite": {
-    "real_ns": 429562.8379756111,
-    "cpu_ns": 58646.8386023287,
-    "unit": "ms",
-    "repetitions": 4
-   },
-   "BM_Draw_DenseText_Persp_Perspective_Graphite": {
-    "real_ns": 709350.0503035914,
-    "cpu_ns": 337227.7108433739,
-    "unit": "ms",
-    "repetitions": 4
-   },
    "BM_Draw_KineticColumns/2": {
-    "real_ns": 33622.44882288303,
-    "cpu_ns": 33622.81750777325,
+    "real_ns": 33701.99028338661,
+    "cpu_ns": 33702.01535508629,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Draw_KineticColumns/4": {
-    "real_ns": 66390.74307936683,
-    "cpu_ns": 66389.38679245304,
+    "real_ns": 68178.38177818748,
+    "cpu_ns": 68156.75547098003,
     "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Draw_DenseText_PictureReplay_Graphite": {
+    "real_ns": 56732.13351146504,
+    "cpu_ns": 55798.761609906986,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_Draw_DenseText_TextureBlit_Graphite": {
+    "real_ns": 42036.60593040733,
+    "cpu_ns": 12029.388542854627,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_Draw_KineticText_Graphite/14": {
+    "real_ns": 410812.7312901768,
+    "cpu_ns": 410775.6232686988,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_Draw_KineticText_Graphite/56": {
+    "real_ns": 1451195.4200133914,
+    "cpu_ns": 1451150.0000000056,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_Draw_DenseText_Persp_Identity_Graphite": {
+    "real_ns": 424658.6589434422,
+    "cpu_ns": 56736.30136986341,
+    "unit": "ms",
+    "repetitions": 4
+   },
+   "BM_Draw_DenseText_Persp_AffineTilt_Graphite": {
+    "real_ns": 439585.274333802,
+    "cpu_ns": 58024.33444259566,
+    "unit": "ms",
+    "repetitions": 4
+   },
+   "BM_Draw_DenseText_Persp_Perspective_Graphite": {
+    "real_ns": 708826.8381262609,
+    "cpu_ns": 334914.8681055125,
+    "unit": "ms",
     "repetitions": 4
    }
   },
   "compose_texture_bench": {
    "TextureSceneStill/64": {
-    "real_ns": 291.188565290994,
-    "cpu_ns": 291.173791520052,
+    "real_ns": 315.0725922039294,
+    "cpu_ns": 315.06208831254554,
     "unit": "us",
     "repetitions": 4
    },
    "TextureSceneStill/256": {
-    "real_ns": 1332.9668068305873,
-    "cpu_ns": 1332.8063777786385,
+    "real_ns": 1417.820870740804,
+    "cpu_ns": 1417.3182627545057,
     "unit": "us",
     "repetitions": 4
    },
    "TextureScenePaints/64": {
-    "real_ns": 82140.40143550179,
-    "cpu_ns": 82133.01942319004,
+    "real_ns": 85102.64957488827,
+    "cpu_ns": 85099.51456310668,
     "unit": "us",
     "repetitions": 4
    },
    "TextureScenePaints/256": {
-    "real_ns": 306242.87503250025,
-    "cpu_ns": 306213.5076252724,
+    "real_ns": 315057.7247182033,
+    "cpu_ns": 315057.3033707859,
     "unit": "us",
     "repetitions": 4
    },
    "ComposerDraw/64": {
-    "real_ns": 75262.25159815027,
-    "cpu_ns": 75252.41675617616,
+    "real_ns": 78136.07952503584,
+    "cpu_ns": 78135.88169642867,
     "unit": "us",
     "repetitions": 4
    },
    "ComposerDraw/256": {
-    "real_ns": 298939.319625338,
-    "cpu_ns": 298926.43923240853,
+    "real_ns": 308568.05287559505,
+    "cpu_ns": 308505.5066079302,
     "unit": "us",
     "repetitions": 4
    },
    "TextureValue": {
-    "real_ns": 23.990040274196424,
-    "cpu_ns": 23.98214227323265,
+    "real_ns": 23.984337054827968,
+    "cpu_ns": 23.98428711379542,
     "unit": "ns",
     "repetitions": 4
    }
   },
   "core_hardware_bench": {
    "BM_HandleAllocateRelease": {
-    "real_ns": 4.9716472011297785,
-    "cpu_ns": 4.971520134497851,
+    "real_ns": 4.992298273037553,
+    "cpu_ns": 4.992077228148295,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_HandleBatch/64": {
-    "real_ns": 156.9929867293443,
-    "cpu_ns": 156.9881262996547,
+    "real_ns": 157.12737742651927,
+    "cpu_ns": 157.12555510698428,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_HandleBatch/1024": {
-    "real_ns": 2605.235505107608,
-    "cpu_ns": 2604.976224087969,
+    "real_ns": 2603.42263298495,
+    "cpu_ns": 2603.2706550591265,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_ImportExportRetire": {
-    "real_ns": 43.97151605482596,
-    "cpu_ns": 43.971019086790434,
+    "real_ns": 44.21961990989079,
+    "cpu_ns": 44.21973183935634,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_CreateDestroyTexture": {
-    "real_ns": 4387.47234571884,
-    "cpu_ns": 4387.456556082112,
+    "real_ns": 4497.165509905522,
+    "cpu_ns": 4497.1917366042635,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_FenceRoundTrip": {
-    "real_ns": 83504.32920269668,
-    "cpu_ns": 7284.700000000077,
+    "real_ns": 83409.77709958679,
+    "cpu_ns": 7154.700000000024,
     "unit": "ns",
     "repetitions": 4
    }
   },
   "draw_bench": {
    "Circles/10000": {
-    "real_ns": 7850980.305293988,
-    "cpu_ns": 7850944.4444444515,
+    "real_ns": 7836353.000230802,
+    "cpu_ns": 7836361.11111111,
     "unit": "ms",
     "repetitions": 4
    },
    "CirclesStroked/10000": {
-    "real_ns": 36938697.87457515,
-    "cpu_ns": 36938750.000000015,
+    "real_ns": 37132531.24988114,
+    "cpu_ns": 37132499.999999955,
     "unit": "ms",
     "repetitions": 4
    },
    "Rects/10000": {
-    "real_ns": 2614707.9432739015,
-    "cpu_ns": 2614698.1132075433,
+    "real_ns": 2582090.6666922383,
+    "cpu_ns": 2582101.8518518475,
     "unit": "ms",
     "repetitions": 4
    },
    "Text/100": {
-    "real_ns": 456403.8766067272,
-    "cpu_ns": 456401.8987341765,
+    "real_ns": 436111.541925163,
+    "cpu_ns": 436105.5900621137,
     "unit": "ms",
     "repetitions": 4
    },
    "Background": {
-    "real_ns": 285718.7711399711,
-    "cpu_ns": 285719.5876288655,
+    "real_ns": 277397.4425796798,
+    "cpu_ns": 277396.03960396047,
     "unit": "us",
     "repetitions": 4
    },
    "Noise": {
-    "real_ns": 63487.08192970586,
-    "cpu_ns": 63478.892419428084,
+    "real_ns": 61702.39420942153,
+    "cpu_ns": 61702.227171492385,
     "unit": "us",
     "repetitions": 4
    }
   },
-  "draw_kit_bench": {
+  "draw_brush_bench": {
    "BrushStroke": {
-    "real_ns": 5078075.611015299,
-    "cpu_ns": 5078055.555555554,
+    "real_ns": 4925095.9818891715,
+    "cpu_ns": 4925071.428571431,
     "unit": "ms",
     "repetitions": 4
    },
    "DabSampling": {
-    "real_ns": 23883.5173964113,
-    "cpu_ns": 23879.49855023026,
+    "real_ns": 23137.141900158233,
+    "cpu_ns": 23137.107438016552,
     "unit": "ns",
     "repetitions": 4
    },
    "BrushHatch": {
-    "real_ns": 5721368.9166625645,
-    "cpu_ns": 5721416.6666666735,
+    "real_ns": 5459883.826775834,
+    "cpu_ns": 5459769.230769227,
     "unit": "ms",
     "repetitions": 4
    },
    "BrushMass": {
-    "real_ns": 59517208.50134734,
-    "cpu_ns": 59513499.99999978,
+    "real_ns": 57693760.24545636,
+    "cpu_ns": 57691999.99999985,
     "unit": "ms",
     "repetitions": 4
    },
    "BrushWash": {
-    "real_ns": 10952604.153806955,
-    "cpu_ns": 10952653.84615384,
+    "real_ns": 7950949.111141704,
+    "cpu_ns": 7950499.999999996,
     "unit": "ms",
     "repetitions": 4
    }
   },
   "geometry_device_bench": {
    "BM_DeviceAdopt": {
-    "real_ns": 289270.2964605098,
-    "cpu_ns": 288069.7674418503,
+    "real_ns": 286385.0589174316,
+    "cpu_ns": 286355.6701030894,
     "unit": "ms",
     "repetitions": 4
    },
    "BM_Adopted_CreateDestroyTexture": {
-    "real_ns": 6374.424752861896,
-    "cpu_ns": 6365.12135133881,
+    "real_ns": 6394.246800479534,
+    "cpu_ns": 6394.25433421078,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Adopted_ImportExportRetire": {
-    "real_ns": 44.01048861259626,
-    "cpu_ns": 43.99782571288513,
+    "real_ns": 44.610764789449334,
+    "cpu_ns": 44.6085073782112,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Adopted_FenceRoundTrip": {
-    "real_ns": 37314.16526623146,
-    "cpu_ns": 19387.48137108785,
+    "real_ns": 40821.05388478642,
+    "cpu_ns": 20194.60415745237,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Adopted_Wrap_Handle": {
-    "real_ns": 10366.533069117657,
-    "cpu_ns": 10358.669678221864,
+    "real_ns": 27047.22143307101,
+    "cpu_ns": 27047.099326105978,
     "unit": "ns",
     "repetitions": 4
    }
   },
   "geometry_kit_bench": {
    "BM_GenerateAnalytic": {
-    "real_ns": 200.4166059369256,
-    "cpu_ns": 200.4172649668472,
+    "real_ns": 195.290548072387,
+    "cpu_ns": 195.29072333104284,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_GenerateSampled/180": {
-    "real_ns": 3020.1598460386504,
-    "cpu_ns": 3019.4542102555242,
+    "real_ns": 3041.182422974107,
+    "cpu_ns": 3040.888078650949,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_GenerateSampled/720": {
-    "real_ns": 11706.015233758748,
-    "cpu_ns": 11706.010016694461,
+    "real_ns": 11757.223829396957,
+    "cpu_ns": 11757.27097477159,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_GenerateSampled/2880": {
-    "real_ns": 43895.6239372765,
-    "cpu_ns": 43894.88547223088,
+    "real_ns": 44738.14485054281,
+    "cpu_ns": 44738.229755178836,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_GenerateBlob/8": {
-    "real_ns": 147.69375895337083,
-    "cpu_ns": 147.6912116067041,
+    "real_ns": 147.51284645257923,
+    "cpu_ns": 147.51207907451646,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_GenerateBlob/64": {
-    "real_ns": 1048.8426354385851,
-    "cpu_ns": 1048.8228338796357,
+    "real_ns": 1047.2625669040176,
+    "cpu_ns": 1047.2605448318595,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_GenerateWrapped": {
-    "real_ns": 543.1679179137449,
-    "cpu_ns": 543.144178258729,
+    "real_ns": 543.1424199332138,
+    "cpu_ns": 543.1428228302664,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Compare": {
-    "real_ns": 0.3148094120272216,
-    "cpu_ns": 0.3146828347372403,
+    "real_ns": 0.3104475262415396,
+    "cpu_ns": 0.310446325986496,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Extrude/8": {
-    "real_ns": 135232.48655321976,
-    "cpu_ns": 135232.56972111642,
+    "real_ns": 135615.20792731456,
+    "cpu_ns": 135588.9748549314,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Extrude/16": {
-    "real_ns": 141563.21256395767,
-    "cpu_ns": 141563.31658291526,
+    "real_ns": 141237.18794826852,
+    "cpu_ns": 141238.0952380957,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Extrude/64": {
-    "real_ns": 225306.98782708432,
-    "cpu_ns": 225306.81818181684,
+    "real_ns": 227237.44625496035,
+    "cpu_ns": 227238.5993485332,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Extrude/256": {
-    "real_ns": 471961.7931957562,
-    "cpu_ns": 471962.7118644017,
+    "real_ns": 473323.19762652926,
+    "cpu_ns": 473324.32432432135,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Extrude/512": {
-    "real_ns": 548826.3359154644,
-    "cpu_ns": 548833.9843750002,
+    "real_ns": 546229.1666718071,
+    "cpu_ns": 546228.682170541,
     "unit": "us",
     "repetitions": 4
    },
    "BM_ExtrudeWallsOnly/8": {
-    "real_ns": 16716.70469356303,
-    "cpu_ns": 16716.274603936665,
+    "real_ns": 16168.551329565937,
+    "cpu_ns": 16168.563465334992,
     "unit": "us",
     "repetitions": 4
    },
    "BM_ExtrudeWallsOnly/16": {
-    "real_ns": 20531.708614053372,
-    "cpu_ns": 20531.699442324672,
+    "real_ns": 19698.651926564165,
+    "cpu_ns": 19698.60798650173,
     "unit": "us",
     "repetitions": 4
    },
    "BM_ExtrudeWallsOnly/64": {
-    "real_ns": 40309.610139194236,
-    "cpu_ns": 40307.151062607474,
+    "real_ns": 39307.62754430258,
+    "cpu_ns": 39305.99547511313,
     "unit": "us",
     "repetitions": 4
    },
    "BM_ExtrudeWallsOnly/256": {
-    "real_ns": 75613.3659154427,
-    "cpu_ns": 75610.93161012317,
+    "real_ns": 74106.36315280567,
+    "cpu_ns": 74105.96379126693,
     "unit": "us",
     "repetitions": 4
    },
    "BM_ExtrudeWallsOnly/512": {
-    "real_ns": 82602.88980341383,
-    "cpu_ns": 82601.06069534578,
+    "real_ns": 81313.26441415088,
+    "cpu_ns": 81311.00757134455,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Revolve/profile:8/segments:16": {
-    "real_ns": 4697.2372827114905,
-    "cpu_ns": 4697.025585996435,
+    "real_ns": 4709.018678167274,
+    "cpu_ns": 4707.739512424174,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Revolve/profile:64/segments:16": {
-    "real_ns": 48452.73345973373,
-    "cpu_ns": 48451.85313474205,
+    "real_ns": 40571.361286209954,
+    "cpu_ns": 40571.527777777395,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Revolve/profile:512/segments:16": {
-    "real_ns": 290493.99272933375,
-    "cpu_ns": 290493.77593360894,
+    "real_ns": 291654.44388758147,
+    "cpu_ns": 291653.06122448633,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Revolve/profile:8/segments:128": {
-    "real_ns": 35948.067523933816,
-    "cpu_ns": 35913.7543684465,
+    "real_ns": 35136.03737379948,
+    "cpu_ns": 35134.34343434345,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Revolve/profile:64/segments:128": {
-    "real_ns": 280513.07288162044,
-    "cpu_ns": 280509.1093117361,
+    "real_ns": 284389.545274355,
+    "cpu_ns": 284250.50301811117,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Revolve/profile:512/segments:128": {
-    "real_ns": 2903113.708271121,
-    "cpu_ns": 2903114.583333292,
+    "real_ns": 2569103.3264667233,
+    "cpu_ns": 2563806.122448927,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Torus/16": {
-    "real_ns": 5745.931049493149,
-    "cpu_ns": 5745.9053497942095,
+    "real_ns": 5785.122642660318,
+    "cpu_ns": 5784.4449090528815,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Torus/64": {
-    "real_ns": 86907.98056471017,
-    "cpu_ns": 86899.3730407532,
+    "real_ns": 87001.50031160534,
+    "cpu_ns": 86987.89571694587,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Torus/256": {
-    "real_ns": 1637272.5529329139,
-    "cpu_ns": 1637270.5882352702,
+    "real_ns": 1609816.664730555,
+    "cpu_ns": 1609823.52941176,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Torus/1024": {
-    "real_ns": 23062621.5840554,
-    "cpu_ns": 23060333.33333346,
+    "real_ns": 22859968.749495845,
+    "cpu_ns": 22838166.66666668,
     "unit": "us",
     "repetitions": 4
    }
   },
   "geometry_mesh_bench": {
-   "BM_Extrude/8": {
-    "real_ns": 135044.3362507804,
-    "cpu_ns": 135042.3892100193,
+   "BM_Grid/8": {
+    "real_ns": 2023.5540915131319,
+    "cpu_ns": 2023.5603983258763,
     "unit": "us",
     "repetitions": 4
    },
-   "BM_Extrude/16": {
-    "real_ns": 138434.38892553633,
-    "cpu_ns": 138433.2579185519,
+   "BM_Grid/16": {
+    "real_ns": 7748.043532698076,
+    "cpu_ns": 7748.026279467781,
     "unit": "us",
     "repetitions": 4
    },
-   "BM_Extrude/64": {
-    "real_ns": 213654.8013927845,
-    "cpu_ns": 213540.09819967241,
+   "BM_Grid/64": {
+    "real_ns": 121478.73197307973,
+    "cpu_ns": 121444.83058210232,
     "unit": "us",
     "repetitions": 4
    },
-   "BM_Extrude/256": {
-    "real_ns": 460024.01293001394,
-    "cpu_ns": 458975.6493506483,
+   "BM_Grid/256": {
+    "real_ns": 1945300.347263886,
+    "cpu_ns": 1945319.444444439,
     "unit": "us",
     "repetitions": 4
    },
-   "BM_Extrude/512": {
-    "real_ns": 535439.401546302,
-    "cpu_ns": 535425.8555133088,
+   "BM_Append/8": {
+    "real_ns": 537.5113784746068,
+    "cpu_ns": 537.5120181718596,
     "unit": "us",
     "repetitions": 4
    },
-   "BM_ExtrudeWallsOnly/8": {
-    "real_ns": 16070.98180799383,
-    "cpu_ns": 16068.68418007171,
+   "BM_Append/16": {
+    "real_ns": 1350.126228495632,
+    "cpu_ns": 1350.1268313384312,
     "unit": "us",
     "repetitions": 4
    },
-   "BM_ExtrudeWallsOnly/16": {
-    "real_ns": 19634.073539609737,
-    "cpu_ns": 19634.105498185876,
+   "BM_Append/64": {
+    "real_ns": 23679.67471730738,
+    "cpu_ns": 23679.2771491302,
     "unit": "us",
     "repetitions": 4
    },
-   "BM_ExtrudeWallsOnly/64": {
-    "real_ns": 38845.54014710069,
-    "cpu_ns": 38845.661846496034,
+   "BM_Append/256": {
+    "real_ns": 373532.1715647972,
+    "cpu_ns": 373533.5120643441,
     "unit": "us",
     "repetitions": 4
    },
-   "BM_ExtrudeWallsOnly/256": {
-    "real_ns": 73806.3965057772,
-    "cpu_ns": 73806.18720253884,
+   "BM_BakePrimColor/8": {
+    "real_ns": 1292.263886586512,
+    "cpu_ns": 1292.2675285927355,
     "unit": "us",
     "repetitions": 4
    },
-   "BM_ExtrudeWallsOnly/512": {
-    "real_ns": 80899.42198160583,
-    "cpu_ns": 80899.4219653183,
+   "BM_BakePrimColor/16": {
+    "real_ns": 5305.673223679261,
+    "cpu_ns": 5305.685048322932,
     "unit": "us",
     "repetitions": 4
    },
-   "BM_Revolve/profile:8/segments:16": {
-    "real_ns": 4691.940963274936,
-    "cpu_ns": 4691.296728971929,
+   "BM_BakePrimColor/64": {
+    "real_ns": 95033.12389778407,
+    "cpu_ns": 95033.26544467082,
     "unit": "us",
     "repetitions": 4
    },
-   "BM_Revolve/profile:64/segments:16": {
-    "real_ns": 36411.28270122165,
-    "cpu_ns": 36410.09093575824,
-    "unit": "us",
-    "repetitions": 4
-   },
-   "BM_Revolve/profile:512/segments:16": {
-    "real_ns": 290374.9575819244,
-    "cpu_ns": 290344.3298969076,
-    "unit": "us",
-    "repetitions": 4
-   },
-   "BM_Revolve/profile:8/segments:128": {
-    "real_ns": 34998.7090051512,
-    "cpu_ns": 34986.14609571783,
-    "unit": "us",
-    "repetitions": 4
-   },
-   "BM_Revolve/profile:64/segments:128": {
-    "real_ns": 283029.8453516943,
-    "cpu_ns": 282937.6257545275,
-    "unit": "us",
-    "repetitions": 4
-   },
-   "BM_Revolve/profile:512/segments:128": {
-    "real_ns": 2846764.3229911723,
-    "cpu_ns": 2846145.8333333316,
-    "unit": "us",
-    "repetitions": 4
-   },
-   "BM_Torus/16": {
-    "real_ns": 5762.032352529586,
-    "cpu_ns": 5762.050434063687,
-    "unit": "us",
-    "repetitions": 4
-   },
-   "BM_Torus/64": {
-    "real_ns": 86786.07633973684,
-    "cpu_ns": 86773.91304347846,
-    "unit": "us",
-    "repetitions": 4
-   },
-   "BM_Torus/256": {
-    "real_ns": 1653511.069889646,
-    "cpu_ns": 1653218.7499999814,
-    "unit": "us",
-    "repetitions": 4
-   },
-   "BM_Torus/1024": {
-    "real_ns": 22679118.090309203,
-    "cpu_ns": 22679083.33333324,
+   "BM_BakePrimColor/256": {
+    "real_ns": 1580989.7022234183,
+    "cpu_ns": 1580994.3820224782,
     "unit": "us",
     "repetitions": 4
    }
   },
   "geometry_mesh_camera_bench": {
    "BM_ViewProjection": {
-    "real_ns": 80.88944858765528,
-    "cpu_ns": 80.872318830461,
+    "real_ns": 80.79619530951149,
+    "cpu_ns": 80.79442620602656,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_View": {
-    "real_ns": 49.2496458311706,
-    "cpu_ns": 49.23467534137086,
+    "real_ns": 49.08160234560248,
+    "cpu_ns": 49.081587643879374,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_ToSkM44": {
-    "real_ns": 0.6230554918453524,
-    "cpu_ns": 0.6228028867745532,
+    "real_ns": 0.6225406815151873,
+    "cpu_ns": 0.6225436714879762,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Place": {
-    "real_ns": 41.22328139018933,
-    "cpu_ns": 41.21932859356235,
+    "real_ns": 41.68091409660747,
+    "cpu_ns": 41.68085193914401,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_FaceCamera": {
-    "real_ns": 5.45396308707982,
-    "cpu_ns": 5.452541264589334,
+    "real_ns": 5.443669921193884,
+    "cpu_ns": 5.443626213851757,
     "unit": "ns",
     "repetitions": 4
    }
   },
   "geometry_mesh_codec_bench": {
    "BM_ImportObj/8": {
-    "real_ns": 41175.17471523695,
-    "cpu_ns": 41175.37867537867,
+    "real_ns": 40356.6663281824,
+    "cpu_ns": 40355.752469494444,
     "unit": "us",
     "repetitions": 4
    },
    "BM_ImportObj/16": {
-    "real_ns": 181836.22757190623,
-    "cpu_ns": 181800.00000000023,
+    "real_ns": 172872.99382991882,
+    "cpu_ns": 172869.13580246875,
     "unit": "us",
     "repetitions": 4
    },
    "BM_ImportObj/64": {
-    "real_ns": 3612432.1691787397,
-    "cpu_ns": 3611692.30769231,
+    "real_ns": 3100354.1668825266,
+    "cpu_ns": 3100133.333333331,
     "unit": "us",
     "repetitions": 4
    },
    "BM_ImportObj/256": {
-    "real_ns": 64838958.43848586,
-    "cpu_ns": 64839250.00000012,
+    "real_ns": 54618965.164991096,
+    "cpu_ns": 54617833.333333366,
     "unit": "us",
     "repetitions": 4
    },
    "BM_ImportObj/512": {
-    "real_ns": 276393270.8185166,
-    "cpu_ns": 276359000.00000024,
+    "real_ns": 229853229.49534747,
+    "cpu_ns": 229849500.00000027,
     "unit": "us",
     "repetitions": 4
    },
    "BM_ImportGlb/8": {
-    "real_ns": 3525.572753339693,
-    "cpu_ns": 3525.586889860743,
+    "real_ns": 3555.3079202664494,
+    "cpu_ns": 3555.2941475697553,
     "unit": "us",
     "repetitions": 4
    },
    "BM_ImportGlb/16": {
-    "real_ns": 7655.409680042576,
-    "cpu_ns": 7655.074209978597,
+    "real_ns": 7728.866550536597,
+    "cpu_ns": 7728.8896276595515,
     "unit": "us",
     "repetitions": 4
    },
    "BM_ImportGlb/64": {
-    "real_ns": 95517.70467018714,
-    "cpu_ns": 95514.33447098969,
+    "real_ns": 96476.68263393402,
+    "cpu_ns": 96476.22329427957,
     "unit": "us",
     "repetitions": 4
    },
    "BM_ImportGlb/256": {
-    "real_ns": 1504140.9035323448,
-    "cpu_ns": 1504129.0322580587,
+    "real_ns": 1522688.417545786,
+    "cpu_ns": 1522692.3076923057,
     "unit": "us",
     "repetitions": 4
    },
    "BM_ImportGlb/512": {
-    "real_ns": 6138749.992136251,
-    "cpu_ns": 6138750.0000000615,
+    "real_ns": 6250057.75013547,
+    "cpu_ns": 6250045.454545468,
     "unit": "us",
     "repetitions": 4
    },
    "BM_ImportGeo_Points/10000": {
-    "real_ns": 963592.9644493194,
-    "cpu_ns": 963603.4482758588,
+    "real_ns": 526872.4346920021,
+    "cpu_ns": 526871.2686567139,
     "unit": "us",
     "repetitions": 4
    },
    "BM_ImportGeo_Points/100000": {
-    "real_ns": 10068171.158699054,
-    "cpu_ns": 10068214.285714282,
+    "real_ns": 5679953.34014995,
+    "cpu_ns": 5679960.000000008,
     "unit": "us",
     "repetitions": 4
    }
   },
   "geometry_mesh_curve_bench": {
    "BM_SampleArcLength/16": {
-    "real_ns": 2735.3324287959567,
-    "cpu_ns": 2735.1419147129145,
+    "real_ns": 2732.0305666724107,
+    "cpu_ns": 2731.8836332375986,
     "unit": "us",
     "repetitions": 4
    },
    "BM_SampleArcLength/64": {
-    "real_ns": 5729.916892839359,
-    "cpu_ns": 5728.526414862708,
+    "real_ns": 5851.268931846818,
+    "cpu_ns": 5851.217576542328,
     "unit": "us",
     "repetitions": 4
    },
    "BM_SampleArcLength/256": {
-    "real_ns": 23066.678270758483,
-    "cpu_ns": 23044.213795357937,
+    "real_ns": 22905.71173967838,
+    "cpu_ns": 22905.16677567037,
     "unit": "us",
     "repetitions": 4
    },
    "BM_SampleArcLength/1024": {
-    "real_ns": 92493.48243299339,
-    "cpu_ns": 92481.81216931203,
+    "real_ns": 92264.4420651001,
+    "cpu_ns": 92257.73535220545,
     "unit": "us",
     "repetitions": 4
    },
    "BM_SampleArcLength/4096": {
-    "real_ns": 369864.061356849,
-    "cpu_ns": 369816.62269129383,
+    "real_ns": 368950.0000052105,
+    "cpu_ns": 368948.68421052676,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Frames/16": {
-    "real_ns": 3803.650237899861,
-    "cpu_ns": 3803.3500108766466,
+    "real_ns": 3789.535239509085,
+    "cpu_ns": 3789.536362898218,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Frames/64": {
-    "real_ns": 9836.202007454034,
-    "cpu_ns": 9836.174109029453,
+    "real_ns": 9849.837555971233,
+    "cpu_ns": 9849.834635141848,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Frames/256": {
-    "real_ns": 38569.7561163365,
-    "cpu_ns": 38566.767621145096,
+    "real_ns": 38553.23572522672,
+    "cpu_ns": 38549.37931034494,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Frames/1024": {
-    "real_ns": 155032.64677880163,
-    "cpu_ns": 155000.56818181684,
+    "real_ns": 154879.96068154485,
+    "cpu_ns": 154880.3986710955,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Frames/4096": {
-    "real_ns": 620792.2211872925,
-    "cpu_ns": 620789.823008846,
-    "unit": "us",
-    "repetitions": 4
-   },
-   "BM_Sweep_Circle/segments:32/sides:6": {
-    "real_ns": 7676.075129071967,
-    "cpu_ns": 7676.088869335673,
-    "unit": "us",
-    "repetitions": 4
-   },
-   "BM_Sweep_Circle/segments:256/sides:6": {
-    "real_ns": 56487.25030404944,
-    "cpu_ns": 56475.11219910225,
-    "unit": "us",
-    "repetitions": 4
-   },
-   "BM_Sweep_Circle/segments:1024/sides:6": {
-    "real_ns": 219204.38800502644,
-    "cpu_ns": 219203.44287949897,
-    "unit": "us",
-    "repetitions": 4
-   },
-   "BM_Sweep_Circle/segments:32/sides:24": {
-    "real_ns": 12212.85137503111,
-    "cpu_ns": 12211.42284569137,
-    "unit": "us",
-    "repetitions": 4
-   },
-   "BM_Sweep_Circle/segments:256/sides:24": {
-    "real_ns": 95705.89816797414,
-    "cpu_ns": 95679.42583732077,
-    "unit": "us",
-    "repetitions": 4
-   },
-   "BM_Sweep_Circle/segments:1024/sides:24": {
-    "real_ns": 367189.6225692554,
-    "cpu_ns": 367134.4647519595,
-    "unit": "us",
-    "repetitions": 4
-   },
-   "BM_Sweep_Line/32": {
-    "real_ns": 6086.386054437623,
-    "cpu_ns": 6085.234171725908,
-    "unit": "us",
-    "repetitions": 4
-   },
-   "BM_Sweep_Line/64": {
-    "real_ns": 11523.0055263436,
-    "cpu_ns": 11521.156848245822,
-    "unit": "us",
-    "repetitions": 4
-   },
-   "BM_Sweep_Line/256": {
-    "real_ns": 43944.15266744072,
-    "cpu_ns": 43943.22459222082,
-    "unit": "us",
-    "repetitions": 4
-   },
-   "BM_Sweep_Line/1024": {
-    "real_ns": 176880.4423045367,
-    "cpu_ns": 176718.12500000157,
-    "unit": "us",
-    "repetitions": 4
-   },
-   "BM_Sweep_Line/2048": {
-    "real_ns": 350925.83391815424,
-    "cpu_ns": 350912.49999999354,
-    "unit": "us",
-    "repetitions": 4
-   },
-   "BM_Sweep_Hang/32": {
-    "real_ns": 2128.412533184718,
-    "cpu_ns": 2128.3495204657024,
-    "unit": "us",
-    "repetitions": 4
-   },
-   "BM_Sweep_Hang/64": {
-    "real_ns": 3799.347454064182,
-    "cpu_ns": 3799.353102660888,
-    "unit": "us",
-    "repetitions": 4
-   },
-   "BM_Sweep_Hang/256": {
-    "real_ns": 13786.531545459784,
-    "cpu_ns": 13786.142506142485,
-    "unit": "us",
-    "repetitions": 4
-   },
-   "BM_Sweep_Hang/1024": {
-    "real_ns": 54741.07161368409,
-    "cpu_ns": 54738.943248532385,
-    "unit": "us",
-    "repetitions": 4
-   },
-   "BM_Sweep_Hang/2048": {
-    "real_ns": 110284.14857098347,
-    "cpu_ns": 110180.04676539487,
+    "real_ns": 621265.8332919495,
+    "cpu_ns": 621266.6666666658,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PoseAlong_Rail/64": {
-    "real_ns": 130.04532542143136,
-    "cpu_ns": 130.03268417888165,
+    "real_ns": 130.18911855571838,
+    "cpu_ns": 130.16546366840208,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PoseAlong_Rail/256": {
-    "real_ns": 346.6586078142425,
-    "cpu_ns": 346.62115652221576,
+    "real_ns": 346.0481830875266,
+    "cpu_ns": 346.0500502892885,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PoseAlong_Rail/1024": {
-    "real_ns": 1119.2552444529504,
-    "cpu_ns": 1119.1778419147508,
+    "real_ns": 1108.9360651998754,
+    "cpu_ns": 1108.9349098330085,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PoseAlong_Spline/64": {
-    "real_ns": 9864.66375124682,
-    "cpu_ns": 9862.015721504744,
+    "real_ns": 9828.892470768216,
+    "cpu_ns": 9828.873437280532,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PoseAlong_Spline/256": {
-    "real_ns": 38939.01899654689,
-    "cpu_ns": 38937.7094972059,
+    "real_ns": 38884.451304058224,
+    "cpu_ns": 38884.43396226418,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PoseAlong_Spline/1024": {
-    "real_ns": 156646.5300328224,
-    "cpu_ns": 156596.98996655684,
-    "unit": "us",
-    "repetitions": 4
-   },
-   "BM_Sweep_Rings/32": {
-    "real_ns": 2076.6799940311944,
-    "cpu_ns": 2076.6787591619714,
-    "unit": "us",
-    "repetitions": 4
-   },
-   "BM_Sweep_Rings/256": {
-    "real_ns": 18056.15310098545,
-    "cpu_ns": 18028.07788944718,
-    "unit": "us",
-    "repetitions": 4
-   },
-   "BM_Sweep_Rings/1024": {
-    "real_ns": 71717.14802864852,
-    "cpu_ns": 71654.81593545101,
+    "real_ns": 156526.31636463106,
+    "cpu_ns": 156524.07614781574,
     "unit": "us",
     "repetitions": 4
    }
   },
   "geometry_mesh_pop_bench": {
    "BM_PopOperator/0": {
-    "real_ns": 10875.071433756793,
-    "cpu_ns": 10874.51286048324,
+    "real_ns": 13685.500588612551,
+    "cpu_ns": 13683.364376041558,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopOperator/1": {
-    "real_ns": 12985.218829591966,
-    "cpu_ns": 12982.164534503676,
+    "real_ns": 15512.361001437126,
+    "cpu_ns": 15512.314998895537,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopOperator/2": {
-    "real_ns": 14657.684211892223,
-    "cpu_ns": 14657.19815861055,
+    "real_ns": 17555.970732304926,
+    "cpu_ns": 17555.978532201676,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopOperator/3": {
-    "real_ns": 65197.441835216305,
-    "cpu_ns": 65190.465116279374,
+    "real_ns": 36094.65888067195,
+    "cpu_ns": 36088.40991223545,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopOperator/4": {
-    "real_ns": 13335.42496957194,
-    "cpu_ns": 13333.745717548543,
+    "real_ns": 16128.264708917912,
+    "cpu_ns": 16128.267127230887,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopOperator/5": {
-    "real_ns": 13197.09212148158,
-    "cpu_ns": 13197.094065477842,
+    "real_ns": 15469.495498972181,
+    "cpu_ns": 15468.935236004414,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopOperator/6": {
-    "real_ns": 13405.02271191563,
-    "cpu_ns": 13395.661255103068,
+    "real_ns": 16152.571928639505,
+    "cpu_ns": 16152.648512007341,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopOperator/7": {
-    "real_ns": 36579.056557278964,
-    "cpu_ns": 36576.74669544096,
+    "real_ns": 23814.81680874191,
+    "cpu_ns": 23814.85568760597,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopOperator/8": {
-    "real_ns": 34463.38963805606,
-    "cpu_ns": 34463.47143907839,
+    "real_ns": 24768.692821580167,
+    "cpu_ns": 24768.12104152017,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopOperator/9": {
-    "real_ns": 13566.376191196185,
-    "cpu_ns": 13566.323557972282,
+    "real_ns": 16132.067260225416,
+    "cpu_ns": 16132.165422171052,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopOperator/10": {
-    "real_ns": 17485.756230430634,
-    "cpu_ns": 17482.698313553985,
+    "real_ns": 20333.068079655124,
+    "cpu_ns": 20332.07929387941,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopOperator/11": {
-    "real_ns": 124023.83612253095,
-    "cpu_ns": 123996.9053934571,
+    "real_ns": 20192.636304675394,
+    "cpu_ns": 20192.756336405597,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopCook_Plain/1000": {
-    "real_ns": 120202.55424630866,
-    "cpu_ns": 120202.91095890419,
+    "real_ns": 94273.98554235446,
+    "cpu_ns": 94257.22932077915,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopCook_Plain/10000": {
-    "real_ns": 1230693.896088684,
-    "cpu_ns": 1229390.3508771916,
+    "real_ns": 1017530.9492468301,
+    "cpu_ns": 1017398.5507246295,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopCook_Plain/100000": {
-    "real_ns": 12270100.351253694,
-    "cpu_ns": 12269818.18181808,
+    "real_ns": 2090587.0596970322,
+    "cpu_ns": 2057537.3134328236,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopCook_MaskedAndDeformed/1000": {
-    "real_ns": 207561.1772579712,
-    "cpu_ns": 207559.0841949773,
+    "real_ns": 128350.71710600855,
+    "cpu_ns": 128344.98620055335,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopCook_MaskedAndDeformed/10000": {
-    "real_ns": 2099147.7024143757,
-    "cpu_ns": 2099126.865671643,
+    "real_ns": 1372383.4604341858,
+    "cpu_ns": 1372386.1386138618,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopCook_MaskedAndDeformed/100000": {
-    "real_ns": 21047892.320590712,
-    "cpu_ns": 21038416.666666985,
+    "real_ns": 2861875.00008964,
+    "cpu_ns": 2826509.9999999776,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopCook_Relax/1000": {
-    "real_ns": 235629.99027258588,
-    "cpu_ns": 235335.84589615057,
+    "real_ns": 101297.42510262984,
+    "cpu_ns": 101297.75687409751,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopCook_Relax/10000": {
-    "real_ns": 2355116.5181512046,
-    "cpu_ns": 2355016.9491525237,
+    "real_ns": 1083583.0154134713,
+    "cpu_ns": 1083476.9230769281,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopCook_Relax/100000": {
-    "real_ns": 23522548.571539424,
-    "cpu_ns": 23518249.999999814,
+    "real_ns": 2415610.5253002923,
+    "cpu_ns": 2373915.2542373072,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopCook_PointSetSeed/1000": {
-    "real_ns": 17847.690153428877,
-    "cpu_ns": 17845.13668150032,
+    "real_ns": 20304.625650169328,
+    "cpu_ns": 20304.64678633478,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopCook_PointSetSeed/10000": {
-    "real_ns": 163775.99301713164,
-    "cpu_ns": 163745.91121495469,
+    "real_ns": 186755.27031002962,
+    "cpu_ns": 186755.6591211742,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopCook_PointSetSeed/100000": {
-    "real_ns": 1672334.432920539,
-    "cpu_ns": 1671861.842105239,
+    "real_ns": 867646.3435528988,
+    "cpu_ns": 861386.5030674984,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopSink_Stamps/1000": {
-    "real_ns": 166529.6241712087,
-    "cpu_ns": 166529.79737783165,
+    "real_ns": 174277.80347414647,
+    "cpu_ns": 174274.25373134267,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopSink_Stamps/10000": {
-    "real_ns": 1698057.2261409946,
-    "cpu_ns": 1698054.2168674574,
+    "real_ns": 1440222.5765201254,
+    "cpu_ns": 1437964.2857143038,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopRuntime_Dispatch/1": {
-    "real_ns": 1065.033494685394,
-    "cpu_ns": 1065.0342823411838,
+    "real_ns": 1127.4159466973701,
+    "cpu_ns": 1127.4137526212262,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopRuntime_Dispatch/1000": {
-    "real_ns": 120303.51250456393,
-    "cpu_ns": 120280.4459691256,
+    "real_ns": 94301.1260067185,
+    "cpu_ns": 94299.66216216184,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopRuntime_Direct/1": {
-    "real_ns": 1059.4481700789438,
-    "cpu_ns": 1059.1404800292034,
+    "real_ns": 1126.8288091778224,
+    "cpu_ns": 1126.8271401354204,
     "unit": "us",
     "repetitions": 4
    },
    "BM_PopRuntime_Direct/1000": {
-    "real_ns": 120046.30610519765,
-    "cpu_ns": 120042.56233877953,
+    "real_ns": 95089.47638665796,
+    "cpu_ns": 95084.00809716422,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Sweep_Circle/segments:32/sides:6": {
-    "real_ns": 7285.8770569073695,
-    "cpu_ns": 7285.838607594906,
+    "real_ns": 7290.024524734245,
+    "cpu_ns": 7290.012536565046,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Sweep_Circle/segments:256/sides:6": {
-    "real_ns": 54282.08927207772,
-    "cpu_ns": 54281.95197521273,
+    "real_ns": 54244.922703902965,
+    "cpu_ns": 54243.510267338075,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Sweep_Circle/segments:1024/sides:6": {
-    "real_ns": 216369.97681487873,
-    "cpu_ns": 216370.1700154543,
+    "real_ns": 216647.1836343264,
+    "cpu_ns": 216637.34567901457,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Sweep_Circle/segments:32/sides:24": {
-    "real_ns": 12065.082406166355,
-    "cpu_ns": 12064.994397034838,
+    "real_ns": 12022.37046863055,
+    "cpu_ns": 12022.375880432883,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Sweep_Circle/segments:256/sides:24": {
-    "real_ns": 94689.91361874083,
-    "cpu_ns": 94683.26558265593,
+    "real_ns": 94948.19220597461,
+    "cpu_ns": 94947.11864406722,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Sweep_Circle/segments:1024/sides:24": {
-    "real_ns": 377337.3091560212,
-    "cpu_ns": 375409.9462365698,
+    "real_ns": 376195.8569497739,
+    "cpu_ns": 375168.44919784885,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Sweep_Rings/32": {
-    "real_ns": 2073.62245703502,
-    "cpu_ns": 2071.252600056061,
+    "real_ns": 2051.315953163684,
+    "cpu_ns": 2051.3132082101656,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Sweep_Rings/256": {
-    "real_ns": 17217.099862994546,
-    "cpu_ns": 17203.719885157952,
+    "real_ns": 17249.23519278378,
+    "cpu_ns": 17249.32697014189,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Sweep_Rings/1024": {
-    "real_ns": 23446.93569362063,
-    "cpu_ns": 23110.762331838763,
+    "real_ns": 23165.77163766717,
+    "cpu_ns": 22853.401469179422,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Sweep_Line/32": {
-    "real_ns": 5965.546967612733,
-    "cpu_ns": 5965.575451942329,
+    "real_ns": 5951.993501403588,
+    "cpu_ns": 5952.015682263804,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Sweep_Line/64": {
-    "real_ns": 11291.255040334598,
-    "cpu_ns": 11291.290322580826,
+    "real_ns": 11314.077877287198,
+    "cpu_ns": 11313.853863562863,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Sweep_Line/256": {
-    "real_ns": 43118.54741326404,
-    "cpu_ns": 43118.688423645304,
+    "real_ns": 43078.957500551034,
+    "cpu_ns": 43079.30397289751,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Sweep_Line/1024": {
-    "real_ns": 174270.16624209087,
-    "cpu_ns": 174243.22660098295,
+    "real_ns": 172170.42392756836,
+    "cpu_ns": 172170.55214724125,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Sweep_Line/2048": {
-    "real_ns": 345388.14977375045,
-    "cpu_ns": 345387.37623763736,
+    "real_ns": 345848.1987673835,
+    "cpu_ns": 345825.92592594237,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Sweep_Hang/32": {
-    "real_ns": 2111.641804297651,
-    "cpu_ns": 2111.6433809106975,
+    "real_ns": 2115.4917567899056,
+    "cpu_ns": 2115.4590102001684,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Sweep_Hang/64": {
-    "real_ns": 3798.54284117462,
-    "cpu_ns": 3798.4672461884375,
+    "real_ns": 3818.9785346857775,
+    "cpu_ns": 3818.165649711358,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Sweep_Hang/256": {
-    "real_ns": 13816.949003702186,
-    "cpu_ns": 13816.877096074004,
+    "real_ns": 13759.826506989957,
+    "cpu_ns": 13759.836972929435,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Sweep_Hang/1024": {
-    "real_ns": 54567.23852749714,
-    "cpu_ns": 54565.90202177163,
+    "real_ns": 54656.42835103872,
+    "cpu_ns": 54654.205607476644,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Sweep_Hang/2048": {
-    "real_ns": 109286.96250402936,
-    "cpu_ns": 109286.71874999852,
+    "real_ns": 109322.46999799137,
+    "cpu_ns": 109322.68121590489,
     "unit": "us",
     "repetitions": 4
    }
   },
   "geometry_mesh_render_bench": {
    "BM_DrawMesh/16": {
-    "real_ns": 148123.73996152682,
-    "cpu_ns": 148112.52653927816,
+    "real_ns": 148044.65863289707,
+    "cpu_ns": 148045.55198285094,
     "unit": "us",
     "repetitions": 4
    },
    "BM_DrawMesh/64": {
-    "real_ns": 578876.5491702217,
-    "cpu_ns": 578811.9834710746,
+    "real_ns": 577103.4793574209,
+    "cpu_ns": 577097.1074380155,
     "unit": "us",
     "repetitions": 4
    },
    "BM_DrawMesh/256": {
-    "real_ns": 5899616.303698471,
-    "cpu_ns": 5899333.33333333,
+    "real_ns": 5956699.282409238,
+    "cpu_ns": 5956565.217391301,
     "unit": "us",
     "repetitions": 4
    },
    "BM_DrawMeshMode/mode:0": {
-    "real_ns": 1075570.355169475,
-    "cpu_ns": 1075196.1538461526,
+    "real_ns": 1062094.2235122626,
+    "cpu_ns": 1062071.9696969704,
     "unit": "us",
     "repetitions": 4
    },
    "BM_DrawMeshMode/mode:1": {
-    "real_ns": 954134.2139472158,
-    "cpu_ns": 954129.2517006778,
+    "real_ns": 938720.640963906,
+    "cpu_ns": 938718.1208053723,
     "unit": "us",
     "repetitions": 4
    },
    "BM_DrawMeshMode/mode:2": {
-    "real_ns": 929477.3748033489,
-    "cpu_ns": 929324.5033112598,
+    "real_ns": 925710.9569376395,
+    "cpu_ns": 925708.609271525,
     "unit": "us",
     "repetitions": 4
    },
    "BM_DrawMeshUnsorted": {
-    "real_ns": 1904668.0886961827,
-    "cpu_ns": 1904664.3835616456,
+    "real_ns": 1967003.816799392,
+    "cpu_ns": 1966999.9999999958,
     "unit": "us",
     "repetitions": 4
    },
    "BM_DrawPanel": {
-    "real_ns": 5340.53961092919,
-    "cpu_ns": 5339.959632887791,
+    "real_ns": 5321.125689059684,
+    "cpu_ns": 5321.011599163353,
     "unit": "us",
     "repetitions": 4
    }
   },
   "geometry_path_bench": {
    "BM_Flatten/16": {
-    "real_ns": 1801.2722450707158,
-    "cpu_ns": 1800.8650183977766,
+    "real_ns": 1797.9688234688201,
+    "cpu_ns": 1797.9434018009692,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Flatten/64": {
-    "real_ns": 4357.242776479132,
-    "cpu_ns": 4356.562859720633,
+    "real_ns": 4366.415431088006,
+    "cpu_ns": 4366.3247863247925,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Flatten/256": {
-    "real_ns": 10984.920908703363,
-    "cpu_ns": 10983.720139420231,
+    "real_ns": 11112.953024377366,
+    "cpu_ns": 11112.590414116497,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Flatten/1024": {
-    "real_ns": 17956.786940676982,
-    "cpu_ns": 17949.687539854625,
+    "real_ns": 17994.830162003695,
+    "cpu_ns": 17993.39805825244,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Flatten/4096": {
-    "real_ns": 41284.33980131516,
-    "cpu_ns": 41168.59088217864,
+    "real_ns": 41007.023892903686,
+    "cpu_ns": 41007.0360598065,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Resample/64": {
-    "real_ns": 6137.926473127837,
-    "cpu_ns": 6137.772194304849,
+    "real_ns": 6144.135624353665,
+    "cpu_ns": 6144.15026519966,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Resample/256": {
-    "real_ns": 6462.229847992725,
-    "cpu_ns": 6461.965061465938,
+    "real_ns": 6458.5876323954935,
+    "cpu_ns": 6457.922616305844,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Resample/1024": {
-    "real_ns": 7918.192338289078,
-    "cpu_ns": 7916.581777023138,
+    "real_ns": 7902.510376855191,
+    "cpu_ns": 7902.183158491593,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Resample/4096": {
-    "real_ns": 13680.59213283663,
-    "cpu_ns": 13680.64893306058,
+    "real_ns": 13759.67770274416,
+    "cpu_ns": 13758.892684887527,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Resample/16384": {
-    "real_ns": 44076.50941426307,
-    "cpu_ns": 44076.121288692084,
+    "real_ns": 43893.51504806686,
+    "cpu_ns": 43887.46081504696,
     "unit": "us",
     "repetitions": 4
    },
    "BM_ContourCorners/8": {
-    "real_ns": 2407.7155447071764,
-    "cpu_ns": 2404.8339660066313,
+    "real_ns": 2386.6396675239102,
+    "cpu_ns": 2386.5777883991714,
     "unit": "us",
     "repetitions": 4
    },
    "BM_ContourCorners/16": {
-    "real_ns": 9052.91654329338,
-    "cpu_ns": 9052.61463163319,
+    "real_ns": 9057.531875165627,
+    "cpu_ns": 9057.349630106171,
     "unit": "us",
     "repetitions": 4
    },
    "BM_ContourCorners/64": {
-    "real_ns": 60088.76195921529,
-    "cpu_ns": 60073.339085418695,
+    "real_ns": 60214.87986620268,
+    "cpu_ns": 60215.049166310506,
     "unit": "us",
     "repetitions": 4
    },
    "BM_ContourCorners/256": {
-    "real_ns": 670710.3256777856,
-    "cpu_ns": 670425.8373205757,
+    "real_ns": 669316.0861399712,
+    "cpu_ns": 669318.1818181837,
     "unit": "us",
     "repetitions": 4
    },
    "BM_ContourCorners/512": {
-    "real_ns": 2686405.8588846372,
-    "cpu_ns": 2686211.5384615343,
+    "real_ns": 2685303.692207806,
+    "cpu_ns": 2685278.8461538395,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Parallel/radius:50": {
-    "real_ns": 40186.95730126215,
-    "cpu_ns": 40182.651016318094,
+    "real_ns": 40629.032933035065,
+    "cpu_ns": 40628.00687285182,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Parallel/radius:64": {
-    "real_ns": 55071.660570677006,
-    "cpu_ns": 55063.63278171755,
+    "real_ns": 54865.04036252026,
+    "cpu_ns": 54864.8119122271,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Parallel/radius:256": {
-    "real_ns": 103666.03629622317,
-    "cpu_ns": 103642.9098966023,
+    "real_ns": 103816.31467824843,
+    "cpu_ns": 103789.84432913341,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Parallel/radius:1024": {
-    "real_ns": 173149.14696644325,
-    "cpu_ns": 173114.05672010127,
+    "real_ns": 173584.00558439837,
+    "cpu_ns": 173520.47146402177,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Parallel/radius:3200": {
-    "real_ns": 488321.7995915446,
-    "cpu_ns": 488309.68858131685,
+    "real_ns": 484606.98611860507,
+    "cpu_ns": 484574.65277777315,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Displace/radius:50/zigzag:0": {
-    "real_ns": 15993.788950516875,
-    "cpu_ns": 15989.909414057998,
+    "real_ns": 16179.687500068168,
+    "cpu_ns": 16178.53163992854,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Displace/radius:800/zigzag:0": {
-    "real_ns": 189040.1988161531,
-    "cpu_ns": 189023.03523035324,
+    "real_ns": 193020.39944908122,
+    "cpu_ns": 193020.11095700308,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Displace/radius:3200/zigzag:0": {
-    "real_ns": 726090.9974768063,
-    "cpu_ns": 725966.3212435311,
+    "real_ns": 739754.4100371229,
+    "cpu_ns": 739756.6137566203,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Displace/radius:50/zigzag:1": {
-    "real_ns": 6102.879106959723,
-    "cpu_ns": 6102.75010827193,
+    "real_ns": 6066.129420999854,
+    "cpu_ns": 6066.134899417006,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Displace/radius:800/zigzag:1": {
-    "real_ns": 56758.33986742965,
-    "cpu_ns": 56752.52729478315,
+    "real_ns": 56580.84241584914,
+    "cpu_ns": 56580.31720211428,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Displace/radius:3200/zigzag:1": {
-    "real_ns": 194636.20550346142,
-    "cpu_ns": 194635.85434173737,
+    "real_ns": 193888.3620635446,
+    "cpu_ns": 193887.58620689486,
     "unit": "us",
     "repetitions": 4
    },
    "BM_NoiseHash": {
-    "real_ns": 3.4208847689657387,
-    "cpu_ns": 3.419496348797344,
+    "real_ns": 3.4116406149262124,
+    "cpu_ns": 3.4116517913981044,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_NoisePcgHash": {
-    "real_ns": 0.9879134646424792,
-    "cpu_ns": 0.987910967237754,
+    "real_ns": 0.9872181647421672,
+    "cpu_ns": 0.9872149325149802,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_NoiseValue3": {
-    "real_ns": 6.104941789068096,
-    "cpu_ns": 6.103881327599092,
+    "real_ns": 6.100458946879394,
+    "cpu_ns": 6.100470758234573,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_PoseAlong": {
-    "real_ns": 51.863568863323295,
-    "cpu_ns": 51.85768850169653,
+    "real_ns": 52.15694530538748,
+    "cpu_ns": 52.15699963789838,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_PoseAlongManyContours": {
-    "real_ns": 57.629012780255444,
-    "cpu_ns": 57.62923546083023,
+    "real_ns": 57.49004405049667,
+    "cpu_ns": 57.48798409401688,
     "unit": "ns",
     "repetitions": 4
    }
   },
   "geometry_path_blend_bench": {
    "BM_BlendSteps/4": {
-    "real_ns": 28095.228444623695,
-    "cpu_ns": 28093.00444803883,
+    "real_ns": 29113.410422923458,
+    "cpu_ns": 29112.18082879865,
     "unit": "us",
     "repetitions": 4
    },
    "BM_BlendSteps/16": {
-    "real_ns": 56990.35276162934,
-    "cpu_ns": 56966.92370129873,
+    "real_ns": 58414.95516994759,
+    "cpu_ns": 58415.13761467886,
     "unit": "us",
     "repetitions": 4
    },
    "BM_BlendSteps/64": {
-    "real_ns": 171667.12610096688,
-    "cpu_ns": 171667.27941176423,
+    "real_ns": 176872.81967148956,
+    "cpu_ns": 176872.00504413588,
     "unit": "us",
     "repetitions": 4
    },
    "BM_BlendSteps/256": {
-    "real_ns": 635113.3100519893,
-    "cpu_ns": 634934.3891402718,
+    "real_ns": 650554.7464976823,
+    "cpu_ns": 650516.2790697665,
     "unit": "us",
     "repetitions": 4
    },
    "BM_BlendSamples/32": {
-    "real_ns": 21484.919064766433,
-    "cpu_ns": 21481.673793524784,
+    "real_ns": 21881.612257807286,
+    "cpu_ns": 21881.566604127645,
     "unit": "us",
     "repetitions": 4
    },
    "BM_BlendSamples/64": {
-    "real_ns": 40020.01494865591,
-    "cpu_ns": 40020.06880733948,
+    "real_ns": 41461.3706964372,
+    "cpu_ns": 41461.527335840474,
     "unit": "us",
     "repetitions": 4
    },
    "BM_BlendSamples/256": {
-    "real_ns": 160982.90626109677,
-    "cpu_ns": 160975.8342922905,
+    "real_ns": 166129.57177255888,
+    "cpu_ns": 166132.26571767492,
     "unit": "us",
     "repetitions": 4
    },
    "BM_BlendSamples/1024": {
-    "real_ns": 1091571.221517962,
-    "cpu_ns": 1091356.5891472776,
+    "real_ns": 1124785.7822332485,
+    "cpu_ns": 1124786.290322579,
     "unit": "us",
     "repetitions": 4
    },
    "BM_BlendSamples/2048": {
-    "real_ns": 3457209.3395470846,
-    "cpu_ns": 3456634.146341456,
+    "real_ns": 3459374.9999369653,
+    "cpu_ns": 3459317.073170731,
     "unit": "us",
     "repetitions": 4
    },
    "BM_BlendAlongSpine/4": {
-    "real_ns": 30980.109642030493,
-    "cpu_ns": 30973.283285493366,
+    "real_ns": 30962.24226500286,
+    "cpu_ns": 30962.0520810152,
     "unit": "us",
     "repetitions": 4
    },
    "BM_BlendAlongSpine/16": {
-    "real_ns": 62958.27681162425,
-    "cpu_ns": 62948.79927503476,
+    "real_ns": 63285.99185870362,
+    "cpu_ns": 63285.97285067871,
     "unit": "us",
     "repetitions": 4
    },
    "BM_BlendAlongSpine/64": {
-    "real_ns": 192731.74908679214,
-    "cpu_ns": 192696.96969697165,
+    "real_ns": 193087.93034348317,
+    "cpu_ns": 193087.58620689696,
     "unit": "us",
     "repetitions": 4
    },
    "BM_BlendAlongSpine/256": {
-    "real_ns": 709711.6118382076,
-    "cpu_ns": 709571.065989845,
+    "real_ns": 711433.6929100254,
+    "cpu_ns": 711434.0101522803,
     "unit": "us",
     "repetitions": 4
    }
   },
   "image_decode_bench": {
    "BM_DecodeImage/px:256/format:0": {
-    "real_ns": 1171006.6508752205,
-    "cpu_ns": 1171008.4033613452,
+    "real_ns": 1196770.659650817,
+    "cpu_ns": 1196718.4873949578,
     "unit": "ms",
     "repetitions": 4
    },
    "BM_DecodeImage/px:1024/format:0": {
-    "real_ns": 16204194.450337026,
-    "cpu_ns": 16203944.444444446,
+    "real_ns": 16734895.812987816,
+    "cpu_ns": 16734937.49999999,
     "unit": "ms",
     "repetitions": 4
    },
    "BM_DecodeImage/px:2048/format:0": {
-    "real_ns": 60378364.40373212,
-    "cpu_ns": 60370750.00000014,
+    "real_ns": 60082395.750214346,
+    "cpu_ns": 60082250.00000022,
     "unit": "ms",
     "repetitions": 4
    },
    "BM_DecodeImage/px:256/format:1": {
-    "real_ns": 196834.9910880947,
-    "cpu_ns": 196801.84659091,
+    "real_ns": 194865.92649017175,
+    "cpu_ns": 194845.35367545104,
     "unit": "ms",
     "repetitions": 4
    },
    "BM_DecodeImage/px:1024/format:1": {
-    "real_ns": 2976118.799972724,
-    "cpu_ns": 2976010.6382978926,
+    "real_ns": 2970188.3935597427,
+    "cpu_ns": 2970191.4893616745,
     "unit": "ms",
     "repetitions": 4
    },
    "BM_DecodeImage/px:2048/format:1": {
-    "real_ns": 11764467.842030253,
-    "cpu_ns": 11764499.999999955,
+    "real_ns": 11772810.750092806,
+    "cpu_ns": 11772833.333333269,
     "unit": "ms",
     "repetitions": 4
    },
    "BM_DecodeImage_Fixture/0": {
-    "real_ns": 2857.5333911151556,
-    "cpu_ns": 2856.777260772804,
+    "real_ns": 2775.9504843942905,
+    "cpu_ns": 2775.7552900075075,
     "unit": "us",
     "repetitions": 4
    },
    "BM_DecodeImage_Fixture/1": {
-    "real_ns": 3361.332309435701,
-    "cpu_ns": 3361.253320454009,
+    "real_ns": 3414.0591795006394,
+    "cpu_ns": 3413.939438411013,
     "unit": "us",
     "repetitions": 4
    },
    "BM_ProbeImage/0": {
-    "real_ns": 1377.832705691555,
-    "cpu_ns": 1377.7975973430716,
+    "real_ns": 1339.69231362476,
+    "cpu_ns": 1339.6455357569416,
     "unit": "us",
     "repetitions": 4
    },
    "BM_ProbeImage/1": {
-    "real_ns": 996.1139560931899,
-    "cpu_ns": 996.0200726769244,
+    "real_ns": 992.8301283792321,
+    "cpu_ns": 992.7906611003075,
     "unit": "us",
+    "repetitions": 4
+   }
+  },
+  "image_encode_bench": {
+   "BM_EncodePng/64": {
+    "real_ns": 828847.263339692,
+    "cpu_ns": 828852.0710059176,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_EncodePng/256": {
+    "real_ns": 15309087.945044868,
+    "cpu_ns": 15309111.11111112,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_EncodePng/1024": {
+    "real_ns": 231360937.49781138,
+    "cpu_ns": 231273499.9999999,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_EncodeJpeg/64": {
+    "real_ns": 40545.980532658126,
+    "cpu_ns": 40544.52158164816,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_EncodeJpeg/256": {
+    "real_ns": 863516.0466041474,
+    "cpu_ns": 863512.4223602472,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_EncodeJpeg/1024": {
+    "real_ns": 14045187.499868918,
+    "cpu_ns": 14044150.000000056,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_EncodeWebp/64": {
+    "real_ns": 158940.93238867674,
+    "cpu_ns": 158940.90909090947,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_EncodeWebp/256": {
+    "real_ns": 7550747.694444403,
+    "cpu_ns": 7550722.222222244,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_EncodePngFromImage/256": {
+    "real_ns": 15250932.88930495,
+    "cpu_ns": 15250888.8888889,
+    "unit": "ns",
     "repetitions": 4
    }
   },
   "io_hub_bench": {
    "BM_Blob_CacheHit/1": {
-    "real_ns": 13.34759565902335,
-    "cpu_ns": 13.315757943810187,
+    "real_ns": 19.319952228101613,
+    "cpu_ns": 19.32003626977437,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Blob_CacheHit/64": {
-    "real_ns": 4994.978402887176,
-    "cpu_ns": 4994.59648863972,
+    "real_ns": 2327.0688557153317,
+    "cpu_ns": 2327.046699926399,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Blob_CacheHit/1024": {
-    "real_ns": 178114.026453128,
-    "cpu_ns": 178085.2417302807,
+    "real_ns": 110819.35617441044,
+    "cpu_ns": 110819.12350597614,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Load_ViewHit/1": {
-    "real_ns": 39.085777033168206,
-    "cpu_ns": 39.08564317805744,
+    "real_ns": 24.07319887704159,
+    "cpu_ns": 24.073188058593722,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Load_ViewHit/64": {
-    "real_ns": 7748.89542170244,
-    "cpu_ns": 7748.393765014817,
+    "real_ns": 2470.0596933957986,
+    "cpu_ns": 2470.054446460981,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Load_ViewHit/1024": {
-    "real_ns": 203780.28570827263,
-    "cpu_ns": 203682.8358208958,
+    "real_ns": 112505.70539507776,
+    "cpu_ns": 112501.65975103743,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Resolve/1": {
-    "real_ns": 35.64861305742541,
-    "cpu_ns": 35.64722217904448,
+    "real_ns": 45.473277137144535,
+    "cpu_ns": 45.46740859742401,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Resolve/8": {
-    "real_ns": 64.65405738946629,
-    "cpu_ns": 64.65036862638837,
+    "real_ns": 74.93115632739188,
+    "cpu_ns": 74.92369817974281,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Resolve/64": {
-    "real_ns": 352.01804645923363,
-    "cpu_ns": 352.0178361181388,
+    "real_ns": 360.2995206543618,
+    "cpu_ns": 360.29032514671724,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_NetworkCacheKey": {
-    "real_ns": 86.29473142280679,
-    "cpu_ns": 86.29459003630959,
+    "real_ns": 86.32948356289278,
+    "cpu_ns": 86.31458715505829,
     "unit": "ns",
     "repetitions": 4
    }
   },
   "material_color_bench": {
    "OklabRoundTrip": {
-    "real_ns": 95.85051631872045,
-    "cpu_ns": 95.83295446543377,
-    "unit": "ns",
-    "repetitions": 4
-   },
-   "ExponentLutBake/17": {
-    "real_ns": 108718.14109460506,
-    "cpu_ns": 108687.84099766175,
-    "unit": "ns",
-    "repetitions": 4
-   },
-   "ExponentLutBake/33": {
-    "real_ns": 361800.6034963584,
-    "cpu_ns": 361793.2816537464,
+    "real_ns": 95.71073070041234,
+    "cpu_ns": 95.71067359440717,
     "unit": "ns",
     "repetitions": 4
    }
   },
   "material_core_bench": {
    "BM_Resolve_Live/0": {
-    "real_ns": 35.750169966726055,
-    "cpu_ns": 35.73796684946282,
+    "real_ns": 33.92917479620439,
+    "cpu_ns": 33.92912413831385,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Resolve_Live/4": {
-    "real_ns": 47.36300382891932,
-    "cpu_ns": 47.35834272589973,
+    "real_ns": 41.79449688079325,
+    "cpu_ns": 41.783939049713794,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Resolve_Live/16": {
-    "real_ns": 78.24710563765004,
-    "cpu_ns": 78.23298478686763,
+    "real_ns": 57.872557133114526,
+    "cpu_ns": 57.87253992842744,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Resolve_Memo/0": {
-    "real_ns": 13.066026845439806,
-    "cpu_ns": 13.065763248182504,
+    "real_ns": 13.036671957428485,
+    "cpu_ns": 13.036654506574411,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Resolve_Memo/4": {
-    "real_ns": 14.008724535135368,
-    "cpu_ns": 14.006055868668247,
+    "real_ns": 14.271456512202867,
+    "cpu_ns": 14.271560508438345,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Resolve_Memo/16": {
-    "real_ns": 28.04296298508787,
-    "cpu_ns": 28.036324537882244,
+    "real_ns": 27.942788888149174,
+    "cpu_ns": 27.94186290778734,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Declare/4": {
-    "real_ns": 161.44864634312268,
-    "cpu_ns": 161.41938778679156,
+    "real_ns": 162.7357741415649,
+    "cpu_ns": 162.72659835875527,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Declare/16": {
-    "real_ns": 578.1913578263449,
-    "cpu_ns": 577.7788615110787,
+    "real_ns": 591.8627199537775,
+    "cpu_ns": 591.785292511654,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Over_Build/1": {
-    "real_ns": 834.3176426194093,
-    "cpu_ns": 832.7599489540893,
+    "real_ns": 822.1319397170066,
+    "cpu_ns": 822.1337729075321,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Over_Build/4": {
-    "real_ns": 5137.513428937269,
-    "cpu_ns": 5125.579878225602,
+    "real_ns": 5116.458275632438,
+    "cpu_ns": 5116.430087071012,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Over_Under/1": {
-    "real_ns": 9.689671433920934,
-    "cpu_ns": 9.683914720722392,
+    "real_ns": 9.009833700133283,
+    "cpu_ns": 9.008400074299598,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Over_Under/4": {
-    "real_ns": 32.18037535943179,
-    "cpu_ns": 32.16907219734618,
+    "real_ns": 29.48333393570728,
+    "cpu_ns": 29.480942298181134,
     "unit": "ns",
     "repetitions": 4
    }
   },
   "material_field_bench": {
    "GrainPaint/1": {
-    "real_ns": 911942.3701996347,
-    "cpu_ns": 911941.5584415582,
+    "real_ns": 912945.6699227768,
+    "cpu_ns": 912944.4444444443,
     "unit": "ns",
     "repetitions": 4
    },
    "GrainPaint/4": {
-    "real_ns": 3414208.34202592,
-    "cpu_ns": 3413378.048780494,
+    "real_ns": 3413282.5122669158,
+    "cpu_ns": 3413280.4878048818,
     "unit": "ns",
     "repetitions": 4
    },
    "GrainPaint/8": {
-    "real_ns": 6768786.703192052,
-    "cpu_ns": 6768809.523809534,
+    "real_ns": 6666432.523551132,
+    "cpu_ns": 6665785.714285714,
     "unit": "ns",
     "repetitions": 4
    },
    "HalftoneRampPaint/64": {
-    "real_ns": 141796.0319291001,
-    "cpu_ns": 141783.40080971667,
+    "real_ns": 140911.5841764311,
+    "cpu_ns": 140911.79435483846,
     "unit": "ns",
     "repetitions": 4
    },
    "HalftoneRampPaint/256": {
-    "real_ns": 2236593.255980147,
-    "cpu_ns": 2236365.0793650774,
+    "real_ns": 2224487.428542315,
+    "cpu_ns": 2224452.3809523843,
     "unit": "ns",
     "repetitions": 4
    },
    "CrtOverlayPaint/64": {
-    "real_ns": 100717.88566088429,
-    "cpu_ns": 100664.87839771099,
+    "real_ns": 63916.79044415786,
+    "cpu_ns": 63916.81901279729,
     "unit": "ns",
     "repetitions": 4
    },
    "CrtOverlayPaint/256": {
-    "real_ns": 1592254.7880046326,
-    "cpu_ns": 1592080.4597701132,
+    "real_ns": 1005640.5899507704,
+    "cpu_ns": 1005636.6906474791,
     "unit": "ns",
     "repetitions": 4
    }
   },
   "material_kit_bench": {
    "SurfaceBuild/0": {
-    "real_ns": 273.90107941029845,
-    "cpu_ns": 273.8472537804596,
+    "real_ns": 278.8296760718446,
+    "cpu_ns": 278.83029986066936,
     "unit": "ns",
     "repetitions": 4
    },
    "SurfaceBuild/1": {
-    "real_ns": 274.0800495836964,
-    "cpu_ns": 273.8650802594102,
+    "real_ns": 270.4854171846026,
+    "cpu_ns": 270.4809562023522,
     "unit": "ns",
     "repetitions": 4
    },
    "SurfaceShader": {
-    "real_ns": 404.1427364164602,
-    "cpu_ns": 404.0602072547832,
+    "real_ns": 418.6536751137346,
+    "cpu_ns": 418.6431948640711,
     "unit": "ns",
     "repetitions": 4
    },
    "BadgeFill/32": {
-    "real_ns": 285268.54261285544,
-    "cpu_ns": 285259.6741344186,
+    "real_ns": 287828.7223360471,
+    "cpu_ns": 287817.62295082014,
     "unit": "ns",
     "repetitions": 4
    },
    "BadgeFill/128": {
-    "real_ns": 3599653.307061929,
-    "cpu_ns": 3599397.435897456,
+    "real_ns": 3626773.5127834245,
+    "cpu_ns": 3626756.4102564063,
     "unit": "ns",
     "repetitions": 4
    },
    "PbrBuild/0": {
-    "real_ns": 1128.3457535614298,
-    "cpu_ns": 1128.0449116945533,
+    "real_ns": 1112.6429057171417,
+    "cpu_ns": 1112.6417374186829,
     "unit": "ns",
     "repetitions": 4
    },
    "PbrBuild/1": {
-    "real_ns": 1121.7121241879127,
-    "cpu_ns": 1121.4933085888438,
+    "real_ns": 1101.135417688624,
+    "cpu_ns": 1101.1064810430312,
     "unit": "ns",
     "repetitions": 4
    },
    "MaskBuild": {
-    "real_ns": 98.73065671876523,
-    "cpu_ns": 98.69207549556742,
+    "real_ns": 99.54823627303028,
+    "cpu_ns": 99.53277306861915,
     "unit": "ns",
     "repetitions": 4
    },
    "StackShader/0": {
-    "real_ns": 958.6065429635291,
-    "cpu_ns": 958.6107918024179,
+    "real_ns": 1029.962173822465,
+    "cpu_ns": 1029.9577472008432,
     "unit": "ns",
     "repetitions": 4
    },
    "StackShader/2": {
-    "real_ns": 3692.9751598989715,
-    "cpu_ns": 3692.8937361360126,
+    "real_ns": 3901.5944583482587,
+    "cpu_ns": 3901.273531129231,
+    "unit": "ns",
+    "repetitions": 4
+   }
+  },
+  "material_ocio_bench": {
+   "ExponentLutBake/17": {
+    "real_ns": 110185.92522160262,
+    "cpu_ns": 110182.97533810657,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "ExponentLutBake/33": {
+    "real_ns": 362367.08656266856,
+    "cpu_ns": 362365.6330749353,
     "unit": "ns",
     "repetitions": 4
    }
   },
   "material_pattern_bench": {
    "TileBakeHalftone/4": {
-    "real_ns": 3928.5974959228342,
-    "cpu_ns": 3928.3340842532116,
+    "real_ns": 3956.7459238542915,
+    "cpu_ns": 3956.7394493342376,
     "unit": "ns",
     "repetitions": 4
    },
    "TileBakeHalftone/16": {
-    "real_ns": 4093.945899674349,
-    "cpu_ns": 4093.357901202063,
+    "real_ns": 4094.795600194082,
+    "cpu_ns": 4094.8010889610996,
     "unit": "ns",
     "repetitions": 4
    },
    "TileBakeHalftone/64": {
-    "real_ns": 9362.440173808045,
-    "cpu_ns": 9361.936560934882,
+    "real_ns": 9342.920793206546,
+    "cpu_ns": 9342.917997870078,
     "unit": "ns",
     "repetitions": 4
    },
    "TileBakeSpeckle/50": {
-    "real_ns": 38380.37814238269,
-    "cpu_ns": 38373.665480427124,
+    "real_ns": 38186.13871612989,
+    "cpu_ns": 38185.40702423094,
     "unit": "ns",
     "repetitions": 4
    },
    "TileBakeSpeckle/500": {
-    "real_ns": 391827.7613382818,
-    "cpu_ns": 391708.9136490257,
+    "real_ns": 388083.6236122478,
+    "cpu_ns": 388084.7222222224,
     "unit": "ns",
     "repetitions": 4
    },
    "TileTexture": {
-    "real_ns": 79.84612935821343,
-    "cpu_ns": 79.82563434966823,
+    "real_ns": 79.33852982594888,
+    "cpu_ns": 79.33599196405373,
     "unit": "ns",
     "repetitions": 4
    }
   },
   "material_sdf_bench": {
    "SdfShader/0": {
-    "real_ns": 389.996101656762,
-    "cpu_ns": 389.9691936106093,
+    "real_ns": 387.1140096393916,
+    "cpu_ns": 387.1137183053612,
     "unit": "ns",
     "repetitions": 4
    },
    "SdfShader/1": {
-    "real_ns": 389.43085897276796,
-    "cpu_ns": 389.3274418526989,
+    "real_ns": 387.1983400270762,
+    "cpu_ns": 387.1913119449699,
     "unit": "ns",
     "repetitions": 4
    },
    "SdfShader/2": {
-    "real_ns": 393.06694161942744,
-    "cpu_ns": 392.1289809625471,
+    "real_ns": 386.97851070314846,
+    "cpu_ns": 386.9623180068157,
     "unit": "ns",
     "repetitions": 4
    },
    "SdfPaint/64": {
-    "real_ns": 331210.3964282938,
-    "cpu_ns": 331182.78301886993,
+    "real_ns": 332414.69195866806,
+    "cpu_ns": 332401.658767774,
     "unit": "ns",
     "repetitions": 4
    },
    "SdfPaint/256": {
-    "real_ns": 5209858.037738336,
-    "cpu_ns": 5208777.7777777575,
+    "real_ns": 5222243.833284464,
+    "cpu_ns": 5222148.148148172,
     "unit": "ns",
     "repetitions": 4
    }
   },
   "material_skia_bench": {
    "BM_Shader_Live/2": {
-    "real_ns": 157.6464054725651,
-    "cpu_ns": 157.63174829041043,
+    "real_ns": 157.12820628693788,
+    "cpu_ns": 157.12822936357918,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Shader_Live/16": {
-    "real_ns": 12313.797600167265,
-    "cpu_ns": 12312.782498644006,
+    "real_ns": 13189.286564366086,
+    "cpu_ns": 13187.851357789434,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Shader_ByHand2": {
-    "real_ns": 72.66289094083288,
-    "cpu_ns": 72.6603268440756,
+    "real_ns": 72.3376989121181,
+    "cpu_ns": 72.33740803505015,
+    "unit": "ns",
+    "repetitions": 4
+   }
+  },
+  "material_slang_bench": {
+   "BM_Compile": {
+    "real_ns": 51463798.665887825,
+    "cpu_ns": 51461833.33333331,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_WriteUniforms": {
+    "real_ns": 282.57359321273907,
+    "cpu_ns": 282.45379849924404,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_LookUpUniform": {
+    "real_ns": 10.873871064210253,
+    "cpu_ns": 10.870317323003702,
     "unit": "ns",
     "repetitions": 4
    }
   },
   "material_texture_bench": {
    "AtlasGrid/4": {
-    "real_ns": 340.273700766305,
-    "cpu_ns": 340.22697533355324,
+    "real_ns": 340.22939727590256,
+    "cpu_ns": 340.22168268730337,
     "unit": "ns",
     "repetitions": 4
    },
    "AtlasGrid/16": {
-    "real_ns": 3426.510299600089,
-    "cpu_ns": 3426.3911630294015,
+    "real_ns": 3427.6285132309713,
+    "cpu_ns": 3427.6254475891565,
     "unit": "ns",
     "repetitions": 4
    },
    "AtlasGrid/64": {
-    "real_ns": 51662.69544653779,
-    "cpu_ns": 51660.32508311773,
+    "real_ns": 51662.879609882315,
+    "cpu_ns": 51662.79498525077,
     "unit": "ns",
     "repetitions": 4
    },
    "AtlasPack/16": {
-    "real_ns": 8020.566675800888,
-    "cpu_ns": 8020.575068870492,
+    "real_ns": 7985.741144659549,
+    "cpu_ns": 7985.647855789646,
     "unit": "ns",
     "repetitions": 4
    },
    "AtlasPack/64": {
-    "real_ns": 29434.02630891471,
-    "cpu_ns": 29434.061318773645,
+    "real_ns": 29514.653952276814,
+    "cpu_ns": 29514.809290432677,
     "unit": "ns",
     "repetitions": 4
    },
    "AtlasPack/256": {
-    "real_ns": 121684.85195272499,
-    "cpu_ns": 121640.00000000009,
+    "real_ns": 121238.30429235345,
+    "cpu_ns": 121210.30042918498,
     "unit": "ns",
     "repetitions": 4
    },
    "AtlasRegionCut": {
-    "real_ns": 252.22068555846784,
-    "cpu_ns": 252.18888492873572,
+    "real_ns": 262.12349440898447,
+    "cpu_ns": 262.12325948088414,
     "unit": "ns",
     "repetitions": 4
    },
    "ClassifyName/0": {
-    "real_ns": 192.696744360968,
-    "cpu_ns": 192.6435923843313,
+    "real_ns": 194.82508901125453,
+    "cpu_ns": 194.80321288514165,
     "unit": "ns",
     "repetitions": 4
    },
    "ClassifyName/1": {
-    "real_ns": 290.53240952781255,
-    "cpu_ns": 290.4684022566118,
+    "real_ns": 290.672597264046,
+    "cpu_ns": 290.67238140703023,
     "unit": "ns",
     "repetitions": 4
    },
    "ClassifyName/2": {
-    "real_ns": 557.2684636506351,
-    "cpu_ns": 557.1579955012603,
+    "real_ns": 559.1296587528486,
+    "cpu_ns": 559.1230743998706,
     "unit": "ns",
     "repetitions": 4
    },
    "ClassifyName/3": {
-    "real_ns": 71.14840515596853,
-    "cpu_ns": 71.13065209314951,
+    "real_ns": 71.41881271275048,
+    "cpu_ns": 71.4189401426523,
     "unit": "ns",
     "repetitions": 4
    }
   },
   "measure_bench": {
    "BM_SamplesAdd/60": {
-    "real_ns": 5.2505902561256645,
-    "cpu_ns": 5.225629433032505,
+    "real_ns": 5.267608823823242,
+    "cpu_ns": 5.266415413166966,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_SamplesAdd/120": {
-    "real_ns": 5.215109176317568,
-    "cpu_ns": 5.214887711433333,
+    "real_ns": 5.218508862276552,
+    "cpu_ns": 5.218515859239291,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_SamplesAdd/1000": {
-    "real_ns": 5.257491513317486,
-    "cpu_ns": 5.249265839878618,
+    "real_ns": 5.21489344227349,
+    "cpu_ns": 5.213887665069317,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_SamplesPercentile/60": {
-    "real_ns": 288.7202976700611,
-    "cpu_ns": 288.6899370965606,
+    "real_ns": 288.5021580989474,
+    "cpu_ns": 288.49945145138554,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_SamplesPercentile/120": {
-    "real_ns": 703.9126993350039,
-    "cpu_ns": 703.8277074399973,
+    "real_ns": 703.7534161421787,
+    "cpu_ns": 703.6952221813958,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_SamplesPercentile/1000": {
-    "real_ns": 7124.638915549172,
-    "cpu_ns": 7122.827346465816,
+    "real_ns": 7077.293158412911,
+    "cpu_ns": 7077.136317395739,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_SamplesMean/60": {
-    "real_ns": 14.507312018498085,
-    "cpu_ns": 14.506668595672824,
+    "real_ns": 14.50753608810801,
+    "cpu_ns": 14.505390350940422,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_SamplesMean/120": {
-    "real_ns": 42.75991688225028,
-    "cpu_ns": 42.71779174037784,
+    "real_ns": 42.45027296844765,
+    "cpu_ns": 42.44967307581581,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_SamplesMean/1000": {
-    "real_ns": 804.14093201528,
-    "cpu_ns": 804.1370933853668,
+    "real_ns": 804.1866639881371,
+    "cpu_ns": 804.1904980887065,
     "unit": "ns",
     "repetitions": 4
    }
   },
   "motion_bind_bench": {
    "BM_Apply_Envelope/0": {
-    "real_ns": 3510.3807417627904,
-    "cpu_ns": 3509.060234941264,
+    "real_ns": 3499.3122280235407,
+    "cpu_ns": 3499.312740540811,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Apply_Envelope/1": {
-    "real_ns": 3502.855298632267,
-    "cpu_ns": 3502.0595651197164,
+    "real_ns": 3499.9442737313425,
+    "cpu_ns": 3499.9499987499803,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Apply_Envelope/2": {
-    "real_ns": 5113.597938051937,
-    "cpu_ns": 5112.547334692676,
+    "real_ns": 5100.66081541682,
+    "cpu_ns": 5100.619082301531,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Apply_Envelope/3": {
-    "real_ns": 3609.4957556427353,
-    "cpu_ns": 3607.94543557376,
+    "real_ns": 3514.969295448376,
+    "cpu_ns": 3514.94249974781,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Apply_Envelope/4": {
-    "real_ns": 3901.4076796104637,
-    "cpu_ns": 3892.9223680143837,
+    "real_ns": 3819.747316716199,
+    "cpu_ns": 3819.7343453510457,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Apply_Envelope/5": {
-    "real_ns": 4492.41362507314,
-    "cpu_ns": 4492.015196883357,
+    "real_ns": 4456.264808263506,
+    "cpu_ns": 4456.259451111608,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Apply_FullChain": {
-    "real_ns": 8166.443108699838,
-    "cpu_ns": 8166.433403312345,
+    "real_ns": 8166.298612286742,
+    "cpu_ns": 8165.937846189734,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Apply_Wiggle/1": {
-    "real_ns": 6928.836868618866,
-    "cpu_ns": 6927.843970929924,
+    "real_ns": 6942.2092220823115,
+    "cpu_ns": 6941.968040370023,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Apply_Wiggle/2": {
-    "real_ns": 9294.728869708742,
-    "cpu_ns": 9292.11695286088,
+    "real_ns": 9291.969984055479,
+    "cpu_ns": 9291.94920888179,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Apply_Wiggle/3": {
-    "real_ns": 11832.750474103817,
-    "cpu_ns": 11831.290677034973,
+    "real_ns": 12244.877783706397,
+    "cpu_ns": 12244.642254471928,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Apply_Wiggle/4": {
-    "real_ns": 13968.791767687615,
-    "cpu_ns": 13968.793828892136,
+    "real_ns": 14517.8147436943,
+    "cpu_ns": 14511.947127605445,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Apply_Wiggle/5": {
-    "real_ns": 16550.56504840207,
-    "cpu_ns": 16550.353773584826,
+    "real_ns": 16824.825366235218,
+    "cpu_ns": 16821.863094506472,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Apply_Wiggle/6": {
-    "real_ns": 18988.700214862416,
-    "cpu_ns": 18986.006825938588,
+    "real_ns": 18956.680901517007,
+    "cpu_ns": 18954.656199242192,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Apply_Wiggle/7": {
-    "real_ns": 21315.41106525847,
-    "cpu_ns": 21312.490444885967,
+    "real_ns": 21388.243756972155,
+    "cpu_ns": 21384.023758757405,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Apply_Wiggle/8": {
-    "real_ns": 23737.3425273986,
-    "cpu_ns": 23732.751313782006,
+    "real_ns": 23693.405040819765,
+    "cpu_ns": 23693.302891933126,
     "unit": "us",
+    "repetitions": 4
+   }
+  },
+  "motion_clock_bench": {
+   "BM_FrameClock_Tick": {
+    "real_ns": 4.653848652989485,
+    "cpu_ns": 4.653853507685399,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_Tick_Timeline/1": {
+    "real_ns": 14.501109899576928,
+    "cpu_ns": 14.501041341013915,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Tick_Timeline/8": {
+    "real_ns": 86.19002955816572,
+    "cpu_ns": 86.18679428644329,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Tick_Timeline/64": {
+    "real_ns": 685.5203710383673,
+    "cpu_ns": 685.5085610613452,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Tick_Timeline/512": {
+    "real_ns": 6618.784668612203,
+    "cpu_ns": 6618.775761595651,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Tick_Derivations/1": {
+    "real_ns": 8.708530882659705,
+    "cpu_ns": 8.70771272308944,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Tick_Derivations/8": {
+    "real_ns": 32.890070432902746,
+    "cpu_ns": 32.889830416878155,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Tick_Derivations/64": {
+    "real_ns": 228.57147406242785,
+    "cpu_ns": 228.56773666805657,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Tick_Derivations/512": {
+    "real_ns": 1759.0632815554868,
+    "cpu_ns": 1759.008415798111,
+    "unit": "us",
+    "repetitions": 4
+   }
+  },
+  "motion_schedule_bench": {
+   "BM_CascadeBuild/flat/32": {
+    "real_ns": 12.416868699267841,
+    "cpu_ns": 12.416767144294143,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_CascadeBuild/flat/512": {
+    "real_ns": 55.99462097799366,
+    "cpu_ns": 55.89540921470129,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_CascadeBuild/scattered/32": {
+    "real_ns": 524.6531683476178,
+    "cpu_ns": 524.6501981991448,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_CascadeBuild/scattered/512": {
+    "real_ns": 34603.99384018387,
+    "cpu_ns": 34603.19255907503,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_CascadeBuild/nested/32": {
+    "real_ns": 21.092361031423042,
+    "cpu_ns": 21.09238921482531,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_CascadeBuild/nested/512": {
+    "real_ns": 61.61543859472656,
+    "cpu_ns": 61.60323436209998,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_LocalTime/flat/32": {
+    "real_ns": 124.60226526080459,
+    "cpu_ns": 124.60094998573123,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_LocalTime/flat/512": {
+    "real_ns": 1911.6785582184868,
+    "cpu_ns": 1911.5844084920454,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_LocalTime/nested/32": {
+    "real_ns": 127.46707089058812,
+    "cpu_ns": 127.46686202863911,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_LocalTime/nested/512": {
+    "real_ns": 1953.0399603596165,
+    "cpu_ns": 1953.0472246622435,
+    "unit": "ns",
     "repetitions": 4
    }
   },
   "motion_values_bench": {
    "BM_Resolve/0": {
-    "real_ns": 3495.2895822521464,
-    "cpu_ns": 3495.292211901087,
+    "real_ns": 3495.8880540616938,
+    "cpu_ns": 3495.8706907437827,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Resolve/1": {
-    "real_ns": 3544.4583889191044,
-    "cpu_ns": 3543.969627405968,
+    "real_ns": 3518.4884155082163,
+    "cpu_ns": 3518.08574727646,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Resolve/2": {
-    "real_ns": 3511.1250552094193,
-    "cpu_ns": 3509.33947618809,
+    "real_ns": 3507.6256114037424,
+    "cpu_ns": 3507.485777023654,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Resolve/3": {
-    "real_ns": 4071.3590904984835,
-    "cpu_ns": 4071.2360195010097,
+    "real_ns": 4128.223971624198,
+    "cpu_ns": 4126.940903823873,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Resolve/4": {
-    "real_ns": 3496.881865424824,
-    "cpu_ns": 3496.0521072033525,
+    "real_ns": 3639.9670473416636,
+    "cpu_ns": 3639.5457060924728,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Copy/0": {
-    "real_ns": 2561.2419461561976,
-    "cpu_ns": 2560.8603641405407,
+    "real_ns": 2591.0911934723545,
+    "cpu_ns": 2586.355059874094,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Copy/1": {
-    "real_ns": 28966.002622231223,
-    "cpu_ns": 28960.62500000009,
+    "real_ns": 29192.36759630429,
+    "cpu_ns": 29168.111455108323,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Copy/2": {
-    "real_ns": 2559.6906804463115,
-    "cpu_ns": 2559.226261114035,
+    "real_ns": 2544.058949431689,
+    "cpu_ns": 2543.9249416478383,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Copy/3": {
-    "real_ns": 28969.533867669626,
-    "cpu_ns": 28969.460079216085,
+    "real_ns": 28791.877530715807,
+    "cpu_ns": 28791.51177199487,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Copy/4": {
-    "real_ns": 15470.379638211885,
-    "cpu_ns": 15470.322153574554,
+    "real_ns": 15627.595036046278,
+    "cpu_ns": 15627.620990592659,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Construct/0": {
-    "real_ns": 2702.447884150999,
-    "cpu_ns": 2702.016487982342,
+    "real_ns": 2611.6639664437275,
+    "cpu_ns": 2611.5202475949054,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Construct/1": {
-    "real_ns": 32900.78103651378,
-    "cpu_ns": 32895.53824362609,
+    "real_ns": 32907.21510681211,
+    "cpu_ns": 32900.53952615525,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Construct/2": {
-    "real_ns": 2693.9808046130856,
-    "cpu_ns": 2693.714153739548,
+    "real_ns": 2591.360615192859,
+    "cpu_ns": 2591.3552179216904,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Construct/3": {
-    "real_ns": 38906.09040974759,
-    "cpu_ns": 38885.64131668551,
+    "real_ns": 39039.14528932463,
+    "cpu_ns": 39038.90128276634,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Construct/4": {
-    "real_ns": 17693.527717105106,
-    "cpu_ns": 17689.8493861536,
+    "real_ns": 17777.624317363552,
+    "cpu_ns": 17776.825396825392,
     "unit": "us",
     "repetitions": 4
    }
   },
   "scry_engine_bench": {
    "BM_Frame_Acquire": {
-    "real_ns": 13.134517986675728,
-    "cpu_ns": 13.132717661190718,
+    "real_ns": 13.106261765711263,
+    "cpu_ns": 13.105859973619486,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Draw_RasterCanvas": {
-    "real_ns": 514393.2683685266,
-    "cpu_ns": 514393.65671641857,
+    "real_ns": 512488.55311564263,
+    "cpu_ns": 512489.0109890107,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Slot_UpdateRaster/256": {
-    "real_ns": 11293.180539898254,
-    "cpu_ns": 11237.457094866,
+    "real_ns": 10100.340899857456,
+    "cpu_ns": 10031.395842172253,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Slot_UpdateRaster/1024": {
-    "real_ns": 138450.75166678615,
-    "cpu_ns": 138438.14432989666,
+    "real_ns": 155865.63377087656,
+    "cpu_ns": 155850.32894736913,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Slot_Paint/256": {
-    "real_ns": 52895.44586557895,
-    "cpu_ns": 6119.100000000044,
+    "real_ns": 53120.49585045315,
+    "cpu_ns": 6421.499999999991,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Slot_Paint/1024": {
-    "real_ns": 182008.5916435346,
-    "cpu_ns": 6807.200000000035,
+    "real_ns": 182386.9604500942,
+    "cpu_ns": 7048.7999999999665,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Page_ChangeLatency/manual_time": {
-    "real_ns": 24456430.666666668,
-    "cpu_ns": 723500.0000000251,
+    "real_ns": 21939329.999999993,
+    "cpu_ns": 865166.6666667317,
     "unit": "ms",
     "repetitions": 4
    }
   },
   "scry_gpu_bench": {
    "BM_Upload/256": {
-    "real_ns": 9507.73541565338,
-    "cpu_ns": 9507.722664489356,
+    "real_ns": 9470.096816462701,
+    "cpu_ns": 9470.098205215036,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Upload/1024": {
-    "real_ns": 175434.54551420623,
-    "cpu_ns": 175180.34825870633,
+    "real_ns": 162553.1943133145,
+    "cpu_ns": 162553.31753554498,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Copy/256": {
-    "real_ns": 20855.537556966607,
-    "cpu_ns": 5717.467490546882,
+    "real_ns": 21561.203154039842,
+    "cpu_ns": 5509.904140646741,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Copy/1024": {
-    "real_ns": 29629.794157077602,
-    "cpu_ns": 8250.762373915059,
+    "real_ns": 29544.82644451066,
+    "cpu_ns": 7901.683959857105,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Paint/256": {
-    "real_ns": 38742.63448276209,
-    "cpu_ns": 12341.92151316948,
+    "real_ns": 39918.63657661027,
+    "cpu_ns": 12100.786496995359,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Paint/1024": {
-    "real_ns": 39961.31081369448,
-    "cpu_ns": 12268.104575163425,
+    "real_ns": 41490.78934059627,
+    "cpu_ns": 12147.948669913854,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Wrap": {
-    "real_ns": 236.73733015282897,
-    "cpu_ns": 236.7341505107924,
+    "real_ns": 237.34530208148988,
+    "cpu_ns": 237.34523173925317,
     "unit": "ns",
     "repetitions": 4
    }
   },
   "scry_platform_bench": {
    "BM_Resolve": {
-    "real_ns": 65.31422174788408,
-    "cpu_ns": 65.30176373860402,
+    "real_ns": 65.12948436394544,
+    "cpu_ns": 65.11023518323361,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_MimeType": {
-    "real_ns": 91.53946082662252,
-    "cpu_ns": 91.52694388162891,
+    "real_ns": 94.7726299023463,
+    "cpu_ns": 94.04669590098713,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_OpenFile/4": {
-    "real_ns": 14254.978271047708,
-    "cpu_ns": 14212.49745572971,
+    "real_ns": 15950.68041620124,
+    "cpu_ns": 15748.709315375923,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_OpenFile/1024": {
-    "real_ns": 188457.52655007492,
-    "cpu_ns": 187659.54606141557,
+    "real_ns": 193726.22574498082,
+    "cpu_ns": 192918.38235294024,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_ImageSlotFile": {
-    "real_ns": 195.8476831579979,
-    "cpu_ns": 195.82111170959487,
+    "real_ns": 259.4880376356447,
+    "cpu_ns": 208.70723994612027,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_SurfaceResize/256": {
-    "real_ns": 7209.758664224557,
-    "cpu_ns": 7209.439300411499,
+    "real_ns": 7721.0179936295635,
+    "cpu_ns": 7620.439958308169,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_SurfaceResize/1280": {
-    "real_ns": 163553.87291086023,
-    "cpu_ns": 163547.93608521984,
+    "real_ns": 160841.93877959187,
+    "cpu_ns": 160807.20823798573,
     "unit": "ns",
     "repetitions": 4
    }
   },
   "sigilcore_cache_bench": {
    "StillTree/64": {
-    "real_ns": 284.8113406375393,
-    "cpu_ns": 284.811638591118,
+    "real_ns": 295.97449944537084,
+    "cpu_ns": 295.55345840940214,
     "unit": "ns",
     "repetitions": 4
    },
    "StillTree/512": {
-    "real_ns": 2364.660468457547,
-    "cpu_ns": 2364.299773151857,
+    "real_ns": 2457.892748500186,
+    "cpu_ns": 2454.602325056044,
     "unit": "ns",
     "repetitions": 4
    },
    "StillTree/4096": {
-    "real_ns": 23829.883118408346,
-    "cpu_ns": 23829.84741985255,
+    "real_ns": 23540.486792314787,
+    "cpu_ns": 23529.523480662974,
     "unit": "ns",
     "repetitions": 4
    },
    "OneDrivenLeaf/64": {
-    "real_ns": 288.3495392616778,
-    "cpu_ns": 288.3193767062366,
+    "real_ns": 287.95055095461555,
+    "cpu_ns": 287.91327791231555,
     "unit": "ns",
     "repetitions": 4
    },
    "OneDrivenLeaf/512": {
-    "real_ns": 2362.430506700345,
-    "cpu_ns": 2361.0469332343982,
+    "real_ns": 2364.6082123374526,
+    "cpu_ns": 2364.0576638406583,
     "unit": "ns",
     "repetitions": 4
    },
    "OneDrivenLeaf/4096": {
-    "real_ns": 23375.614885875635,
-    "cpu_ns": 23370.25913849326,
+    "real_ns": 23346.916638600756,
+    "cpu_ns": 23345.379146919506,
     "unit": "ns",
     "repetitions": 4
    },
    "EveryNodeDriven/64": {
-    "real_ns": 360.92021467482823,
-    "cpu_ns": 360.8960879326281,
+    "real_ns": 361.472190005898,
+    "cpu_ns": 361.40091914227014,
     "unit": "ns",
     "repetitions": 4
    },
    "EveryNodeDriven/512": {
-    "real_ns": 2945.0726982572837,
-    "cpu_ns": 2944.999363786733,
+    "real_ns": 2948.503778973692,
+    "cpu_ns": 2948.3271219798235,
     "unit": "ns",
     "repetitions": 4
    },
    "EveryNodeDriven/4096": {
-    "real_ns": 27756.327142678856,
-    "cpu_ns": 27756.34321131141,
+    "real_ns": 27641.114113239095,
+    "cpu_ns": 27639.42943510295,
     "unit": "ns",
     "repetitions": 4
    },
    "SettledRelease/64": {
-    "real_ns": 1628.2219957029956,
-    "cpu_ns": 1628.222740676706,
+    "real_ns": 1610.6925970365692,
+    "cpu_ns": 1610.6792564987677,
     "unit": "ns",
     "repetitions": 4
    },
    "SettledRelease/512": {
-    "real_ns": 13355.083286949955,
-    "cpu_ns": 13330.215286264956,
+    "real_ns": 13518.162101502441,
+    "cpu_ns": 13517.685505574867,
     "unit": "ns",
     "repetitions": 4
    },
    "SettledRelease/4096": {
-    "real_ns": 107158.93303947241,
-    "cpu_ns": 107123.10606060596,
+    "real_ns": 108065.11207988823,
+    "cpu_ns": 107988.98176291777,
     "unit": "ns",
     "repetitions": 4
    }
   },
   "sigilcore_comparable_bench": {
    "BM_DirectEqual": {
-    "real_ns": 0.3187057419030142,
-    "cpu_ns": 0.3186815515729762,
+    "real_ns": 0.31883184981252033,
+    "cpu_ns": 0.3158561835777458,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_ErasedCopiesEqual": {
-    "real_ns": 1.2758462376864843,
-    "cpu_ns": 1.2718097746646448,
+    "real_ns": 1.2759962712346145,
+    "cpu_ns": 1.2666888015147433,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_ErasedSameTypeEqual": {
-    "real_ns": 7.538307509782233,
-    "cpu_ns": 7.538267555751257,
+    "real_ns": 7.512209108694098,
+    "cpu_ns": 7.512142325688405,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_ErasedDifferentTypeEqual": {
-    "real_ns": 3.7354987922047123,
-    "cpu_ns": 3.7352628220580715,
+    "real_ns": 3.7334299129769466,
+    "cpu_ns": 3.7327023809362236,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_ErasedEscapeHatchEqual": {
-    "real_ns": 1.2430630132547167,
-    "cpu_ns": 1.2428622771499547,
+    "real_ns": 1.243697115439251,
+    "cpu_ns": 1.2434144264398594,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_ErasedConstruct": {
-    "real_ns": 41.00024167406521,
-    "cpu_ns": 40.999303060855866,
+    "real_ns": 41.06109876500213,
+    "cpu_ns": 41.05858979623346,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_ErasedCopy": {
-    "real_ns": 13.080738593060184,
-    "cpu_ns": 13.077446903607758,
+    "real_ns": 13.0942602553905,
+    "cpu_ns": 13.093278982815436,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_ErasedDispatch": {
-    "real_ns": 0.9323382623307024,
-    "cpu_ns": 0.9320064004227367,
+    "real_ns": 0.9308031955858094,
+    "cpu_ns": 0.9308036111169286,
     "unit": "ns",
     "repetitions": 4
    }
   },
   "sigilcore_compute_bench": {
    "BM_NoiseHash": {
-    "real_ns": 3.4221432611641687,
-    "cpu_ns": 3.421555581952516,
+    "real_ns": 3.414070416362506,
+    "cpu_ns": 3.4135704491619414,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_NoisePcgHash": {
-    "real_ns": 0.988977831468051,
-    "cpu_ns": 0.988938930968281,
+    "real_ns": 0.9875537235656429,
+    "cpu_ns": 0.987552241695608,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_NoisePcgUnitNext": {
-    "real_ns": 3.4122744700803165,
-    "cpu_ns": 3.4122886831748076,
+    "real_ns": 3.4247838341085837,
+    "cpu_ns": 3.422913823033113,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_NoiseXorshiftUnitNext": {
+    "real_ns": 3.42020161695463,
+    "cpu_ns": 3.4198726498290086,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Fnv1aWord": {
-    "real_ns": 12.095250896327077,
-    "cpu_ns": 12.093217126649552,
+    "real_ns": 12.103165944381262,
+    "cpu_ns": 12.102861754754654,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Fnv1aText": {
-    "real_ns": 35.81007063569072,
-    "cpu_ns": 35.794745936212706,
+    "real_ns": 35.83078234156533,
+    "cpu_ns": 35.82580722194767,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Combine": {
-    "real_ns": 2.7386365418450374,
-    "cpu_ns": 2.7379980983409853,
+    "real_ns": 2.744936207564405,
+    "cpu_ns": 2.7432168089745113,
     "unit": "ns",
     "repetitions": 4
    }
   },
   "sigilcore_reconcile_bench": {
    "ColdMount/100": {
-    "real_ns": 15805.451888367652,
-    "cpu_ns": 15786.94274722788,
+    "real_ns": 16339.448721735196,
+    "cpu_ns": 16335.825254059111,
     "unit": "ns",
     "repetitions": 4
    },
    "ColdMount/1000": {
-    "real_ns": 192163.51435254578,
-    "cpu_ns": 192138.9270976617,
+    "real_ns": 194880.36084042574,
+    "cpu_ns": 194816.78321678325,
     "unit": "ns",
     "repetitions": 4
    },
    "ColdMount/10000": {
-    "real_ns": 2058671.7308365875,
-    "cpu_ns": 2058292.857142855,
+    "real_ns": 2032977.3550907122,
+    "cpu_ns": 2032652.173913043,
     "unit": "ns",
     "repetitions": 4
    },
    "WarmPrune/100": {
-    "real_ns": 12526.867011508046,
-    "cpu_ns": 12525.364323925489,
+    "real_ns": 10308.84662332353,
+    "cpu_ns": 10308.63878214602,
     "unit": "ns",
     "repetitions": 4
    },
    "WarmPrune/1000": {
-    "real_ns": 134118.0020993336,
-    "cpu_ns": 134118.52207293626,
+    "real_ns": 106589.54552500029,
+    "cpu_ns": 106589.9089529594,
     "unit": "ns",
     "repetitions": 4
    },
    "WarmPrune/10000": {
-    "real_ns": 1502437.729408944,
-    "cpu_ns": 1502417.582417577,
+    "real_ns": 1092205.1046373928,
+    "cpu_ns": 1091883.720930235,
     "unit": "ns",
     "repetitions": 4
    },
    "OneChangedLeaf/1000": {
-    "real_ns": 134485.082373194,
-    "cpu_ns": 134485.65965583164,
+    "real_ns": 106897.48550235442,
+    "cpu_ns": 106879.86270022913,
     "unit": "ns",
     "repetitions": 4
    },
    "OneChangedLeaf/10000": {
-    "real_ns": 1500863.0320192017,
-    "cpu_ns": 1500824.4680851083,
+    "real_ns": 1090677.7231027195,
+    "cpu_ns": 1090449.9999999993,
     "unit": "ns",
     "repetitions": 4
    },
    "KeyedRotation/1000": {
-    "real_ns": 135874.1925047465,
-    "cpu_ns": 135867.24806201592,
+    "real_ns": 106697.25622381477,
+    "cpu_ns": 106696.78714859433,
     "unit": "ns",
     "repetitions": 4
    },
    "KeyedRotation/10000": {
-    "real_ns": 1504921.545076402,
-    "cpu_ns": 1504611.7021276476,
+    "real_ns": 1086362.081448107,
+    "cpu_ns": 1086333.333333328,
     "unit": "ns",
     "repetitions": 4
    },
    "Churn/1000": {
-    "real_ns": 167608.3133478432,
-    "cpu_ns": 167577.20144752756,
+    "real_ns": 137678.30910430354,
+    "cpu_ns": 137673.09594460868,
     "unit": "ns",
     "repetitions": 4
    },
    "Churn/10000": {
-    "real_ns": 1828451.679709057,
-    "cpu_ns": 1828326.3888888815,
+    "real_ns": 1416631.8681788282,
+    "cpu_ns": 1415021.9780219763,
     "unit": "ns",
     "repetitions": 4
    },
    "MemoHit/1000": {
-    "real_ns": 135785.3045213343,
-    "cpu_ns": 135745.6647398852,
+    "real_ns": 110973.8514979707,
+    "cpu_ns": 110970.7740916276,
     "unit": "ns",
     "repetitions": 4
    },
    "MemoHit/10000": {
-    "real_ns": 1503519.9417021647,
-    "cpu_ns": 1503483.8709677318,
+    "real_ns": 1119380.8320094831,
+    "cpu_ns": 1119375.9999999953,
     "unit": "ns",
     "repetitions": 4
    }
   },
   "sigilskia_graphite_bench": {
    "BM_Wrap_Native": {
-    "real_ns": 10299.042051588069,
-    "cpu_ns": 10293.250919359078,
+    "real_ns": 10262.296460765006,
+    "cpu_ns": 10261.822328695194,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Wrap_Handle": {
-    "real_ns": 10303.27541803414,
-    "cpu_ns": 10302.925749877064,
+    "real_ns": 10247.674608048377,
+    "cpu_ns": 10247.28372875207,
     "unit": "ns",
     "repetitions": 4
    }
   },
   "sketch_canvas_bench": {
    "Frame": {
-    "real_ns": 25631.699124405684,
-    "cpu_ns": 25631.49707174231,
+    "real_ns": 25688.828082307715,
+    "cpu_ns": 25687.671734749983,
     "unit": "us",
     "repetitions": 4
    },
    "Open": {
-    "real_ns": 30013.93813918316,
-    "cpu_ns": 30010.738831615097,
+    "real_ns": 33976.91751483915,
+    "cpu_ns": 33971.130519165454,
     "unit": "us",
     "repetitions": 4
    }
   },
   "sketch_core_bench": {
    "FindExact": {
-    "real_ns": 1614.3941257151387,
-    "cpu_ns": 1614.3912502304993,
+    "real_ns": 1611.386977009684,
+    "cpu_ns": 1611.1896551724133,
     "unit": "ns",
     "repetitions": 4
    },
    "FindSubstring": {
-    "real_ns": 10571.341813442905,
-    "cpu_ns": 10570.873273454603,
+    "real_ns": 10541.948643016865,
+    "cpu_ns": 10540.792540792543,
     "unit": "ns",
     "repetitions": 4
    },
    "FindMissing": {
-    "real_ns": 17068.220339270156,
-    "cpu_ns": 17068.248353256884,
+    "real_ns": 17103.90947453312,
+    "cpu_ns": 17103.667481662553,
     "unit": "ns",
     "repetitions": 4
    },
    "MakeKind": {
-    "real_ns": 41.28537114184533,
-    "cpu_ns": 41.28385140595011,
+    "real_ns": 41.363851050415136,
+    "cpu_ns": 41.36313174266582,
     "unit": "ns",
+    "repetitions": 4
+   }
+  },
+  "sketch_draw_bench": {
+   "Frame": {
+    "real_ns": 938256.6225014176,
+    "cpu_ns": 937970.1986754965,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "Open": {
+    "real_ns": 493.4724452629391,
+    "cpu_ns": 492.11603488165326,
+    "unit": "us",
     "repetitions": 4
    }
   },
   "sketch_live_bench": {
    "Frame": {
-    "real_ns": 5559.017060342525,
-    "cpu_ns": 5558.693244739759,
+    "real_ns": 5553.9261119910225,
+    "cpu_ns": 5553.631170950626,
     "unit": "us",
     "repetitions": 4
    },
    "Poll": {
-    "real_ns": 1462.4529726802916,
-    "cpu_ns": 1462.3595796448712,
+    "real_ns": 1506.5049705680485,
+    "cpu_ns": 1506.4398780847514,
     "unit": "us",
     "repetitions": 4
    }
   },
   "sketch_plate_bench": {
    "Ledger": {
-    "real_ns": 404955.7983281388,
-    "cpu_ns": 404800.00000000035,
+    "real_ns": 410403.2455977765,
+    "cpu_ns": 409851.4705882357,
     "unit": "ms",
     "repetitions": 4
    }
   },
   "sketch_set_bench": {
    "Frame": {
-    "real_ns": 1339915.6697449228,
-    "cpu_ns": 1339276.1904761912,
+    "real_ns": 1347184.0961406436,
+    "cpu_ns": 1347129.8076923098,
     "unit": "us",
     "repetitions": 4
    }
   },
   "substance_bench": {
    "BM_Load": {
-    "real_ns": 2738088.942491091,
-    "cpu_ns": 2735778.8461538465,
+    "real_ns": 2703163.8653100417,
+    "cpu_ns": 2703115.384615384,
     "unit": "ms",
     "repetitions": 4
    },
    "BM_Parameters": {
-    "real_ns": 2777.870572936514,
-    "cpu_ns": 2777.6566217287896,
+    "real_ns": 2792.8328310370334,
+    "cpu_ns": 2792.7654562513694,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Render/6": {
-    "real_ns": 655379.0413308889,
-    "cpu_ns": 6750.49999999966,
+    "real_ns": 653960.3545024875,
+    "cpu_ns": 6739.499999999898,
     "unit": "ms",
     "repetitions": 4
    },
    "BM_Render/8": {
-    "real_ns": 2837722.6665616035,
-    "cpu_ns": 28347.49999999997,
+    "real_ns": 3068723.313001101,
+    "cpu_ns": 29521.5000000002,
     "unit": "ms",
     "repetitions": 4
    }
   },
   "usd_read_bench": {
    "BM_ReadModel/128": {
-    "real_ns": 184103.84078234475,
-    "cpu_ns": 182924.38070404166,
+    "real_ns": 178562.3324336172,
+    "cpu_ns": 177573.0563002681,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_ReadModel/2048": {
-    "real_ns": 286376.7955574595,
-    "cpu_ns": 283287.47433264845,
+    "real_ns": 283737.8127481091,
+    "cpu_ns": 280799.5951417007,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_ReadModel/32768": {
-    "real_ns": 1613955.6958886054,
-    "cpu_ns": 1612885.057471266,
+    "real_ns": 1647113.9320788938,
+    "cpu_ns": 1645462.9629629655,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_ReadEmitters/16": {
-    "real_ns": 502969.20074986806,
-    "cpu_ns": 501905.7971014498,
+    "real_ns": 503497.0666639748,
+    "cpu_ns": 501150.00000000047,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_ReadEmitters/256": {
-    "real_ns": 3016937.950110816,
-    "cpu_ns": 2996829.787234053,
+    "real_ns": 3041812.9375296603,
+    "cpu_ns": 3023979.1666666623,
     "unit": "ns",
     "repetitions": 4
    }
   },
   "usd_runtime_bench": {
    "BM_Available": {
-    "real_ns": 19568.005433066923,
-    "cpu_ns": 19511.449845462193,
+    "real_ns": 18187.5427726551,
+    "cpu_ns": 18147.248716067515,
     "unit": "ns",
     "repetitions": 4
    }
   },
   "usd_write_bench": {
    "BM_Mesh/128": {
-    "real_ns": 153755.1796921714,
-    "cpu_ns": 152692.56381798006,
+    "real_ns": 154098.21126655652,
+    "cpu_ns": 153233.48519362183,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Mesh/2048": {
-    "real_ns": 174109.03427708428,
-    "cpu_ns": 172954.88257107526,
+    "real_ns": 175958.95995610033,
+    "cpu_ns": 174958.6983729661,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Mesh/32768": {
-    "real_ns": 513311.2939578962,
-    "cpu_ns": 511559.56678700354,
+    "real_ns": 508282.9545558938,
+    "cpu_ns": 506694.5454545452,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Save/0": {
-    "real_ns": 669388.3767059329,
-    "cpu_ns": 663654.4117647035,
+    "real_ns": 705454.370685535,
+    "cpu_ns": 686699.9999999973,
     "unit": "ms",
     "repetitions": 4
    },
    "BM_Save/1": {
-    "real_ns": 1816056.4359277487,
-    "cpu_ns": 1804917.7215189873,
+    "real_ns": 1811372.8590087236,
+    "cpu_ns": 1806923.076923078,
     "unit": "ms",
     "repetitions": 4
    }
   },
   "weave_fonts_bench": {
    "BM_ShapeWord_Cold/0": {
-    "real_ns": 15075.383576454435,
-    "cpu_ns": 15072.551976732873,
+    "real_ns": 15227.46233657801,
+    "cpu_ns": 15234.79398299518,
     "unit": "us",
     "repetitions": 4
    },
    "BM_ShapeWord_Cold/1": {
-    "real_ns": 9129.71231826471,
-    "cpu_ns": 9128.796254145134,
+    "real_ns": 9120.027244093912,
+    "cpu_ns": 9119.84029879644,
     "unit": "us",
     "repetitions": 4
    },
    "BM_ShapeWord_Warm/0": {
-    "real_ns": 972.2906789191645,
-    "cpu_ns": 972.2510664571175,
+    "real_ns": 1098.7388914210621,
+    "cpu_ns": 1098.492153599702,
     "unit": "us",
     "repetitions": 4
    },
    "BM_ShapeWord_Warm/1": {
-    "real_ns": 717.7437583562894,
-    "cpu_ns": 717.7219285945434,
+    "real_ns": 744.5030680822949,
+    "cpu_ns": 744.2265270486985,
     "unit": "us",
     "repetitions": 4
    }
   },
   "weave_layout_bench": {
    "BM_Layout_Greedy/100": {
-    "real_ns": 6361.722228289307,
-    "cpu_ns": 6360.411065032131,
+    "real_ns": 7942.863443560385,
+    "cpu_ns": 7942.8407460545295,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Layout_Greedy/500": {
-    "real_ns": 29430.58462052962,
-    "cpu_ns": 29426.038606798083,
+    "real_ns": 35629.35007712283,
+    "cpu_ns": 35629.577822990774,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Layout_Greedy/2000": {
-    "real_ns": 117285.72697575299,
-    "cpu_ns": 117272.07737594596,
+    "real_ns": 140714.34270590544,
+    "cpu_ns": 140711.5577889444,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Layout_Greedy/10000": {
-    "real_ns": 571738.6996720807,
-    "cpu_ns": 571650.4237288155,
+    "real_ns": 682595.834170082,
+    "cpu_ns": 682585.3658536568,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Layout_KnuthPlass/100": {
-    "real_ns": 10235.509685190234,
-    "cpu_ns": 10234.18740849198,
+    "real_ns": 12350.757638582309,
+    "cpu_ns": 12350.759448958011,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Layout_KnuthPlass/500": {
-    "real_ns": 79329.1645418324,
-    "cpu_ns": 79325.0423968346,
+    "real_ns": 92215.14543888079,
+    "cpu_ns": 92214.70781352585,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Layout_KnuthPlass/2000": {
-    "real_ns": 338860.4728762087,
-    "cpu_ns": 338842.6150121076,
+    "real_ns": 392335.141477102,
+    "cpu_ns": 392336.134453782,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Layout_KnuthPlass/10000": {
-    "real_ns": 1770798.7829948529,
-    "cpu_ns": 1770411.392405069,
-    "unit": "us",
-    "repetitions": 4
-   },
-   "BM_Layout_KnuthPlass_Hyphenated_300w": {
-    "real_ns": 91500.5044771652,
-    "cpu_ns": 91500.98103335494,
-    "unit": "us",
-    "repetitions": 4
-   },
-   "BM_Layout_Greedy_MultiFont_500w": {
-    "real_ns": 29887.47506696409,
-    "cpu_ns": 29883.66124893092,
-    "unit": "us",
-    "repetitions": 4
-   },
-   "BM_Update_EditOneWord_500w": {
-    "real_ns": 142451.39605124592,
-    "cpu_ns": 142444.1624365478,
-    "unit": "us",
-    "repetitions": 4
-   },
-   "BM_Update_EditOneWord_KnuthPlass_500w": {
-    "real_ns": 182368.95114872218,
-    "cpu_ns": 182357.42187500125,
-    "unit": "us",
-    "repetitions": 4
-   },
-   "BM_Update_PaintRestyle_500w": {
-    "real_ns": 29978.039251132446,
-    "cpu_ns": 29971.87165775397,
-    "unit": "us",
-    "repetitions": 4
-   },
-   "BM_Update_SizeRestyle_500w": {
-    "real_ns": 142991.98073693487,
-    "cpu_ns": 142973.01425661822,
-    "unit": "us",
-    "repetitions": 4
-   },
-   "BM_Update_SpanRestyleAcrossLines_500w": {
-    "real_ns": 30309.69652808407,
-    "cpu_ns": 30307.744411830725,
-    "unit": "us",
-    "repetitions": 4
-   },
-   "BM_Update_MovingExclusions_300w": {
-    "real_ns": 17554.484391040038,
-    "cpu_ns": 17550.69033530554,
-    "unit": "us",
-    "repetitions": 4
-   },
-   "BM_Update_MovingPathExclusions_300w": {
-    "real_ns": 19165.07044820633,
-    "cpu_ns": 19144.30329495851,
-    "unit": "us",
-    "repetitions": 4
-   },
-   "BM_Update_ReplaceWholeParagraph_500w": {
-    "real_ns": 152785.3763674374,
-    "cpu_ns": 152769.4805194825,
-    "unit": "us",
-    "repetitions": 4
-   },
-   "BM_Update_ReplaceWholeParagraph_Cold_500w": {
-    "real_ns": 538097.450856206,
-    "cpu_ns": 538031.0077518543,
-    "unit": "us",
-    "repetitions": 4
-   },
-   "BM_Confetti_Babel_2000": {
-    "real_ns": 581539.1596870427,
-    "cpu_ns": 581541.4937759335,
-    "unit": "us",
-    "repetitions": 4
-   },
-   "BM_Layout_Vertical_Columns/100": {
-    "real_ns": 7904.891055335869,
-    "cpu_ns": 7901.873377722628,
-    "unit": "us",
-    "repetitions": 4
-   },
-   "BM_Layout_Vertical_Columns/500": {
-    "real_ns": 45026.35757108369,
-    "cpu_ns": 45011.77419354816,
-    "unit": "us",
-    "repetitions": 4
-   },
-   "BM_Layout_Vertical_Columns/2000": {
-    "real_ns": 178158.6719750222,
-    "cpu_ns": 178154.383735705,
-    "unit": "us",
-    "repetitions": 4
-   },
-   "BM_Update_MovingColumnExclusions_300w": {
-    "real_ns": 26463.849686172074,
-    "cpu_ns": 26463.33396333445,
-    "unit": "us",
-    "repetitions": 4
-   },
-   "BM_Layout_Vertical_ClampedEllipsis_500w": {
-    "real_ns": 11580.255149325541,
-    "cpu_ns": 11580.277502477576,
+    "real_ns": 2050570.0506517948,
+    "cpu_ns": 2050036.231884067,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Layout_Overflowed_30000w/0": {
-    "real_ns": 37111.04141329246,
-    "cpu_ns": 37111.00820322821,
+    "real_ns": 36897.771743647354,
+    "cpu_ns": 36897.86505007899,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Layout_Overflowed_30000w/1": {
-    "real_ns": 83365.62075443647,
-    "cpu_ns": 83365.23553965426,
+    "real_ns": 84193.01692653868,
+    "cpu_ns": 84116.08222490954,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Layout_Vertical_Columns/100": {
+    "real_ns": 9158.163512977484,
+    "cpu_ns": 9152.393281550805,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Layout_Vertical_Columns/500": {
+    "real_ns": 51008.87490842838,
+    "cpu_ns": 50951.98555956697,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Layout_Vertical_Columns/2000": {
+    "real_ns": 205857.49633540265,
+    "cpu_ns": 205629.03225806617,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Layout_KnuthPlass_Hyphenated_300w": {
+    "real_ns": 107502.9535081185,
+    "cpu_ns": 107404.72560975721,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Layout_Greedy_MultiFont_500w": {
+    "real_ns": 37565.17257255972,
+    "cpu_ns": 37538.244766505464,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Update_EditOneWord_500w": {
+    "real_ns": 166242.70936610643,
+    "cpu_ns": 165615.65836298815,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Update_EditOneWord_KnuthPlass_500w": {
+    "real_ns": 204914.0661213143,
+    "cpu_ns": 204786.0326894485,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Update_PaintRestyle_500w": {
+    "real_ns": 37370.43368033436,
+    "cpu_ns": 37345.1232583065,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Update_PaintRestyle_Overflowed_30000w": {
-    "real_ns": 37331.4439854448,
-    "cpu_ns": 37331.421712456926,
+    "real_ns": 37328.22668082596,
+    "cpu_ns": 37315.88937093258,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Update_SizeRestyle_500w": {
+    "real_ns": 161752.63751169853,
+    "cpu_ns": 161749.7123130028,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Update_SpanRestyleAcrossLines_500w": {
+    "real_ns": 37235.628146125586,
+    "cpu_ns": 37233.28822733479,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Update_MovingExclusions_300w": {
+    "real_ns": 21291.338283793826,
+    "cpu_ns": 21288.496514094746,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Update_MovingPathExclusions_300w": {
+    "real_ns": 22752.187190913373,
+    "cpu_ns": 22752.190536880567,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Update_MovingColumnExclusions_300w": {
+    "real_ns": 29331.46639419101,
+    "cpu_ns": 29331.03015075433,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Layout_Vertical_ClampedEllipsis_500w": {
+    "real_ns": 13852.043839635535,
+    "cpu_ns": 13847.847551342737,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Update_ReplaceWholeParagraph_500w": {
+    "real_ns": 169829.05616745318,
+    "cpu_ns": 169806.15942029038,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Update_ReplaceWholeParagraph_Cold_500w": {
+    "real_ns": 526534.5460297255,
+    "cpu_ns": 526492.3371647315,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Confetti_Babel_2000": {
+    "real_ns": 646246.591118865,
+    "cpu_ns": 646163.5514018642,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Live_Composer_AnimatingMeasure_600w": {
-    "real_ns": 31752.7792828644,
-    "cpu_ns": 31752.75735294154,
+    "real_ns": 31764.648437483225,
+    "cpu_ns": 31764.65947935891,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Live_Composer_SeenMeasure_600w": {
-    "real_ns": 28987.47668956849,
-    "cpu_ns": 28987.567343556097,
+    "real_ns": 29016.562188231943,
+    "cpu_ns": 29013.992537313505,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Live_Composer_ContentChurn_600w": {
-    "real_ns": 383116.13627193565,
-    "cpu_ns": 383097.05882353557,
+    "real_ns": 385831.42089976266,
+    "cpu_ns": 385737.3046875015,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Live_Story_Refill_600w_SixFrames": {
-    "real_ns": 27771.727444544555,
-    "cpu_ns": 27771.556886227205,
+    "real_ns": 27957.893932812956,
+    "cpu_ns": 27957.91482523088,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Layout_ParagraphStyles_600w": {
-    "real_ns": 36830.883595760635,
-    "cpu_ns": 36830.97112860845,
+    "real_ns": 36865.79921086808,
+    "cpu_ns": 36861.13306982943,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Layout_JustificationRanges_600w": {
-    "real_ns": 131586.3294081296,
-    "cpu_ns": 131580.82706766832,
+    "real_ns": 134405.06135603308,
+    "cpu_ns": 134405.08149568905,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Layout_ReservedBand_600w": {
-    "real_ns": 32379.55662439407,
-    "cpu_ns": 32338.48089681971,
+    "real_ns": 32262.74890548515,
+    "cpu_ns": 32259.51118284649,
     "unit": "us",
     "repetitions": 4
    }
   },
   "weave_paint_bench": {
    "BM_Draw/300": {
-    "real_ns": 245134.74317173735,
-    "cpu_ns": 245098.02158273416,
+    "real_ns": 242989.05892359363,
+    "cpu_ns": 242981.80242634306,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Draw/2000": {
-    "real_ns": 1624749.0174410974,
-    "cpu_ns": 1624682.3529411745,
+    "real_ns": 1607030.6494306163,
+    "cpu_ns": 1607034.482758624,
     "unit": "us",
     "repetitions": 4
    },
    "BM_DrawBatched/300": {
-    "real_ns": 151759.05380700086,
-    "cpu_ns": 151725.40540540527,
+    "real_ns": 151818.28239213797,
+    "cpu_ns": 151818.57451403915,
     "unit": "us",
     "repetitions": 4
    },
    "BM_DrawBatched/2000": {
-    "real_ns": 1012813.2560276899,
-    "cpu_ns": 1012742.7536231892,
+    "real_ns": 1008079.4316884833,
+    "cpu_ns": 1008082.7338129502,
     "unit": "us",
     "repetitions": 4
    },
    "BM_DrawBatched_SkipInkUnderline_300w": {
-    "real_ns": 235871.95916826394,
-    "cpu_ns": 235865.77181208023,
+    "real_ns": 234542.71272621216,
+    "cpu_ns": 234543.5510887775,
     "unit": "us",
     "repetitions": 4
    },
    "BM_DrawBatched_PlainUnderline_300w": {
-    "real_ns": 212719.7164265351,
-    "cpu_ns": 212720.70015220693,
-    "unit": "us",
-    "repetitions": 4
-   },
-   "BM_DrawBatched_4PassEffects_300w": {
-    "real_ns": 1079412.3419775413,
-    "cpu_ns": 1079407.6923076955,
-    "unit": "us",
-    "repetitions": 4
-   },
-   "BM_DrawBatched_Wall_2000w/0": {
-    "real_ns": 820782.6523861864,
-    "cpu_ns": 820730.9941520465,
-    "unit": "us",
-    "repetitions": 4
-   },
-   "BM_DrawBatched_Wall_2000w/1": {
-    "real_ns": 55626680.686449006,
-    "cpu_ns": 55626666.666666634,
+    "real_ns": 214057.69771992278,
+    "cpu_ns": 214032.8244274813,
     "unit": "us",
     "repetitions": 4
    },
    "BM_DrawBatched_Column_600w": {
-    "real_ns": 278589.95564536785,
-    "cpu_ns": 278529.17505030165,
+    "real_ns": 283760.501007642,
+    "cpu_ns": 283760.04016064294,
     "unit": "us",
     "repetitions": 4
    },
    "BM_DrawBatched_ColumnSideline_600w": {
-    "real_ns": 446952.34310012846,
-    "cpu_ns": 446952.0766773157,
+    "real_ns": 448471.5651290746,
+    "cpu_ns": 448457.65472312697,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_DrawBatched_4PassEffects_300w": {
+    "real_ns": 1081791.6692758445,
+    "cpu_ns": 1081723.0769230896,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_DrawBatched_Wall_2000w/0": {
+    "real_ns": 824098.5264231259,
+    "cpu_ns": 824097.058823531,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_DrawBatched_Wall_2000w/1": {
+    "real_ns": 57964750.00170176,
+    "cpu_ns": 57961749.99999958,
     "unit": "us",
     "repetitions": 4
    }
   },
   "weave_paragraph_bench": {
    "BM_ShapeParagraph_Cold/words:100/mixed:0": {
-    "real_ns": 35982.73220108153,
-    "cpu_ns": 35977.31397459141,
+    "real_ns": 37529.62328808888,
+    "cpu_ns": 37530.72176012901,
     "unit": "us",
     "repetitions": 4
    },
    "BM_ShapeParagraph_Cold/words:1000/mixed:0": {
-    "real_ns": 222075.17966498193,
-    "cpu_ns": 222072.1077654569,
+    "real_ns": 233708.38085347274,
+    "cpu_ns": 233718.69782971247,
     "unit": "us",
     "repetitions": 4
    },
    "BM_ShapeParagraph_Cold/words:100/mixed:1": {
-    "real_ns": 49605.23225124946,
-    "cpu_ns": 49614.447191805346,
+    "real_ns": 52079.78304961291,
+    "cpu_ns": 52075.61613144135,
     "unit": "us",
     "repetitions": 4
    },
    "BM_ShapeParagraph_Cold/words:1000/mixed:1": {
-    "real_ns": 278395.5130726099,
-    "cpu_ns": 278325.00000000326,
+    "real_ns": 297337.2882672962,
+    "cpu_ns": 297315.95744676783,
     "unit": "us",
     "repetitions": 4
    },
    "BM_ShapeParagraph_Warm/words:100/mixed:0": {
-    "real_ns": 20941.24373804806,
-    "cpu_ns": 20936.84210526322,
+    "real_ns": 21982.925772546263,
+    "cpu_ns": 21981.423420598796,
     "unit": "us",
     "repetitions": 4
    },
    "BM_ShapeParagraph_Warm/words:1000/mixed:0": {
-    "real_ns": 205776.27878291492,
-    "cpu_ns": 205764.3171806166,
+    "real_ns": 217973.8937570619,
+    "cpu_ns": 217974.99999999945,
     "unit": "us",
     "repetitions": 4
    },
    "BM_ShapeParagraph_Warm/words:100/mixed:1": {
-    "real_ns": 23727.711117659783,
-    "cpu_ns": 23723.927420722386,
+    "real_ns": 26106.589116416006,
+    "cpu_ns": 26103.25581395343,
     "unit": "us",
     "repetitions": 4
    },
    "BM_ShapeParagraph_Warm/words:1000/mixed:1": {
-    "real_ns": 249198.97149802354,
-    "cpu_ns": 249148.2504604068,
+    "real_ns": 268372.330792007,
+    "cpu_ns": 268364.2447418753,
     "unit": "us",
     "repetitions": 4
    }
   },
   "weave_unicode_bench": {
    "BM_Itemize/corpus:0/cp:100": {
-    "real_ns": 414.43536895842414,
-    "cpu_ns": 414.3381193509418,
+    "real_ns": 414.97972342538696,
+    "cpu_ns": 414.8770918645115,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Itemize/corpus:1/cp:100": {
-    "real_ns": 376.3363510828449,
-    "cpu_ns": 376.31426806250613,
+    "real_ns": 374.7234568386781,
+    "cpu_ns": 374.7235758599622,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Itemize/corpus:2/cp:100": {
-    "real_ns": 410.9211109526308,
-    "cpu_ns": 410.9132181915136,
+    "real_ns": 403.32961837019513,
+    "cpu_ns": 403.25083547521433,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Itemize/corpus:0/cp:1000": {
-    "real_ns": 4061.4092678607412,
-    "cpu_ns": 4061.272920228751,
+    "real_ns": 4053.8439440553893,
+    "cpu_ns": 4053.6346745630617,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Itemize/corpus:1/cp:1000": {
-    "real_ns": 4129.237545831439,
-    "cpu_ns": 4128.491943897047,
+    "real_ns": 4173.865841284689,
+    "cpu_ns": 4173.571492577441,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Itemize/corpus:2/cp:1000": {
-    "real_ns": 4276.060852151338,
-    "cpu_ns": 4274.518162165474,
+    "real_ns": 4333.466942460021,
+    "cpu_ns": 4333.255878799154,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Itemize/corpus:0/cp:10000": {
-    "real_ns": 40785.683258034864,
-    "cpu_ns": 40785.61088592939,
+    "real_ns": 40258.65380389066,
+    "cpu_ns": 40250.85763293314,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Itemize/corpus:1/cp:10000": {
-    "real_ns": 44758.272068912,
-    "cpu_ns": 44756.32404739034,
+    "real_ns": 45891.33927854578,
+    "cpu_ns": 45891.31152956739,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Itemize/corpus:2/cp:10000": {
-    "real_ns": 46052.27408892895,
-    "cpu_ns": 46038.914323087134,
+    "real_ns": 46328.27449568536,
+    "cpu_ns": 46328.27449686598,
     "unit": "us",
     "repetitions": 4
    },
    "BM_LineBreaks/corpus:0/cp:100": {
-    "real_ns": 623.6147987769025,
-    "cpu_ns": 622.7145268191523,
+    "real_ns": 641.053047024516,
+    "cpu_ns": 641.0062784033937,
     "unit": "us",
     "repetitions": 4
    },
    "BM_LineBreaks/corpus:1/cp:100": {
-    "real_ns": 737.0810902789888,
-    "cpu_ns": 735.2042902769905,
+    "real_ns": 761.1713438135182,
+    "cpu_ns": 761.1708838095863,
     "unit": "us",
     "repetitions": 4
    },
    "BM_LineBreaks/corpus:2/cp:100": {
-    "real_ns": 625.1294905512141,
-    "cpu_ns": 624.9054400191175,
+    "real_ns": 642.481241933009,
+    "cpu_ns": 642.462253728596,
     "unit": "us",
     "repetitions": 4
    },
    "BM_LineBreaks/corpus:0/cp:1000": {
-    "real_ns": 6550.164648952511,
-    "cpu_ns": 6549.988309562794,
+    "real_ns": 6662.306340380977,
+    "cpu_ns": 6662.315306268787,
     "unit": "us",
     "repetitions": 4
    },
    "BM_LineBreaks/corpus:1/cp:1000": {
-    "real_ns": 7967.276438040437,
-    "cpu_ns": 7966.907169639808,
+    "real_ns": 8184.928073166428,
+    "cpu_ns": 8184.219703574518,
     "unit": "us",
     "repetitions": 4
    },
    "BM_LineBreaks/corpus:2/cp:1000": {
-    "real_ns": 6573.444451832727,
-    "cpu_ns": 6573.011124614406,
+    "real_ns": 6680.5429227318,
+    "cpu_ns": 6680.55888414893,
     "unit": "us",
     "repetitions": 4
    },
    "BM_LineBreaks/corpus:0/cp:10000": {
-    "real_ns": 68674.1214902962,
-    "cpu_ns": 68666.42156862817,
+    "real_ns": 69482.8835592467,
+    "cpu_ns": 69483.00849575228,
     "unit": "us",
     "repetitions": 4
    },
    "BM_LineBreaks/corpus:1/cp:10000": {
-    "real_ns": 90603.03400297766,
-    "cpu_ns": 90580.25889967679,
+    "real_ns": 93699.35307849992,
+    "cpu_ns": 93691.76706827208,
     "unit": "us",
     "repetitions": 4
    },
    "BM_LineBreaks/corpus:2/cp:10000": {
-    "real_ns": 70922.97173327641,
-    "cpu_ns": 70914.47368421036,
+    "real_ns": 72253.9148173955,
+    "cpu_ns": 72251.67785234922,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Bidi/corpus:0/cp:100": {
-    "real_ns": 100.80463185976026,
-    "cpu_ns": 100.78664535974175,
+    "real_ns": 89.54616027651426,
+    "cpu_ns": 89.54326615278131,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Bidi/corpus:2/cp:100": {
-    "real_ns": 1169.3353422473062,
-    "cpu_ns": 1167.4173497883012,
+    "real_ns": 1156.876949774444,
+    "cpu_ns": 1156.830327321318,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Bidi/corpus:0/cp:1000": {
-    "real_ns": 750.5222561396902,
-    "cpu_ns": 750.4569597660402,
+    "real_ns": 701.0309516977534,
+    "cpu_ns": 701.0285565706195,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Bidi/corpus:2/cp:1000": {
-    "real_ns": 12290.464500503553,
-    "cpu_ns": 12289.40455341521,
+    "real_ns": 12319.177922572846,
+    "cpu_ns": 12319.223676122016,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Bidi/corpus:0/cp:10000": {
-    "real_ns": 7270.040493122941,
-    "cpu_ns": 7270.001557551551,
+    "real_ns": 6938.144010620623,
+    "cpu_ns": 6936.317249578904,
     "unit": "us",
     "repetitions": 4
    },
    "BM_Bidi/corpus:2/cp:10000": {
-    "real_ns": 139392.71165573454,
-    "cpu_ns": 139393.10689310654,
+    "real_ns": 139457.95736903112,
+    "cpu_ns": 139449.34804413342,
     "unit": "us",
     "repetitions": 4
    },
    "BM_ToUtf16/100": {
-    "real_ns": 238.78731185676241,
-    "cpu_ns": 238.7787949755193,
+    "real_ns": 238.89110345130328,
+    "cpu_ns": 238.89085473109867,
     "unit": "us",
     "repetitions": 4
    },
    "BM_ToUtf16/1000": {
-    "real_ns": 2317.0210933244134,
-    "cpu_ns": 2317.022474701444,
+    "real_ns": 2323.4877559163574,
+    "cpu_ns": 2323.190789473693,
     "unit": "us",
     "repetitions": 4
    },
    "BM_ToUtf16/10000": {
-    "real_ns": 23172.59724562367,
-    "cpu_ns": 23168.916666666504,
+    "real_ns": 23338.956370711894,
+    "cpu_ns": 23321.00199071072,
     "unit": "us",
     "repetitions": 4
    }
   },
   "world_diligent_bench": {
    "BM_ProgramFromRecipeBody": {
-    "real_ns": 154741917.0383364,
-    "cpu_ns": 154732500.00000018,
+    "real_ns": 172424354.4958881,
+    "cpu_ns": 172425500.0,
     "unit": "ms",
     "repetitions": 4
    },
    "BM_FrameOnDevice": {
-    "real_ns": 797082.3752693832,
-    "cpu_ns": 63391.50000000026,
+    "real_ns": 808930.0204956089,
+    "cpu_ns": 71477.5000000003,
     "unit": "ms",
     "repetitions": 4
    },
    "BM_ChainOnDevice/20000/repeats:9": {
-    "real_ns": 2611959.5585281355,
-    "cpu_ns": 1610941.1764705828,
+    "real_ns": 1765418.1286411453,
+    "cpu_ns": 834511.6959064291,
     "unit": "ms",
     "repetitions": 8
    },
    "BM_ChainOnDevice/200000/repeats:9": {
-    "real_ns": 18034179.136157036,
-    "cpu_ns": 15315350.000000019,
+    "real_ns": 8659622.304548975,
+    "cpu_ns": 6098934.782608638,
     "unit": "ms",
     "repetitions": 8
    },
    "BM_ChainOnDevice/1000000/repeats:9": {
-    "real_ns": 79621145.61814815,
-    "cpu_ns": 72374500.00000001,
+    "real_ns": 32139312.42810629,
+    "cpu_ns": 25912428.571428694,
     "unit": "ms",
     "repetitions": 8
    }
   },
   "world_element_bench": {
    "DescribeTree/64": {
-    "real_ns": 7728.322862989289,
-    "cpu_ns": 7728.307845744675,
+    "real_ns": 8540.053730980671,
+    "cpu_ns": 8540.05373061424,
     "unit": "ns",
     "repetitions": 4
    },
    "DescribeTree/512": {
-    "real_ns": 66120.89218188685,
-    "cpu_ns": 66121.04018912504,
+    "real_ns": 71469.91793924604,
+    "cpu_ns": 71463.30275229362,
     "unit": "ns",
     "repetitions": 4
    },
    "DescribeTree/4096": {
-    "real_ns": 547259.603990824,
-    "cpu_ns": 546951.1718749991,
+    "real_ns": 589642.6687881111,
+    "cpu_ns": 589643.4599156121,
     "unit": "ns",
     "repetitions": 4
    },
    "PropsEqual": {
-    "real_ns": 27.111216933694216,
-    "cpu_ns": 27.084366301091,
+    "real_ns": 29.30178613585764,
+    "cpu_ns": 29.30146369788281,
     "unit": "ns",
     "repetitions": 4
    },
    "LanesOf": {
-    "real_ns": 17.856742241227906,
-    "cpu_ns": 17.852411857943476,
+    "real_ns": 24.529958271802222,
+    "cpu_ns": 24.52919986059494,
     "unit": "ns",
     "repetitions": 4
    }
   },
   "world_frame_bench": {
    "GeometryPass/64": {
-    "real_ns": 111853.76365757556,
-    "cpu_ns": 111853.86473429966,
+    "real_ns": 113628.677728535,
+    "cpu_ns": 113620.64777327934,
     "unit": "ns",
     "repetitions": 4
    },
    "GeometryPass/512": {
-    "real_ns": 773771.2955194942,
-    "cpu_ns": 773682.3204419909,
+    "real_ns": 782387.4552665257,
+    "cpu_ns": 782114.5251396669,
     "unit": "ns",
     "repetitions": 4
    },
    "GeometryPass/2048": {
-    "real_ns": 2135861.1146834763,
-    "cpu_ns": 2135856.0606060605,
+    "real_ns": 2175144.203079071,
+    "cpu_ns": 2175140.6249999986,
     "unit": "ns",
     "repetitions": 4
    },
    "CulledPass/64": {
-    "real_ns": 27265.661606232658,
-    "cpu_ns": 27264.029618082688,
+    "real_ns": 27635.211112469282,
+    "cpu_ns": 27635.412554283335,
     "unit": "ns",
     "repetitions": 4
    },
    "CulledPass/512": {
-    "real_ns": 94220.99313662358,
-    "cpu_ns": 94220.72678331062,
+    "real_ns": 96401.31753395691,
+    "cpu_ns": 96396.5635738832,
     "unit": "ns",
     "repetitions": 4
    },
    "CulledPass/2048": {
-    "real_ns": 232695.01013489458,
-    "cpu_ns": 232694.35215946852,
+    "real_ns": 241220.8838205185,
+    "cpu_ns": 241205.67986230674,
     "unit": "ns",
     "repetitions": 4
    },
    "PostBlur": {
-    "real_ns": 5643439.162522554,
-    "cpu_ns": 5642660.0,
+    "real_ns": 5636739.97996375,
+    "cpu_ns": 5636299.999999981,
     "unit": "ns",
     "repetitions": 4
    },
    "PostComposite": {
-    "real_ns": 279648.8937732559,
-    "cpu_ns": 279647.8873239417,
+    "real_ns": 283376.954088337,
+    "cpu_ns": 283367.2654690649,
     "unit": "ns",
     "repetitions": 4
    }
   },
   "world_graph_bench": {
    "OrderChain/4": {
-    "real_ns": 2082.649694039904,
-    "cpu_ns": 2082.648449502559,
+    "real_ns": 2158.7319506129943,
+    "cpu_ns": 2158.71724413196,
     "unit": "ns",
     "repetitions": 4
    },
    "OrderChain/16": {
-    "real_ns": 9017.903252932996,
-    "cpu_ns": 9017.94212218649,
+    "real_ns": 9197.926232236958,
+    "cpu_ns": 9197.934370505927,
     "unit": "ns",
     "repetitions": 4
    },
    "OrderChain/64": {
-    "real_ns": 52481.871848385446,
-    "cpu_ns": 52482.12269476855,
+    "real_ns": 51763.701146392006,
+    "cpu_ns": 51763.69356032567,
     "unit": "ns",
     "repetitions": 4
    },
    "OrderChain/256": {
-    "real_ns": 284332.0235594895,
-    "cpu_ns": 284313.3874239357,
+    "real_ns": 289526.4522793473,
+    "cpu_ns": 289525.9336099586,
     "unit": "ns",
     "repetitions": 4
    },
    "OrderFan/4": {
-    "real_ns": 1949.3057024156556,
-    "cpu_ns": 1948.9077412513275,
+    "real_ns": 2040.5460570455084,
+    "cpu_ns": 2040.3017178734312,
     "unit": "ns",
     "repetitions": 4
    },
    "OrderFan/16": {
-    "real_ns": 7610.049876826572,
-    "cpu_ns": 7610.028310104514,
+    "real_ns": 7866.448034557065,
+    "cpu_ns": 7866.233620156302,
     "unit": "ns",
     "repetitions": 4
    },
    "OrderFan/64": {
-    "real_ns": 37827.09850559308,
-    "cpu_ns": 37827.04232946897,
+    "real_ns": 37341.27054763322,
+    "cpu_ns": 37332.53012048181,
     "unit": "ns",
     "repetitions": 4
    },
    "OrderFan/256": {
-    "real_ns": 221173.27164259244,
-    "cpu_ns": 221144.32176656218,
+    "real_ns": 222489.8640729342,
+    "cpu_ns": 222489.66613672517,
     "unit": "ns",
     "repetitions": 4
    }
   },
   "world_kit_bench": {
    "ThreePoint": {
-    "real_ns": 358.86670514676666,
-    "cpu_ns": 357.74865667348155,
+    "real_ns": 380.7335266294738,
+    "cpu_ns": 380.73409501688803,
     "unit": "ns",
     "repetitions": 4
    },
    "Turntable": {
-    "real_ns": 2622.049054175911,
-    "cpu_ns": 2621.6251564806334,
+    "real_ns": 2635.793197767945,
+    "cpu_ns": 2635.6529794313356,
     "unit": "ns",
     "repetitions": 4
    },
    "LitSet": {
-    "real_ns": 4724.807665746457,
-    "cpu_ns": 4724.809082922222,
+    "real_ns": 4805.698568378781,
+    "cpu_ns": 4805.704283360796,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "WaveRail/6": {
+    "real_ns": 100.41910422712215,
+    "cpu_ns": 100.4187001186124,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "WaveRail/24": {
+    "real_ns": 208.16336706966905,
+    "cpu_ns": 208.1536344167673,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "WindingRail/72": {
+    "real_ns": 818.4253524243863,
+    "cpu_ns": 818.2399493139219,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "WindingRail/288": {
+    "real_ns": 3025.19769331285,
+    "cpu_ns": 3025.0196232339044,
     "unit": "ns",
     "repetitions": 4
    }
   },
   "world_light_bench": {
    "BM_Attenuation/0": {
-    "real_ns": 3498.848594654798,
-    "cpu_ns": 3498.851206233453,
+    "real_ns": 3505.1071212992624,
+    "cpu_ns": 3504.49617824849,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Attenuation/1": {
-    "real_ns": 3498.993698680514,
-    "cpu_ns": 3498.6645032451383,
+    "real_ns": 3502.896114804844,
+    "cpu_ns": 3502.898188632109,
     "unit": "ns",
     "repetitions": 4
    },
    "BM_Attenuation/2": {
-    "real_ns": 10065.384355468548,
-    "cpu_ns": 10065.1362984218,
+    "real_ns": 10259.623865325884,
+    "cpu_ns": 10259.623829039807,
     "unit": "ns",
     "repetitions": 4
    }
   },
   "world_scene_bench": {
    "MountTree/64": {
-    "real_ns": 52170.329284984306,
-    "cpu_ns": 52152.14152700182,
+    "real_ns": 55090.75513282441,
+    "cpu_ns": 55091.03475513431,
     "unit": "ns",
     "repetitions": 4
    },
    "MountTree/512": {
-    "real_ns": 388130.7552923649,
-    "cpu_ns": 387895.0276243086,
+    "real_ns": 415010.6651650276,
+    "cpu_ns": 414946.428571429,
     "unit": "ns",
     "repetitions": 4
    },
    "MountTree/2048": {
-    "real_ns": 1590319.911742376,
-    "cpu_ns": 1588216.6666666665,
+    "real_ns": 1669079.6190752215,
+    "cpu_ns": 1669083.3333333342,
     "unit": "ns",
     "repetitions": 4
    },
    "SteadyFrame/64": {
-    "real_ns": 40176.31490011863,
-    "cpu_ns": 40171.53802497158,
+    "real_ns": 43926.505103366144,
+    "cpu_ns": 43909.39093909378,
     "unit": "ns",
     "repetitions": 4
    },
    "SteadyFrame/512": {
-    "real_ns": 322330.98180629825,
-    "cpu_ns": 322327.18894009176,
+    "real_ns": 345577.3654198389,
+    "cpu_ns": 344950.61728395,
     "unit": "ns",
     "repetitions": 4
    },
    "SteadyFrame/2048": {
-    "real_ns": 1340709.9193760327,
-    "cpu_ns": 1339566.666666668,
+    "real_ns": 1550338.4838079764,
+    "cpu_ns": 1547844.0860215072,
     "unit": "ns",
     "repetitions": 4
    },
    "PrunedFrame/64": {
-    "real_ns": 10363.569909693391,
-    "cpu_ns": 10362.559594755701,
+    "real_ns": 11237.65718291273,
+    "cpu_ns": 11223.314606741564,
     "unit": "ns",
     "repetitions": 4
    },
    "PrunedFrame/512": {
-    "real_ns": 84777.22726480455,
-    "cpu_ns": 84771.50701647368,
+    "real_ns": 88963.83449274325,
+    "cpu_ns": 88868.60391661403,
     "unit": "ns",
     "repetitions": 4
    },
    "PrunedFrame/2048": {
-    "real_ns": 338230.6595992707,
-    "cpu_ns": 338090.7928388715,
+    "real_ns": 366127.09818208753,
+    "cpu_ns": 365549.09560723306,
     "unit": "ns",
     "repetitions": 4
    },
    "FramePasses/64": {
-    "real_ns": 1826975.8775683218,
-    "cpu_ns": 1826592.1052631822,
+    "real_ns": 1921685.2432126305,
+    "cpu_ns": 1915033.7837837795,
     "unit": "ns",
     "repetitions": 4
    },
    "FramePasses/512": {
-    "real_ns": 2491422.6170429694,
-    "cpu_ns": 2491071.4285714277,
+    "real_ns": 2650294.076934537,
+    "cpu_ns": 2645980.7692307783,
     "unit": "ns",
     "repetitions": 4
    },
    "DrawFrame/64": {
-    "real_ns": 82925.40223030305,
-    "cpu_ns": 82885.69682151609,
+    "real_ns": 88755.13564321311,
+    "cpu_ns": 88674.71410419291,
     "unit": "ns",
     "repetitions": 4
    },
    "DrawFrame/512": {
-    "real_ns": 480918.31533846376,
-    "cpu_ns": 480871.1340206176,
+    "real_ns": 518830.0037100049,
+    "cpu_ns": 518382.89962825377,
     "unit": "ns",
     "repetitions": 4
    }
