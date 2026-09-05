@@ -130,6 +130,48 @@ struct Declaring : Sketch {
   void update(double, SketchContext&) override { ++updates; }
 };
 
+/** A sketch that PROBES something while declaring itself and keeps the
+ *  answer — the shape of every sketch that measures its own faces before
+ *  it can lay anything out.
+ *
+ *  The probe's input is a knob a caller sets before opening, so one
+ *  process can stand two sessions of this ONE type over two different
+ *  answers; the box each draws is a function of the answer ITS OWN
+ *  instance kept. The answer lives on the instance and nowhere else,
+ *  which is the property the case below is about: a probe parked in a
+ *  function-local static would be one value the two sessions share, and
+ *  the second to open would redraw the first. */
+struct Probing : Sketch {
+  /** What the next session opened will probe. */
+  static inline float nextInk = 40.0f;
+  /** This instance's own answer, taken once in setup(). */
+  float ink = 0;
+  void setup(SketchContext& ctx) override {
+    ctx.canvas(320, 200);
+    ctx.background({0, 0, 0, 1});
+    ink = nextInk;
+    ctx.composer.render(art());
+  }
+  /** It describes again every frame, which is what makes the probe's
+   *  home observable: a sketch whose answer sat in a shared static would
+   *  redraw itself from ANOTHER session's answer the moment that session
+   *  opened, and only a description taken after that shows it. */
+  void update(double, SketchContext& ctx) override {
+    ctx.composer.render(art());
+  }
+  /** The root fills the canvas whatever it asks for, so the probed width
+   *  goes on a CHILD of it, held at the start of its row: the probe has
+   *  to reach the pixels for a comparison of them to say anything. */
+  [[nodiscard]] Element art() const {
+    return box().inset(0).child(box()
+                                    .alignSelf(Align::Start)
+                                    .shrink(0)
+                                    .width(Dim(ink))
+                                    .height(Dim(20))
+                                    .fill(Fill::color({1, 0, 0, 1})));
+  }
+};
+
 /** What every case here opens: the session over that sketch, and a
  *  raster surface at exactly the canvas it declared. */
 class CanvasSession : public ::testing::Test {
@@ -207,6 +249,48 @@ TEST_F(CanvasSession, RepaintDoesNotAdvanceButStillDoes) {
 
 TEST_F(CanvasSession, TakesTheStillLargerThanItsCanvas) {
   EXPECT_GT(session->oversample(), 1.0f);
+}
+
+TEST(CanvasDoors, DrawsTwoSessionsOfOneSketchFromTheirOwnProbes) {
+  const auto shot = [](Session& session, SkSurface& surface) {
+    surface.getCanvas()->clear(SK_ColorBLACK);
+    session.frame(*surface.getCanvas(), 1.0 / 60.0);
+    SkBitmap bitmap;
+    bitmap.allocPixels(surface.imageInfo());
+    EXPECT_TRUE(surface.readPixels(bitmap.pixmap(), 0, 0));
+    return bitmap;
+  };
+  const auto same = [](const SkBitmap& a, const SkBitmap& b) {
+    return a.computeByteSize() == b.computeByteSize() &&
+           std::memcmp(a.getPixels(), b.getPixels(), a.computeByteSize()) == 0;
+  };
+  const sk_sp<SkSurface> first =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(320, 200));
+  const sk_sp<SkSurface> second =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(320, 200));
+
+  Probing::nextInk = 40.0f;
+  const std::unique_ptr<Session> a = kindOf<Probing>()->open(fonts(), assets());
+  const SkBitmap drawnByA = shot(*a, *first);
+
+  // A SECOND SESSION OF THE SAME TYPE, over a different answer. Both are
+  // standing at once, which is what a live host does with two windows on
+  // one sketch and what a reload does for the instant the old body and
+  // the new one overlap.
+  Probing::nextInk = 120.0f;
+  const std::unique_ptr<Session> b = kindOf<Probing>()->open(fonts(), assets());
+  const SkBitmap drawnByB = shot(*b, *second);
+  EXPECT_EQ(drawnByA.getColor(10, 10), SK_ColorRED);
+  EXPECT_EQ(drawnByB.getColor(10, 10), SK_ColorRED);
+  EXPECT_EQ(drawnByB.getColor(100, 10), SK_ColorRED);
+  EXPECT_NE(drawnByA.getColor(100, 10), SK_ColorRED);
+  EXPECT_FALSE(same(drawnByA, drawnByB))
+      << "the two sessions probed different answers and drew the same box";
+
+  // …and A's picture is still A's. Opening and drawing B moved nothing
+  // that A reads, because the answer B probed went onto B's instance.
+  EXPECT_TRUE(same(drawnByA, shot(*a, *first)))
+      << "one session's probe reached the other's picture";
 }
 
 /** A sketch that bakes the card twice while declaring itself: once from

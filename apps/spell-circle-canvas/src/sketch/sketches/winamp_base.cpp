@@ -217,29 +217,6 @@ inline sigil::weave::TextStyle type(const sk_sp<SkTypeface>& tf, float size,
                                .condense = condense});
 }
 
-/** The advance/em of the substituted monospace faces, in em. Probed once in
- *  setup() rather than assumed: pix() divides by this to hit an exact cell
- *  width, so a value off by a thousandth is enough to push the LCD digits
- *  out of their well. The initialiser is only the fallback for a probe that
- *  measures nothing. */
-inline float& monoEm() {
-  static float v = 0.602f;
-  return v;
-}
-inline float& boldEm() {
-  static float v = 0.602f;
-  return v;
-}
-
-/** TEXT.BMP's 5x6 native cell, approximated: a monospace sized so its
- *  advance plus tracking lands on exactly `cellN` NATIVE px. Uppercase only
- *  — the real font has no lowercase glyphs at all. */
-inline sigil::weave::TextStyle pix(float cellN, SkColor4f c, bool bold = false,
-                                   float trackN = 0.0f) {
-  const float em = bold ? boldEm() : monoEm();
-  return type(bold ? monoBold() : mono(), n(cellN - trackN) / em, c, n(trackN),
-              1.0f);
-}
 inline Element t(const char* s, sigil::weave::TextStyle st) {
   return text(toU8(s), std::move(st));
 }
@@ -382,9 +359,33 @@ struct WinampBase : sketch::Sketch {
 
   // ---- discrete state, the describe path ----
   int volSprite = -1, balSprite = -1;
+  // What the track-list slot was last pushed for. On the instance beside the
+  // sprite indices, so a fresh session starts with nothing shown and pushes
+  // its first list.
+  int lastNow = -1, lastSel = -1;
   int shownSec = -1;
   int nowPlaying = 8, selected = 13;
   double elapsedNow = 0;
+
+  // ---- the measured faces, probed once per instance in setup() ----
+  /** The advance/em of the substituted monospace faces, in em. Probed rather
+   *  than assumed: pix() divides by this to hit an exact cell width, so a
+   *  value off by a thousandth is enough to push the LCD digits out of their
+   *  well. The initialisers are only the fallback for a probe that measures
+   *  nothing. Per instance, because they are a property of the faces this
+   *  session resolved. */
+  float monoEm = 0.602f;
+  float boldEm = 0.602f;
+
+  /** TEXT.BMP's 5x6 native cell, approximated: a monospace sized so its
+   *  advance plus tracking lands on exactly `cellN` NATIVE px. Uppercase only
+   *  — the real font has no lowercase glyphs at all. */
+  sigil::weave::TextStyle pix(float cellN, SkColor4f c, bool bold = false,
+                              float trackN = 0.0f) const {
+    const float em = bold ? boldEm : monoEm;
+    return wa::type(bold ? wa::monoBold() : wa::mono(),
+                    wa::n(cellN - trackN) / em, c, wa::n(trackN), 1.0f);
+  }
 
   // paragraph identities held so the playlist prunes across slot renders
   std::vector<std::shared_ptr<sigil::weave::Paragraph>> rowPara;
@@ -955,7 +956,7 @@ struct WinampBase : sketch::Sketch {
    *  instead would let the leading blank of " 3:02" slide the lit digits
    *  sideways off the ghost. The ghost and the live readout are built by
    *  this same function, so they cannot disagree about the pitch. */
-  static Element lcdCells(const std::string& s, SkColor4f ink) {
+  Element lcdCells(const std::string& s, SkColor4f ink) const {
     using namespace wa;
     const float pitch = n(54) / (s.empty() ? 1.0f : (float)s.size());
     Element row = box().row().width(Dim(n(54))).height(Dim(n(13)));
@@ -1329,6 +1330,13 @@ struct WinampBase : sketch::Sketch {
     ctx.background(kDesk);
     buildMaterials();
 
+    // Declaring again runs this on the same instance over an empty tree, so
+    // forget what the discrete slots were last pushed for: the values they
+    // are compared against have to describe THIS declaration's tree.
+    volSprite = balSprite = -1;
+    shownSec = -1;
+    lastNow = lastSel = -1;
+
     // The substituted monospace faces, measured rather than assumed.
     {
       auto probe = [&](const sk_sp<SkTypeface>& tf) {
@@ -1336,8 +1344,8 @@ struct WinampBase : sketch::Sketch {
             ctx.measure(text(u8"MMMMMMMMMM", type(tf, 100.0f, kGreen))).width();
         return w > 1.0f ? w / 1000.0f : 0.602f;
       };
-      wa::monoEm() = probe(mono());
-      wa::boldEm() = probe(monoBold());
+      monoEm = probe(mono());
+      boldEm = probe(monoBold());
     }
 
     // --- the LED atlas: ONE cell, a 3x1 native quad, tinted per instance.
@@ -1410,7 +1418,6 @@ struct WinampBase : sketch::Sketch {
       balSprite = b;
       ctx.composer.renderSlot("sliders", sliders(v, b));
     }
-    static int lastNow = -1, lastSel = -1;
     if (force || nowPlaying != lastNow || selected != lastSel) {
       lastNow = nowPlaying;
       lastSel = selected;

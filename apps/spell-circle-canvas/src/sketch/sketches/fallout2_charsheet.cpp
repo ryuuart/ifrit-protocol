@@ -341,27 +341,6 @@ inline weave::TextStyle sheetType(const sk_sp<SkTypeface>& tf, float size,
                            .condense = condense});
 }
 
-/** Probed once in setup(): px of advance per em for the body face, and the
- *  scaleX that condenses the card-title face onto its measured original
- *  advance. */
-inline float& bodyEm() {
-  static float v = 0.6f;
-  return v;
-}
-inline float& titleCondense() {
-  static float v = 0.6f;
-  return v;
-}
-/** The engraved face's condense for the S.P.E.C.I.A.L. abbreviations, the
- *  top plaques and the folder tabs, probed in setup(): "ST-" measures 36
- *  original px of ink on the capture, so the substitute is squeezed until
- *  its own advance lands there. scaleX is a ratio of the face's
- *  proportions, not of a size, so the one probe serves all three sites'
- *  sizes. */
-inline float& engravedCondense() {
-  static float v = 0.84f;
-  return v;
-}
 /** Original px the body face advances per character, ON AVERAGE.
  *
  *  Measured off the capture's ten derived-stat labels: 752 px of ink over
@@ -374,28 +353,6 @@ inline float& engravedCondense() {
  *  skill rows clear the +/- buttons, which is the constraint the
  *  measurement has to survive. */
 constexpr float kBodyAdvance = 5.80f;
-inline float bodySize() { return n(kBodyAdvance) / bodyEm(); }
-
-/** The distance from a laid-out line's TOP to the top of its capitals, in
- *  ORIGINAL px — Fallout's draw y is the glyph cell's top, SigilWeave's node
- *  top is the line box's top, and the two differ by the ascent slack. Derived
- *  from the substituted face's own metrics in setup(). */
-inline float& bodyRise() {
-  static float v = 2.0f;
-  return v;
-}
-inline float& titleRise() {
-  static float v = 5.0f;
-  return v;
-}
-/** The engraved face's line-top -> cap-top slack as a FRACTION of its font
- *  size, so one probe serves the five sizes the plaques, tabs, headings,
- *  buttons and S.P.E.C.I.A.L. caps are set in. */
-inline float& engravedRiseFrac() {
-  static float v = 0.20f;
-  return v;
-}
-inline float engravedRise(float size) { return engravedRiseFrac() * size; }
 
 inline Element t(const std::string& s, weave::TextStyle st) {
   return text(toU8(s), std::move(st));
@@ -825,6 +782,40 @@ struct Fallout2CharSheet : sketch::Sketch {
   // paragraph identity for the card body, held so shaping caches stay warm
   std::shared_ptr<weave::Paragraph> cardPara;
 
+  // ---- the measured type, probed once per instance in setup() ------------
+  // Each is a property of the faces THIS instance resolved, so it lives on
+  // the instance: two live sessions of this sketch measure independently and
+  // neither may see the other's numbers. The values below are the fallbacks
+  // a probe that measures nothing leaves in place.
+
+  /** Px of advance per em for the body face. */
+  float bodyEm = 0.6f;
+  /** The scaleX that condenses the card-title face onto its measured
+   *  original advance. */
+  float titleCondense = 0.6f;
+  /** The engraved face's condense for the S.P.E.C.I.A.L. abbreviations, the
+   *  top plaques and the folder tabs: "ST-" measures 36 original px of ink
+   *  on the capture, so the substitute is squeezed until its own advance
+   *  lands there. scaleX is a ratio of the face's proportions, not of a
+   *  size, so the one probe serves all three sites' sizes. */
+  float engravedCondense = 0.84f;
+  /** The distance from a laid-out line's TOP to the top of its capitals, in
+   *  ORIGINAL px — Fallout's draw y is the glyph cell's top, SigilWeave's
+   *  node top is the line box's top, and the two differ by the ascent slack.
+   *  Derived from the substituted face's own metrics. */
+  float bodyRise = 2.0f;
+  float titleRise = 5.0f;
+  /** The engraved face's line-top -> cap-top slack as a FRACTION of its font
+   *  size, so one probe serves the five sizes the plaques, tabs, headings,
+   *  buttons and S.P.E.C.I.A.L. caps are set in. */
+  float engravedRiseFrac = 0.20f;
+
+  /** The body size that lands the substitute on kBodyAdvance original px per
+   *  character, given this instance's measured em. */
+  float bodySize() const { return fo::n(fo::kBodyAdvance) / bodyEm; }
+  /** The engraved slack at @p size. */
+  float engravedRise(float size) const { return engravedRiseFrac * size; }
+
   // =========================================================================
   // Type helpers, once the probes have run.
 
@@ -834,14 +825,14 @@ struct Fallout2CharSheet : sketch::Sketch {
    *  identical advances and every column stays where the game put it. */
   weave::TextStyle body(SkColor4f c) const {
     return weave::textStyle(
-        {.face = fo::bodyBold(), .size = fo::bodySize(), .color = c});
+        {.face = fo::bodyBold(), .size = bodySize(), .color = c});
   }
   /** The engraved gold. Sizes are DERIVED from measured ink on the capture:
    *  "ST-" is 36x21 original px, "SKILLS" 51x18, "PRINT" 47x16, "LUKE" 58x20.
    *  Those cap-to-advance ratios (0.40-0.47) are narrower than any stock face,
    *  so the substitute is condensed to land on them. The S.P.E.C.I.A.L.
    *  abbreviations, the top plaques and the folder tabs take
-   *  engravedCondense(), probed in setup() from "ST-"'s measured ink — the
+   *  engravedCondense, probed in setup() from "ST-"'s measured ink — the
    *  same discipline the body advance and the card title use; the headings
    *  and buttons state their factors at the call, tuned to their own runs. */
   weave::TextStyle plaqueType(float size, SkColor4f c, float condense = 0.95f,
@@ -862,14 +853,14 @@ struct Fallout2CharSheet : sketch::Sketch {
                                  .size = fo::n(23.8f),
                                  .color = fo::kInk,
                                  .track = fo::n(-0.1f),
-                                 .condense = fo::titleCondense()});
+                                 .condense = titleCondense});
   }
 
   Element bodyAt(const std::string& s, SkColor4f c, float x, float y,
                  float condense = 1.0f) {
     return fo::ink(
-        fo::t(s, fo::sheetType(fo::bodyBold(), fo::bodySize(), c, 0, condense)), x,
-        y, fo::bodyRise());
+        fo::t(s, fo::sheetType(fo::bodyBold(), bodySize(), c, 0, condense)), x,
+        y, bodyRise);
   }
 
   // =========================================================================
@@ -1008,7 +999,7 @@ struct Fallout2CharSheet : sketch::Sketch {
       // The two-letter gold abbreviation and its dash: measured ink 20..55,
       // 21 px tall, i.e. 2 px below the row's y. A worn engraved stencil.
       g.child(ink(engravedText(std::string(abbr[(size_t)i]) + "-", n(29.0f),
-                               kGold, engravedCondense(), 0.2f)
+                               kGold, engravedCondense, 0.2f)
                       .opacity(0.94f),
                   kAbbrX, y + 2.0f, engravedRise(n(29.0f))));
 
@@ -1193,7 +1184,7 @@ struct Fallout2CharSheet : sketch::Sketch {
       if (!sel) tab.overlay(styles::colorOverlay(hex(0x000000, 0.30f)));
       tab.justify(Justify::Center).alignItems(Align::Center);
       tab.child(engravedText(tabs[(size_t)i], n(23.0f),
-                             sel ? kGold : hex(0x6E5A20), engravedCondense(),
+                             sel ? kGold : hex(0x6E5A20), engravedCondense,
                              0.3f)
                     .translateY(sel ? n(-1.0f) : n(0.0f)));
       g.child(tab);
@@ -1349,7 +1340,7 @@ struct Fallout2CharSheet : sketch::Sketch {
     // arithmetic here, over the substituted faces' own measured metrics —
     // alignItems(Align::Baseline) would be the kernel spelling, but the two
     // runs are absolutely positioned at documented x/y, not laid out in a row.
-    g.child(ink(t(d.name, titleStyle()), 348 - 345, 272 - 267, titleRise()));
+    g.child(ink(t(d.name, titleStyle()), 348 - 345, 272 - 267, titleRise));
     const int walkIdx = skill == 0 ? 0 : (skill == 7 ? 1 : 2);
     const float advance = titleAdvance[walkIdx] / kScale;
     g.child(bodyAt(d.formula, kInk, 348 - 345 + advance + 8, 286 - 267));
@@ -1496,7 +1487,7 @@ struct Fallout2CharSheet : sketch::Sketch {
       // that rise puts the CAPS' own band in the middle of the plaque, which
       // is the only band on a run of capitals anyone reads as centred.
       p.child(
-          engravedText(plaqueText[i], n(26.0f), kGold, engravedCondense(), 0.6f)
+          engravedText(plaqueText[i], n(26.0f), kGold, engravedCondense, 0.6f)
               .margin(0, -engravedRise(n(26.0f)) / 3.0f, 0, 0));
       g.child(p);
     }
@@ -1750,12 +1741,12 @@ struct Fallout2CharSheet : sketch::Sketch {
       const float probeChars = (float)std::strlen(kProbe);
       const float w =
           ctx.measure(t(kProbe, fo::sheetType(bodyFace(), 100.0f, kGreen))).width();
-      if (w > 1.0f) bodyEm() = w / (probeChars * 100.0f);
+      if (w > 1.0f) bodyEm = w / (probeChars * 100.0f);
       // The line-top -> cap-top slack. Fallout's draw y is the top of the
       // glyph cell; SigilWeave's node top is the line box's top, and the two
       // differ by (ascent - capHeight). Taken as a fraction of the measured
       // line height, which lands every row on the reference's own y.
-      bodyRise() =
+      bodyRise =
           std::max(0.0f, ctx.measure(t("H", body(kGreen))).height() * 0.20f);
       // font 102: squeeze the substitute until "Melee Weapons" lands on the
       // reference's ~6.8 original px per character.
@@ -1764,8 +1755,8 @@ struct Fallout2CharSheet : sketch::Sketch {
                         fo::sheetType(titleFace(), n(23.8f), kInk, n(-0.1f))))
               .width();
       if (raw > 1.0f)
-        titleCondense() = std::clamp(n(6.8f * 13.0f) / raw, 0.30f, 1.0f);
-      titleRise() =
+        titleCondense = std::clamp(n(6.8f * 13.0f) / raw, 0.30f, 1.0f);
+      titleRise =
           std::max(0.0f, ctx.measure(t("H", titleStyle())).height() * 0.20f);
       // The engraved condense, same discipline: "ST-" is 36 original px of
       // ink on the capture, so squeeze the substitute onto that measured
@@ -1774,10 +1765,10 @@ struct Fallout2CharSheet : sketch::Sketch {
           ctx.measure(t("ST-", plaqueType(fo::n(29.0f), kGold, 1.0f, 0.2f)))
               .width();
       if (rawSt > 1.0f)
-        fo::engravedCondense() = std::clamp(fo::n(36.0f) / rawSt, 0.30f, 1.0f);
+        engravedCondense = std::clamp(fo::n(36.0f) / rawSt, 0.30f, 1.0f);
       const float eh = ctx.measure(t("H", plaqueType(100.0f, kGold))).height();
       if (eh > 1.0f)
-        engravedRiseFrac() = std::clamp(eh * 0.20f / 100.0f, 0.05f, 0.40f);
+        engravedRiseFrac = std::clamp(eh * 0.20f / 100.0f, 0.05f, 0.40f);
     }
 
     // the leader-row advances: two measures per row, nine rows.
