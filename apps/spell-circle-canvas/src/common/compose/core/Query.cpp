@@ -137,8 +137,7 @@ std::optional<std::string> Composer::Impl::hitInstance(
     // parent box, so recurse regardless of `inside`. A plane the point does
     // not land on carries its flat children with it: nothing under it is
     // hittable either.
-    for (auto it = inst.paintOrder.rbegin(); it != inst.paintOrder.rend();
-         ++it)
+    for (auto it = inst.paintOrder.rbegin(); it != inst.paintOrder.rend(); ++it)
       if (auto hit = hitInstance(*inst.children[*it], local, key, nullptr))
         return hit;
   }

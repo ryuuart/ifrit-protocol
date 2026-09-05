@@ -1,9 +1,8 @@
-#include <sigilgeometry/device/Device.h>
-
 #include <Graphics/GraphicsEngine/interface/DeviceContext.h>
 #include <Graphics/GraphicsEngine/interface/RenderDevice.h>
 #include <Graphics/GraphicsEngineVulkan/interface/EngineFactoryVk.h>
 #include <sigilcore/hardware/GpuDevice.h>
+#include <sigilgeometry/device/Device.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 
 #include <Common/interface/RefCntAutoPtr.hpp>

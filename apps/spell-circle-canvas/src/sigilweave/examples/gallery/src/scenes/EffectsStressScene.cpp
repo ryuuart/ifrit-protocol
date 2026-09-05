@@ -1,7 +1,7 @@
 // Scene: a fully placed 2,000-word paragraph with four animated paint passes.
 #include <include/core/SkBlendMode.h>
-#include <sigilweave/qt/SigilWeaveQt.h>
 #include <sigilmaterial/kit/TextPaint.h>
+#include <sigilweave/qt/SigilWeaveQt.h>
 
 #include <algorithm>
 #include <array>

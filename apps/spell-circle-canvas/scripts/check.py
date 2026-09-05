@@ -141,6 +141,10 @@ def check_clang_format(files: list[Path], fix: bool) -> bool:
             if "clang-format-violations" in line
         }
     )
+    if not offending:
+        # A non-zero exit with no violation lines is clang-format itself
+        # failing (a missing file, an unreadable option), not a finding.
+        fail(f"clang-format failed:\n{result.stderr}")
     for name in offending:
         print(f"needs formatting: {name}")
     print(

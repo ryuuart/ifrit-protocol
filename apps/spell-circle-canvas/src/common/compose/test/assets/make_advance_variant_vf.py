@@ -29,7 +29,11 @@ and commit the refreshed AdvanceVariant.ttf alongside.
 
 import os
 
-from fontTools.designspaceLib import AxisDescriptor, DesignSpaceDocument, SourceDescriptor
+from fontTools.designspaceLib import (
+    AxisDescriptor,
+    DesignSpaceDocument,
+    SourceDescriptor,
+)
 from fontTools.fontBuilder import FontBuilder
 from fontTools.pens.ttGlyphPen import TTGlyphPen
 from fontTools import varLib
@@ -69,7 +73,9 @@ def master(advance, bar_right):
             "licenseDescription": "Generated test asset; public domain (CC0).",
         }
     )
-    fb.setupOS2(sTypoAscender=800, sTypoDescender=-200, usWinAscent=800, usWinDescent=200)
+    fb.setupOS2(
+        sTypoAscender=800, sTypoDescender=-200, usWinAscent=800, usWinDescent=200
+    )
     fb.setupPost()
     return fb.font
 

@@ -20,9 +20,9 @@ namespace sigil::core::hardware {
  *  from two spellings of the same rule. */
 inline int clampedMipLevels(const TextureDesc& desc) {
   const int possible = mipLevelsFor(desc.width, desc.height);
-  return desc.mipLevels < 1 ? 1
-                            : (desc.mipLevels > possible ? possible
-                                                         : desc.mipLevels);
+  return desc.mipLevels < 1
+             ? 1
+             : (desc.mipLevels > possible ? possible : desc.mipLevels);
 }
 
 class GpuDevice::Backend_ {

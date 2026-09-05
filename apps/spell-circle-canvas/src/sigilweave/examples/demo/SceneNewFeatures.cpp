@@ -6,10 +6,10 @@
 // visual-regression PNG for those features.
 #include <include/core/SkCanvas.h>
 #include <include/core/SkFontMgr.h>
+#include <include/core/SkShader.h>
 #include <include/core/SkSurface.h>
 #include <include/core/SkTileMode.h>
 #include <include/effects/SkGradient.h>
-#include <include/core/SkShader.h>
 #include <sigilmaterial/kit/TextPaint.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
 #include <sigilweave/style/Features.h>

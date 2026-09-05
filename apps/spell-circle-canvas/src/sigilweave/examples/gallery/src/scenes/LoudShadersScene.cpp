@@ -1,8 +1,8 @@
 // Scene: extreme, "seen from across the room" SkSL shaders as glyph
 // foregrounds, alongside the brighter, twinkling sparkle overlay.
 #include <include/core/SkBlendMode.h>
-#include <sigilweave/qt/SigilWeaveQt.h>
 #include <sigilmaterial/kit/TextPaint.h>
+#include <sigilweave/qt/SigilWeaveQt.h>
 
 #include <algorithm>
 #include <array>

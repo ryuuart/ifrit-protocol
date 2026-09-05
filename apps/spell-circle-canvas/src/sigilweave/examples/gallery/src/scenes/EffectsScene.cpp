@@ -2,9 +2,9 @@
 #include <include/core/SkBlendMode.h>
 #include <include/core/SkTileMode.h>
 #include <include/effects/SkGradient.h>
-#include <sigilweave/qt/SigilWeaveQt.h>
 #include <sigilmaterial/kit/TextPaint.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
+#include <sigilweave/qt/SigilWeaveQt.h>
 
 #include <algorithm>
 #include <array>

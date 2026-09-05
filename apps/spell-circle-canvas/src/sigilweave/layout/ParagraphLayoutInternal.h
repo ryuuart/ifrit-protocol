@@ -152,8 +152,8 @@ class IntervalSequence {
     if (intervals.empty() || (near == 0 && far == 0)) return;
     LineInterval& first = intervals.front();
     if (near != 0 && !first.contour.valid()) {
-      first.origin += SkVector{first.direction.x() * near,
-                               first.direction.y() * near};
+      first.origin +=
+          SkVector{first.direction.x() * near, first.direction.y() * near};
       first.length = std::max(0.0f, first.length - near);
     }
     LineInterval& last = intervals.back();
@@ -167,20 +167,19 @@ class IntervalSequence {
     float bandStart = m_bandCursor;
     if (m_gridStep > 0) {
       constexpr float kOnGrid = 1e-3f;  // a band already on the grid stays
-      bandStart =
-          std::ceil((bandStart - kOnGrid) / m_gridStep) * m_gridStep;
+      bandStart = std::ceil((bandStart - kOnGrid) / m_gridStep) * m_gridStep;
     }
-    const LineRequest request{m_nextLineIndex, bandStart, m_pitch, m_ascent,
-                              m_blockIndex,    m_lineInBlock};
+    const LineRequest request{m_nextLineIndex, bandStart,    m_pitch,
+                              m_ascent,        m_blockIndex, m_lineInBlock};
     if (!m_geometry.lineIntervals(request, m_sourceLineIntervals)) {
       m_geometryExhausted = true;
       return;
     }
     if (m_blocked)
-      applyIndent(m_sourceLineIntervals,
-                  m_indent.start +
-                      (m_lineInBlock == 0 ? m_indent.firstLine : 0.0f),
-                  m_indent.end);
+      applyIndent(
+          m_sourceLineIntervals,
+          m_indent.start + (m_lineInBlock == 0 ? m_indent.firstLine : 0.0f),
+          m_indent.end);
     for (const LineInterval& interval : m_sourceLineIntervals)
       if (interval.length >= m_minimumWidth)
         m_flatIntervals.push_back({interval, m_nextLineIndex,
@@ -353,9 +352,8 @@ inline bool tabStopAhead(float penPosition,
 
 // The room after one word from the mojikumi table and tsume, or zero.
 inline float mojikumiAfter(const Block& block, uint32_t wordIndex) {
-  return wordIndex < block.mojikumiAfter.size()
-             ? block.mojikumiAfter[wordIndex]
-             : 0.0f;
+  return wordIndex < block.mojikumiAfter.size() ? block.mojikumiAfter[wordIndex]
+                                                : 0.0f;
 }
 
 inline float glueAfter(const Word& word, float penPosition,

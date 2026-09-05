@@ -10,8 +10,8 @@
 #include <cmath>
 #include <limits>
 #include <optional>
-#include <type_traits>
 #include <span>
+#include <type_traits>
 #include <vector>
 
 #include "ParagraphLayoutInternal.h"
@@ -131,9 +131,8 @@ void knuthPlassBlock(FontContext& fontContext, Paragraph& paragraph,
   // shorter than that count — which is every ordinary paragraph — and a
   // budget stated over one would then bound nothing at all.
   constexpr uint32_t kBudgetChecksPerBlock = 8;
-  const uint32_t budgetCheckStride =
-      std::max(1u, (wordCount > base ? wordCount - base : 1u) /
-                       kBudgetChecksPerBlock);
+  const uint32_t budgetCheckStride = std::max(
+      1u, (wordCount > base ? wordCount - base : 1u) / kBudgetChecksPerBlock);
   lastIntervalUsed = SIZE_MAX;
   if (base >= wordCount) return;
   if (!intervalSequence.intervalAt(firstInterval)) {
@@ -434,9 +433,8 @@ void knuthPlassBlock(FontContext& fontContext, Paragraph& paragraph,
         if (zone > 0 && !justify && hyphenWidthAt(breakIndex) > 0) {
           uint32_t whole = breakIndex - 1;
           while (whole > lineStart && words[whole - 1].hyphenBreak) --whole;
-          zoneRefusesBreak =
-              whole > lineStart &&
-              measure - lineNatural(lineStart, whole) <= zone;
+          zoneRefusesBreak = whole > lineStart &&
+                             measure - lineNatural(lineStart, whole) <= zone;
         }
 
         float demerits =
@@ -534,8 +532,7 @@ void knuthPlassBlock(FontContext& fontContext, Paragraph& paragraph,
       if (nextActive.size() > kMaxActiveNodes) {
         std::nth_element(nextActive.begin(),
                          nextActive.begin() + (long)kMaxActiveNodes,
-                         nextActive.end(),
-                         [&](int32_t left, int32_t right) {
+                         nextActive.end(), [&](int32_t left, int32_t right) {
                            return arena[left].demerits < arena[right].demerits;
                          });
         nextActive.resize(kMaxActiveNodes);
@@ -673,8 +670,7 @@ void knuthPlassBlock(FontContext& fontContext, Paragraph& paragraph,
   // measure again and again, and this is the answer to it.
   if (liveMeasure && firstUnplacedWord == ~0u)
     breakStore().store(BreakKey{paragraph.identity(), paragraph.wordRevision(),
-                                base,
-                                wordCount, quantisedMeasure(*liveMeasure),
+                                base, wordCount, quantisedMeasure(*liveMeasure),
                                 breakSetting(block)},
                        breaks);
   placeBreaks(fontContext, paragraph, intervalSequence, block, breaks, result,
@@ -711,7 +707,8 @@ void placeBreaks(FontContext& fontContext, Paragraph& paragraph,
     const bool lastLine = lineIndex + 1 == breaks.size();
     bool hyphenated = hyphenTakenAt(words, lastWordIndex, lastLine, options);
     if (hyphenated) {
-      if (!options.hyphenation.lastWordOfBlock && lastWordIndex + 1 >= wordCount)
+      if (!options.hyphenation.lastWordOfBlock &&
+          lastWordIndex + 1 >= wordCount)
         hyphenated = false;
       else if (options.hyphenation.consecutiveLimit > 0 &&
                consecutiveHyphens >= options.hyphenation.consecutiveLimit)
@@ -722,8 +719,9 @@ void placeBreaks(FontContext& fontContext, Paragraph& paragraph,
     if (lastLine && block.style.indent.lastLine != 0 &&
         !placed.interval.contour.valid()) {
       const float indent = block.style.indent.lastLine;
-      placed.interval.origin += SkVector{placed.interval.direction.x() * indent,
-                                         placed.interval.direction.y() * indent};
+      placed.interval.origin +=
+          SkVector{placed.interval.direction.x() * indent,
+                   placed.interval.direction.y() * indent};
       placed.interval.length = std::max(0.0f, placed.interval.length - indent);
     }
     placeWords(fontContext, paragraph, firstWordIndex, lastWordIndex, placed,

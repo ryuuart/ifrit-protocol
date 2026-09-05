@@ -159,10 +159,10 @@ class FlowGeometry {
    */
   bool lineIntervals(int index, float lineHeight, float ascent,
                      std::vector<LineInterval>& intervals) {
-    return lineIntervals(LineRequest{index,
-                                     static_cast<float>(index) * lineHeight,
-                                     lineHeight, ascent, 0, index},
-                         intervals);
+    return lineIntervals(
+        LineRequest{index, static_cast<float>(index) * lineHeight, lineHeight,
+                    ascent, 0, index},
+        intervals);
   }
 
   /** Returns true when every line yields one interval of the same width

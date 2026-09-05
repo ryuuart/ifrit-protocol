@@ -95,7 +95,8 @@ int luminance(SkColor c) {
 int differing(const SkBitmap& a, const SkBitmap& b) {
   int n = 0;
   for (int y = 0; y < a.height(); ++y)
-    for (int x = 0; x < a.width(); ++x) n += a.getColor(x, y) != b.getColor(x, y);
+    for (int x = 0; x < a.width(); ++x)
+      n += a.getColor(x, y) != b.getColor(x, y);
   return n;
 }
 
@@ -316,8 +317,10 @@ TEST(Patterns, Girih8ContactAngleSharpensTheStar) {
     img->readPixels(nullptr, bm.pixmap(), 0, 0);
     const float R = tile.size().width() / 2;
     const auto isStar = [&](SkColor c) {
-      return std::abs((int)SkColorGetR(c) - (int)std::lround(pal.star.r * 255)) < 8 &&
-             std::abs((int)SkColorGetB(c) - (int)std::lround(pal.star.b * 255)) < 8;
+      return std::abs((int)SkColorGetR(c) -
+                      (int)std::lround(pal.star.r * 255)) < 8 &&
+             std::abs((int)SkColorGetB(c) -
+                      (int)std::lround(pal.star.b * 255)) < 8;
     };
     float last = 0;
     for (float r = 0; r < R; r += 0.5f) {
@@ -342,7 +345,8 @@ TEST(Patterns, Girih8ContactAngleSharpensTheStar) {
   const pattern::Tile plain = kit::girih8(40, pal);
   sk_sp<SkImage> img = plain.image();
   SkBitmap defaulted;
-  defaulted.allocPixels(SkImageInfo::MakeN32Premul(img->width(), img->height()));
+  defaulted.allocPixels(
+      SkImageInfo::MakeN32Premul(img->width(), img->height()));
   img->readPixels(nullptr, defaulted.pixmap(), 0, 0);
   EXPECT_EQ(differing(defaulted, classicTile), 0);
   EXPECT_GT(differing(defaulted, steepTile), 100);
@@ -552,7 +556,8 @@ TEST(Grained, LattenSitsOnItsLadderAndSheensAlongItsRun) {
   p.level = 0.9f;
   const SkBitmap high = shade(kit::latten(p), 64, 8);
   // A high level is brighter than a low one at every pixel …
-  EXPECT_GT(luminance(high.getColor(32, 4)), luminance(low.getColor(32, 4)) + 40);
+  EXPECT_GT(luminance(high.getColor(32, 4)),
+            luminance(low.getColor(32, 4)) + 40);
   // … and along the run the sheen climbs the ladder.
   EXPECT_GT(luminance(low.getColor(60, 4)), luminance(low.getColor(3, 4)));
   // A patina is flecks of its colour, at its alpha.
@@ -626,10 +631,9 @@ TEST(Bank, FoldsSeedsIntoBucketsAndKeysOnTheRecipeAndParams) {
                      });
   EXPECT_EQ(made, 4);
   EXPECT_EQ(makers.size(), 4u);
-  EXPECT_FLOAT_EQ(
-      makers
-          .get(kit::boardRecipe(), kit::BoardParams{}, 9,
-               [](uint32_t) { return kit::board(); })
-          .get<float>("seed"),
-      7.0f);
+  EXPECT_FLOAT_EQ(makers
+                      .get(kit::boardRecipe(), kit::BoardParams{}, 9,
+                           [](uint32_t) { return kit::board(); })
+                      .get<float>("seed"),
+                  7.0f);
 }
