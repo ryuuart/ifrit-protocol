@@ -1,19 +1,14 @@
-# The device feature: the one GPU device 2D and 3D share, and what every
-# executor standing on it holds — the shared resources, the meshes
-# resident on it, and the maps.
+# The device feature: the one GPU device 2D and 3D share, and the four
+# things every executor standing on it writes through — the uniform
+# buffer, the samplers, the one white texel and the readback.
 #
-# RESIDENCY IS THE DEVICE'S, not a renderer's. A mesh is host memory and
-# a map is an image; a draw needs buffers and textures. The crossing has
-# one vertex layout, one lifetime rule and one cache, and two executors
-# sharing a device share the crossing rather than each copying every
-# mesh and every map a second time. The same is true of a pipeline: what
-# distinguishes two draws of one compiled program is how they blend and
-# whether they depth-test, and building that twice from two renderers
-# would only mean two caches. That is why the mesh currency, the
-# material texture and SigilMaterial's Slang backend are linked here:
-# they are what gets made resident and what a pipeline is built out of,
-# and nothing here reads any of them for anything else. Nothing here
-# decides a picture.
+# IT LINKS NOTHING THAT DECIDES A PICTURE, and that is what it is for. It
+# sits under every consumer of a device, the point operators' device
+# executors among them, and a point operator dispatches a kernel and
+# forms nothing — so its link line must not reach a mesh currency or a
+# material. What a mesh, a map or a compiled program BECOMES on the
+# device stands in the sibling feature residency/, which links those and
+# is taken by whoever needs them.
 #
 # THE CREATION POINT SITS BELOW EVERY CONSUMER, and it has to. Diligent
 # creates the Vulkan device — this build of it cannot attach to a device
@@ -38,14 +33,13 @@
 #
 # ONE PUBLIC HEADER, AND IT NAMES NO DILIGENT TYPE IT DOES NOT DECLARE.
 # Device.h forward-declares the render device and the context it hands
-# out, and includes nothing of the engine's. The four beside it —
-# Resources.h, Meshes.h, Pipelines.h, Textures.h — spell the engine's
-# buffer, sampler, texture, pipeline and binding interfaces, so they are
-# this feature's own headers and not the library's: they sit in this
-# directory, and a consumer holding one of these is writing Diligent
-# calls and says so by putting this directory on its own PRIVATE include
-# path. SIGIL_GEOMETRY_DEVICE_PRIVATE_DIR below is that one door; the
-# world's frame executor is what walks through it.
+# out, and includes nothing of the engine's. Resources.h beside it spells
+# the engine's buffer, sampler and texture interfaces, so it is this
+# feature's own header and not the library's: it sits in this directory,
+# and a consumer holding one of those objects is writing Diligent calls
+# and says so by putting this directory on its own PRIVATE include path.
+# SIGIL_GEOMETRY_DEVICE_PRIVATE_DIR below is that one door; the world's
+# frame executor and the residency beside this are what walk through it.
 #
 # Diligent is PUBLIC all the same, because Device.h's two doors hand out
 # objects the caller then makes engine calls on, and because of the link
@@ -65,19 +59,17 @@ enable_language(C)
 
 
 sigil_library(SigilGeometryDevice
-  SOURCES AdoptDevice.cpp AdoptDevice.h Device.cpp Meshes.cpp Meshes.h
-          Pipelines.cpp Pipelines.h Resources.cpp Resources.h Textures.cpp
-          Textures.h VolkShim.c
+  SOURCES AdoptDevice.cpp AdoptDevice.h Device.cpp Resources.cpp Resources.h
+          VolkShim.c
   HEADERS Device.h
   INCLUDE_PRIVATE ${CMAKE_CURRENT_LIST_DIR}
   PUBLIC unofficial::diligent-engine::DiligentCore SigilCoreHardware
-         SigilSkiaGraphite SigilGeometryMesh SigilMaterialTexture
-         SigilMaterialSlang
+         SigilSkiaGraphite
   PRIVATE unofficial::diligent-engine::volk Vulkan::Headers)
 
 # THE ONE DOOR ONTO THE ENGINE'S INTERFACES: the directory holding the
-# headers that spell them. A consumer that genuinely holds a Diligent
-# buffer, texture or pipeline — the world's frame executor does, and the
+# header that spells them. A consumer that genuinely holds a Diligent
+# buffer, sampler or texture — the world's frame executor does, and the
 # mesh painter's device executor does — puts this on its own PRIVATE
 # include path and includes the header by its bare name. Anything that
 # only wants a device includes <sigilgeometry/device/Device.h> and needs
@@ -95,9 +87,9 @@ set(SIGIL_GEOMETRY_DEVICE_TEST_SUPPORT_DIR ${CMAKE_CURRENT_LIST_DIR}/test/suppor
 # the reason when the machine has none, so a machine without one runs
 # `ctest -LE gpu` and checks nothing it cannot judge.
 sigil_test(geometry_device_test
-  SOURCES test/DeviceTest.cpp test/ResidencyTest.cpp
+  SOURCES test/DeviceTest.cpp
   LIBRARIES SigilGeometryDevice
-  SUPPORT_DIRS ${CMAKE_CURRENT_LIST_DIR} ${CMAKE_CURRENT_LIST_DIR}/test/support
+  SUPPORT_DIRS ${CMAKE_CURRENT_LIST_DIR}/test/support
                ${SIGIL_SKIA_GRAPHITE_TEST_SUPPORT_DIR}
   LABELS gpu)
 
@@ -105,3 +97,8 @@ sigil_bench(geometry_device_bench
   SOURCES bench/DeviceBench.cpp
   SUPPORT_DIRS ${CMAKE_CURRENT_LIST_DIR}
   LIBRARIES SigilGeometryDevice SigilMeasure)
+
+# …and what stands on the device between draws, which links a mesh
+# currency and a material and so cannot stand inside the feature every
+# consumer of a device takes.
+add_subdirectory(residency)

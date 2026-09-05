@@ -48,6 +48,11 @@ mesh/          SigilGeometryMesh          sigil::geometry::mesh
   pop/         SigilGeometryMeshPop       sigil::geometry::mesh::pop
   codec/       SigilGeometryMeshCodec     sigil::geometry::mesh::codec
 device/        SigilGeometryDevice        sigil::geometry::device
+  residency/   SigilGeometryDeviceResidency
+                                          (the same ::device namespace:
+                                           what is resident stands in
+                                           the scope of the device it
+                                           is resident on)
 kit/           SigilGeometryKit           sigil::geometry::shapes
                                           (and ::shapers, ::sections, ::mesh)
 ```
@@ -61,6 +66,17 @@ device this feature created and the hardware device adopted, and none of
 them can create it for the others. It is absent from a build without
 Skia's Graphite on the same device, since being one device for both APIs
 is the whole of what it is for.
+
+`device/residency/` is what a mesh, a map and a compiled program BECOME
+on that device, and it is a sibling of the device rather than part of it
+because of what it has to link. Buffers are made out of the mesh
+currency, textures out of a material's, pipelines out of a material's
+Slang backend — and the feature that CREATES a device sits under every
+consumer of one, the point operators' device executors among them. A
+point operator dispatches a kernel and forms no picture, so its link line
+has no business reaching a material; standing residency beside the device
+is what keeps that true. A consumer takes the device, or the device and
+what is resident on it.
 
 `kit/` is the one directory that does not sit in that dependency tree:
 it is the SHELF over the tiers, holding the stock values anybody could
@@ -1054,7 +1070,10 @@ Two executors sharing a device share both, exactly as they share
 `device::Resources`. A renderer above says WHAT it wants drawn; putting
 it on the device is not a thing each renderer answers for itself.
 `mapMipLevels()` is the one arithmetic behind the chain an uploaded map
-carries.
+carries. All three — the two residencies and `device::PipelineCache` —
+are `SigilGeometryDeviceResidency`, the sibling target beside the device,
+so a consumer that only wants a device links no mesh currency and no
+material.
 
 **The device executors of this library's own seams stand beside their CPU
 ones**, in `mesh/pop/device/` and `mesh/render/device/`:
@@ -1270,12 +1289,12 @@ another feature, and none of them reaches a public header.
 
 `device` is the exception to all of that, and the one feature that
 brings a renderer's dependencies with it: Diligent Engine, SigilCore's
-hardware device, SigilSkia's Graphite, and — because residency is what
-gets made resident — the mesh currency and SigilMaterial's texture.
-Nothing above it links it unless it wants a device, and no other feature
-here reaches down into it. It is the one place a geometry target names a
-material one other than `path/blend`'s private colour link, and it reads
-a texture and an environment map for one thing only: putting their
+hardware device and SigilSkia's Graphite. Nothing above it links it
+unless it wants a device, and no other feature here reaches down into it.
+`device/residency` is where the mesh currency and SigilMaterial's texture
+and Slang backend are named — it is the one place a geometry target names
+a material one other than `path/blend`'s private colour link, and it
+reads a texture and an environment map for one thing only: putting their
 pixels on the device.
 
 It deliberately does not own a window, a Qt dependency, a
@@ -1314,7 +1333,7 @@ Targets: one static library per feature — `SigilGeometryPath`,
 `SigilGeometryPathBlend`, `SigilGeometryMesh`, `SigilGeometryMeshCamera`,
 `SigilGeometryMeshRender`, `SigilGeometryMeshCurve`,
 `SigilGeometryMeshPop`, `SigilGeometryMeshCodec`, `SigilGeometryDevice`,
-`SigilGeometryKit` — the `SigilGeometry` umbrella over all of them, the tests, and one Google Benchmark binary
+`SigilGeometryDeviceResidency`, `SigilGeometryKit` — the `SigilGeometry` umbrella over all of them, the tests, and one Google Benchmark binary
 per feature, built by the `benches` target and run from a Release build
 through `scripts/bench_ledger.py`:
 
@@ -1360,16 +1379,17 @@ neither boundary is one a caller reads.
 | `geometry_mesh_pop_test` | `mesh/pop/test/` — `PointsTest`, `PopChainsTest`, `PopFiltersTest`, `PopLanesTest`, `PopSelectionTest`, `PopSinksTest`, `PopFieldsTest`, `RuntimeTest`, `SweepTest`, `SweptShapesTest` | point clouds and the chains over them: the generators' conventional lanes, the modifiers that move points exactly as the operators of the same name do, the lanes a chain carries and the dials that address them by name, naming a subset and acting on it, the sinks a chain reaches by its own verb, the cook's and the sweep's runtime seams, and what a profile carried along a rail forms. Links the codec to seed chains from an imported model |
 | `geometry_mesh_codec_test` | `mesh/codec/test/` — `ObjTest`, `GltfTest`, `StlTest`, `PlyTest`, `AlembicTest`, `GeoTest`, `ModelTest`, `EncodeTest` | one file per format, plus the Model operations over whatever reader made it and both writers' return leg. The only binary linking Alembic |
 | `geometry_device_test` (`gpu`) | `device/test/DeviceTest` | one device end to end: Graphite draws on the very queue Diligent submits through, the adopted device names every Vulkan handle, and Diligent still drives it afterwards |
+| `geometry_device_residency_test` (`gpu`) | `device/residency/test/ResidencyTest` | what the device keeps between draws: a named mesh crossing once and drawn from after, a nameless one written through the streaming pair, the depth of an uploaded map's chain, and the letting go that keeps a scene from holding everything it ever cooked |
 | `geometry_mesh_pop_device_test` (`gpu`) | `mesh/pop/test/` — `DeviceCookTest`, `DeviceStampTest`, `DeviceSweepTest` | the CONFORMANCE of the device executors: every chain, stamping and sweep they say they can do compared with the host's bit for bit, the operators they decline by name, and a cook that reads back and cooks again with the backend's diagnostics collected |
 
-Two binaries carry the `gpu` label: every case in them brings a Vulkan
+Four binaries carry the `gpu` label: every case in them brings a Vulkan
 device up and skips, naming what is missing, when the machine has none. A
 machine without one runs `ctest -LE gpu` and checks the whole host tier.
 Nothing else here needs a device, a font or a network.
 
 | Label | On | Means |
 | --- | --- | --- |
-| `gpu` | `geometry_device_test`, `geometry_mesh_pop_device_test` | needs a Vulkan runtime (on macOS: `brew install molten-vk vulkan-loader`); skips with the reason without one |
+| `gpu` | `geometry_device_test`, `geometry_device_residency_test`, `geometry_mesh_pop_device_test`, `geometry_mesh_render_device_test` | needs a Vulkan runtime (on macOS: `brew install molten-vk vulkan-loader`); skips with the reason without one |
 
 Fixtures live in one place per audience. `test/support/` at the library
 root holds what more than one binary reads: `GeometrySupport.h` (the OBJ

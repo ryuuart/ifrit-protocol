@@ -23,4 +23,5 @@ sigil_library(SigilGeometry
             SigilGeometryMeshCamera SigilGeometryMeshRender
             SigilGeometryMeshRenderDevice
             SigilGeometryMeshCurve SigilGeometryMeshPop
-            SigilGeometryMeshCodec SigilGeometryKit SigilGeometryDevice)
+            SigilGeometryMeshCodec SigilGeometryKit SigilGeometryDevice
+            SigilGeometryDeviceResidency)

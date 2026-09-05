@@ -47,11 +47,14 @@ sigil_slang_module(NAME Post SOURCE ${_shaders}/Post.slang
 # twin in SigilGeometry.
 #
 # Gpu.h holds the device's shared resources, its residencies and its
-# pipelines, and those are spelled in the device feature's OWN headers
-# rather than in SigilGeometry's public ones — a header that names a
-# Diligent interface is not a library's public word. That directory is
-# therefore on this target's PRIVATE include path, which is the one door
-# onto those interfaces, and Gpu.h includes them by their bare names.
+# pipelines, and those are spelled in the device feature's and the
+# residency's OWN headers rather than in SigilGeometry's public ones — a
+# header that names a Diligent interface is not a library's public word.
+# Both directories are therefore on this target's PRIVATE include path,
+# which is the one door onto those interfaces, and Gpu.h includes them by
+# their bare names. SigilGeometryDeviceResidency is PRIVATE for the same
+# reason: a mesh, a map and a pipeline become device objects inside this
+# feature and in none of its headers.
 sigil_library(SigilWorldDiligent
   SOURCES Geometry.cpp Gpu.cpp Gpu.h Import.cpp Post.cpp
           Programs.cpp Programs.h Runtime.cpp
@@ -59,9 +62,11 @@ sigil_library(SigilWorldDiligent
   HEADERS Import.h Runtime.h
   INCLUDE_PRIVATE ${CMAKE_CURRENT_LIST_DIR}
                   ${SIGIL_GEOMETRY_DEVICE_PRIVATE_DIR}
+                  ${SIGIL_GEOMETRY_DEVICE_RESIDENCY_PRIVATE_DIR}
   PUBLIC SigilGeometryDevice SigilWorldScene SigilMaterialSlang
          SigilGeometryMeshPop SigilCoreHardware SigilGeometryMeshRender
-  PRIVATE SigilMaterialKit SigilSkiaGraphite Boost::container)
+  PRIVATE SigilGeometryDeviceResidency SigilMaterialKit SigilSkiaGraphite
+          Boost::container)
 sigil_shader_sources(SigilWorldDiligent
   DIR ${_shaders} NAMESPACE sigil::world::diligent)
 
