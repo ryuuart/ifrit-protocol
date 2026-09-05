@@ -1095,7 +1095,7 @@ lock does not nest: no Diligent call may be made while one is held.
 
 **Residency is the device's too.** A mesh is host memory and a map is an
 image; a draw needs buffers and a texture. `device::MeshResidency`
-(`device/Meshes.h`) makes that crossing and remembers it: `upload()`
+(`device/residency/Meshes.h`) makes that crossing and remembers it: `upload()`
 holds a mesh under the number the caller gave the artefact it came from,
 so two frames looking at the same triangles cross once, and `stream()`
 writes a mesh nobody can name into one pair of buffers grown to fit and
@@ -1103,7 +1103,7 @@ overwritten by the next draw. `device::MeshVertex` is the one vertex
 layout every pipeline over those buffers declares — filled in on upload
 for a mesh that carries no normals, uvs or tint — and `meshLayout()` is
 that layout as a pipeline states it, with the primitive lane declared or
-not over the same stride. `device::TextureResidency` (`device/Textures.h`)
+not over the same stride. `device::TextureResidency` (`device/residency/Textures.h`)
 is the same story for maps: pixels that already stand on this very
 device are wrapped where they are and nothing is copied, everything else
 is brought over once and held under the image it came from, and the
@@ -1119,7 +1119,12 @@ it on the device is not a thing each renderer answers for itself.
 carries. All three — the two residencies and `device::PipelineCache` —
 are `SigilGeometryDeviceResidency`, the sibling target beside the device,
 so a consumer that only wants a device links no mesh currency and no
-material.
+material. Their headers are that feature's own for the same reason the
+device's engine-facing ones are — each names the engine's buffer,
+texture, pipeline or binding interfaces — so they stand beside its
+sources and a consumer holding one of those objects puts
+`SIGIL_GEOMETRY_DEVICE_RESIDENCY_PRIVATE_DIR` on its own PRIVATE include
+path.
 
 **The device executors of this library's own seams stand beside their CPU
 ones**, in `mesh/pop/device/` and `mesh/render/device/`:
@@ -1378,7 +1383,8 @@ cmake --build build --config Release
 Targets: one static library per feature — `SigilGeometryPath`,
 `SigilGeometryPathBlend`, `SigilGeometryMesh`, `SigilGeometryMeshCamera`,
 `SigilGeometryMeshRender`, `SigilGeometryMeshCurve`,
-`SigilGeometryMeshPop`, `SigilGeometryMeshCodec`, `SigilGeometryDevice`,
+`SigilGeometryMeshPop`, `SigilGeometryMeshCodec`,
+`SigilGeometryMeshRenderDevice`, `SigilGeometryDevice`,
 `SigilGeometryDeviceResidency`, `SigilGeometryKit` — the `SigilGeometry` umbrella over all of them, the tests, and one Google Benchmark binary
 per feature, built by the `benches` target and run from a Release build
 through `scripts/bench_ledger.py`:

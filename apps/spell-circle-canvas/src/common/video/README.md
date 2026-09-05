@@ -17,6 +17,12 @@ Namespace `sigil::video`. The targets are deliberately separable:
 | `SigilVideoEncode` | FFmpeg video encoding and MP4 muxing into memory |
 | `SigilVideo` | umbrella over decode and encode |
 
+FFmpeg itself arrives as `sigil_video_ffmpeg`, one INTERFACE target
+declared from the find module's variables and linked privately by the
+two features that call it: the port publishes a module and no package,
+and the release and debug archives have to be resolved as a pair, which
+the pkg-config files beside them cannot do.
+
 ## Decode and compose
 
 ```cpp

@@ -784,22 +784,27 @@ A study returns a `Frame`, and an `Element` is one with no passes, so a
 study about the scene says nothing about passes at all. The host writes
 the plate's size and its viewpoint into whichever it was handed.
 
-## The plate ledger's 3D tiers
+## The plate ledger over the studies
 
-`scripts/plate_ledger.py --tier world` renders every study to its
-declared moment on the CPU and hashes the bytes against its own baseline,
-`build/plate_baseline_world_<config>.sha256`. It is the same question the
-2D tiers ask — did any byte move that I did not mean to move — of a
-different registry, and it needs no device:
+A study is a sketch of the `set` kind, so it is judged by the one plate
+ledger over the one registry, narrowed to that kind. The CPU tier
+renders every study to its declared moment and hashes the bytes against
+the manifest, `build/plate_baseline_<config>.sha256`. It is the same
+question asked of a canvas sketch — did any byte move that I did not
+mean to move — and it needs no device:
 
 ```sh
-python3 scripts/plate_ledger.py --tier world --rebase   # adopt a baseline
-python3 scripts/plate_ledger.py --tier world            # sweep and judge
-python3 scripts/plate_ledger.py --tier world --stability 2
-python3 scripts/plate_ledger.py --tier world-gpu        # the device tier
+python3 scripts/plate_ledger.py --kind set --rebase   # adopt a baseline
+python3 scripts/plate_ledger.py --kind set            # sweep and judge
+python3 scripts/plate_ledger.py --kind set --stability 2
+python3 scripts/plate_ledger.py --kind set --tier device
 ```
 
-`--tier world-gpu` renders the same studies through the device runtime
+A sweep narrowed to one kind merges into the manifest rather than
+truncating it, so adopting a study's changed plate keeps every canvas
+sketch's baseline.
+
+`--tier device` renders the same studies through the device runtime
 and is the ONE TIER NOT JUDGED ON BYTE IDENTITY. It has no baseline: each
 plate is compared against the CPU tier's plate of the same study, and the
 same sweep renders both. Two rasterisers are not asked to agree bit for
@@ -1204,8 +1209,9 @@ ships on a device, so a sweep here would be a third reading of one fact.
 **How far the two tiers stand apart is asked nowhere in these binaries.**
 Two rasterisers are not the same bytes, the distance between them is a
 different number per subject, and it moves with the scene rather than
-with this code — so it is judged over the whole registry against a
-committed baseline by `plate_ledger.py --tier world-gpu`, and the only
+with this code — so it is judged over the whole registry, each device
+plate against the CPU plate of the same run, by `plate_ledger.py --tier
+device`, and the only
 distance a test here reads is the worst channel, as an INEQUALITY saying
 an operation reached the pixels at all. The conformance of the chain cook
 and the swept rings is not here either: those executors are

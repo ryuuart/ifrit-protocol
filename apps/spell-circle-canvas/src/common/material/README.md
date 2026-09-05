@@ -54,8 +54,8 @@ scaffold its body is appended to and registers the result, so what lives
 here is the compile and the layout and nothing that knows a pass or a
 device.
 
-Namespace `sigil::material`. Ten feature libraries, one per directory,
-each a static archive that links only what sits beneath it:
+Namespace `sigil::material`. Twelve feature libraries, one per
+directory, each a static archive that links only what sits beneath it:
 
 | target | holds | links |
 |--------|-------|-------|
@@ -70,8 +70,9 @@ each a static archive that links only what sits beneath it:
 | `SigilMaterialSkia` | the SkSL compiler and `SkiaProgram`, whose builder uploads resolved bytes; `skia::builder` and `skia::shader` binding leaves into slots; `skia::fill`; the colour bridge `skia::toColor` / `skia::toSkColor` / `skia::toColors`; `skia::verticalRamp` and `skia::unitRamp`, the two crossings a list of `RampStop`s reaches Skia through; `skia::Paint`, the model as ONE shader; and `skia::Effect`, the post-processing recipe over a rendered layer | SigilMaterialTexture, SigilMaterialColor, SigilMotionValues |
 | `SigilMaterialSlang` | the Slang compiler: `slang::compileModule` to SPIR-V, `slang::Compiled` with the reflected `slang::UniformSlot` per uniform, `slang::SlangProgram`, and `slang::Uniforms`, the buffer one draw is written into; `Portable.slang`, the subset a host and a device answer alike, loaded into every session by name | SigilMaterialCore, Boost.Container; Slang privately |
 | `SigilMaterialKit` | the presets: the metallic-roughness `kit::surface` and `kit::unlit`; `kit::gold`, `kit::chrome`, `kit::glass`; the grained `kit::stone`, `kit::timber`, `kit::latten` and `kit::board`; `kit::girih8` and its palettes; the gel and chrome tables with `kit::contourRing`; the text paints and chrome-type ramps; `kit::studioEnvironment` and `kit::sunsetEnvironment`, the two named skies; and `kit::everyRecipe`, one instance of each of the above | SigilMaterialPattern, SigilMaterialColor, SigilMaterialMask, Boost.Container |
+| `SigilMaterialStock` | `stock::everyRecipe()`, one instance of every recipe this library ships gathered from the catalogues that own them, and `stock::warmup(target)`, which compiles the list into the shared program cache before a host's first frame | SigilMaterialCore; SigilMaterialField, SigilMaterialSdf, SigilMaterialKit and SigilCoreSchedule privately |
 
-`SigilMaterial` is the umbrella, an interface over all ten. Headers live
+`SigilMaterial` is the umbrella, an interface over all twelve. Headers live
 under `include/sigilmaterial/<feature>/` and are spelled that way —
 `<sigilmaterial/core/Recipe.h>`, `<sigilmaterial/texture/Texture.h>`,
 `<sigilmaterial/kit/Surfaces.h>` — and `<sigilmaterial/Material.h>`
@@ -940,9 +941,10 @@ a node's fill and routes it, and holds no paint model of its own.
 ```sh
 ctest --test-dir build -C Release -R material
 python3 scripts/bench_ledger.py --benches material_color_bench \
-    material_core_bench material_texture_bench material_ocio_bench \
-    material_sdf_bench material_pattern_bench material_field_bench \
-    material_skia_bench material_kit_bench material_slang_bench
+    material_core_bench material_texture_bench material_mask_bench \
+    material_ocio_bench material_sdf_bench material_pattern_bench \
+    material_field_bench material_skia_bench material_kit_bench \
+    material_stock_bench material_slang_bench
 ```
 
 A case here asserts one thing this library promises through its public
@@ -959,11 +961,11 @@ not redeclare, and the file names the texture tools write.
 
 **A binary exists where it links a strictly smaller set of targets than
 its neighbours and that boundary is a promise somebody could read**; two
-binaries over one closure are one binary. That is why there are six here
-and not eleven: the colour leaf, the signed-distance surfaces, the tiles,
-the fields and the baked view transforms are five features, and a test of
-any of them shades through the Skia backend, so `material_test` is one
-binary over the five. The features themselves are still five archives —
+binaries over one closure are one binary. That is why there are eight
+here and not twelve: the colour leaf, the signed-distance surfaces, the
+tiles, the fields and the baked view transforms are five features, and a
+test of any of them shades through the Skia backend, so `material_test`
+is one binary over the five. The features themselves are still five archives —
 a consumer of the colour leaf links the colour leaf alone, and that is
 what the library promises.
 
@@ -972,9 +974,11 @@ what the library promises.
 | `material_core_test` | the value model, with no renderer in reach | — |
 | `material_test` | the primitives, the colour leaf, the view transforms | `ocio` |
 | `material_texture_test` | the image side | — |
+| `material_mask_test` | that a mask shapes what it reads, and that reshaping something that is not a mask changes nothing | — |
 | `material_kit_test` | the presets and the shading terms | — |
 | `material_skia_test` | the SkSL backend | — |
 | `material_slang_test` | the Slang backend, with no device | — |
+| `material_stock_test` | that the catalogue holds every feature catalogue, and that the warm-up compiles every program it gathered | — |
 | `material_gpu_test` | every body this library ships, on a device | `gpu` |
 
 `material_core_test` links the core alone, so a link edge that pulled a
