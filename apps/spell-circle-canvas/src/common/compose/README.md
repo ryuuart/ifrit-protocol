@@ -932,10 +932,30 @@ your outputs where you hold your model.
 The raw-callable escape hatches — a `Shape` built from a lambda, an
 unkeyed `custom()` program, a bare `PaintProgram` decoration — can never
 compare equal to a separately constructed one, so their nodes re-patch on
-every describe. The fix is to hold the value rather than re-minting it,
-or to wrap the node in `memo()`. Two spellings avoid the problem outright:
-`custom(key, program)` makes the key the program's identity, and every
-`geometry::shapes::` generator is a comparable value.
+every describe. They stay in the grammar and they stay always-live: a
+node carrying one is re-patched and re-recorded for as long as it exists,
+which is the price of handing over something the library cannot read.
+
+**A callable becomes comparable by declaring what tells it apart**, and
+there are three spellings for that, one per kind of identity:
+
+- **the path is the identity** — `.shape(heldPath(p))` over
+  `.shape([p](SkSize) { return p; })`. A path cooked once and held
+  compares by its own generation, which every copy carries. Rebuilding the
+  path each describe is a new generation and stays conservative: cook it,
+  hold it, hand it here. `pathFigure(p, bleed)` is the leaf that also
+  gives the node the path's own bounds.
+- **a value the body closes over is the identity** —
+  `.shape(key, fn)` (or `keyedShape(key, fn)` for the value form) and
+  `custom(key, program)`.
+- **the whole drawing is a value** — every `geometry::shapes::` generator,
+  including the keyed `shapes::parametric(key, …)`.
+
+The keyed forms all take one author contract: **one key names one
+drawing**. Anything the body reads that is not in the key is invisible to
+the prune, and a pruned node replays the picture it recorded — so a
+number left out of the key freezes at whatever it was on the frame that
+recorded, with no error and no warning.
 
 This matters more than it sounds. An inherited value carried through
 `core::env::` that holds a `std::function` is incomparable, and that turns every

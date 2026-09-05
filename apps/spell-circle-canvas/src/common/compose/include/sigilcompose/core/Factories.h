@@ -117,6 +117,28 @@ Element custom(PaintProgram program);
  *  prunes; the unkeyed form above re-records every render(). */
 Element custom(std::string_view key, PaintProgram program);
 
+/** A LEAF THE SHAPE OF A PATH ALREADY IN CANVAS COORDINATES.
+ *
+ *  A figure worked out in the drawing's own frame — a projected ray, a
+ *  traced region, a swept arc — is an absolute path, and a node is a box
+ *  with a local shape. Placing one by hand is the same four lines every
+ *  time: take the bounds, grow them by whatever the mark will spend
+ *  outside the line, set the node's rect to that, and re-base the path so
+ *  its origin is the box's corner.
+ *
+ *  This is those four lines. @p bleed grows the box on all sides, in px,
+ *  and must cover half the stroke width the caller is about to dress it
+ *  with plus anything the mark spends beyond that — an under-grown box
+ *  clips the mark. The node is `absolute`, so its rect is read against
+ *  whatever it hangs under rather than joining a flex flow, and it
+ *  carries a `heldPath` shape, so
+ *  it prunes as long as the path handed in is one the caller holds rather
+ *  than one rebuilt each describe.
+ *
+ *  It has NO FILL and no mark of its own: dress it with `.fill()`, a
+ *  `.stroke()` or a `foreground(PathFormat{…})` as the drawing wants. */
+Element pathFigure(SkPath absolute, float bleed = 0.0f);
+
 /** A container whose children are placed by @p scheme instead of
  *  flexbox (nests freely inside flex and vice versa). The container
  *  itself is sized by its own dims/flex; children are measured by

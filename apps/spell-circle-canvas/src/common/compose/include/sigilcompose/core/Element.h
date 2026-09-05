@@ -195,6 +195,15 @@ class Element {
    *  node re-patches and re-records on every describe — memo() such a
    *  node, or hold the Shape value stable, to get pruning back. */
   Element& shape(Shape path);
+  /** THE KEYED SPELLING: the generator plus the value it closes over, so
+   *  the node settles. Sugar for `shape(keyedShape(key, fn))` — see
+   *  KeyedShape for the one-key-one-drawing contract the author takes on.
+   *  A path already cooked wants `shape(heldPath(p))` instead. */
+  template <typename K, typename F>
+    requires std::is_invocable_r_v<SkPath, const F&, SkSize>
+  Element& shape(K key, F fn) {
+    return shape(Shape(keyedShape(std::move(key), std::move(fn))));
+  }
   /** BAND FORMATION: which side of the spine the band occupies.
    *  `.centered()` is the default and straddles it; `.outward()` and
    *  `.inward()` take one side (the offset-path lineage). No effect on a

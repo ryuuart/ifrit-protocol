@@ -2383,6 +2383,99 @@ TEST(ComposeMaterial, ABufferPrunesBetweenCommitsAndPatchesOnCommit) {
   EXPECT_EQ(host.composer.stats().patchedNodes, 0u);
 }
 
+TEST(ComposeContent, AHeldPathShapePrunesWhereALambdaNeverCan) {
+  // The commonest escape hatch in the tree: a path cooked in the author's
+  // own coordinates handed to a node through a lambda. The lambda is
+  // incomparable, so the node re-patches every describe however static the
+  // drawing is; heldPath() hands the same path over as a value.
+  SkPathBuilder pb;
+  pb.addOval(SkRect::MakeXYWH(10, 10, 40, 40));
+  const SkPath cooked = pb.detach();
+  auto tree = [&cooked](bool held) {
+    return box().child(held ? box().width(60).height(60).shape(heldPath(cooked))
+                            : box().width(60).height(60).shape(
+                                  [cooked](SkSize) { return cooked; }));
+  };
+  Host host;
+  host.composer.render(tree(true));
+  host.frame();
+  host.composer.render(tree(true));  // the same cooked path: prune
+  EXPECT_EQ(host.composer.stats().patchedNodes, 0u);
+  host.frame();
+  EXPECT_EQ(host.composer.stats().picturesRecorded, 0u);
+  // A DIFFERENT path is a change, even one drawn from the same numbers:
+  // a rebuild carries a new generation, so equality stays conservative.
+  SkPathBuilder rebuilt;
+  rebuilt.addOval(SkRect::MakeXYWH(10, 10, 40, 40));
+  const SkPath other = rebuilt.detach();
+  host.composer.render(box().child(box().width(60).height(60).shape(
+      heldPath(other))));
+  EXPECT_GE(host.composer.stats().patchedNodes, 1u);
+  // The lambda spelling never settles.
+  Host raw;
+  raw.composer.render(tree(false));
+  raw.frame();
+  raw.composer.render(tree(false));
+  EXPECT_GE(raw.composer.stats().patchedNodes, 1u);
+}
+
+TEST(ComposeContent, AKeyedShapeSettlesOnTheValueItClosesOver) {
+  // A generator that is a function of a few numbers is a value wearing a
+  // lambda's clothes. keyedShape() hands the numbers over as the identity:
+  // equal keys prune, a changed key re-patches, and the keyless form is
+  // conservative forever.
+  auto tree = [](bool keyed, float radius) {
+    auto fn = [radius](SkSize s) {
+      SkPathBuilder pb;
+      pb.addRRect(SkRRect::MakeRectXY(SkRect::MakeWH(s.width(), s.height()),
+                                      radius, radius));
+      return pb.detach();
+    };
+    auto leaf = keyed ? box().width(60).height(60).shape(radius, fn)
+                      : box().width(60).height(60).shape(fn);
+    return box().child(leaf.fill(red()));
+  };
+  Host host;
+  host.composer.render(tree(true, 2.0f));
+  host.frame();
+  EXPECT_EQ(host.pixel(1, 1), SK_ColorRED);  // a 2 px corner keeps it
+  host.composer.render(tree(true, 2.0f));    // same key: prune
+  EXPECT_EQ(host.composer.stats().patchedNodes, 0u);
+  host.frame();
+  EXPECT_EQ(host.composer.stats().picturesRecorded, 0u);
+  // A changed key IS a change, and the new outline reaches the paint.
+  host.composer.render(tree(true, 28.0f));
+  EXPECT_GE(host.composer.stats().patchedNodes, 1u);
+  host.frame();
+  EXPECT_EQ(host.pixel(1, 1), SK_ColorBLACK)
+      << "the new radius never reached the outline";
+  Host raw;
+  raw.composer.render(tree(false, 2.0f));
+  raw.frame();
+  raw.composer.render(tree(false, 2.0f));
+  EXPECT_GE(raw.composer.stats().patchedNodes, 1u);
+}
+
+TEST(ComposeContent, APathFigureCarriesItsOwnBox) {
+  // An absolute path re-based into its own bounds: the node's rect is the
+  // path's bounds grown by the bleed, and the shape is the path moved to
+  // that corner — so the figure lands where it was worked out.
+  SkPathBuilder pb;
+  pb.addRect(SkRect::MakeXYWH(30, 40, 20, 10));
+  Host host;
+  host.composer.render(
+      positioned().child(pathFigure(pb.detach(), 4.0f).key("fig").fill(red())));
+  host.frame();
+  const auto placed = host.composer.bounds("fig");
+  ASSERT_TRUE(placed.has_value());
+  EXPECT_EQ(placed->left(), 26.0f);
+  EXPECT_EQ(placed->top(), 36.0f);
+  EXPECT_EQ(placed->width(), 28.0f);
+  EXPECT_EQ(placed->height(), 18.0f);
+  EXPECT_EQ(host.pixel(40, 45), SK_ColorRED);   // inside the figure
+  EXPECT_EQ(host.pixel(28, 38), SK_ColorBLACK);  // the bleed is not the mark
+}
+
 TEST(ComposeContent, AKeyedCustomPrunesAndTheKeyIsHonest) {
   // An unkeyed custom() carries an incomparable callable, so its node
   // re-records on every render(). custom(key, program) lets the author

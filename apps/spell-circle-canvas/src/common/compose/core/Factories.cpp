@@ -5,6 +5,7 @@
  * and the makers behind layout() and memo().
  */
 
+#include <include/core/SkMatrix.h>
 #include <sigilcore/reconcile/Env.h>
 
 #include <any>
@@ -104,6 +105,14 @@ Element custom(std::string_view key, PaintProgram program) {
   Element e = custom(std::move(program));
   e.node()->customData->key = std::string(key);
   return e;
+}
+
+Element pathFigure(SkPath absolute, float bleed) {
+  SkRect bounds = absolute.getBounds();
+  bounds.outset(bleed, bleed);
+  SkPath local = absolute.makeTransform(
+      SkMatrix::Translate(-bounds.left(), -bounds.top()));
+  return box().absolute().rect(bounds).shape(heldPath(std::move(local)));
 }
 
 Element connector(std::string_view fromKey, std::string_view toKey,

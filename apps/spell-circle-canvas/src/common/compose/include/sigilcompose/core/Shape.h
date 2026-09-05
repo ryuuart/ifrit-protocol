@@ -131,6 +131,87 @@ class Shape {
   std::shared_ptr<const State> m_state;
 };
 
+/** A PATH COOKED ONCE, held as a comparable Shape.
+ *
+ *  The commonest escape hatch in the tree is `.shape([p](SkSize) { return
+ *  p; })` — a path already built in the author's own coordinates, handed
+ *  to the node through a lambda. That lambda compares equal to nothing,
+ *  so the node re-patches and re-records on every describe however static
+ *  the drawing is. This is the same handover as a value: the path is the
+ *  identity.
+ *
+ *  Equality is the path's own generation, which a COPY carries and a
+ *  rebuild does not. So `heldPath(m_ring)` re-minted every describe off a
+ *  path the caller holds prunes, and a path rebuilt from its parts each
+ *  describe does not — cook it once, hold it, hand it here.
+ *
+ *  The path is used AS IT WAS COOKED, in the node's local coordinates. It
+ *  is not fitted to the box (`shapes::svg()` is the fitting one), so a
+ *  node whose box is not the path's own bounds shows the path where the
+ *  path is. `pathFigure()` is the factory that gives a node exactly those
+ *  bounds. */
+class HeldPath {
+ public:
+  HeldPath() = default;
+  explicit HeldPath(SkPath cooked) : m_cooked(std::move(cooked)) {}
+  SkPath path(SkSize) const { return m_cooked; }
+  const SkPath& cooked() const { return m_cooked; }
+  /** The generation id changes on every edit and rides every copy, so
+   *  this is exact for a held path and conservative for a rebuilt one.
+   *  Fill type joins it because the id does not answer for it. */
+  bool operator==(const HeldPath& o) const {
+    return m_cooked.getGenerationID() == o.m_cooked.getGenerationID() &&
+           m_cooked.getFillType() == o.m_cooked.getFillType();
+  }
+
+ private:
+  SkPath m_cooked;
+};
+
+inline HeldPath heldPath(SkPath cooked) { return HeldPath(std::move(cooked)); }
+
+/** A CALLABLE MADE COMPARABLE BY THE VALUE IT CLOSES OVER.
+ *
+ *  A generator that is genuinely a function of a few numbers — a radius,
+ *  a corner mask, a pair of angles — is a value wearing a lambda's
+ *  clothes, and the numbers are what tells one from another. Hand them
+ *  over as @p key and the node settles: equal keys mean equal drawings,
+ *  which is the same author contract `shapes::parametric(key, …)` and
+ *  `custom(key, …)` take.
+ *
+ *      .shape(keyedShape(std::tuple(radius, cut, mask),
+ *                        [=](SkSize s) { return panel(radius, cut, mask)(s); }))
+ *
+ *  ONE KEY MUST NAME ONE DRAWING. Anything the callable reads that is not
+ *  in the key is invisible to the prune, and a node that prunes replays
+ *  the picture it recorded — so a number left out of the key freezes at
+ *  whatever it was on the frame that recorded. Fold everything the body
+ *  reads into the key, or use the keyless form and pay per describe.
+ *
+ *  The key's type is part of the identity, as it is for every scheme: two
+ *  keyed shapes compare only when both the key type and the callable's
+ *  own type match, which is what makes a `std::tuple` of the closed-over
+ *  numbers the natural spelling. */
+template <std::equality_comparable K, typename F>
+  requires std::is_invocable_r_v<SkPath, const F&, SkSize>
+class KeyedShape {
+ public:
+  KeyedShape(K key, F fn) : m_key(std::move(key)), m_fn(std::move(fn)) {}
+  SkPath path(SkSize size) const { return m_fn(size); }
+  const K& key() const { return m_key; }
+  bool operator==(const KeyedShape& o) const { return m_key == o.m_key; }
+
+ private:
+  K m_key;
+  F m_fn;
+};
+
+template <std::equality_comparable K, typename F>
+  requires std::is_invocable_r_v<SkPath, const F&, SkSize>
+KeyedShape<K, F> keyedShape(K key, F fn) {
+  return KeyedShape<K, F>(std::move(key), std::move(fn));
+}
+
 /** A SPATIAL PATH for a node to ride — After Effects' motion model.
  *
  *  `translateX`/`translateY` are two independent lanes. Two lanes can
